@@ -2,14 +2,15 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { PAL } from '../../render/palette';
 import { PHYSICS } from '../../data/physics';
-import { LOOT_LOOK, lootColor } from '../../render/lootLook';
+import { CHASSIS } from '../../data/chassis';
+import { LOOT_LOOK, lightnessOf, lootColor, lootContrast } from '../../render/lootLook';
 import { emptyHidden } from '../../sim/salvage';
 import { emptyWorld, flatTerrain } from '../../sim/testkit';
-import { TERRITORIES } from '../../data/territory';
-import type { Obstacle, SalvageStock } from '../../sim/types';
-import { aimedBreach, BOW_BREACH, buildProp, ObstacleViews, paintShipGlow, REACTOR_GLOW } from './obstacles';
+import { TERRITORIES, WRECK_LOOKS } from '../../data/territory';
+import type { LandmarkLook, Obstacle, SalvageStock } from '../../sim/types';
+import { aimedBreach, BOW_BREACH, buildProp, lootSwatchesOf, ObstacleViews, paintShipGlow, REACTOR_GLOW } from './obstacles';
 import { initPhysics } from '../../phys/drive';
-import { loadModels } from './models';
+import { loadModels, model } from './models';
 import { RenderScope, SightLimit } from './scope';
 
 function groupOf(...names: string[]): THREE.Group {
@@ -110,6 +111,37 @@ describe('loot colors on props', () => {
     expect(colorsAt(root, 40)).toEqual(plainHulk);
   });
 
+  it('restores every swatch bit-exact and matches a never-lootable twin', () => {
+    const { root, views } = setup();
+    const twin = setup();
+    views.sync(obstacles, world(false, false, false), []);
+    twin.views.sync(obstacles, world(false, false, false), []);
+    views.sync(obstacles, world(true, true, true), []);
+    views.sync(obstacles, world(false, false, false), []);
+    for (const x of [10, 20, 40]) expect(colorsAt(root, x)).toEqual(colorsAt(twin.root, x));
+    root.traverse((o) => {
+      if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshLambertMaterial) expect(o.material.emissive.getHex()).toBe(0);
+    });
+  });
+
+  it('draws every surface of every lootable model clearly brighter', () => {
+    const terrain = flatTerrain(SIZE);
+    const looks: LandmarkLook[] = [...WRECK_LOOKS, 'house', 'ruin', 'silo', 'waterTower', 'gasStation'].filter((look): look is LandmarkLook => look !== 'rock');
+    const props: Obstacle[] = [
+      ...looks.map((look, i): Obstacle => ({ id: `look-${look}`, pos: { x: 10 + i, y: 20 }, r: 1, kind: 'landmark', look, yaw: 0 })),
+      ...Object.keys(CHASSIS).map((chassisId, i): Obstacle => ({ id: `wreck-hulk${i}`, pos: { x: 10 + i, y: 30 }, r: 0.9, kind: 'wreck', hulk: { chassisId, yaw: 0 } })),
+    ];
+    const cases = [...props.map((prop) => ({ id: prop.id, view: buildProp(terrain, prop) })), { id: 'pile', view: model('crates') }];
+    for (const { id, view } of cases) {
+      const swatches = lootSwatchesOf(view);
+      expect(swatches.length, id).toBeGreaterThan(0);
+      for (const { plain, loot } of swatches) {
+        expect(lootContrast(plain, loot), `${id} ${plain.toString(16)}`).toBeGreaterThanOrEqual(LOOT_LOOK.minContrast);
+        expect(lightnessOf(loot), id).toBeGreaterThan(lightnessOf(plain));
+      }
+    }
+  });
+
   it('draws a lootable hulk with more of its paint than a stripped one', () => {
     const { root, views } = setup();
     views.sync(obstacles, world(false, false, false), []);
@@ -161,6 +193,18 @@ describe('loot colors on props', () => {
     expect(crates.length).toBeGreaterThan(0);
     views.sync([], [], []);
     expect(colorsAt(root, 30, 30)).toEqual([]);
+  });
+
+  it('keeps a pile in its own scope chunk, away from the map origin', () => {
+    const root = new THREE.Group();
+    const limit = new SightLimit(SIZE);
+    const scope = new RenderScope(root, SIZE, limit, true, true);
+    const views = new ObstacleViews(scope, flatTerrain(SIZE));
+    views.sync([], [stock('pile-2', true, { pos: { x: 60, y: 60 }, pile: { until: 99, fromPlayer: true, basis: {} } })], []);
+    limit.set({ x: 0, y: 0, z: 0 }, 3 * PHYSICS.metersPerTile);
+    const camera = new THREE.OrthographicCamera(-2000, 2000, 2000, -2000, -5000, 5000);
+    scope.update(camera);
+    expect(root.children.filter((c) => c.name.startsWith('scope-chunk'))).toHaveLength(0);
   });
 
   it('throws when a lootable prop has no view', () => {
@@ -339,6 +383,27 @@ describe('reactor light', () => {
     const aim = spot.target.getWorldPosition(new THREE.Vector3()).applyMatrix4(inverse).sub(apex);
     const outward = new THREE.Vector3(0, 0, 1);
     expect(aim.angleTo(outward) + spot.angle).toBeLessThan(Math.PI / 2);
+  });
+
+  it('lights the floor where the reactor core reaches out of the breach', () => {
+    const { bowGroup, reactorGroup, root } = built();
+    const light = reactorAt.hazard?.core?.light;
+    if (!light) throw new Error('The Fallen Sun reactor has no breach light');
+    const spot = aimedBreach(bowGroup);
+    const centre = reactorGroup.getWorldPosition(new THREE.Vector3());
+    centre.x += (light.at.x - reactorAt.at.x) * S;
+    centre.z += (light.at.y - reactorAt.at.y) * S;
+    centre.y = bowGroup.getWorldPosition(new THREE.Vector3()).y;
+    const floor: Sample = { at: centre, normal: new THREE.Vector3(0, 1, 0), twoSided: false };
+    expect(reaches(spot, floor)).toBe(true);
+    const from = spot.getWorldPosition(new THREE.Vector3());
+    const ray = centre.clone().sub(from);
+    const raycaster = new THREE.Raycaster(from, ray.clone().normalize(), 0, ray.length());
+    expect(raycaster.intersectObjects(hullMeshes(bowGroup), false)).toEqual([]);
+    const inBow = centre.clone().applyMatrix4(bowGroup.matrixWorld.clone().invert());
+    expect(inBow.z).toBeGreaterThan(BOW_BREACH.out);
+    expect(Math.abs(inBow.x - BOW_BREACH.along)).toBeLessThan(BOW_BREACH.radius);
+    root.clear();
   });
 
   it('stands the reactor inside the bow, behind the breach (IV3)', () => {

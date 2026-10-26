@@ -1,13 +1,14 @@
 import { getUpkeepReserve } from './economy';
-import { HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, TRAITS } from '../data/npcs';
+import { DECISIONS, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, TRAITS } from '../data/npcs';
 import { partDef, type PartDef } from '../data/parts';
 import { REGION } from '../data/region';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { TERRAIN } from '../data/terrain';
 import { corePart, coreParts, mountedParts } from './grid';
 import { maxHp } from './wear';
-import { addGoods } from './inventory';
-import { canFlee, canRob, decide, fitToHunt, holdsUp, huntingGrounds, isWeak, judgeDanger, lawmanTowns, nearLawGate, raiderGrounds, optionChances, optionWeights } from './npc-decisions';
+import { addGoods, mountPart } from './inventory';
+import { makePart } from './factory';
+import { canFlee, canRob, decide, firepower, fitToHunt, holdsUp, huntingGrounds, isManageable, isWeak, judgeDanger, lawmanTowns, nearLawGate, raiderGrounds, optionChances, optionWeights } from './npc-decisions';
 import { isTerritory, siteGap, siteGates } from './sites';
 import { hazardZones, territoryEntries, territoryGrounds } from './territory';
 import { noteHurt, thinkNpc, topGoal } from './npc-activities';
@@ -17,7 +18,7 @@ import { playerVehicle } from './damage';
 import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, sizedUp } from './testkit';
 import { watchPost } from './watch-posts';
 import type { TraitId } from '../data/npcs';
-import type { Faction, Vehicle, World } from './types';
+import type { Faction, NpcActivity, Vehicle, World } from './types';
 import { dist, polylineDist, type Vec } from './vec';
 import { fuelCap, isStranded } from './stats';
 import { getResources } from './resources';
@@ -64,6 +65,75 @@ describe('decision weights', () => {
     for (let i = 0; i < draws; i++) if (decide(w, scav, 'contactHeard', w.player.vehicleId, null) === 'investigate') picked++;
     expect(picked / draws).toBeGreaterThan(0.005);
     expect(picked / draws).toBeLessThan(0.018);
+  });
+
+  describe('a driver bound for a deal', () => {
+    const dealGoals: NpcActivity[] = [
+      { kind: 'meet', targetId: null, destination: { x: 20, y: 10 }, phase: 'travel', reason: 'pickUpAid' },
+      { kind: 'patch', targetId: null, destination: { x: 20, y: 10 }, phase: 'travel', reason: 'patchTruck' },
+      { kind: 'tow', targetId: null, destination: { x: 20, y: 10 }, phase: 'travel', reason: 'helpStranded' },
+    ];
+
+    function setup(goal: NpcActivity | null) {
+      const w = emptyWorld({ x: 200, y: 200 });
+      const courier = addNpc(w, 'independent', 'courier', ['trader'], { x: 10, y: 10 });
+      const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: 150, y: 10 });
+      raider.brain = npcBrain('raider', raider.pos, ['raider']);
+      if (goal) courier.brain!.goals.push({ ...goal });
+      return { w, courier, raider };
+    }
+
+    for (const goal of dealGoals) {
+      it(`keeps on with a ${goal.kind} on top when a hostile it hears is not aimed at it`, () => {
+        const idle = setup(null);
+        const deal = setup(goal);
+        const before = optionWeights(idle.w, idle.courier, 'contactHeard', idle.raider.id, null);
+        const after = optionWeights(deal.w, deal.courier, 'contactHeard', deal.raider.id, null);
+        expect(after.keep).toBeCloseTo(before.keep! * NPC_BEHAVIOR.keepWork);
+        expect(after.flee).toBeCloseTo(before.flee!);
+      });
+    }
+
+    it('flees as an idle driver does when the hostile holds a fight goal on it', () => {
+      const idle = setup(null);
+      const deal = setup(dealGoals[0]);
+      deal.raider.brain!.goals.push({ kind: 'fight', targetId: deal.courier.id, destination: { ...deal.courier.pos }, phase: 'travel', reason: 'fightHostile', worn: { turn: 0, condition: 1 } });
+      expect(optionWeights(deal.w, deal.courier, 'contactHeard', deal.raider.id, null)).toEqual(optionWeights(idle.w, idle.courier, 'contactHeard', idle.raider.id, null));
+    });
+
+    it('flees as an idle driver does when the hostile is among its attackers', () => {
+      const idle = setup(null);
+      const deal = setup(dealGoals[0]);
+      deal.courier.brain!.attackers[deal.raider.id] = true;
+      expect(optionWeights(deal.w, deal.courier, 'contactHeard', deal.raider.id, null)).toEqual(optionWeights(idle.w, idle.courier, 'contactHeard', idle.raider.id, null));
+    });
+
+    it('gets the plain weights when its truck is weak', () => {
+      const idle = setup(null);
+      const deal = setup(dealGoals[0]);
+      for (const side of [idle, deal]) getResources(side.w, side.courier).health = 0;
+      expect(isWeak(deal.w, deal.courier)).toBe(true);
+      expect(optionWeights(deal.w, deal.courier, 'contactHeard', deal.raider.id, null)).toEqual(optionWeights(idle.w, idle.courier, 'contactHeard', idle.raider.id, null));
+    });
+
+    it('is not eager to fight a manageable hostile it sees', () => {
+      const idle = setup(null);
+      const deal = setup(dealGoals[0]);
+      idle.raider.pos = { x: 14, y: 10 };
+      deal.raider.pos = { x: 14, y: 10 };
+      const danger = judgeDanger(idle.w, idle.courier, idle.raider);
+      expect(isManageable(idle.courier, danger)).toBe(true);
+      const eager = optionWeights(idle.w, idle.courier, 'hostileSeen', idle.raider.id, danger).fight;
+      const bound = optionWeights(deal.w, deal.courier, 'hostileSeen', deal.raider.id, danger).fight;
+      expect(bound).toBeCloseTo(eager! / NPC_BEHAVIOR.manageableFight);
+    });
+
+    it('flees a heard hostile under 2.5 in 100 over 5000 rolls', () => {
+      const { w, courier, raider } = setup(dealGoals[0]);
+      let fled = 0;
+      for (let i = 0; i < 5000; i++) if (decide(w, courier, 'contactHeard', raider.id, null) === 'flee') fled++;
+      expect(fled / 5000).toBeLessThan(0.025);
+    });
   });
 
   it('offers a raid only to raiders', () => {
@@ -296,6 +366,17 @@ describe('fit to hunt', () => {
     const { w, v } = raider();
     v.items = v.items.filter((it) => !(it.kind === 'part' && partDef(it.part.defId).kind === 'weapon'));
     expect(fitToHunt(w, v)).toBe(false);
+  });
+
+  it('fails with only a harpoon, and holds again beside a real gun', () => {
+    const { w, v } = raider();
+    v.items = v.items.filter((it) => !(it.kind === 'part' && partDef(it.part.defId).kind === 'weapon'));
+    expect(mountPart(w, v, makePart(w, 'harpoon', 0))).toBe(true);
+    expect(firepower(w, v)).toBe(0);
+    expect(fitToHunt(w, v)).toBe(false);
+    expect(mountPart(w, v, makePart(w, 'mg', 0))).toBe(true);
+    expect(firepower(w, v)).toBeGreaterThan(0);
+    expect(fitToHunt(w, v)).toBe(true);
   });
 
   it('fails with the body at the recover condition', () => {
@@ -581,6 +662,82 @@ describe('truce offers', () => {
   it('a weak driver pleads far more often than a winning one', () => {
     const pleads = (c: ReturnType<typeof duel>) => c.truce! + c.beg!;
     expect(pleads(duel(true, 1))).toBeGreaterThan(pleads(duel(true, null)) * 5);
+  });
+});
+
+describe('losing drivers break off', () => {
+  const MAX_CAB = (v: Vehicle) => maxHp(corePart(v, 'cab'));
+
+  function fight(chassis: string, dx: number, cab: number, traits: TraitId[], opts: { faction?: Faction; template?: string; health?: number } = {}) {
+    const w = emptyWorld({ x: 80, y: 80 });
+    const me = find(w, w.player.vehicleId);
+    const npc = addVehicle(w, opts.faction ?? 'scrapjaw', chassis, ['autocannon', 'stockEngine'], { x: 80 + dx, y: 80 });
+    npc.brain = npcBrain(opts.template ?? 'gunwagon', npc.pos, traits);
+    corePart(npc, 'cab').hp = MAX_CAB(npc) * cab;
+    if (opts.health !== undefined) getResources(w, npc).health = RULES.maxHealth * opts.health;
+    const danger = judgeDanger(w, npc, me);
+    const chances = (decision: 'parley' | 'attacked') => optionChances(optionWeights(w, npc, decision, me.id, danger));
+    const weights = (decision: 'parley' | 'attacked') => optionWeights(w, npc, decision, me.id, danger);
+    return { w, me, npc, chances, weights };
+  }
+
+  it('a raider at half that can outrun the foe flees far more than a healthy one', () => {
+    const healthy = fight('courier', 14, 1, ['raider']).weights('parley');
+    const hurt = fight('courier', 14, 0.45, ['raider']).weights('parley');
+    expect(hurt.flee!).toBeGreaterThan(healthy.flee! * 100);
+    expect(fight('courier', 14, 0.45, ['raider']).chances('parley').flee!).toBeGreaterThan(0.1);
+  });
+
+  it('a raider at half that cannot outrun the foe pleads and gets no flee boost', () => {
+    const trapped = fight('buggy', 6, 0.45, ['raider']);
+    const weights = trapped.weights('parley');
+    expect(weights.flee!).toBeLessThanOrEqual(DECISIONS.parley.flee);
+    const chances = trapped.chances('parley');
+    expect(chances.truce! + chances.beg!).toBeGreaterThan(0.08);
+  });
+
+  it('a raider whose plea was refused runs when it can get away', () => {
+    const { w, me, npc, chances } = fight('courier', 14, 0.45, ['raider']);
+    addState(w, 'plea', npc.id, me.id, { kind: 'plea', plea: 'truce', answered: true });
+    const c = chances('parley');
+    expect(c.flee!).toBeGreaterThan(c.truce!);
+    expect(c.flee!).toBeGreaterThan(c.beg!);
+    expect(c.flee!).toBeGreaterThan(0.1);
+  });
+
+  it('a trader at half that cannot get away pleads often', () => {
+    const c = fight('buggy', 6, 0.45, ['trader'], { faction: 'independent', template: 'trader' }).chances('parley');
+    expect(c.truce! + c.beg!).toBeGreaterThan(0.3);
+  });
+
+  it('a driver above half gets the weights of an unhurt one', () => {
+    for (const [chassis, dx] of [['courier', 14], ['buggy', 6]] as const) {
+      const fresh = fight(chassis, dx, 1, ['raider']);
+      const bruised = fight(chassis, dx, 0.6, ['raider']);
+      expect(bruised.weights('parley')).toEqual(fresh.weights('parley'));
+      expect(bruised.weights('attacked')).toEqual(fresh.weights('attacked'));
+    }
+  });
+
+  it('a hurt driver with a whole truck counts as losing', () => {
+    const healthy = fight('courier', 14, 1, ['raider']).weights('parley');
+    const hurt = fight('courier', 14, 1, ['raider'], { health: 0.45 }).weights('parley');
+    expect(hurt.flee!).toBeGreaterThan(healthy.flee! * 100);
+  });
+
+  it('a brave raider at half still almost never runs', () => {
+    const plain = fight('courier', 14, 0.45, ['raider']).chances('parley').flee!;
+    const brave = fight('courier', 14, 0.45, ['raider', 'brave']).chances('parley').flee!;
+    expect(brave).toBeLessThan(0.03);
+    expect(brave).toBeLessThan(plain / 5);
+  });
+
+  it('a hurt trader flees when shot at only if it can get away', () => {
+    const trader = { faction: 'independent', template: 'trader' } as const;
+    const gets = (cab: number) => fight('courier', 14, cab, ['trader'], trader).weights('attacked').flee!;
+    expect(gets(0.45)).toBeGreaterThan(gets(1) * 10);
+    const trapped = (cab: number) => fight('buggy', 6, cab, ['trader'], trader).weights('attacked').flee!;
+    expect(trapped(0.45)).toBeLessThanOrEqual(trapped(1) * 1.5);
   });
 });
 

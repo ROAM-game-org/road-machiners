@@ -1,6 +1,6 @@
 import { chassisDef } from '../data/chassis';
 import { FORTRESS } from '../data/fortress';
-import { FURY_ROAD, HAZARDS, HIGHWAY, type Range, type SceneKind } from '../data/modes';
+import { CHAOS_HIGHWAY, HAZARDS, HIGHWAY, type Range, type SceneKind } from '../data/modes';
 import { NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { HAULER_KIT, START_KITS } from '../data/start';
@@ -384,9 +384,9 @@ let widest: number | null = null;
 
 export function passageInflate(): number {
   widest ??= Math.max(
-    chassisDef(START_KITS.furyRoad.chassis).radius,
+    chassisDef(START_KITS.chaosHighway.chassis).radius,
     chassisDef(HAULER_KIT.chassis).radius,
-    ...Object.keys(FURY_ROAD.cards).flatMap((id) => NPCS[id].loadout.chassis.map((c) => chassisDef(c.value).radius)),
+    ...Object.keys(CHAOS_HIGHWAY.cards).flatMap((id) => NPCS[id].loadout.chassis.map((c) => chassisDef(c.value).radius)),
   );
   return widest + H.inflate;
 }

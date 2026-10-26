@@ -5,10 +5,10 @@ import { modeRulesOf } from "../sim/settings";
 
 describe("entryEnabled", () => {
   const states = [
-    { busy: false, hasSave: false, expected: { new: true, save: true, unstuck: true, load: false, options: true, tips: true, help: true, camera: true, report: true } },
-    { busy: false, hasSave: true, expected: { new: true, save: true, unstuck: true, load: true, options: true, tips: true, help: true, camera: true, report: true } },
-    { busy: true, hasSave: false, expected: { new: false, save: false, unstuck: false, load: false, options: true, tips: true, help: true, camera: true, report: true } },
-    { busy: true, hasSave: true, expected: { new: false, save: false, unstuck: false, load: false, options: true, tips: true, help: true, camera: true, report: true } },
+    { busy: false, hasSave: false, expected: { new: true, save: true, unstuck: true, load: false, options: true, tips: true, help: true, report: true } },
+    { busy: false, hasSave: true, expected: { new: true, save: true, unstuck: true, load: true, options: true, tips: true, help: true, report: true } },
+    { busy: true, hasSave: false, expected: { new: false, save: false, unstuck: false, load: false, options: true, tips: true, help: true, report: true } },
+    { busy: true, hasSave: true, expected: { new: false, save: false, unstuck: false, load: false, options: true, tips: true, help: true, report: true } },
   ];
   for (const { busy, hasSave, expected } of states) {
     it(`busy ${busy}, saved ${hasSave}`, () => {
@@ -17,6 +17,17 @@ describe("entryEnabled", () => {
       }
     });
   }
+});
+
+describe("map key", () => {
+  const rows = controlsFor(modeRulesOf("roaming")).flatMap((g) => g.controls);
+
+  it("is M, and no help row names K or a mute key", () => {
+    const map = rows.find((c) => resolve(c.does, "en") === "Map");
+    expect(map?.keys).toEqual(["M"]);
+    expect(rows.some((c) => c.keys.includes("K"))).toBe(false);
+    expect(rows.some((c) => resolve(c.does, "en") === "Mute")).toBe(false);
+  });
 });
 
 describe("entryReason", () => {
@@ -31,11 +42,11 @@ describe("entryReason", () => {
 });
 
 describe("the help rows of a mode", () => {
-  const radioRows = (mode: "roaming" | "furyRoad") =>
+  const radioRows = (mode: "roaming" | "chaosHighway") =>
     controlsFor(modeRulesOf(mode)).flatMap((g) => g.controls).filter((c) => c.keys.some((k) => k === "T" || k === "H" || k === "9"));
 
   it("leave out the radio, reply and honk keys where there is no radio", () => {
-    expect(radioRows("furyRoad")).toEqual([]);
+    expect(radioRows("chaosHighway")).toEqual([]);
   });
 
   it("keep them in Roaming", () => {

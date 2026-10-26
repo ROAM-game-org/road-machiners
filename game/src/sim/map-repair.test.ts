@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { chassisDef } from '../data/chassis';
+import { REGION } from '../data/region';
 import { CHEATS } from '../data/rules';
 import { startKit } from '../data/start';
 import { TIME } from '../data/time';
@@ -8,11 +9,14 @@ import { reusedWorld } from '../test/world-cache';
 import { playerVehicle } from './damage';
 import { freeSpotNear } from './free-spot';
 import { isBakedObstacle, isBreakable, mapObstacles } from './mapgen';
+import { getActivityDestination } from './npc-activities';
+import { nearestPad } from './sites';
 import { fitBake, repairMap, settleTrucks, type SavedMapWorld } from './map-repair';
 import { isRoadWreck, oldSpotOf, oldSpotPicks, oldStockId, renewSalvage, stockOldSpots } from './salvage';
 import { defaultSetup } from './settings';
 import { fillHollow, isFree } from './spawn';
-import { hollowBays, isHollowObstacle, membersOf } from './sunward';
+import { hollowBays, isHollowObstacle } from './hollow-layout';
+import { membersOf } from './sunward';
 import { surveySites } from './survey';
 import { isLootSpot } from './territory';
 import { addVehicle, npcBrain } from './testkit';
@@ -354,6 +358,10 @@ describe('repairMap references to dropped stocks and sites', () => {
     const stray = { ...w.salvage.find((s) => s.id === oldStockId(first))!, id: oldStockId({ type: first.type, propId: '99999' }) };
     w.salvage = [...w.salvage.filter((s) => s.id !== oldStockId(second)), stray];
     w.player.contracts = [claim('ct-stray', stray.id), survey('ct-survey', ['survey-gone-1', surveySites(TEST_MAP)[0].id], false)];
+    w.player.pastContracts = [
+      { contract: survey('ct-past', ['survey-gone-4', surveySites(TEST_MAP)[0].id], false), outcome: 'lapsed', turn: 5, amount: 0 },
+      { contract: survey('ct-past-lost', ['survey-gone-5'], false), outcome: 'failed', turn: 6, amount: 0 },
+    ];
 
     fitBake(w, TEST_MAP);
     stockOldSpots(w, TEST_MAP);
@@ -362,6 +370,8 @@ describe('repairMap references to dropped stocks and sites', () => {
     expect(w.salvage.some((s) => s.id === oldStockId(second))).toBe(true);
     expect(w.player.contracts.map((c) => c.id)).toEqual(['ct-survey']);
     expect((w.player.contracts[0] as Extract<Contract, { kind: 'survey' }>).points.map((p) => p.site)).toEqual([surveySites(TEST_MAP)[0].id]);
+    expect(w.player.pastContracts.map((p) => p.contract.id)).toEqual(['ct-past', 'ct-stray']);
+    expect((w.player.pastContracts[0].contract as Extract<Contract, { kind: 'survey' }>).points.map((p) => p.site)).toEqual([surveySites(TEST_MAP)[0].id]);
     expect(w.events.flatMap((e) => (e.t === 'contract' ? [[e.contract.id, e.outcome]] : []))).toEqual([['ct-stray', 'lapsed']]);
   });
 
@@ -395,5 +405,30 @@ describe('repairMap references to dropped stocks and sites', () => {
     expect(moved.brain!.goals.map((g) => g.targetId)).toEqual(['wreck0']);
     expect(moved.job).toBeNull();
     expect(out.states).toEqual([]);
+  });
+});
+
+describe('repairMap moved town gates', () => {
+  const OLD_NOSE_PAD = { x: 634.5, y: 208.05 };
+  const nose = REGION.towns.find((t) => t.id === 'nose')!;
+
+  it('carries a save from the old bake past the moved Nose gates and awards nothing (IV8)', () => {
+    const w = base();
+    const me = playerVehicle(w);
+    me.pos = { ...OLD_NOSE_PAD };
+    const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 600, y: 230 });
+    npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    npc.brain.goals = [{ kind: 'travel', targetId: 'nose', destination: { ...OLD_NOSE_PAD }, phase: 'travel', reason: 'tripToSite' }];
+    const money = w.player.money;
+
+    const out = repairMap(savedOf(w), TEST_MAP);
+
+    const moved = out.vehicles.find((v) => v.id === npc.id)!;
+    const stop = getActivityDestination(out, moved, moved.brain!.goals[0])!;
+    const pad = nearestPad(nose, stop);
+    expect(dist(stop, pad)).toBeLessThan(REGION.sites.pad.length / 2);
+    expect(dist(playerVehicle(out).pos, OLD_NOSE_PAD) > 0 || isFree(out, playerVehicle(out).pos, 0.5, me.id)).toBe(true);
+    expect(out.player.money).toBe(money);
+    expect(out.events.filter((e) => ['stall', 'practice', 'money'].includes(e.t))).toEqual([]);
   });
 });

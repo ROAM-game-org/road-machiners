@@ -1,8 +1,10 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseStage } from './jobs';
+import { solidPng } from './media-fixtures';
 import { readLedger } from './ledger';
 import { readObservation, type SchedulerData } from './observability';
 import { resumedStage } from './sessions';
@@ -285,6 +287,8 @@ function harness(job: Job | null, alive: boolean, cards: Card[] = [], comments: 
   const dir = mkdtempSync(join(tmpdir(), 'tick-'));
   mkdirSync(join(dir, 'codex'));
   writeFileSync(join(dir, 'codex/auth.json'), '{}');
+  mkdirSync(join(dir, 'agy'));
+  writeFileSync(join(dir, 'agy/antigravity-oauth-token'), '{}');
   const statePath = join(dir, 'state.json');
   writeState(statePath, state({ jobs: job ? [job] : [] }));
   const sent: string[] = [];
@@ -293,7 +297,7 @@ function harness(job: Job | null, alive: boolean, cards: Card[] = [], comments: 
   const killed: string[] = [];
   const spawned: string[][] = [];
   const pinned: string[] = [];
-  const github = { cards: async () => cards, candidates: async () => [], addLabel: async (n: number, l: string) => { labels.push(`${n}:${l}`); }, comments: async () => comments, removeLabel: async (n: number, l: string) => { removed.push(`${n}:${l}`); } };
+  const github = { cards: async () => cards, card: async (n: number) => cards.find((row) => row.issue === n) ?? null, candidates: async () => [], addLabel: async (n: number, l: string) => { labels.push(`${n}:${l}`); }, comments: async () => comments, removeLabel: async (n: number, l: string) => { removed.push(`${n}:${l}`); } };
   const telegram = { sendMessage: async (_chat: string, text: string) => { sent.push(text); return 1; } };
   const cfg = { home: dir, webRoot: join(dir, 'web'), repo: 'o/r', committeeChat: 'c', triageTimeoutMinutes: 30, designTimeoutMinutes: 30, implementTimeoutMinutes: 120, verifyTimeoutMinutes: 30, testTimeoutMinutes: 30, branchTimeoutMinutes: 30, mergeTimeoutMinutes: 30, replyRouteMinutes: 15, needsInfoHours: 24, minFreeGb: 0.001, minAvailableGb: 1, logDays: 14, transcriptDays: 10,cpuLight: 0.25, cpuImplement: 0.25, cpuTest: 0.5, vitestWorkersImplement: 2, vitestWorkersTest: 4, ...CFG };
   const repo = { fetch: async () => {},headHash: async (branch: string) => { if (branch === RELEASE.branch) return 'rel0001'; if (branch === 'main') return 'main0001'; if (branch !== 'dev') throw new Error(`unexpected branch ${branch}`); return devHead; } };
@@ -372,6 +376,16 @@ describe('tick', () => {
     expect(readState(h.ctx.statePath).stuck).toMatchObject({ 6: { kind: 'merge-batch', tries: 1 }, 7: { kind: 'merge-batch', tries: 0 }, 8: { kind: 'unrecorded' } });
   });
 
+  it('removes the voting label of a Triage card with no proposal after the stuck sweep, and reports a failed revival as a public failure', async () => {
+    const h = harness(null, false, [card(3, 'Triage', [VOTING_LABEL])]);
+    await tick(h.ctx, '/code', h.deps);
+    expect(h.removed).toEqual([`3:${VOTING_LABEL}`]);
+    const failing = harness(null, false, [card(3, 'Triage', [VOTING_LABEL])]);
+    failing.ctx.github.removeLabel = async () => { throw new Error('gh issue edit failed'); };
+    await tick(failing.ctx, '/code', failing.deps);
+    expect(readState(failing.ctx.statePath).failures).toMatchObject([{ stage: 'public', issue: null, error: 'gh issue edit failed' }]);
+  });
+
   it('kills a job past the timeout by its id, clears it and reports, when it already resumed once', async () => {
     const h = harness(job('2026-01-10T11:00:00Z'), true);
     writeState(h.ctx.statePath, state({ jobs: [job('2026-01-10T11:00:00Z')], interrupted: [5] }));
@@ -424,10 +438,33 @@ describe('tick', () => {
     expect(existsSync(join(h.ctx.cfg.home, 'work', 'issue-9'))).toBe(false);
   });
 
+  it('keeps the clone of a card the board list omits, since its own issue shows it open', async () => {
+    const h = harness(null, true, [card(8, 'Design')]);
+    mkdirSync(join(h.ctx.cfg.home, 'work', 'issue-9'), { recursive: true });
+    h.ctx.github.card = async (n: number) => (n === 9 ? card(9, 'Design') : null);
+    await tick(h.ctx, '/code', h.deps);
+    expect(existsSync(join(h.ctx.cfg.home, 'work', 'issue-9'))).toBe(true);
+  });
+
+  it('keeps the clone of a card whose own issue cannot be read', async () => {
+    const h = harness(null, true, [card(8, 'Design'), card(5, 'Done')]);
+    mkdirSync(join(h.ctx.cfg.home, 'work', 'issue-9'), { recursive: true });
+    h.ctx.github.card = async () => { throw new Error('HTTP 502'); };
+    await tick(h.ctx, '/code', h.deps);
+    expect(existsSync(join(h.ctx.cfg.home, 'work', 'issue-9'))).toBe(true);
+  });
+
   it('stops the tick before it starts a job when Codex has no login', async () => {
     const h = harness(null, true, [card(8, 'Design')]);
     rmSync(join(h.ctx.cfg.home, 'codex'), { recursive: true });
     await expect(tick(h.ctx, '/code', h.deps)).rejects.toThrow('codex/auth.json is missing');
+    expect(h.spawned).toEqual([]);
+  });
+
+  it('stops the tick before it starts a job when agy has no login', async () => {
+    const h = harness(null, true, [card(8, 'Design')]);
+    rmSync(join(h.ctx.cfg.home, 'agy'), { recursive: true });
+    await expect(tick(h.ctx, '/code', h.deps)).rejects.toThrow('agy/antigravity-oauth-token is missing');
     expect(h.spawned).toEqual([]);
   });
 
@@ -618,6 +655,20 @@ describe('tick', () => {
     expect(h.removed).toEqual([`8:${NEEDS_INFO_LABEL}`]);
     expect(args(h)).toEqual([['triage', '8']]);
     expect(readState(h.ctx.statePath).asked).toEqual({});
+  });
+
+  it('takes the image a member sent to the questions post into the issue media when the questions are answered on GitHub', async () => {
+    const h = harness(null, false, [card(8, 'Triage', [NEEDS_INFO_LABEL])], [{ login: 'anna', body: 'This', createdAt: hoursAgo(0.5), byFactory: false }]);
+    writeState(h.ctx.statePath, state({ asked: { 8: hoursAgo(1) }, questionPosts: { 77: 8 } }));
+    const photo = solidPng(2, 3, [7, 7, 7]);
+    Object.assign(h.ctx.telegram, { downloadFile: async () => photo });
+    mkdirSync(join(h.ctx.cfg.home, 'inbox', 'media', 'post-77'), { recursive: true });
+    writeFileSync(join(h.ctx.cfg.home, 'inbox', 'media', 'post-77', '3600-1.telegram'), JSON.stringify({ fileId: 'AgAC', by: '1', byName: 'Ann', text: 'This but with closed cabin' }));
+    await tick(h.ctx, '/code', h.deps);
+    const sha = createHash('sha256').update(photo).digest('hex');
+    expect(readFileSync(join(h.ctx.cfg.home, 'media', 'issue-8', 'committee', `${sha.slice(0, 16)}.png`))).toEqual(photo);
+    expect(existsSync(join(h.ctx.cfg.home, 'inbox', 'media', 'post-77'))).toBe(false);
+    expect(readState(h.ctx.statePath).questionPosts).toEqual({});
   });
 
   it('keeps needs-info while only the factory or an earlier comment is on the issue and starts nothing', async () => {

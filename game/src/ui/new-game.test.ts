@@ -81,7 +81,7 @@ describe("the New game screen", () => {
     expect(screen.textContent).toContain("New game");
     expect(roaming.attrs["aria-checked"]).toBe("true");
     expect(roaming.textContent).toContain("The open wasteland");
-    expect(screen.button("World Settings")).toBeDefined();
+    expect(screen.button("World settings")).toBeDefined();
     expect(screen.button("Back")).toBeDefined();
     expect(screen.button("Start").focused).toBe(1);
   });
@@ -90,11 +90,11 @@ describe("the New game screen", () => {
     const { screen } = open();
     const section = screen.all((n) => n.className === "world-settings")[0];
     expect(section.hidden).toBe(true);
-    screen.button("World Settings").fire("click");
+    screen.button("World settings").fire("click");
 
     expect(section.hidden).toBe(false);
     expect(screen.all((n) => n.attrs["data-setting"] === "enemyGearGrowth")).toEqual([]);
-    screen.all((n) => n.attrs["data-mode"] === "furyRoad")[0].fire("click");
+    screen.all((n) => n.attrs["data-mode"] === "chaosHighway")[0].fire("click");
     for (const [id, def] of Object.entries(WORLD_SETTINGS)) {
       const slider = screen.slider(id);
       expect([slider.attrs.min, slider.attrs.max, slider.attrs.step, slider.attrs.value]).toEqual([def.min, def.max, def.step, def.default].map(String));
@@ -188,13 +188,13 @@ describe("the New game screen", () => {
     expect(actions.reload).toHaveBeenCalledTimes(1);
   });
 
-  it("starts a Fury Road run with the picked enemy gear growth", () => {
+  it("starts a Chaos Highway run with the picked enemy gear growth", () => {
     const { screen, slide, requests } = open(true);
-    screen.all((n) => n.attrs["data-mode"] === "furyRoad")[0].fire("click");
+    screen.all((n) => n.attrs["data-mode"] === "chaosHighway")[0].fire("click");
     slide("enemyGearGrowth", 0.5);
     screen.button("Start").fire("click");
 
-    expect(requests).toEqual([{ new: { mode: "furyRoad", settings: { damage: 1, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 0.5 } }, intro: true }]);
+    expect(requests).toEqual([{ new: { mode: "chaosHighway", settings: { damage: 1, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 0.5 } }, intro: true }]);
   });
 
   it("refuses to start with a value off the slider's grid", () => {

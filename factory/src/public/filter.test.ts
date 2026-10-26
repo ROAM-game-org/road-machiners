@@ -127,6 +127,39 @@ describe('filterWith', () => {
     expect(bodyOf(sent).questions.map((question: { name: string }) => question.name)).toEqual(['intent', 'kind', 'language']);
   });
 
+  it('asks the bot whether to file a clear bug report that names no filing verb, like chat message 387 (#756)', async () => {
+    const text = '@road_machiners_bot машина может застрять после столкновения с объектами в мире (камни, здания), выехать не получается в обоих режимах (авто ручно) нужен фикс';
+    const { fetch, sent } = fake(200, answers(intent(0.96, 0.03, 0.01), pick('kind', 'bug'), pick('filing', 'yes'), pick('language', 'ru')));
+    expect(await filterWith(CFG, fetch)({ source: 'message', text, addressed: true })).toMatchObject({ verdict: 'accept', kind: 'bug', filing: true, language: 'ru' });
+    const filing = bodyOf(sent).questions.find((question: { name: string }) => question.name === 'filing');
+    expect(filing.instructions).toContain('A clear report of something broken in the game is a request to file it, even with no word like file or report');
+    expect(filing.instructions).toContain('An idea is filed only when the player explicitly asks');
+    const [yes, no] = filing.choices as { value: string; description: string }[];
+    expect(yes!.value).toBe('yes');
+    expect(yes!.description).toContain('will not drive out in auto or manual mode');
+    expect(no!.value).toBe('no');
+    for (const passing of ['"@bot hi."', '"@bot cool game."', '"@bot is the bridge bug fixed yet?"', '"@bot add a minimap?"']) expect(no!.description).toContain(passing);
+  });
+
+  it('judges sincerity of message 502, an ask to file the bug it replies to, together with the replied report (#860)', async () => {
+    const text = '@road_machiners_bot запиши этот баг';
+    const context = 'когда тараню, машину откидывает назад и она застревает';
+    const { fetch, sent } = fake(200, answers(intent(0.9, 0.07, 0.03), pick('kind', 'bug'), pick('filing', 'yes'), pick('language', 'ru')));
+    expect(await filterWith(CFG, fetch)({ source: 'message', text, context, addressed: true })).toMatchObject({ verdict: 'accept', intent: 'sincere', kind: 'bug', filing: true });
+    const body = bodyOf(sent);
+    expect(body.input).toContain(`Replying to: ${context}\n\nPlayer text: ${text}`);
+    const sincerity = body.questions.find((question: { name: string }) => question.name === 'intent');
+    expect(sincerity.instructions).toContain('Read it together with the message it replies to');
+    const sincere = (sincerity.choices as { value: string; description: string }[]).find((option) => option.value === 'sincere');
+    expect(sincere!.description).toContain('"@bot file this bug please."');
+  });
+
+  it('never asks or sets filing for a bug report that did not address the bot', async () => {
+    const { fetch, sent } = fake(200, answers(intent(0.96, 0.03, 0.01), pick('kind', 'bug'), pick('filing', 'yes'), pick('language', 'ru')));
+    expect(await filterWith(CFG, fetch)({ source: 'message', text: 'машина застревает после столкновения с камнем', addressed: false })).toMatchObject({ kind: 'bug', filing: false });
+    expect(bodyOf(sent).questions.map((question: { name: string }) => question.name)).toEqual(['intent', 'kind', 'language']);
+  });
+
   it('asks a message to the bot whether it asks to file, and files only on yes', async () => {
     const at = (picked: string) => {
       const { fetch, sent } = fake(200, answers(intent(0.95, 0.03, 0.02), pick('kind', 'feature'), pick('filing', picked), pick('language', 'en')));

@@ -1,4 +1,5 @@
 
+import { chaosHighwayMode_113_114 } from './save-steps-late';
 import type { SaveSlots } from './save-db';
 
 import { QUESTS, startQuest } from '../sim/quests';
@@ -41,7 +42,7 @@ function infoOf(slot: SlotId, envelope: unknown): SlotInfo {
 type SavedWorld = { turn?: unknown; setup?: { mode?: unknown } };
 
 function savedMode(world: SavedWorld | undefined): GameModeId | null {
-  const mode = world?.setup?.mode;
+  const mode = chaosHighwayMode_113_114(world?.setup?.mode);
   return isMode(mode) ? mode : null;
 }
 

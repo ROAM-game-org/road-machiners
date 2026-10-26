@@ -10,9 +10,10 @@ import { inCombat } from "./combat";
 import { playerVehicle } from "./damage";
 import { partValue } from "./wear";
 import { corePart, coreParts, freeCells, goodsCount, isMounted, itemSize, mountedParts } from "./grid";
-import { addGoods, applyRefitLayout, getRefitLayout, removeGoods, stowPart } from "./inventory";
+import { addGoods, applyRefitLayout, getRefitLayout, NOTHING_TAKEN, refitStepLayout, refitStepWork, removeGoods, startRefitStep, stowPart } from "./inventory";
 import { makePart } from "./factory";
 import { promisedParts } from "./patch";
+import { requireSpareGoods, spareGoods } from "./market";
 import { isJunk, maxHp } from "./wear";
 import { repairPlan, repairTurn } from "./repair";
 import { hasBasic, practice, vehicleHasPerk } from "./progress";
@@ -20,7 +21,7 @@ import { finishTruckPickup } from "./salvage";
 import { isSearchStalled, searchTurn } from "./search";
 import { isSurveyStalled, surveyTurn } from "./survey";
 import { hasWorkingUtility } from "./utility";
-import type { GridItem, Job, PartInstance, RefitJob, RefitPickup, Refusal, Vehicle, World } from "./types";
+import type { GridItem, Job, PartInstance, RefitJob, RefitPickup, RefitStep, Refusal, Vehicle, World } from "./types";
 import { getKnownSite } from "./npc-decisions";
 import { canUseSite } from "./sites";
 import { playerCommand, Refused } from "./world";
@@ -117,12 +118,7 @@ function patchRank(v: Vehicle, part: PartInstance): number {
 }
 
 function freeParts(world: World, v: Vehicle): number {
-  return (goodsCount(v).parts ?? 0) - promisedParts(world, v) - hauledParts(world, v);
-}
-
-function hauledParts(world: World, v: Vehicle): number {
-  if (v.id !== world.player.vehicleId) return 0;
-  return world.player.contracts.reduce((sum, c) => sum + (c.kind === "haul" && c.good === "parts" ? c.units : 0), 0);
+  return spareGoods(world, v, "parts") - promisedParts(world, v);
 }
 
 function canAutoPatch(world: World, v: Vehicle): boolean {
@@ -176,7 +172,8 @@ export function startWeld(world: World): World {
   return playerCommand(world, (w) => {
     const v = playerVehicle(w);
     if (!vehicleHasPerk(w, v, "welder")) throw new Error("Welding needs the Welder perk");
-    if (!hasWeldScrap(v)) throw new Error(`Welding needs ${PERK_NUMBERS.welder.scrap} scrap metal`);
+    if ((goodsCount(v).scrap ?? 0) < PERK_NUMBERS.welder.scrap) throw new Error(`Welding needs ${PERK_NUMBERS.welder.scrap} scrap metal`);
+    requireSpareGoods(w, v, "scrap", PERK_NUMBERS.welder.scrap);
     if (!weldFits(v)) throw new Refused({ id: "noCargoRoom" });
     const turns = PERK_NUMBERS.welder.turns;
     startJob(w, v, { kind: "weld", turnsLeft: turns, total: turns });
@@ -216,8 +213,8 @@ function firstAidTurn(world: World, v: Vehicle, job: Extract<Job, { kind: "first
   return false;
 }
 
-function hasWeldScrap(v: Vehicle): boolean {
-  return (goodsCount(v).scrap ?? 0) >= PERK_NUMBERS.welder.scrap;
+function hasWeldScrap(world: World, v: Vehicle): boolean {
+  return spareGoods(world, v, "scrap") >= PERK_NUMBERS.welder.scrap;
 }
 
 function weldFits(v: Vehicle): boolean {
@@ -255,7 +252,7 @@ function isStalled(world: World, v: Vehicle, job: Job): boolean {
 function isSiteWorkStalled(world: World, v: Vehicle, job: Job): boolean {
   if (job.kind === "business") return !canUseSite(v.pos, getKnownSite(job.siteId));
   if (job.kind === "firstAid") return world.player.supplies < firstAidTurnSupplies(world);
-  return job.kind === "weld" && (!hasWeldScrap(v) || !weldFits(v));
+  return job.kind === "weld" && (!hasWeldScrap(world, v) || !weldFits(v));
 }
 
 function jobTurn(world: World, v: Vehicle, job: Job): boolean {
@@ -296,13 +293,34 @@ function isRepairStalled(world: World, v: Vehicle, job: Extract<Job, { kind: "re
 }
 
 function advanceRefit(world: World, v: Vehicle, job: RefitJob): void {
+  if (!Array.isArray(job.queue)) throw new Error(`Refit job on ${v.id} has no queue`);
   const result = getRefitLayout(world, v, job);
   if (result.error !== null) return endJob(world, v, job, 'cancelled');
   job.turnsLeft -= 1;
   if (job.turnsLeft > 0) return;
-  applyRefitLayout(world, v, result.items);
-  if (job.pickup) takePickup(world, v, job.pickup);
+  finishRefitStep(world, v, job, result.items);
   endJob(world, v, job, 'done');
+  startNextRefitStep(world, v, job.queue);
+}
+
+function finishRefitStep(world: World, v: Vehicle, step: RefitStep, items: GridItem[]): void {
+  applyRefitLayout(world, v, items);
+  if (step.pickup) takePickup(world, v, step.pickup);
+}
+
+function startNextRefitStep(world: World, v: Vehicle, queue: RefitStep[]): void {
+  for (const [at, step] of queue.entries()) {
+    const layout = refitStepLayout(world, v, step, NOTHING_TAKEN);
+    if (layout.error !== null) {
+      world.events.push({ t: 'job', vehicle: v.id, job: { kind: 'refit', ...step, queue: [], turnsLeft: 0, total: 0 }, outcome: 'skipped', reason: layout.error });
+      continue;
+    }
+    if (refitStepWork(world, v, step) === 0) {
+      finishRefitStep(world, v, step, layout.items);
+      continue;
+    }
+    return startRefitStep(world, v, step, queue.slice(at + 1));
+  }
 }
 
 function takePickup(world: World, v: Vehicle, pickup: RefitPickup): void {

@@ -24,9 +24,10 @@ export const PIECES: Piece[] = [
   { name: ".row", note: "A list line with a faint line under it.", build: () => sample("row", "A row") },
   { name: ".tile", note: "A boxed list item edged in its tone.", build: () => sample("tile", "A tile") },
   { name: ".chip", note: "A small boxed value.", build: () => text("span", "chip", "120 scrap") },
+  { name: ".art-band", note: "A wide picture across the top of a page, with the place name and chips over its lower edge.", build: () => sample("art-band", "") },
+  { name: ".ink-page", note: "The frame of the town page and of a quest in town: a band on top, then a heading, prose, an optional panel and numbered choices in a centered text column.", build: () => inkPage() },
   { name: ".tag", note: "An outlined word.", build: () => text("span", "tag", "buy") },
-  { name: ".contract-clue", note: "One open survey place per line, kind first, then what it looks like; a found place has a tag.", build: () => el("span", { class: "contract-clue" }, "Tank wrecks: south-east of Bowl, about 300 m out, in a hollow ", text("span", "tag", "found"), " Rusted tank wrecks in a group.") },
-  { name: ".contract-hint", note: "One line under the clues of a survey contract that says how to find and survey while a place is unfound.", build: () => text("span", "contract-hint", "Drive near a place to find it, then stay to survey.") },
+  { name: ".contract-clue", note: "One open survey place per line: the kind, then the posting shop's way there, then what it looks like. A found place has a tag last.", build: () => el("span", { class: "contract-clue" }, "Lookout, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. Where the road runs closest, leave the road and head south and a touch east, a fair way. A lone building on high ground. ", text("span", "tag", "found")) },
   { name: ".amount .coin", note: "Money from moneyEl(): the M's coin, then the number. Debt is in danger ink.", build: () => moneyEl(1500) },
   { name: ".meter", note: "A bar that fills from the left.", build: () => meter("meter", 70) },
   { name: ".meter.progress", note: "A bar for timed work.", build: () => meter("meter progress", 40) },
@@ -35,13 +36,30 @@ export const PIECES: Piece[] = [
   { name: '[aria-disabled="true"]', note: "A control that cannot be used now. It keeps hover and focus.", build: () => disabled() },
   { name: ".tooltip", note: "A note that opens over its anchor. It also gives a disabled reason.", build: () => sample("tooltip", "Need 12 M's more") },
   { name: ".tooltip-row", note: "Label on the left, value on the right, for breakdowns.", build: () => breakdown() },
-  { name: ".map-view", note: "The north-up map drawing: explored ground on paper, discovered places and the truck. The minimap is a square panel with zoom and open buttons in its head row.", build: () => minimapPiece() },
+  { name: ".map-view", note: "The map drawing, compass north up and turned to match the 3D view: explored ground on paper, discovered places and the truck. The minimap is a square panel with zoom and open buttons in its head row.", build: () => minimapPiece() },
   { name: ".key", note: "A keyboard key or a mouse button, drawn as a keycap.", build: () => text("kbd", "key", "Space") },
+  { name: ".info-actions", note: "The action row of the truck card, right under the name line: Call, Look over and Mark as small buttons with their key drawn as a keycap off touch. A button the rules refuse stays, dimmed, with its reason.", build: () => infoActions() },
   { name: ".drawer-tabs", note: "The tab row of the phone layout: one word button per drawer, .selected on the open one and .marked for attention.", build: () => drawerTabs() },
   { name: ".log-strip", note: "The newest log line on one row above End turn on a phone. It never wraps, and a tap opens the Log drawer.", build: () => logStrip() },
   { name: ".option-switch", note: "A row of equal buttons that picks one value for a setting: the language and the UI size. aria-pressed marks the chosen one, and a value that cannot be used is aria-disabled with its reason.", build: () => optionSwitch() },
   { name: ".num", note: "A number in the mono face.", build: () => text("span", "num", "1 240") },
 ];
+
+function inkPage(): HTMLElement {
+  const choice = (words: string, reason: string | null = null): HTMLElement =>
+    el("button", { class: "quest-choice", ...(reason ? { "aria-disabled": "true", title: reason } : {}) }, reason ? el("span", { class: "quest-check" }, reason) : null, words);
+  return el(
+    "div",
+    { class: "ink-page" },
+    el("div", { class: "ink-band" }, el("div", { class: "art-band" })),
+    el(
+      "div",
+      { class: "ink-body" },
+      el("div", { class: "ink-head" }, text("h2", "quest-place", "Nose"), text("p", "qt-line", "The hull leans over the sheds like a cliff that rusts.")),
+      el("div", { class: "ink-choices quest-choices" }, choice("1. Go to the garage"), choice("2. See who is parked", "No drivers in sight"), choice("3. Drive on")),
+    ),
+  );
+}
 
 function minimapPiece(): HTMLElement {
   const button = (label: string) => text("button", "btn-s", label);
@@ -53,6 +71,13 @@ function disabled(): HTMLElement {
   const button = text("button", "", "Buy");
   button.setAttribute("aria-disabled", "true");
   return button;
+}
+
+function infoActions(): HTMLElement {
+  const look = el("button", { class: "btn-s" }, "Look over", el("kbd", { class: "key" }, "B"));
+  const mark = el("button", { class: "btn-s" }, "Mark", el("kbd", { class: "key" }, "N"));
+  mark.setAttribute("aria-disabled", "true");
+  return el("div", { class: "info-actions" }, look, mark);
 }
 
 function drawerTabs(): HTMLElement {

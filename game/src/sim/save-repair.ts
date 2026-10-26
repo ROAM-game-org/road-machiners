@@ -2,13 +2,13 @@ import { CHASSIS, chassisDef } from '../data/chassis';
 import { GOODS } from '../data/goods';
 import { HUB, LINE_IDS, REFUSED, TOPICS } from '../data/dialogue';
 import { isNoteId } from '../data/locals';
-import { SHOPS, SITE_EVENTS } from '../data/market';
-import { FURY_ROAD } from '../data/modes';
+import { SHOPS, SITE_EVENTS, shopDef } from '../data/market';
+import { CHAOS_HIGHWAY } from '../data/modes';
 import { FACTIONS } from '../data/npc-behavior';
 import { FIRST_NAMES, NPCS, SURNAMES, TRAITS } from '../data/npcs';
 import { PARTS, partDef } from '../data/parts';
 import { PERSONALITIES } from '../data/personalities';
-import { REGION } from '../data/region';
+import { MAP_GRID, REGION } from '../data/region';
 import { SKILL_IDS, XP_SOURCES } from '../data/skills';
 import { HAULER_KIT, START_KITS } from '../data/start';
 import { CONDITION } from '../data/wear';
@@ -16,7 +16,7 @@ import { settleAims } from './combat';
 import { newId, chargeFor, gunFor, makePart } from './factory';
 import { findSpot, gridOf, mountedItems, onDeadRow, placementError, type Grid } from './grid';
 import { settleEscortJob } from './escort-job';
-import { addShop, bountyLapsed, finishContract, isMet, parcelOf, removeParcel, type Contract, type ShopState } from './market';
+import { addShop, finishContract, isMet, parcelOf, removeParcel, type Contract, type ShopState } from './market';
 import { reviseMemories } from './memory';
 import { isPerkId } from './progress';
 import { modeRules } from './settings';
@@ -115,11 +115,11 @@ function fitSites(world: World): void {
 }
 
 function isWaveTemplate(id: string): boolean {
-  return Object.hasOwn(NPCS, id) && Object.hasOwn(FURY_ROAD.cards, id);
+  return Object.hasOwn(NPCS, id) && Object.hasOwn(CHAOS_HIGHWAY.cards, id);
 }
 
 function fitWaves(world: World): void {
-  for (const group of world.furyRoad?.groups ?? []) {
+  for (const group of world.chaosHighway?.groups ?? []) {
     if (group.spawned) continue;
     group.templates = group.templates.filter(isWaveTemplate);
     if (group.templates.length === 0) group.spawned = true;
@@ -174,7 +174,7 @@ function dropGoneContent(world: World): void {
 }
 
 function outpostsOf(world: World): OutpostFacts[] {
-  return world.furyRoad ? world.furyRoad.outposts : [];
+  return world.chaosHighway ? world.chaosHighway.outposts : [];
 }
 
 function stripSalvage(stock: SalvageStock): void {
@@ -222,7 +222,7 @@ function jobUses(job: Job, ids: ReadonlySet<string>): boolean {
 }
 
 function refitUses(job: RefitJob, ids: ReadonlySet<string>): boolean {
-  return job.moves.some((m) => ids.has(m.itemId)) || pickupUses(job.pickup, ids);
+  return [job, ...job.queue].some((step) => step.moves.some((m) => ids.has(m.itemId)) || pickupUses(step.pickup, ids));
 }
 
 function pickupUses(pickup: RefitPickup | null, ids: ReadonlySet<string>): boolean {
@@ -236,9 +236,8 @@ function contractFits(c: Contract): boolean {
 const CONTRACT_CONTENT: { [K in Contract['kind']]: (c: Extract<Contract, { kind: K }>) => boolean } = {
   haul: (c) => isGood(c.good) && isShop(c.to),
   escort: (c) => isSite(c.to),
-  fetch: (c) => isPart(c.defId),
   claim: (c) => isPart(c.defId),
-  bounty: (c) => isTemplate(c.template),
+  procure: (c) => isGood(c.good) && shopDef(c.shop).goods.includes(c.good),
   search: (c) => isTemplate(c.template),
   rescue: () => true,
   survey: () => true,
@@ -272,7 +271,7 @@ function dropHulks(world: World): void {
 }
 
 function ownTruckIds(world: World): Set<string> {
-  return new Set([world.player.vehicleId, ...(world.furyRoad ? [world.furyRoad.hauler.id] : [])]);
+  return new Set([world.player.vehicleId, ...(world.chaosHighway ? [world.chaosHighway.hauler.id] : [])]);
 }
 
 function repairTrucks(world: World, doomed: Set<string>): void {
@@ -392,18 +391,16 @@ function dropParcelContract(world: World, id: string): void {
 
 function removeNpcs(world: World, doomed: ReadonlySet<string>): void {
   if (doomed.size === 0) return;
-  const templates = new Set(world.vehicles.flatMap((v) => (doomed.has(v.id) && v.brain ? [v.brain.templateId] : [])));
   world.vehicles = world.vehicles.filter((v) => !doomed.has(v.id));
   if (world.player.call && doomed.has(world.player.call.with)) world.player.call = null;
   settleStates(world);
   settleAims(world);
-  for (const c of world.player.contracts.filter((x) => !isMet(x) && namesGone(world, x, doomed, templates))) settleLost(world, c);
+  for (const c of world.player.contracts.filter((x) => !isMet(x) && namesGone(x, doomed))) settleLost(world, c);
 }
 
-function namesGone(world: World, c: Contract, doomed: ReadonlySet<string>, templates: ReadonlySet<string>): boolean {
+function namesGone(c: Contract, doomed: ReadonlySet<string>): boolean {
   if (c.kind === 'escort' || c.kind === 'rescue') return doomed.has(c.client);
-  if (c.kind === 'search') return doomed.has(c.target);
-  return c.kind === 'bounty' && templates.has(c.template) && bountyLapsed(world, c);
+  return c.kind === 'search' && doomed.has(c.target);
 }
 
 function settleLost(world: World, c: Contract): void {
@@ -417,7 +414,7 @@ function allParts(world: World): PartInstance[] {
     ...world.player.storage,
     ...world.salvage.flatMap((s) => [...s.parts, ...s.hidden.parts]),
     ...Object.values(world.shops).flatMap((s) => s.stock),
-    ...(world.furyRoad?.outposts ?? []).flatMap((o) => o.stock),
+    ...(world.chaosHighway?.outposts ?? []).flatMap((o) => o.stock),
   ];
 }
 
@@ -559,6 +556,10 @@ function stepFits(step: DirectionStep): boolean {
   return wayFits(step);
 }
 
+function isGridIndex(at: number): boolean {
+  return Number.isInteger(at) && at >= 0 && at < MAP_GRID.squares;
+}
+
 const CALL_VAR_FITS: { [K in CallVar['kind']]: (v: Extract<CallVar, { kind: K }>) => boolean } = {
   town: (v) => isSite(v.id),
   site: (v) => isSite(v.id),
@@ -572,6 +573,7 @@ const CALL_VAR_FITS: { [K in CallVar['kind']]: (v: Extract<CallVar, { kind: K }>
   sighting: (v) => isName(v.driver),
   bearing: () => true,
   distance: () => true,
+  square: (v) => isGridIndex(v.column) && isGridIndex(v.row),
   answer: () => true,
   line: (v) => isLine(v.line),
   directions: (v) => v.steps.every(stepFits),

@@ -61,9 +61,10 @@ function paced(from: { x: number; y: number }, to: { x: number; y: number }, pac
   return w;
 }
 
-function play(w: World, turns: number): { w: World; hits: string[]; crashes: Crash[]; breaks: Break[]; live: string[]; speeds: number[] } {
+function play(w: World, turns: number): { w: World; hits: string[]; impacts: number[]; crashes: Crash[]; breaks: Break[]; live: string[]; speeds: number[] } {
   let d = buildDrive(w);
   const hits: string[] = [];
+  const impacts: number[] = [];
   const crashes: Crash[] = [];
   const breaks: Break[] = [];
   const speeds: number[] = [];
@@ -72,6 +73,7 @@ function play(w: World, turns: number): { w: World; hits: string[]; crashes: Cra
     const id = me(w).id;
     w = endTurn(w, physicsMove(d, (x) => (r = x)));
     hits.push(...w.events.flatMap((e) => (e.t === 'collision' ? [e.b] : [])));
+    impacts.push(...w.events.flatMap((e) => (e.t === 'collision' ? [e.impact] : [])));
     crashes.push(...r!.crashes);
     breaks.push(...r!.breaks);
     const frames = r!.frames[id];
@@ -81,7 +83,7 @@ function play(w: World, turns: number): { w: World; hits: string[]; crashes: Cra
   }
   const live = Object.keys(d.obstacles);
   freeDrive(d);
-  return { w, hits, crashes, breaks, live, speeds };
+  return { w, hits, impacts, crashes, breaks, live, speeds };
 }
 
 const halfWidth = (w: World) => bodyOf(me(w).chassisId).half.z / S;
@@ -203,11 +205,17 @@ describe('breakable props', () => {
   it('a fast truck breaks a fence and drives on through it', () => {
     const { w, crashes, breaks } = play(paced({ x: 34, y: 30 }, { x: 60, y: 30 }, fast, [fence]), 8);
 
-    expect(breaks).toEqual([{ prop: 'fence1', vehicle: me(w).id, step: expect.any(Number) }]);
+    expect(breaks).toEqual([{ prop: 'fence1', vehicle: me(w).id, impact: expect.any(Number), step: expect.any(Number) }]);
     expect(crashes).toEqual([]);
     expect(w.obstacles).toEqual([]);
     expect(w.broken.map((b) => b.obstacle)).toEqual([fence]);
     expect(me(w).pos.x).toBeGreaterThan(42);
+  });
+
+  it('the smash event carries the impact of the break in tiles per turn', () => {
+    const { impacts, breaks } = play(paced({ x: 34, y: 30 }, { x: 60, y: 30 }, fast, [fence]), 8);
+    expect(breaks[0].impact).toBeGreaterThanOrEqual(BREAKABLE.breakSpeed);
+    expect(impacts).toEqual([toTilesPerTurn(breaks[0].impact)]);
   });
 
   it('breaking a fence costs the truck its slowdown share of speed, not a full stop', () => {
@@ -396,12 +404,12 @@ describe('a Fallen Sun flap', () => {
   }, 120_000);
 });
 
-describe('a Fury Road hull-plate ramp', () => {
+describe('a Chaos Highway hull-plate ramp', () => {
   function rampWorld(): { w: World; ramp: Deck } {
     for (let seed = 1; seed <= 40; seed++) {
       const plain = stretchLayout(seed, 1).scenes.filter((s) => s.kind === 'ramp' && s.craters.length === 0).flatMap((s) => s.ramps.map((r) => r.id));
       if (plain.length === 0) continue;
-      const w = newWorld(seed, START_KITS.combat, highwayMap(seed, 0), defaultSetup('furyRoad'));
+      const w = newWorld(seed, START_KITS.combat, highwayMap(seed, 0), defaultSetup('chaosHighway'));
       const ramp = atlasOf(w.terrain).decks.decks.find((d) => plain.includes(d.id));
       if (ramp) return { w, ramp };
     }
@@ -414,7 +422,7 @@ describe('a Fury Road hull-plate ramp', () => {
     const alongOf = (p: Vec) => (p.x - ramp.from.x) * ramp.axis.x + (p.y - ramp.from.y) * ramp.axis.y;
     const [start, end] = [on(-14), on(ramp.length + 24)];
     w.obstacles = w.obstacles.filter((o) => segmentDist(o.pos, start, end) > ramp.width / 2 + 3);
-    w.furyRoad!.groups = [];
+    w.chaosHighway!.groups = [];
     me(w).pos = on(-10);
     me(w).heading = Math.atan2(ramp.axis.y, ramp.axis.x);
     me(w).speed = vehicleStats(w, me(w)).maxSpeed;

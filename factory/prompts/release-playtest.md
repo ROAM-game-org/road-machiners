@@ -55,15 +55,15 @@ Write `.factory/playtest.json`:
   "observations": ["what the log shows, with turns"],
   "suspected": ["issues you suspect and could not confirm"],
   "limitations": ["what this run cannot show"],
-  "findings": [{ "id": "F1", "severity": "important" | "minor", "title": "short", "evidence": "turns, vehicle ids and lines", "cause": "release" | "old", "why": "the evidence for the cause", "known": 123 | null }],
+  "findings": [{ "id": "F1", "severity": "important" | "minor", "title": "short", "evidence": "turns, vehicle ids and lines", "cause": "release" | "old", "why": "the evidence for the cause", "known": 123 | null, "fixed": true | false }],
   "fixes": ["what each commit of this round changed"],
   "explanations": { "death": "why the player died, or null", "quiet": "why the run lacks each quiet part, or null" },
   "blocker": "why the release must wait for a person, or null"
 }
-- clean: no important `release` finding, and you committed nothing.
+- clean: no open important `release` finding, and you committed nothing in this round.
 - fixed: you committed fixes for the important `release` findings. The factory replays the seed on them.
 - blocked: a finding that needs a design or taste decision, a fix you cannot make safe, or a gate you cannot judge. Say in `blocker` what a member must decide.
-`findings` lists what this log shows, also what you fixed in this round.
+`findings` lists what this log shows, also what you fixed in this round. `fixed` is true only for a finding that a commit of an earlier round of this job fixed and that this log shows no longer happens. Every other finding, also one you fixed in this round, has `fixed` false.
 
 Write `.factory/playtest.md`, the report for the committee, in plain words, under 400 lines. Keep it up to date in each round, so it covers the whole job:
 ## Run

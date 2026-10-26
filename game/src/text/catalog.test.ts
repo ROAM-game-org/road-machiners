@@ -4,7 +4,7 @@ import { LOCALES, type EnEntry, type Locale, type Noun } from './msg';
 import { entryText, grammarParams, nounOf, parse, placeholders, pluralCategories, schemaOf } from './resolve';
 import { RU } from './ru';
 import { OUT_OF_CHARACTER } from '../test/out-of-character';
-import { SEMICOLON } from '../test/prose-tells';
+import { SEMICOLON, STOCK_PHRASE } from '../test/prose-tells';
 
 const CATALOGS: Record<Locale, Readonly<Record<string, EnEntry | Noun>>> = { en: EN, ru: RU };
 const KEYS = Object.keys(EN);
@@ -54,9 +54,9 @@ describe('item lore', () => {
 });
 
 describe('the catalog', () => {
-  it('describes Fury Road without the wreck tagline', () => {
+  it('describes Chaos Highway without the wreck tagline', () => {
     for (const locale of LOCALES) {
-      const text = entryText(locale, 'mode.furyRoad.description');
+      const text = entryText(locale, 'mode.chaosHighway.description');
       expect(text, locale).not.toMatch(/to the wreck|до обломков/i);
     }
   });
@@ -65,6 +65,10 @@ describe('the catalog', () => {
     for (const locale of LOCALES) {
       for (const key of KEYS) expect(entryText(locale, key), `${locale} ${key}`).not.toMatch(SEMICOLON);
     }
+  });
+
+  it('holds no stock phrase in any English entry', () => {
+    for (const key of KEYS) expect(entryText('en', key), key).not.toMatch(STOCK_PHRASE);
   });
 
   it('parses every entry in every language', () => {
@@ -152,5 +156,18 @@ describe('the catalog', () => {
       expect(ok).not.toMatch(OUT_OF_CHARACTER.ru);
     for (const bad of ['Твой ход', 'квест', 'очки опыта', 'нажмите E', 'на карте', 'игрок'])
       expect(bad).toMatch(OUT_OF_CHARACTER.ru);
+  });
+
+  it('lets a lone driver say I, and keeps we for talk that two sides or a body share', () => {
+    const SHARED_WE = new Set([
+      'line.thenWeSettleIt', 'line.noFreeRidePay', 'line.noFreeRideCut', 'line.noFreeRideDump', 'line.enoughOfThisWe', 'line.enoughShootingCanWe',
+      'line.giveUpOffer', 'line.noWeFinishThis', 'line.thenWeFinishThis', 'line.vigilCall1', 'line.vigilCall3', 'line.driveIntoTheLight',
+      'line.carsDraggedIntoTheDark', 'line.pullPaid', 'line.takeMeToSite', 'line.letsMove', 'line.lessonLawGates', 'line.lessonLawFirstShot',
+      'line.lessonLawLonely', 'line.truceCost', 'line.weAlreadyTalkedAbout', 'line.weBothDriveAway', 'line.weCoveredThat', 'line.weWillSee',
+      'line.niceRigLetsSee', 'line.letsGo', 'line.courierSquareTip', 'line.letsCallItEven', 'line.yourLoadIsInThe', 'line.helpMeFirst', 'line.wordBroken',
+    ]);
+    const plural = /\b(we|us|our|ours)\b|\bwe['’]/i;
+    const found = KEYS.filter((key) => key.startsWith('line.') && plural.test(entryText('en', key)) && !SHARED_WE.has(key));
+    expect(found).toEqual([]);
   });
 });

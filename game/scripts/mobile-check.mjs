@@ -378,6 +378,7 @@ async function inspectAndAim(session, step, orientation) {
     return `no aim after the second tap: ${JSON.stringify(await game(page, ({ x, y }) => ({ pin: window.__ROAM__.pin.id, selected: window.__ROAM__.selected, anim: !!window.__ROAM__.anim, hit: document.elementFromPoint(x, y)?.tagName, log: window.__ROAM__.hud.logTexts().slice(-2), orders: JSON.stringify(window.__me().weaponOrders), auto: window.__ROAM__.state.player.autoFire }), at))}`;
   });
   await step('tap-part-aims', async () => {
+    await page.waitForFunction((id) => window.__ROAM__.hud.portraitSettled(id), npcId, { timeout: 60000 });
     const spot = await game(page, () => {
       const view = window.__ROAM__.hud.inspected;
       const part = view.parts[view.parts.length - 1];
@@ -437,13 +438,13 @@ async function townAndShop(session, step) {
   }, () => game(page, () => window.__ROAM__.screens.town.isOpen() || 'the town did not open'));
   const money = await game(page, () => window.__ROAM__.state.player.money);
   await step('buy-one', async () => {
-    await touch.tapOn('.town-screen [data-tab=market]');
+    await touch.tapOn('.town-page [data-town-go=market]');
     await touch.tapOn('.town-screen .trade.buy button:not([aria-disabled=true]):not([disabled])');
   }, async () => {
     const now = await game(page, () => window.__ROAM__.state.player.money);
     return now < money ? true : `money ${money} -> ${now}`;
   });
-  await step('leave-town', () => touch.tapOn('.town-screen .close'), () => game(page, () => !window.__ROAM__.screens.town.isOpen() || 'the town is still open'));
+  await step('leave-town', async () => { await touch.tapOn('.town-page [data-town-go=back]'); await touch.tapOn('.town-page [data-town-go=leave]'); }, () => game(page, () => !window.__ROAM__.screens.town.isOpen() || 'the town is still open'));
 }
 
 async function inventoryByTouch(session, step) {
@@ -601,6 +602,7 @@ async function drawersAndMenus(session, step) {
   for (const d of ['truck', 'guns', 'radio', 'log']) {
     await step(`drawer-${d}`, () => openDrawer(page, touch, d), async () => {
       const open = await game(page, () => document.getElementById('ui').dataset.drawer);
+      if (d === 'radio' && await page.locator('.radio button.switch').count()) return 'the Radio drawer must hold no switch';
       return open === d ? true : `open drawer ${open}`;
     });
   }

@@ -22,15 +22,28 @@ import { damageScale } from './settings';
 export type CrashContact = { side: Side; lanes: number[] };
 export type CrashGeometry = { a: CrashContact; b: CrashContact | null };
 
-export function applyContactCrash(world: World, a: Vehicle, b: Vehicle | null, what: string, impact: number, contact: CrashGeometry): void {
+export type CrashApproach = { a: number; b: number };
+export type CrashFault = { a: boolean; b: boolean };
+
+export function crashFault(approach: CrashApproach): CrashFault {
+  if (!Number.isFinite(approach.a) || !Number.isFinite(approach.b)) throw new Error('Bad crash approach');
+  const a = Math.max(0, approach.a);
+  const b = Math.max(0, approach.b);
+  const total = a + b;
+  const atFault = (own: number) => own >= RULES.crashFault.still && own >= RULES.crashFault.share * total;
+  return { a: atFault(a), b: atFault(b) };
+}
+
+export function applyContactCrash(world: World, a: Vehicle, b: Vehicle | null, what: string, impact: number, contact: CrashGeometry, approach: CrashApproach | null): void {
   if (!Number.isFinite(impact) || impact < 0) throw new Error(`Bad crash impact ${impact}`);
   if (Boolean(b) !== Boolean(contact.b)) throw new Error('Crash geometry does not match the bodies');
+  if (Boolean(b) !== Boolean(approach)) throw new Error('Crash approach does not match the bodies');
   if (b) {
     const blasts = claymoreBlasts(world, a, b, impact, contact);
     const { hitsA, hitsB } = damageVehicleCrash(world, a, b, impact, contact);
     stallRammed(world, a, b, hitsA, hitsB);
-    noteCollision(world, a, b, hitsA, hitsB);
-    world.events.push({ t: 'collision', a: a.id, b: b.id, hitsA, hitsB });
+    noteCollision(world, a, b, hitsA, hitsB, crashFault(approach!));
+    world.events.push({ t: 'collision', a: a.id, b: b.id, impact, hitsA, hitsB });
     blasts();
     practiceRam(world, a, b, hitsA, hitsB);
     return;
@@ -38,14 +51,14 @@ export function applyContactCrash(world: World, a: Vehicle, b: Vehicle | null, w
   const crash = { impact, own: contact.a, theirs: null };
   const rams = world.obstacles.some((o) => o.id === what) ? claymoresSetOff(world, a, null, crash) : [];
   const hitsA = applyContactDamage(world, a, contact.a, impact, 1, hardCrash(impact));
-  world.events.push({ t: 'collision', a: a.id, b: what, hitsA, hitsB: [] });
+  world.events.push({ t: 'collision', a: a.id, b: what, impact, hitsA, hitsB: [] });
   detonateOnObstacle(world, a, what, rams, crash);
 }
 
 export function applyGroundCrash(world: World, v: Vehicle, what: string, impact: number, contact: CrashContact): void {
   if (!Number.isFinite(impact) || impact < 0) throw new Error(`Bad ground crash impact ${impact}`);
   const hitsA = applyContactDamage(world, v, contact, impact, 1, RULES.groundCrash, true);
-  world.events.push({ t: 'collision', a: v.id, b: what, hitsA, hitsB: [] });
+  world.events.push({ t: 'collision', a: v.id, b: what, impact, hitsA, hitsB: [] });
 }
 
 export function applyLanding(world: World, v: Vehicle, what: string, impact: number): void {
@@ -54,7 +67,7 @@ export function applyLanding(world: World, v: Vehicle, what: string, impact: num
   const driving = skillEffect(world, v, 'driving', 'crashDamage');
   const damage = RULES.ramDamage * RULES.crashDamage * damageScale(world) * RULES.landingDamage * impact * impact * Math.max(0, 1 - driving);
   const hitsA = coreParts(v, 'wheel').filter((wheel) => wheel.hp > 0).map((wheel) => ({ part: wheel.id, damage: damagePart(world, v, wheel, damage) }));
-  world.events.push({ t: 'collision', a: v.id, b: what, hitsA, hitsB: [] });
+  world.events.push({ t: 'collision', a: v.id, b: what, impact, hitsA, hitsB: [] });
 }
 
 function claymoreBlasts(world: World, a: Vehicle, b: Vehicle, impact: number, contact: CrashGeometry): () => void {

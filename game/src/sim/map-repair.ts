@@ -4,13 +4,14 @@ import { STORY_WRECKS } from '../data/salvage';
 import { atlasOf, type Atlas } from './atlas';
 import { claimPartHeld } from './claims';
 import { freeSpotNear, spotNear } from './free-spot';
-import { clearOfDecks, clearOfSites, findRoadWreckSpot, isBakedObstacle, mapObstacles, overlapsAny, propReach } from './mapgen';
+import { clearOfDecks, clearOfSites, findRoadWreckSpot, isBakedObstacle, mapObstacles, overlapsAny, propReach, touchesObstacle } from './mapgen';
 import { finishContract, type Contract } from './market';
 import { reviseMemories } from './memory';
 import { isRoadWreck, isStockGoal, isStoryWreck, liveClaims, oldSpotOf, oldSpotPicks, oldStockId, rollStock, type ClaimContract, type OldSpotPick } from './salvage';
 import { modeRules } from './settings';
 import { isFree } from './spawn';
-import { hollowBays, hollowObstaclesFor, isHollowObstacle, isSunwardMember } from './sunward';
+import { hollowBays, hollowObstaclesFor, isHollowObstacle } from './hollow-layout';
+import { isSunwardMember } from './sunward';
 import { surveySites } from './survey';
 import { isLootSpot, spotTable } from './territory';
 import type { BakedMap } from './terrain';
@@ -36,7 +37,7 @@ export const REBAKE_MOVE = {
   setup: 'keep',
   spawnTimer: 'keep',
   roadNews: 'keep',
-  furyRoad: 'keep',
+  chaosHighway: 'keep',
   size: 'rebuild',
   mapHash: 'rebuild',
   terrain: 'rebuild',
@@ -274,8 +275,7 @@ function shiftActivity(goal: NpcActivity, ctx: Ctx): NpcActivity {
 
 const CONTRACT_SHIFT: { [K in Contract['kind']]: (c: Extract<Contract, { kind: K }>, ctx: Ctx) => Contract } = {
   haul: (c) => c,
-  fetch: (c) => c,
-  bounty: (c) => c,
+  procure: (c) => c,
   survey: (c) => c,
   claim: (c, ctx) => ({ ...c, at: at(ctx, c.at), leads: c.leads.map((lead) => ({ ...lead, from: at(ctx, lead.from) })) }),
   escort: (c, ctx) => ({ ...c, seen: c.seen && { ...at(ctx, c.seen), turn: c.seen.turn } }),
@@ -503,8 +503,9 @@ function fitSurveyPoints(contracts: Contract[], sites: Set<string>): void {
 }
 
 function cancelContracts(world: World, dropped: Set<string>, sites: Set<string>): Set<string> {
-  fitSurveyPoints([...world.player.contracts, ...Object.values(world.shops).flatMap((s) => s.contracts)], sites);
+  fitSurveyPoints([...world.player.contracts, ...world.player.pastContracts.map((p) => p.contract), ...Object.values(world.shops).flatMap((s) => s.contracts)], sites);
   for (const shop of Object.values(world.shops)) shop.contracts = shop.contracts.filter((c) => c.kind !== 'survey' || c.points.length > 0);
+  world.player.pastContracts = world.player.pastContracts.filter(({ contract: c }) => c.kind !== 'survey' || c.points.length > 0);
   const cancelled = new Set<string>();
   for (const c of world.player.contracts.filter((x) => lapses(x, dropped) && claimPartHeld(world, x) !== 'player')) {
     cancelled.add(c.id);
@@ -526,7 +527,7 @@ function jobLapses(job: Job | null, dropped: Set<string>, cancelled: Set<string>
   if (job === null) return false;
   if (job.kind === 'search') return dropped.has(job.stockId);
   if (job.kind === 'survey') return cancelled.has(job.contractId) || !sites.has(job.site);
-  return job.kind === 'refit' && pickupLapses(job.pickup, dropped);
+  return job.kind === 'refit' && [job, ...job.queue].some((step) => pickupLapses(step.pickup, dropped));
 }
 
 function pickupLapses(pickup: RefitPickup | null, dropped: Set<string>): boolean {
@@ -561,10 +562,19 @@ function snapSunwardHomes(world: World): void {
 }
 
 export function settleTrucks(world: World): void {
+  settleWhere(world, () => true);
+}
+
+export function settleOffHollow(world: World): void {
+  const hollow = world.obstacles.filter(isHollowObstacle);
+  settleWhere(world, (v) => hollow.some((o) => touchesObstacle(o, world.terrain, v.pos, chassisDef(v.chassisId).radius)));
+}
+
+function settleWhere(world: World, needs: (v: Vehicle) => boolean): void {
   const player = world.player.vehicleId;
   for (const v of [...world.vehicles.filter((x) => x.id !== player), ...world.vehicles.filter((x) => x.id === player)]) {
     const radius = chassisDef(v.chassisId).radius;
-    if (isFree(world, v.pos, radius, v.id)) continue;
+    if (!needs(v) || isFree(world, v.pos, radius, v.id)) continue;
     const spot = freeSpotNear(world, v.pos, radius, v.id);
     if (!spot) throw new Error(`No free spot near ${v.pos.x.toFixed(1)}, ${v.pos.y.toFixed(1)} for ${v.id} on map ${world.mapHash}`);
     v.pos = spot;

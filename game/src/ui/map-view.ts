@@ -2,29 +2,54 @@ import { MINIMAP, WORLD_MAP } from '../data/minimap';
 import { paintBase, newFogImage, paintFog } from '../render/minimap-paint';
 import { atlasKeyString, atlasOf, atlasSites } from '../sim/atlas';
 import { mappedSites } from '../sim/locations';
+import { gridSquareTiles } from '../sim/map-grid';
+import { MAP_GRID } from '../data/region';
 import type { Terrain } from '../sim/terrain';
 import { playerVehicle } from '../sim/damage';
 import type { World } from '../sim/types';
 import type { Vec } from '../sim/vec';
 import { say } from '../text/language';
 import { el } from './dom';
+import { gridColumnLetter, gridRowNumber } from './format';
+import { distanceText } from './units';
 import { siteName } from '../text/names';
 import { t, type Msg } from '../text/msg';
-import { canvasTransform, fitTileSize, fitted, pinToEdge, toPx, toTile, viewport, zoomAround, panBy, clampPan, type MapPoint, type Viewport } from './map-geometry';
+import { canvasTransform, fitTileSize, scaleBarTiles, fitted, pinToEdge, toPx, toTile, viewport, zoomAround, panBy, clampPan, type MapPoint, type Viewport } from './map-geometry';
 import { token } from './tokens';
 import { uiSize } from './ui-size';
 
 export type MapRule = { kind: 'follow'; reach: number } | { kind: 'free' } | { kind: 'fit' };
 export type MapTruck = { pos: Vec; heading: number };
-export type MapSite = { id: string; kind: 'town' | 'site' | 'wreck'; pos: Vec; known: boolean };
+export type MapSite = { id: string; kind: 'town' | 'site'; pos: Vec; known: boolean };
 export type MapOverlay = (ctx: CanvasRenderingContext2D, view: Viewport) => void;
 
 const BASES_KEPT = 3;
 const TIP_GAP = 12;
 const ZOOM_SLACK = 1.001;
-const MARK = { town: 5, site: 4, wreck: 5, truck: 8, hit: 8, pinned: 0.6 };
+const MARK = { town: 5, site: 4, truck: 8, hit: 8, pinned: 0.6 };
 const NAME = { gap: 6, padX: 4, padY: 2 };
+const GRID = { width: 1, alpha: 0.3, gap: 3, padX: 3, padY: 1 };
+const PLATE = { inset: 8, pad: 5, arrowWidth: 10, arrowHeight: 12, tick: 5, gap: 3 };
 const bases = new Map<string, HTMLCanvasElement>();
+
+function clipSegment(from: Vec, to: Vec, box: Box): [Vec, Vec] | null {
+  let enter = 0;
+  let leave = 1;
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const edges: [number, number][] = [[-dx, from.x - box.x0], [dx, box.x1 - from.x], [-dy, from.y - box.y0], [dy, box.y1 - from.y]];
+  for (const [p, q] of edges) {
+    if (p === 0) {
+      if (q < 0) return null;
+      continue;
+    }
+    const t = q / p;
+    if (p < 0) enter = Math.max(enter, t);
+    else leave = Math.min(leave, t);
+  }
+  if (enter > leave) return null;
+  return [{ x: from.x + enter * dx, y: from.y + enter * dy }, { x: from.x + leave * dx, y: from.y + leave * dy }];
+}
 
 function tileCanvas(size: number): HTMLCanvasElement {
   const c = document.createElement('canvas');
@@ -51,7 +76,8 @@ function baseFor(terrain: Terrain): HTMLCanvasElement {
 }
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
-
+type Plates = { north: Box; scale: Box; tiles: number; label: Msg };
+type GridLabel = { text: string; font: string; box: Box };
 function around(at: { x: number; y: number }, r: number): Box {
   return { x0: at.x - r, y0: at.y - r, x1: at.x + r, y1: at.y + r };
 }
@@ -90,14 +116,12 @@ export function mapSites(world: World): MapSite[] {
   const found = new Set(world.player.discovered);
   const mapped = mappedSites(world);
   const towns = new Set(atlasOf(world.terrain).towns.map((s) => s.id));
-  const sites: MapSite[] = atlasSites(atlasOf(world.terrain))
+  return atlasSites(atlasOf(world.terrain))
     .filter((s) => mapped.has(s.id))
-    .map((s) => ({ id: s.id, kind: towns.has(s.id) ? 'town' : 'site', pos: s.pos, known: found.has(s.id) }));
-  const wrecks = world.salvage.filter((s) => world.player.rumored.includes(s.id));
-  return [...sites, ...wrecks.map((s): MapSite => ({ id: s.id, kind: 'wreck', pos: s.pos, known: true }))];
+    .map((s): MapSite => ({ id: s.id, kind: towns.has(s.id) ? 'town' : 'site', pos: s.pos, known: found.has(s.id) }));
 }
 
-function markName(site: MapSite): Msg {
+export function markName(site: MapSite): Msg {
   return site.known ? siteName(site.id) : t('map.unknownSite');
 }
 
@@ -187,7 +211,7 @@ export class MapView {
     this.canvas.addEventListener('pointerleave', hide);
     this.canvas.addEventListener('pointermove', (e) => {
       const site = this.siteAt(e.clientX, e.clientY);
-      if (!site || site.kind === 'wreck') return hide();
+      if (!site) return hide();
       if (shown !== site.id) {
         shown = site.id;
         tip.replaceChildren(el('span', {}, markName(site)));
@@ -197,6 +221,11 @@ export class MapView {
       tip.style.left = `${uiSize().toLayer(e.clientX - box.left) + TIP_GAP}px`;
       tip.style.top = `${uiSize().toLayer(e.clientY - box.top) + TIP_GAP}px`;
     });
+  }
+
+  private requireWorld(): World {
+    if (!this.world) throw new Error('The map has no world yet');
+    return this.world;
   }
 
   pick(clientX: number, clientY: number): Vec | null {
@@ -246,16 +275,21 @@ export class MapView {
     const r = this.ratio;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    const [a, , , d, e, f] = canvasTransform(view);
-    ctx.setTransform(a * r, 0, 0, d * r, e * r, f * r);
+    const [a, b, c, d, e, f] = canvasTransform(view);
+    ctx.setTransform(a * r, b * r, c * r, d * r, e * r, f * r);
     ctx.imageSmoothingEnabled = view.tileSize * r < 1;
     ctx.drawImage(baseFor(world.terrain), 0, 0);
     if (this.fogCanvas) ctx.drawImage(this.fogCanvas, 0, 0);
     ctx.setTransform(r, 0, 0, r, 0, 0);
+    this.drawGrid(ctx, view);
     this.overlay?.(ctx, view);
-    if (this.rule.kind === 'free') this.drawNames(ctx, view);
+    const plates = this.platesFor(ctx, view);
+    const labels = this.gridLabels(ctx, view, plates);
+    if (this.rule.kind === 'free') this.drawNames(ctx, view, [plates.north, plates.scale, ...labels.map((l) => l.box)]);
     this.drawMarks(ctx, view);
     if (this.truck) this.drawTruck(ctx, view, this.truck);
+    this.drawGridLabels(ctx, labels);
+    this.drawPlates(ctx, view, plates);
   }
 
   private syncFog(explored: Uint8Array, size: number): void {
@@ -278,21 +312,19 @@ export class MapView {
     for (const site of this.sites) {
       const at = this.markAt(view, site);
       const scale = at.pinned ? MARK.pinned : 1;
-      if (site.kind === 'wreck') this.drawRumor(ctx, at, scale);
-      else if (site.kind === 'town') this.drawSquare(ctx, at, scale);
+      if (site.kind === 'town') this.drawSquare(ctx, at, scale);
       else this.drawDot(ctx, at, scale);
     }
   }
 
-  private drawNames(ctx: CanvasRenderingContext2D, view: Viewport): void {
+  private drawNames(ctx: CanvasRenderingContext2D, view: Viewport, kept: readonly Box[]): void {
     ctx.font = `${token('--text-dense')} ${token('--font-ui')}`;
     ctx.textBaseline = 'middle';
     const tall = parseFloat(token('--text-dense')) + 2 * NAME.padY;
-    const named = this.sites
-      .filter((site) => site.kind !== 'wreck')
+    const named = [...this.sites]
       .sort((a, b) => Number(b.kind === 'town') - Number(a.kind === 'town'))
       .map((site) => ({ site, at: toPx(view, site.pos) }));
-    const taken: Box[] = named.map(({ at }) => around(at, MARK.town + 1));
+    const taken: Box[] = [...kept, ...named.map(({ at }) => around(at, MARK.town + 1))];
     if (this.truck) taken.push(around(toPx(view, this.truck.pos), MARK.truck + 1));
     for (const { site, at } of named) {
       const text = say(markName(site));
@@ -303,6 +335,131 @@ export class MapView {
       ctx.fillStyle = token('--ink-bright');
       ctx.fillText(text, plate.x0 + NAME.padX, (plate.y0 + plate.y1) / 2);
     }
+  }
+
+  private drawGrid(ctx: CanvasRenderingContext2D, view: Viewport): void {
+    const side = gridSquareTiles();
+    const size = side * MAP_GRID.squares;
+    ctx.save();
+    ctx.strokeStyle = token('--surface-sunk');
+    ctx.globalAlpha = GRID.alpha;
+    ctx.lineWidth = GRID.width;
+    ctx.beginPath();
+    for (let k = 1; k < MAP_GRID.squares; k++) {
+      const column = [toPx(view, { x: k * side, y: 0 }), toPx(view, { x: k * side, y: size })];
+      const row = [toPx(view, { x: 0, y: k * side }), toPx(view, { x: size, y: k * side })];
+      for (const [from, to] of [column, row]) {
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+      }
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  private gridLabels(ctx: CanvasRenderingContext2D, view: Viewport, plates: Plates): GridLabel[] {
+    const side = gridSquareTiles();
+    const size = side * MAP_GRID.squares;
+    const tall = parseFloat(token('--text-caption')) + 2 * GRID.padY;
+    const inset = this.rule.kind === 'follow' ? MINIMAP.edgeInset + MARK.town * MARK.pinned + GRID.gap : GRID.gap;
+    const kept = [plates.north, plates.scale, ...this.sites.map((site) => around(this.markAt(view, site), MARK.town + 1))];
+    const labels: GridLabel[] = [];
+    const letters = `${token('--text-caption')} ${token('--font-ui')}`;
+    const numbers = `${token('--text-caption')} ${token('--font-mono')}`;
+    const place = (text: string, font: string, from: Vec, to: Vec): void => {
+      ctx.font = font;
+      const wide = ctx.measureText(text).width + 2 * GRID.padX;
+      const room = { x0: inset + wide / 2, x1: view.width - inset - wide / 2, y0: inset + tall / 2, y1: view.height - inset - tall / 2 };
+      const span = clipSegment(from, to, room);
+      if (!span) return;
+      const at = span[0];
+      const box = { x0: at.x - wide / 2, x1: at.x + wide / 2, y0: at.y - tall / 2, y1: at.y + tall / 2 };
+      const padded = { x0: box.x0 - GRID.gap, x1: box.x1 + GRID.gap, y0: box.y0 - GRID.gap, y1: box.y1 + GRID.gap };
+      const crowded = [...kept, ...labels.map((l) => l.box)].some((b) => overlaps(b, padded));
+      if (!crowded) labels.push({ text, font, box });
+    };
+    for (let k = 0; k < MAP_GRID.squares; k++) {
+      const middle = (k + 0.5) * side;
+      place(say(gridColumnLetter(k)), letters, toPx(view, { x: middle, y: 0 }), toPx(view, { x: middle, y: size }));
+    }
+    for (let k = 0; k < MAP_GRID.squares; k++) {
+      const middle = (k + 0.5) * side;
+      place(say(gridRowNumber(k)), numbers, toPx(view, { x: 0, y: middle }), toPx(view, { x: size, y: middle }));
+    }
+    return labels;
+  }
+
+  private drawGridLabels(ctx: CanvasRenderingContext2D, labels: readonly GridLabel[]): void {
+    ctx.save();
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+    for (const { text, font, box } of labels) {
+      ctx.fillStyle = token('--surface-overlay');
+      ctx.fillRect(box.x0, box.y0, box.x1 - box.x0, box.y1 - box.y0);
+      ctx.font = font;
+      ctx.fillStyle = token('--ink-muted');
+      ctx.fillText(text, (box.x0 + box.x1) / 2, (box.y0 + box.y1) / 2);
+    }
+    ctx.restore();
+  }
+
+  private shownBox(view: Viewport): Box {
+    return { x0: 0, y0: 0, x1: view.width, y1: view.height };
+  }
+
+  private platesFor(ctx: CanvasRenderingContext2D, view: Viewport): Plates {
+    ctx.font = `${token('--text-dense')} ${token('--font-ui')}`;
+    const letter = parseFloat(token('--text-dense'));
+    const shown = this.shownBox(view);
+    const northWide = Math.max(ctx.measureText(say(t('map.north'))).width, PLATE.arrowWidth) + 2 * PLATE.pad;
+    const northTall = letter + PLATE.gap + PLATE.arrowHeight + 2 * PLATE.pad;
+    const north = { x0: shown.x1 - PLATE.inset - northWide, y0: shown.y0 + PLATE.inset, x1: shown.x1 - PLATE.inset, y1: shown.y0 + PLATE.inset + northTall };
+    const tiles = scaleBarTiles(view.tileSize, view.width);
+    const label = distanceText(tiles);
+    ctx.font = `${token('--text-dense')} ${token('--font-mono')}`;
+    const barPx = tiles * view.tileSize;
+    const scaleWide = Math.max(barPx, ctx.measureText(say(label)).width) + 2 * PLATE.pad;
+    const scaleTall = letter + PLATE.gap + PLATE.tick + 2 * PLATE.pad;
+    const scale = { x0: shown.x0 + PLATE.inset, y0: shown.y1 - PLATE.inset - scaleTall, x1: shown.x0 + PLATE.inset + scaleWide, y1: shown.y1 - PLATE.inset };
+    return { north, scale, tiles, label };
+  }
+
+  private drawPlates(ctx: CanvasRenderingContext2D, view: Viewport, plates: Plates): void {
+    const { north, scale } = plates;
+    ctx.save();
+    ctx.fillStyle = token('--surface-overlay');
+    for (const box of [north, scale]) ctx.fillRect(box.x0, box.y0, box.x1 - box.x0, box.y1 - box.y0);
+    ctx.fillStyle = token('--ink-bright');
+    ctx.strokeStyle = token('--ink-bright');
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'center';
+    const letter = parseFloat(token('--text-dense'));
+    const middle = (north.x0 + north.x1) / 2;
+    ctx.font = `${token('--text-dense')} ${token('--font-ui')}`;
+    ctx.fillText(say(t('map.north')), middle, north.y0 + PLATE.pad);
+    const tip = north.y0 + PLATE.pad + letter + PLATE.gap;
+    ctx.beginPath();
+    ctx.moveTo(middle, tip);
+    ctx.lineTo(middle + PLATE.arrowWidth / 2, tip + PLATE.arrowHeight);
+    ctx.lineTo(middle - PLATE.arrowWidth / 2, tip + PLATE.arrowHeight);
+    ctx.closePath();
+    ctx.fill();
+    ctx.font = `${token('--text-dense')} ${token('--font-mono')}`;
+    ctx.textAlign = 'left';
+    ctx.fillText(say(plates.label), scale.x0 + PLATE.pad, scale.y0 + PLATE.pad);
+    const left = scale.x0 + PLATE.pad;
+    const right = left + plates.tiles * view.tileSize;
+    const y = scale.y1 - PLATE.pad - PLATE.tick / 2;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(left, y);
+    ctx.lineTo(right, y);
+    ctx.moveTo(left, y - PLATE.tick / 2);
+    ctx.lineTo(left, y + PLATE.tick / 2);
+    ctx.moveTo(right, y - PLATE.tick / 2);
+    ctx.lineTo(right, y + PLATE.tick / 2);
+    ctx.stroke();
+    ctx.restore();
   }
 
   private drawSquare(ctx: CanvasRenderingContext2D, at: { x: number; y: number }, scale: number): void {
@@ -318,16 +475,6 @@ export class MapView {
     ctx.fill();
   }
 
-  private drawRumor(ctx: CanvasRenderingContext2D, at: { x: number; y: number }, scale: number): void {
-    ctx.save();
-    ctx.setLineDash([2, 2]);
-    ctx.strokeStyle = token('--ink-bright');
-    ctx.beginPath();
-    ctx.arc(at.x, at.y, MARK.wreck * scale, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-  }
-
   private drawTruck(ctx: CanvasRenderingContext2D, view: Viewport, truck: MapTruck): void {
     const at = toPx(view, truck.pos);
     const r = MARK.truck;
@@ -340,7 +487,8 @@ export class MapView {
     ctx.strokeStyle = token('--ink-bright');
     ctx.lineWidth = 2;
     ctx.stroke();
-    ctx.rotate(truck.heading);
+    const ahead = toPx(view, { x: truck.pos.x + Math.cos(truck.heading), y: truck.pos.y + Math.sin(truck.heading) });
+    ctx.rotate(Math.atan2(ahead.y - at.y, ahead.x - at.x));
     ctx.beginPath();
     ctx.moveTo(r * 0.7, 0);
     ctx.lineTo(-r * 0.45, r * 0.5);

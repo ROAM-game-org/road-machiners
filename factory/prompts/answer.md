@@ -64,6 +64,8 @@ Before you write the file, count the lines with the blank ones. When there are m
 Put no link in the text except `https://github.com/{{repo}}/...` and {{publicUrl}}.
 Never name the factory's files, logs, jobs or prompts.
 
+{{writing}}
+
 Do not change tracked files, do not commit and never push.
 Scratch files go in `tmp/`.
 

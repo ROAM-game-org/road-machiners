@@ -1,6 +1,6 @@
 
 import { Drawers } from "./drawers";
-import { keyLabel, phoneMode, RECENTER_KEY, touchMode } from "./input-mode";
+import { keyCap, keyLabel, phoneMode, RECENTER_KEY, touchMode } from "./input-mode";
 import { uiSize } from "./ui-size";
 import { escortStatus, type EscortContract } from "../sim/escort-job";
 import { callError, DialoguePanel, type DialogueHost } from "./dialogue";
@@ -8,44 +8,49 @@ import { markError } from "../sim/detect";
 import { hasExplorationMap, modeRules } from "../sim/settings";
 import { playerCanAct } from "../sim/world";
 import type { CrimeCase, Vehicle, World } from "../sim/types";
-import { openCasesOn } from "../sim/crime";
+import { caseOwed, knownCasesOn } from "../sim/crime";
 import { workOf, type Work } from "../sim/states";
 import { isAutoPatch } from "../sim/jobs";
-import { bottomLeft, disabledWith, el, isBrowserChord, panel, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
+import { gaveUp } from "../sim/defeat";
+import { bottomLeft, disabledWith, el, panel, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { LogPanel } from "./log";
 import {
   claimRivalMark,
   escortStatusText,
-  heldContractDue,
+  heldContractClock,
   contractSummary,
   surveyProgress,
   isNotable,
   surveyClueLines,
-  surveyHowTo,
   eventText,
   formatNpcPass,
   workLabel,
   workProgress,
   formatNpcCargo,
-  formatNpcLookOver,
-  formatNpcMark,
+  formatNpcMarked,
   formatNpcTraits,
+  wantedBounty,
   formatVehicleState,
   type LogLine,
   clock,
+  stanceTag,
+  caseVictimName,
 } from "./format";
-import { FeedbackForm, type FeedbackKind } from "./game-menu";
+import { FEEDBACK_URL } from "../config";
+import { gameContext } from "../three/error-report";
+import { feedbackCorner, FeedbackForm } from "./feedback-form";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
 import { createIcon, createSpeedDial, repairingPart } from "./cards";
 import { aimMarks, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
-import { createSwitch, keyCorner } from "./switch";
+import { createSwitch } from "./switch";
 import { Tips, type TipSwitch } from "./tips";
 import { moneyEl } from "./units";
 import { playerVehicle } from "../sim/damage";
 import { playerGuard } from "../sim/hire";
-import { affordableRanks, basicSkill, hasBasic, pendingPerkPairs } from "../sim/progress";
-import { canLookOver } from "../sim/look-over";
+import { affordableRanks, basicSkill, hasBasic, hasPerk, pendingPerkPairs } from "../sim/progress";
+import type { Refusal } from "../sim/types";
+import { lookOverError } from "../sim/look-over";
 import { douseBlock, type DouseBlock } from "../sim/engine-heat";
 import { firstAidBlock, type FirstAidBlock } from "../sim/jobs";
 import { firstAidTurns, firstAidTurnSupplies } from "../sim/health";
@@ -54,13 +59,13 @@ import type { RadioPanel } from "./radio";
 import { HaulerGauge } from "./hauler-gauge";
 import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
 import type * as THREE from "three";
-import { TruckPortraits } from "../three/render/truckPortrait";
+import { dist } from "../sim/vec";
+import { PORTRAIT_STEP_MS, TruckPortraits } from "../three/render/truckPortrait";
 import { playerSees } from "../sim/vision";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, verbatim, type Msg } from "../text/msg";
-import { isMet, type Contract } from "../sim/market";
-import { driverName, factionName, refusalText, setupText, siteName, templateName, vehicleTitle } from "../text/names";
-import { stanceToward } from "../sim/relations";
+import { isLate, isMet, type Contract } from "../sim/market";
+import { driverName, factionName, refusalText, siteName, templateName, vehicleTitle } from "../text/names";
 
 export type ContextTarget =
   | { kind: 'aid'; id: string }
@@ -128,7 +133,6 @@ type HudActions = {
   aimState: (vehicleId: string) => AimState;
 };
 export type CardAction = 'mark' | 'lookOver';
-export type CameraMode = "centered" | "auto";
 
 const TOAST_MS = 3500;
 const CONDITION_ROWS = 12;
@@ -163,9 +167,8 @@ export function mapInstrument(w: World, busy: boolean, openMap: () => void): HTM
   return [
     el(
       "button",
-      { class: "instrument-button", "aria-disabled": busy ? "true" : undefined, onclick: () => !busy && openMap(), title: busy ? TURN_PLAYING : undefined },
+      { class: "instrument-button", "aria-disabled": busy ? "true" : undefined, onclick: () => !busy && openMap(), title: busy ? TURN_PLAYING : keyLabel(t("map.full"), "M") },
       t("map.full"),
-      keyCorner("K"),
     ),
   ];
 }
@@ -188,14 +191,15 @@ export class Hud {
   private readonly inspected: TruckConditionView;
   private readonly inspectedDraw: HTMLElement;
   private inspectedAimable = false;
+  private inspectedId: string | null = null;
   private infoColumn = el("div", { class: "info-column" });
   private contracts = panel("contracts dock-panel", rightDock());
   private wanted = panel("wanted dock-panel", rightDock());
   private log = new LogPanel();
   private info = panel("info");
   private infoBody = el("div", { class: "info-content" });
-  private feedback = panel("feedback", topLeft());
-  private feedbackForm = new FeedbackForm((text) => this.toast(text));
+  private feedbackForm = new FeedbackForm(uiRoot(), (text) => this.toast(text), (url, init) => fetch(url, init), FEEDBACK_URL, gameContext);
+  private feedback = feedbackCorner(this.feedbackForm, topLeft());
   private action = panel("action");
   private toastBox = panel("toast");
   private rescue = panel("rescue notice", topCenter());
@@ -203,9 +207,7 @@ export class Hud {
   private truckStack = el("div", { class: "truck-stack", "data-drawer-frame": "truck" });
   private stranded = panel("stranded notice", this.truckStack);
   private recenter = panel("recenter", bottomLeft());
-  private cameraSwitch = panel("camera-mode", topRight());
   private tips = new Tips(window.localStorage, topCenter(), () => this.toast(t("hud.tipsOff")));
-  cameraMode: CameraMode = "auto";
   private readonly drawers = new Drawers(uiRoot(), () => this.drawerMoved());
   private toastTimer: number | null = null;
 
@@ -283,6 +285,9 @@ export class Hud {
     this.portraits = new TruckPortraits(renderer);
     this.condition = new TruckConditionView(this.portraits, CONDITION_ROWS);
     this.inspected = new TruckConditionView(this.portraits, null);
+    this.portraits.onReady((vehicleId) => {
+      if (vehicleId === this.inspectedId) this.placeInfo();
+    });
     this.inspectedDraw = el("div", { class: "info-draw" }, this.inspected.root);
     const openLog = () => this.drawers.toggle("log");
     this.log.strip.root.addEventListener("click", openLog);
@@ -303,67 +308,13 @@ export class Hud {
     this.toastBox.style.display = "none";
     this.rescue.style.display = "none";
     this.knockedOut.style.display = "none";
-    this.knockedOut.append(el("span", { class: "bad" }, t("actBlock.knockedOut")));
     this.stranded.style.display = "none";
     this.recenter.style.display = "none";
     this.recenter.append(el("button", { onclick: () => actions.recenter() }, t("hud.recenter"), el("kbd", { class: "key no-touch" }, verbatim(RECENTER_KEY))));
-    this.showCameraMode();
-    window.addEventListener("keydown", (e) => {
-      if (e.code === "KeyV" && !isBrowserChord(e) && !document.activeElement?.matches("input, select, textarea")) this.toggleCameraMode();
-    });
-    const feedbackMenu = el("details", {});
-    const feedbackEntry = (kind: FeedbackKind, text: Msg) =>
-      el(
-        "button",
-        {
-          class: "btn-s",
-          onclick: () => {
-            feedbackMenu.removeAttribute("open");
-            this.feedbackForm.open(kind);
-          },
-        },
-        text,
-      );
-    feedbackMenu.append(
-      el(
-        "summary",
-        { title: t("hud.feedbackTitle"), "aria-label": t("hud.feedbackTitle") },
-        t("hud.feedbackMark"),
-      ),
-      feedbackEntry("bug", t("hud.reportBug")),
-      feedbackEntry("idea", t("hud.requestFeature")),
-    );
-    this.feedback.append(feedbackMenu);
-    window.addEventListener("keydown", (e) => {
-      if (e.code !== "Escape") return;
-      feedbackMenu.removeAttribute("open");
-    });
-  }
-
-  toggleCameraMode(): void {
-    this.cameraMode = this.cameraMode === "auto" ? "centered" : "auto";
-    this.showCameraMode();
-  }
-
-  cameraModeLabel(): Msg {
-    return this.cameraMode === "auto" ? t("hud.camAuto") : t("hud.camCentered");
   }
 
   openFeedback(): void {
     this.feedbackForm.open("bug");
-  }
-
-  private showCameraMode(): void {
-    this.cameraSwitch.replaceChildren(
-      createSwitch({
-        on: t("hud.camAuto"),
-        off: t("hud.camCentered"),
-        checked: this.cameraMode === "auto",
-        key: "V",
-        title: t("hud.camTitle"),
-        onclick: () => this.toggleCameraMode(),
-      }),
-    );
   }
 
   showRecenter(on: boolean): void {
@@ -414,7 +365,7 @@ export class Hud {
       el(
         "span",
         { class: "job-label" },
-        t("hud.workLeft", { label, n: work.turnsLeft }),
+        work.queued > 0 ? t("hud.workQueued", { label, n: work.turnsLeft, k: work.queued }) : t("hud.workLeft", { label, n: work.turnsLeft }),
       ),
       el(
         "span",
@@ -452,7 +403,9 @@ export class Hud {
   renderRescue(w: World): void {
     this.dialogue.render(w);
     const r = getRescueReadout(w);
-    this.knockedOut.style.display = rescueOf(r, "knockedOut") ? "" : "none";
+    const down = rescueOf(r, "knockedOut");
+    this.knockedOut.style.display = down ? "" : "none";
+    if (down) this.knockedOut.replaceChildren(el("span", { class: "bad" }, t(gaveUp(playerVehicle(w)) ? "npc.gaveUp" : "actBlock.knockedOut")));
     this.renderMiddle(rescueOf(r, "towed") ?? rescueOf(r, "dragged"));
     this.renderStranded(rescueOf(r, "stranded"));
   }
@@ -494,10 +447,10 @@ export class Hud {
   }
 
   private renderWanted(w: World): void {
-    const cases = openCasesOn(w, w.player.vehicleId);
+    const cases = knownCasesOn(w, w.player.vehicleId);
     this.wanted.style.display = cases.length > 0 ? "" : "none";
     if (cases.length === 0) return this.wanted.replaceChildren();
-    const owed = cases.reduce((sum, c) => sum + c.owed, 0);
+    const owed = cases.reduce((sum, c) => sum + caseOwed(c), 0);
     this.wanted.tabIndex = 0;
     this.wanted.replaceChildren(
       el("div", { class: "wanted-cases" }, ...cases.map((c) => wantedRow(w, c))),
@@ -557,7 +510,6 @@ export class Hud {
       },
       block === "noBasic" ? createIcon("lock") : null,
       t("hud.douse"),
-      keyCorner("G"),
     );
   }
 
@@ -575,7 +527,6 @@ export class Hud {
       },
       block === "noBasic" ? createIcon("lock") : null,
       t("hud.firstAid"),
-      keyCorner("U"),
     );
   }
 
@@ -591,7 +542,6 @@ export class Hud {
         title: busy ? TURN_PLAYING : keyLabel(marked ? t("hud.characterMarked") : t("hud.character"), "C"),
       },
       marked ? t("hud.driverMarked") : t("hud.driver"),
-      keyCorner("C"),
     );
   }
 
@@ -605,7 +555,6 @@ export class Hud {
       "button",
       { class: "instrument-button", disabled: busy, onclick: () => this.actions.openJournal(), title: keyLabel(t("journal.hint"), "J") },
       t("hud.journal"),
-      keyCorner("J"),
     );
   }
 
@@ -720,19 +669,12 @@ export class Hud {
     );
   }
 
-  private cardButtons(w: World, v: Vehicle): HTMLElement {
-    const own = v.faction === "player";
-    const call = !own && v.brain && modeRules(w).radio ? [el("button", { class: "btn-s", ...disabledWith(callError(w, v.id), () => this.dialogue.callInspected()) }, t("card.call"))] : [];
-    const refusal = markError(w, v.id);
-    const mark = own ? [] : [el("button", { class: "btn-s", ...disabledWith(refusal && refusalText(w, refusal), () => this.actions.cardAction("mark")) }, t("card.mark"))];
-    const close = el("button", { class: "btn-s", "aria-label": t("card.unpin"), title: t("card.unpin"), onclick: () => this.actions.unpin() }, t("hint.closeMark"));
-    return el("span", { class: "info-touch touch-only" }, ...call, ...this.lookOverButton(w, v), ...mark, close);
-  }
-
-  private lookOverButton(w: World, v: Vehicle): HTMLElement[] {
-    if (v.faction === "player" || !hasBasic(w, "lookOver")) return [];
-    const refusal = canLookOver(w, playerVehicle(w), v);
-    return [el("button", { class: "btn-s", ...disabledWith(refusal && refusalText(w, refusal), () => this.actions.cardAction("lookOver")) }, t("card.lookOver"))];
+  private cardButtons(w: World, v: Vehicle): HTMLElement | null {
+    return cardActions(w, v, {
+      call: () => this.dialogue.callInspected(),
+      act: (action) => this.actions.cardAction(action),
+      unpin: () => this.actions.unpin(),
+    });
   }
 
   flushHorn(): void {
@@ -770,8 +712,24 @@ export class Hud {
     return { marks: aimMarks(w, v.id), pick: (partId) => this.actions.aimPart(v.id, partId) };
   }
 
+  private wantPortraits(w: World, focus: Vehicle | null): void {
+    const me = playerVehicle(w);
+    const nearest = (a: Vehicle, b: Vehicle) => dist(a.pos, me.pos) - dist(b.pos, me.pos);
+    const seen = w.vehicles.filter((x) => x.id !== me.id && playerSees(w, x.pos)).sort(nearest);
+    this.portraits.want([me], seen, focus?.id ?? null, w.player.paint);
+  }
+
+  stepPortraits(playing: boolean): void {
+    this.portraits.step(PORTRAIT_STEP_MS, playing);
+  }
+
+  portraitSettled(vehicleId: string): boolean {
+    return this.portraits.settled(vehicleId);
+  }
+
   showInfo(w: World, v: Vehicle | null, hostile: boolean): void {
-    this.portraits.forget(new Set([playerVehicle(w).id, ...w.vehicles.filter((x) => playerSees(w, x.pos)).map((x) => x.id)]));
+    this.inspectedId = v?.id ?? null;
+    this.wantPortraits(w, v);
     if (!v) {
       this.info.style.display = "none";
       this.coverUnder(null);
@@ -783,7 +741,7 @@ export class Hud {
     this.info.style.display = "";
     this.infoBody.replaceChildren(
       infoHead(w, v, hostile, this.cardButtons(w, v)),
-      el("div", { class: "info-state" }, formatVehicleState(w, v)),
+      el("div", { class: "info-state" }, wantedMark(w, v), formatVehicleState(w, v)),
       ...quietLines(w, v).map((line) => el("div", { class: "info-state info-quiet" }, line)),
       el("div", { class: "info-body" }, this.inspectedDraw, this.infoColumn),
     );
@@ -795,7 +753,7 @@ function rescueOf<K extends RescueReadout["kind"]>(r: RescueReadout | null, kind
   return r?.kind === kind ? (r as Extract<RescueReadout, { kind: K }>) : null;
 }
 
-function infoHead(w: World, v: Vehicle, hostile: boolean, buttons: HTMLElement): HTMLElement {
+function infoHead(w: World, v: Vehicle, hostile: boolean, buttons: HTMLElement | null): HTMLElement {
   const quiet = [v.brain ? templateName(v.brain.templateId) : null, factionName(v.faction)].filter((part) => part !== null);
   const quietText = list(quiet);
   return el(
@@ -804,20 +762,46 @@ function infoHead(w: World, v: Vehicle, hostile: boolean, buttons: HTMLElement):
     el("span", { class: "info-name" }, v.brain ? driverName(v) : vehicleTitle(w, v)),
     el("span", { class: "info-quiet", title: quietText }, quietText),
     ...(v.faction === "player" ? [] : [el("span", { class: `tag ${hostile ? "bad" : "dim"}` }, stanceTag(w, v, hostile))]),
-    buttons,
+    ...(buttons ? [buttons] : []),
   );
 }
 
-function stanceTag(w: World, v: Vehicle, hostile: boolean): Msg {
-  if (hostile) return t("hud.tagHostile");
-  const band = stanceToward(w, v);
-  if (band === "neutral") return t("hud.tagNeutral");
-  return t(`band.${band === "allied" ? "friendly" : band}`);
+export interface CardHandlers {
+  call: () => void;
+  act: (action: "mark" | "lookOver") => void;
+  unpin: () => void;
+}
+
+function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () => void): HTMLElement {
+  return el("button", { class: "btn-s", ...disabledWith(refusal, onclick) }, label, keyCap(key));
+}
+
+export function cardActions(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement | null {
+  const buttons = v.faction === "player" ? [] : otherTruckButtons(w, v, handlers);
+  if (touchMode()) buttons.push(el("button", { class: "btn-s", "aria-label": t("card.unpin"), title: t("card.unpin"), onclick: handlers.unpin }, t("hint.closeMark")));
+  return buttons.length === 0 ? null : el("div", { class: "info-actions" }, ...buttons);
+}
+
+function otherTruckButtons(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement[] {
+  const buttons: HTMLElement[] = [];
+  if (v.brain && modeRules(w).radio) buttons.push(actionButton(t("card.call"), "T", callError(w, v.id), handlers.call));
+  if (hasBasic(w, "lookOver")) buttons.push(actionButton(t("card.lookOver"), "B", reasonOf(w, lookOverError(w, v.id)), () => handlers.act("lookOver")));
+  if (hasPerk(w, "spotter")) buttons.push(actionButton(t("card.mark"), "N", reasonOf(w, markError(w, v.id)), () => handlers.act("mark")));
+  return buttons;
+}
+
+function reasonOf(w: World, refusal: Refusal | null): Msg | null {
+  return refusal && refusalText(w, refusal);
+}
+
+function wantedMark(w: World, v: Vehicle): HTMLElement | null {
+  const owed = wantedBounty(w, v);
+  return owed === null ? null : el("span", { class: "info-wanted" }, el("span", { class: "tag dim" }, t("hud.wanted")), el("span", { class: "num" }, moneyEl(owed)));
 }
 
 function quietLines(w: World, v: Vehicle): Msg[] {
   if (!v.brain) return [];
-  return [formatNpcPass(w, v), formatNpcTraits(w, v), formatNpcCargo(w, v), formatNpcLookOver(w, v), formatNpcMark(w, v)].filter((line) => line !== null);
+  return [formatNpcPass(w, v), formatNpcTraits(w, v), formatNpcCargo(w, v), formatNpcMarked(w, v)].filter((line) => line !== null);
 }
 
 function shownWork(action: ContextAction | null, work: Work | null): Work | null {
@@ -830,8 +814,8 @@ export function heldContractLine(w: World, c: Contract): HTMLElement {
   return el(
     'div',
     { class: 'contract-line' },
-    el('span', {}, contractSummary(c), survey ? el('span', { class: 'dim' }, SPACE, surveyProgress(c), ...surveyClueLines(c), surveyHowTo(c)) : null, claimRivalMark(w, c)),
-    c.kind === 'escort' ? escortLine(w, c) : el('span', { class: 'num' }, heldContractDue(c)),
+    el('span', {}, contractSummary(c), survey ? el('span', { class: 'dim' }, SPACE, surveyProgress(c), ...surveyClueLines(c)) : null, claimRivalMark(w, c)),
+    c.kind === 'escort' ? escortLine(w, c) : el('span', { class: isLate(w, c) ? 'num bad' : 'num' }, heldContractClock(w, c)),
   );
 }
 
@@ -850,7 +834,6 @@ function escortLine(w: World, c: EscortContract): HTMLElement | null {
 }
 
 function wantedRow(w: World, c: CrimeCase): HTMLElement {
-  const victim = w.vehicles.find((v) => v.id === c.victim);
-  const label = t(`desk.case.${c.offense}`, { victim: victim ? vehicleTitle(w, victim) : t("log.someDriver") });
+  const label = t(`desk.case.${c.offense}`, { victim: caseVictimName(w, c) });
   return el("div", { class: "tooltip-row" }, el("span", {}, label), el("span", { class: "num" }, t("hud.wantedFiled", { site: siteName(c.site), when: clock(c.turn).full })));
 }

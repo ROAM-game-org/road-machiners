@@ -1,4 +1,4 @@
-import { FURY_ROAD } from '../../data/modes';
+import { CHAOS_HIGHWAY } from '../../data/modes';
 import { isShield, partDef } from '../../data/parts';
 import { haulerOf, playerVehicle } from '../damage';
 import { outpostPartPrice, haulerTakes } from '../outposts';
@@ -6,7 +6,7 @@ import { dist } from '../vec';
 import { isJunk } from '../wear';
 import { repairCost } from '../economy';
 import { gearPlans } from './gear';
-import { stretchBudget } from '../fury-road-director';
+import { stretchBudget } from '../chaos-highway-director';
 import { milestoneAt } from '../highway';
 import { bodyCondition } from '../npc-decisions';
 import { mountedParts } from '../grid';
@@ -65,7 +65,7 @@ function damageOn(events: readonly GameEvent[], id: string): number {
 }
 
 function choiceAt(world: World): OutpostChoice {
-  const run = world.furyRoad!;
+  const run = world.chaosHighway!;
   const post = run.outposts.find((o) => o.milestone === run.window + 1);
   const money = world.player.money;
   const stock = (post?.stock ?? []).filter((part) => !isJunk(part));
@@ -86,8 +86,8 @@ export class RunLog {
   private stretchStart = 0;
 
   note(before: World, world: World, events: readonly GameEvent[]): RunLine[] {
-    const run = world.furyRoad;
-    if (!run || !before.furyRoad) return [];
+    const run = world.chaosHighway;
+    if (!run || !before.chaosHighway) return [];
     const me = world.player.vehicleId;
     for (const v of world.vehicles) if (v.brain) this.templates.set(v.id, v.brain.templateId);
     this.tallyDamage(events, me);
@@ -112,8 +112,8 @@ export class RunLog {
     this.tally.haulerDamage += dealt;
     if (dealt > 0 && this.tally.firstHit === null) this.tally.firstHit = world.turn;
     this.tally.playerShots += events.filter((e) => e.t === 'shot' && e.shooter === world.player.vehicleId).length;
-    for (const g of world.furyRoad!.groups) {
-      if (g.vehicles.some((id) => { const v = world.vehicles.find((x) => x.id === id); return v !== undefined && dist(v.pos, hauler.pos) <= FURY_ROAD.pacing.near; })) this.tally.engaged.add(g.id);
+    for (const g of world.chaosHighway!.groups) {
+      if (g.vehicles.some((id) => { const v = world.vehicles.find((x) => x.id === id); return v !== undefined && dist(v.pos, hauler.pos) <= CHAOS_HIGHWAY.pacing.near; })) this.tally.engaged.add(g.id);
     }
   }
 
@@ -148,8 +148,8 @@ export class RunLog {
   }
 
   private spawned(before: World, world: World): RunLine[] {
-    const was = new Set(before.furyRoad!.groups.filter((g) => g.spawned).map((g) => g.id));
-    return world.furyRoad!.groups.filter((g) => g.spawned && !was.has(g.id)).map((g) => this.groupLine(world, g));
+    const was = new Set(before.chaosHighway!.groups.filter((g) => g.spawned).map((g) => g.id));
+    return world.chaosHighway!.groups.filter((g) => g.spawned && !was.has(g.id)).map((g) => this.groupLine(world, g));
   }
 
   private groupLine(world: World, g: WaveGroup): RunLine {
@@ -163,8 +163,8 @@ export class RunLog {
   }
 
   private beaten(before: World, world: World, stretch: number): RunLine[] {
-    const was = new Set(before.furyRoad!.groups.flatMap((g) => g.counted));
-    return world.furyRoad!.groups.flatMap((g) => g.counted.filter((id) => !was.has(id)))
+    const was = new Set(before.chaosHighway!.groups.flatMap((g) => g.counted));
+    return world.chaosHighway!.groups.flatMap((g) => g.counted.filter((id) => !was.has(id)))
       .map((id) => ({ t: 'beaten', turn: world.turn, stretch, id, template: this.templates.get(id) ?? 'unknown' }));
   }
 
@@ -185,9 +185,9 @@ export class RunLog {
       condition: conditionOf(world),
       kit: kitOf(playerVehicle(world)),
       haulerKit: kitOf(haulerOf(world)),
-      paid: Math.round(world.furyRoad!.earned / 100),
+      paid: Math.round(world.chaosHighway!.earned / 100),
       budget: stretchBudget(world, stretch).budget,
-      plan: world.furyRoad!.groups.map((g) => ({ at: Math.round(g.at - milestoneAt(world.seed, stretch - 1)), template: g.templates[0], size: g.templates.length, money: Math.round(g.money / 100), elite: g.elite })),
+      plan: world.chaosHighway!.groups.map((g) => ({ at: Math.round(g.at - milestoneAt(world.seed, stretch - 1)), template: g.templates[0], size: g.templates.length, money: Math.round(g.money / 100), elite: g.elite })),
     };
   }
 

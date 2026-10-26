@@ -19,7 +19,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit  # noqa: E402
-from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, FLARE, SUSPENSION_REST, arch_cut, cut_boxes, flare_profile, hull_mesh  # noqa: E402
+from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, FLARE, ROUND_ARCH_SEGMENTS, SUSPENSION_REST, arch_cut, cut_boxes, flare_profile, hull_mesh  # noqa: E402
+from parts_common_core import PROUD, ROUND_SIDES, TIRE_SHARE, drawn_wheel  # noqa: E402
 from rig_units import check_unit as check_rig_unit, unit_wheels as count_wheels  # noqa: E402
 from shapes import prism  # noqa: E402
 
@@ -36,7 +37,7 @@ WHEEL_Z = 1.15  # PHYSICS.bodies.sorokonoga.wheelZ: the steer wheels and the out
 WHEEL_R = 0.55  # PHYSICS.bodies.sorokonoga.wheelRadius
 WHEEL_HALF_W = 0.2  # PHYSICS.bodies.sorokonoga.wheelHalfWidth
 HUB_Z = WHEEL_Y - SUSPENSION_REST
-TIRE_R = WHEEL_R * 0.935  # the wheel model's tire body; its lugs reach the ground
+TIRE_R = WHEEL_R * TIRE_SHARE  # the wheel model's tire body; its lugs reach the ground
 DUAL_STEP = 2 * WHEEL_HALF_W + 0.02
 WELL_Y = WHEEL_Z - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall
 DUAL_WELL_Y = WHEEL_Z - DUAL_STEP - WHEEL_HALF_W - 0.03  # inside the drive axle's inner duals
@@ -88,7 +89,6 @@ MODULE_HALF = 1.25
 MODULE_ROOF = up(2.35)
 MODULE_CHAMFER = 0.25  # the module's top front edge, along and down
 SKIN = 0.04  # the depth of grilles and lamps on a face
-FLARE_SEGMENTS = 4  # half the arch cut's edges, to keep eight flares inside the triangle budget of one longbed
 GRILLE_REACH = SKIN / 2 + 0.01  # a grille's bars stand this far out of its center
 
 
@@ -110,7 +110,7 @@ def hull(kit: Kit, name: str, points: list[tuple[float, float, float]], mat: str
 
 def rig_flare(kit: Kit, name: str, wx: float, x_min: float, x_max: float, y0: float, y1: float, low: float) -> None:
     """The dark low-poly flare over one arch of the rig on both sides, from y0 out to y1, clamped to the unit's x stretch."""
-    profile = flare_profile(wx, HUB_Z, WHEEL_R, low, x_min, x_max, FLARE_SEGMENTS)
+    profile = flare_profile(wx, HUB_Z, WHEEL_R, low, x_min, x_max, ROUND_ARCH_SEGMENTS)
     prism(kit, f"{name}_l", profile, y0, y1, "under")
     prism(kit, f"{name}_r", profile, -y1, -y0, "under")
 
@@ -121,23 +121,19 @@ def tandem_flare(kit: Kit, name: str, front: float, rear: float, y0: float, y1: 
     r1 = r0 + FLARE
 
     def arc(wx: float, r: float, start: int, end: int) -> list[tuple[float, float]]:
-        return [(wx + r * math.cos(math.pi * k / FLARE_SEGMENTS), max(low, HUB_Z + r * math.sin(math.pi * k / FLARE_SEGMENTS))) for k in range(start, end + 1)]
+        return [(wx + r * math.cos(math.pi * k / ROUND_ARCH_SEGMENTS), max(low, HUB_Z + r * math.sin(math.pi * k / ROUND_ARCH_SEGMENTS))) for k in range(start, end + 1)]
 
-    half = FLARE_SEGMENTS // 2
-    outer = arc(front, r1, 0, half) + arc(rear, r1, half, FLARE_SEGMENTS)
-    inner = arc(front, r0, 0, FLARE_SEGMENTS) + arc(rear, r0, 0, FLARE_SEGMENTS)
+    half = ROUND_ARCH_SEGMENTS // 2
+    outer = arc(front, r1, 0, half) + arc(rear, r1, half, ROUND_ARCH_SEGMENTS)
+    inner = arc(front, r0, 0, ROUND_ARCH_SEGMENTS) + arc(rear, r0, 0, ROUND_ARCH_SEGMENTS)
     profile = outer + list(reversed(inner))
     prism(kit, f"{name}_l", profile, y0, y1, "under")
     prism(kit, f"{name}_r", profile, -y1, -y0, "under")
 
 
 def wheel(kit: Kit, name: str, x: float, y: float) -> None:
-    """One wheel in the look of the game's wheel model: a 24-sided tire, an 8-sided light rim and a 6-sided hub."""
-    width = 2 * WHEEL_HALF_W
-    axle = (math.pi / 2, 0, 0)
-    kit.cylinder(f"{name}_tire", TIRE_R, width * 0.94, (x, y, HUB_Z), "wheel", rot=axle, vertices=24)
-    kit.cylinder(f"{name}_rim", WHEEL_R * 0.55, width * 0.98, (x, y, HUB_Z), "metal_light", rot=axle, vertices=8)
-    kit.cylinder(f"{name}_hub", WHEEL_R * 0.22, width, (x, y, HUB_Z), "rust", rot=axle, vertices=6)
+    """One wheel in the look of the game's wheel model, from drawn_wheel()."""
+    drawn_wheel(kit, name, (x, y, HUB_Z), WHEEL_R, 2 * WHEEL_HALF_W)
 
 
 def model_wheels(kit: Kit, x: float, y: float) -> int:
@@ -167,7 +163,7 @@ def grille(kit: Kit, name: str, center: tuple[float, float, float], size: tuple[
 
 
 def round_lamp(kit: Kit, name: str, x: float, y: float, z: float, radius: float) -> None:
-    kit.cylinder(name, radius, SKIN, (x, y, z), "light", rot=(0, math.pi / 2, 0), vertices=6)
+    kit.cylinder(name, radius, SKIN, (x, y, z), "light", rot=(0, math.pi / 2, 0), vertices=ROUND_SIDES)
 
 
 def cab(kit: Kit) -> None:
@@ -176,7 +172,7 @@ def cab(kit: Kit) -> None:
     points += [(x, y, CAB_ROOF) for x in (SCREEN_TOP_X, CAB_BACK) for y in (CAB_HALF - 0.1, -CAB_HALF + 0.1)]
     points += [(SCREEN_FOOT[0], y, SCREEN_FOOT[1]) for y in (CAB_HALF - 0.02, -CAB_HALF + 0.02)]
     hull(kit, "cab", points, "paint", ([STEER_X], WELL_Y))
-    roof = [(x, y, z) for x in (SCREEN_TOP_X - 0.04, CAB_BACK) for y in (CAB_HALF - 0.08, -CAB_HALF + 0.08) for z in (CAB_ROOF - 0.01, CAB_ROOF + ROOF_T)]
+    roof = [(x, y, z) for x in (SCREEN_TOP_X - 0.04, CAB_BACK + PROUD) for y in (CAB_HALF - 0.08, -CAB_HALF + 0.08) for z in (CAB_ROOF - 0.01, CAB_ROOF + ROOF_T)]
     hull(kit, "cab_roof", roof, "trim")
     foot_x, foot_z = SCREEN_FOOT
     for s, name in ((1, "l"), (-1, "r")):
@@ -193,7 +189,7 @@ def engine_house(kit: Kit) -> None:
     """The low engine house behind the cab, open over the engine cells, with the bay floor the engine stands on and an arch over the drive axle."""
     points = [(x, y, z) for x in (CAB_BACK, HOUSE_BACK) for y in (HOUSE_HALF, -HOUSE_HALF) for z in (FRAME_TOP, HOUSE_TOP)]
     body = hull_mesh("engine_house", points)
-    cut_boxes(body, [((BAY_BACK, BAY_RIGHT, ENGINE[1]), (BAY_FRONT, BAY_LEFT, HOUSE_TOP + 0.2))])
+    cut_boxes(body, [((BAY_BACK, BAY_RIGHT, ENGINE[1] - PROUD), (BAY_FRONT, BAY_LEFT, HOUSE_TOP + 0.2))])
     arch_cut(body, [DRIVE_X], HUB_Z, WHEEL_R, DUAL_WELL_Y, ARCH_FOOT)
     body.data.materials.clear()
     kit._add(body, "engine_house", "paint", 0.0)
@@ -205,14 +201,15 @@ def tractor_frame(kit: Kit) -> int:
 
     The game draws the steer pair and the drive axle's outer duals. Returns the wheels the model draws.
     """
-    mirrored(kit, "rail", (CAB_FRONT - 0.2 - TRACTOR_REAR, 0.14, FRAME_TOP - FRAME_BOTTOM), (CAB_FRONT - 0.2 + TRACTOR_REAR) / 2, 0.45, (FRAME_TOP + FRAME_BOTTOM) / 2, "under")
-    kit.box("frame_end", (0.15, 1.2, FRAME_TOP - FRAME_BOTTOM), (TRACTOR_REAR + 0.075, 0, (FRAME_TOP + FRAME_BOTTOM) / 2), "metal_dark")
+    rail_back = TRACTOR_REAR + PROUD
+    mirrored(kit, "rail", (CAB_FRONT - 0.2 - rail_back, 0.14, FRAME_TOP - FRAME_BOTTOM), (CAB_FRONT - 0.2 + rail_back) / 2, 0.45, (FRAME_TOP + FRAME_BOTTOM) / 2, "under")
+    kit.box("frame_end", (0.15, 1.2, FRAME_TOP - FRAME_BOTTOM + 2 * PROUD), (TRACTOR_REAR + 0.075, 0, (FRAME_TOP + FRAME_BOTTOM) / 2), "metal_dark")
     wheels = model_wheels(kit, DRIVE_X, WHEEL_Z - DUAL_STEP)
     axle(kit, DRIVE_X, WHEEL_Z - DUAL_STEP)
     rig_flare(kit, "flare_steer", STEER_X, TRACTOR_REAR, FRONT, CAB_HALF - 0.05, HALF_W, CAB_BOTTOM)
     rig_flare(kit, "flare_drive", DRIVE_X, TRACTOR_REAR, FRONT, DUAL_WELL_Y, HALF_W, FRAME_TOP)
     kit.box("fifth_wheel", (0.6, 1.1, 0.12), (PIVOT_X, 0, up(1.11)), "metal_light")
-    kit.cylinder("coupling_disc", 0.3, 0.14, (PIVOT_X, 0, up(1.24)), "rust", vertices=8)
+    kit.cylinder("coupling_disc", 0.3, 0.14, (PIVOT_X, 0, up(1.24)), "rust", vertices=ROUND_SIDES)
     return wheels
 
 
@@ -228,7 +225,7 @@ def module(kit: Kit) -> int:
     points += [(MODULE_FRONT, y, roof_z - MODULE_CHAMFER) for y in (MODULE_HALF, -MODULE_HALF)]
     points += [(x, y, roof_z) for x in (nose, back) for y in (MODULE_HALF, -MODULE_HALF)]
     hull(kit, "module", points, "paint", (list(MODULE_AXLES), WELL_Y))
-    roof = [(x, y, z) for x in (nose - 0.02, back) for y in (MODULE_HALF, -MODULE_HALF) for z in (roof_z - 0.01, MODULE_ROOF)]
+    roof = [(x, y, z) for x in (nose - 0.02, back + PROUD) for y in (MODULE_HALF - PROUD, -MODULE_HALF + PROUD) for z in (roof_z - 0.01, MODULE_ROOF)]
     hull(kit, "module_roof", roof, "trim")
     side_x = (MODULE_FRONT - 0.3 + MODULE_AXLES[0] + WHEEL_R + 0.3) / 2
     for s, name in ((1, "l"), (-1, "r")):

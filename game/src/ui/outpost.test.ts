@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { driveOn } from "../sim/fury-road";
-import { furyRoadWorld, parkInYard } from "../sim/testkit";
+import { driveOn } from "../sim/chaos-highway";
+import { chaosHighwayWorld, parkInYard } from "../sim/testkit";
 import { endTurn } from "../sim/world";
 import { outpostControls } from "./outpost";
 
@@ -8,14 +8,14 @@ const still = () => {};
 
 describe("the controls of the outpost screen", () => {
   it("offer Leave and no Drive on while the gates are open", () => {
-    const early = furyRoadWorld();
+    const early = chaosHighwayWorld();
     parkInYard(early, 1);
 
     expect(outpostControls(early)).toEqual({ leave: true, driveOn: false });
   });
 
   it("keeps no Leave once the gates are shut, with Drive on as the one way out", () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     parkInYard(w, 1);
     const shut = endTurn(w, still);
 
@@ -23,7 +23,7 @@ describe("the controls of the outpost screen", () => {
   });
 
   it("offers Leave again with no Drive on after the road opened", () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     parkInYard(w, 1);
     const after = driveOn(endTurn(w, still));
 

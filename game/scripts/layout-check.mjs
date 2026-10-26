@@ -30,7 +30,7 @@ function fillLog(page) {
       t('log.jobCancelled', { what: t('job.remove', { part: n.partName('tankHeavy'), truck: t('vehicle.npc', { profession: n.professionName('convoyGuard'), driver: n.fullName('Dmitri Tulloch') }) }) }),
       t('log.jobStarted', { what: t('job.repair', { part: n.partName('enclosedFrame') }), n: 12 }),
       t('log.escortHired', { client: t('vehicle.npc', { profession: n.professionName('convoy'), driver: n.fullName('Lorna Morozov') }), who: t('vehicle.npc', { profession: n.professionName('merc'), driver: n.fullName('Elias Drummond') }), site: n.siteName('canyon-bridge'), fee: moneyMsg(12345) }),
-      t('log.contract.accepted', { what: t('contract.fetch', { part: n.partName('reinforcedCage'), site: n.siteName('salvage-yard'), n: 2 }), reward: moneyMsg(4200) }),
+      t('log.contract.accepted', { what: t('contract.procure', { n: 12, good: n.goodName('electronics'), site: n.siteName('salvage-yard') }), reward: moneyMsg(4200) }),
       t('note.hazard'),
       t('log.towDroppedYou.blocked', { who: t('vehicle.npc', { profession: n.professionName('bowlFarmer'), driver: n.fullName('Hester Kessler') }) }),
       t('log.scrapPatchFuel', { liters: 40 }),
@@ -53,7 +53,13 @@ async function openTown(page, tab) {
     g.apply(c.teleport(g.state, c.placeSpot(g.state, 'bowl')));
     g.screens.town.open();
   });
-  await page.evaluate((tab) => document.querySelector(`.town-screen [data-tab="${tab}"]`).click(), tab);
+  await page.evaluate((tab) => {
+    const go = (id) => document.querySelector(`.town-page [data-town-go="${id}"]`)?.click();
+    go('back');
+    const section = { buyParts: 'garage', sellParts: 'garage', trucks: 'garage', contracts: 'board' }[tab] ?? tab;
+    if (section !== 'front') go(section);
+    if (section === 'garage') document.querySelector(`.town-page [data-garage-tab="${tab}"]`).click();
+  }, tab);
 }
 
 const closeTown = (page) => page.evaluate(() => window.__ROAM__.screens.town.close());
@@ -70,11 +76,16 @@ async function openShortMarket(page) {
     w.roadNews = [
       { turn: w.turn - 40, kind: 'robbed', good: 'grain', units: 14, from: 'bowl', to: 'granary' },
       { turn: w.turn - 160, kind: 'knockedOut', good: 'fuelDrums', units: 12, from: 'pump-station', to: 'salvage-yard' },
+      { turn: w.turn - 20, kind: 'destroyed', good: 'rations', units: 1, from: 'granary', to: 'bowl' },
     ];
     g.apply(w);
     g.screens.town.open();
   });
-  await page.evaluate(() => document.querySelector('.town-screen [data-tab="market"]').click());
+  await page.evaluate(() => {
+    const go = (id) => document.querySelector(`.town-page [data-town-go="${id}"]`)?.click();
+    go('back');
+    go('market');
+  });
 }
 
 async function openCall(page, node) {
@@ -191,18 +202,23 @@ async function boot() {
 }
 
 async function inspectNpc(page, armed) {
-  await page.evaluate(async (armed) => {
+  const npcId = await page.evaluate(async (armed) => {
     const g = window.__ROAM__;
     const { runCommand } = await import('/src/ui/console.ts');
     const { partDef } = await import('/src/data/parts.ts');
     const world = structuredClone(runCommand(g.state, 'spawn gunwagon hostile').world);
+    document.querySelector('.tip-off')?.click();
     const npc = world.vehicles.filter((v) => v.brain).at(-1);
+    world.player.ranks.perception = Math.max(world.player.ranks.perception, 1);
+    if (!world.player.perks.includes('spotter')) world.player.perks.push('spotter');
     if (!armed) npc.items = npc.items.filter((it) => !(it.kind === 'part' && partDef(it.part.defId).kind === 'weapon'));
     g.apply(world);
     g.hovered = npc.id;
     g.refreshInfo();
     g.hitCard.show();
+    return npc.id;
   }, armed);
+  await page.waitForFunction((id) => window.__ROAM__.hud.portraitSettled(id), npcId, { timeout: 60000 });
 }
 
 const clearInspect = (page) => page.evaluate(() => {
@@ -221,7 +237,7 @@ const openStartMenu = (page) => page.evaluate(async () => {
   const { chooseStart } = await import('/src/ui/save-screen.ts');
   const { SoundSettings } = await import('/src/ui/sound.ts');
   const sound = new SoundSettings({ setBusVolume: () => {}, setMuted: () => {} }, window.localStorage);
-  const saves = [{ slot: 'slot2', savedAt: 900, turn: 120, mode: 'roaming' }, { slot: 'auto', savedAt: 500, turn: 40, mode: 'furyRoad' }];
+  const saves = [{ slot: 'slot2', savedAt: 900, turn: 120, mode: 'roaming' }, { slot: 'auto', savedAt: 500, turn: 40, mode: 'chaosHighway' }];
   void chooseStart(saves, { requestBoot: () => {}, reload: () => {}, confirm: () => false }, sound);
 });
 
@@ -266,6 +282,32 @@ const closeQuestPage = (page) => page.evaluate(() => {
   g.apply(world);
 });
 
+const SURVEY_CONTRACT_ID = 'layout-survey';
+
+const openSurveyJournal = async (page) => {
+  await page.evaluate(async (id) => {
+    const g = window.__ROAM__;
+    const { surveySites } = await import('/src/sim/survey.ts');
+    const world = structuredClone(g.state);
+    const sites = surveySites({ hash: world.mapHash, terrain: world.terrain }).filter((s) => s.type !== 'boats').slice(0, 3);
+    const points = sites.map((s, i) => ({ site: s.id, found: i > 0, done: i > 1 }));
+    world.player.contracts.push({ id, shop: 'bowl', kind: 'survey', points, reward: 3000, deadline: 9000, window: 600, tier: 1 });
+    g.apply(world);
+  }, SURVEY_CONTRACT_ID);
+  await key(page, 'KeyJ');
+  await page.waitForFunction(() => [...document.querySelectorAll('#ui .survey-picture img')].every((img) => img.complete && img.naturalWidth > 0));
+};
+
+const closeSurveyJournal = async (page) => {
+  await escape(page);
+  await page.evaluate((id) => {
+    const g = window.__ROAM__;
+    const world = structuredClone(g.state);
+    world.player.contracts = world.player.contracts.filter((c) => c.id !== id);
+    g.apply(world);
+  }, SURVEY_CONTRACT_ID);
+};
+
 const STATES = {
   menu: { setup: () => undefined, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   log: { setup: fillLog },
@@ -276,9 +318,13 @@ const STATES = {
   trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown },
   'trade-shortage': { setup: openShortMarket, teardown: closeTown },
   charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown },
-  'world-map': { setup: (page) => key(page, 'KeyK'), teardown: escape },
+  'journal-survey': { setup: openSurveyJournal, teardown: closeSurveyJournal, viewports: [...VIEWPORTS, PHONE] },
+  'world-map': { setup: (page) => key(page, 'KeyM'), teardown: escape },
   minimap: { setup: (page) => setMinimap(page, true), teardown: (page) => setMinimap(page, false) },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown },
+  'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown },
+  'town-board': { setup: (page) => openTown(page, 'contracts'), teardown: closeTown },
+  'town-people': { setup: (page) => openTown(page, 'people'), teardown: closeTown },
   paint: { setup: (page) => openTown(page, 'paint'), teardown: closeTown },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
   'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp },

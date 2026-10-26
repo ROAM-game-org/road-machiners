@@ -1,5 +1,5 @@
 
-import { advanceCrimes } from './crime';
+import { advanceCrimes, learnCasesAtDesk } from './crime';
 import { settleCrews } from './crews';
 import { CHASSIS, isPaletteId, PAINT, PAINT_SLOTS } from '../data/chassis';
 import { GOODS } from '../data/goods';
@@ -25,7 +25,7 @@ import { applyGodMode, freezeDriving, freezeFire } from './cheats';
 import { assignAutoOrders, dropMagazine, fireWeapons, isHostile, noteEngagements, resolveDestroyed, settleAims } from './combat';
 import { cutLine } from './harpoon';
 import { advanceKnockout, advanceNpcKnockouts, checkDeath, checkKnockout, isKnockedOut } from './defeat';
-import { advanceIntro, greetAtScale, greetAtWell, wakeInTown } from './intro';
+import { advanceIntro, greetAtWell, wakeInTown } from './intro';
 import { healPlayer } from './health';
 import { discoverSites } from './locations';
 import { findSurveySites } from './survey';
@@ -52,7 +52,7 @@ import { defaultSetup, modeMap, modeRules, modeRulesOf, parseSetup, repairSetup 
 import { QUESTS, openRoadScene, type CarriedQuestVars } from './quests';
 import { repairQuests, type SavedRevisions } from './quest-repair';
 import { isNoteId } from '../data/locals';
-import { advanceFuryRoad, outpostFactsAt, runStart, startRun } from './fury-road';
+import { advanceChaosHighway, outpostFactsAt, runStart, startRun } from './chaos-highway';
 import { gatesShut } from './outpost-gates';
 import { noteHaulerHits, planHaulerOrder, watchHaulerStall } from './hauler';
 import { overdriveBlock, vehicleStats } from './stats';
@@ -76,7 +76,8 @@ import { startPose } from './start-pose';
 import { clamp, dist, type Vec } from './vec';
 import { startStanding } from "../data/npc-behavior";
 import { driftStanding } from "./relations";
-import { advanceSunward, freshSunward, HOLLOW_ID, hollowObstaclesFor } from "./sunward";
+import { advanceSunward, freshSunward, HOLLOW_ID } from "./sunward";
+import { hollowObstaclesFor } from "./hollow-layout";
 
 export function seedStreams(seed: number): Pick<World, 'seed' | 'rngState' | 'marketRng' | 'nameRng' | 'searchRng'> {
   if (!Number.isInteger(seed)) throw new Error(`Seed must be an integer, got ${seed}`);
@@ -165,7 +166,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     fields: [],
     flares: [],
     lines: [],
-    furyRoad: null,
+    chaosHighway: null,
     sunward: modeMap(setup.mode) === 'icarus' ? freshSunward() : null,
     crimes: [],
   };
@@ -290,9 +291,13 @@ export function requireActivePlayer(world: World): void {
   if (world.player.call) throw new Error('A radio call is open');
 }
 
+export function waitsOnPlayer(world: World): boolean {
+  return world.player.call !== null || world.player.quests.live !== null;
+}
+
 export function autoRuns(world: World): boolean {
   const p = world.player;
-  if (p.call || p.quests.live) return false;
+  if (waitsOnPlayer(world)) return false;
   if (p.state === 'knockedOut' || isTowed(world)) return true;
   if (readyDeal(world)) return false;
   return waitsOnBeacon(world);
@@ -400,19 +405,19 @@ export function endTurn(
     driftStanding(w);
     lapseEncounter(w);
     resolveNpcActivities(w);
+    learnCasesAtDesk(w);
     noteEngagements(w);
     discoverSites(w);
     checkDeath(w);
     wakeInTown(w, advanceKnockout(w));
     checkKnockout(w);
     advanceNpcKnockouts(w);
-    advanceFuryRoad(w);
+    advanceChaosHighway(w);
     openRoadScene(w);
     spawnNpcs(w);
     advanceSunward(w);
     advanceIntro(w);
     greetAtWell(w);
-    greetAtScale(w);
     advanceShops(w);
     advanceProduction(w);
     practiceContacts(w, refreshVision(w));
@@ -598,7 +603,7 @@ function carryPlayerTruck(world: World, carried: Carried, stay: boolean): void {
 }
 
 function carryRun(world: World, carried: CarriedRun): void {
-  const run = world.furyRoad;
+  const run = world.chaosHighway;
   if (!run) throw new Error('A carried Chaos Highway run needs a world with a run');
   run.earned = carried.earned;
   run.wrecks = carried.wrecks;
@@ -647,7 +652,7 @@ function carryPaint(world: World, paint: CarriedPaint | null): void {
 }
 
 function knownSite(world: World, id: string): boolean {
-  return KNOWN_SITES.has(id) || (world.furyRoad !== null && isOutpostSite(id));
+  return KNOWN_SITES.has(id) || (world.chaosHighway !== null && isOutpostSite(id));
 }
 
 function carryQuests(world: World, carried: Carried): void {

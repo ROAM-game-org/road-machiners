@@ -24,7 +24,14 @@ beforeEach(() => {
   labels = [];
   writeState(`${home}/state.json`, { ...EMPTY_STATE, approvalPosts: { 100: 7, 101: 7, 200: 8 }, pendingApprovals: { 7: 'bob' }, builds: { 7: 'aaa1111', 8: 'bbb2222' } });
 });
-afterEach(() => rmSync(home, { recursive: true, force: true }));
+afterEach(() => {
+  rmSync(home, { recursive: true, force: true });
+  telegramFiles = {};
+  downloads = [];
+});
+
+let telegramFiles: Record<string, Buffer> = {};
+let downloads: string[] = [];
 
 function fakeCtx(): Ctx {
   const record = (name: string) => async (...args: unknown[]) => { calls.push(`${name} ${args.join(' ')}`); };
@@ -40,7 +47,15 @@ function fakeCtx(): Ctx {
       comment: record('comment'), addLabel: record('addLabel'), removeLabel: record('removeLabel'), pullRequestFor: async () => openPr, closePullRequest: record('closePullRequest'), close: record('close'), move: record('move'),
       createRelease: record('release'),
     },
-    telegram: { sendMessage: record('message') },
+    telegram: {
+      sendMessage: record('message'),
+      downloadFile: async (fileId: string) => {
+        downloads.push(fileId);
+        const data = telegramFiles[fileId];
+        if (data === undefined) throw new Error('Telegram getFile failed: Bad Request: wrong file_id or the file is temporarily unavailable');
+        return data;
+      },
+    },
     container: { shell: record('shell') },
     repo: {
       fetch: record('fetch'), headHash: async () => 'abc1234',
@@ -278,6 +293,33 @@ describe('routeFeedback', () => {
     expect(calls[0]).toBe(`comment 7 ## Committee feedback\n\nFrom bob, routed as patch:\n\nDelete the middle dot\n\nThe reply came with 2 file(s) in Telegram. They stay private: the agent sees them in its media folder, and they are not posted here.\n- png, 4x3, ${png.length} bytes, sha256 ${sha}\n- not available: the chat bot could not keep it: the file is no longer in the cache`);
     expect(readFileSync(`${home}/media/issue-7/committee/${sha.slice(0, 16)}.png`)).toEqual(png);
     expect(existsSync(`${home}/inbox/media/post-100`)).toBe(false);
+  });
+
+  it('a patch Hermes routes from a text-and-image reply downloads the exact image the plugin noted, and posts no pixels or caption', async () => {
+    const photo = solidPng(6, 4, [200, 10, 10]);
+    telegramFiles = { 'AgACphoto': photo };
+    const caption = 'Nice! Make pictures 25% smaller and apply some postprocessing so they look like photos';
+    mkdirSync(`${home}/inbox/media/post-100`, { recursive: true });
+    writeFileSync(`${home}/inbox/media/post-100/3527-1.telegram`, JSON.stringify({ fileId: 'AgACphoto', bytes: photo.length, by: '389', byName: 'Dr. Boris', text: caption }));
+    await routeFeedback(fakeCtx(), 7, 'Dr. Boris', `${caption}\n\nHermes notes\nShrink the pictures.`, 'patch', 100);
+    const sha = createHash('sha256').update(photo).digest('hex');
+    expect(downloads).toEqual(['AgACphoto']);
+    expect(calls[0]).toBe(`comment 7 ## Committee feedback\n\nFrom Dr. Boris, routed as patch:\n\n${caption}\n\nHermes notes\nShrink the pictures.\n\nThe reply came with 1 file(s) in Telegram. They stay private: the agent sees them in its media folder, and they are not posted here.\n- png, 6x4, ${photo.length} bytes, sha256 ${sha}`);
+    expect(calls[0]).not.toContain('AgACphoto');
+    expect(readFileSync(`${home}/media/issue-7/committee/${sha.slice(0, 16)}.png`)).toEqual(photo);
+    const [entry] = JSON.parse(readFileSync(`${home}/media/issue-7/committee.json`, 'utf8')) as { source: string; status: string }[];
+    expect(entry).toMatchObject({ status: 'ok', source: `committee reply in Telegram by Dr. Boris, who wrote with it: ${JSON.stringify(caption)}` });
+    expect(existsSync(`${home}/inbox/media/post-100`)).toBe(false);
+  });
+
+  it('a patch whose Telegram image will not download still queues, and says the image is not available', async () => {
+    mkdirSync(`${home}/inbox/media/post-100`, { recursive: true });
+    writeFileSync(`${home}/inbox/media/post-100/3527-1.telegram`, JSON.stringify({ fileId: 'AgACgone', bytes: 1000, by: '389', byName: 'Dr. Boris', text: 'This but with closed cabin' }));
+    await routeFeedback(fakeCtx(), 7, 'Dr. Boris', 'This but with closed cabin please', 'patch', 100);
+    expect(downloads).toEqual(['AgACgone', 'AgACgone']);
+    expect(calls[0]).toContain('\n- not available: Telegram did not give it after two tries: Telegram getFile failed: Bad Request: wrong file_id or the file is temporarily unavailable');
+    expect(calls).toContain('move 7 Testing');
+    expect(JSON.parse(readFileSync(`${home}/media/issue-7/committee.json`, 'utf8'))).toEqual([expect.objectContaining({ url: 'telegram:post-100-3527-1', status: 'failed' })]);
   });
 
   it('an answer leaves the Telegram images for a later route, and approve drops them', async () => {

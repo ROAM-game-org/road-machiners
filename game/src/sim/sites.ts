@@ -1,5 +1,6 @@
 
 import { FORTRESS_SITES } from '../data/fortress';
+import { HOLLOW } from '../data/sunward';
 import { STALL_MARKETS } from '../data/market';
 import { REGION, type LocationDef, type TerritoryDef, type TownDef } from '../data/region';
 import { RULES } from '../data/rules';
@@ -9,6 +10,10 @@ import type { Vehicle, World } from './types';
 import { dist, pointInPolygon, polygonEdgeDist, type Vec } from './vec';
 
 export type Site = TownDef | LocationDef;
+
+export function worldPlaces(world: Pick<World, 'terrain' | 'sunward'>): Site[] {
+  return [...atlasSites(atlasOf(world.terrain)), ...(world.sunward ? [HOLLOW.site] : [])];
+}
 
 export const OUTPOSTS: readonly LocationDef[] = STALL_MARKETS.map((id) => {
   const site = REGION.locations.find((l) => l.id === id);

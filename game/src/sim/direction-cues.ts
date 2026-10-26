@@ -3,7 +3,7 @@ import { atlasOf, atlasSites } from './atlas';
 import { propsAlong, propsAround } from './prop-index';
 import { otherEnd, type RoadGraph } from './road-network';
 import { siteGap, type Site } from './sites';
-import type { Cue, LandmarkLook, Obstacle, Octant, RoadName, Span, World } from './types';
+import type { Cardinal, Cue, LandmarkLook, Obstacle, Octant, RoadName, Span, World } from './types';
 import { dist, type Vec } from './vec';
 
 const OCTANTS: Octant[] = ['east', 'southEast', 'south', 'southWest', 'west', 'northWest', 'north', 'northEast'];
@@ -12,6 +12,48 @@ export function octantOf(v: Vec): Octant {
   const step = (2 * Math.PI) / OCTANTS.length;
   const i = Math.round(Math.atan2(v.y, v.x) / step);
   return OCTANTS[((i % OCTANTS.length) + OCTANTS.length) % OCTANTS.length];
+}
+
+const OCTANT_ANGLE: Record<Octant, number> = Object.fromEntries(OCTANTS.map((o, i) => [o, (i * 2 * Math.PI) / OCTANTS.length])) as Record<Octant, number>;
+const CARDINAL_ANGLES: [Cardinal, number][] = [['east', 0], ['south', Math.PI / 2], ['west', Math.PI], ['north', -Math.PI / 2]];
+
+function wrap(angle: number): number {
+  return Math.atan2(Math.sin(angle), Math.cos(angle));
+}
+
+export function cardinalOf(v: Vec): Cardinal {
+  const angle = Math.atan2(v.y, v.x);
+  return CARDINAL_ANGLES.reduce((best, c) => (Math.abs(wrap(angle - c[1])) < Math.abs(wrap(angle - best[1])) ? c : best))[0];
+}
+
+export function distinctCardinals(offsets: readonly Vec[]): Cardinal[] | null {
+  const plain = offsets.map(cardinalOf);
+  if (new Set(plain).size === plain.length) return plain;
+  const angles = offsets.map((v) => Math.atan2(v.y, v.x));
+  let best: Cardinal[] | null = null;
+  let bestMiss = Infinity;
+  const assign = (chosen: Cardinal[], miss: number): void => {
+    if (miss >= bestMiss) return;
+    if (chosen.length === offsets.length) {
+      best = chosen;
+      bestMiss = miss;
+      return;
+    }
+    for (const [side, at] of CARDINAL_ANGLES) {
+      if (!chosen.includes(side)) assign([...chosen, side], miss + Math.abs(wrap(angles[chosen.length] - at)));
+    }
+  };
+  assign([], 0);
+  return best;
+}
+
+export function leanOf(v: Vec, octant: Octant): Cardinal | null {
+  const angle = OCTANT_ANGLE[octant];
+  const off = wrap(Math.atan2(v.y, v.x) - angle);
+  if (Math.abs(off) <= DIRECTIONS.leanAngle) return null;
+  const isCardinal = CARDINAL_ANGLES.some((c) => Math.abs(wrap(angle - c[1])) < 1e-9);
+  const toward = isCardinal ? angle + Math.sign(off) * (Math.PI / 2) : angle + off;
+  return cardinalOf({ x: Math.cos(toward), y: Math.sin(toward) });
 }
 
 export function headingAlong(lines: readonly (readonly Vec[])[], reach: number): Octant {

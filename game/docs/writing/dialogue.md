@@ -10,7 +10,7 @@ ROAM's voice comes from the author's own wasteland and adventure stories. These 
 
 ### A voice, not a camera
 
-Narration runs through the character's head. Between the plain facts, the character thinks: a judgment, a complaint, a question to themselves, a guess that may be wrong. "Bradley was a good axe, even though he was an insufferable dickhead." "Should have approached from the sun side." "Does dying by a bullet beat starving in the desert? Hell yeah." In a page scene this is the second person: "Walking east was stupid. Not that the west had anything better."
+Narration runs through the character's head. Between the plain facts, the character thinks: a judgment, a complaint, a question to themselves, a guess that may be wrong. "Bradley was a good axe, even though he was an insufferable dickhead." "Should have approached from the sun side." "Does dying by a bullet beat starving in the desert? Hell yeah." In a page scene this is the second person: "Walking south-west was stupid. Not that the south-east had anything better."
 
 A page of bare facts, one after another, reads as a telegram even when each sentence is fine. "The house has lost its roof. The fence posts lean. The goat pen holds no goats." lists what a camera sees. Give the facts a reaction, or join them to what the character wants.
 
@@ -178,6 +178,12 @@ Ruben, asked "Who runs Bowl?": "The canal families, through the Senate. It's slo
 
 Then the choice "[What's the Senate?]" opens, and the longer answer lives there.
 
+A talk window shows only the last reply, so the reply that opened a follow-up may be gone when the choice appears. Name the subject in the option itself, with a noun the player has met, and never with "it", "them" or a quote of the last reply. The speaker never says "you can ask me about that". What they say or do gives the reason to ask.
+
+Bad, Sefa: "I make a point of never taking the last of it from anyone, and you can ask me why." Then "[Why do you never take the last water?]", which shows up two picks later with nothing before it.
+
+Good, Sefa: "My families pick stalled and knocked-out trucks clean, down to the frame, and the driver keeps his water." Then "[Why leave a stripped driver his water?]".
+
 ### Important facts live in more than one mouth
 
 A fact the player needs to move on, such as where South Lock is or who buys stolen fuel, comes from at least two people or from a person and a document. A player who skipped one talk is never stuck.
@@ -301,3 +307,4 @@ No jokes that need knowledge from outside the basin. No jokes about the game its
 2. Read it as a stranger who has heard nothing. Every word they meet is either explained or plain.
 3. Read it aloud. A line you stumble on is a line the player skips.
 4. Play every branch with `npm run quest -- <quest>`, including the failures.
+5. Read the changed lines against the [Humanizer](humanizer.md#how-roam-uses-it) the way its How ROAM uses it section says for fiction.

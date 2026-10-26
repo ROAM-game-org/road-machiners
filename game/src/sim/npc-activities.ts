@@ -6,10 +6,10 @@ import { RULES } from '../data/rules';
 import { inCombat, inCombatWith, isHostile, turnPartHits } from './combat';
 import { abandonLostSizing, lookOverPrey, onHoldUp, onPreySeen, onSizingUp, reactToLookOvers, sizesUpFirst, sizeUpGoal, sizeUpInvalid, steerSizeUp } from './look-over';
 import { reportIncident } from './relations';
-import { fileReports } from './crime';
+import { fileReports, openCasesOn } from './crime';
 import { huntedCases, isMarshal, planMarshal } from './marshals';
 import { cargoSaleValue } from './economy';
-import { corePart } from './grid';
+import { corePart, goodsCount } from './grid';
 import { cancelJob } from './jobs';
 import { businessBelongs, resolveSell, resolveTrade } from './npc-business';
 import { isFree } from './spawn';
@@ -55,7 +55,7 @@ import { meetingLapsed } from './sunward-crater';
 
 export const INTERRUPTIONS: readonly NpcActivity['kind'][] = ['fight', 'flee', 'investigate', 'sizeUp', 'resupply', 'tow', 'loot', 'repair', 'patch', 'meet', 'retreat', 'rearm', 'follow'];
 
-function goalsOf(v: Vehicle): NpcActivity[] {
+export function goalsOf(v: Vehicle): NpcActivity[] {
   if (!v.brain) throw new Error(`${v.id} has no NPC brain`);
   if (!v.brain.goals) throw new Error(`${v.id} has no goals`);
   return v.brain.goals;
@@ -388,10 +388,11 @@ export function meetGoal(world: World, npc: Vehicle, other: Vehicle, reason: Goa
 const GOAL_CHECKS: Partial<Record<NpcActivity['kind'], GoalCheck>> = {
   fight: fightInvalid,
   rearm: rearmInvalid,
-  wait: (world, vehicle, goal) => (goal.reason !== 'atPost' && escortsOf(world, vehicle.id).length > 0 ? 'escortHired' : null),
+  wait: escortWaitInvalid,
   flee: fleeInvalid,
   investigate: investigateInvalid,
   sizeUp: sizeUpInvalid,
+  sell: (_world, vehicle, goal) => haulLost(vehicle, goal),
   scavenge: scavengeInvalid,
   loot: lootInvalid,
   tow: towInvalid,
@@ -399,8 +400,27 @@ const GOAL_CHECKS: Partial<Record<NpcActivity['kind'], GoalCheck>> = {
   meet: (world, vehicle, goal) => (goal.reason === 'meetStranger' ? meetingLapsed(world, vehicle, goal) : dealMeetInvalid(world, vehicle, goal)),
   follow: (world, vehicle, goal) => (follows(world, vehicle, goal.targetId!) ? null : 'leftLeader'),
   claim: claimInvalid,
-  pursue: (world, vehicle, goal) => (huntedCases(world, vehicle, goal.targetId!).length > 0 ? null : 'caseClosed'),
+  pursue: pursuitOver,
 };
+
+function haulLost(vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
+  if (!goal.shipment) return null;
+  return (goodsCount(vehicle)[goal.shipment.good] ?? 0) > 0 ? null : 'cargoLost';
+}
+
+function escortWaitInvalid(world: World, vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
+  if (goal.reason === 'atPost') return null;
+  if (escortsOf(world, vehicle.id).length > 0) return 'escortHired';
+  if (goal.reason !== 'awaitEscort') return null;
+  const haul = goalsOf(vehicle)[0];
+  if (!haul?.shipment) throw new Error(`Vehicle ${vehicle.id} waits for an escort with no shipment under the wait`);
+  return haulLost(vehicle, haul);
+}
+
+function pursuitOver(world: World, vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
+  if (huntedCases(world, vehicle, goal.targetId!).length > 0) return null;
+  return openCasesOn(world, goal.targetId!).length > 0 ? 'backToPost' : 'caseClosed';
+}
 
 function dealMeetInvalid(world: World, vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
   return world.states.some((s) => (s.kind === 'trade' || s.kind === 'handover' || s.kind === 'aid') && s.holder === vehicle.id && s.other === goal.targetId) ? null : 'meetingOff';
@@ -977,6 +997,7 @@ export function noteHurt(world: World): void {
 
 export function getActivityDestination(world: World, vehicle: Vehicle, activity: NpcActivity): Vec | null {
   if (!activity.destination) return null;
+  if (vehicle.job?.kind === 'search' && searchBelongs(vehicle.job, activity)) return null;
   if (activity.kind === 'repair' || activity.kind === 'rearm' || activity.kind === 'wait') return parksHere(vehicle, activity) ? null : activity.destination;
   if (['fight', 'flee', 'raid', 'prowl', 'investigate', 'patrol', 'explore', 'follow', 'muster', 'sizeUp'].includes(activity.kind)) return activity.destination;
   return siteStop(world, vehicle, activity, activity.destination);

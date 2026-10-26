@@ -181,6 +181,22 @@ describe('public store', () => {
     expect(store.proposalPostAttemptsSince(new Date(now.getTime() - 1000))).toBe(1);
   });
 
+  it('reopens only a closed proposal that was never posted or attempted', () => {
+    const store = openStore(mkdtempSync(join(tmpdir(), 'public-store-')));
+    store.addProposal(7, 'Add a winch', now);
+    expect(store.reopenUnattempted(7)).toBe(false);
+    store.closeProposal(7, now);
+    expect(store.reopenUnattempted(7)).toBe(true);
+    expect(store.reopenUnattempted(7)).toBe(false);
+    expect(store.unpostedProposals().map((proposal) => proposal.issue)).toEqual([7]);
+    store.beginProposalPost(7, now);
+    expect(store.reopenUnattempted(7)).toBe(false);
+    const posted = postedStore();
+    posted.closeProposal(7, now);
+    expect(posted.reopenUnattempted(7)).toBe(false);
+    expect(store.reopenUnattempted(8)).toBe(false);
+  });
+
   it('seeds post attempts from the proposals of a database made before the attempts table', () => {
     const home = mkdtempSync(join(tmpdir(), 'public-store-'));
     mkdirSync(join(home, 'public'));

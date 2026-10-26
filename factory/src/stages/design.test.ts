@@ -139,6 +139,12 @@ describe('design stage', () => {
     expect(efforts).toEqual(['medium']);
   });
 
+  it('runs its subagents on the build model', async () => {
+    const subagents: Array<string | undefined> = [];
+    await runStage(fakeCtx((run) => { subagents.push(run.subagentModel); writeFileSync(`${run.clone}/${run.dir}/.factory/wont-do.md`, 'No.\n'); }), 7);
+    expect(subagents).toEqual(['sonnet']);
+  });
+
   it('comments, labels, closes and moves to Done on won\'t do', async () => {
     await runStage(fakeCtx((run) => writeFileSync(`${run.clone}/${run.dir}/.factory/wont-do.md`, 'Against the design.\n')), 7);
     expect(calls).toContain('comment 7 Against the design.');

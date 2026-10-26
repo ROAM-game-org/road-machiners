@@ -2,12 +2,12 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readAgentOutput } from '../agent-output';
-import { fetchMedia, mediaSection } from '../media';
+import { fetchMedia, mediaSection, type MediaEntry } from '../media';
 import { CommitteeDecisionError, guardDiff } from '../diff-guard';
-import { askedAt, isAnswered, recordAsked, recordQuestionPost } from '../questions';
+import { askedAt, isAnswered, questionPostsOf, recordAsked, recordQuestionPost } from '../questions';
 import { MESSAGE_LIMIT } from '../telegram-limits';
 import { resumeError, resumedStage, roundSession } from '../sessions';
-import { readCommitteeMedia } from '../reply-media';
+import { adoptReplyMedia, readCommitteeMedia } from '../reply-media';
 import { issueReports } from '../error-reports/service';
 import { readState } from '../state';
 import { bundleOf } from './bundle';
@@ -87,7 +87,7 @@ export function promptFile(name: string): string {
 }
 
 export function fillPrompt(name: string, vars: Record<string, string>): string {
-  let text = readFileSync(fileURLToPath(new URL(`../../prompts/${name}.md`, import.meta.url)), 'utf8').replaceAll('{{gameDocs}}', promptFile('game-docs')).replaceAll('{{fixDocs}}', promptFile('fix-docs'));
+  let text = readFileSync(fileURLToPath(new URL(`../../prompts/${name}.md`, import.meta.url)), 'utf8').replaceAll('{{gameDocs}}', promptFile('game-docs')).replaceAll('{{fixDocs}}', promptFile('fix-docs')).replaceAll('{{writing}}', promptFile('writing').replaceAll('{{humanizer}}', promptFile('humanizer')));
   for (const [key, value] of Object.entries(vars)) text = text.replaceAll(`{{${key}}}`, value);
   const left = text.match(/\{\{[^}]*\}\}/);
   if (left) throw new Error(`Prompt ${name} has an unfilled ${left[0]}`);
@@ -113,6 +113,12 @@ function advisorFor(cfg: Pick<FactoryConfig, 'buildModel' | 'advisorModel'>, sta
 
 export function mediaDir(ctx: Ctx, issue: number): string {
   return join(ctx.cfg.home, 'media', `issue-${issue}`);
+}
+
+export async function adoptQuestionMedia(ctx: Ctx, issue: number, by: string): Promise<MediaEntry[]> {
+  const entries: MediaEntry[] = [];
+  for (const post of questionPostsOf(ctx.statePath, issue)) entries.push(...await adoptReplyMedia(ctx.cfg.home, post, mediaDir(ctx, issue), by, (fileId) => ctx.telegram.downloadFile(fileId)));
+  return entries;
 }
 
 async function githubToken(ctx: Ctx): Promise<string | undefined> {
@@ -149,7 +155,7 @@ export function prepareOutputs(ctx: Ctx, issue: number, home: string): void {
   mkdirSync(`${home}/${OUT_DIR}`, { recursive: true });
 }
 
-export type AgentExtras = { model?: string; skill?: string; effort?: string; fresh?: boolean; disallowedTools?: string[]; continue?: boolean };
+export type AgentExtras = { model?: string; skill?: string; effort?: string; fresh?: boolean; disallowedTools?: string[]; continue?: boolean; subagentModel?: string };
 
 function agentSession(ctx: Ctx, issue: number, stage: CardStage, round: string, extras: AgentExtras): AgentSession {
   const session = roundSession(ctx.cfg.home, issue, round, extras.continue === true || (extras.fresh !== true && isResuming(ctx, issue)));
@@ -172,7 +178,7 @@ export async function runAgent(ctx: Ctx, issue: number, stage: CardStage, round:
   const reports = issueReports(ctx.cfg.home, issue);
   const full = session.resume ? (extras.continue === true ? prompt : resumeNote(ctx, issue)) : [`${prompt}\n\n${await acquireMedia(ctx, issue, stage)}`, ...(reports.section ? [reports.section] : [])].join('\n\n');
   const skill = session.resume ? undefined : extras.skill;
-  return ctx.container.agent({ clone: workDir(ctx, issue), dir: GAME_DIR, model, prompt: full, log: agentLog(ctx, issue, stage), openNetwork, mediaDir: mediaDir(ctx, issue), readOnly: reports.readOnly, session, skill, effort: extras.effort, disallowedTools: extras.disallowedTools, advisor });
+  return ctx.container.agent({ clone: workDir(ctx, issue), dir: GAME_DIR, model, prompt: full, log: agentLog(ctx, issue, stage), openNetwork, mediaDir: mediaDir(ctx, issue), readOnly: reports.readOnly, session, skill, effort: extras.effort, disallowedTools: extras.disallowedTools, advisor, subagentModel: extras.subagentModel });
 }
 
 export const COMMENT_TEXT_LIMIT = 60000;

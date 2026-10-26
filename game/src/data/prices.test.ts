@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { bedRows } from '../sim/chassis-features';
 import { CHASSIS, chassisModifier } from './chassis';
 import { PARTS, partModifier, type PartDef, type Unpriced } from './parts';
 import { TIME } from './time';
@@ -70,11 +71,11 @@ describe('item prices', () => {
   const FINER_GRID = ['buggy', 'courier', 'jeep', 'wagon'];
   const KEPT_PRICE = ['carrier'];
 
-  it('never prices a chassis with more deck cells below one of the same tier with fewer', () => {
+  it('never prices a chassis with more deck cells below one of the same tier and bed rows with fewer', () => {
     const deck = (id: string) => [...CHASSIS[id].layout.join('')].filter((c) => c === 'D').length;
     for (const a of Object.values(CHASSIS).filter((c) => !FINER_GRID.includes(c.id) && !KEPT_PRICE.includes(c.id))) {
       for (const b of Object.values(CHASSIS).filter((c) => !FINER_GRID.includes(c.id) && !KEPT_PRICE.includes(c.id))) {
-        if (a.tier === b.tier && deck(a.id) > deck(b.id)) expect(a.value, `${a.id} over ${b.id}`).toBeGreaterThan(b.value);
+        if (a.tier === b.tier && bedRows(a.id) === bedRows(b.id) && deck(a.id) > deck(b.id)) expect(a.value, `${a.id} over ${b.id}`).toBeGreaterThan(b.value);
       }
     }
   });
@@ -124,7 +125,5 @@ describe('XP per money in cents', () => {
 
   it('pays contract XP as before', () => {
     expect(CONTRACTS.haul.xpPerEffort).toBeCloseTo(0.1 * OLD_PER_CENT, 10);
-    expect(CONTRACTS.fetch.xpPerEffort).toBeCloseTo(0.15 * OLD_PER_CENT, 10);
-    expect(CONTRACTS.bounty.xpPerEffort).toBeCloseTo(0.25 * OLD_PER_CENT, 10);
   });
 });

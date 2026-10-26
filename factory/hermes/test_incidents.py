@@ -197,3 +197,11 @@ def test_a_failed_public_inbox_write_wakes_hermes_until_the_file_goes(tmp_path):
     alert = "public updates: the plugin could not write a player vote or comment to the inbox on 2026-10-14\n"
     assert run(tmp_path / "hit", health(), public_alert=alert) == ["public updates: the plugin could not write a player vote or comment to the inbox on 2026-10-14"]
     assert run(tmp_path / "handled", health()) == []
+
+
+def test_a_failed_job_names_its_issue_and_a_merge_failure_only_its_uncleared_batch_members(tmp_path):
+    failures = [
+        {"stage": "verify", "issue": 7, "error": "boom\nat x", "log": "verify-7.log"},
+        {"stage": "merge", "issue": None, "error": "timed out", "log": "merge.log", "batch": [948, 950, 953], "cleared": [950]},
+    ]
+    assert run(tmp_path, health(), state={"failures": failures}) == ["failed verify #7: boom (log verify-7.log)", "failed merge: timed out (log merge.log) batch #948,#953"]

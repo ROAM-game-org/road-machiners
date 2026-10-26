@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { OUTPOST_GATE } from '../../config';
 import { haulerOf, playerVehicle } from '../../sim/damage';
-import { driveOn } from '../../sim/fury-road';
+import { driveOn } from '../../sim/chaos-highway';
 import { gatesShut, yardSpots } from '../../sim/outpost-gates';
-import { furyRoadWorld, parkInYard } from '../../sim/testkit';
+import { chaosHighwayWorld, parkInYard } from '../../sim/testkit';
 import type { World } from '../../sim/types';
 import { endTurn } from '../../sim/world';
 import { highwayMap, outpostId } from '../../sim/highway';
@@ -22,14 +22,14 @@ await loadModels(async (name) => {
 const SIZE = 410;
 
 function arrive(w: World): World {
-  parkInYard(w, w.furyRoad!.window + 1);
+  parkInYard(w, w.chaosHighway!.window + 1);
   return endTurn(w, () => {});
 }
 
 function build(w: World): { views: OutpostGateViews; root: THREE.Group } {
   const root = new THREE.Group();
   const scope = new RenderScope(root, SIZE, new SightLimit(SIZE), true, true);
-  const map = highwayMap(w.seed, w.furyRoad!.window);
+  const map = highwayMap(w.seed, w.chaosHighway!.window);
   return { views: new OutpostGateViews(scope, map.terrain, w), root };
 }
 
@@ -51,7 +51,7 @@ function span(frames: number, views: OutpostGateViews, dt: number): void {
 
 describe('the outpost gate views', () => {
   it('draws two leaves for each of the two movable gates of window 0', () => {
-    const { views, root } = build(furyRoadWorld());
+    const { views, root } = build(chaosHighwayWorld());
     expect(leaves(root)).toHaveLength(4);
     expect(leavesOf(root, `${outpostId(0)}-north`)).toHaveLength(2);
     expect(leavesOf(root, `${outpostId(1)}-south`)).toHaveLength(2);
@@ -59,7 +59,7 @@ describe('the outpost gate views', () => {
   });
 
   it('slides the leaves shut over the slide time and holds there', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     const { views, root } = build(w);
     const south = leavesOf(root, `${outpostId(1)}-south`);
     views.sync(arrive(w));
@@ -76,7 +76,7 @@ describe('the outpost gate views', () => {
   });
 
   it('never jumps past the target on a huge or invalid frame time', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     const { views, root } = build(w);
     views.sync(arrive(w));
     views.tick(1e9);
@@ -89,7 +89,7 @@ describe('the outpost gate views', () => {
   });
 
   it('starts the north gate of the last fort closed with a truck in its yard, and slides it open', () => {
-    const w = driveOn(arrive(furyRoadWorld()));
+    const w = driveOn(arrive(chaosHighwayWorld()));
     const { views, root } = build(w);
     const north = leaves(root).filter((l) => l.parent!.name.endsWith('north'));
     expect(north).toHaveLength(2);
@@ -101,7 +101,7 @@ describe('the outpost gate views', () => {
   });
 
   it('starts the north gate of the last fort open when no truck stands in its yard', () => {
-    const w = driveOn(arrive(furyRoadWorld()));
+    const w = driveOn(arrive(chaosHighwayWorld()));
     playerVehicle(w).pos = { ...yardSpots(w, 2).truck };
     haulerOf(w).pos = { ...yardSpots(w, 2).hauler };
     const { root } = build(w);
@@ -110,14 +110,14 @@ describe('the outpost gate views', () => {
   });
 
   it('starts a shut save with the south gate closed and nothing to slide', () => {
-    const w = arrive(furyRoadWorld());
+    const w = arrive(chaosHighwayWorld());
     expect(gatesShut(w)).toBe(true);
     const { views } = build(w);
     expect(views.settled()).toBe(true);
   });
 
   it('throws on a gate the sim does not return', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     const { views } = build(w);
     const later = driveOn(arrive(w));
     expect(() => views.sync(later)).toThrow(/no view/);

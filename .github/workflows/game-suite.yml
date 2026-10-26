@@ -15,12 +15,12 @@ permissions:
 jobs:
   suite:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
     container: mcr.microsoft.com/playwright:v1.63.0-noble
     env:
       SHA: ${{ inputs.sha }}
       TEST_STALL_MINUTES: '10'
-      TEST_SUITE_MINUTES: '20'
+      TEST_SUITE_MINUTES: '35'
       TEST_TIMEOUTS: 'off'
     steps:
       - name: install git
@@ -39,5 +39,18 @@ jobs:
         working-directory: game
         run: npm ci
       - name: tests
+        id: tests
         working-directory: game
-        run: npm run test:cached
+        run: |
+          code=0
+          npm run test:cached || code=$?
+          if [ "$code" -eq 3 ]; then
+            echo "over=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          exit "$code"
+      - name: suite time limit
+        if: steps.tests.outputs.over == '1'
+        run: |
+          echo "The suite ran past TEST_SUITE_MINUTES with no failed test."
+          exit 1

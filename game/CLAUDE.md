@@ -39,10 +39,12 @@ Writing, in `docs/writing/`:
 - [Writing dialogue](docs/writing/dialogue.md): how people talk, how the player talks back, and the voice sheets every speaker needs.
 - [Character lines](docs/writing/character-lines.md): every line a named person speaks comes from one codex or agy call made in that person's voice, then gets edited.
 - [Russian copy](docs/writing/russian.md): how Russian text must read, with examples and the glossary.
+- [Humanizer](docs/writing/humanizer.md): the prompt every writer reads new or changed player text against, closely in plain copy and in spirit in fiction.
 
 Art and sound, in `docs/art/`:
 
 - [Art pipeline](docs/art/models.md): Blender models, the truck grid projection and part model rules.
+- [Asset review](docs/art/asset-review.md): the surface faults a model can have, the commands that find them and the independent review a new model gets.
 - [Landmarks](docs/art/landmarks.md): scale, materials and shapes of the world's places.
 - [Quest art](docs/art/quest-art.md): the style prompt and post-process for quest pictures.
 - [Sound](docs/sound.md).
@@ -58,16 +60,16 @@ Run these from `game/`. The repo-wide quality gate and pre-commit hook run from 
 
 - `npm run dev` starts the game at <http://localhost:5173>.
 - `npm test` runs every Vitest test in `src/`. `npm run typecheck` runs tsc.
-- `npm run test:cached -- --cache <dir> [test files]` skips every test file whose imports, disk reads and global inputs already passed there, and prints `[test-cache] ran N, skipped M, uncacheable K`. It records each file's pass as the file finishes, so a killed run keeps them. With `TEST_STALL_MINUTES` set, it stops a run in which no test finished for that many minutes and names the tests still running. The factory checks run it with the test files that match a change and no `--cache`, and the full suite on GitHub Actions runs it with neither. A corrupt or old-format entry counts as no pass, so its test file runs.
+- `npm run test:cached -- --cache <dir> [test files] [--related <files>]`, with `--related` last, skips every test file whose imports, disk reads and global inputs already passed there, and prints `[test-cache] ran N, skipped M, uncacheable K`. It records each file's pass as the file finishes, so a killed run keeps them. With `TEST_STALL_MINUTES` set, it stops a run in which no test finished for that many minutes and names the tests still running. `--related` runs only the test files that are among those files or import one of them, directly or through other modules, so a test that only reads a file from disk is not selected. The factory checks run it with `--related` and the game files a change touches, and no `--cache`, and the full suite on GitHub Actions runs it with neither. A corrupt or old-format entry counts as no pass, so its test file runs. A run in which every test passed and the only unhandled errors are Vitest's worker RPC timeouts on `onTaskUpdate` passes with one line saying so. Any other unhandled error fails it.
 - `npm run playtest` plays turns in headless Chromium and fails on errors or low FPS. It needs the dev server. Use `--cpu` on machines without a GPU. `--no-fps-gate` keeps the GPU run but only prints the FPS. The factory uses it everywhere but the release candidate, since its host runs many jobs at once.
 - `npm run stuck` records a trader bot for 2 seeds of 500 turns and fails on any stall from any truck. Run it after changes to NPC goals, services or tows.
 - `npm run progression:record`, `progression:report`, `progression:analyze` and `progression:watch` are the playtest harness. Bots play the real turn pipeline headless with every NPC alive, and each run writes logs of every turn. It covers economy, progression, NPC behavior and fights at the macro level. `progression:playthrough` writes the full activity log of one markov bot run, which the factory's release playtest reads.
 - `npm run combat` plays single fights with physics, for hit rates and ram detail the recorder does not model. `npm run loadouts` rolls NPC gear.
 - `npm run perf` fails on a miss against `scripts/perf-budgets.json`.
 - `npm run layout` checks every surveyed screen in English, Russian and pseudo-long text at two window sizes, and fails on clipped text, overlapping or unreachable controls and English in Russian. It needs the dev server.
-- `npm run map:bake` writes `public/maps/icarus.bin`. Commit it after a change to map rules, then run `npm run old-spots`, which also writes the survey sites.
+- `npm run map:bake` writes `public/maps/icarus.bin`. Commit it after a change to map rules, then run `npm run old-spots`, which also writes the survey sites and the claim clues, then `npm run survey:pictures`, which redraws the survey journal pictures.
 - `npm run text:review` writes the Russian review sheet to `tmp/text-review/`: every entry in context with sample params.
-- `npm run models:shapes`, `npm run wiki`, `npm run save:shape`, `npm run quests:build` and `npm run old-spots` regenerate checked files. A test fails when they are stale.
+- `npm run models:shapes`, `npm run wiki`, `npm run save:shape`, `npm run quests:build`, `npm run old-spots` and `npm run survey:pictures` regenerate checked files. A test fails when they are stale.
 - `npm run quest -- <quest>` plays an ink quest in the terminal, and `npm run quests:check` checks every quest for errors, dead ends and loops with no way out.
 - `npm run sfx:board`, `sfx:import`, `sfx:reimport`, `sfx:reloop`, `sfx:report` and `sfx:gen` manage sounds. `sfx:gen` costs credits, so ask before running it.
 - `npm run itch` publishes to itch.io.
@@ -82,7 +84,7 @@ Game settings live in `src/config.ts`. Copy `.env.example` to `.env` for sound g
 - `src/data/` holds all balance numbers and content. Sim code reads numbers from there, never inline.
 - `src/phys/` runs vehicle movement in Rapier and plugs into the turn pipeline. The path preview runs the same physics as the turn.
 - `src/three/` holds the 3D game, with `game.ts` wiring input, sim, physics, view and UI. `src/three/render/` holds the 3D views, `src/render/` the palette, painters and part looks, and `src/ui/` the HTML panels.
-- `src/mapgen/` bakes the map offline. The game only reads the map file, but for Fury Road's highway, which `src/sim/highway.ts` generates from the seed, with its hazard scenes, ramps and closures from `src/sim/road-hazards.ts`.
+- `src/mapgen/` bakes the map offline. The game only reads the map file, but for Chaos Highway's highway, which `src/sim/highway.ts` generates from the seed, with its hazard scenes, ramps and closures from `src/sim/road-hazards.ts`.
 - Map coordinates are in tiles. Physics and 3D space are in meters: map x is 3D x, map y is 3D z, height is 3D y. `src/phys/frames.ts` converts.
 - The UI shows real units. `src/ui/units.ts` converts from sim units, with display numbers in `src/data/units.ts`.
 
@@ -108,12 +110,12 @@ One owner per concept. Use these and do not decide the same thing elsewhere:
 Players keep their saves across updates. Migrate old saves whenever possible. [Saves](docs/architecture/saves.md) has the details.
 
 - A change to the saved shape needs a new format. That covers any type in `src/sim/types.ts` reachable from `World`, and any renamed or removed content id in `src/data/`.
-- A change that old saves can follow adds one tiny step to `TINY_STEPS` in `src/three/save-migrations.ts`.
+- A change that old saves can follow adds one tiny step to `TINY_STEPS` in `src/three/save-migrations.ts`, with a new name that never changes, even when a merge renumbers the step.
 - A quest change that old progress in the quest cannot follow raises the quest's `# revision:` tag instead of a step. Load then resets that quest and what stands on it. [Changing a shipped quest](docs/writing/quests.md#changing-a-shipped-quest) says when.
 - A change that old saves cannot follow bumps `SAVE_MAJOR` and empties `RELEASE_STEPS` and `TINY_STEPS`. Ask me before any major bump. A new map file, a removed id or a balance change needs no step. Load repairs drift in place and silently, as [Saves](docs/architecture/saves.md) describes. A renamed id still needs a tiny step, or the repair drops what the player held under the old name. A save that still throws on drift needs a rule in `src/sim/save-repair.ts` or `src/sim/map-repair.ts`.
 - A step is a pure function of the saved world JSON. It never imports sim or data code. It holds its own copies of any old ids or values it needs.
 - Every tiny step gets a Vitest test on a fixture from `src/three/save-fixtures/`.
-- Run `npm run save:shape` after the new step or major bump.
+- Run `npm run save:shape` after the new step or major bump. It also rebuilds `src/three/save-schema.json`, which load and write check every save against. Never loosen the check to pass a save. A save that fails it needs a repair rule or a tiny step.
 - Tiny steps live only after the newest shipped format. After a release or hotfix ships a new format, fold the tiny steps up to it into one release step, as [Saves](docs/architecture/saves.md#folding-tiny-steps) describes. `save-anchors.test.ts` fails once a second shipped format waits for its fold.
 - Never edit a committed tiny step outside a fold, and never edit a release step. Fix a bad step with a new tiny step.
 - Release steps cover the last 10 releases. A save older than that, or at a format no build shipped, carries over through the rescue on load.
@@ -142,4 +144,4 @@ Read the project-local skills before related work:
 
 ## Art
 
-Props and truck parts are low-poly models built by Blender scripts in `tools/blender/`. Follow [Art pipeline](docs/art/models.md) to add or change a model. Render a preview, take an in-game screenshot and run `npm run playtest`.
+Props and truck parts are low-poly models built by Blender scripts in `tools/blender/`. Follow [Art pipeline](docs/art/models.md) to add or change a model. Render a preview, take an in-game screenshot and run `npm run playtest`. Check the surface and get an independent review by [Asset review](docs/art/asset-review.md).

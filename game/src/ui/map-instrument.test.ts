@@ -27,13 +27,15 @@ function stubDom(): void {
 describe("map instrument", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("shows a Map button with a K corner in a mode with the exploration map", () => {
+  it("shows a Map button with its key in the title in a mode with the exploration map", () => {
     stubDom();
     const [button] = mapInstrument(emptyWorld(), false, () => {}) as unknown as FakeNode[];
 
     expect(button.className).toBe("instrument-button");
     expect(button.text()).toContain("Map");
-    expect(button.text()).toContain("K");
+    expect(button.text()).not.toContain("K");
+    expect(button.attrs.get("title")).toBe('Map [M]');
+    expect(button.attrs.get("title")).not.toContain('[K]');
     expect(resolve(t("map.full"), "ru")).toBe("Карта");
   });
 
@@ -59,10 +61,10 @@ describe("map instrument", () => {
     expect(button.attrs.get("title")).toBeTruthy();
   });
 
-  it("is absent in Chaos Highway, where K does nothing", () => {
+  it("is absent in Chaos Highway, where M does nothing", () => {
     stubDom();
     const w = emptyWorld();
-    w.setup = { ...w.setup, mode: "furyRoad" };
+    w.setup = { ...w.setup, mode: "chaosHighway" };
 
     expect(mapInstrument(w, false, () => {})).toEqual([]);
   });

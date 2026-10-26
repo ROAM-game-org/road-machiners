@@ -92,7 +92,9 @@ describe.skipIf(!smoke)('reference image in the real agent container', () => {
     const log = join(root, 'agent.log');
     mkdirSync(join(root, 'codex'));
     writeFileSync(join(root, 'codex/auth.json'), '{}');
-    const cfg = { image: process.env.FACTORY_SMOKE_IMAGE, oauthToken: process.env.CLAUDE_CODE_OAUTH_TOKEN, elevenlabsKey: '', sfxMaxGenerations: 0, geminiKey: '', agyMaxRuns: 1, home: root } as FactoryConfig;
+    mkdirSync(join(root, 'agy'));
+    writeFileSync(join(root, 'agy/antigravity-oauth-token'), '{}');
+    const cfg = { image: process.env.FACTORY_SMOKE_IMAGE, oauthToken: process.env.CLAUDE_CODE_OAUTH_TOKEN, elevenlabsKey: '', sfxMaxGenerations: 0, agyMaxRuns: 1, home: root } as FactoryConfig;
     const prompt = `${mediaSection(entries)}\n\nLook at the reference image. Answer with exactly two lines. Line 1: the one word name of its main color (red, green, blue, ...). Line 2: the name of every skill you can use that mentions Blender.`;
     await dockerContainer(realRun, cfg, null).agent({ clone, dir: 'game', model: 'haiku', prompt, log, openNetwork: true, mediaDir: media });
     const text = readFileSync(log, 'utf8').toLowerCase();
@@ -104,7 +106,7 @@ describe.skipIf(!smoke)('reference image in the real agent container', () => {
 
 const smokeImage = process.env.FACTORY_SMOKE_IMAGE;
 const smokeCodexHome = process.env.FACTORY_SMOKE_CODEX_HOME;
-const smokeGeminiKey = process.env.GEMINI_API_KEY;
+const smokeAgyLogin = process.env.FACTORY_SMOKE_AGY_LOGIN;
 
 function proxiedShell(script: string, env: Record<string, string>, mounts: Record<string, string> = {}): { clone: string; log: string; done: Promise<void> } {
   const root = mkdtempSync(join(tmpdir(), 'factory-smoke-'));
@@ -131,8 +133,8 @@ describe.skipIf(smokeImage === undefined)('agy in the real agent container', () 
     expect(readFileSync(run.log, 'utf8')).toContain('run 2 exceeds AGY_MAX_RUNS=1');
   }, 120_000);
 
-  it.skipIf(smokeGeminiKey === undefined)('answers through the proxy with the Gemini key', async () => {
-    const run = proxiedShell('agy --dangerously-skip-permissions -p "Reply with the single word ok."', { AGY_MAX_RUNS: '1', AGY_MODEL: 'gemini-3.8-flash-medium', GEMINI_API_KEY: smokeGeminiKey as string });
+  it.skipIf(smokeAgyLogin === undefined)('answers through the proxy with the mounted Google login', async () => {
+    const run = proxiedShell('agy --dangerously-skip-permissions -p "Reply with the single word ok."', { AGY_MAX_RUNS: '1', AGY_MODEL: 'gemini-3.8-flash-medium' }, { [smokeAgyLogin as string]: '/home/pwuser/.gemini/antigravity-cli/antigravity-oauth-token' });
     await run.done;
     expect(readFileSync(run.log, 'utf8').toLowerCase()).toContain('ok');
   }, 300_000);

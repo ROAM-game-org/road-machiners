@@ -105,6 +105,10 @@ export function isShield(def: PartDef): def is ShieldDef {
   return def.kind === "armor" || def.kind === "accessory";
 }
 
+export function isLineGun(def: PartDef): boolean {
+  return def.kind === "weapon" && def.line !== undefined;
+}
+
 export type CargoDef = PartBase & {
   kind: "cargo";
   extraRows: number;
@@ -424,13 +428,13 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
   ceramicPlates: {
     id: "ceramicPlates",
     kind: "armor",
-    hp: 36,
+    hp: 44,
     base: 11000,
     tier: 2,
     w: 1,
     h: 2,
     mass: 50,
-    armor: 22,
+    armor: 14,
     tall: false,
     blastArmor: 8,
     fieldRepair: "none",
@@ -539,13 +543,13 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
   ceramicTile: {
     id: "ceramicTile",
     kind: "armor",
-    hp: 18,
+    hp: 22,
     base: 6667,
     tier: 2,
     w: 1,
     h: 1,
     mass: 25,
-    armor: 22,
+    armor: 14,
     tall: false,
     blastArmor: 8,
     fieldRepair: "none",

@@ -12,6 +12,7 @@ import type { MoveOrder, World } from '../sim/types';
 import { angleDiff, bearing, dist, type Vec } from '../sim/vec';
 import { REGION } from '../data/region';
 import { TERRAIN_TYPES } from '../data/terrain';
+import { stateOf } from '../sim/states';
 import { endTurn, setDirect, setMoveOrder } from '../sim/world';
 import { PHYSICS } from '../data/physics';
 import { CLAYMORE } from '../data/utilities';
@@ -67,7 +68,7 @@ describe('impact geometry', () => {
     if (!mountPart(w, w.vehicles[0], ram)) throw new Error('No front mount for the claymore ram');
     ram.charge = arm ? { reload: 0, armed: true } : { reload: 0 };
     if (into === 'rock') w.obstacles = [{ id: 'rock1', pos: { x: 37, y: 30 }, r: 0.8, kind: 'rock' }];
-    else addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 37, y: 30 }, Math.PI / 2).brain = npcBrain('trader', { x: 37, y: 30 }, ['trader']);
+    else addVehicle(w, 'independent', 'carrier', ['mg', 'stockEngine'], { x: 37, y: 30 }, Math.PI / 2).brain = npcBrain('trader', { x: 37, y: 30 }, ['trader']);
     w = setDirect(w, true);
     return setMoveOrder(w, { kind: 'through', dest: { x: 45, y: 30 } });
   }
@@ -97,10 +98,19 @@ describe('impact geometry', () => {
       expect(crash.impact).toBeGreaterThan(0.8 * 7 * PHYSICS.metersPerTile);
       expect(crash.contact.a.side).toBe('front');
       expect(crash.contact.b?.side).toBe('right');
+      expect(crash.approach!.a).toBeGreaterThan(0.8 * 7 * PHYSICS.metersPerTile);
+      expect(Math.abs(crash.approach!.b)).toBeLessThan(0.5);
+      expect(crash.approach!.a + crash.approach!.b).toBeCloseTo(crash.impact, 3);
     } finally {
       freeDrive(result.next);
       freeDrive(drive);
     }
+  });
+
+  it('gives a parked truck a grievance on the truck that drove into it, through the real turn', () => {
+    const { w } = ramTurns(noseRam(false), 1);
+    const [me, parked] = w.vehicles;
+    expect(stateOf(w, 'grievance', parked.id, me.id)).not.toBeNull();
   });
 
   it('keeps the claymore throw impulse and lift', () => {

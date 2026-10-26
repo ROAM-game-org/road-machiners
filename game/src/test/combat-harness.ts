@@ -1,5 +1,5 @@
 
-import { CHASSIS } from '../data/chassis';
+import { CHASSIS, CHASSIS_FEATURES } from '../data/chassis';
 import { DECISIONS, GEAR_LEVEL_IDS, NPC_BEHAVIOR, NPCS, TRAITS, type GearLevel } from '../data/npcs';
 import { PARTS, type PartDef } from '../data/parts';
 import { coversSide, sideToward, type PartHit } from '../sim/armor';
@@ -15,7 +15,7 @@ import { inCombat, isHostile } from '../sim/combat';
 import { joinCompany } from '../sim/companies';
 import { homeCamp } from '../sim/npc-decisions';
 import { isDefeated } from '../sim/defeat';
-import { makePart } from '../sim/factory';
+import { makePart, makeVehicle } from '../sim/factory';
 import { mountPart } from '../sim/inventory';
 import { hangUp } from '../sim/dialogue';
 import { isMounted, mountedParts } from '../sim/grid';
@@ -39,7 +39,7 @@ import { stretchLayout } from '../sim/road-hazards';
 export type Policy = 'stand' | 'orbit' | 'charge' | 'kite';
 export const POLICIES: Policy[] = ['stand', 'orbit', 'charge', 'kite'];
 
-export type Outfit = { gun: string; armor: string | null; ram?: string };
+export type Outfit = { gun: string; guns: number; armor: string | null; ram?: string; chassis: string };
 
 export type Gear = { kind: 'kit'; id: string } | { kind: 'npc'; template: string; level: GearLevel | null } | { kind: 'outfit'; outfit: Outfit };
 
@@ -99,7 +99,7 @@ function truckSpecs(text: string): string[] {
   const specs: string[] = [];
   for (const piece of text.split('+')) {
     const last = specs.length - 1;
-    if (last >= 0 && takesRam(specs[last]) && PARTS[piece]) specs[last] += `+${piece}`;
+    if (last >= 0 && takesRam(specs[last]) && PARTS[piece.split('@')[0]]) specs[last] += `+${piece}`;
     else specs.push(piece);
   }
   return specs;
@@ -121,13 +121,20 @@ function parseGear(text: string): Gear {
   return { kind: 'npc', template, level: (level as GearLevel | undefined) ?? null };
 }
 
+const OUTFIT_CHASSIS = 'hauler';
+
 function parseOutfit(text: string): Outfit {
-  const [gun, rest] = text.split('/');
-  const [armor, ram] = rest.split('+');
-  return { gun, armor: armor === 'bare' ? null : armor, ...(ram ? { ram } : {}) };
+  const [gunText, rest] = text.split('/');
+  const [loadText, chassis = OUTFIT_CHASSIS] = rest.split('@');
+  if (!CHASSIS[chassis]) throw new Error(`Unknown chassis "${chassis}" in outfit "${text}"`);
+  const [gun, count = '1'] = gunText.split('*');
+  const guns = Number(count);
+  if (!Number.isInteger(guns) || guns < 1) throw new Error(`An outfit mounts a whole number of guns from 1, got "${count}" in "${text}"`);
+  const [armor, ram] = loadText.split('+');
+  return { gun, guns, armor: armor === 'bare' ? null : armor, chassis, ...(ram ? { ram } : {}) };
 }
 
-const TABLES: Record<string, object> = { RULES, PHYSICS, NPCS, PARTS, CHASSIS, TRAITS, DECISIONS, NPC_BEHAVIOR, SKILL_EFFECTS, CONDITION };
+const TABLES: Record<string, object> = { RULES, PHYSICS, NPCS, PARTS, CHASSIS, CHASSIS_FEATURES, TRAITS, DECISIONS, NPC_BEHAVIOR, SKILL_EFFECTS, CONDITION };
 
 export function setNumber(assignment: string): void {
   const [path, raw] = assignment.split('=');
@@ -173,9 +180,9 @@ export function parseGroupFlags(flags: { crew: string | null; guard: boolean; la
 export function parseRoad(text: string | null): number | null {
   if (text === null) return null;
   const [name, seed] = text.split(':');
-  if (name !== 'fury-road') throw new Error(`--map takes fury-road or fury-road:<seed>, got "${text}"`);
+  if (name !== 'chaos-highway') throw new Error(`--map takes chaos-highway or chaos-highway:<seed>, got "${text}"`);
   const n = seed === undefined ? 1 : Number(seed);
-  if (!Number.isInteger(n)) throw new Error(`--map fury-road:<seed> needs a whole seed, got "${seed}"`);
+  if (!Number.isInteger(n)) throw new Error(`--map chaos-highway:<seed> needs a whole seed, got "${seed}"`);
   return n;
 }
 
@@ -191,9 +198,9 @@ function groundOf(fight: Fight): Ground {
 }
 
 function roadBase(kit: string, seed: number): World {
-  const w = newWorld(seed, START_KITS[kit] ?? missing('kit', kit), highwayMap(seed, 0), defaultSetup('furyRoad'), false);
-  w.furyRoad!.groups = [];
-  w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || v.id === w.furyRoad!.hauler.id);
+  const w = newWorld(seed, START_KITS[kit] ?? missing('kit', kit), highwayMap(seed, 0), defaultSetup('chaosHighway'), false);
+  w.chaosHighway!.groups = [];
+  w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || v.id === w.chaosHighway!.hauler.id);
   w.states = [];
   const ground = roadGround(seed);
   const me = w.vehicles.find((v) => v.id === w.player.vehicleId)!;
@@ -345,11 +352,11 @@ function rebuildAt(w: World, v: Vehicle, wear: number): void {
 
 function sideLoadout(w: World, gear: Gear): NpcLoadout {
   const loadout = loadoutOf(w, gear);
-  return w.furyRoad === null ? loadout : { ...loadout, cargo: {}, spares: [] };
+  return w.chaosHighway === null ? loadout : { ...loadout, cargo: {}, spares: [] };
 }
 
 function loadoutOf(w: World, gear: Gear): NpcLoadout {
-  if (gear.kind === 'outfit') return BARE_HAULER;
+  if (gear.kind === 'outfit') return bareLoadout(gear.outfit.chassis);
   if (gear.kind === 'npc') return generateNpcLoadout(w, NPCS[gear.template], null, gear.level);
   const kit = START_KITS[gear.id];
   return { chassisId: kit.chassis, level: 'standard', parts: kit.parts.map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {} };
@@ -368,14 +375,21 @@ function setAgainst(w: World, aId: string, bId: string): void {
 function outfit(w: World, v: Vehicle, o: Outfit): void {
   if (PARTS[o.gun]?.kind !== 'weapon') throw new Error(`Unknown weapon "${o.gun}"`);
   if (o.armor !== null && PARTS[o.armor]?.kind !== 'armor') throw new Error(`Unknown armor "${o.armor}"`);
-  if (v.chassisId !== 'hauler') throw new Error(`Outfits go on a hauler, not a ${v.chassisId}`);
+  if (v.chassisId !== o.chassis) rechassis(w, v, o.chassis);
   v.items = v.items.filter((it) => it.kind === 'part' && PARTS[it.part.defId].kind === 'core');
-  for (const id of ['stockEngine', o.gun]) if (!mountPart(w, v, makePart(w, id, 0))) throw new Error(`${id} does not fit the hauler`);
-  if (o.ram && !mountPart(w, v, makePart(w, o.ram, 0))) throw new Error(`${o.ram} does not fit the hauler`);
+  for (const id of ['stockEngine', ...Array.from({ length: o.guns }, () => o.gun)]) if (!mountPart(w, v, makePart(w, id, 0))) throw new Error(`${id} does not fit the ${o.chassis}`);
+  if (o.ram && !mountPart(w, v, makePart(w, o.ram, 0))) throw new Error(`${o.ram} does not fit the ${o.chassis}`);
   if (o.armor) while (mountPart(w, v, makePart(w, o.armor, 0)));
 }
 
-const BARE_HAULER: NpcLoadout = { chassisId: 'hauler', level: 'standard', parts: [], spares: [], cargo: {} };
+function rechassis(w: World, v: Vehicle, chassisId: string): void {
+  const fresh = makeVehicle(w, { faction: v.faction, chassisId, parts: [], spares: [], cargo: {}, pos: v.pos, heading: v.heading, brain: null });
+  v.chassisId = chassisId;
+  v.items = fresh.items;
+  v.bend = fresh.bend;
+}
+
+const bareLoadout = (chassisId: string): NpcLoadout => ({ chassisId, level: 'standard', parts: [], spares: [], cargo: {} });
 
 const KITE_HOLD = 0.8;
 

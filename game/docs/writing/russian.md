@@ -8,7 +8,7 @@ The Russian must read as if a Russian game writer wrote it first. Think of Ex Ma
 
 Read an entry where it shows before you change it. `npm run text:review` writes `tmp/text-review/<area>.md`, every entry in English and in Russian with sample params: a name of each gender, counts 1, 3, 5 and 1.5, and a place. Agreement and plural errors show there as wrong words in a sentence.
 
-agy writes all Russian text, since it writes better Russian than Claude. That covers new lines, changed lines, quest twins and fixes. Never write or edit a Russian word yourself, and never copy the English in as a placeholder. Give agy many lines in one run: `agy --dangerously-skip-permissions -p "<request>"`. The request names this file, the English of each line, its key and where it shows, and agy reads the files it names. Then check its lines against the rules and the glossary below. When a line breaks them, run agy again with the line and the rule it breaks. agy runs on Gemini 3.8 Flash at medium effort. The factory sets it with `AGY_MODEL`. On a laptop, add `--model gemini-3.8-flash-medium`. A factory job may run agy at most `AGY_MAX_RUNS` times.
+agy writes all Russian text, since it writes better Russian than Claude. That covers new lines, changed lines, quest twins and fixes. Never write or edit a Russian word yourself, and never copy the English in as a placeholder. Give agy many lines in one run: `agy --dangerously-skip-permissions -p "<request>"`. The request names this file, the [Humanizer](humanizer.md#how-roam-uses-it) read the way its How ROAM uses it section says, for the faults that exist in Russian too, the English of each line, its key and where it shows, and agy reads the files it names. Then check its lines against the rules and the glossary below. When a line breaks them, run agy again with the line and the rule it breaks. agy runs on Gemini 3.8 Flash at medium effort. The factory sets it with `AGY_MODEL`. On a laptop, add `--model gemini-3.8-flash-medium`. A factory job may run agy at most `AGY_MAX_RUNS` times.
 
 ## When agy is unavailable
 
@@ -17,9 +17,9 @@ Try agy first, every time. Write the request into `tmp/ru-request.md`, the same 
 agy is unavailable when its run exits with one of these:
 
 - `command not found`, since it is not installed.
-- Error 402 or `payment required`, since its Gemini credits are depleted.
+- Error 402 or `payment required`, since its account has no plan for the model.
 - Error 429 or `RESOURCE_EXHAUSTED`, since its quota is spent.
-- `GEMINI_API_KEY environment variable is not set`, `AGY_MODEL is not set` or a rejected login.
+- `authentication failed or timed out`, `AGY_MODEL is not set` or a rejected login.
 - A 502, 503 or 504, or a network error, since the service is down.
 - `run N exceeds AGY_MAX_RUNS`, since the job used its runs. Do not raise the limit, and do not work around the run counter.
 
@@ -123,6 +123,7 @@ Good lines to match:
 - refit: переоснащение. Mount: крепление.
 - pristine (no wear): без износа. Rebuilt after a breakdown: капремонт, «2 капремонта». Broken: не работает. Junk: лом.
 - flatbed extension: удлинитель кузова. Cage: каркас. Armor plate: стальной лист.
+- petrol, the good the Pump Station makes: бензин. Never солярка or топливо for it.
 - money: М, as «60 М». A sum inside a quest line reads «{price} М».
 - watch, a shift of time in a quest: вахта, «две вахты».
 

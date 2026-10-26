@@ -15,9 +15,9 @@ import { dist, type Vec } from '../sim/vec';
 import { TEST_MAP } from '../test/map';
 import { townAt } from '../sim/sites';
 import { carriedWorld, endTurn, newWorld } from '../sim/world';
-import { carriesOnLoad, loadWorld, SaveError, saveOf, savedRunId, stepsFrom } from './save';
+import { carriesOnLoad, loadWorld, namedSteps, SaveError, savedMisfit, saveOf, savedRunId, stepsFrom } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
-import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
+import { RELEASE_STEPS, TINY_FROM, TINY_STEPS, type NamedStep, type ReleaseStep, type SavedJson } from './save-migrations';
 import { carriedSave, readCarried, rescueSave } from './save-rescue';
 import FORMAT_2_0 from './save-fixtures/format-2-0.json';
 import FORMAT_2_1 from './save-fixtures/format-2-1.json';
@@ -27,7 +27,7 @@ import { defaultSetup, repairSetup } from '../sim/settings';
 
 const KIT = startKit('standard');
 const fresh = () => 5;
-const stepFrom = (minor: number) => (world: object): SavedJson => TINY_STEPS[minor - TINY_FROM](world as SavedJson);
+const stepFrom = (minor: number) => (world: object): SavedJson => TINY_STEPS[minor - TINY_FROM].step(world as SavedJson);
 const freshRun = () => 'new-run';
 const makeSlots = () => new SaveSlots(memoryBackend(), new Map());
 
@@ -85,6 +85,11 @@ describe('readCarried', () => {
     const rescued = carriedWorld(readCarried({ world }), KIT, () => TEST_MAP, fresh);
     expect(rescued.player.perks).toEqual(['welder', 'desertRat']);
     expect(rescued.player.ranks.toughness).toBe(5);
+  });
+
+  it('carries Bounty talk over as Bounty hunter and no other perk change (IV8)', () => {
+    const world = { ...FORMAT_2_9, player: { ...FORMAT_2_9.player, perks: ['welder', 'bountyTalk'] } };
+    expect(readCarried({ world }).perks).toEqual(['welder', 'bountyHunter']);
   });
 
   it('reads old formats and a fake major format', () => {
@@ -195,7 +200,7 @@ describe('readCarried', () => {
   it('reads the first highway mode as Chaos Highway with the gear setting it lacked', () => {
     const setup = { mode: 'gauntlet', settings: { damage: 1.5, fuelUse: 1, supplyUse: 1 } };
     const carried = readCarried({ format: { major: 2, minor: 48 }, world: { setup, player: { money: 5 } } });
-    expect(carried.setup).toEqual({ mode: 'furyRoad', settings: { enemyGearGrowth: 1, damage: 1.5, fuelUse: 1, supplyUse: 1 } });
+    expect(carried.setup).toEqual({ mode: 'chaosHighway', settings: { enemyGearGrowth: 1, damage: 1.5, fuelUse: 1, supplyUse: 1 } });
     expect(repairSetup(carried.setup)).toEqual(carried.setup);
   });
 });
@@ -386,7 +391,8 @@ describe('a shipped save on an older bake of the map', () => {
       if (c.kind === 'survey') expect(c.points.every((p) => sites.has(p.site)), c.id).toBe(true);
     }
     const kept = new Set(world.player.contracts.map((c) => c.id));
-    expect(saved.player.contracts.filter((c) => !kept.has(c.id) && c.kind !== 'claim')).toEqual([]);
+    const droppedByStep103 = new Set(['claim', 'fetch', 'bounty']);
+    expect(saved.player.contracts.filter((c) => !kept.has(c.id) && !droppedByStep103.has(c.kind))).toEqual([]);
     for (const id of [...world.player.scavenged, ...world.player.rumored].filter((x) => /^(wreck|old-|story-)/.test(x))) expect(stocks.has(id), id).toBe(true);
   }, 60_000);
 
@@ -400,6 +406,7 @@ describe('a shipped save on an older bake of the map', () => {
       expect(w.events.filter((e) => e.t === 'stall')).toEqual([]);
     }
     expect(w.turn).toBe(start + 20);
+    expect(savedMisfit(saveOf(w).world)).toBeNull();
   }, 120_000);
 
   it('loads a shipped save after a rebake and a removed chassis together', () => {
@@ -415,4 +422,98 @@ describe('a shipped save on an older bake of the map', () => {
     expect(isFree(world, me.pos, chassisDef(me.chassisId).radius, me.id)).toBe(true);
     expect(() => endTurn(world, () => {})).not.toThrow();
   }, 60_000);
+});
+
+describe('namedSteps', () => {
+  const mark = (name: string): NamedStep => ({ name, step: (world) => ({ ...world, trail: [...((world.trail as string[] | undefined) ?? []), name] }) });
+  const ran = (steps: readonly ((world: SavedJson) => SavedJson)[]): unknown => steps.reduce<SavedJson>((world, step) => step(world), { trail: [] }).trail;
+  const release = (names: readonly string[] | null): ReleaseStep => ({ from: 63, to: 65, names, step: (world) => ({ ...world, trail: ['release'] }) });
+
+  it('runs only the tiny steps a branch save lacks, in code order', () => {
+    const tiny = [mark('a'), mark('crimes'), mark('oddFronts')];
+    expect(ran(namedSteps([], 63, tiny, { from: 63, names: ['a', 'oddFronts'] }))).toEqual(['crimes']);
+    expect(ran(namedSteps([], 63, tiny, { from: 63, names: [] }))).toEqual(['a', 'crimes', 'oddFronts']);
+    expect(ran(namedSteps([], 63, tiny, { from: 63, names: ['a', 'crimes', 'oddFronts'] }))).toEqual([]);
+  });
+
+  it('gives a save of the accessory-layer history only the crimes step it skipped', () => {
+    const names = TINY_STEPS.map((named) => named.name).filter((name) => name !== 'withCrimes');
+    const crimes = TINY_STEPS.find((named) => named.name === 'withCrimes')!.step;
+    expect(namedSteps(RELEASE_STEPS, TINY_FROM, TINY_STEPS, { from: TINY_FROM, names })).toEqual([crimes]);
+  });
+
+  it('refuses a name the build does not know and runs nothing', () => {
+    const tiny = [mark('a'), mark('crimes')];
+    const refused = () => namedSteps([], 63, tiny, { from: 63, names: ['a', 'oddFronts'] });
+    expect(refused).toThrow(SaveError);
+    expect(refused).toThrow(/unknownStep/);
+  });
+
+  it('flags an unknown step as carried on load', () => {
+    expect(carriesOnLoad(new SaveError('unknownStep'))).toBe(true);
+  });
+
+  describe('after a fold', () => {
+    const releases = [release(['a', 'b'])];
+    const tiny = [mark('c')];
+    const named = (from: number, names: string[]) => namedSteps(releases, 65, tiny, { from, names });
+
+    it('skips the release step a save already holds', () => {
+      expect(ran(named(63, ['a', 'b', 'c']))).toEqual([]);
+      expect(ran(named(63, ['a', 'b']))).toEqual(['c']);
+    });
+
+    it('runs the release step for a save at its anchor, with or without folded names', () => {
+      expect(ran(named(63, []))).toEqual(['release', 'c']);
+      expect(ran(namedSteps([release(null)], 65, tiny, { from: 63, names: [] }))).toEqual(['release', 'c']);
+    });
+
+    it('refuses a list that holds only part of the release step', () => {
+      expect(() => named(63, ['a'])).toThrow(/unknownStep/);
+      expect(() => named(63, ['b', 'a'])).toThrow(/unknownStep/);
+    });
+
+    it('refuses an anchor no release step starts at and a release step with no names', () => {
+      expect(() => named(64, [])).toThrow(/unknownStep/);
+      expect(() => namedSteps([release(null)], 65, tiny, { from: 63, names: ['a', 'b'] })).toThrow(/unknownStep/);
+    });
+  });
+
+  it('writes the names of every tiny step into the save and loads it without running one', () => {
+    const world = newWorld(1337, KIT, TEST_MAP, defaultSetup('roaming'));
+    const envelope = JSON.parse(JSON.stringify(saveOf(world)));
+    expect(envelope.steps).toEqual({ from: TINY_FROM, names: TINY_STEPS.map((named) => named.name) });
+    const slots = makeSlots();
+    slots.put('auto', { ...envelope, savedAt: 1, runId: 'run-1' });
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+    expect(JSON.stringify(saveOf(loaded).world)).toBe(JSON.stringify(saveOf(world).world));
+  });
+
+  it('refuses a named save whose minor format is not its list start plus its names', () => {
+    const world = newWorld(1337, KIT, TEST_MAP, defaultSetup('roaming'));
+    const minor = TINY_FROM + TINY_STEPS.length;
+    const stored = (value: number) => {
+      const slots = makeSlots();
+      const envelope = JSON.parse(JSON.stringify(saveOf(world)));
+      slots.put('auto', { ...envelope, format: { ...envelope.format, minor: value }, savedAt: 1, runId: 'run-1' });
+      return () => loadWorld(slots, 'auto', TEST_MAP);
+    };
+    expect(stored(minor - 1)).toThrow(/noFormat/);
+    expect(stored(minor + 1)).toThrow(/noFormat/);
+    expect(stored(minor)).not.toThrow();
+  });
+
+  it('puts an unknown step of a stored save on the carry path, and a malformed list on noFormat', () => {
+    const world = newWorld(1337, KIT, TEST_MAP, defaultSetup('roaming'));
+    const stored = (steps: unknown, minor = TINY_FROM + 1) => {
+      const slots = makeSlots();
+      const envelope = JSON.parse(JSON.stringify(saveOf(world)));
+      slots.put('auto', { ...envelope, format: { ...envelope.format, minor }, steps, savedAt: 1, runId: 'run-1' });
+      return () => loadWorld(slots, 'auto', TEST_MAP);
+    };
+    expect(stored({ from: TINY_FROM, names: ['withStepNoBuildHas'] })).toThrow(/unknownStep/);
+    expect(stored({ from: TINY_FROM, names: 'withCrimes' })).toThrow(/noFormat/);
+    expect(stored({ from: 1.5, names: [] })).toThrow(/noFormat/);
+    expect(stored([])).toThrow(/noFormat/);
+  });
 });

@@ -18,7 +18,7 @@ import { addState, endState, stateOf } from "./states";
 import { inTowReach } from "./tow";
 import { addCoreParts } from "./factory";
 import { practice, skillEffect, vehicleHasPerk } from "./progress";
-import { addStockPart, goodPrice, goodStock, lotPrice, moveStock, recordTrade, requireShop, shopAt, shopState, siteOf, takeStockPart } from "./market";
+import { addStockPart, goodPrice, goodStock, lotPrice, moveStock, onOrder, recordTrade, requireShop, requireSpareGoods, shopAt, shopState, siteOf, stockForSale, takeStockPart } from "./market";
 import { canUseSite, requireTown, townAt, townNear } from "./sites";
 import { corePart, coreParts, freeCells, goodsCount, mountedParts } from "./grid";
 import { addGoods, cargoRoom, mountPart, removeGoods, spareParts, stowParcel, stowPart, type ParcelItem } from "./inventory";
@@ -98,6 +98,7 @@ export function tradeGoods(
 }
 
 function requireStock(world: World, shopId: string, good: string, count: number): void {
+  if (onOrder(world, shopId, good)) throw new Refused({ id: "onOrder" });
   if (count > goodStock(shopState(world, shopId), good)) throw new Refused({ id: "noStock" });
 }
 
@@ -119,6 +120,7 @@ export function noteCostBasis(world: World, good: string, price: number, count: 
 function sellGoods(world: World, vehicle: Vehicle, shopId: string, good: string, count: number, total: number): void {
   const held = goodsCount(vehicle)[good] ?? 0;
   if (count > held) throw new Error(`Cannot sell ${count} ${good}, holding ${held}`);
+  requireSpareGoods(world, vehicle, good, count);
   removeGoods(vehicle, good, count);
   shopMoney(world, vehicle, total, "cargoSale");
   if (vehicle.id === world.player.vehicleId) practiceSale(world, shopId, good, total / count, count);
@@ -132,7 +134,7 @@ export function affordableBuyCount(
   cap: number,
   budget: number,
 ): number {
-  const stock = goodStock(shopState(world, shopId), good);
+  const stock = stockForSale(world, shopId, good);
   if (stock === 0) return 0;
   const unitPrice = getTradePrice(world, vehicle, shopId, good, "buy");
   let count = Math.max(0, Math.min(cap, stock, Math.floor(budget / unitPrice)));
@@ -854,6 +856,7 @@ export function sellTruckGood(world: World, npcId: string, good: string, n: numb
     const me = playerVehicle(w);
     requireCount(n);
     if ((goodsCount(me)[good] ?? 0) < n) throw new Error(`Cannot sell ${n} ${good}`);
+    requireSpareGoods(w, me, good, n);
     if (cargoRoom(npc) < n) throw new Refused({ id: 'theyHaveNoRoom' });
     const price = truckGoodPrice(w, good, "sell");
     transfer(w, npc, me, price * n);

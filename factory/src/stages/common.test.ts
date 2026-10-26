@@ -229,7 +229,7 @@ describe('runAgent reference images', () => {
 });
 
 describe('stage prompts for reference images', () => {
-  const vars = { issue: '7', taskFile: 'f', branch: 'b', baseNote: 'n', task: 'Play it.', playtest: 'npm run playtest', bugExpansion: '' };
+  const vars = { issue: '7', taskFile: 'f', branch: 'b', baseNote: 'n', task: 'Play it.', playtest: 'npm run playtest', bugExpansion: '', kind: '' };
 
   it('tell every stage to read the images and what a missing one means', () => {
     for (const name of ['triage', 'design', 'implement', 'test']) {

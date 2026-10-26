@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { REGION } from "../data/region";
+import { MAP_GRID, REGION } from "../data/region";
 import { CONDITION } from "../data/wear";
 import type { Contract } from "../sim/market";
 import { partDef, PARTS } from "../data/parts";
@@ -10,10 +10,17 @@ import { mountPart } from "../sim/inventory";
 import { maxHp } from "../sim/wear";
 import { workOf, addState } from "../sim/states";
 import { startAid } from "../sim/aid";
-import { isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyProgress } from "./format";
+import { wantedBounty, gridColumnLetter, gridRowNumber, gridSquareText, isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyProgress, surveyWayLine, surveyWayText } from "./format";
+import { gridSquareOf } from "../sim/map-grid";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
-import { contractDue, heldContractDue, workLabel, contractSummary, postedSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep, formatNpcCargo, formatNpcLookOver } from "./format";
+import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep, formatNpcCargo } from "./format";
+import type { ClaimContract } from "../sim/salvage";
+import { bakedTier } from "../sim/claim-clue";
+import { claimClue, claimWrecks } from "../sim/claims";
+import { START_KITS } from "../data/start";
+import { defaultSetup } from "../sim/settings";
+import { newWorld } from "../sim/world";
 import { mountedParts } from "../sim/grid";
 import { fuelLiters } from "./units";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
@@ -126,33 +133,29 @@ describe("conditionStatus", () => {
 });
 
 describe("contract text", () => {
-  const bounty: Contract = { id: "c1", shop: "bowl", kind: "bounty", template: "buggy", reward: 100, deadline: 100, window: 100, tier: 1, fulfilled: false };
-  const fetch: Contract = { id: "c2", shop: "bowl", kind: "fetch", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1 };
+  const order: Contract = { id: "c1", shop: "bowl", kind: "procure", good: "salt", units: 5, cratePay: 900, reward: 100, deadline: 100, window: 100, tier: 1 };
 
   it("shows the deadline as the game time the contract fails", () => {
-    expect(en(contractDue(bounty))).toBe("by Day 1 12:19");
+    expect(en(contractDue(order))).toBe("by Day 1 12:19");
   });
 
-  it("names any truck of the bounty's type and the shop that pays it", () => {
-    expect(en(contractSummary(bounty))).toBe("Knock out or wreck any Raider outrider, claim at Bowl");
+  it("names the good, the crate count and the shop that ordered it, and no source", () => {
+    expect(en(contractSummary(order))).toBe("Bring 5 crates of Salt to Bowl");
+    expect(en(heldContractDue(order))).toBe(en(contractDue(order)));
   });
 
-  it("reads a met bounty as beaten and ready to claim", () => {
-    const met: Contract = { ...bounty, fulfilled: true };
-    expect(en(contractSummary(met))).toBe("Raider outrider beaten, claim at Bowl");
-    expect(en(heldContractDue(met))).toBe("Ready");
-    expect(en(heldContractDue(bounty))).toBe(en(contractDue(bounty)));
-    expect(en(heldContractDue(fetch))).toBe(en(contractDue(fetch)));
+  it("logs a collected bounty when the player's truck collected it", () => {
+    const w = emptyWorld();
+    const line = eventText(w, { t: "bountyClosed", case: "k1", target: "gone", status: "collected", amount: 5500, collector: w.player.vehicleId })!;
+    expect([en(line.text), line.cls]).toEqual(["You collect the bounty on a driver: 55 M's", "good"]);
+    expect(eventText(w, { t: "bountyClosed", case: "k1", target: "gone", status: "collected", amount: 5500, collector: "marshal-1" })).toBeNull();
   });
 
-  it("keeps the posted wording of a met contract for its history", () => {
-    const met: Contract = { ...bounty, fulfilled: true };
-    expect(en(postedSummary(met))).toBe(en(contractSummary(bounty)));
-  });
-
-  it("logs a met bounty with its reward and where to claim it", () => {
-    const line = eventText(emptyWorld(), { t: "contract", contract: { ...bounty, fulfilled: true }, outcome: "fulfilled" })!;
-    expect([en(line.text), line.cls]).toEqual(["Bounty met: Raider outrider beaten, claim 1 M at Bowl", "good"]);
+  it("tells the player nothing when a claim is filed against them, in the log or a toast", () => {
+    const w = emptyWorld();
+    const filed: GameEvent = { t: "bountyFiled", case: "k1", target: w.player.vehicleId, reporter: "npc-1", offense: "robbed", victim: "npc-1", site: "bowl", owed: 11097 };
+    expect(eventText(w, filed)).toBeNull();
+    expect(isNotable(filed)).toBe(false);
   });
 
   describe("search", () => {
@@ -198,22 +201,18 @@ describe("contract text", () => {
     it("says how far and which way from the shop the driver waits", () => {
       const bowl = REGION.towns.find((t) => t.id === "bowl")!.pos;
       const east = { ...rescue, area: { x: bowl.x + 40, y: bowl.y } };
-      expect(en(rescueWhere(east))).toMatch(/^\d+ m east of Bowl$|^[\d.]+ km east of Bowl$/);
-      expect(en(rescueWhere({ ...east, area: { x: bowl.x, y: bowl.y - 40 } }))).toContain("north of Bowl");
+      expect(en(rescueWhere(east))).toMatch(/^\d+ m south-east of Bowl$|^[\d.]+ km south-east of Bowl$/);
+      expect(en(rescueWhere({ ...east, area: { x: bowl.x, y: bowl.y - 40 } }))).toContain("north-east of Bowl");
     });
 
     it("logs a met rescue with the driver and a lapsed one without a price", () => {
       const met = eventText(emptyWorld(), { t: "contract", contract: { ...rescue, fulfilled: true }, outcome: "fulfilled" })!;
-      expect([en(met.text), met.cls]).toEqual(["Rescue met: Jed Cobb is moving, claim 1 M at Bowl", "good"]);
+      expect([en(met.text), met.cls]).toEqual(["Rescue done: Jed Cobb is moving, claim 1 M at Bowl", "good"]);
       const lapsed = eventText(emptyWorld(), { t: "contract", contract: rescue, outcome: "lapsed" })!;
       expect([en(lapsed.text), lapsed.cls]).toEqual(["Rescue lapsed: Jed Cobb no longer needs you", "dim"]);
       const failed = eventText(emptyWorld(), { t: "contract", contract: rescue, outcome: "failed" })!;
-      expect(en(failed.text)).toBe("Contract failed: Rescue Jed Cobb, pays 1 M");
+      expect(en(failed.text)).toBe("Contract failed: Rescue Jed Cobb, offered 1 M");
     });
-  });
-
-  it("says the hand-in part must still work and be rebuilt at most once", () => {
-    expect(en(contractSummary(fetch))).toBe("Bring MG turret to Bowl: working, rebuilt at most once");
   });
 
   it("says where a claimed part lies from the posting shop, and in which territory", () => {
@@ -230,7 +229,23 @@ describe("contract text", () => {
   it("names the wreck kind, a compass point and a rounded distance in the clue", () => {
     const shop = REGION.towns.find((l) => l.id === "bowl")!;
     const claim: Contract = { id: "c5", shop: "bowl", kind: "claim", stockId: "tank-3", at: { x: shop.pos.x + 300, y: shop.pos.y - 10 }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
-    expect(en(contractSummary(claim))).toBe("Recover MG turret from a dead tank east of Bowl, about 1.3 km out");
+    expect(gridSquareOf(claim.at)).toEqual({ column: 4, row: 6 });
+    expect(en(contractSummary(claim))).toBe("Recover MG turret from a dead tank in square E7, south-east of Bowl, about 1.3 km out");
+    expect(resolve(contractSummary(claim), "ru")).toContain("в квадрате Д7,");
+  });
+
+  it("names the piece a claimed wreck lies by, inside it, beside it or offset from it", () => {
+    const world = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup("roaming"), false);
+    const wrecks = claimWrecks(world);
+    const claimAt = (id: string, shop: string): ClaimContract => {
+      const wreck = wrecks.find((w) => w.id === id)!;
+      return { id: "cw", shop, kind: "claim", stockId: id, at: { ...wreck.pos }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
+    };
+    expect(en(contractSummary(claimAt("hullCache-2599", "nose")))).toMatch(/ in Fallen Sun, inside the small arch shell$/);
+    const offset = wrecks.find((w) => bakedTier(w.id, "bowl") === "offset" && claimClue(claimAt(w.id, "bowl")).where?.piece === "farmhouse")!;
+    expect(en(contractSummary(claimAt(offset.id, "bowl")))).toMatch(/ in Old Orchard, about \d+ m (north|south|east|west)[a-z-]* of the farmhouse$/);
+    const beside = wrecks.find((w) => bakedTier(w.id, "bowl") === "piece" && claimClue(claimAt(w.id, "bowl")).where?.relation === "beside")!;
+    expect(en(contractSummary(claimAt(beside.id, "bowl")))).toMatch(/, beside (the|a) [a-z ]+$/);
   });
 
   it("tells of a rival sent after a held claim, and of a claim lost to it, as notable lines", () => {
@@ -261,8 +276,8 @@ describe("contract text", () => {
   });
 
   it("shows the window in whole game hours, at least one", () => {
-    expect(en(contractWindow({ ...bounty, window: 525 }))).toBe("28 h");
-    expect(en(contractWindow({ ...bounty, window: 1 }))).toBe("1 h");
+    expect(en(contractWindow({ ...order, window: 525 }))).toBe("28 h");
+    expect(en(contractWindow({ ...order, window: 1 }))).toBe("1 h");
   });
 });
 
@@ -301,7 +316,7 @@ describe("jobLabel", () => {
 
   it("names the part and the truck of a removal, before and after it is done", () => {
     const { w, me, buggy, gun } = downedBuggy();
-    const job: Job = { kind: "refit", moves: [], pickup: { from: "truck", vehicleId: buggy.id, partId: gun.part.id, itemId: "new", to: { x: 0, y: 0, rot: 0 } }, turnsLeft: 3, total: 3 };
+    const job: Job = { kind: "refit", moves: [], pickup: { from: "truck", vehicleId: buggy.id, partId: gun.part.id, itemId: "new", to: { x: 0, y: 0, rot: 0 } }, queue: [], turnsLeft: 3, total: 3 };
     expect(en(jobLabel(w, me, job))).toBe(`Remove ${en(partName("mg"))} from ${en(vehicleTitle(w, buggy))}`);
     buggy.items = buggy.items.filter((it) => it.id !== gun.id);
     me.items.push({ ...gun, id: "new" });
@@ -311,7 +326,7 @@ describe("jobLabel", () => {
   it("names the parts a refit moves on the player's own grid", () => {
     const { w, me } = downedBuggy();
     const gun = me.items.find((it) => it.kind === "part" && partDef(it.part.defId).kind === "weapon")!;
-    const job: Job = { kind: "refit", moves: [{ itemId: gun.id, from: { x: gun.x, y: gun.y, rot: gun.rot }, to: { x: 0, y: 0, rot: 0 } }], pickup: null, turnsLeft: 3, total: 3 };
+    const job: Job = { kind: "refit", moves: [{ itemId: gun.id, from: { x: gun.x, y: gun.y, rot: gun.rot }, to: { x: 0, y: 0, rot: 0 } }], pickup: null, queue: [], turnsLeft: 3, total: 3 };
     expect(en(jobLabel(w, me, job))).toBe(`Refit ${en(partName(gun.kind === "part" ? gun.part.defId : ""))}`);
   });
 });
@@ -358,13 +373,13 @@ describe("harpoon log", () => {
     s.w.lines = [{ id: "l1", from: s.me.id, fromPart: s.harpoon.id, to: s.trader.id, toPart: s.engine.id, length: 10, turnsLeft: 3 }];
     s.shot = { ...(s.shot as Extract<GameEvent, { t: "shot" }>), rounds: [{ hit: true, crit: false, offset: 0, struck: s.trader.id, hits: [{ part: s.engine.id, damage: 2 }], blast: [], burst: null }] };
 
-    expect(logEn(s.w, s.shot)?.text).toBe(`Harpoon → ${en(vehicleName(s.w, s.trader.id))}: line on Stock engine (40%): Stock engine −2`);
+    expect(logEn(s.w, s.shot)?.text).toBe(`Harpoon fires at ${en(vehicleName(s.w, s.trader.id))}: line on Stock engine (40%): Stock engine −2`);
   });
 
   it("reads a harpoon that holds nothing as a miss", () => {
     const s = harpooned([{ hit: false, crit: false, offset: 3, struck: null, hits: [], blast: [], burst: null }]);
 
-    expect(logEn(s.w, s.shot)?.text).toBe(`Harpoon → ${en(vehicleName(s.w, s.trader.id))}: missed (40%)`);
+    expect(logEn(s.w, s.shot)?.text).toBe(`Harpoon fires at ${en(vehicleName(s.w, s.trader.id))}: missed (40%)`);
   });
 
   it("tells the player its truck tore free of a line", () => {
@@ -485,8 +500,8 @@ describe("collision log", () => {
     const me = w.player.vehicleId;
     const fence = { id: "fence-3", pos: { x: 33, y: 30 }, r: 0.5, kind: "landmark" as const, look: "fence" as const, yaw: 0 };
     w.broken = [{ obstacle: fence, turn: w.turn }];
-    expect(logEn(w, { t: "collision", a: me, b: "fence-3", hitsA: [], hitsB: [] })).toBeNull();
-    expect(logEn(w, { t: "collision", a: me, b: "rock7", hitsA: [{ part: "x", damage: 4 }], hitsB: [] })).toBeNull();
+    expect(logEn(w, { t: "collision", a: me, b: "fence-3", impact: 3, hitsA: [], hitsB: [] })).toBeNull();
+    expect(logEn(w, { t: "collision", a: me, b: "rock7", impact: 3, hitsA: [{ part: "x", damage: 4 }], hitsB: [] })).toBeNull();
   });
 });
 
@@ -502,7 +517,7 @@ describe("cargo spill log", () => {
     const w = emptyWorld();
     const npc = addVehicle(w, "independent", "hauler", ["rack"], { x: 40, y: 30 });
     const line = logEn(w, { t: "cargoSpilled", vehicle: npc.id, part: mountedParts(npc, "cargo")[0].id, pile: "spill-2", units: 1 });
-    expect(line).toEqual({ text: `${en(vehicleName(w, npc.id))}: cargo spilled on the ground`, cls: "good" });
+    expect(line).toEqual({ text: `${en(vehicleName(w, npc.id))} spills cargo on the ground.`, cls: "good" });
   });
 });
 
@@ -550,7 +565,7 @@ describe("shot log", () => {
     const { w, raider, cab, shot } = duel();
     cab.hp = maxHp(cab);
     const line = eventText(w, shot([{ part: cab.id, damage: 2 }]))!;
-    expect(en(line.text)).toMatch(/^.+ → .+, 1\/2 hit \(40%\): .+ −2$/);
+    expect(en(line.text)).toMatch(/^.+ fires at .+, 1\/2 hit \(40%\): .+ −2$/);
     expect(en(line.text)).toContain(en(vehicleTitle(w, raider)));
   });
 
@@ -615,9 +630,9 @@ describe("money text", () => {
   it("reads a money event in M with its sign", () => {
     const w = emptyWorld();
     const gain = eventText(w, { t: "money", amount: 4067, reason: { kind: "contract" } })!;
-    const loss = eventText(w, { t: "money", amount: -100, reason: { kind: "failedHaul" } })!;
+    const loss = eventText(w, { t: "money", amount: -100, reason: { kind: "contract" } })!;
     expect([en(gain.text), gain.cls]).toEqual(["+41 M's: contract", "good"]);
-    expect([en(loss.text), loss.cls]).toEqual(["\u22121 M: failed haul contract", "bad"]);
+    expect(loss.cls).toBe("bad");
   });
 });
 
@@ -627,7 +642,7 @@ describe("tow text", () => {
     const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 34, y: 30 });
     const town = REGION.towns[0].id;
     expect(en(eventText(w, { t: "money", amount: 12000, reason: { kind: "contract" } })!.text)).toBe("+120 M's: contract");
-    expect(en(eventText(w, { t: "money", amount: -4000, reason: { kind: "failedHaul" } })!.text)).toBe("\u221240 M's: failed haul contract");
+    expect(en(eventText(w, { t: "money", amount: -4000, reason: { kind: "contract" } })!.text)).toBe("\u221240 M's: contract");
     expect(en(eventText(w, { t: "towOffer", by: npc.id, town, fee: 100 })!.text)).toMatch(/ for 1 M\.$/);
   });
   it("says free for a fee of 0 and keeps the price otherwise", () => {
@@ -666,7 +681,6 @@ describe("look-over text", () => {
     w.player.ranks.perception = 1;
     const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 34, y: 30 });
     npc.brain = npcBrain("trader", npc.pos, ["trader"]);
-    expect(en(formatNpcLookOver(w, npc))).toBe("[B] Look over");
     expect(formatNpcCargo(w, npc)).toBeNull();
     addState(w, "lookOver", w.player.vehicleId, npc.id, { kind: "none" });
     const mine = w.vehicles[0];
@@ -674,18 +688,10 @@ describe("look-over text", () => {
     const theirs = addState(w, "lookOver", npc.id, w.player.vehicleId, { kind: "none" });
     expect(en(workLabel(w, npc, workOf(w, npc)!))).toBe("Looking you over");
     w.states = w.states.filter((s) => s !== theirs);
-    expect(formatNpcLookOver(w, npc)).toBeNull();
     addState(w, "sizedUp", w.player.vehicleId, npc.id, { kind: "none" });
     expect(formatNpcCargo(w, npc)).not.toBeNull();
     expect(en(eventText(w, { t: "lookedOver", by: npc.id, target: w.player.vehicleId })?.text)).toMatch(/^Trader .* looks your truck over\.$/);
     expect(eventText(w, { t: "lookedOver", by: w.player.vehicleId, target: npc.id })).toBeNull();
-  });
-
-  it("hides the look-over key without Perception 1", () => {
-    const w = emptyWorld({ x: 30, y: 30 });
-    const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 34, y: 30 });
-    npc.brain = npcBrain("trader", npc.pos, ["trader"]);
-    expect(formatNpcLookOver(w, npc)).toBeNull();
   });
 });
 
@@ -777,12 +783,12 @@ describe("wake-up log", () => {
   });
 });
 
-describe("Fury Road log lines", () => {
+describe("Chaos Highway log lines", () => {
   it("tells an outpost arrival with its pay once, and the run's end", () => {
     const w = emptyWorld();
 
-    expect(logEn(w, { t: "outpostReached", milestone: 2, pay: 37000, wrecks: 3 })).toEqual({ text: "Outpost 2. Paid 370 M's for the road and 3 wrecks.", cls: "good" });
-    expect(logEn(w, { t: "outpostReached", milestone: 1, pay: 15000, wrecks: 0 })?.text).toBe("Outpost 1. Paid 150 M's for the road.");
+    expect(logEn(w, { t: "outpostReached", milestone: 2, pay: 37000, wrecks: 3 })).toEqual({ text: "Outpost 2. You earn 370 M's for the road. 3 trucks wrecked on the way.", cls: "good" });
+    expect(logEn(w, { t: "outpostReached", milestone: 1, pay: 15000, wrecks: 0 })?.text).toBe("Outpost 1. You earn 150 M's for the road.");
     expect(eventText(w, { t: "money", amount: 15000, reason: { kind: "outpost" } })).toBeNull();
     expect(logEn(w, { t: "runLost", stretch: 3, cause: "wrecked" })?.text).toBe("Your truck is wrecked. The run ends on stretch 3.");
     expect(logEn(w, { t: "runLost", stretch: 2, cause: "abandoned" })?.text).toBe("You end the run on stretch 2.");
@@ -826,7 +832,7 @@ describe("a finished search in the log", () => {
 });
 
 describe("the discovery line", () => {
-  it("is cut for a Fury Road outpost, whose label and pay line already name it", () => {
+  it("is cut for a Chaos Highway outpost, whose label and pay line already name it", () => {
     expect(eventText(emptyWorld(), { t: "discover", location: "outpost-1" })).toBeNull();
     expect(eventText(emptyWorld(), { t: "discover", location: "outpost-12" })).toBeNull();
   });
@@ -850,7 +856,7 @@ describe("site event log lines", () => {
   it("tell a surge under see all", () => {
     resetSeeAll();
     toggleSeeAll();
-    expect(logEn(emptyWorld(), surge)?.text).toBe(`${en(siteName("pump-station"))} turns out extra fuel drums today.`);
+    expect(logEn(emptyWorld(), surge)?.text).toBe(`${en(siteName("pump-station"))} turns out extra petrol today.`);
     resetSeeAll();
   });
 });
@@ -910,6 +916,7 @@ describe("survey contract text", () => {
       const lines = surveyClueLines(c) as unknown as TextNode[];
       expect(lines).toHaveLength(2);
       expect(lines[0].text()).toMatch(new RegExp(`^${en(t(`contract.placeName.${second.type}`))}:`));
+      expect(lines[0].text()).toContain(`: square ${en(gridSquareText(gridSquareOf(second.pos)))}, `);
       expect(lines[0].all("tag").map((node) => node.text())).toEqual(["found"]);
       expect(lines[1].text()).toMatch(new RegExp(`^${en(t(`contract.placeName.${third.type}`))}:`));
       expect(lines[1].all("tag")).toHaveLength(0);
@@ -928,7 +935,8 @@ describe("survey contract text", () => {
     } as const;
     const w = emptyWorld();
     for (const [type, [accusative, surveyed]] of Object.entries(forms)) {
-      const site = surveySites(TEST_MAP).find((item) => item.type === type)!;
+      const site = surveySites(TEST_MAP).find((item) => item.type === type);
+      if (!site) continue;
       const job: Job = { kind: "survey", contractId: "c3", site: site.id, turnsLeft: 10, total: 10 };
       expect(resolve(jobLabel(w, w.vehicles[0], job), "ru")).toBe(`Разведать ${accusative}`);
       const c: Extract<Contract, { kind: "survey" }> = { ...survey([true]), points: [{ site: site.id, found: true, done: true }] };
@@ -937,10 +945,57 @@ describe("survey contract text", () => {
   });
 
   it("tells a clue as a named place, a compass word, a distance in hundreds of meters and the lay", () => {
-    const clue = { type: "homestead", landmark: "pump-station", rad: -Math.PI / 4, tiles: 100, lay: "hollow" } as const;
-    expect(en(surveyClueText(clue))).toBe("Lies north-east of Pump Station, about 400 m out, in a hollow");
-    expect(en(surveyClueText({ ...clue, lay: "rise", rad: Math.PI, tiles: 275 }))).toBe("Lies west of Pump Station, about 1.1 km out, on high ground");
-    expect(en(surveyClueText({ ...clue, lay: "flat", rad: Math.PI / 2, tiles: 25 }))).toBe("Lies south of Pump Station, about 100 m out, on flat ground");
+    const clue = { type: "homestead", landmark: "pump-station", rad: -Math.PI / 4, tiles: 100, lay: "hollow", square: { column: 2, row: 3 } } as const;
+    expect(en(surveyClueText(clue))).toBe("Lies in square C4, east of Pump Station, about 400 m out, in a hollow");
+    expect(en(surveyClueText({ ...clue, lay: "rise", rad: Math.PI, tiles: 275 }))).toBe("Lies in square C4, north-west of Pump Station, about 1.1 km out, on high ground");
+    expect(en(surveyClueText({ ...clue, lay: "flat", rad: Math.PI / 2, tiles: 25, square: { column: 7, row: 0 } }))).toBe("Lies in square H1, south-west of Pump Station, about 100 m out, on flat ground");
+  });
+
+  it("names a map grid square by its column letter and row number, with the Russian letters in Russian", () => {
+    expect(en(gridSquareText({ column: 2, row: 3 }))).toBe("C4");
+    expect(resolve(gridSquareText({ column: 2, row: 3 }), "ru")).toBe("В4");
+    expect(resolve(gridSquareText({ column: 7, row: 7 }), "ru")).toBe("З8");
+    expect(en(gridColumnLetter(0))).toBe("A");
+  });
+
+  it("refuses a grid column or row off the grid", () => {
+    expect(() => gridColumnLetter(MAP_GRID.squares)).toThrow(/no letter/);
+    expect(() => gridColumnLetter(-1)).toThrow(/no letter/);
+    expect(() => gridRowNumber(MAP_GRID.squares)).toThrow(/no number/);
+  });
+
+  it("gives every grid column its own single letter in each language", () => {
+    for (const locale of ["en", "ru"] as const) {
+      const letters = Array.from({ length: MAP_GRID.squares }, (_, k) => resolve(gridColumnLetter(k), locale));
+      expect(new Set(letters).size, locale).toBe(MAP_GRID.squares);
+      for (const letter of letters) expect(letter, locale).toMatch(/^\p{Lu}$/u);
+    }
+  });
+
+  it("tells the posting shop's way to a place, with the look and lay and the found tag last", () => {
+    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "bowl", points: [{ site: "survey-skiff-5985", found: true, done: false }] };
+    vi.stubGlobal("document", {
+      createElement: () => new TextNode(),
+      createTextNode: (value: string) => Object.assign(new TextNode(), { children: [value] }),
+    });
+    const line = surveyWayLine(emptyWorld(), c, c.points[0]) as unknown as TextNode;
+    expect(line.className).toBe("contract-clue");
+    expect(line.text()).toBe("Boat wrecks in square C6, from Bowl: Leave by the south-east gate. Take the road to Nose, heading east. Where the road runs closest, leave the road and head east and a touch north-east, a short way. Boat wrecks on flat ground. found");
+    vi.unstubAllGlobals();
+    expect(line.all("tag").at(-1)?.text()).toBe("found");
+    expect(en(surveyWayText(emptyWorld(), c, c.points[0]))).toBe("From Bowl: Leave by the south-east gate. Take the road to Nose, heading east. Where the road runs closest, leave the road and head east and a touch north-east, a short way. It lies in square C6, on flat ground.");
+  });
+
+  it("keeps the compass clue when no full way can be told", () => {
+    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "nose", points: [{ site: "survey-skiff-5982", found: false, done: false }] };
+    const w = emptyWorld();
+    expect(en(surveyWayText(w, c, c.points[0]))).toBe(en(surveyClueText(surveyClue(c, c.points[0]))));
+    vi.stubGlobal("document", {
+      createElement: () => new TextNode(),
+      createTextNode: (value: string) => Object.assign(new TextNode(), { children: [value] }),
+    });
+    expect((surveyWayLine(w, c, c.points[0]) as unknown as TextNode).text()).toBe((surveyClueLines(c)[0] as unknown as TextNode).text());
+    vi.unstubAllGlobals();
   });
 
   it("tells the same clue wherever the truck is", () => {
@@ -983,5 +1038,54 @@ describe("survey contract text", () => {
     expect(en(jobLabel(w, w.vehicles[0], job))).toBe(`Survey the ${en(t(`contract.place.${first.type}`))}`);
     expect(eventText(w, { t: "job", vehicle: w.player.vehicleId, job, outcome: "done" })).toBeNull();
     expect(en(eventText(w, { t: "job", vehicle: w.player.vehicleId, job, outcome: "started" })!.text)).toContain(`Survey the ${en(t(`contract.place.${first.type}`))}`);
+  });
+});
+
+describe("the log names only trucks the player sees", () => {
+  function scene() {
+    const w = emptyWorld();
+    const far = addVehicle(w, "independent", "buggy", [], { x: 100, y: 100 });
+    const near = addVehicle(w, "independent", "buggy", [], { x: 30, y: 30 });
+    w.player.visible = [Math.floor(near.pos.y) * w.size + Math.floor(near.pos.x)];
+    w.player.contacts = [far, near].map((v) => ({ vehicleId: v.id, center: v.pos, radius: 8, sources: ["sound" as const], loudness: 1 }));
+    return { w, far, near };
+  }
+  const samples: ((id: string, other: string) => GameEvent)[] = [
+    (id) => ({ t: "partDisabled", vehicle: id, part: "p1" } as GameEvent),
+    (id, other) => ({ t: "towHitched", by: id, client: other } as GameEvent),
+    (id) => ({ t: "claymoreCookOff", vehicle: id, part: "p1", pos: { x: 0, y: 0 }, hits: [] } as GameEvent),
+  ];
+
+  it.each(samples.map((make, i) => [i, make] as const))("sample %i is silent for a heard truck and shown in sight", (_, make) => {
+    const { w, far, near } = scene();
+    expect(eventText(w, make(far.id, "none"))).toBeNull();
+    expect(eventText(w, make(near.id, "none"))).not.toBeNull();
+  });
+
+  it("shows everything with the full log", () => {
+    const { w, far } = scene();
+    w.player.fullLog = true;
+    expect(eventText(w, samples[0](far.id, "none"))).not.toBeNull();
+  });
+
+  it("shows an event with the player's own truck far from anything", () => {
+    const { w, far } = scene();
+    expect(eventText(w, samples[1](w.player.vehicleId, far.id))).not.toBeNull();
+  });
+});
+
+describe("the Bounty hunter Wanted mark", () => {
+  it("shows the fines a hunter collects, not the restitution on top", () => {
+    const w = emptyWorld({ x: 200, y: 200 });
+    const robber = addVehicle(w, "independent", "scout", ["mg", "stockEngine"], { x: 210, y: 200 });
+    robber.brain = npcBrain("trader", robber.pos, ["trader"]);
+    w.crimes = [{
+      id: "case1", crime: `1:${robber.id}:npc-x:robbed`, offense: "robbed", target: robber.id, victim: "npc-x", issuer: { kind: "faction", faction: "bowl" },
+      reporters: ["npc-x"], site: "bowl", at: { x: 200, y: 200 }, turn: 1, filed: 2, owed: 11097, restitution: 4000, escrow: 0, status: "open",
+      closed: null, hunter: null, retryAt: null, offered: null, known: false, posse: "lone", lead: { at: { x: 200, y: 200 }, turn: 1, heading: 0 },
+    }];
+    expect(wantedBounty(w, robber)).toBeNull();
+    w.player.perks = ["bountyHunter"];
+    expect(wantedBounty(w, robber)).toBe(11097);
   });
 });

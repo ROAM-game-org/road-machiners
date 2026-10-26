@@ -19,9 +19,9 @@ import { inCombat } from "../sim/combat";
 import { playerVehicle } from "../sim/damage";
 import { currentQuestLanguage } from "../sim/quests";
 import type { GameEvent, Vehicle, World } from "../sim/types";
-import { dist } from "../sim/vec";
+import { dist, type Vec } from "../sim/vec";
 import { isOnRope, isTowed } from "../sim/tow";
-import { autoRuns, playerCanAct, threatToPlayer } from "../sim/world";
+import { autoRuns, playerCanAct, threatToPlayer, waitsOnPlayer } from "../sim/world";
 import { WorkerLoad, workerFailure } from "./worker-load";
 
 export type LiveVision = {
@@ -53,6 +53,9 @@ export function turnClockOf(a: Playback | null): TurnClock | null {
   return a ? { before: a.before, progress: Math.min(1, a.elapsed / MOVE_MS), moved: a.moved, hookedLines: a.hookedLines } : null;
 }
 
+type Pose = { pos: Vec; heading: number };
+type OpenStop = { tail: Tail; ends: Record<string, Pose> };
+
 export class Creep {
   private readonly endMs: number;
   private ms: number;
@@ -64,8 +67,14 @@ export class Creep {
     this.endMs = Math.max(0, ...Object.values(tail.frames).map((fs) => fs.length)) * STEP_MS;
   }
 
-  commit(world: World): { world: World; drive: DriveSnapshot } {
-    return { world: withTail(world, this.tail.poses), drive: this.tail.next };
+  commit(world: World, ends: Record<string, Pose> | null): { world: World; drive: DriveSnapshot } {
+    const poses = ends ? Object.fromEntries(Object.entries(this.tail.poses).filter(([id]) => this.atEnd(world, id, ends[id]))) : this.tail.poses;
+    return { world: withTail(world, poses), drive: this.tail.next };
+  }
+
+  private atEnd(world: World, id: string, end: Pose | undefined): boolean {
+    const v = world.vehicles.find((w) => w.id === id);
+    return !!v && !!end && v.pos.x === end.pos.x && v.pos.y === end.pos.y && v.heading === end.heading;
   }
 
   endDrive(): DriveSnapshot {
@@ -213,6 +222,7 @@ export class Travel {
   private remainder = 0;
   private readonly turns: TurnPreparation;
   private creep: Creep | null = null;
+  private open: OpenStop | null = null;
 
   constructor(private readonly holdMs: number, tailSteps: number) {
     this.turns = new TurnPreparation(tailSteps);
@@ -324,11 +334,11 @@ export class Travel {
   }
 
   private wantsTurn(world: World, now: number): boolean {
-    return this.isAdvancing(null, now) || this.runsOnItsOwn(world, now);
+    return !waitsOnPlayer(world) && (this.isAdvancing(null, now) || this.runsOnItsOwn(world, now));
   }
 
   takeReady(world: World, drive: DriveSnapshot, now: number, held = false): PreparedTurn | null {
-    if (world.player.state === "dead") {
+    if (world.player.state === "dead" || waitsOnPlayer(world)) {
       this.pause();
       return null;
     }
@@ -350,13 +360,22 @@ export class Travel {
   }
 
   continues(world: World, now: number): boolean {
-    return this.shouldAdvance(now) || this.runsOnItsOwn(world, now);
+    return !waitsOnPlayer(world) && (this.shouldAdvance(now) || this.runsOnItsOwn(world, now));
   }
 
   stopAt(playback: Playback, world: World, shown: Record<string, VehicleFrame>, now: number, overshootMs: number): { world: World; drive: DriveSnapshot; leftMs: number } | null {
     const stops = playback.tail !== null && !this.continues(world, now);
+    this.open = playback.tail !== null && !stops ? { tail: playback.tail, ends: endPoses(world) } : null;
     this.creep = stops ? new Creep(playback.tail!, { ...shown }, overshootMs) : null;
-    return this.creep ? { ...this.creep.commit(world), leftMs: this.creep.leftMs() } : null;
+    return this.creep ? { ...this.creep.commit(world, null), leftMs: this.creep.leftMs() } : null;
+  }
+
+  settleStop(world: World, shown: Record<string, VehicleFrame>, now: number): { world: World; drive: DriveSnapshot; leftMs: number } | null {
+    const open = this.open;
+    if (!open || this.continues(world, now)) return null;
+    this.open = null;
+    this.creep = new Creep(open.tail, { ...shown }, 0);
+    return { ...this.creep.commit(world, open.ends), leftMs: this.creep.leftMs() };
   }
 
   tickCreep(ms: number): void {
@@ -364,7 +383,7 @@ export class Travel {
   }
 
   timeWanted(world: World, now: number): boolean {
-    return this.isAdvancing(null, now) && this.turns.isReady(world) && world.player.call === null;
+    return this.open !== null || (this.isAdvancing(null, now) && this.turns.isReady(world) && !waitsOnPlayer(world));
   }
 
   playedFrame(v: Vehicle, a: Playback | null, at: number | null): VehicleFrame | undefined {
@@ -387,6 +406,7 @@ export class Travel {
     elapsed: number,
     shown: Record<string, VehicleFrame>,
   ): { world: World; playback: Playback; towed: boolean } {
+    if (waitsOnPlayer(before)) throw new Error(`A turn began while the game waits on the player: ${waitReason(before)}`);
     const world = { ...prepared.world, terrain: before.terrain };
     const join = this.endCreep(before, shown, elapsed);
     addRopeFrames(before, world, prepared.result.frames, join.starts);
@@ -416,6 +436,7 @@ export class Travel {
   private endCreep(before: World, shown: Record<string, VehicleFrame>, elapsed: number): { starts: Record<string, VehicleFrame>; elapsed: number } {
     const join = this.creep?.joinOf(before, shown) ?? { starts: { ...shown }, elapsed };
     this.creep = null;
+    this.open = null;
     return join;
   }
 
@@ -443,6 +464,10 @@ export function workerError(workerStack: string): Error {
   if (name) error.name = name;
   error.stack = workerStack;
   return error;
+}
+
+function endPoses(world: World): Record<string, Pose> {
+  return Object.fromEntries(world.vehicles.map((v) => [v.id, { pos: v.pos, heading: v.heading }]));
 }
 
 export class TurnFailure extends Error {
@@ -562,4 +587,9 @@ export class TurnPreparation {
     this.pending = null;
     return pending.ready;
   }
+}
+
+function waitReason(world: World): string {
+  const live = world.player.quests.live;
+  return live ? `scene:${live.quest}` : "radio-call";
 }

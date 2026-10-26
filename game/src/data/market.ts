@@ -7,7 +7,7 @@ import { MEMORY, NPC_BEHAVIOR } from './npc-behavior';
 import { MAP_SCALE } from './region';
 import { TERRAIN } from './terrain';
 import { TIME } from './time';
-import type { CrimeOffense } from '../sim/types';
+import type { WitnessedOffense } from '../sim/types';
 
 
 export type Tier = 1 | 2 | 3;
@@ -74,6 +74,7 @@ export const CONTRACTS = {
 
   pastKept: 30,
 
+
   warnTurns: Math.round(TIME.turnsPerDay / 12),
 
   haul: {
@@ -82,20 +83,13 @@ export const CONTRACTS = {
     rewardFactor: 24,
     valueShare: 0.05,
     units: [3, 12] as [number, number],
-    penaltyShare: 1,
+    lateShare: 1,
     xpPerEffort: 0.003,
     rush: {
       chance: 0.25,
       durationFactor: 1.5,
       premium: 1.75,
     },
-  },
-
-  fetch: {
-    durationTurns: [300, 800] as [number, number],
-    searchFeeTurns: 240,
-    maxWear: 1,
-    xpPerEffort: 0.0045,
   },
 
   claim: {
@@ -106,7 +100,7 @@ export const CONTRACTS = {
     rivalLeadFactor: 1,
     rivalRetryTurns: 20,
     clueStepTiles: 62.5,
-    clueRadiusShare: 0.4,
+    clue: { nearby: 10, shopBand: 62.5, besideTiles: 6.25, offsetStepTiles: 6.25, offsetBand: 6.25, offsetRange: 50 },
     leadStepTiles: 12.5,
     rivalTraits: ['scavenger', 'vulture', 'roamer', 'trader'] as readonly TraitId[],
     durationFactor: 2.5,
@@ -114,10 +108,11 @@ export const CONTRACTS = {
     xpPerEffort: 0.003,
   },
 
-  bounty: {
-    durationTurns: [400, 1000] as [number, number],
-    rewardTurns: { buggy: 900, gunwagon: 1350 } as Record<string, number>,
-    xpPerEffort: 0.0075,
+  procure: {
+    units: [3, 12] as [number, number],
+    travelFactor: 0.5,
+    slackTurns: EFFORT.handlingTurns * 2,
+    xpPerEffort: 0.003,
   },
 
   search: {
@@ -167,16 +162,16 @@ export const ESCORT_JOB = {
   postWeight: { 1: 0.2, 2: 1, 3: 2 } as Record<Threat, number>,
 };
 
-export type ClaimLook = 'armyTruck' | 'deadTruck' | 'tank' | 'shipWreck';
+export type ClaimLook = 'armyTruck' | 'deadTruck' | 'tank' | 'hullCompartment' | 'cargoPod' | 'engineSection';
 
 export const CLAIM_LOOKS: Partial<Record<PropKind | OldPlaceType, ClaimLook>> = {
   armyTruck: 'armyTruck',
   deadTruck: 'deadTruck',
   tank: 'tank',
   hulks: 'tank',
-  shipCache: 'shipWreck',
-  hullCache: 'shipWreck',
-  engineCache: 'shipWreck',
+  shipCache: 'cargoPod',
+  hullCache: 'hullCompartment',
+  engineCache: 'engineSection',
 };
 
 export type ShopKind = 'garage' | 'stall';
@@ -266,10 +261,11 @@ const SHOP_DATA: Record<string, ShopData> = {
       parts: ([
         'plates', 'steelPlate', 'cage', 'scrapPanels', 'scrapSheet', 'ram', 'plowRam', 'mg', 'shotgun', 'rack', 'panniers',
         'caltrops', 'oilSpiller', 'scrapersKnife', 'patcherCrane', 'claymoreRam', 'spikeCluster', 'spikeStrip', 'cageSection',
+        'longRifle', 'heavyMg', 'stockEngine', 'flatFour',
       ] as const).map((id) => ({ value: id, weight: 1 })),
       wear: STALL_WEAR,
     },
-    stockSize: [2, 4],
+    stockSize: [8, 12],
     restockTurns: 300,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
@@ -525,10 +521,10 @@ export const STALL_MARKETS = Object.values(SHOPS).filter((s) => s.kind === 'stal
 
 const BOUNTY_WAGE = EFFORT.wage[1];
 const wageOf = (turns: number): number => Math.round(turns * BOUNTY_WAGE);
-const FINE_TURNS: Record<CrimeOffense, number> = { attacked: 450, robbed: 900, killed: 2700 };
+const FINE_TURNS: Record<WitnessedOffense, number> = { attacked: 450, robbed: 900, killed: 2700 };
 
 export const CRIME = {
-  fine: Object.fromEntries(Object.entries(FINE_TURNS).map(([offense, turns]) => [offense, wageOf(turns)])) as Record<CrimeOffense, number>,
+  fine: Object.fromEntries(Object.entries(FINE_TURNS).map(([offense, turns]) => [offense, wageOf(turns)])) as Record<WitnessedOffense, number>,
   purseShare: 0.5,
   minStake: wageOf(60),
   maxOwed: wageOf(4 * FINE_TURNS.robbed),
@@ -538,6 +534,7 @@ export const CRIME = {
   keepClosedTurns: MEMORY.turns.witnessed,
   settleWage: 1,
   wage: BOUNTY_WAGE,
+  leadFee: wageOf(24),
 };
 
 export const BOUNTY = {

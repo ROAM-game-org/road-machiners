@@ -5,8 +5,8 @@ import { carriedWorld, type Carried, type CarriedItem, type CarriedPaint, type C
 import { mapAt } from '../sim/highway';
 import type { World } from '../sim/types';
 import type { SlotId } from './save-slots';
-import { savedRevisionsOf, savedRunId, storedSave, writeSave } from './save';
-import { mutedColor_96_97, paintOfPreset_95_96 } from './save-steps-late';
+import { savedMisfit, savedRevisionsOf, savedRunId, saveOf, storedSave, writeSave } from './save';
+import { chaosHighwayMode_113_114, mutedColor_96_97, paintOfPreset_95_96 } from './save-steps-late';
 import type { SaveSlots } from './save-db';
 
 type Json = Record<string, unknown>;
@@ -29,6 +29,7 @@ function pooledSkills_9_10(skills: Record<string, number>): { xp: number; ranks:
 export const RETIRED_PRICES_RESCUE: Readonly<Record<string, number>> = {};
 
 const RENAMED_PARTS_RESCUE: Readonly<Record<string, string>> = { cabOver: 'cabPickup', cabRow: 'cabPickup', cabWide: 'cabPickup', cabNarrow: 'cabPickup' };
+const RENAMED_PERKS_RESCUE: Readonly<Record<string, string>> = { bountyTalk: 'bountyHunter' };
 const RENAMED_NOTES_RESCUE: Readonly<Record<string, string>> = { wagonPin: 'wagonRod', talkOnePin: 'talkBrakeRod' };
 
 type VarRename = { before: number; quest: string | null; from: string; to: string };
@@ -42,7 +43,8 @@ const RENAMED_VARS_RESCUE: readonly VarRename[] = [
 ];
 
 const HATTIE_MET_BEFORE = 78;
-const FURY_ROAD_MODE_BEFORE = 49;
+const FIRST_MODE_NAME_BEFORE = 49;
+const CHAOS_HIGHWAY_NAME_BEFORE = 114;
 const GEAR_GROWTH_BEFORE = 58;
 const GEAR_GROWTH_START = 1;
 
@@ -139,8 +141,9 @@ function truckOf(world: Json, player: Json): Carried['truck'] {
 const HAULER_FORMAT_2_60 = 2060;
 
 function runOf(world: Json, format: number): CarriedRun | null {
-  if (world.furyRoad === null || world.furyRoad === undefined) return null;
-  const run = objectOf(world.furyRoad) ?? {};
+  const saved = formatBefore(format, CHAOS_HIGHWAY_NAME_BEFORE) ? world.furyRoad : world.chaosHighway;
+  if (saved === null || saved === undefined) return null;
+  const run = objectOf(saved) ?? {};
   if (!('hauler' in run) && format < HAULER_FORMAT_2_60) return null;
   return readRun(world, run);
 }
@@ -198,7 +201,7 @@ function readFormatted(raw: unknown, world: Json, player: Json): Carried {
     money: centsOf(player.money, scale),
     ...pooledOf(player),
     xpBySource: countsOf(player.xpBySource),
-    perks: listOf(player.perks).flatMap((id) => idOf(id) ?? []),
+    perks: listOf(player.perks).flatMap((id) => idOf(id) ?? []).map((id) => renamedIn(RENAMED_PERKS_RESCUE, id)),
     paint: paintOf(player.paint),
     discovered: listOf(player.discovered).flatMap((id) => idOf(id) ?? []),
     knockouts: countOf(player.knockouts),
@@ -246,7 +249,8 @@ function withHattieMet(quests: Carried['quests'], format: number): Carried['ques
 function setupOf(setup: unknown, format: number): unknown {
   const read = objectOf(setup);
   if (!read) return setup;
-  const mode = formatBefore(format, FURY_ROAD_MODE_BEFORE) && read.mode === 'gauntlet' ? 'furyRoad' : read.mode;
+  const firstNamed = formatBefore(format, FIRST_MODE_NAME_BEFORE) && read.mode === 'gauntlet' ? 'furyRoad' : read.mode;
+  const mode = formatBefore(format, CHAOS_HIGHWAY_NAME_BEFORE) ? chaosHighwayMode_113_114(firstNamed) : firstNamed;
   const settings = formatBefore(format, GEAR_GROWTH_BEFORE) ? { enemyGearGrowth: GEAR_GROWTH_START, ...objectOf(read.settings) } : read.settings;
   return { ...read, mode, settings };
 }
@@ -296,6 +300,8 @@ export function carriedSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap, ki
   const parsed = storedSave(slots, slot);
   if (objectOf(parsed) === null) return null;
   const world = carriedWorld(readCarried(parsed), kit, (setup, seed, window) => mapAt(setup, seed, window, icarus), freshSeed);
+  const misfit = savedMisfit(saveOf(world).world);
+  if (misfit) throw misfit;
   return { world, runId: savedRunId(parsed) ?? freshRunId() };
 }
 

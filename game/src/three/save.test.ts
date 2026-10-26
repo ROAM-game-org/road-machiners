@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { budget } from '../test/budget';
 import { startKit } from '../data/start';
 import { newWorld, update } from '../sim/world';
 import { playerVehicle } from '../sim/damage';
-import { mountedParts } from '../sim/grid';
+import { gridOf, mountedParts, placementError } from '../sim/grid';
 import { inOverdrive } from '../sim/stats';
 import { addVehicle, emptyWorld, npcBrain } from '../sim/testkit';
 import { noteAttack } from '../sim/combat';
@@ -11,11 +12,13 @@ import { addState } from '../sim/states';
 import { canStowPart, moveItem, storePart, stowPart, stowSpot, takeFromStorage } from '../sim/inventory';
 import { buyStockPart } from '../sim/economy';
 import { buyChart } from '../sim/charts';
-import { makePart } from '../sim/factory';
+import { bareVehicle, makePart } from '../sim/factory';
+import { PARTS } from '../data/parts';
 import type { Faction, GridItem, World } from '../sim/types';
 import { advanceContracts, siteOf, type Contract } from '../sim/market';
 import { advanceJobs } from '../sim/jobs';
-import { CHASSIS } from '../data/chassis';
+import { CHASSIS, chassisDef } from '../data/chassis';
+import { dist } from '../sim/vec';
 import { CRATE_MASS } from '../data/goods';
 import { addGoods } from '../sim/inventory';
 import { goodsCount } from '../sim/grid';
@@ -27,9 +30,11 @@ import { memoryBackend, SaveSlots } from './save-db';
 import { REGION } from '../data/region';
 import { sitePads } from '../sim/sites';
 import { hireEscort } from '../sim/tow';
+import { beforeChaosHighwayName } from '../test/before-chaos-highway-name';
 import { TEST_MAP } from '../test/map';
-import { hollowBays, hollowObstacles, membersOf } from '../sim/sunward';
-import { fillHollow } from '../sim/spawn';
+import { advanceSunward, duskTurn, membersOf, rideOutTurn, sunwardFacts } from '../sim/sunward';
+import { hollowBays, hollowObstacles } from '../sim/hollow-layout';
+import { fillHollow, isFree } from '../sim/spawn';
 import { reusedWorld } from '../test/world-cache';
 import { isBakedObstacle, isBreakable, mapObstacles } from '../sim/mapgen';
 import { breakProp, oldSpotOf, oldSpotPicks, oldStockId } from '../sim/salvage';
@@ -112,7 +117,7 @@ describe('game save', () => {
     expect(before.has(`wreck-${npc.id}`)).toBe(true);
     writeSave(slots, 'auto', world, RUN, 1000);
     expect(lootableProps(loadWorld(slots, 'auto', TEST_MAP)!.salvage)).toEqual(before);
-  }, 30_000);
+  }, budget(30_000));
 
   it('clears the save and the seen tips for a new game, and keeps sound settings', () => {
     const slots = makeSlots();
@@ -330,27 +335,6 @@ describe('game save', () => {
     expect(loaded.events.filter((e) => ['money', 'contract', 'escortEnded', 'practice'].includes(e.t))).toEqual([]);
   });
 
-  it('keeps a held bounty across a reload, and a knockout after it fulfils the bounty once', () => {
-    const slots = makeSlots();
-    const world = emptyWorld();
-    const raider = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 }, Math.PI);
-    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
-    const bounty: Contract = { id: 'ct-b', shop: 'bowl', kind: 'bounty', template: 'buggy', reward: 100, deadline: 900, window: 900, tier: 1, fulfilled: false };
-    world.player.contracts = [bounty];
-    writeSave(slots, 'auto', world, RUN, 1000);
-    const loaded = loadWorld(slots, 'auto', TEST_MAP);
-    if (!loaded) throw new Error('Expected saved bounty');
-    expect(loaded.player.contracts).toEqual([bounty]);
-    const after = update(loaded, (d) => {
-      d.events = [{ t: 'npcKnockout', vehicle: raider.id, by: d.player.vehicleId }];
-      advanceContracts(d);
-    });
-    expect(after.events.filter((e) => e.t === 'contract')).toEqual([{ t: 'contract', contract: { ...bounty, fulfilled: true }, outcome: 'fulfilled' }]);
-    expect(after.player.money).toBe(loaded.player.money);
-    writeSave(slots, 'auto', after, RUN, 1000);
-    expect(loadWorld(slots, 'auto', TEST_MAP)?.player.contracts).toEqual([{ ...bounty, fulfilled: true }]);
-  });
-
   it('keeps the past contracts across a reload, and awards nothing', () => {
     const slots = makeSlots();
     const world = emptyWorld();
@@ -455,6 +439,27 @@ describe('game save', () => {
     expect(loaded.vehicles[0].items.find((item) => item.id === weapon.id)).toMatchObject(to);
   });
 
+  it('keeps a refit queue of three steps through a reload, runs it to the end, and load awards nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    const weapon = world.vehicles[0].items.find((item) => item.kind === 'part' && item.part.defId === 'mg');
+    if (!weapon) throw new Error('Expected weapon');
+    const to = { x: 3, y: CHASSIS.scout.layout.length, rot: 1 as const };
+    const queued = moveItem(moveItem(moveItem(world, weapon.id, to), weapon.id, weapon), weapon.id, to);
+    advanceJobs(queued);
+    queued.events = [];
+    writeSave(slots, 'auto', queued, RUN, 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+    expect(loaded.vehicles[0].job).toEqual(queued.vehicles[0].job);
+    expect(loaded.vehicles[0].job).toMatchObject({ queue: [{ pickup: null }, { pickup: null }] });
+    expect(loaded.player.money).toBe(queued.player.money);
+    expect(loaded.player.xp).toBe(queued.player.xp);
+    expect(loaded.events).toEqual([]);
+    for (let turn = 0; turn < 40 && loaded.vehicles[0].job; turn++) advanceJobs(loaded);
+    expect(loaded.vehicles[0].job).toBeNull();
+    expect(loaded.vehicles[0].items.find((item) => item.id === weapon.id)).toMatchObject(to);
+  });
+
   it('keeps a part bought into storage at a stall, and takes it out after loading', () => {
     const slots = makeSlots();
     let world = emptyWorld(sitePads(siteOf('pump-station'))[0]);
@@ -528,16 +533,70 @@ describe('game save', () => {
     expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(SaveError);
   });
 
+  it('keeps a longbed fitted on every free cell, each part on its cell, through a reload', () => {
+    const slots = makeSlots();
+    const world = structuredClone(standardWorld());
+    const truck = addVehicle(world, 'scrapjaw', 'longbed', [], { x: 12, y: 12 });
+    const grid = gridOf(truck);
+    for (let y = 0; y < grid.h; y++) {
+      for (let x = 0; x < grid.w; x++) {
+        const fits = Object.keys(PARTS).map((defId): GridItem => ({ id: `fit-${x}-${y}`, x, y, rot: 0, kind: 'part', part: makePart(world, defId, 0) })).find((item) => placementError(grid, truck.items, item, null) === null);
+        if (fits) truck.items.push(fits);
+      }
+    }
+    expect(truck.items.filter((i) => i.id.startsWith('fit-')).length).toBeGreaterThan(20);
+    saveWorld(slots, { ...world, turn: 9 }, RUN, 8, 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+    expect(loaded.vehicles.find((v) => v.id === truck.id)!.items).toEqual(truck.items);
+    expect(loaded).toEqual({ ...world, turn: 9 });
+  });
+
   it('returns null when there is no saved game', () => {
     expect(loadWorld(makeSlots(), 'auto', TEST_MAP)).toBeNull();
   });
 
-  it('restores the complete world including fields added later', () => {
+  it('refuses to write a world with a field the saved world type lacks, and keeps the old save', () => {
+    const slots = makeSlots();
+    const errors: unknown[] = [];
+    slots.onError = (err) => errors.push(err);
+    const world = standardWorld();
+    expect(writeSave(slots, 'auto', world, RUN, 1000)).toBe(true);
+    expect(writeSave(slots, 'auto', { ...world, turn: 21, futureFeature: { progress: 7 } } as World, RUN, 2000)).toBe(false);
+    expect(String(errors[0])).toMatch(/world\.futureFeature: unknown key/);
+    expect((slots.get('auto') as { savedAt: number }).savedAt).toBe(1000);
+  });
+
+  it('loads a stored save with a field this build lacks and drops the field', () => {
+    const slots = makeSlots();
+    const world = { ...standardWorld(), turn: 21 };
+    const envelope = saveOf(world);
+    slots.put('auto', { ...envelope, world: { ...envelope.world, futureFeature: { progress: 7 } }, savedAt: 1000, runId: RUN });
+    expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual(world);
+  });
+
+  it('sends a save at the current format with a missing list to the save screen', () => {
+    const slots = makeSlots();
+    const { crimes: _crimes, ...withoutCrimes } = saveOf(standardWorld()).world;
+    slots.put('auto', { format: SAVE_FORMAT, world: withoutCrimes, savedAt: 1000, runId: RUN });
+    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/invalidWorld: world\.crimes: missing/);
+    slots.put('auto', { ...saveOf(standardWorld()), world: withoutCrimes, savedAt: 1000, runId: RUN });
+    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/invalidWorld: world\.crimes: missing/);
+  });
+
+  it('loads back a player driving the remade tractor unchanged, and load awards nothing', () => {
     const slots = makeSlots();
     const world = standardWorld();
-    const expanded = { ...world, futureFeature: { progress: 7 } };
-    saveWorld(slots, { ...expanded, turn: 21 }, RUN, 20, 1000);
-    expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual({ ...expanded, turn: 21 });
+    const old = playerVehicle(world);
+    const tractor = bareVehicle(world, { faction: 'player', chassisId: 'tractor', pos: old.pos, heading: old.heading, brain: null });
+    tractor.id = old.id;
+    world.vehicles = world.vehicles.map((v) => (v.id === old.id ? tractor : v));
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(playerVehicle(loaded).chassisId).toBe('tractor');
+    expect(loaded).toEqual(world);
+    expect(loaded.events).toEqual([]);
   });
 
   it('rejects a save that did not parse in local storage as unreadable, without replacing it', () => {
@@ -571,6 +630,8 @@ describe('game save', () => {
     const ids = oldSpotPicks(TEST_MAP).map(oldStockId);
     const saved = JSON.parse(JSON.stringify(saveOf(world))).world;
     saved.salvage = saved.salvage.filter((stock: { id: string }) => !oldSpotOf(stock));
+    beforeChaosHighwayName(saved);
+    saved.vehicles = saved.vehicles.filter((v: { faction: string }) => v.faction !== 'sunward');
     slots.put('auto', { format: { major: SAVE_MAJOR, minor: SAVE_FORMAT.minor - 1 }, world: saved, savedAt: 1000, runId: RUN });
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
     const oldIds = (w: World): string[] => w.salvage.filter((stock) => oldSpotOf(stock)).map((stock) => stock.id);
@@ -768,7 +829,7 @@ describe('game save', () => {
     const world = standardWorld();
     const fence = world.obstacles.find(isBreakable);
     if (!fence || !isBakedObstacle(fence)) throw new Error('The map needs a baked fence or junk pile');
-    breakProp(world, fence.id, world.player.vehicleId);
+    breakProp(world, fence.id, world.player.vehicleId, 3);
     writeSave(slots, 'auto', world, RUN, 1000);
 
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
@@ -782,7 +843,7 @@ describe('game save', () => {
     const slots = makeSlots();
     const world = standardWorld();
     const fence = world.obstacles.find(isBreakable)!;
-    breakProp(world, fence.id, world.player.vehicleId);
+    breakProp(world, fence.id, world.player.vehicleId, 3);
     world.vehicles[0].trail = [{ x: 1, y: 2, heading: 0 }];
     world.events = [{ t: 'wake' }];
     world.removed = [world.vehicles[1]];
@@ -1019,7 +1080,7 @@ describe('saved world settings', () => {
 
   it('sends a save at a format no build shipped to the carry route, and keeps the stored save', () => {
     const slots = makeSlots();
-    const save = JSON.parse(JSON.stringify(saveOf(newWorld(1337, startKit('standard'), TEST_MAP, tuned(2, 2)))));
+    const { steps: _steps, ...save } = JSON.parse(JSON.stringify(saveOf(newWorld(1337, startKit('standard'), TEST_MAP, tuned(2, 2)))));
     const stored = { ...save, format: { major: SAVE_MAJOR, minor: 13 } };
     slots.put('auto', stored);
 
@@ -1195,6 +1256,42 @@ describe('relations in a save', () => {
     const members = (x: typeof w) => membersOf(x).map((v) => ({ id: v.id, pos: v.pos, home: v.brain!.home }));
     expect(members(loaded)).toEqual(members(w));
     expect(members(loaded).every((m) => hollowBays().some((b) => b.x === m.home.x && b.y === m.home.y))).toBe(true);
+    expect(loaded.player.xp).toBe(w.player.xp);
+    expect(loaded.player.money).toBe(w.player.money);
+    expect(loaded.events).toEqual([]);
+  });
+
+  it('moves a truck standing in the Hollow\'s wall off it at load, awarding nothing', () => {
+    const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    const wall = hollowObstacles().find((o) => o.kind === 'landmark' && o.look === 'fortScrapWall')!;
+    const me = playerVehicle(w);
+    me.pos = { ...wall.pos };
+    w.events = [];
+    const slots = new SaveSlots(memoryBackend(), new Map());
+
+    writeSave(slots, 'auto', w, 'run-1', 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    const moved = playerVehicle(loaded);
+    expect(dist(moved.pos, wall.pos)).toBeGreaterThan(0.5);
+    expect(isFree(loaded, moved.pos, chassisDef(moved.chassisId).radius, moved.id)).toBe(true);
+    expect(loaded.player.xp).toBe(w.player.xp);
+    expect(loaded.events).toEqual([]);
+  });
+
+  it('gives back a night opened between the ride-out and dusk, awarding nothing at load', () => {
+    const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    fillHollow(w);
+    w.turn = rideOutTurn(duskTurn(2)) + 3;
+    advanceSunward(w);
+    w.events = [];
+    const slots = new SaveSlots(memoryBackend(), new Map());
+
+    writeSave(slots, 'auto', w, 'run-1', 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(sunwardFacts(w).night?.dusk).toBe(duskTurn(2));
+    expect(sunwardFacts(loaded)).toEqual(sunwardFacts(w));
     expect(loaded.player.xp).toBe(w.player.xp);
     expect(loaded.player.money).toBe(w.player.money);
     expect(loaded.events).toEqual([]);

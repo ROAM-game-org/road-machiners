@@ -14,7 +14,7 @@ import { baseGrid, facingOf, isMounted, itemCells, itemSize } from '../../sim/gr
 import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gunClearance';
-import { bottomOf, bottomRect, highestAhead, itemSpot, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang, type ItemSpot } from './gunStand';
+import { bottomOf, bottomRect, highestAhead, itemSpot, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang, underSpots, type ItemSpot } from './gunStand';
 import { GLASS, LAMP, model, RADIO, socket, TRUCK_BIT, type ModelName } from './models';
 import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic } from './truckMesh';
 import { armorPlacement, cutSpec, lampIslands, withCut, type CutSpec } from './armorCut';
@@ -165,7 +165,10 @@ export class VehicleView {
 
   private poseRear(f: VehicleFrame, dt: number): void {
     const rear = this.units[1];
-    if (Boolean(rear) !== Boolean(f.rear)) throw new Error(`A view of ${this.units.length} units got a frame ${f.rear ? 'with' : 'without'} a rear unit`);
+    if (Boolean(rear) !== Boolean(f.rear)) {
+      if (this.pending) return;
+      throw new Error(`A view of ${this.units.length} units got a frame ${f.rear ? 'with' : 'without'} a rear unit`);
+    }
     if (!rear || !f.rear) return;
     const inverse = this.root.quaternion.clone().invert();
     rear.root.position.set(f.rear.pos.x - f.pos.x, f.rear.pos.y - f.pos.y, f.rear.pos.z - f.pos.z).applyQuaternion(inverse);
@@ -451,7 +454,7 @@ export class VehicleView {
     const obj = this.placedPart(v, unit.b, item, def, paint);
     obj.name = item.id;
     const spot = this.spots.get(item);
-    if (spot?.legs) for (const leg of plateLegs(unit.base, bottomRect(obj, unit.index), spot.y, (role) => this.legModel(item, paint, role))) unit.still.add(leg);
+    if (spot?.legs) for (const leg of plateLegs(unit.base, bottomRect(obj, unit.index), spot.y, (role) => this.legModel(item, paint, role), underSpots(obj))) unit.still.add(leg);
     unit.still.add(obj);
     this.anchors.set(item.part.id, { local: new THREE.Box3().setFromObject(obj).getCenter(new THREE.Vector3()), parent: unit.body });
     if (blocksGuns(v, item, def)) unit.obstacles.push(obstacleOf(obj));
@@ -861,7 +864,9 @@ export function hidesInside(v: Pick<Vehicle, 'chassisId'>, item: GridItem): bool
   if (inCargoBay(v, item)) return true;
   if (item.kind !== 'part') return false;
   const def = partDef(item.part.defId);
-  return def.kind === 'core' && (def.role === 'transmission' || def.role === 'tank') && !chassisDef(v.chassisId).showsCores;
+  const chassis = chassisDef(v.chassisId);
+  if (def.kind === 'engine' && isMounted(v.chassisId, item)) return !chassis.showsEngine;
+  return def.kind === 'core' && (def.role === 'transmission' || def.role === 'tank') && !chassis.showsCores;
 }
 
 function inCargoBay(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
@@ -967,7 +972,7 @@ export function footprint(v: Pick<Vehicle, 'chassisId'>, item: GridItem, y: numb
 }
 
 function blocksGuns(v: Vehicle, item: PartItem, def: PartDef): boolean {
-  return !(isMounted(v.chassisId, item) && (isShield(def) || def.kind === 'engine'));
+  return !(isMounted(v.chassisId, item) && def.kind === 'engine');
 }
 
 function obstacleOf(obj: THREE.Object3D): Obstacle {

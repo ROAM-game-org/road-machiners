@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { bedRows } from './chassis-features';
 import { CHASSIS } from '../data/chassis';
 import { PARTS } from '../data/parts';
 import { RULES } from '../data/rules';
@@ -20,7 +21,7 @@ import { advanceJobs } from './jobs';
 const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
 const item = (w: World, defId: string) => w.vehicles[0].items.find((it) => it.kind === 'part' && it.part.defId === defId)!;
 const good = (w: World) => w.vehicles[0].items.find((it) => it.kind === 'good')!;
-const rackRow = CHASSIS.scout.layout.length;
+const rackRow = CHASSIS.scout.layout.length + bedRows('scout');
 
 describe('inventory grid', () => {
   it('the standard kit starts with a scout, 333 M, two cargo parts, and full resources', () => {
@@ -381,10 +382,11 @@ describe('garage work at every shop', () => {
       expect(() => startRefit(w, { 'spare-item': { x: mg.x, y: mg.y, rot: 0 } })).toThrow(/badLayout/);
     });
 
-    it('throws while a refit runs', () => {
+    it('queues a plan behind a running refit', () => {
       const { w, mg } = withSpare();
       const running = startRefit(w, { [mg.id]: { x: mg.x, y: mg.y, rot: 2 } });
-      expect(() => startRefit(running, { [good(w).id]: { x: 0, y: rackRow, rot: 0 } })).toThrow(/refitRunning/);
+      const queued = startRefit(running, { [good(w).id]: { x: 0, y: rackRow, rot: 0 } });
+      expect(queued.vehicles[0].job).toMatchObject({ moves: [{ itemId: mg.id }], queue: [{ moves: [{ itemId: good(w).id }], pickup: null }] });
     });
   });
 });

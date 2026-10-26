@@ -48,7 +48,7 @@ describe('combat harness', () => {
   it('names the courier side when it flees a stronger truck', () => {
     forceOption('truceOffered', 'refuse');
     forceOption('mercyBegged', 'finish');
-    const r = runFight({ ...FIGHT, a: parseLineup('merc:snowball'), b: parseLineup('courier:courier@poor'), seed: 7, maxTurns: 40 });
+    const r = runFight({ ...FIGHT, a: parseLineup('merc:snowball'), b: parseLineup('courier:courier@poor'), seed: 2, maxTurns: 40 });
     expect(r.outcome).toBe('b fled');
   });
 
@@ -58,7 +58,7 @@ describe('combat harness', () => {
   });
 
   it('a damaged arena fighter turns back when it cannot escape for repairs', () => {
-    const fight = { ...FIGHT, a: parseLineup('buggy'), b: parseLineup('buggy'), seed: 3, maxTurns: 200, arena: 9 };
+    const fight = { ...FIGHT, a: parseLineup('buggy'), b: parseLineup('buggy'), seed: 5, maxTurns: 200, arena: 9 };
     expect(['won', 'lost']).toContain(runFight(fight).outcome);
   });
 

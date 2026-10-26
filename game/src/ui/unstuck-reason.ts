@@ -18,3 +18,7 @@ export function unstuckReason(world: World, busy: boolean, inScene: boolean): Ms
   const block = unstuckBlock(world);
   return block === null ? null : REASONS[block];
 }
+
+export function lookReason(w: World): Msg | null {
+  return w.player.quests.live !== null ? t('look.inScene') : null;
+}

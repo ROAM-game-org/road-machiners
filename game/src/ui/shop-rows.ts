@@ -1,16 +1,17 @@
 import { ECONOMY } from "../data/goods";
 import { PAINT_SCHEMES, PAINT_SLOTS, PALETTE, PALETTE_IDS, samePaint, type PaletteId, type TruckPaint } from "../data/chassis";
-import { playerVehicle } from "../sim/damage";
+import { playerVehicle, vehicleById } from "../sim/damage";
 import { basicsRepairCost, chassisPrice, chassisTradeIn, repairCost, supplyRoom, type Supply } from "../sim/economy";
 import { mountedParts } from "../sim/grid";
 import { fuelCap, suppliesCap } from "../sim/stats";
 import { getResources } from "../sim/resources";
-import type { Vehicle, World } from "../sim/types";
+import type { CrimeCase, Vehicle, World } from "../sim/types";
+import { caseOwed, deskRows, payAtDesk, settleAtDesk, type SettlementQuote } from "../sim/crime";
 import { num, PLUS, SPACE, t, type Msg } from "../text/msg";
-import { chassisName } from "../text/names";
+import { chassisAbilityLine, chassisAbilityName, chassisName, factionName, refusalText, siteName, vehicleTitle } from "../text/names";
 import { chassisMap, chassisPortrait, chassisStats, createIcon, diffStats, statGrid } from "./cards";
 import { el, type Child } from "./dom";
-import { GOODS_COLUMNS } from "./format";
+import { caseVictimName, clock, GOODS_COLUMNS } from "./format";
 import { coinEl, fuelLiters, moneyEl, moneyMsg, moneyNum } from "./units";
 
 export type ShopCommand = (w: World) => World;
@@ -227,11 +228,19 @@ export function truckCards(w: World, ids: readonly string[], offer: (id: string)
           el("div", { class: "card-name" }, el("b", {}, chassisName(id))),
           own ? el("span", { class: "dim" }, t("vehicle.yours")) : swapButton(w, id, offer),
         ),
+        chassisFeatureRow(id),
         statGrid(diffStats(chassisStats(id), own ? null : chassisStats(mine))),
       ),
     );
   });
   return el("div", { class: "cards trucks" }, ...cards);
+}
+
+function chassisFeatureRow(id: string): HTMLElement | null {
+  const name = chassisAbilityName(id);
+  const line = chassisAbilityLine(id);
+  if (!name || !line) return null;
+  return el("div", { class: "dim chassis-feature" }, el("b", {}, name), SPACE, line);
 }
 
 function swapButton(w: World, id: string, makeOffer: (id: string) => SwapOffer): HTMLElement {
@@ -240,4 +249,74 @@ function swapButton(w: World, id: string, makeOffer: (id: string) => SwapOffer):
   const price = cost < 0 ? el("span", { class: "good" }, PLUS, moneyEl(-cost)) : priceSpan(cost, offer.reason === null);
   const title = offer.reason ? null : t("trade.includesTradeIn", { price: moneyMsg(chassisTradeIn(w)) });
   return reasonButton([t("trade.swapVerb"), SPACE, price], offer.swap, offer.reason, "", title);
+}
+
+type DeskCommand = (cmd: (w: World) => World) => void;
+
+export function deskBody(w: World, run: DeskCommand): HTMLElement {
+  const rows = deskRows(w);
+  const cases = rows.cases.map((c) => caseRow(w, c, run));
+  const ids = rows.cases.map((c) => c.id);
+  const payAll = rows.cases.length > 1 ? el("div", { class: "desk-all" }, payButton(w, t("desk.payAll"), rows.owed, priceSpan(rows.owed, w.player.money >= rows.owed), () => run((x) => payAtDesk(x, ids)))) : null;
+  const settles = rows.settlements.map((q) => settleRow(w, q, run));
+  return el(
+    "div",
+    { class: "desk-body" },
+    cases.length > 0 ? el("div", { class: "desk-group" }, ...cases, payAll) : null,
+    settles.length > 0 ? el("div", { class: "desk-group" }, ...settles) : null,
+    cases.length === 0 && settles.length === 0 ? el("p", { class: "dim" }, t("desk.empty")) : null,
+  );
+}
+
+function caseRow(w: World, c: CrimeCase, run: DeskCommand): HTMLElement {
+  const victim = caseVictimName(w, c);
+  const price = caseOwed(c);
+  return el(
+    "div",
+    { class: "row desk-case" },
+    el("span", {}, t(`desk.case.${c.offense}`, { victim })),
+    el("span", { class: "dim" }, t("desk.filed", { issuer: issuerName(w, c), site: siteName(c.site), when: clock(c.turn).full })),
+    casePay(payButton(w, t("desk.pay"), price, casePrice(c, w.player.money >= price), () => run((x) => payAtDesk(x, [c.id]))), c),
+  );
+}
+
+function payButton(w: World, verb: Msg, price: number, shown: HTMLElement, click: () => void): HTMLElement {
+  return reasonButton([verb, SPACE, shown], click, shortBy(w.player.money, price));
+}
+
+function settleRow(w: World, q: SettlementQuote, run: DeskCommand): HTMLElement {
+  const short = shortBy(w.player.money, q.price);
+  const reason = q.refusal && q.refusal.id !== "noMoney" ? refusalText(w, q.refusal) : short;
+  const label = [t("desk.settle"), SPACE, priceSpan(q.price, short === null)];
+  return el(
+    "div",
+    { class: "row desk-settle" },
+    el("span", {}, factionName(q.faction)),
+    el("span", { class: "tag bad" }, t("band.hostile")),
+    reasonButton(label, () => run((x) => settleAtDesk(x, q.faction)), reason, "", t("desk.settleAfter", { faction: factionName(q.faction) })),
+  );
+}
+
+function issuerName(w: World, c: CrimeCase): Msg {
+  if (c.issuer.kind === "faction") return factionName(c.issuer.faction);
+  if (c.issuer.kind === "shop") return siteName(c.issuer.shop);
+  const id = c.issuer.id;
+  return w.vehicles.some((v) => v.id === id) ? vehicleTitle(w, vehicleById(w, id)) : t("log.someDriver");
+}
+
+export function casePrice(c: CrimeCase, payable: boolean): HTMLElement {
+  if (c.restitution === 0) return priceSpan(caseOwed(c), payable);
+  return el("span", { class: `case-price${payable ? "" : " bad"}` }, moneyEl(caseOwed(c)));
+}
+
+function casePay(button: HTMLElement, c: CrimeCase): HTMLElement {
+  return c.restitution === 0 ? button : el("span", { class: "case-pay" }, button, casePriceTip(c));
+}
+
+export function casePriceTip(c: CrimeCase): HTMLElement {
+  return el("span", { class: "tooltip case-price-tip", role: "tooltip" }, priceTipRow(t("desk.base"), c.owed, "base"), priceTipRow(t("desk.restitution"), c.restitution, "down"));
+}
+
+function priceTipRow(label: Msg, cents: number, tone: "base" | "down"): HTMLElement {
+  return el("div", { class: `tooltip-row ${tone}` }, el("span", {}, label), el("span", { class: "num" }, moneyEl(cents)));
 }

@@ -1,15 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
-import { GARAGE_ONLY, goodRoutesTitle, marketHint, pressureHint, showsRelief, tradeEstimate } from "./town";
+import { GARAGE_ONLY, goodRoutesTitle, marketHint, newsWell, pressureHint, showsRelief, townPageOnOpen, tradeEstimate } from "./town";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
-import { RELIEF } from "../data/market";
-import { shortHere } from "../sim/market";
-import { livePaintPlan, paletteStyle, planWithSlot, schemeStyle, shortBy } from "./shop-rows";
+import { RELIEF, SHOPS } from "../data/market";
+import { shortHere, stockTarget, type ShopState } from "../sim/market";
+import { casePrice, casePriceTip, livePaintPlan, paletteStyle, planWithSlot, schemeStyle, shortBy } from "./shop-rows";
 import { PAINT, PAINT_SCHEMES } from "../data/chassis";
-import { SHOPS } from "../data/market";
-import { stockTarget, type ShopState } from "../sim/market";
+import { placeProse } from "../text/names";
+import type { CrimeCase } from "../sim/types";
 
 const en = (msg: Msg | null): string | null => (msg === null ? null : resolve(msg, "en"));
 const hint = (...args: Parameters<typeof pressureHint>) => {
@@ -133,5 +133,131 @@ describe("the paint tab", () => {
 
   it("shows only at a garage, right after the trucks", () => {
     expect(GARAGE_ONLY).toEqual(["trucks", "paint"]);
+  });
+});
+
+describe("the town page on open", () => {
+  const open = { open: true } as const;
+  const access = { garage: open, market: open, board: open, people: open, bar: { open: false, reason: "noDrivers" } } as const;
+  const closedAt = { shopId: "nose", turn: 40 };
+
+  it("keeps the page the player left when the place and the turn are the same", () => {
+    expect(townPageOnOpen("garage", closedAt, "nose", 40, access)).toBe("garage");
+  });
+
+  it("opens on the front page after a turn, at another place or into a section now off", () => {
+    expect(townPageOnOpen("garage", closedAt, "nose", 41, access)).toBeNull();
+    expect(townPageOnOpen("garage", closedAt, "bowl", 40, access)).toBeNull();
+    expect(townPageOnOpen("bar", closedAt, "nose", 40, access)).toBeNull();
+  });
+
+  it("opens on the front page on a first visit", () => {
+    expect(townPageOnOpen("garage", null, "nose", 40, access)).toBeNull();
+    expect(townPageOnOpen(null, closedAt, "nose", 40, access)).toBeNull();
+  });
+});
+
+describe("the front page prose", () => {
+  it("has a paragraph for every place with a shop, in English and Russian", () => {
+    for (const id of Object.keys(SHOPS)) {
+      expect(resolve(placeProse(id), "en").length, id).toBeGreaterThan(40);
+      expect(resolve(placeProse(id), "ru").length, id).toBeGreaterThan(40);
+    }
+  });
+});
+
+class FakeNode {
+  className = "";
+  style = { setProperty: () => {} };
+  children: (FakeNode | string)[] = [];
+  attrs = new Map<string, string>();
+  constructor(readonly tag: string) {}
+  append(...c: (FakeNode | string)[]) {
+    this.children.push(...c);
+  }
+  setAttribute(k: string, v: string) {
+    this.attrs.set(k, v);
+  }
+  addEventListener() {}
+  text(): string {
+    return this.children.map((c) => (typeof c === "string" ? c : c.text())).join("");
+  }
+  all(pred: (n: FakeNode) => boolean): FakeNode[] {
+    const here = pred(this) ? [this] : [];
+    return [...here, ...this.children.flatMap((c) => (typeof c === "string" ? [] : c.all(pred)))];
+  }
+  has(cls: string): boolean {
+    return this.className.split(" ").includes(cls);
+  }
+}
+
+describe("the road news well", () => {
+  beforeEach(() => {
+    vi.stubGlobal("document", {
+      createElement: (tag: string) => new FakeNode(tag),
+      createElementNS: (_ns: string, tag: string) => new FakeNode(tag),
+      createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }),
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("is absent without news", () => {
+    expect(newsWell(emptyWorld())).toBeNull();
+  });
+
+  it("has a caption, counts crates above one and explains each kind on hover", () => {
+    const w = emptyWorld();
+    w.turn = 100;
+    w.roadNews = [
+      { turn: 90, kind: "robbed", good: "rations", units: 2, from: "granary", to: "bowl" },
+      { turn: 90, kind: "knockedOut", good: "grain", units: 1, from: "bowl", to: "granary" },
+      { turn: 90, kind: "destroyed", good: "salt", units: 1, from: "bowl", to: "granary" },
+    ];
+    const well = newsWell(w) as unknown as FakeNode;
+    expect(well.all((n) => n.has("news-head")).map((n) => n.text())).toEqual(["Road news"]);
+    const rows = well.all((n) => n.has("news-row")).reverse();
+    const counts = rows.map((r) => r.all((n) => n.has("recipe-good"))[0].all((n) => n.has("num")).map((n) => n.text())[0] ?? null);
+    expect(counts).toEqual(["2", null, null]);
+    expect(rows.map((r) => r.attrs.get("title"))).toEqual([
+      expect.stringContaining("was robbed"),
+      expect.stringContaining("knocked out"),
+      expect.stringContaining("destroyed"),
+    ]);
+  });
+});
+
+describe("the price of a case at the Marshalls desk", () => {
+  beforeEach(() => {
+    vi.stubGlobal("document", {
+      createElement: (tag: string) => new FakeNode(tag),
+      createElementNS: (_ns: string, tag: string) => new FakeNode(tag),
+      createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }),
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const robbery = (restitution: number): CrimeCase => ({
+    id: "case1", crime: "1:me:npc-x:robbed", offense: "robbed", target: "me", victim: "npc-x", issuer: { kind: "faction", faction: "bowl" },
+    reporters: ["npc-x"], site: "bowl", at: { x: 0, y: 0 }, turn: 1, filed: 2, owed: 11097, restitution, escrow: 0, status: "open",
+    closed: null, hunter: null, retryAt: null, offered: null, known: true, posse: 'lone', lead: { at: { x: 0, y: 0 }, turn: 1, heading: 0 },
+  });
+  const tipRows = (price: FakeNode) => price.all((n) => n.has("tooltip-row")).map((row) => [row.className, row.text()]);
+
+  it("is the fine alone, with no breakdown, when the victim handed nothing over", () => {
+    const price = casePrice(robbery(0), true) as unknown as FakeNode;
+    expect(price.text()).toBe("111");
+    expect(price.has("case-price")).toBe(false);
+  });
+
+  it("is fine and restitution, and its breakdown gives Base in muted ink and Restitution in danger ink", () => {
+    const price = casePrice(robbery(4000), true) as unknown as FakeNode;
+    expect(price.has("case-price")).toBe(true);
+    expect(price.text()).toBe("151");
+    expect(tipRows(casePriceTip(robbery(4000)) as unknown as FakeNode)).toEqual([["tooltip-row base", "Base111"], ["tooltip-row down", "Restitution40"]]);
+  });
+
+  it("prints in danger ink when the player cannot pay it", () => {
+    expect((casePrice(robbery(4000), false) as unknown as FakeNode).has("bad")).toBe(true);
+    expect((casePrice(robbery(0), false) as unknown as FakeNode).has("bad")).toBe(true);
   });
 });

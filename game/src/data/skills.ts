@@ -97,9 +97,9 @@ export const BASIC_IDS = Object.values(BASICS);
 export type PerkId =
   | 'rammer' | 'coldRunning' | 'steadyAim' | 'dustScreen'
   | 'readDriver' | 'spotter' | 'cargoEye' | 'nightEyes'
-  | 'welder' | 'cannibal' | 'rebuild' | 'roadMechanic'
+  | 'welder' | 'teardown' | 'rebuild' | 'roadMechanic'
   | 'desertRat' | 'stormRider' | 'fightThrough' | 'longHaul'
-  | 'marketEars' | 'rumorMill' | 'paidTruce' | 'bountyTalk';
+  | 'marketEars' | 'rumorMill' | 'paidTruce' | 'bountyHunter';
 
 export const PERK_LEVELS = [2, 4] as const;
 export type PerkLevel = (typeof PERK_LEVELS)[number];
@@ -116,7 +116,7 @@ export const PERKS: Record<PerkId, PerkDef> = {
   cargoEye: { skill: 'perception', level: 4, },
   nightEyes: { skill: 'perception', level: 4, },
   welder: { skill: 'machining', level: 2, },
-  cannibal: { skill: 'machining', level: 2, },
+  teardown: { skill: 'machining', level: 2, },
   rebuild: { skill: 'machining', level: 4, },
   roadMechanic: { skill: 'machining', level: 4, },
   desertRat: { skill: 'toughness', level: 2, },
@@ -126,7 +126,7 @@ export const PERKS: Record<PerkId, PerkDef> = {
   marketEars: { skill: 'social', level: 2, },
   rumorMill: { skill: 'social', level: 2, },
   paidTruce: { skill: 'social', level: 4, },
-  bountyTalk: { skill: 'social', level: 4, },
+  bountyHunter: { skill: 'social', level: 4, },
 };
 
 export const PERK_IDS = Object.keys(PERKS) as PerkId[];
@@ -144,7 +144,6 @@ export const PERK_NUMBERS = {
     turns: 3,
     part: 'scrapSheet',
   },
-  cannibal: { turns: 1 },
   roadMechanic: { price: 2 },
   desertRat: { sunShare: 0.62 },
   fightThrough: { health: 0.5 },
@@ -158,6 +157,7 @@ export const MAIN_SKILL: Record<Archetype, SkillId | null> = {
   hunter: 'perception',
   fastTrader: 'driving',
   hauler: 'social',
+  procurer: 'social',
   searcher: 'social',
   surveyor: 'social',
   climber: 'social',

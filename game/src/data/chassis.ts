@@ -2,6 +2,47 @@
 import type { Tier } from './market';
 import { PARTS } from './parts';
 
+export type AbilityId = 'bed' | 'nimble' | 'racing' | 'offRoad' | 'armored' | 'gunMounts' | 'battle' | 'springs' | 'openTop' | 'tourer' | 'trailer';
+
+export type ChassisAbility = {
+  id: AbilityId;
+  bedRows?: number;
+  accel?: number;
+  topSpeed?: number;
+  nimble?: number;
+  offRoadCut?: number;
+  offRoadWear?: number;
+  partArmor?: number;
+  deckArmor?: number;
+  gunPower?: number;
+  mountedMass?: number;
+  sight?: number;
+  range?: number;
+  arc?: number;
+  reloadCut?: number;
+  cargoRows?: number;
+};
+
+export const CHASSIS_FEATURES: Record<string, ChassisAbility> = {
+  scout: { id: 'bed', bedRows: 1 },
+  buggy: { id: 'nimble', accel: 1.25, nimble: 0.0785 },
+  courier: { id: 'racing', topSpeed: 1.25 },
+  jeep: { id: 'offRoad', offRoadCut: 1, offRoadWear: 0.5 },
+  hauler: { id: 'bed', bedRows: 2 },
+  wagon: { id: 'gunMounts', gunPower: 1.25 },
+  van: { id: 'armored', partArmor: 1 },
+  convertible: { id: 'openTop', sight: 1.2, range: 1.2 },
+  bus: { id: 'springs', mountedMass: 0.5 },
+  niva: { id: 'offRoad', offRoadCut: 1, offRoadWear: 0.5 },
+  bukhanka: { id: 'armored', partArmor: 2 },
+  longbed: { id: 'bed', bedRows: 3 },
+  carrier: { id: 'armored', partArmor: 4 },
+  tractor: { id: 'battle', partArmor: 2, gunPower: 1.25 },
+  loader: { id: 'gunMounts', gunPower: 1.5 },
+  lincoln: { id: 'tourer', sight: 1.25, range: 1.15, topSpeed: 1.15 },
+  sorokonoga: { id: 'trailer', arc: 30, reloadCut: 1, cargoRows: 1.5, deckArmor: 1 },
+};
+
 export type ChassisDef = {
   id: string;
   maxSpeed: number;
@@ -21,6 +62,7 @@ export type ChassisDef = {
   base: number;
   value: number;
   showsCores: boolean;
+  showsEngine: boolean;
   tier: Tier;
   coupling?: { row: number };
   look: 'pickup' | 'hauler' | 'buggy' | 'wagon' | 'courier' | 'van' | 'longbed' | 'carrier' | 'tractor' | 'jeep' | 'convertible' | 'bus' | 'loader' | 'niva' | 'bukhanka' | 'lincoln' | 'semi' | 'sorokonoga';
@@ -77,7 +119,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
     ],
     fuelCap: 40,
     fuelPerTile: 0.25,
-    base: 26667, showsCores: true, tier: 1,
+    base: 26667, showsCores: true, showsEngine: true, tier: 1,
     look: 'pickup',
   },
   hauler: {
@@ -103,7 +145,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
     ],
     fuelCap: 80,
     fuelPerTile: 0.4,
-    base: 30667, showsCores: false, tier: 2,
+    base: 30667, showsCores: false, showsEngine: true, tier: 2,
     look: 'hauler',
   },
   buggy: {
@@ -129,7 +171,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
     ],
     fuelCap: 30,
     fuelPerTile: 0.2,
-    base: 10000, showsCores: false, tier: 1,
+    base: 10000, showsCores: false, showsEngine: false, tier: 1,
     look: 'buggy',
   },
   wagon: {
@@ -155,7 +197,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
     ],
     fuelCap: 60,
     fuelPerTile: 0.4,
-    base: 12333, showsCores: true, tier: 2,
+    base: 12333, showsCores: true, showsEngine: true, tier: 2,
     look: 'wagon',
   },
   courier: {
@@ -171,7 +213,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheel', x: 1, y: 6 },
       { defId: 'wheel', x: 5, y: 6 },
     ],
-    fuelCap: 24, fuelPerTile: 0.18, base: 11333, showsCores: true, tier: 1, look: 'courier',
+    fuelCap: 24, fuelPerTile: 0.18, base: 11333, showsCores: true, showsEngine: true, tier: 1, look: 'courier',
   },
   van: {
     id: 'van', maxSpeed: 6.5, accel: 1.5, brake: 3, turnSlow: 100, turnFast: 35, reverseTurn: 65,
@@ -186,7 +228,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelMid', x: 1, y: 6 },
       { defId: 'wheelMid', x: 5, y: 6 },
     ],
-    fuelCap: 55, fuelPerTile: 0.24, base: 39333, showsCores: false, tier: 2, look: 'van',
+    fuelCap: 55, fuelPerTile: 0.24, base: 39333, showsCores: false, showsEngine: true, tier: 2, look: 'van',
   },
   longbed: {
     id: 'longbed', maxSpeed: 4.55, accel: 0.8, brake: 1.8, turnSlow: 70, turnFast: 20, reverseTurn: 40,
@@ -201,7 +243,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelHeavy', x: 1, y: 8 },
       { defId: 'wheelHeavy', x: 7, y: 8 },
     ],
-    fuelCap: 100, fuelPerTile: 0.48, base: 57333, showsCores: false, tier: 3, look: 'longbed',
+    fuelCap: 100, fuelPerTile: 0.48, base: 57333, showsCores: false, showsEngine: true, tier: 3, look: 'longbed',
   },
   carrier: {
     id: 'carrier', maxSpeed: 5.2, accel: 1, brake: 2.5, turnSlow: 75, turnFast: 28, reverseTurn: 50,
@@ -216,7 +258,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelHeavy', x: 1, y: 6 },
       { defId: 'wheelHeavy', x: 7, y: 6 },
     ],
-    fuelCap: 70, fuelPerTile: 0.5, base: 84667, showsCores: false, tier: 3, look: 'carrier',
+    fuelCap: 70, fuelPerTile: 0.5, base: 84667, showsCores: false, showsEngine: true, tier: 3, look: 'carrier',
   },
   tractor: {
     id: 'tractor', maxSpeed: 3.9, accel: 1.8, brake: 2, turnSlow: 65, turnFast: 22, reverseTurn: 55,
@@ -231,7 +273,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelHeavy', x: 1, y: 6 },
       { defId: 'wheelHeavy', x: 7, y: 6 },
     ],
-    fuelCap: 120, fuelPerTile: 0.6, base: 57667, showsCores: false, tier: 3, look: 'tractor',
+    fuelCap: 120, fuelPerTile: 0.6, base: 57667, showsCores: false, showsEngine: true, tier: 3, look: 'tractor',
   },
   jeep: {
     id: 'jeep', maxSpeed: 8.2, accel: 2.5, brake: 3, turnSlow: 115, turnFast: 42, reverseTurn: 80,
@@ -246,7 +288,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheel', x: 1, y: 5 },
       { defId: 'wheel', x: 5, y: 5 },
     ],
-    fuelCap: 35, fuelPerTile: 0.2, base: 11000, showsCores: false, tier: 1, look: 'jeep',
+    fuelCap: 35, fuelPerTile: 0.2, base: 11000, showsCores: false, showsEngine: true, tier: 1, look: 'jeep',
   },
   convertible: {
     id: 'convertible', maxSpeed: 9.4, accel: 2.5, brake: 3, turnSlow: 110, turnFast: 40, reverseTurn: 70,
@@ -261,7 +303,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheel', x: 1, y: 6 },
       { defId: 'wheel', x: 5, y: 6 },
     ],
-    fuelCap: 45, fuelPerTile: 0.26, base: 28667, showsCores: false, tier: 2, look: 'convertible',
+    fuelCap: 45, fuelPerTile: 0.26, base: 28667, showsCores: false, showsEngine: true, tier: 2, look: 'convertible',
   },
   bus: {
     id: 'bus', maxSpeed: 5.5, accel: 0.9, brake: 2, turnSlow: 65, turnFast: 22, reverseTurn: 40,
@@ -276,7 +318,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelMid', x: 1, y: 9 },
       { defId: 'wheelMid', x: 7, y: 9 },
     ],
-    fuelCap: 110, fuelPerTile: 0.45, base: 6000, showsCores: false, tier: 2, look: 'bus',
+    fuelCap: 110, fuelPerTile: 0.45, base: 6000, showsCores: false, showsEngine: true, tier: 2, look: 'bus',
   },
   loader: {
     id: 'loader', maxSpeed: 3.6, accel: 1.6, brake: 2.5, turnSlow: 85, turnFast: 30, reverseTurn: 60,
@@ -291,7 +333,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelHeavy', x: 1, y: 6 },
       { defId: 'wheelHeavy', x: 7, y: 6 },
     ],
-    fuelCap: 130, fuelPerTile: 0.65, base: 82000, showsCores: false, tier: 3, look: 'loader',
+    fuelCap: 130, fuelPerTile: 0.65, base: 82000, showsCores: false, showsEngine: true, tier: 3, look: 'loader',
   },
   niva: {
     id: 'niva', maxSpeed: 7.6, accel: 2.2, brake: 3, turnSlow: 115, turnFast: 40, reverseTurn: 80,
@@ -306,7 +348,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelMid', x: 1, y: 7 },
       { defId: 'wheelMid', x: 5, y: 7 },
     ],
-    fuelCap: 42, fuelPerTile: 0.21, base: 34667, showsCores: false, tier: 2, look: 'niva',
+    fuelCap: 42, fuelPerTile: 0.21, base: 34667, showsCores: false, showsEngine: true, tier: 2, look: 'niva',
   },
   bukhanka: {
     id: 'bukhanka', maxSpeed: 6.0, accel: 1.4, brake: 2.5, turnSlow: 95, turnFast: 30, reverseTurn: 60,
@@ -321,7 +363,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelMid', x: 1, y: 7 },
       { defId: 'wheelMid', x: 5, y: 7 },
     ],
-    fuelCap: 78, fuelPerTile: 0.30, base: 41000, showsCores: false, tier: 2, look: 'bukhanka',
+    fuelCap: 78, fuelPerTile: 0.30, base: 41000, showsCores: false, showsEngine: true, tier: 2, look: 'bukhanka',
   },
   lincoln: {
     id: 'lincoln', maxSpeed: 8.6, accel: 2.0, brake: 2.2, turnSlow: 80, turnFast: 26, reverseTurn: 45,
@@ -336,7 +378,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheel', x: 1, y: 8 },
       { defId: 'wheel', x: 5, y: 8 },
     ],
-    fuelCap: 85, fuelPerTile: 0.36, base: 50000, showsCores: false, tier: 3, look: 'lincoln',
+    fuelCap: 85, fuelPerTile: 0.36, base: 50000, showsCores: false, showsEngine: true, tier: 3, look: 'lincoln',
   },
   semi: {
     id: 'semi', maxSpeed: 6.0, accel: 0.8, brake: 1.5, turnSlow: 60, turnFast: 18, reverseTurn: 30,
@@ -381,7 +423,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelMid', x: 1, y: 26 },
       { defId: 'wheelMid', x: 7, y: 26 },
     ],
-    fuelCap: 160, fuelPerTile: 0.5, base: 56000, showsCores: false, tier: 3, coupling: { row: 11 }, look: 'semi',
+    fuelCap: 160, fuelPerTile: 0.5, base: 56000, showsCores: false, showsEngine: true, tier: 3, coupling: { row: 11 }, look: 'semi',
   },
   sorokonoga: {
     id: 'sorokonoga', maxSpeed: 3.4, accel: 0.7, brake: 1.6, turnSlow: 75, turnFast: 24, reverseTurn: 25,
@@ -413,7 +455,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelHeavy', x: 1, y: 13 },
       { defId: 'wheelHeavy', x: 7, y: 13 },
     ],
-    fuelCap: 140, fuelPerTile: 0.55, base: 57500, showsCores: false, tier: 3, coupling: { row: 7 }, look: 'sorokonoga',
+    fuelCap: 140, fuelPerTile: 0.55, base: 57500, showsCores: false, showsEngine: true, tier: 3, coupling: { row: 7 }, look: 'sorokonoga',
   },
 };
 
@@ -435,6 +477,24 @@ export function chassisDef(id: string): ChassisDef {
   if (!def) throw new Error(`Unknown chassis ${id}`);
   return def;
 }
+
+const ABILITY_FACTORS = ['accel', 'topSpeed', 'gunPower', 'mountedMass', 'sight', 'range', 'cargoRows'] as const;
+
+const valueOr = (value: number | undefined, fallback: number): number => value ?? fallback;
+
+function checkAbility(chassisId: string, ability: ChassisAbility): void {
+  if (!CHASSIS[chassisId]) throw new Error(`Ability row ${chassisId} is not a chassis`);
+  if (ABILITY_FACTORS.some((key) => valueOr(ability[key], 1) <= 0)) throw new Error(`${chassisId} has a factor of 0 or less`);
+  if (valueOr(ability.range, 1) > valueOr(ability.sight, 1)) throw new Error(`${chassisId} outreaches its sight`);
+  if (valueOr(ability.arc, 0) > 360) throw new Error(`${chassisId} has an arc bonus above 360`);
+  if (valueOr(ability.reloadCut, 0) < 0) throw new Error(`${chassisId} lengthens the reload`);
+}
+
+function checkAbilities(): void {
+  for (const [chassisId, ability] of Object.entries(CHASSIS_FEATURES)) checkAbility(chassisId, ability);
+}
+
+checkAbilities();
 
 export type Paint = { top: number; side: number; cab: number; cabSide: number };
 

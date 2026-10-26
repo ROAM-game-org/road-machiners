@@ -1,6 +1,6 @@
 import { START_KITS } from "../data/start";
 import { describe, expect, it } from "vitest";
-import { REGION, scalePoint } from "../data/region";
+import { REGION, RETIRED_SITES, scalePoint } from "../data/region";
 import { siteName } from "../text/names";
 import { resolve } from "../text/resolve";
 import { TERRAIN, TERRAIN_TYPES, type DeckSpec, type TerrainTypeId } from "../data/terrain";
@@ -94,7 +94,7 @@ describe('terrain variety', () => {
 });
 
 describe("terrain grid", () => {
-  it('has twelve distinct Icarus destinations with road access', () => {
+  it('has thirteen distinct Icarus destinations with road access', () => {
     const w = worldOnMap();
     expect(w.size).toBe(780);
     expect(w.terrain.heights).toHaveLength(781 * 781);
@@ -102,10 +102,10 @@ describe("terrain grid", () => {
     expect(REGION.towns.map((town) => resolve(siteName(town.id), 'en'))).toEqual(['Bowl', 'Nose']);
     expect(REGION.locations.map((site) => resolve(siteName(site.id), 'en'))).toEqual([
       'Old Orchard', 'Dustwell', 'The Granary', 'Glass Flats', 'Green Pit',
-      'Pump Station', 'Fallen Sun', 'Salvage Yard', 'Scrapjaw Camp', 'Kiln Camp',
+      'Pump Station', 'Fallen Sun', 'Salvage Yard', 'Scrapjaw Camp', 'Kiln Camp', 'Roadhouse',
     ]);
     const sites = [...REGION.towns, ...REGION.locations];
-    expect(new Set(sites.map((site) => site.id)).size).toBe(12);
+    expect(new Set(sites.map((site) => site.id)).size).toBe(13);
     for (const site of sites) {
       expect(site.pos.x).toBeGreaterThan(site.radius);
       expect(site.pos.y).toBeGreaterThan(site.radius);
@@ -117,8 +117,7 @@ describe("terrain grid", () => {
   });
 
   it('keeps no loot site: every location is a territory, a camp or a shop outpost, and every non-territory one is a fortress (IV1)', () => {
-    const retired = ['burnt-convoy', 'podfield', 'ridge-wrecks', 'canyon-bridge', 'south-lock', 'broken-wing'];
-    for (const id of retired) expect(REGION.locations.some((site) => site.id === id), id).toBe(false);
+    for (const id of RETIRED_SITES) expect(REGION.locations.some((site) => site.id === id), id).toBe(false);
     for (const site of REGION.locations.filter((l) => l.kind !== 'territory')) expect(site.id in FORTRESS_SITES, site.id).toBe(true);
     for (const id of ['dustwell', 'green-pit']) expect(SHOPS[id].kind).toBe('stall');
   });

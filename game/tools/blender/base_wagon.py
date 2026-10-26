@@ -32,7 +32,8 @@ from mathutils import Vector
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
-from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, SUSPENSION_REST, Grid, check_base, cut_boxes, flare_profile, level_sockets, round_arch  # noqa: E402
+from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, ROUND_ARCH_SEGMENTS, SUSPENSION_REST, Grid, check_base, cut_boxes, flare_profile, level_sockets, round_arch  # noqa: E402
+from parts_common_core import ALONG_X, PROUD, ROUND_SIDES, TIRE_SHARE, drawn_wheel  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 304
@@ -125,10 +126,10 @@ def underbody(kit: Kit) -> None:
         kit.box(f"axle{i}", (0.16, 2 * WELL_Y, 0.4), (wx, 0, HUB_Z + 0.08), "under")
         kit.box(f"diff{i}", (0.4, 0.4, 0.4), (wx, 0.12, HUB_Z + 0.08), "under")
     for s, y in (("l", 0.68), ("r", -0.68)):
-        kit.cylinder(f"tank_{s}", 0.2, 0.9, (0.5, y, -0.33), "metal", rot=(0, math.pi / 2, 0), vertices=8)
+        kit.cylinder(f"tank_{s}", 0.2, 0.9, (0.5, y, -0.33), "metal", rot=(0, math.pi / 2, 0), vertices=ROUND_SIDES)
     kit.box("front_bumper", (0.14, 2 * CAB_SIDE, 0.18), (HALF_X - 0.07, 0, -0.54), "under")
     kit.box("rear_bumper", (0.12, 2 * CAB_SIDE - 0.2, 0.15), (-HALF_X + 0.06, 0, -0.47), "under")
-    kit.box("rear_beam", (0.1, 2 * CAB_SIDE, FLOOR_BOTTOM + 0.4), (-HALF_X + 0.15, 0, FLOOR_BOTTOM - 0.16), "under")
+    kit.box("rear_beam", (0.1 - PROUD, 2 * CAB_SIDE, FLOOR_BOTTOM + 0.4), (-HALF_X + 0.15 + PROUD / 2, 0, FLOOR_BOTTOM - 0.16), "under")
     mirrored(kit, "mud_flap", (0.04, 0.5, 0.45), -WHEEL_X - ARCH_R - 0.06, WHEEL_Z, -0.32, "under")
 
 
@@ -136,7 +137,7 @@ def flares(kit: Kit) -> None:
     """A dark ring on the outer face over each tire, cut off at the cab back for the front pair."""
     for i, wx in enumerate((WHEEL_X, -WHEEL_X)):
         x_min, x_max = (CAB_BACK, FENDER_FRONT) if wx > 0 else (-HALF_X, HALF_X)
-        ring = flare_profile(wx, HUB_Z, WHEEL_R, FRAME_BOTTOM, x_min, x_max)
+        ring = flare_profile(wx, HUB_Z, WHEEL_R, FRAME_BOTTOM, x_min, x_max, ROUND_ARCH_SEGMENTS)
         prism(kit, f"flare{i}_l", ring, HALF_Y - 0.02, HALF_Y, "under")
         prism(kit, f"flare{i}_r", ring, -HALF_Y, -HALF_Y + 0.02, "under")
 
@@ -144,13 +145,13 @@ def flares(kit: Kit) -> None:
 def front_end(kit: Kit) -> None:
     """Round-arched fenders at the cab's lower corners with round headlights, a vertical-slat grille and a plain cab underside."""
     far_back = WHEEL_X - ARCH_R - 0.4
-    arch = round_arch(WHEEL_X, HUB_Z, ARCH_R, FRAME_BOTTOM)
+    arch = round_arch(WHEEL_X, HUB_Z, ARCH_R, FRAME_BOTTOM, ROUND_ARCH_SEGMENTS)
     outline = [(far_back, FRAME_BOTTOM), *arch, (FENDER_FRONT, FRAME_BOTTOM), (FENDER_FRONT, FENDER_TOP - 0.12), (FENDER_FRONT - 0.12, FENDER_TOP), (far_back, FENDER_TOP)]
     piece = clip_x(outline, CAB_BACK, FENDER_FRONT)
     prism(kit, "fender_l", piece, WELL_Y, HALF_Y - 0.02, "paint")
     prism(kit, "fender_r", piece, -HALF_Y + 0.02, -WELL_Y, "paint")
     for s, y in (("l", 1.1), ("r", -1.1)):
-        kit.cylinder(f"lamp_{s}", 0.13, 0.05, (FENDER_FRONT + 0.02, y, -0.08), "light", rot=(0, math.pi / 2, 0), vertices=8)
+        kit.cylinder(f"lamp_{s}", 0.13, 0.05, (FENDER_FRONT + 0.02, y, -0.08), "light", rot=(0, math.pi / 2, 0), vertices=ROUND_SIDES)
     face = (CAB_FRONT + FENDER_FRONT) / 2
     kit.box("grille", (0.06, 2 * WELL_Y, BELT + 0.45), (face, 0, (BELT - 0.45) / 2), "under")
     slats = 9
@@ -165,13 +166,15 @@ def cab(kit: Kit) -> None:
     mid = (CAB_FRONT + CAB_BACK) / 2
     kit.box("doors", (length, 2 * CAB_SIDE, BELT - CAB_BOTTOM), (mid, 0, (BELT + CAB_BOTTOM) / 2), "paint")
     glass_h = ROOF - ROOF_T - BELT
-    kit.box("glass", (length - 0.1, 2 * CAB_SIDE - 0.1, glass_h), (mid - 0.05, 0, BELT + glass_h / 2), "glass")
+    glass_back, glass_front = CAB_BACK + 0.04, CAB_FRONT - 0.1
+    glass_bottom, glass_top = BELT - 0.03, ROOF - ROOF_T / 2
+    kit.box("glass", (glass_front - glass_back, 2 * CAB_SIDE - 0.1, glass_top - glass_bottom), ((glass_front + glass_back) / 2, 0, (glass_top + glass_bottom) / 2), "glass")
     post = 0.09
     for sx, x in ((1, CAB_FRONT - post / 2 + 0.01), (-1, CAB_BACK + post / 2)):
         mirrored(kit, f"post{sx}", (post, post, glass_h), x, CAB_SIDE - post / 2, BELT + glass_h / 2, "paint")
     kit.box("mullion", (0.1, 0.1, glass_h), (CAB_FRONT + 0.01, 0, BELT + glass_h / 2), "paint")
     mirrored(kit, "door_post", (post, post, glass_h), mid, CAB_SIDE - post / 2, BELT + glass_h / 2, "paint")
-    kit.box("back_wall", (0.08, 2 * CAB_SIDE, glass_h), (CAB_BACK + 0.04, 0, BELT + glass_h / 2), "paint")
+    kit.box("back_wall", (0.07, 2 * (CAB_SIDE - PROUD), glass_h), (CAB_BACK + 0.045, 0, BELT + glass_h / 2), "paint")
     kit.box("roof", (length + 0.08, 2 * CAB_SIDE + 0.06, ROOF_T), (mid + 0.04, 0, ROOF - ROOF_T / 2), "trim")
     mirrored(kit, "mirror", (0.05, 0.08, 0.34), CAB_FRONT - 0.15, HALF_Y - 0.04, BELT + 0.3, "metal")
 
@@ -199,7 +202,7 @@ def bed(kit: Kit) -> None:
     for i, z in enumerate((0.14, 0.26, 0.38)):
         mirrored(kit, f"rib{i}", (length - 0.1, 0.02, 0.05), mid, HALF_Y - 0.01, z, "trim")
     for i, x in enumerate((-2.4, -1.0, 0.4)):
-        mirrored(kit, f"stake{i}", (0.1, 0.03, h), x, HALF_Y - 0.015, FLOOR + h / 2, "under")
+        mirrored(kit, f"stake{i}", (0.1, 0.03, h - PROUD), x, HALF_Y - 0.015 - PROUD, FLOOR + (h - PROUD) / 2, "under")
     kit.box("tailgate", (WALL, 2 * (SIDE - WALL), h), (back + WALL / 2, 0, FLOOR + h / 2), "paint")
     for i, z in enumerate((0.14, 0.26, 0.38)):
         kit.box(f"gate_rib{i}", (0.02, 2 * (SIDE - WALL) - 0.1, 0.05), (back - 0.01, 0, z), "trim")
@@ -207,12 +210,11 @@ def bed(kit: Kit) -> None:
 
 
 def spare(kit: Kit) -> None:
-    """A spare wheel standing upright behind the cab on the left, with a hub."""
+    """A spare wheel standing upright behind the cab on the left, in the round look of the game's wheel."""
     x = CAB_BACK - SPARE_T / 2 - 0.01
     y = HALF_Y - SPARE_R - 0.02
     z = FLOOR + SPARE_R
-    kit.cylinder("spare", SPARE_R, SPARE_T, (x, y, z), "wheel", rot=(0, math.pi / 2, 0), vertices=10)
-    kit.cylinder("spare_hub", SPARE_R * 0.45, SPARE_T + 0.02, (x, y, z), "metal", rot=(0, math.pi / 2, 0), vertices=8)
+    drawn_wheel(kit, "spare", (x, y, z), SPARE_R / TIRE_SHARE, SPARE_T / 0.94, ALONG_X)
 
 
 def bounds(kit: Kit) -> tuple[Vector, Vector]:

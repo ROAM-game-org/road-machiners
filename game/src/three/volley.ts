@@ -1,13 +1,14 @@
 import { CONFIG } from "../config";
 import type { Msg } from '../text/msg';
 import type { UtilityEffectType } from "../data/parts";
-import type { CueId } from "../data/sounds";
+import { MIX, type CueId } from "../data/sounds";
+import { crashLevel } from "../audio/pick";
 import { PAL } from "../render/palette";
 import { GROUND, restFrame, type TurnResult } from "../phys/drive";
 import { missPoint } from "../sim/combat";
 import { carriedPart } from "../sim/salvage";
 import type { Vec } from "../sim/vec";
-import type { GameEvent, ShotRound, Vehicle, World } from "../sim/types";
+import type { GameEvent, PartInstance, ShotRound, Vehicle, World } from "../sim/types";
 import type { BreakCues, PartBreak, ShotLike } from "./breakCues";
 import { roundLabel } from "../ui/format";
 import { computeRoundPoint, groundPoint, headingOf, toMap, type TurnFrames, type V3, type VehicleFrame } from "../phys/frames";
@@ -16,7 +17,7 @@ import { FLARE_LOOK, SHELL } from "./render/hazards";
 import { blastRadiusOf, projectileOf, roundSpec, type Impact, type Muzzle, type ProjectileSpec, type RoundPlan } from "./render/projectiles";
 import type { VehicleView } from "./render/vehicle";
 import { scoreEventOf, type SoundDirector } from "./sound";
-import { PARTS } from "../data/parts";
+import { weaponOn } from "../sim/stats";
 import { PHYSICS } from "../data/physics";
 import { spanOf } from "../sim/body";
 
@@ -101,7 +102,7 @@ function playCrash(host: CombatHost, e: CollisionEvent): void {
   const p = host.eventPoint(e.a);
   if (!p) return;
   host.fx.crash(p);
-  host.sound.at("crash", p, 0);
+  host.sound.atLevel("crash", p, 0, crashLevel(e.impact, MIX.crash));
 }
 
 function playBlast(host: CombatHost, e: ClaymoreEvent): void {
@@ -222,8 +223,9 @@ function missAt(w: World, from: Vec, target: Vec): (offset: number) => V3 {
   return (offset) => groundPoint(w.terrain, missPoint(from, target, offset));
 }
 
-function gunOf(view: VehicleView | undefined, weapon: string, defId: string, spec: ProjectileSpec): Gun {
-  const rangeM = weaponRange(defId) * PHYSICS.metersPerTile;
+function gunOf(view: VehicleView | undefined, weapon: string, shooter: Vehicle, part: PartInstance, spec: ProjectileSpec): Gun {
+  const defId = part.defId;
+  const rangeM = weaponOn(shooter, part).range * PHYSICS.metersPerTile;
   if (!view) return { spec, rangeM, blastRadius: blastRadiusOf(defId), unit: 0, covers: () => false };
   return { spec, rangeM, blastRadius: blastRadiusOf(defId), unit: view.turretUnit(weapon), covers: (heading, yaw) => view.covers(weapon, heading, yaw) };
 }
@@ -236,7 +238,7 @@ function playTruckShot(host: CombatHost, e: ShotLike, rows: Map<string, number>,
   const part = carriedPart(w, e.shooter, e.weapon);
   if (!part) throw new Error(`Shot from ${e.shooter} names no mounted weapon ${e.weapon}`);
   const spec = projectileOf(part.defId);
-  const gun = gunOf(host.views.get(e.shooter), e.weapon, part.defId, spec);
+  const gun = gunOf(host.views.get(e.shooter), e.weapon, shooter, part, spec);
   const half = spanOf(target.chassisId).half;
   const shot: Shot = { shooter: e.shooter, target: e.target, rounds: e.rounds, late: killingRounds(w, e), missAt: missAt(w, shooter.pos, target.pos), targetHalf: { length: half.x, width: half.z } };
   const ground = (p: V3) => groundPoint(w.terrain, toMap(p)).y;
@@ -284,12 +286,6 @@ export function aimedTarget(shotAims: ReadonlyMap<string, string> | undefined, v
   const shot = shotAims?.get(gunKey(vehicleId, partId));
   if (shot) return shot;
   return (orders[partId] ?? Object.values(orders)[0])?.targetId ?? null;
-}
-
-function weaponRange(key: string): number {
-  const def = PARTS[key];
-  if (def?.kind !== "weapon") throw new Error(`${key} is not a weapon`);
-  return def.range;
 }
 
 export type CollisionEvent = Extract<GameEvent, { t: "collision" }>;

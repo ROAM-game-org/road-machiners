@@ -30,7 +30,7 @@ import { TERRAIN } from "../data/terrain";
 import { isTowed, setBeacon, unhitch } from "../sim/tow";
 import { inCombat } from "../sim/combat";
 import { engineOverheating } from "../sim/engine-heat";
-import { Refused, hostileToPlayer, playerCanAct, setMoveOrder } from "../sim/world";
+import { Refused, hostileToPlayer, playerCanAct, setMoveOrder, waitsOnPlayer } from "../sim/world";
 import { refusalText } from "../text/names";
 import { TruckContext, TruckControls } from "./truck-controls";
 import { PAL } from "../render/palette";
@@ -89,6 +89,7 @@ import { MIX } from "../data/sounds";
 import type { CombatMusic } from "./combat-music";
 import { computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf } from "./sound";
 import type { SoundPlayer } from "../audio/player";
+import { cameraSetting } from "../ui/camera-setting";
 import { isBrowserChord, uiRoot } from "../ui/dom";
 import { subscribeInputMode, touchMode } from "../ui/input-mode";
 import { installTouchTips } from "../ui/touch-tip";
@@ -278,7 +279,7 @@ export class Game {
       openInventory: () => this.runKey("KeyI"),
       openCharacter: () => this.runKey("KeyC"),
       openJournal: () => this.runKey("KeyJ"),
-      openMap: () => this.runKey("KeyK"),
+      openMap: () => this.runKey("KeyM"),
       toggleManual: () => this.runKey("KeyR"),
       toggleAutoRepair: () => this.runKey("KeyP"),
       toggleOverdrive: () => this.runKey("KeyO"),
@@ -310,8 +311,6 @@ export class Game {
     this.hoverHold.watch(this.hud.getInspectionRoot());
     const saves = this.saves.menuActions(() => this.world);
     this.menu = new GameMenu({ ...saves, unstuck: { reason: () => unstuckReason(this.world, this.anim !== null, this.screens.quest.isOpen()), run: () => this.getUnstuck() } }, () => this.anim !== null, () => this.world.setup, this.hud.tipSwitch(), {
-      cameraLabel: () => this.hud.cameraModeLabel(),
-      toggleCamera: () => this.hud.toggleCameraMode(),
       report: () => this.hud.openFeedback(),
     }, this.soundSettings);
     this.death = new DeathScreen(saves);
@@ -369,6 +368,7 @@ export class Game {
   get busy(): boolean { return this.anim !== null; }
 
   private applyCommand(next: World): void {
+    if (this.anim && !this.anim.impacts) throw new Error("UI command while a turn plays");
     if (this.saves.changeMapIfMoved(next)) return;
     this.apply(next);
     this.saves.afterCommand(next);
@@ -533,7 +533,7 @@ export class Game {
 
   private readonly keys: Record<string, { run: () => void; noModal?: true; idle?: true; inventoryOk?: true }> = {
     KeyF: { run: () => this.follow.recenter() },
-    KeyM: { run: () => this.soundSettings.toggleMute() },
+    KeyV: { run: () => cameraSetting().toggle() },
     KeyQ: { run: () => this.weapons.toggleAuto(), noModal: true },
     KeyX: { run: () => this.weapons.toggleVisible(), noModal: true },
     Digit0: { run: () => this.weapons.selectWeapon(null), noModal: true },
@@ -550,10 +550,10 @@ export class Game {
     KeyN: { run: () => this.context.onCard('mark', this.inspected()), noModal: true, idle: true },
     KeyB: { run: () => this.context.onCard('lookOver', this.inspected()), noModal: true, idle: true },
     KeyC: { run: () => !this.anim && this.screens.toggleCharacter("skills"), idle: true },
-    KeyK: { run: () => !this.anim && hasExplorationMap(this.world) && this.screens.toggleCharacter("map"), idle: true },
+    KeyM: { run: () => !this.anim && hasExplorationMap(this.world) && this.screens.toggleCharacter("map"), idle: true },
     KeyJ: { run: () => !this.anim && this.screens.toggle(this.screens.journal), idle: true },
     KeyI: { run: () => !this.anim && this.screens.toggle(this.screens.inventory), idle: true },
-    Escape: { run: () => { if (this.modalOpen()) this.screens.closeAll(null); else this.unpin(); this.selectUtility(null); } },
+    Escape: { run: () => { if (this.screens.town.isOpen()) this.screens.town.back(); else if (this.modalOpen()) this.screens.closeAll(null); else this.unpin(); this.selectUtility(null); } },
   };
 
   unpin(): void {
@@ -785,8 +785,9 @@ export class Game {
     this.refreshUi();
   }
 
-  private tryBeginTurn(now: number, wasPlaying: boolean, held: boolean): "began" | "none" | "failed" {
+  private tryBeginTurn(now: number, wasPlaying: boolean): "began" | "none" | "failed" {
     try {
+      const held = this.holdsTime();
       const prepared = this.anim ? null : this.travel.takeReady(this.world, this.drive, now, held);
       if (prepared) this.beginTurn(prepared, now, this.travel.getRemainder(wasPlaying));
       return prepared ? "began" : "none";
@@ -797,6 +798,7 @@ export class Game {
   }
 
   private beginTurn(prepared: PreparedTurn, now: number, elapsed: number): void {
+    if (this.world.player.quests.live) throw new Error("A turn began under an open scene");
     const { world: played, playback, towed } = this.travel.beginPlayback(this.world, prepared, elapsed, this.frames);
     const world = relanguageQuest(played, QUESTS);
     if (this.saves.changeMapIfMoved(world)) return;
@@ -829,15 +831,27 @@ export class Game {
     for (const [id, fs] of Object.entries(a.result.frames))
       this.frames[id] = fs[fs.length - 1];
     const stopped = this.travel.stopAt(a, this.world, this.frames, now, a.elapsed - MOVE_MS);
-    if (stopped) [this.world, this.drive] = [stopped.world, stopped.drive];
-    if (stopped) this.saves.logWorld(stopped.world);
-    if (stopped) this.play.stopWithin(stopped.leftMs);
+    if (stopped) this.commitStop(stopped);
     this.live = null;
     this.phase = a.combat ? "firing" : "results";
     timed("fog", () => this.fog.update(this.combatFogWorld()));
     playCrashes(this.combatHost(), this.crashCues, null);
     playUtilitySounds(this.combatHost(), "end");
     this.weapons.render();
+  }
+
+  private commitStop(stopped: { world: World; drive: DriveSnapshot; leftMs: number }): void {
+    [this.world, this.drive] = [stopped.world, stopped.drive];
+    this.saves.logWorld(stopped.world);
+    this.play.stopWithin(stopped.leftMs);
+  }
+
+  private settleLateStop(now: number): void {
+    if (this.anim !== null) return;
+    const stopped = this.travel.settleStop(this.world, this.frames, now);
+    if (!stopped) return;
+    if (!this.play.isMoving()) throw new Error("A late travel stop needs the world clock to move");
+    this.commitStop(stopped);
   }
 
   private landImpacts(a: Playback): void {
@@ -990,25 +1004,30 @@ export class Game {
   }
 
   private advanceTurn(now: number, dt: number): { at: number | null; playMs: number } {
-    const held = this.timeHeld() || this.world.player.call !== null;
+    const held = this.holdsTime();
     if (held) this.travel.pause();
     const speed = this.travel.getSpeed(now, CONFIG.travelFastSpeed);
-    const playMs = this.tickWorldClock(heldPlayMs(dt, this.timeHeld(), CONFIG.playbackFrameMs), speed, now);
+    const playMs = this.tickWorldClock(heldPlayMs(dt, this.play.isHeld(), CONFIG.playbackFrameMs), speed, now);
     const wasPlaying = this.anim !== null;
     const phase = this.phase;
     this.travel.tickCreep(playMs);
     let at = this.animStep(now, speed, playMs);
     this.updateLiveVision(at);
     this.updateTravel();
-    const began = this.tryBeginTurn(now, wasPlaying, held);
+    const began = this.tryBeginTurn(now, wasPlaying);
     if (began === "failed") return { at, playMs };
     if (began === "began") {
       at = this.animStep(now, speed, 0);
       this.updateTravel();
     }
+    this.settleLateStop(now);
     this.travel.prepareNext(this.world, this.anim, now);
     this.flushUi(began, phase);
     return { at, playMs };
+  }
+
+  private holdsTime(): boolean {
+    return this.timeHeld() || waitsOnPlayer(this.world);
   }
 
   private timeHeld(): boolean {
@@ -1031,7 +1050,7 @@ export class Game {
     const dt = now - this.last;
     this.last = now;
     this.touchIntent(this.touch.tick(now));
-    this.play.beginFrame();
+    this.play.beginFrame(this.timeHeld());
     const { at, playMs } = timed("turn-frame", () => {
       const turn = this.advanceTurn(now, dt);
       this.shade.advance();
@@ -1047,9 +1066,11 @@ export class Game {
     const sightRadius = grayRadius(this.world) * PHYSICS.metersPerTile;
     this.sightLimit.set(truck, sightRadius);
     this.rig.leash(truck, sightRadius);
-    this.follow.update(truck, this.hud.cameraMode === "auto" ? this.orderPoint() : null, dt, playMs);
+    this.follow.update(truck, cameraSetting().mode() === "auto" ? this.orderPoint() : null, dt, playMs);
     this.hud.showRecenter(!this.follow.isFollowing());
-    lightScene(this.sun, this.sky, truck, daylightAt(lightTurnOf(this.world, this.anim)));
+    const daylight = daylightAt(lightTurnOf(this.world, this.anim));
+    lightScene(this.sun, this.sky, truck, daylight);
+    this.craters.graffiti.light(daylight.sunIntensity);
     this.fx.light({ sun: this.sun, sky: this.sky });
     CLOUD_SHADOWS.sync(this.world, lightTurnOf(this.world, this.anim), this.play.frameMs());
     this.vehicleLights.sync(this.world, this.frames, lightTurnOf(this.world, this.anim), (pos) => this.sightLimit.reaches(pos), truck);
@@ -1062,7 +1083,8 @@ export class Game {
     this.weather.advance(this.play.frameMs());
     this.labels.update(this.world, this.rig, this.sightLimit);
     for (const scope of this.scopes) scope.update(this.rig.camera);
-    this.shaders.render(this.modalOpen());
+    this.shaders.render(this.timeHeld());
+    this.hud.stepPortraits(this.travel.isPlaying(this.anim));
     this.refreshPlan();
     this.showPlan();
   }

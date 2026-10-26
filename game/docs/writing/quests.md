@@ -35,7 +35,7 @@ A run that hits a load error or a broken runner does not count. Fix the error an
 3. Run `npm run quests:check`. It fails on compile errors, broken tags, dead ends, sections never reached, effects that a load would repeat and a twin that plays out differently from its English quest. It names the picks that lead to each problem.
 4. Run `npm run quests:build` to write `src/data/quests.json`. The game reads only this bundle, and a test fails when it is stale.
 5. Run the touched tests: `npx vitest run src/test/quest-voice.test.ts src/test/quest-compile.test.ts src/sim/locals.test.ts`.
-6. See it in the game with `npm run dev`. Open the console with backquote and type `tp nose` or `tp bowl`, then open the town's People tab.
+6. See it in the game with `npm run dev`. Open the console with backquote and type `tp nose` or `tp bowl`, then open the town and pick Look for locals.
 
 ## A new quest
 
@@ -111,9 +111,10 @@ Age of Decadence is the model. Its designer held every quest to three rules: no 
 - Show, do not tell. Give the player what their character sees and let them draw the conclusion. Write "Pell's name is on every line of the ledger" and never "the ledger points at Pell". A fact in the right column records an observation, never a verdict. Narration never states the answer to a clue the player is meant to work out. The character may still judge and guess, like "Somebody paid him lately".
 - Narration in page scenes uses full, concrete sentences. They run through the character's head, as [Writing dialogue](dialogue.md#a-voice-not-a-camera) asks, and every line makes sense to a player who has read only the screens before it. Detail of sight, sound, heat and touch goes where the scene turns. Vary sentence length. A page of three-word sentences reads as a telegram, not a scene.
 - Stay in character. Text never talks about game systems: turns, quests, XP, levels, HP, the map or the player. The words keep their everyday meaning, so "the road turns" and "an old map" are fine. Ordinary numbers are fine. The voice test in `src/test/out-of-character.ts` checks the game phrases.
-- No semicolons, and in English no dashes or stock AI phrases, in narration, speech, choices or notes. [Sentences](dialogue.md#sentences) has the rule and `src/test/prose-tells.ts` the list. A `;` is allowed only to split the cells of a `# row` or `# head` table line.
+- No semicolons, and in English no dashes or stock AI phrases, in narration, speech, choices or notes. [Sentences](dialogue.md#sentences) has the rule and `src/test/prose-tells.ts` the list. Read the rest against the [Humanizer](humanizer.md#how-roam-uses-it) the way its How ROAM uses it section says for fiction. A `;` is allowed only to split the cells of a `# row` or `# head` table line.
 - `<b>` is only for a name or a sum in a written document, like a ledger row. A page carries one or two highlights at most: `<shake>`, `<pop>` or `<color>`, for a physical event or a word the scene introduces.
 - Speech reveals word by word and narration fades in a paragraph at a time, with no tag needed. Give a narration line `# reveal: word` or `char`, `<pause>` or `<now>` only where its timing is the point, like the first link in the intro.
+- Directions use the screen compass: north is the top of the screen in the fixed view. Measure a direction between two places, or from the map centre for a region, with `compassOctant()` in `src/text/compass.ts` on their positions in `REGION`, and never from memory or from the map's own axes. A road or place name that holds a direction word, like the Bowl north road, keeps its word.
 - A word that locals use as if everyone knows it gets a term tip. [Term tips](#term-tips) has the rules.
 - A rumor goes into the journal with `~ note("<id>")`. Add the id to `NOTE_IDS` in `src/data/locals.ts` first, and its `journalNote.<id>.title`, `from` and `text` to `src/text/en/story.ts` and `src/text/ru/story.ts`.
 

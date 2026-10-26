@@ -1,22 +1,20 @@
 import { startKit } from '../data/start';
 
 import { RULES } from '../data/rules';
-import { makeVehicle } from './factory';
+export { addVehicle, npcBrain } from '../test/sample-vehicles';
 import { nextRandom } from './rng';
 import { gridOf, MOUNT_CELLS, mountedParts, mountSpots, type Spot } from './grid';
 import { burnFuel } from './resources';
 import { vehicleStats } from './stats';
 import type { Terrain } from './terrain';
-import { inject, onTestFinished } from 'vitest';
 import { emptyWorldFrom, flatTerrain, PLAIN_KIT } from '../test/empty-world';
-import { DECISIONS, NPC_UPKEEP, STATE_WEIGHTS, TRAITS, type DecisionId, type DecisionOptions, type TraitId } from '../data/npcs';
-import type { PersonalityId } from '../data/personalities';
+import { DECISIONS, NPC_UPKEEP, STATE_WEIGHTS, TRAITS, type DecisionId, type DecisionOptions } from '../data/npcs';
 import { addState } from './states';
 import { advanceJobs } from './jobs';
 import { resolveNpcActivities } from './npc-activities';
-import type { Faction, GameEvent, NpcBrain, Obstacle, PartInstance, SalvageStock, Vehicle, World, XpSource } from './types';
+import type { GameEvent, Obstacle, PartInstance, SalvageStock, Vehicle, World, XpSource } from './types';
 import { alongOf, highwayMap, milestoneAt, roadHeading, roadPoint, toRoad } from './highway';
-import { FURY_ROAD, HIGHWAY } from '../data/modes';
+import { CHAOS_HIGHWAY, HIGHWAY } from '../data/modes';
 import { dist, type Vec } from './vec';
 import { REGION } from '../data/region';
 import { propReach } from './mapgen';
@@ -27,7 +25,7 @@ import { openingStockOf } from './opening';
 import { haulerOf, playerVehicle } from './damage';
 import { stormDepth } from './weather';
 import { cloneWorld, endTurn, newWorld } from './world';
-import { driveOn } from './fury-road';
+import { driveOn } from './chaos-highway';
 import { yardSpots } from './outpost-gates';
 import { addGoods } from './inventory';
 import { stockTarget } from './market';
@@ -36,14 +34,14 @@ import { partDef, type PartKind } from '../data/parts';
 import { defaultSetup } from './settings';
 import { chooseQuestOption, leaveQuest, QUESTS, questView } from './quests';
 
-export function furyRoadStart(seed = 3): World {
-  return newWorld(seed, startKit('furyRoad'), highwayMap(seed, 0), defaultSetup('furyRoad'));
+export function chaosHighwayStart(seed = 3): World {
+  return newWorld(seed, startKit('chaosHighway'), highwayMap(seed, 0), defaultSetup('chaosHighway'));
 }
 
 const OPEN_ROAD = 24;
 
-export function furyRoadWorld(seed = 3): World {
-  const w = driveOn(furyRoadStart(seed));
+export function chaosHighwayWorld(seed = 3): World {
+  const w = driveOn(chaosHighwayStart(seed));
   const n = milestoneAt(seed, 0) + OPEN_ROAD;
   const gap = vehicleStats(w, haulerOf(w)).radius + vehicleStats(w, playerVehicle(w)).radius + RULES.yieldDistance;
   for (const [truck, lane, ahead] of [[playerVehicle(w), 2, 0], [haulerOf(w), 1, gap]] as const) {
@@ -59,8 +57,8 @@ export function furyRoadWorld(seed = 3): World {
 
 export function sendGunTruckAway(w: World): void {
   const hauler = haulerOf(w);
-  const window = w.furyRoad!.window;
-  const along = alongOf(w.seed, toRoad(w.seed, window, hauler.pos)) - FURY_ROAD.hauler.apartGap - 5;
+  const window = w.chaosHighway!.window;
+  const along = alongOf(w.seed, toRoad(w.seed, window, hauler.pos)) - CHAOS_HIGHWAY.hauler.apartGap - 5;
   const me = playerVehicle(w);
   me.pos = roadPoint(w.seed, window, along, HIGHWAY.road.lanes[1]);
   me.heading = roadHeading(w.seed, along);
@@ -81,7 +79,7 @@ export function parkInYard(w: World, milestone: number): void {
 }
 
 export function parkedAtOutpost(seed = 3): World {
-  const w = furyRoadWorld(seed);
+  const w = chaosHighwayWorld(seed);
   parkInYard(w, 1);
   const parked = endTurn(w, () => {});
   parked.player.money = 10_000_000;
@@ -100,7 +98,7 @@ export function armorSpot(w: World, part: PartInstance): Spot {
 }
 
 export function stockOfKind(w: World, kind: PartKind): PartInstance {
-  const part = w.furyRoad!.outposts[1].stock.find((p) => partDef(p.defId).kind === kind);
+  const part = w.chaosHighway!.outposts[1].stock.find((p) => partDef(p.defId).kind === kind);
   if (!part) throw new Error(`Outpost 1 stocks no ${kind}`);
   return part;
 }
@@ -112,10 +110,17 @@ export function editableTerrain(w: World): Terrain {
 
 export { PLAIN_KIT, flatTerrain };
 
+const runner = (globalThis as { __vitest_worker__?: unknown }).__vitest_worker__ ? await import('vitest') : null;
+
+function testRunner(): NonNullable<typeof runner> {
+  if (runner === null) throw new Error('The test kit needs a Vitest worker');
+  return runner;
+}
+
 let emptyTemplate: World | undefined;
 
 function templateFromSetup(): World {
-  const provided = inject('emptyTemplate');
+  const provided = testRunner().inject('emptyTemplate');
   if (provided === undefined) throw new Error('The empty world template was not provided. List src/test/empty-template-setup.ts under globalSetup in the vitest config');
   return emptyWorldFrom(provided);
 }
@@ -148,18 +153,8 @@ export function spotWorld(): { w: World; spot: Obstacle; stock: SalvageStock } {
   return { w, spot, stock };
 }
 
-export function addVehicle(w: World, faction: Faction, chassisId: string, parts: string[], pos: Vec, heading = 0): Vehicle {
-  const v = makeVehicle(w, { faction, chassisId, parts: parts.map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {}, pos, heading, brain: null });
-  w.vehicles.push(v);
-  return v;
-}
-
 export function practiceOf(w: World, source: XpSource): Extract<GameEvent, { t: 'practice' }>[] {
   return w.events.filter((e): e is Extract<GameEvent, { t: 'practice' }> => e.t === 'practice' && e.source === source);
-}
-
-export function npcBrain(templateId: string, home: Vec, traits: TraitId[], personality: PersonalityId = 'talkative'): NpcBrain {
-  return { templateId, driver: 'Jed Cobb', traits, personality, goals: [], noticed: {}, tracks: {}, hurt: 0, attackers: {}, goal: null, home: { ...home }, stepIndex: 0, memories: [] };
 }
 
 export function forceOption<D extends DecisionId>(decision: D, option: DecisionOptions[D]): void {
@@ -173,7 +168,7 @@ export function forceOption<D extends DecisionId>(decision: D, option: DecisionO
     if (!entry) continue;
     table[decision] = option in entry ? { [option]: entry[option] } : {};
   }
-  onTestFinished(() => {
+  testRunner().onTestFinished(() => {
     Object.assign(base, savedBase);
     tables.forEach((table, i) => {
       if (saved[i] === undefined) delete table[decision];

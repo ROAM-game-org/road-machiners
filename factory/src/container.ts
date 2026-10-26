@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { GUARD_ROUND } from './agent-check';
 import { must, withActivity } from './exec';
-import { requireCodexLogin } from './health';
+import { requireAgyLogin, requireCodexLogin } from './health';
 import { MEDIA_MOUNT } from './media';
 import { jobLabel } from './jobs';
 import { closePart, closeRun, closeRunFromTranscript, findResult, openPart, openRun, parseLine, recordPeak, runProjectsDir, usageFromOutput, type PartKind } from './ledger';
@@ -60,8 +60,14 @@ const NPM_CACHE = '/home/pwuser/.npm';
 const SESSIONS_MOUNT = '/home/pwuser/.claude/projects';
 const CODEX_HOME = '/home/pwuser/.codex';
 
+const AGY_LOGIN = '/home/pwuser/.gemini/antigravity-cli/antigravity-oauth-token';
+
 export function codexMount(home: string): string[] {
   return ['-v', `${requireCodexLogin(home)}:${CODEX_HOME}`];
+}
+
+export function agyMount(home: string): string[] {
+  return ['-v', `${requireAgyLogin(home)}:${AGY_LOGIN}:ro`];
 }
 
 function mountArgs(cfg: FactoryConfig, clone: string, dir: string, mediaDir?: string): string[] {
@@ -138,7 +144,7 @@ export function outputsNote(dir: string, jobMaxMinutes: number): string {
 const MILESTONE_NOTE = 'Each time you start a new part of the work, run factory-status milestone \'<step>\' with a short step in the card\'s words, like \'Building orchard buildings\' or \'Testing the tow fee\'. Use 3 to 80 letters, digits, spaces and , . \' - only. Never name files, commands or secrets.';
 
 function longJobsNote(jobMaxMinutes: number): string {
-  return `Start a command that may run longer than 5 minutes with factory-job start <name> <activity> <minutes> '<command>', with a time limit of about twice its expected run. The limit is at most ${jobMaxMinutes} minutes. A check that needs longer is too big, so use fewer seeds, fewer turns or a direct test. Then check it with sleep 240; factory-job check <name>, with a Bash timeout of 5 minutes, until it ends. If its log has not changed for 15 minutes, stop it with factory-job stop <name> and find out why. Never end your run while a job is running, since the end of the run kills it.`;
+  return `Start a command that may run longer than 5 minutes with factory-job start <name> <activity> <minutes> '<command>', with a time limit of about twice its expected run. The limit is at most ${jobMaxMinutes} minutes. A check that needs longer is too big, so use fewer seeds, fewer turns or a direct test. Then wait for it with factory-job wait <name>, with a Bash timeout of 10 minutes. It returns when the job ends or after 9 minutes, with the same output as factory-job check <name>. Never poll a job with sleep. Do other work while it runs. After 3 waits on one job that did not end, stop it with factory-job stop <name>, and run a smaller check instead. If its log has not changed for 15 minutes, stop it and find out why. Never end your run while a job is running, since the end of the run kills it.`;
 }
 
 function sessionMount(session: AgentSession | undefined): string[] {
@@ -199,26 +205,29 @@ function recordedSession(cfg: FactoryConfig, jobId: string | null, session: Agen
   return { dir, id: randomUUID(), resume: false };
 }
 
-export function agentEnv(cfg: FactoryConfig, publicOutput: boolean): Record<string, string> {
-  const own = { CLAUDE_CODE_OAUTH_TOKEN: cfg.oauthToken, CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: String(cfg.agentJobMaxMinutes) };
+export function agentEnv(cfg: FactoryConfig, publicOutput: boolean, subagentModel?: string): Record<string, string> {
+  const own = {
+    CLAUDE_CODE_OAUTH_TOKEN: cfg.oauthToken, CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: String(cfg.agentJobMaxMinutes), CLAUDE_CODE_AUTO_COMPACT_WINDOW: String(cfg.agentCompactWindow),
+    ...(subagentModel === undefined ? {} : { CLAUDE_CODE_SUBAGENT_MODEL: subagentModel }),
+  };
   if (publicOutput) return own;
   return {
     ...own, ELEVENLABS_API_KEY: cfg.elevenlabsKey, SFX_MAX_GENERATIONS: String(cfg.sfxMaxGenerations),
-    GEMINI_API_KEY: cfg.geminiKey, AGY_MAX_RUNS: String(cfg.agyMaxRuns), AGY_MODEL: cfg.agyModel,
+    AGY_MAX_RUNS: String(cfg.agyMaxRuns), AGY_MODEL: cfg.agyModel,
     CODEX_MODEL: cfg.codexModel, CODEX_EFFORT: cfg.codexEffort,
   };
 }
 
 export function dockerContainer(run: Run, cfg: FactoryConfig, jobId: string | null, cpus: string | null = null, testWorkers: number | null = null): Container {
   return {
-    async agent({ clone, dir, model, prompt, log, openNetwork, mediaDir, readOnly = {}, session: issueSession, skill, effort, disallowedTools, advisor, publicOutput }) {
+    async agent({ clone, dir, model, prompt, log, openNetwork, mediaDir, readOnly = {}, session: issueSession, skill, effort, disallowedTools, advisor, subagentModel, publicOutput }) {
       if (!openNetwork) await ensureProxy(run, cfg);
       const session = recordedSession(cfg, jobId, issueSession);
-      const env = agentEnv(cfg, publicOutput === true);
-      const codex = publicOutput === true ? [] : codexMount(cfg.home);
+      const env = agentEnv(cfg, publicOutput === true, subagentModel);
+      const logins = publicOutput === true ? [] : [...codexMount(cfg.home), ...agyMount(cfg.home)];
       const readOnlyArgs = await readOnlyMounts(cfg.home, readOnly);
       const argsFor = (peakDir: string) => [
-        ...baseArgs(jobId, cpus, testWorkers, cfg.gpu, peakDir), '-i', ...mountArgs(cfg, clone, dir, mediaDir), ...codex, ...sessionMount(session), ...readOnlyArgs, ...networkArgs(openNetwork === true), ...Object.keys(env).flatMap((key) => ['-e', key]), cfg.image,
+        ...baseArgs(jobId, cpus, testWorkers, cfg.gpu, peakDir), '-i', ...mountArgs(cfg, clone, dir, mediaDir), ...logins,...sessionMount(session), ...readOnlyArgs, ...networkArgs(openNetwork === true), ...Object.keys(env).flatMap((key) => ['-e', key]), cfg.image,
         'bash', '-c', `${PEAK_TRAP}; factory-agent "$@"`, 'factory-agent', '-p', '--model', model, ...effortArgs(effort), ...advisorArgs(advisor), ...disallowedArgs(disallowedTools), '--permission-mode', 'bypassPermissions', '--output-format', 'stream-json', '--verbose', ...sessionArgs(session),
       ];
       const input = [skill, outputsNote(dir, cfg.agentJobMaxMinutes), prompt].filter((part) => part !== undefined).join('\n\n');

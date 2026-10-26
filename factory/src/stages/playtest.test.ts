@@ -21,8 +21,8 @@ const RELEASE: ReleaseState = { issue: 11, branch: BRANCH, day: DAY, postId: nul
 const CLONE = join(ROOT, 'work', 'release-playtest');
 const HOME = join(CLONE, 'game', '.factory');
 
-const releaseBug: Finding = { id: 'F1', severity: 'important', title: 'Raiders chase forever', evidence: 'turns 300 to 900, v12', cause: 'release', why: 'the raid goal of #12 never ends', known: null };
-const oldBug: Finding = { id: 'F2', severity: 'important', title: 'Escorts to a territory never end', evidence: 'v722 from 1259', cause: 'old', why: 'the baseline log has the same unpaid escort at 1300', known: null };
+const releaseBug: Finding = { id: 'F1', severity: 'important', title: 'Raiders chase forever', evidence: 'turns 300 to 900, v12', cause: 'release', why: 'the raid goal of #12 never ends', known: null, fixed: false };
+const oldBug: Finding = { id: 'F2', severity: 'important', title: 'Escorts to a territory never end', evidence: 'v722 from 1259', cause: 'old', why: 'the baseline log has the same unpaid escort at 1300', known: null, fixed: false };
 const review = (over: Partial<Review> = {}): string => JSON.stringify({
   verdict: 'clean', summary: 'A full run.', drama: 'A raid at turn 300.', observations: ['trade at turn 20'], suspected: [], limitations: ['far mode'],
   findings: [], fixes: [], explanations: { death: null, quiet: null }, blocker: null, ...over,
@@ -204,6 +204,17 @@ describe('playtest', () => {
     expect(comments(run.f)[0]).toContain('- play 1 at abc1234: 1 fixes to replay. Fixes: end the raid goal after a lost target');
     expect(comments(run.f)[0]).toContain('- play 2 at fix0001: clean');
     expect(comments(run.f)[0]).toContain('The factory checks passed on the fixes, and they are on the release. The candidate builds from fix0001.');
+  });
+
+  it('passes a replay whose review keeps the fixed release finding marked fixed, and blocks a first play that marks one fixed', async () => {
+    const run = setup();
+    run.turns = [fixed('fix0001'), { review: review({ findings: [{ ...releaseBug, fixed: true }] }) }];
+    await playtest(run.f.ctx, 11);
+    expect(release(run.f).playtest).toMatchObject({ runs: 2, passed: 'fix0001', blocked: null });
+    const first = setup();
+    first.turns = [{ review: review({ findings: [{ ...releaseBug, fixed: true }] }) }];
+    await expect(playtest(first.f.ctx, 11)).rejects.toThrow('The review marks findings fixed, but no earlier round of this job committed a fix.');
+    expect(release(first.f).playtest.passed).toBeNull();
   });
 
   it('keeps an audit record of each play, the baseline log included', async () => {

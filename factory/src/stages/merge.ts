@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { deployDev } from '../deploy';
 import { readState, updateState } from '../state';
@@ -161,7 +161,7 @@ export async function mergeIn(ctx: Ctx, land: Landing, { branch, message, reason
 
 async function mergedChecks(ctx: Ctx, land: Landing): Promise<string | null> {
   const log = releaseLog(ctx, `${land.stage}-checks-${land.into.replaceAll('/', '-')}`);
-  const subset = testSubset(await ctx.repo.changedInWork(land.dir, `origin/${land.into}`), (file) => existsSync(join(land.dir, GAME_DIR, file)));
+  const subset = testSubset(await ctx.repo.changedInWork(land.dir, `origin/${land.into}`));
   const script = checkScript(playtestCommand(ctx.cfg, false), subsetCommand(subset));
   const at = { stage: land.stage, issue: null };
   return checkUntilReal(() => runChecks(ctx, at, land.dir, script, log, { BUILD_SCOPE: land.stage }), (run) => ctx.log(land.stage, null, `the checks only timed out, run ${run}, running them again`));

@@ -25,7 +25,7 @@ import type { NpcState, SalvageStock, Vehicle, World } from "../sim/types";
 import { REGION } from "../data/region";
 import { clock, vehicleName } from "./format";
 import { celsius, distanceText, engineCelsius, fuelLiters, hp, kph, moneyMsg } from "./units";
-import { canAbandonRun, furyRoadReadout, outpostNear, reachedOutpostAt } from "../sim/fury-road";
+import { canAbandonRun, chaosHighwayReadout, outpostNear, reachedOutpostAt } from "../sim/chaos-highway";
 import { ENGINE_HEAT } from "../data/wear";
 import type { IconName } from "./cards";
 import { contextKey, type ContextAction } from './hud';
@@ -38,7 +38,7 @@ import { playerCanAct } from '../sim/world';
 import { combatTurnsLeft } from '../sim/combat';
 import { isBusy } from '../sim/jobs';
 import { list, num, t, type Msg } from '../text/msg';
-import { partName, refusalText, siteName, vehicleTitle } from '../text/names';
+import { abilityName, partName, refusalText, siteName, vehicleTitle } from '../text/names';
 
 export function overdriveSwitch(w: World): { checked: boolean; locked: boolean; reason: Msg | null; title: Msg } {
   const me = playerVehicle(w);
@@ -291,6 +291,7 @@ type Wording = { [K in SpeedStep['kind']]: (step: Kind<K>, weather: Msg) => Msg 
 const WORDING: Wording = {
   chassis: () => t("speed.chassis"),
   engine: (s) => (s.worn ? t("speed.engineWorn") : t("speed.engine")),
+  ability: (s) => abilityName(s.id),
   load: () => t("speed.load"),
   wheels: (s) => t("speed.wheels", { n: s.broken }),
   guns: () => t("speed.guns"),
@@ -402,7 +403,7 @@ function coreBurning(w: World, me: Vehicle): boolean {
 }
 
 function runResources(w: World): Readout[] {
-  const run = furyRoadReadout(w);
+  const run = chaosHighwayReadout(w);
   if (!run) return [];
   const left = distanceText(run.toOutpost);
   const tip = t("readout.runTip", { stretch: run.stretch, left, site: siteName(run.outpostId) });

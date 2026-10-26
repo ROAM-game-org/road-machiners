@@ -38,7 +38,7 @@ class FakeNode {
 }
 
 const info = (slot: SlotId, savedAt: number, turn: number | null = 0, mode: SlotInfo['mode'] = 'roaming'): SlotInfo => ({ slot, savedAt, turn, mode });
-const SAVES = [info('slot2', 900, 120), info('auto', 500, 40, 'furyRoad')];
+const SAVES = [info('slot2', 900, 120), info('auto', 500, 40, 'chaosHighway')];
 
 function open(saves: SlotInfo[]) {
   const ui = new FakeNode("div");

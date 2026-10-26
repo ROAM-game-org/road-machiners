@@ -16,17 +16,17 @@ const RUN: ModeRules = { traffic: false, looting: false, npcKnockouts: true, pla
 
 export const GAME_MODES: Record<GameModeId, GameMode> = {
   roaming: { rules: OPEN_WORLD, kit: null, map: 'icarus', opening: null },
-  furyRoad: { rules: RUN, kit: 'furyRoad', map: 'highway', opening: GAME_OPENED_QUESTS.chaosHighwayIntro },
+  chaosHighway: { rules: RUN, kit: 'chaosHighway', map: 'highway', opening: GAME_OPENED_QUESTS.chaosHighwayIntro },
 };
 
 export type WorldSettingDef = { default: number; min: number; max: number; step: number; modes: readonly GameModeId[] };
-const EVERY_MODE: readonly GameModeId[] = ['roaming', 'furyRoad'];
+const EVERY_MODE: readonly GameModeId[] = ['roaming', 'chaosHighway'];
 
 export const WORLD_SETTINGS: Record<keyof WorldSettings, WorldSettingDef> = {
   damage: { default: 1, min: 0.5, max: 2, step: 0.25, modes: EVERY_MODE },
   fuelUse: { default: 1, min: 0.5, max: 2, step: 0.25, modes: EVERY_MODE },
   supplyUse: { default: 1, min: 0.5, max: 2, step: 0.25, modes: EVERY_MODE },
-  enemyGearGrowth: { default: 1, min: 0, max: 2, step: 0.25, modes: ['furyRoad'] },
+  enemyGearGrowth: { default: 1, min: 0, max: 2, step: 0.25, modes: ['chaosHighway'] },
 };
 
 export type WaveGear = Omit<GearRules, 'money' | 'armored' | 'armorFirst' | 'minSpeed'>;
@@ -38,7 +38,7 @@ const LATE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 3 };
 export type EnemyCard = { weight: number; from: number; floor: number; chase: boolean };
 export type Line = { first: number; step: number };
 
-export const FURY_ROAD = {
+export const CHAOS_HIGHWAY = {
   spawnOffsets: [-3, -1, 1, 3, -9, 9, -13, 13],
   outpost: {
     look: 'outpost',
@@ -86,7 +86,7 @@ export const FURY_ROAD = {
   playerMargin: 8,
   sides: { ahead: 45, flank: { along: 36, across: 22, step: 3 } },
   pacing: { near: 30 },
-  rolling: { near: 6, ramp: 80, lead: 12 },
+  rolling: { near: 6, ramp: 40, close: 0.4, lead: 12 },
   sightMargin: 6,
   spawnStagger: 3,
   spawnClear: 3,

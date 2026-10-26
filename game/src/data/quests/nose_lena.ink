@@ -31,14 +31,14 @@ VAR asked_glare = false
   ~ heard_swivel = true
   -> hub
 + [Where do I find cheap parts?]
-  The Salvage Yard, a way south of here. The crews strip whatever gets towed in, so parts go for next to nothing. You'll have to put up with the smell of burnt oil. For real plate you want the Fallen Sun, the big hull in the crater. I say that through my teeth.
+  The Salvage Yard, a way west of here. The crews strip whatever gets towed in, so parts go for next to nothing. You'll have to put up with the smell of burnt oil. For real plate you want the Fallen Sun, the big hull in the crater. I say that through my teeth.
   ~ heard_sun = true
   -> hub
 + [Where can I get clean water?]
   Green Pit, out past the road. It's a pump outpost round an old cistern, and they pull the water up from deep rock and sell it by the can. It's clean, and it isn't cheap. Bring M's.
   ~ note("greenPit")
   -> hub
-+ {heard_swivel and not asked_rods} [Why the brake rods?]
++ {heard_swivel and not asked_rods} [Why check brake rods before guns?]
   Because command bought cheap ones for the depot trucks, and I fit them by order. I've seen what one does on a hard bend. It snaps, the pedal goes to the floor, and the truck goes where the road doesn't. Otto Brann, who made the first swivel, forges his rods twice as thick. He was right, and I told command so. Nobody asks a mechanic.
   ~ note("talkBrakeRod")
   ~ asked_rods = true
@@ -58,7 +58,7 @@ VAR asked_glare = false
   ~ asked_sun = true
   ~ heard_glare = true
   -> hub
-+ {heard_glare and not asked_glare} [Is there anything for the glare?]
++ {heard_glare and not asked_glare} [Anything for the glare at the Fallen Sun?]
   Lenses cut from the fused glass, dark as smoke. I wear an old pair on bad days. I don't know who sells them now.
   ~ asked_glare = true
   -> hub

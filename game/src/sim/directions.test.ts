@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { DIRECTIONS } from '../data/directions';
 import { REGION } from '../data/region';
-import { cueAt, headingAlong, octantOf, spanOf } from './direction-cues';
-import { directionsTo } from './directions';
+import { cardinalOf, cueAt, headingAlong, leanOf, octantOf, spanOf } from './direction-cues';
+import { directionsFromSite, directionsTo } from './directions';
+import { isTerritory } from './sites';
 import { ambiguousStarts, followSteps } from './directions-follower.test-helper';
 import { nearestRoadPoints, roadNetworkOf } from './road-network';
-import { emptyWorld, furyRoadWorld } from './testkit';
+import { emptyWorld, chaosHighwayWorld } from './testkit';
 import type { DirectionStep, DirectionTarget, Obstacle, World } from './types';
 import { dist, type Vec } from './vec';
 
@@ -97,6 +98,13 @@ describe('directionsTo', () => {
     expect(kinds(steps)).toEqual(['straight', 'search']);
   });
 
+  it('names the gates of Nose on different sides though both face south', () => {
+    const steps = directionsFromSite(w, 'nose', to('bowl'));
+    expect(steps[0]).toMatchObject({ do: 'gate' });
+    const sides = [...new Set(['bowl', 'granary', 'marshal-post'].map((id) => (directionsFromSite(w, 'nose', to(id))[0] as { side: string }).side))];
+    expect(sides.length).toBeGreaterThan(1);
+  });
+
   it('says there is no road when a cliff ring shuts the start in', () => {
     const pit = pitWorld(OFF_ROAD);
     expect(directionsTo(pit, OFF_ROAD, to('nose'))).toEqual([{ do: 'noRoad', octant: octantOf({ x: site('nose').x - OFF_ROAD.x, y: site('nose').y - OFF_ROAD.y }), span: spanOf(dist(OFF_ROAD, site('nose'))) }]);
@@ -133,7 +141,7 @@ describe('directionsTo', () => {
   });
 
   it('knows no road to a town that is not on the highway map', () => {
-    const steps = directionsTo(furyRoadWorld(), { x: 300, y: 300 }, to('bowl'));
+    const steps = directionsTo(chaosHighwayWorld(), { x: 300, y: 300 }, to('bowl'));
     expect(kinds(steps)).toEqual(['noRoad']);
   });
 
@@ -308,5 +316,81 @@ describe('following the steps', () => {
         expect(followSteps(w, from, steps, { spot }).closest).toBeLessThanOrEqual(DIRECTIONS.leaveReach);
       }
     }
+  });
+});
+
+describe('lean', () => {
+  const deg = (d: number): Vec => ({ x: Math.cos((d * Math.PI) / 180), y: Math.sin((d * Math.PI) / 180) });
+
+  it('is null within a half step of the told octant', () => {
+    expect(leanOf(deg(90), 'south')).toBeNull();
+    expect(leanOf(deg(100), 'south')).toBeNull();
+    expect(leanOf(deg(80), 'south')).toBeNull();
+  });
+
+  it('leans a cardinal octant toward the perpendicular cardinal on the side of the miss', () => {
+    expect(leanOf(deg(70), 'south')).toBe('east');
+    expect(leanOf(deg(110), 'south')).toBe('west');
+    expect(leanOf(deg(-20), 'east')).toBe('north');
+    expect(leanOf(deg(20), 'east')).toBe('south');
+  });
+
+  it('leans a diagonal octant toward the cardinal on the side of the miss', () => {
+    expect(leanOf(deg(60), 'southEast')).toBe('south');
+    expect(leanOf(deg(30), 'southEast')).toBe('east');
+    expect(leanOf(deg(-60), 'northEast')).toBe('north');
+  });
+
+  it('names the cardinal side of a vector', () => {
+    expect(cardinalOf(deg(10))).toBe('east');
+    expect(cardinalOf(deg(100))).toBe('south');
+    expect(cardinalOf(deg(-100))).toBe('north');
+    expect(cardinalOf(deg(170))).toBe('west');
+  });
+});
+
+describe('directionsFromSite', () => {
+  const w = emptyWorld();
+  const place = (pos: Vec): DirectionTarget => ({ kind: 'spot', pos, clue: 'place' });
+
+  it('ends a place way on the leave step with no search step', () => {
+    const net = roadNetworkOf(w);
+    const [road] = nearestRoadPoints(net, { x: 300, y: 300 }, 200, 1);
+    const steps = directionsFromSite(w, 'bowl', place({ x: road.pos.x, y: road.pos.y + 30 }));
+    expect(steps.some((s) => s.do === 'search')).toBe(false);
+    expect(steps[steps.length - 1].do).toBe('leave');
+  });
+
+  it('starts a two-gate town with a gate step and a one-gate town without', () => {
+    const spot = place({ x: site('bowl').x + 40, y: site('bowl').y - 30 });
+    expect(directionsFromSite(w, 'bowl', spot)[0].do).toBe('gate');
+    expect(directionsFromSite(w, 'scrapjaw', spot)[0].do).not.toBe('gate');
+  });
+
+  it('gives two Bowl gates different first sentences', () => {
+    const gates = roadNetworkOf(w).nodes.filter((n) => n.site === 'bowl' && roadNetworkOf(w).incident[n.id].length > 0);
+    expect(new Set(gates.map((g) => cardinalOf({ x: g.pos.x - site('bowl').x, y: g.pos.y - site('bowl').y }))).size).toBe(gates.length);
+  });
+
+  it('throws for a territory and an unknown site', () => {
+    const territory = SITES.find((s) => isTerritory(s));
+    if (territory) expect(() => directionsFromSite(w, territory.id, place(site('nose')))).toThrow();
+    expect(() => directionsFromSite(w, 'nowhere', place(site('nose')))).toThrow();
+  });
+
+  it('is the same twice and leaves the world as it was', () => {
+    const spot = place({ x: site('nose').x + 90, y: site('nose').y + 10 });
+    const before = JSON.stringify(w.player);
+    const a = directionsFromSite(w, 'nose', spot);
+    expect(directionsFromSite(w, 'nose', spot)).toEqual(a);
+    expect(JSON.stringify(w.player)).toBe(before);
+  });
+
+  it('reaches a wreck spot 80 tiles off the road with a leave step', () => {
+    const net = roadNetworkOf(w);
+    const edge = net.edges[Math.floor(net.edges.length / 3)];
+    const p = edge.points[Math.floor(edge.points.length / 2)];
+    const found = [{ x: p.x + 80, y: p.y }, { x: p.x - 80, y: p.y }, { x: p.x, y: p.y + 80 }, { x: p.x, y: p.y - 80 }].map((spot) => directionsTo(w, site('bowl'), { kind: 'spot', pos: spot, clue: 'wreck' }));
+    expect(found.some((steps) => steps.some((s) => s.do === 'leave'))).toBe(true);
   });
 });

@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { REGION } from '../data/region';
 import { PARTS } from '../data/parts';
 import { START_KITS } from '../data/start';
 import { TEST_MAP } from '../test/map';
@@ -7,7 +8,8 @@ import { makePart } from './factory';
 import { spareParts, stowPart } from './inventory';
 import { acceptContract, advanceContracts, advanceShops, contractReward, deliverContract, estimateTurns, rollContract, shopState, siteOf, type Contract } from './market';
 import { sellPart, partTradePrice } from './economy';
-import { claimCandidates, claimClue, claimLook, claimPartHeld, claimReward, claimRivalAt, claimSpots, claimTargets, claimWindow, clueRadius, isFreeRival, sendRival } from './claims';
+import { bakedTier, shopClue } from './claim-clue';
+import { claimCandidates, claimClue, claimLook, claimPartHeld, claimReward, claimRivalAt, claimSpots, claimTargets, claimWindow, isFreeRival, sendRival } from './claims';
 import { leaveLoot } from './loot-warning';
 import { getResources } from './resources';
 import type { TraitId } from '../data/npcs';
@@ -29,11 +31,13 @@ import { mapObstacles } from './mapgen';
 import { navLayer } from './nav/layer';
 import { MAX_RADIUS, oldSpotOf, reachable } from './salvage';
 import { TIME } from '../data/time';
+import { gridSquareOf, sameGridSquare } from './map-grid';
 
 let real: World;
 
 beforeAll(() => {
   real = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup("roaming"), false);
+  for (const shop of Object.values(real.shops)) shop.contracts = shop.contracts.filter((c) => c.kind !== 'claim');
 });
 
 function claimFor(stock: SalvageStock, part: PartInstance, over: Partial<ClaimContract> = {}): ClaimContract {
@@ -41,7 +45,7 @@ function claimFor(stock: SalvageStock, part: PartInstance, over: Partial<ClaimCo
 }
 
 function claimWorld(posted: 'board' | 'held' = 'board'): { w: World; stock: SalvageStock; part: PartInstance; claim: ClaimContract } {
-  const target = claimTargets(real)[0];
+  const target = claimTargets(real, 'bowl')[0];
   const w = emptyWorld(sitePads(siteOf('bowl'))[0]);
   const stock: SalvageStock = structuredClone(target.stock);
   const part = makePart(w, 'mg', 0);
@@ -78,7 +82,7 @@ function npcAt(w: World, stock: SalvageStock) {
 
 describe('claim spots', () => {
   it('only offers real spare parts that lie in the world', () => {
-    const targets = claimTargets(real);
+    const targets = claimTargets(real, 'bowl');
     expect(targets.length).toBeGreaterThan(0);
     for (const { stock, part } of targets) {
       expect([...stock.parts, ...stock.hidden.parts]).toContain(part);
@@ -89,20 +93,20 @@ describe('claim spots', () => {
   it('rolls a claim that names a present part, and never two claims on one stock', () => {
     const w = cloneWorld(real);
     const shop = { id: 'bowl', pos: siteOf('bowl').pos };
-    const first = rollContract(w, shop, [], [], [], claimTargets(w).slice(0, 1));
+    const first = rollContract(w, shop, { claims: claimTargets(w, 'bowl').slice(0, 1) });
     expect(first).toMatchObject({ kind: 'claim' });
     shopState(w, 'bowl').contracts = [first!];
-    expect(claimTargets(w).some((t) => t.stock.id === (first as ClaimContract).stockId)).toBe(false);
+    expect(claimTargets(w, 'bowl').some((t) => t.stock.id === (first as ClaimContract).stockId)).toBe(false);
   });
 
   it('refuses a claim roll with no part', () => {
     const shop = { id: 'bowl', pos: siteOf('bowl').pos };
-    expect(rollContract(cloneWorld(real), shop, [], [], [], [], [])).toBeNull();
+    expect(rollContract(cloneWorld(real), shop, {})).toBeNull();
   });
 
   it('pays more than any shop would for the part, at its value plus the travel pay of the trip', () => {
     const rows: string[] = [];
-    for (const { stock, part } of claimTargets(real)) {
+    for (const { stock, part } of claimTargets(real, 'bowl')) {
       const w = emptyWorld();
       for (const shopId of Object.keys(SHOPS)) {
         const turns = estimateTurns(siteOf(shopId).pos, stock.pos);
@@ -117,7 +121,7 @@ describe('claim spots', () => {
   });
 
   it('throws on a bad trip length or travel pay', () => {
-    const part = claimTargets(real)[0].part;
+    const part = claimTargets(real, 'bowl')[0].part;
     expect(() => claimReward(part, -1)).toThrow();
     expect(() => claimWindow(NaN)).toThrow();
     expect(() => claimRivalAt(0, -1)).toThrow();
@@ -258,13 +262,13 @@ describe('reachability', () => {
     expect(spots.length).toBeGreaterThan(20);
     for (const stock of spots) {
       const prop = baked.find((o) => o.id === (oldSpotOf(stock)?.propId ?? stock.id));
-      expect(prop && reachable(layer, prop), stock.id).toBe(true);
+      expect(prop && reachable(layer, prop, REGION.navigation.reachClimb), stock.id).toBe(true);
     }
   });
 });
 
 function nearestClaim(w: World): { shop: string; stock: SalvageStock; part: PartInstance } {
-  const options = claimTargets(w).flatMap(({ stock, part }) => Object.keys(SHOPS).map((shop) => ({ shop, stock, part, turns: estimateTurns(siteOf(shop).pos, stock.pos) })));
+  const options = Object.keys(SHOPS).flatMap((shop) => claimTargets(w, shop).map(({ stock, part }) => ({ shop, stock, part, turns: estimateTurns(siteOf(shop).pos, stock.pos) })));
   return options.sort((a, b) => a.turns - b.turns)[0];
 }
 
@@ -290,8 +294,8 @@ describe('claim days', () => {
 
   it('keeps the claimed part in its wreck while the nearest NPCs play and the player waits in town', () => {
     let w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), true);
-    const { stock, part } = claimTargets(w)[0];
-    const claim = rollContract(w, { id: 'bowl', pos: siteOf('bowl').pos }, [], [], [], [{ stock, part }]) as ClaimContract;
+    const { stock, part } = claimTargets(w, 'bowl')[0];
+    const claim = rollContract(w, { id: 'bowl', pos: siteOf('bowl').pos }, { claims: [{ stock, part }] }) as ClaimContract;
     shopState(w, 'bowl').contracts.push(claim);
     holdRivals(w);
     const scavenger = w.vehicles.find((v) => v.brain?.templateId === 'scavenger') ?? w.vehicles.find((v) => v.faction === 'independent')!;
@@ -328,7 +332,8 @@ describe('the clue', () => {
     expect(clue.angle).toBeCloseTo(Math.PI / 4);
     expect(clue.distance).toBe(3 * step);
     expect(clue.from).toEqual(shop);
-    expect(dist(clue.point, shop)).toBeCloseTo(3 * step);
+    const wreck = { id: 'x', pos: { x: shop.x + 3.4 * step * Math.cos(0.7), y: shop.y + 3.4 * step * Math.sin(0.7) }, look: 'tank' as const, territory: null };
+    expect(dist(shopClue(wreck, shop).point, shop)).toBeCloseTo(3 * step);
   });
 
   it('never rounds a near wreck down to no distance', () => {
@@ -338,20 +343,32 @@ describe('the clue', () => {
 
   it('names the look of the wreck the part lies in', () => {
     const looks = new Set(claimSpots(real).map((s) => claimLook(s)));
-    expect([...looks].every((l) => ['armyTruck', 'deadTruck', 'tank', 'shipWreck'].includes(l))).toBe(true);
+    expect([...looks].every((l) => ['armyTruck', 'deadTruck', 'tank', 'hullCompartment', 'cargoPod', 'engineSection'].includes(l))).toBe(true);
     expect(claimClue(claimAt(claimSpots(real)[0].pos)).look).toBe(claimLook(claimSpots(real)[0]));
   });
 
-  it('lists the true wreck among the candidates for every claim spot and every shop', () => {
+  it('lists the true wreck among the candidates, all in the clue circle and the named square, for every claim spot and every shop', () => {
     for (const stock of claimSpots(real)) {
       for (const shop of Object.keys(SHOPS)) {
         const c = { ...claimAt(stock.pos, stock.id), shop };
         const candidates = claimCandidates(real, c);
         expect(candidates, `${stock.id} from ${shop}`).toContain(stock.id);
-        const clue = claimClue(c);
-        for (const id of candidates) expect(dist(real.salvage.find((s) => s.id === id)!.pos, clue.point)).toBeLessThanOrEqual(clueRadius(clue.distance));
+        if (bakedTier(stock.id, shop) === null) continue;
+        for (const id of candidates) expect(dist(real.salvage.find((s) => s.id === id)!.pos, stock.pos), `${id} for ${stock.id} from ${shop}`).toBeLessThanOrEqual(CONTRACTS.claim.clue.nearby);
       }
     }
+  });
+
+  it('leaves out wrecks of the same look near the clue point but outside the named square', () => {
+    const spots = claimSpots(real);
+    const left = spots.flatMap((stock) => {
+      const c = claimAt(stock.pos, stock.id);
+      const clue = claimClue(c);
+      const outside = spots.filter((s) => claimLook(s) === clue.look && dist(s.pos, clue.point) <= CONTRACTS.claim.clue.shopBand * 2 && !sameGridSquare(gridSquareOf(s.pos), clue.square));
+      return outside.map((s) => ({ c, other: s.id }));
+    });
+    expect(left.length).toBeGreaterThan(0);
+    for (const { c, other } of left) expect(claimCandidates(real, c)).not.toContain(other);
   });
 
   it('orders the candidates nearest the clue point first, all of one look', () => {
@@ -367,7 +384,8 @@ describe('the clue', () => {
   it('throws when the candidates would miss the true wreck', () => {
     const stock = claimSpots(real)[0];
     const shop = siteOf('bowl').pos;
-    const far = { x: shop.x + (shop.x - stock.pos.x), y: shop.y + (shop.y - stock.pos.y) };
+    const onMap = (n: number) => Math.min(REGION.size - 1, Math.max(1, n));
+    const far = { x: onMap(shop.x + (shop.x - stock.pos.x)), y: onMap(shop.y + (shop.y - stock.pos.y)) };
     expect(() => claimCandidates(real, { ...claimAt(stock.pos, stock.id), at: far })).toThrow(/miss/);
   });
 });
@@ -413,7 +431,7 @@ describe('rival crews', () => {
     const w = cloneWorld(real);
     w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId);
     for (const shop of Object.values(w.shops)) Object.assign(shop, { contracts: [], restockAt: Infinity });
-    const { stock } = claimTargets(w)[0];
+    const { stock } = claimTargets(w, 'bowl')[0];
     const part = makePart(w, 'mg', 0);
     stock.hidden.parts.push(part);
     stock.goods = { ...stock.goods, scrap: 2 };
@@ -662,7 +680,7 @@ describe('a rival on the real map', () => {
   it('runs a rival from the shop to the end of its claim with the nearest NPCs alive, and never stalls', () => {
     let w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), true);
     const { shop, stock, part } = nearestClaim(w);
-    const claim = rollContract(w, { id: shop, pos: siteOf(shop).pos }, [], [], [], [{ stock, part }]) as ClaimContract;
+    const claim = rollContract(w, { id: shop, pos: siteOf(shop).pos }, { claims: [{ stock, part }] }) as ClaimContract;
     claim.rivalAt = w.turn + 1;
     shopState(w, shop).contracts.push(claim);
     keepNearestDrivers(w, 4, [], shop);

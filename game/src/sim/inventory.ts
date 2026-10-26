@@ -1,7 +1,7 @@
 
 import { CRATE_MASS } from '../data/goods';
 import { partDef } from '../data/parts';
-import { skillEffect, vehicleHasPerk } from './progress';
+import { skillEffect } from './progress';
 import { playerVehicle, truckFor } from './damage';
 import { newId } from './factory';
 import { cabShieldWith, gunLayoutScore } from './armor';
@@ -11,14 +11,15 @@ import { disarm } from './claymore';
 import { workTimeMult } from './utility';
 import { startJob } from './jobs';
 import { RULES } from '../data/rules';
-import { PERK_NUMBERS } from '../data/skills';
-import { canReachSalvage, dumpOnPile, truckPickupItem } from './salvage';
+import { canReachSalvage, dumpOnPile, pickupWork, truckPickupItem } from './salvage';
 import { modeRules } from './settings';
 import { fitStores } from './resources';
 import { itemMass } from './mass';
 import { npcMassRoom, vehicleStats } from './stats';
-import type { GridItem, PartInstance, RefitJob, RefitMove, RefitPickup, Refusal, Vehicle, World } from './types';
+import { inCombat } from './combat';
+import type { GridItem, PartInstance, RefitJob, RefitMove, RefitPickup, RefitStep, Refusal, Vehicle, World } from './types';
 import { playerCommand, Refused } from './world';
+import { requireSpareGoods } from './market';
 
 export function mountPart(world: World, v: Vehicle, part: PartInstance, mount: Cell[] = mountCellsOf(part.defId)): boolean {
   const item: PartItem = { id: newId(world, 'i'), x: 0, y: 0, rot: 0, kind: 'part', part };
@@ -170,7 +171,7 @@ function refitTruck(w: World, truckId: string | undefined, atGarageOnly: boolean
 export function moveItem(world: World, itemId: string, to: Spot, truckId?: string): World {
   return playerCommand(world, (w) => {
     const me = refitTruck(w, truckId, true);
-    const result = planItemMove(me, itemId, to);
+    const result = planItemMove(plannedTruck(w, me), itemId, to);
     if (result.error !== null) throw new Refused(result.error);
     commitRefit(w, me, result.plan);
   });
@@ -181,17 +182,20 @@ export type RefitLayout = Record<string, Spot>;
 export function startRefit(world: World, layout: RefitLayout, truckId?: string): World {
   return playerCommand(world, (w) => {
     const me = refitTruck(w, truckId, true);
-    commitRefit(w, me, layoutPlan(me, layout));
+    commitRefit(w, me, layoutPlan(plannedTruck(w, me), layout));
   });
 }
 
 export function plannedRefitTurns(world: World, v: Vehicle, layout: RefitLayout): number {
-  const { turns } = layoutPlan(v, layout);
-  return turns > 0 && !atGarage(world, v.id) ? refitTurns(world, v, turns) : 0;
+  const planned = plannedTruck(world, v);
+  return movesWork(world, planned, layoutPlan(planned, layout).turns);
+}
+
+function movesWork(world: World, v: Vehicle, planned: number): number {
+  return planned > 0 && !atGarage(world, v.id) ? refitTurns(world, v, planned) : 0;
 }
 
 function layoutPlan(v: Vehicle, layout: RefitLayout): RefitPlan {
-  requireIdleRefit(v);
   const moves: RefitMove[] = [];
   for (const [itemId, to] of Object.entries(layout)) {
     const item = findItem(v, itemId);
@@ -204,22 +208,95 @@ function layoutPlan(v: Vehicle, layout: RefitLayout): RefitPlan {
 }
 
 function commitRefit(w: World, me: Vehicle, plan: RefitPlan): void {
-  for (const move of plan.moves) {
-    const moving = findItem(me, move.itemId);
-    if (moving.kind === 'part') disarm(moving.part);
-  }
-  if (plan.turns > 0 && !atGarage(w, me.id)) {
-    const work = refitTurns(w, me, plan.turns);
-    startJob(w, me, { kind: 'refit', moves: plan.moves, pickup: null, turnsLeft: work, total: work });
-  } else applyRefitLayout(w, me, plan.items);
+  disarmMoving(me, plan.moves);
+  if (me.job?.kind === 'refit' || movesWork(w, me, plan.turns) > 0) queueRefit(w, me, { moves: plan.moves, pickup: null });
+  else applyRefitLayout(w, me, plan.items);
 }
+
+function disarmMoving(me: Vehicle, moves: RefitMove[]): void {
+  for (const move of moves) {
+    const moving = me.items.find((it) => it.id === move.itemId);
+    if (moving?.kind === 'part') disarm(moving.part);
+  }
+}
+
+export function queueRefit(world: World, v: Vehicle, step: RefitStep): void {
+  requireStepWork(step);
+  const job = v.job;
+  if (job?.kind !== 'refit') return startRefitStep(world, v, step, []);
+  if (inCombat(world, v)) throw new Refused({ id: 'inCombat' });
+  const planned = plannedRefit(world, v);
+  const result = refitStepLayout(world, { ...v, items: planned.items }, step, planned.taken);
+  if (result.error !== null) throw new Refused(result.error);
+  job.queue.push(step);
+}
+
+export function startRefitStep(world: World, v: Vehicle, step: RefitStep, queue: RefitStep[]): void {
+  const result = refitStepLayout(world, v, step, NOTHING_TAKEN);
+  if (result.error !== null) throw new Refused(result.error);
+  const work = refitStepWork(world, v, step);
+  startJob(world, v, { kind: 'refit', moves: step.moves, pickup: step.pickup, queue, turnsLeft: work, total: work });
+}
+
+function requireStepWork(step: RefitStep): void {
+  if (step.moves.length === 0 && step.pickup === null) throw new Error('The layout changes nothing');
+  if (step.moves.length > 0 && step.pickup !== null) throw new Error('A refit step holds moves or one pickup, not both');
+}
+
+export function refitStepWork(world: World, v: Vehicle, step: RefitStep, taken: ReadonlySet<string> = NOTHING_TAKEN): number {
+  requireStepWork(step);
+  if (step.pickup) {
+    const placed = getRefitPickup(world, v, step.pickup, taken);
+    if (!('kind' in placed)) throw new Refused(placed);
+    return pickupWork(world, v, step.pickup, placed);
+  }
+  const result = planMoves(v, step.moves);
+  if (result.error !== null) throw new Refused(result.error);
+  return movesWork(world, v, result.plan.turns);
+}
+
+export type PlannedStep = { step: RefitStep; work: number };
+export type PlannedRefit = { items: GridItem[]; head: GridItem[]; steps: PlannedStep[]; taken: ReadonlySet<string> };
+
+export function plannedRefit(world: World, v: Vehicle): PlannedRefit {
+  const job = v.job;
+  if (job?.kind !== 'refit') return idleRefit(v);
+  const head = refitStepLayout(world, v, job, NOTHING_TAKEN);
+  return head.error !== null ? idleRefit(v) : walkQueue(world, v, job, head.items);
+}
+
+function idleRefit(v: Vehicle): PlannedRefit {
+  return { items: v.items, head: v.items, steps: [], taken: NOTHING_TAKEN };
+}
+
+function walkQueue(world: World, v: Vehicle, job: RefitJob, head: GridItem[]): PlannedRefit {
+  const taken = new Set(job.pickup ? [job.pickup.partId] : []);
+  const steps: PlannedStep[] = [];
+  let items = head;
+  for (const step of job.queue) {
+    const planned = { ...v, items };
+    const next = refitStepLayout(world, planned, step, taken);
+    if (next.error !== null) continue;
+    steps.push({ step, work: refitStepWork(world, planned, step, taken) });
+    items = next.items;
+    if (step.pickup) taken.add(step.pickup.partId);
+  }
+  return { items, head, steps, taken };
+}
+
+export function refitTurnsLeft(world: World, v: Vehicle): number {
+  if (v.job?.kind !== 'refit') return 0;
+  return v.job.turnsLeft + plannedRefit(world, v).steps.reduce((sum, step) => sum + step.work, 0);
+}
+
+export function plannedTruck(world: World, v: Vehicle): Vehicle {
+  return v.job?.kind === 'refit' ? { ...v, items: plannedRefit(world, v).items } : v;
+}
+
+export const NOTHING_TAKEN: ReadonlySet<string> = new Set();
 
 export function refitTurns(world: World, v: Vehicle, planned: number): number {
   return Math.max(1, Math.ceil(planned * workTimeMult(v) * (1 - skillEffect(world, v, 'machining', 'refit'))));
-}
-
-export function lootRefitTurns(world: World, v: Vehicle, planned: number): number {
-  return vehicleHasPerk(world, v, 'cannibal') ? PERK_NUMBERS.cannibal.turns : refitTurns(world, v, planned);
 }
 
 export function storePart(world: World, itemId: string, truckId?: string): World {
@@ -259,6 +336,7 @@ export function dumpItem(world: World, itemId: string, truckId?: string): World 
     requireIdleRefit(me);
     const item = findItem(me, itemId);
     if (item.kind === 'parcel') throw new Refused({ id: 'parcelKept' });
+    if (item.kind === 'good') requireSpareGoods(w, me, item.good, 1);
     if (isMounted(me.chassisId, item)) throw new Error('Remove an installed part before dumping it');
     if (modeRules(w).looting) dumpOnPile(w, me, item);
     else me.items = me.items.filter((it) => it.id !== item.id);
@@ -300,7 +378,6 @@ export function getLayoutError(v: Vehicle, items: GridItem[]): Refusal | null {
 export function planItemMove(v: Vehicle, itemId: string, to: Spot): PlanResult {
   const item = v.items.find((entry) => entry.id === itemId);
   if (!item) return { plan: null, error: { id: 'itemGone' } };
-  if (v.job?.kind === 'refit') return { plan: null, error: { id: 'refitRunning' } };
   const moved = { ...item, ...getSpot(to) };
   const g = gridOf(v);
   const layer = layerOf(g, moved);
@@ -311,6 +388,24 @@ export function planItemMove(v: Vehicle, itemId: string, to: Spot): PlanResult {
   const target = targets[0];
   if (target) moves.push({ itemId: target.id, from: getSpot(target), to: getSpot(item) });
   return planMoves(v, moves);
+}
+
+export function plannedVehicle(v: Vehicle, layout: RefitLayout): Vehicle {
+  if (Object.keys(layout).length === 0) return v;
+  return { ...v, items: v.items.map((it) => (layout[it.id] ? { ...it, ...layout[it.id] } : it)) };
+}
+
+function sameMoves(a: RefitMove[], b: RefitMove[]): boolean {
+  return a.length === b.length && a.every((move, i) => move.itemId === b[i].itemId && move.to.x === b[i].to.x && move.to.y === b[i].to.y && move.to.rot === b[i].to.rot);
+}
+
+export function fieldMoveIsInstant(v: Vehicle, layout: RefitLayout, itemId: string, to: Spot): boolean {
+  const drawn = planItemMove(plannedVehicle(v, layout), itemId, to);
+  const real = planItemMove(v, itemId, to);
+  if (drawn.error !== null || real.error !== null) return false;
+  if (drawn.plan.turns !== 0 || real.plan.turns !== 0) return false;
+  if (!sameMoves(drawn.plan.moves, real.plan.moves)) return false;
+  return drawn.plan.moves.every((move) => !layout[move.itemId]);
 }
 
 function planMoves(v: Vehicle, moves: RefitMove[]): PlanResult {
@@ -336,12 +431,18 @@ function getMoveError(item: GridItem | undefined, move: RefitMove): Refusal | nu
   return null;
 }
 
-export function getRefitLayout(world: World, v: Vehicle, job: RefitJob): { items: GridItem[]; error: null } | { items: null; error: Refusal } {
-  const result = planMoves(v, job.moves);
+export type StepLayout = { items: GridItem[]; error: null } | { items: null; error: Refusal };
+
+export function getRefitLayout(world: World, v: Vehicle, job: RefitJob): StepLayout {
+  return refitStepLayout(world, v, job, NOTHING_TAKEN);
+}
+
+export function refitStepLayout(world: World, v: Vehicle, step: RefitStep, taken: ReadonlySet<string>): StepLayout {
+  const result = planMoves(v, step.moves);
   if (result.error !== null) return { items: null, error: result.error };
   const items = result.plan.items;
-  if (job.pickup) {
-    const pickup = getRefitPickup(world, v, job.pickup);
+  if (step.pickup) {
+    const pickup = getRefitPickup(world, v, step.pickup, taken);
     if (!('kind' in pickup)) return { items: null, error: pickup };
     items.push(pickup);
   }
@@ -349,11 +450,15 @@ export function getRefitLayout(world: World, v: Vehicle, job: RefitJob): { items
   return error ? { items: null, error } : { items, error: null };
 }
 
-function getRefitPickup(world: World, v: Vehicle, pickup: RefitPickup): GridItem | Refusal {
-  if (pickup.from === 'truck') return truckPickupItem(world, v, pickup);
+function getRefitPickup(world: World, v: Vehicle, pickup: RefitPickup, taken: ReadonlySet<string>): GridItem | Refusal {
+  return pickup.from === 'truck' ? truckPickupItem(world, v, pickup, taken) : stockPickupItem(world, v, pickup, taken);
+}
+
+function stockPickupItem(world: World, v: Vehicle, pickup: Extract<RefitPickup, { from: 'stock' }>, taken: ReadonlySet<string>): GridItem | Refusal {
   const { stockId, partId, itemId, to } = pickup;
   const stock = world.salvage.find((entry) => entry.id === stockId);
   if (!stock || !world.player.scavenged.includes(stockId) || !canReachSalvage(v, stock)) return { id: 'salvageOutOfReach' };
+  if (taken.has(partId)) return { id: 'partQueued' };
   const part = stock.parts.find((entry) => entry.id === partId);
   if (!part) return { id: 'salvagePartGone' };
   return { kind: 'part', id: itemId, part, ...to };

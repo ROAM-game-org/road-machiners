@@ -48,7 +48,7 @@ const none: ReadonlySet<string> = new Set();
 
 function posted(w: World): Rescue {
   const clients = rescueClients(w, SHOP);
-  const c = rollContract(w, SHOP, [], [], [], [], clients);
+  const c = rollContract(w, SHOP, { clients });
   if (c?.kind !== 'rescue') throw new Error('No rescue was posted');
   w.shops.bowl.contracts = [c];
   return c;
@@ -159,7 +159,7 @@ describe('posting a rescue', () => {
   it('posts none in a mode without rescue', () => {
     for (let seed = 1; seed <= 12; seed++) {
       const { w } = scene('fuel');
-      w.setup = defaultSetup('furyRoad');
+      w.setup = defaultSetup('chaosHighway');
       w.marketRng.rngState = seed;
       w.shops.bowl.restockAt = w.turn;
       advanceShops(w);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { atlasOf } from './atlas';
 import { playerVehicle } from './damage';
-import { driveOn } from './fury-road';
+import { driveOn } from './chaos-highway';
 import { highwayMap, windowShift } from './highway';
 import { playerFields, replay, replayBySession, RunStream, scopeOf, statesByHolder, truckFields, worldPos, type StreamLine } from './run-stream';
 import { addVehicle, emptyWorld, parkedAtOutpost, startCombat } from './testkit';
@@ -204,8 +204,8 @@ describe('events', () => {
     stream.begin(world, 'new');
     const me = world.player.vehicleId;
     const events: GameEvent[] = [
-      { t: 'collision', a: me, b: near.id, hitsA: [{ part: 'a', damage: 2 }], hitsB: [{ part: 'b', damage: 5 }] },
-      { t: 'collision', a: near.id, b: me, hitsA: [{ part: 'b', damage: 1 }], hitsB: [{ part: 'a', damage: 1 }] },
+      { t: 'collision', a: me, b: near.id, impact: 3, hitsA: [{ part: 'a', damage: 2 }], hitsB: [{ part: 'b', damage: 5 }] },
+      { t: 'collision', a: near.id, b: me, impact: 3, hitsA: [{ part: 'b', damage: 1 }], hitsB: [{ part: 'a', damage: 1 }] },
       { t: 'practice', source: 'hit', amount: 1, difficulty: null, target: near.id, xp: 1 },
       { t: 'honk', vehicle: near.id },
       shot(far.id, 'ghost', 'mg', 1),

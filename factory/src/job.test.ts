@@ -1,7 +1,9 @@
-import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { withActiveRun } from './active-run';
 import { failureNote, runJob } from './job';
+import { isLocked } from './lock';
 import { appendUsage, readLedger } from './ledger';
 import { markResumed, resumeError, resumedStage } from './sessions';
 import { BudgetError } from './stages/checkpoint';
@@ -33,6 +35,33 @@ describe('runJob', () => {
     const ctx = { cfg: { home: ROOT, repo: 'o/r', committeeChat: 'c' } as FactoryConfig, statePath, now: () => new Date(), log: () => undefined, github } as unknown as Ctx;
     await runJob(ctx, 'merge', null);
     expect(readLedger(ROOT, new Date(0)).filter((line) => line.kind === 'job')).toMatchObject([{ id: 'm', stage: 'merge', outcome: 'failed', batch: [8, 9] }]);
+  });
+
+  it('holds the run lock of its issue while a direct run works with no scheduler job, and frees it after', async () => {
+    rmSync(ROOT, { recursive: true, force: true });
+    mkdirSync(ROOT, { recursive: true });
+    const statePath = join(ROOT, 'state.json');
+    writeState(statePath, structuredClone(EMPTY_STATE));
+    const lock = join(ROOT, 'locks', 'run-issue-892');
+    const seen: boolean[] = [];
+    const github = {
+      issue: async () => { seen.push(isLocked(lock)); throw new Error('offline'); },
+      comment: async () => undefined,
+      addLabel: async () => undefined,
+    };
+    const ctx = { cfg: { home: ROOT, repo: 'o/r', committeeChat: 'c' } as FactoryConfig, statePath, now: () => new Date(), log: () => undefined, github } as unknown as Ctx;
+    await runJob(ctx, 'design', 892);
+    expect(seen).toEqual([true]);
+    expect(isLocked(lock)).toBe(false);
+  });
+
+  it('refuses a second run of the same issue while a live process runs it', async () => {
+    rmSync(ROOT, { recursive: true, force: true });
+    const lock = join(ROOT, 'locks', 'run-issue-892');
+    mkdirSync(lock, { recursive: true });
+    writeFileSync(join(lock, 'owner'), String(process.ppid));
+    const ctx = { cfg: { home: ROOT, repo: 'o/r', committeeChat: 'c' } as FactoryConfig, statePath: join(ROOT, 'state.json'), now: () => new Date(), log: () => undefined } as unknown as Ctx;
+    await expect(withActiveRun(ctx, 'design', 892, async () => 'ran', 200)).rejects.toThrow('stayed busy');
   });
 
   describe('a failed card stage', () => {

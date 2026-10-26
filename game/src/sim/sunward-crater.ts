@@ -4,12 +4,15 @@ import { playerVehicle } from './damage';
 import { isDefeated } from './defeat';
 import { decide, npcProfile } from './npc-decisions';
 import { fightCornered, fleeFrom, interrupt, pushGoal } from './npc-activities';
-import { inTruce, reportIncident } from './relations';
+import { inFeud, inTruce, reportIncident } from './relations';
 import { canVehicleSee } from './vision';
 import { inCore } from './hazard';
-import { makePeace } from './parley';
+import { endFight, makePeace } from './parley';
 import { addState, declareFeud, stateOf } from './states';
 import { hazardZones, type HazardZone } from './territory';
+import { routeLength, route } from './path';
+import { vehicleStats } from './stats';
+import { inCombatWith } from './combat';
 import { checkDrag, isOnRope, releaseDragged } from './tow';
 import { trackOf } from './tracks';
 import type { CallVars, GoalReason, NpcActivity, NpcState, StateData, StateEnding, SunwardNight, Vehicle, VigilCalls, World } from './types';
@@ -85,7 +88,7 @@ function callsTo(world: World, id: string): VigilCalls {
   return nightOf(world)?.calls[id] ?? { count: 0, turn: -SUNWARD.callGap };
 }
 
-function bound(world: World, member: Vehicle, stranger: Vehicle): boolean {
+export function boundToOrder(world: World, member: Vehicle, stranger: Vehicle): boolean {
   return inTruce(world, member, stranger) || offeringOf(world, stranger.id) !== null || isOnRope(world, stranger.id);
 }
 
@@ -97,7 +100,7 @@ export function vigilCallDue(world: World, member: Vehicle, nth: number): boolea
 
 function nextCallDue(world: World, member: Vehicle, me: Vehicle, nth: number): boolean {
   const calls = callsTo(world, me.id);
-  return !bound(world, member, me) && calls.count === nth - 1 && world.turn - calls.turn >= SUNWARD.callGap;
+  return !boundToOrder(world, member, me) && calls.count === nth - 1 && world.turn - calls.turn >= SUNWARD.callGap;
 }
 
 function onTheLine(world: World, member: Vehicle, nth: number): boolean {
@@ -154,17 +157,30 @@ export function giveWord(world: World, holder: Vehicle, caller: Vehicle): NpcSta
   const zone = lightZone();
   const night = nightOf(world);
   if (night && !night.offered.includes(holder.id)) night.offered.push(holder.id);
+  for (const member of world.vehicles.filter(isSunwardMember)) if (inFeud(world, member, holder) || inCombatWith(world, member, holder)) endFight(world, member, holder);
   return addState(world, 'offering', holder.id, caller.id, { kind: 'offering', core: { ...zone.pos }, closest: dist(holder.pos, zone.pos) });
+}
+
+export function wordGap(world: World, holder: Vehicle): number {
+  const core = lightZone().pos;
+  if (nearTheLight(holder.pos)) return dist(holder.pos, core);
+  const way = route(world, holder.pos, core, vehicleStats(world, holder).radius, []);
+  return routeLength(holder.pos, way) + dist(way.at(-1) ?? holder.pos, core);
 }
 
 export function checkOffering(world: World, s: NpcState): StateEnding | null {
   const holder = world.vehicles.find((v) => v.id === s.holder);
   if (!holder) return null;
   const data = offeringData(s);
-  const gap = dist(holder.pos, data.core);
   if (inCore(lightZone(), holder.pos)) return 'fulfilled';
   if (!nightWindow(world) || world.turn >= returnTurn(lastDusk(world.turn))) return 'expired';
-  if (gap > data.closest + SUNWARD.offerMargin || !inFallenSun(holder.pos)) return 'broken';
+  if (!inFallenSun(holder.pos)) return 'broken';
+  const gap = wordGap(world, holder);
+  if (world.turn <= s.born + SUNWARD.wordGrace) {
+    data.closest = gap;
+    return null;
+  }
+  if (gap > data.closest + SUNWARD.offerMargin) return 'broken';
   data.closest = Math.min(data.closest, gap);
   return null;
 }
@@ -172,7 +188,9 @@ export function checkOffering(world: World, s: NpcState): StateEnding | null {
 export function breakWord(world: World, s: NpcState): void {
   const caller = world.vehicles.find((v) => v.id === s.other);
   const holder = world.vehicles.find((v) => v.id === s.holder);
-  if (caller && holder && !isDefeated(caller)) seize(world, caller, holder);
+  if (!caller || !holder || isDefeated(caller)) return;
+  world.events.push({ t: 'say', speaker: caller.id, line: 'wordBroken', vars: {} });
+  seize(world, caller, holder);
 }
 
 function membersSeeing(world: World, victim: Vehicle): Vehicle[] {
@@ -192,6 +210,7 @@ function isPlayerId(world: World, id: string): boolean {
 }
 
 function atTheVigil(world: World, member: Vehicle): boolean {
+  if (!nightWindow(world)) return false;
   const phase = sunwardPhase(world);
   return phase === 'vigil' || (phase === 'ride' && inFallenSun(member.pos));
 }
@@ -209,7 +228,7 @@ export function meetStrangers(world: World): void {
   const members = world.vehicles.filter((v) => isSunwardMember(v) && !isDefeated(v) && atTheVigil(world, v));
   const claimed = new Set(members.flatMap((m) => m.brain!.goals.filter(isMeeting).map((g) => g.targetId)));
   for (const stranger of world.vehicles.filter((x) => !claimed.has(x.id) && strangerToMeet(world, x))) {
-    const claimer = members.filter((m) => freeAtPost(m) && !bound(world, m, stranger) && sensesNow(world, m, stranger)).sort((a, b) => dist(a.pos, stranger.pos) - dist(b.pos, stranger.pos))[0];
+    const claimer = members.filter((m) => freeAtPost(m) && !boundToOrder(world, m, stranger) && sensesNow(world, m, stranger)).sort((a, b) => dist(a.pos, stranger.pos) - dist(b.pos, stranger.pos))[0];
     if (!claimer) continue;
     pushGoal(world, claimer, { kind: 'meet', targetId: stranger.id, destination: { ...stranger.pos }, phase: 'travel', reason: 'meetStranger', until: world.turn + SUNWARD.meetTurns });
     members.splice(members.indexOf(claimer), 1);
@@ -241,11 +260,11 @@ export function meetingLapsed(world: World, member: Vehicle, goal: NpcActivity):
 }
 
 function stillToMeet(world: World, member: Vehicle, stranger: Vehicle): boolean {
-  return nightOf(world) !== null && strangerToMeet(world, stranger) && !bound(world, member, stranger);
+  return nightOf(world) !== null && strangerToMeet(world, stranger) && !boundToOrder(world, member, stranger);
 }
 
 function calledStranger(world: World, member: Vehicle, x: Vehicle): boolean {
-  return strangerAtVigil(x) && callsTo(world, x.id).count === 0 && !bound(world, member, x) && canVehicleSee(world, member, x.pos);
+  return strangerAtVigil(x) && callsTo(world, x.id).count === 0 && !boundToOrder(world, member, x) && canVehicleSee(world, member, x.pos);
 }
 
 function strangerAtVigil(x: Vehicle): boolean {

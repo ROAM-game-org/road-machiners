@@ -4,7 +4,7 @@ import { PX_PER_METER } from "../three/render/portraitPixels";
 import { spanOf } from "../sim/body";
 import { baseGrid } from "../sim/grid";
 import type { Vehicle } from "../sim/types";
-import type { Glow, Portrait, TruckPortraits } from "../three/render/truckPortrait";
+import { chassisSize, type Glow, type Portrait, type TruckPortraits } from "../three/render/truckPortrait";
 import { bindAttr, unbindAttr } from "../text/language";
 import { t, verbatim } from "../text/msg";
 import { workMeterEl } from "./cards";
@@ -23,15 +23,13 @@ type ConditionPart = ReturnType<TruckConditionReadout["update"]>[number];
 export type PartWork = { partId: string; done: number };
 export type ConditionAim = { marks: ReadonlyMap<string, number[]>; pick: (partId: string) => void };
 
-const urls = new WeakMap<HTMLCanvasElement, Promise<string>>();
-
 function encoded(canvas: HTMLCanvasElement): Promise<string> {
   return new Promise((resolve, reject) => canvas.toBlob((blob) => (blob ? resolve(URL.createObjectURL(blob)) : reject(new Error("A truck portrait layer could not be encoded")))));
 }
 
-function withUrl(canvas: HTMLCanvasElement, use: (url: string) => void): void {
-  const pending = urls.get(canvas) ?? encoded(canvas);
-  urls.set(canvas, pending);
+function withUrl(portrait: Portrait, canvas: HTMLCanvasElement, use: (url: string) => void): void {
+  const pending = portrait.masks.get(canvas) ?? encoded(canvas);
+  portrait.masks.set(canvas, pending);
   void pending.then(use);
 }
 
@@ -48,27 +46,31 @@ function placeGlow(node: HTMLElement, portrait: Portrait, glow: Glow): HTMLEleme
 }
 
 function layerImage(className: string, portrait: Portrait, glow: Glow, tier: string): HTMLElement {
-  const img = el("img", { class: className, "data-tier": tier, "aria-hidden": "true" });
-  withUrl(glow.canvas, (url) => ((img as HTMLImageElement).src = url));
-  return placeGlow(img, portrait, glow);
+  const copy = el("canvas", { class: className, "data-tier": tier, "aria-hidden": "true" }) as HTMLCanvasElement;
+  copy.width = glow.canvas.width;
+  copy.height = glow.canvas.height;
+  const ctx = copy.getContext("2d");
+  if (!ctx) throw new Error("No 2d canvas context for a truck portrait layer");
+  ctx.drawImage(glow.canvas, 0, 0);
+  return placeGlow(copy, portrait, glow);
 }
 
 function maskedLayer(className: string, portrait: Portrait, glow: Glow): HTMLElement {
   const layer = el("div", { class: className });
-  withUrl(glow.canvas, (url) => {
+  withUrl(portrait, glow.canvas, (url) => {
     layer.style.setProperty("-webkit-mask-image", `url("${url}")`);
     layer.style.setProperty("mask-image", `url("${url}")`);
   });
   return placeGlow(layer, portrait, glow);
 }
 
-function keepsOwnColor(part: ConditionPart): boolean {
-  const def = partDef(part.defId);
-  return !isShield(def) && !(def.kind === "core" && def.role === "wheel");
+export function edgedWhenHealthy(defId: string): boolean {
+  const def = partDef(defId);
+  return isShield(def) || def.kind === "weapon" || (def.kind === "core" && def.role === "wheel");
 }
 
 function glowLayers(portrait: Portrait, parts: ConditionPart[]): HTMLElement[] {
-  const glowing = parts.filter((part) => part.tier !== "ok" || !keepsOwnColor(part));
+  const glowing = parts.filter((part) => part.tier !== "ok" || edgedWhenHealthy(part.defId));
   return glowing.map((part) => layerImage("cond-glow", portrait, portrait.glow(part.id, part.tier), part.tier));
 }
 
@@ -134,6 +136,8 @@ export class TruckConditionView {
   private readonly tip = el("div", { class: "condition-tip tooltip" });
   private readonly readout = new TruckConditionReadout();
   private portrait: Portrait | null = null;
+  private size: { width: number; height: number } | null = null;
+  private last: { vehicle: Vehicle; playerPaint: TruckPaint; aim: ConditionAim | undefined; working: PartWork | null | undefined } | null = null;
   private layered: Portrait | null = null;
   private layerKey = "";
   private parts: ConditionPart[] = [];
@@ -152,12 +156,15 @@ export class TruckConditionView {
     this.hit.addEventListener("click", (e) => this.clicked(e));
     registerTipSource(this.hit, () => el("div", { class: "tooltip-row" }, ...this.tipRowsOfPress()));
     this.tip.style.display = "none";
+    portraits.onReady((vehicleId) => {
+      if (this.last?.vehicle.id === vehicleId) this.render(this.last.vehicle, this.last.playerPaint, this.last.aim, this.last.working);
+    });
   }
 
   private naturalSize(): { width: number; height: number } {
-    if (!this.portrait) throw new Error("The condition view has no truck drawn yet");
+    if (!this.size) throw new Error("The condition view has no truck drawn yet");
     const pad = pxToken("--cond-pad");
-    return { width: this.portrait.width * this.scale + 2 * pad, height: this.portrait.height * this.scale + 2 * pad };
+    return { width: this.size.width * this.scale + 2 * pad, height: this.size.height * this.scale + 2 * pad };
   }
 
   fitTo(box: HTMLElement): void {
@@ -174,33 +181,37 @@ export class TruckConditionView {
   }
 
   render(vehicle: Vehicle, playerPaint: TruckPaint, aim?: ConditionAim, working?: PartWork | null): void {
-    const portrait = this.portraits.portraitOf(vehicle, playerPaint);
+    const portrait = this.portraits.shown(vehicle, playerPaint);
     this.portrait = portrait;
+    this.last = { vehicle, playerPaint, aim, working };
     this.aim = aim;
     this.parts = this.readout.update(vehicle);
+    const drawn = portrait ? this.parts.filter((part) => portrait.has(part.id)) : [];
     const rows = baseGrid(vehicle.chassisId).h;
     this.scale = CELL / (PX_PER_METER * ((2 * spanOf(vehicle.chassisId).half.x) / rows));
     if (this.maxRows !== null) this.root.style.zoom = String(Math.min(1, this.maxRows / rows));
-    this.stage.style.width = `${portrait.width * this.scale}px`;
-    this.stage.style.height = `${portrait.height * this.scale}px`;
+    this.size = portrait ?? chassisSize(vehicle.chassisId);
+    this.stage.style.width = `${this.size.width * this.scale}px`;
+    this.stage.style.height = `${this.size.height * this.scale}px`;
     this.root.classList.toggle("aimable", aim !== undefined);
-    this.paintLayers(portrait);
-    this.paintMarks(portrait, aim, working);
-    for (const part of this.parts.filter((p) => p.hit)) this.flash(portrait, part);
+    this.paintLayers(portrait, drawn);
+    this.paintMarks(portrait, drawn, aim, working);
+    if (portrait) for (const part of drawn.filter((p) => p.hit)) this.flash(portrait, part);
     this.focus(this.parts.some((p) => p.id === this.hoverId) ? this.hoverId : null);
   }
 
-  private paintLayers(portrait: Portrait): void {
-    const key = this.parts.map((part) => `${part.id}:${part.tier}`).join(",");
+  private paintLayers(portrait: Portrait | null, drawn: ConditionPart[]): void {
+    const key = drawn.map((part) => `${part.id}:${part.tier}`).join(",");
     if (this.layered === portrait && this.layerKey === key) return;
     this.layered = portrait;
     this.layerKey = key;
-    this.layers.replaceChildren(...layersFor(portrait, this.parts));
+    this.layers.replaceChildren(...(portrait ? layersFor(portrait, drawn) : []));
   }
 
-  private paintMarks(portrait: Portrait, aim: ConditionAim | undefined, working: PartWork | null | undefined): void {
+  private paintMarks(portrait: Portrait | null, drawn: ConditionPart[], aim: ConditionAim | undefined, working: PartWork | null | undefined): void {
+    if (!portrait) return this.marks.replaceChildren();
     const nodes: HTMLElement[] = [];
-    for (const part of this.parts) {
+    for (const part of drawn) {
       const mark = markFor(aim?.marks.get(part.id), doneOf(working, part.id));
       if (!mark) continue;
       placeAt(mark, portrait.centerOf(part.id), this.scale);
@@ -270,7 +281,7 @@ export class TruckConditionView {
   }
 
   private hovered(): ConditionPart | undefined {
-    return this.parts.find((p) => p.id === this.hoverId);
+    return this.parts.find((p) => p.id === this.hoverId && this.portrait?.has(p.id));
   }
 
   private tipRowsOfPress(): HTMLElement[] {

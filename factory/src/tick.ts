@@ -1,13 +1,14 @@
 import { availableParallelism } from 'node:os';
 import { join } from 'node:path';
-import { sweepLogs, sweepWork } from './cleanup';
+import { removalCandidates, sweepLogs, sweepWork } from './cleanup';
 import { cpuSets, poolOf, vitestWorkersOf } from './cpus';
 import { removeStaleBuilds } from './deploy';
-import { freeGb, requireCodexLogin } from './health';
+import { freeGb, requireAgyLogin, requireCodexLogin } from './health';
 import { JobDiedError, JobTimeoutError, failureIssue, pruneFailures, reportFailure } from './fail';
 import { intake } from './intake';
 import { publicFilterWith } from './public/filter';
 import { publicTick } from './public/tick-steps';
+import { reviveVotes } from './public/votes';
 import { recordJob } from './ledger';
 import { reportAttempt, reportScheduler } from './observability';
 import { pruneCaptions } from './post-status';
@@ -15,6 +16,7 @@ import { isAlive, killJob, removeJobContainers, spawnJob } from './jobs';
 import { repairClone } from './repair-clone';
 import { clearSessions, markResumed } from './sessions';
 import { requeueKept } from './stages/kept-approval';
+import { adoptQuestionMedia } from './stages/common';
 import { nextBatchCards, waitingMerges } from './stages/merge';
 import { openTasks } from './stages/release-common';
 import { sweepStuck, type Repair } from './stuck';
@@ -413,6 +415,7 @@ export async function releaseAnswered(ctx: Ctx, cards: Card[]): Promise<Card[]> 
       continue;
     }
     await ctx.github.removeLabel(card.issue, NEEDS_INFO_LABEL);
+    for (const entry of await adoptQuestionMedia(ctx, card.issue, 'a committee member')) ctx.log('tick', card.issue, `committee image ${entry.url} of a questions reply: ${entry.status}${entry.reason ? `, ${entry.reason}` : ''}`);
     clearAsked(ctx.statePath, card.issue);
     ctx.log('tick', card.issue, `${reason}, removed ${NEEDS_INFO_LABEL}`);
     released.push({ ...card, labels: card.labels.filter((label) => label !== NEEDS_INFO_LABEL) });
@@ -435,9 +438,25 @@ function cleanBuilds(ctx: Ctx, cards: Card[]): void {
   removeStaleBuilds(ctx.cfg.webRoot, new Set(keep), (msg) => ctx.log('tick', null, msg));
 }
 
-function cleanWork(ctx: Ctx, cards: Card[]): void {
+async function confirmClones(ctx: Ctx, state: FactoryState, cards: Card[]): Promise<{ cards: Card[]; unconfirmed: Set<number> }> {
+  const found: Card[] = [];
+  const unconfirmed = new Set<number>();
+  for (const issue of removalCandidates(join(ctx.cfg.home, 'work'), state, cards)) {
+    try {
+      const own = await ctx.github.card(issue);
+      if (own) found.push(own);
+    } catch (error) {
+      unconfirmed.add(issue);
+      ctx.log('tick', issue, `kept work clone, its card could not be confirmed off the board: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  return { cards: [...cards.filter((card) => !found.some((own) => own.issue === card.issue)), ...found], unconfirmed };
+}
+
+export async function cleanWork(ctx: Ctx, listed: Card[]): Promise<void> {
   const state = readState(ctx.statePath);
-  const swept = sweepWork(join(ctx.cfg.home, 'work'), join(ctx.cfg.home, 'locks'), state, cards);
+  const { cards, unconfirmed } = await confirmClones(ctx, state, listed);
+  const swept = sweepWork(join(ctx.cfg.home, 'work'), join(ctx.cfg.home, 'locks'), state, cards, unconfirmed);
   for (const name of swept.removed) ctx.log('tick', null, `removed work clone ${name}`);
   if (swept.stripped.length > 0) ctx.log('tick', null, `removed packages of idle clones ${swept.stripped.join(', ')}`);
   if (swept.unknown.length > 0) ctx.log('tick', null, `left unknown work folders ${swept.unknown.join(', ')}`);
@@ -498,20 +517,30 @@ function movedPast(state: FactoryState, posted: string | null, head: string | nu
   return head !== null && posted !== head && !state.jobs.some((job) => job.stage === 'ship');
 }
 
+async function revive(ctx: Ctx, cards: Card[]): Promise<void> {
+  try {
+    await reviveVotes(ctx, cards);
+  } catch (error) {
+    await reportFailure(ctx, 'public', null, error, null, []);
+  }
+}
+
 async function startJobs(ctx: Ctx, codeDir: string, deps: TickDeps): Promise<void> {
   const answered = await releaseAnswered(ctx, await ctx.github.cards());
   cleanBuilds(ctx, answered);
-  cleanWork(ctx, answered);
+  await cleanWork(ctx, answered);
   updateState(ctx.statePath, pruneCaptions);
   updateState(ctx.statePath, pruneFailures(ctx.now()));
   const free = freeGb(ctx.cfg.home);
   const cards = await sweepStuck(ctx, answered, free >= ctx.cfg.minFreeGb, deps.repair);
+  await revive(ctx, cards);
   requeueKept(ctx, cards);
   if (free < ctx.cfg.minFreeGb) {
     reportScheduler(ctx.cfg.home, 'disk-low', ctx.now());
     return ctx.log('tick', null, `disk low: ${free} GB free, under ${ctx.cfg.minFreeGb} GB, starts nothing`);
   }
   requireCodexLogin(ctx.cfg.home);
+  requireAgyLogin(ctx.cfg.home);
   await ctx.repo.fetch();
   const heads = { dev: await ctx.repo.headHash('dev'), release: await releaseHead(ctx), main: await ctx.repo.headHash('main') };
   forgetCaughtUp(ctx, cards);

@@ -13,7 +13,7 @@ import { isStranded, vehicleStats, type MountedWeapon } from '../stats';
 import { tankLeaks } from '../supplies';
 import { playerCanAct, setAutoFire, setAutoRepair, setMoveOrder, setWeaponOrder } from '../world';
 import { basicsRepairCost, chassisPrice, chassisSwapRefusal, repairCost, supplyRoom, type Supply } from '../economy';
-import { abandonRun, canAbandonRun, canDriveOn, driveOn, nextOutpost, outpostTrucks, reachedOutpostAt, type Outpost } from '../fury-road';
+import { abandonRun, canAbandonRun, canDriveOn, driveOn, nextOutpost, outpostTrucks, reachedOutpostAt, type Outpost } from '../chaos-highway';
 import { inYard, yardSpots } from '../outpost-gates';
 import { RULES } from '../../data/rules';
 import { startRepair } from '../jobs';
@@ -23,7 +23,7 @@ import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, ou
 import type { MoveOrder, PartInstance, Vehicle, WeaponOrder, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { isJunk } from '../wear';
-import { FURY_ROAD } from '../../data/modes';
+import { CHAOS_HIGHWAY } from '../../data/modes';
 import { escortFoe, escortMove, gunTarget, hostilesSeen, unlessStuck, type Stall } from './escort-brain';
 import { aimFor } from './aim';
 import { armorHauler } from './escort-gear';
@@ -66,7 +66,7 @@ function givesUpOnRun(o: Orders): boolean {
   const known = WEDGED.get(key);
   const since = known !== undefined && known <= o.world.turn ? known : o.world.turn;
   WEDGED.set(key, since);
-  return o.world.turn - since >= FURY_ROAD.hauler.stallTurns;
+  return o.world.turn - since >= CHAOS_HIGHWAY.hauler.stallTurns;
 }
 
 function handleStranded(o: Orders): boolean {
@@ -132,7 +132,7 @@ function escort(o: Orders): void {
 }
 
 function parkInYard(world: World): MoveOrder {
-  const run = world.furyRoad!;
+  const run = world.chaosHighway!;
   return { kind: 'stopAt', dest: yardSpots(world, run.waitingAt ?? run.window + 1).truck };
 }
 
@@ -171,7 +171,7 @@ function sameOrder(a: WeaponOrder | null, b: WeaponOrder | null): boolean {
 }
 
 function haulerAtPad(world: World, hauler: Vehicle): boolean {
-  const run = world.furyRoad!;
+  const run = world.chaosHighway!;
   const spot = yardSpots(world, run.waitingAt ?? run.window + 1).hauler;
   const toSpot = hauler.order?.kind === 'stopAt' && dist(hauler.order.dest, spot) === 0;
   return toSpot || run.waitingAt !== null || inYard(world, hauler.pos, run.window + 1);
@@ -184,7 +184,7 @@ function hopToward(o: Orders, pad: Vec): void {
 }
 
 function nextHop(world: World, me: Vehicle, pad: Vec): Vec {
-  const window = world.furyRoad?.window ?? 0;
+  const window = world.chaosHighway?.window ?? 0;
   const along = alongOf(world.seed, toRoad(world.seed, window, me.pos)) + HOP;
   return along >= alongOf(world.seed, toRoad(world.seed, window, pad)) ? pad : roadPoint(world.seed, window, along, 0);
 }

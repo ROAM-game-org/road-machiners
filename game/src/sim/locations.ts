@@ -1,21 +1,18 @@
 import { REGION } from '../data/region';
-import { RULES } from '../data/rules';
 import { atlasKeyString, atlasOf, atlasSites } from './atlas';
 import { playerVehicle } from './damage';
 import { isKnockedOut } from './defeat';
 import { inTowReach } from './tow';
 import { breakLootWarning } from './loot-warning';
-import { canLootTruck, canReachSalvage, collectSalvage, hasRevealed, hasSalvage, hiddenUnits, lootBlocker, pourStores, requireLootFree, salvageInRange, takeBasis } from './salvage';
+import { canLootTruck, canReachSalvage, collectSalvage, hasRevealed, hasSalvage, hiddenUnits, lootBlocker, lootWork, pourStores, requireLootFree, salvageInRange, takeBasis } from './salvage';
 import { takeClaimed } from './parley';
 import { newId } from './factory';
-import { goodsCount, isMounted, type Spot } from './grid';
-import { getLayoutError, lootRefitTurns, requireIdleRefit } from './inventory';
+import { goodsCount, type Spot } from './grid';
+import { getLayoutError, queueRefit, requireIdleRefit } from './inventory';
 import { inCombat } from './combat';
-import { startJob } from './jobs';
 import { beginSearch } from './search';
 import { practice } from './progress';
 import { isFortress, siteGap, type Site } from './sites';
-import { atGarage } from './garage';
 import { modeRules } from './settings';
 import type { GridItem, PartInstance, SalvageStock, Vehicle, World } from './types';
 import { tileCenter } from './vision';
@@ -185,29 +182,23 @@ export type LootPick = { kind: 'part'; partId: string } | { kind: 'good'; good: 
 export function takeLoot(world: World, stockId: string, pick: LootPick, to: Spot): World {
   return playerCommand(world, (w) => {
     const stock = requireLootable(w, stockId);
-    const me = playerVehicle(w);
-    requireIdleRefit(me);
     const item: GridItem = pick.kind === 'part'
       ? { id: newId(w, 'i'), kind: 'part', part: requireStockPart(stock, pick.partId), ...to }
       : { id: newId(w, 'i'), kind: 'good', good: pick.good, ...to };
     if (pick.kind === 'good' && (stock.goods[pick.good] ?? 0) <= 0) throw new Error(`No ${pick.good} left here`);
-    const err = getLayoutError(me, [...me.items, item]);
-    if (err) throw new Refused(err);
     transferLoot(w, stock, item, to);
   });
 }
 
 function transferLoot(world: World, stock: SalvageStock, item: GridItem, to: Spot): void {
   const me = playerVehicle(world);
-  if (item.kind === 'part' && isMounted(me.chassisId, item) && !atGarage(world)) {
-    const work = lootRefitTurns(world, me, RULES.refitTurnsPerPart);
-    startJob(world, me, {
-      kind: 'refit', moves: [],
-      pickup: { from: 'stock', stockId: stock.id, partId: item.part.id, itemId: item.id, to },
-      turnsLeft: work, total: work,
-    });
+  if (item.kind === 'part' && lootWork(world, me, false, item) > 0) {
+    queueRefit(world, me, { moves: [], pickup: { from: 'stock', stockId: stock.id, partId: item.part.id, itemId: item.id, to } });
     return;
   }
+  requireIdleRefit(me);
+  const err = getLayoutError(me, [...me.items, item]);
+  if (err) throw new Refused(err);
   placeLoot(world, stock, item);
 }
 

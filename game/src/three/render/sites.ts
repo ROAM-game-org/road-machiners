@@ -518,6 +518,7 @@ function buildSite(t: Terrain, site: Site): BuiltSite {
   return { root: b.root, movers: b.movers, lights, lamps };
 }
 
+const MODEL_OVERHANG: Record<string, number> = { nose: 12 };
 const UP = new THREE.Vector3(0, 1, 0);
 function sitesOf(t: Terrain): (TownDef | SiteLocationDef)[] {
   const atlas = atlasOf(t);
@@ -555,7 +556,7 @@ export function addSites(t: Terrain, scope: RenderScope, play: PlayClock): { lig
   const lamps: PoolLamp[] = [];
   for (const site of sitesOf(t)) {
     const built = buildSite(t, site);
-    scope.add(built.root, site.pos, site.radius);
+    scope.add(built.root, site.pos, site.radius + (MODEL_OVERHANG[site.id] ?? 0));
     lights.push(...built.lights);
     lamps.push(...built.lamps);
     const phase = hash2(site.pos.x, site.pos.y) * MOTION_PHASE_SPAN;
@@ -588,13 +589,11 @@ export function soleSegment(t: Terrain, deck: Deck): DeckSegment {
   return segments[0];
 }
 
-function gateTowerLamps(b: SiteBuilder, site: Site, fort: FortGate): THREE.Mesh[] {
-  const towers = fortressPieces(site).filter((p) => p.kind === 'tower' && Math.hypot(p.pos.x - fort.gate.x, p.pos.y - fort.gate.y) < fort.width);
-  const mount = lampMount(site, 'tower');
-  return towers.map((t) => {
-    const face = { x: t.pos.x - site.pos.x + fort.out.x * t.r, z: t.pos.y - site.pos.y + fort.out.y * t.r };
-    return b.addWallLamp(face, { x: fort.out.x, z: fort.out.y }, mount.height, b.groundAt(face.x, face.z));
-  });
+function gateFaceLamp(b: SiteBuilder, site: Site, fort: FortGate): THREE.Mesh {
+  const mount = lampMount(site, 'gate');
+  const aside = fort.width / 4;
+  const face = { x: fort.gate.x - site.pos.x - fort.out.y * aside, z: fort.gate.y - site.pos.y + fort.out.x * aside };
+  return b.addWallLamp(face, { x: fort.out.x, z: fort.out.y }, mount.height, b.groundAt(face.x, face.z));
 }
 
 export class HollowLamps {
@@ -604,7 +603,7 @@ export class HollowLamps {
   constructor(terrain: Terrain, scope: RenderScope) {
     const site = HOLLOW.site;
     const builder = new SiteBuilder(terrain, site);
-    const gateLamps = fortressGates(site).flatMap((fort) => gateTowerLamps(builder, site, fort));
+    const gateLamps = fortressGates(site).map((fort) => gateFaceLamp(builder, site, fort));
     const lanterns = HOLLOW.lanterns.map((l) => builder.addLantern(l.x, l.y, Math.atan2(l.y, -l.x)));
     for (const head of [...gateLamps, ...lanterns, builder.addFirePit(HOLLOW.fire.x, HOLLOW.fire.y)]) this.lightUp(head);
     scope.add(builder.root, site.pos, site.radius);

@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { haulerOf } from '../sim/damage';
 import { highwayHash } from '../sim/highway';
 import { frontAhead } from '../sim/rig';
-import { furyRoadWorld } from '../sim/testkit';
+import { chaosHighwayWorld } from '../sim/testkit';
 import type { World } from '../sim/types';
+import { beforeChaosHighwayName } from '../test/before-chaos-highway-name';
 import { TEST_MAP } from '../test/map';
 import { loadWorld, SaveError, writeSave } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
@@ -14,11 +15,11 @@ function slotsOf(world: World): SaveSlots {
   return slots;
 }
 
-type Envelope = { format: { major: number; minor: number }; world: { vehicles: { id: string; pos: { x: number; y: number }; heading: number; bend?: number }[] } };
+type Envelope = { steps?: unknown; format: { major: number; minor: number }; world: { vehicles: { id: string; pos: { x: number; y: number }; heading: number; bend?: number }[] } };
 
 describe('a saved rig', () => {
   it('gives back the bend of a folded hauler and awards nothing on load', () => {
-    const world = furyRoadWorld(21);
+    const world = chaosHighwayWorld(21);
     haulerOf(world).bend = 0.42;
 
     const loaded = loadWorld(slotsOf(world), 'auto', TEST_MAP)!;
@@ -31,7 +32,7 @@ describe('a saved rig', () => {
   });
 
   it('moves the hauler of a live run saved before the swivel onto its tractor and loads it on its own highway', () => {
-    const world = furyRoadWorld(21);
+    const world = chaosHighwayWorld(21);
     const hauler = haulerOf(world);
     const slots = slotsOf(world);
     const envelope = slots.get('auto') as unknown as Envelope;
@@ -40,6 +41,8 @@ describe('a saved rig', () => {
     old.pos = middle;
     delete old.bend;
     envelope.format = { ...envelope.format, minor: 80 };
+    delete envelope.steps;
+    beforeChaosHighwayName(envelope.world);
     slots.put('auto', envelope as never);
 
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
@@ -51,7 +54,7 @@ describe('a saved rig', () => {
   });
 
   it('refuses a rig without a bend', () => {
-    const world = furyRoadWorld(21);
+    const world = chaosHighwayWorld(21);
     const slots = slotsOf(world);
     const envelope = slots.get('auto') as unknown as Envelope;
     delete envelope.world.vehicles.find((v) => v.id === haulerOf(world).id)!.bend;

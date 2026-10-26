@@ -4,7 +4,8 @@ import { emptyWorld } from "../sim/testkit";
 import { addVehicle } from "../sim/testkit";
 import { conditionLabel, CRITICAL_BELOW, HURT_BELOW, tierOf, TruckConditionReadout } from "./hud-readout";
 import { partName } from "../text/names";
-import { partDef } from "../data/parts";
+import { PARTS, partDef } from "../data/parts";
+import { edgedWhenHealthy } from "./truck-condition-view";
 import type { Msg } from "../text/msg";
 import { resolve } from "../text/resolve";
 
@@ -137,5 +138,19 @@ describe("condition tiers", () => {
     const vehicle = emptyWorld().vehicles[0];
     mountedParts(vehicle, "engine")[0].hp = 1;
     for (const part of new TruckConditionReadout().update(vehicle)) expect(part.tier).toBe(tierOf(part.percent));
+  });
+});
+
+describe("healthy edge", () => {
+  it("edges guns, armor, accessories and tires", () => {
+    for (const id of ["mg", "shotgun", "slugCannon", "steelPlate", "plowRam", "wheel"]) expect(edgedWhenHealthy(id), id).toBe(true);
+  });
+
+  it("leaves engines and other cores bare", () => {
+    for (const id of ["stockEngine", "transmission", "tank", "cabPickup"]) expect(edgedWhenHealthy(id), id).toBe(false);
+  });
+
+  it("edges every weapon", () => {
+    for (const def of Object.values(PARTS)) if (def.kind === "weapon") expect(edgedWhenHealthy(def.id), def.id).toBe(true);
   });
 });

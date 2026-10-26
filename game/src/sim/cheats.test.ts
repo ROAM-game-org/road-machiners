@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
+import { bedRows } from './chassis-features';
 import { atlasOf, atlasSites } from './atlas';
 import { chassisDef, PLAYER_CHASSIS } from '../data/chassis';
 import { gunSpans } from './armor';
 import { mountedItems } from './grid';
 import { generateNpcLoadout } from './npc-loadout';
 import { partDef } from '../data/parts';
-import { REGION } from '../data/region';
+import { REGION, RETIRED_SITES } from '../data/region';
+import { HOLLOW } from '../data/sunward';
+import { NAMES } from '../text/en/names';
 import { WEATHER } from '../data/weather';
 import { CHEATS, RULES } from '../data/rules';
 import { START_KITS } from '../data/start';
@@ -26,8 +29,9 @@ import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, 
 import type { World } from './types';
 import { dist } from './vec';
 import { stormStrength } from './weather';
-import { canUseSite, siteGap } from './sites';
-import { endTurn, hostileToPlayer, newWorld } from './world';
+import { canUseSite, isTerritory, siteGap, worldPlaces } from './sites';
+import { endTurn, hostileToPlayer, newWorld, update } from './world';
+import { highwayMap } from './highway';
 import { TEST_MAP } from '../test/map';
 import { defaultSetup } from './settings';
 
@@ -90,15 +94,15 @@ describe('resource cheats', () => {
   });
 
   it('grants a perk below its skill rank', () => {
-    const w = grantPerk(emptyWorld(), 'bountyTalk');
-    expect(w.player.perks).toEqual(['bountyTalk']);
+    const w = grantPerk(emptyWorld(), 'bountyHunter');
+    expect(w.player.perks).toEqual(['bountyHunter']);
   });
 
   it('refuses an unknown perk and a second perk from one pair', () => {
     expect(() => grantPerk(emptyWorld(), 'flying')).toThrow(CheatError);
-    const w = grantPerk(emptyWorld(), 'bountyTalk');
+    const w = grantPerk(emptyWorld(), 'bountyHunter');
     expect(() => grantPerk(w, 'paidTruce')).toThrow(CheatError);
-    expect(() => grantPerk(w, 'bountyTalk')).toThrow(CheatError);
+    expect(() => grantPerk(w, 'bountyHunter')).toThrow(CheatError);
   });
 });
 
@@ -116,7 +120,10 @@ describe('part cheats', () => {
   });
 
   it('spills the cargo off a cargo part it breaks', () => {
-    const w = damagePartTo(emptyWorld(), 'panniers', 0);
+    const loaded = emptyWorld();
+    const row = chassisDef('scout').layout.length + bedRows('scout');
+    playerVehicle(loaded).items.push({ id: 'i-spill', kind: 'good', good: 'scrap', x: 0, y: row, rot: 0 });
+    const w = damagePartTo(loaded, 'panniers', 0);
     const me = playerVehicle(w);
     const g = gridOf(me);
     expect(me.items.filter((it) => it.y >= g.deadFrom)).toEqual([]);
@@ -349,13 +356,36 @@ describe('teleport', () => {
 });
 
 describe('places and time', () => {
-  it('teleports to a spot where every town and location can be used', () => {
+  it('teleports to the usable spot of every named place, found through the name catalog', () => {
     const w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
-    for (const place of [...REGION.towns, ...REGION.locations.filter((l) => l.kind !== 'territory')]) {
-      const next = teleport(w, placeSpot(w, place.id));
-      expect(canUseSite(playerVehicle(next).pos, place), place.id).toBe(true);
+    const named = Object.keys(NAMES).filter((key) => key.startsWith('site.')).map((key) => key.slice('site.'.length)).filter((id) => !RETIRED_SITES.includes(id));
+    const places = worldPlaces(w);
+    expect(places.map((p) => p.id).sort()).toEqual([...named].sort());
+    for (const id of named) {
+      const place = places.find((p) => p.id === id)!;
+      const pos = playerVehicle(teleport(w, placeSpot(w, id))).pos;
+      if (isTerritory(place)) expect(Math.abs(siteGap(place, pos)), id).toBeLessThan(1e-6);
+      else expect(canUseSite(pos, place), id).toBe(true);
     }
-    expect(() => placeSpot(w, 'atlantis')).toThrow(new RegExp(REGION.towns[0].id));
+    for (const id of RETIRED_SITES) expect(places.some((p) => p.id === id), id).toBe(false);
+    expect(() => placeSpot(w, 'atlantis')).toThrow(/sunward-hollow/);
+  });
+
+  it('teleports to the Hollow gate pad, also after the order falls', () => {
+    const w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const fallen = update(w, (d) => {
+      d.sunward!.collapsed = 5;
+    });
+    for (const world of [w, fallen]) {
+      const pos = playerVehicle(teleport(world, placeSpot(world, 'sunward-hollow'))).pos;
+      expect(canUseSite(pos, HOLLOW.site)).toBe(true);
+      expect(dist(pos, HOLLOW.pos)).toBeGreaterThan(HOLLOW.radius);
+    }
+  });
+
+  it('refuses a place id on Chaos Highway', () => {
+    const w = newWorld(3, START_KITS.chaosHighway, highwayMap(3, 0), defaultSetup('chaosHighway'));
+    expect(() => placeSpot(w, 'orchard')).toThrow(CheatError);
   });
 
   it('sends a teleport to a territory to where its road ends', () => {

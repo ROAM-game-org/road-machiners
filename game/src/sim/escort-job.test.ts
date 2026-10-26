@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { ESCORT_JOB, SHOPS } from '../data/market';
-import { NPC_BEHAVIOR } from '../data/npcs';
+import { NPC_BEHAVIOR, NPCS } from '../data/npcs';
 import { PARTS } from '../data/parts';
 import { playerVehicle } from './damage';
 import { awaitsEscort, escortBlocked, escortFit, escortReward, escortShare, escortStatus, heldEscort, holdEscort, postEscortOffer, routeThreat, traderWaits, type EscortContract } from './escort-job';
 import { acceptContract, advanceContracts, advanceShops, siteOf } from './market';
+import { addGoods } from './inventory';
+import { settleCashThreat, settleThreat } from './parley';
 import { sitePads } from './sites';
 import { getResources } from './resources';
 import { addState, stateOf } from './states';
@@ -26,7 +28,7 @@ function waitGoal(): NpcActivity {
 }
 
 function sellGoal(): NpcActivity {
-  return { kind: 'sell', targetId: 'nose', destination: { ...NOSE.pos }, phase: 'travel', reason: 'deliverCargo' };
+  return { kind: 'sell', targetId: 'nose', destination: { ...NOSE.pos }, phase: 'travel', reason: 'deliverCargo', shipment: { good: 'fuelDrums', from: 'bowl', to: 'nose' } };
 }
 
 function setup(): { w: World; trader: Vehicle; offer: EscortContract } {
@@ -36,6 +38,7 @@ function setup(): { w: World; trader: Vehicle; offer: EscortContract } {
   const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], pos);
   trader.brain = npcBrain('trader', pos, ['trader']);
   trader.brain.goals = [sellGoal(), waitGoal()];
+  addGoods(w, trader, 'fuelDrums', 3);
   postEscortOffer(w, trader, 'bowl', 'nose');
   const offer = w.shops.bowl.contracts.find((c): c is EscortContract => c.kind === 'escort')!;
   return { w, trader, offer };
@@ -332,6 +335,57 @@ describe('the outcomes', () => {
     expect(next.player.money).toBe(money);
   });
 
+  it('pays a share when a third truck takes every crate of the client', () => {
+    const { w, trader, offer } = setup();
+    const next = take(w, offer);
+    heldEscort(next)!.together = heldEscort(next)!.span / 4;
+    const client = traderIn(next, trader);
+    client.items = client.items.filter((it) => it.kind !== 'good');
+    client.brain!.goals = [];
+    const money = next.player.money;
+    const events = tick(next, 1);
+    expect(events.filter((e) => e.t === 'escortEnded' && e.end === 'cargoLost')).toHaveLength(1);
+    expect(next.player.money).toBe(money + Math.round(offer.reward * 0.75));
+    expect(heldEscort(next)).toBeNull();
+    expect(next.player.pastContracts.filter((r) => r.contract.id === offer.id)).toHaveLength(1);
+    expect(stateOf(next, 'escort', playerVehicle(next).id, trader.id)).toBeNull();
+  });
+
+  it('runs on when the client keeps some crates', () => {
+    const { w, trader, offer } = setup();
+    const next = take(w, offer);
+    const client = traderIn(next, trader);
+    client.items.splice(client.items.findIndex((it) => it.kind === 'good'), 1);
+    tick(next, 1);
+    expect(heldEscort(next)).not.toBeNull();
+  });
+
+  for (const settle of [settleThreat, settleCashThreat]) {
+    it(`fails the job with no pay when the player robs the client (${settle.name})`, () => {
+      const { w, trader, offer } = setup();
+      const next = take(w, offer);
+      settle(next, traderIn(next, trader), 'comply');
+      const money = next.player.money;
+      const events = tick(next, 1);
+      expect(events.some((e) => e.t === 'escortEnded' && e.end === 'hostile')).toBe(true);
+      expect(next.player.money).toBe(money);
+      expect(heldEscort(next)).toBeNull();
+    });
+  }
+
+  it('does not hold a robbery from before the escort against the player', () => {
+    const { w, trader, offer } = setup();
+    settleThreat(w, trader, 'comply');
+    w.turn += 3;
+    w.states = w.states.filter((s) => s.kind !== 'trade' && s.kind !== 'handover');
+    const next = take(w, offer);
+    const client = traderIn(next, trader);
+    client.items = client.items.filter((it) => it.kind !== 'good');
+    client.brain!.goals = [];
+    const events = tick(next, 1);
+    expect(events.some((e) => e.t === 'escortEnded' && e.end === 'cargoLost')).toBe(true);
+  });
+
   it('throws when the escort state vanished with nothing to explain it', () => {
     const { w, trader, offer } = setup();
     const next = take(w, offer);
@@ -413,6 +467,7 @@ describe('on the turn pipeline', () => {
 
   it('lets a trader that finds no taker leave alone once its wait is over', () => {
     const { w, trader, offer } = setup();
+    for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     let next = w;
     for (let i = 0; i < ESCORT_JOB.postTurns + 3; i++) {
       if (next.player.call) next = hangUp(next);
@@ -474,19 +529,19 @@ describe('hold and go on the radio', () => {
   it('offers the hold order only to the client of a held escort, and the go order only under a hold', () => {
     const { w, trader, offer } = setup();
     const before = call(w, trader);
-    expect(texts(before)).not.toContain('Wait here. I will scout the road ahead.');
+    expect(texts(before)).not.toContain("Wait here. I'll scout the road ahead.");
     const next = take(w, offer);
     const live = traderIn(next, trader);
     live.pos = { x: playerVehicle(next).pos.x + 10, y: playerVehicle(next).pos.y };
     let open = call(next, live);
-    expect(texts(open)).toContain('Wait here. I will scout the road ahead.');
-    expect(texts(open)).not.toContain('Let us move.');
-    open = chooseOption(open, texts(open).indexOf('Wait here. I will scout the road ahead.'));
+    expect(texts(open)).toContain("Wait here. I'll scout the road ahead.");
+    expect(texts(open)).not.toContain("Let's move.");
+    open = chooseOption(open, texts(open).indexOf("Wait here. I'll scout the road ahead."));
     open = chooseOption(open, 0);
     expect(heldEscort(open)!.holdUntil).not.toBeNull();
     open = call(open, traderIn(open, trader));
-    expect(texts(open)).toContain('Let us move.');
-    open = chooseOption(open, texts(open).indexOf('Let us move.'));
+    expect(texts(open)).toContain("Let's move.");
+    open = chooseOption(open, texts(open).indexOf("Let's move."));
     open = chooseOption(open, 0);
     expect(heldEscort(open)!.holdUntil).toBeNull();
   });

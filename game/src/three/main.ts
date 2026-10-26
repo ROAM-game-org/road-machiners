@@ -2,7 +2,7 @@
 import { formatSupport, loadBank, recoverBank, reportFailures, type BankOptions, type LoadedBank } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
-import { CONFIG, ERROR_REPORT_URL, GAME_VERSION, SFX_BYTES } from '../config';
+import { CONFIG, ERROR_REPORT_URL, FEEDBACK_URL, GAME_VERSION, SFX_BYTES } from '../config';
 import { BANK, BOOT_SOUNDS, MIX, SOUNDS } from '../data/sounds';
 import { bankKitLoader, CombatMusic } from './combat-music';
 import { startKit } from '../data/start';
@@ -17,9 +17,11 @@ import { BOOT_TEXT } from '../ui/boot-progress';
 import { BootScreen } from '../ui/boot-screen';
 import { fontsReady } from '../ui/fonts';
 import { uiRoot } from '../ui/dom';
+import { mountReportDesk } from '../ui/feedback-form';
 import { watchInputMode } from '../ui/input-mode';
 import { loadUiSize, windowExtent } from '../ui/ui-size';
 import { loadMinimapSetting } from '../ui/minimap-setting';
+import { loadCameraSetting } from '../ui/camera-setting';
 import { loadLanguage, relocalize } from '../text/language';
 import type { DevLocale } from '../text/msg';
 import type { QuestLanguage } from '../data/quests';
@@ -76,7 +78,7 @@ async function bootSlot(slot: SlotId): Promise<Booted> {
     const world = loadWorld(slots, slot, map);
     if (!world) return newGameSaved(defaultSetup('roaming'), true);
     const runId = savedRunId(storedSave(slots, slot));
-    if (runId === null) throw new Error(`The save in ${slot} loaded but names no run`);
+    if (runId === null) throw new SaveError('invalidSave', null, `The save in ${slot} loaded but names no run`);
     return { world, runId, loadedFrom: slot, fresh: false };
   } catch (err) {
     return unloadedSlot(err, slot);
@@ -92,10 +94,14 @@ async function unloadedSlot(err: unknown, slot: SlotId): Promise<Booted> {
 }
 
 function carried(slot: SlotId): NonNullable<ReturnType<typeof carriedSave>> | SaveError {
+  return asSaveError(() => carriedSave(slots, slot, map, startKit(CONFIG.startKit), freshSeed, freshRunId));
+}
+
+function asSaveError(carry: () => ReturnType<typeof carriedSave>): NonNullable<ReturnType<typeof carriedSave>> | SaveError {
   try {
-    return carriedSave(slots, slot, map, startKit(CONFIG.startKit), freshSeed, freshRunId) ?? new SaveError('unreadable');
+    return carry() ?? new SaveError('unreadable');
   } catch (error) {
-    return new SaveError('invalidSave', null, (error as Error).message);
+    return error instanceof SaveError ? error : new SaveError('invalidSave', null, (error as Error).message);
   }
 }
 
@@ -118,8 +124,8 @@ function newGameSaved(setup: WorldSetup, intro: boolean): Booted {
 
 async function rescuedOrNew(error: SaveError, slot: SlotId, carries: boolean): Promise<Booted> {
   await boot.aside(() => chooseSaveFate(error, carries, storedSave(slots, slot), newGameActions, soundSettings));
-  const rescued = rescueSave(slots, slot, map, startKit(CONFIG.startKit), freshSeed, freshRunId, Date.now());
-  if (!rescued) throw new Error('The save became unreadable while migrating');
+  const rescued = asSaveError(() => rescueSave(slots, slot, map, startKit(CONFIG.startKit), freshSeed, freshRunId, Date.now()));
+  if (rescued instanceof SaveError) return rescuedOrNew(rescued, slot, false);
   return { world: rescued.world, runId: rescued.runId, loadedFrom: null, fresh: false };
 }
 
@@ -150,8 +156,10 @@ const saveKey = questJump ? `${SAVE_KEY}-quest-view` : SAVE_KEY;
 const language = loadLanguage(window.localStorage, window.location.search, import.meta.env.DEV, document.documentElement);
 const sizeOfUi = loadUiSize(window.localStorage, window.location.search, import.meta.env.DEV, [uiRoot(), element('overlay')], document.documentElement, windowExtent());
 loadMinimapSetting(window.localStorage);
+loadCameraSetting(window.localStorage);
 window.addEventListener('resize', () => sizeOfUi.refit(windowExtent()));
-watchInputMode(uiRoot(), sizeOfUi);
+watchInputMode([uiRoot(), element('report')], sizeOfUi);
+mountReportDesk(element('report'), gameContext, FEEDBACK_URL);
 const questLanguageOf = (locale: DevLocale): QuestLanguage => (locale === 'pseudo' ? 'en' : locale);
 setQuestLanguage(questLanguageOf(language.current()));
 let relocalizeGame: (() => void) | null = null;
@@ -159,6 +167,7 @@ language.subscribe(() => {
   setQuestLanguage(questLanguageOf(language.current()));
   relocalize(uiRoot());
   relocalize(element('overlay'));
+  relocalize(element('report'));
   relocalizeGame?.();
 });
 let flushSaves = (): Promise<void> => Promise.resolve();
@@ -204,6 +213,7 @@ const loading = Promise.all([
 bootStep('loading the map');
 const map = await boot.track('map', fetchMap());
 const slots = await openSaves(saveKey, window.localStorage, allSlots(CONFIG.saveSlots));
+gameContext.watchSaves(slots);
 flushSaves = () => slots.flush();
 persistSaves().catch(reportError);
 const newGameActions: NewGameActions = {
@@ -223,7 +233,7 @@ const { bank } = loadedBank;
 if (loadedBank.format !== BANK.formats[0].ext) console.warn(`Sounds play from the ${loadedBank.format} twins, since ${BANK.formats[0].ext} did not decode`);
 for (const failure of loadedBank.unreachable) console.warn(`Sound ${failure.file} could not be fetched`, failure.errors);
 bootStep('starting the game');
-const radio = new RadioPanel(new RadioStation(Math.random), soundSettings, () => game.loops.nextTrack());
+const radio = new RadioPanel(new RadioStation(Math.random), () => game.loops.nextTrack());
 radio.hear(world);
 const overlay = element('overlay');
 const game = await boot.track('scene', () => new Game(world, { slots, runId, log, mapHash: world.mapHash }, element('game'), overlay, new SoundPlayer(mixer, bank, SOUNDS), music, soundSettings, radio, surface));
@@ -245,7 +255,7 @@ bootStep('running');
 await uiFonts;
 boot.showText();
 if (loadedBank.failures.length) whenVisible(() => void recoverSounds(loadedBank).catch(reportError));
-gameContext.watch({ world: () => game.state, log: () => game.logTexts(), slots });
+gameContext.watch({ world: () => game.state, log: () => game.logTexts() });
 performance.mark('roam:ready');
 void boot.finish();
 if (import.meta.env.DEV) {

@@ -7,26 +7,26 @@ Parts are defined in `src/data/parts.ts`, chassis in `src/data/chassis.ts` and g
 ## Chassis
 
 <!-- wiki:chassis -->
-| id | name | tier | value (M) | max speed (tiles/turn) | accel | brake | mass (kg) | rated mass (kg) | radius (tiles) | fuel cap | fuel per tile | grid (w x h) | core parts | garages |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| scout | Scout pickup | 1 | 815 | 7.8 | 2 | 3 | 680 | 3840 | 0.6 | 40 | 0.25 | 7 x 8 | cabPickup, transmission, tank, wheel, wheel, wheel, wheel | bowl, nose |
-| hauler | Hauler | 2 | 1,226 | 5.2 | 1 | 2 | 2730 | 7590 | 0.8 | 80 | 0.4 | 9 x 9 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl |
-| buggy | Buggy | 1 | 643 | 9.1 | 3 | 3 | 230 | 3280 | 0.5 | 30 | 0.2 | 7 x 8 | cab, transmission, tank, wheel, wheel, wheel, wheel | bowl, nose |
-| wagon | Gunwagon | 2 | 1,008 | 3.9 | 1 | 2 | 2130 | 6990 | 0.8 | 60 | 0.4 | 9 x 9 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | nose |
-| courier | Courier | 1 | 774 | 9.75 | 3 | 3 | 280 | 3750 | 0.5 | 24 | 0.18 | 7 x 9 | cab, transmission, tank, wheel, wheel, wheel, wheel | bowl, nose |
-| van | Utility van | 2 | 1,027 | 6.5 | 1.5 | 3 | 1100 | 4790 | 0.7 | 55 | 0.24 | 7 x 9 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl |
-| longbed | Longbed truck | 3 | 1,795 | 4.55 | 0.8 | 1.8 | 2900 | 8930 | 0.95 | 100 | 0.48 | 9 x 11 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl |
-| carrier | Armored carrier | 3 | 1,626 | 5.2 | 1 | 2.5 | 3200 | 7620 | 0.85 | 70 | 0.5 | 9 x 9 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | nose |
-| tractor | Heavy tractor | 3 | 1,461 | 3.9 | 1.8 | 2 | 3600 | 8460 | 0.9 | 120 | 0.6 | 9 x 9 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl |
-| jeep | Jeep | 1 | 729 | 8.2 | 2.5 | 3 | 450 | 3920 | 0.55 | 35 | 0.2 | 7 x 9 | cab, transmission, tank, wheel, wheel, wheel, wheel | nose |
-| convertible | Convertible | 2 | 998 | 9.4 | 2.5 | 3 | 750 | 4440 | 0.6 | 45 | 0.26 | 7 x 9 | cabHardtop, transmission, tankLong, wheel, wheel, wheel, wheel | bowl |
-| bus | Bus | 2 | 1,267 | 5.5 | 0.9 | 2 | 3000 | 9010 | 0.9 | 110 | 0.45 | 9 x 12 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl |
-| loader | Wheel loader | 3 | 1,696 | 3.6 | 1.6 | 2.5 | 4200 | 9060 | 0.9 | 130 | 0.65 | 9 x 9 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl |
-| niva | Niva | 2 | 1,050 | 7.6 | 2.2 | 3 | 520 | 4410 | 0.55 | 42 | 0.21 | 7 x 10 | cab, transmissionMid, tank, wheelMid, wheelMid, wheelMid, wheelMid | nose |
-| bukhanka | Bukhanka | 2 | 1,150 | 6 | 1.4 | 2.5 | 1250 | 5360 | 0.65 | 78 | 0.3 | 7 x 10 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | nose |
-| lincoln | Lincoln | 3 | 1,430 | 8.6 | 2 | 2.2 | 900 | 5540 | 0.85 | 85 | 0.36 | 7 x 11 | cabHardtop, transmission, tankLong, wheel, wheel, wheel, wheel | nose |
-| semi | Semi | 3 | 1,400 | 6 | 0.8 | 1.5 | 9000 | 16430 | 1.2 | 160 | 0.5 | 9 x 29 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid |  |
-| sorokonoga | Sorokonoga | 3 | 1,766 | 3.4 | 0.7 | 1.6 | 4100 | 10800 | 1 | 140 | 0.55 | 9 x 16 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl |
+| id | name | tier | value (M) | max speed (tiles/turn) | accel | brake | mass (kg) | rated mass (kg) | radius (tiles) | fuel cap | fuel per tile | grid (w x h) | core parts | garages | ability |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| scout | Scout pickup | 1 | 815 | 7.8 | 2 | 3 | 680 | 3840 | 0.6 | 40 | 0.25 | 7 x 8 | cabPickup, transmission, tank, wheel, wheel, wheel, wheel | bowl, nose | bed |
+| hauler | Hauler | 2 | 1,226 | 5.2 | 1 | 2 | 2730 | 7590 | 0.8 | 80 | 0.4 | 9 x 9 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl | bed |
+| buggy | Buggy | 1 | 643 | 9.1 | 3 | 3 | 230 | 3280 | 0.5 | 30 | 0.2 | 7 x 8 | cab, transmission, tank, wheel, wheel, wheel, wheel | bowl, nose | nimble |
+| wagon | Gunwagon | 2 | 1,008 | 3.9 | 1 | 2 | 2130 | 6990 | 0.8 | 60 | 0.4 | 9 x 9 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | nose | gunMounts |
+| courier | Courier | 1 | 774 | 9.75 | 3 | 3 | 280 | 3750 | 0.5 | 24 | 0.18 | 7 x 9 | cab, transmission, tank, wheel, wheel, wheel, wheel | bowl, nose | racing |
+| van | Utility van | 2 | 1,027 | 6.5 | 1.5 | 3 | 1100 | 4790 | 0.7 | 55 | 0.24 | 7 x 9 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl | armored |
+| longbed | Longbed truck | 3 | 1,795 | 4.55 | 0.8 | 1.8 | 2900 | 8930 | 0.95 | 100 | 0.48 | 9 x 11 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl | bed |
+| carrier | Armored carrier | 3 | 1,626 | 5.2 | 1 | 2.5 | 3200 | 7620 | 0.85 | 70 | 0.5 | 9 x 9 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | nose | armored |
+| tractor | Heavy tractor | 3 | 1,461 | 3.9 | 1.8 | 2 | 3600 | 8460 | 0.9 | 120 | 0.6 | 9 x 9 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl | battle |
+| jeep | Jeep | 1 | 729 | 8.2 | 2.5 | 3 | 450 | 3920 | 0.55 | 35 | 0.2 | 7 x 9 | cab, transmission, tank, wheel, wheel, wheel, wheel | nose | offRoad |
+| convertible | Convertible | 2 | 998 | 9.4 | 2.5 | 3 | 750 | 4440 | 0.6 | 45 | 0.26 | 7 x 9 | cabHardtop, transmission, tankLong, wheel, wheel, wheel, wheel | bowl | openTop |
+| bus | Bus | 2 | 1,267 | 5.5 | 0.9 | 2 | 3000 | 9010 | 0.9 | 110 | 0.45 | 9 x 12 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl | springs |
+| loader | Wheel loader | 3 | 1,696 | 3.6 | 1.6 | 2.5 | 4200 | 9060 | 0.9 | 130 | 0.65 | 9 x 9 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl | gunMounts |
+| niva | Niva | 2 | 1,050 | 7.6 | 2.2 | 3 | 520 | 4410 | 0.55 | 42 | 0.21 | 7 x 10 | cab, transmissionMid, tank, wheelMid, wheelMid, wheelMid, wheelMid | nose | offRoad |
+| bukhanka | Bukhanka | 2 | 1,150 | 6 | 1.4 | 2.5 | 1250 | 5360 | 0.65 | 78 | 0.3 | 7 x 10 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | nose | armored |
+| lincoln | Lincoln | 3 | 1,430 | 8.6 | 2 | 2.2 | 900 | 5540 | 0.85 | 85 | 0.36 | 7 x 11 | cabHardtop, transmission, tankLong, wheel, wheel, wheel, wheel | nose | tourer |
+| semi | Semi | 3 | 1,400 | 6 | 0.8 | 1.5 | 9000 | 16430 | 1.2 | 160 | 0.5 | 9 x 29 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid |  |  |
+| sorokonoga | Sorokonoga | 3 | 1,766 | 3.4 | 0.7 | 1.6 | 4100 | 10800 | 1 | 140 | 0.55 | 9 x 16 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl | trailer |
 <!-- /wiki:chassis -->
 
 ## Weapons
@@ -107,12 +107,12 @@ Each weapon's round:
 | plates | Steel plates | 2 | 68 | 1 x 2 | 28.125 | 53 | 12 | false | 12 | capped | 1 |
 | cage | Rebar cage | 1 | 73 | 1 x 2 | 20.625 | 60 | 2 | false | 20 | capped | 1 |
 | scrapPanels | Scrap panels | 1 | 50 | 1 x 2 | 30 | 44 | 5 | false | 5 | full | 1 |
-| ceramicPlates | Ceramic plates | 2 | 150 | 1 x 2 | 18.75 | 36 | 22 | false | 8 | none | 1 |
+| ceramicPlates | Ceramic plates | 2 | 140 | 1 x 2 | 18.75 | 44 | 14 | false | 8 | none | 1 |
 | spacedArmor | Spaced armor | 2 | 71 | 1 x 2 | 24.375 | 55 | 10 | false | 28 | capped | 1 |
 | reinforcedCage | Reinforced cage | 2 | 78 | 1 x 2 | 22.5 | 86 | 4 | false | 26 | capped | 1.2 |
 | steelPlate | Steel plate | 2 | 66 | 1 x 1 | 15 | 28 | 12 | false | 12 | capped | 1 |
 | scrapSheet | Scrap sheet | 1 | 34 | 1 x 1 | 15 | 22 | 5 | false | 5 | full | 1 |
-| ceramicTile | Ceramic tile | 2 | 87 | 1 x 1 | 9.375 | 18 | 22 | false | 8 | none | 1 |
+| ceramicTile | Ceramic tile | 2 | 82 | 1 x 1 | 9.375 | 22 | 14 | false | 8 | none | 1 |
 | spacedTile | Spaced armor tile | 2 | 76 | 1 x 1 | 12.375 | 28 | 10 | false | 28 | capped | 1 |
 | cageSection | Rebar cage section | 1 | 42 | 1 x 1 | 10.3125 | 30 | 2 | false | 20 | capped | 1 |
 | reinforcedSection | Reinforced cage section | 2 | 70 | 1 x 1 | 11.25 | 43 | 4 | false | 26 | capped | 1.2 |
@@ -214,7 +214,7 @@ Yellow deck parts with one job each. An active utility acts once on an order and
 | batteries | Batteries | 2 | 26 |
 | electronics | Electronics | 3 | 52 |
 | parts | Parts | 1 | 7 |
-| fuelDrums | Fuel drums | 1 | 10 |
+| fuelDrums | Petrol | 1 | 10 |
 | water | Water | 1 | 6 |
 | relics | Ship Metal | 3 | 44 |
 | rations | Rations | 1 | 12 |

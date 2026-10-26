@@ -2,7 +2,7 @@
 import { reportLostTruck } from './road-news';
 import { onCall } from "./dialogue";
 import { aimAt } from "./parley";
-import { FURY_ROAD } from '../data/modes';
+import { CHAOS_HIGHWAY } from '../data/modes';
 import { isDefeated, isKnockedOut, knockOutNpc } from './defeat';
 import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
@@ -23,8 +23,9 @@ import { getResources } from './resources';
 import { chance, gauss, randInt, randRange } from './rng';
 import { sampleWeighted } from './npc-loadout';
 import { vehicleMass } from './mass';
-import { vehicleStats, type MountedWeapon } from './stats';
-import { partDef, type WeaponDef } from '../data/parts';
+import { nimbleSpread } from './chassis-features';
+import { vehicleStats, weaponOn, type MountedWeapon } from './stats';
+import type { WeaponDef } from '../data/parts';
 import type { Aim, GameEvent, GunState, NpcActivity, PartInstance, ShotRound, Vehicle, VehicleHits, World } from './types';
 import { digCrater } from './craters';
 import { weatherOn } from './weather';
@@ -35,6 +36,7 @@ import { attachLine } from './harpoon';
 import { angleDiff, bearing, clamp, dist, DEG, type Vec } from './vec';
 import { damageScale, modeRules } from './settings';
 import { attacks, hostileFrom, huntsAsPrey, isAlly, noteDefeat, reportIncident } from "./relations";
+import type { CrashFault } from "./crash-contact";
 
 export type FireBlock =
   | "disabled"
@@ -137,7 +139,7 @@ export function dropMagazine(part: PartInstance): void {
 
 function tickGuns(world: World, fired: Set<string>): void {
   for (const v of world.vehicles)
-    for (const part of mountedParts(v, "weapon")) tickGun(part, fired.has(part.id));
+    for (const part of mountedParts(v, "weapon")) tickGun(v, part, fired.has(part.id));
 }
 
 function worksReload(gun: GunState, def: WeaponDef, fired: boolean, cooling: boolean): boolean {
@@ -145,8 +147,8 @@ function worksReload(gun: GunState, def: WeaponDef, fired: boolean, cooling: boo
   return gun.ammo === 0 || !cooling;
 }
 
-function tickGun(part: PartInstance, fired: boolean): void {
-  const def = partDef(part.defId) as WeaponDef;
+function tickGun(v: Vehicle, part: PartInstance, fired: boolean): void {
+  const def = weaponOn(v, part);
   const gun = gunOf(part);
   const cooling = gun.cooldown > 0;
   if (cooling) gun.cooldown--;
@@ -187,6 +189,7 @@ export type HitOdds = {
     skill: number;
     weather: number;
     smoke: number;
+    nimble: number;
     still: number;
   };
 };
@@ -495,6 +498,7 @@ function spreadCauses(world: World, shooter: Vehicle, shot: WeaponDef, target: V
     recoil: (shot.recoil * DEG) / (vehicleMass(shooter) / KG_PER_TONNE),
     weather: vehicleHasPerk(world, shooter, "stormRider") ? 0 : weatherOn(world, shooter).spread,
     smoke: smokeCrosses(world, shooter.pos, target.pos) ? SMOKE.spread : 0,
+    nimble: Math.abs(target.speed) > RULES.stillSpeed ? nimbleSpread(target.chassisId) : 0,
   };
   const sum = Object.values(base).reduce((a, cause) => a + cause, 0);
   const still = Math.abs(target.speed) < RULES.stillSpeed ? -sum * (1 - RULES.stillSpread) : 0;
@@ -883,14 +887,14 @@ function sumStray(world: World, shooter: Vehicle, victim: Vehicle, damage: numbe
   noteAttack(world, shooter, victim, true);
 }
 
-export function noteCollision(world: World, a: Vehicle, b: Vehicle, hitsA: PartHit[], hitsB: PartHit[]): void {
+export function noteCollision(world: World, a: Vehicle, b: Vehicle, hitsA: PartHit[], hitsB: PartHit[], fault: CrashFault): void {
   if (towPair(world, a, b)) return;
   const calm = !isHostile(world, a, b);
-  const attacks = ([[b, a, hitsA], [a, b, hitsB]] as const).filter(([, , hits]) => hits.some((h) => h.damage > 0));
-  for (const [attacker, victim] of attacks) {
+  const attacks = ([[b, a, hitsA, fault.b], [a, b, hitsB, fault.a]] as const).filter(([, , hits]) => hits.some((h) => h.damage > 0));
+  for (const [attacker, victim, , atFault] of attacks) {
     victim.lastHitBy = attacker.id;
     if (!calm) recordAttack(world, attacker, victim);
-    else if (victim.brain) addState(world, 'grievance', victim.id, attacker.id, { kind: 'none' });
+    else if (victim.brain && atFault) addState(world, 'grievance', victim.id, attacker.id, { kind: 'none' });
   }
 }
 
@@ -990,14 +994,14 @@ function canNpcEngage(world: World, v: Vehicle, target: Vehicle): boolean {
 }
 
 function isGroupTruck(world: World, v: Vehicle): boolean {
-  return world.furyRoad !== null && world.furyRoad.groups.some((g) => g.vehicles.includes(v.id));
+  return world.chaosHighway !== null && world.chaosHighway.groups.some((g) => g.vehicles.includes(v.id));
 }
 
 export function groupPrey(world: World, v: Vehicle): Vehicle {
   const me = playerVehicle(world);
   const hauler = haulerOf(world);
   if (inDangerFrom(world, v, me)) return me;
-  return dist(v.pos, hauler.pos) + FURY_ROAD.playerMargin < dist(v.pos, me.pos) ? hauler : me;
+  return dist(v.pos, hauler.pos) + CHAOS_HIGHWAY.playerMargin < dist(v.pos, me.pos) ? hauler : me;
 }
 
 function inDangerFrom(world: World, v: Vehicle, me: Vehicle): boolean {

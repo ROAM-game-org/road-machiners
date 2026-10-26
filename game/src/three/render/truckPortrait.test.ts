@@ -3,97 +3,250 @@ import { describe, expect, it } from 'vitest';
 import { CHASSIS, PAINT } from '../../data/chassis';
 import { conditionItems } from './portraitPixels';
 import { cellRect, unitsOf } from '../../sim/body';
-import { partDef } from '../../data/parts';
+import { PARTS, partDef } from '../../data/parts';
 import { coreParts, itemCells, mountedItems, mountedParts } from '../../sim/grid';
+import { makePart } from '../../sim/factory';
+import { mountPart } from '../../sim/inventory';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import type { Vehicle } from '../../sim/types';
 import { maxHp } from '../../sim/wear';
 import { bare, lineWithArmor } from '../../test/gun-clearance-kit';
-import { PORTRAIT_TILT_DEG, TruckPortraits, glassMeshes, neutralizeReds, pristineOf, type BuildPortrait, type Portrait } from './truckPortrait';
+import { PORTRAIT_KEEP, PORTRAIT_TILT_DEG, TruckPortraits, chassisSize, glassMeshes, neutralizeReds, pristineOf, type BuildPortrait, type Portrait, type PortraitWait } from './truckPortrait';
 import { VehicleView } from './vehicle';
 
 const isCabDef = (def: ReturnType<typeof partDef>): boolean => def.kind === 'core' && def.role === 'cab';
 
 const RENDERER = {} as THREE.WebGLRenderer;
 
-function counting(): { build: BuildPortrait; built: Vehicle[] } {
-  const built: Vehicle[] = [];
+type Fake = { build: BuildPortrait; started: string[]; disposed: string[]; steps: () => number };
+
+function counting(stepsPerBuild = 2): Fake {
+  const started: string[] = [];
+  const disposed: string[] = [];
+  let ran = 0;
   const build: BuildPortrait = (_renderer, pristine) => {
-    built.push(pristine);
-    return { width: built.length } as Portrait;
+    started.push(pristine.id);
+    function* steps(): Generator<PortraitWait, Portrait, void> {
+      for (let i = 0; i < stepsPerBuild; i++) {
+        ran++;
+        yield;
+      }
+      return { width: started.length, has: () => true, release() {} } as unknown as Portrait;
+    }
+    return { steps: steps(), dispose: () => disposed.push(pristine.id) };
   };
-  return { build, built };
+  return { build, started, disposed, steps: () => ran };
 }
 
 function truck(): Vehicle {
   return emptyWorld().vehicles[0];
 }
 
-describe('truck portrait cache', () => {
-  it('builds once when only part HP and wear change', () => {
-    const { build, built } = counting();
-    const portraits = new TruckPortraits(RENDERER, build);
+function settle(portraits: TruckPortraits, aheadOnly = false): void {
+  for (let i = 0; i < 40; i++) portraits.step(1e9, aheadOnly);
+}
+
+function clone(v: Vehicle, id: string): Vehicle {
+  return { ...structuredClone(v), id };
+}
+
+describe('truck portrait queue', () => {
+  it('never builds when asked: shown and want run no step', () => {
+    const fake = counting();
+    const portraits = new TruckPortraits(RENDERER, fake.build);
     const v = truck();
-    const first = portraits.portraitOf(v, PAINT.standard);
+    expect(portraits.shown(v, PAINT.standard)).toBeNull();
+    portraits.want([], [v], v.id, PAINT.standard);
+    expect(portraits.shown(v, PAINT.standard)).toBeNull();
+    expect(fake.steps()).toBe(0);
+    expect(fake.started).toEqual([]);
+  });
+
+  it('builds the wanted truck only in step, and shows it after the last step', () => {
+    const fake = counting(3);
+    const portraits = new TruckPortraits(RENDERER, fake.build);
+    const v = truck();
+    portraits.want([], [v], null, PAINT.standard);
+    portraits.step(0, false);
+    expect(portraits.shown(v, PAINT.standard)).toBeNull();
+    settle(portraits);
+    expect(portraits.shown(v, PAINT.standard)).not.toBeNull();
+    expect(portraits.settled(v.id)).toBe(true);
+    expect(fake.steps()).toBe(3);
+  });
+
+  it('runs one step on a spent budget and stops starting steps once it is spent', () => {
+    const fake = counting(5);
+    let clock = 0;
+    const portraits = new TruckPortraits(RENDERER, fake.build, () => (clock += 10));
+    portraits.want([], [truck()], null, PAINT.standard);
+    portraits.step(0, false);
+    expect(fake.steps()).toBe(1);
+    portraits.step(25, false);
+    expect(fake.steps()).toBeGreaterThan(1);
+    expect(fake.steps()).toBeLessThan(5);
+  });
+
+  it('builds the player truck, then the focus, then the others in the given order', () => {
+    const fake = counting(1);
+    const portraits = new TruckPortraits(RENDERER, fake.build);
+    const own = clone(truck(), 'own');
+    const [near, far, aimed] = ['near', 'far', 'aimed'].map((id) => clone(own, id));
+    portraits.want([own], [near, far, aimed], 'aimed', PAINT.standard);
+    for (let i = 0; i < 8; i++) portraits.step(0, false);
+    expect(fake.started).toEqual(['own', 'aimed', 'near', 'far']);
+  });
+
+  it('keeps a half-built truck when the focus moves to another truck', () => {
+    const fake = counting(3);
+    const portraits = new TruckPortraits(RENDERER, fake.build);
+    const a = clone(truck(), 'a');
+    const b = clone(truck(), 'b');
+    portraits.want([], [a, b], 'a', PAINT.standard);
+    portraits.step(0, false);
+    portraits.want([], [a, b], 'b', PAINT.standard);
+    settle(portraits);
+    expect(fake.started.sort()).toEqual(['a', 'b']);
+    expect(fake.disposed.sort()).toEqual(['a', 'b']);
+    expect(portraits.shown(a, PAINT.standard)).not.toBeNull();
+  });
+
+  it('only steps the player trucks and the focus while a turn plays', () => {
+    const fake = counting(1);
+    const portraits = new TruckPortraits(RENDERER, fake.build);
+    const own = clone(truck(), 'own');
+    const other = clone(own, 'other');
+    portraits.want([own], [other], null, PAINT.standard);
+    settle(portraits, true);
+    expect(fake.started).toEqual(['own']);
+    settle(portraits);
+    expect(fake.started).toEqual(['own', 'other']);
+  });
+
+  it('drops a build whose look changed, shows the old drawing meanwhile and finds it again when the look returns', () => {
+    const fake = counting(2);
+    const portraits = new TruckPortraits(RENDERER, fake.build);
+    const v = truck();
+    portraits.want([], [v], null, PAINT.standard);
+    settle(portraits);
+    const old = portraits.shown(v, PAINT.standard);
+    const engine = mountedItems(v, 'engine')[0];
+    engine.x += 1;
+    portraits.want([], [v], null, PAINT.standard);
+    expect(portraits.shown(v, PAINT.standard)).toBe(old);
+    expect(portraits.settled(v.id)).toBe(false);
+    portraits.step(0, false);
+    engine.x -= 1;
+    portraits.want([], [v], null, PAINT.standard);
+    expect(fake.disposed).toHaveLength(2);
+    settle(portraits);
+    expect(portraits.shown(v, PAINT.standard)).toBe(old);
+    expect(fake.started).toHaveLength(2);
+  });
+
+  it('builds once when only HP or wear change and when cargo changes', () => {
+    const fake = counting(1);
+    const portraits = new TruckPortraits(RENDERER, fake.build);
+    const v = truck();
+    portraits.want([], [v], null, PAINT.standard);
+    settle(portraits);
     const engine = mountedParts(v, 'engine')[0];
     engine.hp = engine.hp / 3;
     engine.wear = 3;
-    expect(portraits.portraitOf(v, PAINT.standard)).toBe(first);
-    expect(built).toHaveLength(1);
-  });
-
-  it('draws only parts that show condition and builds once when cargo changes', () => {
-    const { build, built } = counting();
-    const portraits = new TruckPortraits(RENDERER, build);
-    const v = truck();
-    const first = portraits.portraitOf(v, PAINT.standard);
     v.items.push({ id: 'crate', kind: 'good', good: 'scrap', x: 0, y: 0, rot: 0 });
-    expect(portraits.portraitOf(v, PAINT.standard)).toBe(first);
-    expect(built).toHaveLength(1);
-    expect(built[0].items.map((it) => it.id)).toEqual(conditionItems(v).map((it) => it.id));
+    portraits.want([], [v], null, PAINT.standard);
+    settle(portraits);
+    expect(fake.started).toHaveLength(1);
   });
 
   it('builds the pristine truck, not the damaged one', () => {
-    const { build, built } = counting();
+    let seen: Vehicle | null = null;
+    const build: BuildPortrait = (_renderer, pristine) => {
+      seen = pristine;
+      return { steps: (function* () { return { has: () => true, release() {} } as unknown as Portrait; })(), dispose() {} };
+    };
     const v = truck();
     const engine = mountedParts(v, 'engine')[0];
     engine.hp = 1;
     engine.wear = 3;
-    new TruckPortraits(RENDERER, build).portraitOf(v, PAINT.standard);
-    const copy = mountedParts(built[0], 'engine')[0];
+    const portraits = new TruckPortraits(RENDERER, build);
+    portraits.want([], [v], null, PAINT.standard);
+    settle(portraits);
+    const copy = mountedParts(seen as unknown as Vehicle, 'engine')[0];
     expect(copy.wear).toBe(0);
     expect(copy.hp).toBe(maxHp(copy));
     expect(engine.hp).toBe(1);
     expect(engine.wear).toBe(3);
   });
 
-  it('builds again when a part moves, and drops the old build of that truck', () => {
-    const { build, built } = counting();
-    const portraits = new TruckPortraits(RENDERER, build);
-    const v = truck();
-    portraits.portraitOf(v, PAINT.standard);
-    const engine = mountedItems(v, 'engine')[0];
-    engine.x += 1;
-    portraits.portraitOf(v, PAINT.standard);
-    expect(built).toHaveLength(2);
-    engine.x -= 1;
-    portraits.portraitOf(v, PAINT.standard);
-    expect(built).toHaveLength(3);
+  it('keeps every truck in sight and only the newest out of sight', () => {
+    const fake = counting(1);
+    const portraits = new TruckPortraits(RENDERER, fake.build);
+    const crowd = Array.from({ length: PORTRAIT_KEEP + 3 }, (_, i) => clone(truck(), `t${i}`));
+    portraits.want([], crowd, null, PAINT.standard);
+    settle(portraits);
+    expect(crowd.every((v) => portraits.settled(v.id))).toBe(true);
+    portraits.want([], [], null, PAINT.standard);
+    const kept = crowd.filter((v) => portraits.shown(v, PAINT.standard));
+    expect(kept).toHaveLength(PORTRAIT_KEEP);
+    portraits.want([], [crowd[0]], null, PAINT.standard);
+    expect(portraits.shown(crowd[0], PAINT.standard)).not.toBeNull();
   });
 
-  it('keeps one build per truck id and forgets trucks that left sight', () => {
-    const { build, built } = counting();
+  it('keeps a truck that left sight for one turn without a rebuild', () => {
+    const fake = counting(1);
+    const portraits = new TruckPortraits(RENDERER, fake.build);
+    const v = truck();
+    portraits.want([], [v], null, PAINT.standard);
+    settle(portraits);
+    portraits.want([], [], null, PAINT.standard);
+    portraits.want([], [v], null, PAINT.standard);
+    settle(portraits);
+    expect(fake.started).toHaveLength(1);
+    expect(portraits.settled(v.id)).toBe(true);
+  });
+
+  it('tells its listeners which truck finished', () => {
+    const fake = counting(1);
+    const portraits = new TruckPortraits(RENDERER, fake.build);
+    const told: string[] = [];
+    portraits.onReady((id) => told.push(id));
+    const v = truck();
+    portraits.want([], [v], null, PAINT.standard);
+    settle(portraits);
+    expect(told).toEqual([v.id]);
+  });
+
+  it('throws a failed build once and does not retry that look', () => {
+    const build: BuildPortrait = () => ({ steps: (function* () { throw new Error('no pixels'); yield; return {} as Portrait; })(), dispose() {} });
     const portraits = new TruckPortraits(RENDERER, build);
-    const a = truck();
-    const b = { ...structuredClone(a), id: 'other' };
-    portraits.portraitOf(a, PAINT.standard);
-    portraits.portraitOf(b, PAINT.standard);
-    expect(built).toHaveLength(2);
-    portraits.forget(new Set([a.id]));
-    portraits.portraitOf(a, PAINT.standard);
-    expect(built).toHaveLength(2);
-    portraits.portraitOf(b, PAINT.standard);
-    expect(built).toHaveLength(3);
+    portraits.want([], [truck()], null, PAINT.standard);
+    expect(() => portraits.step(0, false)).toThrow('no pixels');
+    expect(() => portraits.step(0, false)).not.toThrow();
+  });
+
+  it('waits on a readback before it resumes that build', async () => {
+    let finish: () => void = () => {};
+    const pending = new Promise<void>((resolve) => (finish = resolve));
+    const build: BuildPortrait = () => ({ steps: (function* (): Generator<PortraitWait, Portrait, void> { yield pending; return { has: () => true, release() {} } as unknown as Portrait; })(), dispose() {} });
+    const portraits = new TruckPortraits(RENDERER, build);
+    const v = truck();
+    portraits.want([], [v], null, PAINT.standard);
+    portraits.step(0, false);
+    portraits.step(0, false);
+    expect(portraits.settled(v.id)).toBe(false);
+    finish();
+    await pending;
+    portraits.step(0, false);
+    expect(portraits.settled(v.id)).toBe(true);
+  });
+});
+
+describe('chassis size', () => {
+  it.each(Object.keys(CHASSIS))('%s: has a positive size at the portrait scale', (id) => {
+    const size = chassisSize(id);
+    expect(size.width).toBeGreaterThan(0);
+    expect(size.height).toBeGreaterThan(0);
   });
 });
 
@@ -101,6 +254,7 @@ describe('truck portrait scene on every chassis', () => {
   it.each(Object.keys(CHASSIS))('%s: has glass to tint and a drawn mesh or a footprint for every readout part', (id) => {
     const { world, v } = bare(id);
     lineWithArmor(world, v, 'steelPlate');
+    for (const def of Object.values(PARTS).filter((d) => d.kind === 'accessory')) mountPart(world, v, makePart(world, def.id, 0));
     const view = new VehicleView(pristineOf(v), false, PAINT.standard, 'portrait');
     const drawn = new Set<string>();
     const meshes: THREE.Mesh<THREE.BufferGeometry, THREE.Material>[] = [];

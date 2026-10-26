@@ -11,6 +11,7 @@
 @import "./tokens.css";
 @import "./styles/base.css";
 @import "./styles/components.css";
+@import "./styles/report-desk.css";
 @import "./styles/marshals.css";
 @import "./styles/map.css";
 @import "./styles/hud.css";
@@ -19,6 +20,7 @@
 @import "./styles/panels.css";
 @import "./styles/modal.css";
 @import "./styles/inventory.css";
+@import "./styles/town.css";
 @import "./styles/responsive.css";
 @import "./styles/scene.css";
 @import "./styles/layout.css";

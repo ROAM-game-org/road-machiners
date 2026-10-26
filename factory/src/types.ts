@@ -26,7 +26,6 @@ export type FactoryConfig = {
   oauthToken: string;
   elevenlabsKey: string;
   sfxMaxGenerations: number;
-  geminiKey: string;
   agyMaxRuns: number;
   agyModel: string;
   codexModel: string;
@@ -53,6 +52,7 @@ export type FactoryConfig = {
   testTimeoutMinutes: number;
   branchTimeoutMinutes: number;
   agentJobMaxMinutes: number;
+  agentCompactWindow: number;
   replyRouteMinutes: number;
   releaseDays: number;
   playtestTurns: number;
@@ -149,7 +149,7 @@ export const JOB_ISSUE: Record<JobStage, 'github-issue' | 'none'> = {
 };
 export type Route = 'answer' | 'patch' | 'redesign';
 export type FailureCause = 'timeout' | 'died' | 'github' | 'disk' | 'decision' | 'error';
-export type Failure = { stage: Stage; issue: number | null; error: string; cause: FailureCause | null; log: string | null; at: string; batch?: number[] };
+export type Failure = { stage: Stage; issue: number | null; error: string; cause: FailureCause | null; log: string | null; at: string; batch?: number[]; cleared?: number[] };
 export type ChatReply = { chat: string; messageId: number | null };
 export type Removal = { issue: number; by: string; text: string };
 
@@ -250,6 +250,7 @@ export interface GitHub {
   createIssue(title: string, body: string, labels: string[]): Promise<number>;
   editIssue(number: number, title: string, body: string): Promise<void>;
   cards(): Promise<Card[]>;
+  card(issue: number): Promise<Card | null>;
   addCard(issue: number, column: Column): Promise<void>;
   move(issue: number, column: Column): Promise<void>;
   openPullRequest(branch: string, base: string, title: string, body: string): Promise<string>;
@@ -283,7 +284,7 @@ export interface Telegram {
 }
 
 export type AgentSession = { dir: string; id: string; resume: boolean };
-export type AgentRun = { clone: string; dir: string; model: string; prompt: string; log: string; openNetwork?: boolean; mediaDir?: string; readOnly?: Record<string, string>; session?: AgentSession; skill?: string; effort?: string; disallowedTools?: string[]; advisor?: string; publicOutput?: true };
+export type AgentRun = { clone: string; dir: string; model: string; prompt: string; log: string; openNetwork?: boolean; mediaDir?: string; readOnly?: Record<string, string>; session?: AgentSession; skill?: string; effort?: string; disallowedTools?: string[]; advisor?: string; subagentModel?: string; publicOutput?: true };
 
 export type Pin = { cpus: string | null; testWorkers: number | null };
 
@@ -374,6 +375,8 @@ export const TASK_DIR = '.factory-tasks';
 export const TASK_FILE = (issue: number): string => `${TASK_DIR}/issue-${issue}.md`;
 export const WORK_DIR = (home: string, issue: number): string => `${home}/work/issue-${issue}`;
 export const WORK_LOCK = (home: string, name: string): string => `${home}/locks/${name}`;
+export const RUN_LOCK_NAME = (key: string): string => `run-${key}`;
+export const RUN_KEY = { issue: (issue: number): string => `issue-${issue}`, stage: (stage: string): string => `stage-${stage}` };
 export const CLONE_LOCK_MS = 15 * 60_000;
 export const OUT_DIR = '.factory';
 export const MEDIA_DIR = '.factory-media';

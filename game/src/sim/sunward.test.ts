@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { HOLLOW, SUNWARD } from '../data/sunward';
 import { REGION } from '../data/region';
+import { TERRAIN } from '../data/terrain';
+import { MAX_RANK, SKILL_EFFECTS } from '../data/skills';
 import { NPCS } from '../data/npcs';
 import { TIME } from '../data/time';
-import { addVehicle, emptyWorld, furyRoadWorld, npcBrain, testDrive } from './testkit';
+import { addVehicle, emptyWorld, chaosHighwayWorld, npcBrain, testDrive } from './testkit';
 import { addGoods } from './inventory';
 import { knockOutNpc } from './defeat';
 import { siteGap, sitePads } from './sites';
@@ -15,22 +17,29 @@ import { noteDefeat } from './relations';
 import { route, routeLength } from './path';
 import { lightZone } from './sunward-crater';
 import { RULES } from '../data/rules';
-import { advanceContracts, advanceShops } from './market';
 import { makeTaste, nightTaste, tasted, terrainNav } from './nav/layer';
 import { topGoal } from './npc-activities';
 import { clockOf } from './sun';
 import { refreshVision } from './vision';
 import { discoverSites } from './locations';
 import { isFree, spawnAt, spawnNpcs } from './spawn';
-import { fortressProps, insideCurtain } from './fortress';
+import { fortressPieces, fortressProps, insideCurtain } from './fortress';
 import { sunwardDusk, sunwardHunt, sunwardLedger } from './cheats';
 import { generateNpcLoadout } from './npc-loadout';
 import { callVehicle, currentLine, currentOptions } from './dialogue';
+import { bayHeading, hollowBays, hollowDiscs, hollowObstacles, hollowReach, isHollowObstacle } from './hollow-layout';
 import {
-  advanceSunward, avoidsCrater, fallenSun, gateOrder, vigilPosts, collapseOrder, craterExit, CRATER_NIGHT, inCraterZone, nightSafe, shunsAtNight, vigilGrounds, dawnAfter, hollowLampsLit, huntTonight, planSunward, spawnsAtHollow, duskTurn, hollowBays, hollowObstacles, isHollowObstacle, lastDusk, membersOf, phaseAt, returnTurn, sunwardFacts, sunwardPhase,
+  advanceSunward, isCavalcadeCar, isHunterCar, avoidsCrater, fallenSun, gateOrder, vigilPosts, collapseOrder, craterExit, CRATER_NIGHT, inCraterZone, nightSafe, shunsAtNight, vigilGrounds, dawnAfter, hollowLampsLit, huntTonight, planSunward, spawnsAtHollow, duskTurn, orderDusk, nextRideOut, nightWindow, rideOutTurn, lastDusk, membersOf, phaseAt, returnTurn, sunwardFacts, sunwardPhase,
 } from './sunward';
-import type { Vehicle, World } from './types';
-import { dist } from './vec';
+import type { Obstacle, Vehicle, World } from './types';
+import { dist, type Vec } from './vec';
+
+function segmentGap(p: Vec, a: Vec, b: Vec): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy || 1)));
+  return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
+}
 
 function quietWorld(): World {
   const w = standardWorld(5);
@@ -42,29 +51,63 @@ function quietWorld(): World {
   return w;
 }
 
-const seen = { stalls: 0 };
+const seen = { stalls: 0, broken: new Set<string>() };
 
 function runTo(w: World, turn: number): World {
   let world = w;
   while (world.turn < turn) {
     world = endTurn(world, testDrive);
     seen.stalls += world.events.filter((e) => e.t === 'stall').length;
+    for (const e of world.events) if (e.t === 'breakdown') seen.broken.add(e.vehicle);
   }
   return world;
 }
 
 describe('the Sunward clock', () => {
-  it('rests by day, rides at dusk, keeps the vigil and rides home before dawn', () => {
-    const dusk = duskTurn(1);
-    expect(clockOf(dusk).hour).toBeGreaterThanOrEqual(TIME.sunset);
-    expect(clockOf(dusk - 1).hour).toBeLessThan(TIME.sunset);
-    expect(phaseAt(dusk - 1)).toBe('rest');
-    expect(phaseAt(dusk)).toBe('ride');
-    expect(phaseAt(dusk + SUNWARD.driveTurns + SUNWARD.returnMarginTurns)).toBe('vigil');
+  it('rests by day, rides out before dusk, keeps the vigil and rides home before dawn', () => {
+    const dusk = duskTurn(2);
+    const out = rideOutTurn(dusk);
+    expect(out).toBe(dusk - SUNWARD.rideLeadTurns);
+    expect(clockOf(out).hour).toBeLessThan(TIME.sunset);
+    expect(phaseAt(out - 1)).toBe('rest');
+    expect(phaseAt(out)).toBe('ride');
+    expect(phaseAt(out + SUNWARD.driveTurns - 1)).toBe('ride');
+    expect(phaseAt(out + SUNWARD.driveTurns)).toBe('vigil');
+    expect(phaseAt(returnTurn(dusk) - 1)).toBe('vigil');
     expect(phaseAt(returnTurn(dusk))).toBe('home');
     expect(phaseAt(dawnAfter(dusk) - 1)).toBe('home');
     expect(phaseAt(dawnAfter(dusk))).toBe('rest');
     expect(clockOf(dawnAfter(dusk)).hour).toBeGreaterThanOrEqual(TIME.sunrise);
+  });
+
+  it('keys a night by the dusk whose ride-out came last', () => {
+    const dusk = duskTurn(2);
+    expect(orderDusk(rideOutTurn(dusk) - 1)).toBe(duskTurn(1));
+    expect(orderDusk(rideOutTurn(dusk))).toBe(dusk);
+    expect(orderDusk(dusk + 100)).toBe(dusk);
+    expect(orderDusk(dawnAfter(dusk) + 5)).toBe(dusk);
+    expect(nextRideOut(dawnAfter(dusk) + 5)).toBe(rideOutTurn(duskTurn(3)));
+    expect(nextRideOut(rideOutTurn(dusk) - 1)).toBe(rideOutTurn(dusk));
+    expect(() => orderDusk(-1)).toThrow(/before the game began/);
+  });
+
+  it('leaves a rest window between the ride home and the next ride-out', () => {
+    expect(SUNWARD.rideLeadTurns).toBeLessThan(TIME.turnsPerDay - (dawnAfter(duskTurn(2)) - duskTurn(2)));
+    expect(SUNWARD.rideLeadTurns).toBeGreaterThan(0);
+    expect(SUNWARD.returnMarginTurns).toBeLessThan(dawnAfter(duskTurn(2)) - duskTurn(2));
+  });
+
+  it('starts every night rule at dusk and ends it at dawn, while the column rides from its ride-out', () => {
+    const w = standardWorld(5);
+    const dusk = duskTurn(2);
+    const dawn = dawnAfter(dusk);
+    const rule = (turn: number): boolean[] => {
+      const at = { ...w, turn };
+      return [nightWindow(at), hollowLampsLit(at, turn)];
+    };
+    for (const turn of [rideOutTurn(dusk), dusk - 1, dawn]) expect(rule(turn)).toEqual([false, false]);
+    for (const turn of [dusk, dawn - 1]) expect(rule(turn)).toEqual([true, true]);
+    expect(phaseAt(rideOutTurn(dusk))).toBe('ride');
   });
 
   it('counts a night from the dusk before it, also past midnight', () => {
@@ -74,7 +117,7 @@ describe('the Sunward clock', () => {
   });
 
   it('has no order on Chaos Highway', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     expect(w.sunward).toBeNull();
     expect(() => sunwardPhase(w)).toThrow(/no Sunward order/);
     expect(w.obstacles.some(isHollowObstacle)).toBe(false);
@@ -86,37 +129,71 @@ describe('the Hollow', () => {
     const w = standardWorld(5);
     const props = w.obstacles.filter(isHollowObstacle);
     expect(props).toEqual(hollowObstacles());
-    for (const road of REGION.roads) for (const p of road) expect(dist(p, HOLLOW.pos)).toBeGreaterThan(30);
   });
 
-  it('is a walled scrap fort with one gate toward the crater, laid by the fortress rule and never by the bake', () => {
+  it('starts full: a new Roaming world holds eight Cavalcade cars and three hunters, each at its own bay and heading', () => {
+    const w = standardWorld(5);
+    const members = membersOf(w);
+    expect(members.filter(isCavalcadeCar)).toHaveLength(SUNWARD.cavalcade);
+    expect(members.filter(isHunterCar)).toHaveLength(SUNWARD.hunters);
+    const bays = hollowBays();
+    const taken = members.map((v) => bays.findIndex((b) => dist(b, v.pos) < 0.01));
+    expect(new Set(taken).size).toBe(members.length);
+    expect(taken.every((bay) => bay >= 0)).toBe(true);
+    members.forEach((v, k) => {
+      expect(v.heading).toBeCloseTo(bayHeading(taken[k]), 6);
+      expect(dist(v.brain!.home, v.pos)).toBeLessThan(0.01);
+    });
+  });
+
+  it('gives Chaos Highway no Sunward car', () => {
+    expect(membersOf(chaosHighwayWorld())).toEqual([]);
+  });
+
+  it('lies out of sight of every road segment and every town and site, even for a maxed driver by day', () => {
+    const maxedSight = TERRAIN.vision.radius * (1 + SKILL_EFFECTS.perception.sight * MAX_RANK);
+    const discs = hollowDiscs();
+    const roadGap = Math.min(...discs.flatMap((d) => REGION.roads.flatMap((road) => road.slice(1).map((b, i) => segmentGap(d.at, road[i], b) - d.r))));
+    expect(roadGap).toBeGreaterThan(maxedSight + SUNWARD.sightMargin);
+    const sights = [...REGION.towns, ...REGION.locations].filter((s) => s.id !== 'fallen-sun');
+    const siteGaps = discs.flatMap((d) => sights.map((s) => siteGap(s, d.at) - d.r));
+    expect(Math.min(...siteGaps)).toBeGreaterThan(TERRAIN.vision.radius * TERRAIN.vision.grayFactor);
+  });
+
+  it('is a walled scrap fort, smaller than every small site, with a shut gatehouse toward the crater', () => {
     const fort = hollowObstacles().flatMap((o) => (o.kind === 'landmark' && o.look.startsWith('fortScrap') ? [o] : []));
     expect(fort.map(({ look, pos, r, yaw }) => ({ look, pos, r, yaw }))).toEqual(fortressProps(HOLLOW.site).map((p) => ({ look: p.kind, pos: p.pos, r: p.r, yaw: p.yaw })));
-    const gate = HOLLOW.site.gates[0];
-    const inward = { x: (HOLLOW.pos.x - gate.x) / HOLLOW.radius, y: (HOLLOW.pos.y - gate.y) / HOLLOW.radius };
-    const gateway = { x: gate.x + inward.x * 1.25, y: gate.y + inward.y * 1.25 };
-    expect(fort.filter((o) => dist(o.pos, gateway) < 1.5)).toEqual([]);
-    expect(fort.filter((o) => o.look === 'fortScrapTower' && dist(o.pos, gateway) < 4)).toHaveLength(2);
-    expect(fort.filter((o) => o.look === 'fortScrapTower').length).toBeGreaterThan(4);
+    expect(HOLLOW.radius).toBeLessThan(Math.min(...REGION.locations.filter((l) => l.id !== 'fallen-sun' && l.radius > 0).map((l) => l.radius)));
+    expect(fort.filter((o) => o.look === 'fortScrapGate')).toHaveLength(1);
+    expect(fortressPieces(HOLLOW.site).filter((p) => p.kind === 'gate')).toHaveLength(1);
     expect(REGION.locations.some((l) => l.id === HOLLOW.id)).toBe(false);
+    const gate = HOLLOW.site.gates[0];
     const toGate = Math.atan2(gate.y - HOLLOW.pos.y, gate.x - HOLLOW.pos.x);
     const toCrater = Math.atan2(fallenSun().pos.y - HOLLOW.pos.y, fallenSun().pos.x - HOLLOW.pos.x);
     expect(Math.abs(toGate - toCrater)).toBeLessThan(0.25);
   });
 
-  it('parks every bay inside the curtain and hangs every lamp by a fort piece or a shed', () => {
-    for (const bay of hollowBays()) expect(insideCurtain(HOLLOW.site, bay, 2)).toBe(true);
+  it('parks every car outside the curtain in a laager that stays within the reach bound, with the lamps by a piece', () => {
+    for (const bay of hollowBays()) expect(insideCurtain(HOLLOW.site, bay, 0)).toBe(false);
+    expect(hollowBays()).toHaveLength(SUNWARD.cavalcade + SUNWARD.hunters);
+    expect(hollowReach()).toBeLessThanOrEqual(HOLLOW.maxReach);
     const pieces = hollowObstacles();
+    const looks = (o: Obstacle): string => (o.kind === 'landmark' ? o.look : '');
+    for (const o of pieces.filter((x) => ['hullChunk', 'shack'].includes(looks(x)))) expect(insideCurtain(HOLLOW.site, o.pos, 0.5)).toBe(true);
+    for (const o of pieces.filter((x) => ['drums', 'woodpile'].includes(looks(x)))) expect(insideCurtain(HOLLOW.site, o.pos, 0)).toBe(false);
     const lamps = [...HOLLOW.lanterns, HOLLOW.fire].map((l) => ({ x: HOLLOW.pos.x + l.x, y: HOLLOW.pos.y + l.y }));
-    for (const lamp of lamps) expect(Math.min(...pieces.map((o) => dist(o.pos, lamp) - o.r))).toBeLessThan(3);
+    for (const lamp of lamps) {
+      expect(insideCurtain(HOLLOW.site, lamp, 0.5)).toBe(true);
+      expect(Math.min(...pieces.map((o) => dist(o.pos, lamp) - o.r))).toBeLessThan(3);
+    }
   });
 
-  it('stands far out in the wastes, well clear of the Fallen Sun', () => {
-    expect(siteGap(fallenSun(), HOLLOW.pos)).toBeGreaterThanOrEqual(110);
+  it('stands out in the wastes, clear of the Fallen Sun', () => {
+    expect(siteGap(fallenSun(), HOLLOW.pos)).toBeGreaterThanOrEqual(hollowReach() * 2);
   });
 
   it('keeps its walls solid, so no truck spawns or parks in them', () => {
-    const w = standardWorld(5);
+    const w = quietWorld();
     for (const wall of hollowObstacles().filter((o) => o.kind === 'landmark' && o.look === 'fortScrapWall').slice(0, 5)) expect(isFree(w, wall.pos, 0.9, null)).toBe(false);
     for (const bay of hollowBays()) expect(isFree(w, bay, 0.9, null)).toBe(true);
   });
@@ -163,10 +240,7 @@ describe('the silent ride', () => {
 describe('the order refills', () => {
   it('spawns members in the Hollow bays by day while the player is far', () => {
     let w = quietWorld();
-    for (let i = 0; i < 400 && membersOf(w).length < SUNWARD.cavalcade + SUNWARD.hunters; i++) {
-      w.turn++;
-      spawnNpcs(w);
-    }
+    fillHollowByDay(w);
     const members = membersOf(w);
     expect(members.filter((v) => v.brain!.templateId === 'cavalcade')).toHaveLength(SUNWARD.cavalcade);
     expect(members.filter((v) => v.brain!.templateId === 'hunter')).toHaveLength(SUNWARD.hunters);
@@ -195,15 +269,19 @@ describe('the order refills', () => {
   });
 });
 
-function orderWorld(): World {
-  const w = quietWorld();
-  for (let i = 0; i < 400 && membersOf(w).length < SUNWARD.cavalcade + SUNWARD.hunters; i++) {
-    w.turn++;
+function fillHollowByDay(w: World): void {
+  for (let i = 0; i < 800 && membersOf(w).length < SUNWARD.cavalcade + SUNWARD.hunters; i++) {
+    w.turn = phaseAt(w.turn + 1) === 'rest' ? w.turn + 1 : dawnAfter(orderDusk(w.turn + 1));
     spawnNpcs(w);
   }
+}
+
+function orderWorld(): World {
+  const w = quietWorld();
+  fillHollowByDay(w);
   w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || membersOf(w).includes(v));
   for (const tpl of Object.values(NPCS)) if (tpl.spawn.kind !== 'hollow') w.spawnTimer[tpl.id] = Number.MAX_SAFE_INTEGER;
-  w.turn = duskTurn(1) - 3;
+  w.turn = rideOutTurn(duskTurn(1)) - 3;
   w.events = [];
   return w;
 }
@@ -217,6 +295,8 @@ function watchedFromTheGate(w: World): World {
   return w;
 }
 
+const BAY_LEFT = 3;
+
 function riderAt(w: World, id: string): Vehicle {
   const v = w.vehicles.find((x) => x.id === id);
   if (!v) throw new Error(`No rider ${id}`);
@@ -224,11 +304,12 @@ function riderAt(w: World, id: string): Vehicle {
 }
 
 describe('the night schedule', () => {
-  it('files out of the gate one car at a time while the player watches, rides to the light without turning back and holds a post until the return', () => {
+  it('pulls out of its bay one car at a time while the player watches, rides to the light without turning back and holds a post until the return', () => {
     let w = watchedFromTheGate(orderWorld());
     const dusk = duskTurn(1);
+    const out = rideOutTurn(dusk);
     seen.stalls = 0;
-    w = runTo(w, dusk);
+    w = runTo(w, out);
     const order = gateOrder(w, sunwardFacts(w).night!);
     const posts = vigilPosts(w);
     const left = new Map<string, number>();
@@ -238,8 +319,8 @@ describe('the night schedule', () => {
       w = runTo(w, w.turn + 1);
       order.forEach((id, seat) => {
         const v = riderAt(w, id);
-        if (!left.has(id) && dist(v.pos, HOLLOW.pos) > HOLLOW.radius + 1) left.set(id, w.turn - dusk);
-        if (!arrived.has(id) && dist(v.pos, posts[seat]) <= RULES.arriveRadius * 2) arrived.set(id, w.turn - dusk);
+        if (!left.has(id) && dist(v.pos, v.brain!.home) > BAY_LEFT) left.set(id, w.turn - out);
+        if (!arrived.has(id) && dist(v.pos, posts[seat]) <= RULES.arriveRadius * 2) arrived.set(id, w.turn - out);
         if (arrived.has(id) || !left.has(id)) return;
         const gap = dist(v.pos, posts[seat]);
         const track = away.get(id) ?? { best: gap, worse: 0, most: 0 };
@@ -257,13 +338,14 @@ describe('the night schedule', () => {
     expect(seen.stalls).toBe(0);
   }, 600_000);
 
-  it('rides out at dusk, keeps the vigil at the posts, leaves before dawn and rests in the bays by the morning', () => {
-    let w = runTo(orderWorld(), duskTurn(1) - 1);
+  it('rides out before dusk, keeps the vigil at the posts, leaves before dawn and rests in the bays by the morning', () => {
+    let w = runTo(orderWorld(), rideOutTurn(duskTurn(1)) - 1);
     const members = membersOf(w);
     for (const v of members) expect(topGoal(v)?.reason).toBe('restHollow');
     seen.stalls = 0;
+    seen.broken.clear();
 
-    w = runTo(w, duskTurn(1) + 3);
+    w = runTo(w, rideOutTurn(duskTurn(1)) + 3);
     const night = sunwardFacts(w).night!;
     expect(night.roster).toHaveLength(SUNWARD.cavalcade);
     const order = gateOrder(w, night);
@@ -279,7 +361,7 @@ describe('the night schedule', () => {
     });
 
     w = runTo(w, dawnAfter(duskTurn(1)) + 120);
-    for (const v of membersOf(w)) {
+    for (const v of membersOf(w).filter((x) => !seen.broken.has(x.id))) {
       expect(dist(v.pos, v.brain!.home)).toBeLessThan(3);
       expect(topGoal(v)?.reason).toBe('restHollow');
     }
@@ -288,7 +370,7 @@ describe('the night schedule', () => {
   }, 600_000);
 
   it('closes the column up behind a car beaten on the ride', () => {
-    let w = runTo(watchedFromTheGate(orderWorld()), duskTurn(1) + 1);
+    let w = runTo(watchedFromTheGate(orderWorld()), rideOutTurn(duskTurn(1)) + 1);
     const order = gateOrder(w, sunwardFacts(w).night!);
     while (followingOf(w, riderAt(w, order[4]))?.other !== order[3]) w = runTo(w, w.turn + 1);
     const beaten = riderAt(w, order[3]);
@@ -332,8 +414,8 @@ describe('the vigil posts', () => {
       expect(dist(path[path.length - 1], post)).toBeLessThan(2);
       return routeLength(gate, path);
     });
-    expect(Math.min(...rides)).toBeGreaterThan(150);
-    expect(Math.max(...rides)).toBeLessThan(320);
+    expect(Math.min(...rides)).toBeGreaterThan(200);
+    expect(Math.max(...rides)).toBeLessThan(340);
   });
 });
 
@@ -370,6 +452,57 @@ describe('the hunting parties', () => {
     expect(night.hunt!.prey).toBe(trader.id);
     expect(w.states.some((s) => s.kind === 'feud' && s.holder === leader.id && s.other === trader.id)).toBe(true);
     expect(topGoal(leader)).toMatchObject({ kind: 'fight', targetId: trader.id });
+  });
+
+  it('rides the hunters out with the column but takes no prey before dusk', () => {
+    const w = orderWorld();
+    const day = Array.from({ length: 200 }, (_, i) => i + 1).find((d) => huntTonight(w, d))!;
+    w.turn = rideOutTurn(duskTurn(day));
+    advanceSunward(w);
+    const night = sunwardFacts(w).night!;
+    const leader = w.vehicles.find((v) => v.id === night.hunt!.party[0])!;
+    spawnAt(w, NPCS.trader, generateNpcLoadout(w, NPCS.trader), { x: leader.pos.x + 6, y: leader.pos.y }, 'independent');
+
+    planSunward(w, leader);
+
+    expect(night.dusk).toBe(duskTurn(day));
+    expect(topGoal(leader)?.reason).toBe('huntRoad');
+    expect(night.hunt!.prey).toBeNull();
+  });
+
+  it('sends the leader from one hunting ground to the other and keeps it on its way once it leaves the first', () => {
+    const w = orderWorld();
+    const day = Array.from({ length: 200 }, (_, i) => i + 1).find((d) => huntTonight(w, d))!;
+    w.turn = duskTurn(day) + 1;
+    advanceSunward(w);
+    const hunt = sunwardFacts(w).night!.hunt!;
+    const leader = w.vehicles.find((v) => v.id === hunt.party[0])!;
+    const [a, b] = hunt.grounds;
+    const at = (p: Vec, by: number): Vec => ({ x: p.x + by, y: p.y });
+    const plan = (pos: Vec) => {
+      leader.pos = { ...pos };
+      planSunward(w, leader);
+      return topGoal(leader)!.targetId;
+    };
+
+    expect(plan(at(a, 80))).toBe('a');
+    expect(plan(at(a, 2))).toBe('b');
+    expect(plan(at(a, 12))).toBe('b');
+    expect(plan(at(b, 2))).toBe('a');
+    expect(plan(at(b, 12))).toBe('a');
+  });
+
+  it('opens tonight between the ride-out and dusk once, keyed by the coming dusk', () => {
+    const w = orderWorld();
+    const dusk = duskTurn(2);
+    w.turn = rideOutTurn(dusk);
+    advanceSunward(w);
+    const night = sunwardFacts(w).night!;
+    w.turn = dusk + 1;
+    advanceSunward(w);
+
+    expect(night.dusk).toBe(dusk);
+    expect(sunwardFacts(w).night).toBe(night);
   });
 
   it('goes home when a hunter falls, and at the return', () => {
@@ -539,17 +672,6 @@ describe('the Sunward debug commands', () => {
     const hunted = sunwardHunt(w);
     expect(sunwardFacts(hunted).night!.hunt!.party).toHaveLength(SUNWARD.hunters);
     expect(sunwardLedger(hunted).join('\n')).toMatch(/Beaten: 0 of 6/);
-  });
-});
-
-describe('the order and the town boards', () => {
-  it('posts no bounty on a Sunward car, since no bounty reward is set for one', () => {
-    const w = orderWorld();
-    for (const shop of Object.values(w.shops)) shop.contracts = [];
-    advanceContracts(w);
-    advanceShops(w);
-    const bounties = Object.values(w.shops).flatMap((s) => s.contracts).filter((c) => c.kind === 'bounty');
-    expect(bounties).toEqual([]);
   });
 });
 

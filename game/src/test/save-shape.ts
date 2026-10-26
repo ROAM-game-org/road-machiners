@@ -1,9 +1,12 @@
 
+import { CHASSIS } from '../data/chassis';
 import { PARTS } from '../data/parts';
 import { startKit } from '../data/start';
 import { makePart } from '../sim/factory';
 import type { Contract } from '../sim/market';
 import type { SalvageStock } from '../sim/types';
+import { isRig } from '../sim/body';
+import { addVehicle, npcBrain } from './sample-vehicles';
 import { newWorld } from '../sim/world';
 import { saveOf } from '../three/save';
 import { shapeOf, type Shape } from '../three/save-shape';
@@ -13,8 +16,7 @@ import type { QuestBundle, QuestLinks, QuestValueType, QuestVarDecl } from '../d
 
 const CONTRACT_KINDS: Contract[] = [
   { id: 'c', shop: 's', kind: 'haul', good: 'g', units: 1, to: 't', reward: 1, deadline: 1, window: 1, rush: false, tier: 1 },
-  { id: 'c', shop: 's', kind: 'fetch', defId: 'p', reward: 1, deadline: 1, window: 1, tier: 1 },
-  { id: 'c', shop: 's', kind: 'bounty', template: 't', reward: 1, deadline: 1, window: 1, tier: 1, fulfilled: false },
+  { id: 'c', shop: 's', kind: 'procure', good: 'g', units: 1, cratePay: 1, reward: 1, deadline: 1, window: 1, tier: 1 },
   { id: 'c', shop: 's', kind: 'search', target: 'v', driver: 'd', template: 't', lead: { at: { x: 1, y: 1 }, turn: 1 }, reward: 1, deadline: 1, window: 1, tier: 1, delivered: false },
   { id: 'c', shop: 's', kind: 'rescue', client: 'v', driver: 'd', need: 'fuel', area: { x: 1, y: 1 }, reward: 1, deadline: 1, window: 1, tier: 1, fulfilled: false },
 ];
@@ -36,6 +38,12 @@ export function newGameShape(): Shape {
       return { ...stock, goods, parts, hidden: { ...stock.hidden, goods: { ...goods }, parts } };
     }),
   );
+  if (!world.vehicles.some((truck) => truck.brain && isRig(truck.chassisId))) {
+    const rig = Object.keys(CHASSIS).find(isRig);
+    if (!rig) throw new Error('The chassis data has no rig');
+    const home = world.vehicles[0].pos;
+    addVehicle(world, 'independent', rig, ['stockEngine'], home).brain = npcBrain('trader', home, ['trader']);
+  }
   for (const v of world.vehicles.filter((truck) => truck.brain)) {
     v.items = [
       { id: 'i-goods', x: 0, y: 0, rot: 0, kind: 'good', good: 'g' },

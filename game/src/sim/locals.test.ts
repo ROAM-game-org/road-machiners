@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { EN } from '../text/en';
 import { LOCALS, type NoteId } from '../data/locals';
-import { CONTRACTS, SHOPS, SITE_ECONOMY, SITE_EVENTS, siteRecipes } from '../data/market';
+import { CONTRACTS, CRIME, SHOPS, SITE_ECONOMY, SITE_EVENTS, siteRecipes } from '../data/market';
 import { REGION } from '../data/region';
 import { WAGON_SEVEN } from '../data/salvage';
 import { partDef } from '../data/parts';
@@ -12,7 +12,8 @@ import { acceptContract, type Contract } from './market';
 import { chooseQuestOption, QUEST_QUERIES, QUESTS, restoreQuest, questView, startQuest } from './quests';
 import { sitePads } from './sites';
 import { compileBundle, readQuestSources, withEnglishTwins } from '../test/quest-compile';
-import { emptyWorld } from './testkit';
+import { addVehicle, emptyWorld, npcBrain } from './testkit';
+import { remember } from './memory';
 import type { World } from './types';
 import { UNITS } from '../data/units';
 import { cloneWorld } from './world';
@@ -51,7 +52,7 @@ describe('settlement locals', () => {
   it('lists the town locals first and keeps every local at a place with a shop', () => {
     expect(localsAt('bowl').map((l) => l.id).slice(0, 3)).toEqual(['ruben', 'hattie', 'dag']);
     expect(localsAt('nose').map((l) => l.id).slice(0, 3)).toEqual(['kovac', 'lena', 'ibo']);
-    for (const local of Object.values(LOCALS)) expect(Object.keys(SHOPS)).toContain(local.town);
+    for (const local of Object.values(LOCALS)) expect([...Object.keys(SHOPS), CRIME.post]).toContain(local.town);
   });
 
   it('places the recent-years locals and records a biased rumor as said', () => {
@@ -92,6 +93,47 @@ describe('settlement locals', () => {
     const answered = chooseQuestOption(shack, QUESTS, pickIndex(shack, 'What does the tone from the Fallen Sun say?'));
     expect(lastLine(answered)).toContain('no key to decode it');
     expect(lastLine(answered)).not.toContain("A tone's a tone");
+  });
+
+  it('ties Sefa\'s water question to what the families leave a driver', () => {
+    const road = talk(parkedAt('salvage-yard'), 'yard_sefa', ['What is the road like out here?']);
+    const reply = lastLine(road)!;
+    expect(reply).toContain('water');
+    expect(reply).toMatch(/truck/i);
+    expect(reply).not.toMatch(/ask me/i);
+
+    const later = talk(parkedAt('salvage-yard'), 'yard_sefa', ['What is the road like out here?', 'What does the Yard turn out?', 'Who runs this yard?']);
+    expect(questView(later, QUESTS).choices).toContain('Why leave a stripped driver his water?');
+    const answered = chooseQuestOption(later, QUESTS, pickIndex(later, 'Why leave a stripped driver his water?'));
+    expect(lastLine(answered)).toContain('Fools talk less than bodies');
+  });
+
+  it('names the subject of every follow-up that outlives its setup reply', () => {
+    const rows: { town: string; quest: string; setup: string[]; option: string }[] = [
+      { town: 'salvage-yard', quest: 'yard_sefa', setup: ['What is the road like out here?', 'Why do the Kiln riders leave you alone?'], option: 'Did a Kiln rider ever come for shelter?' },
+      { town: 'bowl', quest: 'bowl_dag', setup: ['What is the road like?', 'Who are the raiders?', 'What do you make of Nose?'], option: 'How does Bowl pay the raiders?' },
+      { town: 'bowl', quest: 'bowl_hattie', setup: ['Any local legends?', 'What about the glass at the Glass Flats?', 'What do the Sunward do with strangers?', 'Heard any rumors?'], option: 'Have you seen anyone come out of the crater?' },
+      { town: 'nose', quest: 'nose_kovac', setup: ['What is the road like?', 'What is this place?'], option: 'Why let unarmed trucks out the gate?' },
+      { town: 'nose', quest: 'nose_edda', setup: ['Yes. I drive linked.', 'What do you know about links?', 'Who made the first link?', 'What happened to your grandfather?'], option: 'Could I lose myself in my truck?' },
+      { town: 'nose', quest: 'nose_edda', setup: ['Yes. I drive linked.', 'What do you know about links?'], option: 'What does the ring on my skull mean?' },
+      { town: 'nose', quest: 'nose_lena', setup: ['Any advice for my truck?', 'What do you do here?'], option: 'Why check brake rods before guns?' },
+      { town: 'nose', quest: 'nose_lena', setup: ['Where do I find cheap parts?', 'What do you know about the Fallen Sun?', 'What do you do here?'], option: 'Anything for the glare at the Fallen Sun?' },
+    ];
+    for (const row of rows) {
+      const w = talk(parkedAt(row.town), row.quest, row.setup);
+      expect(questView(w, QUESTS).choices, row.option).toContain(row.option);
+    }
+
+    const w = parkedAt('nose');
+    learnNote(w, 'wagonNose');
+    expect(choices(w, 'radio_wagon_driver')).toContain("What became of the wagon's crew?");
+  });
+
+  it('answers Edda\'s linked-soldier question without the origin story on screen', () => {
+    const setup = ['Yes. I drive linked.', 'What do you know about links?', 'Who made the first link?', 'What happened to your grandfather?'];
+    const w = talk(parkedAt('nose'), 'nose_edda', setup);
+    const answered = chooseQuestOption(w, QUESTS, pickIndex(w, 'Could I lose myself in my truck?'));
+    expect(lastLine(answered)).toMatch(/^Not like the first linked soldier\./);
   });
 
   it('offers a stranger only questions that name nothing unheard', () => {
@@ -348,7 +390,7 @@ describe('work by talk', () => {
     full.shops.bowl.contracts = [haul('ct-high', 300)];
     full.player.contracts = Array.from({ length: CONTRACTS.maxActive }, (_, k) => haul(`held${k}`, 10));
 
-    expect(lastLine(talk(empty, 'bowl_dag', [WORK]))).toBe("The board's empty today. Come back in a couple of days, it fills slowly.");
+    expect(lastLine(talk(empty, 'bowl_dag', [WORK]))).toBe("The board's empty today. Come back in a couple of days. It fills slowly.");
     expect(lastLine(talk(full, 'bowl_dag', [WORK]))).toBe("You're carrying enough promises already. Finish a few and then ask me again.");
   });
 
@@ -704,5 +746,82 @@ describe('site talk', () => {
     const said = (w: World) => questView(talk(w, 'granary_odile', ['What does the Granary make?']), QUESTS).lines.map((l) => l.text).join(' ');
     expect(said(empty)).toContain('Sorgut\'s low');
     expect(said(parkedAt('granary'))).not.toContain('low');
+  });
+});
+
+describe('Petra Quell at the Roadhouse', () => {
+  const SEARCH = "I'm looking for a driver.";
+  const PAY = `Pay her ${QUEST_QUERIES.lead_price(emptyWorld({ x: 0, y: 0 }), [])} M.`;
+
+  function searching(withCar: boolean): World {
+    const w = parkedAt(CRIME.post);
+    w.turn = 50;
+    const target = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 500, y: 500 });
+    target.brain = npcBrain('trader', target.pos, ['trader']);
+    w.player.contracts.push({
+      id: 'ct-s', shop: 'bowl', kind: 'search', target: target.id, driver: 'Mack Holt', template: 'trader',
+      lead: { at: { x: 0, y: 0 }, turn: 10 }, reward: 3700, deadline: 900, window: 600, tier: 1, delivered: false,
+    });
+    w.player.money = 10 * UNITS.centsPerM;
+    if (withCar) {
+      const car = addVehicle(w, 'marshals', 'scout', ['stockEngine'], { x: 650, y: 100 });
+      car.brain = npcBrain('marshal', car.pos, ['marshal']);
+      w.turn = 30;
+      remember(w, car, { kind: 'sighting', vehicle: target.id, at: { x: 90, y: 30 }, heading: 0 });
+      w.turn = 50;
+    }
+    return w;
+  }
+
+  const money = (w: World) => w.player.money / UNITS.centsPerM;
+
+  it('lists Petra at the Marshalls desk', () => {
+    expect(localsAt(CRIME.post).map((l) => l.id)).toEqual(['petra']);
+  });
+
+  it('gives the three notes as the player asks on', () => {
+    const next = talk(parkedAt(CRIME.post), 'roadhouse_petra', [
+      'What is the road book?', 'How do I put a wrong in the book?', 'Who pays the price?', 'What if a town is after me?',
+      'Who goes after the wrongdoers?', 'Why no claims against raiders?',
+    ]);
+    expect(next.player.notes.map((n) => n.id).sort()).toEqual(['roadhouseBook', 'roadhouseBuyOff', 'roadhouseRaiders']);
+  });
+
+  it('offers the search question only to a player holding a search', () => {
+    expect(choices(parkedAt(CRIME.post), 'roadhouse_petra')).not.toContain(SEARCH);
+    expect(choices(searching(false), 'roadhouse_petra')).toContain(SEARCH);
+  });
+
+  it('sells the Marshall sighting for the fee and moves the lead there', () => {
+    const w = searching(true);
+    const offer = talk(w, 'roadhouse_petra', [SEARCH]);
+    expect(questView(offer, QUESTS).choices).toContain(PAY);
+    const paid = chooseQuestOption(offer, QUESTS, pickIndex(offer, PAY));
+    expect(money(paid)).toBe(money(w) - 3);
+    expect(paid.player.contracts.find((c) => c.kind === 'search')).toMatchObject({ lead: { at: { x: 90, y: 30 }, turn: 30 } });
+  });
+
+  it('charges nothing for declining, and nothing when no car has a newer sighting', () => {
+    const w = searching(true);
+    const offer = talk(w, 'roadhouse_petra', [SEARCH]);
+    const declined = chooseQuestOption(offer, QUESTS, pickIndex(offer, 'Not at that price.'));
+    expect(money(declined)).toBe(money(w));
+    expect(declined.player.contracts).toEqual(w.player.contracts);
+
+    const none = searching(false);
+    const asked = talk(none, 'roadhouse_petra', [SEARCH]);
+    expect(questView(asked, QUESTS).choices).not.toContain(PAY);
+    expect(money(asked)).toBe(money(none));
+    expect(asked.player.contracts).toEqual(none.player.contracts);
+  });
+
+  it('keeps the world through a save and load in the middle of the talk, awarding nothing', () => {
+    const open = talk(searching(true), 'roadhouse_petra', ['What is the road book?', SEARCH]);
+    const before = { money: open.player.money, events: open.events.length, xp: open.player.xp };
+    const loaded = structuredClone(open);
+    loaded.player.quests.live = null;
+    restoreQuest(loaded, QUESTS);
+    expect({ money: loaded.player.money, events: loaded.events.length, xp: loaded.player.xp }).toEqual(before);
+    expect(questView(loaded, QUESTS).choices).toContain('Leave her to the mast.');
   });
 });

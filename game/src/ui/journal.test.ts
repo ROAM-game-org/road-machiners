@@ -1,27 +1,32 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fetchAsset } from '../fetch-asset';
 import { TIME } from '../data/time';
 import { emptyWorld } from '../sim/testkit';
 import { claimLeads, journalEntries, JournalScreen } from './journal';
 import { surveyClue, surveySites } from '../sim/survey';
-import { surveyClueText } from './format';
+import { surveyWayText } from './format';
 import { resolve } from '../text/resolve';
 import { t } from '../text/msg';
-import type { World } from '../sim/types';
+import type { SalvageStock, World } from '../sim/types';
+import { emptyHidden } from '../sim/salvage';
+import { gridSquareTiles } from '../sim/map-grid';
 import { TEST_MAP } from '../test/map';
 import type { Contract } from '../sim/market';
 
+vi.mock('../fetch-asset', async (orig) => ({ ...(await orig<typeof import('../fetch-asset')>()), fetchAsset: vi.fn(async () => new ArrayBuffer(1)) }));
+
+const stock = (id: string, pos: { x: number; y: number }): SalvageStock => ({ id, pos, radius: 0.6, goods: { scrap: 2 }, parts: [], hidden: emptyHidden() });
 const haul: Contract = { id: 'ct-h', shop: 'bowl', kind: 'haul', good: 'scrap', units: 3, to: 'nose', reward: 20000, deadline: 5000, window: 600, rush: false, tier: 2 };
 const claim = (leads: Extract<Contract, { kind: 'claim' }>['leads'] = []): Extract<Contract, { kind: 'claim' }> => ({ id: 'ct-1', shop: 'bowl', kind: 'claim', stockId: 'armyTruck-1', at: { x: 100, y: 50 }, partId: 'p1', defId: 'mg', reward: 900, deadline: 9000, window: 9000, tier: 1, rivalAt: 9000, rival: null, leads });
-const bounty: Extract<Contract, { kind: 'bounty' }> = { id: 'ct-b', shop: 'nose', kind: 'bounty', template: 'buggy', reward: 11100, deadline: 900, window: 900, tier: 1, fulfilled: true };
+const order: Extract<Contract, { kind: 'procure' }> = { id: 'ct-b', shop: 'nose', kind: 'procure', good: 'water', units: 6, cratePay: 900, reward: 11100, deadline: 900, window: 900, tier: 1 };
 const escort: Contract = { id: 'ct-e', shop: 'bowl', kind: 'escort', client: 'v-gone', to: 'nose', reward: 8000, deadline: 2000, window: 2000, tier: 1, threat: 2, span: 100, together: 40, seen: null, apart: 0, stuck: 0, holdUntil: null };
 
 function everyKind(): Contract[] {
   const [site] = surveySites(TEST_MAP);
   return [
     haul,
-    { id: 'ct-f', shop: 'bowl', kind: 'fetch', defId: 'mg', reward: 5000, deadline: 900, window: 900, tier: 1 },
+    order,
     claim(),
-    { ...bounty, fulfilled: false },
     { id: 'ct-s', shop: 'nose', kind: 'search', target: 'v-x', driver: 'Jed Cobb', template: 'trader', lead: { at: { x: 1, y: 1 }, turn: 0 }, reward: 9000, deadline: 900, window: 600, tier: 1, delivered: false },
     { id: 'ct-r', shop: 'bowl', kind: 'rescue', client: 'v-y', driver: 'Ada Cobb', need: 'fuel', area: { x: 40, y: 40 }, reward: 3000, deadline: 900, window: 600, tier: 1, fulfilled: false },
     escort,
@@ -48,14 +53,14 @@ describe('journal entries', () => {
     const w = emptyWorld();
     w.player.contracts = everyKind();
 
-    expect(journalEntries(w).work.map((c) => c.kind)).toEqual(['haul', 'fetch', 'claim', 'bounty', 'search', 'rescue', 'escort', 'survey']);
+    expect(journalEntries(w).work.map((c) => c.kind)).toEqual(['haul', 'procure', 'claim', 'search', 'rescue', 'escort', 'survey']);
   });
 
   it('lists past contracts newest first, with the day each ended', () => {
     const w = emptyWorld();
     w.player.pastContracts = [
       { contract: haul, outcome: 'failed', turn: 10, amount: -1800 },
-      { contract: bounty, outcome: 'done', turn: TIME.turnsPerDay + 10, amount: 11100 },
+      { contract: order, outcome: 'done', turn: TIME.turnsPerDay + 10, amount: 11100 },
     ];
 
     const { past } = journalEntries(w);
@@ -73,11 +78,28 @@ describe('journal entries', () => {
 
     expect(journalEntries(w).notes.map((e) => e.id)).toEqual(['wagonBowl']);
     expect(leads.map((l) => resolve(l.from, 'en'))).toEqual(['Ada Cobb', 'Jed Cobb']);
-    expect(resolve(leads[1].body, 'en')).toBe('north of where we talked, about 100 m out');
+    expect(resolve(leads[1].body, 'en')).toBe('north-east of where we talked, about 100 m out');
   });
 
   it('is empty with no notes and no work', () => {
-    expect(journalEntries(emptyWorld())).toEqual({ work: [], notes: [], past: [] });
+    expect(journalEntries(emptyWorld())).toEqual({ work: [], wrecks: [], notes: [], past: [] });
+  });
+
+  it('keeps one row per square of the told wrecks not yet searched, newest first, with a count', () => {
+    const w = emptyWorld();
+    const side = gridSquareTiles();
+    w.salvage = [
+      stock('wreck1', { x: side * 2 + 5, y: side * 3 + 5 }),
+      stock('wreck2', { x: side * 5 + 5, y: side + 5 }),
+      stock('wreck3', { x: side * 2 + 40, y: side * 3 + 40 }),
+      stock('wreck4', { x: side * 6 + 5, y: side * 6 + 5 }),
+    ];
+    w.player.rumored = ['wreck1', 'wreck2', 'wreck3', 'wreck4'];
+    w.player.scavenged = ['wreck4'];
+
+    const { wrecks } = journalEntries(w);
+
+    expect(wrecks).toEqual([{ square: { column: 2, row: 3 }, count: 2 }, { square: { column: 5, row: 1 }, count: 1 }]);
   });
 });
 
@@ -137,7 +159,24 @@ describe('journal screen', () => {
 
     const root = openJournal(w);
 
-    expect(groups(root)[0].all((n) => n.className === 'job')).toHaveLength(8);
+    expect(groups(root)[0].all((n) => n.className === 'job')).toHaveLength(7);
+  });
+
+  it('names the squares of told wrecks under their own head, and drops a searched wreck', () => {
+    const w = emptyWorld();
+    const side = gridSquareTiles();
+    w.salvage = [stock('wreck1', { x: side * 2 + 5, y: side * 3 + 5 }), stock('wreck2', { x: side * 2 + 9, y: side * 3 + 9 }), stock('wreck3', { x: 5, y: 5 })];
+    w.player.rumored = ['wreck1', 'wreck2', 'wreck3'];
+    w.player.notes = [{ id: 'wagonBowl', turn: 10 }];
+
+    const root = openJournal(w);
+    const rows = groups(root)[0].all((n) => n.className === 'journal-place');
+
+    expect(heads(root)).toEqual([['Wrecks you heard of'], ['Notes']]);
+    expect(rows.map((r) => r.text())).toEqual(['Square A1', 'Square C4, 2 wrecks']);
+    ui.children = [];
+    w.player.scavenged = ['wreck1', 'wreck2', 'wreck3'];
+    expect(heads(openJournal(w))).toEqual([[]]);
   });
 
   it('heads the notes only beside another group', () => {
@@ -151,10 +190,10 @@ describe('journal screen', () => {
     expect(heads(openJournal(w))).toEqual([['Work'], ['Notes']]);
   });
 
-  it('shows a past bounty in its posted wording, with its outcome and the money it moved', () => {
+  it('shows a past supply order in its posted wording, with its outcome and the money it moved', () => {
     const w = emptyWorld();
     w.player.pastContracts = [
-      { contract: bounty, outcome: 'done', turn: 10, amount: 11100 },
+      { contract: order, outcome: 'done', turn: 10, amount: 11100 },
       { contract: haul, outcome: 'failed', turn: 20, amount: -1800 },
       { contract: escort, outcome: 'lapsed', turn: 30, amount: 0 },
     ];
@@ -162,11 +201,27 @@ describe('journal screen', () => {
     const rows = groups(openJournal(w))[0].all((n) => n.className === 'job');
 
     expect(rows.map(tagsOf)).toEqual([['tag dim lapsed'], ['tag bad failed'], ['tag good done']]);
-    expect(rows[2].text()).toContain('Knock out or wreck any Raider outrider, claim at Nose');
+    expect(rows[2].text()).toContain('Bring 6 crates of Water to Nose');
     expect(rows[2].text()).toContain('Day 1, Nose');
     expect(rows[2].text()).toContain('+111');
     expect(rows[1].all((n) => n.className === 'amount bad')).toHaveLength(1);
     expect(rows[0].all((n) => n.className.startsWith('amount'))).toHaveLength(0);
+  });
+
+  it('explains the negative amount of a failed haul as the price of the kept cargo, and nothing else', () => {
+    const w = emptyWorld();
+    w.player.pastContracts = [
+      { contract: order, outcome: 'done', turn: 10, amount: 11100 },
+      { contract: haul, outcome: 'failed', turn: 20, amount: -1800 },
+      { contract: escort, outcome: 'lapsed', turn: 30, amount: 0 },
+    ];
+
+    const rows = groups(openJournal(w))[0].all((n) => n.className === 'job');
+    const titled = (row: FakeNode) => row.all((n) => n.className.startsWith('price')).map((n) => n.attrs.get('title'));
+
+    expect(titled(rows[1])).toEqual(['Price of the cargo you kept']);
+    expect(titled(rows[0])).toEqual([]);
+    expect(titled(rows[2])).toEqual([undefined]);
   });
 
   it('draws a past claim and escort whose trucks are gone from the world', () => {
@@ -188,7 +243,7 @@ describe('journal screen', () => {
     const detail = openJournal(w).all((n) => n.className === 'journal-detail');
 
     expect(detail).toHaveLength(1);
-    expect(detail[0].text()).toContain('north of where we talked, about 100 m out');
+    expect(detail[0].text()).toContain('north-east of where we talked, about 100 m out');
     expect(detail[0].text()).toContain('Jed Cobb');
   });
 
@@ -202,7 +257,7 @@ describe('journal screen', () => {
     w.player.contracts = [survey];
 
     const root = openJournal(w);
-    const places = root.all((n) => n.className === 'journal-place');
+    const places = root.all((n) => n.className === 'journal-place survey');
     const tags = (n: FakeNode) => n.all((x) => x.className.split(' ').includes('tag')).map((x) => x.text());
 
     expect(places).toHaveLength(3);
@@ -210,9 +265,55 @@ describe('journal screen', () => {
     survey.points.forEach((p, i) => {
       const clue = surveyClue(survey, p);
       expect(places[i].text()).toContain(resolve(t(`contract.look.${clue.type}`), 'en'));
-      expect(places[i].text()).toContain(resolve(surveyClueText(clue), 'en'));
+      expect(places[i].text()).toContain(resolve(surveyWayText(w, survey, p), 'en'));
       expect(places[i].text()).toContain(resolve(t(`contract.want.${clue.type}`), 'en'));
     });
   });
-});
 
+  const surveyOf = (sites: string[], states: { found: boolean; done: boolean }[] = []): Extract<Contract, { kind: 'survey' }> => ({
+    id: 'ct-s', shop: 'bowl', kind: 'survey', reward: 3000, deadline: 900, window: 600, tier: 1,
+    points: sites.map((site, i) => ({ site, found: states[i]?.found ?? false, done: states[i]?.done ?? false })),
+  });
+  const picturesOf = (place: FakeNode) => place.all((n) => n.className === 'survey-picture');
+  const imageOf = (picture: FakeNode) => picture.children[0] as FakeNode & { src?: string; alt?: string };
+
+  it('shows the picture of its own site in every place, open, found or done', async () => {
+    const w = emptyWorld();
+    const [a, b, c] = surveySites(TEST_MAP).slice(-3);
+    w.player.contracts = [surveyOf([a.id, b.id, c.id], [{ found: true, done: true }, { found: true, done: false }, { found: false, done: false }])];
+
+    const places = openJournal(w).all((n) => n.className === 'journal-place survey');
+    await new Promise((resolve) => setTimeout(resolve));
+
+    expect(places.map((p) => picturesOf(p).length)).toEqual([1, 1, 1]);
+    expect(vi.mocked(fetchAsset).mock.calls.map((call) => call[1])).toEqual(expect.arrayContaining([a.id, b.id, c.id].map((id) => expect.stringContaining(`survey/${id}.webp`))));
+    expect(places.map((p) => imageOf(picturesOf(p)[0]).alt)).toEqual(['', '', '']);
+    expect(places.map((p) => imageOf(picturesOf(p)[0]).attrs.get('aria-hidden'))).toEqual(['true', 'true', 'true']);
+  });
+
+  it('shows no picture on rows of other contracts', () => {
+    const w = emptyWorld();
+    w.player.contracts = [haul, claim(), escort];
+
+    expect(openJournal(w).all((n) => n.className === 'survey-picture')).toHaveLength(0);
+  });
+
+  it('fetches a site once however often the journal redraws', async () => {
+    const w = emptyWorld();
+    const site = surveySites(TEST_MAP)[3];
+    w.player.contracts = [surveyOf([site.id])];
+    vi.mocked(fetchAsset).mockClear();
+
+    const first = openJournal(w);
+    ui.children = [];
+    const second = openJournal(w);
+    await new Promise((resolve) => setTimeout(resolve));
+    const third = openJournal(w);
+
+    const fetched = vi.mocked(fetchAsset).mock.calls.filter((call) => call[1].includes(`survey/${site.id}.webp`));
+    expect(fetched).toHaveLength(1);
+    expect(imageOf(picturesOf(first)[0]).src).toBeDefined();
+    expect(imageOf(picturesOf(second)[0]).src).toBeDefined();
+    expect(imageOf(picturesOf(third)[0]).src).toBe(imageOf(picturesOf(second)[0]).src);
+  });
+});

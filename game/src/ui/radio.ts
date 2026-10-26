@@ -1,5 +1,5 @@
 
-import { DIRECTIONS, RADIO, RADIO_HOURS, RADIO_VARIANTS, type Direction, type RadioTopic } from '../data/radio';
+import { RADIO, RADIO_HOURS, RADIO_VARIANTS, type RadioTopic } from '../data/radio';
 import { atlasOf, atlasSites } from '../sim/atlas';
 import { TIME } from '../data/time';
 import type { Contract } from '../sim/market';
@@ -8,13 +8,14 @@ import { claimClue } from '../sim/claims';
 import { claimLookText } from './format';
 import { robbing } from '../sim/states';
 import { clockOf } from '../sim/sun';
-import type { GameEvent, Vehicle, WeatherEvent, World } from '../sim/types';
+import type { GameEvent, Octant, Vehicle, WeatherEvent, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
+import { compassOctant } from '../text/compass';
 import { say } from '../text/language';
 import { byId, t, type Msg } from '../text/msg';
-import { fullName, goodLower, partName, siteName, templateName } from '../text/names';
+import { fullName, goodLower, partName, siteName } from '../text/names';
 import { el, panel, rightDock } from './dom';
-import { muteSwitch, nextTrackKey, type SoundSettings } from './sound';
+import { nextTrackKey } from './sound';
 import { isRaider } from '../sim/relations';
 
 export type Broadcast = { topic: RadioTopic; variant: number; text: Msg; turn: number; rank: 'news' | 'time' | 'filler' };
@@ -209,9 +210,8 @@ function contractVars(world: World, c: BoardContract): Slots {
   if (c.kind === 'rescue') return { shop, place: t(`radio.basin.${basinOf(world, c.area)}`) };
   if (c.kind === 'haul') return { shop, good: goodLower(c.good), to: siteName(siteOf(c.to).id) };
   if (c.kind === 'claim') return { shop, part: partName(c.defId), wreck: claimLookText(claimClue(c).look) };
-  if (c.kind === 'fetch') return { shop, part: partName(c.defId) };
+  if (c.kind === 'procure') return { shop, good: goodLower(c.good) };
   if (c.kind === 'search') return { shop, target: fullName(c.driver) };
-  if (c.kind === 'bounty') return { shop, target: templateName(c.template) };
   return { shop };
 }
 
@@ -233,14 +233,13 @@ function placeOf(world: World, pos: Vec): Place {
   return { key: basin, words: t(`radio.basin.${basin}`) };
 }
 
-function basinOf(world: World, pos: Vec): Direction {
+function basinOf(world: World, pos: Vec): Octant {
   const center = world.size / 2;
   return compass({ x: pos.x - center, y: pos.y - center });
 }
 
-function compass(v: Vec): Direction {
-  const turns = Math.atan2(v.y, v.x) / (2 * Math.PI);
-  return DIRECTIONS[(Math.round(turns * 8) + 8) % 8];
+function compass(v: Vec): Octant {
+  return compassOctant(Math.atan2(v.y, v.x));
 }
 
 export function revealed(text: string, elapsedMs: number, charsPerSecond: number): string {
@@ -249,20 +248,18 @@ export function revealed(text: string, elapsedMs: number, charsPerSecond: number
 
 export class RadioPanel {
   readonly root = panel('radio dock-panel', rightDock());
-  private readonly faceplate = el('div', { class: 'radio-faceplate' });
   private readonly keys = el('div', { class: 'radio-keys' });
   private text = el('div', { class: 'radio-text', 'aria-live': 'polite', 'aria-busy': 'false' });
   private lcd: HTMLElement;
   private streaming: { text: string; start: number } | null = null;
   private shown: Msg | null = null;
 
-  constructor(private station: RadioStation, sound: SoundSettings, nextTrack: () => void) {
+  constructor(private station: RadioStation, nextTrack: () => void) {
     const band = el('div', { class: 'radio-band' }, el('span', {}, t('radio.band')), el('span', {}, t('radio.frequency')));
     const ghost = el('div', { class: 'radio-ghost', 'aria-hidden': 'true' }, t('radio.ghost', { blocks: '\u2588'.repeat(3 * 30) }));
     this.lcd = el('div', { class: 'radio-lcd' }, ghost, this.text);
-    this.faceplate.append(muteSwitch(sound).root);
     this.keys.append(nextTrackKey(nextTrack));
-    this.root.append(this.keys, el('div', { class: 'radio-screen' }, band, this.lcd), this.faceplate);
+    this.root.append(this.keys, el('div', { class: 'radio-screen' }, band, this.lcd));
   }
 
   private write(text: string): void {

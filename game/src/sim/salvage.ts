@@ -11,20 +11,20 @@ import { makePart, newId, partWithId } from './factory';
 import { atlasOf, icarusAtlas, type AtlasKey } from './atlas';
 import { clearOfSites, findRoadWreckSpot, isBreakable, mapObstacles, propReach } from './mapgen';
 import { startComponent } from './nav/astar';
-import { CELL, CLEARANCE, componentOf, navLayer, type NavLayer } from './nav/layer';
+import { CELL, CLEARANCE, climbNeed, componentOf, navLayer, type NavLayer } from './nav/layer';
 import { ROAD_INDEX } from './road-index';
 import { playerVehicle, vehicleById } from './damage';
 import { isKnockedOut } from './defeat';
 import { grayRadius } from './vision';
 import { findSpot, goodsCount, gridOf, isMounted, mountedParts, mountCellsOf, type Spot } from './grid';
-import { addGoods, cargoMassRoom, getLayoutError, lootRefitTurns, requireIdleRefit, stowPart } from './inventory';
+import { addGoods, cargoMassRoom, getLayoutError, refitTurns, queueRefit, requireIdleRefit, stowPart } from './inventory';
 import { chance, hashRandom, randInt } from './rng';
 import { sampleWeighted } from './npc-loadout';
 import { itemMass } from './mass';
 import { getResources } from './resources';
 import { fuelCap, suppliesCap, vehicleStats } from './stats';
 import { inCombat } from './combat';
-import { cancelJob, startJob } from './jobs';
+import { cancelJob } from './jobs';
 import type { GoalReason, GridItem, HiddenLoot, Refusal, NpcActivity, Obstacle, PartInstance, Pile, RefitPickup, SalvageStock, Vehicle, World } from './types';
 import { estimateCrashGeometry } from './crash-contact';
 import { walkLane } from './armor';
@@ -566,7 +566,8 @@ function replaceRoadWreck(world: World, old: SalvageStock): void {
   world.salvage.push(rollStock(world, SALVAGE.roadWreck, id, spot.pos, spot.r * RULES.wreckRadiusScale));
 }
 
-export function breakProp(world: World, id: string, vehicleId: string): void {
+export function breakProp(world: World, id: string, vehicleId: string, impact: number): void {
+  if (!Number.isFinite(impact) || impact < 0) throw new Error(`Bad smash impact ${impact}`);
   const prop = world.obstacles.find((o) => o.id === id);
   if (!prop || !isBreakable(prop)) throw new Error(`No standing breakable prop ${id}`);
   const vehicle = vehicleById(world, vehicleId);
@@ -576,7 +577,7 @@ export function breakProp(world: World, id: string, vehicleId: string): void {
   const contact = estimateCrashGeometry(vehicle, null, prop.pos).a;
   const lane = contact.lanes[Math.floor(contact.lanes.length / 2)];
   const hitsA = walkLane(world, vehicle, contact.side, lane, { damage: BREAKABLE.damage, pen: RULES.crashPen, blast: false, armorShare: 1 });
-  world.events.push({ t: 'collision', a: vehicle.id, b: id, hitsA, hitsB: [] });
+  world.events.push({ t: 'collision', a: vehicle.id, b: id, impact, hitsA, hitsB: [] });
 }
 
 function regrowBroken(world: World): void {
@@ -610,26 +611,39 @@ export function canLootTruck(world: World, looter: Vehicle, target: Vehicle): bo
 }
 
 export function takeError(target: Vehicle, item: GridItem): Refusal | null {
+  if (item.kind === 'parcel') return { id: 'parcelKept' };
   if (item.kind === 'part' && partDef(item.part.defId).kind === 'core' && isMounted(target.chassisId, item)) return { id: 'builtInStays' };
   const left = getLayoutError(target, target.items.filter((it) => it.id !== item.id));
   return left ? { id: 'emptyRackFirst' } : null;
 }
 
-function takeTurns(world: World, looter: Vehicle, target: Vehicle, item: GridItem, placed: GridItem): number {
-  const planned = RULES.refitTurnsPerPart * (Number(isMounted(target.chassisId, item)) + Number(isMounted(looter.chassisId, placed)));
+export function lootWork(world: World, looter: Vehicle, fromMount: boolean, placed: GridItem): number {
+  const planned = RULES.refitTurnsPerPart * (Number(fromMount) + Number(isMounted(looter.chassisId, placed)));
   const garage = looter.id === world.player.vehicleId && atGarage(world);
-  return planned > 0 && !garage ? lootRefitTurns(world, looter, planned) : 0;
+  return planned > 0 && !garage ? refitTurns(world, looter, planned) : 0;
+}
+
+export function pickupWork(world: World, looter: Vehicle, pickup: RefitPickup, placed: GridItem): number {
+  if (pickup.from === 'stock') return lootWork(world, looter, false, placed);
+  const target = vehicleById(world, pickup.vehicleId);
+  const item = partItemOn(target, pickup.partId);
+  if (!item) throw new Error(`No part ${pickup.partId} on ${target.id} to price`);
+  return lootWork(world, looter, isMounted(target.chassisId, item), placed);
 }
 
 export function takeItem(world: World, looter: Vehicle, target: Vehicle, item: GridItem, to: Spot): void {
   const placed: GridItem = { ...item, id: newId(world, 'i'), ...to };
+  const work = lootWork(world, looter, isMounted(target.chassisId, item), placed);
+  if (work > 0) return queuePickup(world, looter, target, item, placed.id, to);
+  requireIdleRefit(looter);
   const error = takeError(target, item) ?? getLayoutError(looter, [...looter.items, placed]);
   if (error) throw new Refused(error);
-  const work = takeTurns(world, looter, target, item, placed);
-  if (work === 0) return moveNow(world, looter, target, item, placed);
+  moveNow(world, looter, target, item, placed);
+}
+
+function queuePickup(world: World, looter: Vehicle, target: Vehicle, item: GridItem, itemId: string, to: Spot): void {
   if (item.kind !== 'part') throw new Error('Only parts take a refit');
-  const pickup: TruckPickup = { from: 'truck', vehicleId: target.id, partId: item.part.id, itemId: placed.id, to };
-  startJob(world, looter, { kind: 'refit', moves: [], pickup, turnsLeft: work, total: work });
+  queueRefit(world, looter, { moves: [], pickup: { from: 'truck', vehicleId: target.id, partId: item.part.id, itemId, to } });
 }
 
 function moveNow(world: World, looter: Vehicle, target: Vehicle, item: GridItem, placed: GridItem): void {
@@ -642,7 +656,6 @@ export function takeFromTruck(world: World, targetId: string, itemId: string, to
   return playerCommand(world, (w) => {
     const me = playerVehicle(w);
     const target = vehicleById(w, targetId);
-    requireIdleRefit(me);
     if (!canLootTruck(w, me, target)) throw new Error('Park beside a knocked-out truck to loot it');
     requireLootFree(w, me, targetId);
     breakLootWarning(w, me, targetId);
@@ -652,12 +665,22 @@ export function takeFromTruck(world: World, targetId: string, itemId: string, to
   });
 }
 
-export function truckPickupItem(world: World, looter: Vehicle, pickup: TruckPickup): GridItem | Refusal {
+export function truckPickupItem(world: World, looter: Vehicle, pickup: TruckPickup, taken: ReadonlySet<string>): GridItem | Refusal {
   const target = world.vehicles.find((v) => v.id === pickup.vehicleId);
   if (!target || !canLootTruck(world, looter, target)) return { id: 'truckOutOfReach' };
-  const item = target.items.find((it) => it.kind === 'part' && it.part.id === pickup.partId);
-  if (item?.kind !== 'part') return { id: 'truckPartGone' };
-  return { kind: 'part', id: pickup.itemId, part: item.part, ...pickup.to };
+  if (taken.has(pickup.partId)) return { id: 'partQueued' };
+  const item = partItemOn(target, pickup.partId);
+  if (!item) return { id: 'truckPartGone' };
+  return takeError(withoutTaken(target, taken), item) ?? { kind: 'part', id: pickup.itemId, part: item.part, ...pickup.to };
+}
+
+function partItemOn(v: Vehicle, partId: string): Extract<GridItem, { kind: 'part' }> | null {
+  const item = v.items.find((it) => it.kind === 'part' && it.part.id === partId);
+  return item?.kind === 'part' ? item : null;
+}
+
+function withoutTaken(target: Vehicle, taken: ReadonlySet<string>): Vehicle {
+  return { ...target, items: target.items.filter((it) => it.kind !== 'part' || !taken.has(it.part.id)) };
 }
 
 export function finishTruckPickup(world: World, looter: Vehicle, pickup: TruckPickup): void {
@@ -720,8 +743,9 @@ function pickupSource(pickup: RefitPickup): string {
   return pickup.from === 'stock' ? pickup.stockId : pickup.vehicleId;
 }
 
-function worksOn(v: Vehicle, targetId: string): boolean {
-  return jobTarget(v) === targetId;
+export function worksOn(v: Vehicle, targetId: string): boolean {
+  if (jobTarget(v) === targetId) return true;
+  return v.job?.kind === 'refit' && v.job.queue.some((step) => step.pickup !== null && pickupSource(step.pickup) === targetId);
 }
 
 function actsOn(world: World, v: Vehicle, targetId: string): boolean {
@@ -761,7 +785,7 @@ export function lootTruckTurn(world: World, looter: Vehicle, target: Vehicle): G
 }
 
 function takeLooseItems(world: World, looter: Vehicle, target: Vehicle): void {
-  for (const item of target.items.filter((it) => !isMounted(target.chassisId, it))) {
+  for (const item of target.items.filter((it) => it.kind !== 'parcel' && !isMounted(target.chassisId, it))) {
     const spot = spareSpot(looter, item);
     if (spot) takeItem(world, looter, target, item, spot);
   }
@@ -845,7 +869,7 @@ export function makeOldSpotPicks(map: BakedMap): OldSpotPick[] {
 
 export function placeSpot(map: BakedMap, layer: NavLayer, p: OldPlace): Obstacle | null {
   const order = [...p.props].sort((a, b) => propHash(map, a) - propHash(map, b));
-  return order.find((o) => offRoad(o) && reachable(layer, o)) ?? null;
+  return order.find((o) => offRoad(o) && reachable(layer, o, REGION.navigation.reachClimb)) ?? null;
 }
 
 export function propHash(map: BakedMap, o: Obstacle): number {
@@ -856,9 +880,15 @@ export function offRoad(o: Obstacle): boolean {
   return ROAD_INDEX.nearestWithin(o.pos.x, o.pos.y, REGION.roadWidth / 2 + OLD_PLACES.roadGap + propReach(o)) === Infinity;
 }
 
-export function reachable(layer: NavLayer, o: Obstacle): boolean {
-  const road = componentAt(layer, nearestRoadPoint(o.pos));
-  if (road === 0) return false;
+export function reachable(layer: NavLayer, o: Obstacle, climb: number): boolean {
+  return standPoint(layer, o, climb) !== null;
+}
+
+export function standPoint(layer: NavLayer, o: Obstacle, climb: number): Vec | null {
+  const road = startComponent(layer, cellAt(layer, nearestRoadPoint(o.pos)));
+  if (road === 0) return null;
+  const need = climbNeed(layer);
+  const steps = Math.floor(climb / REGION.navigation.climbStep + 1e-9);
   const ring = propReach(o) + layer.radius + CLEARANCE;
   const inReach = (propReach(o) + ECONOMY.useRange) * ECONOMY.interactionScale;
   for (let k = 0; k < RING_DIRECTIONS; k++) {
@@ -866,14 +896,10 @@ export function reachable(layer: NavLayer, o: Obstacle): boolean {
     for (let past = 0; past <= RING_PAST; past++) {
       const at = { x: o.pos.x + Math.cos(angle) * (ring + past), y: o.pos.y + Math.sin(angle) * (ring + past) };
       const cell = cellAt(layer, at);
-      if (dist(centreOf(layer, cell), o.pos) <= inReach && componentOf(layer, cell) === road) return true;
+      if (dist(centreOf(layer, cell), o.pos) <= inReach && componentOf(layer, cell) === road && need[cell] <= steps) return centreOf(layer, cell);
     }
   }
-  return false;
-}
-
-function componentAt(layer: NavLayer, p: Vec): number {
-  return startComponent(layer, cellAt(layer, p));
+  return null;
 }
 
 function cellAt(layer: NavLayer, p: Vec): number {

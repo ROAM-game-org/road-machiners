@@ -1,8 +1,9 @@
 
 import { chassisDef } from '../../data/chassis';
 import { startKit } from '../../data/start';
-import { partDef, PARTS, type PartKind } from '../../data/parts';
+import { isLineGun, partDef, PARTS, type PartKind } from '../../data/parts';
 import { playerVehicle, truckFor } from '../damage';
+import { chassisTopSpeed } from '../chassis-features';
 import { buyChassis, buyStockPart, chassisTradeIn, garageChassis, partTradePrice, sellPart } from '../economy';
 import { type Spot, goodsCount, mountedItems } from '../grid';
 import { installSpot, moveItem, spareParts, storePart, takeFromStorage } from '../inventory';
@@ -90,9 +91,9 @@ function chooseBudgetJob(style: UpgradeStyle): GearJob {
 export function rearm(o: Orders): void {
   if (!o.buysGear) return;
   const shop = shopAt(o.world);
-  if (mountedItems(o.me, 'weapon').length > 0 || !shop) return;
+  if (mountedItems(o.me, 'weapon').some((item) => !isLineGun(partDef(item.part.defId))) || !shop) return;
   const spend = o.world.player.money - getUpkeepReserve(o.me);
-  const guns = candidates(o, shop).filter((c) => partDef(c.part.defId).kind === 'weapon' && !isJunk(c.part) && c.price <= spend && installSpot(o.me, probe(c.part)));
+  const guns = candidates(o, shop).filter((c) => partDef(c.part.defId).kind === 'weapon' && !isLineGun(partDef(c.part.defId)) && !isJunk(c.part) && c.price <= spend && installSpot(o.me, probe(c.part)));
   const cheapest = guns.reduce<Candidate | null>((best, c) => (!best || c.price < best.price ? c : best), null);
   if (cheapest) mount(o, cheapest, null);
 }
@@ -108,7 +109,7 @@ function chassisOptions(o: Orders, style: UpgradeStyle): Option[] {
   const current = chassisDef(o.me.chassisId);
   return garageChassis(town.id).filter((id) => id !== current.id).flatMap((id) => {
     const def = chassisDef(id);
-    const gain = style.chassis === 'speed' ? def.maxSpeed - current.maxSpeed : def.value - current.value;
+    const gain = style.chassis === 'speed' ? chassisTopSpeed(id) - chassisTopSpeed(current.id) : def.value - current.value;
     return gain > 0 ? [{ gain, cost: def.value - chassisTradeIn(o.world), take: (orders: Orders) => orders.run((w) => buyChassis(w, id), 'gear') }] : [];
   });
 }
