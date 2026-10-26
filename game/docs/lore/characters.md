@@ -203,7 +203,7 @@ Her line is "Every crate that goes to Kiln is written on the gate."
 - Habit: She reads every meter at dusk and writes it in the book.
 - Secret: She made a sealed copy of the book, and she took the steward's oil. She hides both from Aurel Brede and Sava Kettering.
 
-Agnes keeps the pump at Dustwell and the pump book her uncle Wendell kept before he died on the Green Pit road. She sleeps with the book under her pillow. Every week the pump brings up less, and Bowl's trucks load fewer barrels. The Archon's household sends its own truck to the pump every week, and a Senate order made her take the meter off its hose, so its loads go in no book. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. Every driver who loads reads her the big dial, and she writes the number with the driver's name. She wants a driver who read the dial to carry the copy to Bowl and swear to the number, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by her gate.
+Agnes keeps the pump book at Dustwell, where the crews work the pump. It is the book her uncle Wendell kept before he died on the Green Pit road. She sleeps with the book under her pillow. Every week the pump brings up less, and Bowl's trucks load fewer barrels. The Archon's household sends its own truck to the pump every week, and a Senate order made her take the meter off its hose, so its loads go in no book. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. Every driver who loads reads her the big dial, and she writes the number with the driver's name. She wants a driver who read the dial to carry the copy to Bowl and swear to the number, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by the gate.
 
 Her line is "I did not come to take your water. I came to write down how much of it there is."
 
@@ -400,18 +400,18 @@ Her line is "The glass points at the Fallen Sun. Read it before you drive out."
 ## Hadiza Okon
 
 - Way: embrace.
-- High concept: The woman who runs the pump and canteen at Green Pit.
+- High concept: The woman who runs the hook house canteen inside Green Pit.
 - Trouble: She feeds anyone once, so the Bowl patrol will not drink at her table.
-- Aspects: Rifles hang on the hooks by her door; Pim Arslan's plate hangs at her door; The well that no one takes.
+- Aspects: Rifles hang on the hooks by her door; Pim Arslan's plate hangs at her door; The pit's crews eat at her tables.
 - Skills: best social, worst driving.
 - Wants: Everyone drinks at one table and no one draws a gun.
-- Fears: The day someone takes her well.
+- Fears: The day the hooks stop holding.
 - Habit: She points to the hook before she fills a cup.
 - Secret: None.
 
-Hadiza runs the pump and the canteen at Green Pit, a walled pump outpost that sells water from deep rock. Everyone hangs their rifle on the hooks by her door, and nobody draws a gun at her table. Drivers, couriers, Salvage Yard crews, Kiln riders and Nose soldiers all drink there. The Bowl patrol does not, because the raiders do. She feeds anyone once.
+Hadiza runs the hook house canteen inside Green Pit, a walled pump outpost of a few hundred people. Its pump crews and their families hold the pit and sell water from deep rock. Everyone hangs their rifle on the hooks by her door, and nobody draws a gun at her table. Drivers, couriers, Salvage Yard crews, Kiln riders and Nose soldiers all drink there. The Bowl patrol does not, because the raiders do. She feeds anyone once.
 
-Her line is "Hang it on the hook. Everyone drinks here, and nobody takes my well."
+Her line is "Hang it on the hook. Everyone drinks here, and nobody draws at my table."
 
 ## Hollis Brennan
 
