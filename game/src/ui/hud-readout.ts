@@ -389,6 +389,7 @@ export function getHudReadout(w: World) {
   ];
   return {
     speed: kph(me.speed),
+    heading: me.heading,
     maxSpeed: kph(steps[steps.length - 1].speed),
     maxSpeedTip: speedTip(kph(steps[0].speed), speedRows(weather.text, steps), notes),
     manual: me.direct,

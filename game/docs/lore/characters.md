@@ -27,7 +27,7 @@ For example, Agnes Ondra's trouble is that she is afraid to refuse the steward's
 - Habit: He reads the ration tally aloud before he lets any meeting talk of anything else.
 - Secret: He let the Committee hold back the Old Army's fuel payments so the army would fail and Nose could take its workshops. He hides it from Nose and the Bowl.
 
-The President of Nose has led its Central Committee for 30 years. His grandmother Lena Graves woke in a pod as a girl, and he has her grey eyes. He believes the basin will die without rationing and discipline. He is probably right about that. He can no longer tell the good of Nose from his own hold on it.
+The President of Nose has led its Central Committee since year 100. His late grandmother Lena Graves woke in a pod as a girl, and he has her grey eyes. He believes the basin will die without rationing and discipline. He is probably right about that. He can no longer tell the good of Nose from his own hold on it.
 
 ## Captain Silver
 
@@ -82,7 +82,7 @@ His line is "I will be king of the camps, and I will pay any price for it."
 ## Dagny Brask
 
 - Way: oppose.
-- High concept: The founder of Kiln Camp, past 110, who still works the furnace and melts captured guns into tools.
+- High concept: The founder of Kiln Camp, past 70, who still works the furnace and melts captured guns into tools.
 - Trouble: She hates kings, but her furnace feeds the camp that Ain is turning into a throne.
 - Aspects: The furnace and its deep bore; Hunted by both towns since year 89; Ain runs the camp she founded.
 - Skills: best machining, worst driving.
@@ -91,7 +91,7 @@ His line is "I will be king of the camps, and I will pay any price for it."
 - Habit: She tests every captured gun by hand before it goes into the melt.
 - Secret: None.
 
-Dagny founded Kiln Camp when both towns drove her band out of the crater rim. She is past 110 and still works the furnace that gives the camp its name. She melts captured guns into tools. Ain runs the camp now, and she calls no one king.
+Dagny founded Kiln Camp when both towns drove her band out of the crater rim. She is past 70 and still works the furnace that gives the camp its name. She melts captured guns into tools. Ain runs the camp now, and she calls no one king.
 
 Her line is "Kings do not light furnaces. Workers do."
 
@@ -165,11 +165,11 @@ Kade put on Oren Vey's coat the night Oren walked into the light, and he has led
 - Habit: He speaks in sermons to anyone who stands still near him.
 - Secret: He read the last marks in the central hull's shadow and knows where the seed vault lies. He hides it from everyone. He told Mattias Kade alone that the glow is a burning engine.
 
-The Apprentice was a member of the Lunar Society until it cast him out. He found implants in the ship's wreck and put a blue eye in his own head. Through it he sees marks on the wreck that nobody else can see. He has filled his body with every implant he could find, and he is over 150 years old.
+The Apprentice led the Lunar Society until it cast him out. He found implants in the ship's wreck and put a blue eye in his own head. Through it he sees marks on the wreck that nobody else can see. He has filled his body with every implant he could find, and he is over 150 years old.
 
 He believes the people of the basin are slowly dying out and that only a new start can save humanity. He has not told anyone what that new start would be.
 
-His most devoted student, Oren Vey, copied the count around year 58. Teo burned the pages and sent him away, and Oren went to the crater dreamers and founded the Sunward. In year 128 the Apprentice bargained with Mattias Kade: one night in the central hull's shadow, under the order's escort, for the count's last number. He walked away after it and has no part in what the order does.
+His most devoted student, Oren Vey, copied the count around year 58. Teo burned the pages and sent him away, and Oren went to the crater dreamers and founded the Sunward. In year 128 the Apprentice bargained with the Preacher: one night in the central hull's shadow, under the order's escort, for the count's last number. He walked away after it and has no part in what the order does.
 
 He speaks in sermons. One of them goes like this:
 
@@ -180,16 +180,16 @@ He speaks in sermons. One of them goes like this:
 - Way: fear.
 - High concept: The steward of the Granary for the Bowl Senate, born a tenant, who earned her vote in the patrols.
 - Trouble: Her fear of famine makes her pay raiders and count everything, and the tenants call her a turncoat.
-- Aspects: A tenant with a Senate vote; Jory Baptiste says she pays twice from the same grain; The count on the Granary gate.
+- Aspects: Born a tenant, now a citizen with a vote; Jory Baptiste says she pays twice from the same grain; The count on the Granary gate.
 - Skills: best perception, worst toughness.
 - Wants: The Granary full and no famine like year 70.
 - Fears: An empty Granary.
 - Habit: She counts every sack at night and posts the count on the gate in her own hand.
 - Secret: None.
 
-Odile is the steward of the Granary for the Bowl Senate. She was born a tenant and earned her vote with ten years in the patrols, and some tenants still call her a turncoat. She counts every sack at night and posts the count on the Granary gate. Two counts hang there now: the sack paid to Kiln Camp for each armed truck, and the tenants' share for the Bowl patrol. She fears a famine like the one in year 70, and she would pay raiders forever to avoid one.
+Odile is the steward of the Granary for the Bowl Senate. She was born a tenant and earned her vote with ten years in the patrols, and some tenants still call her a turncoat. She counts every sack at night and posts the count on the Granary gate. Two counts hang there now: the rations sent to Kiln Camp for the passage of the Granary's trucks, and the tenants' share for the Bowl patrol. She fears a famine like the one in year 70, and she would pay raiders forever to avoid one.
 
-Her line is "Every sack that goes to Kiln is written on the gate."
+Her line is "Every crate that goes to Kiln is written on the gate."
 
 ## Agnes Ondra
 
@@ -203,7 +203,7 @@ Her line is "Every sack that goes to Kiln is written on the gate."
 - Habit: She reads every meter at dusk and writes it in the book.
 - Secret: She made a sealed copy of the book, and she took the steward's oil. She hides both from Aurel Brede and Sava Kettering.
 
-Agnes keeps the pump at Dustwell and the pump book her uncle Wendell kept before he died at the Green Pit sluice. She sleeps with the book under her pillow. Every week the pump brings up less, and the water trucks load less. The Archon's household sends its own tanker to the pump every week, and a Senate order made her take the meter off its hose, so its loads go in no book. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. Every driver who loads reads her the big dial, and she writes the number with the driver's name. She wants a driver who read the dial to carry the copy to Bowl and swear to the number, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by her gate.
+Agnes keeps the pump at Dustwell and the pump book her uncle Wendell kept before he died on the Green Pit road. She sleeps with the book under her pillow. Every week the pump brings up less, and Bowl's trucks load fewer barrels. The Archon's household sends its own truck to the pump every week, and a Senate order made her take the meter off its hose, so its loads go in no book. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. Every driver who loads reads her the big dial, and she writes the number with the driver's name. She wants a driver who read the dial to carry the copy to Bowl and swear to the number, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by her gate.
 
 Her line is "I did not come to take your water. I came to write down how much of it there is."
 
@@ -212,16 +212,16 @@ Her line is "I did not come to take your water. I came to write down how much of
 - Way: oppose.
 - High concept: The keeper of the Canal book at the lowest lock house, the last proud Duarte of the canals.
 - Trouble: She speaks first and thinks after, so her words cost her kin and her allies.
-- Aspects: Cousin Tomas serves in a Bowl coat at her lock; Counts every barrel the water trucks pour into the canals; Agnes Ondra's copy sits beside her book.
+- Aspects: Cousin Tomas serves in a Bowl coat at her lock; Counts every barrel Bowl's trucks pour into the canals; Agnes Ondra's copy sits beside her book.
 - Skills: best perception, worst social.
 - Wants: The proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share.
 - Fears: The Canal families fade away unheard.
-- Habit: She counts every barrel the water trucks pour in at the lock house and writes it in the open book.
+- Habit: She counts every barrel Bowl's trucks pour in at the lock house and writes it in the open book.
 - Secret: None.
 
-Mirela keeps the Canal book for the Canal families, the last proud Duarte of the canals. She speaks first and thinks after. The book lives in a lock house on the lowest canal in Bowl, far below the Archon's terraces. Her cousin Tomas serves ten years in the Bowl patrols for scraping a meter's chalk off a sluice, and he serves them at her own lock in a Bowl coat. The water trucks from Dustwell pour their loads into the canals at her lock house, and she counts every barrel in the Canal book. She does not want the household's tanker metered as much as she wants the proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share they lost in year 90. Her lock crew takes household wages through the dry season of year 130, and she does not.
+Mirela keeps the Canal book for the Canal families, the last proud Duarte of the canals. She speaks first and thinks after. The book lives in a lock house on the lowest canal in Bowl, far below the Archon's terraces. Her cousin Tomas serves in the Bowl patrol and stands guard at her own lock in a Bowl coat. Bowl's trucks bring barrels from Dustwell and pour them into the canals at her lock house, and she counts every barrel in the Canal book. She does not want the household truck metered as much as she wants the proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share they lost in year 90. Her lock crew takes household wages through the dry season of year 130, and she does not.
 
-Tomas saw the household's tanker unload on the top terrace on patrol and wrote it in a report, which the steward filed unread. At the lock he told the tenant drivers about it. The steward then bought his silence with oil for his mother, and the same week Mirela made him say it again on her steps.
+Tomas saw the household truck unload on the top terrace on patrol and wrote it in a report, which the steward filed unread. At the lock he told the tenant drivers about it. The steward then bought his silence with oil for his mother, and the same week Mirela made him say it again on her steps.
 
 Her line is "The water is ours, and we will count every barrel of it."
 
@@ -230,14 +230,14 @@ Her line is "The water is ours, and we will count every barrel of it."
 - Way: control.
 - High concept: The courteous old steward who holds the purse of the Archon's household.
 - Trouble: He buys every problem away with money, so each payment is one more thing that can be found out.
-- Aspects: Pays Agnes Ondra as he paid her uncle; Sava Kettering sits on a drum for him; A purse on the cart tailboard.
+- Aspects: Pays Agnes Ondra as he paid her uncle; Sava Kettering sits on a drum for him; A purse on the truck tailgate.
 - Skills: best social, worst toughness.
-- Wants: The Bowl never learns where the household's tanker unloads.
+- Wants: The Bowl never learns where the household truck unloads.
 - Fears: The Bowl learns it in a dry year.
 - Habit: He sits with his hands folded and names a sum before he names a threat.
-- Secret: The household's tanker fills the Marr gardens and the Archon's drought store. He hides it from the tenants and the Senate floor.
+- Secret: The household truck fills the Marr gardens and the Archon's drought store. He hides it from the tenants and the Senate floor.
 
-Aurel is the steward of the Archon's household, a courteous old man who holds its purse. He offers money before threats, and he signs patrol postings. He knows what the household's tanker fills, and he fears most that the Bowl learns it in a dry year. He pays Agnes Ondra as he paid her uncle, and he posted Sava Kettering at her gate.
+Aurel is the steward of the Archon's household, a courteous old man who holds its purse. He offers money before threats. He knows what the household truck fills, and he fears most that the Bowl learns it in a dry year. He pays Agnes Ondra as he paid her uncle, and he posted Sava Kettering at her gate.
 
 His line is "You came for water, and water is what you should carry out."
 
@@ -260,32 +260,30 @@ His line is "Friend, what did Agnes give you for the drive?"
 ## Juno Pell
 
 - Way: escape.
-- High concept: An old woman who keeps the beacon lamps in the pod field for the Children of Noah.
-- Trouble: She waits for a ship that does not come, and the lamps cost more oil each year.
-- Aspects: Pierce holds a lien on every lamp; Her mother woke in a pod; Cannot climb the ladder herself.
+- High concept: An old woman of the Children of Noah who lives in the pod field at the edge of the Glass Flats.
+- Trouble: She waits for a ship that does not come.
+- Aspects: Her mother woke in a pod.
 - Skills: best perception, worst driving.
-- Wants: Every lamp lit the night the ship comes.
-- Fears: A lamp going dark while she lives.
+- Wants: To see the ship come while she lives.
+- Fears: Dying before it comes.
 - Habit: She names a pod by its number whenever she walks past it.
 - Secret: She no longer thinks a ship will come. She hides it from the Children of Noah.
 
-Juno kept the beacon lamps in the field of old pods at the edge of the Glass Flats for the Children of Noah for sixty years. Her mother woke in a pod, and Juno knows every pod by its number. A Pierce lien number is painted on every lamp, and the Bowl buys their oil now. She is 84 and stays on the ground. Young Tam climbs the ladder for her.
+Juno has lived in the field of old pods at the edge of the Glass Flats all her life. Her mother woke in a pod, and Juno knows every pod by its number. She is old.
 
-Her line is "Six lamps, six pods, and not one of them goes dark while I am alive."
+Her line is "Forty-one was my mother's. Mind the door, it still sticks."
 
 ## Ilya Moreno
 
 - Way: control.
 - High concept: A corporal of the Old Army who still stands guard at Old Orchard in a Bowl patrol coat.
 - Trouble: He guards an army that is gone, so no one gives him a task and no one relieves him.
-- Aspects: The count painted on the blockhouse wall; A Bowl coat over an Old Army oath; Aurel Brede's postings send him nowhere.
+- Aspects: The count painted on the blockhouse wall; A Bowl coat over an Old Army oath.
 - Skills: best driving, worst social.
 - Wants: The basin to need the army again.
-- Fears: A truck goes missing from the motor pool on his watch.
-- Habit: He counts the trucks in the motor pool every morning and repaints the number.
 - Secret: He knows where the 2 trucks went that are missing from the count of 38. He tells the Bowl patrol nothing.
 
-Ilya was a corporal of the Old Army. He stayed at Old Orchard in a Bowl patrol coat and watched the Nose haul the machine tools away. Every morning he counts the 36 trucks in the motor pool and paints the number on the blockhouse wall. He guards an army that is gone, for the day the basin needs one again.
+Ilya was a corporal of the Old Army. He stayed at Old Orchard in a Bowl patrol coat and watched the Nose haul the machine tools away. He guards an army that is gone, for the day the basin needs one again.
 
 His line is "Those trucks are the army. I am still on duty."
 
@@ -301,7 +299,7 @@ His line is "Those trucks are the army. I am still on duty."
 - Habit: He walks up to each truck and looks at its brake rod before he speaks.
 - Secret: He rode on routes that Pierce clerks sold to robbers. He hides it from the drivers he warns.
 
-Ash was Scrapjaw's sharpest outrider. He gave every robbed driver a choice, and that cost him Rook's trust and then Ain's. Now he sits alone at the north bend where Emil Kessel died. He asks every driver to show the brake rod and sends them to the Salvage Yard to buy a proper one. He pays for it himself when they cannot.
+Ash was Scrapjaw's sharpest outrider. He gave every robbed driver a choice, and that cost him Ain's trust. Now he sits alone at the north bend where Emil Kessel died. He asks every driver to show the brake rod and sends them to the Salvage Yard to buy a proper one. He pays for it himself when they cannot.
 
 His line is "Show me the rod, friend. Then you choose your road, not the bend."
 
@@ -386,16 +384,16 @@ His line is "A loose mount is a gun waiting for a bend."
 ## Pim Arslan
 
 - Way: escape.
-- High concept: A glass cutter who ran from the Bowl glass works and sells smoke-dark lenses.
+- High concept: A lens cutter who ran from the Bowl workshop and sells smoke-dark lenses.
 - Trouble: She never stays long, so no one keeps her plate of the glass lean or acts on it.
-- Aspects: Her plate hangs by the door of the Green Pit hook house; Hadiza Okon feeds her; A diamond saw in her pack.
+- Aspects: Her plate hangs by the door of the Green Pit hook house; Hadiza Okon feeds her; An Old World glass cutter in her pack.
 - Skills: best perception, worst social.
 - Wants: Someone reads the glass before they drive out.
-- Fears: The Bowl glass works finds her.
+- Fears: The Bowl workshop finds her.
 - Habit: She holds each lens to the sun before she hands it over.
-- Secret: She took the diamond saw from the Bowl glass works without leave. She hides it from the Bowl.
+- Secret: She took the workshop's Old World glass cutter without leave. She hides it from the Bowl.
 
-Pim ran from the Bowl glass works at 19 with a diamond saw. She cuts the fused glass of the Glass Flats into smoke-dark lenses, and drivers wear them against the glare. She walked the glass to the Fallen Sun and saw that every ripple leans toward the crater. A plate she scratched with the lean lines hangs by the door of the Green Pit hook house.
+Pim ran from the Bowl workshop with its Old World glass cutter. She cuts the fused glass of the Glass Flats into smoke-dark lenses, and drivers wear them against the glare. She walked the glass to the Fallen Sun and saw that every ripple leans toward the crater. A plate she scratched with the lean lines hangs by the door of the Green Pit hook house.
 
 Her line is "The glass points at the Fallen Sun. Read it before you drive out."
 
@@ -418,7 +416,7 @@ Her line is "Hang it on the hook. Everyone drinks here, and nobody takes my well
 ## Hollis Brennan
 
 - Way: embrace.
-- High concept: The still boss at the Pump Station, who keeps the stills cooking crude into petrol.
+- High concept: The still boss at the Pump Station, who keeps the stills cooking crude into diesel.
 - Trouble: The pump and the stills eat tools and batteries faster than the convoys bring them.
 - Aspects: Drums stacked by the stills; A pumpjack that nods over an Old World well; Hands black to the wrist.
 - Skills: best machining, worst social.
@@ -427,7 +425,7 @@ Her line is "Hang it on the hook. Everyone drinks here, and nobody takes my well
 - Habit: He taps each drum as it is filled and chalks the count on the still.
 - Secret: None.
 
-Hollis runs the crew at the Pump Station. The pumpjack lifts crude from an Old World oil well, his stills cook it into petrol, and the fuel convoys load the drums. The pump wears through tools, and its motor needs batteries from Nose. When it stops, drums run short all over the basin.
+Hollis runs the crew at the Pump Station. The pumpjack lifts crude from an Old World oil well, his stills cook it into diesel, and the fuel convoys load the drums. The pump wears through tools, and its motor needs batteries from Nose. When it stops, drums run short all over the basin.
 
 His line is "No tools, no pump. No pump, no drums."
 
@@ -454,14 +452,14 @@ Her line is "I wrote it twice, once for the file and once for myself."
 - Trouble: Every rule he turns back on the Senate puts more tenants in the patrol and himself under its eye.
 - Aspects: The patrols know his face; A short joke for every fight; Sava Kettering grew up two doors from him.
 - Skills: best social, worst toughness.
-- Wants: A vote for every tenant who serves 10 years in the patrol.
+- Wants: Enough tenants on the citizens' roll to outvote the old families.
 - Fears: Dying one season short of a vote, as his grandfather did.
 - Habit: He ends every answer with a short joke.
 - Secret: None.
 
 Jory speaks for the tenants on the Bowl terraces and answers everything with a short joke. The Senate will not give tenants a vote. So he fills the Bowl road patrol with tenant drivers, because ten years in the patrol earns a vote. The patrols know his face and once searched his house at night.
 
-His line is "We pay Kiln and we pay the patrol, and we pay both with the same grain."
+His line is "We feed Kiln and we pay the patrol, and both come out of the same harvest."
 
 ## Bo Lindqvist
 
@@ -498,7 +496,7 @@ Her line is "The count is read in the open. Whoever wants the last number, come 
 ## Sefa Krol
 
 - Way: oppose.
-- High concept: The trader and leader of a dozen vulture families on the north-east side of the Salvage Yard.
+- High concept: The trader and leader of the vulture families on the north side of the Salvage Yard.
 - Trouble: Every favor she does for the families comes back later as a debt or a danger.
 - Aspects: First to any wreck; Hid Karl Vosk for years; A deal with Kaplan of Kiln Camp over the raiders' wrecks.
 - Skills: best perception, worst machining.
@@ -507,9 +505,9 @@ Her line is "The count is read in the open. Whoever wants the last number, come 
 - Habit: She prices what a stranger carries and tells him to keep his hand off her table.
 - Secret: She hid Karl Vosk and sent him west. She hides it from the Army post.
 
-Sefa leads a dozen vulture families who lived in the burnt trucks of the Burnt Convoy until the road crews cleared the wrecks. They live on the north-east side of the Salvage Yard now. They are first to any wreck, and she never takes the last water from anyone. She hid the robber Karl Vosk for years, sold Pierce's debtor book to the Salvage Yard and made a deal with Kaplan of Kiln Camp over the raiders' wrecks. Nobody in her camp went short this year.
+Sefa leads the vulture families who lived in the burnt trucks of the Burnt Convoy until the road crews cleared the wrecks. They live on the north side of the Salvage Yard now. They are first to any wreck. She hid the robber Karl Vosk for years, sold Pierce's debtor book to the Salvage Yard and made a deal with Kaplan of Kiln Camp over the raiders' wrecks. Nobody in her camp went short this year.
 
-Her line is "We take what the road is done with and leave the water."
+Her line is "We take what the road is done with."
 
 In autumn of year 130 her men cut the tow chain on wagon Seven's cannon and could not lift it, because the wagon lies on its frame in the hollow. She means to come back with a torch after the frost. Until then she tells the Army post that raiders took the wagon.
 
@@ -525,7 +523,7 @@ In autumn of year 130 her men cut the tow chain on wagon Seven's cannon and coul
 - Habit: He checks his watch when he lies.
 - Secret: He told Command that raiders took wagon Seven, but its cheap brake rod snapped on the bend. He hides it from Command and the Salvage Yard.
 
-Teller drove Nose Army wagon Seven on the weekly water run from Dustwell down the Bowl north road to Bowl for four years, and never lost a truck. His stripes pay for his sister's ration card. In autumn of year 130 the cheap brake rod that command ordered for the depot trucks snapped on the bend. The wagon could not slow and went over the edge into a hollow, and it hurt the arm of his relief driver when it hit the verge. At Kovac's desk Teller reported that raiders ran the wagon down and that the cannon went over the edge. Command wrote Seven off. Later he told Kovac the truth, and Kovac wrote none of it. After the rain he drove an Army truck back to the bend alone, walked down to take the broken half of the rod out of the linkage and could not shift it.
+Teller drove Nose Army wagon Seven on the weekly run for four years, water barrels from Dustwell down the Bowl north road to Bowl and Granary rations back to Nose, and never lost a truck. His stripes pay for his sister's ration card. In autumn of year 130 the cheap brake rod that command ordered for the depot trucks snapped on the bend. The wagon could not slow and went over the edge into a hollow, and it hurt the arm of his relief driver when it hit the verge. At Kovac's desk Teller reported that raiders ran the wagon down and that the cannon went over the edge. Command wrote Seven off. Later he told Kovac the truth, and Kovac wrote none of it. Weeks later he drove an Army truck back to the bend alone, walked down to take the broken half of the rod out of the linkage and could not shift it.
 
 His line is "Look, I've driven that track four years. You don't know the bend."
 
@@ -541,7 +539,7 @@ His line is "Look, I've driven that track four years. You don't know the bend."
 - Habit: He turns his half of the rod in his fingers while he talks.
 - Secret: None.
 
-Ilan is the conscript relief driver of wagon Seven, twenty years old. He rode in the cab to take over the link when Teller tired on the long run, and his arm is in a sling from the hit on the verge. He took half of the broken brake rod from the wagon and keeps it in his shirt pocket. At Kovac's desk he said the rod broke, and Kovac wrote it in the margin beside Teller's report. With Lena he found two more cracked rods on the depot line. Lena warned command in writing, and command filed the warning. His mother lives in Bowl and buys her water at Hattie's well house.
+Ilan is the conscript relief driver of wagon Seven, twenty years old. He rode in the cab to take over the link when Teller tired on the long run, and his arm is in a sling from the hit on the verge. He took half of the broken brake rod from the wagon and keeps it in his shirt pocket. At Kovac's desk he said the rod broke, and Kovac wrote it in the margin beside Teller's report. With Lena he found two more cracked rods on the depot line. Lena warned command in writing, and command filed the warning. His mother lives in Bowl and buys her water at Hattie's cistern house.
 
 His line is "The bend was fine. The rod wasn't."
 
@@ -580,16 +578,16 @@ Her line is "The test is here, but the road goes out there."
 ## Karl Vosk
 
 - Way: escape.
-- High concept: An Old Army deserter who robbed trucks with his brother and now rides for Kiln Camp.
+- High concept: An Old Army deserter who robbed trucks with his brother.
 - Trouble: He keeps running from a past that sits in the graves by Canyon Bridge.
-- Aspects: Shot Hal Sorensen in year 113; Sefa Krol hid him and sent him west; Rides on Ladle Ruiz's order.
+- Aspects: Shot Hal Sorensen in year 113; Sefa Krol hid him and sent him west.
 - Skills: best driving, worst social.
 - Wants: To be left alone where nobody asks about his past.
 - Fears: Someone from the Bowl names him as the man who shot Hal.
 - Habit: He sits where he can see the door.
 - Secret: He shot Hal Sorensen in year 113. He hides it from the Bowl.
 
-Karl and his brother Jens were Old Army deserters who robbed insured trucks on the Nose road with routes bought from a Pierce clerk. Karl shot Hal Sorensen in year 113. After Jens died he hid among the Burnt Convoy families, and Sefa sent him west. He rides for Kiln Camp now, and nobody there asks about his past.
+Karl and his brother Jens were Old Army deserters who robbed insured trucks on the Nose road with routes bought from a Pierce clerk. Karl shot Hal Sorensen in year 113. After Jens died he hid among the Burnt Convoy families, and Sefa sent him west.
 
 ## Hattie
 
@@ -599,11 +597,11 @@ Karl and his brother Jens were Old Army deserters who robbed insured trucks on t
 - Aspects: The only water an outsider may buy in Bowl; Sizes up every driver by how they arrive.
 - Skills: best perception, worst machining.
 - Wants: No driver leaves Bowl thirsty.
-- Fears: A dry well, or a driver dying of thirst within sight of her stand.
-- Habit: She sounds the well with a weighted line before she opens each morning.
+- Fears: An empty cistern, or a driver dying of thirst within sight of her stand.
+- Habit: She sounds the cistern with a weighted line before she opens each morning.
 - Secret: She waters drivers the patrol has turned away, and leaves them off her slate.
 
-Hattie runs the water stand in the Bowl gate yard, the section where outsiders are kept. Every driver who is not let past the yard buys water from her, so she is the first and the last person of Bowl they speak to. Drivers talk while their tanks fill, and she hears the roads from them. She tells an outsider the plain truth about the road, and says when she only heard it. She answers few questions about what lies past the gate. She keeps a slate for drivers who are short, and she remembers every line on it.
+Hattie runs the water stand in the Bowl gate yard, the section where outsiders are kept. Every driver who is not let past the yard buys water from her, so she is the first and the last person of Bowl they speak to. Drivers talk while their barrels fill, and she hears the roads from them. She tells an outsider the plain truth about the road, and says when she only heard it. She answers few questions about what lies past the gate. She keeps a slate for drivers who are short, and she remembers every line on it.
 
 Her line is "Sit down before you fall down."
 
@@ -612,7 +610,7 @@ Her line is "Sit down before you fall down."
 - Way: oppose.
 - High concept: The Kiln Camp rider who runs the south road as her own toll.
 - Trouble: Her mark protects only while Kiln lets her hold the road, and Kiln can melt her down.
-- Aspects: A ladle scratched in every paid door; Karl Vosk on the junction gun; Tastes every water barrel she takes.
+- Aspects: A ladle scratched in every paid door; Tastes every water barrel she takes.
 - Skills: best social, worst machining.
 - Wants: To run the south road as her own toll.
 - Fears: Being melted down with the guns the day Kiln turns on her.
@@ -642,7 +640,7 @@ His line is "A line stays open till somebody closes it. I close them."
 ## Joss Ardo
 
 - Way: escape.
-- High concept: A deserter from the Sunward's sworn men, who sings with the Children of Noah at the beacons.
+- High concept: A deserter from the Sunward's sworn men, who sings with the Children of Noah.
 - Trouble: He got out and his friend did not, and he cannot stop counting what that cost.
 - Aspects: Nephew of the dreamer Pell Ardo; Told the Senate what he saw; Cobb went in because of me.
 - Skills: best perception, worst toughness.
@@ -705,11 +703,11 @@ Her line is "I'll hear a man out before I write what he owes."
 
 - Way: escape.
 - High concept: Dario Feld's nephew, who came home from the north-west with a guard's tin badge and gave the Marshalls their name.
-- Trouble: He will drive anywhere for the Roadhouse and will not carry a gun.
+- Trouble: He will drive anywhere for the Roadhouse and has never fired the gun he carries.
 - Aspects: A north-western guard's tin badge; Lusa Fenwick's friend on the road; A Kiln ladle scratched into his door.
 - Skills: best driving, worst toughness.
 - Wants: A guard here paid by every town, like the one he saw in the north-west.
-- Fears: Having to carry a gun himself.
+- Fears: Having to fire his gun at a man.
 - Habit: He rubs the badge with his sleeve when he lies.
 - Secret: He once told drivers the north-western guard never lost a truck. He never asked.
 
@@ -727,11 +725,10 @@ His line is "He had his say at the mast. Now he has to pay."
 - Wants: To be paid without having to shoot.
 - Fears: Kiln turning to killing.
 - Habit: She counts the guns on a truck out loud before she says a word.
-- Secret: She still keeps the receipt book of "Sabra's paper" and honors her old receipts on her own.
+- Secret: None.
 
-Sabra took tolls on the south road for Kiln and gave drivers a dated receipt that was honored once a year. When Ladle Ruiz took the south road she left her tin by Ladle's scraper and drove away. She blocked Karl Vosk's road at the pump shed and cut him off at a bend north-east of the mast. She rides for unanswered Kiln claims on her own fee, since no Roadhouse car does.
+Sabra took tolls on the south road for Kiln. When Ladle Ruiz took the south road she drove away. She blocked Karl Vosk's road at the pump shed and cut him off at a bend north of the mast. She rides for unanswered Kiln claims on her own fee, since no Roadhouse car does.
 
-Her line is "Pay once, keep the paper. That's what a toll means."
 
 ## Garrett Ainsley
 

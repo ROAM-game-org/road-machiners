@@ -6,7 +6,7 @@ import { addVehicle } from "../sim/testkit";
 import { newWorld } from "../sim/world";
 import type { PartInstance } from "../sim/types";
 import { PAINT, type TruckPaint } from "../data/chassis";
-import { baselinePart, chassisPortraitCell, chassisStats, compareBase, dialShare, diffStats, headlineStat, itemIconCell, itemLore, itemTip, jobDone, repairingPart, partStats, statValue, toneStyle } from "./cards";
+import { baselinePart, chassisPortraitCell, chassisStats, compareBase, dialShare, diffStats, compassAngle, compassSvg, headlineStat, itemIconCell, itemLore, itemTip, jobDone, repairingPart, partStats, statValue, toneStyle } from "./cards";
 import { addGoods } from "../sim/inventory";
 import { startRepair } from "../sim/jobs";
 import { workMarkOf } from "./inventory-draw";
@@ -125,6 +125,25 @@ describe("the part a shop card compares with", () => {
 
   it("is nothing for the selected part's own card", () => {
     expect(compareBase(part("turbine"), part("turbine"))).toBeNull();
+  });
+});
+
+describe("the dashboard compass", () => {
+  const degrees = (rad: number) => Math.round((compassAngle(rad) * 180) / Math.PI);
+
+  it("turns its card with the fixed camera, so north points up and right like the highway", () => {
+    expect(degrees(-Math.PI / 2)).toBe(-45);
+    expect(degrees(0)).toBe(45);
+    expect(degrees(Math.PI / 2)).toBe(135);
+    expect(degrees(Math.PI)).toBe(225);
+  });
+
+  it("points its needle the way the truck faces, against the same card", () => {
+    const svg = compassSvg(-Math.PI / 2);
+    const tip = /M(-?[\d.]+) (-?[\d.]+)/.exec(svg.slice(svg.indexOf("compass-needle")))!;
+    expect(Number(tip[1])).toBeGreaterThan(0);
+    expect(Number(tip[2])).toBeLessThan(0);
+    expect(Number(tip[1])).toBeCloseTo(-Number(tip[2]), 1);
   });
 });
 

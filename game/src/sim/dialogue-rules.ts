@@ -1,4 +1,6 @@
 
+import { MOMENT_IDS, type MomentId } from '../data/moments';
+import { hearMoment, momentDue } from './moments';
 import { owedBy } from './crime';
 import { answerDemand, callsPartner, demandOpen, huntedCases, isMarshal, payHailedBounty, hearTerms } from './marshals';
 import { pickLesson } from './lessons';
@@ -142,6 +144,12 @@ function settleOpen(world: World, npc: Vehicle, call: Call, outcome: TopicOutcom
 
 function settleTopic(world: World, npc: Vehicle, topic: TopicId, outcome: TopicOutcome): void {
   world.player.talked[npc.id] = { ...world.player.talked[npc.id], [topic]: outcome };
+}
+
+function momentOfCall(call: Call): MomentId {
+  const topic = call.topic;
+  if (!topic || !(MOMENT_IDS as readonly string[]).includes(topic)) throw new Error(`The call on ${topic} is no moment`);
+  return topic as MomentId;
 }
 
 function closeCall(world: World, npc: Vehicle, call: Call): void {
@@ -403,6 +411,9 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   courierColdDue: (world, npc) => storyBeatDue(world, npc) === 'courierCold',
   courierGrudgeDue: (world, npc) => storyBeatDue(world, npc) === 'courierGrudge',
   courierFavorDue: (world, npc) => storyBeatDue(world, npc) === 'courierFavor',
+  fromTheWestDue: (world, npc) => momentDue(world, npc, 'fromTheWest'),
+  eightToNineDue: (world, npc) => momentDue(world, npc, 'eightToNine'),
+  crucibleDue: (world, npc) => momentDue(world, npc, 'crucible'),
   seeksSomeone: (world, npc) => {
     const search = heldSearch(world);
     return search !== null && !search.delivered && search.target !== npc.id;
@@ -679,6 +690,11 @@ export const EFFECTS: Record<EffectId, Effect> = {
     moveStory(world, npc, ['owed'], 'ended');
     settle(world, npc, call, 'done');
   },
+  hearMoment: (world, npc, call) => {
+    hearMoment(world, npc, momentOfCall(call));
+    settle(world, npc, call, 'done');
+  },
+  honkGoodbye: (world, npc) => void world.events.push({ t: 'honk', vehicle: npc.id }),
   settleDone: (world, npc, call) => settle(world, npc, call, 'done'),
   settleRefused: (world, npc, call) => settle(world, npc, call, 'refused'),
 };

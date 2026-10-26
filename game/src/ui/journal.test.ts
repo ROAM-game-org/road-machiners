@@ -78,7 +78,7 @@ describe('journal entries', () => {
 
     expect(journalEntries(w).notes.map((e) => e.id)).toEqual(['wagonBowl']);
     expect(leads.map((l) => resolve(l.from, 'en'))).toEqual(['Ada Cobb', 'Jed Cobb']);
-    expect(resolve(leads[1].body, 'en')).toBe('north-east of where we talked, about 100 m out');
+    expect(resolve(leads[1].body, 'en')).toBe('north of where we talked, about 100 m out');
   });
 
   it('is empty with no notes and no work', () => {
@@ -243,7 +243,7 @@ describe('journal screen', () => {
     const detail = openJournal(w).all((n) => n.className === 'journal-detail');
 
     expect(detail).toHaveLength(1);
-    expect(detail[0].text()).toContain('north-east of where we talked, about 100 m out');
+    expect(detail[0].text()).toContain('north of where we talked, about 100 m out');
     expect(detail[0].text()).toContain('Jed Cobb');
   });
 

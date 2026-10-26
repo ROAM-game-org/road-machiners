@@ -43,7 +43,7 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
   ~ dag_pay = true
   -> hub
 + {dag_road} [Who are the raiders?]
-  There are two camps. Kiln Camp sits out south-east, south-west of the big crater, and <term=scrapjaw>Scrapjaw Camp</term> is far up north. Most days they'd rather rob you than kill you, because a dead driver hauls nothing next week.
+  There are two camps. Kiln Camp sits out east, south of the big crater, and <term=scrapjaw>Scrapjaw Camp</term> is far up north. Most days they'd rather rob you than kill you, because a dead driver hauls nothing next week.
   So pay them or outrun them, and never fire the first shot.
   ~ dag_kiln = true
   -> hub
@@ -51,12 +51,12 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
   The Army's all right on the road. Off it, they act as though the basin belongs to them and the rest of us are only borrowing it. Bowl was feeding people long before Nose built its workshop line.
   -> hub
 + {dag_kiln} [How does Bowl pay the raiders?]
-  The Granary pays Kiln Camp a sack of grain for every armed truck that crosses their road. It costs less than a funeral.
+  The Granary feeds Kiln Camp, and Kiln lets Granary trucks cross their road. It costs less than a funeral.
   If they close on you anyway, fight hard. They often let a hard fighter go, and they strip a soft one down to the frame. Just don't start the fight.
   ~ note("talkKilnFight")
   -> hub
 + {dag_pay} [Do tenants serve with you?]
-  Some do. They're good drivers, but tenants have no vote. They ride in our coats and stay off the roll of citizens. The <term=senate>Senate</term> wants them on the road and off the roll.
+  Some do. They're good drivers, but a tenant has no vote until ten years in our coat put him on the roll of citizens. The <term=senate>Senate</term> wants them on the road, and it isn't in a hurry to count their years.
   Jory Baptiste keeps sending more of them, and I can't decide whether to thank him or watch him.
   -> hub
 + {dag_road} [Does the patrol go out to the crater?]
@@ -68,24 +68,24 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
   }
   -> hub
 + {has_note("wagonBowl") and not dag_wagon} [Do you know where that Army wagon is?]
-  I do. She's in a hollow below the bend in our north road, below where the <term=pump_station>Pump Station</term> track branches off. East of here. I rode down to her myself.
+  I do. She's in a hollow below the bend in our north road, below where the <term=pump_station>Pump Station</term> track branches off. North-east of here. I rode down to her myself.
   Rule first: take nothing from that hollow up to Nose. Nose blames the first driver it finds near its guns, and then it sends trucks down my road to ask questions.
   ~ dag_wagon = true
   ~ note("wagonDag")
   -> hub
 + {wagon_saw and wagon_fate == "none"} [Nobody raided that wagon.]
   No. I walked that hollow too. Not one casing in the grit, and not a hole in her. Whatever stove in that cab was the slope, not a gun.
-  Nose says raiders, and every driver who buys water here believes it. If you want it said, say it at the well house where they all drink. I'll stand next to you while you do.
-  ++ [Say it at the well house.]
+  Nose says raiders, and every driver who buys water here believes it. If you want it said, say it at the cistern house where they all drink. I'll stand next to you while you do.
+  ++ [Say it at the cistern house.]
      ~ wagon_fate = "told"
      You say it at Hattie's, plainly, to whoever is holding a cup: no brass, no holes, every dent from the slope. Dag stands next to you and says he counted the same. # page
      A woman at the cistern puts her bucket down. Her son rode in the cab of that wagon, she says. Nobody had told her there was no fight.
-     Two Nose soldiers buying water hear every word. They fill their drums and leave without talking to each other.
+     Two Nose soldiers with cups in their hands hear every word. They drink up and leave without talking to each other.
      -> hub
   ++ [Not yet.]
      -> hub
-+ {wagon_fate == "told"} [What did the well house make of it?]
-  Bowl talks over its cups, and Nose soldiers drink from the same well. Now they ask the Farmers whose brakes hold. I don't mind that question.
++ {wagon_fate == "told"} [What did the cistern house make of it?]
+  Bowl talks over its cups, and Nose soldiers drink from the same cistern. Now they ask the Farmers whose brakes hold. I don't mind that question.
   I still want Nose trucks off my road. Before, they'd have come down asking who stripped their wagon. Now they'd come asking who told.
   -> hub
 + [Goodbye.]
