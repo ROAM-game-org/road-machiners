@@ -68,6 +68,12 @@ describe('map geometry', () => {
     expect(after.y).toBeCloseTo(before.y);
   });
 
+  it('centres the whole map at the fitted scale for any drawing height', () => {
+    for (let height = 300; height < 600; height += 0.37) {
+      expect(fitted(MAP, 1196, height, { x: MAP * 0.8, y: MAP * 0.9 }).center.y).toBeCloseTo(MAP / 2);
+    }
+  });
+
   it('keeps the zoom between the fitted scale and the top scale', () => {
     const v = fitted(MAP, 400, 300, { x: 300, y: 300 });
     expect(zoomAround(v, 0.5, 200, 150, MAP, 8).tileSize).toBeCloseTo(fitTileSize(MAP, 400, 300));

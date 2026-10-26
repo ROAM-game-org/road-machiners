@@ -40,8 +40,10 @@ export function toTile(v: Viewport, px: number, py: number): Vec {
   return tileAt(v.center, (px - v.width / 2) / v.tileSize, -(py - v.height / 2) / v.tileSize);
 }
 
+const WHOLE_TOLERANCE = 1e-6;
+
 function holdsWhole(span: number, tileSize: number, size: number): boolean {
-  return span / tileSize >= size;
+  return span / tileSize >= size - WHOLE_TOLERANCE;
 }
 
 function clampTile(value: number, size: number): number {
