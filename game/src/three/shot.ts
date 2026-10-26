@@ -18,6 +18,7 @@ import { maxHp } from '../sim/wear';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
 import { daylightAt, enableSunShadows, lightScene, sunLight } from './render/daylight';
+import { MODEL_FILL } from './render/modelFill';
 import { loadModels, model as gameModel, NAMES, paintSurfaceMasks, type ModelName } from './render/models';
 import { VehicleView } from './render/vehicle';
 
@@ -247,6 +248,7 @@ function render(renderer: THREE.WebGLRenderer, cell: Cell, frame: Frame, hour: n
     scene.add(ground);
   }
   const center = viewBox(cell.root, cell.view).getCenter(new THREE.Vector3()).applyMatrix4(lens(cell.view, new THREE.Vector3(), 1).matrixWorld);
+  MODEL_FILL.shadeTree(cell.root);
   lightScene(sun, sky, center, daylightAt(turnAtHour(hour)));
   const camera = lens(cell.view, center, frame.half);
   if (cell.view.fill) scene.add(fillLight(camera));
