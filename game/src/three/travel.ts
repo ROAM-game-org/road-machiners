@@ -11,6 +11,7 @@ import {
 import type { TurnClock } from "./render/hazards";
 import { frameAt, type VehicleFrame } from "../phys/frames";
 import { joinTurn, SentObstacles, withTail, type LiveSight, type PreparedTurn, type Tail, type TurnRequest, type TurnResponse } from "../phys/turn";
+import { CONFIG } from "../config";
 import { PHYSICS } from "../data/physics";
 import type { QuestLanguage } from "../data/quests";
 import { mergePerf } from "../perf";
@@ -214,6 +215,7 @@ export function canTravel(world: World): boolean {
 
 export class Travel {
   private automatic = false;
+  private speedIndex = 0;
   private pressedAt: number | null = null;
   private requested = false;
   private autoHalted = false;
@@ -441,7 +443,17 @@ export class Travel {
   }
 
   getSpeed(now: number, fastSpeed: number): number {
-    return this.isFast(now) ? fastSpeed : 1;
+    if (this.isFast(now)) return fastSpeed;
+    return this.automatic ? CONFIG.travelSpeeds[this.speedIndex] : 1;
+  }
+
+  getSpeedIndex(): number {
+    return this.speedIndex;
+  }
+
+  setSpeedIndex(index: number): void {
+    if (!Number.isInteger(index) || index < 0 || index >= CONFIG.travelSpeeds.length) throw new Error(`No travel speed at index ${index}`);
+    this.speedIndex = index;
   }
 
   finishClock(elapsed: number, finishAt: number): void {

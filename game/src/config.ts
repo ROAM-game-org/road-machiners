@@ -33,6 +33,7 @@ export const CONFIG = {
   saveSlots: 3,
   travelHoldMs: 250,
   travelFastSpeed: 4,
+  travelSpeeds: [1, 4, 16, 64],
   playbackFrameMs: 50,
   questCharMs: 25,
   questWordMs: 125,
