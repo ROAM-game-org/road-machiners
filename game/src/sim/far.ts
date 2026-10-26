@@ -1,7 +1,7 @@
 
 import { chassisDef } from '../data/chassis';
 import { RULES } from '../data/rules';
-import { inLiveRange, isHeadless } from './fidelity';
+import { inLiveRange, isFarTurn, keepsPlayerFarRoute } from './fidelity';
 import { boxSegmentDistance, propBoxes, propReach } from './mapgen';
 import { keepsOffRoads } from './off-road';
 import { route } from './path';
@@ -19,9 +19,19 @@ import type { MoveOrder, Obstacle, Pose, Vehicle, World } from './types';
 import { avoidsCrater } from './sunward';
 import { bearing, dist, segmentDist, type Vec } from './vec';
 import { bendField, followPose, poseOf, rigDiscs } from './rig';
+import { inCombat } from './combat';
+import { playerVehicle } from './damage';
+import { farSightRadius } from './vision';
+
+export function ridesFar(w: World): boolean {
+  const me = playerVehicle(w);
+  if (!me.order || me.order.kind === 'brake' || isOnRope(w, me.id) || inCombat(w, me)) return false;
+  const reach = farSightRadius(w, me);
+  return w.vehicles.every((v) => v.id === me.id || dist(v.pos, me.pos) > reach);
+}
 
 export function isNear(w: World, v: Vehicle): boolean {
-  if (isOnRope(w, v.id)) return false;
+  if (isFarTurn() || isOnRope(w, v.id)) return false;
   return inLiveRange(w, v.pos);
 }
 
@@ -135,13 +145,13 @@ function keptOffRoad(stored: FarRoute): boolean {
 
 function keptFarRoute(v: Vehicle): FarRoute | undefined {
   if (v.brain) return v.brain.farRoute;
-  const kept = isHeadless() ? playerRoutes.get(v.id) : undefined;
+  const kept = keepsPlayerFarRoute() ? playerRoutes.get(v.id) : undefined;
   return kept && kept.at.x === v.pos.x && kept.at.y === v.pos.y ? kept.route : undefined;
 }
 
 function keepFarRoute(v: Vehicle, route: FarRoute | undefined): void {
   if (v.brain) v.brain.farRoute = route;
-  else if (!isHeadless()) return;
+  else if (!keepsPlayerFarRoute()) return;
   else if (route) playerRoutes.set(v.id, { route, at: { x: v.pos.x, y: v.pos.y } });
   else playerRoutes.delete(v.id);
 }

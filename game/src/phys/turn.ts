@@ -8,7 +8,8 @@ import { inQuestLanguage } from '../sim/quests';
 import { QUEST_LANGUAGES, type QuestLanguage } from '../data/quests';
 import { perfSnapshot, resetPerf, timed, type PerfStat } from '../perf';
 import { playerVehicle } from '../sim/damage';
-import { advanceFar } from '../sim/far';
+import { advanceFar, ridesFar } from '../sim/far';
+import { inFarTurn } from '../sim/fidelity';
 import { applyContactCrash, applyGroundCrash, applyLanding } from '../sim/crash-contact';
 import { tearLine } from '../sim/harpoon';
 import { breakProp } from '../sim/salvage';
@@ -27,7 +28,7 @@ import { planTurns, type PlanFrames } from './plan';
 export type TurnState = Omit<World, 'terrain'>;
 export type WorldTask = { world: TurnState; drive: DriveSnapshot };
 type LanguageTask = WorldTask & { questLanguage: QuestLanguage };
-export type TurnTask = LanguageTask & { tailSteps: number };
+export type TurnTask = LanguageTask & { tailSteps: number; fastTravel: boolean };
 export type LiveSight = { steps: number[]; tiles: number[][] };
 export type TailPose = { pos: Vec; heading: number; speed: number; bend?: number };
 export type Tail = { frames: TurnFrames; next: DriveSnapshot; poses: Record<string, TailPose> };
@@ -143,13 +144,17 @@ function computeTurnIn(task: TurnTask, terrain: World['terrain']): PreparedTurn 
   const drive = restoreDrive(task.drive);
   let result: TurnResult | null = null;
   try {
-    const world = endTurn({ ...task.world, terrain }, physicsMove(drive, (next) => { result = next; }));
+    const before = { ...task.world, terrain };
+    const far = task.fastTravel && ridesFar(before);
+    const play = () => endTurn(before, physicsMove(drive, (next) => { result = next; }));
+    const world = far ? inFarTurn(play) : play();
     if (!result) throw new Error('Turn ran without physics');
     const { terrain: _terrain, ...state } = world;
     const { next, ...motion } = result as TurnResult;
     const sight = timed('live-sight', () => liveSightOf(world, motion.frames[world.player.vehicleId]));
     const captured = captureDrive(next);
-    return { world: state, result: { ...motion, next: captured }, sight, tail: timed('tail', () => tailOf(next, world, task.tailSteps)) };
+    const tail = far ? null : timed('tail', () => tailOf(next, world, task.tailSteps));
+    return { world: state, result: { ...motion, next: captured }, sight, tail };
   } finally {
     freeDrive(drive);
     if (result) freeDrive((result as TurnResult).next);

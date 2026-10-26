@@ -352,6 +352,23 @@ describe("automatic travel safety", () => {
     expect(travel.isAuto(world)).toBe(true);
   });
 
+  it("stops fast automatic travel when a new truck shows in far sight, but plays on past it at the slowest speed", () => {
+    const start = makeSafeWorld();
+    const world = setMoveOrder(start, { kind: "stopAt", dest: { x: playerVehicle(start).pos.x + 60, y: playerVehicle(start).pos.y } });
+    const spotted = { ...world, turn: world.turn + 1, player: { ...world.player, contacts: [{ vehicleId: "stranger", center: { x: 0, y: 0 }, radius: 10, sources: ["far" as const], loudness: null }] } };
+    const run = (speedIndex: number) => {
+      const travel = new Travel(250, TAIL);
+      travel.setSpeedIndex(speedIndex);
+      travel.press(0, false, true);
+      travel.release();
+      travel.updateWorld(world, false);
+      travel.updateWorld(spotted, false);
+      return travel.isAuto(spotted);
+    };
+    expect(run(CONFIG.travelSpeeds.length - 1)).toBe(false);
+    expect(run(0)).toBe(true);
+  });
+
   it("ignores a bump into a prop or the ground but stops for a crash into a truck", () => {
     const world = makeSafeWorld();
     const id = world.player.vehicleId;
@@ -881,7 +898,7 @@ describe("the slowdown after a stopped turn", () => {
     const stopped = travel.stopAt({ ...playback, result: { next: {} } } as Playback, world, {}, 0, 0)!.world;
     travel.press(0, false, true);
     travel.prepareNext(stopped, { ...playback, result: { next: {} } } as Playback, 0);
-    expect(prepare).toHaveBeenCalledWith(stopped, tail.next);
+    expect(prepare).toHaveBeenCalledWith(stopped, tail.next, false);
   });
 
   describe("a stop after the movement ended", () => {
