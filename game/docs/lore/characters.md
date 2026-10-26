@@ -260,18 +260,18 @@ His line is "Friend, what did Agnes give you for the drive?"
 ## Juno Pell
 
 - Way: escape.
-- High concept: An old woman who keeps the beacon lamps in the pod field for the Children of Noah.
-- Trouble: She waits for a ship that does not come, and the lamps cost more oil each year.
-- Aspects: Pierce holds a lien on every lamp; Her mother woke in a pod; Cannot climb the ladder herself.
+- High concept: An old woman who keeps the pod beacons calling in the pod field for the Children of Noah.
+- Trouble: She waits for a ship that does not come, and the beacons drink more batteries each year.
+- Aspects: Her mother woke in a pod; Cannot climb the masts herself.
 - Skills: best perception, worst driving.
-- Wants: Every lamp lit the night the ship comes.
-- Fears: A lamp going dark while she lives.
+- Wants: Every beacon calling the night the ship comes.
+- Fears: A beacon going quiet while she lives.
 - Habit: She names a pod by its number whenever she walks past it.
 - Secret: She no longer thinks a ship will come. She hides it from the Children of Noah.
 
-Juno kept the beacon lamps in the field of old pods at the edge of the Glass Flats for the Children of Noah for sixty years. Her mother woke in a pod, and Juno knows every pod by its number. A Pierce lien number is painted on every lamp, and the Bowl buys their oil now. She is 84 and stays on the ground. Young Tam climbs the ladder for her.
+Juno has kept the pod beacons calling in the field of old pods at the edge of the Glass Flats for the Children of Noah most of her life. Each pod's own distress beacon still sends to the sky as long as it has a battery. Her mother woke in a pod, and Juno knows every pod by its number. She is old and stays on the ground. Young Tam climbs the masts for her.
 
-Her line is "Six lamps, six pods, and not one of them goes dark while I am alive."
+Her line is "Not one of these beacons goes quiet while I am alive."
 
 ## Ilya Moreno
 
@@ -386,16 +386,16 @@ His line is "A loose mount is a gun waiting for a bend."
 ## Pim Arslan
 
 - Way: escape.
-- High concept: A glass cutter who ran from the Bowl glass works and sells smoke-dark lenses.
+- High concept: A lens cutter who ran from the Bowl workshop and sells smoke-dark lenses.
 - Trouble: She never stays long, so no one keeps her plate of the glass lean or acts on it.
-- Aspects: Her plate hangs by the door of the Green Pit hook house; Hadiza Okon feeds her; A diamond saw in her pack.
+- Aspects: Her plate hangs by the door of the Green Pit hook house; Hadiza Okon feeds her; An Old World glass cutter in her pack.
 - Skills: best perception, worst social.
 - Wants: Someone reads the glass before they drive out.
-- Fears: The Bowl glass works finds her.
+- Fears: The Bowl workshop finds her.
 - Habit: She holds each lens to the sun before she hands it over.
-- Secret: She took the diamond saw from the Bowl glass works without leave. She hides it from the Bowl.
+- Secret: She took the workshop's Old World glass cutter without leave. She hides it from the Bowl.
 
-Pim ran from the Bowl glass works at 19 with a diamond saw. She cuts the fused glass of the Glass Flats into smoke-dark lenses, and drivers wear them against the glare. She walked the glass to the Fallen Sun and saw that every ripple leans toward the crater. A plate she scratched with the lean lines hangs by the door of the Green Pit hook house.
+Pim ran from the Bowl workshop with its Old World glass cutter. She cuts the fused glass of the Glass Flats into smoke-dark lenses, and drivers wear them against the glare. She walked the glass to the Fallen Sun and saw that every ripple leans toward the crater. A plate she scratched with the lean lines hangs by the door of the Green Pit hook house.
 
 Her line is "The glass points at the Fallen Sun. Read it before you drive out."
 
@@ -418,7 +418,7 @@ Her line is "Hang it on the hook. Everyone drinks here, and nobody takes my well
 ## Hollis Brennan
 
 - Way: embrace.
-- High concept: The still boss at the Pump Station, who keeps the stills cooking crude into petrol.
+- High concept: The still boss at the Pump Station, who keeps the stills cooking crude into diesel.
 - Trouble: The pump and the stills eat tools and batteries faster than the convoys bring them.
 - Aspects: Drums stacked by the stills; A pumpjack that nods over an Old World well; Hands black to the wrist.
 - Skills: best machining, worst social.
@@ -427,7 +427,7 @@ Her line is "Hang it on the hook. Everyone drinks here, and nobody takes my well
 - Habit: He taps each drum as it is filled and chalks the count on the still.
 - Secret: None.
 
-Hollis runs the crew at the Pump Station. The pumpjack lifts crude from an Old World oil well, his stills cook it into petrol, and the fuel convoys load the drums. The pump wears through tools, and its motor needs batteries from Nose. When it stops, drums run short all over the basin.
+Hollis runs the crew at the Pump Station. The pumpjack lifts crude from an Old World oil well, his stills cook it into diesel, and the fuel convoys load the drums. The pump wears through tools, and its motor needs batteries from Nose. When it stops, drums run short all over the basin.
 
 His line is "No tools, no pump. No pump, no drums."
 
@@ -525,7 +525,7 @@ In autumn of year 130 her men cut the tow chain on wagon Seven's cannon and coul
 - Habit: He checks his watch when he lies.
 - Secret: He told Command that raiders took wagon Seven, but its cheap brake rod snapped on the bend. He hides it from Command and the Salvage Yard.
 
-Teller drove Nose Army wagon Seven on the weekly water run from Dustwell down the Bowl north road to Bowl for four years, and never lost a truck. His stripes pay for his sister's ration card. In autumn of year 130 the cheap brake rod that command ordered for the depot trucks snapped on the bend. The wagon could not slow and went over the edge into a hollow, and it hurt the arm of his relief driver when it hit the verge. At Kovac's desk Teller reported that raiders ran the wagon down and that the cannon went over the edge. Command wrote Seven off. Later he told Kovac the truth, and Kovac wrote none of it. After the rain he drove an Army truck back to the bend alone, walked down to take the broken half of the rod out of the linkage and could not shift it.
+Teller drove Nose Army wagon Seven on the weekly run for four years, water drums from Dustwell down the Bowl north road to Bowl and Bowl's grain back to Nose, and never lost a truck. His stripes pay for his sister's ration card. In autumn of year 130 the cheap brake rod that command ordered for the depot trucks snapped on the bend. The wagon could not slow and went over the edge into a hollow, and it hurt the arm of his relief driver when it hit the verge. At Kovac's desk Teller reported that raiders ran the wagon down and that the cannon went over the edge. Command wrote Seven off. Later he told Kovac the truth, and Kovac wrote none of it. Weeks later he drove an Army truck back to the bend alone, walked down to take the broken half of the rod out of the linkage and could not shift it.
 
 His line is "Look, I've driven that track four years. You don't know the bend."
 
@@ -541,7 +541,7 @@ His line is "Look, I've driven that track four years. You don't know the bend."
 - Habit: He turns his half of the rod in his fingers while he talks.
 - Secret: None.
 
-Ilan is the conscript relief driver of wagon Seven, twenty years old. He rode in the cab to take over the link when Teller tired on the long run, and his arm is in a sling from the hit on the verge. He took half of the broken brake rod from the wagon and keeps it in his shirt pocket. At Kovac's desk he said the rod broke, and Kovac wrote it in the margin beside Teller's report. With Lena he found two more cracked rods on the depot line. Lena warned command in writing, and command filed the warning. His mother lives in Bowl and buys her water at Hattie's well house.
+Ilan is the conscript relief driver of wagon Seven, twenty years old. He rode in the cab to take over the link when Teller tired on the long run, and his arm is in a sling from the hit on the verge. He took half of the broken brake rod from the wagon and keeps it in his shirt pocket. At Kovac's desk he said the rod broke, and Kovac wrote it in the margin beside Teller's report. With Lena he found two more cracked rods on the depot line. Lena warned command in writing, and command filed the warning. His mother lives in Bowl and buys her water at Hattie's cistern house.
 
 His line is "The bend was fine. The rod wasn't."
 
@@ -599,8 +599,8 @@ Karl and his brother Jens were Old Army deserters who robbed insured trucks on t
 - Aspects: The only water an outsider may buy in Bowl; Sizes up every driver by how they arrive.
 - Skills: best perception, worst machining.
 - Wants: No driver leaves Bowl thirsty.
-- Fears: A dry well, or a driver dying of thirst within sight of her stand.
-- Habit: She sounds the well with a weighted line before she opens each morning.
+- Fears: An empty cistern, or a driver dying of thirst within sight of her stand.
+- Habit: She sounds the cistern with a weighted line before she opens each morning.
 - Secret: She waters drivers the patrol has turned away, and leaves them off her slate.
 
 Hattie runs the water stand in the Bowl gate yard, the section where outsiders are kept. Every driver who is not let past the yard buys water from her, so she is the first and the last person of Bowl they speak to. Drivers talk while their tanks fill, and she hears the roads from them. She tells an outsider the plain truth about the road, and says when she only heard it. She answers few questions about what lies past the gate. She keeps a slate for drivers who are short, and she remembers every line on it.

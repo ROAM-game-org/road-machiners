@@ -23,8 +23,8 @@ Sit a while, the shade is free. I am Ruben, and I keep the canal gates. That mea
   ~ ruben_senate = true
   -> hub
 + [Where can I get water, or find work?]
-  Water is Hattie's trade. She keeps the well house and sells a bucket to anyone with M's. Work is Dag's, because he rides with the <term=farmers>Farmers</term> and knows what hauls are waiting.
-  I only open the gates. The water that goes through them belongs to the families, and the water trucks bring it from <term=dustwell>Dustwell</term>. That's a well outpost up the north road, hours away. They pour it into the canals at the bottom of Bowl, and the families share it out.
+  Water is Hattie's trade. She keeps the cistern house and sells a bucket to anyone with M's. Work is Dag's, because he rides with the <term=farmers>Farmers</term> and knows what hauls are waiting.
+  I only open the gates. The water that goes through them belongs to the families, and Bowl's trucks bring it in barrels from <term=dustwell>Dustwell</term>. That's a well outpost up the north road, hours away. They pour it into the canals at the bottom of Bowl, and the families share it out.
   ~ ruben_water = true
   -> hub
 + [What does Bowl make?]
@@ -46,10 +46,10 @@ Sit a while, the shade is free. I am Ruben, and I keep the canal gates. That mea
   ~ ruben_sun = true
   -> hub
 + {ruben_sun} [What is the Fallen Sun?]
-  People say it was a ship, bigger than all of Bowl. It came down burning and dug a crater out in the basin. Some say it brought the end of the world with it, but I say the end was already here. The ship only added one more bucket to a field that was flooded already.
+  People say it was a ship, bigger than all of Bowl. It came down burning and dug a crater out in the basin. Some say it brought the end of the world with it, but I say the end was already here. The ship only added one more bucket to a field that was watered already.
   -> hub
 + {found("fallen-sun")} [What is the Fallen Sun really?]
-  So you've stood in that crater, and you know more of it than I do. <term=nose>Nose</term> calls the ship a warship, and Hattie at the well house calls it a seed ship that lost its way. I can only tell you that nothing grows near it, and of any place that is the worst thing I know how to say.
+  So you've stood in that crater, and you know more of it than I do. <term=nose>Nose</term> calls the ship a warship, and Hattie at the cistern house calls it a seed ship that lost its way. I can only tell you that nothing grows near it, and of any place that is the worst thing I know how to say.
   { cult_broken(): Folk go out there after dark again, now the lamps have stopped crossing. | Don't be out there after dark, either. The Sunward cross to it at dusk with their lamps, and I don't know a canal family that would follow them. }
   -> hub
 + {ruben_water || found("dustwell")} [What do you know about Dustwell?]

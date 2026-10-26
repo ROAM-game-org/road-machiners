@@ -78,4 +78,4 @@ The game opens with the player walking into the basin from outside. Nobody ever 
 3. They learn to drive on open dirt toward a wreck in sight.
 4. They search the wreck and patch the engine so it stops misfiring.
 5. One raider truck takes them on the road out. The pickup is weak, so a loss is likely but not forced.
-6. On a loss, the first fall plays: the barrel lowers and the driver lives. They wake in Bowl on Hattie's bench at the well house. A stranger towed the truck in and left no name, and the yard by the gate sells what the raider took.
+6. On a loss, the first fall plays: the barrel lowers and the driver lives. They wake in Bowl on Hattie's bench at the cistern house. A stranger towed the truck in and left no name, and the yard by the gate sells what the raider took.

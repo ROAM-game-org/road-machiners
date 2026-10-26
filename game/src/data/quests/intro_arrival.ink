@@ -56,7 +56,7 @@ You step through the doorway into a room with no roof. Sand has drifted into the
 = look
 ~ give_money(50)
 No jar of anything. The stove is cold and empty, and the table drawer holds a dead beetle. But under the cot, one floorboard sits a little higher than the rest, and when you get your fingers under it, it comes up with a squeak.
-In the hollow lies a tobacco tin. Inside, wrapped in a strip of oilcloth, is a short stack of brass coins, each stamped with a big M, that clink when you lift the tin. Somebody hid this from somebody and never came back for it. Their loss.
+In the hollow lies a tobacco tin. Inside, wrapped in a strip of oilcloth, is a short stack of smooth metal discs, each stamped with a big M, that clink when you lift the tin. Somebody hid this from somebody and never came back for it. Their loss.
 You put it in your shirt and go out to the shed.
 -> shed
 

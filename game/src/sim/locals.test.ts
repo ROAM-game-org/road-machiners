@@ -347,15 +347,15 @@ describe('wagon Seven', () => {
     }
   });
 
-  it('lets a driver who saw the hollow tell it at the well house beside Dag', () => {
+  it('lets a driver who saw the hollow tell it at the cistern house beside Dag', () => {
     const w = parkedAt('bowl');
     w.player.quests.world.wagon_saw = true;
 
-    const next = talk(w, 'bowl_dag', ['Nobody raided that wagon.', 'Say it at the well house.', 'Goodbye.']);
+    const next = talk(w, 'bowl_dag', ['Nobody raided that wagon.', 'Say it at the cistern house.', 'Goodbye.']);
 
     expect(worldVars(next).wagon_fate).toBe('told');
     expect(next.player.money).toBe(w.player.money);
-    expect(choices(next, 'bowl_dag')).toContain('What did the well house make of it?');
+    expect(choices(next, 'bowl_dag')).toContain('What did the cistern house make of it?');
   });
 });
 

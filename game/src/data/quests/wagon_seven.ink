@@ -21,8 +21,8 @@ A tow chain is wrapped round the cannon's barrel and runs up the slope. Somebody
 = hub
 + {not walked} [Walk the hollow. # check: perception 2]
   ~ walked = true
-  Wide tire tracks with chain marks come down the slope to the wagon's bed and go back up. Rain has softened them. The drums are gone, and you'd bet on that truck, though tracks don't say what it carried.
-  The tracks of two men climb out side by side to the east, as old as the tire tracks. After the rain somebody else came down alone, stood by the cab a while and went back up the way he came.
+  Wide tire tracks with a hand-cut tread come down the slope to the wagon's bed and go back up. Blown sand has softened them. The drums are gone, and you'd bet on that truck, though tracks don't say what it carried.
+  The tracks of two men climb out side by side to the east, as old as the tire tracks. Later, after the sand had drifted over them, somebody else came down alone, stood by the cab a while and went back up the way he came.
   { passed():
     You walk a slow circle and then a wider one. There's no brass in the grit. Not one casing.
     You go over the wagon's sides with your hand. Road dents, rust, a scraped fender. There isn't a bullet hole in her. Raiders shoot. If they shot here, they picked up every casing after and missed the whole wagon.

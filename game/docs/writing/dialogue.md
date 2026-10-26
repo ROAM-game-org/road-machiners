@@ -128,7 +128,7 @@ Bad: "The wind talks, if you know how to listen."
 
 Good: "Lena. I fix the Army's trucks, and anybody else's if they pay. If it's broken, put it on the bench."
 
-Good, after the first fall: "You're the one they dragged in on a chain. Sit down before you fall down. I'm Hattie, and this is my well."
+Good, after the first fall: "You're the one they dragged in on a chain. Sit down before you fall down. I'm Hattie, and this is my cistern."
 
 Vary the greeting on what changed since the last visit. Kovac greets a player who caught the depot thief differently from a stranger. A person who sees the player for the third time with the same question says so.
 

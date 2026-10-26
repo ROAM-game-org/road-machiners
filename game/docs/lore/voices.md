@@ -8,7 +8,7 @@ People live inside the basin's facts and do not announce them. A fact comes up o
 
 ### Ruben, canal warden
 
-Ruben talks of water, gates, seasons and his grandmother. He compares things to fields, buckets, floods and wet years.
+Ruben talks of water, gates, seasons and his grandmother. He compares things to fields, buckets, dry spells and lean years.
 
 His sentences are long and slow. They wind through two or three clauses before they land.
 
@@ -32,7 +32,7 @@ She cares that no driver leaves thirsty. She avoids talking about what lies past
 
 She treats a stranger as a driver who needs filling up and sizing up.
 
-Sample: "You're the one they dragged in on a chain. Sit down before you fall down. I'm Hattie, and this is my well."
+Sample: "You're the one they dragged in on a chain. Sit down before you fall down. I'm Hattie, and this is my cistern."
 
 ### Dag, Farmers patrol
 
@@ -64,7 +64,7 @@ Sample: "The sack leaves the store once and the Senate counts it twice."
 
 ### Bo Lindqvist, Granary driver
 
-Bo talks of load, weight, hands and oxen. He compares his feelings to things he carries.
+Bo talks of load, weight, hands and backs. He compares his feelings to things he carries.
 
 His sentences are plain and even, with no joke in them. He says "I" and gives the fact without softening it.
 
@@ -219,7 +219,7 @@ Sample: "A man with no water is a body, and a body is trouble. Leave him his wat
 
 ### The Army wagon driver on the radio
 
-Vocabulary: daylight, hollows, tracks, tires, dust and rain. He compares things to the weather on the road.
+Vocabulary: daylight, hollows, tracks, tires, dust and wind. He compares things to the weather on the road.
 
 Rhythm: fast and plain, in whole sentences that he cuts off when he must drive. He uses radio words like "over and out".
 
@@ -229,7 +229,7 @@ Cares about: reaching a place before dark. He avoids anything that sounds like t
 
 Strangers: he gives what he saw and asks for nothing back.
 
-Sample: "Not that I saw. There were tracks all over the hollow, the wide kind raiders make with chains on their tires. They were old, though. Rain's come through since."
+Sample: "Not that I saw. There were tracks all over the hollow, the wide kind raiders make with hand-cut tread on their tires. They were old, though. The wind's blown sand through since."
 
 ### Corporal Bram Teller
 

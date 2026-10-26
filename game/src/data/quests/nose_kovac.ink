@@ -34,12 +34,12 @@ VAR asked_paper = false
   -> hub
 + [What does Nose turn out?]
   Salt off the pans under the wall. Tools from the forge. Batteries from the cell shop.
-  The forge burns scrap and petrol. The cell shop burns parts and petrol. The scrap and the parts come from the <term=salvage_yard>Yard</term>, the petrol from the Pump Station. Short of any of it, the line stops.
+  The forge burns scrap and diesel. The cell shop burns parts and diesel. The scrap and the parts come from the <term=salvage_yard>Yard</term>, the diesel from the Pump Station. Short of any of it, the line stops.
   { short_of("scrap"):
     Scrap's short. The forge is cold until the Yard trucks come in. I log it.
   }
   { short_of("fuelDrums"):
-    Petrol's short. The forge and the cells both wait on the convoys. I log that too.
+    Diesel's short. The forge and the cells both wait on the convoys. I log that too.
   }
   { short_of("parts"):
     Parts are short. The cell shop stands idle, and command asks me why.
@@ -71,7 +71,7 @@ VAR asked_paper = false
   ~ begin("nose_depot_leak")
   -> END
 + {has_note("wagonBowl")} [About that scavenger with the Army radio.]
-  Him. He sold us our own radio back, and I paid stock price for it. That set came off wagon Seven. She ran water drums from Dustwell to Bowl every week, and she went dark on the bend in the Bowl north road. The crew walked in and reported raiders, and her cannon lost over the edge. Command wrote her off. I log it.
+  Him. He sold us our own radio back, and I paid stock price for it. That set came off wagon Seven. Every week she ran water drums from Dustwell to Bowl and brought Bowl's grain back up here. She went dark on the bend in the Bowl north road. The crew walked in and reported raiders, and her cannon lost over the edge. Command wrote her off. I log it.
   The scavenger said for a little more that the cannon's still on her. I didn't pay a little more.
   ~ note("wagonNose")
   -> hub
@@ -93,7 +93,7 @@ VAR asked_paper = false
   Corporal Teller came back from the wash pit with wet hands and a light purse. I don't log what I don't see, and I didn't see anything.
   -> hub
 + {wagon_fate == "told"} [About wagon Seven.]
-  Soldiers buy water at Bowl, and Bowl talks over the cups. Now my men come back up the road asking whether their own brakes will hold. You told Bowl before you told my log. I won't forget the order you did it in.
+  My grain crews drink at Bowl while they load, and Bowl talks over the cups. Now my men come back up the road asking whether their own brakes will hold. You told Bowl before you told my log. I won't forget the order you did it in.
   -> hub
 + {wagon_fate == "sold"} [About wagon Seven.]
   A piece of Army steel from wagon Seven changed hands at the <term=salvage_yard>Yard</term>. I logged the sale. Your name is on the line, beside the price.

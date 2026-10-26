@@ -85,8 +85,8 @@ Agnes watches you go, then goes back to her dials.
 
 === steward ===
 # checkpoint: steward
-A cart waits where the Dustwell track meets the Bowl road. # page # place: The Bowl road
-A grey-haired man in a grey coat sits on the back of it. A lantern is stitched on his collar, and a purse sits beside him.
+A truck waits where the Dustwell track meets the Bowl road. # page # place: The Bowl road
+A grey-haired man in a grey coat sits on its tailgate. A lantern is stitched on his collar, and a purse sits beside him.
 I am Aurel Brede, steward to the Archon's household. My watchman saw Agnes give you something sealed. He also saw you read her dial. # speaker: Steward
 I'm not asking you to burn anything. Lose the paper on the road. And if anyone in Bowl asks, you never read a dial. # speaker: Steward
 He offers {price} M. # reveal: all
@@ -186,7 +186,7 @@ Under the sum she wrote: For Mirela, to compare with hers.
 { crossed():
   -> through
 }
-Bowl patrolmen hold the gate, with a cart across the road. To the left, a dry ditch runs around the wall. # page # place: The Bowl gate
+Bowl patrolmen hold the gate, with a handcart across the road. To the left, a dry ditch runs around the wall. # page # place: The Bowl gate
 The household truck is through the gate ahead of you. Nobody asked it for a pass.
 { sluice == "watched":
   The steward's rider waits behind the patrolmen, next to his buggy.
@@ -274,7 +274,7 @@ The older patrolman takes the M's without counting them. The cart rolls aside.
 ~ marr_regard = "enemy"
 You hand the copy through the window. # page # place: The Bowl gate
 No pass. Since you gave it up, there's no fine. # speaker: Patrolman
-He puts it in a saddlebag, and a boy rides off with it toward the top terrace. The cart rolls aside. # reveal: all
+He puts it in a satchel, and a boy runs off with it toward the top terrace. The cart rolls aside. # reveal: all
 -> END
 
 === seized ===
@@ -286,7 +286,7 @@ He puts it in a saddlebag, and a boy rides off with it toward the top terrace. T
 }
 ~ pay(due)
 The patrolmen read the first page standing in the road. # page # place: The Bowl gate
-A young patrolman says it belongs at the lock house. The older one tells him to bring a saddlebag.
+A young patrolman says it belongs at the lock house. The older one tells him to bring a satchel.
 The copy goes up to the top terrace. Now the household knows what Agnes wrote, and whose name is beside the dial.
 They fine you {due} M for carrying pump papers without a pass. # reveal: all
 Your name goes into their report.
@@ -337,10 +337,9 @@ The number stays on the board. Nobody needs Agnes's copy to read it.
   ~ due = money()
 }
 ~ pay(due)
-You tighten the first bolt too hard before the others are in. The old flange cracks.
-Water runs out of the tank, across the terrace and under the wall. Part of the wall falls into the gardens.
+You tighten the first bolt too hard before the others are in. The old flange cracks across, and the inlet is ruined.
 The worker drops his hoe and runs over. He walks you to the gate and writes your name and your truck on his palm.
-The household bills you {due} M for the wall. # reveal: all
+The household bills you {due} M for a new inlet. # reveal: all
 -> town.town_hub
 
 === lock ===
@@ -437,7 +436,7 @@ Bowl patrolmen push through the crowd toward you.
 You keep reading. The tenants close in around the patrolmen.
 The grey-haired tenant chalks the numbers on the market board as you read them.
 The patrolmen write down your plate and leave.
-Before evening a household cart brings a sack of grain for every family that goes home quietly. About half the crowd takes a sack and leaves. # reveal: all
+Before evening a household truck brings a sack of grain for every family that goes home quietly. About half the crowd takes a sack and leaves. # reveal: all
 The rest stay by the board until dark.
 -> END
 
@@ -461,7 +460,7 @@ The steward doesn't open the copy. He weighs it in his hand and gives you the pu
 { book_read: He sees the cut seal and pays anyway. }
 He writes your name on a slip.
 Friends of the household drink first. Don't talk about this in Bowl, and you never read a dial. The gate has your plate. # speaker: Steward
-His cart rolls off toward Bowl with the copy. # reveal: all
+His truck rolls off toward Bowl with the copy. # reveal: all
 You count {price} M.
 -> END
 
