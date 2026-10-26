@@ -1,11 +1,11 @@
 import { isKnockedOut } from '../../sim/defeat';
 import { topGoal } from '../../sim/npc-activities';
 import type { SimText } from '../../sim/progression/sim-mode';
-import type { Vehicle, World } from '../../sim/types';
+import type { GameEvent, Vehicle, World } from '../../sim/types';
 import { t, type Msg } from '../../text/msg';
 import { goalText, vehicleTitle } from '../../text/names';
 import { resolve } from '../../text/resolve';
-import { eventText, formatVehicleState, jobLabel, type LogLine } from '../format';
+import { eventText, formatVehicleState, jobLabel, vehicleName, type LogLine } from '../format';
 import { fuelLiters, kph, moneyMsg } from '../units';
 
 const english = (msg: Msg): string => resolve(msg, 'en');
@@ -25,10 +25,42 @@ function doingOf(world: World, v: Vehicle): Msg {
   return goal ? goalText(goal.reason) : formatVehicleState(world, v);
 }
 
+const words = (id: string): string => id.replace(/([A-Z])/g, ' $1').toLowerCase();
+const nameOf = (world: World, id: string): string => english(vehicleName(world, id));
+
+type Of<K extends GameEvent['t']> = Extract<GameEvent, { t: K }>;
+type Words = { [K in GameEvent['t']]?: (world: World, e: Of<K>) => { text: string; tone: string } };
+
+const JOB_OUTCOME = { started: 'starts', done: 'finishes', cancelled: 'stops', skipped: 'skips' } as const;
+
+function jobWords(world: World, e: Of<'job'>): string {
+  const v = [...world.vehicles, ...world.removed].find((x) => x.id === e.vehicle);
+  const label = v ? english(jobLabel(world, v, e.job)) : words(e.job.kind);
+  return `${nameOf(world, e.vehicle)} ${JOB_OUTCOME[e.outcome]}: ${label}`;
+}
+
+const SIM_WORDS: Words = {
+  job: (world, e) => ({ text: jobWords(world, e), tone: 'dim' }),
+  shopMoney: (world, e) => ({ text: `${nameOf(world, e.vehicle)} ${e.amount < 0 ? 'pays' : 'gets'} ${english(moneyMsg(Math.abs(e.amount)))} for ${words(e.kind)}`, tone: 'dim' }),
+  stateEnded: (world, e) => ({ text: `${nameOf(world, e.state.holder)} and ${nameOf(world, e.state.other)}: ${words(e.state.kind)} ${e.ending}`, tone: 'dim' }),
+  lookedOver: (world, e) => ({ text: `${nameOf(world, e.by)} looks over ${nameOf(world, e.target)}`, tone: '' }),
+  collision: (world, e) => ({ text: `${nameOf(world, e.a)} hits ${nameOf(world, e.b)}`, tone: 'bad' }),
+  arrived: (world, e) => ({ text: `${nameOf(world, e.vehicle)} arrives`, tone: 'dim' }),
+  spawn: (world, e) => ({ text: `${nameOf(world, e.vehicle)} enters the map`, tone: 'dim' }),
+  despawn: (world, e) => ({ text: `${nameOf(world, e.vehicle)} leaves the map`, tone: 'dim' }),
+  practice: (_world, e) => ({ text: `${e.xp.toFixed(1)} XP from ${words(e.source)}`, tone: 'dim' }),
+  weather: (_world, e) => ({ text: `A ${words(e.event.kind)} ${e.outcome === 'started' ? 'begins' : 'ends'}`, tone: 'dim' }),
+};
+
+function simWords(world: World, e: GameEvent): { text: string; tone: string } | null {
+  const say = SIM_WORDS[e.t] as ((world: World, e: GameEvent) => { text: string; tone: string }) | undefined;
+  return say ? say(world, e) : null;
+}
+
 export const SIM_TEXT: SimText = {
   event(world, e) {
     const line = eventText(seeingAll(world), e);
-    return line ? { text: lineText(line), tone: line.cls } : null;
+    return line ? { text: lineText(line), tone: line.cls } : simWords(world, e);
   },
   truck: (world, v) => english(vehicleTitle(world, v)),
   doing: (world, v) => english(doingOf(world, v)),

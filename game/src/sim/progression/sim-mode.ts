@@ -14,7 +14,7 @@ import { emptyLedger, LEDGER_KEYS, type Ledger } from './orders';
 import { archetypeWorldOn, FAR_MOVER, netWorth, playTurns, type PlayedTurn } from './record';
 import { describe, QUIET, snap, turnLine } from './turn-log';
 
-export type Marker = { id: string; name: string; x: number; y: number; heading: number; faction: string; player: boolean; out: boolean; combat: boolean };
+export type Marker = { id: string; name: string; chassis: string; x: number; y: number; heading: number; faction: string; player: boolean; out: boolean; combat: boolean };
 export type LogEntry = { turn: number; kind: string; quiet: boolean; tone: string; text: string; raw: string; ids: string[] };
 export type CardRow = [string, string];
 export type CardSection = { name: string; lines: string[] };
@@ -32,14 +32,19 @@ export type SimText = {
 };
 
 export type ToSim =
-  | { kind: 'start'; seed: number }
+  | { kind: 'start'; seed: number | null }
   | { kind: 'play' }
   | { kind: 'pause' }
   | { kind: 'step' }
   | { kind: 'speed'; gapMs: number }
-  | { kind: 'watch'; id: string | null };
+  | { kind: 'watch'; id: string | null }
+  | { kind: 'save' }
+  | { kind: 'download' };
 
 export type FromSim =
+  | { kind: 'started'; seed: number; turn: number; resumed: boolean }
+  | { kind: 'saved'; turn: number }
+  | { kind: 'saveFile'; name: string; json: string }
   | { kind: 'frame'; frame: Frame }
   | { kind: 'card'; card: Card | null }
   | { kind: 'ended'; turn: number; reason: string }
@@ -51,18 +56,23 @@ const ENDLESS = Number.MAX_SAFE_INTEGER;
 const round = (n: number): number => Math.round(n * 10) / 10;
 
 export class SimRun {
-  private ledger: Ledger = emptyLedger();
   private watched: string | null = null;
   private playing = false;
   private over = false;
   private gapMs = 0;
   private world: World;
+  private readonly ledger: Ledger;
   private readonly turns: Generator<PlayedTurn>;
 
-  constructor(start: World, seed: number, private readonly text: SimText, private readonly post: (message: FromSim) => void) {
+  constructor(start: World, private readonly text: SimText, private readonly post: (message: FromSim) => void, ledger: Ledger = emptyLedger()) {
     this.world = start;
-    this.turns = playTurns(start, `sim seed ${seed}`, 'markov', ENDLESS, SIM_OPTIONS, FAR_MOVER);
+    this.ledger = { ...ledger };
+    this.turns = playTurns(start, `sim seed ${start.seed}`, 'markov', ENDLESS, SIM_OPTIONS, FAR_MOVER);
     this.post({ kind: 'frame', frame: frameOf(start, [], this.ledger, null, text) });
+  }
+
+  current(): { world: World; ledger: Ledger } {
+    return { world: this.world, ledger: { ...this.ledger } };
   }
 
   handle(message: ToSim): void {
@@ -71,7 +81,7 @@ export class SimRun {
     else if (message.kind === 'step') this.stepOnce();
     else if (message.kind === 'speed') this.gapMs = message.gapMs;
     else if (message.kind === 'watch') this.watch(message.id);
-    else throw new Error('The sim is already started');
+    else throw new Error(`The sim run does not handle ${message.kind}`);
   }
 
   private play(): void {
@@ -153,6 +163,7 @@ export function markersOf(world: World, text: SimText): Marker[] {
   return world.vehicles.map((v) => ({
     id: v.id,
     name: text.truck(world, v),
+    chassis: v.chassisId,
     x: v.pos.x,
     y: v.pos.y,
     heading: v.heading,

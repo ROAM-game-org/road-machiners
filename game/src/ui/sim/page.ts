@@ -6,7 +6,7 @@ import { clockOf } from "../../sim/sun";
 import type { NpcFactionId } from "../../sim/types";
 import type { Vec } from "../../sim/vec";
 import { fetchMap } from "../../three/map-file";
-import { devEl as el, uiRoot } from "../dom";
+import { devEl as el, download, uiRoot } from "../dom";
 import { toPx, wheelZoomFactor, type Viewport } from "../map-geometry";
 import { MapView, openScene } from "../map-view";
 import { token } from "../tokens";
@@ -22,7 +22,6 @@ const SPEEDS: { label: string; title: string; gap: number }[] = [
   { label: "Fast", title: "As fast as it runs", gap: 0 },
 ];
 const START_SPEED = 1;
-const RANDOM_SEEDS = 1_000_000;
 const LOOK = { player: "--select", outlaw: "--danger-bright", lawman: "--good-bright", town: "--path-contact", independent: "--ink-muted", combat: "--alarm", selected: "--ink-bright", out: "--surface-sunk", halo: "--surface-sunk" };
 const KEY_ROWS = ["money", "net worth", "xp", "health", "mean hp", "fuel", "supplies", "engine heat", "speed"];
 const OPEN_SECTIONS = ["goals", "states", "contracts", "foes in sight"];
@@ -31,19 +30,11 @@ const WEAK_HEALTH = 40;
 type Drag = { pointer: number; x: number; y: number; moved: number };
 type Point = { x: number; y: number };
 
-function seedFromUrl(): number {
-  const params = new URLSearchParams(location.search);
-  const text = params.get("seed");
-  if (text === null) return newSeedInUrl(params);
+function seedFromUrl(): number | null {
+  const text = new URLSearchParams(location.search).get("seed");
+  if (text === null) return null;
   const seed = Number(text);
   if (text === "" || !Number.isInteger(seed)) throw new Error(`The seed "${text}" is not a whole number. Open the page as /sim.html?seed=<whole number>`);
-  return seed;
-}
-
-function newSeedInUrl(params: URLSearchParams): number {
-  const seed = Math.floor(Math.random() * RANDOM_SEEDS);
-  params.set("seed", String(seed));
-  history.replaceState(null, "", `?${params}`);
   return seed;
 }
 
@@ -196,6 +187,9 @@ class SimPage {
   private speedIndex = START_SPEED;
   private readonly follow = new Toggle("Follow", "F key. Keeps the card's truck in the middle", () => this.view.redraw());
   private readonly seedBox = el("input", { type: "number", class: "sim-seed", step: "1" }) as HTMLInputElement;
+  private readonly saveButton = el("button", { class: "btn-s", title: "The run also saves every game hour and on Pause, and opening the page resumes it", onclick: () => this.send({ kind: "save" }) }, "Save");
+  private readonly downloadButton = el("button", { class: "btn-s", title: "Download the run as a game save file", onclick: () => this.send({ kind: "download" }) }, "Download save");
+  private readonly saveNote = el("span", { class: "sim-status" }, "Not saved yet");
   private readonly quiet = new Toggle("Quiet events", "Show the events the log hides by default", () => this.renderLog());
   private readonly onlySelected = new Toggle("Card's truck only", "Show only the events of the card's truck", () => this.renderLog());
   private readonly cardView = new CardView();
@@ -205,14 +199,14 @@ class SimPage {
   private playing = false;
   private started = false;
 
-  constructor(private readonly worker: Worker, seed: number) {
+  constructor(private readonly worker: Worker) {
     worker.onmessage = (event: MessageEvent<FromSim>) => this.receive(event.data);
     worker.onerror = (event) => this.fail(0, `The sim worker failed: ${event.message}`);
-    this.seedBox.value = String(seed);
     const runForm = el("form", { class: "sim-run", onsubmit: (e: Event) => this.newRun(e) }, el("label", {}, "Seed ", this.seedBox), el("button", { class: "btn-s", type: "submit" }, "New run"));
     const transport = el("div", { class: "sim-transport" }, this.playButton, this.stepButton, this.follow.button);
     const speed = el("div", { class: "option-switch sim-speed" }, ...this.speedButtons);
-    const controls = el("div", { class: "sim-controls panel" }, transport, speed, el("div", { class: "sim-run-row" }, runForm, this.status));
+    const saving = el("div", { class: "sim-run-row" }, el("div", { class: "sim-run" }, this.saveButton, this.downloadButton), this.saveNote);
+    const controls = el("div", { class: "sim-controls panel" }, transport, speed, el("div", { class: "sim-run-row" }, runForm, this.status), saving);
     const filters = el("div", { class: "sim-filters" }, this.quiet.button, this.onlySelected.button);
     const logHead = el("div", { class: "sim-log-head" }, el("span", { class: "panel-title" }, "Log"), this.logCount, filters);
     const logPanel = el("div", { class: "sim-log-panel panel" }, logHead, this.log);
@@ -224,7 +218,7 @@ class SimPage {
     this.cardView.show(null);
   }
 
-  async start(seed: number): Promise<void> {
+  async start(seed: number | null): Promise<void> {
     this.view.update(openScene((await fetchMap()).terrain), null);
     this.resize();
     new ResizeObserver(() => this.resize()).observe(this.mapBox);
@@ -262,10 +256,22 @@ class SimPage {
   }
 
   private receive(message: FromSim): void {
-    if (message.kind === "frame") this.showFrame(message.frame);
-    else if (message.kind === "card") this.cardView.show(message.card);
-    else if (message.kind === "ended") this.end(`The run ended at turn ${message.turn}: the player is ${message.reason}`);
-    else this.fail(message.turn, message.message);
+    const handlers: { [K in FromSim["kind"]]: (m: Extract<FromSim, { kind: K }>) => void } = {
+      started: (m) => this.showStarted(m),
+      saved: (m) => (this.saveNote.textContent = `Saved at turn ${m.turn}`),
+      saveFile: (m) => download(m.name, m.json, "application/json"),
+      frame: (m) => this.showFrame(m.frame),
+      card: (m) => this.cardView.show(m.card),
+      ended: (m) => this.end(`The run ended at turn ${m.turn}: the player is ${m.reason}`),
+      failed: (m) => this.fail(m.turn, m.message),
+    };
+    (handlers[message.kind] as (m: FromSim) => void)(message);
+  }
+
+  private showStarted(m: Extract<FromSim, { kind: "started" }>): void {
+    this.seedBox.value = String(m.seed);
+    history.replaceState(null, "", location.pathname);
+    if (m.resumed) this.saveNote.textContent = `Resumed the saved run at turn ${m.turn}`;
   }
 
   private showFrame(f: Frame): void {
@@ -529,8 +535,7 @@ function showBootFailure(error: unknown): void {
 }
 
 try {
-  const seed = seedFromUrl();
-  new SimPage(new Worker(new URL("../../three/sim-worker.ts", import.meta.url), { type: "module" }), seed).start(seed).catch(showBootFailure);
+  new SimPage(new Worker(new URL("../../three/sim-worker.ts", import.meta.url), { type: "module" })).start(seedFromUrl()).catch(showBootFailure);
 } catch (error) {
   showBootFailure(error);
 }

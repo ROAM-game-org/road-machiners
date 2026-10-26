@@ -4,6 +4,7 @@ import { RULES } from "../data/rules";
 import { PHYSICS } from "../data/physics";
 import { isKnockedOut } from "./defeat";
 import { isNear } from "./far";
+import { thinksThisTurn } from "./fidelity";
 import { getActivityDestination, thinkNpc, topGoal, turnCornered } from "./npc-activities";
 import { clearLines, route, routeLength, type Blocker } from "./path";
 import { randRange } from "./rng";
@@ -26,7 +27,7 @@ import { heldGoal, holdOnStretch, rollingOrder, runsDown } from "./hunters";
 import { dragsStraight } from "./sunward";
 
 function planners(world: World): Vehicle[] {
-  return world.vehicles.filter((v) => v.brain && !isOnRope(world, v.id) && !isKnockedOut(v));
+  return world.vehicles.filter((v) => v.brain && !isOnRope(world, v.id) && !isKnockedOut(v) && thinksThisTurn(world, v));
 }
 
 type Plan = { v: Vehicle; activity: NpcActivity; goal: Vec | null };

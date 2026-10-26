@@ -23,7 +23,28 @@ type SideTarget = { armored: Planner; bare: Planner; armor: PartInstance[]; vita
 
 export type Target = { sides: Record<Side, SideTarget>; stops: Map<string, number> };
 
+const LOADOUTS_KEPT = 512;
+const targetCache = new Map<string, Target>();
+const gunCache = new Map<string, Record<Side, WeaponDef[]>>();
+
+function loadoutKey(v: Vehicle): string {
+  return `${v.chassisId}|${JSON.stringify(v.items)}`;
+}
+
+function kept<T>(cache: Map<string, T>, key: string, build: () => T): T {
+  const known = cache.get(key);
+  if (known) return known;
+  if (cache.size >= LOADOUTS_KEPT) cache.clear();
+  const made = build();
+  cache.set(key, made);
+  return made;
+}
+
 export function targetOf(v: Vehicle): Target {
+  return kept(targetCache, loadoutKey(v), () => buildTarget(v));
+}
+
+function buildTarget(v: Vehicle): Target {
   const armored = sidePlanner(v);
   const vital = vitalParts(v);
   const sides = Object.fromEntries(SIDES.map((side) => [side, sideTarget(v, side, armored, vital)])) as Record<Side, SideTarget>;
@@ -94,6 +115,10 @@ export function killRate(def: WeaponDef, target: Target, side: Side): number {
 }
 
 export function gunsBySide(v: Vehicle): Record<Side, WeaponDef[]> {
+  return kept(gunCache, loadoutKey(v), () => buildGunsBySide(v));
+}
+
+function buildGunsBySide(v: Vehicle): Record<Side, WeaponDef[]> {
   const out: Record<Side, WeaponDef[]> = { front: [], rear: [], left: [], right: [] };
   for (const item of mountedItems(v, 'weapon')) {
     if (item.part.hp <= 0) continue;

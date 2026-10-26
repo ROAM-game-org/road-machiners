@@ -23,7 +23,7 @@ describe('simulation mode', () => {
 
   it('plays the same game as the recorder for the same seed', () => {
     const messages: FromSim[] = [];
-    const run = new SimRun(start, 1, SIM_TEXT, (m: FromSim) => messages.push(m));
+    const run = new SimRun(start, SIM_TEXT, (m: FromSim) => messages.push(m));
     for (let i = 0; i < TURNS; i++) run.handle({ kind: 'step' });
     const recorded = [...playTurns(startWorld(1), 'seed 1 markov', 'markov', TURNS, SIM_OPTIONS, FAR_MOVER)];
     const frames = framesOf(messages);
@@ -36,7 +36,7 @@ describe('simulation mode', () => {
     expect(frames.slice(1).map((f) => f.log.length)).toEqual(recorded.map((p) => p.events.length));
   }, 120000);
 
-  it('writes events the game logs as the game words them, keeps the raw line, and falls back to it for the rest', () => {
+  it("writes events in the game's words where it has them and in plain sim words for the rest, and keeps the raw line", () => {
     const world = start;
     const npc = world.vehicles.find((v) => v.brain)!;
     const knockout = { t: 'npcKnockout', vehicle: npc.id } as never;
@@ -45,8 +45,7 @@ describe('simulation mode', () => {
     expect(knocked.text).toContain(SIM_TEXT.truck(world, npc));
     expect(knocked.raw).toBe(describeEvent(world, knockout));
     expect(knocked.ids).toEqual([npc.id]);
-    expect(spawned).toMatchObject({ quiet: true, ids: [npc.id], text: describeEvent(world, spawn) });
-    expect(world.player.fullLog).toBeFalsy();
+    expect(spawned).toMatchObject({ quiet: true, ids: [npc.id], text: `${SIM_TEXT.truck(world, npc)} enters the map` });    expect(world.player.fullLog).toBeFalsy();
   });
 
   it('names every truck as the game does and shows the player in money, not cents', () => {

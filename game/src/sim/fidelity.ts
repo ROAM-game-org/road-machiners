@@ -1,11 +1,8 @@
-// How much detail the sim spends on a meeting. Near the player, trucks play by the full rules: props and hills block
-// sight, dust shows through hills, shade cools. A meeting between two trucks both out of the player's live range
-// plays by cheap rules, since nobody watches it: sight is a radius, and heat is the open-sun value.
 
 import { PERF } from '../data/perf';
 import { TERRAIN } from '../data/terrain';
 import { playerVehicle } from './damage';
-import type { World } from './types';
+import type { Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 
 let headless = false;
@@ -24,4 +21,27 @@ export function inLiveRange(w: World, p: Vec): boolean {
 
 export function isCheapMeeting(w: World, a: Vec, b: Vec): boolean {
   return headless || (!inLiveRange(w, a) && !inLiveRange(w, b));
+}
+
+let thinning = false;
+
+export function setThinning(on: boolean): void {
+  thinning = on;
+}
+
+export function thinksThisTurn(w: World, v: Vehicle): boolean {
+  if (!thinning || (w.turn + slotOf(v.id)) % PERF.lone.every === 0) return true;
+  return hasCompany(w, v);
+}
+
+function slotOf(id: string): number {
+  let sum = 0;
+  for (let i = 0; i < id.length; i++) sum += id.charCodeAt(i);
+  return sum;
+}
+
+function hasCompany(w: World, v: Vehicle): boolean {
+  if (v.brain && Object.keys(v.brain.attackers).length > 0) return true;
+  if (w.states.some((s) => s.holder === v.id || s.other === v.id)) return true;
+  return w.vehicles.some((o) => o.id !== v.id && dist(o.pos, v.pos) <= PERF.lone.reach);
 }
