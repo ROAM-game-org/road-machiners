@@ -41,12 +41,12 @@ VAR asked_paper = false
   -> about_nose
 + [What does Nose turn out?]
   Salt off the pans under the wall. Tools from the forge. Batteries from the cell shop.
-  The forge burns scrap and petrol. The cell shop burns parts and petrol. The scrap and the parts come from the <term=salvage_yard>Yard</term>, the petrol from the Pump Station. Short of any of it, the line stops.
+  The forge burns scrap and diesel. The cell shop burns parts and diesel. The scrap and the parts come from the <term=salvage_yard>Yard</term>, the diesel from the Pump Station. Short of any of it, the line stops.
   { short_of("scrap"):
     Scrap's short. The forge is cold until the Yard trucks come in. I log it.
   }
   { short_of("fuelDrums"):
-    Petrol's short. The forge and the cells both wait on the convoys. I log that too.
+    Diesel's short. The forge and the cells both wait on the convoys. I log that too.
   }
   { short_of("parts"):
     Parts are short. The cell shop stands idle, and command asks me why.
@@ -61,7 +61,7 @@ VAR asked_paper = false
 
 = about_road
 + [What is the road like?]
-  Bad once you're past the walls. Nobody keeps the road between our wall and Bowl's. Kiln riders, the raiders from the camp in the south, strip any truck that won't pay or fight. I log every truck out and every truck in. The ones that don't come back are the part I like least. Most of them went out without a gun. I don't stop them at the gate. I log them. One courier goes without. I haven't decided what I think of her.
+  Bad once you're past the walls. Nobody keeps the road between our wall and Bowl's. Kiln riders, the raiders from the camp in the south, strip any truck that won't pay or fight. I log every truck out and every truck in. The ones that don't come back are the part I like least. Most of them went out armed, and it did not save them. One courier goes without a gun. I haven't decided what I think of her.
   ~ heard_mounts = true
   ~ heard_courier = true
   -> about_road
@@ -75,7 +75,7 @@ VAR asked_paper = false
   ~ asked_courier = true
   -> about_road
 + {heard_paper and not asked_paper} [What is Pierce paper?]
-  It's the insurance that pays a driver when his truck is shot. Pierce writes it for any truck with a gun on it, and for no other.
+  It's the insurance that pays a driver's family when he doesn't come back. Pierce writes it for any truck with a gun on it, and for no other.
   ~ asked_paper = true
   -> about_road
 + [Back.]
@@ -83,7 +83,7 @@ VAR asked_paper = false
 
 = about_wagon
 + {has_note("wagonBowl")} [About that scavenger with the Army radio.]
-  Him. He sold us our own radio back, and I paid stock price for it. That set came off wagon Seven. She ran water drums from Dustwell to Bowl every week, and she went dark on the bend in the Bowl north road. The crew walked in and reported raiders, and her cannon lost over the edge. Command wrote her off. I log it.
+  Him. He sold us our own radio back, and I paid stock price for it. That set came off wagon Seven. Every week she ran water barrels from Dustwell to Bowl and brought Granary rations back up here. She went dark on the bend in the Bowl north road. The crew walked in and reported raiders, and her cannon lost over the edge. Command wrote her off. I log it.
   The scavenger said for a little more that the cannon's still on her. I didn't pay a little more.
   ~ note("wagonNose")
   -> about_wagon
@@ -96,16 +96,16 @@ VAR asked_paper = false
   -> about_wagon
 + {wagon_fate == "logged" or wagon_fate == "admitted"} [About wagon Seven.]
   { wagon_fate == "admitted":
-    Teller drives the water cart now. His stripes are in my drawer. Two depot trucks with the same cheap brake rods are off the road until Lena has looked at them. Command hasn't answered. I log that too.
+    Teller drives the barrel runs now. His stripes are in my drawer. Two depot trucks with the same cheap brake rods are off the road until Lena has looked at them. Command hasn't answered. I log that too.
   - else:
     The raid report and the brake rod share a page, and command reads the top of it. Two depot trucks with the same cheap brake rods are off the road until Lena has looked at them. That's as far as my sheet goes.
   }
   -> about_wagon
 + {wagon_fate == "buried"} [About wagon Seven.]
-  Corporal Teller came back from the wash pit with wet hands and a light purse. I don't log what I don't see, and I didn't see anything.
+  Corporal Teller came back from the oil sump with black hands and a light purse. I don't log what I don't see, and I didn't see anything.
   -> about_wagon
 + {wagon_fate == "told"} [About wagon Seven.]
-  Soldiers buy water at Bowl, and Bowl talks over the cups. Now my men come back up the road asking whether their own brakes will hold. You told Bowl before you told my log. I won't forget the order you did it in.
+  My wagon crews drink at Bowl while they unload, and Bowl talks over the cups. Now my men come back up the road asking whether their own brakes will hold. You told Bowl before you told my log. I won't forget the order you did it in.
   -> about_wagon
 + {wagon_fate == "sold"} [About wagon Seven.]
   A piece of Army steel from wagon Seven changed hands at the <term=salvage_yard>Yard</term>. I logged the sale. Your name is on the line, beside the price.

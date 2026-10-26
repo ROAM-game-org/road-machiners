@@ -348,15 +348,15 @@ describe('wagon Seven', () => {
     }
   });
 
-  it('lets a driver who saw the hollow tell it at the well house beside Dag', () => {
+  it('lets a driver who saw the hollow tell it at the cistern house beside Dag', () => {
     const w = parkedAt('bowl');
     w.player.quests.world.wagon_saw = true;
 
-    const next = talk(w, 'bowl_dag', ['Nobody raided that wagon.', 'Say it at the well house.', 'Goodbye.']);
+    const next = talk(w, 'bowl_dag', ['Nobody raided that wagon.', 'Say it at the cistern house.', 'Goodbye.']);
 
     expect(worldVars(next).wagon_fate).toBe('told');
     expect(next.player.money).toBe(w.player.money);
-    expect(choices(next, 'bowl_dag')).toContain('What did the well house make of it?');
+    expect(choices(next, 'bowl_dag')).toContain('What did the cistern house make of it?');
   });
 });
 
@@ -510,7 +510,7 @@ describe('the depot leak at Nose', () => {
 });
 
 describe('locals at stalls', () => {
-  const OPEN = ['Read her the big dial.', 'Ask why the tanker\'s meter came off.'];
+  const OPEN = ['Read her the big dial.', 'Ask why the household truck\'s meter came off.'];
   const COVER = 'Tell him she was talking about pump pressures.';
   const CARRY = 'Say you\'ll carry the copy.';
   const TAKE = 'Take the copy and the meter out to your truck.';
@@ -518,7 +518,7 @@ describe('locals at stalls', () => {
   const LIE = 'Tell him it\'s pump records for the lock house.';
   const LOCK = 'Drive down to the lock house.';
   const SIGN = 'Sign and write what you read on the dial.';
-  const TERRACE = 'Follow the tanker\'s tracks up to the top terrace.';
+  const TERRACE = 'Follow the household truck\'s tracks up to the top terrace.';
   const BOLT = 'Bolt Agnes\'s meter onto the inlet.';
 
   it('lists Agnes at Dustwell', () => {

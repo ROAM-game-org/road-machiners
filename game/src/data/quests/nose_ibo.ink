@@ -82,7 +82,7 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
   They carry the mail between the towns. They run in pairs now, two trucks together. I remember when they went out alone, before the Kiln riders got bold. Kiln's the raider camp in the south. Tamsin Roe's the odd one, with no gun at all. I hear her call-sign more than any other.
   -> about_couriers
 + {(heard_convoy or has_note("burntConvoy"))} [What happened at Burnt Convoy?]
-  A whole convoy went up in one night, years back. Some say raiders did it. Some say a fuel truck blew and took the rest with it. I heard the last calls on the air, and nobody said who started it.
+  A whole convoy went up in one night, years back. Some say raiders did it. Some say a truck full of fuel drums blew and took the rest with it. I heard the last calls on the air, and nobody said who started it.
   -> about_couriers
 + {depot_thief != "none" and depot_thief != "open"} [Heard about the depot business?]
   { depot_thief:

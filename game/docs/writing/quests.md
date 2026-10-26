@@ -23,7 +23,7 @@ A quest is built in three steps: play out the story behind it, write it, then pl
    ```
    npm run quest:playtest -- intro_arrival first_fall intro_bowl bowl_hattie --situation "You start a new game. You are on foot in a desert, with no water." --then "You patch the engine and drive north. A raider truck opens fire, and you lose the fight." --then "You stay out cold." --then "You walk around Bowl. Hattie has time to talk." --set intro_step=ambush --out tmp/playtest-intro.md > tmp/playtest.log 2>&1 &
    ```
-4. Check every problem it names in the source, then fix the real ones. Rerun the quest checks in [The loop](#the-loop).
+4. Check every problem it names in the source, then fix the real ones. Put every practice, cause and detail the quest states through the [sense check](../lore/README.md#sense-check), since a playtest player cannot see the lore it breaks. Rerun the quest checks in [The loop](#the-loop).
 5. Repeat steps 3 and 4 with a new Codex run each time. A fresh run has not seen the old version. The quest is done when fresh runs with different drivers each score it 5 out of 5.
 
 A run that hits a load error or a broken runner does not count. Fix the error and run again.
@@ -131,7 +131,7 @@ Water costs here, talk doesn't, and I hear everything that happens in <term=bowl
 ```
 
 ```ts
-'term.bowl': 'A farm town cut in terraces down the inside of an old crater. Canals carry the water to the fields, and the well house sells it by the bucket.',
+'term.bowl': 'A farm town cut in terraces down the inside of an old crater. Canals carry the water to the fields, and the cistern house sells it by the bucket.',
 ```
 
 What a tip may say:
@@ -141,7 +141,7 @@ What a tip may say:
 - A tip adds a fact the line does not say. If Hattie says the Glass Flats are melted ground, the tip says something else about them.
 - A tip never tells a secret, an outcome, a hidden motive or anything a quest lets the player find out. The player discovers those in play.
 - A tip is one or two short, plain sentences, in the voice of narration. It is never a riddle.
-- Every fact in a tip matches `docs/lore/`. Check the lore before you write it.
+- Every fact in a tip matches `docs/lore/` and passes the [sense check](../lore/README.md#sense-check). Check the lore before you write it.
 - A tip is never needed to choose. A fact the player needs for a choice goes in the line itself.
 
 Where to mark a word:
@@ -149,7 +149,7 @@ Where to mark a word:
 - Mark a word only on a line where the player may know everything its tip says. The writer decides this, and the game does not check it.
 - Mark a term once per screen, on its first use.
 - Mark terms in spoken and narrated lines only, never in a choice. Choice buttons print their text as it is, so a mark would show as raw text.
-- When the player later learns more about a term, add a new entry with its own id, like `bowl_well` beside `bowl`. Mark the new id only on lines after the player has learned it. Never change an old entry to hold the new fact.
+- When the player later learns more about a term, add a new entry with its own id, like `bowl_cistern` beside `bowl`. Mark the new id only on lines after the player has learned it. Never change an old entry to hold the new fact.
 - A tip replaces a question whose answer is only a definition, like "What is this place?". Keep the question when its answer is a story, an opinion or a lead.
 
 How to check:
