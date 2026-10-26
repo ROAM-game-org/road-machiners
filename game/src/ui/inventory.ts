@@ -873,7 +873,7 @@ export class InventoryView {
     const m = this.scale.mine;
     const size = footprint(d.item);
     const box = rectOf(m, d.item.x, d.item.y, size.w, size.h);
-    fillGhost(d.ghost, this.looks.own, d.item, m, box, this.ghostTone(d, true), true);
+    fillGhost(d.ghost, this.looks.own, d.item, m, box, this.ghostTone(d, true), null);
     d.ghost.style.cssText = pxStyle(box);
     clearFan(grid);
     this.drawFan(grid, me, d.item);
@@ -934,7 +934,7 @@ export class InventoryView {
     const m = this.scale.mine;
     const size = footprint(d.item);
     const box = rectOf(m, d.item.x, d.item.y, size.w, size.h);
-    fillGhost(d.ghost, this.looks.own, d.item, m, box, this.ghostTone(d, onGrid), false);
+    fillGhost(d.ghost, this.looks.own, d.item, m, box, this.ghostTone(d, onGrid), this.gridEl);
     this.ghostFan(d, onGrid);
     d.ghost.style.width = `${box.width}px`;
     d.ghost.style.height = `${box.height}px`;

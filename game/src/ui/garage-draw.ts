@@ -1,6 +1,6 @@
 import type { TruckPaint } from "../data/chassis";
 import { partDef } from "../data/parts";
-import { baseGrid, isMounted, itemCells, type Spot } from "../sim/grid";
+import { baseGrid, isMounted, itemCells, mountCellsOf, type Spot } from "../sim/grid";
 import type { GridItem, PartInstance, Vehicle, World } from "../sim/types";
 import { maxHp } from "../sim/wear";
 import { playerTrucks } from "../sim/damage";
@@ -91,9 +91,14 @@ export function tierAttr(it: GridItem): string {
   return it.kind === "part" ? tierOf(percentOf(it.part)) : "ok";
 }
 
+function standsOnTruck(look: GarageLook, it: GridItem): it is PartItem {
+  return isPartItem(it) && !isCore(it.part) && isMounted(look.truck.chassisId, it) && onTruck(look.truck, it);
+}
+
 export function drawnSprite(look: GarageLook, it: GridItem): GarageSprite | null {
-  if (!isPartItem(it) || isCore(it.part) || !isMounted(look.truck.chassisId, it) || !onTruck(look.truck, it)) return null;
-  return look.renders.sprite(look.truck, look.paint, it.part, spotOf(it));
+  if (!standsOnTruck(look, it)) return null;
+  const sprite = look.renders.sprite(look.truck, look.paint, it.part, spotOf(it));
+  return sprite?.url ? sprite : null;
 }
 
 export function isWeaponItem(it: GridItem): boolean {
@@ -115,8 +120,13 @@ export function ghostArt(look: GarageLook | null, it: GridItem, m: GridMetrics, 
   return sprite ? partArt(sprite, m, box) : null;
 }
 
-export function fillGhost(ghost: HTMLElement, look: GarageLook | null, it: GridItem, m: GridMetrics, box: PixelRect, tone: string, placed: boolean): void {
+export function fillGhost(ghost: HTMLElement, look: GarageLook | null, it: GridItem, m: GridMetrics, box: PixelRect, tone: string, dragOver: HTMLElement | null): void {
   const art = tone === "ok" ? ghostArt(look, it, m, box) : null;
-  ghost.className = `inv-ghost${placed ? " placed" : ""} ${tone}${art ? " drawn" : ""}`;
+  ghost.className = `inv-ghost${dragOver ? "" : " placed"} ${tone}${art ? " drawn" : ""}`;
   ghost.replaceChildren(art ?? turnedIcon(it, m));
+  if (dragOver) markMounts(dragOver, it);
+}
+
+export function markMounts(grid: HTMLElement, it: GridItem): void {
+  grid.dataset.mounts = isPartItem(it) && !isCore(it.part) ? mountCellsOf(it.part.defId).join(" ") : "";
 }

@@ -138,6 +138,8 @@
   --cell-grid-line: rgba(255, 244, 214, 0.3);
   --cell-grid-line-drag: rgba(255, 244, 214, 0.55);
   --garage-body-filter: brightness(0.8);
+  --garage-mount-wash: rgba(159, 220, 122, 0.14);
+  --garage-mount-line: rgba(159, 220, 122, 0.5);
   --garage-tint-hurt: rgba(255, 196, 60, 0.28);
   --garage-tint-crit: rgba(255, 120, 40, 0.38);
   --garage-tint-broken: rgba(255, 44, 40, 0.5);

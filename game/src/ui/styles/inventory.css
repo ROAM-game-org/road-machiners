@@ -206,6 +206,16 @@
 .inv-grid.drawn:has(.inv-ghost) .inv-cell {
   border-color: var(--cell-grid-line-drag);
 }
+.inv-grid.drawn[data-mounts~="D"] .c-D:not(.spare),
+.inv-grid.drawn[data-mounts~="C"] .c-C:not(.spare),
+.inv-grid.drawn[data-mounts~="E"] .c-E,
+.inv-grid.drawn[data-mounts~="F"] .c-F,
+.inv-grid.drawn[data-mounts~="B"] .c-B,
+.inv-grid.drawn[data-mounts~="L"] .c-L,
+.inv-grid.drawn[data-mounts~="R"] .c-R {
+  background: var(--garage-mount-wash);
+  border-color: var(--garage-mount-line);
+}
 .inv-backdrop {
   position: absolute;
   pointer-events: none;

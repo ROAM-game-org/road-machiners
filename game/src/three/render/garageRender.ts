@@ -6,7 +6,7 @@ import { wearLookStep } from '../../render/partLooks';
 import { cellSteps, spanOf } from '../../sim/body';
 import { baseGrid, itemCells, layerOf, mountCellsOf, mountSpots, type Spot } from '../../sim/grid';
 import type { GridItem, PartInstance, Vehicle } from '../../sim/types';
-import { flipRows, linearToSrgb, unpremultiply } from './portraitPixels';
+import { OPAQUE_ALPHA, flipRows, linearToSrgb, unpremultiply } from './portraitPixels';
 import { canvasOf, captureColor, glassMeshes, hideOutlines, litScene, neutralizeReds, poseAtRest, sheenGlass, withRendererState, type PortraitWait } from './truckPortrait';
 import { VehicleView, type RebuildBudget } from './vehicle';
 
@@ -19,6 +19,8 @@ const CAMERA_HEIGHT = 40;
 const KEEP_SPRITES = 4000;
 
 export type GarageSprite = { url: string; left: number; top: number; width: number; height: number };
+
+const NOTHING_DRAWN: GarageSprite = { url: '', left: 0, top: 0, width: 0, height: 0 };
 export type GarageBody = { image: GarageSprite; cores: ReadonlyMap<string, GarageSprite> };
 export type GaragePart = { part: PartInstance; spots: readonly Spot[] };
 export type GarageNeed = { truck: Vehicle; paint: TruckPaint; parts: readonly GaragePart[] };
@@ -158,14 +160,20 @@ function readNow(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget,
   return px;
 }
 
+function hasPixels(px: Uint8ClampedArray): boolean {
+  for (let i = 3; i < px.length; i += 4) if (px[i] > OPAQUE_ALPHA) return true;
+  return false;
+}
+
 function* shoot(pass: Pass, root: THREE.Object3D, frame: Frame, origin: { x: number; z: number }): Generator<PortraitWait, GarageSprite, void> {
   const size = { width: Math.round((frame.right - frame.left) * GARAGE_PX_PER_METER), height: Math.round((frame.top - frame.bottom) * GARAGE_PX_PER_METER) };
   const target = new THREE.WebGLRenderTarget(size.width, size.height, { samples: SAMPLES, depthBuffer: true, stencilBuffer: false });
   const box = { left: frame.left - origin.z, top: origin.x - frame.top, width: frame.right - frame.left, height: frame.top - frame.bottom };
   const scene = litScene(root);
   try {
-    if (pass.now) return { url: canvasOf(readNow(pass.renderer, target, scene, topCamera(frame)), size).toDataURL(), ...box };
-    const px = yield* captureColor(pass.renderer, target, scene, topCamera(frame));
+    const px = pass.now ? readNow(pass.renderer, target, scene, topCamera(frame)) : yield* captureColor(pass.renderer, target, scene, topCamera(frame));
+    if (!hasPixels(px)) return { url: '', ...box };
+    if (pass.now) return { url: canvasOf(px, size).toDataURL(), ...box };
     let url = '';
     yield encoded(canvasOf(px, size)).then((made) => (url = made));
     return { url, ...box };
@@ -229,13 +237,18 @@ function* bodySteps(pass: Pass, job: BodyJob, store: GarageStore, trash: { dispo
   const frame = frameOf(meshes, BODY_PAD_M);
   if (!frame) throw new Error(`The bare ${job.chassisId} drew no meshes`);
   const image = yield* shoot(pass, view.root, snapped(frame, origin), origin);
+  const cores = yield* coreSprites(pass, view, meshes, bare, origin);
+  store.putBody(job.key, job.chassisId, { image, cores });
+}
+
+function* coreSprites(pass: Pass, view: VehicleView, meshes: readonly Drawn[], bare: Vehicle, origin: { x: number; z: number }): Generator<PortraitWait, Map<string, GarageSprite>, void> {
   const cores = new Map<string, GarageSprite>();
   for (const item of bare.items) {
     if (item.kind !== 'part' || isCab(item.part)) continue;
     const sprite = yield* alone(pass, view, meshes, item.part.id, origin);
-    if (sprite) cores.set(item.part.id, sprite);
+    if (sprite?.url) cores.set(item.part.id, sprite);
   }
-  store.putBody(job.key, job.chassisId, { image, cores });
+  return cores;
 }
 
 function* batchSteps(pass: Pass, job: BatchJob, store: GarageStore, trash: { dispose(): void }[]): Generator<PortraitWait, void, void> {
@@ -244,8 +257,7 @@ function* batchSteps(pass: Pass, job: BatchJob, store: GarageStore, trash: { dis
   const origin = gridOrigin(job.chassisId);
   for (const placement of job.placements) {
     const sprite = yield* alone(pass, view, meshes, placement.item.part.id, origin);
-    if (!sprite) throw new Error(`Part ${placement.item.part.defId} drew nothing at ${placement.key}`);
-    store.putSprite(placement.key, placement.loose, sprite);
+    store.putSprite(placement.key, placement.loose, sprite ?? NOTHING_DRAWN);
   }
 }
 
@@ -427,7 +439,7 @@ export class GarageRenders {
     for (const [key, sprite] of this.sprites) {
       if (this.sprites.size <= KEEP_SPRITES) return;
       this.sprites.delete(key);
-      if (![...this.latestSprite.values()].includes(sprite)) URL.revokeObjectURL(sprite.url);
+      if (sprite.url.startsWith('blob:') && ![...this.latestSprite.values()].includes(sprite)) URL.revokeObjectURL(sprite.url);
     }
   }
 }

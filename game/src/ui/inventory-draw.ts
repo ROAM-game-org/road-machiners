@@ -164,7 +164,7 @@ function gridCellEl(g: Grid, x: number, y: number, m: GridMetrics): HTMLElement 
 
 export function cellEl(c: Cell, x: number, y: number, m: GridMetrics): HTMLElement {
   const spare = y >= m.chassisRows ? " spare" : "";
-  return el("div", { class: `inv-cell c-${c === "." ? "plain" : c}${spare}`, style: pxStyle(rectOf(m, x, y, 1, 1)), title: CELL_TITLE[c] });
+  return el("div", { class: `inv-cell c-${c === "." ? "plain" : c}${spare}`, "data-cell": `${x},${y}`, style: pxStyle(rectOf(m, x, y, 1, 1)), title: CELL_TITLE[c] });
 }
 
 export function turnedIcon(it: GridItem, m: GridMetrics): HTMLElement {

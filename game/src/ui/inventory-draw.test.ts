@@ -13,6 +13,8 @@ import { resolve } from "../text/resolve";
 import { cellAt, gridMetrics, gridSize, itemLabel, itemName, itemState, nextRot, rectOf, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
 import { cellCenter, cellSteps } from "../sim/body";
 import { kg } from "./units";
+import { backgroundNeeds, ownNeed, shownNeed } from "./garage-draw";
+import { partDef } from "../data/parts";
 
 const world = emptyWorld();
 const item = (defId: string, rot: Rot): GridItem => ({ kind: "part", id: "i", x: 0, y: 0, rot, part: makePart(world, defId, 0) });
@@ -175,5 +177,53 @@ describe("grid metrics", () => {
 
     expect(gridSize(m).width).toBeCloseTo(corner.left + corner.width, 9);
     expect(gridSize(m).height).toBeCloseTo(corner.top + corner.height, 9);
+  });
+});
+
+describe("garage render needs", () => {
+  function loadedScout() {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    return { w, me };
+  }
+
+  it("ask for every loose part of the player's truck at every spot it mounts on, and none of its built-in parts", () => {
+    const { w, me } = loadedScout();
+
+    const need = ownNeed(me, w.player.paint, []);
+
+    const loose = me.items.filter((it) => it.kind === "part" && partDef(it.part.defId).kind !== "core");
+    expect(loose.length).toBeGreaterThan(0);
+    expect(need.parts.map((p) => p.part.id).sort()).toEqual(loose.map((it) => (it.kind === "part" ? it.part.id : "")).sort());
+    for (const p of need.parts) expect(p.spots.length).toBeGreaterThan(0);
+  });
+
+  it("also ask for the parts the screen could drag onto the truck", () => {
+    const { w, me } = loadedScout();
+    const spare = makePart(w, "plates", 0);
+
+    const need = ownNeed(me, w.player.paint, [{ id: "store-x", x: 0, y: 0, rot: 0, kind: "part", part: spare }]);
+
+    expect(need.parts.some((p) => p.part.id === spare.id)).toBe(true);
+  });
+
+  it("ask only for the spots another truck's mounted parts stand on", () => {
+    const { w, me } = loadedScout();
+
+    const need = shownNeed(me, w.player.paint);
+
+    for (const p of need.parts) {
+      const it = me.items.find((x) => x.kind === "part" && x.part.id === p.part.id)!;
+      expect(p.spots).toEqual([{ x: it.x, y: it.y, rot: it.rot }]);
+    }
+  });
+
+  it("build the player's storage in the background with the truck", () => {
+    const { w } = loadedScout();
+    w.player.storage.push(makePart(w, "plates", 0));
+
+    const needs = backgroundNeeds(w);
+
+    expect(needs.flatMap((n) => n.parts).some((p) => p.part.id === w.player.storage[0].id)).toBe(true);
   });
 });
