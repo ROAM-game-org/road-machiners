@@ -82,16 +82,16 @@ His line is "I will be king of the camps, and I will pay any price for it."
 ## Dagny Brask
 
 - Way: oppose.
-- High concept: The founder of Kiln Camp, past 110, who still works the furnace and melts captured guns into tools.
+- High concept: The founder of Kiln Camp, past 110, who still works the camp's first furnace and melts captured guns into tools.
 - Trouble: She hates kings, but her furnace feeds the camp that Ain is turning into a throne.
-- Aspects: The furnace and its deep bore; Hunted by both towns since year 89; Ain runs the camp she founded.
+- Aspects: The first furnace and its deep bore; Hunted by both towns since year 89; Ain runs the camp she founded.
 - Skills: best machining, worst driving.
 - Wants: A camp of workers and not a king.
 - Fears: Her tools become only weapons for one man.
 - Habit: She tests every captured gun by hand before it goes into the melt.
 - Secret: None.
 
-Dagny founded Kiln Camp when both towns drove her band out of the crater rim. She is past 110 and still works the furnace that gives the camp its name. She melts captured guns into tools. Ain runs the camp now, and she calls no one king.
+Dagny founded Kiln Camp when both towns drove her band out of the crater rim. She is past 110 and still works the first of its furnaces, the one that gave the camp its name. She melts captured guns into tools. Ain runs the camp now, and she calls no one king.
 
 Her line is "Kings do not light furnaces. Workers do."
 
@@ -184,10 +184,10 @@ He speaks in sermons. One of them goes like this:
 - Skills: best perception, worst toughness.
 - Wants: The Granary full and no famine like year 70.
 - Fears: An empty Granary.
-- Habit: She counts every sack at night and posts the count on the gate in her own hand.
+- Habit: She checks the tally clerks' sack counts every night and posts the total on the gate in her own hand.
 - Secret: None.
 
-Odile is the steward of the Granary for the Bowl Senate. She was born a tenant and earned her vote with ten years in the patrols, and some tenants still call her a turncoat. She counts every sack at night and posts the count on the Granary gate. Two counts hang there now: the sack paid to Kiln Camp for each armed truck, and the tenants' share for the Bowl patrol. She fears a famine like the one in year 70, and she would pay raiders forever to avoid one.
+Odile is the steward of the Granary for the Bowl Senate. She was born a tenant and earned her vote with ten years in the patrols, and some tenants still call her a turncoat. She checks the tally clerks' sack counts every night and posts the total on the Granary gate. Two counts hang there now: the sack paid to Kiln Camp for each armed truck, and the tenants' share for the Bowl patrol. She fears a famine like the one in year 70, and she would pay raiders forever to avoid one.
 
 Her line is "Every sack that goes to Kiln is written on the gate."
 
@@ -203,7 +203,7 @@ Her line is "Every sack that goes to Kiln is written on the gate."
 - Habit: She reads every meter at dusk and writes it in the book.
 - Secret: She made a sealed copy of the book, and she took the steward's oil. She hides both from Aurel Brede and Sava Kettering.
 
-Agnes keeps the pump book of Dustwell's deep well, the book her uncle Wendell kept before he died at the Green Pit sluice. She sleeps with the book under her pillow. Every week the pump brings up less, and the water trucks load less. The Archon's household sends its own tanker to the pump every week, and a Senate order made her take the meter off its hose, so its loads go in no book. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. Every driver who loads reads her the big dial, and she writes the number with the driver's name. She wants a driver who read the dial to carry the copy to Bowl and swear to the number, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by her gate.
+Agnes keeps the pump book of Dustwell's deep well, the book her uncle Wendell kept before he died at the Green Pit sluice. She sleeps with the book under her pillow. Every week the deep well, the oldest of Dustwell's pumps, brings up less, and the water trucks load less. The Archon's household sends its own tanker to the deep well every week, and a Senate order made her take the meter off its hose, so its loads go in no book. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. Every driver who loads at the deep well reads her its big dial, and she writes the number with the driver's name. She wants a driver who read the dial to carry the copy to Bowl and swear to the number, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by her gate.
 
 Her line is "I did not come to take your water. I came to write down how much of it there is."
 
@@ -212,14 +212,14 @@ Her line is "I did not come to take your water. I came to write down how much of
 - Way: oppose.
 - High concept: The keeper of the Canal book at the lowest lock house, the last proud Duarte of the canals.
 - Trouble: She speaks first and thinks after, so her words cost her kin and her allies.
-- Aspects: Cousin Tomas serves in a Bowl coat at her lock; Counts every barrel the water trucks pour into the canals; Agnes Ondra's copy sits beside her book.
+- Aspects: Cousin Tomas serves in a Bowl coat at her lock; Her lock crew counts every barrel poured in at her lock; Agnes Ondra's copy sits beside her book.
 - Skills: best perception, worst social.
 - Wants: The proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share.
 - Fears: The Canal families fade away unheard.
-- Habit: She counts every barrel the water trucks pour in at the lock house and writes it in the open book.
+- Habit: She checks her lock crew's barrel count at the lock house and writes it in the open book.
 - Secret: None.
 
-Mirela keeps the Canal book for the Canal families, the last proud Duarte of the canals. She speaks first and thinks after. The book lives in a lock house on the lowest canal in Bowl, far below the Archon's terraces. Her cousin Tomas serves ten years in the Bowl patrols for scraping a meter's chalk off a sluice, and he serves them at her own lock in a Bowl coat. The water trucks from Dustwell pour their loads into the canals at her lock house, and she counts every barrel in the Canal book. She does not want the household's tanker metered as much as she wants the proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share they lost in year 90. Her lock crew takes household wages through the dry season of year 130, and she does not.
+Mirela keeps the Canal book for the Canal families, the last proud Duarte of the canals. She speaks first and thinks after. The book lives in a lock house on the lowest canal in Bowl, far below the Archon's terraces. Her cousin Tomas serves ten years in the Bowl patrols for scraping a meter's chalk off a sluice, and he serves them at her own lock in a Bowl coat. Her lock house is the lowest of Bowl's intake locks. Water trucks from Dustwell pour their loads into the canals there, and her lock crew counts every barrel into the Canal book. She does not want the household's tanker metered as much as she wants the proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share they lost in year 90. Her lock crew takes household wages through the dry season of year 130, and she does not.
 
 Tomas saw the household's tanker unload on the top terrace on patrol and wrote it in a report, which the steward filed unread. At the lock he told the tenant drivers about it. The steward then bought his silence with oil for his mother, and the same week Mirela made him say it again on her steps.
 
@@ -253,7 +253,7 @@ His line is "You came for water, and water is what you should carry out."
 - Habit: He lets his tea go cold while he listens.
 - Secret: He sells what he hears at the gate to the Canal families. He hides it from Aurel.
 
-Sava grew up on the bottom terrace, two doors from Jory, and now wears a grey household coat. Aurel Brede pays him by the week to sit on a drum at the Dustwell gate and report every truck and every word Agnes says. He lets his tea go cold while he listens. He wants to be sworn to the household, and he sells what he hears to both sides. He told the drivers at the well about Agnes's envelope.
+Sava grew up on the bottom terrace, two doors from Jory, and now wears a grey household coat. Aurel Brede pays him by the week to sit on a drum at the Dustwell gate and report every truck and every word Agnes says. He lets his tea go cold while he listens. He wants to be sworn to the household, and he sells what he hears to both sides. He told the drivers at Agnes's well about Agnes's envelope.
 
 His line is "Friend, what did Agnes give you for the drive?"
 
@@ -418,18 +418,18 @@ Her line is "Hang it on the hook. Everyone drinks here, and nobody takes my well
 ## Hollis Brennan
 
 - Way: embrace.
-- High concept: The still boss at the Pump Station, who keeps the stills cooking crude into petrol.
-- Trouble: The pump and the stills eat tools and batteries faster than the convoys bring them.
-- Aspects: Drums stacked by the stills; A pumpjack that nods over an Old World well; Hands black to the wrist.
+- High concept: A still boss at the Pump Station, who keeps his row of stills cooking crude into petrol.
+- Trouble: The pumpjacks and the stills eat tools and batteries faster than the convoys bring them.
+- Aspects: Drums stacked by the stills; Pumpjacks that nod over the Old World wells; Hands black to the wrist.
 - Skills: best machining, worst social.
-- Wants: The stills hot, the drums sold and spares for the pump.
-- Fears: A cold still and a stopped pump.
+- Wants: The stills hot, the drums sold and spares for the pumpjacks.
+- Fears: A cold still and a stopped pumpjack.
 - Habit: He taps each drum as it is filled and chalks the count on the still.
 - Secret: None.
 
-Hollis runs the crew at the Pump Station. The pumpjack lifts crude from an Old World oil well, his stills cook it into petrol, and the fuel convoys load the drums. The pump wears through tools, and its motor needs batteries from Nose. When it stops, drums run short all over the basin.
+Hollis runs one of the still crews at the Pump Station. The pumpjacks lift crude from the Old World oil wells, his stills cook it into petrol, and the fuel convoys load the drums. The pumpjacks wear through tools, and their motors need batteries from Nose. When they stop, drums run short all over the basin.
 
-His line is "No tools, no pump. No pump, no drums."
+His line is "No tools, no pumps. No pumps, no drums."
 
 ## Mara Kessel
 
@@ -596,14 +596,14 @@ Karl and his brother Jens were Old Army deserters who robbed insured trucks on t
 - Way: fear.
 - High concept: The tenant who sells water to outsider drivers at the Bowl gate yard.
 - Trouble: She waters the drivers the gate keeps out, so neither the town nor the road fully trusts her.
-- Aspects: The only water an outsider may buy in Bowl; Sizes up every driver by how they arrive.
+- Aspects: The first water an outsider can buy in Bowl; Sizes up every driver by how they arrive.
 - Skills: best perception, worst machining.
 - Wants: No driver leaves Bowl thirsty.
 - Fears: A dry well, or a driver dying of thirst within sight of her stand.
 - Habit: She sounds the well with a weighted line before she opens each morning.
 - Secret: She waters drivers the patrol has turned away, and leaves them off her slate.
 
-Hattie runs the water stand in the Bowl gate yard, the section where outsiders are kept. Every driver who is not let past the yard buys water from her, so she is the first and the last person of Bowl they speak to. Drivers talk while their tanks fill, and she hears the roads from them. She tells an outsider the plain truth about the road, and says when she only heard it. She answers few questions about what lies past the gate. She keeps a slate for drivers who are short, and she remembers every line on it.
+Hattie runs the water stand in the Bowl gate yard, the section where outsiders are kept. Most drivers who are not let past the yard buy water at her stand, so she is often the first and the last person of Bowl they speak to. Drivers talk while their tanks fill, and she hears the roads from them. She tells an outsider the plain truth about the road, and says when she only heard it. She answers few questions about what lies past the gate. She keeps a slate for drivers who are short, and she remembers every line on it.
 
 Her line is "Sit down before you fall down."
 
@@ -688,16 +688,16 @@ His line is "I'll write what you say happened. Then I'll ask him."
 ## Petra Quell
 
 - Way: embrace.
-- High concept: Keeper of the Guild relay mast inside the Roadhouse fence.
+- High concept: Keeper of the Guild relay mast inside the Roadhouse walls.
 - Trouble: She sells every message she hears to whoever pays.
-- Aspects: Logs every truck that crosses the plain; Old friend of Tamsin Roe; A bell on the compound gate.
+- Aspects: Logs every truck that crosses the plain; Old friend of Tamsin Roe; A bell on the mast yard gate.
 - Skills: best machining, worst toughness.
 - Wants: The mast to pay its own way, without the Guild's cut.
 - Fears: The Guild selling the mast and her with it.
 - Habit: She writes down every truck she sees on the plain, with the hour.
 - Secret: She bought the Lincoln on credit while Wim was still counting the debts.
 
-Petra kept the north plain's only roof, a Guild mast in a fenced Old World yard, long before anyone heard a case there. She mended the fence, hung a bell on the gate and charged drivers to park inside. Her crossing times and her radio put the Marshalls' cars where they need to be, and the Roadhouse takes its cut in her yard.
+Petra kept a Guild mast in a fenced Old World yard, back when it was the north plain's only roof and long before anyone heard a case there. She mended the fence, hung a bell on the gate and charged drivers to park inside. The Roadhouse grew up round her yard, and the Marshalls still take their cut in it. Her crossing times and her radio put the Marshalls' cars where they need to be.
 
 Her line is "I'll hear a man out before I write what he owes."
 

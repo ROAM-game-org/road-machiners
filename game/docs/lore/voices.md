@@ -102,7 +102,7 @@ She cares about a full Granary and an honest count. She avoids the word turncoat
 
 She treats a stranger as a load that may or may not be on her count.
 
-Sample: "Forty sacks in, thirty-one out. The nine are on the gate, and so is the truck that didn't come."
+Sample: "Four hundred sacks in, three hundred and ninety out. The ten are on the gate, and so is the truck that didn't come."
 ### Mags Corrin, weigher at the gate yard
 
 Mags talks of weight, crates, chalk and what iron turns into: hinges, ploughshares, gate plates. She sees every crate as the thing it will become.
@@ -431,17 +431,17 @@ Sample: "Passed the rim one morning. Two deep furrows ran through the sand from 
 
 ### Petra Quell, keeper of the mast
 
-Petra talks of the mast, the gate bell, the fence, crossings and the hour a thing happened. She compares things to a ledger line or a signal: written down, heard, sent, paid for.
+Petra talks of the mast, the gate bell, the yard wall, crossings and the hour a thing happened. She compares things to a ledger line or a signal: written down, heard, sent, paid for.
 
 Her sentences are short and level, and each carries one fact. She gives the hour or the day first, then what happened, then what it costs, if it costs anything.
 
-She writes a truck down when it comes over the rise, and says so. She prices what she knows and says the price before she says the news. Sometimes she stops to look at the fence while she answers.
+She writes a truck down when it comes over the rise, and says so. She prices what she knows and says the price before she says the news. Sometimes she stops to look at the yard wall while she answers.
 
 She wants the mast to pay its own way. She avoids talking about the Guild and what it takes, and about how she came by the cars the Marshalls drive.
 
 She treats a stranger as a truck that is already written down and a possible buyer of what the mast hears.
 
-Sample: "You came over the rise with the sun behind you. I wrote the hour down. Park inside the fence and the bell is free."
+Sample: "You came over the rise with the sun behind you. I wrote the hour down. Park inside the walls and the bell is free."
 
 Sample: "Wim writes the claim. I only say who crossed and when."
 
@@ -461,16 +461,16 @@ She treats a stranger as a guest who eats once and pays after that.
 
 Sample: "Hang it on the hook. You eat once for nothing. After that the cup costs, like everyone's."
 
-### Hollis Brennan, the still boss at the Pump Station
+### Hollis Brennan, a still boss at the Pump Station
 
 Hollis talks of crude, stills, drums, valves and batteries. He counts in drums a day.
 
 His sentences are flat and practical. He names the job, then the part it needs.
 
-He is a minor speaker with a clear job and no quirk. He wants drums bought and tools and batteries brought for the pump.
+He is a minor speaker with a clear job and no quirk. He wants drums bought and tools and batteries brought for the pumpjacks.
 
-He cares about keeping the stills hot and the pump turning. He avoids talk about who owns the well.
+He cares about keeping the stills hot and the pumpjacks turning. He avoids talk about who owns the wells.
 
 He treats a stranger as a buyer or a pair of hands.
 
-Sample: "Pump brings the crude up, the stills cook it, and the drums go out on the convoys. Bring me tools and I'll fill yours."
+Sample: "Pumps bring the crude up, the stills cook it, and the drums go out on the convoys. Bring me tools and I'll fill yours."
