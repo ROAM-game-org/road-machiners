@@ -45,6 +45,13 @@ function nameOf(world: World, id: string): string {
   return id === world.player.vehicleId ? PLAYER_NAME : english(vehicleName(world, id));
 }
 
+const PROP_ID = /^([a-z][a-zA-Z]*)-\d+$/;
+
+function thingName(world: World, id: string): string {
+  const prop = PROP_ID.exec(id);
+  return prop && !findAny(world, id) ? `a ${words(prop[1]!)}` : nameOf(world, id);
+}
+
 function stockText(world: World, id: string): string {
   const stock = world.salvage.find((s) => s.id === id);
   return stock ? `salvage in ${place(stock.pos)}` : 'salvage that is gone now';
@@ -53,7 +60,7 @@ function stockText(world: World, id: string): string {
 function targetName(world: World, id: string): string {
   if (findAny(world, id)) return nameOf(world, id);
   if (world.salvage.some((s) => s.id === id)) return stockText(world, id);
-  return worldPlaces(world).some((s) => s.id === id) ? english(siteName(id)) : nameOf(world, id);
+  return worldPlaces(world).some((s) => s.id === id) ? english(siteName(id)) : thingName(world, id);
 }
 
 type Of<K extends GameEvent['t']> = Extract<GameEvent, { t: K }>;
@@ -131,7 +138,7 @@ const SIM_WORDS: Words = {
   shopMoney: (world, e) => ({ text: `${nameOf(world, e.vehicle)} ${e.amount < 0 ? 'pays' : 'gets'} ${english(moneyMsg(Math.abs(e.amount)))} for ${words(e.kind)}`, tone: 'dim' }),
   stateEnded: (world, e) => ({ text: `${nameOf(world, e.state.holder)} and ${nameOf(world, e.state.other)}: ${STATE[e.state.kind]} ${ENDING[e.ending]}`, tone: 'dim', quiet: QUIET_STATES.has(e.state.kind) }),
   lookedOver: (world, e) => ({ text: `${nameOf(world, e.by)} looks over ${nameOf(world, e.target)}`, tone: '' }),
-  collision: (world, e) => ({ text: `${nameOf(world, e.a)} hits ${nameOf(world, e.b)}`, tone: 'bad' }),
+  collision: (world, e) => ({ text: `${nameOf(world, e.a)} hits ${thingName(world, e.b)}`, tone: 'bad' }),
   arrived: (world, e) => ({ text: `${nameOf(world, e.vehicle)} arrives`, tone: 'dim' }),
   spawn: (world, e) => ({ text: `${nameOf(world, e.vehicle)} enters the map`, tone: 'dim' }),
   despawn: (world, e) => ({ text: `${nameOf(world, e.vehicle)} leaves the map`, tone: 'dim' }),

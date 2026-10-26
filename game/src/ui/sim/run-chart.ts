@@ -4,7 +4,7 @@ import { devEl as el } from "../dom";
 import { moneyText } from "../units";
 import { token } from "../tokens";
 
-const SIZE = { money: 52, xp: 30, gap: 8, axis: 14, pad: 2 };
+const SIZE = { money: 40, xp: 20, gap: 6, axis: 12, pad: 2 };
 const LINE = 2;
 export const SERIES = { money: "--accent", worth: "--ink", xp: "--good-bright" } as const;
 

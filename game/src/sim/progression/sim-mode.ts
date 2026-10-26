@@ -370,7 +370,14 @@ function stateLines(world: World, v: Vehicle, text: SimText): string[] {
 }
 
 function partLines(v: Vehicle, text: SimText): string[] {
-  return mountedParts(v).sort((a, b) => hpPercent(a) - hpPercent(b)).map((p) => `${text.part(p.defId)} ${hpPercent(p)}%`);
+  const kinds = new Map<string, number[]>();
+  for (const p of mountedParts(v)) kinds.set(p.defId, [...(kinds.get(p.defId) ?? []), hpPercent(p)]);
+  return [...kinds].map(([defId, hp]) => ({ defId, hp: Math.min(...hp), count: hp.length })).sort((a, b) => a.hp - b.hp).map((k) => partLine(k, text));
+}
+
+function partLine(kind: { defId: string; hp: number; count: number }, text: SimText): string {
+  const name = text.part(kind.defId);
+  return kind.count === 1 ? `${name} ${kind.hp}%` : `${kind.count} ${name}, weakest ${kind.hp}%`;
 }
 
 function goodsLines(v: Vehicle, text: SimText): string[] {

@@ -98,6 +98,16 @@ describe('simulation mode', () => {
     for (const e of [fired, met]) expect(e.text).not.toMatch(/[{}]|\bv\d+\b/);
   });
 
+  it('names the prop a truck hits and calls the player Your truck with a matching verb', () => {
+    const world = start;
+    const npc = world.vehicles.find((v) => v.brain)!;
+    const hit = { t: 'collision', a: npc.id, b: 'deadTree-5853', impact: 2, hitsA: [], hitsB: [] } as never;
+    const arrived = { t: 'arrived', vehicle: world.player.vehicleId } as never;
+    const [crash, came] = logEntries(world, [hit, arrived], SIM_TEXT);
+    expect(crash.text).toBe(`${SIM_TEXT.truck(world, npc)} hits a dead tree`);
+    expect(came.text).toBe('Your truck arrives');
+  });
+
   it('writes memories newest first as sentences with their age in game hours', () => {
     const world = start;
     const [npc, other] = world.vehicles.filter((v) => v.brain);

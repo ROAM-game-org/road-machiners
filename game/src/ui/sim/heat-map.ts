@@ -45,7 +45,8 @@ export class HeatMap {
     const most = counts.reduce((a, b) => Math.max(a, b), 0);
     if (most === 0) return;
     ctx.fillStyle = token(LOOK[this.shown]);
-    for (let i = 0; i < counts.length; i++) if (counts[i]! > 0) this.drawCell(ctx, view, i, Math.sqrt(counts[i]! / most) * STRONGEST);
+    const scale = Math.log1p(most);
+    for (let i = 0; i < counts.length; i++) if (counts[i]! > 0) this.drawCell(ctx, view, i, (Math.log1p(counts[i]!) / scale) * STRONGEST);
     ctx.globalAlpha = 1;
   }
 

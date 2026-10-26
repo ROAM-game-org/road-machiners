@@ -315,6 +315,7 @@ class SimPage {
   private showCard(card: Card | null): void {
     this.way = card && card.id === this.selected ? card.way : null;
     this.cardView.show(card);
+    this.view.redraw();
   }
 
   private showHeat(layer: HeatLayer | null): void {
