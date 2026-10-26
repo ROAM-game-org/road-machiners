@@ -153,6 +153,10 @@ function candidates(ground: Vec): Vec[] {
   return out;
 }
 
+export function isHideSpot(world: World, p: Vec): boolean {
+  return qualifiesAsHide(world, postMap(world), p);
+}
+
 function qualifiesAsHide(world: World, map: PostMap, p: Vec): boolean {
   return onMap(world, map, p) && clearOfRoads(p) && clearOfPlaces(map, p) && drivable(map, p);
 }
