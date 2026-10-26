@@ -3,7 +3,7 @@ import { GithubError } from './github';
 import { UsageLimitError } from './pause';
 import { BudgetError } from './stages/checkpoint';
 import { updateState } from './state';
-import { STUCK_LABEL, type Ctx, type FactoryState, type Failure, type FailureCause, type JobStage, type Stage } from './types';
+import { STUCK_LABEL, type Ctx, type FactoryState, type Failure, type FailureCause, type JobStage, type RejectedControl, type Stage } from './types';
 
 const ANSI = new RegExp(String.raw`\u001b\[[0-9;]*[A-Za-z]`, 'g');
 const FAILURE_LINE = /FAIL|Error|error:|failed|×/;
@@ -34,12 +34,16 @@ export function failureIssue(stage: JobStage, issue: number | null, state: Facto
 
 const UNLABELED_STAGES: Stage[] = ['catch-up', 'public'];
 
-export async function reportFailure(ctx: Ctx, stage: Stage, issue: number | null, error: unknown, log: string | null, batch: number[]): Promise<void> {
+export async function reportFailure(ctx: Ctx, stage: Stage, issue: number | null, error: unknown, log: string | null, batch: number[], extra: Pick<Failure, 'control'> = {}): Promise<void> {
   const message = error instanceof Error ? error.message : String(error);
   ctx.log(stage, issue, `failed: ${message}`);
-  const failure: Failure = { stage, issue, error: summarizeError(message), cause: causeOf(error), log, at: ctx.now().toISOString(), ...(batch.length > 0 ? { batch } : {}) };
+  const failure: Failure = { stage, issue, error: summarizeError(message), cause: causeOf(error), log, at: ctx.now().toISOString(), ...(batch.length > 0 ? { batch } : {}), ...extra };
   updateState(ctx.statePath, (state) => ({ ...state, failures: [...state.failures, failure] }));
-  if (issue !== null && !UNLABELED_STAGES.includes(stage) && !(error instanceof UsageLimitError)) await ctx.github.addLabel(issue, STUCK_LABEL);
+  if (issue !== null && labelsStuck(stage, error)) await ctx.github.addLabel(issue, STUCK_LABEL);
+}
+
+function labelsStuck(stage: Stage, error: unknown): boolean {
+  return !UNLABELED_STAGES.includes(stage) && !(error instanceof UsageLimitError);
 }
 
 export function causeOf(error: unknown): FailureCause {
@@ -71,6 +75,10 @@ function clearedOf(failure: Failure, issue: number): Failure[] {
   if (failure.batch === undefined || !failure.batch.includes(issue)) return [failure];
   const cleared = [...new Set([...(failure.cleared ?? []), issue])];
   return failure.batch.every((member) => cleared.includes(member)) ? [] : [{ ...failure, cleared }];
+}
+
+export function withoutRejectionsOf(failures: Failure[], control: RejectedControl): Failure[] {
+  return failures.filter((failure) => failure.control?.action !== control.action || failure.control.issue !== control.issue);
 }
 
 export function isClearedFor(failure: Failure, issue: number): boolean {

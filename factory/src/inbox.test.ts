@@ -438,6 +438,18 @@ describe('control files', () => {
     expect(sent).toEqual([]);
   });
 
+  it('drops the rejections of an order once the same order on the same card applies, and keeps the others', async () => {
+    putControl('1-control.json', { action: 'move', issue: 4, to: 'design' });
+    putControl('2-control.json', { action: 'move', issue: 4, to: 'design' });
+    putControl('3-control.json', { action: 'move', issue: 5, to: 'design' });
+    putControl('4-control.json', { action: 'explode' });
+    await drainInbox(fakeCtx([], [], []));
+    expect(readState(statePath).failures.map((failure) => failure.control ?? null)).toEqual([{ action: 'move', issue: 4 }, { action: 'move', issue: 4 }, { action: 'move', issue: 5 }, null]);
+    putControl('5-control.json', { action: 'move', issue: 4, to: 'design' });
+    await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Testing', labels: [] }], [], []));
+    expect(readState(statePath).failures.map((failure) => failure.error.split(':')[0])).toEqual(['#5', 'Unknown control action explode']);
+  });
+
   it('fails a bad shape and an unknown actor as control failures', async () => {
     const sent: string[] = [];
     putControl('1-control.json', { action: 'explode' });
