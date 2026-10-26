@@ -9,6 +9,7 @@ import { weaponOn } from './stats';
 import { wornDef } from './wear';
 import { damagePart } from './damage';
 import { baseGrid, cellKey, facingOf, gridOf, itemCells, isMounted, itemSize, mountedItems, shieldParts, sideOf, type Grid, type SideLetter } from './grid';
+import type { Loadout } from './loadout-memo';
 import type { GridItem, PartInstance, Vehicle, World } from './types';
 import { angleDiff, bearing, dist, type Vec } from './vec';
 
@@ -70,7 +71,7 @@ export function cabShieldWith(v: Vehicle): (extra: GridItem | null) => number {
   };
 }
 
-function withExtra(v: Vehicle, armor: GridItem[], extra: GridItem): GridItem[] {
+function withExtra(v: Vehicle, armor: readonly GridItem[], extra: GridItem): readonly GridItem[] {
   if (extra.kind !== 'part' || partDef(extra.part.defId).kind !== 'armor') throw new Error('cabShieldWith takes an armor item as its extra');
   if (!isMounted(v.chassisId, extra)) return armor;
   const at = armor.findIndex((it) => it.y > extra.y || (it.y === extra.y && it.x > extra.x));
@@ -321,7 +322,7 @@ function cellOwners(v: Vehicle): Map<number, PartInstance[]> {
   return owner;
 }
 
-function outerFirst<T extends GridItem & { kind: 'part' }>(items: T[]): T[] {
+function outerFirst<T extends GridItem & { kind: 'part' }>(items: readonly T[]): T[] {
   const outer = (it: T) => (partDef(it.part.defId).kind === 'accessory' ? 0 : 1);
   return [...items].sort((a, b) => outer(a) - outer(b));
 }
@@ -390,7 +391,7 @@ export type FireSpan = { from: number; to: number };
 
 const SIDE_CENTER: Record<Side, number> = { front: 0, right: 90, rear: 180, left: -90 };
 
-export function gunSpans(v: Vehicle, item: GridItem): FireSpan[] {
+export function gunSpans(v: Loadout, item: GridItem): FireSpan[] {
   return spansIn(v, tallItems(v), item);
 }
 
@@ -439,13 +440,13 @@ export function gunLayoutScore(v: Vehicle): number {
   return covered.size * (360 * guns.length + 1) + sum;
 }
 
-function spansIn(v: Vehicle, tall: readonly GridItem[], item: GridItem): FireSpan[] {
+function spansIn(v: Loadout, tall: readonly GridItem[], item: GridItem): FireSpan[] {
   const shadows = shadowsOf(tall, item).flatMap((s) => s.pieces);
   const open = arcPieces(v, item).flatMap((piece) => shadows.reduce((left, cut) => left.flatMap((p) => subtract(p, cut)), [piece]));
   return joinAcrossBack(mergeSpans(open));
 }
 
-function arcPieces(v: Vehicle, item: GridItem): FireSpan[] {
+function arcPieces(v: Loadout, item: GridItem): FireSpan[] {
   if (item.kind !== 'part') throw new Error(`${item.id} is not a part`);
   const { arc } = weaponOn(v, item.part);
   if (arc >= 360) return [{ from: -180, to: 180 }];
@@ -494,7 +495,7 @@ function mergeSpans(pieces: FireSpan[]): FireSpan[] {
   return merged;
 }
 
-function tallItems(v: Vehicle): GridItem[] {
+function tallItems(v: Loadout): GridItem[] {
   return v.items.filter((it) => it.kind === 'part' && Boolean(partDef(it.part.defId).tall));
 }
 
