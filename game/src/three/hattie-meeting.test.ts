@@ -7,7 +7,7 @@ import { siteOf } from '../sim/market';
 import { QUESTS, questView, setIntroStep, setWorldVar } from '../sim/quests';
 import { defaultSetup } from '../sim/settings';
 import { nearestPad } from '../sim/sites';
-import { flatChoices, pickText } from '../sim/quest-testkit';
+import { flatChoices, pickText } from '../test/quest-testkit';
 import { finishQuest } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { endTurn, newWorld } from '../sim/world';

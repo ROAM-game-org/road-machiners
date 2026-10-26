@@ -1,5 +1,5 @@
-import { chooseQuestOption, QUESTS, questView } from './quests';
-import type { World } from './types';
+import { chooseQuestOption, QUESTS, questView } from '../sim/quests';
+import type { World } from '../sim/types';
 
 const BACK = 'Back.';
 

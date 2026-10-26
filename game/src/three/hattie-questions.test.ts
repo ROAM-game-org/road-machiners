@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { playerVehicle } from '../sim/damage';
 import { mountedItems } from '../sim/grid';
 import { chooseQuestOption, QUEST_QUERIES, QUESTS, questView, restoreQuest, setWorldVar, startQuest } from '../sim/quests';
-import { flatChoices, pickText } from '../sim/quest-testkit';
+import { flatChoices, pickText } from '../test/quest-testkit';
 import { emptyWorld } from '../sim/testkit';
 import type { World } from '../sim/types';
 

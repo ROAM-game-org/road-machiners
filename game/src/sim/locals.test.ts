@@ -14,7 +14,7 @@ import { sitePads } from './sites';
 import { compileBundle, readQuestSources, withEnglishTwins } from '../test/quest-compile';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import { remember } from './memory';
-import { flatChoices, pickText } from './quest-testkit';
+import { flatChoices, pickText } from '../test/quest-testkit';
 import type { World } from './types';
 import { UNITS } from '../data/units';
 import { cloneWorld } from './world';

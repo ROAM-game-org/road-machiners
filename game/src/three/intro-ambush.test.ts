@@ -25,7 +25,7 @@ import { hasCargo } from '../sim/salvage';
 import { defaultSetup } from '../sim/settings';
 import { canUseSite } from '../sim/sites';
 import { allegianceFor, isFree, spawnAt } from '../sim/spawn';
-import { flatChoices, pickText } from '../sim/quest-testkit';
+import { flatChoices, pickText } from '../test/quest-testkit';
 import { editableTerrain, emptyWorld, finishQuest, testDrive } from '../sim/testkit';
 import { trackOf } from '../sim/tracks';
 import type { Vehicle, World } from '../sim/types';
