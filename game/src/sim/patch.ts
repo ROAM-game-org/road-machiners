@@ -1,6 +1,3 @@
-// Roadside patches between two trucks. A patch lifts the broken engine, transmission and tank that strand a truck, or
-// the badly worn ones of a truck that still drives, to PATCH.share of their max HP, with the repair math of
-// src/sim/repair.ts and the patcher's Machining. The agreement fixes which parts it covers. The terms are
 
 import { practice, skillEffect, vehicleHasPerk } from './progress';
 import { PERK_NUMBERS } from '../data/skills';
