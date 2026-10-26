@@ -69,7 +69,7 @@ Pull up by the well. I'm Hattie. Where'd you come from, and how much water do yo
   ~ hattie_unarmed = true
   -> hub
 + {hattie_flats and not hattie_glass} [What about the glass at the Glass Flats?]
-  Pim Arslan says every ripple in that glass leans toward the <term=fallen_sun>Fallen Sun</term> crater.
+  People say every ripple in that glass leans toward the <term=fallen_sun>Fallen Sun</term> crater.
   The <term=sunward>Sunward</term> say it's bowing to what's down there. That's what I've heard. I won't stand on it at noon.
   ~ note("talkGlassLean")
   ~ hattie_glass = true

@@ -621,3 +621,7 @@ export function withWreckSquares_114_115(world: SavedJson): SavedJson {
   if (!call || !isWreckCall_114_115(call)) return world;
   return { ...world, player: { ...player, call: null } };
 }
+
+export function withoutLenaGlare_115_116(world: SavedJson): SavedJson {
+  return ['heard_glare', 'asked_glare'].reduce((w, name) => dropQuestVar(w, 'nose_lena', name), world);
+}

@@ -117,7 +117,6 @@ describe('settlement locals', () => {
       { town: 'nose', quest: 'nose_edda', setup: ['Yes. I drive linked.', 'What do you know about links?', 'Who made the first link?', 'What happened to your grandfather?'], option: 'Could I lose myself in my truck?' },
       { town: 'nose', quest: 'nose_edda', setup: ['Yes. I drive linked.', 'What do you know about links?'], option: 'What does the ring on my skull mean?' },
       { town: 'nose', quest: 'nose_lena', setup: ['Any advice for my truck?', 'What do you do here?'], option: 'Why check brake rods before guns?' },
-      { town: 'nose', quest: 'nose_lena', setup: ['Where do I find cheap parts?', 'What do you know about the Fallen Sun?', 'What do you do here?'], option: 'Anything for the glare at the Fallen Sun?' },
     ];
     for (const row of rows) {
       const w = talk(parkedAt(row.town), row.quest, row.setup);
@@ -127,6 +126,11 @@ describe('settlement locals', () => {
     const w = parkedAt('nose');
     learnNote(w, 'wagonNose');
     expect(choices(w, 'radio_wagon_driver')).toContain("What became of the wagon's crew?");
+  });
+
+  it('offers no glare question after Lena answers about the Fallen Sun', () => {
+    const w = talk(parkedAt('nose'), 'nose_lena', ['Where do I find cheap parts?', 'What do you know about the Fallen Sun?']);
+    expect(questView(w, QUESTS).choices).not.toContain('Anything for the glare at the Fallen Sun?');
   });
 
   it('answers Edda\'s linked-soldier question without the origin story on screen', () => {
