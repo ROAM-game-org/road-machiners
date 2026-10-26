@@ -3,7 +3,7 @@ import { isAbsolute } from 'node:path';
 export type DashboardConfig = {
   home: string; repo: string; projectOwner: string; projectNumber: number; githubAppId: string; githubRetries: number; githubRetryBaseSeconds: number; githubTimeoutSeconds: number; publicUrl: string;
   playUrl: string; channelUrl: string | null; publicChannel: string | null; socket: string | null; port: number | null;
-  refreshMs: number; githubRefreshMs: number; commandTimeoutMs: number; observationHeartbeatMs: number; tickIntervalMs: number;
+  refreshMs: number; githubRefreshMs: number; analyticsRefreshMs: number; commandTimeoutMs: number; observationHeartbeatMs: number; tickIntervalMs: number;
   triageWorkers: number; designWorkers: number; implementWorkers: number; verifyWorkers: number; testWorkers: number;
 };
 function requireValue(env: NodeJS.ProcessEnv, key: string): string {
@@ -62,6 +62,7 @@ export function loadDashboardConfig(env: NodeJS.ProcessEnv): DashboardConfig {
     playUrl: `https://${target[0]}.itch.io/${target[1]}`,
     ...readChannel(env),
     ...readListener(env), refreshMs: readPositive(env, 'DASHBOARD_REFRESH_MS'), githubRefreshMs: readPositive(env, 'DASHBOARD_GITHUB_REFRESH_MS'),
+    analyticsRefreshMs: readPositive(env, 'FACTORY_DASHBOARD_ANALYTICS_MINUTES') * 60000,
     commandTimeoutMs: readPositive(env, 'DASHBOARD_COMMAND_TIMEOUT_MS'),
     observationHeartbeatMs: readPositive(env, 'FACTORY_OBSERVATION_HEARTBEAT_MS'), tickIntervalMs: readPositive(env, 'FACTORY_TICK_MINUTES') * 60000,
     triageWorkers: readPositive(env, 'FACTORY_TRIAGE_WORKERS'), designWorkers: readPositive(env, 'FACTORY_DESIGN_WORKERS'),
