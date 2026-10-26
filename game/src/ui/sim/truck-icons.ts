@@ -5,12 +5,12 @@ import { bareVehicle } from "../../sim/factory";
 import { GARAGE_PX_PER_METER, GarageRenders, gridOrigin, type GarageSprite } from "../../three/render/garageRender";
 import { loadModels, paintSurfaceMasks } from "../../three/render/models";
 
-const LEVELS = 8;
-const EDGE_PX = 1;
-const HALO_PX = 2;
+const LEVEL_STEP = Math.SQRT2;
+const LEVELS = 14;
+const EDGE_PX = 2;
+const HALO_PX = 1;
 const PAD_PX = EDGE_PX + HALO_PX;
-const TINT_ALPHA = 0.6;
-const OUT_ALPHA = 0.85;
+const OUT_ALPHA = 0.75;
 const OFFSETS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const;
 
 export type IconLook = { fill: string; edge: string; halo: string; out: boolean };
@@ -38,9 +38,15 @@ function halved(source: HTMLCanvasElement): HTMLCanvasElement {
   return half;
 }
 
+function lessened(source: HTMLCanvasElement): HTMLCanvasElement {
+  const smaller = canvasOfSize(source.width / LEVEL_STEP, source.height / LEVEL_STEP);
+  contextOf(smaller).drawImage(source, 0, 0, smaller.width, smaller.height);
+  return smaller;
+}
+
 function levelsOf(full: HTMLCanvasElement): HTMLCanvasElement[] {
   const levels = [full];
-  for (let i = 1; i < LEVELS; i++) levels.push(halved(levels[i - 1]!));
+  for (let i = 1; i < LEVELS; i++) levels.push(i % 2 === 0 ? halved(levels[i - 2]!) : lessened(levels[i - 1]!));
   return levels;
 }
 
@@ -77,32 +83,33 @@ function silhouette(base: HTMLCanvasElement, color: string): HTMLCanvasElement {
   return mask;
 }
 
-function stamp(ctx: CanvasRenderingContext2D, mask: HTMLCanvasElement, reach: number): void {
-  for (const [dx, dy] of OFFSETS) ctx.drawImage(mask, PAD_PX + dx * reach, PAD_PX + dy * reach);
+function stamp(ctx: CanvasRenderingContext2D, mask: HTMLCanvasElement, reaches: number): void {
+  for (let reach = 1; reach <= reaches; reach++) for (const [dx, dy] of OFFSETS) ctx.drawImage(mask, PAD_PX + dx * reach, PAD_PX + dy * reach);
 }
 
-function tintedBody(base: HTMLCanvasElement, look: IconLook): HTMLCanvasElement {
-  const body = canvasOfSize(base.width, base.height);
-  const ctx = contextOf(body);
+function body(base: HTMLCanvasElement, look: IconLook): HTMLCanvasElement {
+  if (!look.out) return base;
+  const dark = canvasOfSize(base.width, base.height);
+  const ctx = contextOf(dark);
   ctx.drawImage(base, 0, 0);
   ctx.globalCompositeOperation = "source-atop";
-  ctx.globalAlpha = look.out ? OUT_ALPHA : TINT_ALPHA;
+  ctx.globalAlpha = OUT_ALPHA;
   ctx.fillStyle = look.fill;
-  ctx.fillRect(0, 0, body.width, body.height);
-  return body;
+  ctx.fillRect(0, 0, dark.width, dark.height);
+  return dark;
 }
 
 function iconOf(base: HTMLCanvasElement, look: IconLook): HTMLCanvasElement {
   const icon = canvasOfSize(base.width + 2 * PAD_PX, base.height + 2 * PAD_PX);
   const ctx = contextOf(icon);
-  stamp(ctx, silhouette(base, look.halo), HALO_PX);
+  stamp(ctx, silhouette(base, look.halo), PAD_PX);
   stamp(ctx, silhouette(base, look.edge), EDGE_PX);
-  ctx.drawImage(tintedBody(base, look), PAD_PX, PAD_PX);
+  ctx.drawImage(body(base, look), PAD_PX, PAD_PX);
   return icon;
 }
 
 function levelFor(pxPerMeter: number): number {
-  const level = Math.floor(Math.log2(GARAGE_PX_PER_METER / pxPerMeter));
+  const level = Math.round(Math.log(GARAGE_PX_PER_METER / pxPerMeter) / Math.log(LEVEL_STEP));
   return Math.min(LEVELS - 1, Math.max(0, level));
 }
 
@@ -153,7 +160,7 @@ export class TruckIcons {
   draw(ctx: CanvasRenderingContext2D, chassisId: string, at: { x: number; y: number }, angle: number, pxPerMeter: number, look: IconLook): void {
     const sprite = this.sprite(chassisId);
     const level = levelFor(pxPerMeter);
-    const levelPxPerMeter = GARAGE_PX_PER_METER / 2 ** level;
+    const levelPxPerMeter = sprite.levels[level]!.width / sprite.widthM;
     const icon = this.iconFor(sprite, chassisId, level, look);
     const scale = pxPerMeter / levelPxPerMeter;
     ctx.save();

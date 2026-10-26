@@ -1114,6 +1114,10 @@ export function offersChoice(world: World, vehicle: Vehicle, decision: DecisionI
   return options.some((option) => option !== 'keep' && optionOpen(world, vehicle, decision, subject, option));
 }
 
+export function anyOptionOpen(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {
+  return (Object.keys(DECISIONS[decision]) as OptionName[]).some((option) => optionOpen(world, vehicle, decision, subject, option));
+}
+
 function optionOpen(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, option: OptionName): boolean {
   return allowedByMode(world, option) && AVAILABLE[option](world, vehicle, decision, subject);
 }

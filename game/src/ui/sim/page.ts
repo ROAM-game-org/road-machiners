@@ -12,7 +12,7 @@ import { MapView, openScene } from "../map-view";
 import { token } from "../tokens";
 import { TruckIcons, type IconLook } from "./truck-icons";
 
-const MARKER = { ring: 4, halo: 2, hit: 8, line: 2, shortestPx: 12 };
+const MARKER = { ring: 4, halo: 2, hit: 8, line: 2, shortestPx: 24 };
 const LABEL = { gap: 6, padX: 5, padY: 3, stripe: 3 };
 const CLICK_SLOP = 4;
 const LOG_WINDOW = 2000;
