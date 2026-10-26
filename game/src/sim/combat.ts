@@ -24,7 +24,8 @@ import { chance, gauss, randInt, randRange } from './rng';
 import { sampleWeighted } from './npc-loadout';
 import { vehicleMass } from './mass';
 import { nimbleSpread } from './chassis-features';
-import { vehicleStats, weaponOn, type MountedWeapon } from './stats';
+import { gunReach, vehicleStats, weaponOn, type MountedWeapon } from "./stats";
+import { NPC_BEHAVIOR } from "../data/npc-behavior";
 import type { WeaponDef } from '../data/parts';
 import type { Aim, GameEvent, GunState, NpcActivity, PartInstance, ShotRound, Vehicle, VehicleHits, World } from './types';
 import { digCrater } from './craters';
@@ -825,11 +826,28 @@ export function combatTurnsLeft(world: World, v: Vehicle): number | null {
   return left.length > 0 ? Math.max(...left) : null;
 }
 
-export function noteEngagements(world: World): void {
+export type HuntGaps = ReadonlyMap<string, number>;
+
+export function huntGaps(world: World): HuntGaps {
+  const gaps = new Map<string, number>();
+  for (const v of world.vehicles) {
+    const id = fightTargetId(v);
+    const target = id ? world.vehicles.find((t) => t.id === id) : undefined;
+    if (target) gaps.set(v.id, dist(v.pos, target.pos));
+  }
+  return gaps;
+}
+
+export function noteEngagements(world: World, gaps: HuntGaps): void {
   for (const v of world.vehicles) {
     const target = huntedTarget(world, v);
-    if (target) engage(world, v, target);
+    if (target && closesIn(world, v, target, gaps.get(v.id))) engage(world, v, target);
   }
+}
+
+function closesIn(world: World, v: Vehicle, target: Vehicle, before: number | undefined): boolean {
+  const gap = dist(v.pos, target.pos);
+  return gap <= gunReach(world, v) || (before !== undefined && before - gap >= NPC_BEHAVIOR.closeInTiles);
 }
 
 function fightTargetId(v: Vehicle): string | null {

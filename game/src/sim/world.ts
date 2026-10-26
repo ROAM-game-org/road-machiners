@@ -22,7 +22,7 @@ import type { BakedMap } from './terrain';
 import { planNpcOrders } from './ai';
 import { assignUtilityOrders } from './npc-utility';
 import { applyGodMode, freezeDriving, freezeFire } from './cheats';
-import { assignAutoOrders, dropMagazine, fireWeapons, isHostile, noteEngagements, resolveDestroyed, settleAims } from './combat';
+import { assignAutoOrders, dropMagazine, fireWeapons, huntGaps, isHostile, noteEngagements, resolveDestroyed, settleAims } from './combat';
 import { cutLine } from './harpoon';
 import { advanceKnockout, advanceNpcKnockouts, checkDeath, checkKnockout, isKnockedOut } from './defeat';
 import { advanceIntro, greetAtWell, wakeInTown } from './intro';
@@ -359,6 +359,7 @@ export function endTurn(
     advanceUtilityEffects(w);
     assignUtilityOrders(w);
     activateUtilities(w);
+    const gaps = huntGaps(w);
     move(w);
     if (!shopNear(w)) w.player.townPatched = false;
     followTower(w);
@@ -406,7 +407,7 @@ export function endTurn(
     lapseEncounter(w);
     resolveNpcActivities(w);
     learnCasesAtDesk(w);
-    noteEngagements(w);
+    noteEngagements(w, gaps);
     discoverSites(w);
     checkDeath(w);
     wakeInTown(w, advanceKnockout(w));
