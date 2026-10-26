@@ -1,7 +1,7 @@
 import "../style.css";
 import "./sim.css";
 import { FACTIONS } from "../../data/npc-behavior";
-import type { Card, Frame, FromSim, Hud, LogEntry, Marker, ToSim, Way } from "../../sim/progression/sim-mode";
+import type { Card, Frame, FromSim, LogEntry, Marker, ToSim, Way } from "../../sim/progression/sim-mode";
 import { clockOf } from "../../sim/sun";
 import type { NpcFactionId } from "../../sim/types";
 import type { Vec } from "../../sim/vec";
@@ -10,9 +10,9 @@ import { devEl as el, download, uiRoot } from "../dom";
 import { toPx, wheelZoomFactor, type Viewport } from "../map-geometry";
 import { MapView, openScene } from "../map-view";
 import { token } from "../tokens";
-import { TruckIcons, type IconLook } from "./truck-icons";
+import { TruckIcons, type IconLook, type SpriteSet } from "./truck-icons";
 import { HEAT_LAYERS, HeatMap, type HeatLayer } from "./heat-map";
-import { RunChart, SERIES, swatch } from "./run-chart";
+import { CardView, PlayerPanel } from "./panels";
 import { TIME } from "../../data/time";
 
 const MARKER = { ring: 4, halo: 2, hit: 8, line: 2, shortestPx: 24 };
@@ -26,11 +26,7 @@ const SPEEDS: { label: string; title: string; gap: number }[] = [
   { label: "Fast", title: "As fast as it runs", gap: 0 },
 ];
 const START_SPEED = 1;
-const LOOK = { player: "--select", outlaw: "--danger-bright", lawman: "--good-bright", town: "--path-contact", independent: "--ink-muted", combat: "--alarm", selected: "--ink-bright", out: "--surface-sunk", halo: "--surface-sunk" };
-const KEY_ROWS = ["money", "net worth", "xp", "health", "mean hp", "fuel", "supplies", "engine heat", "speed"];
-const OPEN_SECTIONS = ["goals", "states", "contracts", "foes in sight"];
-const WEAK_HEALTH = 40;
-const HUD_STATES: Record<string, string | undefined> = { knockedOut: "Knocked out", dead: "Dead" };
+const LOOK = { player: "--select", outlaw: "--alarm", lawman: "--path-accelerate", town: "--path-contact", independent: "--map-engine", combat: "--path-radio", selected: "--ink-bright", halo: "--surface-sunk" };
 const LOG_KEEP_TURNS = TIME.turnsPerDay;
 const TURNS_PER_HOUR = TIME.turnsPerDay / 24;
 const WAY = { line: 2, halo: 1, end: 5, dest: { color: "--path-plan", dash: [6, 4] }, target: { color: "--path-dest", dash: [2, 4] }, home: "--ink-muted" };
@@ -111,76 +107,6 @@ class Toggle {
   }
 }
 
-class HudStrip {
-  private readonly clock = el("span", { class: "sim-hud-value" });
-  private readonly money = el("span", { class: "sim-hud-value" });
-  private readonly worth = el("span", { class: "sim-hud-value" });
-  private readonly xp = el("span", { class: "sim-hud-value" });
-  private readonly doing = el("div", { class: "sim-hud-doing" });
-  readonly chart = new RunChart(clockText);
-  readonly root = el("div", { class: "sim-hud" },
-    el("div", { class: "sim-hud-stats" }, this.cell("Time", this.clock, null), this.cell("Money", this.money, SERIES.money), this.cell("Net worth", this.worth, SERIES.worth), this.cell("XP", this.xp, SERIES.xp)),
-    this.doing,
-    this.chart.root);
-
-  private cell(name: string, value: HTMLElement, look: string | null): HTMLElement {
-    return el("div", { class: "sim-hud-cell" }, el("span", { class: "sim-hud-label" }, look ? swatch(look) : null, name), value);
-  }
-
-  show(turn: number, hud: Hud): void {
-    this.clock.textContent = clockText(turn);
-    this.money.textContent = hud.money;
-    this.worth.textContent = hud.worth;
-    this.xp.textContent = String(hud.xp);
-    const state = HUD_STATES[hud.state];
-    this.doing.replaceChildren(...(state ? [el("span", { class: "tag bad" }, state)] : []), hud.doing);
-  }
-}
-
-function stat(name: string, value: string): HTMLElement {
-  return el("div", { class: "sim-stat" }, el("span", { class: "sim-label" }, name), el("span", { class: "num" }, value), name === "mean hp" ? healthMeter(value) : null);
-}
-
-function healthMeter(value: string): HTMLElement | null {
-  const percent = parseInt(value, 10);
-  if (Number.isNaN(percent)) return null;
-  const bar = el("span");
-  bar.style.width = `${Math.min(100, Math.max(0, percent))}%`;
-  return el("div", { class: percent < WEAK_HEALTH ? "meter s broken" : "meter s" }, bar);
-}
-
-function detail(name: string, value: string): HTMLElement {
-  return el("div", { class: "sim-row" }, el("span", { class: "dim" }, name), el("span", { class: "num" }, value));
-}
-
-class CardView {
-  readonly root = el("div", { class: "sim-card panel" });
-  private readonly opened = new Map<string, boolean>();
-
-  show(card: Card | null): void {
-    if (!card) return this.root.replaceChildren(el("div", { class: "dim" }, "Click a truck or a log line to see its card"));
-    const rows = card.rows.filter(([name]) => name !== "doing");
-    const doing = card.rows.find(([name]) => name === "doing");
-    const parts = [
-      el("div", { class: "sim-card-title", title: card.id }, card.title),
-      doing ? el("div", { class: "sim-doing" }, doing[1]) : null,
-      card.tags.length > 0 ? el("div", { class: "sim-tags" }, ...card.tags.map((tag) => el("span", { class: "tag" }, tag))) : null,
-      el("div", { class: "sim-stats" }, ...rows.filter(([name]) => KEY_ROWS.includes(name)).map(([name, value]) => stat(name, value))),
-      this.fold("details", "Details", rows.filter(([name]) => !KEY_ROWS.includes(name)).map(([name, value]) => detail(name, value))),
-      ...card.sections.map((s) => this.fold(s.name, s.name, s.lines.map((line) => el("div", { class: "sim-line" }, line)))),
-    ];
-    this.root.replaceChildren(...parts.filter((p): p is HTMLElement => p !== null));
-  }
-
-  private fold(key: string, name: string, lines: HTMLElement[]): HTMLElement | null {
-    if (lines.length === 0) return null;
-    const open = this.opened.get(key) ?? OPEN_SECTIONS.includes(key);
-    const fold = el("details", { class: "sim-fold", open }, el("summary", {}, name), ...lines) as HTMLDetailsElement;
-    fold.addEventListener("toggle", () => this.opened.set(key, fold.open));
-    return fold;
-  }
-}
-
 class SimPage {
   private readonly glide = new Glide();
   private entries: LogEntry[] = [];
@@ -191,47 +117,45 @@ class SimPage {
   private drawnScale = 1;
   private icons: TruckIcons | null = null;
   private readonly looks = new Map<string, IconLook>();
+  private readonly sets = new Map<string, SpriteSet>();
   private readonly view = new MapView({ kind: "free" }, 1, 1, (ctx, view) => this.drawAll(ctx, view), 1);
   private readonly heat = new HeatMap(heatClassOf);
   private readonly heatButtons = HEAT_LAYERS.map((h) => el("button", { class: "btn-s", title: h.title, "aria-pressed": String(h.layer === null), onclick: () => this.showHeat(h.layer) }, h.label));
-  private readonly heatNote = el("span", { class: "sim-status" });
+  private readonly heatNote = el("span", { class: "sim-note" });
   private way: Way | null = null;
   private playerId: string | null = null;
   private readonly find = el("input", { type: "search", class: "sim-find", placeholder: "Find", oninput: () => this.renderLog() }) as HTMLInputElement;
-  private readonly hud = new HudStrip();
-  private readonly mapBox = el("div", { class: "sim-map" }, this.view.canvas, this.hud.root, legend());
-  private readonly status = el("div", { class: "sim-status num" }, "Loading the map");
+  private readonly player = new PlayerPanel(clockText, clockText, () => this.select(this.playerId));
+  private readonly heatBar = el("div", { class: "sim-heat" }, el("span", { class: "sim-label" }, "Heat"), el("div", { class: "option-switch" }, ...this.heatButtons), this.heatNote);
+  private readonly mapBox = el("div", { class: "sim-map" }, this.view.canvas, this.heatBar, legend());
+  private readonly status = el("span", { class: "sim-note" }, "Loading the map");
   private readonly failure = el("pre", { class: "sim-failure" });
-  private readonly playButton = el("button", { class: "btn-l sim-play", title: "Space", onclick: () => this.togglePlay() }, "Play");
-  private readonly stepButton = el("button", { class: "btn-l", title: "Period key", onclick: () => this.step() }, "Step");
+  private readonly playButton = el("button", { class: "sim-play", title: "Space", onclick: () => this.togglePlay() }, "Play");
+  private readonly stepButton = el("button", { class: "btn-s", title: "Period key", onclick: () => this.step() }, "Step");
   private readonly speedButtons = SPEEDS.map((s, i) => el("button", { class: "btn-s", title: s.title, "aria-pressed": String(i === START_SPEED), onclick: () => this.setSpeed(i) }, s.label));
   private speedIndex = START_SPEED;
-  private readonly follow = new Toggle("Follow", "F key. Keeps the card's truck in the middle", () => this.view.redraw());
-  private readonly seedBox = el("input", { type: "number", class: "sim-seed", step: "1" }) as HTMLInputElement;
+  private readonly follow = new Toggle("Follow", "F key. Keeps the selected truck in the middle", () => this.view.redraw());
+  private readonly seedBox = el("input", { type: "number", class: "sim-seed", step: "1", title: "Seed" }) as HTMLInputElement;
   private readonly saveButton = el("button", { class: "btn-s", title: "The run also saves every game hour and on Pause, and opening the page resumes it", onclick: () => this.send({ kind: "save" }) }, "Save");
-  private readonly downloadButton = el("button", { class: "btn-s", title: "Download the run as a game save file", onclick: () => this.send({ kind: "download" }) }, "Download save");
-  private readonly saveNote = el("span", { class: "sim-status" }, "Not saved yet");
-  private readonly quiet = new Toggle("Quiet events", "Show the events the log hides by default", () => this.renderLog());
-  private readonly onlySelected = new Toggle("Card's truck only", "Show only the events of the card's truck", () => this.renderLog());
+  private readonly downloadButton = el("button", { class: "btn-s", title: "Download the run as a game save file", onclick: () => this.send({ kind: "download" }) }, "Download");
+  private readonly saveNote = el("span", { class: "sim-note" }, "Not saved yet");
+  private readonly quiet = new Toggle("All events", "Also show routine events: jobs, trades, shots and sightings", () => this.renderLog());
+  private readonly onlySelected = new Toggle("Selected", "Show only the events of the selected truck", () => this.renderLog());
   private readonly cardView = new CardView();
   private readonly log = el("ol", { class: "sim-log" });
-  private readonly logCount = el("span", { class: "dim num" });
+  private readonly logCount = el("span", { class: "sim-note" });
   private playing = false;
   private started = false;
 
   constructor(private readonly worker: Worker) {
     worker.onmessage = (event: MessageEvent<FromSim>) => this.receive(event.data);
     worker.onerror = (event) => this.fail(0, `The sim worker failed: ${event.message}`);
-    const runForm = el("form", { class: "sim-run", onsubmit: (e: Event) => this.newRun(e) }, el("label", {}, "Seed ", this.seedBox), el("button", { class: "btn-s", type: "submit" }, "New run"));
-    const transport = el("div", { class: "sim-transport" }, this.playButton, this.stepButton, this.follow.button);
-    const speed = el("div", { class: "option-switch sim-speed" }, ...this.speedButtons);
-    const saving = el("div", { class: "sim-run-row" }, el("div", { class: "sim-run" }, this.saveButton, this.downloadButton), this.saveNote);
-    const heat = el("div", { class: "sim-run-row" }, el("div", { class: "sim-run" }, "Heat", el("div", { class: "option-switch" }, ...this.heatButtons)), this.heatNote);
-    const controls = el("div", { class: "sim-controls panel" }, transport, speed, heat, el("div", { class: "sim-run-row" }, runForm, this.status), saving);
+    const toolbar = el("div", { class: "sim-toolbar panel" }, this.playButton, this.stepButton, el("div", { class: "option-switch sim-speed" }, ...this.speedButtons), this.follow.button);
+    const runForm = el("form", { class: "sim-run", onsubmit: (e: Event) => this.newRun(e) }, this.seedBox, el("button", { class: "btn-s", type: "submit" }, "New run"), this.saveButton, this.downloadButton, this.saveNote);
     const filters = el("div", { class: "sim-filters" }, this.find, this.quiet.button, this.onlySelected.button);
-    const logHead = el("div", { class: "sim-log-head" }, el("span", { class: "panel-title" }, "Log"), this.logCount, filters);
+    const logHead = el("div", { class: "sim-head" }, el("span", { class: "panel-title" }, "Log"), this.logCount, filters);
     const logPanel = el("div", { class: "sim-log-panel panel" }, logHead, this.log);
-    const side = el("div", { class: "sim-side" }, controls, this.failure, this.cardView.root, logPanel);
+    const side = el("div", { class: "sim-side" }, toolbar, this.failure, this.player.root, this.cardView.root, logPanel, el("div", { class: "sim-footer" }, runForm, this.status));
     uiRoot().append(this.mapBox, side);
     uiRoot().classList.add("sim");
     this.setReady(false);
@@ -281,12 +205,12 @@ class SimPage {
   private receive(message: FromSim): void {
     const handlers: { [K in FromSim["kind"]]: (m: Extract<FromSim, { kind: K }>) => void } = {
       started: (m) => this.showStarted(m),
-      history: (m) => this.hud.chart.reset(m.samples),
-      saved: (m) => (this.saveNote.textContent = `Saved at turn ${m.turn}`),
+      history: (m) => this.player.chart.reset(m.samples),
+      saved: (m) => (this.saveNote.textContent = `Saved ${shortClockText(m.turn)}`),
       saveFile: (m) => download(m.name, m.json, "application/json"),
       frame: (m) => this.showFrame(m.frame),
       card: (m) => this.showCard(m.card),
-      ended: (m) => this.end(`The run ended at turn ${m.turn}: the player is ${m.reason}`),
+      ended: (m) => this.end(`The run ended ${clockText(m.turn)}: your truck is ${m.reason === "knockedOut" ? "knocked out" : m.reason}`),
       failed: (m) => this.fail(m.turn, m.message),
     };
     (handlers[message.kind] as (m: FromSim) => void)(message);
@@ -295,18 +219,19 @@ class SimPage {
   private showStarted(m: Extract<FromSim, { kind: "started" }>): void {
     this.seedBox.value = String(m.seed);
     history.replaceState(null, "", location.pathname);
-    if (m.resumed) this.saveNote.textContent = `Resumed the saved run at turn ${m.turn}`;
+    if (m.resumed) this.saveNote.textContent = `Resumed from ${shortClockText(m.turn)}`;
     if (m.dropped) this.saveNote.textContent = "The old save was from an older sim mode and was deleted";
   }
 
   private showFrame(f: Frame): void {
     if (!this.started) this.begin(f);
+    for (const m of f.markers) this.setOf(m);
     this.glide.take(f.markers, performance.now());
-    this.status.textContent = `Turn ${f.turn}, ${f.markers.length} trucks`;
-    this.hud.show(f.turn, f.hud);
-    if (f.sample) this.hud.chart.add(f.sample);
+    this.status.textContent = `${f.markers.length} trucks`;
+    this.player.show(f.turn, f.hud);
+    if (f.sample) this.player.chart.add(f.sample);
     this.heat.add(f.turn, f.markers);
-    this.heatNote.textContent = `over ${Math.round(this.heat.turnsCovered() / TURNS_PER_HOUR)} h`;
+    this.captionHeat();
     this.addEntries(f.log);
     if (f.card) this.showCard(f.card);
     this.view.redraw();
@@ -321,7 +246,12 @@ class SimPage {
   private showHeat(layer: HeatLayer | null): void {
     this.heat.shown = layer;
     this.heatButtons.forEach((button, i) => button.setAttribute("aria-pressed", String(HEAT_LAYERS[i]!.layer === layer)));
+    this.captionHeat();
     this.view.redraw();
+  }
+
+  private captionHeat(): void {
+    this.heatNote.textContent = this.heat.shown ? `last ${Math.round(this.heat.turnsCovered() / TURNS_PER_HOUR)} h` : "";
   }
 
   private begin(first: Frame): void {
@@ -419,7 +349,7 @@ class SimPage {
 
   private countLog(): void {
     const oldest = (this.log.lastElementChild as HTMLElement | null)?.dataset.when;
-    this.logCount.textContent = oldest ? `${this.log.childElementCount} since ${oldest}` : "";
+    this.logCount.textContent = oldest ? `${this.log.childElementCount} lines since ${oldest}` : "";
   }
 
   private logLine(e: LogEntry): HTMLElement {
@@ -472,10 +402,17 @@ class SimPage {
     const key = `${name}|${m.out}`;
     const cached = this.looks.get(key);
     if (cached) return cached;
-    const color = token(name);
-    const look = { fill: m.out ? token(LOOK.out) : color, edge: color, halo: token(LOOK.halo), out: m.out };
+    const look = { color: token(name), out: m.out };
     this.looks.set(key, look);
     return look;
+  }
+
+  private setOf(m: Marker): SpriteSet {
+    const known = this.sets.get(m.id);
+    if (known) return known;
+    const made = this.iconSet().setFor(m.chassis, { faction: m.faction, template: m.template, player: m.paint });
+    this.sets.set(m.id, made);
+    return made;
   }
 
   private rank(m: Marker): number {
@@ -485,7 +422,7 @@ class SimPage {
   }
 
   private radiusOf(m: Marker): number {
-    return this.iconSet().radius(m.chassis, this.drawnScale);
+    return this.iconSet().radius(this.setOf(m), this.drawnScale);
   }
 
   private drawMarker(ctx: CanvasRenderingContext2D, view: Viewport, m: Marker, at: Point): void {
@@ -493,7 +430,7 @@ class SimPage {
     const tip = toPx(view, m);
     const angle = Math.atan2(ahead.y - tip.y, ahead.x - tip.x);
     const radius = this.radiusOf(m);
-    this.iconSet().draw(ctx, m.chassis, at, angle, this.drawnScale, this.lookFor(m));
+    this.iconSet().draw(ctx, this.setOf(m), at, angle, this.drawnScale, this.lookFor(m));
     if (m.combat) ring(ctx, at, radius + MARKER.ring, token(LOOK.combat), MARKER.line);
     if (m.id === this.selected) ring(ctx, at, radius + MARKER.ring + MARKER.line * 2, token(LOOK.selected), MARKER.line);
   }

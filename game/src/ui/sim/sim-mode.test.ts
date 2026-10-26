@@ -15,7 +15,7 @@ import { describe as describeEvent } from '../../sim/progression/turn-log';
 
 const TURNS = 10;
 const SCAN_TURNS = 60;
-const RAW = /[a-z][A-Z]|@|\{|\}|\bv\d+\b|\bp\d+\b|\btrue\b|\bfalse\b|—|\bsomething\b|\bYou arrives\b|:\d/;
+const RAW = /[a-z][A-Z]|@|\{|\}|\b[a-z]{1,4}\d{2,}\b|\btrue\b|\bfalse\b|—|\bsomething\b|\bYou arrives\b|:\d/;
 
 function framesOf(messages: FromSim[]): Frame[] {
   return messages.flatMap((m) => (m.kind === 'frame' ? [m.frame] : []));
@@ -64,13 +64,13 @@ describe('simulation mode', () => {
     expect(hud.worth).toBe(SIM_TEXT.money(netWorth(world)));
   });
 
-  it('gives the player card the run ledger and net worth, and a plain card for a truck that left', () => {
+  it('gives the player card the run ledger, and a plain card for a truck that left', () => {
     const world = start;
     const ledger = { ...emptyLedger(), fuel: -1200 };
     const card = cardOf(world, world.player.vehicleId, ledger, SIM_TEXT);
-    expect(card.rows).toContainEqual(['net worth', SIM_TEXT.money(netWorth(world))]);
-    expect(card.sections.find((s) => s.name === 'run ledger')?.lines).toEqual([`fuel ${SIM_TEXT.money(-1200)}`]);
-    expect(cardOf(world, 'gone-truck', ledger, SIM_TEXT)).toMatchObject({ id: 'gone-truck', title: 'This truck has left the world', rows: [], sections: [] });
+    expect(card.title).toBe('Your truck');
+    expect(card.sections.find((s) => s.name === 'Money in and out')?.rows).toEqual([['Fuel', SIM_TEXT.money(-1200)]]);
+    expect(cardOf(world, 'gone-truck', ledger, SIM_TEXT)).toMatchObject({ id: 'gone-truck', title: 'This truck', doing: 'Left the map', stats: [], sections: [] });
   });
 
   it('shows an NPC card with its driver and goals', () => {
@@ -78,10 +78,10 @@ describe('simulation mode', () => {
     const npc = world.vehicles.find((v) => v.brain)!;
     const card = cardOf(world, npc.id, emptyLedger(), SIM_TEXT);
     expect(card.title).toBe(SIM_TEXT.truck(world, npc));
-    expect(card.rows).toContainEqual(['faction', SIM_TEXT.faction(npc.faction)]);
-    expect(card.rows).toContainEqual(['home', SIM_TEXT.place(npc.brain!.home)]);
+    expect(card.facts).toContainEqual(['Faction', SIM_TEXT.faction(npc.faction)]);
+    expect(card.facts).toContainEqual(['Home', SIM_TEXT.place(npc.brain!.home)]);
     expect(card.way.home).toEqual(npc.brain!.home);
-    expect(card.sections.find((s) => s.name === 'goals')?.lines).toHaveLength(npc.brain!.goals.length);
+    expect(card.sections.find((s) => s.name === 'Goals')?.lines).toHaveLength(npc.brain!.goals.length);
   });
 
   it('writes NPC fights and events the game never words as sentences with truck and part names, never raw ids or JSON', () => {
@@ -96,6 +96,15 @@ describe('simulation mode', () => {
     expect(fired.text).toBe(`${nameA} fires ${resolve(partName(gun.defId), 'en').toLowerCase()} at ${SIM_TEXT.truck(world, b)}, 2 of 3 hit`);
     expect(met.text).toBe(`Encounter: vehicle ${nameA}, encounter tall tale`);
     for (const e of [fired, met]) expect(e.text).not.toMatch(/[{}]|\bv\d+\b/);
+  });
+
+  it('hides routine NPC events by default but never the ones that name the player', () => {
+    const world = start;
+    const npc = world.vehicles.find((v) => v.brain)!;
+    const hit = (b: string) => ({ t: 'collision', a: npc.id, b, impact: 2, hitsA: [], hitsB: [] }) as never;
+    const [alone, withPlayer] = logEntries(world, [hit('deadTree-1'), hit(world.player.vehicleId)], SIM_TEXT);
+    expect(alone.quiet).toBe(true);
+    expect(withPlayer.quiet).toBe(false);
   });
 
   it('names the prop a truck hits and calls the player Your truck with a matching verb', () => {
@@ -117,7 +126,7 @@ describe('simulation mode', () => {
       { turn: world.turn, fact: { kind: 'wronged' as const, by: other.id, deed: 'robbed' as const } },
     ];
     const remembering = { ...world, vehicles: world.vehicles.map((v) => (v.id === npc.id ? { ...v, brain: { ...v.brain!, memories } } : v)) };
-    const lines = cardOf(remembering, npc.id, emptyLedger(), SIM_TEXT).sections.find((s) => s.name === 'memories')?.lines;
+    const lines = cardOf(remembering, npc.id, emptyLedger(), SIM_TEXT).sections.find((s) => s.name === 'Memories')?.lines;
     const name = SIM_TEXT.truck(world, other);
     expect(lines).toEqual([`Just now: ${name} robbed them`, `3 h ago: Saw ${name} in A1`]);
   });
@@ -129,7 +138,7 @@ describe('simulation mode', () => {
     expect(messages.filter((m) => m.kind === 'failed')).toEqual([]);
     const { world, ledger } = run.current();
     const cards = world.vehicles.map((v) => cardOf(world, v.id, ledger, SIM_TEXT));
-    const cardText = cards.flatMap((c) => [c.title, ...c.tags, ...c.rows.flat(), ...c.sections.flatMap((s) => s.lines)]);
+    const cardText = cards.flatMap((c) => [c.title, c.doing, ...c.tags, ...c.stats.flat(), ...c.facts.flat(), ...c.sections.flatMap((s) => [s.name, ...s.lines, ...s.rows.flat()])]);
     const logText = framesOf(messages).flatMap((f) => f.log.map((e) => e.text));
     const raw = [...cardText, ...logText].filter((line) => RAW.test(line));
     expect(raw).toEqual([]);
@@ -153,6 +162,6 @@ describe('simulation mode', () => {
     const world = start;
     const npc = world.vehicles.find((v) => v.brain)!;
     const driverless = { ...world, vehicles: world.vehicles.map((v) => (v.id === npc.id ? { ...v, brain: null } : v)) };
-    expect(cardOf(driverless, npc.id, emptyLedger(), SIM_TEXT).title).toMatch(/with no driver$/);
+    expect(cardOf(driverless, npc.id, emptyLedger(), SIM_TEXT).doing).toBe('No driver');
   });
 });

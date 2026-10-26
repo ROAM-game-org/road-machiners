@@ -77,6 +77,12 @@ Order: files the icon agent does not touch first.
 
 ## Verify
 
+- `sim-mode.test.ts` plays 60 turns and scans every truck's card and every log line for camelCase words, `@`, braces, `v123` or `p123` ids, `true` or `false`, em dashes, "something" and "You arrives". It passes. Further tests cover routine events hidden unless they name the player, prop names in collisions, the player as "Your truck", hourly history samples and the history message sent first.
+- `sim-save.test.ts` round-trips history through the save, and an outdated save with no history is deleted.
+- Browser, seed 1, 300 turns at Fast with all events on: 4 lines read "hits something", all collisions with props like `deadTree-5853`. Fixed with prop names. No other raw line.
+- Browser resume: a run saved on seed 3 at turn 166 reopens at the same turn with its chart intact and "Resumed" in the footer.
+- Screenshots: `game/tmp/sim-ui/before/`, `game/tmp/sim-ui/after/`, `game/tmp/sim-ui/v2/`.
+
 ## Conclusion
 
 ### Hands-off decisions

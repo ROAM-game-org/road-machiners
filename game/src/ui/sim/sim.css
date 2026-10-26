@@ -19,44 +19,17 @@
 #ui.sim .sim-map .map-view.over-truck {
   cursor: pointer;
 }
-.sim-hud {
+.sim-heat {
   position: absolute;
   top: var(--space-4);
   left: var(--space-4);
   z-index: var(--z-hud);
   display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  max-width: calc(100% - var(--space-10) * 3);
-  padding: var(--space-4) var(--space-6);
-  background: var(--surface-overlay);
-  border: 1px solid var(--line-strong);
-  pointer-events: none;
-}
-.sim-hud-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3) var(--space-9);
-}
-.sim-hud-cell {
-  display: flex;
-  flex-direction: column;
-}
-.sim-hud-label,
-.sim-label {
-  color: var(--ink-label);
-  font-size: var(--text-caption);
-}
-.sim-hud-value {
-  color: var(--ink-bright);
-  font: var(--text-heading) / 1.2 var(--font-mono);
-}
-.sim-hud-doing {
-  display: flex;
   align-items: center;
   gap: var(--space-4);
-  color: var(--ink);
-  font-size: var(--text-body);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-overlay);
+  border: 1px solid var(--line-strong);
 }
 .sim-legend {
   position: absolute;
@@ -94,51 +67,101 @@
 .sim-side {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: var(--space-4);
   min-height: 0;
-  padding: var(--space-5);
+  padding: var(--space-4);
   background: var(--surface-dock);
   border-left: 2px solid var(--line-strong);
 }
 #ui.sim .sim-side > .panel {
   position: static;
   box-sizing: border-box;
-}
-.sim-controls {
-  display: flex;
   flex: none;
-  flex-direction: column;
-  gap: var(--space-4);
 }
-.sim-transport {
+.sim-toolbar {
   display: flex;
   align-items: center;
   gap: var(--space-4);
 }
 #ui.sim .sim-play {
-  width: calc(var(--space-10) * 4);
+  width: calc(var(--space-10) * 3);
 }
 .sim-speed {
-  align-items: center;
+  flex: 1;
 }
-.sim-run-row {
+.sim-label {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  color: var(--ink-label);
+  font-size: var(--text-caption);
+}
+.sim-note {
+  color: var(--ink-muted);
+  font-size: var(--text-dense);
+}
+.sim-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+}
+.sim-head > :last-child {
+  margin-left: auto;
+}
+.sim-clock {
+  color: var(--ink-bright);
+  font-size: var(--text-lead);
+}
+.sim-link {
+  cursor: pointer;
+}
+.sim-link:hover {
+  color: var(--accent);
+}
+#ui.sim .sim-player {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.sim-player-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--space-5);
+}
+.sim-cell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.sim-big {
+  color: var(--ink-bright);
+  font-size: var(--text-heading);
+  line-height: 1.2;
+}
+.sim-value {
+  color: var(--ink-bright);
+  font-size: var(--text-body);
+}
+.sim-doing {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--ink);
+  font-size: var(--text-body);
+}
+.sim-footer {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
 }
 .sim-run {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  color: var(--ink-muted);
+  gap: var(--space-3);
 }
 .sim-seed {
-  width: calc(var(--space-6) * 7);
-}
-.sim-status {
-  color: var(--ink-muted);
-  text-align: right;
+  width: calc(var(--space-6) * 6);
 }
 .sim-failure {
   margin: 0;
@@ -154,7 +177,8 @@
   flex: 0 1 auto;
   flex-direction: column;
   gap: var(--space-4);
-  max-height: calc(var(--layer-h) * 0.5);
+  min-height: calc(var(--space-10) * 4);
+  max-height: calc(var(--layer-h) * 0.42);
   overflow: auto;
   font-size: var(--text-dense);
 }
@@ -163,29 +187,28 @@
   font-size: var(--text-lead);
   font-weight: bold;
 }
-.sim-doing {
-  color: var(--ink-bright);
-  font-size: var(--text-body);
-}
 .sim-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-4) var(--space-6);
 }
-.sim-stats:empty {
-  display: none;
+.sim-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr max-content 1fr;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
 }
-.sim-stat {
-  display: flex;
-  flex-direction: column;
+.sim-fact {
   min-width: 0;
-}
-.sim-stat > .num {
-  color: var(--ink-bright);
-  font-size: var(--text-body);
+  color: var(--ink);
+  overflow-wrap: anywhere;
 }
 .sim-fold > summary {
   color: var(--ink-label);
+  cursor: pointer;
+}
+.sim-fold[open] > summary {
+  margin-bottom: var(--space-2);
 }
 .sim-row {
   display: flex;
@@ -198,26 +221,30 @@
   padding: var(--space-1) 0;
   overflow-wrap: anywhere;
 }
+.sim-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
 .sim-log-panel {
   display: flex;
   flex: 1 1 0;
   flex-direction: column;
   gap: var(--space-4);
-  min-height: calc(var(--space-10) * 6);
+  min-height: calc(var(--space-10) * 5);
 }
-.sim-log-head {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: var(--space-4);
+#ui.sim .sim-side > .sim-log-panel {
+  flex: 1 1 0;
 }
-#ui.sim .sim-log-head .panel-title {
+#ui.sim .sim-log-panel .panel-title {
   margin: 0;
 }
 .sim-filters {
   display: flex;
   gap: var(--space-3);
-  margin-left: auto;
+}
+.sim-find {
+  width: calc(var(--space-10) * 2);
 }
 .sim-log {
   flex: 1 1 auto;
@@ -233,29 +260,34 @@
   grid-template-columns: calc(var(--space-10) * 2) 1fr;
   gap: var(--space-4);
   padding: var(--space-1) var(--space-2);
-  border-bottom: 1px solid var(--line-faint);
   cursor: pointer;
   overflow-wrap: anywhere;
+}
+.sim-log li:not(.same-time) {
+  border-top: 1px solid var(--line-faint);
 }
 .sim-log li:hover {
   background: var(--surface-highlight);
 }
+.sim-log li.same-time .sim-when {
+  visibility: hidden;
+}
+.sim-log li.mine {
+  box-shadow: inset 2px 0 0 var(--select);
+}
 .sim-when {
   color: var(--ink-muted);
   font-size: var(--text-dense);
-  line-height: inherit;
 }
 .sim-swatch {
   display: inline-block;
   width: var(--space-5);
   height: 2px;
   margin-right: var(--space-2);
-  vertical-align: middle;
   background: var(--swatch);
 }
 .sim-chart {
   position: relative;
-  pointer-events: auto;
 }
 .sim-chart-canvas {
   display: block;
@@ -265,7 +297,7 @@
 .sim-chart-tip {
   position: absolute;
   top: 0;
-  left: calc(100% + var(--space-4));
+  right: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -277,24 +309,14 @@
   white-space: nowrap;
   pointer-events: none;
 }
+.sim-chart-tip.left {
+  right: auto;
+  left: 0;
+}
 .sim-chart-tip:empty {
   display: none;
 }
 .sim-chart-value {
   display: flex;
   align-items: center;
-}
-.sim-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-.sim-find {
-  width: calc(var(--space-10) * 3);
-}
-.sim-log li.same-time .sim-when {
-  visibility: hidden;
-}
-.sim-log li.mine {
-  box-shadow: inset 2px 0 0 var(--select);
 }

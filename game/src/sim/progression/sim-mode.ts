@@ -1,29 +1,26 @@
-import { SKILL_IDS } from '../../data/skills';
+import type { TruckPaint } from '../../data/chassis';
 import { TIME } from '../../data/time';
 import { inCombat } from '../combat';
 import { playerVehicle } from '../damage';
 import { isKnockedOut } from '../defeat';
-import { goodsCount, mountedParts } from '../grid';
 import type { Contract } from '../market';
-import { topGoal } from '../npc-activities';
-import { getResources } from '../resources';
-import { worldPlaces } from '../sites';
-import { vehicleStats } from '../stats';
 import type { BakedMap } from '../terrain';
-import type { GameEvent, Memory, NpcActivity, PartInstance, StateKindId, Vehicle, World } from '../types';
+import type { GameEvent, Memory, NpcActivity, StateKindId, Vehicle, World } from '../types';
 import type { Vec } from '../vec';
-import { maxHp } from '../wear';
 import type { BotOptions } from './bot';
 import { emptyLedger, LEDGER_KEYS, type Ledger } from './orders';
 import { archetypeWorldOn, FAR_MOVER, netWorth, playTurns, type PlayedTurn } from './record';
-import { describe, QUIET, snap, turnLine, type TruckSnap } from './turn-log';
+import { cardOf } from './sim-cards';
+import { describe, QUIET } from './turn-log';
 
-export type Marker = { id: string; name: string; chassis: string; x: number; y: number; heading: number; faction: string; player: boolean; out: boolean; combat: boolean };
+export { cardOf, npcCard, playerCard } from './sim-cards';
+
+export type Marker = { id: string; name: string; chassis: string; x: number; y: number; heading: number; faction: string; template: string | null; paint: TruckPaint; player: boolean; out: boolean; combat: boolean };
 export type LogEntry = { turn: number; kind: string; quiet: boolean; tone: string; text: string; raw: string; ids: string[] };
 export type CardRow = [string, string];
-export type CardSection = { name: string; lines: string[] };
+export type CardSection = { name: string; lines: string[]; rows: CardRow[] };
 export type Way = { dest: Vec | null; target: Vec | null; home: Vec | null };
-export type Card = { id: string; title: string; rows: CardRow[]; tags: string[]; sections: CardSection[]; way: Way };
+export type Card = { id: string; title: string; doing: string; tags: string[]; stats: CardRow[]; facts: CardRow[]; sections: CardSection[]; way: Way };
 export type Hud = { money: string; worth: string; xp: number; state: string; doing: string };
 export type Sample = { turn: number; money: number; worth: number; xp: number };
 export type Frame = { turn: number; markers: Marker[]; log: LogEntry[]; hud: Hud; card: Card | null; sample: Sample | null };
@@ -79,9 +76,8 @@ export type FromSim =
 export const SIM_OPTIONS: BotOptions = { markovTurns: TIME.turnsPerDay, tolerateStalls: true };
 export const TURNS_PER_HOUR = TIME.turnsPerDay / 24;
 const ENDLESS = Number.MAX_SAFE_INTEGER;
-const NO_WAY: Way = { dest: null, target: null, home: null };
+const ROUTINE = new Set<GameEvent['t']>(['job', 'shopMoney', 'stateEnded', 'lookedOver', 'shot', 'empty', 'asked', 'transfer', 'preyPassed', 'collision', 'found']);
 
-const round = (n: number): number => Math.round(n * 10) / 10;
 const hourOf = (turn: number): number => Math.floor(turn / TURNS_PER_HOUR);
 
 export function sampleOf(world: World): Sample {
@@ -208,6 +204,8 @@ export function markersOf(world: World, text: SimText): Marker[] {
     y: v.pos.y,
     heading: v.heading,
     faction: v.faction,
+    template: v.brain ? v.brain.templateId : null,
+    paint: world.player.paint,
     player: v.id === world.player.vehicleId,
     out: isKnockedOut(v),
     combat: inCombat(world, v),
@@ -219,167 +217,13 @@ export function logEntries(world: World, events: readonly GameEvent[], text: Sim
   return events.map((e) => {
     const json = JSON.stringify(e);
     const plain = text.event(world, e);
-    return { turn: world.turn, kind: e.t, quiet: QUIET.has(e.t) || plain.quiet === true, tone: e.t === 'stall' ? 'bad' : plain.tone, text: plain.text, raw: describe(world, e), ids: known.filter((id) => json.includes(`"${id}"`)) };
+    const ids = known.filter((id) => json.includes(`"${id}"`));
+    return { turn: world.turn, kind: e.t, quiet: isQuiet(world, e, plain, ids), tone: e.t === 'stall' ? 'bad' : plain.tone, text: plain.text, raw: describe(world, e), ids };
   });
 }
 
-export function cardOf(world: World, id: string, ledger: Ledger, text: SimText): Card {
-  if (id === world.player.vehicleId) return playerCard(world, ledger, text);
-  const v = world.vehicles.find((x) => x.id === id);
-  return v ? npcCard(world, v, text) : goneCard(world, id, text);
+function isQuiet(world: World, e: GameEvent, plain: Spoken, ids: string[]): boolean {
+  if (QUIET.has(e.t) || plain.quiet === true) return true;
+  return ROUTINE.has(e.t) && !ids.includes(world.player.vehicleId);
 }
 
-function goneCard(world: World, id: string, text: SimText): Card {
-  const v = world.removed.find((x) => x.id === id);
-  const name = v ? text.truck(world, v) : 'This truck';
-  return { id, title: `${name} has left the world`, rows: [], tags: [], sections: [], way: NO_WAY };
-}
-
-function driverlessCard(world: World, v: Vehicle, text: SimText): Card {
-  return {
-    id: v.id,
-    title: `${text.truck(world, v)} with no driver`,
-    rows: [['mean hp', `${snap(world, v).hp}%`], ['faction', text.faction(v.faction)], ['at', text.place(v.pos)], ...orderRow(v, text)],
-    tags: [],
-    sections: [{ name: 'states', lines: stateLines(world, v, text) }, { name: 'parts', lines: partLines(v, text) }],
-    way: { ...NO_WAY, dest: destOf(v) },
-  };
-}
-
-function npcTags(world: World, v: Vehicle, s: TruckSnap): string[] {
-  const on: [string, boolean][] = [['in combat', inCombat(world, v)], ['knocked out', isKnockedOut(v)], ['stranded', s.stranded], ['keeps off roads', s.offRoad]];
-  return on.filter(([, yes]) => yes).map(([name]) => name);
-}
-
-export function npcCard(world: World, v: Vehicle, text: SimText): Card {
-  const brain = v.brain;
-  if (!brain) return driverlessCard(world, v, text);
-  const res = getResources(world, v);
-  const s = snap(world, v);
-  return {
-    id: v.id,
-    title: text.truck(world, v),
-    rows: [
-      ['doing', text.doing(world, v)],
-      ['speed', text.speed(v.speed)],
-      ['money', text.money(res.money)],
-      ['fuel', text.fuel(res.fuel)],
-      ['supplies', `${round(res.supplies)}`],
-      ['health', `${round(res.health)}`],
-      ['mean hp', `${s.hp}%`],
-      ['driver', text.template(brain.templateId)],
-      ['faction', text.faction(v.faction)],
-      ['chassis', text.chassis(v.chassisId)],
-      ['at', text.place(v.pos)],
-      ...orderRow(v, text),
-      ['personality', text.personality(brain.personality)],
-      ['traits', brain.traits.map((x) => text.trait(x)).join(', ')],
-      ['home', text.place(brain.home)],
-      ...(s.roadGap > 0 ? [['off the road by', text.distance(s.roadGap)] as CardRow] : []),
-    ],
-    tags: npcTags(world, v, s),
-    sections: [
-      { name: 'goals', lines: [...brain.goals].reverse().map((g) => text.goal(world, g)) },
-      { name: 'states', lines: stateLines(world, v, text) },
-      { name: 'parts', lines: partLines(v, text) },
-      { name: 'goods', lines: goodsLines(v, text) },
-      { name: 'memories', lines: [...brain.memories].sort((a, b) => b.turn - a.turn).map((m) => text.memory(world, m)) },
-    ],
-    way: { dest: destOf(v), target: targetOf(world, v), home: brain.home },
-  };
-}
-
-function playerTags(world: World, flags: string[]): string[] {
-  const state = world.player.state === 'active' ? [] : [world.player.state === 'knockedOut' ? 'knocked out' : world.player.state];
-  const names: Record<string, string> = { combat: 'in combat', stranded: 'stranded', towed: 'towed', beacon: 'beacon on', fire: 'auto fire' };
-  return [...state, ...flags.map((f) => names[f] ?? f)];
-}
-
-function callRow(world: World, text: SimText): CardRow[] {
-  const call = world.player.call;
-  return call ? [['on the radio with', `${text.name(world, call.with)}${call.topic ? `, ${text.words(call.topic)}` : ''}`]] : [];
-}
-
-export function playerCard(world: World, ledger: Ledger, text: SimText): Card {
-  const line = turnLine(world, [], ledger);
-  const p = world.player;
-  const me = playerVehicle(world);
-  return {
-    id: p.vehicleId,
-    title: 'Your truck, driven by the markov bot',
-    rows: [
-      ['doing', text.doing(world, me)],
-      ['speed', text.speed(me.speed)],
-      ['money', text.money(p.money)],
-      ['net worth', text.money(netWorth(world))],
-      ['fuel', text.fuel(p.fuel)],
-      ['supplies', `${round(p.supplies)}`],
-      ['engine heat', text.heat(p.engineHeat)],
-      ['xp', `${Math.floor(p.xp)}`],
-      ['chassis', text.chassis(me.chassisId)],
-      ['top speed', text.speed(vehicleStats(world, me).maxSpeed)],
-      ['at', text.place(me.pos)],
-      ...orderRow(me, text),
-      ...callRow(world, text),
-      ...(line.run ? [['run', line.run] as CardRow] : []),
-    ],
-    tags: playerTags(world, line.flags),
-    sections: [
-      { name: 'contracts', lines: p.contracts.map((c) => text.contract(c)) },
-      { name: 'foes in sight', lines: line.foes.map((f) => `${text.name(world, f.id)}, ${text.distance(f.dist)} away, ${f.odds}% to win`) },
-      { name: 'ranks', lines: SKILL_IDS.map((skill) => `${text.skill(skill)} ${p.ranks[skill]}`) },
-      { name: 'parts', lines: partLines(me, text) },
-      { name: 'goods', lines: goodsLines(me, text) },
-      { name: 'run ledger', lines: LEDGER_KEYS.filter((k) => ledger[k] !== 0).map((k) => `${text.words(k)} ${text.money(ledger[k])}`) },
-      { name: 'xp by source', lines: Object.entries(p.xpBySource).filter(([, n]) => n !== 0).map(([source, n]) => `${text.words(source)} ${round(n)}`) },
-    ],
-    way: { ...NO_WAY, dest: destOf(me) },
-  };
-}
-
-function destOf(v: Vehicle): Vec | null {
-  return v.order && 'dest' in v.order ? v.order.dest : null;
-}
-
-function orderRow(v: Vehicle, text: SimText): CardRow[] {
-  const order = v.order;
-  if (!order) return [];
-  if (!('dest' in order)) return [['order', 'brake']];
-  const how = order.kind === 'stopAt' ? 'stop at' : 'drive through';
-  const far = Math.hypot(order.dest.x - v.pos.x, order.dest.y - v.pos.y);
-  return [['order', `${how} ${text.place(order.dest)}, ${text.distance(far)} away`]];
-}
-
-function targetOf(world: World, v: Vehicle): Vec | null {
-  const goal = topGoal(v);
-  if (!goal) return null;
-  return goal.destination ?? (goal.targetId ? placeOf(world, goal.targetId) : null);
-}
-
-function placeOf(world: World, id: string): Vec | null {
-  const at = world.vehicles.find((x) => x.id === id) ?? world.salvage.find((s) => s.id === id) ?? worldPlaces(world).find((s) => s.id === id);
-  return at ? at.pos : null;
-}
-
-function hpPercent(p: PartInstance): number {
-  return Math.round((100 * p.hp) / maxHp(p));
-}
-
-function stateLines(world: World, v: Vehicle, text: SimText): string[] {
-  return world.states.filter((s) => s.holder === v.id).map((s) => `${text.state(s.kind)} with ${text.name(world, s.other)}${s.turnsLeft === null ? '' : `, ${s.turnsLeft} turns left`}`);
-}
-
-function partLines(v: Vehicle, text: SimText): string[] {
-  const kinds = new Map<string, number[]>();
-  for (const p of mountedParts(v)) kinds.set(p.defId, [...(kinds.get(p.defId) ?? []), hpPercent(p)]);
-  return [...kinds].map(([defId, hp]) => ({ defId, hp: Math.min(...hp), count: hp.length })).sort((a, b) => a.hp - b.hp).map((k) => partLine(k, text));
-}
-
-function partLine(kind: { defId: string; hp: number; count: number }, text: SimText): string {
-  const name = text.part(kind.defId);
-  return kind.count === 1 ? `${name} ${kind.hp}%` : `${kind.count} ${name}, weakest ${kind.hp}%`;
-}
-
-function goodsLines(v: Vehicle, text: SimText): string[] {
-  return Object.entries(goodsCount(v)).map(([good, n]) => `${text.good(good)} ${n}`);
-}

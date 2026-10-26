@@ -46,6 +46,7 @@ function nameOf(world: World, id: string): string {
 }
 
 const PROP_ID = /^([a-z][a-zA-Z]*)-\d+$/;
+const ID_LIKE = /\d/;
 
 function thingName(world: World, id: string): string {
   const prop = PROP_ID.exec(id);
@@ -77,6 +78,11 @@ function jobWords(world: World, e: Of<'job'>): string {
 function partOf(world: World, vehicleId: string, partId: string): string {
   const part = carriedPart(world, vehicleId, partId);
   return part ? english(partName(part.defId)).toLowerCase() : 'a part';
+}
+
+function contractText(world: World, id: string): string {
+  const held = world.player.contracts.find((c) => c.id === id);
+  return held ? english(contractSummary(held)) : 'a contract that is closed now';
 }
 
 function shotWords(world: World, e: Of<'shot'>): string {
@@ -134,6 +140,9 @@ const SIM_WORDS: Words = {
   bountyFiled: (world, e) => ({ text: `${nameOf(world, e.reporter)} reports ${nameOf(world, e.target)} for ${words(e.offense)}`, tone: '' }),
   bountyClosed: (world, e) => ({ text: `The case on ${nameOf(world, e.target)} closes, ${words(e.status)}`, tone: '' }),
   huntWithdrawn: (world, e) => ({ text: `${nameOf(world, e.by)} gives up the hunt for ${nameOf(world, e.target)}`, tone: 'dim' }),
+  claimRival: (world, e) => ({ text: `${nameOf(world, e.vehicle)} goes after your claim: ${contractText(world, e.contract)}`, tone: 'bad' }),
+  claimLead: (world, e) => ({ text: `${e.driver} gives a lead on your claim: ${contractText(world, e.contract)}`, tone: 'good' }),
+  call: (world, e) => ({ text: `Radio call with ${nameOf(world, e.with)} ${e.outcome === 'opened' ? 'opens' : 'ends'}`, tone: 'dim' }),
   job: (world, e) => ({ text: jobWords(world, e), tone: 'dim' }),
   shopMoney: (world, e) => ({ text: `${nameOf(world, e.vehicle)} ${e.amount < 0 ? 'pays' : 'gets'} ${english(moneyMsg(Math.abs(e.amount)))} for ${words(e.kind)}`, tone: 'dim' }),
   stateEnded: (world, e) => ({ text: `${nameOf(world, e.state.holder)} and ${nameOf(world, e.state.other)}: ${STATE[e.state.kind]} ${ENDING[e.ending]}`, tone: 'dim', quiet: QUIET_STATES.has(e.state.kind) }),
@@ -188,10 +197,15 @@ function fieldWords(world: World, e: GameEvent): string {
 }
 
 function fieldWord(world: World, known: Set<string>, key: string, value: unknown): string[] {
-  if (typeof value === 'string') return [`${words(key)} ${known.has(value) ? nameOf(world, value) : words(value)}`];
+  if (typeof value === 'string') return stringWord(world, known, key, value);
   if (typeof value === 'number') return [`${words(key)} ${Math.round(value * 10) / 10}`];
   if (typeof value === 'boolean') return [`${words(key)} ${value ? 'yes' : 'no'}`];
   return [];
+}
+
+function stringWord(world: World, known: Set<string>, key: string, value: string): string[] {
+  if (known.has(value)) return [`${words(key)} ${nameOf(world, value)}`];
+  return ID_LIKE.test(value) ? [] : [`${words(key)} ${words(value)}`];
 }
 
 function eventWords(world: World, e: GameEvent): Spoken {
