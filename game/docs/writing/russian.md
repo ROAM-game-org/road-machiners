@@ -126,6 +126,7 @@ Good lines to match:
 - petrol, the good the Pump Station makes: бензин. Never солярка or топливо for it.
 - money: М, as «60 М». A sum inside a quest line reads «{price} М».
 - watch, a shift of time in a quest: вахта, «две вахты».
+- compass letters on the map and the dashboard compass: N, E, S, W, Latin as in English, by convention. Never С, В, Ю, З.
 
 ## Quests
 

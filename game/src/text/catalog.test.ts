@@ -9,7 +9,7 @@ import { SEMICOLON, STOCK_PHRASE } from '../test/prose-tells';
 const CATALOGS: Record<Locale, Readonly<Record<string, EnEntry | Noun>>> = { en: EN, ru: RU };
 const KEYS = Object.keys(EN);
 
-const SAME_AS_ENGLISH = new Set(['help.key.shift', 'radio.band', 'radio.frequency', 'clock.day', 'readout.litersShort', 'readout.kgShort', 'language.en', 'language.ru']);
+const SAME_AS_ENGLISH = new Set(['help.key.shift', 'radio.band', 'radio.frequency', 'clock.day', 'map.north', 'map.east', 'map.south', 'map.west', 'readout.litersShort', 'readout.kgShort', 'language.en', 'language.ru']);
 const RU_NOUN = /^(part|chassis|site|terrain|faction)\.[^.]+$|^driver\.(first|last)\.|^npc\.[^.]+\.profession$|^good\.[^.]+(\.lower|\.subject)?$/;
 const RU_NOUN_KEYS = new Set(['vehicle.yours', 'job.theTruck', 'job.somePart', 'log.anObstacle', 'log.something', 'log.you']);
 const hasWords =(text: string): boolean => /\p{L}{2,}/u.test(text.replace(/\{[^}]*\}/g, ''));

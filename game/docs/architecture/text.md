@@ -37,7 +37,7 @@ A truck has no saved name. Its title comes from the player's own truck or from i
 
 ## Compass words
 
-Code and data name map axes: "map north" is −y, and `Octant` ids, survey sectors, claim angles and gate sides all mean map directions. Player words name the screen compass, where north is the top of the fixed 3D view. `VIEW` in `src/data/view.ts` holds the map direction the camera draws at the top, and `src/text/compass.ts` is the only place that turns a map angle or a map `Octant` id into a compass word (`compassOctant()`, `compassOfMap()`). It throws at load unless the view turn is a whole number of octants, so the sim's bins never split a word. `compassText()`, `bearingText()`, `compassName()` and the radio's basin and storm words all call it. A new direction word in UI code goes through it too. With `VIEW.screenUp` at map (−1, −1), map north is called north-east, map north-west is called north, and map east is called south-east.
+Code and data name map axes: "map north" is −y, and `Octant` ids, survey sectors, claim angles and gate sides all mean map directions. Player words name map directions too: north is map −y, which the fixed 3D view draws toward the top right of the screen. `src/text/compass.ts` is the only place that turns a map angle into an octant (`compassOctant()`), with the same bins as the sim. `compassText()`, `bearingText()` and the radio's basin and storm words call it, and `compassName()` names an `Octant` id directly. A new direction word in UI code goes through them too.
 
 ## The active language and live text
 

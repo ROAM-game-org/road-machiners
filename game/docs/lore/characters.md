@@ -498,7 +498,7 @@ Her line is "The count is read in the open. Whoever wants the last number, come 
 ## Sefa Krol
 
 - Way: oppose.
-- High concept: The trader and leader of a dozen vulture families on the north-east side of the Salvage Yard.
+- High concept: The trader and leader of a dozen vulture families on the north side of the Salvage Yard.
 - Trouble: Every favor she does for the families comes back later as a debt or a danger.
 - Aspects: First to any wreck; Hid Karl Vosk for years; A deal with Kaplan of Kiln Camp over the raiders' wrecks.
 - Skills: best perception, worst machining.
@@ -507,7 +507,7 @@ Her line is "The count is read in the open. Whoever wants the last number, come 
 - Habit: She prices what a stranger carries and tells him to keep his hand off her table.
 - Secret: She hid Karl Vosk and sent him west. She hides it from the Army post.
 
-Sefa leads a dozen vulture families who lived in the burnt trucks of the Burnt Convoy until the road crews cleared the wrecks. They live on the north-east side of the Salvage Yard now. They are first to any wreck, and she never takes the last water from anyone. She hid the robber Karl Vosk for years, sold Pierce's debtor book to the Salvage Yard and made a deal with Kaplan of Kiln Camp over the raiders' wrecks. Nobody in her camp went short this year.
+Sefa leads a dozen vulture families who lived in the burnt trucks of the Burnt Convoy until the road crews cleared the wrecks. They live on the north side of the Salvage Yard now. They are first to any wreck, and she never takes the last water from anyone. She hid the robber Karl Vosk for years, sold Pierce's debtor book to the Salvage Yard and made a deal with Kaplan of Kiln Camp over the raiders' wrecks. Nobody in her camp went short this year.
 
 Her line is "We take what the road is done with and leave the water."
 
@@ -729,7 +729,7 @@ His line is "He had his say at the mast. Now he has to pay."
 - Habit: She counts the guns on a truck out loud before she says a word.
 - Secret: She still keeps the receipt book of "Sabra's paper" and honors her old receipts on her own.
 
-Sabra took tolls on the south road for Kiln and gave drivers a dated receipt that was honored once a year. When Ladle Ruiz took the south road she left her tin by Ladle's scraper and drove away. She blocked Karl Vosk's road at the pump shed and cut him off at a bend north-east of the mast. She rides for unanswered Kiln claims on her own fee, since no Roadhouse car does.
+Sabra took tolls on the south road for Kiln and gave drivers a dated receipt that was honored once a year. When Ladle Ruiz took the south road she left her tin by Ladle's scraper and drove away. She blocked Karl Vosk's road at the pump shed and cut him off at a bend north of the mast. She rides for unanswered Kiln claims on her own fee, since no Roadhouse car does.
 
 Her line is "Pay once, keep the paper. That's what a toll means."
 
