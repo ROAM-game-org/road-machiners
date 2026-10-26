@@ -30,7 +30,7 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
 = hub
 # checkpoint: start.hub
 + [Who are the families of the Burnt Convoy?]
-  People who lived in the burnt trucks on the road. The road crews cleared the wrecks a while ago, so we moved here, to the north-east side of the Yard. We're not a camp. A camp has a flag and a man who wants to be called sir. We're first to any wreck and last to leave it. That's all we are. Men on the air say there's nothing left out there to pick. They're welcome to think so.
+  People who lived in the burnt trucks on the road. The road crews cleared the wrecks a while ago, so we moved here, to the north side of the Yard. We're not a camp. A camp has a flag and a man who wants to be called sir. We're first to any wreck and last to leave it. That's all we are. Men on the air say there's nothing left out there to pick. They're welcome to think so.
   ~ heard_picked = true
   -> hub
 + [What do you sell here?]
@@ -53,7 +53,7 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
   }
   -> hub
 + [Who runs this yard?]
-  The repair crews, since they stopped answering to Pierce. The Administrator keeps them in line. Nose put an Army post inside the gate afterward. We keep to the north-east side of the yard, where soldiers don't like the wind.
+  The repair crews, since they stopped answering to Pierce. The Administrator keeps them in line. Nose put an Army post inside the gate afterward. We keep to the north side of the yard, where soldiers don't like the wind.
   ~ heard_post = true
   -> hub
 + {(heard_picked or has_note("burntConvoy")) and not asked_picked} [Is the Burnt Convoy picked clean?]
@@ -68,7 +68,7 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
   ~ heard_pguns = true
   -> hub
 + {heard_pguns and not asked_pguns} [What else do you hear about Pierce?]
-  That Pierce sold the <term=old_army>Old Army</term>'s guns north to <term=scrapjaw>Scrapjaw</term>, then made every driver buy a gun to get paper. I hear it from two drivers who each swear the other one lied. It's good business, if it's true. A man who sells the fire and the bucket never starves.
+  That Pierce sold the <term=old_army>Old Army</term>'s guns north-west to <term=scrapjaw>Scrapjaw</term>, then made every driver buy a gun to get paper. I hear it from two drivers who each swear the other one lied. It's good business, if it's true. A man who sells the fire and the bucket never starves.
   ~ note("talkPierceGuns")
   ~ asked_pguns = true
   -> hub
@@ -82,7 +82,7 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
   ~ heard_rider = true
   -> hub
 + {heard_rider and not asked_rider} [Did a Kiln rider ever come for shelter?]
-  Once. His brother died in the road. He ate our beans for a long time and said little, and then he went south-west. I won't say his name. It would be rude to the beans.
+  Once. His brother died in the road. He ate our beans for a long time and said little, and then he went south. I won't say his name. It would be rude to the beans.
   ~ asked_rider = true
   -> hub
 + [Do the families find much on the crater road?]

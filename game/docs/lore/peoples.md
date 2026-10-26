@@ -8,7 +8,7 @@ Way: control.
 
 Nose is the town built around a ship's wreck on a mountain. The Central Committee governs it, led by President Alan Graves, who has held power for 30 years. The Nose Army keeps the order.
 
-Nose runs the basin's only workshop line that builds whole engines and guns. It took the line over from the Old Army. Nose plans its whole economy. It rations food, water and work, so most people there are safe and fed. Its leaders are deeply corrupt, and the army is brutal to anyone who speaks against them.
+Nose runs the basin's only workshop line that builds whole engines and guns. It built the line from machine tools rented from the Guild's trust. Nose plans its whole economy. It rations food, water and work, so most people there are safe and fed. Its leaders are deeply corrupt, and the army is brutal to anyone who speaks against them.
 
 Its motto is "Unity above all." Nose believes the basin can survive only through careful rationing and strict discipline, and it wants to bring all of Icarus under that order.
 
@@ -78,7 +78,7 @@ The cost is that the Yard lives by selling guns to everyone, and everyone wants 
 
 Way: control.
 
-The Marshalls keep the road book at the Roadhouse, a fenced Old World yard around a Guild relay mast on the open plain north-east of the Nose. They are few: a handful of drivers in fast plated cars, most of them old Lincolns. Their first two cars were Commander Lind's staff cars from the Old Orchard motor pool.
+The Marshalls keep the road book at the Roadhouse, a fenced Old World yard around a Guild relay mast on the open plain north of the Nose. They are few: a handful of drivers in fast plated cars, most of them old Lincolns. Their first two cars were Commander Lind's staff cars from the Old Orchard motor pool.
 
 A lawful driver who was attacked or robbed on the open road, or whose kin was killed there, brings the wrong to the Roadhouse, or a driver who saw it does. The book writes the claim, the answer, the witnesses and the price. A Marshall rides out, asks the drivers on the road where they last saw the culprit, and asks him to pay. Only a driver who refuses gets a fight. The Roadhouse takes a cut of every closed case. It answers to no town, and it can buy a driver off a town's post by paying the town its price.
 
@@ -106,7 +106,7 @@ Way: escape.
 
 When the ship fell, hundreds of its escape pods came down across the basin, and people climbed out of them. They were pale, wore grey suits, spoke a tongue nobody knew and remembered almost nothing before waking. Basin people called them the Given, after the cry "Given by the sky".
 
-The Given were never one faction. Most went to the Nose, the wreck that looked like home, and they built it alongside the Garrison's deserters. Others joined the Creed's refugees in the crater that became the Bowl. Today most people in the basin have a Given grandparent. The last ones who woke in a pod are very old.
+The Given were never one faction. Most went to the Nose, the wreck that looked like home, and they built it alongside the Garrison's deserters. Others joined the Creed's refugees in the crater that became the Bowl. Today most people in the basin have a Given forebear.
 
 Their descendants carry them in small ways: pale skin and grey eyes, a few words of a lost tongue in songs and names, a grey suit or a pod tag stamped with common digits kept in a family chest. Many of the Sunward and most of the Children of Noah are Given families. They are the ones who dream of the crater, and the ones who wait for the ship to come back.
 
@@ -122,7 +122,7 @@ The other drivers have no town to speak for them.
 - Vultures oppose. They follow fights and strip the losers.
 - Mercs embrace the world as it is. They sell their guns to whoever pays and leave the deciding to others.
 - Couriers embrace the road. Guild couriers run the open road in pairs.
-- The Burnt Convoy families oppose. A dozen vulture families lived in the burnt trucks of an old convoy until the road crews cleared the wrecks. They live on the north-east side of the Salvage Yard now and are first to any wreck.
+- The Burnt Convoy families oppose. A dozen vulture families lived in the burnt trucks of an old convoy until the road crews cleared the wrecks. They live on the north side of the Salvage Yard now and are first to any wreck.
 
 ## Faiths
 
@@ -165,9 +165,9 @@ The cost is that they leave this world to the people who still believe in it.
 
 Way: escape.
 
-The Children of Noah believe another ship will come and take the worthy away. They keep the escape pod beacons lit along the debris trail so the next ship can find them.
+The Children of Noah believe another ship will come and take the worthy away. They keep the escape pods' own distress beacons calling along the debris trail, on salvaged batteries, so the next ship can find them.
 
-Their singers came from the crater. In year 110 Yara Sorrel led the Sunward's old singers, the last believers among the dreamers, out to the beacon keepers, and the deserter Joss Ardo sings with them now. Since year 128 they keep their lamps dark at night.
+Their singers came from the crater. In year 110 Yara Sorrel led the Sunward's old singers, the last believers among the dreamers, out to the beacon keepers, and the deserter Joss Ardo sings with them now. Since year 128 they put their camp fires out at night.
 
 The cost is that they live for an arrival that may never come.
 

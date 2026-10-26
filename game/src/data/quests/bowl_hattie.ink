@@ -15,7 +15,7 @@ VAR hattie_unarmed = false
 
 === start ===
 # checkpoint: start
-Pull up by the well. I'm Hattie. Where'd you come from, and how much water do you need?
+Pull up by the cistern. I'm Hattie. Where'd you come from, and how much water do you need?
 <term=bowl>Bowl</term> grows food behind that gate.
 -> hub
 
@@ -32,8 +32,8 @@ Pull up by the well. I'm Hattie. Where'd you come from, and how much water do yo
   ~ hattie_strip = true
   -> hub
 + {not hattie_rumor} [Heard any rumors?]
-  A scavenger came through selling a <term=nose>Nose</term> Army radio. Said he took it off a dead wagon in the hills east of here. That's his story, not mine.
-  The patrol asked where exactly. He filled his tank and took the west road before dark.
+  A scavenger came through selling a <term=nose>Nose</term> Army radio. Said he took it off a dead wagon in the hills north-east of here. That's his story, not mine.
+  The patrol asked where exactly. He filled his tank and took the north road before dark.
   ~ note("wagonBowl")
   ~ hattie_rumor = true
   -> hub
@@ -45,7 +45,7 @@ Pull up by the well. I'm Hattie. Where'd you come from, and how much water do yo
   -> hub
 + {not hattie_strangers} [Who comes through here?]
   Traders, couriers, fuel haulers. Soldiers from Nose, thirsty as ever. Then the quiet ones, asking after the <term=granary>Granary</term> and never buying a drop.
-  Those worry me. Water's a funny thing to forget at a well.
+  Those worry me. Water's a funny thing to forget at a water stand.
   ~ hattie_strangers = true
   -> hub
 + {hattie_strangers and not hattie_granary} [Who asks about the Granary?]
@@ -81,7 +81,7 @@ Pull up by the well. I'm Hattie. Where'd you come from, and how much water do yo
   ~ hattie_sunward = true
   -> hub
 + {hattie_sunward and cult_broken()} [Have the Sunward gone quiet?]
-  Quiet as a dry well. Bo's cousin says the lamps stopped crossing to the crater at dusk. And a man with a green shine on his hands came to my well asking where a body could sleep. Well, Bo's cousin says a lot of things. You look like you'd know more about it than he does.
+  Quiet as an empty cistern. Bo's cousin says the lamps stopped crossing to the crater at dusk. And a man with a green shine on his hands came to my stand asking where a body could sleep. Well, Bo's cousin says a lot of things. You look like you'd know more about it than he does.
   -> hub
 + {hattie_sunward and not hattie_came_out} [Have you seen anyone come out of the crater?]
   I saw one at dusk once, a woman with her hands shining green. She emptied bucket after bucket without a word.

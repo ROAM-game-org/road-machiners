@@ -14,7 +14,7 @@ import { gridColumnLetter, gridRowNumber } from './format';
 import { distanceText } from './units';
 import { siteName } from '../text/names';
 import { t, type Msg } from '../text/msg';
-import { canvasTransform, fitTileSize, scaleBarTiles, fitted, pinToEdge, toPx, toTile, viewport, zoomAround, panBy, clampPan, type MapPoint, type Viewport } from './map-geometry';
+import { canvasTransform, fitTileSize, openingTileSize, scaleBarTiles, fitted, pinToEdge, toPx, toTile, viewport, zoomAround, panBy, clampPan, type MapPoint, type Viewport } from './map-geometry';
 import { token } from './tokens';
 import { uiSize } from './ui-size';
 
@@ -143,6 +143,7 @@ export class MapView {
   private fogCanvas: HTMLCanvasElement | null = null;
   private fogSize = 0;
   private view: Viewport | null = null;
+  private moved = false;
   private sites: MapSite[] = [];
   private scene: MapScene | null = null;
   private truck: MapTruck | null = null;
@@ -167,12 +168,17 @@ export class MapView {
     this.ratio = ratio;
     this.canvas.width = Math.round(width * ratio);
     this.canvas.height = Math.round(height * ratio);
-    if (this.view) this.view = { ...this.view, width, height };
+    this.view = this.keptView(width, height);
     this.draw();
+  }
+
+  private keptView(width: number, height: number): Viewport | null {
+    return this.view && this.moved ? { ...this.view, width, height } : null;
   }
 
   reset(): void {
     this.view = null;
+    this.moved = false;
   }
 
   update(scene: MapScene, truck: MapTruck | null): void {
@@ -191,6 +197,7 @@ export class MapView {
     const v = this.view;
     if (!v || !this.scene) return;
     this.view = zoomAround(v, factor, px, py, this.scene.terrain.size, WORLD_MAP.maxTileSize);
+    this.moved = true;
     this.drawSoon();
   }
 
@@ -198,6 +205,7 @@ export class MapView {
     const v = this.view;
     if (!v || !this.scene) return;
     this.view = panBy(v, dx, dy, this.scene.terrain.size);
+    this.moved = true;
     this.drawSoon();
   }
 
@@ -263,7 +271,7 @@ export class MapView {
     const rule = this.rule;
     if (rule.kind === 'follow') return viewport(this.truck?.pos ?? middle, this.width / 2 / rule.reach, this.width, this.height);
     if (rule.kind === 'fit') return fitted(size, this.width, this.height, middle);
-    if (!this.view) return fitted(size, this.width, this.height, this.truck?.pos ?? middle);
+    if (!this.view) return clampPan(viewport(this.truck?.pos ?? middle, openingTileSize(size, this.width, this.height, WORLD_MAP.maxTileSize), this.width, this.height), size);
     const least = fitTileSize(size, this.width, this.height);
     const view = { ...this.view, width: this.width, height: this.height };
     return view.tileSize < least ? zoomAround(view, 1, this.width / 2, this.height / 2, size, WORLD_MAP.maxTileSize) : clampPan(view, size);

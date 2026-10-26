@@ -281,13 +281,13 @@ function drawnMeshes(root: THREE.Object3D): Drawn[] {
   return meshes;
 }
 
-function hideOutlines(root: THREE.Object3D): void {
+export function hideOutlines(root: THREE.Object3D): void {
   root.traverse((o) => {
     if (o instanceof THREE.Mesh && o.userData.outline) o.visible = false;
   });
 }
 
-function poseAtRest(view: VehicleView, v: Vehicle): void {
+export function poseAtRest(view: VehicleView, v: Vehicle): void {
   const rest = (unit: number) => wheelMounts(unitBody(v.chassisId, unit), unit).map(() => ({ steer: 0, spin: 0, suspension: PHYSICS.truck.suspensionRest, ground: true }));
   const units = unitsOf(v.chassisId);
   const frame: VehicleFrame = { pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels: rest(0) };
@@ -305,7 +305,7 @@ export function glassMeshes(meshes: Drawn[]): Drawn[] {
   });
 }
 
-function sheenGlass(meshes: Drawn[]): void {
+export function sheenGlass(meshes: Drawn[]): void {
   const glass = glassMeshes(meshes);
   if (glass.length === 0) throw new Error('No glass mesh found to tint');
   for (const mesh of glass) (mesh.material as THREE.MeshLambertMaterial).color.setHex(LOOK.glassSheen);
@@ -331,7 +331,7 @@ export function neutralizeReds(meshes: Drawn[], trash: Disposable[]): void {
   }
 }
 
-function litScene(root: THREE.Object3D): THREE.Scene {
+export function litScene(root: THREE.Object3D): THREE.Scene {
   const scene = new THREE.Scene();
   scene.add(new THREE.HemisphereLight(LOOK.skyColor, LOOK.groundColor, LOOK.skyIntensity));
   const sun = new THREE.DirectionalLight(LOOK.sunColor, LOOK.sunIntensity);
@@ -370,7 +370,7 @@ function settledCamera(meshes: Drawn[]): { camera: THREE.OrthographicCamera; siz
   return { camera, size: { width: Math.round((bounds.max.x - bounds.min.x) * pxPerMeter), height: Math.round((bounds.max.y - bounds.min.y) * pxPerMeter) } };
 }
 
-function withRendererState<T>(renderer: THREE.WebGLRenderer, run: () => T): T {
+export function withRendererState<T>(renderer: THREE.WebGLRenderer, run: () => T): T {
   const target = renderer.getRenderTarget();
   const color = renderer.getClearColor(new THREE.Color());
   const alpha = renderer.getClearAlpha();
@@ -425,7 +425,7 @@ function* captureRaw(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTar
   return new Uint8ClampedArray(bytes.buffer);
 }
 
-function* captureColor(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget, scene: THREE.Scene, camera: THREE.Camera): Generator<PortraitWait, Uint8ClampedArray, void> {
+export function* captureColor(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget, scene: THREE.Scene, camera: THREE.Camera): Generator<PortraitWait, Uint8ClampedArray, void> {
   const px = yield* captureRaw(renderer, target, scene, camera);
   unpremultiply(px);
   linearToSrgb(px);
@@ -439,7 +439,7 @@ function* captureIds(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTar
   return ids;
 }
 
-function canvasOf(px: Uint8ClampedArray, size: PixelSize): HTMLCanvasElement {
+export function canvasOf(px: Uint8ClampedArray, size: PixelSize): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = size.width;
   canvas.height = size.height;

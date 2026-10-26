@@ -76,8 +76,13 @@ import {
   workMarkOf,
   storageItem,
   footprint,
-  turnedIcon,
+  cellUnder,
+  GridScale,
+  pxStyle,
+  rectOf,
+  type PixelRect,
 } from "./inventory-draw";
+import { fillGhost, garageLooks, type GarageLooks } from "./garage-draw";
 import { fuelLiters, kg, moneyEl, moneyMsg, pricedEl } from "./units";
 import { maxSpeedSteps } from "../sim/stats";
 import { getSearchAction, powerChip } from "./hud-readout";
@@ -110,8 +115,6 @@ import { chassisAbilityLine, chassisAbilityName, chassisName, goodName, partName
 import { Refused } from "../sim/world";
 import { commandFailure, parcelTitle } from "./format";
 
-const CELL_PX = 42;
-const MIN_CELL_PX = 28;
 
 type Drag = {
   source: ItemSource;
@@ -145,7 +148,8 @@ export class InventoryView {
   private loot: string | null = null;
   private truck: string | null = null;
   private gridTruck: string | null = null;
-  private cell = CELL_PX;
+  private scale = new GridScale();
+  private looks: GarageLooks = { own: null, other: null };
   private plan: RefitLayout = {};
 
   constructor(
@@ -175,14 +179,13 @@ export class InventoryView {
   }
 
   fitTo(box: HTMLElement): void {
-    this.cell = CELL_PX;
+    this.scale.reset();
     this.render();
-    const truck = this.root.querySelector(".inv-truck");
-    if (!truck) throw new Error("Inventory view is not rendered");
-    const over = uiSize().toLayer(truck.getBoundingClientRect().bottom - box.getBoundingClientRect().bottom);
+    const trucks = [...this.root.querySelectorAll(".inv-truck")];
+    if (trucks.length === 0) throw new Error("Inventory view is not rendered");
+    const over = uiSize().toLayer(Math.max(...trucks.map((t) => t.getBoundingClientRect().bottom)) - box.getBoundingClientRect().bottom);
     if (over <= 0) return;
-    const rows = gridOf(this.shown(this.host.world())).h;
-    this.cell = Math.max(MIN_CELL_PX, Math.floor(this.cell - over / rows));
+    this.scale.shrinkBy(over);
     this.render();
   }
 
@@ -201,7 +204,8 @@ export class InventoryView {
     const me = this.shown(w);
     const g = gridOf(me);
     this.showSelection(w);
-    const grid = gridEl(g, me.chassisId, this.cell);
+    this.looks = garageLooks(this.host.garageRenders?.() ?? null, w, me, this.otherItems(w), this.truck);
+    const grid = gridEl(g, me.chassisId, this.scale.measure(me, true), this.looks.own);
     grid.append(...this.gridItems(w, me));
     this.gridEl = grid;
     this.showFan(me, this.selectedGun(me));
@@ -234,7 +238,7 @@ export class InventoryView {
     const me = this.shown(w);
     const mounted = it.kind === "part" && isMounted(me.chassisId, it);
     const core = it.kind === "part" && partDef(it.part.defId).kind === "core";
-    const node = itemBox(it, me.chassisId, mounted, this.cell);
+    const node = itemBox(it, me.chassisId, mounted, this.scale.mine, this.looks.own);
     node.setAttribute("aria-pressed", String(this.selectedItem === it.id));
     node.classList.toggle("selected", this.selectedItem === it.id);
     const click = () => this.clickItem(this.clicked("grid", it.id, it));
@@ -249,11 +253,8 @@ export class InventoryView {
       node.addEventListener("pointerdown", (e) => {
         if (e.button !== 0) return;
         if (!this.gridEl) throw new Error("Grid item pressed without a grid");
-        const r = this.gridEl.getBoundingClientRect();
-        const grab = {
-          x: this.cellOf(e.clientX - r.left) - it.x,
-          y: this.cellOf(e.clientY - r.top) - it.y,
-        };
+        const at = cellUnder(this.scale.mine, this.gridEl, e.clientX, e.clientY);
+        const grab = { x: at.x - it.x, y: at.y - it.y };
         if (dragStartOf(e.pointerType, needsHold(me.chassisId, it)) === "hold") this.startPress(e, "grid", it.id, it, grab);
         else this.startDrag(e, "grid", it.id, it, grab);
       });
@@ -306,7 +307,7 @@ export class InventoryView {
   private drawFan(grid: HTMLElement, me: Vehicle, it: GridItem): void {
     const def = weaponDefOf(it);
     if (!def) return;
-    grid.append(fanSvg(me, it, def, gridOf(me), this.cell));
+    grid.append(fanSvg(me, it, this.scale.mine));
     for (const id of blockerIds(me, it)) grid.querySelector(`[data-item-id="${id}"]`)?.classList.add("blocking");
   }
 
@@ -678,7 +679,7 @@ export class InventoryView {
     const target = w.vehicles.find((v) => v.id === truckId);
     if (!target || !isKnockedOut(target))
       return el("div", { class: "inv-truck inv-target" }, el("h3", {}, t("inv.truckGone")));
-    const grid = gridEl(gridOf(target), target.chassisId, this.cell);
+    const grid = gridEl(gridOf(target), target.chassisId, this.scale.measure(target, false), this.looks.other);
     const removing = removalMarks(w, target);
     grid.append(...target.items.map((it) => markTaken(w, this.truckItemEl(target, it, grid), removing.get(it.id))));
     return el(
@@ -691,7 +692,7 @@ export class InventoryView {
 
   private truckItemEl(target: Vehicle, it: GridItem, grid: HTMLElement): HTMLElement {
     const mounted = it.kind === "part" && isMounted(target.chassisId, it);
-    const node = itemBox(it, target.chassisId, mounted, this.cell);
+    const node = itemBox(it, target.chassisId, mounted, this.scale.other, this.looks.other);
     this.markSelected(node, it);
     const select = () => this.clickItem(this.clicked("truck", it.id, it));
     node.addEventListener("keydown", (e) => {
@@ -705,8 +706,8 @@ export class InventoryView {
     }
     node.addEventListener("pointerdown", (e) => {
       if (e.button !== 0) return;
-      const r = grid.getBoundingClientRect();
-      this.startDrag(e, "truck", it.id, it, { x: this.cellOf(e.clientX - r.left) - it.x, y: this.cellOf(e.clientY - r.top) - it.y });
+      const at = cellUnder(this.scale.other, grid, e.clientX, e.clientY);
+      this.startDrag(e, "truck", it.id, it, { x: at.x - it.x, y: at.y - it.y });
     });
     return node;
   }
@@ -840,12 +841,11 @@ export class InventoryView {
   }
 
   private finishGridTap(e: PointerEvent, tap: Tap): void {
-    if (uiSize().toLayer(Math.hypot(e.clientX - tap.x, e.clientY - tap.y)) >= this.cell / 4) return;
+    if (uiSize().toLayer(Math.hypot(e.clientX - tap.x, e.clientY - tap.y)) >= this.scale.slop()) return;
     const w = this.host.world();
     const selection = this.selection(w);
     if (!selection || !this.gridEl) return this.select(null);
-    const r = this.gridEl.getBoundingClientRect();
-    const cell = { x: this.cellOf(e.clientX - r.left), y: this.cellOf(e.clientY - r.top) };
+    const cell = cellUnder(this.scale.mine, this.gridEl, e.clientX, e.clientY);
     const current = this.preview?.item ?? selection.item;
     const action = touchGridTap(this.preview ? { x: this.preview.item.x, y: this.preview.item.y } : null, cell, footprint(current));
     if (action.kind === "place") return this.placeSelected();
@@ -870,10 +870,11 @@ export class InventoryView {
       this.preview = null;
       return;
     }
+    const m = this.scale.mine;
     const size = footprint(d.item);
-    d.ghost.className = `inv-ghost placed ${this.ghostTone(d, true)}`;
-    d.ghost.replaceChildren(turnedIcon(d.item, this.cell));
-    d.ghost.style.cssText = `left:${d.item.x * this.cell}px;top:${d.item.y * this.cell}px;width:${size.w * this.cell}px;height:${size.h * this.cell}px`;
+    const box = rectOf(m, d.item.x, d.item.y, size.w, size.h);
+    fillGhost(d.ghost, this.looks.own, d.item, m, box, this.ghostTone(d, true), null);
+    d.ghost.style.cssText = pxStyle(box);
     clearFan(grid);
     this.drawFan(grid, me, d.item);
     grid.append(d.ghost);
@@ -882,19 +883,14 @@ export class InventoryView {
   private rotate(): void {
     if (!this.drag) return;
     this.drag.moved = true;
-    this.drag.item = {
-      ...this.drag.item,
-      rot: nextRot(this.drag.item),
-    };
+    this.drag.item = { ...this.drag.item, rot: nextRot(this.drag.item) };
     this.drag.grab = { x: 0, y: 0 };
     if (this.lastPointer) this.onMove(this.lastPointer);
   }
 
   private rotateSelected(): void {
     if (this.look() || !this.gridEl?.isConnected || this.selectedItem === null) return;
-    const item = this.shown(this.host.world()).items.find(
-      (it) => it.id === this.selectedItem,
-    );
+    const item = this.shown(this.host.world()).items.find((it) => it.id === this.selectedItem);
     if (!item || item.kind !== "part") return;
     const id = item.id;
     let turned = item;
@@ -925,7 +921,7 @@ export class InventoryView {
         e.clientX - this.drag.start.x,
         e.clientY - this.drag.start.y,
       )) >=
-      this.cell / 4
+      this.scale.slop()
     )
       this.drag.moved = true;
     const spot = this.spotAt(e.clientX, e.clientY);
@@ -935,13 +931,14 @@ export class InventoryView {
 
   private paintGhost(e: PointerEvent, onGrid: boolean): void {
     const d = this.drag!;
+    const m = this.scale.mine;
     const size = footprint(d.item);
-    d.ghost.className = `inv-ghost ${this.ghostTone(d, onGrid)}`;
-    d.ghost.replaceChildren(turnedIcon(d.item, this.cell));
+    const box = rectOf(m, d.item.x, d.item.y, size.w, size.h);
+    fillGhost(d.ghost, this.looks.own, d.item, m, box, this.ghostTone(d, onGrid), this.gridEl);
     this.ghostFan(d, onGrid);
-    d.ghost.style.width = `${size.w * this.cell}px`;
-    d.ghost.style.height = `${size.h * this.cell}px`;
-    const at = this.ghostCorner(e, d, onGrid);
+    d.ghost.style.width = `${box.width}px`;
+    d.ghost.style.height = `${box.height}px`;
+    const at = this.ghostCorner(e, box, onGrid);
     d.ghost.style.left = `${at.x}px`;
     d.ghost.style.top = `${at.y}px`;
   }
@@ -957,16 +954,13 @@ export class InventoryView {
     if (onGrid) this.drawFan(this.gridEl, this.shown(this.host.world()), d.item);
   }
 
-  private ghostCorner(e: PointerEvent, d: Drag, onGrid: boolean): { x: number; y: number } {
+  private ghostCorner(e: PointerEvent, box: PixelRect, onGrid: boolean): { x: number; y: number } {
     const g = this.gridEl ? uiSize().layerRect(this.gridEl) : null;
-    if (onGrid && g) return { x: g.left + d.item.x * this.cell, y: g.top + d.item.y * this.cell };
+    if (onGrid && g) return { x: g.left + box.left, y: g.top + box.top };
     const at = uiSize().layerPoint(e.clientX, e.clientY);
-    return { x: at.x - this.cell / 2, y: at.y - this.cell / 2 };
+    return { x: at.x - this.scale.mine.cellW / 2, y: at.y - this.scale.mine.cellH / 2 };
   }
 
-  private cellOf(screenOffset: number): number {
-    return Math.floor(uiSize().toLayer(screenOffset) / this.cell);
-  }
 
   private placementProblem(d: Drag): Refusal | null {
     if (d.source === "grid")
@@ -979,9 +973,8 @@ export class InventoryView {
     const r = this.gridEl.getBoundingClientRect();
     if (cx < r.left || cy < r.top || cx >= r.right || cy >= r.bottom)
       return null;
-    const x = this.cellOf(cx - r.left) - this.drag.grab.x;
-    const y = this.cellOf(cy - r.top) - this.drag.grab.y;
-    return { x, y, rot: this.drag.item.rot };
+    const at = cellUnder(this.scale.mine, this.gridEl, cx, cy);
+    return { x: at.x - this.drag.grab.x, y: at.y - this.drag.grab.y, rot: this.drag.item.rot };
   }
 
   private onCancel(e: PointerEvent): void {
