@@ -58,3 +58,16 @@ describe('an open group page across a save', () => {
     expect(loaded.events).toEqual([]);
   });
 });
+
+describe('seen replies across a save', () => {
+  it('load keeps what a talk marked seen and awards nothing', () => {
+    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    w.player.quests.seen = { bowl_dag: { lang: 'en', replies: { 'bowl_dag.0.hub.c-2': 'k3f9' } } };
+    w.events = [];
+    const loaded = reload(w);
+    expect(loaded.player.quests.seen).toEqual(w.player.quests.seen);
+    expect(loaded.player.money).toBe(w.player.money);
+    expect(loaded.player.xp).toBe(w.player.xp);
+    expect(loaded.events).toEqual([]);
+  });
+});

@@ -41,6 +41,7 @@ describe('startQuest', () => {
       view: 'talk',
       lines: [{ text: 'Hattie sets her bucket down by the well.', tags: [] }],
       choices: ['Heard any rumors?', 'Leave.'],
+      seen: [false, false],
       costs: [null, null],
       checks: [null, null],
       locked: [false, false],
