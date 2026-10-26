@@ -29,6 +29,11 @@ let changed: string[] = [];
 let movedBy: string[] = [];
 let scripts: string[] = [];
 let heads = 0;
+let suites: string[] = [];
+let failingSuites = 0;
+let suiteDown = false;
+let replaced: string[] = [];
+let dirty: string[] = [];
 const PASS = 'pass';
 const HUNG = 'the checks ran past their 45 minute limit, and the factory removed their container.';
 
@@ -55,6 +60,11 @@ beforeEach(() => {
   movedBy = ['game/src/sim/world.ts'];
   scripts = [];
   heads = 0;
+  suites = [];
+  failingSuites = 0;
+  suiteDown = false;
+  replaced = [];
+  dirty = [];
   deployed.length = 0;
   writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), approvedResolving: { 5: 'Ann', 6: 'Bob' }, release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 300, removed: [9], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, pendingShip: 'ann' });
 });
@@ -62,16 +72,27 @@ afterEach(() => rmSync(home, { recursive: true, force: true }));
 
 function fakeCtx(budget = 5): Ctx {
   const fake = {
-    cfg: { home, buildModel: 'sonnet', mergingBudgetUsd: budget, checksTimeoutMinutes: 45, gpu: false, publicUrl: 'https://play.test', committeeChat: 'chat' },
+    cfg: { home, buildModel: 'sonnet', mergingBudgetUsd: budget, checksTimeoutMinutes: 45, gpu: false, publicUrl: 'https://play.test', committeeChat: 'chat', suiteStartMinutes: 15, suitePollSeconds: 0 },
     log: (_stage: string, _issue: number | null, msg: string) => { logs.push(msg); },
     statePath: `${home}/state.json`,
     now: () => new Date('2026-09-30T10:00:00Z'),
+    run: async () => ({ code: 0, stdout: dirty.shift() ?? '', stderr: '' }),
     github: {
       cards: async () => cards,
       issue: async (issue: number) => ({ number: issue, title: `Card ${issue}`, labels: cards.find((c) => c.issue === issue)?.labels ?? [] }),
       comment: async (issue: number, body: string) => { comments.push(`${issue} ${body}`); },
       addLabel: async (issue: number, label: string) => { calls.push(`label ${issue} ${label}`); },
       move: async (issue: number, column: string) => { calls.push(`move ${issue} ${column}`); },
+      dispatchSuite: async (sha: string) => {
+        if (suiteDown) throw new Error('HTTP 503');
+        calls.push(`suite ${sha}`);
+        return suites.push(sha);
+      },
+      suiteRun: async (id: number) => {
+        const failed = id <= failingSuites;
+        return { done: true, started: true, passed: !failed, testsFailed: failed, conclusion: failed ? 'failure' : 'success', url: `https://github.com/o/r/actions/runs/${id}` };
+      },
+      suiteLog: async (id: number) => `FAIL src/sim/raid.test.ts in run ${id}`,
     },
     telegram: { sendMessage: async (_chat: string, text: string) => { calls.push(`message ${text}`); return 1; } },
     container: {
@@ -102,6 +123,7 @@ function fakeCtx(budget = 5): Ctx {
         if (pushFailures-- > 0) throw new Error('rejected: non-fast-forward');
       },
       isMerged: async () => false,
+      replaceBranch: async (commit: string, branch: string) => { replaced.push(`${commit} ${branch}`); },
     },
   };
   return fake as unknown as Ctx;
@@ -127,19 +149,65 @@ describe('merge queue', () => {
     expect(readState(`${home}/state.json`).approvedResolving).toEqual({});
   });
 
-  it('runs only the tests related to what the batch changes against its base, and no lock', async () => {
-    changed = ['game/src/sim/fuel.ts', 'game/src/sim/raid.ts', 'game/docs/notes.md'];
+  it('runs the full suite on GitHub Actions for the merged head, and only the playtest and build on the server', async () => {
+    changed = ['game/src/sim/fuel.ts', 'game/docs/notes.md'];
     await merge(fakeCtx());
-    expect(scripts).toHaveLength(1);
-    expect(scripts[0]).toContain('npm run test:cached -- --related src/sim/fuel.ts src/sim/raid.ts\n');
-    expect(scripts[0]).not.toContain('npm run typecheck');
+    expect(replaced).toEqual(['head1 factory/suite-merge-dev']);
+    expect(calls.filter((call) => /^(suite|checks|push)/.test(call))).toEqual(['suite head1', 'checks', 'push head1 dev']);
+    expect(scripts[0]).not.toContain('test:cached');
+    expect(scripts[0]).toContain('npm run build');
     expect(existsSync(join(home, 'locks', 'full-suite'))).toBe(false);
   });
 
-  it('runs no tests when the batch changes only game docs', async () => {
+  it('names the suite branch of a release batch after its base', async () => {
+    cards = [card(5, [RELEASE_TASK_LABEL])];
+    changed = ['game/src/sim/fuel.ts'];
+    await merge(fakeCtx());
+    expect(replaced).toEqual(['head1 factory/suite-merge-release-2026-09-29']);
+  });
+
+  it('hands a failed suite to the merge session and runs the suite again on its fix', async () => {
+    changed = ['game/src/sim/fuel.ts'];
+    failingSuites = 1;
+    await merge(fakeCtx());
+    expect(runs).toHaveLength(1);
+    expect(runs[0]!.prompt).toContain('The full suite failed on GitHub Actions for head1');
+    expect(runs[0]!.prompt).toContain('FAIL src/sim/raid.test.ts in run 1');
+    expect(calls.filter((call) => /^(suite|checks|agent|push)/.test(call))).toEqual(['suite head1', 'checks', 'agent', 'suite head1', 'checks', 'push head1 dev']);
+  });
+
+  it('sends a fix left uncommitted back to the merge session before any suite runs', async () => {
+    changed = ['game/src/sim/fuel.ts'];
+    dirty = [' M game/src/sim/fuel.ts\n'];
+    await merge(fakeCtx());
+    expect(runs).toHaveLength(1);
+    expect(runs[0]!.prompt).toContain('changes that are not committed');
+    expect(runs[0]!.prompt).toContain('M game/src/sim/fuel.ts');
+    expect(calls.filter((call) => /^(suite|checks|agent|push)/.test(call))).toEqual(['agent', 'suite head1', 'checks', 'push head1 dev']);
+  });
+
+  it('fails the batch with no agent round and no push when the suite cannot run', async () => {
+    changed = ['game/src/sim/fuel.ts'];
+    suiteDown = true;
+    await expect(merge(fakeCtx())).rejects.toThrow('The full suite on GitHub Actions could not run');
+    expect(runs).toEqual([]);
+    expect(calls.some((call) => call.startsWith('push'))).toBe(false);
+    expect(calls).toContain('label 5 factory-stuck');
+  });
+
+  it('pushes no suite branch for a result that touches a protected path', async () => {
+    changed = ['game/src/sim/fuel.ts'];
+    files = ['.github/workflows/x.yml'];
+    await expect(merge(fakeCtx())).rejects.toThrow('paths an agent may not push');
+    expect(replaced).toEqual([]);
+    expect(suites).toEqual([]);
+  });
+
+  it('runs no suite when the batch changes only game docs', async () => {
     changed = ['game/docs/notes.md'];
     await merge(fakeCtx());
-    expect(scripts[0]).not.toContain('test:cached');
+    expect(suites).toEqual([]);
+    expect(replaced).toEqual([]);
     expect(scripts[0]).toContain('npm run build');
   });
 

@@ -1083,9 +1083,6 @@
 .town-repair > button:first-of-type {
   margin-left: auto;
 }
-.town-repair .bad {
-  flex: 1;
-}
 .service-meter {
   display: flex;
   flex-direction: column;

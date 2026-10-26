@@ -53,6 +53,46 @@
 .dial-cap {
   fill: var(--steel-0);
 }
+.compass-dial {
+  display: block;
+  width: var(--compass-w);
+  height: var(--compass-w);
+}
+.compass-dial svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.compass-rim {
+  fill: var(--steel-2);
+  stroke: var(--steel-6);
+  stroke-width: 1;
+}
+.compass-face {
+  fill: var(--ink);
+  stroke: var(--color-void);
+  stroke-width: 1;
+}
+.compass-tick {
+  stroke: var(--steel-3);
+  stroke-width: 1;
+}
+.compass-letter,
+.compass-north {
+  font: bold var(--text-caption) var(--font-ui);
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: var(--steel-1);
+}
+.compass-north {
+  fill: var(--danger);
+}
+.compass-needle {
+  fill: var(--steel-0);
+}
+.compass-pin {
+  fill: var(--steel-6);
+}
 .speed-value {
   position: absolute;
   left: 50%;

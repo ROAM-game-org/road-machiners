@@ -8,7 +8,7 @@ People live inside the basin's facts and do not announce them. A fact comes up o
 
 ### Ruben, canal warden
 
-Ruben talks of water, gates, seasons and the fields that drink. He compares things to fields, buckets, floods and wet years, sometimes and not in every line.
+Ruben talks of water, gates, seasons and the fields that drink. He compares things to fields, buckets, dry spells and lean years, sometimes and not in every line.
 
 He answers in the first clause. Then the sentence winds on through water and fields before it lands. A reply holds one thought, and his sentences are long and slow, but few.
 

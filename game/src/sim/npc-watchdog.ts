@@ -17,6 +17,7 @@ import { isStranded, vehicleStats } from './stats';
 import { escortsOf, isOnRope, npcHomeSite } from './tow';
 import { awaitsEscort } from './escort-job';
 import { holdsPost, isSunwardMember, planSunward } from './sunward';
+import { keepsWordAtVigil } from './sunward-crater';
 import { isMarshal } from './marshals';
 import type { NpcBrain, Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
@@ -46,7 +47,7 @@ function waits(world: World, v: Vehicle): boolean {
 }
 
 function holdsStill(v: Vehicle): boolean {
-  return awaitsEscort(v) || holdsPost(v);
+  return awaitsEscort(v) || holdsPost(v) || keepsWordAtVigil(v);
 }
 
 function leadsPlayer(world: World, v: Vehicle): boolean {

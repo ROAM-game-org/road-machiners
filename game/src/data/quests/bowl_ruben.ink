@@ -25,7 +25,7 @@ I open the canal gates and decide which fields drink first.
   ~ ruben_senate = true
   -> hub
 + [Where can I get water, or find work?]
-  Hattie keeps the well house and sells water to anyone with M.
+  Hattie keeps the cistern house and sells water to anyone with M.
   For work, ask Dag, who rides with the <term=farmers>Farmers</term> patrol and knows what hauls are waiting.
   ~ ruben_water = true
   -> hub
@@ -52,7 +52,7 @@ I open the canal gates and decide which fields drink first.
   The Fallen Sun was a ship bigger than all of Bowl, folk say, and it came down burning and dug a crater out in the basin.
   -> hub
 + {found("fallen-sun")} [What is the Fallen Sun really?]
-  <term=nose>Nose</term> calls the ship a warship, and Hattie at the well house calls it a seed ship that lost its way.
+  <term=nose>Nose</term> calls the ship a warship, and Hattie at the cistern house calls it a seed ship that lost its way.
   Nothing grows near it, and I know no worse thing to say of a place.
   { cult_broken(): Folk go out there after dark again, now the lamps have stopped crossing. | Stay away from it after dark, though, since the Sunward cross to it at dusk with their lamps, and no family along these canals would follow them. }
   -> hub
@@ -66,7 +66,7 @@ I open the canal gates and decide which fields drink first.
   I like Jory Baptiste, and I vote against him all the same, because liking a man won't tell me which field should drink first.
   -> hub
 + {ruben_senate} [How slow is the Senate?]
-  Slow enough that in the last drought <term=pierce>Pierce</term> Corporation offered the Senate a long loan of grain.
+  Slow enough that in the last drought <term=pierce>Pierce</term> Corporation offered the Senate a long loan.
   They argued over it for a whole season.
   ~ ruben_loan = true
   -> hub

@@ -5,13 +5,16 @@ import { addVehicle, emptyWorld, npcBrain } from "../sim/testkit";
 import type { GridItem, Rot, World } from "../sim/types";
 import { chassisDef } from "../data/chassis";
 import { knockOutNpc } from "../sim/defeat";
-import { corePart, findSpot, gridOf, MOUNT_CELLS } from "../sim/grid";
+import { bareGrid, baseGrid, corePart, findSpot, gridOf, MOUNT_CELLS } from "../sim/grid";
 import { plannedTruck } from "../sim/inventory";
 import { takeFromTruck } from "../sim/salvage";
 import { refreshVision } from "../sim/vision";
 import { resolve } from "../text/resolve";
-import { itemLabel, itemName, itemState, nextRot, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
+import { cellAt, drawnLayer, takenCells, gridMetrics, gridSize, itemLabel, itemName, itemState, nextRot, rectOf, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
+import { cellCenter, cellSteps } from "../sim/body";
 import { kg } from "./units";
+import { backgroundNeeds, ownNeed, shownNeed } from "./garage-draw";
+import { partDef } from "../data/parts";
 
 const world = emptyWorld();
 const item = (defId: string, rot: Rot): GridItem => ({ kind: "part", id: "i", x: 0, y: 0, rot, part: makePart(world, defId, 0) });
@@ -105,5 +108,149 @@ describe("the marks of a refit queue", () => {
     const w = emptyWorld();
     expect(refitMarks(w, w.vehicles[0]).size).toBe(0);
     expect(takenMarks(w, []).size).toBe(0);
+  });
+});
+
+const PX_PER_METER = 100;
+
+describe("grid metrics", () => {
+  it("draw a cell as many pixels as the truck has meters, so the truck keeps its proportions", () => {
+    const m = gridMetrics("bus", baseGrid("bus"), PX_PER_METER);
+
+    const steps = cellSteps("bus");
+
+    expect(m.cellW).toBeCloseTo(steps.col * PX_PER_METER, 9);
+    expect(m.cellH).toBeCloseTo(steps.row * PX_PER_METER, 9);
+    expect(m.cellH / m.cellW).toBeGreaterThan(1.5);
+  });
+
+  it("put neighbouring cells as far apart in pixels as their centers are in meters", () => {
+    const m = gridMetrics("scout", baseGrid("scout"), PX_PER_METER);
+    const a = cellCenter("scout", 2, 2);
+    const b = cellCenter("scout", 3, 4);
+
+    const pa = rectOf(m, 2, 2, 1, 1);
+    const pb = rectOf(m, 3, 4, 1, 1);
+
+    expect(pb.left - pa.left).toBeCloseTo((b.z - a.z) * PX_PER_METER, 6);
+    expect(pb.top - pa.top).toBeCloseTo((a.x - b.x) * PX_PER_METER, 6);
+  });
+
+  it("find the cell under every pixel inside a cell, on the truck and in the spare rows", () => {
+    const g = bareGrid("longbed");
+    const m = gridMetrics("longbed", g, PX_PER_METER);
+
+    for (let y = 0; y < g.h; y++)
+      for (let x = 0; x < g.w; x++) {
+        const r = rectOf(m, x, y, 1, 1);
+        expect(cellAt(m, r.left + 1, r.top + 1)).toEqual({ x, y });
+        expect(cellAt(m, r.left + r.width - 1, r.top + r.height - 1)).toEqual({ x, y });
+      }
+  });
+
+  it("draw spare rows square, since they hold only icon tiles", () => {
+    const g = bareGrid("longbed");
+    const m = gridMetrics("longbed", g, PX_PER_METER);
+
+    const spare = rectOf(m, 0, g.chassisH, 1, 1);
+
+    expect(spare.height).toBeCloseTo(spare.width, 9);
+  });
+
+  it("leave a gap between the truck and its spare rows", () => {
+    const g = bareGrid("longbed");
+    const m = gridMetrics("longbed", g, PX_PER_METER);
+
+    const lastTruckRow = rectOf(m, 0, g.chassisH - 1, 1, 1);
+    const firstSpareRow = rectOf(m, 0, g.chassisH, 1, 1);
+
+    expect(g.h).toBeGreaterThan(g.chassisH);
+    expect(firstSpareRow.top - (lastTruckRow.top + lastTruckRow.height)).toBeCloseTo(m.spareGap, 6);
+    expect(m.spareGap).toBeGreaterThan(0);
+  });
+
+  it("add no gap to a truck without spare rows", () => {
+    const g = baseGrid("scout");
+
+    const m = gridMetrics("scout", g, PX_PER_METER);
+
+    expect(m.spareGap).toBe(0);
+    expect(gridSize(m).height).toBeCloseTo(g.h * m.cellH, 9);
+  });
+
+  it("size the grid to hold its last row and column", () => {
+    const g = bareGrid("semi");
+    const m = gridMetrics("semi", g, PX_PER_METER);
+
+    const corner = rectOf(m, g.w - 1, g.h - 1, 1, 1);
+
+    expect(gridSize(m).width).toBeCloseTo(corner.left + corner.width, 9);
+    expect(gridSize(m).height).toBeCloseTo(corner.top + corner.height, 9);
+  });
+});
+
+describe("garage render needs", () => {
+  function loadedScout() {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    return { w, me };
+  }
+
+  it("ask for every loose part of the player's truck at every spot it mounts on, and none of its built-in parts", () => {
+    const { w, me } = loadedScout();
+
+    const need = ownNeed(me, w.player.paint, []);
+
+    const loose = me.items.filter((it) => it.kind === "part" && partDef(it.part.defId).kind !== "core");
+    expect(loose.length).toBeGreaterThan(0);
+    expect(need.parts.map((p) => p.part.id).sort()).toEqual(loose.map((it) => (it.kind === "part" ? it.part.id : "")).sort());
+    for (const p of need.parts) expect(p.spots.length).toBeGreaterThan(0);
+  });
+
+  it("also ask for the parts the screen could drag onto the truck", () => {
+    const { w, me } = loadedScout();
+    const spare = makePart(w, "plates", 0);
+
+    const need = ownNeed(me, w.player.paint, [{ id: "store-x", x: 0, y: 0, rot: 0, kind: "part", part: spare }]);
+
+    expect(need.parts.some((p) => p.part.id === spare.id)).toBe(true);
+  });
+
+  it("ask only for the spots another truck's mounted parts stand on", () => {
+    const { w, me } = loadedScout();
+
+    const need = shownNeed(me, w.player.paint);
+
+    for (const p of need.parts) {
+      const it = me.items.find((x) => x.kind === "part" && x.part.id === p.part.id)!;
+      expect(p.spots).toEqual([{ x: it.x, y: it.y, rot: it.rot }]);
+    }
+  });
+
+  it("build the player's storage in the background with the truck", () => {
+    const { w } = loadedScout();
+    w.player.storage.push(makePart(w, "plates", 0));
+
+    const needs = backgroundNeeds(w);
+
+    expect(needs.flatMap((n) => n.parts).some((p) => p.part.id === w.player.storage[0].id)).toBe(true);
+  });
+});
+
+describe("the garage grid's layers and marks", () => {
+  const placedAt = (defId: string, x: number, y: number): GridItem => ({ ...item(defId, 0), x, y });
+  const art = {} as HTMLElement;
+  const z = (it: GridItem) => Number(/z-index:(\d+)/.exec(drawnLayer(it, art))![1]);
+
+  it("draws a gun above an armor plate that reaches further down the truck", () => {
+    expect(z(placedAt("mg", 0, 0))).toBeGreaterThan(z(placedAt("scrapSheet", 0, 20)));
+  });
+
+  it("marks only the cells of loose parts as taken, never a built-in part's", () => {
+    const w = emptyWorld();
+    const truck = addVehicle(w, "player", "scout", [], { x: 30, y: 30 });
+    expect(takenCells(truck, baseGrid("scout").h).size).toBe(0);
+    const withGun = { ...truck, items: [...truck.items, placedAt("mg", 1, 2)] };
+    expect([...takenCells(withGun, baseGrid("scout").h)]).toContain("1,2");
   });
 });
