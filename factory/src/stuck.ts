@@ -20,6 +20,12 @@ export async function clearStuck(ctx: Ctx, issue: number): Promise<void> {
   updateState(ctx.statePath, (state: FactoryState) => ({ ...state, failures: withoutFailuresOf(state.failures, issue) }));
 }
 
+export async function labelStuckBatch(ctx: Ctx, batch: number[]): Promise<void> {
+  if (batch.length === 0) return;
+  const done = new Set((await ctx.github.cards()).filter((card) => card.column === 'Done').map((card) => card.issue));
+  for (const issue of batch) if (!done.has(issue)) await ctx.github.addLabel(issue, STUCK_LABEL);
+}
+
 export function isOpenStuck(card: Card): boolean {
   return card.column !== 'Done' && card.labels.includes(STUCK_LABEL);
 }
