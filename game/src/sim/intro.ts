@@ -11,7 +11,7 @@ import { RULES } from '../data/rules';
 import { playerVehicle } from './damage';
 import { isDefeated } from './defeat';
 import { mountedParts } from './grid';
-import { openingStep, openingStockOf } from './opening';
+import { openingState } from './opening';
 import { fightCornered } from './npc-activities';
 import { addState } from './states';
 import { generateNpcLoadout } from './npc-loadout';
@@ -110,8 +110,8 @@ function enginePatched(w: World): boolean {
 }
 
 function ambushMayCome(w: World): boolean {
-  const wreck = openingStockOf(w);
-  return openingStep(w) === null || wreck === null || dist(playerVehicle(w).pos, wreck.pos) >= AMBUSH.farmLeave;
+  const { stock, step } = openingState(w);
+  return step === null || (stock !== null && dist(playerVehicle(w).pos, stock.pos) >= AMBUSH.farmLeave);
 }
 
 function launchAmbush(w: World): void {
