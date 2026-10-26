@@ -172,6 +172,15 @@ describe('settlement locals', () => {
     expect(choices(voted, 'bowl_jory')).toContain('Do tenants take up the patrol?');
   });
 
+  it('greets with the copy line only when Agnes has told of a copy', () => {
+    const lines = (w: World) => questView(startQuest(w, QUESTS, 'pump_agnes', 'start'), QUESTS).lines.map((l) => l.text).join(' ');
+    const w = parkedAt('dustwell');
+    w.player.quests.local.pump_agnes = { trusted: true };
+    expect(lines(w)).not.toContain('Changed your mind about the copy?');
+    w.player.quests.local.pump_agnes = { trusted: true, knows_copy: true };
+    expect(lines(w)).toContain('Changed your mind about the copy?');
+  });
+
   it('writes a rumor into the journal and changes nothing else', () => {
     const w = parkedAt('bowl');
     w.turn = 77;
@@ -496,6 +505,128 @@ describe('the depot leak at Nose', () => {
     const slow = talk(w, 'nose_kovac', [...OPEN, 'Talk to the fuel clerk.', LEDGER, 'Watch the depot all night.', GATE, SABINE, 'Leave her be.']);
     expect(vars(slow)).toMatchObject({ watches: 0, alarm: 1 });
     expect(questView(slow, QUESTS).choices).toEqual(['Name Corporal Vance.', 'Name Pell, the clerk.', 'Let it go.']);
+  });
+});
+
+describe('locals at stalls', () => {
+  const OPEN = ['Read her the big dial.', 'Ask why the tanker\'s meter came off.'];
+  const COVER = 'Tell him she was talking about pump pressures.';
+  const CARRY = 'Say you\'ll carry the copy.';
+  const TAKE = 'Take the copy and the meter out to your truck.';
+  const ROAD = [...OPEN, COVER, CARRY, TAKE, 'Keep the copy.'];
+  const LIE = 'Tell him it\'s pump records for the lock house.';
+  const LOCK = 'Drive down to the lock house.';
+  const SIGN = 'Sign and write what you read on the dial.';
+  const TERRACE = 'Follow the tanker\'s tracks up to the top terrace.';
+  const BOLT = 'Bolt Agnes\'s meter onto the inlet.';
+
+  it('lists Agnes at Dustwell', () => {
+    expect(localsAt('dustwell').map((l) => l.id)).toContain('agnes');
+    expect(localsAt('pump-station').map((l) => l.id)).toEqual(['hollis']);
+  });
+
+  it('keeps the copy from a driver who tells the watchman, and pays only the driver who takes his purse', () => {
+    const w = parkedAt('dustwell');
+
+    const paid = talk(w, 'pump_agnes', [...OPEN, 'Tell him what she said.', 'Take the purse.']);
+    expect(paid.player.quests.world).toEqual({ pipe_fate: 'searched', marr_regard: 'bought' });
+    expect(paid.player.money - w.player.money).toBe(20 * UNITS.centsPerM);
+    expect(choices(paid, 'pump_agnes')).toEqual(['Goodbye.']);
+
+    const unpaid = talk(w, 'pump_agnes', [...OPEN, 'Tell him what she said.', 'Leave it in his hand.']);
+    expect(unpaid.player.quests.world).toEqual({ pipe_fate: 'searched' });
+    expect(unpaid.player.money).toBe(w.player.money);
+  });
+
+  it('holds the copy back from a silent driver until the watchman is named', () => {
+    const w = parkedAt('dustwell');
+
+    const silent = talk(w, 'pump_agnes', [...OPEN, 'Say nothing.']);
+    expect(questView(silent, QUESTS).choices).not.toContain(CARRY);
+
+    const warned = talk(w, 'pump_agnes', [...OPEN, 'Say nothing.', 'Tell her the man on the drum is listening.']);
+    expect(questView(warned, QUESTS).choices).toContain(CARRY);
+  });
+
+  it('opens the pipe quest from Agnes and ends it with the copy dropped', () => {
+    const w = parkedAt('dustwell');
+
+    const dropped = talk(w, 'pump_agnes', [...ROAD, 'Throw the copy in a ditch.']);
+
+    expect(dropped.player.quests.world).toEqual({});
+    expect(dropped.player.money).toBe(w.player.money);
+    expect(dropped.player.notes.map((n) => n.id)).toEqual(['pipeBook', 'pipeOffer']);
+    expect(choices(dropped, 'pump_agnes')).toContain(CARRY);
+  });
+
+  it('reaches the Bowl lock house once the gate is bought', () => {
+    const w = parkedAt('dustwell');
+    const lost = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', "Slip the older one a few M's.", LOCK]);
+
+    expect(questView(lost, QUESTS).choices).toContain(SIGN);
+    expect(lost.player.quests.world).toEqual({ marr_regard: 'enemy' });
+    expect(w.player.money - lost.player.money).toBe(50 * UNITS.centsPerM);
+  });
+
+  it('pays the gate patrol with a bribe, signs Mirela\'s book and pays on delivery', () => {
+    const w = parkedAt('dustwell');
+    const gate = [...ROAD, 'Drive on to the Bowl gate.', "Slip the older one a few M's.", LOCK];
+
+    const signed = talk(w, 'pump_agnes', [...gate, SIGN]);
+    expect(signed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'delivered' });
+    expect(signed.player.money - w.player.money).toBe(10 * UNITS.centsPerM);
+
+    const filed = talk(w, 'pump_agnes', [...gate, 'Leave your name off.']);
+    expect(filed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'filed' });
+  });
+
+  it('fines a driver whose gate talk fails and who hands the copy over, and fines nobody who hands it over at once', () => {
+    const w = parkedAt('dustwell');
+    const gate = [...ROAD, 'Drive on to the Bowl gate.'];
+
+    const seized = talk(w, 'pump_agnes', [...gate, LIE, 'Hand it over.']);
+    expect(seized.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'seized' });
+    expect(w.player.money - seized.player.money).toBe(40 * UNITS.centsPerM);
+
+    const handed = talk(w, 'pump_agnes', [...gate, 'Hand him the copy.']);
+    expect(handed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'seized' });
+    expect(handed.player.money).toBe(w.player.money);
+  });
+
+  it('charges double to buy off a patrolman who caught the lie', () => {
+    const w = parkedAt('dustwell');
+
+    const bought = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', LIE, 'Pay him to forget it.', LOCK]);
+    expect(questView(bought, QUESTS).choices).toContain(SIGN);
+    expect(w.player.money - bought.player.money).toBe(100 * UNITS.centsPerM);
+  });
+
+  it('bills a failed meter fit on the top terrace, shuts the terrace and still reaches the lock house', () => {
+    const w = parkedAt('dustwell');
+
+    const sheared = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE, BOLT]);
+    expect(questView(sheared, QUESTS).choices).toEqual([LOCK]);
+    expect(w.player.money - sheared.player.money).toBe(90 * UNITS.centsPerM);
+
+    const signed = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE, BOLT, LOCK, SIGN]);
+    expect(signed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'delivered' });
+  });
+
+  it('offers the meter bolt only to a driver who took the meter', () => {
+    const w = parkedAt('dustwell');
+    const left = [...OPEN, COVER, CARRY, 'Take the copy and leave the meter.', 'Keep the copy.', 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE];
+
+    expect(questView(talk(w, 'pump_agnes', left), QUESTS).choices).not.toContain(BOLT);
+    expect(questView(talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE]), QUESTS).choices).toContain(BOLT);
+  });
+
+  it('takes a fine in the Bowl market and keeps the tenants talking about it', () => {
+    const w = parkedAt('dustwell');
+
+    const read = talk(w, 'pump_agnes', [...ROAD, 'Cut the seal and read the copy.', 'Drive on to the Bowl gate.', "Slip the older one a few M's.", 'Read the copy aloud in the market.']);
+
+    expect(read.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'read' });
+    expect(w.player.money - read.player.money).toBe(90 * UNITS.centsPerM);
   });
 });
 

@@ -69,7 +69,7 @@ export const LORE = {
   'lore.part.wheelMid': 'Tall tires off a delivery truck. They roll over a rut that would hang a car up by its belly.',
   'lore.part.wheelHeavy': 'A wheel off a hauler. It takes three people and a jack to change, which is why drivers keep the old one.',
   'lore.part.tank': 'A small steel tank, hammered round and sealed with tar. Enough for a hop between towns, and drivers watch the gauge the whole way.',
-  'lore.part.tankLong': 'A long tank slung under the frame, cut from a pipe. It gives a driver range.',
+  'lore.part.tankLong': 'A long tank slung under the frame, cut from a pipe or a milk tanker. It gives a driver range, and a faint smell of curdled milk.',
   'lore.part.tankMid': 'A tank rolled from steel sheet. Its weld seams read like a map of every garage that has fixed it.',
   'lore.part.tankHeavy': 'A tank wrapped in plate, because the one thing the road will shoot at is a full tank. Drivers who have seen one burn pay for the plate.',
   'lore.part.scanner': 'A radio set that listens for every engine and every voice on the road. Drivers use it to hear a truck coming long before they see its dust.',

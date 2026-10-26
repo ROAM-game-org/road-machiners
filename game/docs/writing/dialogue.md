@@ -76,7 +76,7 @@ Show skill as habit. A veteran checks the tires and belts at every stop, counts 
 
 ### Hope, then the floor
 
-Give the player a reason to hope, then take it away with a plain fact they see for themselves. The rifle across the hill was a plank. The water drums were full of sand. The reversal comes from what the character notices, never from a narrator's twist.
+Give the player a reason to hope, then take it away with a plain fact they see for themselves. The rifle across the hill was a plank. The water truck was hauling sand. The reversal comes from what the character notices, never from a narrator's twist.
 
 ### Violence is fast, then ugly
 

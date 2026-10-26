@@ -621,15 +621,3 @@ export function withWreckSquares_114_115(world: SavedJson): SavedJson {
   if (!call || !isWreckCall_114_115(call)) return world;
   return { ...world, player: { ...player, call: null } };
 }
-
-const CUT_QUESTS_115_116 = ['pump_agnes', 'pump_pipe'] as const;
-const CUT_WORLD_VARS_115_116 = ['pipe_fate', 'marr_regard'] as const;
-const CUT_NOTES_115_116: ReadonlySet<string> = new Set(['talkSeepPipe', 'pipeBook', 'pipeDraw', 'pipeOffer', 'pipeCanal']);
-
-export function withoutArchonTanker_115_116(world: SavedJson): SavedJson {
-  const noQuests = CUT_QUESTS_115_116.reduce(dropQuest, world);
-  const noVars = CUT_WORLD_VARS_115_116.reduce((w, name) => dropQuestVar(w, null, name), noQuests);
-  const player = noVars.player as SavedJson;
-  const notes = (player.notes as { id: string }[]).filter((n) => !CUT_NOTES_115_116.has(n.id));
-  return { ...noVars, player: { ...player, notes } };
-}

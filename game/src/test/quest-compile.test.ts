@@ -189,6 +189,7 @@ describe('quest links', () => {
     const quests = parseBundle(BUNDLE).quests;
     expect(quests.wagon_bench.links.writes.wagon_fate).toEqual(['admitted', 'buried', 'logged']);
     expect(quests.nose_kovac.links.begins).toEqual(['nose_depot_leak']);
+    expect(quests.pump_agnes.links.begins).toEqual(['pump_pipe']);
     expect(Object.values(quests).every((q) => q.revision >= 1)).toBe(true);
   });
 

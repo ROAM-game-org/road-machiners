@@ -1,5 +1,5 @@
 {
- "format": "2.116",
+ "format": "2.115",
  "shape": {
   "broken": [],
   "chaosHighway": "null",
@@ -2382,6 +2382,8 @@
    "first_knockout_seen": "boolean",
    "hattie_met": "boolean",
    "intro_step": "string",
+   "marr_regard": "string",
+   "pipe_fate": "string",
    "road_seen_1": "boolean",
    "scale_seen": "boolean",
    "towed_to_bowl": "boolean",
@@ -2525,7 +2527,43 @@
     "asked_hooks": "boolean",
     "asked_want": "boolean"
    },
-   "pump_agnes": {},
+   "pump_agnes": {
+    "asked_leak": "boolean",
+    "asked_man": "boolean",
+    "fee": "number",
+    "knows_book": "boolean",
+    "knows_copy": "boolean",
+    "knows_pay": "boolean",
+    "knows_pipe": "boolean",
+    "knows_why": "boolean",
+    "tip": "number",
+    "trusted": "boolean",
+    "watchman": "string"
+   },
+   "pump_pipe": {
+    "asked_aim": "boolean",
+    "asked_cover": "boolean",
+    "asked_drain": "boolean",
+    "asked_secret": "boolean",
+    "asked_steward": "boolean",
+    "asked_water": "boolean",
+    "book_read": "boolean",
+    "canal_matches": "boolean",
+    "fee": "number",
+    "fine": "number",
+    "knows_envelope": "boolean",
+    "margin_read": "boolean",
+    "meter_taken": "boolean",
+    "offer_heard": "boolean",
+    "offer_open": "boolean",
+    "price": "number",
+    "reserve_known": "boolean",
+    "sluice": "string",
+    "taken": "boolean",
+    "toll": "number",
+    "valve_read": "boolean",
+    "walked_out": "boolean"
+   },
    "radio_wagon_driver": {},
    "road_stretch_1": {},
    "roadhouse_petra": {
@@ -2650,7 +2688,14 @@
    ],
    "pump_agnes": [
     "start",
-    "start.hub"
+    "start.hub",
+    "start.watched"
+   ],
+   "pump_pipe": [
+    "start",
+    "steward",
+    "road",
+    "town"
    ],
    "radio_wagon_driver": [
     "start",
@@ -2730,7 +2775,8 @@
     "readsNotes": [],
     "writes": {},
     "notes": [
-     "talkGranaryGate"
+     "talkGranaryGate",
+     "talkSeepPipe"
     ],
     "begins": []
    }
@@ -2951,10 +2997,50 @@
   "pump_agnes": {
    "revision": 1,
    "links": {
+    "reads": [
+     "pipe_fate"
+    ],
+    "readsNotes": [],
+    "writes": {
+     "marr_regard": [
+      "bought"
+     ],
+     "pipe_fate": [
+      "searched"
+     ]
+    },
+    "notes": [
+     "pipeBook"
+    ],
+    "begins": [
+     "pump_pipe"
+    ]
+   }
+  },
+  "pump_pipe": {
+   "revision": 1,
+   "links": {
     "reads": [],
     "readsNotes": [],
-    "writes": {},
-    "notes": [],
+    "writes": {
+     "marr_regard": [
+      "bought",
+      "enemy"
+     ],
+     "pipe_fate": [
+      "delivered",
+      "filed",
+      "metered",
+      "read",
+      "seized",
+      "sold"
+     ]
+    },
+    "notes": [
+     "pipeCanal",
+     "pipeDraw",
+     "pipeOffer"
+    ],
     "begins": []
    }
   },

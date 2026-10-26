@@ -151,6 +151,24 @@ The world variable `intro_step` runs the second half of the arrival. Its values 
 - `openScaleScene()` sets the world variable `scale_seen` as it opens the scene, so it plays once per game. A player woken on the Bowl bench with an empty bed meets it on a later visit with salvage. A player who first sold at a profit elsewhere never meets it.
 - Asking where scavengers find iron writes the note `orchardIron`: dead trucks by the roads, and the barns and Army sheds at Old Orchard.
 
+## The Archon's tanker
+
+`pump_agnes.ink` is the talk of Agnes Ondra, a local at Dustwell, which is a stall. Every driver reads her the big dial, and she writes the number with the driver's name, so the player's reading is the testimony the quest turns on. The opening shows that every hose at the tanks has a meter except the household tanker's. Reading the dial shows her book: pumped up by the dial, loaded onto Bowl's trucks by their meters, and the tanker by its meter until the Senate ordered it off. Asking why the meter came off brings the watchman over to ask what she said. Covering for her, or warning her about him, which perception shows early, makes her trust the player and name the copy under her pillow. Telling him sets `pipe_fate` to `searched` and ends the quest, and his purse of 20 M is a separate choice. A trusted driver who leaves can come back and say yes later.
+
+Saying yes opens `pump_pipe.ink`, shown as pages. Agnes writes this week's line into the copy with the player's name beside the dial, seals it, and offers the meter she took off the tanker's hose. Taking the meter is its own choice and sets `meter_taken`. The player can ask her about the household's envelope in her drawer, which pays her to stay quiet, and about what to say at the gate.
+
+The steward Aurel Brede meets the player where the Dustwell track meets the Bowl road and offers 100 M to lose the copy and forget the dial. The quest variable `sluice` keeps how the player stands with the patrol at the Bowl gate.
+
+- Asking the steward what the tanker fills needs no check. Half its water is the Senate's dry-year store under the top terrace. Mirela hears it as a way to split the Senate.
+- Social 2 on the steward gets a household pass and half the offer, and the player keeps the copy. A failure sends his rider ahead, and every later check at the gate needs one more rank.
+- The gate is run by driving the dry ditch round it at driving 2, talked past with Agnes's cover story at social 1, bribed with 50 M, or given the copy. A failed run loses the copy, costs a fine of 40 M and sets `pipe_fate` to `seized`. A failed talk offers a second bribe of 100 M before the fine. Handing it over sets `seized` with no fine. A bribe passes, and a watching rider writes the player down.
+- Inside the gate, the `town` checkpoint offers the lock house, the top terrace and the market.
+- Mirela's lock house is where the water trucks pour their loads into Bowl's trough. Her count agrees with Agnes's hose column, and she says so proves only that column. The dial is the player's own reading, and each witness swears only to their own number. Signing sets `delivered`: the Senate takes no vote, and the steward's own crew fits a meter back on the tanker's hose, since a counted tanker is a smaller story than a secret one. The trough stays with the household's clerk. Leaving the name off sets `filed`: a name in a book is not a witness, and the Senate moves on. Both pay 60 M.
+- On the top terrace, looking at the tank the tanker unloads into needs no check and shows the empty flange. With the meter taken, machining 2 bolts it on and sets `metered`. A failure cracks the flange, costs a fine and shuts the terrace.
+- Selling to the steward pays 100 M and sets `sold`. Reading in the Bowl market sets `read`, keeps the copy with social 2 and otherwise costs 40 M and the copy. Dropping the copy in a ditch changes nothing, and Agnes offers again.
+
+The world variable `pipe_fate` keeps the outcome. Its values are `none`, `delivered`, `filed`, `sold`, `read`, `seized`, `metered` and `searched`. The world variable `marr_regard` is `bought` after a sale and `enemy` after any other move against the household. Agnes greets by both outcomes.
+
 ## Wagon Seven
 
 Nose Army wagon Seven lies in a hollow below a bend in the Bowl north road as the story wreck `story-wagon-seven`, with its cannon on board. Hattie's rumor, Kovac's radio answer, Dag and the radio driver near the wreck point the player to it. The truth is in [Timeline](../lore/timeline.md#hidden-truths): the cheap brake rod snapped on the bend, and the crew reported raiders.
@@ -165,7 +183,7 @@ The world variable `wagon_fate` keeps the outcome. Its values are `none`, `logge
 
 ## Locals at stalls
 
-Dustwell, the Granary, Green Pit and the Pump Station are stalls with no board of work. Their locals never call `has_work()`, `has_offers()`, `board_full()` or `take_work()`. The checker parks each local's quest at their place, as it does for Bowl and Nose, and `src/sim/locals.test.ts` talks to Odile.
+Dustwell, the Granary, Green Pit and the Pump Station are stalls with no board of work. Their locals never call `has_work()`, `has_offers()`, `board_full()` or `take_work()`. The checker parks each local's quest at their place, as it does for Bowl and Nose, and `src/sim/locals.test.ts` talks to Agnes and Odile.
 
 Every site in `SITE_ECONOMY` has a local who answers what the site makes: Ruben at Bowl, Kovac at Nose, Sefa at the Salvage Yard, Agnes at Dustwell, Odile Marsh at the Granary, Hadiza Okon at Green Pit and Hollis Brennan at the Pump Station. The answer is a repeatable choice. It asks `short_of()` for every recipe input and upkeep good of the site, and `works_down()` where the works can break down, so the player hears what the site lacks that day. A test in `src/sim/locals.test.ts` fails when a site's input or upkeep good has no `short_of()` call in its locals' quests.
 

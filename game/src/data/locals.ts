@@ -2,6 +2,7 @@
 export const NOTE_IDS = [
   'wagonBowl', 'wagonNose', 'wagonRoad', 'wagonDag', 'wagonRod', 'wagonFound', 'greenPit', 'glassTank', 'burntConvoy',
   'talkGranaryGate',
+  'talkSeepPipe',
   'talkConvoyNotClean',
   'talkCraneBook',
   'talkPierceGuns',
@@ -13,6 +14,7 @@ export const NOTE_IDS = [
   'talkBrakeRod',
   'talkArmyStarved',
   'talkCommitteeRent',
+  'pipeBook', 'pipeDraw', 'pipeOffer', 'pipeCanal',
   'orchardIron',
   'roadhouseBook', 'roadhouseBuyOff', 'roadhouseRaiders',
 ] as const;

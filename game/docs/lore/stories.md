@@ -38,6 +38,14 @@ Every few days each major group makes one move of its own, whatever the player d
 
 The Old Army's trucks still stand where they stopped at Old Orchard. Their logs, orders and cargo hold pieces of why it left. Some pieces say it ran out of food. Others say someone starved it out on purpose. The player can put the pieces together, and the answer changes how Nose and Bowl look.
 
+## The Archon's tanker
+
+1. Agnes Ondra at Dustwell asks the player to carry a sealed copy of her pump book to Mirela Duarte in Bowl.
+2. The book shows water going missing every week into the household's tanker, whose loads a Senate order keeps out of the book. Mirela Duarte's Canal book proves the rest of Agnes's numbers are real.
+3. Tomas Duarte, Mirela's cousin in a Bowl coat, wrote a patrol report about the tanker. It sits on the Archon's desk.
+4. The Archon's household offers the player good money to lose the copy on the road.
+5. The player can deliver the copy, sell it, read it out in the Bowl market, or drop it in a ditch.
+
 ## The north bend
 
 Ash Kerimov sits alone at the north bend where Emil Kessel died. He stops every truck and asks to see its brake rod. A driver with a cheap Nose rod gets a choice: buy a proper one at the Salvage Yard, or drive on. Kiln Camp wants him gone, because he slows the road. Captain Silver wants him gone too, because he talks to Nose drivers. Both offer the player a job.
@@ -51,7 +59,7 @@ Ash Kerimov sits alone at the north bend where Emil Kessel died. He stops every 
 
 ## The Reading of Names
 
-Once a year Lusa Fenwick reads the names of the dead on the Canyon Bridge deck: Hal Sorensen, Jens Vosk, Brother Anselm, Emil Kessel. Drivers park on the bare deck and stand bareheaded while she reads. Someone in the crowd killed one of the people named. A player who stays for the whole reading hears who, from a man who drinks too much afterward.
+Once a year Lusa Fenwick reads the names of the dead on the Canyon Bridge deck: Hal Sorensen, Jens Vosk, Brother Anselm, Wendell Ondra, Emil Kessel. Drivers park on the bare deck and stand bareheaded while she reads. Someone in the crowd killed one of the people named. A player who stays for the whole reading hears who, from a man who drinks too much afterward.
 
 ## The last courier
 
