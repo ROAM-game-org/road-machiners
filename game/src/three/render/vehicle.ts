@@ -1,5 +1,6 @@
 
 import { CLOUD_SHADOWS } from './cloudShadows';
+import { MODEL_FILL } from './modelFill';
 import * as THREE from 'three';
 import { chassisDef, type TruckPaint } from '../../data/chassis';
 import { isShield, partDef, type PartDef, type PartKind } from '../../data/parts';
@@ -383,7 +384,7 @@ export class VehicleView {
   }
 
   private finishLook(merged: THREE.Group[]): void {
-    if (this.scene === 'world') CLOUD_SHADOWS.shadeTree(this.root);
+    if (this.scene === 'world') for (const shade of [CLOUD_SHADOWS, MODEL_FILL]) shade.shadeTree(this.root);
     const plain = [...this.silhouettes];
     this.units.forEach((unit, i) => this.cutArmor(unit, merged[i], plain));
     if (this.scene === 'portrait') {

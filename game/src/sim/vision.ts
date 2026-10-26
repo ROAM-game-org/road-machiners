@@ -1,6 +1,3 @@
-// Fog of war: which tiles the player vehicle can see, blocked by props and hills. A prop blocks sight with the boxes of its
-// shape that the line from the viewer's eye to the target's top passes through, so low fences and junk leave it open
-// and a viewer up on a deck sees over them. Boxes out of reach under a deck block nothing. Water does not block sight.
 
 import { PHYSICS } from '../data/physics';
 import { TERRAIN } from '../data/terrain';

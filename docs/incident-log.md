@@ -49,8 +49,8 @@ what: Screens ignored the UI design system: oversized buttons, wasted space, str
 cost: Many redesigns of screens, and mobile play stayed unusable across several releases.
 
 ID: R13
-what: Features did not work when played, though the post said they did: a scripted event that never fired, a blank portrait, story talk reachable from only one path, a follower that drove off, and a new mode that crashed new games.
-cost: This was the most common critique, and players reported new modes broken after they shipped.
+what: Features did not work when played, though the post said they did: a scripted event that never fired, a blank portrait, story talk reachable from only one path, a follower that drove off, a new mode that crashed new games, and a garage grid drawn from the truck model whose own approval screenshot showed a broken bus, with guns drawn under armor, clipped parts and damage highlights off their parts. Look at every screenshot before posting it, and check layer order and highlight placement on every chassis.
+cost: This was the most common critique, players reported new modes broken after they shipped, and the garage grid went back for a patch round over faults its own post showed.
 
 ID: R14
 what: Player text read like a machine wrote it: semicolons, riddles, filler phrases, item lore with empty rhetoric and no plain fact, wrong directions, NPCs repeating one story, and Russian that was stale or unnatural. The opposite fault went back too: a checklist of tells written for AI chat was turned into rules applied word for word to fiction, with no room for the narrator or a character's voice to break them where the story needs it.

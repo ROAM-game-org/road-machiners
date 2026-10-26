@@ -1,6 +1,3 @@
-// Ground marks of a territory's roads: the farm's old road and dirt roads, and a wreck's dirt road web and its spurs.
-// A road marks its tiles in list order, each tile only once, so an earlier road keeps a tile where two cross. A road
-// that stays in its territory marks only tiles inside it. A spur leaves its territory onto open land, so it marks
 
 import { REGION, type TerritoryDef } from '../data/region';
 import type { FarmRoad } from '../data/territory';

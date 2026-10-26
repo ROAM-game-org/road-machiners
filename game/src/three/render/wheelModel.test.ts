@@ -1,4 +1,3 @@
-// The shared wheel model reads as one tire: mirror-symmetric tread, a 1 m frame, and a round side outline.
 
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
