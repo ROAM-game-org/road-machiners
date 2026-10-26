@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readLedger } from '../ledger';
@@ -127,23 +127,16 @@ describe('merge queue', () => {
     expect(readState(`${home}/state.json`).approvedResolving).toEqual({});
   });
 
-  it('runs only the tests that match what the batch changes against its base, and no lock', async () => {
+  it('runs only the tests related to what the batch changes against its base, and no lock', async () => {
     changed = ['game/src/sim/fuel.ts', 'game/src/sim/raid.ts', 'game/docs/notes.md'];
-    const ctx = fakeCtx();
-    const clone = ctx.repo.prepareWorkClone;
-    ctx.repo.prepareWorkClone = async (branch, base, dir) => {
-      await clone(branch, base, dir);
-      mkdirSync(join(dir, 'game', 'src', 'sim'), { recursive: true });
-      writeFileSync(join(dir, 'game', 'src', 'sim', 'fuel.test.ts'), '');
-    };
-    await merge(ctx);
+    await merge(fakeCtx());
     expect(scripts).toHaveLength(1);
-    expect(scripts[0]).toContain('npm run test:cached -- src/sim/fuel.test.ts\n');
+    expect(scripts[0]).toContain('npm run test:cached -- --related src/sim/fuel.ts src/sim/raid.ts\n');
     expect(scripts[0]).not.toContain('npm run typecheck');
     expect(existsSync(join(home, 'locks', 'full-suite'))).toBe(false);
   });
 
-  it('runs no tests when the batch changes no file with a test', async () => {
+  it('runs no tests when the batch changes only game docs', async () => {
     changed = ['game/docs/notes.md'];
     await merge(fakeCtx());
     expect(scripts[0]).not.toContain('test:cached');

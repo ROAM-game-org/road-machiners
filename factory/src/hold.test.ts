@@ -29,6 +29,7 @@ function fakeCtx(): Ctx {
     cfg, statePath, now: () => NOW, log: () => undefined, run: async () => ({ code: 0, stdout: '', stderr: '' }),
     github: {
       cards: async () => cards,
+      card: async (n: number) => cards.find((row) => row.issue === n) ?? null,
       comment: async (n: number, body: string) => { comments.push(`${n} ${body}`); },
       addLabel: async (n: number, label: string) => { comments.push(`addLabel ${n} ${label}`); },
     },

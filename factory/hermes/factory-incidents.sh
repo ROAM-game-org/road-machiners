@@ -53,7 +53,8 @@ drift() {
 
 from_source "stuck list" stuck
 # Each failed job of the last day, with its first error line and log. The log name holds the start time, so each failure prints once.
-jq -r '.failures // [] | .[] | "failed \(.stage)\(if .issue then " #\(.issue)" else "" end): \(.error | split("\n")[0]) (log \(.log // "none"))"' /factory/home/state/state.json
+# A merge failure names only the batch members whose retry has not cleared it.
+jq -r '.failures // [] | .[] | "failed \(.stage)\(if .issue then " #\(.issue)" else "" end): \(.error | split("\n")[0]) (log \(.log // "none"))\(if .batch then " batch " + ([.batch[] as $member | select((.cleared // []) | index($member) | not) | "#\($member)"] | join(",")) else "" end)"' /factory/home/state/state.json
 jq -r '.lastTickError // empty | "tick crash: " + (split("\n")[0])' /factory/home/state/state.json
 jq -r '.sweepError // empty | "stuck sweep failed: " + (split("\n")[0])' /factory/home/state/state.json
 # The line names the commit and the first line of what broke, so Hermes fixes dev or reverts the merge that broke it.

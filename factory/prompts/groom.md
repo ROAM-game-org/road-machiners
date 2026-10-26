@@ -118,8 +118,12 @@ Rate the complexity of the chosen version with these checks.
 Read the code it touches to answer them.
 
 - `trivial`: it touches one file or one small, local piece of logic, needs no new state, save data or cross-system rule, and has a single visible result.
-- `hard`: it alters a save format, or shared data that many systems read.
-- `intermediate`: everything else, and any case you cannot decide.
+- `hard`: either of these holds. The change alters a save format: a new World field, a save step or a save repair. Or the bug has no known cause and needs tracing across systems. Reading shared data that many systems read is not enough.
+- A change that only adds or edits content, a model, a tuning number or a UI piece on existing data is `intermediate`.
+- A change that only spans several systems is `intermediate`. Design runs on Opus and its plan settles the hard choices.
+- `intermediate`: everything else, and any case you cannot decide. When in doubt, pick `intermediate`.
+
+Aim for 20% Opus and 80% Sonnet in measured factory-agent tokens. This is a rule of thumb, not a per-issue cap, so never change a rating to chase it.
 
 Write `.factory/groom.json` with this shape.
 `{"verdict": "ready" | "vote" | "wont-do" | "unclear", "questions": ["..."], "points": ["..."], "changed": ["..."], "need": "...", "existing": "...", "version": "...", "fit": "...", "reason": "...", "complexity": "trivial" | "intermediate" | "hard", "complexityReason": "...", "bundle": [12, 15], "releaseFix": true | false, "pitch": {"title": "...", "summary": "...", "how": "...", "when": "...", "changed": ["..."], "pros": ["..."], "cons": ["..."]}}`
@@ -133,7 +137,7 @@ Every field but `pitch` is in English, plain and short.
 - `version` says how the chosen version works in the game. Design builds from it, so it is concrete: what the player does, what it costs, what it pays, and which existing systems carry it.
 - `fit` answers each of the five tests in one sentence.
 - `reason` is one or two sentences on why this version and this verdict.
-- `complexityReason` is one short sentence that names the files or systems you found.
+- `complexityReason` is one short sentence that names the files or systems you found. For `hard` it names the save-format change or the bug with no known cause.
 - `complexity`, `complexityReason`, `bundle` and `releaseFix` are required for `ready` and `vote`.
 - `bundle` lists issue numbers from `.factory/related.md` only, and is empty when nothing fits.
 - `releaseFix` is false for `vote`.
@@ -157,3 +161,5 @@ It has no emoji and no markdown.
 - `cons` lists two to four costs, risks or tradeoffs, one sentence each. Never hide a real cost.
 
 The whole pitch stays under 2500 characters, so it fits one Telegram message with the heading, the links and the vote line.
+
+{{writing}}

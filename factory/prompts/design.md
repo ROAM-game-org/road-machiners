@@ -70,6 +70,8 @@ Set `Mode: hands-off` in it.
 {{bugExpansion}}
 
 Run up:udesign and then up:uplan in hands-off mode.
+Give the mapping of code, like finding where a system lives and what reads it, to Explore subagents. They run on a cheaper model.
+Keep every design decision and the plan in this session.
 Stop after the plan.
 Do not execute the plan.
 Do not write game code.
@@ -119,6 +121,8 @@ For a storyline, tell it as a short story from beginning to end, with the settin
 For a feature or a fix, describe what the player will see and do, and every meaningful change of behavior.
 No code, file names or implementation details.
 It is a plan, so say what the change will do, never that it was built or tested.
+
+{{writing}}
 
 Git ignores the task file. Never commit it and never force-add it.
 The next stages read it from this clone.

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, utimesSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { sweepLogs, sweepWork } from './cleanup';
+import { removalCandidates, sweepLogs, sweepWork } from './cleanup';
 import { EMPTY_STATE } from './state';
 import type { Card, FactoryState, Job } from './types';
 
@@ -84,6 +84,43 @@ describe('sweepWork', () => {
     const swept = sweepWork(root, `${root}-locks`, state(), [card(3, 'Done'), card(4, 'Done')]);
     expect(swept.removed).toEqual(['issue-4']);
     expect(has(root, 'issue-3/node_modules')).toBe(true);
+  });
+
+  it('keeps the clone of an issue a direct run works on, though no scheduler job, interrupted or hold names it', () => {
+    const root = work('issue-892', 'issue-893', 'adhoc-892');
+    mkdirSync(join(`${root}-locks`, 'run-issue-892'), { recursive: true });
+    writeFileSync(join(`${root}-locks`, 'run-issue-892', 'owner'), String(process.pid));
+    const swept = sweepWork(root, `${root}-locks`, state(), [card(1, 'Done')]);
+    expect(swept.removed).toEqual(['issue-893']);
+    expect([has(root, 'issue-892/node_modules'), has(root, 'adhoc-892/node_modules')]).toEqual([true, true]);
+  });
+
+  it('removes a clone whose run lock belongs to a dead process', () => {
+    const root = work('issue-892');
+    mkdirSync(join(`${root}-locks`, 'run-issue-892'), { recursive: true });
+    writeFileSync(join(`${root}-locks`, 'run-issue-892', 'owner'), '2147483646');
+    expect(sweepWork(root, `${root}-locks`, state(), [card(1, 'Done')]).removed).toEqual(['issue-892']);
+  });
+
+  it('keeps a shared folder a direct stage run works in', () => {
+    const root = work('release-candidate', 'dev-build');
+    mkdirSync(join(`${root}-locks`, 'run-stage-candidate'), { recursive: true });
+    writeFileSync(join(`${root}-locks`, 'run-stage-candidate', 'owner'), String(process.pid));
+    expect(sweepWork(root, `${root}-locks`, state(), []).removed).toEqual(['dev-build']);
+  });
+
+  it('keeps the clone of an issue whose card the board could not confirm off the board', () => {
+    const root = work('issue-892', 'issue-893');
+    const swept = sweepWork(root, `${root}-locks`, state(), [card(1, 'Done')], new Set([892]));
+    expect(swept.removed).toEqual(['issue-893']);
+    expect(has(root, 'issue-892/game/.factory-tasks/task.md')).toBe(true);
+  });
+
+  it('names the issue and adhoc clones whose card the board list does not show open', () => {
+    const root = work('issue-1', 'issue-2', 'issue-3', 'adhoc-4', 'check-issue-5', 'dev-build');
+    expect(removalCandidates(root, state(), [card(1, 'Design'), card(2, 'Done')]).sort()).toEqual([2, 3, 4]);
+    expect(removalCandidates(root, state(), [])).toEqual([]);
+    expect(removalCandidates(join(tmpdir(), 'no-such-work-root'), state(), [card(1, 'Done')])).toEqual([]);
   });
 
   it('skips a shared folder that any job locks, like a merge building dev', () => {

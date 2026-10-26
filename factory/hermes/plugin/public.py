@@ -3,7 +3,7 @@ import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import Callable, NamedTuple, Optional
 
 log = logging.getLogger(__name__)
 
@@ -217,23 +217,42 @@ def raise_public_alert(cfg, now: datetime, reason: str = INBOX_WRITE_REASON) -> 
         alerts.write(f"{line}\n")
 
 
+FATAL_ADAPTER_LOG = "Fatal %s adapter error (%s): %s"
+FATAL_CONFLICT_CODE = "telegram_polling_conflict"
+
+
+def is_fatal_polling_conflict(record: logging.LogRecord) -> bool:
+    args = record.args if isinstance(record.args, tuple) else ()
+    return record.msg == FATAL_ADAPTER_LOG and len(args) == 3 and args[1] == FATAL_CONFLICT_CODE
+
+
 class ConflictRestartAlert(logging.Handler):
-    def __init__(self, cfg) -> None:
+    def __init__(self, cfg, restart: Callable[[], None]) -> None:
         super().__init__(level=logging.INFO)
         self.cfg = cfg
+        self.restart = restart
+        self.restarting = False
 
     def emit(self, record: logging.LogRecord) -> None:
         try:
-            if CONFLICT_MARKER in record.getMessage():
+            if is_fatal_polling_conflict(record):
+                self.restart_once()
+            elif CONFLICT_MARKER in record.getMessage():
                 raise_public_alert(self.cfg, datetime.now(timezone.utc), CONFLICT_REASON)
         except Exception:
             self.handleError(record)
 
+    def restart_once(self) -> None:
+        if self.restarting:
+            return
+        self.restarting = True
+        self.restart()
 
-def watch_polling_conflicts(cfg) -> None:
+
+def watch_polling_conflicts(cfg, restart: Callable[[], None]) -> None:
     root = logging.getLogger()
     if not any(isinstance(handler, ConflictRestartAlert) for handler in root.handlers):
-        root.addHandler(ConflictRestartAlert(cfg))
+        root.addHandler(ConflictRestartAlert(cfg, restart))
 
 
 def handle_public_update(raw: dict, cfg, bot: Optional[Bot] = None) -> bool:

@@ -31,6 +31,7 @@ export function fake(): Fake {
     github: {
       createIssue: async (title: string, body: string, labels: string[]) => { note(`createIssue ${title}`); f.created.push({ title, body, labels }); return 10 + f.created.length; },
       cards: async () => f.cards,
+      card: async (n: number) => f.cards.find((row) => row.issue === n) ?? null,
       pullRequestFor: async () => null,
       reopen: async (n: number) => note(`reopen ${n}`),
       issue: async () => ({ number: 7, title: 'T', body: 'Simulate battles', labels: ['adhoc'], createdAt: '', state: 'OPEN' }),

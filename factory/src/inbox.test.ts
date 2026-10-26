@@ -1,13 +1,17 @@
-import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { drainInbox, parseCommand } from './inbox';
+import { solidPng } from './media-fixtures';
 import { EMPTY_STATE, readState, writeState } from './state';
 import type { Card, Ctx, FactoryConfig, FactoryState, ReleaseState } from './types';
 
 const ROOT = resolve('tmp/factory-inbox-test');
 const statePath = join(ROOT, 'state.json');
 const POST = 42;
+const CABIN = solidPng(5, 3, [90, 80, 70]);
+const TELEGRAM_FILES: Record<string, Buffer> = { AgACcabin: CABIN };
 const withPost = (state: FactoryState): FactoryState => ({ ...state, approvalPosts: { [POST]: 4, ...state.approvalPosts }, postCaptions: { [POST]: 'Post' } });
 
 function fakeCtx(cards: Card[], sent: string[], calls: string[]): Ctx {
@@ -16,6 +20,7 @@ function fakeCtx(cards: Card[], sent: string[], calls: string[]): Ctx {
     cfg, statePath, now: () => new Date(5000), log: () => undefined,
     github: {
       cards: async () => cards,
+      card: async (n: number) => cards.find((row) => row.issue === n) ?? null,
       createIssue: async (title: string, body: string, labels: string[]) => { calls.push(`create ${title}|${body}|${labels}`); return 9; },
       addCard: async (n: number, column: string) => { calls.push(`addCard ${n} ${column}`); },
       comment: async (n: number, body: string) => { calls.push(`comment ${n} ${body}`); },
@@ -29,6 +34,11 @@ function fakeCtx(cards: Card[], sent: string[], calls: string[]): Ctx {
       sendMessage: async (_chat: string, text: string) => { sent.push(text); return 1; },
       editCaption: async (chat: string, id: number, caption: string) => { calls.push(`edit ${chat} ${id} ${caption}`); },
       editText: async (chat: string, id: number, text: string) => { calls.push(`editText ${chat} ${id} ${text}`); },
+      downloadFile: async (fileId: string) => {
+        const data = TELEGRAM_FILES[fileId];
+        if (data === undefined) throw new Error('Telegram getFile failed: Bad Request: wrong file_id or the file is temporarily unavailable');
+        return data;
+      },
     },
   } as unknown as Ctx;
 }
@@ -202,6 +212,25 @@ describe('drainInbox', () => {
     expect(sent).toEqual(['The answer is on #6. Triage runs again on a coming tick.']);
     expect(readState(statePath).asked).toEqual({});
     expect(readState(statePath).questionPosts).toEqual({});
+  });
+
+  it('keeps the image of a text-and-image answer for the next stage and lists only its hash on the issue', async () => {
+    const calls: string[] = [];
+    writeState(statePath, { ...structuredClone(EMPTY_STATE), asked: { 6: '2026-09-30T09:00:00Z' }, questionPosts: { 77: 6 } });
+    const folder = join(ROOT, 'inbox', 'media', 'post-77');
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(join(folder, '3600-1.telegram'), JSON.stringify({ fileId: 'AgACcabin', bytes: CABIN.length, by: '11', byName: 'Ann', text: 'This but with closed cabin' }));
+    writeFileSync(join(folder, '3601-1.telegram'), JSON.stringify({ fileId: 'AgACmissing', bytes: 1000, by: '11', byName: 'Ann', text: null }));
+    put('1.json', { kind: 'answer-questions', issue: 6, text: 'This but with closed cabin', postId: 77 });
+    await drainInbox(fakeCtx([], [], calls));
+    const sha = createHash('sha256').update(CABIN).digest('hex');
+    expect(calls[0]).toBe(`comment 6 Answer from Ann in the committee chat:\n\nThis but with closed cabin\n\nThe reply came with 2 file(s) in Telegram. They stay private: the agent sees them in its media folder, and they are not posted here.\n- png, 5x3, ${CABIN.length} bytes, sha256 ${sha}\n- not available: Telegram did not give it after two tries: Telegram getFile failed: Bad Request: wrong file_id or the file is temporarily unavailable`);
+    expect(readFileSync(join(ROOT, 'media', 'issue-6', 'committee', `${sha.slice(0, 16)}.png`))).toEqual(CABIN);
+    expect(JSON.parse(readFileSync(join(ROOT, 'media', 'issue-6', 'committee.json'), 'utf8')).map((entry: { url: string; status: string }) => [entry.url, entry.status])).toEqual([
+      ['telegram:post-77-3600-1', 'ok'],
+      ['telegram:post-77-3601-1', 'failed'],
+    ]);
+    expect(existsSync(folder)).toBe(false);
   });
 
   it('refuses a reply to a questions post whose set is closed, and comments nothing', async () => {

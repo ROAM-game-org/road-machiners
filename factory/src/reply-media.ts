@@ -4,16 +4,20 @@ import { join } from 'node:path';
 import { MAX_BYTES, MAX_FILES, detectType, imageSize, validSize, type MediaEntry } from './media';
 
 const SKIPPED = '.skipped';
+const TELEGRAM = '.telegram';
 const FOLDER = 'committee';
 const MANIFEST = 'committee.json';
+
+export type Download = (fileId: string) => Promise<Buffer>;
+type TelegramNote = { fileId: string; byName: string | null; by: string; text: string | null };
 
 export function replyMediaDir(home: string, post: number): string {
   return join(home, 'inbox', 'media', `post-${post}`);
 }
 
-export function adoptReplyMedia(home: string, post: number, issueDir: string, by: string): MediaEntry[] {
+export async function adoptReplyMedia(home: string, post: number, issueDir: string, by: string, download: Download): Promise<MediaEntry[]> {
   const from = replyMediaDir(home, post);
-  const source = `committee reply in Telegram by ${by}`;
+  const source = replySource(by, null);
   let names: string[];
   try {
     names = existsSync(from) ? readdirSync(from).filter((name) => !name.endsWith('.tmp')).sort(byMessage) : [];
@@ -22,10 +26,54 @@ export function adoptReplyMedia(home: string, post: number, issueDir: string, by
     return [{ url: `telegram:post-${post}`, source, status: 'failed', reason: `the factory could not read the files: ${messageOf(error)}` }];
   }
   if (names.length === 0) return [];
-  const entries = names.map((name) => safeAdopt(join(from, name), `post-${post}-${name}`, issueDir, source));
+  const entries: MediaEntry[] = [];
+  for (const name of names) entries.push(await adoptFile(join(from, name), `post-${post}-${name}`, issueDir, by, download));
   writeFileSync(join(issueDir, MANIFEST), JSON.stringify(merged(readCommitteeMedia(issueDir), entries), null, 2));
   rmSync(from, { recursive: true, force: true });
   return entries;
+}
+
+function adoptFile(path: string, name: string, issueDir: string, by: string, download: Download): Promise<MediaEntry> | MediaEntry {
+  return name.endsWith(TELEGRAM) ? adoptNote(path, name.slice(0, -TELEGRAM.length), issueDir, by, download) : safeAdopt(path, name, issueDir, replySource(by, null));
+}
+
+function replySource(by: string, text: string | null): string {
+  return text === null || text.trim() === '' ? `committee reply in Telegram by ${by}` : `committee reply in Telegram by ${by}, who wrote with it: ${JSON.stringify(text)}`;
+}
+
+function readNote(path: string): TelegramNote {
+  const note = JSON.parse(readFileSync(path, 'utf8')) as Partial<TelegramNote>;
+  if (typeof note.fileId !== 'string' || note.fileId === '') throw new Error('the note names no Telegram file');
+  return { fileId: note.fileId, byName: note.byName ?? null, by: note.by ?? '', text: note.text ?? null };
+}
+
+async function downloadTwice(download: Download, fileId: string): Promise<Buffer> {
+  try {
+    return await download(fileId);
+  } catch {
+    return download(fileId);
+  }
+}
+
+async function adoptNote(path: string, name: string, issueDir: string, by: string, download: Download): Promise<MediaEntry> {
+  let note: TelegramNote;
+  try {
+    note = readNote(path);
+  } catch (error) {
+    return { url: `telegram:${name}`, source: replySource(by, null), status: 'failed', reason: `the chat bot left a note the factory could not read: ${messageOf(error)}` };
+  }
+  const source = replySource(note.byName ?? (note.by || by), note.text);
+  let data: Buffer;
+  try {
+    data = await downloadTwice(download, note.fileId);
+  } catch (error) {
+    return { url: `telegram:${name}`, source, status: 'failed', reason: `Telegram did not give it after two tries: ${messageOf(error)}` };
+  }
+  try {
+    return adoptBytes(issueDir, name, source, data);
+  } catch (error) {
+    return { url: `telegram:${name}`, source, status: 'failed', reason: `the factory could not keep it: ${messageOf(error)}` };
+  }
 }
 
 export function adoptChatImage(issueDir: string, name: string, source: string, data: Buffer | null): MediaEntry {

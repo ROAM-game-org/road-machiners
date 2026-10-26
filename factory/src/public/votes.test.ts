@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { readState } from '../state';
+import { readState, updateState } from '../state';
 import { CHANNEL, publicFake } from './public-fakes';
 import { postProposal } from './proposals';
-import { countVotes } from './votes';
+import { countVotes, reviveVotes } from './votes';
 
 function posted(counts: Record<string, number> | null) {
   const f = publicFake();
@@ -210,5 +210,46 @@ describe('countVotes', () => {
     await countVotes(f.ctx, f.store);
     expect(f.calls).toEqual(['issue 7', 'move 7 Design', 'removeLabel 7 voting']);
     expect(footer(f.edits[0]!)).toBe('Нужно на 3 👍 больше, чем 👎. Сейчас: 4 👍, 1 👎, итог +3/3\n✅ Принято с итогом +3');
+  });
+});
+
+describe('reviveVotes', () => {
+  const voting = (issue: number, column: 'Triage' | 'Design' = 'Triage') => ({ itemId: `i${issue}`, issue, column, labels: ['voting'] });
+
+  it('reopens a proposal that closed before any post attempt, once, and posts it on the next proposal step', async () => {
+    const f = publicFake();
+    f.store.addProposal(7, 'Winch', f.clock.now);
+    f.store.closeProposal(7, f.clock.now);
+    f.cards = [voting(7)];
+    await reviveVotes(f.ctx, f.cards);
+    await reviveVotes(f.ctx, f.cards);
+    expect(f.store.proposal(7)?.closedAt).toBeNull();
+    expect(f.logs.filter((line) => line.includes('open again'))).toHaveLength(1);
+    expect(f.calls).toEqual([]);
+    await postProposal(f.ctx, f.store);
+    expect(f.store.proposal(7)?.postedAt).not.toBeNull();
+  });
+
+  it('removes the voting label of a card with no proposal, so triage runs again', async () => {
+    const f = publicFake();
+    await reviveVotes(f.ctx, [voting(7)]);
+    expect(f.calls).toEqual(['removeLabel 7 voting']);
+    expect(f.logs.some((line) => line.startsWith('public 7 ') && line.includes('no proposal'))).toBe(true);
+  });
+
+  it('leaves an open, posted or attempted proposal, a card outside Triage and a card with a running job', async () => {
+    const f = posted(null);
+    f.store.addProposal(8, 'Horn', f.clock.now);
+    f.store.addProposal(9, 'Lamp', f.clock.now);
+    f.store.beginProposalPost(9, f.clock.now);
+    f.store.addProposal(10, 'Tow', f.clock.now);
+    f.store.markProposalPosted(10, CHANNEL, 101, 'footer', f.clock.now);
+    f.store.closeProposal(10, f.clock.now);
+    updateState(f.ctx.statePath, (state) => ({ ...state, jobs: [{ id: 'triage-12-x', stage: 'triage', issue: 12, pid: 1, startedAt: '', log: '' }] }));
+    await reviveVotes(f.ctx, [voting(7), voting(8), voting(9), voting(10), voting(11, 'Design'), voting(12)]);
+    expect(f.calls).toEqual([]);
+    expect(f.store.proposal(9)?.closedAt).not.toBeNull();
+    expect(f.store.proposal(10)?.closedAt).not.toBeNull();
+    expect(f.logs).toEqual([]);
   });
 });

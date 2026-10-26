@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -7,7 +8,8 @@ const PROMPTS = fileURLToPath(new URL('../../prompts/', import.meta.url));
 const GAME_STAGES = ['triage', 'groom', 'design', 'implement', 'test', 'integrate', 'harden', 'merge-fix', 'merge-branches', 'branch-merge', 'revert-merge', 'ship-fix', 'release-playtest', 'incident', 'adhoc', 'release', 'answer'];
 const FACTORY_STAGES = ['waste'];
 const FIX_STAGES = ['test', 'integrate', 'harden', 'merge-fix', 'ship-fix', 'release-playtest'];
-const NO_DOCS_STEP = [...FACTORY_STAGES, 'game-docs', 'fix-docs', 'design-bug', 'filter-game', 'release-janitor', 'release-optimize', 'release-playtest-replay', 'release-playtest-checks'];
+const WRITING_STAGES = ['groom', 'design', 'implement', 'release', 'answer'];
+const NO_DOCS_STEP = [...FACTORY_STAGES, 'game-docs', 'fix-docs', 'writing', 'humanizer', 'design-bug', 'filter-game', 'release-janitor', 'release-optimize', 'release-playtest-replay', 'release-playtest-checks'];
 const STEP_LINE = /^(- )?(Read|Run|Install|Find|Score|Fix|Write|Check|Open|Create|Resolve|Play|Look|Build|Take|Use|Start|Compare)\b/m;
 
 function filled(name: string): string {
@@ -59,5 +61,28 @@ describe('the docs rule of a fix', () => {
 
   it.each(GAME_STAGES.filter((name) => !FIX_STAGES.includes(name)))('stays out of the %s prompt, which fixes nothing or ends with its own docs pass', (name) => {
     expect(filled(name)).not.toContain(rule);
+  });
+});
+
+describe('the writing rules', () => {
+  const humanizer = promptFile('humanizer');
+
+  it('keep the Writing Humanizer verbatim from its source', () => {
+    const [header, ...body] = readFileSync(`${PROMPTS}humanizer.md`, 'utf8').split('\n');
+    expect(header).toContain('https://www.jayceelydian.com/prompts/humanizer/');
+    expect(header).toContain('CC0 1.0');
+    expect(createHash('sha256').update(body.join('\n')).digest('hex')).toBe('6f179fcab9aa094da0bb509c5af02626da20a41bfbadcda6d570bc562ede9eac');
+    expect(body[0]).toBe('# Writing Humanizer');
+  });
+
+  it.each(WRITING_STAGES)('reach the %s prompt once, after the docs step', (name) => {
+    const text = filled(name);
+    expect(text.indexOf(humanizer)).toBeGreaterThan(text.indexOf(promptFile('game-docs')));
+    expect(text.indexOf(humanizer, text.indexOf(humanizer) + 1)).toBe(-1);
+    expect(text).toContain('Keep the established voice');
+  });
+
+  it.each(GAME_STAGES.filter((name) => !WRITING_STAGES.includes(name)))('stay out of the %s prompt, which writes no player-facing prose', (name) => {
+    expect(filled(name)).not.toContain(humanizer);
   });
 });
