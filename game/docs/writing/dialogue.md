@@ -40,7 +40,7 @@ Narration stays close to the player and thinks like a survivor: what's a threat,
 
 Put a plain want next to the violence: a bed, a hot meal, a cup of water, who does the washing up. A haggle over a cot after a gunfight tells the player more about the basin than any speech about how hard life is. End a big scene on the small thing.
 
-After the player drives the raiders off Juno's beacon line, Juno says: "You'll want the cot by the stove, then. And you're carrying the batteries up in the morning, because Tam's leg won't."
+After the player drives the raiders off the pod field, Juno says: "You'll want the cot by the stove, then. And you're fetching the water in the morning."
 
 ### Both sides look the same
 

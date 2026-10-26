@@ -412,6 +412,7 @@ export const WINDOW_MOVE = {
   obstacles: 'rebuild',
   chaosHighway: 'rebuild',
   sunward: 'keep',
+  moments: 'keep',
   crimes: 'keep',
   broken: 'drop',
   craters: 'drop',

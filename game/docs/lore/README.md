@@ -31,6 +31,21 @@ A missing answer, a clash with another fact or an answer that would make a basin
 - Invented cause: a reason made up for a game rule that already has one, which then clashes with the world. Bowl buying scrap because the rains rust its sluice hinges every year fails it twice: rain is rare in the basin, and Bowl buys scrap because its machinists turn it into parts.
 - A thing the world doesn't have: a vehicle, machine or trade the game never shows. A water tanker fails it, since water travels in barrels on ordinary trucks.
 
+### Cut examples
+
+Each of these was in the lore and was cut or fixed. The test it failed is in brackets.
+
+- The Granary paid Kiln a sack for every armed truck that crossed. [It works] Kiln strips trucks that neither pay nor fight, so an armed truck is the one that needs the deal least. A racket charges for passage. Now Kiln eats Granary rations, and Granary trucks pass.
+- Tomas was sentenced to ten years in the Bowl patrol for scraping chalk off a meter. [It works] Ten years in the patrol make a tenant a citizen with a vote, so the sentence was a reward. Now he simply serves in the patrol.
+- Jory wanted a vote for every tenant who serves ten years, which the rule already gave, and Dag said tenants in the patrol stay off the citizens' roll. [It works] Two facts that cannot both hold. Now tenants have no vote, ten years in the patrol put a tenant on the roll, and citizens vote.
+- Sefa never took the last water from anyone. [It earns its place] A quirk with no scene behind it. It leaked into the game as a question a player called nonsense.
+- Aurel Brede, a household steward, signed patrol postings, and Ilya's postings came from him. [Everyone has a reason] Nothing gives a steward power over the patrol. The link was there only to tie two people together.
+- Lena Graves woke in a pod as a girl in year 0 and still warned command in year 130, and Dagny Brask still worked her furnace past 110. [It works] Nobody in the basin lives to 140 without the Apprentice's implants. Now Lena Graves is dead and the Nose mechanic is another Lena, and Dagny is past 70.
+- The Salvage Yard bored the second pin into Nose swivels. [Purpose, It earns its place] No one said what the pin was for, and nothing used it.
+- The Guild's trust owned Old Orchard's machine tools and rented them to Nose. [Everyone has a reason] A message guild has no reason to own an army's workshop. Now Nose hauled the tools away once the army was gone.
+- Sabra Kell gave toll receipts honored once a year, and left her tin by Ladle's scraper. [Purpose, It earns its place] A receipt honored once a year does no job, and the tin and scraper were props with no meaning.
+- Ilya Moreno feared a truck going missing on his watch and repainted the same count every morning, though he let the two staff cars out himself. [It works] His fear contradicted his own secret, and the daily habit changed nothing.
+
 ## Icarus
 
 Icarus was a fertile farming basin before the collapse. Orchards, fields, canals, irrigation gates, farm roads, and market towns shaped the land. It was not a spaceflight center. The name Icarus came after the crash. Its old name has not been chosen.

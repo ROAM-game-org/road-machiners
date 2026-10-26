@@ -51,12 +51,12 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
   The Army's all right on the road. Off it, they act as though the basin belongs to them and the rest of us are only borrowing it. Bowl was feeding people long before Nose built its workshop line.
   -> hub
 + {dag_kiln} [How does Bowl pay the raiders?]
-  The Granary pays Kiln Camp a sack of grain for every one of its trucks that crosses their road. It costs less than a funeral.
+  The Granary feeds Kiln Camp, and Kiln lets Granary trucks cross their road. It costs less than a funeral.
   If they close on you anyway, fight hard. They often let a hard fighter go, and they strip a soft one down to the frame. Just don't start the fight.
   ~ note("talkKilnFight")
   -> hub
 + {dag_pay} [Do tenants serve with you?]
-  Some do. They're good drivers, but tenants have no vote. They ride in our coats and stay off the roll of citizens. The <term=senate>Senate</term> wants them on the road and off the roll.
+  Some do. They're good drivers, but a tenant has no vote until ten years in our coat put him on the roll of citizens. The <term=senate>Senate</term> wants them on the road, and it isn't in a hurry to count their years.
   Jory Baptiste keeps sending more of them, and I can't decide whether to thank him or watch him.
   -> hub
 + {dag_road} [Does the patrol go out to the crater?]
