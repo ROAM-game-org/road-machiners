@@ -1142,6 +1142,7 @@ export function decide<D extends DecisionId>(world: World, vehicle: Vehicle, dec
 }
 
 function checkWeights(vehicle: Vehicle, decision: DecisionId, weights: Partial<Record<OptionName, number>>): void {
+  if (Object.keys(weights).length === 0) throw new Error(`${vehicle.id} has no open option at ${decision}`);
   for (const [option, weight] of Object.entries(weights) as [OptionName, number][]) {
     if (!Number.isFinite(weight) || weight < 0) throw new Error(`${vehicle.id} has weight ${weight} for ${option} at ${decision}`);
   }

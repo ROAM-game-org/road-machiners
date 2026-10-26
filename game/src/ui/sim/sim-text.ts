@@ -1,7 +1,8 @@
 import { isKnockedOut } from '../../sim/defeat';
 import { topGoal } from '../../sim/npc-activities';
 import type { SimText } from '../../sim/progression/sim-mode';
-import type { GameEvent, Vehicle, World } from '../../sim/types';
+import { TIME } from '../../data/time';
+import type { GameEvent, Memory, MemoryFact, NpcActivity, Vehicle, World } from '../../sim/types';
 import { t, type Msg } from '../../text/msg';
 import { goalText, vehicleTitle } from '../../text/names';
 import { resolve } from '../../text/resolve';
@@ -52,6 +53,31 @@ const SIM_WORDS: Words = {
   weather: (_world, e) => ({ text: `A ${words(e.event.kind)} ${e.outcome === 'started' ? 'begins' : 'ends'}`, tone: 'dim' }),
 };
 
+const PHASE = { travel: 'on the way', act: 'at it' } as const;
+
+function goalLine(world: World, g: NpcActivity): string {
+  const target = g.targetId ? `, ${nameOf(world, g.targetId)}` : '';
+  return `${english(goalText(g.reason))}${target}, ${PHASE[g.phase]}`;
+}
+
+type Fact<K extends MemoryFact['kind']> = Extract<MemoryFact, { kind: K }>;
+const MEMORY: { [K in MemoryFact['kind']]: (world: World, f: Fact<K>) => string } = {
+  prices: (_world, f) => `Knows the prices at ${words(f.shop)}`,
+  stripped: (_world, f) => `Stripped ${words(f.stock)}`,
+  wronged: (world, f) => `${nameOf(world, f.by)} ${f.deed} them`,
+  helped: (world, f) => `${nameOf(world, f.by)} ${f.deed} them`,
+  sighting: (world, f) => `Saw ${nameOf(world, f.vehicle)} at ${Math.round(f.at.x)}, ${Math.round(f.at.y)}`,
+  witnessed: (world, f) => `Saw ${nameOf(world, f.by)} ${f.offense} ${nameOf(world, f.victim)}`,
+};
+
+const TURNS_PER_HOUR = TIME.turnsPerDay / 24;
+
+function memoryLine(world: World, m: Memory): string {
+  const hours = Math.round((world.turn - m.turn) / TURNS_PER_HOUR);
+  const say = MEMORY[m.fact.kind] as (world: World, f: MemoryFact) => string;
+  return `${hours === 0 ? 'Just now' : `${hours} h ago`}: ${say(world, m.fact)}`;
+}
+
 function simWords(world: World, e: GameEvent): { text: string; tone: string } | null {
   const say = SIM_WORDS[e.t] as ((world: World, e: GameEvent) => { text: string; tone: string }) | undefined;
   return say ? say(world, e) : null;
@@ -64,6 +90,10 @@ export const SIM_TEXT: SimText = {
   },
   truck: (world, v) => english(vehicleTitle(world, v)),
   doing: (world, v) => english(doingOf(world, v)),
+  name: nameOf,
+  goal: goalLine,
+  memory: memoryLine,
+  words,
   money: (cents) => english(moneyMsg(cents)),
   fuel: (units) => `${fuelLiters(units)} L`,
   speed: (tilesPerTurn) => `${kph(tilesPerTurn)} km/h`,

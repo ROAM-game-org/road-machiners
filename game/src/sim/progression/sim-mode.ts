@@ -7,7 +7,7 @@ import { goodsCount, mountedParts } from '../grid';
 import { getResources } from '../resources';
 import { vehicleStats } from '../stats';
 import type { BakedMap } from '../terrain';
-import type { GameEvent, NpcActivity, Vehicle, World } from '../types';
+import type { GameEvent, Memory, NpcActivity, Vehicle, World } from '../types';
 import { maxHp } from '../wear';
 import type { BotOptions } from './bot';
 import { emptyLedger, LEDGER_KEYS, type Ledger } from './orders';
@@ -26,6 +26,10 @@ export type SimText = {
   event(world: World, e: GameEvent): { text: string; tone: string } | null;
   truck(world: World, v: Vehicle): string;
   doing(world: World, v: Vehicle): string;
+  name(world: World, id: string): string;
+  goal(world: World, g: NpcActivity): string;
+  memory(world: World, m: Memory): string;
+  words(id: string): string;
   money(cents: number): string;
   fuel(units: number): string;
   speed(tilesPerTurn: number): string;
@@ -202,7 +206,7 @@ function driverlessCard(world: World, v: Vehicle, text: SimText): Card {
     id: v.id,
     title: `${text.truck(world, v)} with no driver`,
     rows: [['id', v.id], ['faction', v.faction], ['at', `${s.pos[0]}, ${s.pos[1]}`], ['order', orderText(v)], ['mean hp', `${s.hp}%`]],
-    sections: [{ name: 'states', lines: s.states }, { name: 'parts', lines: partLines(v) }],
+    sections: [{ name: 'states', lines: stateLines(world, v, text) }, { name: 'parts', lines: partLines(v) }],
   };
 }
 
@@ -239,11 +243,11 @@ export function npcCard(world: World, v: Vehicle, text: SimText): Card {
       ['road gap', `${s.roadGap}`],
     ],
     sections: [
-      { name: 'goals', lines: brain.goals.map(goalLine) },
-      { name: 'states', lines: s.states },
+      { name: 'goals', lines: brain.goals.map((g) => text.goal(world, g)) },
+      { name: 'states', lines: stateLines(world, v, text) },
       { name: 'parts', lines: partLines(v) },
       { name: 'goods', lines: Object.entries(goodsCount(v)).map(([good, n]) => `${good} ${n}`) },
-      { name: 'memories', lines: brain.memories.map((m) => `${m.turn} ${JSON.stringify(m.fact)}`) },
+      { name: 'memories', lines: [...brain.memories].sort((a, b) => b.turn - a.turn).map((m) => text.memory(world, m)) },
     ],
   };
 }
@@ -289,10 +293,8 @@ function orderText(v: Vehicle): string {
   return 'dest' in v.order ? `${v.order.kind} ${Math.round(v.order.dest.x)}, ${Math.round(v.order.dest.y)}` : v.order.kind;
 }
 
-function goalLine(g: NpcActivity): string {
-  const target = g.targetId ? ` ${g.targetId}` : '';
-  const dest = g.destination ? ` to ${Math.round(g.destination.x)}, ${Math.round(g.destination.y)}` : '';
-  return `${g.kind} ${g.phase}${target}${dest} ${JSON.stringify(g.reason)}`;
+function stateLines(world: World, v: Vehicle, text: SimText): string[] {
+  return world.states.filter((s) => s.holder === v.id).map((s) => `${text.words(s.kind)} with ${text.name(world, s.other)}${s.turnsLeft === null ? '' : `, ${s.turnsLeft} turns left`}`);
 }
 
 function partLines(v: Vehicle): string[] {

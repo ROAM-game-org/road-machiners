@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { TEST_MAP } from '../../test/map';
 import type { World } from '../../sim/types';
+import { TIME } from '../../data/time';
 import { SIM_TEXT } from './sim-text';
 import { playerVehicle } from '../../sim/damage';
 import { emptyLedger } from '../../sim/progression/orders';
@@ -74,6 +75,20 @@ describe('simulation mode', () => {
     expect(card.title).toBe(SIM_TEXT.truck(world, npc));
     expect(card.rows).toContainEqual(['faction', npc.faction]);
     expect(card.sections.find((s) => s.name === 'goals')?.lines).toHaveLength(npc.brain!.goals.length);
+  });
+
+  it('writes memories newest first as sentences with their age in game hours', () => {
+    const world = start;
+    const [npc, other] = world.vehicles.filter((v) => v.brain);
+    const hour = TIME.turnsPerDay / 24;
+    const memories = [
+      { turn: world.turn - 3 * hour, fact: { kind: 'sighting' as const, vehicle: other.id, at: { x: 10.4, y: 20.6 }, heading: 0 } },
+      { turn: world.turn, fact: { kind: 'wronged' as const, by: other.id, deed: 'robbed' as const } },
+    ];
+    const remembering = { ...world, vehicles: world.vehicles.map((v) => (v.id === npc.id ? { ...v, brain: { ...v.brain!, memories } } : v)) };
+    const lines = cardOf(remembering, npc.id, emptyLedger(), SIM_TEXT).sections.find((s) => s.name === 'memories')?.lines;
+    const name = SIM_TEXT.truck(world, other);
+    expect(lines).toEqual([`Just now: ${name} robbed them`, `3 h ago: Saw ${name} at 10, 21`]);
   });
 
   it('shows a card for a truck with no driver instead of stopping the run', () => {
