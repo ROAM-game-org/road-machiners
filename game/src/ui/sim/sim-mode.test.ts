@@ -14,6 +14,8 @@ import { cardOf, hudOf, logEntries, markersOf, SIM_OPTIONS, SimRun, simWorld, ty
 import { describe as describeEvent } from '../../sim/progression/turn-log';
 
 const TURNS = 10;
+const SCAN_TURNS = 60;
+const RAW = /[a-z][A-Z]|@|\{|\}|\bv\d+\b|\bp\d+\b|\btrue\b|\bfalse\b|—|\bsomething\b|\bYou arrives\b|:\d/;
 
 function framesOf(messages: FromSim[]): Frame[] {
   return messages.flatMap((m) => (m.kind === 'frame' ? [m.frame] : []));
@@ -68,7 +70,7 @@ describe('simulation mode', () => {
     const card = cardOf(world, world.player.vehicleId, ledger, SIM_TEXT);
     expect(card.rows).toContainEqual(['net worth', SIM_TEXT.money(netWorth(world))]);
     expect(card.sections.find((s) => s.name === 'run ledger')?.lines).toEqual([`fuel ${SIM_TEXT.money(-1200)}`]);
-    expect(cardOf(world, 'gone-truck', ledger, SIM_TEXT)).toEqual({ id: 'gone-truck', title: 'gone-truck has left the world', rows: [['id', 'gone-truck']], sections: [] });
+    expect(cardOf(world, 'gone-truck', ledger, SIM_TEXT)).toMatchObject({ id: 'gone-truck', title: 'This truck has left the world', rows: [], sections: [] });
   });
 
   it('shows an NPC card with its driver and goals', () => {
@@ -76,7 +78,9 @@ describe('simulation mode', () => {
     const npc = world.vehicles.find((v) => v.brain)!;
     const card = cardOf(world, npc.id, emptyLedger(), SIM_TEXT);
     expect(card.title).toBe(SIM_TEXT.truck(world, npc));
-    expect(card.rows).toContainEqual(['faction', npc.faction]);
+    expect(card.rows).toContainEqual(['faction', SIM_TEXT.faction(npc.faction)]);
+    expect(card.rows).toContainEqual(['home', SIM_TEXT.place(npc.brain!.home)]);
+    expect(card.way.home).toEqual(npc.brain!.home);
     expect(card.sections.find((s) => s.name === 'goals')?.lines).toHaveLength(npc.brain!.goals.length);
   });
 
@@ -105,8 +109,35 @@ describe('simulation mode', () => {
     const remembering = { ...world, vehicles: world.vehicles.map((v) => (v.id === npc.id ? { ...v, brain: { ...v.brain!, memories } } : v)) };
     const lines = cardOf(remembering, npc.id, emptyLedger(), SIM_TEXT).sections.find((s) => s.name === 'memories')?.lines;
     const name = SIM_TEXT.truck(world, other);
-    expect(lines).toEqual([`Just now: ${name} robbed them`, `3 h ago: Saw ${name} at 10, 21`]);
+    expect(lines).toEqual([`Just now: ${name} robbed them`, `3 h ago: Saw ${name} in A1`]);
   });
+
+  it('writes every card and log line of a played run in plain words, with no ids, code words, flags or JSON', () => {
+    const messages: FromSim[] = [];
+    const run = new SimRun(start, SIM_TEXT, (m: FromSim) => messages.push(m));
+    for (let i = 0; i < SCAN_TURNS; i++) run.handle({ kind: 'step' });
+    expect(messages.filter((m) => m.kind === 'failed')).toEqual([]);
+    const { world, ledger } = run.current();
+    const cards = world.vehicles.map((v) => cardOf(world, v.id, ledger, SIM_TEXT));
+    const cardText = cards.flatMap((c) => [c.title, ...c.tags, ...c.rows.flat(), ...c.sections.flatMap((s) => s.lines)]);
+    const logText = framesOf(messages).flatMap((f) => f.log.map((e) => e.text));
+    const raw = [...cardText, ...logText].filter((line) => RAW.test(line));
+    expect(raw).toEqual([]);
+    expect(logText.length).toBeGreaterThan(SCAN_TURNS);
+  }, 240000);
+
+  it('samples money, net worth and XP once per game hour and sends the history first', () => {
+    const messages: FromSim[] = [];
+    const run = new SimRun(start, SIM_TEXT, (m: FromSim) => messages.push(m));
+    const hour = TIME.turnsPerDay / 24;
+    const turns = Math.ceil(hour) + 1;
+    for (let i = 0; i < turns; i++) run.handle({ kind: 'step' });
+    expect(messages[0]).toEqual({ kind: 'history', samples: [{ turn: start.turn, money: start.player.money, worth: Math.round(netWorth(start)), xp: Math.floor(start.player.xp) }] });
+    const sampled = framesOf(messages).flatMap((f) => (f.sample ? [f.sample] : []));
+    expect(sampled).toHaveLength(1);
+    expect(Math.floor(sampled[0].turn / hour)).toBe(Math.floor(start.turn / hour) + 1);
+    expect(run.current().history).toEqual([...(messages[0] as { samples: unknown[] }).samples, sampled[0]]);
+  }, 120000);
 
   it('shows a card for a truck with no driver instead of stopping the run', () => {
     const world = start;

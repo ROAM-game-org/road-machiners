@@ -1,13 +1,10 @@
 import { TIME } from '../data/time';
 import { setThinning } from '../sim/fidelity';
-import type { Ledger } from '../sim/progression/orders';
 import { errorText, SimRun, simWorld, type FromSim, type ToSim } from '../sim/progression/sim-mode';
-import type { BakedMap } from '../sim/terrain';
-import type { World } from '../sim/types';
 import { SIM_TEXT } from '../ui/sim/sim-text';
 import { fetchMap } from './map-file';
 import { idbBackend, SaveSlots } from './save-db';
-import { resumedRun, SIM_SAVES, SIM_SLOT, simEnvelope } from './sim-save';
+import { resumedRun, SIM_SAVES, SIM_SLOT, simEnvelope, type Resumed } from './sim-save';
 
 const SAVE_EVERY = Math.round(TIME.turnsPerDay / 24);
 const RANDOM_SEEDS = 1_000_000;
@@ -41,17 +38,13 @@ async function begin(seed: number | null): Promise<void> {
     setThinning(true);
     const map = await fetchMap();
     slots = await openSimSaves();
-    const { world, ledger } = runStart(slots, map, seed);
-    post({ kind: 'started', seed: world.seed, turn: world.turn, resumed: ledger !== undefined });
-    run = new SimRun(world, SIM_TEXT, postAndSave, ledger);
+    const resumed: Resumed = seed === null ? resumedRun(slots, map) : { kind: 'none' };
+    const { world, ledger, history } = resumed.kind === 'resumed' ? resumed : { world: simWorld(map, seed ?? randomSeed()), ledger: undefined, history: undefined };
+    post({ kind: 'started', seed: world.seed, turn: world.turn, resumed: resumed.kind === 'resumed', dropped: resumed.kind === 'outdated' });
+    run = new SimRun(world, SIM_TEXT, postAndSave, ledger, history);
   } catch (error) {
     post({ kind: 'failed', turn: 0, message: errorText(error) });
   }
-}
-
-function runStart(saves: SaveSlots, map: BakedMap, seed: number | null): { world: World; ledger?: Ledger } {
-  const resumed = seed === null ? resumedRun(saves, map) : null;
-  return resumed ?? { world: simWorld(map, seed ?? randomSeed()) };
 }
 
 async function openSimSaves(): Promise<SaveSlots> {
@@ -65,10 +58,11 @@ function randomSeed(): number {
 }
 
 function save(current: SimRun): void {
-  const { world, ledger } = current.current();
+  const now = current.current();
+  const world = now.world;
   if (!slots || world.player.state === 'dead') return;
   try {
-    slots.put(SIM_SLOT, simEnvelope(world, ledger, Date.now()));
+    slots.put(SIM_SLOT, simEnvelope(now, Date.now()));
     post({ kind: 'saved', turn: world.turn });
   } catch (error) {
     post({ kind: 'failed', turn: world.turn, message: `The sim could not save: ${errorText(error)}` });
@@ -76,7 +70,7 @@ function save(current: SimRun): void {
 }
 
 function download(current: SimRun): void {
-  const { world, ledger } = current.current();
-  const json = JSON.stringify(simEnvelope(world, ledger, Date.now()));
-  post({ kind: 'saveFile', name: `roam-sim-seed-${world.seed}-turn-${world.turn}.json`, json });
+  const now = current.current();
+  const json = JSON.stringify(simEnvelope(now, Date.now()));
+  post({ kind: 'saveFile', name: `roam-sim-seed-${now.world.seed}-turn-${now.world.turn}.json`, json });
 }

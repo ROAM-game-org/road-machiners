@@ -1,7 +1,7 @@
 import "../style.css";
 import "./sim.css";
 import { FACTIONS } from "../../data/npc-behavior";
-import type { Card, Frame, FromSim, Hud, LogEntry, Marker, ToSim } from "../../sim/progression/sim-mode";
+import type { Card, Frame, FromSim, Hud, LogEntry, Marker, ToSim, Way } from "../../sim/progression/sim-mode";
 import { clockOf } from "../../sim/sun";
 import type { NpcFactionId } from "../../sim/types";
 import type { Vec } from "../../sim/vec";
@@ -11,6 +11,9 @@ import { toPx, wheelZoomFactor, type Viewport } from "../map-geometry";
 import { MapView, openScene } from "../map-view";
 import { token } from "../tokens";
 import { TruckIcons, type IconLook } from "./truck-icons";
+import { HEAT_LAYERS, HeatMap, type HeatLayer } from "./heat-map";
+import { RunChart, SERIES, swatch } from "./run-chart";
+import { TIME } from "../../data/time";
 
 const MARKER = { ring: 4, halo: 2, hit: 8, line: 2, shortestPx: 24 };
 const LABEL = { gap: 6, padX: 5, padY: 3, stripe: 3 };
@@ -27,6 +30,10 @@ const LOOK = { player: "--select", outlaw: "--danger-bright", lawman: "--good-br
 const KEY_ROWS = ["money", "net worth", "xp", "health", "mean hp", "fuel", "supplies", "engine heat", "speed"];
 const OPEN_SECTIONS = ["goals", "states", "contracts", "foes in sight"];
 const WEAK_HEALTH = 40;
+const HUD_STATES: Record<string, string | undefined> = { knockedOut: "Knocked out", dead: "Dead" };
+const LOG_KEEP_TURNS = TIME.turnsPerDay;
+const TURNS_PER_HOUR = TIME.turnsPerDay / 24;
+const WAY = { line: 2, halo: 1, end: 5, dest: { color: "--path-plan", dash: [6, 4] }, target: { color: "--path-dest", dash: [2, 4] }, home: "--ink-muted" };
 
 type Drag = { pointer: number; x: number; y: number; moved: number };
 type Point = { x: number; y: number };
@@ -110,12 +117,14 @@ class HudStrip {
   private readonly worth = el("span", { class: "sim-hud-value" });
   private readonly xp = el("span", { class: "sim-hud-value" });
   private readonly doing = el("div", { class: "sim-hud-doing" });
+  readonly chart = new RunChart(clockText);
   readonly root = el("div", { class: "sim-hud" },
-    el("div", { class: "sim-hud-stats" }, this.cell("Time", this.clock), this.cell("Money", this.money), this.cell("Net worth", this.worth), this.cell("XP", this.xp)),
-    this.doing);
+    el("div", { class: "sim-hud-stats" }, this.cell("Time", this.clock, null), this.cell("Money", this.money, SERIES.money), this.cell("Net worth", this.worth, SERIES.worth), this.cell("XP", this.xp, SERIES.xp)),
+    this.doing,
+    this.chart.root);
 
-  private cell(name: string, value: HTMLElement): HTMLElement {
-    return el("div", { class: "sim-hud-cell" }, el("span", { class: "sim-hud-label" }, name), value);
+  private cell(name: string, value: HTMLElement, look: string | null): HTMLElement {
+    return el("div", { class: "sim-hud-cell" }, el("span", { class: "sim-hud-label" }, look ? swatch(look) : null, name), value);
   }
 
   show(turn: number, hud: Hud): void {
@@ -123,7 +132,8 @@ class HudStrip {
     this.money.textContent = hud.money;
     this.worth.textContent = hud.worth;
     this.xp.textContent = String(hud.xp);
-    this.doing.replaceChildren(...(hud.state === "driving" ? [] : [el("span", { class: "tag" }, hud.state)]), hud.doing);
+    const state = HUD_STATES[hud.state];
+    this.doing.replaceChildren(...(state ? [el("span", { class: "tag bad" }, state)] : []), hud.doing);
   }
 }
 
@@ -152,8 +162,9 @@ class CardView {
     const rows = card.rows.filter(([name]) => name !== "doing");
     const doing = card.rows.find(([name]) => name === "doing");
     const parts = [
-      el("div", { class: "sim-card-title" }, card.title),
+      el("div", { class: "sim-card-title", title: card.id }, card.title),
       doing ? el("div", { class: "sim-doing" }, doing[1]) : null,
+      card.tags.length > 0 ? el("div", { class: "sim-tags" }, ...card.tags.map((tag) => el("span", { class: "tag" }, tag))) : null,
       el("div", { class: "sim-stats" }, ...rows.filter(([name]) => KEY_ROWS.includes(name)).map(([name, value]) => stat(name, value))),
       this.fold("details", "Details", rows.filter(([name]) => !KEY_ROWS.includes(name)).map(([name, value]) => detail(name, value))),
       ...card.sections.map((s) => this.fold(s.name, s.name, s.lines.map((line) => el("div", { class: "sim-line" }, line)))),
@@ -180,7 +191,13 @@ class SimPage {
   private drawnScale = 1;
   private icons: TruckIcons | null = null;
   private readonly looks = new Map<string, IconLook>();
-  private readonly view = new MapView({ kind: "free" }, 1, 1, (ctx, view) => this.drawMarkers(ctx, view), 1);
+  private readonly view = new MapView({ kind: "free" }, 1, 1, (ctx, view) => this.drawAll(ctx, view), 1);
+  private readonly heat = new HeatMap(heatClassOf);
+  private readonly heatButtons = HEAT_LAYERS.map((h) => el("button", { class: "btn-s", title: h.title, "aria-pressed": String(h.layer === null), onclick: () => this.showHeat(h.layer) }, h.label));
+  private readonly heatNote = el("span", { class: "sim-status" });
+  private way: Way | null = null;
+  private playerId: string | null = null;
+  private readonly find = el("input", { type: "search", class: "sim-find", placeholder: "Find", oninput: () => this.renderLog() }) as HTMLInputElement;
   private readonly hud = new HudStrip();
   private readonly mapBox = el("div", { class: "sim-map" }, this.view.canvas, this.hud.root, legend());
   private readonly status = el("div", { class: "sim-status num" }, "Loading the map");
@@ -199,7 +216,6 @@ class SimPage {
   private readonly cardView = new CardView();
   private readonly log = el("ol", { class: "sim-log" });
   private readonly logCount = el("span", { class: "dim num" });
-  private matching = 0;
   private playing = false;
   private started = false;
 
@@ -210,8 +226,9 @@ class SimPage {
     const transport = el("div", { class: "sim-transport" }, this.playButton, this.stepButton, this.follow.button);
     const speed = el("div", { class: "option-switch sim-speed" }, ...this.speedButtons);
     const saving = el("div", { class: "sim-run-row" }, el("div", { class: "sim-run" }, this.saveButton, this.downloadButton), this.saveNote);
-    const controls = el("div", { class: "sim-controls panel" }, transport, speed, el("div", { class: "sim-run-row" }, runForm, this.status), saving);
-    const filters = el("div", { class: "sim-filters" }, this.quiet.button, this.onlySelected.button);
+    const heat = el("div", { class: "sim-run-row" }, el("div", { class: "sim-run" }, "Heat", el("div", { class: "option-switch" }, ...this.heatButtons)), this.heatNote);
+    const controls = el("div", { class: "sim-controls panel" }, transport, speed, heat, el("div", { class: "sim-run-row" }, runForm, this.status), saving);
+    const filters = el("div", { class: "sim-filters" }, this.find, this.quiet.button, this.onlySelected.button);
     const logHead = el("div", { class: "sim-log-head" }, el("span", { class: "panel-title" }, "Log"), this.logCount, filters);
     const logPanel = el("div", { class: "sim-log-panel panel" }, logHead, this.log);
     const side = el("div", { class: "sim-side" }, controls, this.failure, this.cardView.root, logPanel);
@@ -264,10 +281,11 @@ class SimPage {
   private receive(message: FromSim): void {
     const handlers: { [K in FromSim["kind"]]: (m: Extract<FromSim, { kind: K }>) => void } = {
       started: (m) => this.showStarted(m),
+      history: (m) => this.hud.chart.reset(m.samples),
       saved: (m) => (this.saveNote.textContent = `Saved at turn ${m.turn}`),
       saveFile: (m) => download(m.name, m.json, "application/json"),
       frame: (m) => this.showFrame(m.frame),
-      card: (m) => this.cardView.show(m.card),
+      card: (m) => this.showCard(m.card),
       ended: (m) => this.end(`The run ended at turn ${m.turn}: the player is ${m.reason}`),
       failed: (m) => this.fail(m.turn, m.message),
     };
@@ -278,6 +296,7 @@ class SimPage {
     this.seedBox.value = String(m.seed);
     history.replaceState(null, "", location.pathname);
     if (m.resumed) this.saveNote.textContent = `Resumed the saved run at turn ${m.turn}`;
+    if (m.dropped) this.saveNote.textContent = "The old save was from an older sim mode and was deleted";
   }
 
   private showFrame(f: Frame): void {
@@ -285,8 +304,22 @@ class SimPage {
     this.glide.take(f.markers, performance.now());
     this.status.textContent = `Turn ${f.turn}, ${f.markers.length} trucks`;
     this.hud.show(f.turn, f.hud);
+    if (f.sample) this.hud.chart.add(f.sample);
+    this.heat.add(f.turn, f.markers);
+    this.heatNote.textContent = `over ${Math.round(this.heat.turnsCovered() / TURNS_PER_HOUR)} h`;
     this.addEntries(f.log);
-    if (f.card) this.cardView.show(f.card);
+    if (f.card) this.showCard(f.card);
+    this.view.redraw();
+  }
+
+  private showCard(card: Card | null): void {
+    this.way = card && card.id === this.selected ? card.way : null;
+    this.cardView.show(card);
+  }
+
+  private showHeat(layer: HeatLayer | null): void {
+    this.heat.shown = layer;
+    this.heatButtons.forEach((button, i) => button.setAttribute("aria-pressed", String(HEAT_LAYERS[i]!.layer === layer)));
     this.view.redraw();
   }
 
@@ -294,7 +327,8 @@ class SimPage {
     this.started = true;
     this.setReady(true);
     this.sendSpeed();
-    this.select(first.markers.find((m) => m.player)?.id ?? null);
+    this.playerId = first.markers.find((m) => m.player)?.id ?? null;
+    this.select(this.playerId);
   }
 
   private animate(): void {
@@ -341,6 +375,7 @@ class SimPage {
 
   private select(id: string | null): void {
     this.selected = id;
+    this.way = null;
     this.send({ kind: "watch", id });
     this.view.redraw();
     if (this.onlySelected.on) this.renderLog();
@@ -348,31 +383,47 @@ class SimPage {
 
   private shown(e: LogEntry): boolean {
     if (e.quiet && !this.quiet.on) return false;
-    return !this.onlySelected.on || (this.selected !== null && e.ids.includes(this.selected));
+    if (this.onlySelected.on && !this.namesSelected(e)) return false;
+    const query = this.find.value.trim().toLowerCase();
+    return query === "" || e.text.toLowerCase().includes(query);
+  }
+
+  private namesSelected(e: LogEntry): boolean {
+    return this.selected !== null && e.ids.includes(this.selected);
   }
 
   private addEntries(entries: LogEntry[]): void {
     this.entries.push(...entries);
+    this.forgetOldEntries();
     const matching = entries.filter((e) => this.shown(e));
-    this.matching += matching.length;
     this.log.prepend(...matching.slice(-LOG_WINDOW).map((e) => this.logLine(e)).reverse());
+    markRepeatedTimes(this.log, matching.length + 1);
     while (this.log.childElementCount > LOG_WINDOW) this.log.lastElementChild!.remove();
     this.countLog();
   }
 
+  private forgetOldEntries(): void {
+    const newest = this.entries[this.entries.length - 1];
+    if (!newest) return;
+    const keep = this.entries.findIndex((e) => e.turn > newest.turn - LOG_KEEP_TURNS);
+    if (keep > 0) this.entries.splice(0, keep);
+  }
+
   private renderLog(): void {
     const matching = this.entries.filter((e) => this.shown(e));
-    this.matching = matching.length;
     this.log.replaceChildren(...matching.slice(-LOG_WINDOW).map((e) => this.logLine(e)).reverse());
+    markRepeatedTimes(this.log, this.log.childElementCount);
     this.countLog();
   }
 
   private countLog(): void {
-    this.logCount.textContent = this.matching > LOG_WINDOW ? `newest ${LOG_WINDOW} of ${this.matching}` : String(this.matching);
+    const oldest = (this.log.lastElementChild as HTMLElement | null)?.dataset.when;
+    this.logCount.textContent = oldest ? `${this.log.childElementCount} since ${oldest}` : "";
   }
 
   private logLine(e: LogEntry): HTMLElement {
-    const line = el("li", { class: e.tone, title: e.raw }, el("span", { class: "sim-when" }, shortClockText(e.turn)), el("span", {}, e.text));
+    const mine = this.playerId !== null && e.ids.includes(this.playerId);
+    const line = el("li", { class: mine ? `${e.tone} mine` : e.tone, title: e.raw, "data-when": shortClockText(e.turn) }, el("span", { class: "sim-when num" }, shortClockText(e.turn)), el("span", {}, e.text));
     const first = e.ids[0];
     if (first !== undefined) line.addEventListener("click", () => this.select(first));
     return line;
@@ -381,6 +432,22 @@ class SimPage {
   private resize(): void {
     const box = this.mapBox.getBoundingClientRect();
     this.view.resize(Math.floor(box.width), Math.floor(box.height), window.devicePixelRatio);
+  }
+
+  private drawAll(ctx: CanvasRenderingContext2D, view: Viewport): void {
+    this.heat.draw(ctx, view);
+    this.drawWay(ctx, view);
+    this.drawMarkers(ctx, view);
+  }
+
+  private drawWay(ctx: CanvasRenderingContext2D, view: Viewport): void {
+    const m = this.glide.markers.find((x) => x.id === this.selected);
+    const way = this.way;
+    if (!m || !way) return;
+    const at = toPx(view, this.glide.placeAt(m, this.glide.progress(performance.now())));
+    if (way.home) drawHome(ctx, toPx(view, way.home));
+    if (way.target) drawLeg(ctx, at, toPx(view, way.target), WAY.target);
+    if (way.dest) drawLeg(ctx, at, toPx(view, way.dest), WAY.dest);
   }
 
   private drawMarkers(ctx: CanvasRenderingContext2D, view: Viewport): void {
@@ -494,6 +561,44 @@ class SimPage {
       this.drag = null;
     });
   }
+}
+
+function heatClassOf(m: Marker): HeatLayer | null {
+  const look = lookOf(m);
+  if (look === LOOK.outlaw) return "raiders";
+  return look === LOOK.town || look === LOOK.independent ? "traffic" : null;
+}
+
+function markRepeatedTimes(log: HTMLElement, count: number): void {
+  const lines = [...log.children].slice(0, count) as HTMLElement[];
+  lines.forEach((line, i) => line.classList.toggle("same-time", i > 0 && lines[i - 1]!.dataset.when === line.dataset.when));
+}
+
+function drawLeg(ctx: CanvasRenderingContext2D, from: Point, to: Point, look: { color: string; dash: number[] }): void {
+  ctx.save();
+  ctx.setLineDash(look.dash);
+  ctx.lineWidth = WAY.line + WAY.halo * 2;
+  ctx.strokeStyle = token(LOOK.halo);
+  line(ctx, from, to);
+  ctx.lineWidth = WAY.line;
+  ctx.strokeStyle = token(look.color);
+  line(ctx, from, to);
+  ctx.restore();
+  ring(ctx, to, WAY.end, token(look.color), WAY.line);
+}
+
+function line(ctx: CanvasRenderingContext2D, from: Point, to: Point): void {
+  ctx.beginPath();
+  ctx.moveTo(from.x, from.y);
+  ctx.lineTo(to.x, to.y);
+  ctx.stroke();
+}
+
+function drawHome(ctx: CanvasRenderingContext2D, at: Point): void {
+  const side = WAY.end * 2;
+  ctx.lineWidth = WAY.line;
+  ctx.strokeStyle = token(WAY.home);
+  ctx.strokeRect(at.x - side / 2, at.y - side / 2, side, side);
 }
 
 function ring(ctx: CanvasRenderingContext2D, at: Point, radius: number, color: string, width: number): void {

@@ -13,18 +13,22 @@ describe('sim run saves', () => {
   it('saves a run in the game save format and resumes the same world and ledger, which plays on', async () => {
     const run = new SimRun(simWorld(TEST_MAP, 2), SIM_TEXT, () => {});
     for (let i = 0; i < TURNS; i++) run.handle({ kind: 'step' });
-    const { world, ledger } = run.current();
+    const { world, ledger, history } = run.current();
     const slots = await SaveSlots.open(memoryBackend(), null, 'sim-test', [SIM_SLOT]);
-    slots.put(SIM_SLOT, simEnvelope(world, ledger, 1));
-    const resumed = resumedRun(slots, TEST_MAP)!;
+    slots.put(SIM_SLOT, simEnvelope(run.current(), 1));
+    const resumed = resumedRun(slots, TEST_MAP);
+    if (resumed.kind !== 'resumed') throw new Error(`The save did not resume: ${resumed.kind}`);
     expect(resumed.ledger).toEqual(ledger);
+    expect(resumed.history).toEqual(history);
+    expect(history.length).toBeGreaterThan(0);
     expect(resumed.world).toMatchObject({ seed: world.seed, turn: world.turn });
     expect(resumed.world.player.money).toBe(world.player.money);
     expect(playerVehicle(resumed.world).pos).toEqual(playerVehicle(world).pos);
     expect(resumed.world.vehicles.map((v) => v.id)).toEqual(world.vehicles.map((v) => v.id));
     const messages: FromSim[] = [];
-    const again = new SimRun(resumed.world, SIM_TEXT, (m) => messages.push(m), resumed.ledger);
+    const again = new SimRun(resumed.world, SIM_TEXT, (m) => messages.push(m), resumed.ledger, resumed.history);
     again.handle({ kind: 'step' });
+    expect(messages[0]).toEqual({ kind: 'history', samples: history });
     expect(messages.filter((m) => m.kind === 'failed')).toEqual([]);
     expect(again.current().world.turn).toBe(world.turn + 1);
   }, 240000);
@@ -32,6 +36,16 @@ describe('sim run saves', () => {
   it('has no save for a run whose player is dead', () => {
     const world = simWorld(TEST_MAP, 2);
     const dead = { ...world, player: { ...world.player, state: 'dead' as const } };
-    expect(() => simEnvelope(dead, emptyLedger(), 1)).toThrow(/dead/);
+    expect(() => simEnvelope({ world: dead, ledger: emptyLedger(), history: [] }, 1)).toThrow(/dead/);
+  }, 120000);
+
+  it('deletes an outdated save with no money history, so the sim starts a new run', async () => {
+    const run = new SimRun(simWorld(TEST_MAP, 2), SIM_TEXT, () => {});
+    const { history: _history, ...old } = simEnvelope(run.current(), 1);
+    const slots = await SaveSlots.open(memoryBackend(), null, 'sim-old', [SIM_SLOT]);
+    slots.put(SIM_SLOT, old);
+    expect(resumedRun(slots, TEST_MAP)).toEqual({ kind: 'outdated' });
+    expect(slots.get(SIM_SLOT)).toBeNull();
+    expect(resumedRun(slots, TEST_MAP)).toEqual({ kind: 'none' });
   }, 120000);
 });

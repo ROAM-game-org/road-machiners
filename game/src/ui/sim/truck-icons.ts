@@ -7,9 +7,9 @@ import { loadModels, paintSurfaceMasks } from "../../three/render/models";
 
 const LEVEL_STEP = Math.SQRT2;
 const LEVELS = 14;
-const EDGE_PX = 2;
-const HALO_PX = 1;
-const PAD_PX = EDGE_PX + HALO_PX;
+const EDGE_PX = 1;
+const EDGE_ALPHA = 0.6;
+const PAD_PX = EDGE_PX;
 const OUT_ALPHA = 0.75;
 const OFFSETS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const;
 
@@ -102,8 +102,9 @@ function body(base: HTMLCanvasElement, look: IconLook): HTMLCanvasElement {
 function iconOf(base: HTMLCanvasElement, look: IconLook): HTMLCanvasElement {
   const icon = canvasOfSize(base.width + 2 * PAD_PX, base.height + 2 * PAD_PX);
   const ctx = contextOf(icon);
-  stamp(ctx, silhouette(base, look.halo), PAD_PX);
+  ctx.globalAlpha = EDGE_ALPHA;
   stamp(ctx, silhouette(base, look.edge), EDGE_PX);
+  ctx.globalAlpha = 1;
   ctx.drawImage(body(base, look), PAD_PX, PAD_PX);
   return icon;
 }
