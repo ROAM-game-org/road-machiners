@@ -20,5 +20,5 @@ Recognizable destinations interrupt long stretches of damaged farmland and rough
 - Glass Flats is pale teal fused glass in seamed flat plates with teal glass spires, apart from water: it reads as faceted, never as a pool.
 - Inhabited sites use post-collapse metal, scrap and concrete, never castle forms: no crenellations, round drum towers, pointed arches or arrow slits.
 - Walled towns and raider camps have plain gate posts and a banner pole at each gate. No town or camp has guard towers or gun emplacements: patrols guard them.
-- The Marshalls' Roadhouse on the plain north-east of the Nose is a small square compound of the Dustwell walls, with one gate on its spur road. Inside stand a lattice relay mast with an amber lamp on top, the shed where the road book is kept, a lean-to and a plank table with benches for hearings.
+- The map model of the Marshalls' Roadhouse on the plain north-east of the Nose is a small square compound of the Dustwell walls, with one gate on its spur road. Inside stand a lattice relay mast with an amber lamp on top, the shed where the road book is kept, a lean-to and a plank table with benches for hearings.
 - Nothing on the ground marks a survey place. The player finds it by its own buildings or hulks from the clue the employer told.
