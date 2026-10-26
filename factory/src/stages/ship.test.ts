@@ -30,6 +30,20 @@ function shippable(): Fake {
 }
 
 describe('ship', () => {
+  it('runs the full suite on GitHub Actions for the merged main before it pushes', async () => {
+    const f = shippable();
+    const replaced: string[] = [];
+    Object.assign(f.ctx.cfg, { suiteStartMinutes: 15, suitePollSeconds: 0 });
+    f.ctx.repo.changedInWork = async () => ['game/src/sim/fuel.ts'];
+    f.ctx.repo.replaceBranch = async (commit, branch) => { replaced.push(`${commit} ${branch}`); };
+    f.ctx.github.dispatchSuite = async (sha) => { f.calls.push(`suite ${sha}`); return 1; };
+    f.ctx.github.suiteRun = async () => ({ done: true, started: true, passed: true, testsFailed: false, conclusion: 'success', url: 'https://github.com/o/r/actions/runs/1' });
+    await ship(f.ctx, 11, 'Ann');
+    expect(replaced).toEqual(['work-head factory/suite-ship-main']);
+    expect(f.calls).toContain('suite work-head');
+    expect(f.calls.indexOf('suite work-head')).toBeLessThan(f.calls.indexOf('push work-head main'));
+  });
+
   it('merges, builds main in a fresh clone, pushes with butler alone, and leaves the public post to Hermes and a member', async () => {
     const f = shippable();
     const runs: { cmd: string; args: string[]; env?: Record<string, string> }[] = [];

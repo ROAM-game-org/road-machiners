@@ -11,7 +11,7 @@ digraph hardening {
   }
   subgraph cluster_merge {
     label="Merge job: up to three Merging cards of one base, oldest first"; fontname="Helvetica"; fontsize=12; color="#c7d2fe"; style=rounded;
-    MM [label="Merge each card\ninto a clone of the base"]; MC [label="Merge checkpoint\nmatching tests,\nplaytest, build"]; MP [label="Push the base\nrebuild /dev/"];
+    MM [label="Merge each card\ninto a clone of the base"]; MC [label="Merge checkpoint\nfull suite on Actions,\nplaytest, build"]; MP [label="Push the base\nrebuild /dev/"];
     MM -> MC -> MP [weight=100];
   }
   HH -> MM [label="Merging column"];
@@ -32,7 +32,7 @@ digraph hardening {
   XA -> HM;
   HM -> MM [label="docs only:\nno session"];
   XO -> MM;
-  MC -> XS [label="fix budget spent, timeout\nor job death"];
+  MC -> XS [label="fix budget spent, timeout,\nsuite machine failure\nor job death"];
   MP -> XN;
   HH -> CU [label="waits in Merging"];
   MP -> CU [label="base moved"];
