@@ -458,8 +458,19 @@ function campPosts(world: World, camp: Site, grounds: readonly Vec[], kind: stri
   return posts;
 }
 
+const turfs = new WeakMap<readonly Vec[], Map<string, Vec[]>>();
+
+function turfOf(spots: readonly Vec[]): Map<string, Vec[]> {
+  let turf = turfs.get(spots);
+  if (!turf) {
+    turf = divideTurf(spots, turfClaimants());
+    turfs.set(spots, turf);
+  }
+  return turf;
+}
+
 function campGrounds(world: World, camp: Site): readonly Vec[] {
-  const turf = divideTurf(huntingGrounds(world), turfClaimants()).get(camp.id);
+  const turf = turfOf(huntingGrounds(world)).get(camp.id);
   if (!turf) throw new Error(`Camp ${camp.id} claims no hunting turf`);
   return turf;
 }
