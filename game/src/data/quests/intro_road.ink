@@ -8,5 +8,5 @@ Whoever that was, they knew where to wait. Out here nobody lies in ambush for a 
 Then the shaking passes, and the quiet comes back. Wind in the dry grass. A tick from the hood. Far off, a bird you cannot name. # page
 To the north the road bends west toward a pale smear in the haze, the town you saw from the rim, if it is a town. It looks closer than it did, and a truck could reach it before dark.
 But the basin is wider than one road. To the north a ship's hull stands like a cliff, rust red, taller than anything people built. South of you lie fields with no farmers and fences with no fields. Every track you passed had tire marks on it, and somebody drove them to somewhere. # page
-Nobody is telling you which way to go. The needle sits low, but it sits. There are parts under the seat and daylight enough to waste. You ease the truck onto the road and let it roll, and you decide as you go.
+The needle sits low, but it sits. There are parts under the seat and daylight enough to waste. You ease the truck onto the road and let it roll, and you decide as you go.
 -> END

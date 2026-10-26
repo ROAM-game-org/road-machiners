@@ -2,7 +2,6 @@ import { ECONOMY } from "../data/goods";
 import { PAINT_SCHEMES, PAINT_SLOTS, PALETTE, PALETTE_IDS, samePaint, type PaletteId, type TruckPaint } from "../data/chassis";
 import { playerVehicle, vehicleById } from "../sim/damage";
 import { basicsRepairCost, chassisPrice, chassisTradeIn, repairCost, supplyRoom, type Supply } from "../sim/economy";
-import { mountedParts } from "../sim/grid";
 import { fuelCap, suppliesCap } from "../sim/stats";
 import { getResources } from "../sim/resources";
 import type { CrimeCase, Vehicle, World } from "../sim/types";
@@ -22,14 +21,12 @@ export type ShopButtons = {
 };
 
 export function repairBar(w: World, buttons: ShopButtons, repair: { basics: ShopCommand; all: ShopCommand }, truck: Vehicle = playerVehicle(w)): HTMLElement {
-  const broken = mountedParts(truck).filter((p) => p.hp === 0).length;
   const button = (verb: Msg, cost: number, cmd: ShopCommand, key: string) =>
     cost === 0 ? buttons.button(verb, cmd, t("trade.nothingToRepair"), key) : buttons.priceButton(w, verb, cost, cmd, null, key);
   return el(
     "div",
     { class: "town-repair" },
     createIcon("tools"),
-    broken ? el("span", { class: "bad" }, t("trade.broken", { n: broken })) : null,
     button(t("trade.repairBasicsVerb"), basicsRepairCost(w, truck), repair.basics, "repairBasics"),
     button(t("trade.repairAllVerb"), repairCost(w, truck), repair.all, "repairAll"),
   );
