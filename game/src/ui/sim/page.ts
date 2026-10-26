@@ -10,8 +10,9 @@ import { devEl as el, download, uiRoot } from "../dom";
 import { toPx, wheelZoomFactor, type Viewport } from "../map-geometry";
 import { MapView, openScene } from "../map-view";
 import { token } from "../tokens";
+import { TruckIcons, type IconLook } from "./truck-icons";
 
-const MARKER = { radius: 5, player: 7, ring: 4, halo: 2, hit: 10, nose: 9, line: 2 };
+const MARKER = { ring: 4, halo: 2, hit: 8, line: 2, shortestPx: 12 };
 const LABEL = { gap: 6, padX: 5, padY: 3, stripe: 3 };
 const CLICK_SLOP = 4;
 const LOG_WINDOW = 2000;
@@ -176,6 +177,9 @@ class SimPage {
   private hovered: string | null = null;
   private drag: Drag | null = null;
   private drawnView: Viewport | null = null;
+  private drawnScale = 1;
+  private icons: TruckIcons | null = null;
+  private readonly looks = new Map<string, IconLook>();
   private readonly view = new MapView({ kind: "free" }, 1, 1, (ctx, view) => this.drawMarkers(ctx, view), 1);
   private readonly hud = new HudStrip();
   private readonly mapBox = el("div", { class: "sim-map" }, this.view.canvas, this.hud.root, legend());
@@ -222,6 +226,8 @@ class SimPage {
     this.view.update(openScene((await fetchMap()).terrain), null);
     this.resize();
     new ResizeObserver(() => this.resize()).observe(this.mapBox);
+    this.status.textContent = "Drawing the trucks";
+    this.icons = await TruckIcons.load();
     this.status.textContent = "Building the world";
     this.send({ kind: "start", seed });
     requestAnimationFrame(() => this.animate());
@@ -379,10 +385,29 @@ class SimPage {
 
   private drawMarkers(ctx: CanvasRenderingContext2D, view: Viewport): void {
     this.drawnView = view;
+    if (this.glide.markers.length === 0) return;
+    this.drawnScale = this.iconSet().pxPerMeter(view.tileSize, MARKER.shortestPx);
+    ctx.imageSmoothingEnabled = true;
     const t = this.glide.progress(performance.now());
     const placed = this.glide.markers.map((m) => ({ m, at: toPx(view, this.glide.placeAt(m, t)) })).sort((a, b) => this.rank(a.m) - this.rank(b.m));
     for (const { m, at } of placed) this.drawMarker(ctx, view, m, at);
     for (const { m, at } of placed.filter(({ m }) => this.rank(m) > 0)) drawLabel(ctx, at, m, this.radiusOf(m));
+  }
+
+  private iconSet(): TruckIcons {
+    if (!this.icons) throw new Error("The truck icons are not drawn yet");
+    return this.icons;
+  }
+
+  private lookFor(m: Marker): IconLook {
+    const name = lookOf(m);
+    const key = `${name}|${m.out}`;
+    const cached = this.looks.get(key);
+    if (cached) return cached;
+    const color = token(name);
+    const look = { fill: m.out ? token(LOOK.out) : color, edge: color, halo: token(LOOK.halo), out: m.out };
+    this.looks.set(key, look);
+    return look;
   }
 
   private rank(m: Marker): number {
@@ -392,17 +417,15 @@ class SimPage {
   }
 
   private radiusOf(m: Marker): number {
-    return m.player ? MARKER.player : MARKER.radius;
+    return this.iconSet().radius(m.chassis, this.drawnScale);
   }
 
   private drawMarker(ctx: CanvasRenderingContext2D, view: Viewport, m: Marker, at: Point): void {
     const ahead = toPx(view, { x: m.x + Math.cos(m.heading), y: m.y + Math.sin(m.heading) });
     const tip = toPx(view, m);
     const angle = Math.atan2(ahead.y - tip.y, ahead.x - tip.x);
-    const color = token(lookOf(m));
     const radius = this.radiusOf(m);
-    drawNose(ctx, at, angle, radius, color);
-    drawDisc(ctx, at, radius, m.out ? token(LOOK.out) : color, color);
+    this.iconSet().draw(ctx, m.chassis, at, angle, this.drawnScale, this.lookFor(m));
     if (m.combat) ring(ctx, at, radius + MARKER.ring, token(LOOK.combat), MARKER.line);
     if (m.id === this.selected) ring(ctx, at, radius + MARKER.ring + MARKER.line * 2, token(LOOK.selected), MARKER.line);
   }
@@ -416,7 +439,7 @@ class SimPage {
       const px = toPx(view, this.glide.placeAt(m, t));
       return Math.hypot(px.x - at.x, px.y - at.y);
     };
-    const near = this.glide.markers.filter((m) => gapOf(m) <= MARKER.hit).sort((a, b) => gapOf(a) - gapOf(b));
+    const near = this.glide.markers.filter((m) => gapOf(m) <= Math.max(MARKER.hit, this.radiusOf(m))).sort((a, b) => gapOf(a) - gapOf(b));
     return near[0] ?? null;
   }
 
@@ -471,32 +494,6 @@ class SimPage {
       this.drag = null;
     });
   }
-}
-
-function drawNose(ctx: CanvasRenderingContext2D, at: Point, angle: number, radius: number, color: string): void {
-  const tip = { x: at.x + Math.cos(angle) * (radius + MARKER.nose - MARKER.radius), y: at.y + Math.sin(angle) * (radius + MARKER.nose - MARKER.radius) };
-  for (const [stroke, width] of [[token(LOOK.halo), MARKER.line + MARKER.halo * 2], [color, MARKER.line]] as const) {
-    ctx.lineWidth = width;
-    ctx.strokeStyle = stroke;
-    ctx.beginPath();
-    ctx.moveTo(at.x, at.y);
-    ctx.lineTo(tip.x, tip.y);
-    ctx.stroke();
-  }
-}
-
-function drawDisc(ctx: CanvasRenderingContext2D, at: Point, radius: number, fill: string, edge: string): void {
-  ctx.beginPath();
-  ctx.arc(at.x, at.y, radius + MARKER.halo, 0, Math.PI * 2);
-  ctx.fillStyle = token(LOOK.halo);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(at.x, at.y, radius, 0, Math.PI * 2);
-  ctx.fillStyle = fill;
-  ctx.fill();
-  ctx.lineWidth = MARKER.line;
-  ctx.strokeStyle = edge;
-  ctx.stroke();
 }
 
 function ring(ctx: CanvasRenderingContext2D, at: Point, radius: number, color: string, width: number): void {
