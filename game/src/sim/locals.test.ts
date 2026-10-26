@@ -14,6 +14,7 @@ import { sitePads } from './sites';
 import { compileBundle, readQuestSources, withEnglishTwins } from '../test/quest-compile';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import { remember } from './memory';
+import { flatChoices, pickText } from './quest-testkit';
 import type { World } from './types';
 import { UNITS } from '../data/units';
 import { cloneWorld } from './world';
@@ -25,7 +26,7 @@ function parkedAt(town: string): World {
 }
 
 function talk(w: World, quest: string, picks: readonly string[]): World {
-  return picks.reduce((at, pick) => chooseQuestOption(at, QUESTS, pickIndex(at, pick)), startQuest(w, QUESTS, quest, 'start'));
+  return picks.reduce((at, pick) => pickText(at, pick), startQuest(w, QUESTS, quest, 'start'));
 }
 
 function pickIndex(w: World, text: string): number {
@@ -34,7 +35,7 @@ function pickIndex(w: World, text: string): number {
   return index;
 }
 
-const choices = (w: World, quest: string) => questView(startQuest(w, QUESTS, quest, 'start'), QUESTS).choices;
+const choices = (w: World, quest: string) => flatChoices(startQuest(w, QUESTS, quest, 'start'));
 const lastLine = (w: World) => questView(w, QUESTS).lines.at(-1)?.text;
 
 function untouched(w: World): unknown {
@@ -75,7 +76,7 @@ describe('settlement locals', () => {
     w.player.quests.world.wagon_seen = true;
 
     expect(choices(w, 'nose_ibo')).toContain('What happened at Burnt Convoy?');
-    expect(choices(w, 'nose_kovac')).toEqual(['What is this place?', 'Who runs Nose?', 'What is the road like?', 'What does Nose turn out?', WORK, 'Anything off the books?', WAGON, WAGON_FOUND, 'Goodbye.']);
+    expect([...choices(w, 'nose_kovac')].sort()).toEqual(['What is this place?', 'Who runs Nose?', 'What is the road like?', 'What does Nose turn out?', WORK, 'Anything off the books?', WAGON, WAGON_FOUND, 'Goodbye.'].sort());
   });
 
   it('opens the Fallen Sun question once the crater is found', () => {
@@ -88,9 +89,9 @@ describe('settlement locals', () => {
   it('names the hull behind Ibo\'s tone and answers what he hears', () => {
     const shack = talk(parkedAt('nose'), 'nose_ibo', ['What do you do in this shack?']);
     expect(questView(shack, QUESTS).lines.map((line) => line.text).join(' ')).toContain('<term=fallen_sun>Fallen Sun</term>, the big crashed hull in the crater');
-    expect(questView(shack, QUESTS).choices).toContain('What does the tone from the Fallen Sun say?');
+    expect(flatChoices(shack)).toContain('What does the tone from the Fallen Sun say?');
 
-    const answered = chooseQuestOption(shack, QUESTS, pickIndex(shack, 'What does the tone from the Fallen Sun say?'));
+    const answered = pickText(shack, 'What does the tone from the Fallen Sun say?');
     expect(lastLine(answered)).toContain('no key to decode it');
     expect(lastLine(answered)).not.toContain("A tone's a tone");
   });
@@ -103,8 +104,8 @@ describe('settlement locals', () => {
     expect(reply).not.toMatch(/ask me/i);
 
     const later = talk(parkedAt('salvage-yard'), 'yard_sefa', ['What is the road like out here?', 'What does the Yard turn out?', 'Who runs this yard?']);
-    expect(questView(later, QUESTS).choices).toContain('Why leave a stripped driver his water?');
-    const answered = chooseQuestOption(later, QUESTS, pickIndex(later, 'Why leave a stripped driver his water?'));
+    expect(flatChoices(later)).toContain('Why leave a stripped driver his water?');
+    const answered = pickText(later, 'Why leave a stripped driver his water?');
     expect(lastLine(answered)).toContain('Fools talk less than bodies');
   });
 
@@ -121,7 +122,7 @@ describe('settlement locals', () => {
     ];
     for (const row of rows) {
       const w = talk(parkedAt(row.town), row.quest, row.setup);
-      expect(questView(w, QUESTS).choices, row.option).toContain(row.option);
+      expect(flatChoices(w), row.option).toContain(row.option);
     }
 
     const w = parkedAt('nose');
@@ -132,14 +133,14 @@ describe('settlement locals', () => {
   it('answers Edda\'s linked-soldier question without the origin story on screen', () => {
     const setup = ['Yes. I drive linked.', 'What do you know about links?', 'Who made the first link?', 'What happened to your grandfather?'];
     const w = talk(parkedAt('nose'), 'nose_edda', setup);
-    const answered = chooseQuestOption(w, QUESTS, pickIndex(w, 'Could I lose myself in my truck?'));
+    const answered = pickText(w, 'Could I lose myself in my truck?');
     expect(lastLine(answered)).toMatch(/^Not like the first linked soldier\./);
   });
 
   it('offers a stranger only questions that name nothing unheard', () => {
     const w = parkedAt('bowl');
-    expect(choices(w, 'bowl_ruben')).toEqual(['What is this place?', 'Who runs Bowl?', 'Where can I get water, or find work?', 'What does Bowl make?', 'Goodbye.']);
-    expect(choices(w, 'bowl_dag')).toEqual(['What is the road like?', 'Any work?', 'Who pays the Farmers?', 'Goodbye.']);
+    expect([...choices(w, 'bowl_ruben')].sort()).toEqual(['What is this place?', 'Who runs Bowl?', 'Where can I get water, or find work?', 'What does Bowl make?', 'Goodbye.'].sort());
+    expect([...choices(w, 'bowl_dag')].sort()).toEqual(['What is the road like?', 'Any work?', 'Who pays the Farmers?', 'Goodbye.'].sort());
   });
 
   it('opens a question after the answer that mentions it', () => {
@@ -157,12 +158,12 @@ describe('settlement locals', () => {
     const loaded = structuredClone(open);
     loaded.player.quests.live = null;
     restoreQuest(loaded, QUESTS);
-    expect(questView(loaded, QUESTS).choices).toContain(PIERCE);
+    expect(flatChoices(loaded)).toContain(PIERCE);
   });
 
   it('asks Jory about votes, patrol and Nose only after the answers that bring them up', () => {
     const w = parkedAt('bowl');
-    expect(choices(w, 'bowl_jory')).toEqual(['Who are the tenants?', 'Goodbye.']);
+    expect([...choices(w, 'bowl_jory')].sort()).toEqual(['Who are the tenants?', 'Goodbye.'].sort());
     const asked = talk(w, 'bowl_jory', ['Who are the tenants?', 'Goodbye.']);
     expect(choices(asked, 'bowl_jory')).toContain('How does a tenant get a vote?');
     expect(choices(asked, 'bowl_jory')).not.toContain('What do you make of Nose?');
@@ -235,7 +236,7 @@ describe('the lost wagon chain', () => {
     const asked = talk(towed, 'bowl_hattie', ['Tell me about the tow man.']);
 
     expect(questView(asked, QUESTS).lines.map((l) => l.text).join(' ')).toContain('badlands');
-    expect(questView(asked, QUESTS).choices).not.toContain('Tell me about the tow man.');
+    expect(flatChoices(asked)).not.toContain('Tell me about the tow man.');
     expect(asked.player.quests.world).toEqual(towed.player.quests.world);
     expect(asked.player.notes).toEqual([]);
   });
@@ -243,13 +244,13 @@ describe('the lost wagon chain', () => {
   it('takes the rumor question off the list once asked, with the note kept', () => {
     const once = talk(parkedAt('bowl'), 'bowl_hattie', ['Heard any rumors?']);
 
-    expect(questView(once, QUESTS).choices).not.toContain('Heard any rumors?');
+    expect(flatChoices(once)).not.toContain('Heard any rumors?');
     expect(once.player.notes.map((n) => n.id)).toEqual(['wagonBowl']);
   });
 });
 
 describe('wagon Seven', () => {
-  const picked = (w: World, picks: readonly string[]) => picks.reduce((at, pick) => chooseQuestOption(at, QUESTS, pickIndex(at, pick)), w);
+  const picked = (w: World, picks: readonly string[]) => picks.reduce((at, pick) => pickText(at, pick), w);
   const worldVars = (w: World) => w.player.quests.world;
   const BENCH = 'I brought something from wagon Seven.';
   const SIGN = 'Send for Kovac and give him the half rod.';
@@ -484,7 +485,7 @@ describe('the depot leak at Nose', () => {
     broke.player.money = 19 * UNITS.centsPerM;
     const short = talk(broke, 'nose_kovac', [...OPEN, SABINE]);
     expect(questView(short, QUESTS).locked[pickIndex(short, PAY)]).toBe(true);
-    expect(() => chooseQuestOption(short, QUESTS, pickIndex(short, PAY))).toThrow('costs 20 M, more than the player holds');
+    expect(() => pickText(short, PAY)).toThrow('costs 20 M, more than the player holds');
   });
 
   it('names no one before a lead has named them', () => {
@@ -531,7 +532,7 @@ describe('locals at stalls', () => {
     const paid = talk(w, 'pump_agnes', [...OPEN, 'Tell him what she said.', 'Take the purse.']);
     expect(paid.player.quests.world).toEqual({ pipe_fate: 'searched', marr_regard: 'bought' });
     expect(paid.player.money - w.player.money).toBe(20 * UNITS.centsPerM);
-    expect(choices(paid, 'pump_agnes')).toEqual(['Goodbye.']);
+    expect([...choices(paid, 'pump_agnes')].sort()).toEqual(['Goodbye.'].sort());
 
     const unpaid = talk(w, 'pump_agnes', [...OPEN, 'Tell him what she said.', 'Leave it in his hand.']);
     expect(unpaid.player.quests.world).toEqual({ pipe_fate: 'searched' });
@@ -542,10 +543,10 @@ describe('locals at stalls', () => {
     const w = parkedAt('dustwell');
 
     const silent = talk(w, 'pump_agnes', [...OPEN, 'Say nothing.']);
-    expect(questView(silent, QUESTS).choices).not.toContain(CARRY);
+    expect(flatChoices(silent)).not.toContain(CARRY);
 
     const warned = talk(w, 'pump_agnes', [...OPEN, 'Say nothing.', 'Tell her the man on the drum is listening.']);
-    expect(questView(warned, QUESTS).choices).toContain(CARRY);
+    expect(flatChoices(warned)).toContain(CARRY);
   });
 
   it('opens the pipe quest from Agnes and ends it with the copy dropped', () => {
@@ -616,8 +617,8 @@ describe('locals at stalls', () => {
     const w = parkedAt('dustwell');
     const left = [...OPEN, COVER, CARRY, 'Take the copy and leave the meter.', 'Keep the copy.', 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE];
 
-    expect(questView(talk(w, 'pump_agnes', left), QUESTS).choices).not.toContain(BOLT);
-    expect(questView(talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE]), QUESTS).choices).toContain(BOLT);
+    expect(flatChoices(talk(w, 'pump_agnes', left))).not.toContain(BOLT);
+    expect(flatChoices(talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE]))).toContain(BOLT);
   });
 
   it('takes a fine in the Bowl market and keeps the tenants talking about it', () => {
@@ -796,7 +797,7 @@ describe('Petra Quell at the Roadhouse', () => {
     const w = searching(true);
     const offer = talk(w, 'roadhouse_petra', [SEARCH]);
     expect(questView(offer, QUESTS).choices).toContain(PAY);
-    const paid = chooseQuestOption(offer, QUESTS, pickIndex(offer, PAY));
+    const paid = pickText(offer, PAY);
     expect(money(paid)).toBe(money(w) - 3);
     expect(paid.player.contracts.find((c) => c.kind === 'search')).toMatchObject({ lead: { at: { x: 90, y: 30 }, turn: 30 } });
   });
@@ -804,7 +805,7 @@ describe('Petra Quell at the Roadhouse', () => {
   it('charges nothing for declining, and nothing when no car has a newer sighting', () => {
     const w = searching(true);
     const offer = talk(w, 'roadhouse_petra', [SEARCH]);
-    const declined = chooseQuestOption(offer, QUESTS, pickIndex(offer, 'Not at that price.'));
+    const declined = pickText(offer, 'Not at that price.');
     expect(money(declined)).toBe(money(w));
     expect(declined.player.contracts).toEqual(w.player.contracts);
 

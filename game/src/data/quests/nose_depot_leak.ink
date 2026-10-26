@@ -54,22 +54,28 @@ A shipment leaves for the north road soon. I want the seller found before it rol
 # checkpoint: desk
 The yard lies under a film of dust, and the shipment trucks stand fuelled by the gate with their engines ticking as they cool. # page # place: Dispatch office
 { alarm > 0: Two loaders stop talking as you pass, and they start again only when you are well beyond them. }
-+ {not ledger_read} [Read the depot ledgers.]
-  -> ledger
-+ {ledger_read and not gate_checked} [Check the gate log for the same nights.]
-  -> gate
++ {not (ledger_read and gate_checked and bunk_searched and stakeout_done)} [Look around the depot…]
+  -> look
 + {not pell_talked} [Talk to the fuel clerk.]
   -> pell
 + {not sabine_talked} [Talk to the trader by the gate.]
   -> sabine
-+ {(gate_checked or saw_swap) and not bunk_searched} [Search Vance's bunk.]
-  -> bunk
-+ {not stakeout_done} [Watch the depot all night.]
-  -> stakeout
 + {any_lead()} [Go to Kovac with a name.]
   -> accuse
 + [Let it go.]
   -> let_go
+
+= look
++ {not ledger_read} [Read the depot ledgers.]
+  -> ledger
++ {ledger_read and not gate_checked} [Check the gate log for the same nights.]
+  -> gate
++ {(gate_checked or saw_swap) and not bunk_searched} [Search Vance's bunk.]
+  -> bunk
++ {not stakeout_done} [Watch the depot all night.]
+  -> stakeout
++ [Back.]
+  -> desk
 
 === after ===
 {

@@ -59,11 +59,21 @@ VAR tip = 20
   Every hose has a meter, and every truck that fills goes in by name. Your tank is in the passing column, under your name. # speaker: Agnes
   The pump brings up less every season, and Bowl's trucks get less too. Until autumn the tanker's hose had a meter, and the columns added up to the big dial. Since the meter came off, the gap grows every week. # speaker: Agnes
   -> hub
++ [Ask about the water…]
+  -> about_water
++ {(not asked_man and not trusted) or (not trusted and watchman != "told" and (skill("perception") >= 2 or watchman == "silent"))} [Ask about the man on the drum…]
+  -> about_drum
++ {pipe_fate == "none" and knows_copy} [Ask about the job…]
+  -> about_job
++ [Fill your tank and go.]
+  -> END
+
+= about_water
 + {knows_book and not asked_leak} [Ask whether the water could be leaking.]
   ~ asked_leak = true
   A leak that big would make the ground muddy. I check the tanks every day, and the ground is dry. # speaker: Agnes
   Nothing leaves here except through a hose. One hose has no meter. # speaker: Agnes
-  -> hub
+  -> about_water
 + {knows_book and not knows_pipe} [Ask why the tanker's meter came off.]
   ~ note("pipeBook")
   ~ knows_pipe = true
@@ -83,30 +93,38 @@ VAR tip = 20
   { short_of("tools"):
     I'm out of tools. One more stripped bolt and the pump runs at half. # speaker: Agnes
   }
+  -> about_water
++ [Back.]
   -> hub
+
+= about_drum
 + {not asked_man and not trusted} [Ask the man on the drum what he's waiting for.]
   ~ asked_man = true
   Just finishing my tea. # speaker: Watchman
   He doesn't look at you. He keeps watching Agnes.
-  -> hub
+  -> about_drum
 + {not trusted and watchman != "told" and (skill("perception") >= 2 or watchman == "silent")} [Tell her the man on the drum is listening.]
   -> warned
++ [Back.]
+  -> hub
+
+= about_job
 + {pipe_fate == "none" and knows_copy and not knows_why} [Ask why she picked you.]
   ~ knows_why = true
   { watchman == "covered": You lied to the watchman for me. | You warned me about the watchman. } # speaker: Agnes
   And your name is beside this week's dial. Every driver's name is in my book, but none of them will go to Bowl and say so. # speaker: Agnes
   People notice a pump keeper on the Bowl road. A driver is one more truck, and next week you're halfway across the basin. # speaker: Agnes
-  -> hub
+  -> about_job
 + {pipe_fate == "none" and knows_copy and not knows_pay} [Ask what the job pays.]
   ~ knows_pay = true
   Mirela pays {fee} M from the lock house box when the copy arrives. I have nothing to add. # speaker: Agnes
   The danger is the Bowl gate. The patrol there works for the Senate, and the household's steward gives them orders. # speaker: Agnes
-  -> hub
+  -> about_job
 + {pipe_fate == "none" and knows_copy} [Say you'll carry the copy.]
   ~ begin("pump_pipe")
   -> END
-+ [Fill your tank and go.]
-  -> END
++ [Back.]
+  -> hub
 
 = watched
 # checkpoint: start.watched
