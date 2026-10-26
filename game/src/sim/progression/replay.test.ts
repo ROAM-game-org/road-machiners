@@ -37,7 +37,9 @@ describe('replay', () => {
     const half = cumulativeCost(1) / 2;
     const caps = { ...XP_RULES };
     Object.assign(XP_RULES, { dailyCap: half });
-    onTestFinished(() => Object.assign(XP_RULES, caps));
+    onTestFinished(() => {
+      Object.assign(XP_RULES, caps);
+    });
     const searchWeight = XP_SOURCES.search.weight;
     const discoverWeight = XP_SOURCES.discover.weight;
     Object.assign(XP_SOURCES.search, { weight: 1 });

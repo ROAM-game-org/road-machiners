@@ -42,7 +42,7 @@ const EFFECTS = {
 export type SkillEffect<S extends SkillId> = keyof (typeof EFFECTS)[S] & string;
 export const SKILL_EFFECTS: { [S in SkillId]: Record<SkillEffect<S>, number> } = EFFECTS;
 
-export const RANK_COSTS: readonly number[] = [200, 400, 600, 800, 1000];
+export const RANK_COSTS: readonly number[] = [200, 400, 1200, 2200, 3500];
 export const MAX_RANK = RANK_COSTS.length;
 
 export type XpSourceDef = { skill: SkillId; weight: number; scaled: boolean; repeat: number };
@@ -72,7 +72,7 @@ export const XP_SOURCES: Record<XpSource, XpSourceDef> = {
 export const XP_RULES = {
   easy: 0.25,
   hard: 2,
-  dailyCap: 150,
+  dailyCap: 55,
   overCap: 0.1,
   repeatHalfLife: 200,
   forgetBelow: 0.01,

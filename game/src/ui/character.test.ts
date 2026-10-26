@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { XP_RULES } from "../data/skills";
 import { emptyWorld } from "../sim/testkit";
 import type { QuestLive, World } from "../sim/types";
 import { CharacterScreen } from "./character";
@@ -95,7 +96,7 @@ describe("character screen", () => {
     const root = openCharacter(emptyWorld());
     expect(root.all((n) => n.className.includes("skill-row"))).toHaveLength(5);
     expect(root.text().match(/Today/g)).toHaveLength(1);
-    expect(root.text()).toContain("max 150 XP");
+    expect(root.text()).toContain(`max ${XP_RULES.dailyCap} XP`);
     expect(root.all((n) => n.className === "skill-name")[0].attrs.get("title")).toMatch(/^Earns XP from /);
   });
 
