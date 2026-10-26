@@ -4,6 +4,7 @@ Recognizable destinations interrupt long stretches of damaged farmland and rough
 
 ## Physical scale
 
+- The models are a tabletop miniature of the real place, as [Design](../DESIGN.md) principle 10 says. Text and pictures describe the full settlement the models stand for, at the size [People and scale](../lore/world.md#people-and-scale) gives.
 - One tile is four metres. The pickup body is 5.2 metres long. Buildings and destinations use that scale rather than growing the vehicle to fill the screen.
 - Bowl occupies a 224-metre-wide footprint and Nose a 256-metre-wide footprint. Both contain inhabited blocks with one- and two-storey houses, doors, windows, rooftop water tanks, and clear road approaches. Town interiors remain non-drivable service areas.
 - Houses measure 10.8 by 8.4 metres on 20-metre blocks. Old Orchard spreads over a basin about 430 by 330 metres, its edge following the ridges and roads, crossed by a 12-metre old road and four broad dirt roads. Its 15 blocks of dead trees stand in rows 12 metres apart, with trees 6 metres apart along a row and crowns about 6.5 metres wide. Its buildings stand at real size against an 8-metre army truck: the 26-metre farmhouse, the 24-metre barn and the 22-metre Quonset hangars.

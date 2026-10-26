@@ -203,7 +203,7 @@ Her line is "Every sack that goes to Kiln is written on the gate."
 - Habit: She reads every meter at dusk and writes it in the book.
 - Secret: She made a sealed copy of the book, and she took the steward's oil. She hides both from Aurel Brede and Sava Kettering.
 
-Agnes keeps the pump at Dustwell and the pump book her uncle Wendell kept before he died at the Green Pit sluice. She sleeps with the book under her pillow. Every week the pump brings up less, and the water trucks load less. The Archon's household sends its own tanker to the pump every week, and a Senate order made her take the meter off its hose, so its loads go in no book. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. Every driver who loads reads her the big dial, and she writes the number with the driver's name. She wants a driver who read the dial to carry the copy to Bowl and swear to the number, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by her gate.
+Agnes keeps the pump book of Dustwell's deep well, the book her uncle Wendell kept before he died at the Green Pit sluice. She sleeps with the book under her pillow. Every week the pump brings up less, and the water trucks load less. The Archon's household sends its own tanker to the pump every week, and a Senate order made her take the meter off its hose, so its loads go in no book. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. Every driver who loads reads her the big dial, and she writes the number with the driver's name. She wants a driver who read the dial to carry the copy to Bowl and swear to the number, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by her gate.
 
 Her line is "I did not come to take your water. I came to write down how much of it there is."
 
@@ -402,7 +402,7 @@ Her line is "The glass points at the Fallen Sun. Read it before you drive out."
 ## Hadiza Okon
 
 - Way: embrace.
-- High concept: The woman who runs the pump and canteen at Green Pit.
+- High concept: The woman who runs the hook house canteen at Green Pit.
 - Trouble: She feeds anyone once, so the Bowl patrol will not drink at her table.
 - Aspects: Rifles hang on the hooks by her door; Pim Arslan's plate hangs at her door; The well that no one takes.
 - Skills: best social, worst driving.
@@ -411,7 +411,7 @@ Her line is "The glass points at the Fallen Sun. Read it before you drive out."
 - Habit: She points to the hook before she fills a cup.
 - Secret: None.
 
-Hadiza runs the pump and the canteen at Green Pit, a walled pump outpost that sells water from deep rock. Everyone hangs their rifle on the hooks by her door, and nobody draws a gun at her table. Drivers, couriers, Salvage Yard crews, Kiln riders and Nose soldiers all drink there. The Bowl patrol does not, because the raiders do. She feeds anyone once.
+Hadiza runs the hook house, the biggest canteen at Green Pit. Green Pit is a walled water town of a few hundred people that pumps water from deep rock and sells it by the truckload. Everyone hangs their rifle on the hooks by her door, and nobody draws a gun at her table. Drivers, couriers, Salvage Yard crews, Kiln riders and Nose soldiers all drink there. The Bowl patrol does not, because the raiders do. She feeds anyone once.
 
 Her line is "Hang it on the hook. Everyone drinks here, and nobody takes my well."
 

@@ -14,8 +14,9 @@ The style block names only the medium, the brushwork and the palette. Light, moo
 
 Rules for the scene block:
 
-- A place from the game must look like it does in the game. Take a screenshot with `npm run site:shot` first and describe what it shows. The quest text, the picture and the game look must agree in broad strokes, so fix the text when it describes a different place. Read the map like tabletop miniatures: a few models stand for a bigger, busier place, so paint the place they stand for, not a one to one copy.
-- Describe the place, the light and the mood. Name only the few objects that carry the scene.
+- A place from the game must look like it does in the game. Take a screenshot with `npm run site:shot` first and describe what it shows. The quest text, the picture and the game look must agree in broad strokes, so fix the text when it describes a different place.
+- Paint the place at its real scale. The map is a tabletop miniature, as [Design](../DESIGN.md) principle 10 says, so a few models stand for a settlement of hundreds or thousands. A place picture shows crowds, many buildings, work under way and the place's trade at working scale, like rows of pumps and a line of water trucks. One pump, one table and five people is a lonely outpost, and no place in the game is one. [People and scale](../lore/world.md#people-and-scale) has the numbers.
+- Describe the place, the light and the mood. Name only the few things that carry the scene, and write them as many: rows, lines, crowds, crews.
 - Prefer plain views at eye level. Stock shots, like a hero on a cliff with binoculars, read as AI art.
 - Say what is missing when the model would add it. A roofless room needs "nothing is left overhead", or the floor gets beam shadows.
 - Truck guns sit on motor-driven turrets that are fired from the cab. Say that nobody stands at the gun, or the model draws a gunner holding the grips.

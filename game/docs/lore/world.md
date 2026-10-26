@@ -55,11 +55,16 @@ By year 130 nobody drives the open road without a gun. Every driver knows why, a
 
 Drivers check their brake rod before the north bend. The cheap steel rod that the Nose line hands out can snap on a bend, and then nothing slows the truck.
 
-## People
+## People and scale
 
 - About 20,000 people live in Icarus.
 - Each town holds a few thousand. Bowl is larger than Nose.
 - Each smaller site holds a few hundred. The rest are squatters and drivers.
+- Every place a truck can enter is at least a small town. It has a garage, a shop, a market and a place to find people, and it has streets, crowds and work going on all day.
+- Each place runs its trade at working scale. Green Pit has rows of pumps, tanks and water trucks waiting to load. The Pump Station has a whole still yard, the Salvage Yard has cutting lines and crews, and the Granary has drying floors and a tin works.
+- A named person runs one corner of a place, like a canteen, a pump crew or a stall. Nobody runs a whole place alone, and no place is one building with a few people.
+- The map shows each place as a few models, like tabletop miniatures. Lore, text and pictures describe the real place the models stand for.
+- Test any place by asking whether it has the people and the plant to make what the road uses. Trucks, guns, fuel and rations for the whole basin come out of these places.
 - Most people in the basin descend in part from the Given, the survivors who came down in the ship's escape pods. See [Peoples](peoples.md).
 - While the Sunward ride, drivers keep away from the Fallen Sun after dark. By day they still work the crater.
 

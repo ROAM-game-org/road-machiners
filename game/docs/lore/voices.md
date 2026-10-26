@@ -447,9 +447,9 @@ Sample: "Wim writes the claim. I only say who crossed and when."
 
 ## Green Pit and the Pump Station
 
-### Hadiza Okon, Green Pit pump and canteen
+### Hadiza Okon, the hook house canteen at Green Pit
 
-Hadiza talks of cups, plates, hooks, the pump and who ate at her table. She compares people to guests and to what they leave behind.
+Hadiza talks of cups, plates, hooks, the water crews and who ate at her table. She compares people to guests and to what they leave behind.
 
 Her sentences are warm and even. She says what a thing costs, then what she gives for free.
 
