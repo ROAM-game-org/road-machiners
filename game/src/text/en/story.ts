@@ -136,7 +136,7 @@ export const STORY = {
   'journalNote.talkBrakeRod.text': 'Lena says command bought cheap brake rods for the depot trucks. On a hard bend one can snap and leave the truck with no brakes.',
   'journalNote.talkArmyStarved.title': 'The Old Army and its hunger',
   'journalNote.talkArmyStarved.from': 'Old Ibo, Nose radio shack',
-  'journalNote.talkArmyStarved.text': 'Old Ibo says the Old Army ended hungry, and that Commander Lind read a list of unpaid promises on his last calls. He has heard it said the Army was starved on purpose. He says whoever says so wants a seat on Nose's Central Committee.',
+  'journalNote.talkArmyStarved.text': 'Old Ibo says the Old Army ended hungry, and that Commander Lind read a list of unpaid promises on his last calls. He has heard it said the Army was starved on purpose. He says whoever says so wants a seat on Nose\'s Central Committee.',
   'journalNote.talkCommitteeRent.title': 'Who pays for Old Orchard\'s tools',
   'journalNote.talkCommitteeRent.from': 'Old Ibo, Nose radio shack',
   'journalNote.talkCommitteeRent.text': 'Old Ibo says the Guild\'s trust rents Old Orchard\'s machine tools to Nose, and command pays the Guild. He will not repeat what he hears on the air about who pays command.',
