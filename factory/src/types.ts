@@ -148,7 +148,7 @@ export const JOB_ISSUE: Record<JobStage, 'github-issue' | 'none'> = {
   release: 'none', merge: 'none', dev: 'none', waste: 'none', answer: 'none',
 };
 export type Route = 'answer' | 'patch' | 'redesign';
-export type FailureCause = 'timeout' | 'died' | 'github' | 'disk' | 'decision' | 'error';
+export type FailureCause = 'timeout' | 'died' | 'github' | 'disk' | 'decision' | 'baseline' | 'error';
 export type RejectedControl = { action: string; issue: number | null };
 export type Failure = { stage: Stage; issue: number | null; error: string; cause: FailureCause | null; log: string | null; at: string; batch?: number[]; cleared?: number[]; control?: RejectedControl };
 export type ChatReply = { chat: string; messageId: number | null };

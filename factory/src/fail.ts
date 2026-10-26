@@ -1,7 +1,7 @@
 import { CommitteeDecisionError } from './diff-guard';
 import { GithubError } from './github';
 import { UsageLimitError } from './pause';
-import { BudgetError } from './stages/checkpoint';
+import { BaselineFailureError, BudgetError } from './stages/checkpoint';
 import { updateState } from './state';
 import { STUCK_LABEL, type Ctx, type FactoryState, type Failure, type FailureCause, type JobStage, type RejectedControl, type Stage } from './types';
 
@@ -54,8 +54,9 @@ export function causeOf(error: unknown): FailureCause {
   return 'error';
 }
 
-const CAUSE_OF_CLASS: [new (message: string) => Error, FailureCause][] = [
+const CAUSE_OF_CLASS: [abstract new (...args: never[]) => Error, FailureCause][] = [
   [BudgetError, 'decision'],
+  [BaselineFailureError, 'baseline'],
   [CommitteeDecisionError, 'decision'],
   [GithubError, 'github'],
   [JobTimeoutError, 'timeout'],

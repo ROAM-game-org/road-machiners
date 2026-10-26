@@ -70,6 +70,8 @@ Push finished work through. When the code is done and only an agent's paperwork 
 
 A failed `/dev/` build shows its commit and what broke. Fix `dev`, or revert the merge that broke it, then run `run dev -`.
 
+A merge failure with the cause `baseline` failed only on tests that also fail on the base alone, and its `baseline` ledger line and card comments name them. The cards are not at fault. Get the base fixed, as a bug issue or a revert of the merge that broke it, then `retry` the cards.
+
 A tap and a reply on one post can race. Say the committee pressed Approve, then replied with a change. A later patch or redesign wins, and the queued approval drops.
 
 A reply you did not route within `FACTORY_REPLY_ROUTE_MINUTES` becomes a `feedback` failure that names the issue and quotes the reply. Read the chat around it and route it on your best reading with `factory_route_reply` if its post is still open. If the post is closed, act on your best reading with `factory move N <position>`. Never ask the member to send it again.

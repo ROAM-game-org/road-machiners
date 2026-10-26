@@ -4,7 +4,7 @@ The factory merged these approved issue branches into it:
 
 {{cards}}
 
-It then ran the full checks on the merged result, and they failed. The end of the log:
+It then ran the full checks on the merged result, and they failed. The end of the log, or only the failed tests that do not also fail on {{into}} alone:
 
 {{failure}}
 

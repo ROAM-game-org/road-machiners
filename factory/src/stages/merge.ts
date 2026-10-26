@@ -6,7 +6,8 @@ import { readState, updateState } from '../state';
 import { BRANCH, GAME_DIR, RELEASE_CANDIDATE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, type AgentSession, type Card, type Ctx, type FactoryState, type IssueMerge } from '../types';
 import { withWorkFolder } from '../work-lock';
 import { closeMerged } from './approval';
-import { BudgetError, runCost, untilPasses } from './checkpoint';
+import { BaselineFailureError, BudgetError, runCost, untilPasses } from './checkpoint';
+import { FAILURES_ENV, clearFailureRecord, withoutBaseline } from './baseline';
 import { checkScript, checkUntilReal, runChecks } from './checks';
 import { subsetCommand, testSubset } from './subset';
 import { guardAgainstAll } from '../diff-guard';
@@ -19,9 +20,16 @@ export async function merge(ctx: Ctx): Promise<void> {
   try {
     await withWorkFolder(ctx, 'merge-queue', () => mergeBatch(ctx, batch.base, batch.cards));
   } catch (error) {
+    if (error instanceof BaselineFailureError) await noteBaseline(ctx, batch.cards, error);
     for (const card of batch.cards) await ctx.github.addLabel(card.issue, STUCK_LABEL);
     throw error;
   }
+}
+
+async function noteBaseline(ctx: Ctx, cards: Card[], error: BaselineFailureError): Promise<void> {
+  const batch = cards.map((card) => `#${card.issue}`).join(' ');
+  const tests = error.tests.map((test) => `- ${test}`).join('\n');
+  for (const card of cards) await ctx.github.comment(card.issue, `The merge checks of batch ${batch} failed only on tests that fail the same way on ${error.into} at ${error.sha}, without this batch. The batch is not at fault, and no fix round ran on them. ${error.into} needs its own fix before the batch can merge:\n${tests}`);
 }
 
 async function mergeBatch(ctx: Ctx, base: string, cards: Card[]): Promise<void> {
@@ -164,7 +172,12 @@ async function mergedChecks(ctx: Ctx, land: Landing): Promise<string | null> {
   const subset = testSubset(await ctx.repo.changedInWork(land.dir, `origin/${land.into}`));
   const script = checkScript(playtestCommand(ctx.cfg, false), subsetCommand(subset));
   const at = { stage: land.stage, issue: null };
-  return checkUntilReal(() => runChecks(ctx, at, land.dir, script, log, { BUILD_SCOPE: land.stage }), (run) => ctx.log(land.stage, null, `the checks only timed out, run ${run}, running them again`));
+  const run = () => {
+    clearFailureRecord(land.dir);
+    return runChecks(ctx, at, land.dir, script, log, { BUILD_SCOPE: land.stage, ...FAILURES_ENV });
+  };
+  const failure = await checkUntilReal(run, (count) => ctx.log(land.stage, null, `the checks only timed out, run ${count}, running them again`));
+  return failure === null ? null : withoutBaseline(ctx, land, failure);
 }
 
 async function pushed(ctx: Ctx, land: Landing): Promise<string | null> {

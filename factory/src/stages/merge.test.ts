@@ -1,11 +1,13 @@
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readLedger } from '../ledger';
 import { EMPTY_STATE, readState, updateState, writeState } from '../state';
-import { RELEASE_TASK_LABEL, STUCK_LABEL, type AgentRun, type Card, type Ctx } from '../types';
+import { RELEASE_TASK_LABEL, STUCK_LABEL, type AgentRun, type Card, type Ctx, type Pin } from '../types';
 import { CheckTimeoutError } from '../container';
-import { BudgetError } from './checkpoint';
+import { BaselineFailureError, BudgetError } from './checkpoint';
+import { causeOf } from '../fail';
+import type { FailureRecord } from './baseline';
 
 const deployed: string[] = [];
 vi.mock('../deploy', () => ({ deployDev: async () => { deployed.push('dev'); return 'https://play.test/dev/'; } }));
@@ -28,6 +30,9 @@ let costs: number[] = [];
 let changed: string[] = [];
 let movedBy: string[] = [];
 let scripts: string[] = [];
+let records: (FailureRecord | null)[] = [];
+let shellDirs: string[] = [];
+let pins: (Pin | undefined)[] = [];
 let heads = 0;
 const PASS = 'pass';
 const HUNG = 'the checks ran past their 45 minute limit, and the factory removed their container.';
@@ -54,6 +59,9 @@ beforeEach(() => {
   changed = [];
   movedBy = ['game/src/sim/world.ts'];
   scripts = [];
+  records = [];
+  shellDirs = [];
+  pins = [];
   heads = 0;
   deployed.length = 0;
   writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), approvedResolving: { 5: 'Ann', 6: 'Bob' }, release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 300, removed: [9], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, pendingShip: 'ann' });
@@ -76,10 +84,17 @@ function fakeCtx(budget = 5): Ctx {
     telegram: { sendMessage: async (_chat: string, text: string) => { calls.push(`message ${text}`); return 1; } },
     container: {
       agent: async (run: AgentRun) => { runs.push(run); calls.push('agent'); return result(costs.shift()); },
-      shell: async (_kind: string, _dir: string, script: string, _log: string, _env?: Record<string, string>, _mounts?: Record<string, string>, limit?: number) => {
+      shell: async (_kind: string, dir: string, script: string, _log: string, _env?: Record<string, string>, _mounts?: Record<string, string>, limit?: number, pin?: Pin) => {
         calls.push('checks');
         scripts.push(script);
         limits.push(limit);
+        shellDirs.push(dir);
+        pins.push(pin);
+        const record = records.shift();
+        if (record) {
+          mkdirSync(join(dir, 'game', 'tmp'), { recursive: true });
+          writeFileSync(join(dir, 'game', 'tmp', 'test-failures.json'), JSON.stringify(record));
+        }
         const failure = shellFailures.shift();
         if (failure !== undefined && failure !== PASS) throw failure.includes(HUNG) ? new CheckTimeoutError(failure) : new Error(failure);
       },
@@ -434,5 +449,92 @@ describe('merge queue', () => {
     cards = [];
     await merge(fakeCtx());
     expect(calls).toEqual([]);
+  });
+});
+
+const RAVINE = { file: 'src/phys/ravine.test.ts', test: 'a truck in a ravine > raises a stall', errors: ['AssertionError: expected 0 to be greater than 0'] };
+const SURVEY = { file: 'src/phys/survey-reach.test.ts', test: null, errors: ['cannot load the baked map'] };
+const SUM = { file: 'src/sim/sum.test.ts', test: 'sum > adds', errors: ['AssertionError: expected 3 to be 4'] };
+const failed = (...tests: FailureRecord['failed']): FailureRecord => ({ failed: tests, unhandledErrors: 0 });
+const baselineLines = () => readLedger(home, new Date(0)).filter((line) => line.kind === 'baseline');
+
+describe('merge checks against the base', () => {
+  it('runs no fix round when every failed test also fails on the base alone, labels the batch stuck as a base failure and tells each card', async () => {
+    shellFailures = ['FAIL src/phys/ravine.test.ts', 'FAIL src/phys/ravine.test.ts'];
+    records = [failed(RAVINE, SURVEY), failed(RAVINE, SURVEY)];
+    const error = await merge(fakeCtx()).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(BaselineFailureError);
+    expect(causeOf(error)).toBe('baseline');
+    expect(runs).toHaveLength(0);
+    expect(calls.filter((call) => /^(clone|checks|agent|push)/.test(call))).toEqual(['clone dev dev', 'checks', 'clone dev dev', 'checks']);
+    expect(shellDirs[1]).toBe(`${home}/work/merge-queue-baseline`);
+    expect(scripts[1]).toContain("npm run test:cached -- 'src/phys/ravine.test.ts' 'src/phys/survey-reach.test.ts'");
+    expect(pins[1]?.testWorkers).toBe(1);
+    expect(calls).toContain('label 5 factory-stuck');
+    expect(calls).toContain('label 6 factory-stuck');
+    expect(comments.filter((comment) => comment.includes('failed only on tests that fail the same way on dev at merged'))).toHaveLength(2);
+    expect(comments[0]).toContain('- src/phys/ravine.test.ts > a truck in a ravine > raises a stall');
+    expect(baselineLines()).toEqual([{ kind: 'baseline', job: null, stage: 'merge', into: 'dev', sha: 'merged3', excluded: ['src/phys/ravine.test.ts > a truck in a ravine > raises a stall', 'src/phys/survey-reach.test.ts'], failing: [], at: '2026-09-30T10:00:00.000Z' }]);
+  });
+
+  it('gives the merge session only the failed tests the base passes, and still fails the gate while a new test fails', async () => {
+    costs = [2, 2];
+    shellFailures = ['FAIL ravine and sum', 'FAIL ravine', 'FAIL ravine and sum', 'FAIL ravine'];
+    const sumOnBase = { ...SUM, test: 'sum > subtracts' };
+    records = [failed(RAVINE, SUM), failed(RAVINE, sumOnBase), failed(RAVINE, SUM), failed(RAVINE, sumOnBase)];
+    await expect(merge(fakeCtx(2))).rejects.toThrow(BudgetError);
+    expect(runs).toHaveLength(1);
+    expect(runs[0]!.prompt).toContain('FAIL src/sim/sum.test.ts > sum > adds\nAssertionError: expected 3 to be 4');
+    expect(runs[0]!.prompt).not.toContain('ravine');
+    expect(calls.some((call) => call.startsWith('push'))).toBe(false);
+    expect(baselineLines().map((line) => line.kind === 'baseline' && line.failing)).toEqual([['src/sim/sum.test.ts > sum > adds'], ['src/sim/sum.test.ts > sum > adds']]);
+  });
+
+  it('stops without another fix round once the fix leaves only the failures the base has', async () => {
+    shellFailures = ['FAIL ravine and sum', 'FAIL ravine', 'FAIL ravine', 'FAIL ravine'];
+    records = [failed(RAVINE, SUM), failed(RAVINE), failed(RAVINE), failed(RAVINE)];
+    await expect(merge(fakeCtx())).rejects.toThrow(BaselineFailureError);
+    expect(calls.filter((call) => /^(checks|agent|push)/.test(call))).toEqual(['checks', 'checks', 'agent', 'checks', 'checks']);
+  });
+
+  it('keeps every failure for the merge session when the rerun on the base writes no record', async () => {
+    shellFailures = ['FAIL src/phys/ravine.test.ts: expected 0 to be greater than 0', 'npm ci failed'];
+    records = [failed(RAVINE), null];
+    await merge(fakeCtx());
+    expect(runs).toHaveLength(1);
+    expect(runs[0]!.prompt).toContain('FAIL src/phys/ravine.test.ts: expected 0 to be greater than 0');
+    expect(logs.some((line) => line.startsWith('the rerun of the failed tests on dev did not run, so every failure stands'))).toBe(true);
+    expect(calls).toContain('push head1 dev');
+    expect(baselineLines()).toEqual([]);
+  });
+
+  it('keeps every failure when the base cannot be cloned for the rerun', async () => {
+    shellFailures = ['FAIL src/phys/ravine.test.ts'];
+    records = [failed(RAVINE)];
+    const ctx = fakeCtx();
+    const clone = ctx.repo.prepareWorkClone;
+    ctx.repo.prepareWorkClone = async (branch, base, dir) => {
+      if (dir.endsWith('-baseline')) throw new Error('clone failed');
+      return clone(branch, base, dir);
+    };
+    await merge(ctx);
+    expect(runs).toHaveLength(1);
+    expect(runs[0]!.prompt).toContain('FAIL src/phys/ravine.test.ts');
+    expect(calls).toContain('push head1 dev');
+  });
+
+  it('takes a malformed record as no record, so the whole failure goes to the merge session', async () => {
+    shellFailures = ['FAIL src/phys/ravine.test.ts'];
+    records = [{ failed: [{ file: 'src/phys/ravine.test.ts', test: 3, errors: [] }], unhandledErrors: 0 } as never];
+    await merge(fakeCtx());
+    expect(calls.filter((call) => /^(clone|checks|agent|push)/.test(call))).toEqual(['clone dev dev', 'checks', 'agent', 'checks', 'push head1 dev']);
+    expect(runs[0]!.prompt).toContain('FAIL src/phys/ravine.test.ts');
+  });
+
+  it('reruns nothing on the base when the failure is not a failed test, like an unhandled error or a failed playtest', async () => {
+    shellFailures = ['unhandled error', 'playtest failed'];
+    records = [{ failed: [RAVINE], unhandledErrors: 1 }, failed()];
+    await merge(fakeCtx());
+    expect(calls.filter((call) => /^(clone|checks|agent|push)/.test(call))).toEqual(['clone dev dev', 'checks', 'agent', 'checks', 'agent', 'checks', 'push head1 dev']);
   });
 });

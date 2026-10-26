@@ -1,11 +1,11 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { testId } from './store';
 
 const GAME = process.cwd();
-const RUNNER_FILES = ['scripts/test-cache.mjs', 'src/test/cache/fingerprint.ts', 'src/test/cache/store.ts', 'src/test/cache/select.ts', 'src/test/cache/reads-setup.ts', 'src/test/cache/stall.ts', 'src/test/cache/verdict.ts'];
+const RUNNER_FILES = ['scripts/test-cache.mjs', 'src/test/cache/fingerprint.ts', 'src/test/cache/store.ts', 'src/test/cache/select.ts', 'src/test/cache/reads-setup.ts', 'src/test/cache/stall.ts', 'src/test/cache/verdict.ts', 'src/test/cache/failures.ts'];
 const CONFIG = `import { defineConfig } from 'vitest/config';
 export default defineConfig({ test: { include: ['src/**/*.test.ts'], maxWorkers: 2, minWorkers: 1, testTimeout: 0 } });
 `;
@@ -37,7 +37,7 @@ it('waits for the gate', async () => {
 `;
 
 function childEnv(extra: Record<string, string>): NodeJS.ProcessEnv {
-  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('VITEST') && key !== 'TEST_CACHE_READS' && key !== 'TEST_STALL_MINUTES' && key !== 'TEST_SUITE_MINUTES'));
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('VITEST') && key !== 'TEST_CACHE_READS' && key !== 'TEST_STALL_MINUTES' && key !== 'TEST_SUITE_MINUTES' && key !== 'TEST_FAILURES_FILE'));
   return { ...env, ...extra };
 }
 
@@ -47,6 +47,9 @@ function runCached(extra: Record<string, string> = {}, args: string[] = []): { c
   const result = spawnSync(runnerArgs[0]!, [...runnerArgs.slice(1), ...args], { cwd: root, env: childEnv(extra), encoding: 'utf8', timeout: RUN_LIMIT_MS });
   return { code: result.status, out: `${result.stdout}${result.stderr}` };
 }
+
+const FAILURES = 'tmp/test-failures.json';
+const failures = () => JSON.parse(readFileSync(join(root, FAILURES), 'utf8'));
 
 const cached = (test: string) => existsSync(join(root, 'cache', 'entries', testId(test)));
 
@@ -178,6 +181,45 @@ describe('test:cached', { timeout: 4 * RUN_LIMIT_MS }, () => {
     const run = runCached();
 
     expect(run.code).toBe(1);
+  });
+
+  it('writes each failed test by file and name to TEST_FAILURES_FILE, with its error', () => {
+    put('src/fails.test.ts', `import { describe, expect, it } from 'vitest';\ndescribe('sum', () => { it('is wrong', () => expect(1).toBe(2)); });\n`);
+
+    const run = runCached({ TEST_FAILURES_FILE: FAILURES });
+
+    expect(run.code).toBe(1);
+    expect(failures()).toEqual({ failed: [{ file: 'src/fails.test.ts', test: 'sum > is wrong', errors: [expect.stringContaining('expected 1 to be 2')] }], unhandledErrors: 0 });
+  });
+
+  it('records a test file that fails outside its tests with no test name, and counts the unhandled errors', () => {
+    put('src/broken-import.test.ts', `throw new Error('cannot load');\n`);
+    put('src/leaks.test.ts', `import { it } from 'vitest';\nit('passes but leaks an error', () => { void Promise.reject(new Error('boom')); });\n`);
+
+    const run = runCached({ TEST_FAILURES_FILE: FAILURES });
+
+    expect(run.code).toBe(1);
+    expect(failures().failed).toEqual([{ file: 'src/broken-import.test.ts', test: null, errors: [expect.stringContaining('cannot load')] }]);
+    expect(failures().unhandledErrors).toBe(1);
+  });
+
+  it('replaces an old record with an empty one when every test passes', () => {
+    put(FAILURES, JSON.stringify({ failed: [{ file: 'src/a.test.ts', test: 'old', errors: [] }], unhandledErrors: 0 }));
+
+    const run = runCached({ TEST_FAILURES_FILE: FAILURES });
+
+    expect(run.code).toBe(0);
+    expect(failures()).toEqual({ failed: [], unhandledErrors: 0 });
+  });
+
+  it('leaves no record when the run stops on a stall, since its tests did not all end', () => {
+    put('src/hangs.test.ts', hangingTest);
+    put(FAILURES, JSON.stringify({ failed: [], unhandledErrors: 0 }));
+
+    const run = runCached({ TEST_STALL_MINUTES: '0.25', TEST_FAILURES_FILE: FAILURES });
+
+    expect(run.code).toBe(1);
+    expect(existsSync(join(root, FAILURES))).toBe(false);
   });
 
   it('runs the tests that import a changed file through other modules, and only those', () => {

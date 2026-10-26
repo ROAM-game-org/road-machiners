@@ -97,7 +97,7 @@ Each record has a kind. The first that fits wins:
 - `running`: a job of the card runs, or the card is in the running merge batch. The sweep waits.
 - `held`: the card is held. The sweep waits.
 - `unrecorded`: no failure names the card. It stays for Hermes, since an empty budget or a committee question may have aged out of `failures`.
-- `blocked`: an empty budget, a committee question, the release tracking card, an action the sweep already took in this column, a refused action, and every other failure, like a failed check. It stays for Hermes.
+- `blocked`: an empty budget, a committee question, a merge or ship that failed only on tests the base also fails (cause `baseline`), the release tracking card, an action the sweep already took in this column, a refused action, and every other failure, like a failed check. It stays for Hermes.
 - `merge-batch`: a Merging card of a merge batch of two or more cards that timed out or died. The failure's cause is `timeout` or `died`.
 - `clone-merge`: a Design, Implementation, Testing or Hardening card whose work clone has an open merge, revert, cherry-pick or rebase.
 - `machine`: a failed `gh` call of the GitHub client, since the tick just read the board, a full suite on GitHub Actions that could not run, or a full disk once `FACTORY_MIN_FREE_GB` is free again. A full disk is an `ENOSPC` error. The retry runs once per card per column, so a call that fails for good turns `blocked` after it.
@@ -164,6 +164,8 @@ A run cut off before its `result` event still costs money. This covers a crash, 
 Before the factory deletes a sessions folder or a run's projects folder, it copies every transcript in it to `$FACTORY_HOME/transcripts/<session>/`, with its subagents. The transcripts are kept to analyze what agents did, where they got stuck and what to optimize. Each run in the ledger names its `sessionId`, so a ledger line leads to its transcripts. An ad hoc task sees the ledger and the archive read only, so a member asks Hermes for such an analysis. The folder is a Claude Code projects folder, so `transcriptUsage()` in `src/transcript.ts` reads it.
 
 Every routed approval reply adds a line too.
+
+A merge or ship checkpoint that leaves out failed tests because they also fail on the base adds a `baseline` line: the job id, the stage, the base `into` and its commit `sha`, the `excluded` tests and the `failing` tests that still went to the fix session, each as `file > full test name`, or the file alone for a file that failed outside its tests.
 
 Every card move adds a card line: the issue, the new column, the time and a step that names the move. `src/card-events.ts` writes it after the board takes the move, and no other code moves a card. A line holds no actor, comment or reason.
 
