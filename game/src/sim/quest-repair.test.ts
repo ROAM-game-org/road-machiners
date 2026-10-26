@@ -41,7 +41,7 @@ function notesOf(...ids: NoteId[]): Player['notes'] {
 }
 
 function saved(state: Partial<Saved>): Saved {
-  return { world: {}, local: {}, session: null, ...state };
+  return { world: {}, local: {}, session: null, seen: {}, ...state };
 }
 
 function again(bundle: QuestBundle, revisions: SavedRevisions, repair: QuestRepair): QuestRepair {

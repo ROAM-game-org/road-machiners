@@ -1,5 +1,5 @@
 {
- "format": "2.115",
+ "format": "2.116",
  "shape": {
   "broken": [],
   "chaosHighway": "null",
@@ -81,6 +81,7 @@
    "perks": [],
    "quests": {
     "local": {},
+    "seen": {},
     "session": {
      "checkpoint": "string",
      "quest": "string",

@@ -15,17 +15,15 @@ import { CONDITION } from '../data/wear';
 import { resolveNpcActivities, startTow, thinkNpc, topGoal } from './npc-activities';
 import { optionChances, optionWeights, usefulContacts } from './npc-decisions';
 import { addState, endState, stateOf, towData } from './states';
-import { callVehicle, chooseOption, currentOptions, endCallIfOut, hangUp } from './dialogue';
+import { callVehicle, endCallIfOut, hangUp } from './dialogue';
+import { asksOf, chooseText } from './dialogue-testkit';
 import { dropTow, isOnRope, runTow, isTowed, playerTow, playerTowing, setBeacon, steerToStranded, towOf, unhitch } from './tow';
 import { sunAt } from './sun';
 import { canVehicleSee, refreshVision } from './vision';
 import type { GameEvent, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 import { autoRuns, cloneWorld, endTurn, setDirect, setMoveOrder } from './world';
-import { lineKey } from '../text/names';
-import { entryText } from '../text/resolve';
 
-const en = (line: Parameters<typeof lineKey>[0]): string => entryText('en', lineKey(line));
 
 type Setup = { w: World; trader: Vehicle };
 
@@ -78,9 +76,7 @@ function offered(s: Setup, topic: 'tow' | 'towFree' = 'tow'): World {
 }
 
 function answer(w: World, text: string): World {
-  const i = currentOptions(w).findIndex((o) => en(o.line) === text);
-  if (i < 0) throw new Error(`No option "${text}" in ${currentOptions(w).map((o) => en(o.line)).join(' | ')}`);
-  return chooseOption(w, i);
+  return chooseText(w, text);
 }
 
 const acceptTow = (w: World) => answer(w, 'Deal. Hitch me up.');
@@ -225,7 +221,7 @@ describe('tow offer', () => {
     const s = stranded();
     s.w.player.fuel = 30;
     const w = callVehicle(s.w, s.trader.id);
-    expect(currentOptions(w).map((o) => en(o.line))).not.toContain("I'm stranded. Can you tow me?");
+    expect(asksOf(w)).not.toContain("I'm stranded. Can you tow me?");
   });
 
   it('raiders never tow', () => {
@@ -876,9 +872,7 @@ describe('the player towing an NPC', () => {
   }
 
   function pick(w: World, text: string): World {
-    const i = currentOptions(w).findIndex((o) => en(o.line) === text);
-    if (i < 0) throw new Error(`No option "${text}" in ${currentOptions(w).map((o) => en(o.line)).join(' | ')}`);
-    return chooseOption(w, i);
+    return chooseText(w, text);
   }
 
   function hitched(): { w: World; npc: Vehicle } {
@@ -1028,16 +1022,16 @@ describe('the player towing an NPC', () => {
     playerVehicle(w).pos = { x: npc.pos.x + out.x * 3, y: npc.pos.y + out.y * 3 };
     refreshVision(w);
     expect(canUseSite(npc.pos, bowl)).toBe(true);
-    expect(currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line))).not.toContain(OFFER);
+    expect(asksOf(callVehicle(w, npc.id))).not.toContain(OFFER);
   });
 
   it('is not offered to a driver that can drive or parks out of reach', () => {
     const { w, npc } = strandedNpc();
     npc.resources!.fuel = 50;
-    expect(currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line))).not.toContain(OFFER);
+    expect(asksOf(callVehicle(w, npc.id))).not.toContain(OFFER);
     const far = strandedNpc();
     far.npc.pos = at(35);
-    expect(currentOptions(callVehicle(far.w, far.npc.id)).map((o) => en(o.line))).not.toContain(OFFER);
+    expect(asksOf(callVehicle(far.w, far.npc.id))).not.toContain(OFFER);
   });
 });
 

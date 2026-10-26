@@ -166,6 +166,7 @@ One grammar for every control and every selectable thing.
 | planned | A choice that is not committed yet | Dashed accent outline |
 | working | Timed work in progress | Accent progress meter |
 | disabled | Cannot be used now | Dimmed, with its reason |
+| seen | A radio option or talk choice with nothing new behind it | Sunk surface, same ink. Hover and focus still apply |
 | unaffordable | Needs more money | Price in danger ink |
 | locked | Needs progress, like a rank | Lock icon |
 
@@ -317,6 +318,7 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
 - The Marshalls desk is the site screen of the Roadhouse with one tab and no truck grid: a group of case rows, each with Pay and its price, Pay all under them, then a group of settlement rows with the faction, its hostile tag and a Settle button whose tooltip names the after state. A case price is its fine plus restitution. When it holds restitution it has a dotted underline, and hovering Pay opens a `.tooltip-row` breakdown to the left of the button: Base, the fine, in muted ink, and Restitution in danger ink, since it raises a cost the player pays and danger means loss (section 9). The breakdown sits beside the button, not in it, so a disabled Pay does not dim it. `deskBody()` and `casePrice()` in `src/ui/shop-rows.ts` build the rows. The desk offers Look for locals and Drive on. Look for locals opens a People page with the Roadhouse's local and Back, and a talk opens in the desk's frame as in a town.
 - A radio option that costs money the player lacks stays offered, `aria-disabled`, with "Need N M more" as its reason, as the Pay of a Marshall's demand does.
 - `.resource.danger` gives an HUD readout the danger edge while its state is true, the attention level of 7. The health readout takes it in a turn the reactor core burns the driver.
+- `.seen` is the look of a radio option or a talk choice with nothing new behind it: the `--surface-sunk` fill and the same ink, so it reads the same and stays clickable. It marks a question whose reply has not changed since the player last heard it, and a topic or group whose questions are all like that. It never hides, reorders or disables an option, and it makes no sound, log line or notice.
 - `.num` is a number in the mono face. `.dim`, `.good` and `.bad` color a word.
 
 ## 13. How to build a screen

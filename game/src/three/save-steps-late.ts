@@ -621,3 +621,17 @@ export function withWreckSquares_114_115(world: SavedJson): SavedJson {
   if (!call || !isWreckCall_114_115(call)) return world;
   return { ...world, player: { ...player, call: null } };
 }
+
+export function withDialogueSeen_115_116(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  const quests = player.quests as SavedJson | undefined;
+  return {
+    ...world,
+    player: {
+      ...player,
+      ...(call ? { call: { ...call, group: null, asked: [] } } : {}),
+      ...(quests ? { quests: { ...quests, seen: {} } } : {}),
+    },
+  };
+}

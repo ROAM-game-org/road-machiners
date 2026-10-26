@@ -14,7 +14,9 @@ import { chooseOn } from './tracks';
 import { endTurn } from './world';
 import { testDrive } from './testkit';
 import { advanceSunward, craterExit, gateOrder, isCavalcadeCar, planSunward, dawnAfter, duskTurn, fallenSun, isSunwardMember, returnTurn, sunwardFacts, vigilGrounds, vigilPosts } from './sunward';
-import { callVehicle, chooseOption, currentOptions, hangUp, raiseCalls, talkOf } from './dialogue';
+import { callVehicle, hangUp, raiseCalls, talkOf } from './dialogue';
+import type { LineId } from '../data/dialogue';
+import { chooseLine, offersLine } from './dialogue-testkit';
 import { topGoal } from './npc-activities';
 import { CRATER_ACCOUNTS, SUNWARD } from '../data/sunward';
 import { REGION } from '../data/region';
@@ -259,10 +261,8 @@ describe('the vigil invitation', () => {
     return w;
   }
 
-  function answer(w: World, line: string): World {
-    const index = currentOptions(w).findIndex((o) => o.line === line);
-    if (index < 0) throw new Error(`No option ${line}`);
-    return chooseOption(w, index);
+  function answer(w: World, line: LineId): World {
+    return chooseLine(w, line);
   }
 
   const feuds = (w: World, member: Vehicle) => w.states.filter((s) => s.kind === 'feud' && s.holder === member.id && s.other === w.player.vehicleId);
@@ -496,12 +496,11 @@ describe('talk of the order', () => {
 
   function askCrater(w: World, npc: Vehicle): World {
     const open = callVehicle(w, npc.id);
-    const index = currentOptions(open).findIndex((o) => o.line === 'askAboutTheCrater');
-    expect(index).toBeGreaterThanOrEqual(0);
-    return chooseOption(open, index);
+    expect(offersLine(open, 'askAboutTheCrater')).toBe(true);
+    return chooseLine(open, 'askAboutTheCrater');
   }
 
-  const offers = (w: World, npc: Vehicle) => currentOptions(callVehicle(w, npc.id)).some((o) => o.line === 'askAboutTheCrater');
+  const offers = (w: World, npc: Vehicle) => offersLine(callVehicle(w, npc.id), 'askAboutTheCrater');
   const newsOf = (w: World): string => {
     const news = w.player.call?.vars.news;
     if (!news || news.kind !== 'line') throw new Error('No crater account on the line');
