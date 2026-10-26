@@ -8,7 +8,7 @@ Way: control.
 
 Nose is the town built around a ship's wreck on a mountain. The Central Committee governs it, led by President Alan Graves, who has held power for 30 years. The Nose Army keeps the order.
 
-Nose runs the basin's only workshop line that builds whole engines and guns. It took the line over from the Old Army. Nose plans its whole economy. It rations food, water and work, so most people there are safe and fed. Its leaders are deeply corrupt, and the army is brutal to anyone who speaks against them.
+Nose runs the basin's only workshop line that builds whole engines and guns. It built the line from machine tools rented from the Guild's trust. Nose plans its whole economy. It rations food, water and work, so most people there are safe and fed. Its leaders are deeply corrupt, and the army is brutal to anyone who speaks against them.
 
 Its motto is "Unity above all." Nose believes the basin can survive only through careful rationing and strict discipline, and it wants to bring all of Icarus under that order.
 
@@ -106,7 +106,7 @@ Way: escape.
 
 When the ship fell, hundreds of its escape pods came down across the basin, and people climbed out of them. They were pale, wore grey suits, spoke a tongue nobody knew and remembered almost nothing before waking. Basin people called them the Given, after the cry "Given by the sky".
 
-The Given were never one faction. Most went to the Nose, the wreck that looked like home, and they built it alongside the Garrison's deserters. Others joined the Creed's refugees in the crater that became the Bowl. Today most people in the basin have a Given grandparent. The last ones who woke in a pod are very old.
+The Given were never one faction. Most went to the Nose, the wreck that looked like home, and they built it alongside the Garrison's deserters. Others joined the Creed's refugees in the crater that became the Bowl. Today most people in the basin have a Given forebear.
 
 Their descendants carry them in small ways: pale skin and grey eyes, a few words of a lost tongue in songs and names, a grey suit or a pod tag stamped with common digits kept in a family chest. Many of the Sunward and most of the Children of Noah are Given families. They are the ones who dream of the crater, and the ones who wait for the ship to come back.
 

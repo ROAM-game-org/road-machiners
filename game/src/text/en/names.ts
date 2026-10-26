@@ -276,7 +276,7 @@ export const NAMES = {
   'skill.social': 'Social',
   'skill.social.grows': 'trade profit, deals, contracts, radio',
   'basic.overdrive': 'Overdrive',
-  'basic.overdrive.rule': 'The O switch drives the engine past its limit for more speed and much more heat, and the G button pours water over a hot engine to cool it.',
+  'basic.overdrive.rule': 'The O switch drives the engine past its limit for more speed and much more heat, and the G button spends supplies to cool a hot engine.',
   'basic.lookOver': 'Look-over',
   'basic.lookOver.rule': 'Spend a turn looking over a seen truck from close by. Then you see its goods and spare parts while it stays in sight.',
   'basic.patching': 'Roadside patch',

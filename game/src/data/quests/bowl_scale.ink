@@ -23,7 +23,6 @@ Engine guts weigh heavy. They go to whoever's truck is coughing. I don't ask who
   By weight. The price is chalked on the board by the beam. Read it before you unload, and argue with the chalk, not with me. # speaker: Mags
   Each crate fetches a little less than the one before. The machinists can only turn so much iron into parts in a day. # speaker: Mags
   My price is Bowl's price. # speaker: Mags
-  Nose pays more for iron, but it's a long climb for a few M's. # speaker: Mags
   -> hub
 + {not asked_where} [Where do they find iron like that?]
   ~ asked_where = true

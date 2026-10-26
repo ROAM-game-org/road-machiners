@@ -85,7 +85,7 @@ Corporal Teller. A word outside, driver. # speaker: Teller
 + {not offer_heard} [Step outside with Teller.]
   ~ offer_heard = true
   ~ report_seen = true
-  The yard is hot and smells of the wash pit. Teller stands where the shed wall hides him from the bench. # page
+  The yard is hot and smells of the oil sump. Teller stands where the shed wall hides him from the bench. # page
   Look. I wrote that raiders ran her down and the cannon went over the edge. A wagon down a slope isn't worth a tow, so command wrote her off, and nobody drove out to look at her brakes. # speaker: Teller
   Command's order says a depot rod holds if you take the bends slow. So if a rod goes on a bend, the driver took it fast. I was driving. # speaker: Teller
   In Nose a corporal's family eats on his card. My sister draws her bread on my stripes. Lose them, and her card goes back to the clerk, and she's got a boy of her own. # speaker: Teller
@@ -164,6 +164,6 @@ You go back out to the yard. Teller counts M's into your hand one at a time, and
 { wagon_rod == "bent":
   He doesn't look at its face. He doesn't know what he's looking for.
 }
-He walks it to the wash pit and drops it through the grate. You hear it hit water.
+He walks it to the oil sump and drops it through the grate. You hear it hit the oil.
 When you go back past the shed, Lena is writing on a scrap of sign-out sheet and doesn't look up. Duvall is turning his half of the rod over in his fingers. Kovac's page still says raiders, and the trucks with the same rods still go out in the morning.
 -> END

@@ -149,7 +149,7 @@ Where to mark a word:
 - Mark a word only on a line where the player may know everything its tip says. The writer decides this, and the game does not check it.
 - Mark a term once per screen, on its first use.
 - Mark terms in spoken and narrated lines only, never in a choice. Choice buttons print their text as it is, so a mark would show as raw text.
-- When the player later learns more about a term, add a new entry with its own id, like `bowl_well` beside `bowl`. Mark the new id only on lines after the player has learned it. Never change an old entry to hold the new fact.
+- When the player later learns more about a term, add a new entry with its own id, like `bowl_cistern` beside `bowl`. Mark the new id only on lines after the player has learned it. Never change an old entry to hold the new fact.
 - A tip replaces a question whose answer is only a definition, like "What is this place?". Keep the question when its answer is a story, an opinion or a lead.
 
 How to check:

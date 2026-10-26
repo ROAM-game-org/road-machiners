@@ -12,7 +12,7 @@ ROAM's voice comes from the author's own wasteland and adventure stories. These 
 
 Narration runs through the character's head. Between the plain facts, the character thinks: a judgment, a complaint, a question to themselves, a guess that may be wrong. "Bradley was a good axe, even though he was an insufferable dickhead." "Should have approached from the sun side." "Does dying by a bullet beat starving in the desert? Hell yeah." In a page scene this is the second person: "Walking south-west was stupid. Not that the south-east had anything better."
 
-A page of bare facts, one after another, reads as a telegram even when each sentence is fine. "The house has lost its roof. The fence posts lean. The goat pen holds no goats." lists what a camera sees. Give the facts a reaction, or join them to what the character wants.
+A page of bare facts, one after another, reads as a telegram even when each sentence is fine. "The house has lost its roof. The fence posts lean. The tap gives nothing." lists what a camera sees. Give the facts a reaction, or join them to what the character wants.
 
 About a quarter of the sentences carry this voice, as in the author's stories. The rest say plainly what happens. The habits below are the strongest kind of voice, so save them for a turn in the scene, like the moment before a fight. A simile or a joke on every line flattens all of them, and so does none at all.
 
@@ -40,7 +40,7 @@ Narration stays close to the player and thinks like a survivor: what's a threat,
 
 Put a plain want next to the violence: a bed, a hot meal, a cup of water, who does the washing up. A haggle over a cot after a gunfight tells the player more about the basin than any speech about how hard life is. End a big scene on the small thing.
 
-After the player drives the raiders off Juno's lamp line, Juno says: "You'll want the cot by the stove, then. And you're carrying the oil up in the morning, because Tam's leg won't."
+After the player drives the raiders off Juno's beacon line, Juno says: "You'll want the cot by the stove, then. And you're carrying the batteries up in the morning, because Tam's leg won't."
 
 ### Both sides look the same
 
@@ -62,7 +62,7 @@ The old world left words behind, and people use them for new things without know
 
 Gatekeepers, traders and clerks price news. A toll drops if you tell the gate what you saw on the road. A stranger's story is worth something to somebody, and people say so.
 
-Kovac: "Toll's the usual. Half, if you tell me what's parked at Kiln."
+Kovac: "Tell me what's parked at Kiln, and I'll tell you which road is clear."
 
 ### Swearing like weather
 
@@ -154,7 +154,7 @@ A world fact comes up as part of what the speaker wants: a complaint, a price, a
 
 Bad: "Pierce Corporation insures trucks and lends money to the towns."
 
-Good, a Granary driver: "Pierce wouldn't pay when my axle went. They're the insurers at Nose. They take your coin every season, and when my truck broke they found a reason: I had pulled my gun off the bed to save weight."
+Good, a Granary driver: "Pierce wouldn't pay when my brother didn't come back. They're the insurers at Nose. They take your M's every season, and when he went missing they found a reason: he had pulled his gun off the bed to save weight."
 
 People live inside the basin's facts. Guns on every truck, the Kiln fee and the Senate are old and ordinary to them. Nobody announces them.
 
@@ -168,7 +168,7 @@ The player is a stranger. When a speaker uses a local word, the same answer says
 
 Bad: "Some. Good drivers, bad paper. They wear the same coat."
 
-Good, Dag: "A few, yes. They drive well, but Pierce won't insure a tenant's truck. So they ride in our coats, and the Senate keeps their names off the roll that would earn them a vote."
+Good, Dag: "A few, yes. They drive well, but no tenant can pay for Pierce paper. So they ride in our coats, and the Senate keeps their names off the roll that would earn them a vote."
 
 ### Depth on the player's terms
 
@@ -224,7 +224,7 @@ Each choice changes what Bo says next. None of them is a test with a right answe
 
 ### Exits and actions
 
-The way out is always there. It can be plain, like "[Goodbye.]", or in the moment, like "[Leave him to his tires.]". An action the player does instead of saying uses a bracketed verb, like "[Put the brass on the table.]".
+The way out is always there. It can be plain, like "[Goodbye.]", or in the moment, like "[Leave him to his tires.]". An action the player does instead of saying uses a bracketed verb, like "[Put the M's on the table.]".
 
 ## Dodges, lies and refusals
 

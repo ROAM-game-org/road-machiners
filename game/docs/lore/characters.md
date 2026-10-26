@@ -82,7 +82,7 @@ His line is "I will be king of the camps, and I will pay any price for it."
 ## Dagny Brask
 
 - Way: oppose.
-- High concept: The founder of Kiln Camp, past 110, who still works the furnace and melts captured guns into tools.
+- High concept: The old founder of Kiln Camp, who still works the furnace and melts captured guns into tools.
 - Trouble: She hates kings, but her furnace feeds the camp that Ain is turning into a throne.
 - Aspects: The furnace and its deep bore; Hunted by both towns since year 89; Ain runs the camp she founded.
 - Skills: best machining, worst driving.
@@ -91,7 +91,7 @@ His line is "I will be king of the camps, and I will pay any price for it."
 - Habit: She tests every captured gun by hand before it goes into the melt.
 - Secret: None.
 
-Dagny founded Kiln Camp when both towns drove her band out of the crater rim. She is past 110 and still works the furnace that gives the camp its name. She melts captured guns into tools. Ain runs the camp now, and she calls no one king.
+Dagny founded Kiln Camp when both towns drove her band out of the crater rim. She is old now and still works the furnace that gives the camp its name. She melts captured guns into tools. Ain runs the camp now, and she calls no one king.
 
 Her line is "Kings do not light furnaces. Workers do."
 
@@ -187,7 +187,7 @@ He speaks in sermons. One of them goes like this:
 - Habit: She counts every sack at night and posts the count on the gate in her own hand.
 - Secret: None.
 
-Odile is the steward of the Granary for the Bowl Senate. She was born a tenant and earned her vote with ten years in the patrols, and some tenants still call her a turncoat. She counts every sack at night and posts the count on the Granary gate. Two counts hang there now: the sack paid to Kiln Camp for each armed truck, and the tenants' share for the Bowl patrol. She fears a famine like the one in year 70, and she would pay raiders forever to avoid one.
+Odile is the steward of the Granary for the Bowl Senate. She was born a tenant and earned her vote with ten years in the patrols, and some tenants still call her a turncoat. She counts every sack at night and posts the count on the Granary gate. Two counts hang there now: the sack paid to Kiln Camp for each Granary truck, and the tenants' share for the Bowl patrol. She fears a famine like the one in year 70, and she would pay raiders forever to avoid one.
 
 Her line is "Every sack that goes to Kiln is written on the gate."
 
@@ -203,7 +203,7 @@ Her line is "Every sack that goes to Kiln is written on the gate."
 - Habit: She reads every meter at dusk and writes it in the book.
 - Secret: She made a sealed copy of the book, and she took the steward's oil. She hides both from Aurel Brede and Sava Kettering.
 
-Agnes keeps the pump at Dustwell and the pump book her uncle Wendell kept before he died at the Green Pit sluice. She sleeps with the book under her pillow. Every week the pump brings up less, and Bowl's trucks load fewer barrels. The Archon's household sends its own truck to the pump every week, and a Senate order made her take the meter off its hose, so its loads go in no book. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. Every driver who loads reads her the big dial, and she writes the number with the driver's name. She wants a driver who read the dial to carry the copy to Bowl and swear to the number, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by her gate.
+Agnes keeps the pump at Dustwell and the pump book her uncle Wendell kept before he died on the Green Pit road. She sleeps with the book under her pillow. Every week the pump brings up less, and Bowl's trucks load fewer barrels. The Archon's household sends its own truck to the pump every week, and a Senate order made her take the meter off its hose, so its loads go in no book. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. Every driver who loads reads her the big dial, and she writes the number with the driver's name. She wants a driver who read the dial to carry the copy to Bowl and swear to the number, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by her gate.
 
 Her line is "I did not come to take your water. I came to write down how much of it there is."
 
@@ -230,7 +230,7 @@ Her line is "The water is ours, and we will count every barrel of it."
 - Way: control.
 - High concept: The courteous old steward who holds the purse of the Archon's household.
 - Trouble: He buys every problem away with money, so each payment is one more thing that can be found out.
-- Aspects: Pays Agnes Ondra as he paid her uncle; Sava Kettering sits on a drum for him; A purse on the cart tailboard.
+- Aspects: Pays Agnes Ondra as he paid her uncle; Sava Kettering sits on a drum for him; A purse on the truck tailgate.
 - Skills: best social, worst toughness.
 - Wants: The Bowl never learns where the household truck unloads.
 - Fears: The Bowl learns it in a dry year.
@@ -525,7 +525,7 @@ In autumn of year 130 her men cut the tow chain on wagon Seven's cannon and coul
 - Habit: He checks his watch when he lies.
 - Secret: He told Command that raiders took wagon Seven, but its cheap brake rod snapped on the bend. He hides it from Command and the Salvage Yard.
 
-Teller drove Nose Army wagon Seven on the weekly run for four years, water drums from Dustwell down the Bowl north road to Bowl and Bowl's grain back to Nose, and never lost a truck. His stripes pay for his sister's ration card. In autumn of year 130 the cheap brake rod that command ordered for the depot trucks snapped on the bend. The wagon could not slow and went over the edge into a hollow, and it hurt the arm of his relief driver when it hit the verge. At Kovac's desk Teller reported that raiders ran the wagon down and that the cannon went over the edge. Command wrote Seven off. Later he told Kovac the truth, and Kovac wrote none of it. Weeks later he drove an Army truck back to the bend alone, walked down to take the broken half of the rod out of the linkage and could not shift it.
+Teller drove Nose Army wagon Seven on the weekly run for four years, water barrels from Dustwell down the Bowl north road to Bowl and Granary rations back to Nose, and never lost a truck. His stripes pay for his sister's ration card. In autumn of year 130 the cheap brake rod that command ordered for the depot trucks snapped on the bend. The wagon could not slow and went over the edge into a hollow, and it hurt the arm of his relief driver when it hit the verge. At Kovac's desk Teller reported that raiders ran the wagon down and that the cannon went over the edge. Command wrote Seven off. Later he told Kovac the truth, and Kovac wrote none of it. Weeks later he drove an Army truck back to the bend alone, walked down to take the broken half of the rod out of the linkage and could not shift it.
 
 His line is "Look, I've driven that track four years. You don't know the bend."
 
@@ -603,7 +603,7 @@ Karl and his brother Jens were Old Army deserters who robbed insured trucks on t
 - Habit: She sounds the cistern with a weighted line before she opens each morning.
 - Secret: She waters drivers the patrol has turned away, and leaves them off her slate.
 
-Hattie runs the water stand in the Bowl gate yard, the section where outsiders are kept. Every driver who is not let past the yard buys water from her, so she is the first and the last person of Bowl they speak to. Drivers talk while their tanks fill, and she hears the roads from them. She tells an outsider the plain truth about the road, and says when she only heard it. She answers few questions about what lies past the gate. She keeps a slate for drivers who are short, and she remembers every line on it.
+Hattie runs the water stand in the Bowl gate yard, the section where outsiders are kept. Every driver who is not let past the yard buys water from her, so she is the first and the last person of Bowl they speak to. Drivers talk while their barrels fill, and she hears the roads from them. She tells an outsider the plain truth about the road, and says when she only heard it. She answers few questions about what lies past the gate. She keeps a slate for drivers who are short, and she remembers every line on it.
 
 Her line is "Sit down before you fall down."
 
@@ -705,11 +705,11 @@ Her line is "I'll hear a man out before I write what he owes."
 
 - Way: escape.
 - High concept: Dario Feld's nephew, who came home from the north-west with a guard's tin badge and gave the Marshalls their name.
-- Trouble: He will drive anywhere for the Roadhouse and will not carry a gun.
+- Trouble: He will drive anywhere for the Roadhouse and has never fired the gun he carries.
 - Aspects: A north-western guard's tin badge; Lusa Fenwick's friend on the road; A Kiln ladle scratched into his door.
 - Skills: best driving, worst toughness.
 - Wants: A guard here paid by every town, like the one he saw in the north-west.
-- Fears: Having to carry a gun himself.
+- Fears: Having to fire his gun at a man.
 - Habit: He rubs the badge with his sleeve when he lies.
 - Secret: He once told drivers the north-western guard never lost a truck. He never asked.
 

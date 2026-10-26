@@ -31,7 +31,7 @@ VAR asked_glare = false
   ~ heard_swivel = true
   -> hub
 + [Where do I find cheap parts?]
-  The Salvage Yard, a way west of here. The crews strip whatever gets towed in, so parts go for next to nothing. You'll have to put up with the smell of burnt oil. For real plate you want the Fallen Sun, the big hull in the crater. I say that through my teeth.
+  The Salvage Yard, a way west of here. The crews cut the scrap stacks under the crane all week, so parts go for next to nothing. You'll have to put up with the smell of burnt oil. For real plate you want the Fallen Sun, the big hull in the crater. I say that through my teeth.
   ~ heard_sun = true
   -> hub
 + [Where can I get clean water?]

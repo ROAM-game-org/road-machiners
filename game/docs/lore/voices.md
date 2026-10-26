@@ -22,7 +22,7 @@ Sample: "Water runs downhill, and so do people, so folk came for the canals and 
 
 ### Hattie, water seller at the gate yard
 
-Hattie talks of drivers, roads, tanks and who came through. She sizes people up by how they arrive: dusty, thirsty, in a hurry or towed in.
+Hattie talks of drivers, roads, barrels and who came through. She sizes people up by how they arrive: dusty, thirsty, in a hurry or towed in.
 
 Her sentences are quick and dry.
 
@@ -417,7 +417,7 @@ Habits: he calls a stranger "stranger" and the order "we". On the road he says n
 
 Cares about: getting the stranger into the light without a fight, because a fight is work and a given truck arrives whole.
 
-Strangers: something the sky gave. He is gentle with it the way a man is gentle with a goat he means to sell.
+Strangers: something the sky gave. He is gentle with it the way a man is gentle with a load he means to sell.
 
 Sample: "Stranger. You came out to the crater at night. Stay a while and watch the light with us."
 

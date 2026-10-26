@@ -56,7 +56,7 @@ VAR tip = 20
   Midsummer; 380; 340; 10; 30 # row
   Autumn; 350; 290; 10; meter taken off # row
   This week; 300; 220; 10; meter taken off # row
-  Every hose has a meter, and every truck that fills goes in by name. Your tank is in the passing column, under your name. # speaker: Agnes
+  Every hose but one has a meter, and every truck that fills goes in by name. Your barrels are in the passing column, under your name. # speaker: Agnes
   The pump brings up less every season, and Bowl's trucks get less too. Until autumn the household truck's hose had a meter, and the columns added up to the big dial. Since the meter came off, the gap grows every week. # speaker: Agnes
   -> hub
 + {knows_book and not asked_leak} [Ask whether the water could be leaking.]

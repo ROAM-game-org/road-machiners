@@ -19,7 +19,7 @@ Sit a while, the shade is free. I am Ruben, and I keep the canal gates. That mea
   -> hub
 + [Who runs Bowl?]
   The canal families do. Every gate has a family that tends it, and every family has a say in the Senate, the council of citizens that decides for all of Bowl. It is a slow way to decide anything, but nobody I know has starved waiting for a quick answer.
-  The tenants who work the terraces for the families aren't citizens, so they have no seat. In the last drought, Pierce Corporation offered the Senate a long loan of grain, and the Senate argued over that loan for a whole season.
+  The tenants who work the terraces for the families aren't citizens, so they have no seat. In the last drought, Pierce Corporation offered the Senate a long loan, and the Senate argued over that loan for a whole season.
   ~ ruben_senate = true
   -> hub
 + [Where can I get water, or find work?]

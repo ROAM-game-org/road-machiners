@@ -435,7 +435,7 @@ Bowl patrolmen push through the crowd toward you.
 === held ===
 You keep reading. The tenants close in around the patrolmen.
 The grey-haired tenant chalks the numbers on the market board as you read them.
-The patrolmen write down your plate and leave.
+The patrolmen write down your name and your truck and leave.
 Before evening a household truck brings a sack of grain for every family that goes home quietly. About half the crowd takes a sack and leaves. # reveal: all
 The rest stay by the board until dark.
 -> END
@@ -459,7 +459,7 @@ By evening, everyone in the market knows about the household truck.
 The steward doesn't open the copy. He weighs it in his hand and gives you the purse. # page # place: The Bowl road
 { book_read: He sees the cut seal and pays anyway. }
 He writes your name on a slip.
-Friends of the household drink first. Don't talk about this in Bowl, and you never read a dial. The gate has your plate. # speaker: Steward
+Friends of the household drink first. Don't talk about this in Bowl, and you never read a dial. The gate has your name. # speaker: Steward
 His truck rolls off toward Bowl with the copy. # reveal: all
 You count {price} M.
 -> END
