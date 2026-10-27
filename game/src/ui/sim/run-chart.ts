@@ -43,7 +43,7 @@ export class RunChart {
   }
 
   private panels(): Panel[] {
-    const top = (lines: Panel["lines"]) => Math.max(1, ...this.samples.flatMap((s) => lines.map((l) => l.value(s))));
+    const top = (lines: Panel["lines"]) => this.samples.reduce((most, s) => lines.reduce((m, l) => Math.max(m, l.value(s)), most), 1);
     const money: Panel["lines"] = [{ look: SERIES.worth, value: (s) => s.worth }, { look: SERIES.money, value: (s) => s.money }];
     const xp: Panel["lines"] = [{ look: SERIES.xp, value: (s) => s.xp }];
     return [

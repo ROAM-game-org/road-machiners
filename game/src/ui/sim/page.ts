@@ -251,7 +251,7 @@ class SimPage {
   }
 
   private captionHeat(): void {
-    this.heatNote.textContent = this.heat.shown ? `last ${Math.round(this.heat.turnsCovered() / TURNS_PER_HOUR)} h` : "";
+    this.heatNote.textContent = this.heat.shown ? `${Math.round(this.heat.turnsCovered() / TURNS_PER_HOUR)} h since this page opened` : "";
   }
 
   private begin(first: Frame): void {

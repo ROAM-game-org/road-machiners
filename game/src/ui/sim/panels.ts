@@ -66,7 +66,7 @@ export class CardView {
   show(card: Card | null): void {
     if (!card) return this.root.replaceChildren(el("div", { class: "dim" }, "Click a truck or a log line"));
     const parts = [
-      el("div", { class: "sim-head" }, el("span", { class: "sim-card-title", title: card.id }, card.title), el("span", { class: "sim-tags" }, ...card.tags.map((tag) => el("span", { class: "tag" }, tag)))),
+      el("div", { class: "sim-head" }, el("span", { class: "sim-card-title" }, card.title), el("span", { class: "sim-tags" }, ...card.tags.map((tag) => el("span", { class: "tag" }, tag)))),
       card.doing ? el("div", { class: "sim-doing" }, card.doing) : null,
       card.stats.length > 0 ? el("div", { class: "sim-stats" }, ...card.stats.map(stat)) : null,
       card.facts.length > 0 ? el("div", { class: "sim-facts" }, ...card.facts.flatMap(fact)) : null,
