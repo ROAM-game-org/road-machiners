@@ -429,3 +429,12 @@
 .ink-page .ink-head .talk-head {
   margin-bottom: var(--space-5);
 }
+
+:is(#ui, #report) .dialogue-option.seen,
+:is(#ui, #report) .quest-choice.seen {
+  background: var(--surface-sunk);
+}
+:is(#ui, #report) .dialogue-option.seen:hover,
+:is(#ui, #report) .quest-choice.seen:hover {
+  background: var(--surface-hover);
+}

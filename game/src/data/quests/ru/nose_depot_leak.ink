@@ -54,22 +54,28 @@ VAR envelope = 60
 # checkpoint: desk
 Двор припорошен пылью. Грузовики колонны заправлены и стоят у ворот. Моторы остывают и тикают. # page # place: Диспетчерская
 { alarm > 0: Двое грузчиков замолкают, когда вы проходите мимо. Заговаривают, только когда вы отойдете подальше. }
-+ {not ledger_read} [Взглянуть на доску дежурств.]
-  -> ledger
-+ {ledger_read and not gate_checked} [Проверить журнал ворот за те же ночи.]
-  -> gate
++ {not (ledger_read and gate_checked and bunk_searched and stakeout_done)} [Осмотреться на складе…]
+  -> look
 + {not pell_talked} [Поговорить с кладовщиком топлива.]
   -> pell
 + {not sabine_talked} [Поговорить с торговкой у ворот.]
   -> sabine
-+ {(gate_checked or saw_swap) and not bunk_searched} [Обшарить койку Вэнса.]
-  -> bunk
-+ {not stakeout_done} [Следить за складом всю ночь.]
-  -> stakeout
 + {any_lead()} [Пойти к Ковачу и назвать имя.]
   -> accuse
 + [Бросить это дело.]
   -> let_go
+
+= look
++ {not ledger_read} [Взглянуть на доску дежурств.]
+  -> ledger
++ {ledger_read and not gate_checked} [Проверить журнал ворот за те же ночи.]
+  -> gate
++ {(gate_checked or saw_swap) and not bunk_searched} [Обшарить койку Вэнса.]
+  -> bunk
++ {not stakeout_done} [Следить за складом всю ночь.]
+  -> stakeout
++ [Назад.]
+  -> desk
 
 === after ===
 {
