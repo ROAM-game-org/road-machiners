@@ -194,6 +194,7 @@ Every event gets a level before it gets a channel. A level fires on its channels
 - A state alert lives on the HUD for as long as it is true. The log only records that it started.
 - A notice always has the controls to answer it. A notice with nothing to press is not a choice and drops a level.
 - Sound follows the level, and every sound follows `docs/sound.md`.
+- A call that a turn raises opens `CONFIG.callBeatMs` after that turn's playback ends, so the hit shows before the words about it. Its notice, `radio` sound, antenna cue and opening log lines open in the same frame. A call the player starts opens at once.
 
 ## 8. Words and numbers
 

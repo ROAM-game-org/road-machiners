@@ -64,13 +64,15 @@ import { SiteLights } from "./render/siteLights";
 import { addShipDecks } from "./render/ship-decks";
 import { terrainMesh } from "./render/terrain";
 import { type WebGLSurface } from "./webgl";
-import { FRAME_REBUILDS, VehicleView, type RebuildBudget } from "./render/vehicle";
+import { FRAME_REBUILDS, type RebuildBudget } from "./render/vehicle";
+import { VehicleViewSet } from "./vehicle-view-set";
 import { HoverArcsView, vehicleOrigins, WeaponRangeView } from "./render/weaponRange";
 import { stormTintStyle, WeatherView } from "./render/weather";
 import { stormShare } from "../sim/weather";
 import { ZonesView } from "./render/zones";
 import type { SoundSettings } from "../ui/sound";
 import { CLOUD_SHADOWS } from "./render/cloudShadows";
+import { CallReveal } from "./call-reveal";
 import { daylightAt, enableSunShadows, lightScene, RadioLights, VehicleLights, sunLight, vehicleLampsOn } from "./render/daylight";
 import { sunAt } from "../sim/sun";
 import { ContactsView } from "./render/contacts";
@@ -159,9 +161,11 @@ export class Game {
   private readonly hostileSighting = new HostileSighting();
   private sightingToSound = false;
   private readonly engineStrain = new EngineStrain();
-  private readonly views = new Map<string, VehicleView>();
-  private readonly building = new Map<string, VehicleView>();
+  private readonly vehicleViews = new VehicleViewSet(this.scene, this.rebuilds);
+  private readonly views = this.vehicleViews.views;
   private readonly radioLights = new RadioLights();
+  private readonly reveal = new CallReveal();
+  private playbackEnded = false;
   private frames: Record<string, VehicleFrame> = {};
   private anim: Playback | null = null;
   private turnStart: World | null = null;
@@ -296,7 +300,7 @@ export class Game {
       endRun: () => this.rescueCommand(confirmedEndRun),
       isBusy: () => this.anim !== null,
       autoTravel: () => this.travel.isAuto(this.world),
-      dialogue: { world: () => this.world, inspected: () => this.inspected(), busy: () => this.anim !== null || this.screens.quest.isOpen(), menuOpen: () => this.menu.isOpen(), talk: (next) => this.runRescue(() => next), commit: (next) => { this.world = next; this.saves.logWorld(next); this.refreshUi(); }, log: (next) => this.hud.pushEvents(next), playHorn: (id, delayMs) => this.playHorn(id, delayMs) },
+      dialogue: { world: () => this.world, inspected: () => this.inspected(), busy: () => this.anim !== null || this.screens.quest.isOpen() || (this.world.player.call !== null && !this.callShown()), menuOpen: () => this.menu.isOpen(), talk: (next) => this.runRescue(() => next), commit: (next) => { this.world = next; this.saves.logWorld(next); this.refreshUi(); }, log: (next) => this.hud.pushEvents(next), playHorn: (id, delayMs) => this.playHorn(id, delayMs) },
       recenter: () => this.runKey("KeyF"),
       unpin: () => this.unpin(),
       cardAction: (action) => this.context.onCard(action, this.inspected()),
@@ -387,7 +391,12 @@ export class Game {
     this.travel.pause();
     this.world = next;
     this.saves.logWorld(next);
+    this.hud.logHeld(next, this.reveal.settle(next));
     this.refreshUi();
+  }
+
+  private callShown(): boolean {
+    return this.world.player.call !== null && this.anim === null && !this.reveal.holding();
   }
 
   private fitView(): void {
@@ -430,7 +439,7 @@ export class Game {
     this.craters.sync(this.world);
     this.hud.renderTop(this.displayWorld());
     this.hud.markCombat(inCombat(this.world, playerVehicle(this.world)));
-    this.hud.renderRescue(this.displayWorld());
+    this.hud.renderRescue(this.displayWorld(), this.callShown());
     if (!this.anim && deathShows(this.world)) this.death.show(this.world);
     this.weapons.render();
     this.screens.render();
@@ -863,7 +872,7 @@ export class Game {
       if (p) this.fx.explode(p);
     }
     this.playImpactSounds();
-    this.hud.pushEvents(this.world);
+    this.hud.pushEvents(this.world, this.reveal.landed(this.world));
     const searched = this.world.events.find((e) => e.t === "searched");
     if (searched) this.screens.inventory.openLoot(searched.stock);
     this.uiStale = true;
@@ -872,6 +881,7 @@ export class Game {
 
   private finishPlayback(): void {
     this.anim = null;
+    this.playbackEnded = true;
     this.sound.clearScoreEvents();
     this.crashCues = null;
     this.breakCues = new BreakCues([]);
@@ -942,8 +952,8 @@ export class Game {
   }
 
   private playPanelSounds(): void {
-    const open = this.modalOpen();
-    if (open !== this.panelOpen) this.sound.ui(open ? (this.world.player.call ? "radio" : "ui-open") : "ui-close");
+    const open = this.screens.inventory.isOpen() || this.screens.blockingOpen() || this.callShown() || this.menu.isOpen();
+    if (open !== this.panelOpen) this.sound.ui(open ? (this.callShown() ? "radio" : "ui-open") : "ui-close");
     this.panelOpen = open;
   }
 
@@ -1002,6 +1012,16 @@ export class Game {
     if (plan) this.path.set(plan.turns, firstTurnColor(this.world, playerVehicle(this.world)), plan.course, plan.waypoint);
   }
 
+  private revealDueCall(): void {
+    const now = performance.now();
+    if (this.playbackEnded) this.reveal.ended(now);
+    this.playbackEnded = false;
+    const due = this.reveal.due(now);
+    if (!due) return;
+    this.hud.logHeld(this.world, due);
+    this.uiStale = true;
+  }
+
   private flushUi(began: string, phase: TurnPhase): void {
     if (this.uiStale && began !== "began" && this.phase === phase) this.refreshUi();
   }
@@ -1013,6 +1033,7 @@ export class Game {
     const playMs = this.tickWorldClock(heldPlayMs(dt, this.play.isHeld(), CONFIG.playbackFrameMs), speed, now);
     const wasPlaying = this.anim !== null;
     const phase = this.phase;
+    this.revealDueCall();
     this.travel.tickCreep(playMs);
     let at = this.animStep(now, speed, playMs);
     this.updateLiveVision(at);
@@ -1139,7 +1160,7 @@ export class Game {
     const landed = !this.anim || this.anim.impacts;
     const glass = daylightAt(lightTurnOf(this.world, this.anim)).glass;
     const now = performance.now();
-    this.radioLights.note(this.world, now);
+    this.radioLights.note(this.world, now, this.callShown());
     const shown = [...this.world.vehicles, ...(landed ? [] : this.world.removed)];
     const ids = new Set<string>();
     for (const [i, v] of shown.entries()) {
@@ -1153,7 +1174,7 @@ export class Game {
       const before = !landed && this.anim!.before.vehicles.find((x) => x.id === v.id);
       const display = before ? { ...v, items: shownItems(before.items, v.items, this.breakCues.shown(v.id)) } : v;
       ids.add(v.id);
-      const view = this.viewOf(v.id, display, seen);
+      const view = this.vehicleViews.viewOf(v.id, display, seen, this.world.player.paint);
       if (!view) continue;
       view.lamps(vehicleLampsOn(this.world, v, lightTurnOf(this.world, this.anim)));
       view.radio(this.radioLights.lit(v.id, now));
@@ -1164,37 +1185,12 @@ export class Game {
       this.truckFx.emit(this.world, display, f, frames !== null, playDt, seen);
     }
     this.pin.settle();
-    for (const [id, view] of this.views) {
-      if (ids.has(id)) continue;
-      this.scene.remove(view.root);
-      view.dispose();
-      this.views.delete(id);
-    }
-    for (const [id, view] of this.building) {
-      if (ids.has(id)) continue;
-      view.dispose();
-      this.building.delete(id);
-    }
+    this.vehicleViews.keepOnly(ids);
   }
 
   private shownFrame(v: Vehicle, played: VehicleFrame | null | undefined): VehicleFrame {
     const kept = this.frames[v.id];
     return played ?? (kept && !staleFrame(kept, v, this.anim !== null) ? kept : restFrame(this.world, v));
-  }
-
-  private viewOf(id: string, display: Vehicle, seen: boolean): VehicleView | null {
-    const view = this.views.get(id) ?? this.building.get(id) ?? new VehicleView(null, seen, this.world.player.paint, "world");
-    view.update(display, seen, this.world.player.paint, this.rebuilds);
-    if (!view.built) {
-      this.building.set(id, view);
-      return null;
-    }
-    this.building.delete(id);
-    if (!this.views.has(id)) {
-      this.views.set(id, view);
-      this.scene.add(view.root);
-    }
-    return view;
   }
 
   private lookOf(v: Vehicle, f: VehicleFrame, seen: boolean): "full" | "dark" | null {
