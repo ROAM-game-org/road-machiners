@@ -258,7 +258,7 @@ describe('survey job', () => {
     expect(after.events.some((e) => e.t === 'job' && e.outcome === 'cancelled')).toBe(false);
   });
 
-  it('is cancelled by a move order in combat and marks nothing', () => {
+  it('is cancelled by moving in combat and marks nothing', () => {
     const { w, mine, site } = heldUnderFire();
     const next = startSurvey(w, mine.id, site.id);
     next.vehicles[0].speed = 5;
