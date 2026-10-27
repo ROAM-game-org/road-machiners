@@ -30,6 +30,7 @@ function turn(w: World, d: Drive, bumps: Bump[]): { w: World; d: Drive } {
     bumps.push(...r.crashes);
   }));
   freeDrive(d);
+  after.player.call = null;
   return { w: after, d: next! };
 }
 
