@@ -397,17 +397,21 @@ export function radioLit(cue: RadioCue, now: number): boolean {
 export class RadioLights {
   private readonly cues = new Map<string, RadioCue[]>();
   private noted: World | null = null;
+  private notedShown = true;
   private calling = new Set<string>();
   private beacon = false;
 
-  note(world: World, now: number): void {
+  note(world: World, now: number, callShown = true): void {
     this.prune(now);
-    if (world === this.noted) return;
+    if (world === this.noted && callShown === this.notedShown) return;
     const first = this.noted === null;
+    const fresh = world !== this.noted;
     this.noted = world;
-    const call = new Set(callTrucks(world));
+    this.notedShown = callShown;
+    const onCall = new Set(callTrucks(world));
+    const call = callShown ? onCall : new Set<string>();
     this.noteCall(call, now);
-    if (!first) this.noteTalk(world, call, now);
+    if (!first && fresh) this.noteTalk(world, onCall, now);
     this.calling = call;
     this.beacon = world.player.beacon;
   }

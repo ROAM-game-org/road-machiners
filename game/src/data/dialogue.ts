@@ -1,6 +1,7 @@
 
+import { STORY_LINE_IDS } from './road-stories';
 import { LESSON_LINE_IDS } from './lessons';
-import { MARSHAL_LINES, MARSHAL_TOPICS, type MarshalConditionId, type MarshalEffectId, type MarshalPrepareId, type MarshalTopicId } from './personalities';
+import { MARSHAL_LINES, MARSHAL_TOPICS, TREE_LINES, type MarshalConditionId, type MarshalEffectId, type MarshalPrepareId, type MarshalTopicId } from './personalities';
 import { COURIER_TOPICS, type CourierTopicId } from './encounters';
 import { MOMENT_LINES, MOMENT_TOPICS, type MomentConditionId, type MomentEffectId, type MomentId } from './moments';
 import { SUNWARD_LINES, SUNWARD_TOPICS, type SunwardConditionId, type SunwardEffectId, type SunwardPrepareId, type SunwardTopicId } from './sunward';
@@ -72,10 +73,10 @@ export const LINE_IDS = [
   'lookingForSomebody', 'sightingTold', 'gotParcelForYou', 'parcelPullOver',
   'courierShortOfFuel', 'atTheTownPrice', 'youKeptMeRolling', 'courierSquareTip', 'youLeftMeDry', 'youShotMeUp', 'letsCallItEven', 'toldYouIOweYou',
   'rideGuardForMe', 'dependsWhoAsks', 'whatsYourRate', 'guardDayRate', 'onYourTailNow', 'notRidingForYou', 'thatsAllRideOff', 'moneyStaysWithMe',
-  'anyTipsForTheRoad', 'lessonTold', ...LESSON_LINE_IDS,
+  'anyTipsForTheRoad', 'lessonTold', ...LESSON_LINE_IDS, 'taleStory', 'andThen', 'taleSiteEnd', 'taleTipEnd', ...STORY_LINE_IDS,
   'demandCargoOrPay', 'demandCutLine', 'noFreeRidePay', 'noFreeRideCut', 'leaveItOrPay', 'payAndGo', 'hereIsYourMoney', 'yourMoneyOr', 'youHeardMeMoney', 'allRightPaid', 'pocketsEmpty',
   'needAHandHere', 'whosOnYou', 'thatOneOnMyTail', 'onMyWay', 'notMyFight', 'tooHotForMe',
-  'silent', ...SUNWARD_LINES, ...MARSHAL_LINES, ...MOMENT_LINES,
+  'silent', ...SUNWARD_LINES, ...MARSHAL_LINES, ...TREE_LINES, ...MOMENT_LINES,
 ] as const;
 export type LineId = (typeof LINE_IDS)[number];
 
@@ -1007,13 +1008,19 @@ export const TOPICS: Record<TopicId, Topic> = withTolls({ ...SUNWARD_TOPICS, ...
       offer: {
         line: 'gotAStoryFrom',
         options: [
-          { say: 'goOnThen', when: ['newsOfSite'], effects: ['tellTale'], go: 'site' },
-          { say: 'goOnThen', when: ['newsOfTip'], effects: ['tellTale'], go: 'tip' },
+          { say: 'goOnThen', when: [], effects: [], go: 'story' },
           { say: 'notNow', when: [], effects: ['declineEncounter'], go: END },
         ],
       },
-      site: { line: 'siteWay', options: [{ say: 'thanksOverAndOut', when: [], effects: ['endEncounter'], go: END }] },
-      tip: { line: 'tipTold', options: [{ say: 'thanksOverAndOut', when: [], effects: ['endEncounter'], go: END }] },
+      story: {
+        line: 'taleStory',
+        options: [
+          { say: 'andThen', when: ['newsOfSite'], effects: ['tellTale'], go: 'site' },
+          { say: 'andThen', when: ['newsOfTip'], effects: ['tellTale'], go: 'tip' },
+        ],
+      },
+      site: { line: 'taleSiteEnd', options: [{ say: 'thanksOverAndOut', when: [], effects: ['endEncounter'], go: END }] },
+      tip: { line: 'taleTipEnd', options: [{ say: 'thanksOverAndOut', when: [], effects: ['endEncounter'], go: END }] },
     },
   },
   salvageTip: {

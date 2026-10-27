@@ -238,12 +238,38 @@ export function freeCells(v: Vehicle): number {
 }
 
 export function placementError(g: Grid, items: GridItem[], item: GridItem, ignoreId: string | null): PlacementRefusal | null {
+  return placementErrorIn(g, occupiedCells(g, items, ignoreId), item);
+}
+
+export function placementErrorIn(g: Grid, occupied: Occupied, item: GridItem): PlacementRefusal | null {
   const cells = itemCells(item);
   if (crossesChassisEnd(g, cells) || !cells.every((c) => onGrid(g, c))) return { id: 'noFit' };
-  const taken = takenCells(g, items, ignoreId, layerOf(g, item));
-  if (cells.some((c) => taken.has(cellKey(c.x, c.y)))) return { id: 'inTheWay' };
-  if (!sitsOnSkin(g, item) && cells.some((c) => isSkin(g.cells[c.y][c.x]))) return { id: 'armorOnly' };
+  return clashIn(g, occupied[layerOf(g, item)], item, cells);
+}
+
+export function layoutError(g: Grid, items: GridItem[]): PlacementRefusal | null {
+  const held: Record<Layer, Map<number, number>> = { base: new Map(), accessory: new Map() };
+  for (const it of items) {
+    const counts = held[layerOf(g, it)];
+    for (const c of itemCells(it)) counts.set(cellKey(c.x, c.y), (counts.get(cellKey(c.x, c.y)) ?? 0) + 1);
+  }
+  for (const item of items) {
+    const cells = itemCells(item);
+    if (crossesChassisEnd(g, cells) || !cells.every((c) => onGrid(g, c))) return { id: 'noFit' };
+    const counts = held[layerOf(g, item)];
+    if (cells.some((c) => (counts.get(cellKey(c.x, c.y)) ?? 0) > 1)) return { id: 'inTheWay' };
+    if (armorClash(g, item, cells)) return { id: 'armorOnly' };
+  }
   return null;
+}
+
+function clashIn(g: Grid, taken: Set<number>, item: GridItem, cells: { x: number; y: number }[]): PlacementRefusal | null {
+  if (cells.some((c) => taken.has(cellKey(c.x, c.y)))) return { id: 'inTheWay' };
+  return armorClash(g, item, cells) ? { id: 'armorOnly' } : null;
+}
+
+function armorClash(g: Grid, item: GridItem, cells: { x: number; y: number }[]): boolean {
+  return !sitsOnSkin(g, item) && cells.some((c) => isSkin(g.cells[c.y][c.x]));
 }
 
 function sitsOnSkin(g: Grid, item: GridItem): boolean {
@@ -263,7 +289,8 @@ function crossesChassisEnd(g: Grid, cells: { y: number }[]): boolean {
 export function findSpot(g: Grid, items: GridItem[], item: GridItem, mount: Cell[] | null, avoid: Cell[] | null): Spot | null {
   if (mount) return mountSpots(g, items, item, mount)[0] ?? null;
   const tries = allSpots(g);
-  const fits = (s: Spot) => placementError(g, items, { ...item, ...s }, item.id) === null;
+  const occupied = occupiedCells(g, items, item.id);
+  const fits = (s: Spot) => placementErrorIn(g, occupied, { ...item, ...s }) === null;
   const onlyOn = (s: Spot, cell: Cell) => itemCells({ ...item, ...s }).every((c) => g.cells[c.y]?.[c.x] === cell);
   const allowed = (s: Spot) => fits(s) && !(avoid && avoid.some((a) => onlyOn(s, a)));
   return tries.find((s) => allowed(s) && onlyOn(s, '.')) ?? tries.find(allowed) ?? null;
@@ -274,7 +301,7 @@ function isWeapon(item: GridItem): boolean {
 }
 
 export function mountSpots(g: Grid, items: GridItem[], item: GridItem, mount: Cell[]): Spot[] {
-  const taken = takenCells(g, items, item.id, isAccessoryItem(item) ? 'accessory' : 'base');
+  const taken = occupiedCells(g, items, item.id)[isAccessoryItem(item) ? 'accessory' : 'base'];
   const tries = allSpots(g, isWeapon(item) ? 4 : 2);
   const sizes = [0, 1, 2, 3].map((rot) => itemSize({ ...item, rot: rot as Rot }));
   const free = (s: Spot, letter: Cell) => {
@@ -294,14 +321,17 @@ export function cellKey(x: number, y: number): number {
   return y * KEY_ROW + x;
 }
 
-function takenCells(g: Grid, items: GridItem[], ignoreId: string | null, layer: Layer): Set<number> {
-  const taken = new Set<number>();
+export type Occupied = Record<Layer, Set<number>>;
+
+export function occupiedCells(g: Grid, items: GridItem[], ignoreId: string | null): Occupied {
+  const occupied: Occupied = { base: new Set(), accessory: new Set() };
   for (const it of items) {
-    if (it.id === ignoreId || layerOf(g, it) !== layer) continue;
+    if (it.id === ignoreId) continue;
+    const taken = occupied[layerOf(g, it)];
     const { w, h } = itemSize(it);
     for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) taken.add(cellKey(it.x + dx, it.y + dy));
   }
-  return taken;
+  return occupied;
 }
 
 const spotCache = new Map<number, readonly Spot[]>();
