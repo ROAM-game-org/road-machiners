@@ -274,8 +274,14 @@ const ROADHOUSE_JUNCTION = scalePoint({ x: 82, y: 33 });
 const ROADHOUSE_FROM_JUNCTION = { x: 16, y: 0 };
 const MARSHAL_POST_AT = { x: ROADHOUSE_JUNCTION.x + ROADHOUSE_FROM_JUNCTION.x, y: ROADHOUSE_JUNCTION.y + ROADHOUSE_FROM_JUNCTION.y };
 
+const BROKEN_WING_LAYOUT = { x: 70, y: 33 };
+
+function onHalfTile(p: Vec): Vec {
+  return { x: Math.round(p.x * 2) / 2, y: Math.round(p.y * 2) / 2 };
+}
+
 export const BROKEN_WING = {
-  road: scalePoint({ x: 70, y: 33 }),
+  road: onHalfTile(scalePoint(BROKEN_WING_LAYOUT)),
   yaw: 0,
   deckHalf: 19.5,
   mound: { gap: 4.5, flat: 2, bank: 14, height: 1.8 },
@@ -387,7 +393,7 @@ export const REGION = {
       { x: 20.36277, y: 84.67443 },
       { x: 25, y: 73 },
       pinnedTo({ x: 28, y: 64 }, besideOrchard(28, 64)),
-      pinnedTo({ x: 31, y: 54 }, besideOrchard(31, 54)),
+      pinnedTo({ x: 31, y: 54 }, besideOrchard(31.8, 54)),
       { x: 37, y: 32 },
       { x: 43, y: 30 },
       { x: 50, y: 36 },
@@ -424,7 +430,7 @@ export const REGION = {
       { x: 50, y: 49 },
       { x: 51, y: 38 },
       { x: 60, y: 33 },
-      { x: 70, y: 33 },
+      pinnedTo({ ...BROKEN_WING_LAYOUT }, BROKEN_WING.road),
       { x: 82, y: 33 },
     ], [5, 6]),
     scaleRoad([

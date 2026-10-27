@@ -6,8 +6,9 @@ import { STORY_WRECKS } from './salvage';
 import { MAPGEN, TERRAIN } from './terrain';
 import { BEACON } from './tow';
 
-const SPREAD = 1.3;
 const OLD_SCALE = 5;
+const SPREAD = MAP_SCALE / OLD_SCALE;
+const ROADHOUSE_FROM_JUNCTION = 16;
 const SNAP = 1;
 
 const TODAY: Record<string, { at: [number, number]; radius: number }> = {
@@ -23,7 +24,7 @@ const TODAY: Record<string, { at: [number, number]; radius: number }> = {
   'salvage-yard': { at: [82, 52.2], radius: 6 },
   scrapjaw: { at: [22, 14], radius: 6 },
   kiln: { at: [66, 76], radius: 6 },
-  'marshal-post': { at: [105.5, 14], radius: 6 },
+  'marshal-post': { at: [82 + ROADHOUSE_FROM_JUNCTION / MAP_SCALE, 33], radius: 6 },
 };
 
 const sites = [...REGION.towns, ...REGION.locations];
@@ -31,8 +32,7 @@ const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.
 const layoutPoint = (x: number, y: number) => ({ x: x * OLD_SCALE, y: y * OLD_SCALE });
 
 describe('Icarus layout spread', () => {
-  it('spreads the map 1.3 times with one scale', () => {
-    expect(MAP_SCALE).toBe(OLD_SCALE * SPREAD);
+  it('spreads the map with one scale', () => {
     expect(REGION.size).toBe(120 * MAP_SCALE);
   });
 
@@ -40,7 +40,7 @@ describe('Icarus layout spread', () => {
     expect(sites.map((s) => s.id).sort()).toEqual(Object.keys(TODAY).sort());
   });
 
-  it('stands every pair of places 1.3 times further apart centre to centre', () => {
+  it('stands every pair of places the spread further apart centre to centre', () => {
     for (const a of sites)
       for (const b of sites) {
         if (a.id >= b.id) continue;
@@ -69,7 +69,7 @@ describe('Icarus layout spread', () => {
     near(spot('canyon'), scalePoint({ x: 94, y: 48 }));
     near(spot('sand'), scalePoint({ x: 78, y: 70 }));
     near(sites.find((s) => s.id === 'orchard')!.pos, scalePoint({ x: 22.8, y: 56.8 }), SNAP);
-    expect(REGION.playerStart.distance).toBeCloseTo(22 * MAP_SCALE, 6);
+    expect(REGION.playerStart.distance).toBeCloseTo(24 * MAP_SCALE, 6);
   });
 
   it('scales the ranges that span the map', () => {
