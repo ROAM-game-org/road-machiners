@@ -23,7 +23,7 @@ function seeingAll(world: World): World {
 }
 
 function lineText(line: LogLine): string {
-  return [line.text, ...(line.spans ?? []).map((s) => s.text)].map(english).join(' ');
+  return english(line.text);
 }
 
 function doingOf(world: World, v: Vehicle): Msg {
@@ -118,14 +118,17 @@ const UTILITY: Record<UtilityEffectType | 'claymore', string> = {
   scraper: 'runs the scraper', sprout: 'sets a sprout', claymore: 'sets a claymore',
 };
 
+const PLEA_ANSWER = { true: 'and gets it', false: 'and is refused', null: '' } as const;
+
 const SIM_FIRST: Words = {
+  shot: (world, e) => ({ text: shotWords(world, e), tone: 'bad' }),
+  plea: (world, e) => ({ text: `${nameOf(world, e.from)} begs ${nameOf(world, e.to)} for ${e.plea} ${PLEA_ANSWER[`${e.accepted}`]}`.trim(), tone: '' }),
   preyPassed: (world, e) => ({ text: `${nameOf(world, e.vehicle)} lets ${nameOf(world, e.prey)} pass: ${english(t(`pass.${e.reason}`))}`, tone: 'dim' }),
   activity: (world, e) => ({ text: `${nameOf(world, e.vehicle)} ${activityVerb(e.activity)}: ${english(goalText(e.reason))}`, tone: 'dim' }),
   stall: (world, e) => ({ text: `Bug: ${nameOf(world, e.vehicle)} got stuck and gave up. It ${activityVerb(e.goal)}: ${english(goalText(e.reason))}`, tone: 'bad' }),
 };
 
 const SIM_WORDS: Words = {
-  shot: (world, e) => ({ text: shotWords(world, e), tone: 'bad' }),
   empty: (world, e) => ({ text: `${nameOf(world, e.vehicle)} runs out of ammo for ${partOf(world, e.vehicle, e.weapon)}`, tone: 'dim' }),
   asked: (world, e) => ({ text: `${nameOf(world, e.by)} asks ${nameOf(world, e.of)} about ${nameOf(world, e.target)}${e.told ? ' and learns where it is' : ' and learns nothing'}`, tone: 'dim' }),
   hostile: (world, e) => ({ text: `${nameOf(world, e.vehicle)} turns hostile to ${nameOf(world, e.against)}`, tone: 'bad' }),

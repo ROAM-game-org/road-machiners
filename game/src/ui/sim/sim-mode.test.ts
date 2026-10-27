@@ -11,7 +11,6 @@ import { emptyLedger } from '../../sim/progression/orders';
 import { FAR_MOVER, netWorth, playTurns } from '../../sim/progression/record';
 import { startWorld } from '../../sim/progression/record-node';
 import { cardOf, hudOf, logEntries, markersOf, SIM_OPTIONS, SimRun, simWorld, type Frame, type FromSim } from '../../sim/progression/sim-mode';
-import { describe as describeEvent } from '../../sim/progression/turn-log';
 
 const TURNS = 10;
 const SCAN_TURNS = 60;
@@ -42,14 +41,13 @@ describe('simulation mode', () => {
     expect(frames.slice(1).map((f) => f.log.length)).toEqual(recorded.map((p) => p.events.length));
   }, 120000);
 
-  it("writes events in the game's words where it has them and in plain sim words for the rest, and keeps the raw line", () => {
+  it("writes events in the game's words where it has them and in plain sim words for the rest", () => {
     const world = start;
     const npc = world.vehicles.find((v) => v.brain)!;
     const knockout = { t: 'npcKnockout', vehicle: npc.id } as never;
     const spawn = { t: 'spawn', vehicle: npc.id } as never;
     const [knocked, spawned] = logEntries(world, [knockout, spawn], SIM_TEXT);
     expect(knocked.text).toContain(SIM_TEXT.truck(world, npc));
-    expect(knocked.raw).toBe(describeEvent(world, knockout));
     expect(knocked.ids).toEqual([npc.id]);
     expect(spawned).toMatchObject({ quiet: true, ids: [npc.id], text: `${SIM_TEXT.truck(world, npc)} enters the map` });    expect(world.player.fullLog).toBeFalsy();
   });
@@ -115,6 +113,8 @@ describe('simulation mode', () => {
     const [crash, came] = logEntries(world, [hit, arrived], SIM_TEXT);
     expect(crash.text).toBe(`${SIM_TEXT.truck(world, npc)} hits a dead tree`);
     expect(came.text).toBe('Your truck arrives');
+    const plea = { t: 'plea', from: npc.id, to: world.player.vehicleId, plea: 'mercy', accepted: true } as never;
+    expect(logEntries(world, [plea], SIM_TEXT)[0].text).toBe(`${SIM_TEXT.truck(world, npc)} begs Your truck for mercy and gets it`);
   });
 
   it('writes memories newest first as sentences with their age in game hours', () => {

@@ -11,12 +11,12 @@ import type { BotOptions } from './bot';
 import { emptyLedger, LEDGER_KEYS, type Ledger } from './orders';
 import { archetypeWorldOn, FAR_MOVER, netWorth, playTurns, type PlayedTurn } from './record';
 import { cardOf } from './sim-cards';
-import { describe, QUIET } from './turn-log';
+import { QUIET } from './turn-log';
 
 export { cardOf, npcCard, playerCard } from './sim-cards';
 
 export type Marker = { id: string; name: string; chassis: string; x: number; y: number; heading: number; faction: string; template: string | null; paint: TruckPaint; player: boolean; out: boolean; combat: boolean };
-export type LogEntry = { turn: number; kind: string; quiet: boolean; tone: string; text: string; raw: string; ids: string[] };
+export type LogEntry = { turn: number; kind: string; quiet: boolean; tone: string; text: string; ids: string[] };
 export type CardRow = [string, string];
 export type CardSection = { name: string; lines: string[]; rows: CardRow[] };
 export type Way = { dest: Vec | null; target: Vec | null; home: Vec | null };
@@ -218,7 +218,7 @@ export function logEntries(world: World, events: readonly GameEvent[], text: Sim
     const json = JSON.stringify(e);
     const plain = text.event(world, e);
     const ids = known.filter((id) => json.includes(`"${id}"`));
-    return { turn: world.turn, kind: e.t, quiet: isQuiet(world, e, plain, ids), tone: e.t === 'stall' ? 'bad' : plain.tone, text: plain.text, raw: describe(world, e), ids };
+    return { turn: world.turn, kind: e.t, quiet: isQuiet(world, e, plain, ids), tone: e.t === 'stall' ? 'bad' : plain.tone, text: plain.text, ids };
   });
 }
 

@@ -354,7 +354,7 @@ class SimPage {
 
   private logLine(e: LogEntry): HTMLElement {
     const mine = this.playerId !== null && e.ids.includes(this.playerId);
-    const line = el("li", { class: mine ? `${e.tone} mine` : e.tone, title: e.raw, "data-when": shortClockText(e.turn) }, el("span", { class: "sim-when num" }, shortClockText(e.turn)), el("span", {}, e.text));
+    const line = el("li", { class: mine ? `${e.tone} mine` : e.tone, "data-when": shortClockText(e.turn) }, el("span", { class: "sim-when num" }, shortClockText(e.turn)), el("span", {}, e.text));
     const first = e.ids[0];
     if (first !== undefined) line.addEventListener("click", () => this.select(first));
     return line;
