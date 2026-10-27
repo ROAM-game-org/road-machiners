@@ -22,6 +22,7 @@ export type MapRule = { kind: 'follow'; reach: number } | { kind: 'free' } | { k
 export type MapTruck = { pos: Vec; heading: number };
 export type MapSite = { id: string; kind: 'town' | 'site'; pos: Vec; known: boolean };
 export type MapOverlay = (ctx: CanvasRenderingContext2D, view: Viewport) => void;
+export type MapScene = { terrain: Terrain; sites: MapSite[]; explored: Uint8Array | null };
 
 const BASES_KEPT = 3;
 const TIP_GAP = 12;
@@ -121,6 +122,17 @@ export function mapSites(world: World): MapSite[] {
     .map((s): MapSite => ({ id: s.id, kind: towns.has(s.id) ? 'town' : 'site', pos: s.pos, known: found.has(s.id) }));
 }
 
+export function mapScene(world: World): MapScene {
+  return { terrain: world.terrain, sites: mapSites(world), explored: world.player.explored };
+}
+
+export function openScene(terrain: Terrain): MapScene {
+  const atlas = atlasOf(terrain);
+  const towns = new Set(atlas.towns.map((s) => s.id));
+  const sites = atlasSites(atlas).map((s): MapSite => ({ id: s.id, kind: towns.has(s.id) ? 'town' : 'site', pos: s.pos, known: true }));
+  return { terrain, sites, explored: null };
+}
+
 export function markName(site: MapSite): Msg {
   return site.known ? siteName(site.id) : t('map.unknownSite');
 }
@@ -133,7 +145,7 @@ export class MapView {
   private view: Viewport | null = null;
   private moved = false;
   private sites: MapSite[] = [];
-  private world: World | null = null;
+  private scene: MapScene | null = null;
   private truck: MapTruck | null = null;
   private ratio: number;
   private drawRequest = 0;
@@ -169,26 +181,30 @@ export class MapView {
     this.moved = false;
   }
 
-  update(world: World, truck: MapTruck | null): void {
-    this.world = world;
+  update(scene: MapScene, truck: MapTruck | null): void {
+    this.scene = scene;
     this.truck = truck;
-    this.sites = mapSites(world);
-    this.syncFog(world.player.explored, world.terrain.size);
+    this.sites = scene.sites;
+    this.syncFog(scene.explored, scene.terrain.size);
     this.draw();
+  }
+
+  redraw(): void {
+    this.drawSoon();
   }
 
   zoomBy(factor: number, px = this.width / 2, py = this.height / 2): void {
     const v = this.view;
-    if (!v || !this.world) return;
-    this.view = zoomAround(v, factor, px, py, this.world.terrain.size, WORLD_MAP.maxTileSize);
+    if (!v || !this.scene) return;
+    this.view = zoomAround(v, factor, px, py, this.scene.terrain.size, WORLD_MAP.maxTileSize);
     this.moved = true;
     this.drawSoon();
   }
 
   panBy(dx: number, dy: number): void {
     const v = this.view;
-    if (!v || !this.world) return;
-    this.view = panBy(v, dx, dy, this.world.terrain.size);
+    if (!v || !this.scene) return;
+    this.view = panBy(v, dx, dy, this.scene.terrain.size);
     this.moved = true;
     this.drawSoon();
   }
@@ -199,8 +215,8 @@ export class MapView {
 
   canZoomOut(): boolean {
     const v = this.view;
-    if (!v || !this.world) return false;
-    return v.tileSize > fitTileSize(this.world.terrain.size, v.width, v.height) * ZOOM_SLACK;
+    if (!v || !this.scene) return false;
+    return v.tileSize > fitTileSize(this.scene.terrain.size, v.width, v.height) * ZOOM_SLACK;
   }
 
   localPoint(clientX: number, clientY: number): { x: number; y: number } | null {
@@ -231,11 +247,6 @@ export class MapView {
     });
   }
 
-  private requireWorld(): World {
-    if (!this.world) throw new Error('The map has no world yet');
-    return this.world;
-  }
-
   pick(clientX: number, clientY: number): Vec | null {
     const at = this.localPoint(clientX, clientY);
     if (!at || !this.view) return null;
@@ -254,8 +265,8 @@ export class MapView {
     return best?.site ?? null;
   }
 
-  private viewFor(world: World): Viewport {
-    const size = world.terrain.size;
+  private viewFor(scene: MapScene): Viewport {
+    const size = scene.terrain.size;
     const middle = { x: size / 2, y: size / 2 };
     const rule = this.rule;
     if (rule.kind === 'follow') return viewport(this.truck?.pos ?? middle, this.width / 2 / rule.reach, this.width, this.height);
@@ -275,10 +286,10 @@ export class MapView {
   }
 
   private draw(): void {
-    const world = this.world;
+    const scene = this.scene;
     const ctx = this.canvas.getContext('2d');
-    if (!world || !ctx) return;
-    const view = this.viewFor(world);
+    if (!scene || !ctx) return;
+    const view = this.viewFor(scene);
     this.view = view;
     const r = this.ratio;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -286,7 +297,7 @@ export class MapView {
     const [a, b, c, d, e, f] = canvasTransform(view);
     ctx.setTransform(a * r, b * r, c * r, d * r, e * r, f * r);
     ctx.imageSmoothingEnabled = view.tileSize * r < 1;
-    ctx.drawImage(baseFor(world.terrain), 0, 0);
+    ctx.drawImage(baseFor(scene.terrain), 0, 0);
     if (this.fogCanvas) ctx.drawImage(this.fogCanvas, 0, 0);
     ctx.setTransform(r, 0, 0, r, 0, 0);
     this.drawGrid(ctx, view);
@@ -300,7 +311,13 @@ export class MapView {
     this.drawPlates(ctx, view, plates);
   }
 
-  private syncFog(explored: Uint8Array, size: number): void {
+  private syncFog(explored: Uint8Array | null, size: number): void {
+    if (!explored) {
+      this.fog = null;
+      this.fogCanvas = null;
+      this.fogSize = 0;
+      return;
+    }
     if (!this.fog || this.fogSize !== size) {
       this.fog = newFogImage(size);
       this.fogCanvas = tileCanvas(size);

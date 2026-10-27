@@ -53,8 +53,8 @@ what: Features did not work when played, though the post said they did: a script
 cost: This was the most common critique, players reported new modes broken after they shipped, and the garage grid went back for a patch round over faults its own post showed.
 
 ID: R14
-what: Player text read like a machine wrote it: semicolons, riddles, filler phrases, item lore with empty rhetoric and no plain fact, wrong directions, NPCs repeating one story, and Russian that was stale or unnatural. The opposite fault went back too: a checklist of tells written for AI chat was turned into rules applied word for word to fiction, with no room for the narrator or a character's voice to break them where the story needs it.
-cost: Every text quest had to be cleaned up, the committee rejected the copy again and again, and the writing guidance went back for a redesign to follow the checklist in spirit.
+what: Player text read like a machine wrote it: semicolons, riddles, filler phrases, item lore with empty rhetoric and no plain fact, wrong directions, NPCs repeating one story, and Russian that was stale or unnatural. A rewrite of a line the committee called confusing swapped one riddle for another, with a pronoun of unclear referent, a metaphor in place of the rule it stood for and a punchline that did not follow, so read each rewritten line cold and check that a stranger gets the plain fact. The opposite fault went back too: a checklist of tells written for AI chat was turned into rules applied word for word to fiction, with no room for the narrator or a character's voice to break them where the story needs it.
+cost: Every text quest had to be cleaned up, the committee rejected the copy again and again, a sweep to fix confusing lines went back for a patch round because its fix of the reported line was confusing too, and the writing guidance went back for a redesign to follow the checklist in spirit.
 
 ID: R15
 what: Effects did not look physical: spills and grounds drawn as circles, dust that popped up instead of forming, hits shown at turn end, light through walls, and a glow with no visible source.
