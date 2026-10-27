@@ -1,4 +1,5 @@
 import { emptyLedger, LEDGER_KEYS, type Ledger } from '../sim/progression/orders';
+import { marketLayout } from '../sim/progression/sim-economy';
 import type { Sample } from '../sim/progression/sim-mode';
 import type { BakedMap } from '../sim/terrain';
 import type { World } from '../sim/types';
@@ -48,10 +49,16 @@ const SAMPLE_KEYS = ['turn', 'money', 'worth', 'xp'] as const;
 function historyOf(envelope: unknown): Sample[] | null {
   const saved = (envelope as { history?: unknown }).history;
   if (saved === undefined) return null;
-  if (!Array.isArray(saved) || saved.length === 0 || !saved.every(isSample)) throw new Error('The sim save has a broken money history');
-  return saved;
+  if (!Array.isArray(saved) || saved.length === 0 || !saved.every(hasRunNumbers)) throw new Error('The sim save has a broken money history');
+  return saved.every(hasMarket) ? (saved as Sample[]) : null;
 }
 
-function isSample(value: unknown): value is Sample {
-  return typeof value === 'object' && value !== null && SAMPLE_KEYS.every((key) => typeof (value as Record<string, unknown>)[key] === 'number');
+function hasRunNumbers(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null) return false;
+  return SAMPLE_KEYS.every((key) => typeof (value as Record<string, unknown>)[key] === 'number');
+}
+
+function hasMarket(value: unknown): boolean {
+  const { market, events } = value as Record<string, unknown>;
+  return Array.isArray(market) && market.length === 2 * marketLayout().length && Array.isArray(events);
 }
