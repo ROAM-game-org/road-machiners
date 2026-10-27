@@ -12,7 +12,8 @@ import { refreshVision } from './vision';
 import { boundToOrder, callStrangers, craterNews, dropSpot, giveWord, inDropRing, lightZone, meetingLapsed, meetStrangers, offeringOf, wordGap } from './sunward-crater';
 import { chooseOn } from './tracks';
 import { endTurn } from './world';
-import { testDrive } from './testkit';
+import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
+import { watchStalls } from './npc-watchdog';
 import { advanceSunward, craterExit, gateOrder, isCavalcadeCar, planSunward, dawnAfter, duskTurn, fallenSun, isSunwardMember, returnTurn, rideOutTurn, sunwardFacts, vigilGrounds, vigilPosts } from './sunward';
 import { callVehicle, chooseOption, currentOptions, hangUp, raiseCalls, talkOf } from './dialogue';
 import { topGoal } from './npc-activities';
@@ -683,5 +684,20 @@ describe('the drop lanes and the breach light', () => {
     expect(inDropRing(stop)).toBe(true);
     expect(inCore(zone, stop)).toBe(false);
     expect(inCore(zone, dragger)).toBe(false);
+  });
+});
+
+describe('a stranger who gave the order its word', () => {
+  it('waits out the night at the crater without counting as stalled', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 40, y: 30 });
+    npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    npc.brain.goals = [{ kind: 'wait', targetId: null, destination: { ...npc.pos }, phase: 'act', reason: 'keepWord', until: w.turn + 200 }];
+    for (let i = 0; i < 150; i++) {
+      w.turn++;
+      watchStalls(w);
+    }
+    expect(w.events.filter((e) => e.t === 'stall')).toEqual([]);
+    expect(topGoal(npc)?.reason).toBe('keepWord');
   });
 });

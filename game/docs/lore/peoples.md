@@ -6,9 +6,9 @@ The groups of Icarus and what they believe. Each one copes with the world in one
 
 Way: control.
 
-Nose is the town built around a ship's wreck on a mountain. The Central Committee governs it, led by President Alan Graves, who has held power for 30 years. The Nose Army keeps the order.
+Nose is the town built around a ship's wreck on a mountain. The Central Committee governs it, led by President Alan Graves. The Nose Army keeps the order.
 
-Nose runs the basin's only workshop line that builds whole engines and guns. It took the line over from the Old Army. Nose plans its whole economy. It rations food, water and work, so most people there are safe and fed. Its leaders are deeply corrupt, and the army is brutal to anyone who speaks against them.
+Nose runs the basin's only workshop line that builds whole engines and guns. It built the line from Old Orchard's machine tools, hauled up the mountain once the army was gone. Nose plans its whole economy. It rations food, water and work, so most people there are safe and fed. Its leaders are deeply corrupt, and the army is brutal to anyone who speaks against them.
 
 Its motto is "Unity above all." Nose believes the basin can survive only through careful rationing and strict discipline, and it wants to bring all of Icarus under that order.
 
@@ -46,8 +46,7 @@ The cost was that it held the peace by holding all the guns, and it could not fe
 
 Way: embrace.
 
-The Guidestar Guild carries messages across the basin by courier and by radio relay, for a fee. It is owned in shares, held in a trust by both towns so that no single buyer can take it over. A share in the Guild is worth more than most trucks.
-
+The Guidestar Guild carries messages across the basin by courier and by radio relay, for a fee. It is owned in shares, held in a trust by both towns so that no single buyer can take it over.
 The Guild serves every side and sells news to all of them. It does not like J.J., because she gives news away for free from a mast it cannot find.
 
 The cost is that the Guild treats everything as news for sale, including the secrets that get people hurt.
@@ -70,7 +69,7 @@ The cost is that Pierce turns every life on the road into a bet.
 
 Way: embrace.
 
-The Salvage Yard was the Pierce yard until year 123, when its repair crews stopped answering to Pierce and hung a crane over the stacked wrecks. Each truck stays with the crew that repaired it, and the pay comes out of its load. The Yard sells hull pieces, relics and the Old Army's stripped guns, and it bores the second pin into Nose swivels. The Administrator runs it. A Nose Army post under Captain Silver sits inside its gate.
+The Salvage Yard was the Pierce yard until year 123, when its repair crews stopped answering to Pierce and hung a crane over the stacked wrecks. The Yard sells hull pieces, relics and the Old Army's stripped guns. The Administrator runs it. A Nose Army post under Captain Silver sits inside its gate.
 
 The cost is that the Yard lives by selling guns to everyone, and everyone wants to own it.
 
@@ -84,7 +83,7 @@ A lawful driver who was attacked or robbed on the open road, or whose kin was ki
 
 The name comes from a north-western guard's tin badge stamped with an old word nobody here could read. Jonah Feld brought it home from the north-west, and drivers on the plain started calling the people at the mast the marshals.
 
-They take no claim against a raider and no claim from one. Raiders have no town to buy anyone off, nothing a hearing can hold them to, and lawmen already answer for them. The book writes such a wrong as unanswered.
+They take no claim against a raider and no claim from one. Raiders have no town to buy anyone off, and nothing a hearing can hold them to. The book writes such a wrong as unanswered.
 
 Every town lets them. The Roadhouse costs no town anything, pays the towns' price when it buys a driver off a post, and stands on Guild ground that both towns hold in trust.
 
@@ -106,7 +105,7 @@ Way: escape.
 
 When the ship fell, hundreds of its escape pods came down across the basin, and people climbed out of them. They were pale, wore grey suits, spoke a tongue nobody knew and remembered almost nothing before waking. Basin people called them the Given, after the cry "Given by the sky".
 
-The Given were never one faction. Most went to the Nose, the wreck that looked like home, and they built it alongside the Garrison's deserters. Others joined the Creed's refugees in the crater that became the Bowl. Today most people in the basin have a Given grandparent. The last ones who woke in a pod are very old.
+The Given were never one faction. Most went to the Nose, the wreck that looked like home, and they built it alongside the Garrison's deserters. Others joined the Creed's refugees in the crater that became the Bowl. Today most people in the basin have a Given forebear.
 
 Their descendants carry them in small ways: pale skin and grey eyes, a few words of a lost tongue in songs and names, a grey suit or a pod tag stamped with common digits kept in a family chest. Many of the Sunward and most of the Children of Noah are Given families. They are the ones who dream of the crater, and the ones who wait for the ship to come back.
 
@@ -122,7 +121,7 @@ The other drivers have no town to speak for them.
 - Vultures oppose. They follow fights and strip the losers.
 - Mercs embrace the world as it is. They sell their guns to whoever pays and leave the deciding to others.
 - Couriers embrace the road. Guild couriers run the open road in pairs.
-- The Burnt Convoy families oppose. A dozen vulture families lived in the burnt trucks of an old convoy until the road crews cleared the wrecks. They live on the north side of the Salvage Yard now and are first to any wreck.
+- The Burnt Convoy families oppose. Vulture families lived in the burnt trucks of an old convoy until the road crews cleared the wrecks. They live on the north side of the Salvage Yard now and are first to any wreck.
 
 ## Faiths
 
@@ -165,9 +164,9 @@ The cost is that they leave this world to the people who still believe in it.
 
 Way: escape.
 
-The Children of Noah believe another ship will come and take the worthy away. They keep the escape pod beacons lit along the debris trail so the next ship can find them.
+The Children of Noah believe another ship will come and take the worthy away.
 
-Their singers came from the crater. In year 110 Yara Sorrel led the Sunward's old singers, the last believers among the dreamers, out to the beacon keepers, and the deserter Joss Ardo sings with them now. Since year 128 they keep their lamps dark at night.
+Their singers came from the crater. In year 110 Yara Sorrel led the Sunward's old singers, the last believers among the dreamers, out to the Children of Noah, and the deserter Joss Ardo sings with them now.
 
 The cost is that they live for an arrival that may never come.
 

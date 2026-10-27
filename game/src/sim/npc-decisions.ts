@@ -1,4 +1,7 @@
 
+import { LINGER } from '../data/linger';
+import { lingersForMoment } from './moments';
+import { lingerReasonNow } from './linger';
 import { canPayBounty } from './crime';
 import { dealAvailable } from './patch';
 import { encounterAvailable } from './encounters';
@@ -261,17 +264,26 @@ function runOffers(world: World, vehicle: Vehicle, source: ShopDef, buyer: ShopD
   return source.goods.filter((good) => buyer.goods.includes(good)).flatMap((good) => runOffer(world, vehicle, { source: source.id, good, sellShop: buyer.id }, spend, 1));
 }
 
-function runOffer(world: World, vehicle: Vehicle, plan: TradePlan, spend: number, need: number): Weighted<TradePlan>[] {
-  const sourcePos = getKnownSite(plan.source).pos;
-  const trip = dist(vehicle.pos, sourcePos) + dist(sourcePos, getKnownSite(plan.sellShop).pos);
+export type TradeOutlook = { buy: number; profit: number; count: number; fuel: number; risk: number; net: number; worth: boolean };
+
+export function tradeOutlook(world: World, vehicle: Vehicle, plan: TradePlan, spend: number, trip: number): TradeOutlook {
   const fuel = tripFuelCost(world, vehicle, trip);
   const buy = getTradePrice(world, vehicle, plan.source, plan.good, 'buy');
   const profit = getTradePrice(world, vehicle, plan.sellShop, plan.good, 'sell') - buy;
-  if (spend < buy || profit <= 0) return [];
   const count = affordableBuyCount(world, vehicle, plan.source, plan.good, cargoRoom(vehicle), spend);
   const risk = count * goodValue(plan.good) * legRisk(world, plan.source, plan.sellShop);
   const net = count * profit - fuel - risk;
-  return net > 0 ? [{ value: plan, weight: (net * need) / trip }] : [];
+  return { buy, profit, count, fuel, risk, net, worth: spend >= buy && profit > 0 && net > 0 };
+}
+
+export function tradeLegTiles(plan: TradePlan): number {
+  return dist(getKnownSite(plan.source).pos, getKnownSite(plan.sellShop).pos);
+}
+
+function runOffer(world: World, vehicle: Vehicle, plan: TradePlan, spend: number, need: number): Weighted<TradePlan>[] {
+  const trip = dist(vehicle.pos, getKnownSite(plan.source).pos) + tradeLegTiles(plan);
+  const outlook = tradeOutlook(world, vehicle, plan, spend, trip);
+  return outlook.worth ? [{ value: plan, weight: (outlook.net * need) / trip }] : [];
 }
 
 export function supplyOffers(world: World, vehicle: Vehicle): Weighted<TradePlan>[] {
@@ -685,6 +697,7 @@ const AVAILABLE: Record<OptionName, Availability> = {
   prowl: canProwl,
   loot: canLootSubject,
   wait: always,
+  linger: (world, vehicle) => lingerReasonNow(world, vehicle) !== null,
   patrol: canPatrol,
   travel: canTravel,
   explore: canDrive,
@@ -965,6 +978,7 @@ const SITUATION: Record<OptionName, SituationFactor> = {
   prowl: neutral,
   loot: neutral,
   wait: neutral,
+  linger: (world, vehicle) => (lingersForMoment(world, vehicle, lingerReasonNow(world, vehicle)) ? LINGER.holderWeight : 1),
   patrol: neutral,
   travel: neutral,
   explore: neutral,
@@ -1114,6 +1128,10 @@ export function offersChoice(world: World, vehicle: Vehicle, decision: DecisionI
   return options.some((option) => option !== 'keep' && optionOpen(world, vehicle, decision, subject, option));
 }
 
+export function anyOptionOpen(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {
+  return (Object.keys(DECISIONS[decision]) as OptionName[]).some((option) => optionOpen(world, vehicle, decision, subject, option));
+}
+
 function optionOpen(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, option: OptionName): boolean {
   return allowedByMode(world, option) && AVAILABLE[option](world, vehicle, decision, subject);
 }
@@ -1133,8 +1151,9 @@ export function optionChances<O extends string>(weights: Partial<Record<O, numbe
   return out;
 }
 
-export function decide<D extends DecisionId>(world: World, vehicle: Vehicle, decision: D, subject: string | null, danger: number | null): DecisionOptions[D] {
+export function decide<D extends DecisionId>(world: World, vehicle: Vehicle, decision: D, subject: string | null, danger: number | null, without: readonly DecisionOptions[D][] = []): DecisionOptions[D] {
   const weights = optionWeights(world, vehicle, decision, subject, danger);
+  for (const option of without) delete weights[option];
   checkWeights(vehicle, decision, weights);
   if (!hasChoice(weights)) return 'keep' as DecisionOptions[D];
   const chances = Object.entries(optionChances(weights)) as [DecisionOptions[D], number][];
@@ -1142,6 +1161,7 @@ export function decide<D extends DecisionId>(world: World, vehicle: Vehicle, dec
 }
 
 function checkWeights(vehicle: Vehicle, decision: DecisionId, weights: Partial<Record<OptionName, number>>): void {
+  if (Object.keys(weights).length === 0) throw new Error(`${vehicle.id} has no open option at ${decision}`);
   for (const [option, weight] of Object.entries(weights) as [OptionName, number][]) {
     if (!Number.isFinite(weight) || weight < 0) throw new Error(`${vehicle.id} has weight ${weight} for ${option} at ${decision}`);
   }

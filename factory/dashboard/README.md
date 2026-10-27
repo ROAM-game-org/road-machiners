@@ -13,7 +13,7 @@ From `factory/`:
 
 ## What the numbers mean
 
-- Every number comes from SQL over `$FACTORY_HOME/ledger.jsonl`. This keeps each number readable in one file. `src/dashboard/analytics.ts` loads the ledger lines into an in-memory DuckDB and runs one file of `src/dashboard/queries/` per panel. It reruns only when the ledger file has grown since the last good run, since the factory only appends to it. It runs each file once for the 24-hour, 7-day and 30-day ranges, with the parameters `$now`, `$days` and `$budget_ms`.
+- Every number comes from SQL over `$FACTORY_HOME/ledger.jsonl`. This keeps each number readable in one file. `src/dashboard/analytics.ts` loads the ledger lines into an in-memory DuckDB and runs one file of `src/dashboard/queries/` per panel. It reruns only when the ledger file has grown since the last good run, since the factory only appends to it, and at most once per `FACTORY_DASHBOARD_ANALYTICS_MINUTES`. It runs each file once for the 24-hour, 7-day and 30-day ranges, with the parameters `$now`, `$days` and `$budget_ms`.
 - `queries/base.sql` builds the typed tables jobs, agents, model_usage, cards, scheduler and scheduler_waits from the lines. `queries/macros.sql` holds the range filters that panels share.
 - Queries read each line as JSON and filter it by kind. So a new ledger kind or field changes nothing until a query uses it.
 - A panel returns its rows or its error. A failing panel shows its name and the error type where the panel would be, and the other panels keep their rows. A missing query file fails only its own panel.
