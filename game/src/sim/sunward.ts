@@ -193,7 +193,9 @@ function openHunt(world: World, day: number): SunwardHunt | null {
 let roadNearCrater: Vec[] | null = null;
 
 function huntRoads(): Vec[] {
-  roadNearCrater ??= REGION.roads.flatMap(alongRoad).filter((p) => dist(p, FALLEN_SUN.pos) <= SUNWARD.huntReach && siteGap(FALLEN_SUN, p) > 0);
+  const near = (points: Vec[]) => points.filter((p) => dist(p, FALLEN_SUN.pos) <= SUNWARD.huntReach && siteGap(FALLEN_SUN, p) > 0);
+  const corners = near(REGION.roads.flat());
+  roadNearCrater ??= corners.length >= 2 ? corners : near(REGION.roads.flatMap(alongRoad));
   if (roadNearCrater.length < 2) throw new Error('No road lies within the hunters\' reach of the Fallen Sun');
   return roadNearCrater;
 }
