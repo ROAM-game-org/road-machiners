@@ -318,20 +318,28 @@ function cliffCells(e: TerrainEntry, radius: number): Uint8Array {
 function markCliffCells(nav: TerrainNav, reach: number): Uint8Array {
   const n = nav.n;
   const cliff = new Uint8Array(n * n);
-  const near = cliffNear(nav, reach);
+  const s = nav.size;
+  const tiles = nav.cliffTile;
+  const here = cellTiles(n, s, 0);
+  const ahead = cellTiles(n, s, reach);
+  const behind = cellTiles(n, s, -reach);
   for (let y = 0; y < n; y++) {
-    const cy = (y + 0.5) * CELL;
-    for (let x = 0; x < n; x++) cliff[y * n + x] = near((x + 0.5) * CELL, cy);
+    const row = here[y] * s;
+    const rowAhead = ahead[y] * s;
+    const rowBehind = behind[y] * s;
+    for (let x = 0; x < n; x++) {
+      const col = here[x];
+      cliff[y * n + x] = tiles[row + col] | tiles[row + ahead[x]] | tiles[row + behind[x]] | tiles[rowAhead + col] | tiles[rowBehind + col];
+    }
   }
   for (const box of nav.decks.boxes) markRailCells(nav, cliff, box, reach);
   return cliff;
 }
 
-function cliffNear(nav: TerrainNav, reach: number): (x: number, y: number) => number {
-  const s = nav.size;
-  const tiles = nav.cliffTile;
-  const at = (x: number, y: number): number => tiles[Math.min(s - 1, Math.max(0, Math.floor(y))) * s + Math.min(s - 1, Math.max(0, Math.floor(x)))];
-  return (x, y) => (at(x, y) === 1 || at(x + reach, y) === 1 || at(x - reach, y) === 1 || at(x, y + reach) === 1 || at(x, y - reach) === 1 ? 1 : 0);
+function cellTiles(n: number, size: number, shift: number): Int32Array {
+  const out = new Int32Array(n);
+  for (let i = 0; i < n; i++) out[i] = Math.min(size - 1, Math.max(0, Math.floor((i + 0.5) * CELL + shift)));
+  return out;
 }
 
 function markRailCells(nav: TerrainNav, cliff: Uint8Array, box: { minX: number; maxX: number; minY: number; maxY: number }, reach: number): void {
