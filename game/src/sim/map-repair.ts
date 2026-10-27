@@ -74,6 +74,7 @@ const VEHICLE_MOVE = {
   stormExposure: 'drop',
   strandedTurns: 'keep',
   strandedAt: 'shift',
+  yieldsTo: 'drop',
   stalledUntil: 'keep',
   order: 'shift',
   direct: 'keep',
@@ -231,6 +232,7 @@ function applyMoves<T extends object, M extends Table<T>>(target: T, table: M, h
 const VEHICLE_HANDLERS: Handlers<Vehicle, typeof VEHICLE_MOVE> = {
   pos: (pos, ctx) => at(ctx, pos),
   strandedAt: (anchor, ctx) => anchor && at(ctx, anchor),
+  yieldsTo: () => undefined,
   order: (order, ctx) => {
     if (order === null || ctx.self !== ctx.playerId) return null;
     return order.kind === 'brake' ? order : { ...order, dest: at(ctx, order.dest) };
