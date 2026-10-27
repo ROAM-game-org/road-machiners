@@ -127,6 +127,57 @@ describe('the collision event impact', () => {
   });
 });
 
+describe('falls', () => {
+  const lossesOf = (apply: (world: ReturnType<typeof emptyWorld>, v: Vehicle, other: Vehicle) => void, keepUnhurt = false) => {
+    const world = emptyWorld();
+    const v = addVehicle(world, 'independent', 'scout', ['stockEngine', 'mg', 'mg'], { x: 40, y: 40 });
+    const other = addVehicle(world, 'scrapjaw', 'scout', ['stockEngine'], { x: 42, y: 40 });
+    const before = new Map(mountedParts(v).map((part) => [part.id, part.hp]));
+    apply(world, v, other);
+    return mountedParts(v)
+      .map((part) => ({ def: part.defId, loss: before.get(part.id)! - part.hp }))
+      .filter((part) => part.loss > 0 || keepUnhurt);
+  };
+  const lane = { side: 'front' as const, lanes: [1, 2] };
+  const devLanding = [6, 6, 6, 6];
+  const devGroundCrash = [
+    { def: 'wheel', loss: 11 },
+    { def: 'stockEngine', loss: 18 },
+    { def: 'mg', loss: 9 },
+    { def: 'cabPickup', loss: 11 },
+    { def: 'wheel', loss: 6 },
+    { def: 'transmission', loss: 3 },
+  ];
+
+  it('a landing on the wheels costs each wheel half of what it cost on dev', () => {
+    const losses = lossesOf((world, v) => applyLanding(world, v, 'ground', 3));
+    expect(losses.map((part) => part.def)).toEqual(['wheel', 'wheel', 'wheel', 'wheel']);
+    losses.forEach((part, i) => expect(Math.abs(part.loss - devLanding[i] / 2)).toBeLessThanOrEqual(1));
+  });
+
+  it('a body hit on the ground costs every part, a gun included, half of what it cost on dev', () => {
+    const losses = lossesOf((world, v) => applyGroundCrash(world, v, 'ground', 3, lane), true);
+    const lossOf = (def: string, _nth: number) => Math.max(...losses.filter((part) => part.def === def).map((part) => part.loss));
+    expect(Math.abs(lossOf('wheel', 0) - 5.5)).toBeLessThanOrEqual(1);
+    expect(Math.abs(lossOf('stockEngine', 0) - 9)).toBeLessThanOrEqual(1);
+    expect(lossOf('mg', 0)).toBeGreaterThan(0);
+    expect(lossOf('mg', 0)).toBeLessThanOrEqual(5.5);
+    const devTotal = devGroundCrash.reduce((sum, part) => sum + part.loss, 0);
+    const total = losses.reduce((sum, part) => sum + part.loss, 0);
+    expect(total).toBeLessThanOrEqual(devTotal / 2 + 2);
+  });
+
+  it('a crash into a rock costs what it cost on dev', () => {
+    const losses = lossesOf((world, v) => applyContactCrash(world, v, null, 'rock', 3, { a: lane, b: null }, null));
+    expect(losses).toEqual([{ def: 'wheel', loss: 4 }, { def: 'stockEngine', loss: 5 }]);
+  });
+
+  it('a crash into another truck costs what it cost on dev', () => {
+    const losses = lossesOf((world, v, other) => applyContactCrash(world, v, other, other.id, 3, { a: lane, b: lane }, { a: 3, b: 0 }));
+    expect(losses).toEqual([{ def: 'wheel', loss: 2 }, { def: 'stockEngine', loss: 2 }]);
+  });
+});
+
 describe('ram practice', () => {
   const geometry = { a: { side: 'front' as const, lanes: [1, 2] }, b: { side: 'left' as const, lanes: [1, 2] } };
 
