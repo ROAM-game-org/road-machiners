@@ -2,6 +2,7 @@
 import { chassisDef } from '../data/chassis';
 import { bedRows, cargoRowFactor } from './chassis-features';
 import { isShield, partDef, type CoreDef, type PartKind } from '../data/parts';
+import { loadoutFact, loadoutSlot, type Loadout } from './loadout-memo';
 import type { GridItem, PartInstance, PlacementRefusal, Rot, Vehicle } from './types';
 
 export type SideLetter = 'F' | 'B' | 'L' | 'R';
@@ -184,22 +185,47 @@ export function onDeadRow(g: Grid, item: GridItem): boolean {
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;
 
-export function mountedItems(v: Vehicle, kind?: PartKind): PartItem[] {
-  const out: PartItem[] = [];
-  for (const it of v.items) if (it.kind === 'part' && (!kind || partDef(it.part.defId).kind === kind) && isMounted(v.chassisId, it)) out.push(it);
-  return out.sort((a, b) => a.y - b.y || a.x - b.x);
+const ALL = '*';
+type ByKey<T> = Readonly<Record<string, readonly T[]>>;
+
+function grouped<T>(entries: readonly T[], keyOf: (entry: T) => string): Record<string, T[]> {
+  const out: Record<string, T[]> = {};
+  for (const entry of entries) (out[keyOf(entry)] ??= []).push(entry);
+  return out;
 }
 
-export function mountedParts(v: Vehicle, kind?: PartKind): PartInstance[] {
-  return mountedItems(v, kind).map((it) => it.part);
+const KIND_LISTS = loadoutSlot((loadout): ByKey<PartItem> => {
+  const mounted = loadout.items
+    .filter((it): it is PartItem => it.kind === 'part' && isMounted(loadout.chassisId, it))
+    .sort((a, b) => a.y - b.y || a.x - b.x);
+  return { ...grouped(mounted, (it) => partDef(it.part.defId).kind), [ALL]: mounted };
+});
+
+const PART_LISTS = loadoutSlot((loadout): ByKey<PartInstance> => {
+  const lists: Record<string, PartInstance[]> = {};
+  for (const [key, items] of Object.entries(loadoutFact(loadout, KIND_LISTS))) lists[key] = items.map((it) => it.part);
+  return lists;
+});
+
+const CORE_LISTS = loadoutSlot((loadout): ByKey<PartInstance> => grouped(loadoutFact(loadout, PART_LISTS).core ?? [], (part) => (partDef(part.defId) as CoreDef).role));
+
+
+const NONE: readonly never[] = Object.freeze([]);
+
+export function mountedItems(v: Loadout, kind?: PartKind): readonly PartItem[] {
+  return loadoutFact(v, KIND_LISTS)[kind ?? ALL] ?? NONE;
+}
+
+export function mountedParts(v: Loadout, kind?: PartKind): readonly PartInstance[] {
+  return loadoutFact(v, PART_LISTS)[kind ?? ALL] ?? NONE;
 }
 
 export function shieldParts(v: Vehicle): PartInstance[] {
   return mountedParts(v).filter((part) => isShield(partDef(part.defId)));
 }
 
-export function coreParts(v: Vehicle, role: CoreDef['role']): PartInstance[] {
-  return mountedParts(v, 'core').filter((p) => (partDef(p.defId) as CoreDef).role === role);
+export function coreParts(v: Loadout, role: CoreDef['role']): readonly PartInstance[] {
+  return loadoutFact(v, CORE_LISTS)[role] ?? NONE;
 }
 
 export function corePart(v: Vehicle, role: CoreDef['role']): PartInstance {
