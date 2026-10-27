@@ -12,13 +12,13 @@ import { workerError } from "./travel";
 import { WorkerLoad, workerFailure } from "./worker-load";
 
 export function throttleColor(world: World, me: Vehicle, p: Vec): number {
-  return PAL.throttle[orderThrottle(world, me, playerOrder(world, me, p, false))];
+  return PAL.throttle[orderThrottle(me, playerOrder(world, me, p, false))];
 }
 
 export function firstTurnColor(world: World, me: Vehicle): number {
   const order = me.order;
   if (!order || order.kind === "brake") return PAL.plan;
-  return order.kind === "through" || order.pace !== undefined ? PAL.throttle[orderThrottle(world, me, order)] : PAL.plan;
+  return order.kind === "through" || order.pace !== undefined ? PAL.throttle[orderThrottle(me, order)] : PAL.plan;
 }
 
 type Wanted = { world: World; drive: DriveSnapshot; meId: string };

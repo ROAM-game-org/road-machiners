@@ -328,9 +328,9 @@ describe("route speed by the colored zones", () => {
   it("orderThrottle shows the band a pace stands for", () => {
     const { w, v } = player(4);
     const dest = ahead(v, 30);
-    expect(orderThrottle(w, v, { kind: "through", dest, pace: RULES.crawlSpeed })).toBe("brake");
-    expect(orderThrottle(w, v, { kind: "through", dest, pace: 4 })).toBe("hold");
-    expect(orderThrottle(w, v, { kind: "through", dest })).toBe(throttleFor(30, 4, "route"));
-    expect(orderThrottle(w, v, { kind: "brake" })).toBe("brake");
+    expect(orderThrottle(v, { kind: "through", dest, pace: RULES.crawlSpeed })).toBe("brake");
+    expect(orderThrottle(v, { kind: "through", dest, pace: 4 })).toBe("hold");
+    expect(orderThrottle(v, { kind: "through", dest })).toBe(throttleFor(30, 4, "route"));
+    expect(orderThrottle(v, { kind: "brake" })).toBe("brake");
   });
 });

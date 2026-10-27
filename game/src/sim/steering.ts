@@ -117,14 +117,15 @@ export function playerOrder(world: World, me: Vehicle, dest: Vec, shift: boolean
   const order = clickOrder(world.terrain, dest, shift, me);
   const held = me.order && me.order.kind !== "brake" ? me.order : null;
   if (me.direct || order.kind === "brake") return order;
-  const fan = shift || onSite(world, dest) || reclicks(held, dest) ? null : zoneAt(vehicleStats(world, me), me, dest);
+  const stats = vehicleStats(world, me);
+  const fan = shift || onSite(world, dest) || reclicks(held, dest) ? null : zoneAt(stats, me, dest);
   if (fan === null) return withPace(order, held?.pace);
-  const pace = zonePace(vehicleStats(world, me), me.speed, fan);
+  const pace = zonePace(stats, me.speed, fan);
   if (held && dist(me.pos, held.dest) > RULES.throttleZones.reach) return withPace({ kind: held.kind, dest: held.dest }, pace);
   return withPace(order, pace);
 }
 
-export function orderThrottle(world: World, me: Vehicle, order: MoveOrder): Throttle {
+export function orderThrottle(me: Vehicle, order: MoveOrder): Throttle {
   if (order.kind === "brake") return "brake";
   if (order.pace !== undefined) return order.pace <= RULES.crawlSpeed ? "brake" : "hold";
   return throttleFor(dist(me.pos, order.dest), me.speed, driveMode(me));
