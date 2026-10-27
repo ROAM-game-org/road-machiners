@@ -351,3 +351,7 @@ export function maxTurn(s: VehicleStats, speed: number): number {
   const k = Math.min(1, Math.max(0, t));
   return s.turnSlow + (s.turnFast - s.turnSlow) * k;
 }
+
+export function gunReach(world: World, v: Vehicle): number {
+  return Math.max(RULES.arriveRadius, ...vehicleStats(world, v).weapons.map((mw) => mw.def.range));
+}

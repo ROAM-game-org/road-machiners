@@ -117,7 +117,6 @@ He counts {fee} M onto the bench, then writes the half rod in under Teller's rep
 The report is command's. Whether they read past the first line isn't mine to decide. # speaker: Kovac
 Then he opens the depot list and draws a line through two trucks that run on the same cheap rods. They stay off the road until Lena has looked at them.
 Teller goes out to the yard without a word. Duvall picks up his half of the rod and puts it back in his shirt pocket.
-If you drive down to Bowl, my mother buys her water at Hattie's cistern house. Tell her my arm's set. # speaker: Duvall
 -> END
 
 = admit
@@ -146,7 +145,6 @@ If you drive down to Bowl, my mother buys her water at Hattie's cistern house. T
   Kovac holds out his hand for the half rod. It's what you carried it up here for, and you give it to him. He counts out the finder's rate for it, {fee} M. Then he draws a line through two depot trucks with the same rods, off the road until Lena has looked at them.
   ~ wagon_fate = "admitted"
   ~ give_money(fee)
-  If you drive down to Bowl, my mother buys her water at Hattie's cistern house. Tell her my arm's set. # speaker: Duvall
 - else:
   You lean on it and tell him he lied in his report, that raiders don't leave a cannon behind. It comes out too fast and too loud, an accusation instead of a question. He hears that, and he steadies.
   I said it at the desk and I say it now. And this one was down in the hollow picking over Army property. Ask what else is in that truck. # speaker: Teller

@@ -3,7 +3,7 @@ import { hashId } from './rng';
 import { playerVehicle } from './damage';
 import { isDefeated } from './defeat';
 import { decide, npcProfile } from './npc-decisions';
-import { fightCornered, fleeFrom, interrupt, pushGoal } from './npc-activities';
+import { fightCornered, fleeFrom, interrupt, pushGoal, topGoal } from './npc-activities';
 import { inFeud, inTruce, reportIncident } from './relations';
 import { canVehicleSee } from './vision';
 import { inCore } from './hazard';
@@ -278,6 +278,11 @@ function answerCall(world: World, member: Vehicle, stranger: Vehicle): void {
   if (answer === 'flee') return interrupt(world, stranger, fleeFrom(world, stranger, npcProfile(stranger), member.id, member.pos, 'escapeThreat'));
   giveWord(world, stranger, member);
   pushGoal(world, stranger, { kind: 'wait', targetId: null, destination: { ...stranger.pos }, phase: 'act', reason: 'keepWord', until: returnTurn(lastDusk(world.turn)) });
+}
+
+export function keepsWordAtVigil(v: Vehicle): boolean {
+  const top = topGoal(v);
+  return top?.kind === 'wait' && top.reason === 'keepWord' && top.until !== undefined;
 }
 
 export function shoutGiven(world: World, shooter: Vehicle, target: Vehicle): void {

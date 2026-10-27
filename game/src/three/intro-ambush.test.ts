@@ -14,18 +14,17 @@ import { checkKnockout, knockOutNpc } from '../sim/defeat';
 import { fightOdds } from '../sim/fight-odds';
 import { corePart, gridOf, mountedParts } from '../sim/grid';
 import { answersPlea, offersGiveUp } from '../sim/parley';
-import { addGoods, removeAllGoods } from '../sim/inventory';
+import { addGoods, removeAllGoods, stowPart } from '../sim/inventory';
 import { chooseQuestOption, introStep, openWellScene, QUESTS, questView, setIntroStep } from '../sim/quests';
-import { OPENING_WRECK_ID } from '../sim/opening';
+import { OPENING_WRECK_ID, openingStep } from '../sim/opening';
 import { emptyHidden } from '../sim/salvage';
-import { OPENING } from '../data/start';
 import { generateNpcLoadout } from '../sim/npc-loadout';
 import { fightCornered, topGoal } from '../sim/npc-activities';
 import { NPC_BEHAVIOR } from '../data/npc-behavior';
 import { hasCargo } from '../sim/salvage';
 import { defaultSetup } from '../sim/settings';
 import { canUseSite } from '../sim/sites';
-import { allegianceFor, spawnAt } from '../sim/spawn';
+import { allegianceFor, isFree, spawnAt } from '../sim/spawn';
 import { editableTerrain, emptyWorld, finishQuest, testDrive } from '../sim/testkit';
 import { trackOf } from '../sim/tracks';
 import type { Vehicle, World } from '../sim/types';
@@ -75,6 +74,17 @@ function knockedOutBy(w: World): Vehicle {
   corePart(me, 'cab').hp = 0;
   checkKnockout(w);
   return raider;
+}
+
+function openGroundToward(w: World, from: Vec, angle: number, near: number): Vec {
+  const radius = chassisDef(playerVehicle(w).chassisId).radius;
+  const exit = { x: from.x + Math.cos(angle) * 40, y: from.y + Math.sin(angle) * 40 };
+  const offsets = Array.from({ length: 41 }, (_, k) => (k % 2 === 0 ? k / 2 : -(k + 1) / 2));
+  const spot = offsets
+    .map((d) => ({ x: from.x + Math.cos(angle) * (near + d), y: from.y + Math.sin(angle) * (near + d) }))
+    .find((p) => isFree(w, p, radius, w.player.vehicleId) && drivable(w, exit, p, radius));
+  if (!spot) throw new Error(`No open ground ${near} tiles out from ${from.x}, ${from.y}`);
+  return spot;
 }
 
 const fightOn = (v: Vehicle, id: string) => v.brain!.goals.find((g) => g.kind === 'fight' && g.targetId === id);
@@ -184,11 +194,7 @@ describe('the ambush', () => {
     const bowl = REGION.towns.find((t) => t.id === WAKE_TOWN)!.pos;
     const toBowl = Math.atan2(bowl.y - farm.y, bowl.x - farm.x);
     const me = playerVehicle(w);
-    const start = { ...me.pos };
-    const radius = chassisDef(AMBUSH.chassis).radius;
-    const onTheWay = [160, 150, 170, 140, 180].map((d) => ({ x: farm.x + Math.cos(toBowl) * d, y: farm.y + Math.sin(toBowl) * d })).find((p) => drivable(w, start, p, radius));
-    if (!onTheWay) throw new Error('No drivable spot 140 to 180 tiles from the farm toward Bowl');
-    me.pos = onTheWay;
+    me.pos = openGroundToward(w, farm, toBowl, 160);
     me.heading = toBowl + 0.5;
     me.speed = 2;
     me.order = { kind: 'through', dest: { x: me.pos.x + Math.cos(me.heading) * 200, y: me.pos.y + Math.sin(me.heading) * 200 } };
@@ -244,7 +250,38 @@ function withOpeningWreckAt(w: World, away: number): void {
   w.salvage.push({ id: OPENING_WRECK_ID, pos: { x: me.pos.x - away, y: me.pos.y }, radius: 1, goods: { scrap: 1 }, parts: [], fuel: 0, supplies: 0, hidden: emptyHidden() });
 }
 
+function withLooseCageAndWreckAt(w: World, away: number): void {
+  withOpeningWreckAt(w, away);
+  w.salvage.find((s) => s.id === OPENING_WRECK_ID)!.goods = {};
+  w.player.scavenged.push(OPENING_WRECK_ID);
+  const me = playerVehicle(w);
+  me.items = me.items.filter((item) => item.kind !== 'part' || item.part.defId !== 'cage');
+  if (!stowPart(w, me, makePart(w, 'cage', 0))) throw new Error('No room for the loose cage');
+}
+
 describe('the ambush gate during the opening', () => {
+  it('sees a looted but unmounted cage as the install step', () => {
+    const w = patchedWorld();
+    withLooseCageAndWreckAt(w, AMBUSH.farmLeave + 10);
+    expect(openingStep(w)).toBe('install');
+  });
+
+  it('comes once a truck with a loose cage has left the farm', () => {
+    const w = patchedWorld();
+    withLooseCageAndWreckAt(w, AMBUSH.farmLeave + 10);
+    const next = endTurn(w, testDrive);
+    expect(raidersIn(next)).toHaveLength(1);
+    expect(introStep(next)).toBe('ambush');
+  });
+
+  it('waits while a truck with a loose cage is still on the farm', () => {
+    const w = patchedWorld();
+    withLooseCageAndWreckAt(w, 20);
+    const next = endTurn(w, testDrive);
+    expect(raidersIn(next)).toHaveLength(0);
+    expect(introStep(next)).toBe('patched');
+  });
+
   it('waits while the opening wreck is unfinished and the truck is near it', () => {
     const w = patchedWorld();
     withOpeningWreckAt(w, 20);
@@ -253,9 +290,9 @@ describe('the ambush gate during the opening', () => {
     expect(introStep(next)).toBe('patched');
   });
 
-  it('comes once the truck is past the leave distance from the wreck', () => {
+  it('comes once the truck has left the farm around the wreck', () => {
     const w = patchedWorld();
-    withOpeningWreckAt(w, OPENING.leaveDistance + 10);
+    withOpeningWreckAt(w, AMBUSH.farmLeave + 10);
     const next = endTurn(w, testDrive);
     expect(raidersIn(next)).toHaveLength(1);
     expect(introStep(next)).toBe('ambush');
