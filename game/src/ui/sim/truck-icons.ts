@@ -14,11 +14,11 @@ import { token } from "../tokens";
 
 const YAWS = 16;
 const CAMERA = { riseDeg: 35, distance: 60, margin: 0.2 };
-const LIGHT = { ambient: 2, key: 1.4, keyAt: [-4, 8, 6] as const };
+const LIGHT = { ambient: 2.5, key: 1.5, keyAt: [-4, 8, 6] as const };
 const BASE_PX_PER_METER = 40;
 const SAMPLES = 4;
 const LEVEL_STEP = Math.SQRT2;
-const SHADOW = { reach: 1, blur: 1, alpha: 0.9, darken: 0.6 };
+const SHADOW = { reach: 1, blur: 1, alpha: 0.9, darken: 0.5 };
 const PAD_PX = SHADOW.reach + SHADOW.blur * 2;
 const OUT_FILTER = "grayscale(1) brightness(0.55)";
 const OFFSETS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const;
