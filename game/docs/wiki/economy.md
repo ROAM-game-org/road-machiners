@@ -148,7 +148,7 @@ The player's truck pays no upkeep. NPC drivers pay under `NPC_UPKEEP`.
 | `PRODUCTION.cycleTurns` | 19 |
 | `PRODUCTION.bufferDays` | 1.5 |
 | `PRODUCTION.fullShare` | 1.6 |
-| `ECONOMY.repairShare` | 0.85 |
+| `ECONOMY.repairShare` | 0.425 |
 | `CONDITION.maxWear` | 4 |
 | `CONDITION.stepLoss` | 0.027 |
 | `WEAR.chancePerTile` | 0.00055 |

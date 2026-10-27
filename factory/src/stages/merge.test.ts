@@ -305,6 +305,16 @@ describe('merge queue', () => {
     expect(calls.some((call) => call.startsWith('push'))).toBe(false);
   });
 
+  it('leaves a batch card that reached Done during the job unlabeled when the batch fails', async () => {
+    shellFailures = Array(9).fill('FAIL a.test.ts');
+    const ctx = fakeCtx(2);
+    let reads = 0;
+    ctx.github.cards = async () => (reads++ === 0 ? cards : [{ ...card(5), column: 'Done' as const }, card(6)]);
+    await expect(merge(ctx)).rejects.toThrow(BudgetError);
+    expect(calls).not.toContain('label 5 factory-stuck');
+    expect(calls).toContain('label 6 factory-stuck');
+  });
+
   it('gives a failing checkpoint to the merge session even when its conflicts cost more than the budget, and pushes only after checks pass', async () => {
     merges = { 'factory/issue-5': [{ commit: 'c5', conflicts: ['game/src/a.ts'] }], 'factory/issue-6': [{ commit: 'c6', conflicts: ['game/src/b.ts'] }] };
     costs = [15, 15, 2];
