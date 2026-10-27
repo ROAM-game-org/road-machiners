@@ -47,6 +47,7 @@ export type CoarseGrid = {
 export type NavLayer = TerrainNav & {
   id: number;
   radius: number;
+  marks: Uint8Array | null;
   blocked: Uint8Array;
   coarse: CoarseGrid;
 };
@@ -257,9 +258,9 @@ function builtLayer(e: TerrainEntry, statics: StaticSet, radius: number): NavLay
   const nav = e.nav;
   const cliff = cliffCells(e, radius);
   const solid = solidGrid(e, cliff, statics, radius);
-  const slow = costlySlow(nav, statics.costly, radius);
-  const coarse = statics.costly.length === 0 ? solid.coarse : withRegionSlow(solid.coarse, slow);
-  return { ...nav, slow, id: nextLayerId++, radius, blocked: solid.blocked, coarse };
+  const marks = costlyMarks(nav, statics.costly, radius);
+  const layer: NavLayer = { ...nav, marks, id: nextLayerId++, radius, blocked: solid.blocked, coarse: solid.coarse };
+  return marks === null ? layer : { ...layer, coarse: withRegionSlow(solid.coarse, (c) => slowAt(layer, c)) };
 }
 
 function patchedLayer(e: TerrainEntry, statics: StaticSet, radius: number): NavLayer | null {
@@ -267,23 +268,24 @@ function patchedLayer(e: TerrainEntry, statics: StaticSet, radius: number): NavL
   if (!from || statics.costly.length === 0) return null;
   const { layer: old, statics: was } = from[1];
   const changed = [...was.costly.filter((o) => !statics.costlyKeys.has(blockerKey1(o))), ...statics.costly.filter((o) => !was.costlyKeys.has(blockerKey1(o)))];
-  const slow = old.slow.slice();
-  const cells = restampCostly(e.nav, slow, statics, changed, radius);
-  const layer: NavLayer = { ...old, slow, id: nextLayerId++, coarse: withRegionsRedone(old.coarse, e.nav.n, slow, cells) };
+  const marks = old.marks!.slice();
+  const cells = restampCostly(e.nav, marks, statics, changed, radius);
+  const fresh: NavLayer = { ...old, marks, id: nextLayerId++ };
+  const layer: NavLayer = { ...fresh, coarse: withRegionsRedone(old.coarse, e.nav.n, (c) => slowAt(fresh, c), cells) };
   const need = climbNeeds.get(old);
   if (need) climbNeeds.set(layer, need);
   return layer;
 }
 
-function restampCostly(nav: TerrainNav, slow: Float32Array, statics: StaticSet, changed: Blocker[], radius: number): Set<number> {
+function restampCostly(nav: TerrainNav, marks: Uint8Array, statics: StaticSet, changed: Blocker[], radius: number): Set<number> {
   const touched = new Set<number>();
   stampBlockers(nav.n, changed, radius, (c) => touched.add(c));
   const grow = radius + CLEARANCE;
-  for (const c of touched) slow[c] = nav.slow[c];
+  for (const c of touched) marks[c] = 0;
   for (const o of changed) {
     const near = statics.costlyBuckets.alongSegment(o.pos, o.pos, o.r + 2 * grow + CELL);
     stampBlockers(nav.n, near, radius, (c) => {
-      if (touched.has(c)) slow[c] = nav.slow[c] * BREAKABLE.routeCost;
+      if (touched.has(c)) marks[c] = 1;
     });
   }
   return touched;
@@ -322,7 +324,7 @@ function solidGrid(e: TerrainEntry, cliff: Uint8Array, statics: StaticSet, radiu
   return grid;
 }
 
-function withRegionsRedone(coarse: CoarseGrid, n: number, slow: Float32Array, cells: Set<number>): CoarseGrid {
+function withRegionsRedone(coarse: CoarseGrid, n: number, slow: (c: number) => number, cells: Set<number>): CoarseGrid {
   const mean = coarse.slow.slice();
   const regions = new Set<number>();
   for (const c of cells) if (coarse.region[c] !== 0) regions.add(coarse.region[c]);
@@ -330,7 +332,7 @@ function withRegionsRedone(coarse: CoarseGrid, n: number, slow: Float32Array, ce
   return { ...coarse, slow: mean };
 }
 
-function regionMean(coarse: CoarseGrid, n: number, slow: Float32Array, r: number): number {
+function regionMean(coarse: CoarseGrid, n: number, slow: (c: number) => number, r: number): number {
   const bn = Math.ceil(n / COARSE);
   const block = coarse.block[r];
   const x0 = (block % bn) * COARSE;
@@ -341,18 +343,18 @@ function regionMean(coarse: CoarseGrid, n: number, slow: Float32Array, r: number
     for (let x = x0; x < Math.min(n, x0 + COARSE); x++) {
       const c = y * n + x;
       if (coarse.region[c] !== r) continue;
-      sum += slow[c];
+      sum += slow(c);
       count++;
     }
   return sum / count;
 }
 
-function withRegionSlow(coarse: CoarseGrid, slow: Float32Array): CoarseGrid {
+function withRegionSlow(coarse: CoarseGrid, slow: (c: number) => number): CoarseGrid {
   const sum = new Float64Array(coarse.slow.length);
   const count = new Uint32Array(coarse.slow.length);
   for (let c = 0; c < coarse.region.length; c++) {
     const r = coarse.region[c];
-    sum[r] += slow[c];
+    sum[r] += slow(c);
     count[r]++;
   }
   const mean = new Float32Array(coarse.slow.length);
@@ -360,13 +362,15 @@ function withRegionSlow(coarse: CoarseGrid, slow: Float32Array): CoarseGrid {
   return { ...coarse, slow: mean };
 }
 
-function costlySlow(nav: TerrainNav, costly: Blocker[], radius: number): Float32Array {
-  if (costly.length === 0) return nav.slow;
-  const marked = new Uint8Array(nav.n * nav.n);
-  stampBlockers(nav.n, costly, radius, (c) => (marked[c] = 1));
-  const slow = nav.slow.slice();
-  for (let c = 0; c < slow.length; c++) if (marked[c]) slow[c] *= BREAKABLE.routeCost;
-  return slow;
+function costlyMarks(nav: TerrainNav, costly: Blocker[], radius: number): Uint8Array | null {
+  if (costly.length === 0) return null;
+  const marks = new Uint8Array(nav.n * nav.n);
+  stampBlockers(nav.n, costly, radius, (c) => (marks[c] = 1));
+  return marks;
+}
+
+export function slowAt(layer: NavLayer, c: number): number {
+  return layer.marks !== null && layer.marks[c] === 1 ? Math.fround(layer.slow[c] * BREAKABLE.routeCost) : layer.slow[c];
 }
 
 export function stampBlockers(n: number, blockers: Blocker[], radius: number, mark: (cell: number) => void): void {

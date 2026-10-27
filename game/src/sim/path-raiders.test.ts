@@ -6,7 +6,7 @@ import { resetPerf, perfSnapshot } from '../perf';
 import { PHYSICS } from '../data/physics';
 import { boxDistance, boxSegmentDistance, isDriveObstacle, propBoxes, propReach } from './mapgen';
 import { findCells, nearestFreeCell, stampOverlay } from './nav/astar';
-import { COARSE, componentOf, dynamicBlockers, navLayer, onRouteRoad, terrainNav } from './nav/layer';
+import { COARSE, componentOf, dynamicBlockers, navLayer, onRouteRoad, slowAt, terrainNav } from './nav/layer';
 import { continueRoute, keepRoute, route, routeLength, straightClear, type Blocker } from './path';
 import { nextRandom } from './rng';
 import { isCliff, tileAt, tileSlope, type Terrain } from './terrain';
@@ -565,7 +565,7 @@ describe('long routes search a coarse corridor', () => {
         if ((r === 0) !== (layer.blocked[c] === 1)) wrong++;
         if (r === 0) continue;
         if (block[r] !== blockOfCell(x, y)) wrong++;
-        slowSum[r] += layer.slow[c];
+        slowSum[r] += slowAt(layer, c);
         size[r]++;
         for (const [dx, dy] of [[1, 0], [-1, 1], [0, 1], [1, 1]]) {
           const nx = x + dx;

@@ -9,7 +9,7 @@ import { route } from '../path';
 import type { Obstacle } from '../types';
 import { dist, type Vec } from '../vec';
 import { stampOverlay } from './astar';
-import { CELL, CLEARANCE, climbTaste, dynamicBlockers, makeTaste, navLayer, tasteAt, tasted, tasteKey, tasteOf, terrainNav, tileIndex } from './layer';
+import { CELL, CLEARANCE, climbTaste, slowAt, dynamicBlockers, makeTaste, navLayer, tasteAt, tasted, tasteKey, tasteOf, terrainNav, tileIndex } from './layer';
 import { editableTerrain, emptyWorld, npcBrain } from '../testkit';
 import { newWorld } from '../world';
 import { TEST_MAP } from '../../test/map';
@@ -202,7 +202,7 @@ describe('breakable props', () => {
     const cell = cellAt(layer.n, fence.pos);
 
     expect(layer.blocked[cell]).toBe(0);
-    expect(layer.slow[cell]).toBeCloseTo(open.slow[cell] * BREAKABLE.routeCost);
+    expect(slowAt(layer, cell)).toBeCloseTo(slowAt(open, cell) * BREAKABLE.routeCost);
   });
 
   it('patches a layer when fences break or appear to the same bytes as a fresh build', () => {
@@ -214,7 +214,7 @@ describe('breakable props', () => {
     for (const obstacles of sets) {
       const layer = navLayer(patched, obstacles, radius);
       const fresh = navLayer(emptyWorld().terrain, obstacles, radius);
-      expect(Buffer.from(layer.slow.buffer).equals(Buffer.from(fresh.slow.buffer))).toBe(true);
+      expect(Buffer.from(layer.marks!.buffer).equals(Buffer.from(fresh.marks!.buffer))).toBe(true);
       expect(Buffer.from(layer.coarse.slow.buffer).equals(Buffer.from(fresh.coarse.slow.buffer))).toBe(true);
       expect(Buffer.from(layer.blocked.buffer).equals(Buffer.from(fresh.blocked.buffer))).toBe(true);
     }
@@ -261,7 +261,7 @@ describe('breakable props', () => {
     w.obstacles = [fence];
 
     expect(broken === whole).toBe(false);
-    expect(broken.slow[cellAt(broken.n, fence.pos)]).toBeCloseTo(whole.slow[cellAt(whole.n, fence.pos)] / BREAKABLE.routeCost);
+    expect(slowAt(broken, cellAt(broken.n, fence.pos))).toBeCloseTo(slowAt(whole, cellAt(whole.n, fence.pos)) / BREAKABLE.routeCost);
     expect(navLayer(w.terrain, w.obstacles, radius)).toBe(whole);
   });
 });

@@ -2,7 +2,7 @@
 import { REGION } from '../../data/region';
 import { count } from '../../perf';
 import type { Blocker } from './buckets';
-import { CELL, COARSE, componentOf, stampBlockers, tasted, tastedCoarse, type NavLayer, type Taste } from './layer';
+import { CELL, COARSE, componentOf, slowAt, stampBlockers, tasted, tastedCoarse, type NavLayer, type Taste } from './layer';
 
 export type Overlay = { stamp: Uint32Array; gen: number };
 
@@ -368,7 +368,7 @@ function fineSearch(layer: NavLayer, ov: Overlay, start: number, goal: number, c
       if (!canEnter(layer, ov, next, g, corridor)) continue;
       const nx = next % n;
       const ny = Math.floor(next / n);
-      const c = cost[cur] + tasted(taste, aroundStep[k] * layer.slow[next], (nx + 0.5) * CELL, (ny + 0.5) * CELL);
+      const c = cost[cur] + tasted(taste, aroundStep[k] * slowAt(layer, next), (nx + 0.5) * CELL, (ny + 0.5) * CELL);
       if (seen[next] === g && c >= cost[next]) continue;
       seen[next] = g;
       cost[next] = c;
