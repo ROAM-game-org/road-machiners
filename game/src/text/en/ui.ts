@@ -196,6 +196,7 @@ export const UI = {
   'help.does.stopThere': 'Stop there',
   'help.does.driveOrPause': 'Drive or pause',
   'help.does.fastForward': 'Fast-forward',
+  'help.does.travelSpeed': 'Travel speed',
   'help.does.brake': 'Brake',
   'help.does.manual': 'Manual driving',
   'help.does.autoPatch': 'Auto patch',

@@ -196,6 +196,7 @@ export const UI: Translation<typeof EN> = {
   'help.does.stopThere': 'Остановиться там',
   'help.does.driveOrPause': 'Ехать или пауза',
   'help.does.fastForward': 'Ускорить',
+  'help.does.travelSpeed': 'Скорость',
   'help.does.brake': 'Тормоз',
   'help.does.manual': 'Ручное вождение',
   'help.does.autoPatch': 'Авторемонт',

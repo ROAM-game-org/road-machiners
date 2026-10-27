@@ -1,4 +1,5 @@
 import { devEl as el } from "../dom";
+import { speedKey } from "../travel-speed";
 import { moneyEl } from "../units";
 
 export interface Piece {
@@ -42,6 +43,7 @@ export const PIECES: Piece[] = [
   { name: ".drawer-tabs", note: "The tab row of the phone layout: one word button per drawer, .selected on the open one and .marked for attention.", build: () => drawerTabs() },
   { name: ".log-strip", note: "The newest log line on one row above End turn on a phone. It never wraps, and a tap opens the Log drawer.", build: () => logStrip() },
   { name: ".option-switch", note: "A row of equal buttons that picks one value for a setting: the language and the UI size. aria-pressed marks the chosen one, and a value that cannot be used is aria-disabled with its reason.", build: () => optionSwitch() },
+  { name: ".speed-keys", note: "The travel speed control above End turn: a slower key, an LCD with the speed in turns per second and a faster key, built from the radio's transport key. The LCD is lit while automatic travel plays and faint while the pick waits. A key at the end of the range is aria-disabled with its reason.", build: () => speedKeys() },
   { name: ".num", note: "A number in the mono face.", build: () => text("span", "num", "1 240") },
 ];
 
@@ -98,6 +100,10 @@ function meter(cls: string, percent: number): HTMLElement {
   const fill = el("span", {});
   fill.style.width = `${percent}%`;
   return el("div", { class: cls }, fill);
+}
+
+function speedKeys(): HTMLElement {
+  return el("div", { class: "speed-keys", role: "group" }, speedKey("slower", () => {}), el("span", { class: "speed-lcd running" }, "16x"), speedKey("faster", () => {}));
 }
 
 function optionSwitch(): HTMLElement {

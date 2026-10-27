@@ -175,6 +175,31 @@ describe("picked travel speed", () => {
     expect(travel.getSpeed(1000, FAST)).toBe(1);
   });
 
+  it("steps one speed at a time and stops at both ends", () => {
+    const travel = new Travel(250, TAIL);
+    travel.stepSpeed(-1);
+    expect(travel.getSpeedIndex()).toBe(0);
+    for (let i = 1; i <= LAST; i++) {
+      travel.stepSpeed(1);
+      expect(travel.getSpeedIndex()).toBe(i);
+    }
+    travel.stepSpeed(1);
+    expect(travel.getSpeedIndex()).toBe(LAST);
+    travel.stepSpeed(-1);
+    expect(travel.getSpeedIndex()).toBe(LAST - 1);
+  });
+
+  it("plays a stepped speed from the next frame of a running automatic turn", () => {
+    const travel = travelling(0);
+    expect(travel.getSpeed(1000, FAST)).toBe(CONFIG.travelSpeeds[0]);
+    travel.stepSpeed(1);
+    expect(travel.getSpeed(1016, FAST)).toBe(CONFIG.travelSpeeds[1]);
+    travel.stepSpeed(1);
+    expect(travel.getSpeed(1032, FAST)).toBe(CONFIG.travelSpeeds[2]);
+    travel.stepSpeed(-1);
+    expect(travel.getSpeed(1048, FAST)).toBe(CONFIG.travelSpeeds[1]);
+  });
+
   it("throws on a speed that does not exist", () => {
     const travel = new Travel(250, TAIL);
     expect(() => travel.setSpeedIndex(CONFIG.travelSpeeds.length)).toThrow();

@@ -15,8 +15,7 @@ import { meters } from "./units";
 import type { UiHost } from "./host";
 import { createIcon, createItemIcon } from './cards';
 import { createSwitch } from "./switch";
-import { OptionSwitch } from "./option-switch";
-import { CONFIG } from "../config";
+import { TravelSpeed } from "./travel-speed";
 import { canCall } from "./dialogue";
 import { workLabel, workProgress } from "./format";
 import { num, t, type Msg, type PlainKey } from "../text/msg";
@@ -386,8 +385,10 @@ export class WeaponPanel {
   private turn = panel('turn-control', rightColumn());
   private expanded = true;
   readonly utilities: UtilityRow;
+  private readonly travelSpeed: TravelSpeed;
 
   constructor(private host: UiHost) {
+    this.travelSpeed = new TravelSpeed(host);
     this.utilities = new UtilityRow(host);
     this.root.setAttribute('data-drawer-frame', 'guns');
   }
@@ -404,23 +405,13 @@ export class WeaponPanel {
       createSwitch({ on: t("weapon.switchShow"), off: t("weapon.switchHide"), checked: this.expanded, key: "X", title: t("weapon.toggleTitle"), onclick: () => this.host.runKey("KeyX") }),
     );
     this.root.replaceChildren(head, ...(this.expanded ? [this.renderControls(w, locked)] : []));
-    this.turn.replaceChildren(this.renderTravelSpeed(), this.renderTurnButton(phase));
+    this.travelSpeed.sync();
+    this.turn.replaceChildren(this.travelSpeed.root, this.renderTurnButton(phase));
   }
 
-  private renderTravelSpeed(): HTMLElement {
-    const row = el('div', { class: 'travel-speed', title: t('turn.speed') });
-    new OptionSwitch<number>(row, {
-      label: t('turn.speed'),
-      choices: CONFIG.travelSpeeds.map((_, index) => ({ value: index, label: t(`turn.speed.${index}` as PlainKey) })),
-      current: () => this.host.travelSpeedIndex(),
-      pick: (index) => {
-        this.host.setTravelSpeedIndex(index);
-        this.render();
-      },
-      off: () => null,
-      subscribe: () => () => {},
-    });
-    return row;
+  stepTravelSpeed(delta: 1 | -1): void {
+    this.host.stepTravelSpeed(delta);
+    this.travelSpeed.sync();
   }
 
   private renderTurnButton(phase: ReturnType<UiHost["getTurnPhase"]>): HTMLElement {
