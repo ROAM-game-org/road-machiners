@@ -5,7 +5,7 @@ import { isShield, PARTS, partDef } from '../../data/parts';
 import { BODY_PARTS } from '../../render/partLooks';
 import { unitsOf } from '../../sim/body';
 import { makePart } from '../../sim/factory';
-import { gridOf, isMounted, MOUNT_CELLS, mountSpots } from '../../sim/grid';
+import { gridOf, isMounted, MOUNT_CELLS, mountSpots, placementError } from '../../sim/grid';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { SLOW } from '../../test/gun-clearance-kit';
@@ -100,6 +100,31 @@ describe('guns on every deck cell', () => {
             faults.push(...faultsOf(v));
           } catch (e) {
             faults.push(`${chassisId} ${def.id} @${spot.x},${spot.y} r${spot.rot}: ${(e as Error).message}`);
+          }
+        }
+      }
+    }
+    expect(faults).toEqual([]);
+  });
+});
+
+describe('engines on every legal cell', () => {
+  it('every engine mounted on every legal cell and turn of every chassis stands on the truck', { timeout: SLOW }, () => {
+    const faults: string[] = [];
+    const engines = Object.values(PARTS).filter((def) => def.kind === 'engine');
+    for (const chassisId of Object.keys(CHASSIS)) {
+      const w = emptyWorld();
+      const base = addVehicle(w, 'scrapjaw', chassisId, [], { x: 40, y: 30 });
+      const grid = gridOf(base);
+      for (const def of engines) {
+        const probe: GridItem = { id: 'probe', kind: 'part', part: makePart(w, def.id, 0), x: 0, y: 0, rot: 0 };
+        for (let y = 0; y < grid.h; y++) {
+          for (let x = 0; x < grid.w; x++) {
+            for (const rot of [0, 1, 2, 3] as const) {
+              const item = { ...probe, x, y, rot };
+              if (placementError(grid, base.items, item, null) !== null || !isMounted(chassisId, item)) continue;
+              faults.push(...faultsOf({ ...base, items: [...base.items, item] }));
+            }
           }
         }
       }

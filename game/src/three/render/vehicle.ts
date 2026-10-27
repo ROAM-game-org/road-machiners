@@ -1,6 +1,7 @@
 
 import { CLOUD_SHADOWS } from './cloudShadows';
 import { MODEL_FILL } from './modelFill';
+import { radioColor, radioHalo } from './radioLight';
 import * as THREE from 'three';
 import { chassisDef, type TruckPaint } from '../../data/chassis';
 import { isShield, partDef, type PartDef, type PartKind } from '../../data/parts';
@@ -54,8 +55,6 @@ type UnitView = { index: number; root: THREE.Object3D; body: THREE.Group; b: Bod
 const SHOCK_R = 0.2;
 const UP = new THREE.Vector3(0, 1, 0);
 const ANTENNA_INSET = 0.12;
-const RADIO_TIP = 1.6;
-const RADIO_HALO = 0.6;
 const CHAIN_SIDE = 0.4;
 
 type Turret = { head: THREE.Group; tip: THREE.Vector3; spans: FireSpan[]; facing: number; unit: number };
@@ -551,8 +550,8 @@ export class VehicleView {
   }
 
   private standsUp(v: Vehicle, item: GridItem): boolean {
-    if (!standsFlat(v, item)) return true;
-    const spot = itemSpotOf(v, item, this.unitOf(v, item).base);
+    if (!standsFlat(v, item) && !isMountedEngine(v, item)) return true;
+    const spot = isMountedEngine(v, item) ? engineSpotOf(v, item, this.unitOf(v, item).base) : itemSpotOf(v, item, this.unitOf(v, item).base);
     if (spot) this.spots.set(item, spot);
     return spot !== null;
   }
@@ -572,9 +571,12 @@ export class VehicleView {
 
   private placeEngine(v: Vehicle, item: PartItem, paint: number): THREE.Object3D {
     const obj = model(itemModel(item));
-    const at = footprint(v, item, 0);
-    const anchor = engineAnchor(v.chassisId);
-    place(obj, { ...at, pos: new THREE.Vector3(anchor.x, anchor.y, anchor.z) });
+    const spot = this.spots.get(item);
+    if (!spot) throw new Error(`Engine ${item.id} on ${v.chassisId} has no standing spot`);
+    const at = enginePlacement(v, item);
+    at.pos.set(at.pos.x + spot.dx, spot.y, at.pos.z + spot.dz);
+    place(obj, at);
+    lean(obj, spot.slope);
     tint(obj, paint, lookOf(item));
     return obj;
   }
@@ -915,6 +917,21 @@ export function itemSpotOf(v: Pick<Vehicle, 'chassisId'>, item: GridItem, base: 
   return itemSpot(base, bottomOf(itemModel(item), rest.rect.unit, footprint(v, item, rest.y)), rest, rectOf(v, item), item.kind === 'part');
 }
 
+function isMountedEngine(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
+  return item.kind === 'part' && partDef(item.part.defId).kind === 'engine' && isMounted(v.chassisId, item);
+}
+
+function enginePlacement(v: Pick<Vehicle, 'chassisId'>, item: GridItem): Placement {
+  const anchor = engineAnchor(v.chassisId);
+  return { ...footprint(v, item, 0), pos: new THREE.Vector3(anchor.x, anchor.y, anchor.z) };
+}
+
+export function engineSpotOf(v: Pick<Vehicle, 'chassisId'>, item: GridItem, base: THREE.Object3D): ItemSpot | null {
+  const at = enginePlacement(v, item);
+  const foot = bottomOf(itemModel(item), restOf(v, item).rect.unit, at);
+  return itemSpot(base, foot, { y: at.pos.y, slope: { x: 0, z: 0 } }, foot.rect, true);
+}
+
 function standsFlat(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
   if (item.kind !== 'part') return true;
   const def = partDef(item.part.defId);
@@ -1094,32 +1111,6 @@ function overlapsXZ(tri: THREE.Vector3[], box: PartBox): boolean {
   return Math.max(...xs) >= box.min.x && Math.min(...xs) <= box.max.x && Math.max(...zs) >= box.min.z && Math.min(...zs) <= box.max.z;
 }
 
-function radioColor(lit: boolean): number {
-  return lit ? PAL.radioLight.on : PAL.radioLight.off;
-}
-
-function radioHalo(lit: boolean): THREE.Sprite {
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloMap(), color: PAL.radioLight.on, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }));
-  sprite.scale.setScalar(RADIO_HALO);
-  sprite.raycast = () => {};
-  sprite.position.set(0, RADIO_TIP, 0);
-  sprite.visible = lit;
-  return sprite;
-}
-
-let haloTexture: THREE.DataTexture | null = null;
-function haloMap(): THREE.DataTexture {
-  if (haloTexture) return haloTexture;
-  const size = 32;
-  const data = new Uint8Array(size * size * 4);
-  for (let i = 0; i < size * size; i++) {
-    const d = Math.hypot((i % size) - size / 2 + 0.5, Math.floor(i / size) - size / 2 + 0.5) / (size / 2);
-    data.set([255, 255, 255, Math.round(255 * Math.max(0, 1 - d) ** 2)], i * 4);
-  }
-  haloTexture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
-  haloTexture.needsUpdate = true;
-  return haloTexture;
-}
 
 function groundContactShadow({ unit, mesh }: ContactShadow): void {
   if (unit.wheels.length === 0) throw new Error(`Truck unit ${unit.index} has no wheels to rest its contact shadow on`);
