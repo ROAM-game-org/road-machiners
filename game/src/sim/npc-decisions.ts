@@ -39,11 +39,12 @@ import { sampleWeighted } from './npc-loadout';
 import { getResources } from './resources';
 import { skillEffect } from './progress';
 import { randRange } from './rng';
-import { recall, remember } from './memory';
-import { backedOff, canReachSalvage, canTakeAny, canTakeFromTruck, CANNOT_HOLD, CLAIMED, claimOnly, hasCargo, hasSalvage, holdsClaim, lootBlocker, STRIPPED, worksOn } from './salvage';
+import { remember } from './memory';
+import { canReachSalvage, canTakeAny, canTakeFromTruck, CANNOT_HOLD, CLAIMED, claimOnly, hasCargo, hasSalvage, holdsClaim, lootBlocker, STRIPPED, worksOn } from './salvage';
 import { passesUpLoot } from './loot-warning';
 import { canUseSite, isTerritory, siteGap, siteGates, siteUnder, type Site } from './sites';
 import { territoryAt, territoryGrounds } from './territory';
+import { seesDowned, seesStock, visibleDowned, visibleSalvage, workableSpots } from './loot-picks';
 import { addState, boundTo, endState, givesWord, isRobberyFeud, robbing, stateOf, statesHeld } from './states';
 import { isStranded, vehicleStats } from './stats';
 import { canHire, canTakeEscort, declineFactor, escortsOf, inTowReach, isOnRope, strandedAt, towSite, unguardedLeader } from './tow';
@@ -51,7 +52,7 @@ import { leaderToJoin } from './pairs';
 import { ownSide, perceivedGroup } from './sides';
 import { canJoin, canMuster, heldBackByCrew, joinFactor } from './crews';
 import { followersOf } from './companies';
-import type { Contact, GoalReason, NpcActivity, PassReason, SalvageStock, Vehicle, World } from './types';
+import type { Contact, GoalReason, NpcActivity, PassReason, Vehicle, World } from './types';
 import { clamp, dist, type Vec } from './vec';
 import { icarusAtlas } from './atlas';
 import { canVehicleSee } from './vision';
@@ -296,35 +297,6 @@ export function supplyOffers(world: World, vehicle: Vehicle): Weighted<TradePlan
   });
 }
 
-export function visibleSalvage(world: World, vehicle: Vehicle): SalvageStock[] {
-  const stripped = strippedStocks(vehicle);
-  const visible = world.salvage.filter((stock) => seesSalvage(world, vehicle, stock, stripped));
-  return visible.sort((a, b) => dist(vehicle.pos, a.pos) - dist(vehicle.pos, b.pos));
-}
-
-export function visibleDowned(world: World, vehicle: Vehicle): Vehicle[] {
-  const visible = world.vehicles.filter((v) => seesDowned(world, vehicle, v));
-  return visible.sort((a, b) => dist(vehicle.pos, a.pos) - dist(vehicle.pos, b.pos));
-}
-
-function seesDowned(world: World, vehicle: Vehicle, target: Vehicle): boolean {
-  if (target.id === vehicle.id || !isKnockedOut(target) || !seesLoot(world, vehicle, target.id, target.pos)) return false;
-  return (!inTowReach(vehicle, target) || canTakeFromTruck(vehicle, target)) && lootTaken(world, vehicle, target.id) === null;
-}
-
-function seesLoot(world: World, vehicle: Vehicle, id: string, pos: Vec): boolean {
-  return !knownUnfit(vehicle, id) && canVehicleSee(world, vehicle, pos);
-}
-
-function strippedStocks(vehicle: Vehicle): ReadonlySet<string> {
-  return new Set(recall(vehicle, 'stripped').map((m) => m.fact.stock));
-}
-
-function seesSalvage(world: World, vehicle: Vehicle, stock: SalvageStock, stripped: ReadonlySet<string>): boolean {
-  if (stripped.has(stock.id) || backedOff(stock, vehicle.id) || !seesLoot(world, vehicle, stock.id, stock.pos)) return false;
-  return (!canReachSalvage(vehicle, stock) || canTakeAny(world, vehicle, stock)) && lootTaken(world, vehicle, stock.id) === null;
-}
-
 export function lootTaken(world: World, vehicle: Vehicle, targetId: string | null): GoalReason | null {
   if (targetId === null || worksOnLoot(vehicle, targetId)) return null;
   const looter = lootBlocker(world, vehicle, targetId);
@@ -340,7 +312,7 @@ export function holdFull(vehicle: Vehicle): boolean {
   return fullAt !== undefined && freeCells(vehicle) <= fullAt;
 }
 
-function knownUnfit(vehicle: Vehicle, targetId: string): boolean {
+export function knownUnfit(vehicle: Vehicle, targetId: string): boolean {
   return vehicle.brain!.unfit?.includes(targetId) ?? false;
 }
 
@@ -639,7 +611,7 @@ function canLootSubject(world: World, vehicle: Vehicle, decision: DecisionId, su
   if (subject === null) throw new Error(`${decision} needs a subject`);
   if (!hasCargoRoom(vehicle) || holdFull(vehicle)) return false;
   const stock = world.salvage.find((entry) => entry.id === subject);
-  if (stock) return seesSalvage(world, vehicle, stock, strippedStocks(vehicle));
+  if (stock) return seesStock(world, vehicle, stock);
   const truck = world.vehicles.find((v) => v.id === subject);
   return truck !== undefined && seesDowned(world, vehicle, truck);
 }
@@ -693,6 +665,8 @@ const AVAILABLE: Record<OptionName, Availability> = {
   new: always,
   trade: canTrade,
   scavenge: canScavenge,
+  work: (world, vehicle) => workableSpots(world, vehicle).length > 0,
+  moveOn: always,
   raid: canRaid,
   prowl: canProwl,
   loot: canLootSubject,
@@ -974,6 +948,8 @@ const SITUATION: Record<OptionName, SituationFactor> = {
   new: neutral,
   trade: neutral,
   scavenge: scavengeFactor,
+  work: neutral,
+  moveOn: neutral,
   raid: neutral,
   prowl: neutral,
   loot: neutral,
@@ -1102,6 +1078,7 @@ const DECISION_KINDS: Record<DecisionId, 'venture' | 'response'> = {
   surrenderOffered: 'response',
   resume: 'response',
   idle: 'venture',
+  spotWork: 'venture',
   escortSeen: 'venture',
   hireOffered: 'response',
   aidAsked: 'response',

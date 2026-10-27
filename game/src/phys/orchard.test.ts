@@ -95,8 +95,8 @@ describe('driving through Old Orchard', () => {
     me.order = null;
     const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { ...south }, UP_ROAD);
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
-    let goal = spotGoal(w, 'orchard');
-    while (goal.targetId !== barn.id) goal = spotGoal(w, 'orchard');
+    let goal = spotGoal(w, 'orchard', []);
+    while (goal.targetId !== barn.id) goal = spotGoal(w, 'orchard', []);
     npc.brain.goals = [goal];
     forceOption('salvageSeen', 'keep');
 
