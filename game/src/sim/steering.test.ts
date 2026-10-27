@@ -2,7 +2,7 @@ import { RULES } from "../data/rules";
 import { describe, expect, it } from "vitest";
 import { vehicleStats } from "./stats";
 import { chassisDef } from "../data/chassis";
-import { backsToDestination, clickOrder, parkedVehicles, setDown, setDownSpot, throttleFor, throughSpeed, zoneEdges, zoneSpeed } from "./steering";
+import { backsToDestination, clickOrder, nextSetSpeed, parkedVehicles, setDown, setDownSpot, throttleFor, throughSpeed, zoneEdges, zoneSpeed } from "./steering";
 import { DEG, dist } from "./vec";
 import { addVehicle, emptyWorld, npcBrain } from "./testkit";
 import { addState } from "./states";
@@ -194,5 +194,50 @@ describe("setting a stranded truck down", () => {
     setDown(w, me);
     expect(me.strandedTurns).toBe(RULES.stranded.turns);
     expect(me.speed).toBe(0);
+  });
+});
+
+describe("set speed of manual driving", () => {
+  const z = zoneEdges();
+  const holdD = (z.brakeEnd + z.holdEnd) / 2;
+  const through = { kind: "through", dest: { x: 50, y: 30 } } as const;
+  const driver = (setSpeed?: number) => ({ direct: true, setSpeed });
+
+  it("hold keeps the set speed while the measured speed is lower", () => {
+    const { s } = setup(4);
+    expect(nextSetSpeed(driver(5), s, 3, through, holdD)).toBe(5);
+  });
+
+  it("brake lowers and accelerate raises the set speed, not the measured speed", () => {
+    const { s } = setup(4);
+    expect(nextSetSpeed(driver(5), s, 3, through, 0.01)).toBeCloseTo(zoneSpeed(s, 5, 0.01), 5);
+    expect(nextSetSpeed(driver(4), s, 2, through, z.reach)).toBeCloseTo(zoneSpeed(s, 4, z.reach), 5);
+  });
+
+  it("starts from the measured speed with no set speed or at rest", () => {
+    const { s } = setup(4);
+    expect(nextSetSpeed(driver(), s, 3, through, holdD)).toBe(3);
+    expect(nextSetSpeed(driver(5), s, RULES.parkedSpeed, through, holdD)).toBe(RULES.parkedSpeed);
+  });
+
+  it("route mode, brake, stop-at and pace orders give none", () => {
+    const { s } = setup(4);
+    expect(nextSetSpeed({ direct: false, setSpeed: 5 }, s, 4, through, holdD)).toBeUndefined();
+    expect(nextSetSpeed(driver(5), s, 4, { kind: "brake" }, holdD)).toBeUndefined();
+    expect(nextSetSpeed(driver(5), s, 4, { kind: "stopAt", dest: through.dest }, holdD)).toBeUndefined();
+    expect(nextSetSpeed(driver(5), s, 4, { ...through, pace: 2 }, holdD)).toBeUndefined();
+  });
+
+  it("no order keeps the set speed, clamped to the top speed, and drops it at rest", () => {
+    const { s } = setup(4);
+    expect(nextSetSpeed(driver(3), s, 2, null, 0)).toBe(3);
+    expect(nextSetSpeed(driver(s.maxSpeed + 3), s, 2, null, 0)).toBe(s.maxSpeed);
+    expect(nextSetSpeed(driver(3), s, 0, null, 0)).toBeUndefined();
+  });
+
+  it("throws on a non-finite speed", () => {
+    const { s } = setup(4);
+    expect(() => nextSetSpeed(driver(5), s, NaN, through, holdD)).toThrow();
+    expect(() => nextSetSpeed(driver(Infinity), s, 3, through, holdD)).toThrow();
   });
 });
