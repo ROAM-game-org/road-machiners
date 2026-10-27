@@ -20,6 +20,7 @@ import type { MoveOrder, NpcActivity, Vehicle, World } from "./types";
 import { angleDiff, bearing, dist, type Vec } from "./vec";
 import { canVehicleSee } from "./vision";
 import { bodyHitChance, inArc, inCombat } from "./combat";
+import { rigDiscs } from "./rig";
 import { passShare, sideToward } from "./armor";
 import { chance } from "./rng";
 import { heldGoal, holdOnStretch, rollingOrder, runsDown } from "./hunters";
@@ -337,7 +338,8 @@ export function yieldsToTraffic(world: World, v: Vehicle): boolean {
 }
 
 export function standingBlockers(world: World, v: Vehicle): Blocker[] {
-  return [...parkedVehicles(world, v.id, getHitchedTowIds(world)), ...fieldBlockers(world, v)];
+  const stopping = conflicts(world, v, 0).filter((x) => givesWayTo(world, x, v) && stopsInPlace(world, x));
+  return [...parkedVehicles(world, v.id, getHitchedTowIds(world)), ...fieldBlockers(world, v), ...stopping.flatMap((x) => stopTrack(world, v, x))];
 }
 
 export function routeBlockers(world: World, v: Vehicle): Blocker[] {
@@ -415,6 +417,33 @@ export function givesWayTo(world: World, giver: Vehicle, holder: Vehicle): boole
   return giver.id < holder.id && givesWay(world, giver) && givesWay(world, holder) && closesOn(world, giver, holder, 0) && closesOn(world, holder, giver, 0);
 }
 
+function stopsInPlace(world: World, x: Vehicle): boolean {
+  return !x.order || x.order.kind === "brake" || yieldsToTraffic(world, x);
+}
+
+export function stopTrack(world: World, holder: Vehicle, giver: Vehicle): Blocker[] {
+  if (![giver.speed, giver.pos.x, giver.pos.y, giver.heading].every(Number.isFinite) || giver.speed < 0) throw new Error(`stopTrack: bad giver ${giver.id}`);
+  const stats = vehicleStats(world, giver);
+  const stop = giver.speed ** 2 / (2 * stats.brake);
+  const steps = Math.ceil(stop / stats.radius) + 1;
+  const grow = PHYSICS.driver.clearMargin + ropeAllowance(world, holder);
+  const discs = rigDiscs(giver);
+  const track: Blocker[] = [];
+  for (let i = 0; i < steps; i++) {
+    const d = steps === 1 ? 0 : (stop * i) / (steps - 1);
+    for (const disc of discs) track.push({ pos: { x: disc.pos.x + Math.cos(giver.heading) * d, y: disc.pos.y + Math.sin(giver.heading) * d }, r: disc.r + grow });
+  }
+  return track;
+}
+
+function ropeAllowance(world: World, tower: Vehicle): number {
+  const client = ropeClientOf(world, tower.id);
+  if (!client) return 0;
+  const target = world.vehicles.find((x) => x.id === client);
+  if (!target) throw new Error(`Rope client ${client} of ${tower.id} is not in the world`);
+  return Math.max(0, vehicleStats(world, target).radius - vehicleStats(world, tower).radius);
+}
+
 function horizon(world: World, v: Vehicle): { vs: number; t: number } {
   const sv = vehicleStats(world, v);
   const vs = Math.min(sv.maxSpeed, v.speed + sv.accel);
@@ -483,6 +512,10 @@ function wantsToDrive(x: Vehicle): boolean {
 }
 
 function givesWay(world: World, x: Vehicle): boolean {
+  return !isOnRope(world, x.id) && canSteerAside(world, x);
+}
+
+function canSteerAside(world: World, x: Vehicle): boolean {
   if (!x.brain) return x.id === world.player.vehicleId && !x.direct && !inCombat(world, x);
   const kind = topGoal(x)?.kind;
   return kind !== "fight" && kind !== "flee";

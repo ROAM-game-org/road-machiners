@@ -585,8 +585,12 @@ function varsFit(vars: CallVars): boolean {
   return Object.values(vars).every((v) => (CALL_VAR_FITS[v.kind] as (v: CallVar) => boolean)(v));
 }
 
+function taleLacksStory(call: Call): boolean {
+  return call.topic === 'tale' && call.node === 'offer' && call.vars.story === undefined;
+}
+
 function repairCall(world: World): void {
   const call = world.player.call;
   if (!call) return;
-  if (!talkFits(call) || !isLine(call.line.line) || !varsFit(call.vars) || !varsFit(call.line.vars)) world.player.call = null;
+  if (taleLacksStory(call) || !talkFits(call) || !isLine(call.line.line) || !varsFit(call.vars) || !varsFit(call.line.vars)) world.player.call = null;
 }

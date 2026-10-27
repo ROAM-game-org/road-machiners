@@ -3,7 +3,8 @@ import { REGION } from '../data/region';
 import { TOPICS } from '../data/dialogue';
 import { entryText } from '../text/resolve';
 import { lineKey } from '../text/names';
-import { callVehicle, chooseOption, currentOptions, hangUp } from './dialogue';
+import { callVehicle, hangUp } from './dialogue';
+import { chooseText } from './dialogue-testkit';
 import { acceptContract, deliverContract, searchReward, siteOf } from './market';
 import { remember } from './memory';
 import { sitePads } from './sites';
@@ -26,15 +27,9 @@ function driver(w: World, pos: { x: number; y: number }, name: string): Vehicle 
   return v;
 }
 
-function option(w: World, text: string): number {
-  const i = currentOptions(w).findIndex((o) => en(o.line) === text);
-  if (i < 0) throw new Error(`No option "${text}"`);
-  return i;
-}
-
 function ask(w: World, npcId: string, line: LineId): World {
   const open = callVehicle(w, npcId);
-  return chooseOption(open, option(open, en(line)));
+  return chooseText(open, en(line));
 }
 
 describe('a search contract from the board to the pay', () => {
@@ -64,7 +59,7 @@ describe('a search contract from the board to the pay', () => {
     expect(sighting).toMatchObject({ kind: 'sighting', driver: 'Mack Holt' });
     if (sighting.kind !== 'sighting' || !sighting.seen) throw new Error('The witness saw nothing');
     expect(sighting.seen.tiles).toBeLessThan(dist(pad, { x: pad.x + 60, y: pad.y + 60 }));
-    const noted = hangUp(chooseOption(told, option(told, 'Thanks. Something else.')));
+    const noted = hangUp(chooseText(told, 'Thanks. Something else.'));
     const lead = noted.player.contracts[0];
     if (lead.kind !== 'search') throw new Error('search expected');
     expect(lead.lead.turn).toBeGreaterThan(200);
@@ -74,7 +69,7 @@ describe('a search contract from the board to the pay', () => {
     const parcel = playerVehicle(noted).items.find((it) => it.kind === 'parcel');
     expect(parcel).toMatchObject({ kind: 'parcel', contract: 'ct-s' });
     const asked = ask(noted, target.id, TOPICS.parcel.ask!.say);
-    let met = chooseOption(asked, option(asked, en('pullingOver')));
+    let met = chooseText(asked, en('pullingOver'));
     expect(met.player.contracts[0]).toMatchObject({ kind: 'search', delivered: false });
     for (let i = 0; i < 40 && !readyHandover(met); i++) met = endTurn(met, testDrive);
     expect(readyHandover(met)).toMatchObject({ kind: 'handover', holder: target.id });

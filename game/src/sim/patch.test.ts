@@ -7,7 +7,8 @@ const PATCH_TURNS_PER_PART = REPAIR.turnsPerPart;
 import { RULES } from '../data/rules';
 import { PERK_NUMBERS, SKILL_EFFECTS } from '../data/skills';
 import { playerVehicle } from './damage';
-import { callVehicle, chooseOption, currentOptions } from './dialogue';
+import { callVehicle, currentOptions } from './dialogue';
+import { asksOf, chooseText } from './dialogue-testkit';
 import { corePart, goodsCount, mountedParts } from './grid';
 import { maxHp } from './wear';
 import { addGoods, mountPart, removeGoods } from './inventory';
@@ -26,9 +27,7 @@ import { entryText } from '../text/resolve';
 const en = (line: Parameters<typeof lineKey>[0]): string => entryText('en', lineKey(line));
 
 function answer(w: World, text: string): World {
-  const i = currentOptions(w).findIndex((o) => en(o.line) === text);
-  if (i < 0) throw new Error(`No option "${text}" in ${currentOptions(w).map((o) => en(o.line)).join(' | ')}`);
-  return chooseOption(w, i);
+  return chooseText(w, text);
 }
 
 function breakEngine(v: Vehicle): void {
@@ -106,7 +105,7 @@ describe('asking a driver for a patch', () => {
     const { w, trader } = brokenPlayer(4);
     mountedParts(playerVehicle(w), 'engine')[0].hp = 10;
     const open = callVehicle(w, trader.id);
-    expect(currentOptions(open).map((o) => en(o.line))).not.toContain('My truck is broken down. Can you patch it?');
+    expect(asksOf(open)).not.toContain('My truck is broken down. Can you patch it?');
   });
 
   it('agreeing to a patch pays no deal XP until the patch is done', () => {
@@ -172,7 +171,7 @@ describe('asking a driver for a patch', () => {
     find(w, trader.id).brain!.attackers[raider.id] = true;
     startCombat(w, raider, find(w, trader.id));
     const open = callVehicle(cloneWorld(w), trader.id);
-    expect(currentOptions(open).map((o) => en(o.line))).not.toContain('My truck is broken down. Can you patch it?');
+    expect(asksOf(open)).not.toContain('My truck is broken down. Can you patch it?');
     thinkNpc(w, find(w, trader.id));
     expect(patchOutcomes(w.events)).toEqual(['broken']);
     expect(stateOf(w, 'patch', trader.id, w.player.vehicleId)).toBeNull();
@@ -257,14 +256,14 @@ describe('a stranded driver asking the player', () => {
     const w = endTurn(start, testDrive);
     expect(w.player.call?.topic).not.toBe('patchRequest');
     const called = callVehicle(cloneWorld(start), npc.id);
-    expect(currentOptions(called).map((o) => en(o.line))).not.toContain('Your truck looks dead. Want me to patch it?');
+    expect(asksOf(called)).not.toContain('Your truck looks dead. Want me to patch it?');
   });
 
   it('a driver with a sound truck gets no patch offer', () => {
     const { w: start, npc } = brokenNpc();
     mountedParts(npc, 'engine')[0].hp = partDef('stockEngine').hp;
     const w = callVehicle(start, npc.id);
-    expect(currentOptions(w).map((o) => en(o.line))).not.toContain('Your truck looks dead. Want me to patch it?');
+    expect(asksOf(w)).not.toContain('Your truck looks dead. Want me to patch it?');
   });
 
   it('a hostile raider gets no patch until a truce, then waits parked for it', () => {
@@ -278,7 +277,7 @@ describe('a stranded driver asking the player', () => {
     breakEngine(raider);
     forceOption('mugging', 'attack');
     expect(endTurn(w0, testDrive).player.call).toBeNull();
-    expect(currentOptions(callVehicle(w0, raider.id)).map((o) => en(o.line))).not.toContain('Your truck looks dead. Want me to patch it?');
+    expect(asksOf(callVehicle(w0, raider.id))).not.toContain('Your truck looks dead. Want me to patch it?');
     makePeace(w0, playerVehicle(w0), raider);
     forceOption('patchDeal', 'paid');
     let w = callVehicle(w0, raider.id);
@@ -375,7 +374,7 @@ describe('a holed fuel tank', () => {
   it('needs no patch while fuel is left, and never when junk', () => {
     const { w, npc } = holedNpc(10);
     expect(needsPatch(w, npc)).toBe(false);
-    expect(currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line))).not.toContain('Your truck looks dead. Want me to patch it?');
+    expect(asksOf(callVehicle(w, npc.id))).not.toContain('Your truck looks dead. Want me to patch it?');
     npc.resources!.fuel = 0;
     corePart(npc, 'tank')!.wear = CONDITION.maxWear + 1;
     expect(needsPatch(w, npc)).toBe(false);
@@ -385,15 +384,15 @@ describe('a holed fuel tank', () => {
     const { w, npc } = holedNpc(0);
     npc.resources!.supplies = 0;
     const offers = ['Your truck looks dead. Want me to patch it?', 'Running low? I can spare some.'];
-    expect(currentOptions(callVehicle(cloneWorld(w), npc.id)).map((o) => en(o.line))).toEqual(expect.arrayContaining(offers));
+    expect(asksOf(callVehicle(cloneWorld(w), npc.id))).toEqual(expect.arrayContaining(offers));
     const tower = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 44, y: 30 }, Math.PI);
     tower.trail = [{ x: tower.pos.x, y: tower.pos.y, heading: Math.PI }];
     const tow = addState(w, 'tow', tower.id, npc.id, { kind: 'tow', site: 'bowl', fee: 0, waived: 0, hitched: true });
-    const texts = currentOptions(callVehicle(cloneWorld(w), npc.id)).map((o) => en(o.line));
+    const texts = asksOf(callVehicle(cloneWorld(w), npc.id));
     for (const offer of offers) expect(texts).not.toContain(offer);
     expect(endTurn(cloneWorld(w), testDrive).player.call?.topic).not.toBe('patchRequest');
     w.states.splice(w.states.indexOf(tow), 1);
-    expect(currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line))).toEqual(expect.arrayContaining(offers));
+    expect(asksOf(callVehicle(w, npc.id))).toEqual(expect.arrayContaining(offers));
   });
 
   it('is fixed by a driver that carries enough parts, which asks no one', () => {
@@ -530,7 +529,7 @@ describe('road mechanic', () => {
 
 describe('patching a worn truck that still drives', () => {
   const OFFER = 'Your engine sounds rough. Want me to patch it before it quits?';
-  const offered = (w: World, id: string) => currentOptions(callVehicle(cloneWorld(w), id)).map((o) => en(o.line)).includes(OFFER);
+  const offered = (w: World, id: string) => asksOf(callVehicle(cloneWorld(w), id)).includes(OFFER);
   const target = (p: { defId: string; hp: number }) => Math.max(1, Math.round(partDef(p.defId).hp * PATCH.share));
 
   function wornNpc(): { w: World; npc: Vehicle } {
@@ -717,7 +716,7 @@ describe('patching a worn truck that still drives', () => {
     setParts(w, playerVehicle(w), 0);
     setParts(w, npc, 4);
     const asked = callVehicle(w, npc.id);
-    expect(currentOptions(asked).map((o) => en(o.line))).toContain('My truck is broken down. Can you patch it?');
+    expect(asksOf(asked)).toContain('My truck is broken down. Can you patch it?');
     expect(dealAvailable('free')(w, npc)).toBe(true);
     expect(patchTerms(w, npc)).toMatchObject({ patcher: 'npc' });
   });
