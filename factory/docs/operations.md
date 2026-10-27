@@ -8,7 +8,7 @@ Each job is its own process, started by the tick. [process.md](process.md#tick-a
 
 Jobs share the host clone and the state file. Each git step and each state update runs under a lock in `$FACTORY_HOME/locks` or next to the state file. A lock of a dead process is taken over.
 
-GitHub holds every branch. The host clone `$FACTORY_HOME/repo` keeps GitHub's branches as `origin/*`, and each fetch deletes any local branch. A merge or a revert runs in a throwaway worktree and pushes at once. A conflict or a rejected push leaves GitHub as it was, so a retry starts from GitHub. A conflict between branches goes to an agent in a work clone named `$FACTORY_HOME/work/merge-<branch>`, and its commit reaches GitHub only after the factory checks it. An agent's work reaches GitHub only after the factory checks its diff.
+GitHub holds every branch. The host clone `$FACTORY_HOME/repo` keeps GitHub's branches as `origin/*`, and each fetch deletes any local branch that no linked worktree has checked out, so a worktree someone opened on the host keeps its branch and never stops a tick. A merge or a revert runs in a throwaway worktree and pushes at once. A conflict or a rejected push leaves GitHub as it was, so a retry starts from GitHub. A conflict between branches goes to an agent in a work clone named `$FACTORY_HOME/work/merge-<branch>`, and its commit reaches GitHub only after the factory checks it. An agent's work reaches GitHub only after the factory checks its diff.
 
 A work clone with no commit checked out, like one a full disk cut short, holds no work. The next job deletes it and clones again, and its log names the folder.
 
@@ -63,7 +63,7 @@ Every tick, after it checks the running jobs:
 - It deletes job logs older than `FACTORY_LOG_DAYS`, except `tick.log`, `update.log` and the logs that `failures` names.
 - It deletes archived agent transcripts older than `FACTORY_TRANSCRIPT_DAYS`.
 
-Every tick writes `$FACTORY_HOME/health` with its time, the free disk and the available memory, also while paused. Under `FACTORY_MIN_FREE_GB` free, the tick starts no job. Memory under `FACTORY_MIN_AVAILABLE_GB` blocks nothing, and a host with no `/proc/meminfo` records none.
+Every tick writes `$FACTORY_HOME/health` with its time, the free disk and the available memory, also while paused. Under `FACTORY_MIN_FREE_GB` free, the tick starts no job. Memory under `FACTORY_MIN_AVAILABLE_GB` also stops the tick from starting a job, with the scheduler status `memory-low`. Running jobs go on, and the next tick starts work again once memory recovers. A host with no `/proc/meminfo` records none and blocks nothing.
 
 When `dev` moves past the commit `/dev/` serves, the next tick rebuilds `/dev/`, so a merge made outside the factory reaches the dev link too. A failed build records its commit in `devFailed` and what broke in `devError`, and the tick skips it until `dev` moves again. The incident watch shows both to Hermes, which fixes `dev` or reverts the merge that broke it.
 
@@ -114,7 +114,7 @@ Hermes's watch lists every stuck issue with its kind, like `stuck #12 Tow fee (s
 
 ## Failures and Hermes
 
-Each factory process sends its GitHub calls one at a time, as GitHub asks. A call that hits a rate limit waits `FACTORY_GITHUB_RETRY_BASE_SECONDS` and runs again, up to `FACTORY_GITHUB_RETRIES` times, with the wait doubled each time. Any other GitHub error fails at once. A call that runs past `FACTORY_GITHUB_TIMEOUT_SECONDS` is killed and fails, so a dead connection cannot hang a tick. It does not run again, since a write may have landed.
+Each factory process sends its GitHub calls one at a time, as GitHub asks. A call that hits a rate limit waits `FACTORY_GITHUB_RETRY_BASE_SECONDS` and runs again, up to `FACTORY_GITHUB_RETRIES` times, with the wait doubled each time. A read, like a board, issue or run query, also runs again with the same waits after an HTTP 502, 503 or 504 or after a timeout, since GitHub's gateway fails on large reads for minutes at a time. A write or a mutation never runs again after one of these, since it may have landed. Any other GitHub error fails at once. A call that runs past `FACTORY_GITHUB_TIMEOUT_SECONDS` is killed and fails, so a dead connection cannot hang a tick.
 
 The factory acts only on a whole board. GitHub sometimes answers a page of the project's items with no items, or with fewer than it counts, while the project holds them, and `hasNextPage` can then claim the list ended. So every board read checks that each page gives the same `totalCount`, that no item is null or repeated, that a page before the last one holds items and a cursor, and that the pages add up to the count. A board that counts no items needs a second read of another shape that also finds none. A read that fails a check is read again from the first page, with the waits and the number of tries of a rate limit. An empty board also reads again, and counts only when every try finds it empty. A read that stays incomplete fails with a `BoardReadError`, a GitHub error, so the tick starts nothing, `factory cards` and `factory audit` print nothing and the dashboard shows the board as unavailable. No reader ever takes a cut board for the real one, so no card goes missing from the scheduler or the audit.
 

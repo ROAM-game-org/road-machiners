@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { removalCandidates, sweepLogs, sweepWork } from './cleanup';
 import { cpuSets, poolOf, vitestWorkersOf } from './cpus';
 import { removeStaleBuilds } from './deploy';
-import { freeGb, requireAgyLogin, requireCodexLogin } from './health';
+import { availableGb, freeGb, requireAgyLogin, requireCodexLogin } from './health';
 import { JobDiedError, JobTimeoutError, failureIssue, pruneFailures, reportFailure } from './fail';
 import { intake } from './intake';
 import { publicFilterWith } from './public/filter';
@@ -262,6 +262,7 @@ export type TickDeps = {
   removeContainers: (run: Run, id: string) => Promise<void>;
   spawn: (args: string[], cwd: string, log: string, id: string, cpus: string, testWorkers: number | null) => number;
   cores: () => number;
+  availableGb: () => number | null;
   repair: Repair;
   publicTick: (ctx: Ctx) => Promise<void>;
 };
@@ -271,6 +272,7 @@ export const REAL_DEPS: TickDeps = {
   removeContainers: removeJobContainers,
   spawn: spawnJob,
   cores: availableParallelism,
+  availableGb: () => availableGb(),
   repair: repairClone,
   publicTick: (ctx) => publicTick(ctx, publicFilterWith(ctx.cfg, fetch)),
 };
@@ -538,6 +540,11 @@ async function startJobs(ctx: Ctx, codeDir: string, deps: TickDeps): Promise<voi
   if (free < ctx.cfg.minFreeGb) {
     reportScheduler(ctx.cfg.home, 'disk-low', ctx.now());
     return ctx.log('tick', null, `disk low: ${free} GB free, under ${ctx.cfg.minFreeGb} GB, starts nothing`);
+  }
+  const available = deps.availableGb();
+  if (available !== null && available < ctx.cfg.minAvailableGb) {
+    reportScheduler(ctx.cfg.home, 'memory-low', ctx.now());
+    return ctx.log('tick', null, `memory low: ${available} GB available, under ${ctx.cfg.minAvailableGb} GB, starts nothing`);
   }
   requireCodexLogin(ctx.cfg.home);
   requireAgyLogin(ctx.cfg.home);

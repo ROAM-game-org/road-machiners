@@ -225,7 +225,9 @@ export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | n
       const local = lines(await git(['for-each-ref', '--format=%(refname:short)', 'refs/heads']));
       if (local.length === 0) return;
       await git(['checkout', '--detach']);
-      await git(['branch', '-D', ...local]);
+      const inOtherWorktrees = new Set(lines(await git(['worktree', 'list', '--porcelain'])).filter((line) => line.startsWith('branch refs/heads/')).map((line) => line.slice('branch refs/heads/'.length)));
+      const stale = local.filter((branch) => !inOtherWorktrees.has(branch));
+      if (stale.length > 0) await git(['branch', '-D', ...stale]);
     },
     async createBranch(name, from) {
       if (await hasRef(path, `refs/remotes/origin/${name}`)) throw new Error(`branch ${name} exists on GitHub already`);

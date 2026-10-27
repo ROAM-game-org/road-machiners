@@ -98,6 +98,13 @@ describe('runs cut off before their result', () => {
     expect(existsSync(`${HOME}/usage/job-5.open-parts`)).toBe(false);
   });
 
+  it('lets a stopped job close a part that its job record already ended', () => {
+    const open = openPart(HOME, 'job-5', 'agent', new Date('2026-10-05T10:00:00.000Z'));
+    recordJob(HOME, prices, new Date('2026-10-05T10:10:00.000Z'), job, 'stopped');
+    expect(() => closePart(HOME, 'job-5', open, new Date('2026-10-05T10:11:00.000Z'))).not.toThrow();
+    expect(existsSync(`${HOME}/usage/job-5.parts.jsonl`)).toBe(false);
+  });
+
   it('records nothing for a run that saved no transcript', () => {
     openRun(HOME, 'job-5', { model: 'opus', projects: `${HOME}/sessions/issue-5`, sessionId: 'none', resumed: false, startedAt: '2026-10-05T10:00:00.000Z' });
     recordJob(HOME, prices, new Date('2026-10-05T10:01:00.000Z'), job, 'died');

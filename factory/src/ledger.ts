@@ -160,6 +160,7 @@ export function openPart(home: string, jobId: string, kind: PartKind, at: Date):
 
 export function closePart(home: string, jobId: string, id: string, at: Date): void {
   const path = join(openPartsDir(home, jobId), `${id}.json`);
+  if (!existsSync(path)) return;
   const open = JSON.parse(readFileSync(path, 'utf8')) as Omit<JobPart, 'endedAt'>;
   appendFileSync(partsPath(home, jobId), `${JSON.stringify({ ...open, endedAt: at.toISOString() })}\n`);
   rmSync(path);

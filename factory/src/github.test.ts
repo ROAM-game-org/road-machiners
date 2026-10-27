@@ -107,11 +107,47 @@ describe('ghClient', () => {
     await expect(ghClient(run, CFG, async () => {}).reopen(7)).rejects.toBeInstanceOf(GithubError);
   });
 
-  it('gives every call the timeout and does not retry a call that timed out', async () => {
+  it('gives every call the timeout and does not retry a write that timed out', async () => {
     const timeouts: (number | undefined)[] = [];
     const run: Run = async (_cmd, _args, opts) => { timeouts.push(opts?.timeoutMs); return { code: 1, stdout: '', stderr: 'gh timed out after 60000 ms and was killed' }; };
     await expect(ghClient(run, CFG, async () => {}).reopen(7)).rejects.toThrow('timed out');
     expect(timeouts).toEqual([60000]);
+  });
+
+  it.each(['HTTP 502', 'HTTP 504', 'HTTP 503: Service Unavailable', 'gh timed out after 60000 ms and was killed'])('reads the board again after a transient %s', async (stderr) => {
+    const waits: number[] = [];
+    const calls: string[][] = [];
+    const inner = fake(calls, project(ALL));
+    let failures = 2;
+    const run: Run = async (cmd, args, opts) => (failures-- > 0 ? { code: 1, stdout: '', stderr: `gh: ${stderr}` } : inner(cmd, args, opts));
+    const cards = await ghClient(run, CFG, async (ms) => { waits.push(ms); }).cards();
+    expect(cards.length).toBeGreaterThan(0);
+    expect(waits).toEqual([15000, 30000]);
+  });
+
+  it('fails with the transient error once the reads run out of tries', async () => {
+    const waits: number[] = [];
+    let calls = 0;
+    const run: Run = async () => { calls++; return { code: 1, stdout: '', stderr: 'gh: HTTP 504' }; };
+    await expect(ghClient(run, CFG, async (ms) => { waits.push(ms); }).card(5)).rejects.toThrow('HTTP 504');
+    expect(calls).toBe(4);
+    expect(waits).toEqual([15000, 30000, 60000]);
+  });
+
+  it('never repeats a write or a mutation that came back 502 or 504', async () => {
+    let calls = 0;
+    const run: Run = async () => { calls++; return { code: 1, stdout: '', stderr: 'gh: HTTP 504' }; };
+    const client = ghClient(run, CFG, async () => {});
+    await expect(client.comment(7, 'hi')).rejects.toThrow('504');
+    await expect(client.reopen(7)).rejects.toThrow('504');
+    expect(calls).toBe(2);
+  });
+
+  it('does not hide a non-transient error on a read', async () => {
+    let calls = 0;
+    const run: Run = async () => { calls++; return { code: 1, stdout: '', stderr: 'gh: HTTP 401: Bad credentials' }; };
+    await expect(ghClient(run, CFG, async () => {}).card(5)).rejects.toThrow('401');
+    expect(calls).toBe(1);
   });
 
   it('sends one call at a time, even after a failed call', async () => {
@@ -183,9 +219,9 @@ describe('ghClient', () => {
     await expect(client.cards()).rejects.toThrow('"Merging"');
   });
 
-  it('shows the real error when the project lookup fails for another reason', async () => {
+  it('shows the real error when the project lookup keeps failing', async () => {
     const run: Run = async () => ({ code: 1, stdout: '', stderr: 'HTTP 502: Bad Gateway' });
-    await expect(ghClient(run, CFG).cards()).rejects.toThrow('502');
+    await expect(ghClient(run, CFG, async () => {}).cards()).rejects.toThrow('502');
   });
 
   it('tries the organization when the owner is not a user', async () => {

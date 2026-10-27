@@ -56,6 +56,18 @@ async function setup() {
 }
 
 describe('hostRepo', () => {
+  it('fetches while a local branch is checked out in a linked worktree, and keeps that branch', async () => {
+    const { home, repo, host } = await setup();
+    await host('branch', 'hermes/reference', 'origin/main');
+    await host('branch', 'stale-leftover', 'origin/main');
+    const linked = join(home, 'reference');
+    await host('worktree', 'add', linked, 'hermes/reference');
+    await repo.fetch();
+    const branches = (await host('for-each-ref', '--format=%(refname:short)', 'refs/heads')).trim().split('\n').filter(Boolean);
+    expect(branches).toEqual(['hermes/reference']);
+    expect(existsSync(linked)).toBe(true);
+  });
+
   it('turns hooks off on every git call', async () => {
     const calls: string[][] = [];
     const run: Run = async (_cmd, args) => { calls.push(args); return { code: args.includes('--verify') ? 1 : 0, stdout: 'a.ts\n', stderr: '' }; };

@@ -82,6 +82,7 @@ const PAGE_SIZE = 100;
 const NOT_THIS_KIND = /Could not resolve to an? (User|Organization)/;
 
 const RATE_LIMITED = /rate limit|HTTP 429|submitted too quickly/i;
+const TRANSIENT = /HTTP 50[234]\b|timed out after \d+ ms/i;
 const TAG_EXISTS = /a release with the same tag name already exists/;
 
 export class GithubError extends Error {}
@@ -111,7 +112,7 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
   async function attempt(args: string[]): Promise<RunResult> {
     for (let retry = 0; ; retry++) {
       const result = await run('gh', args, { activity: 'git', timeoutMs: cfg.githubTimeoutSeconds * 1000 });
-      if (result.code === 0 || !RATE_LIMITED.test(result.stderr) || retry === cfg.githubRetries) return result;
+      if (result.code === 0 || !retryable(args, result.stderr) || retry === cfg.githubRetries) return result;
       await wait(cfg.githubRetryBaseSeconds * 1000 * 2 ** retry);
     }
   }
@@ -391,6 +392,19 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
       return { ...issue, stateReason: issue.stateReason || null, closedAt: issue.closedAt || null };
     },
   };
+}
+
+function retryable(args: string[], stderr: string): boolean {
+  return RATE_LIMITED.test(stderr) || (TRANSIENT.test(stderr) && readsOnly(args));
+}
+
+const READ_VERBS = new Set(['view', 'list']);
+const WRITE_FLAGS = new Set(['-X', '-f', '-F']);
+
+function readsOnly(args: string[]): boolean {
+  if (args[0] !== 'api') return READ_VERBS.has(args[1] ?? '') && ['issue', 'pr', 'run'].includes(args[0] ?? '');
+  if (args[1] === 'graphql') return !args.some((arg) => arg.startsWith('query=mutation'));
+  return !args.some((arg) => WRITE_FLAGS.has(arg));
 }
 
 function graphqlArgs(query: string, vars: Vars): string[] {

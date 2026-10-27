@@ -6,7 +6,7 @@ import { readApproval, type Approval } from '../clone-checks';
 import { readShown, type Shown } from '../evidence';
 import { postWithEvidence } from '../evidence-post';
 import { checkScope, publishBuild, recordBuild } from '../deploy';
-import { FAILURE_TAIL_LINES, reportFailure, stripAnsi } from '../fail';
+import { FAILURE_TAIL_LINES, JobTimeoutError, reportFailure, stripAnsi } from '../fail';
 import { postBuild } from '../public/build-post';
 import { clearFeedback } from '../pending-feedback';
 import { feedbackEnv } from '../sourcemaps';
@@ -146,7 +146,7 @@ export async function checkUntilReal(check: () => Promise<CheckOutcome>, onTimeo
     const outcome = await check();
     if (outcome === null) return null;
     if (!timeoutOnly(outcome)) return outcome.failure;
-    if (run === CHECK_RUNS) throw new Error(`The factory checks timed out ${CHECK_RUNS} times, under load or in a hung step. No test failed for another reason.\n${outcome.failure}`);
+    if (run === CHECK_RUNS) throw new JobTimeoutError(`The factory checks timed out ${CHECK_RUNS} times, under load or in a hung step. No test failed for another reason in the whole output of the last run.\n${outcome.failure}`);
     onTimeout(run);
   }
 }
@@ -155,8 +155,18 @@ export async function checkUntilReal(check: () => Promise<CheckOutcome>, onTimeo
 function checkFailure(log: string, error: unknown, from: number): NonNullable<CheckOutcome> {
   const message = error instanceof Error ? error.message : String(error);
   const written = existsSync(log) ? readFileSync(log).subarray(from).toString('utf8') : '';
-  const tail = written.trim() === '' ? message : written.split('\n').slice(-FAILURE_TAIL_LINES).join('\n');
-  return { failure: stripAnsi(tail), timedOut: error instanceof CheckTimeoutError };
+  const lines = written.split('\n');
+  const tail = written.trim() === '' ? message : lines.slice(-FAILURE_TAIL_LINES).join('\n');
+  const earlier = written.trim() === '' ? [] : realFailureLines(lines.slice(0, -FAILURE_TAIL_LINES));
+  const kept = earlier.length === 0 ? tail : `Failures earlier in this run, before the tail below:\n${earlier.join('\n')}\n\n${tail}`;
+  return { failure: stripAnsi(kept), timedOut: error instanceof CheckTimeoutError };
+}
+
+const EARLIER_FAILURE_LINES = 30;
+
+function realFailureLines(lines: string[]): string[] {
+  const errors = lines.map((line) => stripAnsi(line)).filter((line) => /Error:/.test(line) && !TIMEOUT_LINE.test(line));
+  return [...new Set(errors)].slice(0, EARLIER_FAILURE_LINES);
 }
 
 const POST_MARK = 'Ready for approval:';
