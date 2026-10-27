@@ -331,7 +331,7 @@
 }
 #ui.sim.economy .sim-economy {
   display: block;
-  flex: 2 1 0;
+  flex: 3 1 0;
   min-height: 0;
   overflow: auto;
 }
@@ -366,11 +366,11 @@
   color: var(--accent);
 }
 .sim-econ-table td,
-.sim-econ-table th.sim-good {
+.sim-econ-table th.sim-good-head {
   padding: var(--space-2) var(--space-3);
   border-top: 1px solid var(--line-faint);
 }
-.sim-econ-table th.sim-good {
+.sim-econ-table th.sim-good-head {
   color: var(--ink);
   font-size: var(--text-dense);
   white-space: nowrap;
@@ -379,19 +379,111 @@
 .sim-econ-goods td.num {
   text-align: right;
 }
-.sim-econ-cell {
-  color: var(--ink);
-}
-.sim-econ-cell.warn .num,
-.sim-econ-table td.warn {
+.sim-econ-table td.warn,
+.sim-need .warn,
+.sim-summary .warn,
+.sim-why.warn {
   color: var(--path-hold);
 }
-.sim-econ-cell.bad .num,
-.sim-econ-table td.bad {
+.sim-econ-table td.bad,
+.sim-need .bad,
+.sim-summary .bad,
+.sim-why.bad {
   color: var(--danger-ink);
 }
-.sim-econ-cell .meter {
-  margin-bottom: var(--space-1);
+.sim-econ-table td.good {
+  color: var(--good-bright);
+}
+.sim-econ-cell {
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sim-econ-cell:hover {
+  background: var(--surface-highlight);
+}
+.sim-econ-cell.bad {
+  background: var(--danger-dark);
+  color: var(--ink-bright);
+}
+.sim-econ-cell.warn {
+  background: var(--danger-well);
+}
+.sim-econ-cell .num {
+  display: inline-block;
+  min-width: var(--space-9);
+  padding-right: var(--space-3);
+  text-align: right;
+}
+.sim-grid thead th {
+  font-size: var(--text-dense);
+}
+.sim-grid thead th:not(:first-child) {
+  min-width: 0;
+}
+.sim-spark {
+  display: inline-block;
+  vertical-align: middle;
+}
+.sim-spark-row {
+  width: calc(var(--space-10) * 5);
+  height: var(--space-8);
+}
+.sim-spark-cell {
+  width: calc(var(--space-9) * 2);
+  height: var(--space-8);
+}
+.sim-town.bad .sim-link {
+  color: var(--danger-ink);
+}
+.sim-town.warn .sim-link {
+  color: var(--path-hold);
+}
+.sim-good {
+  display: inline-flex;
+  align-items: center;
+}
+.sim-summary {
+  display: flex;
+  gap: var(--space-6);
+  font-size: var(--text-body);
+}
+.sim-need {
+  display: grid;
+  grid-template-columns: calc(var(--space-10) * 4) calc(var(--space-10) * 4) 1fr max-content;
+  align-items: center;
+  gap: 0 var(--space-4);
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--line-faint);
+}
+.sim-need.line {
+  grid-template-columns: 1fr max-content;
+}
+.sim-need .sim-why {
+  grid-column: 1 / -1;
+}
+.sim-need .num {
+  text-align: right;
+}
+.sim-why-row td {
+  border-top: 0;
+  padding-top: 0;
+}
+.sim-event-key {
+  display: flex;
+  gap: var(--space-6);
+  color: var(--ink-muted);
+}
+.sim-event-key span {
+  display: inline-flex;
+  align-items: center;
+}
+.sim-trade {
+  display: grid;
+  grid-template-columns: calc(var(--space-10) * 3) 1fr max-content max-content max-content;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--line-faint);
 }
 .sim-empty {
   background: var(--surface-sunk);
@@ -428,6 +520,7 @@
   list-style: none;
 }
 .sim-news li {
+  cursor: pointer;
   display: grid;
   grid-template-columns: calc(var(--space-10) * 2) 1fr;
   gap: var(--space-4);

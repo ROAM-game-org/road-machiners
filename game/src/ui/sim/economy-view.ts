@@ -1,147 +1,69 @@
-import type { Economy, EconFlow, EconGood, EconLine, EconNews, EconShop, EconTag } from "../../sim/progression/sim-economy";
+import type { EconGood, EconNews, Economy, EconShop } from "../../sim/progression/sim-economy";
+import type { Sample } from "../../sim/progression/sim-mode";
 import { devEl as el } from "../dom";
-import { toPx, type Viewport } from "../map-geometry";
-import { token } from "../tokens";
 import { moneyAmount } from "../units";
+import { lineAlertsOf, MarketHistory, needsOf, type LineAlert, type Need } from "./economy-reads";
+import { goodTokens, levelOf, type Focus } from "./economy-draw";
+import { goodLink, goodPage, levelTone, stockSpark, priceSpark, toneClass, townLink, townPage, tradeRows, type Ctx, type Nav, type Tone } from "./economy-pages";
 
-type Tone = "bad" | "warn" | "";
-type Point = { x: number; y: number };
+type Page = { kind: "all" } | { kind: "town"; id: string } | { kind: "good"; id: string };
+type Lens = "stock" | "price";
 
-const GOOD_TOKENS = ["--path-plan", "--path-accelerate", "--path-radio", "--path-dest", "--map-engine", "--map-deck", "--map-bay", "--path-hold", "--map-side"];
-const EDGE = { width: 1, alpha: 0.6, spread: 3 };
-const SHIPMENT = { width: 2, alpha: 0.8, end: 3, dash: [6, 4] };
-const TOWN = { ring: 12, width: 2, color: "--select" };
+const LENSES: { lens: Lens; label: string }[] = [{ lens: "stock", label: "Stock" }, { lens: "price", label: "Price" }];
+const PRICE_GAP = { dear: 1.25, cheap: 0.8 };
+const ALL: Page = { kind: "all" };
+const LEVEL_TONE = { empty: "bad", short: "warn", ok: "" } as const;
 
-const RUN_TONE: Record<EconLine["run"], Tone> = { running: "", worn: "warn", fallback: "warn", stopped: "bad" };
-
-const TAG_TONE: Record<EconTag, Tone> = { short: "bad", rationing: "bad", slowImport: "warn", onOrder: "" };
-const TONE_RANK: Tone[] = ["bad", "warn", ""];
-
-function toneOfGood(good: EconGood): Tone {
-  const tones = good.tags.map((t) => TAG_TONE[t.id]);
-  return TONE_RANK.find((tone) => tones.includes(tone)) ?? "";
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)];
 }
 
-function toneClass(base: string, tone: Tone): string {
-  return tone === "" ? base : `${base} ${tone}`;
+function samePage(a: Page, b: Page): boolean {
+  return a.kind === b.kind && (a.kind === "all" || a.id === (b as { id: string }).id);
 }
 
-function signed(units: number): string {
-  if (units > 0) return `+${units}`;
-  return units < 0 ? `−${-units}` : "0";
-}
-
-function meter(good: EconGood, tone: Tone): HTMLElement {
-  const bar = el("span");
-  bar.style.width = `${Math.min(100, Math.max(0, (good.stock / good.target) * 100))}%`;
-  return el("div", { class: tone === "bad" ? "meter s broken" : "meter s" }, bar);
-}
-
-function swatch(token: string): HTMLElement {
-  const dot = el("span", { class: "sim-swatch" });
-  dot.style.setProperty("--swatch", `var(${token})`);
-  return dot;
-}
-
-function newsLine(n: EconNews): HTMLElement {
+function newsLine(ctx: Ctx, n: EconNews): HTMLElement {
   const when = n.hoursAgo < 1 ? "Now" : `${n.hoursAgo} h ago`;
-  return el("li", {}, el("span", { class: "sim-when num" }, when), el("span", {}, `${n.kindText}: ${n.units} ${n.goodName}, ${n.from} to ${n.to}`));
+  return el("li", { onclick: () => ctx.nav.good(n.good) }, el("span", { class: "sim-when num" }, when), el("span", {}, `${n.kindText}: ${n.units} ${n.goodName}, ${n.from} to ${n.to}`));
 }
 
-function goodTokens(economy: Economy): Map<string, string> {
-  const ids = [...new Set(economy.shops.flatMap((s) => s.goods.map((g) => g.good)))].sort();
-  return new Map(ids.map((id, i) => [id, GOOD_TOKENS[i % GOOD_TOKENS.length]!]));
+function needRow(ctx: Ctx, need: Need): HTMLElement {
+  const status = need.empty ? `Empty ${need.hours} h` : `Short ${need.hours} h`;
+  return el("div", { class: "sim-need" },
+    goodLink(ctx, need.good.good, need.good.name),
+    townLink(ctx, need.shop),
+    el("span", { class: toneClass("num", need.empty ? "bad" : "warn") }, status),
+    stockSpark(ctx, need.shop, need.good, "row"),
+    el("span", { class: "sim-why dim" }, need.why));
 }
 
-export function shopAt(economy: Economy, view: Viewport, at: Point, radius: number): EconShop | null {
-  const gap = (s: EconShop) => {
-    const px = toPx(view, s);
-    return Math.hypot(px.x - at.x, px.y - at.y);
-  };
-  const near = economy.shops.filter((s) => gap(s) <= radius).sort((a, b) => gap(a) - gap(b));
-  return near[0] ?? null;
+function lineAlertRow(ctx: Ctx, alert: LineAlert): HTMLElement {
+  return el("div", { class: "sim-need line" },
+    townLink(ctx, alert.shop),
+    el("span", { class: "tag bad" }, alert.line.runText),
+    el("span", { class: "sim-why dim" }, alert.why));
 }
 
-export function drawEconomy(ctx: CanvasRenderingContext2D, view: Viewport, economy: Economy, selected: string | null, truckAt: (id: string) => Point | null): void {
-  const colors = goodTokens(economy);
-  const colorOf = (good: string): string => token(colors.get(good) ?? failUnknown(good));
-  const chosen = economy.shops.find((s) => s.id === selected);
-  if (chosen) drawEdges(ctx, view, economy, chosen.id, colorOf);
-  drawShipments(ctx, view, economy, colorOf, truckAt);
-  if (chosen) drawTown(ctx, toPx(view, chosen));
-}
-
-function failUnknown(good: string): never {
-  throw new Error(`The economy names the good ${good}, which no shop trades`);
-}
-
-function drawEdges(ctx: CanvasRenderingContext2D, view: Viewport, economy: Economy, town: string, colorOf: (good: string) => string): void {
-  const placeOf = (id: string): Point => {
-    const shop = economy.shops.find((s) => s.id === id);
-    if (!shop) throw new Error(`The economy has an edge at ${id}, which is not a shop`);
-    return toPx(view, shop);
-  };
-  const seen = new Map<string, number>();
-  ctx.save();
-  ctx.globalAlpha = EDGE.alpha;
-  ctx.lineWidth = EDGE.width;
-  for (const edge of economy.edges.filter((e) => e.fromId === town || e.toId === town)) {
-    const key = [edge.fromId, edge.toId].sort().join("|");
-    const index = seen.get(key) ?? 0;
-    seen.set(key, index + 1);
-    const from = placeOf(edge.fromId);
-    const to = placeOf(edge.toId);
-    const length = Math.hypot(to.x - from.x, to.y - from.y) || 1;
-    const push = index * EDGE.spread;
-    const dx = (-(to.y - from.y) / length) * push;
-    const dy = ((to.x - from.x) / length) * push;
-    ctx.strokeStyle = colorOf(edge.good);
-    stroke(ctx, { x: from.x + dx, y: from.y + dy }, { x: to.x + dx, y: to.y + dy });
-  }
-  ctx.restore();
-}
-
-function drawShipments(ctx: CanvasRenderingContext2D, view: Viewport, economy: Economy, colorOf: (good: string) => string, truckAt: (id: string) => Point | null): void {
-  ctx.save();
-  ctx.globalAlpha = SHIPMENT.alpha;
-  ctx.setLineDash(SHIPMENT.dash);
-  for (const s of economy.shipments) {
-    const from = truckAt(s.truck) ?? toPx(view, s.fromXY);
-    const to = toPx(view, s.toXY);
-    ctx.lineWidth = SHIPMENT.width;
-    ctx.strokeStyle = colorOf(s.good);
-    stroke(ctx, from, to);
-    ctx.setLineDash([]);
-    ctx.fillStyle = colorOf(s.good);
-    ctx.beginPath();
-    ctx.arc(to.x, to.y, SHIPMENT.end, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.setLineDash(SHIPMENT.dash);
-  }
-  ctx.restore();
-}
-
-function drawTown(ctx: CanvasRenderingContext2D, at: Point): void {
-  ctx.beginPath();
-  ctx.arc(at.x, at.y, TOWN.ring, 0, Math.PI * 2);
-  ctx.lineWidth = TOWN.width;
-  ctx.strokeStyle = token(TOWN.color);
-  ctx.stroke();
-}
-
-function stroke(ctx: CanvasRenderingContext2D, from: Point, to: Point): void {
-  ctx.beginPath();
-  ctx.moveTo(from.x, from.y);
-  ctx.lineTo(to.x, to.y);
-  ctx.stroke();
+function summaryOf(needs: Need[], alerts: LineAlert[]): HTMLElement {
+  const empty = needs.filter((n) => n.empty).length;
+  const parts = [
+    empty > 0 ? el("span", { class: "bad" }, `${empty} empty`) : null,
+    needs.length - empty > 0 ? el("span", { class: "warn" }, `${needs.length - empty} short`) : null,
+    alerts.length > 0 ? el("span", { class: "warn" }, `${alerts.length} ${alerts.length === 1 ? "line" : "lines"} off`) : null,
+  ].filter((p) => p !== null);
+  return el("div", { class: "sim-summary" }, ...(parts.length > 0 ? parts : [el("span", { class: "good" }, "Nothing short")]));
 }
 
 export class EconomyView {
   readonly root = el("div", { class: "sim-economy panel" });
+  readonly history = new MarketHistory();
   private economy: Economy | null = null;
-  private chosen: string | null = null;
+  private page: Page = ALL;
+  private previous: Page = ALL;
+  private lens: Lens = "stock";
 
-  constructor(private readonly picked: (shop: EconShop | null) => void) {
+  constructor(private readonly picked: () => void, private readonly openTruck: (id: string) => void) {
     this.root.append(el("div", { class: "dim" }, "Waiting for the economy"));
   }
 
@@ -149,104 +71,114 @@ export class EconomyView {
     return this.economy;
   }
 
-  get selected(): string | null {
-    return this.chosen;
+  get focus(): Focus {
+    return { town: this.page.kind === "town" ? this.page.id : null, good: this.page.kind === "good" ? this.page.id : null };
   }
 
   show(economy: Economy): void {
     this.economy = economy;
-    this.render();
+    this.render(true);
   }
 
-  select(id: string | null): void {
-    this.chosen = id;
-    this.render();
-    this.picked(this.shopOf(id));
+  resetHistory(samples: Sample[]): void {
+    this.history.reset(samples);
   }
 
-  private shopOf(id: string | null): EconShop | null {
-    if (id === null || !this.economy) return null;
-    const shop = this.economy.shops.find((s) => s.id === id);
-    if (!shop) throw new Error(`The economy has no shop ${id}`);
-    return shop;
+  go(page: Page): void {
+    if (samePage(page, this.page)) return;
+    this.previous = this.page;
+    this.page = page;
+    this.render(false);
+    this.picked();
   }
 
-  private render(): void {
+  selectTown(id: string | null): void {
+    this.go(id === null ? ALL : { kind: "town", id });
+  }
+
+  private context(economy: Economy): Ctx {
+    const nav: Nav = { town: (id) => this.go({ kind: "town", id }), good: (id) => this.go({ kind: "good", id }), truck: this.openTruck };
+    return { economy, history: this.history, colors: goodTokens(economy), nav };
+  }
+
+  private back(economy: Economy): { label: string; go: () => void } {
+    const before = this.previous;
+    const label = before.kind === "all" ? "All towns" : this.nameOf(economy, before);
+    return { label, go: () => this.go(before) };
+  }
+
+  private nameOf(economy: Economy, page: Page): string {
+    if (page.kind === "town") return economy.shops.find((s) => s.id === page.id)!.name;
+    return page.kind === "good" ? economy.shops.flatMap((s) => s.goods).find((g) => g.good === page.id)!.name : "All towns";
+  }
+
+  private render(keepScroll: boolean): void {
     const economy = this.economy;
     if (!economy) return;
-    const shop = this.shopOf(this.chosen);
-    this.root.replaceChildren(shop ? this.detail(shop, economy) : this.overview(economy));
-    this.root.scrollTop = 0;
+    const scroll = keepScroll ? this.root.scrollTop : 0;
+    this.root.replaceChildren(this.body(economy));
+    this.root.scrollTop = scroll;
   }
 
-  private overview(economy: Economy): HTMLElement {
-    const colors = goodTokens(economy);
-    const goods = new Map<string, string>();
-    for (const shop of economy.shops) for (const g of shop.goods) goods.set(g.good, g.name);
-    const rows = [...goods].sort((a, b) => a[1].localeCompare(b[1]));
-    const head = el("tr", {}, el("th", { class: "dim" }, "Buy, M's"), ...economy.shops.map((s) => el("th", { class: "sim-link", role: "button", tabindex: 0, onclick: () => this.select(s.id) }, s.name)));
-    const body = rows.map(([id, name]) => el("tr", {}, el("th", { class: "sim-good" }, swatch(colors.get(id)!), name), ...economy.shops.map((s) => this.cell(s, id))));
+  private body(economy: Economy): HTMLElement {
+    const ctx = this.context(economy);
+    const page = this.page;
+    if (page.kind === "town") return townPage(ctx, economy.shops.find((s) => s.id === page.id)!, this.back(economy));
+    if (page.kind === "good") return goodPage(ctx, page.id, this.back(economy));
+    return this.overview(ctx);
+  }
+
+  private overview(ctx: Ctx): HTMLElement {
+    const needs = needsOf(ctx.economy, this.history);
+    const alerts = lineAlertsOf(ctx.economy);
     return el("div", { class: "sim-econ-body" },
-      el("div", { class: "sim-econ-scroll" }, el("table", { class: "sim-econ-table" }, el("thead", {}, head), el("tbody", {}, ...body))),
-      this.news(economy.news));
+      summaryOf(needs, alerts),
+      needs.length + alerts.length > 0 ? el("div", { class: "sim-econ-group" }, ...needs.map((n) => needRow(ctx, n)), ...alerts.map((a) => lineAlertRow(ctx, a))) : null,
+      this.grid(ctx),
+      el("span", { class: "sim-label" }, "Best trades"),
+      tradeRows(ctx, ctx.economy.trades),
+      this.news(ctx));
   }
 
-  private cell(shop: EconShop, goodId: string): HTMLElement {
+  private grid(ctx: Ctx): HTMLElement {
+    const goods = new Map<string, string>();
+    for (const shop of ctx.economy.shops) for (const g of shop.goods) goods.set(g.good, g.name);
+    const rows = [...goods].sort((a, b) => a[1].localeCompare(b[1]));
+    const head = el("tr", {}, el("th", {}, this.lensSwitch()), ...ctx.economy.shops.map((s) => el("th", { class: toneClass("sim-town", LEVEL_TONE[levelOf(s, null)]) }, townLink(ctx, s))));
+    const body = rows.map(([id, name]) => el("tr", {}, el("th", { class: "sim-good-head" }, goodLink(ctx, id, name)), ...ctx.economy.shops.map((s) => this.cell(ctx, s, id))));
+    return el("div", { class: "sim-econ-scroll" }, el("table", { class: "sim-econ-table sim-grid" }, el("thead", {}, head), el("tbody", {}, ...body)));
+  }
+
+  private lensSwitch(): HTMLElement {
+    const buttons = LENSES.map((l) => el("button", { class: "btn-s", "aria-pressed": String(l.lens === this.lens), onclick: () => this.setLens(l.lens) }, l.label));
+    return el("div", { class: "option-switch" }, ...buttons);
+  }
+
+  private setLens(lens: Lens): void {
+    this.lens = lens;
+    this.render(true);
+  }
+
+  private cell(ctx: Ctx, shop: EconShop, goodId: string): HTMLElement {
     const good = shop.goods.find((g) => g.good === goodId);
     if (!good) return el("td", { class: "sim-empty" });
-    const tone = toneOfGood(good);
+    const price = this.lens === "price";
     const tags = good.tags.length > 0 ? `. ${good.tags.map((t) => t.text).join(", ")}` : "";
     const title = `${good.name}, ${shop.name}: ${good.stock} of ${good.target}, buy ${good.buyText}, sell ${good.sellText}${tags}`;
-    return el("td", { class: toneClass("sim-econ-cell", tone), title }, meter(good, tone), el("span", { class: "num" }, moneyAmount(good.buy)));
+    const look = price ? this.priceLook(ctx, good) : levelTone(good);
+    return el("td", { class: toneClass("sim-econ-cell", look), title, onclick: () => ctx.nav.town(shop.id) },
+      el("span", { class: "num" }, price ? moneyAmount(good.buy) : String(good.stock)),
+      price ? priceSpark(ctx, shop, good, "cell") : stockSpark(ctx, shop, good, "cell"));
   }
 
-  private news(news: EconNews[]): HTMLElement {
-    if (news.length === 0) return el("div", { class: "dim" }, "No road news");
-    return el("ul", { class: "sim-news" }, ...news.map(newsLine));
+  private priceLook(ctx: Ctx, good: EconGood): Tone {
+    const middle = median(ctx.economy.shops.flatMap((s) => s.goods.filter((g) => g.good === good.good).map((g) => g.buy)));
+    if (good.buy >= middle * PRICE_GAP.dear) return "warn";
+    return good.buy <= middle * PRICE_GAP.cheap ? "good" : "";
   }
 
-  private detail(shop: EconShop, economy: Economy): HTMLElement {
-    const colors = goodTokens(economy);
-    return el("div", { class: "sim-econ-body" },
-      el("div", { class: "sim-head" },
-        el("span", { class: "sim-card-title" }, shop.name),
-        el("span", { class: "sim-note num" }, `Contracts ${shop.contracts}, parts ${shop.parts}`),
-        el("button", { class: "btn-s", onclick: () => this.select(null) }, "All towns")),
-      this.lines(shop.lines),
-      this.goods(shop, colors),
-      this.flows(shop.flows, economy.flowHours));
-  }
-
-  private lines(lines: EconLine[]): HTMLElement {
-    if (lines.length === 0) return el("div", { class: "dim" }, "No production");
-    const rows = lines.map((l) => el("div", { class: "sim-line-row" },
-      el("span", {}, l.name),
-      el("span", { class: toneClass("tag", RUN_TONE[l.run]) }, l.runText),
-      el("span", { class: "dim num" }, `Every ${Number(l.everyHours.toFixed(1))} h`),
-      el("span", { class: "sim-recipe" }, l.inputs.length === 0 ? `Makes ${l.outputs.join(", ")}` : `${l.inputs.join(", ")} to ${l.outputs.join(", ")}`),
-      l.event ? el("span", { class: "sim-recipe-event dim" }, l.event) : null));
-    return el("div", { class: "sim-econ-group" }, ...rows);
-  }
-
-  private goods(shop: EconShop, colors: Map<string, string>): HTMLElement {
-    const head = el("tr", {}, el("th", {}), el("th", { class: "num" }, "Stock"), el("th", { class: "num" }, "Target"), el("th", { class: "num" }, "Buy, M's"), el("th", { class: "num" }, "Sell, M's"), el("th", {}));
-    const rows = shop.goods.map((g) => {
-      const tone = toneOfGood(g);
-      return el("tr", {},
-        el("td", { class: "sim-good" }, swatch(colors.get(g.good)!), g.name),
-        el("td", { class: toneClass("num", tone) }, String(g.stock)),
-        el("td", { class: "num dim" }, String(g.target)),
-        el("td", { class: "num" }, moneyAmount(g.buy)),
-        el("td", { class: "num" }, moneyAmount(g.sell)),
-        el("td", { class: "sim-tags" }, ...g.tags.map((t) => el("span", { class: toneClass("tag", TAG_TONE[t.id]) }, t.text))));
-    });
-    return el("table", { class: "sim-econ-table sim-econ-goods" }, el("thead", {}, head), el("tbody", {}, ...rows));
-  }
-
-  private flows(flows: EconFlow[], flowHours: number): HTMLElement {
-    const hours = Math.round(flowHours);
-    if (flows.length === 0) return el("div", { class: "dim" }, `No stock changes in ${hours} h`);
-    const rows = flows.map((f) => el("div", { class: "sim-row" }, el("span", {}, `${f.name}, ${f.causeText}`), el("span", { class: f.units < 0 ? "num bad" : "num good" }, signed(f.units))));
-    return el("div", { class: "sim-econ-group" }, el("span", { class: "sim-label" }, `Stock changes, last ${hours} h`), ...rows);
+  private news(ctx: Ctx): HTMLElement {
+    if (ctx.economy.news.length === 0) return el("div", { class: "dim" }, "No road news");
+    return el("div", { class: "sim-econ-group" }, el("span", { class: "sim-label" }, "Road news"), el("ul", { class: "sim-news" }, ...ctx.economy.news.map((n) => newsLine(ctx, n))));
   }
 }

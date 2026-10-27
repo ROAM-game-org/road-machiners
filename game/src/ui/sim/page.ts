@@ -2,7 +2,7 @@ import "../style.css";
 import "./sim.css";
 import { FACTIONS } from "../../data/npc-behavior";
 import type { Economy } from "../../sim/progression/sim-economy";
-import type { Card, Frame, FromSim, LogEntry, Marker, ToSim, Way } from "../../sim/progression/sim-mode";
+import type { Card, Frame, FromSim, LogEntry, Marker, Sample, ToSim, Way } from "../../sim/progression/sim-mode";
 import { clockOf } from "../../sim/sun";
 import type { NpcFactionId } from "../../sim/types";
 import type { Vec } from "../../sim/vec";
@@ -14,7 +14,8 @@ import { token } from "../tokens";
 import { TruckIcons, type IconLook, type SpriteSet } from "./truck-icons";
 import { HEAT_LAYERS, HeatMap, type HeatLayer } from "./heat-map";
 import { CardView, PlayerPanel } from "./panels";
-import { drawEconomy, EconomyView, shopAt } from "./economy-view";
+import { drawEconomy, shopAt } from "./economy-draw";
+import { EconomyView } from "./economy-view";
 import { TIME } from "../../data/time";
 
 const MARKER = { ring: 4, halo: 2, hit: 8, line: 2, shortestPx: 24 };
@@ -153,7 +154,7 @@ class SimPage {
   private readonly quiet = new Toggle("All events", "Also show routine events: jobs, trades, shots and sightings", () => this.renderLog());
   private readonly onlySelected = new Toggle("Selected", "Show only the events of the selected truck", () => this.renderLog());
   private readonly cardView = new CardView();
-  private readonly economyView = new EconomyView(() => this.view.redraw());
+  private readonly economyView = new EconomyView(() => this.view.redraw(), (id) => this.openTruck(id));
   private readonly sideTabs = SIDE_TABS.map((t) => el("button", { class: "btn-s", "aria-pressed": String(t.economy === false), onclick: () => this.showSide(t.economy) }, t.label));
   private economyOpen = false;
   private readonly log = el("ol", { class: "sim-log" });
@@ -222,7 +223,7 @@ class SimPage {
   private receive(message: FromSim): void {
     const handlers: { [K in FromSim["kind"]]: (m: Extract<FromSim, { kind: K }>) => void } = {
       started: (m) => this.showStarted(m),
-      history: (m) => this.player.chart.reset(m.samples),
+      history: (m) => this.showHistory(m.samples),
       saved: (m) => (this.saveNote.textContent = `Saved ${shortClockText(m.turn)}`),
       saveFile: (m) => download(m.name, m.json, "application/json"),
       frame: (m) => this.showFrame(m.frame),
@@ -247,12 +248,27 @@ class SimPage {
     this.glide.take(f.markers, performance.now());
     this.status.textContent = `${f.markers.length} trucks`;
     this.player.show(f.turn, f.hud);
-    if (f.sample) this.player.chart.add(f.sample);
+    if (f.sample) this.addSample(f.sample);
     this.heat.add(f.turn, f.markers);
     this.captionHeat();
     this.addEntries(f.log);
     if (f.card) this.showCard(f.card);
     this.view.redraw();
+  }
+
+  private showHistory(samples: Sample[]): void {
+    this.player.chart.reset(samples);
+    this.economyView.resetHistory(samples);
+  }
+
+  private addSample(sample: Sample): void {
+    this.player.chart.add(sample);
+    this.economyView.history.add(sample);
+  }
+
+  private openTruck(id: string): void {
+    this.showSide(false);
+    this.select(id);
   }
 
   private showSide(economy: boolean): void {
@@ -358,6 +374,7 @@ class SimPage {
   }
 
   private select(id: string | null): void {
+    if (id !== null && this.economyOpen) this.showSide(false);
     this.selected = id;
     this.way = null;
     this.send({ kind: "watch", id });
@@ -433,7 +450,7 @@ class SimPage {
       const m = this.glide.markers.find((x) => x.id === id);
       return m ? toPx(view, this.glide.placeAt(m, t)) : null;
     };
-    drawEconomy(ctx, view, economy, this.economyView.selected, truckAt);
+    drawEconomy(ctx, view, economy, this.economyView.focus, truckAt);
   }
 
   private drawWay(ctx: CanvasRenderingContext2D, view: Viewport): void {
@@ -523,7 +540,7 @@ class SimPage {
     const economy = this.economyView.shown;
     if (!at || !this.drawnView || !economy) return false;
     const shop = shopAt(economy, this.drawnView, at, SHOP_HIT);
-    if (shop) this.economyView.select(shop.id);
+    if (shop) this.economyView.selectTown(shop.id);
     return shop !== null;
   }
 
