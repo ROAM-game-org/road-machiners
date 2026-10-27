@@ -5,7 +5,7 @@ VAR asked_gate = false
 
 === start ===
 # checkpoint: start
-Odile Marsh, steward of the <term=granary>Granary</term>. Every sack that comes in and every crate that goes out, I write on the gate, so the whole road can read what we hold. If you carry sorgut, salt or water, the gate scale pays for it.
+Odile Marsh, steward of the <term=granary>Granary</term>. My gate stays open all day, so anyone on the road can see what fills our bins and what goes out to <term=kiln>Kiln</term>. If you carry sorgut, salt or water, the gate scale pays for it.
 -> hub
 
 = hub
@@ -29,11 +29,11 @@ Odile Marsh, steward of the <term=granary>Granary</term>. Every sack that comes 
 + {not asked_need} [What do you need from a driver?]
   ~ asked_need = true
   Loads that arrive. The gate scale pays for sorgut, salt and water, and it pays more when my bins run low.
-  They run low more often than the Senate likes to hear. A truck that doesn't arrive goes on the gate too, with the day it was due.
+  They run low more often than the Senate likes to hear. Dust shuts the roads, and the bins keep emptying while I watch the gate.
   -> hub
-+ {not asked_gate} [Why write it all on the gate?]
++ {not asked_gate} [Why keep the gate open?]
   ~ asked_gate = true
-  So nobody has to take my word for it. Beside what we hold, I write what we pay: the rations we send <term=kiln>Kiln</term> so they let our trucks pass, and the sacks the tenants give from their own share to pay Bowl's patrol.
+  So nobody has to take my word for what the Granary pays. The crates by the gate go to <term=kiln>Kiln</term>, so they let our trucks pass. The patrol's grain comes from the tenants' share and goes out through this same gate.
   A truck Kiln lets pass comes in with its sorgut. My grandmother lived through the year the grain ran out, and she ate boiled sacking. I'd rather pay raiders every season than see that again.
   -> hub
 + [Goodbye.]

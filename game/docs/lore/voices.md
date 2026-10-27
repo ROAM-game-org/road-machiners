@@ -78,13 +78,13 @@ Sample: "The hall can say what it likes, but I know what my hand did."
 
 ### Patrol driver at the Granary
 
-The driver talks of sacks, tires, loads and the order of a run. He counts costs in sacks.
+The driver talks of sacks, tires, loads and the order of a run. He weighs a cost against a crate of rations.
 
 His sentences follow the job from first step to last. He speaks while he works and glances at the truck.
 
 He calls a stranger friend. He explains a thing by what it costs or what it holds.
 
-He cares about the count being honest and the load being tied down. He avoids saying he has seen anything he only heard.
+He cares about the Kiln crates going out on time and the load being tied down. He avoids saying he has seen anything he only heard.
 
 He treats a stranger as a driver who should check the tires before anything else.
 
@@ -92,17 +92,18 @@ Sample: "A crate of rations is cheaper than a truck, so nobody argues about it."
 
 ### Odile Marsh, Granary steward
 
-Odile talks of sacks, counts, winters and the gate. She measures everything in sacks and weeks of bread.
+Odile talks of the bins, winters, dust on the roads, Kiln and the Senate. She judges a day by what it does to her stores.
 
-Her sentences are short and exact, with a number in most of them. She gives the count first and her fear after it.
+Her sentences are short and plain. She gives the fact first and her fear after it.
 
-She says "It's on the gate", meaning the count she posts there. She checks a stranger's load before their face.
+She looks at the sky before she looks at a stranger, and at their load after that.
 
-She cares about a full Granary and an honest count. She avoids the word turncoat and anything about her years as a tenant.
+She cares about a full Granary and the Kiln crates going out on time. She avoids the word turncoat and anything about her years as a tenant.
 
-She treats a stranger as a load that may or may not be on her count.
+She treats a stranger as a load that may or may not reach her bins.
 
-Sample: "Forty sacks in, thirty-one out. The nine are on the gate, and so is the truck that didn't come."
+Sample: "The Senate wants the bins full and the Kiln crates cut. It can have one of those."
+
 ### Mags Corrin, weigher at the gate yard
 
 Mags talks of weight, crates, chalk and what iron turns into: the truck parts Bowl's machinists make from it. She sees every crate as the thing it will become.

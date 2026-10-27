@@ -38,7 +38,7 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
   ++ [Not now.]
      -> hub
 + [Who pays the Farmers?]
-  Not enough people, to be plain. The <term=granary>Granary</term> pays out of its count of sacks, the long convoys pay a fee, and the tenants put in a share of their harvest.
+  Not enough people, to be plain. The <term=granary>Granary</term> pays out of its own grain, the long convoys pay a fee, and the tenants put in a share of their harvest.
   Nose pays nothing, because it guards only its own walls. So each town watches the road by its own gate and nobody watches between the towns. I don't like it, and I don't know a cure.
   ~ dag_pay = true
   -> hub

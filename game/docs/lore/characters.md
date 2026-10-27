@@ -179,17 +179,17 @@ He speaks in sermons. One of them goes like this:
 
 - Way: fear.
 - High concept: The steward of the Granary for the Bowl Senate, born a tenant, who earned her vote in the patrols.
-- Trouble: Her fear of famine makes her pay raiders and count everything, and the tenants call her a turncoat.
-- Aspects: Born a tenant, now a citizen with a vote; Jory Baptiste says she pays twice from the same grain; The count on the Granary gate.
+- Trouble: Her fear of famine makes her pay raiders and hoard against every winter, and the tenants call her a turncoat.
+- Aspects: Born a tenant, now a citizen with a vote; Jory Baptiste says she pays twice from the same grain; The Kiln crates stacked by the open gate.
 - Skills: best perception, worst toughness.
 - Wants: The Granary full and no famine like year 70.
 - Fears: An empty Granary.
-- Habit: She counts every sack at night and posts the count on the gate in her own hand.
+- Habit: She walks the bins at dawn and checks the sky for dust before she sends a truck out.
 - Secret: None.
 
-Odile is the steward of the Granary for the Bowl Senate. She was born a tenant and earned her vote with ten years in the patrols, and some tenants still call her a turncoat. She counts every sack at night and posts the count on the Granary gate. Two counts hang there now: the rations sent to Kiln Camp for the passage of the Granary's trucks, and the tenants' share for the Bowl patrol. She fears a famine like the one in year 70, and she would pay raiders forever to avoid one.
+Odile is the steward of the Granary for the Bowl Senate. She was born a tenant and earned her vote with ten years in the patrols, and some tenants still call her a turncoat. She keeps the Granary gate open by day, so anyone can see the ration crates stacked by it for Kiln Camp, which lets the Granary's trucks pass. The tenants' share for the Bowl patrol goes out through the same gate. She fears a famine like the one in year 70, and she would pay raiders forever to avoid one.
 
-Her line is "Every crate that goes to Kiln is written on the gate."
+Her line is "Every crate that goes to Kiln waits by the gate, where the whole road can see it."
 
 ## Agnes Ondra
 
