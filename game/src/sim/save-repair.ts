@@ -586,7 +586,7 @@ function varsFit(vars: CallVars): boolean {
 }
 
 function taleLacksStory(call: Call): boolean {
-  return call.topic === 'tale' && call.vars.story === undefined;
+  return call.topic === 'tale' && call.node === 'offer' && call.vars.story === undefined;
 }
 
 function repairCall(world: World): void {
