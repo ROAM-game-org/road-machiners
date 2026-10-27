@@ -3,15 +3,17 @@ import { TIME } from '../../data/time';
 import { inCombat } from '../combat';
 import { playerVehicle } from '../damage';
 import { isKnockedOut } from '../defeat';
-import type { Contract } from '../market';
+import type { SiteEventKind } from '../../data/market';
+import { watchStock, type Contract, type StockCause } from '../market';
+import type { RecipeRun } from '../production';
 import type { BakedMap } from '../terrain';
-import type { GameEvent, Memory, NpcActivity, StateKindId, Vehicle, World } from '../types';
+import type { GameEvent, Memory, NpcActivity, RoadNewsKind, StateKindId, Vehicle, World } from '../types';
 import type { Vec } from '../vec';
 import type { BotOptions } from './bot';
 import { emptyLedger, LEDGER_KEYS, type Ledger } from './orders';
 import { archetypeWorldOn, FAR_MOVER, netWorth, playTurns, type PlayedTurn } from './record';
 import { cardOf } from './sim-cards';
-import type { Economy } from './sim-economy';
+import { economyOf, StockFlows, type EconTag, type Economy } from './sim-economy';
 import { QUIET } from './turn-log';
 
 export { cardOf, npcCard, playerCard } from './sim-cards';
@@ -52,6 +54,13 @@ export type SimText = {
   skill(id: string): string;
   personality(id: string): string;
   contract(c: Contract): string;
+  site(id: string): string;
+  recipe(id: string): string;
+  cause(cause: StockCause): string;
+  run(run: RecipeRun): string;
+  siteEvent(kind: SiteEventKind): string;
+  tag(tag: EconTag): string;
+  newsKind(kind: RoadNewsKind): string;
 };
 
 export type ToSim =
@@ -96,9 +105,11 @@ export class SimRun {
   private readonly ledger: Ledger;
   private readonly history: Sample[];
   private readonly turns: Generator<PlayedTurn>;
+  private readonly flows: StockFlows;
 
   constructor(start: World, private readonly text: SimText, private readonly post: (message: FromSim) => void, ledger: Ledger = emptyLedger(), history: Sample[] = []) {
     this.world = start;
+    this.flows = new StockFlows(start.turn);
     this.ledger = { ...ledger };
     this.history = history.length > 0 ? [...history] : [sampleOf(start)];
     this.turns = playTurns(start, `sim seed ${start.seed}`, 'markov', ENDLESS, SIM_OPTIONS, FAR_MOVER);
@@ -111,12 +122,17 @@ export class SimRun {
   }
 
   handle(message: ToSim): void {
-    if (message.kind === 'play') this.play();
-    else if (message.kind === 'pause') this.playing = false;
-    else if (message.kind === 'step') this.stepOnce();
-    else if (message.kind === 'speed') this.gapMs = message.gapMs;
+    if (message.kind === 'speed') this.gapMs = message.gapMs;
     else if (message.kind === 'watch') this.watch(message.id);
-    else throw new Error(`The sim run does not handle ${message.kind}`);
+    else this.command(message.kind);
+  }
+
+  private command(kind: ToSim['kind']): void {
+    if (kind === 'play') this.play();
+    else if (kind === 'pause') this.playing = false;
+    else if (kind === 'step') this.stepOnce();
+    else if (kind === 'economy') this.postEconomy();
+    else throw new Error(`The sim run does not handle ${kind}`);
   }
 
   private play(): void {
@@ -152,8 +168,27 @@ export class SimRun {
     }
   }
 
+  private postEconomy(): void {
+    try {
+      this.post({ kind: 'economy', economy: economyOf(this.world, this.flows, this.text) });
+    } catch (error) {
+      this.stop();
+      this.post({ kind: 'failed', turn: this.world.turn, message: errorText(error) });
+    }
+  }
+
+  private nextTurn(): IteratorResult<PlayedTurn> {
+    const turn = this.world.turn;
+    watchStock((shop, good, delta, cause) => this.flows.record(turn, shop, good, delta, cause));
+    try {
+      return this.turns.next();
+    } finally {
+      watchStock(null);
+    }
+  }
+
   private advance(): void {
-    const next = this.turns.next();
+    const next = this.nextTurn();
     if (next.done) {
       this.stop();
       this.post({ kind: 'ended', turn: this.world.turn, reason: this.world.player.state });
@@ -166,6 +201,7 @@ export class SimRun {
     const sample = hourOf(this.world.turn) === hourOf(before) ? null : sampleOf(this.world);
     if (sample) this.history.push(sample);
     this.post({ kind: 'frame', frame: frameOf(this.world, played.events, this.ledger, this.watched, this.text, sample) });
+    if (sample) this.postEconomy();
   }
 
   private stop(): void {
