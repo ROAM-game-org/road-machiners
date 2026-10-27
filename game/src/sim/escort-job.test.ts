@@ -21,6 +21,8 @@ import { lineKey } from '../text/names';
 import { refreshVision } from './vision';
 import type { LineId } from '../data/dialogue';
 
+const RECORDED_THREATS =
+  'bowl>nose=3 bowl>salvage-yard=3 bowl>granary=2 bowl>pump-station=2 bowl>dustwell=2 bowl>green-pit=3 nose>bowl=3 nose>salvage-yard=1 nose>granary=2 nose>pump-station=1 nose>dustwell=3 nose>green-pit=2 salvage-yard>bowl=3 salvage-yard>nose=1 salvage-yard>granary=1 salvage-yard>pump-station=2 salvage-yard>dustwell=2 salvage-yard>green-pit=2 granary>bowl=2 granary>nose=2 granary>salvage-yard=1 granary>pump-station=2 granary>dustwell=2 granary>green-pit=3 pump-station>bowl=2 pump-station>nose=1 pump-station>salvage-yard=2 pump-station>granary=2 pump-station>dustwell=2 pump-station>green-pit=3 dustwell>bowl=2 dustwell>nose=3 dustwell>salvage-yard=2 dustwell>granary=2 dustwell>pump-station=2 dustwell>green-pit=3 green-pit>bowl=3 green-pit>nose=2 green-pit>salvage-yard=2 green-pit>granary=3 green-pit>pump-station=3 green-pit>dustwell=3';
 const BOWL = siteOf('bowl');
 const NOSE = siteOf('nose');
 
@@ -87,6 +89,13 @@ describe('route threat', () => {
       }
     }
     expect(table.length).toBe(ids.length * (ids.length - 1));
+  });
+
+  it('keeps every shop pair\'s value', () => {
+    const w = emptyWorld();
+    const ids = Object.keys(SHOPS);
+    const table = ids.flatMap((a) => ids.filter((b) => b !== a).map((b) => `${a}>${b}=${routeThreat(w, a, b)}`));
+    expect(table.join(' ')).toBe(RECORDED_THREATS);
   });
 });
 

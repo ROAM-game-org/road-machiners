@@ -7,7 +7,8 @@ import { addVehicle, emptyWorld, startCombat, testDrive } from './testkit';
 import { acceptContract, advanceContracts, deliverContract, haulWindow, initializeShops, siteOf, type Contract } from './market';
 import { endTurn } from './world';
 import { nearestRoadPoint } from './salvage';
-import { compassSector, findSurveySites, isSurveyMet, startSurvey, surveyActions, surveyClue, liveSurveySites, surveyLoopTurns, surveyWay, surveyReward, surveySite, surveySites, type SurveyContract } from './survey';
+import SURVEY_SITES_FILE from '../data/survey-sites.json';
+import { surveyThreat, surveyPlaceThreat, compassSector, findSurveySites, isSurveyMet, startSurvey, surveyActions, surveyClue, liveSurveySites, surveyLoopTurns, surveyWay, surveyReward, surveySite, surveySites, type SurveyContract } from './survey';
 import { refreshVision, sightRadius, visibleTiles, tileOf } from './vision';
 import { addState } from './states';
 import { corePart } from './grid';
@@ -559,5 +560,39 @@ describe('survey way', () => {
     const a = surveyWay(w, fakeSurvey(shop, site), { site, found: false, done: false });
     expect(surveyWay(w, fakeSurvey(shop, site), { site, found: false, done: false })).toEqual(a);
     expect(JSON.stringify(w.marketRng)).toBe(before);
+  });
+});
+
+describe('survey danger', () => {
+  const w = emptyWorld();
+  const contract = (sites: string[]): SurveyContract => {
+    const c = { id: 'c', shop: 'bowl', kind: 'survey', points: sites.map((site) => ({ site, found: false, done: false })), reward: 0, deadline: 0, window: 0, tier: 1 } as unknown as SurveyContract;
+    return c;
+  };
+
+  it('gives every baked site a step and tells sites apart', () => {
+    const steps = SURVEY_SITES_FILE.sites.map((site) => surveyPlaceThreat(w, site.id));
+    for (const step of steps) expect([1, 2, 3]).toContain(step);
+    expect(steps).toContain(1);
+    expect(steps.some((step) => step >= 2)).toBe(true);
+  });
+
+  it('reads the worst place, as in the reported survey', () => {
+    expect(surveyThreat(w, contract(['survey-house-52', 'survey-house-82']))).toBe(3);
+    expect(surveyThreat(w, contract(['survey-ruin-45']))).toBe(1);
+  });
+
+  it('does not change when places are found or done', () => {
+    const c = contract(['survey-house-52', 'survey-house-82']);
+    const before = surveyThreat(w, c);
+    for (const p of c.points) {
+      p.found = true;
+      p.done = true;
+    }
+    expect(surveyThreat(w, c)).toBe(before);
+  });
+
+  it('throws on a survey with no places', () => {
+    expect(() => surveyThreat(w, contract([]))).toThrow();
   });
 });
