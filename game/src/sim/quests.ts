@@ -1,5 +1,6 @@
 
 import { Story } from 'inkjs';
+import { choiceKeyAt, EffectLookahead, replyHash, seenAt } from './quest-seen';
 import {
   ALA_HIRED,
   AMBUSH_RAIDER,
@@ -71,6 +72,7 @@ export type QuestView = {
   view: QuestViewKind;
   lines: QuestLine[];
   choices: string[];
+  seen: boolean[];
   costs: (number | null)[];
   checks: (QuestCheck | null)[];
   locked: boolean[];
@@ -82,7 +84,7 @@ export type QuestView = {
 export type QuestQuery = (world: World, args: readonly unknown[]) => QuestValue;
 export type QuestEffect = (world: World, args: readonly unknown[]) => void;
 
-type Runner = { story: Story; world: World | null; restoring: string | null };
+type Runner = { story: Story; world: World | null; restoring: string | null; looking: boolean };
 
 const INK_SEED_RANGE = 2 ** 31;
 const runners = new WeakMap<QuestText, Runner>();
@@ -391,6 +393,7 @@ export function chooseQuestOption(world: World, bundle: QuestBundle, index: numb
     payCost(w, live.costs[index], live.choices[index]);
     const check = live.checks[index];
     if (check) pickedChecks.set(w, check);
+    const key = choiceKeyAt(runnerOf(bundle, questOf(bundle, session.quest)).story, live.ink, index);
     try {
       runQuest(w, bundle, session.quest, (story) => {
         story.state.LoadJson(live.ink);
@@ -399,7 +402,46 @@ export function chooseQuestOption(world: World, bundle: QuestBundle, index: numb
     } finally {
       pickedChecks.delete(w);
     }
+    noteReply(w.player.quests, session.quest, key);
   });
+}
+
+function noteReply(state: QuestState, questId: string, key: string): void {
+  if (state.live?.quest !== questId) return;
+  const kept = state.seen[questId];
+  const entry = kept?.lang === questLanguage ? kept : { lang: questLanguage, replies: {} };
+  entry.replies[key] = replyHash(state.live.lines.map((line) => line.text));
+  state.seen[questId] = entry;
+}
+
+const looked = new WeakMap<QuestLive, { replies: Record<string, string> | null; seen: boolean[] }>();
+
+export function seenChoices(world: World, bundle: QuestBundle): boolean[] {
+  const { live, session } = world.player.quests;
+  if (!live || !session) return [];
+  const replies = repliesHeard(world.player.quests, live);
+  const known = looked.get(live);
+  if (known && known.replies === replies) return known.seen;
+  const seen = replies ? lookAhead(world, bundle, live, replies) : live.choices.map(() => false);
+  looked.set(live, { replies, seen });
+  return seen;
+}
+
+function repliesHeard(state: QuestState, live: QuestLive): Record<string, string> | null {
+  const entry = state.seen[live.quest];
+  return entry?.lang === live.lang ? entry.replies : null;
+}
+
+function lookAhead(world: World, bundle: QuestBundle, live: QuestLive, replies: Record<string, string>): boolean[] {
+  const runner = runnerOf(bundle, questOf(bundle, live.quest));
+  runner.world = world;
+  runner.looking = true;
+  try {
+    return seenAt(runner.story, live.ink, replies);
+  } finally {
+    runner.looking = false;
+    runner.world = null;
+  }
 }
 
 function liveIn(state: QuestState, session: QuestSession): QuestLive {
@@ -414,6 +456,7 @@ export function relanguageQuest(world: World, bundle: QuestBundle): World {
   if (!session || live?.lang === questLanguage) return world;
   return update(world, (w) => {
     w.player.quests.live = null;
+    delete w.player.quests.seen[session.quest];
     restoreQuest(w, bundle);
   });
 }
@@ -458,6 +501,7 @@ export function questView(world: World, bundle: QuestBundle): QuestView {
     view: quest.view,
     lines: live.lines,
     choices: live.choices,
+    seen: seenChoices(world, bundle),
     costs: live.costs,
     checks: live.checks,
     locked: live.costs.map((cost) => cost !== null && cost > money),
@@ -645,7 +689,7 @@ function runnerOf(bundle: QuestBundle, quest: CompiledQuest): Runner {
   const text = textOf(quest);
   const known = runners.get(text);
   if (known) return known;
-  const runner: Runner = { story: new Story(text.story), world: null, restoring: null };
+  const runner: Runner = { story: new Story(text.story), world: null, restoring: null, looking: false };
   for (const name of bundle.externals) bindExternal(runner, name);
   runners.set(text, runner);
   return runner;
@@ -660,6 +704,7 @@ function bindExternal(runner: Runner, name: string): void {
 }
 
 function effectWorld(runner: Runner, name: string): World {
+  if (runner.looking) throw new EffectLookahead(`${EffectLookahead.name}: ${name}`);
   if (runner.restoring) throw new Error(`Effect ${name} ran while loading checkpoint ${runner.restoring}, so every load would run it again. Move it after a choice.`);
   return runnerWorld(runner);
 }

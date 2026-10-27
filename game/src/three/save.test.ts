@@ -47,8 +47,7 @@ import { allSlots, type SlotId } from './save-slots';
 import { lostQuestNames, newGameShape, questLinks, questNames } from '../test/save-shape';
 import { chooseQuestOption, QUESTS, questProblems, questView, startQuest } from '../sim/quests';
 import { defaultSetup, parseSetup } from '../sim/settings';
-import { TOPICS } from '../data/dialogue';
-import { callVehicle, chooseOption, currentOptions } from '../sim/dialogue';
+import { askTopic, callVehicle } from '../sim/dialogue';
 import { resolve } from '../text/resolve';
 import { lineText } from '../ui/dialogue';
 
@@ -247,7 +246,7 @@ describe('game save', () => {
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
     refreshVision(world);
     let opened = callVehicle(world, npc.id);
-    opened = chooseOption(opened, currentOptions(opened).findIndex((o) => o.line === TOPICS.directions.ask!.say));
+    opened = askTopic(opened, 'directions');
     expect(opened.player.call?.line.line).toBe('townWay');
     writeSave(slots, 'auto', opened, RUN, 1000);
 
@@ -273,7 +272,7 @@ describe('game save', () => {
     world.player.talked['someone-else'] = { roadLesson: 'done' };
     refreshVision(world);
     let opened = callVehicle(world, npc.id);
-    opened = chooseOption(opened, currentOptions(opened).findIndex((o) => o.line === TOPICS.roadLesson.ask!.say));
+    opened = askTopic(opened, 'roadLesson');
     expect(opened.player.call?.line.line).toBe('lessonTold');
     writeSave(slots, 'auto', opened, RUN, 1000);
 
@@ -630,7 +629,7 @@ describe('game save', () => {
     const saved = JSON.parse(JSON.stringify(saveOf(world))).world;
     saved.salvage = saved.salvage.filter((stock: { id: string }) => !oldSpotOf(stock));
     saved.vehicles = saved.vehicles.filter((v: { faction: string }) => v.faction !== 'sunward');
-    slots.put('auto', { format: { major: SAVE_MAJOR, minor: SAVE_FORMAT.minor - 1 }, world: saved, savedAt: 1000, runId: RUN });
+    slots.put('auto', { format: { major: SAVE_MAJOR, minor: 113 }, world: saved, savedAt: 1000, runId: RUN });
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
     const oldIds = (w: World): string[] => w.salvage.filter((stock) => oldSpotOf(stock)).map((stock) => stock.id);
     expect(oldIds(loaded)).toEqual(ids);
@@ -717,7 +716,7 @@ describe('game save', () => {
       slots.put('auto', { format: SAVE_FORMAT, world: { ...saved, player: { ...saved.player, quests } } });
       const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
       expect(questProblems(loaded.player.quests, QUESTS)).toEqual([]);
-      expect(loaded.player.quests).toEqual({ world: {}, local: {}, session: null, live: null });
+      expect(loaded.player.quests).toEqual({ world: {}, local: {}, session: null, live: null, seen: {} });
     }
   });
 

@@ -7,7 +7,8 @@ import type { TraitId } from '../data/npcs';
 import { lineKey } from '../text/names';
 import { entryText } from '../text/resolve';
 import { playerVehicle } from './damage';
-import { chooseOption, currentOptions, hangUp, raiseCalls } from './dialogue';
+import { chooseText } from './dialogue-testkit';
+import { currentOptions, hangUp, raiseCalls } from './dialogue';
 import { encounterAvailable, encounterOpen, lapseEncounter, onStrangerSeen, tipPrice } from './encounters';
 import { gridSquareOf } from './map-grid';
 import { remember } from './memory';
@@ -24,14 +25,8 @@ const SOURCES = import.meta.glob<string>('../**/*.ts', { query: '?raw', import: 
 
 const en = (line: LineId): string => entryText('en', lineKey(line));
 
-function optionIndex(w: World, text: string): number {
-  const i = currentOptions(w).findIndex((o) => en(o.line) === text);
-  if (i < 0) throw new Error(`No option "${text}" in ${currentOptions(w).map((o) => en(o.line)).join(' | ')}`);
-  return i;
-}
-
 function pick(w: World, text: string): World {
-  return chooseOption(w, optionIndex(w, text));
+  return chooseText(w, text);
 }
 
 function scene(traits: TraitId[], parts: string[] = ['stockEngine'], x = 36): { w: World; npc: Vehicle } {
@@ -77,7 +72,7 @@ describe('the roll', () => {
 
   it('does not roll while a call is open', () => {
     const { w, npc } = talesWorld();
-    w.player.call = { with: npc.id, topic: null, node: HUB, vars: {}, line: { line: 'goAhead', vars: {} } };
+    w.player.call = { with: npc.id, topic: null, node: HUB, vars: {}, line: { line: 'goAhead', vars: {} }, group: null, asked: [] };
     onStrangerSeen(w, npc);
     expect(w.player.encounters.pending).toBeNull();
     expect(encounterOpen(w)).toBe(false);
@@ -125,7 +120,7 @@ describe('the roll', () => {
     lapseEncounter(w);
     expect(w.player.encounters.pending).not.toBeNull();
     w.turn += 1;
-    w.player.call = { with: npc.id, topic: 'tale', node: 'offer', vars: {}, line: { line: 'gotAStoryFrom', vars: {} } };
+    w.player.call = { with: npc.id, topic: 'tale', node: 'offer', vars: {}, line: { line: 'gotAStoryFrom', vars: {} }, group: null, asked: [] };
     lapseEncounter(w);
     expect(w.player.encounters.pending).not.toBeNull();
     w.player.call = null;

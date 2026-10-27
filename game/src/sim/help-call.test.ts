@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { TraitId } from '../data/npcs';
 import { awakeFoesOf, inCombat } from './combat';
 import { playerVehicle } from './damage';
-import { callVehicle, chooseOption, currentOptions } from './dialogue';
+import { askTopic, callVehicle, chooseOption, currentOptions } from './dialogue';
+import { asksOf, offersLine } from './dialogue-testkit';
 import { canAskHelp, helpAnswer, joinPlayerFight, turnDownCall, type HelpAnswer } from './help-call';
 import { remember } from './memory';
 import { topGoal } from './npc-activities';
@@ -58,8 +59,7 @@ describe('who is offered the topic', () => {
 
   it('offers the line first in the call menu and hides it for a free merc', () => {
     const { w, helper } = fight('independent', ['trader']);
-    const offered = currentOptions(callVehicle(w, helper.id));
-    expect(entryText('en', lineKey(offered[0].line))).toBe("Need a hand here, I'm under fire!");
+    expect(offersLine(callVehicle(w, helper.id), 'needAHandHere')).toBe(true);
     const merc = fight('independent', ['merc']);
     expect(canAskHelp(merc.w, merc.helper)).toBe(false);
   });
@@ -142,7 +142,7 @@ describe('after the answer', () => {
   it('plays through the call topic: a yes sends the helper and a no is final', () => {
     forceOption('helpCalled', 'help');
     const yes = fight('independent', ['trader']);
-    let w = chooseOption(callVehicle(yes.w, yes.helper.id), 0);
+    let w = askTopic(callVehicle(yes.w, yes.helper.id), 'askHelp');
     expect(entryText('en', lineKey(currentOptions(w)[0].line))).toBe('That one, on my tail.');
     w = chooseOption(w, 0);
     expect(topGoal(w.vehicles.find((v) => v.id === yes.helper.id)!)?.reason).toBe('answeredCall');
@@ -152,7 +152,7 @@ describe('after the answer', () => {
   it('a no leaves the topic gone from the next call', () => {
     forceOption('helpCalled', 'refuse');
     const no = fight('independent', ['trader']);
-    let w = chooseOption(callVehicle(no.w, no.helper.id), 0);
+    let w = askTopic(callVehicle(no.w, no.helper.id), 'askHelp');
     w = chooseOption(w, 0);
     expect(w.states.filter((s) => s.kind === 'helpRefused')).toHaveLength(1);
     expect(topGoal(w.vehicles.find((v) => v.id === no.helper.id)!)?.reason).not.toBe('answeredCall');
@@ -188,7 +188,7 @@ describe('a helper in the fight', () => {
 describe('a merc hired in the fight', () => {
   it('is offered the hire topic and not the help topic', () => {
     const c = fight('independent', ['merc']);
-    const offered = currentOptions(callVehicle(c.w, c.helper.id)).map((o) => entryText('en', lineKey(o.line)));
+    const offered = asksOf(callVehicle(c.w, c.helper.id));
     expect(offered).toContain('Ride guard for me for a day?');
     expect(offered).not.toContain("Need a hand here, I'm under fire!");
   });

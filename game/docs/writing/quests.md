@@ -173,6 +173,7 @@ A save keeps only the variables and the last checkpoint. Load replays the quest 
 
 `npm run quests:check` walks every reachable state of every quest in a new game and in a veteran game. It stops and fails at 5,000 states per world. Each variable multiplies the states, so:
 
+- No state may show more than five choices, the way out included. The check names the state and its choices. Gather questions under topic choices that end in …, each opening an untagged stitch of at most four questions and a Back that diverts to the hub, and let every question in it loop to that stitch. Guard a topic with the guards of its questions, so it never opens on a bare Back. [Writing dialogue](dialogue.md) has the writing rules.
 - Prefer one choice over a sequence of picks that can come in any order. Picking facts one by one at an accusation multiplied the depot quest past 35,000 states. One pick of a name followed by a fixed review keeps it near 10,000 in total.
 - Reset short-lived variables as soon as they stop mattering. Use `~ temp` for a value that only one passage needs, as the depot quest's review does.
 - Derive values with an ink function, like `facts_held()`, instead of keeping a counter in sync.
