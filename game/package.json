@@ -2,6 +2,7 @@
   "name": "roam",
   "scripts": {
     "dev": "vite",
+    "sim": "vite --open /sim.html",
     "build": "tsc && vite build",
     "typecheck": "tsc",
     "test": "vitest run",
