@@ -535,6 +535,17 @@ describe('far trips longer than the route window', () => {
     expect(dist(npc.pos, to)).toBeLessThan(RULES.arriveRadius);
   });
 
+  it('drives an NPC straight to a goal it reaches within the turn, with no plan', () => {
+    const { w, npc } = longTrip();
+    const hop = { x: npc.pos.x + vehicleStats(w, npc).maxSpeed / 2, y: npc.pos.y };
+    npc.order = { kind: 'stopAt', dest: hop };
+    npc.speed = vehicleStats(w, npc).maxSpeed;
+    resetPerf();
+    advanceFar(w, npc);
+    expect(perfSnapshot()['coarse-trip']).toBeUndefined();
+    expect(npc.trail.every((p) => Math.abs(p.y - hop.y) < 1e-9)).toBe(true);
+  });
+
   it('drives the player window by window on fine routes in fast travel', () => {
     const { w, to } = longTrip();
     const me = w.vehicles[0];

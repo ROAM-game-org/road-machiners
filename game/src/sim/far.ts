@@ -150,10 +150,10 @@ function onGround(w: World, v: Vehicle, s: VehicleStats): VehicleStats {
 }
 
 function farPoints(w: World, v: Vehicle, dest: Vec, style: RouteStyle, full: VehicleStats, s: VehicleStats): { points: Vec[]; partial: boolean } {
-  const onRope = getHitchedTowIds(w);
   const stored = keptFarRoute(v);
   if (stored && dist(stored.dest, dest) < RULES.arriveRadius && sameStyle(stored, style)) return { points: stored.points, partial: stored.partial === true };
-  if (drivesCoarse(v)) return { points: coarseTrip(w, v.pos, dest, full.radius, v), partial: false };
+  if (drivesCoarse(v)) return { points: coarsePoints(w, v, dest, full.radius, s.maxSpeed), partial: false };
+  const onRope = getHitchedTowIds(w);
   const window = REGION.navigation.farWindow;
   const blockers = [...farBlockers(w, v, s, onRope), ...fieldBlockers(w, v)].filter((b) => dist(b.pos, v.pos) <= window + REGION.navigation.nearSlack + b.r);
   return routeAhead(w, v.pos, dest, full.radius, blockers, v, window);
@@ -185,6 +185,11 @@ function standsClear(w: World, v: Vehicle, at: Vec): boolean {
 
 function isProp(o: Obstacle): boolean {
   return o.kind !== 'site' && o.kind !== 'water';
+}
+
+function coarsePoints(w: World, v: Vehicle, dest: Vec, radius: number, reach: number): Vec[] {
+  if (dist(v.pos, dest) <= reach) return [{ ...dest }];
+  return coarseTrip(w, v.pos, dest, radius, v);
 }
 
 function farBlockers(w: World, v: Vehicle, s: VehicleStats, onRope: ReadonlySet<string>): Blocker[] {
