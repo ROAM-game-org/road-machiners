@@ -300,7 +300,7 @@ export const REGION = {
     offRoadCost: 1.75,
     taste: { scale: 40, strength: 0.6 },
     lookahead: 48,
-    farWindow: 120,
+    farWindow: 240,
     nearSlack: 32,
     slopeCost: 1,
     straighten: 0.05,

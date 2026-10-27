@@ -207,8 +207,15 @@ function blockerKey1(o: Blocker): string {
   return o.prop ? o.prop.key : `${o.pos.x},${o.pos.y},${o.r}`;
 }
 
+const transientWrecks = new WeakMap<Obstacle[], { length: number; terrain: Terrain; blockers: Blocker[] }>();
+
 export function dynamicBlockers(obstacles: Obstacle[], terrain: Terrain, extra: Blocker[]): Blocker[] {
-  return [...obstacles.filter((o) => isDriveObstacle(o) && isTransientWreck(o)).map((o) => driveBlocker(o, terrain)), ...extra];
+  let kept = transientWrecks.get(obstacles);
+  if (!kept || kept.length !== obstacles.length || kept.terrain !== terrain) {
+    kept = { length: obstacles.length, terrain, blockers: obstacles.filter((o) => isDriveObstacle(o) && isTransientWreck(o)).map((o) => driveBlocker(o, terrain)) };
+    transientWrecks.set(obstacles, kept);
+  }
+  return [...kept.blockers, ...extra];
 }
 
 function driveBlocker(o: Obstacle, terrain: Terrain): Blocker {
