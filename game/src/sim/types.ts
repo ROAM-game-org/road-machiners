@@ -341,7 +341,7 @@ export type NpcBrain = {
     fightTurn?: 1 | -1;
     targetSeen?: { id: string; turn: number; pos: Vec; heading: number; speed: number };
     whim?: { kind: 'keep' | 'rush' | 'halt' | 'veer'; until: number; angle: number };
-    farRoute?: { dest: Vec; points: Vec[]; offRoad: boolean; night?: true };
+    farRoute?: { dest: Vec; points: Vec[]; offRoad: boolean; night?: true; partial?: true };
     musteredAt?: number;
     memories: Memory[];
 };

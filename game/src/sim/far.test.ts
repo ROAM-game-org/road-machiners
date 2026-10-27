@@ -16,6 +16,7 @@ import type { Obstacle, Pose, World } from './types';
 import { dist } from './vec';
 import { endTurn } from './world';
 import { REGION } from '../data/region';
+import { roadNetworkOf } from './road-network';
 
 beforeAll(async () => {
   await initPhysics();
@@ -464,6 +465,51 @@ describe('far NPCs and breakable props', () => {
 
     expect(w.obstacles).toEqual([fence]);
     expect(w.broken).toEqual([]);
+  });
+});
+
+describe('far trips longer than the route window', () => {
+  function longTrip() {
+    const w = emptyWorld();
+    w.obstacles = [];
+    const { nodes } = roadNetworkOf(w);
+    const from = nodes[0].pos;
+    const to = nodes.reduce((a, b) => (dist(b.pos, from) > dist(a.pos, from) ? b : a)).pos;
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { ...from });
+    npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    npc.order = { kind: 'stopAt', dest: { ...to } };
+    return { w, npc, to };
+  }
+
+  function drive(w: World, id: string, turns: number): { w: World; windows: number } {
+    let windows = 0;
+    for (let i = 0; i < turns; i++) {
+      const v = w.vehicles.find((x) => x.id === id)!;
+      if (!v.order) break;
+      advanceFar(w, v);
+      if (v.brain!.farRoute?.partial) windows++;
+    }
+    return { w, windows };
+  }
+
+  it('drives window by window to a destination across the map without arriving early', () => {
+    const { w, npc, to } = longTrip();
+    expect(dist(npc.pos, to)).toBeGreaterThan(REGION.navigation.farWindow * 2);
+    const { windows } = drive(w, npc.id, 2000);
+    expect(windows).toBeGreaterThan(0);
+    expect(w.events.filter((e) => e.t === 'arrived' && e.vehicle === npc.id)).toHaveLength(1);
+    expect(dist(npc.pos, to)).toBeLessThan(RULES.arriveRadius);
+  });
+
+  it('ends the trip in the same place after a save and load in the middle of a window', () => {
+    const { w, npc } = longTrip();
+    drive(w, npc.id, 20);
+    expect(npc.brain!.farRoute?.partial).toBe(true);
+    const loaded = JSON.parse(JSON.stringify(w)) as World;
+    loaded.terrain = w.terrain;
+    drive(w, npc.id, 2000);
+    drive(loaded, npc.id, 2000);
+    expect(loaded.vehicles.find((v) => v.id === npc.id)!.pos).toEqual(npc.pos);
   });
 });
 

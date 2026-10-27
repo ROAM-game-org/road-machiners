@@ -5,6 +5,7 @@ import { inLiveRange, isFarTurn, keepsPlayerFarRoute } from './fidelity';
 import { boxSegmentDistance, propBoxes, propReach } from './mapgen';
 import { keepsOffRoads } from './off-road';
 import { route } from './path';
+import { farWaypoint } from './far-window';
 import { propSlotsAlong } from './prop-index';
 import { breakProp } from './salvage';
 import { burnFuel, getResources } from './resources';
@@ -75,26 +76,44 @@ export function advanceFar(w: World, v: Vehicle): void {
   const s = fuelLimited(w, v, onGround(w, v, full), v.speed, order);
   const next = order.kind === 'through' ? throughSpeed(s, v.speed, dist(v.pos, order.dest), order.pace, driveMode(v)) : Math.min(s.maxSpeed, v.speed + s.accel);
   const style = { offRoad: keepsOffRoads(w, v), night: avoidsCrater(w, v) };
-  const points = farPoints(w, v, order.dest, style, full, s);
+  const { points, partial } = farPoints(w, v, order.dest, style, full, s);
 
   const planned = follow(v.pos, points, (v.speed + next) / 2);
   const block = firstContact(w, v, planned.path, full.radius);
   const walk = block ? follow(v.pos, points, block.clear) : planned;
   const end = walk.path[walk.path.length - 1];
-  const reach = order.kind === 'stopAt' ? RULES.arriveRadius : RULES.passRadius;
-  const routeEnd = walk.ahead.length === 0;
-  const done = dist(end, order.dest) < reach || routeEnd || (block !== null && dist(block.other.pos, order.dest) < block.contact + reach);
+  const { done, windowEnds } = farOutcome(order, end, walk, block, partial);
   v.trail = sample(v.chassisId, start, walk.path, walk.moved);
   const last = v.trail[v.trail.length - 1];
   Object.assign(v, { pos: { x: end.x, y: end.y }, heading: last.heading }, bendField(last.bend));
   v.speed = done && order.kind === 'stopAt' ? 0 : block ? Math.min(next, block.other.speed) : next;
   burnFuel(w, v, walk.moved);
   breakCrossed(w, v, walk.path, full.radius);
-  keepFarRoute(v, done || block ? undefined : farRouteOf(order.dest, walk.ahead, style));
+  keepFarRoute(v, done || block || windowEnds ? undefined : farRouteOf(order.dest, walk.ahead, style, partial));
   if (done) {
     w.events.push({ t: 'arrived', vehicle: v.id });
     v.order = null;
   }
+}
+
+type FarWalk = { ahead: Vec[]; moved: number };
+type FarBlock = { other: Vehicle; contact: number } | null;
+
+type DrivenOrder = Exclude<MoveOrder, { kind: 'brake' }>;
+
+function farOutcome(order: DrivenOrder, end: Vec, walk: FarWalk, block: FarBlock, partial: boolean): { done: boolean; windowEnds: boolean } {
+  const reach = order.kind === 'stopAt' ? RULES.arriveRadius : RULES.passRadius;
+  const windowEnds = endsWindow(walk, partial);
+  const routeEnds = walk.ahead.length === 0 && !windowEnds;
+  return { done: dist(end, order.dest) < reach || routeEnds || blockedAtDest(order, block, reach), windowEnds };
+}
+
+function endsWindow(walk: FarWalk, partial: boolean): boolean {
+  return walk.ahead.length === 0 && partial && walk.moved > 0;
+}
+
+function blockedAtDest(order: DrivenOrder, block: FarBlock, reach: number): boolean {
+  return block !== null && dist(block.other.pos, order.dest) < block.contact + reach;
 }
 
 function onGround(w: World, v: Vehicle, s: VehicleStats): VehicleStats {
@@ -102,11 +121,12 @@ function onGround(w: World, v: Vehicle, s: VehicleStats): VehicleStats {
   return { ...s, maxSpeed: s.maxSpeed * unpavedTopShare(s.roughCut) };
 }
 
-function farPoints(w: World, v: Vehicle, dest: Vec, style: RouteStyle, full: VehicleStats, s: VehicleStats): Vec[] {
+function farPoints(w: World, v: Vehicle, dest: Vec, style: RouteStyle, full: VehicleStats, s: VehicleStats): { points: Vec[]; partial: boolean } {
   const onRope = getHitchedTowIds(w);
   const stored = keptFarRoute(v);
-  if (stored && dist(stored.dest, dest) < RULES.arriveRadius && sameStyle(stored, style)) return stored.points;
-  return route(w, v.pos, dest, full.radius, [...farBlockers(w, v, s, onRope), ...fieldBlockers(w, v)], v);
+  if (stored && dist(stored.dest, dest) < RULES.arriveRadius && sameStyle(stored, style)) return { points: stored.points, partial: stored.partial === true };
+  const waypoint = farWaypoint(w, v.pos, dest, style.offRoad);
+  return { points: route(w, v.pos, waypoint.pos, full.radius, [...farBlockers(w, v, s, onRope), ...fieldBlockers(w, v)], v), partial: waypoint.partial };
 }
 
 function farBlockers(w: World, v: Vehicle, s: VehicleStats, onRope: ReadonlySet<string>): Blocker[] {
@@ -120,12 +140,13 @@ function radiusOf(v: Vehicle): number {
   return chassisDef(v.chassisId).radius;
 }
 
-type FarRoute = { dest: Vec; points: Vec[]; offRoad: boolean; night?: true };
+type FarRoute = { dest: Vec; points: Vec[]; offRoad: boolean; night?: true; partial?: true };
 type RouteStyle = { offRoad: boolean; night: boolean };
 
-function farRouteOf(dest: Vec, points: Vec[], style: RouteStyle): FarRoute {
+function farRouteOf(dest: Vec, points: Vec[], style: RouteStyle, partial: boolean): FarRoute {
   const route: FarRoute = { dest: { ...dest }, points, offRoad: style.offRoad };
   if (style.night) route.night = true;
+  if (partial) route.partial = true;
   return route;
 }
 

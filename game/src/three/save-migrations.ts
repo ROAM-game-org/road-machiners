@@ -814,6 +814,7 @@ export const TINY_STEPS: readonly NamedStep[] = [
   { name: 'withRefitQueues', step: withRefitQueues_112_113 },
   { name: 'withChaosHighwayName', step: withChaosHighwayName_113_114 },
   { name: 'withWreckSquares', step: withWreckSquares_114_115 },
+  { name: 'marksPartialFarRoutes', step: (world) => world },
 ];
 
 function withOfferingsRedated_111_112(world: SavedJson): SavedJson {
