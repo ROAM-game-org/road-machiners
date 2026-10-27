@@ -9,13 +9,13 @@ import { liveRoadNews, shipmentOf } from '../road-news';
 import type { World } from '../types';
 import type { SimText } from './sim-mode';
 
-export type EconGood = { good: string; name: string; stock: number; target: number; pressure: number; buy: number; sell: number; buyText: string; sellText: string; tags: string[] };
+export type EconGood = { good: string; name: string; stock: number; target: number; pressure: number; buy: number; sell: number; buyText: string; sellText: string; tags: { id: EconTag; text: string }[] };
 export type EconLine = { recipe: string; name: string; run: RecipeRun; runText: string; inputs: string[]; outputs: string[]; everyHours: number; event: string | null };
 export type EconFlow = { good: string; name: string; cause: StockCause; causeText: string; units: number };
 export type EconShop = { id: string; name: string; x: number; y: number; goods: EconGood[]; lines: EconLine[]; flows: EconFlow[]; contracts: number; parts: number };
 export type EconShipment = { truck: string; truckName: string; good: string; goodName: string; units: number; from: string; to: string; fromXY: { x: number; y: number }; toXY: { x: number; y: number } };
 export type EconNews = { hoursAgo: number; kindText: string; goodName: string; units: number; from: string; to: string };
-export type EconEdge = { good: string; goodName: string; from: string; to: string };
+export type EconEdge = { good: string; goodName: string; fromId: string; toId: string; from: string; to: string };
 export type EconTag = 'short' | 'rationing' | 'slowImport' | 'onOrder';
 export type Economy ={ turn: number; flowHours: number; shops: EconShop[]; shipments: EconShipment[]; news: EconNews[]; edges: EconEdge[] };
 
@@ -60,7 +60,7 @@ export function economyOf(world: World, flows: StockFlows, text: SimText): Econo
     shops: Object.keys(world.shops).map((id) => shopOf(world, id, flows, text)),
     shipments: shipmentsOf(world, text),
     news: newsOf(world, text),
-    edges: graphEdges().map((e) => ({ good: e.good, goodName: text.good(e.good), from: text.site(e.from), to: text.site(e.to) })),
+    edges: graphEdges().map((e) => ({ good: e.good, goodName: text.good(e.good), fromId: e.from, toId: e.to, from: text.site(e.from), to: text.site(e.to) })),
   };
 }
 
@@ -94,7 +94,7 @@ function goodOf(world: World, shopId: string, state: ShopState, good: string, te
     sell,
     buyText: text.money(buy),
     sellText: text.money(sell),
-    tags: tagsOf(world, shopId, state, good).map((tag) => text.tag(tag)),
+    tags: tagsOf(world, shopId, state, good).map((id) => ({ id, text: text.tag(id) })),
   };
 }
 

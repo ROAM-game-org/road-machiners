@@ -10,7 +10,7 @@ import { TEST_MAP } from '../../test/map';
 import { SIM_TEXT } from './sim-text';
 
 const TURNS = 40;
-const ID_FIELDS = new Set(['id', 'good', 'recipe', 'cause', 'run', 'truck']);
+const ID_FIELDS = new Set(['id', 'good', 'recipe', 'cause', 'run', 'truck', 'fromId', 'toId']);
 
 function stocks(world: World): Record<string, number> {
   return Object.fromEntries(Object.entries(world.shops).flatMap(([shop, state]) => Object.entries(state.goods).map(([good, n]) => [`${shop}|${good}`, n])));

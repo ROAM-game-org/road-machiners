@@ -1,7 +1,8 @@
-import type { Economy, EconFlow, EconGood, EconLine, EconNews, EconShop } from "../../sim/progression/sim-economy";
+import type { Economy, EconFlow, EconGood, EconLine, EconNews, EconShop, EconTag } from "../../sim/progression/sim-economy";
 import { devEl as el } from "../dom";
 import { toPx, type Viewport } from "../map-geometry";
 import { token } from "../tokens";
+import { moneyAmount } from "../units";
 
 type Tone = "bad" | "warn" | "";
 type Point = { x: number; y: number };
@@ -13,16 +14,12 @@ const TOWN = { ring: 12, width: 2, color: "--select" };
 
 const RUN_TONE: Record<EconLine["run"], Tone> = { running: "", worn: "warn", fallback: "warn", stopped: "bad" };
 
-function toneOfGood(good: EconGood): Tone {
-  const tags = good.tags.join(" ").toLowerCase();
-  if (tags.includes("ration") || tags.includes("short")) return "bad";
-  return tags.includes("slow") ? "warn" : "";
-}
+const TAG_TONE: Record<EconTag, Tone> = { short: "bad", rationing: "bad", slowImport: "warn", onOrder: "" };
+const TONE_RANK: Tone[] = ["bad", "warn", ""];
 
-function toneOfTag(tag: string): Tone {
-  const lower = tag.toLowerCase();
-  if (lower.includes("ration") || lower.includes("short")) return "bad";
-  return lower.includes("slow") ? "warn" : "";
+function toneOfGood(good: EconGood): Tone {
+  const tones = good.tags.map((t) => TAG_TONE[t.id]);
+  return TONE_RANK.find((tone) => tones.includes(tone)) ?? "";
 }
 
 function toneClass(base: string, tone: Tone): string {
@@ -68,9 +65,9 @@ export function shopAt(economy: Economy, view: Viewport, at: Point, radius: numb
 export function drawEconomy(ctx: CanvasRenderingContext2D, view: Viewport, economy: Economy, selected: string | null, truckAt: (id: string) => Point | null): void {
   const colors = goodTokens(economy);
   const colorOf = (good: string): string => token(colors.get(good) ?? failUnknown(good));
-  drawEdges(ctx, view, economy, colorOf);
-  drawShipments(ctx, view, economy, colorOf, truckAt);
   const chosen = economy.shops.find((s) => s.id === selected);
+  if (chosen) drawEdges(ctx, view, economy, chosen.id, colorOf);
+  drawShipments(ctx, view, economy, colorOf, truckAt);
   if (chosen) drawTown(ctx, toPx(view, chosen));
 }
 
@@ -78,22 +75,22 @@ function failUnknown(good: string): never {
   throw new Error(`The economy names the good ${good}, which no shop trades`);
 }
 
-function drawEdges(ctx: CanvasRenderingContext2D, view: Viewport, economy: Economy, colorOf: (good: string) => string): void {
-  const placeOf = (name: string): Point => {
-    const shop = economy.shops.find((s) => s.name === name);
-    if (!shop) throw new Error(`The economy has an edge at ${name}, which is not a shop`);
+function drawEdges(ctx: CanvasRenderingContext2D, view: Viewport, economy: Economy, town: string, colorOf: (good: string) => string): void {
+  const placeOf = (id: string): Point => {
+    const shop = economy.shops.find((s) => s.id === id);
+    if (!shop) throw new Error(`The economy has an edge at ${id}, which is not a shop`);
     return toPx(view, shop);
   };
   const seen = new Map<string, number>();
   ctx.save();
   ctx.globalAlpha = EDGE.alpha;
   ctx.lineWidth = EDGE.width;
-  for (const edge of economy.edges) {
-    const key = [edge.from, edge.to].sort().join("|");
+  for (const edge of economy.edges.filter((e) => e.fromId === town || e.toId === town)) {
+    const key = [edge.fromId, edge.toId].sort().join("|");
     const index = seen.get(key) ?? 0;
     seen.set(key, index + 1);
-    const from = placeOf(edge.from);
-    const to = placeOf(edge.to);
+    const from = placeOf(edge.fromId);
+    const to = placeOf(edge.toId);
     const length = Math.hypot(to.x - from.x, to.y - from.y) || 1;
     const push = index * EDGE.spread;
     const dx = (-(to.y - from.y) / length) * push;
@@ -187,7 +184,7 @@ export class EconomyView {
     const goods = new Map<string, string>();
     for (const shop of economy.shops) for (const g of shop.goods) goods.set(g.good, g.name);
     const rows = [...goods].sort((a, b) => a[1].localeCompare(b[1]));
-    const head = el("tr", {}, el("th", {}), ...economy.shops.map((s) => el("th", { class: "sim-link", role: "button", tabindex: 0, onclick: () => this.select(s.id) }, s.name)));
+    const head = el("tr", {}, el("th", { class: "dim" }, "Buy, M's"), ...economy.shops.map((s) => el("th", { class: "sim-link", role: "button", tabindex: 0, onclick: () => this.select(s.id) }, s.name)));
     const body = rows.map(([id, name]) => el("tr", {}, el("th", { class: "sim-good" }, swatch(colors.get(id)!), name), ...economy.shops.map((s) => this.cell(s, id))));
     return el("div", { class: "sim-econ-body" },
       el("div", { class: "sim-econ-scroll" }, el("table", { class: "sim-econ-table" }, el("thead", {}, head), el("tbody", {}, ...body))),
@@ -198,9 +195,9 @@ export class EconomyView {
     const good = shop.goods.find((g) => g.good === goodId);
     if (!good) return el("td", { class: "sim-empty" });
     const tone = toneOfGood(good);
-    const tags = good.tags.length > 0 ? `. ${good.tags.join(", ")}` : "";
-    const title = `${good.name}, ${shop.name}: ${good.stock} of ${good.target}${tags}`;
-    return el("td", { class: toneClass("sim-econ-cell", tone), title }, meter(good, tone), el("span", { class: "num" }, good.buyText));
+    const tags = good.tags.length > 0 ? `. ${good.tags.map((t) => t.text).join(", ")}` : "";
+    const title = `${good.name}, ${shop.name}: ${good.stock} of ${good.target}, buy ${good.buyText}, sell ${good.sellText}${tags}`;
+    return el("td", { class: toneClass("sim-econ-cell", tone), title }, meter(good, tone), el("span", { class: "num" }, moneyAmount(good.buy)));
   }
 
   private news(news: EconNews[]): HTMLElement {
@@ -232,16 +229,16 @@ export class EconomyView {
   }
 
   private goods(shop: EconShop, colors: Map<string, string>): HTMLElement {
-    const head = el("tr", {}, el("th", {}), el("th", { class: "num" }, "Stock"), el("th", { class: "num" }, "Target"), el("th", { class: "num" }, "Buy"), el("th", { class: "num" }, "Sell"), el("th", {}));
+    const head = el("tr", {}, el("th", {}), el("th", { class: "num" }, "Stock"), el("th", { class: "num" }, "Target"), el("th", { class: "num" }, "Buy, M's"), el("th", { class: "num" }, "Sell, M's"), el("th", {}));
     const rows = shop.goods.map((g) => {
       const tone = toneOfGood(g);
       return el("tr", {},
         el("td", { class: "sim-good" }, swatch(colors.get(g.good)!), g.name),
         el("td", { class: toneClass("num", tone) }, String(g.stock)),
         el("td", { class: "num dim" }, String(g.target)),
-        el("td", { class: "num" }, g.buyText),
-        el("td", { class: "num" }, g.sellText),
-        el("td", { class: "sim-tags" }, ...g.tags.map((t) => el("span", { class: toneClass("tag", toneOfTag(t)) }, t))));
+        el("td", { class: "num" }, moneyAmount(g.buy)),
+        el("td", { class: "num" }, moneyAmount(g.sell)),
+        el("td", { class: "sim-tags" }, ...g.tags.map((t) => el("span", { class: toneClass("tag", TAG_TONE[t.id]) }, t.text))));
     });
     return el("table", { class: "sim-econ-table sim-econ-goods" }, el("thead", {}, head), el("tbody", {}, ...rows));
   }
