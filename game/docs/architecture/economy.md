@@ -36,7 +36,7 @@
 
 ## Jobs
 
-`src/sim/jobs.ts` owns parked multi-turn jobs, which moving cancels. Refits, field repair in `src/sim/repair.ts` and searches in `src/sim/search.ts` are jobs. Each search turn reveals loot, with a higher chance for a working scraper's knife. `workTimeMult()` in `src/sim/utility.ts` scales refit and roadside patch time by the patcher crane, and `refitTurns()` in `src/sim/inventory.ts` and `patchPlan()` in `src/sim/patch.ts` read it. `src/sim/inventory.ts` holds the inventory commands, and `src/sim/grid.ts` answers grid queries. `workOf()` in `src/sim/states.ts` is the one source for timed work a truck does. That is its job or a state whose kind declares work, like a patch. The HUD and the markers over NPCs read only it, so new timed work gets a progress bar.
+`src/sim/jobs.ts` owns parked multi-turn jobs, which moving cancels. `stoppedByCombat()` in `jobs.ts` says which job kinds combat refuses and cancels: every kind but the survey. Refits, field repair in `src/sim/repair.ts` and searches in `src/sim/search.ts` are jobs. Each search turn reveals loot, with a higher chance for a working scraper's knife. `workTimeMult()` in `src/sim/utility.ts` scales refit and roadside patch time by the patcher crane, and `refitTurns()` in `src/sim/inventory.ts` and `patchPlan()` in `src/sim/patch.ts` read it. `src/sim/inventory.ts` holds the inventory commands, and `src/sim/grid.ts` answers grid queries. `workOf()` in `src/sim/states.ts` is the one source for timed work a truck does. That is its job or a state whose kind declares work, like a patch. The HUD and the markers over NPCs read only it, so new timed work gets a progress bar.
 
 ## Sites
 
