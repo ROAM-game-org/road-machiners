@@ -138,3 +138,49 @@ describe('the first aid key', () => {
     expect(host.applied).toBe(0);
   });
 });
+
+describe('the colored zones in route mode', () => {
+  function controls(start: World) {
+    let w = start;
+    const c = new TruckControls({
+      world: () => w,
+      apply: (next) => { w = next; },
+      commit: (next) => { w = next; },
+      refreshPlan: () => undefined,
+      doused: () => undefined,
+      note: () => undefined,
+      revved: () => undefined,
+    });
+    return { c, world: () => w };
+  }
+  const held = (w: World) => {
+    const order = playerVehicle(w).order;
+    return order && order.kind !== 'brake' ? order : null;
+  };
+
+  it('a red click on a far route holds a crawl, and a far click keeps it', () => {
+    const w = emptyWorld({ x: 200, y: 200 });
+    const me = playerVehicle(w);
+    me.speed = 4;
+    const { c, world } = controls(w);
+    c.order({ x: me.pos.x + 80, y: me.pos.y }, false);
+    expect(held(world())?.pace).toBeUndefined();
+    c.order({ x: me.pos.x + 1, y: me.pos.y }, false);
+    expect(held(world())).toMatchObject({ dest: { x: me.pos.x + 80, y: me.pos.y }, pace: 1 });
+    c.order({ x: me.pos.x + 90, y: me.pos.y + 30 }, false);
+    expect(held(world())).toMatchObject({ dest: { x: me.pos.x + 90, y: me.pos.y + 30 }, pace: 1 });
+  });
+
+  it('manual driving drops the held pace and route mode returns to full', () => {
+    const w = emptyWorld({ x: 200, y: 200 });
+    const me = playerVehicle(w);
+    me.speed = 4;
+    const { c, world } = controls(w);
+    c.order({ x: me.pos.x + 80, y: me.pos.y }, false);
+    c.order({ x: me.pos.x + 1, y: me.pos.y }, false);
+    c.toggleManual();
+    expect(held(world())?.pace).toBeUndefined();
+    c.toggleManual();
+    expect(held(world())?.pace).toBeUndefined();
+  });
+});

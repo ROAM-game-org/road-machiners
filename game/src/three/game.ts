@@ -21,8 +21,8 @@ import {
 import { driveSnapshotOf, type PreparedTurn } from "../phys/turn";
 import { playerTrucks, playerVehicle, vehicleById } from "../sim/damage";
 
-import { inOverdrive, isStranded, maxTurn, vehicleStats } from "../sim/stats";
-import { clickOrder } from "../sim/steering";
+import { inOverdrive, isStranded, vehicleStats } from "../sim/stats";
+import { zoneHalfAngle } from "../sim/steering";
 import type { Vehicle, World } from "../sim/types";
 import { grayRadius, playerSees, tileOf } from "../sim/vision";
 import type { Vec } from "../sim/vec";
@@ -105,7 +105,6 @@ import { easedStopSteps, heldPlayMs, PlayClock } from "./play-clock";
 
 
 const PICK_PX = 30;
-const MIN_ZONE_HALF_ANGLE = Math.PI / 12;
 
 type TurnPhase = ReturnType<UiHost["getTurnPhase"]>;
 
@@ -616,7 +615,7 @@ export class Game {
     const point = this.canClick() && this.utilityAim.pointPending();
     if (this.modalOpen() || action.kind !== "ground" || point) return this.touchTap(x, y);
     const p = this.rig.groundUnder(x, y, this.ground);
-    if (this.canClick() && p) this.controls.order(clickOrder(this.world.terrain, p, true, playerVehicle(this.world)));
+    if (this.canClick() && p) this.controls.order(p, true);
   }
 
   private touchTap(x: number, y: number): void {
@@ -664,7 +663,7 @@ export class Game {
         return;
       case "ground": {
         const p = this.rig.groundUnder(x, y, this.ground);
-        if (p) this.controls.order(clickOrder(this.world.terrain, p, stop, playerVehicle(this.world)));
+        if (p) this.controls.order(p, stop);
         return;
       }
       default:
@@ -994,7 +993,7 @@ export class Game {
 
   private showPlan(): void {
     const plan = this.plans.take(this.world);
-    if (plan) this.path.set(plan.turns, firstTurnColor(playerVehicle(this.world)), plan.course, plan.waypoint);
+    if (plan) this.path.set(plan.turns, firstTurnColor(this.world, playerVehicle(this.world)), plan.course, plan.waypoint);
   }
 
   private flushUi(began: string, phase: TurnPhase): void {
@@ -1229,10 +1228,9 @@ export class Game {
     const s = vehicleStats(this.world, me);
     const sel = s.weapons.filter((m) => m.part.id === this.selected);
     this.weaponRange.set(this.world.terrain, vehicleOrigins(me), sel);
-    if (!me.direct) this.zones.hideBands();
-    else this.zones.update(this.world.terrain, me.pos, me.heading, me.speed, Math.max(MIN_ZONE_HALF_ANGLE, maxTurn(s, me.speed) / 2));
+    this.zones.update(this.world.terrain, me.pos, me.heading, me.speed, zoneHalfAngle(s, me.speed));
     const hover = this.hoverGround;
-    const color = hover ? throttleColor(me, hover) : PAL.plan;
+    const color = hover ? throttleColor(this.world, me, hover) : PAL.plan;
     this.zones.hover(this.world.terrain, hover, color);
   }
 }
