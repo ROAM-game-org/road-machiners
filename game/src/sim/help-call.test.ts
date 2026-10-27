@@ -347,16 +347,14 @@ describe('a company called for help', () => {
   it('plays through the call topic for a yes and a no', () => {
     forceOption('helpCalled', 'help');
     const yes = convoy();
-    let w = chooseOption(callVehicle(yes.w, yes.helper.id), 0);
-    w = chooseOption(w, 0);
+    const w = chooseOption(askTopic(callVehicle(yes.w, yes.helper.id), 'askHelp'), 0);
     for (const guard of yes.guards) expect(topGoal(w.vehicles.find((v) => v.id === guard.id)!)?.reason).toBe('answeredCall');
   });
 
   it('plays through the call topic for a no', () => {
     forceOption('helpCalled', 'refuse');
     const no = convoy();
-    let w = chooseOption(callVehicle(no.w, no.helper.id), 0);
-    w = chooseOption(w, 0);
+    const w = chooseOption(askTopic(callVehicle(no.w, no.helper.id), 'askHelp'), 0);
     expect(w.states.filter((s) => s.kind === 'helpRefused')).toHaveLength(3);
   });
 

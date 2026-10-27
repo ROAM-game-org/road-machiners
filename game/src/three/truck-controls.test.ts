@@ -184,3 +184,36 @@ describe('the colored zones in route mode', () => {
     expect(held(world())?.pace).toBeUndefined();
   });
 });
+
+describe('lights and auto-patch keys while knocked out', () => {
+  function controls(w: World) {
+    const applied: World[] = [];
+    const committed: World[] = [];
+    const h = {
+      world: () => w,
+      apply: (next: World) => { applied.push(next); },
+      commit: (next: World) => { committed.push(next); },
+      refreshPlan: () => undefined,
+    };
+    return { controls: new TruckControls(h as never), applied, committed };
+  }
+
+  it('leave a knocked out world alone', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    w.player.state = 'knockedOut';
+    const { controls: c, applied, committed } = controls(w);
+    c.toggleAutoRepair();
+    c.toggleHeadlights();
+    expect(applied).toEqual([]);
+    expect(committed).toEqual([]);
+  });
+
+  it('toggle on an active world', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const { controls: c, applied, committed } = controls(w);
+    c.toggleAutoRepair();
+    c.toggleHeadlights();
+    expect(applied).toHaveLength(1);
+    expect(committed).toHaveLength(1);
+  });
+});

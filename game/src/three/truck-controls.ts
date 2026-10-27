@@ -15,7 +15,7 @@ import { reachedOutpostAt } from "../sim/chaos-highway";
 import type { World } from "../sim/types";
 import type { Vec } from "../sim/vec";
 import { playerOrder } from "../sim/steering";
-import { playerCanAct, Refused, setAutoRepair, setDirect, setHeadlights, setMoveOrder, setOverdrive } from "../sim/world";
+import { actBlock, playerCanAct, Refused, setAutoRepair, setDirect, setHeadlights, setMoveOrder, setOverdrive } from "../sim/world";
 import { markError, markVehicle } from "../sim/detect";
 import { lookOver } from "../sim/look-over";
 import { hasBasic } from "../sim/progress";
@@ -49,6 +49,7 @@ export class TruckControls {
 
   toggleAutoRepair(): void {
     const w = this.host.world();
+    if (actBlock(w) === "knockedOut") return;
     this.host.apply(setAutoRepair(w, !w.player.autoRepair));
   }
 
@@ -65,6 +66,7 @@ export class TruckControls {
 
   toggleHeadlights(): void {
     const w = this.host.world();
+    if (actBlock(w) === "knockedOut") return;
     this.host.commit(setHeadlights(w, !w.player.headlights));
   }
 

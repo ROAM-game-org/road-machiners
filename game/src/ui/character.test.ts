@@ -115,7 +115,7 @@ describe("character screen", () => {
     world.player.state = "knockedOut";
     const perk = openCharacter(world).all((n) => n.tag === "button" && n.className === "perk")[0];
     expect(perk.attrs.get("aria-disabled")).toBe("true");
-    expect(perk.attrs.get("data-reason")).toBe("You are knocked out");
+    expect(perk.attrs.get("data-reason")).toBe("Knocked out");
   });
 
   it("prints the XP pool as a number and a unit", () => {
