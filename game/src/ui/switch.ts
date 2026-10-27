@@ -37,9 +37,9 @@ export function createSwitch(o: SwitchOptions): HTMLElement {
 }
 
 function switchHandle(o: SwitchOptions): HTMLElement {
-  return o.locked ? createIcon("lock") : switchLever(o.checked);
+  return o.locked ? createIcon("lock") : switchLever(o.checked ? "up" : "down");
 }
 
-function switchLever(up: boolean): HTMLElement {
-  return el("span", { class: up ? "switch-lever up" : "switch-lever down" }, el("span", { class: "switch-nut" }), el("span", { class: "switch-bat" }));
+function switchLever(position: "up" | "down"): HTMLElement {
+  return el("span", { class: `switch-lever ${position}` }, el("span", { class: "switch-nut" }), el("span", { class: "switch-bat" }));
 }

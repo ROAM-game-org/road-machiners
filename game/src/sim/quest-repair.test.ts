@@ -41,7 +41,7 @@ function notesOf(...ids: NoteId[]): Player['notes'] {
 }
 
 function saved(state: Partial<Saved>): Saved {
-  return { world: {}, local: {}, session: null, ...state };
+  return { world: {}, local: {}, session: null, seen: {}, ...state };
 }
 
 function again(bundle: QuestBundle, revisions: SavedRevisions, repair: QuestRepair): QuestRepair {
@@ -62,6 +62,12 @@ describe('repairQuests', () => {
     const repair = repairQuests(CHAIN_STATE, CHAIN_NOTES, {}, CHAIN);
     expect(repair.quests).toEqual(saved({ local: { a: { talked: true } } }));
     expect(repair.notes).toEqual(notesOf('wagonBowl'));
+  });
+
+  it('drops what a reset quest had marked seen and keeps the rest', () => {
+    const entry = { lang: 'en' as const, replies: { 'x.0.hub.c-0': 'abc' } };
+    const repair = repairQuests({ ...CHAIN_STATE, seen: { a: entry, b: entry, c: entry } }, CHAIN_NOTES, {}, CHAIN);
+    expect(repair.quests.seen).toEqual({ a: entry });
   });
 
   it('reads a save with no revisions as revision 1, and a save at the bundle revision as fitting', () => {

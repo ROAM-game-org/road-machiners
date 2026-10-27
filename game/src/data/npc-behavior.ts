@@ -105,7 +105,6 @@ export const AID = {
 };
 
 export const HUNT = {
-  roadSpacing: 60,
   siteDistance: 40,
   lawReach: NPC_BEHAVIOR.patrolRadius + TERRAIN.vision.radius,
   offRoadGoals: ['raid', 'patrol', 'investigate', 'sizeUp'] as const,
@@ -213,7 +212,7 @@ export const STANDING = { dailyDrift: 10, dailyGainCap: 15 };
 
 export const INTERVENE = { range: 10, friendly: 0.25 };
 
-export const HELP_CALL = { allied: 450, friendly: 27, law: 450 };
+export const HELP_CALL = { allied: 450, friendly: 27, law: 450, oddsPower: 2.2, oddsCap: 4, cowardEdge: 3 };
 
 export const REFUSE_KNOWN_AT = -15;
 
@@ -223,6 +222,11 @@ export const SITE_FACTIONS: Partial<Record<string, NpcFactionId>> = {
   scrapjaw: 'scrapjaw',
   kiln: 'kiln',
   'marshal-post': 'marshals',
+};
+
+export const TURF = {
+  reachPerFaction: 300,
+  shares: { scrapjaw: 2 / 3, kiln: 1 / 3 } as Partial<Record<NpcFactionId, number>>,
 };
 
 export const TOWN_TRADER_SHARE = 1 / 3;

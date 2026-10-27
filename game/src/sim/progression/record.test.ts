@@ -53,10 +53,11 @@ describe('record', () => {
 
     for (const skill of SKILL_IDS) {
       const bySource = (Object.keys(XP_SOURCES) as XpSource[]).filter((s) => XP_SOURCES[s].skill === skill).reduce((sum, s) => sum + world.player.xpBySource[s], 0);
-      expect(curve[skill].total, skill).toBeCloseTo(bySource, 6);
+      expect(curve.families[skill].total, skill).toBeCloseTo(bySource, 6);
     }
-    const pool = SKILL_IDS.reduce((sum, skill) => sum + curve[skill].total, 0);
+    const pool = SKILL_IDS.reduce((sum, skill) => sum + curve.families[skill].total, 0);
     const spent = SKILL_IDS.reduce((sum, skill) => sum + cumulativeCost(world.player.ranks[skill]), 0);
+    expect(curve.pooled.total).toBeCloseTo(pool, 6);
     expect(pool).toBeCloseTo(world.player.xp + spent, 6);
   }, RUN_TIMEOUT);
 
