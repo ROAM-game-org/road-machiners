@@ -308,11 +308,17 @@ export function componentOf(layer: NavLayer, cell: number): number {
 export const NO_CLIMB = 255;
 const STEEP_TOLERANCE = 1e-4;
 const CLIMB_NEIGHBOURS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-const climbNeeds = new WeakMap<NavLayer, Uint8Array>();
+const climbNeeds = new WeakMap<NavLayer, Uint8Array | null>();
 
 export function climbNeed(layer: NavLayer): Uint8Array {
+  const need = climbNeedOnRoads(layer);
+  if (need === null) throw new Error('climbNeed: the nav layer has no free road cell');
+  return need;
+}
+
+export function climbNeedOnRoads(layer: NavLayer): Uint8Array | null {
   const hit = climbNeeds.get(layer);
-  if (hit) return hit;
+  if (hit !== undefined) return hit;
   const need = floodClimb(layer);
   climbNeeds.set(layer, need);
   return need;
@@ -326,7 +332,7 @@ function stepOf(layer: NavLayer, cell: number): number {
   return Math.min(NO_CLIMB - 1, Math.ceil(steep / REGION.navigation.climbStep - STEEP_TOLERANCE));
 }
 
-function floodClimb(layer: NavLayer): Uint8Array {
+function floodClimb(layer: NavLayer): Uint8Array | null {
   const n = layer.n;
   const need = new Uint8Array(n * n).fill(NO_CLIMB);
   const buckets: number[][] = Array.from({ length: NO_CLIMB }, () => []);
@@ -339,7 +345,7 @@ function floodClimb(layer: NavLayer): Uint8Array {
     need[c] = step;
     buckets[step].push(c);
   }
-  if (!buckets.some((b) => b.length > 0)) throw new Error('climbNeed: the nav layer has no free road cell');
+  if (!buckets.some((b) => b.length > 0)) return null;
   for (let level = 0; level < NO_CLIMB; level++) {
     const queue = buckets[level];
     while (queue.length > 0) {

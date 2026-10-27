@@ -1,10 +1,12 @@
 import { RULES } from "../data/rules";
 import { describe, expect, it } from "vitest";
-import { vehicleStats } from "./stats";
+import { climbGrade, vehicleStats } from "./stats";
+import { REGION } from "../data/region";
+import { CELL, climbNeed, navLayer } from "./nav/layer";
 import { chassisDef } from "../data/chassis";
 import { backsToDestination, clickOrder, parkedVehicles, setDown, setDownSpot, throttleFor, throughSpeed, zoneEdges, zoneSpeed } from "./steering";
 import { DEG, dist } from "./vec";
-import { addVehicle, emptyWorld, npcBrain } from "./testkit";
+import { addVehicle, editableTerrain, emptyWorld, npcBrain } from "./testkit";
 import { addState } from "./states";
 import { getHitchedTowIds } from "./tow";
 import { TEST_MAP } from '../test/map';
@@ -183,7 +185,36 @@ describe("setting a stranded truck down", () => {
     const spot = setDownSpot(w, me);
     expect(dist(spot, me.pos)).toBeGreaterThan(4.7);
     const anchor = nearestSitePad(atlasOf(w.terrain), me.pos).pad;
-    expect(reachesFrom(w, anchor, vehicleStats(w, me).radius)(spot)).toBe(true);
+    expect(reachesFrom(w, anchor, vehicleStats(w, me).radius, Infinity)(spot)).toBe(true);
+  });
+
+  function pitted(center: Vec, slope: number, radius: number): World {
+    const w = emptyWorld(center);
+    editableTerrain(w);
+    const row = w.terrain.size + 1;
+    for (let j = 0; j < row; j++) {
+      for (let i = 0; i < row; i++) {
+        const r = Math.hypot(i - center.x, j - center.y);
+        if (r < radius) w.terrain.heights[j * row + i] = slope * (r - radius);
+        if (r < radius + 2 && i < w.terrain.size && j < w.terrain.size) w.terrain.types[j * w.terrain.size + i] = "hardpan";
+      }
+    }
+    return w;
+  }
+
+  it("sets a truck in a pit steeper than it can climb down outside it", () => {
+    const w = pitted({ x: 60.6, y: 60.3 }, 0.58, 6);
+    const me = w.vehicles[0];
+    const spot = setDownSpot(w, me);
+    expect(dist(spot, { x: 60, y: 60 })).toBeGreaterThan(4);
+    const layer = navLayer(w.terrain, w.obstacles, vehicleStats(w, me).radius);
+    const steps = Math.floor(climbGrade(w, me) / REGION.navigation.climbStep + 1e-9);
+    expect(climbNeed(layer)[Math.floor(spot.y / CELL) * layer.n + Math.floor(spot.x / CELL)]).toBeLessThanOrEqual(steps);
+  });
+
+  it("keeps the truck's spot on a slope it can climb", () => {
+    const w = pitted({ x: 60.6, y: 60.3 }, 0.3, 6);
+    expect(setDownSpot(w, w.vehicles[0])).toEqual(w.vehicles[0].pos);
   });
 
   it("leaves a truck stranded for the whole stranded count, straight and at rest", () => {

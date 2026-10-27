@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { RULES } from '../data/rules';
 import { PHYSICS } from '../data/physics';
 import { editableTerrain, emptyWorld } from '../sim/testkit';
 import { heightAt } from '../sim/terrain';
@@ -110,5 +111,31 @@ describe('seating a truck on the ground', () => {
     const d = buildDrive(w);
     const ups = parkedTurns(w, d, 2);
     expect(Math.min(...ups)).toBeGreaterThanOrEqual(0.85);
+  });
+
+  it('rests a truck placed in a pit steeper than it climbs without stranding it in a set-down loop', () => {
+    const w = emptyWorld({ x: 60.6, y: 60.3 });
+    editableTerrain(w);
+    const row = w.terrain.size + 1;
+    for (let j = 0; j < row; j++) {
+      for (let i = 0; i < row; i++) {
+        const r = Math.hypot(i - 60, j - 60);
+        if (r < 6) w.terrain.heights[j * row + i] = SLOPE * (r - 6);
+        if (r < 8 && i < w.terrain.size && j < w.terrain.size) w.terrain.types[j * w.terrain.size + i] = 'hardpan';
+      }
+    }
+    let d = buildDrive(w);
+    const counts: number[] = [];
+    let after = w;
+    for (let i = 0; i < 12; i++) {
+      let next: Drive | null = null;
+      after = endTurn(after, physicsMove(d, (r) => (next = r.next)));
+      freeDrive(d);
+      d = next!;
+      counts.push(after.vehicles[0].strandedTurns!);
+    }
+    freeDrive(d);
+    expect(counts.slice(-6)).toEqual([0, 0, 0, 0, 0, 0]);
+    expect(counts.filter((c) => c > 0).length).toBeLessThanOrEqual(RULES.stranded.turns);
   });
 });

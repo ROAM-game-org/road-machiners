@@ -533,19 +533,19 @@ describe('reachesFrom', () => {
 
   it('is false inside a closed ring of rocks and true beside the anchor', () => {
     const w = ringed();
-    const reaches = reachesFrom(w, { x: 80, y: 60 }, 0.6);
+    const reaches = reachesFrom(w, { x: 80, y: 60 }, 0.6, Infinity);
     expect(reaches(center)).toBe(false);
     expect(reaches({ x: 79, y: 60 })).toBe(true);
   });
 
   it('is false off the map', () => {
-    const reaches = reachesFrom(emptyWorld(), { x: 80, y: 60 }, 0.6);
+    const reaches = reachesFrom(emptyWorld(), { x: 80, y: 60 }, 0.6, Infinity);
     expect(reaches({ x: -1, y: 60 })).toBe(false);
   });
 
   it('throws on an anchor inside a solid rock', () => {
     const w = emptyWorld();
     w.obstacles = [{ id: 'big', pos: { x: 80, y: 60 }, r: 8, kind: 'rock' }];
-    expect(() => reachesFrom(w, { x: 80, y: 60 }, 0.6)).toThrow(/No nav component/);
+    expect(() => reachesFrom(w, { x: 80, y: 60 }, 0.6, Infinity)).toThrow(/No nav component/);
   });
 });
