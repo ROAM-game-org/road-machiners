@@ -22,6 +22,7 @@ import { currentQuestLanguage } from "../sim/quests";
 import type { GameEvent, Vehicle, World } from "../sim/types";
 import { dist, type Vec } from "../sim/vec";
 import { isOnRope, isTowed } from "../sim/tow";
+import { playerSees } from "../sim/vision";
 import { autoRuns, playerCanAct, threatToPlayer, waitsOnPlayer } from "../sim/world";
 import { WorkerLoad, workerFailure } from "./worker-load";
 import { HostileSighting } from "./hostile-sighting";
@@ -211,6 +212,10 @@ function farContactsOf(world: World): string[] {
   return world.player.contacts.filter((c) => c.sources.includes("far")).map((c) => c.vehicleId);
 }
 
+export function trucksInSightOf(world: World): string[] {
+  return world.vehicles.filter((v) => v.id !== world.player.vehicleId && playerSees(world, v.pos)).map((v) => v.id);
+}
+
 export function canTravel(world: World): boolean {
   const me = playerVehicle(world);
   if (!playerCanAct(world) || me.direct) return false;
@@ -316,7 +321,7 @@ export class Travel {
   }
 
   private travelsOn(world: World, sighted: boolean): boolean {
-    const spotted = this.farSighting.observe(world.turn, farContactsOf(world)).sighted && this.fastTravel();
+    const spotted = this.farSighting.observe(world.turn, farContactsOf(world), trucksInSightOf(world)).sighted && this.fastTravel();
     return canTravel(world) && !sighted && !spotted;
   }
 

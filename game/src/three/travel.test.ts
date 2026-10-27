@@ -10,7 +10,7 @@ import { startKit } from "../data/start";
 import { playerVehicle } from "../sim/damage";
 import type { GameEvent, Vehicle, World } from "../sim/types";
 import { endTurn, newWorld, setMoveOrder } from "../sim/world";
-import { addRopeFrames, canTravel, Creep, nextSightSample, overshoots, threatsIn, Travel, type Playback } from "./travel";
+import { addRopeFrames, canTravel, Creep, nextSightSample, overshoots, threatsIn, Travel, trucksInSightOf, type Playback } from "./travel";
 import { headingQuat, type VehicleFrame } from "../phys/frames";
 import { addState, declareFeud } from "../sim/states";
 import { TEST_MAP } from "../test/map";
@@ -403,6 +403,23 @@ describe("automatic travel safety", () => {
     };
     expect(run(CONFIG.travelSpeeds.length - 1)).toBe(false);
     expect(run(0)).toBe(true);
+  });
+
+  it("keeps fast travel going when a truck the player saw last turn drifts out into far sight", () => {
+    const start = makeSafeWorld();
+    const me = playerVehicle(start);
+    const world = setMoveOrder(start, { kind: "stopAt", dest: { x: me.pos.x + 60, y: me.pos.y } });
+    const seen = { ...me, id: "stranger", pos: { x: me.pos.x + 5, y: me.pos.y } };
+    world.vehicles = [...world.vehicles, seen];
+    expect(trucksInSightOf(world)).toEqual(["stranger"]);
+    const drifted = { ...world, turn: world.turn + 1, vehicles: [playerVehicle(world), { ...seen, pos: { x: me.pos.x + 30, y: me.pos.y } }], player: { ...world.player, contacts: [{ vehicleId: "stranger", center: { x: 0, y: 0 }, radius: 10, sources: ["far" as const], loudness: null }] } };
+    const travel = new Travel(250, TAIL);
+    travel.setSpeedIndex(CONFIG.travelSpeeds.length - 1);
+    travel.press(0, false, true);
+    travel.release();
+    travel.updateWorld(world, false);
+    travel.updateWorld(drifted, false);
+    expect(travel.isAuto(drifted)).toBe(true);
   });
 
   it("ignores a bump into a prop or the ground but stops for a crash into a truck", () => {

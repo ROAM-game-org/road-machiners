@@ -9,6 +9,12 @@ describe("HostileSighting", () => {
     expect(watch.observe(2, []).sighted).toBe(false);
     expect(watch.observe(4, ["a"]).sighted).toBe(true);
   });
+  it("does not flag a truck that was known last turn by other means, like plain sight", () => {
+    const watch = new HostileSighting();
+    expect(watch.observe(1, [], ["a"]).sighted).toBe(false);
+    expect(watch.observe(2, ["a"]).sighted).toBe(false);
+    expect(watch.observe(4, ["a"]).sighted).toBe(true);
+  });
   it("ignores sight flicker inside a turn and into the next", () => {
     const watch = new HostileSighting();
     watch.observe(1, ["a"]);
