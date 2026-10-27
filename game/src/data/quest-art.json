@@ -67,7 +67,7 @@
   "town_bowl": {
     "file": "town_bowl.webp",
     "focusX": 50,
-    "focusY": 48
+    "focusY": 35
   },
   "town_nose": {
     "file": "town_nose.webp",
