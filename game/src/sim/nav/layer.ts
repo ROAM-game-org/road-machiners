@@ -443,11 +443,21 @@ export function stampBlockers(n: number, blockers: Blocker[], radius: number, ma
   const grow = radius + CLEARANCE;
   for (const o of blockers) {
     if (!o.prop) {
-      const reach = o.r + grow;
-      stampWithin(n, o.pos, reach, reach, (p) => dist(p, o.pos) < reach, mark);
+      stampCircle(n, o.pos, o.r + grow, mark);
       continue;
     }
     for (const box of o.prop.boxes) stampWithin(n, box.center, ...boxExtent(box, grow), (p) => boxDistance(box, p) < grow, mark);
+  }
+}
+
+function stampCircle(n: number, center: Vec, reach: number, mark: (cell: number) => void): void {
+  const x0 = Math.max(0, Math.floor((center.x - reach) / CELL));
+  const y0 = Math.max(0, Math.floor((center.y - reach) / CELL));
+  const x1 = Math.min(n - 1, Math.floor((center.x + reach) / CELL));
+  const y1 = Math.min(n - 1, Math.floor((center.y + reach) / CELL));
+  for (let x = x0; x <= x1; x++) {
+    const dx = center.x - (x + 0.5) * CELL;
+    for (let y = y0; y <= y1; y++) if (Math.hypot(dx, center.y - (y + 0.5) * CELL) < reach) mark(y * n + x);
   }
 }
 
