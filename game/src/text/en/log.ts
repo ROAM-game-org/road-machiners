@@ -231,7 +231,7 @@ export const LOG = {
   'log.siteEvent.breakdown': m('The works at {site} break down. Little {good} comes out until they are fixed.', { site: 'text', good: 'text' }),
   'log.engineCredit': m('The garage fits a {part} on credit.', { part: 'text' }),
   'log.scrapPatch': 'You patch your truck with scrap until it moves again.',
-  'log.scrapPatchFuel': m('You patch your truck with scrap until it moves again. Townsfolk spare you {liters} L of fuel.', { liters: 'int' }),
+  'log.scrapPatchFuel': m('You patch your truck with scrap until it moves again. The locals spare you {liters} L of fuel.', { liters: 'int' }),
   'log.npcKnockout': m('{who} knocked out', { who: 'text' }),
   'log.joins': m('{who} joins the fight', { who: 'text' }),
   'log.standing.hostile': m('{faction} now treats you as hostile', { faction: 'text' }),
