@@ -65,21 +65,20 @@ function sightDisks(world: World, from: Vec): { reach: number; disk: Disk }[] {
 export function seenPropTiles(world: World, from: Vec, visible: ReadonlySet<number>): number[] {
   const disks = sightDisks(world, from);
   const reach = Math.max(...disks.map((d) => d.reach));
-  const candidates = propsAround(world, 'sight', from, reach);
   const out = new Set<number>();
-  for (const o of candidates) {
-    if (!propIsSeen(world, from, o, candidates, disks, visible)) continue;
-    for (const idx of footprintTiles(world, o)) out.add(idx);
+  for (const o of propsAround(world, 'sight', from, reach)) {
+    const tiles = footprintTiles(world, o);
+    if (!propIsSeen(world, from, o, tiles, disks, visible)) continue;
+    for (const idx of tiles) out.add(idx);
   }
   return [...out].sort((a, b) => a - b);
 }
 
-function propIsSeen(world: World, from: Vec, o: Obstacle, candidates: readonly Obstacle[], disks: { reach: number; disk: Disk }[], visible: ReadonlySet<number>): boolean {
-  if (footprintTiles(world, o).some((idx) => visible.has(idx))) return true;
+function propIsSeen(world: World, from: Vec, o: Obstacle, tiles: readonly number[], disks: { reach: number; disk: Disk }[], visible: ReadonlySet<number>): boolean {
+  if (tiles.some((idx) => visible.has(idx))) return true;
   if (!disks.some((d) => inDisks(o.pos, { pos: from, r: d.reach }, d.disk))) return false;
   if (isHeadless()) return true;
-  const others = candidates.filter((c) => c !== o);
-  return inPlainView(world, from, o.pos, others, []);
+  return inPlainView(world, from, o.pos, propsNear(world, from, o.pos).filter((c) => c !== o), []);
 }
 
 function footprintTiles(world: World, o: Obstacle): number[] {
