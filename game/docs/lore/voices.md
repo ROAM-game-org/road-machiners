@@ -60,7 +60,7 @@ He cares about the vote and about the tenants in the patrol. He avoids joking ab
 
 He treats a stranger as an audience that may carry his case away.
 
-Sample: "The sack leaves the store once and the Senate counts it twice."
+Sample: "The sack leaves the store once and the Senate spends it twice."
 
 ### Bo Lindqvist, Granary driver
 
@@ -78,13 +78,13 @@ Sample: "The hall can say what it likes, but I know what my hand did."
 
 ### Patrol driver at the Granary
 
-The driver talks of sacks, tires, loads and the order of a run. He counts costs in sacks.
+The driver talks of sacks, tires, loads and the order of a run. He weighs a cost against a crate of rations.
 
 His sentences follow the job from first step to last. He speaks while he works and glances at the truck.
 
 He calls a stranger friend. He explains a thing by what it costs or what it holds.
 
-He cares about the count being honest and the load being tied down. He avoids saying he has seen anything he only heard.
+He cares about the Kiln crates going out on time and the load being tied down. He avoids saying he has seen anything he only heard.
 
 He treats a stranger as a driver who should check the tires before anything else.
 
@@ -92,24 +92,25 @@ Sample: "A crate of rations is cheaper than a truck, so nobody argues about it."
 
 ### Odile Marsh, Granary steward
 
-Odile talks of sacks, counts, winters and the gate. She measures everything in sacks and weeks of bread.
+Odile talks of the bins, winters, dust on the roads, Kiln and the Senate. She judges a day by what it does to her stores.
 
-Her sentences are short and exact, with a number in most of them. She gives the count first and her fear after it.
+Her sentences are short and plain. She gives the fact first and her fear after it.
 
-She says "It's on the gate", meaning the count she posts there. She checks a stranger's load before their face.
+She looks at the sky before she looks at a stranger, and at their load after that.
 
-She cares about a full Granary and an honest count. She avoids the word turncoat and anything about her years as a tenant.
+She cares about a full Granary and the Kiln crates going out on time. She avoids the word turncoat and anything about her years as a tenant.
 
-She treats a stranger as a load that may or may not be on her count.
+She treats a stranger as a load that may or may not reach her bins.
 
-Sample: "Forty sacks in, thirty-one out. The nine are on the gate, and so is the truck that didn't come."
+Sample: "The Senate wants the bins full and the Kiln crates cut. It can have one of those."
+
 ### Mags Corrin, weigher at the gate yard
 
-Mags talks of weight, crates, chalk and what iron turns into: the truck parts Bowl's machinists make from it. She sees every crate as the thing it will become.
+Mags talks of weight, crates, rust and what iron turns into: the truck parts Bowl's machinists make from it. She sees every crate as the thing it will become.
 
-Her sentences are short and counted out, like weights going onto a beam. She states the weight first and the use after it.
+Her sentences are short and even, like weights going onto a beam. She states the weight first and the use after it.
 
-She looks into a driver's bed before she looks at the driver. She chalks as she talks.
+She looks into a driver's bed before she looks at the driver. She wipes rust off her hands as she talks.
 
 She wants steady sellers, so the machinists never stand idle. She avoids asking where anything came from, and says so.
 
@@ -117,17 +118,49 @@ She treats a stranger as a load that hasn't been weighed yet.
 
 Sample: "Engine guts weigh heavy. They go to whoever's truck is coughing. I don't ask whose truck they came off."
 
+### Agnes Ondra, pump keeper at Dustwell
+
+Agnes talks of the pump, the tanks, the tank wall, the hoses and the tools that wear out. She says what the water is doing and adds nothing to it.
+
+Her sentences are short and flat. She says hard things in a low voice, and she says them to the work in her hands, not to your face.
+
+She wipes the tank wall as she talks. She stops talking when the man on the drum looks up.
+
+She wants one driver to show Bowl what she has seen. She avoids saying the steward's name, and she says so only when she must.
+
+She treats a stranger as one more truck that will be gone next week.
+
+Sample: "A leak that big would make the ground muddy. I check the tanks every day, and the ground is dry."
+
+Sample: "I took it because I was afraid to refuse him to his face."
+
+### Mirela Duarte, lock house keeper
+
+Mirela talks of the trough, the canals, the lock families and who gets to say where the water goes. She says what she thinks before she has weighed it.
+
+Her sentences are quick and sharp. She starts a thought, throws in a second one, and does not always finish the first.
+
+She keeps a hand on the trough rim as she talks. She looks at the seal on a thing before she looks at the person holding it.
+
+She wants the Canal families to have their lock share back. She avoids praising anyone to their face, and she is blunt about her own side.
+
+She treats a stranger as a witness until the stranger proves to be only a driver.
+
+Sample: "The household will say Agnes and I both want this water, and that's true. You don't."
+
+Sample: "Both. The trough first."
+
 ## Nose, the Salvage Yard and the road
 
 ### Sergeant Kovac
 
-Vocabulary: orders, the sheet, the log, the roster, schedules, fuel counts and hours. He compares things to duty rosters and rations.
+Vocabulary: orders, the sheet, the log, the roster, schedules and hours. He compares things to duty rosters and rations.
 
 Rhythm: clipped military sentences, one fact and then what follows from it. He uses contractions the way a soldier does, like "Don't be late" and "I won't reopen it".
 
 Habits: he says "I log it" and "That is above my sheet". He asks a stranger to state business and keep it short.
 
-Cares about: order, his fuel count and the soldiers on his roster. He avoids any opinion about command, and he goes quiet about Emil Kessel.
+Cares about: order, the fuel in his depot and the soldiers on his roster. He avoids any opinion about command, and he goes quiet about Emil Kessel.
 
 Strangers: polite and wary. He tells a stranger exactly what he can give and what he cannot.
 
@@ -177,17 +210,17 @@ Sample: "The plug leaves a ring at the base of the skull, and the clamps leave a
 
 ### Ines Abend
 
-Vocabulary: the count, the number, the tower, the year, the sky and the plate. She compares things to tallies and to reading.
+Vocabulary: the bars, the tone, the radio, the tower, the year, the sky and the plate. She compares things to a struck bar and its ring.
 
 Rhythm: level and gentle. Her sentences are complete and unhurried, and she often ends a thought with one short sentence that sums it up.
 
-Habits: she says "I do not know" plainly, and she says what she believes apart from what she knows. She offers to read the number before anyone asks.
+Habits: she says "I do not know" plainly, and she says what she believes apart from what she knows. She holds a bar to the radio before anyone asks, so the stranger hears the ring match the tone.
 
-Cares about: the number being open to everyone. She avoids guessing what happens when the count stops, and she does not blame the Sunward.
+Cares about: the bars being open to everyone. She avoids guessing what happens when the tone reaches the last bar, and she does not blame the Sunward.
 
-Strangers: she gives a stranger the number first and her name second.
+Strangers: she lets a stranger hear the match first and gives her name second.
 
-Sample: "A number kept in one head is a number kept from everyone. We voted on it, and I spoke first."
+Sample: "Nobody should take my word for it. The bars hang here so you can hear the match yourself."
 
 ### The Bureau clerk
 
@@ -329,7 +362,7 @@ Vocabulary: the run, the load, what is left in the tank, a favor owed.
 
 Rhythm: fast, clipped, always the next stop in his head. He names himself first.
 
-Habits: he keeps count of who helped and who did not. He pays what he said he would, and he says so.
+Habits: he remembers who helped and who did not. He pays what he said he would, and he says so.
 
 Cares about: the delivery. A friend is someone who kept him rolling.
 
@@ -469,17 +502,17 @@ Sample: "Paint's the only name a truck has."
 
 ### Petra Quell, keeper of the mast
 
-Petra talks of the mast, the gate bell, the fence, crossings and the hour a thing happened. She compares things to a ledger line or a signal: written down, heard, sent, paid for.
+Petra talks of the mast, the gate bell, the fence, crossings and what the radio hears. She compares things to a signal: heard, sent, paid for.
 
-Her sentences are short and level, and each carries one fact. She gives the hour or the day first, then what happened, then what it costs, if it costs anything.
+Her sentences are short and level, and each carries one fact. She gives what she saw or heard first, then what it costs, if it costs anything.
 
-She writes a truck down when it comes over the rise, and says so. She prices what she knows and says the price before she says the news. Sometimes she stops to look at the fence while she answers.
+She watches a truck come over the rise, and says so. She prices what she knows and says the price before she says the news. Sometimes she stops to look at the fence while she answers.
 
 She wants the mast to pay its own way. She avoids talking about the Guild and what it takes, and about how she came by the cars the Marshalls drive.
 
-She treats a stranger as a truck that is already written down and a possible buyer of what the mast hears.
+She treats a stranger as a truck she saw coming and a possible buyer of what the mast hears.
 
-Sample: "You came over the rise with the sun behind you. I wrote the hour down. Park inside the fence and the bell is free."
+Sample: "You came over the rise with the sun behind you. I saw your dust before I heard your engine. Park inside the fence and the bell is free."
 
 Sample: "Wim writes the claim. I only say who crossed and when."
 
@@ -501,7 +534,7 @@ Sample: "Hang it on the hook. You eat once for nothing. After that the cup costs
 
 ### Hollis Brennan, the still boss at the Pump Station
 
-Hollis talks of crude, stills, drums, valves and batteries. He counts in drums a day.
+Hollis talks of crude, stills, drums, valves and batteries. A good day to him is a hot still and a full stack by the gate.
 
 His sentences are flat and practical. He names the job, then the part it needs.
 

@@ -40,8 +40,8 @@ The Old Army's trucks still stand where they stopped at Old Orchard. Their logs,
 
 ## The Archon's truck
 
-1. Agnes Ondra at Dustwell asks the player to carry a sealed copy of her pump book to Mirela Duarte in Bowl.
-2. The book shows water going missing every week into the household truck's barrels, whose loads a Senate order keeps out of the book. Mirela Duarte's Canal book proves the rest of Agnes's numbers are real.
+1. Agnes Ondra at Dustwell asks the player to carry a sealed copy of her tank wall rings to Mirela Duarte in Bowl.
+2. The rings show the water standing lower every season while the household truck fills first from its own hose, whose loads a Senate order keeps nobody from asking about. Mirela Duarte's trough proves the rest of Agnes's story is real, since Bowl's trucks arrive as short as they left, with every bung whole.
 3. Tomas Duarte, Mirela's cousin in a Bowl coat, wrote a patrol report about the household truck. It sits on the Archon's desk.
 4. The Archon's household offers the player good money to lose the copy on the road.
 5. The player can deliver the copy, sell it, read it out in the Bowl market, or drop it in a ditch.
