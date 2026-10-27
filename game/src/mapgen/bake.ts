@@ -3,11 +3,11 @@ import { MAP_DRAFT, REGION } from '../data/region';
 import { GEOLOGY, MAPGEN, TERRAIN, type TerrainTypeId } from '../data/terrain';
 import { bridgeCut, deckAt, ICARUS_DECKS } from '../sim/bridge';
 import { ICARUS_KEY, icarusAtlas } from '../sim/atlas';
-import { broadAt, flattenFactor, reliefAt } from '../sim/elevation';
+import { bakedHeight, broadAt, flattenFactor, reliefAt } from '../sim/elevation';
 import { gradeRoads } from '../sim/road-grade';
 import { ROAD_INDEX } from '../sim/road-index';
 import { chance, randRange, type Rng } from '../sim/rng';
-import { groundAt, heightFromElevation, TYPE_IDS, type BakedProp } from '../sim/terrain';
+import { groundAt, TYPE_IDS, type BakedProp } from '../sim/terrain';
 import { clearOfSites, onDeck } from '../sim/mapgen';
 import { siteGap } from '../sim/sites';
 import { dist, polylineDist, type Vec } from '../sim/vec';
@@ -106,7 +106,7 @@ export function footprintRelief(heights: ArrayLike<number>, size: number, p: Bak
 
 export function baseLayer(seed: number, size: number): MapDraft {
   const d = newDraft(size);
-  for (let j = 0; j <= size; j++) for (let i = 0; i <= size; i++) d.heights[j * (size + 1) + i] = heightFromElevation(reliefAt(seed, i, j) + broadAt(seed, i, j));
+  for (let j = 0; j <= size; j++) for (let i = 0; i <= size; i++) d.heights[j * (size + 1) + i] = bakedHeight(seed, reliefAt(seed, i, j) + broadAt(seed, i, j), i, j);
   return d;
 }
 
@@ -116,7 +116,7 @@ export function finishLayer(seed: number, d: MapDraft): MapDraft {
     const flatten = flattenFactor(i, j) * (1 - bridgeCut(ICARUS_DECKS, i, j));
     if (flatten === 0) continue;
     const k = j * w + i;
-    d.heights[k] += (heightFromElevation(broadAt(seed, i, j)) - d.heights[k]) * flatten;
+    d.heights[k] += (bakedHeight(seed, broadAt(seed, i, j), i, j) - d.heights[k]) * flatten;
   }
   d.heights.set(gradeRoads({ size: d.size, heights: Array.from(d.heights), types: [], atlas: ICARUS_KEY }));
   return d;

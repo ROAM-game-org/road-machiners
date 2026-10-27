@@ -5,6 +5,9 @@ import { bridgeCut, ICARUS_DECKS } from './bridge';
 import { strongestStamp } from './ground-stamps';
 import { INDEX_CELL, ROAD_INDEX, RoadIndex } from './road-index';
 import { reservedGround } from './start-pose';
+import { noise2, smooth } from './noise';
+import { macroHeight } from './relief-solve';
+import { zoneRoughness } from './zones';
 import { heightFromElevation } from './terrain';
 import { clamp, lerp, pointInPolygon, type Vec } from './vec';
 
@@ -17,28 +20,6 @@ const FEATURES = [TERRAIN.features.canyon, TERRAIN.features.dryRiver, TERRAIN.fe
 }));
 const RESERVED = reservedGround();
 const FLATTEN_REACH = REGION.roadWidth / 2 + TERRAIN.flattenMargin;
-
-function hash(x: number, y: number, seed: number): number {
-  let h = (Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(seed | 0, 2246822519)) | 0;
-  h = Math.imul(h ^ (h >>> 13), 1274126177);
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-}
-
-function smooth(t: number): number {
-  return t * t * (3 - 2 * t);
-}
-
-function noise2(x: number, y: number, seed: number): number {
-  const x0 = Math.floor(x);
-  const y0 = Math.floor(y);
-  const fx = smooth(x - x0);
-  const fy = smooth(y - y0);
-  const a = hash(x0, y0, seed);
-  const b = hash(x0 + 1, y0, seed);
-  const c = hash(x0, y0 + 1, seed);
-  const d = hash(x0 + 1, y0 + 1, seed);
-  return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
-}
 
 function fbm(x: number, y: number, seed: number): number {
   let sum = 0;
@@ -84,7 +65,7 @@ let levels: { seed: number; values: number[] } | undefined;
 function siteLevels(seed: number): number[] {
   if (levels?.seed !== seed) {
     const relief = TERRAIN.relief;
-    const values = SITES.map((site) => (noise2(site.pos.x * relief.broadFrequency, site.pos.y * relief.broadFrequency, seed + 4000) - 0.5) * relief.broadAmplitude);
+    const values = SITES.map((site) => (noise2(site.pos.x * relief.broadFrequency, site.pos.y * relief.broadFrequency, seed + 4000) - 0.5) * relief.broadAmplitude * zoneRoughness(site.pos.x, site.pos.y));
     levels = { seed, values };
   }
   return levels.values;
@@ -95,8 +76,12 @@ export function elevationAt(seed: number, x: number, y: number): number {
   return bowls(height + rollingAt(seed, x, y), x, y);
 }
 
+export function bakedHeight(seed: number, elevation: number, x: number, y: number): number {
+  return heightFromElevation(elevation) + macroHeight(seed, x, y);
+}
+
 export function reliefAt(seed: number, x: number, y: number): number {
-  let height = noiseRelief(seed, x, y) * (1 - floorOwned(x, y));
+  let height = noiseRelief(seed, x, y) * (1 - floorOwned(x, y)) * zoneRoughness(x, y);
   for (const { feature, index, reach } of FEATURES) {
     const gap = index.nearestWithin(x, y, reach) - feature.width;
     if (gap < feature.bank) height -= feature.depth * (gap <= 0 ? 1 : 1 - smooth(gap / feature.bank));
@@ -137,7 +122,7 @@ function rollingAt(seed: number, x: number, y: number): number {
 
 function siteRolling(seed: number, x: number, y: number): number {
   const relief = TERRAIN.relief;
-  let rolling = stamped(x, y, (px, py) => (noise2(px * relief.broadFrequency, py * relief.broadFrequency, seed + 4000) - 0.5) * relief.broadAmplitude);
+  let rolling = stamped(x, y, (px, py) => (noise2(px * relief.broadFrequency, py * relief.broadFrequency, seed + 4000) - 0.5) * relief.broadAmplitude) * zoneRoughness(x, y);
   for (let k = 0; k < SITES.length; k++) {
     const site = SITES[k];
     const dx = site.pos.x - x;

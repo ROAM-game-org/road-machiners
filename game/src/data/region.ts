@@ -51,7 +51,7 @@ export type SiteLocationDef = {
   turn?: number;
   gates?: readonly Vec[];
 };
-export type TerritoryDef = { id: string; kind: "territory"; pos: Vec; radius: number; outline: Vec[] | null; groundFrom?: Vec; groundOutline?: Vec[] };
+export type TerritoryDef = { id: string; kind: "territory"; pos: Vec; radius: number; outline: Vec[] | null };
 export type LocationDef = SiteLocationDef | TerritoryDef;
 export type SiteEdge = "fence" | "wrecks";
 export const MAP_SCALE = MAP_DRAFT ?? 15.6;
@@ -181,13 +181,6 @@ const ORCHARD_SOUTH_EDGE: [number, number][] = [
   [59, 3],
   [72, 6],
 ];
-const ORCHARD_OLD_NORTH_EDGE: [number, number][] = [
-  [72, 42],
-  [54, 40],
-  [46, 37],
-  [40, 34],
-  [-30, 34],
-];
 const ORCHARD_NORTH_EDGE: [number, number][] = [
   [86, 10],
   [104, 26],
@@ -206,7 +199,6 @@ const ORCHARD_NORTH_EDGE: [number, number][] = [
 ];
 export const ORCHARD_FRAME_OUTLINE: Vec[] = [...ORCHARD_SOUTH_EDGE, ...ORCHARD_NORTH_EDGE].map(([s, c]) => ({ x: s, y: c }));
 const ORCHARD_OUTLINE: Vec[] = ORCHARD_FRAME_OUTLINE.map(({ x, y }) => onOrchardRoad(x, y));
-const ORCHARD_GROUND_OUTLINE: Vec[] = [...ORCHARD_SOUTH_EDGE, ...ORCHARD_OLD_NORTH_EDGE].map(([s, c]) => onOrchardRoad(s, c));
 
 function boundingRadius(outline: readonly Vec[]): number {
   return Math.max(...outline.map((p) => Math.hypot(p.x, p.y)));
@@ -328,7 +320,7 @@ export const REGION = {
     { id: "nose", pos: scalePoint({ x: 102, y: 35 }), radius: 32 },
   ] as TownDef[],
   locations: [
-    { id: "orchard", kind: "territory", pos: ORCHARD_POS, radius: boundingRadius(ORCHARD_OUTLINE), outline: ORCHARD_OUTLINE, groundFrom: { x: 114, y: 284 }, groundOutline: ORCHARD_GROUND_OUTLINE },
+    { id: "orchard", kind: "territory", pos: ORCHARD_POS, radius: boundingRadius(ORCHARD_OUTLINE), outline: ORCHARD_OUTLINE },
     {
       id: "dustwell",
       kind: "oasis",
@@ -347,7 +339,6 @@ export const REGION = {
       pos: GLASS_FLATS_POS,
       radius: boundingRadius(GLASS_FLATS_OUTLINE),
       outline: GLASS_FLATS_OUTLINE,
-      groundFrom: { x: 405, y: 378 },
     },
     {
       id: "green-pit",
@@ -367,7 +358,6 @@ export const REGION = {
       pos: FALLEN_SUN_POS,
       radius: boundingRadius(FALLEN_SUN_OUTLINE),
       outline: FALLEN_SUN_OUTLINE,
-      groundFrom: { x: 320, y: 270 },
     },
     {
       id: "salvage-yard",

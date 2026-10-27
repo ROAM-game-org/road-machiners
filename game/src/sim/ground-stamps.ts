@@ -1,6 +1,5 @@
-import { REGION } from '../data/region';
 import { CANYON_BRIDGE_GROUND, MAPGEN } from '../data/terrain';
-import { dist, pointInPolygon, polygonEdgeDist, type Vec } from './vec';
+import { dist, type Vec } from './vec';
 
 export type StampSite = { id: string; pos: Vec; reach: number; shift: Vec; edge: (p: Vec) => number };
 
@@ -8,23 +7,12 @@ function shiftOf(pos: Vec, from: Vec): Vec {
   return { x: pos.x - from.x, y: pos.y - from.y };
 }
 
-function territorySites(): StampSite[] {
-  return REGION.locations.flatMap((t) => {
-    if (t.kind !== 'territory') return [];
-    if (!t.groundFrom || !t.outline) throw new Error(`Territory ${t.id} has no place its ground was made at`);
-    const stamped = t.groundOutline ?? t.outline;
-    const outline = stamped.map((p) => ({ x: t.pos.x + p.x, y: t.pos.y + p.y }));
-    const reach = Math.max(...stamped.map((p) => Math.hypot(p.x, p.y)));
-    return [{ id: t.id, pos: t.pos, reach, shift: shiftOf(t.pos, t.groundFrom), edge: (p: Vec) => (pointInPolygon(p, outline) ? 0 : polygonEdgeDist(p, outline)) }];
-  });
-}
-
 function bridgeSite(): StampSite {
   const { id, pos, from, radius } = CANYON_BRIDGE_GROUND;
   return { id, pos, reach: radius, shift: shiftOf(pos, from), edge: (p) => Math.max(0, dist(p, pos) - radius) };
 }
 
-export const STAMP_SITES: readonly StampSite[] = [...territorySites(), bridgeSite()];
+export const STAMP_SITES: readonly StampSite[] = [bridgeSite()];
 
 for (const site of STAMP_SITES) if (!Number.isInteger(site.shift.x) || !Number.isInteger(site.shift.y)) throw new Error(`${site.id} stands off the tile grid of its ground`);
 

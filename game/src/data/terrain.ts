@@ -1,6 +1,6 @@
 
 import { PHYSICS } from "./physics";
-import { BROKEN_WING, BROKEN_WING_POINT, draftName, FALLEN_SUN_POS, MAP_AREA_SPREAD, MAP_DRAFT, MAP_SPREAD, REGION, scalePoint } from "./region";
+import { BROKEN_WING, BROKEN_WING_POINT, draftName, FALLEN_SUN_POS, MAP_AREA_SPREAD, MAP_DRAFT, MAP_SCALE, MAP_SPREAD, REGION, scalePoint } from "./region";
 import { FALLEN_SUN_DECKS } from "./territory";
 import type { PropKind } from "../sim/terrain";
 import type { Vec } from "../sim/vec";
@@ -685,7 +685,7 @@ export const MAPGEN = {
   groundHold: 40,
   groundFeather: 40,
   file: MAP_DRAFT === null ? 'maps/icarus.bin' : `drafts/${draftName(MAP_DRAFT)}.bin`,
-  heightScale: 1000,
+  heightScale: 300,
   overviewPxPerTile: 2,
   closeUpPxPerTile: 8,
   closeUps: [
@@ -932,4 +932,71 @@ export const BOATS = {
   river: { step: 70, jitter: 15, chance: 0.7, bankShare: [0.55, 0.85] as readonly [number, number], band: spreadBand([4, 7], MAP_SPREAD) },
   wash: { reach: 70, minFlow: 0.5, groups: 2, band: [1, 2] as RoadsideBand },
   boatBand: spreadBand([8, 20], MAP_SPREAD),
+};
+
+export type ZoneKind = 'mountains' | 'desert' | 'swamp' | 'farmBelt' | 'crash';
+export type ZoneShape = { polygon: Vec[] } | { path: Vec[]; width: number };
+export type Zone = { kind: ZoneKind; shape: ZoneShape };
+export type ZoneRules = { roughness: number; uplift: number };
+
+const layoutPoints = (points: [number, number][]): Vec[] => points.map(([x, y]) => scalePoint({ x, y }));
+
+const FURROW_TAIL = TERRAIN.features.furrow.path[TERRAIN.features.furrow.path.length - 1];
+
+export const DESCENT_PATH: Vec[] = [
+  ...layoutPoints([
+    [106, 106],
+    [94, 107.5],
+    [80, 104],
+    [68, 96],
+    [61, 84],
+    [59.5, 72],
+  ]),
+  FURROW_TAIL,
+  ...[...TERRAIN.features.furrow.path].reverse().slice(1),
+  FALLEN_SUN_POS,
+];
+
+export const ZONES: readonly Zone[] = [
+  { kind: 'mountains', shape: { polygon: layoutPoints([[84, -4], [124, -4], [124, 74], [110, 70], [104, 52], [96, 46], [89, 32], [85, 14]]) } },
+  { kind: 'desert', shape: { polygon: layoutPoints([[76, 60], [98, 56], [124, 64], [124, 124], [66, 124], [62, 102], [70, 80]]) } },
+  { kind: 'swamp', shape: { polygon: layoutPoints([[-4, 16], [18, 15], [28, 25], [27, 40], [14, 46], [-4, 42]]) } },
+  { kind: 'farmBelt', shape: { polygon: layoutPoints([[-4, 48], [32, 46], [42, 62], [50, 80], [54, 97], [32, 106], [10, 124], [-4, 124]]) } },
+  { kind: 'crash', shape: { path: DESCENT_PATH, width: 5 * MAP_SCALE } },
+];
+
+export const ZONE_RULES: Record<ZoneKind, ZoneRules> = {
+  mountains: { roughness: 0.5, uplift: 1 },
+  desert: { roughness: 0.25, uplift: 0.15 },
+  swamp: { roughness: 0.15, uplift: 0 },
+  farmBelt: { roughness: 0.3, uplift: 0.1 },
+  crash: { roughness: 0.55, uplift: 0.3 },
+};
+
+export const ZONE_FIELD = {
+  cell: 8,
+  band: 9 * MAP_SCALE,
+  warp: { frequency: 1 / (14 * MAP_SCALE), reach: 4 * MAP_SCALE, seedOffset: 8800 },
+  plainRoughness: 0.4,
+};
+
+export const UPLIFT = {
+  floor: 0.12,
+  rim: { width: 16 * MAP_SCALE, rate: 0.05, flatUnder: { desert: 0.85, swamp: 0.95 }, gaps: [{ at: scalePoint({ x: -2, y: 75 }), width: 9 * MAP_SCALE }, { at: scalePoint({ x: 82, y: 122 }), width: 9 * MAP_SCALE }] },
+  range: { spine: layoutPoints([[94, -4], [103, 12], [112, 24], [113, 40], [117, 58]]), width: 14 * MAP_SCALE, rate: 0.28, crestNoise: 0.45, crestFrequency: 1 / (9 * MAP_SCALE) },
+  corridor: { width: 70, keep: 0.08 },
+  seedOffset: 8900,
+};
+
+export const RELIEF_SOLVE = {
+  cell: 4,
+  steps: 300,
+  dt: 3,
+  jitter: 0.3,
+  jitterSeed: 8950,
+  erosion: 0.05,
+  areaExponent: 0.5,
+  diffusion: 0.04,
+  baseLevel: 0,
+  hold: { margin: 40 },
 };
