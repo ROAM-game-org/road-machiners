@@ -52,7 +52,7 @@ Sample: "A truck that breaks down out there waits a long time for a friendly fac
 
 Jory talks of soil, dirt under the nails, jars and rules read slowly. He compares the Senate to a farmer who forgot to plant.
 
-His sentences are long and built like an argument. Each answer ends in a short joke.
+His sentences are long and built like an argument. He often ends an answer on a short joke that follows from what he just said.
 
 He turns the Senate's own rules back on it. He jokes where other people would shout.
 

@@ -113,7 +113,7 @@ VAR tip = 20
   -> about_job
 + {pipe_fate == "none" and knows_copy and not knows_pay} [Ask what the job pays.]
   ~ knows_pay = true
-  Mirela pays {fee} M from the lock house box when the copy arrives. I have nothing to add. # speaker: Agnes
+  Mirela pays {fee} M from the lock house box when the copy arrives. I haven't any money of my own to add. # speaker: Agnes
   The danger is the Bowl gate. The patrol there works for the Senate, and the household's steward gives them orders. # speaker: Agnes
   -> about_job
 + {pipe_fate == "none" and knows_copy} [Say you'll carry the copy.]

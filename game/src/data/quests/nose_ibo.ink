@@ -43,7 +43,7 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
   -> about_old_world
 + {heard_army} [How did the Old Army end?]
   Hungry. Commander Lind nailed a book of every unpaid promise to the gate at Old Orchard, the Army's depot, and then he died in the motor pool. I heard his last calls on the air. He read the whole list. The machine tools stayed behind in the shed, until command came for them.
-  Some say the Army didn't run out of food. They say it was starved on purpose. I say a man who starts a rumor like that wants a seat in the hall.
+  Some say the Army didn't run out of food. They say it was starved on purpose. I would wager a man who starts a rumor like that wants a seat on Nose's Central Committee.
   ~ note("talkArmyStarved")
   ~ heard_tools = true
   -> about_old_world
