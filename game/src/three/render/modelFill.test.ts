@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { TIME } from '../../data/time';
 import { CloudShadows } from './cloudShadows';
 import { daylightAt } from './daylight';
+import { withCut } from './armorCut';
 import { ModelFill } from './modelFill';
 import { RenderScope, SightLimit } from './scope';
 
@@ -43,6 +44,17 @@ describe('model fill', () => {
     const shader = lambertShader(material);
     expect(shader.fragmentShader).toContain('cloudDim()');
     expect(shader.fragmentShader).toContain('modelFill *');
+  });
+
+  it('patches an armor cut copy of a patched material once', () => {
+    const fill = new ModelFill();
+    const material = new THREE.MeshLambertMaterial();
+    fill.shadeTree(meshOf(material));
+    const copy = withCut(material, { wheels: [], lamps: [] });
+    fill.shadeTree(meshOf(copy));
+    const shader = lambertShader(copy);
+    expect(shader.fragmentShader.match(/uniform vec3 modelFill;/g)).toHaveLength(1);
+    expect(shader.fragmentShader.match(/modelFill \*/g)).toHaveLength(1);
   });
 
   it('follows the sky color, strong by day and faint at night', () => {
