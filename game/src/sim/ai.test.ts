@@ -6,6 +6,7 @@ import { planNpcOrders, routeBlockers, trafficStops, yieldsToTraffic } from './a
 import { topGoal } from './npc-activities';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import { startEscort } from './tow';
+import { addState } from './states';
 import type { Vehicle, World } from './types';
 import { dist } from './vec';
 import { setThinning, thinksThisTurn } from './fidelity';
@@ -386,7 +387,7 @@ describe('lone NPCs', () => {
   it('think every turn while thinning is off, as in unit tests', () => {
     setThinning(false);
     const w = emptyWorld({ x: 10, y: 10 });
-    const lone = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 10 + PERF.lone.playerReach + PERF.lone.reach * 2, y: 10 });
+    const lone = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 10 + PERF.lone.playerReach * 2, y: 10 });
     lone.brain = npcBrain('trader', lone.pos, ['trader']);
     expect(thinksThisTurn(w, lone) && thinksThisTurn({ ...w, turn: w.turn + 1 }, lone)).toBe(true);
   });
@@ -401,16 +402,21 @@ describe('lone NPCs', () => {
     }).every(Boolean)).toBe(true);
   });
 
-  it('think once every few turns far from the player while no truck is near, and every turn with company', () => {
+  it('think once every few turns far from the player, even beside another truck, and every turn in a deal or under attack', () => {
     const w = emptyWorld({ x: 10, y: 10 });
-    const lone = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 10 + PERF.lone.playerReach + PERF.lone.reach * 2, y: 10 });
+    const lone = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 10 + PERF.lone.playerReach * 2, y: 10 });
     lone.brain = npcBrain('trader', lone.pos, ['trader']);
     const thinks = () => Array.from({ length: PERF.lone.every * 3 }, (_, i) => {
       w.turn = 100 + i;
       return thinksThisTurn(w, lone);
     });
     expect(thinks().filter(Boolean)).toHaveLength(3);
-    addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: lone.pos.x + PERF.lone.reach / 2, y: 10 });
+    const other = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: lone.pos.x + 5, y: 10 });
+    expect(thinks().filter(Boolean)).toHaveLength(3);
+    addState(w, 'escort', other.id, lone.id, { kind: 'escort', site: null, fee: 0 });
+    expect(thinks().every(Boolean)).toBe(true);
+    w.states = [];
+    lone.brain.attackers = { [other.id]: true };
     expect(thinks().every(Boolean)).toBe(true);
   });
 });

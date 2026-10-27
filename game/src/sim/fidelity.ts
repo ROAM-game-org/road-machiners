@@ -51,7 +51,7 @@ export function setThinning(on: boolean): void {
 
 export function thinksThisTurn(w: World, v: Vehicle): boolean {
   if (!thinning || (w.turn + slotOf(v.id)) % PERF.lone.every === 0) return true;
-  return dist(v.pos, playerVehicle(w).pos) <= PERF.lone.playerReach || hasCompany(w, v);
+  return dist(v.pos, playerVehicle(w).pos) <= PERF.lone.playerReach || isEngaged(w, v);
 }
 
 function slotOf(id: string): number {
@@ -60,8 +60,7 @@ function slotOf(id: string): number {
   return sum;
 }
 
-function hasCompany(w: World, v: Vehicle): boolean {
+function isEngaged(w: World, v: Vehicle): boolean {
   if (v.brain && Object.keys(v.brain.attackers).length > 0) return true;
-  if (w.states.some((s) => s.holder === v.id || s.other === v.id)) return true;
-  return w.vehicles.some((o) => o.id !== v.id && dist(o.pos, v.pos) <= PERF.lone.reach);
+  return w.states.some((s) => s.holder === v.id || s.other === v.id);
 }
