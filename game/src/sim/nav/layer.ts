@@ -227,9 +227,17 @@ export function navLayer(terrain: Terrain, obstacles: Obstacle[], radius: number
   const hit = e.layers.get(key);
   if (hit) return hit.layer;
   const layer = patchedLayer(e, statics, radius) ?? builtLayer(e, statics, radius);
-  keepWithin(e.layers, `${statics.id}:`);
   e.layers.set(key, { layer, statics });
+  dropSuperseded(e.layers);
   return layer;
+}
+
+function dropSuperseded(cache: Map<string, CachedLayer>): void {
+  const newest = new Map<number, string>();
+  for (const [key, { layer }] of cache) newest.set(layer.radius, key);
+  const kept = new Set(newest.values());
+  for (const key of [...cache.keys()]) if (cache.size > LAYERS_MAX && !kept.has(key)) cache.delete(key);
+  while (cache.size > LAYERS_MAX) cache.delete(cache.keys().next().value!);
 }
 
 function keepWithin<T>(cache: Map<string, T>, current: string): void {
@@ -248,7 +256,7 @@ function builtLayer(e: TerrainEntry, statics: StaticSet, radius: number): NavLay
 }
 
 function patchedLayer(e: TerrainEntry, statics: StaticSet, radius: number): NavLayer | null {
-  const from = [...e.layers.entries()].find(([, c]) => c.layer.radius === radius && c.statics.solidId === statics.solidId && c.statics.costly.length > 0);
+  const from = [...e.layers.entries()].reverse().find(([, c]) => c.layer.radius === radius && c.statics.solidId === statics.solidId && c.statics.costly.length > 0);
   if (!from || statics.costly.length === 0) return null;
   const { layer: old, statics: was } = from[1];
   const changed = [...was.costly.filter((o) => !statics.costlyKeys.has(blockerKey1(o))), ...statics.costly.filter((o) => !was.costlyKeys.has(blockerKey1(o)))];
