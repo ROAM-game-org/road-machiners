@@ -1,6 +1,6 @@
 # Simulation mode UI for the jobs people bring to it
 
-**Status:** design
+**Status:** validating
 **Branch:** sim-mode
 **Worktree:** .worktrees/sim-mode
 **Goal:** The developer opens `/sim.html`, and each of the five cases below can be answered from the page with no raw ids or debug strings on screen: watch a run, find where raiders gather against where traffic runs, debug one NPC, follow the bot's money, worth and XP over time, and leave it running for hours. Confirming it needs the user to use the page. Useless if: a restyle with no new capability for these cases, features nobody uses, more text on screen that makes reading harder, a chart that resets on resume, a heat map that only repeats the markers.
@@ -80,6 +80,7 @@ Order: files the icon agent does not touch first.
 - `sim-mode.test.ts` plays 60 turns and scans every truck's card and every log line for camelCase words, `@`, braces, `v123` or `p123` ids, `true` or `false`, em dashes, "something" and "You arrives". It passes. Further tests cover routine events hidden unless they name the player, prop names in collisions, the player as "Your truck", hourly history samples and the history message sent first.
 - `sim-save.test.ts` round-trips history through the save, and an outdated save with no history is deleted.
 - Browser, seed 1, 300 turns at Fast with all events on: 4 lines read "hits something", all collisions with props like `deadTree-5853`. Fixed with prop names. No other raw line.
+- Browser, seeds 7 and 69094, 2 minutes at Fast each with All events on, 2000 log lines each: a first scan found shots at your truck printed twice and reading "fires at You", and pleas, guard fees, encounters, claim rivals and radio calls in field form with a raw fee in cents. All fixed. The scan after the fixes finds no raw line, only one false match on the game's own "Search started: stay parked about 2 turns."
 - Browser resume: a run saved on seed 3 at turn 166 reopens at the same turn with its chart intact and "Resumed" in the footer.
 - Screenshots: `game/tmp/sim-ui/before/`, `game/tmp/sim-ui/after/`, `game/tmp/sim-ui/v2/`.
 
@@ -103,6 +104,9 @@ The page now answers each case without raw text. The side column holds the toolb
 - uexecute: card building moved to `src/sim/progression/sim-cards.ts` and the player panel and card view to `src/ui/sim/panels.ts`, so `page.ts` stays the map and wiring.
 - uexecute: the log keeps one game day of entries, so an idle run stays bounded. Older lines drop out of Selected and Find too.
 - uexecute: routine NPC events are jobs, trades, shots, empty guns, questions, payments, passes, collisions, finds and guard fees. They hide by default and show when they name your truck.
+- ureview: the `describe()` debug line on log hover and the truck id on card hover are gone, per P16 in `docs/ui.md`, which bans debug strings. `LogEntry` no longer carries the raw line.
+- ureview: left the whole money history rewritten into every autosave. It grows with the run but stays a few hundred KB per write after a night at Fast.
+- ureview: NPC markers carry the player's paint in `markersOf`. That is the icon agent's code, so it is handed to them.
 - uexecute: times print as game clocks, not turn numbers, on every surface.
 - uexecute: commits that touched `page.ts` and `sim-mode.ts` swept in the icon agent's working changes, since the page only compiles with them.
 - udesign: heat counts live on the page and reset on reload. Saving them would change the save shape for a view-only aid.

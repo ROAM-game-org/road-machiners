@@ -1,7 +1,8 @@
 import "../style.css";
 import "./sim.css";
 import { FACTIONS } from "../../data/npc-behavior";
-import type { Card, Frame, FromSim, LogEntry, Marker, ToSim, Way } from "../../sim/progression/sim-mode";
+import type { Economy } from "../../sim/progression/sim-economy";
+import type { Card, Frame, FromSim, LogEntry, Marker, Sample, ToSim, Way } from "../../sim/progression/sim-mode";
 import { clockOf } from "../../sim/sun";
 import type { NpcFactionId } from "../../sim/types";
 import type { Vec } from "../../sim/vec";
@@ -13,6 +14,8 @@ import { token } from "../tokens";
 import { TruckIcons, type IconLook, type SpriteSet } from "./truck-icons";
 import { HEAT_LAYERS, HeatMap, type HeatLayer } from "./heat-map";
 import { CardView, PlayerPanel, SimSpeed } from "./panels";
+import { drawEconomy, RoadPaths, shopAt } from "./economy-draw";
+import { EconomyView } from "./economy-view";
 import { TIME } from "../../data/time";
 import { TravelSpeed, TRAVEL_SPEED_CODES } from "../travel-speed";
 
@@ -21,6 +24,15 @@ const LABEL = { gap: 6, padX: 5, padY: 3, stripe: 3 };
 const CLICK_SLOP = 4;
 const LOG_WINDOW = 2000;
 const GLIDE_MS = { least: 60, most: 1200 };
+const SIDE_TABS = [{ label: "Trucks", economy: false }, { label: "Economy", economy: true }];
+const SHOP_HIT = 12;
+const PAN = { pxPerSecond: 600, longestFrameMs: 100 };
+const PAN_KEYS: Record<string, [number, number]> = {
+  KeyW: [0, 1], ArrowUp: [0, 1],
+  KeyS: [0, -1], ArrowDown: [0, -1],
+  KeyA: [1, 0], ArrowLeft: [1, 0],
+  KeyD: [-1, 0], ArrowRight: [-1, 0],
+};
 const LOOK = { player: "--select", outlaw: "--alarm", lawman: "--path-accelerate", town: "--path-contact", independent: "--map-engine", combat: "--path-radio", selected: "--ink-bright", halo: "--surface-sunk" };
 const LOG_KEEP_TURNS = TIME.turnsPerDay;
 const TURNS_PER_HOUR = TIME.turnsPerDay / 24;
@@ -111,6 +123,7 @@ class SimPage {
   private drawnView: Viewport | null = null;
   private drawnScale = 1;
   private icons: TruckIcons | null = null;
+  private paths: RoadPaths | null = null;
   private readonly looks = new Map<string, IconLook>();
   private readonly sets = new Map<string, SpriteSet>();
   private readonly view = new MapView({ kind: "free" }, 1, 1, (ctx, view) => this.drawAll(ctx, view), 1);
@@ -137,8 +150,13 @@ class SimPage {
   private readonly quiet = new Toggle("All events", "Also show routine events: jobs, trades, shots and sightings", () => this.renderLog());
   private readonly onlySelected = new Toggle("Selected", "Show only the events of the selected truck", () => this.renderLog());
   private readonly cardView = new CardView();
+  private readonly economyView = new EconomyView(() => this.view.redraw(), (id) => this.openTruck(id));
+  private readonly sideTabs = SIDE_TABS.map((t) => el("button", { class: "btn-s", "aria-pressed": String(t.economy === false), onclick: () => this.showSide(t.economy) }, t.label));
+  private economyOpen = false;
   private readonly log = el("ol", { class: "sim-log" });
   private readonly logCount = el("span", { class: "sim-note" });
+  private readonly panHeld = new Set<string>();
+  private lastFrame = performance.now();
   private playing = false;
   private started = false;
 
@@ -150,7 +168,8 @@ class SimPage {
     const filters = el("div", { class: "sim-filters" }, this.find, this.quiet.button, this.onlySelected.button);
     const logHead = el("div", { class: "sim-head" }, el("span", { class: "panel-title" }, "Log"), this.logCount, filters);
     const logPanel = el("div", { class: "sim-log-panel panel" }, logHead, this.log);
-    const side = el("div", { class: "sim-side" }, toolbar, this.failure, this.player.root, this.cardView.root, logPanel, el("div", { class: "sim-footer" }, runForm, this.status));
+    const tabs = el("div", { class: "option-switch sim-tabs" }, ...this.sideTabs);
+    const side = el("div", { class: "sim-side" }, toolbar, tabs, this.failure, this.player.root, this.cardView.root, this.economyView.root, logPanel, el("div", { class: "sim-footer" }, runForm, this.status));
     uiRoot().append(this.mapBox, side);
     uiRoot().classList.add("sim");
     this.setReady(false);
@@ -159,7 +178,9 @@ class SimPage {
   }
 
   async start(seed: number | null): Promise<void> {
-    this.view.update(openScene((await fetchMap()).terrain), null);
+    const terrain = (await fetchMap()).terrain;
+    this.paths = new RoadPaths(terrain);
+    this.view.update(openScene(terrain), null);
     this.resize();
     new ResizeObserver(() => this.resize()).observe(this.mapBox);
     this.status.textContent = "Drawing the trucks";
@@ -190,11 +211,12 @@ class SimPage {
   private receive(message: FromSim): void {
     const handlers: { [K in FromSim["kind"]]: (m: Extract<FromSim, { kind: K }>) => void } = {
       started: (m) => this.showStarted(m),
-      history: (m) => this.player.chart.reset(m.samples),
+      history: (m) => this.showHistory(m.samples),
       saved: (m) => (this.saveNote.textContent = `Saved ${shortClockText(m.turn)}`),
       saveFile: (m) => download(m.name, m.json, "application/json"),
       frame: (m) => this.showFrame(m.frame),
       card: (m) => this.showCard(m.card),
+      economy: (m) => this.showEconomy(m.economy),
       ended: (m) => this.end(`The run ended ${clockText(m.turn)}: your truck is ${m.reason === "knockedOut" ? "knocked out" : m.reason}`),
       failed: (m) => this.fail(m.turn, m.message),
     };
@@ -216,12 +238,40 @@ class SimPage {
     this.glide.take(f.markers, performance.now());
     this.status.textContent = `${f.markers.length} trucks`;
     this.player.show(f.turn, f.hud);
-    if (f.sample) this.player.chart.add(f.sample);
+    if (f.sample) this.addSample(f.sample);
     this.heat.add(f.turn, f.markers);
     this.captionHeat();
     this.addEntries(f.log);
     if (f.card) this.showCard(f.card);
     this.view.redraw();
+  }
+
+  private showHistory(samples: Sample[]): void {
+    this.player.chart.reset(samples);
+    this.economyView.resetHistory(samples);
+  }
+
+  private addSample(sample: Sample): void {
+    this.player.chart.add(sample);
+    this.economyView.history.add(sample);
+  }
+
+  private openTruck(id: string): void {
+    this.showSide(false);
+    this.select(id);
+  }
+
+  private showSide(economy: boolean): void {
+    this.economyOpen = economy;
+    this.sideTabs.forEach((button, i) => button.setAttribute("aria-pressed", String(SIDE_TABS[i]!.economy === economy)));
+    uiRoot().classList.toggle("economy", economy);
+    if (economy) this.send({ kind: "economy" });
+    this.view.redraw();
+  }
+
+  private showEconomy(economy: Economy): void {
+    this.economyView.show(economy);
+    if (this.economyOpen) this.view.redraw();
   }
 
   private showCard(card: Card | null): void {
@@ -251,9 +301,31 @@ class SimPage {
 
   private animate(): void {
     const now = performance.now();
+    this.panByKeys(Math.min(now - this.lastFrame, PAN.longestFrameMs) / 1000);
+    this.lastFrame = now;
     if (this.follow.on) this.centerOnCard(now);
     if (this.glide.progress(now) < 1) this.view.redraw();
     requestAnimationFrame(() => this.animate());
+  }
+
+  private panByKeys(seconds: number): void {
+    let right = 0;
+    let down = 0;
+    for (const code of this.panHeld) {
+      right += PAN_KEYS[code]![0];
+      down += PAN_KEYS[code]![1];
+    }
+    if (right === 0 && down === 0) return;
+    const step = PAN.pxPerSecond * seconds;
+    this.view.panBy(right * step, down * step);
+  }
+
+  private startPan(e: KeyboardEvent): boolean {
+    if (!(e.code in PAN_KEYS) || e.ctrlKey || e.metaKey || e.altKey) return false;
+    e.preventDefault();
+    this.follow.on = false;
+    this.panHeld.add(e.code);
+    return true;
   }
 
   private centerOnCard(now: number): void {
@@ -294,6 +366,7 @@ class SimPage {
   }
 
   private select(id: string | null): void {
+    if (id !== null && this.economyOpen) this.showSide(false);
     this.selected = id;
     this.way = null;
     this.send({ kind: "watch", id });
@@ -343,7 +416,7 @@ class SimPage {
 
   private logLine(e: LogEntry): HTMLElement {
     const mine = this.playerId !== null && e.ids.includes(this.playerId);
-    const line = el("li", { class: mine ? `${e.tone} mine` : e.tone, title: e.raw, "data-when": shortClockText(e.turn) }, el("span", { class: "sim-when num" }, shortClockText(e.turn)), el("span", {}, e.text));
+    const line = el("li", { class: mine ? `${e.tone} mine` : e.tone, "data-when": shortClockText(e.turn) }, el("span", { class: "sim-when num" }, shortClockText(e.turn)), el("span", {}, e.text));
     const first = e.ids[0];
     if (first !== undefined) line.addEventListener("click", () => this.select(first));
     return line;
@@ -356,8 +429,21 @@ class SimPage {
 
   private drawAll(ctx: CanvasRenderingContext2D, view: Viewport): void {
     this.heat.draw(ctx, view);
+    this.drawProduction(ctx, view);
     this.drawWay(ctx, view);
     this.drawMarkers(ctx, view);
+  }
+
+  private drawProduction(ctx: CanvasRenderingContext2D, view: Viewport): void {
+    const economy = this.economyView.shown;
+    if (!this.economyOpen || !economy) return;
+    if (!this.paths) throw new Error("The road paths are not built yet");
+    const t = this.glide.progress(performance.now());
+    const truckAt = (id: string): Point | null => {
+      const m = this.glide.markers.find((x) => x.id === id);
+      return m ? toPx(view, this.glide.placeAt(m, t)) : null;
+    };
+    drawEconomy(ctx, view, economy, this.economyView.focus, truckAt, this.paths);
   }
 
   private drawWay(ctx: CanvasRenderingContext2D, view: Viewport): void {
@@ -437,6 +523,20 @@ class SimPage {
     return near[0] ?? null;
   }
 
+  private click(clientX: number, clientY: number): void {
+    if (this.economyOpen && this.pickShop(clientX, clientY)) return;
+    this.select(this.markerAt(clientX, clientY)?.id ?? null);
+  }
+
+  private pickShop(clientX: number, clientY: number): boolean {
+    const at = this.view.localPoint(clientX, clientY);
+    const economy = this.economyView.shown;
+    if (!at || !this.drawnView || !economy) return false;
+    const shop = shopAt(economy, this.drawnView, at, SHOP_HIT);
+    if (shop) this.economyView.selectTown(shop.id);
+    return shop !== null;
+  }
+
   private hover(clientX: number, clientY: number): void {
     const id = this.markerAt(clientX, clientY)?.id ?? null;
     this.view.canvas.classList.toggle("over-truck", id !== null);
@@ -446,11 +546,15 @@ class SimPage {
   }
 
   private onKey(e: KeyboardEvent): void {
-    if (e.target instanceof HTMLInputElement) return;
+    if (e.target instanceof HTMLInputElement || this.startPan(e)) return;
     if (e.code === "Space") {
       e.preventDefault();
       this.togglePlay();
-    } else if (e.code in TRAVEL_SPEED_CODES) this.speedKeys.step(TRAVEL_SPEED_CODES[e.code]!);
+    } else this.onCommandKey(e);
+  }
+
+  private onCommandKey(e: KeyboardEvent): void {
+    if (e.code in TRAVEL_SPEED_CODES) this.speedKeys.step(TRAVEL_SPEED_CODES[e.code]!);
     else if (e.key === ".") this.step();
     else if (e.key === "f") this.follow.flip();
   }
@@ -458,6 +562,8 @@ class SimPage {
   private listen(): void {
     const canvas = this.view.canvas;
     document.addEventListener("keydown", (e) => this.onKey(e));
+    document.addEventListener("keyup", (e) => this.panHeld.delete(e.code));
+    window.addEventListener("blur", () => this.panHeld.clear());
     canvas.addEventListener("wheel", (e) => {
       e.preventDefault();
       if (e.deltaY === 0) return;
@@ -483,7 +589,7 @@ class SimPage {
       const drag = this.drag;
       if (drag?.pointer !== e.pointerId) return;
       this.drag = null;
-      if (drag.moved <= CLICK_SLOP) this.select(this.markerAt(e.clientX, e.clientY)?.id ?? null);
+      if (drag.moved <= CLICK_SLOP) this.click(e.clientX, e.clientY);
     });
     canvas.addEventListener("pointercancel", () => {
       this.drag = null;
