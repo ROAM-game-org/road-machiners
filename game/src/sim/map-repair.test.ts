@@ -76,7 +76,9 @@ describe('repairMap positions', () => {
     expect(world.mapHash).toBe(TEST_MAP.hash);
     expect(world.terrain).toBe(TEST_MAP.terrain);
     expect(world.player.explored).toHaveLength(size * size);
-    expect(world.player.explored[Math.floor(10 * RATIO) * size + Math.floor(20 * RATIO)]).toBe(1);
+    expect(world.player.explored[Math.ceil(10 * RATIO) * size + Math.ceil(20 * RATIO)]).toBe(1);
+    expect(world.player.explored[(Math.ceil(10 * RATIO) - 1) * size + Math.ceil(20 * RATIO)]).toBe(0);
+    expect(world.player.explored[Math.ceil(10 * RATIO) * size + Math.ceil(20 * RATIO) - 1]).toBe(0);
     expect(world.player.explored[(size - 1) * size + size - 1]).toBe(1);
   });
 

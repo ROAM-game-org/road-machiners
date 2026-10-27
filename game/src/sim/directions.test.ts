@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DIRECTIONS } from '../data/directions';
-import { REGION } from '../data/region';
+import { MAP_SPREAD, REGION } from '../data/region';
 import { cardinalOf, cueAt, headingAlong, leanOf, octantOf, spanOf } from './direction-cues';
 import { directionsFromSite, directionsTo } from './directions';
 import { isTerritory } from './sites';
@@ -10,7 +10,22 @@ import { emptyWorld, chaosHighwayWorld } from './testkit';
 import type { DirectionStep, DirectionTarget, Obstacle, World } from './types';
 import { dist, type Vec } from './vec';
 
-const OFF_ROAD: Vec = { x: 260, y: 420 };
+const ROAD_GAP = 35;
+
+function nearRoad(layout: Vec): Vec {
+  const at = { x: layout.x * MAP_SPREAD, y: layout.y * MAP_SPREAD };
+  return nearestRoadPoints(roadNetworkOf(emptyWorld()), at, Infinity, 1)[0].pos;
+}
+
+function offRoad(layout: Vec, gap: number): Vec {
+  const road = nearRoad(layout);
+  const at = { x: layout.x * MAP_SPREAD, y: layout.y * MAP_SPREAD };
+  const away = dist(at, road);
+  return { x: road.x + ((at.x - road.x) * gap) / away, y: road.y + ((at.y - road.y) * gap) / away };
+}
+
+const OFF_ROAD: Vec = offRoad({ x: 260, y: 420 }, ROAD_GAP);
+const BOWL_ROAD_START: Vec = nearRoad({ x: 283, y: 572 });
 const SITES = [...REGION.towns, ...REGION.locations];
 
 function site(id: string): Vec {
@@ -197,7 +212,7 @@ describe('the heading of the first road', () => {
   });
 
   it('says the reported start on the road heads west for Bowl', () => {
-    const [point] = nearestRoadPoints(roadNetworkOf(w), { x: 283, y: 572 }, DIRECTIONS.joinReach, 1);
+    const [point] = nearestRoadPoints(roadNetworkOf(w), BOWL_ROAD_START, DIRECTIONS.joinReach, 1);
     const [first] = directionsTo(w, point.pos, to('bowl'));
     expect(first).toMatchObject({ do: 'follow', heading: 'west' });
   });

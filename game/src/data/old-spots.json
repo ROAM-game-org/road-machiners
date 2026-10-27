@@ -1,5 +1,5 @@
 {
- "mapHash": "8db768f7",
+ "mapHash": "b1e5b4f8",
  "picks": [
   {
    "propId": "ruin-32",
@@ -110,7 +110,7 @@
    "reach": 1.214549813717
   },
   {
-   "propId": "fishingBoat-45061",
+   "propId": "fishingBoat-45060",
    "type": "boats",
    "pos": {
     "x": 898.9635620117188,

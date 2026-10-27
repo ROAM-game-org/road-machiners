@@ -15,9 +15,9 @@ import { siteGates, sitePads } from './sites';
 import { fallbackFaction, spawnInitial, spawnNpcs } from './spawn';
 import { addVehicle, emptyWorld, finishBusiness, forceOption, npcBrain } from './testkit';
 import { TEST_MAP } from '../test/map';
-import { tileAt } from './terrain';
+import { roadNetworkOf } from './road-network';
 import type { NpcActivity, Vehicle, World } from './types';
-import { dist, type Vec } from './vec';
+import { dist, polylineDist, type Vec } from './vec';
 import { cloneWorld } from './world';
 import { emptyHidden } from './salvage';
 import { budget } from '../test/budget';
@@ -169,7 +169,7 @@ describe('independent', () => {
 });
 
 describe('independent', () => {
-  it('explore free map points, some of them off road', () => {
+  it('explore free points along the roads, on more than one road', () => {
     const w = emptyWorld({ x: 300, y: 300 });
     w.terrain = TEST_MAP.terrain;
     const npc = createNpc(w, 'roamer', ['roamer'], 'scout', ['mg', 'stockEngine'], { x: 300, y: 310 });
@@ -180,7 +180,10 @@ describe('independent', () => {
       expect(goal.destination!.x).toBeGreaterThan(0);
       expect(goal.destination!.y).toBeLessThan(w.size);
     }
-    expect(goals.some((g) => w.terrain.types[tileAt(w.terrain, g.destination!)] !== 'road')).toBe(true);
+    const { edges } = roadNetworkOf(w);
+    const edgeOf = (g: NpcActivity) => edges.findIndex((e) => polylineDist(g.destination!, e.points) < 0.01);
+    expect(goals.every((g) => edgeOf(g) >= 0)).toBe(true);
+    expect(new Set(goals.map(edgeOf)).size).toBeGreaterThan(5);
   });
 
   it('explore more often than anything else when idle', () => {

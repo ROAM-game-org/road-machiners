@@ -6,7 +6,7 @@ import { START_KITS } from '../data/start';
 import { PHYSICS } from '../data/physics';
 import { ROCK_LOOKS } from '../data/terrain';
 import { deckAt, deckById, underDeck } from './bridge';
-import { blockingBoxes, boxDistance, boxSegmentDistance, isBakedObstacle, isBreakable, isDriveObstacle, mapObstacles, propBoxes, propKey, propPose, propReach, propShape, rockModel, segmentCrossesBox, touchesObstacle } from './mapgen';
+import { blockingBoxes, boxDistance, boxSegmentDistance, isBakedObstacle, isBreakable, isDriveObstacle, mapObstacles, obstacleReach, propBoxes, propKey, propPose, propReach, propShape, rockModel, segmentCrossesBox, touchesObstacle } from './mapgen';
 import { hulkBoxes } from './body';
 import { ROAD_INDEX } from './road-index';
 import { isFortress } from './sites';
@@ -31,7 +31,31 @@ function mapWith(props: BakedProp[]): BakedMap {
   return { ...TEST_MAP, props };
 }
 
-const isFortPiece = (o: Obstacle) => o.kind === 'landmark' && FORT_MODELS.has(o.look);
+function nearbyObstacles(all: readonly Obstacle[]): (o: Obstacle) => Obstacle[] {
+  const reach = (o: Obstacle) => Math.max(o.r, obstacleReach(o));
+  const byX = [...all].sort((a, b) => a.pos.x - b.pos.x);
+  const widest = Math.max(...all.map(reach));
+  const firstAt = (x: number) => {
+    let lo = 0;
+    let hi = byX.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (byX[mid].pos.x < x) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  };
+  return (o) => {
+    const span = reach(o) + widest;
+    const found: Obstacle[] = [];
+    for (let i = firstAt(o.pos.x - span); i < byX.length && byX[i].pos.x <= o.pos.x + span; i++) {
+      if (dist(byX[i].pos, o.pos) <= reach(o) + reach(byX[i])) found.push(byX[i]);
+    }
+    return found;
+  };
+}
+
+const isFortPiece =(o: Obstacle) => o.kind === 'landmark' && FORT_MODELS.has(o.look);
 const isNoseRock = (o: Obstacle) => o.kind === 'landmark' && (o.look === 'noseRise' || o.look === 'noseCrag');
 
 describe('baked map obstacles', () => {
@@ -65,7 +89,8 @@ describe('baked map obstacles', () => {
   it('knows every obstacle it makes as baked, and no other', () => {
     const baked = mapObstacles(mapWith([prop('rock', 10), prop('pole', 20, { group: 4, step: 7 }), prop('tank', 30), prop('bridgeSpan', 40)]));
     const world = standardWorld(1337);
-    const others = world.obstacles.filter((o) => !mapObstacles(TEST_MAP).some((b) => b.id === o.id));
+    const bakedIds = new Set(mapObstacles(TEST_MAP).map((b) => b.id));
+    const others = world.obstacles.filter((o) => !bakedIds.has(o.id));
     const runtimeWrecks: Obstacle[] = [{ id: 'wreck-v12', pos: { x: 1, y: 1 }, r: 1, kind: 'wreck' }, { id: 'wreck31', pos: { x: 1, y: 1 }, r: 1, kind: 'wreck' }];
 
     expect(baked.every(isBakedObstacle)).toBe(true);
@@ -128,7 +153,8 @@ describe('world from the baked map', () => {
     const all = world.obstacles.filter((o) => o.kind !== 'site');
     const segmentLooks = new Set<string>(['fence', ...Object.values(TERRITORIES).flatMap((t) => t.farm?.runs.map((run) => run.look) ?? [])]);
     const ends = (o: Obstacle) => (o.kind === 'landmark' && segmentLooks.has(o.look) ? [1, -1].map((k) => ({ x: o.pos.x + k * o.r * Math.cos(o.yaw), y: o.pos.y + k * o.r * Math.sin(o.yaw) })) : []);
-    const touching = (a: Obstacle, b: Obstacle) => ends(a).some((p) => ends(b).some((q) => dist(p, q) < 1e-4));
+    const float32Step = 2 ** (Math.floor(Math.log2(world.size)) - 23);
+    const touching = (a: Obstacle, b: Obstacle) => ends(a).some((p) => ends(b).some((q) => dist(p, q) < 2 * float32Step));
     const low = (o: Obstacle) => propBoxes(o).filter((b) => b.z0 < PHYSICS.truckClearance);
     const boxed = (o: Obstacle) => o.kind === 'landmark' && HULL_PIECES.has(o.look);
     const rimPair = (a: Obstacle, b: Obstacle) => [a, b].every((o) => o.kind === 'landmark' && o.look === 'rimRock');
@@ -156,7 +182,8 @@ describe('world from the baked map', () => {
     };
     const sandbags = (o: Obstacle) => o.kind === 'landmark' && o.look === 'sandbags';
     const joined = (a: Obstacle, b: Obstacle) => sandbags(a) && sandbags(b);
-    const overlaps = baked.flatMap((o) => all.filter((other) => other.id !== o.id && overlap(o, other) && !touching(o, other) && !joined(o, other)).map((other) => `${o.id} ${other.id}`));
+    const near = nearbyObstacles(all);
+    const overlaps = baked.flatMap((o) => near(o).filter((other) => other.id !== o.id && overlap(o, other) && !touching(o, other) && !joined(o, other)).map((other) => `${o.id} ${other.id}`));
     expect(overlaps).toEqual([]);
   });
 

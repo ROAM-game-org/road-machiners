@@ -1,5 +1,5 @@
 import { START_KITS } from '../data/start';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { REGION } from '../data/region';
 import { TERRAIN, TERRAIN_TYPES } from '../data/terrain';
 import { resetPerf, perfSnapshot } from '../perf';
@@ -474,6 +474,10 @@ describe('nav layers match the old grid rules', () => {
     return { from, to, extra, radius: i % 3 === 0 ? 0.8 : 0.6 };
   });
   const refLayer = (radius: number) => referenceLayer(w.terrain, radius);
+
+  beforeAll(() => {
+    for (const radius of new Set(pairs.map((p) => p.radius))) refLayer(radius);
+  }, budget(240_000));
 
   it('A* cells avoid every blocked cell and cost within 1% of the reference', () => {
     let searched = 0;
