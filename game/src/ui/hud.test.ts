@@ -92,6 +92,23 @@ describe('held contract line', () => {
   });
 });
 
+describe('the wake', () => {
+  it('toasts You come to. once and logs it', () => {
+    const w = emptyWorld();
+    w.events = [{ t: 'wake' }];
+    const toasts: string[] = [];
+    const logged: string[] = [];
+    const hud = Object.assign(Object.create(Hud.prototype), {
+      toast: (msg: Msg) => toasts.push(resolve(msg, 'en')),
+      log: { add: (_turn: number, lines: { text: Msg }[]) => logged.push(...lines.map((line) => resolve(line.text, 'en'))) },
+      radio: { hear: () => {} },
+    }) as Hud;
+    hud.pushEvents(w);
+    expect(toasts).toEqual(['You come to.']);
+    expect(logged).toEqual(['You come to.']);
+  });
+});
+
 describe('first aid reasons', () => {
   const reasonOf = (w: ReturnType<typeof emptyWorld>) => resolve(firstAidMsg(w, firstAidBlock(w)) as Msg, 'en');
 
