@@ -2,7 +2,7 @@
 declare const __TURN_CLOCK__: string;
 
 const SECONDS_PER_DAY = 86400;
-const DEFAULT_TURN_CLOCK = 192;
+const DEFAULT_TURN_CLOCK = 15;
 
 function turnClockSetting(): string {
   if (typeof __TURN_CLOCK__ === 'string') return __TURN_CLOCK__;
