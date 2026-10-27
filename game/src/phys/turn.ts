@@ -301,10 +301,7 @@ function applyDriven(w: World, r: TurnResult, v: Vehicle, frames: TurnResult['fr
   const held = heldTurn(w, r, v, s, frames);
   if (held) holdAt(v);
   else releaseHold(v);
-  if ((v.strandedTurns ?? 0) >= RULES.stranded.turns) {
-    setDown(w, v);
-    delete v.strandedAt;
-  }
+  if ((v.strandedTurns ?? 0) >= RULES.stranded.turns) setDown(w, v);
   v.trail = trailOf(start, frames);
   burnFuel(w, v, pathLength(v.trail));
   settleOrder(w, v, r.results[v.id]);
