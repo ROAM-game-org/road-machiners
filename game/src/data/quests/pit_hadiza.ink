@@ -16,7 +16,7 @@ Hadiza. I run the canteen at Green Pit. Hang your rifle on the hook. Your first 
   -> hub
 + {not asked_hooks} [Why the hooks?]
   ~ asked_hooks = true
-  Because everybody drinks here. Riders from <term=kiln>Kiln</term> and soldiers from <term=nose>Nose</term> sit at the same table, and a gun on a hook can't start anything between them.
+  Because everybody drinks here. Riders from <term=kiln>Kiln</term> and soldiers from <term=nose>Nose</term> sit at the same tables, and a gun on a hook can't start anything between them.
   The <term=farmers>Farmers</term> won't come in while the riders do. They chase riders off Bowl's roads all week, so they won't share a bench with them. If they want the pit's water, they can drink it in their trucks.
   -> hub
 + {not asked_want} [What do you want from me?]

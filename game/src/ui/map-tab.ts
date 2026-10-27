@@ -2,7 +2,7 @@ import { WORLD_MAP } from '../data/minimap';
 import type { World } from '../sim/types';
 import { t, type Msg } from '../text/msg';
 import { el, markDisabled } from './dom';
-import { MapView, observeBox, poseOf } from './map-view';
+import { mapScene, MapView, observeBox, poseOf } from './map-view';
 import { wheelZoomFactor } from './map-geometry';
 
 type Drag = { pointer: number; x: number; y: number };
@@ -30,7 +30,7 @@ export class MapTab {
   }
 
   render(world: World): void {
-    this.view.update(world, poseOf(world));
+    this.view.update(mapScene(world), poseOf(world));
     this.mark();
   }
 

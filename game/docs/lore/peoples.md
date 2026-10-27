@@ -22,7 +22,7 @@ The cost is that a Senate order keeps the household's truck out of that book.
 
 Way: control.
 
-Nose is the town built around a ship's wreck on a mountain. The Central Committee governs it, led by President Alan Graves. The Nose Army keeps the order.
+Nose is the town inside the nose section of a ship's wreck on a mountain. Most of its people live in the hull. Its workshops, yards and the compound for outsiders stand around it. The Central Committee governs it, led by President Alan Graves. The Nose Army keeps the order.
 
 Nose runs the basin's only workshop line that builds whole engines and guns. It built the line from Old Orchard's machine tools, hauled up the mountain once the army was gone. Nose plans its whole economy. It rations food, water and work, so most people there are safe and fed. Its leaders are deeply corrupt, and the army is brutal to anyone who speaks against them.
 
@@ -36,7 +36,7 @@ In the game, the Nose Army patrols the roads around Nose.
 
 Way: fear.
 
-Bowl is a farm built in terraces down the inside of an impact crater. Its people are citizens and tenants. A person earns citizenship by serving ten years in the Bowl patrols, and only citizens vote. Tenants have fewer rights and less money than the people of Nose, but much more freedom.
+Bowl is a farming town built in terraces down the inside of an impact crater. Its people are citizens and tenants. A person earns citizenship by serving ten years in the Bowl patrols, and only citizens vote. Tenants have fewer rights and less money than the people of Nose, but much more freedom.
 
 The Senate of citizens governs Bowl. It elects Archons to carry out its decisions. Bowl's agents in other towns are called Episkopoi. Old men run the Senate. It often splits on the questions that matter, so it acts slowly. Bowl has more people than Nose.
 
@@ -44,7 +44,7 @@ Bowl does not want to grow. It wants to keep its walls and its fields safe. It w
 
 The cost is that life shrinks to fit the walls, and the tenants who feed Bowl have no voice in it.
 
-The Bowl road patrol is paid from the Granary count, the north-western convoy's fee and tenant shares. Tenants may serve in it, and ten years in it earn a vote. It keeps only the Bowl's roads.
+The Bowl road patrol is paid from the Granary's grain, the north-western convoy's fee and tenant shares. Tenants may serve in it, and ten years in it earn a vote. It keeps only the Bowl's roads.
 
 In the game, the Bowl Farmers patrol the roads around Bowl.
 
@@ -93,7 +93,7 @@ The cost is that the Yard lives by selling guns to everyone, and everyone wants 
 
 Way: control.
 
-The Marshalls keep the road book at the Roadhouse, a fenced Old World yard around a Guild relay mast on the open plain north of the Nose. They are few: a handful of drivers in fast plated cars, most of them old Lincolns. Their first two cars were Commander Lind's staff cars from the Old Orchard motor pool.
+The Marshalls keep the road book at the Roadhouse, a walled settlement of a few hundred people grown up round a Guild relay mast and an Old World yard on the open plain north of the Nose. The Marshalls themselves are few: a handful of drivers in fast plated cars, most of them old Lincolns. Their first two cars were Commander Lind's staff cars from the Old Orchard motor pool.
 
 A lawful driver who was attacked or robbed on the open road, or whose kin was killed there, brings the wrong to the Roadhouse, or a driver who saw it does. The book writes the claim, the answer, the witnesses and the price. A Marshall rides out, asks the drivers on the road where they last saw the culprit, and asks him to pay. Only a driver who refuses gets a fight. The Roadhouse takes a cut of every closed case. It answers to no town, and it can buy a driver off a town's post by paying the town its price.
 
