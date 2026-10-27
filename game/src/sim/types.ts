@@ -370,6 +370,7 @@ export type Vehicle = {
   heading: number;
   bend?: number;
   speed: number;
+  setSpeed?: number;
   stormExposure: Record<string, number>;
   strandedTurns?: number;
   strandedAt?: Vec;

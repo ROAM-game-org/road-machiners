@@ -14,7 +14,7 @@ import { propsAroundInOrder } from '../sim/prop-index';
 import { playerVehicle } from '../sim/damage';
 import { groundSpeed, vehicleStats, type VehicleStats } from '../sim/stats';
 import { continueRoute, keepRoute, route, type KeptRoute } from '../sim/path';
-import { backsToDestination, driveMode, throughSpeed } from '../sim/steering';
+import { backsToDestination, driveMode, nextSetSpeed, throughSpeed } from '../sim/steering';
 import { givesWayTo, routeBlockers, standingBlockers, yieldsToTraffic } from '../sim/ai';
 import { clearanceFor, type Clearance, type Mover } from '../sim/clearance';
 import { combatFoesOf } from '../sim/combat';
@@ -69,7 +69,7 @@ export type Drive = {
 export type DeckColliders = { plates: number[]; rails: number[]; lips: number[] };
 
 export type Break = { prop: string; vehicle: string; impact: number; step: number };
-export type VehicleResult = { passed: boolean; arrived: boolean; pushedSteps: number };
+export type VehicleResult = { passed: boolean; arrived: boolean; pushedSteps: number; setSpeed?: number };
 export type Landing = { vehicle: string; impact: number; step: number };
 export type Tear = { line: string; step: number };
 export type TurnResult = { next: Drive; frames: TurnFrames; crashes: Crash[]; breaks: Break[]; landings: Landing[]; tears: Tear[]; results: Record<string, VehicleResult> };
@@ -288,7 +288,7 @@ function run(d: Drive, w: World, steps: number, world: RAPIER.World, events: RAP
     for (const c of cars) frames[c.v.id].push(frameOf(c, before.get(c.v.id)!.velocity));
   }
   for (const c of cars) dropControllers(world, carrySpins(c, frames[c.v.id].at(-1)));
-  const results = Object.fromEntries(cars.map((c) => [c.v.id, c.result]));
+  const results = Object.fromEntries(cars.map((c) => [c.v.id, { ...c.result, setSpeed: c.plan.setSpeed }]));
   const obstacles = Object.fromEntries(Object.entries(d.obstacles).filter(([id]) => !contacts.isBroken(id)));
   return { next: { world, bodies: { ...d.bodies }, rears: { ...d.rears }, couplings: { ...d.couplings }, shapes: { ...d.shapes }, obstacles, craters: { ...d.craters }, memory, terrain: d.terrain, decks: d.decks }, frames, crashes: contacts.crashes, breaks: contacts.breaks, landings: landings.all(), tears: lines.tears, results };
 }
@@ -591,14 +591,16 @@ function crashTarget(other: number, owner: Map<number, string>, obstacleOf: Map<
   return owner.get(other) ?? obstacleOf.get(other) ?? (d.decks.some((c) => c.rails.includes(other) || c.lips.includes(other)) ? RAIL : EDGE);
 }
 
-type Plan = { dest: Vec | null; route: Vec[] | null; target: number; stopAt: boolean; engine: boolean; maxSteer: number; engineForce: number; brakeForce: number; stopDecel: number; clearance: Clearance | null; room: Clearance | null };
+type Plan = { setSpeed: number | undefined; dest: Vec | null; route: Vec[] | null; target: number; stopAt: boolean; engine: boolean; maxSteer: number; engineForce: number; brakeForce: number; stopDecel: number; clearance: Clearance | null; room: Clearance | null };
 
 function planTurn(w: World, v: Vehicle, full: VehicleStats, body: RAPIER.RigidBody, order: MoveOrder | null, mem: Memory): Plan {
   const ch = chassisDef(v.chassisId);
   const speed = Math.max(0, toTilesPerTurn(forwardSpeed(body)));
   const s = fuelLimited(w, v, full, speed, order);
   const engine = s.maxSpeed > 0;
+  const set = nextSetSpeed(v, s, speed, order, order?.kind === 'through' ? dist(v.pos, order.dest) : 0);
   const base = {
+    setSpeed: set,
     engine,
     maxSteer: T.maxSteer * (s.turnSlow / (ch.turnSlow * DEG)),
     engineForce: (full.mass * T.engineAccel * (s.accel / ch.accel)) / 2,
@@ -607,9 +609,9 @@ function planTurn(w: World, v: Vehicle, full: VehicleStats, body: RAPIER.RigidBo
     clearance: null,
     room: null,
   };
-  if (!order) return { ...base, dest: null, route: null, target: idleTarget(speed), stopAt: false };
-  if (order.kind === 'brake') return { ...base, dest: null, route: null, target: 0, stopAt: false };
-  if (yieldsToTraffic(w, v)) return { ...base, dest: null, route: null, target: 0, stopAt: false };
+  if (!order) return { ...base, dest: null, route: null, target: set === undefined ? idleTarget(speed) : toMps(engine ? set : speed), stopAt: false };
+  if (order.kind === 'brake') return { ...base, setSpeed: undefined, dest: null, route: null, target: 0, stopAt: false };
+  if (yieldsToTraffic(w, v)) return { ...base, setSpeed: undefined, dest: null, route: null, target: 0, stopAt: false };
   const blockers = routeBlockers(w, v);
   const stored = mem.route && dist(mem.route.dest, order.dest) < RULES.arriveRadius && mem.route.radius === s.radius ? continueRoute(w, v.pos, mem.route, order.dest, s.radius, blockers, v) : null;
   const path = v.direct ? null : stored ?? [...route(w, v.pos, order.dest, s.radius, blockers, v)];
@@ -619,7 +621,7 @@ function planTurn(w: World, v: Vehicle, full: VehicleStats, body: RAPIER.RigidBo
   Object.assign(mem, { clearAhead: Infinity, clearMoving: Infinity, clearBehind: Infinity, clearAt: 0, roomAt: 0, roomBack: null, roomTurn: null });
   const drive = (next: number) => toMps(engine ? next : speed);
   if (order.kind === 'stopAt') return { ...base, clearance, room, dest: stopPoint(path, order.dest), route: path, target: drive(Math.min(s.maxSpeed, speed + s.accel)), stopAt: true };
-  const next = throughSpeed(s, speed, dist(v.pos, order.dest), order.pace, driveMode(v));
+  const next = set ?? throughSpeed(s, speed, dist(v.pos, order.dest), order.pace, driveMode(v));
   return { ...base, clearance, room, dest: order.dest, route: path, target: drive(next), stopAt: false };
 }
 

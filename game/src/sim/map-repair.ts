@@ -71,6 +71,7 @@ const VEHICLE_MOVE = {
   heading: 'keep',
   bend: 'keep',
   speed: 'keep',
+  setSpeed: 'keep',
   stormExposure: 'drop',
   strandedTurns: 'keep',
   strandedAt: 'shift',

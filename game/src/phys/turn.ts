@@ -305,7 +305,13 @@ function applyDriven(w: World, r: TurnResult, v: Vehicle, frames: TurnResult['fr
   }
   v.trail = trailOf(start, frames);
   burnFuel(w, v, pathLength(v.trail));
+  writeSetSpeed(v, r.results[v.id].setSpeed);
   settleOrder(w, v, r.results[v.id]);
+}
+
+function writeSetSpeed(v: Vehicle, setSpeed: number | undefined): void {
+  if (setSpeed === undefined) delete v.setSpeed;
+  else v.setSpeed = setSpeed;
 }
 
 function holdAt(v: Vehicle): void {
