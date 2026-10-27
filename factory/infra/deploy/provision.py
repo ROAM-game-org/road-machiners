@@ -1,6 +1,6 @@
 """Base host provisioning for the game factory. Idempotent. Re-run it safely after changes.
 
-Packages, Docker, Node 24, gh, butler, the firewall, the laptop power settings, the NVIDIA driver and container toolkit, the factory user and the /opt/factory dirs.
+Packages, Docker, Node 24, gh, butler, the firewall, the laptop power settings, the watchdog, the NVIDIA driver and container toolkit, the factory user and the /opt/factory dirs.
 """
 
 # pyright: reportMissingImports=false
@@ -126,6 +126,33 @@ files.put(
 server.shell(
     name="Mask sleep targets",
     commands=["timeout 60 systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target"],
+    _sudo=True,
+)
+
+# A host that hangs reboots by itself. The laptop has no hardware watchdog loaded, so softdog gives systemd one. When systemd stops answering it for 10 minutes, the kernel reboots, and the jobs that ran resume once as after any reboot.
+files.put(
+    name="Load softdog at boot",
+    src=StringIO("softdog\n"),
+    dest="/etc/modules-load.d/factory-softdog.conf",
+    mode="644",
+    _sudo=True,
+)
+files.put(
+    name="systemd feeds the watchdog",
+    src=StringIO("[Manager]\nRuntimeWatchdogSec=10min\n"),
+    dest="/etc/systemd/system.conf.d/factory-watchdog.conf",
+    mode="644",
+    create_remote_dir=True,
+    _sudo=True,
+)
+server.shell(
+    name="Start the watchdog and check that systemd feeds it",
+    commands=[
+        "timeout 60 modprobe softdog",
+        "test -e /dev/watchdog0",
+        "timeout 60 systemctl daemon-reexec",
+        "systemctl show --property RuntimeWatchdogUSec --value | grep -qx 10min",
+    ],
     _sudo=True,
 )
 
