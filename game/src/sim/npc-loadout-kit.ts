@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, expect } from 'vitest';
 import { CHASSIS } from '../data/chassis';
-import type { GearLevel, NpcTemplate } from '../data/npcs';
-import { PARTS } from '../data/parts';
+import { NPCS, type GearLevel, type NpcTemplate } from '../data/npcs';
+import { isLineGun, partDef, PARTS } from '../data/parts';
 import TRUCK_SHAPES from '../data/truck-shapes.json';
-import { mountedParts } from './grid';
+import { mountedItems, mountedParts } from './grid';
 import { makeVehicle } from './factory';
 import { generateNpcLoadout } from './npc-loadout';
 import { fallbackFaction } from './spawn';
@@ -53,3 +53,9 @@ export function rolled(template: NpcTemplate, level: GearLevel | null, seed: num
   const loadout = loadoutOf(world, template, null, level);
   return makeVehicle(world, { ...loadout, faction: fallbackFaction(template), brain: null, pos: { x: 50, y: 50 }, heading: 0 });
 }
+
+export const armedTemplates = Object.values(NPCS).filter((template) => template.loadout.armed);
+
+export const realGuns = (v: Vehicle) => mountedItems(v, 'weapon').filter((item) => !isLineGun(partDef(item.part.defId)));
+
+export const sweep = (template: NpcTemplate, seeds: number) => Array.from({ length: seeds }, (_, i) => rolled(template, null, i + 1));
