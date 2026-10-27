@@ -8,8 +8,7 @@ import { encounterAvailable } from './encounters';
 import { canSpareFor } from './aid';
 import { isLineGun } from '../data/parts';
 import { ECONOMY } from '../data/goods';
-import { ESCORT_JOB, SHOPS, type ShopDef } from '../data/market';
-import { graphEdges } from '../data/market';
+import { ESCORT_JOB, SHOPS, graphEdges, type ShopDef } from '../data/market';
 import { legRisk } from './road-news';
 import { goodStock, goodValue, shopState, stockTarget } from './market';
 import { routeThreat } from './escort-job';
@@ -28,12 +27,11 @@ import { vehicleById } from './damage';
 import { sensesOf } from './detect';
 import { affordableBuyCount, getTradePrice, getUpkeepReserve } from './economy';
 export { getUpkeepReserve } from './economy';
-import { cargoRoom } from './inventory';
+import { cargoRoom, hasCargoRoom } from './inventory';
 import { hasPerceivedLoot, knowsCargo, perceivedLoad } from './look-over';
 import { maxHp } from './wear';
 import { corePart, freeCells, mountedParts } from './grid';
 import { hasRansom, ransomOf } from './haul';
-import { hasCargoRoom } from './inventory';
 import { inDanger, topGoal } from './npc-activities';
 import { sampleWeighted } from './npc-loadout';
 import { getResources } from './resources';
@@ -57,6 +55,7 @@ import { icarusAtlas } from './atlas';
 import { canVehicleSee } from './vision';
 import { huntsOffRoad } from './hunt-style';
 import { postsOf } from './watch-posts';
+import { keepsToItself } from './sunward';
 import { bandAtLeast, bandToward, heedsCall, isAlly, isOutlaw, isRaider, lawCalls } from './relations';
 
 export type NpcProfile = {
@@ -590,7 +589,7 @@ function canFightSubject(world: World, vehicle: Vehicle, decision: DecisionId, s
 }
 
 function canInvestigate(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {
-  return canDrive(world, vehicle) && !holdsOffRobbery(world, vehicle, subjectOf(world, decision, subject));
+  return !keepsToItself(world, vehicle) && canDrive(world, vehicle) && !holdsOffRobbery(world, vehicle, subjectOf(world, decision, subject));
 }
 
 function canDrive(world: World, vehicle: Vehicle): boolean {
@@ -682,7 +681,7 @@ type OptionName = DecisionOptions[DecisionId];
 const AVAILABLE: Record<OptionName, Availability> = {
   keep: always,
   pay: (world, vehicle) => canPayBounty(world, vehicle),
-  fight: canFightSubject,
+  fight: (world, vehicle, decision, subject) => !keepsToItself(world, vehicle) && canFightSubject(world, vehicle, decision, subject),
   fightBack: canFightSubject,
   flee: canDrive,
   investigate: canInvestigate,
@@ -695,7 +694,7 @@ const AVAILABLE: Record<OptionName, Availability> = {
   scavenge: canScavenge,
   raid: canRaid,
   prowl: canProwl,
-  loot: canLootSubject,
+  loot: (world, vehicle, decision, subject) => !keepsToItself(world, vehicle) && canLootSubject(world, vehicle, decision, subject),
   wait: always,
   linger: (world, vehicle) => lingerReasonNow(world, vehicle) !== null,
   patrol: canPatrol,

@@ -20,6 +20,7 @@ import { isTerritory, siteGap } from './sites';
 import { territoryGrounds } from './territory';
 import type { NpcActivity, NpcState, Obstacle, SunwardFacts, SunwardHunt, SunwardNight, Vehicle, World } from './types';
 import { hashRandom } from './rng';
+import { watchPost } from './watch-posts';
 import type { NightZone } from './nav/layer';
 import { dist, type Vec } from './vec';
 
@@ -109,6 +110,10 @@ export function inNightWindow(turn: number): boolean {
 
 export function nightWindow(world: World): boolean {
   return orderStands(world) && inNightWindow(world.turn);
+}
+
+export function keepsToItself(world: World, v: Vehicle): boolean {
+  return isSunwardMember(v) && orderStands(world) && !inNightWindow(world.turn);
 }
 
 export function isSunwardMember(v: Vehicle): boolean {
@@ -219,8 +224,16 @@ function hunting(world: World, v: Vehicle): SunwardHunt | null {
 function huntGoal(world: World, v: Vehicle, hunt: SunwardHunt): NpcActivity {
   const leader = hunt.party.map((id) => world.vehicles.find((x) => x.id === id)).find((x) => x !== undefined && !isDefeated(x));
   if (leader && leader.id !== v.id) return goal('follow', leader.pos, 'huntRoad', leader.id);
+  if (!nightWindow(world)) return { ...goal('wait', huntHide(world, hunt), 'huntRoad'), until: orderDusk(world.turn) };
   const next = nextGround(v, hunt.grounds);
   return goal('prowl', hunt.grounds[next === 'a' ? 0 : 1], 'huntRoad', next);
+}
+
+function huntHide(world: World, hunt: SunwardHunt): Vec {
+  const ground = hunt.grounds[0];
+  const hide = watchPost(world, ground);
+  if (!hide) throw new Error(`No hide watches the hunt road at ${ground.x},${ground.y}`);
+  return hide;
 }
 
 function nextGround(v: Vehicle, grounds: Vec[]): 'a' | 'b' {
@@ -408,9 +421,11 @@ function vigilGoal(world: World, v: Vehicle): NpcActivity {
   return { ...goal('wait', postOf(world, v), 'keepVigil'), until: returnTurn(sunwardFacts(world).night!.dusk) };
 }
 
+const HELD_POSTS: readonly NpcActivity['reason'][] = ['keepVigil', 'huntRoad'];
+
 export function holdsPost(v: Vehicle): boolean {
   const top = topGoal(v);
-  return isSunwardMember(v) && top?.kind === 'wait' && top.reason === 'keepVigil' && top.destination !== null && dist(v.pos, top.destination) <= RULES.arriveRadius * 2;
+  return isSunwardMember(v) && top?.kind === 'wait' && HELD_POSTS.includes(top.reason) && top.destination !== null && dist(v.pos, top.destination) <= RULES.arriveRadius * 2;
 }
 
 function postOf(world: World, v: Vehicle): Vec {
