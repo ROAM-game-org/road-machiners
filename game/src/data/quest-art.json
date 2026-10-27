@@ -71,8 +71,8 @@
   },
   "town_nose": {
     "file": "town_nose.webp",
-    "focusX": 55,
-    "focusY": 42
+    "focusX": 50,
+    "focusY": 0
   },
   "town_salvage_yard": {
     "file": "town_salvage_yard.webp",
