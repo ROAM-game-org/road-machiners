@@ -6,7 +6,8 @@ import { PERSONALITY_IDS, TALK_PRICE, type PersonalityId } from '../data/persona
 import { START_KITS } from '../data/start';
 import { TEST_MAP } from '../test/map';
 import { budget } from '../test/budget';
-import { callVehicle, chooseOption, currentOptions, talkOf } from './dialogue';
+import { callVehicle, currentOptions, talkOf } from './dialogue';
+import { chooseLine } from './dialogue-testkit';
 import { remember } from './memory';
 import { fallenSun } from './sunward';
 import { defaultSetup } from './settings';
@@ -33,9 +34,7 @@ function backFromNose(w: World, npc: Vehicle): void {
 const offered = (w: World): LineId[] => currentOptions(w).map((o) => o.line);
 
 function choose(w: World, line: LineId): World {
-  const i = offered(w).indexOf(line);
-  if (i < 0) throw new Error(`No option ${line} in ${offered(w).join(' | ')}`);
-  return chooseOption(w, i);
+  return chooseLine(w, line);
 }
 
 const ask = (topic: TopicId): LineId => TOPICS[topic].ask!.say;

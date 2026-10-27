@@ -241,7 +241,7 @@
 #ui.phone .modal {
   left: var(--safe-left);
   right: var(--safe-right);
-  top: var(--safe-top);
+  top: var(--modal-top);
   bottom: var(--safe-bottom);
   width: auto;
   height: auto;
@@ -269,12 +269,12 @@
   white-space: nowrap;
 }
 #ui.phone .modal.quest-screen {
-  top: var(--safe-top);
+  top: var(--modal-top);
   width: auto;
-  max-height: calc(var(--layer-h) - var(--safe-top) - var(--safe-bottom));
+  max-height: calc(var(--layer-h) - var(--modal-top) - var(--safe-bottom));
 }
 #ui.phone .modal.quest-screen.quest-page {
-  top: var(--safe-top);
+  top: var(--modal-top);
   width: auto;
   height: auto;
   max-height: none;
