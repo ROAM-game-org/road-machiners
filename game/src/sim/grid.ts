@@ -258,16 +258,18 @@ export function layoutError(g: Grid, items: GridItem[]): PlacementRefusal | null
     if (crossesChassisEnd(g, cells) || !cells.every((c) => onGrid(g, c))) return { id: 'noFit' };
     const counts = held[layerOf(g, item)];
     if (cells.some((c) => (counts.get(cellKey(c.x, c.y)) ?? 0) > 1)) return { id: 'inTheWay' };
-    const refusal = clashIn(g, new Set(), item, cells);
-    if (refusal) return refusal;
+    if (armorClash(g, item, cells)) return { id: 'armorOnly' };
   }
   return null;
 }
 
 function clashIn(g: Grid, taken: Set<number>, item: GridItem, cells: { x: number; y: number }[]): PlacementRefusal | null {
   if (cells.some((c) => taken.has(cellKey(c.x, c.y)))) return { id: 'inTheWay' };
-  if (!sitsOnSkin(g, item) && cells.some((c) => isSkin(g.cells[c.y][c.x]))) return { id: 'armorOnly' };
-  return null;
+  return armorClash(g, item, cells) ? { id: 'armorOnly' } : null;
+}
+
+function armorClash(g: Grid, item: GridItem, cells: { x: number; y: number }[]): boolean {
+  return !sitsOnSkin(g, item) && cells.some((c) => isSkin(g.cells[c.y][c.x]));
 }
 
 function sitsOnSkin(g: Grid, item: GridItem): boolean {
