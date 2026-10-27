@@ -6,9 +6,14 @@ import { askTopic, callVehicle, chooseOption, currentOptions } from './dialogue'
 import { asksOf, offersLine } from './dialogue-testkit';
 import { canAskHelp, helpAnswer, joinPlayerFight, turnDownCall, type HelpAnswer } from './help-call';
 import { remember } from './memory';
+import { followingOf, joinCompany } from './companies';
+import { NPC_BEHAVIOR } from '../data/npc-behavior';
+import { fightOdds } from './fight-odds';
+import { nextRandom } from './rng';
+import { callFighters, dangerJoining, optionChances, optionWeights, strengthRatio } from './npc-decisions';
 import { topGoal } from './npc-activities';
 import { refreshVision } from './vision';
-import { stateOf } from './states';
+import { addState, stateOf } from './states';
 import { endTurn } from './world';
 import { addVehicle, emptyWorld, forceOption, npcBrain, startCombat, testDrive } from './testkit';
 import type { Faction, Vehicle, World } from './types';
@@ -69,7 +74,6 @@ describe('the answer', () => {
   it('refuses outright for hard reasons and never rolls a yes', () => {
     const cases: [string, Fight][] = [
       ['a raider', fight('scrapjaw', ['raider'])],
-      ['a neutral coward', fight('independent', ['coward'])],
       ['a driver who likes the foe', fight('bowl', ['trader'], 20, 'bowl')],
     ];
     for (const [name, c] of cases) {
@@ -84,13 +88,72 @@ describe('the answer', () => {
     for (let i = 0; i < 50; i++) expect(helpAnswer(c.w, c.helper)).not.toBe('help');
   });
 
-  it('says yes at the shared rate: allied almost always, friendly three in four, neutral one in ten, never for a coward or a raider', () => {
-    expect(yesRate(() => fight('bowl', ['trader'], 60))).toBeCloseTo(0.98, 1);
-    expect(Math.abs(yesRate(() => fight('bowl', ['trader'], 20)) - 0.75)).toBeLessThan(0.03);
-    expect(Math.abs(yesRate(() => fight('independent', ['trader'])) - 0.11)).toBeLessThan(0.03);
-    expect(Math.abs(yesRate(() => fight('bowl', ['lawman']), 600) - 0.98)).toBeLessThan(0.03);
-    expect(yesRate(() => fight('independent', ['coward']), 300)).toBe(0);
+  it('says yes at the shared rate for the odds: even odds change nothing, twice as strong gives a neutral one in three', () => {
+    const chance = (faction: Faction, traits: TraitId[], danger: number, standing = 0): number => {
+      const { w, helper } = fight(faction, traits, standing);
+      return optionChances(optionWeights(w, helper, 'helpCalled', playerVehicle(w).id, danger)).help!;
+    };
+    const table: [string, Faction, TraitId[], number, number[]][] = [
+      ['neutral', 'independent', ['trader'], 0, [0.11, 0.22, 0.34, 0.55, 0.7]],
+      ['brave', 'independent', ['brave'], 0, [0.22, 0.4, 0.56, 0.75, 0.85]],
+      ['vulture', 'independent', ['vulture'], 0, [0.04, 0.08, 0.14, 0.27, 0.41]],
+      ['friendly', 'bowl', ['trader'], 20, [0.74, 0.87, 0.92, 0.96, 0.97]],
+      ['allied', 'bowl', ['trader'], 60, [0.97, 0.98, 0.99, 0.99, 0.99]],
+    ];
+    for (const [name, faction, traits, standing, expected] of table) {
+      [1, 1 / 1.5, 1 / 2, 1 / 3, 1 / 4].forEach((danger, i) => {
+        expect(Math.abs(chance(faction, traits, danger, standing) - expected[i]), `${name} at advantage ${1 / danger}`).toBeLessThan(0.02);
+      });
+    }
+  });
+
+  it('keeps today weights at even odds or worse and grows only up to the cap', () => {
+    const { w, helper } = fight('independent', ['trader']);
+    const me = playerVehicle(w).id;
+    const weight = (danger: number) => optionWeights(w, helper, 'helpCalled', me, danger).help!;
+    expect(weight(1)).toBe(weight(5));
+    expect(weight(0.5)).toBeGreaterThan(weight(1));
+    expect(weight(0.25)).toBeGreaterThan(weight(0.5));
+    expect(weight(0.1)).toBe(weight(0.25));
+    expect(weight(0)).toBe(weight(0.25));
+  });
+
+  it('throws when the weight gets no danger', () => {
+    const { w, helper } = fight('independent', ['trader']);
+    expect(() => optionWeights(w, helper, 'helpCalled', playerVehicle(w).id, null)).toThrow();
+  });
+
+  it('draws two numbers from the world, as before', () => {
+    const { w, helper } = fight('independent', ['trader']);
+    const copy = { rngState: w.rngState };
+    helpAnswer(w, helper);
+    nextRandom(copy);
+    nextRandom(copy);
+    expect(w.rngState).toBe(copy.rngState);
+  });
+
+  it('never says yes for a raider and says yes for a lawman', () => {
     expect(yesRate(() => fight('scrapjaw', ['raider']), 300)).toBe(0);
+    expect(Math.abs(yesRate(() => fight('bowl', ['lawman']), 600) - 0.99)).toBeLessThan(0.03);
+  });
+
+  it('lets a neutral coward join only an overwhelming fight', () => {
+    const overwhelming = fight('independent', ['coward']);
+    const answers = new Set<HelpAnswer>();
+    for (let i = 0; i < 400; i++) answers.add(helpAnswer(overwhelming.w, overwhelming.helper));
+    expect(answers.has('help')).toBe(true);
+    const even = fight('independent', ['coward']);
+    for (let i = 0; i < 2; i++) {
+      const extra = addVehicle(even.w, 'scrapjaw', 'scout', ['mg', 'stockEngine'], { x: 24 + i, y: 36 });
+      extra.brain = npcBrain('buggy', extra.pos, ['raider']);
+      startCombat(even.w, extra, playerVehicle(even.w));
+    }
+    refreshVision(even.w);
+    for (let i = 0; i < 200; i++) expect(helpAnswer(even.w, even.helper)).not.toBe('help');
+  });
+
+  it('rolls a friendly coward as any friendly driver', () => {
+    expect(yesRate(() => fight('bowl', ['coward'], 20), 400)).toBeGreaterThan(0.3);
   });
 
   it('owns up to being outgunned when the foes are too much', () => {
@@ -191,5 +254,142 @@ describe('a merc hired in the fight', () => {
     const offered = asksOf(callVehicle(c.w, c.helper.id));
     expect(offered).toContain('Ride guard for me for a day?');
     expect(offered).not.toContain("Need a hand here, I'm under fire!");
+  });
+});
+
+type Convoy = Fight & { leader: Vehicle; guards: Vehicle[] };
+
+function convoy(leaderParts: string[] = ['stockEngine']): Convoy {
+  const c = fight('bowl', ['trader'], 20);
+  c.w.vehicles = c.w.vehicles.filter((v) => v.id !== c.helper.id);
+  const leader = addVehicle(c.w, 'bowl', 'scout', leaderParts, { x: 35, y: 28 });
+  leader.brain = npcBrain('trader', leader.pos, ['trader']);
+  const guards = [0, 1].map((i) => {
+    const guard = addVehicle(c.w, 'bowl', 'scout', ['mg', 'stockEngine'], { x: 35 + i, y: 31 });
+    guard.brain = npcBrain('trader', guard.pos, ['trader']);
+    joinCompany(c.w, guard, leader, 'escort', { kind: 'escort', site: null, fee: 0 });
+    return guard;
+  });
+  refreshVision(c.w);
+  return { ...c, helper: guards[0], leader, guards };
+}
+
+describe('a company called for help', () => {
+  it('answers with its leader, and a yes sends the armed guards but not the unarmed leader', () => {
+    forceOption('helpCalled', 'help');
+    const c = convoy();
+    const before = topGoal(c.leader);
+    expect(helpAnswer(c.w, c.helper)).toBe('help');
+    joinPlayerFight(c.w, c.helper);
+    for (const guard of c.guards) {
+      expect(topGoal(guard)?.reason).toBe('answeredCall');
+      for (const foe of awakeFoesOf(c.w, playerVehicle(c.w))) expect(stateOf(c.w, 'feud', guard.id, foe.id)).not.toBeNull();
+      expect(stateOf(c.w, 'escort', guard.id, c.leader.id)).not.toBeNull();
+      expect(stateOf(c.w, 'combat', guard.id, c.foe.id)).not.toBeNull();
+    }
+    expect(c.w.events.filter((e) => e.t === 'joins')).toHaveLength(2);
+    expect(topGoal(c.leader)).toEqual(before);
+  });
+
+  it('sends an armed leader too', () => {
+    forceOption('helpCalled', 'help');
+    const c = convoy(['mg', 'stockEngine']);
+    joinPlayerFight(c.w, c.helper);
+    expect(topGoal(c.leader)?.reason).toBe('answeredCall');
+    expect(c.w.events.filter((e) => e.t === 'joins')).toHaveLength(3);
+  });
+
+  it('judges the odds without the unarmed leader', () => {
+    const c = convoy();
+    const me = playerVehicle(c.w);
+    const foes = awakeFoesOf(c.w, me);
+    const fighters = callFighters(c.w, c.leader, me);
+    expect(fighters.map((v) => v.id).sort()).toEqual(c.guards.map((v) => v.id).sort());
+    const danger = (crew: Vehicle[]) => {
+      c.w.rngState = 7;
+      return dangerJoining(c.w, c.leader, crew, me, foes);
+    };
+    const withBus = danger([c.leader, ...fighters]);
+    const withoutBus = danger(fighters);
+    expect(withoutBus).toBeGreaterThan(withBus);
+    const spread = NPC_BEHAVIOR.dangerSpread;
+    const honest = strengthRatio(fightOdds(c.w, [...fighters, me], foes));
+    expect(withoutBus / honest).toBeGreaterThanOrEqual(1 - spread);
+    expect(withoutBus / honest).toBeLessThanOrEqual(1 + spread);
+  });
+
+  it('a no or too hot puts one refusal on every member and the leader', () => {
+    forceOption('helpCalled', 'refuse');
+    const c = convoy();
+    turnDownCall(c.w, c.helper);
+    const refused = c.w.states.filter((s) => s.kind === 'helpRefused').map((s) => s.holder).sort();
+    expect(refused).toEqual([c.leader.id, ...c.guards.map((g) => g.id)].sort());
+    for (const v of [c.leader, ...c.guards]) expect(canAskHelp(c.w, v)).toBe(false);
+  });
+
+  it('a guard out of sight of its leader answers alone and keeps its word', () => {
+    const c = convoy();
+    c.guards[0].pos = { x: 35, y: 90 };
+    c.w.vehicles.find((v) => v.id === c.helper.id)!.pos = c.guards[0].pos;
+    refreshVision(c.w);
+    for (let i = 0; i < 30; i++) expect(helpAnswer(c.w, c.helper)).toBe('refuse');
+    turnDownCall(c.w, c.helper);
+    expect(c.w.states.filter((s) => s.kind === 'helpRefused')).toHaveLength(1);
+  });
+
+  it('does not send a guard bound to another deal', () => {
+    const c = convoy();
+    addState(c.w, 'aid', c.guards[1].id, c.w.player.vehicleId, { kind: 'aid', giver: 'npc', fuel: 1, supplies: 0, price: 0, free: true, agreed: true, started: false, work: 1, workLeft: 1 });
+    const fighters = callFighters(c.w, c.leader, playerVehicle(c.w));
+    expect(fighters.map((v) => v.id)).toEqual([c.guards[0].id]);
+  });
+
+  it('plays through the call topic for a yes and a no', () => {
+    forceOption('helpCalled', 'help');
+    const yes = convoy();
+    let w = chooseOption(callVehicle(yes.w, yes.helper.id), 0);
+    w = chooseOption(w, 0);
+    for (const guard of yes.guards) expect(topGoal(w.vehicles.find((v) => v.id === guard.id)!)?.reason).toBe('answeredCall');
+  });
+
+  it('plays through the call topic for a no', () => {
+    forceOption('helpCalled', 'refuse');
+    const no = convoy();
+    let w = chooseOption(callVehicle(no.w, no.helper.id), 0);
+    w = chooseOption(w, 0);
+    expect(w.states.filter((s) => s.kind === 'helpRefused')).toHaveLength(3);
+  });
+
+  it('a guard goes back to following when its fight ends', () => {
+    forceOption('helpCalled', 'help');
+    const c = convoy();
+    joinPlayerFight(c.w, c.helper);
+    for (const guard of c.guards) {
+      expect(followingOf(c.w, guard)).not.toBeNull();
+    }
+    c.foe.pos = { x: 200, y: 200 };
+    let w = c.w;
+    for (let turn = 0; turn < 40; turn++) w = endTurn(w, testDrive);
+    for (const guard of c.guards) {
+      const g = w.vehicles.find((v) => v.id === guard.id)!;
+      expect(topGoal(g)?.reason).not.toBe('answeredCall');
+    }
+  });
+
+  it('the second ask counts the first helper', () => {
+    const c = convoy();
+    const other = addVehicle(c.w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 36, y: 26 });
+    other.brain = npcBrain('trader', other.pos, ['trader']);
+    refreshVision(c.w);
+    const me = playerVehicle(c.w);
+    const foes = awakeFoesOf(c.w, me);
+    const measure = () => {
+      c.w.rngState = 11;
+      return dangerJoining(c.w, other, [other], me, foes);
+    };
+    const before = measure();
+    forceOption('helpCalled', 'help');
+    joinPlayerFight(c.w, c.helper);
+    expect(measure()).toBeLessThan(before);
   });
 });
