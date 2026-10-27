@@ -497,7 +497,9 @@ export function cutPlayerLine(world: World, harpoonId: string): World {
 
 export function setDirect(world: World, on: boolean): World {
   return playerCommand(world, (w) => {
-    playerVehicle(w).direct = on;
+    const me = playerVehicle(w);
+    me.direct = on;
+    if (on && me.order && me.order.kind !== 'brake') delete me.order.pace;
   });
 }
 

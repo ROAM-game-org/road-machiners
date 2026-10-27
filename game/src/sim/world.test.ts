@@ -6,7 +6,7 @@ import { TEST_MAP } from '../test/map';
 import { playerVehicle } from './damage';
 import { maxHp } from './wear';
 import { townAt } from './sites';
-import { autoRuns, endTurn, isAtRest, newWorld, setHeadlights, setMoveOrder, setOverdrive, townStart, update, waitsOnPlayer } from './world';
+import { autoRuns, endTurn, isAtRest, newWorld, setDirect, setHeadlights, setMoveOrder, setOverdrive, townStart, update, waitsOnPlayer } from './world';
 import { leaveQuest, QUESTS, startQuest } from './quests';
 import { GAME_OPENED_QUESTS } from '../data/quests';
 import { startPose } from './start-pose';
@@ -285,5 +285,13 @@ describe('a player order with a pace', () => {
     for (const pace of [Number.NaN, Infinity, RULES.parkedSpeed, 0, -1]) {
       expect(() => setMoveOrder(w, { kind: 'through', dest, pace })).toThrow();
     }
+  });
+
+  it('drops the pace when the player switches to manual driving', () => {
+    const w = start();
+    const dest = { x: playerVehicle(w).pos.x + 8, y: playerVehicle(w).pos.y };
+    const manual = setDirect(setMoveOrder(w, { kind: 'through', dest, pace: 2 }), true);
+    expect(playerVehicle(manual).order).toEqual({ kind: 'through', dest });
+    expect(playerVehicle(setDirect(manual, false)).order).toEqual({ kind: 'through', dest });
   });
 });

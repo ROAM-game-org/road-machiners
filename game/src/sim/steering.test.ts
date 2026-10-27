@@ -2,7 +2,7 @@ import { RULES } from "../data/rules";
 import { describe, expect, it } from "vitest";
 import { vehicleStats } from "./stats";
 import { chassisDef } from "../data/chassis";
-import { backsToDestination, clickOrder, parkedVehicles, setDown, setDownSpot, orderSpeed, pacedOrder, paceOf, paceStepOf, throttleFor, throughSpeed, zoneEdges, zoneSpeed } from "./steering";
+import { backsToDestination, clickOrder, parkedVehicles, setDown, setDownSpot, orderSpeed, throttleFor, throughSpeed, zoneEdges, zoneSpeed } from "./steering";
 import { DEG, dist } from "./vec";
 import { addVehicle, emptyWorld, npcBrain } from "./testkit";
 import { addState } from "./states";
@@ -220,49 +220,5 @@ describe("route pace", () => {
   it("a brake order has no target speed", () => {
     const { s } = setup(4);
     expect(() => orderSpeed(s, 4, { x: 0, y: 0 }, { kind: "brake" }, "route")).toThrow();
-  });
-
-  it("Half stays under the Cold running share and Crawl under limp speed on every player chassis", () => {
-    for (const chassisId of PLAYER_CHASSIS) {
-      const w = emptyWorld();
-      const v = addVehicle(w, "player", chassisId, ["stockEngine"], { x: 20, y: 20 }, 0);
-      const top = vehicleStats(w, v).maxSpeed;
-      const half = paceOf(w, v, "half");
-      const crawl = paceOf(w, v, "crawl");
-      if (half !== undefined) {
-        expect(half).toBeLessThan(top * PERK_NUMBERS.coldRunning.speedShare);
-        expect(half).toBeGreaterThan(RULES.parkedSpeed);
-      }
-      if (crawl !== undefined) {
-        expect(crawl).toBeLessThanOrEqual(RULES.limpSpeed);
-        expect(crawl).toBeGreaterThan(RULES.parkedSpeed);
-      }
-      expect(paceOf(w, v, "full")).toBeUndefined();
-    }
-  });
-
-  it("a route order in manual driving carries no pace", () => {
-    const { w, v } = setup(0);
-    v.direct = true;
-    expect(pacedOrder(w, v, { kind: "through", dest: { x: 5, y: 5 }, pace: 2 }, "crawl")).toEqual({ kind: "through", dest: { x: 5, y: 5 } });
-  });
-
-  it("pacing a route order puts the step's pace on it and Full removes it", () => {
-    const { w, v } = setup(0);
-    const order: MoveOrder = { kind: "stopAt", dest: { x: 5, y: 5 } };
-    const crawl = pacedOrder(w, v, order, "crawl");
-    expect(crawl).toEqual({ ...order, pace: RULES.routePace.crawl });
-    expect(pacedOrder(w, v, crawl, "full")).toEqual(order);
-    expect(pacedOrder(w, v, { kind: "brake" }, "crawl")).toEqual({ kind: "brake" });
-  });
-
-  it("the step is read back from the held order", () => {
-    const { w, v } = setup(0);
-    for (const step of ["full", "half", "crawl"] as const) {
-      v.order = pacedOrder(w, v, { kind: "through", dest: { x: 5, y: 5 } }, step);
-      expect(paceStepOf(w, v)).toBe(step);
-    }
-    v.order = null;
-    expect(paceStepOf(w, v)).toBe("full");
   });
 });

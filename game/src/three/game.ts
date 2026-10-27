@@ -257,7 +257,6 @@ export class Game {
     this.fx = new Fx3D(this.scene, overlay, this.rig, () => this.world);
     this.truckFx = new TruckFx(this.fx);
     this.controls = new TruckControls({ world: () => this.world, apply: (next) => this.apply(next), commit: (next) => { this.world = next; this.refreshUi(); }, refreshPlan: () => this.refreshPlan(), doused: () => { this.truckFx.douse(); this.hud.pushEvents(this.world); }, note: (text) => this.hud.refuse(text), revved: () => this.loops.rev(playerVehicle(this.world).chassisId) });
-    this.controls.syncPace(this.world);
     this.context = new TruckContext({
       world: () => this.world,
       playing: () => this.anim !== null,
@@ -282,8 +281,6 @@ export class Game {
       openJournal: () => this.runKey("KeyJ"),
       openMap: () => this.runKey("KeyM"),
       toggleManual: () => this.runKey("KeyR"),
-      cyclePace: () => this.runKey("KeyZ"),
-      paceStep: () => this.controls.pace,
       toggleAutoRepair: () => this.runKey("KeyP"),
       toggleOverdrive: () => this.runKey("KeyO"),
       toggleHeadlights: () => this.runKey("KeyL"),
@@ -543,7 +540,6 @@ export class Game {
     ArrowLeft: { run: () => this.cycleContext(-1), noModal: true, idle: true },
     ArrowRight: { run: () => this.cycleContext(1), noModal: true, idle: true },
     KeyR: { run: () => this.controls.toggleManual(), noModal: true, idle: true },
-    KeyZ: { run: () => this.controls.cyclePace(), noModal: true, idle: true },
     KeyP: { run: () => this.controls.toggleAutoRepair(), noModal: true, idle: true },
     KeyO: { run: () => this.controls.toggleOverdrive(), noModal: true, idle: true },
     KeyG: { run: () => this.controls.douseEngine(), noModal: true, idle: true },

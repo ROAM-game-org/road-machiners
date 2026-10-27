@@ -4,7 +4,6 @@ import type { LandmarkLook } from '../sim/types';
 export const RULES = {
   substeps: 26,
   crawlSpeed: 1,
-  routePace: { halfShare: 0.45, crawl: 1 },
   lowFuelThreshold: 0.2,
   lowFuelSpeedFactor: 0.5,
   fuelUseFactor: 0.045,

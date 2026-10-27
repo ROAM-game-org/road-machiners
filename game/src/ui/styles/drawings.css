@@ -250,12 +250,6 @@
 .up .switch-bat::after {
   top: -1px;
 }
-.mid .switch-bat {
-  top: 5px;
-}
-.mid .switch-bat::after {
-  top: 4px;
-}
 .down .switch-bat {
   bottom: -2px;
 }

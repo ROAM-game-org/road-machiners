@@ -198,7 +198,6 @@ export const UI = {
   'help.does.fastForward': 'Fast-forward',
   'help.does.brake': 'Brake',
   'help.does.manual': 'Manual driving',
-  'help.does.pace': 'Route speed',
   'help.does.autoPatch': 'Auto patch',
   'help.does.stopAtPad': 'Stop at its pad',
   'help.does.padWork': 'Trade, repair or loot',
