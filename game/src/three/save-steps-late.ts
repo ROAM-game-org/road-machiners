@@ -629,3 +629,17 @@ export function withMoments_115_116(world: SavedJson): SavedJson {
   const moments = world.chaosHighway === null ? Object.fromEntries(MOMENT_IDS_115.map((id) => [id, { driver: null, heard: false }])) : null;
   return { ...world, moments };
 }
+
+export function withDialogueSeen_116_117(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  const quests = player.quests as SavedJson | undefined;
+  return {
+    ...world,
+    player: {
+      ...player,
+      ...(call ? { call: { ...call, group: null, asked: [] } } : {}),
+      ...(quests ? { quests: { ...quests, seen: {} } } : {}),
+    },
+  };
+}
