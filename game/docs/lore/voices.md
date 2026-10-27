@@ -328,6 +328,18 @@ Strangers: he offers a story to anyone who slows down.
 
 Sample: "Rolled past the old pump house last week. The roof was gone, but somebody had swept the floor."
 
+A hauler tells it by the trip it happened on, in even whole sentences, about the load and the night by the road. He names no town.
+
+Hauler sample: "Check your load straps whenever you stop. On my last run, one had worked loose before I was halfway home."
+
+A salvager grumbles first and tells it short, about the bones of a wreck and what was left on them. He names no place.
+
+Salvager sample: "Check the dirt round a wreck before you get out. Fresh tracks mean somebody's still stripping it."
+
+A courier tells it fast and clipped, with the next stop in his head, about the run and the load. He names himself first.
+
+Courier sample: "Courier here. I've got a run to finish and I won't make it on what's left."
+
 ### The tip seller
 
 Vocabulary: picked clean, carcass, a fair price, the side of the road.
