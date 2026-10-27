@@ -85,9 +85,9 @@ const UNLIMITED: RebuildBudget = { take: () => true, ready: () => true };
 
 class PerAnimationFrame implements RebuildBudget {
   private frame: CSSNumberish | null | undefined = undefined;
-  private left = 0;
+  private started = 0;
 
-  constructor(private readonly perFrame: number) {}
+  constructor(private readonly ms: number) {}
 
   ready(): boolean {
     return true;
@@ -95,17 +95,16 @@ class PerAnimationFrame implements RebuildBudget {
 
   take(): boolean {
     const frame = document.timeline.currentTime;
-    if (frame !== this.frame) {
-      this.frame = frame;
-      this.left = this.perFrame;
-    }
-    if (this.left <= 0) return false;
-    this.left--;
+    const now = performance.now();
+    if (frame === this.frame) return now - this.started < this.ms;
+    this.frame = frame;
+    this.started = now;
     return true;
   }
 }
 
-export const FRAME_REBUILDS: RebuildBudget = new PerAnimationFrame(1);
+export const REBUILD_STEP_MS = 4;
+export const FRAME_REBUILDS: RebuildBudget = new PerAnimationFrame(REBUILD_STEP_MS);
 
 function advanceBuild(pending: { steps: Generator<void, void>; built: boolean }, budget: RebuildBudget): boolean {
   while (!pending.built && budget.take()) pending.built = Boolean(pending.steps.next().done);

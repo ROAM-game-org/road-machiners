@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CLIP_TOLERANCE, highestUnder, MAX_SLOPE, MIN_SUPPORT, surfaceSamples, unitBody, type CellRect } from '../../sim/body';
 import { GLASS, LAMP, model, RADIO, socket, type ModelName } from './models';
+import { bodyRays, type BodyRays } from './bodyRays';
 
 export type PlateSpot = { dx: number; dz: number; shrink: number };
 
@@ -325,6 +326,25 @@ const LOOKS = {
 
 const INDEXES = new Map<string, FaceIndex>();
 const FOOTINGS = new Map<string, Footings>();
+const WALLS = new Map<string, BodyRays>();
+const PLACED_WALLS = new WeakMap<THREE.Object3D, { at: THREE.Matrix4; walls: BodyRays }>();
+
+function wallsOf(body: THREE.Object3D): BodyRays {
+  if (sharedModel(body)) return sharedWalls(body);
+  const kept = PLACED_WALLS.get(body);
+  if (kept && kept.at.equals(body.matrixWorld)) return kept.walls;
+  const walls = bodyRays(body, seeThrough);
+  PLACED_WALLS.set(body, { at: body.matrixWorld.clone(), walls });
+  return walls;
+}
+
+function sharedWalls(body: THREE.Object3D): BodyRays {
+  const cached = WALLS.get(body.userData.model);
+  if (cached) return cached;
+  const walls = bodyRays(body, seeThrough);
+  WALLS.set(body.userData.model, walls);
+  return walls;
+}
 
 function faceIndex(body: THREE.Object3D, name: keyof typeof LOOKS): FaceIndex {
   const key = `${body.userData.model}:${name}`;
@@ -575,8 +595,8 @@ export function rearHang(body: THREE.Object3D, z: number): THREE.Vector3 {
 
 function wallHit(body: THREE.Object3D, from: THREE.Vector3, dir: THREE.Vector3): THREE.Vector3 | null {
   const start = from.clone().addScaledVector(dir, -CLIP_TOLERANCE);
-  const hit = new THREE.Raycaster(start, dir).intersectObject(body, true)[0];
-  return hit && !seeThrough(hit.object) ? hit.point : null;
+  const hit = wallsOf(body)(start, dir);
+  return hit && !hit.seeThrough ? hit.point : null;
 }
 
 function seeThrough(obj: THREE.Object3D): boolean {
