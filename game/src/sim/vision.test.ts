@@ -18,13 +18,17 @@ import { TIME } from '../data/time';
 import { sunAt } from './sun';
 import { canVehicleSee, clearOverTerrain, grayRadius, hasLineOfFire, hasLineOfSight, playerVisible, practiceContacts, refreshVision, sightLine, sightRadius, visibleTiles } from './vision';
 import { TEST_MAP } from '../test/map';
-import { START_KITS } from '../data/start';
 import { DECKS, deckAt } from './bridge';
 import type { World } from './types';
 import type { Vec } from './vec';
 import { newWorld } from './world';
+import { reusedWorld } from '../test/world-cache';
 import { defaultSetup } from './settings';
 import { ICARUS_DECKS } from './bridge';
+
+function realMapWorld(): World {
+  return reusedWorld('real map without traffic', () => newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'), false));
+}
 
 describe('vision', () => {
   it('sees an unblocked tile within radius', () => {
@@ -343,8 +347,7 @@ describe('sight from the wing', () => {
   const at = (p: Vec, along: number, side: number): Vec => ({ x: p.x + span.axis.x * along + across.x * side, y: p.y + span.axis.y * along + across.y * side });
 
   function wingWorld(): World {
-    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
-    w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
+    const w = realMapWorld();
     w.vehicles[0].pos = at(mid, 0, -5);
     return w;
   }
@@ -379,7 +382,7 @@ describe('sight from the wing', () => {
 });
 
 describe('the viewshed against the line to every tile', () => {
-  const world = newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
+  const world = realMapWorld();
   const t = world.terrain;
   const me = playerVehicle(world);
 

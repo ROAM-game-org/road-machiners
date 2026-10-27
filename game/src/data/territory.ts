@@ -166,6 +166,7 @@ const pose = (s: number, c: number, r: number, turn: number) => ({ at: onOrchard
 const FENCE = { look: 'fence' as const, segment: 1, broken: 0.3, jitter: { turn: 0.12, shift: 0.15 }, knocked: { share: 0.05, turn: 0.6, shift: 0.3 } };
 const BARRIER = { look: 'barrier' as const, segment: 1, broken: 0.35, jitter: { turn: 0.25, shift: 0.3 }, knocked: { share: 0.15, turn: 0.8, shift: 0.6 } };
 export const PERIMETER = { look: 'barrier' as const, segment: 1, broken: 0.45, jitter: { turn: 0.25, shift: 0.3 }, knocked: { share: 0.2, turn: 1.2, shift: 1.2 } };
+export const OPENING = { gap: 15, clear: 3 };
 export const EMPLACEMENT = {
   arcStep: 1,
   arcRadius: 0.5,

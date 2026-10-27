@@ -1,32 +1,59 @@
 import { describe, expect, it } from 'vitest';
 import { REGION } from '../data/region';
-import { GEOLOGY, MAPGEN, TERRAIN } from '../data/terrain';
+import { GEOLOGY, TERRAIN } from '../data/terrain';
 import { deckById } from '../sim/bridge';
 import { ROAD_INDEX } from '../sim/road-index';
-import { decodeMap, isCliff, tileAt, type BakedMap, type BakedProp, type Terrain } from '../sim/terrain';
+import { isCliff, tileAt, type BakedProp, type Terrain } from '../sim/terrain';
 import { siteGap } from '../sim/sites';
 import { dist, segmentDist } from '../sim/vec';
 import { newDraft, rockLayer, type MapDraft } from './bake';
 import { BUILT_GLASS, BUILT_TRACK } from './newworld';
 import { tileOf, tilesWithin } from './oldworld';
 import { budget } from '../test/budget';
+import { TEST_MAP } from '../test/map';
 
 const SIZE = REGION.size;
 const O = REGION.obstacles;
 const SITES = [...REGION.towns, ...REGION.locations];
 
+const BUCKET = 8;
+
 function expectClear(rocks: BakedProp[]): void {
   const bridge = deckById('canyon-bridge');
+  const broken: string[] = [];
+  const at = (rock: BakedProp) => `${rock.kind} at ${rock.pos.x.toFixed(1)},${rock.pos.y.toFixed(1)}`;
   for (const rock of rocks) {
     const { x, y } = rock.pos;
-    expect(Math.min(x, y, SIZE - x, SIZE - y)).toBeGreaterThanOrEqual(O.edgeMargin);
-    expect(ROAD_INDEX.nearestWithin(x, y, Infinity)).toBeGreaterThanOrEqual(REGION.roadWidth / 2 + O.roadClearance + rock.r);
-    for (const site of SITES) expect(siteGap(site, rock.pos)).toBeGreaterThan(O.siteClearance + rock.r);
-    expect(segmentDist(rock.pos, bridge.from, bridge.to)).toBeGreaterThanOrEqual(bridge.width / 2 + rock.r);
+    if (Math.min(x, y, SIZE - x, SIZE - y) < O.edgeMargin) broken.push(`${at(rock)} is inside the margin`);
+    if (ROAD_INDEX.nearestWithin(x, y, Infinity) < REGION.roadWidth / 2 + O.roadClearance + rock.r) broken.push(`${at(rock)} is on a road`);
+    for (const site of SITES) if (siteGap(site, rock.pos) <= O.siteClearance + rock.r) broken.push(`${at(rock)} is on a site`);
+    if (segmentDist(rock.pos, bridge.from, bridge.to) < bridge.width / 2 + rock.r) broken.push(`${at(rock)} is on the bridge`);
   }
-  for (let a = 0; a < rocks.length; a++) for (let b = a + 1; b < rocks.length; b++) {
-    expect(dist(rocks[a].pos, rocks[b].pos)).toBeGreaterThanOrEqual(rocks[a].r + rocks[b].r + O.gap);
-  }
+  expect(broken).toEqual([]);
+  expect(crowded(rocks)).toEqual([]);
+}
+
+function crowded(rocks: BakedProp[]): string[] {
+  const buckets = new Map<number, number[]>();
+  rocks.forEach((rock, i) => {
+    const key = Math.floor(rock.pos.y / BUCKET) * 4096 + Math.floor(rock.pos.x / BUCKET);
+    const list = buckets.get(key);
+    if (list) list.push(i);
+    else buckets.set(key, [i]);
+  });
+  const widest = Math.max(0, ...rocks.map((rock) => rock.r));
+  const reach = Math.ceil((2 * widest + O.gap) / BUCKET);
+  const tooClose: string[] = [];
+  rocks.forEach((a, i) => {
+    const cx = Math.floor(a.pos.x / BUCKET);
+    const cy = Math.floor(a.pos.y / BUCKET);
+    for (let y = cy - reach; y <= cy + reach; y++) for (let x = cx - reach; x <= cx + reach; x++) {
+      for (const j of buckets.get(y * 4096 + x) ?? []) {
+        if (j > i && dist(a.pos, rocks[j].pos) < a.r + rocks[j].r + O.gap) tooClose.push(`${a.kind} at ${a.pos.x.toFixed(1)},${a.pos.y.toFixed(1)} meets ${rocks[j].kind}`);
+      }
+    }
+  });
+  return tooClose;
 }
 
 const FOOT = 300;
@@ -150,17 +177,8 @@ describe('crags', () => {
   });
 });
 
-const FILES = import.meta.glob<string>('/public/maps/*.bin', { query: '?url&inline', import: 'default', eager: true });
-const DATA_URL = 'data:application/octet-stream;base64,';
-
-function bakedMap(): BakedMap {
-  const url = FILES[`/public/${MAPGEN.file}`];
-  if (url === undefined || !url.startsWith(DATA_URL)) throw new Error(`Map file public/${MAPGEN.file} is missing or did not inline. Run npm run map:bake.`);
-  return decodeMap(Uint8Array.from(atob(url.slice(DATA_URL.length)), (c) => c.charCodeAt(0)));
-}
-
 describe('boulders on the baked map', () => {
-  const map = bakedMap();
+  const map = TEST_MAP;
   const boulders = map.props.filter((p) => p.kind === 'rock' || p.kind === 'crag');
 
   it('holds both rocks and crags', () => {

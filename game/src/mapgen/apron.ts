@@ -1,6 +1,7 @@
 import { CRASH, DESCENT_PATH } from '../data/terrain';
 import { FALLEN_SUN_POS } from '../data/region';
 import { chance, randRange, type Rng } from '../sim/rng';
+import { territoryAt } from '../sim/territory';
 import type { MapDraft } from './bake';
 import { place, prop, ruleRng } from './oldworld';
 
@@ -14,7 +15,7 @@ export function apronLayer(seed: number, d: MapDraft): MapDraft {
     if (!chance(rng, apronShare(angle - heading))) continue;
     const r = apronRange(randRange(rng, 0, 1));
     const pos = { x: FALLEN_SUN_POS.x + Math.cos(angle) * r, y: FALLEN_SUN_POS.y + Math.sin(angle) * r };
-    place(d, rubble(rng, pos, angle), 0);
+    if (territoryAt(pos) === null) place(d, rubble(rng, pos, angle), 0);
   }
   return d;
 }

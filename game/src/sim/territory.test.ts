@@ -189,7 +189,9 @@ describe("the Old Orchard's outline", () => {
     expect(area).toBeGreaterThanOrEqual(5000);
     let best = 0;
     for (let y = orchard.pos.y - orchard.radius; y <= orchard.pos.y + orchard.radius; y += 2) for (let x = orchard.pos.x - orchard.radius; x <= orchard.pos.x + orchard.radius; x += 2) {
-      best = Math.max(best, inside.filter((p) => Math.hypot(p.x - x, p.y - y) < 32).length);
+      let held = 0;
+      for (const p of inside) if ((p.x - x) ** 2 + (p.y - y) ** 2 < 32 ** 2) held++;
+      best = Math.max(best, held);
     }
     expect(best / area).toBeLessThanOrEqual(0.6);
   });
@@ -218,10 +220,8 @@ describe('the Fallen Sun layout', () => {
   const rules = TERRITORIES['fallen-sun'].wreck!;
   const zone = hazardZones().find((z) => z.id === 'fallen-sun')!;
   const pieces = territoryPieces(t);
-  const lowBoxes = (k: number): PosedBox[] => {
-    const p = pieces[k];
-    return propBoxes({ id: `piece-${k}`, pos: p.pos, r: p.r, kind: 'landmark', look: p.look, yaw: p.yaw }).filter((b) => b.z0 < PHYSICS.truckClearance);
-  };
+  const lows = pieces.map((p, k) => propBoxes({ id: `piece-${k}`, pos: p.pos, r: p.r, kind: 'landmark', look: p.look, yaw: p.yaw }).filter((b) => b.z0 < PHYSICS.truckClearance));
+  const lowBoxes = (k: number): PosedBox[] => lows[k];
   const housing = pieces.findIndex((p) => p.look === 'shipBow');
   const { roads, spurs } = territoryRoads(t);
   const roadSegments = [...roads, ...spurs].flatMap((road) => road.points.slice(1).map((b, i) => [road.points[i], b] as const));
@@ -305,10 +305,8 @@ describe("the Fallen Sun's dirt roads, wing and flaps", () => {
   const rules = TERRITORIES['fallen-sun'].wreck!;
   const zone = hazardZones().find((z) => z.id === 'fallen-sun')!;
   const pieces = territoryPieces(t);
-  const lowBoxes = (k: number): PosedBox[] => {
-    const p = pieces[k];
-    return propBoxes({ id: `piece-${k}`, pos: p.pos, r: p.r, kind: 'landmark', look: p.look, yaw: p.yaw }).filter((b) => b.z0 < PHYSICS.truckClearance);
-  };
+  const lows = pieces.map((p, k) => propBoxes({ id: `piece-${k}`, pos: p.pos, r: p.r, kind: 'landmark', look: p.look, yaw: p.yaw }).filter((b) => b.z0 < PHYSICS.truckClearance));
+  const lowBoxes = (k: number): PosedBox[] => lows[k];
   const { roads, spurs } = territoryRoads(t);
   const decks = FALLEN_SUN_DECKS.map((d) => deckById(d.id));
   const wing = decks.filter((d) => d.lips.length === 0);
@@ -465,10 +463,8 @@ describe('Glass Flats', () => {
   const rules = TERRITORIES['glass-flats'];
   const wreck = rules.wreck!;
   const pieces = territoryPieces(t);
-  const lowBoxes = (k: number): PosedBox[] => {
-    const p = pieces[k];
-    return propBoxes({ id: `piece-${k}`, pos: p.pos, r: p.r, kind: 'landmark', look: p.look, yaw: p.yaw }).filter((b) => b.z0 < PHYSICS.truckClearance);
-  };
+  const lows = pieces.map((p, k) => propBoxes({ id: `piece-${k}`, pos: p.pos, r: p.r, kind: 'landmark', look: p.look, yaw: p.yaw }).filter((b) => b.z0 < PHYSICS.truckClearance));
+  const lowBoxes = (k: number): PosedBox[] => lows[k];
   const { roads, spurs } = territoryRoads(t);
   const onMap = (p: Vec) => ({ x: flats.pos.x + p.x, y: flats.pos.y + p.y });
   const nearestRoad = (p: Vec) => Math.min(...[...roads, ...spurs].map((road) => toRoad(p, road)));
@@ -541,7 +537,7 @@ describe('Glass Flats', () => {
     pieces.forEach((p, k) => {
       for (const b of lowBoxes(k)) {
         expect(ROAD_INDEX.nearestWithin(b.center.x, b.center.y, Math.hypot(b.half.x, b.half.y) + REGION.roadWidth / 2), p.look).toBe(Infinity);
-        for (const road of [...roads, ...spurs]) for (const q of along(road.points)) expect(boxDistance(b, q), `${p.look} at ${q.x},${q.y}`).toBeGreaterThan(road.width / 2);
+        for (const road of [...roads, ...spurs]) expect(along(road.points).filter((q) => !(boxDistance(b, q) > road.width / 2)), `${p.look} has a dirt road under its low box`).toEqual([]);
         pieces.forEach((_, other) => {
           if (other <= k) return;
           for (const ob of lowBoxes(other)) expect(boxesOverlap(b, ob), `${p.look} and ${pieces[other].look}`).toBe(false);

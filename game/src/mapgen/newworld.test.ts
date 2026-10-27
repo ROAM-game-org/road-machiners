@@ -8,8 +8,7 @@ import { siteGap } from '../sim/sites';
 import { territoryRoads } from '../sim/territory';
 import { padReach } from '../test/sites';
 import { dist, polylineDist, segmentDist, type Vec } from '../sim/vec';
-import { baseLayer, finishLayer, newDraft, tileSteepness, type MapDraft } from './bake';
-import { dunes, rain, slump, wind } from './geology';
+import { newDraft, tileSteepness, type MapDraft } from './bake';
 import { BUILT_FIELD, BUILT_NONE, BUILT_OLD_ROAD, oldWorldLayer, roadJunctions } from './oldworld';
 import {
   BUILT_DIRTY_WATER,
@@ -23,7 +22,7 @@ import {
   scrubGrowth,
   type Camp,
 } from './newworld';
-import { budget } from '../test/budget';
+import { TEST_MAP } from '../test/map';
 import { ICARUS_DECKS } from '../sim/bridge';
 
 const SIZE = REGION.size;
@@ -33,6 +32,7 @@ const SITES = [...REGION.towns, ...REGION.locations];
 const WASH = GEOLOGY.ground.washFlow;
 const FENCE = NEW_WORLD.fenceLength;
 const SEED = 1337;
+const WINDOW = 700;
 
 function expectOffBuilt(p: BakedProp): void {
   const bridge = deckById('canyon-bridge');
@@ -188,14 +188,20 @@ describe('scrub growth', () => {
 
   it('grows around an oasis, off its site and pads', () => {
     const d = newDraft(SIZE);
+    const oases = REGION.locations.filter((l) => l.kind === 'oasis');
+    const reachOf = (oasis: (typeof oases)[number]) => oasis.radius + O.siteClearance + rules.oasisReach + rules.steps + 1;
+    d.built.fill(BUILT_OLD_ROAD);
+    for (const oasis of oases) {
+      const margin = reachOf(oasis) + 10;
+      for (let y = Math.max(0, Math.floor(oasis.pos.y - margin)); y < Math.min(SIZE, Math.ceil(oasis.pos.y + margin)); y++) {
+        d.built.fill(BUILT_NONE, y * SIZE + Math.max(0, Math.floor(oasis.pos.x - margin)), y * SIZE + Math.min(SIZE, Math.ceil(oasis.pos.x + margin)));
+      }
+    }
 
     scrubGrowth(SEED, d, rules);
 
     const scrub = tilesMarked(d, BUILT_SCRUB);
-    for (const oasis of REGION.locations.filter((l) => l.kind === 'oasis')) {
-      const reach = oasis.radius + O.siteClearance + rules.oasisReach + rules.steps + 1;
-      expect(scrub.filter((t) => dist(t, oasis.pos) <= reach).length).toBeGreaterThan(20);
-    }
+    for (const oasis of oases) expect(scrub.filter((t) => dist(t, oasis.pos) <= reachOf(oasis)).length).toBeGreaterThan(20);
     expect(scrub.filter(onBuilt)).toEqual([]);
   });
 });
@@ -384,7 +390,17 @@ describe('territory spurs', () => {
 
   it('keep car wrecks off every territory spur, even in a wash bed under one', () => {
     const d = newDraft(SIZE);
-    setCorners(d, 'flow', (i, j) => (nearSpur({ x: i, y: j }, 6) ? WASH * 2 : 0));
+    const w = SIZE + 1;
+    for (const spur of spurs) {
+      const margin = spur.width / 2 + 6 + 1;
+      const xs = spur.points.map((p) => p.x);
+      const ys = spur.points.map((p) => p.y);
+      for (let j = Math.max(0, Math.floor(Math.min(...ys) - margin)); j <= Math.min(SIZE, Math.ceil(Math.max(...ys) + margin)); j++) {
+        for (let i = Math.max(0, Math.floor(Math.min(...xs) - margin)); i <= Math.min(SIZE, Math.ceil(Math.max(...xs) + margin)); i++) {
+          if (nearSpur({ x: i, y: j }, 6)) d.flow[j * w + i] = WASH * 2;
+        }
+      }
+    }
 
     carWrecks(SEED, d, [], { ...NEW_WORLD.carWrecks, roadChance: 0, oldRoadChance: 0, campChance: 0, washChance: 1 });
 
@@ -397,21 +413,26 @@ describe('territory spurs', () => {
 describe('new-world layer on a baked draft', () => {
   let d: MapDraft;
   beforeAll(() => {
-    const base = baseLayer(SEED, SIZE);
-    rain(base, { ...GEOLOGY.rain, steps: GEOLOGY.rain.steps / 4, rainPerStep: GEOLOGY.rain.rainPerStep * 4 });
-    slump(base, GEOLOGY.slump);
-    wind(base, GEOLOGY.wind, { rngState: SEED });
-    dunes(base, GEOLOGY.dunes, GEOLOGY.wind.direction, SEED);
-    d = oldWorldLayer(SEED, finishLayer(SEED, base));
-  }, budget(120_000));
+    const base = newDraft(WINDOW);
+    const full = TEST_MAP.terrain;
+    const w = WINDOW + 1;
+    for (let j = 0; j < w; j++) for (let i = 0; i < w; i++) base.heights[j * w + i] = full.heights[j * (full.size + 1) + i];
+    d = oldWorldLayer(SEED, base);
+  });
 
   function clone(from: MapDraft): MapDraft {
     return { ...from, heights: from.heights.slice(), types: from.types.slice(), props: from.props.map((p) => ({ ...p, pos: { ...p.pos } })), sand: from.sand.slice(), flow: from.flow.slice(), slumped: from.slumped.slice(), built: from.built.slice() };
   }
 
+  let laid: MapDraft | null = null;
+  function layer(): MapDraft {
+    laid ??= newWorldLayer(SEED, clone(d));
+    return laid;
+  }
+
   it('places every kind off roads, sites and the deck, apart from each other and off cliffs', () => {
     const before = d.props.length;
-    const out = newWorldLayer(SEED, clone(d));
+    const out = layer();
 
     const added = out.props.slice(before);
     for (const kind of ['shack', 'fence', 'junk', 'carWreck']) expect(ofKind({ ...out, props: added }, kind).length).toBeGreaterThan(0);
@@ -423,7 +444,7 @@ describe('new-world layer on a baked draft', () => {
   });
 
   it('marks pools and scrub only off built ground and old-world marks', () => {
-    const out = newWorldLayer(SEED, clone(d));
+    const out = layer();
 
     for (const code of [BUILT_SCRUB, BUILT_DIRTY_WATER]) expect(tilesMarked(out, code).length).toBeGreaterThan(0);
     for (const code of [BUILT_SCRUB, BUILT_DIRTY_WATER, BUILT_TOXIC]) expect(tilesMarked(out, code).filter(onBuilt)).toEqual([]);
@@ -432,7 +453,7 @@ describe('new-world layer on a baked draft', () => {
   });
 
   it('leaves every fence line open', () => {
-    const out = newWorldLayer(SEED, clone(d));
+    const out = layer();
 
     const lines = fenceLines(out);
     expect(lines.length).toBeGreaterThan(0);
@@ -440,7 +461,7 @@ describe('new-world layer on a baked draft', () => {
   });
 
   it('gives the same props and marks for the same seed', () => {
-    const a = newWorldLayer(SEED, clone(d));
+    const a = layer();
     const b = newWorldLayer(SEED, clone(d));
 
     expect(b.props).toEqual(a.props);

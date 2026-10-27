@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RELIEF_SOLVE } from '../data/terrain';
-import { REGION } from '../data/region';
-import { macroHeight, solveRelief, type SolveInput, type SolveRules } from './relief-solve';
+import { heldHeight, sampleGrid, smoothRoadBeds, solveRelief, type ReliefGrid, type SolveInput, type SolveRules } from './relief-solve';
 
 const RULES: SolveRules = { ...RELIEF_SOLVE, steps: 120 };
 
@@ -40,21 +39,27 @@ describe('relief solve', () => {
     expect(() => solveRelief(strip(8, () => 0.1), { ...RULES, diffusion: 0.2 })).toThrow(/stable/);
   });
 
-  it('holds a town flat at the macro height of its centre', () => {
-    const town = REGION.towns[0];
-    const centre = macroHeight(1337, town.pos.x, town.pos.y);
-    expect(macroHeight(1337, town.pos.x + town.radius * 0.9, town.pos.y)).toBeCloseTo(centre, 5);
-  }, 120_000);
+  it('holds a town flat at the macro height of its centre and leaves land past its margin alone', () => {
+    const n = 40;
+    const g: ReliefGrid = { n, cell: 4, heights: Float32Array.from({ length: n * n }, (_, k) => (k % n) * 0.5) };
+    const town = { pos: { x: 80, y: 80 }, radius: 20 };
+    const far = { x: 80 + town.radius + RELIEF_SOLVE.hold.margin + 4, y: 80 };
+    expect(heldHeight(g, [town], town.pos.x + town.radius * 0.9, town.pos.y)).toBeCloseTo(heldHeight(g, [town], town.pos.x, town.pos.y), 5);
+    expect(heldHeight(g, [town], far.x, far.y)).toBeCloseTo(sampleGrid(g, far.x, far.y), 5);
+  });
 
-  it('lays the roads level with the land 70 tiles to either side, not in a trough that drains it', () => {
-    const rises = REGION.roads.flatMap((road) => road.slice(1).map((b, i) => {
-      const a = road[i];
-      const length = Math.hypot(b.x - a.x, b.y - a.y);
-      const side = { x: ((a.y - b.y) / length) * 70, y: ((b.x - a.x) / length) * 70 };
-      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-      const beside = (macroHeight(1337, mid.x + side.x, mid.y + side.y) + macroHeight(1337, mid.x - side.x, mid.y - side.y)) / 2;
-      return beside - macroHeight(1337, mid.x, mid.y);
-    }));
-    expect(Math.abs(rises.reduce((s, r) => s + r, 0) / rises.length)).toBeLessThan(1);
-  }, 120_000);
+  it('lays a road over the mean level of cut land beside it and smooths its bed, not in a trough', () => {
+    const n = 64;
+    const cell = 4;
+    const g: ReliefGrid = { n, cell, heights: solveRelief(strip(n, () => 0.2), RULES) };
+    const road = n * cell / 2;
+    const column = (x: number) => Array.from({ length: n - 8 }, (_, j) => sampleGrid(g, x, (j + 4) * cell));
+    const bumpiness = (line: number[]) => line.slice(1).reduce((s, h, k) => s + Math.abs(h - line[k]), 0);
+    const rough = bumpiness(column(road));
+    g.heights = smoothRoadBeds(g, (x) => Math.abs(x - road));
+    const mean = (line: number[]) => line.reduce((s, h) => s + h, 0) / line.length;
+    const beside = (mean(column(road - 70)) + mean(column(road + 70))) / 2;
+    expect(Math.abs(mean(column(road)) - beside)).toBeLessThan(1);
+    expect(bumpiness(column(road))).toBeLessThan(rough / 2);
+  });
 });

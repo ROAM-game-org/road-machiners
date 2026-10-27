@@ -9,7 +9,7 @@ import { addVehicle, emptyWorld, chaosHighwayWorld, npcBrain, testDrive } from '
 import { addGoods } from './inventory';
 import { knockOutNpc } from './defeat';
 import { siteGap, sitePads } from './sites';
-import { standardWorld } from '../test/world-cache';
+import { reusedWorld, standardWorld } from '../test/world-cache';
 import { playerVehicle } from './damage';
 import { endTurn } from './world';
 import { followingOf, joinCompany } from './companies';
@@ -51,15 +51,9 @@ function quietWorld(): World {
   return w;
 }
 
-const seen = { stalls: 0, broken: new Set<string>() };
-
 function runTo(w: World, turn: number): World {
   let world = w;
-  while (world.turn < turn) {
-    world = endTurn(world, testDrive);
-    seen.stalls += world.events.filter((e) => e.t === 'stall').length;
-    for (const e of world.events) if (e.t === 'breakdown') seen.broken.add(e.vehicle);
-  }
+  while (world.turn < turn) world = endTurn(world, testDrive);
   return world;
 }
 
@@ -240,8 +234,7 @@ describe('the silent ride', () => {
 
 describe('the order refills', () => {
   it('spawns members in the Hollow bays by day while the player is far', () => {
-    let w = quietWorld();
-    fillHollowByDay(w);
+    const w = filledHollow();
     const members = membersOf(w);
     expect(members.filter((v) => v.brain!.templateId === 'cavalcade')).toHaveLength(SUNWARD.cavalcade);
     expect(members.filter((v) => v.brain!.templateId === 'hunter')).toHaveLength(SUNWARD.hunters);
@@ -277,9 +270,16 @@ function fillHollowByDay(w: World): void {
   }
 }
 
+function filledHollow(): World {
+  return reusedWorld('sunward filled hollow', () => {
+    const w = quietWorld();
+    fillHollowByDay(w);
+    return w;
+  });
+}
+
 function orderWorld(): World {
-  const w = quietWorld();
-  fillHollowByDay(w);
+  const w = filledHollow();
   w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || membersOf(w).includes(v));
   for (const tpl of Object.values(NPCS)) if (tpl.spawn.kind !== 'hollow') w.spawnTimer[tpl.id] = Number.MAX_SAFE_INTEGER;
   w.turn = rideOutTurn(duskTurn(1)) - 3;
@@ -304,70 +304,103 @@ function riderAt(w: World, id: string): Vehicle {
   return v;
 }
 
+interface NightRun {
+  before: World;
+  riding: World;
+  posted: World;
+  morning: World;
+  order: string[];
+  left: Map<string, number>;
+  arrived: Map<string, number>;
+  away: Map<string, { best: number; worse: number; most: number }>;
+  stallTurns: number[];
+  brokenAfterStart: Set<string>;
+}
+
+let nightRunMemo: NightRun | null = null;
+
+function nightRun(): NightRun {
+  if (nightRunMemo) return nightRunMemo;
+  const dusk = duskTurn(1);
+  const out = rideOutTurn(dusk);
+  const back = returnTurn(dusk);
+  const morningTurn = dawnAfter(dusk) + 120;
+  const checkpoints = new Map<number, World>();
+  const stallTurns: number[] = [];
+  const brokenAfterStart = new Set<string>();
+  const left = new Map<string, number>();
+  const arrived = new Map<string, number>();
+  const away = new Map<string, { best: number; worse: number; most: number }>();
+  let order: string[] = [];
+  let posts: Vec[] = [];
+  let w = watchedFromTheGate(orderWorld());
+  while (w.turn < morningTurn) {
+    w = endTurn(w, testDrive);
+    stallTurns.push(...w.events.filter((e) => e.t === 'stall').map(() => w.turn));
+    if (w.turn >= out) for (const e of w.events) if (e.t === 'breakdown') brokenAfterStart.add(e.vehicle);
+    if ([out - 1, out + 3, back - 5].includes(w.turn)) checkpoints.set(w.turn, w);
+    if (w.turn === out) {
+      order = gateOrder(w, sunwardFacts(w).night!);
+      posts = vigilPosts(w);
+    }
+    if (w.turn <= out || w.turn > back) continue;
+    order.forEach((id, seat) => {
+      const v = riderAt(w, id);
+      if (!left.has(id) && dist(v.pos, v.brain!.home) > BAY_LEFT) left.set(id, w.turn - out);
+      if (!arrived.has(id) && dist(v.pos, posts[seat]) <= RULES.arriveRadius * 2) arrived.set(id, w.turn - out);
+      if (arrived.has(id) || !left.has(id)) return;
+      const gap = dist(v.pos, posts[seat]);
+      const track = away.get(id) ?? { best: gap, worse: 0, most: 0 };
+      track.worse = gap > track.best + 0.5 ? track.worse + 1 : 0;
+      track.best = Math.min(track.best, gap);
+      track.most = Math.max(track.most, track.worse);
+      away.set(id, track);
+    });
+  }
+  nightRunMemo = { before: checkpoints.get(out - 1)!, riding: checkpoints.get(out + 3)!, posted: checkpoints.get(back - 5)!, morning: w, order, left, arrived, away, stallTurns, brokenAfterStart };
+  return nightRunMemo;
+}
+
 describe('the night schedule', () => {
   it('pulls out of its bay one car at a time while the player watches, rides to the light without turning back and holds a post until the return', () => {
-    let w = watchedFromTheGate(orderWorld());
+    const run = nightRun();
     const dusk = duskTurn(1);
-    const out = rideOutTurn(dusk);
-    seen.stalls = 0;
-    w = runTo(w, out);
-    const order = gateOrder(w, sunwardFacts(w).night!);
-    const posts = vigilPosts(w);
-    const left = new Map<string, number>();
-    const arrived = new Map<string, number>();
-    const away = new Map<string, { best: number; worse: number; most: number }>();
-    while (w.turn < returnTurn(dusk)) {
-      w = runTo(w, w.turn + 1);
-      order.forEach((id, seat) => {
-        const v = riderAt(w, id);
-        if (!left.has(id) && dist(v.pos, v.brain!.home) > BAY_LEFT) left.set(id, w.turn - out);
-        if (!arrived.has(id) && dist(v.pos, posts[seat]) <= RULES.arriveRadius * 2) arrived.set(id, w.turn - out);
-        if (arrived.has(id) || !left.has(id)) return;
-        const gap = dist(v.pos, posts[seat]);
-        const track = away.get(id) ?? { best: gap, worse: 0, most: 0 };
-        track.worse = gap > track.best + 0.5 ? track.worse + 1 : 0;
-        track.best = Math.min(track.best, gap);
-        track.most = Math.max(track.most, track.worse);
-        away.set(id, track);
-      });
-    }
+    const { order, left, arrived, away } = run;
 
     expect(left.get(order[0])).toBeLessThanOrEqual(6);
     expect(Math.max(...order.map((id) => left.get(id)!))).toBeLessThanOrEqual(45);
     expect([...arrived.keys()].sort()).toEqual([...order].sort());
     expect(Math.max(...[...away.values()].map((t) => t.most))).toBeLessThanOrEqual(5);
-    expect(seen.stalls).toBe(0);
+    expect(run.stallTurns.filter((turn) => turn <= returnTurn(dusk))).toEqual([]);
   }, 600_000);
 
   it('rides out before dusk, keeps the vigil at the posts, leaves before dawn and rests in the bays by the morning', () => {
-    let w = runTo(orderWorld(), rideOutTurn(duskTurn(1)) - 1);
-    const members = membersOf(w);
+    const run = nightRun();
+    const members = membersOf(run.before);
     for (const v of members) expect(topGoal(v)?.reason).toBe('restHollow');
-    seen.stalls = 0;
-    seen.broken.clear();
 
-    w = runTo(w, rideOutTurn(duskTurn(1)) + 3);
-    const night = sunwardFacts(w).night!;
+    const riding = run.riding;
+    const night = sunwardFacts(riding).night!;
     expect(night.roster).toHaveLength(SUNWARD.cavalcade);
-    const order = gateOrder(w, night);
-    expect(topGoal(riderAt(w, order[0]))?.reason).toBe('rideVigil');
-    for (const v of membersOf(w).filter((x) => x.brain!.templateId === 'hunter')) expect(topGoal(v)?.reason).toBe(night.hunt ? 'huntRoad' : 'restHollow');
+    const order = gateOrder(riding, night);
+    expect(topGoal(riderAt(riding, order[0]))?.reason).toBe('rideVigil');
+    for (const v of membersOf(riding).filter((x) => x.brain!.templateId === 'hunter')) expect(topGoal(v)?.reason).toBe(night.hunt ? 'huntRoad' : 'restHollow');
 
-    w = runTo(w, returnTurn(duskTurn(1)) - 5);
+    const posted = run.posted;
     order.forEach((id, seat) => {
-      const v = riderAt(w, id);
-      expect(dist(v.pos, vigilPosts(w)[seat])).toBeLessThanOrEqual(RULES.arriveRadius * 2);
+      const v = riderAt(posted, id);
+      expect(dist(v.pos, vigilPosts(posted)[seat])).toBeLessThanOrEqual(RULES.arriveRadius * 2);
       expect(topGoal(v)?.reason).toBe('keepVigil');
-      expect(followingOf(w, v)).toBeNull();
+      expect(followingOf(posted, v)).toBeNull();
     });
 
-    w = runTo(w, dawnAfter(duskTurn(1)) + 120);
-    for (const v of membersOf(w).filter((x) => !seen.broken.has(x.id))) {
+    const morning = run.morning;
+    for (const v of membersOf(morning).filter((x) => !run.brokenAfterStart.has(x.id))) {
       expect(dist(v.pos, v.brain!.home)).toBeLessThan(3);
       expect(topGoal(v)?.reason).toBe('restHollow');
     }
-    expect(membersOf(w).map((v) => v.id).sort()).toEqual(members.map((v) => v.id).sort());
-    expect(seen.stalls).toBe(0);
+    expect(membersOf(morning).map((v) => v.id).sort()).toEqual(members.map((v) => v.id).sort());
+    expect(run.stallTurns.filter((turn) => turn >= rideOutTurn(duskTurn(1)))).toEqual([]);
   }, 600_000);
 
   it('closes the column up behind a car beaten on the ride', () => {

@@ -33,13 +33,14 @@ function base(): World {
 }
 
 function savedOf(world: World, size = world.size): SavedMapWorld {
-  const { terrain: _terrain, ...rest } = structuredClone(world);
+  const { terrain: _terrain, obstacles, ...state } = world;
+  const rest = structuredClone(state);
   return {
     ...rest,
     size,
     player: { ...rest.player, explored: new Uint8Array(size * size) },
     broken: world.broken.map((b) => ({ id: b.obstacle.id, turn: b.turn })),
-    obstacles: rest.obstacles.filter((o) => !isBakedObstacle(o) && !isHollowObstacle(o)),
+    obstacles: structuredClone(obstacles.filter((o) => !isBakedObstacle(o) && !isHollowObstacle(o))),
   };
 }
 
@@ -47,6 +48,7 @@ function oldScaleBase(): World {
   const w = base();
   const me = playerVehicle(w);
   w.vehicles = [me];
+  w.obstacles = w.obstacles.filter((o) => isBakedObstacle(o) || isHollowObstacle(o) || o.kind === 'site');
   const spot = freeSpotNear(w, scaled({ x: 200, y: 200 }), chassisDef(me.chassisId).radius, me.id)!;
   me.pos = { x: spot.x / RATIO, y: spot.y / RATIO };
   return w;

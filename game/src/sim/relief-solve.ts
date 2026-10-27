@@ -19,15 +19,19 @@ export function reliefGrid(seed: number): ReliefGrid {
   const cell = RELIEF_SOLVE.cell;
   const n = Math.ceil(REGION.size / cell) + 1;
   const input = basinInput(seed, n, cell);
-  const grid = { n, cell, heights: smoothRoadBeds(solveRelief(input, RELIEF_SOLVE), n, cell) };
+  const roadGap = (x: number, y: number): number => ROAD_INDEX.nearestWithin(x, y, RELIEF_SOLVE.roadBed.width);
+  const grid = { n, cell, heights: smoothRoadBeds({ n, cell, heights: solveRelief(input, RELIEF_SOLVE) }, roadGap) };
   solved = { seed, grid };
   return grid;
 }
 
 export function macroHeight(seed: number, x: number, y: number): number {
-  const g = reliefGrid(seed);
+  return heldHeight(reliefGrid(seed), HOLD_SITES, x, y);
+}
+
+export function heldHeight(g: ReliefGrid, sites: readonly { pos: Vec; radius: number }[], x: number, y: number): number {
   let h = sampleGrid(g, x, y);
-  for (const site of HOLD_SITES) {
+  for (const site of sites) {
     const gap = dist(site.pos, { x, y }) - site.radius;
     const margin = RELIEF_SOLVE.hold.margin;
     if (gap >= margin) continue;
@@ -54,12 +58,13 @@ export function upliftAt(seed: number, p: Vec): number {
   return UPLIFT.floor * zoneUplift(p.x, p.y) + rimLift(p) + rangeLift(seed, p);
 }
 
-function smoothRoadBeds(heights: Float32Array, n: number, cell: number): Float32Array {
+export function smoothRoadBeds(g: ReliefGrid, roadGap: (x: number, y: number) => number): Float32Array {
   const { width, passes } = RELIEF_SOLVE.roadBed;
+  const { n, cell, heights } = g;
   const low = blurred(heights, n, Math.round(width / cell), passes);
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
     const k = j * n + i;
-    const share = 1 - smooth(clamp(ROAD_INDEX.nearestWithin(i * cell, j * cell, width) / width, 0, 1));
+    const share = 1 - smooth(clamp(roadGap(i * cell, j * cell) / width, 0, 1));
     heights[k] += (low[k] - heights[k]) * share;
   }
   return heights;

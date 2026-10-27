@@ -1,7 +1,7 @@
 
 import { PHYSICS } from '../data/physics';
 import { REGION, type TerritoryDef } from '../data/region';
-import { EMPLACEMENT, type BuildingGroup, type ClutterRule, type Emplacement, type FarmRoad, type FarmRules, type GroveBlock, type GroveRule, type Pad, type Run, type TerritoryRules } from '../data/territory';
+import { EMPLACEMENT, OPENING, PERIMETER, type BuildingGroup, type ClutterRule, type Emplacement, type FarmRoad, type FarmRules, type GroveBlock, type GroveRule, type Pad, type Run, type TerritoryRules } from '../data/territory';
 import { TERRAIN } from '../data/terrain';
 import { boxDistance, propBoxes, type PosedBox } from '../sim/mapgen';
 import type { GradedPad } from '../sim/road-grade';
@@ -44,15 +44,19 @@ export function fillFarm(d: MapDraft, t: TerritoryDef, rules: TerritoryRules, fa
   const offField: Touch = (pos, r) => !marked(pos, r) && !touchedTiles(d.size, pos, r + fieldClear).some((tile) => d.built[tile] === BUILT_FIELD);
   const clutter = placeClutter(d, t, spots, rules.debrisGap, farm.clutter, offField, rules.relief, rng);
   d.props.push(...clutter);
-  const keep = (pos: Vec, r: number): boolean =>
-    standsOnFarm(d, t, prop(farm.groves.look, pos, r, 0), false, null) &&
-    !marked(pos, r) &&
+  const gaps = perimeterGaps(t, farm.runs);
+  const built = (pos: Vec, r: number): boolean =>
     clearOf(spots, pos, r, rules.debrisGap) &&
     clearOf(clutter, pos, r, 0) &&
     clearOf(works, pos, r, 0) &&
     runs.every((seg) => clearOfSegment(seg, pos, r));
+  const keep = (pos: Vec, r: number): boolean =>
+    standsOnFarm(d, t, prop(farm.groves.look, pos, r, 0), false, null) &&
+    !marked(pos, r) &&
+    built(pos, r);
+  const keepOpen = (pos: Vec, r: number): boolean => keep(pos, r) && gaps.every(([a, b]) => segmentDist(pos, a, b) >= r + OPENING.clear);
   const trees = plantBlocks(t, farm.groves, blocks, rng, keep);
-  trees.push(...plantStrays(t, frame, farm.groves, farm.blocks, trees, rng, keep));
+  trees.push(...plantStrays(t, frame, farm.groves, farm.blocks, trees, rng, keepOpen));
   d.props.push(...trees);
   return spots;
 }
@@ -225,6 +229,13 @@ function rowLineGap(a: Vec, b: Vec, c: Vec): number {
 function lineGap(a: Vec, b: Vec, c: Vec): number {
   const length = dist(a, b);
   return length === 0 ? dist(a, c) : Math.abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) / length;
+}
+
+function perimeterGaps(t: TerritoryDef, runs: readonly Run[]): [Vec, Vec][] {
+  const isPerimeter = (run: Run): boolean => run.look === PERIMETER.look && run.broken === PERIMETER.broken && run.knocked.share === PERIMETER.knocked.share;
+  const walls = runs.filter(isPerimeter).map((run) => run.points.map((p) => shift(t, p)));
+  const gaps = walls.slice(1).map((wall, k): [Vec, Vec] => [walls[k].at(-1)!, wall[0]]);
+  return gaps.filter(([a, b]) => dist(a, b) <= OPENING.gap);
 }
 
 function runSegments(t: TerritoryDef, run: Run, rng: Rng): BakedProp[] {
