@@ -124,19 +124,8 @@ export function surveySite(world: World, id: string): SurveySite {
   return site;
 }
 
-const placeThreats = new WeakMap<Terrain, Map<string, Threat>>();
-
 export function surveyPlaceThreat(world: World, siteId: string): Threat {
-  let cache = placeThreats.get(world.terrain);
-  if (!cache) {
-    cache = new Map();
-    placeThreats.set(world.terrain, cache);
-  }
-  const known = cache.get(siteId);
-  if (known) return known;
-  const threat = threatAt(world, surveySite(world, siteId).pos);
-  cache.set(siteId, threat);
-  return threat;
+  return threatAt(world, surveySite(world, siteId).pos);
 }
 
 export function surveyThreat(world: World, c: SurveyContract): Threat {
