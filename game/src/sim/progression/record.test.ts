@@ -7,7 +7,8 @@ import { cumulativeCost } from '../progress';
 import { playerVehicle } from '../damage';
 import { emptyWorld, chaosHighwayWorld } from '../testkit';
 import { haulerOf } from '../damage';
-import { failOnStall, FAR_MOVER, record, recordFrom, recordTurns, StallWatch, stepsFrom, type TraceLine } from './record';
+import { failOnStall, FAR_MOVER, recordFrom, StallWatch, stepsFrom, type TraceLine } from './record';
+import { record, recordTurns } from './record-node';
 import { replay } from './replay';
 
 const SHORT_RUN = 60;

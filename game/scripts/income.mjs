@@ -1,6 +1,3 @@
-// Runs the income harness (src/sim/progression/income.ts): one child process per seed and policy, up to --jobs at a
-// time. Each child writes <out>/<seed>-<policy>.json, and the parent writes <out>/report.md from all of them. Both go
-// through a temp file and a rename, so a killed run leaves no half-written file. A run whose JSON already exists for
 import { execSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
@@ -38,7 +35,7 @@ const report = argOf('report', null);
 if (report !== null) {
   const { formatIncomeReport, gateReport } = await import('../src/sim/progression/income-report.ts');
   const { INCOME_KIT, INCOME_SKILL_RANK, largestTraderLoad } = await import('../src/sim/progression/income.ts');
-  const { startWorld } = await import('../src/sim/progression/record.ts');
+  const { startWorld } = await import('../src/sim/progression/record-node.ts');
   const dirs = report.split(',');
   const runs = dirs.flatMap(readRuns);
   const baselineDir = argOf('baseline', null);
