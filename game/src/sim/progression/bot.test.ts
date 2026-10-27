@@ -1037,7 +1037,7 @@ describe('the hunter', () => {
       const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 34, y: 30 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       plead(w, raider, me, 'truce');
-      w.player.call = { with: raider.id, topic: 'truceOffer', node: 'offer', vars: {}, line: { line: 'enoughOfThisWe', vars: {} } };
+      w.player.call = { with: raider.id, topic: 'truceOffer', node: 'offer', vars: {}, line: { line: 'enoughOfThisWe', vars: {} }, group: null, asked: [] };
 
       const after = botOrders(w, archetype).world;
       return stateOf(after, 'truce', me.id, raider.id) !== null;
@@ -1113,7 +1113,7 @@ describe('the hunter', () => {
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     expect(vehicleStats(w, me).maxSpeed).toBeGreaterThan(vehicleStats(w, raider).maxSpeed);
     startCombat(w, raider, me);
-    w.player.call = { with: raider.id, topic: 'demand', node: 'demand', vars: { haul: haulVar(cargoHaul(raider, playerVehicle(w))) }, line: { line: 'demandCargo', vars: {} } };
+    w.player.call = { with: raider.id, topic: 'demand', node: 'demand', vars: { haul: haulVar(cargoHaul(raider, playerVehicle(w))) }, line: { line: 'demandCargo', vars: {} }, group: null, asked: [] };
 
     expect(goodsCount(playerVehicle(botOrders(w, 'trader').world)).salt ?? 0).toBe(0);
   });
@@ -1163,7 +1163,7 @@ describe('the hunter', () => {
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       expect(vehicleStats(w, raider).maxSpeed).toBeGreaterThanOrEqual(vehicleStats(w, me).maxSpeed);
       startCombat(w, raider, me);
-      w.player.call = { with: raider.id, topic: 'demand', node: 'demand', vars: { haul: haulVar(cargoHaul(raider, playerVehicle(w))) }, line: { line: 'demandCargo', vars: {} } };
+      w.player.call = { with: raider.id, topic: 'demand', node: 'demand', vars: { haul: haulVar(cargoHaul(raider, playerVehicle(w))) }, line: { line: 'demandCargo', vars: {} }, group: null, asked: [] };
       return goodsCount(playerVehicle(botOrders(w, 'trader').world)).salt ?? 0;
     };
 
@@ -1194,7 +1194,7 @@ describe('the hunter', () => {
       const raider = addVehicle(w, 'scrapjaw', 'buggy', [...weapons, 'stockEngine'], { x: 36, y: 30 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       startCombat(w, raider, me);
-      w.player.call = { with: raider.id, topic: 'surrender', node: 'offer', vars: {}, line: { line: 'surrenderOffer', vars: {} } };
+      w.player.call = { with: raider.id, topic: 'surrender', node: 'offer', vars: {}, line: { line: 'surrenderOffer', vars: {} }, group: null, asked: [] };
       return botOrders(w, 'trader').world.player.state === 'knockedOut';
     };
 

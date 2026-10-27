@@ -177,7 +177,7 @@ describe('driver memory', () => {
   it('lets no file but memory.ts write driver memories', () => {
     const write = /\.memories\s*(?:=(?!=)|\.(?:push|splice|unshift|pop|shift|sort|reverse)\()/;
     const writers = Object.entries(SOURCES)
-      .filter(([path]) => !path.endsWith('.test.ts') && path !== './memory.ts' && path !== '../three/save-migrations.ts')
+      .filter(([path]) => !path.endsWith('.test.ts') && path !== './memory.ts' && path !== '../three/save-migrations.ts' && !path.startsWith('../test/'))
       .filter(([, source]) => write.test(source))
       .map(([path]) => path);
     expect(Object.keys(SOURCES).length).toBeGreaterThan(50);

@@ -96,7 +96,7 @@ describe("driving tips", () => {
 describe("horn tip", () => {
   it("shows once an NPC is in sight and keeps a shown tip in place", () => {
     const w = emptyWorld();
-    const seen = new Set<TipId>(["waypoint", "drive", "stop", "stopAt", "manual"]);
+    const seen = new Set<TipId>(["waypoint", "drive", "stop", "stopAt", "manual", "zones"]);
     expect(tipToShow(w, false, seen, null)).toBeNull();
 
     const npc = addVehicle(w, "independent", "scout", [], { x: 32, y: 30 });
@@ -200,15 +200,20 @@ describe("zones tip", () => {
     expect(turns.count(manual(7), "zones")).toBe("zones");
   });
 
-  it("counts no turn played with manual mode off or while the tip is hidden", () => {
+  it("counts turns played in route mode too, but none while the tip is hidden", () => {
     const turns = new TipTurns();
     turns.count(manual(1), "zones");
-    const off = manual(2);
-    playerVehicle(off).direct = false;
-    expect(turns.count(off, "zones")).toBeNull();
+    const route = manual(2);
+    playerVehicle(route).direct = false;
+    expect(turns.count(route, "zones")).toBeNull();
     expect(turns.count(manual(3), null)).toBeNull();
-    expect(turns.count(manual(4), "zones")).toBeNull();
-    expect(turns.count(manual(5), "zones")).toBe("zones");
+    expect(turns.count(manual(4), "zones")).toBe("zones");
+  });
+
+  it("shows in route mode once the stop point tip is seen", () => {
+    const w = emptyWorld();
+    expect(tipToShow(w, false, new Set<TipId>(["waypoint", "drive", "autoStop", "stop"]), null)).toBe("stopAt");
+    expect(tipToShow(w, false, new Set<TipId>(["waypoint", "drive", "autoStop", "stop", "stopAt", "manual"]), null)).toBe("zones");
   });
 
   it("counts nothing for a tip that has no turn count", () => {
