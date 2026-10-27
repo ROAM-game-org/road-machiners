@@ -226,7 +226,7 @@ describe('driver taste', () => {
   });
 
   it('plans the plain route for the player', () => {
-    expect(route(w, from, to, 0.8, [], me)).toEqual(route(w, from, to, 0.8, []));
+    expect(route(w, from, to, 0.8, [], me)).toEqual(route(w, from, to, 0.8, [], { ...me, id: 'another' }));
   });
 });
 
