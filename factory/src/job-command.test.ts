@@ -76,3 +76,34 @@ it('rejects bad arguments before it starts anything', () => {
     expect(result.stdout).toBe('');
   }
 });
+
+function running(pidFile: string): boolean {
+  const state = spawnSync('ps', ['-o', 'stat=', '-p', readFileSync(pidFile, 'utf8').trim()], { encoding: 'utf8' }).stdout.trim();
+  return state !== '' && !state.startsWith('Z');
+}
+
+function pidFileIn(name: string): string {
+  return join(mkdtempSync(join(tmpdir(), `${name}-`)), 'pid');
+}
+
+it('stops a job whose processes ignore TERM, and returns once none is left', () => {
+  const env = jobEnv('1');
+  const name = `stop-deaf-${process.pid}`;
+  const pidFile = pidFileIn(name);
+  expect(job(env, 'start', name, 'tests', '5', `sh -c 'trap "" TERM; echo $$ > ${pidFile}; while :; do :; done' & wait`).status).toBe(0);
+  for (let tries = 0; tries < 50 && !running(pidFile); tries++) spawnSync('sleep', ['0.1']);
+  expect(running(pidFile)).toBe(true);
+  const stopped = job(env, 'stop', name);
+  expect(stopped.stdout).toContain(`Stopped job ${name}.`);
+  expect(stopped.status).toBe(0);
+  expect(running(pidFile)).toBe(false);
+});
+
+it('kills a process the command left behind when the command ends', () => {
+  const env = jobEnv('60');
+  const name = `leftover-${process.pid}`;
+  const pidFile = pidFileIn(name);
+  expect(job(env, 'start', name, 'tests', '5', `sh -c 'trap "" TERM; echo $$ > ${pidFile}; while :; do sleep 1; done' > /dev/null 2>&1 & sleep 1`).status).toBe(0);
+  expect(job(env, 'wait', name).stdout).toContain(`Job ${name} finished`);
+  expect(running(pidFile)).toBe(false);
+});
