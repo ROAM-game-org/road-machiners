@@ -47,7 +47,8 @@ function aheadPoint(world: World, from: Vec, dest: Vec, radius: number, extra: B
   const ov = stampOverlay(layer, dynamicBlockers(world.obstacles, world.terrain, extra), radius);
   const start = cellOf(layer, from);
   const exit = canStepOut(layer, ov, start) ? start : nearestFreeCell(layer, ov, start);
-  const near = exit === null ? null : nearestFreeCell(layer, ov, cellOf(layer, insideMap(world, dest, radius)), startComponent(layer, exit));
+  const target = cellOf(layer, insideMap(world, dest, radius));
+  const near = exit === null ? null : nearestFreeCell(layer, ov, target, startComponent(layer, exit), nearRing(layer, exit, target));
   if (exit === null || near === null) return null;
   const cell = coarseWaypoint(layer, exit, near, routeTaste(world, terrainNav(world.terrain), driver), window / CELL);
   return cell === null ? null : centerOf(layer, cell);
@@ -104,14 +105,18 @@ function search(layer: NavLayer, dynamic: Blocker[], radius: number, start: numb
   }
   const overlay = stampOverlay(layer, dynamic, radius);
   const exit = canStepOut(layer, overlay, start) ? start : exitCell(layer, overlay, start, target, radius);
-  const near = nearestFreeCell(layer, overlay, target, startComponent(layer, exit));
-  if (near === null) throw new Error(`No free cell joined to cell ${exit} for a route to cell ${target}`);
+  const near = nearestFreeCell(layer, overlay, target, startComponent(layer, exit), nearRing(layer, exit, target)) ?? exit;
   const found = findCellsToward(layer, overlay, exit, near, taste);
   if (!found) throw new Error(`Cells ${exit} and ${near} share a component but have no route`);
   const result = { goal: found[found.length - 1], cells: exit !== start ? Int32Array.of(start, ...found) : found };
   if (routeCache.size >= ROUTE_CACHE_MAX) routeCache.delete(routeCache.keys().next().value!);
   routeCache.set(key, result);
   return result;
+}
+
+function nearRing(layer: NavLayer, a: number, b: number): number {
+  const n = layer.n;
+  return Math.max(Math.abs((a % n) - (b % n)), Math.abs(Math.floor(a / n) - Math.floor(b / n))) + REGION.navigation.nearSlack / CELL;
 }
 
 function exitCell(layer: NavLayer, overlay: Overlay, start: number, target: number, radius: number): number {
