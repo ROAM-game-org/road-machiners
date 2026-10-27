@@ -6,7 +6,8 @@ import { crashLevel } from "../audio/pick";
 import { PAL } from "../render/palette";
 import { GROUND, restFrame, type TurnResult } from "../phys/drive";
 import { missPoint } from "../sim/combat";
-import { carriedPart } from "../sim/salvage";
+import { carriedPart, carriedPartDef } from "../sim/salvage";
+import { isShield } from "../data/parts";
 import type { Vec } from "../sim/vec";
 import type { GameEvent, PartInstance, ShotRound, Vehicle, World } from "../sim/types";
 import type { BreakCues, PartBreak, ShotLike } from "./breakCues";
@@ -32,7 +33,10 @@ export type VolleyHost = {
   startMs: number;
 };
 
-const GUN_SOUNDS: Record<string, { fire: CueId; struck: CueId }> = { harpoon: { fire: "harpoon-fire", struck: "harpoon-hook" } };
+type StruckCues = { plate: CueId; part: CueId };
+
+const GUN_SOUNDS: Record<string, { fire: CueId; struck: StruckCues }> = { harpoon: { fire: "harpoon-fire", struck: { plate: "harpoon-hook", part: "harpoon-hook" } } };
+const DEFAULT_STRUCK: StruckCues = { plate: "hit-metal", part: "hit-part" };
 
 export type VolleyLands = { landsMs: number[]; lastMs: number };
 
@@ -50,17 +54,18 @@ export function playVolley(
   const rounds = event.rounds;
   const spec = projectileOf(weapon);
   const ground = (p: V3) => groundPoint(host.world.terrain, toMap(p)).y;
-  const sounds = GUN_SOUNDS[weapon] ?? { fire: spec.look === "tracer" ? "mg-fire" : "cannon-fire", struck: "hit-metal" };
+  const sounds = GUN_SOUNDS[weapon] ?? { fire: spec.look === "tracer" ? "mg-fire" : "cannon-fire", struck: DEFAULT_STRUCK };
   const landsAt = plans.map((plan) => plan.delayMs + plan.flightMs);
   const lastLand = landsAt.indexOf(Math.max(...landsAt));
   plans.forEach((plan, k) => {
     const shown = { ...plan, delayMs: Math.max(0, plan.delayMs - host.startMs) };
     const empties = dry && k === lastLand;
     const burst = rounds[k].burst;
+    const struckCue = reachedPart(host.world, rounds[k]) ? sounds.struck.part : sounds.struck.plate;
     const cues = {
       fired: (m: Muzzle) => host.sound.at(sounds.fire, m.pos, 0),
       landed: () => {
-        landSound(host, plan, rounds[k], sounds.struck);
+        landSound(host, plan, rounds[k], struckCue);
         if (empties) host.sound.at("gun-empty", muzzle().pos, 0);
         if (burst) host.onBurst(burst);
         if (hooked && plan.impact === "truck") hooked();
@@ -71,6 +76,11 @@ export function playVolley(
     showDamage(host, rounds[k], shown.delayMs + shown.flightMs, rows);
   });
   return { landsMs: landsAt, lastMs: Math.max(...landsAt) };
+}
+
+export function reachedPart(world: World, r: ShotRound): boolean {
+  const struck = r.struck === null ? [] : [{ vehicle: r.struck, hits: r.hits }];
+  return [...struck, ...r.blast].some((dealt) => dealt.hits.some((h) => h.damage > 0 && !isShield(carriedPartDef(world, dealt.vehicle, h.part))));
 }
 
 function landSound(host: VolleyHost, plan: RoundPlan, r: ShotRound, struck: CueId): void {
