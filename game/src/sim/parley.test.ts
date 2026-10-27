@@ -4,7 +4,8 @@ import { SALVAGE } from '../data/salvage';
 import { NPC_BEHAVIOR, NPCS, type TraitId } from '../data/npcs';
 import { isHostile, noteCollision } from './combat';
 import { playerVehicle } from './damage';
-import { callVehicle, chooseOption, currentLine, currentOptions, endCallIfOut, hangUp, raiseCalls } from './dialogue';
+import { callVehicle, currentLine, currentOptions, endCallIfOut, hangUp, raiseCalls } from './dialogue';
+import { asksOf, chooseText } from './dialogue-testkit';
 import { addGoods } from './inventory';
 import { takeAllLoot } from './locations';
 import { pushGoal, resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
@@ -40,9 +41,7 @@ function feud(w: World, a: Vehicle, b: Vehicle): void {
 }
 
 function pick(w: World, text: string): World {
-  const i = currentOptions(w).findIndex((o) => en(o.line) === text);
-  if (i < 0) throw new Error(`No option "${text}" in ${currentOptions(w).map((o) => en(o.line)).join(' | ')}`);
-  return chooseOption(w, i);
+  return chooseText(w, text);
 }
 
 const dent = [{ part: 'cab', damage: 5 }];
@@ -429,7 +428,7 @@ describe('player robbery', () => {
     forceOption('threatened', 'comply');
     const { w: start, npc } = loaded();
     const empty = npcAt(start, 'independent', ['trader'], 36, 33);
-    expect(currentOptions(callVehicle(start, empty.id)).map((o) => en(o.line))).not.toContain(DEMAND);
+    expect(asksOf(callVehicle(start, empty.id))).not.toContain(DEMAND);
     let w = pick(callVehicle(start, npc.id), DEMAND);
     w = hangUp(w);
     w = pick(callVehicle(w, npc.id), DEMAND);

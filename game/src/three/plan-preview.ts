@@ -3,7 +3,7 @@ import type { PlanFrames } from "../phys/plan";
 import { SentObstacles, type PreviewRequest, type PreviewResponse, type TerrainRequest } from "../phys/turn";
 import { mergePerf } from "../perf";
 import { PAL } from "../render/palette";
-import { driveMode, throttleFor } from "../sim/steering";
+import { orderThrottle, playerOrder } from "../sim/steering";
 import type { Vehicle, World } from "../sim/types";
 import type { Vec } from "../sim/vec";
 import { currentQuestLanguage } from "../sim/quests";
@@ -11,12 +11,14 @@ import { reportError } from "./crash";
 import { workerError } from "./travel";
 import { WorkerLoad, workerFailure } from "./worker-load";
 
-export function throttleColor(me: Vehicle, p: Vec): number {
-  return PAL.throttle[throttleFor(Math.hypot(p.x - me.pos.x, p.y - me.pos.y), me.speed, driveMode(me))];
+export function throttleColor(world: World, me: Vehicle, p: Vec): number {
+  return PAL.throttle[orderThrottle(me, playerOrder(world, me, p, false))];
 }
 
-export function firstTurnColor(me: Vehicle): number {
-  return me.order?.kind === "through" ? throttleColor(me, me.order.dest) : PAL.plan;
+export function firstTurnColor(world: World, me: Vehicle): number {
+  const order = me.order;
+  if (!order || order.kind === "brake") return PAL.plan;
+  return order.kind === "through" || order.pace !== undefined ? PAL.throttle[orderThrottle(me, order)] : PAL.plan;
 }
 
 type Wanted = { world: World; drive: DriveSnapshot; meId: string };

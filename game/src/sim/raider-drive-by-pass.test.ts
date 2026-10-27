@@ -9,10 +9,10 @@ describe.each([['by day', false], ['at night', true]])('drive-by %s on the real 
     expect(count(empty, (r) => r.engaged || r.feud), summary(empty, seeds)).toBe(0);
   });
 
-  it('shows the pass line "nothing worth taking" when the raider sees an empty-handed player', () => {
+  it('shows the pass line "let you be this time" when the raider sees an empty-handed player, whose empty hold it takes for room to carry', () => {
     const empty = runs('playerEmpty', night, SLOW_PASS_TURNS);
     const shown = empty.flatMap((r) => r.hover);
     if (!night) expect(shown.length, summary(empty)).toBeGreaterThan(0);
-    for (const line of shown) expect(line).toBe('Lets you pass: nothing worth taking');
+    for (const line of shown) expect(line).toBe('Lets you pass: let you be this time');
   });
 });

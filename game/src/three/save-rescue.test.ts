@@ -296,7 +296,7 @@ describe('rescueSave', () => {
     };
     slots.put('auto', save);
     const rescued = rescueSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun, 2000);
-    expect(rescued?.world.player.quests).toEqual({ world: {}, local: {}, session: null, live: null });
+    expect(rescued?.world.player.quests).toEqual({ world: {}, local: {}, seen: {}, session: null, live: null });
     expect(loadWorld(slots, 'auto', TEST_MAP)?.player.quests.session).toBeNull();
   });
 

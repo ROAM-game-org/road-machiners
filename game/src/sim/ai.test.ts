@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { PERF } from '../data/perf';
 import { RULES } from '../data/rules';
 import { TERRAIN } from '../data/terrain';
-import { givesWayTo, planNpcOrders, routeBlockers, settleMeetings, trafficStops, yieldsToTraffic } from './ai';
+import { givesWayTo, planNpcOrders, routeBlockers, settleMeetings, standingBlockers, stopTrack, trafficStops, yieldsToTraffic } from './ai';
+import { PHYSICS } from '../data/physics';
+import { vehicleStats } from './stats';
 import { topGoal } from './npc-activities';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
+import { addState } from './states';
 import { startEscort } from './tow';
 import type { Vehicle, World } from './types';
 import { dist } from './vec';
@@ -333,6 +336,50 @@ describe('oncoming NPCs', () => {
     const fleer = who === 'first' ? first : second;
     fleer.brain!.goals.push({ kind: 'flee', targetId: null, destination: { x: 100, y: 60 }, phase: 'travel', reason: 'escapeAttacker' });
     expect(trafficStops(w, first, DEST)).toBe(false);
+  });
+
+  it('the holder sees a braking giver as standing, with its stop point', () => {
+    const { w, first, second } = headOn();
+    corridor(w);
+    planNpcOrders(w);
+    expect(first.order?.kind).toBe('brake');
+    const standing = standingBlockers(w, second);
+    const radius = vehicleStats(w, first).radius + PHYSICS.driver.clearMargin;
+    expect(standing.some((b) => dist(b.pos, first.pos) < 0.01 && b.r >= radius)).toBe(true);
+    expect(standing.some((b) => dist(b.pos, first.pos) > 1)).toBe(true);
+  });
+
+  it('the holder does not see a swerving giver as standing', () => {
+    const { w, first, second } = headOn();
+    planNpcOrders(w);
+    expect(first.order?.kind).not.toBe('brake');
+    expect(standingBlockers(w, second).some((b) => dist(b.pos, first.pos) < 3)).toBe(false);
+  });
+
+  it('a tower widens the stop track by what its rope client is bigger by', () => {
+    const { w, first, second } = headOn();
+    corridor(w);
+    planNpcOrders(w);
+    const plain = standingBlockers(w, second).find((b) => dist(b.pos, first.pos) < 0.01)!;
+    const client = addVehicle(w, 'independent', 'semi', ['stockEngine'], { x: 120, y: 100 });
+    addState(w, 'tow', second.id, client.id, { kind: 'tow', site: 'bowl', fee: 10, waived: 0, hitched: true });
+    const extra = Math.max(0, vehicleStats(w, client).radius - vehicleStats(w, second).radius);
+    expect(extra).toBeGreaterThan(0);
+    const wide = standingBlockers(w, second).find((b) => dist(b.pos, first.pos) < 0.01)!;
+    expect(wide.r).toBeCloseTo(plain.r + extra);
+  });
+
+  it('a truck on a rope never gives way, whatever the ids', () => {
+    const { w, first, second } = headOn();
+    addState(w, 'tow', second.id, first.id, { kind: 'tow', site: 'bowl', fee: 10, waived: 0, hitched: true });
+    expect(routeBlockers(w, second).some((b) => dist(b.pos, first.pos) < 0.5)).toBe(false);
+    expect(routeBlockers(w, first).some((b) => dist(b.pos, second.pos) < 0.5)).toBe(true);
+  });
+
+  it('a stop track refuses a giver with no valid speed', () => {
+    const { w, first, second } = headOn();
+    first.speed = NaN;
+    expect(() => stopTrack(w, second, first)).toThrow();
   });
 
   it('a far pair does not use the rule', () => {

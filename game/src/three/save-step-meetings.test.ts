@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import FORMAT_2_116 from './save-fixtures/format-2-116.json';
+import FORMAT_2_117 from './save-fixtures/format-2-117.json';
 import { START_KITS } from '../data/start';
 import { settleMeetings } from '../sim/ai';
 import { defaultSetup } from '../sim/settings';
@@ -9,9 +9,10 @@ import { endTurn, newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
 import { loadWorld, saveOf } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
-import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
+import { TINY_STEPS, type SavedJson } from './save-migrations';
 
-const step = (world: unknown): SavedJson => TINY_STEPS[116 - TINY_FROM].step(structuredClone(world) as SavedJson);
+const meetingStep = TINY_STEPS.find((s) => s.name === 'withMeetingRoles')!;
+const step = (world: unknown): SavedJson => meetingStep.step(structuredClone(world) as SavedJson);
 
 function roundTrip(w: World): World {
   const slots = new SaveSlots(memoryBackend(), new Map());
@@ -34,11 +35,9 @@ function meetingWorld(): World {
   return w;
 }
 
-describe('save migration 116 to 117, saves with no meetings stay as they are', () => {
-  it('leaves every vehicle without a role', () => {
-    const next = step(FORMAT_2_116) as unknown as { vehicles: { yieldsTo?: string[] }[] };
-    expect(next).toEqual(FORMAT_2_116);
-    expect(next.vehicles.every((v) => v.yieldsTo === undefined)).toBe(true);
+describe('save migration the newest format, saves with no meetings stay as they are', () => {
+  it('leaves the save as it is', () => {
+    expect(step(FORMAT_2_117)).toEqual(FORMAT_2_117);
   });
 });
 
