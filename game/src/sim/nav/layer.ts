@@ -265,6 +265,19 @@ function builtLayer(e: TerrainEntry, statics: StaticSet, radius: number): NavLay
   return marks === null ? layer : { ...layer, coarse: withRegionSlow(solid.coarse, nav.slow, marks) };
 }
 
+export function warmLayers(terrain: Terrain, obstacles: Obstacle[], radii: number[]): void {
+  const e = terrainEntry(terrain);
+  const statics = staticSet(obstacles, terrain);
+  const missing = radii.filter((r) => !e.layers.has(`${statics.id}:${r}`) && !e.solidGrids.has(`${statics.solidId}:${r}`));
+  const blocked = missing.map((r) => cliffCells(e, r).slice());
+  stampEveryRadius(e.nav.n, statics.solid, missing, blocked);
+  missing.forEach((r, i) => {
+    keepWithin(e.solidGrids, `${statics.solidId}:`);
+    e.solidGrids.set(`${statics.solidId}:${r}`, { blocked: blocked[i], coarse: coarseGrid(e.nav.n, blocked[i], e.nav.slow) });
+  });
+  for (const r of radii) navLayer(terrain, obstacles, r);
+}
+
 function patchedLayer(e: TerrainEntry, statics: StaticSet, radius: number): NavLayer | null {
   const from = [...e.layers.entries()].reverse().find(([, c]) => c.layer.radius === radius && c.statics.solidId === statics.solidId && c.statics.costly.length > 0);
   if (!from || statics.costly.length === 0) return null;
@@ -410,6 +423,38 @@ export function stampBlockers(n: number, blockers: Blocker[], radius: number, ma
       continue;
     }
     for (const box of o.prop.boxes) stampWithin(n, box.center, ...boxExtent(box, grow), (p) => boxDistance(box, p) < grow, mark);
+  }
+}
+
+function stampEveryRadius(n: number, blockers: Blocker[], radii: number[], marks: Uint8Array[]): void {
+  const grows = radii.map((r) => r + CLEARANCE);
+  const most = Math.max(...grows);
+  for (const o of blockers) {
+    if (!o.prop) {
+      const reaches = grows.map((g) => o.r + g);
+      stampMeasured(n, o.pos, o.r + most, o.r + most, (p) => dist(p, o.pos), (c, d) => markUnder(marks, reaches, c, d));
+      continue;
+    }
+    for (const box of o.prop.boxes) stampMeasured(n, box.center, ...boxExtent(box, most), (p) => boxDistance(box, p), (c, d) => markUnder(marks, grows, c, d));
+  }
+}
+
+function markUnder(marks: Uint8Array[], limits: number[], cell: number, d: number): void {
+  for (let i = 0; i < limits.length; i++) if (d < limits[i]) marks[i][cell] = 1;
+}
+
+function stampMeasured(n: number, center: Vec, ex: number, ey: number, measure: (p: Vec) => number, mark: (cell: number, d: number) => void): void {
+  const x0 = Math.max(0, Math.floor((center.x - ex) / CELL));
+  const y0 = Math.max(0, Math.floor((center.y - ey) / CELL));
+  const x1 = Math.min(n - 1, Math.floor((center.x + ex) / CELL));
+  const y1 = Math.min(n - 1, Math.floor((center.y + ey) / CELL));
+  const p = { x: 0, y: 0 };
+  for (let x = x0; x <= x1; x++) {
+    p.x = (x + 0.5) * CELL;
+    for (let y = y0; y <= y1; y++) {
+      p.y = (y + 0.5) * CELL;
+      mark(y * n + x, measure(p));
+    }
   }
 }
 

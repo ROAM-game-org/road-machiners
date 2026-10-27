@@ -4,7 +4,7 @@ import { crossesRail } from './bridge';
 import { count, timed } from '../perf';
 import { canStepOut, coarseWaypoint, connected, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
 import type { Blocker } from './nav/buckets';
-import { CELL, CLEARANCE, blockerKey, climbTaste, componentOf, dynamicBlockers, navLayer, nearCliff, nightTaste, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
+import { CELL, CLEARANCE, blockerKey, climbTaste, componentOf, dynamicBlockers, navLayer, nearCliff, nightTaste, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, warmLayers, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
 import { keepsOffRoads } from './off-road';
 import { climbGrade } from './stats';
 import type { Vehicle, World } from './types';
@@ -89,9 +89,7 @@ export function reachesFrom(world: World, anchor: Vec, radius: number): (p: Vec)
 }
 
 export function warmRoutes(world: World, radii: number[]): void {
-  timed('warm-routes', () => {
-    for (const r of radii) navLayer(world.terrain, world.obstacles, r);
-  });
+  timed('warm-routes', () => warmLayers(world.terrain, world.obstacles, radii));
 }
 
 function search(layer: NavLayer, dynamic: Blocker[], radius: number, start: number, target: number, taste: Taste | null): { goal: number; cells: Int32Array } {
