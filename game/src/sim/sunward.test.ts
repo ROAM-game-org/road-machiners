@@ -112,8 +112,9 @@ describe('the Sunward clock', () => {
 
   it('counts a night from the dusk before it, also past midnight', () => {
     const dusk = duskTurn(2);
-    expect(lastDusk(dusk + 100)).toBe(dusk);
-    expect(clockOf(dusk + 100).day).toBe(3);
+    const pastMidnight = dusk + Math.round((TIME.turnsPerDay * 5) / 24);
+    expect(lastDusk(pastMidnight)).toBe(dusk);
+    expect(clockOf(pastMidnight).day).toBe(3);
   });
 
   it('has no order on Chaos Highway', () => {

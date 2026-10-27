@@ -18,6 +18,7 @@ export const SUNWARD = {
   huntCooldownNights: 1,
   huntReach: 70,
   huntBreaks: 2,
+  huntRoadStep: 6,
   huntSalt: 0x68756e74,
   rideLeadTurns: 101,
   driveTurns: 140,
