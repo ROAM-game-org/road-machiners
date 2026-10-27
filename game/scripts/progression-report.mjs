@@ -164,13 +164,15 @@ function printEndings(group) {
 
 function printSkills(group) {
   const levels = Array.from({ length: MAX_RANK }, (_, i) => `R${i + 1}`);
-  const rows = [['skill', ...levels.map((l) => `${l} day`), 'XP/day']];
-  for (const skill of SKILL_IDS) {
-    const curves = group.map((r) => r.curve[skill]);
-    const cells = levels.map((_, i) => levelCell(curves.map((c) => c.levels[i]), group.length));
-    rows.push([skill, ...cells, spread(curves.map((c) => c.perDay), (n) => n.toFixed(0))]);
-  }
+  const rows = [['family', 'XP/day']];
+  for (const skill of SKILL_IDS) rows.push([skill, spread(group.map((r) => r.curve.families[skill].perDay), (n) => n.toFixed(0))]);
+  rows.push(['pooled', spread(group.map((r) => r.curve.pooled.perDay), (n) => n.toFixed(0))]);
   printTable(rows);
+  const ranks = [['rank', ...levels.map((l) => `${l} day`)]];
+  for (const [label, kind] of [['one skill', 'one'], ['every skill', 'every']]) {
+    ranks.push([label, ...levels.map((_, i) => levelCell(group.map((r) => r.curve.pooled[kind][i]), group.length))]);
+  }
+  printTable(ranks);
   for (const run of group) for (const miss of run.misses) console.log(`  seed ${run.seed}: ${miss}`);
   if (group.every((run) => run.misses.length === 0)) console.log('  all targets met');
 }

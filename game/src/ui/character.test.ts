@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { XP_RULES } from "../data/skills";
 import { emptyWorld } from "../sim/testkit";
 import type { QuestLive, World } from "../sim/types";
 import { CharacterScreen } from "./character";
@@ -95,7 +96,7 @@ describe("character screen", () => {
     const root = openCharacter(emptyWorld());
     expect(root.all((n) => n.className.includes("skill-row"))).toHaveLength(5);
     expect(root.text().match(/Today/g)).toHaveLength(1);
-    expect(root.text()).toContain("max 150 XP");
+    expect(root.text()).toContain(`max ${XP_RULES.dailyCap} XP`);
     expect(root.all((n) => n.className === "skill-name")[0].attrs.get("title")).toMatch(/^Earns XP from /);
   });
 
@@ -114,7 +115,7 @@ describe("character screen", () => {
     world.player.state = "knockedOut";
     const perk = openCharacter(world).all((n) => n.tag === "button" && n.className === "perk")[0];
     expect(perk.attrs.get("aria-disabled")).toBe("true");
-    expect(perk.attrs.get("data-reason")).toBe("You are knocked out");
+    expect(perk.attrs.get("data-reason")).toBe("Knocked out");
   });
 
   it("prints the XP pool as a number and a unit", () => {

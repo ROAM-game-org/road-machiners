@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { TIME } from '../data/time';
 import { BASIC_IDS, BASICS, MAX_RANK, type PerkId, RANK_COSTS, XP_RULES, XP_SOURCES } from '../data/skills';
 import {
-  affordableRanks, basicRefusal, basicSkill, buyCheapestRanks, buyRank, canBuyRank, choosePerk, cumulativeCost, hasBasic, hasPerk, pendingPerkPairs, practice, rankCost, ranksCoveredBy, skillEffect,
+  affordableRanks, basicRefusal, basicSkill, buyCheapestRanks, buyRank, canBuyRank, choosePerk, cumulativeCost, hasBasic, hasPerk, pendingPerkPairs, practice, rankCost, skillEffect,
   skillLevel, vehicleHasPerk, xpFor, xpTodayOf,
 } from './progress';
 import { vehicleStats } from './stats';
@@ -43,12 +43,6 @@ describe('rank costs', () => {
   it('add up to the cumulative cost of a rank', () => {
     expect(cumulativeCost(0)).toBe(0);
     expect(cumulativeCost(2)).toBe(RANK_COSTS[0] + RANK_COSTS[1]);
-  });
-
-  it('cover the ranks an XP total pays for, up to the top rank', () => {
-    expect(ranksCoveredBy(cumulativeCost(2) - 1)).toBe(1);
-    expect(ranksCoveredBy(cumulativeCost(2))).toBe(2);
-    expect(ranksCoveredBy(cumulativeCost(MAX_RANK) * 10)).toBe(MAX_RANK);
   });
 });
 

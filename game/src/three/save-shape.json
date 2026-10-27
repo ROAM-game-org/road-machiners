@@ -1,5 +1,5 @@
 {
- "format": "2.118",
+ "format": "2.119",
  "shape": {
   "broken": [],
   "chaosHighway": "null",
@@ -2437,6 +2437,7 @@
     "jory_patrol": "boolean"
    },
    "bowl_ruben": {
+    "ruben_loan": "boolean",
     "ruben_old": "boolean",
     "ruben_senate": "boolean",
     "ruben_sun": "boolean",
