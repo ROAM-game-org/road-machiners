@@ -72,7 +72,7 @@
   "town_nose": {
     "file": "town_nose.webp",
     "focusX": 50,
-    "focusY": 0
+    "focusY": 12
   },
   "town_salvage_yard": {
     "file": "town_salvage_yard.webp",
