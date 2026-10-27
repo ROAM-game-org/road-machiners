@@ -7,7 +7,7 @@ import { callError, DialoguePanel, type DialogueHost } from "./dialogue";
 import { markError } from "../sim/detect";
 import { hasExplorationMap, modeRules } from "../sim/settings";
 import { playerCanAct } from "../sim/world";
-import type { CrimeCase, Vehicle, World } from "../sim/types";
+import type { CrimeCase, GameEvent, Vehicle, World } from "../sim/types";
 import { caseOwed, knownCasesOn } from "../sim/crime";
 import { workOf, type Work } from "../sim/states";
 import { isAutoPatch } from "../sim/jobs";
@@ -406,8 +406,8 @@ export class Hud {
     );
   }
 
-  renderRescue(w: World): void {
-    this.dialogue.render(w);
+  renderRescue(w: World, callShown = true): void {
+    this.dialogue.render(w, callShown);
     const r = getRescueReadout(w);
     const down = rescueOf(r, "knockedOut");
     this.knockedOut.style.display = down ? "" : "none";
@@ -688,17 +688,21 @@ export class Hud {
     this.dialogue.flushHorn();
   }
 
-  pushEvents(w: World): void {
+  pushEvents(w: World, events: readonly GameEvent[] = w.events): void {
+    this.logHeld(w, events);
+    if (w.events.some((e) => e.t === 'sunwardFallen')) this.toast(t('log.sunwardFallen'));
+    this.radio.hear(w);
+  }
+
+  logHeld(w: World, events: readonly GameEvent[]): void {
     const lines: LogLine[] = [];
-    for (const e of w.events) {
+    for (const e of events) {
       const line = eventText(w, e);
       if (!line) continue;
       lines.push(line);
       if (isNotable(e)) this.toast(line.text);
     }
     this.log.add(w.turn, lines);
-    if (w.events.some((e) => e.t === 'sunwardFallen')) this.toast(t('log.sunwardFallen'));
-    this.radio.hear(w);
   }
 
   logTexts(): string[] {

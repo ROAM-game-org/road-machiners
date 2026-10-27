@@ -168,8 +168,8 @@ export class DialoguePanel {
     window.addEventListener('keydown', (e) => this.onKey(e), true);
   }
 
-  render(w: World): void {
-    const call = w.player.call;
+  render(w: World, shown = true): void {
+    const call = shown ? w.player.call : null;
     this.root.style.display = call ? '' : 'none';
     if (!call) {
       this.drawn = '';
