@@ -49,8 +49,8 @@ Pull up by the cistern. I'm Hattie. Where'd you come from, and how much water do
   ~ hattie_strangers = true
   -> hub
 + {hattie_strangers and not hattie_granary} [Who asks about the Granary?]
-  Drivers with empty beds. The raiders pay them to count the Granary's grain.
-  Odile chalks the count on the gate every night, so all they need is somebody who can read.
+  Drivers with empty beds. The raiders pay them to watch which trucks leave the Granary loaded.
+  Odile keeps her gate open all day, so they get paid to sit and stare.
   ~ hattie_granary = true
   -> hub
 + {hattie_strangers and not hattie_soldiers} [What do you make of the soldiers from Nose?]
