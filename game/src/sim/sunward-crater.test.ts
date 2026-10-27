@@ -14,7 +14,7 @@ import { chooseOn } from './tracks';
 import { endTurn } from './world';
 import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
 import { watchStalls } from './npc-watchdog';
-import { advanceSunward, craterExit, gateOrder, isCavalcadeCar, planSunward, dawnAfter, duskTurn, fallenSun, isSunwardMember, returnTurn, sunwardFacts, vigilGrounds, vigilPosts } from './sunward';
+import { advanceSunward, craterExit, gateOrder, isCavalcadeCar, planSunward, dawnAfter, duskTurn, fallenSun, isSunwardMember, returnTurn, rideOutTurn, sunwardFacts, vigilGrounds, vigilPosts } from './sunward';
 import { callVehicle, hangUp, raiseCalls, talkOf } from './dialogue';
 import type { LineId } from '../data/dialogue';
 import { chooseLine, offersLine } from './dialogue-testkit';
@@ -587,7 +587,7 @@ describe('meeting the stranger at the vigil', () => {
     w.vehicles = [playerVehicle(w)];
     fillHollow(w);
     w.vehicles = w.vehicles.filter((v) => !isSunwardMember(v) || isCavalcadeCar(v));
-    w.turn = duskTurn(1) + SUNWARD.driveTurns + 10;
+    w.turn = rideOutTurn(duskTurn(1)) + SUNWARD.driveTurns + 10;
     advanceSunward(w);
     const posts = vigilPosts(w);
     gateOrder(w, sunwardFacts(w).night!).forEach((id, seat) => pose(w.vehicles.find((v) => v.id === id)!, posts[seat]));
