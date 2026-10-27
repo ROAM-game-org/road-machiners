@@ -123,7 +123,7 @@ Good lines to match:
 - refit: переоснащение. Mount: крепление.
 - pristine (no wear): без износа. Rebuilt after a breakdown: капремонт, «2 капремонта». Broken: не работает. Junk: лом.
 - flatbed extension: удлинитель кузова. Cage: каркас. Armor plate: стальной лист.
-- petrol, the good the Pump Station makes: бензин. Never солярка or топливо for it.
+- diesel, the good the Pump Station makes: солярка. Never бензин or топливо for it.
 - money: М, as «60 М». A sum inside a quest line reads «{price} М».
 - watch, a shift of time in a quest: вахта, «две вахты».
 - compass letters on the map and the dashboard compass: N, E, S, W, Latin as in English, by convention. Never С, В, Ю, З.
@@ -170,5 +170,5 @@ Names:
 - People: Agnes Ondra is Агнес Ондра. Mirela is Мирела. Sergeant Kovac is сержант Ковач. Lena is Лена. Old Ibo is Старый Ибо. Ruben is Рубен. Hattie is Хэтти. Dag is Даг. Jory Baptiste is Джори Батист. Sefa Krol is Сефа Кроль. Corporal Bram Teller is капрал Брэм Теллер. Private Ilan Duvall is рядовой Илан Дюваль. Vance is Вэнс. Pell is Пелл. Sabine is Сабина. Bo Lindqvist is Бо Линдквист. Ines Abend is Инес Абенд. Mirela Duarte is Мирела Дуарте. Aurel Brede is Аурел Бреде. Pim Arslan is Пим Арслан. Commander Lind is командир Линд. Otto Brann is Отто Бранн. Tamsin Roe is Тэмсин Роу. The Steward is управляющий. Odile Marsh is Одиль Марш. Hadiza Okon is Хадиза Окон. Hollis Brennan is Холлис Бреннан.
 - Places take their names from `site.*` in `src/text/ru/names.ts`: Bowl is Чаша, Nose is Нос, Pump Station is Насосная станция, Salvage Yard is Свалка, Granary is Элеватор, Burnt Convoy is Сгоревший конвой, Kiln is Обжиг, Scrapjaw is Ржавая Челюсть, Glass Flats is Стеклянная равнина and Fallen Sun is Павшее солнце.
 - Groups and things: the Senate is Сенат. The Central Committee is Центральный комитет. The Farmers patrol is патруль Чаши, and a Farmer is фермер. Pierce is «Пирс». The Guidestar Guild is Гильдия Путеводной звезды. The Old Army is Старая армия. The Sunward are Обращенные к Солнцу. The old world is старый мир. Wagon Seven is фургон «Седьмой». Old Orchard is Старый сад. The pump book is насосная книга.
-- Water: the dial is счетчик, a hose meter is водомер, the tanker is цистерна, a trough is желоб, the lock house is шлюзовой дом and the well house is колодезная. The household is двор, and its steward is управляющий.
+- Water: the dial is счетчик, a hose meter is водомер, the household truck is грузовик двора and never цистерна, a trough is желоб, the lock house is шлюзовой дом, the cistern is резервуар and the cistern house is резервуарная. The household is двор, and its steward is управляющий.
 - The link is сцепка, and to drive linked is водить в сцепке. A Machiner is механтист, and road slang shortens it to мех, as English shortens it to Mach. Never машинист, which is a train driver. The Chaos is Хаос.
