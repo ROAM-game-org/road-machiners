@@ -92,7 +92,7 @@
   "town_dustwell": {
     "file": "town_dustwell.webp",
     "focusX": 50,
-    "focusY": 50
+    "focusY": 35
   },
   "town_green_pit": {
     "file": "town_green_pit.webp",
