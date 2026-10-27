@@ -142,7 +142,7 @@ export class TruckContext {
       outpost: () => reachedOutpostAt(h.world()) && h.openOutpost(),
       downed: () => 'id' in target && h.openDowned(target.id),
       stock: () => 'id' in target && this.searchStock(target.id, action.combat),
-      survey: () => target.kind === 'survey' && this.surveySite(target.contractId, target.id, action.combat),
+      survey: () => target.kind === 'survey' && this.surveySite(target.contractId, target.id),
       loot: () => 'id' in target && this.lootStock(target.id),
       empty: () => undefined,
     };
@@ -173,9 +173,9 @@ export class TruckContext {
     }
   }
 
-  private surveySite(contractId: string, site: string, combat?: number): void {
+  private surveySite(contractId: string, site: string): void {
     const w = this.host.world();
-    if (isBusy(playerVehicle(w)) || combat !== undefined) return;
+    if (isBusy(playerVehicle(w))) return;
     this.host.apply(startSurvey(w, contractId, site));
     this.host.pushEvents();
   }
