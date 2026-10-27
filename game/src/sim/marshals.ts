@@ -1,6 +1,6 @@
 import { BOUNTY, CRIME } from '../data/market';
 import { OFFENSE_LINES } from '../data/personalities';
-import { getKnownSite, decide, judgeDanger, npcProfile, wantsPeace } from './npc-decisions';
+import { anyOptionOpen, getKnownSite, decide, judgeDanger, npcProfile, wantsPeace } from './npc-decisions';
 import { createActivity, dropGoal, finishGoal, fightGoal, fleeFrom, goalsOf, interrupt, placeBase, pushGoal, topGoal } from './npc-activities';
 import { canPayBounty, dropHunt, lastOffer, leadCases, offerCases, openCasesOn, owedBy, payBounty, takeHunt, targetNeed, tellCases, withdrawCases } from './crime';
 import { followersOf, followingOf, followingStatesOf, inCompany } from './companies';
@@ -318,6 +318,7 @@ export function demand(world: World, marshal: Vehicle, target: Vehicle): void {
 }
 
 function answerDemandAsNpc(world: World, marshal: Vehicle, target: Vehicle): void {
+  if (!anyOptionOpen(world, target, 'bountyDemanded', marshal.id)) return answerDemand(world, marshal, target, 'refuse');
   const choice = decide(world, target, 'bountyDemanded', marshal.id, null);
   if (choice === 'pay' && canPayBounty(world, target)) return answerDemand(world, marshal, target, 'pay');
   answerDemand(world, marshal, target, 'refuse');
