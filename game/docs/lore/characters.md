@@ -84,7 +84,7 @@ His line is "I will be king of the camps, and I will pay any price for it."
 - Way: oppose.
 - High concept: The founder of Kiln Camp, past 70, who still works the furnace and melts captured guns into tools.
 - Trouble: She hates kings, but her furnace feeds the camp that Ain is turning into a throne.
-- Aspects: The furnace and its deep bore; Hunted by both towns since year 89; Ain runs the camp she founded.
+- Aspects: The first furnace and its deep bore; Hunted by both towns since year 89; Ain runs the camp she founded.
 - Skills: best machining, worst driving.
 - Wants: A camp of workers and not a king.
 - Fears: Her tools become only weapons for one man.
@@ -253,7 +253,7 @@ His line is "You came for water, and water is what you should carry out."
 - Habit: He lets his tea go cold while he listens.
 - Secret: He sells what he hears at the gate to the Canal families. He hides it from Aurel.
 
-Sava grew up on the bottom terrace, two doors from Jory, and now wears a grey household coat. Aurel Brede pays him by the week to sit on a drum at the Dustwell gate and report every truck and every word Agnes says. He lets his tea go cold while he listens. He wants to be sworn to the household, and he sells what he hears to both sides. He told the drivers at the well about Agnes's envelope.
+Sava grew up on the bottom terrace, two doors from Jory, and now wears a grey household coat. Aurel Brede pays him by the week to sit on a drum at the Dustwell gate and report every truck and every word Agnes says. He lets his tea go cold while he listens. He wants to be sworn to the household, and he sells what he hears to both sides. He told the drivers at Agnes's well about Agnes's envelope.
 
 His line is "Friend, what did Agnes give you for the drive?"
 
@@ -400,7 +400,7 @@ Her line is "The glass points at the Fallen Sun. Read it before you drive out."
 ## Hadiza Okon
 
 - Way: embrace.
-- High concept: The woman who runs the pump and canteen at Green Pit.
+- High concept: The woman who runs the hook house canteen at Green Pit.
 - Trouble: She feeds anyone once, so the Bowl patrol will not drink at her table.
 - Aspects: Rifles hang on the hooks by her door; Pim Arslan's plate hangs at her door; The well that no one takes.
 - Skills: best social, worst driving.
@@ -409,7 +409,7 @@ Her line is "The glass points at the Fallen Sun. Read it before you drive out."
 - Habit: She points to the hook before she fills a cup.
 - Secret: None.
 
-Hadiza runs the pump and the canteen at Green Pit, a walled pump outpost that sells water from deep rock. Everyone hangs their rifle on the hooks by her door, and nobody draws a gun at her table. Drivers, couriers, Salvage Yard crews, Kiln riders and Nose soldiers all drink there. The Bowl patrol does not, because the raiders do. She feeds anyone once.
+Hadiza runs the hook house, the biggest canteen at Green Pit. Green Pit is a walled water town of a few hundred people that pumps water from deep rock and sells it by the truckload. Everyone hangs their rifle on the hooks by her door, and nobody draws a gun at her table. Drivers, couriers, Salvage Yard crews, Kiln riders and Nose soldiers all drink there. The Bowl patrol does not, because the raiders do. She feeds anyone once.
 
 Her line is "Hang it on the hook. Everyone drinks here, and nobody takes my well."
 
@@ -427,7 +427,7 @@ Her line is "Hang it on the hook. Everyone drinks here, and nobody takes my well
 
 Hollis runs the crew at the Pump Station. The pumpjack lifts crude from an Old World oil well, his stills cook it into diesel, and the fuel convoys load the drums. The pump wears through tools, and its motor needs batteries from Nose. When it stops, drums run short all over the basin.
 
-His line is "No tools, no pump. No pump, no drums."
+His line is "No tools, no pumps. No pumps, no drums."
 
 ## Mara Kessel
 
@@ -594,7 +594,7 @@ Karl and his brother Jens were Old Army deserters who robbed insured trucks on t
 - Way: fear.
 - High concept: The tenant who sells water to outsider drivers at the Bowl gate yard.
 - Trouble: She waters the drivers the gate keeps out, so neither the town nor the road fully trusts her.
-- Aspects: The only water an outsider may buy in Bowl; Sizes up every driver by how they arrive.
+- Aspects: The first water an outsider can buy in Bowl; Sizes up every driver by how they arrive.
 - Skills: best perception, worst machining.
 - Wants: No driver leaves Bowl thirsty.
 - Fears: An empty cistern, or a driver dying of thirst within sight of her stand.
@@ -686,7 +686,7 @@ His line is "I'll write what you say happened. Then I'll ask him."
 ## Petra Quell
 
 - Way: embrace.
-- High concept: Keeper of the Guild relay mast inside the Roadhouse fence.
+- High concept: Keeper of the Guild relay mast inside the Roadhouse walls.
 - Trouble: She sells every message she hears to whoever pays.
 - Aspects: Hears every truck that crosses the plain on her radio; Old friend of Tamsin Roe; A bell on the compound gate.
 - Skills: best machining, worst toughness.

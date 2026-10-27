@@ -106,6 +106,8 @@ Write their voice sheet in [Voices](../lore/voices.md) first. A sheet answers fi
 
 Match the voice to the place. Bowl talks of fields, seasons and family. Nose talks of orders, rations and the log. The Yard talks of prices and what things are worth. A stranger learns the town from how its people speak before anyone explains it.
 
+A speaker talks from their own corner of a place that holds hundreds or thousands of people. Their job is one stall, crew or canteen among many, and their talk names the crowds, crews and neighbours around them. [People and scale](../lore/world.md#people-and-scale) says how big each place is.
+
 A minor speaker gets a clear job and no quirk. A gate sentry with a funny tic reads as someone important, and the player wastes time on him.
 
 ### One question, three voices

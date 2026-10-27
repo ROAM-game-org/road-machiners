@@ -55,11 +55,11 @@ She tips her head at you. Ask your questions now, before I put you to work. # sp
   -> questions
 + {asked_region and not asked_nose} [And Nose?]
   ~ asked_nose = true
-  <term=nose>Nose</term> is up the north road. Soldiers at the wall, and a workshop turning out engines and guns for half the basin. Strangers get in if they're buying. # speaker: Hattie
+  <term=nose>Nose</term> is up the north road. Soldiers at the wall, and a workshop line turning out engines and guns for half the basin. Strangers get in if they're buying. # speaker: Hattie
   -> questions
 + {asked_region and not asked_yard} [And the yards?]
   ~ asked_yard = true
-  Anywhere there's a crane and a dead truck, there's a yard. They sell you the bits yours is missing, for scrap or M's. # speaker: Hattie
+  Anywhere there's a crane crew and a pile of dead trucks, there's a yard. They sell you the bits yours is missing, for scrap or M's. # speaker: Hattie
   -> questions
 + {asked_region and not asked_kiln} [And the raiders?]
   ~ asked_kiln = true

@@ -4,7 +4,7 @@ Seeds for events and jobs in Icarus. None of them is built in the game yet. A st
 
 ## The free yard
 
-The Salvage Yard is free. The Administrator's gang runs it, and a Nose Army post under Captain Silver sits inside it. Each side waits for the other to slip.
+The Salvage Yard is free. The Administrator's crews run it, and a Nose Army post under Captain Silver sits inside it. Each side waits for the other to slip.
 
 1. Raiders start hitting the Yard's trucks. Silver blames the Administrator for weak defense and says only Nose can protect the Yard.
 2. The Administrator asks the player to find out how the raiders always know which trucks to hit.
@@ -21,7 +21,7 @@ Every few days each major group makes one move of its own, whatever the player d
 
 - Pierce sends a salvage crew deep into the Fallen Sun, and it does not come back.
 - Nose sends its secret police to look for Bowl agents in the Salvage Yard.
-- Nose occupies a pump or a crossroads that Bowl counts as its own, and the two towns move closer to war.
+- Nose occupies a pumping ground or a crossroads market that Bowl counts as its own, and the two towns move closer to war.
 - Bowl offers free drivers pay to fight raiders beside its patrols.
 - The Guild raises its prices after a courier is robbed.
 - A town runs short of food or water, and the price climbs across the basin.

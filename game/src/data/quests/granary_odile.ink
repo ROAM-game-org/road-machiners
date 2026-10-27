@@ -23,7 +23,7 @@ Odile Marsh, steward of the <term=granary>Granary</term>. My gate stays open all
     Water's low. No water, no mash, and the Dustwell trucks are late again.
   }
   { short_of("tools"):
-    The press is on its last good wrench. When that goes, it's one batch where there were two.
+    The presses are down to their last good wrenches. When those go, it's one batch where there were two.
   }
   -> hub
 + {not asked_need} [What do you need from a driver?]

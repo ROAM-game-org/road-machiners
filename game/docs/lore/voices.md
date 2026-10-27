@@ -518,9 +518,9 @@ Sample: "Wim writes the claim. I only say who crossed and when."
 
 ## Green Pit and the Pump Station
 
-### Hadiza Okon, Green Pit pump and canteen
+### Hadiza Okon, the hook house canteen at Green Pit
 
-Hadiza talks of cups, plates, hooks, the pump and who ate at her table. She compares people to guests and to what they leave behind.
+Hadiza talks of cups, plates, hooks, the water crews and who ate at her table. She compares people to guests and to what they leave behind.
 
 Her sentences are warm and even. She says what a thing costs, then what she gives for free.
 
@@ -532,16 +532,16 @@ She treats a stranger as a guest who eats once and pays after that.
 
 Sample: "Hang it on the hook. You eat once for nothing. After that the cup costs, like everyone's."
 
-### Hollis Brennan, the still boss at the Pump Station
+### Hollis Brennan, a still boss at the Pump Station
 
 Hollis talks of crude, stills, drums, valves and batteries. A good day to him is a hot still and a full stack by the gate.
 
 His sentences are flat and practical. He names the job, then the part it needs.
 
-He is a minor speaker with a clear job and no quirk. He wants drums bought and tools and batteries brought for the pump.
+He is a minor speaker with a clear job and no quirk. He wants drums bought and tools and batteries brought for the pumpjacks.
 
-He cares about keeping the stills hot and the pump turning. He avoids talk about who owns the well.
+He cares about keeping the stills hot and the pumpjacks turning. He avoids talk about who owns the wells.
 
 He treats a stranger as a buyer or a pair of hands.
 
-Sample: "Pump brings the crude up, the stills cook it, and the drums go out on the convoys. Bring me tools and I'll fill yours."
+Sample: "Pumps bring the crude up, the stills cook it, and the drums go out on the convoys. Bring me tools and I'll fill yours."

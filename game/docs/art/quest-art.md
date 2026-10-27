@@ -22,7 +22,7 @@ Rules for the scene block:
 - Truck guns sit on motor-driven turrets that are fired from the cab. Say that nobody stands at the gun, or the model draws a gunner holding the grips.
 - Keep words like "oil", "impasto", "realistic" or "photo" out. They pull the picture away from the pencil look.
 - Keep the scene block short.
-- Say that the subject fills the middle of the frame, with open ground and sky toward the edges. Each extra demand makes the model garble another one.
+- Say that the subject fills the middle of the frame, with open ground and sky toward the edges. In a place picture the town may run on to the edges. Each extra demand makes the model garble another one.
 - Show guns in plain side profile. A barrel aimed at the viewer comes out as two barrels.
 
 The scene block for the farmhouse in `intro_arrival`:
@@ -37,7 +37,7 @@ A town picture is a panorama of the place: its own scene, its own palette and on
 
 ## Composition
 
-The page crops every picture to a frame between 3:4 and 3:1, and a talk shows it whole at 260px wide. One safe zone holds in all of them: the middle 40% of the width and 55% of the height, around the focus point. Put the subject and every face, gun or truck the text names inside it, big enough to read at 260px. Let only sky, ground, walls and mood reach the edges.
+The page crops every picture to a frame between 3:4 and 3:1, and a talk shows it whole at 260px wide. One safe zone holds in all of them: the middle 40% of the width and 55% of the height, around the focus point. Put the subject and every face, gun or truck the text names inside it, big enough to read at 260px. Let only sky, ground, buildings, walls and mood reach the edges.
 
 ## Generate
 
