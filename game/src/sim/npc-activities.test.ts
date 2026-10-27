@@ -408,7 +408,7 @@ describe('NPC activities', () => {
           const sourcePos = getKnownSite(source.id).pos;
           const trip = dist(npc.pos, sourcePos) + dist(sourcePos, getKnownSite(buyer.id).pos);
           const loadProfit = affordableBuyCount(w, npc, source.id, good, cargoRoom(npc), spend) * profit;
-          return [{ source: source.id, good, sellShop: buyer.id, trip, loadProfit, fuel: tripFuelCost(w, npc, trip) }];
+          return [{ source: source.id, good, sellShop: buyer.id, buy, trip, loadProfit, fuel: tripFuelCost(w, npc, trip) }];
         })));
     }
 
@@ -440,7 +440,12 @@ describe('NPC activities', () => {
     });
 
     it('sends a driver with no paying run to other idle work without a stall', () => {
-      const { w, npc } = hauler(1700);
+      const probe = hauler(TRAITS.trader.tradeStake);
+      const cheapestBuy = Math.min(...pairs(probe.w, probe.npc).map((p) => p.buy));
+      const { w, npc } = hauler(cheapestBuy);
+      const affordable = pairs(w, npc);
+      expect(affordable.length).toBeGreaterThan(0);
+      for (const p of affordable) expect(p.loadProfit).toBeLessThanOrEqual(p.fuel);
       expect(tradeOffers(w, npc)).toHaveLength(0);
       expect(optionChances(optionWeights(w, npc, 'idle', null, null)).trade).toBeUndefined();
       let world = w;
