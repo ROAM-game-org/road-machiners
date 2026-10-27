@@ -65,7 +65,7 @@ let levels: { seed: number; values: number[] } | undefined;
 function siteLevels(seed: number): number[] {
   if (levels?.seed !== seed) {
     const relief = TERRAIN.relief;
-    const values = SITES.map((site) => (noise2(site.pos.x * relief.broadFrequency, site.pos.y * relief.broadFrequency, seed + 4000) - 0.5) * relief.broadAmplitude * zoneRoughness(site.pos.x, site.pos.y));
+    const values = SITES.map((site) => (noise2(site.pos.x * relief.broadFrequency, site.pos.y * relief.broadFrequency, seed + 4000) - 0.5) * relief.broadAmplitude * roughnessAt(site.pos.x, site.pos.y));
     levels = { seed, values };
   }
   return levels.values;
@@ -81,7 +81,7 @@ export function bakedHeight(seed: number, elevation: number, x: number, y: numbe
 }
 
 export function reliefAt(seed: number, x: number, y: number): number {
-  let height = noiseRelief(seed, x, y) * (1 - floorOwned(x, y)) * zoneRoughness(x, y);
+  let height = noiseRelief(seed, x, y) * (1 - floorOwned(x, y)) * roughnessAt(x, y);
   for (const { feature, index, reach } of FEATURES) {
     const gap = index.nearestWithin(x, y, reach) - feature.width;
     if (gap < feature.bank) height -= feature.depth * (gap <= 0 ? 1 : 1 - smooth(gap / feature.bank));
@@ -91,6 +91,12 @@ export function reliefAt(seed: number, x: number, y: number): number {
 
 export function broadAt(seed: number, x: number, y: number): number {
   return bowls(rollingAt(seed, x, y), x, y);
+}
+
+function roughnessAt(x: number, y: number): number {
+  const zone = zoneRoughness(x, y);
+  const stamp = strongestStamp({ x, y });
+  return stamp === null ? zone : zone + (1 - zone) * stamp.share;
 }
 
 function stamped(x: number, y: number, at: (x: number, y: number) => number): number {
@@ -122,7 +128,7 @@ function rollingAt(seed: number, x: number, y: number): number {
 
 function siteRolling(seed: number, x: number, y: number): number {
   const relief = TERRAIN.relief;
-  let rolling = stamped(x, y, (px, py) => (noise2(px * relief.broadFrequency, py * relief.broadFrequency, seed + 4000) - 0.5) * relief.broadAmplitude) * zoneRoughness(x, y);
+  let rolling = stamped(x, y, (px, py) => (noise2(px * relief.broadFrequency, py * relief.broadFrequency, seed + 4000) - 0.5) * relief.broadAmplitude) * roughnessAt(x, y);
   for (let k = 0; k < SITES.length; k++) {
     const site = SITES[k];
     const dx = site.pos.x - x;

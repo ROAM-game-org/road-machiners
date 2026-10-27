@@ -1,6 +1,7 @@
 
 import { MAP_DRAFT, REGION } from '../data/region';
-import { GEOLOGY, MAPGEN, TERRAIN, type TerrainTypeId } from '../data/terrain';
+import { DESERT, GEOLOGY, MAPGEN, TERRAIN, type TerrainTypeId } from '../data/terrain';
+import { zoneWeight } from '../sim/zones';
 import { bridgeCut, deckAt, ICARUS_DECKS } from '../sim/bridge';
 import { ICARUS_KEY, icarusAtlas } from '../sim/atlas';
 import { bakedHeight, broadAt, flattenFactor, reliefAt } from '../sim/elevation';
@@ -11,7 +12,9 @@ import { groundAt, TYPE_IDS, type BakedProp } from '../sim/terrain';
 import { clearOfSites, onDeck } from '../sim/mapgen';
 import { siteGap } from '../sim/sites';
 import { dist, polylineDist, type Vec } from '../sim/vec';
-import { BUILT_CANAL, BUILT_GLASS, BUILT_PAD, BUILT_DIRTY_WATER, BUILT_SCRUB, BUILT_TOXIC, BUILT_TRACK, newWorldLayer } from './newworld';
+import { BUILT_BLACK_MUD, BUILT_CANAL, BUILT_GLASS, BUILT_PAD, BUILT_DIRTY_WATER, BUILT_SCRUB, BUILT_TOXIC, BUILT_TRACK, newWorldLayer } from './newworld';
+import { desertLayer } from './desert';
+import { swampLayer } from './swamp';
 import { BUILT_FIELD, BUILT_OLD_ROAD, oldWorldLayer, tilesWithin } from './oldworld';
 import { fortressLayer } from './fortress';
 import { stampTerritoryGround } from './ground-stamps';
@@ -43,6 +46,8 @@ export function groundForTerritories(seed: number): MapDraft {
   d = detailed('geology', d, () => geologyLayer(seed, d));
   d = timed('territory ground', () => stampTerritoryGround(d));
   d = timed('finish', () => finishLayer(seed, d));
+  d = timed('desert', () => desertLayer(seed, d));
+  d = timed('swamp', () => swampLayer(seed, d));
   d = timed('old world', () => oldWorldLayer(seed, d));
   return timed('new world', () => newWorldLayer(seed, d));
 }
@@ -146,6 +151,7 @@ const MARKED_TYPES: Record<number, TerrainTypeId> = {
   [BUILT_CANAL]: 'canal',
   [BUILT_PAD]: 'concrete',
   [BUILT_GLASS]: 'glass',
+  [BUILT_BLACK_MUD]: 'blackMud',
 };
 
 function pickType(g: GroundInput, x: number, y: number): TerrainTypeId {
@@ -186,6 +192,8 @@ function screeType(g: GroundInput, tile: number, k: number): TerrainTypeId | nul
 }
 
 function pondType(g: GroundInput, _tile: number, k: number): TerrainTypeId | null {
+  const n = g.d.size + 1;
+  if (zoneWeight('desert', k % n, Math.floor(k / n)) > DESERT.pondless) return null;
   const depth = cornerMax(g.pond, g.d.size, k);
   if (depth >= G.mudDepth) return 'mud';
   return depth >= G.saltDepth ? 'saltCrust' : null;

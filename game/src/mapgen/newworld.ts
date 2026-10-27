@@ -47,6 +47,7 @@ export const BUILT_TRACK = 6;
 export const BUILT_CANAL = 7;
 export const BUILT_PAD = 8;
 export const BUILT_GLASS = 9;
+export const BUILT_BLACK_MUD = 10;
 
 export type Camp = { pos: Vec; radius: number };
 

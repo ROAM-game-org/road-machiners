@@ -22,7 +22,8 @@ export type TerrainTypeId =
   | "track"
   | "canal"
   | "concrete"
-  | "glass";
+  | "glass"
+  | "blackMud";
 
 export type TerrainType = {
   id: TerrainTypeId;
@@ -55,6 +56,7 @@ export const TERRAIN_TYPES: Record<TerrainTypeId, TerrainType> = {
   canal: { id: "canal", speed: 0.45, wear: 1.5, dust: 0.1, grip: 1, sideGrip: 1, color: 0x5f6f7a, craters: false, rut: 0, paved: false },
   concrete: { id: "concrete", speed: 0.98, wear: 0.6, dust: 0.3, grip: 1, sideGrip: 1, color: 0xa39e94, craters: true, rut: 0, paved: true },
   glass: { id: "glass", speed: 0.95, wear: 0.8, dust: 0.3, grip: 0.2, sideGrip: 0.15, color: 0x86ada3, craters: true, rut: 0.1, paved: false },
+  blackMud: { id: "blackMud", speed: 0.4, wear: 1.6, dust: 0.05, grip: 1, sideGrip: 0.45, color: 0x2f2a25, craters: true, rut: 1, paved: false },
 };
 
 export type DeckStation = { at: Vec; rise: number };
@@ -968,7 +970,7 @@ export const ZONES: readonly Zone[] = [
 export const ZONE_RULES: Record<ZoneKind, ZoneRules> = {
   mountains: { roughness: 0.5, uplift: 1 },
   desert: { roughness: 0.25, uplift: 0.15 },
-  swamp: { roughness: 0.15, uplift: 0 },
+  swamp: { roughness: 0.3, uplift: 0 },
   farmBelt: { roughness: 0.3, uplift: 0.1 },
   crash: { roughness: 0.55, uplift: 0.3 },
 };
@@ -999,4 +1001,33 @@ export const RELIEF_SOLVE = {
   diffusion: 0.04,
   baseLevel: 0,
   hold: { margin: 40 },
+};
+
+export const DESERT = {
+  seedOffset: 9400,
+  wavelength: [30, 60] as [number, number],
+  wavelengthFrequency: 1 / 300,
+  height: [1.5, 3] as [number, number],
+  cover: [0.5, 0.85] as [number, number],
+  leeShare: 0.12,
+  warp: { frequency: 1 / 90, reach: 14 },
+  breaks: { length: 30, from: 0.3, to: 0.5 },
+  pondless: 0.1,
+  mantle: 0.35,
+  keepOff: 40,
+  star: { at: scalePoint({ x: 113, y: 84 }), radius: 48, height: 6, arms: 3 },
+};
+
+export const SWAMP = {
+  seedOffset: 9300,
+  outflow: Math.PI * 0.62,
+  table: { core: 0, edge: -1.2 },
+  water: 0.45,
+  mud: -0.25,
+  scrubShare: 0.55,
+  scrubGrain: 7,
+  slough: { width: 9, length: 80, depth: 0.55, from: 0.58 },
+  trees: { tries: 900, radius: [0.5, 0.8] as [number, number] },
+  wrecks: { tries: 40, radius: 0.6 },
+  channel: { path: layoutPoints([[9, 44], [10.5, 48], [8, 52], [7.5, 56], [9.5, 60], [6.5, 64], [5.5, 68], [8, 72], [7, 75]]), width: 2.5, depth: 0.5 },
 };

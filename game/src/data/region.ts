@@ -51,7 +51,7 @@ export type SiteLocationDef = {
   turn?: number;
   gates?: readonly Vec[];
 };
-export type TerritoryDef = { id: string; kind: "territory"; pos: Vec; radius: number; outline: Vec[] | null };
+export type TerritoryDef = { id: string; kind: "territory"; pos: Vec; radius: number; outline: Vec[] | null; reliefFrom?: Vec };
 export type LocationDef = SiteLocationDef | TerritoryDef;
 export type SiteEdge = "fence" | "wrecks";
 export const MAP_SCALE = MAP_DRAFT ?? 15.6;
@@ -358,6 +358,7 @@ export const REGION = {
       pos: FALLEN_SUN_POS,
       radius: boundingRadius(FALLEN_SUN_OUTLINE),
       outline: FALLEN_SUN_OUTLINE,
+      reliefFrom: { x: 320, y: 270 },
     },
     {
       id: "salvage-yard",

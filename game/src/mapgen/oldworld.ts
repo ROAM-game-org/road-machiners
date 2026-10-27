@@ -23,6 +23,7 @@ import { ROAD_INDEX } from '../sim/road-index';
 import { chance, hashRandom, randInt, randRange, type Rng } from '../sim/rng';
 import type { BakedProp, PropKind } from '../sim/terrain';
 import { siteGap } from '../sim/sites';
+import { isTerritory, territoryRoads } from '../sim/territory';
 import { angleDiff, bearing, clamp, DEG, dist, polylineDist, segmentDist, type Vec } from '../sim/vec';
 import { tileSteepness, type MapDraft } from './bake';
 
@@ -86,6 +87,11 @@ const O = REGION.obstacles;
 const SITES = [...REGION.towns, ...REGION.locations];
 const CANYON = TERRAIN.features.canyon;
 const TURN = Math.PI * 2;
+const SPURS = REGION.locations.filter(isTerritory).flatMap((t) => territoryRoads(t).spurs);
+
+function nearSpur(p: Vec, roadWidth: number): boolean {
+  return SPURS.some((s) => polylineDist(p, s.points) < (s.width + roadWidth) / 2 + 1);
+}
 
 type Scored = { pos: Vec; score: number };
 
@@ -433,7 +439,7 @@ class RouteGrid {
       const p = this.posOf(node);
       this.heights[node] = d.heights[p.y * (d.size + 1) + p.x];
       this.cut[node] = isCutTile(d, tileOf(d.size, p)) ? 1 : 0;
-      this.closed[node] = SITES.some((s) => siteGap(s, p) < 0) ? 1 : 0;
+      this.closed[node] = SITES.some((s) => siteGap(s, p) < 0) || nearSpur(p, rules.width) ? 1 : 0;
     }
   }
 

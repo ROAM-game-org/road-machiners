@@ -205,6 +205,7 @@ export const NAMES = {
   'terrain.canal': 'Irrigation canal',
   'terrain.concrete': 'Cracked concrete',
   'terrain.glass': 'Fused glass',
+  'terrain.blackMud': 'Black mud',
   'npc.buggy': 'Raider outrider',
   'npc.buggy.profession': 'Raider',
   'npc.gunwagon': 'Gunwagon',
