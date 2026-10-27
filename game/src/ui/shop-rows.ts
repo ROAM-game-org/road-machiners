@@ -11,6 +11,7 @@ import { chassisAbilityLine, chassisAbilityName, chassisName, factionName, refus
 import { chassisMap, chassisPortrait, chassisStats, createIcon, diffStats, statGrid } from "./cards";
 import { el, type Child } from "./dom";
 import { caseVictimName, clock, GOODS_COLUMNS } from "./format";
+import { RowSlots, type SlotRow } from "./row-slots";
 import { coinEl, fuelLiters, moneyEl, moneyMsg, moneyNum } from "./units";
 
 export type ShopCommand = (w: World) => World;
@@ -208,11 +209,12 @@ const SLOT_NAMES: Record<PaintSlot, () => Msg> = { body: () => t("paint.body"), 
 
 export type SwapOffer = { reason: Msg | null; swap: () => void };
 
-export function truckCards(w: World, ids: readonly string[], offer: (id: string) => SwapOffer): HTMLElement {
+export function truckCards(w: World, ids: readonly string[], offer: (id: string) => SwapOffer, slots: RowSlots, list: string): HTMLElement {
   const mine = playerVehicle(w).chassisId;
   const cards = ids.map((id) => {
     const own = mine === id;
-    return el(
+    const swap = own ? null : swapButton(w, id, offer);
+    const card = el(
       "div",
       { class: `card tile truck-card${own ? " own" : ""}` },
       el("div", { class: "truck-pics" }, chassisPortrait(id, w.player.paint), chassisMap(id)),
@@ -223,14 +225,15 @@ export function truckCards(w: World, ids: readonly string[], offer: (id: string)
           "div",
           { class: "truck-head" },
           el("div", { class: "card-name" }, el("b", {}, chassisName(id))),
-          own ? el("span", { class: "dim" }, t("vehicle.yours")) : swapButton(w, id, offer),
+          swap ?? el("span", { class: "dim" }, t("vehicle.yours")),
         ),
         chassisFeatureRow(id),
         statGrid(diffStats(chassisStats(id), own ? null : chassisStats(mine))),
       ),
     );
+    return { id, row: card, action: swap, done: t("trade.done.swapped") };
   });
-  return el("div", { class: "cards trucks" }, ...cards);
+  return el("div", { class: "cards trucks" }, ...slots.place(list, cards));
 }
 
 function chassisFeatureRow(id: string): HTMLElement | null {
@@ -250,12 +253,16 @@ function swapButton(w: World, id: string, makeOffer: (id: string) => SwapOffer):
 
 type DeskCommand = (cmd: (w: World) => World) => void;
 
-export function deskBody(w: World, run: DeskCommand): HTMLElement {
+export function deskBody(w: World, run: DeskCommand, slots: RowSlots): HTMLElement {
   const rows = deskRows(w);
-  const cases = rows.cases.map((c) => caseRow(w, c, run));
+  const cases = slots.place("cases", rows.cases.map((c) => caseRow(w, c, run)));
   const ids = rows.cases.map((c) => c.id);
-  const payAll = rows.cases.length > 1 ? el("div", { class: "desk-all" }, payButton(w, t("desk.payAll"), rows.owed, priceSpan(rows.owed, w.player.money >= rows.owed), () => run((x) => payAtDesk(x, ids)))) : null;
-  const settles = rows.settlements.map((q) => settleRow(w, q, run));
+  const payAllCommand = () => {
+    slots.actOn("cases", ids);
+    run((x) => payAtDesk(x, ids));
+  };
+  const payAll = rows.cases.length > 1 ? el("div", { class: "desk-all" }, payButton(w, t("desk.payAll"), rows.owed, priceSpan(rows.owed, w.player.money >= rows.owed), payAllCommand)) : null;
+  const settles = slots.place("settles", rows.settlements.map((q) => settleRow(w, q, run)));
   return el(
     "div",
     { class: "desk-body" },
@@ -265,33 +272,31 @@ export function deskBody(w: World, run: DeskCommand): HTMLElement {
   );
 }
 
-function caseRow(w: World, c: CrimeCase, run: DeskCommand): HTMLElement {
+function caseRow(w: World, c: CrimeCase, run: DeskCommand): SlotRow {
   const victim = caseVictimName(w, c);
   const price = caseOwed(c);
-  return el(
+  const pay = payButton(w, t("desk.pay"), price, casePrice(c, w.player.money >= price), () => run((x) => payAtDesk(x, [c.id])));
+  const row = el(
     "div",
     { class: "row desk-case" },
     el("span", {}, t(`desk.case.${c.offense}`, { victim })),
     el("span", { class: "dim" }, t("desk.filed", { issuer: issuerName(w, c), site: siteName(c.site), when: clock(c.turn).full })),
-    casePay(payButton(w, t("desk.pay"), price, casePrice(c, w.player.money >= price), () => run((x) => payAtDesk(x, [c.id]))), c),
+    casePay(pay, c),
   );
+  return { id: c.id, row, action: pay, done: t("trade.done.paid") };
 }
 
 function payButton(w: World, verb: Msg, price: number, shown: HTMLElement, click: () => void): HTMLElement {
   return reasonButton([verb, SPACE, shown], click, shortBy(w.player.money, price));
 }
 
-function settleRow(w: World, q: SettlementQuote, run: DeskCommand): HTMLElement {
+function settleRow(w: World, q: SettlementQuote, run: DeskCommand): SlotRow {
   const short = shortBy(w.player.money, q.price);
   const reason = q.refusal && q.refusal.id !== "noMoney" ? refusalText(w, q.refusal) : short;
   const label = [t("desk.settle"), SPACE, priceSpan(q.price, short === null)];
-  return el(
-    "div",
-    { class: "row desk-settle" },
-    el("span", {}, factionName(q.faction)),
-    el("span", { class: "tag bad" }, t("band.hostile")),
-    reasonButton(label, () => run((x) => settleAtDesk(x, q.faction)), reason, "", t("desk.settleAfter", { faction: factionName(q.faction) })),
-  );
+  const settle = reasonButton(label, () => run((x) => settleAtDesk(x, q.faction)), reason, "", t("desk.settleAfter", { faction: factionName(q.faction) }));
+  const row = el("div", { class: "row desk-settle" }, el("span", {}, factionName(q.faction)), el("span", { class: "tag bad" }, t("band.hostile")), settle);
+  return { id: q.faction, row, action: settle, done: t("trade.done.settled") };
 }
 
 function issuerName(w: World, c: CrimeCase): Msg {

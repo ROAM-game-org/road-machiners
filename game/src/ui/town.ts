@@ -50,6 +50,7 @@ import { onRelief, recipeRunning } from "../sim/production";
 import { liveRoadNews } from "../sim/road-news";
 import { compareBase, createBareItemIcon, createIcon, createItemIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
+import { RowSlots, type SlotRow } from "./row-slots";
 import { caption, deskBody, keepFocus, priceEl, priceHead, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, livePaintPlan, paintTab, planWithSlot, type PriceHint } from "./shop-rows";
 import { el, isBrowserChord, panel } from "./dom";
 import { ArtBand } from "./art-band";
@@ -124,7 +125,8 @@ export class TownScreen {
   private error: Msg | null = null;
   private choices: TownChoice[] = [];
   private paintPlan: TruckPaint | null = null;
-  private rows = new PartRows(() => this.render());
+  private slots = new RowSlots();
+  private rows = new PartRows(() => this.render(), this.slots);
   private band = new ArtBand();
   private sheet: Sheet | null = null;
   private hoverSheet: Sheet | null = null;
@@ -161,13 +163,18 @@ export class TownScreen {
     return this.root.style.display !== "none";
   }
 
+  private fresh(): void {
+    this.rows.collapse();
+    this.slots.forget();
+  }
+
   open(): void {
     const shopId = shopAt(this.host.world());
     if (shopId) this.host.apply(enterTown(this.host.world()));
     this.root.style.display = "";
     this.error = null;
     this.paintPlan = null;
-    this.rows.collapse();
+    this.fresh();
     const w = this.host.world();
     this.page = shopId ? townPageOnOpen(this.page, this.closedAt, shopId, w.turn, townSections(w, shopId)) : null;
     this.normalizeGarageTab();
@@ -182,6 +189,7 @@ export class TownScreen {
       const shopId = shopAt(w);
       this.closedAt = shopId ? { shopId, turn: w.turn } : null;
     }
+    this.slots.forget();
     this.inventory.clearSelection();
     this.band.clear();
     this.root.style.display = "none";
@@ -194,7 +202,7 @@ export class TownScreen {
     const from = this.page;
     if (from === null) return this.close();
     this.page = null;
-    this.rows.collapse();
+    this.fresh();
     if (!shopAt(this.host.world())) return this.render();
     this.run((x) => pickTownSection(x, from, null), true);
   }
@@ -255,7 +263,7 @@ export class TownScreen {
       return this.render();
     }
     this.page = to;
-    this.rows.collapse();
+    this.fresh();
     this.run((x) => pickTownSection(x, null, to), true);
     this.rows.toTop(this.root);
   }
@@ -308,7 +316,7 @@ export class TownScreen {
         "div",
         { class: "ink-body" },
         el("div", { class: "ink-head" }, el("h2", { class: "quest-place" }, this.heading(desk)), people ? el("p", { class: "qt-line" }, t("town.line.people")) : null),
-        people ? null : el("div", { class: "ink-panel" }, deskBody(w, (cmd) => this.run(cmd))),
+        people ? null : el("div", { class: "ink-panel" }, deskBody(w, (cmd) => this.run(cmd), this.slots)),
         el("div", { class: "ink-choices quest-choices" }, ...this.choices.map((c, i) => choiceButton(c, i))),
         el("div", { class: "ink-status bad" }, this.error),
       ),
@@ -323,7 +331,7 @@ export class TownScreen {
 
   private goDeskPeople(): void {
     this.page = "people";
-    this.rows.collapse();
+    this.fresh();
     this.render();
     this.rows.toTop(this.root);
   }
@@ -419,7 +427,7 @@ export class TownScreen {
   }
 
   private showList(): void {
-    this.rows.collapse();
+    this.fresh();
     this.render();
     this.rows.toTop(this.root);
   }
@@ -549,17 +557,21 @@ export class TownScreen {
     const rows = shown.map((p) => {
       const price = partTradePrice(w, me, p, "buy");
       const short = shortBy(w.player.money, price);
-      return this.partRow(w, p, price, short === null, this.button(t("goods.buy"), (x) => buyStockPart(x, p.id), short));
+      return this.partRow(w, p, price, short === null, this.button(t("goods.buy"), (x) => buyStockPart(x, p.id), short), t("trade.done.bought"));
     });
     return el(
       "div",
       {},
       el("div", { class: "tabs sub" }, ...this.stockFilterButtons(stock)),
-      rows.length ? this.rows.list(rows) : el("div", { class: "dim" }, stock.length ? t("trade.noneOfKind") : t("trade.noStock")),
+      this.partList(`buy:${this.stockFilter}`, rows, stock.length ? t("trade.noneOfKind") : t("trade.noStock")),
     );
   }
 
-  private partRow(w: World, p: PartInstance, price: number, payable: boolean, action: HTMLElement): PartRow {
+  private partList(key: string, rows: PartRow[], empty: Msg): HTMLElement {
+    return rows.length || this.slots.has(key) ? this.rows.list(key, rows) : el("div", { class: "dim" }, empty);
+  }
+
+  private partRow(w: World, p: PartInstance, price: number, payable: boolean, action: HTMLElement, done: Msg): PartRow {
     return {
       world: w,
       part: p,
@@ -567,6 +579,7 @@ export class TownScreen {
       price,
       payable,
       action,
+      done,
       onHover: this.hintMounts(p.defId),
     };
   }
@@ -598,9 +611,9 @@ export class TownScreen {
     const me = playerVehicle(w);
     const sellable: PartInstance[] = [...w.player.storage, ...spareParts(me)];
     const rows = sellable.map((p) =>
-      this.partRow(w, p, partTradePrice(w, me, p, "sell"), true, this.button(t("goods.sell"), (x) => sellPart(x, p.id))),
+      this.partRow(w, p, partTradePrice(w, me, p, "sell"), true, this.button(t("goods.sell"), (x) => sellPart(x, p.id)), t("trade.done.sold")),
     );
-    return el("div", {}, rows.length ? this.rows.list(rows) : el("div", { class: "dim" }, t("trade.noSpares")));
+    return el("div", {}, this.partList("sell", rows, t("trade.noSpares")));
   }
 
   private supplyRow(w: World, k: Supply): HTMLElement {
@@ -615,7 +628,7 @@ export class TownScreen {
     return truckCards(w, garageChassis(shopId), (id) => ({
       reason: chassisPrice(w, id) < 0 ? null : shortBy(w.player.money, chassisPrice(w, id)),
       swap: () => this.run((x) => buyChassis(x, id)),
-    }));
+    }), this.slots, "trucks");
   }
 
   private paint(w: World): HTMLElement {
@@ -706,18 +719,23 @@ export class TownScreen {
       if (full) return t("contract.full", { n: CONTRACTS.maxActive });
       return haulStockReason(w, c) ?? escortRefusal(w, c) ?? searchRefusalText(w, searchRefusal(w, c));
     };
-    const accept = (c: Contract) => this.button(t("contract.accept"), (x) => acceptContract(x, c.id), refusal(c));
+    const offer = (c: Contract): SlotRow => {
+      const accept = this.button(t("contract.accept"), (x) => acceptContract(x, c.id), refusal(c));
+      return { id: c.id, row: contractRow(w, c, accept, true), action: accept, done: t("trade.done.taken") };
+    };
+    const held = (c: Contract): SlotRow => {
+      const cell = this.deliverCell(w, shopId, c);
+      return { id: c.id, row: contractRow(w, c, cell), action: cell.tagName === "BUTTON" ? cell : null, done: t("trade.done.delivered") };
+    };
+    const offers = this.slots.place("board", board.map(offer));
+    const yours = this.slots.place("yours", w.player.contracts.map(held));
     return el(
       "div",
       {},
       el("h3", {}, t("contract.offers")),
-      board.length
-        ? el("div", { class: "jobs" }, ...board.map((c) => contractRow(w, c, accept(c), true)))
-        : el("div", { class: "dim" }, t("contract.noOffers")),
+      offers.length ? el("div", { class: "jobs" }, ...offers) : el("div", { class: "dim" }, t("contract.noOffers")),
       el("h3", {}, t("contract.yours", { n: w.player.contracts.length, max: CONTRACTS.maxActive })),
-      w.player.contracts.length
-        ? el("div", { class: "jobs" }, ...w.player.contracts.map((c) => contractRow(w, c, this.deliverCell(w, shopId, c))))
-        : null,
+      yours.length ? el("div", { class: "jobs" }, ...yours) : null,
     );
   }
 
@@ -970,7 +988,8 @@ export class TruckTradeScreen {
   private tab: TradeTab = "goods";
   private npcId: string | null = null;
   private error: Msg | null = null;
-  private rows = new PartRows(() => this.render());
+  private slots = new RowSlots();
+  private rows = new PartRows(() => this.render(), this.slots);
   private inventory: InventoryView;
 
   constructor(private host: UiHost) {
@@ -984,12 +1003,17 @@ export class TruckTradeScreen {
     return this.npcId !== null;
   }
 
+  private fresh(): void {
+    this.rows.collapse();
+    this.slots.forget();
+  }
+
   openWith(npcId: string): boolean {
     if (!canTradeWith(this.host.world(), npcId)) return false;
     this.npcId = npcId;
     this.root.style.display = "";
     this.error = null;
-    this.rows.collapse();
+    this.fresh();
     this.render();
     return true;
   }
@@ -997,6 +1021,7 @@ export class TruckTradeScreen {
   close(): void {
     if (!this.npcId) return;
     const npcId = this.npcId;
+    this.slots.forget();
     this.inventory.clearSelection();
     this.npcId = null;
     this.root.style.display = "none";
@@ -1031,7 +1056,7 @@ export class TruckTradeScreen {
         "button",
         { class: this.tab === tab ? "on" : "", "data-tab": tab, onclick: () => {
           this.tab = tab;
-          this.rows.collapse();
+          this.fresh();
           this.render();
           this.rows.toTop(this.root);
         } },
@@ -1122,32 +1147,37 @@ export class TruckTradeScreen {
 
   private parts(w: World, npc: Vehicle): HTMLElement {
     const me = playerVehicle(w);
-    const row = (p: PartInstance, price: number, reason: Msg | null, verb: Msg, cmd: (w: World) => World): PartRow => ({
+    const row = (p: PartInstance, price: number, reason: Msg | null, verb: Msg, cmd: (w: World) => World, done: Msg): PartRow => ({
       part: p,
       base: compareBase(this.inventory.selectedPart(), p),
       price,
       world: w,
       payable: reason === null,
       action: this.button(verb, cmd, reason),
+      done,
       onHover: this.hintMounts(p.defId),
     });
     const theirs = spareParts(npc).map((p) => {
       const price = truckPartPrice(w, p, "buy");
       const reason = shortBy(w.player.money, price) ?? (canStowPart(me, p) ? null : t("trade.noRoom"));
-      return row(p, price, reason, t("goods.buy"), (x) => buyTruckPart(x, npc.id, p.id));
+      return row(p, price, reason, t("goods.buy"), (x) => buyTruckPart(x, npc.id, p.id), t("trade.done.bought"));
     });
     const mine = spareParts(me).map((p) => {
       const price = truckPartPrice(w, p, "sell");
-      return row(p, price, theyLack(npc, price), t("goods.sell"), (x) => sellTruckPart(x, npc.id, p.id));
+      return row(p, price, theyLack(npc, price), t("goods.sell"), (x) => sellTruckPart(x, npc.id, p.id), t("trade.done.sold"));
     });
     return el(
       "div",
       {},
       el("h3", {}, t("trade.theirSpares")),
-      theirs.length ? this.rows.list(theirs) : el("div", { class: "dim" }, t("trade.nothingSpare")),
+      this.partList("theirs", theirs),
       el("h3", {}, t("trade.yourSpares")),
-      mine.length ? this.rows.list(mine) : el("div", { class: "dim" }, t("trade.nothingSpare")),
+      this.partList("mine", mine),
     );
+  }
+
+  private partList(key: string, rows: PartRow[]): HTMLElement {
+    return rows.length || this.slots.has(key) ? this.rows.list(key, rows) : el("div", { class: "dim" }, t("trade.nothingSpare"));
   }
 
   private supplyRow(w: World, npc: Vehicle, k: Supply): HTMLElement {

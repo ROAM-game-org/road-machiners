@@ -166,10 +166,12 @@ One grammar for every control and every selectable thing.
 | planned | A choice that is not committed yet | Dashed accent outline |
 | working | Timed work in progress | Accent progress meter |
 | disabled | Cannot be used now | Dimmed, with its reason |
+| spent | The row's own action is done | Dimmed row, past-tense tag in the control's slot, no hover |
 | unaffordable | Needs more money | Price in danger ink |
 | locked | Needs progress, like a rank | Lock icon |
 
 - A control uses only the states in this table.
+- A row in a trade list keeps its slot until the player leaves the list. A row whose action removes it from the list stays as a spent row, drawn from what was on screen, so a second click lands on nothing and the next row never slides under the pointer. `RowSlots` in `src/ui/row-slots.ts` owns this. A refused action changes nothing.
 - A screen that is only for looking, like the inventory over a scene, gives every control that changes the world the disabled state with one reason read from one function (`lookReason()`), before any reason of its own.
 - A disabled control still takes hover and focus, so its reason can show. It uses `aria-disabled` and the shared tooltip, and the reason is one short fact like Need 12 M more.
 - Unaffordable and locked look different, because the player fixes one by earning and the other by progressing. A locked switch shows the lock icon in place of its lever, and a locked instrument button puts it before its word. Both give the rank they need as their reason.
@@ -286,6 +288,7 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
 - `.tabs` is a row of medium tab buttons, and `.tabs.sub` the small row inside a tab.
 - `.row` is a list line with a faint line under it. `.tile` is a boxed list item edged in its `--tone`.
 - `.skill-level` is a row of small pips that fill from the left for a level out of a few: a skill rank.
+- `.spent` is a list row whose own action is done: dimmed, no hover, a `.tag` with one past-tense word (Sold, Bought, Swapped, Taken, Delivered, Paid, Settled) where the button was. It is a clone of the row as last drawn, so it never reads the game state.
 - `.chip` is a small boxed value. `.tag` is an outlined word in the color of its text.
 - `.contract-clue` is one told clue per survey place still open, on its own line under its contract. It starts with the place kind, then the map grid square the place lies in, like "square C4" (`gridSquareText()` in `src/ui/format.ts`, the one way a square prints), and ends with a `.tag` marked "found" when the place has been spotted but not surveyed. On a held row it tells the posting shop's way to the place, the square it lies in, then what it looks like. The board and the HUD dock keep the short compass clue.
 - `.log-strip` is the newest log line on one row, on a phone above End turn. It is a `.panel` with a button role, one line at `--phone-strip-h` (`--touch-target`) high, and it takes a tap to open the Log drawer. It is hidden under a modal and under Options with the rest of the bar.
