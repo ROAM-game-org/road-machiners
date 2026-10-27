@@ -43,8 +43,15 @@ export function isCheapMeeting(w: World, a: Vec, b: Vec): boolean {
   return headless || (!inLiveRange(w, a) && !inLiveRange(w, b));
 }
 
+let thinning = false;
+
+export function setThinning(on: boolean): void {
+  thinning = on;
+}
+
 export function thinksThisTurn(w: World, v: Vehicle): boolean {
-  return (w.turn + slotOf(v.id)) % PERF.lone.every === 0 || hasCompany(w, v);
+  if (!thinning || (w.turn + slotOf(v.id)) % PERF.lone.every === 0) return true;
+  return dist(v.pos, playerVehicle(w).pos) <= PERF.lone.playerReach || hasCompany(w, v);
 }
 
 function slotOf(id: string): number {

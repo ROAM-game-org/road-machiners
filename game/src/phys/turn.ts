@@ -9,7 +9,7 @@ import { QUEST_LANGUAGES, type QuestLanguage } from '../data/quests';
 import { perfSnapshot, resetPerf, timed, type PerfStat } from '../perf';
 import { playerVehicle } from '../sim/damage';
 import { advanceFar, ridesFar } from '../sim/far';
-import { inFarTurn } from '../sim/fidelity';
+import { inFarTurn, setThinning } from '../sim/fidelity';
 import { applyContactCrash, applyGroundCrash, applyLanding } from '../sim/crash-contact';
 import { tearLine } from '../sim/harpoon';
 import { breakProp } from '../sim/salvage';
@@ -189,6 +189,7 @@ function bodyPose(d: Drive, v: Vehicle): TailPose {
 }
 
 export function startTurnWorker(): void {
+  setThinning(true);
   let terrain: World['terrain'] | null = null;
   let obstacles: Obstacle[] | null = null;
   const ready = initPhysics();

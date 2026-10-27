@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PERF } from '../data/perf';
 import { RULES } from '../data/rules';
 import { TERRAIN } from '../data/terrain';
@@ -8,7 +8,7 @@ import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import { startEscort } from './tow';
 import type { Vehicle, World } from './types';
 import { dist } from './vec';
-import { thinksThisTurn } from './fidelity';
+import { setThinning, thinksThisTurn } from './fidelity';
 
 function lowerIdFirst(first: Vehicle, second: Vehicle): void {
   if (first.id < second.id) return;
@@ -380,9 +380,30 @@ describe('getting unstuck', () => {
 });
 
 describe('lone NPCs', () => {
-  it('think once every few turns while no truck is near, and every turn with company', () => {
+  beforeEach(() => setThinning(true));
+  afterEach(() => setThinning(false));
+
+  it('think every turn while thinning is off, as in unit tests', () => {
+    setThinning(false);
     const w = emptyWorld({ x: 10, y: 10 });
-    const lone = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 10 + PERF.lone.reach * 3, y: 10 });
+    const lone = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 10 + PERF.lone.playerReach + PERF.lone.reach * 2, y: 10 });
+    lone.brain = npcBrain('trader', lone.pos, ['trader']);
+    expect(thinksThisTurn(w, lone) && thinksThisTurn({ ...w, turn: w.turn + 1 }, lone)).toBe(true);
+  });
+
+  it('think every turn within reach of the player', () => {
+    const w = emptyWorld({ x: 10, y: 10 });
+    const near = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 10 + PERF.lone.playerReach - 1, y: 10 });
+    near.brain = npcBrain('trader', near.pos, ['trader']);
+    expect(Array.from({ length: PERF.lone.every }, (_, i) => {
+      w.turn = 100 + i;
+      return thinksThisTurn(w, near);
+    }).every(Boolean)).toBe(true);
+  });
+
+  it('think once every few turns far from the player while no truck is near, and every turn with company', () => {
+    const w = emptyWorld({ x: 10, y: 10 });
+    const lone = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 10 + PERF.lone.playerReach + PERF.lone.reach * 2, y: 10 });
     lone.brain = npcBrain('trader', lone.pos, ['trader']);
     const thinks = () => Array.from({ length: PERF.lone.every * 3 }, (_, i) => {
       w.turn = 100 + i;

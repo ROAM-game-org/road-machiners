@@ -8,7 +8,7 @@ import { isHostile } from '../combat';
 import { playerVehicle } from '../damage';
 import { chassisTradeIn, repairCost } from '../economy';
 import { advanceFar, clearFarRoutes } from '../far';
-import { setHeadless } from '../fidelity';
+import { setHeadless, setThinning } from '../fidelity';
 import { freeCells, goodsCount, mountedParts } from '../grid';
 import { goodValue } from '../market';
 import { getResources } from '../resources';
@@ -67,6 +67,7 @@ export function* stepsFrom(start: World, label: string, archetype: Policy, turns
 export function* playTurns(start: World, label: string, policy: Policy, turns: number, options: BotOptions, mover: Mover): Generator<PlayedTurn> {
   if (!Number.isInteger(turns) || turns <= 0) throw new Error(`A recording needs a positive whole number of turns, got ${turns}`);
   setHeadless(mover.headless);
+  setThinning(true);
   clearFarRoutes();
   try {
     let world = start;
@@ -85,6 +86,7 @@ export function* playTurns(start: World, label: string, policy: Policy, turns: n
   } finally {
     mover.free();
     setHeadless(false);
+    setThinning(false);
     clearFarRoutes();
   }
 }
