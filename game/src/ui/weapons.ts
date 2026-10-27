@@ -184,9 +184,14 @@ export function ammoLabel(mw: MountedWeapon): Msg {
 
 export const TURN_PLAYING: Msg = t("weapon.turnPlaying");
 
+export function orderLock(w: World, playing: boolean): Msg | null {
+  if (actBlock(w) === "knockedOut") return t("actBlock.knockedOut");
+  return playing ? TURN_PLAYING : null;
+}
+
 export function lockReason(w: World, phase: ReturnType<UiHost["getTurnPhase"]>): Msg | null {
   const block = actBlock(w);
-  return phase !== null ? TURN_PLAYING : block === null ? null : t(`actBlock.${block}`);
+  return orderLock(w, phase !== null) ?? (block === null ? null : t(`actBlock.${block}`));
 }
 
 export function reloadBlock(mw: MountedWeapon): Msg | null {
@@ -340,8 +345,8 @@ export class UtilityRow {
   }
 
   selectUtility(i: number): void {
-    if (this.host.getTurnPhase() !== null) return;
     const w = this.host.world();
+    if (orderLock(w, this.host.getTurnPhase() !== null) !== null) return;
     const part = utilitySlots(w)[i];
     if (!part) return;
     if (playerVehicle(w).utilityOrders[part.id]) return this.clearOrder(w, part);
@@ -554,25 +559,29 @@ export class WeaponPanel {
     );
   }
 
+  private ordersLocked(): boolean {
+    return orderLock(this.host.world(), this.host.getTurnPhase() !== null) !== null;
+  }
+
   private cut(weaponId: string): void {
-    if (this.host.getTurnPhase() !== null) return;
+    if (this.ordersLocked()) return;
     this.host.apply(cutPlayerLine(this.host.world(), weaponId));
   }
 
   private forceReload(weaponId: string): void {
-    if (this.host.getTurnPhase() !== null) return;
+    if (this.ordersLocked()) return;
     this.host.apply(reloadWeapon(this.host.world(), weaponId));
   }
 
   private holdWeapon(weaponId: string): void {
-    if (this.host.getTurnPhase() !== null) return;
+    if (this.ordersLocked()) return;
     this.host.apply(
       setWeaponOrder(setAutoFire(this.host.world(), false), weaponId, null),
     );
   }
 
   selectWeapon(id: string | null): void {
-    if (this.host.getTurnPhase() !== null) return;
+    if (this.ordersLocked()) return;
     this.host.selectWeapon(id);
   }
 
@@ -597,7 +606,7 @@ export class WeaponPanel {
   }
 
   toggleAuto(): void {
-    if (this.host.getTurnPhase() !== null) return;
+    if (this.ordersLocked()) return;
     const w = this.host.world();
     this.host.apply(setAutoFire(w, !w.player.autoFire));
   }

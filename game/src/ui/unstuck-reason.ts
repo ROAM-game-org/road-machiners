@@ -1,6 +1,7 @@
 import { t, type Msg } from '../text/msg';
 import { unstuckBlock, type UnstuckBlock } from '../sim/unstuck';
 import type { World } from '../sim/types';
+import { actBlock } from '../sim/world';
 
 const REASONS: Record<UnstuckBlock, Msg> = {
   knockedOut: t('actBlock.knockedOut'),
@@ -20,5 +21,6 @@ export function unstuckReason(world: World, busy: boolean, inScene: boolean): Ms
 }
 
 export function lookReason(w: World): Msg | null {
-  return w.player.quests.live !== null ? t('look.inScene') : null;
+  if (w.player.quests.live !== null) return t('look.inScene');
+  return actBlock(w) === 'knockedOut' ? t('actBlock.knockedOut') : null;
 }
