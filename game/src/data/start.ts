@@ -45,7 +45,7 @@ const STANDARD_OPENING: Opening = {
   stock: { goods: { scrap: 0, parts: 3 }, parts: ['cage'] },
 };
 
-export const OPENING = { leaveDistance: 80 };
+export const OPENING = { farewellDistance: 80 };
 
 export const HAULER_KIT: HaulerKit = {
   chassis: HAULER_CHASSIS,
@@ -101,7 +101,7 @@ export const START_KITS: Record<string, StartKit> = {
     opening: null,
     intro: null,
   },
-  furyRoad: {
+  chaosHighway: {
     chassis: 'scout',
     parts: ['mg', 'stockEngine'],
     storage: [],

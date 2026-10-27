@@ -2,7 +2,7 @@
 import { reportLostTruck } from './road-news';
 import { onCall } from "./dialogue";
 import { aimAt } from "./parley";
-import { FURY_ROAD } from '../data/modes';
+import { CHAOS_HIGHWAY } from '../data/modes';
 import { isDefeated, isKnockedOut, knockOutNpc } from './defeat';
 import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
@@ -24,7 +24,8 @@ import { chance, gauss, randInt, randRange } from './rng';
 import { sampleWeighted } from './npc-loadout';
 import { vehicleMass } from './mass';
 import { nimbleSpread } from './chassis-features';
-import { vehicleStats, weaponOn, type MountedWeapon } from './stats';
+import { gunReach, vehicleStats, weaponOn, type MountedWeapon } from './stats';
+import { NPC_BEHAVIOR } from '../data/npc-behavior';
 import type { WeaponDef } from '../data/parts';
 import type { Aim, GameEvent, GunState, NpcActivity, PartInstance, ShotRound, Vehicle, VehicleHits, World } from './types';
 import { digCrater } from './craters';
@@ -36,6 +37,7 @@ import { attachLine } from './harpoon';
 import { angleDiff, bearing, clamp, dist, DEG, type Vec } from './vec';
 import { damageScale, modeRules } from './settings';
 import { attacks, hostileFrom, huntsAsPrey, isAlly, noteDefeat, reportIncident } from "./relations";
+import type { CrashFault } from "./crash-contact";
 
 export type FireBlock =
   | "disabled"
@@ -824,11 +826,28 @@ export function combatTurnsLeft(world: World, v: Vehicle): number | null {
   return left.length > 0 ? Math.max(...left) : null;
 }
 
-export function noteEngagements(world: World): void {
+export type HuntGaps = ReadonlyMap<string, number>;
+
+export function huntGaps(world: World): HuntGaps {
+  const gaps = new Map<string, number>();
+  for (const v of world.vehicles) {
+    const id = fightTargetId(v);
+    const target = id ? world.vehicles.find((t) => t.id === id) : undefined;
+    if (target) gaps.set(v.id, dist(v.pos, target.pos));
+  }
+  return gaps;
+}
+
+export function noteEngagements(world: World, gaps: HuntGaps): void {
   for (const v of world.vehicles) {
     const target = huntedTarget(world, v);
-    if (target) engage(world, v, target);
+    if (target && closesIn(world, v, target, gaps.get(v.id))) engage(world, v, target);
   }
+}
+
+function closesIn(world: World, v: Vehicle, target: Vehicle, before: number | undefined): boolean {
+  const gap = dist(v.pos, target.pos);
+  return gap <= gunReach(world, v) || (before !== undefined && before - gap >= NPC_BEHAVIOR.closeInTiles);
 }
 
 function fightTargetId(v: Vehicle): string | null {
@@ -886,14 +905,14 @@ function sumStray(world: World, shooter: Vehicle, victim: Vehicle, damage: numbe
   noteAttack(world, shooter, victim, true);
 }
 
-export function noteCollision(world: World, a: Vehicle, b: Vehicle, hitsA: PartHit[], hitsB: PartHit[]): void {
+export function noteCollision(world: World, a: Vehicle, b: Vehicle, hitsA: PartHit[], hitsB: PartHit[], fault: CrashFault): void {
   if (towPair(world, a, b)) return;
   const calm = !isHostile(world, a, b);
-  const attacks = ([[b, a, hitsA], [a, b, hitsB]] as const).filter(([, , hits]) => hits.some((h) => h.damage > 0));
-  for (const [attacker, victim] of attacks) {
+  const attacks = ([[b, a, hitsA, fault.b], [a, b, hitsB, fault.a]] as const).filter(([, , hits]) => hits.some((h) => h.damage > 0));
+  for (const [attacker, victim, , atFault] of attacks) {
     victim.lastHitBy = attacker.id;
     if (!calm) recordAttack(world, attacker, victim);
-    else if (victim.brain) addState(world, 'grievance', victim.id, attacker.id, { kind: 'none' });
+    else if (victim.brain && atFault) addState(world, 'grievance', victim.id, attacker.id, { kind: 'none' });
   }
 }
 
@@ -993,14 +1012,14 @@ function canNpcEngage(world: World, v: Vehicle, target: Vehicle): boolean {
 }
 
 function isGroupTruck(world: World, v: Vehicle): boolean {
-  return world.furyRoad !== null && world.furyRoad.groups.some((g) => g.vehicles.includes(v.id));
+  return world.chaosHighway !== null && world.chaosHighway.groups.some((g) => g.vehicles.includes(v.id));
 }
 
 export function groupPrey(world: World, v: Vehicle): Vehicle {
   const me = playerVehicle(world);
   const hauler = haulerOf(world);
   if (inDangerFrom(world, v, me)) return me;
-  return dist(v.pos, hauler.pos) + FURY_ROAD.playerMargin < dist(v.pos, me.pos) ? hauler : me;
+  return dist(v.pos, hauler.pos) + CHAOS_HIGHWAY.playerMargin < dist(v.pos, me.pos) ? hauler : me;
 }
 
 function inDangerFrom(world: World, v: Vehicle, me: Vehicle): boolean {

@@ -106,7 +106,7 @@ describe('disarming a claymore ram by order', () => {
     arm(w, user, claymore);
     disarmOrder(user, claymore);
 
-    applyContactCrash(w, user, other, other.id, CLAYMORE.minImpact, hit(side));
+    applyContactCrash(w, user, other, other.id, CLAYMORE.minImpact, hit(side), { a: CLAYMORE.minImpact, b: 0 });
     activateUtilities(w);
 
     expect(blasts(w)).toHaveLength(1);
@@ -135,7 +135,7 @@ describe('claymore detonation', () => {
   it('needs arming', () => {
     const { w, user, other, claymore, side } = setup();
 
-    applyContactCrash(w, user, other, other.id, CLAYMORE.minImpact, hit(side));
+    applyContactCrash(w, user, other, other.id, CLAYMORE.minImpact, hit(side), { a: CLAYMORE.minImpact, b: 0 });
 
     expect(blasts(w)).toEqual([]);
     expect(claymore.charge).toEqual({ reload: 0 });
@@ -145,7 +145,7 @@ describe('claymore detonation', () => {
     const { w, user, other, claymore, side } = setup();
     arm(w, user, claymore);
 
-    applyContactCrash(w, user, other, other.id, 2.9, hit(side));
+    applyContactCrash(w, user, other, other.id, 2.9, hit(side), { a: 2.9, b: 0 });
 
     expect(blasts(w)).toEqual([]);
     expect(claymore.charge).toEqual({ reload: 0, armed: true });
@@ -153,11 +153,11 @@ describe('claymore detonation', () => {
 
   it('detonates in a crash at the threshold on its side, hurts both trucks past the crash and starts the reload', () => {
     const plain = setup();
-    applyContactCrash(plain.w, plain.user, plain.other, plain.other.id, CLAYMORE.minImpact, hit(plain.side));
+    applyContactCrash(plain.w, plain.user, plain.other, plain.other.id, CLAYMORE.minImpact, hit(plain.side), { a: CLAYMORE.minImpact, b: 0 });
     const { w, user, other, claymore, side } = setup();
     arm(w, user, claymore);
 
-    applyContactCrash(w, user, other, other.id, CLAYMORE.minImpact, hit(side));
+    applyContactCrash(w, user, other, other.id, CLAYMORE.minImpact, hit(side), { a: CLAYMORE.minImpact, b: 0 });
 
     const [blast] = blasts(w);
     expect(blast).toMatchObject({ vehicle: user.id, other: other.id });
@@ -170,7 +170,7 @@ describe('claymore detonation', () => {
     const { w, user, other, claymore, side } = setup();
     arm(w, user, claymore);
 
-    applyContactCrash(w, user, other, other.id, CLAYMORE.minImpact, hit(side));
+    applyContactCrash(w, user, other, other.id, CLAYMORE.minImpact, hit(side), { a: CLAYMORE.minImpact, b: 0 });
 
     const [blast] = blasts(w);
     if (blast?.t !== 'claymore') throw new Error('No blast');
@@ -184,7 +184,7 @@ describe('claymore detonation', () => {
     const { w, user, other, claymore, side } = setup();
     arm(w, user, claymore);
 
-    applyContactCrash(w, user, other, other.id, CLAYMORE.minImpact, hit(side));
+    applyContactCrash(w, user, other, other.id, CLAYMORE.minImpact, hit(side), { a: CLAYMORE.minImpact, b: 0 });
 
     expect(w.events.map((e) => e.t).filter((t) => t === 'collision' || t === 'claymore')).toEqual(['collision', 'claymore']);
   });
@@ -193,7 +193,7 @@ describe('claymore detonation', () => {
     const { w, user, other, claymore, side } = setup();
     arm(w, user, claymore);
 
-    applyContactCrash(w, other, user, user.id, 4, { a: { side: 'left', lanes: [0, 1] }, b: { side, lanes: [0, 1] } });
+    applyContactCrash(w, other, user, user.id, 4, { a: { side: 'left', lanes: [0, 1] }, b: { side, lanes: [0, 1] } }, { a: 4, b: 0 });
 
     expect(blasts(w)).toHaveLength(1);
   });
@@ -202,7 +202,7 @@ describe('claymore detonation', () => {
     const { w, user, other, claymore, side } = setup();
     arm(w, user, claymore);
 
-    applyContactCrash(w, user, other, other.id, 6, hit(side === 'rear' ? 'front' : 'rear'));
+    applyContactCrash(w, user, other, other.id, 6, hit(side === 'rear' ? 'front' : 'rear'), { a: 6, b: 0 });
 
     expect(blasts(w)).toEqual([]);
     expect(claymore.charge).toEqual({ reload: 0, armed: true });
@@ -214,7 +214,7 @@ describe('claymore detonation', () => {
     arm(w, user, claymore);
     const hp = hpOf(user);
 
-    applyContactCrash(w, user, null, 'rock1', CLAYMORE.minImpact, { a: { side, lanes: [0, 1] }, b: null });
+    applyContactCrash(w, user, null, 'rock1', CLAYMORE.minImpact, { a: { side, lanes: [0, 1] }, b: null }, null);
 
     expect(blasts(w)).toMatchObject([{ vehicle: user.id, part: claymore.id, other: 'rock1', hits: [] }]);
     expect(blasts(w)[0]).toHaveProperty('selfHits', expect.arrayContaining([expect.objectContaining({ part: expect.any(String) })]));
@@ -229,10 +229,10 @@ describe('claymore detonation', () => {
     w.obstacles = [{ id: 'rock1', pos: { x: 42, y: 30 }, r: 0.8, kind: 'rock' }];
     arm(w, user, claymore);
 
-    applyContactCrash(w, user, null, 'rock1', 2.9, { a: { side, lanes: [0, 1] }, b: null });
-    applyContactCrash(w, user, null, 'rock1', 6, { a: { side: side === 'rear' ? 'front' : 'rear', lanes: [0, 1] }, b: null });
-    applyContactCrash(w, user, null, 'rail', 6, { a: { side, lanes: [0, 1] }, b: null });
-    applyContactCrash(w, user, null, 'edge', 6, { a: { side, lanes: [0, 1] }, b: null });
+    applyContactCrash(w, user, null, 'rock1', 2.9, { a: { side, lanes: [0, 1] }, b: null }, null);
+    applyContactCrash(w, user, null, 'rock1', 6, { a: { side: side === 'rear' ? 'front' : 'rear', lanes: [0, 1] }, b: null }, null);
+    applyContactCrash(w, user, null, 'rail', 6, { a: { side, lanes: [0, 1] }, b: null }, null);
+    applyContactCrash(w, user, null, 'edge', 6, { a: { side, lanes: [0, 1] }, b: null }, null);
 
     expect(blasts(w)).toEqual([]);
     expect(claymore.charge).toEqual({ reload: 0, armed: true });
@@ -243,7 +243,7 @@ describe('claymore detonation', () => {
     addState(w, 'tow', user.id, other.id, { kind: 'tow', site: 'bowl', fee: 10, waived: 0, hitched: false });
     arm(w, user, claymore);
 
-    applyContactCrash(w, user, other, other.id, 6, hit(side));
+    applyContactCrash(w, user, other, other.id, 6, hit(side), { a: 6, b: 0 });
 
     expect(blasts(w)).toEqual([]);
     expect(claymore.charge).toEqual({ reload: 0, armed: true });
@@ -253,8 +253,8 @@ describe('claymore detonation', () => {
     const { w, user, other, claymore, side } = setup();
     arm(w, user, claymore);
 
-    applyContactCrash(w, user, other, other.id, 5, hit(side));
-    applyContactCrash(w, user, other, other.id, 5, hit(side));
+    applyContactCrash(w, user, other, other.id, 5, hit(side), { a: 5, b: 0 });
+    applyContactCrash(w, user, other, other.id, 5, hit(side), { a: 5, b: 0 });
 
     expect(blasts(w)).toHaveLength(1);
   });
@@ -264,7 +264,7 @@ describe('claymore detonation', () => {
     other.lastHitBy = 'someone';
     arm(w, user, claymore);
 
-    applyContactCrash(w, user, other, other.id, CLAYMORE.minImpact, hit(side));
+    applyContactCrash(w, user, other, other.id, CLAYMORE.minImpact, hit(side), { a: CLAYMORE.minImpact, b: 0 });
 
     expect(other.lastHitBy).toBe(user.id);
     expect(isHostile(w, other, user)).toBe(true);
@@ -274,7 +274,7 @@ describe('claymore detonation', () => {
   it('re-arms only after the reload has counted down', () => {
     const { w, user, other, claymore, side } = setup();
     arm(w, user, claymore);
-    applyContactCrash(w, user, other, other.id, CLAYMORE.minImpact, hit(side));
+    applyContactCrash(w, user, other, other.id, CLAYMORE.minImpact, hit(side), { a: CLAYMORE.minImpact, b: 0 });
 
     for (let i = 0; i < CLAYMORE.reload - 1; i++) tickCharges(w);
     expect(utilityOrderError(w, user, claymore.id, { kind: 'self' })).toMatchObject({ id: 'utilityBlocked', block: 'cooldown' });
@@ -289,7 +289,7 @@ describe('disarming a claymore ram', () => {
     arm(w, user, claymore);
     claymore.hp = 0;
 
-    applyContactCrash(w, user, other, other.id, 5, hit(side));
+    applyContactCrash(w, user, other, other.id, 5, hit(side), { a: 5, b: 0 });
     settleClaymores(w);
 
     expect(blasts(w)).toEqual([]);

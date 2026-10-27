@@ -93,6 +93,7 @@
 #ui.phone {
   --dial-w: 96px;
   --dial-h: 58px;
+  --compass-w: 44px;
 }
 #ui.phone .bottom-left > .instruments {
   position: fixed;
@@ -106,7 +107,7 @@
   padding: var(--space-1) var(--space-2);
   column-gap: var(--space-2);
   row-gap: var(--space-1);
-  grid-template-columns: var(--dial-w) repeat(3, minmax(0, 1fr));
+  grid-template-columns: calc(var(--compass-w) + var(--space-2) + var(--dial-w)) repeat(3, minmax(0, 1fr));
   grid-template-rows: repeat(3, auto) 1fr;
   grid-template-areas:
     "dial driver fuel supplies"
@@ -168,7 +169,7 @@
   overflow-wrap: break-word;
   padding: 0 var(--space-1);
 }
-#ui.phone :is(.feedback, .camera-mode) {
+#ui.phone .feedback {
   display: none;
 }
 

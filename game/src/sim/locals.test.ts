@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { EN } from '../text/en';
 import { LOCALS, type NoteId } from '../data/locals';
-import { CONTRACTS, SHOPS, SITE_ECONOMY, SITE_EVENTS, siteRecipes } from '../data/market';
+import { CONTRACTS, CRIME, SHOPS, SITE_ECONOMY, SITE_EVENTS, siteRecipes } from '../data/market';
 import { REGION } from '../data/region';
 import { WAGON_SEVEN } from '../data/salvage';
 import { partDef } from '../data/parts';
@@ -12,7 +12,8 @@ import { acceptContract, type Contract } from './market';
 import { chooseQuestOption, QUEST_QUERIES, QUESTS, restoreQuest, questView, startQuest } from './quests';
 import { sitePads } from './sites';
 import { compileBundle, readQuestSources, withEnglishTwins } from '../test/quest-compile';
-import { emptyWorld } from './testkit';
+import { addVehicle, emptyWorld, npcBrain } from './testkit';
+import { remember } from './memory';
 import type { World } from './types';
 import { UNITS } from '../data/units';
 import { cloneWorld } from './world';
@@ -51,7 +52,7 @@ describe('settlement locals', () => {
   it('lists the town locals first and keeps every local at a place with a shop', () => {
     expect(localsAt('bowl').map((l) => l.id).slice(0, 3)).toEqual(['ruben', 'hattie', 'dag']);
     expect(localsAt('nose').map((l) => l.id).slice(0, 3)).toEqual(['kovac', 'lena', 'ibo']);
-    for (const local of Object.values(LOCALS)) expect(Object.keys(SHOPS)).toContain(local.town);
+    for (const local of Object.values(LOCALS)) expect([...Object.keys(SHOPS), CRIME.post]).toContain(local.town);
   });
 
   it('places the recent-years locals and records a biased rumor as said', () => {
@@ -90,7 +91,7 @@ describe('settlement locals', () => {
     expect(questView(shack, QUESTS).choices).toContain('What does the tone from the Fallen Sun say?');
 
     const answered = chooseQuestOption(shack, QUESTS, pickIndex(shack, 'What does the tone from the Fallen Sun say?'));
-    expect(lastLine(answered)).toContain('no key to decode it');
+    expect(lastLine(answered)).toContain('climbs one step each year since the fall');
     expect(lastLine(answered)).not.toContain("A tone's a tone");
   });
 
@@ -346,15 +347,15 @@ describe('wagon Seven', () => {
     }
   });
 
-  it('lets a driver who saw the hollow tell it at the well house beside Dag', () => {
+  it('lets a driver who saw the hollow tell it at the cistern house beside Dag', () => {
     const w = parkedAt('bowl');
     w.player.quests.world.wagon_saw = true;
 
-    const next = talk(w, 'bowl_dag', ['Nobody raided that wagon.', 'Say it at the well house.', 'Goodbye.']);
+    const next = talk(w, 'bowl_dag', ['Nobody raided that wagon.', 'Say it at the cistern house.', 'Goodbye.']);
 
     expect(worldVars(next).wagon_fate).toBe('told');
     expect(next.player.money).toBe(w.player.money);
-    expect(choices(next, 'bowl_dag')).toContain('What did the well house make of it?');
+    expect(choices(next, 'bowl_dag')).toContain('What did the cistern house make of it?');
   });
 });
 
@@ -389,7 +390,7 @@ describe('work by talk', () => {
     full.shops.bowl.contracts = [haul('ct-high', 300)];
     full.player.contracts = Array.from({ length: CONTRACTS.maxActive }, (_, k) => haul(`held${k}`, 10));
 
-    expect(lastLine(talk(empty, 'bowl_dag', [WORK]))).toBe("The board's empty today. Come back in a couple of days, it fills slowly.");
+    expect(lastLine(talk(empty, 'bowl_dag', [WORK]))).toBe("The board's empty today. Come back in a couple of days. It fills slowly.");
     expect(lastLine(talk(full, 'bowl_dag', [WORK]))).toBe("You're carrying enough promises already. Finish a few and then ask me again.");
   });
 
@@ -409,7 +410,7 @@ describe('work by talk', () => {
 
 describe('the depot leak at Nose', () => {
   const OPEN = ['Anything off the books?', 'I will look into it.'];
-  const LEDGER = 'Read the depot ledgers.';
+  const LEDGER = 'Look at the duty board.';
   const GATE = 'Check the gate log for the same nights.';
   const SABINE = 'Talk to the trader by the gate.';
   const PAY = 'Pay her 20 M to talk.';
@@ -426,8 +427,8 @@ describe('the depot leak at Nose', () => {
       { name: 'money', label: "M's", value: `${w.player.money / UNITS.centsPerM} M` },
       { name: 'alarm', label: 'Talk', value: 'quiet' },
     ]);
-    expect(view.facts).toEqual([expect.stringContaining('Ledger: cans went missing')]);
-    expect(view.lines.filter((l) => l.tags.includes('row')).map((l) => l.text)).toEqual(['3rd; 2 cans; Pell', '7th; 3 cans; Pell', '11th; 2 cans; Pell']);
+    expect(view.facts).toEqual([expect.stringContaining('Duty board: a red rag marks')]);
+    expect(view.lines.filter((l) => l.tags.includes('row')).map((l) => l.text)).toEqual(['3rd; a gap; Pell', '7th; a gap; Pell', '11th; a gap; Pell']);
   });
 
   it('opens from Kovac and pays for naming the thief with proof, which changes what Nose says after', () => {
@@ -445,7 +446,7 @@ describe('the depot leak at Nose', () => {
     expect(lastLine(talk(done, 'nose_ibo', ['Heard about the depot business?']))).toContain('He sat at my table');
   });
 
-  it('turns Kovac away from a name with no proof, and locks up the wrong man on the ledger alone', () => {
+  it('turns Kovac away from a name with no proof, and locks up the wrong man on the duty board alone', () => {
     const w = parkedAt('nose');
     const early = talk(w, 'nose_kovac', [...OPEN, SABINE, PAY, 'Go to Kovac with a name.', 'The corporal with the scar.']);
     expect(vars(early)).toMatchObject({ alarm: 1 });
@@ -508,16 +509,16 @@ describe('the depot leak at Nose', () => {
 });
 
 describe('locals at stalls', () => {
-  const OPEN = ['Read her the big dial.', 'Ask why the tanker\'s meter came off.'];
+  const OPEN = ['Watch the tank with her while a Bowl truck fills.', 'Ask why the household truck\'s hose has no window.'];
   const COVER = 'Tell him she was talking about pump pressures.';
   const CARRY = 'Say you\'ll carry the copy.';
-  const TAKE = 'Take the copy and the meter out to your truck.';
+  const TAKE = 'Take the copy and the glass window out to your truck.';
   const ROAD = [...OPEN, COVER, CARRY, TAKE, 'Keep the copy.'];
-  const LIE = 'Tell him it\'s pump records for the lock house.';
+  const LIE = 'Tell him it\'s spare oilcloth for the lock house gates.';
   const LOCK = 'Drive down to the lock house.';
-  const SIGN = 'Sign and write what you read on the dial.';
-  const TERRACE = 'Follow the tanker\'s tracks up to the top terrace.';
-  const BOLT = 'Bolt Agnes\'s meter onto the inlet.';
+  const SIGN = 'Put your hand on the cloth where you saw the water.';
+  const TERRACE = 'Follow the household truck\'s tracks up to the top terrace.';
+  const BOLT = 'Bolt Agnes\'s glass window onto the inlet.';
 
   it('lists Agnes at Dustwell', () => {
     expect(localsAt('dustwell').map((l) => l.id)).toContain('agnes');
@@ -575,7 +576,7 @@ describe('locals at stalls', () => {
     expect(signed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'delivered' });
     expect(signed.player.money - w.player.money).toBe(10 * UNITS.centsPerM);
 
-    const filed = talk(w, 'pump_agnes', [...gate, 'Leave your name off.']);
+    const filed = talk(w, 'pump_agnes', [...gate, 'Keep your hand off the cloth.']);
     expect(filed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'filed' });
   });
 
@@ -600,7 +601,7 @@ describe('locals at stalls', () => {
     expect(w.player.money - bought.player.money).toBe(100 * UNITS.centsPerM);
   });
 
-  it('bills a failed meter fit on the top terrace, shuts the terrace and still reaches the lock house', () => {
+  it('bills a failed glass window fit on the top terrace, shuts the terrace and still reaches the lock house', () => {
     const w = parkedAt('dustwell');
 
     const sheared = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE, BOLT]);
@@ -611,9 +612,9 @@ describe('locals at stalls', () => {
     expect(signed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'delivered' });
   });
 
-  it('offers the meter bolt only to a driver who took the meter', () => {
+  it('offers the glass window bolt only to a driver who took the glass window', () => {
     const w = parkedAt('dustwell');
-    const left = [...OPEN, COVER, CARRY, 'Take the copy and leave the meter.', 'Keep the copy.', 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE];
+    const left = [...OPEN, COVER, CARRY, 'Take the copy and leave the glass window.', 'Keep the copy.', 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE];
 
     expect(questView(talk(w, 'pump_agnes', left), QUESTS).choices).not.toContain(BOLT);
     expect(questView(talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE]), QUESTS).choices).toContain(BOLT);
@@ -622,7 +623,7 @@ describe('locals at stalls', () => {
   it('takes a fine in the Bowl market and keeps the tenants talking about it', () => {
     const w = parkedAt('dustwell');
 
-    const read = talk(w, 'pump_agnes', [...ROAD, 'Cut the seal and read the copy.', 'Drive on to the Bowl gate.', "Slip the older one a few M's.", 'Read the copy aloud in the market.']);
+    const read = talk(w, 'pump_agnes', [...ROAD, 'Cut the seal and read the copy.', 'Drive on to the Bowl gate.', "Slip the older one a few M's.", 'Hold the copy up in the market.']);
 
     expect(read.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'read' });
     expect(w.player.money - read.player.money).toBe(90 * UNITS.centsPerM);
@@ -745,5 +746,82 @@ describe('site talk', () => {
     const said = (w: World) => questView(talk(w, 'granary_odile', ['What does the Granary make?']), QUESTS).lines.map((l) => l.text).join(' ');
     expect(said(empty)).toContain('Sorgut\'s low');
     expect(said(parkedAt('granary'))).not.toContain('low');
+  });
+});
+
+describe('Petra Quell at the Roadhouse', () => {
+  const SEARCH = "I'm looking for a driver.";
+  const PAY = `Pay her ${QUEST_QUERIES.lead_price(emptyWorld({ x: 0, y: 0 }), [])} M.`;
+
+  function searching(withCar: boolean): World {
+    const w = parkedAt(CRIME.post);
+    w.turn = 50;
+    const target = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 500, y: 500 });
+    target.brain = npcBrain('trader', target.pos, ['trader']);
+    w.player.contracts.push({
+      id: 'ct-s', shop: 'bowl', kind: 'search', target: target.id, driver: 'Mack Holt', template: 'trader',
+      lead: { at: { x: 0, y: 0 }, turn: 10 }, reward: 3700, deadline: 900, window: 600, tier: 1, delivered: false,
+    });
+    w.player.money = 10 * UNITS.centsPerM;
+    if (withCar) {
+      const car = addVehicle(w, 'marshals', 'scout', ['stockEngine'], { x: 650, y: 100 });
+      car.brain = npcBrain('marshal', car.pos, ['marshal']);
+      w.turn = 30;
+      remember(w, car, { kind: 'sighting', vehicle: target.id, at: { x: 90, y: 30 }, heading: 0 });
+      w.turn = 50;
+    }
+    return w;
+  }
+
+  const money = (w: World) => w.player.money / UNITS.centsPerM;
+
+  it('lists Petra at the Marshalls desk', () => {
+    expect(localsAt(CRIME.post).map((l) => l.id)).toEqual(['petra']);
+  });
+
+  it('gives the three notes as the player asks on', () => {
+    const next = talk(parkedAt(CRIME.post), 'roadhouse_petra', [
+      'What is the road book?', 'How do I put a wrong in the book?', 'Who pays the price?', 'What if a town is after me?',
+      'Who goes after the wrongdoers?', 'Why no claims against raiders?',
+    ]);
+    expect(next.player.notes.map((n) => n.id).sort()).toEqual(['roadhouseBook', 'roadhouseBuyOff', 'roadhouseRaiders']);
+  });
+
+  it('offers the search question only to a player holding a search', () => {
+    expect(choices(parkedAt(CRIME.post), 'roadhouse_petra')).not.toContain(SEARCH);
+    expect(choices(searching(false), 'roadhouse_petra')).toContain(SEARCH);
+  });
+
+  it('sells the Marshall sighting for the fee and moves the lead there', () => {
+    const w = searching(true);
+    const offer = talk(w, 'roadhouse_petra', [SEARCH]);
+    expect(questView(offer, QUESTS).choices).toContain(PAY);
+    const paid = chooseQuestOption(offer, QUESTS, pickIndex(offer, PAY));
+    expect(money(paid)).toBe(money(w) - 3);
+    expect(paid.player.contracts.find((c) => c.kind === 'search')).toMatchObject({ lead: { at: { x: 90, y: 30 }, turn: 30 } });
+  });
+
+  it('charges nothing for declining, and nothing when no car has a newer sighting', () => {
+    const w = searching(true);
+    const offer = talk(w, 'roadhouse_petra', [SEARCH]);
+    const declined = chooseQuestOption(offer, QUESTS, pickIndex(offer, 'Not at that price.'));
+    expect(money(declined)).toBe(money(w));
+    expect(declined.player.contracts).toEqual(w.player.contracts);
+
+    const none = searching(false);
+    const asked = talk(none, 'roadhouse_petra', [SEARCH]);
+    expect(questView(asked, QUESTS).choices).not.toContain(PAY);
+    expect(money(asked)).toBe(money(none));
+    expect(asked.player.contracts).toEqual(none.player.contracts);
+  });
+
+  it('keeps the world through a save and load in the middle of the talk, awarding nothing', () => {
+    const open = talk(searching(true), 'roadhouse_petra', ['What is the road book?', SEARCH]);
+    const before = { money: open.player.money, events: open.events.length, xp: open.player.xp };
+    const loaded = structuredClone(open);
+    loaded.player.quests.live = null;
+    restoreQuest(loaded, QUESTS);
+    expect({ money: loaded.player.money, events: loaded.events.length, xp: loaded.player.xp }).toEqual(before);
+    expect(questView(loaded, QUESTS).choices).toContain('Leave her to the mast.');
   });
 });

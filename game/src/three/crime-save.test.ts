@@ -64,12 +64,31 @@ describe('crimes across a save', () => {
     toPad(victim, 'bowl');
     fileReports(w, victim);
     w.crimes[0].hunter = victim.id;
+    w.crimes[0].restitution = 4200;
+    w.crimes[0].known = true;
     w.player.standing.marshals = -12;
     const loaded = reload(w);
     expect(loaded.crimes).toEqual(w.crimes);
     expect(loaded.player.standing).toEqual(w.player.standing);
     expect(loaded.player.money).toBe(w.player.money);
     expect(loaded.player.xp).toBe(w.player.xp);
+    expect(loaded.events).toEqual([]);
+  });
+
+  it('keeps the restitution of a witnessed memory and a case that nobody has told the target of', () => {
+    const w = emptyWorld({ x: 200, y: 200 });
+    const robber = trader(w, 'independent', { x: 400, y: 400 });
+    const victim = trader(w, 'bowl', { x: 404, y: 400 });
+    const witness = trader(w, 'independent', { x: 402, y: 405 });
+    reportIncident(w, { aggressor: robber, victim, deed: 'robbed', victimFights: false });
+    for (const m of witnessed(witness)) m.fact.restitution = 3100;
+    toPad(victim, 'bowl');
+    fileReports(w, victim);
+    w.crimes[0].restitution = 3100;
+    const loaded = reload(w);
+    expect(loaded.crimes[0]).toMatchObject({ known: false, restitution: 3100 });
+    expect(witnessed(loaded.vehicles.find((v) => v.id === witness.id)!).map((m) => m.fact.restitution)).toEqual([3100]);
+    expect(loaded.player.money).toBe(w.player.money);
     expect(loaded.events).toEqual([]);
   });
 });

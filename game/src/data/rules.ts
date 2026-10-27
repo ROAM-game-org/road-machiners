@@ -29,6 +29,7 @@ export const RULES = {
   gunDragCurve: 1.5,
   minSpeedCap: 1,
   collisionMinImpact: 1.5,
+  crashFault: { still: 1, share: 0.4 },
   ramDamage: 2.5,
   hardCrashSpeed: 4,
   cellPen: 0.5,
@@ -82,7 +83,6 @@ export const RULES = {
   scrapPatch: 0.4,
   townPatch: 0.15,
   knockoutMaxTurns: 30,
-  surrenderParts: 2,
   npcDeathChance: 0.05,
   cabKnock: {
     below: 0.5,

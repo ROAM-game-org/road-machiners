@@ -12,7 +12,7 @@ import { toMap } from './frames';
 import { physicsMove } from './turn';
 import { TEST_MAP } from '../test/map';
 import { budget } from '../test/budget';
-import { furyRoadWorld, PLAIN_KIT } from '../sim/testkit';
+import { chaosHighwayWorld, PLAIN_KIT } from '../sim/testkit';
 import { defaultSetup } from '../sim/settings';
 import { ICARUS_DECKS } from '../sim/bridge';
 import { atlasOf } from '../sim/atlas';
@@ -111,8 +111,8 @@ it('the terrain collider is a heightfield whose surface matches the corner grid'
   freeDrive(drive);
 });
 
-it('builds only the ramp decks on the Fury Road highway, and every Icarus deck on Icarus', () => {
-  const road = furyRoadWorld(5);
+it('builds only the ramp decks on the Chaos Highway highway, and every Icarus deck on Icarus', () => {
+  const road = chaosHighwayWorld(5);
   const highway = buildDrive(road);
   const icarus = buildDrive(newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming')));
   const ramps = atlasOf(road.terrain).decks.decks;

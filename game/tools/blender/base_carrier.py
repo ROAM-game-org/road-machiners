@@ -55,6 +55,7 @@ from parts_common_base import (  # noqa: E402
     level_sockets,
     round_arch,
 )
+from parts_common_core import PROUD  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 303
@@ -239,7 +240,7 @@ def on_side(sign: int):
 
 
 def on_stern(y: float, z: float) -> tuple[Vec3, Vec3]:
-    n = Vector((-(ROOF - CHINE), 0, -(ROOF_BACK - BACK))).normalized()
+    n = Vector((-(ROOF - CHINE), 0, ROOF_BACK - BACK)).normalized()
     return (stern_x(z), y, z), (n.x, 0, n.z)
 
 
@@ -281,7 +282,7 @@ def doors(kit: Kit) -> None:
         face = on_side(sign)
         plate(kit, f"door_low_{tag}", "paint", rect(x0, x1, DOOR_LOW, CHINE - 0.04), face, thick=0.015)
         plate(kit, f"door_high_{tag}", "paint", rect(x0, x1, CHINE + 0.04, DOOR_HIGH), face, thick=0.015)
-        for i, (z0, z1) in enumerate(((DOOR_LOW, CHINE - 0.04), (CHINE + 0.04, DOOR_HIGH))):
+        for i, (z0, z1) in enumerate(((DOOR_LOW, CHINE - 0.04 - PROUD), (CHINE + 0.04, DOOR_HIGH - PROUD))):
             for edge, ex in (("front", x1), ("back", x0)):
                 plate(kit, f"door_seam_{edge}{i}_{tag}", "under", rect(ex - 0.015, ex + 0.015, z0, z1), face, thick=0.02)
         plate(kit, f"door_block_{tag}", "glass", rect(-0.16, 0.16, 0.24, 0.35), face, thick=0.04, sink=0.02)
@@ -309,23 +310,23 @@ def headlight(kit: Kit, tag: str, y: float) -> None:
     cage_x = (LAMP_X - 0.12, LAMP_X + 0.15)
     half = 0.16
     top = deck_z(cage_x[0]) + 0.33
-    bar = 0.022
+    post_bar, cross_bar, side_bar = 0.026, 0.022, 0.018
     for cx in cage_x:
         for cy in (y - half, y + half):
             low = deck_z(cx) - 0.02
-            kit.box(f"cage_post_{tag}_{cx:.2f}_{cy:.2f}", (bar, bar, top - low), (cx, cy, (top + low) / 2), "trim")
+            kit.box(f"cage_post_{tag}_{cx:.2f}_{cy:.2f}", (post_bar, post_bar, top - low), (cx, cy, (top + low) / 2), "trim")
     depth = cage_x[1] - cage_x[0]
     mid_x = (cage_x[0] + cage_x[1]) / 2
     for cy in (y - half, y + half):
-        kit.box(f"cage_top_side_{tag}_{cy:.2f}", (depth, bar, bar), (mid_x, cy, top), "trim")
-        kit.box(f"cage_mid_side_{tag}_{cy:.2f}", (depth, bar, bar), (mid_x, cy, z), "trim")
+        kit.box(f"cage_top_side_{tag}_{cy:.2f}", (depth, side_bar, side_bar), (mid_x, cy, top), "trim")
+        kit.box(f"cage_mid_side_{tag}_{cy:.2f}", (depth, side_bar, side_bar), (mid_x, cy, z), "trim")
     for cx in cage_x:
-        kit.box(f"cage_top_cross_{tag}_{cx:.2f}", (bar, 2 * half, bar), (cx, y, top), "trim")
+        kit.box(f"cage_top_cross_{tag}_{cx:.2f}", (cross_bar, 2 * half, cross_bar), (cx, y, top), "trim")
     front = cage_x[1]
     low = deck_z(front) - 0.02
     for i, my in enumerate((y - half / 2, y + half / 2)):
         kit.box(f"cage_mesh_{tag}_{i}", (0.012, 0.012, top - low), (front, my, (top + low) / 2), "trim")
-    kit.box(f"cage_band_{tag}", (0.012, 2 * half, 0.012), (front, y, z), "trim")
+    kit.box(f"cage_band_{tag}", (0.008, 2 * half, 0.012), (front, y, z), "trim")
 
 
 def mirror(kit: Kit, tag: str, y: float) -> None:
@@ -349,7 +350,7 @@ def bow(kit: Kit) -> None:
     (x, _, z), (ox, _, oz) = on_bow(0, -0.47)
     for i, sy in enumerate((-0.06, 0.06)):
         kit.box(f"shackle_side{i}", (0.06, 0.025, 0.12), (x + ox * 0.03, sy, z + oz * 0.03 + 0.02), "trim")
-    kit.box("shackle_pin", (0.06, 0.15, 0.03), (x + ox * 0.03, 0, z + oz * 0.03 - 0.04), "trim")
+    kit.box("shackle_pin", (0.05, 0.15, 0.03), (x + ox * 0.03, 0, z + oz * 0.03 - 0.04), "trim")
 
 
 def stern(kit: Kit) -> None:
@@ -361,14 +362,15 @@ def stern(kit: Kit) -> None:
         kit.cylinder(f"taillight_{tag}", 0.06, 0.05, (x, y, lamp_z), "red", rot=(0, math.pi / 2, 0), vertices=round_sides(0.06))
         for i, gy in enumerate((y - 0.09, y + 0.09)):
             kit.box(f"tail_guard_{tag}{i}", (0.1, 0.025, 0.17), (x + 0.01, gy, lamp_z), "trim")
-        kit.box(f"tail_hood_{tag}", (0.1, 0.205, 0.025), (x + 0.01, y, lamp_z + 0.085), "trim")
-    plate(kit, "rear_door", "trim", rect(-0.9, -0.25, CHINE + 0.12, ROOF - 0.12), on_stern)
+        kit.box(f"tail_hood_{tag}", (0.1 + PROUD, 0.205 + 2 * PROUD, 0.025), (x + 0.01, y, lamp_z + 0.085), "trim")
+    plate(kit, "rear_door", "trim", rect(-0.9, -0.25, CHINE + 0.12, ROOF - 0.12 - PROUD), on_stern, thick=PROUD)
     mid_z = (CHINE + ROOF) / 2
-    (x, _, z), (ox, _, oz) = on_stern(0, mid_z)
+    (x, _, z), _ = on_stern(0, mid_z)
     r = 0.13
+    ox, _, oz = Vector((-(ROOF - CHINE), 0, -(ROOF_BACK - BACK))).normalized()
     kit.cylinder("silencer", r, 0.75, (x + ox * (r + 0.02), 0.65, z + oz * (r + 0.02)), "under", rot=(math.pi / 2, 0, 0), vertices=round_sides(r))
     for i, y in enumerate((0.38, 0.92)):
-        plate(kit, f"silencer_strap{i}", "trim", rect(y - 0.03, y + 0.03, mid_z - 0.2, mid_z + 0.2), on_stern, thick=0.04)
+        plate(kit, f"silencer_strap{i}", "trim", rect(y - 0.03, y + 0.03, mid_z - 0.2, mid_z + 0.2 - PROUD), on_stern, thick=PROUD)
 
 
 def roof(kit: Kit) -> None:

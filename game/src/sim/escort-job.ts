@@ -13,6 +13,8 @@ import { lieUpSpot } from './npc-service';
 import { reachedSite } from './sites';
 import { endState, stateOf } from './states';
 import { isStranded } from './stats';
+import { recall } from './memory';
+import { shipmentOf } from './road-news';
 import { escortsOf, hireEscort, isOnRope } from './tow';
 import type { Terrain } from './terrain';
 import type { EscortEnd, NpcActivity, Vehicle, World } from './types';
@@ -215,7 +217,18 @@ function endedBy(world: World, c: EscortContract, player: Vehicle, client: Vehic
   if (isDefeated(player)) return { outcome: 'released', end: 'knockedOut' };
   if (!client || isDefeated(client)) return { outcome: 'released', end: 'lost' };
   if (isHostile(world, player, client) || isHostile(world, client, player)) return { outcome: 'failed', end: 'hostile' };
+  if (robbedClient(world, player, client)) return { outcome: 'failed', end: 'hostile' };
   return null;
+}
+
+function robbedClient(world: World, player: Vehicle, client: Vehicle): boolean {
+  const escort = stateOf(world, 'escort', player.id, client.id);
+  if (!escort) return false;
+  return recall(client, 'wronged').some((m) => m.fact.by === player.id && m.fact.deed === 'robbed' && m.turn >= escort.born);
+}
+
+function haulOver(client: Vehicle, c: EscortContract): boolean {
+  return shipmentOf(client)?.to !== c.to && !client.items.some((it) => it.kind === 'good');
 }
 
 function trackTogether(world: World, c: EscortContract, player: Vehicle, client: Vehicle): void {
@@ -244,18 +257,27 @@ function tickStuck(world: World, c: EscortContract): boolean {
   return c.stuck >= ESCORT_JOB.stuckTurns;
 }
 
+function arrive(world: World, c: EscortContract, player: Vehicle, client: Vehicle): void {
+  const together = dist(player.pos, client.pos) <= ESCORT_JOB.apartGap;
+  if (together) c.together = 0;
+  conclude(world, c, together ? 'done' : 'released', together ? 'arrived' : 'apartAtArrival');
+}
+
+export function onHaulDelivered(world: World, vehicle: Vehicle, activity: NpcActivity): void {
+  const c = heldEscort(world);
+  if (!c || c.client !== vehicle.id || c.to !== activity.shipment?.to) return;
+  arrive(world, c, playerVehicle(world), vehicle);
+}
+
 export function settleEscortJob(world: World, c: EscortContract): void {
   const player = playerVehicle(world);
   const client = clientOf(world, c);
   const over = endedBy(world, c, player, client);
   if (over) return conclude(world, c, over.outcome, over.end);
   if (!client) throw new Error(`Escort ${c.id} lost its client without a reason`);
-  if (reachedSite(client.pos, getKnownSite(c.to))) {
-    const together = dist(player.pos, client.pos) <= ESCORT_JOB.apartGap;
-    if (together) c.together = 0;
-    return conclude(world, c, together ? 'done' : 'released', together ? 'arrived' : 'apartAtArrival');
-  }
+  if (reachedSite(client.pos, getKnownSite(c.to))) return arrive(world, c, player, client);
   if (!stateOf(world, 'escort', player.id, client.id)) throw new Error(`Escort ${c.id} lost its state with nothing to explain it`);
+  if (haulOver(client, c)) return conclude(world, c, 'released', 'cargoLost');
   trackTogether(world, c, player, client);
   if (tickStuck(world, c)) return conclude(world, c, 'released', 'stuck');
   if (tickApart(world, c, player, client)) conclude(world, c, 'failed', 'strayed');

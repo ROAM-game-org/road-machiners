@@ -35,6 +35,10 @@ The sim never imports `src/text/` and never makes English. `src/sim/types.ts` de
 
 A truck has no saved name. Its title comes from the player's own truck or from its template's profession and its driver. Save step 19 to 20 maps old saves to the ids, as [Saves](saves.md) describes.
 
+## Compass words
+
+Code and data name map axes: "map north" is −y, and `Octant` ids, survey sectors, claim angles and gate sides all mean map directions. Player words name map directions too: north is map −y, which the fixed 3D view draws toward the top right of the screen. `src/text/compass.ts` is the only place that turns a map angle into an octant (`compassOctant()`), with the same bins as the sim. `compassText()`, `bearingText()` and the radio's basin and storm words call it, and `compassName()` names an `Octant` id directly. A new direction word in UI code goes through them too.
+
 ## The active language and live text
 
 - `src/text/language.ts` owns the active language. It stores the choice under `roam.lang` in local storage, apart from the save keys, so a new game, a load and a boot keep it. The default is English unless `roam.lang` says otherwise. Nothing reads the browser's language.
@@ -65,7 +69,7 @@ All of them run in `npm test` and `npm run typecheck`. Together the text tests t
 
 ### The allowlist
 
-`src/text/untranslated.ts` lists text the scan lets through, as `{ file, text, reason }`. Every entry needs a reason, and an entry nothing uses fails the scan. Missing Russian never falls back to English: there is no fallback path at all. New text ships its English and Russian entries in the same change.
+`src/text/untranslated.ts` lists text the scan lets through, as `{ file, text, reason }`. Every entry needs a reason, and an entry nothing uses fails the scan. Missing Russian never falls back to English: there is no fallback path at all. New text ships its English and Russian entries in the same change. Read new English text against the [Humanizer](../writing/humanizer.md#how-roam-uses-it) first, the way its How ROAM uses it section says.
 
 ### The layout check
 

@@ -6,7 +6,7 @@ import { physicsMove } from '../../phys/turn';
 import { haulerOf } from '../../sim/damage';
 import { spanOf, unitsOf } from '../../sim/body';
 import { acrossOf, toRoad } from '../../sim/highway';
-import { furyRoadWorld } from '../../sim/testkit';
+import { chaosHighwayWorld } from '../../sim/testkit';
 import { endTurn } from '../../sim/world';
 import { budget } from '../../test/budget';
 import { TruckMotion } from './truckMotion';
@@ -16,8 +16,8 @@ beforeAll(async () => {
 });
 
 function haulerStart(seed: number, turns: number): { frames: VehicleFrame[]; widest: number; chassisId: string } {
-  let w = furyRoadWorld(seed);
-  w.furyRoad!.groups = [];
+  let w = chaosHighwayWorld(seed);
+  w.chaosHighway!.groups = [];
   let drive: Drive = buildDrive(w);
   const frames: VehicleFrame[] = [];
   let widest = 0;

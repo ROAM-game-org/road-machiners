@@ -32,7 +32,7 @@ import { heatAt } from '../sun';
 import { getKnownSite, getUpkeepReserve, judgeDanger, tripFuelCost } from '../npc-decisions';
 import { maxHp } from '../wear';
 import { emptyHidden } from '../salvage';
-import { cargoHaul, haulVar, surrenderHaul } from '../haul';
+import { cargoHaul, haulVar } from '../haul';
 import { botOrders, CONVOY_ROB_PATROL, haulMarginAt, robTarget, wouldRob } from './bot';
 import { fuelReaches } from './reach';
 
@@ -125,7 +125,7 @@ describe('botOrders', () => {
     addGoods(w, playerVehicle(w), 'electronics', 6);
     w.player.costBasis.electronics = 33;
     w.player.money = 0;
-    for (const part of mountedParts(playerVehicle(w))) part.hp = Math.floor(maxHp(part) / 4);
+    for (const part of mountedParts(playerVehicle(w))) part.hp = 0;
     expect(repairCost(w)).toBeGreaterThan(getUpkeepReserve(playerVehicle(w)));
 
     const turn = botOrders(w, 'trader');
@@ -494,7 +494,7 @@ describe('botOrders', () => {
   it('has a broke bot keep its gear when selling it cannot pay the repair', () => {
     const w = parkedAt('bowl');
     addGoods(w, playerVehicle(w), 'salt', freeCells(playerVehicle(w)));
-    for (const p of mountedParts(playerVehicle(w), 'core')) p.hp = 0;
+    for (const p of mountedParts(playerVehicle(w))) p.hp = 0;
     w.player.money = 0;
 
     const turn = botOrders(w, 'trader');
@@ -1194,12 +1194,12 @@ describe('the hunter', () => {
       const raider = addVehicle(w, 'scrapjaw', 'buggy', [...weapons, 'stockEngine'], { x: 36, y: 30 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       startCombat(w, raider, me);
-      w.player.call = { with: raider.id, topic: 'surrender', node: 'offer', vars: { haul: haulVar(surrenderHaul(raider, playerVehicle(w))) }, line: { line: 'surrenderOffer', vars: {} } };
-      return goodsCount(playerVehicle(botOrders(w, 'trader').world)).salt ?? 0;
+      w.player.call = { with: raider.id, topic: 'surrender', node: 'offer', vars: {}, line: { line: 'surrenderOffer', vars: {} } };
+      return botOrders(w, 'trader').world.player.state === 'knockedOut';
     };
 
-    expect(offeredBy(['autocannon', 'ram'])).toBe(0);
-    expect(offeredBy([])).toBeGreaterThan(0);
+    expect(offeredBy(['autocannon', 'ram'])).toBe(true);
+    expect(offeredBy([])).toBe(false);
   });
 
   it('has a bot in town top up its repair parts to the standard kit stock before buying gear', () => {

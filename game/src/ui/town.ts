@@ -45,12 +45,12 @@ import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
 import { fitsClaim } from "../sim/claims";
 import { acceptContract, deliverContract, goodStock, haulShort, isMet, knowsMarket, onOrder, pressureOf, spareGoods, searchRefusal, shopAt, shopState, stockShort, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
 import { escortBlocked, escortFit } from "../sim/escort-job";
-import type { CrimeCase, PartInstance, RoadNews, Vehicle, World } from "../sim/types";
+import type { PartInstance, RoadNews, Vehicle, World } from "../sim/types";
 import { onRelief, recipeRunning } from "../sim/production";
 import { liveRoadNews } from "../sim/road-news";
 import { compareBase, createBareItemIcon, createIcon, createItemIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
-import { caption, keepFocus, priceEl, priceHead, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, livePaintPlan, paintTab, planWithSlot, type PriceHint } from "./shop-rows";
+import { caption, deskBody, keepFocus, priceEl, priceHead, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, livePaintPlan, paintTab, planWithSlot, type PriceHint } from "./shop-rows";
 import { el, isBrowserChord, panel } from "./dom";
 import { ArtBand } from "./art-band";
 import { callError } from "./dialogue";
@@ -59,11 +59,11 @@ import { TOWN_SECTIONS, type TownSection } from "../data/quests";
 import { barDrivers, pickTownSection, townSections, type SectionAccess } from "../sim/quests";
 import { callVehicle } from "../sim/dialogue";
 import { hostileToPlayer } from "../sim/world";
-import { caseVictimName, clock, escortStatusText, estimateText, estimateTitle, gameHours, GOODS_COLUMNS, lotTitle, PROFIT_HEAD_TITLE, saleEstimate, surveyPlacesLeft, type SaleEstimate } from "./format";
+import { escortStatusText, estimateText, estimateTitle, gameHours, GOODS_COLUMNS, lotTitle, PROFIT_HEAD_TITLE, saleEstimate, surveyPlacesLeft, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
 import { contractRow } from "./contract-row";
 import { buyChart, chartsOnSale, sheetAt, sheetId, sheetTiles, type Sheet, type SheetOffer } from "../sim/charts";
-import { MapView, observeBox } from "./map-view";
+import { mapScene, MapView, observeBox } from "./map-view";
 import { toPx, type Viewport } from "./map-geometry";
 import { token } from "./tokens";
 import { QUESTS, startQuest } from "../sim/quests";
@@ -75,8 +75,7 @@ import { driverName, factionName, goodName, localName, localRole, placeProse, re
 import { commandFailure, stanceTag } from "./format";
 import { seesAll } from "./see-all";
 import { ESCAPE, keyLabel } from "./input-mode";
-import { deskAt, deskRows, payAtDesk, settleAtDesk, type SettlementQuote } from "../sim/crime";
-import { vehicleById } from "../sim/damage";
+import { deskAt } from "../sim/crime";
 
 export type Tab = "people" | "market" | "buyParts" | "sellParts" | "trucks" | "paint" | "contracts" | "charts";
 
@@ -150,11 +149,11 @@ export class TownScreen {
       if (over && this.hoverSheet && sheetId(over) === sheetId(this.hoverSheet)) return;
       if (!over && !this.hoverSheet) return;
       this.hoverSheet = over;
-      this.chartsView.update(this.host.world(), null);
+      this.chartsView.update(mapScene(this.host.world()), null);
     });
     this.chartsView.canvas.addEventListener("pointerleave", () => {
       this.hoverSheet = null;
-      this.chartsView.update(this.host.world(), null);
+      this.chartsView.update(mapScene(this.host.world()), null);
     });
   }
 
@@ -196,6 +195,7 @@ export class TownScreen {
     if (from === null) return this.close();
     this.page = null;
     this.rows.collapse();
+    if (!shopAt(this.host.world())) return this.render();
     this.run((x) => pickTownSection(x, from, null), true);
   }
 
@@ -203,12 +203,13 @@ export class TownScreen {
     if (!this.isOpen()) throw new Error("The town page is closed, so a quest cannot borrow its frame");
     const w = this.host.world();
     const shopId = shopAt(w);
-    if (!shopId) throw new Error("The town page is open away from a shop");
-    const art = this.artKey(shopId);
-    const band = this.bandOf(w, art, shopDef(shopId).kind !== "garage");
+    const place = shopId ?? deskAt(w);
+    if (!place) throw new Error("The town page is open away from a shop and the desk");
+    const art = shopId ? this.artKey(shopId) : (TOWN_ART[place]?.band ?? null);
+    const band = this.bandOf(w, art, shopId ? shopDef(shopId).kind !== "garage" : true);
     const picture = band.querySelector<HTMLElement>(".art-band");
     if (!picture) throw new Error("The town band has no picture strip");
-    return { band, picture, heading: this.heading(shopId), art };
+    return { band, picture, heading: this.heading(place), art };
   }
 
   render(): void {
@@ -295,58 +296,36 @@ export class TownScreen {
   }
 
   private drawDesk(w: World, desk: string): void {
-    this.root.classList.remove("under-quest");
-    this.choices = [{ id: "leave", label: t("town.go.leave"), reason: null, go: () => this.close() }];
+    const underQuest = w.player.quests.live !== null;
+    this.root.classList.toggle("under-quest", underQuest);
+    this.root.classList.toggle("on-section", this.page !== null);
+    if (underQuest) return;
+    this.choices = this.deskChoices(desk);
+    const people = this.page === "people";
     this.root.replaceChildren(
       this.bandOf(w, TOWN_ART[desk]?.band ?? null, true),
       el(
         "div",
         { class: "ink-body" },
-        el("div", { class: "ink-head" }, el("h2", { class: "quest-place" }, siteName(desk))),
-        el("div", { class: "ink-panel" }, this.deskBody(w)),
+        el("div", { class: "ink-head" }, el("h2", { class: "quest-place" }, this.heading(desk)), people ? el("p", { class: "qt-line" }, t("town.line.people")) : null),
+        people ? null : el("div", { class: "ink-panel" }, deskBody(w, (cmd) => this.run(cmd))),
         el("div", { class: "ink-choices quest-choices" }, ...this.choices.map((c, i) => choiceButton(c, i))),
         el("div", { class: "ink-status bad" }, this.error),
       ),
     );
   }
 
-  private deskBody(w: World): HTMLElement {
-    const rows = deskRows(w);
-    const cases = rows.cases.map((c) => this.caseRow(w, c));
-    const ids = rows.cases.map((c) => c.id);
-    const payAll = rows.cases.length > 1 ? el("div", { class: "desk-all" }, this.priceButton(w, t("desk.payAll"), rows.owed, (x) => payAtDesk(x, ids))) : null;
-    const settles = rows.settlements.map((q) => this.settleRow(w, q));
-    return el(
-      "div",
-      { class: "desk-body" },
-      cases.length > 0 ? el("div", { class: "desk-group" }, ...cases, payAll) : null,
-      settles.length > 0 ? el("div", { class: "desk-group" }, ...settles) : null,
-      cases.length === 0 && settles.length === 0 ? el("p", { class: "dim" }, t("desk.empty")) : null,
-    );
+  private deskChoices(desk: string): TownChoice[] {
+    if (this.page === "people") return this.sectionChoices(desk, "people");
+    const people: TownChoice[] = localsAt(desk).length === 0 ? [] : [{ id: "people", label: t("town.go.people"), reason: null, go: () => this.goDeskPeople() }];
+    return [...people, { id: "leave", label: t("town.go.leave"), reason: null, go: () => this.close() }];
   }
 
-  private caseRow(w: World, c: CrimeCase): HTMLElement {
-    const victim = caseVictimName(w, c);
-    return el(
-      "div",
-      { class: "row desk-case" },
-      el("span", {}, t(`desk.case.${c.offense}`, { victim })),
-      el("span", { class: "dim" }, t("desk.filed", { issuer: issuerName(w, c), site: siteName(c.site), when: clock(c.turn).full })),
-      this.priceButton(w, t("desk.pay"), c.owed, (x) => payAtDesk(x, [c.id])),
-    );
-  }
-
-  private settleRow(w: World, q: SettlementQuote): HTMLElement {
-    const short = shortBy(w.player.money, q.price);
-    const reason = q.refusal && q.refusal.id !== "noMoney" ? refusalText(w, q.refusal) : short;
-    const label = [t("desk.settle"), SPACE, priceSpan(q.price, short === null)];
-    return el(
-      "div",
-      { class: "row desk-settle" },
-      el("span", {}, factionName(q.faction)),
-      el("span", { class: "tag bad" }, t("band.hostile")),
-      reasonButton(label, () => this.run((x) => settleAtDesk(x, q.faction)), reason, "", t("desk.settleAfter", { faction: factionName(q.faction) })),
-    );
+  private goDeskPeople(): void {
+    this.page = "people";
+    this.rows.collapse();
+    this.render();
+    this.rows.toTop(this.root);
   }
 
   private bandOf(w: World, art: string | null, freeCells: boolean): HTMLElement {
@@ -664,7 +643,7 @@ export class TownScreen {
     const picked = offers.find((o) => this.sheet && sheetId(o.sheet) === sheetId(this.sheet)) ?? null;
     if (!picked) this.sheet = null;
     this.chartOffers = offers;
-    this.chartsView.update(w, null);
+    this.chartsView.update(mapScene(w), null);
     const buy = picked
       ? this.priceButton(w, t("goods.buy"), picked.price, (x) => buyChart(x, picked.sheet), null, "buy-chart")
       : null;
@@ -689,10 +668,15 @@ export class TownScreen {
   private drawSheets(ctx: CanvasRenderingContext2D, view: Viewport): void {
     const trace = (sheet: Sheet) => {
       const b = sheetTiles(this.host.world().size, sheet);
-      const from = toPx(view, { x: b.x0, y: b.y0 });
-      const to = toPx(view, { x: b.x1, y: b.y1 });
+      const corners = [
+        { x: b.x0, y: b.y0 },
+        { x: b.x1, y: b.y0 },
+        { x: b.x1, y: b.y1 },
+        { x: b.x0, y: b.y1 },
+      ].map((corner) => toPx(view, corner));
       ctx.beginPath();
-      ctx.rect(from.x, from.y, to.x - from.x, to.y - from.y);
+      corners.forEach((corner, i) => (i === 0 ? ctx.moveTo(corner.x, corner.y) : ctx.lineTo(corner.x, corner.y)));
+      ctx.closePath();
     };
     ctx.lineWidth = 1;
     ctx.strokeStyle = token("--line-strong");
@@ -1203,11 +1187,4 @@ function choiceButton(c: TownChoice, i: number): HTMLElement {
   button.className = c.id === "back" || c.id === "leave" ? "quest-choice compact" : "quest-choice";
   button.dataset.townGo = c.id;
   return button;
-}
-
-function issuerName(w: World, c: CrimeCase): Msg {
-  if (c.issuer.kind === "faction") return factionName(c.issuer.faction);
-  if (c.issuer.kind === "shop") return siteName(c.issuer.shop);
-  const id = c.issuer.id;
-  return w.vehicles.some((v) => v.id === id) ? vehicleTitle(w, vehicleById(w, id)) : t("log.someDriver");
 }

@@ -2,7 +2,7 @@ import type RAPIER from '@dimforge/rapier3d-compat';
 import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
 import type { Car } from './drive';
-import { computeClosingSpeed, locateCrashContact, type CrashGeometry } from '../sim/crash-contact';
+import { computeClosingSpeed, locateCrashContact, type CrashApproach, type CrashGeometry } from '../sim/crash-contact';
 import { dist, type Vec } from '../sim/vec';
 import { headingOf, rotateBy } from './frames';
 import type { Vehicle, World } from '../sim/types';
@@ -12,7 +12,7 @@ const D = PHYSICS.driver;
 const DT = 1 / PHYSICS.stepsPerSecond;
 
 export const GROUND = 'ground';
-export type Crash = { a: string; b: string; impact: number; contact: CrashGeometry; step: number };
+export type Crash = { a: string; b: string; impact: number; contact: CrashGeometry; approach: CrashApproach | null; step: number };
 
 export type CrashPair = { a: string; b: string; first: number; other: number; unitA: number; unitB: number };
 
@@ -35,7 +35,7 @@ export function captureGroundCrash(physics: RAPIER.World, state: World, owner: {
   const a = owner.a;
   const vehicle = state.vehicles.find((v) => v.id === a);
   if (!vehicle) throw new Error(`Unknown crash vehicle ${a}`);
-  const hits: { impact: number; contact: CrashGeometry }[] = [];
+  const hits: { impact: number; contact: CrashGeometry; approach: null }[] = [];
   physics.contactPair(physics.getCollider(first), physics.getCollider(ground), (manifold, flipped) => {
     const raw = manifold.normal();
     const sign = flipped ? -1 : 1;
@@ -44,7 +44,7 @@ export function captureGroundCrash(physics: RAPIER.World, state: World, owner: {
     const points = readManifoldPoints(manifold, flipped);
     if (points.a.length === 0) return;
     const local = flipped ? manifold.localNormal2() : manifold.localNormal1();
-    hits.push({ impact, contact: { a: locateCrashContact(vehicle.chassisId, owner.unit, points.a, { x: local.x, y: local.z }), b: null } });
+    hits.push({ impact, approach: null, contact: { a: locateCrashContact(vehicle.chassisId, owner.unit, points.a, { x: local.x, y: local.z }), b: null } });
   });
   hits.sort((x, y) => y.impact - x.impact);
   return hits[0] ? { a, b: GROUND, ...hits[0] } : null;
@@ -74,9 +74,9 @@ function readManifoldPoints(manifold: RAPIER.TempContactManifold, flipped: boole
 
 type CrashSide = { vehicle: Vehicle; unit: number; motion: ImpactMotion };
 
-function readCrashContact(world: RAPIER.World, first: RAPIER.Collider, second: RAPIER.Collider, sideA: CrashSide, sideB: CrashSide | null, motionB: ImpactMotion): { impact: number; contact: CrashGeometry } | null {
+function readCrashContact(world: RAPIER.World, first: RAPIER.Collider, second: RAPIER.Collider, sideA: CrashSide, sideB: CrashSide | null, motionB: ImpactMotion): { impact: number; contact: CrashGeometry; approach: CrashApproach | null } | null {
   const motionA = sideA.motion;
-  const hits: { impact: number; contact: CrashGeometry }[] = [];
+  const hits: { impact: number; contact: CrashGeometry; approach: CrashApproach | null }[] = [];
   world.contactPair(first, second, (manifold, flipped) => {
     const raw = manifold.normal();
     const sign = flipped ? -1 : 1;
@@ -89,10 +89,16 @@ function readCrashContact(world: RAPIER.World, first: RAPIER.Collider, second: R
       a: locateCrashContact(sideA.vehicle.chassisId, sideA.unit, points.a, rotateToBody(normal, motionA.heading)),
       b: sideB ? locateCrashContact(sideB.vehicle.chassisId, sideB.unit, points.b, rotateToBody({ x: -normal.x, y: -normal.y }, motionB.heading)) : null,
     };
-    hits.push({ impact, contact });
+    hits.push({ impact, contact, approach: sideB ? driveIns(motionA, motionB, normal) : null });
   });
   hits.sort((a, b) => b.impact - a.impact);
   return hits[0] ?? null;
+}
+
+function driveIns(motionA: ImpactMotion, motionB: ImpactMotion, normal: Vec): CrashApproach {
+  const length = Math.hypot(normal.x, normal.y);
+  const along = (m: ImpactMotion) => (m.velocity.x * normal.x + m.velocity.z * normal.y) / length;
+  return { a: along(motionA), b: -along(motionB) };
 }
 
 export function captureImpactMotion(body: RAPIER.RigidBody): ImpactMotion {

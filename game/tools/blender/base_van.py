@@ -47,6 +47,7 @@ from parts_common_base import (  # noqa: E402
     hull_mesh,
     level_sockets,
 )
+from parts_common_core import PROUD  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 302
@@ -218,7 +219,7 @@ def lower_body(kit: Kit) -> None:
 
 def upper_body(kit: Kit) -> None:
     """The glasshouse from the raked windshield to the tail: leaning sides, round roof edges and a flat roof."""
-    sections = [(x, upper_profile(ROOF, half)) for x, half in tail_sections()]
+    sections = [(x + PROUD * (k == 0), upper_profile(ROOF, half)) for k, (x, half) in enumerate(tail_sections())]
     sections += [(x, upper_profile(rake_z(x), SIDE)) for x in (RAKE_TOP + (COWL_X - RAKE_TOP) * s for s in (0.0, 0.25, 0.5, 0.75))]
     sections += [(COWL_X, upper_profile(BELT, SIDE))]
     loft_x(kit, "upper_body", sections, "paint")
@@ -277,27 +278,30 @@ def nose(kit: Kit) -> None:
     rim = (face, FRONT + 0.03)
     for sign, s in ((1, "l"), (-1, "r")):
         ys = sorted((sign * BEZEL_Y[0], sign * BEZEL_Y[1]))
-        slab(kit, f"bezel_back_{s}", (face, FRONT + 0.005), (ys[0], ys[1]), BEZEL_Z, "under")
+        inset = (ys[0] + PROUD, ys[1] - PROUD)
+        slab(kit, f"bezel_back_{s}", (face, FRONT + 0.005), inset, (BEZEL_Z[0] + PROUD, BEZEL_Z[1] - PROUD), "under")
         lamp_y = (BEZEL_Y[0] + BEZEL_Y[1]) / 2
         for i in range(2):
             z0 = BEZEL_Z[0] + RIM + i * (LAMP_H + RIM)
             lens = sorted((sign * (lamp_y - LAMP_W / 2 + LAMP_GAP), sign * (lamp_y + LAMP_W / 2 - LAMP_GAP)))
             slab(kit, f"lamp{i}_{s}", (FRONT, FRONT + 0.008), lens, (z0 + LAMP_GAP, z0 + LAMP_H - LAMP_GAP), "light")
         lamp_top = BEZEL_Z[0] + 2 * (LAMP_H + RIM)
-        for i, z in enumerate((BEZEL_Z[0], BEZEL_Z[0] + LAMP_H + RIM, lamp_top)):
-            slab(kit, f"bezel_rim{i}_{s}", rim, (ys[0], ys[1]), (z, z + RIM if i < 2 else BEZEL_Z[1]), "chrome")
-        for i, y in enumerate((BEZEL_Y[0], BEZEL_Y[1] - (BEZEL_Y[1] - BEZEL_Y[0] - LAMP_W) / 2)):
-            width = (BEZEL_Y[1] - BEZEL_Y[0] - LAMP_W) / 2
-            slab(kit, f"bezel_post{i}_{s}", rim, sorted((sign * y, sign * (y + width))), BEZEL_Z, "chrome")
+        rims = [(z, z + RIM if i < 2 else BEZEL_Z[1]) for i, z in enumerate((BEZEL_Z[0], BEZEL_Z[0] + LAMP_H + RIM, lamp_top))]
+        for i, z in enumerate(rims):
+            slab(kit, f"bezel_rim{i}_{s}", rim, (ys[0], ys[1]), z, "chrome")
+        width = (BEZEL_Y[1] - BEZEL_Y[0] - LAMP_W) / 2
+        for i, (below, above) in enumerate(zip(rims, rims[1:])):
+            for j, y in enumerate((BEZEL_Y[0], BEZEL_Y[1] - width)):
+                slab(kit, f"bezel_post{i}{j}_{s}", rim, sorted((sign * y, sign * (y + width))), (below[1], above[0]), "chrome")
         slab(kit, f"turn_lamp_{s}", (face, FRONT + 0.02), sorted((sign * (BEZEL_Y[0] + 0.06), sign * (BEZEL_Y[1] - 0.06))), (BUMPER[1], BEZEL_Z[0]), "amber")
     grille_y = BEZEL_Y[0] - 0.02
-    slab(kit, "grille", (face, FRONT + 0.005), (-grille_y, grille_y), BEZEL_Z, "under")
+    slab(kit, "grille", (face, FRONT + 0.005), (-grille_y + PROUD, grille_y - PROUD), (BEZEL_Z[0] + PROUD, BEZEL_Z[1] - PROUD), "under")
     bar = 0.04
     for i in range(4):
         z = BEZEL_Z[0] + (BEZEL_Z[1] - BEZEL_Z[0] - bar) * i / 3
         slab(kit, f"grille_bar{i}", (face, FRONT + 0.025), (-grille_y, grille_y), (z, z + bar), "chrome")
     for i, y in enumerate((-0.35, 0.0, 0.35)):
-        slab(kit, f"grille_post{i}", (face, FRONT + 0.02), (y - bar / 2, y + bar / 2), BEZEL_Z, "chrome")
+        slab(kit, f"grille_post{i}", (face, FRONT + 0.02), (y - bar / 2, y + bar / 2), (BEZEL_Z[0] + bar, BEZEL_Z[1] - bar), "chrome")
     slab(kit, "bumper", (FRONT - 0.04, G.half_x), (-SIDE + 0.06, SIDE - 0.06), BUMPER, "chrome")
 
 

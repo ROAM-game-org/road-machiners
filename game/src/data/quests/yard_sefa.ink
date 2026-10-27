@@ -43,10 +43,10 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
   ~ heard_kiln = true
   -> hub
 + [What does the Yard turn out?]
-  Scrap and parts. The crews cut down the stacks under the crane, two crates of scrap for every crate of parts worth keeping.
-  The cutting eats tools. The tools come from Nose, and Nose wants our scrap to make them. That's all we are, a circle with a crane in it.
+  Scrap and parts. The crews cut down the stacks under the cranes, two crates of scrap for every crate of parts worth keeping.
+  The cutting eats tools. The tools come from Nose, and Nose wants our scrap to make them. That's all we are, a circle with cranes in it.
   { works_down():
-    The crane's down. Nothing comes off the stacks until it swings again, and the crews sit on my beans.
+    The cranes are down. Nothing comes off the stacks until they swing again, and the crews sit on my beans.
   }
   { short_of("tools"):
     The crews are out of tools. They cut with what's left, which is slow, and my mother says loud.
@@ -68,7 +68,7 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
   ~ heard_pguns = true
   -> hub
 + {heard_pguns and not asked_pguns} [What else do you hear about Pierce?]
-  That Pierce sold the <term=old_army>Old Army</term>'s guns north to <term=scrapjaw>Scrapjaw</term>, then made every driver buy a gun to get paper. I hear it from two drivers who each swear the other one lied. It's good business, if it's true. A man who sells the fire and the bucket never starves.
+  That Pierce sold the <term=old_army>Old Army</term>'s guns north-west to <term=scrapjaw>Scrapjaw</term>, then made every driver buy a gun to get paper. I hear it from two drivers who each swear the other one lied. It's good business, if it's true. A man who sells the fire and the bucket never starves.
   ~ note("talkPierceGuns")
   ~ asked_pguns = true
   -> hub
@@ -103,7 +103,7 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
   - else:
     That hollow is ours. My children found her ruts the week she went quiet. My men put a chain on that cannon and found the gun too heavy to drag up the slope. They cut the chain loose and went home for a torch.
   }
-  A broken Nose rod is worth more than a whole one. The Yard forges proper brake rods and sells them to Nose drivers, and a cheap rod that snapped on an Army wagon sells a great many proper ones. That's all we are.
+  A broken Nose rod is worth more than a whole one. The Yard forges proper brake rods and sells them to Nose drivers, and a cheap rod that snapped on an Army wagon sells a great many proper ones.
   { wagon_rod == "bent":
     You beat the face off it, so I'm paying for the place more than the steel.
   }

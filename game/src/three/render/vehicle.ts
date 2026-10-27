@@ -1,5 +1,6 @@
 
 import { CLOUD_SHADOWS } from './cloudShadows';
+import { MODEL_FILL } from './modelFill';
 import * as THREE from 'three';
 import { chassisDef, type TruckPaint } from '../../data/chassis';
 import { isShield, partDef, type PartDef, type PartKind } from '../../data/parts';
@@ -165,7 +166,10 @@ export class VehicleView {
 
   private poseRear(f: VehicleFrame, dt: number): void {
     const rear = this.units[1];
-    if (Boolean(rear) !== Boolean(f.rear)) throw new Error(`A view of ${this.units.length} units got a frame ${f.rear ? 'with' : 'without'} a rear unit`);
+    if (Boolean(rear) !== Boolean(f.rear)) {
+      if (this.pending) return;
+      throw new Error(`A view of ${this.units.length} units got a frame ${f.rear ? 'with' : 'without'} a rear unit`);
+    }
     if (!rear || !f.rear) return;
     const inverse = this.root.quaternion.clone().invert();
     rear.root.position.set(f.rear.pos.x - f.pos.x, f.rear.pos.y - f.pos.y, f.rear.pos.z - f.pos.z).applyQuaternion(inverse);
@@ -380,7 +384,7 @@ export class VehicleView {
   }
 
   private finishLook(merged: THREE.Group[]): void {
-    if (this.scene === 'world') CLOUD_SHADOWS.shadeTree(this.root);
+    if (this.scene === 'world') for (const shade of [CLOUD_SHADOWS, MODEL_FILL]) shade.shadeTree(this.root);
     const plain = [...this.silhouettes];
     this.units.forEach((unit, i) => this.cutArmor(unit, merged[i], plain));
     if (this.scene === 'portrait') {
@@ -861,7 +865,9 @@ export function hidesInside(v: Pick<Vehicle, 'chassisId'>, item: GridItem): bool
   if (inCargoBay(v, item)) return true;
   if (item.kind !== 'part') return false;
   const def = partDef(item.part.defId);
-  return def.kind === 'core' && (def.role === 'transmission' || def.role === 'tank') && !chassisDef(v.chassisId).showsCores;
+  const chassis = chassisDef(v.chassisId);
+  if (def.kind === 'engine' && isMounted(v.chassisId, item)) return !chassis.showsEngine;
+  return def.kind === 'core' && (def.role === 'transmission' || def.role === 'tank') && !chassis.showsCores;
 }
 
 function inCargoBay(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {

@@ -224,6 +224,8 @@ export function BROKEN_WING_POINT(along: number, across: number): Vec {
   return { x: BROKEN_WING.road.x + c * along - s * across, y: BROKEN_WING.road.y + s * along + c * across };
 }
 
+export const RETIRED_SITES: readonly string[] = ['burnt-convoy', 'podfield', 'ridge-wrecks', 'canyon-bridge', 'south-lock', 'broken-wing'];
+
 export const REGION = {
   name: "Icarus",
   size: 120 * MAP_SCALE,
@@ -328,8 +330,10 @@ export const REGION = {
       { x: 77, y: 24 },
       { x: 89, y: 26 },
       { x: 96.04384, y: 30.93501 },
+      { x: 94.7, y: 35.7 },
+      { x: 97.81, y: 40.36 },
       { x: 102, y: 35 },
-    ], [0, 13]),
+    ], [0, 15]),
     scaleRoad([
       { x: 16, y: 94 },
       { x: 23.79885, y: 90.5103 },
@@ -343,8 +347,9 @@ export const REGION = {
       { x: 95, y: 78 },
       { x: 103, y: 70 },
       { x: 104.88672, y: 58.01449 },
+      { x: 105.18, y: 40.98 },
       { x: 102, y: 35 },
-    ], [0, 9, 11]),
+    ], [0, 9, 12]),
     scaleRoad([
       pinnedTo({ x: 28, y: 64 }, besideOrchard(28, 64)),
       { x: 36, y: 61 },

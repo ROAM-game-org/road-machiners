@@ -142,8 +142,8 @@ async function cards(ctx: Ctx): Promise<void> {
 
 async function findCard(ctx: Ctx, value: string | undefined): Promise<Card> {
   const issue = number(value);
-  const card = (await ctx.github.cards()).find((row) => row.issue === issue);
-  if (card === undefined) throw new Error(`No card for #${issue} on the board.`);
+  const card = await ctx.github.card(issue);
+  if (card === null) throw new Error(`No card for #${issue} on the board.`);
   return card;
 }
 
@@ -264,7 +264,11 @@ function playtestLines(playtest: PlaytestState, runs: number): string[] {
 }
 
 function failures(ctx: Ctx): void {
-  printRows(readState(ctx.statePath).failures.map((row) => `${row.at} ${row.stage}${row.issue === null ? '' : ` #${row.issue}`}: ${row.error.split('\n')[0]} (cause ${causeText(row.cause)}, log ${row.log ?? 'none'})${row.batch === undefined ? '' : ` batch ${row.batch.map((issue) => `#${issue}`).join(',')}`}`));
+  printRows(readState(ctx.statePath).failures.map((row) => `${row.at} ${row.stage}${row.issue === null ? '' : ` #${row.issue}`}: ${row.error.split('\n')[0]} (cause ${causeText(row.cause)}, log ${row.log ?? 'none'})${issueList(' batch', row.batch)}${issueList(' cleared', row.cleared)}`));
+}
+
+function issueList(name: string, issues: number[] | undefined): string {
+  return issues === undefined ? '' : `${name} ${issues.map((issue) => `#${issue}`).join(',')}`;
 }
 
 function stuckRecords(ctx: Ctx): void {

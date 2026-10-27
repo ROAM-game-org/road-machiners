@@ -7,7 +7,7 @@ import { isKnockedOut } from './defeat';
 import { cancelJob } from './jobs';
 import { defyThreat, finishGoal, topGoal } from './npc-activities';
 import { decide, firepower, lootTaken, perceiveDanger } from './npc-decisions';
-import { claimantOf, inLootReach, isStockGoal, jobTarget, lootBlocker, lootClaimedBy, salvageInRange, salvagePlace } from './salvage';
+import { claimantOf, inLootReach, isStockGoal, lootBlocker, lootClaimedBy, salvageInRange, salvagePlace, worksOn } from './salvage';
 import { addState, boundTo, endState, lootWarningData, stateOf } from './states';
 import { inTowReach } from './tow';
 import { sameCompany } from './companies';
@@ -132,7 +132,7 @@ export function fightOver(world: World, npc: Vehicle, other: Vehicle, reason: Go
 }
 
 export function leaveLoot(world: World, v: Vehicle, targetId: string, reason: GoalReason): void {
-  if (jobTarget(v) === targetId) cancelJob(world, v);
+  if (worksOn(v, targetId)) cancelJob(world, v);
   if (!v.brain) return;
   v.brain.noticed[`salvageSeen:${targetId}`] = world.turn;
   if (isLootGoalOn(topGoal(v), targetId)) finishGoal(world, v, reason);

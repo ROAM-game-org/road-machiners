@@ -24,18 +24,18 @@ VAR asked_glare = false
 = hub
 # checkpoint: start.hub
 + [What do you do here?]
-  I keep the Army's trucks running. Anybody else's too, if they bring them to my bench. Engines, plate, mounts, whatever breaks. I can tell what's wrong with a truck by the sound of it pulling in.
+  I keep my share of the Army's trucks running. Anybody else's too, if they bring them to my bench. Engines, plate, mounts, whatever breaks. I can tell what's wrong with a truck by the sound of it pulling in.
   -> hub
 + [Any advice for my truck?]
   Every part does one job and fails at another. Heavy plate stops rounds, but it eats your speed. A big gun eats your deck on top of that. So buy what the road needs, not what shines on the shelf. And before you look at your guns, look at your brake rods.
   ~ heard_swivel = true
   -> hub
 + [Where do I find cheap parts?]
-  The Salvage Yard, a way south of here. The crews strip whatever gets towed in, so parts go for next to nothing. You'll have to put up with the smell of burnt oil. For real plate you want the Fallen Sun, the big hull in the crater. I say that through my teeth.
+  The Salvage Yard, a way south-west of here. The crews cut the scrap stacks under the crane all week, so parts go for next to nothing. You'll have to put up with the smell of burnt oil. For real plate you want the Fallen Sun, the big hull in the crater. I say that through my teeth.
   ~ heard_sun = true
   -> hub
 + [Where can I get clean water?]
-  Green Pit, out past the road. It's a pump outpost round an old cistern, and they pull the water up from deep rock and sell it by the can. It's clean, and it isn't cheap. Bring M's.
+  Green Pit, out past the road. It's a pump town round an old cistern. Their pumps pull the water up from deep rock, and they sell it by the can. It's clean, and it isn't cheap. Bring M's.
   ~ note("greenPit")
   -> hub
 + {heard_swivel and not asked_rods} [Why check brake rods before guns?]

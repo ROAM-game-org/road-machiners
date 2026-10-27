@@ -25,7 +25,7 @@ import type { NpcState, SalvageStock, Vehicle, World } from "../sim/types";
 import { REGION } from "../data/region";
 import { clock, vehicleName } from "./format";
 import { celsius, distanceText, engineCelsius, fuelLiters, hp, kph, moneyMsg } from "./units";
-import { canAbandonRun, furyRoadReadout, outpostNear, reachedOutpostAt } from "../sim/fury-road";
+import { canAbandonRun, chaosHighwayReadout, outpostNear, reachedOutpostAt } from "../sim/chaos-highway";
 import { ENGINE_HEAT } from "../data/wear";
 import type { IconName } from "./cards";
 import { contextKey, type ContextAction } from './hud';
@@ -389,6 +389,7 @@ export function getHudReadout(w: World) {
   ];
   return {
     speed: kph(me.speed),
+    heading: me.heading,
     maxSpeed: kph(steps[steps.length - 1].speed),
     maxSpeedTip: speedTip(kph(steps[0].speed), speedRows(weather.text, steps), notes),
     manual: me.direct,
@@ -403,7 +404,7 @@ function coreBurning(w: World, me: Vehicle): boolean {
 }
 
 function runResources(w: World): Readout[] {
-  const run = furyRoadReadout(w);
+  const run = chaosHighwayReadout(w);
   if (!run) return [];
   const left = distanceText(run.toOutpost);
   const tip = t("readout.runTip", { stretch: run.stretch, left, site: siteName(run.outpostId) });

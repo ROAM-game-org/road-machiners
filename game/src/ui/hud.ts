@@ -1,6 +1,6 @@
 
 import { Drawers } from "./drawers";
-import { keyLabel, phoneMode, RECENTER_KEY, touchMode } from "./input-mode";
+import { keyCap, keyLabel, phoneMode, RECENTER_KEY, touchMode } from "./input-mode";
 import { uiSize } from "./ui-size";
 import { escortStatus, type EscortContract } from "../sim/escort-job";
 import { callError, DialoguePanel, type DialogueHost } from "./dialogue";
@@ -8,10 +8,11 @@ import { markError } from "../sim/detect";
 import { hasExplorationMap, modeRules } from "../sim/settings";
 import { playerCanAct } from "../sim/world";
 import type { CrimeCase, Vehicle, World } from "../sim/types";
-import { openCasesOn } from "../sim/crime";
+import { caseOwed, knownCasesOn } from "../sim/crime";
 import { workOf, type Work } from "../sim/states";
 import { isAutoPatch } from "../sim/jobs";
-import { bottomLeft, disabledWith, el, isBrowserChord, panel, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
+import { gaveUp } from "../sim/defeat";
+import { bottomLeft, disabledWith, el, panel, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { LogPanel } from "./log";
 import {
   claimRivalMark,
@@ -26,8 +27,7 @@ import {
   workLabel,
   workProgress,
   formatNpcCargo,
-  formatNpcLookOver,
-  formatNpcMark,
+  formatNpcMarked,
   formatNpcTraits,
   wantedBounty,
   formatVehicleState,
@@ -36,9 +36,11 @@ import {
   stanceTag,
   caseVictimName,
 } from "./format";
-import { FeedbackForm, type FeedbackKind } from "./game-menu";
+import { FEEDBACK_URL } from "../config";
+import { gameContext } from "../three/error-report";
+import { feedbackCorner, FeedbackForm } from "./feedback-form";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
-import { createIcon, createSpeedDial, repairingPart } from "./cards";
+import { createCompassDial, createIcon, createSpeedDial, repairingPart } from "./cards";
 import { aimMarks, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
 import { createSwitch } from "./switch";
@@ -46,8 +48,9 @@ import { Tips, type TipSwitch } from "./tips";
 import { moneyEl } from "./units";
 import { playerVehicle } from "../sim/damage";
 import { playerGuard } from "../sim/hire";
-import { affordableRanks, basicSkill, hasBasic, pendingPerkPairs } from "../sim/progress";
-import { canLookOver } from "../sim/look-over";
+import { affordableRanks, basicSkill, hasBasic, hasPerk, pendingPerkPairs } from "../sim/progress";
+import type { Refusal } from "../sim/types";
+import { lookOverError } from "../sim/look-over";
 import { douseBlock, type DouseBlock } from "../sim/engine-heat";
 import { firstAidBlock, type FirstAidBlock } from "../sim/jobs";
 import { firstAidTurns, firstAidTurnSupplies } from "../sim/health";
@@ -58,6 +61,8 @@ import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
 import type * as THREE from "three";
 import { dist } from "../sim/vec";
 import { PORTRAIT_STEP_MS, TruckPortraits } from "../three/render/truckPortrait";
+import { GARAGE_STEP_MS, GarageRenders } from "../three/render/garageRender";
+import { backgroundNeeds } from "./garage-draw";
 import { playerSees } from "../sim/vision";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, verbatim, type Msg } from "../text/msg";
@@ -130,7 +135,6 @@ type HudActions = {
   aimState: (vehicleId: string) => AimState;
 };
 export type CardAction = 'mark' | 'lookOver';
-export type CameraMode = "centered" | "auto";
 
 const TOAST_MS = 3500;
 const CONDITION_ROWS = 12;
@@ -165,7 +169,7 @@ export function mapInstrument(w: World, busy: boolean, openMap: () => void): HTM
   return [
     el(
       "button",
-      { class: "instrument-button", "aria-disabled": busy ? "true" : undefined, onclick: () => !busy && openMap(), title: busy ? TURN_PLAYING : keyLabel(t("map.full"), "K") },
+      { class: "instrument-button", "aria-disabled": busy ? "true" : undefined, onclick: () => !busy && openMap(), title: busy ? TURN_PLAYING : keyLabel(t("map.full"), "M") },
       t("map.full"),
     ),
   ];
@@ -179,11 +183,14 @@ export class Hud {
   private top = panel("instruments", bottomLeft());
   private clockSlot = el("div", { class: "instrument-clock", role: "timer", title: t("hud.clockTitle") });
   private dialSlot = el("div", { class: "speed-dial-slot" });
+  private compassSlot = el("div", { class: "compass-slot" });
   private maxSpeed = new MaxSpeedView();
-  private speedSlot = el("div", { class: "speedometer" }, this.dialSlot, this.maxSpeed.root);
+  private speedSlot = el("div", { class: "speedometer" }, this.compassSlot, this.dialSlot, this.maxSpeed.root);
   private readoutSlot = el("div", { class: "readouts" });
   private actionSlot = el("div", { class: "instrument-actions" });
   private readonly portraits: TruckPortraits;
+  readonly garage: GarageRenders;
+  private garageWorld: World | null = null;
   private readonly condition: TruckConditionView;
   private haulerGauge = new HaulerGauge();
   private readonly inspected: TruckConditionView;
@@ -196,8 +203,8 @@ export class Hud {
   private log = new LogPanel();
   private info = panel("info");
   private infoBody = el("div", { class: "info-content" });
-  private feedback = panel("feedback", topLeft());
-  private feedbackForm = new FeedbackForm((text) => this.toast(text));
+  private feedbackForm = new FeedbackForm(uiRoot(), (text) => this.toast(text), (url, init) => fetch(url, init), FEEDBACK_URL, gameContext);
+  private feedback = feedbackCorner(this.feedbackForm, topLeft());
   private action = panel("action");
   private toastBox = panel("toast");
   private rescue = panel("rescue notice", topCenter());
@@ -205,9 +212,7 @@ export class Hud {
   private truckStack = el("div", { class: "truck-stack", "data-drawer-frame": "truck" });
   private stranded = panel("stranded notice", this.truckStack);
   private recenter = panel("recenter", bottomLeft());
-  private cameraSwitch = panel("camera-mode", topRight());
   private tips = new Tips(window.localStorage, topCenter(), () => this.toast(t("hud.tipsOff")));
-  cameraMode: CameraMode = "auto";
   private readonly drawers = new Drawers(uiRoot(), () => this.drawerMoved());
   private toastTimer: number | null = null;
 
@@ -283,6 +288,7 @@ export class Hud {
 
   constructor(private actions: HudActions, private radio: RadioPanel, renderer: THREE.WebGLRenderer) {
     this.portraits = new TruckPortraits(renderer);
+    this.garage = new GarageRenders(renderer);
     this.condition = new TruckConditionView(this.portraits, CONDITION_ROWS);
     this.inspected = new TruckConditionView(this.portraits, null);
     this.portraits.onReady((vehicleId) => {
@@ -308,67 +314,13 @@ export class Hud {
     this.toastBox.style.display = "none";
     this.rescue.style.display = "none";
     this.knockedOut.style.display = "none";
-    this.knockedOut.append(el("span", { class: "bad" }, t("actBlock.knockedOut")));
     this.stranded.style.display = "none";
     this.recenter.style.display = "none";
     this.recenter.append(el("button", { onclick: () => actions.recenter() }, t("hud.recenter"), el("kbd", { class: "key no-touch" }, verbatim(RECENTER_KEY))));
-    this.showCameraMode();
-    window.addEventListener("keydown", (e) => {
-      if (e.code === "KeyV" && !isBrowserChord(e) && !document.activeElement?.matches("input, select, textarea")) this.toggleCameraMode();
-    });
-    const feedbackMenu = el("details", {});
-    const feedbackEntry = (kind: FeedbackKind, text: Msg) =>
-      el(
-        "button",
-        {
-          class: "btn-s",
-          onclick: () => {
-            feedbackMenu.removeAttribute("open");
-            this.feedbackForm.open(kind);
-          },
-        },
-        text,
-      );
-    feedbackMenu.append(
-      el(
-        "summary",
-        { title: t("hud.feedbackTitle"), "aria-label": t("hud.feedbackTitle") },
-        t("hud.feedbackMark"),
-      ),
-      feedbackEntry("bug", t("hud.reportBug")),
-      feedbackEntry("idea", t("hud.requestFeature")),
-    );
-    this.feedback.append(feedbackMenu);
-    window.addEventListener("keydown", (e) => {
-      if (e.code !== "Escape") return;
-      feedbackMenu.removeAttribute("open");
-    });
-  }
-
-  toggleCameraMode(): void {
-    this.cameraMode = this.cameraMode === "auto" ? "centered" : "auto";
-    this.showCameraMode();
-  }
-
-  cameraModeLabel(): Msg {
-    return this.cameraMode === "auto" ? t("hud.camAuto") : t("hud.camCentered");
   }
 
   openFeedback(): void {
     this.feedbackForm.open("bug");
-  }
-
-  private showCameraMode(): void {
-    this.cameraSwitch.replaceChildren(
-      createSwitch({
-        on: t("hud.camAuto"),
-        off: t("hud.camCentered"),
-        checked: this.cameraMode === "auto",
-        key: "V",
-        title: t("hud.camTitle"),
-        onclick: () => this.toggleCameraMode(),
-      }),
-    );
   }
 
   showRecenter(on: boolean): void {
@@ -419,7 +371,7 @@ export class Hud {
       el(
         "span",
         { class: "job-label" },
-        t("hud.workLeft", { label, n: work.turnsLeft }),
+        work.queued > 0 ? t("hud.workQueued", { label, n: work.turnsLeft, k: work.queued }) : t("hud.workLeft", { label, n: work.turnsLeft }),
       ),
       el(
         "span",
@@ -457,7 +409,9 @@ export class Hud {
   renderRescue(w: World): void {
     this.dialogue.render(w);
     const r = getRescueReadout(w);
-    this.knockedOut.style.display = rescueOf(r, "knockedOut") ? "" : "none";
+    const down = rescueOf(r, "knockedOut");
+    this.knockedOut.style.display = down ? "" : "none";
+    if (down) this.knockedOut.replaceChildren(el("span", { class: "bad" }, t(gaveUp(playerVehicle(w)) ? "npc.gaveUp" : "actBlock.knockedOut")));
     this.renderMiddle(rescueOf(r, "towed") ?? rescueOf(r, "dragged"));
     this.renderStranded(rescueOf(r, "stranded"));
   }
@@ -499,10 +453,10 @@ export class Hud {
   }
 
   private renderWanted(w: World): void {
-    const cases = openCasesOn(w, w.player.vehicleId);
+    const cases = knownCasesOn(w, w.player.vehicleId);
     this.wanted.style.display = cases.length > 0 ? "" : "none";
     if (cases.length === 0) return this.wanted.replaceChildren();
-    const owed = cases.reduce((sum, c) => sum + c.owed, 0);
+    const owed = cases.reduce((sum, c) => sum + caseOwed(c), 0);
     this.wanted.tabIndex = 0;
     this.wanted.replaceChildren(
       el("div", { class: "wanted-cases" }, ...cases.map((c) => wantedRow(w, c))),
@@ -648,6 +602,7 @@ export class Hud {
       createIcon("truck"),
     );
     this.dialSlot.replaceChildren(dial);
+    this.compassSlot.replaceChildren(createCompassDial(readout.heading));
     this.maxSpeed.render(readout.maxSpeed, readout.maxSpeedTip);
   }
 
@@ -721,19 +676,12 @@ export class Hud {
     );
   }
 
-  private cardButtons(w: World, v: Vehicle): HTMLElement {
-    const own = v.faction === "player";
-    const call = !own && v.brain && modeRules(w).radio ? [el("button", { class: "btn-s", ...disabledWith(callError(w, v.id), () => this.dialogue.callInspected()) }, t("card.call"))] : [];
-    const refusal = markError(w, v.id);
-    const mark = own ? [] : [el("button", { class: "btn-s", ...disabledWith(refusal && refusalText(w, refusal), () => this.actions.cardAction("mark")) }, t("card.mark"))];
-    const close = el("button", { class: "btn-s", "aria-label": t("card.unpin"), title: t("card.unpin"), onclick: () => this.actions.unpin() }, t("hint.closeMark"));
-    return el("span", { class: "info-touch touch-only" }, ...call, ...this.lookOverButton(w, v), ...mark, close);
-  }
-
-  private lookOverButton(w: World, v: Vehicle): HTMLElement[] {
-    if (v.faction === "player" || !hasBasic(w, "lookOver")) return [];
-    const refusal = canLookOver(w, playerVehicle(w), v);
-    return [el("button", { class: "btn-s", ...disabledWith(refusal && refusalText(w, refusal), () => this.actions.cardAction("lookOver")) }, t("card.lookOver"))];
+  private cardButtons(w: World, v: Vehicle): HTMLElement | null {
+    return cardActions(w, v, {
+      call: () => this.dialogue.callInspected(),
+      act: (action) => this.actions.cardAction(action),
+      unpin: () => this.actions.unpin(),
+    });
   }
 
   flushHorn(): void {
@@ -776,10 +724,13 @@ export class Hud {
     const nearest = (a: Vehicle, b: Vehicle) => dist(a.pos, me.pos) - dist(b.pos, me.pos);
     const seen = w.vehicles.filter((x) => x.id !== me.id && playerSees(w, x.pos)).sort(nearest);
     this.portraits.want([me], seen, focus?.id ?? null, w.player.paint);
+    if (this.garageWorld !== w) this.garage.want(backgroundNeeds(w));
+    this.garageWorld = w;
   }
 
   stepPortraits(playing: boolean): void {
     this.portraits.step(PORTRAIT_STEP_MS, playing);
+    if (!playing) this.garage.step(GARAGE_STEP_MS);
   }
 
   portraitSettled(vehicleId: string): boolean {
@@ -812,7 +763,7 @@ function rescueOf<K extends RescueReadout["kind"]>(r: RescueReadout | null, kind
   return r?.kind === kind ? (r as Extract<RescueReadout, { kind: K }>) : null;
 }
 
-function infoHead(w: World, v: Vehicle, hostile: boolean, buttons: HTMLElement): HTMLElement {
+function infoHead(w: World, v: Vehicle, hostile: boolean, buttons: HTMLElement | null): HTMLElement {
   const quiet = [v.brain ? templateName(v.brain.templateId) : null, factionName(v.faction)].filter((part) => part !== null);
   const quietText = list(quiet);
   return el(
@@ -821,8 +772,36 @@ function infoHead(w: World, v: Vehicle, hostile: boolean, buttons: HTMLElement):
     el("span", { class: "info-name" }, v.brain ? driverName(v) : vehicleTitle(w, v)),
     el("span", { class: "info-quiet", title: quietText }, quietText),
     ...(v.faction === "player" ? [] : [el("span", { class: `tag ${hostile ? "bad" : "dim"}` }, stanceTag(w, v, hostile))]),
-    buttons,
+    ...(buttons ? [buttons] : []),
   );
+}
+
+export interface CardHandlers {
+  call: () => void;
+  act: (action: "mark" | "lookOver") => void;
+  unpin: () => void;
+}
+
+function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () => void): HTMLElement {
+  return el("button", { class: "btn-s", ...disabledWith(refusal, onclick) }, label, keyCap(key));
+}
+
+export function cardActions(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement | null {
+  const buttons = v.faction === "player" ? [] : otherTruckButtons(w, v, handlers);
+  if (touchMode()) buttons.push(el("button", { class: "btn-s", "aria-label": t("card.unpin"), title: t("card.unpin"), onclick: handlers.unpin }, t("hint.closeMark")));
+  return buttons.length === 0 ? null : el("div", { class: "info-actions" }, ...buttons);
+}
+
+function otherTruckButtons(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement[] {
+  const buttons: HTMLElement[] = [];
+  if (v.brain && modeRules(w).radio) buttons.push(actionButton(t("card.call"), "T", callError(w, v.id), handlers.call));
+  if (hasBasic(w, "lookOver")) buttons.push(actionButton(t("card.lookOver"), "B", reasonOf(w, lookOverError(w, v.id)), () => handlers.act("lookOver")));
+  if (hasPerk(w, "spotter")) buttons.push(actionButton(t("card.mark"), "N", reasonOf(w, markError(w, v.id)), () => handlers.act("mark")));
+  return buttons;
+}
+
+function reasonOf(w: World, refusal: Refusal | null): Msg | null {
+  return refusal && refusalText(w, refusal);
 }
 
 function wantedMark(w: World, v: Vehicle): HTMLElement | null {
@@ -832,7 +811,7 @@ function wantedMark(w: World, v: Vehicle): HTMLElement | null {
 
 function quietLines(w: World, v: Vehicle): Msg[] {
   if (!v.brain) return [];
-  return [formatNpcPass(w, v), formatNpcTraits(w, v), formatNpcCargo(w, v), formatNpcLookOver(w, v), formatNpcMark(w, v)].filter((line) => line !== null);
+  return [formatNpcPass(w, v), formatNpcTraits(w, v), formatNpcCargo(w, v), formatNpcMarked(w, v)].filter((line) => line !== null);
 }
 
 function shownWork(action: ContextAction | null, work: Work | null): Work | null {

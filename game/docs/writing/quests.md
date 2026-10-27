@@ -11,7 +11,7 @@ A quest is built in three steps: play out the story behind it, write it, then pl
 3. Playtest it with Codex. Run it in the background, with a log:
 
    ```
-   npm run quest:playtest -- pump_agnes --situation "You drive a truck, and you just rolled into a water outpost where a woman is at work." --out tmp/playtest-pump.md > tmp/playtest.log 2>&1 &
+   npm run quest:playtest -- pump_agnes --situation "You drive a truck, and you just rolled into Dustwell, a water town where tankers wait at the pumps." --out tmp/playtest-pump.md > tmp/playtest.log 2>&1 &
    ```
 
    The situation is one or two sentences about what the player sees on arrival. Tell it nothing else, so it plays like a player. The script shows Codex one screen at a time, as the player sees it, and Codex answers with a comment and one choice. It never runs commands or reads the source. The comments follow the rubric in [the playtest prompt](playtest-prompt.md): clarity, voice, choices, pull, consistency and prose. When the story ends, Codex may start over once on a different road. Then it gives three best things, up to five worst problems, a score from 1 to 5 for each criterion by the scale in the prompt, and what would make every criterion a 5. The run's score is the lowest of the six. The notes file holds every screen, comment and pick. `--screens` caps the screens, 40 by default. `--lang ru --prompt docs/writing/playtest-prompt-ru.md` plays the Russian twins with a native Russian reader, who marks every line that reads as a translation with «ПЕРЕВОД:». In Russian the player is agy in place of Codex, since agy reads Russian better, and `--model` then names an agy model. `--player codex` or `--player agy` overrides that choice. Write its situation and `--then` lines in Russian.
@@ -23,7 +23,7 @@ A quest is built in three steps: play out the story behind it, write it, then pl
    ```
    npm run quest:playtest -- intro_arrival first_fall intro_bowl bowl_hattie --situation "You start a new game. You are on foot in a desert, with no water." --then "You patch the engine and drive north. A raider truck opens fire, and you lose the fight." --then "You stay out cold." --then "You walk around Bowl. Hattie has time to talk." --set intro_step=ambush --out tmp/playtest-intro.md > tmp/playtest.log 2>&1 &
    ```
-4. Check every problem it names in the source, then fix the real ones. Rerun the quest checks in [The loop](#the-loop).
+4. Check every problem it names in the source, then fix the real ones. Put every practice, cause and detail the quest states through the [sense check](../lore/README.md#sense-check), since a playtest player cannot see the lore it breaks. Rerun the quest checks in [The loop](#the-loop).
 5. Repeat steps 3 and 4 with a new Codex run each time. A fresh run has not seen the old version. The quest is done when fresh runs with different drivers each score it 5 out of 5.
 
 A run that hits a load error or a broken runner does not count. Fix the error and run again.
@@ -111,10 +111,12 @@ Age of Decadence is the model. Its designer held every quest to three rules: no 
 - Show, do not tell. Give the player what their character sees and let them draw the conclusion. Write "Pell's name is on every line of the ledger" and never "the ledger points at Pell". A fact in the right column records an observation, never a verdict. Narration never states the answer to a clue the player is meant to work out. The character may still judge and guess, like "Somebody paid him lately".
 - Narration in page scenes uses full, concrete sentences. They run through the character's head, as [Writing dialogue](dialogue.md#a-voice-not-a-camera) asks, and every line makes sense to a player who has read only the screens before it. Detail of sight, sound, heat and touch goes where the scene turns. Vary sentence length. A page of three-word sentences reads as a telegram, not a scene.
 - Stay in character. Text never talks about game systems: turns, quests, XP, levels, HP, the map or the player. The words keep their everyday meaning, so "the road turns" and "an old map" are fine. Ordinary numbers are fine. The voice test in `src/test/out-of-character.ts` checks the game phrases.
-- No semicolons, and in English no dashes or stock AI phrases, in narration, speech, choices or notes. [Sentences](dialogue.md#sentences) has the rule and `src/test/prose-tells.ts` the list. A `;` is allowed only to split the cells of a `# row` or `# head` table line.
+- No semicolons, and in English no dashes or stock AI phrases, in narration, speech, choices or notes. [Sentences](dialogue.md#sentences) has the rule and `src/test/prose-tells.ts` the list. Read the rest against the [Humanizer](humanizer.md#how-roam-uses-it) the way its How ROAM uses it section says for fiction. A `;` is allowed only to split the cells of a `# row` or `# head` table line.
 - `<b>` is only for a name or a sum in a written document, like a ledger row. A page carries one or two highlights at most: `<shake>`, `<pop>` or `<color>`, for a physical event or a word the scene introduces.
 - Speech reveals word by word and narration fades in a paragraph at a time, with no tag needed. Give a narration line `# reveal: word` or `char`, `<pause>` or `<now>` only where its timing is the point, like the first link in the intro.
+- Directions use the screen compass: north is the top of the screen in the fixed view. Measure a direction between two places, or from the map centre for a region, with `compassOctant()` in `src/text/compass.ts` on their positions in `REGION`, and never from memory or from the map's own axes. A road or place name that holds a direction word, like the Bowl north road, keeps its word.
 - A word that locals use as if everyone knows it gets a term tip. [Term tips](#term-tips) has the rules.
+- Describe a place at its real scale, never as the few models on the map. [Design](../DESIGN.md) principle 10 and [People and scale](../lore/world.md#people-and-scale) say how big places are. A speaker runs one corner of a place, so "I run the canteen at Green Pit" is right and "I keep the pump at Green Pit" makes the whole town one pump.
 - A rumor goes into the journal with `~ note("<id>")`. Add the id to `NOTE_IDS` in `src/data/locals.ts` first, and its `journalNote.<id>.title`, `from` and `text` to `src/text/en/story.ts` and `src/text/ru/story.ts`.
 
 - Every choice changes something real: what the player learns, what they hold, who knows them or where the story goes. A choice whose options all lead to the same outcome is no choice. Cut it and let the page run on behind Next.
@@ -130,7 +132,7 @@ Water costs here, talk doesn't, and I hear everything that happens in <term=bowl
 ```
 
 ```ts
-'term.bowl': 'A farm town cut in terraces down the inside of an old crater. Canals carry the water to the fields, and the well house sells it by the bucket.',
+'term.bowl': 'A farm town cut in terraces down the inside of an old crater. Canals carry the water to the fields, and the cistern house sells it by the bucket.',
 ```
 
 What a tip may say:
@@ -140,7 +142,7 @@ What a tip may say:
 - A tip adds a fact the line does not say. If Hattie says the Glass Flats are melted ground, the tip says something else about them.
 - A tip never tells a secret, an outcome, a hidden motive or anything a quest lets the player find out. The player discovers those in play.
 - A tip is one or two short, plain sentences, in the voice of narration. It is never a riddle.
-- Every fact in a tip matches `docs/lore/`. Check the lore before you write it.
+- Every fact in a tip matches `docs/lore/` and passes the [sense check](../lore/README.md#sense-check). Check the lore before you write it.
 - A tip is never needed to choose. A fact the player needs for a choice goes in the line itself.
 
 Where to mark a word:
@@ -148,7 +150,7 @@ Where to mark a word:
 - Mark a word only on a line where the player may know everything its tip says. The writer decides this, and the game does not check it.
 - Mark a term once per screen, on its first use.
 - Mark terms in spoken and narrated lines only, never in a choice. Choice buttons print their text as it is, so a mark would show as raw text.
-- When the player later learns more about a term, add a new entry with its own id, like `bowl_well` beside `bowl`. Mark the new id only on lines after the player has learned it. Never change an old entry to hold the new fact.
+- When the player later learns more about a term, add a new entry with its own id, like `bowl_cistern` beside `bowl`. Mark the new id only on lines after the player has learned it. Never change an old entry to hold the new fact.
 - A tip replaces a question whose answer is only a definition, like "What is this place?". Keep the question when its answer is a story, an opinion or a lead.
 
 How to check:

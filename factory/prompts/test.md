@@ -21,6 +21,14 @@ The factory fails the stage if the merge is left unfinished.
 
 You own this stage until the committee can play it.
 Playtest game behavior with the progression recorder, as `CLAUDE.md` says. Use the browser for what the screen shows.
+
+Waiting limits
+Run a playtest, screenshot or test job at most 2 times for one question.
+A recorder run uses at most 600 turns and 1 seed.
+Never raise a script's timeout or wait option to make a slow run finish.
+Stop a screenshot or probe that has not finished in 10 minutes, write what it left unverified into the approval notes and go on.
+The whole stage should finish in 45 minutes.
+
 Fix every problem you find yourself, in this session: a bug, a blocker, or a look that does not match the issue, the task file, the reference images, `game/docs/DESIGN.md` or, for the UI and overlays, `game/docs/ui.md`.
 Commit each fix on the current branch.
 {{fixDocs}}

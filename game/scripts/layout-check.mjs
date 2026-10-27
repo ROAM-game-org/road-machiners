@@ -207,7 +207,10 @@ async function inspectNpc(page, armed) {
     const { runCommand } = await import('/src/ui/console.ts');
     const { partDef } = await import('/src/data/parts.ts');
     const world = structuredClone(runCommand(g.state, 'spawn gunwagon hostile').world);
+    document.querySelector('.tip-off')?.click();
     const npc = world.vehicles.filter((v) => v.brain).at(-1);
+    world.player.ranks.perception = Math.max(world.player.ranks.perception, 1);
+    if (!world.player.perks.includes('spotter')) world.player.perks.push('spotter');
     if (!armed) npc.items = npc.items.filter((it) => !(it.kind === 'part' && partDef(it.part.defId).kind === 'weapon'));
     g.apply(world);
     g.hovered = npc.id;
@@ -234,7 +237,7 @@ const openStartMenu = (page) => page.evaluate(async () => {
   const { chooseStart } = await import('/src/ui/save-screen.ts');
   const { SoundSettings } = await import('/src/ui/sound.ts');
   const sound = new SoundSettings({ setBusVolume: () => {}, setMuted: () => {} }, window.localStorage);
-  const saves = [{ slot: 'slot2', savedAt: 900, turn: 120, mode: 'roaming' }, { slot: 'auto', savedAt: 500, turn: 40, mode: 'furyRoad' }];
+  const saves = [{ slot: 'slot2', savedAt: 900, turn: 120, mode: 'roaming' }, { slot: 'auto', savedAt: 500, turn: 40, mode: 'chaosHighway' }];
   void chooseStart(saves, { requestBoot: () => {}, reload: () => {}, confirm: () => false }, sound);
 });
 
@@ -316,7 +319,7 @@ const STATES = {
   'trade-shortage': { setup: openShortMarket, teardown: closeTown },
   charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown },
   'journal-survey': { setup: openSurveyJournal, teardown: closeSurveyJournal, viewports: [...VIEWPORTS, PHONE] },
-  'world-map': { setup: (page) => key(page, 'KeyK'), teardown: escape },
+  'world-map': { setup: (page) => key(page, 'KeyM'), teardown: escape },
   minimap: { setup: (page) => setMinimap(page, true), teardown: (page) => setMinimap(page, false) },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown },
   'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown },

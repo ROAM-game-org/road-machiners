@@ -24,7 +24,7 @@ import { modeRules } from './settings';
 import { noteDeed } from './relations';
 
 export type WorkLeft = { turnsLeft: number; total: number };
-export type Work = WorkLeft & ({ from: 'job'; job: Job } | { from: 'state'; state: NpcState });
+export type Work = WorkLeft & { queued: number } & ({ from: 'job'; job: Job } | { from: 'state'; state: NpcState });
 
 export type StateKind = {
   refresh(w: World, s: NpcState): boolean;
@@ -308,12 +308,16 @@ function forgetClient(tower: Vehicle, clientId: string): void {
   if (tower.brain) delete tower.brain.noticed[`strandedSeen:${clientId}`];
 }
 
+function jobWork(job: Job): Work {
+  return { from: 'job', job, turnsLeft: job.turnsLeft, total: job.total, queued: job.kind === 'refit' ? job.queue.length : 0 };
+}
+
 export function workOf(w: World, v: Vehicle): Work | null {
-  if (v.job) return { from: 'job', job: v.job, turnsLeft: v.job.turnsLeft, total: v.job.total };
+  if (v.job) return jobWork(v.job);
   for (const state of w.states) {
     if (state.holder !== v.id && state.other !== v.id) continue;
     const left = kindOf(state.kind).work(w, state, v);
-    if (left) return { from: 'state', state, ...left };
+    if (left) return { from: 'state', state, queued: 0, ...left };
   }
   return null;
 }

@@ -26,7 +26,7 @@ import { chooseOn, trackOf } from './tracks';
 import { watchStalls } from './npc-watchdog';
 import { CANNOT_HOLD, canTakeAny, STRIPPED } from './salvage';
 import { beginSearch } from './search';
-import { hiddenUnits, salvageInRange, salvageUnits } from './salvage';
+import { hiddenUnits, salvageInRange, salvageReach, salvageUnits } from './salvage';
 import { knockOutNpc } from './defeat';
 import { chassisDef } from '../data/chassis';
 import { cloneWorld } from './world';
@@ -514,6 +514,7 @@ describe('NPC activities', () => {
       const { w, npc } = createScavenger();
       npc.pos = { ...at };
       npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
+      forceOption('idle', 'scavenge');
       const traits = TRAITS.scavenger as { salvageSites: string[] };
       const saved = traits.salvageSites;
       traits.salvageSites = [territoryId];
@@ -2107,5 +2108,114 @@ describe('ledPoint', () => {
 
   it('never leads past one turn of the investigator\'s driving', () => {
     expect(ledPoint(center, heard, 2, 5)).toEqual({ x: 55, y: 40 });
+  });
+});
+
+describe('a haul ends with its cargo', () => {
+  function hauler(crates: number, wait = true) {
+    const { w, npc } = createTrader();
+    const shipment = { good: 'fuelDrums', from: 'bowl', to: 'nose' };
+    const sell: NpcActivity = { kind: 'sell', targetId: 'nose', destination: { x: 30, y: 30 }, phase: 'travel', reason: 'deliverCargo', shipment };
+    const waiting: NpcActivity = { kind: 'wait', targetId: null, destination: null, phase: 'act', reason: 'awaitEscort', until: w.turn + 50 };
+    npc.brain!.goals = wait ? [sell, waiting] : [sell];
+    npc.items = npc.items.filter((it) => it.kind !== 'good');
+    addGoods(w, npc, 'fuelDrums', crates);
+    return { w, npc };
+  }
+
+  function goalsAfterTurn(w: World, npc: Vehicle): NpcActivity[] {
+    thinkNpc(w, npc);
+    return npc.brain!.goals;
+  }
+
+  it('drops the haul and the escort wait when the last crate is gone', () => {
+    const { w, npc } = hauler(0);
+    const goals = goalsAfterTurn(w, npc);
+    expect(goals.some((g) => g.kind === 'wait' && g.reason === 'awaitEscort')).toBe(false);
+    expect(goals.some((g) => g.shipment)).toBe(false);
+    const reasons = w.events.filter((e) => e.t === 'activity' && e.vehicle === npc.id).map((e) => (e as { reason: string }).reason);
+    expect(reasons.filter((r) => r === 'cargoLost')).toHaveLength(2);
+  });
+
+  it('keeps the haul and the wait while one crate is left', () => {
+    const { w, npc } = hauler(1);
+    const goals = goalsAfterTurn(w, npc);
+    expect(goals.map((g) => g.kind)).toEqual(['sell', 'wait']);
+  });
+
+  it('drops a shipment haul that has no wait', () => {
+    const { w, npc } = hauler(0, false);
+    expect(goalsAfterTurn(w, npc).some((g) => g.shipment)).toBe(false);
+  });
+
+  it('leaves a sell goal with no shipment alone', () => {
+    const { w, npc } = createTrader();
+    npc.brain!.goals = [{ kind: 'sell', targetId: 'nose', destination: { x: 30, y: 30 }, phase: 'travel', reason: 'sellCargo' }];
+    expect(goalsAfterTurn(w, npc)[0]).toMatchObject({ kind: 'sell', reason: 'sellCargo' });
+  });
+
+  it('keeps an empty haul under a flee until the flee ends', () => {
+    const { w, npc } = hauler(0, false);
+    npc.brain!.goals.push({ kind: 'flee', targetId: w.player.vehicleId, destination: { x: 20, y: 20 }, phase: 'travel', reason: 'escapeThreat', perceived: w.turn });
+    thinkNpc(w, npc);
+    expect(npc.brain!.goals[0]).toMatchObject({ kind: 'sell' });
+  });
+
+  it('throws for an escort wait over a base with no shipment', () => {
+    const { w, npc } = createTrader();
+    npc.brain!.goals = [
+      { kind: 'sell', targetId: 'nose', destination: { x: 30, y: 30 }, phase: 'travel', reason: 'sellCargo' },
+      { kind: 'wait', targetId: null, destination: null, phase: 'act', reason: 'awaitEscort', until: w.turn + 50 },
+    ];
+    expect(() => thinkNpc(w, npc)).toThrow(new RegExp(npc.id));
+  });
+});
+
+describe('stock stops and loot detours', () => {
+  function scavengerToStock() {
+    const { w, npc } = createScavenger();
+    const stock: SalvageStock = { id: 'wreck-stop', pos: { x: 30, y: 10 }, radius: 0.6, goods: { scrap: 3 }, parts: [], hidden: emptyHidden() };
+    w.salvage.push(stock);
+    const goal: NpcActivity = { kind: 'scavenge', targetId: stock.id, destination: { ...stock.pos }, phase: 'travel', reason: 'collectSalvage' };
+    npc.brain!.goals = [goal];
+    return { w, npc, stock, goal };
+  }
+
+  it('stops on the approach side of a stock when nothing blocks it', () => {
+    const { w, npc, goal } = scavengerToStock();
+    const stop = getActivityDestination(w, npc, goal)!;
+    expect(stop.y).toBeCloseTo(10, 5);
+    expect(stop.x).toBeLessThan(30);
+  });
+
+  it('stops at a free spot in reach when the approach point is blocked', () => {
+    const { w, npc, stock, goal } = scavengerToStock();
+    const plain = getActivityDestination(w, npc, goal)!;
+    w.obstacles = [...w.obstacles, { id: 'rock-stop', kind: 'rock', pos: { ...plain }, r: 1.2 }];
+    const stop = getActivityDestination(w, npc, goal)!;
+    expect(dist(stop, plain)).toBeGreaterThan(0.5);
+    expect(dist(stop, w.obstacles.find((o) => o.id === 'rock-stop')!.pos)).toBeGreaterThan(1.2 + vehicleStats(w, npc).radius);
+    expect(dist(stop, stock.pos)).toBeLessThanOrEqual(salvageReach(stock.radius));
+  });
+
+  it('a parked truck on a wait goal rolls no loot detour', () => {
+    const { w, npc, stock } = scavengerToStock();
+    const wreck: SalvageStock = { ...stock, id: 'wreck-near', pos: { x: 14, y: 10 } };
+    w.salvage.push(wreck);
+    npc.brain!.goals = [{ kind: 'wait', targetId: null, destination: null, phase: 'travel', reason: 'nothingToDo' }];
+    forceOption('salvageSeen', 'loot');
+    refreshVision(w);
+    thinkNpc(w, npc);
+    expect(npc.brain!.goals.some((goal) => goal.reason === 'lootOnTheWay')).toBe(false);
+  });
+
+  it('a truck driving to a point still rolls the loot detour', () => {
+    const { w, npc, stock } = scavengerToStock();
+    w.salvage.push({ ...stock, id: 'wreck-near', pos: { x: 14, y: 10 } });
+    npc.brain!.goals = [{ kind: 'explore', targetId: null, destination: { x: 40, y: 30 }, phase: 'travel', reason: 'searchSpot' }];
+    forceOption('salvageSeen', 'loot');
+    refreshVision(w);
+    thinkNpc(w, npc);
+    expect(topGoal(npc)?.reason).toBe('lootOnTheWay');
   });
 });

@@ -47,7 +47,7 @@ from parts_common_base import (  # noqa: E402
     level_sockets,
     round_arch,
 )
-from parts_common_core import drawn_wheel  # noqa: E402
+from parts_common_core import PROUD, drawn_wheel  # noqa: E402
 
 SEED = 303
 COLORS = {**BASE_COLORS, "amber": 0xF2A22C, "chrome": 0xC4C9CC}  # PAL.semi.amber and PAL.semi.chrome
@@ -86,7 +86,7 @@ BOARD_H = 0.16
 HOOD_COWL = up(1.68)
 HOOD_MID = up(1.58)
 HOOD_NOSE = up(1.45)
-HOOD_RAISE = 0.02
+HOOD_RAISE = BELT - HOOD_COWL
 WING_CROWN = up(1.27)
 WING_LOW = -0.5
 LAMP_Z = up(1.05)
@@ -105,6 +105,7 @@ FRONT = LENGTH / 2
 BACK = -LENGTH / 2
 BUMPER_BACK = FRONT - 0.16
 LIP_PROUD = 0.01
+POST_SINK = 0.02
 WING_FRONT = FRONT - 0.105
 GRILLE_X = WING_FRONT - 0.03
 FACE_X = GRILLE_X - 0.05
@@ -116,6 +117,7 @@ POST = 0.02
 
 HOOD_HALF = 0.84
 HOOD_LOW = WING_CROWN - 0.01
+HOOD_NOSE_PANEL = 0.3
 WING_IN = 0.78
 WING_OUT = HALF_W - 0.015
 WING_ROUND = 0.22
@@ -154,10 +156,21 @@ def rod(kit: Kit, name: str, a: tuple[float, float, float], b: tuple[float, floa
 
 
 def loft_x(kit: Kit, name: str, sections: list[tuple[float, list[tuple[float, float]]]], mat: str) -> bpy.types.Object:
-    """Joins YZ profiles of equal length at increasing X into one closed mesh, capped at both ends."""
+    """Joins YZ profiles of equal length at increasing X into one closed mesh, capped at both ends.
+
+    Two sections at one X make a step: points they share are one vertex, and the zero-area faces between them are left out.
+    """
     mesh = bpy.data.meshes.new(name)
     bm = bmesh.new()
-    rings = [[bm.verts.new((x, y, z)) for y, z in profile] for x, profile in sections]
+    made: dict[tuple[int, int, int], bmesh.types.BMVert] = {}
+
+    def vert(x: float, y: float, z: float) -> bmesh.types.BMVert:
+        key = (round(x * 1e6), round(y * 1e6), round(z * 1e6))
+        if key not in made:
+            made[key] = bm.verts.new((x, y, z))
+        return made[key]
+
+    rings = [[vert(x, y, z) for y, z in profile] for x, profile in sections]
     if len({len(r) for r in rings}) != 1:
         raise ValueError(f"{name}: loft profiles differ in length")
     bm.faces.new(rings[0])
@@ -166,13 +179,23 @@ def loft_x(kit: Kit, name: str, sections: list[tuple[float, list[tuple[float, fl
     for a, b in zip(rings, rings[1:]):
         for i in range(n):
             j = (i + 1) % n
-            bm.faces.new((a[i], a[j], b[j], b[i]))
+            corners = list(dict.fromkeys((a[i], a[j], b[j], b[i])))
+            if len(corners) < 3 or _area(corners) < 1e-9:
+                continue
+            bm.faces.new(corners)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(mesh)
     bm.free()
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.scene.collection.objects.link(obj)
     return kit._add(obj, name, mat, 0.0)
+
+
+def _area(corners: list[bmesh.types.BMVert]) -> float:
+    total = Vector((0.0, 0.0, 0.0))
+    for k in range(1, len(corners) - 1):
+        total += (corners[k].co - corners[0].co).cross(corners[k + 1].co - corners[0].co)
+    return total.length / 2
 
 
 def round_x(kit: Kit, name: str, radius: float, depth: float, x: float, y: float, z: float, mat: str) -> None:
@@ -205,13 +228,17 @@ def hood_profile(top: float, panel: float, low: float) -> list[tuple[float, floa
 
 def hood(kit: Kit) -> None:
     """A broad hood from the beltline at the cowl to the nose, closed over the engine cells, with a raised centre panel narrowing forward,
-    an overhanging nose lip over the top slot, four louver slots on each side by the cowl and the dark bay block under it."""
-    stations = [COWL_X, 2.2, 2.6, 3.0, FACE_X - 0.08]
+    an overhanging nose lip over the top slot, four louver slots on each side by the cowl and the dark bay block under it.
+    The hood and its rounded nose are one loft: the hood floor steps up to the lip in a single ring pair at X = FACE_X - 0.08."""
+    stations = [COWL_X, 2.2, 2.6, 3.0]
     panel = [0.42 - 0.12 * (COWL_X - x) / (COWL_X - FACE_X) for x in stations]
-    loft_x(kit, "hood", [(x, hood_profile(hood_top(x), p, HOOD_LOW)) for x, p in zip(stations, panel)], "paint")
+    joint = FACE_X - 0.08
     nose_r = 0.08
-    lip = [(FACE_X - 0.08, HOOD_NOSE)] + [(GRILLE_X - nose_r + nose_r * math.sin(a), HOOD_NOSE - nose_r + nose_r * math.cos(a)) for a in (math.pi * k / 10 for k in range(5))]
-    loft_x(kit, "hood_nose", [(x, hood_profile(top, 0.3, LIP_BOTTOM)) for x, top in lip], "paint")
+    lip = [(joint, HOOD_NOSE)] + [(GRILLE_X - nose_r + nose_r * math.sin(a), HOOD_NOSE - nose_r + nose_r * math.cos(a)) for a in (math.pi * k / 10 for k in range(5))]
+    sections = [(x, hood_profile(hood_top(x), p, HOOD_LOW)) for x, p in zip(stations, panel)]
+    sections.append((joint, hood_profile(HOOD_NOSE, HOOD_NOSE_PANEL, HOOD_LOW)))
+    sections += [(x, hood_profile(top, HOOD_NOSE_PANEL, LIP_BOTTOM)) for x, top in lip]
+    loft_x(kit, "hood", sections, "paint")
     for i in range(4):
         z = hood_top(2.1) - 0.13 - 0.045 * i
         mirrored(kit, f"hood_louver{i}", (0.3, 0.01, 0.018), 2.12, HOOD_HALF, z, "under")
@@ -351,9 +378,9 @@ def bumper(kit: Kit) -> None:
     kit.box("bumper_lip", (0.03, 2 * (HALF_W - 0.12), 0.04), (FRONT - 0.015, 0, BUMPER[1] - 0.03), "metal")
     for sign, s in ((1, "l"), (-1, "r")):
         y = sign * 0.45
-        kit.box(f"hook_back_{s}", (0.05, 0.06, 0.2), (FRONT - 0.13, y, BUMPER[1] + 0.09), "metal")
-        kit.box(f"hook_top_{s}", (0.12, 0.06, 0.05), (FRONT - 0.085, y, BUMPER[1] + 0.165), "metal")
-        kit.box(f"hook_tip_{s}", (0.045, 0.06, 0.11), (FRONT - 0.045, y, BUMPER[1] + 0.11), "metal")
+        kit.box(f"hook_back_{s}", (0.05, 0.06, 0.18), (FRONT - 0.13, y, BUMPER[1] + 0.09), "metal")
+        kit.box(f"hook_top_{s}", (0.12, 0.07, 0.05), (FRONT - 0.085, y, BUMPER[1] + 0.165), "metal")
+        kit.box(f"hook_tip_{s}", (0.045, 0.05, 0.11), (FRONT - 0.045, y, BUMPER[1] + 0.11), "metal")
 
 
 def underbody(kit: Kit) -> None:
@@ -414,7 +441,7 @@ def side_windows(kit: Kit, lo: float, hi: float) -> None:
             window += [(x, sign * (hy + d), z) for x in (rear, xf - c - 0.04) for d in (0.0, 0.015)]
         hull(kit, f"window_{s}", "glass", window)
         xf, hy, c = house_at(lo)
-        kit.box(f"vent_post_{s}", (0.035, 0.03, hi - lo), (xf - c - 0.3, sign * (hy + 0.01), (lo + hi) / 2), "paint")
+        kit.box(f"vent_post_{s}", (0.035, 0.03, hi - lo + POST_SINK), (xf - c - 0.3, sign * (hy + 0.01), (lo - POST_SINK + hi) / 2), "paint")
     kit.box("rear_window", (0.02, 0.9, 0.2), (CAB_BACK + 0.015, 0, HEADBOARD_TOP + 0.16), "glass")
 
 
@@ -460,11 +487,11 @@ def bed(kit: Kit) -> None:
     kit.box("deck", (length - 2 * WALL, 2 * (side_y - WALL / 2), DECK - DECK_BOTTOM), ((BED_FRONT + BACK) / 2, 0, (DECK + DECK_BOTTOM) / 2), "leather")
     mirrored(kit, "side_steel", (length, WALL, steel_h), (BED_FRONT + BACK) / 2, side_y, mid_z, "metal_light")
     mirrored(kit, "side_board", (length, WALL, BOARD_H), (BED_FRONT + BACK) / 2, side_y, board_z, "leather")
-    mirrored(kit, "side_rail", (length, WALL + POST, 0.035), (BED_FRONT + BACK) / 2, side_y + POST / 2, steel_top, "metal")
+    mirrored(kit, "side_rail", (length - 6 * PROUD, WALL + 2 * PROUD, 0.035), (BED_FRONT + BACK) / 2, side_y, steel_top, "metal")
     kit.box("tail_steel", (WALL, 2 * side_y - WALL, steel_h), (BACK + POST + WALL / 2, 0, mid_z), "metal_light")
     kit.box("tail_board", (WALL, 2 * side_y - WALL, BOARD_H), (BACK + POST + WALL / 2, 0, board_z), "leather")
-    kit.box("tail_rail", (WALL + POST, 2 * side_y - WALL, 0.035), (BACK + (WALL + POST) / 2, 0, steel_top), "metal")
-    kit.box("headboard", (WALL, 2 * side_y + WALL, HEADBOARD_TOP - DECK_BOTTOM), (BED_FRONT - WALL / 2, 0, (HEADBOARD_TOP + DECK_BOTTOM) / 2), "trim")
+    kit.box("tail_rail", (WALL + POST, 2 * side_y - WALL, 0.035), (BACK + (WALL + POST) / 2 + PROUD, 0, steel_top), "metal")
+    kit.box("headboard", (WALL, 2 * side_y + WALL - 2 * PROUD, HEADBOARD_TOP - DECK_BOTTOM), (BED_FRONT - WALL / 2 - PROUD, 0, (HEADBOARD_TOP + DECK_BOTTOM) / 2), "trim")
     ribs = 8
     for i in range(ribs + 1):
         x = BED_FRONT - 0.05 - (length - 0.1) * i / ribs

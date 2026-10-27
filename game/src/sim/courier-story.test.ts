@@ -9,6 +9,7 @@ import { hasAid, isLow, playerAid, readyAid, startAid, wantedAid } from './aid';
 import { playerVehicle } from './damage';
 import { chooseOption, currentOptions, hangUp, raiseCalls } from './dialogue';
 import { encounterAvailable, favorAmount, lapseEncounter, onStrangerSeen, storyBeatDue } from './encounters';
+import { gridSquareOf } from './map-grid';
 import { remember } from './memory';
 import { stateOf } from './states';
 import { fuelCap, suppliesCap } from './stats';
@@ -95,7 +96,7 @@ describe('the courier story, free help', () => {
   it('runs the thanks, the favor and the end, and never starts again', () => {
     const { w, npc } = askedWorld();
     expect(w.player.encounters.story).toMatchObject({ driver: npc.id, beat: 'asked' });
-    expect(currentOptions(w).map((o) => en(o.line))).toEqual(['No charge.', 'At the town price.', 'I cannot help, sorry.', 'Hang up.']);
+    expect(currentOptions(w).map((o) => en(o.line))).toEqual(['No charge.', 'At the town price.', "Can't help, sorry.", 'Hang up.']);
     const stock = supplies(w, npc.id);
     const money = wealth(w, npc.id);
     let next = pick(w, 'No charge.');
@@ -118,6 +119,7 @@ describe('the courier story, free help', () => {
     expect(next.player.call).toMatchObject({ topic: 'courierThanks' });
     next = pick(next, 'Go on.');
     expect(next.player.call?.node).toBe('wreck');
+    expect(next.player.call?.vars.square).toEqual({ kind: 'square', ...gridSquareOf({ x: 45, y: 30 }) });
     next = pick(next, 'Thanks. Over and out.');
     expect(next.player.rumored).toEqual(['wreck4']);
     expect(next.player.encounters.story?.beat).toBe('owed');
@@ -181,7 +183,7 @@ describe('the courier story, paid help', () => {
 describe('the courier story, refused help', () => {
   it('gives the cold shoulder and shuts the player out of asking for aid', () => {
     const { w, npc } = askedWorld();
-    let next = pick(w, 'I cannot help, sorry.');
+    let next = pick(w, "Can't help, sorry.");
     expect(next.player.encounters.story?.beat).toBe('refused');
     quiet(next);
     next = meetAgain(next, npc.id, GAP);
@@ -234,7 +236,7 @@ describe('the courier story, a wrong done to the courier', () => {
     const { w, npc } = helpedWorld();
     raiseCalls(w);
     expect(w.player.call).toMatchObject({ topic: 'courierGrudge' });
-    const next = pick(pick(w, 'Let us call it even.'), 'Over and out.');
+    const next = pick(pick(w, "Let's call it even."), 'Over and out.');
     expect(stateOf(next, 'truce', npc.id, next.player.vehicleId)).not.toBeNull();
     expect(stateOf(next, 'feud', npc.id, next.player.vehicleId)).toBeNull();
     expect(next.player.encounters.story?.beat).toBe('ended');
@@ -244,7 +246,7 @@ describe('the courier story, a wrong done to the courier', () => {
     forceOption('truceOffered', 'refuse');
     const { w, npc } = helpedWorld();
     raiseCalls(w);
-    const next = pick(pick(w, 'Let us call it even.'), 'Then we finish this.');
+    const next = pick(pick(w, "Let's call it even."), 'Then we finish this.');
     expect(stateOf(next, 'feud', npc.id, next.player.vehicleId)).not.toBeNull();
     expect(stateOf(next, 'revenge', npc.id, next.player.vehicleId)).not.toBeNull();
     expect(next.player.encounters.story?.beat).toBe('ended');

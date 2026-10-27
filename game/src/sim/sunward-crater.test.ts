@@ -4,15 +4,16 @@ import { generateNpcLoadout } from './npc-loadout';
 import { fillHollow, isFree, spawnAt } from './spawn';
 import { standardWorld } from '../test/world-cache';
 import { playerVehicle } from './damage';
-import { applyHazards } from './hazard';
+import { applyHazards, inCore } from './hazard';
 import { checkDeath } from './defeat';
 import { followTower, dragOf, isOnRope, startDrag, unhitch } from './tow';
 import { advanceStates, settleStates } from './states';
 import { refreshVision } from './vision';
-import { callStrangers, craterNews, dropSpot, giveWord, inDropRing, lightZone, meetingLapsed, meetStrangers, offeringOf } from './sunward-crater';
+import { boundToOrder, callStrangers, craterNews, dropSpot, giveWord, inDropRing, lightZone, meetingLapsed, meetStrangers, offeringOf, wordGap } from './sunward-crater';
 import { chooseOn } from './tracks';
 import { endTurn } from './world';
-import { testDrive } from './testkit';
+import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
+import { watchStalls } from './npc-watchdog';
 import { advanceSunward, craterExit, gateOrder, isCavalcadeCar, planSunward, dawnAfter, duskTurn, fallenSun, isSunwardMember, returnTurn, sunwardFacts, vigilGrounds, vigilPosts } from './sunward';
 import { callVehicle, chooseOption, currentOptions, hangUp, raiseCalls, talkOf } from './dialogue';
 import { topGoal } from './npc-activities';
@@ -21,6 +22,7 @@ import { REGION } from '../data/region';
 import { t } from '../text/msg';
 import { resolve } from '../text/resolve';
 import { leaveQuest, QUEST_QUERIES, QUESTS, questView } from './quests';
+import { isHostile } from './combat';
 import { inTruce } from './relations';
 import type { Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
@@ -175,7 +177,7 @@ describe('the reactor core', () => {
 
   it('drains health outside the core no lower than its floor', () => {
     const w = crater();
-    inZone(w, 6);
+    inZone(w, -6);
     w.player.health = 33;
     for (let i = 0; i < 10; i++) applyHazards(w);
     expect(w.player.health).toBe(30);
@@ -288,6 +290,17 @@ describe('the vigil invitation', () => {
     expect(w.player.call).toBeNull();
   });
 
+  it('makes no call before dusk to a stranger in the crater while a car already holds its post', () => {
+    const { w } = vigil();
+    w.turn = duskTurn(1) - 1;
+    sunwardFacts(w).night = { dusk: duskTurn(1), roster: [], beaten: [], calls: {}, hunt: null, shouted: [], offered: [] };
+
+    raiseCalls(w);
+
+    expect(w.player.call).toBeNull();
+    expect(sunwardFacts(w).night!.calls).toEqual({});
+  });
+
   it('treats hanging up on the last call as a refusal', () => {
     let { w, caller } = vigil();
     sunwardFacts(w).night = { dusk: duskTurn(1), roster: [], beaten: [], calls: { [w.player.vehicleId]: { count: 2, turn: w.turn - SUNWARD.callGap } }, hunt: null, shouted: [], offered: [] };
@@ -307,22 +320,119 @@ describe('the vigil invitation', () => {
     expect(w.player.call).toBeNull();
   });
 
-  it('hunts a truck that gives its word and turns back, with one incident', () => {
+  function wordHeld(): { w: World; caller: Vehicle; me: Vehicle } {
     let { w, caller } = vigil();
-    w = answer(call(w), 'comeAndWatch');
-    w = hangUp(w);
-    expect(offeringOf(w, w.player.vehicleId)).not.toBeNull();
+    w = hangUp(answer(call(w), 'comeAndWatch'));
+    return { w, caller: w.vehicles.find((v) => v.id === caller.id)!, me: playerVehicle(w) };
+  }
+
+  const farFromTheLight = (me: Vehicle, share: number): Vec => {
     const zone = lightZone();
-    const me = playerVehicle(w);
-    const away = { x: me.pos.x + (me.pos.x - zone.pos.x) * 0.3, y: me.pos.y + (me.pos.y - zone.pos.y) * 0.3 };
+    return { x: me.pos.x + (me.pos.x - zone.pos.x) * share, y: me.pos.y + (me.pos.y - zone.pos.y) * share };
+  };
+
+  const said = (w: World, line: string) => w.events.filter((e) => e.t === 'say' && e.line === line);
+
+  it('keeps the word on the free turn however far the truck ran on, then hunts a truck that turns back, with one incident', () => {
+    const { w, caller, me } = wordHeld();
+    expect(offeringOf(w, me.id)).not.toBeNull();
+    w.turn += SUNWARD.wordGrace;
+    pose(me, farFromTheLight(me, 0.5));
+
+    advanceStates(w);
+
+    expect(offeringOf(w, me.id)).not.toBeNull();
     w.turn++;
-    pose(me, away);
+    pose(me, farFromTheLight(me, 1.5));
 
     advanceStates(w);
 
     expect(offeringOf(w, me.id)).toBeNull();
     expect(w.events.filter((e) => e.t === 'stateEnded' && e.state.kind === 'offering' && e.ending === 'broken')).toHaveLength(1);
     expect(feuds(w, caller)).toHaveLength(1);
+    const lines = said(w, 'wordBroken');
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ speaker: caller.id });
+  });
+
+  it('breaks on the free turn when the truck leaves the crater', () => {
+    const { w, me } = wordHeld();
+    w.turn += SUNWARD.wordGrace;
+    pose(me, { x: fallenSun().pos.x, y: fallenSun().pos.y - fallenSun().radius - 30 });
+
+    advanceStates(w);
+
+    expect(offeringOf(w, me.id)).toBeNull();
+  });
+
+  it('says nothing when the caller is down as the word breaks', () => {
+    const { w, caller, me } = wordHeld();
+    caller.defeat = { phase: 'out', turns: 0, unseen: 0, foes: [me.id], gaveUp: false };
+    w.turn += SUNWARD.wordGrace + 1;
+    pose(me, farFromTheLight(me, 3));
+
+    advanceStates(w);
+
+    expect(offeringOf(w, me.id)).toBeNull();
+    expect(said(w, 'wordBroken')).toEqual([]);
+  });
+
+  it('gaps the word by the drive, which the wreck in the bow makes longer than the straight line', () => {
+    const w = crater();
+    const me = playerVehicle(w);
+    const south = { x: lightZone().pos.x + 1, y: lightZone().pos.y + 26 };
+    pose(me, south);
+    expect(wordGap(w, me)).toBeGreaterThan(dist(south, lightZone().pos) + SUNWARD.offerMargin);
+  });
+
+  it('keeps the straight line near the light', () => {
+    const w = crater();
+    const me = playerVehicle(w);
+    pose(me, { x: lightZone().pos.x + 6, y: lightZone().pos.y });
+    expect(wordGap(w, me)).toBeCloseTo(6, 5);
+  });
+
+  it('ends the fight of the car whose word was broken when a second car takes a word', () => {
+    const { w, caller, me } = wordHeld();
+    w.turn += SUNWARD.wordGrace + 1;
+    pose(me, farFromTheLight(me, 3));
+    advanceStates(w);
+    expect(feuds(w, caller)).toHaveLength(1);
+    const second = member(w, { x: me.pos.x + 4, y: me.pos.y });
+
+    giveWord(w, me, second);
+
+    expect(feuds(w, caller)).toEqual([]);
+    expect(w.states.filter((s) => s.kind === 'combat' && (s.holder === caller.id || s.other === caller.id))).toEqual([]);
+    expect(Object.values(caller.weaponOrders).filter((o) => o.targetId === me.id)).toEqual([]);
+    expect(w.states.filter((s) => s.kind === 'truce')).toEqual([]);
+    expect(inTruce(w, caller, me)).toBe(false);
+    expect(isHostile(w, caller, me)).toBe(false);
+  });
+
+  it('lets the drag follow a word broken after a second word', () => {
+    const { w, caller, me } = wordHeld();
+    w.turn += SUNWARD.wordGrace + 1;
+    pose(me, farFromTheLight(me, 3));
+    advanceStates(w);
+    giveWord(w, me, member(w, { x: me.pos.x + 4, y: me.pos.y }));
+    const second = offeringOf(w, me.id)!;
+    w.turn += SUNWARD.wordGrace + 1;
+    second.born = w.turn - SUNWARD.wordGrace - 1;
+    pose(me, farFromTheLight(me, 4));
+
+    advanceStates(w);
+
+    expect(offeringOf(w, me.id)).toBeNull();
+    expect(feuds(w, caller).length + w.states.filter((s) => s.kind === 'feud' && s.other === me.id).length).toBeGreaterThan(0);
+    expect(w.states.filter((s) => s.kind === 'truce')).toEqual([]);
+  });
+
+  it('does not let a hunting party seize a truck that holds a word', () => {
+    const { w, me } = wordHeld();
+    const hunter = member(w, { x: me.pos.x + 6, y: me.pos.y });
+    expect(boundToOrder(w, hunter, me)).toBe(true);
+    expect(boundToOrder(w, hunter, member(w, { x: me.pos.x + 9, y: me.pos.y }))).toBe(false);
   });
 
   it('frees a truck that keeps its word until the riders leave', () => {
@@ -563,5 +673,31 @@ describe('meeting the stranger at the vigil', () => {
     w.turn += SUNWARD.meetTurns;
 
     expect(meetingLapsed(w, car, claim(car)!)).toBe('meetingOff');
+  });
+});
+
+describe('the drop lanes and the breach light', () => {
+  it.each(SUNWARD.dropLanes)('keeps the stop and the dragger clear of the core on lane %s', (angle) => {
+    const zone = lightZone();
+    const stop = dropSpot({ x: zone.pos.x + Math.cos(angle) * 20, y: zone.pos.y + Math.sin(angle) * 20 }).stop;
+    const dragger = { x: zone.pos.x + Math.cos(angle) * (zone.radius - 2), y: zone.pos.y + Math.sin(angle) * (zone.radius - 2) };
+    expect(inDropRing(stop)).toBe(true);
+    expect(inCore(zone, stop)).toBe(false);
+    expect(inCore(zone, dragger)).toBe(false);
+  });
+});
+
+describe('a stranger who gave the order its word', () => {
+  it('waits out the night at the crater without counting as stalled', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 40, y: 30 });
+    npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    npc.brain.goals = [{ kind: 'wait', targetId: null, destination: { ...npc.pos }, phase: 'act', reason: 'keepWord', until: w.turn + 200 }];
+    for (let i = 0; i < 150; i++) {
+      w.turn++;
+      watchStalls(w);
+    }
+    expect(w.events.filter((e) => e.t === 'stall')).toEqual([]);
+    expect(topGoal(npc)?.reason).toBe('keepWord');
   });
 });

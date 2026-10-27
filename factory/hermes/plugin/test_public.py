@@ -389,13 +389,18 @@ def test_register_adds_public_factory_before_buttons(tmp_path, monkeypatch):
     for handler in watchers:
         root.removeHandler(handler)
     assert len(watchers) == 1
-    assert [factory.__qualname__.split(".")[0] for factory in factories] == ["make_public_factory", "make_button_factory"]
+    assert [factory.__qualname__.split(".")[0] for factory in factories] == ["make_public_factory", "make_button_factory", "make_media_factory"]
 
 
 @pytest.fixture
-def conflict_watch(tmp_path):
+def restarts():
+    return []
+
+
+@pytest.fixture
+def conflict_watch(tmp_path, restarts):
     cfg = cfg_for(tmp_path)
-    public.watch_polling_conflicts(cfg)
+    public.watch_polling_conflicts(cfg, lambda: restarts.append(1))
     root = logging.getLogger()
     yield cfg
     for handler in [h for h in root.handlers if isinstance(h, public.ConflictRestartAlert)]:
@@ -417,13 +422,34 @@ def test_conflict_restart_raises_one_alert_line_per_day(conflict_watch, tmp_path
     assert lines[0].startswith("public updates: Telegram updates queued during a polling restart were dropped, so votes or comments may be missing on 20")
 
 
-def test_other_adapter_lines_raise_no_alert(conflict_watch, tmp_path):
-    log_adapter_line("[%s] Telegram polling started", "telegram")
+def log_fatal_adapter_error(code):
+    gateway = logging.getLogger("gateway.run")
+    gateway.error("Fatal %s adapter error (%s): %s", "telegram", code, "Telegram polling could not recover after 5 retries.")
+
+
+def test_exhausted_conflict_retries_restart_the_gateway_once(conflict_watch, tmp_path, restarts):
+    log_adapter_line("[%s] Telegram polling restarted after conflict retry %d/%d; health pending getUpdates progress", "telegram", 5, 5)
+    log_fatal_adapter_error("telegram_polling_conflict")
+    log_fatal_adapter_error("telegram_polling_conflict")
+    assert restarts == [1]
+    assert len((tmp_path / "public-alert").read_text().splitlines()) == 1
+
+
+def test_other_fatal_adapter_errors_do_not_restart(conflict_watch, tmp_path, restarts):
+    log_fatal_adapter_error("telegram_network_error")
+    logging.getLogger("gateway.run").error("Telegram polling could not recover after 5 retries, telegram_polling_conflict")
+    assert restarts == []
     assert not (tmp_path / "public-alert").exists()
 
 
+def test_other_adapter_lines_raise_no_alert(conflict_watch, tmp_path, restarts):
+    log_adapter_line("[%s] Telegram polling started", "telegram")
+    assert not (tmp_path / "public-alert").exists()
+    assert restarts == []
+
+
 def test_watching_twice_adds_one_handler(conflict_watch):
-    public.watch_polling_conflicts(conflict_watch)
+    public.watch_polling_conflicts(conflict_watch, lambda: None)
     assert len([h for h in logging.getLogger().handlers if isinstance(h, public.ConflictRestartAlert)]) == 1
 
 

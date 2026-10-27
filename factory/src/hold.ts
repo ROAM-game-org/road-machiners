@@ -1,5 +1,3 @@
-// A hold stops one card without a failure. `factory pause-card` stops the card's job and keeps its work clone and sessions,
-// and the tick starts no job on the issue until `resume-card` lifts the hold. The stopped stage then continues in its sessions.
 import { killJob } from './jobs';
 import { recordJob } from './ledger';
 import { CARD_JOBS, inMergeBatch } from './position';
@@ -8,8 +6,8 @@ import { readState, updateState } from './state';
 import { interruptJob } from './tick';
 import { RELEASE_LABEL, type Card, type Ctx, type FactoryState, type Hold, type Job } from './types';
 
-function requireHoldable(state: FactoryState, card: Card | undefined, issue: number): void {
-  if (card === undefined) throw new Error(`Issue #${issue} is not on the board.`);
+function requireHoldable(state: FactoryState, card: Card | null, issue: number): void {
+  if (card === null) throw new Error(`Issue #${issue} is not on the board.`);
   if (card.labels.includes(RELEASE_LABEL)) throw new Error(`Issue #${issue} is the release tracking card. The release flow owns it.`);
   if (card.column === 'Done') throw new Error(`Issue #${issue} is Done and runs nothing.`);
   const hold = state.held[String(issue)];
@@ -23,7 +21,7 @@ function branchJobOf(state: FactoryState, card: Card): Job | undefined {
 }
 
 export async function holdCard(ctx: Ctx, issue: number, by: string, reason: string): Promise<string> {
-  const card = (await ctx.github.cards()).find((row) => row.issue === issue);
+  const card = await ctx.github.card(issue);
   requireHoldable(readState(ctx.statePath), card, issue);
   const killed = readState(ctx.statePath).jobs.filter((job) => job.issue === issue);
   for (const job of killed) await killJob(ctx.run, job.pid, job.id);

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CameraRig, KeyPan, TruckFollow } from './camera';
 import { PHYSICS } from '../../data/physics';
+import { VIEW } from '../../data/view';
 
 const S = PHYSICS.metersPerTile;
 
@@ -424,5 +425,25 @@ describe('camera view box', () => {
     const hit = rig.groundUnder(screen.x, screen.y, ground)!;
     expect(hit.x).toBeCloseTo(point.x / S, 1);
     expect(hit.y).toBeCloseTo(point.z / S, 1);
+  });
+});
+
+describe('camera orientation', () => {
+  it('draws the compass north straight up the screen', () => {
+    const rig = rigAt();
+    rig.tick(0);
+    const step = 10 * Math.hypot(VIEW.screenUp.x, VIEW.screenUp.y);
+    const origin = rig.screenOf({ x: 0, y: 0, z: 0 });
+    const north = rig.screenOf({ x: (VIEW.screenUp.x / Math.hypot(VIEW.screenUp.x, VIEW.screenUp.y)) * step, y: 0, z: (VIEW.screenUp.y / Math.hypot(VIEW.screenUp.x, VIEW.screenUp.y)) * step });
+    expect(north.x).toBeCloseTo(origin.x);
+    expect(north.y).toBeLessThan(origin.y);
+  });
+
+  it('keeps the camera offset direction', () => {
+    const rig = rigAt();
+    rig.tick(0);
+    const offset = rig.camera.position.clone().sub(new THREE.Vector3(0, 0, 0)).normalize();
+    const expected = new THREE.Vector3(1, 0.816, 1).normalize();
+    expect(offset.distanceTo(expected)).toBeLessThan(0.05);
   });
 });

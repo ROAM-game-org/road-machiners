@@ -1,4 +1,5 @@
-import { concat, SPACE, t, type Msg } from "../text/msg";
+import { concat, SPACE, t, verbatim, type Msg } from "../text/msg";
+import { el } from "./dom";
 import { type Extent, type UiSize } from "./ui-size";
 
 export interface InputMode {
@@ -43,19 +44,19 @@ function mark(root: HTMLElement, mode: InputMode): void {
   shown = mode;
 }
 
-export function watchInputMode(root: HTMLElement, size: UiSize): InputMode {
+export function watchInputMode(roots: HTMLElement[], size: UiSize): InputMode {
   const coarse = window.matchMedia(COARSE_QUERY);
   const current = (): InputMode => {
     const layer = size.layerSize();
     return layer.width > 0 && layer.height > 0 ? inputModeOf(coarse.matches, layer) : shown;
   };
   const apply = (): void => {
-    mark(root, current());
+    for (const root of roots) mark(root, current());
     for (const fn of listeners) fn(shown);
   };
   coarse.addEventListener("change", apply);
   size.subscribe(apply);
-  mark(root, current());
+  for (const root of roots) mark(root, current());
   return shown;
 }
 
@@ -74,6 +75,11 @@ export function keyLabel(text: Msg, key: string, place: "after" | "before" = "af
   if (touchMode()) return text;
   const cap = t("ui.key", { key });
   return concat(place === "after" ? [text, SPACE, cap] : [cap, SPACE, text]);
+}
+
+export function keyCap(key: string): HTMLElement | null {
+  if (touchMode()) return null;
+  return el("kbd", { class: "key" }, verbatim(key));
 }
 
 export function closeLabel(): Msg {

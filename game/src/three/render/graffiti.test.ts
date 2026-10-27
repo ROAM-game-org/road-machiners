@@ -7,7 +7,7 @@ import { defaultSetup } from '../../sim/settings';
 import { newWorld } from '../../sim/world';
 import { dist } from '../../sim/vec';
 import { TEST_MAP } from '../../test/map';
-import { chooseGraffiti, fitSite, GRAFFITI, GRAFFITI_PROP_LOOKS, graffitiSites, graffitiTarget, GRID, type GraffitiPlaced, type SignFit } from './graffiti';
+import { chooseGraffiti, fitSite, GRAFFITI, GRAFFITI_PROP_LOOKS, graffitiLift, graffitiSites, graffitiTarget, GRID, type GraffitiPlaced, type SignFit } from './graffiti';
 import { loadModels } from './models';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
@@ -79,5 +79,21 @@ describe('graffiti placement', () => {
 
   it('keeps cliff signs next to the cliff tile they came from', () => {
     for (const { site, fit } of placed.filter((p) => p.site.obstacle === null)) expect(Math.hypot(fit.center.x / 4 - site.pos.x, fit.center.z / 4 - site.pos.y)).toBeLessThan(4);
+  });
+});
+
+describe('graffitiLift', () => {
+  it('is full by day, weaker but lit at night and rises with the sun', () => {
+    expect(graffitiLift(2.3)).toBe(1);
+    const night = graffitiLift(0.7);
+    expect(night).toBeGreaterThan(0);
+    expect(night).toBeLessThan(0.5);
+    let last = night;
+    for (let sun = 0.8; sun <= 2.4; sun += 0.1) {
+      const lift = graffitiLift(sun);
+      expect(lift).toBeGreaterThanOrEqual(last);
+      expect(lift).toBeLessThanOrEqual(1);
+      last = lift;
+    }
   });
 });

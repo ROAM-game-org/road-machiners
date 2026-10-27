@@ -14,6 +14,7 @@ import { schemaOf } from '../text/resolve';
 import { modeRules } from '../sim/settings';
 import { el, isBrowserChord, panel, topCenter } from './dom';
 import { directionsText } from './directions-text';
+import { gridSquareText } from './format';
 import { renderLine } from './quest-text';
 import { agoText, compassText, distanceText, fuelLiters, moneyM, moneyMsg } from './units';
 
@@ -68,6 +69,7 @@ const VAR_TEXT: VarText = {
   money: (v) => money(v.amount),
   distance: (v) => distanceText(v.tiles),
   bearing: (v) => compassText(v.rad),
+  square: (v) => gridSquareText(v),
   count: (v) => unitCount(v.unit, v.n),
   deal: dealText,
   prices: pricesText,

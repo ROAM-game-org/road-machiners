@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { REGION } from '../data/region';
 import { TERRAIN } from '../data/terrain';
 import { TERRITORIES } from '../data/territory';
-import { applyHazards } from './hazard';
+import { applyHazards, inCore } from './hazard';
 import { huntingGrounds } from './npc-decisions';
 import { siteGap } from './sites';
-import { hazardZones, reactorPos, territoryEntries, territoryGrounds, territoryPieces } from './territory';
+import { hazardZoneOf, hazardZones, reactorPos, territoryEntries, territoryGrounds, territoryPieces } from './territory';
 import { route } from './path';
 import { addVehicle, emptyWorld } from './testkit';
 import { getResources } from './resources';
@@ -98,6 +98,49 @@ describe('the reactor hazard', () => {
     w.player.health = 5;
     applyHazards(w);
     expect(w.events.some((e) => e.t === 'coreBurn')).toBe(true);
+  });
+
+  describe('the breach light', () => {
+    const light = hazardZones().find((z) => z.id === 'fallen-sun')!.core!.light;
+    const reported = { x: 440.55, y: 326.79 };
+
+    function burnAt(pos: { x: number; y: number }): World {
+      const w = worldAt(pos);
+      w.player.health = 35;
+      w.vehicles[0].trail = [{ ...outsidePos, heading: 0 }];
+      applyHazards(w);
+      return w;
+    }
+
+    it('burns with no floor, tells the player and raises the core burn', () => {
+      for (const pos of [light.pos, { x: light.pos.x, y: light.pos.y - 1.9 }, reported]) {
+        expect(dist(pos, core)).toBeGreaterThan(hazard.core!.radius);
+        const w = burnAt(pos);
+        expect(w.player.health).toBe(35 - hazard.core!.healthPerTurn);
+        expect(w.events).toContainEqual({ t: 'info', note: { id: 'core' } });
+        expect(w.events.some((e) => e.t === 'coreBurn')).toBe(true);
+      }
+    });
+
+    it('burns an NPC the same way', () => {
+      const w = worldAt(outsidePos);
+      const npc = addVehicle(w, 'independent', 'scout', [], light.pos);
+      npc.resources = { money: 0, fuel: 10, supplies: 10, health: hazard.floor };
+      applyHazards(w);
+      expect(getResources(w, npc).health).toBe(hazard.floor - hazard.core!.healthPerTurn);
+    });
+
+    it('still drains to the floor just outside the light', () => {
+      const w = worldAt({ x: light.pos.x, y: light.pos.y - light.radius - 0.15 });
+      for (let i = 0; i < 30; i++) applyHazards(w);
+      expect(w.player.health).toBe(hazard.floor);
+    });
+
+    it('is refused when it reaches past the drain', () => {
+      const wide = { ...hazard, core: { ...hazard.core!, light: { ...hazard.core!.light, radius: hazard.radius } } };
+      expect(() => hazardZoneOf(sun as never, wide, core)).toThrow(/reaches past its drain/);
+      expect(inCore(hazardZones()[0], light.pos)).toBe(true);
+    });
   });
 
   it('keeps routes out of the zone', () => {

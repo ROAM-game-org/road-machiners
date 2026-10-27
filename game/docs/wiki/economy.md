@@ -12,7 +12,7 @@ A value should match the effort it takes to earn. `EFFORT.wage` is the money per
 
 ## Goods pressure and drift
 
-A good's price is its base price times one plus its pressure. Pressure comes from the shop's stock: `PRODUCTION.elasticity` times the share the stock is below its target, limited to `PRESSURE_MAX` on either side. A lot is priced one crate at a time through the stock. Fuel costs `ECONOMY.supplyPrice.fuel` and supplies `ECONOMY.supplyPrice.supplies` per unit, drawn from the shop's fuel drums and rations.
+A good's price is its base price times one plus its pressure. Pressure comes from the shop's stock: `PRODUCTION.elasticity` times the share the stock is below its target, limited to `PRESSURE_MAX` on either side. A lot is priced one crate at a time through the stock. Fuel costs `ECONOMY.supplyPrice.fuel` and supplies `ECONOMY.supplyPrice.supplies` per unit, drawn from the shop's petrol and rations.
 
 ## Shops
 
@@ -148,7 +148,7 @@ The player's truck pays no upkeep. NPC drivers pay under `NPC_UPKEEP`.
 | `PRODUCTION.cycleTurns` | 19 |
 | `PRODUCTION.bufferDays` | 1.5 |
 | `PRODUCTION.fullShare` | 1.6 |
-| `ECONOMY.repairShare` | 0.85 |
+| `ECONOMY.repairShare` | 0.425 |
 | `CONDITION.maxWear` | 4 |
 | `CONDITION.stepLoss` | 0.027 |
 | `WEAR.chancePerTile` | 0.00055 |

@@ -62,7 +62,7 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(home, { recursive: true, force: true }));
 
-const TIMEOUT_FAILURE = ' FAIL  src/phys/drive.test.ts > climbs a hill\nError: Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value.\nError: [vitest-worker]: Timeout calling "onTaskUpdate"';
+const TIMEOUT_FAILURE = ' FAIL  src/phys/drive.test.ts > climbs a hill\nError: Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value.';
 const result = (cost: number) => `${JSON.stringify({ type: 'result', total_cost_usd: cost, duration_ms: 1000 })}\n`;
 const out = (run: AgentRun) => `${run.clone}/${run.dir}/.factory`;
 const APPROVAL = JSON.stringify({ description: 'A loud horn.', howToTry: 'Press H.' });
@@ -533,6 +533,7 @@ describe('captions', () => {
     expect(timeoutOnly(seen(TIMEOUT_FAILURE))).toBe(true);
     expect(timeoutOnly(seen(`${TIMEOUT_FAILURE}\nError: expected 1 to be 2`))).toBe(false);
     expect(timeoutOnly(seen('typecheck failed'))).toBe(false);
+    expect(timeoutOnly(seen(`${TIMEOUT_FAILURE}\nError: [vitest-worker]: Timeout calling "onTaskUpdate"`))).toBe(false);
     const hung = '[checks] 10:00:00 tests and typecheck\n\nthe checks ran past their 45 minute limit, and the factory removed their container.';
     expect(timeoutOnly(seen(hung, true))).toBe(true);
     expect(timeoutOnly(seen(hung))).toBe(false);

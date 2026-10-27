@@ -1,6 +1,6 @@
 import { haulerOf, playerVehicle, truckFor } from "../sim/damage";
 import { chassisPrice, chassisSwapRefusal, type Supply } from "../sim/economy";
-import { canDriveOn, driveOn, outpostTrucks, reachedOutpostAt, type Outpost } from "../sim/fury-road";
+import { canDriveOn, driveOn, outpostTrucks, reachedOutpostAt, type Outpost } from "../sim/chaos-highway";
 import { goodsCount, mountCellsOf } from "../sim/grid";
 import { gatesShut } from "../sim/outpost-gates";
 import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, haulerTakes, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from "../sim/outposts";
@@ -116,15 +116,15 @@ export class OutpostScreen {
   }
 
   private haulerHere(w: World): boolean {
-    return w.furyRoad !== null && reachedOutpostAt(w, haulerOf(w)) !== null;
+    return w.chaosHighway !== null && reachedOutpostAt(w, haulerOf(w)) !== null;
   }
 
   private truckId(w: World): string | undefined {
-    return this.shown === "hauler" && w.furyRoad ? haulerOf(w).id : undefined;
+    return this.shown === "hauler" && w.chaosHighway ? haulerOf(w).id : undefined;
   }
 
   private truckSwitch(w: World): HTMLElement | null {
-    if (!w.furyRoad) return null;
+    if (!w.chaosHighway) return null;
     const away = !this.haulerHere(w);
     const choice = (which: "truck" | "hauler", chassisId: string, reason: Msg | null) =>
       el(

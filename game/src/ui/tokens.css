@@ -110,8 +110,8 @@
   --cond-blur: 6px;
   --cond-edge: #0b0c0d;
   --cond-meter-w: 40px;
-  --cond-body-filter: brightness(0.8) drop-shadow(1px 0 0 var(--cond-edge)) drop-shadow(-1px 0 0 var(--cond-edge)) drop-shadow(0 1px 0 var(--cond-edge)) drop-shadow(0 -1px 0 var(--cond-edge));
-  --cond-parts-filter: brightness(0.9);
+  --cond-body-filter: brightness(0.5) drop-shadow(1px 0 0 var(--cond-edge)) drop-shadow(-1px 0 0 var(--cond-edge)) drop-shadow(0 1px 0 var(--cond-edge)) drop-shadow(0 -1px 0 var(--cond-edge));
+  --cond-parts-filter: brightness(1);
   --cond-glow-edge: drop-shadow(0.5px 0 0 var(--cond-edge)) drop-shadow(-0.5px 0 0 var(--cond-edge)) drop-shadow(0 0.5px 0 var(--cond-edge)) drop-shadow(0 -0.5px 0 var(--cond-edge));
   --cond-glow-edge-damaged: drop-shadow(1px 0 0 var(--cond-edge)) drop-shadow(-1px 0 0 var(--cond-edge)) drop-shadow(0 1px 0 var(--cond-edge)) drop-shadow(0 -1px 0 var(--cond-edge));
   --cond-halo-hurt: drop-shadow(0 0 2px rgba(255, 196, 60, 0.9)) drop-shadow(0 0 4px rgba(255, 196, 60, 0.6));
@@ -135,6 +135,22 @@
   --cell-engine: #3d4b50;
   --cell-side: #414c52;
   --cell-none: #20292e;
+  --cell-grid-line: rgba(255, 244, 214, 0.3);
+  --cell-grid-line-drag: rgba(255, 244, 214, 0.55);
+  --garage-body-filter: brightness(0.8);
+  --garage-mount-wash: rgba(159, 220, 122, 0.14);
+  --garage-mount-line: rgba(159, 220, 122, 0.5);
+  --garage-cell-deck: rgba(230, 178, 88, 0.12);
+  --garage-cell-bay: rgba(78, 196, 170, 0.12);
+  --garage-cell-engine: rgba(96, 160, 226, 0.12);
+  --garage-cell-armor: rgba(176, 128, 222, 0.12);
+  --garage-cell-built-in: rgba(10, 14, 18, 0.24);
+  --garage-cell-taken: rgba(240, 96, 70, 0.22);
+  --garage-edge-hover: drop-shadow(1.5px 0 0 var(--line-hover)) drop-shadow(-1.5px 0 0 var(--line-hover)) drop-shadow(0 1.5px 0 var(--line-hover)) drop-shadow(0 -1.5px 0 var(--line-hover));
+  --garage-edge-pick: drop-shadow(2px 0 0 var(--accent)) drop-shadow(-2px 0 0 var(--accent)) drop-shadow(0 2px 0 var(--accent)) drop-shadow(0 -2px 0 var(--accent));
+  --garage-tint-hurt: rgba(255, 196, 60, 0.28);
+  --garage-tint-crit: rgba(255, 120, 40, 0.38);
+  --garage-tint-broken: rgba(255, 44, 40, 0.5);
   --map-plain: #3a4a52;
   --map-deck: #b0775a;
   --map-bay: #7f9a7a;
@@ -216,6 +232,7 @@
   --dial-w: 108px;
   --lcd-cell-w: 88px;
   --dial-h: 65px;
+  --compass-w: 60px;
   --slider-thumb: 12px;
   --slider-track: 4px;
   --slider-tick: 20px;
@@ -287,6 +304,7 @@
   /* Layers, bottom to top */
   --z-outline: 1;
   --z-accessory: 1;
+  --z-grid-lines: 64;
   --z-badge: 2;
   --z-hud: 3;
   --z-popup: 5;
@@ -306,6 +324,16 @@
   --z-boot: 1000;
   --z-drag: 1000;
   --z-crash: 100000;
+  --z-report: 100001;
+}
+
+#report {
+  --ui-scale: 1;
+  --layer-w: 100vw;
+  --layer-h: 100dvh;
+  --safe-top: max(var(--hud-inset), env(safe-area-inset-top));
+  --safe-left: max(var(--hud-inset), env(safe-area-inset-left));
+  --touch-target: 32px;
 }
 
 #ui:where(.compact) {

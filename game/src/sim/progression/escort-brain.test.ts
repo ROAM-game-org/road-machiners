@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { haulerOf, playerVehicle } from '../damage';
-import { addVehicle, furyRoadWorld, npcBrain } from '../testkit';
+import { addVehicle, chaosHighwayWorld, npcBrain } from '../testkit';
 import { followSpot } from '../tow';
 import type { Vehicle, World } from '../types';
 import { dist } from '../vec';
@@ -13,7 +13,7 @@ const freshStall = (me: Vehicle): Stall => ({ turn: -1, at: { ...me.pos }, stall
 const escortMove = (w: World, me: Vehicle) => moveWith(w, me, escortFoe(w, me), freshStall(me));
 
 function started(): World {
-  return endTurn(furyRoadWorld(), () => {});
+  return endTurn(chaosHighwayWorld(), () => {});
 }
 
 function foeAt(w: World, dx: number, dy: number, from: Vehicle): Vehicle {

@@ -1,4 +1,5 @@
 
+import { isLingerReason, lingerGoal, lingerInvalid } from './linger';
 import { NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, type DecisionOptions, type Weighted } from '../data/npcs';
 import { SHOPS } from '../data/market';
 import { REGION } from '../data/region';
@@ -6,10 +7,10 @@ import { RULES } from '../data/rules';
 import { inCombat, inCombatWith, isHostile, turnPartHits } from './combat';
 import { abandonLostSizing, lookOverPrey, onHoldUp, onPreySeen, onSizingUp, reactToLookOvers, sizesUpFirst, sizeUpGoal, sizeUpInvalid, steerSizeUp } from './look-over';
 import { reportIncident } from './relations';
-import { fileReports } from './crime';
+import { fileReports, openCasesOn } from './crime';
 import { huntedCases, isMarshal, planMarshal } from './marshals';
 import { cargoSaleValue } from './economy';
-import { corePart } from './grid';
+import { corePart, goodsCount } from './grid';
 import { cancelJob } from './jobs';
 import { businessBelongs, resolveSell, resolveTrade } from './npc-business';
 import { isFree } from './spawn';
@@ -55,7 +56,7 @@ import { meetingLapsed } from './sunward-crater';
 
 export const INTERRUPTIONS: readonly NpcActivity['kind'][] = ['fight', 'flee', 'investigate', 'sizeUp', 'resupply', 'tow', 'loot', 'repair', 'patch', 'meet', 'retreat', 'rearm', 'follow'];
 
-function goalsOf(v: Vehicle): NpcActivity[] {
+export function goalsOf(v: Vehicle): NpcActivity[] {
   if (!v.brain) throw new Error(`${v.id} has no NPC brain`);
   if (!v.brain.goals) throw new Error(`${v.id} has no goals`);
   return v.brain.goals;
@@ -243,7 +244,7 @@ function haulGoal(world: World, vehicle: Vehicle): NpcActivity {
   return tradeRun(world, vehicle, supplyOffers(world, vehicle), 'loadCargo');
 }
 
-export const IDLE_GOALS: Record<Exclude<DecisionOptions['idle'], 'wait'>, IdleGoal> = {
+export const IDLE_GOALS: Record<Exclude<DecisionOptions['idle'], 'wait' | 'linger'>, IdleGoal> = {
   trade: tradeGoal,
   scavenge: scavengeGoal,
   raid: huntingGoal('raid', 'raid', raiderGroundsAway),
@@ -259,7 +260,12 @@ export const IDLE_GOALS: Record<Exclude<DecisionOptions['idle'], 'wait'>, IdleGo
 export function idleGoal(world: World, vehicle: Vehicle): NpcActivity {
   if (keepsWord(world, vehicle, 'idle', null)) return createActivity('wait', null, null, 'keepWord');
   const option = decide(world, vehicle, 'idle', null, null);
-  if (option === 'wait') return createActivity('wait', null, null, 'nothingToDo');
+  if (option !== 'linger') return idleOption(world, vehicle, option);
+  return lingerGoal(world, vehicle) ?? idleOption(world, vehicle, decide(world, vehicle, 'idle', null, null, ['linger']));
+}
+
+function idleOption(world: World, vehicle: Vehicle, option: Exclude<DecisionOptions['idle'], 'linger'> | 'linger'): NpcActivity {
+  if (option === 'wait' || option === 'linger') return createActivity('wait', null, null, 'nothingToDo');
   return IDLE_GOALS[option](world, vehicle);
 }
 
@@ -388,10 +394,11 @@ export function meetGoal(world: World, npc: Vehicle, other: Vehicle, reason: Goa
 const GOAL_CHECKS: Partial<Record<NpcActivity['kind'], GoalCheck>> = {
   fight: fightInvalid,
   rearm: rearmInvalid,
-  wait: (world, vehicle, goal) => (goal.reason !== 'atPost' && escortsOf(world, vehicle.id).length > 0 ? 'escortHired' : null),
+  wait: escortWaitInvalid,
   flee: fleeInvalid,
   investigate: investigateInvalid,
   sizeUp: sizeUpInvalid,
+  sell: (_world, vehicle, goal) => haulLost(vehicle, goal),
   scavenge: scavengeInvalid,
   loot: lootInvalid,
   tow: towInvalid,
@@ -399,8 +406,28 @@ const GOAL_CHECKS: Partial<Record<NpcActivity['kind'], GoalCheck>> = {
   meet: (world, vehicle, goal) => (goal.reason === 'meetStranger' ? meetingLapsed(world, vehicle, goal) : dealMeetInvalid(world, vehicle, goal)),
   follow: (world, vehicle, goal) => (follows(world, vehicle, goal.targetId!) ? null : 'leftLeader'),
   claim: claimInvalid,
-  pursue: (world, vehicle, goal) => (huntedCases(world, vehicle, goal.targetId!).length > 0 ? null : 'caseClosed'),
+  pursue: pursuitOver,
 };
+
+function haulLost(vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
+  if (!goal.shipment) return null;
+  return (goodsCount(vehicle)[goal.shipment.good] ?? 0) > 0 ? null : 'cargoLost';
+}
+
+function escortWaitInvalid(world: World, vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
+  if (goal.reason === 'atPost') return null;
+  if (isLingerReason(goal.reason)) return lingerInvalid(world, goal);
+  if (escortsOf(world, vehicle.id).length > 0) return 'escortHired';
+  if (goal.reason !== 'awaitEscort') return null;
+  const haul = goalsOf(vehicle)[0];
+  if (!haul?.shipment) throw new Error(`Vehicle ${vehicle.id} waits for an escort with no shipment under the wait`);
+  return haulLost(vehicle, haul);
+}
+
+function pursuitOver(world: World, vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
+  if (huntedCases(world, vehicle, goal.targetId!).length > 0) return null;
+  return openCasesOn(world, goal.targetId!).length > 0 ? 'backToPost' : 'caseClosed';
+}
 
 function dealMeetInvalid(world: World, vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
   return world.states.some((s) => (s.kind === 'trade' || s.kind === 'handover' || s.kind === 'aid') && s.holder === vehicle.id && s.other === goal.targetId) ? null : 'meetingOff';
@@ -702,7 +729,7 @@ function onStrandedSeen(world: World, vehicle: Vehicle): void {
 
 function onSalvageSeen(world: World, vehicle: Vehicle): void {
   const top = topGoal(vehicle);
-  if (inCombat(world, vehicle) || !top || top.phase !== 'travel' || INTERRUPTIONS.includes(top.kind)) return;
+  if (inCombat(world, vehicle) || !top || top.phase !== 'travel' || INTERRUPTIONS.includes(top.kind) || getActivityDestination(world, vehicle, top) === null) return;
   const stocks = visibleSalvage(world, vehicle);
   const passed = [...stocks, ...visibleDowned(world, vehicle)].filter((s) => s.id !== top.targetId).sort((a, b) => dist(vehicle.pos, a.pos) - dist(vehicle.pos, b.pos));
   const loot = passed.find((s) => react(world, vehicle, 'salvageSeen', s.id) === 'loot');
@@ -960,7 +987,7 @@ function fixedNext(world: World, vehicle: Vehicle): NpcActivity | null {
 
 function roadNext(world: World, vehicle: Vehicle, profile: NpcProfile): NpcActivity {
   const next = nightSafe(world, vehicle, hasSaleCargo(vehicle) ? saleGoal(world, vehicle, profile) : idleGoal(world, vehicle));
-  if (next.kind === 'wait' || topGoal(vehicle) === next) return next;
+  if ((next.kind === 'wait' && next.until === undefined) || topGoal(vehicle) === next) return next;
   pushGoal(world, vehicle, next);
   const service = serviceGoal(world, vehicle, profile);
   if (!service || goalsOf(vehicle).some((g) => g.kind === service.kind)) return next;

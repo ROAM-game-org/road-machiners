@@ -11,10 +11,11 @@ import { scavenge } from './locations';
 import { startSearch } from './search';
 import { addState, endState, stateOf } from './states';
 import { startRepair } from './jobs';
-import { addVehicle, emptyWorld, forceOption, npcBrain, practiceOf, rngStateWhere, testDrive } from './testkit';
+import { addVehicle, emptyWorld, forceOption, chaosHighwayStart, npcBrain, practiceOf, rngStateWhere, testDrive } from './testkit';
 import { maxHp } from './wear';
 import { maxHealthOf } from './health';
 import { PERK_NUMBERS } from '../data/skills';
+import { setBeacon } from './tow';
 import { territoryOfStock } from './territory';
 import { refreshVision } from './vision';
 import type { PartInstance, Vehicle, World } from './types';
@@ -470,6 +471,57 @@ describe('gave up', () => {
     expect(gaveUp(npc)).toBe(true);
     npc.defeat!.gaveUp = false;
     expect(gaveUp(npc)).toBe(false);
+  });
+});
+
+describe('the player standing down', () => {
+  function standing(): { w: World; me: Vehicle; raider: Vehicle } {
+    const w = emptyWorld({ x: 30, y: 30 });
+    w.salvage = [];
+    for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
+    const me = w.vehicles[0];
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 32, y: 30 });
+    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+    refreshVision(w);
+    standDown(w, me, raider.id);
+    return { w, me, raider };
+  }
+
+  it('lies down as a knocked-out truck that gave up, with no toll', () => {
+    const { w, me, raider } = standing();
+    expect(w.player.state).toBe('knockedOut');
+    expect(gaveUp(me)).toBe(true);
+    expect(me.defeat!.foes).toContain(raider.id);
+    expect(w.player.knockouts).toBe(0);
+    expect(w.events.some((e) => e.t === 'knockout')).toBe(false);
+    expect(practiceOf(w, 'knockout')).toEqual([]);
+  });
+
+  it('sends the winner to loot', () => {
+    const { raider } = standing();
+    expect(raider.brain!.goals.at(-1)).toMatchObject({ kind: 'loot', targetId: expect.any(String) });
+  });
+
+  it('wakes after the turn limit while the winner watches', () => {
+    const { w } = standing();
+    for (let turn = 1; turn < RULES.knockoutMaxTurns; turn++) expect(advanceKnockout(w)).toBeNull();
+    expect(advanceKnockout(w)).not.toBeNull();
+    expect(w.player.state).toBe('active');
+  });
+
+  it('wakes stranded and can call the beacon after being stripped of the engine', () => {
+    const { w, me } = standing();
+    me.items = me.items.filter((it) => it.kind !== 'part' || it.part.defId !== 'stockEngine');
+    for (let turn = 0; turn < RULES.knockoutMaxTurns; turn++) advanceKnockout(w);
+    expect(w.player.state).toBe('active');
+    expect(setBeacon(w, true).player.beacon).toBe(true);
+  });
+
+  it('refuses where nobody is knocked out, and for a player who is already down', () => {
+    const { w, me, raider } = standing();
+    expect(() => standDown(w, me, raider.id)).toThrow('Only an active player');
+    const fury = chaosHighwayStart();
+    expect(() => standDown(fury, fury.vehicles[0], 'x')).toThrow('cannot stand down');
   });
 });
 

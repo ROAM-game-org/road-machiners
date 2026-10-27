@@ -2,26 +2,26 @@ import { chassisDef, HAULER_CHASSIS } from '../data/chassis';
 import { isRig } from './body';
 import { boxCorners, frontAhead, rigBoxes } from './rig';
 import { FORTRESS } from '../data/fortress';
-import { FURY_ROAD } from '../data/modes';
+import { CHAOS_HIGHWAY } from '../data/modes';
 import { RULES } from '../data/rules';
 import { playerTrucks } from './damage';
 import { outpostFort, outpostGateSpots, outpostId, outpostSite, outpostYardHalf, type GateSide, type GateSpot } from './highway';
-import type { FuryRoadRun, Vehicle, World } from './types';
+import type { ChaosHighwayRun, Vehicle, World } from './types';
 import type { Vec } from './vec';
 
 export type GateState = { id: string; milestone: number; side: GateSide; spot: GateSpot; closed: boolean; movable: boolean };
 export type YardSpots = { hauler: Vec; truck: Vec };
 
-const SPOTS = FURY_ROAD.outpost.spots;
-const GATES = FURY_ROAD.outpost;
+const SPOTS = CHAOS_HIGHWAY.outpost.spots;
+const GATES = CHAOS_HIGHWAY.outpost;
 
-function runOf(world: World): FuryRoadRun {
-  if (!world.furyRoad) throw new Error('No Fury Road run in this world');
-  return world.furyRoad;
+function runOf(world: World): ChaosHighwayRun {
+  if (!world.chaosHighway) throw new Error('No Chaos Highway run in this world');
+  return world.chaosHighway;
 }
 
 export function betweenLevels(world: World): boolean {
-  return world.furyRoad !== null && world.furyRoad.waitingAt !== null;
+  return world.chaosHighway !== null && world.chaosHighway.waitingAt !== null;
 }
 
 type YardFrame = { along: number; across: number };
@@ -70,7 +70,7 @@ export function yardSpotsAt(seed: number, window: number, j: number): YardSpots 
 }
 
 export function gatesShut(world: World): boolean {
-  const run = world.furyRoad;
+  const run = world.chaosHighway;
   if (run === null || run.waitingAt === null) return false;
   const post = run.waitingAt;
   return playerTrucks(world).every((truck) => truck.speed <= RULES.parkedSpeed && wholeInYard(world, truck, post));

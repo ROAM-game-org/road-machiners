@@ -2,7 +2,7 @@ import { beforeAll, expect, it } from 'vitest';
 import { CHASSIS_FEATURES } from '../data/chassis';
 import { playerVehicle } from '../sim/damage';
 import { alongOf, roadHeading, roadPoint, toRoad } from '../sim/highway';
-import { furyRoadWorld } from '../sim/testkit';
+import { chaosHighwayWorld } from '../sim/testkit';
 import { endTurn, setMoveOrder } from '../sim/world';
 import { budget } from '../test/budget';
 import { buildDrive, freeDrive, initPhysics, type Drive } from './drive';
@@ -18,12 +18,12 @@ const VERGE = 11;
 const TURNS = 5;
 
 function groundCovered(offRoadCut: number): number {
-  const chassisId = playerVehicle(furyRoadWorld(SEED)).chassisId;
+  const chassisId = playerVehicle(chaosHighwayWorld(SEED)).chassisId;
   const original = CHASSIS_FEATURES[chassisId];
   CHASSIS_FEATURES[chassisId] = { id: 'offRoad', offRoadCut };
   try {
-    let w = furyRoadWorld(SEED);
-    w.furyRoad!.groups = [];
+    let w = chaosHighwayWorld(SEED);
+    w.chaosHighway!.groups = [];
     w.obstacles = [];
     const me = playerVehicle(w);
     me.pos = roadPoint(SEED, 0, START, VERGE);

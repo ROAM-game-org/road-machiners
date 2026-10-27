@@ -1,7 +1,7 @@
 
 import { chassisDef } from '../../data/chassis';
 import { ECONOMY } from '../../data/goods';
-import { NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, TRAITS } from '../../data/npcs';
+import { NPC_BEHAVIOR, NPC_UPKEEP, TRAITS } from '../../data/npcs';
 import { partDef } from '../../data/parts';
 import { REGION, type TownDef } from '../../data/region';
 import { RULES } from '../../data/rules';
@@ -28,8 +28,8 @@ import { escortBlocked, heldEscort, type EscortContract } from '../escort-job';
 import { CONTRACTS, shopDef, SHOPS } from '../../data/market';
 import { canLoot, downedHere, downedNear, needsSearch, salvageHere, takeAllLoot } from '../locations';
 import { topGoal } from '../npc-activities';
-import { firepower, getUpkeepReserve, isWeak, judgeDanger, getKnownSite, strengthRatio, tripFuelCost } from '../npc-decisions';
-import { fightOdds } from '../fight-odds';
+import { firepower, getUpkeepReserve, isWeak, judgeDanger, getKnownSite, tripFuelCost } from '../npc-decisions';
+import { HUNT_MARGIN, huntable, huntedSpeed } from './hunted';
 import { warnedOffTarget } from '../loot-warning';
 import { claimCandidates, claimClue, claimPartHeld } from '../claims';
 import { canLootTruck, canReachSalvage, hasSalvage, salvageInRange, lootBlocker, takeError, takeFromTruck } from '../salvage';
@@ -43,7 +43,7 @@ import { towData } from '../states';
 import type { Call, GoalReason, GridItem, NpcState, PartInstance, SalvageStock, Vehicle, World } from '../types';
 import { dist, pointsAway, type Vec } from '../vec';
 import { canVehicleSee, playerExplored, playerSees } from '../vision';
-import { reachedOutpostAt } from '../fury-road';
+import { reachedOutpostAt } from '../chaos-highway';
 import { inYard } from '../outpost-gates';
 import { runnerOrders } from './runner';
 import { procurerGoal } from './procurer';
@@ -51,7 +51,6 @@ import { fuelForWay, fuelReaches, reachable, SHOP_SITES } from './reach';
 import { searcherGoal, takeSearch } from './searcher';
 import { surveyorGoal as surveyGoal, type SurveyorMoves } from './surveyor';
 import { BIGGEST_PART_CELLS, driveTo, driveToSite, mountBought, Orders, rearm, REPAIR_PARTS, upgradeGear, type BotTurn, type UpgradeStyle } from './orders';
-import { isAlly, isOutlaw } from '../relations';
 
 export type Archetype = 'trader' | 'scavenger' | 'hunter' | 'fastTrader' | 'hauler' | 'procurer' | 'searcher' | 'surveyor' | 'climber' | 'markov' | 'escort' | 'sprinter';
 export const ARCHETYPES: readonly Archetype[] = ['trader', 'scavenger', 'hunter', 'fastTrader', 'hauler', 'procurer', 'searcher', 'surveyor', 'climber', 'markov', 'escort', 'sprinter'];
@@ -85,10 +84,6 @@ function gearStyle(o: Orders, goal: Goal, archetype: Policy): UpgradeStyle {
   return { ...GEAR_STYLES.hunter, lootRoom: BIGGEST_PART_CELLS, minSpeed: huntedSpeed(o.world) };
 }
 
-function huntedSpeed(world: World): number | undefined {
-  const foes = world.vehicles.filter((v) => isOutlaw(v.faction) && v.brain !== null && !isKnockedOut(v) && huntable(world, v));
-  return foes.length === 0 ? undefined : Math.max(...foes.map((v) => vehicleStats(world, v).maxSpeed));
-}
 
 export type BotOptions = { markovTurns?: number; tolerateStalls?: boolean; kit?: string; noGear?: boolean; settings?: Record<string, number> };
 
@@ -156,7 +151,7 @@ export function parkedOnPurpose(world: World): boolean {
 }
 
 function waitsOnPad(world: World): boolean {
-  const run = world.furyRoad;
+  const run = world.chaosHighway;
   return run !== null && inYard(world, playerVehicle(world).pos, run.window + 1);
 }
 
@@ -744,14 +739,6 @@ function engageFoe(o: Orders): boolean {
   const heard = heardFoe(o.world, (v) => huntable(o.world, v));
   if (heard) driveTo(o, heard);
   return heard !== null;
-}
-
-const HUNT_MARGIN = 4;
-
-function huntable(world: World, foe: Vehicle): boolean {
-  const group = world.vehicles.filter((v) => v.id === foe.id || (!isKnockedOut(v) && dist(v.pos, foe.pos) <= SPAWN.neighborHelp && isAlly(world, v, foe)));
-  const danger = strengthRatio(fightOdds(world, [playerVehicle(world)], group)) * (1 + NPC_BEHAVIOR.dangerSpread);
-  return danger * HUNT_MARGIN <= 1;
 }
 
 function engageSeen(o: Orders, foe: Vehicle): boolean {

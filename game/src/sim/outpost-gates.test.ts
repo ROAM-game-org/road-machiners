@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { CHASSIS } from '../data/chassis';
-import { FURY_ROAD } from '../data/modes';
+import { CHAOS_HIGHWAY } from '../data/modes';
 import { haulerOf, playerVehicle } from './damage';
-import { canDriveOn, driveOn, outpostNear, reachedOutpostAt, spawnGroup, waveOf } from './fury-road';
+import { canDriveOn, driveOn, outpostNear, reachedOutpostAt, spawnGroup, waveOf } from './chaos-highway';
 import { milestoneAt, outpostFort, outpostGateSpots, outpostSite, outpostYardHalf, roadPoint, toRoad, windowShift } from './highway';
 import { gatesShut, inYard, outpostGates, wholeInYard, yardSpots, type GateState } from './outpost-gates';
 import { outpostBuyPart } from './outposts';
-import { furyRoadWorld, parkInYard } from './testkit';
+import { chaosHighwayWorld, parkInYard } from './testkit';
 import type { Vehicle, World } from './types';
 import { Refused, endTurn, setMoveOrder } from './world';
 import { FORTRESS } from '../data/fortress';
@@ -16,7 +16,7 @@ import { bendLimit, frontAhead } from './rig';
 const still = () => {};
 
 function runOf(w: World) {
-  return w.furyRoad!;
+  return w.chaosHighway!;
 }
 
 function arrive(w: World): World {
@@ -25,7 +25,7 @@ function arrive(w: World): World {
 }
 
 function toWindow(seed: number, window: number): World {
-  let w = furyRoadWorld(seed);
+  let w = chaosHighwayWorld(seed);
   for (let k = 0; k < window; k++) w = driveOn(arrive(w));
   return w;
 }
@@ -36,7 +36,7 @@ function table(gates: GateState[]): string[] {
 
 describe('the outpost gates', () => {
   it('follow the table for windows 0, 1 and 2, before and after the shut (IV3)', () => {
-    const w0 = furyRoadWorld();
+    const w0 = chaosHighwayWorld();
     expect(table(outpostGates(w0))).toEqual(['0s:closed:static', '0n:open:moves', '1s:open:moves', '1n:closed:static']);
     expect(table(outpostGates(arrive(w0)))).toEqual(['0s:closed:static', '0n:open:moves', '1s:closed:moves', '1n:closed:static']);
 
@@ -55,16 +55,16 @@ describe('the outpost gates', () => {
   });
 
   it('throw with no run, and the yard spots throw before milestone 0 (PC7)', () => {
-    const roaming = furyRoadWorld();
-    roaming.furyRoad = null;
-    expect(() => outpostGates(roaming)).toThrow(/No Fury Road run/);
-    expect(() => yardSpots(furyRoadWorld(), -1)).toThrow(/no outpost/);
+    const roaming = chaosHighwayWorld();
+    roaming.chaosHighway = null;
+    expect(() => outpostGates(roaming)).toThrow(/No Chaos Highway run/);
+    expect(() => yardSpots(chaosHighwayWorld(), -1)).toThrow(/no outpost/);
   });
 });
 
 describe('the yard', () => {
   it('holds a point inside its walls and not outside them', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     const center = outpostFort(w.seed, 0, 1).pos;
     const half = outpostYardHalf() - FORTRESS.wallDepth / 2;
     expect(inYard(w, center, 1)).toBe(true);
@@ -74,7 +74,7 @@ describe('the yard', () => {
   });
 
   it('seats the widest rigid truck whole at both park spots, and not at the gate line', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     const widest = Object.values(CHASSIS).filter((c) => !isRig(c.id)).reduce((a, b) => (b.radius > a.radius ? b : a));
     const spots = yardSpots(w, 1);
     const truck = { chassisId: widest.id, pos: spots.hauler } as Vehicle;
@@ -87,7 +87,7 @@ describe('the yard', () => {
   });
 
   it('seats the straight hauler rig whole at its park spot, its trailer clear of the south gate, and not when it is folded half out', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     const heading = outpostSite(w.seed, 1).heading;
     const rig = { ...haulerOf(w), pos: yardSpots(w, 1).hauler, heading, bend: 0 };
     expect(wholeInYard(w, rig, 1)).toBe(true);
@@ -103,11 +103,11 @@ describe('the yard', () => {
 
 describe('shutting the gates (IV4)', () => {
   it('needs the next outpost paid and both trucks parked whole inside', () => {
-    const early = furyRoadWorld();
+    const early = chaosHighwayWorld();
     parkInYard(early, 1);
     expect(gatesShut(early)).toBe(false);
 
-    const w = arrive(furyRoadWorld());
+    const w = arrive(chaosHighwayWorld());
     expect(gatesShut(w)).toBe(true);
 
     const outside = structuredClone(w);
@@ -128,15 +128,15 @@ describe('shutting the gates (IV4)', () => {
   });
 
   it('is false in a world with no run', () => {
-    const w = furyRoadWorld();
-    w.furyRoad = null;
+    const w = chaosHighwayWorld();
+    w.chaosHighway = null;
     expect(gatesShut(w)).toBe(false);
   });
 });
 
 describe('the shop and the garage (IV5)', () => {
   it('open only in the yard of the next outpost once paid, and close for the last one after Drive on', () => {
-    const w = arrive(furyRoadWorld());
+    const w = arrive(chaosHighwayWorld());
     expect(outpostNear(w)?.id).toBe('outpost-1');
     expect(reachedOutpostAt(w)?.id).toBe('outpost-1');
     const part = outpostNear(w)!.stock[0];
@@ -160,11 +160,11 @@ describe('the shop and the garage (IV5)', () => {
 
 describe('orders and Drive on while shut (IV6)', () => {
   it('refuses a move order for the player truck while the gates are shut and allows it before', () => {
-    const early = furyRoadWorld();
+    const early = chaosHighwayWorld();
     parkInYard(early, 1);
     expect(() => setMoveOrder(early, { kind: 'stopAt', dest: { x: 10, y: 10 } })).not.toThrow();
 
-    const shut = arrive(furyRoadWorld());
+    const shut = arrive(chaosHighwayWorld());
     expect(() => setMoveOrder(shut, { kind: 'stopAt', dest: { x: 10, y: 10 } })).toThrow(Refused);
     expect(() => setMoveOrder(shut, null)).toThrow(Refused);
     expect(() => setMoveOrder(shut, { kind: 'brake' })).toThrow(Refused);
@@ -176,23 +176,23 @@ describe('orders and Drive on while shut (IV6)', () => {
   });
 
   it('allows orders again once the window moved', () => {
-    const w = driveOn(arrive(furyRoadWorld()));
+    const w = driveOn(arrive(chaosHighwayWorld()));
     expect(() => setMoveOrder(w, { kind: 'stopAt', dest: { x: 10, y: 10 } })).not.toThrow();
   });
 
   it('throws on Drive on unless the gates are shut', () => {
-    const early = furyRoadWorld();
+    const early = chaosHighwayWorld();
     parkInYard(early, 1);
     expect(canDriveOn(early)).toBe(false);
     expect(() => driveOn(early)).toThrow(/Drive on/);
-    expect(canDriveOn(arrive(furyRoadWorld()))).toBe(true);
+    expect(canDriveOn(arrive(chaosHighwayWorld()))).toBe(true);
   });
 });
 
 describe('driving on (IV9)', () => {
   it('keeps both trucks where they stand, inside the last fort of the new window', () => {
     for (const seed of [1, 2, 3]) {
-      const w = arrive(furyRoadWorld(seed));
+      const w = arrive(chaosHighwayWorld(seed));
       const before = [playerVehicle(w), haulerOf(w)].map((t) => ({ ...t.pos }));
       const after = driveOn(w);
       const trucks = [playerVehicle(after), haulerOf(after)];
@@ -206,7 +206,7 @@ describe('driving on (IV9)', () => {
   });
 
   it('puts the trucks into the new window parked, inside the yard that is no longer for sale', () => {
-    const after = driveOn(arrive(furyRoadWorld()));
+    const after = driveOn(arrive(chaosHighwayWorld()));
     expect(gatesShut(after)).toBe(false);
     expect(playerVehicle(after).speed).toBe(0);
   });
@@ -229,7 +229,7 @@ describe('group spawns around the forts (IV8)', () => {
             for (const id of group.vehicles) {
               const v = w.vehicles.find((x) => x.id === id)!;
               spawns++;
-              const reach = outpostYardHalf() + FORTRESS.wallDepth / 2 + CHASSIS[v.chassisId].radius + FURY_ROAD.spawnClear;
+              const reach = outpostYardHalf() + FORTRESS.wallDepth / 2 + CHASSIS[v.chassisId].radius + CHAOS_HIGHWAY.spawnClear;
               for (const fort of forts) {
                 const gap = Math.max(Math.abs(v.pos.x - fort.pos.x), Math.abs(v.pos.y - fort.pos.y));
                 expect(gap, `seed ${seed} window ${window} ${from} ${progress}`).toBeGreaterThanOrEqual(reach - 1e-6);

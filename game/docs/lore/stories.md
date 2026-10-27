@@ -4,7 +4,7 @@ Seeds for events and jobs in Icarus. None of them is built in the game yet. A st
 
 ## The free yard
 
-The Salvage Yard is free. The Administrator's gang runs it, and a Nose Army post under Captain Silver sits inside it. Each side waits for the other to slip.
+The Salvage Yard is free. The Administrator's crews run it, and a Nose Army post under Captain Silver sits inside it. Each side waits for the other to slip.
 
 1. Raiders start hitting the Yard's trucks. Silver blames the Administrator for weak defense and says only Nose can protect the Yard.
 2. The Administrator asks the player to find out how the raiders always know which trucks to hit.
@@ -21,7 +21,7 @@ Every few days each major group makes one move of its own, whatever the player d
 
 - Pierce sends a salvage crew deep into the Fallen Sun, and it does not come back.
 - Nose sends its secret police to look for Bowl agents in the Salvage Yard.
-- Nose occupies a pump or a crossroads that Bowl counts as its own, and the two towns move closer to war.
+- Nose occupies a pumping ground or a crossroads market that Bowl counts as its own, and the two towns move closer to war.
 - Bowl offers free drivers pay to fight raiders beside its patrols.
 - The Guild raises its prices after a courier is robbed.
 - A town runs short of food or water, and the price climbs across the basin.
@@ -38,11 +38,11 @@ Every few days each major group makes one move of its own, whatever the player d
 
 The Old Army's trucks still stand where they stopped at Old Orchard. Their logs, orders and cargo hold pieces of why it left. Some pieces say it ran out of food. Others say someone starved it out on purpose. The player can put the pieces together, and the answer changes how Nose and Bowl look.
 
-## The Archon's tanker
+## The Archon's truck
 
-1. Agnes Ondra at Dustwell asks the player to carry a sealed copy of her pump book to Mirela Duarte in Bowl.
-2. The book shows water going missing every week into the household's tanker, whose loads a Senate order keeps out of the book. Mirela Duarte's Canal book proves the rest of Agnes's numbers are real.
-3. Tomas Duarte, Mirela's cousin in a Bowl coat, wrote a patrol report about the tanker. It sits on the Archon's desk.
+1. Agnes Ondra at Dustwell asks the player to carry a sealed copy of her tank wall rings to Mirela Duarte in Bowl.
+2. The rings show the water standing lower every season while the household truck fills first from its own hose, whose loads a Senate order keeps nobody from asking about. Mirela Duarte's trough proves the rest of Agnes's story is real, since Bowl's trucks arrive as short as they left, with every bung whole.
+3. Tomas Duarte, Mirela's cousin in a Bowl coat, wrote a patrol report about the household truck. It sits on the Archon's desk.
 4. The Archon's household offers the player good money to lose the copy on the road.
 5. The player can deliver the copy, sell it, read it out in the Bowl market, or drop it in a ditch.
 
@@ -78,4 +78,4 @@ The game opens with the player walking into the basin from outside. Nobody ever 
 3. They learn to drive on open dirt toward a wreck in sight.
 4. They search the wreck and patch the engine so it stops misfiring.
 5. One raider truck takes them on the road out. The pickup is weak, so a loss is likely but not forced.
-6. On a loss, the first fall plays: the barrel lowers and the driver lives. They wake in Bowl on Hattie's bench at the well house. A stranger towed the truck in and left no name, and the yard by the gate sells what the raider took.
+6. On a loss, the first fall plays: the barrel lowers and the driver lives. They wake in Bowl on Hattie's bench at the cistern house. A stranger towed the truck in and left no name, and the yard by the gate sells what the raider took.

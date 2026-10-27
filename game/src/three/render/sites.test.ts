@@ -7,9 +7,10 @@ import { PAL } from '../../render/palette';
 import { PHYSICS } from '../../data/physics';
 import { REGION } from '../../data/region';
 import { fortressGates, fortressPieces, insideCurtain, onFortressRock, pitDepth } from '../../sim/fortress';
+import { TOWARD_CAMERA } from './camera';
 import { GATE_CLEAR, riseFront } from './interiors/nose';
 import { boxDistance, propBoxes, propObstacle, propShape } from '../../sim/mapgen';
-import { noseRocks } from '../../sim/nose';
+import { noseFrame, noseRocks } from '../../sim/nose';
 import { isFortress } from '../../sim/sites';
 import { deckAt, deckById } from '../../sim/bridge';
 import { heightAt, type Terrain } from '../../sim/terrain';
@@ -442,9 +443,8 @@ describe('landmark scale', () => {
     const nose = ALL.find((s) => s.id === 'nose')!;
     const group = sites.getObjectByName('landmark-nose')!;
     const gates = fortressGates(nose);
-    const south = gates[0].out.y > gates[1].out.y ? gates[0] : gates[1];
-    const uAxis = { x: -south.out.y, y: south.out.x };
-    const toFrame = (p: { x: number; y: number }) => ({ u: (p.x - nose.pos.x) * uAxis.x + (p.y - nose.pos.y) * uAxis.y, v: -((p.x - nose.pos.x) * south.out.x + (p.y - nose.pos.y) * south.out.y) });
+    const { u: uAxis, v: vAxis } = noseFrame(nose);
+    const toFrame = (p: { x: number; y: number }) => ({ u: (p.x - nose.pos.x) * uAxis.x + (p.y - nose.pos.y) * uAxis.y, v: (p.x - nose.pos.x) * vAxis.x + (p.y - nose.pos.y) * vAxis.y });
     const discs = gates.map((g) => ({ ...toFrame(g.face), r: g.width / 2 + GATE_CLEAR }));
     const rockBoxes = noseRocks(nose).flatMap((p, k) => propBoxes(propObstacle(p, k)));
     const inRise = (p: { x: number; y: number }) => rockBoxes.some((b) => boxDistance(b, p) === 0);
@@ -455,6 +455,25 @@ describe('landmark scale', () => {
         if (insideCurtain(nose, { x, y }, 1)) interior.push({ x, y, ...toFrame({ x, y }) });
       }
     }
+
+    it('faces both Nose gates to the camera, one on the left and one at the bottom (IV1, IV2)', () => {
+      const { west, south } = noseFrame(nose);
+      const bearing = (g: { out: { x: number; y: number } }) => (Math.atan2(g.out.y, g.out.x) * 180) / Math.PI;
+      for (const g of gates) expect(g.out.x * TOWARD_CAMERA.x + g.out.y * TOWARD_CAMERA.y).toBeGreaterThanOrEqual(0);
+      expect(bearing(west)).toBeGreaterThanOrEqual(125);
+      expect(bearing(west)).toBeLessThanOrEqual(150);
+      expect(bearing(south)).toBeGreaterThanOrEqual(55);
+      expect(bearing(south)).toBeLessThanOrEqual(70);
+    });
+
+    it('keeps every Nose structure clear of both gate discs (IV7)', () => {
+      const structures = (group.userData.structures as { x: number; z: number; r: number }[]).slice(gates.length);
+      for (const g of gates) {
+        for (const s of structures) {
+          expect(Math.hypot(s.x - (g.face.x - nose.pos.x), s.z - (g.face.y - nose.pos.y)), `structure at ${s.x.toFixed(1)}, ${s.z.toFixed(1)}`).toBeGreaterThanOrEqual(g.width / 2 + GATE_CLEAR + s.r);
+        }
+      }
+    });
 
     it('keeps every Nose mesh inside the curtain, or in the rock where the rock closes it (IV8)', () => {
       const v = new Vector3();
@@ -598,7 +617,7 @@ describe('deck models', () => {
   });
 });
 
-describe('a Fury Road outpost fort', () => {
+describe('a Chaos Highway outpost fort', () => {
   const map = highwayMap(3, 1);
   const built = buildSites(map.terrain);
 

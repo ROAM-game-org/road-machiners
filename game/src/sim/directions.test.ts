@@ -6,7 +6,7 @@ import { directionsFromSite, directionsTo } from './directions';
 import { isTerritory } from './sites';
 import { ambiguousStarts, followSteps } from './directions-follower.test-helper';
 import { nearestRoadPoints, roadNetworkOf } from './road-network';
-import { emptyWorld, furyRoadWorld } from './testkit';
+import { emptyWorld, chaosHighwayWorld } from './testkit';
 import type { DirectionStep, DirectionTarget, Obstacle, World } from './types';
 import { dist, type Vec } from './vec';
 
@@ -98,6 +98,13 @@ describe('directionsTo', () => {
     expect(kinds(steps)).toEqual(['straight', 'search']);
   });
 
+  it('names the gates of Nose on different sides though both face south', () => {
+    const steps = directionsFromSite(w, 'nose', to('bowl'));
+    expect(steps[0]).toMatchObject({ do: 'gate' });
+    const sides = [...new Set(['bowl', 'granary', 'marshal-post'].map((id) => (directionsFromSite(w, 'nose', to(id))[0] as { side: string }).side))];
+    expect(sides.length).toBeGreaterThan(1);
+  });
+
   it('says there is no road when a cliff ring shuts the start in', () => {
     const pit = pitWorld(OFF_ROAD);
     expect(directionsTo(pit, OFF_ROAD, to('nose'))).toEqual([{ do: 'noRoad', octant: octantOf({ x: site('nose').x - OFF_ROAD.x, y: site('nose').y - OFF_ROAD.y }), span: spanOf(dist(OFF_ROAD, site('nose'))) }]);
@@ -134,7 +141,7 @@ describe('directionsTo', () => {
   });
 
   it('knows no road to a town that is not on the highway map', () => {
-    const steps = directionsTo(furyRoadWorld(), { x: 300, y: 300 }, to('bowl'));
+    const steps = directionsTo(chaosHighwayWorld(), { x: 300, y: 300 }, to('bowl'));
     expect(kinds(steps)).toEqual(['noRoad']);
   });
 

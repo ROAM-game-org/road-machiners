@@ -49,7 +49,7 @@ How a faction judges another. The row judges the column.
 | Independent | 5 | 5 | 10 | 5 | −30 | −30 | −20 | 0 | 0 |
 
 - Bowl would destroy Nose and calls that defense. Nose thinks Bowl slow but needs its grain.
-- The Bowl Granary pays Kiln a sack for every armed truck that crosses, so Kiln lets Bowl trucks pass. Bowl still does not trust Kiln, and Bowl lawmen still fight Kiln riders on sight.
+- The Bowl Granary sends Kiln Camp rations in exchange for passage for its trucks, so Kiln lets Bowl trucks pass. Bowl still does not trust Kiln, and Bowl lawmen still fight Kiln riders on sight.
 - Scrapjaw and Kiln are rival camps that neither rob nor help each other.
 - The Marshalls take no side and no side takes against them for their work. Only the Sunward, wary of everyone, are wary of them.
 - The Sunward are wary of everyone, and everyone of them. Bowl and Nose are warier, since the Senate stopped the order's grain and Nose families lost children to it.
@@ -73,7 +73,7 @@ A driver remembers what a truck did to it: an attack (−40), a robbery (−50) 
 A calm attack or robbery, one the two trucks were not already hostile over, is an incident. Shots back at an attacker are self-defense and start nothing new, so a fight never fans out again.
 
 ```
-calm attack, robbery, refused demand, retaliation for a crash
+calm attack, robbery, refused demand, retaliation for a crash the other truck caused
         |
         v
 witnesses: drivers who see both trucks, the victim, and the victim's escorts who see the attacker
@@ -92,7 +92,7 @@ known if the victim saw the attacker, or a lawman or an ally of the victim saw i
    -> one deed for the whole incident
 ```
 
-A witness that would not shield the attacker also remembers the crime and reports it at its next town or outpost, which [Crime and the Marshalls](crime.md) follows.
+A witness that would not shield the attacker also remembers the crime and reports it at its next town or site, which [Crime and the Marshalls](crime.md) follows.
 
 A driver that steps in starts a feud with the attacker. It still fights by its own sight, danger and guns, so it never shoots through a hill or at a truck it cannot reach.
 
@@ -113,14 +113,14 @@ The player starts at each organized faction's view of an outside driver: Bowl 5,
 | aided | a free gift of fuel or supplies | +5 | +30 |
 | towed | a tow that ends in town | +5 | +30 |
 | patched | a finished patch | +5 | +30 |
-| defended | knocking out a driver that was fighting another one, which was not fighting the player | +8 | +40 |
+| defended | knocking out a driver that attacked another one. A driver that only shot back, or fought the other from the same turn, does not count. The one it attacked must not be fighting the player | +8 | +40 |
 | contract | a contract done at a Bowl or Nose shop | +3 | none |
 | failed contract | a contract the player failed or handed in late at a Bowl or Nose shop | −5 | none |
 
 - The same deed on the same driver counts once a day, so ten hits are one attack, and a driver who refits after a knockout gives no fresh help.
 - Help raises standing with one faction by 15 a day at most. Losses have no cap.
 - Each day standing drifts 10 back toward its start, so a player at −100 is out of the hostile band in 6 days. The Marshalls' desk sells the drift at once: settling lifts a hostile standing to −49, as [Crime and the Marshalls](crime.md#the-desk-at-the-roadhouse) describes.
-- A band change shows in the log and as a toast, like "Bowl now treats you as wary."
+- A band change shows in the log and as a toast with its cause, like "Scrapjaw now treats you as wary. Old grudges fade with time." A deed names itself, as in "You towed one of their drivers." A settlement has its own line and adds no cause.
 - On Chaos Highway standing never moves, so the gangs there hold fire on the gun truck until it shoots them. Memories still form.
 
 ## Talk and offers
@@ -130,4 +130,4 @@ The player starts at each organized faction's view of an outside driver: Bowl 5,
 - A stranded or low truck can always get help from a driver that is not hostile: a tow, a patch or aid, asked for or offered. Independents have no standing, so a neutral rescuer always exists, and the town patch and the beacon never ask about standing.
 - Two drivers tow each other only when neither is wary of the other. Raiders still tow only raiders, and townsfolk never tow raiders.
 - A driver never robs a truck it is friendly with, and a raider never robs a gang truck.
-- The hover card tags each driver by how it treats the player: hostile in red, or wary, neutral or friendly. The character screen lists the standing with each faction, with the base, recent deeds and the rest in its tooltip.
+- The hover card tags each driver by how it treats the player: hostile in red, or wary, neutral or friendly. The character screen lists the standing with each faction, with the base, each kind of recent deed and the rest in its tooltip.

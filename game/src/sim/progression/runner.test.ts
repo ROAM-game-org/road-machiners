@@ -3,7 +3,7 @@ import { haulerOf, playerVehicle } from '../damage';
 import { corePart, goodsCount, mountedParts } from '../grid';
 import { partDef } from '../../data/parts';
 import { inYard, yardSpots } from '../outpost-gates';
-import { addVehicle, furyRoadWorld, npcBrain, parkInYard } from '../testkit';
+import { addVehicle, chaosHighwayWorld, npcBrain, parkInYard } from '../testkit';
 import type { Vehicle, World } from '../types';
 import { followSpot } from '../tow';
 import { dist, type Vec } from '../vec';
@@ -14,7 +14,7 @@ import { botOrders } from './bot';
 import { fightMove } from './escort-brain';
 
 function atFirstOutpost(): World {
-  const w = furyRoadWorld();
+  const w = chaosHighwayWorld();
   parkInYard(w, 1);
   return endTurn(w, () => {});
 }
@@ -30,7 +30,7 @@ function escortSpotOf(w: World): Vec {
   return followSpot(w, playerVehicle(w), haulerOf(w), 0);
 }
 
-describe('the Fury Road escort bot', () => {
+describe('the Chaos Highway escort bot', () => {
   it('repairs both trucks, restocks patch parts, drives on and keeps beside the hauler', () => {
     const w = atFirstOutpost();
     for (const truck of [playerVehicle(w), haulerOf(w)]) for (const part of mountedParts(truck)) part.hp = Math.ceil(maxHp(part) * 0.6);
@@ -45,7 +45,7 @@ describe('the Fury Road escort bot', () => {
     expect(mountedParts(haulerOf(turn.world)).every((p) => p.hp === maxHp(p))).toBe(true);
     expect(goodsCount(after).parts).toBe(4);
     expect(turn.events).toContainEqual({ t: 'roadOpened', stretch: 2 });
-    expect(turn.world.furyRoad?.window).toBe(1);
+    expect(turn.world.chaosHighway?.window).toBe(1);
     const hop = after.order?.kind === 'stopAt' ? after.order.dest : null;
     expect(hop).not.toBeNull();
     expect(dist(hop!, haulerOf(turn.world).pos)).toBeLessThan(12);
@@ -70,7 +70,7 @@ describe('the Fury Road escort bot', () => {
   });
 
   it('parks to patch when stranded out of combat with parts to patch with', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     const me = playerVehicle(w);
     mountedParts(me, 'engine')[0].hp = 0;
     me.speed = 0;
@@ -85,7 +85,7 @@ describe('the Fury Road escort bot', () => {
   });
 
   it('parks and patches a holed tank first, out of combat with parts to patch with', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     const me = playerVehicle(w);
     const tank = corePart(me, 'tank');
     tank.hp = 0;
@@ -99,7 +99,7 @@ describe('the Fury Road escort bot', () => {
   });
 
   it('ends the run when stranded with no way to patch', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     w.player.fuel = 0;
 
     const turn = botOrders(w, 'escort');
@@ -135,7 +135,7 @@ describe('the Fury Road escort bot', () => {
   });
 
   it('keeps auto fire on and rides behind the hauler while no hostile is in sight', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     w.player.autoFire = false;
 
     const turn = botOrders(w, 'escort');
@@ -147,7 +147,7 @@ describe('the Fury Road escort bot', () => {
   });
 
   it('fights a hostile truck in sight the way an NPC merc would', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     const foe = hostileNear(w);
     refreshVision(w);
 
@@ -158,15 +158,15 @@ describe('the Fury Road escort bot', () => {
   });
 
   it('turns auto repair off while the tank is holed, so the tank is patched before anything else', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     corePart(playerVehicle(w), 'tank').hp = 0;
 
     expect(botOrders(w, 'escort').world.player.autoRepair).toBe(false);
-    expect(botOrders(furyRoadWorld(), 'escort').world.player.autoRepair).toBe(true);
+    expect(botOrders(chaosHighwayWorld(), 'escort').world.player.autoRepair).toBe(true);
   });
 
   it('parks to patch a broken wheel out of combat with parts to patch with', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     const me = playerVehicle(w);
     mountedParts(me, 'core').find((p) => partDef(p.defId).id === 'wheel')!.hp = 0;
     me.speed = 0;
@@ -176,7 +176,7 @@ describe('the Fury Road escort bot', () => {
   });
 
   it('douses a hot engine', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     w.player.engineHeat = 0.9;
     w.player.supplies = 5;
 
@@ -184,9 +184,9 @@ describe('the Fury Road escort bot', () => {
   });
 });
 
-describe('the Fury Road sprinter bot', () => {
+describe('the Chaos Highway sprinter bot', () => {
   it('turns auto fire off and drives ahead for the next pad, whatever follows it', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     w.player.autoFire = true;
 
     const turn = botOrders(w, 'sprinter');

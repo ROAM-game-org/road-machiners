@@ -33,7 +33,6 @@ export const SOUND_STYLE: Record<Setup, string> = {
 const SONG_PART = { bus: "music", volume: 1, pitchJitter: 0, maxVoices: 1, loop: false, perFight: true } as const;
 
 const DEFS = {
-  "ui-click": { bus: "ui", setup: "cab", pitchJitter: 0.04, maxVoices: 2, volume: 0.6, loop: false, prompts: ["Single click of an old metal toggle switch on a truck dashboard."], seconds: 0.5 },
   "ui-open": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.7, loop: false, prompts: ["Rusty metal glovebox latch opening with a short creak."], seconds: 0.8 },
   "ui-close": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.7, loop: false, prompts: ["Heavy metal lid shutting with a dull latch clack."], seconds: 0.6 },
   "ui-confirm": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.8, loop: false, prompts: ["Heavy steel ratchet clicking tight, a deal sealed."], seconds: 0.6 },
@@ -187,6 +186,18 @@ export function engineStrainFileFor(chassisId: string): string {
   if (!file) throw new Error(`Engine recording of ${chassisId} has no strained loop`);
   return file;
 }
+
+export const LOOP_CHECK = {
+  levelWindowSeconds: 0.2,
+  stepSeconds: 0.05,
+  holeDb: 3,
+  envelopeSeconds: 0.001,
+  pulseWindowSeconds: 0.25,
+  pulseLagSeconds: [0.008, 0.06],
+  pulseDrop: 0.2,
+  seamSearchSeconds: 0.06,
+  crossfadeSeconds: 0.1,
+} as const;
 
 export type SoundFormat = { ext: string; dir: string; mime: string; signature: { at: number; text: string } };
 

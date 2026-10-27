@@ -3,7 +3,6 @@ import { chassisDef, PLAYER_CHASSIS } from '../data/chassis';
 import { GOOD_IDS, GOODS } from '../data/goods';
 import { GEAR_LEVEL_IDS, NPCS, type GearLevel, type NpcTemplate } from '../data/npcs';
 import { PARTS } from '../data/parts';
-import { REGION } from '../data/region';
 import { CHEATS } from '../data/rules';
 import { PERK_IDS } from '../data/skills';
 import { TIME } from '../data/time';
@@ -17,7 +16,7 @@ import { addGoods, applyRefitLayout, mountPart, planItemMove, stowPart } from '.
 import { disarm } from './claymore';
 import { generateNpcLoadout } from './npc-loadout';
 import { grantXp, isPerkId, pickedFromPair } from './progress';
-import { isTerritory, nearestPad, type Site } from './sites';
+import { isTerritory, nearestPad, worldPlaces } from './sites';
 import { territoryEntries } from './territory';
 import { allegianceFor, spawnAt } from './spawn';
 import { firstFree, freeSpotNear } from './free-spot';
@@ -34,7 +33,7 @@ import { WEATHER } from '../data/weather';
 import { makeWeather } from './weather';
 import { hostileToPlayer, playerCanAct, update } from './world';
 import { fuelCap, suppliesCap } from './stats';
-import { advanceSunward, nextDusk, nightWindow, orderStands, startHuntTonight, sunwardPhase } from './sunward';
+import { advanceSunward, nextRideOut, orderRides, orderStands, startHuntTonight, sunwardPhase } from './sunward';
 import { fillHollow } from './spawn';
 import { SUNWARD } from '../data/sunward';
 import { spillDeadRows } from './spill';
@@ -235,7 +234,8 @@ export function noclipMove(world: World, target: Vec): World {
 }
 
 export function placeSpot(world: World, id: string): Vec {
-  const places: Site[] = [...REGION.towns, ...REGION.locations];
+  if (world.chaosHighway !== null) throw new CheatError('Chaos Highway has no named places. Use tp <x> <y>');
+  const places = worldPlaces(world);
   const place = places.find((p) => p.id === id);
   if (!place) throw new CheatError(`Unknown place ${id}. Places: ${places.map((p) => p.id).join(', ')}`);
   const from = playerVehicle(world).pos;
@@ -259,14 +259,14 @@ export function sunwardDusk(world: World): World {
   if (!orderStands(world)) throw new CheatError('No Sunward order stands in this world');
   return update(world, (w) => {
     fillHollow(w);
-    w.turn = nextDusk(w.turn);
+    w.turn = nextRideOut(w.turn);
     advanceSunward(w);
     refreshVision(w);
   });
 }
 
 export function sunwardHunt(world: World): World {
-  if (!nightWindow(world)) throw new CheatError('The hunters ride only on a night of the vigil. Try sunward dusk first');
+  if (!orderRides(world)) throw new CheatError('The hunters ride only on a night of the vigil. Try sunward dusk first');
   return update(world, (w) => startHuntTonight(w));
 }
 

@@ -19,12 +19,12 @@ import { makePart } from './factory';
 import { corePart, gridOf, mountedParts } from './grid';
 import { vehicleMass } from './mass';
 import { npcTraits } from './npc-decisions';
-import { practice, skillLevel } from './progress';
+import { pendingPerkPairs, practice, skillLevel } from './progress';
 import { TIME } from '../data/time';
 import { repairContent } from './save-repair';
 import { defaultSetup } from './settings';
 import { addState, advanceStates, settleStates } from './states';
-import { furyRoadStart } from './testkit';
+import { chaosHighwayStart } from './testkit';
 import type { CallVars, GridItem, NpcState, Vehicle, World } from './types';
 import { maxHp, restorePart } from './wear';
 import { cloneWorld, endTurn, newWorld } from './world';
@@ -62,8 +62,20 @@ describe('repairContent', () => {
     expect(w).toEqual(before);
   });
 
+  it('drops a retired Cannibal pick and reopens the Machining 2 pair without awarding anything', () => {
+    const w = fresh();
+    w.player.ranks.machining = 2;
+    w.player.perks = ['cannibal' as never];
+    const money = w.player.money;
+    const xp = w.player.xp;
+    repairContent(w);
+    expect(w.player.perks).toEqual([]);
+    expect(pendingPerkPairs(w).some((pair) => pair.perks.includes('teardown'))).toBe(true);
+    expect([w.player.money, w.player.xp]).toEqual([money, xp]);
+  });
+
   it('leaves a Chaos Highway world with no drift alone', () => {
-    const w = furyRoadStart();
+    const w = chaosHighwayStart();
     const before = cloneWorld(w);
     repairContent(w);
     expect(w).toEqual(before);
@@ -115,7 +127,7 @@ describe('repairContent', () => {
   });
 
   it('gives the hauler the hauler chassis', () => {
-    const w = furyRoadStart();
+    const w = chaosHighwayStart();
     const hauler = haulerOf(w);
     hauler.chassisId = 'ghostChassis';
 
@@ -344,6 +356,7 @@ describe('repairContent', () => {
       { way: { kind: 'directions', steps: [{ do: 'turn', side: 'left', at: { kind: 'site', id: 'ghost-camp' }, road: { kind: 'heading', octant: 'north' }, span: 'near' }] } },
       { way: { kind: 'directions', steps: [{ do: 'leave', at: { kind: 'deck', id: 'ghost-deck' }, octant: 'north', lean: null, span: 'near' }] } },
       { way: { kind: 'directions', steps: [{ do: 'search', clue: { kind: 'site', id: 'ghost-camp' }, rough: false }] } },
+      { square: { kind: 'square', column: 8, row: 0 } },
     ];
     for (const v of vars) {
       const w = fresh();
@@ -361,7 +374,7 @@ describe('repairContent', () => {
       { do: 'turn', side: 'left', at: { kind: 'site', id: site }, road: { kind: 'to', site }, span: 'near' },
       { do: 'leave', at: { kind: 'deck', id: DECKS[0].id }, octant: 'north', lean: null, span: 'near' },
       { do: 'search', clue: { kind: 'site', id: site }, rough: false },
-    ] } };
+    ] }, square: { kind: 'square', column: 7, row: 0 } };
     w.player.call = { with: npc.id, topic: null, node: 'hub', vars: {}, line: { line: 'talk', vars: way } };
     repairContent(w);
     expect(w.player.call).not.toBeNull();
@@ -539,8 +552,8 @@ describe('repairContent', () => {
   });
 
   it('drops wave templates that left the data, and an emptied wave never spawns', () => {
-    const w = furyRoadStart();
-    const [first, second] = w.furyRoad!.groups.filter((g) => !g.spawned);
+    const w = chaosHighwayStart();
+    const [first, second] = w.chaosHighway!.groups.filter((g) => !g.spawned);
     const kept = first.templates[0];
     first.templates = [kept, 'ghostRaider'];
     second.templates = ['ghostRaider'];

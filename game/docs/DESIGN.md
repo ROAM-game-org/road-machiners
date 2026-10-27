@@ -46,6 +46,10 @@ The lore and atmosphere is based on contrasts between the pre-apocalypse Old Wor
 
 The game shows how things are through the world and the screen, not through words. A gun's reach is a drawn arc, a hurt truck looks more worn as it takes damage, a driver's nature shows in how it drives and fights. Text explains only what nothing else can show, and never repeats what the player already sees.
 
+10. The map is a miniature of a coherent world
+
+The map is a tabletop miniature. A few models stand for a town of hundreds or thousands, and text, pictures and talk describe that real town. Mad Max scale, not Fallout. The world must add up: armed trucks need towns big enough to build them. [People and scale](lore/world.md#people-and-scale).
+
 # Core systems
 
 Each section states what a system is for and the rules it must keep. The detailed rules live in [docs/wiki/mechanics/](wiki/mechanics/), and the numbers and content tables in [docs/wiki/](wiki/README.md).
@@ -129,5 +133,5 @@ Chaos Highway is a highway combat run on its own map, never on Icarus: an endles
 - The hauler's driver never fights, flees or swerves at random. The NPC section says anything a driver can do keeps a small chance, and this is the exception: the hauler is an escort the player has to read, so its driver is predictable.
 - Life is valued (principle 4) does not hold: nobody surrenders or flees.
 
-Details: [Chaos Highway](wiki/mechanics/fury-road.md).
+Details: [Chaos Highway](wiki/mechanics/chaos-highway.md).
 

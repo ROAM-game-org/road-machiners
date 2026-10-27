@@ -42,7 +42,7 @@ Fill each part like this.
 
 - A sample teaches by repetition. If every sample has the same joke or the same pet word, every line will carry it. Use samples that show the speech rule in different ways.
 - Do not tell the model to always do a habit. Say a habit happens sometimes, or the model will do it in every line.
-- Name a topic or trade once at most, as the job, like "keeps the well house". A theme from the sheet such as money, prices or water, repeated in the aspects and again in a sample, comes back in every line. Leave themes out of the prompt and let the facts of the scene bring them in.
+- Name a topic or trade once at most, as the job, like "keeps the cistern house". A theme from the sheet such as money, prices or water, repeated in the aspects and again in a sample, comes back in every line. Leave themes out of the prompt and let the facts of the scene bring them in.
 - Take several takes of a line and pick the best. Cut invented details in the edit, instead of adding rules about them to the prompt.
 - Read the first batch for tics before you use any of it. Count how many lines share a joke, a pet word or a sentence shape. If more than a few do, change the prompt and run the batch again.
 
@@ -50,11 +50,12 @@ Fill each part like this.
 
 The model gives raw material. Before it goes in the quest:
 
-- Check every fact against the lore and the facts you gave. Cut anything the model invented.
+- Check every fact against the lore and the facts you gave. Cut anything the model invented. Put every practice, cause and detail through the [sense check](../lore/README.md#sense-check).
 - Cut the length to what the scene needs.
 - Split every semicolon or dash a model left in into two sentences. The voice test rejects them.
 - Cut a tic that repeats from the line before, even if the model liked it.
 - Remove words that agree with the gender of the player, and any count of years.
+- Read the line against the [Humanizer](humanizer.md#how-roam-uses-it) the way its How ROAM uses it section says for fiction. Never put the Humanizer in the call itself, since style words there reach every character.
 - Keep the voice. Fix rhythm and wording only. Do not smooth it into your own style.
 - Read the line with the name hidden. If another sheet could own it, run the call again with a sharper character part.
 

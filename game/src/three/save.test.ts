@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { budget } from '../test/budget';
 import { startKit } from '../data/start';
 import { newWorld, update } from '../sim/world';
 import { playerVehicle } from '../sim/damage';
@@ -16,7 +17,8 @@ import { PARTS } from '../data/parts';
 import type { Faction, GridItem, World } from '../sim/types';
 import { advanceContracts, siteOf, type Contract } from '../sim/market';
 import { advanceJobs } from '../sim/jobs';
-import { CHASSIS } from '../data/chassis';
+import { CHASSIS, chassisDef } from '../data/chassis';
+import { dist } from '../sim/vec';
 import { CRATE_MASS } from '../data/goods';
 import { addGoods } from '../sim/inventory';
 import { goodsCount } from '../sim/grid';
@@ -29,8 +31,9 @@ import { REGION } from '../data/region';
 import { sitePads } from '../sim/sites';
 import { hireEscort } from '../sim/tow';
 import { TEST_MAP } from '../test/map';
-import { hollowBays, hollowObstacles, membersOf } from '../sim/sunward';
-import { fillHollow } from '../sim/spawn';
+import { advanceSunward, duskTurn, membersOf, rideOutTurn, sunwardFacts } from '../sim/sunward';
+import { hollowBays, hollowObstacles } from '../sim/hollow-layout';
+import { fillHollow, isFree } from '../sim/spawn';
 import { reusedWorld } from '../test/world-cache';
 import { isBakedObstacle, isBreakable, mapObstacles } from '../sim/mapgen';
 import { breakProp, oldSpotOf, oldSpotPicks, oldStockId } from '../sim/salvage';
@@ -113,7 +116,7 @@ describe('game save', () => {
     expect(before.has(`wreck-${npc.id}`)).toBe(true);
     writeSave(slots, 'auto', world, RUN, 1000);
     expect(lootableProps(loadWorld(slots, 'auto', TEST_MAP)!.salvage)).toEqual(before);
-  }, 30_000);
+  }, budget(30_000));
 
   it('clears the save and the seen tips for a new game, and keeps sound settings', () => {
     const slots = makeSlots();
@@ -435,6 +438,27 @@ describe('game save', () => {
     expect(loaded.vehicles[0].items.find((item) => item.id === weapon.id)).toMatchObject(to);
   });
 
+  it('keeps a refit queue of three steps through a reload, runs it to the end, and load awards nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    const weapon = world.vehicles[0].items.find((item) => item.kind === 'part' && item.part.defId === 'mg');
+    if (!weapon) throw new Error('Expected weapon');
+    const to = { x: 3, y: CHASSIS.scout.layout.length, rot: 1 as const };
+    const queued = moveItem(moveItem(moveItem(world, weapon.id, to), weapon.id, weapon), weapon.id, to);
+    advanceJobs(queued);
+    queued.events = [];
+    writeSave(slots, 'auto', queued, RUN, 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+    expect(loaded.vehicles[0].job).toEqual(queued.vehicles[0].job);
+    expect(loaded.vehicles[0].job).toMatchObject({ queue: [{ pickup: null }, { pickup: null }] });
+    expect(loaded.player.money).toBe(queued.player.money);
+    expect(loaded.player.xp).toBe(queued.player.xp);
+    expect(loaded.events).toEqual([]);
+    for (let turn = 0; turn < 40 && loaded.vehicles[0].job; turn++) advanceJobs(loaded);
+    expect(loaded.vehicles[0].job).toBeNull();
+    expect(loaded.vehicles[0].items.find((item) => item.id === weapon.id)).toMatchObject(to);
+  });
+
   it('keeps a part bought into storage at a stall, and takes it out after loading', () => {
     const slots = makeSlots();
     let world = emptyWorld(sitePads(siteOf('pump-station'))[0]);
@@ -605,6 +629,7 @@ describe('game save', () => {
     const ids = oldSpotPicks(TEST_MAP).map(oldStockId);
     const saved = JSON.parse(JSON.stringify(saveOf(world))).world;
     saved.salvage = saved.salvage.filter((stock: { id: string }) => !oldSpotOf(stock));
+    saved.vehicles = saved.vehicles.filter((v: { faction: string }) => v.faction !== 'sunward');
     slots.put('auto', { format: { major: SAVE_MAJOR, minor: SAVE_FORMAT.minor - 1 }, world: saved, savedAt: 1000, runId: RUN });
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
     const oldIds = (w: World): string[] => w.salvage.filter((stock) => oldSpotOf(stock)).map((stock) => stock.id);
@@ -1229,6 +1254,42 @@ describe('relations in a save', () => {
     const members = (x: typeof w) => membersOf(x).map((v) => ({ id: v.id, pos: v.pos, home: v.brain!.home }));
     expect(members(loaded)).toEqual(members(w));
     expect(members(loaded).every((m) => hollowBays().some((b) => b.x === m.home.x && b.y === m.home.y))).toBe(true);
+    expect(loaded.player.xp).toBe(w.player.xp);
+    expect(loaded.player.money).toBe(w.player.money);
+    expect(loaded.events).toEqual([]);
+  });
+
+  it('moves a truck standing in the Hollow\'s wall off it at load, awarding nothing', () => {
+    const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    const wall = hollowObstacles().find((o) => o.kind === 'landmark' && o.look === 'fortScrapWall')!;
+    const me = playerVehicle(w);
+    me.pos = { ...wall.pos };
+    w.events = [];
+    const slots = new SaveSlots(memoryBackend(), new Map());
+
+    writeSave(slots, 'auto', w, 'run-1', 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    const moved = playerVehicle(loaded);
+    expect(dist(moved.pos, wall.pos)).toBeGreaterThan(0.5);
+    expect(isFree(loaded, moved.pos, chassisDef(moved.chassisId).radius, moved.id)).toBe(true);
+    expect(loaded.player.xp).toBe(w.player.xp);
+    expect(loaded.events).toEqual([]);
+  });
+
+  it('gives back a night opened between the ride-out and dusk, awarding nothing at load', () => {
+    const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    fillHollow(w);
+    w.turn = rideOutTurn(duskTurn(2)) + 3;
+    advanceSunward(w);
+    w.events = [];
+    const slots = new SaveSlots(memoryBackend(), new Map());
+
+    writeSave(slots, 'auto', w, 'run-1', 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(sunwardFacts(w).night?.dusk).toBe(duskTurn(2));
+    expect(sunwardFacts(loaded)).toEqual(sunwardFacts(w));
     expect(loaded.player.xp).toBe(w.player.xp);
     expect(loaded.player.money).toBe(w.player.money);
     expect(loaded.events).toEqual([]);

@@ -1,17 +1,31 @@
 {
- "format": "2.107",
+ "format": "2.116",
  "shape": {
   "broken": [],
+  "chaosHighway": "null",
   "craters": [],
   "crimes": [],
   "dustClouds": [],
   "fields": [],
   "flares": [],
-  "furyRoad": "null",
   "lines": [],
   "mapHash": "string",
   "marketRng": {
    "rngState": "number"
+  },
+  "moments": {
+   "crucible": {
+    "driver": "string",
+    "heard": "boolean"
+   },
+   "eightToNine": {
+    "driver": "string",
+    "heard": "boolean"
+   },
+   "fromTheWest": {
+    "driver": "string",
+    "heard": "boolean"
+   }
   },
   "nameRng": {
    "rngState": "number"
@@ -2566,6 +2580,14 @@
    },
    "radio_wagon_driver": {},
    "road_stretch_1": {},
+   "roadhouse_petra": {
+    "petra_book": "boolean",
+    "petra_buyoff": "boolean",
+    "petra_cost": "boolean",
+    "petra_how": "boolean",
+    "petra_raiders": "boolean",
+    "petra_riders": "boolean"
+   },
    "station_still": {
     "asked_buyers": "boolean"
    },
@@ -2695,6 +2717,10 @@
    ],
    "road_stretch_1": [
     "start"
+   ],
+   "roadhouse_petra": [
+    "start",
+    "start.hub"
    ],
    "station_still": [
     "start",
@@ -3051,6 +3077,20 @@
     "readsNotes": [],
     "writes": {},
     "notes": [],
+    "begins": []
+   }
+  },
+  "roadhouse_petra": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [
+     "roadhouseBook",
+     "roadhouseBuyOff",
+     "roadhouseRaiders"
+    ],
     "begins": []
    }
   },

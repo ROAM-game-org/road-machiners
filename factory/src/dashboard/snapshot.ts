@@ -166,6 +166,7 @@ export class SnapshotCollector {
   private github = createSource<GithubSnapshot>();
   private analytics = createSource<Analytics>();
   private ledgerSize: number | null = null;
+  private analyticsReadAt = Number.NEGATIVE_INFINITY;
   private host = createSource<HostLoad>();
   private live = createSource<ReturnType<typeof readLiveOperations>>();
   constructor(private readonly config: DashboardConfig, private readonly publicGithub: PublicGitHub, private readonly hostSampler: HostSampler, private readonly analyticsRunner: AnalyticsRunner) {}
@@ -181,7 +182,9 @@ export class SnapshotCollector {
   private async refreshAnalytics(): Promise<void> {
     const path = join(this.config.home, 'ledger.jsonl');
     const size = existsSync(path) ? statSync(path).size : null;
-    if (size !== null && size === this.ledgerSize) return void (this.analytics = { ...this.analytics, at: new Date().toISOString(), status: 'ok' });
+    const fresh = Date.now() - this.analyticsReadAt < this.config.analyticsRefreshMs;
+    if (size !== null && (size === this.ledgerSize || fresh)) return void (this.analytics = { ...this.analytics, at: new Date().toISOString(), status: 'ok' });
+    this.analyticsReadAt = Date.now();
     try {
       this.analytics = recordSuccess(await this.analyticsRunner.read(path, new Date(), this.config.tickIntervalMs * 3));
       this.ledgerSize = size;

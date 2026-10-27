@@ -13,7 +13,7 @@ export function surveyPictureUrl(site: string): string {
 
 async function fetchPicture(site: string): Promise<string | null> {
   try {
-    const bytes = await fetchAsset('Survey picture', surveyPictureUrl(site));
+    const bytes = await fetchAsset('survey-picture', surveyPictureUrl(site));
     const url = URL.createObjectURL(new Blob([bytes], { type: 'image/webp' }));
     arrived.set(site, url);
     return url;

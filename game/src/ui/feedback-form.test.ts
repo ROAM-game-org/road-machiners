@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ReportContext } from "../three/error-report";
 import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
-import { feedbackBuild, feedbackStatus, FEEDBACK_TEXT_LIMIT, sendFeedback, type FeedbackReport } from "./game-menu";
+import { feedbackBuild, feedbackStatus, FEEDBACK_TEXT_LIMIT, sendFeedback, type FeedbackReport } from "./feedback-form";
 
 const render = (msg: Msg) => resolve(msg, "en");
 const renderRu = (msg: Msg) => resolve(msg, "ru");

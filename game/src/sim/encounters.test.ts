@@ -9,6 +9,7 @@ import { entryText } from '../text/resolve';
 import { playerVehicle } from './damage';
 import { chooseOption, currentOptions, hangUp, raiseCalls } from './dialogue';
 import { encounterAvailable, encounterOpen, lapseEncounter, onStrangerSeen, tipPrice } from './encounters';
+import { gridSquareOf } from './map-grid';
 import { remember } from './memory';
 import { stateOf } from './states';
 import { topGoal } from './npc-activities';
@@ -112,7 +113,7 @@ describe('the roll', () => {
 
   it('does not roll on Chaos Highway', () => {
     const { w, npc } = talesWorld();
-    w.setup = { ...w.setup, mode: 'furyRoad' };
+    w.setup = { ...w.setup, mode: 'chaosHighway' };
     onStrangerSeen(w, npc);
     expect(w.player.encounters.pending).toBeNull();
   });
@@ -229,6 +230,7 @@ describe('the salvage tip', () => {
     expect(next.player.money).toBe(money - tipPrice());
     expect(seller.resources!.money).toBe(npcMoney + tipPrice());
     expect(next.player.rumored).toEqual(['wreck7']);
+    expect(next.player.call?.vars.square).toEqual({ kind: 'square', ...gridSquareOf({ x: 50, y: 30 }) });
     next = pick(next, 'Thanks. Over and out.');
     expect(next.player.call).toBeNull();
     expect(next.player.encounters.pending).toBeNull();
@@ -343,7 +345,7 @@ describe('the challenge', () => {
 
   it('starts a feud and a fight at once when the player accepts', () => {
     const { w, npc } = challengeWorld();
-    const next = pick(w, 'Let us go, then.');
+    const next = pick(w, "Let's go, then.");
     expect(feud(next, npc)).not.toBeNull();
     expect(topGoal(next.vehicles.find((v) => v.id === npc.id)!)).toMatchObject({ kind: 'fight', reason: 'calledOut' });
     expect(next.player.call).toBeNull();
@@ -354,7 +356,7 @@ describe('the challenge', () => {
     const law = addVehicle(w, 'bowl', 'scout', ['stockEngine', 'mg'], { x: 30, y: 36 });
     law.brain = npcBrain('lawman', law.pos, ['lawman']);
     refreshVision(w);
-    const next = pick(w, 'Let us go, then.');
+    const next = pick(w, "Let's go, then.");
     expect(stateOf(next, 'feud', law.id, next.player.vehicleId)).toBeNull();
   });
 

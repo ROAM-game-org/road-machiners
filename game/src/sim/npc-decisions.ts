@@ -1,8 +1,12 @@
 
+import { LINGER } from '../data/linger';
+import { lingersForMoment } from './moments';
+import { lingerReasonNow } from './linger';
 import { canPayBounty } from './crime';
 import { dealAvailable } from './patch';
 import { encounterAvailable } from './encounters';
 import { canSpareFor } from './aid';
+import { isLineGun } from '../data/parts';
 import { ECONOMY } from '../data/goods';
 import { ESCORT_JOB, SHOPS, type ShopDef } from '../data/market';
 import { graphEdges } from '../data/market';
@@ -36,7 +40,7 @@ import { getResources } from './resources';
 import { skillEffect } from './progress';
 import { randRange } from './rng';
 import { recall, remember } from './memory';
-import { backedOff, canReachSalvage, canTakeAny, canTakeFromTruck, CANNOT_HOLD, CLAIMED, claimOnly, hasCargo, hasSalvage, holdsClaim, jobTarget, lootBlocker, STRIPPED } from './salvage';
+import { backedOff, canReachSalvage, canTakeAny, canTakeFromTruck, CANNOT_HOLD, CLAIMED, claimOnly, hasCargo, hasSalvage, holdsClaim, lootBlocker, STRIPPED, worksOn } from './salvage';
 import { passesUpLoot } from './loot-warning';
 import { canUseSite, isTerritory, siteGap, siteGates, siteUnder, type Site } from './sites';
 import { territoryAt, territoryGrounds } from './territory';
@@ -123,7 +127,7 @@ export function bodyCondition(vehicle: Vehicle): number {
 }
 
 export function firepower(world: World, vehicle: Vehicle): number {
-  return vehicleStats(world, vehicle).weapons.filter((weapon) => weapon.part.hp > 0).reduce((sum, weapon) => sum + weapon.def.round.damage * weapon.def.rounds, 0);
+  return vehicleStats(world, vehicle).weapons.filter((weapon) => weapon.part.hp > 0 && !isLineGun(weapon.def)).reduce((sum, weapon) => sum + weapon.def.round.damage * weapon.def.rounds, 0);
 }
 
 export function fightOddsAgainst(world: World, vehicle: Vehicle, other: Vehicle): FightOdds {
@@ -174,6 +178,11 @@ export function isManageable(vehicle: Vehicle, danger: number): boolean {
 export function isWeak(world: World, vehicle: Vehicle): boolean {
   const threshold = topGoal(vehicle)?.kind === 'flee' ? NPC_BEHAVIOR.recoverCondition : NPC_BEHAVIOR.fleeCondition;
   return getCombatCondition(world, vehicle) <= threshold || getResources(world, vehicle).health / RULES.maxHealth <= threshold;
+}
+
+function badlyHurt(world: World, vehicle: Vehicle): boolean {
+  const line = NPC_BEHAVIOR.recoverCondition;
+  return getCombatCondition(world, vehicle) <= line || getResources(world, vehicle).health / RULES.maxHealth <= line;
 }
 
 export function huntsPrey(vehicle: Vehicle): boolean {
@@ -255,17 +264,26 @@ function runOffers(world: World, vehicle: Vehicle, source: ShopDef, buyer: ShopD
   return source.goods.filter((good) => buyer.goods.includes(good)).flatMap((good) => runOffer(world, vehicle, { source: source.id, good, sellShop: buyer.id }, spend, 1));
 }
 
-function runOffer(world: World, vehicle: Vehicle, plan: TradePlan, spend: number, need: number): Weighted<TradePlan>[] {
-  const sourcePos = getKnownSite(plan.source).pos;
-  const trip = dist(vehicle.pos, sourcePos) + dist(sourcePos, getKnownSite(plan.sellShop).pos);
+export type TradeOutlook = { buy: number; profit: number; count: number; fuel: number; risk: number; net: number; worth: boolean };
+
+export function tradeOutlook(world: World, vehicle: Vehicle, plan: TradePlan, spend: number, trip: number): TradeOutlook {
   const fuel = tripFuelCost(world, vehicle, trip);
   const buy = getTradePrice(world, vehicle, plan.source, plan.good, 'buy');
   const profit = getTradePrice(world, vehicle, plan.sellShop, plan.good, 'sell') - buy;
-  if (spend < buy || profit <= 0) return [];
   const count = affordableBuyCount(world, vehicle, plan.source, plan.good, cargoRoom(vehicle), spend);
   const risk = count * goodValue(plan.good) * legRisk(world, plan.source, plan.sellShop);
   const net = count * profit - fuel - risk;
-  return net > 0 ? [{ value: plan, weight: (net * need) / trip }] : [];
+  return { buy, profit, count, fuel, risk, net, worth: spend >= buy && profit > 0 && net > 0 };
+}
+
+export function tradeLegTiles(plan: TradePlan): number {
+  return dist(getKnownSite(plan.source).pos, getKnownSite(plan.sellShop).pos);
+}
+
+function runOffer(world: World, vehicle: Vehicle, plan: TradePlan, spend: number, need: number): Weighted<TradePlan>[] {
+  const trip = dist(vehicle.pos, getKnownSite(plan.source).pos) + tradeLegTiles(plan);
+  const outlook = tradeOutlook(world, vehicle, plan, spend, trip);
+  return outlook.worth ? [{ value: plan, weight: (outlook.net * need) / trip }] : [];
 }
 
 export function supplyOffers(world: World, vehicle: Vehicle): Weighted<TradePlan>[] {
@@ -314,7 +332,7 @@ export function lootTaken(world: World, vehicle: Vehicle, targetId: string | nul
 }
 
 export function worksOnLoot(vehicle: Vehicle, targetId: string): boolean {
-  return jobTarget(vehicle) === targetId;
+  return worksOn(vehicle, targetId);
 }
 
 export function holdFull(vehicle: Vehicle): boolean {
@@ -679,6 +697,7 @@ const AVAILABLE: Record<OptionName, Availability> = {
   prowl: canProwl,
   loot: canLootSubject,
   wait: always,
+  linger: (world, vehicle) => lingerReasonNow(world, vehicle) !== null,
   patrol: canPatrol,
   travel: canTravel,
   explore: canDrive,
@@ -729,31 +748,53 @@ function weakFlee(world: World, vehicle: Vehicle): number {
   return isWeak(world, vehicle) ? NPC_BEHAVIOR.weakFlee : 1;
 }
 
-function threatFlee(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
-  if (danger === null || isManageable(vehicle, danger)) return 1;
-  const odds = fightOddsAgainst(world, vehicle, subjectOf(world, decision, subject));
-  return odds.getaway > 0 && odds.getaway >= odds.win ? NPC_BEHAVIOR.threatFlee : NPC_BEHAVIOR.trappedFlee;
+function getsAway(world: World, vehicle: Vehicle, foe: Vehicle): boolean {
+  if (!canDrive(world, vehicle)) return false;
+  const odds = fightOddsAgainst(world, vehicle, foe);
+  return odds.getaway > 0 && odds.getaway >= odds.win;
 }
 
-function hunterFlee(vehicle: Vehicle, manageable: boolean): number {
-  return huntsPrey(vehicle) && manageable ? NPC_BEHAVIOR.hunterFlee : 1;
+function pleads(world: World, vehicle: Vehicle, foe: Vehicle): boolean {
+  return isWeak(world, vehicle) || (badlyHurt(world, vehicle) && !getsAway(world, vehicle, foe));
+}
+
+function losingFlee(world: World, vehicle: Vehicle, foe: Vehicle): number {
+  return badlyHurt(world, vehicle) && getsAway(world, vehicle, foe) ? NPC_BEHAVIOR.weakFlee : 1;
+}
+
+function threatFlee(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
+  if (danger === null || isManageable(vehicle, danger)) return 1;
+  return getsAway(world, vehicle, subjectOf(world, decision, subject)) ? NPC_BEHAVIOR.threatFlee : NPC_BEHAVIOR.trappedFlee;
+}
+
+function hunterFlee(world: World, vehicle: Vehicle, manageable: boolean): number {
+  return huntsPrey(vehicle) && manageable && !badlyHurt(world, vehicle) ? NPC_BEHAVIOR.hunterFlee : 1;
+}
+
+function manageableFoe(vehicle: Vehicle, danger: number | null): boolean {
+  return danger !== null && isManageable(vehicle, danger);
 }
 
 function fleeSeenFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
-  return threatFlee(world, vehicle, decision, subject, danger) * weakFlee(world, vehicle) * hunterFlee(vehicle, danger !== null && isManageable(vehicle, danger));
+  return threatFlee(world, vehicle, decision, subject, danger) * weakFlee(world, vehicle) * hunterFlee(world, vehicle, manageableFoe(vehicle, danger));
+}
+
+function fleeParleyFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
+  const foe = subjectOf(world, decision, subject);
+  return threatFlee(world, vehicle, decision, subject, danger) * losingFlee(world, vehicle, foe) * hunterFlee(world, vehicle, manageableFoe(vehicle, danger));
 }
 
 function fleeHeardFactor(world: World, vehicle: Vehicle): number {
-  return weakFlee(world, vehicle) * hunterFlee(vehicle, true);
+  return weakFlee(world, vehicle) * hunterFlee(world, vehicle, true);
 }
 
 function fleeAttackedFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
   const cabMax = maxHp(corePart(vehicle, 'cab'));
   const hit = NPC_BEHAVIOR.missFlee + vehicle.brain!.hurt / cabMax / NPC_BEHAVIOR.hurtFullFlee;
-  return hit * weakFlee(world, vehicle) * threatFlee(world, vehicle, decision, subject, danger);
+  return hit * losingFlee(world, vehicle, subjectOf(world, decision, subject)) * threatFlee(world, vehicle, decision, subject, danger);
 }
 
-const FLEE_FACTORS: Partial<Record<DecisionId, SituationFactor>> = { hostileSeen: fleeSeenFactor, contactHeard: fleeHeardFactor, attacked: fleeAttackedFactor, threatened: fleeSeenFactor, bountyDemanded: fleeSeenFactor, parley: fleeSeenFactor, crewCalled: fleeSeenFactor, vigilCalled: fleeSeenFactor };
+const FLEE_FACTORS: Partial<Record<DecisionId, SituationFactor>> = { hostileSeen: fleeSeenFactor, contactHeard: fleeHeardFactor, attacked: fleeAttackedFactor, threatened: fleeSeenFactor, bountyDemanded: fleeSeenFactor, parley: fleeParleyFactor, crewCalled: fleeSeenFactor, vigilCalled: fleeSeenFactor };
 
 function fleeFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
   const factor = FLEE_FACTORS[decision];
@@ -836,16 +877,16 @@ function retaliateFactor(world: World, vehicle: Vehicle, decision: DecisionId, s
   return isAlly(world, vehicle, subjectOf(world, decision, subject)) ? NPC_BEHAVIOR.mateRetaliate : 1;
 }
 
-function truceFactor(world: World, vehicle: Vehicle, _decision: DecisionId, _subject: string | null, danger: number | null): number {
+function truceFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
   if (danger !== null && !isManageable(vehicle, danger)) return NPC_BEHAVIOR.threatTruce;
-  return isWeak(world, vehicle) ? 1 : NPC_BEHAVIOR.winningTruce;
+  return pleads(world, vehicle, subjectOf(world, decision, subject)) ? 1 : NPC_BEHAVIOR.winningTruce;
 }
 
-function begFactor(world: World, vehicle: Vehicle): number {
-  return isWeak(world, vehicle) ? NPC_BEHAVIOR.weakBeg : 1;
+function begFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): number {
+  return pleads(world, vehicle, subjectOf(world, decision, subject)) ? NPC_BEHAVIOR.weakBeg : 1;
 }
 
-function wantsPeace(world: World, vehicle: Vehicle, danger: number | null): boolean {
+export function wantsPeace(world: World, vehicle: Vehicle, danger: number | null): boolean {
   return (danger !== null && !isManageable(vehicle, danger)) || isWeak(world, vehicle);
 }
 
@@ -937,6 +978,7 @@ const SITUATION: Record<OptionName, SituationFactor> = {
   prowl: neutral,
   loot: neutral,
   wait: neutral,
+  linger: (world, vehicle) => (lingersForMoment(world, vehicle, lingerReasonNow(world, vehicle)) ? LINGER.holderWeight : 1),
   patrol: neutral,
   travel: neutral,
   explore: neutral,
@@ -1086,6 +1128,10 @@ export function offersChoice(world: World, vehicle: Vehicle, decision: DecisionI
   return options.some((option) => option !== 'keep' && optionOpen(world, vehicle, decision, subject, option));
 }
 
+export function anyOptionOpen(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {
+  return (Object.keys(DECISIONS[decision]) as OptionName[]).some((option) => optionOpen(world, vehicle, decision, subject, option));
+}
+
 function optionOpen(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, option: OptionName): boolean {
   return allowedByMode(world, option) && AVAILABLE[option](world, vehicle, decision, subject);
 }
@@ -1105,8 +1151,9 @@ export function optionChances<O extends string>(weights: Partial<Record<O, numbe
   return out;
 }
 
-export function decide<D extends DecisionId>(world: World, vehicle: Vehicle, decision: D, subject: string | null, danger: number | null): DecisionOptions[D] {
+export function decide<D extends DecisionId>(world: World, vehicle: Vehicle, decision: D, subject: string | null, danger: number | null, without: readonly DecisionOptions[D][] = []): DecisionOptions[D] {
   const weights = optionWeights(world, vehicle, decision, subject, danger);
+  for (const option of without) delete weights[option];
   checkWeights(vehicle, decision, weights);
   if (!hasChoice(weights)) return 'keep' as DecisionOptions[D];
   const chances = Object.entries(optionChances(weights)) as [DecisionOptions[D], number][];
@@ -1114,6 +1161,7 @@ export function decide<D extends DecisionId>(world: World, vehicle: Vehicle, dec
 }
 
 function checkWeights(vehicle: Vehicle, decision: DecisionId, weights: Partial<Record<OptionName, number>>): void {
+  if (Object.keys(weights).length === 0) throw new Error(`${vehicle.id} has no open option at ${decision}`);
   for (const [option, weight] of Object.entries(weights) as [OptionName, number][]) {
     if (!Number.isFinite(weight) || weight < 0) throw new Error(`${vehicle.id} has weight ${weight} for ${option} at ${decision}`);
   }

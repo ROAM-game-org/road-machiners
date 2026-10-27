@@ -33,7 +33,7 @@ from mathutils import Vector
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
 from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, ROUND_ARCH_SEGMENTS, SUSPENSION_REST, Grid, check_base, cut_boxes, flare_profile, level_sockets, round_arch  # noqa: E402
-from parts_common_core import ALONG_X, ROUND_SIDES, TIRE_SHARE, drawn_wheel  # noqa: E402
+from parts_common_core import ALONG_X, PROUD, ROUND_SIDES, TIRE_SHARE, drawn_wheel  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 304
@@ -129,7 +129,7 @@ def underbody(kit: Kit) -> None:
         kit.cylinder(f"tank_{s}", 0.2, 0.9, (0.5, y, -0.33), "metal", rot=(0, math.pi / 2, 0), vertices=ROUND_SIDES)
     kit.box("front_bumper", (0.14, 2 * CAB_SIDE, 0.18), (HALF_X - 0.07, 0, -0.54), "under")
     kit.box("rear_bumper", (0.12, 2 * CAB_SIDE - 0.2, 0.15), (-HALF_X + 0.06, 0, -0.47), "under")
-    kit.box("rear_beam", (0.1, 2 * CAB_SIDE, FLOOR_BOTTOM + 0.4), (-HALF_X + 0.15, 0, FLOOR_BOTTOM - 0.16), "under")
+    kit.box("rear_beam", (0.1 - PROUD, 2 * CAB_SIDE, FLOOR_BOTTOM + 0.4), (-HALF_X + 0.15 + PROUD / 2, 0, FLOOR_BOTTOM - 0.16), "under")
     mirrored(kit, "mud_flap", (0.04, 0.5, 0.45), -WHEEL_X - ARCH_R - 0.06, WHEEL_Z, -0.32, "under")
 
 
@@ -174,7 +174,7 @@ def cab(kit: Kit) -> None:
         mirrored(kit, f"post{sx}", (post, post, glass_h), x, CAB_SIDE - post / 2, BELT + glass_h / 2, "paint")
     kit.box("mullion", (0.1, 0.1, glass_h), (CAB_FRONT + 0.01, 0, BELT + glass_h / 2), "paint")
     mirrored(kit, "door_post", (post, post, glass_h), mid, CAB_SIDE - post / 2, BELT + glass_h / 2, "paint")
-    kit.box("back_wall", (0.08, 2 * CAB_SIDE, glass_h), (CAB_BACK + 0.04, 0, BELT + glass_h / 2), "paint")
+    kit.box("back_wall", (0.07, 2 * (CAB_SIDE - PROUD), glass_h), (CAB_BACK + 0.045, 0, BELT + glass_h / 2), "paint")
     kit.box("roof", (length + 0.08, 2 * CAB_SIDE + 0.06, ROOF_T), (mid + 0.04, 0, ROOF - ROOF_T / 2), "trim")
     mirrored(kit, "mirror", (0.05, 0.08, 0.34), CAB_FRONT - 0.15, HALF_Y - 0.04, BELT + 0.3, "metal")
 
@@ -202,7 +202,7 @@ def bed(kit: Kit) -> None:
     for i, z in enumerate((0.14, 0.26, 0.38)):
         mirrored(kit, f"rib{i}", (length - 0.1, 0.02, 0.05), mid, HALF_Y - 0.01, z, "trim")
     for i, x in enumerate((-2.4, -1.0, 0.4)):
-        mirrored(kit, f"stake{i}", (0.1, 0.03, h), x, HALF_Y - 0.015, FLOOR + h / 2, "under")
+        mirrored(kit, f"stake{i}", (0.1, 0.03, h - PROUD), x, HALF_Y - 0.015 - PROUD, FLOOR + (h - PROUD) / 2, "under")
     kit.box("tailgate", (WALL, 2 * (SIDE - WALL), h), (back + WALL / 2, 0, FLOOR + h / 2), "paint")
     for i, z in enumerate((0.14, 0.26, 0.38)):
         kit.box(f"gate_rib{i}", (0.02, 2 * (SIDE - WALL) - 0.1, 0.05), (back - 0.01, 0, z), "trim")

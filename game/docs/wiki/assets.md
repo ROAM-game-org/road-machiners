@@ -128,7 +128,6 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 <!-- wiki:sounds -->
 | cue | bus | loop | volume | max voices | variants |
 | --- | --- | --- | --- | --- | --- |
-| ui-click | ui | false | 0.6 | 2 | 2 |
 | ui-open | ui | false | 0.7 | 1 | 3 |
 | ui-close | ui | false | 0.7 | 1 | 3 |
 | ui-confirm | ui | false | 0.8 | 1 | 3 |

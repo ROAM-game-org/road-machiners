@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DIRECTIONS, RADIO, RADIO_VARIANTS, type RadioTopic } from '../data/radio';
+import { OCTANT_ORDER as DIRECTIONS } from '../text/compass';
+import { RADIO, RADIO_VARIANTS, type RadioTopic } from '../data/radio';
 import { REGION } from '../data/region';
 import { GOODS } from '../data/goods';
 import { NPCS } from '../data/npcs';
@@ -90,7 +91,7 @@ describe('RadioStation', () => {
     const text = en(s2.next()!.text);
     expect(text).not.toContain('Granary');
     expect(DIRECTIONS.some((d) => text.includes(en(t(`radio.basin.${d}`))))).toBe(true);
-    expect(text).toContain('heading north');
+    expect(text).toContain('heading north.');
   });
 
   it('names the place where a storm ends', () => {
@@ -292,7 +293,7 @@ describe('RadioStation', () => {
   });
 });
 
-const CLAIM_LOOK_IDS: ClaimLook[] = ['armyTruck', 'deadTruck', 'tank', 'shipWreck'];
+const CLAIM_LOOK_IDS: ClaimLook[] = ['armyTruck', 'deadTruck', 'tank', 'hullCompartment', 'cargoPod', 'engineSection'];
 
 describe('radio lines', () => {
   const longest = (words: string[]) => words.reduce((x, y) => (y.length > x.length ? y : x));

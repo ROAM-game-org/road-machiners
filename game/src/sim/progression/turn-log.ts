@@ -18,7 +18,7 @@ import { hostileToPlayer } from '../world';
 import type { Ledger } from './orders';
 import { netWorth } from './record';
 import type { NpcLedger } from './npc-ledger';
-import { furyRoadReadout } from '../fury-road';
+import { chaosHighwayReadout } from '../chaos-highway';
 import { EFFORT } from '../../data/market';
 
 export type SeenFoe = { id: string; who: string; dist: number; odds: number; speed: number };
@@ -79,7 +79,7 @@ export function turnLine(world: World, events: readonly GameEvent[], ledger: Led
 }
 
 function runField(world: World): { run?: string } {
-  const run = furyRoadReadout(world);
+  const run = chaosHighwayReadout(world);
   return run ? { run: `${run.stretch} ${Math.round(run.toOutpost)}` } : {};
 }
 
@@ -107,7 +107,7 @@ function meanHp(v: Vehicle): number {
   return Math.round(parts.reduce((sum, p) => sum + (100 * p.hp) / maxHp(p), 0) / Math.max(1, parts.length));
 }
 
-function snap(world: World, v: Vehicle): TruckSnap {
+export function snap(world: World, v: Vehicle): TruckSnap {
   const hp = meanHp(v);
   return {
     id: v.id,
@@ -150,7 +150,7 @@ function foesSeen(world: World, me: Vehicle): SeenFoe[] {
 }
 
 const OWN = new Set(['money', 'contract', 'claimRival', 'claimLead', 'death', 'knockout', 'wake', 'skillUp', 'supply', 'townPatch', 'scrapPatch', 'searched', 'discover', 'outpostReached', 'roadOpened', 'runLost']);
-const QUIET = new Set(['practice', 'activity', 'arrived', 'spawn', 'despawn', 'info', 'weather']);
+export const QUIET = new Set(['practice', 'activity', 'arrived', 'spawn', 'despawn', 'info', 'weather']);
 
 export function touchesPlayer(e: GameEvent, me: string): boolean {
   if (QUIET.has(e.t)) return false;

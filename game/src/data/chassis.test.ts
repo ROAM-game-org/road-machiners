@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { chassisAbility, accelFactor, bedRows, rangeFactor, sightFactor, topSpeedFactor } from '../sim/chassis-features';
 import { CHASSIS, CHASSIS_FEATURES, HAULER_CHASSIS, isTruckPaint, PAINT, PAINT_SCHEMES, PALETTE, PALETTE_IDS, PLAYER_CHASSIS, TOWN_CHASSIS, type ChassisDef, type PaletteId } from './chassis';
 import { GANG_PAINT, TEMPLATE_PAINT } from '../render/palette';
-import { FURY_ROAD } from './modes';
+import { CHAOS_HIGHWAY } from './modes';
 import { NPCS } from './npcs';
 import { PARTS, partDef } from './parts';
 
@@ -256,6 +256,11 @@ describe('shown cores', () => {
     const shown = Object.entries(CHASSIS).filter(([, c]) => c.showsCores).map(([id]) => id).sort();
     expect(shown).toEqual(['courier', 'scout', 'wagon']);
   });
+
+  it('draws the engine on every chassis but the buggy, whose closed nose deck holds a full-size spare where the engine would stand', () => {
+    const hidden = Object.entries(CHASSIS).filter(([, c]) => !c.showsEngine).map(([id]) => id);
+    expect(hidden).toEqual(['buggy']);
+  });
 });
 
 describe('chassis tradeoffs', () => {
@@ -339,7 +344,7 @@ describe('the semi', () => {
   });
 
   it('is in no outpost offer and no NPC template', () => {
-    expect(FURY_ROAD.trucks.pool).not.toContain('semi');
+    expect(CHAOS_HIGHWAY.trucks.pool).not.toContain('semi');
     expect(PLAYER_CHASSIS).not.toContain('semi');
     for (const tpl of Object.values(NPCS)) expect(tpl.loadout.chassis.map((c) => c.value)).not.toContain('semi');
   });

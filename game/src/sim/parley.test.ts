@@ -9,7 +9,7 @@ import { addGoods } from './inventory';
 import { takeAllLoot } from './locations';
 import { pushGoal, resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
 import { visibleSalvage } from './npc-decisions';
-import { makePeace, plead, surrenderTo, yieldTo } from './parley';
+import { makePeace, plead, standDownTo, yieldTo } from './parley';
 import { claimantOf, emptyHidden, hasCargo, lootBlocker, looterOf } from './salvage';
 import { beginSearch } from './search';
 import { addState, endState, stateOf } from './states';
@@ -52,11 +52,29 @@ describe('crashes between trucks at peace', () => {
     const w = quietWorld();
     const a = npcAt(w, 'independent', ['trader'], 34);
     const b = npcAt(w, 'independent', ['scavenger'], 36);
-    noteCollision(w, a, b, dent, dent);
+    noteCollision(w, a, b, dent, dent, { a: true, b: true });
     expect(isHostile(w, a, b)).toBe(false);
     expect(stateOf(w, 'grievance', a.id, b.id)).not.toBeNull();
     expect(stateOf(w, 'grievance', b.id, a.id)).not.toBeNull();
     expect(a.brain!.attackers).toEqual({});
+  });
+
+  it('only the truck hit by a truck at fault holds a grievance', () => {
+    const w = quietWorld();
+    const a = npcAt(w, 'independent', ['trader'], 34);
+    const b = npcAt(w, 'independent', ['scavenger'], 36);
+    noteCollision(w, a, b, dent, dent, { a: true, b: false });
+    expect(stateOf(w, 'grievance', b.id, a.id)).not.toBeNull();
+    expect(stateOf(w, 'grievance', a.id, b.id)).toBeNull();
+  });
+
+  it('a crash where neither drove in leaves no grievance', () => {
+    const w = quietWorld();
+    const a = npcAt(w, 'independent', ['trader'], 34);
+    const b = npcAt(w, 'independent', ['scavenger'], 36);
+    noteCollision(w, a, b, dent, dent, { a: false, b: false });
+    expect(w.states.filter((s) => s.kind === 'grievance')).toEqual([]);
+    expect(b.lastHitBy).toBe(a.id);
   });
 
   it('a forgiven crash ends the grievance and leaves the two at peace', () => {
@@ -64,7 +82,7 @@ describe('crashes between trucks at peace', () => {
     const w = quietWorld();
     const a = npcAt(w, 'independent', ['trader'], 34);
     const b = npcAt(w, 'independent', ['scavenger'], 36);
-    noteCollision(w, a, b, [], dent);
+    noteCollision(w, a, b, [], dent, { a: true, b: false });
     thinkNpc(w, b);
     expect(stateOf(w, 'grievance', b.id, a.id)).toBeNull();
     expect(isHostile(w, a, b)).toBe(false);
@@ -76,7 +94,7 @@ describe('crashes between trucks at peace', () => {
     const a = npcAt(w, 'independent', ['trader'], 34);
     const b = npcAt(w, 'scrapjaw', ['raider'], 36);
     addState(w, 'truce', b.id, a.id, { kind: 'none' });
-    noteCollision(w, a, b, [], dent);
+    noteCollision(w, a, b, [], dent, { a: true, b: false });
     thinkNpc(w, b);
     expect(stateOf(w, 'feud', b.id, a.id)).not.toBeNull();
     expect(b.brain!.attackers[a.id]).toBe(true);
@@ -87,7 +105,7 @@ describe('crashes between trucks at peace', () => {
     const a = npcAt(w, 'independent', ['trader'], 34);
     const b = npcAt(w, 'independent', ['scavenger'], 36);
     feud(w, a, b);
-    noteCollision(w, a, b, [], dent);
+    noteCollision(w, a, b, [], dent, { a: true, b: false });
     expect(stateOf(w, 'grievance', b.id, a.id)).toBeNull();
     expect(b.brain!.attackers[a.id]).toBe(false);
   });
@@ -96,7 +114,7 @@ describe('crashes between trucks at peace', () => {
     const w = quietWorld();
     const a = npcAt(w, 'independent', ['trader'], 34);
     const me = playerVehicle(w);
-    noteCollision(w, a, me, [], dent);
+    noteCollision(w, a, me, [], dent, { a: true, b: false });
     expect(w.states.filter((s) => s.kind === 'grievance')).toEqual([]);
   });
 });
@@ -368,7 +386,7 @@ describe('player pleas', () => {
 });
 
 describe('player robbery', () => {
-  const DEMAND = 'Drop your cargo, or we open fire.';
+  const DEMAND = 'Drop your cargo, or I open fire.';
   const INSIST = 'You heard me. Cargo on the ground, now.';
 
   function loaded(): { w: World; npc: Vehicle } {
@@ -539,10 +557,12 @@ describe('pile claims', () => {
       expectsLoot(w, robber, victim);
     });
 
-    it('the player surrenders and the robber keeps its loot goal', () => {
+    it('the player stands down and the robber keeps its loot goal', () => {
       const { w, robber, victim } = setup('player');
-      surrenderTo(w, victim, robber);
-      expectsLoot(w, robber, victim);
+      standDownTo(w, victim, robber);
+      thinkNpc(w, robber);
+      expect(fights(w, robber, victim)).toEqual([]);
+      expect(topGoal(robber)).toMatchObject({ kind: 'loot', targetId: victim.id });
     });
 
     it('peace also ends the fights of an ally of either side', () => {

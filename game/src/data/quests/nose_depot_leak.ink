@@ -2,7 +2,7 @@
 # stat: watches Watches
 # stat: money M's
 # stat: alarm Talk: quiet, talking, loud
-# fact: ledger_read Ledger: cans went missing on the third, seventh and eleventh nights. Pell was on duty each time.
+# fact: ledger_read Duty board: a red rag marks the third, seventh and eleventh nights, when the racks showed gaps. Pell was on duty each time.
 # fact: gate_checked Gate log: Corporal Vance signed out late on the third, seventh and eleventh nights, alone, with an empty truck bed.
 # fact: saw_swap Fuel shed: Vance asked Pell to swap shifts tonight. Pell agreed without looking up. Vance has a scar across his chin.
 # fact: knows_scar Sabine: a corporal brings her the cans. Big hands, a scar across the chin. Never a name.
@@ -40,11 +40,11 @@ VAR envelope = 60
 { depot_thief == "open": -> desk }
 Kovac shuts the dispatch door behind you before he says a word. # place: Dispatch office
 The room smells of cold tea and machine oil, and the window rattles each time a truck passes the gate. On his desk lies a fuel can, empty, its Army seal cut clean through.
-Fuel's walking out of my depot. A can here, a can there. Never enough to miss in a day, but the monthly count doesn't lie. # speaker: Kovac
+Fuel's walking out of my depot. A can here, a can there. Never enough to miss in a day. Every week there's more empty rack in that fuel shed, like a roster that keeps losing names. # speaker: Kovac
 A shipment leaves for the north road soon. I want the seller found before it rolls. Quietly. A thief who hears footsteps buries what he's taken. # speaker: Kovac
 + [I will look into it.]
   ~ depot_thief = "open"
-  Good. Keep your questions soft. A nervous thief sends the cans underground, and then I'll never find them. # speaker: Kovac
+  Good. Keep your questions soft. # speaker: Kovac
   -> desk
 + [Not my business.]
   Then we didn't speak. Close the door on your way out. # speaker: Kovac
@@ -54,7 +54,7 @@ A shipment leaves for the north road soon. I want the seller found before it rol
 # checkpoint: desk
 The yard lies under a film of dust, and the shipment trucks stand fuelled by the gate with their engines ticking as they cool. # page # place: Dispatch office
 { alarm > 0: Two loaders stop talking as you pass, and they start again only when you are well beyond them. }
-+ {not ledger_read} [Read the depot ledgers.]
++ {not ledger_read} [Look at the duty board.]
   -> ledger
 + {ledger_read and not gate_checked} [Check the gate log for the same nights.]
   -> gate
@@ -81,12 +81,12 @@ The yard lies under a film of dust, and the shipment trucks stand fuelled by the
 === ledger ===
 ~ ledger_read = true
 ~ watches -= 1
-The ledger lies open on Pell's desk, and each loss is written in the same careful hand, the figures leaning a little to the right. # place: Dispatch office
-Night; Missing; On duty # head
-3rd; 2 cans; Pell # row
-7th; 3 cans; Pell # row
-11th; 2 cans; Pell # row
-The ink on the last line is still wet, and a faint sour smell of it hangs over the page.
+The duty board hangs by the dispatch door, with every shift chalked on it by name. Kovac has tied a strip of red rag beside each night the shed racks showed a gap in the morning. # place: Dispatch office
+Night; Racks at dawn; On duty # head
+3rd; a gap; Pell # row
+7th; a gap; Pell # row
+11th; a gap; Pell # row
+The newest rag is still bright red. The window light hasn't had time to fade it.
 -> after
 
 === gate ===
@@ -94,7 +94,7 @@ The ink on the last line is still wet, and a faint sour smell of it hangs over t
 ~ watches -= 1
 The gate sentry hands over the log without a word, then goes back to watching the road. # place: Gatehouse
 Night; Signed out late; Truck bed # head
-3rd; Ostrow; water drums # row
+3rd; Ostrow; water barrels # row
 3rd; Vance; empty # row
 7th; Vance; empty # row
 11th; Ruiz; scrap # row
@@ -106,11 +106,11 @@ Every one of Vance's lines ends with the same note, written small: <i>back befor
 ~ pell_talked = true
 ~ watches -= 1
 { ledger_read: -> swap }
-Pell talks without stopping, about the dust, his bad back and the thin soup at the mess. His eyes slide past the ledger on his desk every time the talk comes near it. # place: Fuel shed
+Pell talks without stopping, about the dust, his bad back and the thin soup at the mess. His eyes slide away to the racks every time the talk comes near the missing cans. # place: Fuel shed
 -> after
 
 = swap
-You mention the ledger. Pell's pen stops moving. # place: Fuel shed
+You mention the red rags on the duty board. Pell's pen stops moving. # place: Fuel shed
 The door bangs open and a corporal fills the frame, big hands hanging loose at his sides, a scar white across his chin.
 Pell. I want tonight's shift again. Swap with me. # speaker: Vance
 Pell nods at his desk without raising his eyes.
@@ -133,7 +133,7 @@ Buying or just looking? Looking's free, but it doesn't feed me. # speaker: Sabin
 + [Pay her {sabine_price} M to talk. # cost: {sabine_price}]
   ~ knows_scar = true
   She counts the M's twice and tucks them away.
-  A corporal brings me the cans. Big hands, a scar across his chin. He never gives a name and I never ask. Keeps us both easy. # speaker: Sabine
+  A corporal brings me the cans. Big hands, a scar across his chin. He never gives a name and I never ask. # speaker: Sabine
   -> after
 + [Lean on her.]
   ~ alarm += 1
@@ -158,7 +158,7 @@ Buying or just looking? Looking's free, but it doesn't feed me. # speaker: Sabin
 ~ watches -= 1
 The barracks are empty at noon, and the air is heavy with sweat, boot polish and old canvas. Vance's cot is made tight, Army style. # place: Barracks
 Under it sits a tin of Army fuel seals, every one cut clean.
-His boots stand by the door, still wet from the wash trough. Footsteps sound on the boards outside, and you slip out through the back.
+His boots stand by the door, still grey with road dust. Footsteps sound on the boards outside, and you slip out through the back.
 -> after
 
 === stakeout ===
@@ -205,7 +205,7 @@ The shipment rolls at dawn, and the trucks are already warming in the cold. Kova
 
 === name_vance ===
 You lay out what you have.
-{ gate_checked: Kovac reads the late passes twice, and a muscle tightens in his jaw. }
+{ gate_checked: Kovac reads the late passes twice, then turns the log face down. }
 { saw_swap:
   So he picks his own nights, and Pell covers for him. # speaker: Kovac
 }
@@ -217,8 +217,8 @@ You lay out what you have.
 
 === name_pell ===
 { not ledger_read: -> no_proof }
-Kovac runs a finger down the ledger. Pell, Pell, Pell.
-That's plain enough. Same name on every line. I don't need more. # speaker: Kovac
+Kovac runs a finger down the duty board, from one red rag to the next. Pell, Pell, Pell.
+Plain enough. Pell was on duty every one of those nights, and I don't need more. # speaker: Kovac
 -> wrong_man
 
 === no_proof ===
@@ -253,7 +253,7 @@ He believes you, for now.
 === trail_lost ===
 ~ depot_thief = "lost"
 By morning the depot is spotless. # page # place: Dispatch office
-The ledger has a new page, the gate log shows no late passes, and Sabine's stall stands empty with its canvas flapping.
+The racks stand full, the gate log shows no late passes, and Sabine's stall stands empty with its canvas flapping.
 -> END
 
 === too_late ===

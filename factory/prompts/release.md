@@ -11,6 +11,8 @@ Each entry is an object with the issue number and what changed, like this:
 Say what a player notices, in one short plain sentence.
 When a title is unclear, read the change itself. `git log --grep "Merge issue #N:"` finds its merge.
 No hype and no marketing words.
+{{writing}}
+
 Do not change git state. Do not touch any other file.
 
 Optional: when the release holds several visible changes and the playtest screenshots in `.playtest/` show them, add views to the post.

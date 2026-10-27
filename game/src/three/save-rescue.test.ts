@@ -200,7 +200,7 @@ describe('readCarried', () => {
   it('reads the first highway mode as Chaos Highway with the gear setting it lacked', () => {
     const setup = { mode: 'gauntlet', settings: { damage: 1.5, fuelUse: 1, supplyUse: 1 } };
     const carried = readCarried({ format: { major: 2, minor: 48 }, world: { setup, player: { money: 5 } } });
-    expect(carried.setup).toEqual({ mode: 'furyRoad', settings: { enemyGearGrowth: 1, damage: 1.5, fuelUse: 1, supplyUse: 1 } });
+    expect(carried.setup).toEqual({ mode: 'chaosHighway', settings: { enemyGearGrowth: 1, damage: 1.5, fuelUse: 1, supplyUse: 1 } });
     expect(repairSetup(carried.setup)).toEqual(carried.setup);
   });
 });

@@ -190,8 +190,8 @@ describe('work of a truck', () => {
   it('counts a patch under way for both the patcher and the client', () => {
     const { world, me, npc } = parkedPair(1);
     const state = addState(world, 'patch', npc.id, me.id, { ...PATCH_DATA });
-    expect(workOf(world, npc)).toEqual({ from: 'state', state, turnsLeft: 3, total: 4 });
-    expect(workOf(world, me)).toEqual({ from: 'state', state, turnsLeft: 3, total: 4 });
+    expect(workOf(world, npc)).toEqual({ from: 'state', state, turnsLeft: 3, total: 4, queued: 0 });
+    expect(workOf(world, me)).toEqual({ from: 'state', state, turnsLeft: 3, total: 4, queued: 0 });
   });
 
   it('counts no patch while the trucks are out of reach', () => {

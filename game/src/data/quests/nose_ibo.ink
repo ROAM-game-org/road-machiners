@@ -25,7 +25,7 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
 = hub
 # checkpoint: start.hub
 + [What do you do in this shack?]
-  Freeze, mostly, and listen. The Army pays me for its own calls, and whatever else drifts through I keep for myself. There's Jill Jane, who runs Waste Of Time Radio and comes in best after dark. There's the couriers of the <term=guild>Guild</term> calling their rounds. And now and then there's a tone out of the <term=fallen_sun>Fallen Sun</term>, the big crashed hull in the crater, that nobody can explain. The set itself is <term=old_world>Old World</term> work, built back when there were masts on every hill. It's cold work, but it's quiet, and I never wanted better.
+  Freeze, mostly, and listen. The Army pays me for its own calls, and whatever else drifts through I keep for myself. There's Jill Jane, who runs Waste Of Time Radio and comes in best after dark. There's the couriers of the <term=guild>Guild</term> calling their rounds. And now and then there's a tone out of the <term=fallen_sun>Fallen Sun</term>, the big crashed hull in the crater, that nobody can explain. The set itself is <term=old_world>Old World</term> work, built back when there were masts on every hill.
   ~ heard_oldworld = true
   ~ heard_jj = true
   ~ heard_couriers = true
@@ -51,7 +51,7 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
   ~ asked_jj = true
   -> hub
 + {heard_tone and not asked_tone} [What does the tone from the Fallen Sun say?]
-  It's a low, steady note that comes and goes, always from the crater's side. Some say it counts the years since the fall. I've no key to decode it, and the Army never asked me to log it. If it counts, it counts without me.
+  Eh? A low, steady note that fades and comes back, always from the crater's side. The old hands say it climbs one step each year since the fall, if their ears haven't drifted off into the static. I can't hear the steps myself. The set tells me it's there, and the Army never asked me to log it.
   ~ asked_tone = true
   -> hub
 + {heard_tone} [Hear anything from the crater at night?]
@@ -67,24 +67,24 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
   ~ asked_couriers = true
   -> hub
 + {(heard_convoy or has_note("burntConvoy")) and not asked_convoy} [What happened at Burnt Convoy?]
-  A whole convoy went up in one night, years back. Some say raiders did it. Some say a fuel truck blew and took the rest with it. I heard the last calls on the air, and nobody said who started it.
+  A whole convoy went up in one night, years back. Some say raiders did it. Some say a truck full of fuel drums blew and took the rest with it. I heard the last calls on the air, and nobody said who started it.
   ~ asked_convoy = true
   -> hub
 + {heard_army and not asked_army} [How did the Old Army end?]
-  Hungry. Commander Lind nailed a book of every unpaid promise to the gate at Old Orchard, the Army's depot, and then he died in the motor pool. I heard his last calls on the air. He read the whole list. The machine tools stayed behind in the shed, and somebody's still paying for those.
+  Hungry. Commander Lind nailed a book of every unpaid promise to the gate at Old Orchard, the Army's depot, and then he died in the motor pool. I heard his last calls on the air. He read the whole list. The machine tools stayed behind in the shed, until command came for them.
   Some say the Army didn't run out of food. They say it was starved on purpose. I say a man who starts a rumor like that wants a seat in the hall.
   ~ note("talkArmyStarved")
   ~ asked_army = true
   ~ heard_tools = true
   -> hub
-+ {heard_tools and not asked_tools} [Who pays for the Old Orchard tools?]
-  The Guild's trust owns them and rents them to us. Command pays the Guild, and the Guild hears who pays command. I hear the Guild on the air, a little. I won't repeat it.
++ {heard_tools and not asked_tools} [Who took the Old Orchard tools?]
+  Command hauled them up the mountain once the Army was gone. Nobody asked the Bowl, and nobody asked the dead. I hear things on the air about who wanted the Army gone. I won't repeat them.
   ~ note("talkCommitteeRent")
   ~ asked_tools = true
   -> hub
 + {depot_thief != "none" and depot_thief != "open"} [Heard about the depot business?]
   { depot_thief:
-  - "vance": Vance! He sat at my table on cold nights, and I'd have trusted him with my radio. You never know a man until he sells you out.
+  - "vance": Vance! He sat at my table on cold nights, and I'd have trusted him with my radio.
   - "pell": Pell? That man can't steal a biscuit without saying sorry to it. Somebody else is laughing tonight.
   - "bought": The depot's clean, they say. Funny, then, that the trader by the gate still sells fuel cheap.
   - else: Fuel still goes missing, they say. It's not my business, and it's not yours either, now.

@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { summarizeError } from './fail';
+import { isClearedFor, summarizeError, withoutFailuresOf } from './fail';
 import { inMergeBatch } from './position';
 import type { RepairOrder } from './repair-clone';
 import { baseBranchFor } from './stages/common';
@@ -17,7 +17,13 @@ const BOARD_LAG_MS = 5 * 60_000;
 
 export async function clearStuck(ctx: Ctx, issue: number): Promise<void> {
   await ctx.github.removeLabel(issue, STUCK_LABEL);
-  updateState(ctx.statePath, (state: FactoryState) => ({ ...state, failures: state.failures.filter((row) => row.issue !== issue) }));
+  updateState(ctx.statePath, (state: FactoryState) => ({ ...state, failures: withoutFailuresOf(state.failures, issue) }));
+}
+
+export async function labelStuckBatch(ctx: Ctx, batch: number[]): Promise<void> {
+  if (batch.length === 0) return;
+  const done = new Set((await ctx.github.cards()).filter((card) => card.column === 'Done').map((card) => card.issue));
+  for (const issue of batch) if (!done.has(issue)) await ctx.github.addLabel(issue, STUCK_LABEL);
 }
 
 export function isOpenStuck(card: Card): boolean {
@@ -51,7 +57,7 @@ function causeOf(input: SweepInput, issue: number, prev: StuckRecord | undefined
 }
 
 function newestFailure(state: FactoryState, issue: number): Failure | null {
-  const own = state.failures.filter((failure) => (failure.issue === issue && failure.stage !== 'catch-up') || (failure.stage === 'merge' && (failure.batch ?? []).includes(issue)));
+  const own = state.failures.filter((failure) => (failure.issue === issue && failure.stage !== 'catch-up') || (failure.stage === 'merge' && (failure.batch ?? []).includes(issue) && !isClearedFor(failure, issue)));
   return own.reduce<Failure | null>((newest, failure) => (newest === null || failure.at >= newest.at ? failure : newest), null);
 }
 

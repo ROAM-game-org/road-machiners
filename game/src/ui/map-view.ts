@@ -14,23 +14,43 @@ import { gridColumnLetter, gridRowNumber } from './format';
 import { distanceText } from './units';
 import { siteName } from '../text/names';
 import { t, type Msg } from '../text/msg';
-import { canvasTransform, fitTileSize, scaleBarTiles, fitted, pinToEdge, toPx, toTile, viewport, zoomAround, panBy, clampPan, type MapPoint, type Viewport } from './map-geometry';
+import { canvasTransform, fitTileSize, openingTileSize, scaleBarTiles, fitted, pinToEdge, toPx, toTile, viewport, zoomAround, panBy, clampPan, type MapPoint, type Viewport } from './map-geometry';
 import { token } from './tokens';
 import { uiSize } from './ui-size';
 
 export type MapRule = { kind: 'follow'; reach: number } | { kind: 'free' } | { kind: 'fit' };
 export type MapTruck = { pos: Vec; heading: number };
-export type MapSite = { id: string; kind: 'town' | 'site' | 'wreck'; pos: Vec; known: boolean };
+export type MapSite = { id: string; kind: 'town' | 'site'; pos: Vec; known: boolean };
 export type MapOverlay = (ctx: CanvasRenderingContext2D, view: Viewport) => void;
+export type MapScene = { terrain: Terrain; sites: MapSite[]; explored: Uint8Array | null };
 
 const BASES_KEPT = 3;
 const TIP_GAP = 12;
 const ZOOM_SLACK = 1.001;
-const MARK = { town: 5, site: 4, wreck: 5, truck: 8, hit: 8, pinned: 0.6 };
+const MARK = { town: 5, site: 4, truck: 8, hit: 8, pinned: 0.6 };
 const NAME = { gap: 6, padX: 4, padY: 2 };
 const GRID = { width: 1, alpha: 0.3, gap: 3, padX: 3, padY: 1 };
 const PLATE = { inset: 8, pad: 5, arrowWidth: 10, arrowHeight: 12, tick: 5, gap: 3 };
 const bases = new Map<string, HTMLCanvasElement>();
+
+function clipSegment(from: Vec, to: Vec, box: Box): [Vec, Vec] | null {
+  let enter = 0;
+  let leave = 1;
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const edges: [number, number][] = [[-dx, from.x - box.x0], [dx, box.x1 - from.x], [-dy, from.y - box.y0], [dy, box.y1 - from.y]];
+  for (const [p, q] of edges) {
+    if (p === 0) {
+      if (q < 0) return null;
+      continue;
+    }
+    const t = q / p;
+    if (p < 0) enter = Math.max(enter, t);
+    else leave = Math.min(leave, t);
+  }
+  if (enter > leave) return null;
+  return [{ x: from.x + enter * dx, y: from.y + enter * dy }, { x: from.x + leave * dx, y: from.y + leave * dy }];
+}
 
 function tileCanvas(size: number): HTMLCanvasElement {
   const c = document.createElement('canvas');
@@ -59,15 +79,6 @@ function baseFor(terrain: Terrain): HTMLCanvasElement {
 type Box = { x0: number; y0: number; x1: number; y1: number };
 type Plates = { north: Box; scale: Box; tiles: number; label: Msg };
 type GridLabel = { text: string; font: string; box: Box };
-type Span = { from: number; to: number };
-
-function widestFree(span: Span, blocks: readonly Span[]): Span {
-  let pieces = [span];
-  for (const block of blocks)
-    pieces = pieces.flatMap((p) => (block.to <= p.from || block.from >= p.to ? [p] : [{ from: p.from, to: block.from }, { from: block.to, to: p.to }].filter((q) => q.to > q.from)));
-  return pieces.reduce((best, p) => (p.to - p.from > best.to - best.from ? p : best), { from: span.from, to: span.from });
-}
-
 function around(at: { x: number; y: number }, r: number): Box {
   return { x0: at.x - r, y0: at.y - r, x1: at.x + r, y1: at.y + r };
 }
@@ -106,14 +117,23 @@ export function mapSites(world: World): MapSite[] {
   const found = new Set(world.player.discovered);
   const mapped = mappedSites(world);
   const towns = new Set(atlasOf(world.terrain).towns.map((s) => s.id));
-  const sites: MapSite[] = atlasSites(atlasOf(world.terrain))
+  return atlasSites(atlasOf(world.terrain))
     .filter((s) => mapped.has(s.id))
-    .map((s) => ({ id: s.id, kind: towns.has(s.id) ? 'town' : 'site', pos: s.pos, known: found.has(s.id) }));
-  const wrecks = world.salvage.filter((s) => world.player.rumored.includes(s.id));
-  return [...sites, ...wrecks.map((s): MapSite => ({ id: s.id, kind: 'wreck', pos: s.pos, known: true }))];
+    .map((s): MapSite => ({ id: s.id, kind: towns.has(s.id) ? 'town' : 'site', pos: s.pos, known: found.has(s.id) }));
 }
 
-function markName(site: MapSite): Msg {
+export function mapScene(world: World): MapScene {
+  return { terrain: world.terrain, sites: mapSites(world), explored: world.player.explored };
+}
+
+export function openScene(terrain: Terrain): MapScene {
+  const atlas = atlasOf(terrain);
+  const towns = new Set(atlas.towns.map((s) => s.id));
+  const sites = atlasSites(atlas).map((s): MapSite => ({ id: s.id, kind: towns.has(s.id) ? 'town' : 'site', pos: s.pos, known: true }));
+  return { terrain, sites, explored: null };
+}
+
+export function markName(site: MapSite): Msg {
   return site.known ? siteName(site.id) : t('map.unknownSite');
 }
 
@@ -123,8 +143,9 @@ export class MapView {
   private fogCanvas: HTMLCanvasElement | null = null;
   private fogSize = 0;
   private view: Viewport | null = null;
+  private moved = false;
   private sites: MapSite[] = [];
-  private world: World | null = null;
+  private scene: MapScene | null = null;
   private truck: MapTruck | null = null;
   private ratio: number;
   private drawRequest = 0;
@@ -147,33 +168,44 @@ export class MapView {
     this.ratio = ratio;
     this.canvas.width = Math.round(width * ratio);
     this.canvas.height = Math.round(height * ratio);
-    if (this.view) this.view = { ...this.view, width, height };
+    this.view = this.keptView(width, height);
     this.draw();
+  }
+
+  private keptView(width: number, height: number): Viewport | null {
+    return this.view && this.moved ? { ...this.view, width, height } : null;
   }
 
   reset(): void {
     this.view = null;
+    this.moved = false;
   }
 
-  update(world: World, truck: MapTruck | null): void {
-    this.world = world;
+  update(scene: MapScene, truck: MapTruck | null): void {
+    this.scene = scene;
     this.truck = truck;
-    this.sites = mapSites(world);
-    this.syncFog(world.player.explored, world.terrain.size);
+    this.sites = scene.sites;
+    this.syncFog(scene.explored, scene.terrain.size);
     this.draw();
+  }
+
+  redraw(): void {
+    this.drawSoon();
   }
 
   zoomBy(factor: number, px = this.width / 2, py = this.height / 2): void {
     const v = this.view;
-    if (!v || !this.world) return;
-    this.view = zoomAround(v, factor, px, py, this.world.terrain.size, WORLD_MAP.maxTileSize);
+    if (!v || !this.scene) return;
+    this.view = zoomAround(v, factor, px, py, this.scene.terrain.size, WORLD_MAP.maxTileSize);
+    this.moved = true;
     this.drawSoon();
   }
 
   panBy(dx: number, dy: number): void {
     const v = this.view;
-    if (!v || !this.world) return;
-    this.view = panBy(v, dx, dy, this.world.terrain.size);
+    if (!v || !this.scene) return;
+    this.view = panBy(v, dx, dy, this.scene.terrain.size);
+    this.moved = true;
     this.drawSoon();
   }
 
@@ -183,8 +215,8 @@ export class MapView {
 
   canZoomOut(): boolean {
     const v = this.view;
-    if (!v || !this.world) return false;
-    return v.tileSize > fitTileSize(this.world.terrain.size, v.width, v.height) * ZOOM_SLACK;
+    if (!v || !this.scene) return false;
+    return v.tileSize > fitTileSize(this.scene.terrain.size, v.width, v.height) * ZOOM_SLACK;
   }
 
   localPoint(clientX: number, clientY: number): { x: number; y: number } | null {
@@ -203,7 +235,7 @@ export class MapView {
     this.canvas.addEventListener('pointerleave', hide);
     this.canvas.addEventListener('pointermove', (e) => {
       const site = this.siteAt(e.clientX, e.clientY);
-      if (!site || site.kind === 'wreck') return hide();
+      if (!site) return hide();
       if (shown !== site.id) {
         shown = site.id;
         tip.replaceChildren(el('span', {}, markName(site)));
@@ -213,11 +245,6 @@ export class MapView {
       tip.style.left = `${uiSize().toLayer(e.clientX - box.left) + TIP_GAP}px`;
       tip.style.top = `${uiSize().toLayer(e.clientY - box.top) + TIP_GAP}px`;
     });
-  }
-
-  private requireWorld(): World {
-    if (!this.world) throw new Error('The map has no world yet');
-    return this.world;
   }
 
   pick(clientX: number, clientY: number): Vec | null {
@@ -238,13 +265,13 @@ export class MapView {
     return best?.site ?? null;
   }
 
-  private viewFor(world: World): Viewport {
-    const size = world.terrain.size;
+  private viewFor(scene: MapScene): Viewport {
+    const size = scene.terrain.size;
     const middle = { x: size / 2, y: size / 2 };
     const rule = this.rule;
     if (rule.kind === 'follow') return viewport(this.truck?.pos ?? middle, this.width / 2 / rule.reach, this.width, this.height);
     if (rule.kind === 'fit') return fitted(size, this.width, this.height, middle);
-    if (!this.view) return fitted(size, this.width, this.height, this.truck?.pos ?? middle);
+    if (!this.view) return clampPan(viewport(this.truck?.pos ?? middle, openingTileSize(size, this.width, this.height, WORLD_MAP.maxTileSize), this.width, this.height), size);
     const least = fitTileSize(size, this.width, this.height);
     const view = { ...this.view, width: this.width, height: this.height };
     return view.tileSize < least ? zoomAround(view, 1, this.width / 2, this.height / 2, size, WORLD_MAP.maxTileSize) : clampPan(view, size);
@@ -259,18 +286,18 @@ export class MapView {
   }
 
   private draw(): void {
-    const world = this.world;
+    const scene = this.scene;
     const ctx = this.canvas.getContext('2d');
-    if (!world || !ctx) return;
-    const view = this.viewFor(world);
+    if (!scene || !ctx) return;
+    const view = this.viewFor(scene);
     this.view = view;
     const r = this.ratio;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    const [a, , , d, e, f] = canvasTransform(view);
-    ctx.setTransform(a * r, 0, 0, d * r, e * r, f * r);
+    const [a, b, c, d, e, f] = canvasTransform(view);
+    ctx.setTransform(a * r, b * r, c * r, d * r, e * r, f * r);
     ctx.imageSmoothingEnabled = view.tileSize * r < 1;
-    ctx.drawImage(baseFor(world.terrain), 0, 0);
+    ctx.drawImage(baseFor(scene.terrain), 0, 0);
     if (this.fogCanvas) ctx.drawImage(this.fogCanvas, 0, 0);
     ctx.setTransform(r, 0, 0, r, 0, 0);
     this.drawGrid(ctx, view);
@@ -284,7 +311,13 @@ export class MapView {
     this.drawPlates(ctx, view, plates);
   }
 
-  private syncFog(explored: Uint8Array, size: number): void {
+  private syncFog(explored: Uint8Array | null, size: number): void {
+    if (!explored) {
+      this.fog = null;
+      this.fogCanvas = null;
+      this.fogSize = 0;
+      return;
+    }
     if (!this.fog || this.fogSize !== size) {
       this.fog = newFogImage(size);
       this.fogCanvas = tileCanvas(size);
@@ -304,8 +337,7 @@ export class MapView {
     for (const site of this.sites) {
       const at = this.markAt(view, site);
       const scale = at.pinned ? MARK.pinned : 1;
-      if (site.kind === 'wreck') this.drawRumor(ctx, at, scale);
-      else if (site.kind === 'town') this.drawSquare(ctx, at, scale);
+      if (site.kind === 'town') this.drawSquare(ctx, at, scale);
       else this.drawDot(ctx, at, scale);
     }
   }
@@ -314,8 +346,7 @@ export class MapView {
     ctx.font = `${token('--text-dense')} ${token('--font-ui')}`;
     ctx.textBaseline = 'middle';
     const tall = parseFloat(token('--text-dense')) + 2 * NAME.padY;
-    const named = this.sites
-      .filter((site) => site.kind !== 'wreck')
+    const named = [...this.sites]
       .sort((a, b) => Number(b.kind === 'town') - Number(a.kind === 'town'))
       .map((site) => ({ site, at: toPx(view, site.pos) }));
     const taken: Box[] = [...kept, ...named.map(({ at }) => around(at, MARK.town + 1))];
@@ -334,19 +365,18 @@ export class MapView {
   private drawGrid(ctx: CanvasRenderingContext2D, view: Viewport): void {
     const side = gridSquareTiles();
     const size = side * MAP_GRID.squares;
-    const from = toPx(view, { x: 0, y: 0 });
-    const to = toPx(view, { x: size, y: size });
     ctx.save();
     ctx.strokeStyle = token('--surface-sunk');
     ctx.globalAlpha = GRID.alpha;
     ctx.lineWidth = GRID.width;
     ctx.beginPath();
     for (let k = 1; k < MAP_GRID.squares; k++) {
-      const at = toPx(view, { x: k * side, y: k * side });
-      ctx.moveTo(at.x, from.y);
-      ctx.lineTo(at.x, to.y);
-      ctx.moveTo(from.x, at.y);
-      ctx.lineTo(to.x, at.y);
+      const column = [toPx(view, { x: k * side, y: 0 }), toPx(view, { x: k * side, y: size })];
+      const row = [toPx(view, { x: 0, y: k * side }), toPx(view, { x: size, y: k * side })];
+      for (const [from, to] of [column, row]) {
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+      }
     }
     ctx.stroke();
     ctx.restore();
@@ -354,36 +384,32 @@ export class MapView {
 
   private gridLabels(ctx: CanvasRenderingContext2D, view: Viewport, plates: Plates): GridLabel[] {
     const side = gridSquareTiles();
-    const shown = this.shownBox(view);
+    const size = side * MAP_GRID.squares;
     const tall = parseFloat(token('--text-caption')) + 2 * GRID.padY;
     const inset = this.rule.kind === 'follow' ? MINIMAP.edgeInset + MARK.town * MARK.pinned + GRID.gap : GRID.gap;
     const kept = [plates.north, plates.scale, ...this.sites.map((site) => around(this.markAt(view, site), MARK.town + 1))];
     const labels: GridLabel[] = [];
     const letters = `${token('--text-caption')} ${token('--font-ui')}`;
     const numbers = `${token('--text-caption')} ${token('--font-mono')}`;
-    for (let k = 0; k < MAP_GRID.squares; k++) {
-      const strip = { from: toPx(view, { x: k * side, y: 0 }).x, to: toPx(view, { x: (k + 1) * side, y: 0 }).x };
-      ctx.font = letters;
-      const text = say(gridColumnLetter(k));
+    const place = (text: string, font: string, from: Vec, to: Vec): void => {
+      ctx.font = font;
       const wide = ctx.measureText(text).width + 2 * GRID.padX;
-      const row = { y0: shown.y0 + inset, y1: shown.y0 + inset + tall };
-      const blocks = kept.filter((b) => b.y0 < row.y1 && row.y0 < b.y1).map((b) => ({ from: b.x0 - GRID.gap, to: b.x1 + GRID.gap }));
-      const free = widestFree({ from: Math.max(strip.from, shown.x0) + GRID.gap, to: Math.min(strip.to, shown.x1) - GRID.gap }, blocks);
-      if (free.to - free.from < wide) continue;
-      const x0 = (free.from + free.to - wide) / 2;
-      labels.push({ text, font: letters, box: { x0, x1: x0 + wide, ...row } });
+      const room = { x0: inset + wide / 2, x1: view.width - inset - wide / 2, y0: inset + tall / 2, y1: view.height - inset - tall / 2 };
+      const span = clipSegment(from, to, room);
+      if (!span) return;
+      const at = span[0];
+      const box = { x0: at.x - wide / 2, x1: at.x + wide / 2, y0: at.y - tall / 2, y1: at.y + tall / 2 };
+      const padded = { x0: box.x0 - GRID.gap, x1: box.x1 + GRID.gap, y0: box.y0 - GRID.gap, y1: box.y1 + GRID.gap };
+      const crowded = [...kept, ...labels.map((l) => l.box)].some((b) => overlaps(b, padded));
+      if (!crowded) labels.push({ text, font, box });
+    };
+    for (let k = 0; k < MAP_GRID.squares; k++) {
+      const middle = (k + 0.5) * side;
+      place(say(gridColumnLetter(k)), letters, toPx(view, { x: middle, y: 0 }), toPx(view, { x: middle, y: size }));
     }
     for (let k = 0; k < MAP_GRID.squares; k++) {
-      const strip = { from: toPx(view, { x: 0, y: k * side }).y, to: toPx(view, { x: 0, y: (k + 1) * side }).y };
-      ctx.font = numbers;
-      const text = say(gridRowNumber(k));
-      const wide = ctx.measureText(text).width + 2 * GRID.padX;
-      const column = { x0: shown.x0 + inset, x1: shown.x0 + inset + wide };
-      const blocks = [...kept, ...labels.map((l) => l.box)].filter((b) => b.x0 < column.x1 && column.x0 < b.x1).map((b) => ({ from: b.y0 - GRID.gap, to: b.y1 + GRID.gap }));
-      const free = widestFree({ from: Math.max(strip.from, shown.y0) + GRID.gap, to: Math.min(strip.to, shown.y1) - GRID.gap }, blocks);
-      if (free.to - free.from < tall) continue;
-      const y0 = (free.from + free.to - tall) / 2;
-      labels.push({ text, font: numbers, box: { ...column, y0, y1: y0 + tall } });
+      const middle = (k + 0.5) * side;
+      place(say(gridRowNumber(k)), numbers, toPx(view, { x: 0, y: middle }), toPx(view, { x: size, y: middle }));
     }
     return labels;
   }
@@ -403,10 +429,7 @@ export class MapView {
   }
 
   private shownBox(view: Viewport): Box {
-    const size = this.requireWorld().terrain.size;
-    const from = toPx(view, { x: 0, y: 0 });
-    const to = toPx(view, { x: size, y: size });
-    return { x0: Math.max(0, from.x), y0: Math.max(0, from.y), x1: Math.min(view.width, to.x), y1: Math.min(view.height, to.y) };
+    return { x0: 0, y0: 0, x1: view.width, y1: view.height };
   }
 
   private platesFor(ctx: CanvasRenderingContext2D, view: Viewport): Plates {
@@ -477,16 +500,6 @@ export class MapView {
     ctx.fill();
   }
 
-  private drawRumor(ctx: CanvasRenderingContext2D, at: { x: number; y: number }, scale: number): void {
-    ctx.save();
-    ctx.setLineDash([2, 2]);
-    ctx.strokeStyle = token('--ink-bright');
-    ctx.beginPath();
-    ctx.arc(at.x, at.y, MARK.wreck * scale, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-  }
-
   private drawTruck(ctx: CanvasRenderingContext2D, view: Viewport, truck: MapTruck): void {
     const at = toPx(view, truck.pos);
     const r = MARK.truck;
@@ -499,7 +512,8 @@ export class MapView {
     ctx.strokeStyle = token('--ink-bright');
     ctx.lineWidth = 2;
     ctx.stroke();
-    ctx.rotate(truck.heading);
+    const ahead = toPx(view, { x: truck.pos.x + Math.cos(truck.heading), y: truck.pos.y + Math.sin(truck.heading) });
+    ctx.rotate(Math.atan2(ahead.y - at.y, ahead.x - at.x));
     ctx.beginPath();
     ctx.moveTo(r * 0.7, 0);
     ctx.lineTo(-r * 0.45, r * 0.5);

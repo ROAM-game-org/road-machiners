@@ -164,6 +164,10 @@ export class PublicStore {
     this.db.prepare('update proposals set shown_footer = ? where issue = ?').run(footer, issue);
   }
 
+  reopenUnattempted(issue: number): boolean {
+    return this.db.prepare('update proposals set closed_at = null where issue = ? and posted_at is null and attempted_at is null and closed_at is not null').run(issue).changes === 1;
+  }
+
   closeProposal(issue: number, now: Date): void {
     this.transaction(() => {
       this.db.prepare('delete from post_attempts where id = (select max(id) from post_attempts where issue = ? and at = (select attempted_at from proposals where issue = ? and posted_at is null))').run(issue, issue);
