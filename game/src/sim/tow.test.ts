@@ -1387,3 +1387,101 @@ describe('a broke driver', () => {
     expect(isStranded(w, npc)).toBe(false);
   });
 });
+
+describe('a refused tow counts for every driver', () => {
+  const towsPlayer = (w: World, id: string): boolean => w.states.some((s) => s.holder === id && s.other === w.player.vehicleId && (s.kind === 'tow' || s.kind === 'answering'));
+  const turnedDowns = (w: World): number => w.states.filter((s) => s.kind === 'turnedDown' && s.other === w.player.vehicleId).length;
+
+  function afterRefusal(): { w: World; second: Vehicle; first: Vehicle } {
+    const s = stranded();
+    const w = refuseTow(offered(s));
+    const second = withTower(w, 'trader', 'independent', 'hauler', { x: 40, y: 36 });
+    return { w, second, first: s.trader };
+  }
+
+  it('no thanks to one driver keeps every other driver from setting out by sight', () => {
+    const { w, second } = afterRefusal();
+    expect(turnedDowns(w)).toBe(1);
+    const r = runUntil(w, 30, (x) => towsPlayer(x, second.id));
+    expect(towsPlayer(r.w, second.id)).toBe(false);
+    expect(topGoal(find(r.w, second.id))?.kind).not.toBe('tow');
+  });
+
+  it('a stranded player who refused nothing is still offered a tow by sight', () => {
+    const s = stranded();
+    const r = runUntil(s.w, 30, (x) => towsPlayer(x, s.trader.id));
+    expect(towsPlayer(r.w, s.trader.id)).toBe(true);
+  });
+
+  it('hanging up on an offer blocks the road too', () => {
+    const s = stranded();
+    let w = hangUp(offered(s));
+    expect(turnedDowns(w)).toBe(1);
+    const second = withTower(w, 'trader', 'independent', 'hauler', { x: 40, y: 36 });
+    w = runUntil(w, 30, (x) => towsPlayer(x, second.id)).w;
+    expect(towsPlayer(w, second.id)).toBe(false);
+  });
+
+  it('unhitching blocks the road too', () => {
+    const s = stranded();
+    let w = unhitch(acceptTow(offered(s)));
+    expect(turnedDowns(w)).toBe(1);
+    const second = withTower(w, 'trader', 'independent', 'hauler', { x: 40, y: 36 });
+    w = runUntil(w, 30, (x) => towsPlayer(x, second.id)).w;
+    expect(towsPlayer(w, second.id)).toBe(false);
+  });
+
+  it('the beacon calls a driver after a refusal and the refusal leaves it on', () => {
+    const { w: refused, second } = afterRefusal();
+    let w = setBeacon(refused, true);
+    w = runUntil(w, 100, (x) => x.player.call !== null).w;
+    expect(w.player.call).toMatchObject({ with: second.id });
+    w = refuseTow(w);
+    expect(w.player.beacon).toBe(true);
+  });
+
+  it('the radio request still brings a driver after a refusal', () => {
+    const { w: refused, second } = afterRefusal();
+    let w = callVehicle(refused, second.id);
+    w = answer(w, "I'm stranded. Can you tow me?");
+    w = answer(w, "Thanks. I'll wait.");
+    expect(topGoal(find(w, second.id))?.kind).toBe('tow');
+    const r = runUntil(w, 30, (x) => playerTow(x) !== null);
+    expect(r.w.player.call).toMatchObject({ with: second.id, topic: 'tow' });
+  });
+
+  it('the turned-down states end once the truck can drive', () => {
+    const { w } = afterRefusal();
+    w.player.fuel = 40;
+    const next = endTurn(w, testDrive);
+    expect(turnedDowns(next)).toBe(0);
+  });
+
+  it('a later stranding is offered by sight again', () => {
+    const { w, first } = afterRefusal();
+    w.player.fuel = 40;
+    let next = endTurn(w, testDrive);
+    next.player.fuel = 0;
+    next = runUntil(next, 40, (x) => towsPlayer(x, first.id)).w;
+    expect(towsPlayer(next, first.id)).toBe(true);
+  });
+
+  it('driving out of an unanswered offer is not a refusal', () => {
+    const s = stranded();
+    let w = runUntil(s.w, 30, (x) => x.states.some((st) => st.kind === 'tow' && !towData(st).hitched)).w;
+    const holder = w.states.find((st) => st.kind === 'tow')!.holder;
+    w.player.call = null;
+    playerVehicle(w).pos = { x: 30, y: 200 };
+    w = endTurn(w, testDrive);
+    expect(turnedDowns(w)).toBe(0);
+    expect(w.states.some((st) => st.kind === 'tow' && st.holder === holder)).toBe(false);
+  });
+
+  it('a blocked world keeps its block through save and load', () => {
+    const { w, second } = afterRefusal();
+    const loaded: World = JSON.parse(JSON.stringify(w));
+    expect(loaded.states).toEqual(w.states);
+    const r = runUntil(loaded, 30, (x) => towsPlayer(x, second.id));
+    expect(towsPlayer(r.w, second.id)).toBe(false);
+  });
+});

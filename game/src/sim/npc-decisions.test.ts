@@ -330,6 +330,7 @@ describe('decision weights', () => {
     const trader = addNpc(w, 'independent', 'trader', ['trader'], { x: 36, y: 30 });
     const me = w.player.vehicleId;
     w.player.fuel = 0;
+    w.player.beacon = true;
     addState(w, 'turnedDown', trader.id, me, { kind: 'none' });
     forceOption('strandedSeen', 'tow');
     w.rngState = rngStateForForcedRolls(6);
