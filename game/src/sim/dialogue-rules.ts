@@ -4,6 +4,7 @@ import { hearMoment, momentDue } from './moments';
 import { owedBy } from './crime';
 import { answerDemand, callsPartner, demandOpen, huntedCases, isMarshal, payHailedBounty, hearTerms } from './marshals';
 import { pickLesson } from './lessons';
+import { pickStory } from './road-stories';
 import { canAskHelp, helpAnswer, joinPlayerFight, turnDownCall } from './help-call';
 import { canHireGuard, dismissGuard, guardFee, guardTaken, hireGuard, isPlayerGuard } from './hire';
 import { COLD_LINES, TOPIC_GATES, type ConditionId, type DialogueOption, type EffectId, type LineId, type PrepareId, type TopicId } from '../data/dialogue';
@@ -743,7 +744,8 @@ export const PREPARES: Record<PrepareId, Prepare> = {
   },
   taleNews: (world, npc): CallVars => {
     const site = siteRumor(world, npc);
-    return site ? rumorVars(world, site) : { tip: { kind: 'tip', tip: tradeTip(npc) } };
+    const story: CallVar = { kind: 'line', line: pickStory(world, npc) };
+    return site ? { ...rumorVars(world, site), story } : { tip: { kind: 'tip', tip: tradeTip(npc) }, story };
   },
   tipTerms: (world, npc): CallVars => {
     const target = tipTarget(world, npc);

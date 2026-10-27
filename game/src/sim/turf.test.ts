@@ -2,8 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SITE_FACTIONS, TURF } from '../data/npc-behavior';
 import { REGION } from '../data/region';
 import { TEST_MAP } from '../test/map';
-import { huntingSpots } from './hunting-spots';
-import { divideTurf, turfClaimants, type Claimant } from './turf';
+import { divideTurf, huntingSpots, turfClaimants, type Claimant } from './hunting-spots';
 import { dist } from './vec';
 
 const west: Claimant = { id: 'west', home: { x: 0, y: 0 }, reach: 100 };

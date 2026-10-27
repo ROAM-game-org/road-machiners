@@ -3,7 +3,7 @@ import { makeOldSpotPicks } from '../src/sim/salvage.ts';
 import { makeSurveySites } from '../src/sim/survey.ts';
 import { bakeClaimClues } from '../src/sim/claims.ts';
 import { makeHuntingSpots, preyTraffic } from '../src/sim/hunting-spots-bake.ts';
-import { divideTurf, turfClaimants } from '../src/sim/turf.ts';
+import { divideTurf, turfClaimants } from '../src/sim/hunting-spots.ts';
 import { newWorld } from '../src/sim/world.ts';
 import { defaultSetup } from '../src/sim/settings.ts';
 import { TYPE_IDS } from '../src/sim/terrain.ts';

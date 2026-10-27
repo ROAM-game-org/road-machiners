@@ -40,19 +40,18 @@ import { getResources } from './resources';
 import { skillEffect } from './progress';
 import { randRange } from './rng';
 import { recall, remember } from './memory';
-import { backedOff, canReachSalvage, canTakeAny, canTakeFromTruck, CANNOT_HOLD, CLAIMED, claimOnly, hasCargo, hasSalvage, holdsClaim, lootBlocker, STRIPPED, worksOn } from './salvage';
+import { backedOff, canReachSalvage, canTakeAny, canTakeFromTruck, CANNOT_HOLD, CLAIMED, claimOnly, hasSalvage, holdsClaim, lootBlocker, STRIPPED, worksOn } from './salvage';
 import { passesUpLoot } from './loot-warning';
 import { canUseSite, isTerritory, siteGates, siteUnder, type Site } from './sites';
 import { territoryAt } from './territory';
-import { worldHuntingSpots } from './hunting-spots';
-import { divideTurf, turfClaimants } from './turf';
-import { addState, boundTo, endState, givesWord, isRobberyFeud, robbing, stateOf, statesHeld } from './states';
+import { divideTurf, turfClaimants, worldHuntingSpots } from './hunting-spots';
+import { addState, bindingStatesHeld, boundTo, endState, givesWord, isRobberyFeud, robbing, stateOf, statesHeld } from './states';
 import { isStranded, vehicleStats } from './stats';
-import { canHire, canTakeEscort, declineFactor, escortsOf, inTowReach, isOnRope, strandedAt, towSite, unguardedLeader } from './tow';
+import { canHire, canTakeEscort, declineFactor, escortsOf, inTowReach, isOnRope, strandedAt, towSite } from './tow';
 import { leaderToJoin } from './pairs';
 import { ownSide, perceivedGroup } from './sides';
 import { canJoin, canMuster, heldBackByCrew, joinFactor } from './crews';
-import { followersOf } from './companies';
+import { companyOf, followersOf, followingOf } from './companies';
 import type { Contact, GoalReason, NpcActivity, PassReason, SalvageStock, Vehicle, World } from './types';
 import { clamp, dist, type Vec } from './vec';
 import { icarusAtlas } from './atlas';
@@ -151,26 +150,66 @@ export function perceiveDanger(world: World, observer: Vehicle, other: Vehicle):
   return judgeDanger(world, observer, other) * randRange(world, 1 - spread, 1 + spread);
 }
 
-export function dangerJoining(world: World, vehicle: Vehicle, friend: Vehicle, foes: Vehicle[]): number {
-  const ours = new Map([...ownSide(world, vehicle), ...perceivedGroup(world, vehicle, friend)].map((v) => [v.id, v]));
-  const theirs = new Map(foes.flatMap((foe) => perceivedGroup(world, vehicle, foe)).filter((v) => !ours.has(v.id)).map((v) => [v.id, v]));
+export function dangerJoining(world: World, speaker: Vehicle, fighters: Vehicle[], friend: Vehicle, foes: Vehicle[]): number {
+  const fighting = new Set(fighters.map((v) => v.id));
+  const { leader, members } = companyOf(world, speaker);
+  const company = new Set([leader, ...members].map((v) => v.id));
+  const own = ownSide(world, speaker).filter((v) => !company.has(v.id) || fighting.has(v.id));
+  const ours = new Map([...own, ...perceivedGroup(world, speaker, friend)].map((v) => [v.id, v]));
+  const theirs = new Map(foes.flatMap((foe) => perceivedGroup(world, speaker, foe)).filter((v) => !ours.has(v.id)).map((v) => [v.id, v]));
   const spread = NPC_BEHAVIOR.dangerSpread;
   return strengthRatio(fightOdds(world, [...ours.values()], [...theirs.values()])) * randRange(world, 1 - spread, 1 + spread);
 }
 
-export function canAnswerCall(world: World, vehicle: Vehicle, caller: Vehicle): boolean {
+export function canAnswerCall(world: World, speaker: Vehicle, caller: Vehicle): boolean {
   const foes = awakeFoesOf(world, caller);
-  if (foes.length === 0 || vehicle.brain === null || !heedsCall(world, vehicle, caller, foes)) return false;
-  if (isDefeated(vehicle) || isStranded(world, vehicle) || firepower(world, vehicle) <= 0 || inDanger(vehicle)) return false;
-  if (hasTrait(vehicle, 'coward') && !bandAtLeast(bandToward(world, vehicle, caller), 'friendly')) return false;
-  return !keepsWord(world, vehicle, 'helpCalled', caller.id);
+  if (foes.length === 0 || speaker.brain === null || !heedsCall(world, speaker, caller, foes)) return false;
+  if (isDefeated(speaker) || isStranded(world, speaker) || inDanger(speaker)) return false;
+  if (inCombatWithOther(world, speaker, caller.id) || isHostile(world, speaker, caller)) return false;
+  if (keepsWord(world, speaker, 'helpCalled', caller.id)) return false;
+  return callFighters(world, speaker, caller).length > 0;
 }
 
-function helpFactor(world: World, vehicle: Vehicle, _decision: DecisionId, subject: string | null): number {
+function freeToJoin(world: World, member: Vehicle): boolean {
+  if (holdsClaim(world, member.id)) return false;
+  const following = followingOf(world, member);
+  return bindingStatesHeld(world, member.id).every((state) => state === following);
+}
+
+function canFight(world: World, member: Vehicle, caller: Vehicle, foes: Vehicle[]): boolean {
+  if (member.brain === null || isDefeated(member) || isStranded(world, member) || inDanger(member)) return false;
+  if (firepower(world, member) <= 0 || inCombatWithOther(world, member, caller.id)) return false;
+  return heedsCall(world, member, caller, foes) && freeToJoin(world, member);
+}
+
+export function callFighters(world: World, speaker: Vehicle, caller: Vehicle): Vehicle[] {
+  const foes = awakeFoesOf(world, caller);
+  const { leader, members } = companyOf(world, speaker);
+  const crew = leader.id === speaker.id ? [speaker, ...members.filter((m) => canVehicleSee(world, speaker, m.pos))] : [speaker];
+  return crew.filter((member) => canFight(world, member, caller, foes));
+}
+
+function advantageOf(danger: number): number {
+  return danger > 0 ? 1 / danger : Infinity;
+}
+
+function oddsFactor(danger: number): number {
+  const advantage = advantageOf(danger);
+  return advantage > 1 ? Math.min(advantage, HELP_CALL.oddsCap) ** HELP_CALL.oddsPower : 1;
+}
+
+export function staysOutOfCall(world: World, speaker: Vehicle, caller: Vehicle, danger: number): boolean {
+  if (!hasTrait(speaker, 'coward') || bandAtLeast(bandToward(world, speaker, caller), 'friendly')) return false;
+  return advantageOf(danger) < HELP_CALL.cowardEdge;
+}
+
+function helpFactor(world: World, vehicle: Vehicle, _decision: DecisionId, subject: string | null, danger: number | null): number {
+  if (danger === null) throw new Error(`${vehicle.id} weighs a call for help with no danger`);
   const caller = subjectOf(world, 'helpCalled', subject);
-  if (lawCalls(vehicle, caller, awakeFoesOf(world, caller))) return HELP_CALL.law;
+  if (lawCalls(vehicle, caller, awakeFoesOf(world, caller))) return HELP_CALL.law * oddsFactor(danger);
   const band = bandToward(world, vehicle, caller);
-  return band === 'allied' ? HELP_CALL.allied : band === 'friendly' ? HELP_CALL.friendly : 1;
+  const bandFactor = band === 'allied' ? HELP_CALL.allied : band === 'friendly' ? HELP_CALL.friendly : 1;
+  return bandFactor * oddsFactor(danger);
 }
 
 export function isManageable(vehicle: Vehicle, danger: number): boolean {

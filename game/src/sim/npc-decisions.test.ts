@@ -11,8 +11,7 @@ import { makePart } from './factory';
 import { canFlee, canRob, decide, firepower, fitToHunt, holdsUp, huntingGrounds, isManageable, isWeak, judgeDanger, lawmanTowns, nearLawGate, raiderGrounds, optionChances, optionWeights } from './npc-decisions';
 import { isTerritory, siteGap, siteGates } from './sites';
 import { hazardZones } from './territory';
-import { huntingSpots } from './hunting-spots';
-import { divideTurf, turfClaimants } from './turf';
+import { divideTurf, huntingSpots, turfClaimants } from './hunting-spots';
 import { TEST_MAP } from '../test/map';
 import { noteHurt, thinkNpc, topGoal } from './npc-activities';
 import { chooseOn, trackOf } from './tracks';
@@ -333,6 +332,7 @@ describe('decision weights', () => {
     const trader = addNpc(w, 'independent', 'trader', ['trader'], { x: 36, y: 30 });
     const me = w.player.vehicleId;
     w.player.fuel = 0;
+    w.player.beacon = true;
     addState(w, 'turnedDown', trader.id, me, { kind: 'none' });
     forceOption('strandedSeen', 'tow');
     w.rngState = rngStateForForcedRolls(6);

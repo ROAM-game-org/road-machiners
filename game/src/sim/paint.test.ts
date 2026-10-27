@@ -81,10 +81,10 @@ describe('a paint job', () => {
     expect(buyChassis(painted, 'longbed').player.paint).toEqual(OXBLOOD);
   });
 
-  it('is read by no sim rule but the repaint and the rescue', () => {
+  it('is read by no sim rule but the repaint, the rescue and the sim mode map marker', () => {
     const readers = readdirSync('src/sim', { recursive: true, encoding: 'utf8' })
       .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
       .filter((f) => /player\.paint\b/.test(readFileSync(`src/sim/${f}`, 'utf8')));
-    expect(readers.sort()).toEqual(['economy.ts', 'world.ts']);
+    expect(readers.sort()).toEqual(['economy.ts', 'progression/sim-mode.ts', 'world.ts']);
   });
 });
