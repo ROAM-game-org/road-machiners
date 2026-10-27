@@ -87,7 +87,7 @@
   "town_pump_station": {
     "file": "town_pump_station.webp",
     "focusX": 50,
-    "focusY": 40
+    "focusY": 0
   },
   "town_dustwell": {
     "file": "town_dustwell.webp",
