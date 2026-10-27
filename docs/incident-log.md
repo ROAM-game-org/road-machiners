@@ -87,3 +87,7 @@ cost: On most phones, Macs and Windows Chrome the ground vanished at night, a fi
 ID: R22
 what: An agent ran two traffic harness runs at once, and each started one sim process per seed of about 1.4 GB. It stopped the runs with factory-job stop, but a vite-node process busy in a sim ignores that stop signal, and the agent never checked that the seeds ended. Six of them kept running beside the other jobs' tests and browsers on a host that was already short of memory.
 cost: The factory server ran out of memory and swap and froze for eleven hours, with Hermes, the dashboard and the public site down, until a person power-cycled it by hand.
+
+ID: R23
+what: A request to make a visual effect calmer and lighter was overdone until the effect was nearly gone: besides the asked-for lighter, larger and softer look, the build cut a number the request said to keep to a tenth of its value, and the committee was shown only that one result. When tuning a look, keep the effect plainly visible, change only the numbers the request names, and show the before and a middle step next to the result in video.
+cost: The committee could not see the effect at all, and the card went back for a patch round to record before, after and halfway videos for the committee to pick from.
