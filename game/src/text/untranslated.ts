@@ -3,6 +3,7 @@ export type Untranslated = { file: string; text: string; reason: string };
 const DEBUG_CONSOLE = 'The debug console is a dev tool. It stays English.';
 const DEV_REPORT = 'Progression and income reports are dev tools read in a terminal. They stay English.';
 const CRASH_REPORT = 'A line of the crash report a player pastes into a bug report. It stays as the code wrote it.';
+const DEV_SIM = 'Simulation mode is a dev page that shows a playthrough run. It stays English, apart from the game words it reads from the catalog.';
 const DEV_LAB = 'The block lab is a dev page for tuning the combat score. It stays English.';
 const FONT_SAMPLE = 'A sample string that makes the browser load the font. No player reads it.';
 const SVG = 'Static SVG markup of an icon, with no words in it.';
@@ -75,6 +76,17 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/sim/progression/income.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/sim/progression/record.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/sim/progression/replay.ts', text: '*', reason: DEV_REPORT },
+  { file: 'src/sim/progression/sim-cards.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/sim/progression/sim-mode.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/three/sim-worker.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/economy-pages.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/economy-reads.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/economy-view.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/heat-map.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/page.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/panels.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/sim-text.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/truck-icons.ts', text: '*', reason: DEV_SIM },
   { file: 'src/sim/progression/bot.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/sim/progression/escort-report.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/data/region.ts', text: 'Icarus', reason: 'The map name is an id the bake and the tests read. No screen shows it.' },
