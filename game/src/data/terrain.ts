@@ -1,6 +1,6 @@
 
 import { PHYSICS } from "./physics";
-import { BROKEN_WING, BROKEN_WING_POINT, FALLEN_SUN_POS, MAP_AREA_SPREAD, MAP_SPREAD, REGION, scalePoint } from "./region";
+import { BROKEN_WING, BROKEN_WING_POINT, draftName, FALLEN_SUN_POS, MAP_AREA_SPREAD, MAP_DRAFT, MAP_SPREAD, REGION, scalePoint } from "./region";
 import { FALLEN_SUN_DECKS } from "./territory";
 import type { PropKind } from "../sim/terrain";
 import type { Vec } from "../sim/vec";
@@ -683,7 +683,7 @@ export const MAPGEN = {
   seed: 1337,
   groundHold: 40,
   groundFeather: 40,
-  file: 'maps/icarus.bin',
+  file: MAP_DRAFT === null ? 'maps/icarus.bin' : `drafts/${draftName(MAP_DRAFT)}.bin`,
   heightScale: 1000,
   overviewPxPerTile: 2,
   closeUpPxPerTile: 8,

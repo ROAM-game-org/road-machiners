@@ -51,14 +51,15 @@ export type NavLayer = TerrainNav & {
   coarse: CoarseGrid;
 };
 
-export type StaticSet = { key: string; solidKey: string; solid: Blocker[]; costly: Blocker[]; buckets: ObstacleBuckets; solidBuckets: ObstacleBuckets };
+export type StaticSet = { id: number; solidId: number; solid: Blocker[]; costly: Blocker[]; costlyKeys: Set<string>; buckets: ObstacleBuckets; solidBuckets: ObstacleBuckets; costlyBuckets: ObstacleBuckets };
 
 export function isTransientWreck(o: Obstacle): boolean {
   return o.kind === 'wreck' && o.id.startsWith('wreck');
 }
 
 type SolidGrid = { blocked: Uint8Array; coarse: CoarseGrid };
-type TerrainEntry = { nav: TerrainNav; cellCliff: Map<number, Uint8Array>; solidGrids: Map<string, SolidGrid>; layers: Map<string, NavLayer> };
+type CachedLayer = { layer: NavLayer; statics: StaticSet };
+type TerrainEntry = { nav: TerrainNav; cellCliff: Map<number, Uint8Array>; solidGrids: Map<string, SolidGrid>; layers: Map<string, CachedLayer> };
 const terrains = new WeakMap<Terrain, TerrainEntry>();
 const LAYERS_MAX = 16;
 let nextLayerId = 1;
@@ -172,14 +173,38 @@ function buildStaticSet(obstacles: Obstacle[], terrain: Terrain): StaticSet {
   const all = [...statics.map((o) => driveBlocker(o, terrain)), ...atlasOf(terrain).hazards.map((z) => ({ pos: z.pos, r: z.radius }))];
   const breakable = statics.map(isBreakable);
   const solid = all.filter((_, i) => !breakable[i]);
+  const costly = all.filter((_, i) => breakable[i]);
   return {
-    key: blockerKey(all),
-    solidKey: blockerKey(solid),
+    id: keyId(blockerKey(all)),
+    solidId: keyId(blockerKey(solid)),
     solid,
-    costly: all.filter((_, i) => breakable[i]),
+    costly,
+    costlyKeys: new Set(costly.map(blockerKey1)),
     buckets: new ObstacleBuckets(all, terrain.size),
     solidBuckets: new ObstacleBuckets(solid, terrain.size),
+    costlyBuckets: new ObstacleBuckets(costly, terrain.size),
   };
+}
+
+const KEY_IDS_KEPT = 16;
+const keyIds = new Map<string, number>();
+let nextKeyId = 1;
+
+function keyId(key: string): number {
+  const hit = keyIds.get(key);
+  if (hit !== undefined) {
+    keyIds.delete(key);
+    keyIds.set(key, hit);
+    return hit;
+  }
+  if (keyIds.size >= KEY_IDS_KEPT) keyIds.delete(keyIds.keys().next().value!);
+  const id = nextKeyId++;
+  keyIds.set(key, id);
+  return id;
+}
+
+function blockerKey1(o: Blocker): string {
+  return o.prop ? o.prop.key : `${o.pos.x},${o.pos.y},${o.r}`;
 }
 
 export function dynamicBlockers(obstacles: Obstacle[], terrain: Terrain, extra: Blocker[]): Blocker[] {
@@ -192,24 +217,61 @@ function driveBlocker(o: Obstacle, terrain: Terrain): Blocker {
 }
 
 export function blockerKey(blockers: Blocker[]): string {
-  return blockers.map((o) => (o.prop ? o.prop.key : `${o.pos.x},${o.pos.y},${o.r}`)).join('|');
+  return blockers.map(blockerKey1).join('|');
 }
 
 export function navLayer(terrain: Terrain, obstacles: Obstacle[], radius: number): NavLayer {
   const e = terrainEntry(terrain);
   const statics = staticSet(obstacles, terrain);
-  const key = `${radius}:${statics.key}`;
+  const key = `${statics.id}:${radius}`;
   const hit = e.layers.get(key);
-  if (hit) return hit;
-  if (e.layers.size >= LAYERS_MAX) e.layers.clear();
+  if (hit) return hit.layer;
+  const layer = patchedLayer(e, statics, radius) ?? builtLayer(e, statics, radius);
+  keepWithin(e.layers, `${statics.id}:`);
+  e.layers.set(key, { layer, statics });
+  return layer;
+}
+
+function keepWithin<T>(cache: Map<string, T>, current: string): void {
+  if (cache.size < LAYERS_MAX) return;
+  for (const key of [...cache.keys()]) if (!key.startsWith(current)) cache.delete(key);
+  if (cache.size >= LAYERS_MAX) cache.delete(cache.keys().next().value!);
+}
+
+function builtLayer(e: TerrainEntry, statics: StaticSet, radius: number): NavLayer {
   const nav = e.nav;
   const cliff = cliffCells(e, radius);
   const solid = solidGrid(e, cliff, statics, radius);
   const slow = costlySlow(nav, statics.costly, radius);
   const coarse = statics.costly.length === 0 ? solid.coarse : withRegionSlow(solid.coarse, slow);
-  const layer: NavLayer = { ...nav, slow, id: nextLayerId++, radius, blocked: solid.blocked, coarse };
-  e.layers.set(key, layer);
+  return { ...nav, slow, id: nextLayerId++, radius, blocked: solid.blocked, coarse };
+}
+
+function patchedLayer(e: TerrainEntry, statics: StaticSet, radius: number): NavLayer | null {
+  const from = [...e.layers.entries()].find(([, c]) => c.layer.radius === radius && c.statics.solidId === statics.solidId && c.statics.costly.length > 0);
+  if (!from || statics.costly.length === 0) return null;
+  const { layer: old, statics: was } = from[1];
+  const changed = [...was.costly.filter((o) => !statics.costlyKeys.has(blockerKey1(o))), ...statics.costly.filter((o) => !was.costlyKeys.has(blockerKey1(o)))];
+  const slow = old.slow.slice();
+  const cells = restampCostly(e.nav, slow, statics, changed, radius);
+  const layer: NavLayer = { ...old, slow, id: nextLayerId++, coarse: withRegionsRedone(old.coarse, e.nav.n, slow, cells) };
+  const need = climbNeeds.get(old);
+  if (need) climbNeeds.set(layer, need);
   return layer;
+}
+
+function restampCostly(nav: TerrainNav, slow: Float32Array, statics: StaticSet, changed: Blocker[], radius: number): Set<number> {
+  const touched = new Set<number>();
+  stampBlockers(nav.n, changed, radius, (c) => touched.add(c));
+  const grow = radius + CLEARANCE;
+  for (const c of touched) slow[c] = nav.slow[c];
+  for (const o of changed) {
+    const near = statics.costlyBuckets.alongSegment(o.pos, o.pos, o.r + 2 * grow + CELL);
+    stampBlockers(nav.n, near, radius, (c) => {
+      if (touched.has(c)) slow[c] = nav.slow[c] * BREAKABLE.routeCost;
+    });
+  }
+  return touched;
 }
 
 function cliffCells(e: TerrainEntry, radius: number): Uint8Array {
@@ -233,16 +295,41 @@ function markCliffCells(nav: TerrainNav, reach: number): Uint8Array {
 }
 
 function solidGrid(e: TerrainEntry, cliff: Uint8Array, statics: StaticSet, radius: number): SolidGrid {
-  const key = `${radius}:${statics.solidKey}`;
+  const key = `${statics.solidId}:${radius}`;
   let grid = e.solidGrids.get(key);
   if (!grid) {
-    if (e.solidGrids.size >= LAYERS_MAX) e.solidGrids.clear();
+    keepWithin(e.solidGrids, `${statics.solidId}:`);
     const blocked = cliff.slice();
     stampBlockers(e.nav.n, statics.solid, radius, (c) => (blocked[c] = 1));
     grid = { blocked, coarse: coarseGrid(e.nav.n, blocked, e.nav.slow) };
     e.solidGrids.set(key, grid);
   }
   return grid;
+}
+
+function withRegionsRedone(coarse: CoarseGrid, n: number, slow: Float32Array, cells: Set<number>): CoarseGrid {
+  const mean = coarse.slow.slice();
+  const regions = new Set<number>();
+  for (const c of cells) if (coarse.region[c] !== 0) regions.add(coarse.region[c]);
+  for (const r of regions) mean[r] = regionMean(coarse, n, slow, r);
+  return { ...coarse, slow: mean };
+}
+
+function regionMean(coarse: CoarseGrid, n: number, slow: Float32Array, r: number): number {
+  const bn = Math.ceil(n / COARSE);
+  const block = coarse.block[r];
+  const x0 = (block % bn) * COARSE;
+  const y0 = Math.floor(block / bn) * COARSE;
+  let sum = 0;
+  let count = 0;
+  for (let y = y0; y < Math.min(n, y0 + COARSE); y++)
+    for (let x = x0; x < Math.min(n, x0 + COARSE); x++) {
+      const c = y * n + x;
+      if (coarse.region[c] !== r) continue;
+      sum += slow[c];
+      count++;
+    }
+  return sum / count;
 }
 
 function withRegionSlow(coarse: CoarseGrid, slow: Float32Array): CoarseGrid {

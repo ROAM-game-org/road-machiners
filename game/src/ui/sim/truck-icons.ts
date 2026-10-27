@@ -1,39 +1,47 @@
-import * as THREE from "three";
-import { CHASSIS, type TruckPaint } from "../../data/chassis";
-import { FACTIONS } from "../../data/npc-behavior";
 import { PHYSICS } from "../../data/physics";
-import { paintOf } from "../../render/palette";
 import { spanOf } from "../../sim/body";
-import { bareVehicle } from "../../sim/factory";
-import type { Faction, NpcBrain, NpcFactionId, Vehicle } from "../../sim/types";
-import { boundsOf, flipRows, linearToSrgb, unpremultiply, type PixelBox } from "../../three/render/portraitPixels";
-import { loadModels, paintSurfaceMasks } from "../../three/render/models";
-import { canvasOf, hideOutlines, poseAtRest, withRendererState } from "../../three/render/truckPortrait";
-import { VehicleView, type RebuildBudget } from "../../three/render/vehicle";
 import { token } from "../tokens";
+import { SPRITES, spriteKey, type SpriteCell, type SpriteManifest, type SpritePaint } from "../../three/sim-sprite-plan";
 
-const YAWS = 16;
-const CAMERA = { riseDeg: 35, distance: 60, margin: 0.2 };
-const LIGHT = { ambient: 2.5, key: 1.5, keyAt: [-4, 8, 6] as const };
-const BASE_PX_PER_METER = 40;
-const SAMPLES = 4;
-const LEVEL_STEP = Math.SQRT2;
-const SHADOW = { reach: 1, blur: 1, alpha: 0.9, darken: 0.5 };
-const PAD_PX = SHADOW.reach + SHADOW.blur * 2;
+const SIZE_STEPS_PER_OCTAVE = 8;
+const SHADOW = { alpha: 0.9, darken: 0.5 };
 const OUT_FILTER = "grayscale(1) brightness(0.55)";
 const OFFSETS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const;
+const REBAKE = "Run npm run sim:sprites";
 
 export type IconLook = { color: string; out: boolean };
-export type IconPaint = { faction: string; template: string | null; player: TruckPaint };
+type Shadow = { reach: number; blur: number; pad: number };
 
-type Yaw = { canvas: HTMLCanvasElement; fromCenterX: number; fromCenterY: number };
+export function iconScreenScale(wantedPxPerMeter: number, sheetPxPerMeter: number): number {
+  const octaves = Math.log2(wantedPxPerMeter / sheetPxPerMeter);
+  return sheetPxPerMeter * 2 ** (Math.round(octaves * SIZE_STEPS_PER_OCTAVE) / SIZE_STEPS_PER_OCTAVE);
+}
+
+export function shadowFor(ratio: number): Shadow {
+  const reach = Math.max(1, Math.round(ratio));
+  return { reach, blur: reach, pad: reach * 3 };
+}
+
+export function iconCorner(at: { x: number; y: number }, ratio: number, cell: { fromCenterX: number; fromCenterY: number }, sheetPxPerMeter: number, screenPxPerMeter: number, pad: number): { left: number; top: number } {
+  return {
+    left: Math.round(at.x * ratio + (cell.fromCenterX / sheetPxPerMeter) * screenPxPerMeter) - pad,
+    top: Math.round(at.y * ratio + (cell.fromCenterY / sheetPxPerMeter) * screenPxPerMeter) - pad,
+  };
+}
 
 export class SpriteSet {
-  constructor(readonly key: string, readonly yaws: Yaw[], readonly radiusM: number) {}
+  constructor(readonly key: string, readonly sheet: HTMLImageElement, readonly cells: readonly SpriteCell[], readonly radiusM: number) {}
 
   yawFor(heading: number): number {
     const turn = heading / (2 * Math.PI);
-    return ((Math.round(turn * YAWS) % YAWS) + YAWS) % YAWS;
+    return ((Math.round(turn * SPRITES.yaws) % SPRITES.yaws) + SPRITES.yaws) % SPRITES.yaws;
+  }
+
+  piece(yaw: number): HTMLCanvasElement {
+    const cell = this.cells[yaw]!;
+    const canvas = canvasOfSize(cell.w, cell.h);
+    contextOf(canvas).drawImage(this.sheet, cell.x, cell.y, cell.w, cell.h, 0, 0, cell.w, cell.h);
+    return canvas;
   }
 }
 
@@ -80,166 +88,64 @@ function shadowMask(base: HTMLCanvasElement, color: string): HTMLCanvasElement {
   return mask;
 }
 
-function drawShadow(ctx: CanvasRenderingContext2D, base: HTMLCanvasElement, color: string): void {
+function drawShadow(ctx: CanvasRenderingContext2D, base: HTMLCanvasElement, color: string, shadow: Shadow): void {
   const mask = shadowMask(base, color);
   ctx.globalAlpha = SHADOW.alpha;
-  ctx.filter = `blur(${SHADOW.blur}px)`;
-  for (const [dx, dy] of OFFSETS) ctx.drawImage(mask, PAD_PX + dx * SHADOW.reach, PAD_PX + dy * SHADOW.reach);
-  ctx.drawImage(mask, PAD_PX, PAD_PX);
+  ctx.filter = `blur(${shadow.blur}px)`;
+  for (const [dx, dy] of OFFSETS) ctx.drawImage(mask, shadow.pad + dx * shadow.reach, shadow.pad + dy * shadow.reach);
+  ctx.drawImage(mask, shadow.pad, shadow.pad);
   ctx.filter = "none";
   ctx.globalAlpha = 1;
 }
 
-function iconOf(base: HTMLCanvasElement, look: IconLook): HTMLCanvasElement {
-  const icon = canvasOfSize(base.width + 2 * PAD_PX, base.height + 2 * PAD_PX);
+function iconOf(base: HTMLCanvasElement, look: IconLook, shadow: Shadow): HTMLCanvasElement {
+  const icon = canvasOfSize(base.width + 2 * shadow.pad, base.height + 2 * shadow.pad);
   const ctx = contextOf(icon);
-  drawShadow(ctx, base, look.color);
+  drawShadow(ctx, base, look.color, shadow);
   if (look.out) ctx.filter = OUT_FILTER;
-  ctx.drawImage(base, PAD_PX, PAD_PX);
+  ctx.drawImage(base, shadow.pad, shadow.pad);
   ctx.filter = "none";
   return icon;
 }
 
-function factionOf(text: string): Faction {
-  if (text === "player") return text;
-  const found = (Object.keys(FACTIONS) as NpcFactionId[]).find((id) => id === text);
-  if (!found) throw new Error(`The faction ${text} is not in the game`);
-  return found;
-}
-
-function brainOf(templateId: string): NpcBrain {
-  return { templateId, driver: "", traits: [], personality: "kind", goals: [], noticed: {}, tracks: {}, hurt: 0, attackers: {}, goal: null, home: { x: 0, y: 0 }, stepIndex: 0, memories: [] };
-}
-
-function truckOf(chassisId: string, paint: IconPaint): Vehicle {
-  const faction = factionOf(paint.faction);
-  const brain = faction === "player" ? null : paint.template === null ? null : brainOf(paint.template);
-  return bareVehicle({ nextId: 1 }, { faction, chassisId, pos: { x: 0, y: 0 }, heading: 0, brain });
-}
-
-function onceMore(): RebuildBudget {
-  let spent = false;
-  return { take: () => !spent && (spent = true), ready: () => true };
-}
-
-function builtView(truck: Vehicle, paint: TruckPaint): VehicleView {
-  const view = new VehicleView(null, false, paint, "portrait");
-  while (!view.built) view.update(truck, false, paint, onceMore());
-  poseAtRest(view, truck);
-  hideOutlines(view.root);
-  return view;
-}
-
-function reach(root: THREE.Object3D): { radius: number; height: number } {
-  root.updateMatrixWorld(true);
-  let radius = 0;
-  let height = 0;
-  const box = new THREE.Box3();
-  root.traverse((o) => {
-    if (!(o instanceof THREE.Mesh) || !o.visible) return;
-    box.setFromObject(o);
-    radius = Math.max(radius, Math.hypot(Math.max(Math.abs(box.min.x), Math.abs(box.max.x)), Math.max(Math.abs(box.min.z), Math.abs(box.max.z))));
-    height = Math.max(height, Math.abs(box.min.y), Math.abs(box.max.y));
+function imageAt(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error(`The sprite sheet ${url} did not load. ${REBAKE}`));
+    image.src = url;
   });
-  return { radius, height };
 }
 
-function cameraFor(radius: number, height: number): THREE.OrthographicCamera {
-  const rise = THREE.MathUtils.degToRad(CAMERA.riseDeg);
-  const halfWide = radius + CAMERA.margin;
-  const halfTall = radius * Math.sin(rise) + height * Math.cos(rise) + CAMERA.margin;
-  const camera = new THREE.OrthographicCamera(-halfWide, halfWide, halfTall, -halfTall, 0.1, CAMERA.distance * 2);
-  camera.position.set(0, Math.sin(rise) * CAMERA.distance, Math.cos(rise) * CAMERA.distance);
-  camera.up.set(0, 1, 0);
-  camera.lookAt(0, 0, 0);
-  camera.updateMatrixWorld(true);
-  camera.updateProjectionMatrix();
-  return camera;
-}
-
-function litStage(root: THREE.Object3D): THREE.Scene {
-  const scene = new THREE.Scene();
-  scene.add(new THREE.AmbientLight(0xffffff, LIGHT.ambient));
-  const key = new THREE.DirectionalLight(0xffffff, LIGHT.key);
-  key.position.set(...LIGHT.keyAt);
-  scene.add(key);
-  scene.add(root);
-  return scene;
-}
-
-function shot(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget, scene: THREE.Scene, camera: THREE.Camera): Uint8ClampedArray {
-  const bytes = new Uint8Array(target.width * target.height * 4);
-  withRendererState(renderer, () => {
-    renderer.setRenderTarget(target);
-    renderer.setClearColor(0x000000, 0);
-    renderer.autoClear = true;
-    renderer.render(scene, camera);
-    renderer.readRenderTargetPixels(target, 0, 0, target.width, target.height, bytes);
-  });
-  const px = new Uint8ClampedArray(bytes.buffer);
-  unpremultiply(px);
-  linearToSrgb(px);
-  flipRows(px, target.width, target.height);
-  return px;
-}
-
-function croppedYaw(px: Uint8ClampedArray, size: { width: number; height: number }): Yaw {
-  const box: PixelBox = boundsOf(px, size);
-  const full = canvasOf(px, size);
-  const canvas = canvasOfSize(box.width, box.height);
-  contextOf(canvas).drawImage(full, box.x, box.y, box.width, box.height, 0, 0, box.width, box.height);
-  return { canvas, fromCenterX: box.x - size.width / 2, fromCenterY: box.y - size.height / 2 };
-}
-
-function renderSet(renderer: THREE.WebGLRenderer, key: string, truck: Vehicle, paint: TruckPaint): SpriteSet {
-  const view = builtView(truck, paint);
-  try {
-    const { radius, height } = reach(view.root);
-    const camera = cameraFor(radius, height);
-    const size = { width: Math.round((camera.right - camera.left) * BASE_PX_PER_METER), height: Math.round((camera.top - camera.bottom) * BASE_PX_PER_METER) };
-    const target = new THREE.WebGLRenderTarget(size.width, size.height, { samples: SAMPLES, depthBuffer: true, stencilBuffer: false });
-    const scene = litStage(view.root);
-    const yaws: Yaw[] = [];
-    try {
-      for (let k = 0; k < YAWS; k++) {
-        view.root.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (-k * 2 * Math.PI) / YAWS);
-        view.root.updateMatrixWorld(true);
-        yaws.push(croppedYaw(shot(renderer, target, scene, camera), size));
-      }
-    } finally {
-      scene.remove(view.root);
-      target.dispose();
-    }
-    return new SpriteSet(key, yaws, radius);
-  } finally {
-    view.dispose();
-  }
+async function manifestAt(folder: string): Promise<SpriteManifest> {
+  const response = await fetch(`${folder}${SPRITES.manifest}`);
+  if (!response.ok) throw new Error(`The sprite manifest is missing (${response.status}). ${REBAKE}`);
+  return (await response.json()) as SpriteManifest;
 }
 
 export class TruckIcons {
-  private readonly sets = new Map<string, SpriteSet>();
   private readonly made = new Map<string, HTMLCanvasElement>();
-  private madeLevel = -1;
+  private madeSize = "";
+  private readonly shortestM: number;
 
-  private constructor(private readonly renderer: THREE.WebGLRenderer, private readonly shortestM: number) {}
-
-  static async load(): Promise<TruckIcons> {
-    await loadModels();
-    await paintSurfaceMasks();
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    const shortestM = Math.min(...Object.keys(CHASSIS).map((id) => 2 * spanOf(id).half.x));
-    return new TruckIcons(renderer, shortestM);
+  private constructor(private readonly sets: Map<string, SpriteSet>, private readonly pxPerMeterBase: number, chassis: readonly string[]) {
+    this.shortestM = Math.min(...chassis.map((id) => 2 * spanOf(id).half.x));
   }
 
-  setFor(chassisId: string, paint: IconPaint): SpriteSet {
-    const truck = truckOf(chassisId, paint);
-    const colors = paintOf(truck, paint.player);
-    const key = `${chassisId}|${colors.body}|${colors.cab}|${colors.gear}`;
-    const known = this.sets.get(key);
-    if (known) return known;
-    const made = renderSet(this.renderer, key, truck, paint.player);
-    this.sets.set(key, made);
-    return made;
+  static async load(): Promise<TruckIcons> {
+    const folder = `${import.meta.env.BASE_URL}${SPRITES.folder}/`;
+    const manifest = await manifestAt(folder);
+    const entries = Object.entries(manifest.sprites);
+    const sheets = await Promise.all(entries.map(([, entry]) => imageAt(`${folder}${entry.file}`)));
+    const sets = new Map(entries.map(([key, entry], i) => [key, new SpriteSet(key, sheets[i]!, entry.cells, entry.radiusM)]));
+    return new TruckIcons(sets, manifest.pxPerMeter, manifest.chassis);
+  }
+
+  setFor(chassisId: string, paint: SpritePaint): SpriteSet {
+    const key = spriteKey(chassisId, paint);
+    const set = this.sets.get(key);
+    if (!set) throw new Error(`No baked sprite for ${key}. ${REBAKE}`);
+    return set;
   }
 
   pxPerMeter(tileSize: number, shortestPx: number): number {
@@ -251,26 +157,28 @@ export class TruckIcons {
   }
 
   draw(ctx: CanvasRenderingContext2D, set: SpriteSet, at: { x: number; y: number }, heading: number, pxPerMeter: number, look: IconLook): void {
-    const level = Math.max(0, Math.round(Math.log(BASE_PX_PER_METER / pxPerMeter) / Math.log(LEVEL_STEP)));
+    const ratio = ctx.getTransform().a;
+    const screen = iconScreenScale(pxPerMeter * ratio, this.pxPerMeterBase);
+    const shadow = shadowFor(ratio);
     const yaw = set.yawFor(heading);
-    const icon = this.iconFor(set, yaw, level, look);
-    const scale = pxPerMeter / (BASE_PX_PER_METER / LEVEL_STEP ** level);
-    const entry = set.yaws[yaw]!;
-    const left = at.x + (entry.fromCenterX / BASE_PX_PER_METER) * pxPerMeter - PAD_PX * scale;
-    const top = at.y + (entry.fromCenterY / BASE_PX_PER_METER) * pxPerMeter - PAD_PX * scale;
-    ctx.drawImage(icon, left, top, icon.width * scale, icon.height * scale);
+    const icon = this.iconFor(set, yaw, screen, shadow, look);
+    const { left, top } = iconCorner(at, ratio, set.cells[yaw]!, this.pxPerMeterBase, screen, shadow.pad);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(icon, left, top);
+    ctx.restore();
   }
 
-  private iconFor(set: SpriteSet, yaw: number, level: number, look: IconLook): HTMLCanvasElement {
-    if (level !== this.madeLevel) {
+  private iconFor(set: SpriteSet, yaw: number, screen: number, shadow: Shadow, look: IconLook): HTMLCanvasElement {
+    const size = `${screen}|${shadow.pad}`;
+    if (size !== this.madeSize) {
       this.made.clear();
-      this.madeLevel = level;
+      this.madeSize = size;
     }
     const key = `${set.key}|${yaw}|${look.color}|${look.out}`;
     const cached = this.made.get(key);
     if (cached) return cached;
-    const levelScale = 1 / LEVEL_STEP ** level;
-    const icon = iconOf(scaledTo(set.yaws[yaw]!.canvas, levelScale), look);
+    const icon = iconOf(scaledTo(set.piece(yaw), screen / this.pxPerMeterBase), look, shadow);
     this.made.set(key, icon);
     return icon;
   }

@@ -41,6 +41,7 @@ import { canUseSite, GOAL_REACH, isTerritory, nearestPad, parkedOn, type Site } 
 import { spotGoal, territoryOfStock, tripGoal } from './territory';
 import { OLD_PLACES, type OldPlaceType } from '../data/salvage';
 import { clamp, dist, leadsAwayBy, pointsAway, type Vec } from './vec';
+import { roadNetworkOf, roadPointAt } from './road-network';
 import { canVehicleSee } from './vision';
 import { isWatching, startWatch, watchOver } from './watch-posts';
 import { chooseOn, comesInSight, sensedAt, senseTracks, trackOf } from './tracks';
@@ -231,10 +232,9 @@ function travelGoal(world: World, vehicle: Vehicle): NpcActivity {
 }
 
 export function exploreGoal(world: World, vehicle: Vehicle): NpcActivity {
-  const radius = vehicleStats(world, vehicle).radius;
   for (let i = 0; i < SPAWN.tries; i++) {
-    const point = { x: randRange(world, radius, world.size - radius), y: randRange(world, radius, world.size - radius) };
-    if (isFree(world, point, radius, vehicle.id)) return createActivity('explore', null, point, 'explore');
+    const point = roadPointAt(roadNetworkOf(world), randRange(world, 0, 1));
+    if (isFree(world, point, vehicleStats(world, vehicle).radius, vehicle.id)) return createActivity('explore', null, point, 'explore');
   }
   return createActivity('wait', null, null, 'noExplorePoint');
 }

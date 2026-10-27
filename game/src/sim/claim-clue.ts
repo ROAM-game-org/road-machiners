@@ -3,6 +3,7 @@ import { REGION } from '../data/region';
 import { BIG_SHELL_RADIUS, CLUE_PIECES, CLUE_SPOTS, type CluePiece } from '../data/territory';
 import { gridSquareOf, sameGridSquare, type GridSquare } from './map-grid';
 import CLAIM_CLUES_FILE from '../data/claim-clues.json';
+import { DRAFT } from '../data/region';
 import { territoryAt } from './territory';
 import type { World } from './types';
 import { bearing, dist, type Vec } from './vec';
@@ -19,7 +20,7 @@ export type ClaimClueBake = { mapHash: string; wrecks: Record<string, WreckClues
 
 const COMPASS_POINTS = 8;
 const TIERS: readonly ClaimClueTier[] = ['shop', 'piece', 'offset'];
-const CLAIM_CLUES = CLAIM_CLUES_FILE as ClaimClueBake;
+const CLAIM_CLUES = (DRAFT?.claimClues ?? CLAIM_CLUES_FILE) as ClaimClueBake;
 
 export function compassSector(rad: number): number {
   return ((Math.round(rad / ((2 * Math.PI) / COMPASS_POINTS)) % COMPASS_POINTS) + COMPASS_POINTS) % COMPASS_POINTS;

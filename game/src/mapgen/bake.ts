@@ -1,5 +1,5 @@
 
-import { REGION } from '../data/region';
+import { MAP_DRAFT, REGION } from '../data/region';
 import { GEOLOGY, MAPGEN, TERRAIN, type TerrainTypeId } from '../data/terrain';
 import { bridgeCut, deckAt, ICARUS_DECKS } from '../sim/bridge';
 import { ICARUS_KEY, icarusAtlas } from '../sim/atlas';
@@ -25,16 +25,22 @@ export function bakeMap(seed: number): MapDraft {
   let d = groundForTerritories(seed);
   d = timed('territories', () => territoryLayer(seed, d));
   d = timed('ground', () => groundLayer(seed, d));
-  d = timed('rocks', () => rockLayer(seed, d));
+  d = detailed('rocks', d, () => rockLayer(seed, d));
   d = timed('fortresses', () => fortressLayer(d));
   d = timed('start', () => keepStartClear(d));
-  d = timed('roadside', () => roadsideLayer(seed, d));
-  return timed('boats', () => boatLayer(seed, d));
+  d = detailed('roadside', d, () => roadsideLayer(seed, d));
+  return detailed('boats', d, () => boatLayer(seed, d));
+}
+
+function detailed(layer: string, d: MapDraft, run: () => MapDraft): MapDraft {
+  if (MAP_DRAFT === null) return timed(layer, run);
+  console.log(`${layer}: left out of the draft`);
+  return d;
 }
 
 export function groundForTerritories(seed: number): MapDraft {
   let d = timed('base', () => baseLayer(seed, REGION.size));
-  d = timed('geology', () => geologyLayer(seed, d));
+  d = detailed('geology', d, () => geologyLayer(seed, d));
   d = timed('territory ground', () => stampTerritoryGround(d));
   d = timed('finish', () => finishLayer(seed, d));
   d = timed('old world', () => oldWorldLayer(seed, d));

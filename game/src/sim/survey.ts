@@ -4,6 +4,7 @@ import { RULES } from '../data/rules';
 import { REGION } from '../data/region';
 import type { OldPlaceType } from '../data/salvage';
 import SURVEY_SITES_FILE from '../data/survey-sites.json';
+import { DRAFT } from '../data/region';
 import { atlasOf, type AtlasKey } from './atlas';
 import { directionsFromSite } from './directions';
 import { estimateTurns, haulWindow, siteOf, type Contract } from './market';
@@ -26,7 +27,7 @@ export type SurveyLay = 'rise' | 'hollow' | 'flat';
 export type SurveyClueSource = { landmark: string; tiles: number };
 export type SurveySite = { id: string; type: OldPlaceType; pos: Vec; props: SurveyProp[]; lay: SurveyLay; clues: SurveyClueSource[] };
 
-const SURVEY_SITES = SURVEY_SITES_FILE as { mapHash: string; sites: SurveySite[] };
+const SURVEY_SITES = (DRAFT?.surveySites ?? SURVEY_SITES_FILE) as { mapHash: string; sites: SurveySite[] };
 const COMPASS_SECTORS = 8;
 
 export function surveySites(map: { hash: string; terrain: { atlas: AtlasKey } }): SurveySite[] {

@@ -205,6 +205,21 @@ describe('breakable props', () => {
     expect(layer.slow[cell]).toBeCloseTo(open.slow[cell] * BREAKABLE.routeCost);
   });
 
+  it('patches a layer when fences break or appear to the same bytes as a fresh build', () => {
+    const shack: Obstacle = { id: 'shack-0', pos: { x: 52.2, y: 41.3 }, r: 0.9, kind: 'landmark', look: 'shack', yaw: 0 };
+    const fences = [...fenceLine(40.2, 40.3, 4), ...fenceLine(41.1, 41.7, 3).map((f, k) => ({ ...f, id: `cross-${k}`, yaw: 0 }))];
+    const extra = fenceAt('fence-extra', { x: 40.9, y: 38.6 });
+    const sets = [[shack, ...fences], [shack, ...fences.filter((_, k) => k !== 3)], [shack, ...fences.filter((_, k) => k !== 3 && k !== 9), extra]];
+    const patched = emptyWorld().terrain;
+    for (const obstacles of sets) {
+      const layer = navLayer(patched, obstacles, radius);
+      const fresh = navLayer(emptyWorld().terrain, obstacles, radius);
+      expect(Buffer.from(layer.slow.buffer).equals(Buffer.from(fresh.slow.buffer))).toBe(true);
+      expect(Buffer.from(layer.coarse.slow.buffer).equals(Buffer.from(fresh.coarse.slow.buffer))).toBe(true);
+      expect(Buffer.from(layer.blocked.buffer).equals(Buffer.from(fresh.blocked.buffer))).toBe(true);
+    }
+  });
+
   it('keeps a shack blocked', () => {
     const w = emptyWorld();
     const shack: Obstacle = { id: 'shack-0', pos: { x: 40.2, y: 40.3 }, r: 0.9, kind: 'landmark', look: 'shack', yaw: 0 };

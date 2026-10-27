@@ -3,26 +3,30 @@ import { TIME } from '../../data/time';
 import { inCombat } from '../combat';
 import { playerVehicle } from '../damage';
 import { isKnockedOut } from '../defeat';
-import type { Contract } from '../market';
+import type { SiteEventKind } from '../../data/market';
+import { watchStock, type Contract, type StockCause } from '../market';
+import type { RecipeRun } from '../production';
 import type { BakedMap } from '../terrain';
-import type { GameEvent, Memory, NpcActivity, StateKindId, Vehicle, World } from '../types';
+import type { GameEvent, Memory, NpcActivity, RoadNewsKind, StateKindId, Vehicle, World } from '../types';
 import type { Vec } from '../vec';
+import { PLAYTHROUGH_OPTIONS, playthroughWorld } from './activity';
 import type { BotOptions } from './bot';
 import { emptyLedger, LEDGER_KEYS, type Ledger } from './orders';
-import { archetypeWorldOn, FAR_MOVER, netWorth, playTurns, type PlayedTurn } from './record';
+import { FAR_MOVER, netWorth, playTurns, type PlayedTurn } from './record';
 import { cardOf } from './sim-cards';
-import { describe, QUIET } from './turn-log';
+import { economyOf, marketSample, sampleEvents, StockFlows, type EconTag, type Economy, type SampleEvent } from './sim-economy';
+import { QUIET } from './turn-log';
 
 export { cardOf, npcCard, playerCard } from './sim-cards';
 
 export type Marker = { id: string; name: string; chassis: string; x: number; y: number; heading: number; faction: string; template: string | null; paint: TruckPaint; player: boolean; out: boolean; combat: boolean };
-export type LogEntry = { turn: number; kind: string; quiet: boolean; tone: string; text: string; raw: string; ids: string[] };
+export type LogEntry = { turn: number; kind: string; quiet: boolean; tone: string; text: string; ids: string[] };
 export type CardRow = [string, string];
 export type CardSection = { name: string; lines: string[]; rows: CardRow[] };
 export type Way = { dest: Vec | null; target: Vec | null; home: Vec | null };
 export type Card = { id: string; title: string; doing: string; tags: string[]; stats: CardRow[]; facts: CardRow[]; sections: CardSection[]; way: Way };
 export type Hud = { money: string; worth: string; xp: number; state: string; doing: string };
-export type Sample = { turn: number; money: number; worth: number; xp: number };
+export type Sample = { turn: number; money: number; worth: number; xp: number; market: number[]; events: SampleEvent[] };
 export type Frame = { turn: number; markers: Marker[]; log: LogEntry[]; hud: Hud; card: Card | null; sample: Sample | null };
 export type Spoken = { text: string; tone: string; quiet?: boolean };
 
@@ -51,6 +55,13 @@ export type SimText = {
   skill(id: string): string;
   personality(id: string): string;
   contract(c: Contract): string;
+  site(id: string): string;
+  recipe(id: string): string;
+  cause(cause: StockCause): string;
+  run(run: RecipeRun): string;
+  siteEvent(kind: SiteEventKind): string;
+  tag(tag: EconTag): string;
+  newsKind(kind: RoadNewsKind): string;
 };
 
 export type ToSim =
@@ -60,6 +71,7 @@ export type ToSim =
   | { kind: 'step' }
   | { kind: 'speed'; gapMs: number }
   | { kind: 'watch'; id: string | null }
+  | { kind: 'economy' }
   | { kind: 'save' }
   | { kind: 'download' };
 
@@ -70,18 +82,19 @@ export type FromSim =
   | { kind: 'saveFile'; name: string; json: string }
   | { kind: 'frame'; frame: Frame }
   | { kind: 'card'; card: Card | null }
+  | { kind: 'economy'; economy: Economy }
   | { kind: 'ended'; turn: number; reason: string }
   | { kind: 'failed'; turn: number; message: string };
 
-export const SIM_OPTIONS: BotOptions = { markovTurns: TIME.turnsPerDay, tolerateStalls: true };
+export const SIM_OPTIONS: BotOptions = { ...PLAYTHROUGH_OPTIONS, tolerateStalls: true };
 export const TURNS_PER_HOUR = TIME.turnsPerDay / 24;
 const ENDLESS = Number.MAX_SAFE_INTEGER;
 const ROUTINE = new Set<GameEvent['t']>(['job', 'shopMoney', 'stateEnded', 'lookedOver', 'shot', 'empty', 'asked', 'transfer', 'preyPassed', 'collision', 'found', 'guardPaid']);
 
 const hourOf = (turn: number): number => Math.floor(turn / TURNS_PER_HOUR);
 
-export function sampleOf(world: World): Sample {
-  return { turn: world.turn, money: world.player.money, worth: Math.round(netWorth(world)), xp: Math.floor(world.player.xp) };
+export function sampleOf(world: World, since: number): Sample {
+  return { turn: world.turn, money: world.player.money, worth: Math.round(netWorth(world)), xp: Math.floor(world.player.xp), market: marketSample(world), events: sampleEvents(world, since) };
 }
 
 export class SimRun {
@@ -89,15 +102,19 @@ export class SimRun {
   private playing = false;
   private over = false;
   private gapMs = 0;
+  private timer: ReturnType<typeof setTimeout> | null = null;
+  private lastTurnStart = 0;
   private world: World;
   private readonly ledger: Ledger;
   private readonly history: Sample[];
   private readonly turns: Generator<PlayedTurn>;
+  private readonly flows: StockFlows;
 
   constructor(start: World, private readonly text: SimText, private readonly post: (message: FromSim) => void, ledger: Ledger = emptyLedger(), history: Sample[] = []) {
     this.world = start;
+    this.flows = new StockFlows(start.turn);
     this.ledger = { ...ledger };
-    this.history = history.length > 0 ? [...history] : [sampleOf(start)];
+    this.history = history.length > 0 ? [...history] : [sampleOf(start, start.turn)];
     this.turns = playTurns(start, `sim seed ${start.seed}`, 'markov', ENDLESS, SIM_OPTIONS, FAR_MOVER);
     this.post({ kind: 'history', samples: [...this.history] });
     this.post({ kind: 'frame', frame: frameOf(start, [], this.ledger, null, text, null) });
@@ -108,12 +125,17 @@ export class SimRun {
   }
 
   handle(message: ToSim): void {
-    if (message.kind === 'play') this.play();
-    else if (message.kind === 'pause') this.playing = false;
-    else if (message.kind === 'step') this.stepOnce();
-    else if (message.kind === 'speed') this.gapMs = message.gapMs;
+    if (message.kind === 'speed') this.setGap(message.gapMs);
     else if (message.kind === 'watch') this.watch(message.id);
-    else throw new Error(`The sim run does not handle ${message.kind}`);
+    else this.command(message.kind);
+  }
+
+  private command(kind: ToSim['kind']): void {
+    if (kind === 'play') this.play();
+    else if (kind === 'pause') this.pause();
+    else if (kind === 'step') this.stepOnce();
+    else if (kind === 'economy') this.postEconomy();
+    else throw new Error(`The sim run does not handle ${kind}`);
   }
 
   private play(): void {
@@ -122,11 +144,32 @@ export class SimRun {
     this.tick();
   }
 
+  private pause(): void {
+    this.playing = false;
+    this.cancelTimer();
+  }
+
+  private setGap(gapMs: number): void {
+    this.gapMs = gapMs;
+    if (this.playing && this.timer !== null) this.schedule();
+  }
+
+  private cancelTimer(): void {
+    if (this.timer !== null) clearTimeout(this.timer);
+    this.timer = null;
+  }
+
+  private schedule(): void {
+    this.cancelTimer();
+    this.timer = setTimeout(() => this.tick(), Math.max(0, this.gapMs - (performance.now() - this.lastTurnStart)));
+  }
+
   private tick(): void {
+    this.timer = null;
     if (!this.playing) return;
-    const began = performance.now();
+    this.lastTurnStart = performance.now();
     this.stepOnce();
-    setTimeout(() => this.tick(), Math.max(0, this.gapMs - (performance.now() - began)));
+    if (this.playing) this.schedule();
   }
 
   private watch(id: string | null): void {
@@ -149,8 +192,27 @@ export class SimRun {
     }
   }
 
+  private postEconomy(): void {
+    try {
+      this.post({ kind: 'economy', economy: economyOf(this.world, this.flows, this.text) });
+    } catch (error) {
+      this.stop();
+      this.post({ kind: 'failed', turn: this.world.turn, message: errorText(error) });
+    }
+  }
+
+  private nextTurn(): IteratorResult<PlayedTurn> {
+    const turn = this.world.turn;
+    watchStock((shop, good, delta, cause) => this.flows.record(turn, shop, good, delta, cause));
+    try {
+      return this.turns.next();
+    } finally {
+      watchStock(null);
+    }
+  }
+
   private advance(): void {
-    const next = this.turns.next();
+    const next = this.nextTurn();
     if (next.done) {
       this.stop();
       this.post({ kind: 'ended', turn: this.world.turn, reason: this.world.player.state });
@@ -160,9 +222,10 @@ export class SimRun {
     const before = this.world.turn;
     this.world = played.next;
     for (const key of LEDGER_KEYS) this.ledger[key] += played.ledger[key];
-    const sample = hourOf(this.world.turn) === hourOf(before) ? null : sampleOf(this.world);
+    const sample = hourOf(this.world.turn) === hourOf(before) ? null : sampleOf(this.world, this.history[this.history.length - 1].turn);
     if (sample) this.history.push(sample);
     this.post({ kind: 'frame', frame: frameOf(this.world, played.events, this.ledger, this.watched, this.text, sample) });
+    if (sample) this.postEconomy();
   }
 
   private stop(): void {
@@ -172,7 +235,7 @@ export class SimRun {
 }
 
 export function simWorld(map: BakedMap, seed: number): World {
-  return archetypeWorldOn(map, seed, 'markov', SIM_OPTIONS);
+  return playthroughWorld(map, seed, 'markov');
 }
 
 export function errorText(error: unknown): string {
@@ -218,7 +281,7 @@ export function logEntries(world: World, events: readonly GameEvent[], text: Sim
     const json = JSON.stringify(e);
     const plain = text.event(world, e);
     const ids = known.filter((id) => json.includes(`"${id}"`));
-    return { turn: world.turn, kind: e.t, quiet: isQuiet(world, e, plain, ids), tone: e.t === 'stall' ? 'bad' : plain.tone, text: plain.text, raw: describe(world, e), ids };
+    return { turn: world.turn, kind: e.t, quiet: isQuiet(world, e, plain, ids), tone: e.t === 'stall' ? 'bad' : plain.tone, text: plain.text, ids };
   });
 }
 

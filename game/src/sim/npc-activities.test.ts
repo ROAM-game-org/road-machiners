@@ -20,7 +20,8 @@ import { endTurn } from './world';
 import { corePart, freeCells, goodsCount, mountedParts } from './grid';
 import { makePart } from './factory';
 import { addGoods, hasCargoRoom } from './inventory';
-import { finishGoal, getActivityDestination, ledPoint, patchGoal, pushGoal, resolveNpcActivities, thinkNpc, topGoal, turnCornered } from './npc-activities';
+import { exploreGoal, finishGoal, getActivityDestination, ledPoint, patchGoal, pushGoal, resolveNpcActivities, thinkNpc, topGoal, turnCornered } from './npc-activities';
+import { roadNetworkOf } from './road-network';
 import { leaveLoot } from './loot-warning';
 import { chooseOn, trackOf } from './tracks';
 import { watchStalls } from './npc-watchdog';
@@ -1427,6 +1428,23 @@ describe('point goals', () => {
     const after = w.vehicles.find((v) => v.id === npc.id)!;
     expect(topGoal(after)?.kind).not.toBe('explore');
     expect(dist(after.pos, { x: 170, y: 150 })).toBeGreaterThan(RULES.arriveRadius * 2);
+  });
+});
+
+describe('explore', () => {
+  it('drives to points along the roads, so every road gets traffic in proportion to its length', () => {
+    const w = emptyWorld({ x: 10, y: 10 });
+    const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 150, y: 150 });
+    const { edges } = roadNetworkOf(w);
+    const total = edges.reduce((sum, e) => sum + e.length, 0);
+    const hits = new Set<number>();
+    for (let i = 0; i < 2000; i++) {
+      const point = exploreGoal(w, npc).destination!;
+      const near = edges.findIndex((e) => polylineDist(point, e.points) < 0.01);
+      expect(near).toBeGreaterThanOrEqual(0);
+      hits.add(near);
+    }
+    expect(edges.every((e, k) => e.length < total / 100 || hits.has(k))).toBe(true);
   });
 });
 

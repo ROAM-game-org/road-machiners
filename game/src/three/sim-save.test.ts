@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { playerVehicle } from '../sim/damage';
 import { emptyLedger } from '../sim/progression/orders';
-import { SimRun, simWorld, type FromSim } from '../sim/progression/sim-mode';
+import { SimRun, simWorld, type FromSim, type Sample } from '../sim/progression/sim-mode';
 import { TEST_MAP } from '../test/map';
 import { SIM_TEXT } from '../ui/sim/sim-text';
 import { memoryBackend, SaveSlots } from './save-db';
@@ -47,5 +47,27 @@ describe('sim run saves', () => {
     expect(resumedRun(slots, TEST_MAP)).toEqual({ kind: 'outdated' });
     expect(slots.get(SIM_SLOT)).toBeNull();
     expect(resumedRun(slots, TEST_MAP)).toEqual({ kind: 'none' });
+  }, 120000);
+
+  it.each([
+    ['no market history', ({ market: _market, ...rest }: Sample): object => rest],
+    ['a market that is a record of shops', (sample: Sample): object => ({ ...sample, market: { granary: { grain: { stock: 1, buy: 2 } } } })],
+    ['a market of another layout', (sample: Sample): object => ({ ...sample, market: sample.market.slice(2) })],
+    ['no events', ({ events: _events, ...rest }: Sample): object => rest],
+  ])('deletes a save whose samples have %s, so the sim starts a new run', async (_name, age) => {
+    const run = new SimRun(simWorld(TEST_MAP, 2), SIM_TEXT, () => {});
+    const saved = simEnvelope(run.current(), 1);
+    const slots = await SaveSlots.open(memoryBackend(), null, 'sim-old-market', [SIM_SLOT]);
+    slots.put(SIM_SLOT, { ...saved, history: saved.history.map(age) });
+    expect(resumedRun(slots, TEST_MAP)).toEqual({ kind: 'outdated' });
+    expect(slots.get(SIM_SLOT)).toBeNull();
+  }, 120000);
+
+  it('refuses a save whose history has no money numbers instead of deleting it', async () => {
+    const run = new SimRun(simWorld(TEST_MAP, 2), SIM_TEXT, () => {});
+    const saved = simEnvelope(run.current(), 1);
+    const slots = await SaveSlots.open(memoryBackend(), null, 'sim-broken', [SIM_SLOT]);
+    slots.put(SIM_SLOT, { ...saved, history: [{ turn: 0 }] });
+    expect(() => resumedRun(slots, TEST_MAP)).toThrow(/broken money history/);
   }, 120000);
 });

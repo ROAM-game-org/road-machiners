@@ -45,3 +45,8 @@ export const CONFIG = {
 export const PLAY_EASE = { stopMs: CONFIG.turnStopMs, startMs: CONFIG.playEaseMs, stopFolds: CONFIG.turnStopFolds };
 
 export const OUTPOST_GATE = { slideSeconds: 2.5 };
+
+export function steppedSpeedIndex(index: number, delta: 1 | -1): number {
+  const next = index + delta;
+  return next >= 0 && next < CONFIG.travelSpeeds.length ? next : index;
+}

@@ -27,7 +27,7 @@ export const FORTRESS_SITES: Record<string, FortressSite> = {
   outpost: { shape: 'square', turn: 0, style: 'outpost', roadFort: true },
   scrapjaw: { shape: 'circle', turn: -10, style: 'scrap' },
   kiln: { shape: 'square', turn: 93, style: 'scrap' },
-  'marshal-post': { shape: 'square', turn: 77, style: 'compound' },
+  'marshal-post': { shape: 'square', turn: 0, style: 'compound' },
   'sunward-hollow': { shape: 'circle', turn: 0, style: 'scrap' },
 };
 

@@ -2,12 +2,16 @@ import { isKnockedOut } from '../../sim/defeat';
 import { gridSquareOf } from '../../sim/map-grid';
 import { topGoal } from '../../sim/npc-activities';
 import type { SimText, Spoken } from '../../sim/progression/sim-mode';
+import type { StockCause } from '../../sim/market';
+import type { RecipeRun } from '../../sim/production';
+import type { EconTag } from '../../sim/progression/sim-economy';
 import { carriedPart } from '../../sim/salvage';
+import type { SiteEventKind } from '../../data/market';
 import { worldPlaces } from '../../sim/sites';
 import { TIME } from '../../data/time';
 import type { TraitId } from '../../data/npcs';
 import type { UtilityEffectType } from '../../data/parts';
-import type { Faction, GameEvent, Memory, MemoryFact, NpcActivity, SkillId, StateEnding, StateKindId, Vehicle, World } from '../../sim/types';
+import type { Faction, GameEvent, RoadNewsKind, Memory, MemoryFact, NpcActivity, SkillId, StateEnding, StateKindId, Vehicle, World } from '../../sim/types';
 import type { Vec } from '../../sim/vec';
 import { t, type Msg } from '../../text/msg';
 import { chassisName, factionName, goalText, goodName, partName, siteName, skillName, templateName, traitName, vehicleTitle } from '../../text/names';
@@ -23,7 +27,7 @@ function seeingAll(world: World): World {
 }
 
 function lineText(line: LogLine): string {
-  return [line.text, ...(line.spans ?? []).map((s) => s.text)].map(english).join(' ');
+  return english(line.text);
 }
 
 function doingOf(world: World, v: Vehicle): Msg {
@@ -118,14 +122,17 @@ const UTILITY: Record<UtilityEffectType | 'claymore', string> = {
   scraper: 'runs the scraper', sprout: 'sets a sprout', claymore: 'sets a claymore',
 };
 
+const PLEA_ANSWER = { true: 'and gets it', false: 'and is refused', null: '' } as const;
+
 const SIM_FIRST: Words = {
+  shot: (world, e) => ({ text: shotWords(world, e), tone: 'bad' }),
+  plea: (world, e) => ({ text: `${nameOf(world, e.from)} begs ${nameOf(world, e.to)} for ${e.plea} ${PLEA_ANSWER[`${e.accepted}`]}`.trim(), tone: '' }),
   preyPassed: (world, e) => ({ text: `${nameOf(world, e.vehicle)} lets ${nameOf(world, e.prey)} pass: ${english(t(`pass.${e.reason}`))}`, tone: 'dim' }),
   activity: (world, e) => ({ text: `${nameOf(world, e.vehicle)} ${activityVerb(e.activity)}: ${english(goalText(e.reason))}`, tone: 'dim' }),
   stall: (world, e) => ({ text: `Bug: ${nameOf(world, e.vehicle)} got stuck and gave up. It ${activityVerb(e.goal)}: ${english(goalText(e.reason))}`, tone: 'bad' }),
 };
 
 const SIM_WORDS: Words = {
-  shot: (world, e) => ({ text: shotWords(world, e), tone: 'bad' }),
   empty: (world, e) => ({ text: `${nameOf(world, e.vehicle)} runs out of ammo for ${partOf(world, e.vehicle, e.weapon)}`, tone: 'dim' }),
   asked: (world, e) => ({ text: `${nameOf(world, e.by)} asks ${nameOf(world, e.of)} about ${nameOf(world, e.target)}${e.told ? ' and learns where it is' : ' and learns nothing'}`, tone: 'dim' }),
   hostile: (world, e) => ({ text: `${nameOf(world, e.vehicle)} turns hostile to ${nameOf(world, e.against)}`, tone: 'bad' }),
@@ -156,6 +163,25 @@ const SIM_WORDS: Words = {
   practice: (_world, e) => ({ text: `${e.xp.toFixed(1)} XP from ${words(e.source)}`, tone: 'dim' }),
   weather: (_world, e) => ({ text: `A ${words(e.event.kind)} ${e.outcome === 'started' ? 'begins' : 'ends'}`, tone: 'dim' }),
 };
+
+const RECIPE_NAME: Record<string, string> = {
+  well: 'Well', sorgut: 'Sorgut fields', weavers: 'Weavers', clinic: 'Clinic', machinists: 'Machinists', workshop: 'Workshop',
+  rations: 'Ration kitchen', pans: 'Salt pans', forge: 'Forge', cells: 'Battery cells', pump: 'Fuel pump', yard: 'Scrapyard works',
+};
+const CAUSE_NAME: Record<StockCause, string> = {
+  trade: 'Trucks trading', recipe: 'Production', demand: 'Local use', upkeep: 'Tool wear', repair: 'Repairs',
+  service: 'Fuel and supplies sold', contract: 'Contracts', relief: 'Slow import',
+};
+const RUN_NAME: Record<RecipeRun, string> = { running: 'Running', worn: 'Running slow', stopped: 'Stopped, no inputs', fallback: 'Small batch, no inputs' };
+const TAG_NAME: Record<EconTag, string> = { short: 'Short', rationing: 'Rationing', slowImport: 'Slow import', onOrder: 'On order' };
+const NEWS_NAME: Record<RoadNewsKind, string> = { robbed: 'Robbed', destroyed: 'Destroyed', knockedOut: 'Knocked out' };
+const EVENT_NAME: Record<SiteEventKind, string> = { surge: english(t('recipe.surge')), breakdown: english(t('recipe.breakdown')) };
+
+function named<K extends string>(table: Record<K, string>, kind: string, id: K): string {
+  const word = table[id];
+  if (word === undefined) throw new Error(`The sim has no ${kind} word for ${id}`);
+  return word;
+}
 
 const PHASE = { travel: 'on the way', act: 'at it' } as const;
 
@@ -239,4 +265,11 @@ export const SIM_TEXT: SimText = {
   skill: (id) => english(skillName(id as SkillId)),
   personality: (id) => capital(words(id)),
   contract: (c) => english(contractSummary(c)),
+  site: (id) => english(siteName(id)),
+  recipe: (id) => named(RECIPE_NAME, 'recipe', id),
+  cause: (cause) => named(CAUSE_NAME, 'cause', cause),
+  run: (run) => named(RUN_NAME, 'run state', run),
+  siteEvent: (kind) => named(EVENT_NAME, 'site event', kind),
+  tag: (tag) => named(TAG_NAME, 'tag', tag),
+  newsKind: (kind) => named(NEWS_NAME, 'news kind', kind),
 };

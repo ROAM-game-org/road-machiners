@@ -1,6 +1,45 @@
 
 import type { Vec } from "../sim/vec";
 
+declare const __MAP_DRAFT__: string;
+
+export type DraftData = {
+  mapHash: string;
+  oldSpots: { mapHash: string; picks: unknown[] };
+  surveySites: { mapHash: string; sites: unknown[] };
+  claimClues: { mapHash: string; wrecks: Record<string, unknown> };
+  hollow: { pos: Vec; gateBearing: number } | null;
+  startDistance: number | null;
+};
+
+function draftScale(raw: string): number | null {
+  if (raw === '') return null;
+  const scale = Number(raw);
+  if (!Number.isFinite(scale) || scale <= 0) throw new Error(`MAP_DRAFT must be a map scale above 0, got ${raw}`);
+  return scale;
+}
+
+function draftSetting(): string {
+  if (typeof __MAP_DRAFT__ === 'string') return __MAP_DRAFT__;
+  return (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.MAP_DRAFT ?? '';
+}
+
+export const MAP_DRAFT = draftScale(draftSetting());
+
+const DRAFT_FILES = import.meta.glob<DraftData>('./drafts/*.json', { eager: true, import: 'default' });
+
+export function draftName(scale: number): string {
+  return `draft-${scale}`;
+}
+
+function draftFile(scale: number): DraftData {
+  const data = DRAFT_FILES[`./drafts/${draftName(scale)}.json`];
+  if (!data) throw new Error(`Draft map ${scale} has no data file. Run MAP_DRAFT=${scale} npm run map:draft.`);
+  return data;
+}
+
+export const DRAFT: DraftData | null = MAP_DRAFT === null ? null : draftFile(MAP_DRAFT);
+
 export type TownDef = { id: string; pos: Vec; radius: number };
 export type SiteLocationDef = {
   id: string;
@@ -15,7 +54,7 @@ export type SiteLocationDef = {
 export type TerritoryDef = { id: string; kind: "territory"; pos: Vec; radius: number; outline: Vec[] | null; groundFrom?: Vec; groundOutline?: Vec[] };
 export type LocationDef = SiteLocationDef | TerritoryDef;
 export type SiteEdge = "fence" | "wrecks";
-export const MAP_SCALE = 20.8;
+export const MAP_SCALE = MAP_DRAFT ?? 20.8;
 const BASE_MAP_SCALE = 6.5;
 export const MAP_SPREAD = MAP_SCALE / BASE_MAP_SCALE;
 export const MAP_AREA_SPREAD = MAP_SPREAD * MAP_SPREAD;
@@ -231,7 +270,9 @@ function fromFallenSun(x: number, y: number): Vec {
   return { x: FALLEN_SUN_POS.x + x, y: FALLEN_SUN_POS.y + y };
 }
 
-const MARSHAL_POST_AT = scalePoint({ x: 105.5, y: 14 });
+const ROADHOUSE_JUNCTION = scalePoint({ x: 82, y: 33 });
+const ROADHOUSE_FROM_JUNCTION = { x: 16, y: 0 };
+const MARSHAL_POST_AT = { x: ROADHOUSE_JUNCTION.x + ROADHOUSE_FROM_JUNCTION.x, y: ROADHOUSE_JUNCTION.y + ROADHOUSE_FROM_JUNCTION.y };
 
 export const BROKEN_WING = {
   road: scalePoint({ x: 70, y: 33 }),
@@ -449,11 +490,7 @@ export const REGION = {
       ]),
       fromFallenSun(37.75, 28.44),
     ],
-    scaleRoad([
-      { x: 96.04384, y: 30.93501 },
-      { x: 100.5, y: 22.5 },
-      { x: 105.5, y: 14 },
-    ]),
+    [ROADHOUSE_JUNCTION, MARSHAL_POST_AT],
   ] as Vec[][],
   roadWidth: 6,
   obstacles: {
@@ -487,5 +524,5 @@ export const REGION = {
     wreckSegment: 1.1,
     gatePoleHeight: 5.5,
   },
-  playerStart: { road: 0, distance: 22 * MAP_SCALE, sightMargin: 5, wreck: { ahead: 6, side: 5 } },
+  playerStart: { road: 0, distance: DRAFT?.startDistance ?? 24 * MAP_SCALE, sightMargin: 5, wreck: { ahead: 6, side: 5 } },
 };
