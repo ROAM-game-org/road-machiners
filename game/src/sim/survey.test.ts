@@ -17,7 +17,7 @@ import { bearing } from './vec';
 import { TEST_MAP } from '../test/map';
 import { dist } from './vec';
 import type { DirectionStep, Job, SalvageStock, World } from './types';
-import { cardinalOf } from './direction-cues';
+import { distinctCardinals } from './direction-cues';
 import { roadNetworkOf } from './road-network';
 import type { Vec } from './vec';
 
@@ -434,6 +434,10 @@ function surveyPairs(w: World): { shop: string; site: string }[] {
   );
 }
 
+function gateSides(shop: string, gates: Vec[]) {
+  return distinctCardinals(gates.map((g) => ({ x: g.x - siteOf(shop).pos.x, y: g.y - siteOf(shop).pos.y }))) ?? [];
+}
+
 describe('survey way', () => {
   const w = standardWorld(1);
   const pairs = surveyPairs(w);
@@ -455,10 +459,10 @@ describe('survey way', () => {
       if (!leave) continue;
       const gate = directionsFromSite(w, shop, { kind: 'spot', pos: place.pos, clue: 'place' });
       expect(gate).toEqual(way);
-      const gates = roadNetworkOf(w).nodes.filter((n) => n.site === shop);
+      const gates = roadNetworkOf(w).nodes.filter((n) => n.site === shop && roadNetworkOf(w).incident[n.id].length > 0);
       const from = gates.map((g) => g.pos).sort((a, b) => dist(a, place.pos) - dist(b, place.pos))[0];
       const sides = way[0].do === 'gate' ? way[0].side : null;
-      const start = sides === null ? from : gates.map((g) => g.pos).find((g) => cardinalOf({ x: g.x - siteOf(shop).pos.x, y: g.y - siteOf(shop).pos.y }) === sides) ?? from;
+      const start = sides === null ? from : gates.map((g) => g.pos)[gateSides(shop, gates.map((g) => g.pos)).indexOf(sides)] ?? from;
       walked++;
       const followed = followSteps(w, start, way, { spot: place.pos });
       if (followed.closest > DIRECTIONS.leaveReach) {
