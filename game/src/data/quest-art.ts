@@ -18,7 +18,7 @@ export function questArtUrl(key: string): string {
 
 export type TownArt = { band: string; sections: Partial<Record<TownSection, string>> };
 export const TOWN_ART: Record<string, TownArt> = {
-  bowl: { band: 'town_bowl', sections: { market: 'bowl_scale', people: 'bowl_yard' } },
+  bowl: { band: 'town_bowl', sections: { market: 'bowl_scale' } },
   nose: { band: 'town_nose', sections: {} },
   'salvage-yard': { band: 'town_salvage_yard', sections: {} },
   granary: { band: 'town_granary', sections: {} },
