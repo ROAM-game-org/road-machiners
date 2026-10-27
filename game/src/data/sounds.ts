@@ -186,6 +186,18 @@ export function engineStrainFileFor(chassisId: string): string {
   return file;
 }
 
+export const LOOP_CHECK = {
+  levelWindowSeconds: 0.2,
+  stepSeconds: 0.05,
+  holeDb: 3,
+  envelopeSeconds: 0.001,
+  pulseWindowSeconds: 0.25,
+  pulseLagSeconds: [0.008, 0.06],
+  pulseDrop: 0.2,
+  seamSearchSeconds: 0.06,
+  crossfadeSeconds: 0.1,
+} as const;
+
 export type SoundFormat = { ext: string; dir: string; mime: string; signature: { at: number; text: string } };
 
 export const BANK = {

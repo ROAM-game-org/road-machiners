@@ -287,10 +287,7 @@ export class Game {
       headlightsOn: () => this.world.player.headlights,
       douseEngine: () => this.runKey("KeyG"),
       firstAid: () => this.runKey("KeyU"),
-      unhitch: () =>
-        this.rescueCommand((w) =>
-          w.player.state === "active" && isTowed(w) ? unhitch(w) : null,
-        ),
+      unhitch: () => this.rescueCommand((w) => (w.player.state === "active" && isTowed(w) ? unhitch(w) : null)),
       setBeacon: (on) =>
         this.rescueCommand((w) =>
           playerCanAct(w) && (!on || isStranded(w, playerVehicle(w)))
@@ -343,6 +340,7 @@ export class Game {
       searchStock: (id) => this.searchFromLoot(id),
       autoTravel: () => this.travel.isAuto(this.world),
       getTurnPhase: () => this.phase,
+      garageRenders: () => this.hud.garage,
     };
   }
 

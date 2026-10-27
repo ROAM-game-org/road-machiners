@@ -67,18 +67,18 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
   ~ asked_couriers = true
   -> hub
 + {(heard_convoy or has_note("burntConvoy")) and not asked_convoy} [What happened at Burnt Convoy?]
-  A whole convoy went up in one night, years back. Some say raiders did it. Some say a fuel truck blew and took the rest with it. I heard the last calls on the air, and nobody said who started it.
+  A whole convoy went up in one night, years back. Some say raiders did it. Some say a truck full of fuel drums blew and took the rest with it. I heard the last calls on the air, and nobody said who started it.
   ~ asked_convoy = true
   -> hub
 + {heard_army and not asked_army} [How did the Old Army end?]
-  Hungry. Commander Lind nailed a book of every unpaid promise to the gate at Old Orchard, the Army's depot, and then he died in the motor pool. I heard his last calls on the air. He read the whole list. The machine tools stayed behind in the shed, and somebody's still paying for those.
+  Hungry. Commander Lind nailed a book of every unpaid promise to the gate at Old Orchard, the Army's depot, and then he died in the motor pool. I heard his last calls on the air. He read the whole list. The machine tools stayed behind in the shed, until command came for them.
   Some say the Army didn't run out of food. They say it was starved on purpose. I would wager a man who starts a rumor like that wants a seat on Nose's Central Committee.
   ~ note("talkArmyStarved")
   ~ asked_army = true
   ~ heard_tools = true
   -> hub
-+ {heard_tools and not asked_tools} [Who pays for the Old Orchard tools?]
-  The Guild's trust owns them and rents them to us. Command pays the Guild rent, so the Guild sees whose coin command spends. I hear the Guild on the air, a little. I won't repeat it.
++ {heard_tools and not asked_tools} [Who took the Old Orchard tools?]
+  Command hauled them up the mountain once the Army was gone. Nobody asked the Bowl, and nobody asked the dead. I hear things on the air about who wanted the Army gone. I won't repeat them.
   ~ note("talkCommitteeRent")
   ~ asked_tools = true
   -> hub

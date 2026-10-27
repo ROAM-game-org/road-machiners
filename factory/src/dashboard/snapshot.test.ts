@@ -54,7 +54,7 @@ describe('next release features', () => {
 });
 
 function createConfig(home: string): DashboardConfig {
-  return { home, repo: 'owner/game', projectOwner: 'owner', projectNumber: 1, githubAppId: '42', githubRetries: 3, githubRetryBaseSeconds: 15, githubTimeoutSeconds: 60, publicUrl: 'https://example.org', playUrl: 'https://owner.itch.io/game', channelUrl: 'https://t.me/fixture_channel_not_real', publicChannel: '@fixture_channel_not_real', socket: null, port: 8787, refreshMs: 2000, githubRefreshMs: 60000, commandTimeoutMs: 15000, observationHeartbeatMs: 10000, tickIntervalMs: 60000, triageWorkers: 1, designWorkers: 2, implementWorkers: 2, verifyWorkers: 2, testWorkers: 2 };
+  return { home, repo: 'owner/game', projectOwner: 'owner', projectNumber: 1, githubAppId: '42', githubRetries: 3, githubRetryBaseSeconds: 15, githubTimeoutSeconds: 60, publicUrl: 'https://example.org', playUrl: 'https://owner.itch.io/game', channelUrl: 'https://t.me/fixture_channel_not_real', publicChannel: '@fixture_channel_not_real', socket: null, port: 8787, refreshMs: 2000, githubRefreshMs: 60000, analyticsRefreshMs: 0, commandTimeoutMs: 15000, observationHeartbeatMs: 10000, tickIntervalMs: 60000, triageWorkers: 1, designWorkers: 2, implementWorkers: 2, verifyWorkers: 2, testWorkers: 2 };
 }
 class FixtureGithub extends PublicGitHub {
   failed = false;
@@ -175,6 +175,32 @@ it('reruns the analytics only when the ledger grows', async () => {
     expect(collector.getSnapshot().analytics.value?.delivery_coverage.ranges?.[1][0].issues).toBe(1);
     read.mockRestore();
   } finally { rmSync(home, { recursive: true, force: true }); }
+});
+
+it('reads a grown ledger again only after the analytics interval', async () => {
+  const home = mkdtempSync(resolve('tmp/snapshot-'));
+  vi.useFakeTimers({ toFake: ['Date'] });
+  try {
+    mkdirSync(join(home, 'state'));
+    writeState(join(home, 'state', 'state.json'), structuredClone(EMPTY_STATE));
+    appendLedger(home, { kind: 'card', issue: 5, step: 'entered', to: 'Triage', at: new Date().toISOString() });
+    const config = { ...createConfig(home), analyticsRefreshMs: 300_000 };
+    const read = vi.spyOn(analyticsRunner, 'read');
+    const collector = new SnapshotCollector(config, new FixtureGithub(config, async () => { throw new Error('No network'); }), new FixtureHost(home, 100), analyticsRunner);
+    await collector.refreshLocal();
+    appendLedger(home, { kind: 'card', issue: 5, step: 'accepted', to: 'Design', at: new Date().toISOString() });
+    vi.advanceTimersByTime(299_000);
+    await collector.refreshLocal();
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(collector.getSnapshot().analytics.status).toBe('ok');
+    vi.advanceTimersByTime(1_000);
+    await collector.refreshLocal();
+    expect(read).toHaveBeenCalledTimes(2);
+    read.mockRestore();
+  } finally {
+    vi.useRealTimers();
+    rmSync(home, { recursive: true, force: true });
+  }
 });
 
 it('refuses to collect a private repository before reading its issues', async () => {

@@ -5,7 +5,7 @@ import { PERK_NUMBERS, SKILL_EFFECTS } from '../data/skills';
 import { corePart, coreParts, mountedParts } from './grid';
 import type { Vehicle, World } from './types';
 import { addState } from './states';
-import { canOverdrive, fuelCap, groundSpeed, gunDraw, gunDrag, inOverdrive, isStranded, maxSpeedSteps, plainMaxSpeed, workingEngineCapacity, suppliesCap, vehicleStats } from './stats';
+import { canOverdrive, fuelCap, groundSpeed, gunDraw, gunDrag, inOverdrive, isStranded, maxSpeedSteps, plainMaxSpeed, workingEngineCapacity, suppliesCap, vehicleStats, gunReach } from './stats';
 import { endTurn } from './world';
 import { CHASSIS } from '../data/chassis';
 import { PARTS, type EngineDef, type StoreDef } from '../data/parts';
@@ -496,5 +496,15 @@ describe('the acceleration scale', () => {
     const full = withScale(0.6, () => stats(false, []));
     const half = withScale(0.3, () => stats(false, []));
     expect(half.accel).toBe(full.accel);
+  });
+});
+
+describe('gunReach', () => {
+  it('is the longest weapon range, and the arrive radius for a gunless truck', () => {
+    const w = emptyWorld();
+    const armed = addVehicle(w, 'scrapjaw', 'scout', ['mg', 'stockEngine'], { x: 40, y: 40 });
+    const bare = addVehicle(w, 'scrapjaw', 'scout', ['stockEngine'], { x: 50, y: 40 });
+    expect(gunReach(w, armed)).toBe(Math.max(...vehicleStats(w, armed).weapons.map((mw) => mw.def.range)));
+    expect(gunReach(w, bare)).toBe(RULES.arriveRadius);
   });
 });
