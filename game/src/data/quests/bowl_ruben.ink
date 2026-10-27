@@ -9,7 +9,7 @@ VAR ruben_water = false
 === start ===
 # checkpoint: start
 Come sit in the shade, driver, I'm Ruben, and the gates can wait while you catch your breath.
-I open the canal gates and decide which fields drink first.
+I open a run of the canal gates and decide which fields drink first.
 -> hub
 
 = hub
@@ -30,7 +30,7 @@ I open the canal gates and decide which fields drink first.
   ~ ruben_water = true
   -> hub
 + [What does Bowl make?]
-  Sorgut, mostly, and for every barrel I let through these gates the terraces give back three sacks.
+  Sorgut, mostly, and for every barrel I let through gates like mine the terraces give back three sacks.
   The weavers and the clinic need nothing from outside.
   The machinists' benches eat scrap, and the workshop wants batteries from <term=nose>Nose</term> for its radios.
   { short_of("water"):
@@ -58,7 +58,7 @@ I open the canal gates and decide which fields drink first.
   -> hub
 + {ruben_water || found("dustwell")} [What do you know about Dustwell?]
   <term=dustwell>Dustwell</term> is a well outpost up the north road, and the water trucks bring Bowl's water from there.
-  Agnes Ondra keeps the pump book in the Dustwell shed now, the one her uncle Wendell kept until he died at the Green Pit sluice.
+  Agnes Ondra keeps the pump in the Dustwell shed now, the one her uncle Wendell kept until he died at the Green Pit sluice.
   -> hub
 + {ruben_senate} [Does everyone in Bowl get a vote?]
   Only citizens vote.
