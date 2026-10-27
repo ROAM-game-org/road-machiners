@@ -103,6 +103,7 @@
 .spent {
   opacity: 0.55;
   pointer-events: none;
+  user-select: none;
   cursor: default;
 }
 
