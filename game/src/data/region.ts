@@ -244,7 +244,9 @@ function fromFallenSun(x: number, y: number): Vec {
   return { x: FALLEN_SUN_POS.x + x, y: FALLEN_SUN_POS.y + y };
 }
 
-const MARSHAL_POST_AT = scalePoint({ x: 105.5, y: 14 });
+const ROADHOUSE_JUNCTION = scalePoint({ x: 82, y: 33 });
+const ROADHOUSE_FROM_JUNCTION = { x: 16, y: 0 };
+const MARSHAL_POST_AT = { x: ROADHOUSE_JUNCTION.x + ROADHOUSE_FROM_JUNCTION.x, y: ROADHOUSE_JUNCTION.y + ROADHOUSE_FROM_JUNCTION.y };
 
 export const BROKEN_WING = {
   road: scalePoint({ x: 70, y: 33 }),
@@ -462,11 +464,7 @@ export const REGION = {
       ]),
       fromFallenSun(37.75, 28.44),
     ],
-    scaleRoad([
-      { x: 96.04384, y: 30.93501 },
-      { x: 100.5, y: 22.5 },
-      { x: 105.5, y: 14 },
-    ]),
+    [ROADHOUSE_JUNCTION, MARSHAL_POST_AT],
   ] as Vec[][],
   roadWidth: 6,
   obstacles: {
