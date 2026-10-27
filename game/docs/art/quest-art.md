@@ -49,7 +49,7 @@ A new scene starts from the style sample only, never from an earlier take of ano
 
 ## Post-process
 
-The model draws these pictures too bright and too saturated. Soften the finished picture with `ffmpeg -i in.png -vf eq=saturation=0.7 out.png`, then write `public/quest-art/<key>.webp` with `cwebp -q 85`. Fix tone with the filter, never with a new generation, so an approved composition stays.
+The model draws these pictures too bright and too saturated. Soften the finished picture with `ffmpeg -i in.png -vf eq=saturation=0.7 out.png`, then write `public/quest-art/<key>.webp` with `cwebp -q 85`. A prompt that asks for darker colours overshoots, so lift such a picture with `eq=saturation=0.7:gamma=1.3`. Fix tone with the filter, never with a new generation, so an approved composition stays.
 
 `npm run quest-art` and its rust-to-cream ramp in `tools/quest-art/post.py` belong to the old gouache style. Do not run it on pencil pictures, since the ramp turns the blue skies brown.
 
