@@ -5,6 +5,7 @@ const DEV_REPORT = 'Progression and income reports are dev tools read in a termi
 const CRASH_REPORT = 'A line of the crash report a player pastes into a bug report. It stays as the code wrote it.';
 const DEV_SIM = 'Simulation mode is a dev page that shows a playthrough run. It stays English, apart from the game words it reads from the catalog.';
 const DEV_LAB = 'The block lab is a dev page for tuning the combat score. It stays English.';
+const SIM_MODE = 'Simulation mode is a dev page that replays a bot run with every truck on the map. It stays English.';
 const FONT_SAMPLE = 'A sample string that makes the browser load the font. No player reads it.';
 const SVG = 'Static SVG markup of an icon, with no words in it.';
 
@@ -57,6 +58,17 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/three/map-file.ts', text: 'Map file', reason: CRASH_REPORT },
   { file: 'src/three/shader-errors.ts', text: '*', reason: CRASH_REPORT },
   { file: 'src/three/block-lab.ts', text: '*', reason: DEV_LAB },
+  { file: 'src/sim/progression/sim-cards.ts', text: '*', reason: SIM_MODE },
+  { file: 'src/sim/progression/sim-mode.ts', text: '*', reason: SIM_MODE },
+  { file: 'src/three/sim-worker.ts', text: '*', reason: SIM_MODE },
+  { file: 'src/ui/sim/economy-pages.ts', text: '*', reason: SIM_MODE },
+  { file: 'src/ui/sim/economy-reads.ts', text: '*', reason: SIM_MODE },
+  { file: 'src/ui/sim/economy-view.ts', text: '*', reason: SIM_MODE },
+  { file: 'src/ui/sim/heat-map.ts', text: '*', reason: SIM_MODE },
+  { file: 'src/ui/sim/page.ts', text: '*', reason: SIM_MODE },
+  { file: 'src/ui/sim/panels.ts', text: '*', reason: SIM_MODE },
+  { file: 'src/ui/sim/sim-text.ts', text: '*', reason: SIM_MODE },
+  { file: 'src/ui/sim/truck-icons.ts', text: '*', reason: SIM_MODE },
   { file: 'src/three/sound.ts', text: 'score   heat  surprise  ', reason: DEV_LAB },
   { file: 'src/sim/progression/run-timeline.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/ui/fonts.ts', text: 'Road Machiners 0123456789', reason: FONT_SAMPLE },

@@ -15,6 +15,7 @@ import type { GameEvent, NpcActivity, Vehicle, World } from './types';
 import { dist } from './vec';
 import { endTurn } from './world';
 import { callVehicle, chooseOption, currentOptions, hangUp } from './dialogue';
+import { asksOf, chooseText } from './dialogue-testkit';
 import { entryText } from '../text/resolve';
 import { lineKey } from '../text/names';
 import { refreshVision } from './vision';
@@ -532,7 +533,7 @@ describe('hold and go on the radio', () => {
   }
 
   function texts(w: World): string[] {
-    return currentOptions(w).map((o) => en(o.line));
+    return [...currentOptions(w).map((o) => en(o.line)), ...asksOf(w)];
   }
 
   it('offers the hold order only to the client of a held escort, and the go order only under a hold', () => {
@@ -545,12 +546,12 @@ describe('hold and go on the radio', () => {
     let open = call(next, live);
     expect(texts(open)).toContain("Wait here. I'll scout the road ahead.");
     expect(texts(open)).not.toContain("Let's move.");
-    open = chooseOption(open, texts(open).indexOf("Wait here. I'll scout the road ahead."));
+    open = chooseText(open, "Wait here. I'll scout the road ahead.");
     open = chooseOption(open, 0);
     expect(heldEscort(open)!.holdUntil).not.toBeNull();
     open = call(open, traderIn(open, trader));
     expect(texts(open)).toContain("Let's move.");
-    open = chooseOption(open, texts(open).indexOf("Let's move."));
+    open = chooseText(open, "Let's move.");
     open = chooseOption(open, 0);
     expect(heldEscort(open)!.holdUntil).toBeNull();
   });

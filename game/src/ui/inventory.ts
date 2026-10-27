@@ -167,7 +167,7 @@ export class InventoryView {
       this.select(null);
     });
     window.addEventListener("keydown", (e) => {
-      if (!isRotateKey(e)) return;
+      if (!isRotateKey(e) || this.host.menuOpen()) return;
       if (this.drag) this.rotate();
       else this.rotateSelected();
     });
@@ -1072,7 +1072,7 @@ export class InventoryView {
   }
 
   private run(cmd: (w: World) => World, quiet = false): void {
-    if (this.look()) throw new Error("Inventory command during a scene");
+    if (this.look()) throw new Error("Inventory command in look mode");
     try {
       const w = this.host.world();
       const next = cmd(w);
