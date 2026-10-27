@@ -119,6 +119,7 @@ const UTILITY: Record<UtilityEffectType | 'claymore', string> = {
 };
 
 const SIM_FIRST: Words = {
+  preyPassed: (world, e) => ({ text: `${nameOf(world, e.vehicle)} lets ${nameOf(world, e.prey)} pass: ${english(t(`pass.${e.reason}`))}`, tone: 'dim' }),
   activity: (world, e) => ({ text: `${nameOf(world, e.vehicle)} ${activityVerb(e.activity)}: ${english(goalText(e.reason))}`, tone: 'dim' }),
   stall: (world, e) => ({ text: `Bug: ${nameOf(world, e.vehicle)} got stuck and gave up. It ${activityVerb(e.goal)}: ${english(goalText(e.reason))}`, tone: 'bad' }),
 };
@@ -136,7 +137,6 @@ const SIM_WORDS: Words = {
   transfer: (world, e) => ({ text: `${nameOf(world, e.from)} pays ${nameOf(world, e.to)} ${english(moneyMsg(e.amount))}`, tone: 'dim' }),
   holdUp: (world, e) => ({ text: `${nameOf(world, e.robber)} robs ${nameOf(world, e.victim)} of ${e.paid === 'money' ? english(moneyMsg(e.value)) : 'cargo'}`, tone: 'bad' }),
   found: (world, e) => ({ text: `${nameOf(world, e.vehicle)} finds ${foundWords(e)} from ${stockText(world, e.stock)}`, tone: 'good' }),
-  preyPassed: (world, e) => ({ text: `${nameOf(world, e.vehicle)} lets ${nameOf(world, e.prey)} pass, ${words(e.reason)}`, tone: 'dim' }),
   bountyFiled: (world, e) => ({ text: `${nameOf(world, e.reporter)} reports ${nameOf(world, e.target)} for ${words(e.offense)}`, tone: '' }),
   bountyClosed: (world, e) => ({ text: `The case on ${nameOf(world, e.target)} closes, ${words(e.status)}`, tone: '' }),
   huntWithdrawn: (world, e) => ({ text: `${nameOf(world, e.by)} gives up the hunt for ${nameOf(world, e.target)}`, tone: 'dim' }),

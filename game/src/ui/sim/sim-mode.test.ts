@@ -15,7 +15,7 @@ import { describe as describeEvent } from '../../sim/progression/turn-log';
 
 const TURNS = 10;
 const SCAN_TURNS = 60;
-const RAW = /[a-z][A-Z]|@|\{|\}|\b[a-z]{1,4}\d{2,}\b|\btrue\b|\bfalse\b|—|\bsomething\b|\bYou arrives\b|:\d/;
+const RAW = /[a-z][A-Z]|@|\{|\}|\b[a-z]{1,4}\d{2,}\b|\btrue\b|\bfalse\b|—|\bsomething\b|\bYou arrives\b|[a-z,] You\b|:\d/;
 
 function framesOf(messages: FromSim[]): Frame[] {
   return messages.flatMap((m) => (m.kind === 'frame' ? [m.frame] : []));

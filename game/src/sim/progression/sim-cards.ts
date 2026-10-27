@@ -100,7 +100,7 @@ export function playerCard(world: World, ledger: Ledger, text: SimText): Card {
   return {
     id: p.vehicleId,
     title: text.truck(world, me),
-    doing: text.doing(world, me),
+    doing: '',
     tags: playerTags(world, line.flags),
     stats: [['Speed', text.speed(me.speed)], ['Fuel', text.fuel(p.fuel)], ['Supplies', `${round(p.supplies)}`], ['Engine', text.heat(p.engineHeat)], ['Condition', `${snap(world, me).hp}%`], ['Top speed', text.speed(vehicleStats(world, me).maxSpeed)]],
     facts: [['Chassis', text.chassis(me.chassisId)], ['Square', text.place(me.pos)], ...orderRow(me, text), ...callRow(world, text), ...(line.run ? [['Run', line.run] as CardRow] : [])],
