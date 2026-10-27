@@ -24,7 +24,7 @@ Fiction may keep what the prompt lists as a tell when the voice or the scene nee
 - A rhetorical question in the character's head, as [A voice, not a camera](dialogue.md#a-voice-not-a-camera) asks.
 - A fragment in narration, like a list of gear when a person comes in.
 - A list of three spoken by a boaster, or any sentence shape a sheet gives a speaker.
-- An aphorism or a joke that a sheet gives a speaker. Jory often ends an answer on a short joke: "The sack leaves the store once and the Senate counts it twice."
+- An aphorism or a joke that a sheet gives a speaker. Jory ends every answer on a short joke: "The sack leaves the store once and the Senate spends it twice."
 - J.J.'s crop-report formality.
 - One refrain per scene, and a simile at a turn in the scene.
 - The Russian dialogue dash «—». English quest text still has no dashes, as [Sentences](dialogue.md#sentences) says.

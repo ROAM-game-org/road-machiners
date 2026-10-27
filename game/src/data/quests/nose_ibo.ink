@@ -51,7 +51,7 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
   ~ asked_jj = true
   -> hub
 + {heard_tone and not asked_tone} [What does the tone from the Fallen Sun say?]
-  It's a low, steady note that comes and goes, always from the crater's side. Some say it counts the years since the fall. I've no key to decode it, and the Army never asked me to log it. If it counts, it counts without me.
+  Eh? A low, steady note that fades and comes back, always from the crater's side. The old hands say it climbs one step each year since the fall, if their ears haven't drifted off into the static. I can't hear the steps myself. The set tells me it's there, and the Army never asked me to log it.
   ~ asked_tone = true
   -> hub
 + {heard_tone} [Hear anything from the crater at night?]
