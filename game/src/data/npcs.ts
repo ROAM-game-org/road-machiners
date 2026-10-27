@@ -14,8 +14,10 @@ function trafficSetting(): string {
   return (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.TRAFFIC ?? '';
 }
 
+const DEFAULT_TRAFFIC = 0.4;
+
 function trafficDensity(raw: string): number {
-  if (raw === '') return 1;
+  if (raw === '') return DEFAULT_TRAFFIC;
   const density = Number(raw);
   if (!Number.isFinite(density) || density <= 0) throw new Error(`TRAFFIC must be a road traffic density above 0, got ${raw}`);
   return density;
