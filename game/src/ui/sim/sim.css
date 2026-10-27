@@ -86,8 +86,9 @@
 #ui.sim .sim-play {
   width: calc(var(--space-10) * 3);
 }
-.sim-speed {
-  flex: 1;
+#ui.sim .sim-toolbar .speed-keys {
+  flex: 0 0 auto;
+  width: calc(var(--lcd-cell-w) + 2 * var(--btn-h-s) + 2 * var(--space-1));
 }
 .sim-label {
   display: flex;

@@ -388,7 +388,7 @@ export class WeaponPanel {
   private readonly travelSpeed: TravelSpeed;
 
   constructor(private host: UiHost) {
-    this.travelSpeed = new TravelSpeed(host);
+    this.travelSpeed = new TravelSpeed({ index: () => host.travelSpeedIndex(), playing: () => host.travelPlaySpeed(), step: (delta) => host.stepTravelSpeed(delta) });
     this.utilities = new UtilityRow(host);
     this.root.setAttribute('data-drawer-frame', 'guns');
   }
@@ -410,8 +410,7 @@ export class WeaponPanel {
   }
 
   stepTravelSpeed(delta: 1 | -1): void {
-    this.host.stepTravelSpeed(delta);
-    this.travelSpeed.sync();
+    this.travelSpeed.step(delta);
   }
 
   private renderTurnButton(phase: ReturnType<UiHost["getTurnPhase"]>): HTMLElement {

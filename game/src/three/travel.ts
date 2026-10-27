@@ -11,7 +11,7 @@ import {
 import type { TurnClock } from "./render/hazards";
 import { frameAt, type VehicleFrame } from "../phys/frames";
 import { joinTurn, SentObstacles, withTail, type LiveSight, type PreparedTurn, type Tail, type TurnRequest, type TurnResponse } from "../phys/turn";
-import { CONFIG } from "../config";
+import { CONFIG, steppedSpeedIndex } from "../config";
 import { PHYSICS } from "../data/physics";
 import type { QuestLanguage } from "../data/quests";
 import { mergePerf } from "../perf";
@@ -470,8 +470,7 @@ export class Travel {
   }
 
   stepSpeed(delta: 1 | -1): void {
-    const next = this.speedIndex + delta;
-    if (next >= 0 && next < CONFIG.travelSpeeds.length) this.speedIndex = next;
+    this.speedIndex = steppedSpeedIndex(this.speedIndex, delta);
   }
 
   finishClock(elapsed: number, finishAt: number): void {
