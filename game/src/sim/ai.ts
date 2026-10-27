@@ -417,7 +417,7 @@ export function givesWayTo(world: World, giver: Vehicle, holder: Vehicle): boole
   return giver.id < holder.id && givesWay(world, giver) && givesWay(world, holder) && closesOn(world, giver, holder, 0) && closesOn(world, holder, giver, 0);
 }
 
-export function stopsInPlace(world: World, x: Vehicle): boolean {
+function stopsInPlace(world: World, x: Vehicle): boolean {
   return !x.order || x.order.kind === "brake" || yieldsToTraffic(world, x);
 }
 
@@ -440,7 +440,7 @@ function ropeAllowance(world: World, tower: Vehicle): number {
   const client = ropeClientOf(world, tower.id);
   if (!client) return 0;
   const target = world.vehicles.find((x) => x.id === client);
-  if (!target) return 0;
+  if (!target) throw new Error(`Rope client ${client} of ${tower.id} is not in the world`);
   return Math.max(0, vehicleStats(world, target).radius - vehicleStats(world, tower).radius);
 }
 
