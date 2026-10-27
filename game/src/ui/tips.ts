@@ -119,12 +119,6 @@ const TIPS: readonly Tip[] = [
     done: (w) => playerVehicle(w).direct,
   },
   {
-    id: "zones",
-    turns: ZONES_TIP_TURNS,
-    when: (w) => playerVehicle(w).direct,
-    done: () => false,
-  },
-  {
     id: "aim",
     when: (w) => vehicleStats(w, playerVehicle(w)).weapons.length > 0 && hostileInSight(w),
     done: (w) => Object.values(playerVehicle(w).weaponOrders).some((o) => o.aim !== "body"),
@@ -138,6 +132,13 @@ const TIPS: readonly Tip[] = [
     id: "farewell",
     after: "honk",
     when: (w) => introStep(w) === "off" && dist(playerVehicle(w).pos, departureFrom(w)) >= OPENING.farewellDistance,
+    done: () => false,
+  },
+  {
+    id: "zones",
+    after: "stopAt",
+    turns: ZONES_TIP_TURNS,
+    when: () => true,
     done: () => false,
   },
 ];
@@ -196,7 +197,7 @@ export class TipTurns {
     const gained = this.advance(world.turn);
     const needed = TIPS.find((t) => t.id === shown)?.turns;
     if (shown === null || needed === undefined) return null;
-    return this.add(shown, playerVehicle(world).direct ? gained : 0) >= needed ? shown : null;
+    return this.add(shown, gained) >= needed ? shown : null;
   }
 
   private advance(turn: number): number {
