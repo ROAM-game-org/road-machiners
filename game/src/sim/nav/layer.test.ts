@@ -4,15 +4,17 @@ import { BROKEN_WING, BROKEN_WING_POINT, REGION } from '../../data/region';
 import { START_KITS } from '../../data/start';
 import { BREAKABLE } from '../../data/rules';
 import { deckById } from '../bridge';
-import { boxDistance, boxSegmentDistance, propBoxes } from '../mapgen';
+import { boxDistance, boxSegmentDistance, isBreakable, propBoxes } from '../mapgen';
+import { perfSnapshot } from '../../perf';
 import { route } from '../path';
-import type { Obstacle } from '../types';
+import type { Obstacle, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { stampOverlay } from './astar';
-import { CELL, CLEARANCE, climbTaste, dynamicBlockers, makeTaste, navLayer, tasteAt, tasted, tasteKey, tasteOf, terrainNav, tileIndex } from './layer';
+import { CELL, CLEARANCE, climbTaste, dynamicBlockers, makeTaste, navLayer, type NavLayer, tasteAt, tasted, tasteKey, tasteOf, terrainNav, tileIndex } from './layer';
 import { editableTerrain, emptyWorld, npcBrain } from '../testkit';
 import { newWorld } from '../world';
 import { TEST_MAP } from '../../test/map';
+import { standardWorld } from '../../test/world-cache';
 import { budget } from '../../test/budget';
 import { defaultSetup } from '../settings';
 
@@ -249,4 +251,131 @@ describe('breakable props', () => {
     expect(broken.slow[cellAt(broken.n, fence.pos)]).toBeCloseTo(whole.slow[cellAt(whole.n, fence.pos)] / BREAKABLE.routeCost);
     expect(navLayer(w.terrain, w.obstacles, radius)).toBe(whole);
   });
+});
+
+describe('patched layers', () => {
+  const radii = [0.5, 0.7, 0.9];
+  const patches = () => perfSnapshot()['nav-layer-patch']?.calls ?? 0;
+  const builds = () => perfSnapshot()['nav-layer-build']?.calls ?? 0;
+
+  function breakablesOf(w: World): Obstacle[] {
+    return w.obstacles.filter(isBreakable);
+  }
+
+  function pickSpread(w: World): Obstacle[] {
+    const all = breakablesOf(w);
+    const picks = [0.1, 0.3, 0.5, 0.7, 0.9].map((share) => all[Math.floor(all.length * share)]);
+    const near = all.find((o) => o !== picks[0] && dist(o.pos, picks[0].pos) < 3);
+    return near ? [...picks, near] : picks;
+  }
+
+  function without(w: World, gone: Obstacle[]): Obstacle[] {
+    return w.obstacles.filter((o) => !gone.includes(o));
+  }
+
+  function freshLayer(w: World, obstacles: Obstacle[], radius: number) {
+    return navLayer({ ...w.terrain }, obstacles, radius);
+  }
+
+  function expectSameLayer(a: NavLayer, b: NavLayer) {
+    expect(a.slow).toEqual(b.slow);
+    expect(a.blocked).toEqual(b.blocked);
+    expect(a.coarse.slow).toEqual(b.coarse.slow);
+    expect(a.coarse.region).toEqual(b.coarse.region);
+    expect(a.coarse.comp).toEqual(b.coarse.comp);
+    expect(a.coarse.edges).toEqual(b.coarse.edges);
+  }
+
+  function warmed(seed: number) {
+    const w = standardWorld(seed);
+    const before = radii.map((r) => navLayer(w.terrain, w.obstacles, r));
+    return { w, before };
+  }
+
+  it('a break patches the layer to equal a fresh build', () => {
+    const { w } = warmed(11);
+    const gone = pickSpread(w);
+    expect(gone.length).toBeGreaterThanOrEqual(5);
+    const rest = without(w, gone);
+    const patchesBefore = patches();
+    const buildsBefore = builds();
+    const patched = radii.map((r) => navLayer(w.terrain, rest, r));
+
+    expect(patches() - patchesBefore).toBe(radii.length);
+    expect(builds()).toBe(buildsBefore);
+    radii.forEach((r, i) => expectSameLayer(patched[i], freshLayer(w, rest, r)));
+  }, budget(120_000));
+
+  it('a regrown prop at the end of the list patches back to the costs before the break', () => {
+    const { w, before } = warmed(12);
+    const gone = pickSpread(w);
+    const rest = without(w, gone);
+    radii.forEach((r) => navLayer(w.terrain, rest, r));
+    const regrown = [...rest, ...gone.slice().reverse()];
+    const patchesBefore = patches();
+    const again = radii.map((r) => navLayer(w.terrain, regrown, r));
+
+    expect(patches() - patchesBefore).toBe(radii.length);
+    radii.forEach((r, i) => {
+      expectSameLayer(again[i], freshLayer(w, regrown, r));
+      expect(again[i].slow).toEqual(before[i].slow);
+    });
+  }, budget(120_000));
+
+  it('routes on a patched layer equal routes on a fresh build', () => {
+    const { w } = warmed(13);
+    const gone = pickSpread(w);
+    const rest = without(w, gone);
+    const patchedWorld: World = { ...w, obstacles: rest };
+    radii.forEach((r) => navLayer(w.terrain, rest, r));
+    const copy: World = { ...w, obstacles: rest, terrain: { ...w.terrain } };
+    const spots = gone.map((o) => o.pos);
+    const pairs = spots.flatMap((p, i) => [
+      [{ x: p.x - 6, y: p.y - 4 }, { x: p.x + 6, y: p.y + 4 }],
+      [p, spots[(i + 1) % spots.length]],
+    ]);
+    const drivers = [undefined, w.vehicles.find((v) => v.brain)];
+
+    for (const [from, to] of pairs) {
+      for (const r of radii) for (const driver of drivers) {
+        expect(route(patchedWorld, from, to, r, [], driver)).toEqual(route(copy, from, to, r, [], driver));
+      }
+    }
+  }, budget(120_000));
+
+  it('a patch leaves the old layer untouched', () => {
+    const { w, before } = warmed(14);
+    const slow = before.map((l) => l.slow.slice());
+    const coarse = before.map((l) => l.coarse.slow.slice());
+    const rest = without(w, pickSpread(w));
+    radii.forEach((r) => navLayer(w.terrain, rest, r));
+
+    before.forEach((l, i) => {
+      expect(l.slow).toEqual(slow[i]);
+      expect(l.coarse.slow).toEqual(coarse[i]);
+    });
+  }, budget(120_000));
+
+  it('the base survives a full layer cache', () => {
+    const { w } = warmed(15);
+    const all = breakablesOf(w);
+    for (let k = 0; k < 20; k++) navLayer(w.terrain, without(w, [all[k]]), 0.5 + 0.01 * k);
+    const patchesBefore = patches();
+    const rest = without(w, [all[40]]);
+    const layer = navLayer(w.terrain, rest, 0.5);
+
+    expect(patches()).toBe(patchesBefore + 1);
+    expectSameLayer(layer, freshLayer(w, rest, 0.5));
+  }, budget(120_000));
+
+  it('a solid change builds in full', () => {
+    const { w } = warmed(16);
+    const shack: Obstacle = { id: 'shack-patch', pos: { x: 60.2, y: 60.3 }, r: 0.9, kind: 'landmark', look: 'shack', yaw: 0 };
+    const withShack = [...without(w, pickSpread(w).slice(0, 1)), shack];
+    const buildsBefore = builds();
+    const layer = navLayer(w.terrain, withShack, 0.5);
+
+    expect(builds()).toBe(buildsBefore + 1);
+    expectSameLayer(layer, freshLayer(w, withShack, 0.5));
+  }, budget(120_000));
 });
