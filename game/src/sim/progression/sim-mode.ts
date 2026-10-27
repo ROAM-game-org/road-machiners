@@ -76,7 +76,7 @@ export type FromSim =
 export const SIM_OPTIONS: BotOptions = { markovTurns: TIME.turnsPerDay, tolerateStalls: true };
 export const TURNS_PER_HOUR = TIME.turnsPerDay / 24;
 const ENDLESS = Number.MAX_SAFE_INTEGER;
-const ROUTINE = new Set<GameEvent['t']>(['job', 'shopMoney', 'stateEnded', 'lookedOver', 'shot', 'empty', 'asked', 'transfer', 'preyPassed', 'collision', 'found']);
+const ROUTINE = new Set<GameEvent['t']>(['job', 'shopMoney', 'stateEnded', 'lookedOver', 'shot', 'empty', 'asked', 'transfer', 'preyPassed', 'collision', 'found', 'guardPaid']);
 
 const hourOf = (turn: number): number => Math.floor(turn / TURNS_PER_HOUR);
 

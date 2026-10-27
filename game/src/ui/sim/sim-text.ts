@@ -142,6 +142,8 @@ const SIM_WORDS: Words = {
   huntWithdrawn: (world, e) => ({ text: `${nameOf(world, e.by)} gives up the hunt for ${nameOf(world, e.target)}`, tone: 'dim' }),
   claimRival: (world, e) => ({ text: `${nameOf(world, e.vehicle)} goes after your claim: ${contractText(world, e.contract)}`, tone: 'bad' }),
   claimLead: (world, e) => ({ text: `${e.driver} gives a lead on your claim: ${contractText(world, e.contract)}`, tone: 'good' }),
+  guardPaid: (world, e) => ({ text: `${nameOf(world, e.by)} pays ${nameOf(world, e.guard)} ${english(moneyMsg(e.fee))} for guarding`, tone: 'dim' }),
+  encounter: (world, e) => ({ text: `${nameOf(world, e.vehicle)} comes to your truck with a ${words(e.encounter)}`, tone: '' }),
   call: (world, e) => ({ text: `Radio call with ${nameOf(world, e.with)} ${e.outcome === 'opened' ? 'opens' : 'ends'}`, tone: 'dim' }),
   job: (world, e) => ({ text: jobWords(world, e), tone: 'dim' }),
   shopMoney: (world, e) => ({ text: `${nameOf(world, e.vehicle)} ${e.amount < 0 ? 'pays' : 'gets'} ${english(moneyMsg(Math.abs(e.amount)))} for ${words(e.kind)}`, tone: 'dim' }),
