@@ -6,7 +6,7 @@ import { readApproval, type Approval } from '../clone-checks';
 import { readShown, type Shown } from '../evidence';
 import { postWithEvidence } from '../evidence-post';
 import { checkScope, publishBuild, recordBuild } from '../deploy';
-import { FAILURE_TAIL_LINES, reportFailure, stripAnsi } from '../fail';
+import { FAILURE_TAIL_LINES, JobTimeoutError, reportFailure, stripAnsi } from '../fail';
 import { postBuild } from '../public/build-post';
 import { clearFeedback } from '../pending-feedback';
 import { feedbackEnv } from '../sourcemaps';
@@ -131,12 +131,19 @@ export function checksProgress(log: string, started: number): string {
 }
 
 const TIMEOUT_LINE = /(Test|Hook) timed out in \d+ms/;
+const ERROR_LINE = /Error:|timed out in/;
+const EARLIER_ERRORS = 40;
 
-export type CheckOutcome = { failure: string; timedOut: boolean } | null;
+export type CheckOutcome = { failure: string; timedOut: boolean; errors: string[] } | null;
+
+export class ChecksTimeoutError extends JobTimeoutError {}
+
+export function errorLines(output: string): string[] {
+  return output.split('\n').filter((line) => ERROR_LINE.test(line)).map((line) => line.trim());
+}
 
 export function timeoutOnly(outcome: NonNullable<CheckOutcome>): boolean {
-  const errors = outcome.failure.split('\n').filter((line) => /Error:|timed out in/.test(line));
-  return (outcome.timedOut || errors.length > 0) && errors.every((line) => TIMEOUT_LINE.test(line));
+  return (outcome.timedOut || outcome.errors.length > 0) && outcome.errors.every((line) => TIMEOUT_LINE.test(line));
 }
 
 export const CHECK_RUNS = 3;
@@ -146,17 +153,27 @@ export async function checkUntilReal(check: () => Promise<CheckOutcome>, onTimeo
     const outcome = await check();
     if (outcome === null) return null;
     if (!timeoutOnly(outcome)) return outcome.failure;
-    if (run === CHECK_RUNS) throw new Error(`The factory checks timed out ${CHECK_RUNS} times, under load or in a hung step. No test failed for another reason.\n${outcome.failure}`);
+    if (run === CHECK_RUNS) throw new ChecksTimeoutError(`The factory checks timed out ${CHECK_RUNS} times, under load or in a hung step. No test failed for another reason.\n${outcome.failure}`);
     onTimeout(run);
   }
 }
 
-
-function checkFailure(log: string, error: unknown, from: number): NonNullable<CheckOutcome> {
+export function checkFailure(log: string, error: unknown, from: number): NonNullable<CheckOutcome> {
   const message = error instanceof Error ? error.message : String(error);
-  const written = existsSync(log) ? readFileSync(log).subarray(from).toString('utf8') : '';
-  const tail = written.trim() === '' ? message : written.split('\n').slice(-FAILURE_TAIL_LINES).join('\n');
-  return { failure: stripAnsi(tail), timedOut: error instanceof CheckTimeoutError };
+  const written = stripAnsi(existsSync(log) ? readFileSync(log).subarray(from).toString('utf8') : '');
+  const timedOut = error instanceof CheckTimeoutError;
+  if (written.trim() === '') return { failure: message, timedOut, errors: errorLines(message) };
+  const lines = written.split('\n');
+  const tail = lines.slice(-FAILURE_TAIL_LINES).join('\n');
+  const earlier = errorLines(lines.slice(0, -FAILURE_TAIL_LINES).join('\n'));
+  return { failure: withEarlierErrors(tail, earlier), timedOut, errors: [...earlier, ...errorLines(tail)] };
+}
+
+function withEarlierErrors(tail: string, earlier: string[]): string {
+  if (earlier.length === 0) return tail;
+  const shown = earlier.slice(0, EARLIER_ERRORS);
+  const more = earlier.length > shown.length ? `\n…and ${earlier.length - shown.length} more` : '';
+  return `Errors earlier in the log, above its last ${FAILURE_TAIL_LINES} lines:\n${shown.join('\n')}${more}\n\nThe last ${FAILURE_TAIL_LINES} lines:\n${tail}`;
 }
 
 const POST_MARK = 'Ready for approval:';
