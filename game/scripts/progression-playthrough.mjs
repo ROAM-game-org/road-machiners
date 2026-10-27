@@ -1,8 +1,8 @@
 import { closeSync, mkdirSync, openSync, renameSync, writeSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { activityFrom } from '../src/sim/progression/activity.ts';
+import { activityFrom, playthroughWorld } from '../src/sim/progression/activity.ts';
 import { isArchetype } from '../src/sim/progression/bot.ts';
-import { startWorld } from '../src/sim/progression/record-node.ts';
+import { TEST_MAP } from '../src/test/map.ts';
 
 const USAGE = 'Usage: npm run progression:playthrough -- --seed <n> --turns <n> --out <file> [--archetype markov] [--every 50] [--sha <sha>]';
 
@@ -45,7 +45,7 @@ function write({ out, ...run }) {
   const fd = openSync(`${out}.part`, 'w');
   const started = Date.now();
   let last = null;
-  for (const line of activityFrom(startWorld(run.seed), run)) {
+  for (const line of activityFrom(playthroughWorld(TEST_MAP, run.seed, run.archetype), run)) {
     writeSync(fd, `${JSON.stringify(line)}\n`);
     if (line.k === 'end') last = line;
   }
