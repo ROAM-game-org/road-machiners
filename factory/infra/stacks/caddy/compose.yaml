@@ -3,7 +3,7 @@ name: factory-caddy
 services:
   caddy:
     container_name: factory-caddy
-    image: caddy:2.10-alpine
+    image: caddy:2.11-alpine
     restart: unless-stopped
     # Caddy publishes no ports. The tunnel reaches it at http://caddy:80 on this stack's network.
     environment:
