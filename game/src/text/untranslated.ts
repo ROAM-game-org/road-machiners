@@ -7,7 +7,6 @@ const DEV_SIM = 'Simulation mode is a dev page that shows a playthrough run. It 
 const DEV_LAB = 'The block lab is a dev page for tuning the combat score. It stays English.';
 const SIM_MODE = 'Simulation mode is a dev page that replays a bot run with every truck on the map. It stays English.';
 const FONT_SAMPLE = 'A sample string that makes the browser load the font. No player reads it.';
-const DEV_SIM = 'Simulation mode is a dev tool that replays a bot run in the browser. It stays English.';
 const SVG = 'Static SVG markup of an icon, with no words in it.';
 
 const MIGRATION_LABEL = 'A label inside a save migration error, which only the console and a bug report show.';
@@ -40,6 +39,7 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/three/save-migrations.ts', text: 'player money', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: 'cost basis', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: 'pile   basis', reason: MIGRATION_LABEL },
+  { file: 'src/sim/hunting-spots-bake.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/sim/progression/activity.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/sim/progression/job-checks.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/sim/settings.ts', text: 'World setup', reason: SETTING_LABEL },
