@@ -45,7 +45,7 @@ import { aimMarks, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
 import { createSwitch } from "./switch";
 import { Tips, type TipSwitch } from "./tips";
-import { moneyEl } from "./units";
+import { kph, moneyEl } from "./units";
 import { playerVehicle } from "../sim/damage";
 import { playerGuard } from "../sim/hire";
 import { affordableRanks, basicSkill, hasBasic, hasPerk, pendingPerkPairs } from "../sim/progress";
@@ -578,7 +578,9 @@ export class Hud {
     this.tips.update(w, this.actions.autoTravel());
     if (!this.top.firstChild) this.top.append(this.clockSlot, this.speedSlot, this.readoutSlot, this.actionSlot);
     this.renderClock(readout.clock);
-    this.renderSpeedometer(readout, busy);
+    const held = playerVehicle(w).order;
+    const pace = held && held.kind !== "brake" ? held.pace : undefined;
+    this.renderSpeedometer(readout, busy, pace === undefined || readout.manual ? null : kph(pace));
     this.fillReadouts(readout);
     this.renderActions(w, readout.manual, busy);
   }
@@ -591,7 +593,7 @@ export class Hud {
     );
   }
 
-  private renderSpeedometer(readout: ReturnType<typeof getHudReadout>, busy: boolean): void {
+  private renderSpeedometer(readout: ReturnType<typeof getHudReadout>, busy: boolean, pace: number | null): void {
     const dial = el(
       "button",
       {
@@ -601,7 +603,7 @@ export class Hud {
         disabled: busy,
         onclick: () => this.actions.openInventory(),
       },
-      createSpeedDial(readout.speed, readout.maxSpeed),
+      createSpeedDial(readout.speed, readout.maxSpeed, pace),
       el("span", { class: "speed-value" }, num(readout.speed, "int")),
       createIcon("truck"),
     );

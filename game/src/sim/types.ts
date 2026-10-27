@@ -89,7 +89,7 @@ export type Pose = { x: number; y: number; heading: number; bend?: number };
 
 export type MoveOrder =
   | { kind: "through"; dest: Vec; pace?: number }
-  | { kind: "stopAt"; dest: Vec }
+  | { kind: "stopAt"; dest: Vec; pace?: number }
   | { kind: "brake" };
 
 export type SalvageStock = {

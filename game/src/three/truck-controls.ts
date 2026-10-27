@@ -13,7 +13,9 @@ import { startSurvey } from "../sim/survey";
 import { shopAt } from "../sim/market";
 import { reachedOutpostAt } from "../sim/chaos-highway";
 import type { World } from "../sim/types";
-import { playerCanAct, Refused, setAutoRepair, setDirect, setHeadlights, setOverdrive } from "../sim/world";
+import type { Vec } from "../sim/vec";
+import { playerOrder } from "../sim/steering";
+import { playerCanAct, Refused, setAutoRepair, setDirect, setHeadlights, setMoveOrder, setOverdrive } from "../sim/world";
 import { markError, markVehicle } from "../sim/detect";
 import { lookOver } from "../sim/look-over";
 import { hasBasic } from "../sim/progress";
@@ -32,6 +34,11 @@ export type ControlsHost = {
 
 export class TruckControls {
   constructor(private host: ControlsHost) {}
+
+  order(dest: Vec, shift: boolean): void {
+    const w = this.host.world();
+    this.host.apply(setMoveOrder(w, playerOrder(w, playerVehicle(w), dest, shift)));
+  }
 
   toggleManual(): void {
     const w = this.host.world();
