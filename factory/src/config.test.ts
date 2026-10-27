@@ -6,7 +6,7 @@ import { loadConfig, readEnvFiles } from './config';
 const FULL = {
   FACTORY_OBSERVATION_HEARTBEAT_MS: '10000', FACTORY_OBSERVATION_MAX_EVENT_BYTES: '1048576',
   FACTORY_REPO: 'o/r', FACTORY_PROJECT_OWNER: 'o', FACTORY_PROJECT_NUMBER: '3', FACTORY_GITHUB_APP_ID: '42', FACTORY_GITHUB_RETRIES: '3', FACTORY_GITHUB_RETRY_BASE_SECONDS: '15', FACTORY_GITHUB_TIMEOUT_SECONDS: '60', FACTORY_HOME: '/h', FACTORY_WEB_ROOT: '/w',
-  FACTORY_PUBLIC_URL: 'http://x', FACTORY_IMAGE: 'img', FACTORY_GPU: 'on', CLAUDE_CODE_OAUTH_TOKEN: 't', ELEVENLABS_API_KEY: 'ek', SFX_MAX_GENERATIONS: '6', AGY_MAX_RUNS: '20', AGY_MODEL: 'flash', CODEX_MODEL: 'sol', CODEX_EFFORT: 'medium',FACTORY_DESIGN_MODEL: 'opus',
+  FACTORY_PUBLIC_URL: 'http://x', FACTORY_IMAGE: 'img', FACTORY_GPU: 'on', FACTORY_JOBS_SLICE: 'roam-factory-jobs.slice', CLAUDE_CODE_OAUTH_TOKEN: 't', ELEVENLABS_API_KEY: 'ek', SFX_MAX_GENERATIONS: '6', AGY_MAX_RUNS: '20', AGY_MODEL: 'flash', CODEX_MODEL: 'sol', CODEX_EFFORT: 'medium',FACTORY_DESIGN_MODEL: 'opus',
   FACTORY_BUILD_MODEL: 'sonnet', FACTORY_TRIAGE_MODEL: 'haiku', FACTORY_ADVISOR_MODEL: 'opus', FACTORY_MODEL_PRICES: 'opus=4/20/0.2/5/8 sonnet=2/10/0.2/2.5/4 haiku=1/5/0.1/1.25/2', FACTORY_MIN_VOTES: '5', FACTORY_MIN_AGE_HOURS: '24', FACTORY_NEEDS_INFO_HOURS: '24', FACTORY_COMMITTEE_BOOTSTRAP_GITHUB: 'boss',
   FACTORY_COMMITTEE_BOOTSTRAP: '1', TELEGRAM_BOT_TOKEN: 'bt', FACTORY_COMMITTEE_CHAT: '-1', FACTORY_PUBLIC_CHANNEL: '@c',
   FACTORY_TRIAGE_TIMEOUT_MINUTES: '30', FACTORY_DESIGN_TIMEOUT_MINUTES: '135', FACTORY_IMPLEMENT_TIMEOUT_MINUTES: '330', FACTORY_VERIFY_TIMEOUT_MINUTES: '240',
@@ -80,6 +80,13 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ ...FULL, FACTORY_GPU: '' })).toThrow('missing FACTORY_GPU');
   });
 
+  it('reads the jobs slice as a systemd slice name or off, and rejects anything else', () => {
+    expect(loadConfig(FULL).jobsSlice).toBe('roam-factory-jobs.slice');
+    expect(loadConfig({ ...FULL, FACTORY_JOBS_SLICE: 'off' }).jobsSlice).toBeNull();
+    expect(() => loadConfig({ ...FULL, FACTORY_JOBS_SLICE: 'jobs' })).toThrow('FACTORY_JOBS_SLICE must be a systemd slice name');
+    expect(() => loadConfig({ ...FULL, FACTORY_JOBS_SLICE: '' })).toThrow('missing FACTORY_JOBS_SLICE');
+  });
+
   it('reads the CPU shares and rejects shares that add up to more than the server', () => {
     const cfg = loadConfig(FULL);
     expect([cfg.cpuLight, cfg.cpuImplement, cfg.cpuTest]).toEqual([0.25, 0.25, 0.5]);
@@ -107,7 +114,7 @@ describe('readEnvFiles', () => {
     const settings = readEnvFiles('settings.env', '.env.example');
     const tracked = Object.keys(readEnvFiles('settings.env', files('', '')[1]));
     expect(tracked.filter((key) => SECRET.test(key))).toEqual([]);
-    const filled = Object.fromEntries(Object.keys(settings).map((key) => [key, settings[key] || (key === 'FACTORY_GPU' ? 'on' : '1')]));
+    const filled = Object.fromEntries(Object.keys(settings).map((key) => [key, settings[key] || ({ FACTORY_GPU: 'on', FACTORY_JOBS_SLICE: 'off' }[key] ?? '1')]));
     expect(loadConfig(filled).maxJobsPerCard).toBe(30);
   });
 });

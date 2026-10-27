@@ -55,7 +55,7 @@ cat "$SHIM_DIR/grubenv"
     "chown": "#!/bin/bash\nexit 0\n",
 }
 
-UNITS = ["roam-factory-dashboard.service", "roam-factory-errors.service", "roam-factory-tick.timer", "roam-factory-update.timer"]
+UNITS = ["roam-factory-dashboard.service", "roam-factory-errors.service", "roam-factory-tick.timer", "roam-factory-update.timer", "roam-factory-softdog.service"]
 CONTAINERS = ["factory-hermes", "factory-caddy", "factory-tunnel"]
 
 

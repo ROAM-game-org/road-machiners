@@ -1,6 +1,6 @@
 """Base host provisioning for the game factory. Idempotent. Re-run it safely after changes.
 
-Packages, Docker, Node 24, gh, butler, the firewall, the laptop power settings, the NVIDIA driver and container toolkit, the factory user and the /opt/factory dirs.
+Packages, Docker, Node 24, gh, butler, the firewall, the laptop power settings, the watchdog, the NVIDIA driver and container toolkit, the factory user and the /opt/factory dirs.
 """
 
 # pyright: reportMissingImports=false
@@ -126,6 +126,46 @@ files.put(
 server.shell(
     name="Mask sleep targets",
     commands=["timeout 60 systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target"],
+    _sudo=True,
+)
+
+# A host that hangs reboots by itself. The laptop has no hardware watchdog loaded, so softdog gives systemd one. When systemd stops answering it for 10 minutes, the kernel reboots, and the jobs that ran resume once as after any reboot.
+# Ubuntu blacklists softdog, and systemd-modules-load obeys the blacklist, so a unit loads it by name at every boot. systemd opens the device once it appears.
+files.put(
+    name="softdog unit",
+    src=StringIO(
+        "[Unit]\nDescription=Load the softdog watchdog that systemd feeds\nDefaultDependencies=no\nBefore=sysinit.target\n\n"
+        "[Service]\nType=oneshot\nRemainAfterExit=yes\nExecStart=/usr/sbin/modprobe softdog\n\n"
+        "[Install]\nWantedBy=sysinit.target\n"
+    ),
+    dest="/etc/systemd/system/roam-factory-softdog.service",
+    mode="644",
+    _sudo=True,
+)
+systemd.service(
+    name="softdog unit enabled",
+    service="roam-factory-softdog.service",
+    running=True,
+    enabled=True,
+    daemon_reload=True,
+    _sudo=True,
+)
+files.put(
+    name="systemd feeds the watchdog",
+    src=StringIO("[Manager]\nRuntimeWatchdogSec=10min\n"),
+    dest="/etc/systemd/system.conf.d/factory-watchdog.conf",
+    mode="644",
+    create_remote_dir=True,
+    _sudo=True,
+)
+server.shell(
+    name="Start the watchdog and check that systemd feeds it",
+    commands=[
+        "test -e /dev/watchdog0",
+        "timeout 60 systemctl daemon-reexec",
+        "systemctl show --property RuntimeWatchdogUSec --value | grep -qx 10min",
+        "grep -qx active /sys/class/watchdog/watchdog0/state",
+    ],
     _sudo=True,
 )
 

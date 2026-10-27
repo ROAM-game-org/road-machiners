@@ -40,6 +40,12 @@ Run the workflow by hand with `gh workflow run game-suite.yml -R <repo> --ref ma
 
 Memory, not CPU, limits how many jobs fit on the host. Each container writes its cgroup's peak memory to a file in its own folder under `$FACTORY_HOME/peaks` when it ends, and the factory reads and removes that folder. The job keeps the highest peak of its containers and writes it to its ledger line as `peakGb`. A container killed before its end writes none.
 
+Every job container runs in the systemd slice `FACTORY_JOBS_SLICE`, which deploy caps at `FACTORY_JOBS_MEMORY_GB` with no swap. When jobs together pass the cap, the kernel kills a process inside the slice, and that job fails or resumes like any other killed job. Hermes, the tunnel and the rest of the host keep their memory. The tick starts no job while the slice has no cap. A Mac sets the slice `off` and has no cap.
+
+When a `factory-job` command ends, is stopped or hits its limit, every process left in its group gets KILL. A busy `vite-node` sim ignores TERM, and before this a stopped harness kept its seeds running and froze the host. `factory-job stop` returns only once the group is gone.
+
+The host runs a software watchdog. When systemd stops answering it for 10 minutes, the kernel reboots the host, and the boot check brings the factory back.
+
 `FACTORY_GPU=on` gives every container the host's NVIDIA GPU, and the playtest checks the frame rate. `off` runs the playtest with `--cpu`, with fewer turns and no frame rate check.
 
 ## Card job limit

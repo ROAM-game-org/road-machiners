@@ -114,7 +114,7 @@ function proxiedShell(script: string, env: Record<string, string>, mounts: Recor
   mkdirSync(join(clone, 'game'), { recursive: true });
   chmodSync(join(clone, 'game'), 0o777);
   const log = join(root, 'shell.log');
-  const cfg = { image: smokeImage, home: root, gpu: false } as FactoryConfig;
+  const cfg = { image: smokeImage, home: root, gpu: false, jobsSlice: null } as FactoryConfig;
   return { clone, log, done: dockerContainer(realRun, cfg, null).shell('checks', clone, script, log, env, mounts) };
 }
 

@@ -28,7 +28,8 @@ WWW_DIR = f"{FACTORY_ROOT}/www"
 HERMES_DIR = f"{FACTORY_ROOT}/hermes"
 # Git tracks the factory settings. The server-only .env holds secrets, committee ids and host paths.
 SETTINGS_FILE = REPO_ROOT / "factory" / "settings.env"
-WHOLE_NUMBERS = ("FACTORY_TICK_MINUTES", "FACTORY_REBOOT_DRAIN_MINUTES", "FACTORY_BOOT_CHECK_MINUTES", "FACTORY_HOST_SHELL_MEMORY_GB")
+WHOLE_NUMBERS = ("FACTORY_TICK_MINUTES", "FACTORY_REBOOT_DRAIN_MINUTES", "FACTORY_BOOT_CHECK_MINUTES", "FACTORY_HOST_SHELL_MEMORY_GB", "FACTORY_JOBS_MEMORY_GB")
+JOBS_SLICE = "roam-factory-jobs.slice"
 
 
 class Settings(BaseSettings):

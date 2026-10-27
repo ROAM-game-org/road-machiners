@@ -10,7 +10,7 @@ from io import StringIO
 
 from pyinfra.operations import files, server, systemd
 
-from factory_infra import CODE_DIR, FACTORY_ENV, FACTORY_ROOT, FACTORY_UID, FACTORY_USER, HERMES_DIR, HOME_DIR, INFRA_DIR, REPO_DIR, read_factory_env, settings
+from factory_infra import CODE_DIR, FACTORY_ENV, FACTORY_ROOT, FACTORY_UID, FACTORY_USER, HERMES_DIR, HOME_DIR, INFRA_DIR, JOBS_SLICE, REPO_DIR, read_factory_env, settings
 
 FILES = INFRA_DIR / "files"
 factory_env = read_factory_env(settings.factory_env_file)
@@ -55,8 +55,8 @@ server.shell(
     _sudo=True,
 )
 
-# The factory acts on GitHub as the GitHub App. The App key and the token file join the server-only env.
-factory_env_text = Path(settings.factory_env_file).read_text().rstrip("\n") + f"\nFACTORY_GITHUB_APP_KEY={GITHUB_APP_KEY}\nFACTORY_GITHUB_TOKEN_FILE={GITHUB_TOKEN_FILE}\n"
+# The factory acts on GitHub as the GitHub App. The App key and the token file join the server-only env, and so does the slice that caps job memory.
+factory_env_text = Path(settings.factory_env_file).read_text().rstrip("\n") + f"\nFACTORY_GITHUB_APP_KEY={GITHUB_APP_KEY}\nFACTORY_GITHUB_TOKEN_FILE={GITHUB_TOKEN_FILE}\nFACTORY_JOBS_SLICE={JOBS_SLICE}\n"
 files.put(
     name="Push the server-only factory env with the GitHub App paths",
     src=StringIO(factory_env_text),
@@ -258,6 +258,21 @@ files.template(
     _sudo=True,
 )
 server.shell(name="load the login slice cap", commands=["systemctl daemon-reload"], _sudo=True)
+
+# Every job container runs in this slice. With no swap, jobs that together pass the cap lose a process inside it instead of thrashing the host.
+files.template(
+    name="memory cap shared by all job containers",
+    src=str(FILES / "roam-factory-jobs.slice.j2"),
+    dest=f"/etc/systemd/system/{JOBS_SLICE}",
+    mode="644",
+    memory_gb=int(factory_env["FACTORY_JOBS_MEMORY_GB"]),
+    _sudo=True,
+)
+server.shell(
+    name="load the job slice cap and check it",
+    commands=["systemctl daemon-reload", f"systemctl show {JOBS_SLICE} --property MemoryMax --value | grep -qx '[0-9][0-9]*'"],
+    _sudo=True,
+)
 
 REBOOT_SCRIPT = f"{FACTORY_ROOT}/factory-reboot.sh"
 BOOT_CHECK_SCRIPT = f"{FACTORY_ROOT}/factory-boot-check.sh"

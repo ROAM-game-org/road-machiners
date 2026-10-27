@@ -72,7 +72,7 @@ describe('how the instruction reaches an agent', () => {
 
 describe('the agent container', () => {
   const HOME = resolve('tmp/factory-russian-fallback-container');
-  const cfg = { image: 'img:1', oauthToken: 'claude-login', elevenlabsKey: 'k', sfxMaxGenerations: 6, agyMaxRuns: 100, agyModel: 'flash', codexModel: 'sol', codexEffort: 'medium', agentJobMaxMinutes: 30, home: HOME, tokenPrices: {} } as unknown as FactoryConfig;
+  const cfg = { image: 'img:1', oauthToken: 'claude-login', elevenlabsKey: 'k', sfxMaxGenerations: 6, agyMaxRuns: 100, agyModel: 'flash', codexModel: 'sol', codexEffort: 'medium', agentJobMaxMinutes: 30, home: HOME, tokenPrices: {}, jobsSlice: null } as unknown as FactoryConfig;
 
   beforeEach(() => {
     mkdirSync(`${HOME}/codex`, { recursive: true });

@@ -29,7 +29,7 @@ lift_reboot_pause() {
 
 # A unit counts once installed, as the dashboard restart hook does.
 check_units() {
-  for unit in roam-factory-dashboard.service roam-factory-errors.service roam-factory-tick.timer roam-factory-update.timer; do
+  for unit in roam-factory-dashboard.service roam-factory-errors.service roam-factory-tick.timer roam-factory-update.timer roam-factory-softdog.service; do
     if systemctl is-enabled --quiet "$unit" && ! systemctl is-active --quiet "$unit"; then echo "$unit is not active"; fi
   done
 }
