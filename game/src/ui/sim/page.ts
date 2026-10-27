@@ -14,7 +14,7 @@ import { token } from "../tokens";
 import { TruckIcons, type IconLook, type SpriteSet } from "./truck-icons";
 import { HEAT_LAYERS, HeatMap, type HeatLayer } from "./heat-map";
 import { CardView, PlayerPanel } from "./panels";
-import { drawEconomy, shopAt } from "./economy-draw";
+import { drawEconomy, RoadPaths, shopAt } from "./economy-draw";
 import { EconomyView } from "./economy-view";
 import { TIME } from "../../data/time";
 
@@ -128,6 +128,7 @@ class SimPage {
   private drawnView: Viewport | null = null;
   private drawnScale = 1;
   private icons: TruckIcons | null = null;
+  private paths: RoadPaths | null = null;
   private readonly looks = new Map<string, IconLook>();
   private readonly sets = new Map<string, SpriteSet>();
   private readonly view = new MapView({ kind: "free" }, 1, 1, (ctx, view) => this.drawAll(ctx, view), 1);
@@ -182,7 +183,9 @@ class SimPage {
   }
 
   async start(seed: number | null): Promise<void> {
-    this.view.update(openScene((await fetchMap()).terrain), null);
+    const terrain = (await fetchMap()).terrain;
+    this.paths = new RoadPaths(terrain);
+    this.view.update(openScene(terrain), null);
     this.resize();
     new ResizeObserver(() => this.resize()).observe(this.mapBox);
     this.status.textContent = "Drawing the trucks";
@@ -445,12 +448,13 @@ class SimPage {
   private drawProduction(ctx: CanvasRenderingContext2D, view: Viewport): void {
     const economy = this.economyView.shown;
     if (!this.economyOpen || !economy) return;
+    if (!this.paths) throw new Error("The road paths are not built yet");
     const t = this.glide.progress(performance.now());
     const truckAt = (id: string): Point | null => {
       const m = this.glide.markers.find((x) => x.id === id);
       return m ? toPx(view, this.glide.placeAt(m, t)) : null;
     };
-    drawEconomy(ctx, view, economy, this.economyView.focus, truckAt);
+    drawEconomy(ctx, view, economy, this.economyView.focus, truckAt, this.paths);
   }
 
   private drawWay(ctx: CanvasRenderingContext2D, view: Viewport): void {
