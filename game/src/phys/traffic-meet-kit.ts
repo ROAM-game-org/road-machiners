@@ -7,7 +7,7 @@ import { addVehicle, npcBrain } from '../sim/testkit';
 import type { Vehicle, World } from '../sim/types';
 import { isFree } from '../sim/spawn';
 import { vehicleStats } from '../sim/stats';
-import type { Vec } from '../sim/vec';
+import { dist, type Vec } from '../sim/vec';
 import { endTurn, newWorld, setMoveOrder } from '../sim/world';
 import { TEST_MAP } from '../test/map';
 import { buildDrive, freeDrive, type Drive } from './drive';
@@ -21,6 +21,7 @@ const MEETING_TURNS = 12;
 const OVERTAKE_GAP = 6;
 const START_SEARCH = 40;
 const MIN_BACK = 6;
+const CLEAR_OF_TOWN = 30;
 
 function turn(w: World, d: Drive, bumps: Bump[]): { w: World; d: Drive } {
   let next: Drive | null = null;
@@ -29,6 +30,7 @@ function turn(w: World, d: Drive, bumps: Bump[]): { w: World; d: Drive } {
     bumps.push(...r.crashes);
   }));
   freeDrive(d);
+  after.player.call = null;
   return { w: after, d: next! };
 }
 
@@ -42,6 +44,11 @@ function tradingWorld(): { w: World; traderId: string } {
   addGoods(w, trader, 'scrap', 1);
   trader.brain.goals = [{ kind: 'sell', targetId: nose.id, destination: { ...nose.pos }, phase: 'travel', reason: 'deliverCargo' }];
   return { w, traderId: trader.id };
+}
+
+function underway(trader: Vehicle): boolean {
+  const [bowl] = REGION.towns;
+  return trader.speed >= 3 && dist(trader.pos, bowl.pos) > bowl.radius + CLEAR_OF_TOWN;
 }
 
 function freeStart(w: World, me: Vehicle, ahead: Vec, dir: number, back: number): Vec {
@@ -61,7 +68,7 @@ export function meet(angle: number, speed: number, seconds: number): Meeting {
   let d = buildDrive(w);
   const traderOf = () => w.vehicles.find((v) => v.id === traderId)!;
   const playerOf = () => w.vehicles.find((v) => v.faction === 'player')!;
-  for (let i = 0; i < 30 && traderOf().speed < 3; i++) ({ w, d } = turn(w, d, bumps));
+  for (let i = 0; i < 30 && !underway(traderOf()); i++) ({ w, d } = turn(w, d, bumps));
   const t = traderOf();
   const ahead = { x: t.pos.x + Math.cos(t.heading) * seconds * t.speed, y: t.pos.y + Math.sin(t.heading) * seconds * t.speed };
   const dir = t.heading + Math.PI + angle;
@@ -97,7 +104,7 @@ export function meetHeadOn(lane: number, speed: number): HeadOn {
   let d = buildDrive(w);
   const traderOf = () => w.vehicles.find((v) => v.id === traderId)!;
   const playerOf = () => w.vehicles.find((v) => v.faction === 'player')!;
-  for (let i = 0; i < 30 && traderOf().speed < 3; i++) ({ w, d } = turn(w, d, bumps));
+  for (let i = 0; i < 30 && !underway(traderOf()); i++) ({ w, d } = turn(w, d, bumps));
   const t = traderOf();
   const side = { x: t.pos.x - Math.sin(t.heading) * lane, y: t.pos.y + Math.cos(t.heading) * lane };
   const me = playerOf();

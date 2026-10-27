@@ -13,7 +13,9 @@ import { startSurvey } from "../sim/survey";
 import { shopAt } from "../sim/market";
 import { reachedOutpostAt } from "../sim/chaos-highway";
 import type { World } from "../sim/types";
-import { actBlock, playerCanAct, Refused, setAutoRepair, setDirect, setHeadlights, setOverdrive } from "../sim/world";
+import type { Vec } from "../sim/vec";
+import { playerOrder } from "../sim/steering";
+import { actBlock, playerCanAct, Refused, setAutoRepair, setDirect, setHeadlights, setMoveOrder, setOverdrive } from "../sim/world";
 import { markError, markVehicle } from "../sim/detect";
 import { lookOver } from "../sim/look-over";
 import { hasBasic } from "../sim/progress";
@@ -32,6 +34,11 @@ export type ControlsHost = {
 
 export class TruckControls {
   constructor(private host: ControlsHost) {}
+
+  order(dest: Vec, shift: boolean): void {
+    const w = this.host.world();
+    this.host.apply(setMoveOrder(w, playerOrder(w, playerVehicle(w), dest, shift)));
+  }
 
   toggleManual(): void {
     const w = this.host.world();
@@ -144,7 +151,7 @@ export class TruckContext {
       outpost: () => reachedOutpostAt(h.world()) && h.openOutpost(),
       downed: () => 'id' in target && h.openDowned(target.id),
       stock: () => 'id' in target && this.searchStock(target.id, action.combat),
-      survey: () => target.kind === 'survey' && this.surveySite(target.contractId, target.id, action.combat),
+      survey: () => target.kind === 'survey' && this.surveySite(target.contractId, target.id),
       loot: () => 'id' in target && this.lootStock(target.id),
       empty: () => undefined,
     };
@@ -175,9 +182,9 @@ export class TruckContext {
     }
   }
 
-  private surveySite(contractId: string, site: string, combat?: number): void {
+  private surveySite(contractId: string, site: string): void {
     const w = this.host.world();
-    if (isBusy(playerVehicle(w)) || combat !== undefined) return;
+    if (isBusy(playerVehicle(w))) return;
     this.host.apply(startSurvey(w, contractId, site));
     this.host.pushEvents();
   }

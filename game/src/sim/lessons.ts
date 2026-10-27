@@ -1,6 +1,6 @@
 import { chassisDef } from '../data/chassis';
 import type { LineId } from '../data/dialogue';
-import { LESSON_SALT, LESSON_TRADES, LESSONS, WEAKNESSES, type LessonTrade, type Weakness } from '../data/lessons';
+import { LESSON_POOL_SALT, LESSON_SALT, WEAKNESS_SHARE, LESSON_TRADES, LESSONS, WEAKNESSES, type LessonTrade, type Weakness } from '../data/lessons';
 import { bareSides } from './armor';
 import { loadMass } from './mass';
 import { firepower, npcTraits } from './npc-decisions';
@@ -27,10 +27,15 @@ export function lessonTrade(npc: Vehicle): LessonTrade {
   throw new Error(`${npc.id} has no trait with a lesson trade`);
 }
 
+function tellsWeakness(world: World, npc: Vehicle, weak: Weakness[]): boolean {
+  if (weak.length === 0) return false;
+  return hashRandom(world.seed, ...charCodes(npc.id), ...charCodes(LESSON_POOL_SALT)) < WEAKNESS_SHARE;
+}
+
 export function pickLesson(world: World, npc: Vehicle, listener: Vehicle): LineId {
   const lessons = LESSONS[lessonTrade(npc)];
   const roll = hashRandom(world.seed, ...charCodes(npc.id), ...charCodes(LESSON_SALT));
   const weak = truckWeaknesses(world, listener);
-  if (weak.length > 0) return lessons.weak[weak[Math.floor(roll * weak.length)]];
+  if (tellsWeakness(world, npc, weak)) return lessons.weak[weak[Math.floor(roll * weak.length)]];
   return lessons.general[Math.floor(roll * lessons.general.length)];
 }

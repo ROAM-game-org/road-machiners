@@ -167,7 +167,7 @@ export class InventoryView {
       this.select(null);
     });
     window.addEventListener("keydown", (e) => {
-      if (!isRotateKey(e)) return;
+      if (!isRotateKey(e) || this.host.menuOpen()) return;
       if (this.drag) this.rotate();
       else this.rotateSelected();
     });

@@ -18,7 +18,7 @@ import type { Work, WorkLeft } from '../sim/states';
 import { dist } from '../sim/vec';
 import { goodsCount } from '../sim/grid';
 import { spareParts } from '../sim/inventory';
-import { carriedPart, isStoryWreck } from '../sim/salvage';
+import { carriedPart, carriedPartDef, isStoryWreck } from '../sim/salvage';
 import { canVehicleSee, playerSees } from '../sim/vision';
 import { topGoal } from '../sim/npc-activities';
 import { judgeDanger, npcTraits, passReason } from '../sim/npc-decisions';
@@ -337,9 +337,7 @@ const PART_SHORT = {
 } as const;
 
 function partShort(world: World, vehicleId: string, partId: string): Msg {
-  const p = carriedPart(world, vehicleId, partId);
-  if (!p) throw new Error(`Round hit part ${partId}, which ${vehicleId} does not carry`);
-  const def = partDef(p.defId);
+  const def = carriedPartDef(world, vehicleId, partId);
   return t(`short.${PART_SHORT[def.kind === 'core' ? def.role : def.kind]}`);
 }
 
