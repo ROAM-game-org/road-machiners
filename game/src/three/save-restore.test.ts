@@ -21,6 +21,26 @@ function openQuestSave(): SaveSlots {
   return slots;
 }
 
+describe('a saved tale call', () => {
+  it('loads at the story node with the same call, and awards nothing', () => {
+    const w = structuredClone(reusedWorld('standard', () => newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'))));
+    const npc = w.vehicles.find((v) => v.brain)!;
+    const vars = { story: { kind: 'line', line: 'storyHaulerGoats' }, tip: { kind: 'tip', tip: { shop: 'nose', good: 'meds', dear: true } } } as const;
+    w.player.call = { with: npc.id, topic: 'tale', node: 'story', vars: { ...vars }, line: { line: 'taleStory', vars: { ...vars } } };
+    const { money, xp } = w.player;
+    const events = [...w.events];
+    const slots = new SaveSlots(memoryBackend(), new Map());
+    writeSave(slots, 'auto', w, 'run', 1);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.player.call).toEqual(w.player.call);
+    expect(loaded.player.money).toBe(money);
+    expect(loaded.player.xp).toEqual(xp);
+    expect(loaded.events).toEqual(events);
+  });
+});
+
 describe('a load that hits drift no repair knows', () => {
   it('resets an open quest whose checkpoint no longer loads', () => {
     vi.mocked(quests.restoreQuest).mockImplementationOnce(() => {

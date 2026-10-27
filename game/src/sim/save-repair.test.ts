@@ -380,6 +380,22 @@ describe('repairContent', () => {
     expect(w.player.call).not.toBeNull();
   });
 
+  it('closes an open tale call that carries no story and keeps one that does', () => {
+    const tip: CallVars = { tip: { kind: 'tip', tip: { shop: 'nose', good: 'meds', dear: true } } };
+    const story: CallVars = { story: { kind: 'line', line: 'storyHaulerGoats' } };
+    for (const [vars, kept] of [[tip, false], [{ ...tip, ...story }, true]] as const) {
+      const w = fresh();
+      const npc = npcs(w)[0];
+      w.player.talked = { [npc.id]: { tips: 'done' } };
+      w.player.call = { with: npc.id, topic: 'tale', node: 'offer', vars, line: { line: 'gotAStoryFrom', vars } };
+      const events = [...w.events];
+      repairContent(w);
+      expect(w.player.call !== null).toBe(kept);
+      expect(w.player.talked).toEqual({ [npc.id]: { tips: 'done' } });
+      expect(w.events).toEqual(events);
+    }
+  });
+
   it('drops states of a kind that left the data', () => {
     const w = fresh();
     const [a, b] = npcs(w);
