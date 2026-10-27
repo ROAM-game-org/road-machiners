@@ -29,11 +29,6 @@
     "focusX": 60,
     "focusY": 46
   },
-  "bowl_yard": {
-    "file": "bowl_yard.webp",
-    "focusX": 60,
-    "focusY": 50
-  },
   "road_bar": {
     "file": "road_bar.webp",
     "focusX": 55,
@@ -67,36 +62,36 @@
   "town_bowl": {
     "file": "town_bowl.webp",
     "focusX": 50,
-    "focusY": 48
+    "focusY": 15
   },
   "town_nose": {
     "file": "town_nose.webp",
-    "focusX": 55,
-    "focusY": 42
+    "focusX": 50,
+    "focusY": 12
   },
   "town_salvage_yard": {
     "file": "town_salvage_yard.webp",
-    "focusX": 50,
-    "focusY": 50
+    "focusX": 55,
+    "focusY": 25
   },
   "town_granary": {
     "file": "town_granary.webp",
-    "focusX": 50,
-    "focusY": 50
+    "focusX": 55,
+    "focusY": 70
   },
   "town_pump_station": {
     "file": "town_pump_station.webp",
     "focusX": 50,
-    "focusY": 52
+    "focusY": 30
   },
   "town_dustwell": {
     "file": "town_dustwell.webp",
     "focusX": 50,
-    "focusY": 50
+    "focusY": 0
   },
   "town_green_pit": {
     "file": "town_green_pit.webp",
     "focusX": 50,
-    "focusY": 55
+    "focusY": 0
   }
 }

@@ -13,7 +13,7 @@ Each person gets a sheet, then their story, then their line. The sheet is built 
 - Secret: what they hide and from whom. A person's stated reason for a job is often not the real one.
 - Their line: how they talk, in one sentence. Full voice sheets for speakers are in [Voices](voices.md).
 
-For example, Agnes Ondra's trouble is that she is afraid to refuse the steward's oil, her habit is reading every meter at dusk, and her fear is being named as the one who talked.
+For example, Agnes Ondra's trouble is that she is afraid to refuse the steward's oil, her habit is wiping the dust off the tank wall at dusk, and her fear is being named as the one who talked.
 
 ## Alan Graves
 
@@ -24,7 +24,7 @@ For example, Agnes Ondra's trouble is that she is afraid to refuse the steward's
 - Skills: best social, worst machining.
 - Wants: Nose fed, ordered and under his name until he dies.
 - Fears: A famine that proves his rationing failed.
-- Habit: He reads the ration tally aloud before he lets any meeting talk of anything else.
+- Habit: He eats a spoon of the soldiers' ration mash before he lets any meeting talk of anything else.
 - Secret: He let the Committee hold back the Old Army's fuel payments so the army would fail and Nose could take its workshops. He hides it from Nose and the Bowl.
 
 The President of Nose has led its Central Committee since year 100. His late grandmother Lena Graves woke in a pod as a girl, and he has her grey eyes. He believes the basin will die without rationing and discipline. He is probably right about that. He can no longer tell the good of Nose from his own hold on it.
@@ -84,7 +84,7 @@ His line is "I will be king of the camps, and I will pay any price for it."
 - Way: oppose.
 - High concept: The founder of Kiln Camp, past 70, who still works the furnace and melts captured guns into tools.
 - Trouble: She hates kings, but her furnace feeds the camp that Ain is turning into a throne.
-- Aspects: The furnace and its deep bore; Hunted by both towns since year 89; Ain runs the camp she founded.
+- Aspects: The first furnace and its deep bore; Hunted by both towns since year 89; Ain runs the camp she founded.
 - Skills: best machining, worst driving.
 - Wants: A camp of workers and not a king.
 - Fears: Her tools become only weapons for one man.
@@ -104,7 +104,7 @@ Her line is "Kings do not light furnaces. Workers do."
 - Skills: best driving, worst machining.
 - Wants: His riders alive and the gang a pack again.
 - Fears: Burying riders for Ain's glory.
-- Habit: He counts heads at the fire before every ride and after it.
+- Habit: He looks every rider in the face at the fire before a ride and after it.
 - Secret: He hides from Ain how far his wreck deal with Sefa Krol goes.
 
 Kaplan is Ain's right hand and a road veteran. He cares about his people more than about Ain's crown. He misses the old days, when the gang was a pack and not an army.
@@ -130,12 +130,12 @@ Fane is an old trinket trader in the Nose market. He buys relics from the ship a
 - Way: fear.
 - High concept: Absalom Reyne, the voice of the Sunward, who wrote their teachings about the thing in the crater.
 - Trouble: He is certain about a thing he cannot see, so he cannot take back a word he has taught.
-- Aspects: Teaches the Apprentice's number as the glow's word; Never as close to the glow as he says; Bars Ines Abend and the Lunar Society from the rim; Speaks for Mattias Kade's coat.
+- Aspects: Teaches the Apprentice's last tone as the glow's word; Never as close to the glow as he says; Bars Ines Abend and the Lunar Society from the rim; Speaks for Mattias Kade's coat.
 - Skills: best social, worst toughness.
 - Wants: The glow calm and his followers loyal.
 - Fears: The glow, and that his followers learn how far he has stood from it.
-- Habit: He chants the number at the rim at dawn, before the cars go home.
-- Secret: He bought the number from the Apprentice and has never been near the glow. He hides both from his followers.
+- Habit: He sings one held low tone at the rim at dawn, before the cars go home.
+- Secret: He bought the last tone from the Apprentice and has never been near the glow. He hides both from his followers.
 
 Absalom Reyne began to preach at the Sunward's fire around year 118, and people call him the Preacher. Mattias Kade made him the order's voice. He wrote their teachings about the thing in the crater, and he talks himself into every word a little more each dawn. He has never been as close to the green glow as he tells his followers.
 
@@ -148,28 +148,28 @@ Absalom Reyne began to preach at the Sunward's fire around year 118, and people 
 - Skills: best driving, worst perception.
 - Wants: The order fed and himself on top.
 - Fears: The glow itself, and the fever that comes from sleeping near it.
-- Habit: He touches the coat's lining, where an unreadable page is sewn.
+- Habit: He touches the coat's lining, where a page of bar rubbings is sewn.
 - Secret: The Apprentice told him in year 128 that nothing in the crater feeds or calls. He believes it, and keeps the vigil anyway.
 
-Kade put on Oren Vey's coat the night Oren walked into the light, and he has led the order since. He is practical and cold, and he talks like a man counting cars. He moved the order's sleeping camp to a hollow deep in the wastes because the fever was killing his men, and kept the night vigil because the vigil keeps them together.
+Kade put on Oren Vey's coat the night Oren walked into the light, and he has led the order since. He is practical and cold, and he talks in short flat orders, like a man backing a truck into a bay. He moved the order's sleeping camp to a hollow deep in the wastes because the fever was killing his men, and kept the night vigil because the vigil keeps them together.
 
 ## The Apprentice
 
 - Way: control.
 - High concept: Teo, once the head of the Lunar Society, cast out in year 121, who carries a blue eye and every implant he could find.
 - Trouble: Each implant lets him see more and makes him harder for anyone to trust.
-- Aspects: A blue eye from the cradle room; Cast out by Ines Abend and the Lunar Society; Sold the last number to the Preacher; Cast out Oren Vey, who founded the Sunward.
+- Aspects: A blue eye from the cradle room; Cast out by Ines Abend and the Lunar Society; Sold the last tone to the Preacher; Cast out Oren Vey, who founded the Sunward.
 - Skills: best perception, worst social.
 - Wants: A new start for humanity before the basin dies out.
 - Fears: The basin dies before the new start begins.
 - Habit: He speaks in sermons to anyone who stands still near him.
-- Secret: He read the last marks in the central hull's shadow and knows where the seed vault lies. He hides it from everyone. He told Mattias Kade alone that the glow is a burning engine.
+- Secret: He struck the last bars in the central hull's shadow and knows where the seed vault lies. He hides it from everyone. He told Mattias Kade alone that the glow is a burning engine.
 
 The Apprentice led the Lunar Society until it cast him out. He found implants in the ship's wreck and put a blue eye in his own head. Through it he sees marks on the wreck that nobody else can see. He has filled his body with every implant he could find, and he is over 150 years old.
 
 He believes the people of the basin are slowly dying out and that only a new start can save humanity. He has not told anyone what that new start would be.
 
-His most devoted student, Oren Vey, copied the count around year 58. Teo burned the pages and sent him away, and Oren went to the crater dreamers and founded the Sunward. In year 128 the Apprentice bargained with the Preacher: one night in the central hull's shadow, under the order's escort, for the count's last number. He walked away after it and has no part in what the order does.
+His most devoted student, Oren Vey, rubbed Teo's bars onto paper around year 58. Teo burned the pages and sent him away, and Oren went to the crater dreamers and founded the Sunward. In year 128 the Apprentice bargained with the Preacher: one night in the central hull's shadow, under the order's escort, for the last tone. He struck the last bar there once, and the Preacher learned its ring by ear. He walked away after it and has no part in what the order does.
 
 He speaks in sermons. One of them goes like this:
 
@@ -179,51 +179,51 @@ He speaks in sermons. One of them goes like this:
 
 - Way: fear.
 - High concept: The steward of the Granary for the Bowl Senate, born a tenant, who earned her vote in the patrols.
-- Trouble: Her fear of famine makes her pay raiders and count everything, and the tenants call her a turncoat.
-- Aspects: Born a tenant, now a citizen with a vote; Jory Baptiste says she pays twice from the same grain; The count on the Granary gate.
+- Trouble: Her fear of famine makes her pay raiders and hoard against every winter, and the tenants call her a turncoat.
+- Aspects: Born a tenant, now a citizen with a vote; Jory Baptiste says she pays twice from the same grain; The Kiln crates stacked by the open gate.
 - Skills: best perception, worst toughness.
 - Wants: The Granary full and no famine like year 70.
 - Fears: An empty Granary.
-- Habit: She counts every sack at night and posts the count on the gate in her own hand.
+- Habit: She walks the bins at dawn and checks the sky for dust before she sends a truck out.
 - Secret: None.
 
-Odile is the steward of the Granary for the Bowl Senate. She was born a tenant and earned her vote with ten years in the patrols, and some tenants still call her a turncoat. She counts every sack at night and posts the count on the Granary gate. Two counts hang there now: the rations sent to Kiln Camp for the passage of the Granary's trucks, and the tenants' share for the Bowl patrol. She fears a famine like the one in year 70, and she would pay raiders forever to avoid one.
+Odile is the steward of the Granary for the Bowl Senate. She was born a tenant and earned her vote with ten years in the patrols, and some tenants still call her a turncoat. She keeps the Granary gate open by day, so anyone can see the ration crates stacked by it for Kiln Camp, which lets the Granary's trucks pass. The tenants' share for the Bowl patrol goes out through the same gate. She fears a famine like the one in year 70, and she would pay raiders forever to avoid one.
 
-Her line is "Every crate that goes to Kiln is written on the gate."
+Her line is "Every crate that goes to Kiln waits by the gate, where the whole road can see it."
 
 ## Agnes Ondra
 
 - Way: fear.
-- High concept: The keeper of Dustwell's pump book of her late uncle Wendell.
-- Trouble: She writes the truth in her book, but she is afraid to refuse the steward's oil to his face.
-- Aspects: Wendell Ondra's pump book under her pillow; Takes Aurel Brede's barrel of oil; Sava Kettering sits on a drum at her gate.
+- High concept: The keeper of Dustwell's pump and tank wall, which her late uncle Wendell tended before her.
+- Trouble: She says the truth plainly, but she is afraid to refuse the steward's oil to his face.
+- Aspects: A cloth rubbing of the tank wall under her pillow; Takes Aurel Brede's barrel of oil; Sava Kettering sits on a drum at her gate.
 - Skills: best machining, worst social.
-- Wants: The sealed copy read in the Bowl and the oil sent back before the frost.
+- Wants: The sealed copy shown in the Bowl and the oil sent back before the frost.
 - Fears: Aurel Brede, and being named as the one who talked.
-- Habit: She reads every meter at dusk and writes it in the book.
-- Secret: She made a sealed copy of the book, and she took the steward's oil. She hides both from Aurel Brede and Sava Kettering.
+- Habit: She walks the tank wall at dusk and wipes the dust off the water rings.
+- Secret: She made a sealed copy of the wall rings, and she took the steward's oil. She hides both from Aurel Brede and Sava Kettering.
 
-Agnes keeps the pump at Dustwell and the pump book her uncle Wendell kept before he died on the Green Pit road. She sleeps with the book under her pillow. Every week the pump brings up less, and Bowl's trucks load fewer barrels. The Archon's household sends its own truck to the pump every week, and a Senate order made her take the meter off its hose, so its loads go in no book. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. Every driver who loads reads her the big dial, and she writes the number with the driver's name. She wants a driver who read the dial to carry the copy to Bowl and swear to the number, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by her gate.
+Agnes keeps the pump at Dustwell, as her uncle Wendell did before he died on the Green Pit road. The water leaves a dark mineral ring on the tank wall wherever it stands for a season, and the old rings climb the wall above her head. Every season the water stands lower, so the tank empties before the line of Bowl's trucks is filled, and the last trucks in the line leave with empty places in their rows. Every Dustwell hose has a glass window in it, so the keeper can see sand in the water. The Archon's household sends its own truck to the pump every week. A Senate order took the window off its hose, moved it to the back of the tanks, and forbids her to make it wait or to ask where its water goes. It fills first, with every barrel full, and drives off low on its springs. Over the winter of year 129 she pressed a cloth to the tank wall and drew the rings on it, as a sealed copy. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. She wants a driver who stood at the tank to carry the copy to Bowl and put a hand on it, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by her gate.
 
-Her line is "I did not come to take your water. I came to write down how much of it there is."
+Her line is "I did not come to take your water. I came to show you how low the water stands."
 
 ## Mirela Duarte
 
 - Way: oppose.
-- High concept: The keeper of the Canal book at the lowest lock house, the last proud Duarte of the canals.
+- High concept: The keeper of the lowest lock house, the last proud Duarte of the canals.
 - Trouble: She speaks first and thinks after, so her words cost her kin and her allies.
-- Aspects: Cousin Tomas serves in a Bowl coat at her lock; Counts every barrel Bowl's trucks pour into the canals; Agnes Ondra's copy sits beside her book.
+- Aspects: Cousin Tomas serves in a Bowl coat at her lock; Stands at the trough while Bowl's trucks pour; Agnes Ondra's copy hangs on the trough wall.
 - Skills: best perception, worst social.
 - Wants: The proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share.
 - Fears: The Canal families fade away unheard.
-- Habit: She counts every barrel Bowl's trucks pour in at the lock house and writes it in the open book.
+- Habit: She stands at the trough each morning with a hand on its rim and watches Bowl's trucks pour.
 - Secret: None.
 
-Mirela keeps the Canal book for the Canal families, the last proud Duarte of the canals. She speaks first and thinks after. The book lives in a lock house on the lowest canal in Bowl, far below the Archon's terraces. Her cousin Tomas serves in the Bowl patrol and stands guard at her own lock in a Bowl coat. Bowl's trucks bring barrels from Dustwell and pour them into the canals at her lock house, and she counts every barrel in the Canal book. She does not want the household truck metered as much as she wants the proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share they lost in year 90. Her lock crew takes household wages through the dry season of year 130, and she does not.
+Mirela keeps the lock house on the lowest canal in Bowl for the Canal families, far below the Archon's terraces. She is the last proud Duarte of the canals, and she speaks first and thinks after. Her cousin Tomas serves in the Bowl patrol and stands guard at her own lock in a Bowl coat. Bowl's trucks bring barrels from Dustwell and pour them into a long stone trough at her lock house, which feeds the canals. Each barrel's bung wears a thumb of grey Dustwell clay with the pump's mark, and her crew breaks them at the trough, so she knows no barrel was tapped on the road. The trough wall has a pale stain where the water stood when the trucks came full, and now the pour stops well below it. She does not want the household truck watched through a glass as much as she wants the proof shown on the Senate floor, so the Senate splits and the Canal families win back the lock share they lost in year 90. Her lock crew takes household wages through the dry season of year 130, and she does not.
 
 Tomas saw the household truck unload on the top terrace on patrol and wrote it in a report, which the steward filed unread. At the lock he told the tenant drivers about it. The steward then bought his silence with oil for his mother, and the same week Mirela made him say it again on her steps.
 
-Her line is "The water is ours, and we will count every barrel of it."
+Her line is "The water is ours, and it pours at my trough where I can see it."
 
 ## Aurel Brede
 
@@ -253,7 +253,7 @@ His line is "You came for water, and water is what you should carry out."
 - Habit: He lets his tea go cold while he listens.
 - Secret: He sells what he hears at the gate to the Canal families. He hides it from Aurel.
 
-Sava grew up on the bottom terrace, two doors from Jory, and now wears a grey household coat. Aurel Brede pays him by the week to sit on a drum at the Dustwell gate and report every truck and every word Agnes says. He lets his tea go cold while he listens. He wants to be sworn to the household, and he sells what he hears to both sides. He told the drivers at the well about Agnes's envelope.
+Sava grew up on the bottom terrace, two doors from Jory, and now wears a grey household coat. Aurel Brede pays him by the week to sit on a drum at the Dustwell gate and report every truck and every word Agnes says. He lets his tea go cold while he listens. He wants to be sworn to the household, and he sells what he hears to both sides. He told the drivers at Agnes's well about Agnes's envelope.
 
 His line is "Friend, what did Agnes give you for the drive?"
 
@@ -266,22 +266,22 @@ His line is "Friend, what did Agnes give you for the drive?"
 - Skills: best perception, worst driving.
 - Wants: To see the ship come while she lives.
 - Fears: Dying before it comes.
-- Habit: She names a pod by its number whenever she walks past it.
+- Habit: She names a pod by the person who woke in it whenever she walks past it.
 - Secret: She no longer thinks a ship will come. She hides it from the Children of Noah.
 
-Juno has lived in the field of old pods at the edge of the Glass Flats all her life. Her mother woke in a pod, and Juno knows every pod by its number. She is old.
+Juno has lived in the field of old pods at the edge of the Glass Flats all her life. Her mother woke in a pod, and Juno knows who woke in every pod. She is old.
 
-Her line is "Forty-one was my mother's. Mind the door, it still sticks."
+Her line is "That one was my mother's. Mind the door, it still sticks."
 
 ## Ilya Moreno
 
 - Way: control.
 - High concept: A corporal of the Old Army who still stands guard at Old Orchard in a Bowl patrol coat.
 - Trouble: He guards an army that is gone, so no one gives him a task and no one relieves him.
-- Aspects: The count painted on the blockhouse wall; A Bowl coat over an Old Army oath.
+- Aspects: Two empty bays in the motor pool he guards; A Bowl coat over an Old Army oath.
 - Skills: best driving, worst social.
 - Wants: The basin to need the army again.
-- Secret: He knows where the 2 trucks went that are missing from the count of 38. He tells the Bowl patrol nothing.
+- Secret: He knows where the two trucks from the empty bays went. He tells the Bowl patrol nothing.
 
 Ilya was a corporal of the Old Army. He stayed at Old Orchard in a Bowl patrol coat and watched the Nose haul the machine tools away. He guards an army that is gone, for the day the basin needs one again.
 
@@ -308,11 +308,11 @@ His line is "Show me the rod, friend. Then you choose your road, not the bend."
 - Way: control.
 - High concept: The head underwriter of Pierce Corporation at the Nose office.
 - Trouble: She makes a rule for each loss, and each rule pushes drivers into something worse.
-- Aspects: Lucan Pierce is her cousin and her suspect; Great-granddaughter of Augustin Pierce; A ledger that forgets no favor.
+- Aspects: Lucan Pierce is her cousin and her suspect; Great-granddaughter of Augustin Pierce; A memory that forgets no favor.
 - Skills: best social, worst toughness.
 - Wants: Proof of what Lucan did with the yard's guns.
 - Fears: The proof will end Pierce.
-- Habit: She writes the driver's road and day into the ledger before she says what she will pay.
+- Habit: She makes a driver tell her his road before she says what she will pay.
 - Secret: She suspects Lucan sent the hook crates to Scrapjaw. She keeps the doubt from him and from the Committee.
 
 Constance is the head underwriter of Pierce Corporation at the Nose office, a great-granddaughter of Augustin Pierce. She wrote the rule that Pierce insures only armed trucks. She suspects what her cousin Lucan did with the yard's guns, and she cannot prove it. She never forgives a debt and never forgets a favor.
@@ -400,7 +400,7 @@ Her line is "The glass points at the Fallen Sun. Read it before you drive out."
 ## Hadiza Okon
 
 - Way: embrace.
-- High concept: The woman who runs the pump and canteen at Green Pit.
+- High concept: The woman who runs the hook house canteen at Green Pit.
 - Trouble: She feeds anyone once, so the Bowl patrol will not drink at her table.
 - Aspects: Rifles hang on the hooks by her door; Pim Arslan's plate hangs at her door; The well that no one takes.
 - Skills: best social, worst driving.
@@ -409,7 +409,7 @@ Her line is "The glass points at the Fallen Sun. Read it before you drive out."
 - Habit: She points to the hook before she fills a cup.
 - Secret: None.
 
-Hadiza runs the pump and the canteen at Green Pit, a walled pump outpost that sells water from deep rock. Everyone hangs their rifle on the hooks by her door, and nobody draws a gun at her table. Drivers, couriers, Salvage Yard crews, Kiln riders and Nose soldiers all drink there. The Bowl patrol does not, because the raiders do. She feeds anyone once.
+Hadiza runs the hook house, the biggest canteen at Green Pit. Green Pit is a walled water town of a few hundred people that pumps water from deep rock and sells it by the truckload. Everyone hangs their rifle on the hooks by her door, and nobody draws a gun at her table. Drivers, couriers, Salvage Yard crews, Kiln riders and Nose soldiers all drink there. The Bowl patrol does not, because the raiders do. She feeds anyone once.
 
 Her line is "Hang it on the hook. Everyone drinks here, and nobody takes my well."
 
@@ -422,12 +422,12 @@ Her line is "Hang it on the hook. Everyone drinks here, and nobody takes my well
 - Skills: best machining, worst social.
 - Wants: The stills hot, the drums sold and spares for the pump.
 - Fears: A cold still and a stopped pump.
-- Habit: He taps each drum as it is filled and chalks the count on the still.
+- Habit: He lays a palm on each still as he walks past, to feel whether it runs too hot.
 - Secret: None.
 
 Hollis runs the crew at the Pump Station. The pumpjack lifts crude from an Old World oil well, his stills cook it into diesel, and the fuel convoys load the drums. The pump wears through tools, and its motor needs batteries from Nose. When it stops, drums run short all over the basin.
 
-His line is "No tools, no pump. No pump, no drums."
+His line is "No tools, no pumps. No pumps, no drums."
 
 ## Mara Kessel
 
@@ -480,18 +480,18 @@ His line is "I would give the grain back if it bought Jens his life."
 ## Ines Abend
 
 - Way: embrace.
-- High concept: A Lunar Society leader who reads the sky count aloud to anyone at the tower door.
-- Trouble: She gives the number to everyone, so the Sunward and the Apprentice can use it too.
-- Aspects: A copy of the count by the tower door; Spoke first at the vote that cast out Teo; Teo told her to keep reading after him.
+- High concept: A Lunar Society leader who rings the plate's bars against the sky's tone for anyone at the tower door.
+- Trouble: She shows the bars to everyone, so the Sunward and the Apprentice can use them too.
+- Aspects: A copy of the plate by the tower door; Spoke first at the vote that cast out Teo; Teo told her to keep ringing the bars after him.
 - Skills: best perception, worst driving.
-- Wants: Every person in the basin able to read the number.
-- Fears: The Sunward number is where the count really stops.
-- Habit: She offers to read the number before anyone asks.
+- Wants: Every person in the basin able to hear the match for themselves.
+- Fears: The Sunward tone is where the row of bars really ends.
+- Habit: She holds a bar to the radio before anyone asks.
 - Secret: None.
 
-Ines leads the Lunar Society with Imre since the society cast Teo out. She copied a page of Teo's count and spoke first at the vote. She read the count aloud to him at the crater rim, and he told her to keep reading it after him. A copy hangs by the tower door for anyone to read. The Sunward chant a number larger than this year's count, and she believes it is where the count stops.
+Ines leads the Lunar Society with Imre since the society cast Teo out. She rubbed a page of Teo's bars and spoke first at the vote. She rang the bars for him at the crater rim, and he told her to keep ringing them after him. A copy of the plate hangs by the tower door, cast in iron bars, with a radio beside it that carries the tone. She holds a bar to the radio so anyone can hear the ring match. The copy ends at the bar the tone sounds this year. The Sunward sing a tone higher than that, and she believes it is where the row of bars ends.
 
-Her line is "The count is read in the open. Whoever wants the last number, come to the tower door."
+Her line is "Whoever wants to hear the tone may come to the tower door. I will hold a bar to the radio, and you will hear them ring alike."
 
 ## Sefa Krol
 
@@ -594,7 +594,7 @@ Karl and his brother Jens were Old Army deserters who robbed insured trucks on t
 - Way: fear.
 - High concept: The tenant who sells water to outsider drivers at the Bowl gate yard.
 - Trouble: She waters the drivers the gate keeps out, so neither the town nor the road fully trusts her.
-- Aspects: The only water an outsider may buy in Bowl; Sizes up every driver by how they arrive.
+- Aspects: The first water an outsider can buy in Bowl; Sizes up every driver by how they arrive.
 - Skills: best perception, worst machining.
 - Wants: No driver leaves Bowl thirsty.
 - Fears: An empty cistern, or a driver dying of thirst within sight of her stand.
@@ -624,29 +624,29 @@ Her line is "Paid is paid. For whoever paid it."
 ## Amos Teague
 
 - Way: control.
-- High concept: A tow man who once collected for the Pierce yard and closes every line in his ledger.
-- Trouble: He closes every line on paper, but one truck's line has no owner to close it against.
-- Aspects: A ledger and a winch; A key with the yard's brass tag; The crews of Sully Okafor took the yard he collected for.
+- High concept: A tow man who once collected for the Pierce yard and settles every debt he takes on.
+- Trouble: He settles every debt, but one truck's debt has no owner to settle it against.
+- Aspects: A belt of seized keys and a winch; A key with the yard's brass tag; The crews of Sully Okafor took the yard he collected for.
 - Skills: best perception, worst toughness.
-- Wants: To close every open line in his ledger.
+- Wants: To settle every debt he took on for the yard.
 - Fears: Being written off like the debts he fails to collect.
 - Habit: He hangs the key of every truck he seizes on his belt.
 - Secret: None.
 
-Amos collected for the Pierce yard on the south road. He took the key of every truck he seized and hung it on his belt, and he closed every line in his ledger. Since the crews took the yard he tows for whoever pays. In year 130 he found a stranger knocked out in an old pickup, and its key carried the yard's brass tag. The owner is unknown. He towed the truck to Bowl, then drove off before anyone could ask, and left his chain behind.
+Amos collected for the Pierce yard on the south road. He took the key of every truck he seized and hung it on his belt, and he settled every debt he took on. Since the crews took the yard he tows for whoever pays. In year 130 he found a stranger knocked out in an old pickup, and its key carried the yard's brass tag. The owner is unknown. He towed the truck to Bowl, then drove off before anyone could ask, and left his chain behind.
 
-His line is "A line stays open till somebody closes it. I close them."
+His line is "A debt stays open till somebody settles it. I settle them."
 
 ## Joss Ardo
 
 - Way: escape.
 - High concept: A deserter from the Sunward's sworn men, who sings with the Children of Noah.
-- Trouble: He got out and his friend did not, and he cannot stop counting what that cost.
+- Trouble: He got out and his friend did not, and he cannot stop weighing what that cost.
 - Aspects: Nephew of the dreamer Pell Ardo; Told the Senate what he saw; Cobb went in because of me.
 - Skills: best perception, worst toughness.
 - Wants: The sworn men who still have doubts out of the order.
 - Fears: Being taken back to the light.
-- Habit: He counts the lamps on the horizon every night.
+- Habit: He watches the lamps on the horizon every night until they go out.
 - Secret: He drove one of the cars on a night a stranger was walked into the light, and he has told nobody.
 
 Joss Ardo deserted the Sunward in year 119 with the singers' help and told the Senate what he saw, which stopped the Bowl's grain to the order. His friend Cobb Navarre tried to follow him in year 128 and was caught. Locals name Joss as the one who got out.
@@ -686,18 +686,18 @@ His line is "I'll write what you say happened. Then I'll ask him."
 ## Petra Quell
 
 - Way: embrace.
-- High concept: Keeper of the Guild relay mast inside the Roadhouse fence.
+- High concept: Keeper of the Guild relay mast inside the Roadhouse walls.
 - Trouble: She sells every message she hears to whoever pays.
-- Aspects: Logs every truck that crosses the plain; Old friend of Tamsin Roe; A bell on the compound gate.
+- Aspects: Hears every truck that crosses the plain on her radio; Old friend of Tamsin Roe; A bell on the compound gate.
 - Skills: best machining, worst toughness.
 - Wants: The mast to pay its own way, without the Guild's cut.
 - Fears: The Guild selling the mast and her with it.
-- Habit: She writes down every truck she sees on the plain, with the hour.
-- Secret: She bought the Lincoln on credit while Wim was still counting the debts.
+- Habit: She climbs the mast at dawn and looks over the plain for dust before she opens the gate.
+- Secret: She bought the Lincoln on credit while Wim was still settling the debts.
 
-Petra kept the north plain's only roof, a Guild mast in a fenced Old World yard, long before anyone heard a case there. She mended the fence, hung a bell on the gate and charged drivers to park inside. Her crossing times and her radio put the Marshalls' cars where they need to be, and the Roadhouse takes its cut in her yard.
+Petra kept the north plain's only roof, a Guild mast in a fenced Old World yard, long before anyone heard a case there. She mended the fence, hung a bell on the gate and charged drivers to park inside. Her eyes on the plain and her radio put the Marshalls' cars where they need to be, and the Roadhouse takes its cut in her yard.
 
-Her line is "I'll hear a man out before I write what he owes."
+Her line is "I'll hear a man out before I say what he owes."
 
 ## Jonah Feld
 
@@ -720,11 +720,11 @@ His line is "He had his say at the mast. Now he has to pay."
 - Way: oppose.
 - High concept: A former Kiln toll rider who drives a fast, thin-skinned car for the Roadhouse.
 - Trouble: She left Kiln, and Kiln does not forget who leaves.
-- Aspects: Counts the guns on a truck out loud before she talks; Rook Halloran pulled her out of a burning cab; Stopped Karl Vosk at a bend.
+- Aspects: Walks round a truck before she talks; Rook Halloran pulled her out of a burning cab; Stopped Karl Vosk at a bend.
 - Skills: best driving, worst machining.
 - Wants: To be paid without having to shoot.
 - Fears: Kiln turning to killing.
-- Habit: She counts the guns on a truck out loud before she says a word.
+- Habit: She walks once round a truck and looks over its guns before she says a word.
 - Secret: None.
 
 Sabra took tolls on the south road for Kiln. When Ladle Ruiz took the south road she drove away. She blocked Karl Vosk's road at the pump shed and cut him off at a bend north of the mast. She rides for unanswered Kiln claims on her own fee, since no Roadhouse car does.
@@ -740,7 +740,7 @@ Sabra took tolls on the south road for Kiln. When Ladle Ruiz took the south road
 - Wants: A road his grandchildren can drive.
 - Fears: Another Grain War.
 - Habit: He checks every truck's papers, even a friend's.
-- Secret: He knew Moreno counted the staff cars out and said nothing at the hearing.
+- Secret: He knew Moreno let the staff cars out and said nothing at the hearing.
 
 Garrett held the Orchard gate in year 113 and rode guard for the first paid season on the Pump Station road. He took Karl Vosk alive and matched the goods in Karl's shed to their owners from the road book. He stood alone before his own captain's six trucks at the mast. His finding of paint on both bumpers cleared a Granary driver of a ramming.
 
