@@ -144,7 +144,7 @@ describe('repairContent', () => {
     addState(w, 'tow', npc.id, me.id, { kind: 'tow', site: 'bowl', fee: 100, waived: 0, hitched: true });
     addState(w, 'escort', me.id, npc.id, { kind: 'escort', site: null, fee: 0 });
     addState(w, 'patch', npc.id, me.id, { kind: 'patch', deal: 'free', parts: 0, partIds: [], price: 0, work: 1, workLeft: 1 } as never);
-    w.player.call = { with: npc.id, topic: null, node: 'hub', vars: {}, line: { line: 'talk', vars: {} } };
+    w.player.call = { with: npc.id, topic: null, node: 'hub', vars: {}, line: { line: 'talk', vars: {} }, group: null, asked: [] };
 
     repairContent(w);
     expect(w.vehicles.some((v) => v.id === npc.id)).toBe(false);
@@ -339,7 +339,7 @@ describe('repairContent', () => {
     for (const [, over] of drift) {
       const w = fresh();
       const npc = npcs(w)[0];
-      w.player.call = { with: npc.id, topic: null, node: 'hub', vars: {}, line: { line: 'talk', vars: {} }, ...over };
+      w.player.call = { with: npc.id, topic: null, node: 'hub', vars: {}, line: { line: 'talk', vars: {} }, group: null, asked: [], ...over };
       if (over.topic) expect(() => currentOptions(w)).toThrow();
       if (over.topic) expect(() => currentLine(w)).toThrow();
 
@@ -360,7 +360,7 @@ describe('repairContent', () => {
     ];
     for (const v of vars) {
       const w = fresh();
-      w.player.call = { with: npcs(w)[0].id, topic: null, node: 'hub', vars: {}, line: { line: 'talk', vars: v } };
+      w.player.call = { with: npcs(w)[0].id, topic: null, node: 'hub', vars: {}, line: { line: 'talk', vars: v }, group: null, asked: [] };
       repairContent(w);
       expect(w.player.call).toBeNull();
     }
@@ -375,7 +375,7 @@ describe('repairContent', () => {
       { do: 'leave', at: { kind: 'deck', id: DECKS[0].id }, octant: 'north', lean: null, span: 'near' },
       { do: 'search', clue: { kind: 'site', id: site }, rough: false },
     ] }, square: { kind: 'square', column: 7, row: 0 } };
-    w.player.call = { with: npc.id, topic: null, node: 'hub', vars: {}, line: { line: 'talk', vars: way } };
+    w.player.call = { with: npc.id, topic: null, node: 'hub', vars: {}, line: { line: 'talk', vars: way }, group: null, asked: [] };
     repairContent(w);
     expect(w.player.call).not.toBeNull();
   });
@@ -387,7 +387,7 @@ describe('repairContent', () => {
       const w = fresh();
       const npc = npcs(w)[0];
       w.player.talked = { [npc.id]: { tips: 'done' } };
-      w.player.call = { with: npc.id, topic: 'tale', node: 'offer', vars, line: { line: 'gotAStoryFrom', vars } };
+      w.player.call = { with: npc.id, topic: 'tale', node: 'offer', vars, line: { line: 'gotAStoryFrom', vars }, group: null, asked: [] };
       const events = [...w.events];
       repairContent(w);
       expect(w.player.call !== null).toBe(kept);

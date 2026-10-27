@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { playerVehicle } from '../sim/damage';
 import { mountedItems } from '../sim/grid';
 import { chooseQuestOption, QUEST_QUERIES, QUESTS, questView, restoreQuest, setWorldVar, startQuest } from '../sim/quests';
+import { flatChoices, pickText } from '../test/quest-testkit';
 import { emptyWorld } from '../sim/testkit';
 import type { World } from '../sim/types';
 
@@ -12,17 +13,14 @@ const at = (): World => {
 };
 const offered = (w: World) => questView(w, QUESTS).choices;
 
-function ask(w: World, text: string): World {
-  const index = offered(w).indexOf(text);
-  if (index < 0) throw new Error(`No choice ${text} in ${offered(w).join(', ')}`);
-  return chooseQuestOption(w, QUESTS, index);
-}
+const ask = (w: World, text: string): World => pickText(w, text);
 
 describe('Hattie after the first fall', () => {
   it('opens on the questions with a line before them', () => {
     const w = at();
     expect(questView(w, QUESTS).lines.length).toBeGreaterThan(0);
-    expect(offered(w)).toEqual(['Where am I?', 'What happened to me?', 'What do I do now?', 'What is out there?', 'Any advice?', "I'll go."]);
+    expect(offered(w)).toEqual(['About me and Bowl…', 'What is out there?', "I'll go."]);
+    expect(flatChoices(w)).toEqual(expect.arrayContaining(['Where am I?', 'What happened to me?', 'What do I do now?', 'Any advice?']));
   });
 
   it('answers each question once and takes it off the list', () => {
@@ -30,7 +28,7 @@ describe('Hattie after the first fall', () => {
     for (const question of ['Where am I?', 'What do I do now?', 'Any advice?']) {
       w = ask(w, question);
       expect(questView(w, QUESTS).lines.length).toBeGreaterThan(0);
-      expect(offered(w)).not.toContain(question);
+      expect(flatChoices(w)).not.toContain(question);
     }
     expect(w.player.quests.session).not.toBeNull();
   });
@@ -46,7 +44,7 @@ describe('Hattie after the first fall', () => {
     const w = ask(at(), 'Where am I?');
     const loaded = structuredClone(w);
     restoreQuest(loaded, QUESTS);
-    expect(offered(loaded)).toEqual(offered(w));
+    expect(flatChoices(loaded)).toEqual(flatChoices(w));
     expect(loaded.player.money).toBe(w.player.money);
     expect(loaded.player.xp).toEqual(w.player.xp);
   });
@@ -104,9 +102,9 @@ describe('Hattie and the engine', () => {
       setWorldVar(w, 'towed_to_bowl', true);
       return startQuest(w, QUESTS, 'bowl_hattie', 'start.hub');
     };
-    expect(offered(hub(false))).not.toContain('Who stripped my truck?');
+    expect(flatChoices(hub(false))).not.toContain('Who stripped my truck?');
     const w = hub(true);
-    expect(offered(w)).toContain('Who stripped my truck?');
+    expect(flatChoices(w)).toContain('Who stripped my truck?');
     const loaded = structuredClone(w);
     restoreQuest(loaded, QUESTS);
     expect(offered(loaded)).toEqual(offered(w));

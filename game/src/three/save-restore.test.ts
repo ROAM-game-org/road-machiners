@@ -26,7 +26,7 @@ describe('a saved tale call', () => {
     const w = structuredClone(reusedWorld('standard', () => newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'))));
     const npc = w.vehicles.find((v) => v.brain)!;
     const vars = { story: { kind: 'line', line: 'storyHaulerGoats' }, tip: { kind: 'tip', tip: { shop: 'nose', good: 'meds', dear: true } } } as const;
-    w.player.call = { with: npc.id, topic: 'tale', node: 'story', vars: { ...vars }, line: { line: 'taleStory', vars: { ...vars } } };
+    w.player.call = { with: npc.id, topic: 'tale', node: 'story', vars: { ...vars }, line: { line: 'taleStory', vars: { ...vars } }, group: null, asked: [] };
     const { money, xp } = w.player;
     const events = [...w.events];
     const slots = new SaveSlots(memoryBackend(), new Map());
