@@ -6,7 +6,7 @@ import { FALLEN_SUN_DECKS } from '../data/territory';
 import { deckById } from './bridge';
 import { boxSegmentDistance, propBoxes } from './mapgen';
 import { offRoadTaste, tasteKey, tasteOf, terrainNav, tileIndex } from './nav/layer';
-import { continueRoute, keepRoute, reachesFrom, route, routeLength, straightClear, type Blocker } from './path';
+import { continueRoute, followRoute, keepRoute, reachesFrom, route, routeLength, straightClear, type Blocker } from './path';
 import { tileAt } from './terrain';
 import type { NpcActivity, Vehicle, World } from './types';
 import type { TraitId } from '../data/npcs';
@@ -271,6 +271,19 @@ describe('kept routes', () => {
     const kept = keepRoute(w, dest, window, [], undefined, true);
     expect(continueRoute(w, { x: 30, y: 30 }, kept, dest, 0.6, [])!.at(-1)).toEqual(window[0]);
     expect(continueRoute(w, { x: window[0].x - REGION.navigation.lookahead / 2, y: 30 }, kept, dest, 0.6, [])).toBeNull();
+  });
+
+  it('keeps the end of a window when a new blocker forces a fresh route within it', () => {
+    const w = emptyWorld();
+    const driver = w.vehicles[0];
+    const dest = { x: 30 + REGION.navigation.farWindow * 3, y: 30 };
+    const first = followRoute(w, driver, dest, 0.6, [], null);
+    expect(first.partial).toBe(true);
+    driver.pos = { x: 40, y: 30 };
+    const rock: Blocker = { pos: { x: 60, y: 30 }, r: 1.5 };
+    const again = followRoute(w, driver, dest, 0.6, [rock], first);
+    expect(again.points.at(-1)).toEqual(first.points.at(-1));
+    expect(again.points.every((p, i) => segmentDist(rock.pos, i === 0 ? driver.pos : again.points[i - 1], p) > rock.r)).toBe(true);
   });
 
   it('ends on a destination that moved, and drops the route for a vehicle parked on a later leg', () => {
