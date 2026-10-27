@@ -288,7 +288,7 @@ Read a joke word for word. If what it says is something the speaker can't mean, 
 
 Bad, Jory: "My grandfather died one season short, which was bad timing, but he always kept his own schedule." Word for word, the grandfather chose when to die.
 
-Good, Jory: "My grandfather died one season short, and the Senate counted that missing season more carefully than all the years he'd served."
+Good, Jory: "My grandfather served nine years and three seasons, then died. The Senate counted the one season he was missing more carefully than all the years he'd served."
 
 Say a grim fact flat and let the player react. The flatness is what lands.
 

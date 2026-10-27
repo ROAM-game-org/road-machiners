@@ -19,7 +19,7 @@ Jory Baptiste. I speak for the tenants, which is to say I talk and the <term=sen
   ~ jory_nose = true
   -> hub
 + {jory_green} [How does a tenant get a vote?]
-  He serves in the Bowl road patrol for a decade. Then the Senate lets him drop a pebble in a jar. My grandfather died one season short, and the Senate counted that missing season more carefully than all the years he'd served.
+  A tenant who serves ten years in the Bowl road patrol goes on the Senate's roll and gets a vote. My grandfather served nine years and three seasons, then died. The Senate counted the one season he was missing more carefully than all the years he'd served.
   ~ jory_patrol = true
   -> hub
 + {jory_patrol} [Do tenants take up the patrol?]
