@@ -1,5 +1,8 @@
 
+import RAPIER from "@dimforge/rapier3d-compat";
 import { PHYSICS } from "../data/physics";
+import { playerVehicle } from "../sim/damage";
+import { LIVE_REACH } from "../sim/fidelity";
 import { rideOf, unitBody, unitsOf } from "../sim/body";
 import { unitPoses, type UnitPose } from "../sim/rig";
 import { heightAt, type Terrain } from "../sim/terrain";
@@ -247,4 +250,38 @@ function mountPoint(p: UnitPose, m: { x: number; z: number }): Vec {
 export function rideHeightAt(w: World, v: Pick<Vehicle, 'chassisId'>, pose: UnitPose): number {
   const b = unitBody(v.chassisId, pose.unit);
   return heightAt(w.terrain, pose.pos.x, pose.pos.y) * S + rideOf(b);
+}
+
+export type GroundPatch = { handle: number; x0: number; z0: number };
+
+export const LIVE_RANGE = LIVE_REACH + PHYSICS.propLiveMargin;
+
+const PATCH_HALF = Math.ceil(LIVE_RANGE + PHYSICS.groundPatchSlack);
+const PATCH_SHIFT = PHYSICS.groundPatchSlack / 2;
+
+function patchOrigin(n: number, center: Vec): { x0: number; z0: number } {
+  const side = Math.min(n, 2 * PATCH_HALF);
+  const at = (c: number) => Math.min(Math.max(0, Math.round(c) - PATCH_HALF), n - side);
+  return { x0: at(center.x), z0: at(center.y) };
+}
+
+export function addGround(world: RAPIER.World, t: Terrain, center: Vec): GroundPatch {
+  const n = t.size;
+  const m = Math.min(n, 2 * PATCH_HALF);
+  const { x0, z0 } = patchOrigin(n, center);
+  const heights = new Float32Array((m + 1) * (m + 1));
+  for (let i = 0; i <= m; i++) {
+    for (let j = 0; j <= m; j++) heights[i * (m + 1) + j] = t.heights[(z0 + j) * (n + 1) + x0 + i];
+  }
+  const size = m * S;
+  const field = RAPIER.ColliderDesc.heightfield(m, m, heights, { x: size, y: S, z: size }).setTranslation((x0 + m / 2) * S, 0, (z0 + m / 2) * S);
+  return { handle: world.createCollider(field).handle, x0, z0 };
+}
+
+export function movedGround(world: RAPIER.World, patch: GroundPatch, w: World): GroundPatch {
+  const center = playerVehicle(w).pos;
+  const want = patchOrigin(w.terrain.size, center);
+  if (Math.abs(want.x0 - patch.x0) <= PATCH_SHIFT && Math.abs(want.z0 - patch.z0) <= PATCH_SHIFT) return patch;
+  world.removeCollider(world.getCollider(patch.handle), true);
+  return addGround(world, w.terrain, center);
 }

@@ -1,7 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { playerVehicle } from "../sim/damage";
 import { ridesFar } from "../sim/far";
-import { getResources } from "../sim/resources";
 import { addState } from "../sim/states";
 import { addVehicle, emptyWorld } from "../sim/testkit";
 import type { World } from "../sim/types";
@@ -64,34 +63,19 @@ describe("riding far", () => {
 });
 
 describe("a fast-travel turn", () => {
-  it("moves the player by far rules with no body and no tail, and the next physics turn drives on from there", () => {
-    let world = travelling();
-    let drive = freshDrive(world);
-    const far = playTurn(world, drive, true);
-    expect(far.prepared.tail).toBeNull();
-    expect(far.prepared.result.next.bodies).toEqual({});
-    expect(dist(playerVehicle(far.world).pos, START)).toBeGreaterThan(0);
-    world = far.world;
-    drive = far.prepared.result.next;
-    const slow = playTurn(world, drive, false);
-    expect(Object.keys(slow.prepared.result.next.bodies)).toContain(playerVehicle(world).id);
-    expect(dist(playerVehicle(slow.world).pos, DEST)).toBeLessThan(dist(playerVehicle(world).pos, DEST));
+  it("drives the player and a truck just past far sight with physics and a tail", () => {
+    const world = travelling();
+    strangerAt(world, farSightRadius(world, playerVehicle(world)) + 5);
+    const stranger = world.vehicles.at(-1)!;
+    stranger.order = { kind: "through", dest: { x: stranger.pos.x + 30, y: stranger.pos.y } };
+    expect(ridesFar(world)).toBe(true);
+    const turn = playTurn(world, freshDrive(world), true);
+    expect(Object.keys(turn.prepared.result.next.bodies).sort()).toEqual([playerVehicle(world).id, stranger.id].sort());
+    expect(turn.prepared.tail).not.toBeNull();
+    expect(dist(playerVehicle(turn.world).pos, DEST)).toBeLessThan(dist(START, DEST));
   });
 
-  it("skips the physics world on a far turn that starts with no body, hands back the same snapshot, and physics drives on after it", () => {
-    const first = playTurn(travelling(), freshDrive(travelling()), true);
-    const drive = first.prepared.result.next;
-    expect(drive.bodies).toEqual({});
-    const second = playTurn(first.world, drive, true);
-    expect(second.prepared.result.next).toBe(drive);
-    expect(second.prepared.tail).toBeNull();
-    expect(dist(playerVehicle(second.world).pos, playerVehicle(first.world).pos)).toBeGreaterThan(1);
-    const third = playTurn(second.world, second.prepared.result.next, false);
-    expect(Object.keys(third.prepared.result.next.bodies)).toContain(playerVehicle(second.world).id);
-    expect(dist(playerVehicle(third.world).pos, DEST)).toBeLessThan(dist(playerVehicle(second.world).pos, DEST));
-  });
-
-  it("shows sight once, at the end of a far turn with no body, as the tiles the player sees there and has explored", () => {
+  it("shows sight once, at the end of a fast-travel turn with no other truck in far sight, as the tiles the player sees there and has explored", () => {
     const first = playTurn(travelling(), freshDrive(travelling()), true);
     const second = playTurn(first.world, first.prepared.result.next, true);
     const frames = second.prepared.result.frames[playerVehicle(second.world).id];
@@ -105,25 +89,5 @@ describe("a fast-travel turn", () => {
     const turn = playTurn(world, freshDrive(world), false);
     expect(turn.prepared.tail).not.toBeNull();
     expect(Object.keys(turn.prepared.result.next.bodies)).toContain(playerVehicle(world).id);
-  });
-
-  it("burns the same fuel per tile and covers a similar distance per turn as physics travel on the same road", () => {
-    const run = (fast: boolean) => {
-      let world = travelling();
-      let drive = freshDrive(world);
-      const fuel = getResources(world, playerVehicle(world)).fuel;
-      for (let turn = 0; turn < 12; turn++) {
-        const next = playTurn(world, drive, fast);
-        world = next.world;
-        drive = next.prepared.result.next;
-      }
-      const me = playerVehicle(world);
-      return { moved: dist(me.pos, START), burned: fuel - getResources(world, me).fuel };
-    };
-    const physics = run(false);
-    const far = run(true);
-    expect(far.burned / far.moved).toBeCloseTo(physics.burned / physics.moved, 2);
-    expect(far.moved / physics.moved).toBeGreaterThan(0.9);
-    expect(far.moved / physics.moved).toBeLessThan(1.1);
   });
 });

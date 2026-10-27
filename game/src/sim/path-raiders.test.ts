@@ -135,12 +135,12 @@ describe('raiders that keep off roads', () => {
     v.brain!.goals.pop();
     expect(route(w, a, b, 0.6, [], v)).toEqual(plain);
     expect(off).not.toEqual(plain);
-    const kept = keepRoute(w, b, plain, [], v);
+    const kept = keepRoute(w, b, plain, [], v, false);
     expect(kept.offRoad).toBe(false);
     expect(continueRoute(w, a, kept, b, 0.6, [], v)).not.toBeNull();
     v.resources!.fuel = 0;
     expect(continueRoute(w, a, kept, b, 0.6, [], v)).toBeNull();
-    const keptOff = keepRoute(w, b, off, [], v);
+    const keptOff = keepRoute(w, b, off, [], v, false);
     expect(keptOff.offRoad).toBe(true);
     expect(continueRoute(w, a, keptOff, b, 0.6, [], v)).not.toBeNull();
   });

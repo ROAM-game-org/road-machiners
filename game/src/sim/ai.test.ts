@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PERF } from '../data/perf';
 import { RULES } from '../data/rules';
-import { TERRAIN } from '../data/terrain';
 import { planNpcOrders, routeBlockers, trafficStops, yieldsToTraffic } from './ai';
 import { topGoal } from './npc-activities';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
@@ -9,7 +8,7 @@ import { startEscort } from './tow';
 import { addState } from './states';
 import type { Vehicle, World } from './types';
 import { dist } from './vec';
-import { setThinning, thinksThisTurn } from './fidelity';
+import { LIVE_REACH, setThinning, thinksThisTurn } from './fidelity';
 
 function lowerIdFirst(first: Vehicle, second: Vehicle): void {
   if (first.id < second.id) return;
@@ -246,7 +245,7 @@ describe('NPC traffic', () => {
       return trafficStops(w, npc, DEST);
     };
     expect(oncoming({ x: 100, y: 110 })).toBe(true);
-    expect(oncoming({ x: 100, y: 100 + TERRAIN.vision.radius + PERF.liveMargin + 10 })).toBe(false);
+    expect(oncoming({ x: 100, y: 100 + LIVE_REACH + 10 })).toBe(false);
   });
 
   it('the player routes around the swept path of an oncoming trader', () => {
@@ -335,7 +334,7 @@ describe('oncoming NPCs', () => {
 
   it('a far pair does not use the rule', () => {
     const { w, first } = headOn();
-    w.vehicles[0].pos = { x: 100, y: 100 + TERRAIN.vision.radius + PERF.liveMargin + 10 };
+    w.vehicles[0].pos = { x: 100, y: 100 + LIVE_REACH + 10 };
     expect(trafficStops(w, first, DEST)).toBe(false);
   });
 

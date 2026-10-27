@@ -1,14 +1,12 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { heatAt } from './sun';
-import { PERF } from '../data/perf';
 import { RULES } from '../data/rules';
 import { SKILL_EFFECTS } from '../data/skills';
-import { TERRAIN } from '../data/terrain';
 import { buildDrive, bodyState, freeDrive, initPhysics, syncDrive, TURN_STEPS, type Drive, type TurnResult } from '../phys/drive';
 import { PHYSICS } from '../data/physics';
 import { physicsMove } from '../phys/turn';
 import { advanceFar, fuelLimit, fuelLimited, isNear, lowFuelSpeed, plainFuelSpeed, settleWoken } from './far';
-import { inFarTurn } from './fidelity';
+import { LIVE_REACH, setHeadless } from './fidelity';
 import { perfSnapshot, resetPerf } from '../perf';
 import { getResources } from './resources';
 import { addState } from './states';
@@ -26,7 +24,7 @@ beforeAll(async () => {
   await initPhysics();
 });
 
-const LIVE = TERRAIN.vision.radius + PERF.liveMargin;
+const LIVE = LIVE_REACH;
 
 function play(w: World, n: number): { w: World; d: Drive; last: TurnResult } {
   let d = buildDrive(w);
@@ -572,13 +570,18 @@ describe('far trips longer than the route window', () => {
     expect(npc.trail.every((p) => Math.abs(p.y - hop.y) < 1e-9)).toBe(true);
   });
 
-  it('drives the player window by window on fine routes in fast travel', () => {
+  it('drives a headless player window by window on fine routes', () => {
     const { w, to } = longTrip();
     const me = w.vehicles[0];
     me.pos = { ...w.vehicles[1].pos };
     me.order = { kind: 'stopAt', dest: { ...to } };
     resetPerf();
-    inFarTurn(() => drive(w, me.id, 30));
+    setHeadless(true);
+    try {
+      drive(w, me.id, 30);
+    } finally {
+      setHeadless(false);
+    }
     expect(perfSnapshot()['route-ahead'].calls).toBeGreaterThan(0);
     expect(perfSnapshot()['coarse-trip']).toBeUndefined();
   });

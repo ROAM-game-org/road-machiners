@@ -15,28 +15,10 @@ export function isHeadless(): boolean {
   return headless;
 }
 
-let farTurn = false;
-
-export function inFarTurn<T>(play: () => T): T {
-  if (farTurn) throw new Error('A far turn began inside another far turn');
-  farTurn = true;
-  try {
-    return play();
-  } finally {
-    farTurn = false;
-  }
-}
-
-export function isFarTurn(): boolean {
-  return farTurn;
-}
-
-export function keepsPlayerFarRoute(): boolean {
-  return headless || farTurn;
-}
+export const LIVE_REACH = TERRAIN.vision.radius * TERRAIN.vision.farFactor + PERF.liveMargin;
 
 export function inLiveRange(w: World, p: Vec): boolean {
-  return !headless && dist(p, playerVehicle(w).pos) <= TERRAIN.vision.radius + PERF.liveMargin;
+  return !headless && dist(p, playerVehicle(w).pos) <= LIVE_REACH;
 }
 
 export function isCheapMeeting(w: World, a: Vec, b: Vec): boolean {

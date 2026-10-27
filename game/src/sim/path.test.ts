@@ -242,7 +242,7 @@ describe('kept routes', () => {
   it('continues from a later position, dropping the corners driven past', () => {
     const { w, from, to, points } = bent();
     expect(points.length).toBeGreaterThan(2);
-    const kept = keepRoute(w, to, points, []);
+    const kept = keepRoute(w, to, points, [], undefined, false);
     const again = continueRoute(w, from, kept, to, 0.6, [])!;
     expect(again[0]).toEqual(points[0]);
     for (const p of again) expect(points).toContainEqual(p);
@@ -257,21 +257,30 @@ describe('kept routes', () => {
     const w = emptyWorld();
     const points = Array.from({ length: 40 }, (_, i) => ({ x: 32 + i * 4, y: i % 2 === 0 ? 30 : 32 }));
     const from = { x: 30, y: 30 };
-    const again = continueRoute(w, from, keepRoute(w, points.at(-1)!, points, []), points.at(-1)!, 0.6, [])!;
+    const again = continueRoute(w, from, keepRoute(w, points.at(-1)!, points, [], undefined, false), points.at(-1)!, 0.6, [])!;
     const far = points.filter((p) => routeLength(from, points.slice(0, points.indexOf(p) + 1)) > REGION.navigation.lookahead + 8);
     expect(far.length).toBeGreaterThan(10);
     expect(again.slice(-far.length)).toEqual(far);
     expect(again.length).toBeLessThan(points.length);
   });
 
+  it('follows a window of a longer trip to its own end, and plans the next window within the lookahead of that end', () => {
+    const w = emptyWorld();
+    const window = [{ x: 30 + REGION.navigation.lookahead * 2, y: 30 }];
+    const dest = { x: 30 + REGION.navigation.lookahead * 5, y: 30 };
+    const kept = keepRoute(w, dest, window, [], undefined, true);
+    expect(continueRoute(w, { x: 30, y: 30 }, kept, dest, 0.6, [])!.at(-1)).toEqual(window[0]);
+    expect(continueRoute(w, { x: window[0].x - REGION.navigation.lookahead / 2, y: 30 }, kept, dest, 0.6, [])).toBeNull();
+  });
+
   it('ends on a destination that moved, and drops the route for a vehicle parked on a later leg', () => {
     const { w, from, to, points } = bent();
-    const kept = keepRoute(w, to, points, []);
+    const kept = keepRoute(w, to, points, [], undefined, false);
     const near = { x: to.x, y: to.y + 0.3 };
     expect(continueRoute(w, from, kept, near, 0.6, [])!.at(-1)).toEqual(near);
     const onLeg = { x: (points[1].x + points[2].x) / 2, y: (points[1].y + points[2].y) / 2 };
     expect(continueRoute(w, from, kept, to, 0.6, [{ pos: onLeg, r: 0.8 }])).toBeNull();
-    expect(continueRoute(w, from, keepRoute(w, to, points, [{ pos: onLeg, r: 0.8 }]), to, 0.6, [{ pos: onLeg, r: 0.8 }])).not.toBeNull();
+    expect(continueRoute(w, from, keepRoute(w, to, points, [{ pos: onLeg, r: 0.8 }], undefined, false), to, 0.6, [{ pos: onLeg, r: 0.8 }])).not.toBeNull();
   });
 });
 

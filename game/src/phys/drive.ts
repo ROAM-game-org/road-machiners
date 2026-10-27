@@ -5,7 +5,6 @@ import { freeOnThrow, restoreWorld } from './snapshot';
 import { backsOutFurther, blockedInFront, bodyLength, boxedIn, captureCrash, captureGroundCrash, captureImpactMotion, GROUND, type Crash, type ImpactMotion } from './contacts';
 
 export { GROUND, type Crash };
-import { PERF } from '../data/perf';
 import { PHYSICS } from '../data/physics';
 import { BREAKABLE, CRATER, RULES } from '../data/rules';
 import { fuelLimited, isNear } from '../sim/far';
@@ -13,7 +12,7 @@ import { blockingBoxes, isBreakable } from '../sim/mapgen';
 import { propsAroundInOrder } from '../sim/prop-index';
 import { playerVehicle } from '../sim/damage';
 import { groundSpeed, unpavedTopShare, vehicleStats, type VehicleStats } from '../sim/stats';
-import { continueRoute, keepRoute, route, type KeptRoute } from '../sim/path';
+import { followRoute, type KeptRoute, type SizedRoute } from '../sim/path';
 import { backsToDestination, driveMode, throughSpeed } from '../sim/steering';
 import { givesWayTo, routeBlockers, standingBlockers, yieldsToTraffic } from '../sim/ai';
 import { clearanceFor, type Clearance, type Mover } from '../sim/clearance';
@@ -22,7 +21,7 @@ import { ropeClientOf } from '../sim/tow';
 import { atlasOf } from '../sim/atlas';
 import { propBase, railOffset, type Deck } from '../sim/bridge';
 import { deckSegments, groundAt, tileAt, type DeckSegment, type Terrain } from '../sim/terrain';
-import { TERRAIN, TERRAIN_TYPES } from '../data/terrain';
+import { TERRAIN_TYPES } from '../data/terrain';
 import { craterReach, craterRimPoints } from '../sim/craters';
 import type { Crater, MoveOrder, Obstacle, Pose, Vehicle, World } from '../sim/types';
 import { angleDiff, bearing, clamp, DEG, dist, type Vec } from '../sim/vec';
@@ -30,7 +29,7 @@ import { unitBody, type Body } from '../sim/body';
 import { bendField, followPose, reachMeters, unitPoses } from '../sim/rig';
 import { wheelMounts } from './body';
 import { backUpClear, forwardTurnClear, turnaroundSpeed, turnRadius, type Stance } from './turnaround';
-import { headingOf, headingQuat, noseRise, rideHeightAt, rotateBy, toPhys, toPhysCircle, TURN_STEPS, upOf, type Circle, type Quat, type TurnFrames, type V3, type VehicleFrame } from './frames';
+import { addGround, LIVE_RANGE, movedGround, type GroundPatch, headingOf, headingQuat, noseRise, rideHeightAt, rotateBy, toPhys, toPhysCircle, TURN_STEPS, upOf, type Circle, type Quat, type TurnFrames, type V3, type VehicleFrame } from './frames';
 import { addVehicle, carrySpins, frameOf, againstBend, backCap, checkRigHandles, liveBend, makeCar, makeTrailer, placeBodies, rearIndex, rollUnits, removeVehicle, setMasses, sideStiffness, unitBodies, wheelLoads, type UnitLoad } from './units';
 
 export { frameWheels, restFrame, restFrames, restWheels, trailFrames, TURN_STEPS, type UnitWheels } from './frames';
@@ -51,7 +50,7 @@ export const RAIL = 'rail';
 export const toMps = (tilesPerTurn: number) => (tilesPerTurn * S) / PHYSICS.turnSeconds;
 export const toTilesPerTurn = (mps: number) => (mps * PHYSICS.turnSeconds) / S;
 
-type Memory = { steer: number; reverse: boolean; route: (KeptRoute & { radius: number }) | null; ahead: Vec | null; stall: number; backFrom: Vec | null; swing: number; airborne: boolean; clearAhead: number; clearMoving: number; clearBehind: number; clearAt: number; roomAt: number; roomBack: boolean | null; roomTurn: { side: 1 | -1; clear: boolean } | null; anchor: V3 | null; rearAnchor: V3 | null; spins: number[]; rearSpins: number[] };
+type Memory = { steer: number; reverse: boolean; route: SizedRoute | null; ahead: Vec | null; stall: number; backFrom: Vec | null; swing: number; airborne: boolean; clearAhead: number; clearMoving: number; clearBehind: number; clearAt: number; roomAt: number; roomBack: boolean | null; roomTurn: { side: 1 | -1; clear: boolean } | null; anchor: V3 | null; rearAnchor: V3 | null; spins: number[]; rearSpins: number[] };
 
 export type Drive = {
   world: RAPIER.World;
@@ -62,7 +61,7 @@ export type Drive = {
   obstacles: Record<string, number[]>;
   craters: Record<string, number[]>;
   memory: Record<string, Memory>;
-  terrain: number;
+  terrain: GroundPatch;
   decks: DeckColliders[];
 };
 
@@ -116,6 +115,7 @@ export function syncDrive(d: Drive, w: World): void {
     removeVehicle(d, id);
     delete d.memory[id];
   }
+  d.terrain = movedGround(d.world, d.terrain, w);
   for (const v of near) syncVehicle(d, w, v);
   syncObstacles(d, w);
   syncCraters(d, w);
@@ -147,7 +147,6 @@ function syncObstacles(d: Drive, w: World): void {
   }
 }
 
-const LIVE_RANGE = TERRAIN.vision.radius + PERF.liveMargin + PHYSICS.propLiveMargin;
 const inLiveRange = (w: World, pos: Vec, reach: number) => dist(pos, playerVehicle(w).pos) <= LIVE_RANGE + reach;
 
 function dropColliders(d: Drive, record: Record<string, number[]>, keep: Set<string>): void {
@@ -584,7 +583,7 @@ function motionKey(id: string, unit: number): string {
 }
 
 function isGround(d: Drive, handle: number): boolean {
-  return handle === d.terrain || d.decks.some((c) => c.plates.includes(handle)) || Object.values(d.craters).some((handles) => handles.includes(handle));
+  return handle === d.terrain.handle || d.decks.some((c) => c.plates.includes(handle)) || Object.values(d.craters).some((handles) => handles.includes(handle));
 }
 
 function crashTarget(other: number, owner: Map<number, string>, obstacleOf: Map<number, string>, d: Drive): string {
@@ -611,20 +610,19 @@ function planTurn(w: World, v: Vehicle, full: VehicleStats, body: RAPIER.RigidBo
   if (order.kind === 'brake') return { ...base, dest: null, route: null, target: 0, stopAt: false };
   if (yieldsToTraffic(w, v)) return { ...base, dest: null, route: null, target: 0, stopAt: false };
   const blockers = routeBlockers(w, v);
-  const stored = mem.route && dist(mem.route.dest, order.dest) < RULES.arriveRadius && mem.route.radius === s.radius ? continueRoute(w, v.pos, mem.route, order.dest, s.radius, blockers, v) : null;
-  const path = v.direct ? null : stored ?? [...route(w, v.pos, order.dest, s.radius, blockers, v)];
-  mem.route = path ? { ...keepRoute(w, order.dest, path, blockers, v), radius: s.radius } : null;
+  mem.route = v.direct ? null : followRoute(w, v, order.dest, s.radius, blockers, mem.route);
+  const path = mem.route?.points ?? null;
   const room = clearanceFor(w, v, standingBlockers(w, v));
   const clearance = v.direct ? null : room;
   Object.assign(mem, { clearAhead: Infinity, clearMoving: Infinity, clearBehind: Infinity, clearAt: 0, roomAt: 0, roomBack: null, roomTurn: null });
   const drive = (next: number) => toMps(engine ? next : speed);
-  if (order.kind === 'stopAt') return { ...base, clearance, room, dest: stopPoint(path, order.dest), route: path, target: drive(Math.min(s.maxSpeed, speed + s.accel)), stopAt: true };
+  if (order.kind === 'stopAt') return { ...base, clearance, room, dest: stopPoint(mem.route, order.dest), route: path, target: drive(Math.min(s.maxSpeed, speed + s.accel)), stopAt: true };
   const next = throughSpeed(s, speed, dist(v.pos, order.dest), order.pace, driveMode(v));
   return { ...base, clearance, room, dest: order.dest, route: path, target: drive(next), stopAt: false };
 }
 
-function stopPoint(path: Vec[] | null, dest: Vec): Vec {
-  return path ? path[path.length - 1] : dest;
+function stopPoint(kept: KeptRoute | null, dest: Vec): Vec {
+  return kept && !kept.partial ? kept.points[kept.points.length - 1] : dest;
 }
 
 function planOf(w: World, v: Vehicle, full: VehicleStats, body: RAPIER.RigidBody, mem: Memory): Plan {
@@ -1110,19 +1108,12 @@ export function bodyState(d: Drive, id: string): BodyState {
   return { pos: { x: t.x / S, y: t.z / S }, heading: headingOf(r), bend, speed: forwardSpeed(body), upright };
 }
 
-function addTerrain(world: RAPIER.World, w: World): number {
-  const n = w.terrain.size;
-  const heights = new Float32Array((n + 1) * (n + 1));
-  for (let i = 0; i <= n; i++) {
-    for (let j = 0; j <= n; j++) heights[i * (n + 1) + j] = w.terrain.heights[j * (n + 1) + i];
-  }
-  const size = n * S;
-  const field = RAPIER.ColliderDesc.heightfield(n, n, heights, { x: size, y: S, z: size }).setTranslation(size / 2, 0, size / 2);
-  const terrain = world.createCollider(field).handle;
+function addTerrain(world: RAPIER.World, w: World): GroundPatch {
+  const size = w.terrain.size * S;
   for (const [x, z, hx, hz] of [[-WALL, size / 2, WALL, size], [size + WALL, size / 2, WALL, size], [size / 2, -WALL, size, WALL], [size / 2, size + WALL, size, WALL]]) {
     world.createCollider(RAPIER.ColliderDesc.cuboid(hx, PHYSICS.wallHeight, hz).setTranslation(x, 0, z));
   }
-  return terrain;
+  return addGround(world, w.terrain, playerVehicle(w).pos);
 }
 
 function addDecks(world: RAPIER.World, w: World): DeckColliders[] {

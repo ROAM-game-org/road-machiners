@@ -9,7 +9,7 @@ import { QUEST_LANGUAGES, type QuestLanguage } from '../data/quests';
 import { perfSnapshot, resetPerf, timed, type PerfStat } from '../perf';
 import { playerVehicle } from '../sim/damage';
 import { advanceFar, ridesFar, settleWoken } from '../sim/far';
-import { inFarTurn, setThinning } from '../sim/fidelity';
+import { setThinning } from '../sim/fidelity';
 import { applyContactCrash, applyGroundCrash, applyLanding } from '../sim/crash-contact';
 import { tearLine } from '../sim/harpoon';
 import { breakProp } from '../sim/salvage';
@@ -40,7 +40,6 @@ export type PreparedTurn = {
 };
 
 export const LIVE_SIGHT_STEP = 0.35;
-const FAST_SIGHT_STEP = 2;
 
 export function liveSightOf(world: World, frames: readonly VehicleFrame[] | undefined, step = LIVE_SIGHT_STEP): LiveSight {
   const sight: LiveSight = { steps: [], tiles: [] };
@@ -144,23 +143,17 @@ function computeTurnIn(task: TurnTask, terrain: World['terrain']): PreparedTurn 
   requireQuestLanguage(task.questLanguage);
   freezeTerrain(terrain);
   const before = { ...task.world, terrain };
-  const far = task.fastTravel && ridesFar(before);
-  if (far && Object.keys(task.drive.bodies).length === 0) return farOnlyTurn(task, before);
-  return physicsTurn(task, before, far);
-}
-
-function physicsTurn(task: TurnTask, before: World, far: boolean): PreparedTurn {
+  const lone = task.fastTravel && ridesFar(before);
   const drive = restoreDrive(task.drive);
   let result: TurnResult | null = null;
   try {
-    const play = () => endTurn(before, physicsMove(drive, (next) => { result = next; }));
-    const world = far ? inFarTurn(play) : play();
+    const world = endTurn(before, physicsMove(drive, (next) => { result = next; }));
     if (!result) throw new Error('Turn ran without physics');
     const { terrain: _terrain, ...state } = world;
     const { next, ...motion } = result as TurnResult;
-    const sight = timed('live-sight', () => liveSightOf(world, motion.frames[world.player.vehicleId], far ? FAST_SIGHT_STEP : LIVE_SIGHT_STEP));
+    const sight = timed('live-sight', () => (lone ? endSight(world, motion.frames) : liveSightOf(world, motion.frames[world.player.vehicleId])));
     const captured = captureDrive(next);
-    const tail = far ? null : timed('tail', () => tailOf(next, world, task.tailSteps));
+    const tail = timed('tail', () => tailOf(next, world, task.tailSteps));
     return { world: state, result: { ...motion, next: captured }, sight, tail };
   } finally {
     freeDrive(drive);
@@ -168,18 +161,8 @@ function physicsTurn(task: TurnTask, before: World, far: boolean): PreparedTurn 
   }
 }
 
-function farOnlyTurn(task: TurnTask, before: World): PreparedTurn {
-  const frames: TurnFrames = {};
-  const world = inFarTurn(() => endTurn(before, (w) => {
-    for (const v of w.vehicles) {
-      if (isOnRope(w, v.id)) continue;
-      advanceFar(w, v);
-      frames[v.id] = trailFrames(w, v, restWheels(v.chassisId));
-    }
-  }));
-  const { terrain: _terrain, ...state } = world;
-  const sight = { steps: [frames[world.player.vehicleId].length - 1], tiles: [world.player.visible] };
-  return { world: state, result: { next: task.drive, frames, crashes: [], breaks: [], landings: [], tears: [], results: {} }, sight, tail: null };
+function endSight(world: World, frames: TurnFrames): LiveSight {
+  return { steps: [frames[world.player.vehicleId].length - 1], tiles: [world.player.visible] };
 }
 
 function tailOf(d: Drive, w: World, steps: number): Tail | null {

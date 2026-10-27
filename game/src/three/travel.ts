@@ -22,11 +22,8 @@ import { currentQuestLanguage } from "../sim/quests";
 import type { GameEvent, Vehicle, World } from "../sim/types";
 import { dist, type Vec } from "../sim/vec";
 import { isOnRope, isTowed } from "../sim/tow";
-import { playerSees } from "../sim/vision";
-import { TIME } from "../data/time";
 import { autoRuns, playerCanAct, threatToPlayer, waitsOnPlayer } from "../sim/world";
 import { WorkerLoad, workerFailure } from "./worker-load";
-import { HostileSighting } from "./hostile-sighting";
 
 export type LiveVision = {
   visible: Set<number>;
@@ -209,14 +206,6 @@ function startWheels(v: Vehicle, shown: Record<string, VehicleFrame>): UnitWheel
   return frame && Boolean(frame.rear) === (restWheels(v.chassisId).rear !== null) ? frameWheels(frame) : restWheels(v.chassisId);
 }
 
-function farContactsOf(world: World): string[] {
-  return world.player.contacts.filter((c) => c.sources.includes("far")).map((c) => c.vehicleId);
-}
-
-export function trucksInSightOf(world: World): string[] {
-  return world.vehicles.filter((v) => v.id !== world.player.vehicleId && playerSees(world, v.pos)).map((v) => v.id);
-}
-
 export function canTravel(world: World): boolean {
   const me = playerVehicle(world);
   if (!playerCanAct(world) || me.direct) return false;
@@ -236,7 +225,6 @@ export class Travel {
   private readonly turns: TurnPreparation;
   private creep: Creep | null = null;
   private open: OpenStop | null = null;
-  private readonly farSighting = new HostileSighting(Math.round((TIME.turnsPerDay / 24) * CONFIG.farSightingMemoryHours));
 
   constructor(private readonly holdMs: number, tailSteps: number) {
     this.turns = new TurnPreparation(tailSteps);
@@ -322,8 +310,7 @@ export class Travel {
   }
 
   private travelsOn(world: World, sighted: boolean): boolean {
-    const spotted = this.farSighting.observe(world.turn, farContactsOf(world), trucksInSightOf(world)).sighted && this.fastTravel();
-    return canTravel(world) && !sighted && !spotted;
+    return canTravel(world) && !sighted;
   }
 
   shouldAdvance(now: number): boolean {
@@ -462,8 +449,8 @@ export class Travel {
 
   getSpeed(now: number, fastSpeed: number): number {
     const picked = CONFIG.travelSpeeds[this.speedIndex];
-    if (this.isFast(now)) return Math.min(Math.max(fastSpeed, picked), this.turns.keptSpeed());
-    return this.automatic ? Math.min(picked, this.turns.keptSpeed()) : 1;
+    if (this.isFast(now)) return Math.max(fastSpeed, picked);
+    return this.automatic ? picked : 1;
   }
 
   getSpeedIndex(): number {
@@ -522,14 +509,12 @@ export class TurnPreparation {
   private serial = 0;
   private warmId = 0;
   private warmed: (() => void) | null = null;
-  private prepMs: number | null = null;
   private pending: {
     id: number;
     before: World;
     lang: QuestLanguage;
     drive: DriveSnapshot;
     fastTravel: boolean;
-    postedAt: number;
     ready: PreparedTurn | null;
     failure: string | null;
   } | null = null;
@@ -548,7 +533,6 @@ export class TurnPreparation {
       mergePerf(response.id === this.warmId ? { "turn-warm": response.perf.turn } : response.perf);
       if (this.pending?.id !== response.id) return;
       this.pending.ready = joinTurn(response.turn, response.obstacles, this.pending.before);
-      this.notePrep(performance.now() - this.pending.postedAt);
     };
     worker.onerror = (event) => {
       event.preventDefault();
@@ -596,15 +580,7 @@ export class TurnPreparation {
 
   prepare(world: World, saved: DriveSnapshot, fastTravel: boolean): void {
     if (this.isFresh(world) && this.pending?.fastTravel === fastTravel) return;
-    this.pending = { id: this.post(world, saved, fastTravel), before: world, lang: currentQuestLanguage(), drive: saved, fastTravel, postedAt: performance.now(), ready: null, failure: null };
-  }
-
-  private notePrep(ms: number): void {
-    this.prepMs = this.prepMs === null ? ms : this.prepMs + (ms - this.prepMs) * CONFIG.turnPrepSmoothing;
-  }
-
-  keptSpeed(): number {
-    return this.prepMs === null ? Infinity : Math.max(1, MOVE_MS / this.prepMs);
+    this.pending = { id: this.post(world, saved, fastTravel), before: world, lang: currentQuestLanguage(), drive: saved, fastTravel, ready: null, failure: null };
   }
 
   private post(world: World, saved: DriveSnapshot, fastTravel: boolean): number {

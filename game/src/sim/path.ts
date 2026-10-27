@@ -1,5 +1,6 @@
 
 import { REGION } from '../data/region';
+import { RULES } from '../data/rules';
 import { crossesRail } from './bridge';
 import { count, timed } from '../perf';
 import { canStepOut, coarseCells, coarseWaypoint, connected, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
@@ -172,10 +173,10 @@ export function clearLines(world: World, radius: number, extra: Blocker[]): (a: 
   return (a, b) => lineCost(nav, statics, blockers, a, b, radius + CLEARANCE, Infinity, nav.tileCost, null) < Infinity;
 }
 
-export type KeptRoute = { dest: Vec; points: Vec[]; blockers: string[]; offRoad: boolean; night: boolean };
+export type KeptRoute = { dest: Vec; points: Vec[]; blockers: string[]; offRoad: boolean; night: boolean; partial: boolean };
 
-export function keepRoute(world: World, dest: Vec, points: Vec[], extra: Blocker[], driver?: Vehicle): KeptRoute {
-  return { dest: { ...dest }, points, blockers: dynamicBlockers(world.obstacles, world.terrain, extra).map((o) => blockerKey([o])), offRoad: plansOffRoad(world, driver), night: plansNight(world, driver) };
+export function keepRoute(world: World, dest: Vec, points: Vec[], extra: Blocker[], driver: Vehicle | undefined, partial: boolean): KeptRoute {
+  return { dest: { ...dest }, points, blockers: dynamicBlockers(world.obstacles, world.terrain, extra).map((o) => blockerKey([o])), offRoad: plansOffRoad(world, driver), night: plansNight(world, driver), partial };
 }
 
 function plansOffRoad(world: World, driver: Vehicle | undefined): boolean {
@@ -186,16 +187,39 @@ function plansNight(world: World, driver: Vehicle | undefined): boolean {
   return driver !== undefined && avoidsCrater(world, driver);
 }
 
+export type SizedRoute = KeptRoute & { radius: number };
+
+export function followRoute(world: World, driver: Vehicle, dest: Vec, radius: number, extra: Blocker[], kept: SizedRoute | null): SizedRoute {
+  const same = sameRoute(kept, dest, radius);
+  const stored = same ? continueRoute(world, driver.pos, same, dest, radius, extra, driver) : null;
+  if (same && stored) return { ...keepRoute(world, dest, stored, extra, driver, same.partial), radius };
+  const { points, partial } = routeAhead(world, driver.pos, dest, radius, extra, driver, REGION.navigation.farWindow);
+  return { ...keepRoute(world, dest, points, extra, driver, partial), radius };
+}
+
+function sameRoute(kept: SizedRoute | null, dest: Vec, radius: number): SizedRoute | null {
+  return kept && dist(kept.dest, dest) < RULES.arriveRadius && kept.radius === radius ? kept : null;
+}
+
 export function continueRoute(world: World, from: Vec, kept: KeptRoute, to: Vec, radius: number, extra: Blocker[], driver?: Vehicle): Vec[] | null {
   return timed('route-continue', () => continueKept(world, from, kept, to, radius, extra, driver));
 }
 
 function continueKept(world: World, from: Vec, kept: KeptRoute, to: Vec, radius: number, extra: Blocker[], driver: Vehicle | undefined): Vec[] | null {
   if (kept.offRoad !== plansOffRoad(world, driver) || kept.night !== plansNight(world, driver)) return null;
+  if (windowEnds(from, kept)) return null;
   const c = legCheck(world, kept, radius, extra);
-  const { rest, moved } = remainingPoints(from, kept, to);
+  const { rest, moved } = remainingPoints(from, kept, followedEnd(kept, to));
   if (lastBrokenLeg(c, from, rest, moved) >= 0) return null;
   return straightenAhead(c.nav, c.statics, c.dynamic, from, rest, c.reach, routeTaste(world, c.nav, driver));
+}
+
+function windowEnds(from: Vec, kept: KeptRoute): boolean {
+  return kept.partial && dist(from, kept.points[kept.points.length - 1]) < REGION.navigation.lookahead;
+}
+
+function followedEnd(kept: KeptRoute, to: Vec): Vec {
+  return kept.partial ? kept.points[kept.points.length - 1] : to;
 }
 
 type LegCheck = { nav: TerrainNav; statics: StaticSet; dynamic: Blocker[]; fresh: Blocker[]; radius: number; reach: number };

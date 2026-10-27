@@ -1,9 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { CHASSIS } from '../data/chassis';
 import { PARTS } from '../data/parts';
-import { PERF } from '../data/perf';
+import { LIVE_REACH } from '../sim/fidelity';
 import { BREAKABLE, RULES } from '../data/rules';
-import { TERRAIN } from '../data/terrain';
 import { PHYSICS } from '../data/physics';
 import { BROKEN_WING, BROKEN_WING_POINT } from '../data/region';
 import { FALLEN_SUN_DECKS } from '../data/territory';
@@ -177,7 +176,7 @@ describe('prop colliders follow the model shape', () => {
   });
 
   it('a prop gets colliders only while a truck with a body could reach it this turn', () => {
-    const far = 30 + TERRAIN.vision.radius + PERF.liveMargin + PHYSICS.propLiveMargin + 10;
+    const far = 30 + LIVE_REACH + PHYSICS.propLiveMargin + 10;
     const w = emptyWorld();
     w.obstacles = [{ id: 'rock1', pos: { x: far, y: 30 }, r: 0.8, kind: 'rock' }];
     const d = buildDrive(w);

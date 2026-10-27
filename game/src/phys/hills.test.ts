@@ -4,10 +4,11 @@ import { beforeAll, expect, it } from 'vitest';
 import { randRange } from '../sim/rng';
 import { deckAt, deckById } from '../sim/bridge';
 import { REGION, scalePoint } from '../data/region';
-import { heightAt } from '../sim/terrain';
+import { heightAt, type Terrain } from '../sim/terrain';
+import { playerVehicle } from '../sim/damage';
 import { dist, type Vec } from '../sim/vec';
 import { endTurn, newWorld, setMoveOrder } from '../sim/world';
-import { buildDrive, freeDrive, initPhysics, type Drive, type TurnResult } from './drive';
+import { buildDrive, freeDrive, initPhysics, syncDrive, type Drive, type TurnResult } from './drive';
 import { toMap } from './frames';
 import { physicsMove } from './turn';
 import { TEST_MAP } from '../test/map';
@@ -76,19 +77,19 @@ it('the Bowl crater exit leans the truck without rolling it onto its side', () =
   expect(result.maxTilt).toBeLessThan(45);
 }, budget(60_000));
 
-it('the terrain collider is a heightfield whose surface matches the corner grid', () => {
+const GROUND_SAMPLE = 100;
+
+function expectGroundUnder(drive: Drive, t: Terrain, around: Vec): number {
   const S = PHYSICS.metersPerTile;
-  const w = newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
-  const t = w.terrain;
-  const drive = buildDrive(w);
-  const ground = drive.world.getCollider(drive.terrain);
+  const ground = drive.world.getCollider(drive.terrain.handle);
   expect(ground.shapeType()).toBe(RAPIER.ShapeType.HeightField);
   const corner = (i: number, j: number) => t.heights[j * (t.size + 1) + i] * S;
   const rng = { rngState: 7 };
+  const near = (c: number) => randRange(rng, Math.max(0, c - GROUND_SAMPLE), Math.min(t.size, c + GROUND_SAMPLE));
   let flat = 0;
   for (let k = 0; k < 200; k++) {
-    const x = randRange(rng, 0, t.size);
-    const y = randRange(rng, 0, t.size);
+    const x = near(around.x);
+    const y = near(around.y);
     const top = 1000;
     const toi = ground.castRay(new RAPIER.Ray({ x: x * S, y: top, z: y * S }, { x: 0, y: -1, z: 0 }), 2 * top, true);
     expect(toi).toBeGreaterThanOrEqual(0);
@@ -107,7 +108,18 @@ it('the terrain collider is a heightfield whose surface matches the corner grid'
       expect(Math.abs(hit - heightAt(t, x, y) * S)).toBeLessThan(0.05);
     }
   }
-  expect(flat).toBeGreaterThan(0);
+  return flat;
+}
+
+it('the terrain collider is a heightfield around the player whose surface matches the corner grid, and it follows the player', () => {
+  const w = newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
+  const drive = buildDrive(w);
+  const me = playerVehicle(w);
+  const flatAtStart = expectGroundUnder(drive, w.terrain, me.pos);
+  me.pos = { ...REGION.towns[0].pos };
+  syncDrive(drive, w);
+  const flatInMiddle = expectGroundUnder(drive, w.terrain, me.pos);
+  expect(flatAtStart + flatInMiddle).toBeGreaterThan(0);
   freeDrive(drive);
 });
 

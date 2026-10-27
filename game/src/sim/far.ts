@@ -1,7 +1,7 @@
 
 import { chassisDef } from '../data/chassis';
 import { RULES } from '../data/rules';
-import { inLiveRange, isFarTurn, keepsPlayerFarRoute } from './fidelity';
+import { inLiveRange, isHeadless } from './fidelity';
 import { boxSegmentDistance, propBoxes, propReach, touchesObstacle } from './mapgen';
 import { spotNear } from './free-spot';
 import { keepsOffRoads } from './off-road';
@@ -33,8 +33,7 @@ export function ridesFar(w: World): boolean {
 }
 
 export function isNear(w: World, v: Vehicle): boolean {
-  if (isFarTurn() || isOnRope(w, v.id)) return false;
-  return inLiveRange(w, v.pos);
+  return !isOnRope(w, v.id) && inLiveRange(w, v.pos);
 }
 
 export function fuelLimit(w: World, v: Vehicle, burnsFuel: boolean): 'low' | 'empty' | null {
@@ -229,13 +228,13 @@ function keptOffRoad(stored: FarRoute): boolean {
 
 function keptFarRoute(v: Vehicle): FarRoute | undefined {
   if (v.brain) return v.brain.farRoute;
-  const kept = keepsPlayerFarRoute() ? playerRoutes.get(v.id) : undefined;
+  const kept = isHeadless() ? playerRoutes.get(v.id) : undefined;
   return kept && kept.at.x === v.pos.x && kept.at.y === v.pos.y ? kept.route : undefined;
 }
 
 function keepFarRoute(v: Vehicle, route: FarRoute | undefined): void {
   if (v.brain) v.brain.farRoute = route;
-  else if (!keepsPlayerFarRoute()) return;
+  else if (!isHeadless()) return;
   else if (route) playerRoutes.set(v.id, { route, at: { x: v.pos.x, y: v.pos.y } });
   else playerRoutes.delete(v.id);
 }
