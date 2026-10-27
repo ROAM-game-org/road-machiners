@@ -77,7 +77,7 @@
   "town_salvage_yard": {
     "file": "town_salvage_yard.webp",
     "focusX": 55,
-    "focusY": 0
+    "focusY": 25
   },
   "town_granary": {
     "file": "town_granary.webp",
@@ -87,7 +87,7 @@
   "town_pump_station": {
     "file": "town_pump_station.webp",
     "focusX": 50,
-    "focusY": 0
+    "focusY": 30
   },
   "town_dustwell": {
     "file": "town_dustwell.webp",
