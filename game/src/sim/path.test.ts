@@ -5,7 +5,8 @@ import { TERRAIN_TYPES } from '../data/terrain';
 import { FALLEN_SUN_DECKS } from '../data/territory';
 import { deckById } from './bridge';
 import { boxSegmentDistance, propBoxes } from './mapgen';
-import { offRoadTaste, tasteKey, tasteOf, terrainNav, tileIndex } from './nav/layer';
+import { berthsOf, chooseOn } from './tracks';
+import { berthTaste, offRoadTaste, tasteKey, tasteOf, terrainNav, tileIndex } from './nav/layer';
 import { continueRoute, keepRoute, reachesFrom, route, routeLength, straightClear, type Blocker } from './path';
 import { tileAt } from './terrain';
 import type { NpcActivity, Vehicle, World } from './types';
@@ -227,6 +228,56 @@ describe('driver taste', () => {
 
   it('plans the plain route for the player', () => {
     expect(route(w, from, to, 0.8, [], me)).toEqual(route(w, from, to, 0.8, []));
+  });
+});
+
+describe('berth around a truck the driver ran from', () => {
+  const open = () => {
+    const w = emptyWorld({ x: 10, y: 10 });
+    const driver = addVehicle(w, 'v200', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 60 });
+    driver.brain = npcBrain('buggy', driver.pos, ['trader']);
+    return { w, driver };
+  };
+  const a = { x: 30, y: 60 };
+  const b = { x: 130, y: 60 };
+
+  it('bends the route around the last sensed point', () => {
+    const { w, driver } = open();
+    const plain = route(w, a, b, 0.8, [], driver);
+    chooseOn(w, driver, 'v300', { x: 80, y: 60 }, 'flee', true);
+    const around = route(w, a, b, 0.8, [], driver);
+    const r = berthsOf(w, driver)[0].r;
+    expect(plain).toEqual([b]);
+    expect(around.length).toBeGreaterThan(1);
+    for (const p of [a, ...around]) expect(dist(p, { x: 80, y: 60 })).toBeGreaterThan(r - 1.5);
+    expect(around[around.length - 1]).toEqual(b);
+  });
+
+  it('still reaches a stop inside the berth', () => {
+    const { w, driver } = open();
+    chooseOn(w, driver, 'v300', { x: 80, y: 60 }, 'flee', true);
+    const inside = { x: 82, y: 60 };
+    const points = route(w, a, inside, 0.8, [], driver);
+    expect(points[points.length - 1]).toEqual(inside);
+  });
+
+  it('ignores the truck the top goal targets', () => {
+    const { w, driver } = open();
+    driver.brain!.goals = [{ kind: 'fight', targetId: 'v300', destination: null, phase: 'travel', reason: 'fight' }];
+    chooseOn(w, driver, 'v300', { x: 80, y: 60 }, 'flee', true);
+    expect(route(w, a, b, 0.8, [], driver)).toEqual([b]);
+  });
+
+  it('keys the search by the berth and leaves a driver without one alone', () => {
+    const { w, driver } = open();
+    const base = tasteOf(w, driver)!;
+    const plainKey = tasteKey(base);
+    expect(tasteKey(berthTaste(base, []))).toBe(plainKey);
+    expect(berthTaste(base, [])).toBe(base);
+    const one = tasteKey(berthTaste(base, [{ x: 80, y: 60, r: 20 }]));
+    const other = tasteKey(berthTaste(base, [{ x: 90, y: 60, r: 20 }]));
+    expect(one).not.toBe(plainKey);
+    expect(one).not.toBe(other);
   });
 });
 

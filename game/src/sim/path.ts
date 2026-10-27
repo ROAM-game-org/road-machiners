@@ -4,11 +4,12 @@ import { crossesRail } from './bridge';
 import { count, timed } from '../perf';
 import { canStepOut, connected, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
 import type { Blocker } from './nav/buckets';
-import { CELL, CLEARANCE, blockerKey, climbTaste, componentOf, dynamicBlockers, navLayer, nearCliff, nightTaste, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
+import { CELL, CLEARANCE, berthTaste, blockerKey, climbTaste, componentOf, dynamicBlockers, navLayer, nearCliff, nightTaste, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type Berth, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
 import { keepsOffRoads } from './off-road';
 import { climbGrade } from './stats';
 import type { Vehicle, World } from './types';
 import { avoidsCrater, CRATER_NIGHT } from './sunward';
+import { berthsOf } from './tracks';
 import { dist, segmentDist, type Vec } from './vec';
 
 export type { Blocker };
@@ -24,7 +25,7 @@ export function route(world: World, from: Vec, dest: Vec, radius: number, extra:
     const statics = staticSet(world.obstacles, world.terrain);
     const dynamic = dynamicBlockers(world.obstacles, world.terrain, extra);
     const reach = radius + CLEARANCE;
-    if (!taste?.shy && lineCost(nav, statics, dynamic, from, to, reach, 1, nav.tileCost, null) < Infinity) return [to];
+    if (!taste?.shy && !crossesBerth(taste?.berths, from, to) && lineCost(nav, statics, dynamic, from, to, reach, 1, nav.tileCost, null) < Infinity) return [to];
     const layer = navLayer(world.terrain, world.obstacles, radius);
     const start = cellOf(layer, from);
     const target = cellOf(layer, to);
@@ -45,7 +46,12 @@ function routeTaste(world: World, nav: TerrainNav, driver: Vehicle | undefined):
 
 function styledTaste(world: World, nav: TerrainNav, driver: Vehicle, taste: Taste): Taste {
   const keeping = keepsOffRoads(world, driver) ? offRoadTaste(taste, nav) : taste;
-  return avoidsCrater(world, driver) ? nightTaste(keeping, nav, CRATER_NIGHT) : keeping;
+  const styled = avoidsCrater(world, driver) ? nightTaste(keeping, nav, CRATER_NIGHT) : keeping;
+  return berthTaste(styled, berthsOf(world, driver));
+}
+
+function crossesBerth(berths: Berth[] | null | undefined, from: Vec, to: Vec): boolean {
+  return berths?.some((b) => segmentDist(b, from, to) <= b.r) ?? false;
 }
 
 function climbLimit(world: World, driver: Vehicle): number {
