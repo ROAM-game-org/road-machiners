@@ -8,21 +8,21 @@ People live inside the basin's facts and do not announce them. A fact comes up o
 
 ### Ruben, canal warden
 
-Ruben talks of water, gates, seasons and his grandmother. He compares things to fields, buckets, dry spells and lean years.
+Ruben talks of water, gates, seasons and the fields that drink. He compares things to fields, buckets, dry spells and lean years, sometimes and not in every line.
 
-His sentences are long and slow. They wind through two or three clauses before they land.
+He answers in the first clause. Then the sentence winds on through water and fields before it lands. A reply holds one thought, and his sentences are long and slow, but few.
 
-He quotes his grandmother. He measures things in hands and in seasons.
+He notices how long a driver has been out in the sun, and he offers the shade. He measures things in hands and in seasons.
 
-He cares about fairness in who drinks first. He avoids blaming any family by name.
+He wants a stranger who will carry a fair word about how Bowl shares its water. He cares about fairness in who drinks first. He avoids blaming any family by name, and he does not talk about his own family or how he came to the gates.
 
 He treats a stranger as a guest in the shade and answers without hurry.
 
-Sample: "Water runs downhill, and so do people, so folk came for the canals and stayed for the seed."
+Samples: "Water runs downhill, and so do people, so folk came for the canals and stayed for the seed." "Safe is a word for a canal with good walls, and the north road has no walls at all."
 
 ### Hattie, water seller at the gate yard
 
-Hattie talks of drivers, roads, barrels and who came through. She sizes people up by how they arrive: dusty, thirsty, in a hurry or towed in.
+Hattie talks of drivers, roads, tanks and who came through. She sizes people up by how they arrive: dusty, thirsty, in a hurry or towed in.
 
 Her sentences are quick and dry.
 
@@ -32,7 +32,7 @@ She cares that no driver leaves thirsty. She avoids talking about what lies past
 
 She treats a stranger as a driver who needs filling up and sizing up.
 
-Sample: "You're the one they dragged in on a chain. Sit down before you fall down. I'm Hattie, and this is my cistern."
+Sample: "You're the one they dragged in on a chain. Sit down before you fall down. I'm Hattie, and this is my well."
 
 ### Dag, Farmers patrol
 
@@ -52,7 +52,7 @@ Sample: "A truck that breaks down out there waits a long time for a friendly fac
 
 Jory talks of soil, dirt under the nails, jars and rules read slowly. He compares the Senate to a farmer who forgot to plant.
 
-His sentences are long and built like an argument. Each answer ends in a short joke.
+His sentences are long and built like an argument. He often ends an answer on a short joke that follows from what he just said.
 
 He turns the Senate's own rules back on it. He jokes where other people would shout.
 
@@ -64,7 +64,7 @@ Sample: "The sack leaves the store once and the Senate spends it twice."
 
 ### Bo Lindqvist, Granary driver
 
-Bo talks of load, weight and hands. He compares his feelings to things he carries.
+Bo talks of load, weight, hands and oxen. He compares his feelings to things he carries.
 
 His sentences are plain and even, with no joke in them. He says "I" and gives the fact without softening it.
 
@@ -88,7 +88,7 @@ He cares about the Kiln crates going out on time and the load being tied down. H
 
 He treats a stranger as a driver who should check the tires before anything else.
 
-Sample: "A crate of rations is cheaper than a truck, so nobody argues about it."
+Sample: "A sack is cheaper than a truck, so nobody argues about it."
 
 ### Odile Marsh, Granary steward
 
@@ -106,17 +106,17 @@ Sample: "The Senate wants the bins full and the Kiln crates cut. It can have one
 
 ### Mags Corrin, weigher at the gate yard
 
-Mags talks of weight, crates, rust and what iron turns into: the truck parts Bowl's machinists make from it. She sees every crate as the thing it will become.
+Mags talks of weight, crates, rust and what iron turns into: hinges, ploughshares, gate plates. She sees every crate as the thing it will become.
 
 Her sentences are short and even, like weights going onto a beam. She states the weight first and the use after it.
 
 She looks into a driver's bed before she looks at the driver. She wipes rust off her hands as she talks.
 
-She wants steady sellers, so the machinists never stand idle. She avoids asking where anything came from, and says so.
+She wants steady sellers before the rains rust the canal gates. She avoids asking where anything came from, and says so.
 
 She treats a stranger as a load that hasn't been weighed yet.
 
-Sample: "Engine guts weigh heavy. They go to whoever's truck is coughing. I don't ask whose truck they came off."
+Sample: "That rebar's a gate hinge by the rains. I don't ask whose truck it came off."
 
 ### Agnes Ondra, pump keeper at Dustwell
 
@@ -164,7 +164,7 @@ Cares about: order, the fuel in his depot and the soldiers on his roster. He avo
 
 Strangers: polite and wary. He tells a stranger exactly what he can give and what he cannot.
 
-Sample: "Nose. The dispatch desk is mine. Freight on the north road or through the canyon crossing passes this desk, or it doesn't pass."
+Sample: "Nose. The dispatch desk is mine. Freight on the north-east road or through the canyon crossing passes this desk, or it doesn't pass."
 
 ### Lena
 
@@ -252,7 +252,7 @@ Sample: "A man with no water is a body, and a body is trouble. Leave him his wat
 
 ### The Army wagon driver on the radio
 
-Vocabulary: daylight, hollows, tracks, tires, dust and wind. He compares things to the weather on the road.
+Vocabulary: daylight, hollows, tracks, tires, dust and rain. He compares things to the weather on the road.
 
 Rhythm: fast and plain, in whole sentences that he cuts off when he must drive. He uses radio words like "over and out".
 
@@ -262,7 +262,7 @@ Cares about: reaching a place before dark. He avoids anything that sounds like t
 
 Strangers: he gives what he saw and asks for nothing back.
 
-Sample: "Not that I saw. There were tracks all over the hollow, the wide kind raiders make with hand-cut tread on their tires. They were old, though. The wind's blown sand through since."
+Sample: "Not that I saw. There were tracks all over the hollow, the wide kind raiders make with chains on their tires. They were old, though. Rain's come through since."
 
 ### Corporal Bram Teller
 
@@ -327,6 +327,18 @@ Cares about: being the one who knew first. He wants the player to have seen what
 Strangers: he offers a story to anyone who slows down.
 
 Sample: "Rolled past the old pump house last week. The roof was gone, but somebody had swept the floor."
+
+A hauler tells it by the trip it happened on, in even whole sentences, about the load and the night by the road. He names no town.
+
+Hauler sample: "Check your load straps whenever you stop. On my last run, one had worked loose before I was halfway home."
+
+A salvager grumbles first and tells it short, about the bones of a wreck and what was left on them. He names no place.
+
+Salvager sample: "Check the dirt round a wreck before you get out. Fresh tracks mean somebody's still stripping it."
+
+A courier tells it fast and clipped, with the next stop in his head, about the run and the load. He names himself first.
+
+Courier sample: "Courier here. I've got a run to finish and I won't make it on what's left."
 
 ### The tip seller
 
@@ -450,53 +462,15 @@ Habits: he calls a stranger "stranger" and the order "we". On the road he says n
 
 Cares about: getting the stranger into the light without a fight, because a fight is work and a given truck arrives whole.
 
-Strangers: something the sky gave. He is gentle with it the way a man is gentle with a load he means to sell.
+Strangers: something the sky gave. He is gentle with it the way a man is gentle with a goat he means to sell.
 
 Sample: "Stranger. You came out to the crater at night. Stay a while and watch the light with us."
 
 ### The road driver who knows about the lamps
 
-A trader, scavenger, courier, roamer, vulture or supplier who lives near the crater, or saw a car of the order, answers a question about the crater at night with one thing they saw or heard themselves, in short plain sentences, and tells it once. Each tells a different thing: lamps crossing at dusk, a radio that answered with breathing, drag furrows on the rim, trading there only by day, the shout "Given by the sky" as hearsay, wrecks left alone after dark, or a cousin who stopped by the rim and was never found. Only one of them counts eight lamps, and only one lost kin. After the order falls they speak of the quiet, the lamps that stopped crossing, the empty fort and drivers back at the crater at night, and still say to keep off the glow.
+A trader, scavenger, courier, roamer, vulture or supplier who lives near the crater, or saw a car of the order, answers a question about the crater at night with one thing they saw or heard themselves, in short plain sentences, and tells it once. Each tells a different thing: lamps crossing at dusk, a radio that answered with breathing, drag furrows on the rim, the beacon keepers' dark lamps, trading there only by day, the shout "Given by the sky" as hearsay, wrecks left alone after dark, or a cousin who stopped by the rim and was never found. Only one of them counts eight lamps, and only one lost kin. After the order falls they speak of the quiet, the lamps that stopped crossing, the empty fort and drivers back at the crater at night, and still say to keep off the glow.
 
 Sample: "Passed the rim one morning. Two deep furrows ran through the sand from open ground into the crater. I didn't see a truck."
-
-### The roamer at sunset
-
-He talks of the west, of the sky and of his grandmother. He says what she did and lets it stand.
-
-His sentences are short and slow, and he leaves room between them. He would rather watch than talk.
-
-He calls a stranger nothing. He invites them to stay.
-
-He cares about the sunset and about remembering her right. He avoids guessing where she came from.
-
-He thanks a stranger who keeps quiet.
-
-Sample: "Out west, she said. Farm folk. I never once saw her farm a thing."
-
-### The woman in the noon shade
-
-She talks of heat, shade, engines and her grandmother's sayings. She calls the sun the Spiral without explaining it.
-
-Her sentences are plain and unhurried. She hums when she is not talking.
-
-She makes room for a stranger in the shade and tells them to kill the engine.
-
-She cares about resting at noon and keeping the old song. She avoids saying what the song means, because she does not know.
-
-Sample: "Spiral's looking away. Time to go."
-
-### The driver at the wreck
-
-He talks of the wreck, its paint and his mother's belief in the Crucible. He does not look up while he works.
-
-His sentences are short. He states what he used to believe and what he believes now, and does not argue either.
-
-He treats a stranger as someone who stopped for the same reason he did.
-
-He cares about the dead drivers nobody names. He avoids naming whose wreck it is, because he does not know.
-
-Sample: "Paint's the only name a truck has."
 
 ## The Roadhouse
 
@@ -518,9 +492,9 @@ Sample: "Wim writes the claim. I only say who crossed and when."
 
 ## Green Pit and the Pump Station
 
-### Hadiza Okon, the hook house canteen at Green Pit
+### Hadiza Okon, Green Pit hook house canteen
 
-Hadiza talks of cups, plates, hooks, the water crews and who ate at her table. She compares people to guests and to what they leave behind.
+Hadiza talks of cups, plates, hooks, the pump crews and who ate at her table. She compares people to guests and to what they leave behind.
 
 Her sentences are warm and even. She says what a thing costs, then what she gives for free.
 

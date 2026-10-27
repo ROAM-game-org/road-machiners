@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CameraRig, KeyPan, TruckFollow } from './camera';
+import { CameraRig, KeyPan, TruckFollow, VIEW_METERS, ZOOM } from './camera';
 import { PHYSICS } from '../../data/physics';
-import { VIEW } from '../../data/view';
+import { DEFAULT_ZOOM, VIEW } from '../../data/view';
 
 const S = PHYSICS.metersPerTile;
 
@@ -445,5 +445,38 @@ describe('camera orientation', () => {
     const offset = rig.camera.position.clone().sub(new THREE.Vector3(0, 0, 0)).normalize();
     const expected = new THREE.Vector3(1, 0.816, 1).normalize();
     expect(offset.distanceTo(expected)).toBeLessThan(0.05);
+  });
+});
+
+describe('camera default zoom', () => {
+  const spread = (rig: CameraRig) => {
+    rig.tick(0);
+    const a = rig.screenOf({ x: 0, y: 0, z: 0 });
+    const b = rig.screenOf({ x: 10, y: 0, z: 0 });
+    return Math.hypot(b.x - a.x, b.y - a.y);
+  };
+
+  it('keeps the default inside the zoom limits', () => {
+    expect(DEFAULT_ZOOM).toBeGreaterThanOrEqual(ZOOM.min);
+    expect(DEFAULT_ZOOM).toBeLessThanOrEqual(ZOOM.max);
+  });
+
+  it('opens 15 percent closer than zoom 1', () => {
+    const unit = rigAt();
+    unit.setZoom(1);
+    expect(spread(rigAt()) / spread(unit)).toBeCloseTo(DEFAULT_ZOOM);
+  });
+
+  it('reaches both zoom limits from the default', () => {
+    const out = rigAt();
+    out.zoomBy(100000);
+    const min = rigAt();
+    min.setZoom(ZOOM.min);
+    const inward = rigAt();
+    inward.zoomBy(-100000);
+    const max = rigAt();
+    max.setZoom(ZOOM.max);
+    expect(spread(out)).toBeCloseTo(spread(min));
+    expect(spread(inward)).toBeCloseTo(spread(max));
   });
 });

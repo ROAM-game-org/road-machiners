@@ -109,11 +109,14 @@ async function openCall(page, node) {
     const next = structuredClone(w);
     const way = node === 'directions' ? await longestDirections(w) : null;
     const deal = { deal: { kind: 'deal', deal: 'ownParts', patcher: 'player', price: 1250, parts: 3, turns: 4 } };
+    const hub = { with: npc.id, topic: null, node: 'hub', vars: {}, group: null, asked: [], line: { line: 'whatDoYouWant', vars: {} } };
     next.player.call = node === 'hub'
-      ? { with: npc.id, topic: null, node: 'hub', vars: {}, line: { line: 'whatDoYouWant', vars: {} } }
+      ? hub
+      : node === 'group'
+      ? { ...hub, group: 'helpTrade', asked: ['tradeTalk'] }
       : node === 'directions'
-      ? { with: npc.id, topic: 'directions', node: 'answer', vars: way.vars, line: { line: way.line, vars: way.vars } }
-      : { with: npc.id, topic: 'patchRequest', node: 'terms', vars: deal, line: { line: 'dealTerms', vars: deal } };
+      ? { with: npc.id, topic: 'directions', node: 'answer', vars: way.vars, group: null, asked: [], line: { line: way.line, vars: way.vars } }
+      : { with: npc.id, topic: 'patchRequest', node: 'terms', vars: deal, group: null, asked: [], line: { line: 'dealTerms', vars: deal } };
     g.apply(next);
     async function longestDirections(world) {
       const { directionsTo } = await import('/src/sim/directions.ts');
@@ -336,6 +339,7 @@ const STATES = {
   'town-people': { setup: (page) => openTown(page, 'people'), teardown: closeTown },
   paint: { setup: (page) => openTown(page, 'paint'), teardown: closeTown },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
+  'call-group': { setup: (page) => openCall(page, 'group'), teardown: hangUp },
   'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp },
   'call-deal': { setup: (page) => openCall(page, 'deal'), teardown: hangUp },
   help: { setup: openHelp, teardown: closeHelp },
