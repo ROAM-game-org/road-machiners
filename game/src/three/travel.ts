@@ -11,6 +11,7 @@ import {
 import type { TurnClock } from "./render/hazards";
 import { frameAt, type VehicleFrame } from "../phys/frames";
 import { joinTurn, SentObstacles, withTail, type LiveSight, type PreparedTurn, type Tail, type TurnRequest, type TurnResponse } from "../phys/turn";
+import { CONFIG } from "../config";
 import { PHYSICS } from "../data/physics";
 import type { QuestLanguage } from "../data/quests";
 import { mergePerf } from "../perf";
@@ -55,6 +56,18 @@ export function turnClockOf(a: Playback | null): TurnClock | null {
 
 type Pose = { pos: Vec; heading: number };
 type OpenStop = { tail: Tail; ends: Record<string, Pose> };
+
+export class FastPace {
+  private speed = 1;
+
+  step(realMs: number, target: number, fastSpeed: number): number {
+    if (!(realMs >= 0)) throw new Error(`The pace only moves forward, got ${realMs} ms`);
+    if (!(target >= 1 && target <= fastSpeed)) throw new Error(`A pace target lies between 1 and ${fastSpeed}, got ${target}`);
+    const reach = ((fastSpeed - 1) * realMs) / CONFIG.playEaseMs;
+    this.speed = Math.min(fastSpeed, Math.max(1, this.speed + Math.max(-reach, Math.min(reach, target - this.speed))));
+    return this.speed;
+  }
+}
 
 export class Creep {
   private readonly endMs: number;
@@ -220,6 +233,7 @@ export class Travel {
   private autoPress = false;
   private tapHalts = false;
   private remainder = 0;
+  private readonly pace = new FastPace();
   private readonly turns: TurnPreparation;
   private creep: Creep | null = null;
   private open: OpenStop | null = null;
@@ -440,8 +454,9 @@ export class Travel {
     return join;
   }
 
-  getSpeed(now: number, fastSpeed: number): number {
-    return this.isFast(now) ? fastSpeed : 1;
+  paceSpeed(world: World, now: number, realMs: number, fastSpeed: number): number {
+    const outrunsNothing = this.turns.isReady(world) || !this.continues(world, now);
+    return this.pace.step(realMs, this.isFast(now) && outrunsNothing ? fastSpeed : 1, fastSpeed);
   }
 
   finishClock(elapsed: number, finishAt: number): void {

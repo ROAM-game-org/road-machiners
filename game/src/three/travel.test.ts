@@ -477,8 +477,9 @@ describe("every turn that runs on its own", () => {
   function travelWithTurns(take: () => unknown = () => null) {
     const prepare = vi.fn();
     const travel = new Travel(250, TAIL);
-    Object.assign(travel, { turns: { prepare, take } });
-    return { travel, prepare };
+    const turns = { prepare, take, isReady: () => true };
+    Object.assign(travel, { turns });
+    return { travel, prepare, turns };
   }
 
   const playback = { result: { next: {} } } as unknown as Parameters<Travel["prepareNext"]>[1];
@@ -552,11 +553,68 @@ describe("every turn that runs on its own", () => {
       at(1000);
       travel.pressTurn(true, world);
       expect(travel.isFast(1250)).toBe(true);
-      expect(travel.getSpeed(1250, 4)).toBe(4);
+      expect(travel.paceSpeed(world, 1250, 350, 4)).toBe(4);
       expect(travel.takeReady(world, drive, 1250)).toBe(ready);
       travel.release(1500);
       expect(travel.autoAllowed(world)).toBe(true);
-      expect(travel.getSpeed(1500, 4)).toBe(1);
+      expect(travel.paceSpeed(world, 1500, 350, 4)).toBe(1);
+    });
+
+    describe("pace", () => {
+      const held = () => {
+        const made = travelWithTurns(() => ready);
+        const world = stranded("towed");
+        at(1000);
+        made.travel.pressTurn(true, world);
+        at(1300);
+        return { ...made, world };
+      };
+
+      it("stays at normal speed while the next turn is not prepared", () => {
+        const { travel, turns, world } = held();
+        turns.isReady = () => false;
+        for (let i = 0; i < 20; i++) expect(travel.paceSpeed(world, 1300, 16, 4)).toBe(1);
+      });
+
+      it("eases up to the fast speed once the next turn is prepared", () => {
+        const { travel, world } = held();
+        const first = travel.paceSpeed(world, 1300, 35, 4);
+        expect(first).toBeCloseTo(1.3);
+        let speed = first;
+        for (let i = 0; i < 10; i++) speed = travel.paceSpeed(world, 1300, 35, 4);
+        expect(speed).toBeCloseTo(4);
+      });
+
+      it("eases down without a jump when the next turn is late", () => {
+        const { travel, turns, world } = held();
+        for (let i = 0; i < 20; i++) travel.paceSpeed(world, 1300, 35, 4);
+        turns.isReady = () => false;
+        expect(travel.paceSpeed(world, 1300, 35, 4)).toBeCloseTo(3.7);
+        for (let i = 0; i < 20; i++) travel.paceSpeed(world, 1300, 35, 4);
+        expect(travel.paceSpeed(world, 1300, 35, 4)).toBe(1);
+      });
+
+      it("goes fast when no turn follows", () => {
+        const { travel, turns } = held();
+        turns.isReady = () => false;
+        const single = stranded("towed");
+        vi.spyOn(travel, "continues").mockReturnValue(false);
+        for (let i = 0; i < 20; i++) travel.paceSpeed(single, 1300, 35, 4);
+        expect(travel.paceSpeed(single, 1300, 35, 4)).toBe(4);
+      });
+
+      it("eases back to normal speed after release", () => {
+        const { travel, world } = held();
+        for (let i = 0; i < 20; i++) travel.paceSpeed(world, 1300, 35, 4);
+        travel.release(1400);
+        at(1400);
+        expect(travel.paceSpeed(world, 1400, 35, 4)).toBeCloseTo(3.7);
+      });
+
+      it("rejects a negative frame time", () => {
+        const { travel, world } = held();
+        expect(() => travel.paceSpeed(world, 1300, -1, 4)).toThrow();
+      });
     });
 
     it("makes a hold on a halted run resume and fast-forward it", () => {
