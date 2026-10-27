@@ -4,7 +4,7 @@ import { isLineGun, PARTS, partDef, type EngineDef, type WeaponDef } from '../da
 import { makePart } from './factory';
 import { gunsBySide, killRate, targetOf, THREATS } from './fight-odds';
 import { baseGrid, cellKey, freeCells, itemCells, mountedItems, plateSide, type SideLetter } from './grid';
-import { vehicleStats } from './stats';
+import { driveStats, vehicleStats } from './stats';
 import type { Vehicle, World } from './types';
 import { wornDef } from './wear';
 
@@ -52,7 +52,7 @@ export function gearScorer(world: World, p: LoadoutPriorities, bare: Vehicle, pa
     return sides.reduce((a, b) => a + b, 0) / sides.length;
   };
 
-  const speedValue = (v: Vehicle) => vehicleStats(world, v).maxSpeed / bareSpeed / (paysFuel ? engineFuelUse(v) : 1);
+  const speedValue = (v: Vehicle) => driveStats(world, v).maxSpeed / bareSpeed / (paysFuel ? engineFuelUse(v) : 1);
 
   const fireValue = (v: Vehicle) => {
     const guns = gunsBySide(v);

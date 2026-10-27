@@ -12,7 +12,7 @@ import { maxHp, wornDef } from './wear';
 import { gunSpans, type FireSpan } from './armor';
 import { corePart, coreParts, facingOf, itemCells, mountedItems, mountedParts } from './grid';
 import { unitOfCells } from './body';
-import { loadFactor, loadMass, vehicleMass } from './mass';
+import { loadFactor, loadFactorAt, loadMass, vehicleMass } from './mass';
 import { getResources } from './resources';
 import { isTowing } from './tow';
 import { isShutDown } from './utility';
@@ -290,13 +290,15 @@ export function npcMassRoom(v: Vehicle, share = templateSpeedShare(v)): number {
 
 export function massRoomAbove(v: Vehicle, share: number, floorSpeed: number): number {
   const needed = neededLoadFactor(v, share, floorSpeed);
-  if (loadFactor(v) < needed) return 0;
+  const base = loadMass(v);
+  const factor = (extra: number) => loadFactorAt(v.chassisId, base + extra);
+  if (factor(0) < needed) return 0;
   let low = 0;
   let high = chassisDef(v.chassisId).ratedMass;
-  while (loadFactor(v, high) >= needed) high *= 2;
+  while (factor(high) >= needed) high *= 2;
   while (high - low > 1) {
     const mid = (low + high) / 2;
-    if (loadFactor(v, mid) >= needed) low = mid;
+    if (factor(mid) >= needed) low = mid;
     else high = mid;
   }
   return low;
