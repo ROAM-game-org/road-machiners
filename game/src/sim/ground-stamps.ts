@@ -12,8 +12,10 @@ function territorySites(): StampSite[] {
   return REGION.locations.flatMap((t) => {
     if (t.kind !== 'territory') return [];
     if (!t.groundFrom || !t.outline) throw new Error(`Territory ${t.id} has no place its ground was made at`);
-    const outline = t.outline.map((p) => ({ x: t.pos.x + p.x, y: t.pos.y + p.y }));
-    return [{ id: t.id, pos: t.pos, reach: t.radius, shift: shiftOf(t.pos, t.groundFrom), edge: (p: Vec) => (pointInPolygon(p, outline) ? 0 : polygonEdgeDist(p, outline)) }];
+    const stamped = t.groundOutline ?? t.outline;
+    const outline = stamped.map((p) => ({ x: t.pos.x + p.x, y: t.pos.y + p.y }));
+    const reach = Math.max(...stamped.map((p) => Math.hypot(p.x, p.y)));
+    return [{ id: t.id, pos: t.pos, reach, shift: shiftOf(t.pos, t.groundFrom), edge: (p: Vec) => (pointInPolygon(p, outline) ? 0 : polygonEdgeDist(p, outline)) }];
   });
 }
 

@@ -401,7 +401,7 @@ function standsOnFarm(d: MapDraft, t: TerritoryDef, p: BakedProp, segment: boole
   return relief === null || (footprintRelief(d.heights, d.size, p, segment) <= relief && cornerRelief(d, p) <= relief);
 }
 
-function cornerRelief(d: MapDraft, p: BakedProp): number {
+export function cornerRelief(d: MapDraft, p: BakedProp): number {
   const ground = { size: d.size, heights: d.heights };
   const seat = groundAt(ground, p.pos.x, p.pos.y);
   const look = p.kind;

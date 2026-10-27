@@ -89,6 +89,14 @@ describe('the orchard farm', () => {
   const ahead = (arc: BakedProp, p: Vec): number => (p.x - arc.pos.x) * Math.cos(arc.yaw) + (p.y - arc.pos.y) * Math.sin(arc.yaw);
   const isPerimeter = (run: Run): boolean => run.look === PERIMETER.look && run.broken === PERIMETER.broken && run.knocked.share === PERIMETER.knocked.share;
 
+  it('spans about the area of Glass Flats', () => {
+    const area = (outline: readonly Vec[]) => Math.abs(outline.reduce((sum, p, i) => sum + p.x * outline[(i + 1) % outline.length].y - outline[(i + 1) % outline.length].x * p.y, 0)) / 2;
+    const flats = REGION.locations.find((l) => l.id === 'glass-flats') as TerritoryDef;
+    const ratio = area(orchard.outline!) / area(flats.outline!);
+    expect(ratio).toBeGreaterThan(0.8);
+    expect(ratio).toBeLessThan(1.2);
+  });
+
   it('bakes the same farm for the same seed', () => {
     const again = territoryLayer(7, groundDraft());
     expect(again.props).toEqual(baked.props);
@@ -97,7 +105,8 @@ describe('the orchard farm', () => {
 
   it('stands one building near each authored pose, turned with the road and jittered within its group', () => {
     for (const group of farm.buildings) {
-      expect(props.filter((p) => p.kind === group.look), group.look).toHaveLength(group.poses.length);
+      const posesOfLook = farm.buildings.filter((b) => b.look === group.look).reduce((n, b) => n + b.poses.length, 0);
+      expect(props.filter((p) => p.kind === group.look), group.look).toHaveLength(posesOfLook);
       for (const pose of group.poses) {
         const found = props.filter((p) => p.kind === group.look && dist(p.pos, abs(pose.at)) <= group.shift * Math.SQRT2 + 1e-9);
         expect(found, `${group.look} at ${pose.at.x},${pose.at.y}`).toHaveLength(1);
@@ -143,9 +152,9 @@ describe('the orchard farm', () => {
     }
   });
 
-  it('digs at least 14 canals, at least 300 tiles in all', () => {
-    expect(farm.canals.length).toBeGreaterThanOrEqual(14);
-    expect(baked.built.filter((b) => b === BUILT_CANAL).length).toBeGreaterThanOrEqual(300);
+  it('digs at least 22 canals, at least 340 tiles in all', () => {
+    expect(farm.canals.length).toBeGreaterThanOrEqual(22);
+    expect(baked.built.filter((b) => b === BUILT_CANAL).length).toBeGreaterThanOrEqual(340);
   });
 
   it('keeps everything drawn inside the outline, off roads, tracks, canals and cliffs, and clear of every spot', () => {
@@ -167,8 +176,8 @@ describe('the orchard farm', () => {
     }
   });
 
-  it('plants 500 trees or more in blocks and strays, within the cap', () => {
-    expect(trees.length).toBeGreaterThanOrEqual(500);
+  it('plants 1000 trees or more in blocks and strays, within the cap', () => {
+    expect(trees.length).toBeGreaterThanOrEqual(1000);
     expect(trees.length).toBeLessThanOrEqual(groves.maxTrees);
     for (const block of farm.blocks) {
       const centre = frameOf(abs(block.at), block.turn);
@@ -308,16 +317,16 @@ describe('the orchard farm', () => {
     }
   });
 
-  it('digs about 30 emplacements of sandbag arcs, sets 20 tank traps and stands 60 barriers', () => {
+  it('digs about 40 emplacements of sandbag arcs, sets 25 tank traps and stands 75 barriers', () => {
     const group = arcs.map((_, i) => i);
     const root = (i: number): number => (group[i] === i ? i : root(group[i]));
     arcs.forEach((a, i) => arcs.forEach((b, j) => {
       if (j > i && dist(a.pos, b.pos) <= 1.5) group[root(j)] = root(i);
     }));
-    expect(new Set(arcs.map((_, i) => root(i))).size).toBeGreaterThanOrEqual(28);
-    expect(arcs.length).toBeGreaterThanOrEqual(52);
-    expect(traps.length).toBeGreaterThanOrEqual(20);
-    expect(barriers.length).toBeGreaterThanOrEqual(60);
+    expect(new Set(arcs.map((_, i) => root(i))).size).toBeGreaterThanOrEqual(40);
+    expect(arcs.length).toBeGreaterThanOrEqual(75);
+    expect(traps.length).toBeGreaterThanOrEqual(25);
+    expect(barriers.length).toBeGreaterThanOrEqual(75);
   });
 
   it('stands every tank trap out ahead of its nearest sandbag arc and never behind one', () => {
@@ -401,7 +410,7 @@ describe('the orchard farm', () => {
 
   it('throws on a building off the outline', () => {
     const moved = structuredClone(rules);
-    moved.farm!.buildings[0].poses[0].at = onOrchardRoad(-30, 40);
+    moved.farm!.buildings[0].poses[0].at = onOrchardRoad(-50, 40);
     expect(() => fillFarm(groundDraft(), orchard, moved, moved.farm!, ruleRng(7, 1))).toThrow(/outside/);
   });
 });

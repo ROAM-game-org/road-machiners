@@ -131,8 +131,9 @@ describe('the Old Orchard', () => {
   });
 
   it('rolls each farm building look from one table', () => {
-    const looks = farm.buildings.map((b) => b.look);
-    expect(new Set(looks).size).toBe(looks.length);
+    const tables = new Map<string, Set<string>>();
+    for (const b of farm.buildings) tables.set(b.look, (tables.get(b.look) ?? new Set()).add(b.table));
+    for (const [look, rolled] of tables) expect(rolled.size, look).toBe(1);
     for (const b of farm.buildings) {
       expect(spotTable(landmarkAt(b.look, orchard.pos)), b.look).toBe(SALVAGE[b.table]);
     }
@@ -196,7 +197,7 @@ describe("the Old Orchard's outline", () => {
   it('holds the north-west pocket, and not ground inside its bounding radius past the outline', () => {
     const pocket = at(60, 30);
     expect(territoryAt(pocket)?.id).toBe('orchard');
-    const beyond = at(-30, 44);
+    const beyond = at(-50, 40);
     expect(dist(beyond, orchard.pos)).toBeLessThan(orchard.radius);
     expect(territoryAt(beyond)).toBeNull();
   });
