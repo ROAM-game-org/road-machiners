@@ -98,7 +98,7 @@ A driver that steps in starts a feud with the attacker. It still fights by its o
 
 ## Called for help
 
-The player can radio a driver in sight to join a fight, which [Social](social.md) describes. The driver holds back by the same two tests as a witness, applied to each foe of the player: bound to or in a truce with the foe, or (unless a lawman) liking the foe at least as much as the player. It also refuses when it is knocked out or stranded. A lawman agrees as an allied driver does unless the player attacked or robbed a lawful foe, and the answer is a weighted roll by standing: allied about 98 in 100, friendly about 3 in 4, neutral about 1 in 10. An agreeing driver starts a feud with every foe the same way a witness does.
+The player can radio a driver in sight to join a fight, which [Social](social.md) describes. The driver holds back by the same two tests as a witness, applied to each foe of the player: bound to or in a truce with the foe, or (unless a lawman) liking the foe at least as much as the player. It also refuses when it is knocked out or stranded. A lawman agrees as an allied driver does unless the player attacked or robbed a lawful foe, and the answer is a weighted roll by standing: allied about 98 in 100, friendly about 3 in 4, neutral about 1 in 10, growing with how far its side outmatches the foes. A neutral coward joins only an overwhelming fight, and a company answers through its leader, with every armed member sent. An agreeing driver starts a feud with every foe the same way a witness does.
 
 ## Standing
 
