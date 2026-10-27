@@ -549,6 +549,18 @@ describe('far trips longer than the route window', () => {
     expect(dist(npc.pos, dest)).toBeLessThan(RULES.arriveRadius);
   });
 
+  it('drives an NPC into a closed pocket to a goal there, as a helper reaches a truck stranded inside', () => {
+    const w = emptyWorld();
+    const center = { x: 160, y: 160 };
+    w.obstacles = Array.from({ length: 24 }, (_, k): Obstacle => ({ id: `ring${k}`, kind: 'rock', r: 1.6, pos: { x: center.x + 6 * Math.cos((k * Math.PI) / 12), y: center.y + 6 * Math.sin((k * Math.PI) / 12) } }));
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 220, y: 160 });
+    npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    expect(drivable(w, npc.pos, center, vehicleStats(w, npc).radius)).toBe(false);
+    npc.order = { kind: 'stopAt', dest: { ...center } };
+    for (let i = 0; i < 60 && npc.order; i++) advanceFar(w, npc);
+    expect(dist(npc.pos, center)).toBeLessThan(RULES.arriveRadius);
+  });
+
   it('drives an NPC straight to a goal it reaches within the turn, with no plan', () => {
     const { w, npc } = longTrip();
     const hop = { x: npc.pos.x + vehicleStats(w, npc).maxSpeed / 2, y: npc.pos.y };

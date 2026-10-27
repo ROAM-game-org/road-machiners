@@ -61,7 +61,7 @@ export function coarseTrip(world: World, from: Vec, dest: Vec, radius: number, d
     const { exit, near } = tripEnds(layer, stampOverlay(layer, [], radius), from, to);
     const cells = coarseCells(layer, exit, near, routeTaste(world, terrainNav(world.terrain), driver));
     if (cells === null) throw new Error(`Cells ${exit} and ${near} share a component but have no coarse route`);
-    return [...cells.slice(0, -1).map((c) => centerOf(layer, c)), near === cellOf(layer, to) ? to : centerOf(layer, near)];
+    return [...cells.slice(0, -1).map((c) => centerOf(layer, c)), tripEnd(layer, near, to)];
   });
 }
 
@@ -75,6 +75,11 @@ function tripEnds(layer: NavLayer, ov: Overlay, from: Vec, to: Vec): { exit: num
   const near = nearestFreeCell(layer, ov, target, startComponent(layer, exit), nearRing(layer, exit, target));
   if (near === null) throw new Error(`Coarse trip from (${from.x}, ${from.y}) has no free cell near (${to.x}, ${to.y})`);
   return { exit, near };
+}
+
+function tripEnd(layer: NavLayer, near: number, to: Vec): Vec {
+  const reached = centerOf(layer, near);
+  return dist(reached, to) <= REGION.navigation.nearSlack ? to : reached;
 }
 
 function pocketEscape(layer: NavLayer, ov: Overlay, start: number, exit: number, target: number): { exit: number; near: number } | null {
