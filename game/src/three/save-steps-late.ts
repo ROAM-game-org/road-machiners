@@ -647,3 +647,14 @@ export function withDialogueSeen_116_117(world: SavedJson): SavedJson {
 export function withoutLenaGlare_117_118(world: SavedJson): SavedJson {
   return ['heard_glare', 'asked_glare'].reduce((w, name) => dropQuestVar(w, 'nose_lena', name), world);
 }
+
+export function withRouteStyles_120_121(world: SavedJson): SavedJson {
+  const styled = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    const route = brain?.farRoute as SavedJson | undefined;
+    if (!brain || !route || route.style !== undefined) return v;
+    const { offRoad, ...rest } = route;
+    return { ...v, brain: { ...brain, farRoute: { ...rest, style: offRoad === true ? 'hidden' : 'road' } } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(styled) };
+}
