@@ -86,15 +86,15 @@ function tileLayers(t: Terrain): Pick<TerrainNav, 'cliffTile' | 'tileCost' | 'fl
   const flatCost = new Float64Array(t.size * t.size);
   const roadTile = new Uint8Array(t.size * t.size);
   const steep = new Float32Array(t.size * t.size);
-  const sites = atlasSites(atlasOf(t)).filter((s) => !isTerritory(s));
+  const bySite = bySiteTiles(t.size, atlasSites(atlasOf(t)).filter((s) => !isTerritory(s)));
   for (let i = 0; i < t.size * t.size; i++) {
     cliffTile[i] = isCliff(t, i) ? 1 : 0;
     const slope = tileSlope(t, i);
-    steep[i] = Math.hypot(slope.x, slope.y);
-    const bySite = nearSite(sites, (i % t.size) + 0.5, Math.floor(i / t.size) + 0.5);
-    flatCost[i] = routeCost(t.types[i], bySite);
-    tileCost[i] = flatCost[i] * slopeCost(t, i);
-    roadTile[i] = t.types[i] === 'road' && !bySite ? 1 : 0;
+    const grade = Math.hypot(slope.x, slope.y);
+    steep[i] = grade;
+    flatCost[i] = routeCost(t.types[i], bySite[i] === 1);
+    tileCost[i] = flatCost[i] * slopeCost(grade);
+    roadTile[i] = t.types[i] === 'road' && bySite[i] === 0 ? 1 : 0;
   }
   return { cliffTile, tileCost, flatCost, roadTile, steep, roadShy: roadShyField(t.size, roadTile) };
 }
@@ -136,13 +136,30 @@ function routeCost(type: TerrainTypeId, bySite: boolean): number {
   return (type === 'road' || bySite ? 1 : REGION.navigation.offRoadCost) / TERRAIN_TYPES[type].speed;
 }
 
-function slopeCost(t: Terrain, tile: number): number {
-  const s = tileSlope(t, tile);
-  return 1 + REGION.navigation.slopeCost * (Math.hypot(s.x, s.y) / TERRAIN.drive.maxSlope) ** 2;
+function slopeCost(grade: number): number {
+  return 1 + REGION.navigation.slopeCost * (grade / TERRAIN.drive.maxSlope) ** 2;
 }
 
-function nearSite(sites: readonly Site[], x: number, y: number): boolean {
-  return sites.some((s) => siteGap(s, { x, y }) < REGION.roadWidth);
+function bySiteTiles(size: number, sites: readonly Site[]): Uint8Array {
+  const near = new Uint8Array(size * size);
+  const p = { x: 0, y: 0 };
+  for (const s of sites) {
+    const box = siteBox(s, REGION.roadWidth + 1);
+    for (let y = Math.max(0, box.y0); y <= Math.min(size - 1, box.y1); y++)
+      for (let x = Math.max(0, box.x0); x <= Math.min(size - 1, box.x1); x++) {
+        p.x = x + 0.5;
+        p.y = y + 0.5;
+        if (siteGap(s, p) < REGION.roadWidth) near[y * size + x] = 1;
+      }
+  }
+  return near;
+}
+
+function siteBox(s: Site, grow: number): { x0: number; y0: number; x1: number; y1: number } {
+  const points = 'outline' in s && s.outline ? s.outline : [{ x: -s.radius, y: -s.radius }, { x: s.radius, y: s.radius }];
+  const xs = points.map((q) => s.pos.x + q.x);
+  const ys = points.map((q) => s.pos.y + q.y);
+  return { x0: Math.floor(Math.min(...xs) - grow), y0: Math.floor(Math.min(...ys) - grow), x1: Math.ceil(Math.max(...xs) + grow), y1: Math.ceil(Math.max(...ys) + grow) };
 }
 
 export function terrainNav(t: Terrain): TerrainNav {
