@@ -77,6 +77,13 @@ function besideOrchard(x: number, y: number): Vec {
   return { x: ORCHARD_POS.x + x * 5 - OLD_ORCHARD_AT.x + 0.4, y: ORCHARD_POS.y + y * 5 - OLD_ORCHARD_AT.y };
 }
 
+const NOSE_LAYOUT: Vec = { x: 102, y: 35 };
+
+function besideNose(x: number, y: number): Vec {
+  const nose = scalePoint(NOSE_LAYOUT);
+  return { x: nose.x + (x - NOSE_LAYOUT.x) * BASE_MAP_SCALE, y: nose.y + (y - NOSE_LAYOUT.y) * BASE_MAP_SCALE };
+}
+
 const PINNED = new WeakMap<Vec, Vec>();
 
 function pinnedTo(layout: Vec, at: Vec): Vec {
@@ -403,8 +410,8 @@ export const REGION = {
       { x: 77, y: 24 },
       { x: 89, y: 26 },
       { x: 96.04384, y: 30.93501 },
-      { x: 94.7, y: 35.7 },
-      { x: 97.81, y: 40.36 },
+      pinnedTo({ x: 94.7, y: 35.7 }, besideNose(94.7, 35.7)),
+      pinnedTo({ x: 97.81, y: 40.36 }, besideNose(97.81, 40.36)),
       { x: 102, y: 35 },
     ], [0, 3, 15]),
     scaleRoad([
@@ -420,7 +427,7 @@ export const REGION = {
       { x: 95, y: 78 },
       { x: 103, y: 70 },
       { x: 104.88672, y: 58.01449 },
-      { x: 105.18, y: 40.98 },
+      pinnedTo({ x: 105.18, y: 40.98 }, besideNose(105.18, 40.98)),
       { x: 102, y: 35 },
     ], [0, 9, 12]),
     scaleRoad([
