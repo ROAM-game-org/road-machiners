@@ -1,12 +1,11 @@
 import { GEOLOGY, ROADSIDE, TERRAIN, type RoadsideBand } from '../data/terrain';
 import { REGION } from '../data/region';
 import { chance, hashRandom, randInt, randRange, type Rng } from '../sim/rng';
-import { TYPE_IDS, type BakedProp } from '../sim/terrain';
+import { BUILT_FIELD, BUILT_NONE, BUILT_OLD_ROAD, BUILT_SCRUB, TYPE_IDS, type BakedProp } from '../sim/terrain';
 import { dist, polylineDist, type Vec } from '../sim/vec';
 import { tileSteepness, type MapDraft } from './bake';
-import { BUILT_SCRUB } from './newworld';
 import { onReservedGround } from './start-ground';
-import { BUILT_FIELD, BUILT_NONE, BUILT_OLD_ROAD, RoadLine, clearGround, facing, offset, prop, roadJunctions, ruleRng, sideOf, stations, tileCenter, tileOf, tilesWithin } from './oldworld';
+import { RoadLine, clearGround, facing, offset, prop, roadJunctions, ruleRng, sideOf, stations, tileCenter, tileOf, tilesWithin } from './oldworld';
 
 const R = ROADSIDE;
 const HALF = REGION.roadWidth / 2;

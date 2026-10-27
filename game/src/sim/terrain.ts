@@ -136,6 +136,19 @@ export type MapGrid = { size: number; heights: Float32Array; types: Uint8Array; 
 
 export const TYPE_IDS = Object.keys(TERRAIN_TYPES) as TerrainTypeId[];
 
+export const BUILT_NONE = 0;
+export const BUILT_OLD_ROAD = 1;
+export const BUILT_FIELD = 2;
+export const BUILT_SCRUB = 3;
+export const BUILT_DIRTY_WATER = 4;
+export const BUILT_TOXIC = 5;
+export const BUILT_TRACK = 6;
+export const BUILT_CANAL = 7;
+export const BUILT_PAD = 8;
+export const BUILT_GLASS = 9;
+export const BUILT_BLACK_MUD = 10;
+export const BUILT_DITCH = 11;
+
 const MAGIC = 'KMAP';
 const VERSION = 4;
 const HEADER = 20;

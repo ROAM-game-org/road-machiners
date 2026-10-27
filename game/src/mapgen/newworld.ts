@@ -14,14 +14,11 @@ import {
 } from '../data/terrain';
 import { chance, randInt, randRange, type Rng } from '../sim/rng';
 import { isTerritory, territoryRoads } from '../sim/territory';
-import type { BakedProp, PropKind } from '../sim/terrain';
+import { BUILT_DIRTY_WATER, BUILT_FIELD, BUILT_NONE, BUILT_OLD_ROAD, BUILT_SCRUB, BUILT_TOXIC, type BakedProp, type PropKind } from '../sim/terrain';
 import { DEG, dist, polylineDist, type Vec } from '../sim/vec';
 import { tileSteepness, type MapDraft } from './bake';
 import { pondDepths } from './geology';
 import {
-  BUILT_FIELD,
-  BUILT_NONE,
-  BUILT_OLD_ROAD,
   builtGround,
   clearGround,
   facing,
@@ -40,15 +37,7 @@ import {
   tilesWithin,
 } from './oldworld';
 
-export const BUILT_SCRUB = 3;
-export const BUILT_DIRTY_WATER = 4;
-export const BUILT_TOXIC = 5;
-export { BUILT_TRACK } from './oldworld';
-export const BUILT_CANAL = 7;
-export const BUILT_PAD = 8;
-export const BUILT_GLASS = 9;
-export const BUILT_BLACK_MUD = 10;
-export const BUILT_DITCH = 11;
+export { BUILT_BLACK_MUD, BUILT_CANAL, BUILT_DIRTY_WATER, BUILT_DITCH, BUILT_GLASS, BUILT_PAD, BUILT_SCRUB, BUILT_TOXIC, BUILT_TRACK } from '../sim/terrain';
 
 export type Camp = { pos: Vec; radius: number };
 

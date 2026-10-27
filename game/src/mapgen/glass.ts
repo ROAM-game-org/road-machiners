@@ -9,13 +9,12 @@ import { noiseAt } from '../sim/elevation';
 import { randInt, randRange, type Rng } from '../sim/rng';
 import { siteGap } from '../sim/sites';
 import { tableOfKind } from '../sim/territory';
-import type { BakedProp } from '../sim/terrain';
+import { BUILT_GLASS, BUILT_NONE, BUILT_SCRUB, type BakedProp } from '../sim/terrain';
 import { clamp, dist, lerp, type Vec } from '../sim/vec';
 import type { MapDraft } from './bake';
 import { touchedTiles } from './farm';
 import { steep } from './marks';
-import { BUILT_GLASS, BUILT_SCRUB } from './newworld';
-import { BUILT_NONE, prop, tileCenter, tilesWithin } from './oldworld';
+import { prop, tileCenter, tilesWithin } from './oldworld';
 import { clearOf, draw } from './territory';
 
 const NOISE_SEEDS = 2 ** 31 - 1;

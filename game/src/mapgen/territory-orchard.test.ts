@@ -573,9 +573,13 @@ describe('Glass Flats on the baked map', () => {
     expect(w.salvage.filter((s) => territoryOfStock(s)?.id === 'glass-flats')).toHaveLength(21);
   });
 
-  it('marks every dirt road and spur centreline tile as track, or road where a region road crosses it', () => {
+  it('marks every dirt road centreline tile inside the outline and every spur centreline tile as track, or road where a region road crosses it', () => {
     const { roads, spurs } = territoryRoads(gt);
-    for (const road of [...roads, ...spurs]) {
+    const tileCentre = (p: Vec): Vec => ({ x: Math.floor(p.x) + 0.5, y: Math.floor(p.y) + 0.5 });
+    for (const road of roads) {
+      for (const p of along(road.points, 0.5).filter((q) => siteGap(flats, tileCentre(q)) < 0)) expect(['track', 'road'], `${p.x.toFixed(1)},${p.y.toFixed(1)}`).toContain(typeAt(p));
+    }
+    for (const road of spurs) {
       for (const p of along(road.points, 0.5)) expect(['track', 'road'], `${p.x.toFixed(1)},${p.y.toFixed(1)}`).toContain(typeAt(p));
     }
   });

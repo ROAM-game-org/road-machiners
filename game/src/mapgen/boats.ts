@@ -1,12 +1,11 @@
 import { BOATS, GEOLOGY, ROADSIDE, TERRAIN, type BoatKind, type RoadsideBand } from '../data/terrain';
 import { REGION } from '../data/region';
 import { chance, randInt, randRange, type Rng } from '../sim/rng';
-import { TYPE_IDS, type BakedProp } from '../sim/terrain';
+import { BUILT_NONE, BUILT_SCRUB, TYPE_IDS, type BakedProp } from '../sim/terrain';
 import { territoryAt } from '../sim/territory';
 import { dist, polylineDist, type Vec } from '../sim/vec';
 import { footprintRelief, tileSteepness, type MapDraft } from './bake';
-import { BUILT_SCRUB } from './newworld';
-import { BUILT_NONE, RoadLine, clearGround, offset, prop, ruleRng, sideOf, stations, tileCenter, tileOf, tilesWithin } from './oldworld';
+import { RoadLine, clearGround, offset, prop, ruleRng, sideOf, stations, tileCenter, tileOf, tilesWithin } from './oldworld';
 import { lineGap, tileFlow, turnGap } from './roadside';
 import { onReservedGround } from './start-ground';
 

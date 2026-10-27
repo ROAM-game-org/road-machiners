@@ -21,16 +21,13 @@ import { clearOfSites, onDeck } from '../sim/mapgen';
 import { icarusAtlas } from '../sim/atlas';
 import { ROAD_INDEX } from '../sim/road-index';
 import { chance, hashRandom, randInt, randRange, type Rng } from '../sim/rng';
-import type { BakedProp, PropKind } from '../sim/terrain';
+import { BUILT_FIELD, BUILT_NONE, BUILT_OLD_ROAD, BUILT_TRACK, type BakedProp, type PropKind } from '../sim/terrain';
 import { siteGap } from '../sim/sites';
 import { isTerritory, territoryRoads } from '../sim/territory';
 import { angleDiff, bearing, clamp, DEG, dist, polylineDist, segmentDist, type Vec } from '../sim/vec';
 import { tileSteepness, type MapDraft } from './bake';
 
-export const BUILT_NONE = 0;
-export const BUILT_OLD_ROAD = 1;
-export const BUILT_FIELD = 2;
-export const BUILT_TRACK = 6;
+export { BUILT_FIELD, BUILT_NONE, BUILT_OLD_ROAD, BUILT_TRACK };
 
 export type OldSettlement = { pos: Vec; radius: number; farm: boolean; ground: number };
 export type OldRoad = { line: RoadLine; width: number; bridges: [Vec, Vec][] };

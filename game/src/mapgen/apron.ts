@@ -8,16 +8,21 @@ import { place, prop, ruleRng } from './oldworld';
 const APRON_SEED = 1;
 
 export function apronLayer(seed: number, d: MapDraft): MapDraft {
+  for (const piece of apronDraws(seed)) if (territoryAt(piece.pos) === null) place(d, piece, 0);
+  return d;
+}
+
+export function apronDraws(seed: number): ReturnType<typeof prop>[] {
   const rng = ruleRng(seed, CRASH.seedOffset + APRON_SEED);
   const heading = downrangeHeading();
+  const out: ReturnType<typeof prop>[] = [];
   for (let t = 0; t < CRASH.apron.tries; t++) {
     const angle = randRange(rng, 0, Math.PI * 2);
     if (!chance(rng, apronShare(angle - heading))) continue;
     const r = apronRange(randRange(rng, 0, 1));
-    const pos = { x: FALLEN_SUN_POS.x + Math.cos(angle) * r, y: FALLEN_SUN_POS.y + Math.sin(angle) * r };
-    if (territoryAt(pos) === null) place(d, rubble(rng, pos, angle), 0);
+    out.push(rubble(rng, { x: FALLEN_SUN_POS.x + Math.cos(angle) * r, y: FALLEN_SUN_POS.y + Math.sin(angle) * r }, angle));
   }
-  return d;
+  return out;
 }
 
 function downrangeHeading(): number {

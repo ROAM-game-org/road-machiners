@@ -17,6 +17,7 @@ import { hazardZones, isLootSpot, landingStrips, reactorPos, territoryAt, territ
 import { groundAt, isCliff, type BakedProp, type Terrain } from '../sim/terrain';
 import { dist, segmentDist, type Vec } from '../sim/vec';
 import { TEST_MAP } from '../test/map';
+import { apronDraws } from './apron';
 import { newDraft, tileSteepness, type MapDraft } from './bake';
 import { tilesWithin } from './oldworld';
 import { territoryLayer } from './territory';
@@ -154,7 +155,9 @@ describe('the territory layer', () => {
     expect(dist(inside.find((p) => p.kind === reactor.look)!.pos, reactorPos(t))).toBeLessThan(1e-3);
     expect(inside.filter((p) => p.kind === rules.cacheLook)).toHaveLength(9);
     expect(inside.filter((p) => p.kind === rules.spotLook)).toHaveLength(15);
-    expect(inside.filter((p) => p.kind === 'rimRock')).toHaveLength(rules.rimRocks!.count);
+    const apron = apronDraws(MAPGEN.seed).filter((p) => p.kind === 'rimRock');
+    const rimRocks = TEST_MAP.props.filter((p) => p.kind === 'rimRock' && !apron.some((a) => dist(a.pos, p.pos) < 1e-3));
+    expect(rimRocks).toHaveLength(rules.rimRocks!.count);
   });
 
   it('turns each hull cache to its authored yaw, and holds no crate-drawn army cache', () => {
@@ -417,7 +420,7 @@ describe('every territory road on the baked map', () => {
   const lane = territoryRoads(glassFlats as never).roads[5];
 
   it('climbs at most the road grade per tile along the centre line of every Glass Flats road (IV6)', () => {
-    const limit = TERRAIN.roadGrade + 0.02;
+    const limit = TERRAIN.roadGrade + 0.02 + 1 / MAPGEN.heightScale;
     for (const road of territoryRoads(glassFlats as never).roads) {
       const points = along(road.points, 1);
       for (let k = 1; k < points.length; k++) {

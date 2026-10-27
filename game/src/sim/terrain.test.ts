@@ -1,6 +1,6 @@
 import { START_KITS } from "../data/start";
 import { describe, expect, it } from "vitest";
-import { REGION, RETIRED_SITES, scalePoint } from "../data/region";
+import { REGION, RETIRED_SITES } from "../data/region";
 import { siteName } from "../text/names";
 import { resolve } from "../text/resolve";
 import { TERRAIN, TERRAIN_TYPES, type DeckSpec, type TerrainTypeId } from "../data/terrain";
@@ -94,10 +94,10 @@ describe('terrain variety', () => {
 });
 
 describe("terrain grid", () => {
-  it('has thirteen distinct Icarus destinations with road access', () => {
+  it('has thirteen distinct Icarus destinations, all but Glass Flats with road access', () => {
     const w = worldOnMap();
-    expect(w.size).toBe(780);
-    expect(w.terrain.heights).toHaveLength(781 * 781);
+    expect(w.size).toBe(REGION.size);
+    expect(w.terrain.heights).toHaveLength((REGION.size + 1) ** 2);
     expect(REGION.name).toBe('Icarus');
     expect(REGION.towns.map((town) => resolve(siteName(town.id), 'en'))).toEqual(['Bowl', 'Nose']);
     expect(REGION.locations.map((site) => resolve(siteName(site.id), 'en'))).toEqual([
@@ -111,7 +111,7 @@ describe("terrain grid", () => {
       expect(site.pos.y).toBeGreaterThan(site.radius);
       expect(site.pos.x).toBeLessThan(w.size - site.radius);
       expect(site.pos.y).toBeLessThan(w.size - site.radius);
-      expect(REGION.roads.some((road) => road.some((p) => dist(p, site.pos) <= ('kind' in site && site.kind === 'territory' ? site.radius : 0.01)))).toBe(true);
+      expect(REGION.roads.some((road) => road.some((p) => dist(p, site.pos) <= ('kind' in site && site.kind === 'territory' ? site.radius : 0.01))), site.id).toBe(site.id !== 'glass-flats');
     }
     for (let i = 0; i < sites.length; i++) for (let j = i + 1; j < sites.length; j++) expect(dist(sites[i].pos, sites[j].pos)).toBeGreaterThan(60);
   });
@@ -137,9 +137,9 @@ describe("terrain grid", () => {
     };
     for (const [a, b] of [
       ['bowl', 'orchard'], ['orchard', 'dustwell'], ['dustwell', 'granary'], ['granary', 'nose'],
-      ['bowl', 'green-pit'], ['green-pit', 'glass-flats'], ['glass-flats', 'nose'],
+      ['bowl', 'green-pit'], ['green-pit', 'nose'],
       ['orchard', 'pump-station'], ['pump-station', 'salvage-yard'], ['salvage-yard', 'nose'],
-      ['granary', 'pump-station'], ['green-pit', 'pump-station'], ['salvage-yard', 'glass-flats'],
+      ['granary', 'pump-station'], ['green-pit', 'pump-station'],
     ]) expect(connects(a, b), `${a} to ${b}`).toBe(true);
   });
 
@@ -176,21 +176,9 @@ describe("terrain grid", () => {
     }
   });
 
-  it('enters Glass Flats by a spur from the south road and an approach from the Salvage Yard road, with no road through it', () => {
+  it('keeps every road outside Glass Flats', () => {
     const flats = REGION.locations.find((site) => site.id === 'glass-flats')!;
-    const entering = REGION.roads.filter((road) => road.some((p) => siteGap(flats, p) < 0));
-    expect(entering).toHaveLength(2);
-    const [s1, s2] = entering;
-    expect(s1).toHaveLength(2);
-    expect(dist(s1[0], scalePoint({ x: 88, y: 84 }))).toBeLessThan(0.01);
-    expect(dist(s2[0], scalePoint({ x: 97, y: 62 }))).toBeLessThan(0.01);
-    for (const road of entering) {
-      expect(REGION.roads.some((other) => other !== road && other.some((p) => dist(p, road[0]) < 0.01))).toBe(true);
-      const firstInside = road.findIndex((p) => siteGap(flats, p) < 0);
-      expect(firstInside).toBe(road.length - 1);
-      for (let i = 1; i < firstInside; i++) expect(siteEdgeCrossings(flats, road[i - 1], road[i])).toEqual([]);
-    }
-    for (const road of REGION.roads.filter((r) => !entering.includes(r))) {
+    for (const road of REGION.roads) {
       for (let i = 1; i < road.length; i++) {
         const steps = Math.ceil(dist(road[i - 1], road[i]) * 4);
         for (let k = 0; k <= steps; k++) {
