@@ -30,6 +30,7 @@ import type { ChaosHighwayRun, GroupSide, OutpostFacts, PartInstance, RunLossCau
 import { refreshVision, sightRadius } from './vision';
 import { dist, type Vec } from './vec';
 import { playerCommand } from './world';
+import { requireWholeM } from './money';
 
 
 export type Outpost = OutpostFacts & { id: string; spots: YardSpots };
@@ -368,6 +369,7 @@ function completeStretch(world: World, run: ChaosHighwayRun): void {
   const post = factsOf(run, j);
   const wrecks = run.groups.reduce((n, g) => n + g.wrecked, 0);
   const pay = payOf(j);
+  requireWholeM(pay, 'outpost pay');
   world.player.money += pay;
   world.events.push({ t: 'money', amount: pay, reason: { kind: 'outpost' } });
   post.paid = true;

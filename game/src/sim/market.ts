@@ -32,6 +32,7 @@ import { dist, type Vec } from './vec';
 import { isOutlaw, noteContractDeed } from './relations';
 import { fileEmbezzlement } from './crime';
 import { SITE_FACTIONS } from '../data/npc-behavior';
+import { chargeM, fairM, payoutM, requireWholeM } from './money';
 
 export type SiteEvent = { kind: SiteEventKind; recipe: string; until: number };
 
@@ -199,24 +200,43 @@ export function standingPrice(shopId: string, good: string, pressure: number): n
   return goodBasePrice(shopId, good) * (1 + pressure);
 }
 
-export function priceAtPressure(shopId: string, good: string, pressure: number, direction: 'buy' | 'sell', spread: number): number {
+export function rateAtPressure(shopId: string, good: string, pressure: number, direction: 'buy' | 'sell', spread: number): number {
   if (!(spread >= 0)) throw new Error(`Bad spread ${spread}`);
   const pressured = standingPrice(shopId, good, pressure);
-  const buy = Math.max(1, Math.ceil(pressured * (1 + spread)));
-  const sell = Math.min(buy - 1, Math.floor(pressured * (1 - spread)));
-  return direction === 'buy' ? buy : Math.max(0, sell);
+  return pressured * (direction === 'buy' ? 1 + spread : 1 - spread);
+}
+
+export function goodRate(shopId: string, state: ShopState, good: string, direction: 'buy' | 'sell', spread: number): number {
+  return rateAtPressure(shopId, good, pressureOf(shopId, good, goodStock(state, good)), direction, spread);
+}
+
+export function priceAtPressure(shopId: string, good: string, pressure: number, direction: 'buy' | 'sell', spread: number): number {
+  return lotAmount(rateAtPressure(shopId, good, pressure, 'buy', spread), rateAtPressure(shopId, good, pressure, 'sell', spread), direction);
 }
 
 export function goodPrice(shopId: string, state: ShopState, good: string, direction: 'buy' | 'sell', spread: number): number {
-  return priceAtPressure(shopId, good, pressureOf(shopId, good, goodStock(state, good)), direction, spread);
+  return lotTotal(shopId, good, goodStock(state, good), direction, spread, 1);
+}
+
+function lotAmount(buyRates: number, sellRates: number, direction: 'buy' | 'sell'): number {
+  const buy = Math.max(1, chargeM(buyRates));
+  return direction === 'buy' ? buy : Math.max(0, Math.min(buy - 1, payoutM(sellRates)));
+}
+
+function lotTotal(shopId: string, good: string, stock: number, direction: 'buy' | 'sell', spread: number, count: number): number {
+  const step = direction === 'buy' ? -1 : 1;
+  let buyRates = 0;
+  let sellRates = 0;
+  for (let i = 0; i < count; i++) {
+    const pressure = pressureOf(shopId, good, stock + step * i);
+    buyRates += rateAtPressure(shopId, good, pressure, 'buy', spread);
+    sellRates += rateAtPressure(shopId, good, pressure, 'sell', spread);
+  }
+  return lotAmount(buyRates, sellRates, direction);
 }
 
 export function lotPrice(shopId: string, state: ShopState, good: string, direction: 'buy' | 'sell', spread: number, count: number): number {
-  const stock = lotStock(shopId, state, good, direction, count);
-  const step = direction === 'buy' ? -1 : 1;
-  let total = 0;
-  for (let i = 0; i < count; i++) total += priceAtPressure(shopId, good, pressureOf(shopId, good, stock + step * i), direction, spread);
-  return total;
+  return lotTotal(shopId, good, lotStock(shopId, state, good, direction, count), direction, spread, count);
 }
 
 function lotStock(shopId: string, state: ShopState, good: string, direction: 'buy' | 'sell', count: number): number {
@@ -271,7 +291,7 @@ export function contractReward(turns: number, cargoValue: number, rush: boolean)
   requireNonNegative('cargo value', cargoValue);
   const commission = cargoValue * CONTRACTS.haul.valueShare;
   const standard = turns * EFFORT.wage[1] * CONTRACTS.haul.rewardFactor + commission;
-  return Math.round(rush ? standard * CONTRACTS.haul.rush.premium : standard);
+  return fairM(rush ? standard * CONTRACTS.haul.rush.premium : standard);
 }
 
 export function haulWindow(turns: number, rush: boolean): number {
@@ -295,7 +315,7 @@ export function cargoValue(v: Vehicle): number {
 }
 
 export function partPristineBuyPrice(defId: string): number {
-  return Math.round(PARTS[defId].value * (1 + ECONOMY.spread));
+  return fairM(PARTS[defId].value * (1 + ECONOMY.spread));
 }
 
 export type HaulLeg = { good: string; to: { id: string; pos: Vec }; units: number };
@@ -344,7 +364,7 @@ export function procureTrip(shopId: string, good: string): number {
 }
 
 export function procureReward(units: number, cratePay: number, trip: number): number {
-  return units * cratePay + Math.round(contractReward(trip, 0, true) * CONTRACTS.procure.travelFactor);
+  return units * cratePay + fairM(contractReward(trip, 0, true) * CONTRACTS.procure.travelFactor);
 }
 
 export function procureWindow(trip: number): number {
@@ -373,7 +393,7 @@ function rollProcure(world: World, input: RollInput, id: string): Contract {
   const shortfall = procureShortfall(world, shopId, state, good);
   if (shortfall === 0) throw new Error(`${shopId} cannot order ${good}: it is not short of it, makes it or has it on order`);
   const units = randInt(world.marketRng, CONTRACTS.procure.units[0], Math.min(CONTRACTS.procure.units[1], shortfall));
-  const cratePay = Math.round(standingPrice(shopId, good, pressureOf(shopId, good, goodStock(state, good))));
+  const cratePay = fairM(standingPrice(shopId, good, pressureOf(shopId, good, goodStock(state, good))));
   const trip = procureTrip(shopId, good);
   const window = procureWindow(trip);
   return { id, shop: shopId, kind: 'procure', good, units, cratePay, reward: procureReward(units, cratePay, trip), deadline: world.turn + window, window, tier: GOODS[good].tier };
@@ -426,7 +446,7 @@ export function stockForSale(world: World, shopId: string, good: string): number
 }
 
 export function searchReward(): number {
-  return Math.round(CONTRACTS.search.rewardTurns * EFFORT.wage[1]);
+  return fairM(CONTRACTS.search.rewardTurns * EFFORT.wage[1]);
 }
 
 function rollSearch(world: World, input: RollInput, id: string): Contract {
@@ -807,7 +827,7 @@ function noteBrokenWord(world: World, c: Contract): void {
 
 function endingAmount(c: Contract, outcome: ContractEnd): number {
   if (outcome === 'done') return c.reward;
-  if (outcome === 'released' && c.kind === 'escort') return Math.round(c.reward * escortShare(c));
+  if (outcome === 'released' && c.kind === 'escort') return fairM(c.reward * escortShare(c));
   return 0;
 }
 
@@ -826,6 +846,7 @@ function contractEvent(c: Contract, outcome: ContractEnd, cause: 'rival' | undef
 }
 
 function payContract(world: World, c: Contract, amount: number): void {
+  requireWholeM(amount, `contract ${c.id}`);
   world.player.money += amount;
   world.events.push({ t: 'money', amount, reason: { kind: 'contract' } });
   practice(world, 'contract', contractXp({ ...c, reward: amount }), null, c.shop);

@@ -26,6 +26,7 @@ import { DECKS } from './bridge';
 import type { Call, CallVar, CallVars, Cue, DirectionStep, RoadName, GridItem, Job, NpcActivity, NpcState, OutpostFacts, PartInstance, RefitJob, RefitPickup, SalvageStock, Vehicle, World, XpSource } from './types';
 import { carryHp, maxHp } from './wear';
 import { wornReload } from './utility';
+import { payoutM } from './money';
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;
 type ShopDefinition = (typeof SHOPS)[string];
@@ -382,7 +383,7 @@ function relocated(grid: Grid, kept: GridItem[], item: GridItem): boolean {
 
 function displaced(world: World, item: GridItem): void {
   if (item.kind === 'parcel') dropParcelContract(world, item.contract);
-  else if (item.kind === 'good') world.player.money += GOODS[item.good].value;
+  else if (item.kind === 'good') world.player.money += payoutM(GOODS[item.good].value);
   else if (!isCoreItem(item)) world.player.storage.push(item.part);
 }
 

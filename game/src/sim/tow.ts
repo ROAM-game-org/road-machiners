@@ -30,6 +30,7 @@ import { playerCommand, update } from './world';
 import { atlasOf } from './atlas';
 import { followersOf, followingOf, joinCompany } from './companies';
 import { bandAtLeast, bandToward, isAlly, isRaider, reportIncident } from './relations';
+import { fairM, requireWholeM } from './money';
 
 export function inTowReach(tower: Vehicle, towed: Vehicle): boolean {
   const radii = chassisDef(tower.chassisId).radius + chassisDef(towed.chassisId).radius;
@@ -404,7 +405,7 @@ function towFee(world: World, tower: Vehicle, client: Vehicle, site: Site): numb
   const length = routeLength(client.pos, route(world, client.pos, pad, vehicleStats(world, tower).radius, [], tower));
   const involved = isPlayer(world, tower) || isPlayer(world, client);
   const cut = involved ? 1 - skillEffect(world, playerVehicle(world), 'social', 'towFee') : 1;
-  return Math.round(Math.min(TOW.maxFee, TOW.base + TOW.perTile * length) * cut);
+  return fairM(Math.min(TOW.maxFee, TOW.base + TOW.perTile * length) * cut);
 }
 
 function refuse(world: World, tow: NpcState): void {
@@ -587,6 +588,7 @@ export function payEscort(w: World, s: NpcState): void {
   if (escortData(s).fee === 0) return;
   const leader = getResources(w, vehicleById(w, s.other));
   const fee = Math.min(escortData(s).fee, Math.max(0, leader.money));
+  requireWholeM(fee, 'escort fee');
   leader.money -= fee;
   getResources(w, vehicleById(w, s.holder)).money += fee;
   w.events.push({ t: 'escortPaid', by: s.holder, client: s.other, fee });

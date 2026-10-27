@@ -33,7 +33,7 @@ import { budget } from '../test/budget';
 let world: World;
 beforeAll(() => {
   world = emptyWorld(sitePads(REGION.towns[0])[0]);
-  world.player.money = 3333333;
+  world.player.money = 33333;
 });
 
 const addedParts: Record<Exclude<PartKind, "core" | "scanner">, string[]> = {
@@ -415,9 +415,9 @@ describe("part weight by tier", () => {
       if (d.kind !== "accessory") throw new Error(`${id} is not an accessory`);
       return { hp: d.hp, mass: d.mass, value: d.value, armor: d.armor, blastArmor: d.blastArmor, ramMult: d.ramMult, mounts: d.mounts };
     };
-    expect(stats("ram")).toEqual({ hp: 100, mass: 50.625, value: 8533, armor: 8, blastArmor: 8, ramMult: 2, mounts: ["F", "B"] });
-    expect(stats("plowRam")).toEqual({ hp: 170, mass: 47.25, value: 16667, armor: 10, blastArmor: 10, ramMult: 2.8, mounts: ["F", "B"] });
-    expect(stats("claymoreRam")).toEqual({ hp: 80, mass: 142.5, value: 14000, armor: 14, blastArmor: 6, ramMult: 1.5, mounts: ["F", "B"] });
+    expect(stats("ram")).toEqual({ hp: 100, mass: 50.625, value: 85.33, armor: 8, blastArmor: 8, ramMult: 2, mounts: ["F", "B"] });
+    expect(stats("plowRam")).toEqual({ hp: 170, mass: 47.25, value: 166.67, armor: 10, blastArmor: 10, ramMult: 2.8, mounts: ["F", "B"] });
+    expect(stats("claymoreRam")).toEqual({ hp: 80, mass: 142.5, value: 140, armor: 14, blastArmor: 6, ramMult: 1.5, mounts: ["F", "B"] });
   });
 });
 

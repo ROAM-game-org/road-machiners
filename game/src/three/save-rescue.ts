@@ -12,6 +12,8 @@ import type { SaveSlots } from './save-db';
 type Json = Record<string, unknown>;
 
 const CENTS_PER_MONEY_29_30 = 100 / 3;
+const CENTS_PER_M = 100;
+const WHOLE_M_BEFORE = 117;
 const XP_TO_REACH_9_10 = [0, 200, 600, 1200, 2000, 3000];
 
 function pooledSkills_9_10(skills: Record<string, number>): { xp: number; ranks: Record<string, number> } {
@@ -140,18 +142,18 @@ function truckOf(world: Json, player: Json): Carried['truck'] {
 
 const HAULER_FORMAT_2_60 = 2060;
 
-function runOf(world: Json, format: number): CarriedRun | null {
+function runOf(world: Json, format: number, money: MoneyReader): CarriedRun | null {
   const saved = formatBefore(format, CHAOS_HIGHWAY_NAME_BEFORE) ? world.furyRoad : world.chaosHighway;
   if (saved === null || saved === undefined) return null;
   const run = objectOf(saved) ?? {};
   if (!('hauler' in run) && format < HAULER_FORMAT_2_60) return null;
-  return readRun(world, run);
+  return readRun(world, run, money);
 }
 
 type RunTotals = { window: number; earned: number; wrecks: number };
 
-function readRun(world: Json, run: Json): CarriedRun {
-  const [window, earned, wrecks] = [windowOf(run.window), countOf(run.earned), countOf(run.wrecks)];
+function readRun(world: Json, run: Json, money: MoneyReader): CarriedRun {
+  const [window, earned, wrecks] = [windowOf(run.window), money.amount(countOf(run.earned)), countOf(run.wrecks)];
   const hauler = vehicleOf(world, objectOf(run.hauler)?.id);
   if (window === null || earned === null || wrecks === null || !hauler) throw new Error('The Chaos Highway run in this save has no readable window, totals or hauler, so it cannot be rescued');
   return carriedRun(run, { window, earned, wrecks }, hauler);
@@ -195,10 +197,10 @@ export function readCarried(raw: unknown, prices: Readonly<Record<string, number
 
 function readFormatted(raw: unknown, world: Json, player: Json): Carried {
   const format = formatNumber(raw);
-  const scale = formatBefore(format, 30) ? CENTS_PER_MONEY_29_30 : 1;
+  const money = moneyReader(format);
   return {
     seed: isGridInt(world.seed) ? world.seed : null,
-    money: centsOf(player.money, scale),
+    money: money.amount(player.money),
     ...pooledOf(player),
     xpBySource: countsOf(player.xpBySource),
     perks: listOf(player.perks).flatMap((id) => idOf(id) ?? []).map((id) => renamedIn(RENAMED_PERKS_RESCUE, id)),
@@ -209,12 +211,12 @@ function readFormatted(raw: unknown, world: Json, player: Json): Carried {
     autoRepair: flagOf(player.autoRepair),
     fuel: countOf(player.fuel),
     supplies: countOf(player.supplies),
-    costBasis: Object.fromEntries(Object.entries(countsOf(player.costBasis)).map(([good, basis]) => [good, basis * scale])),
+    costBasis: Object.fromEntries(Object.entries(countsOf(player.costBasis)).map(([good, basis]) => [good, money.rate(basis)])),
     truck: truckOf(world, player),
     storage: listOf(player.storage).flatMap((p) => partOf(p) ?? []),
     setup: setupOf(world.setup, format),
     quests: questVarsOf(player.quests, format),
-    run: runOf(world, format),
+    run: runOf(world, format, money),
     notes: [...new Set(listOf(player.notes).flatMap(noteOf))],
     revisions: savedRevisionsOf(raw),
     refunded: 0,
@@ -285,8 +287,16 @@ function formatNumber(raw: unknown): number {
   return part('major') * 1000 + part('minor');
 }
 
-function centsOf(value: unknown, scale: number): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? Math.round(value * scale) : null;
+type MoneyReader = { amount: (value: unknown) => number | null; rate: (value: number) => number };
+
+function moneyReader(format: number): MoneyReader {
+  const centsPer = formatBefore(format, 30) ? CENTS_PER_MONEY_29_30 : 1;
+  if (!formatBefore(format, WHOLE_M_BEFORE)) return { amount: (value) => (typeof value === 'number' && Number.isFinite(value) ? value : null), rate: (value) => value };
+  const shown = (cents: number): number => (Math.round(cents) === 0 ? 0 : Math.sign(cents) * Math.ceil(Math.abs(Math.round(cents)) / CENTS_PER_M));
+  return {
+    amount: (value) => (typeof value === 'number' && Number.isFinite(value) ? shown(value * centsPer) : null),
+    rate: (value) => (value * centsPer) / CENTS_PER_M,
+  };
 }
 
 function pooledOf(player: Json): Pick<Carried, 'xp' | 'ranks'> {

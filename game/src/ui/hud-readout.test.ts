@@ -307,7 +307,7 @@ describe('search in combat', () => {
 describe("critical vehicle readout", () => {
   it("keeps money, survival resources and driver condition visible", () => {
     const w = emptyWorld();
-    w.player.money = 123450;
+    w.player.money = 1235;
     w.player.fuel = 18.5;
     w.player.supplies = 7.25;
     expect(getHudReadout(w).resources.map((r) => en(r.label))).toEqual([
@@ -424,9 +424,9 @@ describe("rescue readout", () => {
 
   it("shows negative money as a negative amount with a warning", () => {
     const w = emptyWorld();
-    w.player.money = -120050;
+    w.player.money = -1201;
     const money = getHudReadout(w).resources[0];
-    expect({ value: en(money.value), balance: money.balance, warning: money.warning }).toEqual({ value: "\u22121,201 M's", balance: -120050, warning: true });
+    expect({ value: en(money.value), balance: money.balance, warning: money.warning }).toEqual({ value: "\u22121,201 M's", balance: -1201, warning: true });
   });
   it("gives only the M's entry a balance", () => {
     const { resources } = getHudReadout(emptyWorld());
@@ -494,7 +494,7 @@ describe('parcel handover action', () => {
     npc.speed = npcSpeed;
     w.player.contracts.push({
       id: 'ct-s', shop: 'bowl', kind: 'search', target: npc.id, driver: npc.brain.driver, template: 'trader',
-      lead: { at: { x: 0, y: 0 }, turn: 0 }, reward: 9200, deadline: 900, window: 600, tier: 1, delivered: false,
+      lead: { at: { x: 0, y: 0 }, turn: 0 }, reward: 92, deadline: 900, window: 600, tier: 1, delivered: false,
     });
     stowParcel(me, { id: 'i-parcel', x: 0, y: 0, rot: 0, kind: 'parcel', contract: 'ct-s' });
     addState(w, 'handover', npc.id, w.player.vehicleId, { kind: 'none' });
@@ -702,7 +702,7 @@ describe('survey interaction', () => {
   function atSurveySite() {
     const [site] = surveySites(TEST_MAP);
     const w = emptyWorld({ x: site.pos.x + 1, y: site.pos.y });
-    w.player.contracts = [{ id: 'ct-s', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: true, done: false }], reward: 3000, deadline: 900, window: 900, tier: 1 }];
+    w.player.contracts = [{ id: 'ct-s', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: true, done: false }], reward: 30, deadline: 900, window: 900, tier: 1 }];
     return w;
   }
 

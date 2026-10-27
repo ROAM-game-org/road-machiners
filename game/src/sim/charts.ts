@@ -7,6 +7,7 @@ import { requireShop } from './market';
 import { pay } from './economy';
 import type { World } from './types';
 import { playerCommand } from './world';
+import { fairM } from './money';
 
 export type Sheet = { col: number; row: number };
 export type SheetBounds = { x0: number; y0: number; x1: number; y1: number };
@@ -67,7 +68,7 @@ export function unexploredIn(world: World, sheet: Sheet): number {
 
 export function chartPrice(unexplored: number): number {
   if (unexplored <= 0) return 0;
-  return Math.round((EFFORT.wage[1] * unexplored) / (2 * TERRAIN.vision.radius * EFFORT.refSpeed));
+  return fairM((EFFORT.wage[1] * unexplored) / (2 * TERRAIN.vision.radius * EFFORT.refSpeed));
 }
 
 export function chartsOnSale(world: World, shopId: string): SheetOffer[] {

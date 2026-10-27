@@ -10,7 +10,6 @@ import { takeAllLoot } from '../sim/locations';
 import { newGame } from '../sim/new-game';
 import { openingStockOf, OPENING_WRECK_ID } from '../sim/opening';
 import { chooseQuestOption, QUESTS, questView, setQuestLanguage } from '../sim/quests';
-import { UNITS } from '../data/units';
 import { engineNeedsPatch, repairPlan } from '../sim/repair';
 import { defaultSetup } from '../sim/settings';
 import { startSearch } from '../sim/search';
@@ -116,7 +115,7 @@ describe('the arrival at the farm', () => {
     const looked = pick(arrival(), HOUSE, LOOK, LINK);
     const left = pick(arrival(), HOUSE, LEAVE_HOUSE, LINK);
     const straight = pick(arrival(), SHED, LINK);
-    expect(looked.player.money - start).toBe(50 * UNITS.centsPerM);
+    expect(looked.player.money - start).toBe(50);
     expect(left.player.money).toBe(start);
     expect(straight.player.money).toBe(start);
     for (const w of [looked, left, straight]) {
@@ -130,7 +129,7 @@ describe('the arrival at the farm', () => {
     expect(questView(atFarm, QUESTS).choices).toEqual([HOUSE, SHED]);
     const inHouse = sameAfterRoundTrip(pick(atFarm, HOUSE));
     expect(questView(inHouse, QUESTS).choices).toEqual([LOOK, LEAVE_HOUSE]);
-    expect(pick(inHouse, LOOK).player.money - startKit('standard').money).toBe(50 * UNITS.centsPerM);
+    expect(pick(inHouse, LOOK).player.money - startKit('standard').money).toBe(50);
   });
 
   it('shows the farm page before its choices after a load', () => {
@@ -160,7 +159,7 @@ describe('the arrival at the farm', () => {
     const view = questView(loaded, QUESTS);
     expect(view.choices).toEqual([LINK]);
     expect(view.lines[0].text.startsWith('Under the fallen roof sheet')).toBe(true);
-    expect(loaded.player.money - startKit('standard').money).toBe(50 * UNITS.centsPerM);
+    expect(loaded.player.money - startKit('standard').money).toBe(50);
   });
 
   it('runs a turn after a load while the truck still rolls with no order', () => {

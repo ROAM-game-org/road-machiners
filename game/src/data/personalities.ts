@@ -11,7 +11,7 @@ export type Gate = 'open' | 'price' | 'help' | 'closed';
 
 export type Personality = { gates: Partial<Record<TopicId, Gate>> };
 
-export const TALK_PRICE = 1000;
+export const TALK_PRICE = 10;
 
 export const PERSONALITIES: Record<PersonalityId, Personality> = {
   talkative: { gates: {} },

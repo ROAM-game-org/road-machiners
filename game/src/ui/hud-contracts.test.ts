@@ -23,7 +23,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const base = { shop: "bowl", reward: 100, deadline: 100, window: 100, tier: 1 } as const;
+const base = { shop: "bowl", reward: 1, deadline: 100, window: 100, tier: 1 } as const;
 const en = (msg: Parameters<typeof resolve>[0]): string => resolve(msg, "en");
 
 const contracts: Contract[] = [

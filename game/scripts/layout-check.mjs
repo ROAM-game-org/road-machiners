@@ -29,8 +29,8 @@ function fillLog(page) {
     const lines = [
       t('log.jobCancelled', { what: t('job.remove', { part: n.partName('tankHeavy'), truck: t('vehicle.npc', { profession: n.professionName('convoyGuard'), driver: n.fullName('Dmitri Tulloch') }) }) }),
       t('log.jobStarted', { what: t('job.repair', { part: n.partName('enclosedFrame') }), n: 12 }),
-      t('log.escortHired', { client: t('vehicle.npc', { profession: n.professionName('convoy'), driver: n.fullName('Lorna Morozov') }), who: t('vehicle.npc', { profession: n.professionName('merc'), driver: n.fullName('Elias Drummond') }), site: n.siteName('canyon-bridge'), fee: moneyMsg(12345) }),
-      t('log.contract.accepted', { what: t('contract.procure', { n: 12, good: n.goodName('electronics'), site: n.siteName('salvage-yard') }), reward: moneyMsg(4200) }),
+      t('log.escortHired', { client: t('vehicle.npc', { profession: n.professionName('convoy'), driver: n.fullName('Lorna Morozov') }), who: t('vehicle.npc', { profession: n.professionName('merc'), driver: n.fullName('Elias Drummond') }), site: n.siteName('canyon-bridge'), fee: moneyMsg(123) }),
+      t('log.contract.accepted', { what: t('contract.procure', { n: 12, good: n.goodName('electronics'), site: n.siteName('salvage-yard') }), reward: moneyMsg(42) }),
       t('note.hazard'),
       t('log.towDroppedYou.blocked', { who: t('vehicle.npc', { profession: n.professionName('bowlFarmer'), driver: n.fullName('Hester Kessler') }) }),
       t('log.scrapPatchFuel', { liters: 40 }),
@@ -100,7 +100,7 @@ async function openCall(page, node) {
     }
     const next = structuredClone(w);
     const way = node === 'directions' ? await longestDirections(w) : null;
-    const deal = { deal: { kind: 'deal', deal: 'ownParts', patcher: 'player', price: 1250, parts: 3, turns: 4 } };
+    const deal = { deal: { kind: 'deal', deal: 'ownParts', patcher: 'player', price: 13, parts: 3, turns: 4 } };
     next.player.call = node === 'hub'
       ? { with: npc.id, topic: null, node: 'hub', vars: {}, line: { line: 'whatDoYouWant', vars: {} } }
       : node === 'directions'
@@ -291,7 +291,7 @@ const openSurveyJournal = async (page) => {
     const world = structuredClone(g.state);
     const sites = surveySites({ hash: world.mapHash, terrain: world.terrain }).filter((s) => s.type !== 'boats').slice(0, 3);
     const points = sites.map((s, i) => ({ site: s.id, found: i > 0, done: i > 1 }));
-    world.player.contracts.push({ id, shop: 'bowl', kind: 'survey', points, reward: 3000, deadline: 9000, window: 600, tier: 1 });
+    world.player.contracts.push({ id, shop: 'bowl', kind: 'survey', points, reward: 30, deadline: 9000, window: 600, tier: 1 });
     g.apply(world);
   }, SURVEY_CONTRACT_ID);
   await key(page, 'KeyJ');

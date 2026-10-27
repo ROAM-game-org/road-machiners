@@ -19,6 +19,7 @@ import { playerVehicle } from './damage';
 import { vehicleHasPerk } from './progress';
 import { newId } from './factory';
 import { playerCommand, Refused } from './world';
+import { fairM, payoutM, requireWholeM } from './money';
 
 type Witnessed = Extract<Memory['fact'], { kind: 'witnessed' }>;
 const SHOP_IDS: ReadonlySet<string> = new Set(Object.keys(SHOPS));
@@ -120,6 +121,7 @@ function openCase(world: World, reporter: Vehicle, fact: Witnessed, site: string
   const issuer = issuerOf(victim, reporter);
   const stake = Math.min(stakeOf(world, issuer, reporter, fact.offense), CRIME.maxOwed - finesOn(world, target.id));
   if (stake < CRIME.minStake) return;
+  requireWholeM(stake, 'case stake');
   const escrow = issuer.kind === 'driver' ? stake : 0;
   if (escrow > 0) shopMoney(world, reporter, -escrow, 'bountyEscrow');
   const c: CrimeCase = {
@@ -136,7 +138,8 @@ export function fileEmbezzlement(world: World, shopId: string, crates: number, g
   if (!Number.isInteger(crates) || crates <= 0) throw new Error(`An embezzlement needs crates kept, got ${crates}`);
   if (!modeRules(world).bounties) return;
   const target = playerVehicle(world);
-  const owed = Math.min(crates * goodValue(good), CRIME.maxOwed - owedBy(world, target.id));
+  const owed = Math.min(fairM(crates * goodValue(good)), CRIME.maxOwed - owedBy(world, target.id));
+  requireWholeM(owed, 'embezzlement fine');
   if (owed < CRIME.minStake) return;
   const turn = world.turn;
   const c: CrimeCase = {
@@ -169,7 +172,7 @@ function issuerOf(victim: Vehicle | null, reporter: Vehicle): CaseIssuer {
 export function stakeOf(world: World, issuer: CaseIssuer, reporter: Vehicle, offense: WitnessedOffense): number {
   const fine = CRIME.fine[offense];
   if (issuer.kind !== 'driver') return fine;
-  return Math.max(0, Math.floor(Math.min(fine, CRIME.purseShare * tradeSpend(world, reporter))));
+  return Math.max(0, payoutM(Math.min(fine, CRIME.purseShare * tradeSpend(world, reporter))));
 }
 
 export function openCasesOn(world: World, targetId: string): CrimeCase[] {
@@ -238,7 +241,7 @@ export function payBounty(world: World, payer: Vehicle, cases: CrimeCase[], coll
   }
   for (const c of cases) {
     if (c.target !== payer.id) throw new Error(`${payer.id} pays case ${c.id} on ${c.target}`);
-    const fee = Math.round(c.owed * CRIME.feeShare);
+    const fee = fairM(c.owed * CRIME.feeShare);
     if (collector) transfer(world, payer, collector, fee);
     else shopMoney(world, payer, -fee, 'bountyOffice');
     payIssuer(world, payer, c, c.owed - fee);
@@ -414,7 +417,7 @@ function settleable(world: World): StandingFactionId[] {
 
 export function settlePrice(standing: number): number {
   const days = (BANDS.hostile + 1 - standing) / STANDING.dailyDrift;
-  return Math.round(days * TIME.turnsPerDay * CRIME.wage * CRIME.settleWage);
+  return fairM(days * TIME.turnsPerDay * CRIME.wage * CRIME.settleWage);
 }
 
 export function settlementQuote(world: World, faction: StandingFactionId): SettlementQuote | null {

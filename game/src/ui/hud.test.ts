@@ -37,7 +37,7 @@ describe('held contract line', () => {
     });
     const [first, second, third] = surveySites(TEST_MAP);
     const contract: Contract = {
-      id: 'c3', kind: 'survey', shop: 'bowl', reward: 3000, deadline: 100, window: 100, tier: 1,
+      id: 'c3', kind: 'survey', shop: 'bowl', reward: 30, deadline: 100, window: 100, tier: 1,
       points: [{ site: first.id, found: true, done: true }, { site: second.id, found: true, done: false }, { site: third.id, found: false, done: false }],
     };
 
@@ -55,7 +55,7 @@ describe('held contract line', () => {
       createElement: () => new FakeNode(),
       createTextNode: (value: string) => Object.assign(new FakeNode(), { children: [value] }),
     });
-    const order: Contract = { id: 'c1', kind: 'procure', shop: 'bowl', good: 'salt', units: 5, cratePay: 10, reward: 100, deadline: 100, window: 100, tier: 1 };
+    const order: Contract = { id: 'c1', kind: 'procure', shop: 'bowl', good: 'salt', units: 5, cratePay: 10, reward: 1, deadline: 100, window: 100, tier: 1 };
 
     const line = heldContractLine(emptyWorld(), order) as unknown as FakeNode;
 
@@ -67,7 +67,7 @@ describe('held contract line', () => {
     const w = emptyWorld();
     const [site] = surveySites(TEST_MAP);
     const contract: Contract = {
-      id: 'c3', kind: 'survey', shop: 'bowl', reward: 3000, deadline: 100, window: 100, tier: 1,
+      id: 'c3', kind: 'survey', shop: 'bowl', reward: 30, deadline: 100, window: 100, tier: 1,
       points: [{ site: site.id, found: true, done: true }],
     };
     w.events = [
@@ -184,7 +184,7 @@ describe('the Wanted well', () => {
   function robbed(w: World): CrimeCase {
     const c: CrimeCase = {
       id: 'case1', crime: `1:${w.player.vehicleId}:npc-x:robbed`, offense: 'robbed', target: w.player.vehicleId, victim: 'npc-x', issuer: { kind: 'faction', faction: 'bowl' },
-      reporters: ['npc-x'], site: 'bowl', at: { x: 30, y: 30 }, turn: 1, filed: 2, owed: 11097, restitution: 4000, escrow: 0, status: 'open',
+      reporters: ['npc-x'], site: 'bowl', at: { x: 30, y: 30 }, turn: 1, filed: 2, owed: 111, restitution: 40, escrow: 0, status: 'open',
       closed: null, hunter: null, retryAt: null, offered: null, known: false, posse: 'lone', lead: { at: { x: 30, y: 30 }, turn: 1, heading: 0 },
     };
     w.crimes = [c];

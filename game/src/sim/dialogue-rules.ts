@@ -45,6 +45,7 @@ import type { Call, CallVar, CallVars, DirectionTarget, GridItem, MemoryFact, Np
 import { bearing, dist, type Vec } from './vec';
 import { craterNews, giveWord, knowsTheCrater, prepareVigilCall, refuseVigil, vigilCallDue } from './sunward-crater';
 import { directionsTo } from './directions';
+import { fairM } from './money';
 
 function mayDemand(world: World, npc: Vehicle): boolean {
   return world.player.talked[npc.id]?.demand === undefined && knowsCargo(world, npc, playerVehicle(world));
@@ -244,7 +245,7 @@ function rememberedPrices(world: World, fact: PriceFact): { good: string; buy: n
 }
 
 function trucePrice(npc: Vehicle): number {
-  return Math.round(vehicleValue(npc) * PERK_NUMBERS.paidTruce.share);
+  return fairM(vehicleValue(npc) * PERK_NUMBERS.paidTruce.share);
 }
 
 function aidVar(a: AidAmounts): CallVar {

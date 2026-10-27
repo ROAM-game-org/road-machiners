@@ -43,7 +43,6 @@ import { CRIME } from '../data/market';
 import { REGION } from '../data/region';
 import { WAGON_SEVEN } from '../data/salvage';
 import { SKILL_IDS } from '../data/skills';
-import { UNITS } from '../data/units';
 import { playerVehicle } from './damage';
 import { mountedParts } from './grid';
 import { skillLevel } from './progress';
@@ -62,6 +61,7 @@ import { update } from './world';
 import { inCombat } from './combat';
 import { isKnockedOut } from './defeat';
 import { goodsCount } from './grid';
+import { requireWholeM } from './money';
 import { parkedOn } from './sites';
 import { dist } from './vec';
 import { playerSees } from './vision';
@@ -115,7 +115,7 @@ const pickedChecks = new WeakMap<World, QuestCheck>();
 const SITES = new Set([...REGION.towns, ...REGION.locations].map((s) => s.id));
 
 export const QUEST_QUERIES: Record<string, QuestQuery> = {
-  money: (world) => Math.floor(world.player.money / UNITS.centsPerM),
+  money: (world) => world.player.money,
   engine_missing: (world) => mountedParts(playerVehicle(world), 'engine').length === 0,
   has_note: (world, args) => holdsNote(world, noteArg('has_note', args)),
   found: (world, args) => world.player.discovered.includes(siteArg('found', args)),
@@ -143,13 +143,13 @@ export const QUEST_EFFECTS: Record<string, QuestEffect> = {
   give_money: (world, args) => {
     const amount = wholeArg('give_money', args, 0);
     if (amount < 0) throw new Error(`give_money takes no negative amount, got ${amount}`);
-    world.player.money += amount * UNITS.centsPerM;
+    world.player.money += amount;
   },
   pay: (world, args) => {
     const amount = wholeArg('pay', args, 0);
     if (amount < 0) throw new Error(`pay takes no negative amount, got ${amount}`);
-    if (world.player.money < amount * UNITS.centsPerM) throw new Error(`pay(${amount}) needs more money than the player holds. Check money() first`);
-    world.player.money -= amount * UNITS.centsPerM;
+    if (world.player.money < amount) throw new Error(`pay(${amount}) needs more money than the player holds. Check money() first`);
+    world.player.money -= amount;
   },
   take_marshal_lead: (world) => {
     const lead = marshalLead(world);
@@ -166,13 +166,12 @@ export const QUEST_EFFECTS: Record<string, QuestEffect> = {
 
 function stretchPay(stretch: number): number {
   if (stretch < 1) throw new Error(`stretch_pay needs a stretch of 1 or more, got ${stretch}`);
-  return payOf(stretch) / UNITS.centsPerM;
+  return payOf(stretch);
 }
 
 function leadPrice(): number {
-  const price = Math.round(CRIME.leadFee / UNITS.centsPerM);
-  if (price < 1) throw new Error(`lead_price would round under 1 M, got ${CRIME.leadFee} cents`);
-  return price;
+  if (CRIME.leadFee < 1) throw new Error(`lead_price would be under 1 M, got ${CRIME.leadFee}`);
+  return CRIME.leadFee;
 }
 
 function wholeArg(fn: string, args: readonly unknown[], index: number): number {
@@ -444,8 +443,9 @@ export function leaveQuest(world: World): World {
 
 function payCost(w: World, cost: number | null, choice: string): void {
   if (cost === null) return;
-  if (w.player.money < cost * UNITS.centsPerM) throw new Error(`"${choice}" costs ${cost} M, more than the player holds`);
-  w.player.money -= cost * UNITS.centsPerM;
+  requireWholeM(cost, `choice "${choice}" cost`);
+  if (w.player.money < cost) throw new Error(`"${choice}" costs ${cost} M, more than the player holds`);
+  w.player.money -= cost;
 }
 
 export function questView(world: World, bundle: QuestBundle): QuestView {

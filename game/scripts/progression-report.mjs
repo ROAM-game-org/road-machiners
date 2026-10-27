@@ -2,7 +2,6 @@ import { createReadStream, readdirSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { MAX_RANK, SKILL_IDS } from '../src/data/skills.ts';
 import { TIME } from '../src/data/time.ts';
-import { UNITS } from '../src/data/units.ts';
 import { parseRun, replay, targetMisses, WORTH_KEYS } from '../src/sim/progression/replay.ts';
 import { LEDGER_KEYS } from '../src/sim/progression/orders.ts';
 import { fightTotals, ledgerTotals, TIERS, tierDays, wageByTier } from '../src/sim/progression/record.ts';
@@ -10,7 +9,7 @@ import { measuredRewardTurns, searchEffort } from '../src/sim/progression/turn-l
 
 const dirs = process.argv.slice(2).filter((a) => a !== '--');
 if (dirs.length > 2) throw new Error('Pass one dir to report on, or two to compare');
-const inM = (digits) => (cents) => (cents / UNITS.centsPerM).toFixed(digits);
+const inM = (digits) => (amount) => amount.toFixed(digits);
 
 const sides = [];
 for (const dir of dirs.length > 0 ? dirs : ['tmp/progression']) sides.push(await readDir(dir));

@@ -405,14 +405,14 @@ describe('towing', () => {
     forceOption('strandedSeen', 'tow');
     let w = offered(s);
     const fee = feeOf(w);
-    w.player.money = 333;
+    w.player.money = 3;
     const traderMoney = find(w, s.trader.id).resources!.money;
     w = acceptTow(w);
     const r = runUntil(w, 120, (x) => playerTow(x) === null);
     w = r.w;
     expect(r.events.filter((e) => e.t === 'towDone')).toEqual([{ t: 'towDone', by: s.trader.id, client: w.player.vehicleId, fee }]);
     expect(r.events.filter((e) => e.t === 'stateEnded').map((e) => e.t === 'stateEnded' && e.ending)).toEqual(['fulfilled']);
-    expect(w.player.money).toBe(333 - fee);
+    expect(w.player.money).toBe(3 - fee);
     expect(w.player.money).toBeLessThan(0);
     expect(find(w, s.trader.id).resources!.money).toBe(traderMoney + fee);
     expect(canUseSite(find(w, s.trader.id).pos, town)).toBe(true);
@@ -427,7 +427,7 @@ describe('towing', () => {
     expect(autoRuns(w)).toBe(false);
     const after = runUntil(w, 5, () => false);
     expect(after.events.some((e) => e.t === 'towDone')).toBe(false);
-    expect(after.w.player.money).toBe(333 - fee);
+    expect(after.w.player.money).toBe(3 - fee);
   });
 });
 
@@ -911,9 +911,9 @@ describe('the player towing an NPC', () => {
 
   it('the driver names its nearest town and a fee it can pay', () => {
     const { w: start, npc } = strandedNpc();
-    npc.resources!.money = 1000;
+    npc.resources!.money = 10;
     const w = pick(callVehicle(start, npc.id), OFFER);
-    expect(w.player.call?.vars).toEqual({ site: { kind: 'site', id: 'bowl' }, fee: { kind: 'money', amount: 1000 } });
+    expect(w.player.call?.vars).toEqual({ site: { kind: 'site', id: 'bowl' }, fee: { kind: 'money', amount: 10 } });
   });
 
   it('hitching takes the driver out of physics, and it trails the player', () => {

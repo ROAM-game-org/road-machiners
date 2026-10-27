@@ -8,6 +8,7 @@ import { corePart, goodsCount } from './grid';
 import { sitePads } from './sites';
 import { partDef } from '../data/parts';
 import { chassisDef } from '../data/chassis';
+import { chargeM } from './money';
 import { RULES } from '../data/rules';
 
 describe('NPC transactions', () => {
@@ -70,7 +71,7 @@ describe('NPC transactions', () => {
     economy.serviceVehicle(w, npc, 'bowl', 0);
     expect(npc.resources!.supplies).toBe(1);
     expect(npc.resources!.fuel).toBe(0);
-    expect(npc.resources!.money).toBe(ECONOMY.supplyPrice.fuel * 2 - ECONOMY.supplyPrice.supplies);
+    expect(npc.resources!.money).toBe(ECONOMY.supplyPrice.fuel * 2 - chargeM(ECONOMY.supplyPrice.supplies));
   });
 
   it('serves like a town garage at a stall', () => {

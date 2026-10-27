@@ -20,6 +20,7 @@ import type { GoalReason, NpcState, StateData, StateEnding, Vehicle, World } fro
 import { canVehicleSee } from './vision';
 import { playerCommand } from './world';
 import { noteDeed } from './relations';
+import { chargeM } from './money';
 
 export type AidAmounts = { fuel: number; supplies: number };
 type AidTerms = Omit<Extract<StateData, { kind: 'aid' }>, 'kind' | 'agreed' | 'started' | 'work' | 'workLeft'>;
@@ -88,7 +89,7 @@ export function aidValue(a: AidAmounts): number {
 }
 
 export function aidPrice(world: World, npc: Vehicle, a: AidAmounts): number {
-  return Math.max(0, Math.min(aidValue(a), getResources(world, npc).money));
+  return Math.max(0, Math.min(chargeM(aidValue(a)), getResources(world, npc).money));
 }
 
 export function canSpareFor(world: World, npc: Vehicle): boolean {

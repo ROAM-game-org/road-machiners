@@ -40,7 +40,7 @@ export function kitOf(v: Vehicle): KitLine {
     chassis: v.chassisId,
     guns: parts.filter((p) => partDef(p.defId).kind === 'weapon').map((p) => p.defId),
     armor: parts.filter((p) => isShield(partDef(p.defId))).length,
-    gear: Math.round(parts.reduce((sum, p) => sum + partDef(p.defId).value, 0) / 100),
+    gear: Math.round(parts.reduce((sum, p) => sum + partDef(p.defId).value, 0)),
   };
 }
 
@@ -76,7 +76,7 @@ function choiceAt(world: World): OutpostChoice {
   const cheapest = new Map<string, number>();
   for (const plan of [...mine, ...theirs].filter((p) => p.jobGain > 0)) cheapest.set(plan.offer.part.id, Math.min(cheapest.get(plan.offer.part.id) ?? Infinity, plan.offer.price));
   const prices = [...cheapest.values()];
-  return { useful: cheapest.size, affordable: prices.filter((price) => price <= money).length, total: Math.round(prices.reduce((sum, p) => sum + p, 0) / 100), money: Math.round(money / 100) };
+  return { useful: cheapest.size, affordable: prices.filter((price) => price <= money).length, total: Math.round(prices.reduce((sum, p) => sum + p, 0)), money };
 }
 
 export class RunLog {
@@ -159,7 +159,7 @@ export class RunLog {
       return { id, template: v.brain.templateId, ...kitOf(v) };
     });
     for (const truck of trucks) this.tally.enemies.push({ chassis: truck.chassis, guns: truck.guns, armor: truck.armor });
-    return { t: 'group', turn: world.turn, stretch: g.stretch, from: g.from, elite: g.elite, money: Math.round(g.money / 100), trucks };
+    return { t: 'group', turn: world.turn, stretch: g.stretch, from: g.from, elite: g.elite, money: Math.round(g.money), trucks };
   }
 
   private beaten(before: World, world: World, stretch: number): RunLine[] {
@@ -170,9 +170,9 @@ export class RunLog {
 
   private outpost(world: World, stretch: number, pay: number, wrecks: number): RunLine {
     const damageTaken = Math.round([...this.damage.values()].reduce((sum, d) => sum + d, 0));
-    const repairs = Math.round(repairCost(world, playerVehicle(world)) / 100);
-    const haulerRepairs = Math.round(repairCost(world, haulerOf(world)) / 100);
-    return { t: 'outpost', turn: world.turn, stretch, pay: Math.round(pay / 100), wrecks, condition: conditionOf(world), damageTaken, money: Math.round(world.player.money / 100), repairs, haulerRepairs };
+    const repairs = Math.round(repairCost(world, playerVehicle(world)));
+    const haulerRepairs = Math.round(repairCost(world, haulerOf(world)));
+    return { t: 'outpost', turn: world.turn, stretch, pay: Math.round(pay), wrecks, condition: conditionOf(world), damageTaken, money: Math.round(world.player.money), repairs, haulerRepairs };
   }
 
   private leave(world: World, stretch: number): RunLine {
@@ -181,19 +181,19 @@ export class RunLog {
       t: 'leave',
       turn: world.turn,
       stretch,
-      money: Math.round(world.player.money / 100),
+      money: Math.round(world.player.money),
       condition: conditionOf(world),
       kit: kitOf(playerVehicle(world)),
       haulerKit: kitOf(haulerOf(world)),
-      paid: Math.round(world.chaosHighway!.earned / 100),
+      paid: Math.round(world.chaosHighway!.earned),
       budget: stretchBudget(world, stretch).budget,
-      plan: world.chaosHighway!.groups.map((g) => ({ at: Math.round(g.at - milestoneAt(world.seed, stretch - 1)), template: g.templates[0], size: g.templates.length, money: Math.round(g.money / 100), elite: g.elite })),
+      plan: world.chaosHighway!.groups.map((g) => ({ at: Math.round(g.at - milestoneAt(world.seed, stretch - 1)), template: g.templates[0], size: g.templates.length, money: Math.round(g.money), elite: g.elite })),
     };
   }
 
   private lost(world: World, stretch: number, cause: string): RunLine {
     const stretchDamageBy = [...this.damage.entries()].sort((a, b) => b[1] - a[1])
       .map(([id, damage]) => ({ id, template: this.templates.get(id) ?? 'unknown', damage: Math.round(damage) }));
-    return { t: 'lost', turn: world.turn, stretch, cause, money: Math.round(world.player.money / 100), kit: kitOf(playerVehicle(world)), stretchDamageBy, stats: this.statsAt(world) };
+    return { t: 'lost', turn: world.turn, stretch, cause, money: Math.round(world.player.money), kit: kitOf(playerVehicle(world)), stretchDamageBy, stats: this.statsAt(world) };
   }
 }

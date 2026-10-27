@@ -445,7 +445,8 @@ describe('social on patch prices', () => {
     setParts(w, playerVehicle(w), 3);
     const base = laborPrice(w, trader.id, 0);
     const cut = 1 - 5 * SKILL_EFFECTS.social.patchPrice;
-    expect(laborPrice(w, trader.id, 5)).toBe(Math.round(base * cut));
+    expect(Math.abs(laborPrice(w, trader.id, 5) - base * cut)).toBeLessThanOrEqual(1);
+    expect(laborPrice(w, trader.id, 5)).toBeLessThan(base);
     expect(Math.round(base * cut)).toBeLessThan(base);
   });
 

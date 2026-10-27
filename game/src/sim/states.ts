@@ -22,6 +22,7 @@ import type { Job, NpcState, StateData, StateEnding, StateKindId, Vehicle, World
 import { canVehicleSee } from './vision';
 import { modeRules } from './settings';
 import { noteDeed } from './relations';
+import { requireWholeM } from './money';
 
 export type WorkLeft = { turnsLeft: number; total: number };
 export type Work = WorkLeft & { queued: number } & ({ from: 'job'; job: Job } | { from: 'state'; state: NpcState });
@@ -284,6 +285,7 @@ function payTow(w: World, s: NpcState): void {
   const tow = towData(s);
   const towed = vehicleById(w, s.other);
   const tower = vehicleById(w, s.holder);
+  requireWholeM(tow.fee, 'tow fee');
   getResources(w, towed).money -= tow.fee;
   getResources(w, tower).money += tow.fee;
   if (towed.brain) forgetClient(tower, s.other);

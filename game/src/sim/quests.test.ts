@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 import { GAME_NOTES } from '../data/locals';
 import * as QUEST_DATA from '../data/quests';
 import { START_KITS } from '../data/start';
-import { UNITS } from '../data/units';
 import { TEST_MAP } from '../test/map';
 import { chooseQuestOption, QUEST_QUERIES, leaveQuest, questProblems, questView, relanguageQuest, restoreQuest, setQuestLanguage, startQuest } from './quests';
 import { defaultSetup } from './settings';
@@ -78,7 +77,7 @@ describe('chooseQuestOption', () => {
   it('pays money through the give_money effect in whole M', () => {
     const before = world();
     const after = play(before, 'sample_bowl', 'start', [RUMORS, COIN]);
-    expect(after.player.money - before.player.money).toBe(5 * UNITS.centsPerM);
+    expect(after.player.money - before.player.money).toBe(5);
   });
 
   it('closes the session at the end and keeps the last lines on view', () => {
@@ -119,7 +118,7 @@ describe('pay and begin', () => {
   it('takes money in whole M through pay, and refuses more than the player holds', () => {
     const bundle = bundleOf({ q: '=== start ===\n# checkpoint: start\n+ [Pay.]\n  ~ pay(3)\n  -> END\n+ [Pay a fortune.]\n  ~ pay(999999)\n  -> END\n' });
     const before = startQuest(world(), bundle, 'q', 'start');
-    expect(chooseQuestOption(before, bundle, 0).player.money).toBe(before.player.money - 3 * UNITS.centsPerM);
+    expect(chooseQuestOption(before, bundle, 0).player.money).toBe(before.player.money - 3);
     expect(() => chooseQuestOption(before, bundle, 1)).toThrow('pay(999999) needs more money than the player holds');
   });
 

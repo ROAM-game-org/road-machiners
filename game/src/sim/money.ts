@@ -20,3 +20,8 @@ export function fairM(x: number): number {
 export function requireWholeM(amount: number, what: string): void {
   if (!Number.isInteger(amount)) throw new Error(`${what}: money ${amount} is not a whole number of M`);
 }
+
+export function affordableUnits(budget: number, unitPrice: number): number {
+  if (!(unitPrice > 0)) throw new Error(`A unit price of ${unitPrice} buys no count`);
+  return Math.max(0, Math.floor(finite(budget) / unitPrice + TOLERANCE));
+}

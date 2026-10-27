@@ -28,7 +28,7 @@ afterEach(() => {
 function postedEscort(threat: number) {
   const w = emptyWorld();
   const trader = addVehicle(w, "independent", "scout", ["mg", "stockEngine"], { x: 46, y: 40 });
-  const c: Contract = { shop: "bowl", reward: 100, deadline: 100, window: 100, tier: 1, id: "e", kind: "escort", client: trader.id, to: "nose", threat: threat as 1, span: 1, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null };
+  const c: Contract = { shop: "bowl", reward: 1, deadline: 100, window: 100, tier: 1, id: "e", kind: "escort", client: trader.id, to: "nose", threat: threat as 1, span: 1, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null };
   return () => contractRow(w, c, new FakeNode("button") as unknown as HTMLElement, true) as unknown as FakeNode;
 }
 

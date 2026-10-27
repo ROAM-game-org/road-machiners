@@ -22,6 +22,7 @@ import { dist, type Vec } from "./vec";
 import { atlasOf } from "./atlas";
 import { bayHeading, hollowBays } from "./hollow-layout";
 import { isSunwardMember, spawnsAtHollow } from "./sunward";
+import { fairM } from './money';
 
 export function spawnNpcs(world: World): void {
   if (!modeRules(world).traffic) return;
@@ -294,7 +295,7 @@ export function spawnAt(world: World, tpl: NpcTemplate, loadout: NpcLoadout, pos
     },
   });
   if (!v.resources) throw new Error(`${tpl.id} spawned without resources`);
-  v.resources.money = tpl.money;
+  v.resources.money = fairM(tpl.money);
   world.vehicles.push(v);
   world.events.push({ t: "spawn", vehicle: v.id });
   return v;

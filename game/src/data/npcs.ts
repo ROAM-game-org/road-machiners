@@ -45,11 +45,11 @@ export const GEAR_SCORE = { armorQualityScale: 28, armorCurvePower: 2, gunSatura
 const GOOD_WEAR: Weighted<number>[] = [{ value: 2, weight: 1 }, { value: 3, weight: 3 }, { value: 4, weight: 12 }];
 
 export const GEAR_LEVELS: Record<GearLevel, { money: number; wear: Weighted<number>[]; cargo: number }> = {
-  poor: { money: 125000, wear: [{ value: 3, weight: 1 }, { value: 4, weight: 15 }], cargo: 0.5 },
-  light: { money: 146000, wear: GOOD_WEAR, cargo: 0.75 },
-  standard: { money: 171000, wear: GOOD_WEAR, cargo: 1 },
-  heavy: { money: 208000, wear: GOOD_WEAR, cargo: 1 },
-  loaded: { money: 275000, wear: GOOD_WEAR, cargo: 1.5 },
+  poor: { money: 1250, wear: [{ value: 3, weight: 1 }, { value: 4, weight: 15 }], cargo: 0.5 },
+  light: { money: 1460, wear: GOOD_WEAR, cargo: 0.75 },
+  standard: { money: 1710, wear: GOOD_WEAR, cargo: 1 },
+  heavy: { money: 2080, wear: GOOD_WEAR, cargo: 1 },
+  loaded: { money: 2750, wear: GOOD_WEAR, cargo: 1.5 },
 };
 
 const TRADER_SPARES: SpareTable = {
@@ -439,7 +439,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     loadout: LOADOUTS.trader,
     aggroRange: 0,
     fightStyle: 'hold',
-    money: 133300,
+    money: 1333,
     cap: 8,
     pairs: false,
     interval: 12,
@@ -531,7 +531,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     loadout: LOADOUTS.convoy,
     aggroRange: 0,
     fightStyle: 'hold',
-    money: 133300,
+    money: 1333,
     cap: 2,
     pairs: false,
     interval: 100,
