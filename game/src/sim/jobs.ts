@@ -45,8 +45,12 @@ export function dropLeftoverOrder(world: World, v: Vehicle): void {
   if (v.id === world.player.vehicleId && v.speed <= RULES.parkedSpeed) v.order = null;
 }
 
+export function stoppedByCombat(kind: Job["kind"]): boolean {
+  return kind !== "survey";
+}
+
 export function startJob(world: World, v: Vehicle, job: Job): void {
-  if (inCombat(world, v)) throw new Refused({ id: "inCombat" });
+  if (stoppedByCombat(job.kind) && inCombat(world, v)) throw new Refused({ id: "inCombat" });
   if (isAutoPatch(v.job)) cancelJob(world, v);
   if (v.job) throw new Refused({ id: "busy", job: v.job.kind });
   dropLeftoverOrder(world, v);
@@ -235,7 +239,7 @@ export function advanceJobs(world: World): void {
 }
 
 function advanceJob(world: World, v: Vehicle, job: Job): void {
-  if (!isParkedForWork(world, v) || inCombat(world, v)) return endJob(world, v, job, "cancelled");
+  if (!isParkedForWork(world, v) || (stoppedByCombat(job.kind) && inCombat(world, v))) return endJob(world, v, job, "cancelled");
   if (job.kind === "refit") return advanceRefit(world, v, job);
   if (isStalled(world, v, job)) return endJob(world, v, job, "cancelled");
   if (jobTurn(world, v, job)) endJob(world, v, job, "done");

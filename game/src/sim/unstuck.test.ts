@@ -89,6 +89,57 @@ describe('getUnstuck', () => {
       refused(w, 'combat');
     });
 
+    describe('in a fight', () => {
+      const fight = () => {
+        const w = emptyWorld();
+        const raider = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 50, y: 30 });
+        addState(w, 'combat', raider.id, playerVehicle(w).id, { kind: 'none' });
+        return w;
+      };
+
+      it('refuses a truck physics does not hold', () => {
+        for (const turns of [0, RULES.stranded.turns]) {
+          const w = fight();
+          playerVehicle(w).strandedTurns = turns;
+          refused(w, 'combat');
+        }
+      });
+
+      it('sets down a held truck at once', () => {
+        for (const turns of [1, RULES.stranded.turns - 1]) {
+          const w = fight();
+          const me = playerVehicle(w);
+          me.strandedTurns = turns;
+          me.strandedAt = { ...me.pos };
+          me.order = { kind: 'through', dest: { x: 60, y: 30 } } as typeof me.order;
+          expect(unstuckBlock(w)).toBeNull();
+          const after = playerVehicle(getUnstuck(w));
+          expect(after.order).toBeNull();
+          expect(after.speed).toBe(0);
+          expect(after.strandedTurns).toBe(RULES.stranded.turns);
+          expect(after.strandedAt).toBeUndefined();
+        }
+      });
+
+      it('keeps the other blocks for a held truck', () => {
+        const w = fight();
+        playerVehicle(w).strandedTurns = 1;
+        w.player.call = {} as World['player']['call'];
+        refused(w, 'onRadio');
+        const x = fight();
+        playerVehicle(x).strandedTurns = 1;
+        const other = addVehicle(x, 'independent', 'scout', ['stockEngine'], { x: 40, y: 30 });
+        x.lines.push({ id: 'l1', from: playerVehicle(x).id, fromPart: 'p', to: other.id, toPart: 'q', length: 10, turnsLeft: 3 });
+        refused(x, 'harpoon');
+      });
+    });
+
+    it('allows a held truck outside a fight', () => {
+      const w = emptyWorld();
+      playerVehicle(w).strandedTurns = 1;
+      expect(unstuckBlock(w)).toBeNull();
+    });
+
     it('refuses while towing another truck', () => {
       const w = emptyWorld();
       const towed = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 32, y: 30 });
