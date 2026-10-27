@@ -1,6 +1,9 @@
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { must } from './exec';
 import { COLUMNS, FACTORY_MARK } from './types';
-import type { Card, Column, FactoryConfig, FingerprintIssue, GitHub, Issue, IssueComment, Run, RunResult } from './types';
+import type { Card, Column, FactoryConfig, FailedTest, FingerprintIssue, GitHub, Issue, IssueComment, Run, RunResult, SuiteFailures } from './types';
 
 const ISSUE_FIELDS = 'number,title,body,labels,createdAt,state,author';
 
@@ -83,7 +86,7 @@ const NOT_THIS_KIND = /Could not resolve to an? (User|Organization)/;
 
 const RATE_LIMITED = /rate limit|HTTP 429|submitted too quickly/i;
 const UPSTREAM_DOWN = /HTTP 50[234]\b/;
-const READ_COMMANDS = new Set(['view', 'list']);
+const READ_COMMANDS = new Set(['view', 'list', 'download']);
 const FIELD_FLAGS = new Set(['-f', '-F', '--field', '--raw-field', '--input']);
 const TAG_EXISTS = /a release with the same tag name already exists/;
 
@@ -98,6 +101,8 @@ const sleep: Wait = (ms) => new Promise((done) => setTimeout(done, ms));
 
 export const SUITE_WORKFLOW = 'game-suite.yml';
 export const SUITE_TESTS_STEP = 'tests';
+export const SUITE_FAILURES_ARTIFACT = 'test-failures';
+const SUITE_FAILURES_FILE = 'test-failures.json';
 
 type RawRun = { status: string; conclusion: string | null; html_url: string };
 type RawJob = { status: string; steps: { name: string; conclusion: string | null }[] };
@@ -368,8 +373,9 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
     async reopen(number) {
       await gh(['issue', 'reopen', String(number), '-R', repo]);
     },
-    async dispatchSuite(sha) {
-      const out = await gh(['api', '-X', 'POST', `repos/${repo}/actions/workflows/${SUITE_WORKFLOW}/dispatches`, '-f', 'ref=main', '-f', `inputs[sha]=${sha}`, '-F', 'return_run_details=true']);
+    async dispatchSuite(sha, scope) {
+      const inputs = scope === undefined ? [] : ['-f', `inputs[files]=${scope.files.join(' ')}`, '-f', `inputs[workers]=${scope.workers}`];
+      const out = await gh(['api', '-X', 'POST', `repos/${repo}/actions/workflows/${SUITE_WORKFLOW}/dispatches`, '-f', 'ref=main', '-f', `inputs[sha]=${sha}`, ...inputs, '-F', 'return_run_details=true']);
       const id = out.trim() === '' ? undefined : (JSON.parse(out) as { workflow_run_id?: number }).workflow_run_id;
       if (typeof id !== 'number') throw new Error(`The dispatch of ${SUITE_WORKFLOW} for ${sha} returned no run id: ${out.trim()}`);
       return id;
@@ -390,11 +396,36 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
     async suiteLog(id) {
       return gh(['run', 'view', String(id), '-R', repo, '--log-failed']);
     },
+    async suiteFailures(id) {
+      const dir = mkdtempSync(join(tmpdir(), 'suite-failures-'));
+      try {
+        const result = await call(['run', 'download', String(id), '-R', repo, '-n', SUITE_FAILURES_ARTIFACT, '-D', dir]);
+        const file = join(dir, SUITE_FAILURES_FILE);
+        return result.code === 0 && existsSync(file) ? suiteFailuresOf(readFileSync(file, 'utf8')) : null;
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
     async errorIssue(number) {
       const issue = JSON.parse(await gh(['issue', 'view', String(number), '-R', repo, '--json', 'number,state,stateReason,closedAt'])) as FingerprintIssue;
       return { ...issue, stateReason: issue.stateReason || null, closedAt: issue.closedAt || null };
     },
   };
+}
+
+const isFailedTest = (row: unknown): row is FailedTest => {
+  const { file, test } = (row ?? {}) as { file?: unknown; test?: unknown };
+  return typeof file === 'string' && file !== '' && (test === null || typeof test === 'string');
+};
+
+export function suiteFailuresOf(text: string): SuiteFailures | null {
+  try {
+    const { failed, unhandledErrors } = JSON.parse(text) as { failed?: unknown; unhandledErrors?: unknown };
+    if (!Array.isArray(failed) || !failed.every(isFailedTest) || !Number.isInteger(unhandledErrors) || (unhandledErrors as number) < 0) return null;
+    return { failed: failed.map(({ file, test }) => ({ file, test })), unhandledErrors: unhandledErrors as number };
+  } catch {
+    return null;
+  }
 }
 
 function retriable(result: RunResult, read: boolean): boolean {

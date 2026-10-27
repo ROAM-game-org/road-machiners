@@ -171,6 +171,8 @@ Before the factory deletes a sessions folder or a run's projects folder, it copi
 
 Every routed approval reply adds a line too.
 
+Each time merge or ship checks compare a suite failure with a rerun on the base, a `baseline` line records the stage, the target branch, the base and head commits, `excluded`, the failed tests the base fails too, and `failing`, the ones that fail only on the head.
+
 Every card move adds a card line: the issue, the new column, the time and a step that names the move. `src/card-events.ts` writes it after the board takes the move, and no other code moves a card. A line holds no actor, comment or reason.
 
 - Normal path: `entered`, `accepted` or `voted`, `planned`, `built`, `posted`, `approved`, `hardened` into Merging, and `merged`.

@@ -8,9 +8,10 @@ import { readState, updateState } from '../state';
 import { BRANCH, GAME_DIR, RELEASE_CANDIDATE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, type AgentSession, type Card, type Ctx, type FactoryState, type IssueMerge } from '../types';
 import { withWorkFolder } from '../work-lock';
 import { closeMerged } from './approval';
-import { BudgetError, runCost, untilPasses } from './checkpoint';
+import { BaselineFailureError, BudgetError, runCost, untilPasses } from './checkpoint';
 import { checkScript, checkUntilReal, runChecks } from './checks';
-import { remoteSuite } from './remote-suite';
+import { withoutBaseline } from './baseline';
+import { remoteSuiteResult } from './remote-suite';
 import { guardAgainstAll } from '../diff-guard';
 import { labelStuckBatch } from '../stuck';
 import { BASE_BRANCH, baseBranchFor, fillPrompt, isGameSource, playtestCommand, resetOutputs } from './common';
@@ -22,9 +23,16 @@ export async function merge(ctx: Ctx): Promise<void> {
   try {
     await withWorkFolder(ctx, 'merge-queue', () => mergeBatch(ctx, batch.base, batch.cards));
   } catch (error) {
+    if (error instanceof BaselineFailureError) await commentBaseline(ctx, batch.cards, error);
     await labelStuckBatch(ctx, batch.cards.map((card) => card.issue));
     throw error;
   }
+}
+
+async function commentBaseline(ctx: Ctx, cards: Card[], error: BaselineFailureError): Promise<void> {
+  const batch = cards.map((card) => `#${card.issue}`).join(', ');
+  const tests = error.tests.map((test) => `- ${test}`).join('\n');
+  for (const card of cards) await ctx.github.comment(card.issue, `The merge checks of ${batch} fail only on tests that also fail on ${error.into} at ${error.base}, so no fix round ran and nothing merged. The card waits for ${error.into} to pass them:\n${tests}`);
 }
 
 async function mergeBatch(ctx: Ctx, base: string, cards: Card[]): Promise<void> {
@@ -181,7 +189,8 @@ async function uncommitted(ctx: Ctx, dir: string): Promise<string> {
 async function suiteOnHead(ctx: Ctx, land: Landing): Promise<{ suite: Promise<string | null> }> {
   const head = await guardedHead(ctx, land);
   await ctx.repo.replaceBranch(head, `factory/suite-${land.stage}-${land.into.replaceAll('/', '-')}`);
-  const suite = remoteSuite(ctx, { stage: land.stage, issue: null }, head);
+  const check = { stage: land.stage, into: land.into, base: await ctx.repo.headHash(land.into), head };
+  const suite = remoteSuiteResult(ctx, { stage: land.stage, issue: null }, head).then((result) => (result.failure === null ? null : withoutBaseline(ctx, check, result)));
   suite.catch(() => undefined);
   return { suite };
 }

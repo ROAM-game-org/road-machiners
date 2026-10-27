@@ -183,6 +183,7 @@ describe('ghClient', () => {
     expect(isRead(['issue', 'view', '7'])).toBe(true);
     expect(isRead(['pr', 'list', '--head', 'b'])).toBe(true);
     expect(isRead(['run', 'view', '9', '--log-failed'])).toBe(true);
+    expect(isRead(['run', 'download', '9', '-n', 'test-failures'])).toBe(true);
     expect(isRead(['api', 'repos/o/r/actions/runs/9'])).toBe(true);
     expect(isRead(['api', '-X', 'GET', 'repos/o/r/issues'])).toBe(true);
     expect(isRead(['api', 'graphql', '-f', 'query=query($a: ID!) { node(id: $a) { id } }'])).toBe(true);

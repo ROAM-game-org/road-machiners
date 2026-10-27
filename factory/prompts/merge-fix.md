@@ -14,6 +14,7 @@ Run `npm ci` right after the docs step, before any code, test or check. The comm
 
 Fix the cause, so the merged result passes. The failure may come from two cards that pass alone and break together, or from something already broken on {{into}}.
 The committee approved each card by playing it. Keep the behavior each card was approved with. Change only what the fix needs.
+When the failure lists failed tests that also fail on {{into}}, the factory reran them there. Leave those alone and fix only the tests it lists as failing only here.
 Run the exact failing test first, to see the failure yourself. Then run it again with the typecheck to confirm the fix. A test run that hangs or times out has not passed, so find out why. Do not run the full suite or the playtest, since the factory runs them again after you.
 Commit the fix with a message that names the cards it touches.
 {{fixDocs}}
