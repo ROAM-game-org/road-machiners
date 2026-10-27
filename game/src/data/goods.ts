@@ -39,7 +39,7 @@ export const ECONOMY = {
   roadSpread: 0.3,
   supplyPrice: { fuel: 100, supplies: 167 } as Record<'fuel' | 'supplies', number>,
   scrapPerKg: 6.33,
-  repairShare: 0.85,
+  repairShare: 0.425,
   useRange: 1.5,
   interactionScale: 1.5,
 };
