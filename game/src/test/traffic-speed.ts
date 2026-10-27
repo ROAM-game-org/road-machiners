@@ -72,6 +72,8 @@ export type TrafficRun = {
   resupplyStarts: number;
   maxDry: number;
   collisions: number;
+  truckCollisions: number;
+  damagingTruckCollisions: number;
 };
 
 export function classify(s: TrafficSample): TrafficClass {
@@ -142,6 +144,8 @@ export type TrafficSummary = {
   resupplyStarts: number;
   maxDry: number;
   collisionsPer100NpcTurns: number;
+  truckCollisionsPer100NpcTurns: number;
+  damagingTruckCollisionsPer100NpcTurns: number;
 };
 
 export function summarize(runs: TrafficRun[]): TrafficSummary {
@@ -163,6 +167,8 @@ export function summarize(runs: TrafficRun[]): TrafficSummary {
     resupplyStarts: runs.reduce((a, r) => a + r.resupplyStarts, 0),
     maxDry: Math.max(...runs.map((r) => r.maxDry)),
     collisionsPer100NpcTurns: npcTurns ? (100 * runs.reduce((a, r) => a + r.collisions, 0)) / npcTurns : NaN,
+    truckCollisionsPer100NpcTurns: npcTurns ? (100 * runs.reduce((a, r) => a + r.truckCollisions, 0)) / npcTurns : NaN,
+    damagingTruckCollisionsPer100NpcTurns: npcTurns ? (100 * runs.reduce((a, r) => a + r.damagingTruckCollisions, 0)) / npcTurns : NaN,
   };
 }
 
@@ -209,7 +215,7 @@ function formatOne(s: TrafficSummary): string {
     ...s.healthyByChassis.map(([id, sp]) => spreadRow(id, sp)),
     '', `Healthy ordinary moving samples under ${SLOW_KPH} km/h by cause: ${SLOW_CAUSES.map((c) => `${c} ${pct(s.healthySlowCauses[c])}`).join(', ')}.`,
     `Low-fuel share of ordinary moving samples: ${pct(s.lowFuelShare)}.`,
-    `Resupply goal starts: ${s.resupplyStarts}. Most NPCs dry at once: ${s.maxDry}. Collisions per 100 NPC turns: ${s.collisionsPer100NpcTurns.toFixed(2)}.`,
+    `Resupply goal starts: ${s.resupplyStarts}. Most NPCs dry at once: ${s.maxDry}. Collisions per 100 NPC turns: ${s.collisionsPer100NpcTurns.toFixed(2)}, between trucks ${s.truckCollisionsPer100NpcTurns.toFixed(2)}, damaging between trucks ${s.damagingTruckCollisionsPer100NpcTurns.toFixed(2)}.`,
   ].join('\n');
 }
 
@@ -217,7 +223,7 @@ export async function recordTraffic(seed: number, turns: number, layer: TrafficL
   if (!TRAFFIC_LAYERS.includes(layer)) throw new Error(`unknown traffic layer "${layer}"`);
   let w = newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
   w.player.god = true;
-  const run: TrafficRun = { seed, layer, turns, samples: [], npcTurns: 0, resupplyStarts: 0, maxDry: 0, collisions: 0 };
+  const run: TrafficRun = { seed, layer, turns, samples: [], npcTurns: 0, resupplyStarts: 0, maxDry: 0, collisions: 0, truckCollisions: 0, damagingTruckCollisions: 0 };
   const play = layer === 'physics' ? await physicsPlayer(w) : farPlayer();
   const goals = new Map<string, string | null>();
   for (let i = 0; i < turns; i++) {
@@ -266,8 +272,19 @@ function startOf(w: World, v: Vehicle, seed: number, layer: TrafficLayer): Traff
   };
 }
 
+function countCollisions(w: World, run: TrafficRun): void {
+  const ids = new Set(w.vehicles.map((v) => v.id));
+  for (const e of w.events) {
+    if (e.t !== 'collision') continue;
+    run.collisions++;
+    if (!ids.has(e.a) || !ids.has(e.b)) continue;
+    run.truckCollisions++;
+    if (e.hitsA.length + e.hitsB.length > 0) run.damagingTruckCollisions++;
+  }
+}
+
 function record(w: World, before: Map<string, TrafficSample>, run: TrafficRun, goals: Map<string, string | null>): void {
-  run.collisions += w.events.filter((e) => e.t === 'collision').length;
+  countCollisions(w, run);
   const drivers = w.vehicles.filter((v) => v.brain);
   run.npcTurns += drivers.length;
   run.maxDry = Math.max(run.maxDry, drivers.filter((v) => getResources(w, v).fuel <= 0).length);

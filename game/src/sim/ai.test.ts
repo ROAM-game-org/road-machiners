@@ -467,13 +467,13 @@ describe('meetings', () => {
 
   it('the player on a route follows the same role', () => {
     const { w, low, high } = faceOff('lowFirst');
-    low.brain = undefined;
+    low.brain = null;
     w.player.vehicleId = low.id;
     settleMeetings(w);
     expect(givesWayTo(w, low, high)).toBe(true);
     w.player.vehicleId = high.id;
     low.brain = npcBrain('trader', low.pos, ['trader']);
-    high.brain = undefined;
+    high.brain = null;
     expect(givesWayTo(w, low, high)).toBe(true);
   });
 });
