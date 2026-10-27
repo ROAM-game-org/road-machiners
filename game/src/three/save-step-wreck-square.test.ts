@@ -73,7 +73,7 @@ describe('told wrecks across a save', () => {
     w.salvage = [{ id: 'wreck77', pos, radius: 0.6, goods: { scrap: 2 }, parts: [], hidden: emptyHidden() }];
     w.player.rumored = ['wreck77'];
     const vars = { way: { kind: 'directions' as const, steps: [] }, square: { kind: 'square' as const, ...gridSquareOf(pos) } };
-    w.player.call = { with: npc.id, topic: 'rumor', node: 'wreck', vars, line: { line: 'wreckWay', vars } };
+    w.player.call = { with: npc.id, topic: 'rumor', node: 'wreck', vars, line: { line: 'wreckWay', vars }, group: null, asked: [] };
     w.events = [];
     const loaded = reload(w);
     expect(loaded.player.call).toEqual(w.player.call);

@@ -2,7 +2,7 @@
 #ui .modal {
   z-index: var(--z-modal);
   left: 50%;
-  top: var(--space-7);
+  top: var(--modal-top);
   transform: translateX(-50%);
   box-sizing: border-box;
   width: min(var(--modal-width), calc(var(--layer-w) - var(--space-10)));
@@ -32,22 +32,13 @@
   z-index: var(--z-over-modal);
 }
 #ui:has(.modal:not([style*="display: none"])) > .top-left,
-#ui:has(.modal:not([style*="display: none"])) > .top-right,
+#ui:has(.modal:not([style*="display: none"])) > .top-right > :not(.game-menu),
 #ui:has(.modal:not([style*="display: none"])) > .bottom-left > .recenter,
 #ui:has(.modal:not([style*="display: none"])) > .right-column > .right-dock {
   visibility: hidden;
 }
-#ui:has(.modal.pinned:not([style*="display: none"])) > .top-right {
-  z-index: var(--z-over-modal);
-}
-#ui:has(.modal.pinned:not([style*="display: none"])) > .top-right > .game-menu {
-  visibility: visible;
-}
-#ui:has(.modal.quest-screen:not([style*="display: none"])) > .top-right {
+#ui:has(.modal:not([style*="display: none"])) > .top-right {
   z-index: var(--z-feedback);
-}
-#ui:has(.modal.quest-screen:not([style*="display: none"])) > .top-right > .game-menu {
-  visibility: visible;
 }
 #ui:has(.modal:not([style*="display: none"])) > .bottom-left > .instruments,
 #ui:has(.modal:not([style*="display: none"])) > .right-column > .log {

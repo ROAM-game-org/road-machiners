@@ -11,6 +11,7 @@ const SEE_THROUGH = new Set([GLASS, LAMP, RADIO]);
 const IDENTITY = new THREE.Matrix4();
 const FOOTING_GRID = CLIP_TOLERANCE / 2;
 const FACE_COLUMN = 0.1;
+const GLASS_SKIN = 2 * CLIP_TOLERANCE;
 
 export function postBottom(foot: number, top: number): number {
   return foot !== -Infinity && top - foot > CLIP_TOLERANCE ? foot : top;
@@ -451,14 +452,26 @@ export function postStands(body: THREE.Object3D, at: THREE.Vector3, bottom: numb
 }
 
 function braceFoot(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 {
-  const hit = braceHit(body, corner, center);
+  const hit = braceHit(body, corner, center) ?? braceBehindGlass(body, corner, center);
   if (!hit) throw new Error(`No body wall below the gun plate corner at ${corner.x.toFixed(2)},${corner.z.toFixed(2)} to brace it to`);
   return hit;
 }
 
 function braceHit(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 | undefined {
-  const inward = center.clone().sub(corner).setY(0).normalize();
-  return BRACE_ANGLES.map((deg) => wallHit(body, corner, inward.clone().multiplyScalar(Math.cos(deg * THREE.MathUtils.DEG2RAD)).setY(-Math.sin(deg * THREE.MathUtils.DEG2RAD))))
+  return nearestWall(body, corner, inwardOf(corner, center), 0);
+}
+
+function braceBehindGlass(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 | undefined {
+  const inward = inwardOf(corner, center);
+  return nearestWall(body, corner, inward, GLASS_SKIN) ?? nearestWall(body, corner, inward.negate(), GLASS_SKIN);
+}
+
+function inwardOf(corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 {
+  return center.clone().sub(corner).setY(0).normalize();
+}
+
+function nearestWall(body: THREE.Object3D, corner: THREE.Vector3, along: THREE.Vector3, skin: number): THREE.Vector3 | undefined {
+  return BRACE_ANGLES.map((deg) => wallHit(body, corner, along.clone().multiplyScalar(Math.cos(deg * THREE.MathUtils.DEG2RAD)).setY(-Math.sin(deg * THREE.MathUtils.DEG2RAD)), skin))
     .filter((p): p is THREE.Vector3 => p !== null)
     .sort((a, b) => a.distanceTo(corner) - b.distanceTo(corner))[0];
 }
@@ -505,10 +518,11 @@ export function rearHang(body: THREE.Object3D, z: number): THREE.Vector3 {
   throw new Error(`The base has no underside in its rear quarter at z ${z.toFixed(2)} to hang a chain from`);
 }
 
-function wallHit(body: THREE.Object3D, from: THREE.Vector3, dir: THREE.Vector3): THREE.Vector3 | null {
+function wallHit(body: THREE.Object3D, from: THREE.Vector3, dir: THREE.Vector3, skin: number): THREE.Vector3 | null {
   const start = from.clone().addScaledVector(dir, -CLIP_TOLERANCE);
-  const hit = new THREE.Raycaster(start, dir).intersectObject(body, true)[0];
-  return hit && !seeThrough(hit.object) ? hit.point : null;
+  const hits = new THREE.Raycaster(start, dir).intersectObject(body, true);
+  const solid = hits.find((h) => !seeThrough(h.object));
+  return solid && solid.distance - hits[0].distance <= skin ? solid.point : null;
 }
 
 function seeThrough(obj: THREE.Object3D): boolean {
