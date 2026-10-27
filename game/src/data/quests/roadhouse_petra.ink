@@ -10,7 +10,7 @@ VAR petra_raiders = false
 === start ===
 # checkpoint: start
 Welcome to the Roadhouse, driver. I'm Petra Quell, keeper of the mast.
-I wrote your truck down, with the hour, when it came over the rise. What the mast hears is for sale.
+I watched your truck come over the rise. What the mast hears is for sale.
 Wim Satterly keeps the <term=road_book>road book</term> in the other hut.
 -> hub
 
@@ -53,9 +53,9 @@ Wim Satterly keeps the <term=road_book>road book</term> in the other hut.
   <term=bowl>Bowl</term> and <term=nose>Nose</term> keep their patrols by their own gates, so Roadhouse cars cross the unwatched plain between them twice a day while it's light.
   <term=kiln>Kiln</term> riders work the south road and take a fee from haulers who pay. <term=scrapjaw>Scrapjaw</term> riders work the north.
   { cult_broken():
-    At dusk the <term=sunward>Sunward</term> lamps stopped crossing. I haven't written one down since.
+    At dusk the <term=sunward>Sunward</term> lamps stopped crossing. I haven't seen one since.
   - else:
-    At dusk the <term=sunward>Sunward</term> lamps still cross the open ground, and I write each one down.
+    At dusk the <term=sunward>Sunward</term> lamps still cross the open ground, and I watch each one from the mast.
   }
   -> hub
 + {holds_search()} [I'm looking for a driver.]
