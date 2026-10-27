@@ -62,12 +62,12 @@ type Goal = Exclude<Policy, 'markov' | 'climber' | RoadPolicy>;
 const CLIMB_GUNS = 3;
 const GOALS_PLAYED: readonly Goal[] = ['trader', 'scavenger', 'hunter', 'fastTrader'];
 
-const CARGO_GEAR: UpgradeStyle = { skip: [], chassis: 'value', job: 'carrier' };
+const CARGO_GEAR: UpgradeStyle = { skip: [], chassis: 'value', npc: 'trader' };
 const GEAR_STYLES: Record<Goal, UpgradeStyle> = {
-  trader: { skip: [], chassis: 'value', job: 'trader' },
-  scavenger: { skip: [], chassis: 'value', job: 'carrier' },
-  hunter: { skip: [], chassis: 'keep', job: 'fighter' },
-  fastTrader: { skip: ['armor'], chassis: 'speed', job: 'courier' },
+  trader: { skip: [], chassis: 'value', npc: 'trader', keepsTradeCapital: true },
+  scavenger: { skip: [], chassis: 'value', npc: 'scavenger' },
+  hunter: { skip: [], chassis: 'keep', npc: 'merc', gunFirst: true, lootRoom: BIGGEST_PART_CELLS },
+  fastTrader: { skip: ['armor'], chassis: 'speed', npc: 'courier' },
   hauler: CARGO_GEAR,
   procurer: CARGO_GEAR,
   searcher: CARGO_GEAR,
@@ -76,12 +76,10 @@ const GEAR_STYLES: Record<Goal, UpgradeStyle> = {
   convoyRobber: CARGO_GEAR,
 };
 
-const CLIMBER_GEAR: UpgradeStyle = { skip: [], chassis: 'keep', job: 'fighter', budgetJob: 'trader' };
+const CLIMBER_GEAR: UpgradeStyle = { skip: [], chassis: 'keep', npc: 'merc', gunFirst: true, keepsTradeCapital: true };
 
-function gearStyle(o: Orders, goal: Goal, archetype: Policy): UpgradeStyle {
-  if (archetype === 'climber') return CLIMBER_GEAR;
-  if (goal !== 'hunter') return GEAR_STYLES[goal];
-  return { ...GEAR_STYLES.hunter, lootRoom: BIGGEST_PART_CELLS, minSpeed: huntedSpeed(o.world) };
+function gearStyle(goal: Goal, archetype: Policy): UpgradeStyle {
+  return archetype === 'climber' ? CLIMBER_GEAR : GEAR_STYLES[goal];
 }
 
 
@@ -119,7 +117,7 @@ function policyOrders(world: World, archetype: Exclude<Policy, RoadPolicy>, opti
 function act(o: Orders, goal: Goal, archetype: Policy): void {
   if (dressWounds(o) || holds(o) || collectNearbyKnockout(o, goal, archetype)) return;
   if (goal === 'searcher') takeSearch(o);
-  if (serviceTrip(o, gearStyle(o, goal, archetype)) || defend(o, goal)) return;
+  if (serviceTrip(o, gearStyle(goal, archetype)) || defend(o, goal)) return;
   followGoal(o, goal, archetype);
 }
 
