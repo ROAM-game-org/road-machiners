@@ -1,6 +1,6 @@
 # Crime and the Marshalls
 
-A calm attack, robbery or killing on the open road has a slow answer. Nobody knows of it until a driver who saw it reports it at a town or outpost. The report becomes a bounty, and a Marshall from the Roadhouse rides out to collect it. The answer is in Roaming only. Chaos Highway has the `bounties` mode switch off. `src/sim/crime.ts` owns the memories, reports, cases and money. `src/sim/marshals.ts` owns the hunt and the demand. The numbers are `CRIME` and `BOUNTY` in `src/data/market.ts`.
+A calm attack, robbery or killing on the open road has a slow answer. Nobody knows of it until a driver who saw it reports it at a town or site. The report becomes a bounty, and a Marshall from the Roadhouse rides out to collect it. The answer is in Roaming only. Chaos Highway has the `bounties` mode switch off. `src/sim/crime.ts` owns the memories, reports, cases and money. `src/sim/marshals.ts` owns the hunt and the demand. The numbers are `CRIME` and `BOUNTY` in `src/data/market.ts`.
 
 ```
 incident (calm attack or robbery) or killing (a wreck of a driver that remembers the killer wronged it)
