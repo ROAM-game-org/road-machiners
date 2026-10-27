@@ -6,6 +6,7 @@ import type { TraitId } from '../data/npcs';
 import { lineKey } from '../text/names';
 import { entryText } from '../text/resolve';
 import { PATCH } from '../data/wear';
+import { PROSE_TELLS } from '../test/prose-tells';
 import { bareSides } from './armor';
 import { playerVehicle } from './damage';
 import { makePart } from './factory';
@@ -44,8 +45,15 @@ describe('lesson data', () => {
 
   it('fills every slot of every trade once, with every lesson line used once', () => {
     const used = Object.values(LESSONS).flatMap((t) => [...WEAKNESSES.map((weak) => t.weak[weak]), ...t.general]);
-    expect(used).toHaveLength(35);
+    expect(used).toHaveLength(70);
     expect([...used].sort()).toEqual([...LESSON_LINE_IDS].sort());
+  });
+
+  it('gives every trade four weakness stories and ten general ones', () => {
+    for (const trade of Object.values(LESSONS)) {
+      expect(Object.keys(trade.weak)).toHaveLength(4);
+      expect(trade.general).toHaveLength(10);
+    }
   });
 
   it('offers the topic to every voiced trait', () => {
@@ -64,6 +72,31 @@ describe('lesson text', () => {
 
   it('holds no digit in Russian', () => {
     for (const id of LESSON_LINE_IDS) expect(entryText('ru', lineKey(id)), id).not.toMatch(/\d/);
+  });
+
+  it('holds no semicolon, dash or stock phrase in either language', () => {
+    for (const id of LESSON_LINE_IDS) {
+      expect(entryText('en', lineKey(id)), id).not.toMatch(PROSE_TELLS.en);
+      expect(entryText('ru', lineKey(id)), id).not.toMatch(PROSE_TELLS.ru);
+    }
+  });
+
+  const tradeLines = (trade: LessonTrade): string[] => [...Object.values(LESSONS[trade].weak), ...LESSONS[trade].general].map((id) => entryText('en', lineKey(id)));
+
+  it('keeps the law tic and the raider tic to a few lines', () => {
+    expect(tradeLines('law').filter((text) => /for the record/i.test(text)).length).toBeLessThanOrEqual(3);
+    expect(tradeLines('raider').filter((text) => /\bfriend\b/i.test(text)).length).toBeLessThanOrEqual(4);
+  });
+
+  it('opens no more than two lines of one trade with the same words', () => {
+    for (const trade of Object.keys(LESSONS) as LessonTrade[]) {
+      const openings = new Map<string, number>();
+      for (const text of tradeLines(trade)) {
+        const opening = text.toLowerCase().replace(/^for the record, /, '').split(/\s+/).slice(0, 3).join(' ');
+        openings.set(opening, (openings.get(opening) ?? 0) + 1);
+      }
+      expect(Math.max(...openings.values()), trade).toBeLessThanOrEqual(2);
+    }
   });
 });
 
