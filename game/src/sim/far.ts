@@ -89,7 +89,7 @@ export function advanceFar(w: World, v: Vehicle): void {
   v.speed = done && order.kind === 'stopAt' ? 0 : block ? Math.min(next, block.other.speed) : next;
   burnFuel(w, v, walk.moved);
   breakCrossed(w, v, walk.path, full.radius);
-  keepFarRoute(v, done || block || windowEnds ? undefined : farRouteOf(order.dest, walk.ahead, style, partial));
+  keepFarRoute(v, replans(done, windowEnds, block, walk) ? undefined : farRouteOf(order.dest, walk.ahead, style, partial));
   if (done) {
     w.events.push({ t: 'arrived', vehicle: v.id });
     v.order = null;
@@ -106,6 +106,10 @@ function farOutcome(order: DrivenOrder, end: Vec, walk: FarWalk, block: FarBlock
   const windowEnds = endsWindow(walk, partial);
   const routeEnds = walk.ahead.length === 0 && !windowEnds;
   return { done: dist(end, order.dest) < reach || routeEnds || blockedAtDest(order, block, reach), windowEnds };
+}
+
+function replans(done: boolean, windowEnds: boolean, block: FarBlock, walk: FarWalk): boolean {
+  return done || windowEnds || (block !== null && walk.moved < RULES.arriveRadius);
 }
 
 function endsWindow(walk: FarWalk, partial: boolean): boolean {
@@ -126,7 +130,7 @@ function farPoints(w: World, v: Vehicle, dest: Vec, style: RouteStyle, full: Veh
   const stored = keptFarRoute(v);
   if (stored && dist(stored.dest, dest) < RULES.arriveRadius && sameStyle(stored, style)) return { points: stored.points, partial: stored.partial === true };
   const window = REGION.navigation.farWindow;
-  const blockers = [...farBlockers(w, v, s, onRope), ...fieldBlockers(w, v)].filter((b) => dist(b.pos, v.pos) <= 2 * window + b.r);
+  const blockers = [...farBlockers(w, v, s, onRope), ...fieldBlockers(w, v)].filter((b) => dist(b.pos, v.pos) <= window + REGION.navigation.nearSlack + b.r);
   return routeAhead(w, v.pos, dest, full.radius, blockers, v, window);
 }
 
