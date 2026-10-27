@@ -3,7 +3,7 @@ import { reachedOutpostAt } from '../chaos-highway';
 import { storePart } from '../inventory';
 import { haulerTakes, outpostBuyPart, outpostPartPrice } from '../outposts';
 import { isJunk } from '../wear';
-import { gearPlans, type GearJob, type Plan } from './gear';
+import { gearPlans, jobScorer, type GearJob, type Plan } from './gear';
 import { mountBought, type Orders } from './orders';
 
 export function bestValue<P extends Plan>(plans: readonly P[], budget: number): P | null {
@@ -17,8 +17,8 @@ function nextBuy(o: Orders, truckId: string, job: GearJob, budget: number) {
   const post = reachedOutpostAt(o.world, truck);
   if (!post) return null;
   const offers = post.stock.filter((part) => !isJunk(part) && (truckId === o.me.id || haulerTakes(part))).map((part) => ({ part, price: outpostPartPrice(o.world, part, truckId) }));
-  const buyer = { job, skip: [], resale: () => 0 };
-  return bestValue(gearPlans(o.world, truck, offers, buyer), Math.min(budget, o.world.player.money));
+  const buyer = { score: jobScorer(o.world, job), skip: [], resale: () => 0 };
+  return bestValue(gearPlans(truck, offers, buyer), Math.min(budget, o.world.player.money));
 }
 
 function buyGear(o: Orders, truckId: string, job: GearJob, budget: number): void {
