@@ -54,7 +54,7 @@ Sit a while, the shade is free. I am Ruben, and I keep the canal gates. That mea
   -> hub
 + {ruben_water || found("dustwell")} [What do you know about Dustwell?]
   In the last dry year the pumps at Green Pit drew mud by noon, and the Senate argued over whose fault that was, as if the pumps had been listening.
-  In the Dustwell shed, Wendell Ondra kept the pump book all his life and died at the Green Pit sluice. His niece Agnes keeps the book now, and she writes down every drop.
+  Wendell Ondra kept the pump in the Dustwell shed all his life, and he died at the Green Pit sluice. His niece Agnes keeps the pump now, and she watches where the water stands on the tank wall, the way my grandmother watched the fields through a dry spell.
   -> hub
 + {ruben_senate} [What are the tenants saying?]
   They say they feed Bowl and have no say in it, and they're right. The families never wanted to tell a tenant what to think, only what to plant.
