@@ -1,14 +1,13 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { playerVehicle } from "../sim/damage";
-import { ridesFar } from "../sim/far";
-import { addState } from "../sim/states";
 import { addVehicle, emptyWorld } from "../sim/testkit";
 import type { World } from "../sim/types";
 import { dist } from "../sim/vec";
-import { farSightRadius } from "../sim/vision";
+import { farSightRadius, visibleTiles } from "../sim/vision";
 import { setMoveOrder } from "../sim/world";
 import { buildDrive, captureDrive, freeDrive, initPhysics, type DriveSnapshot } from "./drive";
-import { computeTurn, type PreparedTurn } from "./turn";
+import { toMap } from "./frames";
+import { computeTurn, LIVE_SIGHT_STEP, type PreparedTurn } from "./turn";
 
 beforeAll(initPhysics);
 
@@ -39,49 +38,30 @@ function strangerAt(world: World, reach: number): void {
   addVehicle(world, "independent", "scout", ["stockEngine"], { x: START.x, y: START.y + reach });
 }
 
-describe("riding far", () => {
-  it("rides far with a move order and no other truck within far sight", () => {
-    const world = travelling();
-    strangerAt(world, farSightRadius(world, playerVehicle(world)) + 1);
-    expect(ridesFar(world)).toBe(true);
-  });
-
-  it("drives by physics once a truck is within far sight", () => {
-    const world = travelling();
-    strangerAt(world, farSightRadius(world, playerVehicle(world)) - 1);
-    expect(ridesFar(world)).toBe(false);
-  });
-
-  it("drives by physics with no order, a brake order or in combat", () => {
-    expect(ridesFar(emptyWorld(START))).toBe(false);
-    expect(ridesFar(setMoveOrder(emptyWorld(START), { kind: "brake" }))).toBe(false);
-    const fighting = travelling();
-    const foe = addVehicle(fighting, "scrapjaw", "scout", ["stockEngine"], { x: START.x + 200, y: START.y });
-    addState(fighting, "combat", foe.id, playerVehicle(fighting).id, { kind: "none" });
-    expect(ridesFar(fighting)).toBe(false);
-  });
-});
-
 describe("a fast-travel turn", () => {
   it("drives the player and a truck just past far sight with physics and a tail", () => {
     const world = travelling();
     strangerAt(world, farSightRadius(world, playerVehicle(world)) + 5);
     const stranger = world.vehicles.at(-1)!;
     stranger.order = { kind: "through", dest: { x: stranger.pos.x + 30, y: stranger.pos.y } };
-    expect(ridesFar(world)).toBe(true);
     const turn = playTurn(world, freshDrive(world), true);
     expect(Object.keys(turn.prepared.result.next.bodies).sort()).toEqual([playerVehicle(world).id, stranger.id].sort());
     expect(turn.prepared.tail).not.toBeNull();
     expect(dist(playerVehicle(turn.world).pos, DEST)).toBeLessThan(dist(START, DEST));
   });
 
-  it("shows sight once, at the end of a fast-travel turn with no other truck in far sight, as the tiles the player sees there and has explored", () => {
-    const first = playTurn(travelling(), freshDrive(travelling()), true);
-    const second = playTurn(first.world, first.prepared.result.next, true);
+  it.each([true, false])("samples sight along the drive every sight step and at its end, and explores every sampled tile, with fast travel %s", (fast) => {
+    const first = playTurn(travelling(), freshDrive(travelling()), fast);
+    const second = playTurn(first.world, first.prepared.result.next, fast);
     const frames = second.prepared.result.frames[playerVehicle(second.world).id];
-    expect(second.prepared.sight.steps).toEqual([frames.length - 1]);
-    expect(second.prepared.sight.tiles).toEqual([second.world.player.visible]);
-    expect(second.world.player.visible.every((idx) => second.world.player.explored[idx] === 1)).toBe(true);
+    const { steps, tiles } = second.prepared.sight;
+    const at = (k: number) => toMap(frames[k].pos);
+    expect(steps[0]).toBe(0);
+    expect(steps.at(-1)).toBe(frames.length - 1);
+    for (let i = 1; i < steps.length - 1; i++) expect(dist(at(steps[i - 1]), at(steps[i]))).toBeGreaterThanOrEqual(LIVE_SIGHT_STEP);
+    expect(steps.length).toBeGreaterThan(5);
+    tiles.forEach((seen, i) => expect(seen).toEqual([...visibleTiles(second.world, at(steps[i]))].sort((a, b) => a - b)));
+    expect(tiles.flat().every((idx) => second.world.player.explored[idx] === 1)).toBe(true);
   });
 
   it("plays by physics when the turn is not asked to travel fast", () => {

@@ -16,8 +16,7 @@ import {
   type Drive,
   type TurnResult,
 } from "./drive";
-import { computeTurn, isCleanTail, liveSightOf, physicsMove, SentObstacles, withTail } from "./turn";
-import { toMap, type VehicleFrame } from "./frames";
+import { computeTurn, isCleanTail, physicsMove, SentObstacles, sightAlong, withTail } from "./turn";
 import { PHYSICS } from "../data/physics";
 import { visibleTiles } from "../sim/vision";
 
@@ -162,15 +161,14 @@ it("restores the quest language when the run throws", () => {
   expect(currentQuestLanguage()).toBe("en");
 });
 
-it("samples live sight along the player's frames every sight step, with the tiles vision gives there", () => {
+it("samples sight along the player's drive every sight step and at its end, with the tiles vision gives there", () => {
   const world = newWorld(7, startKit("standard"), TEST_MAP, defaultSetup("roaming"));
   const me = playerVehicle(world);
-  const S = PHYSICS.metersPerTile;
-  const frames = Array.from({ length: 12 }, (_, i) => ({ pos: { x: (me.pos.x + i * 0.1) * S, y: 0, z: me.pos.y * S } }) as VehicleFrame);
-  const sight = liveSightOf(world, frames);
-  expect(sight.steps).toEqual([0, 4, 8]);
-  sight.steps.forEach((step, k) => expect(sight.tiles[k]).toEqual([...visibleTiles(world, toMap(frames[step].pos))].sort((a, b) => a - b)));
-  expect(liveSightOf(world, undefined)).toEqual({ steps: [], tiles: [] });
+  const points = Array.from({ length: 12 }, (_, i) => ({ x: me.pos.x + i * 0.1, y: me.pos.y }));
+  const sight = sightAlong(world, points);
+  expect(sight.steps).toEqual([0, 4, 8, 11]);
+  sight.steps.forEach((step, k) => expect(sight.tiles[k]).toEqual([...visibleTiles(world, points[step])].sort((a, b) => a - b)));
+  expect(sightAlong(world, [])).toEqual({ steps: [], tiles: [] });
 });
 
 it("sends the obstacles to a worker only when their content changed since the last send", () => {

@@ -22,16 +22,7 @@ import type { MoveOrder, Obstacle, Pose, Vehicle, World } from './types';
 import { avoidsCrater } from './sunward';
 import { bearing, dist, segmentDist, type Vec } from './vec';
 import { bendField, followPose, poseOf, rigDiscs } from './rig';
-import { inCombat } from './combat';
-import { playerVehicle } from './damage';
-import { farSightRadius } from './vision';
 
-export function ridesFar(w: World): boolean {
-  const me = playerVehicle(w);
-  if (!me.order || me.order.kind === 'brake' || isOnRope(w, me.id) || inCombat(w, me)) return false;
-  const reach = farSightRadius(w, me);
-  return w.vehicles.every((v) => v.id === me.id || dist(v.pos, me.pos) > reach);
-}
 
 export function isNear(w: World, v: Vehicle): boolean {
   return !isOnRope(w, v.id) && inLiveRange(w, v.pos);
