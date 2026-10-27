@@ -8,8 +8,6 @@ VAR heard_kiln = false
 VAR asked_kiln = false
 VAR heard_sun = false
 VAR asked_sun = false
-VAR heard_glare = false
-VAR asked_glare = false
 
 === start ===
 # checkpoint: start
@@ -71,11 +69,6 @@ VAR asked_glare = false
 + {(heard_sun or found("fallen-sun")) and not asked_sun} [What do you know about the Fallen Sun?]
   Best metal I ever put a torch to, and the worst place to fetch it. The brass call that hull a warship. I'd like them to show me one gun mount on it. I never found one. All I ever cut there was cargo hold. And the glare off the glass around it will blind you by noon.
   ~ asked_sun = true
-  ~ heard_glare = true
-  -> about_road
-+ {heard_glare and not asked_glare} [Anything for the glare at the Fallen Sun?]
-  Lenses cut from the fused glass, dark as smoke. I wear an old pair on bad days. I don't know who sells them now.
-  ~ asked_glare = true
   -> about_road
 + [Back.]
   -> hub

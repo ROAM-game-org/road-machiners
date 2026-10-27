@@ -8,8 +8,6 @@ VAR heard_kiln = false
 VAR asked_kiln = false
 VAR heard_sun = false
 VAR asked_sun = false
-VAR heard_glare = false
-VAR asked_glare = false
 
 === start ===
 # checkpoint: start
@@ -71,11 +69,6 @@ VAR asked_glare = false
 + {(heard_sun or found("fallen-sun")) and not asked_sun} [Что знаешь про Павшее солнце?]
   Лучший металл, какого касалась моя горелка, и худшее место, где его брать. Штабные зовут этот корпус боевым кораблем. Пусть покажут мне на нем хоть одно крепление под пушку. Я не нашла. Резала я там одни грузовые трюмы. А блики от стекла вокруг к полудню тебя ослепят.
   ~ asked_sun = true
-  ~ heard_glare = true
-  -> about_road
-+ {heard_glare and not asked_glare} [Есть что-нибудь от бликов у Павшего солнца?]
-  Линзы из оплавленного стекла, темные, как дым. В плохие дни я ношу старую пару. Кто их продает теперь, не знаю.
-  ~ asked_glare = true
   -> about_road
 + [Назад.]
   -> hub

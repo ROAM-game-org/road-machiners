@@ -381,28 +381,12 @@ Otto is the welder at the Salvage Yard who built the first swivel, a gun mount o
 
 His line is "A loose mount is a gun waiting for a bend."
 
-## Pim Arslan
-
-- Way: escape.
-- High concept: A lens cutter who ran from the Bowl workshop and sells smoke-dark lenses.
-- Trouble: She never stays long, so no one keeps her plate of the glass lean or acts on it.
-- Aspects: Her plate hangs by the door of the Green Pit hook house; Hadiza Okon feeds her; An Old World glass cutter in her pack.
-- Skills: best perception, worst social.
-- Wants: Someone reads the glass before they drive out.
-- Fears: The Bowl workshop finds her.
-- Habit: She holds each lens to the sun before she hands it over.
-- Secret: She took the workshop's Old World glass cutter without leave. She hides it from the Bowl.
-
-Pim ran from the Bowl workshop with its Old World glass cutter. She cuts the fused glass of the Glass Flats into smoke-dark lenses, and drivers wear them against the glare. She walked the glass to the Fallen Sun and saw that every ripple leans toward the crater. A plate she scratched with the lean lines hangs by the door of the Green Pit hook house.
-
-Her line is "The glass points at the Fallen Sun. Read it before you drive out."
-
 ## Hadiza Okon
 
 - Way: embrace.
 - High concept: The woman who runs the hook house canteen at Green Pit.
 - Trouble: She feeds anyone once, so the Bowl patrol will not drink at her table.
-- Aspects: Rifles hang on the hooks by her door; Pim Arslan's plate hangs at her door; The well that no one takes.
+- Aspects: Rifles hang on the hooks by her door; The well that no one takes.
 - Skills: best social, worst driving.
 - Wants: Everyone drinks at one table and no one draws a gun.
 - Fears: The day someone takes her well.

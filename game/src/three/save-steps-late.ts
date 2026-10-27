@@ -643,3 +643,7 @@ export function withDialogueSeen_116_117(world: SavedJson): SavedJson {
     },
   };
 }
+
+export function withoutLenaGlare_117_118(world: SavedJson): SavedJson {
+  return ['heard_glare', 'asked_glare'].reduce((w, name) => dropQuestVar(w, 'nose_lena', name), world);
+}

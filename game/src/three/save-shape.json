@@ -1,5 +1,5 @@
 {
- "format": "2.117",
+ "format": "2.118",
  "shape": {
   "broken": [],
   "chaosHighway": "null",
@@ -2520,12 +2520,10 @@
    },
    "nose_lena": {
     "asked_brann": "boolean",
-    "asked_glare": "boolean",
     "asked_kiln": "boolean",
     "asked_rods": "boolean",
     "asked_sun": "boolean",
     "heard_brann": "boolean",
-    "heard_glare": "boolean",
     "heard_kiln": "boolean",
     "heard_sun": "boolean",
     "heard_swivel": "boolean"
