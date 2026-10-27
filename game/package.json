@@ -44,6 +44,7 @@
     "map:bake": "vite-node scripts/map-bake.mjs",
     "icons": "node scripts/icons.mjs",
     "survey:pictures": "node scripts/survey-pictures.mjs",
+    "sim:sprites": "node scripts/sim-sprites.mjs",
     "quest-art": "uv run --quiet --with pillow --with numpy python -I tools/quest-art/post.py",
     "quest-art:crops": "uv run --quiet --with pillow python -I tools/quest-art/crops.py",
     "models:bake": "vite-node scripts/models-bake.mjs",
