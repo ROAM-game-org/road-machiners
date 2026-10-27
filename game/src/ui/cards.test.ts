@@ -6,7 +6,7 @@ import { addVehicle } from "../sim/testkit";
 import { newWorld } from "../sim/world";
 import type { PartInstance } from "../sim/types";
 import { PAINT, type TruckPaint } from "../data/chassis";
-import { baselinePart, chassisPortraitCell, chassisStats, compareBase, dialShare, diffStats, compassAngle, compassSvg, headlineStat, itemIconCell, itemLore, itemTip, jobDone, repairingPart, partStats, statValue, toneStyle } from "./cards";
+import { baselinePart, chassisPortraitCell, dialPaceTick, chassisStats, compareBase, dialShare, diffStats, compassAngle, compassSvg, headlineStat, itemIconCell, itemLore, itemTip, jobDone, repairingPart, partStats, statValue, toneStyle } from "./cards";
 import { addGoods } from "../sim/inventory";
 import { startRepair } from "../sim/jobs";
 import { workMarkOf } from "./inventory-draw";
@@ -296,5 +296,13 @@ describe("the mark on a part under work", () => {
     expect(jobDone({ kind: "weld", turnsLeft: 5, total: 4 })).toBe(0);
     expect(jobDone({ kind: "weld", turnsLeft: 0, total: 0 })).toBe(0);
     expect(jobDone({ kind: "weld", turnsLeft: 1, total: 4 })).toBe(0.75);
+  });
+});
+
+describe('the speed dial pace tick', () => {
+  it('draws a tick only while a route pace is held, further round the dial for a higher pace', () => {
+    expect(dialPaceTick(null)).toBe('');
+    expect(dialPaceTick(40)).toContain('class="dial-pace"');
+    expect(dialPaceTick(40)).not.toBe(dialPaceTick(80));
   });
 });

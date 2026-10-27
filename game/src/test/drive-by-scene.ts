@@ -1,5 +1,6 @@
 import { HUNT, NPCS } from '../data/npcs';
 import { REGION } from '../data/region';
+import { TERRAIN } from '../data/terrain';
 import { START_KITS } from '../data/start';
 import { TEST_MAP } from './map';
 import { reusedWorld } from './world-cache';
@@ -13,7 +14,7 @@ import { sunAt } from '../sim/sun';
 import { stateOf } from '../sim/states';
 import { addVehicle, npcBrain, testDrive } from '../sim/testkit';
 import type { Vehicle, World } from '../sim/types';
-import { dist, polylineDist, type Vec } from '../sim/vec';
+import { dist, type Vec } from '../sim/vec';
 import { exposureAt, watchPost } from '../sim/watch-posts';
 import { endTurn, newWorld } from '../sim/world';
 import { formatNpcPass } from '../ui/format';
@@ -34,21 +35,27 @@ function nightTurn(): number {
   throw new Error('No night turn');
 }
 
-function roadGround(w: World): { ground: Vec; post: Vec; a: Vec; dir: Vec } {
-  const grounds = [...huntingGrounds()].sort((a, b) => dist(a, camp.pos) - dist(b, camp.pos));
-  for (const ground of grounds) {
-    const road = REGION.roads.find((r) => polylineDist(ground, r) <= REGION.roadWidth);
-    const post = watchPost(w, ground);
-    if (!road || !post || exposureAt(w, post) > 0) continue;
-    let best = { d: Infinity, a: road[0], b: road[1] };
-    for (let i = 0; i + 1 < road.length; i++) {
-      const mid = { x: (road[i].x + road[i + 1].x) / 2, y: (road[i].y + road[i + 1].y) / 2 };
-      if (dist(mid, ground) < best.d) best = { d: dist(mid, ground), a: road[i], b: road[i + 1] };
+function roadGround(w: World): { ground: Vec; post: Vec; dir: Vec } {
+  const hidden = huntingGrounds(w).map((g) => watchPost(w, g)).filter((p): p is Vec => p !== null && exposureAt(w, p) === 0);
+  const scenes = hidden.map((post) => ({ post, ...nearestStretch(post) })).filter((s) => dist(s.post, s.ground) <= TERRAIN.vision.radius);
+  if (scenes.length === 0) throw new Error('No hidden raid post in sight of a road');
+  return scenes.reduce((best, s) => (dist(s.post, s.ground) < dist(best.post, best.ground) ? s : best));
+}
+
+function nearestStretch(p: Vec): { ground: Vec; dir: Vec } {
+  let best = { ground: { x: Infinity, y: Infinity }, dir: { x: 1, y: 0 } };
+  for (const road of REGION.roads)
+    for (let i = 1; i < road.length; i++) {
+      const a = road[i - 1];
+      const b = road[i];
+      const len = dist(a, b);
+      if (len === 0) continue;
+      const dir = { x: (b.x - a.x) / len, y: (b.y - a.y) / len };
+      const t = Math.max(0, Math.min(len, (p.x - a.x) * dir.x + (p.y - a.y) * dir.y));
+      const ground = { x: a.x + dir.x * t, y: a.y + dir.y * t };
+      if (dist(p, ground) < dist(p, best.ground)) best = { ground, dir };
     }
-    const len = dist(best.a, best.b);
-    return { ground, post, a: ground, dir: { x: (best.b.x - best.a.x) / len, y: (best.b.y - best.a.y) / len } };
-  }
-  throw new Error('No road ground with a hide');
+  return best;
 }
 
 type Scene = { w: World; raider: Vehicle; prey: Vehicle; ground: Vec; end: Vec; moves: boolean; parkedAt: Vec };

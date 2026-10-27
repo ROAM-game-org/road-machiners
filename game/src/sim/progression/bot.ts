@@ -7,7 +7,7 @@ import { REGION, type TownDef } from '../../data/region';
 import { RULES } from '../../data/rules';
 import { TERRAIN } from '../../data/terrain';
 import { ENGINE_HEAT } from '../../data/wear';
-import { TOPICS, type LineId, type TopicId } from '../../data/dialogue';
+import type { LineId, TopicId } from '../../data/dialogue';
 import { isJunk, maxHp, partValue } from '../wear';
 import { inCombat, isHostile } from '../combat';
 import { canFirstAid, startFirstAid, startStrip, stripYield } from '../jobs';
@@ -16,7 +16,7 @@ import { aimGuns, isSoftTarget } from './aim';
 import { hostileToPlayer, playerCanAct, setAutoFire, setAutoRepair, setMoveOrder, setWeaponOrder } from '../world';
 import { playerVehicle, vehicleById } from '../damage';
 import { isDefeated, isKnockedOut } from '../defeat';
-import { callVehicle, chooseOption, currentOptions, hangUp } from '../dialogue';
+import { askTopic, callVehicle, canAskTopic, chooseOption, currentOptions, hangUp } from '../dialogue';
 import { offeredSurrenderBy, type ThreatAnswer } from '../parley';
 import { hashRandom } from '../rng';
 import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply, canRebuild, driveRepairCost, partRepairCost, partTradePrice, getLotTradePrice, getTradePrice, repairBasics, repairCost, repairDrive, repairPart, sellGood, sellPart, serviceRoom, supplyRoom } from '../economy';
@@ -62,12 +62,12 @@ type Goal = Exclude<Policy, 'markov' | 'climber' | RoadPolicy>;
 const CLIMB_GUNS = 3;
 const GOALS_PLAYED: readonly Goal[] = ['trader', 'scavenger', 'hunter', 'fastTrader'];
 
-const CARGO_GEAR: UpgradeStyle = { skip: [], chassis: 'value', job: 'carrier' };
+const CARGO_GEAR: UpgradeStyle = { skip: [], chassis: 'value', npc: 'trader' };
 const GEAR_STYLES: Record<Goal, UpgradeStyle> = {
-  trader: { skip: [], chassis: 'value', job: 'trader' },
-  scavenger: { skip: [], chassis: 'value', job: 'carrier' },
-  hunter: { skip: [], chassis: 'keep', job: 'fighter' },
-  fastTrader: { skip: ['armor'], chassis: 'speed', job: 'courier' },
+  trader: { skip: [], chassis: 'value', npc: 'trader', keepsTradeCapital: true },
+  scavenger: { skip: [], chassis: 'value', npc: 'scavenger' },
+  hunter: { skip: [], chassis: 'keep', npc: 'merc', gunFirst: true, lootRoom: BIGGEST_PART_CELLS },
+  fastTrader: { skip: ['armor'], chassis: 'speed', npc: 'courier' },
   hauler: CARGO_GEAR,
   procurer: CARGO_GEAR,
   searcher: CARGO_GEAR,
@@ -76,12 +76,10 @@ const GEAR_STYLES: Record<Goal, UpgradeStyle> = {
   convoyRobber: CARGO_GEAR,
 };
 
-const CLIMBER_GEAR: UpgradeStyle = { skip: [], chassis: 'keep', job: 'fighter', budgetJob: 'trader' };
+const CLIMBER_GEAR: UpgradeStyle = { skip: [], chassis: 'keep', npc: 'merc', gunFirst: true, keepsTradeCapital: true };
 
-function gearStyle(o: Orders, goal: Goal, archetype: Policy): UpgradeStyle {
-  if (archetype === 'climber') return CLIMBER_GEAR;
-  if (goal !== 'hunter') return GEAR_STYLES[goal];
-  return { ...GEAR_STYLES.hunter, lootRoom: BIGGEST_PART_CELLS, minSpeed: huntedSpeed(o.world) };
+function gearStyle(goal: Goal, archetype: Policy): UpgradeStyle {
+  return archetype === 'climber' ? CLIMBER_GEAR : GEAR_STYLES[goal];
 }
 
 
@@ -119,7 +117,7 @@ function policyOrders(world: World, archetype: Exclude<Policy, RoadPolicy>, opti
 function act(o: Orders, goal: Goal, archetype: Policy): void {
   if (dressWounds(o) || holds(o) || collectNearbyKnockout(o, goal, archetype)) return;
   if (goal === 'searcher') takeSearch(o);
-  if (serviceTrip(o, gearStyle(o, goal, archetype)) || defend(o, goal)) return;
+  if (serviceTrip(o, gearStyle(goal, archetype)) || defend(o, goal)) return;
   followGoal(o, goal, archetype);
 }
 
@@ -183,8 +181,8 @@ function answerCall(o: Orders, replies: Partial<Record<TopicId, LineId>> = DEFEN
     const at = `${call.with}:${call.topic}:${call.node}`;
     if (seen.has(at)) throw new Error(`Bot call loops back to ${at}`);
     seen.add(at);
-    const pick = call.topic ? Math.max(0, currentOptions(o.world).findIndex((option) => option.line === replyTo(o.world, call, replies))) : currentOptions(o.world).length - 1;
-    o.run((w) => chooseOption(w, pick));
+    const pick = Math.max(0, currentOptions(o.world).findIndex((option) => option.line === replyTo(o.world, call, replies)));
+    o.run(call.topic ? (w) => chooseOption(w, pick) : hangUp);
   }
 }
 
@@ -893,8 +891,7 @@ function demandYield(o: Orders, foe: Vehicle): boolean {
   const asks = foe.brain !== null && isHostile(o.world, foe, o.me) && isWeak(o.world, foe) && !offeredSurrenderBy(o.world, foe, o.me);
   if (!asks) return false;
   o.run((w) => callVehicle(w, foe.id));
-  const ask = currentOptions(o.world).findIndex((option) => option.line === TOPICS.yieldDemand.ask?.say);
-  if (ask >= 0) o.run((w) => chooseOption(w, ask));
+  if (canAskTopic(o.world, 'yieldDemand')) o.run((w) => askTopic(w, 'yieldDemand'));
   answerCall(o, HUNTER_REPLIES);
   return true;
 }
@@ -1074,12 +1071,11 @@ function guardedInSight(world: World, v: Vehicle): boolean {
 
 function demand(o: Orders, target: Vehicle): void {
   o.run((w) => callVehicle(w, target.id));
-  const rob = currentOptions(o.world).findIndex((opt) => opt.topic === 'rob' && opt.option === null);
-  if (rob < 0) {
+  if (!canAskTopic(o.world, 'rob')) {
     o.run(hangUp);
     return;
   }
-  o.run((w) => chooseOption(w, rob));
+  o.run((w) => askTopic(w, 'rob'));
   const replies = currentOptions(o.world).filter((opt) => opt.option !== null);
   if (replies.length !== 1) throw new Error(`A demand on ${target.id} offers ${replies.length} replies, not one`);
   o.run((w) => chooseOption(w, 0));

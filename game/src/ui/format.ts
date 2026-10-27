@@ -619,7 +619,7 @@ function escortContractText(outcome: keyof typeof CONTRACT_CLS, what: Msg, rewar
   throw new Error(`An escort is never ${outcome}`);
 }
 
-const NOTABLE_EVENTS = new Set<GameEvent['t']>(['skillUp', 'discover', 'standing', 'claimRival', 'guardEnded']);
+const NOTABLE_EVENTS = new Set<GameEvent['t']>(['skillUp', 'discover', 'standing', 'claimRival', 'guardEnded', 'wake']);
 
 export function isNotable(e: GameEvent): boolean {
   if (e.t === 'contract') return e.outcome === 'found' || e.outcome === 'fulfilled' || e.cause === 'rival';
@@ -1087,7 +1087,7 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   coreBurn: () => null,
   sunwardFallen: () => line(t('log.sunwardFallen'), 'good'),
   knockout: () => line(t('log.knockout'), 'bad'),
-  wake: () => line(t('log.wake'), 'dim'),
+  wake: () => line(t('log.wake'), ''),
   searched: (_, e) => searchedText(e.stock),
   contract: (world, e) => (e.cause === 'rival' ? rivalFirstText(world, e.contract) : contractEventText(world, e)),
   claimRival: claimRivalText,

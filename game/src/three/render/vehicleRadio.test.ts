@@ -75,6 +75,17 @@ describe('radioLit', () => {
 });
 
 describe('radio lights', () => {
+  it('keeps a call that is not shown dark, and lights both trucks when it shows', () => {
+    const { open, npcId, playerId } = callWorlds();
+    const l = new RadioLights();
+    l.note(open, 0, false);
+    expect(lights(l, npcId, 0, 2000)).toEqual([false]);
+    expect(lights(l, playerId, 0, 2000)).toEqual([false]);
+    l.note(open, 500, true);
+    expect(lights(l, npcId, 500, 500 + 4 * F).slice(0, 4)).toEqual(FLASHES);
+    expect(l.lit(playerId, 500)).toBe(true);
+  });
+
   it('shows both trucks of a call two flashes, steady, one flash on hang-up and then dark', () => {
     const { open, idle, npcId, playerId } = callWorlds();
     const l = new RadioLights();
