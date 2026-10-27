@@ -42,7 +42,7 @@ The engine is the general capability upgrade. Its capacity sets how many guns th
 
 Utilities are yellow deck parts with one job each. Six are active: the Sprout, Caltrops, Oil spiller, Smoke mortar, Flare cannon and Emitter. Each acts once on an order and then recharges. A utility used on turn T with a reload of 10 is ready again on turn T+10, and a miss still starts the reload. How they are used and what they do is in [Turns, driving and combat](turns.md), and the flare in [Sight and detection](detection.md). The patcher crane and the scraper's knife are passive and work while mounted. A utility works only while it lies fully on deck cells and has HP left. A broken one does nothing, but what it already put into the world plays out. Rounds and blasts damage it like any part in their lane. Several cranes or several knives count as one.
 
-The patcher crane speeds up refits and the roadside patches its truck does for others by half, so they take two thirds as long. A roadside patch takes twice as long as field repair of the same parts, or 4/3 as long with a crane. Field repair of the truck's own parts does not use the crane. A patch's price does not depend on it. The scraper's knife makes searches find hidden loot faster, see [Economy](economy.md), and stripping a part pays 65% of its value instead of half.
+The patcher crane speeds up refits and the roadside patches its truck does for others by half, so they take two thirds as long. A roadside patch takes twice as long as field repair of the same parts, or 4/3 as long with a crane. Field repair of the truck's own parts does not use the crane. A patch's price does not depend on it. The scraper's knife makes searches find hidden loot faster, see [Economy](economy.md), and stripping a part pays 65% of its value instead of half, but a knife being stripped does not raise its own yield.
 
 The claymore ram is a ram accessory with an explosive charge. It mounts and protects like any ram, and it also takes a slot in the utility row to be armed, or disarmed by order. Its blast is in [Turns, driving and combat](turns.md). After a blast it needs 20 turns before it can be armed again.
 
@@ -68,7 +68,7 @@ Every player chassis has one ability that bends one rule for every truck of that
 
 A gun's range, reload and arc on a truck include its chassis ability. A part's own card keeps the part's numbers.
 
-Parts is a trade good, bought and sold like scrap or salt. It is the resource field repair spends. The standard start kit carries a few. Stripping a spare part is a parked job that turns it into units of parts. Its value sets the yield, so a broken or junk gun still pays.
+Parts is a trade good, bought and sold like scrap or salt. It is the resource field repair spends. The standard start kit carries a few. Stripping a part is a parked job that turns it into units of parts. A mounted part first comes off, which takes as long as moving it to cargo and nothing at a garage, and it stays on the truck until the job ends. Its value sets the yield, so a broken or junk gun still pays.
 
 A job is work that needs the truck parked for a number of turns: a refit, field repair or scavenging. The player has at most one job at a time. Driving before it ends cancels it and the turns already spent are lost. The HUD shows the current job and its turns left. A seen NPC shows its job and progress above its truck.
 
