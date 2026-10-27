@@ -3,7 +3,7 @@ import type { World } from '../sim/types';
 import { t } from '../text/msg';
 import { keyLabel } from './input-mode';
 import { el, markDisabled, panel, topLeft } from './dom';
-import { MapView, observeBox, poseOf, type MapTruck } from './map-view';
+import { mapScene, MapView, observeBox, poseOf, type MapTruck } from './map-view';
 
 function reachStep(reach: number): number {
   const at = MINIMAP.reaches.indexOf(reach);
@@ -30,7 +30,7 @@ export class Minimap {
   }
 
   update(world: World, truck: MapTruck = poseOf(world)): void {
-    this.view.update(world, truck);
+    this.view.update(mapScene(world), truck);
   }
 
   dispose(): void {
