@@ -107,7 +107,7 @@ function meanHp(v: Vehicle): number {
   return Math.round(parts.reduce((sum, p) => sum + (100 * p.hp) / maxHp(p), 0) / Math.max(1, parts.length));
 }
 
-function snap(world: World, v: Vehicle): TruckSnap {
+export function snap(world: World, v: Vehicle): TruckSnap {
   const hp = meanHp(v);
   return {
     id: v.id,
@@ -150,7 +150,7 @@ function foesSeen(world: World, me: Vehicle): SeenFoe[] {
 }
 
 const OWN = new Set(['money', 'contract', 'claimRival', 'claimLead', 'death', 'knockout', 'wake', 'skillUp', 'supply', 'townPatch', 'scrapPatch', 'searched', 'discover', 'outpostReached', 'roadOpened', 'runLost']);
-const QUIET = new Set(['practice', 'activity', 'arrived', 'spawn', 'despawn', 'info', 'weather']);
+export const QUIET = new Set(['practice', 'activity', 'arrived', 'spawn', 'despawn', 'info', 'weather']);
 
 export function touchesPlayer(e: GameEvent, me: string): boolean {
   if (QUIET.has(e.t)) return false;
