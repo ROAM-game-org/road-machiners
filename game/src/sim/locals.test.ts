@@ -91,7 +91,7 @@ describe('settlement locals', () => {
     expect(questView(shack, QUESTS).choices).toContain('What does the tone from the Fallen Sun say?');
 
     const answered = chooseQuestOption(shack, QUESTS, pickIndex(shack, 'What does the tone from the Fallen Sun say?'));
-    expect(lastLine(answered)).toContain('no key to decode it');
+    expect(lastLine(answered)).toContain('climbs one step each year since the fall');
     expect(lastLine(answered)).not.toContain("A tone's a tone");
   });
 
@@ -410,7 +410,7 @@ describe('work by talk', () => {
 
 describe('the depot leak at Nose', () => {
   const OPEN = ['Anything off the books?', 'I will look into it.'];
-  const LEDGER = 'Read the depot ledgers.';
+  const LEDGER = 'Look at the duty board.';
   const GATE = 'Check the gate log for the same nights.';
   const SABINE = 'Talk to the trader by the gate.';
   const PAY = 'Pay her 20 M to talk.';
@@ -427,8 +427,8 @@ describe('the depot leak at Nose', () => {
       { name: 'money', label: "M's", value: `${w.player.money / UNITS.centsPerM} M` },
       { name: 'alarm', label: 'Talk', value: 'quiet' },
     ]);
-    expect(view.facts).toEqual([expect.stringContaining('Ledger: cans went missing')]);
-    expect(view.lines.filter((l) => l.tags.includes('row')).map((l) => l.text)).toEqual(['3rd; 2 cans; Pell', '7th; 3 cans; Pell', '11th; 2 cans; Pell']);
+    expect(view.facts).toEqual([expect.stringContaining('Duty board: a red rag marks')]);
+    expect(view.lines.filter((l) => l.tags.includes('row')).map((l) => l.text)).toEqual(['3rd; a gap; Pell', '7th; a gap; Pell', '11th; a gap; Pell']);
   });
 
   it('opens from Kovac and pays for naming the thief with proof, which changes what Nose says after', () => {
@@ -446,7 +446,7 @@ describe('the depot leak at Nose', () => {
     expect(lastLine(talk(done, 'nose_ibo', ['Heard about the depot business?']))).toContain('He sat at my table');
   });
 
-  it('turns Kovac away from a name with no proof, and locks up the wrong man on the ledger alone', () => {
+  it('turns Kovac away from a name with no proof, and locks up the wrong man on the duty board alone', () => {
     const w = parkedAt('nose');
     const early = talk(w, 'nose_kovac', [...OPEN, SABINE, PAY, 'Go to Kovac with a name.', 'The corporal with the scar.']);
     expect(vars(early)).toMatchObject({ alarm: 1 });
@@ -509,16 +509,16 @@ describe('the depot leak at Nose', () => {
 });
 
 describe('locals at stalls', () => {
-  const OPEN = ['Read her the big dial.', 'Ask why the household truck\'s meter came off.'];
+  const OPEN = ['Watch the tank with her while a Bowl truck fills.', 'Ask why the household truck\'s hose has no window.'];
   const COVER = 'Tell him she was talking about pump pressures.';
   const CARRY = 'Say you\'ll carry the copy.';
-  const TAKE = 'Take the copy and the meter out to your truck.';
+  const TAKE = 'Take the copy and the glass window out to your truck.';
   const ROAD = [...OPEN, COVER, CARRY, TAKE, 'Keep the copy.'];
-  const LIE = 'Tell him it\'s pump records for the lock house.';
+  const LIE = 'Tell him it\'s spare oilcloth for the lock house gates.';
   const LOCK = 'Drive down to the lock house.';
-  const SIGN = 'Sign and write what you read on the dial.';
+  const SIGN = 'Put your hand on the cloth where you saw the water.';
   const TERRACE = 'Follow the household truck\'s tracks up to the top terrace.';
-  const BOLT = 'Bolt Agnes\'s meter onto the inlet.';
+  const BOLT = 'Bolt Agnes\'s glass window onto the inlet.';
 
   it('lists Agnes at Dustwell', () => {
     expect(localsAt('dustwell').map((l) => l.id)).toContain('agnes');
@@ -576,7 +576,7 @@ describe('locals at stalls', () => {
     expect(signed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'delivered' });
     expect(signed.player.money - w.player.money).toBe(10 * UNITS.centsPerM);
 
-    const filed = talk(w, 'pump_agnes', [...gate, 'Leave your name off.']);
+    const filed = talk(w, 'pump_agnes', [...gate, 'Keep your hand off the cloth.']);
     expect(filed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'filed' });
   });
 
@@ -601,7 +601,7 @@ describe('locals at stalls', () => {
     expect(w.player.money - bought.player.money).toBe(100 * UNITS.centsPerM);
   });
 
-  it('bills a failed meter fit on the top terrace, shuts the terrace and still reaches the lock house', () => {
+  it('bills a failed glass window fit on the top terrace, shuts the terrace and still reaches the lock house', () => {
     const w = parkedAt('dustwell');
 
     const sheared = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE, BOLT]);
@@ -612,9 +612,9 @@ describe('locals at stalls', () => {
     expect(signed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'delivered' });
   });
 
-  it('offers the meter bolt only to a driver who took the meter', () => {
+  it('offers the glass window bolt only to a driver who took the glass window', () => {
     const w = parkedAt('dustwell');
-    const left = [...OPEN, COVER, CARRY, 'Take the copy and leave the meter.', 'Keep the copy.', 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE];
+    const left = [...OPEN, COVER, CARRY, 'Take the copy and leave the glass window.', 'Keep the copy.', 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE];
 
     expect(questView(talk(w, 'pump_agnes', left), QUESTS).choices).not.toContain(BOLT);
     expect(questView(talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE]), QUESTS).choices).toContain(BOLT);
@@ -623,7 +623,7 @@ describe('locals at stalls', () => {
   it('takes a fine in the Bowl market and keeps the tenants talking about it', () => {
     const w = parkedAt('dustwell');
 
-    const read = talk(w, 'pump_agnes', [...ROAD, 'Cut the seal and read the copy.', 'Drive on to the Bowl gate.', "Slip the older one a few M's.", 'Read the copy aloud in the market.']);
+    const read = talk(w, 'pump_agnes', [...ROAD, 'Cut the seal and read the copy.', 'Drive on to the Bowl gate.', "Slip the older one a few M's.", 'Hold the copy up in the market.']);
 
     expect(read.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'read' });
     expect(w.player.money - read.player.money).toBe(90 * UNITS.centsPerM);
