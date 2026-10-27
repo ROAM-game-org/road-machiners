@@ -67,7 +67,7 @@
   "town_bowl": {
     "file": "town_bowl.webp",
     "focusX": 50,
-    "focusY": 35
+    "focusY": 0
   },
   "town_nose": {
     "file": "town_nose.webp",
@@ -77,12 +77,12 @@
   "town_salvage_yard": {
     "file": "town_salvage_yard.webp",
     "focusX": 55,
-    "focusY": 45
+    "focusY": 0
   },
   "town_granary": {
     "file": "town_granary.webp",
     "focusX": 55,
-    "focusY": 20
+    "focusY": 0
   },
   "town_pump_station": {
     "file": "town_pump_station.webp",
@@ -92,11 +92,11 @@
   "town_dustwell": {
     "file": "town_dustwell.webp",
     "focusX": 50,
-    "focusY": 15
+    "focusY": 0
   },
   "town_green_pit": {
     "file": "town_green_pit.webp",
     "focusX": 50,
-    "focusY": 35
+    "focusY": 0
   }
 }
