@@ -4,6 +4,7 @@ const DEBUG_CONSOLE = 'The debug console is a dev tool. It stays English.';
 const DEV_REPORT = 'Progression and income reports are dev tools read in a terminal. They stay English.';
 const CRASH_REPORT = 'A line of the crash report a player pastes into a bug report. It stays as the code wrote it.';
 const DEV_LAB = 'The block lab is a dev page for tuning the combat score. It stays English.';
+const SIM_PAGE = 'Simulation mode is a dev page for watching a bot run. It stays English.';
 const FONT_SAMPLE = 'A sample string that makes the browser load the font. No player reads it.';
 const SVG = 'Static SVG markup of an icon, with no words in it.';
 
@@ -27,6 +28,13 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/three/save-migrations.ts', text: 'cost basis', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: 'pile   basis', reason: MIGRATION_LABEL },
   { file: 'src/sim/progression/activity.ts', text: '*', reason: DEV_REPORT },
+  { file: 'src/ui/sim/heat-map.ts', text: '*', reason: SIM_PAGE },
+  { file: 'src/ui/sim/page.ts', text: '*', reason: SIM_PAGE },
+  { file: 'src/ui/sim/panels.ts', text: '*', reason: SIM_PAGE },
+  { file: 'src/ui/sim/sim-text.ts', text: '*', reason: SIM_PAGE },
+  { file: 'src/sim/progression/sim-cards.ts', text: '*', reason: SIM_PAGE },
+  { file: 'src/sim/progression/sim-mode.ts', text: '*', reason: SIM_PAGE },
+  { file: 'src/three/sim-worker.ts', text: '*', reason: SIM_PAGE },
   { file: 'src/sim/progression/job-checks.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/sim/settings.ts', text: 'World setup', reason: SETTING_LABEL },
   { file: 'src/sim/settings.ts', text: 'world setup field', reason: SETTING_LABEL },
