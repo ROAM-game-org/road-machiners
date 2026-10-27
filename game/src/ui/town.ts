@@ -63,7 +63,7 @@ import { escortStatusText, estimateText, estimateTitle, gameHours, GOODS_COLUMNS
 import { InventoryView, truckChips } from "./inventory";
 import { contractRow } from "./contract-row";
 import { buyChart, chartsOnSale, sheetAt, sheetId, sheetTiles, type Sheet, type SheetOffer } from "../sim/charts";
-import { MapView, observeBox } from "./map-view";
+import { mapScene, MapView, observeBox } from "./map-view";
 import { toPx, type Viewport } from "./map-geometry";
 import { token } from "./tokens";
 import { QUESTS, startQuest } from "../sim/quests";
@@ -149,11 +149,11 @@ export class TownScreen {
       if (over && this.hoverSheet && sheetId(over) === sheetId(this.hoverSheet)) return;
       if (!over && !this.hoverSheet) return;
       this.hoverSheet = over;
-      this.chartsView.update(this.host.world(), null);
+      this.chartsView.update(mapScene(this.host.world()), null);
     });
     this.chartsView.canvas.addEventListener("pointerleave", () => {
       this.hoverSheet = null;
-      this.chartsView.update(this.host.world(), null);
+      this.chartsView.update(mapScene(this.host.world()), null);
     });
   }
 
@@ -643,7 +643,7 @@ export class TownScreen {
     const picked = offers.find((o) => this.sheet && sheetId(o.sheet) === sheetId(this.sheet)) ?? null;
     if (!picked) this.sheet = null;
     this.chartOffers = offers;
-    this.chartsView.update(w, null);
+    this.chartsView.update(mapScene(w), null);
     const buy = picked
       ? this.priceButton(w, t("goods.buy"), picked.price, (x) => buyChart(x, picked.sheet), null, "buy-chart")
       : null;
