@@ -4,8 +4,8 @@ import { startKit } from '../data/start';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
 import { loadWorld, saveOf, writeSave } from './save';
-import { IDB_OPEN_MS, idbBackend, memoryBackend, openSaves, SaveSlots, storageBackend, type SaveBackend } from './save-db';
-import { allSlots, slotKey } from './save-slots';
+import { DatabaseLost, IDB_OPEN_MS, idbBackend, memoryBackend, openSaves, SaveSlots, storageBackend, type SaveBackend } from './save-db';
+import { allSlots, slotKey, type SlotId } from './save-slots';
 
 const SLOTS = allSlots(3);
 
@@ -127,68 +127,235 @@ describe('SaveSlots with a backend that throws', () => {
   });
 });
 
+describe('SaveSlots after the database is lost', () => {
+  const KEY = 'roam.save';
+  const lost = () => new DatabaseLost(KEY, new DOMException('A mutation operation was attempted on a database that did not allow mutations.', 'InvalidStateError'));
+  const lostBackend = (): SaveBackend => ({ ...memoryBackend(), put: () => Promise.reject(lost()), remove: () => Promise.reject(lost()), appendLog: () => Promise.reject(lost()) });
+  const stored = (storage: Storage, slot: SlotId) => JSON.parse(storage.getItem(slotKey(KEY, slot)) ?? 'null');
+
+  function lostSlots(backend: SaveBackend, mirror: [SlotId, unknown][], storage: Storage) {
+    const slots = new SaveSlots(backend, new Map(mirror), { backend: storageBackend(storage, KEY, SLOTS), slots: SLOTS });
+    const errors: unknown[] = [];
+    slots.onError = (err) => errors.push(err);
+    return { slots, errors };
+  }
+
+  it('moves every mirrored save to local storage, drops what the mirror lacks, and warns once without the save note', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const storage = makeStorage();
+    storage.setItem(slotKey(KEY, 'slot2'), JSON.stringify({ savedAt: 1 }));
+    const { slots, errors } = lostSlots(lostBackend(), [['day', { savedAt: 2 }], ['slot1', { savedAt: 3 }]], storage);
+
+    slots.put('auto', { savedAt: 4 });
+    await slots.flush();
+    slots.put('slot1', { savedAt: 5 });
+    slots.remove('day');
+    await slots.flush();
+
+    expect(errors).toEqual([]);
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn.mock.calls[0][0]).toContain('Saves go to local storage for this session.');
+    expect([stored(storage, 'auto'), stored(storage, 'day'), stored(storage, 'slot1'), stored(storage, 'slot2')]).toEqual([{ savedAt: 4 }, null, { savedAt: 5 }, null]);
+    warn.mockRestore();
+  });
+
+  it('keeps the newer save when a write started on the lost database fails after the switch', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const storage = makeStorage();
+    let failLate = () => {};
+    const backend: SaveBackend = {
+      ...lostBackend(),
+      put: (_slot, envelope) => ((envelope as { savedAt: number }).savedAt === 1 ? new Promise((_resolve, reject) => { failLate = () => reject(lost()); }) : Promise.reject(lost())),
+    };
+    const { slots, errors } = lostSlots(backend, [], storage);
+
+    slots.put('auto', { savedAt: 1 });
+    slots.put('auto', { savedAt: 2 });
+    await new Promise((resolve) => setTimeout(resolve));
+    failLate();
+    await slots.flush();
+
+    expect(stored(storage, 'auto')).toEqual({ savedAt: 2 });
+    expect(errors).toEqual([]);
+    warn.mockRestore();
+  });
+
+  it('is moved back into the database on the next boot', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const storage = makeStorage();
+    const { slots } = lostSlots(lostBackend(), [['day', { savedAt: 2 }]], storage);
+    slots.put('auto', { savedAt: 3 });
+    await slots.flush();
+
+    const database = memoryBackend();
+    const next = await SaveSlots.open(database, storage, KEY, SLOTS);
+
+    expect([next.get('auto'), next.get('day')]).toEqual([{ savedAt: 3 }, { savedAt: 2 }]);
+    expect(storage.length).toBe(0);
+    warn.mockRestore();
+  });
+
+  it('shows the save note when local storage refuses the moved saves too', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const storage = makeStorage();
+    storage.setItem = () => { throw new Error('Quota exceeded'); };
+    const { slots, errors } = lostSlots(lostBackend(), [], storage);
+
+    slots.put('auto', { savedAt: 3 });
+    await slots.flush();
+
+    expect(errors.map((e) => (e as Error).message)).toEqual(['Quota exceeded']);
+    expect(slots.get('auto')).toEqual({ savedAt: 3 });
+    warn.mockRestore();
+  });
+
+  it('sends a lost database to onError when it has nowhere to fall back', async () => {
+    const slots = new SaveSlots(lostBackend(), new Map());
+    const errors: unknown[] = [];
+    slots.onError = (err) => errors.push(err);
+
+    slots.put('auto', { savedAt: 3 });
+    await slots.flush();
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toBeInstanceOf(DatabaseLost);
+  });
+
+  it('moves the run log to memory with the saves', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const storage = makeStorage();
+    const { slots, errors } = lostSlots(lostBackend(), [], storage);
+
+    await expect(slots.appendLog('run', [{ kind: 'a', turn: 1 }])).rejects.toBeInstanceOf(DatabaseLost);
+    await slots.appendLog('run', [{ kind: 'b', turn: 2 }]);
+    await slots.flush();
+
+    expect((await slots.readLog('run')).map((r) => r.kind)).toEqual(['b']);
+    expect(errors).toEqual([]);
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
+  });
+});
+
 describe('idbBackend writes', () => {
   afterEach(() => vi.unstubAllGlobals());
+
+  const FIREFOX_LOST = 'A mutation operation was attempted on a database that did not allow mutations.';
+
+  type Call = 'transaction' | 'objectStore' | 'put' | 'delete' | 'add' | 'openCursor' | 'getAll' | 'getAllKeys';
+  type Failure = { call: Call; error: DOMException } | { abort: DOMException | null };
 
   type StubDb = {
     index: number;
     puts: unknown[];
     closing: boolean;
+    closes: number;
+    fail: Failure | null;
     onclose?: () => void;
     onversionchange?: () => void;
     transaction: (...args: unknown[]) => unknown;
     close: () => void;
   };
 
-  function stubIndexedDb(transactionArgs: unknown[][] = [], closedAtOpen = (_index: number) => false) {
+  type StubOptions = {
+    transactionArgs?: unknown[][];
+    closedAtOpen?: (index: number) => boolean;
+    failAt?: (index: number) => Failure | null;
+    refuseOpen?: (index: number) => boolean;
+  };
+
+  function stubIndexedDb({ transactionArgs = [], closedAtOpen = () => false, failAt = () => null, refuseOpen = () => false }: StubOptions = {}) {
     const dbs: StubDb[] = [];
-    const store = (db: StubDb) => ({
-      put: (envelope: unknown) => { db.puts.push(envelope); return {}; },
-      add: () => ({}),
-      delete: () => ({}),
-      openCursor: () => ({}),
-      getAll: () => {
-        const req: { result: unknown[]; onsuccess?: () => void } = { result: [] };
-        setTimeout(() => req.onsuccess?.());
+    const saves = new Map<unknown, unknown>();
+    const log: { seq: number }[] = [];
+    const failing = (db: StubDb, call: Call) => {
+      if (db.fail && 'call' in db.fail && db.fail.call === call) throw db.fail.error;
+    };
+    const makeTx = (db: StubDb) => {
+      let open = 0;
+      let finished = false;
+      const staged: (() => void)[] = [];
+      const tx: { error: DOMException | null; oncomplete?: () => void; onabort?: () => void; onerror?: () => void; objectStore: () => unknown; abort: () => void } = {
+        error: null,
+        objectStore: () => { failing(db, 'objectStore'); return store; },
+        abort: () => finish(new DOMException('The transaction was aborted.', 'AbortError')),
+      };
+      const finish = (abort: DOMException | null | undefined) => {
+        if (finished) return;
+        finished = true;
+        if (abort === undefined) {
+          staged.forEach((commit) => commit());
+          tx.oncomplete?.();
+        } else {
+          tx.error = abort;
+          tx.onabort?.();
+        }
+      };
+      const settle = () => setTimeout(() => {
+        if (open > 0) return;
+        finish(db.fail && 'abort' in db.fail ? db.fail.abort : undefined);
+      });
+      const request = <T>(call: Call, result: T, commit?: () => void) => {
+        failing(db, call);
+        open += 1;
+        const req: { result: T; onsuccess?: () => void } = { result };
+        setTimeout(() => {
+          if (commit) staged.push(commit);
+          if (!finished) req.onsuccess?.();
+          open -= 1;
+          settle();
+        });
         return req;
-      },
-      getAllKeys: () => {
-        const req: { result: unknown[]; onsuccess?: () => void } = { result: [] };
-        setTimeout(() => req.onsuccess?.());
-        return req;
-      },
-    });
+      };
+      const store = {
+        put: (envelope: unknown, key: unknown) => request('put', undefined, () => { db.puts.push(envelope); saves.set(key, envelope); }),
+        delete: (key: unknown) => request('delete', undefined, () => saves.delete(key)),
+        add: (record: { seq: number }) => request('add', undefined, () => log.push(record)),
+        openCursor: () => request('openCursor', log.length > 0 ? { value: log[log.length - 1] } : null),
+        getAll: () => request('getAll', [...saves.values()]),
+        getAllKeys: () => request('getAllKeys', [...saves.keys()]),
+      };
+      settle();
+      return tx;
+    };
     const makeDb = (index: number): StubDb => {
       const db: StubDb = {
         index,
         puts: [],
         closing: closedAtOpen(index),
-        close: () => { db.closing = true; },
+        closes: 0,
+        fail: failAt(index),
+        close: () => { db.closing = true; db.closes += 1; },
         transaction: (...args: unknown[]) => {
           transactionArgs.push(args);
           if (args.length > 2) throw new Error('This browser aborts a transaction with options');
           if (db.closing) throw new DOMException('The database connection is closing.', 'InvalidStateError');
-          const tx: { oncomplete?: () => void; objectStore: () => unknown } = { objectStore: () => store(db) };
-          setTimeout(() => tx.oncomplete?.());
-          return tx;
+          failing(db, 'transaction');
+          return makeTx(db);
         },
       };
       return db;
     };
     const open = vi.fn(() => {
-      const db = makeDb(dbs.length);
-      dbs.push(db);
-      const request: { result: unknown; onsuccess?: () => void } = { result: db };
-      setTimeout(() => request.onsuccess?.());
+      const index = open.mock.calls.length - 1;
+      const refused = refuseOpen(index);
+      const db = makeDb(index);
+      if (!refused) dbs.push(db);
+      const request: { result: unknown; error: unknown; onsuccess?: () => void; onerror?: () => void } = {
+        result: db,
+        error: new DOMException('The operation failed for reasons unrelated to the database itself.', 'UnknownError'),
+      };
+      setTimeout(() => (refused ? request.onerror?.() : request.onsuccess?.()));
       return request;
     });
     vi.stubGlobal('indexedDB', { open });
-    return { dbs, open };
+    vi.stubGlobal('IDBKeyRange', { bound: () => ({}) });
+    return { dbs, open, saves, log };
   }
 
   it('opens each write transaction with the default options', async () => {
     const transactionArgs: unknown[][] = [];
-    stubIndexedDb(transactionArgs);
+    stubIndexedDb({ transactionArgs });
     const backend = await idbBackend('roam-test');
 
     await backend.put('auto', { world: { turn: 1 } });
@@ -220,13 +387,14 @@ describe('idbBackend writes', () => {
     expect(dbs[1].puts).toEqual([{ world: { turn: 3 } }]);
   });
 
-  it('a closed connection rejects instead of throwing', async () => {
-    const { open, dbs } = stubIndexedDb([], () => true);
+  it('a closed connection rejects instead of throwing, and names the database lost', async () => {
+    const { open, dbs } = stubIndexedDb({ closedAtOpen: () => true });
     const backend = await idbBackend('roam-test');
 
     let promise: Promise<void> | undefined;
     expect(() => { promise = backend.put('auto', {}); }).not.toThrow();
-    await expect(promise).rejects.toMatchObject({ name: 'InvalidStateError' });
+    await expect(promise).rejects.toBeInstanceOf(DatabaseLost);
+    await expect(promise).rejects.toThrow('The database connection is closing.');
     expect(open).toHaveBeenCalledTimes(2);
     expect(dbs).toHaveLength(2);
   });
@@ -255,13 +423,118 @@ describe('idbBackend writes', () => {
   });
 
   it('reads reopen too', async () => {
-    vi.stubGlobal('IDBKeyRange', { bound: () => ({}) });
     const { dbs, open } = stubIndexedDb();
     const backend = await idbBackend('roam-test');
     dbs[0].closing = true;
     expect(await backend.readAll()).toEqual(new Map());
     dbs[1].closing = true;
     expect(await backend.readLog('run')).toEqual([]);
+    expect(open).toHaveBeenCalledTimes(3);
+  });
+
+  it('reopens when the put itself says the database no longer allows mutations, and keeps the new connection', async () => {
+    const lost = new DOMException(FIREFOX_LOST, 'InvalidStateError');
+    const { dbs, open } = stubIndexedDb({ failAt: (index) => (index === 0 ? { call: 'put', error: lost } : null) });
+    const backend = await idbBackend('roam-test');
+
+    await backend.put('auto', { turn: 5 });
+    await backend.put('auto', { turn: 6 });
+
+    expect(open).toHaveBeenCalledTimes(2);
+    expect(dbs[0].closes).toBe(1);
+    expect(dbs[0].puts).toEqual([]);
+    expect(dbs[1].puts).toEqual([{ turn: 5 }, { turn: 6 }]);
+  });
+
+  const lostAt: { call: Call; operation: (backend: SaveBackend) => Promise<unknown> }[] = [
+    { call: 'objectStore', operation: (backend) => backend.put('auto', { turn: 1 }) },
+    { call: 'delete', operation: (backend) => backend.remove('auto') },
+    { call: 'openCursor', operation: (backend) => backend.appendLog('run', [{ kind: 'a', turn: 1 }]) },
+    { call: 'add', operation: (backend) => backend.appendLog('run', [{ kind: 'a', turn: 1 }]) },
+    { call: 'getAllKeys', operation: (backend) => backend.readAll() },
+    { call: 'getAll', operation: (backend) => backend.readAll() },
+    { call: 'getAll', operation: (backend) => backend.readLog('run') },
+  ];
+
+  it.each(lostAt)('reruns the whole operation on a fresh connection when $call reports the connection lost', async ({ call, operation }) => {
+    const { dbs, open } = stubIndexedDb({ failAt: (index) => (index === 0 ? { call, error: new DOMException(FIREFOX_LOST, 'InvalidStateError') } : null) });
+    const backend = await idbBackend('roam-test');
+
+    await expect(operation(backend)).resolves.not.toThrow();
+
+    expect(open).toHaveBeenCalledTimes(2);
+    expect(dbs[0].closes).toBe(1);
+  });
+
+  it('numbers log records once when the add is rerun after a lost connection', async () => {
+    const { log } = stubIndexedDb({ failAt: (index) => (index === 0 ? { call: 'add', error: new DOMException('Internal error.', 'UnknownError') } : null) });
+    const backend = await idbBackend('roam-test');
+
+    await backend.appendLog('run', [{ kind: 'a', turn: 1 }, { kind: 'b', turn: 1 }]);
+    await backend.appendLog('run', [{ kind: 'c', turn: 2 }]);
+
+    expect(log.map((r) => r.seq)).toEqual([0, 1, 2]);
+  });
+
+  it.each([
+    { name: 'no error', abort: null },
+    { name: 'AbortError', abort: new DOMException('The transaction was aborted.', 'AbortError') },
+    { name: 'UnknownError', abort: new DOMException('Internal error.', 'UnknownError') },
+  ])('reruns a write whose transaction aborts with $name', async ({ abort }) => {
+    const { dbs, open, saves } = stubIndexedDb({ failAt: (index) => (index === 0 ? { abort } : null) });
+    const backend = await idbBackend('roam-test');
+
+    await backend.put('auto', { turn: 7 });
+
+    expect(open).toHaveBeenCalledTimes(2);
+    expect(dbs[1].puts).toEqual([{ turn: 7 }]);
+    expect(saves.get('auto')).toEqual({ turn: 7 });
+  });
+
+  it('rejects a full quota at once, with no reopen, and keeps the old save', async () => {
+    const quota = new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+    const { open, saves, dbs } = stubIndexedDb();
+    const backend = await idbBackend('roam-test');
+    await backend.put('auto', { turn: 1 });
+    dbs[0].fail = { abort: quota };
+
+    await expect(backend.put('auto', { turn: 2 })).rejects.toBe(quota);
+
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(dbs[0].closes).toBe(0);
+    expect(saves.get('auto')).toEqual({ turn: 1 });
+  });
+
+  it('rejects a log add that throws inside the cursor callback instead of throwing from the handler', async () => {
+    const clone = new DOMException('The object could not be cloned.', 'DataCloneError');
+    const { open, log } = stubIndexedDb({ failAt: () => ({ call: 'add', error: clone }) });
+    const backend = await idbBackend('roam-test');
+
+    await expect(backend.appendLog('run', [{ kind: 'a', turn: 1 }])).rejects.toBe(clone);
+
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(log).toEqual([]);
+  });
+
+  it('names the database lost when the fresh connection fails the same way', async () => {
+    const { open, dbs } = stubIndexedDb({ failAt: () => ({ call: 'put', error: new DOMException(FIREFOX_LOST, 'InvalidStateError') }) });
+    const backend = await idbBackend('roam-test');
+
+    const write = backend.put('auto', { turn: 8 });
+
+    await expect(write).rejects.toBeInstanceOf(DatabaseLost);
+    await expect(write).rejects.toThrow(FIREFOX_LOST);
+    expect(open).toHaveBeenCalledTimes(2);
+    expect(dbs.map((db) => db.closes)).toEqual([1, 1]);
+  });
+
+  it('names the database lost when the browser refuses to open it again', async () => {
+    const { dbs, open } = stubIndexedDb({ refuseOpen: (index) => index > 0 });
+    const backend = await idbBackend('roam-test');
+    dbs[0].onclose?.();
+
+    await expect(backend.put('auto', { turn: 9 })).rejects.toBeInstanceOf(DatabaseLost);
+
     expect(open).toHaveBeenCalledTimes(3);
   });
 });
@@ -319,24 +592,36 @@ describe('openSaves', () => {
   const KEY = 'roam.save';
   afterEach(() => vi.unstubAllGlobals());
 
-  function stubOpen(refusals: number): { opens: () => number; saved: Map<string, unknown> } {
+  function stubOpen(refusals: number, lostReads = false): { opens: () => number; saved: Map<string, unknown> } {
     let opens = 0;
     const saved = new Map<string, unknown>();
-    const fire = <T>(result: T) => {
-      const req: { result: T; onsuccess?: () => void } = { result };
-      setTimeout(() => req.onsuccess?.());
-      return req;
-    };
-    const store = {
-      getAllKeys: () => fire([...saved.keys()]),
-      getAll: () => fire([...saved.values()]),
-      put: (value: unknown, key: string) => { saved.set(key, value); return {}; },
-      delete: (key: string) => { saved.delete(key); return {}; },
-    };
     const db = {
+      close: () => {},
       transaction: () => {
+        let open = 0;
         const tx: { oncomplete?: () => void; objectStore: () => typeof store } = { objectStore: () => store };
-        setTimeout(() => tx.oncomplete?.());
+        const settle = () => setTimeout(() => { if (open === 0) tx.oncomplete?.(); });
+        const fire = <T>(result: () => T) => {
+          open += 1;
+          const req: { result?: T; onsuccess?: () => void } = {};
+          setTimeout(() => {
+            req.result = result();
+            req.onsuccess?.();
+            open -= 1;
+            settle();
+          });
+          return req;
+        };
+        const store = {
+          getAllKeys: () => fire(() => [...saved.keys()]),
+          getAll: () => {
+            if (lostReads) throw new DOMException('A mutation operation was attempted on a database that did not allow mutations.', 'InvalidStateError');
+            return fire(() => [...saved.values()]);
+          },
+          put: (value: unknown, key: string) => fire(() => saved.set(key, value)),
+          delete: (key: string) => fire(() => saved.delete(key)),
+        };
+        settle();
         return tx;
       },
     };
@@ -416,6 +701,26 @@ describe('openSaves', () => {
     expect(slots.get('auto')).toEqual({ savedAt: 2 });
     expect(stub.saved.get('auto')).toEqual({ savedAt: 2 });
     expect(storage.getItem(slotKey(KEY, 'auto'))).toBeNull();
+    warn.mockRestore();
+  });
+
+  it('falls back to local storage when the database opens but loses its first read twice', async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const stub = stubOpen(0, true);
+    const storage = makeStorage();
+    storage.setItem(slotKey(KEY, 'auto'), JSON.stringify({ savedAt: 2 }));
+    const opening = openSaves(KEY, storage, SLOTS);
+    await vi.runAllTimersAsync();
+    const slots = await opening;
+    vi.useRealTimers();
+    expect(stub.opens()).toBe(2);
+    expect(warn).toHaveBeenCalledOnce();
+    expect(slots.get('auto')).toEqual({ savedAt: 2 });
+    slots.put('slot1', { savedAt: 7 });
+    await slots.flush();
+    expect(JSON.parse(storage.getItem(slotKey(KEY, 'slot1')) ?? 'null')).toEqual({ savedAt: 7 });
+    expect(stub.saved.size).toBe(0);
     warn.mockRestore();
   });
 });
