@@ -75,11 +75,13 @@ const findDeadCorners = () => {
   };
   const panels = [...document.querySelectorAll('#ui .panel')].filter((p) => isShown(p, p.getBoundingClientRect()));
   const single = panels.map((p) => [p, [...p.querySelectorAll('button, summary, a[href], input, select')].filter((c) => c.checkVisibility())]).filter(([p, c]) => isOneControl(p, c));
-  return { failures: single.flatMap(([p, c]) => cornerFailures(p, c[0])), found: single.length };
+  const turn = document.querySelector('#ui .turn-control .end-turn');
+  const turnFailures = turn ? cornerFailures(turn, turn) : ['no turn button'];
+  return { failures: [...single.flatMap(([p, c]) => cornerFailures(p, c[0])), ...turnFailures], found: single.length };
 };
 const hit = await page.evaluate(findDeadCorners);
 hitProblems.push(...hit.failures);
-if (hit.found < 3) hitProblems.push(`found ${hit.found} one-control panels, expected at least 3`);
+if (hit.found < 2) hitProblems.push(`found ${hit.found} one-control panels, expected at least 2`);
 const menuBox = await page.locator('#ui .game-menu').boundingBox();
 await page.mouse.click(menuBox.x + 2, menuBox.y + 2);
 if (!(await page.locator('.game-menu [role=menu]').isVisible())) hitProblems.push('menu did not open from a click in its corner');
