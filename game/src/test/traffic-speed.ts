@@ -1,7 +1,5 @@
 
-import { defaultSetup } from '../sim/settings';
 import { PHYSICS } from '../data/physics';
-import { START_KITS } from '../data/start';
 import { TERRAIN_TYPES } from '../data/terrain';
 import { buildDrive, freeDrive, initPhysics, type Drive } from '../phys/drive';
 import { physicsMove } from '../phys/turn';
@@ -17,9 +15,9 @@ import { isOnRope, isTowing } from '../sim/tow';
 import type { Pose, Vehicle, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
 import { weatherAt } from '../sim/weather';
-import { endTurn, newWorld } from '../sim/world';
+import { endTurn } from '../sim/world';
 import { RULES } from '../data/rules';
-import { TEST_MAP } from './map';
+import { standardWorld } from './world-cache';
 
 export type TrafficLayer = 'physics' | 'far';
 export const TRAFFIC_LAYERS: readonly TrafficLayer[] = ['physics', 'far'];
@@ -215,7 +213,7 @@ function formatOne(s: TrafficSummary): string {
 
 export async function recordTraffic(seed: number, turns: number, layer: TrafficLayer): Promise<TrafficRun> {
   if (!TRAFFIC_LAYERS.includes(layer)) throw new Error(`unknown traffic layer "${layer}"`);
-  let w = newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+  let w = standardWorld(seed);
   w.player.god = true;
   const run: TrafficRun = { seed, layer, turns, samples: [], npcTurns: 0, resupplyStarts: 0, maxDry: 0, collisions: 0 };
   const play = layer === 'physics' ? await physicsPlayer(w) : farPlayer();
