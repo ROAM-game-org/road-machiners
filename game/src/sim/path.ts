@@ -2,7 +2,7 @@
 import { REGION } from '../data/region';
 import { crossesRail } from './bridge';
 import { count, timed } from '../perf';
-import { canStepOut, connected, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
+import { canStepOut, coarseWaypoint, connected, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
 import type { Blocker } from './nav/buckets';
 import { CELL, CLEARANCE, blockerKey, climbTaste, componentOf, dynamicBlockers, navLayer, nearCliff, nightTaste, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
 import { keepsOffRoads } from './off-road';
@@ -35,6 +35,22 @@ export function route(world: World, from: Vec, dest: Vec, radius: number, extra:
     points.push(end);
     return shortcut(nav, statics, dynamic, from, points, reach, taste);
   });
+}
+
+export function routeAhead(world: World, from: Vec, dest: Vec, radius: number, extra: Blocker[], driver: Vehicle | undefined, window: number): { points: Vec[]; partial: boolean } {
+  const way = dist(from, dest) <= window ? null : timed('route-ahead', () => aheadPoint(world, from, dest, radius, extra, driver, window));
+  return { points: route(world, from, way ?? dest, radius, extra, driver), partial: way !== null };
+}
+
+function aheadPoint(world: World, from: Vec, dest: Vec, radius: number, extra: Blocker[], driver: Vehicle | undefined, window: number): Vec | null {
+  const layer = navLayer(world.terrain, world.obstacles, radius);
+  const ov = stampOverlay(layer, dynamicBlockers(world.obstacles, world.terrain, extra), radius);
+  const start = cellOf(layer, from);
+  const exit = canStepOut(layer, ov, start) ? start : nearestFreeCell(layer, ov, start);
+  const near = exit === null ? null : nearestFreeCell(layer, ov, cellOf(layer, insideMap(world, dest, radius)), startComponent(layer, exit));
+  if (exit === null || near === null) return null;
+  const cell = coarseWaypoint(layer, exit, near, routeTaste(world, terrainNav(world.terrain), driver), window / CELL);
+  return cell === null ? null : centerOf(layer, cell);
 }
 
 function routeTaste(world: World, nav: TerrainNav, driver: Vehicle | undefined): Taste | null {

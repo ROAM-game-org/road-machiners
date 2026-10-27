@@ -290,6 +290,38 @@ function markCorridor(layer: NavLayer, start: number, goal: number, taste: Taste
   return false;
 }
 
+export function coarseWaypoint(layer: NavLayer, start: number, goal: number, taste: Taste | null, reachCells: number): number | null {
+  if (!connected(layer, start, goal) || !markCorridor(layer, start, goal, taste, 1, null)) return null;
+  const { x: rx, y: ry } = layer.coarse;
+  const chain: number[] = [];
+  for (let r = layer.coarse.region[goal]; r !== -1; r = coarseFrom[r]) chain.push(r);
+  chain.reverse();
+  let along = 0;
+  for (let i = 1; i < chain.length; i++) {
+    along += Math.hypot(rx[chain[i]] - rx[chain[i - 1]], ry[chain[i]] - ry[chain[i - 1]]);
+    if (along >= reachCells) return cellOfRegion(layer, chain[i]);
+  }
+  return null;
+}
+
+function cellOfRegion(layer: NavLayer, r: number): number {
+  const { n: bn, block, region, x: rx, y: ry } = layer.coarse;
+  const n = layer.n;
+  const x0 = (block[r] % bn) * COARSE;
+  const y0 = Math.floor(block[r] / bn) * COARSE;
+  let best = -1;
+  let bestGap = Infinity;
+  for (let y = y0; y < Math.min(n, y0 + COARSE); y++)
+    for (let x = x0; x < Math.min(n, x0 + COARSE); x++) {
+      const gap = Math.hypot(x - rx[r], y - ry[r]);
+      if (region[y * n + x] === r && gap < bestGap) {
+        best = y * n + x;
+        bestGap = gap;
+      }
+    }
+  return best;
+}
+
 function startRegion(layer: NavLayer, start: number, goal: number): number {
   const region = layer.coarse.region;
   if (region[start] !== 0) return region[start];

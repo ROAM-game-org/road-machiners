@@ -4,8 +4,8 @@ import { RULES } from '../data/rules';
 import { inLiveRange, isFarTurn, keepsPlayerFarRoute } from './fidelity';
 import { boxSegmentDistance, propBoxes, propReach } from './mapgen';
 import { keepsOffRoads } from './off-road';
-import { route } from './path';
-import { farWaypoint } from './far-window';
+import { routeAhead } from './path';
+import { REGION } from '../data/region';
 import { propSlotsAlong } from './prop-index';
 import { breakProp } from './salvage';
 import { burnFuel, getResources } from './resources';
@@ -125,8 +125,7 @@ function farPoints(w: World, v: Vehicle, dest: Vec, style: RouteStyle, full: Veh
   const onRope = getHitchedTowIds(w);
   const stored = keptFarRoute(v);
   if (stored && dist(stored.dest, dest) < RULES.arriveRadius && sameStyle(stored, style)) return { points: stored.points, partial: stored.partial === true };
-  const waypoint = farWaypoint(w, v.pos, dest, style.offRoad);
-  return { points: route(w, v.pos, waypoint.pos, full.radius, [...farBlockers(w, v, s, onRope), ...fieldBlockers(w, v)], v), partial: waypoint.partial };
+  return routeAhead(w, v.pos, dest, full.radius, [...farBlockers(w, v, s, onRope), ...fieldBlockers(w, v)], v, REGION.navigation.farWindow);
 }
 
 function farBlockers(w: World, v: Vehicle, s: VehicleStats, onRope: ReadonlySet<string>): Blocker[] {
