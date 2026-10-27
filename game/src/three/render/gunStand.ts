@@ -7,6 +7,7 @@ export type PlateSpot = { dx: number; dz: number; shrink: number };
 const RISER_TOP_SIDE = 0.3;
 const UP = new THREE.Vector3(0, 1, 0);
 const BRACE_ANGLES = [15, 30, 45, 60, 75];
+const BRACE_SIDES = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, -1)];
 const SEE_THROUGH = new Set([GLASS, LAMP, RADIO]);
 const IDENTITY = new THREE.Matrix4();
 const FOOTING_GRID = CLIP_TOLERANCE / 2;
@@ -458,7 +459,12 @@ function braceFoot(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Ve
 
 function braceHit(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 | undefined {
   const inward = center.clone().sub(corner).setY(0).normalize();
-  return BRACE_ANGLES.map((deg) => wallHit(body, corner, inward.clone().multiplyScalar(Math.cos(deg * THREE.MathUtils.DEG2RAD)).setY(-Math.sin(deg * THREE.MathUtils.DEG2RAD))))
+  return nearestWall(body, corner, [inward]) ?? nearestWall(body, corner, BRACE_SIDES);
+}
+
+function nearestWall(body: THREE.Object3D, corner: THREE.Vector3, ways: THREE.Vector3[]): THREE.Vector3 | undefined {
+  return ways
+    .flatMap((way) => BRACE_ANGLES.map((deg) => wallHit(body, corner, way.clone().multiplyScalar(Math.cos(deg * THREE.MathUtils.DEG2RAD)).setY(-Math.sin(deg * THREE.MathUtils.DEG2RAD)))))
     .filter((p): p is THREE.Vector3 => p !== null)
     .sort((a, b) => a.distanceTo(corner) - b.distanceTo(corner))[0];
 }

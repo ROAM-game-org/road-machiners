@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { CHASSIS, PAINT } from '../../data/chassis';
-import { isShield, partDef } from '../../data/parts';
+import { isShield, PARTS, partDef } from '../../data/parts';
 import { BODY_PARTS } from '../../render/partLooks';
 import { unitsOf } from '../../sim/body';
 import { makePart } from '../../sim/factory';
@@ -81,6 +81,29 @@ describe('truck support', () => {
   it('every drawn piece of every new-world truck stands on the truck', { timeout: SLOW }, () => {
     const world = standardWorld(1337);
     const faults = world.vehicles.flatMap(faultsOf);
+    expect(faults).toEqual([]);
+  });
+});
+
+describe('guns on every deck cell', () => {
+  it('a gun on any legal cell and rotation of any truck builds and stands on the truck', { timeout: SLOW * 10 }, () => {
+    const faults: string[] = [];
+    const guns = Object.values(PARTS).filter((def) => def.kind === 'weapon');
+    for (const chassisId of Object.keys(CHASSIS)) {
+      const w = emptyWorld();
+      const base = addVehicle(w, 'scrapjaw', chassisId, [], { x: 40, y: 30 });
+      for (const def of guns) {
+        const probe: GridItem = { id: 'probe', kind: 'part', part: makePart(w, def.id, 0), x: 0, y: 0, rot: 0 };
+        for (const spot of mountSpots(gridOf(base), base.items, probe, MOUNT_CELLS.weapon)) {
+          const v = { ...base, items: [...base.items, { ...probe, ...spot }] };
+          try {
+            faults.push(...faultsOf(v));
+          } catch (e) {
+            faults.push(`${chassisId} ${def.id} @${spot.x},${spot.y} r${spot.rot}: ${(e as Error).message}`);
+          }
+        }
+      }
+    }
     expect(faults).toEqual([]);
   });
 });
