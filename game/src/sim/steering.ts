@@ -1,12 +1,12 @@
 
 import { RULES } from "../data/rules";
 import { restBend, rigDiscs, straighten } from "./rig";
-import { vehicleStats, type VehicleStats } from "./stats";
+import { maxTurn, vehicleStats, type VehicleStats } from "./stats";
 import type { Blocker } from "./path";
 import { hasPads, nearestPad, nearestSitePad, siteUnder } from "./sites";
 import { reachesFrom, straightClear } from "./path";
 import type { MoveOrder, Vehicle, World } from "./types";
-import { clamp, DEG, dist, type Vec } from "./vec";
+import { angleDiff, clamp, DEG, dist, type Vec } from "./vec";
 import { atlasOf } from "./atlas";
 import type { Terrain } from "./terrain";
 
@@ -91,6 +91,57 @@ export function zoneSpeed(s: VehicleStats, speed: number, d: number): number {
 export function clickOrder(t: Terrain, dest: Vec, shift: boolean, me: Pick<Vehicle, "pos" | "order">): MoveOrder {
   const site = siteUnder(atlasOf(t), dest);
   return site && hasPads(site) ? { kind: "stopAt", dest: nearestPad(site, me.pos) } : groundOrder(dest, shift, me.order);
+}
+
+export function zoneHalfAngle(s: VehicleStats, speed: number): number {
+  return Math.max(RULES.throttleZones.minHalfAngle, maxTurn(s, speed) / 2);
+}
+
+export function zoneAt(s: VehicleStats, me: Pick<Vehicle, "pos" | "heading" | "speed">, p: Vec): Throttle | null {
+  const d = dist(me.pos, p);
+  if (d >= RULES.throttleZones.reach) return null;
+  const bearing = Math.atan2(p.y - me.pos.y, p.x - me.pos.x);
+  if (Math.abs(angleDiff(bearing, me.heading)) > zoneHalfAngle(s, me.speed)) return null;
+  return throttleFor(d, me.speed, "direct");
+}
+
+export function zonePace(s: VehicleStats, speed: number, zone: Throttle): number | undefined {
+  if (zone === "accelerate") return undefined;
+  const pace = zone === "brake" ? RULES.crawlSpeed : Math.max(RULES.crawlSpeed, speed);
+  if (pace >= s.maxSpeed) return undefined;
+  if (!Number.isFinite(pace) || pace <= RULES.parkedSpeed) throw new Error(`Zone pace ${pace} is not above the parked speed ${RULES.parkedSpeed}`);
+  return pace;
+}
+
+export function playerOrder(world: World, me: Vehicle, dest: Vec, shift: boolean): MoveOrder {
+  const order = clickOrder(world.terrain, dest, shift, me);
+  const held = me.order && me.order.kind !== "brake" ? me.order : null;
+  if (me.direct || order.kind === "brake") return order;
+  const fan = shift || onSite(world, dest) || reclicks(held, dest) ? null : zoneAt(vehicleStats(world, me), me, dest);
+  if (fan === null) return withPace(order, held?.pace);
+  const pace = zonePace(vehicleStats(world, me), me.speed, fan);
+  if (held && dist(me.pos, held.dest) > RULES.throttleZones.reach) return withPace({ kind: held.kind, dest: held.dest }, pace);
+  return withPace(order, pace);
+}
+
+export function orderThrottle(world: World, me: Vehicle, order: MoveOrder): Throttle {
+  if (order.kind === "brake") return "brake";
+  if (order.pace !== undefined) return order.pace <= RULES.crawlSpeed ? "brake" : "hold";
+  return throttleFor(dist(me.pos, order.dest), me.speed, driveMode(me));
+}
+
+function onSite(world: World, p: Vec): boolean {
+  const site = siteUnder(atlasOf(world.terrain), p);
+  return site !== null && hasPads(site);
+}
+
+function reclicks(held: MoveOrder | null, p: Vec): boolean {
+  return held !== null && held.kind !== "brake" && dist(p, held.dest) < RULES.reclickRadius;
+}
+
+function withPace(order: MoveOrder, pace: number | undefined): MoveOrder {
+  if (order.kind === "brake" || pace === undefined) return order;
+  return { ...order, pace };
 }
 
 function groundOrder(dest: Vec, shift: boolean, current: MoveOrder | null): MoveOrder {
