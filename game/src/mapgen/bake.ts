@@ -16,6 +16,7 @@ import { BUILT_BLACK_MUD, BUILT_DITCH, BUILT_CANAL, BUILT_GLASS, BUILT_PAD, BUIL
 import { apronLayer } from './apron';
 import { desertLayer } from './desert';
 import { farmBeltLayer } from './farmbelt';
+import { zoneReport } from './report';
 import { fillGlassTrail } from './glass';
 import { swampLayer } from './swamp';
 import { BUILT_FIELD, BUILT_OLD_ROAD, oldWorldLayer, tilesWithin } from './oldworld';
@@ -37,7 +38,10 @@ export function bakeMap(seed: number): MapDraft {
   d = timed('fortresses', () => fortressLayer(d));
   d = timed('start', () => keepStartClear(d));
   d = detailed('roadside', d, () => roadsideLayer(seed, d));
-  return detailed('boats', d, () => boatLayer(seed, d));
+  d = detailed('boats', d, () => boatLayer(seed, d));
+  const misses = zoneReport(seed, d);
+  if (misses.length > 0) throw new Error(`The bake misses its zone checks:\n${misses.join('\n')}`);
+  return d;
 }
 
 function detailed(layer: string, d: MapDraft, run: () => MapDraft): MapDraft {

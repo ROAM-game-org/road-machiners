@@ -56,7 +56,7 @@ A huge spaceship broke apart while descending through the atmosphere. Its larges
 
 People still live and trade here. Farmers protect the canals that still work and the remaining seed stores. Salvagers recover metal and machinery from the wrecks. Truckers carry food, water, fuel, and parts between settlements. An irrigation gate can matter as much as a cargo hold.
 
-The landscape shows all three histories: old field boundaries and canals, the ship's debris trail, and newer truck roads connecting useful places. Hills, valleys, a canyon, and a dried riverbed divide the routes. The crash's date and the basin's old name remain open.
+The landscape shows all three histories: old field boundaries and canals, the ship's debris trail, and newer truck roads connecting useful places. Hills, valleys, a canyon, and a dried riverbed divide the routes. A rim of hills closes the basin, and a mountain range rises behind Nose in the north-east. The old farm belt lies along the dried river in the west, from Old Orchard to Bowl, and only Bowl's stretch of its canals still holds water. Since the river sank, sand has drifted south-east on the wind into a desert of dunes, where the Glass Flats lie. In the low north-west the groundwater that feeds Dustwell seeps up into a swamp of black mud. Its water is foul, so nobody barrels it. The crash's date and the basin's old name remain open.
 
 After the Chaos, Nose and Bowl fought a war over the basin. The Old Army ended it and kept the peace between them, until it ran short of food and left Old Orchard. The towns have not fought openly since. Each one expects the other to start.
 

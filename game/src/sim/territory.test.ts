@@ -607,3 +607,22 @@ describe('Glass Flats', () => {
     }
   });
 });
+
+describe('Glass Flats off the road in the SE corner', () => {
+  const flats = REGION.locations.find((l) => l.id === 'glass-flats');
+  if (!flats || flats.kind !== 'territory' || !flats.outline) throw new Error('Glass Flats has no outline');
+  const edge = flats.outline.map((p) => ({ x: flats.pos.x + p.x, y: flats.pos.y + p.y }));
+  const roadGap = (p: Vec): number => Math.min(...REGION.roads.map((road) => polylineDist(p, road)));
+
+  it('stands in the SE quarter of the map with no region road touching its outline (IV4)', () => {
+    expect(flats.pos.x).toBeGreaterThan(REGION.size / 2);
+    expect(flats.pos.y).toBeGreaterThan(REGION.size / 2);
+    expect(Math.min(...edge.map(roadGap))).toBeGreaterThan(REGION.roadWidth);
+  });
+
+  it('is entered at the one outline point nearest the road network (IV7)', () => {
+    const entries = territoryEntries(flats);
+    expect(entries).toHaveLength(1);
+    expect(roadGap(entries[0])).toBeCloseTo(Math.min(...edge.map(roadGap)), 6);
+  });
+});
