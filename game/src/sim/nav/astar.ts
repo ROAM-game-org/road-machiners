@@ -155,14 +155,43 @@ export function findCellsToward(layer: NavLayer, ov: Overlay, start: number, goa
   if (start === goal) return Int32Array.of(start);
   if (!connected(layer, start, goal)) return null;
   const n = layer.n;
-  if (heuristic(start % n, Math.floor(start / n), goal % n, Math.floor(goal / n)) > LONG_CELLS) {
-    if (markCorridor(layer, start, goal, taste)) {
-      const cells = fineSearch(layer, ov, start, goal, true, taste);
-      if (cells[cells.length - 1] === goal) return cells;
-    }
+  if (heuristic(start % n, Math.floor(start / n), goal % n, Math.floor(goal / n)) <= LONG_CELLS) return fineSearch(layer, ov, start, goal, false, taste);
+  return corridorSearch(layer, ov, start, goal, taste);
+}
+
+function corridorSearch(layer: NavLayer, ov: Overlay, start: number, goal: number, taste: Taste | null): Int32Array {
+  let cells: Int32Array | null = null;
+  for (const { ring, avoids } of CORRIDOR_TRIES) {
+    if (!markCorridor(layer, start, goal, taste, ring, avoids ? ov : null)) break;
+    cells = fineSearch(layer, ov, start, goal, true, taste);
+    if (cells[cells.length - 1] === goal) return cells;
     count('route-corridor-miss');
   }
-  return fineSearch(layer, ov, start, goal, false, taste);
+  return cells ?? fineSearch(layer, ov, start, goal, false, taste);
+}
+
+const CORRIDOR_TRIES = [{ ring: 1, avoids: false }, { ring: 3, avoids: false }, { ring: 3, avoids: true }];
+const COVERED_COST = 1000;
+
+function coveredCost(layer: NavLayer, ov: Overlay | null, r: number): number {
+  return ov === null ? 1 : 1 + COVERED_COST * coveredShare(layer, ov, r);
+}
+
+function coveredShare(layer: NavLayer, ov: Overlay, r: number): number {
+  const { n: bn, block, region } = layer.coarse;
+  const n = layer.n;
+  const x0 = (block[r] % bn) * COARSE;
+  const y0 = Math.floor(block[r] / bn) * COARSE;
+  let own = 0;
+  let covered = 0;
+  for (let y = y0; y < Math.min(n, y0 + COARSE); y++)
+    for (let x = x0; x < Math.min(n, x0 + COARSE); x++) {
+      const c = y * n + x;
+      if (region[c] !== r) continue;
+      own++;
+      if (ov.stamp[c] === ov.gen) covered++;
+    }
+  return covered / own;
 }
 
 export function connected(layer: NavLayer, start: number, goal: number): boolean {
@@ -202,7 +231,7 @@ let coarseGen = 0;
 let inCorridor = new Uint32Array(0);
 let corridorGen = 0;
 
-function markCorridor(layer: NavLayer, start: number, goal: number, taste: Taste | null): boolean {
+function markCorridor(layer: NavLayer, start: number, goal: number, taste: Taste | null, ring: number, avoid: Overlay | null): boolean {
   const { n: bn, region, block, x: rx, y: ry, slow, edgeStart, edges } = layer.coarse;
   const regions = block.length;
   if (coarseSeen.length !== regions || coarseGen === 0xffffffff) {
@@ -234,8 +263,8 @@ function markCorridor(layer: NavLayer, start: number, goal: number, taste: Taste
       for (let r = to; r !== -1; r = coarseFrom[r]) {
         const x = block[r] % bn;
         const y = Math.floor(block[r] / bn);
-        for (let dy = -1; dy <= 1; dy++)
-          for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -ring; dy <= ring; dy++)
+          for (let dx = -ring; dx <= ring; dx++) {
             const nx = x + dx;
             const ny = y + dy;
             if (nx >= 0 && ny >= 0 && nx < bn && ny < bn) inCorridor[ny * bn + nx] = cg;
@@ -249,7 +278,7 @@ function markCorridor(layer: NavLayer, start: number, goal: number, taste: Taste
     for (let e = edgeStart[cur]; e < edgeStart[cur + 1]; e++) {
       const next = edges[e];
       if (coarseClosed[next] === g) continue;
-      const step = Math.hypot(rx[next] - rx[cur], ry[next] - ry[cur]) * ((slow[cur] + slow[next]) / 2);
+      const step = Math.hypot(rx[next] - rx[cur], ry[next] - ry[cur]) * ((slow[cur] + slow[next]) / 2) * coveredCost(layer, avoid, next);
       const c = base + tastedCoarse(taste, step, ((rx[cur] + rx[next]) / 2) * CELL, ((ry[cur] + ry[next]) / 2) * CELL, block[cur], block[next]);
       if (coarseSeen[next] === g && c >= coarseCost[next]) continue;
       coarseSeen[next] = g;

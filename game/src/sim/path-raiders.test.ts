@@ -633,7 +633,7 @@ describe('long routes search a coarse corridor', () => {
     expect(ms).toBeLessThan(5);
   }, budget(60_000));
 
-  it('a corridor cut by a kill wreck wall falls back to the full search', () => {
+  it('a corridor cut by a kill wreck wall plans again around the wall, never over the whole map', () => {
     const w = emptyWorld();
     for (let y = 16; y < w.size; y += 1.5) w.obstacles = [...w.obstacles, { id: `wreck-w${y}`, pos: { x: 80, y }, r: 1, kind: 'wreck' }];
     const radius = 0.6;
@@ -644,7 +644,7 @@ describe('long routes search a coarse corridor', () => {
     const goal = 200 * n + 260;
     resetPerf();
     const got = findCells(layer, overlay, start, goal, null);
-    expect(perfSnapshot()['route-corridor-miss']?.calls).toBe(1);
+    expect(perfSnapshot()['route-corridor-miss']?.calls).toBe(2);
     expect(got).not.toBeNull();
     expect(got![got!.length - 1]).toBe(goal);
     for (const c of got!) expect(layer.blocked[c] === 0 && overlay.stamp[c] !== overlay.gen).toBe(true);
