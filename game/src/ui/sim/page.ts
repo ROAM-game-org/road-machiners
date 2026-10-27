@@ -210,6 +210,9 @@ class SimPage {
       saveFile: (m) => download(m.name, m.json, "application/json"),
       frame: (m) => this.showFrame(m.frame),
       card: (m) => this.showCard(m.card),
+      economy: () => {
+        throw new Error("The economy view is not built yet");
+      },
       ended: (m) => this.end(`The run ended ${clockText(m.turn)}: your truck is ${m.reason === "knockedOut" ? "knocked out" : m.reason}`),
       failed: (m) => this.fail(m.turn, m.message),
     };

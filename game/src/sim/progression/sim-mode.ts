@@ -11,6 +11,7 @@ import type { BotOptions } from './bot';
 import { emptyLedger, LEDGER_KEYS, type Ledger } from './orders';
 import { archetypeWorldOn, FAR_MOVER, netWorth, playTurns, type PlayedTurn } from './record';
 import { cardOf } from './sim-cards';
+import type { Economy } from './sim-economy';
 import { QUIET } from './turn-log';
 
 export { cardOf, npcCard, playerCard } from './sim-cards';
@@ -60,6 +61,7 @@ export type ToSim =
   | { kind: 'step' }
   | { kind: 'speed'; gapMs: number }
   | { kind: 'watch'; id: string | null }
+  | { kind: 'economy' }
   | { kind: 'save' }
   | { kind: 'download' };
 
@@ -70,6 +72,7 @@ export type FromSim =
   | { kind: 'saveFile'; name: string; json: string }
   | { kind: 'frame'; frame: Frame }
   | { kind: 'card'; card: Card | null }
+  | { kind: 'economy'; economy: Economy }
   | { kind: 'ended'; turn: number; reason: string }
   | { kind: 'failed'; turn: number; message: string };
 
