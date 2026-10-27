@@ -1,7 +1,6 @@
-// The clock. One turn is one step of the day; hours run 0 to 24.
 
 export const TIME = {
-  turnsPerDay: 450,
+  turnsPerDay: 5760,
   startHour: 7,
   sunrise: 6,
   sunset: 20,

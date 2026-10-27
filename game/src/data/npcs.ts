@@ -5,6 +5,11 @@ import { RULES } from './rules';
 import { START_KITS } from './start';
 import { SUNWARD } from './sunward';
 import { BOUNTY } from './market';
+import { MAP_SPREAD } from './region';
+
+function roadCap(cap: number): number {
+  return Math.round(cap * MAP_SPREAD);
+}
 
 export const NPC_RESOURCES = {
   money: START_KITS.standard.money,
@@ -417,7 +422,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     aggroRange: 11,
     fightStyle: 'circle',
     money: NPC_RESOURCES.money,
-    cap: 6,
+    cap: roadCap(6),
     pairs: false,
     interval: 50,
     spawn: { kind: "camp" },
@@ -428,7 +433,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     aggroRange: 12,
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
-    cap: 2,
+    cap: roadCap(2),
     pairs: false,
     interval: 150,
     spawn: { kind: "camp" },
@@ -440,7 +445,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     aggroRange: 0,
     fightStyle: 'hold',
     money: 133300,
-    cap: 8,
+    cap: roadCap(8),
     pairs: false,
     interval: 12,
     spawn: { kind: "town" },
@@ -452,7 +457,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     aggroRange: 0,
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
-    cap: 4,
+    cap: roadCap(4),
     pairs: false,
     interval: 12,
     spawn: { kind: "town" },
@@ -497,7 +502,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     aggroRange: 0,
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
-    cap: 4,
+    cap: roadCap(4),
     pairs: true,
     interval: 30,
     spawn: { kind: "town" },
@@ -509,7 +514,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     aggroRange: 0,
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
-    cap: 3,
+    cap: roadCap(3),
     pairs: false,
     interval: 30,
     spawn: { kind: "town" },
@@ -521,7 +526,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     aggroRange: 0,
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
-    cap: 3,
+    cap: roadCap(3),
     pairs: false,
     interval: 30,
     spawn: { kind: "town" },

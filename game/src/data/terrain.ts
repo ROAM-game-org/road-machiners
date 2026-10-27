@@ -1,6 +1,6 @@
 
 import { PHYSICS } from "./physics";
-import { BROKEN_WING, BROKEN_WING_POINT, FALLEN_SUN_POS, REGION, scalePoint } from "./region";
+import { BROKEN_WING, BROKEN_WING_POINT, FALLEN_SUN_POS, MAP_AREA_SPREAD, MAP_SPREAD, REGION, scalePoint } from "./region";
 import { FALLEN_SUN_DECKS } from "./territory";
 import type { PropKind } from "../sim/terrain";
 import type { Vec } from "../sim/vec";
@@ -540,7 +540,7 @@ export const OLD_WORLD: {
   settlements: {
     seedOffset: 7001,
     candidateStep: 4,
-    count: 24,
+    count: Math.round(24 * MAP_AREA_SPREAD),
     spacing: 45,
     anchorGap: [12, 80],
     jitter: 0.5,
@@ -563,7 +563,7 @@ export const OLD_WORLD: {
     rise: 0.5,
     directions: 3,
     flatSlope: 0.15,
-    count: 17,
+    count: Math.round(17 * MAP_AREA_SPREAD),
     spacing: 60,
     roadGap: 3,
     radius: [1, 1.4],
@@ -601,7 +601,7 @@ export const OLD_WORLD: {
     bankBack: 3,
   },
   highway: {
-    count: 5,
+    count: Math.round(5 * MAP_AREA_SPREAD),
     spacing: 80,
     maxLength: 400,
     bridgeCost: 1.2,
@@ -845,6 +845,10 @@ export const ROCK_LOOKS = [
 
 export type RoadsideBand = readonly [number, number];
 
+function spreadBand(band: RoadsideBand, factor: number): RoadsideBand {
+  return [Math.round(band[0] * factor), Math.round(band[1] * factor)];
+}
+
 export const ROADSIDE = {
   seedOffset: 7401,
   slopeShare: 0.6,
@@ -862,7 +866,7 @@ export const ROADSIDE = {
     yawJitter: 0.5,
     oldRoadChance: 0.02,
     oldRoadSpacing: 22,
-    band: [104, 208] as RoadsideBand,
+    band: spreadBand([104, 208], MAP_SPREAD),
   },
   boards: {
     radius: 0.55,
@@ -873,7 +877,7 @@ export const ROADSIDE = {
     gap: 1.2,
     spread: 0.8,
     yawJitter: 0.2,
-    band: [20, 52] as RoadsideBand,
+    band: spreadBand([20, 52], MAP_SPREAD),
   },
   barrels: {
     radius: 0.15,
@@ -881,7 +885,7 @@ export const ROADSIDE = {
     houseChance: 0.4,
     houseLooks: ['ruin', 'shack', 'house'] as readonly string[],
     reach: [0.4, 1.4] as readonly [number, number],
-    band: [104, 208] as RoadsideBand,
+    band: spreadBand([104, 260], MAP_AREA_SPREAD),
   },
   heaps: {
     radius: 0.44,
@@ -890,7 +894,7 @@ export const ROADSIDE = {
     tankChance: 0.5,
     junkChance: 0.5,
     reach: [0.6, 1.6] as readonly [number, number],
-    band: [20, 52] as RoadsideBand,
+    band: spreadBand([20, 52], MAP_SPREAD),
   },
   trees: {
     radius: 0.3,
@@ -902,7 +906,7 @@ export const ROADSIDE = {
     fieldChance: 0.006,
     group: [1, 3] as readonly [number, number],
     groupSpread: 1.4,
-    band: [253, 507] as RoadsideBand,
+    band: spreadBand([253, 507], MAP_AREA_SPREAD),
   },
 };
 
@@ -924,7 +928,7 @@ export const BOATS = {
   relief: 0.9,
   placeTries: 14,
   groundTypes: ['hardpan', 'sand', 'scrub', 'gravel', 'ash', 'saltCrust'] as readonly TerrainTypeId[],
-  river: { step: 70, jitter: 15, chance: 0.7, bankShare: [0.55, 0.85] as readonly [number, number], band: [4, 7] as RoadsideBand },
+  river: { step: 70, jitter: 15, chance: 0.7, bankShare: [0.55, 0.85] as readonly [number, number], band: spreadBand([4, 7], MAP_SPREAD) },
   wash: { reach: 70, minFlow: 0.5, groups: 2, band: [1, 2] as RoadsideBand },
-  boatBand: [8, 20] as RoadsideBand,
+  boatBand: spreadBand([8, 20], MAP_SPREAD),
 };

@@ -233,15 +233,17 @@ function moistNearWater(d: MapDraft, rules: ScrubRules): Uint8Array {
 
 function spreadScrub(d: MapDraft, rng: Rng, grow: Float32Array, scrub: number[]): void {
   const taken: number[] = [];
-  for (const tile of scrub) {
-    for (const next of edgeNeighbors(d.size, tile)) {
-      if (d.built[next] === BUILT_NONE && grow[next] > 0 && chance(rng, grow[next])) {
-        d.built[next] = BUILT_SCRUB;
-        taken.push(next);
-      }
+  for (const tile of scrub) takeScrubAround(d, rng, grow, tile, taken);
+  for (const tile of taken) scrub.push(tile);
+}
+
+function takeScrubAround(d: MapDraft, rng: Rng, grow: Float32Array, tile: number, taken: number[]): void {
+  for (const next of edgeNeighbors(d.size, tile)) {
+    if (d.built[next] === BUILT_NONE && grow[next] > 0 && chance(rng, grow[next])) {
+      d.built[next] = BUILT_SCRUB;
+      taken.push(next);
     }
   }
-  scrub.push(...taken);
 }
 
 export function camps(seed: number, d: MapDraft, rules: CampRules): Camp[] {

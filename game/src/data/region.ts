@@ -15,7 +15,10 @@ export type SiteLocationDef = {
 export type TerritoryDef = { id: string; kind: "territory"; pos: Vec; radius: number; outline: Vec[] | null; groundFrom?: Vec };
 export type LocationDef = SiteLocationDef | TerritoryDef;
 export type SiteEdge = "fence" | "wrecks";
-export const MAP_SCALE = 6.5;
+export const MAP_SCALE = 20.8;
+const BASE_MAP_SCALE = 6.5;
+export const MAP_SPREAD = MAP_SCALE / BASE_MAP_SCALE;
+export const MAP_AREA_SPREAD = MAP_SPREAD * MAP_SPREAD;
 export const MAP_GRID = { squares: 8 };
 
 export function scalePoint(p: Vec): Vec {
@@ -66,7 +69,7 @@ function bend(a: Vec, b: Vec): Vec[] {
   return points;
 }
 
-export const FALLEN_SUN_POS = scalePoint({ x: 64, y: 54 });
+export const FALLEN_SUN_POS = onTile(scalePoint({ x: 64, y: 54 }));
 const FALLEN_SUN_OUTLINE: Vec[] = [
   { x: -45.0, y: 0.0 },
   { x: -41.3, y: -15.0 },
@@ -333,7 +336,7 @@ export const REGION = {
       { x: 94.7, y: 35.7 },
       { x: 97.81, y: 40.36 },
       { x: 102, y: 35 },
-    ], [0, 15]),
+    ], [0, 3, 15]),
     scaleRoad([
       { x: 16, y: 94 },
       { x: 23.79885, y: 90.5103 },
