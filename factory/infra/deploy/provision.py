@@ -130,11 +130,24 @@ server.shell(
 )
 
 # A host that hangs reboots by itself. The laptop has no hardware watchdog loaded, so softdog gives systemd one. When systemd stops answering it for 10 minutes, the kernel reboots, and the jobs that ran resume once as after any reboot.
+# Ubuntu blacklists softdog, and systemd-modules-load obeys the blacklist, so a unit loads it by name at every boot. systemd opens the device once it appears.
 files.put(
-    name="Load softdog at boot",
-    src=StringIO("softdog\n"),
-    dest="/etc/modules-load.d/factory-softdog.conf",
+    name="softdog unit",
+    src=StringIO(
+        "[Unit]\nDescription=Load the softdog watchdog that systemd feeds\nDefaultDependencies=no\nBefore=sysinit.target\n\n"
+        "[Service]\nType=oneshot\nRemainAfterExit=yes\nExecStart=/usr/sbin/modprobe softdog\n\n"
+        "[Install]\nWantedBy=sysinit.target\n"
+    ),
+    dest="/etc/systemd/system/roam-factory-softdog.service",
     mode="644",
+    _sudo=True,
+)
+systemd.service(
+    name="softdog unit enabled",
+    service="roam-factory-softdog.service",
+    running=True,
+    enabled=True,
+    daemon_reload=True,
     _sudo=True,
 )
 files.put(
@@ -148,10 +161,10 @@ files.put(
 server.shell(
     name="Start the watchdog and check that systemd feeds it",
     commands=[
-        "timeout 60 modprobe softdog",
         "test -e /dev/watchdog0",
         "timeout 60 systemctl daemon-reexec",
         "systemctl show --property RuntimeWatchdogUSec --value | grep -qx 10min",
+        "grep -qx active /sys/class/watchdog/watchdog0/state",
     ],
     _sudo=True,
 )
