@@ -61,9 +61,9 @@ I open the canal gates and decide which fields drink first.
   Agnes Ondra keeps the pump book in the Dustwell shed now, the one her uncle Wendell kept until he died at the Green Pit sluice.
   -> hub
 + {ruben_senate} [Does everyone in Bowl get a vote?]
-  Only citizens vote, though I've yet to see a field grow well because the gatekeeper liked its name.
+  Only citizens vote.
   The tenants who work the terraces have no vote, but Jory Baptiste speaks for them.
-  I like Jory Baptiste, and I vote against him all the same, because liking a man won't tell me which field should drink first.
+  I like Jory Baptiste, and I vote against him all the same.
   -> hub
 + {ruben_senate} [How slow is the Senate?]
   Slow enough that in the last drought <term=pierce>Pierce</term> Corporation offered the Senate a long loan.
@@ -73,7 +73,7 @@ I open the canal gates and decide which fields drink first.
 + {ruben_loan} [What came of the Pierce loan?]
   The Senate turned it down.
   Pierce wanted the canal gates as surety, and whoever holds the gates decides which fields drink first.
-  If a dry year left Bowl unable to pay, Pierce would own the water, and every field would wait for his word before it drank.
+  If a dry year left Bowl unable to pay, Pierce would own the water.
   -> hub
 + [Goodbye.]
   -> END
