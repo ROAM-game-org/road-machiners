@@ -2,7 +2,7 @@
 import { Refused } from '../sim/world';
 import { PERK_NUMBERS } from "../data/skills";
 import { goodsCount } from "../sim/grid";
-import { isBusy, isParkedForWork, repairBlocker } from "../sim/jobs";
+import { isBusy, isParkedForWork, repairBlocker, stripRefusal } from "../sim/jobs";
 import { refusalText } from "../text/names";
 import { t, type Msg } from "../text/msg";
 import { partDef } from "../data/parts";
@@ -166,6 +166,11 @@ function busyText(w: World, me: Vehicle): Msg | null {
 export function stripBlocker(w: World, me: Vehicle): Msg | null {
   if (!isParkedForWork(w, me)) return t("inv.stopToStrip");
   return busyText(w, me);
+}
+
+export function stripRoomText(w: World, me: Vehicle, part: PartInstance): Msg | null {
+  const refusal = stripRefusal(me, part.id);
+  return refusal && refusalText(w, refusal);
 }
 
 export function weldBlocker(w: World, me: Vehicle): Msg | null {
