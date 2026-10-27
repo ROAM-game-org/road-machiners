@@ -5,7 +5,7 @@ import { skillEffect } from './progress';
 import { playerVehicle, truckFor } from './damage';
 import { newId } from './factory';
 import { cabShieldWith, gunLayoutScore } from './armor';
-import { findSpot, freeCells, gridOf, isMounted, itemCells, itemSize, layerOf, mountCellsOf, mountSpots, placementError, type Cell, type Grid, type Spot } from './grid';
+import { findSpot, freeCells, gridOf, isMounted, itemCells, itemSize, layerOf, layoutError, mountCellsOf, mountSpots, placementError, type Cell, type Grid, type Spot } from './grid';
 import { atGarage, requireGarage } from './garage';
 import { disarm } from './claymore';
 import { workTimeMult } from './utility';
@@ -367,12 +367,8 @@ export function requireIdleRefit(v: Vehicle): void {
 }
 
 export function getLayoutError(v: Vehicle, items: GridItem[]): Refusal | null {
-  const grid = gridOf({ ...v, items });
-  for (const item of items) {
-    const error = placementError(grid, items, item, item.id);
-    if (error) return { id: 'badLayout', cause: error };
-  }
-  return null;
+  const cause = layoutError(gridOf({ ...v, items }), items);
+  return cause ? { id: 'badLayout', cause } : null;
 }
 
 export function planItemMove(v: Vehicle, itemId: string, to: Spot): PlanResult {

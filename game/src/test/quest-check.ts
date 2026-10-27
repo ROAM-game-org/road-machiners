@@ -34,6 +34,7 @@ export type SceneWalk = { states: number; stopped: boolean; problems: string[]; 
 type Scene = { problems: string[]; seen: Map<string, Seen>; known: Set<string>; visited: Record<QuestLanguage, Set<string>>; loads: Set<string> };
 
 export const QUEST_STATE_LIMIT = 5000;
+export const QUEST_CHOICE_CAP = 5;
 
 export type QuestCheck = {
   shared: QuestReport;
@@ -212,6 +213,7 @@ function step(walk: Walk, bundle: QuestBundle, id: string, scene: Scene): Walk[]
   const split = twinSplit(walk.worlds, views);
   if (split) problems.push(`${where}: ${split}`);
   if (split || view === null || view.quest !== id) return [];
+  if (view.choices.length > QUEST_CHOICE_CAP) problems.push(`${where}: shows ${view.choices.length} choices at once, over the cap of ${QUEST_CHOICE_CAP}: ${view.choices.join(' | ')}`);
   for (const lang of QUEST_LANGUAGES) for (const path of Object.keys(inkOf(walk.worlds[lang]).visitCounts)) visited[lang].add(path);
   for (const lang of QUEST_LANGUAGES) problems.push(...markupOf(views[lang] ?? view).map((problem) => `${where}${inWords(lang)}: ${problem}`));
   const load = loadKey(walk.worlds.en);
