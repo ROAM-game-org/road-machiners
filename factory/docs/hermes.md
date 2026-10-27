@@ -101,7 +101,7 @@ Every tick writes `/factory/home/health` with its time, the free disk space and 
   2. Read the host processes too, with `factory-host 'ps -eo pid,user,rss,etime,args --sort=-rss | head -15'`. Processes of the factory user outside a container come from your own `factory-host` commands and `claude-run` jobs. Kill any left over from a command that already ended.
   3. Wait one tick. A checks peak near 2.6 GB passes in minutes.
   4. When it stays low for 10 minutes, find the container with the most memory and its job in `jobs`. Stop the youngest job with `factory-host 'kill <pid>'`. It resumes once by itself later. When it happens again, file a `factory` issue that proposes lower worker counts in `settings.env`, with the numbers.
-  5. A kernel kill shows in `factory-host 'journalctl -k --since "1 hour ago" | grep -i "out of memory"'`.
+  5. A kernel kill shows in `factory-host 'journalctl -k --since "1 hour ago" | grep -i "out of memory"'`. A kill inside `roam-factory-jobs.slice` means the jobs together passed `FACTORY_JOBS_MEMORY_GB`. A kill outside it means the host itself ran short, which needs the same steps at once.
 - `tick stalled`: no tick ran for 20 minutes. Ticks run one at a time, so a hung tick blocks all of them.
   1. Find the tick process with `factory-host 'systemctl status roam-factory-tick.service'` and its log tail in `logs/tick.log`.
   2. Look at the locks in `/factory/home/locks` and `state/state.lock`. Each holds an `owner` file with a pid.
