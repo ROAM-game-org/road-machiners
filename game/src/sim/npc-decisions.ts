@@ -8,7 +8,7 @@ import { encounterAvailable } from './encounters';
 import { canSpareFor } from './aid';
 import { isLineGun } from '../data/parts';
 import { ECONOMY } from '../data/goods';
-import { ESCORT_JOB, SHOPS, type ShopDef } from '../data/market';
+import { ESCORT_JOB, SHOPS } from '../data/market';
 import { graphEdges } from '../data/market';
 import { legRisk } from './road-news';
 import { goodStock, goodValue, shopState, stockTarget } from './market';
@@ -248,29 +248,30 @@ export function tradeSpend(world: World, vehicle: Vehicle): number {
   return Math.min(getResources(world, vehicle).money - getUpkeepReserve(vehicle), stake);
 }
 
-export function tradeOffers(world: World, vehicle: Vehicle): Weighted<TradePlan>[] {
-  if (!modeRules(world).traffic) return [];
-  const spend = tradeSpend(world, vehicle);
-  const shops = Object.values(SHOPS);
-  return shops.flatMap((source) => shops.filter((buyer) => buyer.id !== source.id).flatMap((buyer) => runOffers(world, vehicle, source, buyer, spend)));
+export const tradeOffers = (world: World, vehicle: Vehicle): Weighted<TradePlan>[] => tradePlans().flatMap(tradeOfferer(world, vehicle) ?? (() => []));
+
+const tradePlans = (): TradePlan[] => Object.values(SHOPS).flatMap((from) => Object.values(SHOPS).filter((to) => to.id !== from.id).flatMap((to) => from.goods.filter((good) => to.goods.includes(good)).map((good) => ({ source: from.id, good, sellShop: to.id }))));
+
+function tradeOfferer(world: World, vehicle: Vehicle): ((plan: TradePlan) => Weighted<TradePlan>[]) | null {
+  if (!modeRules(world).traffic) return null;
+  const [spend, rig] = [tradeSpend(world, vehicle), tradeRig(world, vehicle)];
+  return (plan) => runOffer(world, vehicle, plan, spend, 1, rig);
 }
 
-export function tripFuelCost(world: World, vehicle: Vehicle, tiles: number): number {
+const tradeRig = (world: World, vehicle: Vehicle) => ({ fuelPerTile: vehicleStats(world, vehicle).fuelPerTile, room: cargoRoom(vehicle) });
+
+export function tripFuelCost(world: World, vehicle: Vehicle, tiles: number, fuelPerTile = vehicleStats(world, vehicle).fuelPerTile): number {
   if (!Number.isFinite(tiles) || tiles < 0) throw new Error(`${vehicle.id} prices the fuel of a trip of ${tiles} tiles`);
-  return tiles * vehicleStats(world, vehicle).fuelPerTile * ECONOMY.supplyPrice.fuel;
-}
-
-function runOffers(world: World, vehicle: Vehicle, source: ShopDef, buyer: ShopDef, spend: number): Weighted<TradePlan>[] {
-  return source.goods.filter((good) => buyer.goods.includes(good)).flatMap((good) => runOffer(world, vehicle, { source: source.id, good, sellShop: buyer.id }, spend, 1));
+  return tiles * fuelPerTile * ECONOMY.supplyPrice.fuel;
 }
 
 export type TradeOutlook = { buy: number; profit: number; count: number; fuel: number; risk: number; net: number; worth: boolean };
 
-export function tradeOutlook(world: World, vehicle: Vehicle, plan: TradePlan, spend: number, trip: number): TradeOutlook {
-  const fuel = tripFuelCost(world, vehicle, trip);
+export function tradeOutlook(world: World, vehicle: Vehicle, plan: TradePlan, spend: number, trip: number, rig = tradeRig(world, vehicle)): TradeOutlook {
+  const fuel = tripFuelCost(world, vehicle, trip, rig.fuelPerTile);
   const buy = getTradePrice(world, vehicle, plan.source, plan.good, 'buy');
   const profit = getTradePrice(world, vehicle, plan.sellShop, plan.good, 'sell') - buy;
-  const count = affordableBuyCount(world, vehicle, plan.source, plan.good, cargoRoom(vehicle), spend);
+  const count = affordableBuyCount(world, vehicle, plan.source, plan.good, rig.room, spend);
   const risk = count * goodValue(plan.good) * legRisk(world, plan.source, plan.sellShop);
   const net = count * profit - fuel - risk;
   return { buy, profit, count, fuel, risk, net, worth: spend >= buy && profit > 0 && net > 0 };
@@ -280,19 +281,19 @@ export function tradeLegTiles(plan: TradePlan): number {
   return dist(getKnownSite(plan.source).pos, getKnownSite(plan.sellShop).pos);
 }
 
-function runOffer(world: World, vehicle: Vehicle, plan: TradePlan, spend: number, need: number): Weighted<TradePlan>[] {
+function runOffer(world: World, vehicle: Vehicle, plan: TradePlan, spend: number, need: number, rig: ReturnType<typeof tradeRig>): Weighted<TradePlan>[] {
   const trip = dist(vehicle.pos, getKnownSite(plan.source).pos) + tradeLegTiles(plan);
-  const outlook = tradeOutlook(world, vehicle, plan, spend, trip);
+  const outlook = tradeOutlook(world, vehicle, plan, spend, trip, rig);
   return outlook.worth ? [{ value: plan, weight: (outlook.net * need) / trip }] : [];
 }
 
 export function supplyOffers(world: World, vehicle: Vehicle): Weighted<TradePlan>[] {
   if (!modeRules(world).traffic) return [];
-  const spend = tradeSpend(world, vehicle);
+  const [spend, rig] = [tradeSpend(world, vehicle), tradeRig(world, vehicle)];
   return graphEdges().flatMap((edge) => {
     const short = stockTarget(edge.to, edge.good) - goodStock(shopState(world, edge.to), edge.good);
     if (short <= 0) return [];
-    return runOffer(world, vehicle, { source: edge.from, good: edge.good, sellShop: edge.to }, spend, short / stockTarget(edge.to, edge.good));
+    return runOffer(world, vehicle, { source: edge.from, good: edge.good, sellShop: edge.to }, spend, short / stockTarget(edge.to, edge.good), rig);
   });
 }
 
@@ -627,7 +628,8 @@ function canResume(_world: World, vehicle: Vehicle): boolean {
 }
 
 function canTrade(world: World, vehicle: Vehicle): boolean {
-  return tradeOffers(world, vehicle).length > 0;
+  const offer = tradeOfferer(world, vehicle);
+  return offer !== null && tradePlans().some((plan) => offer(plan).length > 0);
 }
 
 function canScavenge(world: World, vehicle: Vehicle): boolean {
