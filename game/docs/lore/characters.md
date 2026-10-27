@@ -203,7 +203,7 @@ Her line is "Every crate that goes to Kiln waits by the gate, where the whole ro
 - Habit: She walks the tank wall at dusk and wipes the dust off the water rings.
 - Secret: She made a sealed copy of the wall rings, and she took the steward's oil. She hides both from Aurel Brede and Sava Kettering.
 
-Agnes keeps the pump at Dustwell, as her uncle Wendell did before he died on the Green Pit road. The water leaves a dark mineral ring on the tank wall wherever it stands for a season, and the old rings climb the wall above her head. Every season the water stands lower, so the tank empties before the line of Bowl's trucks is filled, and the last trucks in the line leave with empty places in their rows. Every Dustwell hose has a glass window in it, so the keeper can see sand in the water. The Archon's household sends its own truck to the pump every week. A Senate order took the window off its hose, moved it to the back of the tanks, and forbids her to make it wait or to ask where its water goes. It fills first, with every barrel full, and drives off low on its springs. Over the winter of year 129 she pressed a cloth to the tank wall and drew the rings on it, as a sealed copy. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. She wants a driver who stood at the tank to carry the copy to Bowl and put a hand on it, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by her gate.
+Agnes keeps the pump book at Dustwell, where the crews work the pump, as her uncle Wendell did before he died on the Green Pit road. The water leaves a dark mineral ring on the tank wall wherever it stands for a season, and the old rings climb the wall above her head. Every season the water stands lower, so the tank empties before the line of Bowl's trucks is filled, and the last trucks in the line leave with empty places in their rows. Every Dustwell hose has a glass window in it, so the keeper can see sand in the water. The Archon's household sends its own truck to the pump every week. A Senate order took the window off its hose, moved it to the back of the tanks, and forbids her to make it wait or to ask where its water goes. It fills first, with every barrel full, and drives off low on its springs. Over the winter of year 129 she pressed a cloth to the tank wall and drew the rings on it, as a sealed copy. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. She wants a driver who stood at the tank to carry the copy to Bowl and put a hand on it, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by the gate.
 
 Her line is "I did not come to take your water. I came to show you how low the water stands."
 
@@ -381,37 +381,21 @@ Otto is the welder at the Salvage Yard who built the first swivel, a gun mount o
 
 His line is "A loose mount is a gun waiting for a bend."
 
-## Pim Arslan
-
-- Way: escape.
-- High concept: A lens cutter who ran from the Bowl workshop and sells smoke-dark lenses.
-- Trouble: She never stays long, so no one keeps her plate of the glass lean or acts on it.
-- Aspects: Her plate hangs by the door of the Green Pit hook house; Hadiza Okon feeds her; An Old World glass cutter in her pack.
-- Skills: best perception, worst social.
-- Wants: Someone reads the glass before they drive out.
-- Fears: The Bowl workshop finds her.
-- Habit: She holds each lens to the sun before she hands it over.
-- Secret: She took the workshop's Old World glass cutter without leave. She hides it from the Bowl.
-
-Pim ran from the Bowl workshop with its Old World glass cutter. She cuts the fused glass of the Glass Flats into smoke-dark lenses, and drivers wear them against the glare. She walked the glass to the Fallen Sun and saw that every ripple leans toward the crater. A plate she scratched with the lean lines hangs by the door of the Green Pit hook house.
-
-Her line is "The glass points at the Fallen Sun. Read it before you drive out."
-
 ## Hadiza Okon
 
 - Way: embrace.
-- High concept: The woman who runs the hook house canteen at Green Pit.
+- High concept: The woman who runs the hook house canteen inside Green Pit.
 - Trouble: She feeds anyone once, so the Bowl patrol will not drink at her table.
-- Aspects: Rifles hang on the hooks by her door; Pim Arslan's plate hangs at her door; The well that no one takes.
+- Aspects: Rifles hang on the hooks by her door; The pit's crews eat at her tables.
 - Skills: best social, worst driving.
 - Wants: Everyone drinks at one table and no one draws a gun.
-- Fears: The day someone takes her well.
+- Fears: The day the hooks stop holding.
 - Habit: She points to the hook before she fills a cup.
 - Secret: None.
 
-Hadiza runs the hook house, the biggest canteen at Green Pit. Green Pit is a walled water town of a few hundred people that pumps water from deep rock and sells it by the truckload. Everyone hangs their rifle on the hooks by her door, and nobody draws a gun at her table. Drivers, couriers, Salvage Yard crews, Kiln riders and Nose soldiers all drink there. The Bowl patrol does not, because the raiders do. She feeds anyone once.
+Hadiza runs the hook house canteen inside Green Pit, a walled pump outpost of a few hundred people. Its pump crews and their families hold the pit and sell water from deep rock by the truckload. Everyone hangs their rifle on the hooks by her door, and nobody draws a gun at her table. Drivers, couriers, Salvage Yard crews, Kiln riders and Nose soldiers all drink there. The Bowl patrol does not, because the raiders do. She feeds anyone once.
 
-Her line is "Hang it on the hook. Everyone drinks here, and nobody takes my well."
+Her line is "Hang it on the hook. Everyone drinks here, and nobody draws at my table."
 
 ## Hollis Brennan
 

@@ -98,13 +98,11 @@ End a scene on a dry, small line, often the next chore or a flat joke. Never end
 
 Write their voice sheet in [Voices](../lore/voices.md) first. A sheet answers five questions.
 
-1. What one speech rule shows in every line they say? Kovac states one fact, then what follows from it. Hattie asks where you came from, then tells you the plain truth. Ruben winds through water and seasons before he lands.
+1. What one speech rule shows in every line they say? Kovac states one fact, then what follows from it. Hattie asks where you came from, then tells you the plain truth. Ruben winds through water and fields before he lands.
 2. What do they want from the player? A stranger is a buyer, a pair of hands, a witness, a messenger or a risk. A person with nothing to want has nothing to say.
 3. What do they notice first about the player? It is the most visible thing: a battered truck, a Nose seal on the door, a stranger towed in on a chain, a name on someone's list.
 4. How long do their sentences run? A boaster runs long. A veteran runs short. A frightened clerk starts sentences and abandons them.
 5. What do they avoid talking about? The thing a person steers around tells the player more than the thing they say.
-
-A person's trade is their own. Never explain why someone does their work by an elder relative who did it before them, like a grandmother who kept the same gates or a grandfather who taught the trade. It turned up in speaker after speaker and made the basin's people one story. A relative may come up when the memory carries a fact the line needs, like Odile's grandmother in the famine.
 
 Match the voice to the place. Bowl talks of fields, seasons and family. Nose talks of orders, rations and the log. The Yard talks of prices and what things are worth. A stranger learns the town from how its people speak before anyone explains it.
 
@@ -287,6 +285,12 @@ Cover the first town fully and the far places lightly. A reaction most players n
 Humor comes from the speaker's own logic. The speaker does not know they are funny.
 
 Good, Jory: "Either the pipe exists or those cabbages are saints."
+
+Read a joke word for word. If what it says is something the speaker can't mean, cut it and end on the plain fact.
+
+Bad, Jory: "My grandfather died one season short, which was bad timing, but he always kept his own schedule." Word for word, the grandfather chose when to die.
+
+Good, Jory: "My grandfather served nine years and three seasons, then died. The Senate counted the one season he was missing more carefully than all the years he'd served."
 
 Say a grim fact flat and let the player react. The flatness is what lands.
 
