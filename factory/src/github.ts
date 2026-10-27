@@ -82,6 +82,9 @@ const PAGE_SIZE = 100;
 const NOT_THIS_KIND = /Could not resolve to an? (User|Organization)/;
 
 const RATE_LIMITED = /rate limit|HTTP 429|submitted too quickly/i;
+const UPSTREAM_DOWN = /HTTP 50[234]\b/;
+const READ_COMMANDS = new Set(['view', 'list']);
+const FIELD_FLAGS = new Set(['-f', '-F', '--field', '--raw-field', '--input']);
 const TAG_EXISTS = /a release with the same tag name already exists/;
 
 export class GithubError extends Error {}
@@ -109,9 +112,10 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
   let queue: Promise<unknown> = Promise.resolve();
 
   async function attempt(args: string[]): Promise<RunResult> {
+    const read = isRead(args);
     for (let retry = 0; ; retry++) {
       const result = await run('gh', args, { activity: 'git', timeoutMs: cfg.githubTimeoutSeconds * 1000 });
-      if (result.code === 0 || !RATE_LIMITED.test(result.stderr) || retry === cfg.githubRetries) return result;
+      if (result.code === 0 || !retriable(result, read) || retry === cfg.githubRetries) return result;
       await wait(cfg.githubRetryBaseSeconds * 1000 * 2 ** retry);
     }
   }
@@ -391,6 +395,19 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
       return { ...issue, stateReason: issue.stateReason || null, closedAt: issue.closedAt || null };
     },
   };
+}
+
+function retriable(result: RunResult, read: boolean): boolean {
+  if (RATE_LIMITED.test(result.stderr)) return true;
+  return read && (result.timedOut === true || UPSTREAM_DOWN.test(result.stderr));
+}
+
+export function isRead(args: string[]): boolean {
+  if (args[0] !== 'api') return READ_COMMANDS.has(args[1]);
+  if (args[1] === 'graphql') return !/^query=\s*mutation\b/.test(args[3] ?? '');
+  const method = args.findIndex((arg) => arg === '-X' || arg === '--method');
+  if (method !== -1) return args[method + 1] === 'GET';
+  return !args.some((arg) => FIELD_FLAGS.has(arg));
 }
 
 function graphqlArgs(query: string, vars: Vars): string[] {

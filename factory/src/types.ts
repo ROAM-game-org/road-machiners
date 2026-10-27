@@ -110,7 +110,7 @@ export type FactoryConfig = {
 export type TokenPrice = { input: number; output: number; cacheRead: number; cacheWrite5m: number; cacheWrite1h: number };
 
 export type RunOptions = { activity: Activity; cwd?: string; env?: Record<string, string>; input?: string; logPath?: string; onStdout?: (chunk: string) => void; timeoutMs?: number };
-export type RunResult = { code: number; stdout: string; stderr: string };
+export type RunResult = { code: number; stdout: string; stderr: string; timedOut?: true };
 export type Run = (cmd: string, args: string[], opts: RunOptions) => Promise<RunResult>;
 
 export type Reaction = { login: string; content: string };
