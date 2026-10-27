@@ -1,5 +1,4 @@
 import { TIME } from '../data/time';
-import { setThinning } from '../sim/fidelity';
 import { errorText, SimRun, simWorld, type FromSim, type ToSim } from '../sim/progression/sim-mode';
 import { SIM_TEXT } from '../ui/sim/sim-text';
 import { fetchMap } from './map-file';
@@ -35,7 +34,6 @@ function postAndSave(message: FromSim): void {
 
 async function begin(seed: number | null): Promise<void> {
   try {
-    setThinning(true);
     const map = await fetchMap();
     slots = await openSimSaves();
     const resumed: Resumed = seed === null ? resumedRun(slots, map) : { kind: 'none' };

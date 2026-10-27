@@ -9,9 +9,10 @@ import type { RecipeRun } from '../production';
 import type { BakedMap } from '../terrain';
 import type { GameEvent, Memory, NpcActivity, RoadNewsKind, StateKindId, Vehicle, World } from '../types';
 import type { Vec } from '../vec';
+import { PLAYTHROUGH_OPTIONS, playthroughWorld } from './activity';
 import type { BotOptions } from './bot';
 import { emptyLedger, LEDGER_KEYS, type Ledger } from './orders';
-import { archetypeWorldOn, FAR_MOVER, netWorth, playTurns, type PlayedTurn } from './record';
+import { FAR_MOVER, netWorth, playTurns, type PlayedTurn } from './record';
 import { cardOf } from './sim-cards';
 import { economyOf, marketSample, sampleEvents, StockFlows, type EconTag, type Economy, type SampleEvent } from './sim-economy';
 import { QUIET } from './turn-log';
@@ -85,7 +86,7 @@ export type FromSim =
   | { kind: 'ended'; turn: number; reason: string }
   | { kind: 'failed'; turn: number; message: string };
 
-export const SIM_OPTIONS: BotOptions = { markovTurns: TIME.turnsPerDay, tolerateStalls: true };
+export const SIM_OPTIONS: BotOptions = { ...PLAYTHROUGH_OPTIONS, tolerateStalls: true };
 export const TURNS_PER_HOUR = TIME.turnsPerDay / 24;
 const ENDLESS = Number.MAX_SAFE_INTEGER;
 const ROUTINE = new Set<GameEvent['t']>(['job', 'shopMoney', 'stateEnded', 'lookedOver', 'shot', 'empty', 'asked', 'transfer', 'preyPassed', 'collision', 'found', 'guardPaid']);
@@ -234,7 +235,7 @@ export class SimRun {
 }
 
 export function simWorld(map: BakedMap, seed: number): World {
-  return archetypeWorldOn(map, seed, 'markov', SIM_OPTIONS);
+  return playthroughWorld(map, seed, 'markov');
 }
 
 export function errorText(error: unknown): string {

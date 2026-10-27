@@ -9,9 +9,9 @@ import { SIM_TEXT } from './sim-text';
 import { playerVehicle } from '../../sim/damage';
 import { emptyLedger } from '../../sim/progression/orders';
 import { FAR_MOVER, netWorth, playTurns } from '../../sim/progression/record';
-import { startWorld } from '../../sim/progression/record-node';
+import { PLAYTHROUGH_OPTIONS, playthroughWorld } from '../../sim/progression/activity';
 import { marketSample } from '../../sim/progression/sim-economy';
-import { cardOf, hudOf, logEntries, markersOf, SIM_OPTIONS, SimRun, simWorld, type Frame, type FromSim } from '../../sim/progression/sim-mode';
+import { cardOf, hudOf, logEntries, markersOf, SimRun, simWorld, type Frame, type FromSim } from '../../sim/progression/sim-mode';
 
 const TURNS = 10;
 const SCAN_TURNS = 60;
@@ -27,11 +27,14 @@ describe('simulation mode', () => {
     start = simWorld(TEST_MAP, 1);
   }, 120000);
 
-  it('plays the same game as the recorder for the same seed', () => {
+  it('plays the same game as the playthrough harness for the same seed', () => {
+    const harnessStart = playthroughWorld(TEST_MAP, 1, 'markov');
+    expect(JSON.parse(JSON.stringify(harnessStart))).toEqual(JSON.parse(JSON.stringify(start)));
     const messages: FromSim[] = [];
     const run = new SimRun(start, SIM_TEXT, (m: FromSim) => messages.push(m));
     for (let i = 0; i < TURNS; i++) run.handle({ kind: 'step' });
-    const recorded = [...playTurns(startWorld(1), 'seed 1 markov', 'markov', TURNS, SIM_OPTIONS, FAR_MOVER)];
+    const recorded = [...playTurns(harnessStart, 'seed 1 markov', 'markov', TURNS, PLAYTHROUGH_OPTIONS, FAR_MOVER)];
+    expect(JSON.parse(JSON.stringify(run.current().world))).toEqual(JSON.parse(JSON.stringify(recorded[TURNS - 1].next)));
     const frames = framesOf(messages);
     expect(messages.some((m) => m.kind === 'failed')).toBe(false);
     expect(frames).toHaveLength(TURNS + 1);
