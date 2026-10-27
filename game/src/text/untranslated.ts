@@ -5,12 +5,24 @@ const DEV_REPORT = 'Progression and income reports are dev tools read in a termi
 const CRASH_REPORT = 'A line of the crash report a player pastes into a bug report. It stays as the code wrote it.';
 const DEV_LAB = 'The block lab is a dev page for tuning the combat score. It stays English.';
 const FONT_SAMPLE = 'A sample string that makes the browser load the font. No player reads it.';
+const SIM_MODE = 'Simulation mode is a dev tool opened by npm run sim. Its words stay English.';
 const SVG = 'Static SVG markup of an icon, with no words in it.';
 
 const MIGRATION_LABEL = 'A label inside a save migration error, which only the console and a bug report show.';
 const SETTING_LABEL = 'A label inside a setup parse error, which only the console and a bug report show.';
 
 export const UNTRANSLATED: readonly Untranslated[] = [
+  { file: 'src/sim/progression/sim-cards.ts', text: '*', reason: SIM_MODE },
+  { file: 'src/sim/progression/sim-mode.ts', text: '*', reason: SIM_MODE },
+  { file: 'src/three/sim-worker.ts', text: '*', reason: SIM_MODE },
+  { file: 'src/ui/sim/economy-pages.ts', text: '*', reason: SIM_MODE },
+  { file: 'src/ui/sim/economy-reads.ts', text: '*', reason: SIM_MODE },
+  { file: 'src/ui/sim/economy-view.ts', text: '*', reason: SIM_MODE },
+  { file: 'src/ui/sim/heat-map.ts', text: '*', reason: SIM_MODE },
+  { file: 'src/ui/sim/page.ts', text: '*', reason: SIM_MODE },
+  { file: 'src/ui/sim/panels.ts', text: '*', reason: SIM_MODE },
+  { file: 'src/ui/sim/sim-text.ts', text: '*', reason: SIM_MODE },
+  { file: 'src/ui/sim/truck-icons.ts', text: '*', reason: SIM_MODE },
   { file: 'src/ui/save-screen.ts', text: 'Road Machiners', reason: 'The game title stays as it is in every language, as on the boot screen.' },
   { file: 'src/three/main.ts', text: 'confirm()', reason: 'The browser adapter shows text its caller already resolved with say().' },
   { file: 'src/three/save.ts', text: 'confirm()', reason: 'The browser adapter shows text its caller already resolved with say().' },
