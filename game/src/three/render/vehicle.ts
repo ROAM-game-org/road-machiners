@@ -882,7 +882,7 @@ export function weaponStand(v: Pick<Vehicle, 'chassisId'>, item: GridItem, body:
   const mount = weaponLook(item.part.id, item.part.defId).mount;
   const at = footprint(v, item, standingY(v, item));
   const cells = rectOf(v, item);
-  moveBySpot(at, plateSpot(body, v.chassisId, plateOf(mount, cells.unit, at), cells));
+  moveBySpot(at, plateSpot(body, v.chassisId, plateOf(mount, cells.unit, at), cells, at.pos.y));
   const unit = cells.unit;
   const plate = plateOf(mount, unit, at);
   const under = highestUnder(v.chassisId, plate);
