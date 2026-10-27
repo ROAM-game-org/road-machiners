@@ -1030,8 +1030,9 @@ export function autoOrders(world: World, v: Vehicle): void {
   const prey = preyOf(world, v);
   const rank = (x: Vehicle) => (x.id === prey ? 0 : 1);
   const hostiles = world.vehicles
-    .filter((x) => isHostile(world, v, x) && seen(x) && canNpcEngage(world, v, x))
+    .filter((x) => x.id !== v.id && seen(x) && isHostile(world, v, x) && canNpcEngage(world, v, x))
     .sort((a, b) => rank(a) - rank(b) || dist(v.pos, a.pos) - dist(v.pos, b.pos));
+  if (hostiles.length === 0) return;
   for (const mw of vehicleStats(world, v).weapons) {
     const target =
       hostiles.find(
