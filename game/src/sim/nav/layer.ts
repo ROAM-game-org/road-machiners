@@ -32,9 +32,11 @@ export type TerrainNav = {
 
 export const COARSE = 8;
 
+export type RegionGrid = { length: number; at: (cell: number) => number };
+
 export type CoarseGrid = {
   n: number;
-  region: Int32Array;
+  region: RegionGrid;
   block: Int32Array;
   x: Float32Array;
   y: Float32Array;
@@ -327,7 +329,7 @@ function solidGrid(e: TerrainEntry, cliff: Uint8Array, statics: StaticSet, radiu
 function withRegionsRedone(coarse: CoarseGrid, n: number, slow: (c: number) => number, cells: Set<number>): CoarseGrid {
   const mean = coarse.slow.slice();
   const regions = new Set<number>();
-  for (const c of cells) if (coarse.region[c] !== 0) regions.add(coarse.region[c]);
+  for (const c of cells) if (coarse.region.at(c) !== 0) regions.add(coarse.region.at(c));
   for (const r of regions) mean[r] = regionMean(coarse, n, slow, r);
   return { ...coarse, slow: mean };
 }
@@ -342,7 +344,7 @@ function regionMean(coarse: CoarseGrid, n: number, slow: (c: number) => number, 
   for (let y = y0; y < Math.min(n, y0 + COARSE); y++)
     for (let x = x0; x < Math.min(n, x0 + COARSE); x++) {
       const c = y * n + x;
-      if (coarse.region[c] !== r) continue;
+      if (coarse.region.at(c) !== r) continue;
       sum += slow(c);
       count++;
     }
@@ -353,7 +355,7 @@ function withRegionSlow(coarse: CoarseGrid, slow: (c: number) => number): Coarse
   const sum = new Float64Array(coarse.slow.length);
   const count = new Uint32Array(coarse.slow.length);
   for (let c = 0; c < coarse.region.length; c++) {
-    const r = coarse.region[c];
+    const r = coarse.region.at(c);
     sum[r] += slow(c);
     count[r]++;
   }
@@ -407,7 +409,7 @@ function stampWithin(n: number, center: Vec, ex: number, ey: number, inside: (p:
 }
 
 export function componentOf(layer: NavLayer, cell: number): number {
-  const r = layer.coarse.region[cell];
+  const r = layer.coarse.region.at(cell);
   return r === 0 ? 0 : layer.coarse.comp[r];
 }
 
@@ -576,7 +578,21 @@ function coarseGrid(n: number, blocked: Uint8Array, slow: Float32Array): CoarseG
     cy[r] = sumY[r] / size[r];
     mean[r] = sumSlow[r] / size[r];
   }
-  return { n: bn, region, block: Int32Array.from(blockOf), x: cx, y: cy, slow: mean, comp: components(count, edgeStart, edges), edgeStart, edges };
+  return { n: bn, region: compactRegions(n, bn, region, blockOf), block: Int32Array.from(blockOf), x: cx, y: cy, slow: mean, comp: components(count, edgeStart, edges), edgeStart, edges };
+}
+
+function compactRegions(n: number, bn: number, region: Int32Array, blockOf: readonly number[]): RegionGrid {
+  const first = new Int32Array(bn * bn);
+  for (let r = blockOf.length - 1; r >= 1; r--) first[blockOf[r]] = r;
+  const local = new Uint8Array(n * n);
+  for (let c = 0; c < region.length; c++) if (region[c] !== 0) local[c] = region[c] - first[blockOf[region[c]]] + 1;
+  const at = (c: number): number => {
+    const l = local[c];
+    if (l === 0) return 0;
+    const x = c % n;
+    return first[Math.floor((c - x) / n / COARSE) * bn + Math.floor(x / COARSE)] + l - 1;
+  };
+  return { length: n * n, at };
 }
 
 function allFree(blocked: Uint8Array, n: number, x0: number, y0: number, w: number, h: number): boolean {

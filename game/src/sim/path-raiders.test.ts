@@ -561,7 +561,7 @@ describe('long routes search a coarse corridor', () => {
     for (let y = 0; y < n; y++)
       for (let x = 0; x < n; x++) {
         const c = y * n + x;
-        const r = region[c];
+        const r = region.at(c);
         if ((r === 0) !== (layer.blocked[c] === 1)) wrong++;
         if (r === 0) continue;
         if (block[r] !== blockOfCell(x, y)) wrong++;
@@ -571,7 +571,7 @@ describe('long routes search a coarse corridor', () => {
           const nx = x + dx;
           const ny = y + dy;
           if (nx < 0 || nx >= n || ny >= n) continue;
-          const o = region[ny * n + nx];
+          const o = region.at(ny * n + nx);
           if (o === 0) continue;
           if (blockOfCell(nx, ny) === blockOfCell(x, y)) {
             if (o !== r) wrong++;

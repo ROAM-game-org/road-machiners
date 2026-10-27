@@ -187,7 +187,7 @@ function coveredShare(layer: NavLayer, ov: Overlay, r: number): number {
   for (let y = y0; y < Math.min(n, y0 + COARSE); y++)
     for (let x = x0; x < Math.min(n, x0 + COARSE); x++) {
       const c = y * n + x;
-      if (region[c] !== r) continue;
+      if (region.at(c) !== r) continue;
       own++;
       if (ov.stamp[c] === ov.gen) covered++;
     }
@@ -247,7 +247,7 @@ function markCorridor(layer: NavLayer, start: number, goal: number, taste: Taste
   }
   const g = ++coarseGen;
   const from = startRegion(layer, start, goal);
-  const to = region[goal];
+  const to = region.at(goal);
   const w = REGION.navigation.heuristicWeight;
   const gx = rx[to];
   const gy = ry[to];
@@ -294,7 +294,7 @@ export function coarseWaypoint(layer: NavLayer, start: number, goal: number, tas
   if (!connected(layer, start, goal) || !markCorridor(layer, start, goal, taste, 1, null)) return null;
   const { x: rx, y: ry } = layer.coarse;
   const chain: number[] = [];
-  for (let r = layer.coarse.region[goal]; r !== -1; r = coarseFrom[r]) chain.push(r);
+  for (let r = layer.coarse.region.at(goal); r !== -1; r = coarseFrom[r]) chain.push(r);
   chain.reverse();
   let along = 0;
   for (let i = 1; i < chain.length; i++) {
@@ -314,7 +314,7 @@ function cellOfRegion(layer: NavLayer, r: number): number {
   for (let y = y0; y < Math.min(n, y0 + COARSE); y++)
     for (let x = x0; x < Math.min(n, x0 + COARSE); x++) {
       const gap = Math.hypot(x - rx[r], y - ry[r]);
-      if (region[y * n + x] === r && gap < bestGap) {
+      if (region.at(y * n + x) === r && gap < bestGap) {
         best = y * n + x;
         bestGap = gap;
       }
@@ -324,7 +324,7 @@ function cellOfRegion(layer: NavLayer, r: number): number {
 
 function startRegion(layer: NavLayer, start: number, goal: number): number {
   const region = layer.coarse.region;
-  if (region[start] !== 0) return region[start];
+  if (region.at(start) !== 0) return region.at(start);
   const n = layer.n;
   const x = start % n;
   const y = Math.floor(start / n);
@@ -334,7 +334,7 @@ function startRegion(layer: NavLayer, start: number, goal: number): number {
       const ny = y + dy;
       if (nx < 0 || ny < 0 || nx >= n || ny >= n) continue;
       const c = ny * n + nx;
-      if (componentOf(layer, c) === componentOf(layer, goal)) return region[c];
+      if (componentOf(layer, c) === componentOf(layer, goal)) return region.at(c);
     }
   throw new Error(`start cell ${start} has no free neighbour joined to goal ${goal}`);
 }
