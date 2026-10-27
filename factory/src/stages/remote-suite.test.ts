@@ -1,4 +1,5 @@
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { causeOf } from '../fail';
@@ -6,13 +7,13 @@ import { ghClient } from '../github';
 import { JOB_ID_ENV } from '../jobs';
 import { readObservation } from '../observability';
 import type { Ctx, FactoryConfig, Run, RunResult, SuiteRun } from '../types';
-import { SuiteMachineError, remoteSuite } from './remote-suite';
+import { SuiteMachineError, remoteSuite, suiteRecordFile } from './remote-suite';
 
 const ok = (stdout: string): RunResult => ({ code: 0, stdout, stderr: '' });
 const RUN: SuiteRun = { done: false, started: false, passed: false, testsFailed: false, conclusion: null, url: 'https://github.com/o/r/actions/runs/77' };
 const AT = { stage: 'verify' as const, issue: 5 };
 
-type Script = { reads: SuiteRun[]; log?: string; dispatch?: () => Promise<number>; minutesPerRead?: number };
+type Script = { reads: SuiteRun[]; log?: string; failures?: string | null | Error; dispatch?: () => Promise<number>; minutesPerRead?: number };
 
 function fakeCtx(script: Script): { ctx: Ctx; dispatched: string[]; logs: string[] } {
   const dispatched: string[] = [];
@@ -32,6 +33,10 @@ function fakeCtx(script: Script): { ctx: Ctx; dispatched: string[]; logs: string
         return next;
       },
       suiteLog: async () => script.log ?? '',
+      suiteFailures: async () => {
+        if (script.failures instanceof Error) throw script.failures;
+        return script.failures ?? null;
+      },
     },
   };
   return { ctx: ctx as unknown as Ctx, dispatched, logs };
@@ -163,5 +168,22 @@ describe('the suite calls of the GitHub client', () => {
     const jobs = JSON.stringify({ jobs: [{ status: 'queued', steps: [] }] });
     const github = ghClient(apiFake([], { 'runs/77/jobs': jobs, 'runs/77': run }), CFG);
     expect(await github.suiteRun(77)).toEqual({ done: false, started: false, passed: false, testsFailed: false, conclusion: null, url: 'h' });
+  });
+
+  it('saves the failed-test record of a failed run in the clone, and keeps the failure when it cannot be read', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'remote-suite-'));
+    const failed = { ...RUN, started: true, done: true, testsFailed: true, conclusion: 'failure' };
+    try {
+      const saved = fakeCtx({ reads: [failed], failures: '{"failed":[],"unhandledErrors":0}' });
+      expect(await remoteSuite(saved.ctx, AT, 'abc1234', dir)).toContain('The full suite failed');
+      expect(readFileSync(join(dir, 'game', suiteRecordFile('abc1234')), 'utf8')).toBe('{"failed":[],"unhandledErrors":0}');
+      rmSync(join(dir, 'game'), { recursive: true });
+      const broken = fakeCtx({ reads: [failed], failures: new Error('HTTP 500') });
+      expect(await remoteSuite(broken.ctx, AT, 'abc1234', dir)).toContain('The full suite failed');
+      expect(existsSync(join(dir, 'game'))).toBe(false);
+      expect(broken.logs.some((line) => line.includes('every failure stands'))).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

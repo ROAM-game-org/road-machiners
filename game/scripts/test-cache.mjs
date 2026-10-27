@@ -3,6 +3,7 @@ import { join, relative, resolve } from 'node:path';
 import { createVitest } from 'vitest/node';
 import { globalKey } from '../src/test/cache/fingerprint';
 import { recordRun, selectTests } from '../src/test/cache/select';
+import { clearFailureRecord, failureRecord, writeFailureRecord } from '../src/test/cache/failures';
 import { createStallWatch, stallMinutes, suiteMinutes, suiteOverMessage } from '../src/test/cache/stall';
 import { testId } from '../src/test/cache/store';
 import { rpcTimeoutNote, runVerdict } from '../src/test/cache/verdict';
@@ -134,6 +135,8 @@ function stopOnStall(watch, vitest, readsDir) {
 }
 
 const { cache, related, filters } = parseArgs(process.argv.slice(2));
+const failuresFile = process.env.TEST_FAILURES_FILE ? resolve(root, process.env.TEST_FAILURES_FILE) : null;
+if (failuresFile) clearFailureRecord(failuresFile);
 mkdirSync(join(root, 'tmp'), { recursive: true });
 const readsDir = mkdtempSync(join(root, 'tmp', 'test-cache-reads-'));
 process.env.TEST_CACHE_READS = readsDir;
@@ -158,12 +161,15 @@ try {
   const { run, skipped } = cache ? selectTests(root, cache, key, tests) : { run: tests, skipped: [] };
   const selected = specs.filter((spec) => run.includes(relOf(spec)));
   recorder.start(key);
+  let record = { failed: [], unhandledErrors: 0 };
   if (selected.length) {
     const { testModules, unhandledErrors } = await vitest.runTestSpecifications(selected);
     const verdict = runVerdict(testModules, unhandledErrors);
     if (verdict === 'passedPastRpcTimeouts') console.log(rpcTimeoutNote(unhandledErrors.length));
     failed = verdict === 'failed';
+    record = failureRecord(root, testModules, unhandledErrors);
   }
+  if (failuresFile && !stalled()) writeFailureRecord(failuresFile, record);
   console.log(`[test-cache] ran ${run.length}, skipped ${skipped.length}, uncacheable ${recorder.uncacheable()}`);
 } finally {
   await vitest.close();

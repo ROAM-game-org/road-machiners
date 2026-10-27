@@ -1,3 +1,5 @@
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { GithubError, ghClient } from './github';
 import { COLUMNS, type FactoryConfig, type Run, type RunResult } from './types';
@@ -267,5 +269,15 @@ describe('ghClient', () => {
   it('reads an open error-report issue with empty close fields as null', async () => {
     const run: Run = async () => ok(JSON.stringify({ number: 8, state: 'OPEN', stateReason: '', closedAt: '' }));
     expect(await ghClient(run, CFG).errorIssue(8)).toEqual({ number: 8, state: 'OPEN', stateReason: null, closedAt: null });
+  });
+
+  it('reads the failed-test artifact of a suite run, and nothing when the run has none', async () => {
+    const run: Run = async (_cmd, args) => {
+      if (args[0] === 'run') writeFileSync(join(args[args.indexOf('-D') + 1]!, 'test-failures.json'), '{"failed":[],"unhandledErrors":0}');
+      return ok(args[0] === 'api' ? JSON.stringify({ artifacts: [{ name: 'test-failures' }] }) : '');
+    };
+    expect(await ghClient(run, CFG).suiteFailures(77)).toBe('{"failed":[],"unhandledErrors":0}');
+    const none: Run = async () => ok('{"artifacts":[]}');
+    expect(await ghClient(none, CFG).suiteFailures(77)).toBeNull();
   });
 });

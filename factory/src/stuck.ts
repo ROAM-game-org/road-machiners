@@ -75,7 +75,7 @@ function kindOf(input: SweepInput, card: Card, record: Unkinded): StuckKind {
 }
 
 function needsPerson(card: Card, record: Unkinded): boolean {
-  return record.refused !== null || record.cause === 'decision' || card.labels.includes(RELEASE_LABEL);
+  return record.refused !== null || record.cause === 'decision' || record.cause === 'baseline' || card.labels.includes(RELEASE_LABEL);
 }
 
 function mechanicalKind(input: SweepInput, card: Card, record: Unkinded): StuckKind {

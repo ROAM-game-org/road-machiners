@@ -1,3 +1,6 @@
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { must } from './exec';
 import { COLUMNS, FACTORY_MARK } from './types';
 import type { Card, Column, FactoryConfig, FingerprintIssue, GitHub, Issue, IssueComment, Run, RunResult } from './types';
@@ -96,6 +99,7 @@ const sleep: Wait = (ms) => new Promise((done) => setTimeout(done, ms));
 
 export const SUITE_WORKFLOW = 'game-suite.yml';
 export const SUITE_TESTS_STEP = 'tests';
+export const SUITE_FAILURES_ARTIFACT = 'test-failures';
 
 type RawRun = { status: string; conclusion: string | null; html_url: string };
 type RawJob = { status: string; steps: { name: string; conclusion: string | null }[] };
@@ -386,6 +390,17 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
     },
     async suiteLog(id) {
       return gh(['run', 'view', String(id), '-R', repo, '--log-failed']);
+    },
+    async suiteFailures(id) {
+      const { artifacts } = JSON.parse(await gh(['api', `repos/${repo}/actions/runs/${id}/artifacts`])) as { artifacts: { name: string }[] };
+      if (!artifacts.some((artifact) => artifact.name === SUITE_FAILURES_ARTIFACT)) return null;
+      const dir = mkdtempSync(join(tmpdir(), 'factory-suite-failures-'));
+      try {
+        await gh(['run', 'download', String(id), '-R', repo, '-n', SUITE_FAILURES_ARTIFACT, '-D', dir]);
+        return readFileSync(join(dir, 'test-failures.json'), 'utf8');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
     },
     async errorIssue(number) {
       const issue = JSON.parse(await gh(['issue', 'view', String(number), '-R', repo, '--json', 'number,state,stateReason,closedAt'])) as FingerprintIssue;

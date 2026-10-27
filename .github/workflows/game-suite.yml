@@ -22,6 +22,7 @@ jobs:
       TEST_STALL_MINUTES: '10'
       TEST_SUITE_MINUTES: '35'
       TEST_TIMEOUTS: 'off'
+      TEST_FAILURES_FILE: tmp/test-failures.json
     steps:
       - name: install git
         run: apt-get update && apt-get install -y --no-install-recommends git
@@ -54,3 +55,11 @@ jobs:
         run: |
           echo "The suite ran past TEST_SUITE_MINUTES with no failed test."
           exit 1
+      - name: failed tests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-failures
+          path: game/tmp/test-failures.json
+          if-no-files-found: ignore
+          retention-days: 3

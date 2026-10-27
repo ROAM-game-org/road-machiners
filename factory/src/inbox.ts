@@ -3,7 +3,7 @@ import { mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { readCommittee, telegramIds } from './committee';
 import { applyControl, openRelease, parseControl, queueRemoval, queueShip } from './control';
-import { reportFailure } from './fail';
+import { reportFailure, withoutRejectionsOf } from './fail';
 import { markPost } from './post-status';
 import { postDraft, publishPost } from './release-post';
 import { deny, routeFeedback } from './stages/approval';
@@ -12,7 +12,7 @@ import { replyMediaLines } from './reply-media';
 import { recordReleaseTask } from './stages/release-common';
 import { clearAsked, questionPostIssue } from './questions';
 import { readState, updateState } from './state';
-import { ADHOC_LABEL, NEEDS_INFO_LABEL, RELEASE_TASK_LABEL, type Ctx, type Route } from './types';
+import { ADHOC_LABEL, NEEDS_INFO_LABEL, RELEASE_TASK_LABEL, type Ctx, type RejectedControl, type Route } from './types';
 
 const TITLE_LIMIT = 80;
 const KINDS = ['approve', 'deny', 'reply', 'answer', 'answer-questions', 'patch', 'redesign', 'adhoc', 'ship', 'remove', 'release-task', 'release-draft', 'publish'];
@@ -78,15 +78,26 @@ function isControlFile(raw: string): boolean {
 }
 
 async function handleControl(ctx: Ctx, raw: string): Promise<void> {
-  let card = '';
+  let control: RejectedControl | null = null;
   try {
     const command = parseControl(JSON.parse(raw));
-    if ('issue' in command) card = `#${command.issue}: `;
+    control = { action: command.action, issue: 'issue' in command ? command.issue : null };
     await applyControl(ctx, command);
+    dropRejections(ctx, control);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    await reportFailure(ctx, 'control', null, `${card}${message}`, null, []);
+    await reportRejection(ctx, control, error);
   }
+}
+
+function dropRejections(ctx: Ctx, control: RejectedControl): void {
+  updateState(ctx.statePath, (state) => ({ ...state, failures: withoutRejectionsOf(state.failures, control) }));
+}
+
+async function reportRejection(ctx: Ctx, control: RejectedControl | null, error: unknown): Promise<void> {
+  const message = error instanceof Error ? error.message : String(error);
+  if (control === null) return reportFailure(ctx, 'control', null, message, null, []);
+  const card = control.issue === null ? '' : `#${control.issue}: `;
+  await reportFailure(ctx, 'control', null, `${card}${message}`, null, [], { control });
 }
 
 async function handleFile(ctx: Ctx, path: string): Promise<void> {

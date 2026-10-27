@@ -2,7 +2,7 @@ This is the ship stage of the ROAM factory.
 You work alone in a clone of the game repo, on branch main.
 The factory merged the release branch {{release}} into it. The committee played and approved that release.
 
-It then ran the full checks on the merged result, and they failed. The end of the log:
+It then ran the full checks on the merged result, and they failed. The end of the log, or only the failed tests that do not also fail on main alone:
 
 {{failure}}
 

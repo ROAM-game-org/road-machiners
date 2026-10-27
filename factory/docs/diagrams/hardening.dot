@@ -22,7 +22,7 @@ digraph hardening {
   XN [label="Done", fillcolor="#f3f4f6", color="#6b7280"];
   edge [color="#dc2626", fontcolor="#dc2626", style=dashed, penwidth=1.3];
   MM -> MM [label="conflict: the merge\nsession resolves it"];
-  MC -> MM [label="failure or stalled test:\nback into the merge session"];
+  MC -> MM [label="failure or stalled test:\nback into the merge session,\nless failed tests that also\nfail on the base alone"];
   MC -> MC [label="timed out or past\nFACTORY_CHECKS_TIMEOUT_MINUTES:\nrun the playtest and build\nagain, at most 3 runs"];
   MP -> MM [label="base moved:\nmerge it in, check again\nonly if game source changed"];
   XS -> MM [label="timed out or died:\nthe stuck sweep releases\nhalf the batch"];
@@ -32,7 +32,7 @@ digraph hardening {
   XA -> HM;
   HM -> MM [label="docs only:\nno session"];
   XO -> MM;
-  MC -> XS [label="fix budget spent, timeout,\nsuite machine failure\nor job death"];
+  MC -> XS [label="fix budget spent, timeout,\nsuite machine failure, job death,\nor only tests that\nfail on the base too"];
   MP -> XN;
   HH -> CU [label="waits in Merging"];
   MP -> CU [label="base moved"];

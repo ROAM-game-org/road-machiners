@@ -10,6 +10,7 @@ digraph public {
     proposal [label="Proposal post\nin the player chat\nat most 4 a day"];
     votes [label="Players react 👍 or 👎", fillcolor="#fde68a", color="#b45309"];
     design [label="Design\nat 3 more 👍 than 👎"];
+    revive [label="Tick check\nof voting cards"];
     triage -> proposal -> votes -> design;
   }
 
@@ -37,7 +38,7 @@ digraph public {
     message -> plugin;
   }
 
-  filter [label="Decisions API filter\nspam, kind, language,\nabout its thread, route,\nabout known work\n20 chat messages an hour per player"];
+  filter [label="Decisions API filter\nspam, kind, language,\nabout its thread, route,\nabout known work\n60 chat messages an hour per player"];
   linked [label="Linked to known work\nwhile its issue is open\nno new issue, vote or route"];
   digest [label="Digest comment\non the issue\nat most one an hour"];
   newIssue [label="Own issue\nbug or feature-request\nand player-report"];
@@ -69,6 +70,9 @@ digraph public {
   edge [color="#dc2626", fontcolor="#dc2626", style=dashed, penwidth=1.3];
   filter -> patch [label="patch"];
   filter -> redesign [label="redesign"];
+  proposal -> revive [label="closed before\nany post attempt"];
+  revive -> proposal [label="issue open:\nopen again"];
+  revive -> triage [label="no proposal:\nlabel removed"];
 
   edge [color="#6b7280", fontcolor="#6b7280", style=dashed, penwidth=1.3];
   filter -> rejected [label="spam"];

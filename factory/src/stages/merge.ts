@@ -7,9 +7,10 @@ import { readState, updateState } from '../state';
 import { BRANCH, GAME_DIR, RELEASE_CANDIDATE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, type AgentSession, type Card, type Ctx, type FactoryState, type IssueMerge } from '../types';
 import { withWorkFolder } from '../work-lock';
 import { closeMerged } from './approval';
-import { BudgetError, runCost, untilPasses } from './checkpoint';
+import { BaselineFailureError, BudgetError, runCost, untilPasses } from './checkpoint';
+import { clearFailureRecord, withoutBaseline } from './baseline';
 import { checkScript, checkUntilReal, runChecks } from './checks';
-import { remoteSuite } from './remote-suite';
+import { remoteSuite, suiteRecordFile } from './remote-suite';
 import { guardAgainstAll } from '../diff-guard';
 import { labelStuckBatch } from '../stuck';
 import { BASE_BRANCH, baseBranchFor, fillPrompt, isGameSource, playtestCommand, resetOutputs } from './common';
@@ -21,9 +22,16 @@ export async function merge(ctx: Ctx): Promise<void> {
   try {
     await withWorkFolder(ctx, 'merge-queue', () => mergeBatch(ctx, batch.base, batch.cards));
   } catch (error) {
+    if (error instanceof BaselineFailureError) await noteBaseline(ctx, batch.cards, error);
     await labelStuckBatch(ctx, batch.cards.map((card) => card.issue));
     throw error;
   }
+}
+
+async function noteBaseline(ctx: Ctx, cards: Card[], error: BaselineFailureError): Promise<void> {
+  const batch = cards.map((card) => `#${card.issue}`).join(' ');
+  const tests = error.tests.map((test) => `- ${test}`).join('\n');
+  for (const card of cards) await ctx.github.comment(card.issue, `The merge checks of batch ${batch} failed only on tests that fail the same way on ${error.into} at ${error.sha}, without this batch. The batch is not at fault, and no fix round ran on them. ${error.into} needs its own fix before the batch can merge:\n${tests}`);
 }
 
 async function mergeBatch(ctx: Ctx, base: string, cards: Card[]): Promise<void> {
@@ -166,23 +174,29 @@ async function mergedChecks(ctx: Ctx, land: Landing): Promise<string | null> {
   const tested = (await ctx.repo.changedInWork(land.dir, `origin/${land.into}`)).some(isGameSource);
   const dirty = tested ? await uncommitted(ctx, land.dir) : '';
   if (dirty !== '') return `The clone has changes that are not committed, so the full suite cannot test them. Commit them or remove them:\n${dirty}`;
-  const { suite } = tested ? await suiteOnHead(ctx, land) : { suite: Promise.resolve(null) };
+  const { suite, head } = tested ? await suiteOnHead(ctx, land) : { suite: Promise.resolve(null), head: '' };
   const script = checkScript(playtestCommand(ctx.cfg, false), '');
   const at = { stage: land.stage, issue: null };
-  const failure = await checkUntilReal(() => runChecks(ctx, at, land.dir, script, log, { BUILD_SCOPE: land.stage }), (run) => ctx.log(land.stage, null, `the checks only timed out, run ${run}, running them again`));
-  return failure ?? await suite;
+  const run = () => {
+    clearFailureRecord(land.dir);
+    return runChecks(ctx, at, land.dir, script, log, { BUILD_SCOPE: land.stage });
+  };
+  const local = await checkUntilReal(run, (count) => ctx.log(land.stage, null, `the checks only timed out, run ${count}, running them again`));
+  if (local !== null) return local;
+  const failure = await suite;
+  return failure === null ? null : withoutBaseline(ctx, land, failure, suiteRecordFile(head));
 }
 
 async function uncommitted(ctx: Ctx, dir: string): Promise<string> {
   return must(await ctx.run('git', ['-C', dir, 'status', '--porcelain'], { activity: 'git' }), 'git status in the merge clone').trim();
 }
 
-async function suiteOnHead(ctx: Ctx, land: Landing): Promise<{ suite: Promise<string | null> }> {
+async function suiteOnHead(ctx: Ctx, land: Landing): Promise<{ suite: Promise<string | null>; head: string }> {
   const head = await guardedHead(ctx, land);
   await ctx.repo.replaceBranch(head, `factory/suite-${land.stage}-${land.into.replaceAll('/', '-')}`);
-  const suite = remoteSuite(ctx, { stage: land.stage, issue: null }, head);
+  const suite = remoteSuite(ctx, { stage: land.stage, issue: null }, head, land.dir);
   suite.catch(() => undefined);
-  return { suite };
+  return { suite, head };
 }
 
 async function guardedHead(ctx: Ctx, land: Landing): Promise<string> {
