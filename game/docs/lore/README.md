@@ -46,6 +46,7 @@ Each of these was in the lore and was cut or fixed. The test it failed is in bra
 - Sabra Kell gave toll receipts honored once a year, and left her tin by Ladle's scraper. [Purpose, It earns its place] A receipt honored once a year does no job, and the tin and scraper were props with no meaning.
 - Ilya Moreno feared a truck going missing on his watch and repainted the same count every morning, though he let the two staff cars out himself. [It works] His fear contradicted his own secret, and the daily habit changed nothing.
 - Odile Marsh counted every sack at night and chalked the count on the Granary gate, and the Bowl patrol was paid from the Granary count. [Purpose, It works] Nobody in the basin counts as a job, and a count the steward chalks herself is still only her word. Now Odile keeps the gate open by day, the Kiln ration crates stand stacked beside it, and the patrol is paid from the Granary's grain.
+- Half the basin counted as its practice: Agnes read meters into a pump book, Mirela counted barrels into a Canal book, Ines read the sky count aloud, Petra wrote down every truck with the hour, Hollis chalked drum counts, the President read the ration tally, and clues hung on tables of numbers. [Purpose, It earns its place] People who scrape by on water and grain do not keep books of figures, and a number on a page shows the player nothing. Now each person does a plain thing that fits their wants, and every clue is something the player sees or hears, like a loaded truck, an empty bay or a tone matched to iron bars.
 
 ## Icarus
 
@@ -141,7 +142,7 @@ Bowl and Nose have locals the player talks to in town. `src/data/locals.ts` hold
 - Bo is gentle and plain. He tells the fight at the Burnt Convoy once and does not excuse it.
 - The patrol driver talks like a working Bowl hand: the Kiln crates, the road no one guards and the north-western tale. The Bureau clerk talks short and low, afraid of the corridor, and says only what the corridor says.
 - Sefa is blunt and dry. She speaks for the families off the Burnt Convoy, who live at the Salvage Yard now. She takes what the road is done with and leaves the water.
-- Ines is level and open. She reads the count aloud to anyone who stops and says plainly what she does not know.
+- Ines is level and open. She rings the plate's bars against the radio tone for anyone who stops and says plainly what she does not know.
 - The six older locals also talk about Pierce's gun rule, the swivel, brake rods, Pierce paper, the Kiln fee, the tenants, Green Pit and the Glass Flats, each in their own voice. Ruben, Hattie and Dag disagree with Kovac, Lena and Ibo on who is to blame.
 - A rumor from [Rumors](rumors.md) reaches the journal as a note that records what the speaker said, never the truth. A biased speaker says so in character, and two locals may contradict each other, as Sefa and Ibo do on the old Burnt Convoy stretch.
 - Locals point to the people of other jobs by name and place only: Agnes Ondra at Dustwell, Odile Marsh at the Granary, Mara Kessel at the Salvage Yard, Constance Pierce at the Pierce office in Nose, Tamsin Roe the courier, Lusa Fenwick and Pim Arslan the lens cutter. They never speak for them.

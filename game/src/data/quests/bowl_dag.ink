@@ -56,7 +56,7 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
   ~ note("talkKilnFight")
   -> hub
 + {dag_pay} [Do tenants serve with you?]
-  Some do. They're good drivers, but a tenant has no vote until ten years in our coat put him on the roll of citizens. The <term=senate>Senate</term> wants them on the road, and it isn't in a hurry to count their years.
+  Some do. They're good drivers, but a tenant has no vote until ten years in our coat put him on the roll of citizens. The <term=senate>Senate</term> wants them on the road, and it isn't in a hurry to put them on the roll.
   Jory Baptiste keeps sending more of them, and I can't decide whether to thank him or watch him.
   -> hub
 + {dag_road} [Does the patrol go out to the crater?]
@@ -78,7 +78,7 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
   Nose says raiders, and every driver who buys water here believes it. If you want it said, say it at the cistern house where they all drink. I'll stand next to you while you do.
   ++ [Say it at the cistern house.]
      ~ wagon_fate = "told"
-     You say it at Hattie's, plainly, to whoever is holding a cup: no brass, no holes, every dent from the slope. Dag stands next to you and says he counted the same. # page
+     You say it at Hattie's, plainly, to whoever is holding a cup: no brass, no holes, every dent from the slope. Dag stands next to you and says he saw the same. # page
      A woman at the cistern puts her bucket down. Her son rode in the cab of that wagon, she says. Nobody had told her there was no fight.
      Two Nose soldiers with cups in their hands hear every word. They drink up and leave without talking to each other.
      -> hub
