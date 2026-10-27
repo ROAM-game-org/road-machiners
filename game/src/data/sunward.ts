@@ -1,7 +1,8 @@
 import type { Topic, TraitTalk } from './dialogue';
+import { DRAFT } from './region';
 
 const CAVALCADE_CARS = 8;
-const HOLLOW_POS = { x: 1312, y: 1288 };
+const HOLLOW_POS = DRAFT?.hollow?.pos ?? { x: 1312, y: 1288 };
 
 export const SUNWARD = {
   cavalcade: CAVALCADE_CARS,
@@ -45,7 +46,7 @@ export type HollowBay = { x: number; y: number; heading: number };
 export type HollowSpot = { x: number; y: number };
 
 const HOLLOW_RADIUS = 5;
-const GATE_BEARING = -1.37;
+const GATE_BEARING = DRAFT?.hollow?.gateBearing ?? -1.37;
 const BAY_ROW = 2.6;
 const BAY_STEP = 2.2;
 const BAY_FRONT = 6.3;

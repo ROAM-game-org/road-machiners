@@ -1,6 +1,7 @@
 import { FIELD_SPARE_WEAR, OLD_PLACES, OLD_PLACE_TYPES, OLD_TABLES, SALVAGE, STORY_WRECKS, type LootRange, type LootTable, type OldPlaceType, type StoryWreck } from '../data/salvage';
 import { REGION } from '../data/region';
 import OLD_SPOTS_FILE from '../data/old-spots.json';
+import { DRAFT } from '../data/region';
 import { CRATE_MASS, ECONOMY, GOODS } from '../data/goods';
 import { BREAKABLE, RULES } from '../data/rules';
 import { WRECK_LOOKS } from '../data/territory';
@@ -824,7 +825,7 @@ const RING_DIRECTIONS = 24;
 const RING_PAST = 2;
 
 export const MAX_RADIUS = Math.max(...Object.values(CHASSIS).map((c) => c.radius));
-const OLD_SPOTS = OLD_SPOTS_FILE as { mapHash: string; picks: OldSpotPick[] };
+const OLD_SPOTS = (DRAFT?.oldSpots ?? OLD_SPOTS_FILE) as { mapHash: string; picks: OldSpotPick[] };
 
 export function oldPlaces(baked: readonly Obstacle[]): OldPlace[] {
   const candidates = baked.filter((o) => o.kind === 'landmark' && territoryAt(o.pos) === null && clearOfSites(icarusAtlas(), o.pos, o.r));

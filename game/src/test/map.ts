@@ -1,11 +1,11 @@
-// The baked map for Node runs: tests and the progression recorder. Vite inlines the
-// file as a data URL at import, because the project carries no Node file typings. The browser fetches the
-// map at boot instead, so no game module imports this one.
 
 import { MAPGEN } from '../data/terrain';
 import { decodeMap, type BakedMap } from '../sim/terrain';
 
-const FILES = import.meta.glob<string>('/public/maps/*.bin', { query: '?url&inline', import: 'default', eager: true });
+const FILES = {
+  ...import.meta.glob<string>('/public/maps/*.bin', { query: '?url&inline', import: 'default', eager: true }),
+  ...import.meta.glob<string>('/public/drafts/*.bin', { query: '?url&inline', import: 'default', eager: true }),
+};
 const DATA_URL = 'data:application/octet-stream;base64,';
 
 function readMap(): BakedMap {
