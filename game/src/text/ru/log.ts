@@ -92,6 +92,7 @@ export const LOG: Translation<typeof EN> = {
   'goal.backToPost': 'Возвращается на Постоялый двор',
   'goal.watchSunset': "Смотрит на закат",
   'goal.restShade': "Пережидает полуденный зной",
+  'goal.lookAround': "Осматривается",
   'goal.tendGrave': "Остановился у обломков",
   'refusal.notAtDesk': 'Только на Постоялом дворе',
   'refusal.payBountiesFirst': 'Сначала уплатите долг за {faction, case, acc}',

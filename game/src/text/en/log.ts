@@ -496,6 +496,7 @@ export const LOG = {
   'goal.backToPost': 'Riding back to the Roadhouse',
   'goal.watchSunset': 'Watching the sunset',
   'goal.restShade': 'Waiting out the noon heat',
+  'goal.lookAround': 'Looking around',
   'goal.tendGrave': 'Stopped by a wreck',
   'goal.cannotWearDown': 'Cannot wear the target down',
   'goal.fightOverLoot': 'Fight over loot',

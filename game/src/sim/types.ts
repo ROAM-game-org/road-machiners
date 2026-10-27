@@ -208,7 +208,7 @@ export type GoalReason =
   | 'restHollow' | 'rideVigil' | 'keepVigil' | 'rideHome' | 'huntRoad' | 'dragToLight' | 'leaveCrater' | 'orderFell' | 'meetStranger'
   | 'sizingUp' | 'poorLoad' | 'sizedUpBy'
   | 'bountyHunt' | 'atPost' | 'caseClosed' | 'huntGaveUp' | 'cargoLost' | 'backToPost'
-  | 'watchSunset' | 'restShade' | 'tendGrave';
+  | 'watchSunset' | 'restShade' | 'tendGrave' | 'lookAround';
 
 export type SimNote =
   | { id: 'engineHot' }

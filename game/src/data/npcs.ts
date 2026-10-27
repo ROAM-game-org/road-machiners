@@ -761,3 +761,5 @@ export const STATE_TURNS: Record<StateKindId, number | null> = {
 
 export { CREW, FEMALE_NAMES, FIRST_NAMES, HELP_CALL, HIRE, HUNT, LOOK_OVER, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, SURNAMES, TRADE_TIP } from './npc-behavior';
 export { TRAITS, type Trait } from './npc-traits';
+
+export const EXPLORE = { range: 120, minHop: 30, gapCap: 20, lookTurns: 19 };
