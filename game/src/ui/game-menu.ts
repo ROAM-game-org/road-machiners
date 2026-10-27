@@ -22,7 +22,7 @@ export type GameMenuActions = SavePanelActions & {
 
 export type MenuEntry = "new" | "save" | "load" | "unstuck" | "options" | "tips" | "help" | "report";
 
-export type PhoneMenuLinks = { report: () => void };
+export type PhoneMenuLinks = { report: () => void; reportOpen: () => boolean };
 
 const ENTRIES: { entry: MenuEntry; label: Msg }[] = [
   { entry: "new", label: t("menu.newGame") },
@@ -143,7 +143,9 @@ export class HelpPanel {
 
   private root: HTMLElement | null = null;
   private readonly onKey = (e: KeyboardEvent) => {
-    if (e.code === "Escape") this.close();
+    if (e.code !== "Escape") return;
+    e.stopPropagation();
+    this.close();
   };
 
   isOpen(): boolean {
@@ -162,14 +164,14 @@ export class HelpPanel {
       el("div", { class: "help-notes" }, ...notes.map((note) => el("div", {}, note))),
     );
     this.root = root;
-    window.addEventListener("keydown", this.onKey);
+    window.addEventListener("keydown", this.onKey, true);
   }
 
   close(): void {
     if (!this.root) return;
     this.root.remove();
     this.root = null;
-    window.removeEventListener("keydown", this.onKey);
+    window.removeEventListener("keydown", this.onKey, true);
   }
 
   toggle(): void {
@@ -232,7 +234,7 @@ export class GameMenu {
   }
 
   isOpen(): boolean {
-    return !this.list.hidden || this.savePanel.isOpen() || this.options.isOpen() || isNewGameOpen();
+    return !this.list.hidden || this.savePanel.isOpen() || this.options.isOpen() || this.help.isOpen() || this.phone.reportOpen() || isNewGameOpen();
   }
 
   refresh(): void {

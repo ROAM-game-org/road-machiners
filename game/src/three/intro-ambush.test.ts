@@ -25,6 +25,7 @@ import { hasCargo } from '../sim/salvage';
 import { defaultSetup } from '../sim/settings';
 import { canUseSite } from '../sim/sites';
 import { allegianceFor, isFree, spawnAt } from '../sim/spawn';
+import { flatChoices, pickText } from '../test/quest-testkit';
 import { editableTerrain, emptyWorld, finishQuest, testDrive } from '../sim/testkit';
 import { trackOf } from '../sim/tracks';
 import type { Vehicle, World } from '../sim/types';
@@ -375,15 +376,15 @@ describe('the fall and the wake in Bowl', () => {
   it('wakes a driver who met Hattie before on a greeting that knows them, without the questions already asked', () => {
     const w = ambushed();
     openWellScene(w, 'meet');
-    let met = chooseQuestOption(w, QUESTS, questView(w, QUESTS).choices.indexOf('Where am I?'));
-    met = chooseQuestOption(met, QUESTS, questView(met, QUESTS).choices.indexOf("I'll go."));
+    let met = pickText(w, 'Where am I?');
+    met = pickText(met, "I'll go.");
     expect(met.player.quests.session).toBeNull();
     knockedOutBy(met);
     const next = runUntilAwake(closeScene(met));
     expect(next.player.quests.live?.quest).toBe('intro_bowl');
     expect(spokenIn(next)).toContain('Back on my bench again');
     expect(next.player.quests.world[HATTIE_MET]).toBe(true);
-    const choices = questView(next, QUESTS).choices;
+    const choices = flatChoices(next);
     expect(choices).toContain('What happened to me?');
     expect(choices).not.toContain('Where am I?');
   });

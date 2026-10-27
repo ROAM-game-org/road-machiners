@@ -308,7 +308,7 @@ describe('noclipMove', () => {
 
   it('names an open radio call as what blocks the flight', () => {
     const w = emptyWorld();
-    w.player.call = { with: 'v9', topic: null, node: 'demand', vars: {}, line: { line: 'demandCargo', vars: {} } };
+    w.player.call = { with: 'v9', topic: null, node: 'demand', vars: {}, line: { line: 'demandCargo', vars: {} }, group: null, asked: [] };
     expect(() => noclipMove(w, { x: 80, y: 90 })).toThrow('Cannot fly while a radio call is open');
   });
 });
