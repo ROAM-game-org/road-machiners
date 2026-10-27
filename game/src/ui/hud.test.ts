@@ -45,6 +45,7 @@ describe('held contract line', () => {
 
     expect(line.text()).toContain('Survey');
     expect(line.text()).toContain('1 of 3 surveyed');
+    expect(line.text()).not.toMatch(/(Safe|Risky|Dangerous) ground/);
     expect(line.text()).toContain('by Day');
     expect(line.all('contract-clue')).toHaveLength(2);
     expect(line.all('tag').map((tag) => tag.text())).toEqual(['found']);
