@@ -75,8 +75,14 @@ function roomBelowFull(shopId: string, state: ShopState, good: string): number {
   return Math.max(0, fullStock(shopId, good) - goodStock(state, good));
 }
 
+export function missingInputs(state: ShopState, recipe: Recipe): { good: string; have: number; need: number }[] {
+  return Object.entries(recipe.inputs)
+    .map(([good, need]) => ({ good, have: goodStock(state, good), need }))
+    .filter((input) => input.have < input.need);
+}
+
 function hasInputs(state: ShopState, recipe: Recipe): boolean {
-  return Object.entries(recipe.inputs).every(([good, n]) => goodStock(state, good) >= n);
+  return missingInputs(state, recipe).length === 0;
 }
 
 function useUpkeep(shopId: string, state: ShopState, recipe: Recipe, batch: number): void {
