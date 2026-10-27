@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readLedger } from '../ledger';
 import { EMPTY_STATE, readState, updateState, writeState } from '../state';
-import { RELEASE_TASK_LABEL, STUCK_LABEL, type AgentRun, type Card, type Ctx } from '../types';
+import { RELEASE_TASK_LABEL, STUCK_LABEL, type AgentRun, type Card, type Ctx, type Failure } from '../types';
 import { CheckTimeoutError } from '../container';
 import { BudgetError } from './checkpoint';
 
@@ -147,6 +147,21 @@ describe('merge queue', () => {
     expect(deployed).toEqual(['dev']);
     expect(calls.filter((call) => call.startsWith('message'))).toEqual([]);
     expect(readState(`${home}/state.json`).approvedResolving).toEqual({});
+  });
+
+  it('clears the earlier failures of each merged card, and keeps a batch row for a member that did not merge', async () => {
+    const row = (over: Partial<Failure>): Failure => ({ stage: 'merge', issue: null, error: 'timed out', cause: 'timeout', log: null, at: '2026-09-29T10:00:00.000Z', ...over });
+    updateState(`${home}/state.json`, (state) => ({ ...state, failures: [
+      row({ batch: [5, 6] }),
+      row({ batch: [5, 7] }),
+      row({ stage: 'catch-up', issue: 5, error: 'catch-up timed out' }),
+      row({ stage: 'verify', issue: 8, error: 'other card' }),
+    ] }));
+    await merge(fakeCtx());
+    expect(readState(`${home}/state.json`).failures).toEqual([
+      row({ batch: [5, 7], cleared: [5] }),
+      row({ stage: 'verify', issue: 8, error: 'other card' }),
+    ]);
   });
 
   it('runs the full suite on GitHub Actions for the merged head, and only the playtest and build on the server', async () => {

@@ -191,7 +191,8 @@ describe('read commands', () => {
     const record = { incident: '5:merge:t', stage: 'merge' as const, error: 'timed out after 240 minutes\nmore', cause: 'timeout' as const, log: '/m.log', batch: 10, since: 't', column: 'Merging' as const, kind: 'merge-batch' as const, tries: 1, released: 'r', refused: null };
     const merge = { stage: 'merge' as const, issue: null, error: 'timed out after 240 minutes', cause: 'timeout' as const, log: '/m.log', at: 't', batch: [5, 7] };
     const cleared = { ...merge, at: 'u', batch: [5, 7, 8], cleared: [7] };
-    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), stuck: { '5': record }, failures: [merge, cleared], sweepError: 'boom\nmore' });
+    const rejected = { stage: 'control' as const, issue: null, error: '#9: Issue #9 is not on the board', cause: 'error' as const, log: null, at: 'v', control: { action: 'hold', issue: 9 } };
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), stuck: { '5': record }, failures: [merge, cleared, rejected], sweepError: 'boom\nmore' });
     await run(f, 'stuck');
     expect(out).toEqual(['sweep error: boom', '#5 merge-batch in Merging, incident 5:merge:t, tries 1, released r: timed out after 240 minutes (cause timeout, log /m.log)']);
     out.length = 0;
@@ -199,7 +200,7 @@ describe('read commands', () => {
     expect(out).toContain('stuck sweep: merge-batch in Merging, incident 5:merge:t, tries 1, released r: timed out after 240 minutes (cause timeout, log /m.log)');
     out.length = 0;
     await run(f, 'failures');
-    expect(out).toEqual(['t merge: timed out after 240 minutes (cause timeout, log /m.log) batch #5,#7\nu merge: timed out after 240 minutes (cause timeout, log /m.log) batch #5,#7,#8 cleared #7']);
+    expect(out).toEqual(['t merge: timed out after 240 minutes (cause timeout, log /m.log) batch #5,#7\nu merge: timed out after 240 minutes (cause timeout, log /m.log) batch #5,#7,#8 cleared #7\nv control: #9: Issue #9 is not on the board (cause error, log none) rejected hold']);
   });
 
   it('help lists every command', async () => {

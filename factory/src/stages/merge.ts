@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { deployDev } from '../deploy';
+import { withoutFailuresOf } from '../fail';
 import { must } from '../exec';
 import { readState, updateState } from '../state';
 import { BRANCH, GAME_DIR, RELEASE_CANDIDATE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, type AgentSession, type Card, type Ctx, type FactoryState, type IssueMerge } from '../types';
@@ -217,5 +218,6 @@ async function settleCard(ctx: Ctx, card: Card, cards: Card[], merge: IssueMerge
   const batch = others.length > 0 ? ` It merged together with ${others.join(', ')}, and the checks passed on the result.` : '';
   await ctx.github.comment(card.issue, `Approved by ${by} and merged into ${where}.${batch} It closes when its release ships.`);
   await ctx.github.addLabel(card.issue, RELEASE_CANDIDATE_LABEL);
+  updateState(ctx.statePath, (state) => ({ ...state, failures: withoutFailuresOf(state.failures, card.issue) }));
   await closeMerged(ctx, card.issue, card.labels, null, { into: merge.into, sha: merge.sha });
 }
