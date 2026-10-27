@@ -40,13 +40,14 @@ import { getResources } from './resources';
 import { skillEffect } from './progress';
 import { randRange } from './rng';
 import { recall, remember } from './memory';
-import { backedOff, canReachSalvage, canTakeAny, canTakeFromTruck, CANNOT_HOLD, CLAIMED, claimOnly, hasCargo, hasSalvage, holdsClaim, lootBlocker, STRIPPED, worksOn } from './salvage';
+import { backedOff, canReachSalvage, canTakeAny, canTakeFromTruck, CANNOT_HOLD, CLAIMED, claimOnly, hasSalvage, holdsClaim, lootBlocker, STRIPPED, worksOn } from './salvage';
 import { passesUpLoot } from './loot-warning';
-import { canUseSite, isTerritory, siteGap, siteGates, siteUnder, type Site } from './sites';
-import { territoryAt, territoryGrounds } from './territory';
+import { canUseSite, isTerritory, siteGates, siteUnder, type Site } from './sites';
+import { territoryAt } from './territory';
+import { divideTurf, turfClaimants, worldHuntingSpots } from './hunting-spots';
 import { addState, bindingStatesHeld, boundTo, endState, givesWord, isRobberyFeud, robbing, stateOf, statesHeld } from './states';
 import { isStranded, vehicleStats } from './stats';
-import { canHire, canTakeEscort, declineFactor, escortsOf, inTowReach, isOnRope, strandedAt, towSite, unguardedLeader } from './tow';
+import { canHire, canTakeEscort, declineFactor, escortsOf, inTowReach, isOnRope, strandedAt, towSite } from './tow';
 import { leaderToJoin } from './pairs';
 import { ownSide, perceivedGroup } from './sides';
 import { canJoin, canMuster, heldBackByCrew, joinFactor } from './crews';
@@ -454,16 +455,8 @@ export function salvageSitesAway(vehicle: Vehicle) {
   return npcProfile(vehicle).salvageSites.map(getKnownSite).filter((site) => !stands(vehicle, site));
 }
 
-let grounds: readonly Vec[] | null = null;
-
-export function huntingGrounds(): readonly Vec[] {
-  if (grounds) return grounds;
-  const sites = [...REGION.towns, ...REGION.locations];
-  const lonely = (p: Vec) => sites.every((site) => siteGap(site, p) >= HUNT.siteDistance);
-  const roadPoints = REGION.roads.flatMap((road) => pointsAlong(road, HUNT.roadSpacing)).filter(lonely);
-  const inTerritories = REGION.locations.filter(isTerritory).flatMap(territoryGrounds);
-  grounds = [...roadPoints, ...inTerritories];
-  return grounds;
+export function huntingGrounds(world: World): readonly Vec[] {
+  return worldHuntingSpots(world).spots;
 }
 
 function pointsAlong(line: readonly Vec[], spacing: number): Vec[] {
@@ -483,11 +476,9 @@ function pointsAlong(line: readonly Vec[], spacing: number): Vec[] {
   return points;
 }
 
-export function huntingGroundsAway(vehicle: Vehicle): Vec[] {
-  return huntingGrounds().filter((point) => dist(vehicle.pos, point) > RULES.arriveRadius * 2);
+export function huntingGroundsAway(world: World, vehicle: Vehicle): Vec[] {
+  return huntingGrounds(world).filter((point) => dist(vehicle.pos, point) > RULES.arriveRadius * 2);
 }
-
-const raiderStops = new Map<string, readonly Vec[]>();
 
 export function lawmanTowns(): readonly Site[] {
   const ids = new Set(Object.values(NPCS).filter((t) => t.traits.includes('lawman') && t.spawn.kind === 'sites').flatMap((t) => (t.spawn.kind === 'sites' ? t.spawn.ids : [])));
@@ -506,24 +497,30 @@ export function nearLawGate(pos: Vec): boolean {
 }
 
 export function raiderGrounds(world: World, camp: Site): readonly Vec[] {
-  return campPosts(world, camp, campGrounds(camp), 'raid');
+  return campPosts(world, camp, campGrounds(world, camp), 'raid');
 }
 
 function campPosts(world: World, camp: Site, grounds: readonly Vec[], kind: string): readonly Vec[] {
   const posts = postsOf(world, `${kind}:${camp.id}`, grounds);
-  if (posts.length === 0) throw new Error(`Camp ${camp.id} has no ${kind} post`);
+  if (grounds.length > 0 && posts.length === 0) throw new Error(`Camp ${camp.id} has no ${kind} post`);
   return posts;
 }
 
-function campGrounds(camp: Site): readonly Vec[] {
-  const cached = raiderStops.get(camp.id);
-  if (cached) return cached;
-  const camps = REGION.locations.filter((site) => site.kind === 'camp');
-  const nearestCamp = (p: Vec) => camps.reduce((best, c) => (dist(p, c.pos) < dist(p, best.pos) ? c : best));
-  const gates = lawmanTowns().flatMap((town) => siteGates(town));
-  const points = huntingGrounds().filter((p) => nearestCamp(p).id === camp.id && gates.every((gate) => dist(gate, p) > HUNT.lawReach));
-  raiderStops.set(camp.id, points);
-  return points;
+const turfs = new WeakMap<readonly Vec[], Map<string, Vec[]>>();
+
+function turfOf(spots: readonly Vec[]): Map<string, Vec[]> {
+  let turf = turfs.get(spots);
+  if (!turf) {
+    turf = divideTurf(spots, turfClaimants());
+    turfs.set(spots, turf);
+  }
+  return turf;
+}
+
+function campGrounds(world: World, camp: Site): readonly Vec[] {
+  const turf = turfOf(huntingGrounds(world)).get(camp.id);
+  if (!turf) throw new Error(`Camp ${camp.id} claims no hunting turf`);
+  return turf;
 }
 
 export function raiderGroundsAway(world: World, vehicle: Vehicle): Vec[] {
@@ -689,7 +686,7 @@ function canRaid(world: World, vehicle: Vehicle): boolean {
 }
 
 function canProwl(world: World, vehicle: Vehicle): boolean {
-  return canDrive(world, vehicle) && !holdFull(vehicle) && huntingGroundsAway(vehicle).length > 0;
+  return canDrive(world, vehicle) && !holdFull(vehicle) && huntingGroundsAway(world, vehicle).length > 0;
 }
 
 function canPatrol(world: World, vehicle: Vehicle): boolean {
