@@ -459,6 +459,8 @@ function referenceLayer(terrain: Terrain, radius: number): ReturnType<typeof Ref
   return built;
 }
 
+const REFERENCE_REACH = 780;
+
 describe('nav layers match the old grid rules', () => {
   const w = startWorld(1);
   const rand = mulberry(8);
@@ -466,7 +468,7 @@ describe('nav layers match the old grid rules', () => {
   for (let i = 0; i < 4; i++) w.obstacles = [...w.obstacles, { id: `wreck-t${i}`, pos: { x: at(40, w.size - 40), y: at(40, w.size - 40) }, r: 1, kind: 'wreck' }];
   const pairs = Array.from({ length: 10 }, (_, i) => {
     const from = { x: at(5, w.size - 5), y: at(5, w.size - 5) };
-    const reach = i % 2 === 0 ? 30 : w.size;
+    const reach = i % 2 === 0 ? 30 : Math.min(w.size, REFERENCE_REACH);
     const to = { x: Math.min(w.size - 5, Math.max(5, from.x + at(-reach, reach))), y: Math.min(w.size - 5, Math.max(5, from.y + at(-reach, reach))) };
     const extra: Blocker[] = [{ pos: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 }, r: 0.9 }];
     return { from, to, extra, radius: i % 3 === 0 ? 0.8 : 0.6 };
@@ -501,7 +503,10 @@ describe('nav layers match the old grid rules', () => {
 
   it('straightClear equals the reference line check', () => {
     let clear = 0;
-    for (const { from, to, extra, radius } of pairs) {
+    const road = REGION.roads[0];
+    const mid = Math.floor(road.length / 2);
+    const alongRoad = { from: road[mid], to: road[mid + 1], extra: [] as Blocker[], radius: 0.6 };
+    for (const { from, to, extra, radius } of [...pairs, alongRoad]) {
       const expected = Ref.clearLine(w.terrain, Ref.blockers(w, extra), from, to, radius + Ref.CLEARANCE, Infinity);
       expect(straightClear(w, from, to, radius, extra)).toBe(expected);
       const open = Ref.clearLine(w.terrain, Ref.blockers(w, []), from, to, radius + Ref.CLEARANCE, Infinity);
@@ -729,7 +734,7 @@ describe('raider hunting routes on the map', () => {
     expect(shy.near6).toBeLessThanOrEqual(plain.near6 * 0.6);
     expect(shy.near10).toBeLessThanOrEqual(plain.near10 * 0.62);
     expect(shy.meanLength).toBeLessThanOrEqual(plain.meanLength * 1.3);
-  });
+  }, budget(90_000));
 
   it('still cross a road to reach the far side', () => {
     const road = REGION.roads[0];

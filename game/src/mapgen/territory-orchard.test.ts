@@ -32,11 +32,20 @@ function territoryGround(): Float32Array {
 beforeAll(() => void territoryGround(), budget(120_000));
 const OLD_ORCHARD = { x: 114, y: 284 };
 const ORCHARD_NOW = REGION.locations.find((l) => l.id === 'orchard')!.pos;
+const ORCHARD_AT_SPREAD = { x: 148, y: 369 };
+const FALLEN_SUN_AT_SPREAD = { x: 416, y: 351 };
+const FALLEN_SUN_NOW = REGION.locations.find((l) => l.id === 'fallen-sun')!.pos;
+
 function rollingDraft(): MapDraft {
   const d = newDraft(REGION.size);
   const w = d.size + 1;
-  const [dx, dy] = [ORCHARD_NOW.x - OLD_ORCHARD.x, ORCHARD_NOW.y - OLD_ORCHARD.y];
-  for (let j = 0; j <= d.size; j++) for (let i = 0; i <= d.size; i++) d.heights[j * w + i] = 0.6 * Math.sin((i - dx) / 9) + 0.4 * Math.cos((j - dy) / 7);
+  const orchardShift = { x: ORCHARD_NOW.x - OLD_ORCHARD.x, y: ORCHARD_NOW.y - OLD_ORCHARD.y };
+  const crashShift = { x: FALLEN_SUN_NOW.x - FALLEN_SUN_AT_SPREAD.x + ORCHARD_AT_SPREAD.x - OLD_ORCHARD.x, y: FALLEN_SUN_NOW.y - FALLEN_SUN_AT_SPREAD.y + ORCHARD_AT_SPREAD.y - OLD_ORCHARD.y };
+  for (let j = 0; j <= d.size; j++)
+    for (let i = 0; i <= d.size; i++) {
+      const s = Math.hypot(i - FALLEN_SUN_NOW.x, j - FALLEN_SUN_NOW.y) < Math.hypot(i - ORCHARD_NOW.x, j - ORCHARD_NOW.y) ? crashShift : orchardShift;
+      d.heights[j * w + i] = 0.6 * Math.sin((i - s.x) / 9) + 0.4 * Math.cos((j - s.y) / 7);
+    }
   return d;
 }
 

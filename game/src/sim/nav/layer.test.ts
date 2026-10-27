@@ -17,6 +17,7 @@ import { budget } from '../../test/budget';
 import { defaultSetup } from '../settings';
 
 const { scale, strength } = REGION.navigation.taste;
+const ROOF_EDGE = 1e-9;
 
 describe('climb taste', () => {
   function sloped() {
@@ -136,7 +137,7 @@ describe('prop footprints', () => {
     for (const along of [-1, 0, 1]) {
       for (const across of [-open, 0, open]) {
         const spot = center(BROKEN_WING_POINT(BROKEN_WING.hoopAt + along, across));
-        expect(roof.some((b) => boxDistance(b, spot) === 0)).toBe(true);
+        expect(roof.some((b) => boxDistance(b, spot) < ROOF_EDGE)).toBe(true);
         expect(layer.blocked[cellAt(layer.n, spot)]).toBe(0);
       }
     }

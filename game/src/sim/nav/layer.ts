@@ -728,9 +728,15 @@ export function tasted(t: Taste | null, cost: number, x: number, y: number): num
 
 export function tastedCoarse(t: Taste | null, cost: number, x: number, y: number, blockA: number, blockB: number): number {
   if (!t) return cost;
-  const c = noisy(t, cost, x, y);
+  const c = noisy(t, cost, x, y) * coarseShy(t, x, y);
   if (!t.shares) return c;
   return c * (1 + Math.max(t.shares[blockA], t.shares[blockB]) * (REGION.navigation.overClimbCost - 1));
+}
+
+function coarseShy(t: Taste, x: number, y: number): number {
+  if (!t.shy) return 1;
+  const shy = t.shy[tileIndex(t.size, x, y)];
+  return shy >= REGION.navigation.roadShyCost ? shy : 1;
 }
 
 export function tasteKey(t: Taste | null): string {
