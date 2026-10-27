@@ -13,6 +13,7 @@ import { OptionsPanel } from "./options";
 import type { SoundSettings } from "./sound";
 import { SavePanel, type SavePanelActions } from "./save-panel";
 import type { TipSwitch } from "./tips";
+import { FASTER_KEY, SLOWER_KEY } from "./travel-speed";
 
 export type GameMenuActions = SavePanelActions & {
   hasSave: () => boolean;
@@ -49,6 +50,7 @@ export const CONTROLS: ControlGroup[] = [
       { keys: [t("help.key.shift"), click], on: t("help.on.ground"), does: t("help.does.stopThere") },
       { keys: [t("help.key.space")], does: t("help.does.driveOrPause") },
       { keys: [t("help.key.holdSpace")], does: t("help.does.fastForward") },
+      { keys: [SLOWER_KEY, FASTER_KEY], does: t("help.does.travelSpeed") },
       { keys: [click], on: t("help.on.yourTruck"), does: t("help.does.brake") },
       { keys: ["R"], does: t("help.does.manual") },
       { keys: ["P"], does: t("help.does.autoPatch") },

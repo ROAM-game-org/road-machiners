@@ -402,6 +402,7 @@ class FakeNode {
   children: (FakeNode | string)[] = [];
   listeners = new Map<string, ((e: unknown) => void)[]>();
   attrs = new Map<string, string>();
+  classList = { toggle: (name: string, on: boolean) => { const names = this.className.split(' ').filter((c) => c && c !== name); this.className = (on ? [...names, name] : names).join(' '); } };
   constructor(readonly tag: string) {}
   append(...c: (FakeNode | string)[]) { this.children.push(...c); }
   replaceChildren(...c: (FakeNode | string)[]) { this.children = c; }
@@ -452,7 +453,8 @@ describe("weapon panel keys and the turn button", () => {
       searchStock: vi.fn(),
       autoTravel: () => auto,
       travelSpeedIndex: vi.fn(() => 0),
-      setTravelSpeedIndex: vi.fn(),
+      travelPlaySpeed: () => null,
+      stepTravelSpeed: vi.fn(),
       getTurnPhase: () => null,
     } satisfies UiHost;
     const panel = new WeaponPanel(host);
@@ -548,12 +550,18 @@ describe("weapon panel keys and the turn button", () => {
     expect(host.releaseTurn).toHaveBeenCalledTimes(1);
   });
 
-  it("the speed buttons pick a travel speed and mark the current one", () => {
-    const { host, button } = build();
-    expect(button(">>>").attrs.get("aria-pressed")).toBe("false");
-    expect(button(">").attrs.get("aria-pressed")).toBe("true");
-    button(">>>").fire("click");
-    expect(host.setTravelSpeedIndex).toHaveBeenLastCalledWith(2);
+  it("the speed keys step the travel speed and the readout shows the pick", () => {
+    const { host, panel } = build();
+    const keys = ui.children.map((n) => (n as FakeNode).find((x) => x.className.includes("speed-keys"))).find(Boolean)!;
+    const key = (label: string) => keys.find((n) => n.tag === "button" && n.attrs.get("aria-label") === label)!;
+    key("Faster").fire("click");
+    expect(host.stepTravelSpeed).toHaveBeenLastCalledWith(1);
+    key("Slower").fire("click");
+    expect(host.stepTravelSpeed).toHaveBeenLastCalledWith(-1);
+    expect(keys.text()).toBe("1x");
+    expect(key("Slower").attrs.get("aria-disabled")).toBe("true");
+    expect(key("Faster").attrs.get("aria-disabled")).toBeUndefined();
+    panel.render();
   });
 
   it("the Auto look presses the same way", () => {
@@ -633,7 +641,8 @@ describe("disabled reasons on the weapon bar", () => {
     setup(world);
     const host = {
       world: () => world, apply: vi.fn(), announce: vi.fn(), selectedWeapon: () => null, selectWeapon: vi.fn(), selectedUtility: () => null, selectUtility: vi.fn(),
-      searchStock: vi.fn(), pressTurn: vi.fn(), releaseTurn: vi.fn(), runKey: vi.fn(), autoTravel: () => false, travelSpeedIndex: () => 0, setTravelSpeedIndex: vi.fn(), getTurnPhase: () => phase,
+      searchStock: vi.fn(), pressTurn: vi.fn(), releaseTurn: vi.fn(), runKey: vi.fn(), autoTravel: () => false, travelSpeedIndex: () => 0, travelPlaySpeed: () => null,
+      stepTravelSpeed: vi.fn(), getTurnPhase: () => phase,
     } satisfies UiHost;
     new WeaponPanel(host).render();
     const find = (text: string) => (ui.children as FakeNode[]).map((n) => n.find((b) => b.tag === "button" && b.text().includes(text))).find(Boolean)!;
@@ -688,7 +697,8 @@ describe("the utility row", () => {
       searchStock: vi.fn(),
       autoTravel: () => false,
       travelSpeedIndex: vi.fn(() => 0),
-      setTravelSpeedIndex: vi.fn(),
+      travelPlaySpeed: () => null,
+      stepTravelSpeed: vi.fn(),
       getTurnPhase: vi.fn<() => "moving" | null>(() => null),
     } satisfies UiHost;
     return { world, host, row: new UtilityRow(host), sprout, mortar };

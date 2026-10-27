@@ -16,7 +16,8 @@ export type UiHost = {
   searchStock(stockId: string): void;
   autoTravel(): boolean;
   travelSpeedIndex(): number;
-  setTravelSpeedIndex(index: number): void;
+  travelPlaySpeed(): number | null;
+  stepTravelSpeed(delta: 1 | -1): void;
   getTurnPhase(): "moving" | "firing" | "results" | null;
   garageRenders?(): GarageRenders;
 };

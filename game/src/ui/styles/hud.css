@@ -457,14 +457,17 @@
   flex-direction: column;
   gap: var(--hud-gap);
 }
-#ui .travel-speed {
+#ui .speed-keys {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-1);
   width: 100%;
+  height: var(--btn-h-s);
 }
-#ui .travel-speed > button {
-  min-height: var(--btn-h-s);
-  padding: 0 var(--space-1);
-  font: var(--text-caption) var(--font-mono);
-  white-space: nowrap;
+#ui .speed-keys > .speed-key {
+  flex: 0 0 var(--btn-h-s);
+  width: var(--btn-h-s);
+  height: 100%;
 }
 #ui .end-turn {
   width: calc(var(--icon-hero) + var(--space-10));

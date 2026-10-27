@@ -469,6 +469,11 @@ export class Travel {
     this.speedIndex = index;
   }
 
+  stepSpeed(delta: 1 | -1): void {
+    const next = this.speedIndex + delta;
+    if (next >= 0 && next < CONFIG.travelSpeeds.length) this.speedIndex = next;
+  }
+
   finishClock(elapsed: number, finishAt: number): void {
     this.remainder = elapsed - finishAt;
   }

@@ -383,6 +383,24 @@
   width: 50%;
   fill: currentColor;
 }
+/* The travel speed readout is a small LCD between two transport keys. It is lit while automatic travel plays and faint while the pick waits. */
+.speed-lcd {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--lcd);
+  border: 2px solid var(--steel-0);
+  border-radius: var(--radius-s);
+  box-shadow: inset 0 2px 4px var(--bevel-dark);
+  color: var(--lcd-ink-dim);
+  font: italic var(--text-dense) / 1 var(--font-lcd);
+  white-space: nowrap;
+}
+.speed-lcd.running {
+  color: var(--lcd-ink);
+}
 /* The mute switch is the metal toggle, shrunk to the knobs' height. */
 #ui .sound-row button.switch {
   gap: 0;
