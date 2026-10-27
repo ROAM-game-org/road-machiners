@@ -200,7 +200,27 @@ function awaitsPatch(world: World, v: Vehicle): boolean {
 }
 
 function answeredByOther(world: World, tower: Vehicle, client: Vehicle): boolean {
-  return world.states.some((s) => s.kind === 'answering' && s.other === client.id && s.holder !== tower.id);
+  return otherClaims(world, tower, client).some((claim) => !givesWay(world, claim, tower, client));
+}
+
+function otherClaims(world: World, tower: Vehicle, client: Vehicle): NpcState[] {
+  return world.states.filter((s) => s.kind === 'answering' && s.other === client.id && s.holder !== tower.id);
+}
+
+export function claimantSees(world: World, claim: NpcState): boolean {
+  return canVehicleSee(world, vehicleById(world, claim.holder), vehicleById(world, claim.other).pos);
+}
+
+function givesWay(world: World, claim: NpcState, tower: Vehicle, client: Vehicle): boolean {
+  return !claimantSees(world, claim) && canVehicleSee(world, tower, client.pos);
+}
+
+export function claimClient(world: World, tower: Vehicle, client: Vehicle): void {
+  const claims = otherClaims(world, tower, client);
+  const stubborn = claims.find((claim) => !givesWay(world, claim, tower, client));
+  if (stubborn) throw new Error(`${tower.id} cannot take ${client.id} from ${stubborn.holder}, which sees it`);
+  for (const claim of claims) endState(world, claim, 'broken');
+  addState(world, 'answering', tower.id, client.id, { kind: 'none' });
 }
 
 function towDestination(world: World, tower: Vehicle, client: Vehicle): Site | null {
