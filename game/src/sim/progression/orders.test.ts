@@ -13,8 +13,8 @@ import type { World } from '../types';
 import { cloneWorld } from '../world';
 import { Orders, upgradeGear, type UpgradeStyle } from './orders';
 
-const STYLE: UpgradeStyle = { skip: [], chassis: 'value', job: 'courier' };
-const FIGHTER: UpgradeStyle = { ...STYLE, job: 'fighter' };
+const STYLE: UpgradeStyle = { skip: [], chassis: 'value', npc: 'courier' };
+const FIGHTER: UpgradeStyle = { ...STYLE, npc: 'merc', gunFirst: true };
 const capital = startKit('standard').money;
 
 function atBowl(): World {
@@ -31,21 +31,21 @@ const engineIds = (w: World) => mountedParts(playerVehicle(w), 'engine').map((p)
 describe('upgradeGear', () => {
   it('replaces the mounted engine with a better one from the shop stock', () => {
     const w = atBowl();
-    shopState(w, 'bowl').stock.push(makePart(w, 'turbine', 0));
+    shopState(w, 'bowl').stock.push(makePart(w, 'workhorseDiesel', 0));
     const o = new Orders(w);
 
     upgradeGear(o, STYLE);
 
-    expect(engineIds(o.world)).toEqual(['turbine']);
+    expect(engineIds(o.world)).toEqual(['workhorseDiesel']);
   });
 
   it('keeps the trade capital of a trader', () => {
     const w = atBowl();
     w.player.money = capital;
-    shopState(w, 'bowl').stock.push(makePart(w, 'turbine', 0));
+    shopState(w, 'bowl').stock.push(makePart(w, 'workhorseDiesel', 0));
     const o = new Orders(w);
 
-    upgradeGear(o, { ...STYLE, job: 'trader' });
+    upgradeGear(o, { ...STYLE, npc: 'trader', keepsTradeCapital: true });
 
     expect(engineIds(o.world)).toEqual(engineIds(w));
     expect(o.world.player.money).toBe(capital);
@@ -67,7 +67,7 @@ describe('upgradeGear', () => {
   it('mounts a better part from garage storage instead of buying one', () => {
     const w = atBowl();
     shopState(w, 'bowl').stock = [];
-    const spare = makePart(w, 'tunedEngine', 0);
+    const spare = makePart(w, 'workhorseDiesel', 0);
     w.player.storage.push(spare);
     const o = new Orders(w);
 
@@ -103,34 +103,18 @@ describe('upgradeGear', () => {
 
   it('never buys a kind its style skips', () => {
     const w = atBowl();
-    shopState(w, 'bowl').stock.push(makePart(w, 'turbine', 0));
+    shopState(w, 'bowl').stock.push(makePart(w, 'workhorseDiesel', 0));
     const o = new Orders(w);
 
-    upgradeGear(o, { skip: ['engine'], chassis: 'value', job: 'fighter' });
+    upgradeGear(o, { skip: ['engine'], chassis: 'value', npc: 'merc' });
 
     expect(engineIds(o.world)).toEqual(engineIds(w));
-  });
-
-  it('as a trader, takes no gun that would fill cargo cells, where a fighter would', () => {
-    const roomOf = (world: World) => freeCells({ ...playerVehicle(world), items: playerVehicle(world).items.filter((it) => it.kind === 'part') });
-    const offer = (world: World) => { shopState(world, 'bowl').stock = [makePart(world, 'heavyMg', 0)]; };
-    const trader = atBowl();
-    offer(trader);
-    const fighter = cloneWorld(trader);
-    const kept = new Orders(trader);
-    const spent = new Orders(fighter);
-
-    upgradeGear(kept, { ...STYLE, job: 'trader' });
-    upgradeGear(spent, FIGHTER);
-
-    expect(roomOf(kept.world)).toBeGreaterThanOrEqual(roomOf(trader));
-    expect(roomOf(spent.world)).toBeLessThan(roomOf(fighter));
   });
 
   it('buys nothing away from a garage', () => {
     const w = atBowl();
     playerVehicle(w).pos = { x: 5, y: 5 };
-    shopState(w, 'bowl').stock.push(makePart(w, 'turbine', 0));
+    shopState(w, 'bowl').stock.push(makePart(w, 'workhorseDiesel', 0));
     const o = new Orders(w);
 
     upgradeGear(o, STYLE);
@@ -157,27 +141,29 @@ describe('upgradeGear for a fighter', () => {
     expect(roomOf(kept.world)).toBeGreaterThanOrEqual(roomOf(w));
   });
 
-  it('takes no part that drops the top speed below the speed it keeps', () => {
+  it('buys armor that slows it down, as an NPC merc would', () => {
     const w = atBowl();
-    offer(w);
-    const spent = new Orders(cloneWorld(w));
-    const kept = new Orders(cloneWorld(w));
-
-    upgradeGear(spent, FIGHTER);
-    upgradeGear(kept, { ...FIGHTER, minSpeed: speedOf(w) });
-
-    expect(speedOf(spent.world)).toBeLessThan(speedOf(w));
-    expect(speedOf(kept.world)).toBeGreaterThanOrEqual(speedOf(w));
-  });
-
-  it('still buys a part that adds speed, with a speed to keep', () => {
-    const w = atBowl();
-    shopState(w, 'bowl').stock.push(makePart(w, 'turbine', 0));
+    shopState(w, 'bowl').stock = [makePart(w, 'steelPlate', 0)];
     const o = new Orders(w);
 
-    upgradeGear(o, { ...STYLE, minSpeed: speedOf(w) });
+    upgradeGear(o, FIGHTER);
 
-    expect(engineIds(o.world)).toEqual(['turbine']);
+    expect(mountedParts(playerVehicle(o.world), 'armor').length).toBeGreaterThan(mountedParts(playerVehicle(w), 'armor').length);
+    expect(speedOf(o.world)).toBeLessThan(speedOf(w));
+  });
+});
+
+describe('upgradeGear for a trader', () => {
+  it('buys armor and pays for it, as an NPC trader would', () => {
+    const w = atBowl();
+    shopState(w, 'bowl').stock = [makePart(w, 'steelPlate', 0)];
+    const o = new Orders(w);
+
+    upgradeGear(o, { skip: [], chassis: 'keep', npc: 'trader', keepsTradeCapital: true });
+
+    expect(mountedParts(playerVehicle(o.world), 'armor').length).toBeGreaterThan(mountedParts(playerVehicle(w), 'armor').length);
+    expect(o.world.player.money).toBeLessThan(w.player.money);
+    expect(o.ledger.gear).toBeLessThan(0);
   });
 });
 
@@ -189,7 +175,7 @@ describe('chassis upgrades', () => {
     w.player.money = 1_000_000;
     const o = new Orders(w);
 
-    upgradeGear(o, { skip: ['engine', 'weapon', 'armor', 'cargo', 'store'], chassis: 'value', job: 'courier' });
+    upgradeGear(o, { skip: ['engine', 'weapon', 'armor', 'cargo', 'store'], chassis: 'value', npc: 'courier' });
 
     expect(TOWN_CHASSIS.nose).toContain(playerVehicle(o.world).chassisId);
   });
