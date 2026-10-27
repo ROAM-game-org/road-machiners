@@ -85,6 +85,13 @@ Order: files the icon agent does not touch first.
 
 ## Conclusion
 
+The page now answers each case without raw text. The side column holds the toolbar, your truck with its money, net worth and XP chart, the selected truck's card and the log. Heat sits on the map. Routine NPC events hide unless All events is on.
+
+- AS1 held: Fast plays about 4 turns a second, so a game day of log stays a few thousand lines.
+- AS2 changed on the user's word: an outdated save with no history is deleted and a new run starts. The main session built that part.
+- UK1 resolved: heat reads well on a log scale at 0.7 strength. A square-root scale let one parked raider wash out the rest.
+- Left: four cargo sale lines from one sale stay four lines. The game's own player lines such as "Search started: stay parked about 1 turn." stay as the game writes them. The heat counts reset when the page reloads.
+
 ### Hands-off decisions
 
 - make: size Medium, full flow. The work spans six files and new capabilities.
@@ -92,7 +99,12 @@ Order: files the icon agent does not touch first.
 - make: no design approval wait and no end-of-task question. This run is a subagent with no user to answer, so the decisions list goes in the report.
 - make: commits have no Co-Authored-By trailer, as the user's rules say.
 - udesign: sim-only words go in `sim-text.ts`, not the game catalog, so the real game and its Russian stay unchanged.
-- udesign: history is saved and required on resume, with no compatibility path for older sim saves, per the user's no-backwards-compat rule.
+- udesign: history is saved in the run's save. The user later chose that an older save with no history is deleted and a new run starts.
+- uexecute: card building moved to `src/sim/progression/sim-cards.ts` and the player panel and card view to `src/ui/sim/panels.ts`, so `page.ts` stays the map and wiring.
+- uexecute: the log keeps one game day of entries, so an idle run stays bounded. Older lines drop out of Selected and Find too.
+- uexecute: routine NPC events are jobs, trades, shots, empty guns, questions, payments, passes, collisions, finds and guard fees. They hide by default and show when they name your truck.
+- uexecute: times print as game clocks, not turn numbers, on every surface.
+- uexecute: commits that touched `page.ts` and `sim-mode.ts` swept in the icon agent's working changes, since the page only compiles with them.
 - udesign: heat counts live on the page and reset on reload. Saving them would change the save shape for a view-only aid.
 
 ### Deferred (needs user input)
