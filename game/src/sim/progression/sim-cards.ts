@@ -45,7 +45,7 @@ function driverlessCard(world: World, v: Vehicle, text: SimText): Card {
 }
 
 function npcTags(world: World, v: Vehicle, s: TruckSnap): string[] {
-  const on: [string, boolean][] = [['In combat', inCombat(world, v)], ['Knocked out', isKnockedOut(v)], ['Stranded', s.stranded], ['Keeps off roads', s.offRoad]];
+  const on: [string, boolean][] = [['In combat', inCombat(world, v)], ['Knocked out', isKnockedOut(v)], ['Stranded', s.stranded], ['Keeps off roads', s.style === 'hidden']];
   return on.filter(([, yes]) => yes).map(([name]) => name);
 }
 

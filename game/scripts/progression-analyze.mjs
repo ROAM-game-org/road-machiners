@@ -232,9 +232,9 @@ function printOffRoad(lines) {
   const moving = lines.flatMap((l) => l.trucks ?? []).filter((v) => GANGS.has(v.faction) && v.speed > 0);
   if (moving.length === 0) return;
   const share = (vs) => `${vs.filter((v) => v.onRoad).length}/${vs.length} on road`;
-  const by = Map.groupBy(moving.filter((v) => v.offRoad), offRoadReason);
+  const by = Map.groupBy(moving.filter((v) => v.style === 'hidden'), offRoadReason);
   const off = [...by.entries()].map(([why, vs]) => `${why} ${share(vs)}`).join(', ') || 'none';
-  console.log(`raiders keeping off roads: ${off}; healthy raiders ${share(moving.filter((v) => !v.offRoad))}`);
+  console.log(`raiders keeping off roads: ${off}; healthy raiders ${share(moving.filter((v) => v.style !== 'hidden'))}`);
   const hunting = by.get('hunting') ?? [];
   const onRoad = hunting.filter((v) => v.onRoad).length;
   if (hunting.length > 0) {

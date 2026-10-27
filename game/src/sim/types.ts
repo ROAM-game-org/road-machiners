@@ -5,6 +5,7 @@ import type { FireBlock } from "./combat";
 import type { GearLevel, TraitId } from "../data/npcs";
 import type { Band } from "../data/npc-behavior";
 import type { PropKind, Terrain } from "./terrain";
+import type { RouteStyle } from './off-road';
 import type { Vec } from "./vec";
 import type { LineId, TopicId } from "../data/dialogue";
 import type { GroupId } from "../data/personalities";
@@ -344,7 +345,7 @@ export type NpcBrain = {
     fightTurn?: 1 | -1;
     targetSeen?: { id: string; turn: number; pos: Vec; heading: number; speed: number };
     whim?: { kind: 'keep' | 'rush' | 'halt' | 'veer'; until: number; angle: number };
-    farRoute?: { dest: Vec; points: Vec[]; offRoad: boolean; night?: true };
+    farRoute?: { dest: Vec; points: Vec[]; style: RouteStyle; night?: true };
     musteredAt?: number;
     memories: Memory[];
 };
