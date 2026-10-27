@@ -19,7 +19,12 @@ function draftScale(raw: string): number | null {
   return scale;
 }
 
-export const MAP_DRAFT = draftScale(__MAP_DRAFT__);
+function draftSetting(): string {
+  if (typeof __MAP_DRAFT__ === 'string') return __MAP_DRAFT__;
+  return (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.MAP_DRAFT ?? '';
+}
+
+export const MAP_DRAFT = draftScale(draftSetting());
 
 const DRAFT_FILES = import.meta.glob<DraftData>('./drafts/*.json', { eager: true, import: 'default' });
 

@@ -356,3 +356,12 @@ export function isJunction(graph: RoadGraph, node: number): boolean {
   return graph.incident[node].length >= 3;
 }
 
+export function roadPointAt(graph: RoadGraph, share: number): Vec {
+  let left = share * graph.edges.reduce((sum, e) => sum + e.length, 0);
+  for (const edge of graph.edges) {
+    if (left <= edge.length) return { ...pointAlong(edge, left) };
+    left -= edge.length;
+  }
+  return { ...graph.edges[graph.edges.length - 1].points.at(-1)! };
+}
+
