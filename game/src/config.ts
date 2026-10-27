@@ -34,6 +34,7 @@ export const CONFIG = {
   travelHoldMs: 250,
   travelFastSpeed: 4,
   travelSpeeds: [1, 4, 16, 64],
+  farSightingMemoryHours: 1,
   turnPrepSmoothing: 0.3,
   playbackFrameMs: 50,
   questCharMs: 25,

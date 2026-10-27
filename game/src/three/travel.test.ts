@@ -9,6 +9,7 @@ import { dist } from "../sim/vec";
 import { startKit } from "../data/start";
 import { playerVehicle } from "../sim/damage";
 import type { GameEvent, Vehicle, World } from "../sim/types";
+import { TIME } from "../data/time";
 import { endTurn, newWorld, setMoveOrder } from "../sim/world";
 import { addRopeFrames, canTravel, Creep, nextSightSample, overshoots, threatsIn, Travel, trucksInSightOf, type Playback } from "./travel";
 import { headingQuat, type VehicleFrame } from "../phys/frames";
@@ -420,6 +421,29 @@ describe("automatic travel safety", () => {
     travel.updateWorld(world, false);
     travel.updateWorld(drifted, false);
     expect(travel.isAuto(drifted)).toBe(true);
+  });
+
+  it("stops fast travel once for a truck in far sight, not again when it comes back within the hour, and again after it", () => {
+    const start = makeSafeWorld();
+    const me = playerVehicle(start);
+    const world = setMoveOrder(start, { kind: "stopAt", dest: { x: me.pos.x + 60, y: me.pos.y } });
+    const hour = Math.round(TIME.turnsPerDay / 24);
+    const far = (turn: number) => ({ ...world, turn, player: { ...world.player, contacts: [{ vehicleId: "stranger", center: { x: 0, y: 0 }, radius: 10, sources: ["far" as const], loudness: null }] } });
+    const travel = new Travel(250, TAIL);
+    travel.setSpeedIndex(CONFIG.travelSpeeds.length - 1);
+    const autoAt = (w: World) => {
+      if (!travel.isAuto(w)) {
+        travel.press(0, false, true);
+        travel.release();
+      }
+      travel.updateWorld(w, false);
+      return travel.isAuto(w);
+    };
+    expect(autoAt(far(world.turn + 1))).toBe(false);
+    expect(autoAt({ ...world, turn: world.turn + 5 })).toBe(true);
+    expect(autoAt(far(world.turn + hour))).toBe(true);
+    expect(autoAt({ ...world, turn: world.turn + hour + 1 })).toBe(true);
+    expect(autoAt(far(world.turn + 3 * hour))).toBe(false);
   });
 
   it("ignores a bump into a prop or the ground but stops for a crash into a truck", () => {

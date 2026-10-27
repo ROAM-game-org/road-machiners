@@ -23,6 +23,7 @@ import type { GameEvent, Vehicle, World } from "../sim/types";
 import { dist, type Vec } from "../sim/vec";
 import { isOnRope, isTowed } from "../sim/tow";
 import { playerSees } from "../sim/vision";
+import { TIME } from "../data/time";
 import { autoRuns, playerCanAct, threatToPlayer, waitsOnPlayer } from "../sim/world";
 import { WorkerLoad, workerFailure } from "./worker-load";
 import { HostileSighting } from "./hostile-sighting";
@@ -235,7 +236,7 @@ export class Travel {
   private readonly turns: TurnPreparation;
   private creep: Creep | null = null;
   private open: OpenStop | null = null;
-  private readonly farSighting = new HostileSighting();
+  private readonly farSighting = new HostileSighting(Math.round((TIME.turnsPerDay / 24) * CONFIG.farSightingMemoryHours));
 
   constructor(private readonly holdMs: number, tailSteps: number) {
     this.turns = new TurnPreparation(tailSteps);
