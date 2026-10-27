@@ -225,7 +225,8 @@ function edgePoint(from: Vec, to: Vec, centre: Vec, outline: readonly Vec[]): Ve
   return { x: from.x + d.x * t, y: from.y + d.y * t };
 }
 
-export const GLASS_FLATS_POS = onTile(scalePoint({ x: 81, y: 75.6 }));
+export const GLASS_FLATS_POS = onTile(scalePoint({ x: 106, y: 106 }));
+const GLASS_FLATS_GROWTH = 1.7;
 const GLASS_FLATS_OUTLINE: Vec[] = [
   [0, 71],
   [11.25, 61],
@@ -259,11 +260,13 @@ const GLASS_FLATS_OUTLINE: Vec[] = [
   [-33.75, 95],
   [-22.5, 95],
   [-11.25, 83],
-].map(([deg, r]) => ({ x: r * Math.cos((deg * Math.PI) / 180), y: r * Math.sin((deg * Math.PI) / 180) }));
-const GLASS_FLATS_S1 = scalePoint({ x: 88, y: 84 });
-const GLASS_FLATS_S2 = scalePoint({ x: 97, y: 62 });
-const GLASS_FLATS_APPROACHES: Vec[][] = [GLASS_FLATS_S1, GLASS_FLATS_S2].map((from) => [from, edgePoint(from, GLASS_FLATS_POS, GLASS_FLATS_POS, GLASS_FLATS_OUTLINE)]);
-export const GLASS_FLATS_ENDS: Vec[] = GLASS_FLATS_APPROACHES.map(([, end]) => ({ x: end.x - GLASS_FLATS_POS.x, y: end.y - GLASS_FLATS_POS.y }));
+].map(([deg, r]) => ({ x: r * GLASS_FLATS_GROWTH * Math.cos((deg * Math.PI) / 180), y: r * GLASS_FLATS_GROWTH * Math.sin((deg * Math.PI) / 180) }));
+const GLASS_FLATS_LANE_BEARINGS: Vec[] = [{ x: 7, y: 8.4 }, { x: 16, y: -13.6 }];
+export const GLASS_FLATS_ENDS: Vec[] = GLASS_FLATS_LANE_BEARINGS.map((b) => {
+  const far = { x: GLASS_FLATS_POS.x + b.x * MAP_SCALE * 4, y: GLASS_FLATS_POS.y + b.y * MAP_SCALE * 4 };
+  const end = edgePoint(far, GLASS_FLATS_POS, GLASS_FLATS_POS, GLASS_FLATS_OUTLINE);
+  return { x: end.x - GLASS_FLATS_POS.x, y: end.y - GLASS_FLATS_POS.y };
+});
 
 function fromFallenSun(x: number, y: number): Vec {
   return { x: FALLEN_SUN_POS.x + x, y: FALLEN_SUN_POS.y + y };
@@ -463,7 +466,6 @@ export const REGION = {
     scaleRoad([{ x: 73, y: 92 }, { x: 71.8, y: 89 }], [0]),
     scaleRoad([{ x: 43, y: 54 }, { x: 40.7, y: 51.7 }], [0]),
     scaleRoad([{ x: 82, y: 49 }, { x: 82, y: 52.2 }], [0]),
-    ...GLASS_FLATS_APPROACHES,
     scaleRoad([
       { x: 37, y: 32 },
       { x: 29.27781, y: 22.66219 },

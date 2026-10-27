@@ -30,6 +30,7 @@ import { tileSteepness, type MapDraft } from './bake';
 export const BUILT_NONE = 0;
 export const BUILT_OLD_ROAD = 1;
 export const BUILT_FIELD = 2;
+export const BUILT_TRACK = 6;
 
 export type OldSettlement = { pos: Vec; radius: number; farm: boolean; ground: number };
 export type OldRoad = { line: RoadLine; width: number; bridges: [Vec, Vec][] };
@@ -116,11 +117,15 @@ export function clearGround(size: number, pos: Vec, r: number, roadGap: number):
 }
 
 export function place(d: MapDraft, p: BakedProp, roadGap: number): boolean {
-  if (!clearGround(d.size, p.pos, p.r, roadGap)) return false;
+  if (!clearGround(d.size, p.pos, p.r, roadGap) || onReservedTrack(d, p)) return false;
   if (tileSteepness(d.heights, d.size, tileOf(d.size, p.pos)) > TERRAIN.drive.maxSlope) return false;
   if (d.props.some((o) => dist(o.pos, p.pos) < o.r + p.r + O.gap)) return false;
   d.props.push(p);
   return true;
+}
+
+function onReservedTrack(d: MapDraft, p: BakedProp): boolean {
+  return [tileOf(d.size, p.pos), ...tilesWithin(d.size, p.pos, p.r)].some((tile) => d.built[tile] === BUILT_TRACK);
 }
 
 export function builtGround(c: Vec): boolean {
@@ -709,6 +714,7 @@ export function shipDebris(seed: number, d: MapDraft, rules: ShipDebrisRules): v
   const rng = ruleRng(seed, rules.seedOffset);
   const line = new RoadLine(rules.trail);
   for (const s of stations(line.length, rules.clusterStep)) impactCluster(d, rng, rules, line, s);
+  for (let k = 0; k < rules.podField.count; k++) placeDebris(d, rng, rules.podField.look, () => podSpot(rng, rules, line), null, rules);
   for (let k = 0; k < rules.strays.count; k++) {
     const look = pickLook(rng, rules.strays.looks);
     const pick = (): Vec => ({ x: randRange(rng, 0, d.size), y: randRange(rng, 0, d.size) });
@@ -718,17 +724,24 @@ export function shipDebris(seed: number, d: MapDraft, rules: ShipDebrisRules): v
 
 function impactCluster(d: MapDraft, rng: Rng, rules: ShipDebrisRules, line: RoadLine, s: number): void {
   const along = clamp(s + randRange(rng, -rules.clusterStep / 3, rules.clusterStep / 3), 0, line.length);
+  const downrange = along / line.length;
+  const spread = rules.sideSpread * (rules.spreadFrom + (1 - rules.spreadFrom) * downrange);
   const dir = line.dirAt(along);
-  const center = offset(line.pointAt(along), sideOf(dir, 1), randRange(rng, -rules.sideSpread, rules.sideSpread));
+  const center = offset(line.pointAt(along), sideOf(dir, 1), randRange(rng, -spread, spread));
   const heading = facing(dir);
   const count = randInt(rng, rules.pieces[0], rules.pieces[1]);
-  let looks = rules.trailLooks;
+  let looks = chance(rng, downrange) ? rules.trailLooks : rules.uprangeLooks;
   for (let k = 0; k < count; k++) {
     const look = pickLook(rng, looks);
     if (look.look === 'habitat') looks = looks.filter((l) => l.look !== 'habitat');
     const pick = (): Vec => offset(center, { x: Math.cos(randRange(rng, 0, TURN)), y: Math.sin(randRange(rng, 0, TURN)) }, randRange(rng, 0, rules.clusterReach));
     placeDebris(d, rng, look, pick, heading, rules);
   }
+}
+
+function podSpot(rng: Rng, rules: ShipDebrisRules, line: RoadLine): Vec {
+  const along = randRange(rng, 0, rules.podField.along * line.length);
+  return offset(line.pointAt(along), sideOf(line.dirAt(along), 1), randRange(rng, -rules.podField.spread, rules.podField.spread));
 }
 
 function placeDebris(d: MapDraft, rng: Rng, look: DebrisLook, pick: () => Vec, heading: number | null, rules: ShipDebrisRules): void {

@@ -1,12 +1,16 @@
 
 import type { TerritoryDef } from '../data/region';
+import { CRASH } from '../data/terrain';
+import { icarusAtlas } from '../sim/atlas';
+import { clearOfSites } from '../sim/mapgen';
+import { DESCENT_LENGTH, descentBox, descentFrame } from './descent';
 import type { BuildingGroup, GlassRules, TerritoryRules, WreckRules } from '../data/territory';
 import { noiseAt } from '../sim/elevation';
 import { randInt, randRange, type Rng } from '../sim/rng';
 import { siteGap } from '../sim/sites';
 import { tableOfKind } from '../sim/territory';
 import type { BakedProp } from '../sim/terrain';
-import { dist, lerp, type Vec } from '../sim/vec';
+import { clamp, dist, lerp, type Vec } from '../sim/vec';
 import type { MapDraft } from './bake';
 import { touchedTiles } from './farm';
 import { steep } from './marks';
@@ -36,7 +40,31 @@ function glazes(d: MapDraft, t: TerritoryDef, glass: GlassRules, keep: readonly 
   const c = tileCenter(d.size, tile);
   if (!GLAZED.has(d.built[tile]) || siteGap(t, c) >= 0 || steep(d, tile)) return false;
   if (keep.some((o) => dist(o.pos, c) <= o.r + glass.clear)) return false;
-  return noiseAt(noiseSeed, c.x / glass.cell, c.y / glass.cell) < lerp(glass.cover[0], glass.cover[1], dist(c, t.pos) / t.radius);
+  return rippleNoise(noiseSeed, c, glass.cell) < lerp(glass.cover[0], glass.cover[1], dist(c, t.pos) / t.radius);
+}
+
+function rippleNoise(noiseSeed: number, c: Vec, cell: number): number {
+  const frame = descentFrame(c);
+  return noiseAt(noiseSeed, frame.along / (cell * CRASH.glassTrail.stretch), frame.across / cell);
+}
+
+export function fillGlassTrail(seed: number, d: MapDraft): MapDraft {
+  const end = CRASH.glassTrail.share * DESCENT_LENGTH;
+  const box = descentBox(end, Math.max(...CRASH.glassTrail.width), d.size);
+  for (let y = box.y0; y < box.y1; y++) for (let x = box.x0; x < box.x1; x++) {
+    const tile = y * d.size + x;
+    if (trailGlazes(seed, d, tile, end)) d.built[tile] = BUILT_GLASS;
+  }
+  return d;
+}
+
+function trailGlazes(seed: number, d: MapDraft, tile: number, end: number): boolean {
+  const c = tileCenter(d.size, tile);
+  const frame = descentFrame(c);
+  if (frame.along > end || !GLAZED.has(d.built[tile]) || steep(d, tile) || !clearOfSites(icarusAtlas(), c, 0)) return false;
+  const { width, cover, cell } = CRASH.glassTrail;
+  const left = 1 - Math.abs(frame.across) / lerp(width[0], width[1], clamp(frame.along / end, 0, 1));
+  return left > 0 && rippleNoise(seed + CRASH.seedOffset, c, cell) < cover * left;
 }
 
 function keptProps(d: MapDraft, t: TerritoryDef, rules: TerritoryRules): BakedProp[] {

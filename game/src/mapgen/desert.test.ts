@@ -25,7 +25,7 @@ describe('desert dunes', () => {
 
   it('makes its slip faces steeper than a truck climbs where the dune is tallest', () => {
     const cover = DESERT.cover[1];
-    const length = DESERT.wavelength[0];
+    const length = DESERT.wavelength;
     const leeWidth = cover * DESERT.leeShare * length;
     expect(DESERT.height[1] / leeWidth).toBeGreaterThan(TERRAIN.drive.maxSlope);
   });

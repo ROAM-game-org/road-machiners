@@ -2,6 +2,7 @@ import { DIRECTIONS } from '../data/directions';
 import { atlasKeyString, atlasOf, atlasSites, type Atlas } from './atlas';
 import { ObstacleBuckets, type Blocker } from './nav/buckets';
 import { isTerritory, siteEdgeCrossings, siteGap, siteGates, type Site } from './sites';
+import { roadEntries } from './territory';
 import type { Terrain } from './terrain';
 import type { World } from './types';
 import { dist, type Vec } from './vec';
@@ -216,6 +217,7 @@ function graphOf(nodes: RoadNode[], edges: RoadEdge[]): RoadGraph {
 
 function requireReachable(graph: RoadGraph, sites: readonly Site[]): void {
   for (const site of sites) {
+    if (isTerritory(site) && roadEntries(site).length === 0) continue;
     const found = graph.nodes.some((n) => (isTerritory(site) ? n.entry === site.id : n.site === site.id) && graph.incident[n.id].length > 0);
     if (!found) throw new Error(`Site ${site.id} has no road node`);
   }

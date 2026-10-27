@@ -12,8 +12,11 @@ import { groundAt, TYPE_IDS, type BakedProp } from '../sim/terrain';
 import { clearOfSites, onDeck } from '../sim/mapgen';
 import { siteGap } from '../sim/sites';
 import { dist, polylineDist, type Vec } from '../sim/vec';
-import { BUILT_BLACK_MUD, BUILT_CANAL, BUILT_GLASS, BUILT_PAD, BUILT_DIRTY_WATER, BUILT_SCRUB, BUILT_TOXIC, BUILT_TRACK, newWorldLayer } from './newworld';
+import { BUILT_BLACK_MUD, BUILT_DITCH, BUILT_CANAL, BUILT_GLASS, BUILT_PAD, BUILT_DIRTY_WATER, BUILT_SCRUB, BUILT_TOXIC, BUILT_TRACK, newWorldLayer } from './newworld';
+import { apronLayer } from './apron';
 import { desertLayer } from './desert';
+import { farmBeltLayer } from './farmbelt';
+import { fillGlassTrail } from './glass';
 import { swampLayer } from './swamp';
 import { BUILT_FIELD, BUILT_OLD_ROAD, oldWorldLayer, tilesWithin } from './oldworld';
 import { fortressLayer } from './fortress';
@@ -21,14 +24,16 @@ import { stampTerritoryGround } from './ground-stamps';
 import { keepStartClear } from './start-ground';
 import { boatLayer } from './boats';
 import { roadsideLayer } from './roadside';
-import { territoryLayer } from './territory';
+import { reserveSpurs, territoryLayer } from './territory';
 import { cornerNeighbors, geologyLayer, pondDepths, type Neighbors } from './geology';
 
 export function bakeMap(seed: number): MapDraft {
   let d = groundForTerritories(seed);
   d = timed('territories', () => territoryLayer(seed, d));
+  d = timed('glass trail', () => fillGlassTrail(seed, d));
   d = timed('ground', () => groundLayer(seed, d));
   d = detailed('rocks', d, () => rockLayer(seed, d));
+  d = timed('apron', () => apronLayer(seed, d));
   d = timed('fortresses', () => fortressLayer(d));
   d = timed('start', () => keepStartClear(d));
   d = detailed('roadside', d, () => roadsideLayer(seed, d));
@@ -48,6 +53,8 @@ export function groundForTerritories(seed: number): MapDraft {
   d = timed('finish', () => finishLayer(seed, d));
   d = timed('desert', () => desertLayer(seed, d));
   d = timed('swamp', () => swampLayer(seed, d));
+  d = timed('spurs', () => reserveSpurs(d));
+  d = timed('farm belt', () => farmBeltLayer(seed, d));
   d = timed('old world', () => oldWorldLayer(seed, d));
   return timed('new world', () => newWorldLayer(seed, d));
 }
@@ -152,6 +159,7 @@ const MARKED_TYPES: Record<number, TerrainTypeId> = {
   [BUILT_PAD]: 'concrete',
   [BUILT_GLASS]: 'glass',
   [BUILT_BLACK_MUD]: 'blackMud',
+  [BUILT_DITCH]: 'sand',
 };
 
 function pickType(g: GroundInput, x: number, y: number): TerrainTypeId {
@@ -232,6 +240,7 @@ function cornerMean(a: ArrayLike<number>, size: number, k: number): number {
 
 const O = REGION.obstacles;
 const B = GEOLOGY.boulders;
+const BOULDER_FREE = new Set([BUILT_TRACK, BUILT_GLASS, BUILT_CANAL, BUILT_DITCH]);
 const BOULDER_SLOPE_LIMIT = TERRAIN.drive.maxSlope - Math.SQRT2 / MAPGEN.heightScale;
 
 export function rockLayer(seed: number, d: MapDraft): MapDraft {
@@ -289,6 +298,6 @@ function fitsOffRoad(size: number, heights: ArrayLike<number>, built: Uint8Array
 
 function fitsGround(size: number, heights: ArrayLike<number>, built: Uint8Array, pos: Vec, r: number): boolean {
   const tile = Math.floor(pos.y) * size + Math.floor(pos.x);
-  if ([tile, ...tilesWithin(size, pos, r)].some((k) => built[k] === BUILT_TRACK || built[k] === BUILT_GLASS)) return false;
+  if ([tile, ...tilesWithin(size, pos, r)].some((k) => BOULDER_FREE.has(built[k]))) return false;
   return tileSteepness(heights, size, tile) <= BOULDER_SLOPE_LIMIT;
 }

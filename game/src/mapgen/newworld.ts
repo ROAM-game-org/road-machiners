@@ -43,11 +43,12 @@ import {
 export const BUILT_SCRUB = 3;
 export const BUILT_DIRTY_WATER = 4;
 export const BUILT_TOXIC = 5;
-export const BUILT_TRACK = 6;
+export { BUILT_TRACK } from './oldworld';
 export const BUILT_CANAL = 7;
 export const BUILT_PAD = 8;
 export const BUILT_GLASS = 9;
 export const BUILT_BLACK_MUD = 10;
+export const BUILT_DITCH = 11;
 
 export type Camp = { pos: Vec; radius: number };
 

@@ -1,6 +1,6 @@
 
 import { PHYSICS } from "./physics";
-import { BROKEN_WING, BROKEN_WING_POINT, draftName, FALLEN_SUN_POS, MAP_AREA_SPREAD, MAP_DRAFT, MAP_SCALE, MAP_SPREAD, REGION, scalePoint } from "./region";
+import { BROKEN_WING, BROKEN_WING_POINT, draftName, FALLEN_SUN_POS, GLASS_FLATS_POS, MAP_AREA_SPREAD, MAP_DRAFT, MAP_SCALE, MAP_SPREAD, REGION, scalePoint } from "./region";
 import { FALLEN_SUN_DECKS } from "./territory";
 import type { PropKind } from "../sim/terrain";
 import type { Vec } from "../sim/vec";
@@ -185,7 +185,7 @@ export const TERRAIN = {
         scalePoint({ x: 86, y: 23 }),
         scalePoint({ x: 92, y: 49 }),
         scalePoint({ x: 99, y: 69 }),
-        scalePoint({ x: 103, y: 99 }),
+        scalePoint({ x: 101.5, y: 88 }),
       ] as Vec[],
       width: 7,
       bank: 18,
@@ -508,10 +508,13 @@ export type ShipDebrisRules = {
   trail: Vec[];
   clusterStep: number;
   sideSpread: number;
+  spreadFrom: number;
   clusterReach: number;
   pieces: [number, number];
   yawJitter: number;
+  uprangeLooks: DebrisLook[];
   trailLooks: DebrisLook[];
+  podField: { count: number; along: number; spread: number; look: DebrisLook };
   strays: { count: number; looks: DebrisLook[] };
   placeTries: number;
 };
@@ -527,6 +530,24 @@ export type FieldRules = {
   minShare: number;
   tries: number;
 };
+
+const layoutPoints = (points: [number, number][]): Vec[] => points.map(([x, y]) => scalePoint({ x, y }));
+
+const FURROW_TAIL = TERRAIN.features.furrow.path[TERRAIN.features.furrow.path.length - 1];
+
+export const DESCENT_PATH: Vec[] = [
+  GLASS_FLATS_POS,
+  ...layoutPoints([
+    [94, 107.5],
+    [80, 104],
+    [68, 96],
+    [61, 84],
+    [59.5, 72],
+  ]),
+  FURROW_TAIL,
+  ...[...TERRAIN.features.furrow.path].reverse().slice(1),
+  FALLEN_SUN_POS,
+];
 
 export const OLD_WORLD: {
   settlements: SettlementRules;
@@ -642,19 +663,26 @@ export const OLD_WORLD: {
   },
   shipDebris: {
     seedOffset: 7009,
-    trail: [scalePoint({ x: 81, y: 12 }), scalePoint({ x: 82.5, y: 22 }), scalePoint({ x: 79, y: 30 }), scalePoint({ x: 72, y: 37 }), scalePoint({ x: 66, y: 44.5 })],
-    clusterStep: 22,
-    sideSpread: 6,
-    clusterReach: 5,
+    trail: DESCENT_PATH,
+    clusterStep: 28,
+    sideSpread: 22,
+    spreadFrom: 0.3,
+    clusterReach: 6,
     pieces: [4, 7],
     yawJitter: 0.5,
+    uprangeLooks: [
+      { look: 'escapePod', weight: 5, radius: [0.6, 0.6], aligned: false },
+      { look: 'wingShard', weight: 3, radius: [1.75, 1.75], aligned: true },
+      { look: 'hullChunk', weight: 2, radius: [0.8, 1.1], aligned: true },
+    ],
     trailLooks: [
       { look: 'hullChunk', weight: 4, radius: [0.8, 1.5], aligned: true },
-      { look: 'wingShard', weight: 2, radius: [1.75, 1.75], aligned: true },
-      { look: 'escapePod', weight: 2, radius: [0.6, 0.6], aligned: false },
+      { look: 'wingShard', weight: 1, radius: [1.75, 1.75], aligned: true },
+      { look: 'escapePod', weight: 1, radius: [0.6, 0.6], aligned: false },
       { look: 'habitat', weight: 1, radius: [2, 2], aligned: true },
-      { look: 'powerCell', weight: 1, radius: [0.4, 0.4], aligned: false },
+      { look: 'powerCell', weight: 2, radius: [0.4, 0.4], aligned: false },
     ],
+    podField: { count: 60, along: 0.3, spread: 70, look: { look: 'escapePod', weight: 1, radius: [0.6, 0.6], aligned: false } },
     strays: {
       count: 30,
       looks: [
@@ -941,24 +969,6 @@ export type ZoneShape = { polygon: Vec[] } | { path: Vec[]; width: number };
 export type Zone = { kind: ZoneKind; shape: ZoneShape };
 export type ZoneRules = { roughness: number; uplift: number };
 
-const layoutPoints = (points: [number, number][]): Vec[] => points.map(([x, y]) => scalePoint({ x, y }));
-
-const FURROW_TAIL = TERRAIN.features.furrow.path[TERRAIN.features.furrow.path.length - 1];
-
-export const DESCENT_PATH: Vec[] = [
-  ...layoutPoints([
-    [106, 106],
-    [94, 107.5],
-    [80, 104],
-    [68, 96],
-    [61, 84],
-    [59.5, 72],
-  ]),
-  FURROW_TAIL,
-  ...[...TERRAIN.features.furrow.path].reverse().slice(1),
-  FALLEN_SUN_POS,
-];
-
 export const ZONES: readonly Zone[] = [
   { kind: 'mountains', shape: { polygon: layoutPoints([[84, -4], [124, -4], [124, 74], [110, 70], [104, 52], [96, 46], [89, 32], [85, 14]]) } },
   { kind: 'desert', shape: { polygon: layoutPoints([[76, 60], [98, 56], [124, 64], [124, 124], [66, 124], [62, 102], [70, 80]]) } },
@@ -1005,8 +1015,7 @@ export const RELIEF_SOLVE = {
 
 export const DESERT = {
   seedOffset: 9400,
-  wavelength: [30, 60] as [number, number],
-  wavelengthFrequency: 1 / 300,
+  wavelength: 42,
   height: [1.5, 3] as [number, number],
   cover: [0.5, 0.85] as [number, number],
   leeShare: 0.12,
@@ -1016,6 +1025,31 @@ export const DESERT = {
   mantle: 0.35,
   keepOff: 40,
   star: { at: scalePoint({ x: 113, y: 84 }), radius: 48, height: 6, arms: 3 },
+};
+
+export const FARM_BELT = {
+  seedOffset: 9600,
+  headgates: [
+    { at: scalePoint({ x: 9, y: 72.5 }), bank: -1 },
+    { at: scalePoint({ x: 9, y: 77.5 }), bank: 1 },
+  ],
+  canal: { step: 4, fall: 0.0015, turns: [-30, -15, 0, 15, 30], turnCost: 0.004, maxLength: 1500, width: 1.6, depth: 0.9, bank: 0.3, bankWidth: 3.5, wetReach: 380, lateralWidth: 1.1, lateralDepth: 0.6, lateralLength: 420 },
+  cell: 178,
+  plots: 3,
+  plotInset: 2,
+  command: 0.25,
+  weight: 0.35,
+  shares: { field: 0.55, grove: 0.14 },
+  grove: { row: 3.2, step: 2.6, missing: 0.4, radius: [0.55, 0.75] as [number, number] },
+  track: { width: 1.5, breakLength: 40, intactFrom: 0.75, intactTo: 0.3, reach: 2200 },
+  farmstead: { share: 0.5, spread: 9, houses: [1, 3] as [number, number], houseRadius: [0.9, 1.3] as [number, number], barnRadius: 3.7, siloRadius: 1.2, barnShare: 0.6, tries: 12 },
+  keepOff: 25,
+};
+
+export const CRASH = {
+  seedOffset: 9500,
+  glassTrail: { share: 0.4, width: [95, 14] as [number, number], cover: 0.55, cell: 6, stretch: 5 },
+  apron: { tries: 2600, rim: 55, reach: 260, falloff: 3, downrange: 0.85, bareBelow: -0.35, radius: [0.7, 1.6] as [number, number], shards: 0.25 },
 };
 
 export const SWAMP = {

@@ -15,12 +15,29 @@ import { footprintRelief, tileSteepness, type MapDraft } from './bake';
 import { cornerRelief, fillFarm, placeBuildingGroups, touchesMarks } from './farm';
 import { fillGlass } from './glass';
 import { at, gradeTerritoryRoads, markRoads, throwOnRoadCliffs, type Touch } from './marks';
-import { prop, ruleRng, tileOf } from './oldworld';
+import { BUILT_SCRUB, BUILT_TRACK } from './newworld';
+import { BUILT_NONE, prop, ruleRng, tileCenter, tileOf, tilesWithin } from './oldworld';
 
 export const TERRITORY_SEED_OFFSET = 9100;
+const SPUR_RESERVE = 1;
+const OPEN_GROUND = new Set([BUILT_NONE, BUILT_SCRUB]);
 const TRIES = 5000;
 const REACTOR_MARGIN = 2;
 const DEBRIS_BAND: [number, number] = [0, 1.5];
+
+export function reserveSpurs(d: MapDraft): MapDraft {
+  for (const t of REGION.locations.filter(isTerritory)) {
+    for (const spur of territoryRoads(t).spurs) for (let k = 1; k < spur.points.length; k++) reserveLeg(d, spur.points[k - 1], spur.points[k], spur.width);
+  }
+  return d;
+}
+
+function reserveLeg(d: MapDraft, a: Vec, b: Vec, width: number): void {
+  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  for (const tile of tilesWithin(d.size, mid, dist(a, b) / 2 + width)) {
+    if (segmentDist(tileCenter(d.size, tile), a, b) <= width / 2 + SPUR_RESERVE && OPEN_GROUND.has(d.built[tile])) d.built[tile] = BUILT_TRACK;
+  }
+}
 
 export function territoryLayer(seed: number, d: MapDraft): MapDraft {
   for (const t of REGION.locations.filter(isTerritory)) {

@@ -35,9 +35,8 @@ export function sandSupply(x: number, y: number): number {
 export function duneHeight(seed: number, p: Vec, supply: number): number {
   const u = p.x * Math.cos(WIND) + p.y * Math.sin(WIND);
   const v = -p.x * Math.sin(WIND) + p.y * Math.cos(WIND);
-  const length = lerp(...DESERT.wavelength, noise2(p.x * DESERT.wavelengthFrequency, p.y * DESERT.wavelengthFrequency, seed + DESERT.seedOffset));
   const warp = (noise2(p.x * DESERT.warp.frequency, p.y * DESERT.warp.frequency, seed + DESERT.seedOffset + 1) - 0.5) * 2 * DESERT.warp.reach;
-  const phase = (u + warp) / length;
+  const phase = (u + warp) / DESERT.wavelength;
   const ridge = Math.floor(phase);
   const cover = lerp(...DESERT.cover, supply);
   const shape = ridgeShape(phase - ridge, cover);
