@@ -13,7 +13,7 @@ const SNAP = 1;
 const TODAY: Record<string, { at: [number, number]; radius: number }> = {
   bowl: { at: [16, 94], radius: 28 },
   nose: { at: [102, 35], radius: 32 },
-  orchard: { at: [22.8, 56.8], radius: 83.4 },
+  orchard: { at: [22.8, 56.8], radius: 153.1 },
   dustwell: { at: [33.8, 32], radius: 6 },
   granary: { at: [50, 32.8], radius: 6 },
   'glass-flats': { at: [81, 75.6], radius: 95 },

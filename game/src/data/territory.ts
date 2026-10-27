@@ -1,8 +1,8 @@
 
 import type { PropKind } from '../sim/terrain';
 import type { LandmarkLook } from '../sim/types';
-import type { Vec } from '../sim/vec';
-import { GLASS_FLATS_ENDS, onOrchardRoad, REGION } from './region';
+import { pointInPolygon, polygonEdgeDist, type Vec } from '../sim/vec';
+import { GLASS_FLATS_ENDS, onOrchardRoad, ORCHARD_FRAME_OUTLINE, REGION } from './region';
 import type { DeckSpec, DeckStation } from './terrain';
 
 export { onOrchardRoad };
@@ -191,6 +191,182 @@ function block(s0: number, s1: number, c0: number, c1: number, rows: GroveBlock[
   return { at: AT((s0 + s1) / 2, (c0 + c1) / 2), size: { x: s1 - s0, y: Math.abs(c1 - c0) }, rows, turn };
 }
 
+type Span = [number, number];
+type FieldCell = { s0: number; s1: number; c0: number; c1: number; n: number };
+type Poses = BuildingGroup['poses'];
+type YardLooks = 'barn' | 'armyTruck';
+
+const EDGE_ROOM = 2.5;
+const MIN_FIELD = 9;
+const MIN_ROW = 6;
+const MIN_CELL = 80;
+const FIELD_STEP = 0.5;
+const YARD_CELLS = [2, 6, 8];
+const TRUCK_CELLS = [1, 5];
+const BARN_R = 3.7;
+const ROOMY_CELL = 130;
+const WORKS_STRIP = 3.5;
+const FIELD_TURNS = [0.02, -0.03, 0.04, -0.02, 0.05, -0.04];
+const FACES = [NORTH, EAST, NORTH_EAST, WEST, SOUTH_WEST];
+const YARD_LOOKS: YardLooks[] = ['barn', 'armyTruck'];
+const YARD_GROUP: Record<YardLooks, Pick<BuildingGroup, 'table' | 'turnJitter' | 'shift'>> = {
+  barn: { table: 'farmStores', turnJitter: 0.06, shift: 0.3 },
+  armyTruck: { table: 'roadWreck', turnJitter: 0.45, shift: 0.5 },
+};
+const PLAIN_COLS: Span[] = [[80, 92], [96, 108], [112, 126]];
+const PLAIN_ROWS: Span[] = [[22, 38], [42, 56], [60, 76], [80, 92], [96, 106]];
+const WEST_COLS: Span[] = [[64, 75]];
+const NORTH_COLS: Span[] = [[50, 59]];
+const STRIP_COLS: Span[] = [[2, 15], [19, 33], [37, 46]];
+const STRIP_ROWS: Span[] = [[56, 64]];
+const PLAIN_TRACKS = {
+  downs: [77.5, 110],
+  acrosses: [{ c: 40, from: 74 }, { c: 58, from: 48 }, { c: 78, from: 48 }, { c: 94, from: 48 }],
+};
+
+function roomAt(s: number, c: number): boolean {
+  const p = { x: s, y: c };
+  return pointInPolygon(p, ORCHARD_FRAME_OUTLINE) && polygonEdgeDist(p, ORCHARD_FRAME_OUTLINE) >= EDGE_ROOM;
+}
+
+function roomAcross(s: number, row: Span): boolean {
+  return [row[0], (row[0] + row[1]) / 2, row[1]].every((c) => roomAt(s, c));
+}
+
+function settle(from: number, toward: number, row: Span): number {
+  const step = Math.sign(toward - from) * FIELD_STEP;
+  let s = from;
+  while (Math.abs(toward - s) >= MIN_FIELD && !roomAcross(s, row)) s += step;
+  return s;
+}
+
+function trimmed(col: Span, row: Span): Span | null {
+  const [a, b] = [settle(col[0], col[1], row), settle(col[1], col[0], row)];
+  return b - a >= MIN_FIELD ? [a, b] : null;
+}
+
+function shrunkRows(row: Span): Span[] {
+  const steps = Math.max(0, Math.floor(row[1] - row[0] - MIN_ROW));
+  return Array.from({ length: steps + 1 }, (_, k) => [[row[0] + k, row[1]], [row[0], row[1] - k]] as Span[]).flat();
+}
+
+function fitted(col: Span, row: Span): { s: Span; c: Span } | null {
+  for (const c of shrunkRows(row)) {
+    const s = trimmed(col, c);
+    if (s) return (s[1] - s[0]) * (c[1] - c[0]) >= MIN_CELL ? { s, c } : null;
+  }
+  return null;
+}
+
+function cellsOf(cols: Span[], rows: Span[], first: number): FieldCell[] {
+  const cells: FieldCell[] = [];
+  for (const row of rows) {
+    for (const col of cols) {
+      const fit = fitted(col, row);
+      if (fit) cells.push({ s0: fit.s[0], s1: fit.s[1], c0: fit.c[0], c1: fit.c[1], n: first + cells.length });
+    }
+  }
+  return cells;
+}
+
+function laneSpan(fixed: number, from: number, to: number, down: boolean): Span | null {
+  const ts: number[] = [];
+  for (let t = from; t <= to; t++) if (down ? roomAt(fixed, t) : roomAt(t, fixed)) ts.push(t);
+  return ts.length > 1 ? [ts[0], ts[ts.length - 1]] : null;
+}
+
+function lane(fixed: number, from: number, to: number, down: boolean): FarmRoad[] {
+  const span = laneSpan(fixed, from, to, down);
+  if (!span) return [];
+  const points = span.map((t) => (down ? AT(fixed, t) : AT(t, fixed)));
+  return [{ points, width: 2, surface: 'track' }];
+}
+
+function isYard(cell: FieldCell): boolean {
+  return YARD_CELLS.includes(cell.n);
+}
+
+function yardBarn(cell: FieldCell): Poses {
+  return [pose((cell.s0 + cell.s1) / 2, (cell.c0 + cell.c1) / 2, BARN_R, ACROSS)];
+}
+
+function fieldBlock(cell: FieldCell): GroveBlock {
+  const rows = Math.floor(cell.n / 2) % 2 === 0 ? 'along' : 'across';
+  const start = roomy(cell) ? WORKS_STRIP : 0.5;
+  return block(cell.s0 + 0.5, cell.s1 - 0.5, cell.c0 + start, cell.c1 - 0.5, rows, FIELD_TURNS[cell.n % FIELD_TURNS.length]);
+}
+
+function betweenRows(span: number): number {
+  return (Math.floor(span / 3) + 1) % 2 === 1 ? 1.5 : 0;
+}
+
+function fieldCanals(cell: FieldCell): Track[] {
+  if (cell.n % 3 === 0) return [];
+  const [s, c] = [(cell.s0 + cell.s1) / 2, (cell.c0 + cell.c1) / 2];
+  if (Math.floor(cell.n / 2) % 2 === 0) {
+    const y = c + betweenRows(cell.c1 - cell.c0 - 1);
+    return [{ points: [AT(cell.s0 + 3, y), AT(cell.s1 - 3, y)], width: 1 }];
+  }
+  const x = s + betweenRows(cell.s1 - cell.s0 - 1);
+  return [{ points: [AT(x, cell.c0 + 3), AT(x, cell.c1 - 3)], width: 1 }];
+}
+
+function fieldRuns(cell: FieldCell): Run[] {
+  const points = [AT(cell.s0 + 0.5, cell.c1 + 0.8), AT(cell.s1 - 0.5, cell.c1 + 0.8)];
+  if (cell.n % 3 === 0) return [{ ...FENCE, points }];
+  return cell.n % 3 === 1 ? [{ ...BARRIER, points: [AT(cell.s0 - 0.8, cell.c0 + 1), AT(cell.s0 - 0.8, cell.c1 - 1)] }] : [];
+}
+
+function roomy(cell: FieldCell): boolean {
+  return (cell.s1 - cell.s0) * (cell.c1 - cell.c0) >= ROOMY_CELL;
+}
+
+function fieldWorks(cell: FieldCell): Emplacement[] {
+  if (!roomy(cell)) return [];
+  const step = Math.floor(cell.n / 2);
+  const dig2 = (s: number, face: number, k: number) => dig(s, cell.c0 + 1.6, face, 1 + ((step + k) % 3) as Emplacement['arcs'], (step + k) % 3);
+  return [dig2(cell.s0 + 3.5, FACES[step % FACES.length], 0), dig2(cell.s1 - 3.5, FACES[(step + 2) % FACES.length], 1)];
+}
+
+function junctionTruck(cell: FieldCell): Poses {
+  return TRUCK_CELLS.includes(cell.n) ? [{ at: AT(cell.s0 - 2, cell.c0 - 2), r: 1.1, turn: ALONG, shoulder: true }] : [];
+}
+
+type OrchardGrowth = {
+  roads: FarmRoad[];
+  blocks: GroveBlock[];
+  canals: Track[];
+  runs: Run[];
+  emplacements: Emplacement[];
+  groups: BuildingGroup[];
+};
+
+function orchardGrowth(): OrchardGrowth {
+  const plain = cellsOf(PLAIN_COLS, PLAIN_ROWS, 0);
+  const west = cellsOf(WEST_COLS, PLAIN_ROWS.slice(1), plain.length);
+  const north = cellsOf(NORTH_COLS, PLAIN_ROWS.slice(2), plain.length + west.length);
+  const strip = cellsOf(STRIP_COLS, STRIP_ROWS, plain.length + west.length + north.length);
+  const cells = [...plain, ...west, ...north, ...strip];
+  const yards = cells.filter(isYard);
+  const fields = cells.filter((cell) => !isYard(cell));
+  const poses = (look: YardLooks): Poses => (look === 'barn' ? yards.flatMap(yardBarn) : cells.flatMap(junctionTruck));
+  const groups = YARD_LOOKS.map((look) => ({ look, ...YARD_GROUP[look], poses: poses(look) }));
+  return {
+    roads: [
+      ...PLAIN_TRACKS.downs.flatMap((s) => lane(s, 44, 104, true)),
+      ...PLAIN_TRACKS.acrosses.flatMap(({ c, from }) => lane(c, from, 130, false)),
+      ...lane(54, 2, 62, false),
+    ],
+    blocks: fields.map(fieldBlock),
+    canals: fields.flatMap(fieldCanals),
+    runs: [...fields.flatMap(fieldRuns), ...yards.map((y) => ({ ...FENCE, points: [AT(y.s0 + 0.5, y.c0 - 0.8), AT(y.s1 - 0.5, y.c0 - 0.8)] }))],
+    emplacements: cells.flatMap(fieldWorks),
+    groups,
+  };
+}
+
+const GROWTH = orchardGrowth();
+
 const NOZZLE_R = 3.25;
 const FRAME_R = 3.75;
 const COMPOUND_R = 2.45;
@@ -372,7 +548,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
     },
   },
   orchard: {
-    seed: 3,
+    seed: 4,
     wreck: null,
     farm: {
       spine: { from: AT(-30, 0), to: AT(44, 0), band: 30 },
@@ -382,14 +558,15 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
       ],
       grounds: [0.3, 1],
       roads: [
-        { points: [AT(-32, 0), AT(46, 0), AT(52, 6), AT(58, 6.5), AT(72, 7.5)], width: 3, surface: 'oldRoad' },
+        { points: [AT(-32, 0), AT(46, 0), AT(52, 6), AT(58, 6.5), AT(72, 7.5), AT(80, 12), AT(88, 16.5), AT(94, 20), AT(94, 106)], width: 3, surface: 'oldRoad' },
         { points: [AT(6, 18), AT(4, 9), AT(1, -3), AT(-6, -6), AT(-8, -11), AT(-8, -15), AT(-3, -20), AT(4, -21), AT(4, -31.9)], width: 3, surface: 'track' },
         { points: [AT(-6, 1.5), AT(-10, 9), AT(-13, 21), AT(-22, 25), AT(-30, 22), AT(-35.4, 14)], width: 3, surface: 'track' },
         { points: [AT(20, -1.5), AT(19, -10), AT(21, -31), AT(40, -33), AT(31, -37)], width: 3, surface: 'track' },
-        { points: [AT(60, 6.6), AT(61, 22), AT(59, 40.6)], width: 2.5, surface: 'track' },
+        { points: [AT(60, 6.6), AT(61, 22), AT(59, 40.6), AT(60, 50), AT(62, 62), AT(62, 80), AT(62, 99.6)], width: 2.5, surface: 'track' },
         { points: [AT(6, 18), AT(10.75, 22), AT(10.75, 31)], width: 2, surface: 'track' },
         { points: [AT(40, -33), AT(45.5, -33)], width: 2, surface: 'track' },
         { points: [AT(42, 1), AT(39, 5.5), AT(36, 7), AT(33.5, 10)], width: 2, surface: 'track', grade: 0.25 },
+        ...GROWTH.roads,
       ],
       buildings: [
         { look: 'farmhouse', table: 'landmark', turnJitter: 0.06, shift: 0.3, poses: [pose(12, 14, 4, ACROSS)] },
@@ -414,6 +591,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
           ],
         },
         { look: 'armyCache', table: 'armyStores', turnJitter: 0.3, shift: 0.3, poses: [pose(32.8567, 7.4177, 0.9, ALONG), pose(24, -5.5, 0.9, ACROSS), pose(20.0256, -33.775, 0.9, ALONG), pose(43.0174, 5.0003, 0.9, ALONG)] },
+        ...GROWTH.groups,
       ],
       pads: [
         { at: AT(-22, 16), size: { x: 12, y: 10 }, turn: ALONG },
@@ -435,8 +613,9 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         { points: [AT(-24, -23.75), AT(-12.5, -23.75)], width: 1 },
         { points: [AT(40, 12.6), AT(50.5, 12.6)], width: 1 },
         { points: [AT(38.75, -10), AT(38.75, -28)], width: 1 },
+        ...GROWTH.canals,
       ],
-      groves: { look: 'deadTree', rowGap: 3, treeGap: 1.5, jitter: 0.3, missing: 0.12, radius: 0.35, maxTrees: 750, keep: 0.7, strays: 260 },
+      groves: { look: 'deadTree', rowGap: 3, treeGap: 1.5, jitter: 0.3, missing: 0.12, radius: 0.35, maxTrees: 1900, keep: 0.7, strays: 600 },
       blocks: [
         block(20.2, 26.2, 4.6, 16.5, 'across', 0.02),
         block(12.8, 21, 21, 32, 'along', -0.03),
@@ -453,6 +632,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         block(40, 50.5, 14.3, 33.5, 'along', 0.03),
         block(64.5, 70.6, 15.5, 39, 'across', -0.03),
         block(52.8, 57.8, 12.5, 23, 'along', 0.05),
+        ...GROWTH.blocks,
       ],
       runs: [
         { ...FENCE, points: [AT(-25, -9.5), AT(-25, -23)] },
@@ -479,6 +659,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         { ...PERIMETER, points: [AT(-33.8, 8.5), AT(-33.5, 11.5)] },
         { ...PERIMETER, points: [AT(69, 16), AT(69, 26)] },
         { ...PERIMETER, points: [AT(69, 30), AT(69, 39)] },
+        ...GROWTH.runs,
       ],
       emplacements: [
         dig(-27, -14, NORTH, 2, 1),
@@ -518,12 +699,13 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         dig(58, -12, NORTH_EAST, 2, 1),
         dig(-26, 12, WEST, 2, 1),
         dig(15, 28, EAST, 2, 1),
+        ...GROWTH.emplacements,
       ],
       clutter: [
-        { look: 'drums', count: 6, radius: [0.4, 0.48], near: ['armyTruck', 'quonset'], reach: 4 },
-        { look: 'woodpile', count: 8, radius: [0.6, 0.7], near: ['barn', 'farmhouse'], reach: 4 },
-        { look: 'junk', count: 10, radius: [0.8, 1.1], near: ['barn', 'armyTruck', 'farmhouse'], reach: 5 },
-        { look: 'barrier', count: 10, radius: [0.5, 0.5], near: ['quonset', 'guardPost', 'bunker'], reach: 4 },
+        { look: 'drums', count: 14, radius: [0.4, 0.48], near: ['armyTruck', 'quonset'], reach: 4 },
+        { look: 'woodpile', count: 18, radius: [0.6, 0.7], near: ['barn', 'farmhouse'], reach: 4 },
+        { look: 'junk', count: 22, radius: [0.8, 1.1], near: ['barn', 'armyTruck', 'farmhouse'], reach: 5 },
+        { look: 'barrier', count: 22, radius: [0.5, 0.5], near: ['quonset', 'guardPost', 'bunker'], reach: 4 },
       ],
     },
     glass: null,

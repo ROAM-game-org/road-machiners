@@ -12,7 +12,7 @@ import { basinUnder, isTerritory, landingStrips, reactorPos, territoryCaches, te
 import { groundAt, type BakedProp } from '../sim/terrain';
 import { dist, segmentDist, type Vec } from '../sim/vec';
 import { footprintRelief, tileSteepness, type MapDraft } from './bake';
-import { fillFarm, placeBuildingGroups, touchesMarks } from './farm';
+import { cornerRelief, fillFarm, placeBuildingGroups, touchesMarks } from './farm';
 import { fillGlass } from './glass';
 import { at, gradeTerritoryRoads, markRoads, throwOnRoadCliffs, type Touch } from './marks';
 import { prop, ruleRng, tileOf } from './oldworld';
@@ -236,7 +236,11 @@ function standable(d: MapDraft, p: BakedProp, relief: number | null): boolean {
   if (ROAD_INDEX.nearestWithin(pos.x, pos.y, reach) < reach) return false;
   if (touchesMarks(d, pos, r)) return false;
   if (tileSteepness(d.heights, d.size, tileOf(d.size, pos)) > TERRAIN.drive.maxSlope) return false;
-  return relief === null || footprintRelief(d.heights, d.size, p, false) <= relief;
+  return relief === null || seatedWithin(d, p, relief);
+}
+
+function seatedWithin(d: MapDraft, p: BakedProp, relief: number): boolean {
+  return footprintRelief(d.heights, d.size, p, false) <= relief && cornerRelief(d, p) <= relief;
 }
 
 export function clearOf(props: readonly BakedProp[], pos: Vec, r: number, gap: number): boolean {

@@ -55,8 +55,8 @@ describe('crowded loot spots', () => {
       for (const s of territorySpots(world, id)) counts[spotLookOf(s)!] = (counts[spotLookOf(s)!] ?? 0) + 1;
       return counts;
     };
-    expect(territorySpots(world, 'orchard')).toHaveLength(28);
-    expect(looks('orchard')).toEqual({ farmhouse: 1, barn: 3, quonset: 4, bunker: 1, guardPost: 5, armyTruck: 10, armyCache: 4 });
+    expect(territorySpots(world, 'orchard')).toHaveLength(33);
+    expect(looks('orchard')).toEqual({ farmhouse: 1, barn: 6, quonset: 4, bunker: 1, guardPost: 5, armyTruck: 12, armyCache: 4 });
     expect(territorySpots(world, 'fallen-sun')).toHaveLength(24);
     expect(territorySpots(world, 'glass-flats')).toHaveLength(21);
   });
