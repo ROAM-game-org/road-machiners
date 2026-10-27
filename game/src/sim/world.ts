@@ -285,6 +285,12 @@ export function playerCanAct(world: World): boolean {
   return actBlock(world) === null;
 }
 
+export function waypointOf(world: World): Exclude<MoveOrder, { kind: 'brake' }> | null {
+  const me = playerVehicle(world);
+  if (me.direct || !playerCanAct(world) || !me.order || me.order.kind === 'brake') return null;
+  return me.order;
+}
+
 export function requireActivePlayer(world: World): void {
   if (world.player.state !== 'active') throw new Error(`Player is ${world.player.state}`);
   if (isTowed(world)) throw new Error('Player is towed');

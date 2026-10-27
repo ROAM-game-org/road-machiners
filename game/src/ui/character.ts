@@ -76,7 +76,7 @@ export class CharacterScreen {
   }
 
   private mapTab(): MapTab {
-    this.map ??= new MapTab();
+    this.map ??= new MapTab(this.host);
     return this.map;
   }
 
