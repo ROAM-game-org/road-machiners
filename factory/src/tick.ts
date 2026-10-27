@@ -19,7 +19,7 @@ import { requeueKept } from './stages/kept-approval';
 import { adoptQuestionMedia } from './stages/common';
 import { nextBatchCards, waitingMerges } from './stages/merge';
 import { openTasks } from './stages/release-common';
-import { sweepStuck, type Repair } from './stuck';
+import { labelStuckBatch, sweepStuck, type Repair } from './stuck';
 import { clearQueued, isQueued, orderKey, readState, updateState } from './state';
 import { sweepTranscripts } from './transcript-archive';
 import { askedAt, clearAsked, isAnswered, recordAsked } from './questions';
@@ -319,7 +319,7 @@ async function failJob(ctx: Ctx, job: Job, alive: boolean, deps: TickDeps): Prom
   await stopJob(ctx, job, alive, deps);
   if (retriesOrder(ctx, job)) return retryOrder(ctx, job, alive);
   dropJob(ctx, job);
-  for (const issue of job.batch ?? []) await ctx.github.addLabel(issue, STUCK_LABEL);
+  await labelStuckBatch(ctx, job.batch ?? []);
   forgetResume(ctx, job);
   const reason = alive ? new JobTimeoutError(`timed out after ${timeoutOf(ctx.cfg, job.stage)} minutes`) : new JobDiedError('job process died without finishing');
   await reportFailure(ctx, job.stage, failureIssue(job.stage, job.issue, readState(ctx.statePath)), reason, job.log, job.batch ?? []);
