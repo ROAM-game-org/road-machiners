@@ -32,7 +32,7 @@ export type TerrainNav = {
 
 export const COARSE = 8;
 
-export type RegionGrid = { length: number; at: (cell: number) => number };
+export type RegionGrid = { length: number; n: number; local: Uint8Array; first: Int32Array; at: (cell: number) => number };
 
 export type CoarseGrid = {
   n: number;
@@ -262,7 +262,7 @@ function builtLayer(e: TerrainEntry, statics: StaticSet, radius: number): NavLay
   const solid = solidGrid(e, cliff, statics, radius);
   const marks = costlyMarks(nav, statics.costly, radius);
   const layer: NavLayer = { ...nav, marks, id: nextLayerId++, radius, blocked: solid.blocked, coarse: solid.coarse };
-  return marks === null ? layer : { ...layer, coarse: withRegionSlow(solid.coarse, (c) => slowAt(layer, c)) };
+  return marks === null ? layer : { ...layer, coarse: withRegionSlow(solid.coarse, nav.slow, marks) };
 }
 
 function patchedLayer(e: TerrainEntry, statics: StaticSet, radius: number): NavLayer | null {
@@ -305,12 +305,30 @@ function cliffCells(e: TerrainEntry, radius: number): Uint8Array {
 function markCliffCells(nav: TerrainNav, reach: number): Uint8Array {
   const n = nav.n;
   const cliff = new Uint8Array(n * n);
-  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-    const cx = (x + 0.5) * CELL;
+  const near = cliffNear(nav, reach);
+  for (let y = 0; y < n; y++) {
     const cy = (y + 0.5) * CELL;
-    if (nearCliff(nav, cx, cy, reach) || nearRail(nav.decks, cx, cy, reach)) cliff[y * n + x] = 1;
+    for (let x = 0; x < n; x++) cliff[y * n + x] = near((x + 0.5) * CELL, cy);
   }
+  for (const box of nav.decks.boxes) markRailCells(nav, cliff, box, reach);
   return cliff;
+}
+
+function cliffNear(nav: TerrainNav, reach: number): (x: number, y: number) => number {
+  const s = nav.size;
+  const tiles = nav.cliffTile;
+  const at = (x: number, y: number): number => tiles[Math.min(s - 1, Math.max(0, Math.floor(y))) * s + Math.min(s - 1, Math.max(0, Math.floor(x)))];
+  return (x, y) => (at(x, y) === 1 || at(x + reach, y) === 1 || at(x - reach, y) === 1 || at(x, y + reach) === 1 || at(x, y - reach) === 1 ? 1 : 0);
+}
+
+function markRailCells(nav: TerrainNav, cliff: Uint8Array, box: { minX: number; maxX: number; minY: number; maxY: number }, reach: number): void {
+  const n = nav.n;
+  const x0 = Math.max(0, Math.floor((box.minX - reach) / CELL));
+  const x1 = Math.min(n - 1, Math.ceil((box.maxX + reach) / CELL));
+  const y0 = Math.max(0, Math.floor((box.minY - reach) / CELL));
+  const y1 = Math.min(n - 1, Math.ceil((box.maxY + reach) / CELL));
+  for (let y = y0; y <= y1; y++)
+    for (let x = x0; x <= x1; x++) if (nearRail(nav.decks, (x + 0.5) * CELL, (y + 0.5) * CELL, reach)) cliff[y * n + x] = 1;
 }
 
 function solidGrid(e: TerrainEntry, cliff: Uint8Array, statics: StaticSet, radius: number): SolidGrid {
@@ -351,13 +369,21 @@ function regionMean(coarse: CoarseGrid, n: number, slow: (c: number) => number, 
   return sum / count;
 }
 
-function withRegionSlow(coarse: CoarseGrid, slow: (c: number) => number): CoarseGrid {
+function withRegionSlow(coarse: CoarseGrid, slow: Float32Array, marks: Uint8Array): CoarseGrid {
   const sum = new Float64Array(coarse.slow.length);
   const count = new Uint32Array(coarse.slow.length);
-  for (let c = 0; c < coarse.region.length; c++) {
-    const r = coarse.region.at(c);
-    sum[r] += slow(c);
-    count[r]++;
+  const { local, first, n } = coarse.region;
+  const bn = coarse.n;
+  const cost = BREAKABLE.routeCost;
+  for (let y = 0; y < n; y++) {
+    const row = Math.floor(y / COARSE) * bn;
+    for (let x = 0; x < n; x++) {
+      const c = y * n + x;
+      if (local[c] === 0) continue;
+      const r = first[row + Math.floor(x / COARSE)] + local[c] - 1;
+      sum[r] += marks[c] === 1 ? Math.fround(slow[c] * cost) : slow[c];
+      count[r]++;
+    }
   }
   const mean = new Float32Array(coarse.slow.length);
   for (let r = 1; r < mean.length; r++) mean[r] = sum[r] / count[r];
@@ -592,7 +618,7 @@ function compactRegions(n: number, bn: number, region: Int32Array, blockOf: read
     const x = c % n;
     return first[Math.floor((c - x) / n / COARSE) * bn + Math.floor(x / COARSE)] + l - 1;
   };
-  return { length: n * n, at };
+  return { length: n * n, n, local, first, at };
 }
 
 function allFree(blocked: Uint8Array, n: number, x0: number, y0: number, w: number, h: number): boolean {
