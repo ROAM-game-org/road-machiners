@@ -4,6 +4,7 @@ import { RULES } from '../data/rules';
 import { inLiveRange, isHeadless } from './fidelity';
 import { boxSegmentDistance, propBoxes, propReach, touchesObstacle } from './mapgen';
 import { spotNear } from './free-spot';
+import { groundClear } from './spawn';
 import { keepsOffRoads } from './off-road';
 import { coarseTrip, routeAhead } from './path';
 import { REGION } from '../data/region';
@@ -166,7 +167,7 @@ export function settleWoken(w: World, hasBody: (id: string) => boolean): void {
   for (const v of w.vehicles.filter((x) => wakes(w, x, hasBody))) {
     if (standsClear(w, v, v.pos)) continue;
     const spot = spotNear(v.pos, (p) => standsClear(w, v, p));
-    if (!spot) throw new Error(`Far truck ${v.id} woke inside a prop or truck at (${v.pos.x}, ${v.pos.y}) with no clear spot near`);
+    if (!spot) throw new Error(`Far truck ${v.id} woke inside a prop, truck or cliff at (${v.pos.x}, ${v.pos.y}) with no clear spot near`);
     v.pos = spot;
     v.trail = v.trail.map(() => poseOf(v));
   }
@@ -179,7 +180,7 @@ function wakes(w: World, v: Vehicle, hasBody: (id: string) => boolean): boolean 
 function standsClear(w: World, v: Vehicle, at: Vec): boolean {
   const discs = rigDiscs({ ...v, pos: at });
   const others = w.vehicles.filter((o) => o.id !== v.id).flatMap(rigDiscs);
-  return discs.every((d) => !propsAround(w, 'drive', d.pos, d.r).some((o) => isProp(o) && touchesObstacle(o, w.terrain, d.pos, d.r)) && others.every((o) => dist(o.pos, d.pos) >= o.r + d.r));
+  return discs.every((d) => groundClear(w, d.pos, d.r) && !propsAround(w, 'drive', d.pos, d.r).some((o) => isProp(o) && touchesObstacle(o, w.terrain, d.pos, d.r)) && others.every((o) => dist(o.pos, d.pos) >= o.r + d.r));
 }
 
 function isProp(o: Obstacle): boolean {

@@ -4,11 +4,12 @@ import { REGION } from '../data/region';
 import { START_KITS } from '../data/start';
 import { playerVehicle } from './damage';
 import { siteGap, siteGates, sitePads } from './sites';
-import { allegianceFor, isFree, spawnNpcs } from './spawn';
+import { allegianceFor, groundClear, isFree, spawnNpcs } from './spawn';
+import { isCliff, tileAt } from './terrain';
 import { carriedWorld } from './world';
 import type { World } from './types';
 import { territoryPieces } from './territory';
-import { addVehicle, emptyWorld, testDrive } from './testkit';
+import { addVehicle, emptyWorld, raiseCliff, testDrive } from './testkit';
 import { dist } from './vec';
 import { endTurn, newWorld } from './world';
 import { TEST_MAP } from '../test/map';
@@ -21,6 +22,24 @@ const startWorld = (seed: number) => reusedWorld(`start ${seed}`, () => newWorld
 const NEUTRAL_SITES = [...REGION.towns, ...REGION.locations.filter((l) => l.kind !== 'camp')];
 const nearestSite = (pos: { x: number; y: number }) =>
   NEUTRAL_SITES.reduce((best, site) => (siteGap(site, pos) < siteGap(best, pos) ? site : best));
+
+describe('ground under a spawn', () => {
+  it('accepts flat open ground and refuses a cliff tile under the footprint', () => {
+    const w = emptyWorld();
+    const spot = { x: 80.5, y: 80.5 };
+    expect(isFree(w, spot, 1, null)).toBe(true);
+    raiseCliff(w, 81, 81);
+    expect(isCliff(w.terrain, tileAt(w.terrain, spot))).toBe(true);
+    expect(isFree(w, spot, 1, null)).toBe(false);
+    expect(groundClear(w, { x: 90.5, y: 90.5 }, 1)).toBe(true);
+  });
+
+  it('ignores a cliff tile the footprint does not reach', () => {
+    const w = emptyWorld();
+    raiseCliff(w, 81, 81);
+    expect(groundClear(w, { x: 84.5, y: 84.5 }, 0.5)).toBe(true);
+  });
+});
 
 describe('NPC spawns', () => {
   it('names each driver from the pools and keeps the name through turns', () => {

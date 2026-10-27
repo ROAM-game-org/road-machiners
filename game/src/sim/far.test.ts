@@ -11,7 +11,8 @@ import { perfSnapshot, resetPerf } from '../perf';
 import { getResources } from './resources';
 import { addState } from './states';
 import { fuelCap, plainMaxSpeed, unpavedTopShare, vehicleStats } from './stats';
-import { addVehicle, editableTerrain, emptyWorld, npcBrain } from './testkit';
+import { addVehicle, editableTerrain, emptyWorld, npcBrain, raiseCliff } from './testkit';
+import { groundClear } from './spawn';
 import type { Obstacle, Pose, World } from './types';
 import { dist } from './vec';
 import { endTurn } from './world';
@@ -625,6 +626,17 @@ describe('a far truck waking up', () => {
     settleWoken(w, (id) => id === other.id);
     expect(dist(npc.pos, other.pos)).toBeGreaterThanOrEqual(2 * vehicleStats(w, npc).radius);
     expect(other.pos).toEqual({ x: 60.5, y: 30 });
+  });
+
+  it('steps an NPC that wakes on a cliff off it', () => {
+    const { w, npc } = wokenInRock();
+    w.obstacles = [];
+    raiseCliff(w, 61, 31);
+    const radius = vehicleStats(w, npc).radius;
+    expect(groundClear(w, npc.pos, radius)).toBe(false);
+    settleWoken(w, () => false);
+    expect(groundClear(w, npc.pos, radius)).toBe(true);
+    expect(npc.trail.every((p) => p.x === npc.pos.x && p.y === npc.pos.y)).toBe(true);
   });
 
   it('leaves a truck that already has a body, a far truck and the player where they stand', () => {
