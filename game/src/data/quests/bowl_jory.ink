@@ -30,14 +30,14 @@ Jory Baptiste. I speak for the tenants, which is to say I talk and the <term=sen
 + {jory_filled} [Does the patrol trouble you?]
   It does, and it knows where I live. They searched my house at night once and said they were looking for a rifle. They found a spoon, and I told them to keep it because I've got more.
   -> hub
-+ {jory_filled} [What do the raiders have to do with the grain?]
-  Kiln Camp, the raiders in the south, gets a sack from the <term=granary>Granary</term> for every armed truck that crosses their road. The patrol is paid out of the tenants' share of the same grain.
-  The sack leaves the store once and the Senate counts it twice. The Senate says it all adds up, and it does, the way a bucket with a hole adds up.
++ {jory_filled} [What do the raiders have to do with the Granary?]
+  Kiln Camp, the raiders in the south, eat <term=granary>Granary</term> rations, and in return they let Granary trucks cross their road. The patrol is paid out of the tenants' share of the same harvest.
+  The harvest leaves the terraces once and the Senate counts it twice. The Senate says it all adds up, and it does, the way a bucket with a hole adds up.
   ~ note("talkGranaryGate")
   -> hub
 + {jory_green} [Why do the top terraces stay green?]
-  Because, if the word's right, the household's own tanker fills up at Dustwell every week and drives straight up to the top gardens. Its loads go in nobody's book. If you say so in the market, they'll ask for the book, so I say it only here.
-  Have I seen the tanker unload? No. I've seen the kitchen gardens up there, and they're very green for a dry year. Either the tanker exists or those cabbages are saints.
+  Because, if the word's right, the household's own truck fills its barrels at Dustwell every week and drives straight up to the top gardens. Its loads go in nobody's book. If you say so in the market, they'll ask for the book, so I say it only here.
+  Have I seen the truck unload? No. I've seen the kitchen gardens up there, and they're very green for a dry year. Either the truck exists or those cabbages are saints.
   ~ note("talkSeepPipe")
   -> hub
 + {jory_nose and found("nose")} [What do you make of Nose?]

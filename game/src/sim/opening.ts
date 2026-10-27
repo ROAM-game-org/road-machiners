@@ -1,13 +1,13 @@
 
 import { RULES } from '../data/rules';
-import { OPENING, type Opening, type StartKit } from '../data/start';
+import type { Opening, StartKit } from '../data/start';
 import { makePart } from './factory';
 import { playerVehicle } from './damage';
 import { goodsCount, isMounted, mountedParts } from './grid';
 import { engineNeedsPatch } from './repair';
 import { canReachSalvage, emptyHidden, hasSalvage } from './salvage';
 import type { Obstacle, SalvageStock, Vehicle, World } from './types';
-import { dist, type Vec } from './vec';
+import type { Vec } from './vec';
 import { OPENING_WRECK_RADIUS, openingWreckSpot } from './start-pose';
 import { setStartHp } from './wear';
 
@@ -70,11 +70,6 @@ export function openingState(w: World): OpeningState {
   const stock = openingStockOf(w);
   if (!stock) return { stock, step: null };
   return { stock, step: w.player.scavenged.includes(stock.id) ? stepAfterSearch(w, stock) : stepBeforeSearch(w, stock) };
-}
-
-export function openingOver(w: World): boolean {
-  const { stock, step } = openingState(w);
-  return step === null || (stock !== null && dist(playerVehicle(w).pos, stock.pos) >= OPENING.leaveDistance);
 }
 
 function stepBeforeSearch(w: World, stock: SalvageStock): OpeningStep | null {

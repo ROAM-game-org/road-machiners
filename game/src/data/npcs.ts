@@ -639,7 +639,7 @@ export type DecisionOptions = {
   mugging: 'demand' | 'attack';
   resume: 'resume' | 'new';
   bountyDemanded: 'pay' | 'fight' | 'flee';
-  idle: 'trade' | 'scavenge' | 'raid' | 'prowl' | 'wait' | 'patrol' | 'travel' | 'explore' | 'haul' | 'escort' | 'muster';
+  idle: 'trade' | 'scavenge' | 'raid' | 'prowl' | 'wait' | 'patrol' | 'travel' | 'explore' | 'haul' | 'escort' | 'muster' | 'linger';
   crewAsked: 'join' | 'decline';
   crewCalled: 'fight' | 'flee' | 'keep';
   escortSeen: 'keep' | 'hire';
@@ -682,7 +682,7 @@ export const DECISIONS: { [D in DecisionId]: Record<DecisionOptions[D], number> 
   mugging: { demand: 3, attack: 2 },
   resume: { resume: 9, new: 1 },
   bountyDemanded: { pay: 3, fight: 1, flee: 1 },
-  idle: { trade: 0, scavenge: 1, raid: 0, prowl: 0, wait: 0.1, patrol: 0, travel: 0, explore: 0, haul: 0, escort: 0, muster: 0 },
+  idle: { trade: 0, scavenge: 1, raid: 0, prowl: 0, wait: 0.1, patrol: 0, travel: 0, explore: 0, haul: 0, escort: 0, muster: 0, linger: 0 },
   crewAsked: { join: 2, decline: 1 },
   crewCalled: { fight: 3, flee: 0.5, keep: 1 },
   escortSeen: { keep: 1, hire: 0 },
