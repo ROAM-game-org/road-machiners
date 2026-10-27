@@ -1,6 +1,6 @@
 
 import { LESSON_LINE_IDS } from './lessons';
-import { MARSHAL_LINES, MARSHAL_TOPICS, type MarshalConditionId, type MarshalEffectId, type MarshalPrepareId, type MarshalTopicId } from './personalities';
+import { MARSHAL_LINES, MARSHAL_TOPICS, TREE_LINES, type MarshalConditionId, type MarshalEffectId, type MarshalPrepareId, type MarshalTopicId } from './personalities';
 import { COURIER_TOPICS, type CourierTopicId } from './encounters';
 import { MOMENT_LINES, MOMENT_TOPICS, type MomentConditionId, type MomentEffectId, type MomentId } from './moments';
 import { SUNWARD_LINES, SUNWARD_TOPICS, type SunwardConditionId, type SunwardEffectId, type SunwardPrepareId, type SunwardTopicId } from './sunward';
@@ -75,7 +75,7 @@ export const LINE_IDS = [
   'anyTipsForTheRoad', 'lessonTold', ...LESSON_LINE_IDS,
   'demandCargoOrPay', 'demandCutLine', 'noFreeRidePay', 'noFreeRideCut', 'leaveItOrPay', 'payAndGo', 'hereIsYourMoney', 'yourMoneyOr', 'youHeardMeMoney', 'allRightPaid', 'pocketsEmpty',
   'needAHandHere', 'whosOnYou', 'thatOneOnMyTail', 'onMyWay', 'notMyFight', 'tooHotForMe',
-  'silent', ...SUNWARD_LINES, ...MARSHAL_LINES, ...MOMENT_LINES,
+  'silent', ...SUNWARD_LINES, ...MARSHAL_LINES, ...TREE_LINES, ...MOMENT_LINES,
 ] as const;
 export type LineId = (typeof LINE_IDS)[number];
 

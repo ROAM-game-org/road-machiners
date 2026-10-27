@@ -70,7 +70,7 @@ Rough people swear plainly and without heat, the way they'd mention the wind. Sw
 
 ### Competence shows in small checks
 
-Show skill as habit. A veteran checks the tires and belts at every stop, counts their knives before a talk and notices the man who steps out of their line of sight. The narrator respects it in a few words.
+Show skill as habit. A veteran checks the tires and belts at every stop, touches the knife at their belt before a talk and notices the man who steps out of their line of sight. The narrator respects it in a few words.
 
 "The old one takes a casual step to the side, out of your sight. Figures how he lived this long."
 
@@ -105,6 +105,8 @@ Write their voice sheet in [Voices](../lore/voices.md) first. A sheet answers fi
 5. What do they avoid talking about? The thing a person steers around tells the player more than the thing they say.
 
 Match the voice to the place. Bowl talks of fields, seasons and family. Nose talks of orders, rations and the log. The Yard talks of prices and what things are worth. A stranger learns the town from how its people speak before anyone explains it.
+
+A speaker talks from their own corner of a place that holds hundreds or thousands of people. Their job is one stall, crew or canteen among many, and their talk names the crowds, crews and neighbours around them. [People and scale](../lore/world.md#people-and-scale) says how big each place is.
 
 A minor speaker gets a clear job and no quirk. A gate sentry with a funny tic reads as someone important, and the player wastes time on him.
 
@@ -208,7 +210,7 @@ Bad: "[I was wondering whether you might tell me something about the raiders and
 
 Good: "[Who are the raiders?]"
 
-A hub shows two to four questions plus a way out. More than that means the talk has no subject. Give each talk one subject and let it end.
+A hub shows at most five choices at once, the way out included, and `npm run quests:check` fails on a state that shows more. Ask whether the talk has one subject first. If it does and has many questions, group them under topic choices like "[About the road…]", each opening a stitch of at most four questions and a "[Back.]" that returns to the hub. Keep the questions' own text and replies as they are. A topic choice shows only while one of its questions does, so guard it with the same variables.
 
 ### A spread of tones
 

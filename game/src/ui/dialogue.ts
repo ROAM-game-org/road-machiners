@@ -176,7 +176,7 @@ export class DialoguePanel {
       return this.root.replaceChildren();
     }
     const offered = currentOptions(w);
-    const key = JSON.stringify([call, offered.map((o) => o.line), language()]);
+    const key = JSON.stringify([call, offered.map((o) => [o.line, o.seen === true]), language()]);
     if (key === this.drawn) return;
     this.drawn = key;
     const npc = vehicleById(w, call.with);
@@ -184,7 +184,7 @@ export class DialoguePanel {
     this.root.classList.remove('qt-done');
     const options = offered.map((o, i) => {
       const short = o.short ? t('trade.needMore', { price: moneyMsg(o.short) }) : null;
-      return el('button', { class: 'dialogue-option', 'aria-disabled': short ? 'true' : undefined, title: short ?? undefined, onclick: () => short || this.choose(i) }, t('call.option', { n: i + 1, line: lineText(o.line, call.vars) }));
+      return el('button', { class: o.seen ? 'dialogue-option seen' : 'dialogue-option', 'aria-disabled': short ? 'true' : undefined, title: short ?? undefined, onclick: () => short || this.choose(i) }, t('call.option', { n: i + 1, line: lineText(o.line, call.vars) }));
     });
     const line = renderLine(`“${say(lineText(call.line.line, call.line.vars))}”`, ['reveal:word'], 0).el;
     line.classList.add('dialogue-line');
