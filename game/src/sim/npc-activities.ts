@@ -45,7 +45,7 @@ import { clamp, dist, leadsAwayBy, pointsAway, type Vec } from './vec';
 import { canVehicleSee } from './vision';
 import { isWatching, startWatch, watchOver } from './watch-posts';
 import { chooseOn, comesInSight, sensedAt, senseTracks, trackOf } from './tracks';
-import { claimClient, dropTow, escortsOf, follows, isOnRope, mercsInSight, npcHomeSite, offerEscort, refusesTows, runTow, steerFollow, steerToStranded, strandedAt, towGoal, towHeldBy, towStop } from './tow';
+import { claimClient, dropTow, escortsOf, follows, isOnRope, mercsInSight, npcHomeSite, offerEscort, refusesTows, runTow, steerFollow, steerToStranded, strandedAt, towGoal, towHeldBy, towStop, towWaitsForFight } from './tow';
 import { joinLeader, safeBesidePartner } from './pairs';
 import { musterGoal, onCrewCall, steerMuster } from './crews';
 import { isDefeated, isKnockedOut } from './defeat';
@@ -719,7 +719,7 @@ export function defyThreat(world: World, vehicle: Vehicle, threatener: Vehicle, 
 function onStrandedSeen(world: World, vehicle: Vehicle): void {
   if (inDanger(vehicle) || inCombat(world, vehicle)) return;
   const clients = world.vehicles
-    .filter((client) => (client.id !== world.player.vehicleId || !inCombat(world, client)) && !refusesTows(world, vehicle, client))
+    .filter((client) => !towWaitsForFight(world, client) && !refusesTows(world, vehicle, client))
     .map((client) => ({ client, at: strandedAt(world, vehicle, client) }))
     .filter((c): c is { client: Vehicle; at: Vec } => c.at !== null)
     .sort((a, b) => dist(vehicle.pos, a.at) - dist(vehicle.pos, b.at));
