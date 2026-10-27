@@ -25,6 +25,9 @@ import { roadNetworkOf } from './road-network';
 import { leaveLoot } from './loot-warning';
 import { chooseOn, trackOf } from './tracks';
 import { watchStalls } from './npc-watchdog';
+import { PERF } from '../data/perf';
+import { setThinning } from './fidelity';
+import { playerVehicle } from './damage';
 import { CANNOT_HOLD, canTakeAny, STRIPPED } from './salvage';
 import { beginSearch } from './search';
 import { hiddenUnits, salvageInRange, salvageReach, salvageUnits } from './salvage';
@@ -1814,6 +1817,20 @@ describe('stall watchdog', () => {
       watchStalls(w);
     }
   }
+
+  it('gives a truck that thinks only every few turns, far from the player, as many thinking turns before it counts a stall', () => {
+    const { w, npc } = frozen();
+    npc.pos = { x: playerVehicle(w).pos.x + PERF.lone.playerReach * 2, y: playerVehicle(w).pos.y };
+    setThinning(true);
+    try {
+      run(w, NPC_BEHAVIOR.stallTurns * PERF.lone.every - 1);
+      expect(w.events.some((e) => e.t === 'stall')).toBe(false);
+      run(w, 2);
+      expect(w.events).toContainEqual({ t: 'stall', vehicle: npc.id, goal: 'travel', reason: 'tripToSite' });
+    } finally {
+      setThinning(false);
+    }
+  });
 
   it('after stallTurns turns without progress clears the goals, jumps the truck nearby and gives it a fresh goal', () => {
     const { w, npc } = frozen();

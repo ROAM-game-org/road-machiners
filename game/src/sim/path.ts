@@ -70,9 +70,18 @@ function tripEnds(layer: NavLayer, ov: Overlay, from: Vec, to: Vec): { exit: num
   const exit = canStepOut(layer, ov, start) ? start : nearestFreeCell(layer, ov, start);
   if (exit === null) throw new Error(`Coarse trip from (${from.x}, ${from.y}) starts on a map with no free cell`);
   const target = cellOf(layer, to);
+  const escape = pocketEscape(layer, ov, start, exit, target);
+  if (escape) return escape;
   const near = nearestFreeCell(layer, ov, target, startComponent(layer, exit), nearRing(layer, exit, target));
   if (near === null) throw new Error(`Coarse trip from (${from.x}, ${from.y}) has no free cell near (${to.x}, ${to.y})`);
   return { exit, near };
+}
+
+function pocketEscape(layer: NavLayer, ov: Overlay, start: number, exit: number, target: number): { exit: number; near: number } | null {
+  const goalSide = nearestFreeCell(layer, ov, target);
+  if (goalSide === null || connected(layer, exit, goalSide)) return null;
+  const out = nearestFreeCell(layer, ov, start, componentOf(layer, goalSide), REGION.navigation.nearSlack / CELL);
+  return out === null ? null : { exit: out, near: goalSide };
 }
 
 function routeTaste(world: World, nav: TerrainNav, driver: Vehicle | undefined): Taste | null {

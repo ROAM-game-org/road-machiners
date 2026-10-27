@@ -50,8 +50,12 @@ export function setThinning(on: boolean): void {
 }
 
 export function thinksThisTurn(w: World, v: Vehicle): boolean {
-  if (!thinning || (w.turn + slotOf(v.id)) % PERF.lone.every === 0) return true;
-  return dist(v.pos, playerVehicle(w).pos) <= PERF.lone.playerReach || isEngaged(w, v);
+  return thinkEvery(w, v) === 1 || (w.turn + slotOf(v.id)) % PERF.lone.every === 0;
+}
+
+export function thinkEvery(w: World, v: Vehicle): number {
+  if (!thinning || dist(v.pos, playerVehicle(w).pos) <= PERF.lone.playerReach || isEngaged(w, v)) return 1;
+  return PERF.lone.every;
 }
 
 function slotOf(id: string): number {

@@ -20,6 +20,7 @@ import { endTurn } from './world';
 import { REGION } from '../data/region';
 import { roadNetworkOf } from './road-network';
 import { touchesObstacle } from './mapgen';
+import { drivable } from './path';
 
 beforeAll(async () => {
   await initPhysics();
@@ -533,6 +534,19 @@ describe('far trips longer than the route window', () => {
     expect(perfSnapshot().route).toBeUndefined();
     expect(w.events.filter((e) => e.t === 'arrived' && e.vehicle === npc.id)).toHaveLength(1);
     expect(dist(npc.pos, to)).toBeLessThan(RULES.arriveRadius);
+  });
+
+  it('drives an NPC that ended a turn in a closed pocket out through its wall to a goal outside', () => {
+    const w = emptyWorld();
+    const center = { x: 160, y: 160 };
+    w.obstacles = Array.from({ length: 24 }, (_, k): Obstacle => ({ id: `ring${k}`, kind: 'rock', r: 1.6, pos: { x: center.x + 6 * Math.cos((k * Math.PI) / 12), y: center.y + 6 * Math.sin((k * Math.PI) / 12) } }));
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { ...center });
+    npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    const dest = { x: 220, y: 160 };
+    expect(drivable(w, npc.pos, dest, vehicleStats(w, npc).radius)).toBe(false);
+    npc.order = { kind: 'stopAt', dest };
+    for (let i = 0; i < 60 && npc.order; i++) advanceFar(w, npc);
+    expect(dist(npc.pos, dest)).toBeLessThan(RULES.arriveRadius);
   });
 
   it('drives an NPC straight to a goal it reaches within the turn, with no plan', () => {

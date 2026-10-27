@@ -20,6 +20,7 @@ import { holdsPost, isSunwardMember, planSunward } from './sunward';
 import { isMarshal } from './marshals';
 import type { NpcBrain, Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
+import { thinkEvery } from './fidelity';
 import { dist, type Vec } from './vec';
 
 export function watchStalls(world: World): void {
@@ -27,7 +28,7 @@ export function watchStalls(world: World): void {
   for (const v of world.vehicles) {
     if (!v.brain) continue;
     if (madeProgress(world, v, named)) v.brain.progress = progressHere(world, v);
-    else if (world.turn - v.brain.progress!.since >= NPC_BEHAVIOR.stallTurns) giveUp(world, v);
+    else if (world.turn - v.brain.progress!.since >= NPC_BEHAVIOR.stallTurns * thinkEvery(world, v)) giveUp(world, v);
   }
 }
 
