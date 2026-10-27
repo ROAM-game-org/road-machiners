@@ -78,6 +78,19 @@ describe("a fast-travel turn", () => {
     expect(dist(playerVehicle(slow.world).pos, DEST)).toBeLessThan(dist(playerVehicle(world).pos, DEST));
   });
 
+  it("skips the physics world on a far turn that starts with no body, hands back the same snapshot, and physics drives on after it", () => {
+    const first = playTurn(travelling(), freshDrive(travelling()), true);
+    const drive = first.prepared.result.next;
+    expect(drive.bodies).toEqual({});
+    const second = playTurn(first.world, drive, true);
+    expect(second.prepared.result.next).toBe(drive);
+    expect(second.prepared.tail).toBeNull();
+    expect(dist(playerVehicle(second.world).pos, playerVehicle(first.world).pos)).toBeGreaterThan(1);
+    const third = playTurn(second.world, second.prepared.result.next, false);
+    expect(Object.keys(third.prepared.result.next.bodies)).toContain(playerVehicle(second.world).id);
+    expect(dist(playerVehicle(third.world).pos, DEST)).toBeLessThan(dist(playerVehicle(second.world).pos, DEST));
+  });
+
   it("plays by physics when the turn is not asked to travel fast", () => {
     const world = travelling();
     const turn = playTurn(world, freshDrive(world), false);
