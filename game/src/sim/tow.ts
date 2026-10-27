@@ -200,7 +200,27 @@ function awaitsPatch(world: World, v: Vehicle): boolean {
 }
 
 function answeredByOther(world: World, tower: Vehicle, client: Vehicle): boolean {
-  return world.states.some((s) => s.kind === 'answering' && s.other === client.id && s.holder !== tower.id);
+  return otherClaims(world, tower, client).some((claim) => !givesWay(world, claim, tower, client));
+}
+
+function otherClaims(world: World, tower: Vehicle, client: Vehicle): NpcState[] {
+  return world.states.filter((s) => s.kind === 'answering' && s.other === client.id && s.holder !== tower.id);
+}
+
+export function claimantSees(world: World, claim: NpcState): boolean {
+  return canVehicleSee(world, vehicleById(world, claim.holder), vehicleById(world, claim.other).pos);
+}
+
+function givesWay(world: World, claim: NpcState, tower: Vehicle, client: Vehicle): boolean {
+  return !claimantSees(world, claim) && canVehicleSee(world, tower, client.pos);
+}
+
+export function claimClient(world: World, tower: Vehicle, client: Vehicle): void {
+  const claims = otherClaims(world, tower, client);
+  const stubborn = claims.find((claim) => !givesWay(world, claim, tower, client));
+  if (stubborn) throw new Error(`${tower.id} cannot take ${client.id} from ${stubborn.holder}, which sees it`);
+  for (const claim of claims) endState(world, claim, 'broken');
+  addState(world, 'answering', tower.id, client.id, { kind: 'none' });
 }
 
 function towDestination(world: World, tower: Vehicle, client: Vehicle): Site | null {
@@ -254,7 +274,7 @@ export function releaseNpc(world: World, npc: Vehicle): void {
   endState(world, tow, 'broken');
 }
 
-export function checkTowPromise(world: World, s: NpcState): StateEnding | null {
+export function strandingOver(world: World, s: NpcState): StateEnding | null {
   const client = world.vehicles.find((v) => v.id === s.other);
   return client && !isStranded(world, client) ? 'broken' : null;
 }
@@ -297,6 +317,10 @@ export function strandedAt(world: World, vehicle: Vehicle, client: Vehicle): Vec
   return isPlayer(world, client) ? beaconCenter(world, vehicle, client) : null;
 }
 
+export function refusesTows(world: World, tower: Vehicle, client: Vehicle): boolean {
+  return world.states.some((s) => s.kind === 'turnedDown' && s.other === client.id) && !hearsBeacon(world, tower, client);
+}
+
 export function steerToStranded(world: World, vehicle: Vehicle, goal: NpcActivity): void {
   const at = strandedAt(world, vehicle, vehicleById(world, goal.targetId!));
   if (at) goal.destination = { ...at };
@@ -330,7 +354,7 @@ export function runTow(world: World, vehicle: Vehicle, activity: NpcActivity): G
   const held = towHeldBy(world, vehicle.id);
   if (held && !towData(held).hitched) {
     if (inTowReach(vehicle, vehicleById(world, held.other))) return null;
-    refuse(world, held);
+    leaveOffer(world, vehicle, held);
     return 'towOfferLeft';
   }
   if (held) {
@@ -405,6 +429,11 @@ function towFee(world: World, tower: Vehicle, client: Vehicle, site: Site): numb
   const involved = isPlayer(world, tower) || isPlayer(world, client);
   const cut = involved ? 1 - skillEffect(world, playerVehicle(world), 'social', 'towFee') : 1;
   return Math.round(Math.min(TOW.maxFee, TOW.base + TOW.perTile * length) * cut);
+}
+
+function leaveOffer(world: World, tower: Vehicle, tow: NpcState): void {
+  dropTow(world, tow, 'refused');
+  tower.brain!.noticed[`strandedSeen:${tow.other}`] = world.turn;
 }
 
 function refuse(world: World, tow: NpcState): void {

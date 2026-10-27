@@ -21,9 +21,9 @@ Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `sr
 | --- | --- |
 | 1 | 200 |
 | 2 | 400 |
-| 3 | 600 |
-| 4 | 800 |
-| 5 | 1000 |
+| 3 | 1200 |
+| 4 | 2200 |
+| 5 | 3500 |
 <!-- /wiki:rank-costs -->
 
 ## XP sources
