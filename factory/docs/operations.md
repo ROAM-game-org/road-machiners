@@ -69,7 +69,7 @@ Every tick, after it checks the running jobs:
 - It deletes job logs older than `FACTORY_LOG_DAYS`, except `tick.log`, `update.log` and the logs that `failures` names.
 - It deletes archived agent transcripts older than `FACTORY_TRANSCRIPT_DAYS`.
 
-Every tick writes `$FACTORY_HOME/health` with its time, the free disk and the available memory, also while paused. Under `FACTORY_MIN_FREE_GB` free, the tick starts no job. Memory under `FACTORY_MIN_AVAILABLE_GB` blocks nothing, and a host with no `/proc/meminfo` records none.
+Every tick writes `$FACTORY_HOME/health` with its time, the free disk and the available memory, also while paused. Under `FACTORY_MIN_FREE_GB` free disk, or under `FACTORY_MIN_AVAILABLE_GB` available memory, the tick starts no job. It still checks, kills and resumes the running jobs, cleans and sweeps, so running work goes on and a new job starts once memory frees. A host with no `/proc/meminfo` records no memory and starts jobs as usual.
 
 When `dev` moves past the commit `/dev/` serves, the next tick rebuilds `/dev/`, so a merge made outside the factory reaches the dev link too. A failed build records its commit in `devFailed` and what broke in `devError`, and the tick skips it until `dev` moves again. The incident watch shows both to Hermes, which fixes `dev` or reverts the merge that broke it.
 

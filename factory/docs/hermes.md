@@ -96,7 +96,7 @@ Every tick writes `/factory/home/health` with its time, the free disk space and 
   3. Delete what can be rebuilt: clones in `work/` of issues whose card is Done or off the board, `check-issue-*`, `dev-build`, `release-main`, `change-*`, `node_modules` in any clone, job logs older than `FACTORY_LOG_DAYS`, archived transcripts older than `FACTORY_TRANSCRIPT_DAYS`, dangling Docker images with `docker image prune -f` and the build cache with `docker builder prune -f`.
   4. Never delete the clone of an issue whose card is open, `sessions/`, `state/`, `committee/`, `inbox/`, `media/`, `release-candidate` while a release is open, or images in use.
   5. Remove the pause. When space stays low, clean the work clones of cards in Approval, which the next stage clones again.
-- `memory low`: jobs swap or the kernel may kill a container. No job is blocked, and the line closes once memory frees.
+- `memory low`: jobs swap or the kernel may kill a container. The tick starts no new job while it lasts, and running jobs go on. The line closes once memory frees.
   1. Read what uses it with `factory-host 'free -m; docker stats --no-stream --format "{{.Name}} {{.MemUsage}} {{.Label}}"; swapon --show'`.
   2. Read the host processes too, with `factory-host 'ps -eo pid,user,rss,etime,args --sort=-rss | head -15'`. Processes of the factory user outside a container come from your own `factory-host` commands and `claude-run` jobs. Kill any left over from a command that already ended.
   3. Wait one tick. A checks peak near 2.6 GB passes in minutes.

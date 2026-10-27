@@ -199,7 +199,7 @@ A timer runs one tick at a time. A tick never waits for a job. Before it picks j
 
 ![One tick](diagrams/tick.svg)
 
-Jobs pick in this order. A job starts when its queue has a free worker and no other job works on its issue.
+Jobs pick in this order. A job starts when its queue has a free worker and no other job works on its issue. While free disk or available memory is under its minimum, the tick starts no job, as [operations.md](operations.md#cleanup-and-health) says.
 
 1. Branch jobs: every queued approve, remove, ship and incident, the next player answer, then the merge queue, the catch-ups of the next waiting Merging cards, a stale `/dev/`, the release cut, and the release playtest or the candidate. The playtest runs in the verify queue.
 2. The waste review, when due.
