@@ -1,3 +1,4 @@
+import { withoutStageFailuresOf } from '../fail';
 import { readState, updateState } from '../state';
 import { BRANCH, type Ctx } from '../types';
 import { baseBranchFor } from './common';
@@ -28,5 +29,5 @@ async function mergeBase(ctx: Ctx, issue: number, base: string): Promise<void> {
 }
 
 function recordCaughtUp(ctx: Ctx, issue: number, head: string): void {
-  updateState(ctx.statePath, (state) => ({ ...state, caughtUpTo: { ...state.caughtUpTo, [issue]: head } }));
+  updateState(ctx.statePath, (state) => ({ ...state, caughtUpTo: { ...state.caughtUpTo, [issue]: head }, failures: withoutStageFailuresOf(state.failures, 'catch-up', issue) }));
 }

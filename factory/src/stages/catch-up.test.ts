@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { EMPTY_STATE, readState, writeState } from '../state';
-import { MergeConflictError, RELEASE_TASK_LABEL, STUCK_LABEL, type AgentRun, type Card, type Ctx, type Job, type MergeStep, type Resolution } from '../types';
+import { MergeConflictError, RELEASE_TASK_LABEL, STUCK_LABEL, type AgentRun, type Card, type Ctx, type Failure, type Job, type MergeStep, type Resolution } from '../types';
 import { catchUp } from './catch-up';
 
 let home = '';
@@ -64,6 +64,13 @@ describe('catchUp', () => {
     expect(calls).toEqual(['fetch', 'is-merged dev factory/issue-8', 'merge dev into factory/issue-8 with 0 resolutions']);
     expect(caughtUp()).toEqual({ 8: 'dev-head' });
     expect(logs.at(-1)).toBe('factory/issue-8 took dev');
+  });
+
+  it('clears the earlier catch-up failure of the card once it catches up, and keeps its other failures', async () => {
+    const row = (stage: 'catch-up' | 'verify', issue: number): Failure => ({ stage, issue, error: `${stage} failed`, cause: 'timeout', log: null, at: '2026-09-29T10:00:00.000Z' });
+    writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), failures: [row('catch-up', 8), row('catch-up', 9), row('verify', 8)] });
+    await catchUp(fakeCtx(), 8);
+    expect(readState(`${home}/state.json`).failures).toEqual([row('catch-up', 9), row('verify', 8)]);
   });
 
   it('hands a conflict to an agent in its own work clone, then pushes the resolved merge to the issue branch only', async () => {

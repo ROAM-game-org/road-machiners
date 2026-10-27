@@ -8,6 +8,16 @@ on:
         description: Commit to test
         required: true
         type: string
+      files:
+        description: Test files to run, separated by spaces. Empty runs the whole suite.
+        required: false
+        default: ''
+        type: string
+      workers:
+        description: Vitest workers. Empty lets Vitest choose.
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -19,6 +29,9 @@ jobs:
     container: mcr.microsoft.com/playwright:v1.63.0-noble
     env:
       SHA: ${{ inputs.sha }}
+      FILES: ${{ inputs.files }}
+      WORKERS: ${{ inputs.workers }}
+      TEST_FAILURES_FILE: tmp/test-failures.json
       TEST_STALL_MINUTES: '10'
       TEST_SUITE_MINUTES: '35'
       TEST_TIMEOUTS: 'off'
@@ -42,13 +55,23 @@ jobs:
         id: tests
         working-directory: game
         run: |
+          for file in $FILES; do echo "$file" | grep -Eq '^src/[A-Za-z0-9_./-]+\.test\.ts$' || { echo "bad test file $file"; exit 2; }; done
+          if [ -n "$WORKERS" ]; then echo "$WORKERS" | grep -Eq '^[1-9][0-9]?$' || { echo "bad workers $WORKERS"; exit 2; }; export TEST_WORKERS="$WORKERS"; fi
           code=0
-          npm run test:cached || code=$?
+          npm run test:cached -- $FILES || code=$?
           if [ "$code" -eq 3 ]; then
             echo "over=1" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           exit "$code"
+      - name: failed tests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-failures
+          path: game/tmp/test-failures.json
+          if-no-files-found: ignore
+          retention-days: 7
       - name: suite time limit
         if: steps.tests.outputs.over == '1'
         run: |

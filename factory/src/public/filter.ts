@@ -79,10 +79,10 @@ function workQuestion(work: string[]): Question {
 const RELEVANCE = {
   type: 'choice',
   name: 'relevance',
-  instructions: 'The player text replies in the chat thread of the proposal or test build named under Thread. Is it about that proposal or build?',
+  instructions: 'The player text replies in the chat thread of the proposal or test build named under Thread, or was sent from that test build. Is it about that proposal or the change that build makes? A test build is the whole game, so a report about another part of the game, even a near one, is not about the change.',
   choices: [
-    { value: 'parent', description: 'About it: it reacts to it, asks about it, or asks to change or fix it. Under a winch proposal: "Yes, build this." "The winch snaps on hills." "Make the winch cheaper."' },
-    { value: 'other', description: 'A separate bug, wish or question the thread does not cover. Under a winch proposal: "Add a minimap and maps to buy." "My truck falls through the bridge."' },
+    { value: 'parent', description: 'About it: it reacts to it, asks about it, or asks to change or fix it. Under a winch proposal: "Yes, build this." "The winch snaps on hills." "Make the winch cheaper." From a build of different sounds for armor hits and part hits: "Armor and part hits still sound the same." "The new hit sound is too loud."' },
+    { value: 'other', description: 'A separate bug, wish or question the thread does not cover. Under a winch proposal: "Add a minimap and maps to buy." "My truck falls through the bridge." From a build of different sounds for armor hits and part hits: "Misses are still too random, shots fly in weird cones." "The raiders aim too well."' },
   ],
 };
 

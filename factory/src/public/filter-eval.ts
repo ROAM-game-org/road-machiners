@@ -4,7 +4,7 @@ import type { Decision, FilterInput } from './decision';
 import { filterWith } from './filter';
 
 type Outcome = 'file' | 'stay';
-type Case = { label: 'keep' | 'drop'; from: string; text: string; source?: FilterInput['source']; parent?: string; context?: string; work?: string[]; addressed?: boolean; expect?: Outcome };
+type Case = { label: 'keep' | 'drop'; from: string; text: string; source?: FilterInput['source']; parent?: string; context?: string; work?: string[]; addressed?: boolean; expect?: Outcome; relevance?: Decision['relevance'] };
 
 const TARGET_RECALL = 0.99;
 const TARGET_F1 = 0.9;
@@ -39,9 +39,15 @@ for (const item of cases) {
     if (outcome === item.expect) routing.right += 1;
     else if (item.expect === 'stay') routing.discussionFiled += 1;
   }
+  const related = item.relevance === undefined || decision.relevance === item.relevance;
+  if (item.relevance !== undefined) {
+    routing.all += 1;
+    if (related) routing.right += 1;
+  }
   const routed = outcome === null ? '' : ` ${outcome} work=${decision.work ?? 'none'} ${decision.language ?? ''}`;
-  const mark = dropped === (item.label === 'drop') && (outcome === null || outcome === item.expect) ? '  ' : 'XX';
-  console.log(`${mark} ${item.label} ${decision.intent.padEnd(7)} sincere=${decision.sincere.toFixed(2)} ${decision.kind}${routed}  ${item.from}: ${item.text.split('\n')[0]!.slice(0, 70)}`);
+  const relevance = item.relevance === undefined ? '' : ` relevance=${decision.relevance}`;
+  const mark = dropped === (item.label === 'drop') && (outcome === null || outcome === item.expect) && related ? '  ' : 'XX';
+  console.log(`${mark} ${item.label} ${decision.intent.padEnd(7)} sincere=${decision.sincere.toFixed(2)} ${decision.kind}${routed}${relevance}  ${item.from}: ${item.text.split('\n')[0]!.slice(0, 70)}`);
 }
 
 const recall = counts.caught / (counts.caught + counts.missed);

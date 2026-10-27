@@ -32,7 +32,7 @@ digraph hardening {
   XA -> HM;
   HM -> MM [label="docs only:\nno session"];
   XO -> MM;
-  MC -> XS [label="fix budget spent, timeout,\nsuite machine failure\nor job death"];
+  MC -> XS [label="fix budget spent, timeout,\nsuite machine failure,\nonly tests the base fails too\nor job death"];
   MP -> XN;
   HH -> CU [label="waits in Merging"];
   MP -> CU [label="base moved"];

@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { causeOf } from '../fail';
@@ -6,7 +6,7 @@ import { ghClient } from '../github';
 import { JOB_ID_ENV } from '../jobs';
 import { readObservation } from '../observability';
 import type { Ctx, FactoryConfig, Run, RunResult, SuiteRun } from '../types';
-import { SuiteMachineError, remoteSuite } from './remote-suite';
+import { SuiteMachineError, remoteSuite, remoteSuiteResult } from './remote-suite';
 
 const ok = (stdout: string): RunResult => ({ code: 0, stdout, stderr: '' });
 const RUN: SuiteRun = { done: false, started: false, passed: false, testsFailed: false, conclusion: null, url: 'https://github.com/o/r/actions/runs/77' };
@@ -163,5 +163,38 @@ describe('the suite calls of the GitHub client', () => {
     const jobs = JSON.stringify({ jobs: [{ status: 'queued', steps: [] }] });
     const github = ghClient(apiFake([], { 'runs/77/jobs': jobs, 'runs/77': run }), CFG);
     expect(await github.suiteRun(77)).toEqual({ done: false, started: false, passed: false, testsFailed: false, conclusion: null, url: 'h' });
+  });
+
+  it('dispatches a rerun of some test files with its worker count', async () => {
+    const calls: string[][] = [];
+    const github = ghClient(apiFake(calls, { dispatches: '{"workflow_run_id":78}' }), CFG);
+    expect(await github.dispatchSuite('def5678', { files: ['src/a.test.ts', 'src/b.test.ts'], workers: 1 })).toBe(78);
+    expect(calls[0]).toEqual(['api', '-X', 'POST', 'repos/o/r/actions/workflows/game-suite.yml/dispatches', '-f', 'ref=main', '-f', 'inputs[sha]=def5678', '-f', 'inputs[files]=src/a.test.ts src/b.test.ts', '-f', 'inputs[workers]=1', '-F', 'return_run_details=true']);
+  });
+
+  it('downloads the failed tests of a run from its artifact and reads only a well-formed record', async () => {
+    const download = (text: string | null): Run => async (_cmd, args) => {
+      expect(args.slice(0, 7)).toEqual(['run', 'download', '77', '-R', 'o/r', '-n', 'test-failures']);
+      if (text === null) return { code: 1, stdout: '', stderr: 'no artifact matches any of the names or patterns provided' };
+      writeFileSync(join(args[8]!, 'test-failures.json'), text);
+      return ok('');
+    };
+    const record = { failed: [{ file: 'src/a.test.ts', test: 'a > b' }, { file: 'src/c.test.ts', test: null }], unhandledErrors: 0 };
+    expect(await ghClient(download(JSON.stringify(record)), CFG).suiteFailures(77)).toEqual(record);
+    expect(await ghClient(download(null), CFG).suiteFailures(77)).toBeNull();
+    expect(await ghClient(download('{"failed":[{"file":""}],"unhandledErrors":0}'), CFG).suiteFailures(77)).toBeNull();
+    expect(await ghClient(download('{"failed":[],"unhandledErrors":-1}'), CFG).suiteFailures(77)).toBeNull();
+    expect(await ghClient(download('not json'), CFG).suiteFailures(77)).toBeNull();
+  });
+
+  it('gives the failure record with a failed suite, and none when it cannot be read', async () => {
+    const record = { failed: [{ file: 'src/a.test.ts', test: 'a' }], unhandledErrors: 0 };
+    const failed = { ...RUN, started: true, done: true, testsFailed: true, conclusion: 'failure' };
+    const { ctx } = fakeCtx({ reads: [failed] });
+    ctx.github.suiteFailures = async () => record;
+    expect(await remoteSuiteResult(ctx, AT, 'abc1234')).toMatchObject({ url: RUN.url, record });
+    const broken = fakeCtx({ reads: [failed] });
+    broken.ctx.github.suiteFailures = async () => { throw new Error('gh: HTTP 502'); };
+    expect(await remoteSuiteResult(broken.ctx, AT, 'abc1234')).toMatchObject({ record: null });
   });
 });

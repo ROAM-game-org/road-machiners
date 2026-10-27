@@ -1,6 +1,6 @@
 """Base host provisioning for the game factory. Idempotent. Re-run it safely after changes.
 
-Packages, Docker, Node 24, gh, butler, the firewall, the laptop power settings, the watchdog, the NVIDIA driver and container toolkit, the factory user and the /opt/factory dirs.
+Packages, Docker, Node 24, gh, butler, the firewall, the laptop power settings, the watchdog, the persistent journal, the NVIDIA driver and container toolkit, the factory user and the /opt/factory dirs.
 """
 
 # pyright: reportMissingImports=false
@@ -165,6 +165,27 @@ server.shell(
         "timeout 60 systemctl daemon-reexec",
         "systemctl show --property RuntimeWatchdogUSec --value | grep -qx 10min",
         "grep -qx active /sys/class/watchdog/watchdog0/state",
+    ],
+    _sudo=True,
+)
+
+# The journal of a boot that froze shows its cause only when it reached the disk. journald keeps it across reboots and writes it out every 15 seconds, not only every 5 minutes, so the kernel's OOM lines before a freeze survive the reboot.
+files.put(
+    name="journald keeps the journal on disk",
+    src=StringIO("[Journal]\nStorage=persistent\nSyncIntervalSec=15s\nSystemMaxUse=2G\n"),
+    dest="/etc/systemd/journald.conf.d/factory-persistent.conf",
+    mode="644",
+    create_remote_dir=True,
+    _sudo=True,
+)
+server.shell(
+    name="journald writes the journal to /var/log/journal",
+    commands=[
+        "mkdir -p /var/log/journal",
+        "systemd-tmpfiles --create --prefix /var/log/journal",
+        "timeout 60 systemctl restart systemd-journald",
+        "journalctl --flush",
+        "test -d /var/log/journal/$(cat /etc/machine-id)",
     ],
     _sudo=True,
 )
