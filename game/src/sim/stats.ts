@@ -186,7 +186,17 @@ export function climbGrade(world: World, v: Vehicle): number {
   return grade;
 }
 
+export type DriveStats = Omit<VehicleStats, 'weapons'>;
+
 export function vehicleStats(world: World, v: Vehicle): VehicleStats {
+  return { ...driveStats(world, v), weapons: mountedWeapons(v) };
+}
+
+function mountedWeapons(v: Vehicle): MountedWeapon[] {
+  return mountedItems(v, 'weapon').map((item) => ({ part: item.part, def: weaponOn(v, item.part), spans: gunSpans(v, item), facing: facingOf(item), unit: unitOfCells(v.chassisId, itemCells(item)).index }));
+}
+
+export function driveStats(world: World, v: Vehicle): DriveStats {
   const ch = chassisDef(v.chassisId);
   const mass = vehicleMass(v);
   const load = loadFactor(v);
@@ -213,7 +223,6 @@ export function vehicleStats(world: World, v: Vehicle): VehicleStats {
     roughCut: offRoadCut(v.chassisId),
     mass,
     radius: ch.radius,
-    weapons: mountedItems(v, 'weapon').map((item) => ({ part: item.part, def: weaponOn(v, item.part), spans: gunSpans(v, item), facing: facingOf(item), unit: unitOfCells(v.chassisId, itemCells(item)).index })),
   };
 }
 

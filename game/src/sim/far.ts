@@ -10,7 +10,7 @@ import { REGION } from '../data/region';
 import { propsAround, propSlotsAlong } from './prop-index';
 import { breakProp } from './salvage';
 import { burnFuel, getResources } from './resources';
-import { fuelCap, plainFuelPerTile, plainMaxSpeed, unpavedTopShare, vehicleStats, type VehicleStats } from './stats';
+import { driveStats, fuelCap, plainFuelPerTile, plainMaxSpeed, unpavedTopShare, type DriveStats } from './stats';
 import { TERRAIN_TYPES } from '../data/terrain';
 import { tileAt } from './terrain';
 import { driveMode, parkedVehicles, throughSpeed } from './steering';
@@ -52,7 +52,7 @@ export function plainFuelSpeed(w: World, v: Vehicle): number {
   return fuelLimit(w, v, plainFuelPerTile(w, v) > 0) === 'low' ? lowFuelSpeed(top) : top;
 }
 
-export function fuelLimited(w: World, v: Vehicle, s: VehicleStats, speed: number, order: MoveOrder | null): VehicleStats {
+export function fuelLimited<S extends DriveStats>(w: World, v: Vehicle, s: S, speed: number, order: MoveOrder | null): S {
   const fuel = getResources(w, v).fuel;
   const low = fuelLimit(w, v, s.fuelPerTile > 0) === 'low';
   const limit = low ? Math.max(lowFuelSpeed(s.maxSpeed), speed - s.brake) : s.maxSpeed;
@@ -64,7 +64,7 @@ export function fuelLimited(w: World, v: Vehicle, s: VehicleStats, speed: number
 }
 
 export function advanceFar(w: World, v: Vehicle): void {
-  const full = vehicleStats(w, v);
+  const full = driveStats(w, v);
   const start = poseOf(v);
   const order = v.order;
   if (!order || order.kind === 'brake') {
@@ -92,7 +92,7 @@ export function advanceFar(w: World, v: Vehicle): void {
   if (done) arrive(w, v);
 }
 
-function brakeFar(v: Vehicle, full: VehicleStats, start: Pose): void {
+function brakeFar(v: Vehicle, full: DriveStats, start: Pose): void {
   v.speed = Math.max(0, v.speed - full.brake);
   v.trail = Array.from({ length: RULES.substeps + 1 }, () => ({ ...start }));
   if (v.order && v.speed === 0) v.order = null;
@@ -144,12 +144,12 @@ function blockedAtDest(order: DrivenOrder, block: FarBlock, reach: number): bool
   return block !== null && dist(block.other.pos, order.dest) < block.contact + reach;
 }
 
-function onGround(w: World, v: Vehicle, s: VehicleStats): VehicleStats {
+function onGround(w: World, v: Vehicle, s: DriveStats): DriveStats {
   if (TERRAIN_TYPES[w.terrain.types[tileAt(w.terrain, v.pos)]].paved) return s;
   return { ...s, maxSpeed: s.maxSpeed * unpavedTopShare(s.roughCut) };
 }
 
-function farPoints(w: World, v: Vehicle, dest: Vec, style: RouteStyle, full: VehicleStats, s: VehicleStats): { points: Vec[]; partial: boolean } {
+function farPoints(w: World, v: Vehicle, dest: Vec, style: RouteStyle, full: DriveStats, s: DriveStats): { points: Vec[]; partial: boolean } {
   const stored = keptFarRoute(v);
   if (stored && dist(stored.dest, dest) < RULES.arriveRadius && sameStyle(stored, style)) return { points: stored.points, partial: stored.partial === true };
   if (drivesCoarse(v)) return { points: coarsePoints(w, v, dest, full.radius, s.maxSpeed), partial: false };
@@ -192,7 +192,7 @@ function coarsePoints(w: World, v: Vehicle, dest: Vec, radius: number, reach: nu
   return coarseTrip(w, v.pos, dest, radius, v);
 }
 
-function farBlockers(w: World, v: Vehicle, s: VehicleStats, onRope: ReadonlySet<string>): Blocker[] {
+function farBlockers(w: World, v: Vehicle, s: DriveStats, onRope: ReadonlySet<string>): Blocker[] {
   const target = v.brain?.ramTarget;
   const reach = s.maxSpeed + radiusOf(v);
   const slower = w.vehicles.filter((o) => o.id !== v.id && o.id !== target && !onRope.has(o.id) && o.speed >= RULES.parkedSpeed && o.speed < s.maxSpeed && dist(o.pos, v.pos) <= reach + radiusOf(o));

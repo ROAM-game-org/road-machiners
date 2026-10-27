@@ -1,7 +1,7 @@
 
 import { RULES } from "../data/rules";
 import { restBend, rigDiscs, straighten } from "./rig";
-import { vehicleStats, type VehicleStats } from "./stats";
+import { vehicleStats, type DriveStats } from "./stats";
 import type { Blocker } from "./path";
 import { hasPads, nearestPad, nearestSitePad, siteUnder } from "./sites";
 import { reachesFrom, straightClear } from "./path";
@@ -55,17 +55,17 @@ export function throttleFor(d: number, speed: number, mode: DriveMode): Throttle
   return "accelerate";
 }
 
-export function throughSpeed(s: VehicleStats, speed: number, d: number, pace: number | undefined, mode: DriveMode): number {
+export function throughSpeed(s: DriveStats, speed: number, d: number, pace: number | undefined, mode: DriveMode): number {
   if (pace !== undefined) return clamp(pace, Math.max(0, speed - s.brake), Math.min(s.maxSpeed, speed + s.accel));
   return mode === "direct" ? zoneSpeed(s, speed, d) : routeSpeed(s, speed, d);
 }
 
-function routeSpeed(s: VehicleStats, speed: number, d: number): number {
+function routeSpeed(s: DriveStats, speed: number, d: number): number {
   if (!Number.isFinite(d) || !Number.isFinite(speed)) throw new Error(`Route speed needs finite distance and speed, got ${d} and ${speed}`);
   return clamp(2 * d - speed, Math.min(speed, s.maxSpeed), Math.min(s.maxSpeed, speed + s.accel));
 }
 
-export function zoneSpeed(s: VehicleStats, speed: number, d: number): number {
+export function zoneSpeed(s: DriveStats, speed: number, d: number): number {
   const z = zoneEdges();
   const creep = Math.min(s.maxSpeed, s.accel * Math.min(1, d / z.reach));
   if (speed === 0) return creep;
