@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { EN } from '../text/en';
+import { RU } from '../text/ru';
+import type { Noun } from '../text/msg';
 import { LOCALS, type NoteId } from '../data/locals';
 import { CONTRACTS, CRIME, SHOPS, SITE_ECONOMY, SITE_EVENTS, siteRecipes } from '../data/market';
 import { REGION } from '../data/region';
@@ -113,7 +115,7 @@ describe('settlement locals', () => {
     const rows: { town: string; quest: string; setup: string[]; option: string }[] = [
       { town: 'salvage-yard', quest: 'yard_sefa', setup: ['What is the road like out here?', 'Why do the Kiln riders leave you alone?'], option: 'Did a Kiln rider ever come for shelter?' },
       { town: 'bowl', quest: 'bowl_dag', setup: ['What is the road like?', 'Who are the raiders?', 'What do you make of Nose?'], option: 'How does Bowl pay the raiders?' },
-      { town: 'bowl', quest: 'bowl_hattie', setup: ['Any local legends?', 'What about the glass at the Glass Flats?', 'What do the Sunward do with strangers?', 'Heard any rumors?'], option: 'Have you seen anyone come out of the crater?' },
+      { town: 'bowl', quest: 'bowl_hattie', setup: ['Any local legends?', 'What about the glass at the Glass Flats?', "What's down in that crater?", 'Heard any rumors?'], option: 'Have you seen anyone come out of the crater?' },
       { town: 'nose', quest: 'nose_kovac', setup: ['What is the road like?', 'What is this place?'], option: 'Why let unarmed trucks out the gate?' },
       { town: 'nose', quest: 'nose_edda', setup: ['Yes. I drive linked.', 'What do you know about links?', 'Who made the first link?', 'What happened to your grandfather?'], option: 'Could I lose myself in my truck?' },
       { town: 'nose', quest: 'nose_edda', setup: ['Yes. I drive linked.', 'What do you know about links?'], option: 'What does the ring on my skull mean?' },
@@ -825,4 +827,36 @@ describe('Petra Quell at the Roadhouse', () => {
     expect({ money: loaded.player.money, events: loaded.events.length, xp: loaded.player.xp }).toEqual(before);
     expect(questView(loaded, QUESTS).choices).toContain('Leave her to the mast.');
   });
+});
+
+describe('Hattie keeps the Sunward secret', () => {
+  const orderNames = [
+    String(EN['faction.sunward']),
+    ...Object.values((RU['faction.sunward'] as Noun).forms),
+  ];
+  const questLines = (language: 'en' | 'ru', quest: string) =>
+    readFileSync(`src/data/quests/${language === 'ru' ? 'ru/' : ''}${quest}.ink`, 'utf8')
+      .split('\n')
+      .filter((line) => !line.includes('cult_broken()') && !/^\s*(~|VAR)\s/.test(line));
+
+  for (const language of ['en', 'ru'] as const) {
+    for (const quest of ['intro_bowl', 'bowl_hattie']) {
+      it(`never names the order in ${language} ${quest}`, () => {
+        for (const line of questLines(language, quest)) {
+          expect(line, line).not.toContain('<term=sunward>');
+          for (const name of orderNames) expect(line, line).not.toContain(name);
+        }
+      });
+    }
+
+    it(`never names the order in a journal note ${language} Hattie gives`, () => {
+      const catalog = (language === 'ru' ? RU : EN) as Record<string, string>;
+      const hattieNotes = Object.keys(catalog).filter((key) => /^journalNote\.\w+\.from$/.test(key) && /Hattie|Хэтти/.test(catalog[key]));
+      expect(hattieNotes.length).toBeGreaterThan(0);
+      for (const key of hattieNotes) {
+        const text = catalog[key.replace(/\.from$/, '.text')];
+        for (const name of orderNames) expect(text, key).not.toContain(name);
+      }
+    });
+  }
 });

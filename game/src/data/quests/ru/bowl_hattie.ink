@@ -29,7 +29,7 @@ VAR hattie_unarmed = false
   ~ note("wagonBowl")
   ~ hattie_rumor = true
   -> hub
-+ {not hattie_flats or not hattie_glass or not hattie_sunward or cult_broken() or not hattie_came_out} [Об Обращенных к Солнцу…]
++ {not hattie_flats or not hattie_glass or not hattie_sunward or cult_broken() or not hattie_came_out} [О кратере…]
   -> about_sunward
 + {not (hattie_strangers and hattie_granary and hattie_soldiers and hattie_roads and hattie_unarmed)} [О чужаках и солдатах…]
   -> about_strangers
@@ -89,13 +89,13 @@ VAR hattie_unarmed = false
   -> about_sunward
 + {hattie_flats and not hattie_glass} [Что со стеклом на Стеклянной равнине?]
   Пим Арслан говорит, все волны на стекле клонятся в одну сторону, к кратеру <term=fallen_sun>Павшего солнца</term>.
-  А я в полдень на это стекло ни ногой. И проверять, опасно ли, не собираюсь. <term=sunward>Обращенные к Солнцу</term> говорят, стекло кланяется тому, что в кратере.
+  А я в полдень на это стекло ни ногой. И проверять, опасно ли, не собираюсь.
   ~ note("talkGlassLean")
   ~ hattie_glass = true
   -> about_sunward
-+ {hattie_glass and not hattie_sunward} [Что Обращенные к Солнцу делают с чужаками?]
-  Водят в кратер, выводят зеленых по краям и тихих.
-  Я в тот кратер не ходила и не пойду.
++ {hattie_glass and not hattie_sunward} [Что там, в кратере?]
+  Не знаю. Я туда не ходила и не пойду.
+  Чужаков уводят в кратер. Те немногие, кто выходит, зеленые по краям и тихие.
   ~ note("talkSunwardTake")
   ~ hattie_sunward = true
   -> about_sunward

@@ -86,7 +86,7 @@ VAR asked_tips = false
   -> about_region
 + {asked_region and not asked_flats} [А на востоке?]
   ~ asked_flats = true
-  На востоке <term=glass_flats>Стеклянная равнина</term>, а за ней <term=sunward>Обращенные к Солнцу</term>. Грузы туда никто не возит, ездят за линзами. Привозят хорошее стекло и скверные ожоги. # speaker: Хэтти
+  На востоке <term=glass_flats>Стеклянная равнина</term>. Грузы туда никто не возит, ездят за линзами. Привозят хорошее стекло и скверные ожоги. # speaker: Хэтти
   -> about_region
 + [Назад.]
   -> questions
