@@ -5,7 +5,7 @@ import { sunAt } from './sun';
 import { TIME } from '../data/time';
 import { describe, expect, it } from 'vitest';
 import { addVehicle, editableTerrain, emptyWorld } from './testkit';
-import { advanceDust, cloudsSeenBy, contactsOf, dustRange, markVehicle, scannerRange, soundRange } from './detect';
+import { advanceDust, cloudsSeenBy, contactsOf, dustRange, markVehicle, scannerRange, sensesOf, sharpSensesOf, soundRange } from './detect';
 import { makePart } from './factory';
 import { mountPart } from './inventory';
 import { TERRAIN } from '../data/terrain';
@@ -157,6 +157,24 @@ describe('dust clouds', () => {
     expect(dustRange(w, v)).toBeGreaterThan(40);
     return { w, v, observer: w.vehicles[0] };
   }
+
+  it('sharp senses keep exactly the sharp contacts the whole map gives, a far dusty truck included', () => {
+    const { w, v, observer } = dustyWorld();
+    v.pos = { x: 70, y: 30 };
+    v.trail = [0, 1, 2, 3, 4].map((i) => ({ x: 66 + i, y: 30, heading: 0 }));
+    for (const x of [14, 30, 45, 90, 150]) {
+      const other = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x, y: 31 });
+      other.speed = 3;
+      other.trail = [0, 1, 2].map((i) => ({ x: x - 2 + i, y: 31, heading: 0 }));
+    }
+    advanceDust(w);
+    for (const blur of [6, 12, 20]) {
+      const all = sensesOf(w, observer, Infinity);
+      const sharp = sharpSensesOf(w, observer, blur);
+      expect(sharp.seen.map((x) => x.id)).toEqual(all.seen.map((x) => x.id));
+      expect(sharp.contacts.filter((c) => c.radius <= blur)).toEqual(all.contacts.filter((c) => c.radius <= blur));
+    }
+  });
 
   it('a moving dusty truck raises a cloud behind it, and a parked one does not', () => {
     const { w, v } = dustyWorld();

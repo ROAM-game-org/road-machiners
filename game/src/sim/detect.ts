@@ -84,13 +84,34 @@ export function contactsOf(world: World, observer: Vehicle, within: number): Con
 }
 
 export function sensesOf(world: World, observer: Vehicle, within: number): { seen: Vehicle[]; contacts: Contact[] } {
+  return sensesWhere(world, observer, within, () => (_v, d) => d <= within);
+}
+
+export function sharpSensesOf(world: World, observer: Vehicle, blur: number): { seen: Vehicle[]; contacts: Contact[] } {
+  const reach = sharpReach(world, observer, blur);
+  return sensesWhere(world, observer, Infinity, (clouds) => {
+    const dusty = new Set(clouds.map((c) => c.source));
+    return (v, d) => d <= reach || dusty.has(v.id) || hearsBeacon(world, observer, v);
+  });
+}
+
+function sharpReach(world: World, observer: Vehicle, blur: number): number {
+  const fix = 1 - skillEffect(world, observer, 'perception', 'contactFix');
+  const blurred = (blur / fix - DETECT.fuzz.base) / DETECT.fuzz.perTile;
+  return Math.max(sightRadius(world, observer), sightRadius(world, observer, true), blurred, scannerRange(world, observer));
+}
+
+type Considered = (v: Vehicle, d: number) => boolean;
+
+function sensesWhere(world: World, observer: Vehicle, within: number, consider: (clouds: DustCloud[]) => Considered): { seen: Vehicle[]; contacts: Contact[] } {
   const seen: Vehicle[] = [];
   const contacts: Contact[] = [];
   const sight = sightTo(world, observer);
   const listener = { scanned: scannerRange(world, observer), far: farSightRadius(world, observer), clouds: cloudsSeenBy(world, observer).filter((c) => dist(observer.pos, c.pos) <= within) };
+  const considered = consider(listener.clouds);
   for (const v of world.vehicles) {
     const d = dist(observer.pos, v.pos);
-    if (v.id === observer.id || d > within) continue;
+    if (v.id === observer.id || !considered(v, d)) continue;
     if (seesNear(world, observer, sight, v, d)) seen.push(v);
     else contacts.push(...contactWith(world, observer, listener, v, d));
   }

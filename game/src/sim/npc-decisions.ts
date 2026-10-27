@@ -22,7 +22,7 @@ import { ramFactor, ramImpact } from './crash-contact';
 import { isDefeated, isKnockedOut } from './defeat';
 import { fightOdds, type FightOdds } from './fight-odds';
 import { vehicleById } from './damage';
-import { sensesOf } from './detect';
+import { sharpSensesOf } from './detect';
 import { affordableBuyCount, getTradePrice, getUpkeepReserve } from './economy';
 export { getUpkeepReserve } from './economy';
 import { cargoRoom } from './inventory';
@@ -203,7 +203,7 @@ export function usefulContacts(world: World, vehicle: Vehicle): Contact[] {
 
 export function npcSenses(world: World, vehicle: Vehicle): { seen: Vehicle[]; contacts: Contact[] } {
   const radius = npcProfile(vehicle).contactReactRadius;
-  const { seen, contacts } = sensesOf(world, vehicle, Infinity);
+  const { seen, contacts } = sharpSensesOf(world, vehicle, radius);
   const useful = contacts.filter((contact) => contact.radius <= radius && contact.sources.some((source) => source !== 'far'));
   return { seen, contacts: useful.sort((a, b) => dist(vehicle.pos, a.center) - dist(vehicle.pos, b.center)) };
 }
