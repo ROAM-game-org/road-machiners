@@ -1,4 +1,5 @@
 
+import type { MomentId } from '../data/moments';
 import type { PartHit, Side } from "./armor";
 import type { FireBlock } from "./combat";
 import type { GearLevel, TraitId } from "../data/npcs";
@@ -204,7 +205,8 @@ export type GoalReason =
   | 'musterCrew' | 'crewLeader' | 'hiredGuard'
   | 'restHollow' | 'rideVigil' | 'keepVigil' | 'rideHome' | 'huntRoad' | 'dragToLight' | 'leaveCrater' | 'orderFell' | 'meetStranger'
   | 'sizingUp' | 'poorLoad' | 'sizedUpBy'
-  | 'bountyHunt' | 'atPost' | 'caseClosed' | 'huntGaveUp' | 'cargoLost' | 'backToPost';
+  | 'bountyHunt' | 'atPost' | 'caseClosed' | 'huntGaveUp' | 'cargoLost' | 'backToPost'
+  | 'watchSunset' | 'restShade' | 'tendGrave';
 
 export type SimNote =
   | { id: 'engineHot' }
@@ -492,6 +494,7 @@ export type PendingEncounter = { encounter: EncounterId; driver: string; until: 
 export type CourierBeat = 'asked' | 'promised' | 'helped' | 'paid' | 'refused' | 'owed' | 'ended';
 export type CourierTopic = 'courierShort' | 'courierThanks' | 'courierSquare' | 'courierCold' | 'courierGrudge' | 'courierFavor';
 export type CourierStory = { driver: string; beat: CourierBeat; turn: number; aidValue: number; free: boolean };
+export type MomentState = { driver: string | null; heard: boolean };
 export type EncounterLog = { next: number; pending: PendingEncounter | null; story: CourierStory | null };
 
 export type Player = {
@@ -754,5 +757,6 @@ export type World = {
   searchRng: Rng;
   chaosHighway: ChaosHighwayRun | null;
   sunward: SunwardFacts | null;
+  moments: Record<MomentId, MomentState> | null;
   crimes: CrimeCase[];
 };

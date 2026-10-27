@@ -49,6 +49,7 @@ export const REBAKE_MOVE = {
   shops: 'shift',
   states: 'shift',
   sunward: 'shift',
+  moments: 'keep',
   crimes: 'shift',
   events: 'drop',
   removed: 'drop',

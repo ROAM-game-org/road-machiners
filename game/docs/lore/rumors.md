@@ -35,7 +35,6 @@ Nobody agrees, and each guess has its believers.
 - The Old Army did not run out of food. It was starved out on purpose.
 - Pierce sold the Old Army's guns to Scrapjaw, then made every driver buy a gun to be insured.
 - Somebody in the Pierce office sold the roads of insured trucks to robbers. He went north-west and never came back.
-- The Nose Committee rents its workshop line with Pierce money.
 - The Administrator keeps a book in the crane office that could bring down both towns.
 - The old Senate families on the top terraces send a truck to Dustwell for water that never shows up in any book.
 
@@ -47,7 +46,7 @@ Nobody agrees, and each guess has its believers.
 - A Nose brake rod is cheap steel, and on a sharp bend it will snap and nothing will slow you.
 - In the north-west there are towns whose trucks carry no guns, because a guard paid by every town keeps the roads.
 - The glass on the Glass Flats all points the same way, toward the Fallen Sun.
-- The number the Sunward chant at the rim is the year the radio count stops.
+- The tone the Sunward sing at the rim is the one the radio tone stops on.
 - Kiln riders let you go if you fight hard enough. They strip you if you don't.
 - The marshals can reach any stranded truck on the plain before nightfall.
 - The marshals know every truck's route before it leaves.
@@ -56,7 +55,6 @@ Nobody agrees, and each guess has its believers.
 - At dusk a line of lamps crosses open ground to the crater, and before dawn it goes back. Call those cars on the radio and nobody answers.
 - Cars that stop near the crater at night get dragged into the dark on a chain. Families find the furrows by the road in the morning.
 - The Keeper walked into the light singing, and his coat is still warm on the man who wears it.
-- The beacon keepers put their camp fires out at night now, because fires draw the Sunward's cars.
 - Joss Ardo of the Children of Noah got out of the Sunward. His friend did not.
 - Some people out past the glass live without towns and without trucks, and nobody knows how.
 - A crew once camped in the wreck and their sentry fell asleep. In the morning the sentry was gone, and his boots were still standing by the fire.

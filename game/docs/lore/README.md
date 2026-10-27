@@ -31,6 +31,23 @@ A missing answer, a clash with another fact or an answer that would make a basin
 - Invented cause: a reason made up for a game rule that already has one, which then clashes with the world. Bowl buying scrap because the rains rust its sluice hinges every year fails it twice: rain is rare in the basin, and Bowl buys scrap because its machinists turn it into parts.
 - A thing the world doesn't have: a vehicle, machine or trade the game never shows. A water tanker fails it, since water travels in barrels on ordinary trucks.
 
+### Cut examples
+
+Each of these was in the lore and was cut or fixed. The test it failed is in brackets.
+
+- The Granary paid Kiln a sack for every armed truck that crossed. [It works] Kiln strips trucks that neither pay nor fight, so an armed truck is the one that needs the deal least. A racket charges for passage. Now Kiln eats Granary rations, and Granary trucks pass.
+- Tomas was sentenced to ten years in the Bowl patrol for scraping chalk off a meter. [It works] Ten years in the patrol make a tenant a citizen with a vote, so the sentence was a reward. Now he simply serves in the patrol.
+- Jory wanted a vote for every tenant who serves ten years, which the rule already gave, and Dag said tenants in the patrol stay off the citizens' roll. [It works] Two facts that cannot both hold. Now tenants have no vote, ten years in the patrol put a tenant on the roll, and citizens vote.
+- Sefa never took the last water from anyone. [It earns its place] A quirk with no scene behind it. It leaked into the game as a question a player called nonsense.
+- Aurel Brede, a household steward, signed patrol postings, and Ilya's postings came from him. [Everyone has a reason] Nothing gives a steward power over the patrol. The link was there only to tie two people together.
+- Lena Graves woke in a pod as a girl in year 0 and still warned command in year 130, and Dagny Brask still worked her furnace past 110. [It works] Nobody in the basin lives to 140 without the Apprentice's implants. Now Lena Graves is dead and the Nose mechanic is another Lena, and Dagny is past 70.
+- The Salvage Yard bored the second pin into Nose swivels. [Purpose, It earns its place] No one said what the pin was for, and nothing used it.
+- The Guild's trust owned Old Orchard's machine tools and rented them to Nose. [Everyone has a reason] A message guild has no reason to own an army's workshop. Now Nose hauled the tools away once the army was gone.
+- Sabra Kell gave toll receipts honored once a year, and left her tin by Ladle's scraper. [Purpose, It earns its place] A receipt honored once a year does no job, and the tin and scraper were props with no meaning.
+- Ilya Moreno feared a truck going missing on his watch and repainted the same count every morning, though he let the two staff cars out himself. [It works] His fear contradicted his own secret, and the daily habit changed nothing.
+- Odile Marsh counted every sack at night and chalked the count on the Granary gate, and the Bowl patrol was paid from the Granary count. [Purpose, It works] Nobody in the basin counts as a job, and a count the steward chalks herself is still only her word. Now Odile keeps the gate open by day, the Kiln ration crates stand stacked beside it, and the patrol is paid from the Granary's grain.
+- Half the basin counted as its practice: Agnes read meters into a pump book, Mirela counted barrels into a Canal book, Ines read the sky count aloud, Petra wrote down every truck with the hour, Hollis chalked drum counts, the President read the ration tally, and clues hung on tables of numbers. [Purpose, It earns its place] People who scrape by on water and grain do not keep books of figures, and a number on a page shows the player nothing. Now each person does a plain thing that fits their wants, and every clue is something the player sees or hears, like a loaded truck, an empty bay or a tone matched to iron bars.
+
 ## Icarus
 
 Icarus was a fertile farming basin before the collapse. Orchards, fields, canals, irrigation gates, farm roads, and market towns shaped the land. It was not a spaceflight center. The name Icarus came after the crash. Its old name has not been chosen.
@@ -123,9 +140,9 @@ Bowl and Nose have locals the player talks to in town. `src/data/locals.ts` hold
 - Talk about the recent years comes from more locals. Jory Baptiste and Bo Lindqvist are at Bowl, a Bowl patrol driver is at the Granary, Sefa Krol trades at the Salvage Yard, and Ines Abend and an Order Bureau clerk are at Nose.
 - Jory speaks for the tenants and ends every answer with a short joke. His subjects are the vote, the patrol, Kiln and the grain, and the household truck to the top terraces.
 - Bo is gentle and plain. He tells the fight at the Burnt Convoy once and does not excuse it.
-- The patrol driver talks like a working Bowl hand: the Granary count, the road no one guards and the north-western tale. The Bureau clerk talks short and low, afraid of the corridor, and says only what the corridor says.
+- The patrol driver talks like a working Bowl hand: the Kiln crates, the road no one guards and the north-western tale. The Bureau clerk talks short and low, afraid of the corridor, and says only what the corridor says.
 - Sefa is blunt and dry. She speaks for the families off the Burnt Convoy, who live at the Salvage Yard now. She takes what the road is done with and leaves the water.
-- Ines is level and open. She reads the count aloud to anyone who stops and says plainly what she does not know.
+- Ines is level and open. She rings the plate's bars against the radio tone for anyone who stops and says plainly what she does not know.
 - The six older locals also talk about Pierce's gun rule, the swivel, brake rods, Pierce paper, the Kiln fee, the tenants, Green Pit and the Glass Flats, each in their own voice. Ruben, Hattie and Dag disagree with Kovac, Lena and Ibo on who is to blame.
 - A rumor from [Rumors](rumors.md) reaches the journal as a note that records what the speaker said, never the truth. A biased speaker says so in character, and two locals may contradict each other, as Sefa and Ibo do on the old Burnt Convoy stretch.
 - Locals point to the people of other jobs by name and place only: Agnes Ondra at Dustwell, Odile Marsh at the Granary, Mara Kessel at the Salvage Yard, Constance Pierce at the Pierce office in Nose, Tamsin Roe the courier, Lusa Fenwick and Pim Arslan the lens cutter. They never speak for them.

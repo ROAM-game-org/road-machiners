@@ -111,13 +111,13 @@ export type SunwardPrepareId = 'vigilCall' | 'craterNews';
 export const SUNWARD_LINES = [
   'vigilCall1', 'vigilCall2', 'vigilCall3', 'comeAndWatch', 'notGoing', 'driveIntoTheLight', 'givenBySky', 'wordBroken',
   'askAboutTheCrater', 'craterNews', 'carsDraggedIntoTheDark', 'crowdAtTheCraterAgain',
-  'craterLamps', 'craterSilentRadio', 'craterFurrows', 'craterDarkBeacons', 'craterDayTrade', 'craterGivenHearsay', 'craterNoLooting',
+  'craterLamps', 'craterSilentRadio', 'craterFurrows', 'craterDayTrade', 'craterGivenHearsay', 'craterNoLooting',
   'craterLampsStopped', 'craterFortEmpty', 'craterBackAtNight',
 ] as const;
 export type SunwardLineId = (typeof SUNWARD_LINES)[number];
 
 export const CRATER_ACCOUNTS: { standing: readonly SunwardLineId[]; fallen: readonly SunwardLineId[] } = {
-  standing: ['craterLamps', 'craterSilentRadio', 'craterFurrows', 'craterDarkBeacons', 'craterDayTrade', 'craterGivenHearsay', 'craterNoLooting', 'carsDraggedIntoTheDark'],
+  standing: ['craterLamps', 'craterSilentRadio', 'craterFurrows', 'craterDayTrade', 'craterGivenHearsay', 'craterNoLooting', 'carsDraggedIntoTheDark'],
   fallen: ['crowdAtTheCraterAgain', 'craterLampsStopped', 'craterFortEmpty', 'craterBackAtNight'],
 };
 

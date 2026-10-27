@@ -36,13 +36,13 @@ VAR asked_paper = false
   Salt off the pans under the wall. Tools from the forge. Batteries from the cell shop.
   The forge burns scrap and diesel. The cell shop burns parts and diesel. The scrap and the parts come from the <term=salvage_yard>Yard</term>, the diesel from the Pump Station. Short of any of it, the line stops.
   { short_of("scrap"):
-    Scrap's short. The forge is cold until the Yard trucks come in. I log it.
+    Scrap's short. The forges are cold until the Yard trucks come in. I log it.
   }
   { short_of("fuelDrums"):
     Diesel's short. The forge and the cells both wait on the convoys. I log that too.
   }
   { short_of("parts"):
-    Parts are short. The cell shop stands idle, and command asks me why.
+    Parts are short. The cell shops stand idle, and command asks me why.
   }
   -> hub
 + [Any work?]
@@ -99,11 +99,11 @@ VAR asked_paper = false
   A piece of Army steel from wagon Seven changed hands at the <term=salvage_yard>Yard</term>. I logged the sale. Your name is on the line, beside the price.
   -> hub
 + {heard_workshop and not asked_workshop} [Where did the workshop line come from?]
-  Old Orchard, the Old Army's depot. The machine tools are the Guild's, and command rents them. Who pays that rent is above my sheet.
+  Old Orchard, the Old Army's depot. Command hauled the machine tools up the mountain once the Army was gone. Who signed for them is above my sheet.
   ~ asked_workshop = true
   -> hub
 + {heard_mounts and not asked_mounts} [Why let unarmed trucks out the gate?]
-  The gate isn't mine to shut on a driver. The line hands a steel mount to any driver who asks, so nobody can tell me he had nowhere to bolt a gun. What goes on it is between the driver and <term=pierce>Pierce</term>. Pierce writes his paper. I don't ask.
+  The gate isn't mine to shut on a driver. What goes on his truck is between the driver and <term=pierce>Pierce</term>. Pierce writes his paper. I don't ask.
   ~ asked_mounts = true
   ~ heard_paper = true
   -> hub
@@ -112,7 +112,7 @@ VAR asked_paper = false
   ~ asked_courier = true
   -> hub
 + {heard_paper and not asked_paper} [What is Pierce paper?]
-  It's the insurance that pays a driver's family when he doesn't come back. Pierce writes it for any truck with a gun on it, and for no other. That's why the line hands out mounts.
+  It's the insurance that pays a driver's family when he doesn't come back. Pierce writes it for any truck with a gun on it, and for no other.
   ~ asked_paper = true
   -> hub
 + [Goodbye.]

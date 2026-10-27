@@ -8,7 +8,7 @@ A broken cab knocks the player out while health is above 0. A cab below half may
 
 The first time other trucks knock the player out, a short page scene opens that shows the attacker sparing the driver. It opens once per game.
 
-In the opening, one raider hunts the player once the engine is patched and the truck is on a road. If it knocks the player out, the raider robs what its truck can hold and leaves the driver alive. When the knockout ends, a stranger has towed the truck to Bowl and a short scene opens there. Bowl has a garage, so the player can buy back what the raider took. A win or an escape ends the hunt with no scene.
+In the opening, one raider hunts the player once the engine is patched and the truck drives off the farm, or at once if the cage from the wreck is already mounted. If it knocks the player out, the raider robs what its truck can hold and leaves the driver alive. When the knockout ends, a stranger has towed the truck to Bowl and a short scene opens there. Bowl has a garage, so the player can buy back what the raider took. A win or an escape ends the hunt with no scene.
 
 While knocked out, turns run on their own and the player gives no orders. Looters strip the truck by the same rules as a knocked-out NPC truck, below. The player comes to when the trucks that fought it no longer see it, or after 30 turns. Broken built-in parts that are not junk are patched to a quarter of their HP. A player who accepts a robber's surrender offer lies down the same way, marked as having given up: it pays no knockout XP, counts no knockout and opens no scene, and the robber loots it on real turns.
 

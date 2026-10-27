@@ -51,7 +51,7 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
   ~ asked_jj = true
   -> hub
 + {heard_tone and not asked_tone} [What does the tone from the Fallen Sun say?]
-  It's a low, steady note that comes and goes, always from the crater's side. Some say it counts the years since the fall. I've no key to decode it, and the Army never asked me to log it. If it counts, it counts without me.
+  Eh? A low, steady note that fades and comes back, always from the crater's side. The old hands say it climbs one step each year since the fall, if their ears haven't drifted off into the static. I can't hear the steps myself. The set tells me it's there, and the Army never asked me to log it.
   ~ asked_tone = true
   -> hub
 + {heard_tone} [Hear anything from the crater at night?]
@@ -71,14 +71,14 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
   ~ asked_convoy = true
   -> hub
 + {heard_army and not asked_army} [How did the Old Army end?]
-  Hungry. Commander Lind nailed a book of every unpaid promise to the gate at Old Orchard, the Army's depot, and then he died in the motor pool. I heard his last calls on the air. He read the whole list. The machine tools stayed behind in the shed, and somebody's still paying for those.
+  Hungry. Commander Lind nailed a book of every unpaid promise to the gate at Old Orchard, the Army's depot, and then he died in the motor pool. I heard his last calls on the air. He read the whole list. The machine tools stayed behind in the shed, until command came for them.
   Some say the Army didn't run out of food. They say it was starved on purpose. I say a man who starts a rumor like that wants a seat in the hall.
   ~ note("talkArmyStarved")
   ~ asked_army = true
   ~ heard_tools = true
   -> hub
-+ {heard_tools and not asked_tools} [Who pays for the Old Orchard tools?]
-  The Guild's trust owns them and rents them to us. Command pays the Guild, and the Guild hears who pays command. I hear the Guild on the air, a little. I won't repeat it.
++ {heard_tools and not asked_tools} [Who took the Old Orchard tools?]
+  Command hauled them up the mountain once the Army was gone. Nobody asked the Bowl, and nobody asked the dead. I hear things on the air about who wanted the Army gone. I won't repeat them.
   ~ note("talkCommitteeRent")
   ~ asked_tools = true
   -> hub

@@ -40,7 +40,7 @@ Narration stays close to the player and thinks like a survivor: what's a threat,
 
 Put a plain want next to the violence: a bed, a hot meal, a cup of water, who does the washing up. A haggle over a cot after a gunfight tells the player more about the basin than any speech about how hard life is. End a big scene on the small thing.
 
-After the player drives the raiders off Juno's beacon line, Juno says: "You'll want the cot by the stove, then. And you're carrying the batteries up in the morning, because Tam's leg won't."
+After the player drives the raiders off the pod field, Juno says: "You'll want the cot by the stove, then. And you're fetching the water in the morning."
 
 ### Both sides look the same
 
@@ -70,7 +70,7 @@ Rough people swear plainly and without heat, the way they'd mention the wind. Sw
 
 ### Competence shows in small checks
 
-Show skill as habit. A veteran checks the tires and belts at every stop, counts their knives before a talk and notices the man who steps out of their line of sight. The narrator respects it in a few words.
+Show skill as habit. A veteran checks the tires and belts at every stop, touches the knife at their belt before a talk and notices the man who steps out of their line of sight. The narrator respects it in a few words.
 
 "The old one takes a casual step to the side, out of your sight. Figures how he lived this long."
 
@@ -105,6 +105,8 @@ Write their voice sheet in [Voices](../lore/voices.md) first. A sheet answers fi
 5. What do they avoid talking about? The thing a person steers around tells the player more than the thing they say.
 
 Match the voice to the place. Bowl talks of fields, seasons and family. Nose talks of orders, rations and the log. The Yard talks of prices and what things are worth. A stranger learns the town from how its people speak before anyone explains it.
+
+A speaker talks from their own corner of a place that holds hundreds or thousands of people. Their job is one stall, crew or canteen among many, and their talk names the crowds, crews and neighbours around them. [People and scale](../lore/world.md#people-and-scale) says how big each place is.
 
 A minor speaker gets a clear job and no quirk. A gate sentry with a funny tic reads as someone important, and the player wastes time on him.
 

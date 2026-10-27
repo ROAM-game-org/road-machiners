@@ -523,6 +523,7 @@ describe('NPC activities', () => {
       const { w, npc } = createScavenger();
       npc.pos = { ...at };
       npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
+      forceOption('idle', 'scavenge');
       const traits = TRAITS.scavenger as { salvageSites: string[] };
       const saved = traits.salvageSites;
       traits.salvageSites = [territoryId];
