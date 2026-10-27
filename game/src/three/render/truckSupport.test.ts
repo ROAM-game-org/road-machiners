@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { CHASSIS, PAINT } from '../../data/chassis';
 import { isShield, PARTS, partDef } from '../../data/parts';
-import { BODY_PARTS } from '../../render/partLooks';
+import { BODY_PARTS, WEAPON_POOLS, weaponLook } from '../../render/partLooks';
 import { unitsOf } from '../../sim/body';
 import { makePart } from '../../sim/factory';
 import { gridOf, isMounted, MOUNT_CELLS, mountSpots, placementError } from '../../sim/grid';
@@ -85,21 +85,38 @@ describe('truck support', () => {
   });
 });
 
+function lookIds(defId: string): string[] {
+  const slots = ['receiver', 'barrel', 'extra'] as const;
+  const missing = new Set(WEAPON_POOLS[defId].mount.flatMap((mount) => slots.flatMap((slot) => WEAPON_POOLS[defId][slot].map((name) => `${mount}|${slot}|${name}`))));
+  const ids: string[] = [];
+  for (let n = 0; missing.size > 0; n++) {
+    if (n > 10000) throw new Error(`No part ids cover every look of ${defId}`);
+    const look = weaponLook(`look${n}`, defId);
+    const keys = slots.flatMap((slot) => (look[slot] ? [`${look.mount}|${slot}|${look[slot]}`] : []));
+    if (!keys.some((key) => missing.has(key))) continue;
+    keys.forEach((key) => missing.delete(key));
+    ids.push(`look${n}`);
+  }
+  return ids;
+}
+
 describe('guns on every deck cell', () => {
-  it('a gun on any legal cell and rotation of any truck builds and stands on the truck', { timeout: SLOW * 10 }, () => {
+  it('a gun in every look on any legal cell and rotation of any truck builds and stands on the truck', { timeout: SLOW * 30 }, () => {
     const faults: string[] = [];
     const guns = Object.values(PARTS).filter((def) => def.kind === 'weapon');
     for (const chassisId of Object.keys(CHASSIS)) {
       const w = emptyWorld();
       const base = addVehicle(w, 'scrapjaw', chassisId, [], { x: 40, y: 30 });
       for (const def of guns) {
-        const probe: GridItem = { id: 'probe', kind: 'part', part: makePart(w, def.id, 0), x: 0, y: 0, rot: 0 };
-        for (const spot of mountSpots(gridOf(base), base.items, probe, MOUNT_CELLS.weapon)) {
-          const v = { ...base, items: [...base.items, { ...probe, ...spot }] };
-          try {
-            faults.push(...faultsOf(v));
-          } catch (e) {
-            faults.push(`${chassisId} ${def.id} @${spot.x},${spot.y} r${spot.rot}: ${(e as Error).message}`);
+        for (const id of lookIds(def.id)) {
+          const probe: GridItem = { id: 'probe', kind: 'part', part: { ...makePart(w, def.id, 0), id }, x: 0, y: 0, rot: 0 };
+          for (const spot of mountSpots(gridOf(base), base.items, probe, MOUNT_CELLS.weapon)) {
+            const v = { ...base, items: [...base.items, { ...probe, ...spot }] };
+            try {
+              faults.push(...faultsOf(v));
+            } catch (e) {
+              faults.push(`${chassisId} ${def.id} ${JSON.stringify(weaponLook(id, def.id))} @${spot.x},${spot.y} r${spot.rot}: ${(e as Error).message}`);
+            }
           }
         }
       }

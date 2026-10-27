@@ -513,8 +513,8 @@ export function rearHang(body: THREE.Object3D, z: number): THREE.Vector3 {
 
 function wallHit(body: THREE.Object3D, from: THREE.Vector3, dir: THREE.Vector3): THREE.Vector3 | null {
   const start = from.clone().addScaledVector(dir, -CLIP_TOLERANCE);
-  const hit = new THREE.Raycaster(start, dir).intersectObject(body, true)[0];
-  return hit && !seeThrough(hit.object) ? hit.point : null;
+  const hit = new THREE.Raycaster(start, dir).intersectObject(body, true).find((h) => !seeThrough(h.object));
+  return hit ? hit.point : null;
 }
 
 function seeThrough(obj: THREE.Object3D): boolean {
