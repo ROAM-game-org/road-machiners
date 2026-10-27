@@ -185,7 +185,7 @@ The world variable `wagon_fate` keeps the outcome. Its values are `none`, `logge
 
 ## Locals at stalls
 
-Dustwell, the Granary, Green Pit and the Pump Station are stalls with no board of work. Their locals never call `has_work()`, `has_offers()`, `board_full()` or `take_work()`. The checker parks each local's quest at their place, as it does for Bowl and Nose, and `src/sim/locals.test.ts` talks to Agnes and Odile.
+Dustwell, the Granary, Green Pit and the Pump Station have shops of kind `stall`, with no board of work. Their locals never call `has_work()`, `has_offers()`, `board_full()` or `take_work()`. The checker parks each local's quest at their place, as it does for Bowl and Nose, and `src/sim/locals.test.ts` talks to Agnes and Odile.
 
 Every site in `SITE_ECONOMY` has a local who answers what the site makes: Ruben at Bowl, Kovac at Nose, Sefa at the Salvage Yard, Agnes at Dustwell, Odile Marsh at the Granary, Hadiza Okon at Green Pit and Hollis Brennan at the Pump Station. The answer is a repeatable choice. It asks `short_of()` for every recipe input and upkeep good of the site, and `works_down()` where the works can break down, so the player hears what the site lacks that day. A test in `src/sim/locals.test.ts` fails when a site's input or upkeep good has no `short_of()` call in its locals' quests.
 

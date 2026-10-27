@@ -24,7 +24,7 @@ VAR asked_glare = false
 = hub
 # checkpoint: start.hub
 + [What do you do here?]
-  I keep the Army's trucks running. Anybody else's too, if they bring them to my bench. Engines, plate, mounts, whatever breaks. I can tell what's wrong with a truck by the sound of it pulling in.
+  I keep my share of the Army's trucks running. Anybody else's too, if they bring them to my bench. Engines, plate, mounts, whatever breaks. I can tell what's wrong with a truck by the sound of it pulling in.
   -> hub
 + [About my truck…]
   -> about_truck
@@ -61,7 +61,7 @@ VAR asked_glare = false
 
 = about_road
 + [Where can I get clean water?]
-  Green Pit, out past the road. It's a pump outpost round an old cistern, and they pull the water up from deep rock and sell it by the can. It's clean, and it isn't cheap. Bring M's.
+  Green Pit, out past the road. It's a pump town round an old cistern. Their pumps pull the water up from deep rock, and they sell it by the can. It's clean, and it isn't cheap. Bring M's.
   ~ note("greenPit")
   -> about_road
 + {heard_kiln and not asked_kiln} [What do you make of the Kiln riders?]

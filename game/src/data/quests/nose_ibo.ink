@@ -64,7 +64,7 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
   Nobody knows, but I'd wager she moves it. Her signal's strongest at night, and it drifts like the mast is on wheels. Don't tell the Sergeant I listen to her. He thinks this shack is for the Army alone.
   -> about_air
 + {heard_tone} [What does the tone from the Fallen Sun say?]
-  It's a low, steady note that comes and goes, always from the crater's side. Some say it counts the years since the fall. I've no key to decode it, and the Army never asked me to log it. If it counts, it counts without me.
+  Eh? A low, steady note that fades and comes back, always from the crater's side. The old hands say it climbs one step each year since the fall, if their ears haven't drifted off into the static. I can't hear the steps myself. The set tells me it's there, and the Army never asked me to log it.
   -> about_air
 + {heard_tone} [Hear anything from the crater at night?]
   { cult_broken():

@@ -43,13 +43,13 @@ VAR asked_paper = false
   Salt off the pans under the wall. Tools from the forge. Batteries from the cell shop.
   The forge burns scrap and diesel. The cell shop burns parts and diesel. The scrap and the parts come from the <term=salvage_yard>Yard</term>, the diesel from the Pump Station. Short of any of it, the line stops.
   { short_of("scrap"):
-    Scrap's short. The forge is cold until the Yard trucks come in. I log it.
+    Scrap's short. The forges are cold until the Yard trucks come in. I log it.
   }
   { short_of("fuelDrums"):
     Diesel's short. The forge and the cells both wait on the convoys. I log that too.
   }
   { short_of("parts"):
-    Parts are short. The cell shop stands idle, and command asks me why.
+    Parts are short. The cell shops stand idle, and command asks me why.
   }
   -> about_nose
 + {heard_workshop and not asked_workshop} [Where did the workshop line come from?]
