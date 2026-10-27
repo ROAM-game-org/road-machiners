@@ -16,7 +16,7 @@ export type TerritoryDef = { id: string; kind: "territory"; pos: Vec; radius: nu
 export type LocationDef = SiteLocationDef | TerritoryDef;
 export type SiteEdge = "fence" | "wrecks";
 export const MAP_SCALE = 20.8;
-const BASE_MAP_SCALE = 6.5;
+export const BASE_MAP_SCALE = 6.5;
 export const MAP_SPREAD = MAP_SCALE / BASE_MAP_SCALE;
 export const MAP_AREA_SPREAD = MAP_SPREAD * MAP_SPREAD;
 export const MAP_GRID = { squares: 8 };
@@ -466,5 +466,5 @@ export const REGION = {
     wreckSegment: 1.1,
     gatePoleHeight: 5.5,
   },
-  playerStart: { road: 0, distance: 22 * MAP_SCALE, sightMargin: 5, wreck: { ahead: 6, side: 5 } },
+  playerStart: { road: 0, distance: 24 * MAP_SCALE, sightMargin: 5, wreck: { ahead: 6, side: 5 } },
 };

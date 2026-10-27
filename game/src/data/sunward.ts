@@ -1,6 +1,10 @@
 import type { Topic, TraitTalk } from './dialogue';
+import { BASE_MAP_SCALE, FALLEN_SUN_POS } from './region';
 
 const CAVALCADE_CARS = 8;
+const HOLLOW_POS = { x: 304, y: 520 };
+const BASE_FALLEN_SUN_POS = { x: 64 * BASE_MAP_SCALE, y: 54 * BASE_MAP_SCALE };
+const RIDE_STRETCH = Math.hypot(FALLEN_SUN_POS.x - HOLLOW_POS.x, FALLEN_SUN_POS.y - HOLLOW_POS.y) / Math.hypot(BASE_FALLEN_SUN_POS.x - HOLLOW_POS.x, BASE_FALLEN_SUN_POS.y - HOLLOW_POS.y);
 
 export const SUNWARD = {
   cavalcade: CAVALCADE_CARS,
@@ -17,8 +21,8 @@ export const SUNWARD = {
   huntReach: 70,
   huntBreaks: 2,
   huntSalt: 0x68756e74,
-  rideLeadTurns: 101,
-  driveTurns: 140,
+  rideLeadTurns: Math.round(101 * RIDE_STRETCH),
+  driveTurns: Math.round(140 * RIDE_STRETCH),
   returnMarginTurns: 19,
   avoidMargin: 12,
   avoidCost: 6,
@@ -43,7 +47,6 @@ export type HollowPiece = { look: 'shack' | 'hullChunk' | 'drums' | 'woodpile'; 
 export type HollowBay = { x: number; y: number; heading: number };
 export type HollowSpot = { x: number; y: number };
 
-const HOLLOW_POS = { x: 304, y: 520 };
 const HOLLOW_RADIUS = 5;
 const GATE_BEARING = -0.97;
 const BAY_ROW = 2.6;
