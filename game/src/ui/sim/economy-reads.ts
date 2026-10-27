@@ -98,12 +98,21 @@ function makersWhy(economy: Economy, shop: EconShop, good: EconGood, makers: str
   return lostOnTheRoad(economy, shop, good) ?? onTheWay(economy, shop, good) ?? `No truck hauls it here. ${joined(held.map((m) => `${m.name} holds ${crates(m.stock)}`))}.`;
 }
 
-export function whyShort(economy: Economy, shop: EconShop, good: EconGood): string {
+function causeOf(economy: Economy, shop: EconShop, good: EconGood): string {
   const line = shop.lines.find((l) => l.outputGoods.includes(good.good));
   if (line) return lineWhy(shop, line);
   const makers = economy.edges.filter((e) => e.good === good.good && e.toId === shop.id).map((e) => e.fromId);
-  if (makers.length === 0) return good.found ? "No town makes it. Only salvage that trucks sell here fills it." : "No town makes it.";
-  return makersWhy(economy, shop, good, makers);
+  if (makers.length > 0) return makersWhy(economy, shop, good, makers);
+  return good.found ? "No town makes it. Only salvage that trucks sell here fills it." : "No town makes it.";
+}
+
+function drainOf(economy: Economy, shop: EconShop, good: EconGood): string {
+  const drain = shop.flows.filter((f) => f.good === good.good && f.units < 0).sort((a, b) => a.units - b.units)[0];
+  return drain ? ` ${drain.causeText} took ${-drain.units} in ${Math.round(economy.flowHours)} h.` : "";
+}
+
+export function whyShort(economy: Economy, shop: EconShop, good: EconGood): string {
+  return `${causeOf(economy, shop, good)}${drainOf(economy, shop, good)}`;
 }
 
 export function needsOf(economy: Economy, history: MarketHistory): Need[] {
@@ -113,7 +122,7 @@ export function needsOf(economy: Economy, history: MarketHistory): Need[] {
     const hours = hoursSince(series, empty ? (s) => s <= 0 : (s) => s <= good.shortBelow);
     return { shop, good, empty, hours, why: whyShort(economy, shop, good), series };
   }));
-  return needs.sort((a, b) => Number(b.empty) - Number(a.empty) || b.hours - a.hours || b.good.pressure - a.good.pressure);
+  return needs.sort((a, b) => Number(b.empty) - Number(a.empty) || (a.empty ? b.hours - a.hours : b.good.pressure - a.good.pressure) || b.hours - a.hours);
 }
 
 export function lineAlertsOf(economy: Economy): LineAlert[] {

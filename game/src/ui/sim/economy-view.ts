@@ -29,7 +29,7 @@ function newsLine(ctx: Ctx, n: EconNews): HTMLElement {
 }
 
 function needRow(ctx: Ctx, need: Need): HTMLElement {
-  const status = need.empty ? `Empty ${need.hours} h` : `Short ${need.hours} h`;
+  const status = need.empty ? `Empty ${need.hours} h` : `${need.good.stock} of ${need.good.target}, ${need.hours} h`;
   return el("div", { class: "sim-need" },
     goodLink(ctx, need.good.good, need.good.name),
     townLink(ctx, need.shop),
@@ -133,8 +133,8 @@ export class EconomyView {
     const alerts = lineAlertsOf(ctx.economy);
     return el("div", { class: "sim-econ-body" },
       summaryOf(needs, alerts),
-      needs.length + alerts.length > 0 ? el("div", { class: "sim-econ-group" }, ...needs.map((n) => needRow(ctx, n)), ...alerts.map((a) => lineAlertRow(ctx, a))) : null,
       this.grid(ctx),
+      needs.length + alerts.length > 0 ? el("div", { class: "sim-econ-group" }, ...needs.map((n) => needRow(ctx, n)), ...alerts.map((a) => lineAlertRow(ctx, a))) : null,
       el("span", { class: "sim-label" }, "Best trades"),
       tradeRows(ctx, ctx.economy.trades),
       this.news(ctx));

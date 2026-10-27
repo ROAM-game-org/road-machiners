@@ -41,6 +41,10 @@ function hoursText(turns: number): string {
   return `${Math.max(1, Math.round(turns / TURNS_PER_HOUR))} h`;
 }
 
+function trendHead(ctx: Ctx): string {
+  return `Last ${hoursText(ctx.economy.turn - ctx.history.first)}`;
+}
+
 export function stockSpark(ctx: Ctx, shop: EconShop, good: EconGood, size: SparkSize): HTMLElement {
   const series = ctx.history.series(shop.id, good, ctx.economy);
   const span = { first: ctx.history.first, last: ctx.economy.turn };
@@ -81,13 +85,13 @@ function goodRows(ctx: Ctx, shop: EconShop, good: EconGood): HTMLElement[] {
     el("td", { class: "num" }, moneyAmount(good.buy)),
     el("td", { class: "num" }, moneyAmount(good.sell)),
     el("td", {}, priceSpark(ctx, shop, good, "cell")),
-    el("td", { class: "sim-tags" }, ...good.tags.map((t) => el("span", { class: "tag" }, t.text))));
+    el("td", { class: "sim-tags" }, ...good.tags.filter((t) => t.id !== "short").map((t) => el("span", { class: "tag" }, t.text))));
   if (tone === "") return [row];
   return [row, el("tr", { class: "sim-why-row" }, el("td", { colspan: 7, class: toneClass("sim-why", tone) }, whyShort(ctx.economy, shop, good)))];
 }
 
 function goodsTable(ctx: Ctx, shop: EconShop): HTMLElement {
-  const heads = ["", "Stock", "", "Buy, M's", "Sell, M's", "Buy price", ""];
+  const heads = ["", "Stock", trendHead(ctx), "Buy, M's", "Sell, M's", "Buy trend", ""];
   const head = el("tr", {}, ...heads.map((h, i) => el("th", { class: i === 1 || i === 3 || i === 4 ? "num" : "" }, h)));
   return el("table", { class: "sim-econ-table sim-econ-goods" }, el("thead", {}, head), el("tbody", {}, ...shop.goods.flatMap((g) => goodRows(ctx, shop, g))));
 }
@@ -130,7 +134,7 @@ function townRow(ctx: Ctx, shop: EconShop, good: EconGood): HTMLElement {
 }
 
 function townsTable(ctx: Ctx, goodId: string): HTMLElement {
-  const heads = ["", "", "Stock", "", "Buy, M's", "Sell, M's", "Buy price"];
+  const heads = ["", "", "Stock", trendHead(ctx), "Buy, M's", "Sell, M's", "Buy trend"];
   const head = el("tr", {}, ...heads.map((h, i) => el("th", { class: i === 2 || i === 4 || i === 5 ? "num" : "" }, h)));
   const rows = ctx.economy.shops.flatMap((shop) => shop.goods.filter((g) => g.good === goodId).map((g) => townRow(ctx, shop, g)));
   return el("table", { class: "sim-econ-table sim-econ-goods" }, el("thead", {}, head), el("tbody", {}, ...rows));
@@ -152,10 +156,10 @@ export function tradeText(trade: EconTrade): string {
 function tradeRow(ctx: Ctx, trade: EconTrade): HTMLElement {
   return el("div", { class: "sim-trade" },
     goodLink(ctx, trade.good, trade.goodName),
-    el("span", {}, tradeText(trade)),
+    el("span", {}, tradeText(trade), trade.risky ? el("span", { class: "tag warn" }, "Robbed on this road") : null),
     el("span", { class: "num good" }, `${moneyDelta(trade.gain)} a crate`),
-    el("span", { class: "dim num" }, trade.distanceText),
-    trade.risky ? el("span", { class: "tag warn" }, "Robbed on this road") : null);
+    el("span", { class: "dim num" }, `${trade.crates} on sale`),
+    el("span", { class: "dim num" }, trade.distanceText));
 }
 
 export function tradeRows(ctx: Ctx, trades: EconTrade[]): HTMLElement {

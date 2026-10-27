@@ -7,7 +7,7 @@ import type { Series } from "./economy-reads";
 
 const TURNS_PER_HOUR = TIME.turnsPerDay / 24;
 const px = (name: string): number => parseFloat(token(name));
-const SIZES = { row: { width: px("--space-10") * 5, height: px("--space-8") }, cell: { width: px("--space-9") * 2, height: px("--space-8") } };
+const SIZES = { row: { width: px("--space-10") * 5, height: px("--space-8") }, cell: { width: px("--space-9") * 2, height: px("--space-7") } };
 const SPARK_LOOK = { line: "--ink", target: "--ink-muted", short: "--danger", surge: "--good", breakdown: "--path-hold", news: "--danger-bright" };
 const SPARK_LINE = { width: 1.5, targetDash: [3, 3], pad: 2, shade: 0.12, band: 0.28, priceMargin: 0.2 };
 const SITE_KINDS = new Set<SampleEvent["kind"]>(["surge", "breakdown"]);
@@ -20,7 +20,7 @@ export type Focus = { town: string | null; good: string | null };
 export type Level = "empty" | "short" | "ok";
 
 const GOOD_TOKENS = ["--path-plan", "--path-accelerate", "--path-radio", "--path-dest", "--map-engine", "--map-deck", "--map-bay", "--path-hold", "--map-side"];
-const EDGE = { width: 1, wide: 2.5, alpha: 0.6, spread: 3 };
+const EDGE = { width: 1, wide: 2.5, alpha: 0.6, spread: 3, arrow: 8 };
 const SHIPMENT = { width: 2, alpha: 0.8, faded: 0.15, end: 3, dash: [6, 4] };
 const BADGE = { radius: 9, disc: 8, offset: 13, selected: 15, selectWidth: 2, ring: "--ink-bright", text: "--surface-sunk" };
 const LEVEL_FILL: Record<Level, string> = { empty: "--danger-bright", short: "--path-hold", ok: "--good-bright" };
@@ -80,9 +80,21 @@ function drawEdges(ctx: CanvasRenderingContext2D, view: Viewport, economy: Econo
     const dx = (-(to.y - from.y) / length) * push;
     const dy = ((to.x - from.x) / length) * push;
     ctx.strokeStyle = colorOf(edge.good);
-    stroke(ctx, { x: from.x + dx, y: from.y + dy }, { x: to.x + dx, y: to.y + dy });
+    const shifted = [{ x: from.x + dx, y: from.y + dy }, { x: to.x + dx, y: to.y + dy }] as const;
+    stroke(ctx, shifted[0], shifted[1]);
+    if (focus.good) arrowHead(ctx, shifted[0], shifted[1], colorOf(edge.good));
   }
   ctx.restore();
+}
+
+function arrowHead(ctx: CanvasRenderingContext2D, from: Point, to: Point, color: string): void {
+  const angle = Math.atan2(to.y - from.y, to.x - from.x);
+  const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+  ctx.beginPath();
+  for (const turn of [0, 2.5, -2.5]) ctx.lineTo(mid.x + Math.cos(angle + turn) * EDGE.arrow, mid.y + Math.sin(angle + turn) * EDGE.arrow);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
 }
 
 function inFocus(s: EconShipment, focus: Focus): boolean {

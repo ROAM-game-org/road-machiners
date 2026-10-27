@@ -331,9 +331,12 @@
 }
 #ui.sim.economy .sim-economy {
   display: block;
-  flex: 3 1 0;
+  flex: 5 1 0;
   min-height: 0;
   overflow: auto;
+}
+#ui.sim.economy .sim-side > .sim-log-panel {
+  min-height: calc(var(--space-10) * 3);
 }
 #ui.sim.economy .sim-side > :is(.sim-player, .sim-card) {
   display: none;
@@ -362,6 +365,10 @@
 .sim-econ-table thead th:not(:first-child) {
   min-width: calc(var(--space-10) * 2);
 }
+.sim-econ-body .sim-link {
+  color: var(--ink-bright);
+}
+.sim-econ-body .sim-link:hover,
 .sim-econ-table th.sim-link:hover {
   color: var(--accent);
 }
@@ -430,7 +437,7 @@
 }
 .sim-spark-cell {
   width: calc(var(--space-9) * 2);
-  height: var(--space-8);
+  height: var(--space-7);
 }
 .sim-town.bad .sim-link {
   color: var(--danger-ink);
@@ -467,6 +474,9 @@
 .sim-why-row td {
   border-top: 0;
   padding-top: 0;
+}
+.sim-trade .tag {
+  margin-left: var(--space-4);
 }
 .sim-event-key {
   display: flex;
