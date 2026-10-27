@@ -295,13 +295,14 @@ function run(d: Drive, w: World, steps: number, world: RAPIER.World, events: RAP
 
 function makeCars(d: Drive, w: World, world: RAPIER.World, memory: Record<string, Memory>): Car[] {
   const oil = oilPatches(w);
+  const giversOf = giversByHolder(w);
   const cars: Car[] = w.vehicles.filter((v) => d.bodies[v.id] !== undefined).map((v) => {
     const body = world.getRigidBody(d.bodies[v.id]);
     const s = vehicleStats(w, v);
     const b = unitBody(v.chassisId, 0);
     const loads = wheelLoads(v);
     const mem = memory[v.id];
-    return { v, s, b, body, ctl: makeCar(world, body, b, 0, loads[0]), rear: trailerOf(d, world, v, loads), mem, plan: planOf(w, v, s, body, mem), result: { passed: false, arrived: false, pushedSteps: 0 }, grip: 1, topShare: 1, oil: oilInReach(oil, v, s, body), kicked: false, size: w.terrain.size, world, holding: false, holdGrip: 1, avoid: avoidOf(w, v), field: [] };
+    return { v, s, b, body, ctl: makeCar(world, body, b, 0, loads[0]), rear: trailerOf(d, world, v, loads), mem, plan: planOf(w, v, s, body, mem), result: { passed: false, arrived: false, pushedSteps: 0 }, grip: 1, topShare: 1, oil: oilInReach(oil, v, s, body), kicked: false, size: w.terrain.size, world, holding: false, holdGrip: 1, avoid: avoidOf(w, v, giversOf), field: [] };
   });
   for (const c of cars) c.field = cars;
   return cars;
@@ -790,9 +791,21 @@ function watchClearance(c: Car, at: Vec, heading: number, speed: number, dest: V
   mem.clearBehind = watching ? freeDistance(c, -1, at, heading, mps, dest).solid : Infinity;
 }
 
-function avoidOf(w: World, v: Vehicle): Set<string> {
+function giversByHolder(w: World): Map<string, string[]> {
+  const byHolder = new Map<string, string[]>();
+  const byId = new Map(w.vehicles.map((v) => [v.id, v]));
+  for (const giver of w.vehicles) {
+    for (const id of giver.yieldsTo ?? []) {
+      const holder = byId.get(id);
+      if (holder && givesWayTo(w, giver, holder)) byHolder.set(id, [...(byHolder.get(id) ?? []), giver.id]);
+    }
+  }
+  return byHolder;
+}
+
+function avoidOf(w: World, v: Vehicle, giversOf: ReadonlyMap<string, readonly string[]>): Set<string> {
   const client = ropeClientOf(w, v.id);
-  return new Set([v.id, ...(v.brain?.ramTarget ? [v.brain.ramTarget] : []), ...(client ? [client] : []), ...combatFoesOf(w, v), ...w.vehicles.filter((x) => givesWayTo(w, x, v)).map((x) => x.id)]);
+  return new Set([v.id, ...(v.brain?.ramTarget ? [v.brain.ramTarget] : []), ...(client ? [client] : []), ...combatFoesOf(w, v), ...(giversOf.get(v.id) ?? [])]);
 }
 
 function moversNear(c: Car, from: Vec, reach: number, seconds: number): Mover[] {
