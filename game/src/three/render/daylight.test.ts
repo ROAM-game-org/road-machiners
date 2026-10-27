@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
+import { PAL } from '../../render/palette';
 import { TIME } from '../../data/time';
 import type { VehicleFrame } from '../../phys/frames';
 import { bodyOf } from '../../sim/body';
@@ -118,6 +119,19 @@ describe('VehicleLights', () => {
     lights.update(true, 1, origin, all);
     expect(spots(scene)).toHaveLength(3);
     expect(glow()).toBe(true);
+  });
+
+  it('hangs a glow of half the old strength over the player truck at night', () => {
+    const scene = new THREE.Scene();
+    const lights = new VehicleLights(scene);
+    lights.update(true, 1, origin, [{ ...litAt(0), player: true }]);
+    const glows = scene.children.filter((c): c is THREE.PointLight => c instanceof THREE.PointLight);
+    expect(glows).toHaveLength(1);
+    expect(glows[0].intensity).toBeCloseTo(0.25);
+    expect(glows[0].distance).toBe(4.5);
+    expect(glows[0].decay).toBe(1);
+    expect(glows[0].color.getHex()).toBe(PAL.truckGlow);
+    expect(glows[0].position.y).toBeCloseTo(origin.y + 3);
   });
 
   it('leaves the sun shadow settings alone', () => {
