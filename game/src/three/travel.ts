@@ -330,8 +330,8 @@ export class Travel {
     return this.isPlaying(playback) || this.shouldAdvance(now);
   }
 
-  warm(world: World, drive: DriveSnapshot): void {
-    this.turns.warm(world, drive);
+  warm(world: World, drive: DriveSnapshot): Promise<void> {
+    return this.turns.warm(world, drive);
   }
 
   request(world: World, drive: DriveSnapshot): void {
@@ -515,6 +515,7 @@ export class TurnPreparation {
   private readonly obstacles = new SentObstacles();
   private serial = 0;
   private warmId = 0;
+  private warmed: (() => void) | null = null;
   private prepMs: number | null = null;
   private pending: {
     id: number;
@@ -536,6 +537,7 @@ export class TurnPreparation {
     worker.onmessage = (event: MessageEvent<TurnResponse>) => {
       this.load.loaded();
       const response = event.data;
+      if (response.id === this.warmId) this.settleWarm();
       if ("error" in response) return this.fail(response.id, response.error);
       mergePerf(response.id === this.warmId ? { "turn-warm": response.perf.turn } : response.perf);
       if (this.pending?.id !== response.id) return;
@@ -545,6 +547,7 @@ export class TurnPreparation {
     worker.onerror = (event) => {
       event.preventDefault();
       if (worker !== this.worker) return;
+      this.settleWarm();
       if (this.load.failed(event, () => this.restart())) return this.dropWorker();
       this.fail(null, workerFailure("Turn worker", event));
     };
@@ -570,9 +573,15 @@ export class TurnPreparation {
     else reportError(new Error(message));
   }
 
-  warm(world: World, drive: DriveSnapshot): void {
-    if (world.player.call || world.player.state === "dead") return;
+  warm(world: World, drive: DriveSnapshot): Promise<void> {
+    if (world.player.call || world.player.state === "dead" || this.load.gaveUp || this.load.waiting) return Promise.resolve();
     this.warmId = this.post(world, drive, false);
+    return new Promise((resolve) => (this.warmed = resolve));
+  }
+
+  private settleWarm(): void {
+    this.warmed?.();
+    this.warmed = null;
   }
 
   private isFresh(world: World): boolean {

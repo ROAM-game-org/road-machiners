@@ -197,6 +197,7 @@ export class Game {
   private readonly plans = new PlanPreparation();
   private last = performance.now();
   private pending: ((w: World) => World | null) | null = null;
+  readonly routesReady = new Promise<void>((resolve) => setTimeout(() => (this.plans.warm(this.world.terrain), void this.travel.warm(this.world, this.drive).then(resolve))));
 
   readonly hud: Hud;
   private minimap: Minimap | null = null;
@@ -213,7 +214,6 @@ export class Game {
     this.world = world;
     this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad"), (text) => this.hud.note(this.world, text, "dim"));
     this.drive = driveSnapshotOf(this.world);
-    setTimeout(() => (this.travel.warm(this.world, this.drive), this.plans.warm(this.world.terrain)));
 
     subscribeInputMode(() => this.refreshUi());
     installTouchTips(uiRoot(), touchMode);
