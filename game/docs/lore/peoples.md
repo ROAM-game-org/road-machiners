@@ -6,7 +6,7 @@ The groups of Icarus and what they believe. Each one copes with the world in one
 
 Way: control.
 
-Nose is the town built around a ship's wreck on a mountain. The Central Committee governs it, led by President Alan Graves. The Nose Army keeps the order.
+Nose is the town inside the nose section of a ship's wreck on a mountain. Most of its people live in the hull. Its workshops, yards and the compound for outsiders stand around it. The Central Committee governs it, led by President Alan Graves. The Nose Army keeps the order.
 
 Nose runs the basin's only workshop line that builds whole engines and guns. It built the line from Old Orchard's machine tools, hauled up the mountain once the army was gone. Nose plans its whole economy. It rations food, water and work, so most people there are safe and fed. Its leaders are deeply corrupt, and the army is brutal to anyone who speaks against them.
 
