@@ -29,7 +29,7 @@ Odile Marsh, steward of the <term=granary>Granary</term>. My gate stays open all
 + {not asked_need} [What do you need from a driver?]
   ~ asked_need = true
   Loads that arrive. The gate scale pays for sorgut, salt and water, and it pays more when my bins run low.
-  They run low more often than the Senate likes to hear. Dust shuts the roads, and the bins keep emptying while I watch the gate.
+  They run low more often than the Senate likes to hear. My bins empty before the late trucks arrive, and I start opening grain I meant to keep for winter.
   -> hub
 + {not asked_gate} [Why keep the gate open?]
   ~ asked_gate = true

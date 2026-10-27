@@ -45,7 +45,7 @@ Each of these was in the lore and was cut or fixed. The test it failed is in bra
 - The Guild's trust owned Old Orchard's machine tools and rented them to Nose. [Everyone has a reason] A message guild has no reason to own an army's workshop. Now Nose hauled the tools away once the army was gone.
 - Sabra Kell gave toll receipts honored once a year, and left her tin by Ladle's scraper. [Purpose, It earns its place] A receipt honored once a year does no job, and the tin and scraper were props with no meaning.
 - Ilya Moreno feared a truck going missing on his watch and repainted the same count every morning, though he let the two staff cars out himself. [It works] His fear contradicted his own secret, and the daily habit changed nothing.
-- Odile Marsh counted every sack at night and chalked the count on the Granary gate, and the Bowl patrol was paid from the Granary count. [Purpose, It works] Nobody in the basin counts as a job, and a store count on the gate told raiders what to take. Now Odile keeps the gate open by day, the Kiln ration crates stand stacked beside it, and the patrol is paid from the Granary's grain.
+- Odile Marsh counted every sack at night and chalked the count on the Granary gate, and the Bowl patrol was paid from the Granary count. [Purpose, It works] Nobody in the basin counts as a job, and a count the steward chalks herself is still only her word. Now Odile keeps the gate open by day, the Kiln ration crates stand stacked beside it, and the patrol is paid from the Granary's grain.
 
 ## Icarus
 
