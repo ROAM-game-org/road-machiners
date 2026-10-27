@@ -6,7 +6,7 @@ import { berthsOf, chooseOn } from './tracks';
 
 function driverWithWorld() {
   const w = emptyWorld({ x: 30, y: 30 });
-  const driver = addVehicle(w, 'v200', 'buggy', ['mg', 'stockEngine'], { x: 60, y: 60 });
+  const driver = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 60, y: 60 });
   driver.brain = npcBrain('buggy', driver.pos, ['trader']);
   return { w, driver };
 }
@@ -35,7 +35,7 @@ describe('berthsOf', () => {
 
   it('skips the truck the top goal targets', () => {
     const { w, driver } = driverWithWorld();
-    driver.brain!.goals = [{ kind: 'fight', targetId: 'v300', destination: null, phase: 'travel', reason: 'fight' }];
+    driver.brain!.goals = [{ kind: 'fight', targetId: 'v300', destination: null, phase: 'travel', reason: 'fightBack' }];
     chooseOn(w, driver, 'v300', { x: 80, y: 60 }, 'flee', true);
     chooseOn(w, driver, 'v301', { x: 90, y: 60 }, 'flee', true);
     expect(berthsOf(w, driver)).toHaveLength(1);

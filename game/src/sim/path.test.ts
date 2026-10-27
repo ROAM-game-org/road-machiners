@@ -234,7 +234,7 @@ describe('driver taste', () => {
 describe('berth around a truck the driver ran from', () => {
   const open = () => {
     const w = emptyWorld({ x: 10, y: 10 });
-    const driver = addVehicle(w, 'v200', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 60 });
+    const driver = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 60 });
     driver.brain = npcBrain('buggy', driver.pos, ['trader']);
     return { w, driver };
   };
@@ -263,7 +263,7 @@ describe('berth around a truck the driver ran from', () => {
 
   it('ignores the truck the top goal targets', () => {
     const { w, driver } = open();
-    driver.brain!.goals = [{ kind: 'fight', targetId: 'v300', destination: null, phase: 'travel', reason: 'fight' }];
+    driver.brain!.goals = [{ kind: 'fight', targetId: 'v300', destination: null, phase: 'travel', reason: 'fightBack' }];
     chooseOn(w, driver, 'v300', { x: 80, y: 60 }, 'flee', true);
     expect(route(w, a, b, 0.8, [], driver)).toEqual([b]);
   });
