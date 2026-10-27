@@ -19,6 +19,7 @@ type Level = { n: number; cell: number; level: Float32Array; reach: Float32Array
 
 const C = FARM_BELT.canal;
 const RIVER = TERRAIN.features.dryRiver.path;
+const RIVER_BED = TERRAIN.features.dryRiver.width + TERRAIN.features.dryRiver.bank;
 const BOWL = REGION.towns.find((t) => t.id === 'bowl');
 const KEEP_OFF = [...REGION.towns, ...REGION.locations];
 const LEVEL_CELL = 8;
@@ -213,11 +214,15 @@ function markPlots(seed: number, d: MapDraft, frame: Frame, level: Level): Plot[
   const box = beltBox(d.size);
   for (let y = box.y0; y < box.y1; y++) for (let x = box.x0; x < box.x1; x++) {
     const c = { x: x + 0.5, y: y + 0.5 };
-    if (!irrigable(seed, level, c) || !markable(d, y * d.size + x)) continue;
+    if (!plottable(seed, d, level, c, y * d.size + x)) continue;
     const plot = markTile(seed, d, frame, c, y * d.size + x);
     if (plot) groves.set(`${plot.iu},${plot.iv}`, plot);
   }
   return [...groves.values()];
+}
+
+function plottable(seed: number, d: MapDraft, level: Level, c: Vec, tile: number): boolean {
+  return polylineDist(c, RIVER) > RIVER_BED && irrigable(seed, level, c) && markable(d, tile);
 }
 
 function markTile(seed: number, d: MapDraft, frame: Frame, c: Vec, tile: number): Plot | null {
@@ -264,6 +269,7 @@ function plantGrove(d: MapDraft, rng: Rng, frame: Frame, plot: Plot): void {
     for (let b = FARM_BELT.plotInset + step / 2; b < size - FARM_BELT.plotInset; b += step) {
       if (chance(rng, missing)) continue;
       const pos = toMap(frame, plot.iu * size + a, plot.iv * size + b);
+      if (polylineDist(pos, RIVER) <= RIVER_BED) continue;
       place(d, prop('deadTree', pos, randRange(rng, ...radius), yaw + randRange(rng, -0.3, 0.3)), 1);
     }
   }

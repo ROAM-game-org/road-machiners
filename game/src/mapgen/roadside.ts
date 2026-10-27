@@ -2,7 +2,7 @@ import { GEOLOGY, ROADSIDE, TERRAIN, type RoadsideBand } from '../data/terrain';
 import { REGION } from '../data/region';
 import { chance, hashRandom, randInt, randRange, type Rng } from '../sim/rng';
 import { TYPE_IDS, type BakedProp } from '../sim/terrain';
-import { dist, type Vec } from '../sim/vec';
+import { dist, polylineDist, type Vec } from '../sim/vec';
 import { tileSteepness, type MapDraft } from './bake';
 import { BUILT_SCRUB } from './newworld';
 import { onReservedGround } from './start-ground';
@@ -280,7 +280,11 @@ function openTrees(seed: number, p: Placer, yards: BakedProp[]): void {
 
 function isBank(d: MapDraft, tile: number): boolean {
   const flow = tileFlow(d, tile);
-  return flow >= WASH * R.trees.washBank && flow < WASH && d.types[tile] !== TYPE_IDS.indexOf('sand');
+  return flow >= WASH * R.trees.washBank && flow < WASH && d.types[tile] !== TYPE_IDS.indexOf('sand') && !onRiverFloor(tileCenter(d.size, tile));
+}
+
+function onRiverFloor(p: Vec): boolean {
+  return polylineDist(p, TERRAIN.features.dryRiver.path) <= TERRAIN.features.dryRiver.width;
 }
 
 function builtAt(d: MapDraft, tile: number, step: Vec): number {

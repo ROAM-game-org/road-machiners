@@ -76,7 +76,7 @@ function placeGroup(rng: Rng, d: MapDraft, rules: Rules, river: River, center: V
   for (let k = 0; k < count; k++) {
     const kind = pickKind(rng, rules, boats);
     for (let attempt = 0; attempt < rules.placeTries; attempt++) {
-      const boat = prop(kind.kind, aroundCenter(rng, center, rules.groupReach * (k === 0 ? 0.3 : 1)), kind.radius, randRange(rng, 0, TURN));
+      const boat = prop(kind.kind, aroundCenter(rng, center, rules.groupReach * (k === 0 ? Math.min(1, 0.3 + attempt / rules.placeTries) : 1)), kind.radius, randRange(rng, 0, TURN));
       if (!fits(d, boat, rules, river, onFloor, boats)) continue;
       d.props.push(boat);
       boats.push(boat);

@@ -70,7 +70,9 @@ describe('boat layer', () => {
   });
 
   it('throws naming the band when a count leaves it', () => {
-    expect(() => checkBoatBands({ river: 0, wash: 1, boats: 9 })).toThrow('Boat river groups count 0 is outside 4 to 7');
-    expect(() => checkBoatBands({ river: 5, wash: 1, boats: 30 })).toThrow('Boat boats count 30 is outside 8 to 20');
+    const [riverLow, riverHigh] = BOATS.river.band;
+    const [boatsLow, boatsHigh] = BOATS.boatBand;
+    expect(() => checkBoatBands({ river: 0, wash: 1, boats: boatsLow })).toThrow(`Boat river groups count 0 is outside ${riverLow} to ${riverHigh}`);
+    expect(() => checkBoatBands({ river: riverLow, wash: 1, boats: boatsHigh + 1 })).toThrow(`Boat boats count ${boatsHigh + 1} is outside ${boatsLow} to ${boatsHigh}`);
   });
 });
