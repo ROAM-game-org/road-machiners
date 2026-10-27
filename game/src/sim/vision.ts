@@ -3,8 +3,7 @@ import { PHYSICS } from '../data/physics';
 import { TERRAIN } from '../data/terrain';
 import { TIME } from '../data/time';
 import type { Contact, Obstacle, Vehicle, World } from './types';
-import { groundAt, heightAt, type Terrain } from './terrain';
-import { decksOf } from './bridge';
+import { heightAt, heightNear, type Terrain } from './terrain';
 import { boxDistance, propReach, reachableBoxes, stretchCrossesBox } from './mapgen';
 import { isCheapMeeting, isHeadless } from './fidelity';
 import { propsAlong, propsAround } from './prop-index';
@@ -51,10 +50,6 @@ export function visibleTiles(world: World, from: Vec): Set<number> {
   return out;
 }
 
-export function exploreFrom(world: World, from: Vec): void {
-  for (const idx of visibleTiles(world, from)) world.player.explored[idx] = 1;
-}
-
 type Disk = { pos: Vec; r: number };
 type SightDisk = Disk & { reach: number };
 
@@ -99,14 +94,6 @@ function horizonRays(height: Height, eye: Eye, reach: number): Horizons {
   const slopes = new Float64Array(rays * (steps + 1));
   for (let k = 0; k < rays; k++) walkRay(height, eye, (2 * Math.PI * k) / rays, slopes.subarray(k * (steps + 1), (k + 1) * (steps + 1)));
   return { rays, steps, slopes };
-}
-
-function nearDeck(t: Terrain, at: Vec, reach: number): boolean {
-  return decksOf(t.atlas).boxes.some((b) => b.minX - 1 <= at.x + reach && b.maxX + 1 >= at.x - reach && b.minY - 1 <= at.y + reach && b.maxY + 1 >= at.y - reach);
-}
-
-function heightNear(t: Terrain, at: Vec, reach: number): Height {
-  return nearDeck(t, at, reach) ? (x, y) => heightAt(t, x, y) : (x, y) => groundAt(t, x, y);
 }
 
 function walkRay(height: Height, eye: Eye, angle: number, slopes: Float64Array): void {

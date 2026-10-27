@@ -70,6 +70,7 @@ import { activateUtilities, advanceLines, advanceUtilityEffects, settleShutdowns
 import { caltropHits } from './hazards';
 import { advanceJobs, startAutoRepair } from './jobs';
 import { advanceEngineHeat } from './engine-heat';
+import { noteTrouble, troubleOf } from './trouble';
 import { nearestPad } from './sites';
 import { openingObstacles, setUpOpening } from './opening';
 import { startPose } from './start-pose';
@@ -357,6 +358,7 @@ export function endTurn(
   if (world.player.state === 'dead') throw new Error('The player is dead; no more turns run');
   if (world.player.call) throw new Error('A radio call is open; no turn runs until it ends');
   return timed('turn', () => update(world, (w) => {
+    const troubleBefore = troubleOf(w);
     w.turn++;
     advanceWeather(w);
     planNpcOrders(w);
@@ -428,6 +430,7 @@ export function endTurn(
     advanceProduction(w);
     practiceContacts(w, refreshVision(w));
     noteEscape(w);
+    noteTrouble(w, troubleBefore);
     noteHurt(w);
     settleShutdowns(w);
     settleClaymores(w);

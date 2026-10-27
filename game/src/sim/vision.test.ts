@@ -16,7 +16,7 @@ import type { Obstacle } from './types';
 import { contactsOf, soundRange } from './detect';
 import { TIME } from '../data/time';
 import { sunAt } from './sun';
-import { canVehicleSee, clearOverTerrain, exploreFrom, grayRadius, hasLineOfFire, hasLineOfSight, playerVisible, practiceContacts, refreshVision, sightLine, sightRadius, visibleTiles } from './vision';
+import { canVehicleSee, clearOverTerrain, grayRadius, hasLineOfFire, hasLineOfSight, playerVisible, practiceContacts, refreshVision, sightLine, sightRadius, visibleTiles } from './vision';
 import { TEST_MAP } from '../test/map';
 import { START_KITS } from '../data/start';
 import { DECKS, deckAt } from './bridge';
@@ -125,19 +125,6 @@ describe('vision', () => {
 
     expect(hasLineOfFire(w, { x: 40, y: 30 }, eastWall)).toBe(true);
     expect(hasLineOfFire(w, { x: 26, y: 30 }, eastWall)).toBe(false);
-  });
-
-  it('explores from a point exactly the tiles seen from there, and keeps tiles explored before', () => {
-    const w = emptyWorld({ x: 30, y: 30 });
-    w.obstacles = [{ id: 'r', pos: { x: 33, y: 30 }, r: 1.2, kind: 'rock' }];
-    const from = { x: 30, y: 30 };
-    const before = 5 * w.size + 5;
-    w.player.explored.fill(0);
-    w.player.explored[before] = 1;
-    exploreFrom(w, from);
-    const expected = new Set([...visibleTiles(w, from), before]);
-    const marked = new Set([...w.player.explored.keys()].filter((i) => w.player.explored[i] === 1));
-    expect(marked).toEqual(expected);
   });
 
   it('respects the vision radius', () => {

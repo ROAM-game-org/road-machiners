@@ -23,7 +23,6 @@ import { avoidsCrater } from './sunward';
 import { bearing, dist, segmentDist, type Vec } from './vec';
 import { bendField, followPose, poseOf, rigDiscs } from './rig';
 
-
 export function isNear(w: World, v: Vehicle): boolean {
   return !isOnRope(w, v.id) && inLiveRange(w, v.pos);
 }

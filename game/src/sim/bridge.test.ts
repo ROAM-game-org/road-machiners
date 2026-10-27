@@ -10,7 +10,7 @@ import { territoryPieces } from './territory';
 import type { Obstacle } from './types';
 import { route, routeLength } from './path';
 import { dist, segmentDist } from './vec';
-import { deckHeight, deckSegments, groundAt, heightAt, isCliff, markHeightAt, tileAt, type Terrain } from './terrain';
+import { deckHeight, deckSegments, groundAt, heightAt, heightNear, isCliff, markHeightAt, tileAt, type Terrain } from './terrain';
 import { newWorld } from './world';
 import { TEST_MAP } from '../test/map';
 import { defaultSetup } from './settings';
@@ -70,6 +70,19 @@ describe('the deck under a point', () => {
     const rng = { rngState: 11 };
     return decks.flatMap((d) => Array.from({ length: 2000 }, () => ({ x: d.from.x + randRange(rng, -30, 30) + d.axis.x * randRange(rng, -5, d.length + 5), y: d.from.y + randRange(rng, -30, 30) + d.axis.y * randRange(rng, -5, d.length + 5) })));
   }
+
+  it('gives a height lookup that equals heightAt within its square, near decks and away from them', () => {
+    const t = newWorld(1, START_KITS.arrival, TEST_MAP, defaultSetup('roaming')).terrain;
+    const rng = { rngState: 9 };
+    const centres = [...DECKS.flatMap((d) => [d.from, d.to, { x: d.from.x + 30, y: d.from.y }]), { x: 500.5, y: 900.5 }];
+    for (const at of centres) {
+      const height = heightNear(t, at, 25);
+      for (let i = 0; i < 400; i++) {
+        const p = { x: at.x + randRange(rng, -25, 25), y: at.y + randRange(rng, -25, 25) };
+        expect(height(p.x, p.y), `${p.x},${p.y}`).toBe(heightAt(t, p.x, p.y));
+      }
+    }
+  });
 
   it('finds the same deck as a scan of every deck, on Icarus and on a highway', () => {
     const rng = { rngState: 5 };

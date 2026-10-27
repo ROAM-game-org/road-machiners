@@ -1,6 +1,6 @@
 
 import { MAPGEN, TERRAIN, TERRAIN_TYPES, type TerrainTypeId } from '../data/terrain';
-import { besideDeck, deckAt, decksOf, spanAt, type Deck } from './bridge';
+import { besideDeck, deckAt, decksOf, decksWithin, spanAt, type Deck } from './bridge';
 import { fnv1a } from '../file-hash';
 import { clamp, type Vec } from './vec';
 
@@ -37,6 +37,10 @@ export function isRoadTile(t: Terrain, p: Vec): boolean {
 export function heightAt(t: Terrain, x: number, y: number): number {
   const on = deckAt(decksOf(t.atlas), x, y);
   return on === null ? groundAt(t, x, y) : deckHeight(t, on.deck, on.along);
+}
+
+export function heightNear(t: Terrain, at: Vec, reach: number): (x: number, y: number) => number {
+  return decksWithin(decksOf(t.atlas), at, reach) ? (x, y) => heightAt(t, x, y) : (x, y) => groundAt(t, x, y);
 }
 
 export function markHeightAt(t: Terrain, origin: Vec, x: number, y: number): number {

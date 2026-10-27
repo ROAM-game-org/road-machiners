@@ -216,6 +216,10 @@ export type SimNote =
   | { id: 'noRoomSupplies'; supplies: number }
   | { id: 'tankLeak'; fuel: number }
   | { id: 'filledSupplies'; site: string }
+  | { id: 'fuelLow' }
+  | { id: 'stranded' }
+  | { id: 'setDown' }
+  | { id: 'stormEntered' }
   | { id: 'hazard' }
   | { id: 'core' }
   | { id: 'spawnBlocked'; template: string };

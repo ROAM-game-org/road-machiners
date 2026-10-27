@@ -8,7 +8,7 @@ import { inQuestLanguage } from '../sim/quests';
 import { QUEST_LANGUAGES, type QuestLanguage } from '../data/quests';
 import { perfSnapshot, resetPerf, timed, type PerfStat } from '../perf';
 import { playerVehicle } from '../sim/damage';
-import { advanceFar, settleWoken } from '../sim/far';
+import { advanceFar, isNear, settleWoken } from '../sim/far';
 import { setThinning } from '../sim/fidelity';
 import { applyContactCrash, applyGroundCrash, applyLanding } from '../sim/crash-contact';
 import { tearLine } from '../sim/harpoon';
@@ -266,9 +266,19 @@ export function physicsMove(d: Drive, done: (r: PlayedTurn) => void): (w: World)
 }
 
 function playerSight(w: World, frames: readonly VehicleFrame[] | undefined): LiveSight {
-  const sight = sightAlong(w, (frames ?? []).map((f) => toMap(f.pos)));
-  exploreSight(w, frames ? sight : sightAlong(w, playerVehicle(w).trail));
+  if (!frames) {
+    exploreBodiless(w);
+    return { steps: [], tiles: [] };
+  }
+  const sight = sightAlong(w, frames.map((f) => toMap(f.pos)));
+  exploreSight(w, sight);
   return sight;
+}
+
+function exploreBodiless(w: World): void {
+  const me = playerVehicle(w);
+  if (isNear(w, me)) throw new Error(`Player ${me.id} has a physics body but no frames this turn`);
+  exploreSight(w, sightAlong(w, me.trail));
 }
 
 export function applyTurn(w: World, r: TurnResult): void {
@@ -313,13 +323,17 @@ function applyDriven(w: World, r: TurnResult, v: Vehicle, frames: TurnResult['fr
   const held = heldTurn(w, r, v, s, frames);
   if (held) holdAt(v);
   else releaseHold(v);
-  if ((v.strandedTurns ?? 0) >= RULES.stranded.turns) {
-    setDown(w, v);
-    delete v.strandedAt;
-  }
+  setDownIfStuck(w, v);
   v.trail = trailOf(start, frames);
   burnFuel(w, v, pathLength(v.trail));
   settleOrder(w, v, r.results[v.id]);
+}
+
+function setDownIfStuck(w: World, v: Vehicle): void {
+  if ((v.strandedTurns ?? 0) < RULES.stranded.turns) return;
+  setDown(w, v);
+  delete v.strandedAt;
+  if (v.id === w.player.vehicleId) w.events.push({ t: 'info', note: { id: 'setDown' } });
 }
 
 function holdAt(v: Vehicle): void {

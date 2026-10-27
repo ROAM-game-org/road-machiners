@@ -159,6 +159,14 @@ function acrossOf(deck: Deck, x: number, y: number): number {
   return (y - deck.from.y) * deck.axis.x - (x - deck.from.x) * deck.axis.y;
 }
 
+export function decksWithin(set: DeckSet, at: Vec, reach: number): boolean {
+  return set.boxes.some((b) => squaresMeet(b, at, reach + BOX_SLACK));
+}
+
+function squaresMeet(box: { minX: number; maxX: number; minY: number; maxY: number }, at: Vec, reach: number): boolean {
+  return box.minX <= at.x + reach && box.maxX >= at.x - reach && box.minY <= at.y + reach && box.maxY >= at.y - reach;
+}
+
 export function deckAt(set: DeckSet, x: number, y: number): DeckPoint | null {
   for (const box of set.cells.get(deckCellKey(deckCellOf(x), deckCellOf(y))) ?? []) if (inBox(box, x, y, BOX_SLACK) && inOutline(box.deck, x, y)) return { deck: box.deck, along: alongOf(box.deck, x, y) };
   return null;
