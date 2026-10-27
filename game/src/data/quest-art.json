@@ -67,7 +67,7 @@
   "town_bowl": {
     "file": "town_bowl.webp",
     "focusX": 50,
-    "focusY": 0
+    "focusY": 15
   },
   "town_nose": {
     "file": "town_nose.webp",
@@ -82,7 +82,7 @@
   "town_granary": {
     "file": "town_granary.webp",
     "focusX": 55,
-    "focusY": 0
+    "focusY": 70
   },
   "town_pump_station": {
     "file": "town_pump_station.webp",
