@@ -19,7 +19,7 @@ import {
 import { computeTurn, isCleanTail, liveSightOf, physicsMove, SentObstacles, withTail } from "./turn";
 import { toMap, type VehicleFrame } from "./frames";
 import { PHYSICS } from "../data/physics";
-import { visibleTiles } from "../sim/vision";
+import { seenPropTiles, visibleTiles } from "../sim/vision";
 
 beforeAll(initPhysics);
 
@@ -169,8 +169,13 @@ it("samples live sight along the player's frames every sight step, with the tile
   const frames = Array.from({ length: 12 }, (_, i) => ({ pos: { x: (me.pos.x + i * 0.1) * S, y: 0, z: me.pos.y * S } }) as VehicleFrame);
   const sight = liveSightOf(world, frames);
   expect(sight.steps).toEqual([0, 4, 8]);
-  sight.steps.forEach((step, k) => expect(sight.tiles[k]).toEqual([...visibleTiles(world, toMap(frames[step].pos))].sort((a, b) => a - b)));
-  expect(liveSightOf(world, undefined)).toEqual({ steps: [], tiles: [] });
+  sight.steps.forEach((step, k) => {
+    const at = toMap(frames[step].pos);
+    const visible = visibleTiles(world, at);
+    expect(sight.tiles[k]).toEqual([...visible].sort((a, b) => a - b));
+    expect(sight.props[k]).toEqual(seenPropTiles(world, at, visible));
+  });
+  expect(liveSightOf(world, undefined)).toEqual({ steps: [], tiles: [], props: [] });
 });
 
 it("sends the obstacles to a worker only when their content changed since the last send", () => {

@@ -119,6 +119,41 @@ describe("the inventory during a scene", () => {
     world.player.quests.live = { ...SCENE };
     const { screen } = screenOver(world);
     const view = (screen as unknown as { view: { run(cmd: (w: World) => World): void } }).view;
-    expect(() => view.run((w) => w)).toThrow("Inventory command during a scene");
+    expect(() => view.run((w) => w)).toThrow("Inventory command in look mode");
+  });
+});
+
+describe("the inventory while knocked out", () => {
+  afterEach(() => {
+    ui.children = [];
+    vi.unstubAllGlobals();
+  });
+
+  it("turns every world command of a loot screen off with Knocked out, and works after the wake", () => {
+    const { w, stock } = spotWorld();
+    w.player.state = "knockedOut";
+    const { screen, applied } = screenOver(w);
+    screen.openLoot(stock.id);
+    const loot = (ui.children[ui.children.length - 1] as FakeNode).all((n) => n.className.includes("inv-loot"))[0];
+    const commands = loot.all((n) => n.tag === "button");
+    expect(commands.length).toBeGreaterThan(0);
+    for (const button of commands) {
+      expect(button.attrs.get("aria-disabled")).toBe("true");
+      expect(button.attrs.get("data-reason")).toBe("Knocked out");
+    }
+    expect(applied).toEqual([]);
+
+    w.player.state = "active";
+    screen.openLoot(stock.id);
+    const woke = (ui.children[ui.children.length - 1] as FakeNode).all((n) => n.className.includes("inv-loot"))[0];
+    expect(woke.all((n) => n.tag === "button").filter((b) => !b.attrs.has("aria-disabled")).length).toBeGreaterThan(0);
+  });
+
+  it("throws if a command reaches the view while knocked out", () => {
+    const world = emptyWorld();
+    world.player.state = "knockedOut";
+    const { screen } = screenOver(world);
+    const view = (screen as unknown as { view: { run(cmd: (w: World) => World): void } }).view;
+    expect(() => view.run((w) => w)).toThrow("Inventory command in look mode");
   });
 });
