@@ -8,7 +8,7 @@ import { inQuestLanguage } from '../sim/quests';
 import { QUEST_LANGUAGES, type QuestLanguage } from '../data/quests';
 import { perfSnapshot, resetPerf, timed, type PerfStat } from '../perf';
 import { playerVehicle } from '../sim/damage';
-import { advanceFar, ridesFar } from '../sim/far';
+import { advanceFar, ridesFar, settleWoken } from '../sim/far';
 import { inFarTurn, setThinning } from '../sim/fidelity';
 import { applyContactCrash, applyGroundCrash, applyLanding } from '../sim/crash-contact';
 import { tearLine } from '../sim/harpoon';
@@ -124,6 +124,7 @@ function previewIn(task: PreviewTask, terrain: World['terrain']): PlanFrames {
   const drive = restoreDrive(task.drive);
   const world = { ...task.world, terrain };
   try {
+    settleWoken(world, (id) => drive.bodies[id] !== undefined);
     syncDrive(drive, world);
     return timed('preview', () => planTurns(drive, world, task.meId));
   } finally {
@@ -175,10 +176,9 @@ function farOnlyTurn(task: TurnTask, before: World): PreparedTurn {
       advanceFar(w, v);
       frames[v.id] = trailFrames(w, v, restWheels(v.chassisId));
     }
-    exploreAlong(w);
   }));
   const { terrain: _terrain, ...state } = world;
-  const sight = timed('live-sight', () => liveSightOf(world, frames[world.player.vehicleId], FAST_SIGHT_STEP));
+  const sight = { steps: [frames[world.player.vehicleId].length - 1], tiles: [world.player.visible] };
   return { world: state, result: { next: task.drive, frames, crashes: [], breaks: [], landings: [], tears: [], results: {} }, sight, tail: null };
 }
 
@@ -271,6 +271,7 @@ const STOPPED = 0.05;
 
 export function physicsMove(d: Drive, done: (r: TurnResult) => void): (w: World) => void {
   return (w) => {
+    settleWoken(w, (id) => d.bodies[id] !== undefined);
     syncDrive(d, w);
     const r = simulateTurn(d, w);
     const far = w.vehicles.filter((v) => !r.frames[v.id] && !isOnRope(w, v.id));

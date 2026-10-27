@@ -1,5 +1,6 @@
 
 import { REGION } from '../../data/region';
+import { timed } from '../../perf';
 import { BREAKABLE } from '../../data/rules';
 import { TERRAIN, TERRAIN_TYPES, type TerrainTypeId } from '../../data/terrain';
 import { atlasOf, atlasSites } from '../atlas';
@@ -253,7 +254,7 @@ export function navLayer(terrain: Terrain, obstacles: Obstacle[], radius: number
   const key = `${statics.id}:${radius}`;
   const hit = e.layers.get(key);
   if (hit) return hit.layer;
-  const layer = patchedLayer(e, statics, radius) ?? builtLayer(e, statics, radius);
+  const layer = timed('nav-layer', () => patchedLayer(e, statics, radius) ?? builtLayer(e, statics, radius));
   e.layers.set(key, { layer, statics });
   dropSuperseded(e.layers);
   return layer;

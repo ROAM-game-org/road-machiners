@@ -7,7 +7,9 @@ import { TERRAIN } from '../data/terrain';
 import { buildDrive, bodyState, freeDrive, initPhysics, syncDrive, TURN_STEPS, type Drive, type TurnResult } from '../phys/drive';
 import { PHYSICS } from '../data/physics';
 import { physicsMove } from '../phys/turn';
-import { advanceFar, fuelLimit, fuelLimited, isNear, lowFuelSpeed, plainFuelSpeed } from './far';
+import { advanceFar, fuelLimit, fuelLimited, isNear, lowFuelSpeed, plainFuelSpeed, settleWoken } from './far';
+import { inFarTurn } from './fidelity';
+import { perfSnapshot, resetPerf } from '../perf';
 import { getResources } from './resources';
 import { addState } from './states';
 import { fuelCap, plainMaxSpeed, unpavedTopShare, vehicleStats } from './stats';
@@ -17,6 +19,7 @@ import { dist } from './vec';
 import { endTurn } from './world';
 import { REGION } from '../data/region';
 import { roadNetworkOf } from './road-network';
+import { touchesObstacle } from './mapgen';
 
 beforeAll(async () => {
   await initPhysics();
@@ -421,6 +424,18 @@ describe('far travel contact', () => {
     expect(mover.pos.x).toBeGreaterThan(120);
   });
 
+  it('a far NPC drives through a truck in the middle of its trip but stops beside one parked on its goal', () => {
+    const { w, mover } = far();
+    mover.brain = npcBrain('trader', mover.pos, ['trader']);
+    const inWay = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 122.5, y: 120 });
+    const parked = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 140, y: 120 });
+    mover.order = { kind: 'stopAt', dest: { x: 140, y: 120 } };
+    for (let i = 0; i < 12 && mover.order; i++) advanceFar(w, mover);
+    expect(mover.pos.x).toBeGreaterThan(inWay.pos.x);
+    expect(mover.order).toBeNull();
+    expect(dist(mover.pos, parked.pos)).toBeGreaterThanOrEqual(vehicleStats(w, mover).radius + vehicleStats(w, parked).radius);
+  });
+
   it('lets two trucks on the same point drive apart', () => {
     const { w, mover } = far();
     addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 120, y: 120 });
@@ -451,6 +466,22 @@ describe('far NPCs and breakable props', () => {
     const smashes = w.events.flatMap((e) => (e.t === 'collision' ? [e.impact] : []));
     expect(smashes.length).toBeGreaterThan(0);
     expect(smashes.every((impact) => Number.isFinite(impact) && impact > 0)).toBe(true);
+  });
+
+  it('a far NPC on its coarse trip drives through a fence and leaves it standing', () => {
+    const w = emptyWorld();
+    const x = 30 + LIVE + 50;
+    w.obstacles = fenceLine(x, 80);
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: x - 10, y: 80 });
+    npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    npc.brain.farRoute = { dest: { x: x + 10, y: 80 }, points: [{ x: x + 10, y: 80 }], offRoad: false };
+    npc.order = { kind: 'stopAt', dest: { x: x + 10, y: 80 } };
+
+    for (let i = 0; i < 12 && npc.order; i++) advanceFar(w, npc);
+
+    expect(npc.pos.x).toBeGreaterThan(x);
+    expect(w.broken).toEqual([]);
+    expect(w.obstacles).toHaveLength(64);
   });
 
   it('leaves a fence beside its route standing', () => {
@@ -487,29 +518,87 @@ describe('far trips longer than the route window', () => {
       const v = w.vehicles.find((x) => x.id === id)!;
       if (!v.order) break;
       advanceFar(w, v);
-      if (v.brain!.farRoute?.partial) windows++;
+      if (v.brain?.farRoute?.partial) windows++;
     }
     return { w, windows };
   }
 
-  it('drives window by window to a destination across the map without arriving early', () => {
+  it('plans an NPC trip across the map once, on the coarse grid, and arrives without arriving early', () => {
     const { w, npc, to } = longTrip();
     expect(dist(npc.pos, to)).toBeGreaterThan(REGION.navigation.farWindow * 2);
+    resetPerf();
     const { windows } = drive(w, npc.id, 2000);
-    expect(windows).toBeGreaterThan(0);
+    expect(windows).toBe(0);
+    expect(perfSnapshot()['coarse-trip'].calls).toBe(1);
+    expect(perfSnapshot().route).toBeUndefined();
     expect(w.events.filter((e) => e.t === 'arrived' && e.vehicle === npc.id)).toHaveLength(1);
     expect(dist(npc.pos, to)).toBeLessThan(RULES.arriveRadius);
   });
 
-  it('ends the trip in the same place after a save and load in the middle of a window', () => {
+  it('drives the player window by window on fine routes in fast travel', () => {
+    const { w, to } = longTrip();
+    const me = w.vehicles[0];
+    me.pos = { ...w.vehicles[1].pos };
+    me.order = { kind: 'stopAt', dest: { ...to } };
+    resetPerf();
+    inFarTurn(() => drive(w, me.id, 30));
+    expect(perfSnapshot()['route-ahead'].calls).toBeGreaterThan(0);
+    expect(perfSnapshot()['coarse-trip']).toBeUndefined();
+  });
+
+  it('ends the trip in the same place after a save and load in the middle of the trip', () => {
     const { w, npc } = longTrip();
     drive(w, npc.id, 20);
-    expect(npc.brain!.farRoute?.partial).toBe(true);
+    expect(npc.brain!.farRoute?.partial).toBeUndefined();
+    expect(npc.order).not.toBeNull();
     const loaded = JSON.parse(JSON.stringify(w)) as World;
     loaded.terrain = w.terrain;
     drive(w, npc.id, 2000);
     drive(loaded, npc.id, 2000);
     expect(loaded.vehicles.find((v) => v.id === npc.id)!.pos).toEqual(npc.pos);
+  });
+});
+
+describe('a far truck waking up', () => {
+  function wokenInRock() {
+    const w = emptyWorld();
+    const rock: Obstacle = { id: 'rock1', pos: { x: 60, y: 30 }, r: 3, kind: 'rock' };
+    w.obstacles = [rock];
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 60, y: 30 });
+    npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    return { w, npc, rock };
+  }
+
+  it('steps an NPC that wakes inside a prop out to the nearest clear spot, with a still trail there', () => {
+    const { w, npc, rock } = wokenInRock();
+    expect(isNear(w, npc)).toBe(true);
+    settleWoken(w, () => false);
+    expect(touchesObstacle(rock, w.terrain, npc.pos, vehicleStats(w, npc).radius)).toBe(false);
+    expect(dist(npc.pos, rock.pos)).toBeLessThan(rock.r + vehicleStats(w, npc).radius + RULES.arriveRadius * 2);
+    expect(npc.trail.every((p) => p.x === npc.pos.x && p.y === npc.pos.y)).toBe(true);
+  });
+
+  it('steps a woken NPC off another truck', () => {
+    const { w, npc } = wokenInRock();
+    w.obstacles = [];
+    const other = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 60.5, y: 30 });
+    settleWoken(w, (id) => id === other.id);
+    expect(dist(npc.pos, other.pos)).toBeGreaterThanOrEqual(2 * vehicleStats(w, npc).radius);
+    expect(other.pos).toEqual({ x: 60.5, y: 30 });
+  });
+
+  it('leaves a truck that already has a body, a far truck and the player where they stand', () => {
+    const { w, npc } = wokenInRock();
+    settleWoken(w, (id) => id === npc.id);
+    expect(npc.pos).toEqual({ x: 60, y: 30 });
+    npc.pos = { x: 30 + LIVE + 40, y: 30 };
+    w.obstacles = [{ id: 'rock2', pos: { ...npc.pos }, r: 3, kind: 'rock' }];
+    settleWoken(w, () => false);
+    expect(npc.pos).toEqual({ x: 30 + LIVE + 40, y: 30 });
+    const me = w.vehicles[0];
+    w.obstacles = [{ id: 'rock3', pos: { ...me.pos }, r: 3, kind: 'rock' }];
+    settleWoken(w, () => false);
+    expect(me.pos).toEqual({ x: 30, y: 30 });
   });
 });
 

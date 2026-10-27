@@ -2,11 +2,12 @@
 import { chassisDef } from '../data/chassis';
 import { RULES } from '../data/rules';
 import { inLiveRange, isFarTurn, keepsPlayerFarRoute } from './fidelity';
-import { boxSegmentDistance, propBoxes, propReach } from './mapgen';
+import { boxSegmentDistance, propBoxes, propReach, touchesObstacle } from './mapgen';
+import { spotNear } from './free-spot';
 import { keepsOffRoads } from './off-road';
-import { routeAhead } from './path';
+import { coarseTrip, routeAhead } from './path';
 import { REGION } from '../data/region';
-import { propSlotsAlong } from './prop-index';
+import { propsAround, propSlotsAlong } from './prop-index';
 import { breakProp } from './salvage';
 import { burnFuel, getResources } from './resources';
 import { fuelCap, plainFuelPerTile, plainMaxSpeed, unpavedTopShare, vehicleStats, type VehicleStats } from './stats';
@@ -67,9 +68,7 @@ export function advanceFar(w: World, v: Vehicle): void {
   const start = poseOf(v);
   const order = v.order;
   if (!order || order.kind === 'brake') {
-    v.speed = Math.max(0, v.speed - full.brake);
-    v.trail = Array.from({ length: RULES.substeps + 1 }, () => ({ ...start }));
-    if (order && v.speed === 0) v.order = null;
+    brakeFar(v, full, start);
     return;
   }
 
@@ -79,21 +78,38 @@ export function advanceFar(w: World, v: Vehicle): void {
   const { points, partial } = farPoints(w, v, order.dest, style, full, s);
 
   const planned = follow(v.pos, points, (v.speed + next) / 2);
-  const block = firstContact(w, v, planned.path, full.radius);
+  const block = firstContact(w, v, planned.path, full.radius, contactsOf(v, order, full.radius));
   const walk = block ? follow(v.pos, points, block.clear) : planned;
   const end = walk.path[walk.path.length - 1];
   const { done, windowEnds } = farOutcome(order, end, walk, block, partial);
   v.trail = sample(v.chassisId, start, walk.path, walk.moved);
   const last = v.trail[v.trail.length - 1];
   Object.assign(v, { pos: { x: end.x, y: end.y }, heading: last.heading }, bendField(last.bend));
-  v.speed = done && order.kind === 'stopAt' ? 0 : block ? Math.min(next, block.other.speed) : next;
+  v.speed = farSpeed(order, done, block, next);
   burnFuel(w, v, walk.moved);
-  breakCrossed(w, v, walk.path, full.radius);
+  if (!drivesCoarse(v)) breakCrossed(w, v, walk.path, full.radius);
   keepFarRoute(v, replans(done, windowEnds, block, walk) ? undefined : farRouteOf(order.dest, walk.ahead, style, partial));
-  if (done) {
-    w.events.push({ t: 'arrived', vehicle: v.id });
-    v.order = null;
-  }
+  if (done) arrive(w, v);
+}
+
+function brakeFar(v: Vehicle, full: VehicleStats, start: Pose): void {
+  v.speed = Math.max(0, v.speed - full.brake);
+  v.trail = Array.from({ length: RULES.substeps + 1 }, () => ({ ...start }));
+  if (v.order && v.speed === 0) v.order = null;
+}
+
+function contactsOf(v: Vehicle, order: DrivenOrder, radius: number): (o: Vehicle) => boolean {
+  return drivesCoarse(v) ? (o) => onGoal(o, order, radius) : () => true;
+}
+
+function farSpeed(order: DrivenOrder, done: boolean, block: FarBlock, next: number): number {
+  if (done && order.kind === 'stopAt') return 0;
+  return block ? Math.min(next, block.other.speed) : next;
+}
+
+function arrive(w: World, v: Vehicle): void {
+  w.events.push({ t: 'arrived', vehicle: v.id });
+  v.order = null;
 }
 
 type FarWalk = { ahead: Vec[]; moved: number };
@@ -101,8 +117,16 @@ type FarBlock = { other: Vehicle; contact: number } | null;
 
 type DrivenOrder = Exclude<MoveOrder, { kind: 'brake' }>;
 
+function goalReach(order: DrivenOrder): number {
+  return order.kind === 'stopAt' ? RULES.arriveRadius : RULES.passRadius;
+}
+
+function onGoal(o: Vehicle, order: DrivenOrder, radius: number): boolean {
+  return dist(o.pos, order.dest) < goalReach(order) + radius + radiusOf(o);
+}
+
 function farOutcome(order: DrivenOrder, end: Vec, walk: FarWalk, block: FarBlock, partial: boolean): { done: boolean; windowEnds: boolean } {
-  const reach = order.kind === 'stopAt' ? RULES.arriveRadius : RULES.passRadius;
+  const reach = goalReach(order);
   const windowEnds = endsWindow(walk, partial);
   const routeEnds = walk.ahead.length === 0 && !windowEnds;
   return { done: dist(end, order.dest) < reach || routeEnds || blockedAtDest(order, block, reach), windowEnds };
@@ -129,9 +153,38 @@ function farPoints(w: World, v: Vehicle, dest: Vec, style: RouteStyle, full: Veh
   const onRope = getHitchedTowIds(w);
   const stored = keptFarRoute(v);
   if (stored && dist(stored.dest, dest) < RULES.arriveRadius && sameStyle(stored, style)) return { points: stored.points, partial: stored.partial === true };
+  if (drivesCoarse(v)) return { points: coarseTrip(w, v.pos, dest, full.radius, v), partial: false };
   const window = REGION.navigation.farWindow;
   const blockers = [...farBlockers(w, v, s, onRope), ...fieldBlockers(w, v)].filter((b) => dist(b.pos, v.pos) <= window + REGION.navigation.nearSlack + b.r);
   return routeAhead(w, v.pos, dest, full.radius, blockers, v, window);
+}
+
+function drivesCoarse(v: Vehicle): boolean {
+  return Boolean(v.brain);
+}
+
+export function settleWoken(w: World, hasBody: (id: string) => boolean): void {
+  for (const v of w.vehicles.filter((x) => wakes(w, x, hasBody))) {
+    if (standsClear(w, v, v.pos)) continue;
+    const spot = spotNear(v.pos, (p) => standsClear(w, v, p));
+    if (!spot) throw new Error(`Far truck ${v.id} woke inside a prop or truck at (${v.pos.x}, ${v.pos.y}) with no clear spot near`);
+    v.pos = spot;
+    v.trail = v.trail.map(() => poseOf(v));
+  }
+}
+
+function wakes(w: World, v: Vehicle, hasBody: (id: string) => boolean): boolean {
+  return drivesCoarse(v) && !hasBody(v.id) && isNear(w, v);
+}
+
+function standsClear(w: World, v: Vehicle, at: Vec): boolean {
+  const discs = rigDiscs({ ...v, pos: at });
+  const others = w.vehicles.filter((o) => o.id !== v.id).flatMap(rigDiscs);
+  return discs.every((d) => !propsAround(w, 'drive', d.pos, d.r).some((o) => isProp(o) && touchesObstacle(o, w.terrain, d.pos, d.r)) && others.every((o) => dist(o.pos, d.pos) >= o.r + d.r));
+}
+
+function isProp(o: Obstacle): boolean {
+  return o.kind !== 'site' && o.kind !== 'water';
 }
 
 function farBlockers(w: World, v: Vehicle, s: VehicleStats, onRope: ReadonlySet<string>): Blocker[] {
@@ -184,9 +237,9 @@ function keepFarRoute(v: Vehicle, route: FarRoute | undefined): void {
 
 const CONTACT_STEP = 0.25;
 
-function firstContact(w: World, v: Vehicle, path: Vec[], radius: number): { other: Vehicle; clear: number; contact: number } | null {
+function firstContact(w: World, v: Vehicle, path: Vec[], radius: number, counts: (o: Vehicle) => boolean): { other: Vehicle; clear: number; contact: number } | null {
   const client = ropeClientOf(w, v.id);
-  const others = w.vehicles.filter((o) => o.id !== v.id && o.id !== client).flatMap((o) => rigDiscs(o).map((d) => ({ o, at: d.pos, contact: radius + d.r })));
+  const others = w.vehicles.filter((o) => o.id !== v.id && o.id !== client && counts(o)).flatMap((o) => rigDiscs(o).map((d) => ({ o, at: d.pos, contact: radius + d.r })));
   let walked = 0;
   for (let seg = 1; seg < path.length; seg++) {
     const a = path[seg - 1];

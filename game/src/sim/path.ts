@@ -2,7 +2,7 @@
 import { REGION } from '../data/region';
 import { crossesRail } from './bridge';
 import { count, timed } from '../perf';
-import { canStepOut, coarseWaypoint, connected, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
+import { canStepOut, coarseCells, coarseWaypoint, connected, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
 import type { Blocker } from './nav/buckets';
 import { CELL, CLEARANCE, blockerKey, climbTaste, componentOf, dynamicBlockers, navLayer, nearCliff, nightTaste, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, warmLayers, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
 import { keepsOffRoads } from './off-road';
@@ -52,6 +52,27 @@ function aheadPoint(world: World, from: Vec, dest: Vec, radius: number, extra: B
   if (exit === null || near === null) return null;
   const cell = coarseWaypoint(layer, exit, near, routeTaste(world, terrainNav(world.terrain), driver), window / CELL);
   return cell === null ? null : centerOf(layer, cell);
+}
+
+export function coarseTrip(world: World, from: Vec, dest: Vec, radius: number, driver: Vehicle): Vec[] {
+  return timed('coarse-trip', () => {
+    const layer = navLayer(world.terrain, world.obstacles, radius);
+    const to = insideMap(world, dest, radius);
+    const { exit, near } = tripEnds(layer, stampOverlay(layer, [], radius), from, to);
+    const cells = coarseCells(layer, exit, near, routeTaste(world, terrainNav(world.terrain), driver));
+    if (cells === null) throw new Error(`Cells ${exit} and ${near} share a component but have no coarse route`);
+    return [...cells.slice(0, -1).map((c) => centerOf(layer, c)), near === cellOf(layer, to) ? to : centerOf(layer, near)];
+  });
+}
+
+function tripEnds(layer: NavLayer, ov: Overlay, from: Vec, to: Vec): { exit: number; near: number } {
+  const start = cellOf(layer, from);
+  const exit = canStepOut(layer, ov, start) ? start : nearestFreeCell(layer, ov, start);
+  if (exit === null) throw new Error(`Coarse trip from (${from.x}, ${from.y}) starts on a map with no free cell`);
+  const target = cellOf(layer, to);
+  const near = nearestFreeCell(layer, ov, target, startComponent(layer, exit), nearRing(layer, exit, target));
+  if (near === null) throw new Error(`Coarse trip from (${from.x}, ${from.y}) has no free cell near (${to.x}, ${to.y})`);
+  return { exit, near };
 }
 
 function routeTaste(world: World, nav: TerrainNav, driver: Vehicle | undefined): Taste | null {

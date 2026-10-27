@@ -91,6 +91,15 @@ describe("a fast-travel turn", () => {
     expect(dist(playerVehicle(third.world).pos, DEST)).toBeLessThan(dist(playerVehicle(second.world).pos, DEST));
   });
 
+  it("shows sight once, at the end of a far turn with no body, as the tiles the player sees there and has explored", () => {
+    const first = playTurn(travelling(), freshDrive(travelling()), true);
+    const second = playTurn(first.world, first.prepared.result.next, true);
+    const frames = second.prepared.result.frames[playerVehicle(second.world).id];
+    expect(second.prepared.sight.steps).toEqual([frames.length - 1]);
+    expect(second.prepared.sight.tiles).toEqual([second.world.player.visible]);
+    expect(second.world.player.visible.every((idx) => second.world.player.explored[idx] === 1)).toBe(true);
+  });
+
   it("plays by physics when the turn is not asked to travel fast", () => {
     const world = travelling();
     const turn = playTurn(world, freshDrive(world), false);

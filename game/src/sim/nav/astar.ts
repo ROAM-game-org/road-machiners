@@ -290,12 +290,22 @@ function markCorridor(layer: NavLayer, start: number, goal: number, taste: Taste
   return false;
 }
 
-export function coarseWaypoint(layer: NavLayer, start: number, goal: number, taste: Taste | null, reachCells: number): number | null {
+export function coarseCells(layer: NavLayer, start: number, goal: number, taste: Taste | null): number[] | null {
+  const chain = coarseChain(layer, start, goal, taste);
+  return chain && chain.slice(1).map((r) => cellOfRegion(layer, r));
+}
+
+function coarseChain(layer: NavLayer, start: number, goal: number, taste: Taste | null): number[] | null {
   if (!connected(layer, start, goal) || !markCorridor(layer, start, goal, taste, 1, null)) return null;
-  const { x: rx, y: ry } = layer.coarse;
   const chain: number[] = [];
   for (let r = layer.coarse.region.at(goal); r !== -1; r = coarseFrom[r]) chain.push(r);
-  chain.reverse();
+  return chain.reverse();
+}
+
+export function coarseWaypoint(layer: NavLayer, start: number, goal: number, taste: Taste | null, reachCells: number): number | null {
+  const chain = coarseChain(layer, start, goal, taste);
+  if (chain === null) return null;
+  const { x: rx, y: ry } = layer.coarse;
   let along = 0;
   for (let i = 1; i < chain.length; i++) {
     along += Math.hypot(rx[chain[i]] - rx[chain[i - 1]], ry[chain[i]] - ry[chain[i - 1]]);
