@@ -8,6 +8,7 @@ import { groundPoint, type V3 } from "../phys/frames";
 import { FLARE_LOOK, SHELL } from "./render/hazards";
 import { BreakCues, type PartBreak, type ShotLike } from "./breakCues";
 import { projectileOf, type Muzzle } from "./render/projectiles";
+import { PHYSICS } from "../data/physics";
 import { bodyOf } from "../sim/body";
 import { CollisionCues, collisionSteps, fireSteps, scoreEventMs, planShot, playCrashes, playShotFx, playUtilitySounds, playVolley, posesOf, spreadOver, type CombatHost, type Gun, type PlannedRound, type Shot, type TurnPoses, type VolleyHost } from "./volley";
 
@@ -483,28 +484,31 @@ describe("playShotFx before a shooter's view exists", () => {
     expect(launched[0].delayMs + launched[0].flightMs).toBeCloseTo(MOVE_MS, 6);
   });
 
-  it("fires from the shooter's resting place when the turn shows no pose for it", () => {
+  it("fires from the shooter's resting place when the next turn no longer shows the shooter", () => {
     const world = emptyWorld();
     const shooter = addVehicle(world, "scrapjaw", "buggy", ["mg", "stockEngine"], { x: 30, y: 30 }, 0);
     const target = addVehicle(world, "scrapjaw", "buggy", ["stockEngine"], { x: 36, y: 30 }, 0);
     const mg = shooter.items.find((i) => i.kind === "part" && i.part.defId === "mg");
     if (!mg || mg.kind !== "part") throw new Error("test truck has no mg");
     world.events = [{ t: "shot", shooter: shooter.id, weapon: mg.part.id, target: target.id, aim: "center", chance: 1, damageChance: 1, side: "front", rounds: [round(target.id)] } as GameEvent];
-    const launched: unknown[] = [];
+    const muzzles: (() => Muzzle)[] = [];
+    const clock = { moveMs: MOVE_MS, stepMs: STEP_MS, gunHeight: 1.6 };
     const host = {
       world,
       views: new Map(),
-      fx: { shot: (_s: unknown, _m: unknown, plan: unknown) => launched.push(plan), label: () => {} },
+      fx: { shot: (_s: unknown, muzzle: () => Muzzle) => muzzles.push(muzzle), label: () => {} },
       sound: { at: () => {}, queueScoreEvent: () => {} },
       eventPoint: () => ORIGIN,
       breakPart: () => {},
       onBurst: () => {},
-      poses: posesOf(world, {}, { moveMs: MOVE_MS, stepMs: STEP_MS, gunHeight: 1.6 }, (v) => v.id !== shooter.id),
+      poses: posesOf(world, {}, clock, () => true),
       startMs: 0,
       lineHooked: () => {},
     } as unknown as CombatHost;
-    expect(() => playShotFx(host, new BreakCues(world.events))).not.toThrow();
-    expect(launched).toHaveLength(1);
+    playShotFx(host, new BreakCues(world.events));
+    host.poses = posesOf(world, {}, clock, (v) => v.id !== shooter.id);
+    expect(muzzles).toHaveLength(1);
+    expect(muzzles[0]().pos.x).toBeCloseTo(shooter.pos.x * PHYSICS.metersPerTile, 3);
   });
 });
 
