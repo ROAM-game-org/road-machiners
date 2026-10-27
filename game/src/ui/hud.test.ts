@@ -207,3 +207,72 @@ describe('the Wanted well', () => {
     expect(well.all('wanted-owed')[0].text()).toContain('151');
   });
 });
+
+describe('order controls while knocked out', () => {
+  class Node {
+    className = '';
+    children: (Node | string)[] = [];
+    attrs: Record<string, string> = {};
+    constructor(readonly tag: string) {}
+    append(...children: (Node | string)[]) { this.children.push(...children); }
+    replaceChildren(...children: (Node | string)[]) { this.children = children; }
+    setAttribute(name: string, value: string) { this.attrs[name] = value; }
+    addEventListener() {}
+    text(): string { return this.children.map((child) => typeof child === 'string' ? child : child.text()).join(''); }
+    buttons(): Node[] { return [...(this.tag === 'button' ? [this] : []), ...this.children.flatMap((child) => typeof child === 'string' ? [] : child.buttons())]; }
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  function actionButtons(w: World, busy: boolean) {
+    vi.stubGlobal('document', {
+      createElement: (tag: string) => new Node(tag),
+      createElementNS: (_ns: string, tag: string) => new Node(tag),
+      createTextNode: (value: string) => Object.assign(new Node('#text'), { children: [value] }),
+    });
+    const actionSlot = new Node('div');
+    const hud = Object.assign(Object.create(Hud.prototype), {
+      actionSlot,
+      actions: { headlightsOn: () => false },
+      dialogue: {},
+    }) as Hud;
+    (hud as unknown as { renderActions(w: World, manual: boolean, busy: boolean): void }).renderActions(w, false, busy);
+    return actionSlot.buttons();
+  }
+
+  const orderLabels = ['Route', 'Patch', 'Lights', 'Overdrive', 'Cool', 'First aid'];
+  const lookLabels = ['Driver', 'Map', 'Journal'];
+  const find = (buttons: Node[], label: string) => buttons.find((b) => b.text().includes(label));
+
+  it('dims every order control with Knocked out, whether or not a turn plays', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    w.player.state = 'knockedOut';
+    for (const busy of [false, true]) {
+      const buttons = actionButtons(w, busy);
+      for (const label of orderLabels) {
+        const b = find(buttons, label);
+        expect(b, label).toBeDefined();
+        expect(b!.attrs['aria-disabled'], label).toBe('true');
+        expect(b!.attrs.title, label).toBe('Knocked out');
+      }
+    }
+  });
+
+  it('keeps Driver, Map and Journal usable while knocked out and idle', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    w.player.state = 'knockedOut';
+    const buttons = actionButtons(w, false);
+    for (const label of lookLabels) {
+      const b = find(buttons, label);
+      expect(b, label).toBeDefined();
+      expect(b!.attrs['aria-disabled'], label).toBeUndefined();
+      expect(b!.attrs.disabled, label).toBeUndefined();
+    }
+  });
+
+  it('shows no Knocked out reason on an active player', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const buttons = actionButtons(w, false);
+    expect(buttons.filter((b) => b.attrs.title === 'Knocked out')).toEqual([]);
+  });
+});

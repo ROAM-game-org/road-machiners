@@ -41,7 +41,7 @@ import { gameContext } from "../three/error-report";
 import { feedbackCorner, FeedbackForm } from "./feedback-form";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
 import { createCompassDial, createIcon, createSpeedDial, repairingPart } from "./cards";
-import { aimMarks, TURN_PLAYING, type AimState } from "./weapons";
+import { aimMarks, orderLock, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
 import { createSwitch } from "./switch";
 import { Tips, type TipSwitch } from "./tips";
@@ -480,12 +480,13 @@ export class Hud {
 
   private engineButtons(w: World, busy: boolean): HTMLElement[] {
     const od = overdriveSwitch(w);
-    const lock = busy ? TURN_PLAYING : null;
+    const lock = orderLock(w, busy);
     const headlights = createSwitch({
       on: t("hud.lightsOn"),
       off: t("hud.lightsOff"),
       checked: this.actions.headlightsOn(),
       key: "L",
+      reason: lock,
       title: t("hud.lightsTitle"),
       onclick: () => this.actions.toggleHeadlights(),
     });
@@ -551,8 +552,8 @@ export class Hud {
     );
   }
 
-  private hornButton(w: World): HTMLElement {
-    const reason = playerCanAct(w) ? null : refusalText(w, { id: "cannotAct" });
+  private hornButton(w: World, busy: boolean): HTMLElement {
+    const reason = orderLock(w, busy) ?? (playerCanAct(w) ? null : refusalText(w, { id: "cannotAct" }));
     return el("button", { class: "instrument-button touch-only", ...disabledWith(reason, () => this.dialogue.honk()) }, t("hud.horn"));
   }
 
@@ -655,7 +656,7 @@ export class Hud {
         off: t("hud.route"),
         checked: manual,
         key: "R",
-        reason: busy ? TURN_PLAYING : null,
+        reason: orderLock(w, busy),
         title: t("hud.manualTitle"),
         onclick: () => this.actions.toggleManual(),
       }),
@@ -664,7 +665,7 @@ export class Hud {
         off: t("hud.noPatch"),
         checked: w.player.autoRepair,
         key: "P",
-        reason: busy ? TURN_PLAYING : null,
+        reason: orderLock(w, busy),
         title: t("hud.autoPatchTitle"),
         onclick: () => this.actions.toggleAutoRepair(),
       }),
@@ -672,7 +673,7 @@ export class Hud {
       this.characterButton(w, busy),
       ...mapInstrument(w, busy, () => this.actions.openMap()),
       this.journalButton(busy),
-      ...(modeRules(w).radio ? [this.hornButton(w)] : []),
+      ...(modeRules(w).radio ? [this.hornButton(w, busy)] : []),
     );
   }
 
