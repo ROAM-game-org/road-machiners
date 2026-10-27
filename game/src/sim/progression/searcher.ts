@@ -1,10 +1,10 @@
 import { isOutlaw } from '../relations';
-import { TOPICS, type LineId } from '../../data/dialogue';
+import type { LineId, TopicId } from '../../data/dialogue';
 import { SHOPS } from '../../data/market';
 import { inCombat } from '../combat';
 import { playerVehicle } from '../damage';
 import { isKnockedOut } from '../defeat';
-import { callVehicle, chooseOption, currentOptions, hangUp } from '../dialogue';
+import { askTopic, callVehicle, canAskTopic, chooseOption, currentOptions, hangUp } from '../dialogue';
 import { acceptContract, deliverContract, heldSearch, searchRefusal, shopAt, shopState, siteOf, type SearchContract } from '../market';
 import { handOverParcel, playerHandover, readyHandover } from '../parcel';
 import { canUseSite, type Site } from '../sites';
@@ -65,14 +65,14 @@ function callable(world: World, v: Vehicle): boolean {
 }
 
 function askToPullOver(o: Orders, target: Vehicle): void {
-  if (!talk(o, target, [TOPICS.parcel.ask!.say, 'pullingOver'])) driveTo(o, target.pos);
+  if (!talk(o, target, 'parcel', 'pullingOver')) driveTo(o, target.pos);
   else if (o.me.order) o.run((w) => setMoveOrder(w, null));
 }
 
 function askWitnesses(o: Orders): void {
   const search = heldSearch(o.world)!;
   const witnesses = o.world.vehicles.filter((v) => v.id !== search.target && v.id !== o.me.id && callable(o.world, v) && asksNow(o.world, v));
-  for (const v of witnesses) talk(o, v, [TOPICS.lastSeen.ask!.say, 'thanksOverAndOut']);
+  for (const v of witnesses) talk(o, v, 'lastSeen', 'thanksOverAndOut');
 }
 
 function asksNow(world: World, v: Vehicle): boolean {
@@ -81,18 +81,19 @@ function asksNow(world: World, v: Vehicle): boolean {
   return (world.turn + hash) % SEARCHER.askEvery === 0;
 }
 
-function talk(o: Orders, npc: Vehicle, lines: readonly LineId[]): boolean {
+function talk(o: Orders, npc: Vehicle, topic: TopicId, replyLine: LineId): boolean {
   o.run((w) => callVehicle(w, npc.id));
-  let said = 0;
-  for (const line of lines) {
-    if (!o.world.player.call) break;
-    const pick = currentOptions(o.world).findIndex((option) => option.line === line);
-    if (pick < 0) break;
-    o.run((w) => chooseOption(w, pick));
-    said += 1;
+  let said = false;
+  if (canAskTopic(o.world, topic)) {
+    o.run((w) => askTopic(w, topic));
+    const pick = currentOptions(o.world).findIndex((option) => option.line === replyLine);
+    if (pick >= 0) {
+      o.run((w) => chooseOption(w, pick));
+      said = true;
+    }
   }
   if (o.world.player.call) o.run(hangUp);
-  return said === lines.length;
+  return said;
 }
 
 function roam(o: Orders, search: SearchContract): void {

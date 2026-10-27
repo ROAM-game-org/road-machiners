@@ -269,7 +269,7 @@ export const UI = {
   'actBlock.knockedOut': 'Knocked out',
   'actBlock.towed': 'Under tow',
   'actBlock.onRadio': 'On the radio',
-  'unstuck.combat': 'In a fight',
+  'unstuck.combat': 'In a fight and not stuck',
   'unstuck.towing': 'Towing a truck',
   'unstuck.harpoon': 'On a harpoon line',
   'hud.tipsOff': 'Tips are off. Turn them back on in Menu, Show tips.',
