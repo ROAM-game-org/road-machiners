@@ -8,9 +8,8 @@ import { remember } from './memory';
 import { followingOf, joinCompany } from './companies';
 import { NPC_BEHAVIOR } from '../data/npc-behavior';
 import { fightOdds } from './fight-odds';
-import { strengthRatio, callFighters, dangerJoining } from './npc-decisions';
 import { nextRandom } from './rng';
-import { optionChances, optionWeights } from './npc-decisions';
+import { callFighters, dangerJoining, optionChances, optionWeights, strengthRatio } from './npc-decisions';
 import { topGoal } from './npc-activities';
 import { refreshVision } from './vision';
 import { addState, stateOf } from './states';
@@ -306,10 +305,6 @@ describe('a company called for help', () => {
     const foes = awakeFoesOf(c.w, me);
     const fighters = callFighters(c.w, c.leader, me);
     expect(fighters.map((v) => v.id).sort()).toEqual(c.guards.map((v) => v.id).sort());
-    const judged = (rng: number) => {
-      c.w.rngState = rng;
-      return dangerJoining(c.w, c.leader, fighters, me, foes);
-    };
     const danger = (crew: Vehicle[]) => {
       c.w.rngState = 7;
       return dangerJoining(c.w, c.leader, crew, me, foes);
