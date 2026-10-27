@@ -120,7 +120,7 @@ describe('calls', () => {
     const next = callVehicle(w, npc.id);
     expect(next.player.call).toEqual({ with: npc.id, topic: null, node: HUB, vars: {}, line: { line: TRAIT_TALK.trader.voice!.greeting, vars: {} } });
     expect(next.events).toContainEqual({ t: 'call', with: npc.id, outcome: 'opened' });
-    expect(next.events).toContainEqual({ t: 'say', speaker: npc.id, line: TRAIT_TALK.trader.voice!.greeting, vars: {} });
+    expect(next.events).toContainEqual({ t: 'say', speaker: npc.id, to: w.player.vehicleId, line: TRAIT_TALK.trader.voice!.greeting, vars: {} });
   });
 
   it('cannot reach a truck out of sight', () => {
@@ -301,7 +301,7 @@ describe('NPC calls', () => {
     let next = callVehicle(w, npc.id);
     next = chooseOption(next, optionIndex(next, en(TOPICS.directions.ask!.say)));
     expect(next.player.call?.topic).toBeNull();
-    expect(next.events).toContainEqual({ t: 'say', speaker: npc.id, line: TRAIT_TALK.trader.voice!.repeatLine, vars: {} });
+    expect(next.events).toContainEqual({ t: 'say', speaker: npc.id, to: w.player.vehicleId, line: TRAIT_TALK.trader.voice!.repeatLine, vars: {} });
     expect(next.player.call?.line).toEqual({ line: TRAIT_TALK.trader.voice!.repeatLine, vars: {} });
   });
 });
@@ -1313,7 +1313,7 @@ describe('trucks on the radio', () => {
 
   it('reads the radio talk events and nothing else', () => {
     const plea = { kind: 'surrender' } as never;
-    expect(radioSpeakers([{ t: 'say', speaker: 'a', line: 'hangUp', vars: {} }], 'p')).toEqual(['a']);
+    expect(radioSpeakers([{ t: 'say', speaker: 'a', to: 'p', line: 'hangUp', vars: {} }], 'p')).toEqual(['a']);
     expect(radioSpeakers([{ t: 'call', with: 'a', outcome: 'opened' }], 'p').sort()).toEqual(['a', 'p']);
     expect(radioSpeakers([{ t: 'plea', from: 'a', to: 'b', plea, accepted: true }], 'p').sort()).toEqual(['a', 'b']);
     expect(radioSpeakers([{ t: 'plea', from: 'a', to: 'p', plea, accepted: null }], 'p')).toEqual(['a']);
@@ -1601,7 +1601,7 @@ describe('road lessons', () => {
     const lesson = told.player.call!.vars.lesson;
     expect(lesson).toEqual({ kind: 'line', line: expect.stringMatching(/^lessonHauler/) });
     expect(told.player.call?.line.line).toBe('lessonTold');
-    expect(told.events).toContainEqual({ t: 'say', speaker: npc.id, line: 'lessonTold', vars: { lesson } });
+    expect(told.events).toContainEqual({ t: 'say', speaker: npc.id, to: w.player.vehicleId, line: 'lessonTold', vars: { lesson } });
     expect(told.player.money).toBe(money);
     expect(told.player.notes).toEqual(notes);
     expect(told.player.discovered).toEqual(explored);

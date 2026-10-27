@@ -485,7 +485,9 @@ function aidStartedText(world: World, e: Extract<GameEvent, { t: 'aidStarted' }>
   return line(t('log.aidStartThem', { who: vehicleName(world, e.giver) }), '');
 }
 
-function sayText(world: World, e: Extract<GameEvent, { t: 'say' }>): LogLine {
+function sayText(world: World, e: Extract<GameEvent, { t: 'say' }>): LogLine | null {
+  const mine = e.speaker === world.player.vehicleId || e.to === world.player.vehicleId;
+  if (!mine && !playerNotices(world, e.speaker)) return null;
   const cls = e.speaker === world.player.vehicleId ? 'dim' : '';
   return line(t('log.say', { who: vehicleName(world, e.speaker), line: lineText(e.line, e.vars) }), cls);
 }

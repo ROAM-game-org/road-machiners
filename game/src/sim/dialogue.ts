@@ -82,8 +82,8 @@ export function currentLine(world: World): LineId {
   return TOPICS[call.topic].nodes[call.node].line;
 }
 
-function say(world: World, speaker: string, line: LineId, vars: CallVars): void {
-  world.events.push({ t: 'say', speaker, line, vars });
+function say(world: World, speaker: string, to: string, line: LineId, vars: CallVars): void {
+  world.events.push({ t: 'say', speaker, to, line, vars });
   if (world.player.call?.with === speaker) world.player.call.line = { line, vars };
 }
 
@@ -91,7 +91,7 @@ function enter(world: World, call: Call, topic: TopicId | null, node: string): v
   call.topic = topic;
   call.node = node;
   if (!topic) call.vars = {};
-  say(world, call.with, currentLine(world), call.vars);
+  say(world, call.with, world.player.vehicleId, currentLine(world), call.vars);
 }
 
 function enterTopic(world: World, npc: Vehicle, call: Call, topic: Topic, node: string = topic.start): void {
@@ -148,7 +148,7 @@ function busyElsewhere(world: World, npc: Vehicle, me: Vehicle): boolean {
 }
 
 function reply(world: World, call: Call, line: LineId): void {
-  if (!isRefused(call)) say(world, world.player.vehicleId, line, call.vars);
+  if (!isRefused(call)) say(world, world.player.vehicleId, call.with, line, call.vars);
 }
 
 export function chooseOption(world: World, index: number): World {
@@ -165,9 +165,9 @@ export function chooseOption(world: World, index: number): World {
 }
 
 function askTopic(world: World, npc: Vehicle, call: Call, topic: Topic): void {
-  if (isSettled(world, npc, topic)) return say(world, npc.id, talkOf(npc).repeatLine, {});
+  if (isSettled(world, npc, topic)) return say(world, npc.id, world.player.vehicleId, talkOf(npc).repeatLine, {});
   const gate = gateOf(npc, topic);
-  if (gate === 'help' && !opensHelp(world, npc)) return say(world, npc.id, 'helpMeFirst', {});
+  if (gate === 'help' && !opensHelp(world, npc)) return say(world, npc.id, world.player.vehicleId, 'helpMeFirst', {});
   enterTopic(world, npc, call, topic, gate === 'price' ? TOLL : topic.start);
 }
 
