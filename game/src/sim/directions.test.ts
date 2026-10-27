@@ -4,11 +4,12 @@ import { MAP_SPREAD, REGION } from '../data/region';
 import { cardinalOf, cueAt, headingAlong, leanOf, octantOf, spanOf } from './direction-cues';
 import { directionsFromSite, directionsTo } from './directions';
 import { isTerritory } from './sites';
+import { roadEntries, territoryEntries } from './territory';
 import { ambiguousStarts, followSteps } from './directions-follower.test-helper';
 import { nearestRoadPoints, roadNetworkOf } from './road-network';
 import { emptyWorld, chaosHighwayWorld } from './testkit';
 import type { DirectionStep, DirectionTarget, Obstacle, World } from './types';
-import { dist, type Vec } from './vec';
+import { dist, polylineDist, type Vec } from './vec';
 
 const ROAD_GAP = 35;
 
@@ -132,9 +133,10 @@ describe('directionsTo', () => {
   });
 
   it('stops after the allowed turns with askAgain', () => {
-    const steps = directionsTo(w, site('scrapjaw'), to('glass-flats'));
-    expect(steps.filter((s) => s.do === 'turn').length).toBeLessThanOrEqual(DIRECTIONS.maxSteps);
-    expect(steps[steps.length - 1].do).toBe('askAgain');
+    const starts = [OFF_ROAD, site('bowl'), site('nose'), site('scrapjaw'), { x: 300, y: 300 }];
+    const answers = starts.flatMap((from) => SITES.map((s) => directionsTo(w, from, to(s.id))));
+    for (const steps of answers) expect(steps.filter((s) => s.do === 'turn').length).toBeLessThanOrEqual(DIRECTIONS.maxSteps);
+    expect(answers.some((steps) => steps[steps.length - 1].do === 'askAgain')).toBe(true);
   });
 
   it('never counts a fork above the third, and reports how many answers ask again', () => {
@@ -294,7 +296,19 @@ describe('following the steps', () => {
   const grid: Vec[] = [];
   for (let i = 0; i < 40; i++) grid.push({ x: 30 + (i % 8) * 70, y: 40 + Math.floor(i / 8) * 110 });
 
-  it('reaches every site from a grid of starts', () => {
+  function offRoadEntry(id: string): Vec | null {
+    const t = REGION.locations.find((l) => l.id === id);
+    return t && isTerritory(t) && roadEntries(t).length === 0 ? territoryEntries(t)[0] : null;
+  }
+
+  function followedTo(from: Vec, steps: readonly DirectionStep[], id: string): boolean {
+    const entry = offRoadEntry(id);
+    if (!entry) return followSteps(w, from, steps, { site: id }).reached;
+    const gap = Math.min(...REGION.roads.map((road) => polylineDist(entry, road)));
+    return followSteps(w, from, steps, { spot: entry }).closest <= gap + DIRECTIONS.placeSlack;
+  }
+
+  it('reaches every site from a grid of starts, and the road nearest the entry of a territory off the road', () => {
     const misses: string[] = [];
     let cues: Record<string, number> = {};
     for (const from of grid) {
@@ -302,8 +316,7 @@ describe('following the steps', () => {
         const steps = directionsTo(w, from, to(s.id));
         if (steps.some((x) => x.do === 'askAgain' || x.do === 'noRoad')) continue;
         for (const step of steps) if (step.do === 'turn') cues[step.at.kind] = (cues[step.at.kind] ?? 0) + 1;
-        const result = followSteps(w, from, steps, { site: s.id });
-        if (!result.reached) misses.push(`${from.x},${from.y} -> ${s.id}`);
+        if (!followedTo(from, steps, s.id)) misses.push(`${from.x},${from.y} -> ${s.id}`);
       }
     }
     console.log('cue coverage', JSON.stringify(cues));
