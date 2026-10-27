@@ -152,8 +152,8 @@ class SimPage {
   private readonly speedKeys = new TravelSpeed(this.speed);
   private readonly follow = new Toggle("Follow", "F key. Keeps the selected truck in the middle", () => this.view.redraw());
   private readonly seedBox = el("input", { type: "number", class: "sim-seed", step: "1", title: "Seed" }) as HTMLInputElement;
-  private readonly saveButton = el("button", { class: "btn-s", title: "The run also saves every game hour and on Pause, and opening the page resumes it", onclick: () => this.send({ kind: "save" }) }, "Save");
-  private readonly downloadButton = el("button", { class: "btn-s", title: "Download the run as a game save file", onclick: () => this.send({ kind: "download" }) }, "Download");
+  private readonly saveButton = el("button", { class: "btn-s", type: "button", title: "The run also saves every game hour and on Pause, and opening the page resumes it", onclick: () => this.send({ kind: "save" }) }, "Save");
+  private readonly downloadButton = el("button", { class: "btn-s", type: "button", title: "Download the run as a game save file", onclick: () => this.send({ kind: "download" }) }, "Download");
   private readonly saveNote = el("span", { class: "sim-note" }, "Not saved yet");
   private readonly quiet = new Toggle("All events", "Also show routine events: jobs, trades, shots and sightings", () => this.renderLog());
   private readonly onlySelected = new Toggle("Selected", "Show only the events of the selected truck", () => this.renderLog());

@@ -403,7 +403,7 @@ describe("automatic travel safety", () => {
     expect(travel.isAuto(spotted)).toBe(true);
   });
 
-  it("ignores a bump into a prop or the ground but stops for a crash into a truck", () => {
+  it("ignores a bump that did no damage but stops for a crash into a truck", () => {
     const world = makeSafeWorld();
     const id = world.player.vehicleId;
     const other = { ...playerVehicle(world), id: "other" };
@@ -422,9 +422,51 @@ describe("automatic travel safety", () => {
       world.events = [{ t: "info", note: { id } }];
       expect(canTravel(world)).toBe(false);
     }
-    const quiet = makeSafeWorld();
-    quiet.events = [{ t: "info", note: { id: "engineHot" } }];
-    expect(canTravel(quiet)).toBe(true);
+  });
+
+  it.each([
+    { t: "info", note: { id: "engineHot" } },
+    { t: "info", note: { id: "engineOverheat", hp: 2 } },
+    { t: "info", note: { id: "overdriveCutOut" } },
+    { t: "supply", what: "supplies", note: { id: "outOfSupplies", health: 3 } },
+    { t: "supply", what: "fuel", note: { id: "noRoomFuel", fuel: 4 } },
+  ] satisfies GameEvent[])("stops automatic travel on the player's %j", (event) => {
+    const world = makeSafeWorld();
+    world.events = [event];
+    expect(canTravel(world)).toBe(false);
+  });
+
+  it("does not stop for what a player command leaves behind", () => {
+    const world = makeSafeWorld();
+    world.events = [{ t: "supply", what: "supplies", note: { id: "engineDoused", supplies: 1 } }];
+    expect(canTravel(world)).toBe(true);
+  });
+
+  it("stops for a crash into the ground that damaged a part, not for a bump that did none", () => {
+    const world = makeSafeWorld();
+    const id = world.player.vehicleId;
+    world.events = [{ t: "collision", a: id, b: "ground", impact: 3, hitsA: [{ part: "p", damage: 0 }], hitsB: [] }];
+    expect(canTravel(world)).toBe(true);
+    world.events = [{ t: "collision", a: id, b: "ground", impact: 3, hitsA: [{ part: "p", damage: 2 }], hitsB: [] }];
+    expect(canTravel(world)).toBe(false);
+  });
+
+  it("does not stop for a breakable prop smashed this turn", () => {
+    const world = makeSafeWorld();
+    const id = world.player.vehicleId;
+    const fence = { id: "fence", kind: "landmark", look: "fence", pos: { x: 0, y: 0 }, r: 1 } as unknown as World["obstacles"][number];
+    world.broken = [{ obstacle: fence, turn: world.turn }];
+    world.events = [{ t: "collision", a: id, b: "fence", impact: 4, hitsA: [{ part: "p", damage: 2 }], hitsB: [] }];
+    expect(canTravel(world)).toBe(true);
+  });
+
+  it("stops for cargo spilled and a torn line on the player's truck", () => {
+    const world = makeSafeWorld();
+    const id = world.player.vehicleId;
+    world.events = [{ t: "cargoSpilled", vehicle: id, part: "rack", pile: null, units: 2 }];
+    expect(canTravel(world)).toBe(false);
+    world.events = [{ t: "cargoSpilled", vehicle: "other", part: "rack", pile: null, units: 2 }];
+    expect(canTravel(world)).toBe(true);
   });
 
   it("lets go of a held Space at the drain's edge, so the next turn needs a fresh press", () => {

@@ -52,7 +52,7 @@ describe("sim speed", () => {
     speed.step(1);
     speed.step(1);
     speed.run(true);
-    const real = 10;
+    const real = 6;
     for (let turn = 0; turn < 60; turn++) speed.frame(turn, (turn * TURN_MS) / real);
     expect(speed.playing()).toBe(real);
   });

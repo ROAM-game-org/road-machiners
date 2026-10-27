@@ -23,6 +23,7 @@ import type { GameEvent, Vehicle, World } from "../sim/types";
 import { dist, type Vec } from "../sim/vec";
 import { isOnRope, isTowed } from "../sim/tow";
 import { autoRuns, playerCanAct, threatToPlayer, waitsOnPlayer } from "../sim/world";
+import { stopsTravel } from "./travel-stops";
 import { WorkerLoad, workerFailure } from "./worker-load";
 
 export type LiveVision = {
@@ -139,40 +140,8 @@ export type Playback = {
   hookedLines: Set<string>;
 };
 
-function stopsVehicle(event: GameEvent, id: string): boolean {
-  switch (event.t) {
-    case "knockout":
-    case "death":
-      return true;
-    case "breakdown":
-    case "partDisabled":
-    case "destroyed":
-      return event.vehicle === id;
-    default:
-      return false;
-  }
-}
-
-function crashedIntoTruck(event: Extract<GameEvent, { t: "collision" }>, id: string, world: World): boolean {
-  const other = event.a === id ? event.b : event.b === id ? event.a : null;
-  return other !== null && world.vehicles.some((v) => v.id === other);
-}
-
 function entersTheLight(event: GameEvent): boolean {
   return event.t === "info" && (event.note.id === "hazard" || event.note.id === "core");
-}
-
-function interruptsTravel(event: GameEvent, id: string, world: World): boolean {
-  switch (event.t) {
-    case "collision":
-      return crashedIntoTruck(event, id, world);
-    case "shot":
-      return [event.shooter, event.target].includes(id);
-    case "info":
-      return entersTheLight(event);
-    default:
-      return stopsVehicle(event, id);
-  }
 }
 
 export function overshoots(world: World, next: Pick<World, "events" | "vehicles">): boolean {
@@ -210,7 +179,7 @@ export function canTravel(world: World): boolean {
   const me = playerVehicle(world);
   if (!playerCanAct(world) || me.direct) return false;
   if (inCombat(world, me)) return false;
-  return !world.events.some((event) => interruptsTravel(event, me.id, world));
+  return !world.events.some((event) => stopsTravel(event, world));
 }
 
 export class Travel {
