@@ -50,9 +50,13 @@ function referenceBuggy(w: World, pos: Vec): Vehicle {
   return buggy;
 }
 
+function holdNpcSpawns(w: World): void {
+  for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
+}
+
 function driveToStand(place: Place): { inReach: boolean } {
   let w = newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
-  for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
+  holdNpcSpawns(w);
   const buggy = referenceBuggy(w, nearestRoadPoint(place.prop.pos));
   let drive: Drive = buildDrive(w);
   const reach = (propReach(place.prop) + ECONOMY.useRange) * ECONOMY.interactionScale;
@@ -84,6 +88,7 @@ const RAMP_TOP: Vec = { x: 75, y: 100 };
 
 function climbsRamp(grade: number): boolean {
   let w = emptyWorld({ x: 20, y: 100 });
+  holdNpcSpawns(w);
   const terrain = editableTerrain(w);
   const n = terrain.size;
   for (let j = 0; j <= n; j++)
