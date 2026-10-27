@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readLedger } from '../ledger';
 import { EMPTY_STATE, readState, updateState, writeState } from '../state';
-import { RELEASE_TASK_LABEL, STUCK_LABEL, type AgentRun, type Card, type Ctx, type Failure, type SuiteFailures, type SuiteScope } from '../types';
+import { RELEASE_TASK_LABEL, STUCK_LABEL, type AgentRun, type Card, type Ctx, type FailedTest, type Failure, type SuiteFailures, type SuiteScope } from '../types';
 import { CheckTimeoutError } from '../container';
 import { causeOf } from '../fail';
 import { BaselineFailureError, BudgetError } from './checkpoint';
@@ -201,7 +201,7 @@ describe('merge queue', () => {
   describe('failures the base also has (#1103)', () => {
     const RAID = { file: 'src/sim/raid.test.ts', test: 'raids > reach 5' };
     const FUEL = { file: 'src/sim/fuel.test.ts', test: 'burns fuel' };
-    const failing = (...failed: typeof RAID[]) => ({ passed: false, record: { failed, unhandledErrors: 0 } });
+    const failing = (...failed: FailedTest[]) => ({ passed: false, record: { failed, unhandledErrors: 0 } });
     const ledgerBaselines = () => readLedger(home, new Date(0)).filter((line) => line.kind === 'baseline');
 
     it('fails with the baseline cause and no fix round when every failed test fails on the base too', async () => {
@@ -230,6 +230,27 @@ describe('merge queue', () => {
         'suite head1', 'rerun dev-tip src/sim/fuel.test.ts,src/sim/raid.test.ts workers 1', 'agent', 'suite head1', 'rerun dev-tip src/sim/raid.test.ts workers 1',
       ]);
       expect(ledgerBaselines().map((line) => line.kind === 'baseline' && line.failing)).toEqual([[FUEL], []]);
+    });
+
+    it('never counts a file that failed as a whole as the base\'s, so its own failures reach the session', async () => {
+      changed = ['game/src/sim/fuel.ts'];
+      const whole = { file: 'src/sim/raid.test.ts', test: null };
+      suitePlan = [failing(whole), failing(whole), { passed: true, record: null }];
+      await merge(fakeCtx());
+      expect(runs).toHaveLength(1);
+      expect(runs[0]!.prompt).not.toContain('Leave them alone');
+      expect(ledgerBaselines()).toEqual([]);
+    });
+
+    it('labels the cards stuck and keeps the baseline cause when the card comment fails', async () => {
+      changed = ['game/src/sim/fuel.ts'];
+      suitePlan = [failing(RAID), failing(RAID)];
+      const ctx = fakeCtx();
+      ctx.github.comment = async () => { throw new Error('gh: HTTP 502'); };
+      const error = await merge(ctx).catch((caught: unknown) => caught);
+      expect(causeOf(error)).toBe('baseline');
+      expect(calls).toContain('label 5 factory-stuck');
+      expect(calls).toContain('label 6 factory-stuck');
     });
 
     it('keeps the whole failure when the base passes the failed tests', async () => {

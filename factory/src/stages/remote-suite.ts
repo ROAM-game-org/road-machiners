@@ -28,27 +28,27 @@ export async function remoteSuiteResult(ctx: Ctx, at: At, sha: string, scope?: S
   for (let read = 0; ; read++) {
     const run = await onActions(`reading run ${id} failed`, () => ctx.github.suiteRun(id));
     if (read === 0) ctx.log(at.stage, at.issue, `the ${suiteName(scope)} runs on GitHub Actions for ${sha}: ${run.url}`);
-    if (run.done) return verdict(ctx, id, sha, run);
+    if (run.done) return verdict(ctx, at, id, sha, run);
     if (!run.started && ctx.now().getTime() > startBy) throw new SuiteMachineError(`run ${id} did not start within ${ctx.cfg.suiteStartMinutes} minutes: ${run.url}`);
     reportTests(ctx);
     await new Promise((done) => setTimeout(done, ctx.cfg.suitePollSeconds * 1000));
   }
 }
 
-async function verdict(ctx: Ctx, id: number, sha: string, run: SuiteRun): Promise<SuiteResult> {
+async function verdict(ctx: Ctx, at: At, id: number, sha: string, run: SuiteRun): Promise<SuiteResult> {
   if (run.passed) return { failure: null };
   if (!run.testsFailed) throw new SuiteMachineError(`run ${id} ended ${run.conclusion ?? 'with no conclusion'} outside its test step: ${run.url}`);
   const log = await onActions(`reading the log of run ${id} failed`, () => ctx.github.suiteLog(id));
   const tail = stripAnsi(log).split('\n').slice(-FAILURE_TAIL_LINES).join('\n');
-  const record = await failuresOf(ctx, id);
+  const record = await failuresOf(ctx, at, id);
   return { failure: `The full suite failed on GitHub Actions for ${sha}: ${run.url}\n${tail}`, url: run.url, record };
 }
 
-async function failuresOf(ctx: Ctx, id: number): Promise<SuiteFailures | null> {
+async function failuresOf(ctx: Ctx, at: At, id: number): Promise<SuiteFailures | null> {
   try {
     return await ctx.github.suiteFailures(id);
   } catch (error) {
-    ctx.log('checks', null, `the failed tests of run ${id} could not be read, so every failure counts: ${error instanceof Error ? error.message : String(error)}`);
+    ctx.log(at.stage, at.issue, `the failed tests of run ${id} could not be read, so every failure counts: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
 }

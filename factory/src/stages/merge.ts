@@ -23,8 +23,8 @@ export async function merge(ctx: Ctx): Promise<void> {
   try {
     await withWorkFolder(ctx, 'merge-queue', () => mergeBatch(ctx, batch.base, batch.cards));
   } catch (error) {
-    if (error instanceof BaselineFailureError) await commentBaseline(ctx, batch.cards, error);
     await labelStuckBatch(ctx, batch.cards.map((card) => card.issue));
+    if (error instanceof BaselineFailureError) await commentBaseline(ctx, batch.cards, error).catch((failed: unknown) => ctx.log('merge', null, `the baseline comment failed: ${failed instanceof Error ? failed.message : String(failed)}`));
     throw error;
   }
 }

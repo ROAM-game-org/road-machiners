@@ -108,7 +108,9 @@ const CLOSE_LIMIT_MS = 10_000;
 const OVER_TIME_EXIT = 3;
 
 function stopAtSuiteLimit(limitMinutes, times, failures, vitest, readsDir) {
+  let over = false;
   const timer = setTimeout(async () => {
+    over = true;
     console.log(suiteOverMessage(limitMinutes, times.finished));
     const code = failures.any() ? 1 : OVER_TIME_EXIT;
     await Promise.race([vitest.close(), new Promise((done) => setTimeout(done, CLOSE_LIMIT_MS))]);
@@ -116,6 +118,7 @@ function stopAtSuiteLimit(limitMinutes, times, failures, vitest, readsDir) {
     process.exit(code);
   }, limitMinutes * 60_000);
   timer.unref();
+  return () => over;
 }
 
 function stopOnStall(watch, vitest, readsDir) {
@@ -150,7 +153,7 @@ const failures = failedFiles();
 const reporters = ['default', recorder.reporter, times.reporter, failures.reporter, ...(watch ? [stallReporter(watch)] : [])];
 const vitest = await createVitest('test', { watch: false, reporters, ...(related ? { related } : {}) });
 const stalled = watch ? stopOnStall(watch, vitest, readsDir) : () => false;
-if (suiteLimit !== null) stopAtSuiteLimit(suiteLimit, times, failures, vitest, readsDir);
+const overTime = suiteLimit === null ? () => false : stopAtSuiteLimit(suiteLimit, times, failures, vitest, readsDir);
 try {
   vitest.projects[0].config.setupFiles.push(resolve(root, 'src/test/cache/reads-setup.ts'));
   await vitest.init();
@@ -169,7 +172,7 @@ try {
     failed = verdict === 'failed';
     record = failureRecord(root, testModules, unhandledErrors);
   }
-  if (failuresFile && !stalled()) writeFailureRecord(failuresFile, record);
+  if (failuresFile && !stalled() && !overTime()) writeFailureRecord(failuresFile, record);
   console.log(`[test-cache] ran ${run.length}, skipped ${skipped.length}, uncacheable ${recorder.uncacheable()}`);
 } finally {
   await vitest.close();

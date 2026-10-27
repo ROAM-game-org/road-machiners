@@ -135,6 +135,13 @@ describe('test:cached', { timeout: 4 * RUN_LIMIT_MS }, () => {
     expect(existsSync(join(root, 'tmp', 'failures.json'))).toBe(false);
   });
 
+  it('writes no record for a run past its suite limit', () => {
+    put('src/hangs.test.ts', hangingTest);
+    put('src/fails.test.ts', failingTest);
+    expect(runCached({ TEST_FAILURES_FILE: 'tmp/failures.json', TEST_SUITE_MINUTES: '0.25' }).code).toBe(1);
+    expect(existsSync(join(root, 'tmp', 'failures.json'))).toBe(false);
+  });
+
   it('stops a run whose test never finishes and names it, and keeps the passes of the other files', () => {
     put('src/hangs.test.ts', `import { it } from 'vitest';\nit('waits forever', () => new Promise(() => {}));\n`);
 

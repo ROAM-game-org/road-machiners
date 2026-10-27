@@ -22,7 +22,7 @@ export async function withoutBaseline(ctx: Ctx, check: BaselineCheck, result: Fa
   if (!comparable(record)) return result.failure;
   const base = await baseRecord(ctx, check, record);
   if (base === null) return result.failure;
-  const shared = record.failed.filter((test) => base.failed.some((other) => sameTest(test, other)));
+  const shared = record.failed.filter((test) => test.test !== null && base.failed.some((other) => sameTest(test, other)));
   if (shared.length === 0) return result.failure;
   const fresh = record.failed.filter((test) => !shared.some((other) => sameTest(test, other)));
   appendLedger(ctx.cfg.home, { kind: 'baseline', stage: check.stage, into: check.into, base: check.base, head: check.head, excluded: shared, failing: fresh, at: ctx.now().toISOString() });
