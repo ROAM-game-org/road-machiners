@@ -19,7 +19,7 @@ export function reliefGrid(seed: number): ReliefGrid {
   const cell = RELIEF_SOLVE.cell;
   const n = Math.ceil(REGION.size / cell) + 1;
   const input = basinInput(seed, n, cell);
-  const grid = { n, cell, heights: solveRelief(input, RELIEF_SOLVE) };
+  const grid = { n, cell, heights: smoothRoadBeds(solveRelief(input, RELIEF_SOLVE), n, cell) };
   solved = { seed, grid };
   return grid;
 }
@@ -51,10 +51,38 @@ export function basinInput(seed: number, n: number, cell: number): SolveInput {
 }
 
 export function upliftAt(seed: number, p: Vec): number {
-  const lift = UPLIFT.floor * zoneUplift(p.x, p.y) + rimLift(p) + rangeLift(seed, p);
-  const roadGap = ROAD_INDEX.nearestWithin(p.x, p.y, UPLIFT.corridor.width);
-  const cut = 1 - smooth(clamp(roadGap / UPLIFT.corridor.width, 0, 1));
-  return lift * (1 - cut * (1 - UPLIFT.corridor.keep));
+  return UPLIFT.floor * zoneUplift(p.x, p.y) + rimLift(p) + rangeLift(seed, p);
+}
+
+function smoothRoadBeds(heights: Float32Array, n: number, cell: number): Float32Array {
+  const { width, passes } = RELIEF_SOLVE.roadBed;
+  const low = blurred(heights, n, Math.round(width / cell), passes);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const k = j * n + i;
+    const share = 1 - smooth(clamp(ROAD_INDEX.nearestWithin(i * cell, j * cell, width) / width, 0, 1));
+    heights[k] += (low[k] - heights[k]) * share;
+  }
+  return heights;
+}
+
+function blurred(heights: Float32Array, n: number, reach: number, passes: number): Float32Array {
+  let out = heights;
+  for (let p = 0; p < passes; p++) out = boxPass(boxPass(out, n, reach, true), n, reach, false);
+  return out;
+}
+
+function boxPass(src: Float32Array, n: number, reach: number, across: boolean): Float32Array {
+  const out = new Float32Array(src.length);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    let sum = 0;
+    for (let t = -reach; t <= reach; t++) sum += src[shifted(n, i, j, t, across)];
+    out[j * n + i] = sum / (2 * reach + 1);
+  }
+  return out;
+}
+
+function shifted(n: number, i: number, j: number, t: number, across: boolean): number {
+  return across ? j * n + clamp(i + t, 0, n - 1) : clamp(j + t, 0, n - 1) * n + i;
 }
 
 function rimLift(p: Vec): number {

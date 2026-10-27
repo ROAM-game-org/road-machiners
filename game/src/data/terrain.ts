@@ -937,7 +937,7 @@ export const ROADSIDE = {
     fieldChance: 0.006,
     group: [1, 3] as readonly [number, number],
     groupSpread: 1.4,
-    band: spreadBand([253, 507], MAP_AREA_SPREAD),
+    band: spreadBand([186, 374], MAP_AREA_SPREAD),
   },
 };
 
@@ -996,7 +996,6 @@ export const UPLIFT = {
   floor: 0.12,
   rim: { width: 16 * MAP_SCALE, rate: 0.05, flatUnder: { desert: 0.85, swamp: 0.95 }, gaps: [{ at: scalePoint({ x: -2, y: 75 }), width: 9 * MAP_SCALE }, { at: scalePoint({ x: 82, y: 122 }), width: 9 * MAP_SCALE }] },
   range: { spine: layoutPoints([[94, -4], [103, 12], [112, 24], [113, 40], [117, 58]]), width: 14 * MAP_SCALE, rate: 0.28, crestNoise: 0.45, crestFrequency: 1 / (9 * MAP_SCALE) },
-  corridor: { width: 70, keep: 0.08 },
   seedOffset: 8900,
 };
 
@@ -1011,6 +1010,7 @@ export const RELIEF_SOLVE = {
   diffusion: 0.04,
   baseLevel: 0,
   hold: { margin: 40 },
+  roadBed: { width: 70, passes: 3 },
 };
 
 export const DESERT = {

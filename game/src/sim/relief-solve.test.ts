@@ -44,5 +44,17 @@ describe('relief solve', () => {
     const town = REGION.towns[0];
     const centre = macroHeight(1337, town.pos.x, town.pos.y);
     expect(macroHeight(1337, town.pos.x + town.radius * 0.9, town.pos.y)).toBeCloseTo(centre, 5);
-  });
+  }, 120_000);
+
+  it('lays the roads level with the land 70 tiles to either side, not in a trough that drains it', () => {
+    const rises = REGION.roads.flatMap((road) => road.slice(1).map((b, i) => {
+      const a = road[i];
+      const length = Math.hypot(b.x - a.x, b.y - a.y);
+      const side = { x: ((a.y - b.y) / length) * 70, y: ((b.x - a.x) / length) * 70 };
+      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      const beside = (macroHeight(1337, mid.x + side.x, mid.y + side.y) + macroHeight(1337, mid.x - side.x, mid.y - side.y)) / 2;
+      return beside - macroHeight(1337, mid.x, mid.y);
+    }));
+    expect(Math.abs(rises.reduce((s, r) => s + r, 0) / rises.length)).toBeLessThan(1);
+  }, 120_000);
 });

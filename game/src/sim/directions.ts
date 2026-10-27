@@ -7,7 +7,7 @@ import { isTerritory } from './sites';
 import { territoryEntries } from './territory';
 import { isCliff, tileAt } from './terrain';
 import type { Cue, DirectionStep, DirectionTarget, Octant, Span, TurnSide, World } from './types';
-import { angleDiff, dist, type Vec } from './vec';
+import { angleDiff, dist, polylineDist, type Vec } from './vec';
 
 type Spoken = { at: number; side: TurnSide; cue: Cue | null; out: number };
 
@@ -109,9 +109,15 @@ function startPoint(world: World, from: Vec, net: ReturnType<typeof roadNetworkO
 }
 
 function leavePoint(world: World, net: RoadNetwork, target: Extract<DirectionTarget, { kind: 'spot' }>): RoadPoint | null {
-  const near = nearestRoadPoints(net, target.pos, DIRECTIONS.leaveReach, DIRECTIONS.joinCandidates);
+  const near = nearestRoadPoints(net, target.pos, leaveReach(target), DIRECTIONS.joinCandidates);
   const open = near.find((p) => clearLine(world, p.pos, target.clue === 'place' ? stopShort(p.pos, target.pos, DIRECTIONS.placeSlack) : target.pos));
   return open ?? (target.clue === 'place' ? near[0] ?? null : null);
+}
+
+function leaveReach(target: Extract<DirectionTarget, { kind: 'spot' }>): number {
+  if (target.clue !== 'place') return DIRECTIONS.leaveReach;
+  const gap = Math.min(...REGION.roads.map((road) => polylineDist(target.pos, road)));
+  return Math.max(DIRECTIONS.leaveReach, gap + DIRECTIONS.placeSlack);
 }
 
 function stopShort(from: Vec, to: Vec, gap: number): Vec {

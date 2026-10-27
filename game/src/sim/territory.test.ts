@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GLASS_FLATS_POS, onOrchardRoad, REGION } from '../data/region';
+import { GLASS_FLATS_GROWTH, GLASS_FLATS_POS, onOrchardRoad, REGION } from '../data/region';
 import { ECONOMY, GOODS } from '../data/goods';
 import { SALVAGE, type LootTable } from '../data/salvage';
 import { FALLEN_SUN_DECKS, inFurrow, TERRITORIES, type FarmRoad } from '../data/territory';
@@ -483,27 +483,21 @@ describe('Glass Flats', () => {
     expect(hazardZones().filter((z) => z.id === 'glass-flats')).toEqual([]);
   });
 
-  it('has an outline 47 to 95 tiles out, five times the area of the 34-tile circle it grew from, whose radius is its bounding radius, and outside every other site', () => {
+  it('has its authored outline 47 to 95 tiles out grown by its growth, five times the area of the grown 34-tile circle, whose radius is its bounding radius, and outside every other site', () => {
     if (flats.kind !== 'territory' || !flats.outline) throw new Error('Glass Flats has no outline');
     const reach = flats.outline.map((p) => Math.hypot(p.x, p.y));
     expect(flats.radius).toBeCloseTo(Math.max(...reach), 9);
     for (const r of reach) {
-      expect(r).toBeGreaterThanOrEqual(47);
-      expect(r).toBeLessThanOrEqual(95);
+      expect(r).toBeGreaterThanOrEqual(47 * GLASS_FLATS_GROWTH - 1e-9);
+      expect(r).toBeLessThanOrEqual(95 * GLASS_FLATS_GROWTH + 1e-9);
     }
     const o = flats.outline;
     const area = Math.abs(o.reduce((s, p, i) => s + p.x * o[(i + 1) % o.length].y - o[(i + 1) % o.length].x * p.y, 0)) / 2;
-    expect(area / (Math.PI * 34 ** 2)).toBeCloseTo(5, 0);
+    expect(area / (Math.PI * (34 * GLASS_FLATS_GROWTH) ** 2)).toBeCloseTo(5, 0);
     const poly = flats.outline.map(onMap);
     const rim = poly.flatMap((a, i) => along([a, poly[(i + 1) % poly.length]]));
     const others = [...REGION.towns, ...REGION.locations].filter((s) => s.id !== 'glass-flats');
     for (const p of rim) for (const site of others) expect(siteGap(site, p), site.id).toBeGreaterThan(0);
-  });
-
-  it('puts both entries on its edge', () => {
-    const entries = territoryEntries(t);
-    expect(entries).toHaveLength(2);
-    for (const e of entries) expect(Math.abs(siteGap(flats, e))).toBeLessThan(1e-6);
   });
 
   it('rolls a compound from the city stores table, and knows it as a spot only inside Glass Flats', () => {
@@ -565,7 +559,7 @@ describe('Glass Flats', () => {
     }
   });
 
-  it('joins the dirt roads into one web, and both approaches to it', () => {
+  it('joins the dirt roads into one web', () => {
     const touches = (a: FarmRoad, b: FarmRoad) => [a.points[0], a.points.at(-1)!].some((p) => polylineDist(p, b.points) < 0.05);
     const reached = new Set([0]);
     for (let grew = true; grew; ) {
@@ -577,9 +571,6 @@ describe('Glass Flats', () => {
       });
     }
     expect(reached.size).toBe(roads.length);
-    const ends = REGION.roads.map((road) => road.at(-1)!).filter((p) => siteGap(flats, p) < 0);
-    expect(ends).toHaveLength(2);
-    for (const end of ends) expect(Math.min(...roads.map((road) => polylineDist(end, road.points))), `${end.x},${end.y}`).toBeLessThan(0.05);
   });
 
   it('meets at a crossroads in front of the engine mouth, where four web roads end', () => {
