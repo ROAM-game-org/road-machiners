@@ -80,6 +80,11 @@ function firstExits(graph: RoadGraph, node: number, first: Follow): RoadExit[] {
   return exitsAt(graph, node).filter((e) => sameName(roadName(graph, e.edge, node), first.road) && lookDown(graph, node, e) === first.heading);
 }
 
+function onlyRoadExit(graph: RoadGraph, node: number, first: Follow): RoadExit[] {
+  const named = exitsAt(graph, node).filter((e) => sameName(roadName(graph, e.edge, node), first.road));
+  return named.length === 1 ? named : [];
+}
+
 export function ambiguousStarts(world: World, answers: readonly { from: Vec; steps: readonly DirectionStep[] }[]): string[] {
   return answers.flatMap(({ from, steps }) => {
     const first = steps.find((s): s is Follow => s.do === 'follow');
@@ -109,7 +114,7 @@ export function followSteps(world: World, from: Vec, steps: readonly DirectionSt
     let pick = exits[0];
     if (into === null) {
       if (first) {
-        const [named] = firstExits(graph, node, first);
+        const [named] = firstExits(graph, node, first).concat(onlyRoadExit(graph, node, first));
         if (!named) throw new Error(`No exit at ${from.x},${from.y} fits ${JSON.stringify(first)}`);
         pick = named;
       }
