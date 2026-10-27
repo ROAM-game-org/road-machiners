@@ -43,14 +43,17 @@ describe('personality draw', () => {
   it('gives every driver of a seed a personality, the same each time the seed is played', () => {
     const personalities = (seed: number) => newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming')).vehicles.filter((v) => v.brain).map((v) => v.brain!.personality);
 
-    expect(personalities(1337)).toEqual(personalities(1337));
-    expect(personalities(1337).every((p) => PERSONALITY_IDS.includes(p))).toBe(true);
-    expect(personalities(1337)).not.toEqual(personalities(42));
+    const first = personalities(1337);
+    const again = personalities(1337);
+
+    expect(again).toEqual(first);
+    expect(first.every((p) => PERSONALITY_IDS.includes(p))).toBe(true);
+    expect(personalities(42)).not.toEqual(first);
   }, budget(15_000));
 
   it('uses every personality across a handful of seeds', () => {
     const seen = new Set<string>();
-    for (let seed = 1; seed <= 6; seed++) {
+    for (let seed = 1; seed <= 6 && seen.size < PERSONALITY_IDS.length; seed++) {
       for (const v of newWorld(seed * 7919, START_KITS.standard, TEST_MAP, defaultSetup('roaming')).vehicles) if (v.brain) seen.add(v.brain.personality);
     }
 

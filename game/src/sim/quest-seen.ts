@@ -45,22 +45,17 @@ function replyTo(story: Story, point: Point, index: number): Reply | null {
   return lines === null ? null : { lines, next: pointNow(story) };
 }
 
-function isQuestion(story: Story, point: Point, index: number, replies: Record<string, string>): boolean | null {
-  const reply = point.choices[index].priced ? null : replyTo(story, point, index);
+function isQuestion(point: Point, index: number, reply: Reply | null, replies: Record<string, string>): boolean | null {
   if (!reply || !sameKeys(reply.next, point)) return null;
   return replies[point.choices[index].key] === replyHash(reply.lines);
 }
 
 function topicSeen(story: Story, here: Point, there: Point, replies: Record<string, string>): boolean {
-  const asked = there.choices.map((_, j) => isQuestion(story, there, j, replies));
-  const back = there.choices.some((_, j) => !there.choices[j].priced && sameKeysAfter(story, there, j, here));
+  const repliesTo = there.choices.map((choice, j) => (choice.priced ? null : replyTo(story, there, j)));
+  const asked = repliesTo.map((reply, j) => isQuestion(there, j, reply, replies));
+  const back = repliesTo.some((reply) => reply !== null && sameKeys(reply.next, here));
   const questions = asked.filter((a) => a !== null);
   return back && questions.length > 0 && questions.every(Boolean);
-}
-
-function sameKeysAfter(story: Story, from: Point, index: number, target: Point): boolean {
-  const reply = replyTo(story, from, index);
-  return reply !== null && sameKeys(reply.next, target);
 }
 
 function choiceSeen(story: Story, point: Point, index: number, replies: Record<string, string>): boolean {
