@@ -4,6 +4,9 @@ import { STORY_WRECKS } from '../data/salvage';
 import { newDraft } from './bake';
 import { prop } from './oldworld';
 import { keepStartClear, onReservedGround } from './start-ground';
+import { reservedGround } from '../sim/start-pose';
+import { isCliff, tileAt } from '../sim/terrain';
+import { TEST_MAP } from '../test/map';
 
 describe('story wreck ground', () => {
   const wreck = STORY_WRECKS[0];
@@ -19,5 +22,32 @@ describe('story wreck ground', () => {
     const beside = prop('rock', { x: wreck.pos.x + wreck.r + REGION.obstacles.gap + 3, y: wreck.pos.y }, 1.3, 0);
     d.props.push(over, beside);
     expect(keepStartClear(d).props).toEqual([beside]);
+  });
+});
+
+describe('start kit ground on the baked map', () => {
+  const spots = reservedGround();
+
+  it('has reserved spots to check', () => {
+    expect(spots.length).toBeGreaterThan(0);
+  });
+
+  it('keeps every reserved spot free of cliffs', () => {
+    const { terrain } = TEST_MAP;
+    for (const { pos, r } of spots) {
+      for (let y = Math.floor(pos.y - r); y <= Math.floor(pos.y + r); y++) {
+        for (let x = Math.floor(pos.x - r); x <= Math.floor(pos.x + r); x++) {
+          if (Math.hypot(x + 0.5 - pos.x, y + 0.5 - pos.y) > r + 0.7) continue;
+          expect(isCliff(terrain, tileAt(terrain, { x, y })), `cliff at ${x},${y} near ${pos.x},${pos.y}`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('keeps every reserved spot free of props', () => {
+    for (const { pos, r } of spots) {
+      const hit = TEST_MAP.props.find((p) => Math.hypot(p.pos.x - pos.x, p.pos.y - pos.y) < p.r + r);
+      expect(hit, `prop ${hit?.kind} at ${pos.x},${pos.y}`).toBeUndefined();
+    }
   });
 });

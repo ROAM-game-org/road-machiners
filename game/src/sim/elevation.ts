@@ -4,6 +4,7 @@ import { REGION } from '../data/region';
 import { bridgeCut, ICARUS_DECKS } from './bridge';
 import { strongestStamp } from './ground-stamps';
 import { INDEX_CELL, ROAD_INDEX, RoadIndex } from './road-index';
+import { reservedGround } from './start-pose';
 import { heightFromElevation } from './terrain';
 import { clamp, lerp, pointInPolygon, type Vec } from './vec';
 
@@ -14,6 +15,7 @@ const FEATURES = [TERRAIN.features.canyon, TERRAIN.features.dryRiver, TERRAIN.fe
   index: new RoadIndex([feature.path], INDEX_CELL),
   reach: feature.width + feature.bank,
 }));
+const RESERVED = reservedGround();
 const FLATTEN_REACH = REGION.roadWidth / 2 + TERRAIN.flattenMargin;
 
 function hash(x: number, y: number, seed: number): number {
@@ -67,6 +69,7 @@ export function flattenFactor(x: number, y: number): number {
     if (dx * dx + dy * dy > SITE_SKIP2[k]) continue;
     best = Math.min(best, Math.hypot(dx, dy) - site.radius);
   }
+  for (const spot of RESERVED) best = Math.min(best, Math.hypot(spot.pos.x - x, spot.pos.y - y) - spot.r);
   return flattenFalloff(best);
 }
 

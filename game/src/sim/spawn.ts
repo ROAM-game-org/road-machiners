@@ -21,6 +21,7 @@ import { startEscort } from "./tow";
 import type { NpcFactionId, Vehicle, World } from "./types";
 import { dist, type Vec } from "./vec";
 import { atlasOf } from "./atlas";
+import { isCliff, tileAt } from "./terrain";
 import { bayHeading, hollowBays } from "./hollow-layout";
 import { isSunwardMember, spawnsAtHollow } from "./sunward";
 
@@ -356,8 +357,25 @@ function insideFortress(world: World, pos: Vec): boolean {
   return site !== null && isFortress(site);
 }
 
+export function groundClear(world: World, pos: Vec, radius: number): boolean {
+  const { terrain } = world;
+  const edge = (v: number, s: number) => Math.floor(v + s * radius);
+  for (let y = edge(pos.y, -1); y <= edge(pos.y, 1); y++) {
+    for (let x = edge(pos.x, -1); x <= edge(pos.x, 1); x++) {
+      if (tileReached(pos, x, y, radius) && isCliff(terrain, tileAt(terrain, { x, y }))) return false;
+    }
+  }
+  return true;
+}
+
+function tileReached(pos: Vec, x: number, y: number, radius: number): boolean {
+  const nearX = Math.min(Math.max(pos.x, x), x + 1);
+  const nearY = Math.min(Math.max(pos.y, y), y + 1);
+  return Math.hypot(nearX - pos.x, nearY - pos.y) <= radius;
+}
+
 export function isFree(world: World, pos: Vec, radius: number, ignoreId: string | null): boolean {
-  if (!onMap(world, pos, radius) || insideFortress(world, pos)) return false;
+  if (!onMap(world, pos, radius) || insideFortress(world, pos) || !groundClear(world, pos, radius)) return false;
   const margin = 0.3;
   if (propsAround(world, 'drive', pos, radius + margin).some((o) => touchesObstacle(o, world.terrain, pos, radius, margin))) return false;
   return world.vehicles.every(

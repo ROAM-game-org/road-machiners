@@ -108,6 +108,11 @@ export function editableTerrain(w: World): Terrain {
   return w.terrain;
 }
 
+export function raiseCliff(w: World, x: number, y: number): void {
+  const t = editableTerrain(w) as { size: number; heights: number[] };
+  t.heights[y * (t.size + 1) + x] += 20;
+}
+
 export { PLAIN_KIT, flatTerrain };
 
 const runner = (globalThis as { __vitest_worker__?: unknown }).__vitest_worker__ ? await import('vitest') : null;
