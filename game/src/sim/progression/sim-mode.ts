@@ -13,7 +13,7 @@ import type { BotOptions } from './bot';
 import { emptyLedger, LEDGER_KEYS, type Ledger } from './orders';
 import { archetypeWorldOn, FAR_MOVER, netWorth, playTurns, type PlayedTurn } from './record';
 import { cardOf } from './sim-cards';
-import { economyOf, StockFlows, type EconTag, type Economy } from './sim-economy';
+import { economyOf, marketSample, sampleEvents, StockFlows, type EconTag, type Economy, type SampleEvent } from './sim-economy';
 import { QUIET } from './turn-log';
 
 export { cardOf, npcCard, playerCard } from './sim-cards';
@@ -25,7 +25,7 @@ export type CardSection = { name: string; lines: string[]; rows: CardRow[] };
 export type Way = { dest: Vec | null; target: Vec | null; home: Vec | null };
 export type Card = { id: string; title: string; doing: string; tags: string[]; stats: CardRow[]; facts: CardRow[]; sections: CardSection[]; way: Way };
 export type Hud = { money: string; worth: string; xp: number; state: string; doing: string };
-export type Sample = { turn: number; money: number; worth: number; xp: number };
+export type Sample = { turn: number; money: number; worth: number; xp: number; market: number[]; events: SampleEvent[] };
 export type Frame = { turn: number; markers: Marker[]; log: LogEntry[]; hud: Hud; card: Card | null; sample: Sample | null };
 export type Spoken = { text: string; tone: string; quiet?: boolean };
 
@@ -92,8 +92,8 @@ const ROUTINE = new Set<GameEvent['t']>(['job', 'shopMoney', 'stateEnded', 'look
 
 const hourOf = (turn: number): number => Math.floor(turn / TURNS_PER_HOUR);
 
-export function sampleOf(world: World): Sample {
-  return { turn: world.turn, money: world.player.money, worth: Math.round(netWorth(world)), xp: Math.floor(world.player.xp) };
+export function sampleOf(world: World, since: number): Sample {
+  return { turn: world.turn, money: world.player.money, worth: Math.round(netWorth(world)), xp: Math.floor(world.player.xp), market: marketSample(world), events: sampleEvents(world, since) };
 }
 
 export class SimRun {
@@ -111,7 +111,7 @@ export class SimRun {
     this.world = start;
     this.flows = new StockFlows(start.turn);
     this.ledger = { ...ledger };
-    this.history = history.length > 0 ? [...history] : [sampleOf(start)];
+    this.history = history.length > 0 ? [...history] : [sampleOf(start, start.turn)];
     this.turns = playTurns(start, `sim seed ${start.seed}`, 'markov', ENDLESS, SIM_OPTIONS, FAR_MOVER);
     this.post({ kind: 'history', samples: [...this.history] });
     this.post({ kind: 'frame', frame: frameOf(start, [], this.ledger, null, text, null) });
@@ -198,7 +198,7 @@ export class SimRun {
     const before = this.world.turn;
     this.world = played.next;
     for (const key of LEDGER_KEYS) this.ledger[key] += played.ledger[key];
-    const sample = hourOf(this.world.turn) === hourOf(before) ? null : sampleOf(this.world);
+    const sample = hourOf(this.world.turn) === hourOf(before) ? null : sampleOf(this.world, this.history[this.history.length - 1].turn);
     if (sample) this.history.push(sample);
     this.post({ kind: 'frame', frame: frameOf(this.world, played.events, this.ledger, this.watched, this.text, sample) });
     if (sample) this.postEconomy();

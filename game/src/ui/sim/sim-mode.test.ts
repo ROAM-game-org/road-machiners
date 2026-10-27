@@ -10,6 +10,7 @@ import { playerVehicle } from '../../sim/damage';
 import { emptyLedger } from '../../sim/progression/orders';
 import { FAR_MOVER, netWorth, playTurns } from '../../sim/progression/record';
 import { startWorld } from '../../sim/progression/record-node';
+import { marketSample } from '../../sim/progression/sim-economy';
 import { cardOf, hudOf, logEntries, markersOf, SIM_OPTIONS, SimRun, simWorld, type Frame, type FromSim } from '../../sim/progression/sim-mode';
 
 const TURNS = 10;
@@ -151,7 +152,7 @@ describe('simulation mode', () => {
     const hour = TIME.turnsPerDay / 24;
     const turns = Math.ceil(hour) + 1;
     for (let i = 0; i < turns; i++) run.handle({ kind: 'step' });
-    expect(messages[0]).toEqual({ kind: 'history', samples: [{ turn: start.turn, money: start.player.money, worth: Math.round(netWorth(start)), xp: Math.floor(start.player.xp) }] });
+    expect(messages[0]).toEqual({ kind: 'history', samples: [{ turn: start.turn, money: start.player.money, worth: Math.round(netWorth(start)), xp: Math.floor(start.player.xp), market: marketSample(start), events: [] }] });
     const sampled = framesOf(messages).flatMap((f) => (f.sample ? [f.sample] : []));
     expect(sampled).toHaveLength(1);
     expect(Math.floor(sampled[0].turn / hour)).toBe(Math.floor(start.turn / hour) + 1);
