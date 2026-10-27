@@ -684,7 +684,7 @@ describe("a scene or call on view", () => {
 
 describe("nextSightSample", () => {
   it("shows the latest sight sample the playback reached and explores every sample it passed", () => {
-    const live = { visible: new Set<number>(), explored: new Uint8Array(10), sight: { steps: [0, 3, 6], tiles: [[1], [2, 3], [4]] }, shown: -1 };
+    const live = { visible: new Set<number>(), explored: new Uint8Array(10), sight: { steps: [0, 3, 6], tiles: [[1], [2, 3], [4]], props: [[], [], []] }, shown: -1 };
     expect(nextSightSample(live, 0.5)).toBe(0);
     expect(nextSightSample(live, 2)).toBeNull();
     expect(nextSightSample(live, 7)).toBe(2);
