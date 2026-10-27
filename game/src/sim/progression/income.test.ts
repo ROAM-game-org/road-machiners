@@ -5,7 +5,7 @@ import { POLICIES, type Policy } from './bot';
 import { INCOME_KIT, INCOME_SKILL_RANK, largestTraderLoad, playIncome, SAMPLE_TURNS, sampleWorld, type IncomeRun } from './income';
 import { addVehicle, emptyWorld, npcBrain } from '../testkit';
 import { addGoods } from '../inventory';
-import { startWorld } from './record';
+import { startWorld } from './record-node';
 import { TRAITS } from '../../data/npcs';
 import { formatIncomeReport, gateReport, pairedDifference } from './income-report';
 

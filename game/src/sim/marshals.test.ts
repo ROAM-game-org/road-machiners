@@ -235,6 +235,22 @@ describe('pay or fight', () => {
   });
 });
 
+describe('a target with no answer open', () => {
+  it('refuses the demand and stays put when it can neither pay, fight nor flee', () => {
+    const w = emptyWorld({ x: 100, y: 100 });
+    const target = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 500, y: 500 });
+    target.brain = npcBrain('trader', target.pos, ['trader']);
+    target.resources = { money: 0, fuel: 0, supplies: 0, health: 100 };
+    fileAgainst(w, target, { x: 500, y: 500 });
+    const marshal = marshalAt(w, { x: 506, y: 500 });
+    const goals = structuredClone(target.brain.goals);
+    expect(() => planMarshal(w, marshal, [target])).not.toThrow();
+    expect(stateOf(w, 'feud', marshal.id, target.id)).not.toBeNull();
+    expect(w.crimes[0].status).not.toBe('paid');
+    expect(target.brain.goals).toEqual(goals);
+  });
+});
+
 describe('the idle Marshall', () => {
   it('waits at the post with its partner and no case, without dropping the wait each turn, and raises no stall', () => {
     const post = getKnownSite('marshal-post');
