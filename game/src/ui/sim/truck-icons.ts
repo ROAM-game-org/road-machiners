@@ -3,14 +3,31 @@ import { spanOf } from "../../sim/body";
 import { token } from "../tokens";
 import { SPRITES, spriteKey, type SpriteCell, type SpriteManifest, type SpritePaint } from "../../three/sim-sprite-plan";
 
-const LEVEL_STEP = Math.SQRT2;
-const SHADOW = { reach: 1, blur: 1, alpha: 0.9, darken: 0.5 };
-const PAD_PX = SHADOW.reach + SHADOW.blur * 2;
+const SIZE_STEPS_PER_OCTAVE = 8;
+const SHADOW = { alpha: 0.9, darken: 0.5 };
 const OUT_FILTER = "grayscale(1) brightness(0.55)";
 const OFFSETS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const;
 const REBAKE = "Run npm run sim:sprites";
 
 export type IconLook = { color: string; out: boolean };
+type Shadow = { reach: number; blur: number; pad: number };
+
+export function iconScreenScale(wantedPxPerMeter: number, sheetPxPerMeter: number): number {
+  const octaves = Math.log2(wantedPxPerMeter / sheetPxPerMeter);
+  return sheetPxPerMeter * 2 ** (Math.round(octaves * SIZE_STEPS_PER_OCTAVE) / SIZE_STEPS_PER_OCTAVE);
+}
+
+export function shadowFor(ratio: number): Shadow {
+  const reach = Math.max(1, Math.round(ratio));
+  return { reach, blur: reach, pad: reach * 3 };
+}
+
+export function iconCorner(at: { x: number; y: number }, ratio: number, cell: { fromCenterX: number; fromCenterY: number }, sheetPxPerMeter: number, screenPxPerMeter: number, pad: number): { left: number; top: number } {
+  return {
+    left: Math.round(at.x * ratio + (cell.fromCenterX / sheetPxPerMeter) * screenPxPerMeter) - pad,
+    top: Math.round(at.y * ratio + (cell.fromCenterY / sheetPxPerMeter) * screenPxPerMeter) - pad,
+  };
+}
 
 export class SpriteSet {
   constructor(readonly key: string, readonly sheet: HTMLImageElement, readonly cells: readonly SpriteCell[], readonly radiusM: number) {}
@@ -71,22 +88,22 @@ function shadowMask(base: HTMLCanvasElement, color: string): HTMLCanvasElement {
   return mask;
 }
 
-function drawShadow(ctx: CanvasRenderingContext2D, base: HTMLCanvasElement, color: string): void {
+function drawShadow(ctx: CanvasRenderingContext2D, base: HTMLCanvasElement, color: string, shadow: Shadow): void {
   const mask = shadowMask(base, color);
   ctx.globalAlpha = SHADOW.alpha;
-  ctx.filter = `blur(${SHADOW.blur}px)`;
-  for (const [dx, dy] of OFFSETS) ctx.drawImage(mask, PAD_PX + dx * SHADOW.reach, PAD_PX + dy * SHADOW.reach);
-  ctx.drawImage(mask, PAD_PX, PAD_PX);
+  ctx.filter = `blur(${shadow.blur}px)`;
+  for (const [dx, dy] of OFFSETS) ctx.drawImage(mask, shadow.pad + dx * shadow.reach, shadow.pad + dy * shadow.reach);
+  ctx.drawImage(mask, shadow.pad, shadow.pad);
   ctx.filter = "none";
   ctx.globalAlpha = 1;
 }
 
-function iconOf(base: HTMLCanvasElement, look: IconLook): HTMLCanvasElement {
-  const icon = canvasOfSize(base.width + 2 * PAD_PX, base.height + 2 * PAD_PX);
+function iconOf(base: HTMLCanvasElement, look: IconLook, shadow: Shadow): HTMLCanvasElement {
+  const icon = canvasOfSize(base.width + 2 * shadow.pad, base.height + 2 * shadow.pad);
   const ctx = contextOf(icon);
-  drawShadow(ctx, base, look.color);
+  drawShadow(ctx, base, look.color, shadow);
   if (look.out) ctx.filter = OUT_FILTER;
-  ctx.drawImage(base, PAD_PX, PAD_PX);
+  ctx.drawImage(base, shadow.pad, shadow.pad);
   ctx.filter = "none";
   return icon;
 }
@@ -108,7 +125,7 @@ async function manifestAt(folder: string): Promise<SpriteManifest> {
 
 export class TruckIcons {
   private readonly made = new Map<string, HTMLCanvasElement>();
-  private madeLevel = -1;
+  private madeSize = "";
   private readonly shortestM: number;
 
   private constructor(private readonly sets: Map<string, SpriteSet>, private readonly pxPerMeterBase: number, chassis: readonly string[]) {
@@ -140,25 +157,28 @@ export class TruckIcons {
   }
 
   draw(ctx: CanvasRenderingContext2D, set: SpriteSet, at: { x: number; y: number }, heading: number, pxPerMeter: number, look: IconLook): void {
-    const level = Math.max(0, Math.round(Math.log(this.pxPerMeterBase / pxPerMeter) / Math.log(LEVEL_STEP)));
+    const ratio = ctx.getTransform().a;
+    const screen = iconScreenScale(pxPerMeter * ratio, this.pxPerMeterBase);
+    const shadow = shadowFor(ratio);
     const yaw = set.yawFor(heading);
-    const icon = this.iconFor(set, yaw, level, look);
-    const scale = pxPerMeter / (this.pxPerMeterBase / LEVEL_STEP ** level);
-    const cell = set.cells[yaw]!;
-    const left = at.x + (cell.fromCenterX / this.pxPerMeterBase) * pxPerMeter - PAD_PX * scale;
-    const top = at.y + (cell.fromCenterY / this.pxPerMeterBase) * pxPerMeter - PAD_PX * scale;
-    ctx.drawImage(icon, left, top, icon.width * scale, icon.height * scale);
+    const icon = this.iconFor(set, yaw, screen, shadow, look);
+    const { left, top } = iconCorner(at, ratio, set.cells[yaw]!, this.pxPerMeterBase, screen, shadow.pad);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(icon, left, top);
+    ctx.restore();
   }
 
-  private iconFor(set: SpriteSet, yaw: number, level: number, look: IconLook): HTMLCanvasElement {
-    if (level !== this.madeLevel) {
+  private iconFor(set: SpriteSet, yaw: number, screen: number, shadow: Shadow, look: IconLook): HTMLCanvasElement {
+    const size = `${screen}|${shadow.pad}`;
+    if (size !== this.madeSize) {
       this.made.clear();
-      this.madeLevel = level;
+      this.madeSize = size;
     }
     const key = `${set.key}|${yaw}|${look.color}|${look.out}`;
     const cached = this.made.get(key);
     if (cached) return cached;
-    const icon = iconOf(scaledTo(set.piece(yaw), 1 / LEVEL_STEP ** level), look);
+    const icon = iconOf(scaledTo(set.piece(yaw), screen / this.pxPerMeterBase), look, shadow);
     this.made.set(key, icon);
     return icon;
   }

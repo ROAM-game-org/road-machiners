@@ -24,6 +24,7 @@ const LABEL = { gap: 6, padX: 5, padY: 3, stripe: 3 };
 const CLICK_SLOP = 4;
 const LOG_WINDOW = 2000;
 const GLIDE_MS = { least: 60, most: 1200 };
+const GLIDE_SMOOTHING = 0.25;
 const SIDE_TABS = [{ label: "Trucks", economy: false }, { label: "Economy", economy: true }];
 const SHOP_HIT = 12;
 const PAN = { pxPerSecond: 600, longestFrameMs: 100 };
@@ -71,14 +72,21 @@ class Glide {
   private from = new Map<string, Vec>();
   private arrived = 0;
   private span: number = GLIDE_MS.least;
+  private interval: number | null = null;
   markers: Marker[] = [];
 
   take(markers: Marker[], now: number): void {
     const t = this.progress(now);
     this.from = new Map(this.markers.map((m) => [m.id, this.placeAt(m, t)]));
-    this.span = Math.min(GLIDE_MS.most, Math.max(GLIDE_MS.least, now - this.arrived));
+    this.span = this.spanFor(now - this.arrived);
     this.arrived = now;
     this.markers = markers;
+  }
+
+  private spanFor(gap: number): number {
+    if (gap >= GLIDE_MS.most) this.interval = null;
+    else this.interval = this.interval === null ? gap : this.interval + GLIDE_SMOOTHING * (gap - this.interval);
+    return Math.min(GLIDE_MS.most, Math.max(GLIDE_MS.least, this.interval ?? gap));
   }
 
   progress(now: number): number {
