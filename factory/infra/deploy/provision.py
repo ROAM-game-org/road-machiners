@@ -129,6 +129,22 @@ server.shell(
     _sudo=True,
 )
 
+# The journal survives a reboot, so the cause of a freeze can be read afterwards. On 2026-10-27 the host froze for 11 hours and the journal held nothing about it, since Ubuntu keeps it in memory unless /var/log/journal exists.
+journald_persistent = files.put(
+    name="journald keeps its journal across reboots",
+    src=StringIO("[Journal]\nStorage=persistent\nSystemMaxUse=500M\n"),
+    dest="/etc/systemd/journald.conf.d/factory-persistent.conf",
+    mode="644",
+    create_remote_dir=True,
+    _sudo=True,
+)
+server.shell(
+    name="Restart journald after a config change",
+    commands=["mkdir -p /var/log/journal", "timeout 60 systemctl restart systemd-journald", "timeout 60 journalctl --flush"],
+    _if=journald_persistent.did_change,
+    _sudo=True,
+)
+
 # A host that hangs reboots by itself. The laptop has no hardware watchdog loaded, so softdog gives systemd one. When systemd stops answering it for 10 minutes, the kernel reboots, and the jobs that ran resume once as after any reboot.
 # Ubuntu blacklists softdog, and systemd-modules-load obeys the blacklist, so a unit loads it by name at every boot. systemd opens the device once it appears.
 files.put(
