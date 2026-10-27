@@ -94,6 +94,14 @@ describe('asking a driver for a patch', () => {
     expect(needsPatch(w, playerVehicle(w))).toBe(false);
   });
 
+  it('a broken player in combat cannot ask for a patch', () => {
+    const { w, trader } = brokenPlayer(4);
+    const foe = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 24, y: 30 });
+    startCombat(w, foe, playerVehicle(w));
+    const open = callVehicle(w, trader.id);
+    expect(currentOptions(open).map((o) => en(o.line))).not.toContain('My truck is broken down. Can you patch it?');
+  });
+
   it('a truck that is not broken cannot ask', () => {
     const { w, trader } = brokenPlayer(4);
     mountedParts(playerVehicle(w), 'engine')[0].hp = 10;

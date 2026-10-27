@@ -370,7 +370,11 @@ function leftForDanger(world: World, tower: Vehicle, client: Vehicle): boolean {
 
 function readyToTow(world: World, tower: Vehicle, client: Vehicle): boolean {
   if (towOf(world, client.id) || !inTowReach(tower, client) || leftForDanger(world, tower, client)) return false;
-  return !isPlayer(world, client) || !inCombat(world, client);
+  return !towWaitsForFight(world, client);
+}
+
+export function towWaitsForFight(world: World, client: Vehicle): boolean {
+  return isPlayer(world, client) && inCombat(world, client);
 }
 
 function endClaim(world: World, tower: Vehicle, client: Vehicle): void {
