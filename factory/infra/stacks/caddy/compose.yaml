@@ -35,7 +35,7 @@ services:
   # The tunnel dials out to Cloudflare, so the host opens no inbound port. Its routes to http://caddy:80 live in the Cloudflare dashboard.
   tunnel:
     container_name: factory-tunnel
-    image: cloudflare/cloudflared:2026.7.3
+    image: cloudflare/cloudflared:2026.10.5
     restart: unless-stopped
     command: ["tunnel", "--no-autoupdate", "run"]
     # Deploy writes TUNNEL_TOKEN there. It sits outside this folder, since the stack sync deletes unknown files.
