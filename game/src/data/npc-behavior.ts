@@ -213,7 +213,7 @@ export const STANDING = { dailyDrift: 10, dailyGainCap: 15 };
 
 export const INTERVENE = { range: 10, friendly: 0.25 };
 
-export const HELP_CALL = { allied: 450, friendly: 27, law: 450 };
+export const HELP_CALL = { allied: 450, friendly: 27, law: 450, oddsPower: 2.2, oddsCap: 4, cowardEdge: 3 };
 
 export const REFUSE_KNOWN_AT = -15;
 

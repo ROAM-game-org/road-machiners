@@ -185,8 +185,12 @@ export function boundTo(w: World, a: string, b: string): boolean {
   return w.states.some((s) => kindOf(s.kind).binds && ((s.holder === a && s.other === b) || (s.holder === b && s.other === a)));
 }
 
+export function bindingStatesHeld(w: World, holder: string): NpcState[] {
+  return w.states.filter((s) => s.holder === holder && kindOf(s.kind).binds);
+}
+
 export function givesWord(w: World, holder: string): boolean {
-  return w.states.some((s) => s.holder === holder && kindOf(s.kind).binds);
+  return bindingStatesHeld(w, holder).length > 0;
 }
 
 export function endState(w: World, s: NpcState, ending: StateEnding): void {
