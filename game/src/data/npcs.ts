@@ -7,8 +7,24 @@ import { SUNWARD } from './sunward';
 import { BOUNTY } from './market';
 import { MAP_SPREAD } from './region';
 
+declare const __TRAFFIC__: string;
+
+function trafficSetting(): string {
+  if (typeof __TRAFFIC__ === 'string') return __TRAFFIC__;
+  return (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.TRAFFIC ?? '';
+}
+
+function trafficDensity(raw: string): number {
+  if (raw === '') return 1;
+  const density = Number(raw);
+  if (!Number.isFinite(density) || density <= 0) throw new Error(`TRAFFIC must be a road traffic density above 0, got ${raw}`);
+  return density;
+}
+
+export const TRAFFIC_DENSITY = trafficDensity(trafficSetting());
+
 function roadCap(cap: number): number {
-  return Math.round(cap * MAP_SPREAD);
+  return Math.max(1, Math.round(cap * MAP_SPREAD * TRAFFIC_DENSITY));
 }
 
 export const NPC_RESOURCES = {

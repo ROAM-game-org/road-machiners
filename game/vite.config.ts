@@ -22,6 +22,7 @@ export default defineConfig(({ command }) => ({
     __SAVE_SCOPE__: envText('SAVE_SCOPE'),
     __MAP_DRAFT__: envText('MAP_DRAFT'),
     __TURN_CLOCK__: envText('TURN_CLOCK'),
+    __TRAFFIC__: envText('TRAFFIC'),
     __ERROR_REPORT_URL__: envText('ERROR_REPORT_URL'),
     __ERROR_REPORT_BUILD__: envText('ERROR_REPORT_BUILD'),
     __FEEDBACK_URL__: envText('FEEDBACK_URL'),
