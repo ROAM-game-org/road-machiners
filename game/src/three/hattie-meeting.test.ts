@@ -4,7 +4,7 @@ import { startKit } from '../data/start';
 import { addGoods } from '../sim/inventory';
 import { playerVehicle } from '../sim/damage';
 import { siteOf } from '../sim/market';
-import { chooseQuestOption, QUESTS, questView, setIntroStep, setWorldVar } from '../sim/quests';
+import { chooseQuestOption, pickTownSection, QUESTS, questView, setIntroStep, setWorldVar } from '../sim/quests';
 import { defaultSetup } from '../sim/settings';
 import { nearestPad } from '../sim/sites';
 import { finishQuest } from '../sim/testkit';
@@ -56,7 +56,7 @@ describe('Hattie at her well for a driver who arrives on their own', () => {
     const w = wait(parkAt(introWorld(), 'bowl'));
     expect(w.player.quests.session).toEqual(expect.objectContaining({ quest: 'intro_bowl' }));
     expect(w.player.quests.world.hattie_met).toBe(true);
-    expect(spoken(w)).toContain("I'm Hattie, this is my well");
+    expect(spoken(w)).toContain("I'm Hattie, this is my cistern");
     expect(questView(w, QUESTS).choices.length).toBeGreaterThan(0);
   });
 
@@ -111,7 +111,7 @@ describe('Hattie at her well for a driver who arrives on their own', () => {
     addGoods(w, playerVehicle(w), 'scrap', 2);
     const first = wait(w);
     expect(first.player.quests.session?.quest).toBe('intro_bowl');
-    const later = wait(finishQuest(first));
+    const later = pickTownSection(finishQuest(first), null, 'market');
     expect(later.player.quests.session?.quest).toBe('bowl_scale');
   });
 });
