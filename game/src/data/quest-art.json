@@ -29,11 +29,6 @@
     "focusX": 60,
     "focusY": 46
   },
-  "bowl_yard": {
-    "file": "bowl_yard.webp",
-    "focusX": 60,
-    "focusY": 50
-  },
   "road_bar": {
     "file": "road_bar.webp",
     "focusX": 55,
