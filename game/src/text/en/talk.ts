@@ -226,7 +226,7 @@ export const TALK = {
   'line.lessonRaiderWornCore': 'Keep your engine and gearbox sound, friend. A truck that stops itself saves a raider the chase.',
   'line.lessonRaiderOverloaded': 'Keep your load under what the frame can bear, friend. Raiders like a truck that can\'t get away. A slow truck gives a raider time to finish his lunch before he catches it.',
   'line.lessonRaiderCheapLoad': 'Haul a cheap load, friend, and most raiders won\'t risk a dent in their truck for it. Haul a rich load, though, and even a lazy raider will burn fuel to catch you.',
-  'line.lessonRaiderCount': 'A raider counts every gun and every escort he sees riding with a truck, friend, before he decides the bother is worth it. I let the tough-looking trucks roll on. There\'s always an easier one coming.',
+  'line.lessonRaiderCount': 'A raider looks over every gun and every escort he sees riding with a truck, friend, before he decides the bother is worth it. I let the tough-looking trucks roll on. There\'s always an easier one coming.',
   'line.lessonRaiderPay': 'Hand over the cargo, friend, and I leave you the truck. Nobody has to get out of his seat. Say no, and a raider settles in for the shooting till one truck\'s beaten.',
   'line.lessonLawNoGuns': 'For the record, I judge a truck by which of its guns can reach my cab. A truck with no guns looks harmless, and a bold driver will take it.',
   'line.lessonLawBareSide': 'For the record, a shot goes through your truck part by part, starting where it hits. Never show a shotgun your bare side. The blast will reach your engine.',

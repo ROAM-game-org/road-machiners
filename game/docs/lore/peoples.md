@@ -28,7 +28,7 @@ Bowl does not want to grow. It wants to keep its walls and its fields safe. It w
 
 The cost is that life shrinks to fit the walls, and the tenants who feed Bowl have no voice in it.
 
-The Bowl road patrol is paid from the Granary count, the north-western convoy's fee and tenant shares. Tenants may serve in it, and ten years in it earn a vote. It keeps only the Bowl's roads.
+The Bowl road patrol is paid from the Granary's grain, the north-western convoy's fee and tenant shares. Tenants may serve in it, and ten years in it earn a vote. It keeps only the Bowl's roads.
 
 In the game, the Bowl Farmers patrol the roads around Bowl.
 

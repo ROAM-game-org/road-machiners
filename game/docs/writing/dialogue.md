@@ -70,7 +70,7 @@ Rough people swear plainly and without heat, the way they'd mention the wind. Sw
 
 ### Competence shows in small checks
 
-Show skill as habit. A veteran checks the tires and belts at every stop, counts their knives before a talk and notices the man who steps out of their line of sight. The narrator respects it in a few words.
+Show skill as habit. A veteran checks the tires and belts at every stop, touches the knife at their belt before a talk and notices the man who steps out of their line of sight. The narrator respects it in a few words.
 
 "The old one takes a casual step to the side, out of your sight. Figures how he lived this long."
 
