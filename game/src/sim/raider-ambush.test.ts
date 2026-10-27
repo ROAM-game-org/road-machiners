@@ -19,6 +19,7 @@ import { addGoods, spareParts } from './inventory';
 import { CLEARANCE, isTransientWreck, nearCliff, terrainNav } from './nav/layer';
 import { decide, fightOddsAgainst, huntingGrounds, judgeDanger, lawmanTowns, passReason, raiderGrounds, raiderPatrolPosts, usefulContacts } from './npc-decisions';
 import { finishGoal, ledPoint, resolveNpcActivities, topGoal } from './npc-activities';
+import { onSizingUp, sizeUpGoal } from './look-over';
 import { yieldTo } from './parley';
 import { route } from './path';
 import { getResources } from './resources';
@@ -378,6 +379,18 @@ describe('the watch', () => {
     forceOption('hostileSeen', 'keep');
     planNpcOrders(w);
     expect(w.events.some((e) => e.t === 'preyPassed')).toBe(false);
+  });
+
+  it('records the pass reason when a watching raider looks the prey over and keeps', () => {
+    const { w, raider, player } = watchingRaiderSeeing();
+    addGoods(w, player, 'scrap', 2);
+    raider.brain!.goals.push(sizeUpGoal(player));
+    sizedUp(w, raider, player);
+    forceOption('sizedUp', 'keep');
+    w.events = [];
+    onSizingUp(w, raider);
+    const passed = w.events.filter((e) => e.t === 'preyPassed');
+    expect(passed).toEqual([{ t: 'preyPassed', vehicle: raider.id, prey: player.id, reason: expect.stringMatching(/^(poorLoad|chance)$/) }]);
   });
 
   describe('pass reasons', () => {

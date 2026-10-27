@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PERF } from '../data/perf';
 import { RULES } from '../data/rules';
 import { TERRAIN } from '../data/terrain';
-import { planNpcOrders, routeBlockers, standingBlockers, stopTrack, trafficStops, yieldsToTraffic } from './ai';
+import { givesWayTo, planNpcOrders, routeBlockers, settleMeetings, standingBlockers, stopTrack, trafficStops, yieldsToTraffic } from './ai';
 import { PHYSICS } from '../data/physics';
 import { vehicleStats } from './stats';
 import { topGoal } from './npc-activities';
@@ -86,6 +86,7 @@ function scene(x: number, y: number, heading: number, speed: number): { w: World
   npc.brain = npcBrain('trader', npc.pos, ['trader']);
   npc.heading = 0;
   npc.speed = 4;
+  settleMeetings(w);
   return { w, npc };
 }
 
@@ -110,6 +111,7 @@ describe('the player on a route in traffic', () => {
     npc.brain!.goals.push({ kind: 'explore', targetId: null, destination: { x: 60, y: 100 }, phase: 'travel', reason: 'tripToSite' });
     npc.order = { kind: 'through', dest: { x: 60, y: 100 }, pace: 4 };
     me.order = { kind: 'through', dest: DEST, pace: 4 };
+    settleMeetings(w);
     return { w, me, npc };
   }
 
@@ -284,6 +286,7 @@ describe('oncoming NPCs', () => {
     second.speed = 4;
     second.brain.goals.push({ kind: 'explore', targetId: null, destination: { x: 50, y: 100 }, phase: 'travel', reason: 'tripToSite' });
     lowerIdFirst(first, second);
+    settleMeetings(w);
     return { w, first, second };
   }
 
@@ -314,6 +317,7 @@ describe('oncoming NPCs', () => {
     second.speed = 3.22;
     second.brain.goals.push({ kind: 'explore', targetId: null, destination: { x: 223.7, y: 194.2 }, phase: 'travel', reason: 'tripToSite' });
     lowerIdFirst(first, second);
+    settleMeetings(w);
     planNpcOrders(w);
     expect(first.order?.kind).not.toBe('brake');
     expect(second.order?.kind).toBe('stopAt');
@@ -422,5 +426,101 @@ describe('getting unstuck', () => {
     leader.brain!.goals[0].destination = { ...leader.pos };
     for (let i = 0; i < RULES.unstick.turns * 2; i++) planNpcOrders(w);
     expect(leader.brain!.recovery ?? 0).toBe(0);
+  });
+});
+
+describe('meetings', () => {
+  function faceOff(order: 'lowFirst' | 'highFirst', gap = 13): { w: World; low: Vehicle; high: Vehicle } {
+    const w = emptyWorld({ x: 100, y: 130 });
+    const wagon = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 100, y: 100 }, 0);
+    const van = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 100 + gap, y: 100 }, Math.PI);
+    wagon.brain = npcBrain('trader', wagon.pos, ['trader']);
+    van.brain = npcBrain('trader', van.pos, ['trader']);
+    wagon.speed = 2.1;
+    van.speed = 4.14;
+    wagon.order = { kind: 'through', dest: { x: 160, y: 100 } };
+    van.order = { kind: 'through', dest: { x: 40, y: 100 } };
+    const [low, high] = order === 'lowFirst' ? [wagon, van] : [van, wagon];
+    if (low.id > high.id) [low.id, high.id] = [high.id, low.id];
+    return { w, low, high };
+  }
+
+  const bothOrders = ['lowFirst', 'highFirst'] as const;
+
+  it.each(bothOrders)('of two trucks that would both swerve for each other, exactly one gives way: %s', (order) => {
+    const { w, low, high } = faceOff(order);
+    settleMeetings(w);
+    expect(givesWayTo(w, low, high)).toBe(true);
+    expect(givesWayTo(w, high, low)).toBe(false);
+    expect(routeBlockers(w, low).some((b) => dist(b.pos, high.pos) < 0.5)).toBe(true);
+    expect(routeBlockers(w, high).some((b) => dist(b.pos, low.pos) < 0.5)).toBe(false);
+  });
+
+  it('the role holds while the giver swerve points it away', () => {
+    const { w, low, high } = faceOff('lowFirst');
+    settleMeetings(w);
+    low.heading += 0.6;
+    settleMeetings(w);
+    expect(givesWayTo(w, low, high)).toBe(true);
+    expect(routeBlockers(w, low).some((b) => dist(b.pos, high.pos) < 0.5)).toBe(true);
+    expect(routeBlockers(w, high).some((b) => dist(b.pos, low.pos) < 0.5)).toBe(false);
+  });
+
+  it('the role ends when the trucks have passed each other', () => {
+    const { w, low, high } = faceOff('lowFirst');
+    settleMeetings(w);
+    [low.pos, high.pos] = [{ x: 108, y: 100 }, { x: 104, y: 100 }];
+    settleMeetings(w);
+    expect(low.yieldsTo).toBeUndefined();
+    expect(givesWayTo(w, low, high)).toBe(false);
+  });
+
+  it('the role ends when the trucks part beyond swerve reach', () => {
+    const { w, low, high } = faceOff('lowFirst');
+    settleMeetings(w);
+    high.pos = { x: 160, y: 100 };
+    settleMeetings(w);
+    expect(low.yieldsTo).toBeUndefined();
+  });
+
+  it('no role starts between trucks that are far apart', () => {
+    const { w, low } = faceOff('lowFirst', 90);
+    settleMeetings(w);
+    expect(low.yieldsTo).toBeUndefined();
+  });
+
+  it('the role ends when a truck takes a fight goal', () => {
+    const { w, low, high } = faceOff('lowFirst');
+    settleMeetings(w);
+    high.brain!.goals.push({ kind: 'fight', targetId: low.id, destination: low.pos, phase: 'travel', reason: 'attackTarget' } as never);
+    expect(givesWayTo(w, low, high)).toBe(false);
+    settleMeetings(w);
+    expect(low.yieldsTo).toBeUndefined();
+  });
+
+  it('the role ends when the holder is removed', () => {
+    const { w, low, high } = faceOff('lowFirst');
+    settleMeetings(w);
+    w.vehicles = w.vehicles.filter((x) => x !== high);
+    settleMeetings(w);
+    expect(low.yieldsTo).toBeUndefined();
+  });
+
+  it('a stored role with the giver id above the holder id throws', () => {
+    const { w, low, high } = faceOff('lowFirst');
+    high.yieldsTo = [low.id];
+    expect(() => settleMeetings(w)).toThrow();
+  });
+
+  it('the player on a route follows the same role', () => {
+    const { w, low, high } = faceOff('lowFirst');
+    low.brain = null;
+    w.player.vehicleId = low.id;
+    settleMeetings(w);
+    expect(givesWayTo(w, low, high)).toBe(true);
+    w.player.vehicleId = high.id;
+    low.brain = npcBrain('trader', low.pos, ['trader']);
+    high.brain = null;
+    expect(givesWayTo(w, low, high)).toBe(true);
   });
 });

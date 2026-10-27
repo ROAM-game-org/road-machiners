@@ -374,6 +374,7 @@ export type Vehicle = {
   stormExposure: Record<string, number>;
   strandedTurns?: number;
   strandedAt?: Vec;
+  yieldsTo?: string[];
   stalledUntil?: number;
   order: MoveOrder | null;
   direct: boolean;

@@ -191,7 +191,7 @@ function blocks(b: Blocker, p: Vec, reach: number): boolean {
   return b.prop !== undefined || dist(b.pos, p) < b.r + reach;
 }
 
-function seesGround(world: World, p: Vec, ground: Vec): boolean {
+export function seesGround(world: World, p: Vec, ground: Vec): boolean {
   return dist(p, ground) <= TERRAIN.vision.radius && sees(world, p, ground);
 }
 

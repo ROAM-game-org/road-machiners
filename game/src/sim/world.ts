@@ -20,7 +20,7 @@ import { isOutpostSite } from './highway';
 import { generateObstacles, touchesObstacle } from './mapgen';
 import { atlasOf, icarusAtlas } from './atlas';
 import type { BakedMap } from './terrain';
-import { planNpcOrders } from './ai';
+import { planNpcOrders, settleMeetings } from './ai';
 import { assignUtilityOrders } from './npc-utility';
 import { applyGodMode, freezeDriving, freezeFire } from './cheats';
 import { assignAutoOrders, dropMagazine, fireWeapons, huntGaps, isHostile, noteEngagements, resolveDestroyed, settleAims } from './combat';
@@ -437,6 +437,7 @@ export function endTurn(
     noteHurt(w);
     settleShutdowns(w);
     settleClaymores(w);
+    settleMeetings(w);
     watchStalls(w);
     watchHaulerStall(w);
     endCallIfOut(w);

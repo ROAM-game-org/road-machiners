@@ -110,8 +110,10 @@ export function followSteps(world: World, from: Vec, steps: readonly DirectionSt
     if (into === null) {
       if (first) {
         const [named] = firstExits(graph, node, first);
-        if (!named) throw new Error(`No exit at ${from.x},${from.y} fits ${JSON.stringify(first)}`);
-        pick = named;
+        const onRoad = exitsAt(graph, node).filter((e) => sameName(roadName(graph, e.edge, node), first.road));
+        const exit = named ?? (onRoad.length === 1 ? onRoad[0] : undefined);
+        if (!exit) throw new Error(`No exit at ${from.x},${from.y} fits ${JSON.stringify(first)}`);
+        pick = exit;
       }
     } else if (exits.length > 1) {
       forks++;

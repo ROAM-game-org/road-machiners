@@ -217,6 +217,19 @@ describe('tow offer', () => {
     expect(r.w.player.call).toMatchObject({ with: s.trader.id, topic: 'tow' });
   });
 
+  it('a player in combat is not offered the tow ask, and it returns once the fight ends', () => {
+    const s = stranded({ x: 30, y: 30 }, { x: 44, y: 30 });
+    forceOption('strandedSeen', 'keep');
+    const foe = startFight(s.w);
+    let w = callVehicle(s.w, s.trader.id);
+    expect(asksOf(w)).not.toContain("I'm stranded. Can you tow me?");
+    expect(topGoal(find(w, s.trader.id))?.kind).not.toBe('tow');
+    expect(w.states.some((x) => x.kind === 'answering')).toBe(false);
+    w = hangUp(w);
+    w = callVehicle(endFight(w, foe), s.trader.id);
+    expect(asksOf(w)).toContain("I'm stranded. Can you tow me?");
+  });
+
   it('a driver that cannot tow is not asked', () => {
     const s = stranded();
     s.w.player.fuel = 30;
