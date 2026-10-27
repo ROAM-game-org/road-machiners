@@ -125,7 +125,9 @@ function farPoints(w: World, v: Vehicle, dest: Vec, style: RouteStyle, full: Veh
   const onRope = getHitchedTowIds(w);
   const stored = keptFarRoute(v);
   if (stored && dist(stored.dest, dest) < RULES.arriveRadius && sameStyle(stored, style)) return { points: stored.points, partial: stored.partial === true };
-  return routeAhead(w, v.pos, dest, full.radius, [...farBlockers(w, v, s, onRope), ...fieldBlockers(w, v)], v, REGION.navigation.farWindow);
+  const window = REGION.navigation.farWindow;
+  const blockers = [...farBlockers(w, v, s, onRope), ...fieldBlockers(w, v)].filter((b) => dist(b.pos, v.pos) <= 2 * window + b.r);
+  return routeAhead(w, v.pos, dest, full.radius, blockers, v, window);
 }
 
 function farBlockers(w: World, v: Vehicle, s: VehicleStats, onRope: ReadonlySet<string>): Blocker[] {

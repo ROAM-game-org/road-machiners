@@ -8,6 +8,7 @@ import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import { startEscort } from './tow';
 import type { Vehicle, World } from './types';
 import { dist } from './vec';
+import { thinksThisTurn } from './fidelity';
 
 function lowerIdFirst(first: Vehicle, second: Vehicle): void {
   if (first.id < second.id) return;
@@ -375,5 +376,20 @@ describe('getting unstuck', () => {
     leader.brain!.goals[0].destination = { ...leader.pos };
     for (let i = 0; i < RULES.unstick.turns * 2; i++) planNpcOrders(w);
     expect(leader.brain!.recovery ?? 0).toBe(0);
+  });
+});
+
+describe('lone NPCs', () => {
+  it('think once every few turns while no truck is near, and every turn with company', () => {
+    const w = emptyWorld({ x: 10, y: 10 });
+    const lone = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 10 + PERF.lone.reach * 3, y: 10 });
+    lone.brain = npcBrain('trader', lone.pos, ['trader']);
+    const thinks = () => Array.from({ length: PERF.lone.every * 3 }, (_, i) => {
+      w.turn = 100 + i;
+      return thinksThisTurn(w, lone);
+    });
+    expect(thinks().filter(Boolean)).toHaveLength(3);
+    addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: lone.pos.x + PERF.lone.reach / 2, y: 10 });
+    expect(thinks().every(Boolean)).toBe(true);
   });
 });
