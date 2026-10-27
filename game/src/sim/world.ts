@@ -342,9 +342,16 @@ export function setMoveOrder(world: World, order: MoveOrder | null): World {
               x: clamp(order.dest.x, 0, w.size),
               y: clamp(order.dest.y, 0, w.size),
             },
+            ...heldPace(order.pace),
           }
         : order;
   });
+}
+
+function heldPace(pace: number | undefined): { pace?: number } {
+  if (pace === undefined) return {};
+  if (!Number.isFinite(pace) || pace <= RULES.parkedSpeed) throw new Error(`A move order pace must be above ${RULES.parkedSpeed}, got ${pace}`);
+  return { pace };
 }
 
 export function endTurn(

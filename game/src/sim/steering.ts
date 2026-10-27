@@ -5,7 +5,7 @@ import { vehicleStats, type VehicleStats } from "./stats";
 import type { Blocker } from "./path";
 import { hasPads, nearestPad, nearestSitePad, siteUnder } from "./sites";
 import { reachesFrom, straightClear } from "./path";
-import type { MoveOrder, Vehicle, World } from "./types";
+import type { MoveOrder, PaceStep, Vehicle, World } from "./types";
 import { clamp, DEG, dist, type Vec } from "./vec";
 import { atlasOf } from "./atlas";
 import type { Terrain } from "./terrain";
@@ -53,6 +53,37 @@ export function throttleFor(d: number, speed: number, mode: DriveMode): Throttle
   if (d < z.brakeEnd) return "brake";
   if (d < z.holdEnd) return "hold";
   return "accelerate";
+}
+
+export function orderSpeed(s: VehicleStats, speed: number, pos: Vec, order: MoveOrder, mode: DriveMode): number {
+  if (order.kind === "brake") throw new Error("A brake order has no target speed");
+  if (order.pace !== undefined) return clamp(order.pace, Math.max(0, speed - s.brake), Math.min(s.maxSpeed, speed + s.accel));
+  if (order.kind === "stopAt") return Math.min(s.maxSpeed, speed + s.accel);
+  return throughSpeed(s, speed, dist(pos, order.dest), undefined, mode);
+}
+
+export function paceOf(world: World, v: Vehicle, step: PaceStep): number | undefined {
+  if (step === "full") return undefined;
+  const top = vehicleStats(world, v).maxSpeed;
+  const pace = step === "crawl" ? RULES.routePace.crawl : Math.max(RULES.routePace.crawl, RULES.routePace.halfShare * top);
+  if (pace >= top) return undefined;
+  if (pace <= RULES.parkedSpeed) throw new Error(`Route pace ${pace} is not above the parked speed ${RULES.parkedSpeed}`);
+  return pace;
+}
+
+export function pacedOrder(world: World, v: Vehicle, order: MoveOrder, step: PaceStep): MoveOrder {
+  if (order.kind === "brake") return order;
+  const { pace: _held, ...plain } = order;
+  const pace = v.direct ? undefined : paceOf(world, v, step);
+  return pace === undefined ? plain : { ...plain, pace };
+}
+
+export function paceStepOf(world: World, v: Vehicle): PaceStep {
+  const held = v.order && v.order.kind !== "brake" ? v.order.pace : undefined;
+  if (held === undefined) return "full";
+  const steps: PaceStep[] = ["half", "crawl"];
+  const gap = (step: PaceStep) => Math.abs((paceOf(world, v, step) ?? Infinity) - held);
+  return steps.reduce((best, step) => (gap(step) < gap(best) ? step : best), "half" as PaceStep);
 }
 
 export function throughSpeed(s: VehicleStats, speed: number, d: number, pace: number | undefined, mode: DriveMode): number {

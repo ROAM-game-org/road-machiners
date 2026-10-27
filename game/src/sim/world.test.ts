@@ -6,7 +6,7 @@ import { TEST_MAP } from '../test/map';
 import { playerVehicle } from './damage';
 import { maxHp } from './wear';
 import { townAt } from './sites';
-import { autoRuns, endTurn, isAtRest, newWorld, setHeadlights, setOverdrive, townStart, update, waitsOnPlayer } from './world';
+import { autoRuns, endTurn, isAtRest, newWorld, setHeadlights, setMoveOrder, setOverdrive, townStart, update, waitsOnPlayer } from './world';
 import { leaveQuest, QUESTS, startQuest } from './quests';
 import { GAME_OPENED_QUESTS } from '../data/quests';
 import { startPose } from './start-pose';
@@ -265,5 +265,25 @@ describe('waitsOnPlayer', () => {
     expect(waitsOnPlayer(world)).toBe(true);
     expect(autoRuns({ ...world, player: { ...world.player, state: 'knockedOut' } })).toBe(false);
     expect(waitsOnPlayer(leaveQuest(world))).toBe(false);
+  });
+});
+
+describe('a player order with a pace', () => {
+  const start = () => newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+
+  it('keeps the pace on through and stop orders', () => {
+    const w = start();
+    const at = playerVehicle(w).pos;
+    const dest = { x: at.x + 8, y: at.y };
+    expect(playerVehicle(setMoveOrder(w, { kind: 'through', dest, pace: 2 })).order).toEqual({ kind: 'through', dest, pace: 2 });
+    expect(playerVehicle(setMoveOrder(w, { kind: 'stopAt', dest, pace: 2 })).order).toEqual({ kind: 'stopAt', dest, pace: 2 });
+  });
+
+  it('throws on a pace that is not finite or not above the parked speed', () => {
+    const w = start();
+    const dest = { x: 30, y: 30 };
+    for (const pace of [Number.NaN, Infinity, RULES.parkedSpeed, 0, -1]) {
+      expect(() => setMoveOrder(w, { kind: 'through', dest, pace })).toThrow();
+    }
   });
 });
