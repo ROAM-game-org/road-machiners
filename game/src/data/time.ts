@@ -1,6 +1,25 @@
 
+declare const __TURN_CLOCK__: string;
+
+const SECONDS_PER_DAY = 86400;
+const DEFAULT_TURN_CLOCK = 15;
+
+function turnClockSetting(): string {
+  if (typeof __TURN_CLOCK__ === 'string') return __TURN_CLOCK__;
+  return (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.TURN_CLOCK ?? '';
+}
+
+function turnClock(raw: string): number {
+  if (raw === '') return DEFAULT_TURN_CLOCK;
+  const seconds = Number(raw);
+  if (!Number.isFinite(seconds) || seconds <= 0) throw new Error(`TURN_CLOCK must be clock seconds per turn above 0, got ${raw}`);
+  return seconds;
+}
+
+export const TURN_CLOCK_SECONDS = turnClock(turnClockSetting());
+
 export const TIME = {
-  turnsPerDay: 5760,
+  turnsPerDay: Math.round(SECONDS_PER_DAY / TURN_CLOCK_SECONDS),
   startHour: 7,
   sunrise: 6,
   sunset: 20,

@@ -21,6 +21,7 @@ export default defineConfig(({ command }) => ({
     __PUBLIC_HASHES__: JSON.stringify(command === 'build' ? publicHashes('public') : {}),
     __SAVE_SCOPE__: envText('SAVE_SCOPE'),
     __MAP_DRAFT__: envText('MAP_DRAFT'),
+    __TURN_CLOCK__: envText('TURN_CLOCK'),
     __ERROR_REPORT_URL__: envText('ERROR_REPORT_URL'),
     __ERROR_REPORT_BUILD__: envText('ERROR_REPORT_BUILD'),
     __FEEDBACK_URL__: envText('FEEDBACK_URL'),
