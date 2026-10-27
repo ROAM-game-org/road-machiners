@@ -65,8 +65,8 @@ what: Bug fixes treated the symptom with a guard or a retry and never asked why 
 cost: The same bugs came back, and the owner approved many duplicate fixes one by one.
 
 ID: R17
-what: Builds dropped points of the request, or added or changed things nobody asked for, like labels and big buttons, a game-wide copy sweep that also rewrote the intro quests the owner had written by hand without asking which text was off limits, or a reputation change that kept the money charge the request and a committee comment said must go, and added a day-long board lockout nobody asked for.
-cost: A follow-up card for every dropped point, redesigns to remove the extras, a patch round to restore the owner's own lines byte for byte, and an approved build stopped before its merge to be redesigned and then patched again.
+what: Builds dropped points of the request, or added or changed things nobody asked for, like labels and big buttons, a game-wide copy sweep that also rewrote the intro quests the owner had written by hand without asking which text was off limits, or a reputation change that kept the money charge the request and a committee comment said must go, and added a day-long board lockout nobody asked for. A request to hold a slow speed got a new three-position switch and hotkey beside the existing controls, when the choice belonged on the colored speed zones the player already clicks, so extend the existing control before adding a new one.
+cost: A follow-up card for every dropped point, redesigns to remove the extras, a patch round to restore the owner's own lines byte for byte, an approved build stopped before its merge to be redesigned and then patched again, and a built route speed control went back for a whole redesign from an annoyed committee.
 
 ID: R18
 what: Merges brought back an old version of a feature, or dropped a piece another card had added, like an icon or a panel.
@@ -83,3 +83,7 @@ cost: Members vetoed them in the player chat, and one was built and then denied.
 ID: R21
 what: Rendering went past the minimum WebGL 2 limits that many GPUs have: a ground shader that needed 17 texture units at night where 16 is the floor, and a texture sized from the map that needed more than 2048 texels on the largest map.
 cost: On most phones, Macs and Windows Chrome the ground vanished at night, a first fix brightened the moon instead, and one player could not start the game at all until a hotfix.
+
+ID: R22
+what: An agent ran two traffic harness runs at once, and each started one sim process per seed of about 1.4 GB. It stopped the runs with factory-job stop, but a vite-node process busy in a sim ignores that stop signal, and the agent never checked that the seeds ended. Six of them kept running beside the other jobs' tests and browsers on a host that was already short of memory.
+cost: The factory server ran out of memory and swap and froze for eleven hours, with Hermes, the dashboard and the public site down, until a person power-cycled it by hand.
