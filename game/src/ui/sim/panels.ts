@@ -1,5 +1,8 @@
+import { CONFIG, steppedSpeedIndex } from "../../config";
+import { PHYSICS } from "../../data/physics";
 import type { Card, CardRow, CardSection, Hud } from "../../sim/progression/sim-mode";
 import { devEl as el } from "../dom";
+import type { SpeedSource } from "../travel-speed";
 import { RunChart, SERIES, swatch } from "./run-chart";
 
 const OPEN_SECTIONS = ["Goals", "States", "Contracts", "Foes in sight"];
@@ -82,5 +85,65 @@ export class CardView {
     const fold = el("details", { class: "sim-fold", open }, el("summary", {}, section.name, el("span", { class: "dim num" }, ` ${body.length}`)), ...body) as HTMLDetailsElement;
     fold.addEventListener("toggle", () => this.opened.set(section.name, fold.open));
     return fold;
+  }
+}
+
+const TURN_MS = PHYSICS.turnSeconds * 1000;
+const START_INDEX = 1;
+const SMOOTHING = 0.2;
+const KEEPING_UP = 0.9;
+
+export function gapMsOf(speed: number): number {
+  return TURN_MS / speed;
+}
+
+export class SimSpeed implements SpeedSource {
+  private picked = START_INDEX;
+  private running = false;
+  private measured: number | null = null;
+  private last: { turn: number; at: number } | null = null;
+
+  constructor(private readonly sendGap: (gapMs: number) => void) {}
+
+  index(): number {
+    return this.picked;
+  }
+
+  speed(): number {
+    return CONFIG.travelSpeeds[this.picked]!;
+  }
+
+  announce(): void {
+    this.sendGap(gapMsOf(this.speed()));
+  }
+
+  step(delta: 1 | -1): void {
+    const next = steppedSpeedIndex(this.picked, delta);
+    if (next === this.picked) return;
+    this.picked = next;
+    this.measured = null;
+    this.last = null;
+    this.announce();
+  }
+
+  run(running: boolean): void {
+    this.running = running;
+    this.measured = null;
+    this.last = null;
+  }
+
+  frame(turn: number, at: number): void {
+    const previous = this.last;
+    this.last = { turn, at };
+    if (!this.running || !previous || turn <= previous.turn || at <= previous.at) return;
+    const now = ((turn - previous.turn) * TURN_MS) / (at - previous.at);
+    this.measured = this.measured === null ? now : this.measured + SMOOTHING * (now - this.measured);
+  }
+
+  playing(): number | null {
+    if (!this.running) return null;
+    const picked = this.speed();
+    if (this.measured === null || this.measured >= picked * KEEPING_UP) return picked;
+    return Math.round(this.measured);
   }
 }
