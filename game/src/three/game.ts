@@ -101,8 +101,8 @@ import { PickRing } from "./render/pick-ring";
 import { RescueAreaView } from "./render/rescue-area";
 import { PointerPicker } from "./pointer";
 import { HostileSighting } from "./hostile-sighting";
-import { lightTurnOf, MOVE_MS, nextSightSample, threatsIn, Travel, turnClockOf, type Playback, type LiveVision } from "./travel";
-import { easedStopSteps, heldPlayMs, PlayClock } from "./play-clock";
+import { lightTurnOf, MOVE_MS, nextSightSample, threatsIn, type Travel, turnClockOf, type Playback, type LiveVision } from "./travel";
+import { heldPlayMs, PlayClock } from "./play-clock";
 
 
 const PICK_PX = 30;
@@ -169,7 +169,6 @@ export class Game {
   private turnStart: World | null = null;
   private crashCues: CollisionCues | null = null;
   private breakCues = new BreakCues([]);
-  private readonly travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(PLAY_EASE, PHYSICS.stepsPerSecond));
   private phase: TurnPhase = null;
   private readonly weaponRange = new WeaponRangeView(PAL.select, READY_ARC_BIT);
   private readonly hoverArcs: HoverArcsView;
@@ -197,7 +196,6 @@ export class Game {
   private readonly plans = new PlanPreparation();
   private last = performance.now();
   private pending: ((w: World) => World | null) | null = null;
-  readonly routesReady = new Promise<void>((resolve) => setTimeout(() => (this.plans.warm(this.world.terrain), void this.travel.warm(this.world, this.drive).then(resolve))));
 
   readonly hud: Hud;
   private minimap: Minimap | null = null;
@@ -209,11 +207,12 @@ export class Game {
   private readonly death: DeathScreen;
   private readonly saves: GameSaves;
 
-  constructor(world: World, run: Run, container: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface) {
+  constructor(world: World, run: Run, container: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, private readonly travel: Travel) {
     this.renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context, antialias: true, stencil: true });
     this.world = world;
     this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad"), (text) => this.hud.note(this.world, text, "dim"));
     this.drive = driveSnapshotOf(this.world);
+    setTimeout(() => this.plans.warm(this.world.terrain));
 
     subscribeInputMode(() => this.refreshUi());
     installTouchTips(uiRoot(), touchMode);

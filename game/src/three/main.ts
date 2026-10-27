@@ -2,7 +2,10 @@
 import { formatSupport, loadBank, recoverBank, reportFailures, type BankOptions, type LoadedBank } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
-import { CONFIG, ERROR_REPORT_URL, FEEDBACK_URL, GAME_VERSION, SFX_BYTES } from '../config';
+import { CONFIG, ERROR_REPORT_URL, FEEDBACK_URL, GAME_VERSION, PLAY_EASE, SFX_BYTES } from '../config';
+import { driveSnapshotOf } from '../phys/turn';
+import { easedStopSteps } from './play-clock';
+import { Travel } from './travel';
 import { BANK, BOOT_SOUNDS, MIX, SOUNDS } from '../data/sounds';
 import { bankKitLoader, CombatMusic } from './combat-music';
 import { startKit } from '../data/start';
@@ -225,6 +228,8 @@ bootStep('loading the save');
 const { world, runId, loadedFrom, fresh } = await bootWorld();
 const log = new RunLog(slots.backend, runId, GAME_VERSION, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
+const travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(PLAY_EASE, PHYSICS.stepsPerSecond));
+const routesReady = initPhysics().then(() => travel.warm(world, driveSnapshotOf(world)));
 bootStep('building the ground');
 await boot.track('ground', () => groundTexture(world));
 bootStep('waiting for physics, models and sounds');
@@ -237,8 +242,8 @@ const radio = new RadioPanel(new RadioStation(Math.random), () => game.loops.nex
 radio.hear(world);
 const overlay = element('overlay');
 const game = await boot.track('scene', async () => {
-  const built = new Game(world, { slots, runId, log, mapHash: world.mapHash }, element('game'), overlay, new SoundPlayer(mixer, bank, SOUNDS), music, soundSettings, radio, surface);
-  await built.routesReady;
+  const built = new Game(world, { slots, runId, log, mapHash: world.mapHash }, element('game'), overlay, new SoundPlayer(mixer, bank, SOUNDS), music, soundSettings, radio, surface, travel);
+  await routesReady;
   return built;
 });
 if (questJump) game.screens.quest.jump(questJump.picks, questJump.page);
