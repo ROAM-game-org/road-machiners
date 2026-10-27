@@ -482,6 +482,30 @@ describe("playShotFx before a shooter's view exists", () => {
     expect(launched).toHaveLength(1);
     expect(launched[0].delayMs + launched[0].flightMs).toBeCloseTo(MOVE_MS, 6);
   });
+
+  it("fires from the shooter's resting place when the turn shows no pose for it", () => {
+    const world = emptyWorld();
+    const shooter = addVehicle(world, "scrapjaw", "buggy", ["mg", "stockEngine"], { x: 30, y: 30 }, 0);
+    const target = addVehicle(world, "scrapjaw", "buggy", ["stockEngine"], { x: 36, y: 30 }, 0);
+    const mg = shooter.items.find((i) => i.kind === "part" && i.part.defId === "mg");
+    if (!mg || mg.kind !== "part") throw new Error("test truck has no mg");
+    world.events = [{ t: "shot", shooter: shooter.id, weapon: mg.part.id, target: target.id, aim: "center", chance: 1, damageChance: 1, side: "front", rounds: [round(target.id)] } as GameEvent];
+    const launched: unknown[] = [];
+    const host = {
+      world,
+      views: new Map(),
+      fx: { shot: (_s: unknown, _m: unknown, plan: unknown) => launched.push(plan), label: () => {} },
+      sound: { at: () => {}, queueScoreEvent: () => {} },
+      eventPoint: () => ORIGIN,
+      breakPart: () => {},
+      onBurst: () => {},
+      poses: posesOf(world, {}, { moveMs: MOVE_MS, stepMs: STEP_MS, gunHeight: 1.6 }, (v) => v.id !== shooter.id),
+      startMs: 0,
+      lineHooked: () => {},
+    } as unknown as CombatHost;
+    expect(() => playShotFx(host, new BreakCues(world.events))).not.toThrow();
+    expect(launched).toHaveLength(1);
+  });
 });
 
 describe("playShotFx after the shooter's view is gone", () => {

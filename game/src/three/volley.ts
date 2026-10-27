@@ -253,14 +253,14 @@ function shooterMuzzle(host: CombatHost, shooter: string, weapon: string): () =>
   return () => {
     const view = host.views.get(shooter);
     if (view) last = view.muzzle(weapon);
-    return last ?? restMuzzle(host.poses, shooter);
+    return last ?? restMuzzle(host, shooter);
   };
 }
 
-function restMuzzle(poses: TurnPoses, shooter: string): Muzzle {
-  const pos = poses.end(shooter);
-  const heading = poses.endHeading(shooter);
-  if (pos === null || heading === null) throw new Error(`Shooter ${shooter} has no end pose`);
+function restMuzzle(host: CombatHost, shooter: string): Muzzle {
+  const v = vehicleOf(host.world, shooter);
+  const pos = host.poses.end(shooter) ?? restFrame(host.world, v).pos;
+  const heading = host.poses.endHeading(shooter) ?? v.heading;
   return { pos, dir: { x: Math.cos(heading), y: 0, z: Math.sin(heading) } };
 }
 
