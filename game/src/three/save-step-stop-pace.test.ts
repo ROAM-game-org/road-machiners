@@ -31,9 +31,9 @@ describe('stop order pace in a save', () => {
   });
 });
 
-describe('save migration 116 to 117, stop orders may hold a pace', () => {
-  it('sits after the moments step and changes no data', () => {
-    expect(TINY_STEPS[116 - TINY_FROM]).toBe(step);
+describe('save migration 118 to 119, stop orders may hold a pace', () => {
+  it('sits after the Lena glare step and changes no data', () => {
+    expect(TINY_STEPS[118 - TINY_FROM]).toBe(step);
     const old = structuredClone(FORMAT_2_115) as SavedJson;
     expect(step.step(structuredClone(old))).toEqual(old);
   });

@@ -21,12 +21,6 @@ export function cumulativeCost(rank: number): number {
   return total;
 }
 
-export function ranksCoveredBy(xp: number): number {
-  let rank = 0;
-  while (rank < MAX_RANK && xp >= cumulativeCost(rank + 1)) rank++;
-  return rank;
-}
-
 export function skillLevel(world: World, skill: SkillId): number {
   return world.player.ranks[skill];
 }

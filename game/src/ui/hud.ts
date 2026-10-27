@@ -7,7 +7,7 @@ import { callError, DialoguePanel, type DialogueHost } from "./dialogue";
 import { markError } from "../sim/detect";
 import { hasExplorationMap, modeRules } from "../sim/settings";
 import { playerCanAct } from "../sim/world";
-import type { CrimeCase, Vehicle, World } from "../sim/types";
+import type { CrimeCase, GameEvent, Vehicle, World } from "../sim/types";
 import { caseOwed, knownCasesOn } from "../sim/crime";
 import { workOf, type Work } from "../sim/states";
 import { isAutoPatch } from "../sim/jobs";
@@ -41,7 +41,7 @@ import { gameContext } from "../three/error-report";
 import { feedbackCorner, FeedbackForm } from "./feedback-form";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
 import { createCompassDial, createIcon, createSpeedDial, repairingPart } from "./cards";
-import { aimMarks, TURN_PLAYING, type AimState } from "./weapons";
+import { aimMarks, orderLock, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
 import { createSwitch } from "./switch";
 import { Tips, type TipSwitch } from "./tips";
@@ -319,6 +319,10 @@ export class Hud {
     this.recenter.append(el("button", { onclick: () => actions.recenter() }, t("hud.recenter"), el("kbd", { class: "key no-touch" }, verbatim(RECENTER_KEY))));
   }
 
+  feedbackOpen(): boolean {
+    return this.feedbackForm.isOpen();
+  }
+
   openFeedback(): void {
     this.feedbackForm.open("bug");
   }
@@ -406,8 +410,8 @@ export class Hud {
     );
   }
 
-  renderRescue(w: World): void {
-    this.dialogue.render(w);
+  renderRescue(w: World, callShown = true): void {
+    this.dialogue.render(w, callShown);
     const r = getRescueReadout(w);
     const down = rescueOf(r, "knockedOut");
     this.knockedOut.style.display = down ? "" : "none";
@@ -480,12 +484,13 @@ export class Hud {
 
   private engineButtons(w: World, busy: boolean): HTMLElement[] {
     const od = overdriveSwitch(w);
-    const lock = busy ? TURN_PLAYING : null;
+    const lock = orderLock(w, busy);
     const headlights = createSwitch({
       on: t("hud.lightsOn"),
       off: t("hud.lightsOff"),
       checked: this.actions.headlightsOn(),
       key: "L",
+      reason: lock,
       title: t("hud.lightsTitle"),
       onclick: () => this.actions.toggleHeadlights(),
     });
@@ -551,8 +556,8 @@ export class Hud {
     );
   }
 
-  private hornButton(w: World): HTMLElement {
-    const reason = playerCanAct(w) ? null : refusalText(w, { id: "cannotAct" });
+  private hornButton(w: World, busy: boolean): HTMLElement {
+    const reason = orderLock(w, busy) ?? (playerCanAct(w) ? null : refusalText(w, { id: "cannotAct" }));
     return el("button", { class: "instrument-button touch-only", ...disabledWith(reason, () => this.dialogue.honk()) }, t("hud.horn"));
   }
 
@@ -657,7 +662,7 @@ export class Hud {
         off: t("hud.route"),
         checked: manual,
         key: "R",
-        reason: busy ? TURN_PLAYING : null,
+        reason: orderLock(w, busy),
         title: t("hud.manualTitle"),
         onclick: () => this.actions.toggleManual(),
       }),
@@ -666,7 +671,7 @@ export class Hud {
         off: t("hud.noPatch"),
         checked: w.player.autoRepair,
         key: "P",
-        reason: busy ? TURN_PLAYING : null,
+        reason: orderLock(w, busy),
         title: t("hud.autoPatchTitle"),
         onclick: () => this.actions.toggleAutoRepair(),
       }),
@@ -674,7 +679,7 @@ export class Hud {
       this.characterButton(w, busy),
       ...mapInstrument(w, busy, () => this.actions.openMap()),
       this.journalButton(busy),
-      ...(modeRules(w).radio ? [this.hornButton(w)] : []),
+      ...(modeRules(w).radio ? [this.hornButton(w, busy)] : []),
     );
   }
 
@@ -690,17 +695,21 @@ export class Hud {
     this.dialogue.flushHorn();
   }
 
-  pushEvents(w: World): void {
+  pushEvents(w: World, events: readonly GameEvent[] = w.events): void {
+    this.logHeld(w, events);
+    if (w.events.some((e) => e.t === 'sunwardFallen')) this.toast(t('log.sunwardFallen'));
+    this.radio.hear(w);
+  }
+
+  logHeld(w: World, events: readonly GameEvent[]): void {
     const lines: LogLine[] = [];
-    for (const e of w.events) {
+    for (const e of events) {
       const line = eventText(w, e);
       if (!line) continue;
       lines.push(line);
       if (isNotable(e)) this.toast(line.text);
     }
     this.log.add(w.turn, lines);
-    if (w.events.some((e) => e.t === 'sunwardFallen')) this.toast(t('log.sunwardFallen'));
-    this.radio.hear(w);
   }
 
   logTexts(): string[] {

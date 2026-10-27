@@ -1,6 +1,3 @@
-// Bands draped on the ground. Throttle zones fanned ahead of the truck, like the 2D src/render/throttle.ts.
-// The caller supplies the half-angle (it already clamps a minimum so barely-turning trucks keep
-// visible zones) and the hover color (throttle color under the cursor, or PAL.plan off any zone).
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';

@@ -15,7 +15,7 @@ import { reachedOutpostAt } from "../sim/chaos-highway";
 import type { World } from "../sim/types";
 import type { Vec } from "../sim/vec";
 import { playerOrder } from "../sim/steering";
-import { playerCanAct, Refused, setAutoRepair, setDirect, setHeadlights, setMoveOrder, setOverdrive } from "../sim/world";
+import { actBlock, playerCanAct, Refused, setAutoRepair, setDirect, setHeadlights, setMoveOrder, setOverdrive } from "../sim/world";
 import { markError, markVehicle } from "../sim/detect";
 import { lookOver } from "../sim/look-over";
 import { hasBasic } from "../sim/progress";
@@ -49,6 +49,7 @@ export class TruckControls {
 
   toggleAutoRepair(): void {
     const w = this.host.world();
+    if (actBlock(w) === "knockedOut") return;
     this.host.apply(setAutoRepair(w, !w.player.autoRepair));
   }
 
@@ -65,6 +66,7 @@ export class TruckControls {
 
   toggleHeadlights(): void {
     const w = this.host.world();
+    if (actBlock(w) === "knockedOut") return;
     this.host.commit(setHeadlights(w, !w.player.headlights));
   }
 
@@ -149,7 +151,7 @@ export class TruckContext {
       outpost: () => reachedOutpostAt(h.world()) && h.openOutpost(),
       downed: () => 'id' in target && h.openDowned(target.id),
       stock: () => 'id' in target && this.searchStock(target.id, action.combat),
-      survey: () => target.kind === 'survey' && this.surveySite(target.contractId, target.id, action.combat),
+      survey: () => target.kind === 'survey' && this.surveySite(target.contractId, target.id),
       loot: () => 'id' in target && this.lootStock(target.id),
       empty: () => undefined,
     };
@@ -180,9 +182,9 @@ export class TruckContext {
     }
   }
 
-  private surveySite(contractId: string, site: string, combat?: number): void {
+  private surveySite(contractId: string, site: string): void {
     const w = this.host.world();
-    if (isBusy(playerVehicle(w)) || combat !== undefined) return;
+    if (isBusy(playerVehicle(w))) return;
     this.host.apply(startSurvey(w, contractId, site));
     this.host.pushEvents();
   }

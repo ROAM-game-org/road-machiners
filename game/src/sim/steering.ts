@@ -184,4 +184,5 @@ export function setDown(world: World, v: Vehicle): void {
   straighten(v);
   v.speed = 0;
   v.strandedTurns = RULES.stranded.turns;
+  delete v.strandedAt;
 }

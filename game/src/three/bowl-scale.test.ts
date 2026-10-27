@@ -115,7 +115,7 @@ describe('the weigher at the Bowl gate yard', () => {
 
   it('opens nothing while a radio call is open', () => {
     const w = parkAt(quietWorld(), 'bowl');
-    w.player.call = { with: 'x', topic: 'tale', node: 'offer', vars: {}, line: { line: 'gotAStoryFrom', vars: {} } };
+    w.player.call = { with: 'x', topic: 'tale', node: 'offer', vars: {}, line: { line: 'gotAStoryFrom', vars: {} }, group: null, asked: [] };
     const next = enterMarket(w);
     expect(next.player.quests.session).toBeNull();
     expect(next.player.quests.world.scale_seen).toBeUndefined();
