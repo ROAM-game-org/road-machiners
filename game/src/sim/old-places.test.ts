@@ -164,8 +164,8 @@ describe('old-world loot spot picks on the committed map', () => {
 
   it('holds boat groups of every kind, on open ground clear of roads and earlier props', () => {
     const boats = baked.filter((o) => o.kind === 'landmark' && ['fishingBoat', 'riverBarge', 'skiff'].includes(o.look));
-    expect(boats.length).toBeGreaterThanOrEqual(8);
-    expect(boats.length).toBeLessThanOrEqual(20);
+    expect(boats.length).toBeGreaterThanOrEqual(BOATS.boatBand[0]);
+    expect(boats.length).toBeLessThanOrEqual(BOATS.boatBand[1]);
     for (const b of boats) {
       expect(territoryAt(b.pos), b.id).toBeNull();
       expect(clearOfSites(icarusAtlas(), b.pos, b.r), b.id).toBe(true);

@@ -6,7 +6,9 @@ import type { OldPlaceType } from '../data/salvage';
 import SURVEY_SITES_FILE from '../data/survey-sites.json';
 import { DRAFT } from '../data/region';
 import { atlasOf, type AtlasKey } from './atlas';
+import { DIRECTIONS } from '../data/directions';
 import { directionsFromSite } from './directions';
+import { edgesOnSiteRoads, nearestRoadPoints, roadNetworkOfTerrain } from './road-network';
 import { estimateTurns, haulWindow, siteOf, type Contract } from './market';
 import { playerVehicle } from './damage';
 import { startJob } from './jobs';
@@ -95,11 +97,17 @@ export function makeSurveySites(map: BakedMap): SurveySite[] {
   const baked = mapObstacles(map);
   const layer = navLayer(map.terrain, baked, MAX_RADIUS);
   const places = oldPlaces(baked);
+  const net = roadNetworkOfTerrain(map.terrain, map.terrain.size);
+  const siteRoads = edgesOnSiteRoads(net);
+  const told = (p: Vec) => {
+    const near = nearestRoadPoints(net, p, DIRECTIONS.leaveReach, DIRECTIONS.joinCandidates);
+    return near.length > 0 && near.every((r) => siteRoads.has(r.edge));
+  };
   const remote = (p: Vec) => dist(p, nearestRoadPoint(p)) >= CONTRACTS.survey.roadGap && landmarks().every((s) => siteGap(s, p) >= CONTRACTS.survey.siteGap);
   return places.flatMap((place) => {
     if (!remote(place.centroid)) return [];
     const order = [...place.props].sort((a, b) => propHash(map, a) - propHash(map, b));
-    const spot = order.find((o) => remote(o.pos) && offRoad(o) && reachable(layer, o, REGION.navigation.reachClimb));
+    const spot = order.find((o) => remote(o.pos) && told(o.pos) && offRoad(o) && reachable(layer, o, REGION.navigation.reachClimb));
     if (!spot) return [];
     const clues = fairClues({ type: place.type, pos: spot.pos }, places);
     if (clues.length === 0) return [];

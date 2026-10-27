@@ -1207,19 +1207,6 @@
     "green-pit": "offset"
    }
   },
-  "old-hulks-tank-1081": {
-   "piece": null,
-   "offset": null,
-   "tiers": {
-    "bowl": "shop",
-    "nose": "shop",
-    "salvage-yard": "shop",
-    "granary": "shop",
-    "pump-station": "shop",
-    "dustwell": "shop",
-    "green-pit": "shop"
-   }
-  },
   "old-hulks-tank-1085": {
    "piece": null,
    "offset": null,
@@ -1229,69 +1216,11 @@
     "salvage-yard": "shop",
     "granary": "shop",
     "pump-station": "shop",
-    "dustwell": "shop"
-   }
-  },
-  "old-hulks-tank-1093": {
-   "piece": null,
-   "offset": null,
-   "tiers": {
-    "bowl": "shop",
-    "nose": "shop",
-    "salvage-yard": "shop",
-    "granary": "shop",
-    "pump-station": "shop",
-    "dustwell": "shop",
-    "green-pit": "shop"
-   }
-  },
-  "old-hulks-tank-1110": {
-   "piece": null,
-   "offset": null,
-   "tiers": {
-    "nose": "shop",
-    "salvage-yard": "shop",
-    "granary": "shop",
-    "pump-station": "shop",
-    "green-pit": "shop"
-   }
-  },
-  "old-hulks-tank-1111": {
-   "piece": null,
-   "offset": null,
-   "tiers": {}
-  },
-  "old-hulks-tank-1126": {
-   "piece": null,
-   "offset": null,
-   "tiers": {
-    "nose": "shop",
-    "salvage-yard": "shop",
-    "granary": "shop",
-    "pump-station": "shop",
     "dustwell": "shop",
     "green-pit": "shop"
    }
   },
   "old-hulks-tank-1127": {
-   "piece": null,
-   "offset": null,
-   "tiers": {
-    "bowl": "shop",
-    "nose": "shop",
-    "salvage-yard": "shop",
-    "granary": "shop",
-    "pump-station": "shop",
-    "dustwell": "shop",
-    "green-pit": "shop"
-   }
-  },
-  "old-hulks-tank-1150": {
-   "piece": null,
-   "offset": null,
-   "tiers": {}
-  },
-  "old-hulks-tank-1158": {
    "piece": null,
    "offset": null,
    "tiers": {
@@ -1315,18 +1244,6 @@
     "pump-station": "shop",
     "dustwell": "shop",
     "green-pit": "shop"
-   }
-  },
-  "old-hulks-tank-1168": {
-   "piece": null,
-   "offset": null,
-   "tiers": {
-    "bowl": "shop",
-    "nose": "shop",
-    "salvage-yard": "shop",
-    "granary": "shop",
-    "pump-station": "shop",
-    "dustwell": "shop"
    }
   },
   "old-hulks-tank-1169": {

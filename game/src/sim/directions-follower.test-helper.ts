@@ -77,7 +77,8 @@ function onwardOf(graph: RoadGraph, node: number, into: number): number | null {
 }
 
 function firstExits(graph: RoadGraph, node: number, first: Follow): RoadExit[] {
-  return exitsAt(graph, node).filter((e) => sameName(roadName(graph, e.edge, node), first.road) && lookDown(graph, node, e) === first.heading);
+  const named = exitsAt(graph, node).filter((e) => sameName(roadName(graph, e.edge, node), first.road));
+  return named.length === 1 ? named : named.filter((e) => lookDown(graph, node, e) === first.heading);
 }
 
 export function ambiguousStarts(world: World, answers: readonly { from: Vec; steps: readonly DirectionStep[] }[]): string[] {
