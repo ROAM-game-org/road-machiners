@@ -11,6 +11,7 @@ import { BudgetError, runCost, untilPasses } from './checkpoint';
 import { checkScript, checkUntilReal, runChecks } from './checks';
 import { remoteSuite } from './remote-suite';
 import { guardAgainstAll } from '../diff-guard';
+import { labelStuckBatch } from '../stuck';
 import { BASE_BRANCH, baseBranchFor, fillPrompt, isGameSource, playtestCommand, resetOutputs } from './common';
 import { releaseLog } from './release-common';
 
@@ -20,7 +21,7 @@ export async function merge(ctx: Ctx): Promise<void> {
   try {
     await withWorkFolder(ctx, 'merge-queue', () => mergeBatch(ctx, batch.base, batch.cards));
   } catch (error) {
-    for (const card of batch.cards) await ctx.github.addLabel(card.issue, STUCK_LABEL);
+    await labelStuckBatch(ctx, batch.cards.map((card) => card.issue));
     throw error;
   }
 }
