@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { removalCandidates, sweepLogs, sweepWork } from './cleanup';
 import { cpuSets, poolOf, vitestWorkersOf } from './cpus';
 import { removeStaleBuilds } from './deploy';
-import { freeGb, requireAgyLogin, requireCodexLogin } from './health';
+import { freeGb, requireAgyLogin, requireCappedSlice, requireCodexLogin } from './health';
 import { JobDiedError, JobTimeoutError, failureIssue, pruneFailures, reportFailure } from './fail';
 import { intake } from './intake';
 import { publicFilterWith } from './public/filter';
@@ -541,6 +541,7 @@ async function startJobs(ctx: Ctx, codeDir: string, deps: TickDeps): Promise<voi
   }
   requireCodexLogin(ctx.cfg.home);
   requireAgyLogin(ctx.cfg.home);
+  requireCappedSlice(ctx.cfg.jobsSlice);
   await ctx.repo.fetch();
   const heads = { dev: await ctx.repo.headHash('dev'), release: await releaseHead(ctx), main: await ctx.repo.headHash('main') };
   forgetCaughtUp(ctx, cards);

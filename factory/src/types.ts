@@ -23,6 +23,7 @@ export type FactoryConfig = {
   publicUrl: string;
   image: string;
   gpu: boolean;
+  jobsSlice: string | null;
   oauthToken: string;
   elevenlabsKey: string;
   sfxMaxGenerations: number;

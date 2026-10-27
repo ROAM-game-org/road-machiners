@@ -25,6 +25,7 @@ const KEYS = {
   publicUrl: 'FACTORY_PUBLIC_URL',
   image: 'FACTORY_IMAGE',
   gpu: 'FACTORY_GPU',
+  jobsSlice: 'FACTORY_JOBS_SLICE',
   oauthToken: 'CLAUDE_CODE_OAUTH_TOKEN',
   elevenlabsKey: 'ELEVENLABS_API_KEY',
   sfxMaxGenerations: 'SFX_MAX_GENERATIONS',
@@ -151,13 +152,21 @@ function checkCpuShares(cfg: FactoryConfig): void {
   if (sum > 1) throw new Error(`FACTORY_CPU_LIGHT, FACTORY_CPU_IMPLEMENT and FACTORY_CPU_TEST add up to ${sum}. They split the server's CPUs, so they must add up to 1 or less.`);
 }
 
+function sliceOrOff(key: string, raw: string): string | null {
+  if (raw === 'off') return null;
+  if (/^[a-z0-9-]+\.slice$/.test(raw)) return raw;
+  throw new Error(`${key} must be a systemd slice name like roam-factory-jobs.slice, or off, got "${raw}".`);
+}
+
 function read(field: keyof FactoryConfig, key: string, raw: string | undefined): string | number | boolean | Record<string, TokenPrice> | null {
   return raw ? parse(field, key, raw) : null;
 }
 
-function parse(field: keyof FactoryConfig, key: string, raw: string): string | number | boolean | Record<string, TokenPrice> {
-  if (field === 'gpu') return onOff(key, raw);
-  if (field === 'tokenPrices') return parsePrices(key, raw);
+const PARSERS: Partial<Record<keyof FactoryConfig, (key: string, raw: string) => boolean | string | null | Record<string, TokenPrice>>> = { gpu: onOff, jobsSlice: sliceOrOff, tokenPrices: parsePrices };
+
+function parse(field: keyof FactoryConfig, key: string, raw: string): string | number | boolean | Record<string, TokenPrice> | null {
+  const parser = PARSERS[field];
+  if (parser !== undefined) return parser(key, raw);
   if (!NUMBERS.has(field)) return raw;
   const value = Number(raw);
   if (!Number.isFinite(value) || value <= 0) throw new Error(`${key} must be a positive number, got "${raw}".`);
