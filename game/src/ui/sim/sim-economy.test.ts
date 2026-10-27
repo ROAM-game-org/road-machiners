@@ -3,8 +3,13 @@ import { ECONOMY } from '../../data/goods';
 import { siteRecipes } from '../../data/market';
 import { goodPrice, goodStock, moveStock, shopState } from '../../sim/market';
 import { recipeRunning } from '../../sim/production';
-import { economyOf, marketLayout, marketSample, sampleEvents, StockFlows, type Economy } from '../../sim/progression/sim-economy';
+import { economyOf, marketLayout, marketSample, referenceTrader, sampleEvents, StockFlows, type Economy } from '../../sim/progression/sim-economy';
 import { legRisk } from '../../sim/road-news';
+import { affordableBuyCount } from '../../sim/economy';
+import { cargoRoom } from '../../sim/inventory';
+import { goodValue, siteOf } from '../../sim/market';
+import { npcProfile, tradeLegTiles, tradeOutlook, tripFuelCost } from '../../sim/npc-decisions';
+import { tradeSkipReason } from './economy-reads';
 import { SimRun, simWorld, type FromSim } from '../../sim/progression/sim-mode';
 import type { World } from '../../sim/types';
 import { TEST_MAP } from '../../test/map';
@@ -138,7 +143,41 @@ describe('simulation mode economy', () => {
       expect(trade.crates).toBeGreaterThan(0);
       expect(trade.risky).toBe(legRisk(end, trade.fromId, trade.toId) > 0);
     }
-    expect(economy.trades.map((t) => t.gain)).toEqual([...economy.trades.map((t) => t.gain)].sort((a, b) => b - a));
+    const worth = economy.trades.map((t) => t.worth);
+    expect(worth).toEqual([...worth].sort((a, b) => Number(b) - Number(a)));
+  });
+
+  it('judges each trade with the numbers an NPC trader computes', () => {
+    const trader = referenceTrader(end)!;
+    expect(trader).not.toBeNull();
+    expect(economy.trader).toBe(SIM_TEXT.truck(end, trader));
+    const spend = npcProfile(trader).tradeStake;
+    expect(economy.trades.length).toBeGreaterThan(0);
+    for (const trade of economy.trades) {
+      const plan = { source: trade.fromId, good: trade.good, sellShop: trade.toId };
+      const tiles = Math.hypot(siteOf(trade.fromId).pos.x - siteOf(trade.toId).pos.x, siteOf(trade.fromId).pos.y - siteOf(trade.toId).pos.y);
+      const count = affordableBuyCount(end, trader, trade.fromId, trade.good, cargoRoom(trader), spend);
+      const fuel = tripFuelCost(end, trader, tiles);
+      const risk = count * goodValue(trade.good) * legRisk(end, trade.fromId, trade.toId);
+      expect(trade.load).toBe(count);
+      expect(trade.fuel).toBe(fuel);
+      expect(trade.risk).toBe(risk);
+      expect(trade.net).toBe(count * trade.gain - fuel - risk);
+      expect(trade.tiles).toBe(tradeLegTiles(plan));
+      expect(trade.worth).toBe(tradeOutlook(end, trader, plan, spend, tiles).worth);
+    }
+  });
+
+  it('keeps a trade that traders refuse and marks it', () => {
+    const world: World = structuredClone(end);
+    const good = economy.trades[0].good;
+    const towns = Object.keys(world.shops);
+    world.roadNews = towns.flatMap((from) => towns.flatMap((to) => Array.from({ length: 8 }, () => ({ turn: world.turn, kind: 'robbed' as const, good, units: 1, from, to }))));
+    const risky = economyOf(world, new StockFlows(world.turn), SIM_TEXT).trades.find((t) => t.good === good)!;
+    expect(risky.risky).toBe(true);
+    expect(risky.worth).toBe(false);
+    expect(risky.net).toBeLessThanOrEqual(0);
+    expect(tradeSkipReason(risky)).not.toBeNull();
   });
 
   it('names the inputs a line lacks, with what the shop holds and what a batch needs', () => {

@@ -2,7 +2,7 @@ import type { EconGood, EconNews, Economy, EconShop } from "../../sim/progressio
 import type { Sample } from "../../sim/progression/sim-mode";
 import { devEl as el } from "../dom";
 import { moneyAmount } from "../units";
-import { lineAlertsOf, MarketHistory, needsOf, type LineAlert, type Need } from "./economy-reads";
+import { lineAlertsOf, MarketHistory, needsOf, rankedAlerts, type Alert, type LineAlert, type Need } from "./economy-reads";
 import { goodTokens, levelOf, type Focus } from "./economy-draw";
 import { goodLink, goodPage, levelTone, stockSpark, priceSpark, toneClass, townLink, townPage, tradeRows, type Ctx, type Nav, type Tone } from "./economy-pages";
 
@@ -12,6 +12,7 @@ type Lens = "stock" | "price";
 const LENSES: { lens: Lens; label: string }[] = [{ lens: "stock", label: "Stock" }, { lens: "price", label: "Price" }];
 const PRICE_GAP = { dear: 1.25, cheap: 0.8 };
 const ALL: Page = { kind: "all" };
+const SHOWN_ALERTS = 5;
 const LEVEL_TONE = { empty: "bad", short: "warn", ok: "" } as const;
 
 function median(values: number[]): number {
@@ -62,6 +63,7 @@ export class EconomyView {
   private page: Page = ALL;
   private previous: Page = ALL;
   private lens: Lens = "stock";
+  private foldOpen = false;
 
   constructor(private readonly picked: () => void, private readonly openTruck: (id: string) => void) {
     this.root.append(el("div", { class: "dim" }, "Waiting for the economy"));
@@ -134,10 +136,23 @@ export class EconomyView {
     return el("div", { class: "sim-econ-body" },
       summaryOf(needs, alerts),
       this.grid(ctx),
-      needs.length + alerts.length > 0 ? el("div", { class: "sim-econ-group" }, ...needs.map((n) => needRow(ctx, n)), ...alerts.map((a) => lineAlertRow(ctx, a))) : null,
-      el("span", { class: "sim-label" }, "Best trades"),
+      this.alertList(ctx, rankedAlerts(needs, alerts)),
+      el("span", { class: "sim-label" }, ctx.economy.trader ? `Best trades for ${ctx.economy.trader}, after fuel and road risk` : "Best trades"),
       tradeRows(ctx, ctx.economy.trades),
       this.news(ctx));
+  }
+
+  private alertList(ctx: Ctx, ranked: Alert[]): HTMLElement | null {
+    if (ranked.length === 0) return null;
+    const rest = ranked.slice(SHOWN_ALERTS);
+    const shown = this.foldOpen ? ranked : ranked.slice(0, SHOWN_ALERTS);
+    const fold = rest.length > 0 ? el("button", { class: "btn-s", onclick: () => this.setFold(!this.foldOpen) }, this.foldOpen ? "Show fewer" : `${rest.length} more, less urgent`) : null;
+    return el("div", { class: "sim-econ-group" }, ...shown.map((a) => (a.kind === "need" ? needRow(ctx, a.need) : lineAlertRow(ctx, a.alert))), fold);
+  }
+
+  private setFold(open: boolean): void {
+    this.foldOpen = open;
+    this.render(true);
   }
 
   private grid(ctx: Ctx): HTMLElement {

@@ -1,5 +1,5 @@
 import { TIME } from "../../data/time";
-import { marketLayout, type EconGood, type EconLine, type Economy, type EconShop, type SampleEvent } from "../../sim/progression/sim-economy";
+import { marketLayout, type EconGood, type EconLine, type Economy, type EconTrade, type EconShop, type SampleEvent } from "../../sim/progression/sim-economy";
 import type { Sample } from "../../sim/progression/sim-mode";
 
 const TURNS_PER_HOUR = TIME.turnsPerDay / 24;
@@ -127,4 +127,21 @@ export function needsOf(economy: Economy, history: MarketHistory): Need[] {
 
 export function lineAlertsOf(economy: Economy): LineAlert[] {
   return economy.shops.flatMap((shop) => shop.lines.filter((l) => l.run === "stopped" || l.run === "fallback").map((line) => ({ shop, line, why: lineWhy(shop, line) })));
+}
+
+export type Alert = { kind: "need"; need: Need } | { kind: "line"; alert: LineAlert };
+
+const LINE_ORDER: Record<EconLine["run"], number> = { stopped: 0, fallback: 1, worn: 2, running: 2 };
+
+export function rankedAlerts(needs: Need[], alerts: LineAlert[]): Alert[] {
+  const lines = [...alerts].sort((a, b) => LINE_ORDER[a.line.run] - LINE_ORDER[b.line.run]).map((alert): Alert => ({ kind: "line", alert }));
+  const empty = needs.filter((n) => n.empty).map((need): Alert => ({ kind: "need", need }));
+  const short = needs.filter((n) => !n.empty).map((need): Alert => ({ kind: "need", need }));
+  return [...empty, ...lines, ...short];
+}
+
+export function tradeSkipReason(trade: EconTrade): string | null {
+  if (trade.worth) return null;
+  if (trade.load === 0) return "Traders skip it: no crate fits their stake";
+  return trade.net + trade.risk > 0 ? "Traders skip it: road risk eats the gain" : "Traders skip it: fuel eats the gain";
 }

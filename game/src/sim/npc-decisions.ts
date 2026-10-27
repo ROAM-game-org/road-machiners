@@ -261,17 +261,26 @@ function runOffers(world: World, vehicle: Vehicle, source: ShopDef, buyer: ShopD
   return source.goods.filter((good) => buyer.goods.includes(good)).flatMap((good) => runOffer(world, vehicle, { source: source.id, good, sellShop: buyer.id }, spend, 1));
 }
 
-function runOffer(world: World, vehicle: Vehicle, plan: TradePlan, spend: number, need: number): Weighted<TradePlan>[] {
-  const sourcePos = getKnownSite(plan.source).pos;
-  const trip = dist(vehicle.pos, sourcePos) + dist(sourcePos, getKnownSite(plan.sellShop).pos);
+export type TradeOutlook = { buy: number; profit: number; count: number; fuel: number; risk: number; net: number; worth: boolean };
+
+export function tradeOutlook(world: World, vehicle: Vehicle, plan: TradePlan, spend: number, trip: number): TradeOutlook {
   const fuel = tripFuelCost(world, vehicle, trip);
   const buy = getTradePrice(world, vehicle, plan.source, plan.good, 'buy');
   const profit = getTradePrice(world, vehicle, plan.sellShop, plan.good, 'sell') - buy;
-  if (spend < buy || profit <= 0) return [];
   const count = affordableBuyCount(world, vehicle, plan.source, plan.good, cargoRoom(vehicle), spend);
   const risk = count * goodValue(plan.good) * legRisk(world, plan.source, plan.sellShop);
   const net = count * profit - fuel - risk;
-  return net > 0 ? [{ value: plan, weight: (net * need) / trip }] : [];
+  return { buy, profit, count, fuel, risk, net, worth: spend >= buy && profit > 0 && net > 0 };
+}
+
+export function tradeLegTiles(plan: TradePlan): number {
+  return dist(getKnownSite(plan.source).pos, getKnownSite(plan.sellShop).pos);
+}
+
+function runOffer(world: World, vehicle: Vehicle, plan: TradePlan, spend: number, need: number): Weighted<TradePlan>[] {
+  const trip = dist(vehicle.pos, getKnownSite(plan.source).pos) + tradeLegTiles(plan);
+  const outlook = tradeOutlook(world, vehicle, plan, spend, trip);
+  return outlook.worth ? [{ value: plan, weight: (outlook.net * need) / trip }] : [];
 }
 
 export function supplyOffers(world: World, vehicle: Vehicle): Weighted<TradePlan>[] {

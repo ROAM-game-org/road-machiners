@@ -4,9 +4,12 @@ import { TIME } from '../../data/time';
 import { rationing } from '../economy';
 import { goodPrice, goodStock, onOrder, pressureOf, shopState, siteOf, stockForSale, stockShort, stockTarget, type ShopState, type StockCause } from '../market';
 import { goodsCount } from '../grid';
+import { isDefeated } from '../defeat';
+import { cargoRoom } from '../inventory';
+import { npcProfile, tradeLegTiles, tradeOutlook } from '../npc-decisions';
 import { missingInputs, onRelief, recipeRunning, type RecipeRun } from '../production';
 import { legRisk, liveRoadNews, shipmentOf } from '../road-news';
-import type { RoadNewsKind, World } from '../types';
+import type { RoadNewsKind, Vehicle, World } from '../types';
 import type { SimText } from './sim-mode';
 
 export type EconInput = { good: string; name: string; have: number; need: number };
@@ -18,10 +21,10 @@ export type EconShop = { id: string; name: string; x: number; y: number; goods: 
 export type EconShipment = { truck: string; truckName: string; good: string; goodName: string; units: number; fromId: string; toId: string; from: string; to: string; fromXY: { x: number; y: number }; toXY: { x: number; y: number } };
 export type EconNews = { turn: number; hoursAgo: number; kind: RoadNewsKind; kindText: string; good: string; goodName: string; units: number; fromId: string; toId: string; from: string; to: string };
 export type EconEdge = { good: string; goodName: string; fromId: string; toId: string; from: string; to: string };
-export type EconTrade = { good: string; goodName: string; fromId: string; toId: string; from: string; to: string; buy: number; sell: number; gain: number; crates: number; tiles: number; distanceText: string; risky: boolean };
+export type EconTrade = { good: string; goodName: string; fromId: string; toId: string; from: string; to: string; buy: number; sell: number; gain: number; crates: number; load: number; fuel: number; risk: number; net: number; worth: boolean; tiles: number; distanceText: string; risky: boolean };
 export type EconTag = 'short' | 'rationing' | 'slowImport' | 'onOrder';
 export type SampleEvent = { shop: string; kind: SiteEventKind | RoadNewsKind; good: string };
-export type Economy = { turn: number; flowHours: number; shops: EconShop[]; shipments: EconShipment[]; news: EconNews[]; edges: EconEdge[]; trades: EconTrade[] };
+export type Economy = { turn: number; flowHours: number; shops: EconShop[]; shipments: EconShipment[]; news: EconNews[]; edges: EconEdge[]; trades: EconTrade[]; trader: string | null };
 
 const TURNS_PER_HOUR = TIME.turnsPerDay / 24;
 const SUPPLY_OF_GOOD: Record<string, 'fuel' | 'supplies'> = Object.fromEntries(Object.entries(SERVICE_GOOD).map(([kind, good]) => [good, kind as 'fuel' | 'supplies']));
@@ -58,6 +61,7 @@ export class StockFlows {
 }
 
 export function economyOf(world: World, flows: StockFlows, text: SimText): Economy {
+  const trader = referenceTrader(world);
   return {
     turn: world.turn,
     flowHours: flows.hours(world.turn),
@@ -65,7 +69,8 @@ export function economyOf(world: World, flows: StockFlows, text: SimText): Econo
     shipments: shipmentsOf(world, text),
     news: newsOf(world, text),
     edges: graphEdges().map((e) => ({ good: e.good, goodName: text.good(e.good), fromId: e.from, toId: e.to, from: text.site(e.from), to: text.site(e.to) })),
-    trades: tradesOf(world, text),
+    trades: trader ? tradesOf(world, trader, text) : [],
+    trader: trader ? text.truck(world, trader) : null,
   };
 }
 
@@ -207,16 +212,22 @@ function newsOf(world: World, text: SimText): EconNews[] {
   }));
 }
 
-function tradesOf(world: World, text: SimText): EconTrade[] {
-  const best = new Map<string, EconTrade>();
-  for (const trade of Object.keys(world.shops).flatMap((from) => tradesFrom(world, from, text))) {
-    const known = best.get(trade.good);
-    if (!known || trade.gain > known.gain) best.set(trade.good, trade);
-  }
-  return [...best.values()].sort((a, b) => b.gain - a.gain);
+export function referenceTrader(world: World): Vehicle | null {
+  const traders = world.vehicles.filter((v) => v.brain?.traits?.includes('trader') && !isDefeated(v));
+  return traders.reduce<Vehicle | null>((best, v) => (best === null || cargoRoom(v) > cargoRoom(best) ? v : best), null);
 }
 
-function tradesFrom(world: World, from: string, text: SimText): EconTrade[] {
+function tradesOf(world: World, trader: Vehicle, text: SimText): EconTrade[] {
+  const spend = npcProfile(trader).tradeStake;
+  const best = new Map<string, EconTrade>();
+  for (const trade of Object.keys(world.shops).flatMap((from) => tradesFrom(world, trader, spend, from, text))) {
+    const known = best.get(trade.good);
+    if (!known || trade.net > known.net) best.set(trade.good, trade);
+  }
+  return [...best.values()].sort((a, b) => Number(b.worth) - Number(a.worth) || b.net - a.net);
+}
+
+function tradesFrom(world: World, trader: Vehicle, spend: number, from: string, text: SimText): EconTrade[] {
   const source = shopState(world, from);
   return Object.keys(source.goods).flatMap((good) => {
     const crates = stockForSale(world, from, good);
@@ -225,8 +236,10 @@ function tradesFrom(world: World, from: string, text: SimText): EconTrade[] {
     return Object.keys(world.shops).filter((to) => to !== from && tradedGoods(to).includes(good)).flatMap((to) => {
       const sell = goodPrice(to, shopState(world, to), good, 'sell', ECONOMY.spread);
       if (sell <= buy) return [];
-      const tiles = Math.hypot(siteOf(from).pos.x - siteOf(to).pos.x, siteOf(from).pos.y - siteOf(to).pos.y);
-      return [{ good, goodName: text.good(good), fromId: from, toId: to, from: text.site(from), to: text.site(to), buy, sell, gain: sell - buy, crates, tiles, distanceText: text.distance(tiles), risky: legRisk(world, from, to) > 0 }];
+      const plan = { source: from, good, sellShop: to };
+      const tiles = tradeLegTiles(plan);
+      const outlook = tradeOutlook(world, trader, plan, spend, tiles);
+      return [{ good, goodName: text.good(good), fromId: from, toId: to, from: text.site(from), to: text.site(to), buy, sell, gain: sell - buy, crates, load: outlook.count, fuel: outlook.fuel, risk: outlook.risk, net: outlook.net, worth: outlook.worth, tiles, distanceText: text.distance(tiles), risky: legRisk(world, from, to) > 0 }];
     });
   });
 }

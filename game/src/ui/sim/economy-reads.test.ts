@@ -3,7 +3,7 @@ import { economyOf, StockFlows, type Economy } from '../../sim/progression/sim-e
 import { sampleOf, simWorld } from '../../sim/progression/sim-mode';
 import type { World } from '../../sim/types';
 import { TEST_MAP } from '../../test/map';
-import { hoursSince, lineAlertsOf, MarketHistory, needsOf, whyShort } from './economy-reads';
+import { hoursSince, lineAlertsOf, MarketHistory, needsOf, rankedAlerts, whyShort } from './economy-reads';
 import { SIM_TEXT } from './sim-text';
 
 function emptied(world: World, shop: string, good: string): World {
@@ -69,6 +69,24 @@ describe('economy reads', () => {
     expect(empties.map((n) => n.good.good)).toContain(first.good);
     expect(needs.slice(0, empties.length).every((n) => n.empty)).toBe(true);
     expect(needs.some((n) => !n.empty && n.good.good === second.good)).toBe(second.shortBelow >= 1);
+  });
+
+  it('ranks an empty good first, then stopped lines, then short goods by how far below', () => {
+    const forge = emptied(world, 'nose', 'scrap');
+    const other = forge.shops['bowl'] ? 'bowl' : Object.keys(forge.shops).find((id) => id !== 'nose')!;
+    const goods = Object.keys(forge.shops[other].goods);
+    forge.shops[other].goods[goods[0]] = 0;
+    const economy = read(forge);
+    const history = new MarketHistory();
+    history.reset([sampleOf(forge, forge.turn)]);
+    const ranked = rankedAlerts(needsOf(economy, history), lineAlertsOf(economy));
+    const kinds = ranked.map((a) => (a.kind === 'line' ? 'line' : a.need.empty ? 'empty' : 'short'));
+    expect(kinds[0]).toBe('empty');
+    expect(kinds).toContain('line');
+    const order = ['empty', 'line', 'short'];
+    expect(kinds.map((k) => order.indexOf(k))).toEqual([...kinds.map((k) => order.indexOf(k))].sort((a, b) => a - b));
+    const shorts = ranked.flatMap((a) => (a.kind === 'need' && !a.need.empty ? [a.need.good.pressure] : []));
+    expect(shorts).toEqual([...shorts].sort((a, b) => b - a));
   });
 
   it('counts the hours a stock has held, and none when it has recovered', () => {

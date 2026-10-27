@@ -3,7 +3,7 @@ import type { EconFlow, EconGood, EconLine, EconShipment, EconShop, EconTrade, E
 import { devEl as el } from "../dom";
 import { moneyAmount, moneyDelta, moneyText } from "../units";
 import { sparkOf, type SparkSize } from "./economy-draw";
-import { whyShort, type MarketHistory } from "./economy-reads";
+import { tradeSkipReason, whyShort, type MarketHistory } from "./economy-reads";
 import { swatch } from "./run-chart";
 
 const TURNS_PER_HOUR = TIME.turnsPerDay / 24;
@@ -154,16 +154,20 @@ export function tradeText(trade: EconTrade): string {
 }
 
 function tradeRow(ctx: Ctx, trade: EconTrade): HTMLElement {
-  return el("div", { class: "sim-trade" },
+  const skipped = tradeSkipReason(trade);
+  const title = `${moneyDelta(trade.gain)} a crate, ${trade.crates} on sale. Fuel ${moneyText(trade.fuel)}, road risk ${moneyText(trade.risk)}.`;
+  return el("div", { class: "sim-trade", title },
     goodLink(ctx, trade.good, trade.goodName),
-    el("span", {}, tradeText(trade), trade.risky ? el("span", { class: "tag warn" }, "Robbed on this road") : null),
-    el("span", { class: "num good" }, `${moneyDelta(trade.gain)} a crate`),
-    el("span", { class: "dim num" }, `${trade.crates} on sale`),
+    el("span", {}, tradeText(trade),
+      trade.risky ? el("span", { class: "tag warn" }, "Robbed on this road") : null,
+      skipped ? el("span", { class: "tag bad" }, skipped) : null),
+    el("span", { class: toneClass("num", skipped ? "bad" : "good") }, `${moneyDelta(trade.net)} on ${trade.load} ${trade.load === 1 ? "crate" : "crates"}`),
+    el("span", { class: "dim num" }, `Fuel ${moneyText(trade.fuel)}`),
     el("span", { class: "dim num" }, trade.distanceText));
 }
 
 export function tradeRows(ctx: Ctx, trades: EconTrade[]): HTMLElement {
-  if (trades.length === 0) return el("div", { class: "dim" }, "No price gap pays");
+  if (trades.length === 0) return el("div", { class: "dim" }, ctx.economy.trader ? "No price gap pays" : "No trader truck is alive to judge a run");
   return el("div", { class: "sim-econ-group" }, ...trades.map((t) => tradeRow(ctx, t)));
 }
 
