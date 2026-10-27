@@ -9,7 +9,8 @@ import { route } from '../path';
 import type { Obstacle } from '../types';
 import { dist, type Vec } from '../vec';
 import { stampOverlay } from './astar';
-import { CELL, CLEARANCE, climbTaste, slowAt, dynamicBlockers, makeTaste, navLayer, tasteAt, tasted, tasteKey, tasteOf, terrainNav, tileIndex } from './layer';
+import { CELL, CLEARANCE, climbTaste, slowAt, dynamicBlockers, makeTaste, navLayer, tasteAt, tasted, tasteKey, tasteOf, terrainNav, tileIndex, warmLayers } from './layer';
+import { CHASSIS } from '../../data/chassis';
 import { editableTerrain, emptyWorld, npcBrain } from '../testkit';
 import { newWorld } from '../world';
 import { TEST_MAP } from '../../test/map';
@@ -220,6 +221,22 @@ describe('breakable props', () => {
       expect(Buffer.from(layer.blocked.buffer).equals(Buffer.from(fresh.blocked.buffer))).toBe(true);
     }
   });
+
+  it('warms every chassis radius on the map to the same bytes as building each radius alone', () => {
+    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const radii = [...new Set(Object.values(CHASSIS).map((c) => c.radius))];
+    const alone = { ...w.terrain };
+    warmLayers(w.terrain, w.obstacles, radii);
+    const bytes = (a: ArrayBufferView) => Buffer.from(a.buffer, a.byteOffset, a.byteLength);
+    for (const r of radii) {
+      const warmed = navLayer(w.terrain, w.obstacles, r);
+      const built = navLayer(alone, w.obstacles, r);
+      expect(bytes(warmed.blocked).equals(bytes(built.blocked))).toBe(true);
+      expect(bytes(warmed.coarse.region.local).equals(bytes(built.coarse.region.local))).toBe(true);
+      expect(bytes(warmed.coarse.edgeStart).equals(bytes(built.coarse.edgeStart))).toBe(true);
+      expect(bytes(warmed.coarse.edges).equals(bytes(built.coarse.edges))).toBe(true);
+    }
+  }, budget(180_000));
 
   it('keeps a shack blocked', () => {
     const w = emptyWorld();
