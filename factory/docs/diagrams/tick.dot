@@ -6,10 +6,10 @@ digraph tick {
   edge [color="#374151", penwidth=1.8, arrowsize=0.8, fontname="Helvetica", fontsize=11];
   H [label="Write\nhealth file"]; Q [label="Paused?", shape=diamond, style=filled, width=1.1]; IN [label="Run inbox\ncommands"];
   J [label="Check jobs\nkill or resume"]; K [label="Intake"]; CL [label="Clean builds,\nclones, logs"];
-  SW [label="Sweep stuck cards\nrecord, repair,\nrelease half a batch"];
+  SW [label="Sweep stuck cards\nrecord, repair,\nrelease half a batch"]; RV [label="Revive voting cards\nreopen an unposted\nproposal of an open issue"];
   DSK [label="Disk and\nmemory ok?", shape=diamond, style=filled, width=1.1]; PK [label="Pick jobs by priority,\nskip held cards"]; ST [label="Start each job\nthat fits"];
   STOP [label="Skip the rest", fillcolor="#f3f4f6", color="#6b7280"];
-  H -> Q -> IN -> J -> CL -> SW -> DSK -> PK -> ST -> K [weight=100];
+  H -> Q -> IN -> J -> CL -> SW -> RV -> DSK -> PK -> ST -> K [weight=100];
   edge [color="#6b7280", fontcolor="#6b7280", style=dashed, penwidth=1.3, weight=0];
   Q -> STOP [label="yes"]; DSK -> K [label="no"];
 }

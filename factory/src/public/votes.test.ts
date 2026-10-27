@@ -225,9 +225,29 @@ describe('reviveVotes', () => {
     await reviveVotes(f.ctx, f.cards);
     expect(f.store.proposal(7)?.closedAt).toBeNull();
     expect(f.logs.filter((line) => line.includes('open again'))).toHaveLength(1);
-    expect(f.calls).toEqual([]);
+    expect(f.calls).toEqual(['issue 7']);
     await postProposal(f.ctx, f.store);
     expect(f.store.proposal(7)?.postedAt).not.toBeNull();
+  });
+
+  it('keeps the proposal of a closed issue closed, so the post step does not close it again on every tick', async () => {
+    const f = publicFake();
+    f.store.addProposal(7, 'Winch', f.clock.now);
+    f.issueState[7] = 'CLOSED';
+    f.cards = [voting(7)];
+    for (let tick = 0; tick < 3; tick++) {
+      await reviveVotes(f.ctx, f.cards);
+      await postProposal(f.ctx, f.store);
+    }
+    expect(f.store.proposal(7)?.closedAt).not.toBeNull();
+    expect(f.store.proposal(7)?.postedAt).toBeNull();
+    expect(f.messages).toEqual([]);
+    expect(f.logs.filter((line) => line.includes('open again'))).toEqual([]);
+    expect(f.logs.filter((line) => line.includes('the issue is closed'))).toHaveLength(1);
+    expect(f.calls.filter((call) => call !== 'issue 7')).toEqual([]);
+    f.issueState[7] = 'OPEN';
+    await reviveVotes(f.ctx, f.cards);
+    expect(f.store.proposal(7)?.closedAt).toBeNull();
   });
 
   it('removes the voting label of a card with no proposal, so triage runs again', async () => {
