@@ -44,7 +44,7 @@ import {
   mountedParts,
 } from "./grid";
 import { makePart } from "./factory";
-import { maxHp, partValue } from "./wear";
+import { maxHp, partValue, scrapValue } from "./wear";
 import { addGoods, canStowPart, spareParts, stowPart } from "./inventory";
 import { canScavenge, salvageNear, scavenge } from "./locations";
 import { consumeSupplies } from "./supplies";
@@ -706,13 +706,13 @@ describe("part value and trade price", () => {
     expect(partDef(rack.defId).value).toBeGreaterThan(partDef(mg.defId).value);
   });
 
-  it("rebuild cost at 0 HP pays the full repair share of value", () => {
+  it("a full repair costs 0.425 of the part's value, for every part def, at Machining 0", () => {
     const w = startAtBowl();
-    const part = makePart(w, "mg", 0);
-    part.hp = 0;
-    expect(partRepairCost(w, part)).toBe(
-      Math.ceil(ECONOMY.repairShare * partValue(part)),
-    );
+    for (const defId of Object.keys(PARTS)) {
+      const part = makePart(w, defId, 0);
+      part.hp = 0;
+      expect(partRepairCost(w, part)).toBe(Math.ceil(0.425 * partValue(part)));
+    }
   });
 
   it("refuses to price a rebuild for a junk part", () => {
@@ -723,16 +723,17 @@ describe("part value and trade price", () => {
     expect(() => partRepairCost(w, part)).toThrow(/junk/);
   });
 
-  it("loses money on a full rebuild then sale, for every part def, at Social 0", () => {
+  it("a full repair before sale pays back more than it costs, for every part def with value above its scrap floor, at Social 0", () => {
     const w = startAtBowl();
     for (const defId of Object.keys(PARTS)) {
       const part = makePart(w, defId, 0);
       part.hp = 0;
+      if (partValue(part) * (1 - ECONOMY.spread) <= scrapValue(part) * 2) continue;
       const cost = partRepairCost(w, part);
       const saleBefore = partTradePrice(w, w.vehicles[0], part, "sell");
       part.hp = partDef(defId).hp;
       const saleAfter = partTradePrice(w, w.vehicles[0], part, "sell");
-      expect(cost).toBeGreaterThan(saleAfter - saleBefore);
+      expect(saleAfter - saleBefore).toBeGreaterThan(cost);
     }
   });
 });
