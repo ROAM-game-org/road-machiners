@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { EFFORT } from '../src/data/market.ts';
 import { heldSearch, rollContract, searchCandidates, shopAt, siteOf } from '../src/sim/market.ts';
-import { recordTurns } from '../src/sim/progression/record.ts';
+import { recordTurns } from '../src/sim/progression/record-node.ts';
 import { measuredRewardTurns, searchEffort, turnLine } from '../src/sim/progression/turn-log.ts';
 
 const USAGE = 'Usage: npm run search:effort -- --seed <n> --turns <n> [--post-until <turn>] [--out tmp/search-effort]';
