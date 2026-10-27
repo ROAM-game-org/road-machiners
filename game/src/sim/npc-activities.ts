@@ -45,7 +45,7 @@ import { clamp, dist, leadsAwayBy, pointsAway, type Vec } from './vec';
 import { canVehicleSee } from './vision';
 import { isWatching, startWatch, watchOver } from './watch-posts';
 import { chooseOn, comesInSight, sensedAt, senseTracks, trackOf } from './tracks';
-import { dropTow, escortsOf, follows, isOnRope, mercsInSight, npcHomeSite, offerEscort, runTow, steerFollow, steerToStranded, strandedAt, towGoal, towHeldBy, towStop } from './tow';
+import { claimClient, dropTow, escortsOf, follows, isOnRope, mercsInSight, npcHomeSite, offerEscort, runTow, steerFollow, steerToStranded, strandedAt, towGoal, towHeldBy, towStop } from './tow';
 import { joinLeader, safeBesidePartner } from './pairs';
 import { musterGoal, onCrewCall, steerMuster } from './crews';
 import { isDefeated, isKnockedOut } from './defeat';
@@ -778,7 +778,7 @@ export function startTow(world: World, vehicle: Vehicle, client: Vehicle, at: Ve
   const turnedDown = stateOf(world, 'turnedDown', vehicle.id, client.id);
   if (turnedDown) endState(world, turnedDown, 'fulfilled');
   vehicle.brain!.noticed[`preySeen:${client.id}`] = world.turn;
-  addState(world, 'answering', vehicle.id, client.id, { kind: 'none' });
+  claimClient(world, vehicle, client);
   pushGoal(world, vehicle, createActivity('tow', client.id, { ...at }, 'helpStranded'));
 }
 
