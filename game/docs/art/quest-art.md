@@ -15,7 +15,8 @@ The style block names only the medium, the brushwork and the palette. Light, moo
 Rules for the scene block:
 
 - A place from the game must look like it does in the game. Take a screenshot with `npm run site:shot` first and describe what it shows. The quest text, the picture and the game look must agree in broad strokes, so fix the text when it describes a different place. Read the map like tabletop miniatures: a few models stand for a bigger, busier place, so paint the place they stand for, not a one to one copy.
-- Describe the place, the light and the mood. Name only the few objects that carry the scene.
+- Describe the place, the light and the mood. Show the place's real buildings and trades at their size, never one of each: a market is many stalls, a garage several bays.
+- A town picture shows the place, not the people of its quests. Named locals stay out of it.
 - Prefer plain views at eye level. Stock shots, like a hero on a cliff with binoculars, read as AI art.
 - Say what is missing when the model would add it. A roofless room needs "nothing is left overhead", or the floor gets beam shadows.
 - Truck guns sit on motor-driven turrets that are fired from the cab. Say that nobody stands at the gun, or the model draws a gunner holding the grips.
