@@ -5,7 +5,7 @@ import { isShield, PARTS, partDef } from '../../data/parts';
 import { BODY_PARTS, WEAPON_POOLS, weaponLook } from '../../render/partLooks';
 import { unitsOf } from '../../sim/body';
 import { makePart } from '../../sim/factory';
-import { gridOf, isMounted, MOUNT_CELLS, mountSpots, placementError } from '../../sim/grid';
+import { gridOf, isMounted, itemCells, MOUNT_CELLS, mountSpots, placementError, type Grid } from '../../sim/grid';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { SLOW } from '../../test/gun-clearance-kit';
@@ -160,6 +160,37 @@ describe('small parts on every deck cell', () => {
       const probe: GridItem = { id: 'probe', kind: 'part', part: box, x: 0, y: 0, rot: 0 };
       for (const spot of mountSpots(gridOf(base), base.items, probe, MOUNT_CELLS.store)) {
         faults.push(...faultsOf({ ...base, items: [...base.items, { ...probe, ...spot }] }));
+      }
+    }
+    expect(faults).toEqual([]);
+  });
+});
+
+function atEdge(grid: Grid, item: GridItem): boolean {
+  const letter = grid.cells[item.y][item.x];
+  return itemCells(item).some(({ x, y }) => [-1, 0, 1].some((dy) => [-1, 0, 1].some((dx) => grid.cells[y + dy]?.[x + dx] !== letter)));
+}
+
+describe('mounted small parts on every edge cell', () => {
+  it('every mounted cargo, scanner, store and utility part on every legal edge cell and turn of every chassis stands on the truck', { timeout: SLOW * 10 }, () => {
+    const faults: string[] = [];
+    const kinds = new Set(['cargo', 'scanner', 'store', 'utility']);
+    const defs = Object.values(PARTS).filter((def) => kinds.has(def.kind) && !BODY_PARTS.has(def.id));
+    for (const chassisId of Object.keys(CHASSIS)) {
+      const w = emptyWorld();
+      const base = addVehicle(w, 'scrapjaw', chassisId, [], { x: 40, y: 30 });
+      const grid = gridOf(base);
+      for (const def of defs) {
+        const probe: GridItem = { id: 'probe', kind: 'part', part: makePart(w, def.id, 0), x: 0, y: 0, rot: 0 };
+        for (let y = 0; y < grid.h; y++) {
+          for (let x = 0; x < grid.w; x++) {
+            for (const rot of [0, 1] as const) {
+              const item = { ...probe, x, y, rot };
+              if (placementError(grid, base.items, item, null) !== null || !isMounted(chassisId, item) || !atEdge(grid, item)) continue;
+              faults.push(...faultsOf({ ...base, items: [...base.items, item] }));
+            }
+          }
+        }
       }
     }
     expect(faults).toEqual([]);
