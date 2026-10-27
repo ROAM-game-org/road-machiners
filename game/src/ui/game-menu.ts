@@ -51,6 +51,7 @@ export const CONTROLS: ControlGroup[] = [
       { keys: [t("help.key.holdSpace")], does: t("help.does.fastForward") },
       { keys: [click], on: t("help.on.yourTruck"), does: t("help.does.brake") },
       { keys: ["R"], does: t("help.does.manual") },
+      { keys: ["Z"], does: t("help.does.pace") },
       { keys: ["P"], does: t("help.does.autoPatch") },
     ],
   },

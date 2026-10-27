@@ -7,7 +7,8 @@ import { callError, DialoguePanel, type DialogueHost } from "./dialogue";
 import { markError } from "../sim/detect";
 import { hasExplorationMap, modeRules } from "../sim/settings";
 import { playerCanAct } from "../sim/world";
-import type { CrimeCase, Vehicle, World } from "../sim/types";
+import type { CrimeCase, PaceStep, Vehicle, World } from "../sim/types";
+import { PACE_STEPS, paceOf } from "../sim/steering";
 import { caseOwed, knownCasesOn } from "../sim/crime";
 import { workOf, type Work } from "../sim/states";
 import { isAutoPatch } from "../sim/jobs";
@@ -43,9 +44,9 @@ import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, t
 import { createCompassDial, createIcon, createSpeedDial, repairingPart } from "./cards";
 import { aimMarks, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
-import { createSwitch } from "./switch";
+import { createStepSwitch, createSwitch } from "./switch";
 import { Tips, type TipSwitch } from "./tips";
-import { moneyEl } from "./units";
+import { kph, moneyEl } from "./units";
 import { playerVehicle } from "../sim/damage";
 import { playerGuard } from "../sim/hire";
 import { affordableRanks, basicSkill, hasBasic, hasPerk, pendingPerkPairs } from "../sim/progress";
@@ -116,6 +117,8 @@ type HudActions = {
   openJournal: () => void;
   openMap: () => void;
   toggleManual: () => void;
+  cyclePace: () => void;
+  paceStep: () => PaceStep;
   toggleAutoRepair: () => void;
   toggleOverdrive: () => void;
   toggleHeadlights: () => void;
@@ -574,9 +577,11 @@ export class Hud {
     this.tips.update(w, this.actions.autoTravel());
     if (!this.top.firstChild) this.top.append(this.clockSlot, this.speedSlot, this.readoutSlot, this.actionSlot);
     this.renderClock(readout.clock);
-    this.renderSpeedometer(readout, busy);
+    const step = this.actions.paceStep();
+    const pace = paceOf(w, playerVehicle(w), step);
+    this.renderSpeedometer(readout, busy, pace === undefined || readout.manual ? null : kph(pace));
     this.fillReadouts(readout);
-    this.renderActions(w, readout.manual, busy);
+    this.renderActions(w, readout.manual, busy, step);
   }
 
   private renderClock(clock: ReturnType<typeof getHudReadout>["clock"]): void {
@@ -587,7 +592,7 @@ export class Hud {
     );
   }
 
-  private renderSpeedometer(readout: ReturnType<typeof getHudReadout>, busy: boolean): void {
+  private renderSpeedometer(readout: ReturnType<typeof getHudReadout>, busy: boolean, pace: number | null): void {
     const dial = el(
       "button",
       {
@@ -597,7 +602,7 @@ export class Hud {
         disabled: busy,
         onclick: () => this.actions.openInventory(),
       },
-      createSpeedDial(readout.speed, readout.maxSpeed),
+      createSpeedDial(readout.speed, readout.maxSpeed, pace),
       el("span", { class: "speed-value" }, num(readout.speed, "int")),
       createIcon("truck"),
     );
@@ -648,7 +653,7 @@ export class Hud {
     );
   }
 
-  private renderActions(w: World, manual: boolean, busy: boolean): void {
+  private renderActions(w: World, manual: boolean, busy: boolean, step: PaceStep): void {
     this.actionSlot.replaceChildren(
       createSwitch({
         on: t("hud.manual"),
@@ -658,6 +663,14 @@ export class Hud {
         reason: busy ? TURN_PLAYING : null,
         title: t("hud.manualTitle"),
         onclick: () => this.actions.toggleManual(),
+      }),
+      createStepSwitch({
+        steps: PACE_STEPS.map((s) => t(`hud.pace.${s}`)),
+        at: PACE_STEPS.indexOf(step),
+        key: "Z",
+        reason: manual ? t("hud.paceManual") : busy ? TURN_PLAYING : null,
+        title: t("hud.paceTitle"),
+        onclick: () => this.actions.cyclePace(),
       }),
       createSwitch({
         on: t("hud.autoPatch"),

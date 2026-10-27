@@ -198,6 +198,7 @@ export const UI: Translation<typeof EN> = {
   'help.does.fastForward': 'Ускорить',
   'help.does.brake': 'Тормоз',
   'help.does.manual': 'Ручное вождение',
+  'help.does.pace': 'Скорость на маршруте',
   'help.does.autoPatch': 'Авторемонт',
   'help.does.stopAtPad': 'Встать на площадку',
   'help.does.padWork': 'Торговля, ремонт или добыча',

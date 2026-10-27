@@ -14,6 +14,32 @@ export interface SwitchOptions {
   onclick: () => void;
 }
 
+export interface StepSwitchOptions {
+  steps: Msg[];
+  at: number;
+  key: string;
+  title: Msg;
+  reason?: Msg | null;
+  onclick: () => void;
+}
+
+export function createStepSwitch(o: StepSwitchOptions): HTMLElement {
+  const reason = o.reason ?? null;
+  return el(
+    "button",
+    {
+      class: "switch",
+      "aria-disabled": reason === null ? undefined : "true",
+      "aria-label": o.steps[o.at],
+      title: reason ?? keyLabel(o.title, o.key),
+      onclick: () => reason === null && o.onclick(),
+    },
+    el("span", { class: "switch-option" }, o.steps[o.at]),
+    switchLever(o.at === 0 ? "up" : o.at === o.steps.length - 1 ? "down" : "mid"),
+    keyCorner(o.key),
+  );
+}
+
 export function keyCorner(key: string): HTMLElement {
   return el("kbd", { class: "key-corner" }, t("ui.key", { key }));
 }
@@ -37,9 +63,9 @@ export function createSwitch(o: SwitchOptions): HTMLElement {
 }
 
 function switchHandle(o: SwitchOptions): HTMLElement {
-  return o.locked ? createIcon("lock") : switchLever(o.checked);
+  return o.locked ? createIcon("lock") : switchLever(o.checked ? "up" : "down");
 }
 
-function switchLever(up: boolean): HTMLElement {
-  return el("span", { class: up ? "switch-lever up" : "switch-lever down" }, el("span", { class: "switch-nut" }), el("span", { class: "switch-bat" }));
+function switchLever(position: "up" | "mid" | "down"): HTMLElement {
+  return el("span", { class: `switch-lever ${position}` }, el("span", { class: "switch-nut" }), el("span", { class: "switch-bat" }));
 }

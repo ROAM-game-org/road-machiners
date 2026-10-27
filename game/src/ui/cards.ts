@@ -172,13 +172,14 @@ export function createCompassDial(heading: number): HTMLElement {
   return dial;
 }
 
-export function createSpeedDial(speed: number, maxSpeed: number): HTMLElement {
+export function createSpeedDial(speed: number, maxSpeed: number, pace: number | null = null): HTMLElement {
   const dial = el("span", { class: "speed-dial", "aria-hidden": "true" });
   const angle = dialShare(speed, DIAL_TOP) * 180;
   const limit = dialShare(maxSpeed, DIAL_TOP);
   const redline = `<path class="dial-redline" d="M${dialPoint(limit, DIAL_R - 1)}A${DIAL_R - 1} ${DIAL_R - 1} 0 0 1 ${dialPoint(1, DIAL_R - 1)}"/>`;
+  const held = pace === null ? "" : `<path class="dial-pace" d="M${dialPoint(dialShare(pace, DIAL_TOP), DIAL_R + 1)}L${dialPoint(dialShare(pace, DIAL_TOP), DIAL_R - 10)}"/>`;
   const needle = `<path class="dial-needle" d="M${DIAL_X - DIAL_R + 3} ${DIAL_Y}L${DIAL_X} ${DIAL_Y - 1.4}L${DIAL_X + 7} ${DIAL_Y - 0.8}V${DIAL_Y + 0.8}L${DIAL_X} ${DIAL_Y + 1.4}z" transform="rotate(${angle} ${DIAL_X} ${DIAL_Y})"/>`;
-  dial.innerHTML = `<svg viewBox="0 0 120 72"><rect class="dial-rim" x="1" y="1" width="118" height="70" rx="9"/><rect class="dial-face" x="4" y="4" width="112" height="64" rx="6"/>${redline}${DIAL_SCALE}${needle}<circle class="dial-pin" cx="${DIAL_X}" cy="${DIAL_Y}" r="4.5"/><circle class="dial-cap" cx="${DIAL_X}" cy="${DIAL_Y}" r="1.6"/></svg>`;
+  dial.innerHTML = `<svg viewBox="0 0 120 72"><rect class="dial-rim" x="1" y="1" width="118" height="70" rx="9"/><rect class="dial-face" x="4" y="4" width="112" height="64" rx="6"/>${redline}${DIAL_SCALE}${held}${needle}<circle class="dial-pin" cx="${DIAL_X}" cy="${DIAL_Y}" r="4.5"/><circle class="dial-cap" cx="${DIAL_X}" cy="${DIAL_Y}" r="1.6"/></svg>`;
   return dial;
 }
 

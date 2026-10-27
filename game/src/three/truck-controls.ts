@@ -12,8 +12,9 @@ import { canLoot, canScavenge, scavenge } from "../sim/locations";
 import { startSurvey } from "../sim/survey";
 import { shopAt } from "../sim/market";
 import { reachedOutpostAt } from "../sim/chaos-highway";
-import type { World } from "../sim/types";
-import { playerCanAct, Refused, setAutoRepair, setDirect, setHeadlights, setOverdrive } from "../sim/world";
+import type { MoveOrder, PaceStep, World } from "../sim/types";
+import { PACE_STEPS, pacedOrder, paceStepOf } from "../sim/steering";
+import { playerCanAct, Refused, setAutoRepair, setDirect, setHeadlights, setMoveOrder, setOverdrive } from "../sim/world";
 import { markError, markVehicle } from "../sim/detect";
 import { lookOver } from "../sim/look-over";
 import { hasBasic } from "../sim/progress";
@@ -31,13 +32,43 @@ export type ControlsHost = {
 };
 
 export class TruckControls {
+  pace: PaceStep = 'full';
+
   constructor(private host: ControlsHost) {}
+
+  syncPace(w: World): void {
+    this.pace = paceStepOf(w, playerVehicle(w));
+  }
+
+  order(next: MoveOrder): void {
+    const w = this.host.world();
+    this.host.apply(setMoveOrder(w, pacedOrder(w, playerVehicle(w), next, this.pace)));
+  }
+
+  cyclePace(): void {
+    const w = this.host.world();
+    if (!playerCanAct(w) || playerVehicle(w).direct) return;
+    this.pace = PACE_STEPS[(PACE_STEPS.indexOf(this.pace) + 1) % PACE_STEPS.length];
+    this.holdPace(w);
+  }
 
   toggleManual(): void {
     const w = this.host.world();
     if (!playerCanAct(w)) return;
     this.host.apply(setDirect(w, !playerVehicle(w).direct));
+    this.holdPace(this.host.world());
     this.host.refreshPlan();
+  }
+
+  private holdPace(w: World): void {
+    const me = playerVehicle(w);
+    if (!me.order || me.order.kind === 'brake') return this.host.apply(w);
+    try {
+      this.host.apply(setMoveOrder(w, pacedOrder(w, me, me.order, this.pace)));
+    } catch (err) {
+      if (!(err instanceof Refused)) throw err;
+      this.host.note(refusalText(w, err.refusal));
+    }
   }
 
   toggleAutoRepair(): void {

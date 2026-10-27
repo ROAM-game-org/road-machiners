@@ -42,6 +42,10 @@
   stroke: var(--danger);
   stroke-width: 2.5;
 }
+.dial-pace {
+  stroke: var(--accent);
+  stroke-width: 2.2;
+}
 .dial-needle {
   fill: var(--accent-warm);
 }
@@ -245,6 +249,12 @@
 }
 .up .switch-bat::after {
   top: -1px;
+}
+.mid .switch-bat {
+  top: 5px;
+}
+.mid .switch-bat::after {
+  top: 4px;
 }
 .down .switch-bat {
   bottom: -2px;

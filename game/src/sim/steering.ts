@@ -55,6 +55,8 @@ export function throttleFor(d: number, speed: number, mode: DriveMode): Throttle
   return "accelerate";
 }
 
+export const PACE_STEPS: readonly PaceStep[] = ["full", "half", "crawl"];
+
 export function orderSpeed(s: VehicleStats, speed: number, pos: Vec, order: MoveOrder, mode: DriveMode): number {
   if (order.kind === "brake") throw new Error("A brake order has no target speed");
   if (order.pace !== undefined) return clamp(order.pace, Math.max(0, speed - s.brake), Math.min(s.maxSpeed, speed + s.accel));
