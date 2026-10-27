@@ -10,7 +10,9 @@ import { addGoods, mountPart } from './inventory';
 import { makePart } from './factory';
 import { canFlee, canRob, decide, firepower, fitToHunt, holdsUp, huntingGrounds, isManageable, isWeak, judgeDanger, lawmanTowns, nearLawGate, raiderGrounds, optionChances, optionWeights } from './npc-decisions';
 import { isTerritory, siteGap, siteGates } from './sites';
-import { hazardZones, territoryEntries, territoryGrounds } from './territory';
+import { hazardZones } from './territory';
+import { divideTurf, huntingSpots, turfClaimants } from './hunting-spots';
+import { TEST_MAP } from '../test/map';
 import { noteHurt, thinkNpc, topGoal } from './npc-activities';
 import { chooseOn, trackOf } from './tracks';
 import { addState, endState, stateOf } from './states';
@@ -19,7 +21,7 @@ import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, 
 import { watchPost } from './watch-posts';
 import type { TraitId } from '../data/npcs';
 import type { Faction, NpcActivity, Vehicle, World } from './types';
-import { dist, polylineDist, type Vec } from './vec';
+import { dist, type Vec } from './vec';
 import { fuelCap, isStranded } from './stats';
 import { getResources } from './resources';
 import { RULES } from '../data/rules';
@@ -330,6 +332,7 @@ describe('decision weights', () => {
     const trader = addNpc(w, 'independent', 'trader', ['trader'], { x: 36, y: 30 });
     const me = w.player.vehicleId;
     w.player.fuel = 0;
+    w.player.beacon = true;
     addState(w, 'turnedDown', trader.id, me, { kind: 'none' });
     forceOption('strandedSeen', 'tow');
     w.rngState = rngStateForForcedRolls(6);
@@ -765,65 +768,38 @@ describe('hunting grounds', () => {
     for (const t of Object.values(NPCS).filter((t) => t.traits.includes('raider'))) expect([...TRAITS.raider.bases].sort(), t.id).toEqual(camps);
   });
 
-  const grounds = huntingGrounds();
-  const territories = REGION.locations.filter(isTerritory);
-  const lootPads = territories.flatMap(territoryGrounds);
-  const isPad = (p: Vec) => lootPads.some((pad) => dist(p, pad) < 0.01);
-  const onRoad = (p: Vec) => !isPad(p) && REGION.roads.some((road) => polylineDist(p, road) < 0.01);
+  const grounds = huntingGrounds(emptyWorld());
 
-  it('lie on lonely road stretches and in the territories', () => {
-    expect(lootPads.length).toBeGreaterThan(0);
-    for (const pad of lootPads) expect(grounds).toContainEqual(pad);
-    expect(grounds.filter(onRoad).length).toBeGreaterThanOrEqual(4);
+  it('are the baked hunting spots of the map', () => {
+    expect(grounds.length).toBeGreaterThan(0);
+    expect(grounds).toEqual(huntingSpots(TEST_MAP).spots);
   });
 
-  it('wait at every road into the Fallen Sun', () => {
-    const entries = territoryEntries(territories.find((t) => t.id === 'fallen-sun')!);
-    expect(entries).toHaveLength(3);
-    for (const p of entries) expect(grounds).toContainEqual(p);
+  it('keep twice the sight radius apart, so no two watch the same traffic', () => {
+    for (const p of grounds) for (const q of grounds) if (p !== q) expect(dist(p, q)).toBeGreaterThanOrEqual(2 * TERRAIN.vision.radius);
   });
 
-  it('reach into each territory, outside every hazard', () => {
-    for (const t of territories) for (const p of territoryGrounds(t)) expect(grounds).toContainEqual(p);
-    for (const p of grounds) for (const z of hazardZones()) expect(dist(p, z.pos)).toBeGreaterThan(z.radius);
+  it('stay out of every hazard and lawman reach, and away from towns, stalls and camps', () => {
+    const gates = lawmanTowns().flatMap((town) => siteGates(town));
+    const sites = [...REGION.towns, ...REGION.locations].filter((site) => !isTerritory(site));
+    for (const p of grounds) {
+      for (const z of hazardZones()) expect(dist(p, z.pos)).toBeGreaterThan(z.radius);
+      for (const gate of gates) expect(dist(p, gate)).toBeGreaterThan(HUNT.lawReach);
+      for (const site of sites) expect(siteGap(site, p)).toBeGreaterThanOrEqual(HUNT.siteDistance);
+    }
   });
 
-  describe('in Old Orchard', () => {
-    const orchard = territories.find((t) => t.id === 'orchard')!;
-    const orchardGrounds = territoryGrounds(orchard);
-    const watchesOrchard = (p: Vec) => orchardGrounds.some((q) => dist(p, q) <= Math.max(...HUNT.postRings));
-    const isOrchardGround = (p: Vec) => orchardGrounds.some((q) => q.x === p.x && q.y === p.y);
-
-    it('hold every orchard ground', () => {
-      expect(orchardGrounds.length).toBeGreaterThan(0);
-      for (const p of orchardGrounds) expect(grounds).toContainEqual(p);
-    });
-
-    it('send a prowling vulture to an orchard ground', () => {
-      const w = emptyWorld({ x: 30, y: 30 });
-      const npc = addNpc(w, 'independent', 'vulture', ['vulture'], { x: 30, y: 30 }, ['longRifle', 'stockEngine']);
-      forceOption('idle', 'prowl');
-      const goals = Array.from({ length: 40 }, (_, seed) => {
-        const x = cloneWorld(w);
-        x.rngState = Math.imul(seed + 1, 2654435761);
-        return thinkNpc(x, find(x, npc.id));
-      }).filter((g) => g.kind === 'prowl');
-      expect(goals.filter((g) => isOrchardGround(g.destination!)).length).toBeGreaterThan(0);
-    });
-
-    it('are shared by the raiders of Scrapjaw and Kiln', () => {
-      const camps = REGION.locations.filter((l) => l.kind === 'camp');
-      const w = emptyWorld();
-      const covering = Object.fromEntries(camps.map((c): [string, number] => [c.id, raiderGrounds(w, c).filter(watchesOrchard).length]).filter(([, n]) => n > 0));
-      expect(covering).toEqual({ kiln: 2, scrapjaw: 7 });
-    });
-  });
-
-  it('keeps road grounds far from every site, and none at a town or camp', () => {
-    const sites = [...REGION.towns, ...REGION.locations];
-    for (const p of grounds.filter(onRoad)) for (const site of sites) expect(siteGap(site, p)).toBeGreaterThanOrEqual(HUNT.siteDistance);
-    const guarded = [...REGION.towns, ...REGION.locations.filter((l) => l.kind === 'camp')];
-    for (const p of grounds) for (const site of guarded) expect(dist(p, site.pos)).toBeGreaterThan(site.radius + REGION.sites.pad.length);
+  it('send a prowling vulture to a hunting ground', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const npc = addNpc(w, 'independent', 'vulture', ['vulture'], { x: 30, y: 30 }, ['longRifle', 'stockEngine']);
+    forceOption('idle', 'prowl');
+    const goals = Array.from({ length: 40 }, (_, seed) => {
+      const x = cloneWorld(w);
+      x.rngState = Math.imul(seed + 1, 2654435761);
+      return thinkNpc(x, find(x, npc.id));
+    }).filter((g) => g.kind === 'prowl');
+    expect(goals.length).toBeGreaterThan(0);
+    for (const g of goals) expect(grounds).toContainEqual(g.destination);
   });
 });
 
@@ -833,16 +809,15 @@ describe('raider grounds', () => {
   const kiln = camps.find((c) => c.id === 'kiln')!;
   const lawGates = () => lawmanTowns().flatMap((town) => siteGates(town));
 
-  it('are watch posts of hunting grounds outside lawman reach, for each camp', () => {
+  it('are watch posts of the turf each camp claims, outside lawman reach', () => {
     const w = emptyWorld();
-    const posts = huntingGrounds().map((g) => watchPost(w, g));
+    const turf = divideTurf(huntingGrounds(w), turfClaimants());
     expect(lawmanTowns().map((t) => t.id).sort()).toEqual(['bowl', 'nose']);
     for (const camp of [scrapjaw, kiln]) {
+      const posts = turf.get(camp.id)!.map((g) => watchPost(w, g)).filter((p) => p !== null);
       expect(raiderGrounds(w, camp).length).toBeGreaterThanOrEqual(2);
-      for (const p of raiderGrounds(w, camp)) {
-        expect(posts).toContainEqual(p);
-        for (const gate of lawGates()) expect(dist(gate, p)).toBeGreaterThan(HUNT.lawReach);
-      }
+      expect(raiderGrounds(w, camp)).toEqual(posts);
+      for (const p of raiderGrounds(w, camp)) for (const gate of lawGates()) expect(dist(gate, p)).toBeGreaterThan(HUNT.lawReach);
     }
   });
 

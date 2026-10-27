@@ -14,21 +14,31 @@ I open a run of the canal gates and decide which fields drink first.
 
 = hub
 # checkpoint: start.hub
++ [About Bowl…]
+  -> about_bowl
++ {ruben_old or ruben_sun or found("fallen-sun") or ruben_water or found("dustwell")} [About the old days…]
+  -> about_old_days
++ {ruben_senate} [About the Senate…]
+  -> about_senate
++ [Goodbye.]
+  -> END
+
+= about_bowl
 + [What is this place?]
   This is Bowl, a farm laid in terraces down the inside of an old crater, and the canals still run.
   Folk say the whole basin was orchards once, from the rim to the bottom.
   ~ ruben_old = true
-  -> hub
+  -> about_bowl
 + [Who runs Bowl?]
   The canal families run Bowl through the <term=senate>Senate</term>.
   It's a slow way to decide anything, but nobody I know has starved waiting.
   ~ ruben_senate = true
-  -> hub
+  -> about_bowl
 + [Where can I get water, or find work?]
   Hattie keeps the cistern house and sells water to anyone with M.
   For work, ask Dag, who rides with the <term=farmers>Farmers</term> patrol and knows what hauls are waiting.
   ~ ruben_water = true
-  -> hub
+  -> about_bowl
 + [What does Bowl make?]
   Sorgut, mostly, and for every barrel I let through gates like mine the terraces give back three sacks.
   The weavers and the clinic need nothing from outside.
@@ -42,38 +52,46 @@ I open a run of the canal gates and decide which fields drink first.
   { short_of("batteries"):
     The workshop is out of batteries, so its radios lie open on the benches, waiting for power the way a dry field waits for its share of water.
   }
+  -> about_bowl
++ [Back.]
   -> hub
+
+= about_old_days
 + {ruben_old} [What happened to the orchards?]
   They say this basin was orchards once, then the sky fell and the fruit went with it, though folk still argue which went first.
   What fell is what folk call the Fallen Sun.
   ~ ruben_sun = true
-  -> hub
+  -> about_old_days
 + {ruben_sun and not found("fallen-sun")} [What is the Fallen Sun?]
   The Fallen Sun was a ship bigger than all of Bowl, folk say, and it came down burning and dug a crater out in the basin.
-  -> hub
+  -> about_old_days
 + {found("fallen-sun")} [What is the Fallen Sun really?]
   <term=nose>Nose</term> calls the ship a warship, and Hattie at the cistern house calls it a seed ship that lost its way.
   Nothing grows near it, and I know no worse thing to say of a place.
   { cult_broken(): Folk go out there after dark again, now the lamps have stopped crossing. | Stay away from it after dark, though, since the Sunward cross to it at dusk with their lamps, and no family along these canals would follow them. }
-  -> hub
+  -> about_old_days
 + {ruben_water || found("dustwell")} [What do you know about Dustwell?]
   <term=dustwell>Dustwell</term> is a well outpost up the north road, and the water trucks bring Bowl's water from there.
   Agnes Ondra keeps the pump in the Dustwell shed now, the one her uncle Wendell kept until he died at the Green Pit sluice.
+  -> about_old_days
++ [Back.]
   -> hub
+
+= about_senate
 + {ruben_senate} [Does everyone in Bowl get a vote?]
   Only citizens vote.
   The tenants who work the terraces have no vote, but Jory Baptiste speaks for them.
   I like Jory Baptiste, and I vote against him all the same.
-  -> hub
+  -> about_senate
 + {ruben_senate} [How slow is the Senate?]
   Slow enough that in the last drought <term=pierce>Pierce</term> Corporation offered the Senate a long loan.
   They argued over it for a whole season.
   ~ ruben_loan = true
-  -> hub
+  -> about_senate
 + {ruben_loan} [What came of the Pierce loan?]
   The Senate turned it down.
   Pierce wanted the canal gates as surety, and whoever holds the gates decides which fields drink first.
   If a dry year left Bowl unable to pay, Pierce would own the water.
+  -> about_senate
++ [Back.]
   -> hub
-+ [Goodbye.]
-  -> END

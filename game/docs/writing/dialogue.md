@@ -286,6 +286,12 @@ Humor comes from the speaker's own logic. The speaker does not know they are fun
 
 Good, Jory: "Either the pipe exists or those cabbages are saints."
 
+Read a joke word for word. If what it says is something the speaker can't mean, cut it and end on the plain fact.
+
+Bad, Jory: "My grandfather died one season short, which was bad timing, but he always kept his own schedule." Word for word, the grandfather chose when to die.
+
+Good, Jory: "My grandfather served nine years and three seasons, then died. The Senate counted the one season he was missing more carefully than all the years he'd served."
+
 Say a grim fact flat and let the player react. The flatness is what lands.
 
 Good, Sefa: "What we find of their dead, we bury with their boots on. Nobody on either side likes it, which is how you know it works."

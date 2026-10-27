@@ -1,31 +1,42 @@
-// Replay runs a recorded trace through the XP rules. It takes milliseconds, so XP numbers can be tuned without a new
-// recording. Perks and the feedback of skills into behavior are ignored. Each activity family keeps its own running
-// total of earned XP, and its curve marks the turn that total covers the cumulative cost of each rank: the pace of a
-
 import { TIME } from '../../data/time';
 import { MAIN_SKILL, MAX_RANK, SKILL_IDS, TARGET_DAYS, TARGET_TOLERANCE, XP_SOURCES } from '../../data/skills';
-import { accrueXp, ranksCoveredBy, type SkillProgress } from '../progress';
+import { accrueXp, cumulativeCost, type SkillProgress } from '../progress';
 import type { SkillId, XpSource } from '../types';
 import { isArchetype, type Archetype } from './bot';
 import { LEDGER_KEYS } from './orders';
 import type { DayRow, RunEnd, RunFailure, TraceLine } from './record';
 
-export type SkillCurve = { levels: (number | null)[]; total: number; perDay: number };
-export type Curve = Record<SkillId, SkillCurve>;
+export type FamilyXp = { total: number; perDay: number };
+export type PooledCurve = { total: number; perDay: number; one: (number | null)[]; every: (number | null)[] };
+export type Curve = { families: Record<SkillId, FamilyXp>; pooled: PooledCurve };
 
 export function replay(trace: readonly TraceLine[], turns: number): Curve {
   requireTurnOrder(trace, turns);
   const progress = freshProgress();
-  const levels = Object.fromEntries(SKILL_IDS.map((id) => [id, new Array<number | null>(MAX_RANK).fill(null)])) as Record<SkillId, (number | null)[]>;
   const earned = zeroBySkill();
+  const one = emptyRankDays();
+  const every = emptyRankDays();
+  let pooled = 0;
   for (const line of trace) {
-    const family = XP_SOURCES[line.source].skill;
-    const before = ranksCoveredBy(earned[family]);
-    earned[family] += accrueXp(progress, line.source, line.amount, line.difficulty, line.target, line.turn);
-    for (let rank = before + 1; rank <= ranksCoveredBy(earned[family]); rank++) levels[family][rank - 1] = line.turn;
+    const xp = accrueXp(progress, line.source, line.amount, line.difficulty, line.target, line.turn);
+    earned[XP_SOURCES[line.source].skill] += xp;
+    pooled += xp;
+    markReached(one, pooled, 1, line.turn);
+    markReached(every, pooled, SKILL_IDS.length, line.turn);
   }
   const days = turns / TIME.turnsPerDay;
-  return Object.fromEntries(SKILL_IDS.map((id) => [id, { levels: levels[id], total: earned[id], perDay: earned[id] / days }])) as Curve;
+  const families = Object.fromEntries(SKILL_IDS.map((id) => [id, { total: earned[id], perDay: earned[id] / days }])) as Record<SkillId, FamilyXp>;
+  return { families, pooled: { total: pooled, perDay: pooled / days, one, every } };
+}
+
+function emptyRankDays(): (number | null)[] {
+  return new Array<number | null>(MAX_RANK).fill(null);
+}
+
+function markReached(days: (number | null)[], pooled: number, skills: number, turn: number): void {
+  for (let rank = 1; rank <= MAX_RANK; rank++) {
+    if (days[rank - 1] === null && pooled >= skills * cumulativeCost(rank)) days[rank - 1] = turn;
+  }
 }
 
 function requireTurnOrder(trace: readonly TraceLine[], turns: number): void {
@@ -78,16 +89,16 @@ export function parseRunEnd(value: unknown): RunEnd | RunFailure | null {
 }
 
 export function targetMisses(curve: Curve, archetype: Archetype, turns: number): string[] {
-  return SKILL_IDS.flatMap((skill) => {
-    const table: Partial<Record<number, number>> = MAIN_SKILL[archetype] === skill ? TARGET_DAYS.main : TARGET_DAYS.off;
-    return Object.entries(table).flatMap(([level, day]) => levelMiss(skill, Number(level), day!, curve[skill].levels[Number(level) - 1], turns));
-  });
+  if (!Object.hasOwn(MAIN_SKILL, archetype)) throw new Error(`No main skill entry for archetype ${archetype}`);
+  const kind = MAIN_SKILL[archetype] === null ? 'every' : 'one';
+  const table: Partial<Record<number, number>> = TARGET_DAYS[kind];
+  return Object.entries(table).flatMap(([rank, day]) => levelMiss(kind, Number(rank), day!, curve.pooled[kind][Number(rank) - 1], turns));
 }
 
-function levelMiss(skill: SkillId, level: number, day: number, reached: number | null, turns: number): string[] {
+function levelMiss(kind: 'one' | 'every', level: number, day: number, reached: number | null, turns: number): string[] {
   const at = reached === null ? 'never' : `day ${(reached / TIME.turnsPerDay).toFixed(1)}`;
   const verdict = missVerdict(day * TIME.turnsPerDay, reached, turns);
-  return verdict ? [`${skill} rank ${level}: ${at}, target day ${day}, ${verdict}`] : [];
+  return verdict ? [`${kind} skill rank ${level}: ${at}, target day ${day}, ${verdict}`] : [];
 }
 
 function missVerdict(target: number, reached: number | null, turns: number): 'too early' | 'too late' | null {

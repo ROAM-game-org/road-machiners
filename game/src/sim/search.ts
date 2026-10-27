@@ -19,8 +19,11 @@ export function searchStream(seed: number): Rng {
 }
 
 function estimateTurns(world: World, v: Vehicle, stock: SalvageStock): number {
+  return stockSearchTurns(stock, 1 - skillEffect(world, v, 'machining', 'search'));
+}
+
+export function stockSearchTurns(stock: SalvageStock, cut: number): number {
   const units = hiddenUnits(stock) || salvageUnits(stock);
-  const cut = 1 - skillEffect(world, v, 'machining', 'search');
   return Math.max(1, Math.ceil((units / SALVAGE.unitsPerTurn) * cut));
 }
 
