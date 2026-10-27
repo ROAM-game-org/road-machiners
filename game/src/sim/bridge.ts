@@ -73,10 +73,37 @@ function decksTouch(a: Deck, b: Deck): boolean {
 export const DECKS: readonly Deck[] = buildDecks(TERRAIN.features.decks);
 
 type RailBox = { deck: Deck; walls: [Vec, Vec][]; minX: number; maxX: number; minY: number; maxY: number };
-export type DeckSet = { decks: readonly Deck[]; boxes: readonly RailBox[] };
+export type DeckSet = { decks: readonly Deck[]; boxes: readonly RailBox[]; cells: ReadonlyMap<number, readonly RailBox[]> };
+
+const DECK_CELL = 16;
 
 export function deckSet(decks: readonly Deck[]): DeckSet {
-  return { decks, boxes: decks.map(railBox) };
+  const boxes = decks.map(railBox);
+  return { decks, boxes, cells: deckCells(boxes) };
+}
+
+function deckCellOf(v: number): number {
+  return Math.floor(v / DECK_CELL);
+}
+
+function deckCellKey(cx: number, cy: number): number {
+  return cx * 65536 + cy;
+}
+
+function deckCells(boxes: readonly RailBox[]): Map<number, RailBox[]> {
+  const cells = new Map<number, RailBox[]>();
+  for (const box of boxes) {
+    for (let cx = deckCellOf(box.minX - 1); cx <= deckCellOf(box.maxX + 1); cx++) {
+      for (let cy = deckCellOf(box.minY - 1); cy <= deckCellOf(box.maxY + 1); cy++) addToCell(cells, deckCellKey(cx, cy), box);
+    }
+  }
+  return cells;
+}
+
+function addToCell(cells: Map<number, RailBox[]>, key: number, box: RailBox): void {
+  const cell = cells.get(key) ?? [];
+  cell.push(box);
+  cells.set(key, cell);
 }
 
 function railBox(deck: Deck): RailBox {
@@ -133,7 +160,7 @@ function acrossOf(deck: Deck, x: number, y: number): number {
 }
 
 export function deckAt(set: DeckSet, x: number, y: number): DeckPoint | null {
-  for (const box of set.boxes) if (inBox(box, x, y, BOX_SLACK) && inOutline(box.deck, x, y)) return { deck: box.deck, along: alongOf(box.deck, x, y) };
+  for (const box of set.cells.get(deckCellKey(deckCellOf(x), deckCellOf(y))) ?? []) if (inBox(box, x, y, BOX_SLACK) && inOutline(box.deck, x, y)) return { deck: box.deck, along: alongOf(box.deck, x, y) };
   return null;
 }
 

@@ -14,7 +14,8 @@ import { deckHeight, deckSegments, groundAt, heightAt, isCliff, markHeightAt, ti
 import { newWorld } from './world';
 import { TEST_MAP } from '../test/map';
 import { defaultSetup } from './settings';
-import { ICARUS_DECKS } from './bridge';
+import { decksOf, ICARUS_DECKS } from './bridge';
+import { randRange } from './rng';
 
 const B = deckById('canyon-bridge');
 const at = (along: number, across: number) => ({
@@ -52,6 +53,32 @@ describe('the deck list', () => {
 
   it('fails loudly on an unknown deck id', () => {
     expect(() => deckById('no-such-deck')).toThrow('Unknown deck no-such-deck');
+  });
+});
+
+describe('the deck under a point', () => {
+  function scanned(decks: readonly Deck[], x: number, y: number): string | null {
+    const on = decks.find((d) => {
+      const along = (x - d.from.x) * d.axis.x + (y - d.from.y) * d.axis.y;
+      const across = (y - d.from.y) * d.axis.x - (x - d.from.x) * d.axis.y;
+      return along >= 0 && along <= d.length && Math.abs(across) <= d.width / 2;
+    });
+    return on?.id ?? null;
+  }
+
+  function nearDecks(decks: readonly Deck[]): { x: number; y: number }[] {
+    const rng = { rngState: 11 };
+    return decks.flatMap((d) => Array.from({ length: 2000 }, () => ({ x: d.from.x + randRange(rng, -30, 30) + d.axis.x * randRange(rng, -5, d.length + 5), y: d.from.y + randRange(rng, -30, 30) + d.axis.y * randRange(rng, -5, d.length + 5) })));
+  }
+
+  it('finds the same deck as a scan of every deck, on Icarus and on a highway', () => {
+    const rng = { rngState: 5 };
+    const anywhere = Array.from({ length: 20000 }, () => ({ x: randRange(rng, -5, REGION.size + 5), y: randRange(rng, -5, REGION.size + 5) }));
+    for (const p of [...anywhere, ...nearDecks(DECKS)]) expect(deckAt(ICARUS_DECKS, p.x, p.y)?.deck.id ?? null, `${p.x},${p.y}`).toBe(scanned(DECKS, p.x, p.y));
+    const keys = Array.from({ length: 40 }, (_, i) => ({ kind: 'highway' as const, seed: 1 + (i % 8), window: Math.floor(i / 8) }));
+    const highway = keys.map((k) => decksOf(k)).find((set) => set.decks.length > 0);
+    if (!highway) throw new Error('No highway window with decks among the sampled seeds');
+    for (const p of nearDecks(highway.decks)) expect(deckAt(highway, p.x, p.y)?.deck.id ?? null, `${p.x},${p.y}`).toBe(scanned(highway.decks, p.x, p.y));
   });
 });
 
