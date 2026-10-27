@@ -247,6 +247,7 @@ export const TERRAIN = {
     farFactor: 1.5,
     eyeHeight: 0.6,
     samplesPerTile: 3,
+    raysPerRimTile: 2,
     closeRadius: 3,
     lingerTurns: 2,
     grayFactor: 4,

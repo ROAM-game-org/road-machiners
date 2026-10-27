@@ -4,11 +4,19 @@ import { PHYSICS } from '../data/physics';
 import { hulkBoxes } from './body';
 import { PERK_NUMBERS, SKILL_EFFECTS } from '../data/skills';
 import { WEATHER } from '../data/weather';
-import { addVehicle, emptyWorld, practiceOf, settleStorms } from './testkit';
+import { addVehicle, emptyWorld, PLAIN_KIT, practiceOf, settleStorms } from './testkit';
+import { playerVehicle } from './damage';
+import { propsAround } from './prop-index';
+import { litFlares } from './hazards';
+import { tileSteepness } from '../mapgen/bake';
+import { REGION } from '../data/region';
+import { dist } from './vec';
+import { heightAt } from './terrain';
+import type { Obstacle } from './types';
 import { contactsOf, soundRange } from './detect';
 import { TIME } from '../data/time';
 import { sunAt } from './sun';
-import { canVehicleSee, exploreFrom, grayRadius, hasLineOfFire, playerVisible, practiceContacts, refreshVision, sightRadius, visibleTiles } from './vision';
+import { canVehicleSee, clearOverTerrain, exploreFrom, grayRadius, hasLineOfFire, hasLineOfSight, playerVisible, practiceContacts, refreshVision, sightLine, sightRadius, visibleTiles } from './vision';
 import { TEST_MAP } from '../test/map';
 import { START_KITS } from '../data/start';
 import { DECKS, deckAt } from './bridge';
@@ -380,5 +388,106 @@ describe('sight from the wing', () => {
 
     expect(canVehicleSee(w, viewer(w, from), to)).toBe(true);
     expect(hasLineOfFire(w, from, to)).toBe(true);
+  });
+});
+
+describe('the viewshed against the line to every tile', () => {
+  const world = newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
+  const t = world.terrain;
+  const me = playerVehicle(world);
+
+  function lineSeen(w: World, from: Vec, tile: Vec, props: readonly Obstacle[]): boolean {
+    if (dist(from, tile) <= TERRAIN.vision.closeRadius) return true;
+    const line = sightLine(w.terrain, from, tile);
+    return hasLineOfSight(w.terrain, line, props, []) && clearOverTerrain(w.terrain, line);
+  }
+
+  function lineTilesIn(w: World, from: Vec, reach: number, disk: { pos: Vec; r: number }, out: Set<number>): void {
+    const props = propsAround(w, 'sight', from, reach);
+    for (let x = Math.max(0, Math.floor(disk.pos.x - disk.r)); x <= Math.min(w.size - 1, Math.ceil(disk.pos.x + disk.r)); x++) {
+      for (let y = Math.max(0, Math.floor(disk.pos.y - disk.r)); y <= Math.min(w.size - 1, Math.ceil(disk.pos.y + disk.r)); y++) {
+        const tile = { x: x + 0.5, y: y + 0.5 };
+        if (dist(from, tile) <= reach && dist(disk.pos, tile) <= disk.r && lineSeen(w, from, tile, props)) out.add(y * w.size + x);
+      }
+    }
+  }
+
+  function lineTiles(w: World, from: Vec): Set<number> {
+    const viewer = playerVehicle(w);
+    const r = sightRadius(w, viewer);
+    const out = new Set<number>();
+    lineTilesIn(w, from, r, { pos: from, r }, out);
+    const lit = sightRadius(w, viewer, true);
+    if (lit > r) for (const f of litFlares(w)) if (dist(from, f.pos) - f.r < lit) lineTilesIn(w, from, lit, f, out);
+    return out;
+  }
+
+  function steepSpots(count: number): Vec[] {
+    const spots: { p: Vec; s: number }[] = [];
+    for (let x = 40; x < t.size - 40; x += 37) for (let y = 40; y < t.size - 40; y += 37) spots.push({ p: { x: x + 0.5, y: y + 0.5 }, s: tileSteepness(t.heights, t.size, y * t.size + x) });
+    return spots.sort((a, b) => b.s - a.s).slice(0, count).map((s) => s.p);
+  }
+
+  function nightTurn(): number {
+    for (let turn = world.turn; ; turn++) if (!sunAt(turn)) return turn;
+  }
+
+  const roadSpots = REGION.roads.flat().filter((_, i) => i % 7 === 0);
+  const propSpots = world.obstacles.filter((o) => o.kind === 'rock' || o.kind === 'building' || o.kind === 'landmark').filter((_, i) => i % 40 === 0).slice(0, 60).map((o) => ({ x: o.pos.x + 3.2, y: o.pos.y + 1.7 }));
+  const deckSpots = DECKS.flatMap((d) => [d.from, d.to]);
+
+  const GRAZE = 0.25;
+
+  function grazes(w: World, from: Vec, tile: Vec): boolean {
+    const line = sightLine(w.terrain, from, tile);
+    let worst = -Infinity;
+    for (let i = 1; i < 400; i++) {
+      const f = i / 400;
+      worst = Math.max(worst, heightAt(w.terrain, from.x + (tile.x - from.x) * f, from.y + (tile.y - from.y) * f) - (line.from + (line.to - line.from) * f));
+    }
+    return Math.abs(worst) <= GRAZE;
+  }
+
+  function compare(w: World, spots: readonly Vec[]): { tiles: number; differ: number; inside: number } {
+    let tiles = 0, differ = 0, inside = 0;
+    for (const from of spots) {
+      const oracle = lineTiles(w, from);
+      const seen = visibleTiles(w, from);
+      const reach = Math.max(sightRadius(w, playerVehicle(w)), sightRadius(w, playerVehicle(w), true));
+      tiles += Math.PI * reach * reach;
+      for (const idx of new Set([...oracle, ...seen])) {
+        if (oracle.has(idx) === seen.has(idx)) continue;
+        differ++;
+        const x = idx % w.size, y = Math.floor(idx / w.size);
+        const edge = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => oracle.has((y + dy) * w.size + x + dx) !== oracle.has(idx));
+        if (!edge && !grazes(w, from, { x: x + 0.5, y: y + 0.5 })) inside++;
+      }
+    }
+    return { tiles, differ, inside };
+  }
+
+  function expectClose(result: { tiles: number; differ: number; inside: number }): void {
+    expect(result.differ / result.tiles).toBeLessThanOrEqual(0.005);
+    expect(result.inside).toBe(0);
+  }
+
+  it('agrees with a line to every tile on roads, ridges, beside props and at deck ends', () => {
+    const spots = [...roadSpots, ...steepSpots(60), ...propSpots, ...deckSpots];
+    expect(spots.length).toBeGreaterThanOrEqual(250);
+    expectClose(compare(world, spots));
+  }, 600_000);
+
+  it('agrees at night and under a lit flare', () => {
+    const night = { ...world, turn: nightTurn(), flares: [] as World['flares'] };
+    const spots = roadSpots.filter((_, i) => i % 3 === 0).slice(0, 30);
+    night.flares = spots.slice(0, 10).map((p, i) => ({ id: `fl${i}`, source: me.id, pos: { x: p.x + 20, y: p.y }, r: 6, turnsLeft: 3 }));
+    expectClose(compare(night, spots));
+  }, 600_000);
+
+  it('gives the same tiles for the same point whatever was computed before', () => {
+    const from = roadSpots[3];
+    const first = [...visibleTiles(world, from)].sort((a, b) => a - b);
+    for (const p of roadSpots.slice(10, 20)) visibleTiles(world, p);
+    expect([...visibleTiles(world, from)].sort((a, b) => a - b)).toEqual(first);
   });
 });
