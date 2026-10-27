@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { emptyWorld } from '../testkit';
 import { activityFrom, type ActivityLine, type EndLine, type SummaryLine } from './activity';
-import { startWorld } from './record';
+import { startWorld } from './record-node';
 
 const SHORT_RUN = 12;
 const RUN_TIMEOUT = 120_000;
