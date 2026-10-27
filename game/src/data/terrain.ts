@@ -588,7 +588,7 @@ export const OLD_WORLD: {
     washCost: 4,
     smoothEvery: 3,
     sample: 0.5,
-    width: 3,
+    width: 5,
     spanRadius: 1.5,
     spanRoadGap: 1,
     spanBack: 12,
