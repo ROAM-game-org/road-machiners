@@ -254,7 +254,7 @@
   --talk-width: 640px;
   --quest-page-width: 1584px;
   --quest-page-height: 900px;
-  --quest-page-clearance: 80px;
+  --page-bottom: 40px;
   --art-band-height: 200px;
   --art-band-phone-height: 72px;
   --survey-picture-w: 132px;
@@ -285,6 +285,8 @@
   /* HUD placement */
   --hud-inset: 14px;
   --hud-gap: 8px;
+  --modal-top: calc(var(--safe-top) + var(--touch-target) + var(--hud-gap));
+  --page-height: min(var(--quest-page-height), calc(var(--layer-h) - var(--modal-top) - var(--page-bottom)));
   --hud-hover-top: 64px;
   --hud-notice-top: 112px;
   --ui-scale: 1;
