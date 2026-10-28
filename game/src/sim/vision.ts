@@ -143,9 +143,26 @@ function walkRay(height: Height, eye: Eye, angle: number, slopes: Float64Array):
   }
 }
 
-function rayOf(rays: number, from: Vec, p: Vec): number {
-  const k = Math.round((Math.atan2(p.y - from.y, p.x - from.x) * rays) / (2 * Math.PI));
+function rayPosition(rays: number, from: Vec, p: Vec): number {
+  return (Math.atan2(p.y - from.y, p.x - from.x) * rays) / (2 * Math.PI);
+}
+
+function wrapRay(rays: number, k: number): number {
   return ((k % rays) + rays) % rays;
+}
+
+function rayOf(rays: number, from: Vec, p: Vec): number {
+  return wrapRay(rays, Math.round(rayPosition(rays, from, p)));
+}
+
+function horizonSlope(horizons: Horizons, from: Vec, p: Vec, before: number): number {
+  const at = rayPosition(horizons.rays, from, p);
+  const low = Math.floor(at);
+  const share = at - low;
+  const row = horizons.steps + 1;
+  const a = horizons.slopes[wrapRay(horizons.rays, low) * row + before];
+  const b = horizons.slopes[wrapRay(horizons.rays, low + 1) * row + before];
+  return a * (1 - share) + b * share;
 }
 
 function propBuckets(world: World, from: Vec, reach: number, rays: number): NearProp[][] {
@@ -174,7 +191,7 @@ function tileSeen(look: Look, tile: Vec): boolean {
   const to = look.height(tile.x, tile.y) + TERRAIN.vision.eyeHeight;
   const k = rayOf(horizons.rays, eye.at, tile);
   const before = Math.min(Math.ceil(d * TERRAIN.vision.samplesPerTile) - 1, horizons.steps);
-  if (horizons.slopes[k * (horizons.steps + 1) + before] > (to - eye.z) / d) return false;
+  if (horizonSlope(horizons, eye.at, tile, before) > (to - eye.z) / d) return false;
   const line = { a: eye.at, b: tile, from: eye.z, to };
   return look.props[k].every((p) => p.near >= d || !propHides(look.terrain, p.o, line));
 }

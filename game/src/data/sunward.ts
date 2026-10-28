@@ -1,5 +1,6 @@
 import type { Topic, TraitTalk } from './dialogue';
 import { DRAFT } from './region';
+import { TERRAIN } from './terrain';
 
 const CAVALCADE_CARS = 8;
 const HOLLOW_POS = DRAFT?.hollow?.pos ?? { x: 976, y: 1016 };
@@ -19,6 +20,7 @@ export const SUNWARD = {
   huntReach: 70,
   huntBreaks: 2,
   huntRoadStep: 6,
+  huntGroundGap: 2 * TERRAIN.vision.radius,
   huntSalt: 0x68756e74,
   rideLeadTurns: 140,
   driveTurns: 179,

@@ -211,9 +211,11 @@ function alongRoad(road: readonly Vec[]): Vec[] {
 
 function huntGrounds(world: World, day: number): Vec[] {
   const roads = huntRoads();
-  const first = Math.floor(hashRandom(world.seed, day, SUNWARD.huntSalt, 1) * roads.length);
-  const second = (first + 1 + Math.floor(hashRandom(world.seed, day, SUNWARD.huntSalt, 2) * (roads.length - 1))) % roads.length;
-  return [{ ...roads[first] }, { ...roads[second] }];
+  const first = roads[Math.floor(hashRandom(world.seed, day, SUNWARD.huntSalt, 1) * roads.length)];
+  const apart = roads.filter((p) => dist(p, first) >= SUNWARD.huntGroundGap);
+  if (apart.length === 0) throw new Error(`No hunting road lies ${SUNWARD.huntGroundGap} tiles from ${first.x}, ${first.y}`);
+  const second = apart[Math.floor(hashRandom(world.seed, day, SUNWARD.huntSalt, 2) * apart.length)];
+  return [{ ...first }, { ...second }];
 }
 
 export function huntOf(world: World): SunwardHunt | null {

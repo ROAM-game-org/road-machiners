@@ -6,8 +6,8 @@ import { siteGap } from '../sim/sites';
 import { BUILT_NONE, BUILT_SCRUB, BUILT_TRACK } from '../sim/terrain';
 import { clamp, dist, type Vec } from '../sim/vec';
 import { zoneWeight } from '../sim/zones';
-import type { MapDraft } from './bake';
-import { NodeHeap, nearestRoadPoint, ruleRng, tileCenter, tilesWithin } from './oldworld';
+import { tileSteepness, type MapDraft } from './bake';
+import { NodeHeap, nearestRoadPoint, ruleRng, tileCenter, tileOf, tilesWithin } from './oldworld';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
 type Link = [Vec, Vec];
@@ -183,13 +183,19 @@ function rounded(line: Vec[]): Vec[] {
   return out;
 }
 
-export function cutTrail(d: MapDraft, line: readonly Vec[]): void {
+export function cutTrail(d: MapDraft, line: readonly Vec[]): boolean {
   const stations = densify(line);
   const profile = gradedProfile(stations.map((p) => cornerHeight(d, p)));
   const carves = new Map<number, Carve>();
   stations.forEach((p, k) => reachCorners(d, p, profile[k], carves));
+  const before = new Map([...carves.keys()].map((corner) => [corner, d.heights[corner]]));
   for (const [corner, c] of carves) d.heights[corner] = carvedHeight(d.heights[corner], c);
+  if (stations.some((p) => tileSteepness(d.heights, d.size, tileOf(d.size, p)) > TERRAIN.drive.maxSlope)) {
+    for (const [corner, h] of before) d.heights[corner] = h;
+    return false;
+  }
   for (const p of stations) markTrack(d, p);
+  return true;
 }
 
 function densify(line: readonly Vec[]): Vec[] {
@@ -220,8 +226,7 @@ export function trailOut(d: MapDraft, from: Vec, to: Vec): boolean {
   const reach = dist(from, to) + TRAILS.maxLink / 2;
   const box = { x0: Math.max(0, Math.min(from.x, to.x) - reach), y0: Math.max(0, Math.min(from.y, to.y) - reach), x1: Math.min(d.size, Math.max(from.x, to.x) + reach), y1: Math.min(d.size, Math.max(from.y, to.y) + reach) };
   const line = new TrailGrid(d, box).route(from, to);
-  if (line) cutTrail(d, line);
-  return line !== null;
+  return line !== null && cutTrail(d, line);
 }
 
 function mean(values: readonly number[]): number {

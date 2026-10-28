@@ -590,13 +590,19 @@ describe('survey danger', () => {
     expect(steps.some((step) => step >= 2)).toBe(true);
   });
 
+  const siteAt = (step: number): string => {
+    const id = SURVEY_SITES_FILE.sites.map((site) => site.id).find((site) => surveyPlaceThreat(w, site) === step);
+    if (id === undefined) throw new Error(`No baked survey site has danger step ${step}`);
+    return id;
+  };
+
   it('reads the worst place, as in the reported survey', () => {
-    expect(surveyThreat(w, contract(['survey-ruin-4517', 'survey-house-4272']))).toBe(3);
-    expect(surveyThreat(w, contract(['survey-waterTower-4162']))).toBe(1);
+    expect(surveyThreat(w, contract([siteAt(3), siteAt(2)]))).toBe(3);
+    expect(surveyThreat(w, contract([siteAt(1)]))).toBe(1);
   });
 
   it('does not change when places are found or done', () => {
-    const c = contract(['survey-ruin-4517', 'survey-house-4272']);
+    const c = contract([siteAt(3), siteAt(2)]);
     const before = surveyThreat(w, c);
     for (const p of c.points) {
       p.found = true;

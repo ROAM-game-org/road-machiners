@@ -1,5 +1,5 @@
 import { REGION } from '../data/region';
-import { EXITS, TERRAIN } from '../data/terrain';
+import { EXITS, TERRAIN, TRAILS } from '../data/terrain';
 import { ROAD_INDEX } from '../sim/road-index';
 import { siteGap } from '../sim/sites';
 import { startPose } from '../sim/start-pose';
@@ -23,17 +23,26 @@ const RAMP_GRADE = EXITS.climb * TERRAIN.drive.maxSlope;
 export function exitLayer(d: MapDraft): MapDraft {
   let out = exitPass(d);
   for (let pass = 1; pass < EXITS.passes && trappedFloors(out).length > 0; pass++) out = exitPass(out);
-  return trailsOut(out);
+  for (let pass = 0; pass < EXITS.passes && trappedFloors(out).length > 0; pass++) out = trailsOut(out);
+  return out;
 }
 
 function trailsOut(d: MapDraft): MapDraft {
   const e = ravineEscape(d);
   for (const pit of trappedGroups(e)) {
-    const target = exitTargets(e, pit[0])[0];
+    const target = gentlestTarget(e, pit[0]);
     if (target !== undefined) trailOut(d, tileCenter(e.size, pit[0]), tileCenter(e.size, target));
   }
   const onTrail = (p: BakedProp): boolean => d.built[Math.floor(p.pos.y) * d.size + Math.floor(p.pos.x)] === BUILT_TRACK;
-  return { ...d, props: d.props.filter((p) => !(EXITS.clearKinds.includes(p.kind) && onTrail(p))) };
+  const out = { ...d, props: d.props.filter((p) => !(EXITS.clearKinds.includes(p.kind) && onTrail(p))) };
+  for (let round = 0; round < EXITS.fillRounds; round++) fillPits(out);
+  return out;
+}
+
+function gentlestTarget(e: Escape, from: number): number | undefined {
+  const climb = (t: number): number => Math.abs(e.heights[t] - e.heights[from]) / dist(tileCenter(e.size, t), tileCenter(e.size, from));
+  const targets = exitTargets(e, from, EXITS.reach * TRAILS.targetReach);
+  return targets.find((t) => climb(t) <= RAMP_GRADE) ?? targets.reduce<number | undefined>((best, t) => (best === undefined || climb(t) < climb(best) ? t : best), undefined);
 }
 
 function exitPass(d: MapDraft): MapDraft {
@@ -112,7 +121,7 @@ export function ravineEscape(d: Pick<MapDraft, 'size' | 'heights' | 'props' | 'b
   const drivable = Uint8Array.from({ length: size * size }, (_, k) => Number(tileSteepness(d.heights, size, k) <= TERRAIN.drive.maxSlope));
   const main = reachedFrom(size, drivable, startPose().pos);
   const access = fallenInto(size, heights, drivable, main);
-  const floor = floorTiles(size, heights, drivable, main).map((f, k) => f & access[k] & Number(d.built[k] !== BUILT_TRACK));
+  const floor = floorTiles(size, heights, drivable, main).map((f, k) => f & access[k] & Number(d.built[k] !== BUILT_TRACK || !main[k]));
   for (const p of d.props) if (p.r >= EXITS.blockRadius) markDisc(floor, size, p.pos, p.r, 0);
   const e = { size, drivable, floor, dist: new Int32Array(size * size).fill(FAR), heights, ravine: ravineLabels(size, floor) };
   const queue = [...main.keys()].filter((k) => main[k] && !floor[k]);
@@ -290,15 +299,15 @@ function exitRamps(e: Escape, k: number): Ramp[] {
   return out;
 }
 
-function exitTargets(e: Escape, k: number): number[] {
+function exitTargets(e: Escape, k: number, reach = EXITS.reach): number[] {
   const fx = k % e.size;
   const fy = Math.floor(k / e.size);
   const found: { t: number; run: number }[] = [];
-  for (let y = Math.max(0, fy - EXITS.reach); y <= Math.min(e.size - 1, fy + EXITS.reach); y++) {
-    for (let x = Math.max(0, fx - EXITS.reach); x <= Math.min(e.size - 1, fx + EXITS.reach); x++) {
+  for (let y = Math.max(0, fy - reach); y <= Math.min(e.size - 1, fy + reach); y++) {
+    for (let x = Math.max(0, fx - reach); x <= Math.min(e.size - 1, fx + reach); x++) {
       const t = y * e.size + x;
       const run = Math.hypot(x - fx, y - fy);
-      if (e.dist[t] === 0 && run <= EXITS.reach) found.push({ t, run });
+      if (e.dist[t] === 0 && run <= reach) found.push({ t, run });
     }
   }
   return found.sort((a, b) => a.run - b.run).map((f) => f.t);
