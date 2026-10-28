@@ -7,6 +7,7 @@ import { CONDITION, REPAIR } from '../data/wear';
 import { damagePart, maxHp, partValue } from './wear';
 import { makePart } from './factory';
 import { addVehicle, emptyWorld, practiceOf , startCombat } from './testkit';
+import { bedRows } from './chassis-features';
 import { corePart, goodsCount, gridOf, mountedParts } from './grid';
 import { vehicleStats } from './stats';
 import { addGoods, moveItem, mountPart, removeGoods, stowPart } from './inventory';
@@ -454,7 +455,7 @@ describe('strip job', () => {
     const job = next.vehicles[0].job;
     if (job?.kind !== 'strip') throw new Error('No strip job');
     expect(job.total).toBe(stripTurns(next, next.vehicles[0], plate.id));
-    expect(job.total).toBeGreaterThanOrEqual(STRIP.turns);
+    expect(job.total).toBeGreaterThan(STRIP.turns);
     const before = vehicleStats(next, next.vehicles[0]);
     for (let i = 0; i < job.total - 1; i++) advanceJobs(next);
     const mid = next.vehicles[0];
@@ -467,6 +468,17 @@ describe('strip job', () => {
     expect(truck.items.some((it) => it.kind === 'part' && it.part.id === plate.id)).toBe(false);
     expect((goodsCount(truck).parts ?? 0) - held).toBe(units);
     expect(next.events.some((e) => e.t === 'job' && e.outcome === 'done')).toBe(true);
+  });
+
+  it('refuses to strip a mounted rack that holds a part in its rows', () => {
+    const w = emptyWorld();
+    const npc = addVehicle(w, 'player', 'hauler', ['rack'], { x: 60, y: 60 });
+    w.player.vehicleId = npc.id;
+    const rack = mountedParts(npc, 'cargo').find((p) => p.defId === 'rack')!;
+    const rackRows = (partDef('rack') as { extraRows: number }).extraRows;
+    const row = gridOf(npc).chassisH + bedRows('hauler') + rackRows - 1;
+    npc.items.push({ id: 'i-crate', x: 0, y: row, rot: 0, kind: 'part', part: makePart(w, 'mg', 0) });
+    expect(() => startStrip(w, rack.id)).toThrow('Refused: emptyRackFirst');
   });
 
   it('strips a mounted gun and drops its order', () => {
