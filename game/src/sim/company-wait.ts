@@ -25,7 +25,7 @@ function waitsForNpcFollower(world: World, leader: Vehicle, follower: Vehicle): 
 function keepsUp(follower: Vehicle): boolean {
   const goals = goalsOf(follower);
   const top = goals[goals.length - 1];
-  return top !== undefined && UPKEEP_KINDS.includes(top.kind) && goals.slice(0, -1).some((g) => g.kind === 'follow');
+  return top !== undefined && UPKEEP_KINDS.includes(top.kind) && goals.some((g, i) => i < goals.length - 1 && g.kind === 'follow');
 }
 
 function waitLimit(leader: Vehicle): number {
