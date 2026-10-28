@@ -19,6 +19,12 @@ const fallenSun = REGION.locations.find((l) => l.id === 'fallen-sun')!;
 const orchard = REGION.locations.find((l) => l.id === 'orchard')!;
 
 describe('territory queries', () => {
+  it('throws for a road territory with no road across its outline, and for an off-road one with a road across it', () => {
+    const flats = REGION.locations.find((l) => l.id === 'glass-flats')!;
+    expect(() => territoryEntries({ ...flats, offRoad: undefined } as never)).toThrow('glass-flats has no road crossing its outline');
+    expect(() => territoryEntries({ ...orchard, offRoad: true } as never)).toThrow('Off-road territory orchard has a road crossing its outline');
+  });
+
   it('finds the territory under a point, and none outside', () => {
     expect(territoryAt(fallenSun.pos)?.id).toBe('fallen-sun');
     expect(territoryAt({ x: fallenSun.pos.x + fallenSun.radius + 1, y: fallenSun.pos.y })).toBeNull();

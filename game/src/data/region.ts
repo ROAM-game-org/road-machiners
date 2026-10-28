@@ -51,7 +51,7 @@ export type SiteLocationDef = {
   turn?: number;
   gates?: readonly Vec[];
 };
-export type TerritoryDef = { id: string; kind: "territory"; pos: Vec; radius: number; outline: Vec[] | null; reliefFrom?: Vec };
+export type TerritoryDef = { id: string; kind: "territory"; pos: Vec; radius: number; outline: Vec[] | null; reliefFrom?: Vec; offRoad?: true };
 export type LocationDef = SiteLocationDef | TerritoryDef;
 export type SiteEdge = "fence" | "wrecks";
 export const MAP_SCALE = MAP_DRAFT ?? 15.6;
@@ -342,6 +342,7 @@ export const REGION = {
       pos: GLASS_FLATS_POS,
       radius: boundingRadius(GLASS_FLATS_OUTLINE),
       outline: GLASS_FLATS_OUTLINE,
+      offRoad: true,
     },
     {
       id: "green-pit",

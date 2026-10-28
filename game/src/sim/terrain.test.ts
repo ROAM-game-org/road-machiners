@@ -176,6 +176,19 @@ describe("terrain grid", () => {
     }
   });
 
+  it('lays no region road over a cliff on the baked map, after every zone layer has shaped the ground', () => {
+    const t = TEST_MAP.terrain;
+    for (const road of REGION.roads) {
+      for (let i = 1; i < road.length; i++) {
+        const steps = Math.ceil(dist(road[i - 1], road[i]) * 2);
+        for (let k = 0; k <= steps; k++) {
+          const p = { x: road[i - 1].x + ((road[i].x - road[i - 1].x) * k) / steps, y: road[i - 1].y + ((road[i].y - road[i - 1].y) * k) / steps };
+          expect(isCliff(t, tileAt(t, p)), `${p.x.toFixed(1)},${p.y.toFixed(1)}`).toBe(false);
+        }
+      }
+    }
+  });
+
   it('keeps every road outside Glass Flats', () => {
     const flats = REGION.locations.find((site) => site.id === 'glass-flats')!;
     for (const road of REGION.roads) {

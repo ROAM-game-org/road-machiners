@@ -72,7 +72,12 @@ export function territorySpots(world: World, id: string): SalvageStock[] {
 
 export function territoryEntries(t: TerritoryDef): Vec[] {
   const crossings = roadEntries(t);
-  return crossings.length > 0 ? crossings : [edgeNearestRoad(t)];
+  if (t.offRoad) {
+    if (crossings.length > 0) throw new Error(`Off-road territory ${t.id} has a road crossing its outline`);
+    return [edgeNearestRoad(t)];
+  }
+  if (crossings.length === 0) throw new Error(`Territory ${t.id} has no road crossing its outline`);
+  return crossings;
 }
 
 export function roadEntries(t: TerritoryDef): Vec[] {
