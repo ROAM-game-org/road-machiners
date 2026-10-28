@@ -10,7 +10,7 @@ import { RenderScope, SightLimit } from './render/scope';
 import { ShadeView } from './render/shade';
 import { addShipDecks } from './render/ship-decks';
 import { SiteLights } from './render/siteLights';
-import { addSites } from './render/sites';
+import { addSites, HollowLamps } from './render/sites';
 import { CellStreamer } from './render/streamer';
 import { groundMaterial, terrainMesh } from './render/terrain';
 
@@ -44,7 +44,9 @@ export function buildWorldViews(world: World, host: WorldViewHost): WorldViews {
   const ground = groundMaterial(world);
   const fog = new FogView(world, ground, sightLimit, playerSeenPropTiles(world));
   terrainMesh(world, ground, groundScope, (chunk) => fog.attach(chunk));
-  const siteLights = new SiteLights(host.scene, addSites(world.terrain, propScope, host.play), { worldSize: world.size, maxTextureSize: host.maxTextureSize });
+  const hollow = world.terrain.atlas.kind === 'icarus' ? new HollowLamps(world.terrain, propScope) : null;
+  const siteLights = new SiteLights(host.scene, hollow, { worldSize: world.size, maxTextureSize: host.maxTextureSize });
+  addSites(world.terrain, propScope, host.play, siteLights);
   addShipDecks(world.terrain, propScope);
   const obstacles = new ObstacleViews(propScope, world.terrain, host.pinOutpost);
   obstacles.sync(world.obstacles, world.salvage, world.broken);

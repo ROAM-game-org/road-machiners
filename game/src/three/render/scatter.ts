@@ -46,32 +46,46 @@ const CASTS_SHADOW: ReadonlySet<ScatterModel> = new Set(['desert_scrub', 'cactus
 type Placed = { matrix: THREE.Matrix4; tint: number };
 export type ScatterChunk = { center: Vec } & Record<ScatterModel, Placed[]>;
 
+type ScatterTiles = { look: readonly LookType[]; blocked: Uint8Array; rocky: Uint8Array };
+
 export function addScatter(t: Terrain, obstacles: Obstacle[], scope: RenderScope): void {
   const reach = (TERRAIN_CHUNK / 2) * Math.SQRT2 + 1;
-  for (const chunk of scatterPlacements(t, obstacles)) {
-    for (const name of MODELS) {
-      const list = chunk[name];
-      if (list.length === 0) continue;
-      const group = instancedModel(name, list.map((p) => p.matrix), list.map((p) => p.tint));
-      for (const mesh of group.children) {
-        mesh.castShadow = CASTS_SHADOW.has(name);
-        mesh.receiveShadow = true;
-      }
-      scope.add(group, chunk.center, reach);
+  const tiles = scatterTiles(t, obstacles);
+  for (let cy = 0; cy < t.size; cy += TERRAIN_CHUNK)
+    for (let cx = 0; cx < t.size; cx += TERRAIN_CHUNK) {
+      const center = { x: cx + Math.min(TERRAIN_CHUNK, t.size - cx) / 2, y: cy + Math.min(TERRAIN_CHUNK, t.size - cy) / 2 };
+      scope.place(center, reach, () => scatterGroup(chunkScatter(t, tiles, cx, cy)));
     }
+}
+
+function scatterGroup(chunk: ScatterChunk): THREE.Group {
+  const root = new THREE.Group();
+  for (const name of MODELS) {
+    const list = chunk[name];
+    if (list.length === 0) continue;
+    const group = instancedModel(name, list.map((p) => p.matrix), list.map((p) => p.tint));
+    for (const mesh of group.children) {
+      mesh.castShadow = CASTS_SHADOW.has(name);
+      mesh.receiveShadow = true;
+    }
+    root.add(group);
   }
+  root.matrixAutoUpdate = false;
+  return root;
+}
+
+function scatterTiles(t: Terrain, obstacles: Obstacle[]): ScatterTiles {
+  return { look: lookTypes(t), blocked: blockedTiles(t.size, obstacles), rocky: rockyTiles(t.size, obstacles) };
 }
 
 export function scatterPlacements(t: Terrain, obstacles: Obstacle[]): ScatterChunk[] {
-  const blocked = blockedTiles(t.size, obstacles);
-  const rocky = rockyTiles(t.size, obstacles);
-  const look = lookTypes(t);
+  const tiles = scatterTiles(t, obstacles);
   const chunks: ScatterChunk[] = [];
-  for (let cy = 0; cy < t.size; cy += TERRAIN_CHUNK) for (let cx = 0; cx < t.size; cx += TERRAIN_CHUNK) chunks.push(chunkScatter(t, look, blocked, rocky, cx, cy));
+  for (let cy = 0; cy < t.size; cy += TERRAIN_CHUNK) for (let cx = 0; cx < t.size; cx += TERRAIN_CHUNK) chunks.push(chunkScatter(t, tiles, cx, cy));
   return chunks;
 }
 
-function chunkScatter(t: Terrain, look: readonly LookType[], blocked: Uint8Array, rocky: Uint8Array, cx: number, cy: number): ScatterChunk {
+function chunkScatter(t: Terrain, { look, blocked, rocky }: ScatterTiles, cx: number, cy: number): ScatterChunk {
   const atlas = atlasOf(t);
   const highway = highwaySeed(t);
   const blocks = chunkBlocks(t, cx, cy);

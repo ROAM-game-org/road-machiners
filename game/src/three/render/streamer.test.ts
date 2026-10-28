@@ -76,17 +76,29 @@ describe('cell streamer', () => {
     expect(perfSnapshot()['stream-block']).toBeUndefined();
   });
 
-  it('builds a cell ground first, then props, then decals, and prepares every built object', () => {
+  it('builds a cell ground first, then props, then decals', () => {
     const order: string[] = [];
     const [ground, props, decals] = [scope(), scope(), scope()];
     const at = { x: 5, y: 5 };
     decals.place(at, 1, () => (order.push('decal'), box('decal', at)()));
     props.place(at, 1, () => (order.push('prop'), box('prop', at)()));
     ground.place(at, 1, () => (order.push('ground'), box('ground', at)()));
-    const prepared: string[] = [];
-    new CellStreamer([ground, props, decals], (o) => prepared.push(o.name), clock(1), 100).boot(at, 10, 10);
+    new CellStreamer([ground, props, decals], () => {}, clock(1), 100).boot(at, 10, 10);
     expect(order).toEqual(['ground', 'prop', 'decal']);
-    expect(prepared).toEqual(['ground', 'prop', 'decal']);
+  });
+
+  it('prepares each cell a frame built once, and nothing at boot', () => {
+    const s = scope();
+    const near = { x: 5, y: 5 };
+    const far = { x: 5, y: 100 };
+    for (let i = 0; i < 3; i++) s.place(near, 1, box(`near${i}`, near));
+    for (let i = 0; i < 3; i++) s.place(far, 1, box(`far${i}`, far));
+    const prepared: THREE.Object3D[] = [];
+    const streamer = new CellStreamer([s], (root) => prepared.push(root), clock(1), 100);
+    streamer.boot(near, 10, 10);
+    expect(prepared).toEqual([]);
+    streamer.frame(far, 10, 10);
+    expect(prepared.map((g) => g.children.map((c) => c.name))).toEqual([['far0', 'far1', 'far2']]);
   });
 
   it('builds the same objects per cell whatever order the cells build in', () => {

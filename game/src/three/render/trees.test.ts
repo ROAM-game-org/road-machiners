@@ -7,6 +7,7 @@ import { loadModels } from './models';
 import { ObstacleViews } from './obstacles';
 import { RenderScope, SightLimit } from './scope';
 import { TreeInstances } from './trees';
+import { buildCells, buildingOnSync } from '../../test/cells';
 import { ICARUS_KEY } from '../../sim/atlas';
 
 type Landmark = Extract<Obstacle, { kind: 'landmark' }>;
@@ -31,10 +32,18 @@ function tree(id: string, x: number, y: number): Landmark {
 
 const TREES = [tree('deadTree-0', 5, 5), tree('deadTree-1', 7, 6), tree('deadTree-2', 9, 4), tree('deadTree-3', 40, 5)];
 
-function build(): { root: THREE.Group; trees: TreeInstances } {
+function build(before: (trees: TreeInstances) => void = () => {}): { root: THREE.Group; trees: TreeInstances } {
   const root = new THREE.Group();
   const scope = new RenderScope(root, SIZE, new SightLimit(SIZE), true, true);
-  return { root, trees: new TreeInstances(scope, flat(), TREES) };
+  const trees = new TreeInstances(scope, flat(), TREES);
+  before(trees);
+  buildCells(scope);
+  return { root, trees };
+}
+
+function viewsOn(root: THREE.Group): ObstacleViews {
+  const scope = new RenderScope(root, SIZE, new SightLimit(SIZE), true, true);
+  return buildingOnSync(new ObstacleViews(scope, flat()), scope);
 }
 
 function meshesOf(root: THREE.Group, chunk: string): THREE.InstancedMesh[] {
@@ -86,6 +95,11 @@ describe('TreeInstances', () => {
     expect(matricesOf(meshes)).toEqual(standing);
   });
 
+  it('keeps a tree hidden that broke before its cell was built', () => {
+    const { root } = build((trees) => trees.hide('deadTree-1'));
+    expect(meshesOf(root, 'scope-chunk-0-0').map(zeroInstances)).toEqual(meshesOf(root, 'scope-chunk-0-0').map(() => 1));
+  });
+
   it('leaves the other chunks alone when a tree hides', () => {
     const { root, trees } = build();
     const east = meshesOf(root, 'scope-chunk-1-0');
@@ -129,7 +143,7 @@ describe('TreeInstances', () => {
 describe('ObstacleViews dead trees', () => {
   function views(): { root: THREE.Group; obstacles: ObstacleViews } {
     const root = new THREE.Group();
-    const obstacles = new ObstacleViews(new RenderScope(root, SIZE, new SightLimit(SIZE), true, true), flat());
+    const obstacles = viewsOn(root);
     obstacles.sync([...TREES], [], []);
     return { root, obstacles };
   }
@@ -150,7 +164,7 @@ describe('ObstacleViews dead trees', () => {
 
   it('draws a tree that was broken at the first sync when it grows back', () => {
     const root = new THREE.Group();
-    const obstacles = new ObstacleViews(new RenderScope(root, SIZE, new SightLimit(SIZE), true, true), flat());
+    const obstacles = viewsOn(root);
     obstacles.sync(TREES.filter((o) => o.id !== 'deadTree-2'), [], [{ obstacle: TREES[2], turn: 1 }]);
     const meshes = meshesOf(root, 'scope-chunk-0-0');
     const hidden = meshes.map(zeroInstances);

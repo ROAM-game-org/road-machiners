@@ -79,6 +79,12 @@ export class RenderScope {
     return placement;
   }
 
+  groupOf(cell: number): THREE.Group {
+    const chunk = this.chunks[cell];
+    if (!chunk) throw new Error(`Render scope cell ${cell} holds nothing`);
+    return chunk.group;
+  }
+
   buildNext(cell: number): THREE.Object3D | null {
     const chunk = this.chunks[cell];
     const next = chunk?.pending.shift();

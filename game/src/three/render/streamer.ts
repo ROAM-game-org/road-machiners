@@ -34,27 +34,29 @@ export class CellStreamer {
   }
 
   boot(center: Vec, reach: number, lead: number): void {
-    for (const cell of wantedCells(this.scopes, center, Math.max(reach, lead))) this.buildCell(cell);
+    for (const cell of wantedCells(this.scopes, center, Math.max(reach, lead))) this.buildCell(cell, null);
   }
 
   frame(center: Vec, reach: number, lead: number): void {
+    const touched = new Map<RenderScope, Set<number>>();
     const blocked = wantedCells(this.scopes, center, reach);
     if (blocked.length > 0) count('stream-block', blocked.length);
-    for (const cell of blocked) this.buildCell(cell);
+    for (const cell of blocked) this.buildCell(cell, touched);
     const ahead = wantedCells(this.scopes, center, lead);
-    if (ahead.length > 0) timed('stream-build', () => this.buildAhead(ahead));
+    if (ahead.length > 0) timed('stream-build', () => this.buildAhead(ahead, touched));
+    for (const [scope, cells] of touched) for (const cell of cells) this.prepare(scope.groupOf(cell));
   }
 
   buildAll(): void {
-    for (const cell of wantedCells(this.scopes, { x: 0, y: 0 }, Infinity)) this.buildCell(cell);
+    for (const cell of wantedCells(this.scopes, { x: 0, y: 0 }, Infinity)) this.buildCell(cell, null);
   }
 
-  private buildAhead(cells: readonly number[]): void {
+  private buildAhead(cells: readonly number[], touched: Touched): void {
     const start = this.now();
     for (const cell of cells)
       while (this.waits(cell)) {
         if (this.now() - start >= this.budgetMs) return;
-        this.buildOne(cell);
+        this.buildOne(cell, touched);
       }
   }
 
@@ -62,17 +64,18 @@ export class CellStreamer {
     return this.scopes.some((s) => s.waitingCells().has(cell));
   }
 
-  private buildCell(cell: number): void {
-    while (this.buildOne(cell));
+  private buildCell(cell: number, touched: Touched | null): void {
+    while (this.buildOne(cell, touched));
   }
 
-  private buildOne(cell: number): boolean {
+  private buildOne(cell: number, touched: Touched | null): boolean {
     for (const scope of this.scopes) {
-      const obj = scope.buildNext(cell);
-      if (!obj) continue;
-      this.prepare(obj);
+      if (!scope.buildNext(cell)) continue;
+      if (touched) touched.set(scope, (touched.get(scope) ?? new Set()).add(cell));
       return true;
     }
     return false;
   }
 }
+
+type Touched = Map<RenderScope, Set<number>>;
