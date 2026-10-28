@@ -54,9 +54,9 @@ describe("embezzlement words", () => {
     expect(en(caseVictimName(emptyWorld(), embezzled))).toBe("The Granary");
   });
 
-  it("logs the filing against the player with the crates kept and the price", () => {
+  it("keeps the filing against the player out of the log until a Marshall demands it", () => {
     const w = emptyWorld();
     const e: GameEvent = { t: "bountyFiled", case: "c", target: w.player.vehicleId, reporter: "granary", offense: "embezzled", victim: "granary", site: "granary", owed: 2600, kept: { good: "salt", crates: 3 } };
-    expect(en(eventText(w, e)!.text)).toMatch(/^The Granary posts a bounty: you kept 3 crates of salt\. The Marshalls want 26 M's\.$/);
+    expect(eventText(w, e)).toBeNull();
   });
 });

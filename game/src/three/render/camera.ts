@@ -1,7 +1,7 @@
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
-import { VIEW } from '../../data/view';
+import { DEFAULT_ZOOM, VIEW } from '../../data/view';
 import type { V3 } from '../../phys/frames';
 import type { Vec } from '../../sim/vec';
 
@@ -30,7 +30,7 @@ export class CameraRig {
   private pointInView = false;
   private viewMoved = false;
   private tether: { at: V3; radius: number } | null = null;
-  private zoom = 1;
+  private zoom = DEFAULT_ZOOM;
   private ray = new THREE.Raycaster();
 
   constructor(private view: HTMLElement) {

@@ -143,6 +143,7 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 | cannon-fire | sfx | false | 0.9 | 3 | 1 |
 | gun-empty | sfx | false | 0.8 | 3 | 1 |
 | hit-metal | sfx | false | 0.55 | 6 | 3 |
+| hit-part | sfx | false | 0.55 | 6 | 3 |
 | miss | sfx | false | 0.4 | 6 | 3 |
 | part-broken | sfx | false | 0.7 | 2 | 3 |
 | explosion | sfx | false | 1 | 2 | 3 |
@@ -160,7 +161,7 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 | oil-spill | sfx | false | 0.6 | 2 | 2 |
 | emitter-pulse | sfx | false | 0.8 | 2 | 2 |
 | engine | sfx | true | 0.6 | 1 | 2 |
-| engine-strain | sfx | true | 0.6 | 1 | 2 |
+| engine-strain | sfx | true | 0.34 | 1 | 2 |
 | wind | ambient | true | 1 | 1 | 3 |
 | music-calm | music | true | 1 | 1 | 5 |
 | music-town | music | true | 1 | 1 | 1 |

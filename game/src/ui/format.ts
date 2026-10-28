@@ -18,7 +18,7 @@ import type { Work, WorkLeft } from '../sim/states';
 import { dist } from '../sim/vec';
 import { goodsCount } from '../sim/grid';
 import { spareParts } from '../sim/inventory';
-import { carriedPart, isStoryWreck } from '../sim/salvage';
+import { carriedPart, carriedPartDef, isStoryWreck } from '../sim/salvage';
 import { canVehicleSee, playerSees } from '../sim/vision';
 import { topGoal } from '../sim/npc-activities';
 import { judgeDanger, npcTraits, passReason } from '../sim/npc-decisions';
@@ -337,9 +337,7 @@ const PART_SHORT = {
 } as const;
 
 function partShort(world: World, vehicleId: string, partId: string): Msg {
-  const p = carriedPart(world, vehicleId, partId);
-  if (!p) throw new Error(`Round hit part ${partId}, which ${vehicleId} does not carry`);
-  const def = partDef(p.defId);
+  const def = carriedPartDef(world, vehicleId, partId);
   return t(`short.${PART_SHORT[def.kind === 'core' ? def.role : def.kind]}`);
 }
 
@@ -621,7 +619,7 @@ function escortContractText(outcome: keyof typeof CONTRACT_CLS, what: Msg, rewar
   throw new Error(`An escort is never ${outcome}`);
 }
 
-const NOTABLE_EVENTS = new Set<GameEvent['t']>(['skillUp', 'discover', 'standing', 'claimRival', 'guardEnded']);
+const NOTABLE_EVENTS = new Set<GameEvent['t']>(['skillUp', 'discover', 'standing', 'claimRival', 'guardEnded', 'wake']);
 
 export function isNotable(e: GameEvent): boolean {
   if (e.t === 'contract') return e.outcome === 'found' || e.outcome === 'fulfilled' || e.cause === 'rival';
@@ -1089,7 +1087,7 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   coreBurn: () => null,
   sunwardFallen: () => line(t('log.sunwardFallen'), 'good'),
   knockout: () => line(t('log.knockout'), 'bad'),
-  wake: () => line(t('log.wake'), 'dim'),
+  wake: () => line(t('log.wake'), ''),
   searched: (_, e) => searchedText(e.stock),
   contract: (world, e) => (e.cause === 'rival' ? rivalFirstText(world, e.contract) : contractEventText(world, e)),
   claimRival: claimRivalText,
