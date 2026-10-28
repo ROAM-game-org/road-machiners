@@ -108,7 +108,8 @@ try {
     r = await read(page);
     assert(r.deltas > 0, `${spot}: Enter must select and compare`);
     assert(!r.chips.includes('Free cargo cells'), `${spot}: garage header must not show free cells`);
-    for (const t of ["M's", 'Mass against rated load']) assert(r.chips.includes(t), `${spot}: header must keep the ${t} chip`);
+    assert(r.chips.includes('Mass against rated load'), `${spot}: header must keep the mass chip`);
+    assert(r.chips.some(c => /^[\d,]+$/.test(c)), `${spot}: header must keep the money chip`);
     assert(!r.repair.includes('Nothing broken'), `${spot}: no idle Nothing broken label`);
     await page.evaluate(async () => {
       const g = window.__ROAM__;
@@ -120,8 +121,20 @@ try {
     });
     await page.waitForTimeout(300);
     r = await read(page);
-    assert(/\d+ broken/.test(r.repair), `${spot}: repair bar must show the broken count, got ${r.repair}`);
+    assert(/Repair basics\s+\d+\s+Repair all\s+\d+/.test(r.repair), `${spot}: repair bar must show both prices, got ${r.repair}`);
     await page.locator('.town-repair [data-key="repairAll"]').waitFor();
+    const placed = await page.evaluate(() => {
+      const truck = document.querySelector('.town-truck').getBoundingClientRect();
+      const first = document.querySelector('.town-truck > .town-repair button').getBoundingClientRect();
+      return { inside: !!document.querySelector('.town-truck > .town-repair'), shopHas: !!document.querySelector('.town-shop .town-repair'), left: first.left < truck.left + truck.width / 2 };
+    });
+    assert(placed.inside && !placed.shopHas && placed.left, `${spot}: the repair bar must sit at the left of the truck column, got ${JSON.stringify(placed)}`);
+    const chipLook = await page.evaluate(() => [...document.querySelectorAll('.town-page .ink-chips .chip')].map(n => {
+      const cs = getComputedStyle(n);
+      const glyph = n.querySelector('.icon, .coin')?.getBoundingClientRect().width ?? 16;
+      return { pad: cs.paddingLeft === cs.paddingRight, glyph: Math.round(glyph) === 16 };
+    }));
+    assert(chipLook.every(c => c.pad && c.glyph), `${spot}: chips need even padding and one glyph size, got ${JSON.stringify(chipLook)}`);
     await page.evaluate(() => window.__ROAM__.screens.town.close());
   }
   await enter(page, 'salvage-yard');
