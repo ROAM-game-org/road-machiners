@@ -209,6 +209,13 @@ export function snapToShadowTexels(focus: V3, toLight: V3, texel: number): V3 {
   return { x: snapF.x, y: snapF.y, z: snapF.z };
 }
 
+const BACKDROP = new THREE.Color(PAL.bg);
+const NOON_REACH = KEYS[0].sunI + KEYS[0].skyI;
+
+export function backdropAt(light: Daylight): THREE.Color {
+  return BACKDROP.clone().multiplyScalar((light.sunIntensity + light.skyIntensity) / NOON_REACH);
+}
+
 export function lightScene(sun: THREE.DirectionalLight, sky: THREE.HemisphereLight, drawn: V3, light: Daylight): void {
   const flat = Math.cos(light.elevation);
   const horiz = flat * SUN_RADIUS;

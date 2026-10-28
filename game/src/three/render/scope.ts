@@ -149,6 +149,10 @@ export class SightLimit {
     this.uniforms.sightRadius.value = radius;
   }
 
+  fadeTo(backdrop: THREE.Color): THREE.Color {
+    return this.uniforms.sightFog.value.copy(backdrop);
+  }
+
   reaches(at: V3): boolean {
     const c = this.uniforms.sightCenter.value;
     return Math.hypot(at.x - c.x, at.z - c.y) <= this.uniforms.sightRadius.value;
@@ -224,7 +228,7 @@ export class SightLimit {
         outgoingLight = mix(mix(outgoingLight, vec3(sightLuma), sightGrey.x) * sightGrey.y, outgoingLight, sightSeen);
         #include <opaque_fragment>`);
       if (grey && !shader.fragmentShader.includes('sightSeen')) throw new Error('Sight limit cannot grey a shader without #include <opaque_fragment>');
-      shader.fragmentShader = injectBefore(shader.fragmentShader, '#include <opaque_fragment>', 'outgoingLight = mix(outgoingLight, sightFog, smoothstep(sightRadius * (1.0 - sightFogBand), sightRadius, distance(vSightXZ, sightCenter)));');
+      shader.fragmentShader = inject(shader.fragmentShader, '#include <colorspace_fragment>', 'gl_FragColor.rgb = mix(gl_FragColor.rgb, linearToOutputTexel(vec4(sightFog, 1.0)).rgb, smoothstep(sightRadius * (1.0 - sightFogBand), sightRadius, distance(vSightXZ, sightCenter)));');
     };
     mat.customProgramCacheKey = () => `${key()}|sight${grey ? '-grey' : ''}${sampled ? '-at' : ''}`;
     mat.needsUpdate = true;
@@ -241,9 +245,4 @@ function hasSightAt(mesh: THREE.Mesh): boolean {
 function inject(source: string, chunk: string, code: string): string {
   if (!source.includes(chunk)) throw new Error(`Sight limit cannot patch a shader without ${chunk}`);
   return source.replace(chunk, `${chunk}\n${code}`);
-}
-
-function injectBefore(source: string, chunk: string, code: string): string {
-  if (!source.includes(chunk)) throw new Error(`Sight limit cannot patch a shader without ${chunk}`);
-  return source.replace(chunk, `${code}\n${chunk}`);
 }
