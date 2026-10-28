@@ -125,6 +125,14 @@ export class ShaderWarmup {
     return ready;
   }
 
+  prepare(root: THREE.Object3D): void {
+    root.traverse((o) => {
+      if (!isDrawn(o)) return;
+      const variant = variantOf(o);
+      if (!materialsOf(o).every((m) => this.isCompiled(m, variant))) this.compile(o, variant);
+    });
+  }
+
   private holdUncompiled(): void {
     this.scene.traverseVisible((o) => {
       if (!isDrawn(o)) return;

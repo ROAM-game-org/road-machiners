@@ -210,6 +210,13 @@ Views whose content comes from play keep eager `scope.add`: craters, salvage pil
 - PH6 IF2, IF3, IF4, IF5, IF6 -> @ game/src/three/game.ts, game/scripts/playtest.mjs, game/scripts/perf.mjs, game/src/ui/perf-panel.ts
 - PH7 IF5 -> IF7 @ game/src/render/groundPaint.ts, game/src/three/render/terrain.ts, game/src/three/render/roads.ts, game/src/three/survey-pictures.ts, game/src/three/main.ts, game/src/ui/boot-progress.ts, game/src/text/
 
+## Verify
+
+Baseline, PH1, production build at 1d611cace with the weld fix, `boot:time --runs 3` on an M3 Pro, medians. This resolves UK1.
+- Fresh game, cold cache: ready 20.0 s. Steps: map 0.8 s, sounds 6.5 s, world 3.6 s, ground 0.8 s, scene 12.6 s, frame 0.3 s.
+- Saved world, warm cache: ready 21.1 s. Steps: map 0.7 s, sounds 3.4 s, world 0.3 s, ground 1.1 s, scene 17.0 s, frame 0.3 s.
+- Goal targets: scene at most 1.26 s fresh and 1.70 s saved.
+
 ## Code smells
 
 - `game/src/three/render/models.ts` `model()` — clones the material of every prop copy, so the scene holds thousands of materials for 51 programs, and each one pays shader prep.

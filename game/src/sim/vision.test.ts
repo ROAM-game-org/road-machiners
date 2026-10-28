@@ -16,7 +16,7 @@ import type { Obstacle } from './types';
 import { contactsOf, soundRange } from './detect';
 import { TIME } from '../data/time';
 import { sunAt } from './sun';
-import { canVehicleSee, clearOverTerrain, grayRadius, hasLineOfFire, hasLineOfSight, playerVisible, practiceContacts, refreshVision, seenPropTiles, sightLine, sightRadius, visibleTiles } from './vision';
+import { canVehicleSee, clearOverTerrain, grayRadius, grayReach, hasLineOfFire, hasLineOfSight, playerVisible, practiceContacts, refreshVision, seenPropTiles, sightLine, sightRadius, visibleTiles } from './vision';
 import { TEST_MAP } from '../test/map';
 import { DECKS, deckAt } from './bridge';
 import type { World } from './types';
@@ -174,6 +174,19 @@ describe('terrain line of sight', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => sunAt(t))!;
     expect(grayRadius(w)).toBe(TERRAIN.vision.radius * TERRAIN.vision.grayFactor);
+  });
+
+  it('keeps the gray reach of a clear day at night and in a storm, and widens it with a tourer chassis', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const day = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => sunAt(t))!;
+    w.turn = day;
+    const clear = grayReach(w, w.vehicles[0]);
+    expect(clear).toBe(grayRadius(w));
+    w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => !sunAt(t))!;
+    w.weather = [{ id: 'w1', kind: 'storm', pos: { x: 30, y: 30 }, radius: 60, vel: { x: 0, y: 0 }, turnsLeft: 100, born: w.turn - 100 }];
+    expect(grayRadius(w)).toBeLessThan(clear);
+    expect(grayReach(w, w.vehicles[0])).toBe(clear);
+    expect(grayReach(w, { ...w.vehicles[0], chassisId: 'lincoln' })).toBeGreaterThan(clear);
   });
 
   it('shrinks gray vision at night with sight', () => {

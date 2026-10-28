@@ -26,8 +26,16 @@ type Screen = { pos: Vec; r: number };
 export function sightRadius(world: World, viewer: Vehicle, lit = false): number {
   const night = nightFactor(world, viewer, lit);
   const weather = vehicleHasPerk(world, viewer, 'stormRider') ? 1 : weatherOn(world, viewer).sight;
+  return clearDaySight(world, viewer) * weather * night;
+}
+
+function clearDaySight(world: World, viewer: Vehicle): number {
   const skill = 1 + skillEffect(world, viewer, 'perception', 'sight');
-  return TERRAIN.vision.radius * weather * night * skill * sightFactor(viewer.chassisId);
+  return TERRAIN.vision.radius * skill * sightFactor(viewer.chassisId);
+}
+
+export function grayReach(world: World, viewer: Vehicle): number {
+  return clearDaySight(world, viewer) * TERRAIN.vision.grayFactor;
 }
 
 export function farSightRadius(world: World, viewer: Vehicle): number {
