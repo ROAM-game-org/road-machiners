@@ -105,6 +105,17 @@ describe('boulders', () => {
     expectClear(d.props);
   });
 
+  it('places every boulder at the precision the map file stores, so spacing survives saving', () => {
+    const d = rockLayer(1337, cliffDraft());
+
+    expect(d.props.length).toBeGreaterThan(5);
+    for (const rock of d.props) {
+      expect(rock.pos.x).toBe(Math.fround(rock.pos.x));
+      expect(rock.pos.y).toBe(Math.fround(rock.pos.y));
+      expect(rock.r).toBe(Math.fround(rock.r));
+    }
+  });
+
   it('keeps every boulder off dirt track tiles, and places every other boulder as without the track', () => {
     const marked = cliffDraft();
     for (let y = 200; y < 206; y++) for (let x = FOOT - 20; x < FOOT + 20; x++) marked.built[y * SIZE + x] = BUILT_TRACK;

@@ -591,12 +591,12 @@ describe('survey danger', () => {
   });
 
   it('reads the worst place, as in the reported survey', () => {
-    expect(surveyThreat(w, contract(['survey-ruin-4519', 'survey-house-4274']))).toBe(3);
-    expect(surveyThreat(w, contract(['survey-waterTower-4164']))).toBe(1);
+    expect(surveyThreat(w, contract(['survey-ruin-4517', 'survey-house-4272']))).toBe(3);
+    expect(surveyThreat(w, contract(['survey-waterTower-4162']))).toBe(1);
   });
 
   it('does not change when places are found or done', () => {
-    const c = contract(['survey-ruin-4519', 'survey-house-4274']);
+    const c = contract(['survey-ruin-4517', 'survey-house-4272']);
     const before = surveyThreat(w, c);
     for (const p of c.points) {
       p.found = true;

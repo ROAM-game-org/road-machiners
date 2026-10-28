@@ -304,9 +304,9 @@ function bulges(h: ArrayLike<number>, k: number, o: number, spanSq: number): boo
 }
 
 function placeBoulder(d: MapDraft, rng: Rng, i: number, j: number, kind: 'rock' | 'crag'): void {
-  const pos = { x: i + randRange(rng, -0.5, 0.5), y: j + randRange(rng, -0.5, 0.5) };
+  const pos = { x: Math.fround(i + randRange(rng, -0.5, 0.5)), y: Math.fround(j + randRange(rng, -0.5, 0.5)) };
   const [low, high] = kind === 'crag' ? B.crag.radius : B.radius;
-  const r = randRange(rng, low, high);
+  const r = Math.fround(randRange(rng, low, high));
   const yaw = kind === 'crag' ? randRange(rng, 0, Math.PI * 2) : 0;
   if (fitsOffRoad(d.size, d.heights, d.built, d.props, pos, r)) d.props.push({ kind, pos, r, yaw, group: 0, step: 0 });
 }

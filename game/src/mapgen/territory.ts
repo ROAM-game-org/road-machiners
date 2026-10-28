@@ -118,17 +118,25 @@ function pieceObstacle(p: BakedPiece, id: string) {
 
 function seatPieces(d: MapDraft, pieces: readonly BakedPiece[], ease: number): void {
   const before = { size: d.size, heights: Array.from(d.heights), types: [] };
-  const level: { k: number; h: number }[] = [];
+  const pulls = new Map<number, { gap: number; centre: number }[]>();
   pieces.forEach((p, n) => {
     const low = propBoxes(pieceObstacle(p, `seat-${n}`)).filter((b) => b.z0 < PHYSICS.truckClearance);
     const centre = groundAt(before, p.pos.x, p.pos.y) - p.sink;
     for (const c of seatCorners(d.size, p, low, ease)) {
       const k = c.j * (d.size + 1) + c.i;
-      if (c.gap === 0) level.push({ k, h: centre });
-      else d.heights[k] = centre + (before.heights[k] - centre) * smooth(c.gap / ease);
+      pulls.set(k, [...(pulls.get(k) ?? []), { gap: c.gap, centre }]);
     }
   });
-  for (const { k, h } of level) d.heights[k] = h;
+  for (const [k, list] of pulls) d.heights[k] = seated(before.heights[k], list, ease);
+}
+
+function seated(natural: number, pulls: readonly { gap: number; centre: number }[], ease: number): number {
+  const level = pulls.filter((p) => p.gap === 0);
+  if (level.length > 0) return level[level.length - 1].centre;
+  const hold = pulls.reduce((share, p) => share * smooth(p.gap / ease), 1);
+  const weights = pulls.map((p) => 1 - smooth(p.gap / ease));
+  const total = hold + weights.reduce((sum, w) => sum + w, 0);
+  return (natural * hold + pulls.reduce((sum, p, i) => sum + p.centre * weights[i], 0)) / total;
 }
 
 function seatCorners(size: number, p: BakedPiece, low: readonly PosedBox[], ease: number): { i: number; j: number; gap: number }[] {
