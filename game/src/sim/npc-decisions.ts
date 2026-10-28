@@ -627,7 +627,7 @@ function canFightSubject(world: World, vehicle: Vehicle, decision: DecisionId, s
 }
 
 function canInvestigate(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {
-  return !keepsToItself(world, vehicle) && canDrive(world, vehicle) && !holdsOffRobbery(world, vehicle, subjectOf(world, decision, subject));
+  return canDrive(world, vehicle) && !holdsOffRobbery(world, vehicle, subjectOf(world, decision, subject));
 }
 
 function canDrive(world: World, vehicle: Vehicle): boolean {
@@ -717,13 +717,17 @@ function postFactor(world: World, _vehicle: Vehicle, _decision: DecisionId, subj
 
 type OptionName = DecisionOptions[DecisionId];
 
+function unlessKeepingToItself(available: Availability): Availability {
+  return (world, vehicle, decision, subject) => !keepsToItself(world, vehicle) && available(world, vehicle, decision, subject);
+}
+
 const AVAILABLE: Record<OptionName, Availability> = {
   keep: always,
   pay: (world, vehicle) => canPayBounty(world, vehicle),
-  fight: (world, vehicle, decision, subject) => !keepsToItself(world, vehicle) && canFightSubject(world, vehicle, decision, subject),
+  fight: unlessKeepingToItself(canFightSubject),
   fightBack: canFightSubject,
   flee: canDrive,
-  investigate: canInvestigate,
+  investigate: unlessKeepingToItself(canInvestigate),
   rob: canRobSubject,
   ram: canRamSubject,
   tow: canTow,
@@ -733,7 +737,7 @@ const AVAILABLE: Record<OptionName, Availability> = {
   scavenge: canScavenge,
   raid: canRaid,
   prowl: canProwl,
-  loot: (world, vehicle, decision, subject) => !keepsToItself(world, vehicle) && canLootSubject(world, vehicle, decision, subject),
+  loot: unlessKeepingToItself(canLootSubject),
   wait: always,
   linger: (world, vehicle) => lingerReasonNow(world, vehicle) !== null,
   patrol: canPatrol,
