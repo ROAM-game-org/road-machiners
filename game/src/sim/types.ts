@@ -301,6 +301,7 @@ export type NpcActivity = {
   shipment?: Shipment;
   perceived?: number;
   worn?: { turn: number; condition: number };
+  chase?: ChaseRecord;
   demands?: boolean;
   until?: number;
   watchUntil?: number;
@@ -311,6 +312,8 @@ export type NpcActivity = {
   asked?: string[];
   heard?: Vec;
 };
+
+export type ChaseRecord = { turn: number; gap: number };
 
 export type Shipment = { good: string; from: string; to: string };
 

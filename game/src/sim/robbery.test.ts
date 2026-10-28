@@ -702,7 +702,7 @@ describe('stranded robbers', () => {
     const w = emptyWorld({ x: 200, y: 200 });
     const raider = addRaider(w, { x: 10, y: 10 });
     const target = addPrey(w, { x: 15, y: 10 });
-    raider.brain!.goals = [{ kind: 'investigate', targetId: target.id, destination: { x: 15, y: 10 }, phase: 'travel', reason: 'heardHostile' }];
+    raider.brain!.goals = [{ kind: 'investigate', targetId: target.id, destination: { x: 15, y: 10 }, phase: 'travel', reason: 'heardHostile', chase: { turn: w.turn, gap: 5 } }];
     strand(w, raider);
     thinkNpc(w, raider);
     expect(raider.brain!.goals.some((g) => g.kind === 'investigate' || (g.kind === 'fight' && g.targetId === target.id))).toBe(false);

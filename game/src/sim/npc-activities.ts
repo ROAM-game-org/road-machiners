@@ -5,7 +5,7 @@ import { SHOPS } from '../data/market';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { inCombat, inCombatWith, isHostile, turnPartHits } from './combat';
-import { abandonLostSizing, lookOverPrey, onHoldUp, onPreySeen, onSizingUp, reactToLookOvers, sizesUpFirst, sizeUpGoal, sizeUpInvalid, steerSizeUp } from './look-over';
+import { abandonHopelessSizing, abandonLostSizing, joinSideFight, lookOverPrey, onHoldUp, onPreySeen, onSizingUp, reactToLookOvers, sizesUpFirst, sizeUpGoal, sizeUpInvalid, steerSizeUp } from './look-over';
 import { reportIncident } from './relations';
 import { fileReports, openCasesOn } from './crime';
 import { huntedCases, isMarshal, planMarshal } from './marshals';
@@ -43,6 +43,7 @@ import { spotGoal, territoryOfStock, tripGoal } from './territory';
 import { OLD_PLACES, type OldPlaceType } from '../data/salvage';
 import { clamp, dist, leadsAwayBy, pointsAway, type Vec } from './vec';
 import { canVehicleSee } from './vision';
+import { chaseStalled, startChase } from './chase';
 import { isWatching, startWatch, watchOver } from './watch-posts';
 import { chooseOn, comesInSight, sensedAt, senseTracks, trackOf } from './tracks';
 import { claimClient, dropTow, escortsOf, follows, isOnRope, mercsInSight, npcHomeSite, offerEscort, refusesTows, runTow, steerFollow, steerToStranded, strandedAt, towGoal, towHeldBy, towStop, towWaitsForFight } from './tow';
@@ -330,6 +331,16 @@ function giveUpStalledFight(world: World, vehicle: Vehicle): void {
   finishGoal(world, vehicle, 'cannotWearDown');
 }
 
+function giveUpHopelessChase(world: World, vehicle: Vehicle): void {
+  if (!yields(world)) return;
+  abandonHopelessSizing(world, vehicle);
+  const goal = topGoal(vehicle);
+  if (goal?.kind !== 'investigate') return;
+  const spot = goal.heard ?? goal.destination;
+  if (!spot) throw new Error(`${vehicle.id} investigates ${goal.targetId} with no spot to drive to`);
+  if (chaseStalled(world, vehicle, goal, spot, 0)) finishGoal(world, vehicle, 'truckGotAway');
+}
+
 function stalls(world: World, goal: NpcActivity, target: Vehicle): boolean {
   if (!goal.worn) throw new Error(`A fight on ${goal.targetId} has no record of wearing it down`);
   const condition = bodyCondition(target);
@@ -604,7 +615,7 @@ function onHostilesSeen(world: World, vehicle: Vehicle, profile: NpcProfile): vo
     const reason = seenFleeReason(world, vehicle, enemy);
     const option = reactSeen(world, vehicle, enemy, profile);
     if (option === null || option === 'keep') continue;
-    if (option === 'fight') interrupt(world, vehicle, sizesUpFirst(world, vehicle, enemy) ? sizeUpGoal(enemy) : fightGoal(world, vehicle, enemy, 'fightHostile'));
+    if (option === 'fight') interrupt(world, vehicle, sizesUpFirst(world, vehicle, enemy) ? sizeUpGoal(world, vehicle, enemy) : fightGoal(world, vehicle, enemy, 'fightHostile'));
     else interrupt(world, vehicle, fleeFrom(world, vehicle, profile, enemy.id, enemy.pos, reason));
     return;
   }
@@ -615,15 +626,15 @@ function onContactsHeard(world: World, vehicle: Vehicle, profile: NpcProfile, co
   for (const contact of hostileContacts(world, vehicle, contacts)) {
     const option = reactHeard(world, vehicle, contact);
     if (option === null || option === 'keep') continue;
-    if (option === 'investigate') interrupt(world, vehicle, heardActivity(vehicle, contact));
+    if (option === 'investigate') interrupt(world, vehicle, heardActivity(world, vehicle, contact));
     else interrupt(world, vehicle, fleeFrom(world, vehicle, profile, contact.vehicleId, contact.center, 'heardHostile'));
     return;
   }
 }
 
-function heardActivity(vehicle: Vehicle, contact: Contact): NpcActivity {
+function heardActivity(world: World, vehicle: Vehicle, contact: Contact): NpcActivity {
   const activity = createActivity('investigate', contact.vehicleId, { ...contact.center }, isWatching(vehicle) ? 'springOnPrey' : 'heardHostile');
-  return { ...activity, heard: { ...contact.center } };
+  return { ...activity, heard: { ...contact.center }, chase: startChase(world, vehicle, contact.center) };
 }
 
 function onContactSpotted(world: World, vehicle: Vehicle): void {
@@ -850,6 +861,8 @@ export function thinkNpc(world: World, vehicle: Vehicle): NpcActivity {
   giveUpStrandedRobberies(world, vehicle);
   giveUpStalledFight(world, vehicle);
   abandonLostSizing(world, vehicle, contacts);
+  joinSideFight(world, vehicle);
+  giveUpHopelessChase(world, vehicle);
   dropInvalidGoals(world, vehicle, contacts);
   serveStranded(world, vehicle, profile);
   if (isDefeated(vehicle)) return defeatedActivity(world, vehicle, profile, contacts);
