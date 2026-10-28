@@ -61,6 +61,41 @@ function sightDisks(world: World, from: Vec): SightDisk[] {
   return [{ pos: from, r, reach: r }, ...flares.map((f) => ({ pos: f.pos, r: f.r, reach: lit }))];
 }
 
+export function playerSeenPropTiles(world: World): number[] {
+  return seenPropTiles(world, playerVehicle(world).pos, new Set(world.player.visible));
+}
+
+export function seenPropTiles(world: World, from: Vec, visible: ReadonlySet<number>): number[] {
+  const disks = sightDisks(world, from);
+  const reach = Math.max(...disks.map((d) => d.reach));
+  const out = new Set<number>();
+  for (const o of propsAround(world, 'sight', from, reach)) {
+    const tiles = footprintTiles(world, o);
+    if (!propIsSeen(world, from, o, tiles, disks, visible)) continue;
+    for (const idx of tiles) out.add(idx);
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
+function propIsSeen(world: World, from: Vec, o: Obstacle, tiles: readonly number[], disks: readonly SightDisk[], visible: ReadonlySet<number>): boolean {
+  if (tiles.some((idx) => visible.has(idx))) return true;
+  if (!disks.some((d) => dist(from, o.pos) <= d.reach && dist(d.pos, o.pos) <= d.r)) return false;
+  if (isHeadless()) return true;
+  return inPlainView(world, from, o.pos, propsNear(world, from, o.pos).filter((c) => c !== o), []);
+}
+
+function footprintTiles(world: World, o: Obstacle): number[] {
+  const size = world.size;
+  const reach = propReach(o);
+  const lo = { x: Math.max(0, Math.floor(o.pos.x - reach)), y: Math.max(0, Math.floor(o.pos.y - reach)) };
+  const hi = { x: Math.min(size - 1, Math.ceil(o.pos.x + reach)), y: Math.min(size - 1, Math.ceil(o.pos.y + reach)) };
+  const out: number[] = [];
+  for (let x = lo.x; x <= hi.x; x++) {
+    for (let y = lo.y; y <= hi.y; y++) if (dist(o.pos, { x: x + 0.5, y: y + 0.5 }) <= reach) out.push(y * size + x);
+  }
+  return out;
+}
+
 function forDiskTiles(world: World, from: Vec, disk: SightDisk, seen: (idx: number, tile: Vec) => void): void {
   const size = world.size;
   const lo = { x: Math.max(0, Math.floor(disk.pos.x - disk.r)), y: Math.max(0, Math.floor(disk.pos.y - disk.r)) };

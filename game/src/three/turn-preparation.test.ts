@@ -54,7 +54,7 @@ beforeEach(() => {
   reply = {
     world: state,
     result: { next: drive, frames: {}, crashes: [], breaks: [], landings: [], tears: [], results: {} },
-    sight: { steps: [], tiles: [] },
+    sight: { steps: [], tiles: [], props: [] },
     tail: null,
   };
 });

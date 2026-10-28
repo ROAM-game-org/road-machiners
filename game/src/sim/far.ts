@@ -14,7 +14,7 @@ import { burnFuel, getResources } from './resources';
 import { driveStats, fuelCap, plainFuelPerTile, plainMaxSpeed, unpavedTopShare, type DriveStats } from './stats';
 import { TERRAIN_TYPES } from '../data/terrain';
 import { tileAt } from './terrain';
-import { driveMode, parkedVehicles, throughSpeed } from './steering';
+import { driveMode, parkedVehicles, orderSpeed } from './steering';
 import { fieldBlockers } from './hazards';
 import { getHitchedTowIds, isOnRope, ropeClientOf } from './tow';
 import type { Blocker } from './nav/buckets';
@@ -47,7 +47,7 @@ export function fuelLimited<S extends DriveStats>(w: World, v: Vehicle, s: S, sp
   const low = fuelLimit(w, v, s.fuelPerTile > 0) === 'low';
   const limit = low ? Math.max(lowFuelSpeed(s.maxSpeed), speed - s.brake) : s.maxSpeed;
   const capped = low ? { ...s, maxSpeed: limit } : s;
-  const wanted = order?.kind === 'through' ? throughSpeed(capped, speed, dist(v.pos, order.dest), order.pace, driveMode(v)) : Math.min(capped.maxSpeed, speed + capped.accel);
+  const wanted = order && order.kind !== 'brake' ? orderSpeed(capped, speed, v.pos, order, driveMode(v)) : Math.min(capped.maxSpeed, speed + capped.accel);
   if (wanted * s.fuelPerTile <= fuel) return capped;
   const cap = Math.max(s.limpSpeed, speed - s.brake);
   return { ...s, maxSpeed: cap, accel: Math.min(s.accel, s.limpAccel) };
@@ -63,7 +63,7 @@ export function advanceFar(w: World, v: Vehicle): void {
   }
 
   const s = fuelLimited(w, v, onGround(w, v, full), v.speed, order);
-  const next = order.kind === 'through' ? throughSpeed(s, v.speed, dist(v.pos, order.dest), order.pace, driveMode(v)) : Math.min(s.maxSpeed, v.speed + s.accel);
+  const next = orderSpeed(s, v.speed, v.pos, order, driveMode(v));
   const style = { offRoad: keepsOffRoads(w, v), night: avoidsCrater(w, v) };
   const { points, partial } = farPoints(w, v, order.dest, style, full, s);
 

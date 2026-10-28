@@ -13,7 +13,7 @@ import { propsAroundInOrder } from '../sim/prop-index';
 import { playerVehicle } from '../sim/damage';
 import { groundSpeed, unpavedTopShare, vehicleStats, type VehicleStats } from '../sim/stats';
 import { followRoute, type KeptRoute, type SizedRoute } from '../sim/path';
-import { backsToDestination, driveMode, throughSpeed } from '../sim/steering';
+import { backsToDestination, driveMode, orderSpeed } from '../sim/steering';
 import { givesWayTo, routeBlockers, standingBlockers, yieldsToTraffic } from '../sim/ai';
 import { clearanceFor, type Clearance, type Mover } from '../sim/clearance';
 import { combatFoesOf } from '../sim/combat';
@@ -280,13 +280,14 @@ function run(d: Drive, w: World, steps: number, world: RAPIER.World, events: RAP
 
 function makeCars(d: Drive, w: World, world: RAPIER.World, memory: Record<string, Memory>): Car[] {
   const oil = oilPatches(w);
+  const giversOf = giversByHolder(w);
   const cars: Car[] = w.vehicles.filter((v) => d.bodies[v.id] !== undefined).map((v) => {
     const body = world.getRigidBody(d.bodies[v.id]);
     const s = vehicleStats(w, v);
     const b = unitBody(v.chassisId, 0);
     const loads = wheelLoads(v);
     const mem = memory[v.id];
-    return { v, s, b, body, ctl: makeCar(world, body, b, 0, loads[0]), rear: trailerOf(d, world, v, loads), mem, plan: planOf(w, v, s, body, mem), result: { passed: false, arrived: false, pushedSteps: 0 }, grip: 1, topShare: 1, oil: oilInReach(oil, v, s, body), kicked: false, size: w.terrain.size, world, holding: false, holdGrip: 1, avoid: avoidOf(w, v), field: [] };
+    return { v, s, b, body, ctl: makeCar(world, body, b, 0, loads[0]), rear: trailerOf(d, world, v, loads), mem, plan: planOf(w, v, s, body, mem), result: { passed: false, arrived: false, pushedSteps: 0 }, grip: 1, topShare: 1, oil: oilInReach(oil, v, s, body), kicked: false, size: w.terrain.size, world, holding: false, holdGrip: 1, avoid: avoidOf(w, v, giversOf), field: [] };
   });
   for (const c of cars) c.field = cars;
   return cars;
@@ -602,8 +603,8 @@ function planTurn(w: World, v: Vehicle, full: VehicleStats, body: RAPIER.RigidBo
   const clearance = v.direct ? null : room;
   Object.assign(mem, { clearAhead: Infinity, clearMoving: Infinity, clearBehind: Infinity, clearAt: 0, roomAt: 0, roomBack: null, roomTurn: null });
   const drive = (next: number) => toMps(engine ? next : speed);
-  if (order.kind === 'stopAt') return { ...base, clearance, room, dest: stopPoint(mem.route, order.dest), route: path, target: drive(Math.min(s.maxSpeed, speed + s.accel)), stopAt: true };
-  const next = throughSpeed(s, speed, dist(v.pos, order.dest), order.pace, driveMode(v));
+  if (order.kind === 'stopAt') return { ...base, clearance, room, dest: stopPoint(mem.route, order.dest), route: path, target: drive(orderSpeed(s, speed, v.pos, order, driveMode(v))), stopAt: true };
+  const next = orderSpeed(s, speed, v.pos, order, driveMode(v));
   return { ...base, clearance, room, dest: order.dest, route: path, target: drive(next), stopAt: false };
 }
 
@@ -774,9 +775,21 @@ function watchClearance(c: Car, at: Vec, heading: number, speed: number, dest: V
   mem.clearBehind = watching ? freeDistance(c, -1, at, heading, mps, dest).solid : Infinity;
 }
 
-function avoidOf(w: World, v: Vehicle): Set<string> {
+function giversByHolder(w: World): Map<string, string[]> {
+  const byHolder = new Map<string, string[]>();
+  const byId = new Map(w.vehicles.map((v) => [v.id, v]));
+  for (const giver of w.vehicles) {
+    for (const id of giver.yieldsTo ?? []) {
+      const holder = byId.get(id);
+      if (holder && givesWayTo(w, giver, holder)) byHolder.set(id, [...(byHolder.get(id) ?? []), giver.id]);
+    }
+  }
+  return byHolder;
+}
+
+function avoidOf(w: World, v: Vehicle, giversOf: ReadonlyMap<string, readonly string[]>): Set<string> {
   const client = ropeClientOf(w, v.id);
-  return new Set([v.id, ...(v.brain?.ramTarget ? [v.brain.ramTarget] : []), ...(client ? [client] : []), ...combatFoesOf(w, v), ...w.vehicles.filter((x) => givesWayTo(w, x, v)).map((x) => x.id)]);
+  return new Set([v.id, ...(v.brain?.ramTarget ? [v.brain.ramTarget] : []), ...(client ? [client] : []), ...combatFoesOf(w, v), ...(giversOf.get(v.id) ?? [])]);
 }
 
 function moversNear(c: Car, from: Vec, reach: number, seconds: number): Mover[] {

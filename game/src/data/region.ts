@@ -8,6 +8,7 @@ export type DraftData = {
   oldSpots: { mapHash: string; picks: unknown[] };
   surveySites: { mapHash: string; sites: unknown[] };
   claimClues: { mapHash: string; wrecks: Record<string, unknown> };
+  huntingSpots: { mapHash: string; spots: unknown[]; samples: unknown[] };
   hollow: { pos: Vec; gateBearing: number } | null;
   startDistance: number | null;
 };

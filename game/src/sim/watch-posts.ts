@@ -13,6 +13,7 @@ import { INDEX_CELL, ROAD_INDEX } from './road-index';
 import { siteGates, siteUnder } from './sites';
 import type { Terrain } from './terrain';
 import { hazardZones, type HazardZone } from './territory';
+import { worldHuntingSpots } from './hunting-spots';
 import type { GoalReason, NpcActivity, Obstacle, Vehicle, World } from './types';
 import { dist, segmentDist, type Vec } from './vec';
 import { icarusAtlas } from './atlas';
@@ -32,9 +33,9 @@ function roadReach(world: World): (p: Vec) => boolean {
   return reachesFrom(world, road[Math.floor(road.length / 2)], raiderRadius());
 }
 
-type RoadSamples = Map<number, Vec[]>;
+type TrafficSamples = Map<number, Vec[]>;
 
-type PostMap = { reach: number; reachesRoad: (p: Vec) => boolean; roadSamples: RoadSamples; nav: TerrainNav; statics: StaticSet; gates: Vec[]; hazards: HazardZone[]; posts: Map<string, Vec | null>; lists: Map<string, readonly Vec[]> };
+type PostMap = { reach: number; reachesRoad: (p: Vec) => boolean; traffic: TrafficSamples | null; nav: TerrainNav; statics: StaticSet; gates: Vec[]; hazards: HazardZone[]; posts: Map<string, Vec | null>; lists: Map<string, readonly Vec[]> };
 
 const maps = new WeakMap<Terrain, PostMap>();
 
@@ -44,7 +45,7 @@ function postMap(world: World): PostMap {
   const map: PostMap = {
     reach: postReach(),
     reachesRoad: roadReach(world),
-    roadSamples: roadSamplesOf(),
+    traffic: null,
     nav: terrainNav(world.terrain),
     statics: staticSet(fixedProps(world), world.terrain),
     gates: lawmanTowns().flatMap((town) => siteGates(town)),
@@ -91,23 +92,16 @@ export function hidesOf(world: World, ground: Vec): Vec[] {
   return candidates(ground).filter((p) => qualifiesAsHide(world, map, p));
 }
 
-function roadSamplesOf(): RoadSamples {
-  const out: RoadSamples = new Map();
-  const add = (p: Vec): void => {
+function trafficOf(world: World, map: PostMap): TrafficSamples {
+  if (map.traffic) return map.traffic;
+  const out: TrafficSamples = new Map();
+  for (const p of worldHuntingSpots(world).samples) {
     const key = cellKey(Math.floor(p.x / INDEX_CELL), Math.floor(p.y / INDEX_CELL));
     const cell = out.get(key);
     if (cell) cell.push(p);
     else out.set(key, [p]);
-  };
-  for (const road of REGION.roads) {
-    for (let i = 0; i + 1 < road.length; i++) {
-      const a = road[i];
-      const b = road[i + 1];
-      const steps = Math.max(1, Math.ceil(dist(a, b) / HUNT.roadSample));
-      for (let k = 0; k < steps; k++) add({ x: a.x + ((b.x - a.x) * k) / steps, y: a.y + ((b.y - a.y) * k) / steps });
-    }
-    add(road[road.length - 1]);
   }
+  map.traffic = out;
   return out;
 }
 
@@ -117,10 +111,11 @@ function cellKey(cx: number, cy: number): number {
 
 function exposure(world: World, map: PostMap, p: Vec, limit = Infinity): number {
   const reach = TERRAIN.vision.radius;
+  const traffic = trafficOf(world, map);
   let seen = 0;
   for (let cy = Math.floor((p.y - reach) / INDEX_CELL); cy <= Math.floor((p.y + reach) / INDEX_CELL); cy++) {
     for (let cx = Math.floor((p.x - reach) / INDEX_CELL); cx <= Math.floor((p.x + reach) / INDEX_CELL); cx++) {
-      for (const sample of map.roadSamples.get(cellKey(cx, cy)) ?? []) {
+      for (const sample of traffic.get(cellKey(cx, cy)) ?? []) {
         if (dist(p, sample) <= reach && sees(world, p, sample) && ++seen > limit) return seen;
       }
     }
@@ -164,6 +159,10 @@ function candidates(ground: Vec): Vec[] {
   return out;
 }
 
+export function isHideSpot(world: World, p: Vec): boolean {
+  return qualifiesAsHide(world, postMap(world), p);
+}
+
 function qualifiesAsHide(world: World, map: PostMap, p: Vec): boolean {
   return onMap(world, map, p) && clearOfRoads(p) && clearOfPlaces(map, p) && drivable(map, p) && map.reachesRoad(p);
 }
@@ -203,7 +202,7 @@ function blocks(b: Blocker, p: Vec, reach: number): boolean {
   return b.prop !== undefined || dist(b.pos, p) < b.r + reach;
 }
 
-function seesGround(world: World, p: Vec, ground: Vec): boolean {
+export function seesGround(world: World, p: Vec, ground: Vec): boolean {
   return dist(p, ground) <= TERRAIN.vision.radius && sees(world, p, ground);
 }
 

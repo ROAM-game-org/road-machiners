@@ -845,6 +845,11 @@ export function noteEngagements(world: World, gaps: HuntGaps): void {
   }
 }
 
+export function engageInSight(world: World, v: Vehicle): void {
+  const target = huntedTarget(world, v);
+  if (target) engage(world, v, target);
+}
+
 function closesIn(world: World, v: Vehicle, target: Vehicle, before: number | undefined): boolean {
   const gap = dist(v.pos, target.pos);
   return gap <= gunReach(world, v) || (before !== undefined && before - gap >= NPC_BEHAVIOR.closeInTiles);

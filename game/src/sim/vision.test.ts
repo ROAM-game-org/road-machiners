@@ -16,7 +16,7 @@ import type { Obstacle } from './types';
 import { contactsOf, soundRange } from './detect';
 import { TIME } from '../data/time';
 import { sunAt } from './sun';
-import { canVehicleSee, clearOverTerrain, grayRadius, hasLineOfFire, hasLineOfSight, playerVisible, practiceContacts, refreshVision, sightLine, sightRadius, visibleTiles } from './vision';
+import { canVehicleSee, clearOverTerrain, grayRadius, hasLineOfFire, hasLineOfSight, playerVisible, practiceContacts, refreshVision, seenPropTiles, sightLine, sightRadius, visibleTiles } from './vision';
 import { TEST_MAP } from '../test/map';
 import { DECKS, deckAt } from './bridge';
 import type { World } from './types';
@@ -479,5 +479,88 @@ describe('the viewshed against the line to every tile', () => {
     const first = [...visibleTiles(world, from)].sort((a, b) => a - b);
     for (const p of roadSpots.slice(10, 20)) visibleTiles(world, p);
     expect([...visibleTiles(world, from)].sort((a, b) => a - b)).toEqual(first);
+  });
+});
+
+describe('props the player sees', () => {
+  const from = { x: 30, y: 30 };
+  const landmark = (look: 'deadTree' | 'farmhouse' | 'shack', pos: Vec, yaw: number): World => {
+    const w = emptyWorld(from);
+    w.obstacles = [{ id: `${look}-0`, pos, r: 1.2, kind: 'landmark', look, yaw }];
+    return w;
+  };
+  const hiddenOwnTiles = (w: World) => {
+    const visible = visibleTiles(w, from);
+    return { visible, seen: seenPropTiles(w, from, visible) };
+  };
+
+  it.each([
+    ['deadTree', { x: 35.4, y: 30.3 }, 0.7],
+    ['farmhouse', { x: 35.4, y: 30 }, 0.7],
+    ['shack', { x: 35.4, y: 30 }, 0],
+  ] as const)('counts a %s as seen where its own boxes hide a tile under it', (look, pos, yaw) => {
+    const { visible, seen } = hiddenOwnTiles(landmark(look, pos, yaw));
+
+    expect(seen.some((idx) => !visible.has(idx))).toBe(true);
+    expect(seen.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('counts a rock beside its own hidden tiles as seen', () => {
+    const w = emptyWorld(from);
+    w.obstacles = [{ id: 'r', pos: { x: 35.4, y: 30.3 }, r: 1.6, kind: 'rock' }];
+    const { visible, seen } = hiddenOwnTiles(w);
+
+    expect(seen.some((idx) => !visible.has(idx))).toBe(true);
+  });
+
+  it('leaves the rule sight of the same scene unchanged', () => {
+    const w = landmark('shack', { x: 35.4, y: 30 }, 0);
+    const before = [...visibleTiles(w, from)];
+    seenPropTiles(w, from, new Set(before));
+
+    expect([...visibleTiles(w, from)]).toEqual(before);
+  });
+
+  it('keeps a prop behind a shack unseen', () => {
+    const w = emptyWorld(from);
+    w.obstacles = [
+      { id: 'shack-0', pos: { x: 33, y: 30 }, r: 1.2, kind: 'landmark', look: 'shack', yaw: 0 },
+      { id: 'r', pos: { x: 39.5, y: 30.5 }, r: 1.2, kind: 'rock' },
+    ];
+    const { visible, seen } = hiddenOwnTiles(w);
+    const rockTile = 30 * w.size + 39;
+
+    expect(visible.has(rockTile)).toBe(false);
+    expect(seen).not.toContain(rockTile);
+  });
+
+  it('keeps a prop behind a hill unseen', async () => {
+    const { heightAt } = await import('./terrain');
+    const w = emptyWorld(from);
+    w.terrain = TEST_MAP.terrain;
+    let found: { a: Vec; b: Vec } | null = null;
+    for (let x = 6; x < w.size - 6 && !found; x++) {
+      for (let y = 2; y < w.size - 2 && !found; y++) {
+        const a = { x: x - 4, y }, b = { x: x + 4, y };
+        if (heightAt(w.terrain, x, y) - Math.max(heightAt(w.terrain, a.x, a.y), heightAt(w.terrain, b.x, b.y)) > TERRAIN.vision.eyeHeight) found = { a, b };
+      }
+    }
+    expect(found, 'no hill found for this seed').not.toBeNull();
+    const visible = visibleTiles(w, found!.a);
+    const behindHill = [3, 4, 5, 6, 7, 8]
+      .map((d) => ({ x: Math.floor(found!.b.x) + d - 3.5, y: Math.floor(found!.b.y) + 0.5 }))
+      .find((pos) => [-1, 0, 1].every((dx) => [-1, 0, 1].every((dy) => !visible.has(Math.floor(pos.y + dy) * w.size + Math.floor(pos.x + dx)))));
+    expect(behindHill, 'no tile fully behind the hill').toBeDefined();
+    w.obstacles = [{ id: 'r', pos: behindHill!, r: 1.2, kind: 'rock' }];
+
+    expect(seenPropTiles(w, found!.a, visible)).toEqual([]);
+  });
+
+  it('counts a prop beside the viewer as seen', () => {
+    const w = emptyWorld(from);
+    w.obstacles = [{ id: 'r', pos: { x: 31.2, y: 30.5 }, r: 1.2, kind: 'rock' }];
+    const { seen } = hiddenOwnTiles(w);
+
+    expect(seen).toContain(30 * w.size + 31);
   });
 });

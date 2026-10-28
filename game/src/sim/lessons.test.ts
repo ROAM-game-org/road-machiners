@@ -6,6 +6,7 @@ import type { TraitId } from '../data/npcs';
 import { lineKey } from '../text/names';
 import { entryText } from '../text/resolve';
 import { PATCH } from '../data/wear';
+import { PROSE_TELLS } from '../test/prose-tells';
 import { bareSides } from './armor';
 import { playerVehicle } from './damage';
 import { makePart } from './factory';
@@ -44,8 +45,15 @@ describe('lesson data', () => {
 
   it('fills every slot of every trade once, with every lesson line used once', () => {
     const used = Object.values(LESSONS).flatMap((t) => [...WEAKNESSES.map((weak) => t.weak[weak]), ...t.general]);
-    expect(used).toHaveLength(35);
+    expect(used).toHaveLength(70);
     expect([...used].sort()).toEqual([...LESSON_LINE_IDS].sort());
+  });
+
+  it('gives every trade four weakness stories and ten general ones', () => {
+    for (const trade of Object.values(LESSONS)) {
+      expect(Object.keys(trade.weak)).toHaveLength(4);
+      expect(trade.general).toHaveLength(10);
+    }
   });
 
   it('offers the topic to every voiced trait', () => {
@@ -64,6 +72,31 @@ describe('lesson text', () => {
 
   it('holds no digit in Russian', () => {
     for (const id of LESSON_LINE_IDS) expect(entryText('ru', lineKey(id)), id).not.toMatch(/\d/);
+  });
+
+  it('holds no semicolon, dash or stock phrase in either language', () => {
+    for (const id of LESSON_LINE_IDS) {
+      expect(entryText('en', lineKey(id)), id).not.toMatch(PROSE_TELLS.en);
+      expect(entryText('ru', lineKey(id)), id).not.toMatch(PROSE_TELLS.ru);
+    }
+  });
+
+  const tradeLines = (trade: LessonTrade): string[] => [...Object.values(LESSONS[trade].weak), ...LESSONS[trade].general].map((id) => entryText('en', lineKey(id)));
+
+  it('keeps the law tic and the raider tic to a few lines', () => {
+    expect(tradeLines('law').filter((text) => /for the record/i.test(text)).length).toBeLessThanOrEqual(3);
+    expect(tradeLines('raider').filter((text) => /\bfriend\b/i.test(text)).length).toBeLessThanOrEqual(4);
+  });
+
+  it('opens no more than two lines of one trade with the same words', () => {
+    for (const trade of Object.keys(LESSONS) as LessonTrade[]) {
+      const openings = new Map<string, number>();
+      for (const text of tradeLines(trade)) {
+        const opening = text.toLowerCase().replace(/^for the record, /, '').split(/\s+/).slice(0, 3).join(' ');
+        openings.set(opening, (openings.get(opening) ?? 0) + 1);
+      }
+      expect(Math.max(...openings.values()), trade).toBeLessThanOrEqual(2);
+    }
   });
 });
 
@@ -145,7 +178,20 @@ describe('picking a lesson', () => {
     const v = playerVehicle(w);
     for (const gun of mountedParts(v, 'weapon')) gun.hp = 0;
     const weak = [LESSONS.hauler.weak.noGuns, LESSONS.hauler.weak.bareSide];
-    for (const npc of traders(w, 12)) expect(weak).toContain(pickLesson(w, npc, v));
+    const allowed = [...weak, ...LESSONS.hauler.general];
+    for (const npc of traders(w, 12)) expect(allowed).toContain(pickLesson(w, npc, v));
+  });
+
+  it('tells a weakness story to about half of the drivers and a general one to the rest', () => {
+    const w = emptyWorld();
+    const v = playerVehicle(w);
+    for (const gun of mountedParts(v, 'weapon')) gun.hp = 0;
+    const weak: readonly string[] = [LESSONS.hauler.weak.noGuns, LESSONS.hauler.weak.bareSide];
+    const told = traders(w, 200).map((npc) => pickLesson(w, npc, v));
+    const share = told.filter((id) => weak.includes(id)).length / told.length;
+    expect(share).toBeGreaterThan(0.35);
+    expect(share).toBeLessThan(0.65);
+    expect(told.some((id) => LESSONS.hauler.general.includes(id as never))).toBe(true);
   });
 
   it('tells a general story of its trade when no weakness holds', () => {

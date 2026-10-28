@@ -7,10 +7,11 @@ import type { GameEvent, ShotRound } from "../sim/types";
 import { groundPoint, type V3 } from "../phys/frames";
 import { FLARE_LOOK, SHELL } from "./render/hazards";
 import { BreakCues, type PartBreak, type ShotLike } from "./breakCues";
+import { PARTS } from "../data/parts";
 import { projectileOf, type Muzzle } from "./render/projectiles";
 import { PHYSICS } from "../data/physics";
 import { bodyOf } from "../sim/body";
-import { CollisionCues, collisionSteps, fireSteps, scoreEventMs, planShot, playCrashes, playShotFx, playUtilitySounds, playVolley, posesOf, spreadOver, type CombatHost, type Gun, type PlannedRound, type Shot, type TurnPoses, type VolleyHost } from "./volley";
+import { CollisionCues, collisionSteps, fireSteps, hookLine, scoreEventMs, planShot, playCrashes, playShotFx, playUtilitySounds, playVolley, posesOf, spreadOver, type CombatHost, type Gun, type PlannedRound, type Shot, type TurnPoses, type VolleyHost } from "./volley";
 
 const hit = (a: string, b: string): GameEvent => ({ t: "collision", a, b, impact: 3, hitsA: [], hitsB: [] });
 const crash = (a: string, b: string, step: number) => ({ a, b, impact: 5, step }) as Crash;
@@ -313,6 +314,77 @@ describe("playVolley breaks", () => {
 
   it("sounds a ground miss whose blast damaged a truck as metal", () => {
     expect(volley([plain(null, [{ vehicle: "o", hits: [] }])])).toEqual(["hit-metal"]);
+  });
+
+  const sheet = (parts: string[]) => {
+    const w = emptyWorld();
+    const v = addVehicle(w, "scrapjaw", "buggy", parts, { x: 33, y: 30 }, 0);
+    v.id = "t";
+    const idOf = (defId: string) => {
+      const it = v.items.find((i) => i.kind === "part" && i.part.defId === defId);
+      return it && it.kind === "part" ? it.part.id : "";
+    };
+    return { world: w, idOf };
+  };
+
+  const volleyOn = (world: ReturnType<typeof emptyWorld>, rounds: ShotRound[], weapon = "mg") => {
+    const played = play();
+    const ev = { ...event, rounds } as ShotLike;
+    playVolley({ ...played.host, world }, plansOf(rounds), MUZZLE, ev, new BreakCues([ev]), weapon, new Map(), false, null);
+    played.landed.forEach((l) => l());
+    return played.sounds;
+  };
+  const dealt = (part: string, damage: number, vehicle = "t"): ShotRound => ({ hit: true, crit: false, offset: 0, struck: vehicle, hits: [{ part, damage }], blast: [], burst: null });
+
+  describe("struck cue by the parts a round damaged", () => {
+    const { world, idOf } = sheet(["mg", "stockEngine", "plates", "ram"]);
+    const engine = idOf("stockEngine");
+    const plates = idOf("plates");
+    const ram = idOf("ram");
+
+    it("plays hit-part for a damaged engine and hit-metal for plates, a ram or no damage", () => {
+      expect(volleyOn(world, [dealt(engine, 2)])).toEqual(["hit-part"]);
+      expect(volleyOn(world, [dealt(plates, 2)])).toEqual(["hit-metal"]);
+      expect(volleyOn(world, [dealt(ram, 2)])).toEqual(["hit-metal"]);
+      expect(volleyOn(world, [dealt(engine, 0)])).toEqual(["hit-metal"]);
+    });
+
+    it("plays hit-part when a round cracks a plate and then reaches the engine", () => {
+      const both: ShotRound = { ...dealt(plates, 2), hits: [{ part: plates, damage: 2 }, { part: engine, damage: 1 }] };
+      expect(volleyOn(world, [both])).toEqual(["hit-part"]);
+    });
+
+    it("plays hit-part for a splash miss whose blast damaged another truck's part", () => {
+      const splash: ShotRound = { ...dealt(engine, 1), struck: null, hit: false, hits: [], blast: [{ vehicle: "t", hits: [{ part: engine, damage: 1 }] }] };
+      expect(volleyOn(world, [splash])).toEqual(["hit-part"]);
+    });
+
+    it("keeps the harpoon's hook for either kind of hit", () => {
+      expect(volleyOn(world, [dealt(engine, 2)], "harpoon")).toEqual(["harpoon-hook"]);
+      expect(volleyOn(world, [dealt(plates, 2)], "harpoon")).toEqual(["harpoon-hook"]);
+    });
+
+    it("keeps a miss as a miss", () => {
+      expect(volleyOn(world, [plain(null)])).toEqual(["miss"]);
+    });
+
+    it("applies the same rule when neither truck is the player's", () => {
+      expect(world.vehicles.some((v) => v.id === "t" && v.faction !== "player")).toBe(true);
+      expect(volleyOn(world, [dealt(engine, 2)])).toEqual(["hit-part"]);
+    });
+
+    it("throws on a damaged part the truck does not carry", () => {
+      expect(() => volleyOn(world, [dealt("nope", 2)])).toThrow(/does not carry/);
+    });
+
+    it("sounds the same for every gun but the harpoon", () => {
+      const weapons = Object.values(PARTS).filter((d) => d.kind === "weapon" && d.id !== "harpoon");
+      expect(weapons.length).toBeGreaterThan(0);
+      for (const w of weapons) {
+        expect(volleyOn(world, [dealt(engine, 2)], w.id)).toEqual(["hit-part"]);
+        expect(volleyOn(world, [dealt(plates, 2)], w.id)).toEqual(["hit-metal"]);
+      }
+    });
   });
 
   it("sounds nothing for a stray into a truck that is not shown", () => {
@@ -643,5 +715,11 @@ describe("spreadOver", () => {
 
   it("throws with rounds to place and no step to fire on", () => {
     expect(() => spreadOver([], 1, half)).toThrow(/at least one fire step/);
+  });
+});
+
+describe("hookLine", () => {
+  it("ignores a hook that lands after the turn has ended", () => {
+    expect(() => hookLine(emptyWorld(), null, "v1", "harpoon")).not.toThrow();
   });
 });

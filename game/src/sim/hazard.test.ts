@@ -3,7 +3,6 @@ import { REGION } from '../data/region';
 import { TERRAIN } from '../data/terrain';
 import { TERRITORIES } from '../data/territory';
 import { applyHazards, inCore } from './hazard';
-import { huntingGrounds } from './npc-decisions';
 import { siteGap } from './sites';
 import { hazardZoneOf, hazardZones, reactorPos, territoryEntries, territoryGrounds, territoryPieces } from './territory';
 import { route } from './path';
@@ -169,7 +168,6 @@ describe('hunting grounds in the Fallen Sun', () => {
       const where = `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
       expect(siteGap(sun, p), where).toBeLessThan(0);
       expect(dist(p, core), where).toBeGreaterThan(hazard.radius);
-      expect(huntingGrounds(), where).toContainEqual(p);
     }
   });
 

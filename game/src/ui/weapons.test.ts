@@ -11,6 +11,7 @@ import type { UiHost } from "./host";
 import { makePart } from "../sim/factory";
 import { mountPart } from "../sim/inventory";
 import { wornReload } from "../sim/utility";
+import { orderLock, lockReason } from "./weapons";
 import { HoverHold, UtilityRow, WeaponPanel, aimAtPart, aimMarks, aimsBody, bodyMarks, InspectPin, gunsLabel, aimName, ammoCells, canForceReload, reloadBlock, getWeaponReadout, toggleBodyAim, vehicleMarks, shortStatus, weaponGrid, utilityKey, utilitySlots, utilityStatus } from "./weapons";
 import { EN } from "../text/en";
 import type { Msg } from "../text/msg";
@@ -455,7 +456,7 @@ describe("weapon panel keys and the turn button", () => {
       travelSpeedIndex: vi.fn(() => 0),
       travelPlaySpeed: () => null,
       stepTravelSpeed: vi.fn(),
-      getTurnPhase: () => null,
+      getTurnPhase: () => null, menuOpen: () => false,
     } satisfies UiHost;
     const panel = new WeaponPanel(host);
     panel.render();
@@ -642,7 +643,7 @@ describe("disabled reasons on the weapon bar", () => {
     const host = {
       world: () => world, apply: vi.fn(), announce: vi.fn(), selectedWeapon: () => null, selectWeapon: vi.fn(), selectedUtility: () => null, selectUtility: vi.fn(),
       searchStock: vi.fn(), pressTurn: vi.fn(), releaseTurn: vi.fn(), runKey: vi.fn(), autoTravel: () => false, travelSpeedIndex: () => 0, travelPlaySpeed: () => null,
-      stepTravelSpeed: vi.fn(), getTurnPhase: () => phase,
+      stepTravelSpeed: vi.fn(), getTurnPhase: () => phase, menuOpen: () => false,
     } satisfies UiHost;
     new WeaponPanel(host).render();
     const find = (text: string) => (ui.children as FakeNode[]).map((n) => n.find((b) => b.tag === "button" && b.text().includes(text))).find(Boolean)!;
@@ -662,6 +663,50 @@ describe("disabled reasons on the weapon bar", () => {
   it("names a knocked out driver", () => {
     const { find } = build(null, (w) => { w.player.state = "knockedOut"; });
     expect(find("Auto fire").attrs.get("title")).toBe("Knocked out");
+  });
+
+  it("keeps the knockout reason steady while a turn plays", () => {
+    const { find } = build("moving", (w) => { w.player.state = "knockedOut"; });
+    for (const text of ["Auto fire", "All", "Hold"]) {
+      expect(find(text).attrs.get("aria-disabled")).toBe("true");
+      expect(find(text).attrs.get("title")).toBe("Knocked out");
+    }
+  });
+
+  it("does not select or toggle auto fire while knocked out", () => {
+    const { host } = build(null, (w) => { w.player.state = "knockedOut"; });
+    const { world } = createDuel();
+    world.player.state = "knockedOut";
+    const panel = new WeaponPanel({ ...host, world: () => world });
+    panel.selectWeapon("x");
+    panel.toggleAuto();
+    panel.pressKey(1);
+    expect(host.selectWeapon).not.toHaveBeenCalled();
+    expect(host.apply).not.toHaveBeenCalled();
+  });
+});
+
+describe("orderLock", () => {
+  const reason = (w: World, playing: boolean) => en(orderLock(w, playing));
+
+  it("says Knocked out whether or not a turn plays", () => {
+    const { world } = createDuel();
+    world.player.state = "knockedOut";
+    expect(reason(world, false)).toBe("Knocked out");
+    expect(reason(world, true)).toBe("Knocked out");
+  });
+
+  it("says Turn playing only while a turn plays for an active player", () => {
+    const { world } = createDuel();
+    expect(reason(world, false)).toBeNull();
+    expect(reason(world, true)).toBe("Turn playing");
+  });
+
+  it("leaves towed and on the radio to lockReason", () => {
+    const { world } = createDuel();
+    world.player.call = { with: "x" } as never;
+    expect(reason(world, false)).toBeNull();
+    expect(en(lockReason(world, null))).not.toBeNull();
   });
 
   it("says why Reload does nothing", () => {
@@ -699,7 +744,7 @@ describe("the utility row", () => {
       travelSpeedIndex: vi.fn(() => 0),
       travelPlaySpeed: () => null,
       stepTravelSpeed: vi.fn(),
-      getTurnPhase: vi.fn<() => "moving" | null>(() => null),
+      getTurnPhase: vi.fn<() => "moving" | null>(() => null), menuOpen: () => false,
     } satisfies UiHost;
     return { world, host, row: new UtilityRow(host), sprout, mortar };
   }

@@ -271,7 +271,7 @@ export const UI: Translation<typeof EN> = {
   'actBlock.knockedOut': 'Без сознания',
   'actBlock.towed': 'На буксире',
   'actBlock.onRadio': 'В эфире',
-  'unstuck.combat': 'Вы в бою',
+  'unstuck.combat': 'Вы в бою и не застряли',
   'unstuck.towing': 'Вы буксируете грузовик',
   'unstuck.harpoon': 'Грузовик на гарпунном тросе',
   'hud.tipsOff': 'Советы выключены. Включите их снова в Меню, Показывать советы.',

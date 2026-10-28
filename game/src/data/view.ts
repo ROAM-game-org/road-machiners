@@ -23,3 +23,5 @@ export const SCATTER: {
   },
   patch: { frequency: 1 / 14, depth: 0.8, pebbleSeed: 31, scrubSeed: 57 },
 };
+
+export const DEFAULT_ZOOM = 1.15;
