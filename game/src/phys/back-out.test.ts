@@ -25,7 +25,7 @@ function turns(w: World, count: number, seen: (w: World, d: Drive) => void): Wor
 }
 
 describe('backing out', () => {
-  it('a truck coming the other way is a speed cap, never solid clearance or a back-out', () => {
+  it('a truck coming the other way that gives way to the player is neither a speed cap, nor solid clearance, nor a back-out', () => {
     const w = ordered({ kind: 'through', dest: { x: 90, y: 30 } }, 5);
     const trader = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 46, y: 30.2 }, Math.PI);
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
@@ -41,7 +41,7 @@ describe('backing out', () => {
       backed.push(mem.backFrom !== null || mem.reverse);
     });
     expect(solid.every((s) => s === Infinity)).toBe(true);
-    expect(moving.some((m) => m < Infinity)).toBe(true);
+    expect(moving.every((m) => m === Infinity)).toBe(true);
     expect(backed.some(Boolean)).toBe(false);
   }, budget(60_000));
 
