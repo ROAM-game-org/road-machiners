@@ -147,13 +147,35 @@ function onGround(w: World, v: Vehicle, s: DriveStats): DriveStats {
 }
 
 function farPoints(w: World, v: Vehicle, dest: Vec, style: RouteStyle, full: DriveStats, s: DriveStats): { points: Vec[]; partial: boolean } {
-  const stored = keptFarRoute(v);
-  if (stored && dist(stored.dest, dest) < RULES.arriveRadius && sameStyle(stored, style)) return { points: stored.points, partial: stored.partial === true };
-  if (drivesCoarse(v)) return { points: coarsePoints(w, v, dest, full.radius, s.maxSpeed), partial: false };
   const onRope = getHitchedTowIds(w);
+  const coarse = drivesCoarse(v) && !endsAmongParked(w, v, dest, onRope);
+  const stored = keptFarRoute(v);
+  if (stored && keepsRoute(stored, dest, style, coarse === drivesCoarse(v))) return { points: stored.points, partial: stored.partial === true };
+  const toCoarse = (): { points: Vec[]; partial: boolean } => ({ points: coarsePoints(w, v, dest, full.radius, s.maxSpeed), partial: false });
+  return coarse ? toCoarse() : fineOrCoarse(fineRoute(w, v, dest, full.radius, s, onRope), v, dest, toCoarse);
+}
+
+function fineOrCoarse(fine: { points: Vec[]; partial: boolean }, v: Vehicle, dest: Vec, toCoarse: () => { points: Vec[]; partial: boolean }): { points: Vec[]; partial: boolean } {
+  return drivesCoarse(v) && !reaches(fine.points, dest) ? toCoarse() : fine;
+}
+
+function fineRoute(w: World, v: Vehicle, dest: Vec, radius: number, s: DriveStats, onRope: ReadonlySet<string>): { points: Vec[]; partial: boolean } {
   const window = REGION.navigation.farWindow;
   const blockers = [...farBlockers(w, v, s, onRope), ...fieldBlockers(w, v)].filter((b) => dist(b.pos, v.pos) <= window + REGION.navigation.nearSlack + b.r);
-  return routeAhead(w, v.pos, dest, full.radius, blockers, v, window);
+  return routeAhead(w, v.pos, dest, radius, blockers, v, window);
+}
+
+function endsAmongParked(w: World, v: Vehicle, dest: Vec, onRope: ReadonlySet<string>): boolean {
+  if (dist(v.pos, dest) > REGION.navigation.farWindow) return false;
+  return parkedVehicles(w, v.id, onRope).some((b) => dist(b.pos, dest) <= REGION.navigation.nearSlack);
+}
+
+function reaches(points: readonly Vec[], dest: Vec): boolean {
+  return points.length > 0 && dist(points[points.length - 1], dest) < RULES.arriveRadius;
+}
+
+function keepsRoute(stored: FarRoute, dest: Vec, style: RouteStyle, sameLeg: boolean): boolean {
+  return sameLeg && dist(stored.dest, dest) < RULES.arriveRadius && sameStyle(stored, style);
 }
 
 function drivesCoarse(v: Vehicle): boolean {
