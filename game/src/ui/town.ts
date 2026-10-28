@@ -273,7 +273,7 @@ export class TownScreen {
   }
 
   private drawPage(w: World, shopId: string, page: TownPage): void {
-    const truck = this.showsTruck(w, shopId, page) ? el("div", { class: "town-truck" }, this.inventory.render()) : null;
+    const truck = page === "garage" || page === "market" ? el("div", { class: "town-truck" }, this.inventory.render()) : null;
     this.choices = page === null ? this.frontChoices(w, shopId) : this.sectionChoices(shopId, page);
     this.root.replaceChildren(
       this.bandOf(w, this.artKey(shopId), shopDef(shopId).kind !== "garage"),
@@ -356,10 +356,6 @@ export class TownScreen {
       go: () => this.run((w) => startQuest(w, QUESTS, l.quest, "start"), true),
     })) : [];
     return [...locals, { id: "back", label: t("town.back"), reason: null, go: () => this.back() }];
-  }
-
-  private showsTruck(w: World, shopId: string, page: TownPage): boolean {
-    return page === "garage" || page === "market";
   }
 
   private chartsShown(shopId: string): boolean {
