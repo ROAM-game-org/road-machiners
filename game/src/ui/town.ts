@@ -51,6 +51,7 @@ import { liveRoadNews } from "../sim/road-news";
 import { compareBase, createBareItemIcon, createIcon, createItemIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
 import { caption, deskBody, keepFocus, priceEl, priceHead, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, livePaintPlan, paintTab, planWithSlot, type PriceHint } from "./shop-rows";
+import { chipEl } from "./chip";
 import { el, isBrowserChord, panel } from "./dom";
 import { ArtBand } from "./art-band";
 import { callError } from "./dialogue";
@@ -329,7 +330,7 @@ export class TownScreen {
   }
 
   private bandOf(w: World, art: string | null, freeCells: boolean): HTMLElement {
-    const chips = truckChips(w, { freeCells });
+    const chips = truckChips(w, { freeCells, feature: false });
     return el("div", { class: "ink-band" }, this.band.frame(art), el("div", { class: "ink-chips" }, chips));
   }
 
@@ -1172,8 +1173,8 @@ function partnerChips(npc: Vehicle): HTMLElement {
     "span",
     { class: "chips" },
     el("span", { class: "dim" }, t("trade.them")),
-    el("span", { class: "chip", title: t("trade.theirMoney") }, moneyEl(money)),
-    el("span", { class: "chip", title: t("trade.theirCells") }, createIcon("cells"), t("inv.freeCells", { n: freeCells(npc) })),
+    chipEl(moneyEl(money), { title: t("trade.theirMoney") }),
+    chipEl(t("inv.freeCells", { n: freeCells(npc) }), { icon: "cells", title: t("trade.theirCells") }),
   );
 }
 

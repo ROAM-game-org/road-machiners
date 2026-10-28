@@ -1,4 +1,6 @@
+import { chipEl } from "../chip";
 import { devEl as el } from "../dom";
+import { verbatim } from "../../text/msg";
 import { moneyEl } from "../units";
 
 export interface Piece {
@@ -8,6 +10,9 @@ export interface Piece {
 }
 
 const text = (tag: string, cls: string, words: string): HTMLElement => el(tag, { class: cls }, words);
+
+const chipSample = (): HTMLElement =>
+  el("span", { class: "chips" }, chipEl(verbatim("Scout pickup"), { icon: "truck" }), chipEl(verbatim("1,680 / 3,840 kg"), { icon: "mass", readout: true }));
 
 const sample = (cls: string, words: string): HTMLElement => el("div", { class: cls }, words);
 
@@ -23,7 +28,7 @@ export const PIECES: Piece[] = [
   { name: ".btn-danger", note: "A hostile action.", build: () => text("button", "btn-danger", "Danger") },
   { name: ".row", note: "A list line with a faint line under it.", build: () => sample("row", "A row") },
   { name: ".tile", note: "A boxed list item edged in its tone.", build: () => sample("tile", "A tile") },
-  { name: ".chip", note: "A small boxed value.", build: () => text("span", "chip", "120 scrap") },
+  { name: ".chip", note: "A small boxed value.", build: chipSample },
   { name: ".art-band", note: "A wide picture across the top of a page, with the place name and chips over its lower edge.", build: () => sample("art-band", "") },
   { name: ".ink-page", note: "The frame of the town page and of a quest in town: a band on top, then a heading, prose, an optional panel and numbered choices in a centered text column.", build: () => inkPage() },
   { name: ".tag", note: "An outlined word.", build: () => text("span", "tag", "buy") },

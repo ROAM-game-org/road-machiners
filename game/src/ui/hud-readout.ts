@@ -269,7 +269,7 @@ export type SpeedRow = { label: Msg; value: Msg; delta: number };
 
 export type TipLine = { label: Msg; value: Msg; tone: 'base' | 'bad' | 'good' | 'plain' };
 
-export type PowerChip = { text: Msg; detail: Msg; over: boolean };
+export type PowerChip = { ratio: Msg; cost: Msg | null; detail: Msg; over: boolean; words: boolean };
 
 function percent(factor: number): Msg {
   const pct = Math.round((factor - 1) * 100);
@@ -338,19 +338,19 @@ function gunStep(steps: SpeedStep[]): { step: Kind<'guns'>; before: number } | n
   return step?.kind === 'guns' ? { step, before: steps[i - 1].speed } : null;
 }
 
-function gunCost(steps: SpeedStep[]): { short: Msg; long: Msg } {
+function gunCost(steps: SpeedStep[]): { short: Msg | null; long: Msg } {
   const guns = gunStep(steps);
-  if (!guns) return { short: t("power.noCostStalled"), long: t("power.noneStalled") };
+  if (!guns) return { short: null, long: t("power.noneStalled") };
   const lost = kph(guns.before) - kph(guns.step.speed);
-  if (lost === 0) return { short: t("power.noCost"), long: t("power.none") };
+  if (lost === 0) return { short: null, long: t("power.none") };
   const pct = percent(guns.step.factor);
-  return { short: t("power.cost", { pct }), long: t("power.costLong", { pct, n: lost }) };
+  return { short: pct, long: t("power.costLong", { pct, n: lost }) };
 }
 
 export function powerChip(steps: SpeedStep[], v: Vehicle): PowerChip {
   const capacity = workingEngineCapacity(v);
   if (capacity === null) {
-    return { text: t("power.noEngine"), detail: t("power.noEngineDetail"), over: false };
+    return { ratio: t("power.noEngine"), cost: null, detail: t("power.noEngineDetail"), over: false, words: true };
   }
   const draw = gunDraw(v);
   const over = draw > capacity;
@@ -358,8 +358,7 @@ export function powerChip(steps: SpeedStep[], v: Vehicle): PowerChip {
   const cost = gunCost(steps);
   const power = { draw: powerNumber(draw), capacity: powerNumber(capacity) };
   const detail = t("power.detail", { ...power, balance, cost: cost.long });
-  const text = over ? t("power.chipOver", { ...power, balance, cost: cost.short }) : t("power.chip", { ...power, cost: cost.short });
-  return { text, detail, over };
+  return { ratio: t("power.ratio", power), cost: cost.short, detail, over, words: false };
 }
 
 export type Readout = { id: string; label: Msg; value: Msg; warning: boolean; danger?: boolean; progress?: number; icon?: IconName; balance?: number; tip?: Msg };

@@ -3,6 +3,7 @@ import { maxHealthOf } from '../sim/health';
 import { buyRank, canBuyRank, choosePerk, hasBasic, hasPerk, pendingPerkPairs, perkPair, type PerkPair, rankCost, xpTodayOf } from '../sim/progress';
 import type { SkillId, World } from '../sim/types';
 import { createIcon, type IconName } from './cards';
+import { chipEl } from './chip';
 import { disabledWith, el, panel } from './dom';
 import type { UiHost } from './host';
 import { standingNum, standingStep } from './format';
@@ -58,9 +59,9 @@ export class CharacterScreen {
     this.root.replaceChildren(
       el('button', { class: 'close', onclick: () => this.close() }, keyLabel(t(this.tab === 'map' ? 'map.close' : 'character.close'), this.tab === 'map' ? 'M' : 'C')),
       el('h3', {}, t('character.title'), el('span', { class: 'chips' },
-        el('span', { class: 'chip', title: t('character.health') }, createIcon('driver'), t('readout.ofMax', { n: hp(p.health), max: maxHealthOf(world) })),
-        el('span', { class: 'chip', title: t('character.knockoutsTitle') }, createIcon('damage'), t('character.knockouts', { n: p.knockouts })),
-        el('span', { class: 'chip xp-pool', title: t('character.xpPoolTitle') }, t('character.xpPool', { n: Math.floor(p.xp) })),
+        chipEl(t('readout.ofMax', { n: hp(p.health), max: maxHealthOf(world) }), { icon: 'driver', readout: true, title: t('character.health') }),
+        chipEl(t('character.knockouts', { n: p.knockouts }), { icon: 'damage', title: t('character.knockoutsTitle') }),
+        chipEl(t('character.xpPool', { n: Math.floor(p.xp) }), { title: t('character.xpPoolTitle'), className: 'xp-pool' }),
       ), this.tabs(world)),
       ...(this.tab === 'map' ? this.mapBody(world) : this.skills(world)),
     );
