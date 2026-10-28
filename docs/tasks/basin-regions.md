@@ -173,6 +173,31 @@ Approach: build the km-scale relief first and look at it, then add zone content 
 - CK9 — Tests that failed only on this branch were read one by one and fixed at the cause. Black mud joined the mud grounds in the grip test. The hung-rock tests moved to a spot with the old slope, and pass at two such spots. The scavenger search allows a loot-on-the-way detour, which every choice keeps a minimum chance of. The crater accounts test draws 120 drivers at the same 25% share, so an id shift no longer flips it. Route directness counts pairs whose straight line crosses no cliff: 1.07 on those, while lines across the range run 1.75. The old-places test checks the share roll's goals, not every old spot in sight. The save shape took a no-op step to format 2.118, since only the sampled new game changed.
 - CK8 — Fixed: path-raiders "A* cells ... within 1% of the reference" failed on the new relief. On map 3328b180 the corridor search's excess was 16.3 against an allowance of 10.3. On map 7f75ba12 the failing pair ran from 520,199 to 509,229 at radius 0.6, a span of 70 cells, over the 32-cell limit for a fine search. The corridor search costs 223.0 against the best 206.1, 8% over the 5% allowance, and no corridor retry fires. Both paths cross only scree, hardpan, scrub and sand. The corridor path takes more of the cheap hardpan, so no ground type is underpriced. The coarse corridor missed the narrow gap the best path uses on this steep ground. The first corridor try now spans two coarse blocks each side instead of one. Both reference tests pass, including "routes equal the reference", which also failed at the branch point. The cost: a window-length route takes 9.4 ms instead of 6.8 ms, and a map-wide one 81 ms instead of 63 ms. It is the first ring in `CORRIDOR_TRIES` in `src/sim/nav/astar.ts`.
 
+## Playtest round 1
+
+The user's first look at the baked map asked for these changes.
+
+- PT1 — Remove the hand-made Nose rock. A generated ridge ends at the fort's back wall instead.
+- PT2 — A truck can climb out of every ravine of every kind, including farm belt canals and laterals, river cuts, washes and canyons. Each has slumped bank sections at intervals, sloped gently enough for a truck to climb, and props stay off them. The bake report fails on any drivable pocket a truck can fall into but not leave.
+- PT3 — The Fallen Sun debris field covers twice its area, with scarcer and uneven debris and a few rare space loot spots, so the core fades into the land around it.
+- PT4 — Remove the ring around the Fallen Sun core.
+- PT5 — Widen the glass trail and the debris trail.
+- PT6 — The Glass Flats border, where the glass teeth start, fades in instead of a sharp line.
+- PT7 — The glass teeth stand far enough apart that a truck can drive between them.
+- PT8 — The range around Nose drives like mountains. The ridge layout is right but too mild. Ground is raised almost everywhere, flat ground is rare, paths between ridges are narrow and rocks are many.
+- PT9 — Glass Flats moves a bit toward the road, out of the far corner. It stays off road.
+- PT10 — Shrub and rock density depends on the region instead of one even spread over the whole map.
+- PT11 — Ship wing pieces half buried in the sand are ramps. A truck drives up them and jumps off the end at speed, instead of hitting them as a wall. This covers every debris piece shaped like a ramp.
+
+### Round 1 progress
+
+- PT1 — Nose rock props are gone. `fortressLayer()` raises the ground to the smoothed tops of the rock's box columns, so the ship and its sockets keep their footing, and `UPLIFT.range.spur` runs a ridge from the spine into it.
+- PT2 — `src/mapgen/exits.ts` cuts ramps into the banks of every ravine a truck can enter, once before props and once around them. It only lowers ground, so canal beds stay graded. The bake report fails on any reachable floor more than 40 tiles of driving from a way out. On a preview draft the traps fell from 171 to 19 groups before the early pass was added.
+- PT3 to PT7 and PT9 — Done by a helper: the Fallen Sun debris field is twice the area, scarcer and in clumps, the outer ring roads are gone, the trails are 1.5 times wider, the Glass Flats glass fades in over a noisy band, spires keep a lane of twice the largest chassis radius, and Glass Flats moved to layout [101.5, 101.5]. Rare outer loot spots are a `wreckage` old place.
+- PT8 — The range spine moved toward Nose and widened, mountain roughness doubled and road beds there narrowed to 18 tiles. Around Nose flat ground fell from 39% to 23%, cliffs rose from 18% to 35% and boulders from 3.6 to 11.2 per 1,000 tiles.
+- PT10 — Scatter density follows `SCATTER.regions`, and boulder odds follow `GEOLOGY.boulders.zoneOdds`.
+- PT11 — `wing_shard` is a ramp in physics, nav and sight, and its model carries the slab to the ground.
+
 ## Conclusion
 
 The 7.5 km Icarus map now has regions that differ on the scale of kilometres. A range rings Nose, a black-mud swamp sits at Dustwell's spring, dunes fill the SE desert, and a farm belt of canals and abandoned farms runs along the dry river past Bowl. Old Orchard, Glass Flats and the Fallen Sun keep only their authored cores and grow from the land. Glass Flats sits off road in the SE corner, and the descent path carries debris and glass from it to the Fallen Sun.

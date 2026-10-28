@@ -4,12 +4,14 @@ import { PHYSICS } from '../../data/physics';
 import { TERRAIN_TYPES } from '../../data/terrain';
 import { HIGHWAY } from '../../data/modes';
 import { REGION } from '../../data/region';
+import { SCATTER, type ScatterShare } from '../../data/view';
 import { desertWeight, lookTypes, type LookType } from '../../render/groundPaint';
-import { hash2 } from '../../render/noise';
+import { hash2, valueNoise } from '../../render/noise';
 import { atlasOf, type Atlas } from '../../sim/atlas';
 import { groundAt, type Terrain } from '../../sim/terrain';
 import type { Obstacle } from '../../sim/types';
 import type { Vec } from '../../sim/vec';
+import { ZONE_KINDS, zoneWeight } from '../../sim/zones';
 import { instancedModel } from './models';
 import type { RenderScope } from './scope';
 import { deckFloorCap, TERRAIN_CHUNK } from './terrain';
@@ -72,25 +74,64 @@ export function scatterPlacements(t: Terrain, obstacles: Obstacle[]): ScatterChu
 function chunkScatter(t: Terrain, look: readonly LookType[], blocked: Uint8Array, rocky: Uint8Array, cx: number, cy: number): ScatterChunk {
   const atlas = atlasOf(t);
   const highway = highwaySeed(t);
+  const blocks = chunkBlocks(t, cx, cy);
   const chunk: ScatterChunk = { center: { x: cx + Math.min(TERRAIN_CHUNK, t.size - cx) / 2, y: cy + Math.min(TERRAIN_CHUNK, t.size - cy) / 2 }, pebbles: [], scrub: [], desert_stones: [], desert_scrub: [], cactus: [] };
   for (let y = cy; y < Math.min(cy + TERRAIN_CHUNK, t.size); y++) for (let x = cx; x < Math.min(cx + TERRAIN_CHUNK, t.size); x++) {
     const i = y * t.size + x;
-    const model = blocked[i] ? null : tileModel(atlas, highway, look[i], x, y, rocky[i] === 1);
+    const model = blocked[i] ? null : tileModel(atlas, highway, blocks[blockOf(x - cx, y - cy)], look[i], x, y, rocky[i] === 1);
     if (model === null || onLoweredGround(t, x, y)) continue;
     chunk[model].push(placed(t, x, y, model));
   }
   return chunk;
 }
 
+function chunkBlocks(t: Terrain, cx: number, cy: number): (Block | null)[] {
+  if (isZoned(t)) return blockShares(cx, cy);
+  return new Array<null>(BLOCKS_PER_SIDE * BLOCKS_PER_SIDE).fill(null);
+}
+
 function highwaySeed(t: Terrain): number | null {
   return t.atlas.kind === 'highway' ? t.atlas.seed : null;
 }
 
-function tileModel(atlas: Atlas, highway: number | null, look: LookType, x: number, y: number, byRock: boolean): ScatterModel | null {
+function isZoned(t: Terrain): boolean {
+  if (t.atlas.kind === 'icarus') return true;
+  if (t.atlas.kind === 'highway') return false;
+  throw new Error(`Scatter has no density rules for map ${JSON.stringify(t.atlas)}`);
+}
+
+const BLOCKS_PER_SIDE = TERRAIN_CHUNK / SCATTER.block;
+
+function blockOf(dx: number, dy: number): number {
+  return Math.floor(dy / SCATTER.block) * BLOCKS_PER_SIDE + Math.floor(dx / SCATTER.block);
+}
+
+type Block = { share: ScatterShare; byLook: Map<LookType, LookOdds> };
+
+function blockShares(cx: number, cy: number): Block[] {
+  const blocks: Block[] = [];
+  for (let j = 0; j < BLOCKS_PER_SIDE; j++) for (let i = 0; i < BLOCKS_PER_SIDE; i++) {
+    blocks.push({ share: regionShare(cx + (i + 0.5) * SCATTER.block, cy + (j + 0.5) * SCATTER.block), byLook: new Map() });
+  }
+  return blocks;
+}
+
+function oddsIn(block: Block | null, look: LookType): LookOdds {
+  if (block === null) return CHANCES[look];
+  let odds = block.byLook.get(look);
+  if (odds === undefined) {
+    const base = CHANCES[look];
+    odds = { open: regional(base.open, block.share), byRock: regional(base.byRock, block.share), shoulder: regional(base.shoulder, block.share) };
+    block.byLook.set(look, odds);
+  }
+  return odds;
+}
+
+function tileModel(atlas: Atlas, highway: number | null, block: Block | null, look: LookType, x: number, y: number, byRock: boolean): ScatterModel | null {
   const p = tilePoint(x, y);
   const across = highway === null ? Infinity : atlas.roadIndex.nearestWithin(p.x, p.y, HIGHWAY.road.asphalt);
   if (across <= HIGHWAY.road.asphalt) return asphaltModel(across, highway ?? 0, x, y);
-  const kind = tileScatter(atlas, look, x, y, byRock);
+  const kind = tileScatter(atlas, oddsIn(block, look), x, y, byRock);
   return kind === null ? null : modelOf(kind, desertWeight(look) > 0);
 }
 
@@ -121,17 +162,50 @@ function modelOf(kind: ScatterKind, desert: boolean): ScatterModel {
   return kind === 'pebbles' ? 'desert_stones' : 'desert_scrub';
 }
 
-function tileScatter(atlas: Atlas, look: LookType, x: number, y: number, byRock: boolean): ScatterKind | null {
+function tileScatter(atlas: Atlas, odds: LookOdds, x: number, y: number, byRock: boolean): ScatterKind | null {
   const h = hash2(x * 7 + 3, y * 13 + 5);
-  const odds = CHANCES[look];
   const open = byRock ? odds.byRock : odds.open;
-  if (pick(h, open) === null && pick(h, odds.shoulder) === null) return null;
+  const shoulder = odds.shoulder;
+  if (pick(h, open) === null && pick(h, shoulder) === null) return null;
   const p = tilePoint(x, y);
   const road = atlas.roadIndex.nearestWithin(p.x, p.y, ROAD_GAP + SHOULDER_TILES);
-  return road < ROAD_GAP ? null : pick(h, road < ROAD_GAP + SHOULDER_TILES ? odds.shoulder : open);
+  return road < ROAD_GAP ? null : pick(h, road < ROAD_GAP + SHOULDER_TILES ? shoulder : open);
+}
+
+export function regionShare(cx: number, cy: number): ScatterShare {
+  const R = SCATTER.regions;
+  let owned = 0;
+  let pebbles = 0;
+  let scrub = 0;
+  let cactus = 0;
+  for (const kind of ZONE_KINDS) {
+    const w = zoneWeight(kind, cx, cy);
+    owned += w;
+    pebbles += w * R[kind].pebbles;
+    scrub += w * R[kind].scrub;
+    cactus += w * R[kind].cactus;
+  }
+  const plain = Math.max(0, 1 - owned);
+  const { frequency, depth, pebbleSeed, scrubSeed } = SCATTER.patch;
+  const pebblePatch = 1 + depth * (2 * valueNoise(cx * frequency + pebbleSeed, cy * frequency + pebbleSeed) - 1);
+  const scrubPatch = 1 + depth * (2 * valueNoise(cx * frequency + scrubSeed, cy * frequency + scrubSeed) - 1);
+  return {
+    pebbles: (pebbles + plain * R.plain.pebbles) * pebblePatch,
+    scrub: (scrub + plain * R.plain.scrub) * scrubPatch,
+    cactus: cactus + plain * R.plain.cactus,
+  };
+}
+
+function regional(c: Chances, share: ScatterShare): Chances {
+  return { pebbles: exposed(c.pebbles, share.pebbles), scrub: exposed(c.scrub, share.scrub), cactus: exposed(c.cactus, share.cactus) };
+}
+
+function exposed(odds: number, share: number): number {
+  return odds === 0 || share === 1 ? odds : 1 - (1 - odds) ** share;
 }
 
 type Chances = { pebbles: number; scrub: number; cactus: number };
+type LookOdds = { open: Chances; byRock: Chances; shoulder: Chances };
 
 function chances(type: LookType, shoulder: boolean, byRock: boolean): Chances {
   if (type === 'glass') return { pebbles: 0, scrub: 0, cactus: 0 };

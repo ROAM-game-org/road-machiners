@@ -832,7 +832,8 @@ export function oldPlaces(baked: readonly Obstacle[]): OldPlace[] {
   const buildings = linked(candidates.filter((o) => o.kind === 'landmark' && BUILDINGS.includes(o.look)), OLD_PLACES.buildingGap);
   const tanks = linked(candidates.filter((o) => o.kind === 'landmark' && o.look === 'tank'), OLD_PLACES.tankGap);
   const boats = linked(candidates.filter((o) => o.kind === 'landmark' && BOAT_LOOKS.includes(o.look)), OLD_PLACES.boatGap);
-  return [...buildings.map((props) => place(buildingType(props), props)), ...tanks.map((props) => place('hulks', props)), ...boats.map((props) => place('boats', props))];
+  const pods = linked(candidates.filter((o) => o.kind === 'landmark' && o.look === 'shipCache'), OLD_PLACES.wreckageGap);
+  return [...buildings.map((props) => place(buildingType(props), props)), ...tanks.map((props) => place('hulks', props)), ...boats.map((props) => place('boats', props)), ...pods.map((props) => place('wreckage', props))];
 }
 
 function buildingType(props: Obstacle[]): OldPlaceType {

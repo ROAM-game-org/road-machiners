@@ -461,7 +461,7 @@ describe('a third territory', () => {
         landing: 0,
       },
       farm: null,
-      glass: { cell: 6, cover: [0.25, 0.55], clear: 1.5, spires: { look: 'hullShard', count: 4, radius: [0.8, 1.1] } },
+      glass: { cell: 6, cover: [0.25, 0.55], clear: 1.5, fade: { band: 6, warp: 2, cell: 8 }, spires: { look: 'hullShard', count: 4, radius: [0.8, 1.1] } },
       spotGap: 6,
       debrisGap: 1.5,
       reactor: null,

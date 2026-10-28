@@ -207,7 +207,7 @@ describe('old-world loot spot economy', () => {
       0,
     );
   const worlds = Array.from({ length: SEEDS }, (_, k) => newWorld(k + 1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false));
-  const isRare = (stock: SalvageStock) => stock.hidden.parts.some((p) => OLD_TABLES[oldSpotOf(stock)!.type].rare!.parts.includes(p.defId));
+  const isRare = (stock: SalvageStock) => stock.hidden.parts.some((p) => OLD_TABLES[oldSpotOf(stock)!.type].rare?.parts.includes(p.defId) === true);
   const olds = worlds.flatMap((w) => w.salvage.filter((s) => oldSpotOf(s)));
   const others = worlds.flatMap((w) => w.salvage.filter((s) => !oldSpotOf(s)));
 

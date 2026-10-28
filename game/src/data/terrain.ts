@@ -325,6 +325,7 @@ export type BoulderRules = {
   ridgeCurvature: number;
   radius: [number, number];
   crag: { above: number; radius: [number, number] };
+  zoneOdds: Record<ZoneKind | 'plain', number>;
 };
 
 export const GEOLOGY: { rain: RainRules; slump: SlumpRules; wind: WindRules; dunes: DuneRules; sandStart: SandStart; ground: GroundRules; boulders: BoulderRules } = {
@@ -390,6 +391,7 @@ export const GEOLOGY: { rain: RainRules; slump: SlumpRules; wind: WindRules; dun
       above: 12.5,
       radius: [1.6, 2.6],
     },
+    zoneOdds: { plain: 1, mountains: 2, desert: 1, swamp: 0.1, farmBelt: 0.15, crash: 1.5 },
   },
 };
 
@@ -665,7 +667,7 @@ export const OLD_WORLD: {
     seedOffset: 7009,
     trail: DESCENT_PATH,
     clusterStep: 28,
-    sideSpread: 22,
+    sideSpread: 33,
     spreadFrom: 0.3,
     clusterReach: 6,
     pieces: [4, 7],
@@ -682,7 +684,7 @@ export const OLD_WORLD: {
       { look: 'habitat', weight: 1, radius: [2, 2], aligned: true },
       { look: 'powerCell', weight: 2, radius: [0.4, 0.4], aligned: false },
     ],
-    podField: { count: 60, along: 0.3, spread: 70, look: { look: 'escapePod', weight: 1, radius: [0.6, 0.6], aligned: false } },
+    podField: { count: 60, along: 0.3, spread: 105, look: { look: 'escapePod', weight: 1, radius: [0.6, 0.6], aligned: false } },
     strays: {
       count: 30,
       looks: [
@@ -978,7 +980,7 @@ export const ZONES: readonly Zone[] = [
 ];
 
 export const ZONE_RULES: Record<ZoneKind, ZoneRules> = {
-  mountains: { roughness: 0.5, uplift: 1 },
+  mountains: { roughness: 1, uplift: 1 },
   desert: { roughness: 0.25, uplift: 0.15 },
   swamp: { roughness: 0.3, uplift: 0 },
   farmBelt: { roughness: 0.3, uplift: 0.1 },
@@ -995,7 +997,7 @@ export const ZONE_FIELD = {
 export const UPLIFT = {
   floor: 0.12,
   rim: { width: 16 * MAP_SCALE, rate: 0.05, flatUnder: { desert: 0.85, swamp: 0.95 }, gaps: [{ at: scalePoint({ x: -2, y: 75 }), width: 9 * MAP_SCALE }, { at: scalePoint({ x: 82, y: 122 }), width: 9 * MAP_SCALE }] },
-  range: { spine: layoutPoints([[94, -4], [103, 12], [112, 24], [113, 40], [117, 58]]), width: 14 * MAP_SCALE, rate: 0.28, crestNoise: 0.45, crestFrequency: 1 / (9 * MAP_SCALE) },
+  range: { spine: layoutPoints([[94, -4], [101, 12], [108, 24], [110, 40], [116, 58]]), width: 18 * MAP_SCALE, spur: { line: layoutPoints([[102.3, 31.6], [104, 26], [106.5, 21]]), width: 4 * MAP_SCALE }, rate: 0.28, crestNoise: 0.45, crestFrequency: 1 / (9 * MAP_SCALE) },
   seedOffset: 8900,
 };
 
@@ -1010,8 +1012,10 @@ export const RELIEF_SOLVE = {
   diffusion: 0.04,
   baseLevel: 0,
   hold: { margin: 40 },
-  roadBed: { width: 70, passes: 3 },
+  roadBed: { width: 70, mountainWidth: 18, passes: 3 },
 };
+
+export const EXITS = { closeRadius: 12, depth: 0.5, reach: 150, spacing: 40, mountainSpacing: 120, carveShare: 0.75, grade: 0.75, climb: 0.6, width: 4, wall: 2, minFloor: 9, tries: 40, propCut: 0.25, blockRadius: 2, fillMax: 1000, rimReach: 8, fillRounds: 3, passes: 3, clearKinds: ['rock', 'crag', 'deadTree', 'fence', 'junk', 'drums', 'barrel'] as readonly string[] };
 
 export const DESERT = {
   seedOffset: 9400,
@@ -1046,11 +1050,7 @@ export const FARM_BELT = {
   keepOff: 25,
 };
 
-export const CRASH = {
-  seedOffset: 9500,
-  glassTrail: { share: 0.4, width: [95, 14] as [number, number], cover: 0.55, cell: 6, stretch: 5 },
-  apron: { tries: 2600, rim: 55, reach: 260, falloff: 3, downrange: 0.85, bareBelow: -0.35, radius: [0.7, 1.6] as [number, number], shards: 0.25 },
-};
+export const CRASH = { seedOffset: 9500, glassTrail: { share: 0.4, width: [142, 21] as [number, number], cover: 0.55, cell: 6, stretch: 5 }, apron: { reach: 370, density: 0.12, edge: 60, falloff: 1.8, taper: 0.25, downrange: 0.85, bareBelow: -0.35, bareEase: 0.5, clump: { broad: 60, fine: 18, fineShare: 0.35, from: 0.42, to: 0.62 }, radius: [0.7, 1.6] as [number, number], shards: 0.25, caches: { count: 10, from: 60, clump: 0.85, apart: 50, radius: [0.6, 0.8] as [number, number], tries: 20000 } } };
 
 export const SWAMP = {
   seedOffset: 9300,

@@ -35,8 +35,9 @@ export const FIELD_SPARE_WEAR: Weighted<number>[] = [
   { value: 4, weight: 2 },
 ];
 
-export type OldPlaceType = 'homestead' | 'hamlet' | 'lookout' | 'hulks' | 'boats';
-export const OLD_PLACE_TYPES: readonly OldPlaceType[] = ['homestead', 'hamlet', 'lookout', 'hulks', 'boats'];
+export type OldPlaceType = 'homestead' | 'hamlet' | 'lookout' | 'hulks' | 'boats' | 'wreckage';
+export const OLD_PLACE_TYPES: readonly OldPlaceType[] = ['homestead', 'hamlet', 'lookout', 'hulks', 'boats', 'wreckage'];
+const WRECKAGE_PICK_SHARE = 0.5 * MAP_SPREAD;
 
 function scaledChance(chance: Record<OldPlaceType, number>): Record<OldPlaceType, number> {
   const scaled = { ...chance };
@@ -49,8 +50,9 @@ export const OLD_PLACES = {
   buildingGap: 12,
   tankGap: 10,
   boatGap: 14,
+  wreckageGap: 20,
   roadGap: 5,
-  chance: scaledChance({ homestead: 0.5, hamlet: 0.35, lookout: 0.4, hulks: 0.25, boats: 0.2 }),
+  chance: scaledChance({ homestead: 0.2, hamlet: 0.15, lookout: 0.4, hulks: 0.15, boats: 0.2, wreckage: WRECKAGE_PICK_SHARE }),
   npcShare: 0.3,
   npcRange: 120,
 };
@@ -189,6 +191,7 @@ export const OLD_TABLES: Record<OldPlaceType, LootTable> = {
     fuel: [0, 1],
     supplies: [0, 1],
   },
+  wreckage: SALVAGE.hullScrap,
 };
 export const STRIP = {
   yieldShare: 0.5,

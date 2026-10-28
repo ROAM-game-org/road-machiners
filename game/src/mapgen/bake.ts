@@ -1,7 +1,7 @@
 
 import { MAP_DRAFT, REGION } from '../data/region';
 import { DESERT, GEOLOGY, MAPGEN, TERRAIN, type TerrainTypeId } from '../data/terrain';
-import { zoneWeight } from '../sim/zones';
+import { ZONE_KINDS, zoneWeight } from '../sim/zones';
 import { bridgeCut, deckAt, ICARUS_DECKS } from '../sim/bridge';
 import { ICARUS_KEY, icarusAtlas } from '../sim/atlas';
 import { bakedHeight, broadAt, flattenFactor, reliefAt } from '../sim/elevation';
@@ -15,6 +15,7 @@ import { dist, polylineDist, type Vec } from '../sim/vec';
 import { newWorldLayer } from './newworld';
 import { apronLayer } from './apron';
 import { desertLayer } from './desert';
+import { exitLayer } from './exits';
 import { farmBeltLayer } from './farmbelt';
 import { zoneReport } from './report';
 import { fillGlassTrail } from './glass';
@@ -39,6 +40,7 @@ export function bakeMap(seed: number): MapDraft {
   d = timed('start', () => keepStartClear(d));
   d = detailed('roadside', d, () => roadsideLayer(seed, d));
   d = detailed('boats', d, () => boatLayer(seed, d));
+  d = timed('exits around props', () => exitLayer(d));
   const misses = zoneReport(seed, d);
   if (misses.length > 0) throw new Error(`The bake misses its zone checks:\n${misses.join('\n')}`);
   return d;
@@ -59,6 +61,7 @@ export function groundForTerritories(seed: number): MapDraft {
   d = timed('swamp', () => swampLayer(seed, d));
   d = timed('spurs', () => reserveSpurs(d));
   d = timed('farm belt', () => farmBeltLayer(seed, d));
+  d = timed('exits', () => exitLayer(d));
   d = timed('old world', () => oldWorldLayer(seed, d));
   return timed('new world', () => newWorldLayer(seed, d));
 }
@@ -262,9 +265,22 @@ export function rockLayer(seed: number, d: MapDraft): MapDraft {
 type BoulderSpot = { odds: number; kind: 'rock' | 'crag' };
 
 function boulderSpot(h: ArrayLike<number>, nb: Neighbors, n: number, k: number): BoulderSpot | null {
-  if (isCliffBase(h, nb, k)) return { odds: B.cliffBase, kind: 'rock' };
+  if (isCliffBase(h, nb, k)) return { odds: B.cliffBase * zoneBoulderOdds(n, k), kind: 'rock' };
   if (!isRidgeTop(h, n, k)) return null;
-  return { odds: B.ridgeTop, kind: h[k] >= B.crag.above ? 'crag' : 'rock' };
+  return { odds: B.ridgeTop * zoneBoulderOdds(n, k), kind: h[k] >= B.crag.above ? 'crag' : 'rock' };
+}
+
+export function zoneBoulderOdds(n: number, k: number): number {
+  const x = k % n;
+  const y = Math.floor(k / n);
+  let owned = 0;
+  let odds = 0;
+  for (const kind of ZONE_KINDS) {
+    const w = zoneWeight(kind, x, y);
+    owned += w;
+    odds += w * B.zoneOdds[kind];
+  }
+  return odds + Math.max(0, 1 - owned) * B.zoneOdds.plain;
 }
 
 function isCliffBase(h: ArrayLike<number>, nb: Neighbors, k: number): boolean {

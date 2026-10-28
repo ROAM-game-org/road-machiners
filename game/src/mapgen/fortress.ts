@@ -1,6 +1,7 @@
 
 import { FORTRESS_SITES, NOSE_APRON } from '../data/fortress';
 import { REGION } from '../data/region';
+import { PHYSICS } from '../data/physics';
 import { TERRAIN } from '../data/terrain';
 import { fortressOutline, fortressProps, pitDepth } from '../sim/fortress';
 import { boxDistance, propBoxes, propObstacle, type PosedBox } from '../sim/mapgen';
@@ -11,6 +12,9 @@ import { typeCode, type MapDraft } from './bake';
 import { steep } from './marks';
 import { tileOf } from './oldworld';
 
+const ROCK_EDGE = 0.5;
+const ROCK_SMOOTH = 2;
+
 export function fortressLayer(d: MapDraft): MapDraft {
   const sites = [...REGION.towns, ...REGION.locations].filter((site) => site.id in FORTRESS_SITES);
   for (const site of sites) if (FORTRESS_SITES[site.id].pit !== undefined) digPit(d, site);
@@ -19,9 +23,57 @@ export function fortressLayer(d: MapDraft): MapDraft {
   if (nose === undefined) throw new Error('Nose is no fortress site, and its rock masses stand in its frame');
   const rocks = noseRocks(nose);
   const rockBoxes = rocks.flatMap((p, k) => propBoxes(propObstacle(p, k)));
-  raiseApron(d, nose, rockBoxes, Math.max(...rocks.map((p) => p.r)));
+  const reach = Math.max(...rocks.map((p) => p.r));
+  raiseRock(d, nose, rockBoxes, reach);
+  raiseApron(d, nose, rockBoxes, reach);
   const clear = d.props.filter((p) => !rockBoxes.some((b) => boxDistance(b, p.pos) < p.r) && !(p.kind === 'rock' && steep(d, tileOf(d.size, p.pos))));
-  return { ...d, props: [...clear, ...props, ...rocks] };
+  return { ...d, props: [...clear, ...props] };
+}
+
+type RockGrid = { x0: number; y0: number; w: number; h: number; tops: Float32Array };
+
+function raiseRock(d: MapDraft, site: Site, boxes: readonly PosedBox[], reach: number): void {
+  const base = d.heights[Math.round(site.pos.y) * (d.size + 1) + Math.round(site.pos.x)];
+  const g = rockGrid(d.size, site, boxes, reach);
+  for (let j = 0; j < g.h; j++) for (let i = 0; i < g.w; i++) liftRockCorner(d, site, g, base, i, j);
+}
+
+function rockGrid(size: number, site: Site, boxes: readonly PosedBox[], reach: number): RockGrid {
+  const x0 = Math.max(0, Math.floor(site.pos.x - reach));
+  const y0 = Math.max(0, Math.floor(site.pos.y - reach));
+  const w = Math.min(size, Math.ceil(site.pos.x + reach)) - x0 + 1;
+  const h = Math.min(size, Math.ceil(site.pos.y + reach)) - y0 + 1;
+  const tops = new Float32Array(w * h);
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) tops[j * w + i] = rockTop(boxes, { x: x0 + i, y: y0 + j }) ?? Number.NaN;
+  return { x0, y0, w, h, tops };
+}
+
+function liftRockCorner(d: MapDraft, site: Site, g: RockGrid, base: number, i: number, j: number): void {
+  if (Number.isNaN(g.tops[j * g.w + i])) return;
+  const x = g.x0 + i;
+  const y = g.y0 + j;
+  const k = y * (d.size + 1) + x;
+  d.heights[k] = Math.max(d.heights[k], base + smoothedTop(g, i, j) / PHYSICS.metersPerTile);
+  if (outsideMargin(d, site, x, y)) d.types[y * d.size + x] = typeCode('scree');
+}
+
+function outsideMargin(d: MapDraft, site: Site, x: number, y: number): boolean {
+  return x < d.size && y < d.size && dist({ x: x + 0.5, y: y + 0.5 }, site.pos) >= site.radius + TERRAIN.types.siteMargin;
+}
+
+function smoothedTop(g: RockGrid, i: number, j: number): number {
+  const tops: number[] = [];
+  for (let dj = -ROCK_SMOOTH; dj <= ROCK_SMOOTH; dj++) {
+    for (let di = -ROCK_SMOOTH; di <= ROCK_SMOOTH; di++) tops.push(g.tops[Math.min(g.h - 1, Math.max(0, j + dj)) * g.w + Math.min(g.w - 1, Math.max(0, i + di))]);
+  }
+  const rock = tops.filter((top) => !Number.isNaN(top));
+  return rock.reduce((a, b) => a + b, 0) / rock.length;
+}
+
+function rockTop(boxes: readonly PosedBox[], p: Vec): number | null {
+  let top: number | null = null;
+  for (const b of boxes) if (boxDistance(b, p) <= ROCK_EDGE && b.z1 > (top ?? 0)) top = b.z1;
+  return top;
 }
 
 function raiseApron(d: MapDraft, site: Site, boxes: readonly PosedBox[], reach: number): void {

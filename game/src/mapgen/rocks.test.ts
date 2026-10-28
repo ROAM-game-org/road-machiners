@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { REGION } from '../data/region';
-import { GEOLOGY, TERRAIN } from '../data/terrain';
+import { GEOLOGY, TERRAIN, type ZoneKind } from '../data/terrain';
+import { ZONE_KINDS, zoneWeight } from '../sim/zones';
 import { deckById } from '../sim/bridge';
 import { ROAD_INDEX } from '../sim/road-index';
 import { isCliff, tileAt, type BakedProp, type Terrain } from '../sim/terrain';
 import { siteGap } from '../sim/sites';
 import { dist, segmentDist } from '../sim/vec';
-import { newDraft, rockLayer, type MapDraft } from './bake';
+import { newDraft, rockLayer, zoneBoulderOdds, type MapDraft } from './bake';
 import { BUILT_GLASS, BUILT_TRACK } from './newworld';
 import { tileOf, tilesWithin } from './oldworld';
 import { budget } from '../test/budget';
@@ -60,10 +61,10 @@ const FOOT = 300;
 const FACE = 10;
 const RISE = TERRAIN.drive.maxSlope * 2;
 
-function cliffDraft(): MapDraft {
+function cliffDraft(foot = FOOT): MapDraft {
   const d = newDraft(SIZE);
   const n = SIZE + 1;
-  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) d.heights[j * n + i] = Math.min(FACE, Math.max(0, FOOT - i)) * RISE;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) d.heights[j * n + i] = Math.min(FACE, Math.max(0, foot - i)) * RISE;
   return d;
 }
 
@@ -128,6 +129,37 @@ describe('boulders', () => {
 
     expect(without.filter(onGlass).length).toBeGreaterThan(0);
     expect(withGlass.filter(onGlass)).toEqual([]);
+  });
+
+  it('puts more boulders on mountain slopes than on plain ground, and far fewer in swamp and farm belt', () => {
+    const MOUNTAIN_FOOT = 1500;
+    const density = (foot: number, inZone: (y: number) => boolean) => {
+      const ys = Array.from({ length: SIZE }, (_, y) => y).filter(inZone);
+      expect(ys.length).toBeGreaterThan(50);
+      const placed = rockLayer(1337, cliffDraft(foot)).props.filter((p) => Math.abs(p.pos.x - foot) < 1 && inZone(Math.floor(p.pos.y)));
+      return placed.length / ys.length;
+    };
+    const plain = density(FOOT, (y) => ZONE_KINDS.every((kind) => zoneWeight(kind, FOOT, y) === 0));
+    const swamp = density(FOOT, (y) => zoneWeight('swamp', FOOT, y) > 0.95);
+    const farm = density(FOOT, (y) => zoneWeight('farmBelt', FOOT, y) > 0.95);
+    const mountains = density(MOUNTAIN_FOOT, (y) => zoneWeight('mountains', MOUNTAIN_FOOT, y) > 0.95);
+
+    expect(plain).toBeGreaterThan(0.05);
+    expect(mountains).toBeGreaterThan(1.5 * plain);
+    expect(swamp).toBeLessThan(0.3 * plain);
+    expect(farm).toBeLessThan(0.3 * plain);
+  });
+
+  it('weights boulder odds by zone: double in mountains, a tenth in swamp', () => {
+    const n = SIZE + 1;
+    const where = (kind: ZoneKind) => {
+      for (let y = 0; y < SIZE; y += 8) for (let x = 0; x < SIZE; x += 8) if (zoneWeight(kind, x, y) > 0.99) return y * n + x;
+      throw new Error(`No ${kind} ground found`);
+    };
+
+    expect(zoneBoulderOdds(n, where('mountains'))).toBeCloseTo(GEOLOGY.boulders.zoneOdds.mountains, 1);
+    expect(zoneBoulderOdds(n, where('swamp'))).toBeCloseTo(GEOLOGY.boulders.zoneOdds.swamp, 1);
+    expect(zoneBoulderOdds(n, where('farmBelt'))).toBeCloseTo(GEOLOGY.boulders.zoneOdds.farmBelt, 1);
   });
 
   it('places the same boulders for the same seed', () => {

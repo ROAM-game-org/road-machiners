@@ -9,6 +9,7 @@ import { zoneWeight } from '../sim/zones';
 import { lerp, type Vec } from '../sim/vec';
 import { tileSteepness, type MapDraft } from './bake';
 import { DESCENT_LENGTH, descentBox, descentFrame } from './descent';
+import { trappedFloors } from './exits';
 import { ditchRises } from './farmbelt';
 
 type Tally = { tiles: number[]; ring: number[] };
@@ -29,7 +30,13 @@ export function zoneReport(seed: number, d: MapDraft): string[] {
   const kinds: ZoneKind[] = ['mountains', 'desert', 'swamp', 'farmBelt', 'crash'];
   const misses = kinds.flatMap((kind) => checkZone(seed, d, kind, kind === 'crash' ? trailTally(d) : tally(d, kind)));
   const cut = unreachable(d);
-  return [...misses, ...cut.map((id) => `${id} cannot be reached by driving from the player start`)];
+  return [...misses, ...cut.map((id) => `${id} cannot be reached by driving from the player start`), ...trapMisses(d)];
+}
+
+function trapMisses(d: MapDraft): string[] {
+  const traps = trappedFloors(d);
+  console.log(`ravines: ${traps.length} floors further than their exit spacing from a way out`);
+  return traps.map((p) => `a truck that drops into the floor at ${p.x.toFixed(0)}, ${p.y.toFixed(0)} drives further than its exit spacing to climb out`);
 }
 
 function tally(d: MapDraft, kind: ZoneKind): Tally {

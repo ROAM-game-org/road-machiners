@@ -17,7 +17,7 @@ const TODAY: Record<string, { at: [number, number]; radius: number }> = {
   orchard: { at: [22.8, 56.8], radius: 153.1 },
   dustwell: { at: [33.8, 32], radius: 6 },
   granary: { at: [50, 32.8], radius: 6 },
-  'glass-flats': { at: [106, 106], radius: 95 * GLASS_FLATS_GROWTH },
+  'glass-flats': { at: [101.5, 101.5], radius: 95 * GLASS_FLATS_GROWTH },
   'green-pit': { at: [71.8, 89], radius: 6 },
   'pump-station': { at: [40.7, 51.7], radius: 6 },
   'fallen-sun': { at: [64, 54], radius: 119 },

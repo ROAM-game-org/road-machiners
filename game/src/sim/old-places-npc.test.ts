@@ -117,7 +117,7 @@ describe('scavengers pick old-world loot spots', () => {
       const picked = picks.find((p) => oldStockId(p) === goal.targetId);
       const said = w.events.find((e) => e.t === 'activity' && e.vehicle === npc.id);
       if (!picked || !said || said.t !== 'activity' || said.reason === 'collectSalvage') continue;
-      expect(said.reason).toBe({ boats: 'searchOldBoats', hulks: 'searchOldHulks', homestead: 'searchOldRuin', hamlet: 'searchOldRuin', lookout: 'searchOldRuin' }[picked.type]);
+      expect(said.reason).toBe({ boats: 'searchOldBoats', wreckage: 'searchOldWreckage', hulks: 'searchOldHulks', homestead: 'searchOldRuin', hamlet: 'searchOldRuin', lookout: 'searchOldRuin' }[picked.type]);
       reasons.add(said.reason);
     }
     expect(reasons.has('searchOldBoats')).toBe(true);

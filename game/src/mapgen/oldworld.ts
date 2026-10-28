@@ -121,7 +121,7 @@ export function place(d: MapDraft, p: BakedProp, roadGap: number): boolean {
   return true;
 }
 
-function onReservedTrack(d: MapDraft, p: BakedProp): boolean {
+export function onReservedTrack(d: MapDraft, p: BakedProp): boolean {
   return [tileOf(d.size, p.pos), ...tilesWithin(d.size, p.pos, p.r)].some((tile) => d.built[tile] === BUILT_TRACK);
 }
 

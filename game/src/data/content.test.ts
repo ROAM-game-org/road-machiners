@@ -291,7 +291,8 @@ describe("utilities", () => {
     for (const [id, table] of [...tables, ...Object.entries(OLD_TABLES)])
       for (const good of Object.keys(table.goods)) expect(Object.values(SHOPS).some((shop) => shop.goods.includes(good)), `${id} ${good}`).toBe(true);
     const holders = [...tables, ...Object.entries(OLD_TABLES)].filter(([, table]) => table.relicChance > 0).map(([id]) => id);
-    expect(holders.sort()).toEqual(["hullCache", "hullScrap"]);
+    expect(holders.sort()).toEqual(["hullCache", "hullScrap", "wreckage"]);
+    expect(OLD_TABLES.wreckage).toBe(SALVAGE.hullScrap);
   });
 
   it("keeps the claymore ram a ram accessory with a claymore", () => {

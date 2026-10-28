@@ -225,7 +225,7 @@ function edgePoint(from: Vec, to: Vec, centre: Vec, outline: readonly Vec[]): Ve
   return { x: from.x + d.x * t, y: from.y + d.y * t };
 }
 
-export const GLASS_FLATS_POS = onTile(scalePoint({ x: 106, y: 106 }));
+export const GLASS_FLATS_POS = onTile(scalePoint({ x: 101.5, y: 101.5 }));
 export const GLASS_FLATS_GROWTH = 1.7;
 const GLASS_FLATS_OUTLINE: Vec[] = [
   [0, 71],

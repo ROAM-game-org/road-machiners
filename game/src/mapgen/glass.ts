@@ -1,4 +1,5 @@
 
+import { CHASSIS } from '../data/chassis';
 import type { TerritoryDef } from '../data/region';
 import { CRASH } from '../data/terrain';
 import { icarusAtlas } from '../sim/atlas';
@@ -6,7 +7,7 @@ import { clearOfSites } from '../sim/mapgen';
 import { DESCENT_LENGTH, descentBox, descentFrame } from './descent';
 import type { BuildingGroup, GlassRules, TerritoryRules, WreckRules } from '../data/territory';
 import { noiseAt } from '../sim/elevation';
-import { randInt, randRange, type Rng } from '../sim/rng';
+import { chance, randInt, randRange, type Rng } from '../sim/rng';
 import { siteGap } from '../sim/sites';
 import { tableOfKind } from '../sim/territory';
 import { BUILT_GLASS, BUILT_NONE, BUILT_SCRUB, type BakedProp } from '../sim/terrain';
@@ -19,16 +20,22 @@ import { clearOf, draw } from './territory';
 
 const NOISE_SEEDS = 2 ** 31 - 1;
 const GLAZED = new Set([BUILT_NONE, BUILT_SCRUB]);
+const FADE_SEED = 1;
+
+export const SPIRE_LANE = 2 * Math.max(...Object.values(CHASSIS).map((c) => c.radius));
 
 export function fillGlass(d: MapDraft, t: TerritoryDef, rules: TerritoryRules, glass: GlassRules, rng: Rng): void {
   checkGlass(t, glass);
-  markGlass(d, t, glass, keptProps(d, t, rules), randInt(rng, 0, NOISE_SEEDS));
-  placeSpires(d, t, rules, glass, rng);
+  const noiseSeed = randInt(rng, 0, NOISE_SEEDS);
+  markGlass(d, t, glass, keptProps(d, t, rules), noiseSeed);
+  placeSpires(d, t, rules, glass, noiseSeed, rng);
 }
 
 function checkGlass(t: TerritoryDef, glass: GlassRules): void {
   if (!glass.cover.every((c) => c >= 0 && c <= 1)) throw new Error(`${t.id} glass cover ${glass.cover.join(' to ')} is not within 0 to 1`);
   if (!(glass.cell > 0)) throw new Error(`${t.id} glass cell ${glass.cell} is not positive`);
+  const { band, warp, cell } = glass.fade;
+  if (!(band > 0) || !(cell > 0) || warp < 0) throw new Error(`${t.id} glass fade band ${band}, warp ${warp} and cell ${cell} must be positive`);
 }
 
 export function markGlass(d: MapDraft, t: TerritoryDef, glass: GlassRules, keep: readonly BakedProp[], noiseSeed: number): void {
@@ -39,7 +46,14 @@ function glazes(d: MapDraft, t: TerritoryDef, glass: GlassRules, keep: readonly 
   const c = tileCenter(d.size, tile);
   if (!GLAZED.has(d.built[tile]) || siteGap(t, c) >= 0 || steep(d, tile)) return false;
   if (keep.some((o) => dist(o.pos, c) <= o.r + glass.clear)) return false;
-  return rippleNoise(noiseSeed, c, glass.cell) < lerp(glass.cover[0], glass.cover[1], dist(c, t.pos) / t.radius);
+  return rippleNoise(noiseSeed, c, glass.cell) < lerp(glass.cover[0], glass.cover[1], dist(c, t.pos) / t.radius) * glassFade(t, glass, noiseSeed, c);
+}
+
+export function glassFade(t: TerritoryDef, glass: GlassRules, noiseSeed: number, c: Vec): number {
+  const { band, warp, cell } = glass.fade;
+  const bend = (noiseAt(noiseSeed + FADE_SEED, c.x / cell, c.y / cell) - 0.5) * 2 * warp;
+  const s = clamp((-siteGap(t, c) + bend) / band, 0, 1);
+  return s * s * (3 - 2 * s);
 }
 
 function rippleNoise(noiseSeed: number, c: Vec, cell: number): number {
@@ -82,7 +96,7 @@ function buildingGroups(rules: TerritoryRules): BuildingGroup[] {
   return [...(rules.wreck?.buildings ?? []), ...(rules.farm?.buildings ?? [])];
 }
 
-function placeSpires(d: MapDraft, t: TerritoryDef, rules: TerritoryRules, glass: GlassRules, rng: Rng): void {
+function placeSpires(d: MapDraft, t: TerritoryDef, rules: TerritoryRules, glass: GlassRules, noiseSeed: number, rng: Rng): void {
   const spots = d.props.filter((p) => tableOfKind(rules, p.kind) !== null && siteGap(t, p.pos) < 0);
   const pick = (): Vec => {
     const a = randRange(rng, 0, Math.PI * 2);
@@ -90,6 +104,12 @@ function placeSpires(d: MapDraft, t: TerritoryDef, rules: TerritoryRules, glass:
     return { x: t.pos.x + Math.cos(a) * r, y: t.pos.y + Math.sin(a) * r };
   };
   const onGlass = (pos: Vec, r: number): boolean => touchedTiles(d.size, pos, r).every((tile) => d.built[tile] === BUILT_GLASS);
-  const ok = (pos: Vec, r: number): boolean => siteGap(t, pos) < -r && onGlass(pos, r) && clearOf(d.props, pos, r, 0) && clearOf(spots, pos, r, rules.debrisGap);
-  for (let i = 0; i < glass.spires.count; i++) d.props.push(draw({ d, t, rules, rng }, glass.spires.look, 'on its glass', pick, glass.spires.radius, ok));
+  const spires: BakedProp[] = [];
+  const ok = (pos: Vec, r: number): boolean =>
+    siteGap(t, pos) < -r && onGlass(pos, r) && chance(rng, glassFade(t, glass, noiseSeed, pos)) && clearOf(spires, pos, r, SPIRE_LANE) && clearOf(d.props, pos, r, 0) && clearOf(spots, pos, r, rules.debrisGap);
+  for (let i = 0; i < glass.spires.count; i++) {
+    const spire = draw({ d, t, rules, rng }, glass.spires.look, 'on its glass', pick, glass.spires.radius, ok);
+    spires.push(spire);
+    d.props.push(spire);
+  }
 }

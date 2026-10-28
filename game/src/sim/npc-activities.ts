@@ -198,7 +198,7 @@ const OLD_SPOT_GOALS: Record<OldPlaceType, GoalReason> = {
   hamlet: 'searchOldRuin',
   lookout: 'searchOldRuin',
   hulks: 'searchOldHulks',
-  boats: 'searchOldBoats',
+  boats: 'searchOldBoats', wreckage: 'searchOldWreckage',
 };
 
 function oldSpotGoal(world: World, vehicle: Vehicle): NpcActivity | null {

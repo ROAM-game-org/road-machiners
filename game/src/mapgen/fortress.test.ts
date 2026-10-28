@@ -1,11 +1,13 @@
-// The fortress bake layer on a flat draft: the Bowl pit, the pieces as props, and Nose's rock and the ground around it.
 
 import { describe, expect, it } from 'vitest';
 import { FORTRESS_SITES, NOSE_APRON } from '../data/fortress';
 import { REGION } from '../data/region';
 import { TERRAIN } from '../data/terrain';
 import { FORT_MODELS, fortressPieces, insideCurtain, pitDepth } from '../sim/fortress';
-import { noseFrame } from '../sim/nose';
+import { PHYSICS } from '../data/physics';
+import { boxDistance, propBoxes, propObstacle } from '../sim/mapgen';
+import { noseFrame, noseRocks } from '../sim/nose';
+import type { Site } from '../sim/sites';
 import { sitePads } from '../sim/sites';
 import { dist, segmentDist } from '../sim/vec';
 import { newDraft, typeCode, type MapDraft } from './bake';
@@ -15,6 +17,10 @@ const RIM = 5;
 const SAND = typeCode('sand');
 const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
 const pit = FORTRESS_SITES.bowl.pit!;
+
+function rockBoxes(nose: Site) {
+  return noseRocks(nose).flatMap((p, k) => propBoxes(propObstacle(p, k)));
+}
 
 function flatDraft(): MapDraft {
   const d = newDraft(REGION.size);
@@ -27,22 +33,40 @@ describe('fortress layer', () => {
   const d = fortressLayer(flatDraft());
   const n = d.size + 1;
 
-  it('bakes every fortress site piece as a prop of its style, and Nose its two rock masses', () => {
+  it('bakes every fortress site piece as a prop of its style and Nose rock as no prop', () => {
     const sites = [...REGION.towns, ...REGION.locations].filter((s) => s.id in FORTRESS_SITES);
-    expect(d.props).toHaveLength(sites.reduce((sum, s) => sum + fortressPieces(s).length, 0) + 2);
-    expect(d.props.filter((p) => !FORT_MODELS.has(p.kind)).map((p) => p.kind)).toEqual(['noseRise', 'noseCrag']);
+    expect(d.props).toHaveLength(sites.reduce((sum, s) => sum + fortressPieces(s).length, 0));
+    expect(d.props.filter((p) => !FORT_MODELS.has(p.kind))).toEqual([]);
+  });
+
+  it('raises Nose rock as ground that keeps the height of its rock columns', () => {
+    const nose = REGION.towns.find((t) => t.id === 'nose')!;
+    const boxes = rockBoxes(nose);
+    const tallest = Math.max(...boxes.map((b) => b.z1)) / PHYSICS.metersPerTile;
+    let top = 0;
+    for (const b of boxes) {
+      const at = { x: Math.round(b.center.x), y: Math.round(b.center.y) };
+      if (boxDistance(b, at) > 0) continue;
+      const lift = d.heights[at.y * n + at.x] - RIM;
+      top = Math.max(top, lift);
+      expect(lift, `rock column at ${at.x},${at.y}`).toBeGreaterThan(b.z1 / PHYSICS.metersPerTile / 2);
+    }
+    expect(tallest).toBeGreaterThan(10);
+    expect(top).toBeGreaterThan(tallest * 0.8);
   });
 
   it('raises the ground around Nose rock, outside its circle and off its roads and pads', () => {
     const nose = REGION.towns.find((t) => t.id === 'nose')!;
+    const boxes = rockBoxes(nose);
     const raised: { p: { x: number; y: number }; h: number }[] = [];
     for (let y = Math.floor(nose.pos.y - 70); y <= nose.pos.y + 70; y++) {
       for (let x = Math.floor(nose.pos.x - 70); x <= nose.pos.x + 70; x++) {
         const h = d.heights[y * n + x] - RIM;
-        if (h !== 0) raised.push({ p: { x, y }, h });
+        if (h !== 0 && boxes.every((b) => boxDistance(b, { x, y }) > 1)) raised.push({ p: { x, y }, h });
       }
     }
-    expect(Math.max(...raised.map((r) => r.h))).toBeCloseTo(NOSE_APRON.height);
+    expect(Math.max(...raised.map((r) => r.h))).toBeLessThanOrEqual(NOSE_APRON.height);
+    expect(Math.max(...raised.map((r) => r.h))).toBeGreaterThan(NOSE_APRON.height * (1 - 1 / NOSE_APRON.run) - 1e-3);
     expect(Math.min(...raised.map((r) => r.h))).toBeGreaterThan(0);
     for (const { p } of raised) expect(dist(p, nose.pos)).toBeGreaterThan(nose.radius);
     const scree = typeCode('scree');

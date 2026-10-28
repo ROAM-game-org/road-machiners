@@ -9,7 +9,7 @@ import { territoryRoads } from '../sim/territory';
 import { padReach } from '../test/sites';
 import { dist, polylineDist, segmentDist, type Vec } from '../sim/vec';
 import { newDraft, tileSteepness, type MapDraft } from './bake';
-import { BUILT_FIELD, BUILT_NONE, BUILT_OLD_ROAD, oldWorldLayer, roadJunctions } from './oldworld';
+import { BUILT_FIELD, BUILT_NONE, BUILT_OLD_ROAD, BUILT_TRACK, oldWorldLayer, prop, roadJunctions } from './oldworld';
 import {
   BUILT_DIRTY_WATER,
   BUILT_SCRUB,
@@ -20,6 +20,7 @@ import {
   newWorldLayer,
   pools,
   scrubGrowth,
+  settleFence,
   type Camp,
 } from './newworld';
 import { TEST_MAP } from '../test/map';
@@ -407,6 +408,17 @@ describe('territory spurs', () => {
     const besideSpurs = d.props.filter((p) => nearSpur(p.pos, 6));
     expect(besideSpurs.length).toBeGreaterThan(20);
     for (const p of besideSpurs) expect(nearSpur(p.pos, p.r + O.gap), `${p.kind} at ${p.pos.x},${p.pos.y}`).toBe(false);
+  });
+
+  it('keep a fence off every tile a spur reserved as track', () => {
+    const d = newDraft(SIZE);
+    const at = { x: 700.5, y: 700.5 };
+    const fence = prop('fence', at, 1, 0, 1, 0);
+    expect(settleFence(d, fence, 0)).toBe(true);
+    d.props.length = 0;
+    d.built[700 * SIZE + 700] = BUILT_TRACK;
+    expect(settleFence(d, fence, 0)).toBe(false);
+    expect(d.props).toEqual([]);
   });
 });
 

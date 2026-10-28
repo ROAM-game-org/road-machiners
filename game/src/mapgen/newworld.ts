@@ -24,6 +24,7 @@ import {
   facing,
   isCutTile,
   offset,
+  onReservedTrack,
   place,
   prop,
   range,
@@ -77,12 +78,16 @@ function settle(d: MapDraft, p: BakedProp, roadGap: number): boolean {
   return place(d, p, roadGap);
 }
 
-function settleFence(d: MapDraft, p: BakedProp, roadGap: number): boolean {
-  if (!clearGround(d.size, p.pos, p.r, roadGap) || isPool(d.built[tileOf(d.size, p.pos)]) || inHollow(p)) return false;
+export function settleFence(d: MapDraft, p: BakedProp, roadGap: number): boolean {
+  if (!clearGround(d.size, p.pos, p.r, roadGap) || !fenceGround(d, p)) return false;
   if (tileSteepness(d.heights, d.size, tileOf(d.size, p.pos)) > TERRAIN.drive.maxSlope) return false;
   if (d.props.some((o) => !sameLine(o, p) && dist(o.pos, p.pos) < o.r + p.r + O.gap)) return false;
   d.props.push(p);
   return true;
+}
+
+function fenceGround(d: MapDraft, p: BakedProp): boolean {
+  return !isPool(d.built[tileOf(d.size, p.pos)]) && !inHollow(p) && !onReservedTrack(d, p);
 }
 
 function sameLine(a: BakedProp, b: BakedProp): boolean {

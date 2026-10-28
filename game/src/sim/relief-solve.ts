@@ -59,12 +59,13 @@ export function upliftAt(seed: number, p: Vec): number {
 }
 
 export function smoothRoadBeds(g: ReliefGrid, roadGap: (x: number, y: number) => number): Float32Array {
-  const { width, passes } = RELIEF_SOLVE.roadBed;
+  const { width, mountainWidth, passes } = RELIEF_SOLVE.roadBed;
   const { n, cell, heights } = g;
   const low = blurred(heights, n, Math.round(width / cell), passes);
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
     const k = j * n + i;
-    const share = 1 - smooth(clamp(roadGap(i * cell, j * cell) / width, 0, 1));
+    const bed = width + (mountainWidth - width) * zoneWeight('mountains', i * cell, j * cell);
+    const share = 1 - smooth(clamp(roadGap(i * cell, j * cell) / bed, 0, 1));
     heights[k] += (low[k] - heights[k]) * share;
   }
   return heights;
@@ -100,11 +101,15 @@ function rimLift(p: Vec): number {
 }
 
 function rangeLift(seed: number, p: Vec): number {
-  const { spine, width, rate, crestNoise, crestFrequency } = UPLIFT.range;
-  const share = 1 - smooth(clamp(polylineDist(p, spine) / width, 0, 1));
+  const { spine, width, spur, rate, crestNoise, crestFrequency } = UPLIFT.range;
+  const share = Math.max(lineShare(p, spine, width), lineShare(p, spur.line, spur.width));
   if (share === 0) return 0;
   const crest = 1 - crestNoise + crestNoise * noise2(p.x * crestFrequency, p.y * crestFrequency, seed + UPLIFT.seedOffset);
   return rate * share * crest;
+}
+
+function lineShare(p: Vec, line: Vec[], width: number): number {
+  return 1 - smooth(clamp(polylineDist(p, line) / width, 0, 1));
 }
 
 export function solveRelief(input: SolveInput, rules: SolveRules): Float32Array {

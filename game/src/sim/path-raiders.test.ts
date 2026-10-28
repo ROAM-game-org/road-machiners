@@ -4,7 +4,8 @@ import { REGION } from '../data/region';
 import { TERRAIN, TERRAIN_TYPES } from '../data/terrain';
 import { resetPerf, perfSnapshot } from '../perf';
 import { PHYSICS } from '../data/physics';
-import { boxDistance, boxSegmentDistance, isDriveObstacle, propBoxes, propReach } from './mapgen';
+import { boxDistance, boxSegmentDistance, isBreakable, isDriveObstacle, propBoxes, propReach } from './mapgen';
+import { BREAKABLE } from '../data/rules';
 import { findCells, nearestFreeCell, stampOverlay } from './nav/astar';
 import { COARSE, componentOf, dynamicBlockers, navLayer, onRouteRoad, slowAt, terrainNav } from './nav/layer';
 import { continueRoute, keepRoute, route, routeLength, straightClear, type Blocker } from './path';
@@ -188,9 +189,16 @@ namespace Ref {
     return { n, cliff, slow };
   }
 
-  export function grid(layer: { n: number; cliff: Uint8Array; slow: Float32Array }, blockers: Blocker[], radius: number): Grid {
+  export function grid(layer: { n: number; cliff: Uint8Array; slow: Float32Array }, blockers: Blocker[], radius: number, costly: Blocker[] = []): Grid {
     const n = layer.n;
     const blocked = layer.cliff.slice();
+    const slow = layer.slow.slice();
+    stamp(n, blockers, radius, (c) => (blocked[c] = 1));
+    stamp(n, costly, radius, (c) => (slow[c] = Math.fround(layer.slow[c] * BREAKABLE.routeCost)));
+    return { n, blocked, slow };
+  }
+
+  function stamp(n: number, blockers: Blocker[], radius: number, mark: (c: number) => void): void {
     const grow = radius + CLEARANCE;
     const circles = blockers.flatMap((o) => (o.prop ? o.prop.boxes.map((b) => ({ pos: b.center, r: Math.hypot(b.half.x, b.half.y), inside: (p: Vec) => boxDistance(b, p) < grow })) : [{ pos: o.pos, r: o.r, inside: (p: Vec) => dist(p, o.pos) < o.r + grow }]));
     for (const o of circles) {
@@ -198,9 +206,8 @@ namespace Ref {
       const lo = { x: Math.max(0, Math.floor((o.pos.x - reach) / CELL)), y: Math.max(0, Math.floor((o.pos.y - reach) / CELL)) };
       const hi = { x: Math.min(n - 1, Math.floor((o.pos.x + reach) / CELL)), y: Math.min(n - 1, Math.floor((o.pos.y + reach) / CELL)) };
       for (let x = lo.x; x <= hi.x; x++)
-        for (let y = lo.y; y <= hi.y; y++) if (o.inside({ x: (x + 0.5) * CELL, y: (y + 0.5) * CELL })) blocked[y * n + x] = 1;
+        for (let y = lo.y; y <= hi.y; y++) if (o.inside({ x: (x + 0.5) * CELL, y: (y + 0.5) * CELL })) mark(y * n + x);
     }
-    return { n, blocked, slow: layer.slow };
   }
 
   function touches(o: Blocker, a: Vec, b: Vec, reach: number): boolean {
@@ -423,9 +430,13 @@ namespace Ref {
   export function blockers(w: World, extra: Blocker[]): Blocker[] {
     const known = staticBlockers.get(w.obstacles);
     if (known && known.count === w.obstacles.length) return [...known.list, ...extra];
-    const list = w.obstacles.filter(isDriveObstacle).map(blocker);
+    const list = w.obstacles.filter((o) => isDriveObstacle(o) && !isBreakable(o)).map(blocker);
     staticBlockers.set(w.obstacles, { count: w.obstacles.length, list });
     return [...list, ...extra];
+  }
+
+  export function breakables(w: World): Blocker[] {
+    return w.obstacles.filter((o) => isDriveObstacle(o) && isBreakable(o)).map(blocker);
   }
 
   function blocker(o: Obstacle): Blocker {
@@ -482,7 +493,7 @@ describe('nav layers match the old grid rules', () => {
   it('A* cells avoid every blocked cell and cost within 1% of the reference', () => {
     let searched = 0;
     for (const { from, to, extra, radius } of pairs) {
-      const g = Ref.grid(refLayer(radius), Ref.blockers(w, extra), radius);
+      const g = Ref.grid(refLayer(radius), Ref.blockers(w, extra), radius, Ref.breakables(w));
       const start = Ref.cellOf(g, from);
       const goal = Ref.nearestFree(g, Ref.cellOf(g, to));
       const layer = navLayer(w.terrain, w.obstacles, radius);
@@ -497,7 +508,7 @@ describe('nav layers match the old grid rules', () => {
       searched++;
       expect(got[0]).toBe(start);
       expect(got[got.length - 1]).toBe(goal);
-      for (let i = 1; i < got.length; i++) expect(g.blocked[got[i]]).toBe(0);
+      for (let i = 1; i < got.length; i++) expect(g.blocked[got[i]], `cell ${got[i] % g.n},${Math.floor(got[i] / g.n)} of ${g.n}`).toBe(0);
       const tolerance = cellSpan(g.n, start, goal) > LONG_CELLS ? 0.05 : 0.01;
       expect(Ref.pathCost(g, got) - Ref.pathCost(g, ref)).toBeLessThanOrEqual(tolerance * Ref.pathCost(g, ref));
       if (tolerance === 0.01) expect(Ref.pathCost(g, ref) - Ref.pathCost(g, got)).toBeLessThanOrEqual(0.01 * Ref.pathCost(g, ref));
@@ -511,9 +522,9 @@ describe('nav layers match the old grid rules', () => {
     const mid = Math.floor(road.length / 2);
     const alongRoad = { from: road[mid], to: road[mid + 1], extra: [] as Blocker[], radius: 0.6 };
     for (const { from, to, extra, radius } of [...pairs, alongRoad]) {
-      const expected = Ref.clearLine(w.terrain, Ref.blockers(w, extra), from, to, radius + Ref.CLEARANCE, Infinity);
+      const expected = Ref.clearLine(w.terrain, [...Ref.blockers(w, extra), ...Ref.breakables(w)], from, to, radius + Ref.CLEARANCE, Infinity);
       expect(straightClear(w, from, to, radius, extra)).toBe(expected);
-      const open = Ref.clearLine(w.terrain, Ref.blockers(w, []), from, to, radius + Ref.CLEARANCE, Infinity);
+      const open = Ref.clearLine(w.terrain, [...Ref.blockers(w, []), ...Ref.breakables(w)], from, to, radius + Ref.CLEARANCE, Infinity);
       expect(straightClear(w, from, to, radius, [])).toBe(open);
       if (open) clear++;
     }
@@ -629,7 +640,7 @@ describe('long routes search a coarse corridor', () => {
     const radius = 0.6;
     const layer = navLayer(local.terrain, local.obstacles, radius);
     const overlay = stampOverlay(layer, dynamicBlockers(local.obstacles, local.terrain, []), radius);
-    const g = Ref.grid(referenceLayer(local.terrain, radius), Ref.blockers(local, []), radius);
+    const g = Ref.grid(referenceLayer(local.terrain, radius), Ref.blockers(local, []), radius, Ref.breakables(local));
     const goal = Ref.cellOf(g, center);
     const from = { x: 40, y: 40 };
     const start = nearestFreeCell(layer, overlay, Ref.cellOf(g, from))!;

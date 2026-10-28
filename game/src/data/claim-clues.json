@@ -1,7 +1,7 @@
 {
- "mapHash": "3328b180",
+ "mapHash": "bebbf282",
  "wrecks": {
-  "armyTruck-13295": {
+  "armyTruck-13204": {
    "piece": null,
    "offset": {
     "tier": "offset",
@@ -24,7 +24,7 @@
     "green-pit": "offset"
    }
   },
-  "armyTruck-13296": {
+  "armyTruck-13205": {
    "piece": null,
    "offset": {
     "tier": "offset",
@@ -47,7 +47,7 @@
     "green-pit": "offset"
    }
   },
-  "armyTruck-13297": {
+  "armyTruck-13206": {
    "piece": {
     "tier": "piece",
     "piece": "guardHut",
@@ -80,7 +80,7 @@
     "green-pit": "piece"
    }
   },
-  "armyTruck-13298": {
+  "armyTruck-13207": {
    "piece": {
     "tier": "piece",
     "piece": "farmhouse",
@@ -113,7 +113,7 @@
     "green-pit": "piece"
    }
   },
-  "armyTruck-13299": {
+  "armyTruck-13208": {
    "piece": {
     "tier": "piece",
     "piece": "barn",
@@ -146,7 +146,7 @@
     "green-pit": "piece"
    }
   },
-  "armyTruck-13300": {
+  "armyTruck-13209": {
    "piece": {
     "tier": "piece",
     "piece": "blockhouse",
@@ -179,7 +179,7 @@
     "green-pit": "piece"
    }
   },
-  "armyTruck-13301": {
+  "armyTruck-13210": {
    "piece": null,
    "offset": {
     "tier": "offset",
@@ -202,7 +202,7 @@
     "green-pit": "offset"
    }
   },
-  "armyTruck-13302": {
+  "armyTruck-13211": {
    "piece": null,
    "offset": {
     "tier": "offset",
@@ -225,7 +225,7 @@
     "green-pit": "offset"
    }
   },
-  "armyTruck-13303": {
+  "armyTruck-13212": {
    "piece": {
     "tier": "piece",
     "piece": "hangar",
@@ -258,7 +258,7 @@
     "green-pit": "piece"
    }
   },
-  "armyTruck-13304": {
+  "armyTruck-13213": {
    "piece": {
     "tier": "piece",
     "piece": "barn",
@@ -291,7 +291,7 @@
     "green-pit": "offset"
    }
   },
-  "armyTruck-13312": {
+  "armyTruck-13221": {
    "piece": null,
    "offset": {
     "tier": "offset",
@@ -314,7 +314,7 @@
     "green-pit": "offset"
    }
   },
-  "armyTruck-13313": {
+  "armyTruck-13222": {
    "piece": null,
    "offset": {
     "tier": "offset",
@@ -337,7 +337,7 @@
     "green-pit": "offset"
    }
   },
-  "engineCache-14857": {
+  "engineCache-14766": {
    "piece": {
     "tier": "piece",
     "piece": "frame",
@@ -345,8 +345,8 @@
     "angle": 0,
     "tiles": 0,
     "at": {
-     "x": 1652.5,
-     "y": 1645.5
+     "x": 1581.5,
+     "y": 1574.5
     }
    },
    "offset": {
@@ -356,8 +356,8 @@
     "angle": 0,
     "tiles": 6.25,
     "at": {
-     "x": 1652.5,
-     "y": 1645.5
+     "x": 1581.5,
+     "y": 1574.5
     }
    },
    "tiers": {
@@ -370,7 +370,7 @@
     "green-pit": "shop"
    }
   },
-  "engineCache-14858": {
+  "engineCache-14767": {
    "piece": {
     "tier": "piece",
     "piece": "engine",
@@ -378,8 +378,8 @@
     "angle": 0,
     "tiles": 0,
     "at": {
-     "x": 1650.5,
-     "y": 1653.5999755859375
+     "x": 1579.5,
+     "y": 1582.5999755859375
     }
    },
    "offset": {
@@ -389,8 +389,8 @@
     "angle": -2.356194490192345,
     "tiles": 6.25,
     "at": {
-     "x": 1650.5,
-     "y": 1653.5999755859375
+     "x": 1579.5,
+     "y": 1582.5999755859375
     }
    },
    "tiers": {
@@ -403,7 +403,7 @@
     "green-pit": "shop"
    }
   },
-  "deadTruck-14870": {
+  "deadTruck-14779": {
    "piece": null,
    "offset": {
     "tier": "offset",
@@ -412,27 +412,12 @@
     "angle": 0,
     "tiles": 37.5,
     "at": {
-     "x": 1663.1356201171875,
-     "y": 1594.955078125
-    }
-   },
-   "tiers": {}
-  },
-  "deadTruck-14874": {
-   "piece": null,
-   "offset": {
-    "tier": "offset",
-    "piece": "compound",
-    "relation": null,
-    "angle": 0,
-    "tiles": 37.5,
-    "at": {
-     "x": 1681.1160888671875,
-     "y": 1659.68994140625
+     "x": 1592.1356201171875,
+     "y": 1523.955078125
     }
    },
    "tiers": {
-    "bowl": "shop",
+    "bowl": "offset",
     "nose": "offset",
     "salvage-yard": "offset",
     "granary": "offset",
@@ -441,7 +426,22 @@
     "green-pit": "offset"
    }
   },
-  "deadTruck-14878": {
+  "deadTruck-14783": {
+   "piece": null,
+   "offset": {
+    "tier": "offset",
+    "piece": "compound",
+    "relation": null,
+    "angle": 0,
+    "tiles": 37.5,
+    "at": {
+     "x": 1610.1160888671875,
+     "y": 1588.68994140625
+    }
+   },
+   "tiers": {}
+  },
+  "deadTruck-14787": {
    "piece": null,
    "offset": {
     "tier": "offset",
@@ -450,13 +450,13 @@
     "angle": 0,
     "tiles": 25,
     "at": {
-     "x": 1630.58251953125,
-     "y": 1698.6845703125
+     "x": 1559.58251953125,
+     "y": 1627.6845703125
     }
    },
    "tiers": {
     "bowl": "offset",
-    "nose": "shop",
+    "nose": "offset",
     "salvage-yard": "offset",
     "granary": "offset",
     "pump-station": "offset",
@@ -464,7 +464,7 @@
     "green-pit": "offset"
    }
   },
-  "deadTruck-14882": {
+  "deadTruck-14791": {
    "piece": null,
    "offset": {
     "tier": "offset",
@@ -473,69 +473,8 @@
     "angle": -3.141592653589793,
     "tiles": 31.25,
     "at": {
-     "x": 1630.58251953125,
-     "y": 1698.6845703125
-    }
-   },
-   "tiers": {
-    "bowl": "shop",
-    "nose": "shop",
-    "salvage-yard": "shop",
-    "granary": "shop",
-    "pump-station": "shop",
-    "dustwell": "shop",
-    "green-pit": "shop"
-   }
-  },
-  "deadTruck-14886": {
-   "piece": null,
-   "offset": {
-    "tier": "offset",
-    "piece": "compound",
-    "relation": null,
-    "angle": -2.356194490192345,
-    "tiles": 18.75,
-    "at": {
-     "x": 1624.1573486328125,
-     "y": 1634.4786376953125
-    }
-   },
-   "tiers": {
-    "bowl": "shop",
-    "nose": "shop",
-    "salvage-yard": "shop",
-    "granary": "shop",
-    "pump-station": "shop",
-    "dustwell": "shop",
-    "green-pit": "shop"
-   }
-  },
-  "deadTruck-14890": {
-   "piece": null,
-   "offset": {
-    "tier": "offset",
-    "piece": "compound",
-    "relation": null,
-    "angle": 0,
-    "tiles": 43.75,
-    "at": {
-     "x": 1679.8385009765625,
-     "y": 1635.106201171875
-    }
-   },
-   "tiers": {}
-  },
-  "deadTruck-14894": {
-   "piece": null,
-   "offset": {
-    "tier": "offset",
-    "piece": "compound",
-    "relation": null,
-    "angle": -0.7853981633974483,
-    "tiles": 25,
-    "at": {
-     "x": 1663.1356201171875,
-     "y": 1594.955078125
+     "x": 1559.58251953125,
+     "y": 1627.6845703125
     }
    },
    "tiers": {
@@ -548,7 +487,68 @@
     "green-pit": "offset"
    }
   },
-  "hullCache-16153": {
+  "deadTruck-14795": {
+   "piece": null,
+   "offset": {
+    "tier": "offset",
+    "piece": "compound",
+    "relation": null,
+    "angle": -2.356194490192345,
+    "tiles": 18.75,
+    "at": {
+     "x": 1553.1573486328125,
+     "y": 1563.4786376953125
+    }
+   },
+   "tiers": {
+    "bowl": "offset",
+    "nose": "offset",
+    "salvage-yard": "offset",
+    "granary": "offset",
+    "pump-station": "offset",
+    "dustwell": "offset",
+    "green-pit": "offset"
+   }
+  },
+  "deadTruck-14799": {
+   "piece": null,
+   "offset": {
+    "tier": "offset",
+    "piece": "compound",
+    "relation": null,
+    "angle": 0,
+    "tiles": 43.75,
+    "at": {
+     "x": 1608.8385009765625,
+     "y": 1564.106201171875
+    }
+   },
+   "tiers": {}
+  },
+  "deadTruck-14803": {
+   "piece": null,
+   "offset": {
+    "tier": "offset",
+    "piece": "compound",
+    "relation": null,
+    "angle": -0.7853981633974483,
+    "tiles": 25,
+    "at": {
+     "x": 1592.1356201171875,
+     "y": 1523.955078125
+    }
+   },
+   "tiers": {
+    "bowl": "offset",
+    "nose": "offset",
+    "salvage-yard": "offset",
+    "granary": "offset",
+    "pump-station": "offset",
+    "dustwell": "offset",
+    "green-pit": "offset"
+   }
+  },
+  "hullCache-15072": {
    "piece": {
     "tier": "piece",
     "piece": "tube",
@@ -581,7 +581,7 @@
     "green-pit": "piece"
    }
   },
-  "hullCache-16154": {
+  "hullCache-15073": {
    "piece": {
     "tier": "piece",
     "piece": "tube",
@@ -614,7 +614,7 @@
     "green-pit": "piece"
    }
   },
-  "hullCache-16155": {
+  "hullCache-15074": {
    "piece": {
     "tier": "piece",
     "piece": "bigShell",
@@ -647,7 +647,7 @@
     "green-pit": "piece"
    }
   },
-  "hullCache-16156": {
+  "hullCache-15075": {
    "piece": {
     "tier": "piece",
     "piece": "smallShell",
@@ -680,7 +680,7 @@
     "green-pit": "piece"
    }
   },
-  "hullCache-16157": {
+  "hullCache-15076": {
    "piece": {
     "tier": "piece",
     "piece": "hub",
@@ -713,7 +713,7 @@
     "green-pit": "offset"
    }
   },
-  "hullCache-16158": {
+  "hullCache-15077": {
    "piece": {
     "tier": "piece",
     "piece": "bow",
@@ -746,7 +746,7 @@
     "green-pit": "piece"
    }
   },
-  "hullCache-16159": {
+  "hullCache-15078": {
    "piece": {
     "tier": "piece",
     "piece": "tower",
@@ -779,7 +779,7 @@
     "green-pit": "piece"
    }
   },
-  "hullCache-16160": {
+  "hullCache-15079": {
    "piece": {
     "tier": "piece",
     "piece": "drum",
@@ -812,7 +812,7 @@
     "green-pit": "piece"
    }
   },
-  "hullCache-16161": {
+  "hullCache-15080": {
    "piece": {
     "tier": "piece",
     "piece": "hub",
@@ -845,14 +845,24 @@
     "green-pit": "offset"
    }
   },
-  "shipCache-16190": {
-   "piece": null,
+  "shipCache-15109": {
+   "piece": {
+    "tier": "piece",
+    "piece": "tube",
+    "relation": "beside",
+    "angle": 0,
+    "tiles": 0,
+    "at": {
+     "x": 1002.4000244140625,
+     "y": 864.9000244140625
+    }
+   },
    "offset": {
     "tier": "offset",
     "piece": "tube",
     "relation": null,
     "angle": 2.356194490192345,
-    "tiles": 25,
+    "tiles": 18.75,
     "at": {
      "x": 1002.4000244140625,
      "y": 864.9000244140625
@@ -868,7 +878,7 @@
     "green-pit": "offset"
    }
   },
-  "shipCache-16191": {
+  "shipCache-15110": {
    "piece": {
     "tier": "piece",
     "piece": "tube",
@@ -901,34 +911,11 @@
     "green-pit": "offset"
    }
   },
-  "shipCache-16192": {
-   "piece": null,
-   "offset": {
-    "tier": "offset",
-    "piece": "tube",
-    "relation": null,
-    "angle": 2.356194490192345,
-    "tiles": 18.75,
-    "at": {
-     "x": 1002.4000244140625,
-     "y": 864.9000244140625
-    }
-   },
-   "tiers": {
-    "bowl": "offset",
-    "nose": "offset",
-    "salvage-yard": "offset",
-    "granary": "offset",
-    "pump-station": "offset",
-    "dustwell": "offset",
-    "green-pit": "offset"
-   }
-  },
-  "shipCache-16197": {
+  "shipCache-15111": {
    "piece": {
     "tier": "piece",
     "piece": "tube",
-    "relation": "in",
+    "relation": "beside",
     "angle": 0,
     "tiles": 0,
     "at": {
@@ -940,7 +927,7 @@
     "tier": "offset",
     "piece": "tube",
     "relation": null,
-    "angle": 0.7853981633974483,
+    "angle": 1.5707963267948966,
     "tiles": 12.5,
     "at": {
      "x": 1002.4000244140625,
@@ -957,30 +944,7 @@
     "green-pit": "offset"
    }
   },
-  "shipCache-16198": {
-   "piece": null,
-   "offset": {
-    "tier": "offset",
-    "piece": "tube",
-    "relation": null,
-    "angle": 0.7853981633974483,
-    "tiles": 18.75,
-    "at": {
-     "x": 1002.4000244140625,
-     "y": 864.9000244140625
-    }
-   },
-   "tiers": {
-    "bowl": "offset",
-    "nose": "offset",
-    "salvage-yard": "offset",
-    "granary": "offset",
-    "pump-station": "offset",
-    "dustwell": "offset",
-    "green-pit": "offset"
-   }
-  },
-  "shipCache-16203": {
+  "shipCache-15116": {
    "piece": null,
    "offset": {
     "tier": "offset",
@@ -993,6 +957,31 @@
      "y": 864.9000244140625
     }
    },
+   "tiers": {}
+  },
+  "shipCache-15117": {
+   "piece": {
+    "tier": "piece",
+    "piece": "tube",
+    "relation": "in",
+    "angle": 0,
+    "tiles": 0,
+    "at": {
+     "x": 1002.4000244140625,
+     "y": 864.9000244140625
+    }
+   },
+   "offset": {
+    "tier": "offset",
+    "piece": "tube",
+    "relation": null,
+    "angle": 0,
+    "tiles": 12.5,
+    "at": {
+     "x": 1002.4000244140625,
+     "y": 864.9000244140625
+    }
+   },
    "tiers": {
     "bowl": "offset",
     "nose": "offset",
@@ -1003,13 +992,46 @@
     "green-pit": "offset"
    }
   },
-  "shipCache-16204": {
+  "shipCache-15122": {
+   "piece": {
+    "tier": "piece",
+    "piece": "tube",
+    "relation": "beside",
+    "angle": 0,
+    "tiles": 0,
+    "at": {
+     "x": 1002.4000244140625,
+     "y": 864.9000244140625
+    }
+   },
+   "offset": {
+    "tier": "offset",
+    "piece": "tube",
+    "relation": null,
+    "angle": -0.7853981633974483,
+    "tiles": 18.75,
+    "at": {
+     "x": 1002.4000244140625,
+     "y": 864.9000244140625
+    }
+   },
+   "tiers": {
+    "bowl": "offset",
+    "nose": "offset",
+    "salvage-yard": "offset",
+    "granary": "offset",
+    "pump-station": "offset",
+    "dustwell": "offset",
+    "green-pit": "offset"
+   }
+  },
+  "shipCache-15123": {
    "piece": null,
    "offset": {
     "tier": "offset",
     "piece": "drum",
     "relation": null,
-    "angle": 2.356194490192345,
+    "angle": 1.5707963267948966,
     "tiles": 12.5,
     "at": {
      "x": 1031,
@@ -1026,7 +1048,40 @@
     "green-pit": "offset"
    }
   },
-  "shipCache-16209": {
+  "shipCache-15128": {
+   "piece": {
+    "tier": "piece",
+    "piece": "furrow",
+    "relation": "in",
+    "angle": 0,
+    "tiles": 0,
+    "at": {
+     "x": 980.9273851336053,
+     "y": 905.7268536685768
+    }
+   },
+   "offset": {
+    "tier": "offset",
+    "piece": "furrow",
+    "relation": null,
+    "angle": 0.7853981633974483,
+    "tiles": 6.25,
+    "at": {
+     "x": 980.9273851336053,
+     "y": 905.7268536685768
+    }
+   },
+   "tiers": {
+    "bowl": "offset",
+    "nose": "offset",
+    "salvage-yard": "offset",
+    "granary": "offset",
+    "pump-station": "offset",
+    "dustwell": "offset",
+    "green-pit": "offset"
+   }
+  },
+  "shipCache-15129": {
    "piece": {
     "tier": "piece",
     "piece": "furrow",
@@ -1059,73 +1114,7 @@
     "green-pit": "offset"
    }
   },
-  "shipCache-16210": {
-   "piece": {
-    "tier": "piece",
-    "piece": "furrow",
-    "relation": "in",
-    "angle": 0,
-    "tiles": 0,
-    "at": {
-     "x": 980.9273851336053,
-     "y": 905.7268536685768
-    }
-   },
-   "offset": {
-    "tier": "offset",
-    "piece": "furrow",
-    "relation": null,
-    "angle": -2.356194490192345,
-    "tiles": 6.25,
-    "at": {
-     "x": 980.9273851336053,
-     "y": 905.7268536685768
-    }
-   },
-   "tiers": {
-    "bowl": "piece",
-    "nose": "piece",
-    "salvage-yard": "piece",
-    "granary": "piece",
-    "pump-station": "piece",
-    "dustwell": "piece",
-    "green-pit": "piece"
-   }
-  },
-  "shipCache-16212": {
-   "piece": {
-    "tier": "piece",
-    "piece": "furrow",
-    "relation": "beside",
-    "angle": 0,
-    "tiles": 0,
-    "at": {
-     "x": 980.9273851336053,
-     "y": 905.7268536685768
-    }
-   },
-   "offset": {
-    "tier": "offset",
-    "piece": "furrow",
-    "relation": null,
-    "angle": 2.356194490192345,
-    "tiles": 12.5,
-    "at": {
-     "x": 980.9273851336053,
-     "y": 905.7268536685768
-    }
-   },
-   "tiers": {
-    "bowl": "piece",
-    "nose": "piece",
-    "salvage-yard": "piece",
-    "granary": "piece",
-    "pump-station": "piece",
-    "dustwell": "piece",
-    "green-pit": "piece"
-   }
-  },
-  "shipCache-16213": {
+  "shipCache-15131": {
    "piece": {
     "tier": "piece",
     "piece": "furrow",
@@ -1158,7 +1147,40 @@
     "green-pit": "offset"
    }
   },
-  "shipCache-16215": {
+  "shipCache-15132": {
+   "piece": {
+    "tier": "piece",
+    "piece": "furrow",
+    "relation": "in",
+    "angle": 0,
+    "tiles": 0,
+    "at": {
+     "x": 980.9273851336053,
+     "y": 905.7268536685768
+    }
+   },
+   "offset": {
+    "tier": "offset",
+    "piece": "furrow",
+    "relation": null,
+    "angle": -2.356194490192345,
+    "tiles": 6.25,
+    "at": {
+     "x": 980.9273851336053,
+     "y": 905.7268536685768
+    }
+   },
+   "tiers": {
+    "bowl": "offset",
+    "nose": "offset",
+    "salvage-yard": "offset",
+    "granary": "offset",
+    "pump-station": "offset",
+    "dustwell": "offset",
+    "green-pit": "offset"
+   }
+  },
+  "shipCache-15134": {
    "piece": {
     "tier": "piece",
     "piece": "drum",
@@ -1191,7 +1213,7 @@
     "green-pit": "piece"
    }
   },
-  "shipCache-16217": {
+  "shipCache-15136": {
    "piece": {
     "tier": "piece",
     "piece": "bow",
@@ -1224,7 +1246,7 @@
     "green-pit": "offset"
    }
   },
-  "shipCache-16220": {
+  "shipCache-15139": {
    "piece": null,
    "offset": {
     "tier": "offset",
@@ -1247,8 +1269,18 @@
     "green-pit": "offset"
    }
   },
-  "shipCache-16221": {
-   "piece": null,
+  "shipCache-15140": {
+   "piece": {
+    "tier": "piece",
+    "piece": "bigShell",
+    "relation": "beside",
+    "angle": 0,
+    "tiles": 0,
+    "at": {
+     "x": 976.9000244140625,
+     "y": 847.0999755859375
+    }
+   },
    "offset": {
     "tier": "offset",
     "piece": "bigShell",
@@ -1261,16 +1293,16 @@
     }
    },
    "tiers": {
-    "bowl": "offset",
-    "nose": "offset",
-    "salvage-yard": "offset",
-    "granary": "offset",
-    "pump-station": "offset",
-    "dustwell": "offset",
-    "green-pit": "offset"
+    "bowl": "piece",
+    "nose": "piece",
+    "salvage-yard": "piece",
+    "granary": "piece",
+    "pump-station": "piece",
+    "dustwell": "piece",
+    "green-pit": "piece"
    }
   },
-  "old-hulks-tank-5175": {
+  "old-hulks-tank-5207": {
    "piece": null,
    "offset": null,
    "tiers": {
@@ -1283,7 +1315,7 @@
     "green-pit": "shop"
    }
   },
-  "old-hulks-tank-5239": {
+  "old-hulks-tank-5235": {
    "piece": null,
    "offset": null,
    "tiers": {
@@ -1296,46 +1328,7 @@
     "green-pit": "shop"
    }
   },
-  "old-hulks-tank-5249": {
-   "piece": null,
-   "offset": null,
-   "tiers": {
-    "bowl": "shop",
-    "nose": "shop",
-    "salvage-yard": "shop",
-    "granary": "shop",
-    "pump-station": "shop",
-    "dustwell": "shop",
-    "green-pit": "shop"
-   }
-  },
-  "old-hulks-tank-5273": {
-   "piece": null,
-   "offset": null,
-   "tiers": {
-    "bowl": "shop",
-    "nose": "shop",
-    "salvage-yard": "shop",
-    "granary": "shop",
-    "pump-station": "shop",
-    "dustwell": "shop",
-    "green-pit": "shop"
-   }
-  },
-  "old-hulks-tank-5275": {
-   "piece": null,
-   "offset": null,
-   "tiers": {
-    "bowl": "shop",
-    "nose": "shop",
-    "salvage-yard": "shop",
-    "granary": "shop",
-    "pump-station": "shop",
-    "dustwell": "shop",
-    "green-pit": "shop"
-   }
-  },
-  "old-hulks-tank-5281": {
+  "old-hulks-tank-5253": {
    "piece": null,
    "offset": null,
    "tiers": {
