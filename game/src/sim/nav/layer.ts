@@ -233,7 +233,7 @@ function patchedLayer(e: TerrainEntry, base: LayerBase, statics: StaticSet, radi
   const costly = costlyOf(statics);
   const { removed, added } = costlyDiff(base.costly, costly);
   const slow = base.layer.slow.slice();
-  const cover = base.cover;
+  const cover = base.cover.slice();
   const touched = new Set<number>();
   recover(nav, slow, cover, removed, -1, radius, touched);
   recover(nav, slow, cover, added, 1, radius, touched);
