@@ -529,7 +529,7 @@ describe('the hunting parties', () => {
   });
 
   it('waits out the day at a hide off its hunt road, and takes the road at dusk', () => {
-    const w = orderWorld();
+    const w = orderWorld(5);
     const day = Array.from({ length: 200 }, (_, i) => i + 1).find((d) => huntTonight(w, d))!;
     w.turn = rideOutTurn(duskTurn(day));
     advanceSunward(w);
@@ -552,7 +552,7 @@ describe('the hunting parties', () => {
   });
 
   it('finds a hide for every road the hunters may take', () => {
-    const w = orderWorld();
+    const w = orderWorld(5);
     const grounds = Array.from({ length: 30 }, (_, i) => i + 1).flatMap((d) => {
       sunwardFacts(w).lastHunt = null;
       if (!huntTonight(w, d)) return [];
@@ -566,7 +566,7 @@ describe('the hunting parties', () => {
   });
 
   it('holds the hunters at their hide until dusk without a stall', () => {
-    const w0 = orderWorld();
+    const w0 = orderWorld(5);
     const day = Array.from({ length: 200 }, (_, i) => i + 1).find((d) => huntTonight(w0, d))!;
     w0.turn = rideOutTurn(duskTurn(day));
     advanceSunward(w0);
@@ -647,7 +647,7 @@ describe('the day restraint', () => {
   const atHour = (hour: number): number => Math.ceil(1 + (hour - TIME.startHour) * HOUR_TURNS);
 
   function meetRaider(hour: number): { w: World; car: Vehicle; raider: Vehicle } {
-    const w = orderWorld();
+    const w = orderWorld(5);
     w.turn = atHour(hour);
     const car = membersOf(w).find(isCavalcadeCar)!;
     const raider = spawnAt(w, NPCS.buggy, generateNpcLoadout(w, NPCS.buggy), { x: car.pos.x + 6, y: car.pos.y }, 'kiln');
