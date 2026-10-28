@@ -44,14 +44,14 @@ export function driveMode(v: Pick<Vehicle, "direct">): DriveMode {
   return v.direct ? "direct" : "route";
 }
 
-export function atRest(speed: number): boolean {
-  return speed <= RULES.parkedSpeed;
+export function zoneSpeedOf(me: Pick<Vehicle, "direct" | "setSpeed" | "speed">): number {
+  return me.direct && me.setSpeed !== undefined ? me.setSpeed : me.speed;
 }
 
 export function throttleFor(d: number, speed: number, mode: DriveMode): Throttle {
   if (mode === "route") return d > speed ? "accelerate" : "hold";
   const z = zoneEdges();
-  if (atRest(speed)) return "accelerate";
+  if (speed === 0) return "accelerate";
   if (d < z.brakeEnd) return "brake";
   if (d < z.holdEnd) return "hold";
   return "accelerate";
@@ -83,7 +83,7 @@ export function setSpeedTarget(v: Pick<Vehicle, "direct" | "setSpeed">, s: Vehic
 export function clickSetSpeed(s: VehicleStats, me: Pick<Vehicle, "pos" | "speed" | "setSpeed">, p: Vec): number {
   const base = me.setSpeed ?? me.speed;
   if (!Number.isFinite(base)) throw new Error(`Set speed needs a finite speed, got ${base}`);
-  const zone = throttleFor(dist(me.pos, p), me.speed, "direct");
+  const zone = throttleFor(dist(me.pos, p), base, "direct");
   if (zone === "brake") return Math.max(0, base - RULES.setSpeedStep);
   if (zone === "accelerate") return Math.min(s.maxSpeed, base + RULES.setSpeedStep);
   return base;
@@ -158,7 +158,7 @@ export function playerOrder(world: World, me: Vehicle, dest: Vec, shift: boolean
 export function orderThrottle(me: Vehicle, order: MoveOrder): Throttle {
   if (order.kind === "brake") return "brake";
   if (order.pace !== undefined) return order.pace <= RULES.crawlSpeed ? "brake" : "hold";
-  return throttleFor(dist(me.pos, order.dest), me.speed, driveMode(me));
+  return throttleFor(dist(me.pos, order.dest), zoneSpeedOf(me), driveMode(me));
 }
 
 function onSite(world: World, p: Vec): boolean {

@@ -22,7 +22,7 @@ import { driveSnapshotOf, type PreparedTurn } from "../phys/turn";
 import { playerTrucks, playerVehicle, vehicleById } from "../sim/damage";
 
 import { inOverdrive, isStranded, vehicleStats } from "../sim/stats";
-import { zoneHalfAngle } from "../sim/steering";
+import { zoneHalfAngle, zoneSpeedOf } from "../sim/steering";
 import type { Vehicle, World } from "../sim/types";
 import { grayRadius, playerSees, seenPropTiles, tileOf } from "../sim/vision";
 import type { Vec } from "../sim/vec";
@@ -1230,7 +1230,7 @@ export class Game {
     const s = vehicleStats(this.world, me);
     const sel = s.weapons.filter((m) => m.part.id === this.selected);
     this.weaponRange.set(this.world.terrain, vehicleOrigins(me), sel);
-    this.zones.update(this.world.terrain, me.pos, me.heading, me.speed, zoneHalfAngle(s, me.speed));
+    this.zones.update(this.world.terrain, me.pos, me.heading, zoneSpeedOf(me), zoneHalfAngle(s, me.speed));
     const hover = this.hoverGround;
     const color = hover ? throttleColor(this.world, me, hover) : PAL.plan;
     this.zones.hover(this.world.terrain, hover, color);

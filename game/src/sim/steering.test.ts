@@ -2,7 +2,7 @@ import { RULES } from "../data/rules";
 import { describe, expect, it } from "vitest";
 import { vehicleStats } from "./stats";
 import { chassisDef } from "../data/chassis";
-import { backsToDestination, clickOrder, clickSetSpeed, parkedVehicles, setDown, setDownSpot, setSpeedTarget, settleSetSpeed, orderSpeed, throttleFor, throughSpeed, zoneAt, zoneEdges, zoneHalfAngle, zonePace, zoneSpeed, orderThrottle, playerOrder } from "./steering";
+import { backsToDestination, clickOrder, clickSetSpeed, zoneSpeedOf, parkedVehicles, setDown, setDownSpot, setSpeedTarget, settleSetSpeed, orderSpeed, throttleFor, throughSpeed, zoneAt, zoneEdges, zoneHalfAngle, zonePace, zoneSpeed, orderThrottle, playerOrder } from "./steering";
 import { DEG, dist } from "./vec";
 import { addVehicle, emptyWorld, npcBrain } from "./testkit";
 import { addState } from "./states";
@@ -89,8 +89,14 @@ describe("click orders", () => {
   it("at rest every distance is green", () => {
     const z = zoneEdges();
     for (const d of [0.1, z.brakeEnd, z.holdEnd, z.reach + 5]) expect(throttleFor(d, 0, 'direct')).toBe("accelerate");
-    expect(throttleFor(0.1, RULES.parkedSpeed / 2, 'direct')).toBe("accelerate");
-    expect(throttleFor(0.1, RULES.parkedSpeed * 2, 'direct')).toBe("brake");
+    expect(throttleFor(0.1, 0.01, 'direct')).toBe("brake");
+  });
+
+  it("in manual driving the set speed decides stopped, so a backing truck is moving and a drifting one is stopped", () => {
+    expect(zoneSpeedOf({ direct: true, setSpeed: 2, speed: 0 })).toBe(2);
+    expect(zoneSpeedOf({ direct: true, setSpeed: 0, speed: 0.02 })).toBe(0);
+    expect(zoneSpeedOf({ direct: true, setSpeed: undefined, speed: 3 })).toBe(3);
+    expect(zoneSpeedOf({ direct: false, setSpeed: 2, speed: 3 })).toBe(3);
   });
 
   it("a nearby ground click remains a destination", () => {
