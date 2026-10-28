@@ -21,7 +21,7 @@ export class ModalScreens {
   readonly inventory: InventoryScreen;
   readonly quest: QuestScreen;
 
-  constructor(host: UiHost, menuOpen: () => boolean) {
+  constructor(host: UiHost) {
     this.town = new TownScreen(host);
     this.outpost = new OutpostScreen(host);
     this.fullShop = new FullShopScreen(host);
@@ -29,7 +29,7 @@ export class ModalScreens {
     this.character = new CharacterScreen(host);
     this.journal = new JournalScreen(host);
     this.inventory = new InventoryScreen(host);
-    this.quest = new QuestScreen(host, () => this.lookOver() || menuOpen(), () => (this.town.isOpen() ? this.town.frame() : null));
+    this.quest = new QuestScreen(host, () => this.lookOver() || host.menuOpen(), () => (this.town.isOpen() ? this.town.frame() : null));
   }
 
   private all(): (TownScreen | OutpostScreen | FullShopScreen | TruckTradeScreen | Toggled)[] {

@@ -24,7 +24,16 @@ describe('the reason Get unstuck is off', () => {
     const w = emptyWorld();
     const raider = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 50, y: 30 });
     addState(w, 'combat', raider.id, playerVehicle(w).id, { kind: 'none' });
-    expect(say(unstuckReason(w, false, false))).toBe('In a fight');
+    expect(say(unstuckReason(w, false, false))).toBe('In a fight and not stuck');
+    expect(resolve(unstuckReason(w, false, false)!, 'ru')).toBe('Вы в бою и не застряли');
+  });
+
+  it('is none for a held truck in a fight', () => {
+    const w = emptyWorld();
+    const raider = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 50, y: 30 });
+    addState(w, 'combat', raider.id, playerVehicle(w).id, { kind: 'none' });
+    playerVehicle(w).strandedTurns = 1;
+    expect(unstuckReason(w, false, false)).toBeNull();
   });
 
   it('names a harpoon line', () => {

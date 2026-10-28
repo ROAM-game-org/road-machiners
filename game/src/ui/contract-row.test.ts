@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Contract } from "../sim/market";
 import { addVehicle, emptyWorld } from "../sim/testkit";
-import { contractRow } from "./contract-row";
+import SURVEY_SITES_FILE from "../data/survey-sites.json";
+import { surveyPlaceThreat } from "../sim/survey";
+import { contractRow, heldContractRow } from "./contract-row";
 
 class FakeNode {
   className = "";
@@ -52,6 +54,35 @@ describe("escort offer road tag", () => {
   for (const bad of [0, 4, 1.5]) {
     it(`throws on threat ${bad}`, () => {
       expect(postedEscort(bad)).toThrow(/threat/);
+    });
+  }
+});
+
+describe("survey ground tag", () => {
+  const w = emptyWorld();
+  const siteOfStep = (step: number) => {
+    const site = SURVEY_SITES_FILE.sites.find((s) => surveyPlaceThreat(w, s.id) === step);
+    if (!site) throw new Error(`No survey site at step ${step}`);
+    return [site.id];
+  };
+  const survey = (sites: string[]): Contract => ({ shop: "bowl", reward: 100, deadline: 100, window: 100, tier: 1, id: "s", kind: "survey", points: sites.map((site) => ({ site, found: false, done: false })) }) as unknown as Contract;
+  const button = () => new FakeNode("button") as unknown as HTMLElement;
+  const groundTags = (row: FakeNode) => findAll(row, (n) => n.className.startsWith("tag") && n.textContent.endsWith(" ground"));
+  const cases: [string[], string, string][] = [
+    [siteOfStep(1), "Safe ground", "tag dim"],
+    [siteOfStep(2), "Risky ground", "tag"],
+    [["survey-house-52", "survey-house-82"], "Dangerous ground", "tag bad"],
+  ];
+  for (const [sites, word, cls] of cases) {
+    it(`shows ${word} on the board, the held row and the journal row`, () => {
+      const c = survey(sites);
+      const rows = [contractRow(w, c, button(), true), contractRow(w, c, button()), heldContractRow(w, c)] as unknown as FakeNode[];
+      for (const row of rows) {
+        const tags = groundTags(row);
+        expect(tags).toHaveLength(1);
+        expect(tags[0]!.className).toBe(cls);
+        expect(tags[0]!.textContent).toBe(word);
+      }
     });
   }
 });
