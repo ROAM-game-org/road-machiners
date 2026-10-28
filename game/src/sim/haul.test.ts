@@ -147,6 +147,7 @@ describe('the haul search keeps its placements', () => {
     const haul = cargoHaul(HOLD_UP.robber as unknown as Vehicle, HOLD_UP.bus as unknown as Vehicle);
     expect(haul.length).toBeGreaterThan(0);
     expect(haul.map((item) => item.id)).toEqual(HOLD_UP_HAUL);
+    expect(haul.map((item) => item.id)).toEqual(oracleHaul(HOLD_UP.robber as unknown as Vehicle, HOLD_UP.bus as unknown as Vehicle).map((item) => item.id));
   }, budget(5000));
 
   it('leaves the winner untouched', () => {
