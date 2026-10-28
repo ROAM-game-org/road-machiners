@@ -1086,7 +1086,7 @@ export class Game {
     this.follow.update(truck, cameraSetting().mode() === "auto" ? this.orderPoint() : null, dt, playMs);
     this.hud.showRecenter(!this.follow.isFollowing());
     const daylight = daylightAt(lightTurnOf(this.world, this.anim));
-    lightScene(this.sun, this.sky, truck, daylight);
+    lightScene(this.sun, this.sky, this.rig.focus(), daylight, this.rig.groundReach());
     this.scene.background = this.sightLimit.fadeTo(backdropAt(daylight));
     this.craters.graffiti.light(daylight.sunIntensity);
     this.fx.light({ sun: this.sun, sky: this.sky });

@@ -187,7 +187,8 @@ export function daylightAt(turn: number): Daylight {
   };
 }
 
-const SUN_RADIUS = 150;
+const SHADOW_REACH = 80;
+const CASTER_REACH = 70;
 
 const snapZ = new THREE.Vector3();
 const snapX = new THREE.Vector3();
@@ -216,15 +217,17 @@ export function backdropAt(light: Daylight): THREE.Color {
   return BACKDROP.clone().multiplyScalar((light.sunIntensity + light.skyIntensity) / NOON_REACH);
 }
 
-export function lightScene(sun: THREE.DirectionalLight, sky: THREE.HemisphereLight, drawn: V3, light: Daylight): void {
-  const flat = Math.cos(light.elevation);
-  const horiz = flat * SUN_RADIUS;
-  const lift = Math.sin(light.elevation);
+export function lightScene(sun: THREE.DirectionalLight, sky: THREE.HemisphereLight, drawn: V3, light: Daylight, reach = SHADOW_REACH): void {
   const { camera, mapSize } = sun.shadow;
+  coverShadow(camera, reach);
+  const distance = reach + CASTER_REACH;
+  const flat = Math.cos(light.elevation);
+  const horiz = flat * distance;
+  const lift = Math.sin(light.elevation);
   const texel = (camera.right - camera.left) / mapSize.x;
   const focus = snapToShadowTexels(drawn, { x: light.dir.x * flat, y: lift, z: light.dir.y * flat }, texel);
   sun.target.position.set(focus.x, focus.y, focus.z);
-  sun.position.set(focus.x + light.dir.x * horiz, focus.y + lift * SUN_RADIUS, focus.z + light.dir.y * horiz);
+  sun.position.set(focus.x + light.dir.x * horiz, focus.y + lift * distance, focus.z + light.dir.y * horiz);
   sun.color.copy(light.sun);
   sun.intensity = light.sunIntensity;
   sky.color.copy(light.sky);
@@ -239,15 +242,15 @@ export function sunLight(): THREE.DirectionalLight {
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.normalBias = 0.3;
   sun.shadow.radius = SHADOW_SOFTNESS;
-  Object.assign(sun.shadow.camera, {
-    left: -80,
-    right: 80,
-    top: 80,
-    bottom: -80,
-    near: 1,
-    far: 500,
-  });
+  coverShadow(sun.shadow.camera, SHADOW_REACH);
   return sun;
+}
+
+function coverShadow(camera: THREE.OrthographicCamera, reach: number): void {
+  if (!(reach > 0 && Number.isFinite(reach))) throw new Error(`Shadow reach must be a finite positive number, got ${reach}`);
+  if (camera.right === reach) return;
+  Object.assign(camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 1, far: 2 * (2 * reach + CASTER_REACH) });
+  camera.updateProjectionMatrix();
 }
 
 const BEAM_COLOR = 0xfff2c8;
