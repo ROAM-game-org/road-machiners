@@ -189,7 +189,7 @@ describe('gun plate legs and braces', () => {
             const where = `${mount} rot ${rot} at ${x},${y}`;
             try {
               const stand = weaponStand({ chassisId: id }, item, body);
-              for (const lift of [0, 0.1, 0.2]) {
+              for (const lift of [0, 0.2, 0.8, 1.8]) {
                 const top = stand.top + lift;
                 const at = { ...stand.at, pos: stand.at.pos.clone().setY(top) };
                 plateLegs(body, plateOf(mount, cellRect(id, cs).unit, at), top, () => new THREE.Object3D());
