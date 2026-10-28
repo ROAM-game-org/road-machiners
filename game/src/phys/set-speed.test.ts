@@ -75,10 +75,18 @@ describe('manual driving keeps a set speed', () => {
     expect(back.speed).toBeGreaterThan(set * 0.97);
   }, 120_000);
 
-  it('a brake order drops the set speed', () => {
+  it('closing in on the clicked point does not slow the truck', () => {
+    const w = startedAt(emptyWorld({ x: 20, y: 40 }), 2.3);
+    const point = { x: w.vehicles[0].pos.x + 6, y: w.vehicles[0].pos.y };
+    const worlds = drive(w, [{ ground: 'asphalt', order: () => ({ kind: 'through', dest: point }) }, ...repeat('asphalt', 3, () => null)]);
+    for (const x of worlds) expect(x.vehicles[0].speed).toBeGreaterThan(2.3 * 0.97);
+    expect(worlds[3].vehicles[0].order).toBeNull();
+  });
+
+  it('a brake order sets the set speed to zero', () => {
     const w = startedAt(emptyWorld({ x: 20, y: 40 }), 3);
     const worlds = drive(w, [{ ground: 'asphalt', order: () => ({ kind: 'brake' }) }]);
-    expect(worlds[0].vehicles[0].setSpeed).toBeUndefined();
+    expect(worlds[0].vehicles[0].setSpeed).toBe(0);
   });
 
   it('a coast with no order keeps the set speed', () => {
@@ -87,18 +95,28 @@ describe('manual driving keeps a set speed', () => {
     expect(worlds[1].vehicles[0].setSpeed).toBeGreaterThan(RULES.parkedSpeed);
   });
 
-  it('a truck at rest does not climb back to an old set speed', () => {
-    const w = startedAt(emptyWorld({ x: 20, y: 40 }), 0);
-    w.vehicles[0].setSpeed = 5;
-    const worlds = drive(w, [{ ground: 'asphalt', order: () => null }]);
-    expect(worlds[0].vehicles[0].setSpeed).toBeUndefined();
-    expect(worlds[0].vehicles[0].speed).toBeLessThanOrEqual(RULES.parkedSpeed);
+  it('a truck stopped by a rock gets a set speed of zero and stays put', () => {
+    const w = startedAt(emptyWorld({ x: 20, y: 40 }), 3);
+    w.obstacles = [{ id: 'boulder', kind: 'rock', pos: { x: 24, y: 40 }, r: 2.5 }];
+    const worlds = drive(w, repeat('asphalt', 4, () => null));
+    const stopped = worlds.findIndex((x) => x.vehicles[0].speed <= RULES.parkedSpeed);
+    expect(stopped).toBeGreaterThanOrEqual(0);
+    expect(worlds[stopped].vehicles[0].setSpeed).toBe(0);
+    for (const x of worlds.slice(stopped)) expect(x.vehicles[0].speed).toBeLessThanOrEqual(RULES.parkedSpeed);
   });
 
-  it('route mode keeps no set speed', () => {
+  it('a truck that starts from rest keeps its set speed and drives off', () => {
+    const w = startedAt(emptyWorld({ x: 20, y: 40 }), 0);
+    w.vehicles[0].setSpeed = RULES.setSpeedStep;
+    const worlds = drive(w, repeat('asphalt', 2, () => null));
+    expect(worlds[1].vehicles[0].setSpeed).toBe(RULES.setSpeedStep);
+    expect(worlds[1].vehicles[0].speed).toBeGreaterThan(RULES.setSpeedStep * 0.9);
+  });
+
+  it('route mode ignores a set speed', () => {
     const w = startedAt(emptyWorld({ x: 20, y: 40 }), 3);
-    w.vehicles[0].direct = false;
+    Object.assign(w.vehicles[0], { direct: false, setSpeed: 0 });
     const worlds = drive(w, [{ ground: 'asphalt', order: hold }]);
-    expect(worlds[0].vehicles[0].setSpeed).toBeUndefined();
+    expect(worlds[0].vehicles[0].speed).toBeGreaterThan(2);
   });
 });

@@ -9,7 +9,7 @@ import { propSlotsAlong } from './prop-index';
 import { breakProp } from './salvage';
 import { burnFuel, getResources } from './resources';
 import { fuelCap, plainFuelPerTile, plainMaxSpeed, vehicleStats, type VehicleStats } from './stats';
-import { driveMode, nextSetSpeed, orderSpeed, parkedVehicles } from './steering';
+import { driveMode, orderSpeed, parkedVehicles, setSpeedTarget, settleSetSpeed } from './steering';
 import { fieldBlockers } from './hazards';
 import { getHitchedTowIds, isOnRope, ropeClientOf } from './tow';
 import type { Blocker } from './nav/buckets';
@@ -50,7 +50,7 @@ export function fuelLimited(w: World, v: Vehicle, s: VehicleStats, speed: number
 }
 
 function wantedSpeed(s: VehicleStats, v: Vehicle, speed: number, order: Exclude<MoveOrder, { kind: 'brake' }>): number {
-  return nextSetSpeed(v, s, speed, order, dist(v.pos, order.dest)) ?? orderSpeed(s, speed, v.pos, order, driveMode(v));
+  return setSpeedTarget(v, s, order) ?? orderSpeed(s, speed, v.pos, order, driveMode(v));
 }
 
 export function advanceFar(w: World, v: Vehicle): void {
@@ -67,7 +67,7 @@ export function advanceFar(w: World, v: Vehicle): void {
 
   const s = fuelLimited(w, v, full, v.speed, order);
   const next = wantedSpeed(s, v, v.speed, order);
-  writeFarSetSpeed(v, s, order, next);
+  const startSpeed = v.speed;
   const style = { offRoad: keepsOffRoads(w, v), night: avoidsCrater(w, v) };
   const points = farPoints(w, v, order.dest, style, full, s);
 
@@ -82,6 +82,7 @@ export function advanceFar(w: World, v: Vehicle): void {
   const last = v.trail[v.trail.length - 1];
   Object.assign(v, { pos: { x: end.x, y: end.y }, heading: last.heading }, bendField(last.bend));
   v.speed = done && order.kind === 'stopAt' ? 0 : block ? Math.min(next, block.other.speed) : next;
+  settleSetSpeed(v, startSpeed);
   burnFuel(w, v, walk.moved);
   breakCrossed(w, v, walk.path, full.radius);
   keepFarRoute(v, done || block ? undefined : farRouteOf(order.dest, walk.ahead, style));
@@ -89,12 +90,6 @@ export function advanceFar(w: World, v: Vehicle): void {
     w.events.push({ t: 'arrived', vehicle: v.id });
     v.order = null;
   }
-}
-
-function writeFarSetSpeed(v: Vehicle, s: VehicleStats, order: MoveOrder, next: number): void {
-  const set = order.kind === 'through' ? nextSetSpeed(v, s, v.speed, order, dist(v.pos, order.dest)) : undefined;
-  if (set === undefined) delete v.setSpeed;
-  else v.setSpeed = next;
 }
 
 function farPoints(w: World, v: Vehicle, dest: Vec, style: RouteStyle, full: VehicleStats, s: VehicleStats): Vec[] {

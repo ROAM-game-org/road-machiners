@@ -72,13 +72,32 @@ function routeSpeed(s: VehicleStats, speed: number, d: number): number {
   return clamp(2 * d - speed, Math.min(speed, s.maxSpeed), Math.min(s.maxSpeed, speed + s.accel));
 }
 
-export function nextSetSpeed(v: Pick<Vehicle, "direct" | "setSpeed">, s: VehicleStats, speed: number, order: MoveOrder | null, d: number): number | undefined {
-  if (!Number.isFinite(speed) || !Number.isFinite(v.setSpeed ?? 0)) throw new Error(`Set speed needs finite speeds, got ${speed} and ${v.setSpeed}`);
-  if (!v.direct) return undefined;
+export function setSpeedTarget(v: Pick<Vehicle, "direct" | "setSpeed">, s: VehicleStats, order: MoveOrder | null): number | undefined {
+  if (!v.direct || v.setSpeed === undefined) return undefined;
   if (order && (order.kind !== "through" || order.pace !== undefined)) return undefined;
-  const base = v.setSpeed !== undefined && speed > RULES.parkedSpeed ? v.setSpeed : speed;
-  if (order) return zoneSpeed(s, base, d);
-  return base > RULES.parkedSpeed ? Math.min(base, s.maxSpeed) : undefined;
+  return Math.min(v.setSpeed, s.maxSpeed);
+}
+
+export function clickSetSpeed(s: VehicleStats, me: Pick<Vehicle, "pos" | "heading" | "speed" | "setSpeed">, p: Vec): number {
+  const base = me.setSpeed ?? me.speed;
+  if (!Number.isFinite(base)) throw new Error(`Set speed needs a finite speed, got ${base}`);
+  const zone = zoneAt(s, me, p);
+  if (zone === "brake") return Math.max(0, base - RULES.setSpeedStep);
+  if (zone === "accelerate") return Math.min(s.maxSpeed, base + RULES.setSpeedStep);
+  return base;
+}
+
+export function settleSetSpeed(v: Vehicle, startSpeed: number): void {
+  if (startSpeed > RULES.parkedSpeed && v.speed <= RULES.parkedSpeed) zeroSetSpeed(v);
+}
+
+export function zeroSetSpeed(v: Vehicle): void {
+  if (v.setSpeed !== undefined) v.setSpeed = 0;
+}
+
+export function switchSetSpeed(v: Vehicle, direct: boolean): void {
+  if (direct) v.setSpeed = v.speed > RULES.parkedSpeed ? v.speed : 0;
+  else delete v.setSpeed;
 }
 
 export function zoneSpeed(s: VehicleStats, speed: number, d: number): number {
@@ -192,6 +211,7 @@ export function setDown(world: World, v: Vehicle): void {
   v.pos = setDownSpot(world, v);
   straighten(v);
   v.speed = 0;
+  zeroSetSpeed(v);
   v.strandedTurns = RULES.stranded.turns;
   delete v.strandedAt;
 }

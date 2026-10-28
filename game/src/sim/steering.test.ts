@@ -2,7 +2,7 @@ import { RULES } from "../data/rules";
 import { describe, expect, it } from "vitest";
 import { vehicleStats } from "./stats";
 import { chassisDef } from "../data/chassis";
-import { backsToDestination, clickOrder, nextSetSpeed, parkedVehicles, setDown, setDownSpot, orderSpeed, throttleFor, throughSpeed, zoneAt, zoneEdges, zoneHalfAngle, zonePace, zoneSpeed, orderThrottle, playerOrder } from "./steering";
+import { backsToDestination, clickOrder, clickSetSpeed, parkedVehicles, setDown, setDownSpot, setSpeedTarget, settleSetSpeed, orderSpeed, throttleFor, throughSpeed, zoneAt, zoneEdges, zoneHalfAngle, zonePace, zoneSpeed, orderThrottle, playerOrder } from "./steering";
 import { DEG, dist } from "./vec";
 import { addVehicle, emptyWorld, npcBrain } from "./testkit";
 import { addState } from "./states";
@@ -13,7 +13,7 @@ import { nearestSitePad } from "./sites";
 import { atlasOf } from "./atlas";
 import { PERK_NUMBERS } from "../data/skills";
 import { PLAYER_CHASSIS } from "../data/chassis";
-import type { MoveOrder, Obstacle, World } from "./types";
+import type { MoveOrder, Obstacle, Vehicle, World } from "./types";
 import type { Vec } from "./vec";
 
 function setup(speed: number) {
@@ -201,46 +201,75 @@ describe("setting a stranded truck down", () => {
 
 describe("set speed of manual driving", () => {
   const z = zoneEdges();
-  const holdD = (z.brakeEnd + z.holdEnd) / 2;
+  const step = RULES.setSpeedStep;
   const through = { kind: "through", dest: { x: 50, y: 30 } } as const;
   const driver = (setSpeed?: number) => ({ direct: true, setSpeed });
+  const ahead = (v: Vehicle, d: number): Vec => ({ x: v.pos.x + Math.cos(v.heading) * d, y: v.pos.y + Math.sin(v.heading) * d });
 
-  it("hold keeps the set speed while the measured speed is lower", () => {
-    const { s } = setup(4);
-    expect(nextSetSpeed(driver(5), s, 3, through, holdD)).toBe(5);
+  it("a click changes the set speed once by its zone: red lowers, yellow keeps, green raises", () => {
+    const { v, s } = setup(3);
+    v.setSpeed = 4;
+    expect(clickSetSpeed(s, v, ahead(v, z.brakeEnd / 2))).toBeCloseTo(4 - step);
+    expect(clickSetSpeed(s, v, ahead(v, (z.brakeEnd + z.holdEnd) / 2))).toBe(4);
+    expect(clickSetSpeed(s, v, ahead(v, z.holdEnd + 0.5))).toBeCloseTo(4 + step);
   });
 
-  it("brake lowers and accelerate raises the set speed, not the measured speed", () => {
-    const { s } = setup(4);
-    expect(nextSetSpeed(driver(5), s, 3, through, 0.01)).toBeCloseTo(zoneSpeed(s, 5, 0.01), 5);
-    expect(nextSetSpeed(driver(4), s, 2, through, z.reach)).toBeCloseTo(zoneSpeed(s, 4, z.reach), 5);
+  it("the step does not depend on how deep in the zone the click lands", () => {
+    const { v, s } = setup(3);
+    v.setSpeed = 4;
+    expect(clickSetSpeed(s, v, ahead(v, z.holdEnd + 0.1))).toBe(clickSetSpeed(s, v, ahead(v, z.reach - 0.1)));
+    expect(clickSetSpeed(s, v, ahead(v, 0.2))).toBe(clickSetSpeed(s, v, ahead(v, z.brakeEnd - 0.1)));
   });
 
-  it("starts from the measured speed with no set speed or at rest", () => {
-    const { s } = setup(4);
-    expect(nextSetSpeed(driver(), s, 3, through, holdD)).toBe(3);
-    expect(nextSetSpeed(driver(5), s, RULES.parkedSpeed, through, holdD)).toBe(RULES.parkedSpeed);
+  it("a click outside the cones keeps the set speed", () => {
+    const { v, s } = setup(3);
+    v.setSpeed = 4;
+    expect(clickSetSpeed(s, v, ahead(v, z.reach + 5))).toBe(4);
+    expect(clickSetSpeed(s, v, ahead(v, -5))).toBe(4);
   });
 
-  it("route mode, brake, stop-at and pace orders give none", () => {
-    const { s } = setup(4);
-    expect(nextSetSpeed({ direct: false, setSpeed: 5 }, s, 4, through, holdD)).toBeUndefined();
-    expect(nextSetSpeed(driver(5), s, 4, { kind: "brake" }, holdD)).toBeUndefined();
-    expect(nextSetSpeed(driver(5), s, 4, { kind: "stopAt", dest: through.dest }, holdD)).toBeUndefined();
-    expect(nextSetSpeed(driver(5), s, 4, { ...through, pace: 2 }, holdD)).toBeUndefined();
+  it("with no set speed a click starts from the measured speed, and stays between zero and top speed", () => {
+    const { v, s } = setup(3);
+    expect(clickSetSpeed(s, v, ahead(v, z.holdEnd + 0.5))).toBeCloseTo(3 + step);
+    v.setSpeed = s.maxSpeed;
+    expect(clickSetSpeed(s, v, ahead(v, z.holdEnd + 0.5))).toBe(s.maxSpeed);
+    v.speed = 0;
+    v.setSpeed = 0;
+    expect(clickSetSpeed(s, v, ahead(v, 0.5))).toBe(0);
+    expect(clickSetSpeed(s, v, ahead(v, z.reach - 0.5))).toBeCloseTo(step);
   });
 
-  it("no order keeps the set speed, clamped to the top speed, and drops it at rest", () => {
+  it("the target is the set speed under the top speed, whatever the order point's distance", () => {
     const { s } = setup(4);
-    expect(nextSetSpeed(driver(3), s, 2, null, 0)).toBe(3);
-    expect(nextSetSpeed(driver(s.maxSpeed + 3), s, 2, null, 0)).toBe(s.maxSpeed);
-    expect(nextSetSpeed(driver(3), s, 0, null, 0)).toBeUndefined();
+    expect(setSpeedTarget(driver(3), s, through)).toBe(3);
+    expect(setSpeedTarget(driver(3), s, { kind: "through", dest: { x: 0.1, y: 0 } })).toBe(3);
+    expect(setSpeedTarget(driver(3), s, null)).toBe(3);
+    expect(setSpeedTarget(driver(s.maxSpeed + 3), s, null)).toBe(s.maxSpeed);
+  });
+
+  it("route mode, no set speed, brake, stop-at and pace orders give none", () => {
+    const { s } = setup(4);
+    expect(setSpeedTarget({ direct: false, setSpeed: 5 }, s, through)).toBeUndefined();
+    expect(setSpeedTarget(driver(), s, through)).toBeUndefined();
+    expect(setSpeedTarget(driver(5), s, { kind: "brake" })).toBeUndefined();
+    expect(setSpeedTarget(driver(5), s, { kind: "stopAt", dest: through.dest })).toBeUndefined();
+    expect(setSpeedTarget(driver(5), s, { ...through, pace: 2 })).toBeUndefined();
+  });
+
+  it("a truck that comes to rest gets a set speed of zero, one that starts from rest keeps it", () => {
+    const { v } = setup(0);
+    v.setSpeed = 4;
+    settleSetSpeed(v, 3);
+    expect(v.setSpeed).toBe(0);
+    v.setSpeed = 4;
+    settleSetSpeed(v, 0);
+    expect(v.setSpeed).toBe(4);
   });
 
   it("throws on a non-finite speed", () => {
-    const { s } = setup(4);
-    expect(() => nextSetSpeed(driver(5), s, NaN, through, holdD)).toThrow();
-    expect(() => nextSetSpeed(driver(Infinity), s, 3, through, holdD)).toThrow();
+    const { v, s } = setup(4);
+    v.setSpeed = NaN;
+    expect(() => clickSetSpeed(s, v, ahead(v, 5))).toThrow();
   });
 });
 

@@ -579,9 +579,10 @@ export class Hud {
     this.tips.update(w, this.actions.autoTravel());
     if (!this.top.firstChild) this.top.append(this.clockSlot, this.speedSlot, this.readoutSlot, this.actionSlot);
     this.renderClock(readout.clock);
-    const held = playerVehicle(w).order;
-    const pace = held && held.kind !== "brake" ? held.pace : undefined;
-    this.renderSpeedometer(readout, busy, pace === undefined || readout.manual ? null : kph(pace));
+    const me = playerVehicle(w);
+    const pace = me.order && me.order.kind !== "brake" ? me.order.pace : undefined;
+    const mark = readout.manual ? me.setSpeed : pace;
+    this.renderSpeedometer(readout, busy, mark === undefined ? null : kph(mark));
     this.fillReadouts(readout);
     this.renderActions(w, readout.manual, busy);
   }
