@@ -217,6 +217,12 @@ Baseline, PH1, production build at 1d611cace with the weld fix, `boot:time --run
 - Saved world, warm cache: ready 21.1 s. Steps: map 0.7 s, sounds 3.4 s, world 0.3 s, ground 1.1 s, scene 17.0 s, frame 0.3 s.
 - Goal targets: scene at most 1.26 s fresh and 1.70 s saved.
 
+After PH6, production build at 057404dd4, same host and command, medians:
+- Fresh game: ready 13.3 s, from 20.0 s. Scene 6.9 s, from 12.6 s. Ground 0.8 s and world 3.4 s are unchanged.
+- Saved world: ready 10.5 s, from 21.1 s. Scene 7.4 s, from 17.0 s.
+- The goal is not met. On the dev server the Game constructor fell from 9.6 s to 0.9 s of main-thread work, of which 0.4 s is the whole-map road mask and 0.3 s is the boot cells. The rest of the scene step is the wait on `routesReady` in `main.ts`, the turn worker's warm-up.
+- The worker warm-up is `warmRoutes()` in `src/sim/path.ts`, called from `taskOf()` in `src/phys/turn.ts`. It builds route grids for all 11 chassis radii over the whole map. In Node on the Icarus map it took 4.2 s: 1.5 s of `navLayer` and 2.7 s of stamping. The warm-up turn adds 0.7 s, plus worker start and the map transfer. The whole-map view build at boot used to hide this wait.
+
 ## Code smells
 
 - `game/src/three/render/models.ts` `model()` — clones the material of every prop copy, so the scene holds thousands of materials for 51 programs, and each one pays shader prep.
@@ -237,6 +243,11 @@ Baseline, PH1, production build at 1d611cace with the weld fix, `boot:time --run
 - PH4 IF6 — `SiteLights` takes the Hollow lamps in its constructor and `add(lights, lamps)` per site. `NightPools.addLamps(lamps)` needs no site, since each lamp names its site. The pool map re-uploads whole, because three.js update ranges assume RGBA and the pool map is one channel.
 - PH5 — graffiti places one build per region, not per cell, and `craters.ts` needs no change. The unused `marks` list is gone.
 
+### Deferred (needs user input)
+
+- The scene step now waits on the turn worker's route warm-up, about 6 s in production, which the design does not cover. The choices: stop awaiting `routesReady` in the scene step, so the first turn waits instead if the player presses early; make `warmLayers()` build route grids lazily or faster, which is sim nav work close to the `vast-travel` task; or start the warm-up before the world step, which helps only new games. Each changes sim timing or the first turn, so it is the user's call. Evidence: `Verify`, after PH6.
+- PH7, texture layers per cell, is not started. It would save about 0.4 s in the scene step and the 0.8 s ground step, but the road mask is painted with canvas blur filters over the whole map, so per-cell paints matching the whole-map pixels are the riskiest part of the plan. Its value depends on the decision above.
+
 ### Known risks
 
-- Three tests fail on the starting commit 1d611cace as well as on this branch: the two IV1 tests in `lightPools.test.ts` and the bracket test in `fortLamps.test.ts`. They come from the basin-regions map, not from this task.
+- Four suites fail on the starting commit 1d611cace as well as on this branch, so they come from the basin-regions branch, not from this task: the two IV1 tests in `lightPools.test.ts`, the bracket test in `fortLamps.test.ts`, and `siteLights.test.ts`, whose `turnWhere()` finds no night turn within 500 turns.
