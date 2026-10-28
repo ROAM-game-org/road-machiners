@@ -44,10 +44,14 @@ export function driveMode(v: Pick<Vehicle, "direct">): DriveMode {
   return v.direct ? "direct" : "route";
 }
 
+export function atRest(speed: number): boolean {
+  return speed <= RULES.parkedSpeed;
+}
+
 export function throttleFor(d: number, speed: number, mode: DriveMode): Throttle {
   if (mode === "route") return d > speed ? "accelerate" : "hold";
   const z = zoneEdges();
-  if (speed === 0) return "accelerate";
+  if (atRest(speed)) return "accelerate";
   if (d < z.brakeEnd) return "brake";
   if (d < z.holdEnd) return "hold";
   return "accelerate";

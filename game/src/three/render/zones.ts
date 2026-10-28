@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
 import { PAL } from '../../render/palette';
-import { zoneEdges, type Throttle } from '../../sim/steering';
+import { atRest, zoneEdges, type Throttle } from '../../sim/steering';
 import { heightAt, markHeightAt, type Terrain } from '../../sim/terrain';
 import type { Vec } from '../../sim/vec';
 
@@ -48,8 +48,8 @@ export class ZonesView {
 
   update(terrain: Terrain, pos: Vec, heading: number, speed: number, halfAngle: number): void {
     const z = zoneEdges();
-    const brakeEnd = speed === 0 ? 0 : z.brakeEnd;
-    const holdEnd = speed === 0 ? 0 : z.holdEnd;
+    const brakeEnd = atRest(speed) ? 0 : z.brakeEnd;
+    const holdEnd = atRest(speed) ? 0 : z.holdEnd;
     this.band('brake', terrain, pos, heading, halfAngle, 0, brakeEnd);
     this.band('hold', terrain, pos, heading, halfAngle, brakeEnd, holdEnd);
     this.band('accelerate', terrain, pos, heading, halfAngle, holdEnd, z.reach);

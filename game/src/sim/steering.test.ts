@@ -89,6 +89,8 @@ describe("click orders", () => {
   it("at rest every distance is green", () => {
     const z = zoneEdges();
     for (const d of [0.1, z.brakeEnd, z.holdEnd, z.reach + 5]) expect(throttleFor(d, 0, 'direct')).toBe("accelerate");
+    expect(throttleFor(0.1, RULES.parkedSpeed / 2, 'direct')).toBe("accelerate");
+    expect(throttleFor(0.1, RULES.parkedSpeed * 2, 'direct')).toBe("brake");
   });
 
   it("a nearby ground click remains a destination", () => {
