@@ -473,7 +473,7 @@ describe('a leader with escorts', () => {
   it('does not hold for an escort that fights', () => {
     const { w, convoy } = pair(60 - NPC_BEHAVIOR.escortWaitGap - 1);
     const guard = escortsOf(w, convoy.id)[0];
-    guard.brain!.goals.push({ kind: 'fight', targetId: 'bowl', destination: null, phase: 'travel', reason: 'attackTarget' });
+    guard.brain!.goals.push({ kind: 'fight', targetId: 'bowl', destination: null, phase: 'travel', reason: 'attackTarget' } as never);
     expect(waitsForFollowers(w, convoy, convoy.brain!.goals[0])).toBe(false);
   });
 
