@@ -6,7 +6,7 @@ import { ROAD_INDEX } from '../sim/road-index';
 import type { BakedProp } from '../sim/terrain';
 import { siteGap } from '../sim/sites';
 import { territoryRoads } from '../sim/territory';
-import { padReach } from '../test/sites';
+import { onSiteOrPad } from '../test/sites';
 import { dist, polylineDist, segmentDist, type Vec } from '../sim/vec';
 import { newDraft, tileSteepness, type MapDraft } from './bake';
 import { BUILT_FIELD, BUILT_NONE, BUILT_OLD_ROAD, BUILT_TRACK, oldWorldLayer, prop, roadJunctions } from './oldworld';
@@ -44,7 +44,7 @@ function expectOffBuilt(p: BakedProp): void {
 
 function onBuilt(c: Vec): boolean {
   if (ROAD_INDEX.nearestWithin(c.x, c.y, HALF) < HALF || deckAt(ICARUS_DECKS, c.x, c.y) !== null) return true;
-  return SITES.some((site) => siteGap(site, c) <= padReach(site));
+  return SITES.some((site) => onSiteOrPad(site, c));
 }
 
 function setCorners(d: MapDraft, what: 'heights' | 'flow' | 'sand', value: (i: number, j: number) => number): void {

@@ -19,7 +19,7 @@ describe('desert dunes', () => {
   it('has sand only in the desert, not on the plain by Bowl', () => {
     const bowl = scalePoint({ x: 16, y: 94 });
     expect(sandSupply(bowl.x, bowl.y)).toBe(0);
-    const deep = scalePoint({ x: 104, y: 92 });
+    const deep = scalePoint({ x: 110, y: 80 });
     expect(sandSupply(deep.x, deep.y)).toBeGreaterThan(0.5);
   });
 

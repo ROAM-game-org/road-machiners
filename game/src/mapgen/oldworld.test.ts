@@ -7,7 +7,7 @@ import { hashRandom } from '../sim/rng';
 import type { BakedProp } from '../sim/terrain';
 import { siteGap } from '../sim/sites';
 import { TEST_MAP } from '../test/map';
-import { padReach } from '../test/sites';
+import { onSiteOrPad } from '../test/sites';
 import { angleDiff, bearing, dist, polylineDist, segmentDist, type Vec } from '../sim/vec';
 import { newDraft, tileSteepness, type MapDraft } from './bake';
 import {
@@ -513,7 +513,7 @@ describe('old-world layer', () => {
     for (const c of marked) {
       expect(ROAD_INDEX.nearestWithin(c.x, c.y, Infinity)).toBeGreaterThanOrEqual(HALF);
       expect(deckAt(ICARUS_DECKS, c.x, c.y)).toBeNull();
-      for (const site of SITES) expect(siteGap(site, c)).toBeGreaterThan(padReach(site));
+      for (const site of SITES) expect(onSiteOrPad(site, c)).toBe(false);
     }
     expect(d.built.every((b) => b === BUILT_NONE || b === BUILT_OLD_ROAD || b === BUILT_FIELD)).toBe(true);
   });

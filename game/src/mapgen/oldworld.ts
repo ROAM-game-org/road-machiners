@@ -23,7 +23,7 @@ import { icarusAtlas } from '../sim/atlas';
 import { ROAD_INDEX } from '../sim/road-index';
 import { chance, hashRandom, randInt, randRange, type Rng } from '../sim/rng';
 import { BUILT_FIELD, BUILT_NONE, BUILT_OLD_ROAD, BUILT_TRACK, type BakedProp, type PropKind } from '../sim/terrain';
-import { siteGap } from '../sim/sites';
+import { siteGap, sitePads, type Site } from '../sim/sites';
 import { isTerritory, territoryRoads } from '../sim/territory';
 import { angleDiff, bearing, clamp, DEG, dist, polylineDist, segmentDist, type Vec } from '../sim/vec';
 import { tileSteepness, type MapDraft } from './bake';
@@ -84,7 +84,8 @@ export class RoadLine {
 const HALF = REGION.roadWidth / 2;
 const O = REGION.obstacles;
 const SITES = [...REGION.towns, ...REGION.locations];
-const PLATES = [...REGION.towns, ...REGION.locations.filter((l) => !isTerritory(l))];
+const PAD_REACH = Math.hypot(REGION.sites.pad.length / 2, REGION.sites.pad.width / 2);
+const PLATES =[...REGION.towns, ...REGION.locations.filter((l) => !isTerritory(l))];
 const CANYON = TERRAIN.features.canyon;
 const TURN = Math.PI * 2;
 const SPURS = REGION.locations.filter(isTerritory).flatMap((t) => territoryRoads(t).spurs);
@@ -129,7 +130,11 @@ export function onReservedTrack(d: MapDraft, p: BakedProp): boolean {
 
 export function builtGround(c: Vec): boolean {
   if (deckAt(ICARUS_DECKS, c.x, c.y) !== null) return true;
-  return ROAD_INDEX.nearestWithin(c.x, c.y, HALF) < HALF || SITES.some((s) => siteGap(s, c) < TERRAIN.types.siteMargin);
+  return ROAD_INDEX.nearestWithin(c.x, c.y, HALF) < HALF || SITES.some((s) => siteGap(s, c) < TERRAIN.types.siteMargin || onPad(s, c));
+}
+
+export function onPad(site: Site, c: Vec): boolean {
+  return sitePads(site).some((pad) => dist(c, pad) <= PAD_REACH);
 }
 
 export function isCutTile(d: MapDraft, tile: number): boolean {
