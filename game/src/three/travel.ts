@@ -64,7 +64,7 @@ export class FastPace {
     if (!(realMs >= 0)) throw new Error(`The pace only moves forward, got ${realMs} ms`);
     if (!(target >= 1 && target <= fastSpeed)) throw new Error(`A pace target lies between 1 and ${fastSpeed}, got ${target}`);
     const reach = ((fastSpeed - 1) * realMs) / CONFIG.playEaseMs;
-    this.speed = Math.min(fastSpeed, Math.max(1, this.speed + Math.max(-reach, Math.min(reach, target - this.speed))));
+    this.speed += Math.max(-reach, Math.min(reach, target - this.speed));
     return this.speed;
   }
 }
