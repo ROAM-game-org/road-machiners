@@ -46,7 +46,7 @@ VAR edda_asked_marks = false
   ~ edda_asked_lose = true
   -> hub
 + {edda_asked_origin and not edda_asked_grandfather} [What happened to your grandfather?]
-  He fixed seats until he died, with those same two hands. He taught me.
+  His hands stopped answering when the contacts gave out. He lived years after that.
   ~ edda_asked_grandfather = true
   -> hub
 + {edda_answered and not edda_asked_marks} [What does the ring on my skull mean?]

@@ -14,7 +14,7 @@ export const RULES = {
   reverse: { cone: 20, distance: 1, maxDistance: 6 },
   meetStep: 0.3,
   arriveRadius: 0.5,
-  throttleZones: { reach: 10, brake: 0.25, hold: 0.5, accelerate: 0.25 },
+  throttleZones: { reach: 10, brake: 0.25, hold: 0.5, accelerate: 0.25, minHalfAngle: Math.PI / 12 },
   reclickRadius: 0.75,
   passRadius: 1,
   minAimDistance: 1.5,

@@ -6,7 +6,8 @@ import { PERSONALITY_IDS, TALK_PRICE, type PersonalityId } from '../data/persona
 import { START_KITS } from '../data/start';
 import { TEST_MAP } from '../test/map';
 import { budget } from '../test/budget';
-import { callVehicle, chooseOption, currentOptions, talkOf } from './dialogue';
+import { callVehicle, currentOptions, talkOf } from './dialogue';
+import { chooseLine } from './dialogue-testkit';
 import { remember } from './memory';
 import { fallenSun } from './sunward';
 import { defaultSetup } from './settings';
@@ -33,9 +34,7 @@ function backFromNose(w: World, npc: Vehicle): void {
 const offered = (w: World): LineId[] => currentOptions(w).map((o) => o.line);
 
 function choose(w: World, line: LineId): World {
-  const i = offered(w).indexOf(line);
-  if (i < 0) throw new Error(`No option ${line} in ${offered(w).join(' | ')}`);
-  return chooseOption(w, i);
+  return chooseLine(w, line);
 }
 
 const ask = (topic: TopicId): LineId => TOPICS[topic].ask!.say;
@@ -44,14 +43,17 @@ describe('personality draw', () => {
   it('gives every driver of a seed a personality, the same each time the seed is played', () => {
     const personalities = (seed: number) => newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming')).vehicles.filter((v) => v.brain).map((v) => v.brain!.personality);
 
-    expect(personalities(1337)).toEqual(personalities(1337));
-    expect(personalities(1337).every((p) => PERSONALITY_IDS.includes(p))).toBe(true);
-    expect(personalities(1337)).not.toEqual(personalities(42));
+    const first = personalities(1337);
+    const again = personalities(1337);
+
+    expect(again).toEqual(first);
+    expect(first.every((p) => PERSONALITY_IDS.includes(p))).toBe(true);
+    expect(personalities(42)).not.toEqual(first);
   }, budget(15_000));
 
   it('uses every personality across a handful of seeds', () => {
     const seen = new Set<string>();
-    for (let seed = 1; seed <= 6; seed++) {
+    for (let seed = 1; seed <= 6 && seen.size < PERSONALITY_IDS.length; seed++) {
       for (const v of newWorld(seed * 7919, START_KITS.standard, TEST_MAP, defaultSetup('roaming')).vehicles) if (v.brain) seen.add(v.brain.personality);
     }
 
