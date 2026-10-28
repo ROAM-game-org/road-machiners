@@ -81,7 +81,7 @@ describe('raiders that keep off roads', () => {
   it('crosses a road lying across its way once, straight over', () => {
     const a = { x: 30, y: 100 };
     const b = { x: 90, y: 100 };
-    const w = roadWorld([{ x: 60, y: 20 }, { x: 60, y: 190 }]);
+    const w = roadWorld([{ x: 60, y: 0 }, { x: 60, y: REGION.size }]);
     const v = raider(w, a);
     flee(v);
     const runs = roadRuns(w, a, route(w, a, b, 0.6, [], v));
