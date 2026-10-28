@@ -229,10 +229,18 @@ const HEMISPHERE_LINE = 'irradiance += getHemisphereLightIrradiance( hemisphereL
 const LIGHTS_INCLUDE = '#include <lights_fragment_begin>';
 const COMMON_INCLUDE = '#include <common>';
 
-export function dimTruckSky<T extends THREE.MeshLambertMaterial>(material: T): T {
+let dimmedChunk: string | null = null;
+
+function dimmedLightsChunk(): string {
+  if (dimmedChunk) return dimmedChunk;
   const chunk = THREE.ShaderChunk.lights_fragment_begin;
   if (!chunk.includes(HEMISPHERE_LINE)) throw new Error('The Lambert light chunk has no hemisphere irradiance line to dim for trucks');
-  const dimmed = chunk.replace(HEMISPHERE_LINE, HEMISPHERE_LINE.replace('getHemisphereLightIrradiance', 'truckSky * getHemisphereLightIrradiance'));
+  dimmedChunk = chunk.replace(HEMISPHERE_LINE, HEMISPHERE_LINE.replace('getHemisphereLightIrradiance', 'truckSky * getHemisphereLightIrradiance'));
+  return dimmedChunk;
+}
+
+export function dimTruckSky<T extends THREE.MeshLambertMaterial>(material: T): T {
+  const dimmed = dimmedLightsChunk();
   const before = material.onBeforeCompile.bind(material);
   const key = material.customProgramCacheKey.bind(material);
   material.onBeforeCompile = (shader, renderer) => {
