@@ -108,10 +108,10 @@ it("continues a driving truck past the turn end in a clean tail, and the next tu
 it("rejects a tail with a crash, a passed order point or a rope", () => {
   const world = emptyWorld();
   const id = playerVehicle(world).id;
-  const clean = { next: null, frames: {}, crashes: [], breaks: [], landings: [], tears: [], results: { [id]: { passed: false, arrived: true, pushedSteps: 0 } } } as unknown as TurnResult;
+  const clean = { next: null, frames: {}, crashes: [], breaks: [], landings: [], tears: [], results: { [id]: { passed: false, arrived: true, pushedSteps: 0, grounded: true } } } as unknown as TurnResult;
   expect(isCleanTail(world, clean)).toBe(true);
   expect(isCleanTail(world, { ...clean, crashes: [{ a: id, b: "ground", impact: 1, step: 2 }] } as unknown as TurnResult)).toBe(false);
-  expect(isCleanTail(world, { ...clean, results: { [id]: { passed: true, arrived: false, pushedSteps: 0 } } })).toBe(false);
+  expect(isCleanTail(world, { ...clean, results: { [id]: { passed: true, arrived: false, pushedSteps: 0, grounded: true } } })).toBe(false);
 });
 
 function fallingWorld() {

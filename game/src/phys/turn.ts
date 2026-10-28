@@ -353,9 +353,13 @@ function heldTurn(w: World, r: TurnResult, v: Vehicle, s: ReturnType<typeof body
   const started = (v.strandedTurns ?? 0) > 0;
   if (started !== (v.strandedAt !== undefined)) throw new Error(`Vehicle ${v.id} has a stranded count without an anchor, or an anchor without a count`);
   if (v.strandedAt && dist(v.pos, v.strandedAt) >= RULES.stranded.reach) return false;
-  if (!s.upright || isLifted(r.next, w, v)) return true;
+  if (!s.upright || hangsOffGround(w, r, v)) return true;
   if (!unmetOrder(v, r.results[v.id])) return false;
   return started || isHung(last) || isPinned(w, v, r.results[v.id]);
+}
+
+function hangsOffGround(w: World, r: TurnResult, v: Vehicle): boolean {
+  return isLifted(r.next, w, v) && !r.results[v.id].grounded;
 }
 
 function unmetOrder(v: Vehicle, res: VehicleResult): boolean {

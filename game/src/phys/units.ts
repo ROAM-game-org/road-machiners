@@ -145,6 +145,12 @@ export function carrySpins(c: Car, last: VehicleFrame | undefined): Car {
   return c;
 }
 
+export function noteGrounded(c: Car, isGround: (handle: number) => boolean): Car {
+  const controllers = c.rear ? [c.ctl, c.rear.ctl] : [c.ctl];
+  c.result.grounded = controllers.every((ctl) => Array.from({ length: ctl.numWheels() }, (_, i) => ctl.wheelGroundObject(i)).every((ground) => ground !== null && isGround(ground.handle)));
+  return c;
+}
+
 function wheelFrames(ctl: RAPIER.DynamicRayCastVehicleController, carried: readonly number[]): WheelFrame[] {
   const wheels: WheelFrame[] = [];
   for (let i = 0; i < ctl.numWheels(); i++) {

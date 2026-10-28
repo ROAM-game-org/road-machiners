@@ -532,6 +532,39 @@ describe('a wing shard placed by the map', () => {
     expect(highest(r, s.tip.x + 1, Infinity)).toBeLessThan(s.tip.z + 0.3);
   }, budget(60_000));
 
+  it('lets a truck stand on the slab without counting it stranded, then drive on off the tall end', () => {
+    const STAND_UP_SLAB = 6;
+    const s = shardWorld(shards[0]);
+    let w = s.world;
+    me(w).pos = alongShard(s, s.toe - 3);
+    me(w).heading = Math.atan2(s.axis.y, s.axis.x);
+    me(w).direct = true;
+    w = setMoveOrder(w, { kind: 'stopAt', dest: alongShard(s, s.toe + STAND_UP_SLAB) });
+    me(w).speed = 0;
+    const alongOf = (p: Vec) => ((p.x - s.shard.pos.x) * s.axis.x + (p.y - s.shard.pos.y) * s.axis.y) * S;
+    const stranded: number[] = [];
+    let d = buildDrive(w);
+    const turn = () => {
+      let r: TurnResult | null = null;
+      w = endTurn(w, physicsMove(d, (x) => (r = x)));
+      freeDrive(d);
+      d = r!.next;
+    };
+    for (let i = 0; i < RULES.stranded.turns + 2; i++) {
+      turn();
+      stranded.push(me(w).strandedTurns ?? 0);
+    }
+    const stood = alongOf(me(w).pos);
+    w = setMoveOrder(w, { kind: 'through', dest: alongShard(s, s.toe + 400) });
+    for (let i = 0; i < 4; i++) turn();
+    freeDrive(d);
+
+    expect(stranded.every((n) => n === 0)).toBe(true);
+    expect(stood).toBeGreaterThan(s.toe + 1);
+    expect(stood).toBeLessThan(s.tip.x);
+    expect(alongOf(me(w).pos)).toBeGreaterThan(s.tip.x + 4);
+  }, budget(60_000));
+
   it('stops a truck that drives at the tall end head on', () => {
     const s = shardWorld(shards[0]);
     const r = driveShard(s, s.tip.x + 14, -1, null, 4);

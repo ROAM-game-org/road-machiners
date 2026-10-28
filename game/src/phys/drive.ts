@@ -30,7 +30,7 @@ import { bendField, followPose, reachMeters, unitPoses } from '../sim/rig';
 import { wheelMounts } from './body';
 import { backUpClear, forwardTurnClear, turnaroundSpeed, turnRadius, type Stance } from './turnaround';
 import { addGround, craterColliders, LIVE_RANGE, movedGround, type GroundPatch, headingOf, headingQuat, noseRise, rampParts, rideHeightAt, rotateBy, toPhysCircle, TURN_STEPS, upOf, type Circle, type TurnFrames, type V3, type VehicleFrame } from './frames';
-import { addVehicle, carrySpins, frameOf, againstBend, backCap, checkRigHandles, liveBend, makeCar, makeTrailer, placeBodies, rearIndex, rollUnits, removeVehicle, setMasses, sideStiffness, unitBodies, wheelLoads, type UnitLoad } from './units';
+import { addVehicle, carrySpins, frameOf, againstBend, backCap, checkRigHandles, liveBend, makeCar, noteGrounded, makeTrailer, placeBodies, rearIndex, rollUnits, removeVehicle, setMasses, sideStiffness, unitBodies, wheelLoads, type UnitLoad } from './units';
 
 export { frameWheels, restFrame, restFrames, restWheels, trailFrames, TURN_STEPS, type UnitWheels } from './frames';
 import { oilPatches } from '../sim/hazards';
@@ -69,7 +69,7 @@ export type Drive = {
 export type DeckColliders = { plates: number[]; rails: number[]; lips: number[] };
 
 export type Break = { prop: string; vehicle: string; impact: number; step: number };
-export type VehicleResult = { passed: boolean; arrived: boolean; pushedSteps: number };
+export type VehicleResult = { passed: boolean; arrived: boolean; pushedSteps: number; grounded: boolean };
 export type Landing = { vehicle: string; impact: number; step: number };
 export type Tear = { line: string; step: number };
 export type TurnResult = { next: Drive; frames: TurnFrames; crashes: Crash[]; breaks: Break[]; landings: Landing[]; tears: Tear[]; results: Record<string, VehicleResult> };
@@ -272,7 +272,7 @@ function run(d: Drive, w: World, steps: number, world: RAPIER.World, events: RAP
     throws.apply(contacts.takeNewCrashes());
     for (const c of cars) frames[c.v.id].push(frameOf(c, before.get(c.v.id)!.velocity));
   }
-  for (const c of cars) dropControllers(world, carrySpins(c, frames[c.v.id].at(-1)));
+  for (const c of cars) dropControllers(world, carrySpins(noteGrounded(c, (handle) => isGround(d, handle)), frames[c.v.id].at(-1)));
   const results = Object.fromEntries(cars.map((c) => [c.v.id, c.result]));
   const obstacles = Object.fromEntries(Object.entries(d.obstacles).filter(([id]) => !contacts.isBroken(id)));
   return { next: { world, bodies: { ...d.bodies }, rears: { ...d.rears }, couplings: { ...d.couplings }, shapes: { ...d.shapes }, obstacles, craters: { ...d.craters }, ramps: { ...d.ramps }, memory, terrain: d.terrain, decks: d.decks }, frames, crashes: contacts.crashes, breaks: contacts.breaks, landings: landings.all(), tears: lines.tears, results };
@@ -287,7 +287,7 @@ function makeCars(d: Drive, w: World, world: RAPIER.World, memory: Record<string
     const b = unitBody(v.chassisId, 0);
     const loads = wheelLoads(v);
     const mem = memory[v.id];
-    return { v, s, b, body, ctl: makeCar(world, body, b, 0, loads[0]), rear: trailerOf(d, world, v, loads), mem, plan: planOf(w, v, s, body, mem), result: { passed: false, arrived: false, pushedSteps: 0 }, grip: 1, topShare: 1, oil: oilInReach(oil, v, s, body), kicked: false, size: w.terrain.size, world, holding: false, holdGrip: 1, avoid: avoidOf(w, v, giversOf), field: [] };
+    return { v, s, b, body, ctl: makeCar(world, body, b, 0, loads[0]), rear: trailerOf(d, world, v, loads), mem, plan: planOf(w, v, s, body, mem), result: { passed: false, arrived: false, pushedSteps: 0, grounded: false }, grip: 1, topShare: 1, oil: oilInReach(oil, v, s, body), kicked: false, size: w.terrain.size, world, holding: false, holdGrip: 1, avoid: avoidOf(w, v, giversOf), field: [] };
   });
   for (const c of cars) c.field = cars;
   return cars;
