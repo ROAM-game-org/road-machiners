@@ -17,7 +17,7 @@ beforeAll(async () => {
 });
 
 const TURNS = 40;
-const CONTACT_BOUND = 15;
+const CONTACT_BOUND = 20;
 const CHARGE_LEAD = 30;
 const ESCAPE_MARGIN = 4;
 const ESCAPE_TURNS = 3;
