@@ -6,6 +6,7 @@ import { EFFORT, SHOPS, type ItemKind } from "./market";
 import { goodBasePrice, partPristineBuyPrice } from "../sim/market";
 import { PARTS, type PartDef, type PartKind, type WeaponDef } from "./parts";
 import { REGION } from "./region";
+import { TERRITORIES, WRECK_LOOKS } from "./territory";
 import { OLD_TABLES, SALVAGE, type LootTable } from "./salvage";
 import { frontBody } from "../sim/body";
 import {
@@ -286,12 +287,38 @@ describe("utilities", () => {
     expect(SHOPS.nose.needs).toContain("relics");
   });
 
-  it("only drops goods some shop trades, and relics only from hull loot", () => {
-    const tables = Object.entries(SALVAGE).filter((entry): entry is [string, LootTable] => typeof entry[1] === "object" && "spareParts" in entry[1]);
-    for (const [id, table] of [...tables, ...Object.entries(OLD_TABLES)])
+  const lootTables = (): [string, LootTable][] => [
+    ...Object.entries(SALVAGE).filter((entry): entry is [string, LootTable] => typeof entry[1] === "object" && "spareParts" in entry[1]),
+    ...Object.entries(OLD_TABLES),
+  ];
+
+  const wreckTableIds = (): Set<string> => {
+    const ids = new Set<string>(["roadWreck", "hulks", "boats"]);
+    for (const { wreck, farm } of Object.values(TERRITORIES)) {
+      if (wreck && WRECK_LOOKS.includes(wreck.cacheLook)) ids.add(wreck.cacheTable);
+      if (wreck && WRECK_LOOKS.includes(wreck.spotLook)) ids.add(wreck.spotTable);
+      for (const group of [...(wreck ? wreck.buildings : []), ...(farm ? farm.buildings : [])])
+        if (WRECK_LOOKS.includes(group.look)) ids.add(group.table);
+    }
+    return ids;
+  };
+
+  it("only drops goods some shop trades", () => {
+    for (const [id, table] of lootTables())
       for (const good of Object.keys(table.goods)) expect(Object.values(SHOPS).some((shop) => shop.goods.includes(good)), `${id} ${good}`).toBe(true);
-    const holders = [...tables, ...Object.entries(OLD_TABLES)].filter(([, table]) => table.relicChance > 0).map(([id]) => id);
-    expect(holders.sort()).toEqual(["hullCache", "hullScrap"]);
+  });
+
+  it("drops relics from every wreck table and from no other", () => {
+    const wrecks = wreckTableIds();
+    for (const [id, table] of lootTables()) expect(table.relicChance > 0, id).toBe(wrecks.has(id));
+  });
+
+  it("ranks Ship Metal by how much of the ship a wreck is", () => {
+    expect(SALVAGE.hullCache.relicChance).toBeCloseTo(3 * SALVAGE.hullScrap.relicChance, 10);
+    expect(SALVAGE.hullScrap.relicChance).toBeGreaterThan(SALVAGE.engineScrap.relicChance);
+    expect(SALVAGE.engineScrap.relicChance).toBeGreaterThan(SALVAGE.roadWreck.relicChance);
+    expect(SALVAGE.roadWreck.relicChance).toBe(OLD_TABLES.hulks.relicChance);
+    expect(SALVAGE.roadWreck.relicChance).toBe(OLD_TABLES.boats.relicChance);
   });
 
   it("keeps the claymore ram a ram accessory with a claymore", () => {

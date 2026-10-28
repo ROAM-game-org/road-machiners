@@ -96,9 +96,9 @@ describe('old-world places', () => {
     expect(salvagePlace(stock)).toBe('wreck');
   });
 
-  it('stocks boats about as richly as tank hulks, with no relic', () => {
+  it('stocks boats about as richly as tank hulks, with the same Ship Metal chance', () => {
     expect(Math.abs(meanLootValue(OLD_TABLES.boats) / meanLootValue(OLD_TABLES.hulks) - 1)).toBeLessThanOrEqual(0.1);
-    expect(OLD_TABLES.boats.relicChance).toBe(0);
+    expect(OLD_TABLES.boats.relicChance).toBe(OLD_TABLES.hulks.relicChance);
   });
 
   it('skips a building ringed by rocks, so a place with only it gets no spot', () => {
