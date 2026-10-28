@@ -102,7 +102,7 @@ Every truck that `followsTraffic()` in `src/sim/ai.ts` obeys these rules on a ro
 
 A route never searches every cell of the map.
 
-- Long routes search a coarse corridor first.
+- Long routes search a coarse corridor first, two coarse blocks to each side of the coarse path. One block missed narrow gaps through steep ground and gave paths 8% over the best.
 - A physics driver plans a trip longer than `REGION.navigation.farWindow` one window at a time with `routeAhead()`. It keeps the trip as a `partial` route. It plans the next window once it is within `REGION.navigation.lookahead` tiles of the window end.
 - A corridor that misses its goal is widened once. Then it is planned again with the regions that fresh wrecks or parked trucks cover made costly.
 - The search for a free cell near a blocked target stays within the route's own span plus `REGION.navigation.nearSlack` tiles. A route with no such cell joined to its start stays put.

@@ -170,7 +170,7 @@ function corridorSearch(layer: NavLayer, ov: Overlay, start: number, goal: numbe
   return cells ?? fineSearch(layer, ov, start, goal, false, taste);
 }
 
-const CORRIDOR_TRIES = [{ ring: 1, avoids: false }, { ring: 3, avoids: false }, { ring: 3, avoids: true }];
+const CORRIDOR_TRIES = [{ ring: 2, avoids: false }, { ring: 3, avoids: false }, { ring: 3, avoids: true }];
 const COVERED_COST = 1000;
 
 function coveredCost(layer: NavLayer, ov: Overlay | null, r: number): number {
