@@ -5,7 +5,8 @@ import { HIRE, NPC_BEHAVIOR, NPCS } from '../data/npcs';
 import { inFeud, noteAttack } from './combat';
 import { followingOf } from './companies';
 import { playerVehicle } from './damage';
-import { callVehicle, chooseOption, currentOptions } from './dialogue';
+import { chooseText } from './dialogue-testkit';
+import { callVehicle, currentOptions } from './dialogue';
 import { dutyPrice } from './duty';
 import { checkHire, dismissGuard, guardFee, hireGuard, playerGuard, canHireGuard } from './hire';
 import { goalHolds, placeBase, topGoal } from './npc-activities';
@@ -40,12 +41,6 @@ function hired(): { w: World; merc: Vehicle; fee: number } {
 
 const ended = (w: World) => w.events.filter((e): e is Extract<GameEvent, { t: 'guardEnded' }> => e.t === 'guardEnded');
 
-function optionIndex(w: World, text: string): number {
-  const i = currentOptions(w).findIndex((o) => en(o.line) === text);
-  if (i < 0) throw new Error(`No option "${text}" in ${currentOptions(w).map((o) => en(o.line)).join(' | ')}`);
-  return i;
-}
-
 describe('the guard fee', () => {
   it('is a day of tier-1 wage plus the merc\'s supplies and fuel for a day at the reference speed', () => {
     const { w, merc } = mercWorld();
@@ -64,10 +59,10 @@ describe('hiring on the radio', () => {
     const mercMoney = merc.resources!.money;
     forceOption('hireOffered', 'take');
     let next = callVehicle(w, merc.id);
-    next = chooseOption(next, optionIndex(next, ask()));
-    next = chooseOption(next, optionIndex(next, en('whatsYourRate')));
+    next = chooseText(next, ask());
+    next = chooseText(next, en('whatsYourRate'));
     expect(next.player.call?.vars.price).toEqual({ kind: 'money', amount: fee });
-    next = chooseOption(next, optionIndex(next, en('dealSendingIt')));
+    next = chooseText(next, en('dealSendingIt'));
 
     const after = next.vehicles.find((v) => v.id === merc.id)!;
     expect(next.player.money).toBe(100);
@@ -82,8 +77,8 @@ describe('hiring on the radio', () => {
     w.player.money = guardFee(w, merc) - 1;
     forceOption('hireOffered', 'take');
     let next = callVehicle(w, merc.id);
-    next = chooseOption(next, optionIndex(next, ask()));
-    next = chooseOption(next, optionIndex(next, en('whatsYourRate')));
+    next = chooseText(next, ask());
+    next = chooseText(next, en('whatsYourRate'));
 
     expect(currentOptions(next).map((o) => en(o.line))).not.toContain(en('dealSendingIt'));
   });
@@ -93,10 +88,10 @@ describe('hiring on the radio', () => {
     w.player.money = 1e7;
     forceOption('hireOffered', 'decline');
     let next = callVehicle(w, merc.id);
-    next = chooseOption(next, optionIndex(next, ask()));
-    next = chooseOption(next, optionIndex(next, en('whatsYourRate')));
+    next = chooseText(next, ask());
+    next = chooseText(next, en('whatsYourRate'));
     expect(en(next.player.call!.line.line)).toBe(en('notRidingForYou'));
-    next = chooseOption(next, optionIndex(next, en('understood')));
+    next = chooseText(next, en('understood'));
 
     expect(currentOptions(next).map((o) => en(o.line))).not.toContain(ask());
   });
