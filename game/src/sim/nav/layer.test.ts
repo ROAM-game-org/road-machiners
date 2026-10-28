@@ -4,7 +4,7 @@ import { BROKEN_WING, BROKEN_WING_POINT, REGION } from '../../data/region';
 import { START_KITS } from '../../data/start';
 import { BREAKABLE } from '../../data/rules';
 import { deckById } from '../bridge';
-import { boxDistance, boxSegmentDistance, propBoxes } from '../mapgen';
+import { boxDistance, boxSegmentDistance, mapObstacles, propBoxes, propPose, RAMP_MODELS, rampSpan } from '../mapgen';
 import { route } from '../path';
 import type { Obstacle } from '../types';
 import { dist, type Vec } from '../vec';
@@ -162,6 +162,39 @@ describe('prop footprints', () => {
 
     expect(roof.some((b) => boxDistance(b, spot) === 0)).toBe(true);
     expect(layer.blocked[cellAt(layer.n, spot)]).toBe(0);
+  });
+
+  describe('a wing shard', () => {
+    const real = mapObstacles(TEST_MAP).find((o) => o.kind === 'landmark' && o.look === 'wingShard');
+    if (real === undefined) throw new Error('The baked map has no wing shard');
+    const shard: Obstacle = { ...real, pos: { x: 40.2, y: 40.3 } };
+    const pose = propPose(shard);
+    const span = rampSpan(RAMP_MODELS.wing_shard, pose.scale.x);
+    const along = (a: number, across: number): Vec => ({
+      x: shard.pos.x + (a * Math.cos(pose.yaw) + across * Math.sin(pose.yaw)) / S,
+      y: shard.pos.y + (a * Math.sin(pose.yaw) - across * Math.cos(pose.yaw)) / S,
+    });
+    const shardWorld = () => {
+      const w = emptyWorld();
+      w.obstacles = [shard];
+      return w;
+    };
+
+    it('closes its sides and its tall end', () => {
+      const w = shardWorld();
+      const layer = navLayer(w.terrain, w.obstacles, radius);
+      const blockedAt = (a: number, across: number) => layer.blocked[cellAt(layer.n, center(along(a, across)))];
+      for (const side of [-1, 1]) expect(blockedAt((span.toe.x + span.tip.x) / 2, side * (span.half + 0.1))).toBe(1);
+      expect(blockedAt(span.tip.x - 0.1, 0)).toBe(1);
+    });
+
+    it('routes a truck straight up the slab from the low end and round it from the tall end', () => {
+      const w = shardWorld();
+      const dest = along((span.toe.x + span.tip.x) / 2, 0);
+      expect(route(w, along(span.toe.x - 10, 0), dest, radius, [])).toEqual([dest]);
+      const fromTall = route(w, along(span.tip.x + 10, 0), dest, radius, []);
+      expect(fromTall.length).toBeGreaterThan(1);
+    });
   });
 
   it('builds a new layer when a prop turns in place', () => {

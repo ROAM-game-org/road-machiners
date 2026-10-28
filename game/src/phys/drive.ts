@@ -6,7 +6,7 @@ import { backsOutFurther, blockedInFront, bodyLength, boxedIn, captureCrash, cap
 
 export { GROUND, type Crash };
 import { PHYSICS } from '../data/physics';
-import { BREAKABLE, CRATER, RULES } from '../data/rules';
+import { BREAKABLE, RULES } from '../data/rules';
 import { fuelLimited, isNear } from '../sim/far';
 import { blockingBoxes, isBreakable } from '../sim/mapgen';
 import { propsAroundInOrder } from '../sim/prop-index';
@@ -22,14 +22,14 @@ import { atlasOf } from '../sim/atlas';
 import { propBase, railOffset, type Deck } from '../sim/bridge';
 import { deckSegments, groundAt, tileAt, type DeckSegment, type Terrain } from '../sim/terrain';
 import { TERRAIN_TYPES } from '../data/terrain';
-import { craterReach, craterRimPoints } from '../sim/craters';
+import { craterReach } from '../sim/craters';
 import type { Crater, MoveOrder, Obstacle, Pose, Vehicle, World } from '../sim/types';
 import { angleDiff, bearing, clamp, DEG, dist, type Vec } from '../sim/vec';
 import { unitBody, type Body } from '../sim/body';
 import { bendField, followPose, reachMeters, unitPoses } from '../sim/rig';
 import { wheelMounts } from './body';
 import { backUpClear, forwardTurnClear, turnaroundSpeed, turnRadius, type Stance } from './turnaround';
-import { addGround, LIVE_RANGE, movedGround, type GroundPatch, headingOf, headingQuat, noseRise, rideHeightAt, rotateBy, toPhys, toPhysCircle, TURN_STEPS, upOf, type Circle, type Quat, type TurnFrames, type V3, type VehicleFrame } from './frames';
+import { addGround, craterColliders, LIVE_RANGE, movedGround, type GroundPatch, headingOf, headingQuat, noseRise, rampParts, rideHeightAt, rotateBy, toPhysCircle, TURN_STEPS, upOf, type Circle, type TurnFrames, type V3, type VehicleFrame } from './frames';
 import { addVehicle, carrySpins, frameOf, againstBend, backCap, checkRigHandles, liveBend, makeCar, makeTrailer, placeBodies, rearIndex, rollUnits, removeVehicle, setMasses, sideStiffness, unitBodies, wheelLoads, type UnitLoad } from './units';
 
 export { frameWheels, restFrame, restFrames, restWheels, trailFrames, TURN_STEPS, type UnitWheels } from './frames';
@@ -60,6 +60,7 @@ export type Drive = {
   shapes: Record<string, string>;
   obstacles: Record<string, number[]>;
   craters: Record<string, number[]>;
+  ramps: Record<string, number[]>;
   memory: Record<string, Memory>;
   terrain: GroundPatch;
   decks: DeckColliders[];
@@ -97,7 +98,7 @@ export function initPhysics(): Promise<void> {
 
 export function buildDrive(w: World): Drive {
   const world = new RAPIER.World({ x: 0, y: -PHYSICS.gravity, z: 0 });
-  const d: Drive = { world, bodies: {}, rears: {}, couplings: {}, shapes: {}, obstacles: {}, craters: {}, memory: {}, terrain: addTerrain(world, w), decks: addDecks(world, w) };
+  const d: Drive = { world, bodies: {}, rears: {}, couplings: {}, shapes: {}, obstacles: {}, craters: {}, ramps: {}, memory: {}, terrain: addTerrain(world, w), decks: addDecks(world, w) };
   syncDrive(d, w);
   return d;
 }
@@ -129,8 +130,7 @@ function checkHandles(d: Drive): void {
     if (d.world.getRigidBody(handle)?.handle !== handle) throw new Error(`Vehicle ${id} has no body ${handle}`);
     checkRigHandles(d.world, id, d.shapes[id], d.rears[id], d.couplings[id]);
   }
-  for (const [id, handles] of Object.entries(d.obstacles)) checkColliders(d, id, handles);
-  for (const [id, handles] of Object.entries(d.craters)) checkColliders(d, id, handles);
+  for (const record of [d.obstacles, d.craters, d.ramps]) for (const [id, handles] of Object.entries(record)) checkColliders(d, id, handles);
 }
 
 function checkColliders(d: Drive, id: string, handles: number[]): void {
@@ -141,9 +141,14 @@ function checkColliders(d: Drive, id: string, handles: number[]): void {
 
 function syncObstacles(d: Drive, w: World): void {
   const live = propsAroundInOrder(w, 'drive', playerVehicle(w).pos, LIVE_RANGE);
-  dropColliders(d, d.obstacles, new Set(live.map((o) => o.id)));
+  const ids = new Set(live.map((o) => o.id));
+  dropColliders(d, d.obstacles, ids);
+  dropColliders(d, d.ramps, ids);
   for (const o of live) {
-    if (d.obstacles[o.id] === undefined) d.obstacles[o.id] = addColliders(d, obstacleColliders(w.terrain, o));
+    if (d.obstacles[o.id] !== undefined) continue;
+    const ramp = rampParts(w.terrain, o);
+    d.obstacles[o.id] = addColliders(d, ramp ? ramp.walls : obstacleColliders(w.terrain, o));
+    if (ramp) d.ramps[o.id] = addColliders(d, ramp.plates);
   }
 }
 
@@ -178,28 +183,9 @@ function clearOfBodies(d: Drive, w: World, c: Crater): boolean {
   });
 }
 
-export function craterColliders(t: Terrain, c: Crater): RAPIER.ColliderDesc[] {
-  const rim = craterRimPoints(c).map((p) => toPhys(p, groundAt(t, p.x, p.y)));
-  const radius = (CRATER.rimWidthRatio * c.radius) / 2;
-  const lift = CRATER.rimRatio * c.radius - radius;
-  return rim.map((a, k) => capsuleBetween(a, rim[(k + 1) % rim.length], radius, lift));
-}
-
-function capsuleBetween(a: V3, b: V3, radius: number, lift: number): RAPIER.ColliderDesc {
-  const u = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z };
-  const len = Math.hypot(u.x, u.y, u.z);
-  if (!(len > 0)) throw new Error('Capsule between one point');
-  const desc = RAPIER.ColliderDesc.capsule(len / 2, radius).setTranslation((a.x + b.x) / 2, (a.y + b.y) / 2 + lift, (a.z + b.z) / 2);
-  return desc.setRotation(upOnto({ x: u.x / len, y: u.y / len, z: u.z / len }));
-}
-
-function upOnto(u: V3): Quat {
-  const w = 1 + u.y;
-  const n = Math.hypot(u.z, u.x, w);
-  return { x: u.z / n, y: 0, z: -u.x / n, w: w / n };
-}
-
 export function obstacleColliders(t: Terrain, o: Obstacle): RAPIER.ColliderDesc[] {
+  const ramp = rampParts(t, o);
+  if (ramp) return [...ramp.walls, ...ramp.plates];
   const ground = propBase(t, o) * S;
   if (o.kind === 'site') {
     const half = PHYSICS.rockHeight / 2;
@@ -289,7 +275,7 @@ function run(d: Drive, w: World, steps: number, world: RAPIER.World, events: RAP
   for (const c of cars) dropControllers(world, carrySpins(c, frames[c.v.id].at(-1)));
   const results = Object.fromEntries(cars.map((c) => [c.v.id, c.result]));
   const obstacles = Object.fromEntries(Object.entries(d.obstacles).filter(([id]) => !contacts.isBroken(id)));
-  return { next: { world, bodies: { ...d.bodies }, rears: { ...d.rears }, couplings: { ...d.couplings }, shapes: { ...d.shapes }, obstacles, craters: { ...d.craters }, memory, terrain: d.terrain, decks: d.decks }, frames, crashes: contacts.crashes, breaks: contacts.breaks, landings: landings.all(), tears: lines.tears, results };
+  return { next: { world, bodies: { ...d.bodies }, rears: { ...d.rears }, couplings: { ...d.couplings }, shapes: { ...d.shapes }, obstacles, craters: { ...d.craters }, ramps: { ...d.ramps }, memory, terrain: d.terrain, decks: d.decks }, frames, crashes: contacts.crashes, breaks: contacts.breaks, landings: landings.all(), tears: lines.tears, results };
 }
 
 function makeCars(d: Drive, w: World, world: RAPIER.World, memory: Record<string, Memory>): Car[] {
@@ -583,7 +569,7 @@ function motionKey(id: string, unit: number): string {
 }
 
 function isGround(d: Drive, handle: number): boolean {
-  return handle === d.terrain.handle || d.decks.some((c) => c.plates.includes(handle)) || Object.values(d.craters).some((handles) => handles.includes(handle));
+  return handle === d.terrain.handle || d.decks.some((c) => c.plates.includes(handle)) || Object.values(d.craters).some((handles) => handles.includes(handle)) || Object.values(d.ramps).some((handles) => handles.includes(handle));
 }
 
 function crashTarget(other: number, owner: Map<number, string>, obstacleOf: Map<number, string>, d: Drive): string {

@@ -133,14 +133,14 @@ describe('error reports', () => {
   it('carries a failed turn with the worker stack and its start drive', async () => {
     const { sent, ...r } = reporter();
     watching(r, { ...emptyWorld(), turn: 9 });
-    const drive = { bodies: { player: 3 }, rears: {}, couplings: {}, shapes: { player: 'scout' }, obstacles: {}, craters: {}, memory: {}, terrain: { handle: 1, x0: 0, z0: 0 }, decks: [], snapshot: new Uint8Array([0, 1, 254, 255]) } satisfies DriveSnapshot;
+    const drive = { bodies: { player: 3 }, rears: {}, couplings: {}, shapes: { player: 'scout' }, obstacles: {}, craters: {}, ramps: {}, memory: {}, terrain: { handle: 1, x0: 0, z0: 0 }, decks: [], snapshot: new Uint8Array([0, 1, 254, 255]) } satisfies DriveSnapshot;
     const workerStack = 'TypeError: no route\n    at planRoute (turn-abc.js:1:200)';
 
     await r.reporter.report(new TurnFailure(workerStack, drive));
 
     const report = sent[0].report;
     expect(report.error).toEqual({ name: 'TypeError', message: 'no route', stack: workerStack });
-    expect(report.drive).toEqual({ bodies: { player: 3 }, rears: {}, couplings: {}, shapes: { player: 'scout' }, obstacles: {}, craters: {}, memory: {}, terrain: { handle: 1, x0: 0, z0: 0 }, decks: [], snapshot: 'AAH+/w==' });
+    expect(report.drive).toEqual({ bodies: { player: 3 }, rears: {}, couplings: {}, shapes: { player: 'scout' }, obstacles: {}, craters: {}, ramps: {}, memory: {}, terrain: { handle: 1, x0: 0, z0: 0 }, decks: [], snapshot: 'AAH+/w==' });
   });
 
   it('only warns when the endpoint refuses, so the game goes on', async () => {
