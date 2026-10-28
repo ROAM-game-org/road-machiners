@@ -33,7 +33,7 @@ what: Designs pointed the player at targets with map markers, rings on the groun
 cost: The committee redesigned four contract features in one day, a built map area for survey and claim clues went back for a whole redesign, and a rumored-wreck fix took a patch round that enlarged the rings before an angry redesign.
 
 ID: R9
-what: Agents fixed a nearby, easier problem instead of the one reported, like brightening the night when terrain had vanished, or changing the 3D world when the issue meant the map.
+what: Agents fixed a nearby, easier problem instead of the one reported, like brightening the night when terrain had vanished, changing the 3D world when the issue meant the map, or halving a faint night glow over the player truck when "cars are too bright" meant the daytime light on every truck. When a request names no time, place or screen, check it where the player meets it most, and treat a result the eye can barely see as a sign of the wrong target.
 cost: The committee played builds that did not touch the report, and each one went back for a redesign.
 
 ID: R10
@@ -49,8 +49,8 @@ what: Screens ignored the UI design system: oversized buttons, wasted space, str
 cost: Many redesigns of screens, and mobile play stayed unusable across several releases.
 
 ID: R13
-what: Features did not work when played, though the post said they did: a scripted event that never fired, a blank portrait, story talk reachable from only one path, a follower that drove off, a new mode that crashed new games, and a garage grid drawn from the truck model whose own approval screenshot showed a broken bus, with guns drawn under armor, clipped parts and damage highlights off their parts. Look at every screenshot before posting it, and check layer order and highlight placement on every chassis.
-cost: This was the most common critique, players reported new modes broken after they shipped, and the garage grid went back for a patch round over faults its own post showed.
+what: Features did not work when played, though the post said they did: a scripted event that never fired, a blank portrait, story talk reachable from only one path, a follower that drove off, a new mode that crashed new games, and a garage grid drawn from the truck model whose own approval screenshot showed a broken bus, with guns drawn under armor, clipped parts and damage highlights off their parts. Look at every screenshot before posting it, and check layer order and highlight placement on every chassis. A build also went to approval with no browser check because the host was out of memory, so the committee was asked to do the testing.
+cost: This was the most common critique, players reported new modes broken after they shipped, the garage grid went back for a patch round over faults its own post showed, and the unchecked build went back for a patch round to be verified first.
 
 ID: R14
 what: Player text read like a machine wrote it: semicolons, riddles, filler phrases, item lore with empty rhetoric and no plain fact, wrong directions, NPCs repeating one story, and Russian that was stale or unnatural. A rewrite of a line the committee called confusing swapped one riddle for another, with a pronoun of unclear referent, a metaphor in place of the rule it stood for and a punchline that did not follow, so read each rewritten line cold and check that a stranger gets the plain fact. The opposite fault went back too: a checklist of tells written for AI chat was turned into rules applied word for word to fiction, with no room for the narrator or a character's voice to break them where the story needs it.
