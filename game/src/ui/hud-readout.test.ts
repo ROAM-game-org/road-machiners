@@ -16,7 +16,7 @@ import { t, verbatim, type Msg } from "../text/msg";
 import { chassisName, driverName, professionName, siteName } from "../text/names";
 import { resolve } from "../text/resolve";
 import type { Vehicle } from "../sim/types";
-import { ContextPicker, getContextActions, getHudReadout, getRescueReadout, overdriveSwitch, versionLabel } from "./hud-readout";
+import { ContextPicker, getContextActions, getHudReadout, getRescueReadout, getSearchAction, overdriveSwitch, versionLabel } from "./hud-readout";
 import type { ContextAction } from "./hud";
 import { GAME_VERSION } from "../config";
 import { REGION } from '../data/region';
@@ -301,6 +301,24 @@ describe('search in combat', () => {
     const { w, raider } = siteScene();
     startCombat(w, raider, playerVehicle(w));
     expect(actions(w)[0]).toMatchObject({ label: 'Search', ready: false, combat: STATE_TURNS.combat });
+  });
+});
+
+describe('survey in combat', () => {
+  it('offers a ready Survey while Search stays blocked', () => {
+    const [site] = surveySites(TEST_MAP);
+    const { w, spot } = spotWorld();
+    w.salvage = [{ id: spot.id, pos: spot.pos, radius: propReach(spot), goods: { scrap: 1 }, parts: [], hidden: emptyHidden() }];
+    const me = playerVehicle(w);
+    me.pos = { x: site.pos.x + 1, y: site.pos.y };
+    w.player.contracts = [{ id: 'ct-s', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: true, done: false }], reward: 3000, deadline: 900, window: 900, tier: 1 }];
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: me.pos.x + 6, y: me.pos.y });
+    startCombat(w, raider, me);
+    const survey = actions(w)[0];
+    expect(survey).toMatchObject({ ready: true });
+    expect(survey.combat).toBeUndefined();
+    me.pos = { ...spot.pos };
+    expect(getSearchAction(w, w.salvage[0])).toMatchObject({ ready: false, combat: STATE_TURNS.combat });
   });
 });
 

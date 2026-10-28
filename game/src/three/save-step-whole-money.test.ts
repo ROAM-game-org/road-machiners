@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import FORMAT_2_116 from './save-fixtures/format-2-116.json';
+import FORMAT_2_120 from './save-fixtures/format-2-120.json';
 import { START_KITS } from '../data/start';
 import { defaultSetup } from '../sim/settings';
 import type { World } from '../sim/types';
@@ -10,10 +10,10 @@ import { memoryBackend, SaveSlots } from './save-db';
 import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
 import { readCarried } from './save-rescue';
 
-type Saved = typeof FORMAT_2_116;
+type Saved = typeof FORMAT_2_120;
 
-const step = (world: unknown): Saved => TINY_STEPS[116 - TINY_FROM].step(structuredClone(world) as SavedJson) as unknown as Saved;
-const fixture = () => structuredClone(FORMAT_2_116);
+const step = (world: unknown): Saved => TINY_STEPS[120 - TINY_FROM].step(structuredClone(world) as SavedJson) as unknown as Saved;
+const fixture = () => structuredClone(FORMAT_2_120);
 
 function roundTrip(w: World): World {
   const slots = new SaveSlots(memoryBackend(), new Map());
@@ -21,9 +21,9 @@ function roundTrip(w: World): World {
   return loadWorld(slots, 'auto', TEST_MAP)!;
 }
 
-describe('save migration 116 to 117, money is whole M', () => {
+describe('save migration 120 to 121, money is whole M', () => {
   it('is named withWholeMoney', () => {
-    expect(TINY_STEPS[116 - TINY_FROM].name).toBe('withWholeMoney');
+    expect(TINY_STEPS[120 - TINY_FROM].name).toBe('withWholeMoney');
   });
 
   it('keeps every amount at the number the screen showed', () => {
@@ -96,7 +96,7 @@ describe('rescue reads money in three forms', () => {
     expect(readCarried(raw(117, 996)).money).toBe(996);
   });
 
-  it('reads cents from 2.30 to 2.116 as the old screen rounded them', () => {
+  it('reads cents from 2.30 to 2.120 as the old screen rounded them', () => {
     const carried = readCarried(raw(100, 99501));
     expect(carried.money).toBe(996);
     expect(carried.costBasis.scrap).toBeCloseTo(6.33, 9);

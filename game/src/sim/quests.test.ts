@@ -40,6 +40,7 @@ describe('startQuest', () => {
       view: 'talk',
       lines: [{ text: 'Hattie sets her bucket down by the well.', tags: [] }],
       choices: ['Heard any rumors?', 'Leave.'],
+      seen: [false, false],
       costs: [null, null],
       checks: [null, null],
       locked: [false, false],
@@ -235,7 +236,7 @@ describe('leaveQuest', () => {
 describe('questProblems', () => {
   it('lists stored names the bundle does not declare', () => {
     const w = world();
-    w.player.quests = { world: { gone: 1 }, local: { sample_bowl: { trust: 'x' }, lost: {} }, session: { quest: 'sample_bowl', checkpoint: 'nowhere', seed: 1 }, live: null };
+    w.player.quests = { world: { gone: 1 }, local: { sample_bowl: { trust: 'x' }, lost: {} }, session: { quest: 'sample_bowl', checkpoint: 'nowhere', seed: 1 }, live: null, seen: {} };
     expect(questProblems(w.player.quests, QUESTS).map((e) => e.message)).toEqual([
       'World variable gone is not declared',
       'Variable trust of quest sample_bowl holds a string, not a number',

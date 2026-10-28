@@ -12,6 +12,7 @@ import { QUESTS, questView } from './quests';
 import { REGION } from '../data/region';
 import { STORY_WRECKS } from '../data/salvage';
 import { playerVehicle } from './damage';
+import { asksOf, chooseText } from './dialogue-testkit';
 import { callVehicle, callTrucks, chooseOption, currentOptions, endCallIfOut, hangUp, honk, radioSpeakers, raiseCalls } from './dialogue';
 import { fireBlock, isHostile } from './combat';
 import { MEMORY, NPC_UPKEEP, NPCS } from '../data/npcs';
@@ -51,12 +52,6 @@ function withNpc(templateId: string, faction: Vehicle['faction'], x = 36): { w: 
 }
 
 const en = (line: LineId): string => entryText('en', lineKey(line));
-
-function optionIndex(w: World, text: string): number {
-  const i = currentOptions(w).findIndex((o) => en(o.line) === text);
-  if (i < 0) throw new Error(`No option "${text}" in ${currentOptions(w).map((o) => en(o.line)).join(' | ')}`);
-  return i;
-}
 
 describe('topic data', () => {
   it('every option leads to a node of its topic, the hub or the end, and every node is reachable', () => {
@@ -118,7 +113,7 @@ describe('calls', () => {
   it('opens on the hub with the greeting when the player sees the truck', () => {
     const { w, npc } = withNpc('trader', 'independent');
     const next = callVehicle(w, npc.id);
-    expect(next.player.call).toEqual({ with: npc.id, topic: null, node: HUB, vars: {}, line: { line: TRAIT_TALK.trader.voice!.greeting, vars: {} } });
+    expect(next.player.call).toEqual({ with: npc.id, topic: null, node: HUB, vars: {}, line: { line: TRAIT_TALK.trader.voice!.greeting, vars: {} }, group: null, asked: [] });
     expect(next.events).toContainEqual({ t: 'call', with: npc.id, outcome: 'opened' });
     expect(next.events).toContainEqual({ t: 'say', speaker: npc.id, line: TRAIT_TALK.trader.voice!.greeting, vars: {} });
   });
@@ -130,7 +125,7 @@ describe('calls', () => {
 
   function expectRefused(w: World, npcId: string, line: LineId): void {
     const next = callVehicle(w, npcId);
-    expect(next.player.call).toEqual({ with: npcId, topic: null, node: REFUSED, vars: {}, line: { line: line, vars: {} } });
+    expect(next.player.call).toEqual({ with: npcId, topic: null, node: REFUSED, vars: {}, line: { line: line, vars: {} }, group: null, asked: [] });
     expect(currentOptions(next).map((o) => en(o.line))).toEqual(['Hang up.']);
     const closed = chooseOption(next, 0);
     expect(closed.player.call).toBeNull();
@@ -201,12 +196,12 @@ describe('directions', () => {
     const me = playerVehicle(w).pos;
     const nearest = REGION.towns.filter((t) => ['bowl', 'nose'].includes(t.id)).sort((a, b) => dist(me, a.pos) - dist(me, b.pos))[0];
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, en(TOPICS.directions.ask!.say)));
+    next = chooseText(next, en(TOPICS.directions.ask!.say));
     expect(next.player.call?.vars.town).toEqual({ kind: 'town', id: nearest.id });
     expect(next.player.call?.vars.way).toEqual({ kind: 'directions', steps: directionsTo(w, me, { kind: 'site', id: nearest.id }) });
     expect(next.player.call?.line.line).toBe('townWay');
     expect(next.player.call?.vars.way).toMatchObject({ steps: expect.arrayContaining([{ do: 'arrive', site: nearest.id, area: false }]) });
-    next = chooseOption(next, optionIndex(next, 'Thanks. Over and out.'));
+    next = chooseText(next, 'Thanks. Over and out.');
     expect(next.player.call).toBeNull();
     expect(next.player.discovered).toContain(nearest.id);
     expect(next.events).toContainEqual({ t: 'discover', location: nearest.id });
@@ -215,10 +210,10 @@ describe('directions', () => {
   it('returns to the hub and can be asked again', () => {
     const { w, npc } = withNpc('scavenger', 'independent');
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, en(TOPICS.directions.ask!.say)));
-    next = chooseOption(next, optionIndex(next, 'Thanks. Something else.'));
+    next = chooseText(next, en(TOPICS.directions.ask!.say));
+    next = chooseText(next, 'Thanks. Something else.');
     expect(next.player.call?.topic).toBeNull();
-    next = chooseOption(next, optionIndex(next, en(TOPICS.directions.ask!.say)));
+    next = chooseText(next, en(TOPICS.directions.ask!.say));
     expect(next.player.call?.topic).toBe('directions');
   });
 });
@@ -299,7 +294,7 @@ describe('NPC calls', () => {
     const { w, npc } = withNpc('trader', 'independent');
     w.player.talked[npc.id] = { directions: 'done' };
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, en(TOPICS.directions.ask!.say)));
+    next = chooseText(next, en(TOPICS.directions.ask!.say));
     expect(next.player.call?.topic).toBeNull();
     expect(next.events).toContainEqual({ t: 'say', speaker: npc.id, line: TRAIT_TALK.trader.voice!.repeatLine, vars: {} });
     expect(next.player.call?.line).toEqual({ line: TRAIT_TALK.trader.voice!.repeatLine, vars: {} });
@@ -429,7 +424,7 @@ describe('demand', () => {
     const haul = cargoHaul(w.vehicles.find((v) => v.id === raider.id)!, me);
     expect(haul.length).toBeGreaterThan(0);
     expect(showsHaul(w.player.call!.vars.haul, haul)).toBe(true);
-    const next = chooseOption(w, optionIndex(w, 'Fine. Take it.'));
+    const next = chooseText(w, 'Fine. Take it.');
     const stock = next.salvage.find((s) => s.id.startsWith(`cargo-${me.id}`))!;
     expect(Object.values(stock.goods).reduce((a, b) => a + b, 0) + stock.parts.length).toBe(haul.length);
   });
@@ -491,14 +486,14 @@ describe('demand', () => {
   it('handing over pays the player for a closed deal', () => {
     const { w: start } = ambush();
     const w = endTurn(start, testDrive);
-    const next = chooseOption(w, optionIndex(w, 'Fine. Take it.'));
+    const next = chooseText(w, 'Fine. Take it.');
     expect(practiceOf(next, 'deal')).toMatchObject([{ amount: 1, difficulty: null }]);
   });
 
   it('refusing pays nothing for a deal', () => {
     const { w: start } = ambush();
     const w = endTurn(start, testDrive);
-    const next = chooseOption(w, optionIndex(w, 'Come and get it.'));
+    const next = chooseText(w, 'Come and get it.');
     expect(practiceOf(next, 'deal')).toEqual([]);
   });
 
@@ -533,7 +528,7 @@ describe('demand', () => {
 
 describe('warn off', () => {
   const WARN = en(TOPICS.warnOff.ask!.say);
-  const asks = (w: World, npcId: string) => currentOptions(callVehicle(w, npcId)).map((o) => en(o.line));
+  const asks = (w: World, npcId: string) => asksOf(callVehicle(w, npcId));
 
   function looterAt(at: { x: number; y: number }, search: boolean): { w: World; npc: Vehicle; wreckId: string } {
     const w = emptyWorld({ x: 30, y: 30 });
@@ -586,10 +581,10 @@ describe('warn off', () => {
   it('is asked once per driver', () => {
     const { w: start, npc } = looterAt({ x: 30.5, y: 30 }, true);
     const open = callVehicle(start, npc.id);
-    const w = hangUp(chooseOption(open, optionIndex(open, WARN)));
+    const w = hangUp(chooseText(open, WARN));
     expect(w.player.talked[npc.id]).toEqual({ warnOff: 'refused' });
     const again = callVehicle(w, npc.id);
-    expect(chooseOption(again, optionIndex(again, WARN)).player.call?.topic).toBeNull();
+    expect(chooseText(again, WARN).player.call?.topic).toBeNull();
   });
 });
 
@@ -599,14 +594,14 @@ describe('trade', () => {
   it('a raider never offers to trade', () => {
     const { w, npc } = withNpc('buggy', 'scrapjaw');
     const open = callVehicle(w, npc.id);
-    expect(currentOptions(open).map((o) => en(o.line))).not.toContain(askText);
+    expect(asksOf(open)).not.toContain(askText);
   });
 
   it('agreeing ends the call, starts a trade meeting and sends the driver over', () => {
     const { w, npc } = withNpc('trader', 'independent');
     const open = callVehicle(w, npc.id);
-    const asked = chooseOption(open, optionIndex(open, askText));
-    const next = chooseOption(asked, optionIndex(asked, 'Pulling over.'));
+    const asked = chooseText(open, askText);
+    const next = chooseText(asked, 'Pulling over.');
     expect(next.player.call).toBeNull();
     expect(stateOf(next, 'trade', npc.id, next.player.vehicleId)).not.toBeNull();
     expect(next.vehicles.find((v) => v.id === npc.id)!.brain!.goals.at(-1)).toMatchObject({ kind: 'meet', targetId: next.player.vehicleId });
@@ -616,7 +611,7 @@ describe('trade', () => {
     const { w, npc } = withNpc('trader', 'independent');
     addState(w, 'trade', npc.id, w.player.vehicleId, { kind: 'none' });
     const open = callVehicle(w, npc.id);
-    expect(currentOptions(open).map((o) => en(o.line))).not.toContain(askText);
+    expect(asksOf(open)).not.toContain(askText);
   });
 });
 
@@ -625,7 +620,7 @@ describe('call practice', () => {
     const { w, npc } = withNpc('trader', 'independent');
     const open = callVehicle(w, npc.id);
     expect(practiceOf(open, 'call')).toEqual([]);
-    const asked = chooseOption(open, optionIndex(open, "Where's the nearest town?"));
+    const asked = chooseText(open, "Where's the nearest town?");
     expect(practiceOf(asked, 'call')).toMatchObject([{ amount: 1, difficulty: null, target: `${npc.id}:directions`, xp: XP_SOURCES.call.weight }]);
   });
 
@@ -633,8 +628,8 @@ describe('call practice', () => {
     const { w, npc } = withNpc('trader', 'independent');
     const ask = (from: World, id: string): World => {
       const open = callVehicle(from, id);
-      const asked = chooseOption(open, optionIndex(open, "Where's the nearest town?"));
-      return chooseOption(asked, optionIndex(asked, 'Thanks. Over and out.'));
+      const asked = chooseText(open, "Where's the nearest town?");
+      return chooseText(asked, 'Thanks. Over and out.');
     };
     const once = ask(w, npc.id);
     const again = ask(once, npc.id);
@@ -670,7 +665,7 @@ describe('market ears', () => {
     w.player.perks = ['marketEars'];
     backFromNose(w, npc);
     const open = callVehicle(w, npc.id);
-    const asked = chooseOption(open, optionIndex(open, askText));
+    const asked = chooseText(open, askText);
     const goods = SHOPS.nose.goods.map((good) => ({ good, buy: buyPrice(w, 'nose', good), sell: sellPrice(w, 'nose', good) }));
     expect(asked.player.call?.vars).toEqual({ town: { kind: 'town', id: 'nose' }, prices: { kind: 'prices', town: 'nose', goods } });
   });
@@ -682,7 +677,7 @@ describe('market ears', () => {
     const goods = SHOPS.nose.goods.map((good) => ({ good, buy: buyPrice(w, 'nose', good), sell: sellPrice(w, 'nose', good) }));
     for (const good of SHOPS.nose.goods) setShopPressure(w, 'nose', good, 0.5);
     const open = callVehicle(w, npc.id);
-    const asked = chooseOption(open, optionIndex(open, askText));
+    const asked = chooseText(open, askText);
     expect(asked.player.call?.vars.prices).toEqual({ kind: 'prices', town: 'nose', goods });
   });
 
@@ -692,20 +687,20 @@ describe('market ears', () => {
     backFromNose(w, npc);
     w.turn += MEMORY.turns.prices;
     forgetOld(w);
-    expect(currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line))).not.toContain(askText);
+    expect(asksOf(callVehicle(w, npc.id))).not.toContain(askText);
   });
 
   it('is not offered without the perk', () => {
     const { w, npc } = withNpc('trader', 'independent');
     backFromNose(w, npc);
-    expect(currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line))).not.toContain(askText);
+    expect(asksOf(callVehicle(w, npc.id))).not.toContain(askText);
   });
 
   it('is not offered by a driver that has not been to a town', () => {
     const { w, npc } = withNpc('trader', 'independent');
     w.player.perks = ['marketEars'];
     remember(w, npc, { kind: 'prices', shop: 'granary', pressure: standingPressures(w, 'granary') });
-    expect(currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line))).not.toContain(askText);
+    expect(asksOf(callVehicle(w, npc.id))).not.toContain(askText);
   });
 });
 
@@ -784,7 +779,7 @@ describe('trading tips', () => {
     const { w, npc } = withNpc('trader', 'independent');
     visit(w, npc, 'bowl');
     const open = callVehicle(w, npc.id);
-    const asked = chooseOption(open, optionIndex(open, askText));
+    const asked = chooseText(open, askText);
     expect(asked.player.call?.vars.tip).toEqual({ kind: 'tip', tip: { shop: 'bowl', good: 'batteries', dear: true } });
     expect(currentOptions(asked).map((o) => en(o.line))).toEqual(expect.arrayContaining(['Thanks. Something else.', 'Over and out.']));
   });
@@ -792,14 +787,14 @@ describe('trading tips', () => {
   it('is answered with no tip by a driver that remembers nothing', () => {
     const { w, npc } = withNpc('scavenger', 'independent');
     const open = callVehicle(w, npc.id);
-    const asked = chooseOption(open, optionIndex(open, askText));
+    const asked = chooseText(open, askText);
     expect(asked.player.call?.vars.tip).toEqual({ kind: 'tip', tip: null });
   });
 
   it('is not offered by raiders', () => {
     const { w, npc } = withNpc('buggy', 'scrapjaw');
     visit(w, npc, 'bowl');
-    expect(currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line))).not.toContain(askText);
+    expect(asksOf(callVehicle(w, npc.id))).not.toContain(askText);
   });
 });
 
@@ -823,14 +818,14 @@ describe('rumor mill', () => {
     w.salvage = [wreck('wreck8', { x: 36, y: 50 }), wreck('wreck7', { x: 50, y: 30 })];
     const me = playerVehicle(w).pos;
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, askText));
-    next = chooseOption(next, optionIndex(next, 'Where?'));
+    next = chooseText(next, askText);
+    next = chooseText(next, 'Where?');
     expect(next.player.call?.node).toBe('wreck');
     expect(next.player.call?.vars).toEqual({
       way: { kind: 'directions', steps: directionsTo(w, me, { kind: 'spot', pos: { x: 50, y: 30 }, clue: 'wreck' }) },
       square: { kind: 'square', ...gridSquareOf({ x: 50, y: 30 }) },
     });
-    next = chooseOption(next, optionIndex(next, 'Thanks. Over and out.'));
+    next = chooseText(next, 'Thanks. Over and out.');
     expect(next.player.rumored).toEqual(['wreck7']);
   });
 
@@ -838,9 +833,9 @@ describe('rumor mill', () => {
     const { w, npc } = rumorWorld();
     w.salvage = [wreck('wreck3', { x: 36, y: 40 }), wreck('wreck12', { x: 36, y: 20 })];
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, askText));
-    next = chooseOption(next, optionIndex(next, 'Where?'));
-    next = chooseOption(next, optionIndex(next, 'Thanks. Over and out.'));
+    next = chooseText(next, askText);
+    next = chooseText(next, 'Where?');
+    next = chooseText(next, 'Thanks. Over and out.');
     expect(next.player.rumored).toEqual(['wreck12']);
   });
 
@@ -853,11 +848,11 @@ describe('rumor mill', () => {
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
     refreshVision(w);
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, askText));
-    next = chooseOption(next, optionIndex(next, 'Where?'));
+    next = chooseText(next, askText);
+    next = chooseText(next, 'Where?');
     expect(next.player.call?.node).toBe('site');
     expect(next.player.call?.vars.site).toEqual({ kind: 'site', id: site.id });
-    next = chooseOption(next, optionIndex(next, 'Thanks. Over and out.'));
+    next = chooseText(next, 'Thanks. Over and out.');
     expect(next.player.discovered).toContain(site.id);
     expect(next.player.rumored).toEqual([]);
   });
@@ -866,10 +861,10 @@ describe('rumor mill', () => {
     const { w, npc } = rumorWorld();
     w.salvage = [wreck('wreck7', { x: 50, y: 30 }), wreck('wreck8', { x: 60, y: 30 })];
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, askText));
-    next = chooseOption(next, optionIndex(next, 'Where?'));
-    next = chooseOption(next, optionIndex(next, 'Thanks. Something else.'));
-    next = chooseOption(next, optionIndex(next, askText));
+    next = chooseText(next, askText);
+    next = chooseText(next, 'Where?');
+    next = chooseText(next, 'Thanks. Something else.');
+    next = chooseText(next, askText);
     expect(next.player.call?.topic).toBeNull();
     expect(next.player.rumored).toEqual(['wreck7']);
   });
@@ -884,14 +879,14 @@ describe('rumor mill', () => {
     const { w, npc } = rumorWorld();
     w.salvage = [wreck('wreck7', { x: 50, y: 30 }), wreck('wreck8', { x: 60, y: 30 })];
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, askText));
-    next = chooseOption(next, optionIndex(next, 'Where?'));
+    next = chooseText(next, askText);
+    next = chooseText(next, 'Where?');
     expect(next.player.rumored).toEqual(['wreck7']);
     next = hangUp(next);
     expect(next.player.rumored).toEqual(['wreck7']);
     expect(next.player.talked[npc.id].rumor).toBe('done');
     next = callVehicle(next, npc.id);
-    next = chooseOption(next, optionIndex(next, askText));
+    next = chooseText(next, askText);
     expect(next.player.call?.topic).toBeNull();
     expect(next.player.rumored).toEqual(['wreck7']);
   });
@@ -905,8 +900,8 @@ describe('rumor mill', () => {
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
     refreshVision(w);
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, askText));
-    next = chooseOption(next, optionIndex(next, 'Where?'));
+    next = chooseText(next, askText);
+    next = chooseText(next, 'Where?');
     next = hangUp(next);
     expect(next.player.discovered).toContain(site.id);
     expect(next.player.talked[npc.id].rumor).toBe('done');
@@ -923,16 +918,16 @@ describe('rumor mill', () => {
     ];
     w.player.scavenged = ['wreck1'];
     w.player.rumored = ['wreck2'];
-    expect(currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line))).not.toContain(askText);
+    expect(asksOf(callVehicle(w, npc.id))).not.toContain(askText);
   });
 
   it('names a story wreck like any wreck', () => {
     const { w, npc } = rumorWorld();
     w.salvage = [wreck('story-wagon-seven', { x: 50, y: 30 })];
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, askText));
-    next = chooseOption(next, optionIndex(next, 'Where?'));
-    next = chooseOption(next, optionIndex(next, 'Thanks. Over and out.'));
+    next = chooseText(next, askText);
+    next = chooseText(next, 'Where?');
+    next = chooseText(next, 'Thanks. Over and out.');
     expect(next.player.rumored).toEqual(['story-wagon-seven']);
   });
 
@@ -940,7 +935,7 @@ describe('rumor mill', () => {
     const { w, npc } = rumorWorld();
     w.player.perks = [];
     w.salvage = [wreck('wreck7', { x: 50, y: 30 })];
-    expect(currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line))).not.toContain(askText);
+    expect(asksOf(callVehicle(w, npc.id))).not.toContain(askText);
   });
 });
 
@@ -962,8 +957,8 @@ describe('army wagon topic', () => {
     w.player.notes = [{ id: 'wagonBowl', turn: 0 }];
 
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, askText));
-    next = chooseOption(next, optionIndex(next, 'Thanks. Over and out.'));
+    next = chooseText(next, askText);
+    next = chooseText(next, 'Thanks. Over and out.');
 
     expect(next.player.notes.map((n) => n.id)).toEqual(['wagonBowl', 'wagonRoad']);
     expect(next.player.rumored).toEqual([]);
@@ -975,8 +970,8 @@ describe('army wagon topic', () => {
     w.player.notes = [{ id: 'wagonBowl', turn: 0 }];
 
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, askText));
-    next = chooseOption(next, optionIndex(next, 'What else did you see out there?'));
+    next = chooseText(next, askText);
+    next = chooseText(next, 'What else did you see out there?');
 
     expect(next.player.call).toBeNull();
     expect(next.events).toContainEqual({ t: 'call', with: npc.id, outcome: 'ended' });
@@ -991,8 +986,8 @@ describe('army wagon topic', () => {
     const far = wagonWorld(10);
     far.w.player.notes = [{ id: 'wagonBowl', turn: 0 }];
 
-    expect(currentOptions(callVehicle(fresh.w, fresh.npc.id)).map((o) => en(o.line))).not.toContain(askText);
-    expect(currentOptions(callVehicle(far.w, far.npc.id)).map((o) => en(o.line))).not.toContain(askText);
+    expect(asksOf(callVehicle(fresh.w, fresh.npc.id))).not.toContain(askText);
+    expect(asksOf(callVehicle(far.w, far.npc.id))).not.toContain(askText);
   });
 });
 
@@ -1011,25 +1006,25 @@ describe('claim wreck topic', () => {
   }
 
   function asked(w: World, npc: Vehicle): string[] {
-    return currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line));
+    return asksOf(callVehicle(w, npc.id));
   }
 
   it('tells a driver near the wreck where it lies from the player, and keeps one lead per driver', () => {
     const { w, npc, claim } = claimWorld();
     const me = playerVehicle(w).pos;
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, askText));
+    next = chooseText(next, askText);
     expect(next.player.call?.node).toBe('tell');
     const tiles = next.player.call!.vars.distance;
     expect(tiles).toEqual({ kind: 'distance', tiles: Math.round(dist(me, claim.at) / CONTRACTS.claim.leadStepTiles) * CONTRACTS.claim.leadStepTiles });
-    next = chooseOption(next, optionIndex(next, 'Thanks. Over and out.'));
+    next = chooseText(next, 'Thanks. Over and out.');
     const leads = (next.player.contracts[0] as Extract<Contract, { kind: 'claim' }>).leads;
     expect(leads).toEqual([{ turn: w.turn, from: me, driver: npc.brain!.driver }]);
     expect(next.events).toContainEqual({ t: 'claimLead', contract: claim.id, driver: npc.brain!.driver });
     expect(next.player.talked[npc.id]?.claimWreck).toBe('done');
     expect(next.player.rumored).toEqual(w.player.rumored);
     let again = callVehicle(next, npc.id);
-    again = chooseOption(again, optionIndex(again, askText));
+    again = chooseText(again, askText);
     expect((again.player.contracts[0] as Extract<Contract, { kind: 'claim' }>).leads).toHaveLength(1);
   });
 
@@ -1053,7 +1048,7 @@ describe('claim wreck topic', () => {
     const { w, npc } = claimWorld('tightLipped');
     w.player.money = 1000;
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, askText));
+    next = chooseText(next, askText);
     expect(next.player.call?.node).toBe(TOLL);
     next = chooseOption(next, 0);
     expect(next.player.money).toBeLessThan(1000);
@@ -1067,13 +1062,13 @@ describe('claim wreck topic', () => {
     rival.brain.goals = [{ kind: 'claim', claim: claim.id, left: [claim.stockId], targetId: claim.stockId, destination: { ...claim.at }, phase: 'travel', reason: 'claimRun' }];
     claim.rival = rival.id;
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, askText));
-    next = chooseOption(next, optionIndex(next, en('anyoneElseAsking')));
+    next = chooseText(next, askText);
+    next = chooseText(next, en('anyoneElseAsking'));
     expect(next.player.call?.node).toBe('rival');
     const alone = claimWorld();
     let other = callVehicle(alone.w, alone.npc.id);
-    other = chooseOption(other, optionIndex(other, askText));
-    other = chooseOption(other, optionIndex(other, en('anyoneElseAsking')));
+    other = chooseText(other, askText);
+    other = chooseText(other, en('anyoneElseAsking'));
     expect(other.player.call?.node).toBe('alone');
     expect((other.player.contracts[0] as Extract<Contract, { kind: 'claim' }>).leads).toHaveLength(1);
   });
@@ -1095,9 +1090,9 @@ describe('paid truce', () => {
     w.player.money = price;
     const rngState = w.rngState;
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, askText));
+    next = chooseText(next, askText);
     expect(next.player.call?.vars.price).toEqual({ kind: 'money', amount: price });
-    next = chooseOption(next, optionIndex(next, 'Deal. Sending it.'));
+    next = chooseText(next, 'Deal. Sending it.');
     const after = next.vehicles.find((v) => v.id === npc.id)!;
     expect(next.player.money).toBe(0);
     expect(after.resources!.money).toBe(price);
@@ -1109,21 +1104,21 @@ describe('paid truce', () => {
   it('is not offered to a player short of the price', () => {
     const { w, npc } = hostile();
     w.player.money = Math.round(vehicleValue(npc) * PERK_NUMBERS.paidTruce.share) - 1;
-    expect(currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line))).not.toContain(askText);
+    expect(asksOf(callVehicle(w, npc.id))).not.toContain(askText);
   });
 
   it('is not offered without the perk', () => {
     const { w, npc } = hostile();
     w.player.perks = [];
     w.player.money = 1e6;
-    expect(currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line))).not.toContain(askText);
+    expect(asksOf(callVehicle(w, npc.id))).not.toContain(askText);
   });
 
   it('is not offered to a driver at peace', () => {
     const { w, npc } = withNpc('trader', 'independent');
     w.player.perks = ['paidTruce'];
     w.player.money = 1e6;
-    expect(currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line))).not.toContain(askText);
+    expect(asksOf(callVehicle(w, npc.id))).not.toContain(askText);
   });
 });
 
@@ -1138,7 +1133,7 @@ describe('fuel and supply aid', () => {
   }
 
   const lowPlayer = (w: World): void => { w.player.fuel = Math.floor(fuelCap(playerVehicle(w)) * RULES.lowFuelThreshold); };
-  const texts = (w: World) => currentOptions(w).map((o) => en(o.line));
+  const texts = (w: World) => asksOf(w);
   const npcIn = (w: World, id: string) => w.vehicles.find((v) => v.id === id)!;
 
   it('only the drivers that answer tow requests take up asking and offering, and never a raider', () => {
@@ -1171,13 +1166,13 @@ describe('fuel and supply aid', () => {
     npc.resources!.supplies = suppliesCap(npc) * NPC_UPKEEP.tradeReserve;
     const rngState = w.rngState;
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, askText));
+    next = chooseText(next, askText);
     expect(next.rngState).toBe(rngState);
-    next = chooseOption(next, optionIndex(next, 'Whatever you can spare.'));
+    next = chooseText(next, 'Whatever you can spare.');
     expect(en(next.player.call!.line.line)).toBe("Sorry. Can't spare any.");
     expect(playerAid(next)).toBeNull();
-    next = chooseOption(next, optionIndex(next, 'Understood.'));
-    next = chooseOption(next, optionIndex(next, askText));
+    next = chooseText(next, 'Understood.');
+    next = chooseText(next, askText);
     expect(next.player.call?.topic).toBeNull();
     expect(next.player.call?.line.line).toBe(TRAIT_TALK.trader.voice!.repeatLine);
   });
@@ -1189,10 +1184,10 @@ describe('fuel and supply aid', () => {
     w.rngState = rngStateForForcedRolls(1);
     const spare = spareAid(w, npc);
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, askText));
-    next = chooseOption(next, optionIndex(next, 'Whatever you can spare.'));
+    next = chooseText(next, askText);
+    next = chooseText(next, 'Whatever you can spare.');
     expect(next.player.call?.vars.aid).toEqual({ kind: 'aid', ...spare });
-    next = chooseOption(next, optionIndex(next, "Thanks. I'll wait."));
+    next = chooseText(next, "Thanks. I'll wait.");
     const deal = stateOf(next, 'aid', npc.id, next.player.vehicleId)!;
     expect(aidData(deal)).toEqual({ kind: 'aid', giver: 'npc', ...spare, price: 0, free: true, agreed: true, started: false, work: 1, workLeft: 1 });
     expect(npcIn(next, npc.id).brain!.goals.at(-1)).toMatchObject({ kind: 'meet', targetId: next.player.vehicleId });
@@ -1225,9 +1220,9 @@ describe('fuel and supply aid', () => {
     forceOption('aidAsked', 'give');
     w.rngState = rngStateForForcedRolls(1);
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, askText));
-    next = chooseOption(next, optionIndex(next, 'Whatever you can spare.'));
-    next = chooseOption(next, optionIndex(next, "Thanks. I'll wait."));
+    next = chooseText(next, askText);
+    next = chooseText(next, 'Whatever you can spare.');
+    next = chooseText(next, "Thanks. I'll wait.");
     const deal = stateOf(next, 'aid', npc.id, next.player.vehicleId)!;
     expect(checkAid(next, deal)).toBeNull();
     const raider = addVehicle(next, 'independent', 'buggy', ['mg'], { x: 5, y: 5 });
@@ -1239,7 +1234,7 @@ describe('fuel and supply aid', () => {
     const { w, npc } = aidWorld();
     lowPlayer(w);
     let next = callVehicle(w, npc.id);
-    next = hangUp(chooseOption(next, optionIndex(next, askText)));
+    next = hangUp(chooseText(next, askText));
     expect(next.player.talked[npc.id]).toEqual({ askAid: 'refused' });
     expect(playerAid(next)).toBeNull();
   });
@@ -1249,10 +1244,10 @@ describe('fuel and supply aid', () => {
     npc.resources!.fuel = 0;
     const wanted = wantedAid(w, npc);
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, offerText));
+    next = chooseText(next, offerText);
     expect(next.player.call?.vars).toEqual({ aid: { kind: 'aid', ...wanted }, price: { kind: 'money', amount: aidPrice(w, npc, wanted) } });
     expect(aidPrice(w, npc, wanted)).toBeGreaterThan(0);
-    next = chooseOption(next, optionIndex(next, 'Deal.'));
+    next = chooseText(next, 'Deal.');
     const deal = aidData(stateOf(next, 'aid', npc.id, next.player.vehicleId)!);
     expect(deal).toEqual({ kind: 'aid', giver: 'player', ...wanted, price: aidPrice(w, npc, wanted), free: false, agreed: true, started: false, work: 1, workLeft: 1 });
     expect(next.player.fuel).toBe(w.player.fuel);
@@ -1262,8 +1257,8 @@ describe('fuel and supply aid', () => {
     const { w, npc } = aidWorld();
     npc.resources!.fuel = 0;
     let next = callVehicle(w, npc.id);
-    next = chooseOption(next, optionIndex(next, offerText));
-    next = chooseOption(next, optionIndex(next, 'No charge.'));
+    next = chooseText(next, offerText);
+    next = chooseText(next, 'No charge.');
     expect(aidData(stateOf(next, 'aid', npc.id, next.player.vehicleId)!)).toMatchObject({ giver: 'player', price: 0, free: true, agreed: true, started: false, work: 1, workLeft: 1 });
   });
 
@@ -1282,7 +1277,7 @@ describe('fuel and supply aid', () => {
     const offered = aidData(playerAid(w)!);
     raiseCalls(w);
     expect(w.player.call).toMatchObject({ with: npc.id, topic: 'aidOffer', vars: { aid: { kind: 'aid', fuel: offered.fuel, supplies: offered.supplies } } });
-    const next = chooseOption(w, optionIndex(w, "Thanks. I'll wait."));
+    const next = chooseText(w, "Thanks. I'll wait.");
     expect(aidData(stateOf(next, 'aid', npc.id, next.player.vehicleId)!)).toEqual({ ...offered, agreed: true, started: false, work: 1, workLeft: 1 });
     expect(npcIn(next, npc.id).brain!.goals.at(-1)).toMatchObject({ kind: 'meet', targetId: next.player.vehicleId });
     raiseCalls(next);
@@ -1351,8 +1346,8 @@ describe('robber truce', () => {
   const truceText = en(TOPICS.truce.ask!.say);
   const askTruce = (w: World, id: string): World => {
     let next = callVehicle(w, id);
-    next = chooseOption(next, optionIndex(next, truceText));
-    return chooseOption(next, optionIndex(next, 'We both drive away.'));
+    next = chooseText(next, truceText);
+    return chooseText(next, 'We both drive away.');
   };
 
   it('names its price and grants no truce, even when the roll would accept', () => {
@@ -1381,7 +1376,7 @@ describe('robber truce', () => {
     expect(next.player.talked[robber.id]?.demand).toBe('refused');
     expect(hasCargo(playerVehicle(next))).toBe(true);
     const again = callVehicle(next, robber.id);
-    expect(currentOptions(again).map((o) => en(o.line))).not.toContain(truceText);
+    expect(asksOf(again)).not.toContain(truceText);
   });
 
   it('hanging up at the price refuses, and survives a save round trip', () => {
@@ -1436,7 +1431,7 @@ describe('asking after someone', () => {
 
   const askAfter = (w: World, witness: Vehicle): World => {
     const open = callVehicle(w, witness.id);
-    return chooseOption(open, optionIndex(open, askText));
+    return chooseText(open, askText);
   };
 
   it('reports the remembered place after the target drove on, never its live place', () => {
@@ -1470,7 +1465,7 @@ describe('asking after someone', () => {
     w.turn = 60;
     sawAt(w, witness, target, 40);
     let next = askAfter(w, witness);
-    next = chooseOption(next, optionIndex(next, 'Thanks. Something else.'));
+    next = chooseText(next, 'Thanks. Something else.');
     expect(next.player.contracts[0]).toMatchObject({ lead: { at: { x: 90, y: 30 }, turn: 40 } });
   });
 
@@ -1482,7 +1477,7 @@ describe('asking after someone', () => {
     if (contract.kind !== 'search') throw new Error('search expected');
     contract.lead = { at: { x: 5, y: 5 }, turn: 50 };
     let next = askAfter(w, witness);
-    next = chooseOption(next, optionIndex(next, 'Thanks. Something else.'));
+    next = chooseText(next, 'Thanks. Something else.');
     expect(next.player.contracts[0]).toMatchObject({ lead: { at: { x: 5, y: 5 }, turn: 50 } });
   });
 
@@ -1493,18 +1488,18 @@ describe('asking after someone', () => {
     const asked = askAfter(w, witness);
     const witnessNow = asked.vehicles.find((v) => v.id === witness.id)!;
     sawAt(asked, witnessNow, target, 55);
-    expect(() => chooseOption(asked, optionIndex(asked, 'Thanks. Something else.'))).toThrow();
+    expect(() => chooseText(asked, 'Thanks. Something else.')).toThrow();
   });
 
   it('is offered while a search is open, but not to the target, by a suspicious driver or with no search', () => {
     const { w, witness, target } = searchWorld();
-    expect(currentOptions(callVehicle(w, witness.id)).map((o) => en(o.line))).toContain(askText);
+    expect(asksOf(callVehicle(w, witness.id))).toContain(askText);
     expect(CONDITIONS.seeksSomeone(w, target, {})).toBe(false);
     witness.brain!.personality = 'suspicious';
-    expect(currentOptions(callVehicle(w, witness.id)).map((o) => en(o.line))).not.toContain(askText);
+    expect(asksOf(callVehicle(w, witness.id))).not.toContain(askText);
     witness.brain!.personality = 'talkative';
     w.player.contracts = [];
-    expect(currentOptions(callVehicle(w, witness.id)).map((o) => en(o.line))).not.toContain(askText);
+    expect(asksOf(callVehicle(w, witness.id))).not.toContain(askText);
   });
 
   it('offers the parcel only to its target, and the call alone delivers nothing', () => {
@@ -1513,10 +1508,10 @@ describe('asking after someone', () => {
     witness.pos = { x: 200, y: 200 };
     refreshVision(w);
     const open = callVehicle(w, target.id);
-    expect(currentOptions(open).map((o) => en(o.line))).toContain(parcelText);
-    let next = chooseOption(open, optionIndex(open, parcelText));
+    expect(asksOf(open)).toContain(parcelText);
+    let next = chooseText(open, parcelText);
     expect(en(next.player.call!.line.line)).toBe(en('parcelPullOver'));
-    next = chooseOption(next, optionIndex(next, en('pullingOver')));
+    next = chooseText(next, en('pullingOver'));
     expect(next.player.contracts[0]).toMatchObject({ kind: 'search', delivered: false });
     expect(next.events.filter((e) => e.t === 'contract')).toEqual([]);
     expect(next.states.filter((x) => x.kind === 'handover')).toMatchObject([{ holder: target.id, other: next.player.vehicleId }]);
@@ -1526,7 +1521,7 @@ describe('asking after someone', () => {
 
   it('does not offer the parcel to another driver, or without the parcel aboard', () => {
     const { w, witness, target } = searchWorld();
-    expect(currentOptions(callVehicle(w, witness.id)).map((o) => en(o.line))).not.toContain(parcelText);
+    expect(asksOf(callVehicle(w, witness.id))).not.toContain(parcelText);
     expect(CONDITIONS.hasParcelFor(w, target, {})).toBe(true);
     const me = playerVehicle(w);
     me.items = me.items.filter((it) => it.kind !== 'parcel');
@@ -1544,11 +1539,11 @@ describe('road lessons', () => {
 
   function asked(w: World, npc: Vehicle): World {
     const open = callVehicle(w, npc.id);
-    return chooseOption(open, optionIndex(open, askText));
+    return chooseText(open, askText);
   }
 
   function offers(w: World, npc: Vehicle): boolean {
-    return currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line)).includes(askText);
+    return asksOf(callVehicle(w, npc.id)).includes(askText);
   }
 
   it('is offered at peace by every voiced trait', () => {
@@ -1567,7 +1562,7 @@ describe('road lessons', () => {
   it('is not offered by a raider hostile over cargo, and is by the same raider once the player carries nothing', () => {
     const { w, npc } = withNpc('buggy', 'scrapjaw');
     expect(isHostile(w, npc, playerVehicle(w))).toBe(true);
-    expect(currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line))).not.toContain(askText);
+    expect(asksOf(callVehicle(w, npc.id))).not.toContain(askText);
     const empty = emptyWorld({ x: 30, y: 30 });
     const raider = addVehicle(empty, 'scrapjaw', 'scout', ['stockEngine'], { x: 36, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
@@ -1581,7 +1576,7 @@ describe('road lessons', () => {
   it('is hidden by a feud', () => {
     const { w, npc } = withNpc('trader', 'independent');
     addState(w, 'feud', npc.id, w.player.vehicleId, { kind: 'feud', robbery: false });
-    expect(currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line))).not.toContain(askText);
+    expect(asksOf(callVehicle(w, npc.id))).not.toContain(askText);
   });
 
   it('is answered by tight-lipped and grim drivers too', () => {
@@ -1608,7 +1603,7 @@ describe('road lessons', () => {
     expect(told.rngState).toBe(w.rngState);
     const done = chooseOption(told, 0);
     expect(done.player.talked[npc.id]).toEqual({ roadLesson: 'done' });
-    const again = chooseOption(done, optionIndex(done, askText));
+    const again = chooseText(done, askText);
     expect(again.player.call?.topic).toBeNull();
     expect(again.player.call?.line).toEqual({ line: TRAIT_TALK.trader.voice!.repeatLine, vars: {} });
   });

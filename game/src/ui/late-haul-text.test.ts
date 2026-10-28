@@ -54,7 +54,7 @@ describe("embezzlement words", () => {
     expect(en(caseVictimName(emptyWorld(), embezzled))).toBe("The Granary");
   });
 
-  it("keeps the filing silent until a Marshall demands it", () => {
+  it("keeps the filing against the player out of the log until a Marshall demands it", () => {
     const w = emptyWorld();
     const e: GameEvent = { t: "bountyFiled", case: "c", target: w.player.vehicleId, reporter: "granary", offense: "embezzled", victim: "granary", site: "granary", owed: 26, kept: { good: "salt", crates: 3 } };
     expect(eventText(w, e)).toBeNull();

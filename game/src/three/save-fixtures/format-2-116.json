@@ -1,34 +1,20 @@
 {
-  "turn": 1800,
-  "setup": { "mode": "roaming" },
-  "chaosHighway": { "earned": 12345, "groups": [{ "money": 4250 }, { "money": 100 }] },
+  "turn": 2704,
   "player": {
-    "money": 99501,
-    "costBasis": { "scrap": 633, "water": 150 },
-    "contracts": [{ "id": "c1", "kind": "haul", "reward": 1201, "cratePay": 0 }, { "id": "c2", "kind": "procure", "reward": 3000, "cratePay": 650 }],
-    "pastContracts": [{ "contract": { "id": "c0", "kind": "haul", "reward": 501, "cratePay": 99 }, "outcome": "done", "turn": 100, "amount": 450 }],
+    "money": 1200,
     "call": {
-      "with": "v1", "topic": "trade", "node": "offer",
-      "vars": { "m": { "kind": "money", "amount": 1999 }, "d": { "kind": "deal", "deal": "paid", "patcher": "npc", "price": 250, "parts": 2, "turns": 3 }, "p": { "kind": "prices", "town": "t", "goods": [{ "good": "water", "buy": 101, "sell": 99 }] }, "n": { "kind": "other" } },
-      "line": { "line": "offer", "vars": { "m": { "kind": "money", "amount": 1000 } } }
+      "with": "v40",
+      "topic": null,
+      "node": "hub",
+      "vars": {},
+      "line": {
+        "line": "talk",
+        "vars": {}
+      }
     },
-    "encounters": { "story": { "driver": "v2", "beat": "asked", "turn": 5, "aidValue": 1250, "free": false } }
-  },
-  "shops": { "bowl": { "contracts": [{ "id": "s1", "kind": "haul", "reward": 7777 }] } },
-  "vehicles": [
-    { "id": "v1", "resources": { "money": 50, "fuel": 10 }, "brain": { "memories": [{ "turn": 1, "fact": { "kind": "witnessed", "crime": "k1", "restitution": 333 } }, { "turn": 2, "fact": { "kind": "sighting" } }] } },
-    { "id": "v2", "resources": null }
-  ],
-  "salvage": [{ "id": "a", "pile": { "basis": { "scrap": 633 } } }, { "id": "b" }],
-  "states": [
-    { "id": 1, "data": { "kind": "tow", "fee": 410, "waived": 90, "hitched": true } },
-    { "id": 2, "data": { "kind": "towPromise", "fee": 300 } },
-    { "id": 3, "data": { "kind": "escort", "site": null, "fee": 1501 } },
-    { "id": 4, "data": { "kind": "hire", "fee": 801 } },
-    { "id": 5, "data": { "kind": "patch", "price": 199 } },
-    { "id": 6, "data": { "kind": "aid", "price": 1 } },
-    { "id": 7, "data": { "kind": "bountyStop", "owed": 2000, "answered": false } },
-    { "id": 8, "data": { "kind": "other", "fee": 5 } }
-  ],
-  "crimes": [{ "id": "k1", "owed": 2550, "restitution": 120, "escrow": 0 }]
+    "quests": {
+      "active": {},
+      "done": {}
+    }
+  }
 }

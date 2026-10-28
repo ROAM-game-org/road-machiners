@@ -24,12 +24,14 @@ import { startPose } from '../sim/start-pose';
 import { openingStep } from '../sim/opening';
 import { TEST_MAP } from '../test/map';
 import { readQuestSources } from '../test/quest-compile';
+import { reusedWorld } from '../test/world-cache';
 import { loadWorld, saveOf, writeSave } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
 
 const SEED = 1337;
 const setup = defaultSetup('roaming');
-const arrival = (): World => newGame(SEED, 'arrival', true, TEST_MAP, setup);
+const arrival = (): World => reusedWorld('intro arrival', () => newGame(SEED, 'arrival', true, TEST_MAP, setup));
+const skippedIntro = (): World => reusedWorld('intro skipped', () => newGame(SEED, 'arrival', false, TEST_MAP, setup));
 const ROPE = 'Drop the rope down the well.';
 const HOUSE = 'Go into the house.';
 const SHED = 'Go to the shed.';
@@ -242,8 +244,8 @@ describe('the arrival at the farm', () => {
 
 describe('a skipped intro', () => {
   it('builds the same world as the intro, with the arrival scene the only thing missing', () => {
-    const skipped = newGame(SEED, 'arrival', false, TEST_MAP, setup);
-    const played = newGame(SEED, 'arrival', true, TEST_MAP, setup);
+    const skipped = skippedIntro();
+    const played = arrival();
     expect(skipped.player.quests.session).toBeNull();
     expect(played.player.quests.session?.quest).toBe('intro_arrival');
     const withoutQuests = (w: World) => ({ ...saveOf(w).world, player: { ...saveOf(w).world.player, quests: null } });
@@ -251,7 +253,7 @@ describe('a skipped intro', () => {
   });
 
   it('runs the rest of the intro the same way when the scene is skipped', () => {
-    expect(introStep(turns(newGame(SEED, 'arrival', false, TEST_MAP, setup), 1))).toBe('drive');
+    expect(introStep(turns(skippedIntro(), 1))).toBe('drive');
   });
 });
 

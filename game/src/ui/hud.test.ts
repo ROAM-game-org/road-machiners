@@ -45,6 +45,7 @@ describe('held contract line', () => {
 
     expect(line.text()).toContain('Survey');
     expect(line.text()).toContain('1 of 3 surveyed');
+    expect(line.text()).not.toMatch(/(Safe|Risky|Dangerous) ground/);
     expect(line.text()).toContain('by Day');
     expect(line.all('contract-clue')).toHaveLength(2);
     expect(line.all('tag').map((tag) => tag.text())).toEqual(['found']);
@@ -89,6 +90,23 @@ describe('held contract line', () => {
     expect(toasts[0]).toBe(`This is the ${site.type} Bowl asked about.`);
     expect(toasts[1]).toContain('Survey done: report at Bowl');
     expect(logged).toContain(`${site.type.charAt(0).toUpperCase()}${site.type.slice(1)} surveyed, 1 of 1`);
+  });
+});
+
+describe('the wake', () => {
+  it('toasts You come to. once and logs it', () => {
+    const w = emptyWorld();
+    w.events = [{ t: 'wake' }];
+    const toasts: string[] = [];
+    const logged: string[] = [];
+    const hud = Object.assign(Object.create(Hud.prototype), {
+      toast: (msg: Msg) => toasts.push(resolve(msg, 'en')),
+      log: { add: (_turn: number, lines: { text: Msg }[]) => logged.push(...lines.map((line) => resolve(line.text, 'en'))) },
+      radio: { hear: () => {} },
+    }) as Hud;
+    hud.pushEvents(w);
+    expect(toasts).toEqual(['You come to.']);
+    expect(logged).toEqual(['You come to.']);
   });
 });
 
@@ -205,5 +223,74 @@ describe('the Wanted well', () => {
     const well = renderWell(w);
     expect(well.style.display).toBe('');
     expect(well.all('wanted-owed')[0].text()).toContain('151');
+  });
+});
+
+describe('order controls while knocked out', () => {
+  class Node {
+    className = '';
+    children: (Node | string)[] = [];
+    attrs: Record<string, string> = {};
+    constructor(readonly tag: string) {}
+    append(...children: (Node | string)[]) { this.children.push(...children); }
+    replaceChildren(...children: (Node | string)[]) { this.children = children; }
+    setAttribute(name: string, value: string) { this.attrs[name] = value; }
+    addEventListener() {}
+    text(): string { return this.children.map((child) => typeof child === 'string' ? child : child.text()).join(''); }
+    buttons(): Node[] { return [...(this.tag === 'button' ? [this] : []), ...this.children.flatMap((child) => typeof child === 'string' ? [] : child.buttons())]; }
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  function actionButtons(w: World, busy: boolean) {
+    vi.stubGlobal('document', {
+      createElement: (tag: string) => new Node(tag),
+      createElementNS: (_ns: string, tag: string) => new Node(tag),
+      createTextNode: (value: string) => Object.assign(new Node('#text'), { children: [value] }),
+    });
+    const actionSlot = new Node('div');
+    const hud = Object.assign(Object.create(Hud.prototype), {
+      actionSlot,
+      actions: { headlightsOn: () => false },
+      dialogue: {},
+    }) as Hud;
+    (hud as unknown as { renderActions(w: World, manual: boolean, busy: boolean): void }).renderActions(w, false, busy);
+    return actionSlot.buttons();
+  }
+
+  const orderLabels = ['Route', 'Patch', 'Lights', 'Overdrive', 'Cool', 'First aid'];
+  const lookLabels = ['Driver', 'Map', 'Journal'];
+  const find = (buttons: Node[], label: string) => buttons.find((b) => b.text().includes(label));
+
+  it('dims every order control with Knocked out, whether or not a turn plays', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    w.player.state = 'knockedOut';
+    for (const busy of [false, true]) {
+      const buttons = actionButtons(w, busy);
+      for (const label of orderLabels) {
+        const b = find(buttons, label);
+        expect(b, label).toBeDefined();
+        expect(b!.attrs['aria-disabled'], label).toBe('true');
+        expect(b!.attrs.title, label).toBe('Knocked out');
+      }
+    }
+  });
+
+  it('keeps Driver, Map and Journal usable while knocked out and idle', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    w.player.state = 'knockedOut';
+    const buttons = actionButtons(w, false);
+    for (const label of lookLabels) {
+      const b = find(buttons, label);
+      expect(b, label).toBeDefined();
+      expect(b!.attrs['aria-disabled'], label).toBeUndefined();
+      expect(b!.attrs.disabled, label).toBeUndefined();
+    }
+  });
+
+  it('shows no Knocked out reason on an active player', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const buttons = actionButtons(w, false);
+    expect(buttons.filter((b) => b.attrs.title === 'Knocked out')).toEqual([]);
   });
 });

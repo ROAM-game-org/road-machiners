@@ -630,54 +630,72 @@ export function withMoments_115_116(world: SavedJson): SavedJson {
   return { ...world, moments };
 }
 
+export function withDialogueSeen_116_117(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  const quests = player.quests as SavedJson | undefined;
+  return {
+    ...world,
+    player: {
+      ...player,
+      ...(call ? { call: { ...call, group: null, asked: [] } } : {}),
+      ...(quests ? { quests: { ...quests, seen: {} } } : {}),
+    },
+  };
+}
+
+export function withoutLenaGlare_117_118(world: SavedJson): SavedJson {
+  return ['heard_glare', 'asked_glare'].reduce((w, name) => dropQuestVar(w, 'nose_lena', name), world);
+}
+
 const OLD_CENTS_PER_M_116 = 100;
 
-function oldShown_116_117(cents: unknown, what: string): number {
+function oldShown_120_121(cents: unknown, what: string): number {
   if (typeof cents !== 'number' || !Number.isFinite(cents)) throw new Error(`Saved ${what} is ${String(cents)}, not a number`);
   const whole = Math.round(cents);
   if (whole === 0) return 0;
   return Math.sign(whole) * Math.ceil(Math.abs(whole) / OLD_CENTS_PER_M_116);
 }
 
-function rate_116_117(cents: unknown, what: string): number {
+function rate_120_121(cents: unknown, what: string): number {
   if (typeof cents !== 'number' || !Number.isFinite(cents)) throw new Error(`Saved ${what} is ${String(cents)}, not a number`);
   return cents / OLD_CENTS_PER_M_116;
 }
 
-function amountsOf_116_117(record: SavedJson, keys: string[], what: string): SavedJson {
+function amountsOf_120_121(record: SavedJson, keys: string[], what: string): SavedJson {
   const next: SavedJson = { ...record };
-  for (const key of keys) if (key in record) next[key] = oldShown_116_117(record[key], `${what} ${key}`);
+  for (const key of keys) if (key in record) next[key] = oldShown_120_121(record[key], `${what} ${key}`);
   return next;
 }
 
-function ratesOf_116_117(record: SavedJson, what: string): SavedJson {
-  return Object.fromEntries(Object.entries(record).map(([k, v]) => [k, rate_116_117(v, `${what} ${k}`)]));
+function ratesOf_120_121(record: SavedJson, what: string): SavedJson {
+  return Object.fromEntries(Object.entries(record).map(([k, v]) => [k, rate_120_121(v, `${what} ${k}`)]));
 }
 
-function contract_116_117(c: SavedJson): SavedJson {
-  return amountsOf_116_117(c, ['reward', 'cratePay'], `contract ${String(c.id)}`);
+function contract_120_121(c: SavedJson): SavedJson {
+  return amountsOf_120_121(c, ['reward', 'cratePay'], `contract ${String(c.id)}`);
 }
 
-function pastContract_116_117(past: SavedJson): SavedJson {
-  return { ...amountsOf_116_117(past, ['amount'], 'past contract'), contract: contract_116_117(past.contract as SavedJson) };
+function pastContract_120_121(past: SavedJson): SavedJson {
+  return { ...amountsOf_120_121(past, ['amount'], 'past contract'), contract: contract_120_121(past.contract as SavedJson) };
 }
 
-function callVars_116_117(vars: SavedJson): SavedJson {
+function callVars_120_121(vars: SavedJson): SavedJson {
   const shown = (v: SavedJson): SavedJson => {
-    if (v.kind === 'money') return amountsOf_116_117(v, ['amount'], 'call money');
-    if (v.kind === 'deal') return amountsOf_116_117(v, ['price'], 'call deal');
-    if (v.kind === 'prices') return { ...v, goods: (v.goods as SavedJson[]).map((g) => amountsOf_116_117(g, ['buy', 'sell'], 'call price')) };
+    if (v.kind === 'money') return amountsOf_120_121(v, ['amount'], 'call money');
+    if (v.kind === 'deal') return amountsOf_120_121(v, ['price'], 'call deal');
+    if (v.kind === 'prices') return { ...v, goods: (v.goods as SavedJson[]).map((g) => amountsOf_120_121(g, ['buy', 'sell'], 'call price')) };
     return v;
   };
   return Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, shown(v as SavedJson)]));
 }
 
-function call_116_117(call: SavedJson): SavedJson {
+function call_120_121(call: SavedJson): SavedJson {
   const line = call.line as SavedJson;
-  return { ...call, vars: callVars_116_117(call.vars as SavedJson), line: { ...line, vars: callVars_116_117(line.vars as SavedJson) } };
+  return { ...call, vars: callVars_120_121(call.vars as SavedJson), line: { ...line, vars: callVars_120_121(line.vars as SavedJson) } };
 }
 
-const STATE_AMOUNTS_116_117: Record<string, string[]> = {
+const STATE_AMOUNTS_120_121: Record<string, string[]> = {
   tow: ['fee', 'waived'],
   towPromise: ['fee'],
   escort: ['fee'],
@@ -687,69 +705,69 @@ const STATE_AMOUNTS_116_117: Record<string, string[]> = {
   bountyStop: ['owed'],
 };
 
-function state_116_117(state: SavedJson): SavedJson {
+function state_120_121(state: SavedJson): SavedJson {
   const data = state.data as SavedJson;
-  const keys = STATE_AMOUNTS_116_117[data.kind as string];
+  const keys = STATE_AMOUNTS_120_121[data.kind as string];
   if (!keys) return state;
-  return { ...state, data: amountsOf_116_117(data, keys, `${String(data.kind)} state ${String(state.id)}`) };
+  return { ...state, data: amountsOf_120_121(data, keys, `${String(data.kind)} state ${String(state.id)}`) };
 }
 
-function brain_116_117(brain: SavedJson): SavedJson {
+function brain_120_121(brain: SavedJson): SavedJson {
   const memories = (brain.memories as SavedJson[] | undefined)?.map((m) => {
     const fact = m.fact as SavedJson;
-    return fact.kind === 'witnessed' ? { ...m, fact: amountsOf_116_117(fact, ['restitution'], 'witnessed memory') } : m;
+    return fact.kind === 'witnessed' ? { ...m, fact: amountsOf_120_121(fact, ['restitution'], 'witnessed memory') } : m;
   });
   return memories ? { ...brain, memories } : brain;
 }
 
-function vehicle_116_117(v: SavedJson): SavedJson {
+function vehicle_120_121(v: SavedJson): SavedJson {
   const resources = v.resources as SavedJson | null | undefined;
   const brain = v.brain as SavedJson | null | undefined;
   return {
     ...v,
-    ...(resources ? { resources: amountsOf_116_117(resources, ['money'], `vehicle ${String(v.id)}`) } : {}),
-    ...(brain ? { brain: brain_116_117(brain) } : {}),
+    ...(resources ? { resources: amountsOf_120_121(resources, ['money'], `vehicle ${String(v.id)}`) } : {}),
+    ...(brain ? { brain: brain_120_121(brain) } : {}),
   };
 }
 
-function story_116_117(encounters: SavedJson | undefined): SavedJson | undefined {
+function story_120_121(encounters: SavedJson | undefined): SavedJson | undefined {
   const story = encounters?.story as SavedJson | null | undefined;
   if (!encounters || !story || !('aidValue' in story)) return encounters;
-  return { ...encounters, story: { ...story, aidValue: rate_116_117(story.aidValue, 'courier aid value') } };
+  return { ...encounters, story: { ...story, aidValue: rate_120_121(story.aidValue, 'courier aid value') } };
 }
 
-function highway_116_117(run: SavedJson | null | undefined): SavedJson | null | undefined {
+function highway_120_121(run: SavedJson | null | undefined): SavedJson | null | undefined {
   if (!run) return run;
   return {
-    ...amountsOf_116_117(run, ['earned'], 'Chaos Highway'),
-    groups: (run.groups as SavedJson[]).map((g) => ({ ...g, money: rate_116_117(g.money, 'wave group money') })),
+    ...amountsOf_120_121(run, ['earned'], 'Chaos Highway'),
+    groups: (run.groups as SavedJson[]).map((g) => ({ ...g, money: rate_120_121(g.money, 'wave group money') })),
   };
 }
 
-export function withWholeMoney_116_117(world: SavedJson): SavedJson {
+export function withWholeMoney_120_121(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   const call = player.call as SavedJson | null;
-  const encounters = story_116_117(player.encounters as SavedJson | undefined);
+  const encounters = story_120_121(player.encounters as SavedJson | undefined);
   return {
     ...world,
     player: {
-      ...amountsOf_116_117(player, ['money'], 'player'),
-      costBasis: ratesOf_116_117(player.costBasis as SavedJson, 'cost basis'),
-      contracts: (player.contracts as SavedJson[]).map(contract_116_117),
-      pastContracts: ((player.pastContracts as SavedJson[] | undefined) ?? []).map(pastContract_116_117),
-      call: call ? call_116_117(call) : null,
+      ...amountsOf_120_121(player, ['money'], 'player'),
+      costBasis: ratesOf_120_121(player.costBasis as SavedJson, 'cost basis'),
+      contracts: (player.contracts as SavedJson[]).map(contract_120_121),
+      pastContracts: ((player.pastContracts as SavedJson[] | undefined) ?? []).map(pastContract_120_121),
+      call: call ? call_120_121(call) : null,
       ...(encounters ? { encounters } : {}),
     },
     shops: Object.fromEntries(
-      Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).map(contract_116_117) }]),
+      Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).map(contract_120_121) }]),
     ),
-    vehicles: (world.vehicles as SavedJson[]).map(vehicle_116_117),
+    vehicles: (world.vehicles as SavedJson[]).map(vehicle_120_121),
     salvage: (world.salvage as SavedJson[]).map((stock) => {
       const pile = stock.pile as SavedJson | undefined;
-      return pile ? { ...stock, pile: { ...pile, basis: ratesOf_116_117(pile.basis as SavedJson, `pile ${String(stock.id)} basis`) } } : stock;
+      return pile ? { ...stock, pile: { ...pile, basis: ratesOf_120_121(pile.basis as SavedJson, `pile ${String(stock.id)} basis`) } } : stock;
     }),
-    states: (world.states as SavedJson[]).map(state_116_117),
-    crimes: ((world.crimes as SavedJson[] | undefined) ?? []).map((c) => amountsOf_116_117(c, ['owed', 'restitution', 'escrow'], `case ${String(c.id)}`)),
-    chaosHighway: highway_116_117(world.chaosHighway as SavedJson | null | undefined) ?? null,
+    states: (world.states as SavedJson[]).map(state_120_121),
+    crimes: ((world.crimes as SavedJson[] | undefined) ?? []).map((c) => amountsOf_120_121(c, ['owed', 'restitution', 'escrow'], `case ${String(c.id)}`)),
+    chaosHighway: highway_120_121(world.chaosHighway as SavedJson | null | undefined) ?? null,
   };
 }

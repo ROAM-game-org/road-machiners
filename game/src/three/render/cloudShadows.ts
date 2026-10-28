@@ -13,6 +13,13 @@ export function coverTarget(overcast: boolean): number {
   return overcast ? CLOUDS.overcast : CLOUDS.clear;
 }
 
+export function depthFor(weather: number): number {
+  const share = (weather - CLOUDS.clear) / (CLOUDS.overcast - CLOUDS.clear);
+  if (!(share >= -1e-6 && share <= 1 + 1e-6)) throw new Error(`Cloud weather must lie between ${CLOUDS.clear} and ${CLOUDS.overcast}, got ${weather}`);
+  const clamped = Math.min(1, Math.max(0, share));
+  return CLOUDS.depth.clear + (CLOUDS.depth.overcast - CLOUDS.depth.clear) * clamped;
+}
+
 export function easeCover(shown: number, target: number, playFrameMs: number): number {
   if (!(playFrameMs >= 0)) throw new Error(`Play frame must be a non-negative time, got ${playFrameMs}`);
   const pace = 1 - Math.exp((-playFrameMs * SETTLE_SHARE) / (CLOUDS.easeTurns * TURN_MS));
@@ -59,7 +66,7 @@ float cloudValue(vec2 p, float period) {
 float cloudDim() {
   if (cloudParams.x <= 0.0) return 1.0;
   vec2 p = vCloudXZ * cloudParams.z + cloudShift;
-  float n = cloudValue(p, cloudPeriod) * 0.6 + cloudValue(p * 2.0, cloudPeriod * 2.0) * 0.3 + cloudValue(p * 4.0, cloudPeriod * 4.0) * 0.1;
+  float n = cloudValue(p, cloudPeriod) * 0.75 + cloudValue(p * 2.0, cloudPeriod * 2.0) * 0.25;
   float edge = 0.5 + (0.5 - cloudParams.x) * 0.3;
   float mask = smoothstep(edge - cloudParams.w, edge + cloudParams.w, n);
   return 1.0 - cloudParams.y * mask;
@@ -70,7 +77,7 @@ reflectedLight.directDiffuse *= cloudDim();`;
 
 export class CloudShadows {
   private readonly uniforms = {
-    cloudParams: { value: new THREE.Vector4(0, CLOUDS.depth, 1 / (CLOUDS.scale * PHYSICS.metersPerTile), CLOUDS.soft) },
+    cloudParams: { value: new THREE.Vector4(0, CLOUDS.depth.clear, 1 / (CLOUDS.scale * PHYSICS.metersPerTile), CLOUDS.soft) },
     cloudShift: { value: new THREE.Vector2() },
   };
   private readonly shaded = new WeakSet<THREE.Material>();
@@ -104,9 +111,14 @@ export class CloudShadows {
     const target = coverTarget(isOvercast(world));
     this.weather = this.weather === null ? target : easeCover(this.weather, target, playFrameMs);
     const params = this.uniforms.cloudParams.value;
+    params.y = depthFor(this.weather);
     params.x = this.weather * dayFactor(sunAt(lightTurn)?.elevation ?? null);
     const drift = driftAt(lightTurn);
     this.uniforms.cloudShift.value.set(drift.x, drift.y);
+  }
+
+  depth(): number {
+    return this.uniforms.cloudParams.value.y;
   }
 
   cover(): number {

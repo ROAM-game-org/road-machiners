@@ -53,6 +53,7 @@ async function openTown(page, tab) {
     g.apply(c.teleport(g.state, c.placeSpot(g.state, 'bowl')));
     g.screens.town.open();
   });
+  await frames(page);
   await page.evaluate((tab) => {
     const go = (id) => document.querySelector(`.town-page [data-town-go="${id}"]`)?.click();
     go('back');
@@ -62,7 +63,14 @@ async function openTown(page, tab) {
   }, tab);
 }
 
-const closeTown = (page) => page.evaluate(() => window.__ROAM__.screens.town.close());
+const closeTown = (page) => page.evaluate(() => {
+  const g = window.__ROAM__;
+  g.screens.town.close();
+  const world = structuredClone(g.state);
+  world.player.quests.session = null;
+  world.player.quests.live = null;
+  g.apply(world);
+});
 
 async function openShortMarket(page) {
   await page.evaluate(async () => {
@@ -101,11 +109,14 @@ async function openCall(page, node) {
     const next = structuredClone(w);
     const way = node === 'directions' ? await longestDirections(w) : null;
     const deal = { deal: { kind: 'deal', deal: 'ownParts', patcher: 'player', price: 13, parts: 3, turns: 4 } };
+    const hub = { with: npc.id, topic: null, node: 'hub', vars: {}, group: null, asked: [], line: { line: 'whatDoYouWant', vars: {} } };
     next.player.call = node === 'hub'
-      ? { with: npc.id, topic: null, node: 'hub', vars: {}, line: { line: 'whatDoYouWant', vars: {} } }
+      ? hub
+      : node === 'group'
+      ? { ...hub, group: 'helpTrade', asked: ['tradeTalk'] }
       : node === 'directions'
-      ? { with: npc.id, topic: 'directions', node: 'answer', vars: way.vars, line: { line: way.line, vars: way.vars } }
-      : { with: npc.id, topic: 'patchRequest', node: 'terms', vars: deal, line: { line: 'dealTerms', vars: deal } };
+      ? { with: npc.id, topic: 'directions', node: 'answer', vars: way.vars, group: null, asked: [], line: { line: way.line, vars: way.vars } }
+      : { with: npc.id, topic: 'patchRequest', node: 'terms', vars: deal, group: null, asked: [], line: { line: 'dealTerms', vars: deal } };
     g.apply(next);
     async function longestDirections(world) {
       const { directionsTo } = await import('/src/sim/directions.ts');
@@ -311,26 +322,28 @@ const closeSurveyJournal = async (page) => {
 const STATES = {
   menu: { setup: () => undefined, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   log: { setup: fillLog },
-  inventory: { setup: openInventory, teardown: escape },
-  'quest-page': { setup: openQuestPage, teardown: closeQuestPage },
+  inventory: { setup: openInventory, teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
+  'quest-page': { setup: openQuestPage, teardown: closeQuestPage, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'quest-inventory': { setup: openQuestInventory, teardown: async (page) => { await escape(page); await closeQuestPage(page); } },
-  shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown },
-  trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown },
+  shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
+  trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
+  'full-shop': { setup: (page) => page.evaluate(() => window.__ROAM__.openFullShop()), teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'trade-shortage': { setup: openShortMarket, teardown: closeTown },
   charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown },
   'journal-survey': { setup: openSurveyJournal, teardown: closeSurveyJournal, viewports: [...VIEWPORTS, PHONE] },
   'world-map': { setup: (page) => key(page, 'KeyM'), teardown: escape },
   minimap: { setup: (page) => setMinimap(page, true), teardown: (page) => setMinimap(page, false) },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown },
-  'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown },
+  'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'town-board': { setup: (page) => openTown(page, 'contracts'), teardown: closeTown },
   'town-people': { setup: (page) => openTown(page, 'people'), teardown: closeTown },
   paint: { setup: (page) => openTown(page, 'paint'), teardown: closeTown },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
+  'call-group': { setup: (page) => openCall(page, 'group'), teardown: hangUp },
   'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp },
   'call-deal': { setup: (page) => openCall(page, 'deal'), teardown: hangUp },
   help: { setup: openHelp, teardown: closeHelp },
-  character: { setup: (page) => key(page, 'KeyC'), teardown: escape },
+  character: { setup: (page) => key(page, 'KeyC'), teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   saves: { setup: openSaves, teardown: escape },
   options: { setup: openOptions, teardown: escape },
   'start-menu': { setup: openStartMenu, teardown: closeStartMenu },

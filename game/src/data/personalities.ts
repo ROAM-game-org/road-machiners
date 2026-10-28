@@ -128,3 +128,29 @@ export const MARSHAL_TOPICS: Record<MarshalTopicId, Topic> = {
     },
   },
 };
+
+export const TREE_LINES = ['backToTopics', 'aboutRoadNews', 'aboutTheRoad', 'aboutTheNews', 'aboutHelpTrade', 'aboutTrade', 'aboutAskingHelp', 'aboutOfferingHelp', 'aboutEscortTow', 'aboutDemands', 'aboutPeace'] as const;
+
+export const BACK_LINE: LineId = 'backToTopics';
+
+export type GroupId = 'roadNews' | 'theRoad' | 'news' | 'helpTrade' | 'tradeTalk' | 'askForHelp' | 'offerHelp' | 'escortTow' | 'threats' | 'makePeace';
+export type TopicChild = TopicId | GroupId;
+export type TopicGroup = { say: LineId; children: readonly TopicChild[] };
+
+export const TOPIC_ROOT: readonly TopicChild[] = ['roadNews', 'helpTrade', 'threats', 'makePeace'];
+export const TOPIC_GROUPS: Record<GroupId, TopicGroup> = {
+  roadNews: { say: 'aboutRoadNews', children: ['theRoad', 'news', 'claimWreck'] },
+  theRoad: { say: 'aboutTheRoad', children: ['directions', 'lastSeen', 'roadLesson', 'tips'] },
+  news: { say: 'aboutTheNews', children: ['marketNews', 'rumor', 'sunwardTalk', 'armyWagon'] },
+  helpTrade: { say: 'aboutHelpTrade', children: ['tradeTalk', 'askForHelp', 'offerHelp', 'escortTow'] },
+  tradeTalk: { say: 'aboutTrade', children: ['trade', 'parcel', 'hireGuard', 'dismissGuard'] },
+  askForHelp: { say: 'aboutAskingHelp', children: ['askTow', 'askAid', 'patch', 'askHelp'] },
+  offerHelp: { say: 'aboutOfferingHelp', children: ['offerTow', 'offerPatch', 'offerPatchWorn', 'offerAid'] },
+  escortTow: { say: 'aboutEscortTow', children: ['escortHold', 'escortGo', 'releaseTow'] },
+  threats: { say: 'aboutDemands', children: ['rob', 'robCut', 'warnOff', 'yieldDemand'] },
+  makePeace: { say: 'aboutPeace', children: ['truce', 'mercy', 'buyTruce', 'payBounty'] },
+};
+
+export function isGroup(child: TopicChild): child is GroupId {
+  return Object.hasOwn(TOPIC_GROUPS, child);
+}
