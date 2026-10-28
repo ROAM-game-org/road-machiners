@@ -56,8 +56,8 @@ type Ground = Draws & {
 };
 
 function fill(d: MapDraft, t: TerritoryDef, rules: TerritoryRules, rng: Rng): void {
-  if (rules.wreck?.gradeRoads) gradeTerritoryRoads(d, t, territoryRoads(t).roads, []);
   const pieces = rules.wreck ? placePieces(d, t, rules.wreck) : [];
+  if (rules.wreck?.gradeRoads) gradeTerritoryRoads(d, t, territoryRoads(t).roads, []);
   if (rules.reactor) d.props.push(prop(rules.reactor.look, reactorPos(t), rules.reactor.radius, 0));
   if (rules.wreck) fillWreck({ d, t, rules, rng }, rules, rules.wreck, pieces);
   if (rules.farm) fillFarmBand({ d, t, rules, rng }, rules, rules.farm);
