@@ -198,6 +198,11 @@ A chassis with a `coupling` is a rig: a driven front unit and a towed rear unit 
 - `orderThrottle()` gives the band an order shows for the hover ring and the first turn's color. The pace lives only on the order, so it ends with it, and `setDirect(true)` drops it.
 - `orderSpeed()` in `src/sim/steering.ts` is the one rule for a move order's target speed, in physics, in far travel and in the fuel check. A paced order, through or stop, holds its pace within a turn's accel and brake, and a stop point still slows onto the point. The escort bot's orders carry no pace.
 - `src/three/render/path.ts` draws the order point with an icon for its kind, also while turns play.
+- `TruckControls.order()` gives every player move order through `playerOrder()` in `src/sim/steering.ts`, which wraps `clickOrder()`.
+- In route mode a click inside the zones' fan (`zoneAt()`, `zoneHalfAngle()`) puts the band's pace on the order and keeps a point beyond the zones' reach. `zonePace()` gives the pace: crawl, the speed now, or none. Any other click keeps the current order's pace.
+- `orderThrottle()` gives the band an order shows for the hover ring and the first turn's color.
+- The pace lives only on the order, so it ends with it, and `setDirect(true)` drops it.
+- `orderSpeed()` in `src/sim/steering.ts` is the one rule for a move order's target speed, in physics, in far travel and in the fuel check. A paced order, through or stop, holds its pace within a turn's accel and brake, and a stop point still slows onto the point. The escort bot's orders carry no pace.
 - Space starts automatic travel outside combat.
 - While turns run on their own, the turn button reads Auto. A tap of Space or a click stops them. A hold fast-forwards them.
 - Travel pauses on Space, danger, arrival, panels and focus loss. A truck that shows in far sight does not stop the run.

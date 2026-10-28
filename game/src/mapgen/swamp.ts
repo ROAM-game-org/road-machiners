@@ -5,13 +5,14 @@ import { macroHeight } from '../sim/relief-solve';
 import { chance, randRange, type Rng } from '../sim/rng';
 import type { BakedProp } from '../sim/terrain';
 import { zoneWeight } from '../sim/zones';
-import { polylineDist, type Vec } from '../sim/vec';
+import { clamp, polylineDist, type Vec } from '../sim/vec';
 import type { MapDraft } from './bake';
 import { BUILT_BLACK_MUD, BUILT_DIRTY_WATER, BUILT_SCRUB } from './newworld';
 import { place, prop, ruleRng, tileOf } from './oldworld';
 
 const WET_WEIGHT = 0.05;
 const BOX_STEP = 8;
+const SHORE_SEED = 2;
 
 type Box = { x0: number; x1: number; y0: number; y1: number };
 
@@ -26,14 +27,17 @@ export function swampLayer(seed: number, d: MapDraft): MapDraft {
   return d;
 }
 
-function wetness(x: number, y: number): number {
-  return flattenFactor(x, y) > 0 ? 0 : zoneWeight('swamp', x, y);
+function wetness(seed: number, x: number, y: number): number {
+  const open = 1 - flattenFactor(x, y);
+  const { warp, cell } = SWAMP.shore;
+  const share = clamp(open * (1 + warp) - warp * noise2(x / cell, y / cell, seed + SWAMP.seedOffset + SHORE_SEED), 0, 1);
+  return share === 0 ? 0 : zoneWeight('swamp', x, y) * share;
 }
 
 function carveSloughs(seed: number, d: MapDraft, box: Box): void {
   const n = d.size + 1;
   for (let y = box.y0; y <= box.y1; y++) for (let x = box.x0; x <= box.x1; x++) {
-    const w = wetness(x, y);
+    const w = wetness(seed, x, y);
     if (w > WET_WEIGHT) d.heights[y * n + x] -= SWAMP.slough.depth * w * sloughShare(seed, x, y);
   }
 }
@@ -60,7 +64,7 @@ function carveChannel(d: MapDraft): void {
 }
 
 function markTile(seed: number, d: MapDraft, tile: number, c: Vec): void {
-  const w = wetness(c.x, c.y);
+  const w = wetness(seed, c.x, c.y);
   if (w <= WET_WEIGHT || d.built[tile] !== 0) return;
   const depth = tableAt(seed, c, w) - tileHeight(d, tile);
   const mark = swampGround(depth, noise2(c.x / SWAMP.scrubGrain, c.y / SWAMP.scrubGrain, seed + SWAMP.seedOffset + 1));
@@ -88,7 +92,7 @@ function scatterOnMud(d: MapDraft, rng: Rng, box: Box, tries: number, make: (pos
   for (let t = 0; t < tries; t++) {
     const pos = { x: randRange(rng, box.x0, box.x1), y: randRange(rng, box.y0, box.y1) };
     const mark = d.built[tileOf(d.size, pos)];
-    if ((mark === BUILT_BLACK_MUD || mark === BUILT_SCRUB) && chance(rng, wetness(pos.x, pos.y))) place(d, make(pos), 1);
+    if ((mark === BUILT_BLACK_MUD || mark === BUILT_SCRUB) && chance(rng, zoneWeight('swamp', pos.x, pos.y))) place(d, make(pos), 1);
   }
 }
 

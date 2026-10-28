@@ -17,6 +17,7 @@ import {
   type TankRules,
 } from '../data/terrain';
 import { deckAt, ICARUS_DECKS } from '../sim/bridge';
+import { flattenFalloff } from '../sim/elevation';
 import { clearOfSites, onDeck } from '../sim/mapgen';
 import { icarusAtlas } from '../sim/atlas';
 import { ROAD_INDEX } from '../sim/road-index';
@@ -83,6 +84,7 @@ export class RoadLine {
 const HALF = REGION.roadWidth / 2;
 const O = REGION.obstacles;
 const SITES = [...REGION.towns, ...REGION.locations];
+const PLATES = [...REGION.towns, ...REGION.locations.filter((l) => !isTerritory(l))];
 const CANYON = TERRAIN.features.canyon;
 const TURN = Math.PI * 2;
 const SPURS = REGION.locations.filter(isTerritory).flatMap((t) => territoryRoads(t).spurs);
@@ -131,10 +133,18 @@ export function builtGround(c: Vec): boolean {
 }
 
 export function isCutTile(d: MapDraft, tile: number): boolean {
+  return washTile(d, tile) || polylineDist(tileCenter(d.size, tile), CANYON.path) <= CANYON.width;
+}
+
+export function washTile(d: Pick<MapDraft, 'size' | 'flow'>, tile: number): boolean {
   const w = d.size + 1;
   const k = Math.floor(tile / d.size) * w + (tile % d.size);
-  if (Math.max(d.flow[k], d.flow[k + 1], d.flow[k + w], d.flow[k + w + 1]) >= GEOLOGY.ground.washFlow) return true;
-  return polylineDist(tileCenter(d.size, tile), CANYON.path) <= CANYON.width;
+  const flow = Math.max(d.flow[k], d.flow[k + 1], d.flow[k + w], d.flow[k + w + 1]);
+  return flow >= GEOLOGY.ground.washFlow && flow * (1 - plateShare(tileCenter(d.size, tile))) >= GEOLOGY.ground.washFlow;
+}
+
+function plateShare(c: Vec): number {
+  return flattenFalloff(Math.min(...PLATES.map((s) => siteGap(s, c))));
 }
 
 export function tileOf(size: number, p: Vec): number {
@@ -558,7 +568,7 @@ class RouteGrid {
   }
 }
 
-class NodeHeap {
+export class NodeHeap {
   private readonly nodes: number[] = [];
   private readonly keys: number[] = [];
 

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { CLIP_TOLERANCE, highestUnder, MAX_SLOPE, MIN_SUPPORT, surfaceSamples, unitBody, type CellRect } from '../../sim/body';
 import { GLASS, LAMP, model, RADIO, socket, type ModelName } from './models';
-import { bodyRays, type BodyHit, type BodyRays } from './bodyRays';
+import { bodyRays, type BodyRays } from './bodyRays';
 
 export type PlateSpot = { dx: number; dz: number; shrink: number };
 
@@ -15,7 +15,7 @@ const IDENTITY = new THREE.Matrix4();
 const FOOTING_GRID = CLIP_TOLERANCE / 2;
 const FACE_COLUMN = 0.1;
 const GLASS_SKIN = 2 * CLIP_TOLERANCE;
-const PAST_FACE = CLIP_TOLERANCE / 1000;
+const THROUGH_STEP = CLIP_TOLERANCE / 100;
 
 export function postBottom(foot: number, top: number): number {
   return foot !== -Infinity && top - foot > CLIP_TOLERANCE ? foot : top;
@@ -506,13 +506,12 @@ function braceFoot(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Ve
 }
 
 function braceHit(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 | undefined {
-  const inward = inwardOf(corner, center);
-  return nearestWall(body, corner, [inward], 0) ?? nearestWall(body, corner, BRACE_SIDES, 0);
+  return nearestWall(body, corner, [inwardOf(corner, center)], 0) ?? nearestWall(body, corner, BRACE_SIDES, 0);
 }
 
 function braceBehindGlass(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 | undefined {
   const inward = inwardOf(corner, center);
-  return nearestWall(body, corner, [inward], GLASS_SKIN) ?? nearestWall(body, corner, [inward.negate()], GLASS_SKIN);
+  return nearestWall(body, corner, [inward], GLASS_SKIN) ?? nearestWall(body, corner, [inward.clone().negate()], GLASS_SKIN);
 }
 
 function inwardOf(corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 {
@@ -605,17 +604,17 @@ export function rearHang(body: THREE.Object3D, z: number): THREE.Vector3 {
 }
 
 function wallHit(body: THREE.Object3D, from: THREE.Vector3, dir: THREE.Vector3, skin: number): THREE.Vector3 | null {
-  const rays = wallsOf(body);
-  const first = rays(from.clone().addScaledVector(dir, -CLIP_TOLERANCE), dir);
-  if (!first?.seeThrough) return first?.point ?? null;
-  return solidBehind(rays, first, dir, skin);
-}
-
-function solidBehind(rays: BodyRays, glass: BodyHit, dir: THREE.Vector3, skin: number): THREE.Vector3 | null {
-  const within = (hit: BodyHit | null): hit is BodyHit => hit !== null && hit.point.distanceTo(glass.point) <= skin;
-  let hit: BodyHit | null = glass;
-  while (within(hit) && hit.seeThrough) hit = rays(hit.point.clone().addScaledVector(dir, PAST_FACE), dir);
-  return within(hit) ? hit.point : null;
+  const start = from.clone().addScaledVector(dir, -CLIP_TOLERANCE);
+  const walls = wallsOf(body);
+  const first = walls(start, dir);
+  if (!first) return null;
+  let hit = first;
+  while (hit.seeThrough) {
+    const next = walls(hit.point.clone().addScaledVector(dir, THROUGH_STEP), dir);
+    if (!next || next.point.distanceTo(first.point) > skin) return null;
+    hit = next;
+  }
+  return hit.point;
 }
 
 function seeThrough(obj: THREE.Object3D): boolean {

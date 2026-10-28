@@ -1164,10 +1164,7 @@ export class Game {
       const seen = landed ? this.isVehicleVisible(v) : this.canShowCombatVehicle(v);
       if (seen) this.lastSeen.set(v.id, this.world.turn);
       const look = this.lookOf(v, f, seen);
-      if (!look) {
-        hidden.push(v);
-        continue;
-      }
+      if (!look) { hidden.push(v); continue; }
       const before = !landed && this.anim!.before.vehicles.find((x) => x.id === v.id);
       const display = before ? { ...v, items: shownItems(before.items, v.items, this.breakCues.shown(v.id)) } : v;
       const view = this.trucks.viewOf(v.id, display, seen, this.world.player.paint);

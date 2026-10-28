@@ -15,18 +15,18 @@ import { paintDisc, paintMap } from './map-preview.mjs';
 import { encodePng } from './png.mjs';
 
 const FILES = { oldSpots: 'src/data/old-spots.json', surveySites: 'src/data/survey-sites.json', claimClues: 'src/data/claim-clues.json', huntingSpots: 'src/data/hunting-spots.json' };
-const HUNTING_PICTURE = 'tmp/map/hunting-spots.png';
 const DRAFT_FILE = MAP_DRAFT === null ? null : `src/data/drafts/${draftName(MAP_DRAFT)}.json`;
 
-function write(kind, value) {
+function write(kind, value, indent = 1) {
   if (DRAFT_FILE === null) {
-    writeFileSync(FILES[kind], `${JSON.stringify(value, null, 1)}\n`);
+    writeFileSync(FILES[kind], `${JSON.stringify(value, null, indent)}\n`);
     return;
   }
   const draft = JSON.parse(readFileSync(DRAFT_FILE, 'utf8'));
   writeFileSync(DRAFT_FILE, `${JSON.stringify({ ...draft, [kind]: value }, null, 1)}\n`);
 }
 
+const HUNTING_PICTURE = 'tmp/map/hunting-spots.png';
 const start = performance.now();
 const picks = makeOldSpotPicks(TEST_MAP);
 write('oldSpots', { mapHash: TEST_MAP.hash, picks });
@@ -41,9 +41,9 @@ const world = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming')
 const clues = bakeClaimClues(world);
 write('claimClues', clues);
 const hunting = makeHuntingSpots(world, preyTraffic(world, (line) => console.log(line)));
-write('huntingSpots', { mapHash: TEST_MAP.hash, ...hunting });
+write('huntingSpots', { mapHash: TEST_MAP.hash, ...hunting }, 0);
 drawHuntingSpots(hunting.spots);
-console.log(`Wrote claim clues for ${Object.keys(clues.wrecks).length} claim wrecks.`);
+console.log(`Wrote claim clues for ${Object.keys(clues.wrecks).length} claim wrecks. Run this twice when the picks or clues changed.`);
 console.log(`Wrote ${picks.length} old spots, ${sites.length} survey sites and ${hunting.spots.length} hunting spots of map ${TEST_MAP.hash}, ${Math.round(performance.now() - start)} ms`);
 
 function drawHuntingSpots(spots) {

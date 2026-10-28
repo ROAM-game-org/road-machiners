@@ -43,6 +43,8 @@ function segmentGap(p: Vec, a: Vec, b: Vec): number {
   return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
 }
 
+const seen = { stalls: 0, broken: new Set<string>() };
+
 function quietWorld(seed: number): World {
   const w = standardWorld(seed);
   const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
@@ -58,8 +60,6 @@ function runTo(w: World, turn: number): World {
   while (world.turn < turn) world = endTurn(world, testDrive);
   return world;
 }
-
-const seen = { stalls: 0, broken: new Set<string>() };
 
 function runFarTo(w: World, turn: number, onTurn: (w: World) => void): World {
   let world = w;

@@ -1015,6 +1015,8 @@ export const RELIEF_SOLVE = {
   roadBed: { width: 70, mountainWidth: 18, passes: 3 },
 };
 
+export const TRAILS = { seedOffset: 9400, spacing: 70, jitter: 0.4, valleyReach: 15, minZone: 0.6, links: 2, maxLink: 150, roadLink: 120, cell: 4, slopeCost: 8, smooth: 7, climb: 0.6, width: 4, wall: 2, wallReach: 4 };
+
 export const EXITS = { closeRadius: 12, depth: 0.5, reach: 150, spacing: 40, mountainSpacing: 120, carveShare: 0.75, grade: 0.75, climb: 0.6, width: 4, wall: 2, minFloor: 9, tries: 40, propCut: 0.25, blockRadius: 2, fillMax: 1000, rimReach: 8, fillRounds: 3, passes: 3, clearKinds: ['rock', 'crag', 'deadTree', 'fence', 'junk', 'drums', 'barrel'] as readonly string[] };
 
 export const DESERT = {
@@ -1061,6 +1063,7 @@ export const SWAMP = {
   scrubShare: 0.55,
   scrubGrain: 7,
   slough: { width: 9, length: 80, depth: 0.55, from: 0.58 },
+  shore: { warp: 1.5, cell: 8 },
   trees: { tries: 900, radius: [0.5, 0.8] as [number, number] },
   wrecks: { tries: 40, radius: 0.6 },
   channel: { path: layoutPoints([[9, 44], [10.5, 48], [8, 52], [7.5, 56], [9.5, 60], [6.5, 64], [5.5, 68], [8, 72], [7, 75]]), width: 2.5, depth: 0.5 },

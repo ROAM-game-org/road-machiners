@@ -435,7 +435,7 @@ export function settleMeetings(world: World): void {
   const live = world.vehicles.filter((v) => isNear(world, v) && followsTraffic(world, v));
   const byId = new Map(live.map((v) => [v.id, v]));
   for (const giver of live) endMeetings(world, giver, byId);
-  const index = new ObstacleBuckets(live.map((v) => ({ pos: v.pos, r: vehicleStats(world, v).radius })), world.terrain.size);
+  const index = new ObstacleBuckets(live.map((v) => ({ pos: v.pos, r: driveStats(world, v).radius })), world.terrain.size);
   const bySpot = new Map(live.map((v) => [v.pos, v]));
   const widest = Math.max(0, ...live.map((v) => ownReach(world, v)));
   for (const a of live) {

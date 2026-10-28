@@ -456,7 +456,8 @@ describe("weapon panel keys and the turn button", () => {
       travelSpeedIndex: vi.fn(() => 0),
       travelPlaySpeed: () => null,
       stepTravelSpeed: vi.fn(),
-      getTurnPhase: () => null, menuOpen: () => false,
+      getTurnPhase: () => null,
+      menuOpen: () => false,
     } satisfies UiHost;
     const panel = new WeaponPanel(host);
     panel.render();
@@ -744,7 +745,8 @@ describe("the utility row", () => {
       travelSpeedIndex: vi.fn(() => 0),
       travelPlaySpeed: () => null,
       stepTravelSpeed: vi.fn(),
-      getTurnPhase: vi.fn<() => "moving" | null>(() => null), menuOpen: () => false,
+      getTurnPhase: vi.fn<() => "moving" | null>(() => null),
+      menuOpen: () => false,
     } satisfies UiHost;
     return { world, host, row: new UtilityRow(host), sprout, mortar };
   }
