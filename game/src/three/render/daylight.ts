@@ -44,7 +44,7 @@ const KEYS: Key[] = [
     glassI: 0,
     glassWhite: 0,
     beamI: 0.3,
-    fillI: 2.5,
+    fillI: 1,
   },
   {
     h: 20,
@@ -56,7 +56,7 @@ const KEYS: Key[] = [
     glassI: 0,
     glassWhite: 0,
     beamI: 0.45,
-    fillI: 2.5,
+    fillI: 1,
   },
   {
     h: 8,
@@ -68,7 +68,7 @@ const KEYS: Key[] = [
     glassI: 0.1,
     glassWhite: 0,
     beamI: 0.75,
-    fillI: 3,
+    fillI: 1.2,
   },
   {
     h: 1,
@@ -80,7 +80,7 @@ const KEYS: Key[] = [
     glassI: 0.4,
     glassWhite: 0,
     beamI: 1,
-    fillI: 2.5,
+    fillI: 1,
   },
   {
     h: -4,
@@ -92,7 +92,7 @@ const KEYS: Key[] = [
     glassI: 0.35,
     glassWhite: 0.5,
     beamI: 1,
-    fillI: 0.6,
+    fillI: 0.72,
   },
   {
     h: -TWILIGHT,
@@ -104,7 +104,7 @@ const KEYS: Key[] = [
     glassI: 0.2,
     glassWhite: 0.8,
     beamI: 1,
-    fillI: 0.2,
+    fillI: 0.24,
   },
 ];
 
