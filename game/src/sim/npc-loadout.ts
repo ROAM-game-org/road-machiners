@@ -94,10 +94,14 @@ function validateSpareTable(spares: NpcLoadoutTable['spares']): void {
   }
 }
 
+function validateFloor(table: NpcLoadoutTable): void {
+  if (!(table.minSpeed >= MIN_NPC_SPEED)) throw new Error('NPC table floor must be at least MIN_NPC_SPEED');
+}
+
 function validateTable(table: NpcLoadoutTable, utilityPool: Weighted<string | null>[]): void {
   if (!table.armed && utilityPool.some(({ value }) => value !== null && isLineGun(partDef(value)))) throw new Error('NPC table with a line gun in its utility pool must be armed');
   for (const reserve of Object.values(table.haul)) if (!Number.isInteger(reserve) || reserve < 0) throw new Error('NPC haul reserves must be non-negative integers');
-  if (!(table.minSpeed >= MIN_NPC_SPEED)) throw new Error('NPC table floor must be at least MIN_NPC_SPEED');
+  validateFloor(table);
   validateWeights(table.chassis);
   for (const entry of table.chassis) chassisDef(entry.value);
   validateWeights(table.levels);
