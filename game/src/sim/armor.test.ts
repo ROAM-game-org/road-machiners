@@ -6,7 +6,7 @@ import { fireBlock, inArc, resolveDestroyed } from './combat';
 import { cellCenter } from './body';
 import { makePart } from './factory';
 import { advanceKnockout, checkKnockout } from './defeat';
-import { corePart, coreParts, facingOf, gridOf, itemCells, itemSize, mountedItems, mountedParts } from './grid';
+import { baseGrid, corePart, coreParts, facingOf, gridOf, itemCells, itemSize, mountedItems, mountedParts } from './grid';
 import { vehicleStats } from './stats';
 import { maxHp } from './wear';
 import { leakFuel } from './supplies';
@@ -581,5 +581,18 @@ describe('gun facing', () => {
     const behind = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], spot(v, -5, 0));
     expect(inArc(v, gun, flank)).toBe(false);
     expect(inArc(v, gun, behind)).toBe(true);
+  });
+});
+
+describe('lanePoint on the sides', () => {
+  it('puts a side lane level with the body row of the same index, and the end lanes at the faces', () => {
+    const { v } = plated();
+    v.heading = 0;
+    const last = baseGrid(v.chassisId).h - 1;
+    const along = (lane: number) => lanePoint(v, 'left', lane).x;
+    const row = (along(1) - along(2));
+    expect(row).toBeCloseTo(along(2) - along(3), 5);
+    expect(along(0) - along(1)).toBeCloseTo(row / 2, 5);
+    expect(along(last - 1) - along(last)).toBeCloseTo(row / 2, 5);
   });
 });
