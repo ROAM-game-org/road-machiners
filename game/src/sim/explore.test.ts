@@ -34,8 +34,7 @@ describe('explore places', () => {
     const start = places[0].pos;
     const npc = roamerAt(world, { x: start.x + EXPLORE.minHop * 2, y: start.y });
     for (let i = 0; i < 20; i++) {
-      const pick = explorePlace(world, npc);
-      if (!pick) continue;
+      const pick = explorePlace(world, npc)!;
       const hop = dist(npc.pos, pick.pos);
       expect(hop).toBeGreaterThanOrEqual(EXPLORE.minHop);
       expect(hop).toBeLessThanOrEqual(EXPLORE.range);
@@ -43,20 +42,14 @@ describe('explore places', () => {
   });
 
   it('prefer places farther from the road', () => {
-    const far = places.filter((p) => p.roadGap === EXPLORE.gapCap);
-    const near = places.filter((p) => p.roadGap === 0);
-    expect(far.length + near.length).toBeGreaterThan(0);
-    const sample = places.find((p) => p.roadGap > 0) ?? places[0];
-    const npc = roamerAt(world, { x: sample.pos.x, y: sample.pos.y + EXPLORE.minHop });
+    const inRangeOf = (pos: { x: number; y: number }) => places.filter((p) => dist(pos, p.pos) >= EXPLORE.minHop && dist(pos, p.pos) <= EXPLORE.range);
+    const start = places.map((p) => ({ x: p.pos.x, y: p.pos.y + EXPLORE.minHop })).find((pos) => new Set(inRangeOf(pos).map((p) => p.roadGap)).size > 1);
+    expect(start).toBeDefined();
+    const npc = roamerAt(world, start!);
     const gaps: number[] = [];
-    for (let i = 0; i < 200; i++) {
-      const pick = explorePlace(world, npc);
-      if (pick) gaps.push(pick.roadGap);
-    }
-    const inRange = places.filter((p) => dist(npc.pos, p.pos) >= EXPLORE.minHop && dist(npc.pos, p.pos) <= EXPLORE.range);
-    if (inRange.length === 0 || gaps.length === 0) return;
+    for (let i = 0; i < 200; i++) gaps.push(explorePlace(world, npc)!.roadGap);
     const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
-    expect(mean(gaps)).toBeGreaterThanOrEqual(mean(inRange.map((p) => p.roadGap)));
+    expect(mean(gaps)).toBeGreaterThan(mean(inRangeOf(start!).map((p) => p.roadGap)));
   });
 
   it('give nothing when no place lies in range', () => {
