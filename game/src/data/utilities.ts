@@ -1,6 +1,6 @@
 import type { ClaymoreDef, UtilityDef } from './parts';
 
-export const UNPRICED_UTILITIES: Record<string, Omit<UtilityDef, 'value'>> = {
+export const UNPRICED_UTILITIES: Record<string, Omit<UtilityDef, 'value' | 'bulk'>> = {
   sprout: {
     id: 'sprout',
     kind: 'utility',

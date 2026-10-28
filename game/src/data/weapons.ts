@@ -1,6 +1,6 @@
 import type { WeaponDef } from './parts';
 
-export const UNPRICED_WEAPONS: Record<string, Omit<WeaponDef, 'value'>> = {
+export const UNPRICED_WEAPONS: Record<string, Omit<WeaponDef, 'value' | 'bulk'>> = {
   mg: {
     id: "mg",
     kind: "weapon",

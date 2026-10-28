@@ -14,6 +14,8 @@ export type PartKind =
   | "store"
   | "utility";
 
+type PartBulk = { w: number; h: number };
+
 type PartBase = {
   id: string;
   hp: number;
@@ -22,6 +24,7 @@ type PartBase = {
   tier: Tier;
   w: number;
   h: number;
+  bulk: PartBulk;
   mass: number;
   armor: number;
   tall: boolean;
@@ -160,6 +163,7 @@ export type PartDef =
   | UtilityDef;
 
 export type Unpriced<T> = T extends unknown ? Omit<T, 'value'> : never;
+type Unbulked<T> = T extends unknown ? Omit<T, 'value' | 'bulk'> : never;
 
 export const PART_PRICE_MODIFIERS = {
   weapon: { perDamagePerTurn: 66.67, perRange: 66.67 },
@@ -197,7 +201,7 @@ const MODIFIERS: { [K in PartKind]: (def: UnpricedByKind[K]) => number } = {
 };
 
 function shieldModifier(d: Unpriced<ShieldDef>): number {
-  return m.armor.perArmorCell * (d.armor + d.blastArmor) * d.w * d.h;
+  return m.armor.perArmorCell * (d.armor + d.blastArmor) * d.bulk.w * d.bulk.h;
 }
 
 function effectTurns(e: UtilityEffect): number {
@@ -231,7 +235,84 @@ function pricePart(def: Unpriced<PartDef>): PartDef {
 
 const RAM_MOUNTS: EdgeLetter[] = ["F", "B"];
 
-const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
+const PART_BULK: Record<string, PartBulk> = {
+  mg: { w: 1, h: 2 },
+  shotgun: { w: 1, h: 2 },
+  longRifle: { w: 1, h: 2 },
+  flamer: { w: 1, h: 2 },
+  pneumobolter: { w: 2, h: 2 },
+  slugCannon: { w: 1, h: 2 },
+  heavyMg: { w: 1, h: 2 },
+  cannon: { w: 2, h: 2 },
+  amRifle: { w: 1, h: 3 },
+  autocannon: { w: 2, h: 2 },
+  recoilless: { w: 1, h: 3 },
+  battleRifle: { w: 1, h: 3 },
+  gatling: { w: 2, h: 2 },
+  rocketRack: { w: 2, h: 2 },
+  sniperCannon: { w: 2, h: 3 },
+  grenadeLauncher: { w: 2, h: 2 },
+  tankGun: { w: 2, h: 3 },
+  flechette: { w: 2, h: 2 },
+  harpoon: { w: 1, h: 2 },
+  sprout: { w: 1, h: 1 },
+  caltrops: { w: 1, h: 1 },
+  oilSpiller: { w: 1, h: 1 },
+  patcherCrane: { w: 1, h: 2 },
+  smokeMortar: { w: 1, h: 2 },
+  flareCannon: { w: 1, h: 1 },
+  scrapersKnife: { w: 1, h: 2 },
+  emitter: { w: 2, h: 2 },
+  stockEngine: { w: 2, h: 2 },
+  tunedEngine: { w: 2, h: 2 },
+  flatFour: { w: 2, h: 2 },
+  workhorseDiesel: { w: 2, h: 2 },
+  racingV6: { w: 2, h: 2 },
+  heavyDiesel: { w: 2, h: 2 },
+  turbine: { w: 2, h: 2 },
+  plates: { w: 1, h: 2 },
+  cage: { w: 1, h: 2 },
+  ram: { w: 3, h: 1 },
+  scrapPanels: { w: 1, h: 2 },
+  ceramicPlates: { w: 1, h: 2 },
+  spacedArmor: { w: 1, h: 2 },
+  reinforcedCage: { w: 1, h: 2 },
+  plowRam: { w: 3, h: 1 },
+  claymoreRam: { w: 3, h: 1 },
+  steelPlate: { w: 1, h: 1 },
+  scrapSheet: { w: 1, h: 1 },
+  ceramicTile: { w: 1, h: 1 },
+  spacedTile: { w: 1, h: 1 },
+  cageSection: { w: 1, h: 1 },
+  reinforcedSection: { w: 1, h: 1 },
+  spikeCluster: { w: 1, h: 1 },
+  spikeStrip: { w: 1, h: 2 },
+  rack: { w: 2, h: 1 },
+  trailerBox: { w: 2, h: 2 },
+  panniers: { w: 1, h: 1 },
+  flatbed: { w: 2, h: 1 },
+  lightFrame: { w: 2, h: 2 },
+  enclosedFrame: { w: 2, h: 2 },
+  heavyFrame: { w: 2, h: 2 },
+  jerrycans: { w: 1, h: 1 },
+  supplyLocker: { w: 1, h: 1 },
+  cab: { w: 1, h: 2 },
+  cabPickup: { w: 3, h: 2 },
+  cabHardtop: { w: 3, h: 2 },
+  transmission: { w: 2, h: 2 },
+  transmissionMid: { w: 2, h: 2 },
+  transmissionHeavy: { w: 2, h: 2 },
+  wheel: { w: 1, h: 2 },
+  wheelMid: { w: 1, h: 2 },
+  wheelHeavy: { w: 1, h: 2 },
+  tank: { w: 1, h: 2 },
+  tankLong: { w: 1, h: 2 },
+  tankMid: { w: 1, h: 2 },
+  tankHeavy: { w: 1, h: 2 },
+  scanner: { w: 1, h: 1 },
+};
+
+const UNPRICED_PARTS: Record<string, Unbulked<PartDef>> = {
   ...UNPRICED_WEAPONS,
   ...UNPRICED_UTILITIES,
   stockEngine: {
@@ -819,10 +900,16 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
 };
 
 export const PARTS: Record<string, PartDef> = Object.fromEntries(
-  Object.entries(UNPRICED_PARTS).map(([id, def]) => [id, pricePart(scaleMass(def))]),
+  Object.entries(UNPRICED_PARTS).map(([id, def]) => [id, pricePart(withBulk(scaleMass(def)))]),
 );
 
-function scaleMass(def: Unpriced<PartDef>): Unpriced<PartDef> {
+function withBulk(def: Unbulked<PartDef>): Unpriced<PartDef> {
+  const bulk = PART_BULK[def.id];
+  if (!bulk) throw new Error(`Part ${def.id} has no bulk. Add it to PART_BULK.`);
+  return { ...def, bulk };
+}
+
+function scaleMass(def: Unbulked<PartDef>): Unbulked<PartDef> {
   if (def.kind === "armor" || def.kind === "accessory") return { ...def, mass: def.mass * MASS_SCALE.armor };
   if (def.kind === "weapon") return { ...def, mass: def.mass * MASS_SCALE.weapon };
   return def;

@@ -217,7 +217,7 @@ function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: Pa
   const rect = cellRect(v.chassisId, itemCells(item));
   const half = unitBody(v.chassisId, rect.unit).half;
   const span = across ? rect.z1 - rect.z0 : rect.x1 - rect.x0;
-  const scale = new THREE.Vector3(depthScale, 1, span / (Math.max(def.w, def.h) * CELL.across));
+  const scale = new THREE.Vector3(depthScale, 1, span / (Math.max(def.bulk.w, def.bulk.h) * CELL.across));
   const snug = half[axis] - TRUCK_LOOK.armorInset;
   const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, (def.look === 'ram' ? -half.y : half.y - box.max.y) + TRUCK_LOOK.armorRise, (rect.z0 + rect.z1) / 2);
   pos[axis] = outward * (snug - depthScale * box.min.x);
