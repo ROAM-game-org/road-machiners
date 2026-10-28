@@ -1,6 +1,6 @@
 import { START_KITS } from '../data/start';
 import { describe, expect, it } from 'vitest';
-import { REGION } from '../data/region';
+import { MAP_SPREAD, REGION } from '../data/region';
 import { TERRAIN_TYPES } from '../data/terrain';
 import { FALLEN_SUN_DECKS } from '../data/territory';
 import { deckById } from './bridge';
@@ -208,15 +208,15 @@ describe('driver taste', () => {
     return found;
   };
   const from = siteGates(site('nose'))[0];
-  const to = siteGates(site('dustwell'))[0];
+  const to = siteGates(site('pump-station'))[0];
   const w = w1337;
   const me = w.vehicles.find((v) => v.id === w.player.vehicleId)!;
   const trader = (id: string): Vehicle => ({ ...me, id, faction: 'independent', brain });
   const apart = (p: Vec[], q: Vec[]) => Math.max(...p.map((x) => polylineDist(x, q)), ...q.map((x) => polylineDist(x, p)));
 
-  it('sends drivers between the same towns along different ways', () => {
+  it('sends drivers between the same places along different ways', () => {
     const routes = Array.from({ length: 10 }, (_, i) => [from, ...route(w, from, to, 0.8, [], trader(`v${100 + i}`))]);
-    const ways = routes.filter((r, i) => routes.slice(0, i).every((q) => apart(r, q) > 10));
+    const ways = routes.filter((r, i) => routes.slice(0, i).every((q) => apart(r, q) > 10 * MAP_SPREAD));
     expect(ways.length).toBeGreaterThanOrEqual(2);
   });
 

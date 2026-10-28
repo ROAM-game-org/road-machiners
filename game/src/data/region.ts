@@ -311,7 +311,7 @@ export const REGION = {
   navigation: {
     heuristicWeight: 1.2,
     offRoadCost: 1.75,
-    taste: { scale: 40, strength: 0.6 },
+    taste: { scale: 40 * MAP_SPREAD, strength: 0.6 },
     lookahead: 48,
     farWindow: 240,
     nearSlack: 32,
