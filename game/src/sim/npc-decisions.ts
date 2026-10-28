@@ -45,7 +45,7 @@ import { passesUpLoot } from './loot-warning';
 import { canUseSite, isTerritory, siteGap, siteGates, siteUnder, type Site } from './sites';
 import { territoryAt, territoryGrounds } from './territory';
 import { addState, boundTo, endState, givesWord, isRobberyFeud, robbing, stateOf, statesHeld } from './states';
-import { isStranded, vehicleStats } from './stats';
+import { driveStats, isStranded, vehicleStats } from './stats';
 import { canHire, canTakeEscort, declineFactor, escortsOf, inTowReach, isOnRope, strandedAt, towSite, unguardedLeader } from './tow';
 import { leaderToJoin } from './pairs';
 import { ownSide, perceivedGroup } from './sides';
@@ -257,7 +257,7 @@ export function tradeOffers(world: World, vehicle: Vehicle): Weighted<TradePlan>
 
 export function tripFuelCost(world: World, vehicle: Vehicle, tiles: number): number {
   if (!Number.isFinite(tiles) || tiles < 0) throw new Error(`${vehicle.id} prices the fuel of a trip of ${tiles} tiles`);
-  return tiles * vehicleStats(world, vehicle).fuelPerTile * ECONOMY.supplyPrice.fuel;
+  return tiles * driveStats(world, vehicle).fuelPerTile * ECONOMY.supplyPrice.fuel;
 }
 
 function runOffers(world: World, vehicle: Vehicle, source: ShopDef, buyer: ShopDef, spend: number): Weighted<TradePlan>[] {

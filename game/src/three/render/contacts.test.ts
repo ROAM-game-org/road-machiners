@@ -18,14 +18,10 @@ describe('the contact blip', () => {
   const w = emptyWorld();
   const contact = (sources: Contact['sources']): Contact => ({ vehicleId: 'v9', center: { x: 40, y: 40 }, radius: 8, sources, loudness: null });
 
-  it('draws a far contact as one anonymous marker in the contact colour', () => {
+  it('draws no blip for a far contact alone', () => {
     const view = new ContactsView();
     view.update(w.terrain, [contact(['far'])], { x: 30, y: 30 }, w.turn, 0);
-    expect(view.root.children).toHaveLength(1);
-    expect(blipOf(view).visible).toBe(true);
-    expect(colorsOf(blipOf(view))).toEqual([PAL.contact, PAL.contact]);
-    expect(view.root.children[0].name).toBe('');
-    expect(JSON.stringify(view.root.children[0].userData)).toBe('{}');
+    expect(blipOf(view).visible).toBe(false);
   });
 
   it('keeps a radio contact in the radio colour when it is also far', () => {

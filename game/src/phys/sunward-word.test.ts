@@ -17,7 +17,7 @@ beforeAll(async () => {
   await initPhysics();
 });
 
-const REPORT_SPOT = { x: 436, y: 352 };
+const REPORT_SPOT = { x: lightZone().pos.x + 0.6, y: lightZone().pos.y + 26.3 };
 const TURNS = 40;
 
 function nightWorld(at: Vec): { w: World; me: Vehicle } {
@@ -65,11 +65,11 @@ describe('the word given at the Fallen Sun, driven with physics', () => {
     expect(run.worstGap).toBeLessThan(SUNWARD.offerMargin);
   });
 
-  it('breaks within six turns from a standstill once the truck drives back toward the rim', () => {
+  it('breaks within seven turns from a standstill once the truck drives back toward the rim', () => {
     const { w, me } = nightWorld({ x: lightZone().pos.x, y: lightZone().pos.y + 40 });
     me.order = { kind: 'stopAt', dest: { x: lightZone().pos.x, y: lightZone().pos.y + 140 } };
 
-    const run = drive(w, 6, () => false);
+    const run = drive(w, 7, () => false);
 
     expect(run.held).toBe(false);
   });

@@ -95,7 +95,7 @@ Sites run their recipes on the production clock, one cycle every `PRODUCTION.cyc
 | nose | meds | 120 | - | 24 | - |
 | nose | electronics | 120 | - | 24 | - |
 | nose | relics | 120 | - | 24 | - |
-| pump-station | fuelDrums | 229 | 367 | - | 10 |
+| pump-station | fuelDrums | 231 | 370 | - | 10 |
 | pump-station | tools | 30 | - | - | - |
 | pump-station | batteries | 30 | - | - | - |
 | pump-station | rations | 30 | - | 12 | 1 |
@@ -145,7 +145,7 @@ The player's truck pays no upkeep. NPC drivers pay under `NPC_UPKEEP`.
 | `PRODUCTION.elasticity` | 0.6 |
 | `ECONOMY.supplyPrice.fuel` | 100 |
 | `ECONOMY.supplyPrice.supplies` | 167 |
-| `PRODUCTION.cycleTurns` | 19 |
+| `PRODUCTION.cycleTurns` | 240 |
 | `PRODUCTION.bufferDays` | 1.5 |
 | `PRODUCTION.fullShare` | 1.6 |
 | `ECONOMY.repairShare` | 0.425 |
@@ -167,9 +167,9 @@ The player's truck pays no upkeep. NPC drivers pay under `NPC_UPKEEP`.
 | `CONTRACTS.survey.surveyTurns` | 10 |
 | `CONTRACTS.survey.searchTurns` | 20 |
 | `CONTRACTS.survey.rewardFactor` | 15 |
-| `CONTRACTS.survey.range` | 234 |
+| `CONTRACTS.survey.range` | 561.6 |
 | `CONTRACTS.survey.clue.roundTiles` | 25 |
-| `CONTRACTS.survey.clue.range` | 234 |
+| `CONTRACTS.survey.clue.range` | 561.6 |
 | `CONTRACTS.survey.clue.nearby` | 40 |
 | `CONTRACTS.survey.clue.band` | 40 |
 <!-- /wiki:numbers -->

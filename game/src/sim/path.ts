@@ -39,8 +39,13 @@ export function route(world: World, from: Vec, dest: Vec, radius: number, extra:
 }
 
 export function routeAhead(world: World, from: Vec, dest: Vec, radius: number, extra: Blocker[], driver: Vehicle | undefined, window: number): { points: Vec[]; partial: boolean } {
-  const way = dist(from, dest) <= window ? null : timed('route-ahead', () => aheadPoint(world, from, dest, radius, extra, driver, window));
-  return { points: route(world, from, way ?? dest, radius, extra, driver), partial: way !== null };
+  const way = aheadGoal(world, from, dest, radius, extra, driver, window);
+  return { points: route(world, from, way, radius, extra, driver), partial: way !== dest };
+}
+
+export function aheadGoal(world: World, from: Vec, dest: Vec, radius: number, extra: Blocker[], driver: Vehicle | undefined, window: number): Vec {
+  if (dist(from, dest) <= window) return dest;
+  return timed('route-ahead', () => aheadPoint(world, from, dest, radius, extra, driver, window)) ?? dest;
 }
 
 function aheadPoint(world: World, from: Vec, dest: Vec, radius: number, extra: Blocker[], driver: Vehicle | undefined, window: number): Vec | null {
@@ -193,8 +198,18 @@ export function followRoute(world: World, driver: Vehicle, dest: Vec, radius: nu
   const same = sameRoute(kept, dest, radius);
   const stored = same ? continueRoute(world, driver.pos, same, dest, radius, extra, driver) : null;
   if (same && stored) return { ...keepRoute(world, dest, stored, extra, driver, same.partial), radius };
-  const { points, partial } = routeAhead(world, driver.pos, dest, radius, extra, driver, REGION.navigation.farWindow);
+  const way = same ? keptWay(world, driver, same) : null;
+  const { points, partial } = way ? { points: route(world, driver.pos, way, radius, extra, driver), partial: true } : routeAhead(world, driver.pos, dest, radius, extra, driver, REGION.navigation.farWindow);
   return { ...keepRoute(world, dest, points, extra, driver, partial), radius };
+}
+
+function keptWay(world: World, driver: Vehicle, kept: KeptRoute): Vec | null {
+  if (!kept.partial || windowEnds(driver.pos, kept) || !sameStyle(world, driver, kept)) return null;
+  return kept.points[kept.points.length - 1];
+}
+
+function sameStyle(world: World, driver: Vehicle | undefined, kept: KeptRoute): boolean {
+  return kept.offRoad === plansOffRoad(world, driver) && kept.night === plansNight(world, driver);
 }
 
 function sameRoute(kept: SizedRoute | null, dest: Vec, radius: number): SizedRoute | null {
@@ -206,8 +221,7 @@ export function continueRoute(world: World, from: Vec, kept: KeptRoute, to: Vec,
 }
 
 function continueKept(world: World, from: Vec, kept: KeptRoute, to: Vec, radius: number, extra: Blocker[], driver: Vehicle | undefined): Vec[] | null {
-  if (kept.offRoad !== plansOffRoad(world, driver) || kept.night !== plansNight(world, driver)) return null;
-  if (windowEnds(from, kept)) return null;
+  if (!sameStyle(world, driver, kept) || windowEnds(from, kept)) return null;
   const c = legCheck(world, kept, radius, extra);
   const { rest, moved } = remainingPoints(from, kept, followedEnd(kept, to));
   if (lastBrokenLeg(c, from, rest, moved) >= 0) return null;

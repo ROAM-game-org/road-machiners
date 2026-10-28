@@ -1,12 +1,12 @@
 import { START_KITS } from '../data/start';
 import { describe, expect, it } from 'vitest';
-import { REGION } from '../data/region';
+import { MAP_SPREAD, REGION } from '../data/region';
 import { TERRAIN_TYPES } from '../data/terrain';
 import { FALLEN_SUN_DECKS } from '../data/territory';
 import { deckById } from './bridge';
 import { boxSegmentDistance, propBoxes } from './mapgen';
 import { offRoadTaste, tasteKey, tasteOf, terrainNav, tileIndex } from './nav/layer';
-import { continueRoute, keepRoute, reachesFrom, route, routeLength, straightClear, type Blocker } from './path';
+import { continueRoute, followRoute, keepRoute, reachesFrom, route, routeLength, straightClear, type Blocker } from './path';
 import { isCliff, tileAt } from './terrain';
 import type { NpcActivity, Vehicle, World } from './types';
 import type { TraitId } from '../data/npcs';
@@ -216,15 +216,15 @@ describe('driver taste', () => {
     return found;
   };
   const from = siteGates(site('nose'))[0];
-  const to = siteGates(site('dustwell'))[0];
+  const to = siteGates(site('pump-station'))[0];
   const w = w1337;
   const me = w.vehicles.find((v) => v.id === w.player.vehicleId)!;
   const trader = (id: string): Vehicle => ({ ...me, id, faction: 'independent', brain });
   const apart = (p: Vec[], q: Vec[]) => Math.max(...p.map((x) => polylineDist(x, q)), ...q.map((x) => polylineDist(x, p)));
 
-  it('sends drivers between the same towns along different ways', () => {
+  it('sends drivers between the same places along different ways', () => {
     const routes = Array.from({ length: 10 }, (_, i) => [from, ...route(w, from, to, 0.8, [], trader(`v${100 + i}`))]);
-    const ways = routes.filter((r, i) => routes.slice(0, i).every((q) => apart(r, q) > 10));
+    const ways = routes.filter((r, i) => routes.slice(0, i).every((q) => apart(r, q) > 10 * MAP_SPREAD));
     expect(ways.length).toBeGreaterThanOrEqual(2);
   });
 
@@ -279,6 +279,19 @@ describe('kept routes', () => {
     const kept = keepRoute(w, dest, window, [], undefined, true);
     expect(continueRoute(w, { x: 30, y: 30 }, kept, dest, 0.6, [])!.at(-1)).toEqual(window[0]);
     expect(continueRoute(w, { x: window[0].x - REGION.navigation.lookahead / 2, y: 30 }, kept, dest, 0.6, [])).toBeNull();
+  });
+
+  it('keeps the end of a window when a new blocker forces a fresh route within it', () => {
+    const w = emptyWorld();
+    const driver = w.vehicles[0];
+    const dest = { x: 30 + REGION.navigation.farWindow * 3, y: 30 };
+    const first = followRoute(w, driver, dest, 0.6, [], null);
+    expect(first.partial).toBe(true);
+    driver.pos = { x: 40, y: 30 };
+    const rock: Blocker = { pos: { x: 60, y: 30 }, r: 1.5 };
+    const again = followRoute(w, driver, dest, 0.6, [rock], first);
+    expect(again.points.at(-1)).toEqual(first.points.at(-1));
+    expect(again.points.every((p, i) => segmentDist(rock.pos, i === 0 ? driver.pos : again.points[i - 1], p) > rock.r)).toBe(true);
   });
 
   it('ends on a destination that moved, and drops the route for a vehicle parked on a later leg', () => {

@@ -65,7 +65,8 @@ import { SiteLights } from "./render/siteLights";
 import { addShipDecks } from "./render/ship-decks";
 import { terrainMesh } from "./render/terrain";
 import { type WebGLSurface } from "./webgl";
-import { FRAME_REBUILDS, VehicleView, type RebuildBudget } from "./render/vehicle";
+import { FRAME_REBUILDS, type RebuildBudget } from "./render/vehicle";
+import { TruckViews } from "./truck-views";
 import { HoverArcsView, vehicleOrigins, WeaponRangeView } from "./render/weaponRange";
 import { stormTintStyle, WeatherView } from "./render/weather";
 import { stormShare } from "../sim/weather";
@@ -161,8 +162,7 @@ export class Game {
   private readonly hostileSighting = new HostileSighting();
   private sightingToSound = false;
   private readonly engineStrain = new EngineStrain();
-  private readonly views = new Map<string, VehicleView>();
-  private readonly building = new Map<string, VehicleView>();
+  private readonly trucks = new TruckViews(this.scene, this.rebuilds);
   private readonly radioLights = new RadioLights();
   private frames: Record<string, VehicleFrame> = {};
   private anim: Playback | null = null;
@@ -181,7 +181,7 @@ export class Game {
   private readonly picker = new PointerPicker({
     world: () => this.world,
     hit: (x, y, object) => this.rig.hitDistance(x, y, object),
-    views: this.views,
+    views: this.trucks.views,
     visible: (v) => this.isVehicleVisible(v),
     radiusPick: (x, y) => this.pickVehicle(x, y)?.id ?? null,
   });
@@ -347,7 +347,7 @@ export class Game {
   }
 
   debugOwnTruckHit(x: number, y: number): boolean {
-    return this.rig.hitDistance(x, y, this.views.get(playerVehicle(this.world).id)?.root ?? null) !== null;
+    return this.rig.hitDistance(x, y, this.trucks.views.get(playerVehicle(this.world).id)?.root ?? null) !== null;
   }
 
   debugView(x: number, y: number, zoom: number): void {
@@ -971,13 +971,13 @@ export class Game {
   private combatHost(startMs = 0): CombatHost {
     const frames = this.anim?.result.frames ?? {};
     const poses = posesOf(this.world, frames, { moveMs: MOVE_MS, stepMs: stepMs(1), gunHeight: GUN_HEIGHT }, (v) => this.canShowCombatVehicle(v));
-    return { world: this.world, fx: this.fx, sound: this.sound, eventPoint: (id) => this.eventPoint(id), onBurst: (p) => this.craters.reveal(p), views: this.views, breakPart: (b) => this.playBreak(b), poses, startMs, lineHooked: (shooter, weapon) => hookLine(this.world, this.anim, shooter, weapon) };
+    return { world: this.world, fx: this.fx, sound: this.sound, eventPoint: (id) => this.eventPoint(id), onBurst: (p) => this.craters.reveal(p), views: this.trucks.views, breakPart: (b) => this.playBreak(b), poses, startMs, lineHooked: (shooter, weapon) => hookLine(this.world, this.anim, shooter, weapon) };
   }
 
   private playBreak(b: PartBreak): void {
     if (this.eventPoint(b.vehicle) === null) return;
     if (!this.turnStart) throw new Error(`Part ${b.part} of ${b.vehicle} broke before any turn played`);
-    const p = playBreak(this.world, this.turnStart, this.obstacles.parts, this.fx, this.views.get(b.vehicle), b);
+    const p = playBreak(this.world, this.turnStart, this.obstacles.parts, this.fx, this.trucks.views.get(b.vehicle), b);
     if (p) this.sound.at("part-broken", p, 0);
     playCookOff(this.combatHost(), b);
   }
@@ -1018,7 +1018,7 @@ export class Game {
       this.updateTravel();
     }
     this.settleLateStop(now);
-    this.travel.prepareNext(this.world, this.anim, now);
+    this.travel.prepareNext(this.world, this.anim, now, this.drive);
     this.flushUi(began, phase);
     return { at, playMs };
   }
@@ -1135,7 +1135,7 @@ export class Game {
     const now = performance.now();
     this.radioLights.note(this.world, now);
     const shown = [...this.world.vehicles, ...(landed ? [] : this.world.removed)];
-    const ids = new Set<string>();
+    const hidden: Vehicle[] = [];
     for (const [i, v] of shown.entries()) {
       this.pin.note(v, i < this.world.vehicles.length);
       const f = this.shownFrame(v, this.travel.playedFrame(v, this.anim, at));
@@ -1143,11 +1143,13 @@ export class Game {
       const seen = landed ? this.isVehicleVisible(v) : this.canShowCombatVehicle(v);
       if (seen) this.lastSeen.set(v.id, this.world.turn);
       const look = this.lookOf(v, f, seen);
-      if (!look) continue;
+      if (!look) {
+        hidden.push(v);
+        continue;
+      }
       const before = !landed && this.anim!.before.vehicles.find((x) => x.id === v.id);
       const display = before ? { ...v, items: shownItems(before.items, v.items, this.breakCues.shown(v.id)) } : v;
-      ids.add(v.id);
-      const view = this.viewOf(v.id, display, seen);
+      const view = this.trucks.viewOf(v.id, display, seen, this.world.player.paint);
       if (!view) continue;
       view.lamps(vehicleLampsOn(this.world, v, lightTurnOf(this.world, this.anim)));
       view.radio(this.radioLights.lit(v.id, now));
@@ -1158,37 +1160,13 @@ export class Game {
       this.truckFx.emit(this.world, display, f, frames !== null, playDt, seen);
     }
     this.pin.settle();
-    for (const [id, view] of this.views) {
-      if (ids.has(id)) continue;
-      this.scene.remove(view.root);
-      view.dispose();
-      this.views.delete(id);
-    }
-    for (const [id, view] of this.building) {
-      if (ids.has(id)) continue;
-      view.dispose();
-      this.building.delete(id);
-    }
+    this.trucks.park(this.world, hidden);
+    this.trucks.prune();
   }
 
   private shownFrame(v: Vehicle, played: VehicleFrame | null | undefined): VehicleFrame {
     const kept = this.frames[v.id];
     return played ?? (kept && !staleFrame(kept, v, this.anim !== null) ? kept : restFrame(this.world, v));
-  }
-
-  private viewOf(id: string, display: Vehicle, seen: boolean): VehicleView | null {
-    const view = this.views.get(id) ?? this.building.get(id) ?? new VehicleView(null, seen, this.world.player.paint, "world");
-    view.update(display, seen, this.world.player.paint, this.rebuilds);
-    if (!view.built) {
-      this.building.set(id, view);
-      return null;
-    }
-    this.building.delete(id);
-    if (!this.views.has(id)) {
-      this.views.set(id, view);
-      this.scene.add(view.root);
-    }
-    return view;
   }
 
   private lookOf(v: Vehicle, f: VehicleFrame, seen: boolean): "full" | "dark" | null {
@@ -1217,7 +1195,7 @@ export class Game {
     this.placeHitCard();
     this.pickRing.follow(this.world, this.hovered, this.frames, hide);
     this.contacts.update(this.world.terrain, this.world.player.contacts, playerVehicle(this.world).pos, this.world.turn, performance.now());
-    this.clouds.update(this.world, this.views, this.play.nowMs(), turnClockOf(this.anim), this.rig.camera, this.fx.cards);
+    this.clouds.update(this.world, this.trucks.views, this.play.nowMs(), turnClockOf(this.anim), this.rig.camera, this.fx.cards);
     this.utilityAim.draw(this.world, this.world.terrain, this.hoverGround, !steer);
     const meFrame = this.frames[playerVehicle(this.world).id];
     const listener = meFrame ? toMap(meFrame.pos) : playerVehicle(this.world).pos;

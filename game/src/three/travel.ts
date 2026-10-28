@@ -176,10 +176,17 @@ function startWheels(v: Vehicle, shown: Record<string, VehicleFrame>): UnitWheel
 }
 
 export function canTravel(world: World): boolean {
+  return mayResume(world) && !world.events.some((event) => stopsTravel(event, world));
+}
+
+function mayResume(world: World): boolean {
   const me = playerVehicle(world);
-  if (!playerCanAct(world) || me.direct) return false;
-  if (inCombat(world, me)) return false;
-  return !world.events.some((event) => stopsTravel(event, world));
+  return playerCanAct(world) && !me.direct && !inCombat(world, me);
+}
+
+function followsOrder(world: World): boolean {
+  const order = playerVehicle(world).order;
+  return mayResume(world) && order !== null && order.kind !== "brake";
 }
 
 export class Travel {
@@ -223,9 +230,7 @@ export class Travel {
       this.pressedAt = performance.now();
       return false;
     }
-    const order = playerVehicle(world).order;
-    const follow = canTravel(world) && order !== null && order.kind !== "brake";
-    return this.press(performance.now(), playing, follow);
+    return this.press(performance.now(), playing, followsOrder(world));
   }
 
   autoAllowed(world: World): boolean {
@@ -298,7 +303,7 @@ export class Travel {
 
   request(world: World, drive: DriveSnapshot): void {
     this.requested = true;
-    this.turns.prepare(world, drive, false);
+    this.turns.prepare(world, drive, this.fastTravel());
   }
 
   private fastTravel(): boolean {
@@ -371,9 +376,14 @@ export class Travel {
     return this.creep?.isMoving() ?? false;
   }
 
-  prepareNext(world: World, playback: Playback | null, now: number): void {
-    if (playback && this.continues(world, now))
-      this.turns.prepare(world, this.creep?.endDrive() ?? playback.result.next, this.fastTravel());
+  prepareNext(world: World, playback: Playback | null, now: number, drive: DriveSnapshot): void {
+    if (!playback) return this.prepareResume(world, drive, now);
+    if (this.continues(world, now)) this.turns.prepare(world, this.creep?.endDrive() ?? playback.result.next, this.fastTravel());
+  }
+
+  private prepareResume(world: World, drive: DriveSnapshot, now: number): void {
+    if (this.wantsTurn(world, now) || waitsOnPlayer(world)) return;
+    if (followsOrder(world)) this.turns.prepare(world, drive, CONFIG.travelSpeeds[this.speedIndex] > 1);
   }
 
   beginPlayback(

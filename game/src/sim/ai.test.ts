@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PERF } from '../data/perf';
+import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { planNpcOrders, routeBlockers, trafficStops, yieldsToTraffic } from './ai';
 import { topGoal } from './npc-activities';
@@ -124,6 +125,17 @@ describe('the player on a route in traffic', () => {
     const { w, me } = meeting();
     corridor(w);
     expect(yieldsToTraffic(w, me)).toBe(true);
+  });
+
+  it('judges the way around on the road ahead when the destination lies beyond the far window', () => {
+    const far = { kind: 'through' as const, dest: { x: 100 + REGION.navigation.farWindow * 2, y: 100 }, pace: 4 };
+    const open = meeting();
+    open.me.order = far;
+    expect(yieldsToTraffic(open.w, open.me)).toBe(false);
+    const blocked = meeting();
+    corridor(blocked.w);
+    blocked.me.order = far;
+    expect(yieldsToTraffic(blocked.w, blocked.me)).toBe(true);
   });
 
   it('a stopped player does not wait for a truck passing five tiles to the side', () => {

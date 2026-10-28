@@ -199,8 +199,7 @@ function placeBlip(terrain: Terrain, blip: THREE.Group, c: Contact): void {
 
 function blipColor(c: Contact): number | null {
   if (c.sources.includes('radio')) return PAL.radio;
-  if (c.sources.includes('flare')) return PAL.flare.marker;
-  return c.sources.includes('far') ? PAL.contact : null;
+  return c.sources.includes('flare') ? PAL.flare.marker : null;
 }
 
 function disposeMarker(m: Marker): void {

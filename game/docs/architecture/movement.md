@@ -153,7 +153,7 @@ Every taste is a cost and never a block, so components and reachability do not c
 - A far trip of the player longer than `REGION.navigation.farWindow` tiles plans the coarse corridor of the whole trip. It then searches cells only up to the corridor region one window ahead, with `routeAhead()`.
 - The kept route is `partial`. At its end the truck plans the next window instead of arriving.
 - The route steers around parked trucks and around moving trucks slower than its own top speed within a turn's drive. It holds short of any other truck and breaks the breakable props it crosses.
-- A fast-travel turn with no other truck in far sight, as `ridesFar()` reports, takes live sight once at the turn end. It uses the tiles `refreshVision()` already found there, so the fog moves once per turn.
+- Every turn, fast or not, samples the player's sight along the drive once in `physicsMove()`, every `LIVE_SIGHT_STEP` tiles and at the end pose. That one track marks the explored tiles and is the playback fog.
 
 ## Cheap far rules
 
