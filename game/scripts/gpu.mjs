@@ -8,7 +8,7 @@ const SOFTWARE_RENDERERS = /SwiftShader|llvmpipe/;
 export function gpuArgs() {
   const angle = ANGLE[process.platform];
   if (!angle) throw new Error(`No GPU flags for ${process.platform}. Run with --cpu.`);
-  return [...angle, '--enable-gpu', '--ignore-gpu-blocklist'];
+  return [...angle, '--enable-gpu', '--ignore-gpu-blocklist', '--disable-dev-shm-usage'];
 }
 
 export function rendererOf(page) {

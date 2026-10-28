@@ -7,6 +7,7 @@ import { REGION } from '../data/region';
 import { addGoods } from '../sim/inventory';
 import { canUseSite } from '../sim/sites';
 import { vehicleStats } from '../sim/stats';
+import { settleMeetings } from '../sim/ai';
 import { addVehicle, emptyWorld, npcBrain } from '../sim/testkit';
 import type { Vehicle, World } from '../sim/types';
 import { loadWorld, writeSave } from '../three/save';
@@ -254,4 +255,31 @@ describe('NPC driving', () => {
     },
     120_000,
   );
+
+  it.each([false, true])('a wagon and a van meeting head-on at road speed never touch: ids swapped %s', (swapped) => {
+    let w = standardWorld();
+    w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
+    for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
+    w.vehicles[0].pos = at(300, 200);
+    w.obstacles = w.obstacles.filter((o) => dist(o.pos, at(290, 134)) > HEAD_ON_CLEAR);
+    const a = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], at(277, 134), 0);
+    const b = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], at(290, 134), Math.PI);
+    a.id = swapped ? 'v2268' : 'v1263';
+    b.id = swapped ? 'v1263' : 'v2268';
+    a.speed = 2.1;
+    b.speed = 4.14;
+    a.brain = npcBrain('trader', a.pos, ['trader']);
+    b.brain = npcBrain('roamer', b.pos, ['roamer']);
+    a.brain.goals = [{ kind: 'explore', targetId: null, destination: at(320, 134), phase: 'travel', reason: 'tripToSite' }];
+    b.brain.goals = [{ kind: 'explore', targetId: null, destination: at(250, 134), phase: 'travel', reason: 'tripToSite' }];
+    settleMeetings(w);
+    let d = buildDrive(w);
+    let touches = 0;
+    for (let i = 0; i < 9; i++) {
+      ({ w, d } = turn(w, d));
+      touches += w.events.filter((e) => e.t === 'collision' && [e.a, e.b].includes(a.id) && [e.a, e.b].includes(b.id)).length;
+    }
+    freeDrive(d);
+    expect(touches).toBe(0);
+  }, 120_000);
 });

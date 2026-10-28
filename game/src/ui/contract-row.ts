@@ -1,8 +1,10 @@
 import { PARCEL } from "../data/goods";
+import type { Threat } from "../data/market";
 import { isLate, isMet, type Contract } from "../sim/market";
+import { surveyThreat } from "../sim/survey";
 import { vehicleStats } from "../sim/stats";
 import type { World } from "../sim/types";
-import { PLUS, SPACE, t } from "../text/msg";
+import { PLUS, SPACE, t, type PlainKey } from "../text/msg";
 import { createBareItemIcon, createIcon } from "./cards";
 import { el, type Child } from "./dom";
 import { claimRivalMark, contractSummary, contractWindow, escortLeaves, escortStatusText, heldContractClock, heldContractDue, rescueWhere, surveyClueLines, surveyWayLines, vehicleName } from "./format";
@@ -22,22 +24,21 @@ export function contractIcon(kind: Contract["kind"]): HTMLElement {
   return CONTRACT_ICON[kind]();
 }
 
-const ROAD_TAG: Record<number, { key: "contract.road.safe" | "contract.road.risky" | "contract.road.dangerous"; class: string }> = {
-  1: { key: "contract.road.safe", class: "tag dim" },
-  2: { key: "contract.road.risky", class: "tag" },
-  3: { key: "contract.road.dangerous", class: "tag bad" },
-};
+const THREAT_TONE: Record<Threat, string> = { 1: "dim", 2: "", 3: "bad" };
 
-function roadTag(threat: number): HTMLElement {
-  const road = ROAD_TAG[threat];
-  if (!road) throw new Error(`escort threat ${threat} is not 1, 2 or 3`);
-  return el("span", { class: road.class }, t(road.key));
+const ROAD_WORDS: Record<Threat, PlainKey> = { 1: "contract.road.safe", 2: "contract.road.risky", 3: "contract.road.dangerous" };
+
+const GROUND_WORDS: Record<Threat, PlainKey> = { 1: "contract.ground.safe", 2: "contract.ground.risky", 3: "contract.ground.dangerous" };
+
+function threatTag(threat: number, words: Record<Threat, PlainKey>): HTMLElement {
+  if (threat !== 1 && threat !== 2 && threat !== 3) throw new Error(`threat ${threat} is not 1, 2 or 3`);
+  return el("span", { class: ["tag", THREAT_TONE[threat]].join(" ").trim() }, t(words[threat]));
 }
 
 function escortDetail(w: World, c: Extract<Contract, { kind: "escort" }>): Child[] {
   const trader = w.vehicles.find((v) => v.id === c.client);
   if (!trader) return [];
-  return [el("span", { class: "dim" }, t("contract.trader", { who: vehicleName(w, c.client), n: kph(vehicleStats(w, trader).maxSpeed) })), roadTag(c.threat)];
+  return [el("span", { class: "dim" }, t("contract.trader", { who: vehicleName(w, c.client), n: kph(vehicleStats(w, trader).maxSpeed) })), threatTag(c.threat, ROAD_WORDS)];
 }
 
 function surveyLine(w: World, c: Contract, posted: boolean): HTMLElement | null {
@@ -80,7 +81,8 @@ function jobRow(w: World, c: Contract, { action, posted, clue }: RowShape): HTML
 }
 
 function contractSummaryCell(w: World, c: Contract, clue: boolean, posted: boolean): HTMLElement {
-  if (c.kind !== "rescue") return el("span", {}, contractSummary(c), clue ? surveyLine(w, c, posted) : null, claimRivalMark(w, c));
+  if (c.kind === "survey") return el("span", {}, contractSummary(c), SPACE, threatTag(surveyThreat(w, c), GROUND_WORDS), clue ? surveyLine(w, c, posted) : null);
+  if (c.kind !== "rescue") return el("span", {}, contractSummary(c), claimRivalMark(w, c));
   const need = el("span", { class: "tag", title: t("contract.rescueAlt") }, t(`contract.need.${c.need}`));
   return el("span", {}, need, SPACE, contractSummary(c), c.fulfilled ? null : el("div", { class: "dim" }, rescueWhere(c)));
 }

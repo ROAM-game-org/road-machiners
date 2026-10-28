@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { HANG_UP_LINE, TOPICS, type LineId, type TopicId } from '../data/dialogue';
 import type { TraitId } from '../data/npcs';
 import type { PersonalityId } from '../data/personalities';
-import { callVehicle, chooseOption, currentLine, currentOptions } from './dialogue';
+import { callVehicle, currentLine, currentOptions } from './dialogue';
+import { askLinesOf, chooseLine } from './dialogue-testkit';
 import { playerVehicle } from './damage';
 import { standingPressures } from './market';
 import { remember } from './memory';
@@ -22,7 +23,7 @@ function driver(faction: Faction, traits: TraitId[], personality: PersonalityId 
   return { w, npc };
 }
 
-const offered = (w: World): LineId[] => currentOptions(w).map((o) => o.line);
+const offered = (w: World): LineId[] => [...currentOptions(w).map((o) => o.line), ...askLinesOf(w)];
 const ask = (topic: TopicId): LineId => TOPICS[topic].ask!.say;
 
 describe('talk by attitude band', () => {
@@ -56,7 +57,7 @@ describe('talk by attitude band', () => {
     w.player.standing.guidestar = 20;
     remember(w, npc, { kind: 'prices', shop: 'nose', pressure: standingPressures(w, 'nose') });
     w.player.perks = ['marketEars'];
-    const told = chooseOption(callVehicle(w, npc.id), offered(callVehicle(w, npc.id)).indexOf(ask('marketNews')));
+    const told = chooseLine(callVehicle(w, npc.id), ask('marketNews'));
     expect(told.player.call?.node).toBe(TOPICS.marketNews.start);
   });
 
