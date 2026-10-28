@@ -335,6 +335,7 @@ describe('repairContent', () => {
       ['ghostTopic', { topic: 'ghostTopic' as never }],
       ['ghostNode', { topic: 'directions', node: 'ghostNode' }],
       ['ghostLine', { line: { line: 'ghostLine' as never, vars: {} } }],
+      ['removedRaiderLesson', { line: { line: 'lessonRaiderPay' as never, vars: {} } }],
     ];
     for (const [, over] of drift) {
       const w = fresh();

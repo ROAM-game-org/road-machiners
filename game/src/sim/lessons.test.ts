@@ -36,20 +36,25 @@ function driver(w: World, traits: TraitId[], id?: string): Vehicle {
 }
 
 describe('lesson data', () => {
-  it('maps every voiced trait to one trade and no voiceless trait', () => {
+  it('maps every voiced trait but the raider to one trade and no voiceless trait', () => {
     for (const [trait, talk] of Object.entries(TRAIT_TALK)) {
-      expect(Object.hasOwn(LESSON_TRADES, trait)).toBe(talk.voice !== null && !talk.only);
+      expect(Object.hasOwn(LESSON_TRADES, trait)).toBe(talk.voice !== null && !talk.only && trait !== 'raider');
     }
   });
 
   it('fills every slot of every trade once, with every lesson line used once', () => {
     const used = Object.values(LESSONS).flatMap((t) => [...WEAKNESSES.map((weak) => t.weak[weak]), ...t.general]);
-    expect(used).toHaveLength(35);
+    expect(used).toHaveLength(28);
     expect([...used].sort()).toEqual([...LESSON_LINE_IDS].sort());
   });
 
   it('offers the topic to every voiced trait', () => {
     for (const trait of Object.keys(LESSON_TRADES)) expect(TRAIT_TALK[trait as TraitId].topics).toContain('roadLesson');
+  });
+
+  it('never offers the topic to a raider', () => {
+    expect(TRAIT_TALK.raider.topics).not.toContain('roadLesson');
+    expect(Object.hasOwn(LESSON_TRADES, 'raider')).toBe(false);
   });
 });
 
@@ -185,7 +190,6 @@ describe('picking a lesson', () => {
   it('speaks a scumbag in the voice of its main trade', () => {
     const w = emptyWorld();
     expect(lessonTrade(driver(w, ['trader', 'scumbag']))).toBe('hauler');
-    expect(lessonTrade(driver(w, ['scumbag', 'raider']))).toBe('raider');
     const trades: Record<string, LessonTrade> = { lawman: 'law', merc: 'gunHand', vulture: 'salvager' };
     for (const [trait, trade] of Object.entries(trades)) expect(lessonTrade(driver(w, [trait as TraitId]))).toBe(trade);
   });
@@ -193,5 +197,6 @@ describe('picking a lesson', () => {
   it('throws for a driver with no voiced trait', () => {
     const w = emptyWorld();
     expect(() => lessonTrade(driver(w, ['scumbag', 'coward']))).toThrow(/no trait/);
+    expect(() => lessonTrade(driver(w, ['scumbag', 'raider']))).toThrow(/no trait/);
   });
 });

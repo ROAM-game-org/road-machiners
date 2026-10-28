@@ -365,20 +365,6 @@ Strangers: a rival for the scrap, put up with.
 
 Sample: "Check the dirt round a wreck before you get out. Fresh tracks mean somebody's still stripping it."
 
-### The raider giving road tips
-
-Vocabulary: friend, the seat, the chase, an easy day's work.
-
-Rhythm: lazy and amused. He speaks of what raiders do, never of what he did to the listener.
-
-Habits: he calls the stranger "friend" now and then. He is never in a hurry.
-
-Cares about: not wasting a fight.
-
-Strangers: a load, or not a load.
-
-Sample: "If a raider hails you, friend, answer before he has to get out of his seat."
-
 ### The lawman giving road tips
 
 Vocabulary: the gate, the patrol, the road, a lawful driver, the record.
