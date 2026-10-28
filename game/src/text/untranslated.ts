@@ -103,6 +103,8 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/sim/progression/escort-report.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/data/region.ts', text: 'Icarus', reason: 'The map name is an id the bake and the tests read. No screen shows it.' },
   { file: 'src/sim/market.ts', text: 'cargo value', reason: 'A label inside a haul input error, which only the console and a bug report show.' },
+  { file: 'src/sim/hunting-spots-bake.ts', text: ' :   drivers,   trips, mean round trip   turns', reason: 'A line the hunting spots bake prints to the console. No screen shows it.' },
+  { file: 'src/sim/hunting-spots-bake.ts', text: 'Each trip of a kind is equally likely. Prey cruise   tiles a turn, route radius  .', reason: 'A line the hunting spots bake prints to the console. No screen shows it.' },
   { file: 'src/sim/terrain.ts', text: 'Prop   group', reason: 'A label inside a map file write error, which only a bake shows.' },
   { file: 'src/sim/terrain.ts', text: 'Prop   step', reason: 'A label inside a map file write error, which only a bake shows.' },
   { file: 'src/three/travel.ts', text: 'Turn worker', reason: 'An internal error the turn throws to the console and the bug report, never shown in words.' },
