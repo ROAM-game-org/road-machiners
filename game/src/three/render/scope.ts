@@ -8,6 +8,7 @@ import { TERRAIN_CHUNK } from './terrain';
 import { outlineProps } from './models';
 import { CLOUD_SHADOWS } from './cloudShadows';
 import { MODEL_FILL } from './modelFill';
+import { PAL } from '../../render/palette';
 
 const S = PHYSICS.metersPerTile;
 const MARGIN = 8 * S;
@@ -137,6 +138,8 @@ export class SightLimit {
       sightVisible: { value: this.visible },
       sightMapMeters: { value: mapSize * S },
       sightGrey: { value: new THREE.Vector2(TERRAIN.fog.seen.grey, TERRAIN.fog.seen.bright) },
+      sightFog: { value: new THREE.Color(PAL.bg) },
+      sightFogBand: { value: TERRAIN.vision.edgeFog },
     };
   }
 
@@ -213,7 +216,7 @@ export class SightLimit {
       shader.fragmentShader = inject(
         shader.fragmentShader,
         '#include <common>',
-        'varying vec2 vSightXZ;\nuniform vec2 sightCenter;\nuniform float sightRadius;\nuniform sampler2D sightVisible;\nuniform float sightMapMeters;\nuniform vec2 sightGrey;',
+        'varying vec2 vSightXZ;\nuniform vec2 sightCenter;\nuniform float sightRadius;\nuniform sampler2D sightVisible;\nuniform float sightMapMeters;\nuniform vec2 sightGrey;\nuniform vec3 sightFog;\nuniform float sightFogBand;',
       );
       shader.fragmentShader = inject(shader.fragmentShader, '#include <clipping_planes_fragment>', 'if (distance(vSightXZ, sightCenter) > sightRadius) discard;');
       if (grey) shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `float sightSeen = texture2D(sightVisible, ${greyAt} / sightMapMeters).r;
@@ -221,6 +224,7 @@ export class SightLimit {
         outgoingLight = mix(mix(outgoingLight, vec3(sightLuma), sightGrey.x) * sightGrey.y, outgoingLight, sightSeen);
         #include <opaque_fragment>`);
       if (grey && !shader.fragmentShader.includes('sightSeen')) throw new Error('Sight limit cannot grey a shader without #include <opaque_fragment>');
+      shader.fragmentShader = injectBefore(shader.fragmentShader, '#include <opaque_fragment>', 'outgoingLight = mix(outgoingLight, sightFog, smoothstep(sightRadius * (1.0 - sightFogBand), sightRadius, distance(vSightXZ, sightCenter)));');
     };
     mat.customProgramCacheKey = () => `${key()}|sight${grey ? '-grey' : ''}${sampled ? '-at' : ''}`;
     mat.needsUpdate = true;
@@ -237,4 +241,9 @@ function hasSightAt(mesh: THREE.Mesh): boolean {
 function inject(source: string, chunk: string, code: string): string {
   if (!source.includes(chunk)) throw new Error(`Sight limit cannot patch a shader without ${chunk}`);
   return source.replace(chunk, `${chunk}\n${code}`);
+}
+
+function injectBefore(source: string, chunk: string, code: string): string {
+  if (!source.includes(chunk)) throw new Error(`Sight limit cannot patch a shader without ${chunk}`);
+  return source.replace(chunk, `${code}\n${chunk}`);
 }

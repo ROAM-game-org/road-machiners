@@ -1,5 +1,6 @@
-import { DESCENT_PATH } from '../data/terrain';
-import { clamp, dist, type Vec } from '../sim/vec';
+import { CRASH, DESCENT_PATH } from '../data/terrain';
+import { clamp, dist, lerp, type Vec } from '../sim/vec';
+import { zoneWeight } from '../sim/zones';
 
 export type PathFrame = { along: number; across: number; dir: Vec };
 
@@ -15,6 +16,17 @@ export function descentBox(upTo: number, reach: number, size: number): TileBox {
   const ys = points.map((p) => p.y);
   const clampTo = (v: number): number => clamp(v, 0, size);
   return { x0: clampTo(Math.floor(Math.min(...xs) - reach)), x1: clampTo(Math.ceil(Math.max(...xs) + reach)), y0: clampTo(Math.floor(Math.min(...ys) - reach)), y1: clampTo(Math.ceil(Math.max(...ys) + reach)) };
+}
+
+export function scorched(p: Vec): boolean {
+  return zoneWeight('crash', p.x, p.y) >= CRASH.scorch || inGlassTrail(p);
+}
+
+function inGlassTrail(p: Vec): boolean {
+  const { share, width } = CRASH.glassTrail;
+  const end = share * DESCENT_LENGTH;
+  const frame = descentFrame(p);
+  return frame.along <= end && Math.abs(frame.across) <= lerp(width[0], width[1], clamp(frame.along / end, 0, 1));
 }
 
 export function descentFrame(p: Vec): PathFrame {

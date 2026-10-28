@@ -18,6 +18,8 @@ import {
 } from '../data/terrain';
 import { deckAt, ICARUS_DECKS } from '../sim/bridge';
 import { flattenFalloff } from '../sim/elevation';
+import { zoneWeight } from '../sim/zones';
+import { scorched } from './descent';
 import { clearOfSites, onDeck } from '../sim/mapgen';
 import { icarusAtlas } from '../sim/atlas';
 import { ROAD_INDEX } from '../sim/road-index';
@@ -122,6 +124,10 @@ export function place(d: MapDraft, p: BakedProp, roadGap: number): boolean {
   if (d.props.some((o) => dist(o.pos, p.pos) < o.r + p.r + O.gap)) return false;
   d.props.push(p);
   return true;
+}
+
+export function placeOld(d: MapDraft, p: BakedProp, roadGap: number): boolean {
+  return !scorched(p.pos) && place(d, p, roadGap);
 }
 
 export function onReservedTrack(d: MapDraft, p: BakedProp): boolean {
@@ -241,7 +247,7 @@ function settlementScore(seed: number, d: MapDraft, rules: SettlementRules, anch
   const [near, far] = rules.anchorGap;
   const gap = Math.min(...anchors.map((a) => a(pos)));
   if (gap < near || gap > far) return null;
-  if (!clearGround(d.size, pos, rules.radius, rules.roadGap) || !flatAndDry(d, pos, rules)) return null;
+  if (scorched(pos) || !clearGround(d.size, pos, rules.radius, rules.roadGap) || !flatAndDry(d, pos, rules)) return null;
   const closeness = 1 - (gap - near) / (far - near);
   return closeness * (1 - rules.jitter) + hashRandom(seed, rules.seedOffset, pos.x, pos.y) * rules.jitter;
 }
@@ -276,7 +282,7 @@ function placeWithin(d: MapDraft, rng: Rng, rules: SettlementRules, center: Vec,
     const a = randRange(rng, 0, TURN);
     const at = Math.max(0, rules.radius - r) * Math.sqrt(randRange(rng, 0, 1));
     const pos = { x: center.x + Math.cos(a) * at, y: center.y + Math.sin(a) * at };
-    if (place(d, prop(kind, pos, r, randRange(rng, 0, TURN)), rules.roadGap)) return;
+    if (placeOld(d, prop(kind, pos, r, randRange(rng, 0, TURN)), rules.roadGap)) return;
   }
 }
 
@@ -288,7 +294,7 @@ export function overlooks(seed: number, d: MapDraft, rules: OverlookRules): void
   const rng = ruleRng(seed, rules.seedOffset);
   for (const view of spaced(overlookSpots(seed, d, rules), rules.spacing, rules.count)) {
     const kind = chance(rng, rules.intactShare) ? 'house' : 'ruin';
-    place(d, prop(kind, view.pos, range(rng, rules.radius), view.yaw), rules.roadGap);
+    placeOld(d, prop(kind, view.pos, range(rng, rules.radius), view.yaw), rules.roadGap);
   }
 }
 
@@ -326,7 +332,7 @@ export function bendBuildings(seed: number, d: MapDraft, rules: BendRules): void
     if (!chance(rng, rules.chance)) continue;
     const kind = chance(rng, rules.gasShare) ? 'gasStation' : 'house';
     const r = range(rng, rules.radius);
-    place(d, prop(kind, offset(bend.pos, bend.outer, HALF + rules.gap + r), r, facing({ x: -bend.outer.x, y: -bend.outer.y })), 0);
+    placeOld(d, prop(kind, offset(bend.pos, bend.outer, HALF + rules.gap + r), r, facing({ x: -bend.outer.x, y: -bend.outer.y })), 0);
   }
 }
 
@@ -642,7 +648,7 @@ function placeSpan(d: MapDraft, bank: Vec, far: Vec, rules: OldRoadRules): void 
   const yaw = bearing(bank, far);
   for (let back = 0; back <= rules.spanBack; back++) {
     const at = { x: bank.x - Math.cos(yaw) * back, y: bank.y - Math.sin(yaw) * back };
-    if (place(d, prop('bridgeSpan', at, rules.spanRadius, yaw), rules.spanRoadGap)) return;
+    if (placeOld(d, prop('bridgeSpan', at, rules.spanRadius, yaw), rules.spanRoadGap)) return;
   }
 }
 
@@ -651,7 +657,8 @@ function markTiles(d: MapDraft, tiles: number[], code: number): void {
 }
 
 export function markable(d: MapDraft, tile: number): boolean {
-  return d.built[tile] === BUILT_NONE && !isCutTile(d, tile) && !builtGround(tileCenter(d.size, tile));
+  const c = tileCenter(d.size, tile);
+  return d.built[tile] === BUILT_NONE && !isCutTile(d, tile) && !builtGround(c) && !scorched(c);
 }
 
 
@@ -667,7 +674,7 @@ export function powerLines(seed: number, d: MapDraft, rules: PowerLineRules): vo
       const s = rules.spacing / 2 + step * rules.spacing;
       const dir = line.dirAt(s);
       const pos = offset(line.pointAt(s), sideOf(dir, side), HALF + rules.gap + rules.radius);
-      place(d, prop('pole', pos, rules.radius, facing(dir), r + 1, step), 0);
+      placeOld(d, prop('pole', pos, rules.radius, facing(dir), r + 1, step), 0);
     }
   });
 }
@@ -679,7 +686,7 @@ export function billboards(seed: number, d: MapDraft, rules: BillboardRules): vo
   spots.forEach((spot, k) => {
     const out = sideOf(spot.dir, hashRandom(seed, rules.seedOffset, k) < 0.5 ? 1 : -1);
     const pos = offset(spot.pos, out, HALF + rules.gap + rules.radius);
-    place(d, prop('billboard', pos, rules.radius, facing({ x: -out.x, y: -out.y })), 0);
+    placeOld(d, prop('billboard', pos, rules.radius, facing({ x: -out.x, y: -out.y })), 0);
   });
 }
 
@@ -722,7 +729,7 @@ function placeHulk(d: MapDraft, rng: Rng, rules: TankRules, road: OldRoad, s: nu
     const at = s + randRange(rng, -rules.spread, rules.spread);
     const out = sideOf(road.line.dirAt(at), chance(rng, 0.5) ? 1 : -1);
     const pos = offset(road.line.pointAt(at), out, road.width / 2 + rules.gap + rules.radius + randRange(rng, 0, rules.spread));
-    if (place(d, prop('tank', pos, rules.radius, randRange(rng, 0, TURN)), rules.gap)) return;
+    if (placeOld(d, prop('tank', pos, rules.radius, randRange(rng, 0, TURN)), rules.gap)) return;
   }
 }
 
@@ -827,6 +834,10 @@ function rectTiles(size: number, rect: Rect): number[] {
 function fieldTile(d: MapDraft, rules: FieldRules, town: OldSettlement, tile: number): boolean {
   if (!markable(d, tile) || tileSteepness(d.heights, d.size, tile) > rules.flatSlope) return false;
   const c = tileCenter(d.size, tile);
-  if (Math.min(c.x, c.y, d.size - c.x, d.size - c.y) < O.edgeMargin) return false;
+  if (Math.min(c.x, c.y, d.size - c.x, d.size - c.y) < O.edgeMargin || buried(c, rules)) return false;
   return tileHeight(d, tile) <= town.ground + rules.lowRise;
+}
+
+function buried(c: Vec, rules: FieldRules): boolean {
+  return zoneWeight('desert', c.x, c.y) >= rules.buriedAt || zoneWeight('swamp', c.x, c.y) >= rules.buriedAt;
 }

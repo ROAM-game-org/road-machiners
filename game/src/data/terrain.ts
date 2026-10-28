@@ -252,7 +252,7 @@ export const TERRAIN = {
     raysPerRimTile: 2,
     closeRadius: 3,
     lingerTurns: 2,
-    grayFactor: 4,
+    grayFactor: 4, edgeFog: 0.3,
   },
   fog: {
     seen: { grey: 0.85, bright: 0.9 },
@@ -528,7 +528,7 @@ export type FieldRules = {
   gap: number;
   reach: number;
   flatSlope: number;
-  lowRise: number;
+  lowRise: number; buriedAt: number;
   minShare: number;
   tries: number;
 };
@@ -702,7 +702,7 @@ export const OLD_WORLD: {
     gap: 2,
     reach: 12,
     flatSlope: 0.1,
-    lowRise: 0.5,
+    lowRise: 0.5, buriedAt: 0.5,
     minShare: 0.6,
     tries: 8,
   },
@@ -888,7 +888,7 @@ export const ROADSIDE = {
   edgeGap: 0.6,
   propGapSlack: 0.0001,
   rowGuard: { turn: 0.05, line: 0.15 },
-  groundTypes: ['hardpan', 'sand', 'scrub', 'gravel', 'ash', 'saltCrust'] as readonly TerrainTypeId[],
+  groundTypes: ['hardpan', 'sand', 'scrub', 'gravel', 'ash', 'saltCrust', 'blackMud'] as readonly TerrainTypeId[],
   signs: {
     radius: 0.25,
     step: 10,
@@ -1052,7 +1052,7 @@ export const FARM_BELT = {
   keepOff: 25,
 };
 
-export const CRASH = { seedOffset: 9500, glassTrail: { share: 0.4, width: [142, 21] as [number, number], cover: 0.55, cell: 6, stretch: 5 }, apron: { reach: 370, density: 0.12, edge: 60, falloff: 1.8, taper: 0.25, downrange: 0.85, bareBelow: -0.35, bareEase: 0.5, clump: { broad: 60, fine: 18, fineShare: 0.35, from: 0.42, to: 0.62 }, radius: [0.7, 1.6] as [number, number], shards: 0.25, caches: { count: 10, from: 60, clump: 0.85, apart: 50, radius: [0.6, 0.8] as [number, number], tries: 20000 } } };
+export const CRASH = { seedOffset: 9500, scorch: 0.5, glassTrail: { share: 0.4, width: [142, 21] as [number, number], cover: 0.55, cell: 6, stretch: 5 }, apron: { reach: 370, density: 0.12, edge: 60, falloff: 1.8, taper: 0.25, downrange: 0.85, bareBelow: -0.35, bareEase: 0.5, clump: { broad: 60, fine: 18, fineShare: 0.35, from: 0.42, to: 0.62 }, radius: [0.7, 1.6] as [number, number], shards: 0.25, caches: { count: 10, from: 60, clump: 0.85, apart: 50, radius: [0.6, 0.8] as [number, number], tries: 20000 } } };
 
 export const SWAMP = {
   seedOffset: 9300,
@@ -1063,7 +1063,7 @@ export const SWAMP = {
   scrubShare: 0.55,
   scrubGrain: 7,
   slough: { width: 9, length: 80, depth: 0.55, from: 0.58 },
-  shore: { warp: 1.5, cell: 8 },
+  shore: { warp: 1.5, cell: 8, gain: 3 },
   trees: { tries: 900, radius: [0.5, 0.8] as [number, number] },
   wrecks: { tries: 40, radius: 0.6 },
   channel: { path: layoutPoints([[9, 44], [10.5, 48], [8, 52], [7.5, 56], [9.5, 60], [6.5, 64], [5.5, 68], [8, 72], [7, 75]]), width: 2.5, depth: 0.5 },

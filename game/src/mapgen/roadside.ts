@@ -1,7 +1,7 @@
 import { GEOLOGY, ROADSIDE, TERRAIN, type RoadsideBand } from '../data/terrain';
 import { REGION } from '../data/region';
 import { chance, hashRandom, randInt, randRange, type Rng } from '../sim/rng';
-import { BUILT_FIELD, BUILT_NONE, BUILT_OLD_ROAD, BUILT_SCRUB, TYPE_IDS, type BakedProp } from '../sim/terrain';
+import { BUILT_BLACK_MUD, BUILT_FIELD, BUILT_NONE, BUILT_OLD_ROAD, BUILT_SCRUB, TYPE_IDS, type BakedProp } from '../sim/terrain';
 import { dist, polylineDist, type Vec } from '../sim/vec';
 import { tileSteepness, type MapDraft } from './bake';
 import { onReservedGround } from './start-ground';
@@ -15,7 +15,7 @@ const GAP = REGION.obstacles.gap;
 const S_REACH = 8;
 const WASH = GEOLOGY.ground.washFlow;
 const SLOPE_LIMIT = TERRAIN.drive.maxSlope * R.slopeShare;
-const OPEN_BUILT = [BUILT_NONE, BUILT_SCRUB];
+const OPEN_BUILT = [BUILT_NONE, BUILT_SCRUB, BUILT_BLACK_MUD];
 const NEIGHBORS: readonly Vec[] = [
   { x: 1, y: 0 },
   { x: -1, y: 0 },

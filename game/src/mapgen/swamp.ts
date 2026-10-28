@@ -64,11 +64,24 @@ function carveChannel(d: MapDraft): void {
 }
 
 function markTile(seed: number, d: MapDraft, tile: number, c: Vec): void {
-  const w = wetness(seed, c.x, c.y);
-  if (w <= WET_WEIGHT || d.built[tile] !== 0) return;
-  const depth = tableAt(seed, c, w) - tileHeight(d, tile);
-  const mark = swampGround(depth, noise2(c.x / SWAMP.scrubGrain, c.y / SWAMP.scrubGrain, seed + SWAMP.seedOffset + 1));
+  if (d.built[tile] !== 0) return;
+  const roll = noise2(c.x / SWAMP.scrubGrain, c.y / SWAMP.scrubGrain, seed + SWAMP.seedOffset + 1);
+  const mark = depthMark(seed, d, tile, c, roll) ?? shoreMark(seed, c, roll);
   if (mark !== null) d.built[tile] = mark;
+}
+
+function depthMark(seed: number, d: MapDraft, tile: number, c: Vec, roll: number): number | null {
+  const w = wetness(seed, c.x, c.y);
+  return w <= WET_WEIGHT ? null : swampGround(tableAt(seed, c, w) - tileHeight(d, tile), roll);
+}
+
+function shoreMark(seed: number, c: Vec, roll: number): number | null {
+  const flat = flattenFactor(c.x, c.y);
+  if (flat <= 0 || flat >= 1) return null;
+  const { cell, gain } = SWAMP.shore;
+  const wet = zoneWeight('swamp', c.x, c.y) * clamp((1 - flat) * gain, 0, 1);
+  if (noise2(c.x / cell, c.y / cell, seed + SWAMP.seedOffset + SHORE_SEED) >= wet) return null;
+  return roll < SWAMP.scrubShare ? BUILT_SCRUB : BUILT_BLACK_MUD;
 }
 
 function tableAt(seed: number, c: Vec, w: number): number {

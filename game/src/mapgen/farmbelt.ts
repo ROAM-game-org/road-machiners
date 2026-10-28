@@ -10,7 +10,7 @@ import { zoneWeight } from '../sim/zones';
 import { clamp, dist, lerp, polylineDist, type Vec } from '../sim/vec';
 import type { MapDraft } from './bake';
 import { BUILT_CANAL, BUILT_DITCH } from './newworld';
-import { BUILT_FIELD, BUILT_TRACK, markable, place, prop, ruleRng } from './oldworld';
+import { BUILT_FIELD, BUILT_TRACK, markable, placeOld, prop, ruleRng } from './oldworld';
 
 type Frame = { origin: Vec; down: Vec; across: Vec };
 export type Canal = { points: Vec[]; levels: number[] };
@@ -348,7 +348,7 @@ function plantGrove(d: MapDraft, rng: Rng, frame: Frame, plot: Plot): void {
       if (chance(rng, missing)) continue;
       const pos = toMap(frame, plot.iu * size + a, plot.iv * size + b);
       if (polylineDist(pos, RIVER) <= RIVER_BED) continue;
-      place(d, prop('deadTree', pos, randRange(rng, ...radius), yaw + randRange(rng, -0.3, 0.3)), 1);
+      placeOld(d, prop('deadTree', pos, randRange(rng, ...radius), yaw + randRange(rng, -0.3, 0.3)), 1);
     }
   }
 }
@@ -377,7 +377,7 @@ function build(d: MapDraft, rng: Rng, yard: Vec, kind: PropKind, r: number): Bak
     const a = randRange(rng, 0, Math.PI * 2);
     const at = FARM_BELT.farmstead.spread * Math.sqrt(randRange(rng, 0, 1));
     const p = prop(kind, { x: yard.x + Math.cos(a) * at, y: yard.y + Math.sin(a) * at }, r, randRange(rng, 0, Math.PI * 2));
-    if (place(d, p, 2)) return p;
+    if (placeOld(d, p, 2)) return p;
   }
   return null;
 }

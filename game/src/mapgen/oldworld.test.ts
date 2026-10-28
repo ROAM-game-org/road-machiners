@@ -10,6 +10,7 @@ import { TEST_MAP } from '../test/map';
 import { onSiteOrPad } from '../test/sites';
 import { angleDiff, bearing, dist, polylineDist, segmentDist, type Vec } from '../sim/vec';
 import { newDraft, tileSteepness, type MapDraft } from './bake';
+import { scorched } from './descent';
 import {
   BUILT_FIELD,
   BUILT_NONE,
@@ -538,5 +539,20 @@ describe('old-world layer', () => {
 
     expect(b.props).toEqual(a.props);
     expect(Array.from(b.built)).toEqual(Array.from(a.built));
+  });
+});
+
+describe('the scorched descent trail on the baked map', () => {
+  const PRE_CRASH = ['house', 'ruin', 'barn', 'silo', 'waterTower', 'farmhouse', 'gasStation', 'billboard', 'pole', 'tank', 'bridgeSpan'];
+
+  it('holds no building, pole, tank or bridge from before the crash', () => {
+    const standing = TEST_MAP.props.filter((p) => PRE_CRASH.includes(p.kind) && scorched(p.pos));
+    expect(standing.map((p) => `${p.kind} ${p.pos.x.toFixed(0)},${p.pos.y.toFixed(0)}`)).toEqual([]);
+  });
+
+  it('holds no old asphalt or field ground', () => {
+    const t = TEST_MAP.terrain;
+    const marked = t.types.flatMap((type, tile) => ((type === 'asphalt' || type === 'field') && scorched({ x: (tile % t.size) + 0.5, y: Math.floor(tile / t.size) + 0.5 }) ? [tile] : []));
+    expect(marked).toEqual([]);
   });
 });
