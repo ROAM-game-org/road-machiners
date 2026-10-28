@@ -314,6 +314,6 @@ export function casePriceTip(c: CrimeCase): HTMLElement {
   return el("span", { class: "tooltip case-price-tip", role: "tooltip" }, priceTipRow(t("desk.base"), c.owed, "base"), priceTipRow(t("desk.restitution"), c.restitution, "down"));
 }
 
-function priceTipRow(label: Msg, cents: number, tone: "base" | "down"): HTMLElement {
-  return el("div", { class: `tooltip-row ${tone}` }, el("span", {}, label), el("span", { class: "num" }, moneyEl(cents)));
+function priceTipRow(label: Msg, amount: number, tone: "base" | "down"): HTMLElement {
+  return el("div", { class: `tooltip-row ${tone}` }, el("span", {}, label), el("span", { class: "num" }, moneyEl(amount)));
 }

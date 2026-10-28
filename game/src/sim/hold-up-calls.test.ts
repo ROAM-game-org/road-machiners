@@ -299,7 +299,7 @@ describe('robbing a driver for M', () => {
   });
 });
 
-describe('the cent math', () => {
+describe('the cut math', () => {
   it('names whole M', () => {
     const { w } = ambush(false);
     expect(Number.isInteger(cashCut(w, playerVehicle(w)))).toBe(true);

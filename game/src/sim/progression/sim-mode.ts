@@ -40,7 +40,7 @@ export type SimText = {
   memory(world: World, m: Memory): string;
   state(kind: StateKindId): string;
   words(id: string): string;
-  money(cents: number): string;
+  money(amount: number): string;
   fuel(units: number): string;
   speed(tilesPerTurn: number): string;
   distance(tiles: number): string;
