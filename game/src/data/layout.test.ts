@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ARRIVAL, FARM_TOWER_ID } from './arrival';
 import { CONTRACTS } from './market';
-import { GLASS_FLATS_GROWTH, MAP_SCALE, REGION, scalePoint } from './region';
+import { segmentDist } from '../sim/vec';
+import { GLASS_FLATS_GROWTH, MAP_GRID, MAP_SCALE, REGION, scalePoint } from './region';
 import { STORY_WRECKS } from './salvage';
 import { MAPGEN, TERRAIN } from './terrain';
 import { BEACON } from './tow';
@@ -60,7 +61,6 @@ describe('Icarus layout spread', () => {
 
   it('writes the arrival, the story wreck and the close-ups in layout units', () => {
     const near = (a: { x: number; y: number }, b: { x: number; y: number }, within = 0.01) => expect(dist(a, b)).toBeLessThan(within);
-    near(ARRIVAL.pose.pos, scalePoint({ x: 74, y: 108 }));
     const pose = ARRIVAL.pose.pos;
     const tower = ARRIVAL.farm.find((p) => p.id === FARM_TOWER_ID)!;
     near({ x: tower.pos.x - pose.x, y: tower.pos.y - pose.y }, { x: 3, y: 8 });
@@ -70,6 +70,27 @@ describe('Icarus layout spread', () => {
     near(spot('sand'), scalePoint({ x: 78, y: 70 }));
     near(sites.find((s) => s.id === 'orchard')!.pos, scalePoint({ x: 22.8, y: 56.8 }), SNAP);
     expect(REGION.playerStart.distance).toBeCloseTo(24 * MAP_SCALE, 6);
+  });
+
+  it('puts the arrival two screens off the nearest road, with Bowl west of it within two map squares', () => {
+    const pose = ARRIVAL.pose.pos;
+    const roadGap = Math.min(...REGION.roads.flatMap((road) => road.slice(1).map((b, i) => segmentDist(pose, road[i], b))));
+    const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
+    const square = REGION.size / MAP_GRID.squares;
+    expect(roadGap).toBeGreaterThan(30);
+    expect(roadGap).toBeLessThan(56);
+    expect(bowl.pos.x).toBeLessThan(pose.x);
+    expect(dist(pose, bowl.pos)).toBeLessThan(2 * square);
+  });
+
+  it.each(['bowl', 'nose'])('joins the two roads of %s with a road outside its walls', (id) => {
+    const town = REGION.towns.find((t) => t.id === id)!;
+    const ring = REGION.roads.find((road) => road.every((p) => dist(p, town.pos) > town.radius) && road.every((p) => dist(p, town.pos) < town.radius + 15))!;
+    const roadAt = (end: { x: number; y: number }) => REGION.roads.find((road) => road !== ring && road.some((p, i) => i > 0 && segmentDist(end, road[i - 1], p) < 0.01));
+    const joined = [roadAt(ring[0]), roadAt(ring[ring.length - 1])];
+    expect(ring.length).toBeGreaterThan(3);
+    expect(joined.every((road) => road !== undefined)).toBe(true);
+    expect(joined[0]).not.toBe(joined[1]);
   });
 
   it('scales the ranges that span the map', () => {

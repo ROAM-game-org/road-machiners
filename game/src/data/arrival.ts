@@ -1,12 +1,24 @@
 import type { LandmarkLook } from '../sim/types';
-import { scalePoint } from './region';
+import { REGION, scalePoint } from './region';
 import type { Vec } from '../sim/vec';
 
 export type FarmPiece = { id: string; look: LandmarkLook; pos: Vec; r: number; yaw: number };
 
 export const FARM_TOWER_ID = 'intro-water-tower';
 
-const POSE_POS = scalePoint({ x: 74, y: 108 });
+const BOWL_ROAD = 1;
+const ROAD_OFFSET = 40;
+
+function southOfRoad(x: number, tiles: number): Vec {
+  const road = REGION.roads[BOWL_ROAD];
+  const i = road.findIndex((p, k) => k > 0 && road[k - 1].x <= x && x < p.x);
+  if (i < 0) throw new Error(`Road ${BOWL_ROAD} has no stretch over x ${x}`);
+  const a = road[i - 1];
+  const b = road[i];
+  return { x, y: a.y + ((b.y - a.y) * (x - a.x)) / (b.x - a.x) + tiles };
+}
+
+const POSE_POS = southOfRoad(scalePoint({ x: 34.6, y: 0 }).x, ROAD_OFFSET);
 
 function nearArrival(dx: number, dy: number): Vec {
   return { x: POSE_POS.x + dx, y: POSE_POS.y + dy };

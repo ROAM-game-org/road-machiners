@@ -72,7 +72,7 @@ import { ZonesView } from "./render/zones";
 import type { SoundSettings } from "../ui/sound";
 import { CLOUD_SHADOWS } from "./render/cloudShadows";
 import { CallReveal } from "./call-reveal";
-import { daylightAt, enableSunShadows, lightScene, RadioLights, VehicleLights, sunLight, vehicleLampsOn } from "./render/daylight";
+import { backdropAt, daylightAt, enableSunShadows, lightScene, RadioLights, VehicleLights, sunLight, vehicleLampsOn } from "./render/daylight";
 import { sunAt } from "../sim/sun";
 import { ContactsView } from "./render/contacts";
 import { CloudViews } from "./render/clouds";
@@ -227,7 +227,6 @@ export class Game {
     this.shaders = new ShaderWarmup(this.renderer, this.scene, this.rig.camera, reportError);
     this.follow = new TruckFollow(this.rig, new KeyPan(this.ignoresKey), this.renderer.domElement);
 
-    this.scene.background = new THREE.Color(PAL.bg);
     this.renderer.domElement.classList.add("view");
     this.scene.add(this.sky, this.sun, this.sun.target, this.pickRing.mesh);
 
@@ -1075,7 +1074,8 @@ export class Game {
     this.follow.update(truck, cameraSetting().mode() === "auto" ? this.orderPoint() : null, dt, playMs);
     this.hud.showRecenter(!this.follow.isFollowing());
     const daylight = daylightAt(lightTurnOf(this.world, this.anim));
-    lightScene(this.sun, this.sky, truck, daylight);
+    lightScene(this.sun, this.sky, this.rig.focus(), daylight, this.rig.groundReach());
+    this.scene.background = this.sightLimit.fadeTo(backdropAt(daylight));
     this.craters.graffiti.light(daylight.sunIntensity);
     this.fx.light({ sun: this.sun, sky: this.sky });
     CLOUD_SHADOWS.sync(this.world, lightTurnOf(this.world, this.anim), this.play.frameMs());

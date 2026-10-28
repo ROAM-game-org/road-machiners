@@ -116,6 +116,48 @@ function bend(a: Vec, b: Vec): Vec[] {
   return points;
 }
 
+const TOWNS: TownDef[] = [
+  { id: "bowl", pos: scalePoint({ x: 16, y: 94 }), radius: 28 },
+  { id: "nose", pos: scalePoint({ x: 102, y: 35 }), radius: 32 },
+];
+
+const TOWN_RING = { margin: 9, step: 4 };
+
+function circleCrossings(road: Vec[], center: Vec, radius: number): Vec[] {
+  const out: Vec[] = [];
+  for (let i = 1; i < road.length; i++) {
+    const a = road[i - 1];
+    const d = { x: road[i].x - a.x, y: road[i].y - a.y };
+    const f = { x: a.x - center.x, y: a.y - center.y };
+    const qa = d.x * d.x + d.y * d.y;
+    const qb = 2 * (f.x * d.x + f.y * d.y);
+    const disc = qb * qb - 4 * qa * (f.x * f.x + f.y * f.y - radius * radius);
+    if (disc < 0) continue;
+    for (const t of [(-qb - Math.sqrt(disc)) / (2 * qa), (-qb + Math.sqrt(disc)) / (2 * qa)]) {
+      if (t >= 0 && t < 1) out.push({ x: a.x + d.x * t, y: a.y + d.y * t });
+    }
+  }
+  return out;
+}
+
+function townRing(town: TownDef, roads: Vec[][]): Vec[] {
+  const radius = town.radius + TOWN_RING.margin;
+  const ends = roads.flatMap((road) => circleCrossings(road, town.pos, radius));
+  if (ends.length !== 2) throw new Error(`Town ${town.id} has ${ends.length} road crossings at its ring radius, and its ring joins exactly two`);
+  const angle = (p: Vec): number => Math.atan2(p.y - town.pos.y, p.x - town.pos.x);
+  const swing = Math.atan2(Math.sin(angle(ends[1]) - angle(ends[0])), Math.cos(angle(ends[1]) - angle(ends[0])));
+  const count = Math.ceil((radius * Math.abs(swing)) / TOWN_RING.step);
+  const between = Array.from({ length: count - 1 }, (_, k) => {
+    const a = angle(ends[0]) + (swing * (k + 1)) / count;
+    return { x: town.pos.x + Math.cos(a) * radius, y: town.pos.y + Math.sin(a) * radius };
+  });
+  return [ends[0], ...between, ends[1]];
+}
+
+function withTownRings(roads: Vec[][]): Vec[][] {
+  return [...roads, ...TOWNS.map((town) => townRing(town, roads))];
+}
+
 export const FALLEN_SUN_POS = onTile(scalePoint({ x: 64, y: 54 }));
 const FALLEN_SUN_OUTLINE: Vec[] = [
   { x: -45.0, y: 0.0 },
@@ -319,10 +361,7 @@ export const REGION = {
     climbStep: 0.05,
     reachClimb: 0.2,
   },
-  towns: [
-    { id: "bowl", pos: scalePoint({ x: 16, y: 94 }), radius: 28 },
-    { id: "nose", pos: scalePoint({ x: 102, y: 35 }), radius: 32 },
-  ] as TownDef[],
+  towns: TOWNS,
   locations: [
     { id: "orchard", kind: "territory", pos: ORCHARD_POS, radius: boundingRadius(ORCHARD_OUTLINE), outline: ORCHARD_OUTLINE },
     {
@@ -390,7 +429,7 @@ export const REGION = {
       radius: 6,
     },
   ] as LocationDef[],
-  roads: [
+  roads: withTownRings([
     scaleRoad([
       { x: 16, y: 94 },
       { x: 20.36277, y: 84.67443 },
@@ -501,7 +540,7 @@ export const REGION = {
       fromFallenSun(37.75, 28.44),
     ],
     [ROADHOUSE_JUNCTION, MARSHAL_POST_AT],
-  ] as Vec[][],
+  ]),
   roadWidth: 6,
   obstacles: {
     roadWrecks: 39,
