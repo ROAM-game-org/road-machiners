@@ -47,6 +47,8 @@
 
 ## Road network
 
+- Bowl and Nose each have a ring road outside their walls, so a truck goes from one gate road to the other without entering the town. `withTownRings()` in `src/data/region.ts` appends it to `REGION.roads` after the authored roads, so road indices do not move. `townRing()` finds where the town's two roads cross a circle `TOWN_RING.margin` tiles past the town radius, past the pads, and runs the shorter arc between them in steps of `TOWN_RING.step`. It throws unless exactly two roads cross the circle. The ring stays outside the circle, so a town keeps its two gates.
+- The new-game arrival (`ARRIVAL` in `src/data/arrival.ts`) lies `ROAD_OFFSET` tiles south of the road from Bowl, about two screens of driving, at a fixed layout x east of Bowl. The road is out of sight at the start, and `layout.test.ts` checks the gap to the nearest road and that Bowl lies west within two map squares.
 - `roadNetworkOf(world)` in `src/sim/road-network.ts` builds a graph from `atlas.roads` once per atlas and caches it by `atlasKeyString()`. It is never saved. Nodes are road ends, junctions, site gates and territory entries. A road end within `DIRECTIONS.joinSnap` of another road splits that road and joins there, and roads that cross split each other. Road pieces inside a site that blocks driving are dropped, so no route runs through a town. `buildRoadNetwork()` throws when a site has no gate node or a territory no entry node. `shortestPath()` is Dijkstra by length, `nearestRoadPoints()` reads a bucket index over the road segments, and `splitAt()` adds the start and the goal as nodes. Directions read the network and nothing else does yet; NPC driving still uses `route()`.
 
 ## Generated maps
