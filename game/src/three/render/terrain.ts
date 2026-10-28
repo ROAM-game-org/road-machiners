@@ -19,6 +19,7 @@ const DENSITY_REFERENCE_TILES = 600;
 const GROUND_PIXELS_PER_TILE = TEXTURE_SIDE / (DENSITY_REFERENCE_TILES + 2 * TERRAIN_MARGIN);
 export const TERRAIN_CHUNK = 32;
 const FACET_TINT = 0.04;
+const FACET_SMOOTH_DAY = 0.5;
 
 export function groundSide(size: number): number {
   return Math.min(TEXTURE_SIDE, Math.round(GROUND_PIXELS_PER_TILE * (size + 2 * TERRAIN_MARGIN)));
@@ -141,8 +142,9 @@ function facetGround(material: THREE.MeshLambertMaterial): void {
     shader.uniforms.facetTile = { value: S };
     shader.uniforms.facetTint = { value: FACET_TINT };
     shader.uniforms.facetSmooth = NIGHT_POOLS.level;
+    shader.uniforms.facetSmoothDay = { value: FACET_SMOOTH_DAY };
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform float facetTile;\nuniform float facetTint;\nuniform float facetSmooth;")
+      .replace("#include <common>", "#include <common>\nuniform float facetTile;\nuniform float facetTint;\nuniform float facetSmooth;\nuniform float facetSmoothDay;")
       .replace("#include <color_fragment>", `#include <color_fragment>\n${FACET_FRAGMENT}`)
       .replace("#include <normal_fragment_begin>", `#include <normal_fragment_begin>\n${FACET_NORMAL}`);
   };
@@ -159,7 +161,7 @@ const FACET_FRAGMENT = `{
   diffuseColor.rgb *= 1.0 + (facetHash - 0.5) * 2.0 * facetTint;
 }`;
 
-const FACET_NORMAL = `normal = normalize(mix(normalize(cross(dFdx(vViewPosition), dFdy(vViewPosition))), normal, facetSmooth));`;
+const FACET_NORMAL = `normal = normalize(mix(normalize(cross(dFdx(vViewPosition), dFdy(vViewPosition))), normal, max(facetSmooth, facetSmoothDay)));`;
 
 function deckPick(t: Terrain, deck: Deck, scope: RenderScope): void {
   for (const seg of deckSegments(t, deck)) piecePick(deck, seg, scope);
