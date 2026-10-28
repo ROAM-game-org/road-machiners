@@ -163,14 +163,15 @@ Approach: build the km-scale relief first and look at it, then add zone content 
 
 ## Verify
 
-- CK1 — Full bake of map 7f75ba12 took about 250 s, under the IV8 limit of 625 s.
+- CK1 — Full bake of map 3328b180 took 227 s, under the IV8 limit of 625 s.
 - CK2 — The bake report passes every zone check: core, ring, mountains, desert, swamp, farm belt and crash at a glass share of 0.15 on the trail band. The drive flood reaches every gate and core from the start (IV3, IV6).
 - CK3 — Glass Flats lies at layout 106,106 in the SE corner. No road enters its outline, and directions lead off the road to its one entry (IV4, IV7).
 - CK4 — Renders read at full size: the overview shows the NE range, NW swamp, farm belt, SE desert, Glass Flats and the glass trail. Close-ups of farm, range, swamp, desert, glass and orchard show each zone's ground and relief.
 - CK5 — Roads: only 0.4% of plain road samples exceed the grade after the road bed blur (IV2).
-- CK6 — Old spots, survey sites, claim clues and the Sunward Hollow were picked again for the new map. Talk and quest lines that place Glass Flats or the trail still match it (UK3). Survey pictures were drawn again, and the contact sheet shows each place in frame.
-- CK7 — Every map-reading test file was run. The failures that remain also fail at the branch point 23a61d36d: survey-reach, claims, economy, haul-delivery, modes, old-places refill, opening, story-wrecks, survey way, economy-reads, sim-economy, and path-raiders "routes equal the reference". vast-map has newer routing commits, so this list can shift after a merge.
-- CK8 — One new failure remains: path-raiders "A* cells ... within 1% of the reference". The pair runs from 520,199 to 509,229 at radius 0.6, a span of 70 cells, over the 32-cell limit for a fine search. The corridor search costs 223.0 against the best 206.1, 8% over the 5% allowance, and no corridor retry fires. Both paths cross only scree, hardpan, scrub and sand. The corridor path takes more of the cheap hardpan, so no ground type is underpriced. The coarse corridor misses the narrow gap the best path uses on this steep ground. Widening the corridor trades route speed for path quality, so it is left for the user.
+- CK6 — Old spots, survey sites and claim clues were picked again for map 3328b180, and survey pictures were drawn again. The Sunward Hollow spot picked for the 7.5 km map still passes the sunward tests. Talk and quest lines that place Glass Flats or the trail still match it (UK3).
+- CK7 — All 212 test files that read the map or name its places were run on map 3328b180. The failures that remain also fail at the branch point 23a61d36d: survey-reach, claims, economy, haul-delivery, modes, old-places refill, opening, story-wrecks, survey way, economy-reads, sim-economy, content effort bands, contracts, dialogue, hazard breach light, late-haul, paint readers, scrap-patch, intro arrival, fort lamps, light pools, two save tests, contract text format, radio dawn, the Bowl heading, and path-raiders "routes equal the reference". vast-map has newer routing commits, so this list can shift after a merge.
+- CK9 — Tests that failed only on this branch were read one by one and fixed at the cause. Black mud joined the mud grounds in the grip test. The hung-rock tests moved to a spot with the old slope, and pass at two such spots. The scavenger search allows a loot-on-the-way detour, which every choice keeps a minimum chance of. The crater accounts test draws 120 drivers at the same 25% share, so an id shift no longer flips it. Route directness counts pairs whose straight line crosses no cliff: 1.07 on those, while lines across the range run 1.75. The old-places test checks the share roll's goals, not every old spot in sight. The save shape took a no-op step to format 2.118, since only the sampled new game changed.
+- CK8 — One new failure remains: path-raiders "A* cells ... within 1% of the reference". On map 3328b180 the corridor search's excess is 16.3 against an allowance of 10.3. On map 7f75ba12 the failing pair ran from 520,199 to 509,229 at radius 0.6, a span of 70 cells, over the 32-cell limit for a fine search. The corridor search costs 223.0 against the best 206.1, 8% over the 5% allowance, and no corridor retry fires. Both paths cross only scree, hardpan, scrub and sand. The corridor path takes more of the cheap hardpan, so no ground type is underpriced. The coarse corridor misses the narrow gap the best path uses on this steep ground. Widening the corridor trades route speed for path quality, so it is left for the user.
 
 ## Conclusion
 
@@ -179,7 +180,7 @@ The 7.5 km Icarus map now has regions that differ on the scale of kilometres. A 
 - AS1 held with one nudge: the Sunward Hollow spot and gate bearing moved to the 7.5 km map.
 - AS2 is unconfirmed: the lore page carries the swamp line, plus lines on the range, farm belt and desert, all awaiting the user's OK.
 - AS3 held: the mountains pass the cliff share check without a fault step.
-- UK1: the full bake takes about 250 s.
+- UK1: the full bake takes about 230 s.
 - UK2: zone shapes were tuned on renders, hands-off.
 - UK3: no talk or quest line needed a change.
 
@@ -187,6 +188,18 @@ The 7.5 km Icarus map now has regions that differ on the scale of kilometres. A 
 - PH2 2.4: `MAPGEN.heightScale` is 300, not 400 — 300 keeps road grades within the limit at the solved relief.
 - PH2: the road corridor uplift cut was dropped — it made every road a drainage trough. A road bed blur after the solve replaces it.
 - The built tile codes moved into `src/sim/terrain.ts` beside the ground type codes. The bake import cycle had left them undefined in sets built at module load.
+- PH2 2.5 dropped: the road grade margin did not grow with wall height. The road bed blur took its place. A map test now enforces IV2 instead: no region road sample lies on a cliff.
+
+### Review findings
+- Fixed: IV6 passed the farm belt on ground share alone. Measuring showed the canals ran uphill by up to 6 units, about 24 m. The trace now turns up to 60° a step and ends where a cutting would pass three canal depths. Every ditch bed is graded as a running minimum, and laterals leave at the canal bed. The report throws when any ditch bed rises more than 0.05. The canals keep 976 and 516 tiles.
+- Fixed: IV6 checked the desert by height spread only. The report now measures the median dune crest spacing along the wind and throws outside 25 to 100 tiles. It reads 50.
+- Fixed: an empty road-entry list silently turned any territory off road. Glass Flats now carries `offRoad`, and every other territory throws without a road crossing.
+- Fixed: IV2 had no enforcement. A map test checks every region road sample for cliffs.
+- Fixed: map `VERSION` rose to 5 with the `blackMud` type.
+- Not changed: the IV3 drive flood checks slope only, so a gate walled in by props would pass it. Canals are drivable ground, so they are no barrier to the flood.
+- Declined: PC1 asks for numbers in `src/data`. `ZONE_CHECKS` lives in `report.ts` because `src/data/terrain.ts` is at the file length limit. Some layer weights stay inline in `desert.ts`, `swamp.ts` and `farmbelt.ts`.
+- Declined: renaming `GLASS_FLATS_ENDS` and the `[0]` entry pick in `offRoadSpot`. An off-road territory has exactly one entry, which the territory code now enforces.
+- Scope flag kept for the user: territory outlines are authored polygons, with Glass Flats scaled up. Only their ground and contents grow from mapgen, not the outline shape (IV5).
 
 ### Deferred (needs user input)
 - Lore: `game/docs/lore/README.md` gained lines on the rim and range, the farm belt, the SE desert and the black mud swamp. They need the user's read and OK.
