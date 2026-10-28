@@ -1,5 +1,6 @@
 import { REGION } from '../data/region';
 import { EXITS, TERRAIN, TRAILS } from '../data/terrain';
+import { boxDistance, propBoxes, propObstacle } from '../sim/mapgen';
 import { ROAD_INDEX } from '../sim/road-index';
 import { siteGap } from '../sim/sites';
 import { startPose } from '../sim/start-pose';
@@ -98,11 +99,12 @@ function fillPit(d: MapDraft, e: Escape, pit: number[]): void {
   const xs = centers.map((c) => c.x);
   const ys = centers.map((c) => c.y);
   const box = { x0: Math.min(...xs) - reach, x1: Math.max(...xs) + reach, y0: Math.min(...ys) - reach, y1: Math.max(...ys) + reach };
-  const seated = d.props.filter((p) => !EXITS.clearKinds.includes(p.kind) && p.pos.x + p.r >= box.x0 && p.pos.x - p.r <= box.x1 && p.pos.y + p.r >= box.y0 && p.pos.y - p.r <= box.y1);
+  const near = d.props.filter((p) => !EXITS.clearKinds.includes(p.kind) && p.pos.x + 2 * p.r >= box.x0 && p.pos.x - 2 * p.r <= box.x1 && p.pos.y + 2 * p.r >= box.y0 && p.pos.y - 2 * p.r <= box.y1);
+  const seats = near.flatMap((p, k) => propBoxes(propObstacle(p, k)));
   for (let y = Math.max(0, Math.floor(Math.min(...ys) - reach)); y <= Math.min(d.size, Math.ceil(Math.max(...ys) + reach)); y++) {
     for (let x = Math.max(0, Math.floor(Math.min(...xs) - reach)); x <= Math.min(d.size, Math.ceil(Math.max(...xs) + reach)); x++) {
       const gap = Math.max(0, Math.min(...centers.map((c) => Math.hypot(c.x - x, c.y - y))) - Math.SQRT1_2);
-      if (!seated.some((p) => Math.hypot(p.pos.x - x, p.pos.y - y) <= p.r)) d.heights[y * n + x] = Math.max(d.heights[y * n + x], rim - RAMP_GRADE * gap);
+      if (!seats.some((b) => boxDistance(b, { x, y }) === 0)) d.heights[y * n + x] = Math.max(d.heights[y * n + x], rim - RAMP_GRADE * gap);
     }
   }
 }
