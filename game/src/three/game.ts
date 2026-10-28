@@ -391,6 +391,7 @@ export class Game {
     this.travel.pause();
     this.world = next;
     this.saves.logWorld(next);
+    if (this.anim && !this.anim.impacts) return this.refreshUi();
     this.hud.logHeld(next, this.reveal.settle(next));
     this.refreshUi();
   }
@@ -437,7 +438,7 @@ export class Game {
     if (!this.anim || this.anim.impacts)
       this.obstacles.sync(this.world.obstacles, this.world.salvage, this.world.broken);
     this.craters.sync(this.world);
-    this.hud.renderTop(this.displayWorld());
+    this.hud.renderTop(this.displayWorld(), this.world);
     this.hud.markCombat(inCombat(this.world, playerVehicle(this.world)));
     this.hud.renderRescue(this.displayWorld(), this.callShown());
     if (!this.anim && deathShows(this.world)) this.death.show(this.world);
@@ -578,9 +579,9 @@ export class Game {
     if (this.picker.updateCue(this.canClick())) this.renderer.domElement.style.cursor = this.picker.stopCue ? "pointer" : "";
   }
 
-  private canClick(): boolean {
-    return !this.anim && !this.modalOpen() && playerCanAct(this.world);
-  }
+  private canClick(): boolean { return !this.anim && this.canOrder(); }
+
+  private canOrder(): boolean { return !this.modalOpen() && playerCanAct(this.world); }
 
   private touchDown(e: PointerEvent): void {
     this.touchIntent(this.touch.down(e.pointerId, e.clientX, e.clientY, performance.now()));
@@ -626,7 +627,7 @@ export class Game {
     const point = this.canClick() && this.utilityAim.pointPending();
     if (this.modalOpen() || action.kind !== "ground" || point) return this.touchTap(x, y);
     const p = this.rig.groundUnder(x, y, this.ground);
-    if (this.canClick() && p) this.controls.order(p, true);
+    if (this.canOrder() && p) this.controls.order(p, true);
   }
 
   private touchTap(x: number, y: number): void {
@@ -666,7 +667,7 @@ export class Game {
     if (this.modalOpen()) return;
     const action = this.picker.action(x, y);
     if (action.kind === "vehicle") return this.clickVehicle(action.id);
-    if (!this.canClick()) return;
+    if (!this.canOrder()) return;
     switch (action.kind) {
       case "stop":
         return this.apply(setMoveOrder(this.world, { kind: "brake" }));

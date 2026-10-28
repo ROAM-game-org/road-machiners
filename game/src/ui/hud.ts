@@ -569,7 +569,7 @@ export class Hud {
     );
   }
 
-  renderTop(w: World): void {
+  renderTop(w: World, live: World): void {
     const readout = getHudReadout(w);
     const busy = this.actions.isBusy();
     this.condition.render(playerVehicle(w), w.player.paint, undefined, repairingPart(w, playerVehicle(w)));
@@ -579,9 +579,9 @@ export class Hud {
     this.tips.update(w, this.actions.autoTravel());
     if (!this.top.firstChild) this.top.append(this.clockSlot, this.speedSlot, this.readoutSlot, this.actionSlot);
     this.renderClock(readout.clock);
-    const me = playerVehicle(w);
+    const me = playerVehicle(live);
     const pace = me.order && me.order.kind !== "brake" ? me.order.pace : undefined;
-    const mark = readout.manual ? me.setSpeed : pace;
+    const mark = me.direct ? me.setSpeed : pace;
     this.renderSpeedometer(readout, busy, mark === undefined ? null : kph(mark));
     this.fillReadouts(readout);
     this.renderActions(w, readout.manual, busy);
