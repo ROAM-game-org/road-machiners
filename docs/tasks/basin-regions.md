@@ -213,4 +213,4 @@ The 7.5 km Icarus map now has regions that differ on the scale of kilometres. A 
 - uplan: Glass Flats and Old Orchard keep authored outlines, Glass Flats scaled to its new size, instead of zone contours — the authored cores throw on outline mismatch and a scaled polygon is one data function too, so IV5 holds with less risk.
 - uexecute: work done inline, no implementer agents — every phase tunes on the same renders and the same few files.
 - review: the nav corridor's first try widened from one coarse block to two — it fixes the one test failure this branch caused and an older one, at about 2.6 ms more per window route. Reverting is one constant.
-- review: canal cuts are limited to three canal depths and canal turns to 60° — the shortest limits that keep both canals over 500 tiles long.
+- review: canal cuts are limited to three canal depths and canal turns to 60° — three is the fewest whole canal depths that keeps both canals over 500 tiles; two leaves one at 240.
