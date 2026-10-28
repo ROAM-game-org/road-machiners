@@ -1,5 +1,5 @@
 {
- "format": "2.122",
+ "format": "2.123",
  "shape": {
   "broken": [],
   "chaosHighway": "null",
@@ -15,7 +15,7 @@
   },
   "moments": {
    "crucible": {
-    "driver": "string",
+    "driver": "null",
     "heard": "boolean"
    },
    "eightToNine": {
@@ -23,7 +23,7 @@
     "heard": "boolean"
    },
    "fromTheWest": {
-    "driver": "null",
+    "driver": "string",
     "heard": "boolean"
    }
   },
@@ -2469,7 +2469,6 @@
     "asked_where": "boolean",
     "asked_yard": "boolean"
    },
-   "intro_road": {},
    "nose_counter": {
     "asked_shelf": "boolean",
     "read_stamp": "boolean"
@@ -2651,9 +2650,6 @@
     "start.ask",
     "meet",
     "again"
-   ],
-   "intro_road": [
-    "start"
    ],
    "nose_counter": [
     "start",
@@ -2864,16 +2860,6 @@
     "reads": [
      "towed_to_bowl"
     ],
-    "readsNotes": [],
-    "writes": {},
-    "notes": [],
-    "begins": []
-   }
-  },
-  "intro_road": {
-   "revision": 1,
-   "links": {
-    "reads": [],
     "readsNotes": [],
     "writes": {},
     "notes": [],

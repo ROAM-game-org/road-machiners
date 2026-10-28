@@ -647,3 +647,10 @@ export function withDialogueSeen_116_117(world: SavedJson): SavedJson {
 export function withoutLenaGlare_117_118(world: SavedJson): SavedJson {
   return ['heard_glare', 'asked_glare'].reduce((w, name) => dropQuestVar(w, 'nose_lena', name), world);
 }
+
+export function withoutRoadScene_122_123(world: SavedJson): SavedJson {
+  const dropped = dropQuest(world, 'intro_road');
+  const player = dropped.player as { quests: { live: { quest: string } | null } };
+  if (player.quests.live?.quest !== 'intro_road') return dropped;
+  return { ...dropped, player: { ...player, quests: { ...player.quests, live: null } } };
+}
