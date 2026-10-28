@@ -1,6 +1,6 @@
 # Basin regions
 
-**Status:** planning
+**Status:** validating
 **Branch:** basin-regions
 **Worktree:** .worktrees/basin-regions
 **Goal:** The 7.5 km Icarus bake has zones that feel different and make sense at the scale of kilometres: a basin shape, mountains round Nose, a black-mud swamp, a desert, a farm belt of fields and canals round Bowl, and Old Orchard, Glass Flats and the Fallen Sun grown by mapgen round a kept centre, size and core, with Glass Flats moved off road into the SE corner. The user judges it from the overview and close-up renders of the bake and by driving it, and uses it as the base land of the vast map. A close-up of any 200 m window names its zone without colour: by what blocks sight, what slows the truck and which way lines run. Useless if: zones differ only in ground colour; a zone is a blob or one noise threshold with no shape that steers routes; mountains are lumps with no valleys or passes; the grown areas are the old stamps moved or scaled; the farm belt is scattered fences with no grid; swamp and desert are paint over unchanged relief; a road into Nose climbs a cliff or a site cannot be reached.
@@ -163,7 +163,34 @@ Approach: build the km-scale relief first and look at it, then add zone content 
 
 ## Verify
 
+- CK1 — Full bake of map 7f75ba12 took about 250 s, under the IV8 limit of 625 s.
+- CK2 — The bake report passes every zone check: core, ring, mountains, desert, swamp, farm belt and crash at a glass share of 0.15 on the trail band. The drive flood reaches every gate and core from the start (IV3, IV6).
+- CK3 — Glass Flats lies at layout 106,106 in the SE corner. No road enters its outline, and directions lead off the road to its one entry (IV4, IV7).
+- CK4 — Renders read at full size: the overview shows the NE range, NW swamp, farm belt, SE desert, Glass Flats and the glass trail. Close-ups of farm, range, swamp, desert, glass and orchard show each zone's ground and relief.
+- CK5 — Roads: only 0.4% of plain road samples exceed the grade after the road bed blur (IV2).
+- CK6 — Old spots, survey sites, claim clues and the Sunward Hollow were picked again for the new map. Talk and quest lines that place Glass Flats or the trail still match it (UK3). Survey pictures were drawn again, and the contact sheet shows each place in frame.
+- CK7 — Every map-reading test file was run. The failures that remain also fail on base 23a61d36d: survey-reach, claims, economy, haul-delivery, modes, old-places refill, opening, personality seeding, story-wrecks, survey way, economy-reads, sim-economy, and path-raiders "routes equal the reference".
+- CK8 — One new failure remains: path-raiders "A* cells ... within 1% of the reference". A long route through the coarse corridor costs 8% over the best path, against a 5% allowance. The rougher relief exposes the same corridor limit that base already fails in "routes equal the reference". Widening the corridor trades route speed for path quality, so it is left for the user.
+
 ## Conclusion
+
+The 7.5 km Icarus map now has regions that differ on the scale of kilometres. A range rings Nose, a black-mud swamp sits at Dustwell's spring, dunes fill the SE desert, and a farm belt of canals and abandoned farms runs along the dry river past Bowl. Old Orchard, Glass Flats and the Fallen Sun keep only their authored cores and grow from the land. Glass Flats sits off road in the SE corner, and the descent path carries debris and glass from it to the Fallen Sun.
+
+- AS1 held with one nudge: the Sunward Hollow spot and gate bearing moved to the 7.5 km map.
+- AS2: the lore page carries the swamp line.
+- AS3 held: the mountains pass the cliff share check without a fault step.
+- UK1: the full bake takes about 250 s.
+- UK2: zone shapes were tuned on renders, hands-off.
+- UK3: no talk or quest line needed a change.
+
+### Deviations from plan
+- PH2 2.4: `MAPGEN.heightScale` is 300, not 400 — 300 keeps road grades within the limit at the solved relief.
+- PH2: the road corridor uplift cut was dropped — it made every road a drainage trough. A road bed blur after the solve replaces it.
+- The built tile codes moved into `src/sim/terrain.ts` beside the ground type codes. The bake import cycle had left them undefined in sets built at module load.
+
+### Deferred (needs user input)
+- Nav corridor search: route speed against path quality on rough relief. Evidence is CK8.
+- The directions test "heads west for Bowl" gets northWest on base and on this branch, because `headingReach` is not scaled with the map size.
 
 ### Hands-off decisions
 - make: size Large, full flow — the user approved the design and asked for hands-off execution.
