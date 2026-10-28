@@ -157,11 +157,11 @@ describe('falls', () => {
 
   it('a body hit on the ground costs every part, a gun included, half of what it cost on dev', () => {
     const losses = lossesOf((world, v) => applyGroundCrash(world, v, 'ground', 3, lane), true);
-    const lossOf = (def: string, _nth: number) => Math.max(...losses.filter((part) => part.def === def).map((part) => part.loss));
-    expect(Math.abs(lossOf('wheel', 0) - 5.5)).toBeLessThanOrEqual(1);
-    expect(Math.abs(lossOf('stockEngine', 0) - 9)).toBeLessThanOrEqual(1);
-    expect(lossOf('mg', 0)).toBeGreaterThan(0);
-    expect(lossOf('mg', 0)).toBeLessThanOrEqual(5.5);
+    const lossOf = (def: string) => Math.max(...losses.filter((part) => part.def === def).map((part) => part.loss));
+    expect(Math.abs(lossOf('wheel') - 5.5)).toBeLessThanOrEqual(1);
+    expect(Math.abs(lossOf('stockEngine') - 9)).toBeLessThanOrEqual(1);
+    expect(lossOf('mg')).toBeGreaterThan(0);
+    expect(lossOf('mg')).toBeLessThanOrEqual(5.5);
     const devTotal = devGroundCrash.reduce((sum, part) => sum + part.loss, 0);
     const total = losses.reduce((sum, part) => sum + part.loss, 0);
     expect(total).toBeLessThanOrEqual(devTotal / 2 + 2);
