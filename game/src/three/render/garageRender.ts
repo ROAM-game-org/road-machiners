@@ -99,9 +99,10 @@ export function packPlacements(chassisId: string, placements: readonly Placement
 }
 
 export function gridOrigin(chassisId: string): { x: number; z: number } {
-  const { center, half } = spanOf(chassisId);
+  const { center } = spanOf(chassisId);
+  const { w, h } = baseGrid(chassisId);
   const step = cellSteps(chassisId);
-  return { x: center + half.x + step.row, z: -half.z - step.col };
+  return { x: center + ((h - 2) * step.row) / 2 + step.row, z: -((w - 2) * step.col) / 2 - step.col };
 }
 
 function drawnMeshes(root: THREE.Object3D): Drawn[] {
