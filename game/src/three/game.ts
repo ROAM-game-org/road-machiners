@@ -1018,7 +1018,7 @@ export class Game {
       this.updateTravel();
     }
     this.settleLateStop(now);
-    this.travel.prepareNext(this.world, this.anim, now);
+    this.travel.prepareNext(this.world, this.anim, now, this.drive);
     this.flushUi(began, phase);
     return { at, playMs };
   }

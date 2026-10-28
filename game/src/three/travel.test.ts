@@ -20,6 +20,7 @@ import { leaveQuest, QUESTS, startQuest } from "../sim/quests";
 import { GAME_OPENED_QUESTS } from "../data/quests";
 
 const TAIL = 11;
+const NO_DRIVE = {} as DriveSnapshot;
 
 function makeSafeWorld() {
   const world = reusedWorld("travel", () => newWorld(1337, startKit("standard"), TEST_MAP, defaultSetup('roaming')));
@@ -617,7 +618,7 @@ describe("turns on a tow rope", () => {
 
   it("prepare the next turn during playback with no key held", () => {
     const { travel, prepare } = travelWithPrepared();
-    travel.prepareNext(towedWorld(), playback, 0);
+    travel.prepareNext(towedWorld(), playback, 0, NO_DRIVE);
     expect(prepare).toHaveBeenCalledTimes(1);
   });
 
@@ -625,13 +626,49 @@ describe("turns on a tow rope", () => {
     const { travel, prepare } = travelWithPrepared();
     const world = towedWorld();
     travel.stopAuto(world);
-    travel.prepareNext(world, playback, 0);
+    travel.prepareNext(world, playback, 0, NO_DRIVE);
     expect(prepare).not.toHaveBeenCalled();
+  });
+
+  it("prepare the turn a Space press would start while the player waits with a route", () => {
+    const { travel, prepare } = travelWithPrepared();
+    const start = makeSafeWorld();
+    const world = setMoveOrder(start, { kind: "through", dest: { x: playerVehicle(start).pos.x + 60, y: playerVehicle(start).pos.y } });
+    const drive = {} as DriveSnapshot;
+    travel.setSpeedIndex(CONFIG.travelSpeeds.length - 1);
+    travel.prepareNext(world, null, 0, drive);
+    expect(prepare).toHaveBeenCalledWith(world, drive, true);
+    prepare.mockClear();
+    travel.request(world, drive);
+    prepare.mockClear();
+    travel.prepareNext(world, null, 0, drive);
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
+  it("prepare nothing ahead with no route or in a fight", () => {
+    const { travel, prepare } = travelWithPrepared();
+    const start = makeSafeWorld();
+    const world = setMoveOrder(start, { kind: "through", dest: { x: playerVehicle(start).pos.x + 60, y: playerVehicle(start).pos.y } });
+    travel.prepareNext(start, null, 0, NO_DRIVE);
+    addState(world, "combat", "enemy", world.player.vehicleId, { kind: "none" });
+    travel.prepareNext(world, null, 0, NO_DRIVE);
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
+  it("asks for the fast turn when Space starts fast travel", () => {
+    const { travel, prepare } = travelWithPrepared();
+    const start = makeSafeWorld();
+    const world = setMoveOrder(start, { kind: "through", dest: { x: playerVehicle(start).pos.x + 60, y: playerVehicle(start).pos.y } });
+    const drive = {} as DriveSnapshot;
+    travel.setSpeedIndex(CONFIG.travelSpeeds.length - 1);
+    expect(travel.pressTurn(false, world)).toBe(true);
+    travel.request(world, drive);
+    expect(prepare).toHaveBeenCalledWith(world, drive, true);
   });
 
   it("do not prepare ahead for a truck that is not towed", () => {
     const { travel, prepare } = travelWithPrepared();
-    travel.prepareNext(makeSafeWorld(), playback, 0);
+    travel.prepareNext(makeSafeWorld(), playback, 0, NO_DRIVE);
     expect(prepare).not.toHaveBeenCalled();
   });
 });
@@ -664,7 +701,7 @@ describe("every turn that runs on its own", () => {
 
   it.each(kinds)("prepares the next turn during playback while %s", (kind) => {
     const { travel, prepare } = travelWithTurns();
-    travel.prepareNext(stranded(kind), playback, 0);
+    travel.prepareNext(stranded(kind), playback, 0, NO_DRIVE);
     expect(prepare).toHaveBeenCalledTimes(1);
   });
 
@@ -677,7 +714,7 @@ describe("every turn that runs on its own", () => {
     const { travel, prepare } = travelWithTurns(() => ready);
     const world = stranded(kind);
     travel.stopAuto(world);
-    travel.prepareNext(world, playback, 0);
+    travel.prepareNext(world, playback, 0, NO_DRIVE);
     expect(prepare).not.toHaveBeenCalled();
     expect(travel.takeReady(world, drive, 0)).toBeNull();
   });
@@ -761,7 +798,7 @@ describe("every turn that runs on its own", () => {
       expect(travel.isFast(2000)).toBe(false);
       expect(travel.shouldAdvance(2000)).toBe(false);
       expect(travel.takeReady(world, drive, 2000)).toBeNull();
-      travel.prepareNext(world, playback, 2000);
+      travel.prepareNext(world, playback, 2000, NO_DRIVE);
       expect(prepare).not.toHaveBeenCalled();
     });
 
@@ -830,7 +867,7 @@ describe("a scene or call on view", () => {
       const world = open();
       const now = press(travel);
       expect(travel.continues(world, now)).toBe(false);
-      travel.prepareNext(world, playback, now);
+      travel.prepareNext(world, playback, now, NO_DRIVE);
       expect(prepare).not.toHaveBeenCalled();
       expect(travel.takeReady(world, drive, now, false)).toBeNull();
       expect(travel.timeWanted(world, now)).toBe(false);
@@ -842,7 +879,7 @@ describe("a scene or call on view", () => {
       world.player.quests.live = null;
       const now = press(travel);
       expect(travel.continues(world, now)).toBe(true);
-      travel.prepareNext(world, playback, now);
+      travel.prepareNext(world, playback, now, NO_DRIVE);
       expect(prepare).toHaveBeenCalledTimes(1);
       expect(travel.takeReady(world, drive, now, false)).toBe(ready);
       expect(travel.timeWanted(world, now)).toBe(true);
@@ -987,7 +1024,7 @@ describe("the slowdown after a stopped turn", () => {
     Object.assign(travel, { turns: { prepare } });
     const stopped = travel.stopAt({ ...playback, result: { next: {} } } as Playback, world, {}, 0, 0)!.world;
     travel.press(0, false, true);
-    travel.prepareNext(stopped, { ...playback, result: { next: {} } } as Playback, 0);
+    travel.prepareNext(stopped, { ...playback, result: { next: {} } } as Playback, 0, NO_DRIVE);
     expect(prepare).toHaveBeenCalledWith(stopped, tail.next, false);
   });
 
@@ -1103,7 +1140,7 @@ describe("a world that waits on the player", () => {
     travel.release();
     expect(travel.continues(world, 1000)).toBe(false);
     expect(travel.timeWanted(world, 1000)).toBe(false);
-    travel.prepareNext(world, playback, 1000);
+    travel.prepareNext(world, playback, 1000, NO_DRIVE);
     expect(prepare).not.toHaveBeenCalled();
     expect(travel.takeReady(world, drive, 1000)).toBeNull();
     expect(travel.shouldAdvance(1000)).toBe(false);
@@ -1116,7 +1153,7 @@ describe("a world that waits on the player", () => {
     travel.press(1000, false, true);
     expect(travel.isFast(1500)).toBe(true);
     expect(travel.continues(world, 1500)).toBe(false);
-    travel.prepareNext(world, playback, 1500);
+    travel.prepareNext(world, playback, 1500, NO_DRIVE);
     expect(prepare).not.toHaveBeenCalled();
     expect(travel.takeReady(world, drive, 1500)).toBeNull();
     expect(travel.isFast(1600)).toBe(false);
