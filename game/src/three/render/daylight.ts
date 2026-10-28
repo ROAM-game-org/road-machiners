@@ -243,7 +243,7 @@ const BEAM_SHADOW_MAP = 1024;
 const BEAM_SHADOW_BIAS = 0.3;
 const BEAM_AIM = { ahead: 30, down: 6 };
 
-const GLOW_INTENSITY = 0.25;
+const GLOW_INTENSITY = 0.5;
 const GLOW_RANGE = 4.5;
 const GLOW_DECAY = 1;
 const GLOW_HEIGHT = 3;
