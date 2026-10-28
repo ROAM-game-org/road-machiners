@@ -21,6 +21,7 @@ export function slotOrder(before: readonly string[], live: readonly string[], sp
 
 export function spentRow(last: HTMLElement, done: Msg): HTMLElement {
   const row = last.cloneNode(true) as HTMLElement;
+  row.classList.remove("on");
   row.classList.add("spent");
   row.querySelectorAll(`[${SPENT_DROP}]`).forEach((n) => n.remove());
   row.querySelector(`[${ROW_ACTION}]`)?.replaceWith(el("span", { class: "tag" }, done));
@@ -40,7 +41,10 @@ export class RowSlots {
   constructor(private makeSpent: MakeSpent = spentRow) {}
 
   has(list: string): boolean {
-    return (this.lists.get(list)?.spent.size ?? 0) > 0;
+    const memory = this.lists.get(list);
+    if (!memory) return false;
+    const pending = this.acted?.list === list && [...this.acted.ids].some((id) => memory.order.includes(id));
+    return memory.spent.size > 0 || pending;
   }
 
   forget(): void {

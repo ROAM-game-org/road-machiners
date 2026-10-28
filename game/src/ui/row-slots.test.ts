@@ -51,6 +51,15 @@ describe("the slots of one trade list", () => {
     expect(memory.has("sell")).toBe(true);
   });
 
+  it("reports the last sold row as held before the list is drawn again", () => {
+    const memory = slots();
+    const only = ["a"].map(slotRow);
+    memory.place("sell", only);
+    expect(memory.has("sell")).toBe(false);
+    only[0].click();
+    expect(memory.has("sell")).toBe(true);
+  });
+
   it("does not spend a row whose command was refused and is still listed", () => {
     const memory = slots();
     const first = ["a", "b"].map(slotRow);
