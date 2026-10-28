@@ -221,11 +221,16 @@ describe("set speed of manual driving", () => {
     expect(clickSetSpeed(s, v, ahead(v, 0.2))).toBe(clickSetSpeed(s, v, ahead(v, z.brakeEnd - 0.1)));
   });
 
-  it("a click outside the cones keeps the set speed", () => {
+  it("only the distance counts: the same in every direction, and past the reach is green", () => {
     const { v, s } = setup(3);
     v.setSpeed = 4;
-    expect(clickSetSpeed(s, v, ahead(v, z.reach + 5))).toBe(4);
-    expect(clickSetSpeed(s, v, ahead(v, -5))).toBe(4);
+    const at = (d: number, angle: number): Vec => ({ x: v.pos.x + Math.cos(v.heading + angle) * d, y: v.pos.y + Math.sin(v.heading + angle) * d });
+    for (const angle of [Math.PI / 2, Math.PI, -2]) {
+      expect(clickSetSpeed(s, v, at(z.brakeEnd / 2, angle))).toBeCloseTo(4 - step);
+      expect(clickSetSpeed(s, v, at((z.brakeEnd + z.holdEnd) / 2, angle))).toBe(4);
+      expect(clickSetSpeed(s, v, at(z.holdEnd + 0.5, angle))).toBeCloseTo(4 + step);
+    }
+    expect(clickSetSpeed(s, v, ahead(v, z.reach + 40))).toBeCloseTo(4 + step);
   });
 
   it("with no set speed a click starts from the measured speed, and stays between zero and top speed", () => {

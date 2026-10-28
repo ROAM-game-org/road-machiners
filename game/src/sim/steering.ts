@@ -78,10 +78,10 @@ export function setSpeedTarget(v: Pick<Vehicle, "direct" | "setSpeed">, s: Vehic
   return Math.min(v.setSpeed, s.maxSpeed);
 }
 
-export function clickSetSpeed(s: VehicleStats, me: Pick<Vehicle, "pos" | "heading" | "speed" | "setSpeed">, p: Vec): number {
+export function clickSetSpeed(s: VehicleStats, me: Pick<Vehicle, "pos" | "speed" | "setSpeed">, p: Vec): number {
   const base = me.setSpeed ?? me.speed;
   if (!Number.isFinite(base)) throw new Error(`Set speed needs a finite speed, got ${base}`);
-  const zone = zoneAt(s, me, p);
+  const zone = throttleFor(dist(me.pos, p), me.speed, "direct");
   if (zone === "brake") return Math.max(0, base - RULES.setSpeedStep);
   if (zone === "accelerate") return Math.min(s.maxSpeed, base + RULES.setSpeedStep);
   return base;
