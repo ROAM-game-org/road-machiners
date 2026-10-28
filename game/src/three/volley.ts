@@ -283,7 +283,7 @@ function killingRounds(w: World, e: ShotLike): (k: number) => boolean {
 const damages = (r: ShotRound, vehicle: string): boolean => r.struck === vehicle || r.blast.some((b) => b.vehicle === vehicle);
 
 export function hookLine(world: World, playing: { before: World; hookedLines: Set<string> } | null, shooter: string, weapon: string): void {
-  if (!playing) throw new Error(`Harpoon of ${shooter} hooked with no turn playing`);
+  if (!playing) return;
   const line = world.lines.find((l) => l.from === shooter && l.fromPart === weapon && !playing.before.lines.some((o) => o.id === l.id));
   if (line) playing.hookedLines.add(line.id);
 }

@@ -10,7 +10,7 @@ import { BreakCues, type PartBreak, type ShotLike } from "./breakCues";
 import { PARTS } from "../data/parts";
 import { projectileOf, type Muzzle } from "./render/projectiles";
 import { bodyOf } from "../sim/body";
-import { CollisionCues, collisionSteps, fireSteps, scoreEventMs, planShot, playCrashes, playShotFx, playUtilitySounds, playVolley, posesOf, spreadOver, type CombatHost, type Gun, type PlannedRound, type Shot, type TurnPoses, type VolleyHost } from "./volley";
+import { CollisionCues, collisionSteps, fireSteps, hookLine, scoreEventMs, planShot, playCrashes, playShotFx, playUtilitySounds, playVolley, posesOf, spreadOver, type CombatHost, type Gun, type PlannedRound, type Shot, type TurnPoses, type VolleyHost } from "./volley";
 
 const hit = (a: string, b: string): GameEvent => ({ t: "collision", a, b, impact: 3, hitsA: [], hitsB: [] });
 const crash = (a: string, b: string, step: number) => ({ a, b, impact: 5, step }) as Crash;
@@ -687,5 +687,11 @@ describe("spreadOver", () => {
 
   it("throws with rounds to place and no step to fire on", () => {
     expect(() => spreadOver([], 1, half)).toThrow(/at least one fire step/);
+  });
+});
+
+describe("hookLine", () => {
+  it("ignores a hook that lands after the turn has ended", () => {
+    expect(() => hookLine(emptyWorld(), null, "v1", "harpoon")).not.toThrow();
   });
 });

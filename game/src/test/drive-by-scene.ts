@@ -1,6 +1,7 @@
 import { HUNT, NPCS } from '../data/npcs';
 import { REGION } from '../data/region';
 import { TERRAIN } from '../data/terrain';
+import { TIME } from '../data/time';
 import { START_KITS } from '../data/start';
 import { TEST_MAP } from './map';
 import { reusedWorld } from './world-cache';
@@ -15,7 +16,7 @@ import { stateOf } from '../sim/states';
 import { addVehicle, npcBrain, testDrive } from '../sim/testkit';
 import type { Vehicle, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
-import { exposureAt, watchPost } from '../sim/watch-posts';
+import { exposureAt, seesGround, watchPost } from '../sim/watch-posts';
 import { endTurn, newWorld } from '../sim/world';
 import { formatNpcPass } from '../ui/format';
 import { resolve } from '../text/resolve';
@@ -35,15 +36,28 @@ function nightTurn(): number {
   throw new Error('No night turn');
 }
 
-function roadGround(w: World): { ground: Vec; post: Vec; dir: Vec } {
-  const hidden = huntingGrounds(w).map((g) => watchPost(w, g)).filter((p): p is Vec => p !== null && exposureAt(w, p) === 0);
-  const scenes = hidden.map((post) => ({ post, ...nearestStretch(post) })).filter((s) => dist(s.post, s.ground) <= TERRAIN.vision.radius);
-  if (scenes.length === 0) throw new Error('No hidden raid post in sight of a road');
-  return scenes.reduce((best, s) => (dist(s.post, s.ground) < dist(best.post, best.ground) ? s : best));
+const NIGHT_PASS_SHARE = 0.6;
+
+function nightPassPoint(post: Vec, ground: Vec): Vec {
+  const reach = TERRAIN.vision.radius * TIME.nightSight * NIGHT_PASS_SHARE;
+  const gap = dist(post, ground);
+  if (gap <= reach) return ground;
+  return { x: post.x + ((ground.x - post.x) * reach) / gap, y: post.y + ((ground.y - post.y) * reach) / gap };
 }
 
-function nearestStretch(p: Vec): { ground: Vec; dir: Vec } {
-  let best = { ground: { x: Infinity, y: Infinity }, dir: { x: 1, y: 0 } };
+function roadGround(w: World, night: boolean): { ground: Vec; post: Vec; dir: Vec } {
+  const hidden = huntingGrounds(w).map((g) => watchPost(w, g)).filter((p): p is Vec => p !== null && exposureAt(w, p) === 0);
+  const scenes = hidden.flatMap((post) => {
+    const seen = nearestSeenStretch(w, post);
+    return seen ? [{ post, ...seen }] : [];
+  });
+  if (scenes.length === 0) throw new Error('No hidden raid post sees a road');
+  const nearest = scenes.reduce((best, s) => (dist(s.post, s.ground) < dist(best.post, best.ground) ? s : best));
+  return night ? { ...nearest, ground: nightPassPoint(nearest.post, nearest.ground) } : nearest;
+}
+
+function nearestSeenStretch(w: World, post: Vec): { ground: Vec; dir: Vec } | null {
+  let best: { ground: Vec; dir: Vec } | null = null;
   for (const road of REGION.roads)
     for (let i = 1; i < road.length; i++) {
       const a = road[i - 1];
@@ -51,9 +65,11 @@ function nearestStretch(p: Vec): { ground: Vec; dir: Vec } {
       const len = dist(a, b);
       if (len === 0) continue;
       const dir = { x: (b.x - a.x) / len, y: (b.y - a.y) / len };
-      const t = Math.max(0, Math.min(len, (p.x - a.x) * dir.x + (p.y - a.y) * dir.y));
-      const ground = { x: a.x + dir.x * t, y: a.y + dir.y * t };
-      if (dist(p, ground) < dist(p, best.ground)) best = { ground, dir };
+      for (let t = 0; t <= len; t++) {
+        const ground = { x: a.x + dir.x * t, y: a.y + dir.y * t };
+        if (!seesGround(w, post, ground)) continue;
+        if (best === null || dist(post, ground) < dist(post, best.ground)) best = { ground, dir };
+      }
     }
   return best;
 }
@@ -64,7 +80,7 @@ function scene(seed: number, kind: Prey, night: boolean): Scene {
   const w = reusedWorld(`seed ${seed}`, () => newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false));
   w.obstacles = w.obstacles.filter((o) => !isTransientWreck(o));
   if (night) w.turn = nightTurn();
-  const { ground, post, dir } = roadGround(w);
+  const { ground, post, dir } = roadGround(w, night);
   const me = playerVehicle(w);
   const at = (along: number): Vec => ({ x: ground.x + dir.x * along, y: ground.y + dir.y * along });
   const start = kind === 'parked' ? { x: post.x + (post.x > w.size / 2 ? -60 : 60), y: post.y } : at(-45);
@@ -97,7 +113,7 @@ function scene(seed: number, kind: Prey, night: boolean): Scene {
   return { w, raider, prey, ground, end, moves: kind !== 'parked', parkedAt: { ...prey.pos } };
 }
 
-type Frame = { turn: number; raider: Vec; prey: Vec; sees: boolean; heard: string; goals: string[]; cargo: number };
+type Frame = { turn: number; raider: Vec; prey: Vec; sees: boolean; heard: string; goals: string[]; changes: string[]; cargo: number };
 export type Result = { hover: string[]; engaged: boolean; passed: string[]; frames: Frame[]; goalsChanged: boolean; feud: boolean; fled: boolean };
 
 function play(s: Scene, turns = TURNS): Result {
@@ -144,6 +160,7 @@ function play(s: Scene, turns = TURNS): Result {
       sees: canVehicleSee(w, raider, prey.pos),
       heard: contact ? `${Math.round(contact.center.x)},${Math.round(contact.center.y)} r${contact.radius.toFixed(0)}` : '-',
       goals: goals.map((g) => g.kind),
+      changes: w.events.flatMap((e) => (e.t === 'activity' && e.vehicle === raider.id ? [`${e.previous}>${e.activity}:${e.reason}`] : [])),
       cargo: prey.items.length,
     });
     if (engaged) break;
@@ -152,7 +169,7 @@ function play(s: Scene, turns = TURNS): Result {
 }
 
 
-const trace = (r: Result): string => r.frames.map((f) => `${f.turn} R${f.raider.x},${f.raider.y} P${f.prey.x},${f.prey.y} ${f.sees ? 'SEES' : 'blind'} heard ${f.heard} [${f.goals.join('>')}]`).join('\n');
+const trace = (r: Result): string => r.frames.map((f) => `${f.turn} R${f.raider.x},${f.raider.y} P${f.prey.x},${f.prey.y} ${f.sees ? 'SEES' : 'blind'} heard ${f.heard} [${f.goals.join('>')}] ${f.changes.join(' ')}`).join('\n');
 
 const memo = new Map<string, Result>();
 
