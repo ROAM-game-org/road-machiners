@@ -176,10 +176,12 @@ function startWheels(v: Vehicle, shown: Record<string, VehicleFrame>): UnitWheel
 }
 
 export function canTravel(world: World): boolean {
+  return mayResume(world) && !world.events.some((event) => stopsTravel(event, world));
+}
+
+function mayResume(world: World): boolean {
   const me = playerVehicle(world);
-  if (!playerCanAct(world) || me.direct) return false;
-  if (inCombat(world, me)) return false;
-  return !world.events.some((event) => stopsTravel(event, world));
+  return playerCanAct(world) && !me.direct && !inCombat(world, me);
 }
 
 export class Travel {
@@ -224,7 +226,7 @@ export class Travel {
       return false;
     }
     const order = playerVehicle(world).order;
-    const follow = canTravel(world) && order !== null && order.kind !== "brake";
+    const follow = mayResume(world) && order !== null && order.kind !== "brake";
     return this.press(performance.now(), playing, follow);
   }
 

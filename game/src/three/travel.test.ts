@@ -390,6 +390,20 @@ describe("automatic travel safety", () => {
     expect(travel.isAuto(world)).toBe(true);
   });
 
+  it("cancels automatic travel on a stopping event, and one Space press starts it again", () => {
+    const start = makeSafeWorld();
+    const moving = setMoveOrder(start, { kind: "stopAt", dest: { x: playerVehicle(start).pos.x + 20, y: playerVehicle(start).pos.y } });
+    const world = { ...moving, events: [{ t: "weather" as const, event: { id: "wx1", kind: "heatwave" as const, turnsLeft: 30 }, outcome: "started" as const }] };
+    const travel = new Travel(250, TAIL);
+    travel.press(0, false, true);
+    travel.release();
+    travel.updateWorld(world, false);
+    expect(travel.isAuto(world)).toBe(false);
+    travel.pressTurn(false, world);
+    travel.release();
+    expect(travel.isAuto(world)).toBe(true);
+  });
+
   it("keeps fast automatic travel going when a new truck shows in far sight", () => {
     const start = makeSafeWorld();
     const world = setMoveOrder(start, { kind: "stopAt", dest: { x: playerVehicle(start).pos.x + 60, y: playerVehicle(start).pos.y } });
