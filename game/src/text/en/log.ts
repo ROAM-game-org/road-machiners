@@ -531,7 +531,7 @@ export const LOG = {
   'money.towing': m('towing {vehicle}', { vehicle: 'text' }),
   'refusal.noFit': 'Does not fit there',
   'refusal.inTheWay': 'Something is in the way',
-  'refusal.armorOnly': 'Only armor fits on the sides',
+  'refusal.armorOnly': 'Only armor fits on the edges',
   'refusal.badLayout': m('{cause}. Items would fall off the grid or overlap.', { cause: 'text' }),
   'refusal.itemGone': 'That item is gone',
   'refusal.refitRunning': 'Finish the refit before taking or dumping cargo',

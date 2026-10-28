@@ -534,7 +534,7 @@ export const LOG: Translation<typeof EN> = {
   'money.holdUp': 'ограбление, {vehicle}',
   'refusal.noFit': 'Сюда не влезает',
   'refusal.inTheWay': 'Что-то мешает',
-  'refusal.armorOnly': 'По бокам ставится только броня',
+  'refusal.armorOnly': 'По краям ставится только броня',
   'refusal.badLayout': '{cause}. Предметы выпадут из сетки или наложатся друг на друга.',
   'refusal.itemGone': 'Этого предмета уже нет',
   'refusal.refitRunning': 'Сначала закончите переоснащение, прежде чем брать или сбрасывать груз',
