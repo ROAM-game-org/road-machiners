@@ -842,7 +842,7 @@ describe('game save', () => {
     const fence = world.obstacles.find(isBreakable)!;
     breakProp(world, fence.id, world.player.vehicleId, 3);
     world.vehicles[0].trail = [{ x: 1, y: 2, heading: 0 }];
-    world.events = [{ t: 'wake' }];
+    world.events = [{ t: 'wake', gaveUp: false }];
     world.removed = [world.vehicles[1]];
     writeSave(slots, 'auto', world, RUN, 1000);
     const saved = savedWorldOf(slots, 'auto');

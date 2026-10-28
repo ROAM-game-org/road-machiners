@@ -140,7 +140,17 @@ describe('knockout', () => {
     expect(isKnockedOut(me)).toBe(true);
     expect(isHostile(w, raider, me)).toBe(false);
     expect(w.player).toMatchObject({ money, fuel, supplies, state: 'knockedOut', knockoutTurns: 0, knockouts: 1 });
-    expect(w.events).toContainEqual({ t: 'knockout' });
+    expect(w.events).toContainEqual({ t: 'knockout', crash: false });
+  });
+
+  it('says the crash did it when a collision alone broke the cab', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    w.salvage = [];
+    const me = w.vehicles[0];
+    corePart(me, 'cab').hp = 0;
+    w.events = [{ t: 'collision', a: me.id, b: 'prop', impact: 9, hitsA: [{ part: corePart(me, 'cab').id, damage: 50 }], hitsB: [] }];
+    checkKnockout(w);
+    expect(w.events).toContainEqual({ t: 'knockout', crash: true });
   });
 
   it('brakes the truck, clears its orders and its job, and fulfils feuds against it', () => {
@@ -221,7 +231,7 @@ describe('waking', () => {
     const next = endTurn(w, testDrive);
     const truck = next.vehicles[0];
     expect(next.player.state).toBe('active');
-    expect(next.events).toContainEqual({ t: 'wake' });
+    expect(next.events).toContainEqual({ t: 'wake', gaveUp: false });
     const patched = (p: PartInstance) => Math.max(1, Math.round(maxHp(p) * RULES.defeatPatch));
     const cab = corePart(truck, 'cab');
     const brokenWheel = coreParts(truck, 'wheel').find((p) => p.id === wheel.id)!;
@@ -449,7 +459,7 @@ describe('cab knock of the player', () => {
     checkKnockout(w);
     expect(w.player.state).toBe('knockedOut');
     expect(w.vehicles[0].defeat?.gaveUp).toBe(false);
-    expect(w.events).toContainEqual({ t: 'knockout' });
+    expect(w.events).toContainEqual({ t: 'knockout', crash: false });
   });
 
   it('spares a player who fights through', () => {
@@ -495,6 +505,12 @@ describe('the player standing down', () => {
     expect(w.player.knockouts).toBe(0);
     expect(w.events.some((e) => e.t === 'knockout')).toBe(false);
     expect(practiceOf(w, 'knockout')).toEqual([]);
+  });
+
+  it('wakes with gaveUp set, and a real knockout wakes without it', () => {
+    const { w } = standing();
+    for (let turn = 0; turn < RULES.knockoutMaxTurns; turn++) advanceKnockout(w);
+    expect(w.events).toContainEqual({ t: 'wake', gaveUp: true });
   });
 
   it('sends the winner to loot', () => {
