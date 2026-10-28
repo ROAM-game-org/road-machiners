@@ -606,7 +606,8 @@ function noisy(t: Taste, cost: number, x: number, y: number): number {
 }
 
 function inBerth(berths: Berth[], x: number, y: number): boolean {
-  return berths.some((b) => (x - b.x) ** 2 + (y - b.y) ** 2 <= b.r * b.r);
+  for (const b of berths) if ((x - b.x) ** 2 + (y - b.y) ** 2 <= b.r * b.r) return true;
+  return false;
 }
 
 function berthKey(berths: Berth[]): string {
