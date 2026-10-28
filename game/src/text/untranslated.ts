@@ -7,7 +7,6 @@ const DEV_SIM = 'Simulation mode is a dev page that shows a playthrough run. It 
 const DEV_LAB = 'The block lab is a dev page for tuning the combat score. It stays English.';
 const SIM_MODE = 'Simulation mode is a dev page that replays a bot run with every truck on the map. It stays English.';
 const FONT_SAMPLE = 'A sample string that makes the browser load the font. No player reads it.';
-const SIM_MODE = 'Simulation mode is a dev tool opened by npm run sim. Its words stay English.';
 const SVG = 'Static SVG markup of an icon, with no words in it.';
 
 const MIGRATION_LABEL = 'A label inside a save migration error, which only the console and a bug report show.';
