@@ -13,7 +13,7 @@ import type { Vehicle, World } from './types';
 const TINY = {
   ...CHASSIS.scout,
   id: 'tiny',
-  layout: CHASSIS.scout.layout.map((row, y) => (y === 0 || y === CHASSIS.scout.layout.length - 1 ? row : row.replace(/D/g, (_m, at: number) => (y === 1 && at === 4 ? 'D' : 'X')))),
+  layout: CHASSIS.scout.layout.map((row, y) => (y === 0 || y === CHASSIS.scout.layout.length - 1 ? row : row.replace(/D/g, (_m, at: number) => (y === 2 && at === 4 ? 'D' : 'X')))),
 };
 const SHAPES = TRUCK_SHAPES as Record<string, unknown>;
 
