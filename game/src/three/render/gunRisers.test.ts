@@ -6,9 +6,9 @@ import { CLIP_TOLERANCE, cellRect, highestUnder, restOn } from '../../sim/body';
 import { baseGrid, isMounted, itemCells } from '../../sim/grid';
 import type { GridItem } from '../../sim/types';
 import { loadModels, model } from './models';
-import { baseModel, partModel } from '../../render/partLooks';
+import { baseModel, partModel, weaponLook } from '../../render/partLooks';
 import * as THREE from 'three';
-import { postColumn } from './gunStand';
+import { plateLegs, plateOf, postColumn } from './gunStand';
 import { armorPlacement } from './armorCut';
 import { footprint, standingY, weaponStand, wouldFloat } from './vehicle';
 import { budget } from '../../test/budget';
@@ -163,6 +163,39 @@ describe('placing any item on any cell', () => {
               } catch (e) {
                 problems.push(`${where}: ${(e as Error).message}`);
               }
+            }
+          }
+        }
+      }
+    }
+    expect(problems).toEqual([]);
+  }, budget(120_000));
+});
+
+describe('gun plate legs and braces', () => {
+  it.each(Object.keys(CHASSIS))('a gun on any cell of %s gets legs and braces that reach the body', (id) => {
+    const { w, h, cells } = baseGrid(id);
+    const mounts = [...new Set(GUNS.map((def) => weaponLook('p', def.id).mount))];
+    const problems: string[] = [];
+    for (const mount of mounts) {
+      const def = GUNS.find((d) => weaponLook('p', d.id).mount === mount) as (typeof GUNS)[number];
+      for (const rot of [0, 1] as const) {
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const item = { id: 'g', kind: 'part', x, y, rot, part: { id: 'p', defId: def.id, hp: 1, wear: 0 } } as unknown as GridItem;
+            const cs = itemCells(item);
+            if (!cs.every((c) => cells[c.y]?.[c.x] && cells[c.y][c.x] !== 'L' && cells[c.y][c.x] !== 'R')) continue;
+            const body = baseUnder(id, item);
+            const where = `${mount} rot ${rot} at ${x},${y}`;
+            try {
+              const stand = weaponStand({ chassisId: id }, item, body);
+              for (const lift of [0, 0.1, 0.2]) {
+                const top = stand.top + lift;
+                const at = { ...stand.at, pos: stand.at.pos.clone().setY(top) };
+                plateLegs(body, plateOf(mount, cellRect(id, cs).unit, at), top, () => new THREE.Object3D());
+              }
+            } catch (e) {
+              problems.push(`${where}: ${(e as Error).message}`);
             }
           }
         }

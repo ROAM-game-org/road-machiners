@@ -880,7 +880,12 @@ export function weaponStand(v: Pick<Vehicle, 'chassisId'>, item: GridItem, body:
   const mount = weaponLook(item.part.id, item.part.defId).mount;
   const at = footprint(v, item, standingY(v, item));
   const cells = rectOf(v, item);
-  moveBySpot(at, plateSpot(body, v.chassisId, plateOf(mount, cells.unit, at), cells));
+  const standing = at.pos.y;
+  const topOf = (moved: CellRect) => {
+    const under = highestUnder(v.chassisId, moved);
+    return Math.max(under === -Infinity ? standing : under, highestAhead(v.chassisId, moved));
+  };
+  moveBySpot(at, plateSpot(body, v.chassisId, plateOf(mount, cells.unit, at), cells, topOf));
   const unit = cells.unit;
   const plate = plateOf(mount, unit, at);
   const under = highestUnder(v.chassisId, plate);

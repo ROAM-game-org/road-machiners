@@ -6,6 +6,7 @@ export type PlateSpot = { dx: number; dz: number; shrink: number };
 
 const RISER_TOP_SIDE = 0.3;
 const UP = new THREE.Vector3(0, 1, 0);
+const DOWN = new THREE.Vector3(0, -1, 0);
 const BRACE_ANGLES = [15, 30, 45, 60, 75];
 const SEE_THROUGH = new Set([GLASS, LAMP, RADIO]);
 const IDENTITY = new THREE.Matrix4();
@@ -137,7 +138,7 @@ function lowFaces(faces: THREE.Vector3[][], name: string): THREE.Vector3[][] {
   return low;
 }
 
-export function plateSpot(body: THREE.Object3D, chassisId: string, plate: CellRect, cells: CellRect): PlateSpot {
+export function plateSpot(body: THREE.Object3D, chassisId: string, plate: CellRect, cells: CellRect, topOf: (plate: CellRect) => number): PlateSpot {
   const size = { x: plate.x1 - plate.x0, z: plate.z1 - plate.z0 };
   const step = cellSize(chassisId, plate);
   const smallest = Math.min(1, RISER_TOP_SIDE / Math.max(size.x, size.z));
@@ -149,7 +150,24 @@ export function plateSpot(body: THREE.Object3D, chassisId: string, plate: CellRe
     const found = spotAt(plate, shifts.filter(([dx, dz]) => fits(dx, dz, shrink)), shrink, feet);
     if (found) return found;
   }
-  return { dx: 0, dz: 0, shrink: smallest };
+  const braced = bracedSpot(body, plate, topOf, feet, shifts, fits, smallest, step);
+  if (braced) return braced;
+  throw new Error(`The gun plate on ${chassisId} over cells ${cells.x0.toFixed(2)},${cells.z0.toFixed(2)} to ${cells.x1.toFixed(2)},${cells.z1.toFixed(2)} has no spot its legs and braces reach`);
+}
+
+function bracedSpot(body: THREE.Object3D, plate: CellRect, topOf: (plate: CellRect) => number, feet: Footing, shifts: [number, number][], fits: (dx: number, dz: number, shrink: number) => boolean, smallest: number, step: number): PlateSpot | null {
+  const size = Math.max(plate.x1 - plate.x0, plate.z1 - plate.z0);
+  const reaches = (spot: PlateSpot) => {
+    const moved = movedPlate(plate, spot);
+    return legsReach(body, moved, topOf(moved), feet, farBraceHit);
+  };
+  const home = { dx: 0, dz: 0, shrink: smallest };
+  if (reaches(home)) return home;
+  for (let shrink = 1; shrink >= smallest; shrink -= step / size) {
+    const found = shifts.filter(([dx, dz]) => fits(dx, dz, shrink)).map(([dx, dz]) => ({ dx, dz, shrink })).find(reaches);
+    if (found) return found;
+  }
+  return null;
 }
 
 function spotAt(plate: CellRect, shifts: [number, number][], shrink: number, feet: (x: number, z: number) => THREE.Vector3 | null): PlateSpot | null {
@@ -432,7 +450,7 @@ export function plateLegs(body: THREE.Object3D, plate: CellRect, top: number, ma
   for (const spot of legSpots(plate)) {
     const [x, z] = feet(spot[0], spot[1]) ? under(spot[0], spot[1]) : spot;
     const moved = new THREE.Vector3(x, top, z);
-    const corner = feet(x, z) || braceHit(body, moved, center) ? moved : new THREE.Vector3(spot[0], top, spot[1]);
+    const corner = feet(x, z) || farBraceHit(body, moved, center) ? moved : new THREE.Vector3(spot[0], top, spot[1]);
     const foot = feet(corner.x, corner.z);
     if (foot && top - foot.y <= CLIP_TOLERANCE / 2) continue;
     legs.push(foot ? strut(makeLeg('leg'), foot, corner) : strut(makeLeg('brace'), braceFoot(body, corner, center), corner));
@@ -452,13 +470,18 @@ export function postStands(body: THREE.Object3D, at: THREE.Vector3, bottom: numb
 }
 
 function braceFoot(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 {
-  const hit = braceHit(body, corner, center) ?? braceBehindGlass(body, corner, center);
+  const hit = farBraceHit(body, corner, center) ?? braceBehindGlass(body, corner, center);
   if (!hit) throw new Error(`No body wall below the gun plate corner at ${corner.x.toFixed(2)},${corner.z.toFixed(2)} to brace it to`);
   return hit;
 }
 
 function braceHit(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 | undefined {
   return nearestWall(body, corner, inwardOf(corner, center), 0);
+}
+
+function farBraceHit(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 | undefined {
+  const bodyCenter = new THREE.Vector3(0, corner.y, 0);
+  return braceHit(body, corner, center) ?? nearestWall(body, corner, inwardOf(corner, bodyCenter), 0) ?? wallHit(body, corner, DOWN, 0) ?? undefined;
 }
 
 function braceBehindGlass(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 | undefined {
@@ -476,9 +499,9 @@ function nearestWall(body: THREE.Object3D, corner: THREE.Vector3, along: THREE.V
     .sort((a, b) => a.distanceTo(corner) - b.distanceTo(corner))[0];
 }
 
-function legsReach(body: THREE.Object3D, plate: CellRect, top: number, feet: Footing): boolean {
+function legsReach(body: THREE.Object3D, plate: CellRect, top: number, feet: Footing, brace = braceHit): boolean {
   const center = new THREE.Vector3((plate.x0 + plate.x1) / 2, top, (plate.z0 + plate.z1) / 2);
-  return legSpots(plate).every(([x, z]) => feet(x, z) !== null || braceHit(body, new THREE.Vector3(x, top, z), center) !== undefined);
+  return legSpots(plate).every(([x, z]) => feet(x, z) !== null || brace(body, new THREE.Vector3(x, top, z), center) !== undefined);
 }
 
 const FACES = new Map<string, number | null>();
