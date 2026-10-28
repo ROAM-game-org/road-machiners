@@ -23,12 +23,13 @@ import { physicsMove } from './turn';
 import { turnaroundSpeed } from './turnaround';
 import type { VehicleFrame } from './frames';
 import { playerTow, unhitch } from '../sim/tow';
-import { callVehicle, chooseOption, currentOptions } from '../sim/dialogue';
+import { callVehicle } from '../sim/dialogue';
+import { chooseText } from '../sim/dialogue-testkit';
 import { TOW } from '../data/tow';
 import { NPCS } from '../data/npcs';
 import { soundRange } from '../sim/detect';
 import { budget } from '../test/budget';
-import { en, me, ordered, play, playYielding } from '../test/drive-kit';
+import { me, ordered, play, playYielding } from '../test/drive-kit';
 
 beforeAll(async () => {
   await initPhysics();
@@ -964,7 +965,7 @@ describe('physics turns', () => {
     };
     for (let i = 0; i < 30 && !playerTow(w); i++) turn();
     expect(playerTow(w)).not.toBeNull();
-    w = chooseOption(w, currentOptions(w).findIndex((o) => en(o.line) === 'Deal. Hitch me up.'));
+    w = chooseText(w, 'Deal. Hitch me up.');
     const start = { ...me(w).pos };
     for (let i = 0; i < 10; i++) {
       const r = turn();
@@ -991,7 +992,7 @@ describe('physics turns', () => {
       d = r!.next;
       return r!;
     };
-    const pick = (text: string) => { w = chooseOption(w, currentOptions(w).findIndex((o) => en(o.line) === text)); };
+    const pick = (text: string) => { w = chooseText(w, text); };
     w = callVehicle(w, npc.id);
     pick('Need a tow to town?');
     pick('Deal. Hitch up.');

@@ -11,7 +11,7 @@ The playtest bots drive the player truck through the real turn pipeline, so econ
 - A bot parked away from a town below three quarters of its max health starts first aid when it can, and holds still until the job ends.
 - A bot with a broken drive and no money calls a tow when a shop it can afford is on the map. It leaves the beacon off in combat.
 - A bot judges whether it outruns a foe by its truck speed as it stands. A stranded or crippled truck outruns nothing.
-- In town a bot repairs, stocks fuel, supplies and repair parts, re-arms and then buys gear by the style of its archetype.
+- In town a bot repairs, stocks fuel, supplies and repair parts, re-arms and then buys gear by the style of its archetype. It judges each part with `gearScorer()` in `src/sim/npc-gear-score.ts` and the priorities of the NPC template its goal plays: `trader` for the trader and the cargo bots, `scavenger` for the scavenger, `courier` for the fastTrader and `merc` for the hunter and the climber. So it buys armor, guns and engines the way that NPC would.
 
 ## Roaming archetypes
 
@@ -33,14 +33,14 @@ The playtest bots drive the player truck through the real turn pipeline, so econ
 - A hunter with no guns plays the scavenger.
 - It picks a fight only with a foe whose worst-case danger times 4 is within its own strength. It also chases a foe it only hears under that rule.
 - It refuses truces and mercy pleas, and it asks weak foes to yield.
-- It buys gear while it keeps free the cells of the biggest part and the top speed of the fastest raider it would fight.
+- It buys gear while it keeps free the cells of the biggest part. With no gun it buys only guns.
 - While no raider in the world is weak enough, it scavenges instead.
 - When attacked, it fights a foe within the same rule and flees any other.
 - It hands its cargo to a demand only when the foe outmatches it and it cannot outrun the foe.
 
 ## Climber
 
-- It buys fighting gear and keeps money for loads.
+- It buys fighting gear and keeps money for loads. With no gun it buys only guns.
 - With three guns or more it hunts weaker prey, accepts truces and mercy to limit repair costs, and collects knocked-out trucks near it before it leaves for repairs.
 - Between fights it trades.
 

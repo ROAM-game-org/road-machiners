@@ -19,7 +19,7 @@ import { setDown } from '../sim/steering';
 import { clearanceFor } from '../sim/clearance';
 import type { MoveOrder, Obstacle, Pose, Vehicle, World } from '../sim/types';
 import { angleDiff, dist, lerp, type Vec } from '../sim/vec';
-import { visibleTiles } from '../sim/vision';
+import { seenPropTiles, visibleTiles } from '../sim/vision';
 import { bodyState, buildDrive, GROUND, isLifted, captureDrive, freeDrive, initPhysics, restoreDrive, restWheels, simulateSteps, simulateTurn, syncDrive, toTilesPerTurn, trailFrames, TURN_STEPS, type Drive, type DriveSnapshot, type TurnResult, type VehicleResult } from './drive';
 import { frameBend, headingOf, toMap, type TurnFrames, type VehicleFrame, type WheelFrame } from './frames';
 import { bendField, checkBend, heldBend, poseOf } from '../sim/rig';
@@ -29,7 +29,7 @@ export type TurnState = Omit<World, 'terrain'>;
 export type WorldTask = { world: TurnState; drive: DriveSnapshot };
 type LanguageTask = WorldTask & { questLanguage: QuestLanguage };
 export type TurnTask = LanguageTask & { tailSteps: number; fastTravel: boolean };
-export type LiveSight = { steps: number[]; tiles: number[][] };
+export type LiveSight = { steps: number[]; tiles: number[][]; props: number[][] };
 export type TailPose = { pos: Vec; heading: number; speed: number; bend?: number };
 export type Tail = { frames: TurnFrames; next: DriveSnapshot; poses: Record<string, TailPose> };
 export type PreparedTurn = {
@@ -42,13 +42,15 @@ export type PreparedTurn = {
 export const LIVE_SIGHT_STEP = 0.35;
 
 export function sightAlong(world: World, points: readonly Vec[]): LiveSight {
-  const sight: LiveSight = { steps: [], tiles: [] };
+  const sight: LiveSight = { steps: [], tiles: [], props: [] };
   let from: Vec | null = null;
   points.forEach((at, k) => {
     if (from && dist(from, at) < LIVE_SIGHT_STEP && k < points.length - 1) return;
     from = at;
     sight.steps.push(k);
-    sight.tiles.push([...visibleTiles(world, at)].sort((a, b) => a - b));
+    const visible = visibleTiles(world, at);
+    sight.tiles.push([...visible].sort((a, b) => a - b));
+    sight.props.push(seenPropTiles(world, at, visible));
   });
   return sight;
 }
@@ -268,7 +270,7 @@ export function physicsMove(d: Drive, done: (r: PlayedTurn) => void): (w: World)
 function playerSight(w: World, frames: readonly VehicleFrame[] | undefined): LiveSight {
   if (!frames) {
     exploreBodiless(w);
-    return { steps: [], tiles: [] };
+    return { steps: [], tiles: [], props: [] };
   }
   const sight = sightAlong(w, frames.map((f) => toMap(f.pos)));
   exploreSight(w, sight);
@@ -332,7 +334,6 @@ function applyDriven(w: World, r: TurnResult, v: Vehicle, frames: TurnResult['fr
 function setDownIfStuck(w: World, v: Vehicle): void {
   if ((v.strandedTurns ?? 0) < RULES.stranded.turns) return;
   setDown(w, v);
-  delete v.strandedAt;
   if (v.id === w.player.vehicleId) w.events.push({ t: 'info', note: { id: 'setDown' } });
 }
 

@@ -27,7 +27,7 @@ function expectClear(rocks: BakedProp[]): void {
     const { x, y } = rock.pos;
     if (Math.min(x, y, SIZE - x, SIZE - y) < O.edgeMargin) broken.push(`${at(rock)} is inside the margin`);
     if (ROAD_INDEX.nearestWithin(x, y, Infinity) < REGION.roadWidth / 2 + O.roadClearance + rock.r) broken.push(`${at(rock)} is on a road`);
-    for (const site of SITES) if (siteGap(site, rock.pos) <= O.siteClearance + rock.r) broken.push(`${at(rock)} is on a site`);
+    for (const site of SITES) if (siteGap(site, rock.pos) <= O.siteClearance + rock.r) broken.push(`${at(rock)} is on site ${site.id}`);
     if (segmentDist(rock.pos, bridge.from, bridge.to) < bridge.width / 2 + rock.r) broken.push(`${at(rock)} is on the bridge`);
   }
   expect(broken).toEqual([]);

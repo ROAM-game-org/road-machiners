@@ -7,6 +7,7 @@ import { isKnockedOut } from "./defeat";
 import { isNear } from "./far";
 import { thinksThisTurn } from "./fidelity";
 import { getActivityDestination, thinkNpc, topGoal, turnCornered } from "./npc-activities";
+import { ObstacleBuckets } from "./nav/buckets";
 import { aheadGoal, clearLines, route, routeLength, type Blocker } from "./path";
 import { randRange } from "./rng";
 import { isFree } from "./spawn";
@@ -22,6 +23,7 @@ import type { MoveOrder, NpcActivity, Vehicle, World } from "./types";
 import { angleDiff, bearing, dist, type Vec } from "./vec";
 import { canVehicleSee } from "./vision";
 import { bodyHitChance, inArc, inCombat } from "./combat";
+import { rigDiscs } from "./rig";
 import { passShare, sideToward } from "./armor";
 import { chance } from "./rng";
 import { heldGoal, holdOnStretch, rollingOrder, runsDown } from "./hunters";
@@ -339,13 +341,24 @@ export function yieldsToTraffic(world: World, v: Vehicle): boolean {
 }
 
 export function standingBlockers(world: World, v: Vehicle): Blocker[] {
-  return [...parkedVehicles(world, v.id, getHitchedTowIds(world)), ...fieldBlockers(world, v)];
+  const stopping = conflicts(world, v, 0).filter((x) => givesWayTo(world, x, v) && stopsInPlace(world, x));
+  return [...parkedVehicles(world, v.id, getHitchedTowIds(world)), ...fieldBlockers(world, v), ...stopping.flatMap((x) => stopTrack(world, v, x))];
 }
 
 export function routeBlockers(world: World, v: Vehicle): Blocker[] {
   const standing = standingBlockers(world, v);
   if (!followsTraffic(world, v)) return standing;
-  return [...standing, ...conflicts(world, v, 1).filter((x) => !givesWayTo(world, x, v)).flatMap((x) => sweptPath(world, v, x))];
+  const swerves = conflicts(world, v, 1).filter((x) => !givesWayTo(world, x, v));
+  const kept = heldHolders(world, v).filter((x) => !swerves.includes(x));
+  return [...standing, ...[...swerves, ...kept].flatMap((x) => sweptPath(world, v, x))];
+}
+
+function heldHolders(world: World, v: Vehicle): Vehicle[] {
+  if (!v.yieldsTo) return [];
+  return v.yieldsTo.flatMap((id) => {
+    const holder = world.vehicles.find((x) => x.id === id);
+    return holder && givesWayTo(world, v, holder) ? [holder] : [];
+  });
 }
 
 export function trafficStops(world: World, v: Vehicle, dest: Vec): boolean {
@@ -415,7 +428,86 @@ function facesParked(world: World, v: Vehicle): boolean {
 }
 
 export function givesWayTo(world: World, giver: Vehicle, holder: Vehicle): boolean {
-  return giver.id < holder.id && givesWay(world, giver) && givesWay(world, holder) && closesOn(world, giver, holder, 0) && closesOn(world, holder, giver, 0);
+  return !!giver.yieldsTo?.includes(holder.id) && givesWay(world, giver) && givesWay(world, holder);
+}
+
+export function settleMeetings(world: World): void {
+  const live = world.vehicles.filter((v) => isNear(world, v) && followsTraffic(world, v));
+  const byId = new Map(live.map((v) => [v.id, v]));
+  for (const giver of live) endMeetings(world, giver, byId);
+  const index = new ObstacleBuckets(live.map((v) => ({ pos: v.pos, r: driveStats(world, v).radius })), world.terrain.size);
+  const bySpot = new Map(live.map((v) => [v.pos, v]));
+  const widest = Math.max(0, ...live.map((v) => ownReach(world, v)));
+  for (const a of live) {
+    if (!givesWay(world, a)) continue;
+    for (const near of index.alongSegment(a.pos, a.pos, RULES.yieldDistance + ownReach(world, a) + widest)) startMeeting(world, a, bySpot.get(near.pos)!);
+  }
+}
+
+function ownReach(world: World, v: Vehicle): number {
+  const s = vehicleStats(world, v);
+  const vs = Math.min(s.maxSpeed, v.speed + s.accel);
+  return 2 * vs + vs ** 2 / (2 * s.brake);
+}
+
+function endMeetings(world: World, giver: Vehicle, live: ReadonlyMap<string, Vehicle>): void {
+  if (!giver.yieldsTo) return;
+  const kept = giver.yieldsTo.filter((id) => {
+    const holder = live.get(id);
+    if (holder && holder.id < giver.id) throw new Error(`${giver.id} yields to ${holder.id}, which has the lower id`);
+    return holder && !endsMeeting(world, giver, holder);
+  });
+  if (kept.length > 0) giver.yieldsTo = kept;
+  else delete giver.yieldsTo;
+}
+
+function endsMeeting(world: World, giver: Vehicle, holder: Vehicle): boolean {
+  if (!givesWay(world, giver) || !givesWay(world, holder)) return true;
+  const px = holder.pos.x - giver.pos.x;
+  const py = holder.pos.y - giver.pos.y;
+  const rx = Math.cos(holder.heading) * holder.speed - Math.cos(giver.heading) * giver.speed;
+  const ry = Math.sin(holder.heading) * holder.speed - Math.sin(giver.heading) * giver.speed;
+  if (px * rx + py * ry >= 0) return true;
+  return dist(giver.pos, holder.pos) > swerveReach(world, giver, holder) + vehicleStats(world, giver).radius + vehicleStats(world, holder).radius;
+}
+
+function swerveReach(world: World, a: Vehicle, b: Vehicle): number {
+  return brakingReach(world, a, b) + a.speed + b.speed;
+}
+
+function startMeeting(world: World, a: Vehicle, b: Vehicle): void {
+  if (a === b || !givesWay(world, b)) return;
+  const [giver, holder] = a.id < b.id ? [a, b] : [b, a];
+  if (giver.yieldsTo?.includes(holder.id)) return;
+  if (!closesOn(world, giver, holder, 1) || !closesOn(world, holder, giver, 1)) return;
+  giver.yieldsTo = [...(giver.yieldsTo ?? []), holder.id];
+}
+
+function stopsInPlace(world: World, x: Vehicle): boolean {
+  return !x.order || x.order.kind === "brake" || yieldsToTraffic(world, x);
+}
+
+export function stopTrack(world: World, holder: Vehicle, giver: Vehicle): Blocker[] {
+  if (![giver.speed, giver.pos.x, giver.pos.y, giver.heading].every(Number.isFinite) || giver.speed < 0) throw new Error(`stopTrack: bad giver ${giver.id}`);
+  const stats = vehicleStats(world, giver);
+  const stop = giver.speed ** 2 / (2 * stats.brake);
+  const steps = Math.ceil(stop / stats.radius) + 1;
+  const grow = PHYSICS.driver.clearMargin + ropeAllowance(world, holder);
+  const discs = rigDiscs(giver);
+  const track: Blocker[] = [];
+  for (let i = 0; i < steps; i++) {
+    const d = steps === 1 ? 0 : (stop * i) / (steps - 1);
+    for (const disc of discs) track.push({ pos: { x: disc.pos.x + Math.cos(giver.heading) * d, y: disc.pos.y + Math.sin(giver.heading) * d }, r: disc.r + grow });
+  }
+  return track;
+}
+
+function ropeAllowance(world: World, tower: Vehicle): number {
+  const client = ropeClientOf(world, tower.id);
+  if (!client) return 0;
+  const target = world.vehicles.find((x) => x.id === client);
+  if (!target) throw new Error(`Rope client ${client} of ${tower.id} is not in the world`);
+  return Math.max(0, vehicleStats(world, target).radius - vehicleStats(world, tower).radius);
 }
 
 function horizon(world: World, v: Vehicle): { vs: number; t: number } {
@@ -486,6 +578,10 @@ function wantsToDrive(x: Vehicle): boolean {
 }
 
 function givesWay(world: World, x: Vehicle): boolean {
+  return !isOnRope(world, x.id) && canSteerAside(world, x);
+}
+
+function canSteerAside(world: World, x: Vehicle): boolean {
   if (!x.brain) return x.id === world.player.vehicleId && !x.direct && !inCombat(world, x);
   const kind = topGoal(x)?.kind;
   return kind !== "fight" && kind !== "flee";

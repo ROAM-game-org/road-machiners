@@ -18,7 +18,7 @@ import {
 } from "./drive";
 import { computeTurn, isCleanTail, physicsMove, SentObstacles, sightAlong, withTail } from "./turn";
 import { PHYSICS } from "../data/physics";
-import { visibleTiles } from "../sim/vision";
+import { seenPropTiles, visibleTiles } from "../sim/vision";
 
 beforeAll(initPhysics);
 
@@ -167,8 +167,12 @@ it("samples sight along the player's drive every sight step and at its end, with
   const points = Array.from({ length: 12 }, (_, i) => ({ x: me.pos.x + i * 0.1, y: me.pos.y }));
   const sight = sightAlong(world, points);
   expect(sight.steps).toEqual([0, 4, 8, 11]);
-  sight.steps.forEach((step, k) => expect(sight.tiles[k]).toEqual([...visibleTiles(world, points[step])].sort((a, b) => a - b)));
-  expect(sightAlong(world, [])).toEqual({ steps: [], tiles: [] });
+  sight.steps.forEach((step, k) => {
+    const visible = visibleTiles(world, points[step]);
+    expect(sight.tiles[k]).toEqual([...visible].sort((a, b) => a - b));
+    expect(sight.props[k]).toEqual(seenPropTiles(world, points[step], visible));
+  });
+  expect(sightAlong(world, [])).toEqual({ steps: [], tiles: [], props: [] });
 });
 
 it("sends the obstacles to a worker only when their content changed since the last send", () => {

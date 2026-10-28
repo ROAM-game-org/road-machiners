@@ -3,7 +3,7 @@
 ## Map of owners
 
 - `src/sim/ai.ts` issues NPC orders each turn and decides when NPCs stop for other trucks.
-- `src/sim/steering.ts` holds the shared driving rules, the route speed rule, the throttle zones of manual driving and `clickOrder()`, which turns a click into an order.
+- `src/sim/steering.ts` holds the shared driving rules, the route speed rule, the throttle zones and `clickOrder()`, which turns a click into an order, and `playerOrder()`, which adds the route's held speed.
 - `src/sim/path.ts` plans and caches routes. `src/sim/nav/` holds the grids and the search.
 - `src/phys/` runs vehicle movement in Rapier and plugs into the turn pipeline.
 - `src/sim/far.ts` and `src/sim/fidelity.ts` move and simplify NPCs that are far from the player.
@@ -19,6 +19,9 @@ Every truck that `followsTraffic()` in `src/sim/ai.ts` obeys these rules on a ro
 - A moving truck counts as a conflict inside `RULES.traffic.crossCone`. Parked trucks keep `parkedCone`. A truck that converges from the side is seen.
 - Drivers route around parked trucks and around the path of a moving truck on a collision course. They stop only when that path blocks the way.
 - When two drivers close on each other and both give way, the lower id goes around the other's swept path. The other holds its line. `givesWayTo()` decides this, so they never swerve into each other.
+- The meeting is a saved fact, `Vehicle.yieldsTo` on the giver, that `settleMeetings()` sets at the end of each turn, from the first turn both would swerve for each other. It lasts until they pass, part, or one stops giving way, so the giver's own swerve never ends it.
+- A giver that brakes in place counts for the holder as a standing blocker. Braking in place means no move order, a `brake` order or `yieldsToTraffic()`. `standingBlockers()` adds its `stopTrack()`, its rig discs slid along its heading out to its stopping distance, each widened by `clearMargin`, and by the extra radius of the holder's rope client when the holder is a tower. So the holder routes around the spot or stops short of it.
+- A truck on a rope never gives way (`givesWay()`), so every other driver keeps its sweep.
 - The lower id brakes only when the way around is blocked or much longer.
 - A stopped driver waits only for a closing truck whose path meets it.
 - A parked truck ahead makes a driver wait only while that truck holds a move order, since its order is what it will do.
@@ -82,8 +85,8 @@ Every truck that `followsTraffic()` in `src/sim/ai.ts` obeys these rules on a ro
 - The first held turn saves the truck's position as `Vehicle.strandedAt`. The run goes on while the truck stays within `RULES.stranded.reach` tiles of it and keeps that trouble. A truck that rocks on a low prop keeps counting.
 - A turn that leaves reach, arrives, passes or drops the order ends the run and clears the anchor.
 - After `RULES.stranded.turns` held turns, `setDown()` in `src/sim/steering.ts` places the truck on the nearest free ground. The front unit must lie in the nav component of the nearest site pad. `setDownSpot()` finds the spot, with `reachesFrom()` in `src/sim/path.ts`, so a pocket of clear ground behind rocks never counts. A road fort on Chaos Highway anchors on the road outside its gate.
-- `setDown()` also straightens the rig, zeroes speed and sets `strandedTurns` to `RULES.stranded.turns`. The next physics turn then re-seats the body upright.
-- `getUnstuck()` in `src/sim/unstuck.ts` is the player's command for the same set-down. `unstuckBlock()` can refuse it. The game plays one turn after it.
+- `setDown()` also straightens the rig, zeroes speed and sets `strandedTurns` to `RULES.stranded.turns` and drops `strandedAt`. The next physics turn then re-seats the body upright.
+- `getUnstuck()` in `src/sim/unstuck.ts` is the player's command for the same set-down. `unstuckBlock()` can refuse it, and in a fight it refuses only a truck that is not held, meaning `strandedTurns` is 0 or already set down. The game plays one turn after it.
 
 ## Route planning and caches
 
@@ -192,6 +195,11 @@ A chassis with a `coupling` is a rig: a driven front unit and a towed rear unit 
 - `src/three/travel.ts` owns automatic order advancement and held-Space state.
 - A click sets a drive-through order. A click on its point switches it between drive-through and stop-at. Shift-click sets stop-at. A click on a site stops at its nearest pad.
 - `src/three/render/path.ts` draws the order point with an icon for its kind, also while turns play.
+- `TruckControls.order()` gives every player move order through `playerOrder()` in `src/sim/steering.ts`, which wraps `clickOrder()`.
+- In route mode a click inside the zones' fan (`zoneAt()`, `zoneHalfAngle()`) puts the band's pace on the order and keeps a point beyond the zones' reach. `zonePace()` gives the pace: crawl, the speed now, or none. Any other click keeps the current order's pace.
+- `orderThrottle()` gives the band an order shows for the hover ring and the first turn's color.
+- The pace lives only on the order, so it ends with it, and `setDirect(true)` drops it.
+- `orderSpeed()` in `src/sim/steering.ts` is the one rule for a move order's target speed, in physics, in far travel and in the fuel check. A paced order, through or stop, holds its pace within a turn's accel and brake, and a stop point still slows onto the point. The escort bot's orders carry no pace.
 - Space starts automatic travel outside combat.
 - While turns run on their own, the turn button reads Auto. A tap of Space or a click stops them. A hold fast-forwards them.
 - Travel pauses on Space, danger, arrival, panels and focus loss. A truck that shows in far sight does not stop the run.
@@ -245,6 +253,7 @@ Trucks ease to a stop when travel pauses. That motion is real physics.
 ## Camera
 
 - `src/three/render/camera.ts` owns the view.
+- The rig opens at `DEFAULT_ZOOM` from `src/data/view.ts`, 1.15, and wheel and pinch zoom stay within `ZOOM`.
 - The canvas fills `#game`. `Game.fitView()` sizes the renderer from `#game` on window resize and on any change to its size. The camera measures the canvas for its frustum, rays, `screenOf()` and pans, so the drawn picture and the tap ray share one box.
 - `TruckFollow` decides when the camera follows the truck.
 - A pan stops following until F, the recenter button, danger in sight, or the truck driving out of view.

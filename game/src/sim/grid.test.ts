@@ -7,8 +7,8 @@ import { bedRows } from './chassis-features';
 import { buyChassis } from './economy';
 import { partDef } from '../data/parts';
 import { makePart, makeVehicle } from './factory';
-import { MOUNT_CELLS, baseGrid, bareGrid, cargoCellsGained, cargoRowsOn, cellCount, freeCells, gridOf, isMounted, onDeadRow, placementError, itemCells, mountedItems, mountedParts, plateSide, sideOf, type Cell } from './grid';
-import { moveItem, mountPart, storePart } from './inventory';
+import { MOUNT_CELLS, baseGrid, bareGrid, cargoCellsGained, cargoRowsOn, cellCount, findSpot, freeCells, gridOf, layerOf, isMounted, onDeadRow, placementError, itemCells, mountedItems, mountedParts, plateSide, sideOf, type Cell } from './grid';
+import { getLayoutError, moveItem, mountPart, storePart } from './inventory';
 import { generateNpcLoadout } from './npc-loadout';
 import { addVehicle, emptyWorld } from './testkit';
 import type { GridItem, Vehicle, World } from './types';
@@ -359,6 +359,80 @@ describe('sorokonoga trailer cargo', () => {
       const own = (partDef(id) as { extraRows: number }).extraRows;
       expect(cargoRowsOn('sorokonoga', id), id).toBe(Math.floor(own * 1.5));
       expect(cargoRowsOn('hauler', id), id).toBe(own);
+    }
+  });
+});
+
+describe('placement from a layout built once', () => {
+  const oracleLayer = (g: ReturnType<typeof gridOf>, it: GridItem) => layerOf(g, it);
+
+  function oracleError(g: ReturnType<typeof gridOf>, items: GridItem[], item: GridItem, ignoreId: string | null) {
+    const cells = itemCells(item);
+    const onChassis = cells.filter((c) => c.y < g.chassisH).length;
+    if ((onChassis !== 0 && onChassis !== cells.length) || !cells.every((c) => g.cells[c.y]?.[c.x] != null)) return { id: 'noFit' };
+    const layer = oracleLayer(g, item);
+    const others = items.filter((o) => o.id !== ignoreId && oracleLayer(g, o) === layer);
+    if (others.some((o) => itemCells(o).some((c) => cells.some((d) => d.x === c.x && d.y === c.y)))) return { id: 'inTheWay' };
+    const onSkin = item.kind === 'part' && (partDef(item.part.defId).kind === 'armor' || layer === 'accessory');
+    if (!onSkin && cells.some((c) => g.cells[c.y][c.x] === 'L' || g.cells[c.y][c.x] === 'R')) return { id: 'armorOnly' };
+    return null;
+  }
+
+  function oracleSpot(g: ReturnType<typeof gridOf>, items: GridItem[], item: GridItem, avoid: Cell[] | null) {
+    const spots = [0, 1].flatMap((rot) => Array.from({ length: g.w * g.h }, (_, i) => ({ x: i % g.w, y: Math.floor(i / g.w), rot: rot as 0 | 1 })));
+    const onlyOn = (s: (typeof spots)[number], cell: Cell) => itemCells({ ...item, ...s }).every((c) => g.cells[c.y]?.[c.x] === cell);
+    const allowed = (s: (typeof spots)[number]) => oracleError(g, items, { ...item, ...s }, item.id) === null && !(avoid && avoid.some((a) => onlyOn(s, a)));
+    return spots.find((s) => allowed(s) && onlyOn(s, '.')) ?? spots.find(allowed) ?? null;
+  }
+
+  function loadedVehicles(): Vehicle[] {
+    const w = emptyWorld();
+    return Object.values(NPCS).map((tpl) => makeVehicle(w, { faction: fallbackFaction(tpl), ...generateNpcLoadout(w, tpl), pos: { x: 40, y: 40 }, heading: 0, brain: null }));
+  }
+
+  it('findSpot returns the spot of a from-scratch search for goods and every item of an NPC truck', () => {
+    for (const v of loadedVehicles()) {
+      const g = gridOf(v);
+      const crate = { id: 'crate-probe', kind: 'good', good: 'scrap', x: 0, y: 0, rot: 0 } as GridItem;
+      for (const item of [crate, ...v.items]) {
+        expect(findSpot(g, v.items, item, null, null)).toEqual(oracleSpot(g, v.items, item, null));
+        expect(findSpot(g, v.items, item, null, ['D'])).toEqual(oracleSpot(g, v.items, item, ['D']));
+      }
+    }
+  });
+
+  it('placementError matches a from-scratch check for every item moved over the truck', () => {
+    for (const v of loadedVehicles()) {
+      const g = gridOf(v);
+      for (const item of v.items) {
+        for (const other of v.items.slice(0, 6)) {
+          const moved = { ...item, x: other.x, y: other.y } as GridItem;
+          expect(placementError(g, v.items, moved, item.id)).toEqual(oracleError(g, v.items, moved, item.id));
+        }
+      }
+    }
+  });
+
+  it('getLayoutError gives the first refusal of a per-item check on valid and broken layouts', () => {
+    for (const v of loadedVehicles()) {
+      const first = (items: GridItem[]) => {
+        const g = gridOf({ ...v, items });
+        for (const item of items) {
+          const cause = oracleError(g, items, item, item.id);
+          if (cause) return { id: 'badLayout', cause };
+        }
+        return null;
+      };
+      expect(getLayoutError(v, v.items)).toEqual(first(v.items));
+      expect(getLayoutError(v, v.items)).toBeNull();
+      const stacked = v.items.map((it, i) => (i === v.items.length - 1 ? { ...it, x: v.items[0].x, y: v.items[0].y } : it)) as GridItem[];
+      expect(getLayoutError(v, stacked)).toEqual(first(stacked));
+      const off = v.items.map((it, i) => (i === 3 ? { ...it, x: 99, y: 99 } : it)) as GridItem[];
+      expect(getLayoutError(v, off)).toEqual(first(off));
+      for (let i = 0; i < v.items.length; i++) {
+        const shifted = v.items.map((it, j) => (j === i ? { ...it, x: it.x + 1 } : it)) as GridItem[];
+        expect(getLayoutError(v, shifted)).toEqual(first(shifted));
+      }
     }
   });
 });

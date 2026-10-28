@@ -339,7 +339,7 @@ describe('independent', () => {
 
   it('prowl more often than anything else and drive to hunting grounds away from them', () => {
     const w = emptyWorld({ x: 300, y: 300 });
-    const start = huntingGrounds()[0];
+    const start = huntingGrounds(w)[0];
     const npc = createNpc(w, 'vulture', ['vulture'], 'scout', ['longRifle', 'stockEngine'], { ...start });
     const chances = optionChances(optionWeights(w, npc, 'idle', null, null));
     expect(Object.entries(chances).sort((a, b) => b[1] - a[1])[0][0]).toBe('prowl');
@@ -347,7 +347,7 @@ describe('independent', () => {
     const goals = idleGoals(w, npc.id, 20).filter((g) => g.kind === 'prowl');
     expect(goals.length).toBe(20);
     for (const goal of goals) {
-      expect(huntingGrounds().some((p) => p.x === goal.destination!.x && p.y === goal.destination!.y)).toBe(true);
+      expect(huntingGrounds(w).some((p) => p.x === goal.destination!.x && p.y === goal.destination!.y)).toBe(true);
       expect(dist(goal.destination!, start)).toBeGreaterThan(RULES.arriveRadius * 2);
       expect(goal.reason).toBe('prowl');
     }
@@ -357,7 +357,7 @@ describe('independent', () => {
     const w = emptyWorld({ x: 300, y: 300 });
     const other = createNpc(w, 'scavenger', ['scavenger'], 'scout', ['mg', 'stockEngine'], sitePads(siteById('bowl'))[0]);
     expect(optionChances(optionWeights(w, other, 'idle', null, null)).prowl).toBeCloseTo(MIN_CHANCE, 2);
-    const point = huntingGrounds()[0];
+    const point = huntingGrounds(w)[0];
     const npc = createNpc(w, 'vulture', ['vulture'], 'scout', ['longRifle', 'stockEngine'], { ...point });
     npc.brain!.goals = [{ kind: 'prowl', targetId: null, destination: { ...point }, phase: 'travel', reason: 'prowl' }];
     npc.speed = 0;
@@ -367,7 +367,7 @@ describe('independent', () => {
 
   it('cannot prowl without fuel', () => {
     const w = emptyWorld({ x: 300, y: 300 });
-    const npc = createNpc(w, 'vulture', ['vulture'], 'scout', ['longRifle', 'stockEngine'], { ...huntingGrounds()[0] });
+    const npc = createNpc(w, 'vulture', ['vulture'], 'scout', ['longRifle', 'stockEngine'], { ...huntingGrounds(w)[0] });
     npc.resources!.fuel = 0;
     expect(optionChances(optionWeights(w, npc, 'idle', null, null)).prowl).toBeUndefined();
   });

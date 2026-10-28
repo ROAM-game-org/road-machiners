@@ -2,6 +2,22 @@
 
 The groups of Icarus and what they believe. Each one copes with the world in one of the five ways from [Theme](../theme.md). A group leans one way, but its people vary. No group is right, and each one pays for its way.
 
+## Green Pit
+
+Way: embrace.
+
+Green Pit is a walled outpost in an old quarry, held by its pump crews and their families, a few hundred people. They keep the deep-rock pump, the stilt tanks, the drums and the towers. Everyone drinks there, at Hadiza Okon's hook house canteen by the gate.
+
+The cost is that the Bowl meters the Green Pit feeder and claims a share of it.
+
+## Dustwell
+
+Way: fear.
+
+Dustwell is a walled outpost on the Bowl north road, held by pump crews who work under the Bowl's say. Its water goes down the road in barrels to the Bowl's canals. Agnes Ondra keeps the pump book there.
+
+The cost is that a Senate order keeps the household's truck out of that book.
+
 ## Nose
 
 Way: control.

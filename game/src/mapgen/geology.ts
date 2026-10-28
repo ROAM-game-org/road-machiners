@@ -123,9 +123,49 @@ function newRainGrid(d: MapDraft): RainGrid {
   };
 }
 
+const RADIX_BITS = 16;
+const RADIX = 1 << RADIX_BITS;
+
+function descendingKeys(height: Float64Array): { high: Uint32Array; low: Uint32Array } {
+  const count = height.length;
+  const high = new Uint32Array(count);
+  const low = new Uint32Array(count);
+  const view = new DataView(new ArrayBuffer(8));
+  for (let k = 0; k < count; k++) {
+    view.setFloat64(0, height[k] === 0 ? 0 : height[k]);
+    const hi = view.getUint32(0);
+    const lo = view.getUint32(4);
+    const negative = hi >>> 31 === 1;
+    high[k] = negative ? hi : ~hi & 0x7fffffff;
+    low[k] = negative ? lo : ~lo >>> 0;
+  }
+  return { high, low };
+}
+
 function sortByHeight(g: RainGrid): void {
-  const h = g.height;
-  g.order.sort((a, b) => h[b] - h[a] || a - b);
+  const count = g.order.length;
+  const { high, low } = descendingKeys(g.height);
+  const passes: [Uint32Array, number][] = [[low, 0], [low, RADIX_BITS], [high, 0], [high, RADIX_BITS]];
+  let from: Uint32Array = new Uint32Array(count);
+  let to: Uint32Array = g.order;
+  for (let k = 0; k < count; k++) from[k] = k;
+  const counts = new Uint32Array(RADIX);
+  for (const [key, shift] of passes) {
+    counts.fill(0);
+    for (let i = 0; i < count; i++) counts[(key[from[i]] >>> shift) & (RADIX - 1)]++;
+    let sum = 0;
+    for (let r = 0; r < RADIX; r++) {
+      const c = counts[r];
+      counts[r] = sum;
+      sum += c;
+    }
+    for (let i = 0; i < count; i++) {
+      const k = from[i];
+      to[counts[(key[k] >>> shift) & (RADIX - 1)]++] = k;
+    }
+    [from, to] = [to, from];
+  }
+  g.order.set(from);
 }
 
 function route(g: RainGrid, k: number, rules: RainRules): void {

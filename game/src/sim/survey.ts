@@ -1,4 +1,4 @@
-import { CONTRACTS, EFFORT } from '../data/market';
+import { CONTRACTS, EFFORT, type Threat } from '../data/market';
 import { ECONOMY } from '../data/goods';
 import { RULES } from '../data/rules';
 import { REGION } from '../data/region';
@@ -15,6 +15,7 @@ import { startJob } from './jobs';
 import { mapObstacles, propReach } from './mapgen';
 import { navLayer } from './nav/layer';
 import { hasSalvage, MAX_RADIUS, nearestRoadPoint, offRoad, oldPlaces, propHash, reachable, type OldPlace } from './salvage';
+import { threatAt } from './raider-threat';
 import { randInt } from './rng';
 import { playerCommand } from './world';
 import { siteGap, type Site } from './sites';
@@ -130,6 +131,15 @@ export function surveySite(world: World, id: string): SurveySite {
   const site = surveySites({ hash: world.mapHash, terrain: world.terrain }).find((s) => s.id === id);
   if (!site) throw new Error(`No survey site ${id}`);
   return site;
+}
+
+export function surveyPlaceThreat(world: World, siteId: string): Threat {
+  return threatAt(world, surveySite(world, siteId).pos);
+}
+
+export function surveyThreat(world: World, c: SurveyContract): Threat {
+  if (c.points.length === 0) throw new Error(`Survey ${c.id} has no places`);
+  return Math.max(...c.points.map((p) => surveyPlaceThreat(world, p.site))) as Threat;
 }
 
 export function isSurveyMet(c: SurveyContract): boolean {

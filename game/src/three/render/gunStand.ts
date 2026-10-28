@@ -14,6 +14,8 @@ const SEE_THROUGH = new Set([GLASS, LAMP, RADIO]);
 const IDENTITY = new THREE.Matrix4();
 const FOOTING_GRID = CLIP_TOLERANCE / 2;
 const FACE_COLUMN = 0.1;
+const GLASS_SKIN = 2 * CLIP_TOLERANCE;
+const THROUGH_STEP = CLIP_TOLERANCE / 100;
 
 export function postBottom(foot: number, top: number): number {
   return foot !== -Infinity && top - foot > CLIP_TOLERANCE ? foot : top;
@@ -158,7 +160,7 @@ function cornerHolds(body: THREE.Object3D, top: number, feet: Footing): (x: numb
 }
 
 function sideBraced(body: THREE.Object3D, corner: THREE.Vector3): boolean {
-  return BRACE_SIDES.some((way) => BRACE_ANGLES.some((deg) => wallHit(body, corner, way.clone().multiplyScalar(Math.cos(deg * THREE.MathUtils.DEG2RAD)).setY(-Math.sin(deg * THREE.MathUtils.DEG2RAD))) !== null));
+  return BRACE_SIDES.some((way) => BRACE_ANGLES.some((deg) => wallHit(body, corner, way.clone().multiplyScalar(Math.cos(deg * THREE.MathUtils.DEG2RAD)).setY(-Math.sin(deg * THREE.MathUtils.DEG2RAD)), 0) !== null));
 }
 
 function spotAt(plate: CellRect, shifts: [number, number][], shrink: number, feet: (x: number, z: number) => THREE.Vector3 | null): PlateSpot | null {
@@ -498,19 +500,27 @@ export function postStands(body: THREE.Object3D, at: THREE.Vector3, bottom: numb
 }
 
 function braceFoot(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 {
-  const hit = braceHit(body, corner, center);
+  const hit = braceHit(body, corner, center) ?? braceBehindGlass(body, corner, center);
   if (!hit) throw new Error(`No body wall below the gun plate corner at ${corner.x.toFixed(2)},${corner.z.toFixed(2)} to brace it to`);
   return hit;
 }
 
 function braceHit(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 | undefined {
-  const inward = center.clone().sub(corner).setY(0).normalize();
-  return nearestWall(body, corner, [inward]) ?? nearestWall(body, corner, BRACE_SIDES);
+  return nearestWall(body, corner, [inwardOf(corner, center)], 0) ?? nearestWall(body, corner, BRACE_SIDES, 0);
 }
 
-function nearestWall(body: THREE.Object3D, corner: THREE.Vector3, ways: THREE.Vector3[]): THREE.Vector3 | undefined {
+function braceBehindGlass(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 | undefined {
+  const inward = inwardOf(corner, center);
+  return nearestWall(body, corner, [inward], GLASS_SKIN) ?? nearestWall(body, corner, [inward.clone().negate()], GLASS_SKIN);
+}
+
+function inwardOf(corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 {
+  return center.clone().sub(corner).setY(0).normalize();
+}
+
+function nearestWall(body: THREE.Object3D, corner: THREE.Vector3, ways: THREE.Vector3[], skin: number): THREE.Vector3 | undefined {
   return ways
-    .flatMap((way) => BRACE_ANGLES.map((deg) => wallHit(body, corner, way.clone().multiplyScalar(Math.cos(deg * THREE.MathUtils.DEG2RAD)).setY(-Math.sin(deg * THREE.MathUtils.DEG2RAD)))))
+    .flatMap((way) => BRACE_ANGLES.map((deg) => wallHit(body, corner, way.clone().multiplyScalar(Math.cos(deg * THREE.MathUtils.DEG2RAD)).setY(-Math.sin(deg * THREE.MathUtils.DEG2RAD)), skin)))
     .filter((p): p is THREE.Vector3 => p !== null)
     .sort((a, b) => a.distanceTo(corner) - b.distanceTo(corner))[0];
 }
@@ -535,7 +545,7 @@ function itemSupports(body: THREE.Object3D, points: [number, number][], top: num
 }
 
 function supportAt(body: THREE.Object3D, foot: THREE.Vector3 | null, head: THREE.Vector3, center: THREE.Vector3): Support | null {
-  const below = foot ? wallHit(body, head, DOWN) : null;
+  const below = foot ? wallHit(body, head, DOWN, 0) : null;
   if (foot && below && Math.abs(below.y - foot.y) <= CLIP_TOLERANCE) return { role: 'leg', foot, head, needed: head.y - foot.y > CLIP_TOLERANCE / 2 };
   const hit = braceHit(body, head, center);
   return hit ? { role: 'brace', foot: hit, head, needed: hit.distanceTo(head) > CLIP_TOLERANCE / 2 } : null;
@@ -593,10 +603,18 @@ export function rearHang(body: THREE.Object3D, z: number): THREE.Vector3 {
   throw new Error(`The base has no underside in its rear quarter at z ${z.toFixed(2)} to hang a chain from`);
 }
 
-function wallHit(body: THREE.Object3D, from: THREE.Vector3, dir: THREE.Vector3): THREE.Vector3 | null {
+function wallHit(body: THREE.Object3D, from: THREE.Vector3, dir: THREE.Vector3, skin: number): THREE.Vector3 | null {
   const start = from.clone().addScaledVector(dir, -CLIP_TOLERANCE);
-  const hit = wallsOf(body)(start, dir);
-  return hit && !hit.seeThrough ? hit.point : null;
+  const walls = wallsOf(body);
+  const first = walls(start, dir);
+  if (!first) return null;
+  let hit = first;
+  while (hit.seeThrough) {
+    const next = walls(hit.point.clone().addScaledVector(dir, THROUGH_STEP), dir);
+    if (!next || next.point.distanceTo(first.point) > skin) return null;
+    hit = next;
+  }
+  return hit.point;
 }
 
 function seeThrough(obj: THREE.Object3D): boolean {

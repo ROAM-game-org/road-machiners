@@ -13,6 +13,7 @@ export type UiHost = {
   pressTurn(): void;
   releaseTurn(): void;
   runKey(code: string): void;
+  menuOpen(): boolean;
   searchStock(stockId: string): void;
   autoTravel(): boolean;
   travelSpeedIndex(): number;
