@@ -1,5 +1,5 @@
 {
- "mapHash": "d65cb80a",
+ "mapHash": "52b3b56d",
  "picks": [
   {
    "propId": "ruin-4151",
@@ -119,7 +119,7 @@
    "reach": 1.4537124330340159
   },
   {
-   "propId": "tank-5131",
+   "propId": "tank-5132",
    "type": "hulks",
    "pos": {
     "x": 1506.831298828125,
@@ -128,7 +128,7 @@
    "reach": 1.214549813717
   },
   {
-   "propId": "tank-5185",
+   "propId": "tank-5186",
    "type": "hulks",
    "pos": {
     "x": 1095.48583984375,
@@ -137,7 +137,7 @@
    "reach": 1.214549813717
   },
   {
-   "propId": "fishingBoat-26170",
+   "propId": "fishingBoat-26539",
    "type": "boats",
    "pos": {
     "x": 589.4617309570312,
@@ -146,7 +146,7 @@
    "reach": 1.3675571053162434
   },
   {
-   "propId": "shipCache-22978",
+   "propId": "shipCache-23329",
    "type": "wreckage",
    "pos": {
     "x": 876.6061401367188,
@@ -155,7 +155,7 @@
    "reach": 0.8483290593292819
   },
   {
-   "propId": "shipCache-22982",
+   "propId": "shipCache-23332",
    "type": "wreckage",
    "pos": {
     "x": 1049.1783447265625,
@@ -164,7 +164,7 @@
    "reach": 0.8381670297555915
   },
   {
-   "propId": "shipCache-22983",
+   "propId": "shipCache-23333",
    "type": "wreckage",
    "pos": {
     "x": 818.6663208007812,
