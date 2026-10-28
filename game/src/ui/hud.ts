@@ -137,7 +137,7 @@ type HudActions = {
 export type CardAction = 'mark' | 'lookOver';
 
 const TOAST_MS = 3500;
-const CONDITION_ROWS = 12;
+const CONDITION_LENGTH_M = 7.8;
 
 const TONE_CLASS: Record<TipLine['tone'], string> = { base: 'dim', bad: 'bad', good: 'good', plain: '' };
 
@@ -289,7 +289,7 @@ export class Hud {
   constructor(private actions: HudActions, private radio: RadioPanel, renderer: THREE.WebGLRenderer) {
     this.portraits = new TruckPortraits(renderer);
     this.garage = new GarageRenders(renderer);
-    this.condition = new TruckConditionView(this.portraits, CONDITION_ROWS);
+    this.condition = new TruckConditionView(this.portraits, CONDITION_LENGTH_M);
     this.inspected = new TruckConditionView(this.portraits, null);
     this.portraits.onReady((vehicleId) => {
       if (vehicleId === this.inspectedId) this.placeInfo();
