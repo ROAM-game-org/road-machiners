@@ -496,7 +496,12 @@ export function sunwardNext(world: World, v: Vehicle): NpcActivity {
 
 export function sunwardRetreat(world: World, v: Vehicle): NpcActivity {
   const wanted = homeGoal(world, v);
-  if (!sameGoal(v.brain!.goals[0], wanted) || topGoal(v) === null) placeBase(world, v, wanted);
+  // Defeated riders do not run the normal column planner. End their column state and
+  // discard its follow goal, or it will keep overriding the home goal forever.
+  joinColumn(world, v, wanted);
+  const hadFollow = v.brain!.goals.some((g) => g.kind === 'follow');
+  if (hadFollow) v.brain!.goals = v.brain!.goals.filter((g) => g.kind !== 'follow');
+  if (hadFollow || !sameGoal(v.brain!.goals[0], wanted) || topGoal(v) === null) placeBase(world, v, wanted);
   return topGoal(v)!;
 }
 

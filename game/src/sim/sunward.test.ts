@@ -18,7 +18,7 @@ import { route, routeLength } from './path';
 import { lightZone } from './sunward-crater';
 import { RULES } from '../data/rules';
 import { makeTaste, nightTaste, tasted, terrainNav } from './nav/layer';
-import { topGoal } from './npc-activities';
+import { thinkNpc, topGoal } from './npc-activities';
 import { clockOf } from './sun';
 import { refreshVision } from './vision';
 import { discoverSites } from './locations';
@@ -420,6 +420,29 @@ describe('the vigil posts', () => {
 });
 
 describe('the hunting parties', () => {
+  it('sends a defeated column follower home instead of keeping its column follow and state', () => {
+    const w = orderWorld();
+    w.turn = rideOutTurn(duskTurn(1)) + 1;
+    advanceSunward(w);
+    const night = sunwardFacts(w).night!;
+    const [leaderId, followerId] = gateOrder(w, night);
+    const leader = riderAt(w, leaderId);
+    leader.pos = { x: HOLLOW.pos.x + hollowReach() + SUNWARD.fileGap + 30, y: HOLLOW.pos.y };
+    const follower = riderAt(w, followerId);
+    planSunward(w, follower);
+    expect(topGoal(follower)?.kind).toBe('follow');
+    expect(followingOf(w, follower)?.kind).toBe('cavalcade');
+    follower.pos = { x: leader.pos.x - 5, y: leader.pos.y };
+    follower.defeat = { phase: 'retreat', turns: 0, unseen: 0, foes: [], gaveUp: false };
+
+    const action = thinkNpc(w, follower);
+
+    expect(action).toMatchObject({ kind: 'explore', reason: 'rideHome' });
+    expect(topGoal(follower)).toBe(action);
+    expect(follower.brain!.goals.every((g) => g.kind !== 'follow')).toBe(true);
+    expect(followingOf(w, follower)).toBeNull();
+  });
+
   it('rides out on a few nights a week by a hash of the seed and the day, with a cooldown, and draws no world random number', () => {
     const w = quietWorld();
     const before = { rng: w.rngState, market: w.marketRng.rngState, names: w.nameRng.rngState, search: w.searchRng.rngState };
