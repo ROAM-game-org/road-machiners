@@ -3,12 +3,15 @@ import type { TruckPaint } from '../../data/chassis';
 import { partDef } from '../../data/parts';
 import { paintOf } from '../../render/palette';
 import { wearLookStep } from '../../render/partLooks';
-import { cellSteps, spanOf } from '../../sim/body';
-import { baseGrid, itemCells, layerOf, mountCellsOf, mountSpots, type Spot } from '../../sim/grid';
+import { cellSteps, spanOf, unitOfCells } from '../../sim/body';
+import { baseGrid, isMounted, itemCells, layerOf, mountCellsOf, mountSpots, type Spot } from '../../sim/grid';
 import type { GridItem, PartInstance, Vehicle } from '../../sim/types';
 import { OPAQUE_ALPHA, flipRows, linearToSrgb, unpremultiply } from './portraitPixels';
 import { canvasOf, captureColor, glassMeshes, hideOutlines, litScene, neutralizeReds, poseAtRest, sheenGlass, withRendererState, type PortraitWait } from './truckPortrait';
-import { VehicleView, type RebuildBudget } from './vehicle';
+import { restGunOf, VehicleView, type RebuildBudget } from './vehicle';
+import { gunStack } from './gunStack';
+import { baseModel } from '../../render/partLooks';
+import { model } from './models';
 
 export const GARAGE_PX_PER_METER = 128;
 export const GARAGE_MAX_SIDE = 2048;
@@ -18,6 +21,8 @@ export const BODY_PAD_M = 0.05;
 const SPRITE_PAD_M = 0.06;
 const CAMERA_HEIGHT = 40;
 const KEEP_SPRITES = 4000;
+const KEEP_LAYOUTS = 200;
+const NO_LEVELS: ReadonlyMap<string, number> = new Map();
 
 export type GarageSprite = { url: string; left: number; top: number; width: number; height: number };
 
@@ -191,14 +196,14 @@ function* shoot(pass: Pass, root: THREE.Object3D, frame: Frame, origin: { x: num
   }
 }
 
-function* alone(pass: Pass, view: VehicleView, meshes: readonly Drawn[], partId: string, origin: { x: number; z: number }): Generator<PortraitWait, GarageSprite | null, void> {
+function* alone(pass: Pass, view: VehicleView, meshes: readonly Drawn[], partId: string, origin: { x: number; z: number }, mates: ReadonlySet<string> = new Set()): Generator<PortraitWait, GarageSprite | null, void> {
   const own = meshes.filter((m) => m.userData.partId === partId);
   const frame = frameOf(own, SPRITE_PAD_M);
   if (!frame) return null;
   const originals = meshes.map((m) => [m, m.material, m.visible] as const);
   for (const mesh of meshes) {
     if (mesh.userData.partId === partId) continue;
-    if (mesh.material.transparent) mesh.visible = false;
+    if (mesh.material.transparent || mates.has(mesh.userData.partId)) mesh.visible = false;
     else mesh.material = pass.occluder;
   }
   try {
@@ -263,8 +268,9 @@ function* batchSteps(pass: Pass, job: BatchJob, store: GarageStore, trash: { dis
   const truck: Vehicle = { ...job.truck, items: [...coreItems(job.truck), ...job.placements.map((p) => p.item)] };
   const { view, meshes } = yield* builtView(truck, job.paint, trash);
   const origin = gridOrigin(job.chassisId);
+  const mates = new Set(job.placements.map((p) => p.item.part.id));
   for (const placement of job.placements) {
-    const sprite = yield* alone(pass, view, meshes, placement.item.part.id, origin);
+    const sprite = yield* alone(pass, view, meshes, placement.item.part.id, origin, mates);
     store.putSprite(placement.key, placement.loose, sprite ?? NOTHING_DRAWN);
   }
 }
@@ -306,6 +312,7 @@ export class GarageRenders {
   private readonly sprites = new Map<string, GarageSprite>();
   private readonly latestSprite = new Map<string, GarageSprite>();
   private readonly failed = new Set<string>();
+  private readonly levels = new Map<string, ReadonlyMap<string, number>>();
   private readonly listeners: (() => void)[] = [];
   private queue: GarageJob[] = [];
   private wanted: readonly GarageNeed[] = [];
@@ -327,6 +334,19 @@ export class GarageRenders {
 
   sprite(truck: Vehicle, paint: TruckPaint, part: PartInstance, spot: Spot): GarageSprite | null {
     return this.sprites.get(spriteKey(truck, paint, part, spot)) ?? this.latestSprite.get(looseKey(truck.chassisId, part, spot)) ?? null;
+  }
+
+  gunLevels(truck: Vehicle): ReadonlyMap<string, number> {
+    const guns = truck.items.filter((it): it is PartItem => it.kind === 'part' && partDef(it.part.defId).kind === 'weapon' && isMounted(truck.chassisId, it));
+    if (guns.length < 2) return NO_LEVELS;
+    const key = `${truck.chassisId}|${guns.map((g) => `${g.id}:${g.part.id}:${g.part.defId}@${g.x},${g.y},${g.rot}`).join(',')}`;
+    const known = this.levels.get(key);
+    if (known) return known;
+    const rests = guns.map((g) => restGunOf(truck, g, model(baseModel(truck.chassisId, unitOfCells(truck.chassisId, itemCells(g)).index))));
+    if (this.levels.size >= KEEP_LAYOUTS) this.levels.clear();
+    const levels = gunStack(rests).levels;
+    this.levels.set(key, levels);
+    return levels;
   }
 
   want(needs: readonly GarageNeed[]): void {
