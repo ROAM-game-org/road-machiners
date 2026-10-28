@@ -20,7 +20,7 @@ import { farmBeltLayer } from './farmbelt';
 import { zoneReport } from './report';
 import { fillGlassTrail } from './glass';
 import { swampLayer } from './swamp';
-import { oldWorldLayer, tilesWithin } from './oldworld';
+import { oldWorldLayer, tilesWithin, washTile } from './oldworld';
 import { fortressLayer } from './fortress';
 import { stampTerritoryGround } from './ground-stamps';
 import { keepStartClear } from './start-ground';
@@ -214,8 +214,8 @@ function pondType(g: GroundInput, _tile: number, k: number): TerrainTypeId | nul
   return depth >= G.saltDepth ? 'saltCrust' : null;
 }
 
-function washType(g: GroundInput, tile: number, k: number): TerrainTypeId | null {
-  if (cornerMax(g.d.flow, g.d.size, k) < G.washFlow) return null;
+function washType(g: GroundInput, tile: number): TerrainTypeId | null {
+  if (!washTile(g.d, tile)) return null;
   return tileSteepness(g.d.heights, g.d.size, tile) >= G.gravelSlope ? 'gravel' : 'sand';
 }
 
