@@ -37,6 +37,23 @@
 .town-page .ink-body:not(:has(.ink-panel)) .ink-status {
   grid-row: 4;
 }
+#ui:not(.phone, .narrow) .town-page:not(.on-section, .under-quest) .ink-band {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: min(var(--art-band-height), calc(0.26 * var(--layer-h)));
+}
+#ui:not(.phone, .narrow) .town-page:not(.on-section, .under-quest) .ink-band > .art-band {
+  flex: 1;
+  height: auto;
+}
+#ui:not(.phone, .narrow) .town-page:not(.on-section, .under-quest) .ink-body {
+  flex: 0 1 auto;
+  overflow: auto;
+}
+#ui:not(.phone, .narrow) .town-page:not(.on-section, .under-quest) .ink-body:not(:has(.ink-panel)) {
+  grid-template-rows: auto auto auto auto;
+}
 .town-page.on-section .ink-band > .art-band {
   height: min(var(--art-band-height), calc(0.14 * var(--layer-h)));
 }
