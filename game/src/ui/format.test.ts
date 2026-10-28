@@ -783,6 +783,15 @@ describe("wake-up log", () => {
   });
 });
 
+describe("player wake-up", () => {
+  it("is a notable event, and its log line is plain ink", () => {
+    expect(isNotable({ t: "wake" })).toBe(true);
+    const line = eventText(emptyWorld(), { t: "wake" });
+    expect(en(line?.text)).toBe("You come to.");
+    expect(line?.cls).toBe("");
+  });
+});
+
 describe("Chaos Highway log lines", () => {
   it("tells an outpost arrival with its pay once, and the run's end", () => {
     const w = emptyWorld();

@@ -7,6 +7,7 @@ import type { Band } from "../data/npc-behavior";
 import type { PropKind, Terrain } from "./terrain";
 import type { Vec } from "./vec";
 import type { LineId, TopicId } from "../data/dialogue";
+import type { GroupId } from "../data/personalities";
 import type { PersonalityId } from "../data/personalities";
 import type { DecisionOptions } from "../data/npcs";
 import type { Contract, PastContract, ShopState } from "./market";
@@ -88,7 +89,7 @@ export type Pose = { x: number; y: number; heading: number; bend?: number };
 
 export type MoveOrder =
   | { kind: "through"; dest: Vec; pace?: number }
-  | { kind: "stopAt"; dest: Vec }
+  | { kind: "stopAt"; dest: Vec; pace?: number }
   | { kind: "brake" };
 
 export type SalvageStock = {
@@ -373,6 +374,7 @@ export type Vehicle = {
   stormExposure: Record<string, number>;
   strandedTurns?: number;
   strandedAt?: Vec;
+  yieldsTo?: string[];
   stalledUntil?: number;
   order: MoveOrder | null;
   direct: boolean;
@@ -474,7 +476,7 @@ export type CallVars = Record<string, CallVar>;
 
 export type Repeat = { count: number; turn: number };
 
-export type Call = { with: string; topic: TopicId | null; node: string; vars: CallVars; line: { line: LineId; vars: CallVars } };
+export type Call = { with: string; topic: TopicId | null; node: string; vars: CallVars; line: { line: LineId; vars: CallVars }; group: GroupId | null; asked: TopicId[] };
 
 
 export type QuestVars = Record<string, QuestValue>;
@@ -482,7 +484,8 @@ export type QuestSession = { quest: string; checkpoint: string; seed: number };
 export type QuestLine = { text: string; tags: string[] };
 export type QuestCheck = { skill: SkillId; level: number };
 export type QuestLive = { quest: string; lang: QuestLanguage; ink: string; lines: QuestLine[]; choices: string[]; costs: (number | null)[]; checks: (QuestCheck | null)[] };
-export type QuestState = { world: QuestVars; local: Record<string, QuestVars>; session: QuestSession | null; live: QuestLive | null };
+export type QuestSeen = { lang: QuestLanguage; replies: Record<string, string> };
+export type QuestState = { world: QuestVars; local: Record<string, QuestVars>; session: QuestSession | null; live: QuestLive | null; seen: Record<string, QuestSeen> };
 export type TopicOutcome = "agreed" | "refused" | "done";
 
 export type EncounterId = 'tale' | 'tip' | 'challenge' | 'courier';
