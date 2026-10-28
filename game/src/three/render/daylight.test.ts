@@ -6,7 +6,7 @@ import { bodyOf } from '../../sim/body';
 import { playerVehicle } from '../../sim/damage';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import { setHeadlights } from '../../sim/world';
-import { beamOrder, daylightAt, lampsOn, lightScene, VehicleLights, nightLightsWanted, snapToShadowTexels, sunLight, vehicleLampsOn, type LitVehicle } from './daylight';
+import { beamOrder, daylightAt, dimTruckSky, lampsOn, lightScene, VehicleLights, nightLightsWanted, snapToShadowTexels, sunLight, vehicleLampsOn, type LitVehicle } from './daylight';
 
 const turnAt = (hour: number) => 1 + ((hour - TIME.startHour + 24) % 24) * (TIME.turnsPerDay / 24);
 
@@ -208,5 +208,63 @@ describe('lightScene shadow box', () => {
 
   it('rejects a bad texel size', () => {
     expect(() => snapToShadowTexels({ x: 0, y: 0, z: 0 }, { x: 0, y: 1, z: 1 }, 0)).toThrow();
+  });
+});
+
+describe('truck sky share', () => {
+  it('halves the sky on trucks by day and gives it back at night', () => {
+    for (const hour of [8, 13, 17]) expect(daylightAt(turnAt(hour)).truckSky).toBe(0.5);
+    for (const hour of [23, 3]) expect(daylightAt(turnAt(hour)).truckSky).toBe(1);
+  });
+
+  it('stays between half and full at every half hour', () => {
+    for (let hour = 0; hour < 24; hour += 0.5) {
+      const share = daylightAt(turnAt(hour)).truckSky;
+      expect(share).toBeGreaterThanOrEqual(0.5);
+      expect(share).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('eases through twilight', () => {
+    const dusk = [19.5, 20, 20.5, 21].map((hour) => daylightAt(turnAt(hour)).truckSky);
+    expect(dusk.some((share) => share > 0.5 && share < 1)).toBe(true);
+  });
+});
+
+describe('dimTruckSky', () => {
+  const compile = (material: THREE.MeshLambertMaterial, fragmentShader = THREE.ShaderLib.lambert.fragmentShader) => {
+    const shader = { vertexShader: '', fragmentShader, uniforms: {} as Record<string, { value: number }> };
+    material.onBeforeCompile(shader as unknown as THREE.WebGLProgramParametersWithUniforms, {} as THREE.WebGLRenderer);
+    return shader;
+  };
+
+  it('scales only the hemisphere term by the shared share and keeps earlier hooks', () => {
+    const material = new THREE.MeshLambertMaterial();
+    const earlier = vi.fn();
+    material.onBeforeCompile = earlier;
+    dimTruckSky(material);
+    const shader = compile(material);
+    expect(earlier).toHaveBeenCalledOnce();
+    expect(shader.fragmentShader).not.toContain('#include <lights_fragment_begin>');
+    expect(shader.fragmentShader).toContain('truckSky * getHemisphereLightIrradiance(');
+    expect(shader.fragmentShader).toContain('uniform float truckSky;');
+    expect(shader.fragmentShader).toContain('getDirectionalLightInfo');
+    expect(material.customProgramCacheKey().endsWith('|truckSky')).toBe(true);
+  });
+
+  it('follows the light the scene sets', () => {
+    const material = dimTruckSky(new THREE.MeshLambertMaterial());
+    const shader = compile(material);
+    const sun = sunLight();
+    const sky = new THREE.HemisphereLight();
+    lightScene(sun, sky, { x: 0, y: 0, z: 0 }, daylightAt(turnAt(13)));
+    expect(shader.uniforms.truckSky.value).toBe(0.5);
+    lightScene(sun, sky, { x: 0, y: 0, z: 0 }, daylightAt(turnAt(23)));
+    expect(shader.uniforms.truckSky.value).toBe(1);
+  });
+
+  it('throws when the shader has no light include', () => {
+    const material = dimTruckSky(new THREE.MeshLambertMaterial());
+    expect(() => compile(material, '#include <common>\nvoid main() {}')).toThrow('light include');
   });
 });

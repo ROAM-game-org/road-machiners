@@ -17,6 +17,7 @@ import { clearTop, headShape, sweepOf, type Obstacle } from './gunClearance';
 import { model, outlineOf, socket, TRUCK_BIT, type ModelName } from './models';
 import { hashStr } from '../../render/noise';
 import { callTrucks, radioSpeakers } from '../../sim/dialogue';
+import { dimTruckSky } from './daylight';
 import { TruckMotion, WHIPS } from './truckMotion';
 import { weaponHead } from './weaponHead';
 
@@ -102,7 +103,7 @@ export class VehicleView {
   private radioMat = new THREE.MeshBasicMaterial({ color: PAL.radioLight.off });
   private halo: THREE.Sprite | null = null;
   private radioOn = false;
-  private glassMat = new THREE.MeshLambertMaterial({ flatShading: true });
+  private glassMat = dimTruckSky(new THREE.MeshLambertMaterial({ flatShading: true }));
   private readonly glassGlow = new THREE.Color(0);
   private silhouetteMat!: THREE.MeshBasicMaterial;
   private darkMat!: THREE.MeshBasicMaterial;
@@ -226,7 +227,7 @@ export class VehicleView {
     this.lampMat = new THREE.MeshBasicMaterial({ color: on ? PAL.lamp.on : PAL.lamp.off });
     this.radioMat = new THREE.MeshBasicMaterial({ color: radioColor(this.radioOn) });
     this.halo = null;
-    this.glassMat = new THREE.MeshLambertMaterial({ flatShading: true, emissive: this.glassGlow });
+    this.glassMat = dimTruckSky(new THREE.MeshLambertMaterial({ flatShading: true, emissive: this.glassGlow }));
 
     const still = new THREE.Group();
     const onBody = v.items.filter((item) => onChassis(v, item));
@@ -853,7 +854,7 @@ function mergeStatic(group: THREE.Group): THREE.Group {
     const merged = mergeGeometries(geos);
     if (!merged) throw new Error(`Could not merge ${geos.length} truck meshes of color ${hex.toString(16)}`);
     for (const g of geos) g.dispose();
-    const mesh = new THREE.Mesh(merged, new THREE.MeshLambertMaterial({ color: hex, flatShading: true }));
+    const mesh = new THREE.Mesh(merged, dimTruckSky(new THREE.MeshLambertMaterial({ color: hex, flatShading: true })));
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     out.add(mesh);

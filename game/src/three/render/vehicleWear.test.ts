@@ -8,7 +8,7 @@ import { BODY_PARTS, WEAR_LOOK_STEPS, wearLookStep } from '../../render/partLook
 import { bodyOf } from '../../sim/body';
 import { playerVehicle } from '../../sim/damage';
 import { mountedParts } from '../../sim/grid';
-import { PLAIN_KIT } from '../../sim/testkit';
+import { addVehicle, PLAIN_KIT } from '../../sim/testkit';
 import type { Vehicle } from '../../sim/types';
 import { maxHp } from '../../sim/wear';
 import { newWorld } from '../../sim/world';
@@ -107,5 +107,33 @@ describe('part wear look', () => {
       expect(Math.min(...mounts.map((m) => Math.hypot(at.x - m.x, at.z - m.z)))).toBeLessThan(0.1);
     }
     expect(() => view.partPoint('nope')).toThrow();
+  });
+});
+
+describe('truck sky light', () => {
+  function litKeys(view: VehicleView): { lit: string[]; unlit: string[] } {
+    const out = { lit: [] as string[], unlit: [] as string[] };
+    view.root.traverse((o) => {
+      if (!(o instanceof THREE.Mesh || o instanceof THREE.Sprite)) return;
+      const mat = o.material as THREE.Material;
+      (mat instanceof THREE.MeshLambertMaterial ? out.lit : out.unlit).push(mat.customProgramCacheKey());
+    });
+    return out;
+  }
+
+  it('dims every lit material of a player truck and an NPC truck, and no unlit one', () => {
+    const w = newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
+    const player = playerVehicle(w);
+    const npc = addVehicle(w, 'traders', player.chassisId, [], { x: 10, y: 10 });
+    for (const v of [player, npc]) {
+      const view = new VehicleView(v, v === player);
+      const { lit, unlit } = litKeys(view);
+      expect(lit.length).toBeGreaterThan(0);
+      for (const key of lit) expect(key).toContain('truckSky');
+      for (const key of unlit) expect(key).not.toContain('truckSky');
+      view.outline(true);
+      view.outline(false);
+      for (const key of litKeys(view).lit) expect(key).toContain('truckSky');
+    }
   });
 });

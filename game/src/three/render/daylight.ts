@@ -18,6 +18,7 @@ const MOON_DIR = TERRAIN.light;
 const WHITE = new THREE.Color(0xffffff);
 const GLASS_SATURATION = 0.9;
 const SHADOW_SOFTNESS = 1;
+const TRUCK_SKY = { value: 1 };
 
 type Key = {
   h: number;
@@ -29,6 +30,7 @@ type Key = {
   glassI: number;
   glassWhite: number;
   beamI: number;
+  truckSkyI: number;
 };
 const KEYS: Key[] = [
   {
@@ -41,6 +43,7 @@ const KEYS: Key[] = [
     glassI: 0,
     glassWhite: 0,
     beamI: 0.3,
+    truckSkyI: 0.5,
   },
   {
     h: 20,
@@ -52,6 +55,7 @@ const KEYS: Key[] = [
     glassI: 0,
     glassWhite: 0,
     beamI: 0.45,
+    truckSkyI: 0.5,
   },
   {
     h: 8,
@@ -63,6 +67,7 @@ const KEYS: Key[] = [
     glassI: 0.1,
     glassWhite: 0,
     beamI: 0.75,
+    truckSkyI: 0.5,
   },
   {
     h: 1,
@@ -74,6 +79,7 @@ const KEYS: Key[] = [
     glassI: 0.4,
     glassWhite: 0,
     beamI: 1,
+    truckSkyI: 0.5,
   },
   {
     h: -4,
@@ -85,6 +91,7 @@ const KEYS: Key[] = [
     glassI: 0.35,
     glassWhite: 0.5,
     beamI: 1,
+    truckSkyI: 0.75,
   },
   {
     h: -TWILIGHT,
@@ -96,6 +103,7 @@ const KEYS: Key[] = [
     glassI: 0.2,
     glassWhite: 0.8,
     beamI: 1,
+    truckSkyI: 1,
   },
 ];
 
@@ -109,6 +117,7 @@ export type Daylight = {
   skyIntensity: number;
   glass: THREE.Color;
   beam: number;
+  truckSky: number;
 };
 
 function sunHeight(hour: number): { h: number; dir: Vec } {
@@ -144,6 +153,7 @@ function colorsAt(h: number): Omit<Daylight, "dir" | "elevation"> {
     ground: mix(a.ground, b.ground),
     skyIntensity: a.skyI + (b.skyI - a.skyI) * s,
     beam: a.beamI + (b.beamI - a.beamI) * s,
+    truckSky: a.truckSkyI + (b.truckSkyI - a.truckSkyI) * s,
     glass: desaturate(mix(a.sun, b.sun).lerp(WHITE, a.glassWhite + (b.glassWhite - a.glassWhite) * s))
       .multiplyScalar(a.glassI + (b.glassI - a.glassI) * s),
   };
@@ -212,6 +222,28 @@ export function lightScene(sun: THREE.DirectionalLight, sky: THREE.HemisphereLig
   sky.color.copy(light.sky);
   sky.groundColor.copy(light.ground);
   sky.intensity = light.skyIntensity;
+  TRUCK_SKY.value = light.truckSky;
+}
+
+const HEMISPHERE_LINE = 'irradiance += getHemisphereLightIrradiance( hemisphereLights[ i ], geometryNormal );';
+const LIGHTS_INCLUDE = '#include <lights_fragment_begin>';
+const COMMON_INCLUDE = '#include <common>';
+
+export function dimTruckSky<T extends THREE.MeshLambertMaterial>(material: T): T {
+  const chunk = THREE.ShaderChunk.lights_fragment_begin;
+  if (!chunk.includes(HEMISPHERE_LINE)) throw new Error('The Lambert light chunk has no hemisphere irradiance line to dim for trucks');
+  const dimmed = chunk.replace(HEMISPHERE_LINE, HEMISPHERE_LINE.replace('getHemisphereLightIrradiance', 'truckSky * getHemisphereLightIrradiance'));
+  const before = material.onBeforeCompile.bind(material);
+  const key = material.customProgramCacheKey.bind(material);
+  material.onBeforeCompile = (shader, renderer) => {
+    before(shader, renderer);
+    if (!shader.fragmentShader.includes(LIGHTS_INCLUDE) || !shader.fragmentShader.includes(COMMON_INCLUDE)) throw new Error('A truck material has no light include to dim');
+    shader.uniforms.truckSky = TRUCK_SKY;
+    shader.fragmentShader = shader.fragmentShader.replace(COMMON_INCLUDE, `${COMMON_INCLUDE}\nuniform float truckSky;`).replace(LIGHTS_INCLUDE, dimmed);
+  };
+  material.customProgramCacheKey = () => `${key()}|truckSky`;
+  material.needsUpdate = true;
+  return material;
 }
 
 export function sunLight(): THREE.DirectionalLight {

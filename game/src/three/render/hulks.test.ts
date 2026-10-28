@@ -61,6 +61,10 @@ describe('hulks', () => {
     }
   });
 
+  it('keeps the full sky light that trucks dim', () => {
+    for (const m of meshes(hulk(kill('bus')))) expect((m.material as THREE.Material).customProgramCacheKey()).not.toContain('truckSky');
+  });
+
   it('builds the same jag and tilt for the same id, and another for another id', () => {
     expect(positions(hulk(kill('buggy')))).toEqual(positions(hulk(kill('buggy'))));
     expect(positions(hulk(kill('buggy', 'wreck-npc8')))).not.toEqual(positions(hulk(kill('buggy'))));
