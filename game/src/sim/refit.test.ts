@@ -102,7 +102,7 @@ describe('field refits', () => {
 
   it('cancels if the target space becomes occupied', () => {
     const { next, weapon } = startUnmount();
-    next.vehicles[0].items.push({ id: 'new-cargo', kind: 'good', good: 'scrap', x: 1, y: CHASSIS.scout.layout.length, rot: 0 });
+    next.vehicles[0].items.push({ id: 'new-cargo', kind: 'good', good: 'scrap', x: 3, y: CHASSIS.scout.layout.length, rot: 0 });
     advanceJobs(next);
     expect(next.vehicles[0].job).toBeNull();
     expect(getWeapon(next)).toEqual(weapon);
