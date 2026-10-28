@@ -4,7 +4,7 @@ import { climbGrade, vehicleStats } from "./stats";
 import { REGION } from "../data/region";
 import { CELL, climbNeed, navLayer } from "./nav/layer";
 import { chassisDef } from "../data/chassis";
-import { backsToDestination, clickOrder, parkedVehicles, setDown, setDownSpot, throttleFor, throughSpeed, zoneEdges, zoneSpeed } from "./steering";
+import { backsToDestination, clickOrder, parkedVehicles, setDown, setDownSpot, orderSpeed, throttleFor, throughSpeed, zoneAt, zoneEdges, zoneHalfAngle, zonePace, zoneSpeed, orderThrottle, playerOrder } from "./steering";
 import { DEG, dist } from "./vec";
 import { addVehicle, editableTerrain, emptyWorld, npcBrain } from "./testkit";
 import { addState } from "./states";
@@ -13,7 +13,9 @@ import { TEST_MAP } from '../test/map';
 import { reachesFrom } from "./path";
 import { nearestSitePad } from "./sites";
 import { atlasOf } from "./atlas";
-import type { Obstacle, World } from "./types";
+import { PERK_NUMBERS } from "../data/skills";
+import { PLAYER_CHASSIS } from "../data/chassis";
+import type { MoveOrder, Obstacle, World } from "./types";
 import type { Vec } from "./vec";
 
 function setup(speed: number) {
@@ -225,5 +227,141 @@ describe("setting a stranded truck down", () => {
     setDown(w, me);
     expect(me.strandedTurns).toBe(RULES.stranded.turns);
     expect(me.speed).toBe(0);
+  });
+});
+
+describe("route pace", () => {
+  const stop = (dest: Vec, pace?: number): MoveOrder => ({ kind: "stopAt", dest, ...(pace === undefined ? {} : { pace }) });
+
+  it("a paced stop order holds its pace instead of speeding up to top speed", () => {
+    const { s } = setup(0);
+    const at = { x: 0, y: 0 };
+    const far = { x: 100, y: 0 };
+    expect(orderSpeed(s, s.maxSpeed / 2, at, stop(far), "route")).toBe(Math.min(s.maxSpeed, s.maxSpeed / 2 + s.accel));
+    expect(orderSpeed(s, 1, at, stop(far, 2), "route")).toBeCloseTo(Math.min(2, 1 + s.accel));
+    expect(orderSpeed(s, 5, at, stop(far, 2), "route")).toBeCloseTo(Math.max(2, 5 - s.brake));
+  });
+
+  it("an unpaced through order keeps the route speed rule", () => {
+    const { s } = setup(4);
+    const order: MoveOrder = { kind: "through", dest: { x: 20, y: 0 } };
+    expect(orderSpeed(s, 4, { x: 0, y: 0 }, order, "route")).toBe(throughSpeed(s, 4, 20, undefined, "route"));
+  });
+
+  it("a brake order has no target speed", () => {
+    const { s } = setup(4);
+    expect(() => orderSpeed(s, 4, { x: 0, y: 0 }, { kind: "brake" }, "route")).toThrow();
+  });
+});
+
+describe("route speed by the colored zones", () => {
+  function player(speed: number, chassisId: string = PLAYER_CHASSIS[0]) {
+    const w = emptyWorld();
+    const v = addVehicle(w, "player", chassisId, ["stockEngine"], { x: 20, y: 20 }, 0);
+    v.speed = speed;
+    return { w, v, s: vehicleStats(w, v), z: zoneEdges() };
+  }
+  const ahead = (v: { pos: Vec }, d: number, side = 0): Vec => ({ x: v.pos.x + d, y: v.pos.y + side });
+
+  it("the fan half angle never falls under the minimum", () => {
+    const { s } = player(0);
+    expect(zoneHalfAngle(s, 0)).toBe(RULES.throttleZones.minHalfAngle);
+  });
+
+  it("zoneAt names the band under a point, at rest and moving", () => {
+    const { v, s, z } = player(4);
+    expect(zoneAt(s, v, ahead(v, z.brakeEnd / 2))).toBe("brake");
+    expect(zoneAt(s, v, ahead(v, (z.brakeEnd + z.holdEnd) / 2))).toBe("hold");
+    expect(zoneAt(s, v, ahead(v, z.holdEnd + 0.5))).toBe("accelerate");
+    v.speed = 0;
+    expect(zoneAt(s, v, ahead(v, z.restBrakeEnd - 0.5))).toBe("brake");
+    expect(zoneAt(s, v, ahead(v, z.restBrakeEnd + 0.5))).toBe("accelerate");
+  });
+
+  it("zoneAt is null past the reach and outside the fan", () => {
+    const { v, s, z } = player(4);
+    expect(zoneAt(s, v, ahead(v, z.reach + 1))).toBeNull();
+    expect(zoneAt(s, v, ahead(v, -5))).toBeNull();
+    const half = zoneHalfAngle(s, 4);
+    const inside = { x: v.pos.x + 5 * Math.cos(half * 0.9), y: v.pos.y + 5 * Math.sin(half * 0.9) };
+    const outside = { x: v.pos.x + 5 * Math.cos(half * 1.1), y: v.pos.y + 5 * Math.sin(half * 1.1) };
+    expect(zoneAt(s, v, inside)).not.toBeNull();
+    expect(zoneAt(s, v, outside)).toBeNull();
+  });
+
+  it.each(PLAYER_CHASSIS)("red holds a crawl on the %s, under limp speed and above parked", (chassisId) => {
+    const { s } = player(6, chassisId);
+    const pace = zonePace(s, 6, "brake");
+    expect(pace).toBe(RULES.crawlSpeed);
+    expect(pace!).toBeLessThanOrEqual(RULES.limpSpeed);
+    expect(pace!).toBeGreaterThan(RULES.parkedSpeed);
+  });
+
+  it("yellow holds the speed now, never under crawl, and nothing at top speed; green holds nothing", () => {
+    const { s } = player(0);
+    expect(zonePace(s, 3, "hold")).toBe(3);
+    expect(zonePace(s, 0.2, "hold")).toBe(RULES.crawlSpeed);
+    expect(zonePace(s, s.maxSpeed, "hold")).toBeUndefined();
+    expect(zonePace(s, 3, "accelerate")).toBeUndefined();
+  });
+
+  describe("playerOrder", () => {
+    const farDest = (v: { pos: Vec }): Vec => ahead(v, 40);
+
+    it("a fan click with no far point sets the point and the band's pace", () => {
+      const { w, v, z } = player(4);
+      const red = ahead(v, z.brakeEnd / 2);
+      expect(playerOrder(w, v, red, false)).toEqual({ kind: "through", dest: red, pace: RULES.crawlSpeed });
+      const yellow = ahead(v, (z.brakeEnd + z.holdEnd) / 2);
+      expect(playerOrder(w, v, yellow, false)).toEqual({ kind: "through", dest: yellow, pace: 4 });
+      const green = ahead(v, z.holdEnd + 0.5);
+      expect(playerOrder(w, v, green, false)).toEqual({ kind: "through", dest: green });
+    });
+
+    it("a fan click keeps a point beyond the reach and changes only the speed", () => {
+      const { w, v, z } = player(4);
+      v.order = { kind: "stopAt", dest: farDest(v) };
+      expect(playerOrder(w, v, ahead(v, z.brakeEnd / 2), false)).toEqual({ kind: "stopAt", dest: farDest(v), pace: RULES.crawlSpeed });
+      v.order = { kind: "through", dest: farDest(v), pace: RULES.crawlSpeed };
+      expect(playerOrder(w, v, ahead(v, z.holdEnd + 0.5), false)).toEqual({ kind: "through", dest: farDest(v) });
+    });
+
+    it("a click outside the fan keeps the held pace, shift and re-click included", () => {
+      const { w, v } = player(4);
+      const dest = farDest(v);
+      v.order = { kind: "through", dest, pace: RULES.crawlSpeed };
+      const far = ahead(v, 60, 5);
+      expect(playerOrder(w, v, far, false)).toEqual({ kind: "through", dest: far, pace: RULES.crawlSpeed });
+      expect(playerOrder(w, v, ahead(v, 3), true)).toEqual({ kind: "stopAt", dest: ahead(v, 3), pace: RULES.crawlSpeed });
+      expect(playerOrder(w, v, dest, false)).toEqual({ kind: "stopAt", dest, pace: RULES.crawlSpeed });
+    });
+
+    it("with no order a click outside the fan holds nothing", () => {
+      const { w, v } = player(4);
+      expect(playerOrder(w, v, ahead(v, 60), false)).toEqual({ kind: "through", dest: ahead(v, 60) });
+    });
+
+    it("a brake order has no pace to keep", () => {
+      const { w, v } = player(4);
+      v.order = { kind: "brake" };
+      expect(playerOrder(w, v, ahead(v, 60), false)).toEqual({ kind: "through", dest: ahead(v, 60) });
+    });
+
+    it("manual driving gives the plain click order", () => {
+      const { w, v, z } = player(4);
+      v.direct = true;
+      v.order = { kind: "through", dest: farDest(v), pace: 2 };
+      const p = ahead(v, z.brakeEnd / 2);
+      expect(playerOrder(w, v, p, false)).toEqual(clickOrder(w.terrain, p, false, v));
+    });
+  });
+
+  it("orderThrottle shows the band a pace stands for", () => {
+    const { w, v } = player(4);
+    const dest = ahead(v, 30);
+    expect(orderThrottle(v, { kind: "through", dest, pace: RULES.crawlSpeed })).toBe("brake");
+    expect(orderThrottle(v, { kind: "through", dest, pace: 4 })).toBe("hold");
+    expect(orderThrottle(v, { kind: "through", dest })).toBe(throttleFor(30, 4, "route"));
+    expect(orderThrottle(v, { kind: "brake" })).toBe("brake");
   });
 });

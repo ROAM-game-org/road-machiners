@@ -1,11 +1,11 @@
 import { GAME_NOTES, type NoteId } from '../data/locals';
 import { GAME_WORLD_VARS, type CompiledQuest, type QuestBundle, type QuestValue, type QuestVarDecl } from '../data/quests';
 import { checkQuestLinks, isQuestValue } from './quests';
-import type { Player, QuestSession, QuestState, QuestVars } from './types';
+import type { Player, QuestSeen, QuestSession, QuestState, QuestVars } from './types';
 
 export type SavedRevisions = Record<string, number>;
 export type SavedQuests = Omit<QuestState, 'live'>;
-export type RawQuests = { world: Record<string, unknown>; local: Record<string, Record<string, unknown>>; session: QuestSession | null };
+export type RawQuests = { world: Record<string, unknown>; local: Record<string, Record<string, unknown>>; session: QuestSession | null; seen?: Record<string, QuestSeen> };
 export type QuestRepair = { quests: SavedQuests; notes: Player['notes'] };
 
 type Saved = { quests: RawQuests; notes: Player['notes'] };
@@ -37,7 +37,7 @@ function keptOf(saved: RawQuests, bundle: QuestBundle): RawQuests {
   const lostVars = Object.entries(saved.world).filter(([name, value]) => !fits(value, bundle.world[name])).map(([name]) => name);
   const lostQuests = Object.keys(saved.local).filter((id) => !bundle.quests[id]);
   const session = saved.session && bundle.quests[saved.session.quest] ? saved.session : null;
-  return { world: without(saved.world, lostVars), local: without(saved.local, lostQuests), session };
+  return { world: without(saved.world, lostVars), local: without(saved.local, lostQuests), session, seen: without(saved.seen ?? {}, lostQuests) };
 }
 
 function fits(value: unknown, decl: QuestVarDecl | undefined): boolean {
@@ -122,7 +122,8 @@ function applied(saved: Saved, doomed: Doomed, bundle: QuestBundle): { quests: S
   const session = saved.quests.session && !doomed.quests.has(saved.quests.session.quest) ? saved.quests.session : null;
   const world = fitted(without(saved.quests.world, [...doomed.vars]), bundle.world);
   const local = Object.fromEntries(Object.entries(without(saved.quests.local, [...doomed.quests])).map(([id, vars]) => [id, fitted(vars, bundle.quests[id].vars)]));
-  return { quests: { world, local, session }, notes: saved.notes.filter((note) => !doomed.notes.has(note.id)) };
+  const seen = without(saved.quests.seen ?? {}, [...doomed.quests]);
+  return { quests: { world, local, session, seen }, notes: saved.notes.filter((note) => !doomed.notes.has(note.id)) };
 }
 
 function fitted(vars: Record<string, unknown>, decls: Record<string, QuestVarDecl>): QuestVars {
