@@ -1,8 +1,8 @@
 {
- "mapHash": "bebbf282",
+ "mapHash": "d65cb80a",
  "picks": [
   {
-   "propId": "ruin-4153",
+   "propId": "ruin-4151",
    "type": "homestead",
    "pos": {
     "x": 156.7894287109375,
@@ -11,7 +11,7 @@
    "reach": 1.2647207737349488
   },
   {
-   "propId": "house-4213",
+   "propId": "house-4211",
    "type": "homestead",
    "pos": {
     "x": 1444.8743896484375,
@@ -20,7 +20,7 @@
    "reach": 1.446841377441621
   },
   {
-   "propId": "house-4218",
+   "propId": "house-4216",
    "type": "hamlet",
    "pos": {
     "x": 261.5350646972656,
@@ -29,7 +29,7 @@
    "reach": 1.219603806056421
   },
   {
-   "propId": "ruin-4259",
+   "propId": "ruin-4257",
    "type": "hamlet",
    "pos": {
     "x": 883.0343017578125,
@@ -38,7 +38,7 @@
    "reach": 1.5705947553851447
   },
   {
-   "propId": "ruin-4296",
+   "propId": "ruin-4294",
    "type": "homestead",
    "pos": {
     "x": 1761.0068359375,
@@ -47,7 +47,7 @@
    "reach": 1.5186511987306028
   },
   {
-   "propId": "ruin-4308",
+   "propId": "ruin-4306",
    "type": "hamlet",
    "pos": {
     "x": 222.79690551757812,
@@ -56,7 +56,7 @@
    "reach": 1.575176988309296
   },
   {
-   "propId": "ruin-4326",
+   "propId": "ruin-4324",
    "type": "homestead",
    "pos": {
     "x": 902.9589233398438,
@@ -65,7 +65,7 @@
    "reach": 1.4623713022309728
   },
   {
-   "propId": "silo-4356",
+   "propId": "silo-4354",
    "type": "homestead",
    "pos": {
     "x": 1544.616455078125,
@@ -74,7 +74,7 @@
    "reach": 2.867593390547653
   },
   {
-   "propId": "ruin-4392",
+   "propId": "ruin-4390",
    "type": "hamlet",
    "pos": {
     "x": 835.390625,
@@ -83,7 +83,7 @@
    "reach": 1.3200386520522691
   },
   {
-   "propId": "ruin-4470",
+   "propId": "ruin-4468",
    "type": "hamlet",
    "pos": {
     "x": 201.12339782714844,
@@ -92,7 +92,7 @@
    "reach": 1.2830906142980174
   },
   {
-   "propId": "house-4473",
+   "propId": "house-4471",
    "type": "hamlet",
    "pos": {
     "x": 1625.572509765625,
@@ -101,7 +101,7 @@
    "reach": 1.482477332824063
   },
   {
-   "propId": "ruin-4478",
+   "propId": "ruin-4476",
    "type": "homestead",
    "pos": {
     "x": 811.032470703125,
@@ -110,7 +110,7 @@
    "reach": 1.4224111109148878
   },
   {
-   "propId": "house-4541",
+   "propId": "house-4539",
    "type": "hamlet",
    "pos": {
     "x": 867.6815795898438,
@@ -119,34 +119,25 @@
    "reach": 1.4537124330340159
   },
   {
-   "propId": "tank-5207",
+   "propId": "tank-5131",
    "type": "hulks",
    "pos": {
-    "x": 878.3311767578125,
-    "y": 1238.2960205078125
+    "x": 1506.831298828125,
+    "y": 1455.753173828125
    },
    "reach": 1.214549813717
   },
   {
-   "propId": "tank-5235",
+   "propId": "tank-5185",
    "type": "hulks",
    "pos": {
-    "x": 330.3919982910156,
-    "y": 1503.5303955078125
+    "x": 1095.48583984375,
+    "y": 1408.28564453125
    },
    "reach": 1.214549813717
   },
   {
-   "propId": "tank-5253",
-   "type": "hulks",
-   "pos": {
-    "x": 415.40386962890625,
-    "y": 948.11083984375
-   },
-   "reach": 1.214549813717
-  },
-  {
-   "propId": "fishingBoat-26842",
+   "propId": "fishingBoat-26170",
    "type": "boats",
    "pos": {
     "x": 589.4617309570312,
@@ -155,7 +146,7 @@
    "reach": 1.3675571053162434
   },
   {
-   "propId": "shipCache-23569",
+   "propId": "shipCache-22978",
    "type": "wreckage",
    "pos": {
     "x": 876.6061401367188,
@@ -164,7 +155,7 @@
    "reach": 0.8483290593292819
   },
   {
-   "propId": "shipCache-23573",
+   "propId": "shipCache-22982",
    "type": "wreckage",
    "pos": {
     "x": 1049.1783447265625,
@@ -173,7 +164,7 @@
    "reach": 0.8381670297555915
   },
   {
-   "propId": "shipCache-23574",
+   "propId": "shipCache-22983",
    "type": "wreckage",
    "pos": {
     "x": 818.6663208007812,
