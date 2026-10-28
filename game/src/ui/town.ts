@@ -1017,7 +1017,7 @@ export class TruckTradeScreen {
     const side = [el("div", { class: "tabs" }, ...this.tabButtons())];
     if (this.error) side.push(el("div", { class: "bad" }, this.error));
     side.push(this.tabBody(w, npc));
-    const truck = el("div", { class: "town-truck" }, page === "garage" ? this.repairBar(w) : null, this.inventory.render());
+    const truck = el("div", { class: "town-truck" }, this.inventory.render());
     this.root.replaceChildren(
       el("button", { class: "close", onclick: () => this.close() }, keyLabel(t("trade.leave"), ESCAPE.key)),
       el("h3", {}, vehicleTitle(w, npc), truckChips(w), partnerChips(npc)),
