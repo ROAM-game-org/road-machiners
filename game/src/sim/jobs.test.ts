@@ -10,7 +10,8 @@ import { addVehicle, emptyWorld, practiceOf , startCombat } from './testkit';
 import { corePart, goodsCount, gridOf, mountedParts } from './grid';
 import { vehicleStats } from './stats';
 import { addGoods, moveItem, mountPart, removeGoods, stowPart } from './inventory';
-import { advanceJobs, cancelRefit, repairBlocker, startAutoRepair, startJob, startRepair, startStrip, startWeld, stripTurns, stripYield } from './jobs';
+import type { Job } from './types';
+import { advanceJobs, cancelRefit, repairBlocker, stoppedByCombat, startAutoRepair, startJob, startRepair, startStrip, startWeld, stripTurns, stripYield } from './jobs';
 import { PERK_NUMBERS } from '../data/skills';
 import { repairPlan } from './repair';
 import { addState } from './states';
@@ -583,6 +584,13 @@ describe('jobs in combat', () => {
     advanceJobs(next);
     expect(next.vehicles[0].job).toBeNull();
     expect(next.events).toContainEqual(expect.objectContaining({ t: 'job', vehicle: me.id, outcome: 'cancelled' }));
+  });
+});
+
+describe('which jobs combat stops', () => {
+  it('lets combat stop every job but the survey', () => {
+    const kinds: Job['kind'][] = ['repair', 'search', 'strip', 'weld', 'firstAid', 'survey', 'business', 'refit'];
+    expect(kinds.filter((k) => !stoppedByCombat(k))).toEqual(['survey']);
   });
 });
 

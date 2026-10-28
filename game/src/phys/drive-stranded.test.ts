@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { partDef } from '../data/parts';
 import { RULES } from '../data/rules';
-import { addVehicle, emptyWorld, PLAIN_KIT } from '../sim/testkit';
+import { addVehicle, emptyWorld, npcBrain, PLAIN_KIT } from '../sim/testkit';
 import { TEST_MAP } from '../test/map';
 import { defaultSetup } from '../sim/settings';
 import type { MoveOrder, Obstacle, World } from '../sim/types';
@@ -15,7 +15,9 @@ import { headingOf, upOf } from './frames';
 import { dropClearance, spillOil, type OilSpill } from '../sim/hazards';
 import { OIL, oilSlickLength } from '../data/utilities';
 import { physicsMove } from './turn';
-import { getUnstuck } from '../sim/unstuck';
+import { getUnstuck, unstuckBlock } from '../sim/unstuck';
+import { addState } from '../sim/states';
+import { inCombat } from '../sim/combat';
 import { KICK_SEEN, me, ordered, play } from '../test/drive-kit';
 
 beforeAll(async () => {
@@ -66,6 +68,24 @@ describe('stranded trucks', () => {
     const { w: after, counts } = strandedRun(unstuck, d, 1);
     expect(counts).toEqual([0]);
     expect(dist(after.vehicles[0].pos, w.vehicles[0].pos)).toBeLessThan(1);
+  });
+
+  it('turns Get unstuck on in a fight once a played turn counted the flipped truck', () => {
+    const w = emptyWorld({ x: 60, y: 60 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 66, y: 60 }, Math.PI);
+    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+    addState(w, 'combat', raider.id, w.vehicles[0].id, { kind: 'none' });
+    const d = buildDrive(w);
+    d.world.getRigidBody(d.bodies[w.vehicles[0].id]).setRotation({ x: 1, y: 0, z: 0, w: 0 }, true);
+    expect(unstuckBlock(w)).toBe('combat');
+    const first = strandedRun(w, d, 1);
+    expect(first.counts).toEqual([1]);
+    expect(inCombat(first.w, first.w.vehicles[0])).toBe(true);
+    expect(unstuckBlock(first.w)).toBeNull();
+    const free = getUnstuck(first.w);
+    const second = strandedRun(free, buildDrive(free), 1);
+    expect(second.counts).toEqual([0]);
+    expect(inCombat(second.w, second.w.vehicles[0])).toBe(true);
   });
 
   it('sets a truck lying on top of another truck down on free ground beside it', () => {

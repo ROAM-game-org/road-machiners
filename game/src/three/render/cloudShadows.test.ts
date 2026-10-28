@@ -4,7 +4,7 @@ import { TIME } from '../../data/time';
 import { WEATHER } from '../../data/weather';
 import { emptyWorld } from '../../sim/testkit';
 import { sunAt } from '../../sim/sun';
-import { CloudShadows, coverTarget, dayFactor, driftAt, easeCover } from './cloudShadows';
+import { CloudShadows, coverTarget, dayFactor, depthFor, driftAt, easeCover } from './cloudShadows';
 
 const CLOUDS = WEATHER.clouds;
 const NOON = Array.from({ length: TIME.turnsPerDay }, (_, turn) => turn).reduce((best, turn) => ((sunAt(turn)?.elevation ?? 0) > (sunAt(best)?.elevation ?? 0) ? turn : best), 0);
@@ -59,6 +59,38 @@ describe('cloud cover', () => {
     shadows.sync(world, NOON, 2000);
     expect(shadows.cover()).toBeGreaterThan(CLOUDS.clear);
     expect(shadows.cover()).toBeLessThan(CLOUDS.overcast);
+  });
+});
+
+describe('cloud depth', () => {
+  it('runs from the clear depth to the overcast depth with the cover', () => {
+    expect(depthFor(CLOUDS.clear)).toBeCloseTo(CLOUDS.depth.clear);
+    expect(depthFor(CLOUDS.overcast)).toBeCloseTo(CLOUDS.depth.overcast);
+    const middle = depthFor((CLOUDS.clear + CLOUDS.overcast) / 2);
+    expect(middle).toBeGreaterThan(CLOUDS.depth.clear);
+    expect(middle).toBeLessThan(CLOUDS.depth.overcast);
+  });
+
+  it('throws for a weather value outside clear to overcast', () => {
+    expect(() => depthFor(CLOUDS.clear - 0.1)).toThrow();
+    expect(() => depthFor(CLOUDS.overcast + 0.1)).toThrow();
+  });
+
+  it('follows the sky on sync and rises as the cover eases', () => {
+    const shadows = new CloudShadows();
+    const world = emptyWorld();
+    shadows.sync(world, NOON, 0);
+    expect(shadows.depth()).toBeCloseTo(CLOUDS.depth.clear);
+    world.weather = [{ id: 'o', kind: 'overcast', turnsLeft: 30 }];
+    shadows.sync(world, NOON, 2000);
+    expect(shadows.depth()).toBeGreaterThan(CLOUDS.depth.clear);
+    expect(shadows.depth()).toBeLessThan(CLOUDS.depth.overcast);
+    shadows.sync(world, NOON, CLOUDS.easeTurns * 5000);
+    expect(shadows.depth()).toBeCloseTo(CLOUDS.depth.overcast, 2);
+  });
+
+  it('has no octave finer than two times the base cell', () => {
+    expect(new CloudShadows().shaderChunks().fragment).not.toContain('p * 4.0');
   });
 });
 

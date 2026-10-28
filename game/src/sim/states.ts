@@ -11,7 +11,7 @@ import { practice } from './progress';
 import { checkLootWarning, defendWarned, lapseLootWarning } from './loot-warning';
 import { checkCrew, endCrewState } from './crews';
 import { checkHire, endHireState } from './hire';
-import { checkEscort, checkPlayerTow, checkTowPromise, lapseClaim, payEscort, releaseDragged } from './tow';
+import { checkEscort, checkPlayerTow, strandingOver, claimantSees, lapseClaim, payEscort, releaseDragged } from './tow';
 import { breakWord, checkOffering, checkSunwardDrag, dropAtLight } from './sunward-crater';
 import { checkTrade, isMeeting } from './economy';
 import { checkHandover } from './parcel';
@@ -64,8 +64,8 @@ export const STATE_KINDS: Record<StateKindId, StateKind> = {
     work: noWork,
     binds: true,
   },
-  turnedDown: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
-  towPromise: { refresh: never, check: checkTowPromise, hooks: {}, work: noWork, binds: false },
+  turnedDown: { refresh: never, check: strandingOver, hooks: {}, work: noWork, binds: false },
+  towPromise: { refresh: never, check: strandingOver, hooks: {}, work: noWork, binds: false },
   answering: {
     refresh: answerWaits,
     check: (w, s) => (answerDropped(w, s) ? 'broken' : null),
@@ -127,9 +127,7 @@ function checkCombat(w: World, s: NpcState): StateEnding | null {
 }
 
 function answerWaits(w: World, s: NpcState): boolean {
-  const holder = vehicleById(w, s.holder);
-  const other = vehicleById(w, s.other);
-  return !canVehicleSee(w, holder, other.pos) || inCombat(w, other);
+  return !claimantSees(w, s) || inCombat(w, vehicleById(w, s.other));
 }
 
 function answerDropped(w: World, s: NpcState): boolean {
@@ -185,8 +183,12 @@ export function boundTo(w: World, a: string, b: string): boolean {
   return w.states.some((s) => kindOf(s.kind).binds && ((s.holder === a && s.other === b) || (s.holder === b && s.other === a)));
 }
 
+export function bindingStatesHeld(w: World, holder: string): NpcState[] {
+  return w.states.filter((s) => s.holder === holder && kindOf(s.kind).binds);
+}
+
 export function givesWord(w: World, holder: string): boolean {
-  return w.states.some((s) => s.holder === holder && kindOf(s.kind).binds);
+  return bindingStatesHeld(w, holder).length > 0;
 }
 
 export function endState(w: World, s: NpcState, ending: StateEnding): void {
