@@ -115,7 +115,7 @@ An A/B test checks a balance change before it goes into `src/data/`.
 - `npm run sfx:import -- <cue> <file...>` imports files as variants of a cue in `src/data/sounds.ts`.
 - `npm run sfx:gen -- <cue> <count>` generates variants with ElevenLabs. It costs credits and fails when `count` exceeds `SFX_MAX_GENERATIONS`.
 - `npm run sfx:reimport` rebuilds every sound file from the raw source path stored in its tags, after an import change.
-- `npm run sfx:reloop -- <cue or file>...` remakes the shipped files of free sfx loops as steady loops in place, at the same average loudness, for loops whose raw source is gone. A file name remakes that file only. It does not run the import's tone steps again, and it stops when its output fails the loop check.
+- `npm run sfx:reloop -- <cue or file>...` remakes the shipped files of a loop cue without a beat in place, at the same average loudness, for loops whose raw source is gone. A free sfx loop is cut again to its steady stretch. A music or ambient loop keeps its whole length and joins its ends with a 2 s crossfade. A file name remakes that file only. It does not run the import's tone steps again, and it stops when its output fails the loop check.
 - `npm run itch` builds the last commit in a clean worktree, uploads it to itch.io with butler and names the upload after the commit. [Publishing](publishing.md) has the one-time setup.
 
 ## Config
