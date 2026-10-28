@@ -86,10 +86,9 @@ describe("route mode speed by distance", () => {
 });
 
 describe("click orders", () => {
-  it("at rest the red zone is one third of reach and green is two thirds", () => {
+  it("at rest every distance is green", () => {
     const z = zoneEdges();
-    expect(throttleFor(z.reach / 3 - 0.01, 0, 'direct')).toBe("brake");
-    expect(throttleFor(z.reach / 3 + 0.01, 0, 'direct')).toBe("accelerate");
+    for (const d of [0.1, z.brakeEnd, z.holdEnd, z.reach + 5]) expect(throttleFor(d, 0, 'direct')).toBe("accelerate");
   });
 
   it("a nearby ground click remains a destination", () => {
@@ -240,7 +239,8 @@ describe("set speed of manual driving", () => {
     expect(clickSetSpeed(s, v, ahead(v, z.holdEnd + 0.5))).toBe(s.maxSpeed);
     v.speed = 0;
     v.setSpeed = 0;
-    expect(clickSetSpeed(s, v, ahead(v, 0.5))).toBe(0);
+    expect(clickSetSpeed(s, v, ahead(v, 0.5))).toBeCloseTo(step);
+    expect(clickSetSpeed(s, v, ahead(v, -0.5))).toBeCloseTo(step);
     expect(clickSetSpeed(s, v, ahead(v, z.reach - 0.5))).toBeCloseTo(step);
   });
 
@@ -322,8 +322,8 @@ describe("route speed by the colored zones", () => {
     expect(zoneAt(s, v, ahead(v, (z.brakeEnd + z.holdEnd) / 2))).toBe("hold");
     expect(zoneAt(s, v, ahead(v, z.holdEnd + 0.5))).toBe("accelerate");
     v.speed = 0;
-    expect(zoneAt(s, v, ahead(v, z.restBrakeEnd - 0.5))).toBe("brake");
-    expect(zoneAt(s, v, ahead(v, z.restBrakeEnd + 0.5))).toBe("accelerate");
+    expect(zoneAt(s, v, ahead(v, 0.5))).toBe("accelerate");
+    expect(zoneAt(s, v, ahead(v, z.holdEnd - 0.5))).toBe("accelerate");
   });
 
   it("zoneAt is null past the reach and outside the fan", () => {

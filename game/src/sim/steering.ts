@@ -23,7 +23,6 @@ export type Throttle = "brake" | "hold" | "accelerate";
 export type ZoneEdges = {
   brakeEnd: number;
   holdEnd: number;
-  restBrakeEnd: number;
   reach: number;
 };
 
@@ -35,7 +34,6 @@ export function zoneEdges(): ZoneEdges {
   return {
     brakeEnd: reach * Z.brake,
     holdEnd: reach * (Z.brake + Z.hold),
-    restBrakeEnd: reach / 3,
     reach,
   };
 }
@@ -49,7 +47,7 @@ export function driveMode(v: Pick<Vehicle, "direct">): DriveMode {
 export function throttleFor(d: number, speed: number, mode: DriveMode): Throttle {
   if (mode === "route") return d > speed ? "accelerate" : "hold";
   const z = zoneEdges();
-  if (speed === 0) return d < z.restBrakeEnd ? "brake" : "accelerate";
+  if (speed === 0) return "accelerate";
   if (d < z.brakeEnd) return "brake";
   if (d < z.holdEnd) return "hold";
   return "accelerate";
