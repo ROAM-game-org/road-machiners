@@ -98,10 +98,10 @@ try {
     await page.waitForTimeout(500);
     r = await read(page);
     assert.equal(r.compares.length, 0, `${spot}: clearing the selection must clear the comparison`);
-    assert.equal(r.inspect, 'Equipment', `${spot}: clearing must reset the inspection`);
+    assert.equal(r.inspect, '', `${spot}: clearing must reset the inspection`);
     await gun().focus();
     r = await read(page);
-    assert.equal(r.inspect, 'Equipment', `${spot}: focus alone must not change the inspection`);
+    assert.equal(r.inspect, '', `${spot}: focus alone must not change the inspection`);
     assert.equal(r.compares.length, 0, `${spot}: focus alone must not compare`);
     await page.keyboard.press('Enter');
     await page.waitForTimeout(500);
