@@ -16,6 +16,8 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/ui/save-screen.ts', text: 'Road Machiners', reason: 'The game title stays as it is in every language, as on the boot screen.' },
   { file: 'src/three/main.ts', text: 'confirm()', reason: 'The browser adapter shows text its caller already resolved with say().' },
   { file: 'src/three/save.ts', text: 'confirm()', reason: 'The browser adapter shows text its caller already resolved with say().' },
+  { file: 'src/sim/hunting-spots-bake.ts', text: ' :   drivers,   trips, mean round trip   turns', reason: 'A log line of the offline hunting spots bake, which only a developer reads.' },
+  { file: 'src/sim/hunting-spots-bake.ts', text: 'Each trip of a kind is equally likely. Prey cruise   tiles a turn, route radius  .', reason: 'A log line of the offline hunting spots bake, which only a developer reads.' },
   { file: 'src/three/render/interiors/bowl.ts', text: 'stilt tank', reason: 'A label inside a site build error, which only a bake or a test shows.' },
   { file: 'src/three/render/shadowFilter.ts', text: 'float getPointShadow', reason: 'A GLSL snippet patched into the shadow shader, with no words in it.' },
   { file: 'src/three/save-migrations.ts', text: 'contract   reward', reason: MIGRATION_LABEL },
