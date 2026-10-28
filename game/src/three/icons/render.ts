@@ -212,7 +212,7 @@ function build(entry: IconEntry, paint: TruckPaint): Omit<Stage, 'scene' | 'came
   const look = entry.weapon;
   const mount = model(look.mount);
   const size = new THREE.Box3().setFromObject(mount).getSize(new THREE.Vector3());
-  const { w, h } = entry.footprint;
+  const { w, h } = entry.bulk;
   mount.scale.set((h * CELL.along) / size.x, 1, (w * CELL.across) / size.z);
   mount.updateMatrix();
   root.add(mount);

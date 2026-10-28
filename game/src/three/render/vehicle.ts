@@ -11,7 +11,7 @@ import { cellCenter, cellRect, engineAnchor, highestUnder, restOn, roofSpot, spa
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL, paintOf, type TruckColors } from '../../render/palette';
 import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOffset, dentsOf, type PartBox, grayShare, grayed, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
-import { baseGrid, facingOf, isMounted, itemCells, itemSize } from '../../sim/grid';
+import { baseGrid, facingOf, isMounted, itemBulk, itemCells } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gunClearance';
@@ -963,10 +963,10 @@ function lookOf(item: GridItem): Look {
 
 export function footprint(v: Pick<Vehicle, 'chassisId'>, item: GridItem, y: number): Placement {
   const rect = restOf(v, item).rect;
-  const size = itemSize(item);
+  const size = itemBulk(item);
   const dx = rect.x1 - rect.x0 > 0 ? rect.x1 - rect.x0 : size.h * CELL.along;
   const dz = rect.z1 - rect.z0 > 0 ? rect.z1 - rect.z0 : size.w * CELL.across;
-  const own = item.kind === 'part' ? partDef(item.part.defId) : { w: 1, h: 1 };
+  const own = item.kind === 'part' ? partDef(item.part.defId).bulk : { w: 1, h: 1 };
   const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, y, (rect.z0 + rect.z1) / 2);
   if (item.rot % 2 === 0) return { pos, yaw: 0, scale: new THREE.Vector3(dx / (own.h * CELL.along), 1, dz / (own.w * CELL.across)) };
   return { pos, yaw: ROT_YAW, scale: new THREE.Vector3(dz / (own.h * CELL.along), 1, dx / (own.w * CELL.across)) };

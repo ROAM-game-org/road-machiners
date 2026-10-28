@@ -21,7 +21,7 @@ export function armorQuality(world: World, defId: string, wear: number): number 
     const def = partDef(defId);
     const selfHarm = def.kind === 'accessory' && def.claymore ? def.claymore.selfBlast.damage : 0;
     const shield = THREATS.reduce((sum, round) => sum + (worn.hp * worn.armor) / (round.pen * round.armorShare), 0) / THREATS.length - selfHarm;
-    quality = 1 - Math.exp(-shield / (def.w * def.h) / GEAR_SCORE.armorQualityScale);
+    quality = 1 - Math.exp(-shield / (def.bulk.w * def.bulk.h) / GEAR_SCORE.armorQualityScale);
     qualityCache.set(key, quality);
   }
   return quality;

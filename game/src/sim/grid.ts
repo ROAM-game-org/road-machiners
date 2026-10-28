@@ -69,6 +69,12 @@ export function itemSize(item: Pick<GridItem, 'rot'> & ({ kind: 'part'; part: Pa
   return item.rot % 2 === 1 ? { w: d.h, h: d.w } : { w: d.w, h: d.h };
 }
 
+export function itemBulk(item: Pick<GridItem, 'rot'> & ({ kind: 'part'; part: PartInstance } | { kind: 'good' } | { kind: 'parcel' })): { w: number; h: number } {
+  if (item.kind !== 'part') return { w: 1, h: 1 };
+  const d = partDef(item.part.defId).bulk;
+  return item.rot % 2 === 1 ? { w: d.h, h: d.w } : { w: d.w, h: d.h };
+}
+
 export function facingOf(item: GridItem): number {
   return item.rot * 90;
 }
