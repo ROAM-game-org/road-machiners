@@ -13,7 +13,7 @@ type Json = Record<string, unknown>;
 
 const CENTS_PER_MONEY_29_30 = 100 / 3;
 const CENTS_PER_M = 100;
-const WHOLE_M_BEFORE = 117;
+const WHOLE_M_BEFORE = 121;
 const XP_TO_REACH_9_10 = [0, 200, 600, 1200, 2000, 3000];
 
 function pooledSkills_9_10(skills: Record<string, number>): { xp: number; ranks: Record<string, number> } {

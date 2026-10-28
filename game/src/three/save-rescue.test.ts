@@ -109,6 +109,16 @@ describe('readCarried', () => {
     expect(current.costBasis).toEqual({ scrap: 0.105 });
   });
 
+  it('reads cents up to format 2.120 and whole M from 2.121', () => {
+    const world = { player: { money: 1050, costBasis: { scrap: 150 } } };
+    const cents = readCarried({ format: { major: 2, minor: 120 }, world });
+    expect(cents.money).toBe(11);
+    expect(cents.costBasis).toEqual({ scrap: 1.5 });
+    const whole = readCarried({ format: { major: 2, minor: 121 }, world: { player: { money: 11, costBasis: { scrap: 1.5 } } } });
+    expect(whole.money).toBe(11);
+    expect(whole.costBasis).toEqual({ scrap: 1.5 });
+  });
+
   it('reads garbage without throwing and keeps what is valid', () => {
     const junk = [null, undefined, [], 'x', 5, {}, { world: [] }, { world: { player: 'x' } }, { world: { player: { money: 'rich', skills: [], perks: [1, 'rebuild'], storage: [3] } } }];
     for (const raw of junk) expect(() => readCarried(raw)).not.toThrow();
