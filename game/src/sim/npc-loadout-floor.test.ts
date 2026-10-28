@@ -10,6 +10,7 @@ import { freeCells, mountedParts } from './grid';
 import { loadFactor } from './mass';
 import { generateNpcLoadout, openGear } from './npc-loadout';
 import { allegianceFor, fallbackFaction, spawnAt } from './spawn';
+import { refitAtHome } from './defeat';
 import { makeVehicle } from './factory';
 import { gunDrag, massRoomAbove, npcMassRoom, vehicleStats } from './stats';
 import { wornDef } from './wear';
@@ -49,6 +50,16 @@ describe('NPC speed floor and wear odds', () => {
       }
     }
   }, budget(300_000));
+
+  it('refits a lying-up gunwagon back to chase speed', () => {
+    const world = cloneWorld(fixture);
+    const roll = generateNpcLoadout(world, NPCS.gunwagon, 'wagon', 'standard');
+    const truck = spawnAt(world, NPCS.gunwagon, { ...roll, cargo: {} }, { x: 50, y: 50 }, allegianceFor(world, NPCS.gunwagon, null, null));
+    for (let i = 0; i < 4; i++) {
+      refitAtHome(world, truck);
+      expect(vehicleStats(world, truck).maxSpeed, `refit ${i}`).toBeGreaterThanOrEqual(RAIDER_CHASE_SPEED - 1e-9);
+    }
+  });
 
   it('sets the chase speed so that open ground still tops 50 km/h', () => {
     expect(RAIDER_CHASE_SPEED * TERRAIN.drive.unpavedTopSpeed * PHYSICS.metersPerTile * 3.6).toBeGreaterThanOrEqual(50);
