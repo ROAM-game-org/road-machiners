@@ -9,7 +9,7 @@ import { propSlotsAlong } from './prop-index';
 import { breakProp } from './salvage';
 import { burnFuel, getResources } from './resources';
 import { fuelCap, plainFuelPerTile, plainMaxSpeed, vehicleStats, type VehicleStats } from './stats';
-import { driveMode, nextSetSpeed, parkedVehicles, throughSpeed } from './steering';
+import { driveMode, nextSetSpeed, orderSpeed, parkedVehicles } from './steering';
 import { fieldBlockers } from './hazards';
 import { getHitchedTowIds, isOnRope, ropeClientOf } from './tow';
 import type { Blocker } from './nav/buckets';
@@ -43,15 +43,14 @@ export function fuelLimited(w: World, v: Vehicle, s: VehicleStats, speed: number
   const low = fuelLimit(w, v, s.fuelPerTile > 0) === 'low';
   const limit = low ? Math.max(lowFuelSpeed(s.maxSpeed), speed - s.brake) : s.maxSpeed;
   const capped = low ? { ...s, maxSpeed: limit } : s;
-  const wanted = order?.kind === 'through' ? wantedThrough(capped, v, speed, order) : Math.min(capped.maxSpeed, speed + capped.accel);
+  const wanted = order && order.kind !== 'brake' ? wantedSpeed(capped, v, speed, order) : Math.min(capped.maxSpeed, speed + capped.accel);
   if (wanted * s.fuelPerTile <= fuel) return capped;
   const cap = Math.max(s.limpSpeed, speed - s.brake);
   return { ...s, maxSpeed: cap, accel: Math.min(s.accel, s.limpAccel) };
 }
 
-function wantedThrough(s: VehicleStats, v: Vehicle, speed: number, order: Extract<MoveOrder, { kind: 'through' }>): number {
-  const d = dist(v.pos, order.dest);
-  return nextSetSpeed(v, s, speed, order, d) ?? throughSpeed(s, speed, d, order.pace, driveMode(v));
+function wantedSpeed(s: VehicleStats, v: Vehicle, speed: number, order: Exclude<MoveOrder, { kind: 'brake' }>): number {
+  return nextSetSpeed(v, s, speed, order, dist(v.pos, order.dest)) ?? orderSpeed(s, speed, v.pos, order, driveMode(v));
 }
 
 export function advanceFar(w: World, v: Vehicle): void {
@@ -67,7 +66,7 @@ export function advanceFar(w: World, v: Vehicle): void {
   }
 
   const s = fuelLimited(w, v, full, v.speed, order);
-  const next = order.kind === 'through' ? wantedThrough(s, v, v.speed, order) : Math.min(s.maxSpeed, v.speed + s.accel);
+  const next = wantedSpeed(s, v, v.speed, order);
   writeFarSetSpeed(v, s, order, next);
   const style = { offRoad: keepsOffRoads(w, v), night: avoidsCrater(w, v) };
   const points = farPoints(w, v, order.dest, style, full, s);

@@ -101,6 +101,8 @@ const playNightTurns = async (page, turns, turnLimitMs) => {
   }
 };
 
+const reloadPage = (page) => page.reload().catch((e) => (/ERR_ABORTED/.test(e.message) ? page.reload() : Promise.reject(e)));
+
 const waitForGame = async (page, bootLimitMs) => {
   await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: bootLimitMs });
   await page.waitForSelector('#boot', { state: 'detached', timeout: bootLimitMs });
@@ -131,7 +133,7 @@ export async function checkNightGround(page, { mode, shot, bootLimitMs, turnLimi
     await playNightTurns(page, nightTurns, turnLimitMs);
     await check('night turns');
   }
-  await page.reload();
+  await reloadPage(page);
   await waitForGame(page, bootLimitMs);
   if (!(await isNight(page))) await lightUpNight(page);
   await check('a reload at night');
@@ -140,7 +142,7 @@ export async function checkNightGround(page, { mode, shot, bootLimitMs, turnLimi
 }
 
 export async function checkHighwayNightInSoftware(url, { shot, bootLimitMs }) {
-  const browser = await chromium.launch({ args: [] });
+  const browser = await chromium.launch({ args: ['--disable-dev-shm-usage'] });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   if (bootLimitMs === 0) page.setDefaultTimeout(0);
   const errors = [];

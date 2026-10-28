@@ -18,7 +18,7 @@ import { setDown } from '../sim/steering';
 import { clearanceFor } from '../sim/clearance';
 import type { MoveOrder, Obstacle, Pose, Vehicle, World } from '../sim/types';
 import { angleDiff, dist, lerp, type Vec } from '../sim/vec';
-import { exploreFrom, visibleTiles } from '../sim/vision';
+import { exploreFrom, seenPropTiles, visibleTiles } from '../sim/vision';
 import { bodyState, buildDrive, GROUND, isLifted, captureDrive, freeDrive, initPhysics, restoreDrive, restWheels, simulateSteps, simulateTurn, syncDrive, toTilesPerTurn, trailFrames, TURN_STEPS, type Drive, type DriveSnapshot, type TurnResult, type VehicleResult } from './drive';
 import { frameBend, headingOf, toMap, type TurnFrames, type VehicleFrame, type WheelFrame } from './frames';
 import { bendField, checkBend, heldBend, poseOf } from '../sim/rig';
@@ -28,7 +28,7 @@ export type TurnState = Omit<World, 'terrain'>;
 export type WorldTask = { world: TurnState; drive: DriveSnapshot };
 type LanguageTask = WorldTask & { questLanguage: QuestLanguage };
 export type TurnTask = LanguageTask & { tailSteps: number };
-export type LiveSight = { steps: number[]; tiles: number[][] };
+export type LiveSight = { steps: number[]; tiles: number[][]; props: number[][] };
 export type TailPose = { pos: Vec; heading: number; speed: number; bend?: number };
 export type Tail = { frames: TurnFrames; next: DriveSnapshot; poses: Record<string, TailPose> };
 export type PreparedTurn = {
@@ -41,14 +41,16 @@ export type PreparedTurn = {
 export const LIVE_SIGHT_STEP = 0.35;
 
 export function liveSightOf(world: World, frames: readonly VehicleFrame[] | undefined): LiveSight {
-  const sight: LiveSight = { steps: [], tiles: [] };
+  const sight: LiveSight = { steps: [], tiles: [], props: [] };
   let from: Vec | null = null;
   (frames ?? []).forEach((f, step) => {
     const at = toMap(f.pos);
     if (from && dist(from, at) < LIVE_SIGHT_STEP) return;
     from = at;
     sight.steps.push(step);
-    sight.tiles.push([...visibleTiles(world, at)].sort((a, b) => a - b));
+    const visible = visibleTiles(world, at);
+    sight.tiles.push([...visible].sort((a, b) => a - b));
+    sight.props.push(seenPropTiles(world, at, visible));
   });
   return sight;
 }
@@ -299,10 +301,7 @@ function applyDriven(w: World, r: TurnResult, v: Vehicle, frames: TurnResult['fr
   const held = heldTurn(w, r, v, s, frames);
   if (held) holdAt(v);
   else releaseHold(v);
-  if ((v.strandedTurns ?? 0) >= RULES.stranded.turns) {
-    setDown(w, v);
-    delete v.strandedAt;
-  }
+  if ((v.strandedTurns ?? 0) >= RULES.stranded.turns) setDown(w, v);
   v.trail = trailOf(start, frames);
   burnFuel(w, v, pathLength(v.trail));
   writeSetSpeed(v, r.results[v.id].setSpeed);

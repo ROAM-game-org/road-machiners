@@ -46,7 +46,7 @@ VAR edda_asked_marks = false
   ~ edda_asked_lose = true
   -> hub
 + {edda_asked_origin and not edda_asked_grandfather} [Что стало с дедом?]
-  Чинил сиденья до самой смерти, теми же двумя руками. Он меня и научил.
+  Руки перестали слушаться, когда отказали контакты. Он потом ещё годы прожил.
   ~ edda_asked_grandfather = true
   -> hub
 + {edda_answered and not edda_asked_marks} [Что значит это кольцо на черепе?]

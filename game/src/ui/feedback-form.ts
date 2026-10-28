@@ -61,7 +61,9 @@ export async function sendFeedback(post: Fetch, url: string, report: FeedbackRep
 export class FeedbackForm {
   private root: HTMLElement | null = null;
   private readonly onKey = (e: KeyboardEvent) => {
-    if (e.code === "Escape") this.close();
+    if (e.code !== "Escape") return;
+    e.stopPropagation();
+    this.close();
   };
 
   constructor(
@@ -82,14 +84,14 @@ export class FeedbackForm {
     bindAttr(root, "aria-label", t("feedback.title"));
     root.append(...(this.url === "" ? this.offContent() : this.formContent(kind)));
     this.root = root;
-    window.addEventListener("keydown", this.onKey);
+    window.addEventListener("keydown", this.onKey, true);
   }
 
   close(): void {
     if (!this.root) return;
     this.root.remove();
     this.root = null;
-    window.removeEventListener("keydown", this.onKey);
+    window.removeEventListener("keydown", this.onKey, true);
   }
 
   private closeButton(): HTMLElement {

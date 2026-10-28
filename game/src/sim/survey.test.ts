@@ -3,12 +3,15 @@ import { CONTRACTS, EFFORT, SHOPS } from '../data/market';
 import { ECONOMY } from '../data/goods';
 import { sitePads } from './sites';
 import { standardWorld } from '../test/world-cache';
-import { emptyWorld, testDrive } from './testkit';
+import { addVehicle, emptyWorld, startCombat, testDrive } from './testkit';
 import { acceptContract, advanceContracts, deliverContract, haulWindow, initializeShops, siteOf, type Contract } from './market';
 import { endTurn } from './world';
 import { nearestRoadPoint } from './salvage';
-import { compassSector, findSurveySites, isSurveyMet, startSurvey, surveyActions, surveyClue, liveSurveySites, surveyLoopTurns, surveyWay, surveyReward, surveySite, surveySites, type SurveyContract } from './survey';
+import SURVEY_SITES_FILE from '../data/survey-sites.json';
+import { surveyThreat, surveyPlaceThreat, compassSector, findSurveySites, isSurveyMet, startSurvey, surveyActions, surveyClue, liveSurveySites, surveyLoopTurns, surveyWay, surveyReward, surveySite, surveySites, type SurveyContract } from './survey';
 import { refreshVision, sightRadius, visibleTiles, tileOf } from './vision';
+import { addState } from './states';
+import { corePart } from './grid';
 import { playerVehicle } from './damage';
 import { followSteps } from './directions-follower.test-helper';
 import { directionsFromSite } from './directions';
@@ -17,7 +20,7 @@ import { bearing } from './vec';
 import { TEST_MAP } from '../test/map';
 import { dist } from './vec';
 import type { DirectionStep, Job, SalvageStock, World } from './types';
-import { cardinalOf } from './direction-cues';
+import { distinctCardinals } from './direction-cues';
 import { roadNetworkOf } from './road-network';
 import type { Vec } from './vec';
 
@@ -208,11 +211,70 @@ describe('survey job', () => {
     expect(isSurveyMet(next.player.contracts[0] as SurveyContract)).toBe(true);
   });
 
-  it('throws when moving, in combat or out of reach', () => {
+  it('throws for an unknown place or out of reach', () => {
     const { w, mine, site } = heldAtSite();
     expect(() => startSurvey(w, mine.id, 'survey-nowhere')).toThrow();
     w.vehicles[0].pos = { x: site.pos.x + 40, y: site.pos.y };
     expect(() => startSurvey(w, mine.id, site.id)).toThrow(/reach/);
+  });
+
+  function heldUnderFire() {
+    const held = heldAtSite();
+    const me = held.w.vehicles[0];
+    const raider = addVehicle(held.w, 'scrapjaw', 'buggy', ['mg'], { x: me.pos.x + 6, y: me.pos.y });
+    addState(held.w, 'feud', raider.id, me.id, { kind: 'feud', robbery: false });
+    startCombat(held.w, raider, me);
+    return { ...held, me, raider };
+  }
+
+  function underFireTurn(w: World): World {
+    const next = endTurn(w, testDrive);
+    const raider = next.vehicles.find((v) => v.id !== next.player.vehicleId);
+    if (raider) startCombat(next, raider, next.vehicles[0]);
+    return next;
+  }
+
+  it('starts a survey in combat', () => {
+    const { w, mine, site } = heldUnderFire();
+    expect(startSurvey(w, mine.id, site.id).vehicles[0].job?.kind).toBe('survey');
+  });
+
+  it('finishes a survey under fire and marks the place surveyed', () => {
+    const { w, mine, site } = heldUnderFire();
+    let next = startSurvey(w, mine.id, site.id);
+    for (let i = 0; i < rules.surveyTurns; i++) next = underFireTurn(next);
+    expect((next.player.contracts[0] as SurveyContract).points[0].done).toBe(true);
+    expect(next.vehicles[0].job).toBeNull();
+  });
+
+  it('keeps a running survey when combat starts', () => {
+    const { w, mine, site } = heldAtSite();
+    const next = startSurvey(w, mine.id, site.id);
+    const me = next.vehicles[0];
+    const raider = addVehicle(next, 'scrapjaw', 'buggy', ['mg'], { x: me.pos.x + 6, y: me.pos.y });
+    startCombat(next, raider, me);
+    next.events = [];
+    const after = endTurn(next, testDrive);
+    expect(after.vehicles[0].job?.kind).toBe('survey');
+    expect(after.events.some((e) => e.t === 'job' && e.outcome === 'cancelled')).toBe(false);
+  });
+
+  it('is cancelled by moving in combat and marks nothing', () => {
+    const { w, mine, site } = heldUnderFire();
+    const next = startSurvey(w, mine.id, site.id);
+    next.vehicles[0].speed = 5;
+    const after = underFireTurn(next);
+    expect(after.vehicles[0].job).toBeNull();
+    expect((after.player.contracts[0] as SurveyContract).points[0].done).toBe(false);
+  });
+
+  it('is cancelled by a knockout under fire and marks nothing', () => {
+    const { w, mine, site } = heldUnderFire();
+    const next = startSurvey(w, mine.id, site.id);
+    corePart(next.vehicles[0], 'cab').hp = 0;
+    const after = underFireTurn(next);
+    expect(after.vehicles[0].job).toBeNull();
+    expect((after.player.contracts[0] as SurveyContract).points[0].done).toBe(false);
   });
 
   it('is cancelled by moving and marks nothing', () => {
@@ -455,10 +517,11 @@ describe('survey way', () => {
       if (!leave) continue;
       const gate = directionsFromSite(w, shop, { kind: 'spot', pos: place.pos, clue: 'place' });
       expect(gate).toEqual(way);
-      const gates = roadNetworkOf(w).nodes.filter((n) => n.site === shop);
+      const gates = roadNetworkOf(w).nodes.filter((n) => n.site === shop && roadNetworkOf(w).incident[n.id].length > 0);
       const from = gates.map((g) => g.pos).sort((a, b) => dist(a, place.pos) - dist(b, place.pos))[0];
       const sides = way[0].do === 'gate' ? way[0].side : null;
-      const start = sides === null ? from : gates.map((g) => g.pos).find((g) => cardinalOf({ x: g.x - siteOf(shop).pos.x, y: g.y - siteOf(shop).pos.y }) === sides) ?? from;
+      const gateSides = distinctCardinals(gates.map((g) => ({ x: g.pos.x - siteOf(shop).pos.x, y: g.pos.y - siteOf(shop).pos.y })));
+      const start = sides === null || !gateSides ? from : gates[gateSides.indexOf(sides)]?.pos ?? from;
       walked++;
       const followed = followSteps(w, start, way, { spot: place.pos });
       if (followed.closest > DIRECTIONS.leaveReach) {
@@ -497,5 +560,39 @@ describe('survey way', () => {
     const a = surveyWay(w, fakeSurvey(shop, site), { site, found: false, done: false });
     expect(surveyWay(w, fakeSurvey(shop, site), { site, found: false, done: false })).toEqual(a);
     expect(JSON.stringify(w.marketRng)).toBe(before);
+  });
+});
+
+describe('survey danger', () => {
+  const w = emptyWorld();
+  const contract = (sites: string[]): SurveyContract => {
+    const c = { id: 'c', shop: 'bowl', kind: 'survey', points: sites.map((site) => ({ site, found: false, done: false })), reward: 0, deadline: 0, window: 0, tier: 1 } as unknown as SurveyContract;
+    return c;
+  };
+
+  it('gives every baked site a step and tells sites apart', () => {
+    const steps = SURVEY_SITES_FILE.sites.map((site) => surveyPlaceThreat(w, site.id));
+    for (const step of steps) expect([1, 2, 3]).toContain(step);
+    expect(steps).toContain(1);
+    expect(steps.some((step) => step >= 2)).toBe(true);
+  });
+
+  it('reads the worst place, as in the reported survey', () => {
+    expect(surveyThreat(w, contract(['survey-house-52', 'survey-house-82']))).toBe(3);
+    expect(surveyThreat(w, contract(['survey-ruin-45']))).toBe(1);
+  });
+
+  it('does not change when places are found or done', () => {
+    const c = contract(['survey-house-52', 'survey-house-82']);
+    const before = surveyThreat(w, c);
+    for (const p of c.points) {
+      p.found = true;
+      p.done = true;
+    }
+    expect(surveyThreat(w, c)).toBe(before);
+  });
+
+  it('throws on a survey with no places', () => {
+    expect(() => surveyThreat(w, contract([]))).toThrow();
   });
 });

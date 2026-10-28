@@ -147,8 +147,7 @@ function getStockActions(world: World, stock: SalvageStock): ContextAction[] {
 }
 
 function surveyAction(world: World, a: SurveyAction): ContextAction {
-  const combat = combatTurnsLeft(world, playerVehicle(world)) ?? undefined;
-  return { label: t("action.survey", { place: t(`contract.place.${surveyPlaceType(a.site)}`) }), ready: a.ready && combat === undefined, combat, target: { kind: 'survey', id: a.site, contractId: a.contractId } };
+  return { label: t("action.survey", { place: t(`contract.place.${surveyPlaceType(a.site)}`) }), ready: a.ready, target: { kind: 'survey', id: a.site, contractId: a.contractId } };
 }
 
 export function getSearchAction(world: World, stock: SalvageStock): ContextAction {
