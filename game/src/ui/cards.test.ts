@@ -6,7 +6,7 @@ import { addVehicle } from "../sim/testkit";
 import { newWorld } from "../sim/world";
 import type { PartInstance } from "../sim/types";
 import { PAINT, type TruckPaint } from "../data/chassis";
-import { baselinePart, chassisPortraitCell, dialPaceTick, chassisStats, compareBase, dialShare, diffStats, compassAngle, compassSvg, headlineStat, itemIconCell, itemLore, itemTip, jobDone, repairingPart, partStats, statValue, toneStyle } from "./cards";
+import { baselinePart, chassisPortraitCell, speedDialSvg, dialPaceTick, chassisStats, compareBase, dialShare, diffStats, compassAngle, compassSvg, headlineStat, itemIconCell, itemLore, itemTip, jobDone, repairingPart, partStats, statValue, toneStyle } from "./cards";
 import { addGoods } from "../sim/inventory";
 import { startRepair } from "../sim/jobs";
 import { workMarkOf } from "./inventory-draw";
@@ -301,8 +301,22 @@ describe("the mark on a part under work", () => {
 
 describe('the speed dial pace tick', () => {
   it('draws a tick only while a route pace is held, further round the dial for a higher pace', () => {
-    expect(dialPaceTick(null)).toBe('');
-    expect(dialPaceTick(40)).toContain('class="dial-pace"');
-    expect(dialPaceTick(40)).not.toBe(dialPaceTick(80));
+    expect(dialPaceTick(null, 107)).toBe('');
+    expect(dialPaceTick(40, 107)).toContain('class="dial-pace"');
+    expect(dialPaceTick(40, 107)).not.toBe(dialPaceTick(80, 107));
+  });
+});
+
+describe('the speed dial scale', () => {
+  it("ends at the truck's own top speed, so top speed points the needle to the far right", () => {
+    const needle = (speed: number, top: number) => speedDialSvg(speed, top, top, null).match(/rotate\(([\d.]+)/)![1];
+    expect(needle(107, 107)).toBe('180');
+    expect(needle(160, 160)).toBe('180');
+    expect(needle(50, 100)).toBe('90');
+  });
+
+  it('draws the red arc only when a cap holds the truck under its top speed', () => {
+    expect(speedDialSvg(0, 107, 107, null)).not.toContain('dial-redline');
+    expect(speedDialSvg(0, 60, 107, null)).toContain('dial-redline');
   });
 });

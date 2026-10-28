@@ -605,7 +605,7 @@ export class Hud {
         disabled: busy,
         onclick: () => this.actions.openInventory(),
       },
-      createSpeedDial(readout.speed, readout.maxSpeed, pace),
+      createSpeedDial(readout.speed, readout.maxSpeed, readout.dialTop, pace),
       el("span", { class: "speed-value" }, num(readout.speed, "int")),
       createIcon("truck"),
     );
