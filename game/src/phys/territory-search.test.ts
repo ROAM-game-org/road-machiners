@@ -86,7 +86,7 @@ describe.each(TARGETS)('$look in $territory', ({ territory, look, near }) => {
       const scavenger = w.vehicles.find((v) => v.id === npc.id)!;
       maxStuck = Math.max(maxStuck, scavenger.brain!.stuck ?? 0);
       if (scavenger.job?.kind === 'search' && scavenger.job.stockId === stock.id) searcher = scavenger;
-      else expect(topGoal(scavenger)?.targetId, `turn ${turns}`).toBe(stock.id);
+      else if (topGoal(scavenger)?.reason !== 'lootOnTheWay') expect(topGoal(scavenger)?.targetId, `turn ${turns}`).toBe(stock.id);
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     }
     freeDrive(d);

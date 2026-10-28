@@ -150,7 +150,7 @@ export const BUILT_BLACK_MUD = 10;
 export const BUILT_DITCH = 11;
 
 const MAGIC = 'KMAP';
-const VERSION = 4;
+const VERSION = 5;
 const HEADER = 20;
 const PROP_BYTES = 1 + 4 * 4 + 2 * 2;
 const INT16_MAX = 32767;

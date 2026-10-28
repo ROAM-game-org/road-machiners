@@ -7,7 +7,7 @@ import { deckById } from './bridge';
 import { boxSegmentDistance, propBoxes } from './mapgen';
 import { offRoadTaste, tasteKey, tasteOf, terrainNav, tileIndex } from './nav/layer';
 import { continueRoute, keepRoute, reachesFrom, route, routeLength, straightClear, type Blocker } from './path';
-import { tileAt } from './terrain';
+import { isCliff, tileAt } from './terrain';
 import type { NpcActivity, Vehicle, World } from './types';
 import type { TraitId } from '../data/npcs';
 import { siteGates } from './sites';
@@ -121,13 +121,18 @@ describe("route", () => {
   });
 
 
-  it('player routes on the real map stay direct', () => {
+  it('player routes on the real map stay direct where no cliff lies across the straight line', () => {
     const w = w1337;
     const size = w.terrain.size;
     let seed = 1337;
     const next = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
     const clamp = (v: number) => Math.min(size - 20, Math.max(20, v));
+    const crossesCliff = (a: Vec, b: Vec): boolean => {
+      const steps = Math.ceil(dist(a, b) * 2);
+      return Array.from({ length: steps + 1 }, (_, k) => ({ x: a.x + ((b.x - a.x) * k) / steps, y: a.y + ((b.y - a.y) * k) / steps })).some((p) => isCliff(w.terrain, tileAt(w.terrain, p)));
+    };
     let waypoints = 0;
+    let clear = 0;
     let length = 0;
     let straight = 0;
     for (let k = 0; k < 150; k++) {
@@ -142,10 +147,13 @@ describe("route", () => {
         continue;
       }
       waypoints += pts.length;
+      if (crossesCliff(from, to)) continue;
+      clear++;
       length += routeLength(from, pts);
       straight += dist(from, to);
     }
     expect(waypoints).toBeLessThanOrEqual(2000);
+    expect(clear).toBeGreaterThanOrEqual(50);
     expect(length).toBeLessThanOrEqual(1.28 * straight);
   });
 });

@@ -1,19 +1,19 @@
 import { REGION } from '../data/region';
 import { FARM_BELT, TERRAIN } from '../data/terrain';
-import { flattenFactor } from '../sim/elevation';
+import { bakedHeight, broadAt, flattenFactor, reliefAt } from '../sim/elevation';
 import { hash, noise2 } from '../sim/noise';
 import { macroHeight } from '../sim/relief-solve';
 import { chance, randInt, randRange, type Rng } from '../sim/rng';
 import { siteGap } from '../sim/sites';
 import type { BakedProp, PropKind } from '../sim/terrain';
 import { zoneWeight } from '../sim/zones';
-import { clamp, dist, polylineDist, segmentDist, type Vec } from '../sim/vec';
+import { clamp, dist, lerp, polylineDist, type Vec } from '../sim/vec';
 import type { MapDraft } from './bake';
 import { BUILT_CANAL, BUILT_DITCH } from './newworld';
 import { BUILT_FIELD, BUILT_TRACK, markable, place, prop, ruleRng } from './oldworld';
 
 type Frame = { origin: Vec; down: Vec; across: Vec };
-type Canal = { points: Vec[]; levels: number[] };
+export type Canal = { points: Vec[]; levels: number[] };
 type Box = { x0: number; x1: number; y0: number; y1: number };
 type Level = { n: number; cell: number; level: Float32Array; reach: Float32Array };
 
@@ -28,16 +28,37 @@ const DEG = Math.PI / 180;
 
 export function farmBeltLayer(seed: number, d: MapDraft): MapDraft {
   const frame = beltFrame(seed, d.size);
-  const canals = FARM_BELT.headgates.map((g) => traceCanal(seed, g.at, g.bank));
+  const canals = beltCanals(seed);
   const level = levelGrid(canals, d.size);
   const laterals = canals.flatMap((c) => lateralsOf(seed, c, frame, level));
-  for (const c of canals) carveDitch(d, c.points, C.width, C.depth, frame);
-  for (const l of laterals) carveDitch(d, l, C.lateralWidth, C.lateralDepth, frame);
+  const cut = new Set<number>();
+  for (const c of canals) carveDitch(d, { line: c.points, width: C.width, depth: C.depth }, frame, cut);
+  for (const l of laterals) carveDitch(d, { line: l, width: C.lateralWidth, depth: C.lateralDepth }, frame, cut);
   const groves = markPlots(seed, d, frame, level);
   const rng = ruleRng(seed, FARM_BELT.seedOffset);
   for (const plot of groves) plantGrove(d, rng, frame, plot);
   farmsteads(seed, d, rng, frame, level);
   return d;
+}
+
+export function beltCanals(seed: number): Canal[] {
+  return FARM_BELT.headgates.map((g) => withinCut(seed, traceCanal(seed, g.at, g.bank)));
+}
+
+function withinCut(seed: number, canal: Canal): Canal {
+  let low = Infinity;
+  const end = canal.points.findIndex((p) => {
+    const ground = groundHeight(seed, p.x, p.y);
+    low = Math.min(low, ground);
+    return ground - low > C.depth * C.cutDepths;
+  });
+  if (end === -1) return canal;
+  if (end < 2) throw new Error(`The canal from ${canal.points[0].x.toFixed(0)}, ${canal.points[0].y.toFixed(0)} meets rising ground at once`);
+  return { points: canal.points.slice(0, end), levels: canal.levels.slice(0, end) };
+}
+
+function groundHeight(seed: number, x: number, y: number): number {
+  return bakedHeight(seed, reliefAt(seed, x, y) + broadAt(seed, x, y), x, y);
 }
 
 function beltFrame(seed: number, size: number): Frame {
@@ -152,38 +173,95 @@ function lateral(seed: number, from: Vec, frame: Frame, level: Level): Vec[] {
   return points;
 }
 
-function carveDitch(d: MapDraft, line: readonly Vec[], width: number, depth: number, frame: Frame): void {
+type Ditch = { line: readonly Vec[]; width: number; depth: number };
+
+function carveDitch(d: MapDraft, ditch: Ditch, frame: Frame, cut: Set<number>): void {
   const n = d.size + 1;
-  for (const [k, gap] of lineGaps(line, width + C.bankWidth, n, 0)) {
-    const p = { x: k % n, y: Math.floor(k / n) };
-    if (flattenFactor(p.x, p.y) === 0 && !onTrackLine(frame, p)) d.heights[k] += ditchProfile(gap, width, depth);
+  const { line, width } = ditch;
+  const beds = gradedBeds(d, line, ditch.depth, cut);
+  for (const [k, spot] of lineGaps(line, width + C.bankWidth, n, 0)) {
+    if (crossing(frame, { x: k % n, y: Math.floor(k / n) })) continue;
+    const shaped = ditchHeight(d.heights[k], spot.gap, lerp(beds[spot.seg - 1], beds[spot.seg], spot.t), width);
+    d.heights[k] = cut.has(k) ? Math.min(d.heights[k], shaped) : shaped;
+    if (spot.gap <= width) cut.add(k);
   }
   markBed(d, line, width);
 }
 
-function lineGaps(line: readonly Vec[], reach: number, n: number, offset: number): Map<number, number> {
-  const gaps = new Map<number, number>();
-  for (let s = 1; s < line.length; s++) segmentGaps(gaps, line[s - 1], line[s], reach, n, offset);
+function gradedBeds(d: MapDraft, line: readonly Vec[], depth: number, cut: ReadonlySet<number>): number[] {
+  const n = d.size + 1;
+  let low = Infinity;
+  return line.map((p) => {
+    const onBed = cut.has(Math.round(p.y) * n + Math.round(p.x));
+    return (low = Math.min(low, vertexHeight(d, p) - (onBed ? 0 : depth)));
+  });
+}
+
+function vertexHeight(d: Pick<MapDraft, 'size' | 'heights'>, p: Vec): number {
+  const n = d.size + 1;
+  const x = clamp(Math.floor(p.x), 0, d.size - 1);
+  const y = clamp(Math.floor(p.y), 0, d.size - 1);
+  const [fx, fy] = [p.x - x, p.y - y];
+  const k = y * n + x;
+  return lerp(lerp(d.heights[k], d.heights[k + 1], fx), lerp(d.heights[k + n], d.heights[k + n + 1], fx), fy);
+}
+
+export function ditchHeight(h: number, gap: number, bed: number, width: number): number {
+  if (gap <= width) return Math.min(h, bed);
+  if (gap <= width + 1) return Math.min(h + C.bank * (gap - width), lerp(bed, h + C.bank, gap - width));
+  return h + C.bank * clamp((width + C.bankWidth - gap) / (C.bankWidth - 1), 0, 1);
+}
+
+function crossing(frame: Frame, p: Vec): boolean {
+  return flattenFactor(p.x, p.y) > 0 || onTrackLine(frame, p);
+}
+
+export function ditchRises(seed: number, d: Pick<MapDraft, 'size' | 'heights'>): number[] {
+  const frame = beltFrame(seed, d.size);
+  const canals = beltCanals(seed);
+  const level = levelGrid(canals, d.size);
+  const lines = [...canals.map((c) => c.points), ...canals.flatMap((c) => lateralsOf(seed, c, frame, level))];
+  return lines.map((line) => worstRise(line.filter((p) => !nearCrossing(frame, p) && polylineDist(p, RIVER) > RIVER_BED).map((p) => vertexHeight(d, p))));
+}
+
+function nearCrossing(frame: Frame, p: Vec): boolean {
+  const [x, y] = [Math.floor(p.x), Math.floor(p.y)];
+  return [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]].some(([i, j]) => crossing(frame, { x: i, y: j }));
+}
+
+function worstRise(bed: readonly number[]): number {
+  let low = Infinity;
+  let worst = 0;
+  for (const h of bed) {
+    worst = Math.max(worst, h - low);
+    low = Math.min(low, h);
+  }
+  return worst;
+}
+
+type Spot = { gap: number; seg: number; t: number };
+
+function lineGaps(line: readonly Vec[], reach: number, n: number, offset: number): Map<number, Spot> {
+  const gaps = new Map<number, Spot>();
+  for (let s = 1; s < line.length; s++) segmentGaps(gaps, s, line[s - 1], line[s], reach, n, offset);
   return gaps;
 }
 
-function segmentGaps(gaps: Map<number, number>, a: Vec, b: Vec, reach: number, n: number, offset: number): void {
+function segmentGaps(gaps: Map<number, Spot>, seg: number, a: Vec, b: Vec, reach: number, n: number, offset: number): void {
   const box = lineBox([a, b], reach, n - 1);
+  const [dx, dy] = [b.x - a.x, b.y - a.y];
+  const span = Math.max(1e-9, dx * dx + dy * dy);
   for (let y = box.y0; y <= box.y1; y++) for (let x = box.x0; x <= box.x1; x++) {
-    const gap = segmentDist({ x: x + offset, y: y + offset }, a, b);
-    if (gap < Math.min(reach, gaps.get(y * n + x) ?? Infinity)) gaps.set(y * n + x, gap);
+    const p = { x: x + offset, y: y + offset };
+    const t = clamp(((p.x - a.x) * dx + (p.y - a.y) * dy) / span, 0, 1);
+    const gap = dist(p, { x: a.x + dx * t, y: a.y + dy * t });
+    if (gap < Math.min(reach, gaps.get(y * n + x)?.gap ?? Infinity)) gaps.set(y * n + x, { gap, seg, t });
   }
-}
-
-export function ditchProfile(gap: number, width: number, depth: number): number {
-  if (gap <= width) return -depth;
-  if (gap <= width + 1) return -depth * (width + 1 - gap) + C.bank * (gap - width);
-  return C.bank * clamp((width + C.bankWidth - gap) / (C.bankWidth - 1), 0, 1);
 }
 
 function markBed(d: MapDraft, line: readonly Vec[], width: number): void {
   if (!BOWL) throw new Error('The farm belt needs Bowl to water its canals');
-  for (const [tile, gap] of lineGaps(line, width + 1, d.size, 0.5)) {
+  for (const [tile, { gap }] of lineGaps(line, width + 1, d.size, 0.5)) {
     const c = { x: (tile % d.size) + 0.5, y: Math.floor(tile / d.size) + 0.5 };
     if (!markable(d, tile)) continue;
     d.built[tile] = gap < width && dist(c, BOWL.pos) < C.wetReach ? BUILT_CANAL : BUILT_DITCH;

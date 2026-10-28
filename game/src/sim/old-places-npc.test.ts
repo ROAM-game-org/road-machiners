@@ -127,7 +127,7 @@ describe('scavengers pick old-world loot spots', () => {
     setShare(0);
     const { w, npc } = scavengerAt({ x: building.pos.x + 30, y: building.pos.y });
     planNpcOrders(w);
-    expect(oldSpotOf({ id: topGoal(npc)!.targetId ?? '' })).toBeNull();
+    expect(['searchOldRuin', 'searchOldHulks', 'searchOldBoats']).not.toContain(topGoal(npc)!.reason);
   });
 
   it('never heads for an old spot out of range', () => {

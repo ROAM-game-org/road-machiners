@@ -1,5 +1,5 @@
 import { REGION } from '../data/region';
-import { CRASH, TERRAIN, type TerrainTypeId, type ZoneKind } from '../data/terrain';
+import { CRASH, GEOLOGY, TERRAIN, type TerrainTypeId, type ZoneKind } from '../data/terrain';
 import { macroHeight } from '../sim/relief-solve';
 import { siteGap, siteGates } from '../sim/sites';
 import { startPose } from '../sim/start-pose';
@@ -9,6 +9,7 @@ import { zoneWeight } from '../sim/zones';
 import { lerp, type Vec } from '../sim/vec';
 import { tileSteepness, type MapDraft } from './bake';
 import { DESCENT_LENGTH, descentBox, descentFrame } from './descent';
+import { ditchRises } from './farmbelt';
 
 type Tally = { tiles: number[]; ring: number[] };
 
@@ -18,9 +19,9 @@ const ZONE_CHECKS = {
   core: 0.7,
   ring: [0.05, 0.3] as [number, number],
   mountains: { heightRange: 40, cliffShare: 0.06 },
-  desert: { ground: ['sand'] as TerrainTypeId[], share: 0.6, duneRelief: 0.5 },
+  desert: { ground: ['sand'] as TerrainTypeId[], share: 0.6, duneRelief: 0.5, spacing: { band: [25, 100] as [number, number], grid: 60, transect: 300, window: 10, prominence: 0.5 } },
   swamp: { ground: ['blackMud', 'dirtyWater', 'scrub'] as TerrainTypeId[], share: 0.6, sunk: 1 },
-  farmBelt: { ground: ['field', 'track', 'canal', 'sand'] as TerrainTypeId[], share: 0.35 },
+  farmBelt: { ground: ['field', 'track', 'canal', 'sand'] as TerrainTypeId[], share: 0.35, bedRise: 0.05 },
   crash: { ground: ['glass'] as TerrainTypeId[], share: 0.15 },
 };
 
@@ -70,9 +71,9 @@ function checkZone(seed: number, d: MapDraft, kind: ZoneKind, t: Tally): string[
   if (t.tiles.length === 0) return [`${kind} has no core tiles`];
   const checks: Record<ZoneKind, () => string[]> = {
     mountains: () => mountainMisses(d, t),
-    desert: () => [...groundMiss(d, kind, t, ZONE_CHECKS.desert), ...duneMiss(seed, d, t)],
+    desert: () => [...groundMiss(d, kind, t, ZONE_CHECKS.desert), ...duneMiss(seed, d, t), ...spacingMiss(seed, d, t)],
     swamp: () => [...groundMiss(d, kind, t, ZONE_CHECKS.swamp), ...sunkMiss(d, t)],
-    farmBelt: () => groundMiss(d, kind, t, ZONE_CHECKS.farmBelt),
+    farmBelt: () => [...groundMiss(d, kind, t, ZONE_CHECKS.farmBelt), ...ditchMiss(seed, d)],
     crash: () => groundMiss(d, kind, t, ZONE_CHECKS.crash),
   };
   return checks[kind]();
@@ -101,6 +102,51 @@ function duneMiss(seed: number, d: MapDraft, t: Tally): string[] {
   return spread < ZONE_CHECKS.desert.duneRelief ? [`desert dunes stand only ${spread.toFixed(2)} high, below ${ZONE_CHECKS.desert.duneRelief}`] : [];
 }
 
+function spacingMiss(seed: number, d: MapDraft, t: Tally): string[] {
+  const spacing = duneSpacing(seed, d, t.tiles);
+  const [lo, hi] = ZONE_CHECKS.desert.spacing.band;
+  console.log(`desert: dune crests ${spacing.toFixed(1)} apart`);
+  return spacing >= lo && spacing <= hi ? [] : [`desert dune crests lie ${spacing.toFixed(1)} apart, outside ${lo} to ${hi}`];
+}
+
+export function duneSpacing(seed: number, d: Pick<MapDraft, 'size' | 'heights'>, tiles: readonly number[]): number {
+  const { grid, transect } = ZONE_CHECKS.desert.spacing;
+  const wind = (GEOLOGY.wind.direction * Math.PI) / 180;
+  const starts = tiles.filter((k) => (k % d.size) % grid === 0 && Math.floor(k / d.size) % grid === 0);
+  const spacings = starts.map((k) => liftLine(seed, d, k, wind, transect)).filter((line) => line.length === transect).map((line) => line.length / Math.max(1, crestCount(line)));
+  if (spacings.length === 0) throw new Error('The desert has no full transect to measure its dunes on');
+  return spacings.sort((a, b) => a - b)[Math.floor(spacings.length / 2)];
+}
+
+function liftLine(seed: number, d: Pick<MapDraft, 'size' | 'heights'>, tile: number, wind: number, length: number): number[] {
+  const x0 = tile % d.size;
+  const y0 = Math.floor(tile / d.size);
+  const line: number[] = [];
+  for (let s = 0; s < length; s++) {
+    const [x, y] = [x0 + Math.cos(wind) * s, y0 + Math.sin(wind) * s];
+    if (x < 0 || y < 0 || x >= d.size - 1 || y >= d.size - 1) break;
+    line.push(tileHeight(d, Math.floor(y) * d.size + Math.floor(x)) - macroHeight(seed, x, y));
+  }
+  return line;
+}
+
+function crestCount(line: readonly number[]): number {
+  const { window, prominence } = ZONE_CHECKS.desert.spacing;
+  let crests = 0;
+  for (let i = window; i < line.length - window; i++) {
+    const near = line.slice(i - window, i + window + 1);
+    const around = line.slice(Math.max(0, i - 2 * window), i + 2 * window + 1);
+    if (near.every((v) => v <= line[i]) && line[i] - Math.min(...around) >= prominence) crests++;
+  }
+  return crests;
+}
+
+function ditchMiss(seed: number, d: MapDraft): string[] {
+  const worst = Math.max(...ditchRises(seed, d));
+  console.log(`farm belt: ditch beds rise at most ${worst.toFixed(3)}`);
+  return worst > ZONE_CHECKS.farmBelt.bedRise ? [`a farm belt ditch bed rises ${worst.toFixed(3)} along its length, over ${ZONE_CHECKS.farmBelt.bedRise}`] : [];
+}
+
 function sunkMiss(d: MapDraft, t: Tally): string[] {
   const mean = (tiles: readonly number[]): number => tiles.reduce((a, k) => a + tileHeight(d, k), 0) / Math.max(1, tiles.length);
   const sunk = mean(t.ring) - mean(t.tiles);
@@ -108,7 +154,7 @@ function sunkMiss(d: MapDraft, t: Tally): string[] {
   return sunk < ZONE_CHECKS.swamp.sunk ? [`swamp floor lies only ${sunk.toFixed(2)} below its rim, below ${ZONE_CHECKS.swamp.sunk}`] : [];
 }
 
-function tileHeight(d: MapDraft, tile: number): number {
+function tileHeight(d: Pick<MapDraft, 'size' | 'heights'>, tile: number): number {
   const n = d.size + 1;
   const k = Math.floor(tile / d.size) * n + (tile % d.size);
   return (d.heights[k] + d.heights[k + 1] + d.heights[k + n] + d.heights[k + n + 1]) / 4;

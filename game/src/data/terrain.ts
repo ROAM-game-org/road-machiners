@@ -1033,7 +1033,7 @@ export const FARM_BELT = {
     { at: scalePoint({ x: 9, y: 72.5 }), bank: -1 },
     { at: scalePoint({ x: 9, y: 77.5 }), bank: 1 },
   ],
-  canal: { step: 4, fall: 0.0015, turns: [-30, -15, 0, 15, 30], turnCost: 0.004, maxLength: 1500, width: 1.6, depth: 0.9, bank: 0.3, bankWidth: 3.5, wetReach: 380, lateralWidth: 1.1, lateralDepth: 0.6, lateralLength: 420 },
+  canal: { step: 4, fall: 0.0015, cutDepths: 3, turns: [-60, -30, -15, 0, 15, 30, 60], turnCost: 0.004, maxLength: 1500, width: 1.6, depth: 0.9, bank: 0.3, bankWidth: 3.5, wetReach: 380, lateralWidth: 1.1, lateralDepth: 0.6, lateralLength: 420 },
   cell: 178,
   plots: 3,
   plotInset: 2,
