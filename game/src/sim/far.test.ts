@@ -436,6 +436,22 @@ describe('far travel contact', () => {
     expect(dist(mover.pos, parked.pos)).toBeGreaterThanOrEqual(vehicleStats(w, mover).radius + vehicleStats(w, parked).radius);
   });
 
+  it('a far NPC that drives through trucks never ends its move inside one', () => {
+    const { w, mover } = far();
+    mover.brain = npcBrain('trader', mover.pos, ['trader']);
+    mover.order = { kind: 'through', dest: { x: 200, y: 120 } };
+    const probe = structuredClone(w);
+    advanceFar(probe, probe.vehicles.find((v) => v.id === mover.id)!);
+    const end = probe.vehicles.find((v) => v.id === mover.id)!.pos;
+    const parked = addVehicle(w, 'independent', 'scout', ['stockEngine'], { ...end });
+
+    advanceFar(w, mover);
+
+    expect(dist(mover.pos, parked.pos)).toBeGreaterThanOrEqual(vehicleStats(w, mover).radius + vehicleStats(w, parked).radius);
+    for (let i = 0; i < 6; i++) advanceFar(w, mover);
+    expect(mover.pos.x).toBeGreaterThan(parked.pos.x);
+  });
+
   it('lets two trucks on the same point drive apart', () => {
     const { w, mover } = far();
     addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 120, y: 120 });

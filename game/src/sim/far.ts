@@ -68,8 +68,7 @@ export function advanceFar(w: World, v: Vehicle): void {
   const { points, partial } = farPoints(w, v, order.dest, style, full, s);
 
   const planned = follow(v.pos, points, (v.speed + next) / 2);
-  const block = firstContact(w, v, planned.path, full.radius, contactsOf(v, order, full.radius));
-  const walk = block ? follow(v.pos, points, block.clear) : planned;
+  const { block, walk } = walkFar(w, v, order, points, planned, full.radius);
   const end = walk.path[walk.path.length - 1];
   const { done, windowEnds } = farOutcome(order, end, walk, block, partial);
   v.trail = sample(v.chassisId, start, walk.path, walk.moved);
@@ -80,6 +79,13 @@ export function advanceFar(w: World, v: Vehicle): void {
   if (!drivesCoarse(v)) breakCrossed(w, v, walk.path, full.radius);
   keepFarRoute(v, replans(done, windowEnds, block, walk) ? undefined : farRouteOf(order.dest, walk.ahead, style, partial));
   if (done) arrive(w, v);
+}
+
+function walkFar(w: World, v: Vehicle, order: DrivenOrder, points: Vec[], planned: FarStep, radius: number): { block: Contact | null; walk: FarStep } {
+  const counts = contactsOf(v, order, radius);
+  const block = firstContact(w, v, planned.path, radius, counts);
+  const budget = block ? block.clear : clearEnd(w, v, planned, radius, (o) => !counts(o));
+  return { block, walk: budget === planned.moved ? planned : follow(v.pos, points, budget) };
 }
 
 function brakeFar(v: Vehicle, full: DriveStats, start: Pose): void {
@@ -103,6 +109,7 @@ function arrive(w: World, v: Vehicle): void {
 }
 
 type FarWalk = { ahead: Vec[]; moved: number };
+type FarStep = FarWalk & { path: Vec[] };
 type FarBlock = { other: Vehicle; contact: number } | null;
 
 type DrivenOrder = Exclude<MoveOrder, { kind: 'brake' }>;
@@ -232,9 +239,30 @@ function keepFarRoute(v: Vehicle, route: FarRoute | undefined): void {
 
 const CONTACT_STEP = 0.25;
 
-function firstContact(w: World, v: Vehicle, path: Vec[], radius: number, counts: (o: Vehicle) => boolean): { other: Vehicle; clear: number; contact: number } | null {
+type Contact = { other: Vehicle; clear: number; contact: number };
+type TruckDisc = { o: Vehicle; at: Vec; contact: number };
+
+function truckDiscs(w: World, v: Vehicle, radius: number, counts: (o: Vehicle) => boolean): TruckDisc[] {
   const client = ropeClientOf(w, v.id);
-  const others = w.vehicles.filter((o) => o.id !== v.id && o.id !== client && counts(o)).flatMap((o) => rigDiscs(o).map((d) => ({ o, at: d.pos, contact: radius + d.r })));
+  return w.vehicles.filter((o) => o.id !== v.id && o.id !== client && counts(o)).flatMap((o) => rigDiscs(o).map((d) => ({ o, at: d.pos, contact: radius + d.r })));
+}
+
+function clearEnd(w: World, v: Vehicle, planned: FarStep, radius: number, ghosted: (o: Vehicle) => boolean): number {
+  const { path } = planned;
+  const discs = truckDiscs(w, v, radius, ghosted).filter((d) => dist(path[0], d.at) >= d.contact);
+  const inside = (p: Vec) => discs.some((d) => dist(p, d.at) < d.contact);
+  let clear = planned.moved;
+  while (clear > 0 && inside(pointAlong(path, clear))) clear = Math.max(0, clear - CONTACT_STEP);
+  return clear;
+}
+
+function pointAlong(path: Vec[], moved: number): Vec {
+  const walked = follow(path[0], path.slice(1), moved).path;
+  return walked[walked.length - 1];
+}
+
+function firstContact(w: World, v: Vehicle, path: Vec[], radius: number, counts: (o: Vehicle) => boolean): Contact | null {
+  const others = truckDiscs(w, v, radius, counts);
   let walked = 0;
   for (let seg = 1; seg < path.length; seg++) {
     const a = path[seg - 1];
@@ -269,7 +297,7 @@ function touches(o: Obstacle, a: Vec, b: Vec, radius: number): boolean {
   return segmentDist(o.pos, a, b) < propReach(o) + radius && propBoxes(o).some((box) => boxSegmentDistance(box, a, b) < radius);
 }
 
-function follow(from: Vec, points: Vec[], budget: number): { path: Vec[]; moved: number; ahead: Vec[] } {
+function follow(from: Vec, points: Vec[], budget: number): FarStep {
   const path: Vec[] = [from];
   let cur = from;
   let left = budget;
