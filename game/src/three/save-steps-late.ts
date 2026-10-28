@@ -647,3 +647,70 @@ export function withDialogueSeen_116_117(world: SavedJson): SavedJson {
 export function withoutLenaGlare_117_118(world: SavedJson): SavedJson {
   return ['heard_glare', 'asked_glare'].reduce((w, name) => dropQuestVar(w, 'nose_lena', name), world);
 }
+
+const OLD_ROWS_120_121: Readonly<Record<string, number>> = {
+  scout: 8, hauler: 9, buggy: 8, wagon: 9, courier: 9, van: 9, longbed: 11, carrier: 9, tractor: 9, jeep: 9,
+  convertible: 9, bus: 12, loader: 9, niva: 10, bukhanka: 10, lincoln: 11, semi: 29, sorokonoga: 16,
+};
+
+const SHIELDS_120_121: ReadonlySet<string> = new Set([
+  'plates', 'cage', 'ram', 'scrapPanels', 'ceramicPlates', 'spacedArmor', 'reinforcedCage', 'plowRam', 'claymoreRam', 'steelPlate', 'scrapSheet',
+  'ceramicTile', 'spacedTile', 'cageSection', 'reinforcedSection', 'spikeCluster', 'spikeStrip',
+]);
+
+export function armorRowCell_120_121(rows: number, y: number, shield: boolean): number {
+  if (!Number.isInteger(y) || y < 0) throw new Error(`A grid item at row ${y} cannot move onto the outside armor rows`);
+  if (y >= rows) return y + 2;
+  if (y === 0) return shield ? 0 : 1;
+  if (y === rows - 1) return shield ? rows + 1 : rows;
+  return y + 1;
+}
+
+export function armorRowOfItem_120_121(chassisId: string, y: number, defId: string | null): number {
+  const rows = OLD_ROWS_120_121[chassisId];
+  return rows === undefined ? y : armorRowCell_120_121(rows, y, defId !== null && SHIELDS_120_121.has(defId));
+}
+
+function partDefsOf_120_121(node: unknown, out: Map<string, string>): Map<string, string> {
+  if (Array.isArray(node)) node.forEach((n) => partDefsOf_120_121(n, out));
+  else if (node !== null && typeof node === 'object') {
+    const record = node as SavedJson;
+    if (typeof record.id === 'string' && typeof record.defId === 'string') out.set(record.id, record.defId);
+    Object.values(record).forEach((n) => partDefsOf_120_121(n, out));
+  }
+  return out;
+}
+
+type Spot_120_121 = SavedJson & { x: number; y: number };
+type Moved_120_121 = (spot: Spot_120_121, defId: string | null) => Spot_120_121;
+
+function mappedStep_120_121(step: SavedJson, defs: Map<string, string>, vehicleItems: Map<string, string | null>, move: Moved_120_121): SavedJson {
+  const moves = (step.moves as SavedJson[]).map((m) => ({ ...m, from: move(m.from as Spot_120_121, vehicleItems.get(m.itemId as string) ?? null), to: move(m.to as Spot_120_121, vehicleItems.get(m.itemId as string) ?? null) }));
+  const pickup = step.pickup as SavedJson | null;
+  return { ...step, moves, pickup: pickup && { ...pickup, to: move(pickup.to as Spot_120_121, defs.get(pickup.partId as string) ?? null) } };
+}
+
+function armorRowsOutside_120_121(v: SavedJson, defs: Map<string, string>, rows: number): SavedJson {
+  const shield = (defId: string | null) => defId !== null && SHIELDS_120_121.has(defId);
+  const move: Moved_120_121 = (spot, defId) => ({ ...spot, y: armorRowCell_120_121(rows, spot.y, shield(defId)) });
+  const items = v.items as (Spot_120_121 & { id: string; part?: SavedJson })[];
+  const job = v.job as SavedJson | null;
+  const itemDefs = new Map(items.map((it) => [it.id, (it.part?.defId as string | undefined) ?? null]));
+  for (const step of job?.kind === 'refit' ? [job, ...(job.queue as SavedJson[])] : []) {
+    const pickup = step.pickup as SavedJson | null;
+    if (pickup) itemDefs.set(pickup.itemId as string, defs.get(pickup.partId as string) ?? null);
+  }
+  const moved = items.map((it) => move(it, itemDefs.get(it.id) ?? null));
+  if (job?.kind !== 'refit') return { ...v, items: moved };
+  const queue = (job.queue as SavedJson[]).map((s) => mappedStep_120_121(s, defs, itemDefs, move));
+  return { ...v, items: moved, job: { ...job, ...mappedStep_120_121(job, defs, itemDefs, move), queue } };
+}
+
+export function withArmorRowsOutside_120_121(world: SavedJson): SavedJson {
+  const defs = partDefsOf_120_121(world, new Map());
+  const vehicles = (world.vehicles as SavedJson[]).map((v) => {
+    const rows = OLD_ROWS_120_121[v.chassisId as string];
+    return rows === undefined ? v : armorRowsOutside_120_121(v, defs, rows);
+  });
+  return { ...world, vehicles };
+}
