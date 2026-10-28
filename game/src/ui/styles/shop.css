@@ -1076,12 +1076,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  padding: var(--space-3) 0 var(--space-5);
-  border-bottom: 1px solid var(--line-faint);
-  font: var(--text-dense) var(--font-mono);
-}
-.town-repair > button:first-of-type {
-  margin-left: auto;
+  padding: 0 0 var(--space-5);
 }
 .service-meter {
   display: flex;

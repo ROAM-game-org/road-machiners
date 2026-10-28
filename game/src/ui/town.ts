@@ -275,7 +275,7 @@ export class TownScreen {
   }
 
   private drawPage(w: World, shopId: string, page: TownPage): void {
-    const truck = this.showsTruck(w, shopId, page) ? el("div", { class: "town-truck" }, this.inventory.render()) : null;
+    const truck = this.showsTruck(w, shopId, page) ? el("div", { class: "town-truck" }, page === "garage" ? this.repairBar(w) : null, this.inventory.render()) : null;
     this.choices = page === null ? this.frontChoices(w, shopId) : this.sectionChoices(shopId, page);
     this.root.replaceChildren(
       this.bandOf(w, this.artKey(shopId), shopDef(shopId).kind !== "garage"),
@@ -396,7 +396,7 @@ export class TownScreen {
       ),
     );
     const body = { buyParts: () => this.buyParts(w, shopId), sellParts: () => this.sellParts(w), trucks: () => this.trucks(w, shopId), paint: () => this.paint(w) }[this.garageTab]();
-    return el("div", {}, this.repairBar(w), el("div", { class: "tabs sub" }, ...buttons), body);
+    return el("div", {}, el("div", { class: "tabs sub" }, ...buttons), body);
   }
 
   private bar(w: World, shopId: string): HTMLElement {
@@ -1017,7 +1017,7 @@ export class TruckTradeScreen {
     const side = [el("div", { class: "tabs" }, ...this.tabButtons())];
     if (this.error) side.push(el("div", { class: "bad" }, this.error));
     side.push(this.tabBody(w, npc));
-    const truck = el("div", { class: "town-truck" }, this.inventory.render());
+    const truck = el("div", { class: "town-truck" }, page === "garage" ? this.repairBar(w) : null, this.inventory.render());
     this.root.replaceChildren(
       el("button", { class: "close", onclick: () => this.close() }, keyLabel(t("trade.leave"), ESCAPE.key)),
       el("h3", {}, vehicleTitle(w, npc), truckChips(w), partnerChips(npc)),
