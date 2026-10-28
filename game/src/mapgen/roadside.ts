@@ -5,7 +5,7 @@ import { BUILT_FIELD, BUILT_NONE, BUILT_OLD_ROAD, BUILT_SCRUB, TYPE_IDS, type Ba
 import { dist, polylineDist, type Vec } from '../sim/vec';
 import { tileSteepness, type MapDraft } from './bake';
 import { onReservedGround } from './start-ground';
-import { RoadLine, clearGround, facing, offset, prop, roadJunctions, ruleRng, sideOf, stations, tileCenter, tileOf, tilesWithin } from './oldworld';
+import { RoadLine, clearGround, facing, offset, prop, roadJunctions, ruleRng, sideOf, stations, tileCenter, tileFlow, tileOf, tilesWithin } from './oldworld';
 
 const R = ROADSIDE;
 const HALF = REGION.roadWidth / 2;
@@ -116,12 +116,6 @@ export function lineGap(a: Vec, b: Vec, c: Vec): number {
 
 function key(x: number, y: number): number {
   return y * 4096 + x;
-}
-
-export function tileFlow(d: MapDraft, tile: number): number {
-  const w = d.size + 1;
-  const k = Math.floor(tile / d.size) * w + (tile % d.size);
-  return Math.max(d.flow[k], d.flow[k + 1], d.flow[k + w], d.flow[k + w + 1]);
 }
 
 export function roadsideLayer(seed: number, d: MapDraft): MapDraft {

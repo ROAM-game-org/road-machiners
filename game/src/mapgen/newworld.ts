@@ -34,6 +34,7 @@ import {
   sideOf,
   stations,
   tileCenter,
+  tileFlow,
   tileOf,
   tilesWithin,
 } from './oldworld';
@@ -203,7 +204,7 @@ function growChance(d: MapDraft, rules: ScrubRules, tile: number): number {
 }
 
 function wetness(d: MapDraft, rules: ScrubRules, tile: number): number {
-  return cornerMax(d.flow, d.size, tile) / (GEOLOGY.ground.washFlow * rules.seedFlow);
+  return tileFlow(d, tile) / (GEOLOGY.ground.washFlow * rules.seedFlow);
 }
 
 function scrubSeeds(d: MapDraft, rng: Rng, rules: ScrubRules, grow: Float32Array): number[] {

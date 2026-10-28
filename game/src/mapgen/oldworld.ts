@@ -129,7 +129,7 @@ export function onReservedTrack(d: MapDraft, p: BakedProp): boolean {
 
 export function builtGround(c: Vec): boolean {
   if (deckAt(ICARUS_DECKS, c.x, c.y) !== null) return true;
-  return ROAD_INDEX.nearestWithin(c.x, c.y, HALF) < HALF || !clearOfSites(icarusAtlas(), c, 0);
+  return ROAD_INDEX.nearestWithin(c.x, c.y, HALF) < HALF || SITES.some((s) => siteGap(s, c) < TERRAIN.types.siteMargin);
 }
 
 export function isCutTile(d: MapDraft, tile: number): boolean {
@@ -137,10 +137,14 @@ export function isCutTile(d: MapDraft, tile: number): boolean {
 }
 
 export function washTile(d: Pick<MapDraft, 'size' | 'flow'>, tile: number): boolean {
+  return tileFlow(d, tile) >= GEOLOGY.ground.washFlow;
+}
+
+export function tileFlow(d: Pick<MapDraft, 'size' | 'flow'>, tile: number): number {
   const w = d.size + 1;
   const k = Math.floor(tile / d.size) * w + (tile % d.size);
   const flow = Math.max(d.flow[k], d.flow[k + 1], d.flow[k + w], d.flow[k + w + 1]);
-  return flow >= GEOLOGY.ground.washFlow && flow * (1 - plateShare(tileCenter(d.size, tile))) >= GEOLOGY.ground.washFlow;
+  return flow === 0 ? 0 : flow * (1 - plateShare(tileCenter(d.size, tile)));
 }
 
 function plateShare(c: Vec): number {
@@ -406,7 +410,7 @@ function roadLinks(d: MapDraft, towns: OldSettlement[], rules: OldRoadRules): Li
     .filter((l) => dist(l.from, l.to) <= rules.maxLink && Math.min(l.to.x, l.to.y, d.size - l.to.x, d.size - l.to.y) >= 0);
 }
 
-function nearestRoadPoint(p: Vec): Vec {
+export function nearestRoadPoint(p: Vec): Vec {
   let best = p;
   let bestDist = Infinity;
   for (const road of REGION.roads) {

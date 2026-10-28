@@ -1015,7 +1015,7 @@ export const RELIEF_SOLVE = {
   roadBed: { width: 70, mountainWidth: 18, passes: 3 },
 };
 
-export const TRAILS = { seedOffset: 9400, spacing: 70, jitter: 0.4, valleyReach: 15, minZone: 0.6, links: 2, maxLink: 150, roadLink: 120, cell: 4, slopeCost: 8, smooth: 7, climb: 0.6, width: 4, wall: 2, wallReach: 4 };
+export const TRAILS = { seedOffset: 9400, spacing: 70, jitter: 0.4, valleyReach: 15, minZone: 0.6, links: 2, maxLink: 150, roadLink: 120, cell: 4, keepEvery: 4, roundPasses: 3, slopeCost: 8, smooth: 7, gradeRounds: 4, climb: 0.6, width: 4, wall: 2, wallReach: 4 };
 
 export const EXITS = { closeRadius: 12, depth: 0.5, reach: 150, spacing: 40, mountainSpacing: 120, carveShare: 0.75, grade: 0.75, climb: 0.6, width: 4, wall: 2, minFloor: 9, tries: 40, propCut: 0.25, blockRadius: 2, fillMax: 1000, rimReach: 8, fillRounds: 3, passes: 3, clearKinds: ['rock', 'crag', 'deadTree', 'fence', 'junk', 'drums', 'barrel'] as readonly string[] };
 

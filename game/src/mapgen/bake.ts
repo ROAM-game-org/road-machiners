@@ -20,6 +20,7 @@ import { farmBeltLayer } from './farmbelt';
 import { zoneReport } from './report';
 import { fillGlassTrail } from './glass';
 import { swampLayer } from './swamp';
+import { trailLayer } from './trails';
 import { oldWorldLayer, tilesWithin, washTile } from './oldworld';
 import { fortressLayer } from './fortress';
 import { stampTerritoryGround } from './ground-stamps';
@@ -61,6 +62,7 @@ export function groundForTerritories(seed: number): MapDraft {
   d = timed('swamp', () => swampLayer(seed, d));
   d = timed('spurs', () => reserveSpurs(d));
   d = timed('farm belt', () => farmBeltLayer(seed, d));
+  d = timed('trails', () => trailLayer(seed, d));
   d = timed('exits', () => exitLayer(d));
   d = timed('old world', () => oldWorldLayer(seed, d));
   return timed('new world', () => newWorldLayer(seed, d));

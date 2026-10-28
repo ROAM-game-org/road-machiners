@@ -784,7 +784,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
       landing: 0,
     },
     farm: null,
-    glass: { cell: 6, cover: [0.55, 0.45], clear: 1, fade: { band: 40, warp: 25, cell: 35 }, spires: { look: 'glassSpire', count: 240, radius: [0.6, 1.2] } },
+    glass: { cell: 6, cover: [0.8, 0.65], clear: 1, fade: { band: 40, warp: 25, cell: 35 }, spires: { look: 'glassSpire', count: 240, radius: [0.6, 1.2] } },
     spotGap: 6,
     debrisGap: 1.5,
     reactor: null,

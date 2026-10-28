@@ -7,6 +7,7 @@ import { BUILT_CANAL, BUILT_DITCH, BUILT_OLD_ROAD, BUILT_PAD, BUILT_TRACK, type 
 import { dist, segmentDist, type Vec } from '../sim/vec';
 import { zoneWeight } from '../sim/zones';
 import { tileSteepness, type MapDraft } from './bake';
+import { trailOut } from './trails';
 
 export type Escape = { size: number; drivable: Uint8Array; floor: Uint8Array; dist: Int32Array; heights: Float32Array; ravine: Int32Array };
 type Ramp = { from: Vec; to: Vec; low: number; high: number; ravine: number };
@@ -22,7 +23,17 @@ const RAMP_GRADE = EXITS.climb * TERRAIN.drive.maxSlope;
 export function exitLayer(d: MapDraft): MapDraft {
   let out = exitPass(d);
   for (let pass = 1; pass < EXITS.passes && trappedFloors(out).length > 0; pass++) out = exitPass(out);
-  return out;
+  return trailsOut(out);
+}
+
+function trailsOut(d: MapDraft): MapDraft {
+  const e = ravineEscape(d);
+  for (const pit of trappedGroups(e)) {
+    const target = exitTargets(e, pit[0])[0];
+    if (target !== undefined) trailOut(d, tileCenter(e.size, pit[0]), tileCenter(e.size, target));
+  }
+  const onTrail = (p: BakedProp): boolean => d.built[Math.floor(p.pos.y) * d.size + Math.floor(p.pos.x)] === BUILT_TRACK;
+  return { ...d, props: d.props.filter((p) => !(EXITS.clearKinds.includes(p.kind) && onTrail(p))) };
 }
 
 function exitPass(d: MapDraft): MapDraft {
@@ -53,7 +64,7 @@ function fillPits(d: MapDraft): void {
   }
 }
 
-export function trappedFloors(d: Pick<MapDraft, 'size' | 'heights' | 'props'>): Vec[] {
+export function trappedFloors(d: Pick<MapDraft, 'size' | 'heights' | 'props' | 'built'>): Vec[] {
   const e = ravineEscape(d);
   return trappedGroups(e).map((tiles) => tileCenter(e.size, tiles[0]));
 }
@@ -95,13 +106,13 @@ function pitRim(e: Escape, pit: number[]): number | null {
   return rims.length > 0 ? Math.min(...rims) : null;
 }
 
-export function ravineEscape(d: Pick<MapDraft, 'size' | 'heights' | 'props'>): Escape {
+export function ravineEscape(d: Pick<MapDraft, 'size' | 'heights' | 'props' | 'built'>): Escape {
   const size = d.size;
   const heights = tileHeights(d);
   const drivable = Uint8Array.from({ length: size * size }, (_, k) => Number(tileSteepness(d.heights, size, k) <= TERRAIN.drive.maxSlope));
   const main = reachedFrom(size, drivable, startPose().pos);
   const access = fallenInto(size, heights, drivable, main);
-  const floor = floorTiles(size, heights, drivable, main).map((f, k) => f & access[k]);
+  const floor = floorTiles(size, heights, drivable, main).map((f, k) => f & access[k] & Number(d.built[k] !== BUILT_TRACK));
   for (const p of d.props) if (p.r >= EXITS.blockRadius) markDisc(floor, size, p.pos, p.r, 0);
   const e = { size, drivable, floor, dist: new Int32Array(size * size).fill(FAR), heights, ravine: ravineLabels(size, floor) };
   const queue = [...main.keys()].filter((k) => main[k] && !floor[k]);
