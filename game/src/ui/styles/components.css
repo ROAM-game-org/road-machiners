@@ -324,7 +324,7 @@
   flex: none;
 }
 .ink-page .ink-band > .art-band {
-  height: min(var(--art-band-height), calc(0.26 * var(--layer-h)));
+  height: min(var(--art-band-height), calc(0.14 * var(--layer-h)));
   border-width: 0 0 1px;
 }
 .ink-page .ink-chips {
@@ -386,6 +386,46 @@
   grid-column: 2;
   grid-row: 4;
 }
+.ink-page .ink-scroll {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.ink-page .ink-scroll > :is(.ink-head, .ink-panel, .ink-choices) {
+  flex: none;
+  width: min(var(--quest-text-width), 100%);
+}
+.ink-page .ink-scroll > .ink-panel {
+  flex: 1 1 auto;
+  min-height: calc(0.4 * var(--layer-h));
+}
+.ink-page .ink-scroll > .ink-panel.wide {
+  width: 100%;
+}
+.ink-page .ink-foot {
+  grid-column: 2;
+  grid-row: 3;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding-top: var(--space-4);
+}
+.ink-page .ink-foot > .quest-choice {
+  flex: none;
+  align-self: center;
+}
+.ink-page .ink-foot > .ink-status {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .ink-page .ink-side {
   grid-column: 3;
   grid-row: 1 / -1;
@@ -399,11 +439,21 @@
 #ui.phone .panel.modal.ink-page {
   top: var(--modal-top);
   width: auto;
-  height: auto;
+  height: var(--page-height);
   overflow: auto;
 }
 #ui.phone .ink-page .ink-body {
-  flex: none;
+  flex: 1 0 auto;
+  padding-bottom: 0;
+}
+#ui.phone .ink-page .ink-scroll {
+  overflow: visible;
+}
+#ui.phone .ink-page .ink-foot {
+  position: sticky;
+  bottom: 0;
+  padding-bottom: var(--space-5);
+  background: var(--surface-panel);
 }
 :where(#ui.phone, #ui.narrow) .ink-page .ink-band > .art-band {
   height: var(--art-band-phone-height);
@@ -418,7 +468,7 @@
   grid-template-rows: auto minmax(0, 1fr) auto auto auto;
   padding: var(--space-5) var(--space-6);
 }
-:where(#ui.phone, #ui.narrow) .ink-page :is(.ink-head, .ink-panel, .ink-panel.wide, .ink-choices, .ink-status) {
+:where(#ui.phone, #ui.narrow) .ink-page :is(.ink-head, .ink-panel, .ink-panel.wide, .ink-choices, .ink-status, .ink-scroll, .ink-foot) {
   grid-column: 1;
 }
 :where(#ui.phone, #ui.narrow) .ink-page .ink-side {

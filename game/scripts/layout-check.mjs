@@ -198,7 +198,7 @@ async function probe(page, locale) {
 }
 
 async function boot() {
-  const browser = await chromium.launch({ args: cpu ? [] : gpuArgs() });
+  const browser = await chromium.launch({ args: cpu ? ['--disable-dev-shm-usage'] : gpuArgs() });
   const context = await browser.newContext({ viewport: { width: VIEWPORTS[0][0], height: VIEWPORTS[0][1] } });
   const page = await context.newPage();
   page.setDefaultTimeout(BOOT_LIMIT_MS);
@@ -319,6 +319,112 @@ const closeSurveyJournal = async (page) => {
   }, SURVEY_CONTRACT_ID);
 };
 
+const NAV_STEPS = [
+  { name: 'front', go: [] },
+  { name: 'garage-buy', go: ['garage'], tab: ['data-garage-tab', 'buyParts'] },
+  { name: 'garage-sell', go: ['garage'], tab: ['data-garage-tab', 'sellParts'] },
+  { name: 'garage-paint', go: ['garage'], tab: ['data-garage-tab', 'paint'] },
+  { name: 'market-goods', go: ['market'], tab: ['data-market-tab', 'goods'] },
+  { name: 'market-charts', go: ['market'], tab: ['data-market-tab', 'charts'] },
+  { name: 'board', go: ['board'] },
+  { name: 'people', go: ['people'] },
+  { name: 'bar', go: ['bar'] },
+];
+
+async function openTownClear(page) {
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const c = await import('/src/sim/cheats.ts');
+    const { setWorldVar } = await import('/src/sim/quests.ts');
+    const { TOWN_SCENES } = await import('/src/data/quests.ts');
+    g.screens.town.close();
+    const world = structuredClone(g.state);
+    world.player.quests.session = null;
+    world.player.quests.live = null;
+    for (const scene of TOWN_SCENES) setWorldVar(world, scene.gate, true);
+    g.apply(c.teleport(world, c.placeSpot(world, 'bowl')));
+    g.screens.town.open();
+  });
+  await frames(page);
+}
+
+function townMarks(page, withError) {
+  return page.evaluate((withError) => {
+    const box = (node) => {
+      const r = node.getBoundingClientRect();
+      return { x: r.left, y: r.top, w: r.width, h: r.height, bottom: r.bottom };
+    };
+    const root = document.querySelector('.town-page');
+    const exit = root.querySelector('.ink-foot [data-town-go]');
+    const marks = {
+      exit: exit ? box(exit) : null,
+      band: box(root.querySelector('.ink-band')),
+      heading: box(root.querySelector('.ink-head .quest-place')),
+      page: box(root),
+    };
+    return { ...marks, withError };
+  }, withError);
+}
+
+const sameWithin = (a, b) => Math.abs(a - b) <= 1;
+const rounded = (n) => Math.round(n);
+
+function moved(label, keys, first, now) {
+  return keys.filter((k) => !sameWithin(first[k], now[k])).map((k) => `${label}.${k} ${rounded(first[k])} -> ${rounded(now[k])}`);
+}
+
+function exitOutside(now) {
+  const { exit, page } = now;
+  const inside = exit.y >= page.y - 1 && exit.bottom <= page.bottom + 1 && exit.x >= page.x - 1;
+  return inside ? [] : [`exit outside the page (${rounded(exit.bottom)} of ${rounded(page.bottom)})`];
+}
+
+function navDiffs(first, now) {
+  if (!now.exit) return ['no way out in the foot'];
+  return [
+    ...exitOutside(now),
+    ...moved('exit', ['x', 'bottom', 'h'], first.exit, now.exit),
+    ...moved('band', ['h'], first.band, now.band),
+    ...moved('heading', ['x', 'y'], first.heading, now.heading),
+  ];
+}
+
+const clickIn = (page, step) => page.evaluate(({ go, tab }) => {
+  const root = document.querySelector('.town-page');
+  const goTo = (id) => root.querySelector(`[data-town-go="${id}"]`)?.click();
+  goTo('back');
+  for (const id of go) goTo(id);
+  if (tab) root.querySelector(`[${tab[0]}="${tab[1]}"]`)?.click();
+}, step);
+
+async function townNavFaults(page) {
+  const faults = [];
+  const note = (path, text) => faults.push({ kind: 'nav-moved', path, text, sizes: '' });
+  await openTownClear(page);
+  let first = null;
+  for (const step of NAV_STEPS) {
+    await clickIn(page, step);
+    await frames(page);
+    const marks = await townMarks(page, false);
+    await page.screenshot({ path: `${OUT}/nav-${step.name}-${page.viewportSize().width}x${page.viewportSize().height}.png` });
+    first ??= marks;
+    for (const d of navDiffs(first, marks)) note(step.name, d);
+  }
+  await clickIn(page, NAV_STEPS[0]);
+  await frames(page);
+  await page.evaluate(async () => {
+    const town = window.__ROAM__.screens.town;
+    const { t } = await import('/src/text/msg.ts');
+    town.error = t('town.reason.onCall');
+    town.render();
+  });
+  await frames(page);
+  const errored = await townMarks(page, true);
+  for (const d of navDiffs(first, errored)) note('status-line', d);
+  await openTownClear(page);
+  return faults;
+}
+
 const STATES = {
   menu: { setup: () => undefined, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   log: { setup: fillLog },
@@ -336,6 +442,7 @@ const STATES = {
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown },
   'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'town-board': { setup: (page) => openTown(page, 'contracts'), teardown: closeTown },
+  'town-nav': { setup: openTownClear, teardown: closeTown, check: townNavFaults, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'town-people': { setup: (page) => openTown(page, 'people'), teardown: closeTown },
   paint: { setup: (page) => openTown(page, 'paint'), teardown: closeTown },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
@@ -356,7 +463,8 @@ const STATES = {
 const ONLY = process.env.LAYOUT_STATES?.split(',');
 const PICKED = Object.entries(STATES).filter(([name]) => !ONLY || name === 'log' || ONLY.includes(name));
 
-const WINDOWS = [...new Set(PICKED.flatMap(([, state]) => state.viewports ?? VIEWPORTS))];
+const ONLY_SIZES = process.env.LAYOUT_SIZES?.split(',').filter(Boolean);
+const WINDOWS = [...new Set(PICKED.flatMap(([, state]) => state.viewports ?? VIEWPORTS))].filter((v) => !ONLY_SIZES || ONLY_SIZES.includes(v.join('x')));
 
 const started = Date.now();
 const seconds = () => Math.round((Date.now() - started) / 1000);
@@ -369,7 +477,7 @@ async function capture(page, locale, [width, height], [name, state], size = 1) {
   await frames(page);
   const label = size === 1 ? `${width}x${height}` : `${width}x${height}-ui${Math.round(size * 100)}`;
   await page.screenshot({ path: `${OUT}/${name}-${locale}-${label}.png` });
-  for (const f of [...await faultsIn(page, locale), ...await frameFaults(page)]) report.push({ state: name, locale, viewport: label, ...f });
+  for (const f of [...await faultsIn(page, locale), ...await frameFaults(page), ...(state.check ? await state.check(page) : [])]) report.push({ state: name, locale, viewport: label, ...f });
   captures++;
   console.log(`${name} ${locale} ${label} at ${seconds()} s`);
   if (state.teardown) await state.teardown(page);
