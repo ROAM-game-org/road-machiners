@@ -1,6 +1,10 @@
 import type * as THREE from 'three';
 import type { World } from '../sim/types';
-import { playerSeenPropTiles } from '../sim/vision';
+import { PERF } from '../data/perf';
+import { playerVehicle } from '../sim/damage';
+import { PHYSICS } from '../data/physics';
+import type { V3 } from '../phys/frames';
+import { grayRadius, grayReach, playerSeenPropTiles } from '../sim/vision';
 import type { PlayClock } from './play-clock';
 import { CraterViews } from './render/craters';
 import { FogView } from './render/fog';
@@ -35,6 +39,14 @@ export type WorldViews = {
   streamer: CellStreamer;
 };
 
+export function sightAround(limit: SightLimit, streamer: CellStreamer, world: World, truck: V3): number {
+  const meters = grayRadius(world) * PHYSICS.metersPerTile;
+  limit.set(truck, meters);
+  const reach = grayReach(world, playerVehicle(world));
+  streamer.frame({ x: truck.x / PHYSICS.metersPerTile, y: truck.z / PHYSICS.metersPerTile }, reach, reach + PERF.stream.leadTiles);
+  return meters;
+}
+
 export function buildWorldViews(world: World, host: WorldViewHost): WorldViews {
   const sightLimit = new SightLimit(world.size);
   const groundScope = new RenderScope(host.ground, world.size, sightLimit, false, false);
@@ -52,7 +64,8 @@ export function buildWorldViews(world: World, host: WorldViewHost): WorldViews {
   obstacles.sync(world.obstacles, world.salvage, world.broken);
   addScatter(world.terrain, world.obstacles, propScope);
   const shade = new ShadeView(world, ground, host.play);
-  const streamer = new CellStreamer(scopes, host.prepare, () => performance.now(), Number.POSITIVE_INFINITY);
-  streamer.buildAll();
+  const streamer = new CellStreamer(scopes, host.prepare, () => performance.now(), PERF.stream.budgetMs);
+  const reach = grayReach(world, playerVehicle(world));
+  streamer.boot(playerVehicle(world).pos, reach, reach + PERF.stream.leadTiles);
   return { sightLimit, scopes, craters, siteLights, obstacles, fog, shade, streamer };
 }

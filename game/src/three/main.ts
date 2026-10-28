@@ -268,7 +268,7 @@ gameContext.watch({ world: () => game.state, log: () => game.logTexts() });
 performance.mark('roam:ready');
 void boot.finish();
 if (import.meta.env.DEV) {
-  (window as any).__ROAM__ = Object.assign(game, { language });
+  (window as any).__ROAM__ = Object.assign(game, { language, buildAllCells: () => game.streamer.buildAll() });
   (window as any).__ROAM_PERF__ = { snapshot: perfSnapshot, reset: resetPerf };
 }
 

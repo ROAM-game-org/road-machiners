@@ -226,3 +226,17 @@ Baseline, PH1, production build at 1d611cace with the weld fix, `boot:time --run
 ### Hands-off decisions
 
 - uplan: plan approved by the user, execution switched to hands-off at the user's request
+- uexecute: merged basin-regions at 85453fcc3 before PH6, per RK3
+
+### Deviations from plan
+
+- PH2 2.4 — `PERF.stream` moved to PH6, because its budget needs the travel frame measured with streaming wired in.
+- PH2 IF4 — the streamer prepares each cell group a frame touched once, not each built object. One compile call per prop walked the whole scene each time, and the dev scene step rose from 13.6 s to 24.8 s. `boot()` and `buildAll()` prepare nothing, since the Game constructor's `compileAsync` covers the boot cells.
+- PH3 IF5 — `terrainMesh(w, material, scope, onChunk): void` takes the ground material, so the fog exists before any chunk builds.
+- PH3 — map view setup moved from `game.ts` into `game/src/three/world-views.ts`, because `game.ts` is over the line limit and the gate blocks any growth.
+- PH4 IF6 — `SiteLights` takes the Hollow lamps in its constructor and `add(lights, lamps)` per site. `NightPools.addLamps(lamps)` needs no site, since each lamp names its site. The pool map re-uploads whole, because three.js update ranges assume RGBA and the pool map is one channel.
+- PH5 — graffiti places one build per region, not per cell, and `craters.ts` needs no change. The unused `marks` list is gone.
+
+### Known risks
+
+- Three tests fail on the starting commit 1d611cace as well as on this branch: the two IV1 tests in `lightPools.test.ts` and the bracket test in `fortLamps.test.ts`. They come from the basin-regions map, not from this task.
