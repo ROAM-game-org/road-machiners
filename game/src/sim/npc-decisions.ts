@@ -291,7 +291,7 @@ export function tradeSpend(world: World, vehicle: Vehicle): number {
 
 export const tradeOffers = (world: World, vehicle: Vehicle): Weighted<TradePlan>[] => tradePlans().filter((plan) => planOnBeat(vehicle, plan)).flatMap(tradeOfferer(world, vehicle) ?? (() => []));
 
-const planOnBeat = (vehicle: Vehicle, plan: TradePlan): boolean => onBeat(vehicle, getKnownSite(plan.source).pos) && onBeat(vehicle, getKnownSite(plan.sellShop).pos);
+const planOnBeat = (vehicle: Vehicle, plan: TradePlan): boolean => !hasTrait(vehicle, 'lawman') || (onBeat(vehicle, getKnownSite(plan.source).pos) && onBeat(vehicle, getKnownSite(plan.sellShop).pos));
 
 const tradePlans = (): TradePlan[] => Object.values(SHOPS).flatMap((from) => Object.values(SHOPS).filter((to) => to.id !== from.id).flatMap((to) => from.goods.filter((good) => to.goods.includes(good)).map((good) => ({ source: from.id, good, sellShop: to.id }))));
 
@@ -481,7 +481,9 @@ function pointsAlong(line: readonly Vec[], spacing: number): Vec[] {
 }
 
 export function huntingGroundsAway(world: World, vehicle: Vehicle): Vec[] {
-  return huntingGrounds(world).filter((point) => dist(vehicle.pos, point) > RULES.arriveRadius * 2 && onBeat(vehicle, point));
+  const grounds = huntingGrounds(world).filter((point) => dist(vehicle.pos, point) > RULES.arriveRadius * 2);
+  const gates = beatGates(vehicle);
+  return gates ? grounds.filter((point) => withinGateReach(gates, point)) : grounds;
 }
 
 export function lawmanTowns(): readonly Site[] {
@@ -546,14 +548,14 @@ export function patrolSite(vehicle: Vehicle): Site {
   return npcProfile(vehicle).bases.length > 0 ? homeCamp(vehicle) : nearestHome(vehicle, npcProfile(vehicle).towns);
 }
 
-const withinGateReach = (site: Site, point: Vec): boolean => siteGates(site).some((gate) => dist(gate, point) <= NPC_BEHAVIOR.patrolRadius);
+const withinGateReach = (gates: readonly Vec[], point: Vec): boolean => gates.some((gate) => dist(gate, point) <= NPC_BEHAVIOR.patrolRadius);
 
 export function beatGates(vehicle: Vehicle): readonly Vec[] | null {
   return hasTrait(vehicle, 'lawman') ? siteGates(patrolSite(vehicle)) : null;
 }
 
 export function onBeat(vehicle: Vehicle, point: Vec): boolean {
-  return !hasTrait(vehicle, 'lawman') || withinGateReach(patrolSite(vehicle), point);
+  return !hasTrait(vehicle, 'lawman') || withinGateReach(siteGates(patrolSite(vehicle)), point);
 }
 
 const patrolStops = new Map<string, readonly Vec[]>();
@@ -575,7 +577,8 @@ function roadStops(site: Site, spacing: number): readonly Vec[] {
   const key = `${site.id}:${spacing}`;
   const cached = patrolStops.get(key);
   if (cached) return cached;
-  const points = REGION.roads.flatMap((road) => pointsAlong(road, spacing)).filter((p) => withinGateReach(site, p) && siteUnder(icarusAtlas(), p) === null);
+  const gates = siteGates(site);
+  const points = REGION.roads.flatMap((road) => pointsAlong(road, spacing)).filter((p) => withinGateReach(gates, p) && siteUnder(icarusAtlas(), p) === null);
   patrolStops.set(key, points);
   return points;
 }
