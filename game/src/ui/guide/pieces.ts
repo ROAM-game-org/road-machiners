@@ -43,6 +43,7 @@ export const PIECES: Piece[] = [
   { name: ".drawer-tabs", note: "The tab row of the phone layout: one word button per drawer, .selected on the open one and .marked for attention.", build: () => drawerTabs() },
   { name: ".log-strip", note: "The newest log line on one row above End turn on a phone. It never wraps, and a tap opens the Log drawer.", build: () => logStrip() },
   { name: ".option-switch", note: "A row of equal buttons that picks one value for a setting: the language and the UI size. aria-pressed marks the chosen one, and a value that cannot be used is aria-disabled with its reason.", build: () => optionSwitch() },
+  { name: ".seen", note: "An option with nothing new behind it: a radio option or a talk choice the player has heard out. It fills with the sunk surface and keeps its ink, hover and focus.", build: () => seenOptions() },
   { name: ".num", note: "A number in the mono face.", build: () => text("span", "num", "1 240") },
 ];
 
@@ -60,6 +61,11 @@ function inkPage(): HTMLElement {
       el("div", { class: "ink-choices quest-choices" }, choice("1. Go to the garage"), choice("2. See who is parked", "No drivers in sight"), choice("3. Drive on")),
     ),
   );
+}
+
+function seenOptions(): HTMLElement {
+  const option = (words: string, extra = ""): HTMLElement => el("button", { class: `dialogue-option${extra}` }, words);
+  return el("div", { class: "dialogue-options" }, option("1. About the road…"), option("2. Want to trade?", " seen"), option("3. Hang up."));
 }
 
 function minimapPiece(): HTMLElement {

@@ -6,7 +6,8 @@ import { isKnockedOut } from './defeat';
 import { freeCells, hasLoot, isLoot, isMounted, itemCells, mountedItems } from './grid';
 import { cargoValue } from './market';
 import { createActivity, fightGoal, fightTargetLost, finishGoal, fleeFrom, interrupt, popGoal, react, topGoal } from './npc-activities';
-import { canRob, decide, holdsUp, npcProfile, perceiveDanger, type NpcProfile } from './npc-decisions';
+import { huntsOffRoad } from './hunt-style';
+import { canRob, decide, holdsUp, huntsPrey, npcProfile, passReason, perceiveDanger, type NpcProfile } from './npc-decisions';
 import { answersHoldUp } from './parley';
 import { basicRefusal, hasPerk } from './progress';
 import { reportIncident } from './relations';
@@ -205,14 +206,21 @@ export function lookOverPrey(world: World, vehicle: Vehicle): void {
 function afterSizedUp(world: World, vehicle: Vehicle, target: Vehicle): void {
   if (!knowsCargo(world, vehicle, target)) throw new Error(`${vehicle.id} weighs the load of ${target.id} without a look-over`);
   const raid = huntsForLoot(world, vehicle, target);
-  const option = decide(world, vehicle, 'sizedUp', target.id, perceiveDanger(world, vehicle, target));
+  const danger = perceiveDanger(world, vehicle, target);
+  const option = decide(world, vehicle, 'sizedUp', target.id, danger);
   if (option === 'keep') {
+    recordPass(world, vehicle, target, danger);
     backOffPrey(world, vehicle, target, raid);
     return finishGoal(world, vehicle, 'poorLoad');
   }
   popGoal(world, vehicle, 'robCargo');
   if (raid) interrupt(world, vehicle, fightGoal(world, vehicle, target, 'fightHostile'));
   else startRobbery(world, vehicle, target);
+}
+
+function recordPass(world: World, vehicle: Vehicle, target: Vehicle, danger: number): void {
+  if (!huntsPrey(vehicle) || !huntsOffRoad(vehicle.brain ?? undefined)) return;
+  world.events.push({ t: 'preyPassed', vehicle: vehicle.id, prey: target.id, reason: passReason(world, vehicle, target, danger) });
 }
 
 function backOffPrey(world: World, vehicle: Vehicle, target: Vehicle, raid: boolean): void {

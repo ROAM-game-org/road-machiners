@@ -11,7 +11,7 @@ import { shopAt, shopState } from '../market';
 import { canUseSite, nearestPad, townAt, type Site } from '../sites';
 import type { Vec } from '../vec';
 import { getUpkeepReserve } from '../npc-decisions';
-import { bestPlan, gearBudget, gearPlans, probe, type GearJob, type Offer } from './gear';
+import { bestPlan, gearBudget, gearPlans, npcScorer, probe, type Offer } from './gear';
 import type { ThreatAnswer } from '../parley';
 import type { GameEvent, GridItem, PartInstance, Vehicle, World } from '../types';
 import { isJunk } from '../wear';
@@ -60,7 +60,7 @@ export class Orders {
   }
 }
 
-export type UpgradeStyle = { skip: readonly PartKind[]; chassis: 'value' | 'speed' | 'keep'; job: GearJob; budgetJob?: GearJob; lootRoom?: number; minSpeed?: number };
+export type UpgradeStyle = { skip: readonly PartKind[]; chassis: 'value' | 'speed' | 'keep'; npc: string; keepsTradeCapital?: boolean; gunFirst?: boolean; lootRoom?: number };
 
 export const BIGGEST_PART_CELLS = Math.max(...Object.values(PARTS).map((p) => p.w * p.h));
 
@@ -76,16 +76,19 @@ export function upgradeGear(o: Orders, style: UpgradeStyle): void {
 function bestOption(o: Orders, style: UpgradeStyle): Option | null {
   const shop = shopAt(o.world);
   if (!shop) return null;
-  const budget = gearBudget(o.world, o.me, chooseBudgetJob(style));
+  const budget = gearBudget(o.world, o.me, style.keepsTradeCapital === true);
   const chassis = strongest(chassisOptions(o, style).filter((option) => option.cost <= budget));
   if (style.chassis === 'speed' && chassis) return chassis;
-  const buyer = { job: style.job, skip: style.skip, lootRoom: style.lootRoom, minSpeed: style.minSpeed, resale: (part: PartInstance) => partTradePrice(o.world, o.me, part, 'sell') };
-  const plan = bestPlan(gearPlans(o.world, o.me, candidates(o, shop), buyer), budget);
+  const buyer = { score: npcScorer(o.world, o.me, style.npc), skip: skippedKinds(o, style), lootRoom: style.lootRoom, resale: (part: PartInstance) => partTradePrice(o.world, o.me, part, 'sell') };
+  const plan = bestPlan(gearPlans(o.me, candidates(o, shop), buyer), budget);
   return plan ? { gain: plan.worthGain, cost: plan.cost, take: (orders) => mount(orders, plan.offer, plan.replaces) } : chassis;
 }
 
-function chooseBudgetJob(style: UpgradeStyle): GearJob {
-  return style.budgetJob ?? style.job;
+const PART_KINDS = [...new Set(Object.values(PARTS).map((def) => def.kind))];
+
+function skippedKinds(o: Orders, style: UpgradeStyle): readonly PartKind[] {
+  const gunless = !mountedItems(o.me, 'weapon').some((item) => !isLineGun(partDef(item.part.defId)));
+  return style.gunFirst === true && gunless ? PART_KINDS.filter((kind) => kind !== 'weapon') : style.skip;
 }
 
 export function rearm(o: Orders): void {

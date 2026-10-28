@@ -316,9 +316,9 @@
 
 #ui .panel.modal.ink-page {
   z-index: var(--z-log-open);
-  top: 40px;
+  top: var(--modal-top);
   width: min(var(--quest-page-width), calc(var(--layer-w) - var(--space-10) * 2));
-  height: min(var(--quest-page-height), calc(var(--layer-h) - var(--quest-page-clearance)));
+  height: var(--page-height);
   max-height: none;
   display: flex;
   flex-direction: column;
@@ -405,9 +405,13 @@
   scrollbar-width: thin;
 }
 #ui.phone .panel.modal.ink-page {
-  top: var(--safe-top);
+  top: var(--modal-top);
   width: auto;
   height: auto;
+  overflow: auto;
+}
+#ui.phone .ink-page .ink-body {
+  flex: none;
 }
 :where(#ui.phone, #ui.narrow) .ink-page .ink-band > .art-band {
   height: var(--art-band-phone-height);
@@ -436,4 +440,13 @@
 }
 .ink-page .ink-head .talk-head {
   margin-bottom: var(--space-5);
+}
+
+:is(#ui, #report) .dialogue-option.seen,
+:is(#ui, #report) .quest-choice.seen {
+  background: var(--surface-sunk);
+}
+:is(#ui, #report) .dialogue-option.seen:hover,
+:is(#ui, #report) .quest-choice.seen:hover {
+  background: var(--surface-hover);
 }
