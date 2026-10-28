@@ -149,11 +149,15 @@ describe('the roll', () => {
 });
 
 describe('the tale', () => {
-  it('tells the freshest trade tip and ends the call', () => {
+  it('tells a story first, then the freshest trade tip, and ends the call', () => {
     const { w, npc } = talesWorld();
     onStrangerSeen(w, npc);
     raiseCalls(w);
     let next = pick(w, 'Go on.');
+    expect(next.player.call?.node).toBe('story');
+    expect(next.player.talked[npc.id]?.tale).toBeUndefined();
+    expect(next.player.call?.vars.story).toEqual({ kind: 'line', line: expect.stringMatching(/^storyHauler/) });
+    next = pick(next, 'And?');
     expect(next.player.call?.node).toBe('tip');
     next = pick(next, 'Thanks. Over and out.');
     expect(next.player.call).toBeNull();
@@ -161,7 +165,7 @@ describe('the tale', () => {
     expect(next.player.talked[npc.id]?.tale).toBe('done');
   });
 
-  it('discovers a site the driver knows', () => {
+  it('discovers a site the driver knows only after the story', () => {
     const { w, npc } = talesWorld();
     const site = REGION.locations[0];
     w.player.discovered = w.player.discovered.filter((id) => id !== site.id);
@@ -170,9 +174,50 @@ describe('the tale', () => {
     refreshVision(w);
     onStrangerSeen(w, npc);
     raiseCalls(w);
-    const next = pick(w, 'Go on.');
+    const told = pick(w, 'Go on.');
+    expect(told.player.call?.node).toBe('story');
+    expect(told.player.discovered).not.toContain(site.id);
+    const next = pick(told, 'And?');
     expect(next.player.call?.node).toBe('site');
     expect(next.player.discovered).toContain(site.id);
+  });
+
+  it('leaves the site unmarked and the tale refused when the player hangs up on the story', () => {
+    const { w, npc } = talesWorld();
+    const site = REGION.locations[0];
+    w.player.discovered = w.player.discovered.filter((id) => id !== site.id);
+    npc.pos = { x: site.pos.x - 8, y: site.pos.y };
+    playerVehicle(w).pos = { x: site.pos.x - 14, y: site.pos.y };
+    refreshVision(w);
+    onStrangerSeen(w, npc);
+    raiseCalls(w);
+    const hung = hangUp(pick(w, 'Go on.'));
+    expect(hung.player.call).toBeNull();
+    expect(hung.player.discovered).not.toContain(site.id);
+    expect(hung.player.talked[npc.id]?.tale).toBe('refused');
+  });
+
+  it('changes no money or cargo', () => {
+    const { w, npc } = talesWorld();
+    onStrangerSeen(w, npc);
+    raiseCalls(w);
+    const before = playerVehicle(w).items.length;
+    const next = pick(pick(pick(w, 'Go on.'), 'And?'), 'Thanks. Over and out.');
+    expect(next.player.money).toBe(w.player.money);
+    expect(playerVehicle(next).items).toHaveLength(before);
+  });
+
+  it('tells a different story to the next driver of the same trade', () => {
+    const first = talesWorld();
+    onStrangerSeen(first.w, first.npc);
+    raiseCalls(first.w);
+    const storyOf = (w: World): unknown => pick(w, 'Go on.').player.call?.vars.story;
+    const one = storyOf(first.w);
+    const second = talesWorld();
+    second.w.player.talked.someoneElse = { tale: 'done' };
+    onStrangerSeen(second.w, second.npc);
+    raiseCalls(second.w);
+    expect(storyOf(second.w)).not.toEqual(one);
   });
 
   it('ends with the driver done when the player says not now', () => {

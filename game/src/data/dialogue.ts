@@ -1,4 +1,5 @@
 
+import { STORY_LINE_IDS } from './road-stories';
 import { LESSON_LINE_IDS } from './lessons';
 import { MARSHAL_LINES, MARSHAL_TOPICS, TREE_LINES, type MarshalConditionId, type MarshalEffectId, type MarshalPrepareId, type MarshalTopicId } from './personalities';
 import { COURIER_TOPICS, type CourierTopicId } from './encounters';
@@ -10,7 +11,7 @@ export type TopicId = 'directions' | 'tow' | 'towFree' | 'askTow' | 'patch' | 'p
 export type ConditionId =
   | 'knowsTown' | 'offersPaidTow' | 'offersFreeTow' | 'canTowPlayer' | 'playerNeedsPatch' | 'npcNeedsPatch' | 'npcWorn' | 'npcOffRope' | 'playerPatches' | 'lookWarned' | 'hasDeal' | 'noDeal' | 'demandsCargo' | 'demandsCut' | 'namesPrice' | 'noPrice' | 'canPayPrice' | 'noCargoRob' | 'noCutRob' | 'demandsSurrender' | 'demandsGiveUp' | 'guardsClaim'
   | 'atOdds' | 'atPeace' | 'noPlayerPlea' | 'demandsToll' | 'npcHasCargo' | 'offersTruce' | 'begsMercy'
-  | 'accepts' | 'refuses' | 'complies' | 'resists' | 'runs' | 'claimsPlayerLoot' | 'holdsOn' | 'canTowNpc' | 'towedByPlayer' | 'noTrade' | 'npcCalm'
+  | 'accepts' | 'refuses' | 'complies' | 'resists' | 'runs' | 'claimsPlayerLoot' | 'holdsOn' | 'canTowNpc' | 'towedByPlayer' | 'noTrade' | 'npcCalm' | 'playerCalm'
   | 'knowsLastTown' | 'hearsRumor' | 'rumorOfSite' | 'rumorOfWreck' | 'canPayTruce'
   | 'npcLow' | 'playerLow' | 'noAid' | 'aidHolds' | 'aidGiven' | 'aidRefused' | 'offersAid' | 'npcBeaten' | 'notOfferedYield' | 'claimsSpill' | 'heardWagonNearby' | 'nearClaimWreck' | 'rivalAsked' | 'noRivalAsked'
   | 'escortFollowed' | 'escortHeld' | 'warnsPlayerOff' | 'yieldsLoot' | 'fightsForLoot' | 'hasHaul' | 'noHaul' | 'canPayTalk'
@@ -72,7 +73,7 @@ export const LINE_IDS = [
   'lookingForSomebody', 'sightingTold', 'gotParcelForYou', 'parcelPullOver',
   'courierShortOfFuel', 'atTheTownPrice', 'youKeptMeRolling', 'courierSquareTip', 'youLeftMeDry', 'youShotMeUp', 'letsCallItEven', 'toldYouIOweYou',
   'rideGuardForMe', 'dependsWhoAsks', 'whatsYourRate', 'guardDayRate', 'onYourTailNow', 'notRidingForYou', 'thatsAllRideOff', 'moneyStaysWithMe',
-  'anyTipsForTheRoad', 'lessonTold', ...LESSON_LINE_IDS,
+  'anyTipsForTheRoad', 'lessonTold', ...LESSON_LINE_IDS, 'taleStory', 'andThen', 'taleSiteEnd', 'taleTipEnd', ...STORY_LINE_IDS,
   'demandCargoOrPay', 'demandCutLine', 'noFreeRidePay', 'noFreeRideCut', 'leaveItOrPay', 'payAndGo', 'hereIsYourMoney', 'yourMoneyOr', 'youHeardMeMoney', 'allRightPaid', 'pocketsEmpty',
   'needAHandHere', 'whosOnYou', 'thatOneOnMyTail', 'onMyWay', 'notMyFight', 'tooHotForMe',
   'silent', ...SUNWARD_LINES, ...MARSHAL_LINES, ...TREE_LINES, ...MOMENT_LINES,
@@ -232,7 +233,7 @@ export const TOPICS: Record<TopicId, Topic> = withTolls({ ...SUNWARD_TOPICS, ...
   askTow: {
     id: 'askTow',
     once: false,
-    ask: { say: 'iAmStrandedCan', when: ['canTowPlayer', 'npcCalm'], duringFeud: false },
+    ask: { say: 'iAmStrandedCan', when: ['canTowPlayer', 'npcCalm', 'playerCalm'], duringFeud: false },
     raise: null,
     prepare: null,
     hangUp: [],
@@ -247,7 +248,7 @@ export const TOPICS: Record<TopicId, Topic> = withTolls({ ...SUNWARD_TOPICS, ...
   patch: {
     id: 'patch',
     once: false,
-    ask: { say: 'myTruckIsBroken', when: ['playerNeedsPatch', 'npcCalm', 'atPeace'], duringFeud: false },
+    ask: { say: 'myTruckIsBroken', when: ['playerNeedsPatch', 'npcCalm', 'playerCalm', 'atPeace'], duringFeud: false },
     raise: null,
     prepare: 'patchTerms',
     hangUp: [],
@@ -1007,13 +1008,19 @@ export const TOPICS: Record<TopicId, Topic> = withTolls({ ...SUNWARD_TOPICS, ...
       offer: {
         line: 'gotAStoryFrom',
         options: [
-          { say: 'goOnThen', when: ['newsOfSite'], effects: ['tellTale'], go: 'site' },
-          { say: 'goOnThen', when: ['newsOfTip'], effects: ['tellTale'], go: 'tip' },
+          { say: 'goOnThen', when: [], effects: [], go: 'story' },
           { say: 'notNow', when: [], effects: ['declineEncounter'], go: END },
         ],
       },
-      site: { line: 'siteWay', options: [{ say: 'thanksOverAndOut', when: [], effects: ['endEncounter'], go: END }] },
-      tip: { line: 'tipTold', options: [{ say: 'thanksOverAndOut', when: [], effects: ['endEncounter'], go: END }] },
+      story: {
+        line: 'taleStory',
+        options: [
+          { say: 'andThen', when: ['newsOfSite'], effects: ['tellTale'], go: 'site' },
+          { say: 'andThen', when: ['newsOfTip'], effects: ['tellTale'], go: 'tip' },
+        ],
+      },
+      site: { line: 'taleSiteEnd', options: [{ say: 'thanksOverAndOut', when: [], effects: ['endEncounter'], go: END }] },
+      tip: { line: 'taleTipEnd', options: [{ say: 'thanksOverAndOut', when: [], effects: ['endEncounter'], go: END }] },
     },
   },
   salvageTip: {

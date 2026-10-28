@@ -51,7 +51,7 @@ function startOn(world: World, from: Vec): { graph: RoadGraph; node: number } {
   return { graph, node: nodes[0] };
 }
 
-function lookDown(graph: RoadGraph, node: number, exit: RoadExit): Octant {
+function lookDown(graph: RoadGraph, node: number, exit: RoadExit, reach: number = DIRECTIONS.headingReach): Octant {
   const lines: Vec[][] = [];
   let edge = exit.edge;
   let at = node;
@@ -62,10 +62,10 @@ function lookDown(graph: RoadGraph, node: number, exit: RoadExit): Octant {
     length += e.length;
     at = otherEnd(e, at);
     const on = onwardOf(graph, at, edge);
-    if (length >= DIRECTIONS.headingReach || on === null) break;
+    if (length >= reach || on === null) break;
     edge = on;
   }
-  return headingAlong(lines, DIRECTIONS.headingReach);
+  return headingAlong(lines, reach);
 }
 
 function onwardOf(graph: RoadGraph, node: number, into: number): number | null {
@@ -77,7 +77,7 @@ function onwardOf(graph: RoadGraph, node: number, into: number): number | null {
 }
 
 function firstExits(graph: RoadGraph, node: number, first: Follow): RoadExit[] {
-  return exitsAt(graph, node).filter((e) => sameName(roadName(graph, e.edge, node), first.road) && lookDown(graph, node, e) === first.heading);
+  return exitsAt(graph, node).filter((e) => sameName(roadName(graph, e.edge, node), first.road) && [DIRECTIONS.headingReach, DIRECTIONS.headingReach / 2].some((reach) => lookDown(graph, node, e, reach) === first.heading));
 }
 
 export function ambiguousStarts(world: World, answers: readonly { from: Vec; steps: readonly DirectionStep[] }[]): string[] {
@@ -110,8 +110,10 @@ export function followSteps(world: World, from: Vec, steps: readonly DirectionSt
     if (into === null) {
       if (first) {
         const [named] = firstExits(graph, node, first);
-        if (!named) throw new Error(`No exit at ${from.x},${from.y} fits ${JSON.stringify(first)}`);
-        pick = named;
+        const onRoad = exitsAt(graph, node).filter((e) => sameName(roadName(graph, e.edge, node), first.road));
+        const exit = named ?? (onRoad.length === 1 ? onRoad[0] : undefined);
+        if (!exit) throw new Error(`No exit at ${from.x},${from.y} fits ${JSON.stringify(first)}`);
+        pick = exit;
       }
     } else if (exits.length > 1) {
       forks++;

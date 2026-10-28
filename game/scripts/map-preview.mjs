@@ -152,7 +152,7 @@ function groundColor(d, x, y) {
   return shade(COLORS[d.types[j * d.size + i]], light);
 }
 
-function paintDisc(pic, area, pxPerTile, center, radius, color, inner) {
+export function paintDisc(pic, area, pxPerTile, center, radius, color, inner) {
   const x0 = Math.max(0, Math.floor((center.x - radius - area.x) * pxPerTile));
   const x1 = Math.min(pic.width - 1, Math.ceil((center.x + radius - area.x) * pxPerTile));
   const y0 = Math.max(0, Math.floor((center.y - radius - area.y) * pxPerTile));
@@ -195,7 +195,7 @@ function shade(color, k) {
   return (ch(16) << 16) | (ch(8) << 8) | ch(0);
 }
 
-function put(pic, px, py, color) {
+export function put(pic, px, py, color) {
   const at = (py * pic.width + px) * 4;
   pic.rgba[at] = (color >> 16) & 0xff;
   pic.rgba[at + 1] = (color >> 8) & 0xff;

@@ -36,7 +36,7 @@ VAR tip = 20
     Changed your mind about the copy? # speaker: Agnes
     -> hub
   }
-  <term=dustwell>Dustwell</term> is a small square of rusted corrugated walls round a pumpjack that nods over the well. It smells of hot iron and wet stone. Pipes run from the well to the tall tanks, where trucks loaded with empty barrels wait in a line.
+  <term=dustwell>Dustwell</term> is a walled pump outpost. Rusted corrugated walls close it in, with a pale concrete block at each corner. Inside, a pumpjack nods over the well and crews work the pipes. It smells of hot iron and wet stone. Pipes run from the well to the tall tanks, where trucks loaded with empty barrels wait in a line.
   Every hose at the tanks has a glass window in it, except one. A big grey truck with a lantern painted on its door is filling its barrels from that one, at the back of the tanks. It did not wait in the line, and it sits low on its springs already.
   A woman in a canvas apron walks along the tank wall with a rag, wiping the dust off the dark rings the water left on it.
   A man in a grey coat sits on a drum by the gate with a mug of tea. He watches the woman, not you.
@@ -87,7 +87,7 @@ VAR tip = 20
     The pump's broken down, and the jack hangs still over the well. # speaker: Agnes
   }
   { short_of("tools"):
-    The crews are out of tools. One more stripped bolt and my well runs at half. # speaker: Agnes
+    The crews are out of tools. One more stripped bolt and the pump runs at half. # speaker: Agnes
   }
   -> about_water
 + [Back.]
@@ -113,7 +113,7 @@ VAR tip = 20
   -> about_job
 + {pipe_fate == "none" and knows_copy and not knows_pay} [Ask what the job pays.]
   ~ knows_pay = true
-  Mirela pays {fee} M from the lock house box when the copy arrives. I have nothing to add. # speaker: Agnes
+  Mirela pays {fee} M from the lock house box when the copy arrives. I haven't any money of my own to add. # speaker: Agnes
   The danger is the Bowl gate. The patrol there works for the Senate, and the household's steward gives them orders. # speaker: Agnes
   -> about_job
 + {pipe_fate == "none" and knows_copy} [Say you'll carry the copy.]

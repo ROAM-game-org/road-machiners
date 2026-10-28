@@ -7,7 +7,7 @@ import { callError, DialoguePanel, type DialogueHost } from "./dialogue";
 import { markError } from "../sim/detect";
 import { hasExplorationMap, modeRules } from "../sim/settings";
 import { playerCanAct } from "../sim/world";
-import type { CrimeCase, Vehicle, World } from "../sim/types";
+import type { CrimeCase, GameEvent, Vehicle, World } from "../sim/types";
 import { caseOwed, knownCasesOn } from "../sim/crime";
 import { workOf, type Work } from "../sim/states";
 import { isAutoPatch } from "../sim/jobs";
@@ -41,11 +41,11 @@ import { gameContext } from "../three/error-report";
 import { feedbackCorner, FeedbackForm } from "./feedback-form";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
 import { createCompassDial, createIcon, createSpeedDial, repairingPart } from "./cards";
-import { aimMarks, TURN_PLAYING, type AimState } from "./weapons";
+import { aimMarks, orderLock, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
 import { createSwitch } from "./switch";
 import { Tips, type TipSwitch } from "./tips";
-import { moneyEl } from "./units";
+import { kph, moneyEl } from "./units";
 import { playerVehicle } from "../sim/damage";
 import { playerGuard } from "../sim/hire";
 import { affordableRanks, basicSkill, hasBasic, hasPerk, pendingPerkPairs } from "../sim/progress";
@@ -410,8 +410,8 @@ export class Hud {
     );
   }
 
-  renderRescue(w: World): void {
-    this.dialogue.render(w);
+  renderRescue(w: World, callShown = true): void {
+    this.dialogue.render(w, callShown);
     const r = getRescueReadout(w);
     const down = rescueOf(r, "knockedOut");
     this.knockedOut.style.display = down ? "" : "none";
@@ -484,12 +484,13 @@ export class Hud {
 
   private engineButtons(w: World, busy: boolean): HTMLElement[] {
     const od = overdriveSwitch(w);
-    const lock = busy ? TURN_PLAYING : null;
+    const lock = orderLock(w, busy);
     const headlights = createSwitch({
       on: t("hud.lightsOn"),
       off: t("hud.lightsOff"),
       checked: this.actions.headlightsOn(),
       key: "L",
+      reason: lock,
       title: t("hud.lightsTitle"),
       onclick: () => this.actions.toggleHeadlights(),
     });
@@ -555,8 +556,8 @@ export class Hud {
     );
   }
 
-  private hornButton(w: World): HTMLElement {
-    const reason = playerCanAct(w) ? null : refusalText(w, { id: "cannotAct" });
+  private hornButton(w: World, busy: boolean): HTMLElement {
+    const reason = orderLock(w, busy) ?? (playerCanAct(w) ? null : refusalText(w, { id: "cannotAct" }));
     return el("button", { class: "instrument-button touch-only", ...disabledWith(reason, () => this.dialogue.honk()) }, t("hud.horn"));
   }
 
@@ -578,7 +579,9 @@ export class Hud {
     this.tips.update(w, this.actions.autoTravel());
     if (!this.top.firstChild) this.top.append(this.clockSlot, this.speedSlot, this.readoutSlot, this.actionSlot);
     this.renderClock(readout.clock);
-    this.renderSpeedometer(readout, busy);
+    const held = playerVehicle(w).order;
+    const pace = held && held.kind !== "brake" ? held.pace : undefined;
+    this.renderSpeedometer(readout, busy, pace === undefined || readout.manual ? null : kph(pace));
     this.fillReadouts(readout);
     this.renderActions(w, readout.manual, busy);
   }
@@ -591,7 +594,7 @@ export class Hud {
     );
   }
 
-  private renderSpeedometer(readout: ReturnType<typeof getHudReadout>, busy: boolean): void {
+  private renderSpeedometer(readout: ReturnType<typeof getHudReadout>, busy: boolean, pace: number | null): void {
     const dial = el(
       "button",
       {
@@ -601,7 +604,7 @@ export class Hud {
         disabled: busy,
         onclick: () => this.actions.openInventory(),
       },
-      createSpeedDial(readout.speed, readout.maxSpeed),
+      createSpeedDial(readout.speed, readout.maxSpeed, pace),
       el("span", { class: "speed-value" }, num(readout.speed, "int")),
       createIcon("truck"),
     );
@@ -659,7 +662,7 @@ export class Hud {
         off: t("hud.route"),
         checked: manual,
         key: "R",
-        reason: busy ? TURN_PLAYING : null,
+        reason: orderLock(w, busy),
         title: t("hud.manualTitle"),
         onclick: () => this.actions.toggleManual(),
       }),
@@ -668,7 +671,7 @@ export class Hud {
         off: t("hud.noPatch"),
         checked: w.player.autoRepair,
         key: "P",
-        reason: busy ? TURN_PLAYING : null,
+        reason: orderLock(w, busy),
         title: t("hud.autoPatchTitle"),
         onclick: () => this.actions.toggleAutoRepair(),
       }),
@@ -676,7 +679,7 @@ export class Hud {
       this.characterButton(w, busy),
       ...mapInstrument(w, busy, () => this.actions.openMap()),
       this.journalButton(busy),
-      ...(modeRules(w).radio ? [this.hornButton(w)] : []),
+      ...(modeRules(w).radio ? [this.hornButton(w, busy)] : []),
     );
   }
 
@@ -692,17 +695,21 @@ export class Hud {
     this.dialogue.flushHorn();
   }
 
-  pushEvents(w: World): void {
+  pushEvents(w: World, events: readonly GameEvent[] = w.events): void {
+    this.logHeld(w, events);
+    if (w.events.some((e) => e.t === 'sunwardFallen')) this.toast(t('log.sunwardFallen'));
+    this.radio.hear(w);
+  }
+
+  logHeld(w: World, events: readonly GameEvent[]): void {
     const lines: LogLine[] = [];
-    for (const e of w.events) {
+    for (const e of events) {
       const line = eventText(w, e);
       if (!line) continue;
       lines.push(line);
       if (isNotable(e)) this.toast(line.text);
     }
     this.log.add(w.turn, lines);
-    if (w.events.some((e) => e.t === 'sunwardFallen')) this.toast(t('log.sunwardFallen'));
-    this.radio.hear(w);
   }
 
   logTexts(): string[] {

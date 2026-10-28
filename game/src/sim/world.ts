@@ -20,7 +20,7 @@ import { isOutpostSite } from './highway';
 import { generateObstacles, touchesObstacle } from './mapgen';
 import { atlasOf, icarusAtlas } from './atlas';
 import type { BakedMap } from './terrain';
-import { planNpcOrders } from './ai';
+import { planNpcOrders, settleMeetings } from './ai';
 import { assignUtilityOrders } from './npc-utility';
 import { applyGodMode, freezeDriving, freezeFire } from './cheats';
 import { assignAutoOrders, dropMagazine, fireWeapons, huntGaps, isHostile, noteEngagements, resolveDestroyed, settleAims } from './combat';
@@ -342,9 +342,16 @@ export function setMoveOrder(world: World, order: MoveOrder | null): World {
               x: clamp(order.dest.x, 0, w.size),
               y: clamp(order.dest.y, 0, w.size),
             },
+            ...heldPace(order.pace),
           }
         : order;
   });
+}
+
+function heldPace(pace: number | undefined): { pace?: number } {
+  if (pace === undefined) return {};
+  if (!Number.isFinite(pace) || pace <= RULES.parkedSpeed) throw new Error(`A move order pace must be above ${RULES.parkedSpeed}, got ${pace}`);
+  return { pace };
 }
 
 export function endTurn(
@@ -430,6 +437,7 @@ export function endTurn(
     noteHurt(w);
     settleShutdowns(w);
     settleClaymores(w);
+    settleMeetings(w);
     watchStalls(w);
     watchHaulerStall(w);
     endCallIfOut(w);
@@ -490,7 +498,9 @@ export function cutPlayerLine(world: World, harpoonId: string): World {
 
 export function setDirect(world: World, on: boolean): World {
   return playerCommand(world, (w) => {
-    playerVehicle(w).direct = on;
+    const me = playerVehicle(w);
+    me.direct = on;
+    if (on && me.order && me.order.kind !== 'brake') delete me.order.pace;
   });
 }
 

@@ -52,7 +52,7 @@ Sample: "A truck that breaks down out there waits a long time for a friendly fac
 
 Jory talks of soil, dirt under the nails, jars and rules read slowly. He compares the Senate to a farmer who forgot to plant.
 
-His sentences are long and built like an argument. Each answer ends in a short joke.
+His sentences are long and built like an argument. He often ends an answer on a short joke that follows from what he just said.
 
 He turns the Senate's own rules back on it. He jokes where other people would shout.
 
@@ -328,6 +328,18 @@ Strangers: he offers a story to anyone who slows down.
 
 Sample: "Rolled past the old pump house last week. The roof was gone, but somebody had swept the floor."
 
+A hauler tells it by the trip it happened on, in even whole sentences, about the load and the night by the road. He names no town.
+
+Hauler sample: "Check your load straps whenever you stop. On my last run, one had worked loose before I was halfway home."
+
+A salvager grumbles first and tells it short, about the bones of a wreck and what was left on them. He names no place.
+
+Salvager sample: "Check the dirt round a wreck before you get out. Fresh tracks mean somebody's still stripping it."
+
+A courier tells it fast and clipped, with the next stop in his head, about the run and the load. He names himself first.
+
+Courier sample: "Courier here. I've got a run to finish and I won't make it on what's left."
+
 ### The tip seller
 
 Vocabulary: picked clean, carcass, a fair price, the side of the road.
@@ -480,9 +492,9 @@ Sample: "Wim writes the claim. I only say who crossed and when."
 
 ## Green Pit and the Pump Station
 
-### Hadiza Okon, the hook house canteen at Green Pit
+### Hadiza Okon, Green Pit hook house canteen
 
-Hadiza talks of cups, plates, hooks, the water crews and who ate at her table. She compares people to guests and to what they leave behind.
+Hadiza talks of cups, plates, hooks, the pump crews and who ate at her table. She compares people to guests and to what they leave behind.
 
 Her sentences are warm and even. She says what a thing costs, then what she gives for free.
 

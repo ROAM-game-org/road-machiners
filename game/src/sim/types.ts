@@ -89,7 +89,7 @@ export type Pose = { x: number; y: number; heading: number; bend?: number };
 
 export type MoveOrder =
   | { kind: "through"; dest: Vec; pace?: number }
-  | { kind: "stopAt"; dest: Vec }
+  | { kind: "stopAt"; dest: Vec; pace?: number }
   | { kind: "brake" };
 
 export type SalvageStock = {
@@ -374,6 +374,7 @@ export type Vehicle = {
   stormExposure: Record<string, number>;
   strandedTurns?: number;
   strandedAt?: Vec;
+  yieldsTo?: string[];
   stalledUntil?: number;
   order: MoveOrder | null;
   direct: boolean;

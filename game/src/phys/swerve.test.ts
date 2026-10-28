@@ -5,7 +5,7 @@ import { makeVehicle } from '../sim/factory';
 import { vehicleStats } from '../sim/stats';
 import { emptyWorld } from '../sim/testkit';
 import type { World } from '../sim/types';
-import { endTurn, setMoveOrder } from '../sim/world';
+import { cloneWorld, endTurn, setMoveOrder } from '../sim/world';
 import { buildDrive, freeDrive, initPhysics, type Drive, type TurnResult } from './drive';
 import { physicsMove } from './turn';
 
@@ -19,7 +19,7 @@ beforeAll(async () => {
 });
 
 it.each(Object.keys(CHASSIS))('%s at top speed swerving hard stays upright and on the ground', (chassisId) => {
-  const world = structuredClone(fixture);
+  const world = cloneWorld(fixture);
   const vehicle = makeVehicle(world, { faction: 'player', chassisId, parts: [{ defId: 'stockEngine', wear: 0 }], spares: [], cargo: {}, pos: { x: 30, y: 30 }, heading: 0, brain: null });
   world.vehicles = [vehicle];
   world.player.vehicleId = vehicle.id;
