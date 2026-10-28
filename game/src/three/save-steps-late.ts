@@ -629,3 +629,10 @@ export function withMoments_115_116(world: SavedJson): SavedJson {
   const moments = world.chaosHighway === null ? Object.fromEntries(MOMENT_IDS_115.map((id) => [id, { driver: null, heard: false }])) : null;
   return { ...world, moments };
 }
+
+export function withoutRoadScene_117_118(world: SavedJson): SavedJson {
+  const dropped = dropQuest(world, 'intro_road');
+  const player = dropped.player as { quests: { live: { quest: string } | null } };
+  if (player.quests.live?.quest !== 'intro_road') return dropped;
+  return { ...dropped, player: { ...player, quests: { ...player.quests, live: null } } };
+}

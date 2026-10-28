@@ -1100,7 +1100,6 @@ describe("a world that waits on the player", () => {
   const drive = {} as DriveSnapshot;
   const at = (t: number) => vi.spyOn(performance, "now").mockReturnValue(t);
   const scenes = [
-    GAME_OPENED_QUESTS.introRoad,
     GAME_OPENED_QUESTS.introWake,
     GAME_OPENED_QUESTS.firstFall,
     GAME_OPENED_QUESTS.wagonSeven,
@@ -1160,7 +1159,7 @@ describe("a world that waits on the player", () => {
   });
 
   it("takes the next turn again in auto travel once the scene is left", () => {
-    const world = leaveQuest(underScene(GAME_OPENED_QUESTS.introRoad));
+    const world = leaveQuest(underScene(GAME_OPENED_QUESTS.roadStretch1));
     const { travel } = travelWithTurns();
     travel.press(0, false, true);
     travel.release();
@@ -1174,7 +1173,7 @@ describe("a world that waits on the player", () => {
   });
 
   it("begins the same turn once the scene is left", () => {
-    const world = leaveQuest(underScene(GAME_OPENED_QUESTS.introRoad));
+    const world = leaveQuest(underScene(GAME_OPENED_QUESTS.roadStretch1));
     const { travel } = travelWithTurns();
     expect(() => travel.beginPlayback(world, preparedFrom(world), 0, {})).not.toThrow();
   });

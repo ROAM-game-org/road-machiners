@@ -898,6 +898,26 @@ describe('TINY_STEPS[101]', () => {
   });
 });
 
+describe('TINY_STEPS[117]', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, Record<string, unknown>>; session: { quest: string; checkpoint: string; seed: number } | null; live: { quest: string } | null };
+  type Saved = { player: { quests: Quests } };
+  const saved = (quests: Partial<Quests>): Saved => {
+    const world = structuredClone(FORMAT_2_101) as unknown as Saved;
+    world.player.quests = { world: {}, local: {}, session: null, live: null, ...quests };
+    return world;
+  };
+  const stepped = (world: Saved) => TINY_STEPS[117](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+
+  it('closes the scene whether it is open or only on view, and keeps another scene on view', () => {
+    const open = saved({ session: { quest: 'intro_road', checkpoint: 'start', seed: 3 }, live: { quest: 'intro_road' } });
+    expect(stepped(open).player.quests).toMatchObject({ session: null, live: null });
+    const onView = saved({ live: { quest: 'intro_road' } });
+    expect(stepped(onView).player.quests.live).toBeNull();
+    const other = saved({ live: { quest: 'intro_bowl' } });
+    expect(stepped(other).player.quests.live).toEqual({ quest: 'intro_bowl' });
+  });
+});
+
 describe('step names', () => {
   it('are unique camelCase words without digits across tiny steps and release steps', () => {
     const names = [...STEPS.map((named) => named.name), ...RELEASE_STEPS.flatMap((release) => release.names ?? [])];

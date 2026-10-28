@@ -1,5 +1,5 @@
 {
- "format": "2.117",
+ "format": "2.118",
  "shape": {
   "broken": [],
   "chaosHighway": "null",
@@ -2333,7 +2333,6 @@
     "asked_where": "boolean",
     "asked_yard": "boolean"
    },
-   "intro_road": {},
    "nose_counter": {
     "asked_shelf": "boolean",
     "read_stamp": "boolean"
@@ -2532,9 +2531,6 @@
     "start.ask",
     "meet",
     "again"
-   ],
-   "intro_road": [
-    "start"
    ],
    "nose_counter": [
     "start",
@@ -2745,16 +2741,6 @@
     "reads": [
      "towed_to_bowl"
     ],
-    "readsNotes": [],
-    "writes": {},
-    "notes": [],
-    "begins": []
-   }
-  },
-  "intro_road": {
-   "revision": 1,
-   "links": {
-    "reads": [],
     "readsNotes": [],
     "writes": {},
     "notes": [],
