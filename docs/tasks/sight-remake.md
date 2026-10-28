@@ -1,6 +1,6 @@
 # Sight remake
 
-**Status:** validating
+**Status:** done
 **Branch:** vast-map
 **Worktree:** .worktrees/vast-map
 **Goal:**
