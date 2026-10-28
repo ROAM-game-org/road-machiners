@@ -169,15 +169,15 @@ Approach: build the km-scale relief first and look at it, then add zone content 
 - CK4 — Renders read at full size: the overview shows the NE range, NW swamp, farm belt, SE desert, Glass Flats and the glass trail. Close-ups of farm, range, swamp, desert, glass and orchard show each zone's ground and relief.
 - CK5 — Roads: only 0.4% of plain road samples exceed the grade after the road bed blur (IV2).
 - CK6 — Old spots, survey sites, claim clues and the Sunward Hollow were picked again for the new map. Talk and quest lines that place Glass Flats or the trail still match it (UK3). Survey pictures were drawn again, and the contact sheet shows each place in frame.
-- CK7 — Every map-reading test file was run. The failures that remain also fail on base 23a61d36d: survey-reach, claims, economy, haul-delivery, modes, old-places refill, opening, personality seeding, story-wrecks, survey way, economy-reads, sim-economy, and path-raiders "routes equal the reference".
-- CK8 — One new failure remains: path-raiders "A* cells ... within 1% of the reference". A long route through the coarse corridor costs 8% over the best path, against a 5% allowance. The rougher relief exposes the same corridor limit that base already fails in "routes equal the reference". Widening the corridor trades route speed for path quality, so it is left for the user.
+- CK7 — Every map-reading test file was run. The failures that remain also fail at the branch point 23a61d36d: survey-reach, claims, economy, haul-delivery, modes, old-places refill, opening, story-wrecks, survey way, economy-reads, sim-economy, and path-raiders "routes equal the reference". vast-map has newer routing commits, so this list can shift after a merge.
+- CK8 — One new failure remains: path-raiders "A* cells ... within 1% of the reference". The pair runs from 520,199 to 509,229 at radius 0.6, a span of 70 cells, over the 32-cell limit for a fine search. The corridor search costs 223.0 against the best 206.1, 8% over the 5% allowance, and no corridor retry fires. Both paths cross only scree, hardpan, scrub and sand. The corridor path takes more of the cheap hardpan, so no ground type is underpriced. The coarse corridor misses the narrow gap the best path uses on this steep ground. Widening the corridor trades route speed for path quality, so it is left for the user.
 
 ## Conclusion
 
 The 7.5 km Icarus map now has regions that differ on the scale of kilometres. A range rings Nose, a black-mud swamp sits at Dustwell's spring, dunes fill the SE desert, and a farm belt of canals and abandoned farms runs along the dry river past Bowl. Old Orchard, Glass Flats and the Fallen Sun keep only their authored cores and grow from the land. Glass Flats sits off road in the SE corner, and the descent path carries debris and glass from it to the Fallen Sun.
 
 - AS1 held with one nudge: the Sunward Hollow spot and gate bearing moved to the 7.5 km map.
-- AS2: the lore page carries the swamp line.
+- AS2 is unconfirmed: the lore page carries the swamp line, plus lines on the range, farm belt and desert, all awaiting the user's OK.
 - AS3 held: the mountains pass the cliff share check without a fault step.
 - UK1: the full bake takes about 250 s.
 - UK2: zone shapes were tuned on renders, hands-off.
@@ -189,6 +189,8 @@ The 7.5 km Icarus map now has regions that differ on the scale of kilometres. A 
 - The built tile codes moved into `src/sim/terrain.ts` beside the ground type codes. The bake import cycle had left them undefined in sets built at module load.
 
 ### Deferred (needs user input)
+- Lore: `game/docs/lore/README.md` gained lines on the rim and range, the farm belt, the SE desert and the black mud swamp. They need the user's read and OK.
+- `src/sim/path-raiders.test.ts` takes 111 s alone, mostly building the full-map reference layers. Its setup needs a smaller world, which is a rewrite of the nav reference tests.
 - Nav corridor search: route speed against path quality on rough relief. Evidence is CK8.
 - The directions test "heads west for Bowl" gets northWest on base and on this branch, because `headingReach` is not scaled with the map size.
 
