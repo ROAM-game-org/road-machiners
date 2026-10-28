@@ -113,6 +113,85 @@ export function clips(world: World, v: Vehicle): string[] {
   return problems;
 }
 
+const BOTH_SIDES = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+const EDGE_TOLERANCE = 0.01;
+const GUN_ROLES = ['head', 'mount', 'post', 'leg', 'brace'] as const;
+
+function meshesNamed(root: THREE.Object3D, name: string): THREE.Mesh[] {
+  const out: THREE.Mesh[] = [];
+  root.traverse((o) => {
+    if (o.name !== name) return;
+    o.traverse((m) => {
+      if (m instanceof THREE.Mesh && !m.userData.outline) out.push(m);
+    });
+  });
+  return out;
+}
+
+function edgesPass(through: readonly THREE.Mesh[], solid: readonly THREE.Mesh[]): boolean {
+  const targets = solid.map((m) => {
+    const copy = new THREE.Mesh(m.geometry, BOTH_SIDES);
+    copy.matrixAutoUpdate = false;
+    copy.matrixWorld.copy(m.matrixWorld);
+    return copy;
+  });
+  const caster = new THREE.Raycaster();
+  const from = new THREE.Vector3();
+  const to = new THREE.Vector3();
+  const dir = new THREE.Vector3();
+  for (const m of through) {
+    const p = m.geometry.getAttribute('position');
+    const idx = m.geometry.index;
+    const count = idx ? idx.count : p.count;
+    const at = (i: number) => (idx ? idx.getX(i) : i);
+    for (let t = 0; t < count; t += 3) {
+      for (let e = 0; e < 3; e++) {
+        from.fromBufferAttribute(p, at(t + e)).applyMatrix4(m.matrixWorld);
+        to.fromBufferAttribute(p, at(t + ((e + 1) % 3))).applyMatrix4(m.matrixWorld);
+        const len = from.distanceTo(to);
+        if (len < EDGE_TOLERANCE) continue;
+        dir.subVectors(to, from).divideScalar(len);
+        caster.set(from, dir);
+        caster.far = len;
+        if (caster.intersectObjects(targets, false).length > 0) return true;
+      }
+    }
+  }
+  return false;
+}
+
+export type GunView = 'world' | 'portrait';
+
+export function mountedGuns(v: Vehicle): Extract<GridItem, { kind: 'part' }>[] {
+  return v.items.filter((it): it is Extract<GridItem, { kind: 'part' }> => it.kind === 'part' && partDef(it.part.defId).kind === 'weapon' && isMounted(v.chassisId, it));
+}
+
+export function headCount(view: VehicleView): number {
+  let n = 0;
+  view.root.traverse((o) => {
+    if (o.name.endsWith(' head')) n++;
+  });
+  return n;
+}
+
+export function gunContacts(v: Vehicle, mode: GunView): string[] {
+  const view = new VehicleView(v, true, PAINT.standard, mode);
+  view.root.updateMatrixWorld(true);
+  const guns = mountedGuns(v);
+  const lines: string[] = [];
+  for (const a of guns) {
+    const heads = meshesNamed(view.root, `${a.id} head`);
+    for (const b of guns) {
+      if (a === b) continue;
+      for (const role of GUN_ROLES) {
+        if (edgesPass(heads, meshesNamed(view.root, `${b.id} ${role}`))) lines.push(`${v.chassisId} ${a.part.defId}@${a.x},${a.y} r${a.rot} into ${b.part.defId}@${b.x},${b.y} r${b.rot} ${role}`);
+      }
+    }
+  }
+  view.dispose();
+  return lines;
+}
+
 export function place(world: World, v: Vehicle, defId: string | null, good: string | null, x: number, y: number, rot: 0 | 1): boolean {
   const item = (defId
     ? { id: newId(world, 'i'), kind: 'part', x, y, rot, part: { id: newId(world, 'p'), defId, hp: 1, wear: 0, ...(partDef(defId).kind === 'weapon' ? { gun: { cooldown: 0, ammo: 1, reloadWork: 0 } } : {}) } }
