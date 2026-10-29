@@ -70,7 +70,7 @@ describe('firing the harpoon', () => {
   });
 
   it('attaches the line to the first part the round touches in its lane', () => {
-    const { w, me, part, trader } = hit();
+    const { w, me, part, trader } = firstFire((s) => s.w.lines.length === 1 && shotOf(s.w).rounds[0].hits.length > 0);
     const round = shotOf(w).rounds[0];
 
     expect(round.struck).toBe(trader.id);
