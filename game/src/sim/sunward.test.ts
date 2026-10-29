@@ -380,7 +380,7 @@ describe('the night schedule', () => {
       expect(followingOf(w, v)).toBeNull();
     });
 
-    w = runTo(w, dawnAfter(duskTurn(1)) + 120);
+    w = runTo(w, rideOutTurn(duskTurn(2)) - 1);
     for (const v of membersOf(w).filter((x) => !seen.broken.has(x.id))) {
       expect(dist(v.pos, v.brain!.home)).toBeLessThan(3);
       expect(topGoal(v)?.reason).toBe('restHollow');
