@@ -84,7 +84,7 @@ export function advanceFar(w: World, v: Vehicle): void {
 function walkFar(w: World, v: Vehicle, order: DrivenOrder, points: Vec[], planned: FarStep, radius: number): { block: Contact | null; walk: FarStep } {
   const counts = contactsOf(v, order, radius);
   const block = firstContact(w, v, planned.path, radius, counts);
-  const budget = block ? block.clear : clearEnd(w, v, planned, radius, (o) => !counts(o));
+  const budget = block ? block.clear : drivesCoarse(v) ? clearEnd(w, v, planned, radius, (o) => !counts(o)) : planned.moved;
   return { block, walk: budget === planned.moved ? planned : follow(v.pos, points, budget) };
 }
 
