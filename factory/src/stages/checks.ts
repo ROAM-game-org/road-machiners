@@ -37,7 +37,7 @@ done
 if [ "$ready" -ne 1 ]; then kill "$server"; exit 1; fi
 ${stepCall('playtest')}
 set +e
-${playtest}
+env -u TEST_TIMEOUTS ${playtest}
 code=$?
 kill "$server"
 if [ "$code" -ne 0 ]; then exit "$code"; fi

@@ -50,6 +50,8 @@ The host runs a software watchdog. When systemd stops answering it for 10 minute
 
 `FACTORY_GPU=on` gives every container the host's NVIDIA GPU, and the playtest checks the frame rate. `off` runs the playtest with `--cpu`, with fewer turns and no frame rate check.
 
+Every container sets `TEST_TIMEOUTS=off`, but the playtest in the check and candidate scripts runs without it, so its own boot and turn limits apply. A turn that never finishes then fails the playtest in seconds. With the limits off, one stuck night turn held the check for its whole 45 minutes, again on each rerun.
+
 ## Card job limit
 
 The factory has no limit on the jobs it starts per day. The Claude usage-limit pause guards the shared limit.
