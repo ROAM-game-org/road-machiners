@@ -12,7 +12,7 @@ import { el } from "./dom";
 import { cellSteps } from "../sim/body";
 import { uiSize } from "./ui-size";
 import { truckOutline } from "./plans";
-import { coreArt, drawnSprite, gunLevel, isWeaponItem, partArt, tierAttr, truckBackdrop, type GarageLook } from "./garage-draw";
+import { coreArt, drawnSprite, partArt, tierAttr, truckBackdrop, type GarageLook } from "./garage-draw";
 import { conditionMeter, gridItemIcon, itemTip, jobDone, toneStyle, workMeterEl } from "./cards";
 import { kg } from "./units";
 import { byId, t, type Msg } from "../text/msg";
@@ -200,7 +200,7 @@ export function itemBox(it: GridItem, chassisId: string, mounted: boolean, m: Gr
   const id = itemLookId(it);
   return el(
     "div",
-    { class: itemClasses(it, mounted, outer, art !== null), "data-hold": "", "data-item-id": it.id, "data-tier": tierAttr(it), style: `${pxStyle(rect)};${toneStyle(id)}${drawnLayer(it, art, look ? gunLevel(look, it) : 0)}`, title: itemTip(id), tabindex: 0, role: "button", "aria-label": itemName(it) },
+    { class: itemClasses(it, mounted, outer, art !== null), "data-hold": "", "data-item-id": it.id, "data-tier": tierAttr(it), style: `${pxStyle(rect)};${toneStyle(id)}${drawnLayer(it, art)}`, title: itemTip(id), tabindex: 0, role: "button", "aria-label": itemName(it) },
     art ?? turnedIcon(it, m),
     el("span", { class: "inv-item-name" }, itemLabel(it).short),
     ...meterOf(it, art),
@@ -213,12 +213,15 @@ function itemClasses(it: GridItem, mounted: boolean, outer: boolean, drawn: bool
 
 const LAYERS_PER_BAND = 32;
 
-export function drawnLayer(it: GridItem, art: HTMLElement | null, gunLevel = 0): string {
+export function drawnLayer(it: GridItem, art: HTMLElement | null): string {
   if (!art) return "";
-  if (isWeaponItem(it)) return `;z-index:${LAYERS_PER_BAND + Math.min(gunLevel, LAYERS_PER_BAND - 1)}`;
-  return `;z-index:${Math.min(it.y + itemSize(it).h, LAYERS_PER_BAND - 1)}`;
+  const row = Math.min(it.y + itemSize(it).h, LAYERS_PER_BAND - 1);
+  return `;z-index:${weaponBand(it) + row}`;
 }
 
+function weaponBand(it: GridItem): number {
+  return it.kind === "part" && partDef(it.part.defId).kind === "weapon" ? LAYERS_PER_BAND : 0;
+}
 
 function meterOf(it: GridItem, art: HTMLElement | null): HTMLElement[] {
   return it.kind === "part" && !art ? [conditionMeter(it.part)] : [];

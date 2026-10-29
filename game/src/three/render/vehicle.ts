@@ -22,7 +22,6 @@ import { armorPlacement, cutSpec, lampIslands, withCut, type CutSpec } from './a
 import { hashStr } from '../../render/noise';
 import { TruckMotion, WHIPS } from './truckMotion';
 import { weaponHead } from './weaponHead';
-import { clearOver, gunStack, restGun, type RestGun } from './gunStack';
 
 const T = PHYSICS.truck;
 const CELL = PHYSICS.cell;
@@ -51,9 +50,6 @@ type Shock = { obj: THREE.Object3D; top: THREE.Vector3; wheel: number; z: number
 type Axle = { obj: THREE.Object3D; a: number; b: number; inset: number };
 type ContactShadow = { unit: UnitView; mesh: THREE.Mesh };
 type UnitView = { index: number; root: THREE.Object3D; body: THREE.Group; b: Body; wheels: Wheel[]; shocks: Shock[]; axles: Axle[]; motion: TruckMotion; still: THREE.Group; obstacles: Obstacle[]; base: THREE.Object3D };
-
-type GunSpot = { look: ReturnType<typeof weaponLook>; stand: ReturnType<typeof weaponStand>; mount: THREE.Object3D; headAt: THREE.Vector3; pivot: THREE.Vector3; facing: number; spans: ReturnType<typeof gunSpans>; own: CellRect };
-type Seated = { item: PartItem; chassisId: string; active: boolean; unit: UnitView; spot: GunSpot; head: ReturnType<typeof mergeStatic>; tip: ReturnType<typeof weaponHead>['tip']; shape: ReturnType<typeof headShape>; wear: ReturnType<typeof lookOf>; rest: RestGun };
 
 const SHOCK_R = 0.2;
 const UP = new THREE.Vector3(0, 1, 0);
@@ -336,14 +332,8 @@ export class VehicleView {
     const bases = this.buildBases(v, colors.body, colors.cab, cabLook(v));
     yield;
     const { wheelItems, guns } = yield* this.drawItems(v, onBody, paint);
-    const seated = guns.map((gun) => this.seatWeapon(v, gun, isMounted(v.chassisId, gun), paint));
-    const stack = gunStack(seated.map((s) => s.rest));
-    const headYs = new Map<string, number>();
-    const restBy = new Map(seated.map((s) => [s.rest.id, s.rest]));
-    for (const id of stack.order) {
-      const seat = seated.find((s) => s.rest.id === id) as Seated;
-      const lowest = Math.max(-Infinity, ...(stack.below.get(id) ?? []).map((lower) => clearOver(seat.rest, restBy.get(lower) as RestGun, headYs.get(lower) as number)));
-      headYs.set(id, this.buildWeapon(seat, lowest, paint));
+    for (const gun of guns) {
+      this.buildWeapon(v, gun, isMounted(v.chassisId, gun), paint);
       yield;
     }
     this.buildWheels(v, wheelItems, paint);
@@ -618,28 +608,30 @@ export class VehicleView {
     return leg;
   }
 
-  private seatWeapon(v: Vehicle, item: PartItem, active: boolean, paint: number): Seated {
+  private buildWeapon(v: Vehicle, item: PartItem, active: boolean, paint: number): void {
     const unit = this.unitOf(v, item);
-    const spot = gunSpot(v, item, unit.base);
-    const { head: parts, tip } = weaponHead(spot.look);
+    const look = weaponLook(item.part.id, item.part.defId);
     const wear = lookOf(item);
+    const { head: parts, tip } = weaponHead(look);
     for (const p of parts.children) tint(p, paint, wear);
     const head = mergeStatic(parts);
-    const muzzleX = socket(spot.look.receiver, 'muzzle').x;
-    const rest = restGun({ ...restSeat(item, spot), head, muzzleX });
-    return { item, chassisId: v.chassisId, active, unit, spot, head, tip, shape: headShape(head, muzzleX), wear, rest };
-  }
 
-  private buildWeapon(seated: Seated, lowerTop: number, paint: number): number {
-    const { item, chassisId, active, unit, spot, head, tip, shape, wear } = seated;
-    const { look, stand, mount, headAt, pivot, facing, spans, own } = spot;
-    const ground = surfaceSamples(chassisId, own.unit, pivot, Math.max(shape.core, shape.reach) + SAMPLE_REACH)
+    const stand = weaponStand(v, item, unit.base);
+    const headAt = socket(look.mount, 'head');
+    const facing = signedDegrees(facingOf(item));
+    const spans = gunSpans(v, item);
+    const shape = headShape(head, socket(look.receiver, 'muzzle').x);
+    const mount = model(look.mount);
+    place(mount, stand.at);
+    mount.updateMatrix();
+    const pivot = headAt.clone().applyMatrix4(mount.matrix);
+    const own = rectOf(v, item);
+    const ground = surfaceSamples(v.chassisId, own.unit, pivot, Math.max(shape.core, shape.reach) + SAMPLE_REACH)
       .filter((s) => !(s.x >= own.x0 && s.x <= own.x1 && s.z >= own.z0 && s.z <= own.z1))
       .map((s): Obstacle => ({ x0: s.x - s.half, x1: s.x + s.half, z0: s.z - s.half, z1: s.z + s.half, top: s.y }));
     const clear = clearTop(pivot, shape, sweepOf(spans, active, facing), [...unit.obstacles, ...ground], GUN_GAP);
-    const over = lowerTop + GUN_GAP;
-    const top = Math.max(stand.top, clear - headAt.y - shape.bottom, over - headAt.y - shape.bottom);
-    if (!Number.isFinite(top)) throw new Error(`Gun ${item.part.id} on ${chassisId} has a post height of ${top}`);
+    const top = Math.max(stand.top, clear - headAt.y - shape.bottom);
+    if (!Number.isFinite(top)) throw new Error(`Gun ${item.part.id} on ${v.chassisId} has a post height of ${top}`);
 
     const at = this.riser(stand, item, paint, unit.still, top);
     place(mount, at);
@@ -653,12 +645,12 @@ export class VehicleView {
     this.anchors.set(item.part.id, { local: head.position.clone(), parent: unit.body });
     const turn = headingQuat(facing * DEG);
     head.quaternion.set(turn.x, turn.y, turn.z, turn.w);
-    if (!active) unit.still.add(head);
-    else {
-      unit.body.add(head);
-      this.turrets.set(item.part.id, { head, tip, spans, facing, unit: unit.index });
+    if (!active) {
+      unit.still.add(head);
+      return;
     }
-    return head.position.y;
+    unit.body.add(head);
+    this.turrets.set(item.part.id, { head, tip, spans, facing, unit: unit.index });
   }
 
   private buildWheels(v: Vehicle, items: PartItem[], paint: number): void {
@@ -901,27 +893,6 @@ export function weaponStand(v: Pick<Vehicle, 'chassisId'>, item: GridItem, body:
     throw new Error(`The ${v.chassisId} model has no surface under the post of gun ${item.part.defId} mounted on ${cells}`);
   }
   return { at, bottom: postBottom(foot, top), top, foot, plate };
-}
-
-function gunSpot(v: Vehicle, item: PartItem, base: THREE.Object3D): GunSpot {
-  const look = weaponLook(item.part.id, item.part.defId);
-  const stand = weaponStand(v, item, base);
-  const headAt = socket(look.mount, 'head');
-  const mount = model(look.mount);
-  place(mount, stand.at);
-  mount.updateMatrix();
-  return { look, stand, mount, headAt, pivot: headAt.clone().applyMatrix4(mount.matrix), facing: signedDegrees(facingOf(item)), spans: gunSpans(v, item), own: rectOf(v, item) };
-}
-
-function restSeat(item: PartItem, spot: GunSpot): Omit<Parameters<typeof restGun>[0], 'head' | 'muzzleX'> {
-  const q = headingQuat(spot.facing * DEG);
-  return { id: item.id, unit: spot.own.unit, col: item.x, row: item.y, pivot: { x: spot.pivot.x, z: spot.pivot.z }, cells: spot.own, turn: new THREE.Quaternion(q.x, q.y, q.z, q.w) };
-}
-
-export function restGunOf(v: Vehicle, item: PartItem, base: THREE.Object3D): RestGun {
-  const spot = gunSpot(v, item, base);
-  const muzzleX = socket(spot.look.receiver, 'muzzle').x;
-  return restGun({ ...restSeat(item, spot), head: weaponHead(spot.look).head, muzzleX });
 }
 
 function anchorPoint(v: Pick<Vehicle, 'chassisId'>, item: GridItem): THREE.Vector3 {

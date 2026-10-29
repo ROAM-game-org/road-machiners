@@ -228,3 +228,68 @@ export function fill(world: World, v: Vehicle): void {
   for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) if (g.cells[y][x] === '.' || g.cells[y][x] === 'D') place(world, v, null, 'electronics', x, y, 0);
 }
 
+
+type Plan = { x0: number; x1: number; z0: number; z1: number };
+
+function topOf(root: THREE.Object3D, o: THREE.Object3D): THREE.Object3D {
+  let at = o;
+  while (at.parent && at.parent !== root) at = at.parent;
+  return at;
+}
+
+function headPlan(view: VehicleView, id: string): Plan | null {
+  const meshes = meshesNamed(view.root, `${id} head`);
+  if (meshes.length === 0) return null;
+  const frame = topOf(view.root, meshes[0]);
+  frame.updateMatrixWorld(true);
+  const inverse = frame.matrixWorld.clone().invert();
+  const box = new THREE.Box3();
+  const p = new THREE.Vector3();
+  for (const m of meshes) {
+    const pos = m.geometry.getAttribute('position');
+    for (let i = 0; i < pos.count; i++) box.expandByPoint(p.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld).applyMatrix4(inverse));
+  }
+  return { x0: box.min.x, x1: box.max.x, z0: box.min.z, z1: box.max.z };
+}
+
+function planOverlap(a: Plan, b: Plan, shrink: number): boolean {
+  return a.x0 + shrink < b.x1 && a.x1 - shrink > b.x0 && a.z0 + shrink < b.z1 && a.z1 - shrink > b.z0;
+}
+
+export function gunOverlaps(v: Vehicle, mode: GunView): string[] {
+  const view = new VehicleView(v, true, PAINT.standard, mode);
+  view.root.updateMatrixWorld(true);
+  const guns = mountedGuns(v);
+  const heads = new Map(guns.map((g) => [g.id, headPlan(view, g.id)]));
+  const lines: string[] = [];
+  for (const a of guns) {
+    const head = heads.get(a.id);
+    if (!head) continue;
+    const unit = unitOfCells(v.chassisId, itemCells(a)).index;
+    for (const b of guns) {
+      if (a === b || unitOfCells(v.chassisId, itemCells(b)).index !== unit) continue;
+      const feet = cellRect(v.chassisId, itemCells(b));
+      const other = heads.get(b.id);
+      const label = `${v.chassisId} ${a.part.defId}@${a.x},${a.y} r${a.rot} over ${b.part.defId}@${b.x},${b.y} r${b.rot}`;
+      if (planOverlap(head, feet, EDGE_TOLERANCE)) lines.push(`${label} footprint`);
+      if (other && planOverlap(head, other, EDGE_TOLERANCE)) lines.push(`${label} head`);
+    }
+  }
+  view.dispose();
+  return lines;
+}
+
+export function headY(v: Vehicle, itemId: string, mode: GunView): number {
+  const view = new VehicleView(v, true, PAINT.standard, mode);
+  view.root.updateMatrixWorld(true);
+  const found = view.root.getObjectByName(`${itemId} head`);
+  if (!found) throw new Error(`No head for ${itemId}`);
+  const y = new THREE.Vector3().setFromMatrixPosition(found.matrixWorld).y;
+  view.dispose();
+  return y;
+}
+
+export function loneHeadY(v: Vehicle, itemId: string, mode: GunView): number {
+  const others = new Set(mountedGuns(v).filter((g) => g.id !== itemId));
+  return headY({ ...v, items: v.items.filter((it) => !others.has(it as never)) }, itemId, mode);
+}

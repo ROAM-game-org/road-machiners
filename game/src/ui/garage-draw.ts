@@ -100,10 +100,6 @@ export function drawnSprite(look: GarageLook, it: GridItem): GarageSprite | null
   return sprite?.url ? sprite : null;
 }
 
-export function gunLevel(look: GarageLook, it: GridItem): number {
-  return standsOnTruck(look, it) ? (look.renders.gunLevels(look.truck).get(it.id) ?? 0) : 0;
-}
-
 export function isWeaponItem(it: GridItem): boolean {
   return isPartItem(it) && partDef(it.part.defId).kind === "weapon";
 }

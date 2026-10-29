@@ -246,19 +246,6 @@ describe("the garage grid's layers and marks", () => {
     expect(z(placedAt("mg", 0, 0))).toBeGreaterThan(z(placedAt("scrapSheet", 0, 20)));
   });
 
-  it("draws a gun that stands over another gun above it, whatever their rows", () => {
-    const rear = placedAt("mg", 0, 0);
-    const front = placedAt("mg", 1, 4);
-    const zAt = (it: GridItem, level: number) => Number(/z-index:(\d+)/.exec(drawnLayer(it, art, level))![1]);
-    expect(zAt(rear, 1)).toBeGreaterThan(zAt(front, 0));
-    expect(zAt(rear, 0)).toBe(zAt(front, 0));
-  });
-
-  it("keeps every gun layer under the grid lines", () => {
-    const gun = placedAt("mg", 0, 0);
-    expect(Number(/z-index:(\d+)/.exec(drawnLayer(gun, art, 99))![1])).toBeLessThan(64);
-  });
-
   it("marks only the cells of loose parts as taken, never a built-in part's", () => {
     const w = emptyWorld();
     const truck = addVehicle(w, "player", "scout", [], { x: 30, y: 30 });
