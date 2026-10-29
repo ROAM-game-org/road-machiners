@@ -24,6 +24,14 @@ describe('fight odds', () => {
     expect(fightOdds(w, [fastMg], [wagon]).win).toBeGreaterThan(fightOdds(w, [slowMg], [wagon]).win);
   });
 
+  it('gives two identical trucks with a gun that leaves one side bare an even chance each', () => {
+    const w = setUp();
+    const a = addVehicle(w, 'independent', 'wagon', ['mg', 'stockEngine'], { x: 10, y: 10 });
+    const b = addVehicle(w, 'scrapjaw', 'wagon', ['mg', 'stockEngine'], { x: 24, y: 10 });
+    expect(fightOdds(w, [a], [b]).win).toBeCloseTo(0.5);
+    expect(fightOdds(w, [b], [a]).win).toBeCloseTo(0.5);
+  });
+
   it('counts the armor on the side a gun fires into', () => {
     const w = setUp();
     const bare = addVehicle(w, 'independent', 'van', ['stockEngine'], { x: 40, y: 10 });
