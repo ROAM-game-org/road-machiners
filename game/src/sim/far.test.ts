@@ -386,6 +386,20 @@ describe('far travel contact', () => {
     expect(mover.order).not.toBeNull();
   });
 
+  it('steers round a faster truck that comes at it head on', () => {
+    const { w, mover } = far();
+    const oncoming = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 132, y: 120 });
+    oncoming.heading = Math.PI;
+    oncoming.speed = 2 * vehicleStats(w, mover).maxSpeed;
+    mover.order = { kind: 'through', dest: { x: 200, y: 120 } };
+    const contact = vehicleStats(w, mover).radius + vehicleStats(w, oncoming).radius;
+    for (let turn = 0; turn < 6; turn++) {
+      advanceFar(w, mover);
+      expect(dist(mover.pos, oncoming.pos)).toBeGreaterThanOrEqual(contact);
+    }
+    expect(mover.pos.x).toBeGreaterThan(oncoming.pos.x + contact);
+  });
+
   it('overtakes a slower truck in the way', () => {
     const { w, mover } = far();
     const slow = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 124, y: 120 });

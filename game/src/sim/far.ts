@@ -214,8 +214,12 @@ function coarsePoints(w: World, v: Vehicle, dest: Vec, radius: number, reach: nu
 function farBlockers(w: World, v: Vehicle, s: DriveStats, onRope: ReadonlySet<string>): Blocker[] {
   const target = v.brain?.ramTarget;
   const reach = s.maxSpeed + radiusOf(v);
-  const slower = w.vehicles.filter((o) => o.id !== v.id && o.id !== target && !onRope.has(o.id) && o.speed >= RULES.parkedSpeed && o.speed < s.maxSpeed && dist(o.pos, v.pos) <= reach + radiusOf(o));
-  return [...parkedVehicles(w, v.id, onRope), ...slower.flatMap(rigDiscs)];
+  const moving = w.vehicles.filter((o) => o.id !== v.id && o.id !== target && !onRope.has(o.id) && o.speed >= RULES.parkedSpeed && dist(o.pos, v.pos) <= reach + radiusOf(o));
+  return [...parkedVehicles(w, v.id, onRope), ...moving.filter((o) => o.speed < s.maxSpeed || headsAt(o, v)).flatMap(rigDiscs)];
+}
+
+function headsAt(o: Vehicle, v: Vehicle): boolean {
+  return Math.cos(o.heading) * (v.pos.x - o.pos.x) + Math.sin(o.heading) * (v.pos.y - o.pos.y) > 0;
 }
 
 function radiusOf(v: Vehicle): number {
