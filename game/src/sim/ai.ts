@@ -369,15 +369,21 @@ export function trafficStops(world: World, v: Vehicle, dest: Vec): boolean {
   const open = route(world, v.pos, dest, radius, parked, v);
   const around = route(world, v.pos, dest, radius, [...parked, ...moving.flatMap((x) => sweptPath(world, v, x))], v);
   if (dist(open.at(-1)!, around.at(-1)!) > 0) return true;
-  if (detourTooHard(world, v, open, around)) return true;
+  if (detourTooHard(world, v, open, around, moving)) return true;
   return moving.some((x) => !passesClear(world, v, x, around));
 }
 
-function detourTooHard(world: World, v: Vehicle, open: Vec[], around: Vec[]): boolean {
+function detourTooHard(world: World, v: Vehicle, open: Vec[], around: Vec[], moving: Vehicle[]): boolean {
   const { vs, t } = horizon(world, v);
   if (routeLength(v.pos, around) - routeLength(v.pos, open) > vs * t) return true;
   const ahead = alongRoute(v.pos, around, vs);
-  return dist(v.pos, ahead) > 0 && Math.abs(angleDiff(v.heading, bearing(v.pos, ahead))) > RULES.traffic.crossCone;
+  const turnsAway = dist(v.pos, ahead) > 0 && Math.abs(angleDiff(v.heading, bearing(v.pos, ahead))) > RULES.traffic.crossCone;
+  return turnsAway && moving.some((x) => reachesWithinTurn(world, v, x, vs));
+}
+
+function reachesWithinTurn(world: World, v: Vehicle, x: Vehicle, vs: number): boolean {
+  const sx = vehicleStats(world, x);
+  return dist(v.pos, x.pos) - vehicleStats(world, v).radius - sx.radius <= vs + Math.min(sx.maxSpeed, x.speed + sx.accel);
 }
 
 function passesClear(world: World, v: Vehicle, x: Vehicle, around: Vec[]): boolean {
