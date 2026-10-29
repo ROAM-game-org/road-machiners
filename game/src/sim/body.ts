@@ -193,6 +193,11 @@ export function cellRect(chassisId: string, cells: readonly { x: number; y: numb
   };
 }
 
+export function ringMiddles(chassisId: string, y: number): { z0: number; z1: number } {
+  const [left, right] = [0, baseGrid(chassisId).w - 1].map((x) => cellRect(chassisId, [{ x, y }]));
+  return { z0: (left.z0 + left.z1) / 2, z1: (right.z0 + right.z1) / 2 };
+}
+
 export function cellCenter(chassisId: string, x: number, y: number): { x: number; z: number; unit: number } {
   const unit = unitOfRow(chassisId, y);
   const r = singleCellRect(chassisId, x, y, unit);

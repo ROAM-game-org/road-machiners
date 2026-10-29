@@ -7,7 +7,7 @@ import { isShield, partDef, type PartDef, type PartKind } from '../../data/parts
 import { PHYSICS } from '../../data/physics';
 import { wheelMounts } from '../../phys/body';
 import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
-import { cellCenter, cellRect, engineAnchor, engineRest, highestUnder, restOn, roofSpot, spanOf, surfaceSamples, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
+import { cellCenter, cellRect, engineAnchor, ringMiddles, engineRest, highestUnder, restOn, roofSpot, spanOf, surfaceSamples, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL, paintOf, type TruckColors } from '../../render/palette';
 import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOffset, dentsOf, type PartBox, grayShare, grayed, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
@@ -913,7 +913,7 @@ export function wouldFloat(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boole
 
 export function itemSpotOf(v: Pick<Vehicle, 'chassisId'>, item: GridItem, base: THREE.Object3D): ItemSpot | null {
   const rest = restOf(v, item);
-  return itemSpot(base, bottomOf(itemModel(item), rest.rect.unit, footprint(v, item, rest.y)), rest, rectOf(v, item), item.kind === 'part');
+  return itemSpot(base, bottomOf(itemModel(item), rest.rect.unit, footprint(v, item, rest.y)), rest, rectOf(v, item), ringMiddles(v.chassisId, item.y), item.kind === 'part');
 }
 
 function standsFlat(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {

@@ -172,12 +172,14 @@ const SUPPORT_STEP = CLIP_TOLERANCE;
 
 const ITEM_SPOTS = new Map<string, ItemSpot | null>();
 
-export function itemSpot(body: THREE.Object3D, foot: Footprint, rest: { y: number; slope: { x: number; z: number } }, cells: CellRect, stilts: boolean): ItemSpot | null {
+export type Sides = { z0: number; z1: number };
+
+export function itemSpot(body: THREE.Object3D, foot: Footprint, rest: { y: number; slope: { x: number; z: number } }, cells: CellRect, sides: Sides, stilts: boolean): ItemSpot | null {
   const { rect } = foot;
-  const key = `${body.userData.model}:${stilts}:${foot.points.length}:${[rect.x0, rect.x1, rect.z0, rect.z1, rest.y, rest.slope.x, rest.slope.z, cells.x0, cells.x1, cells.z0, cells.z1].map((n) => n.toFixed(3)).join(',')}`;
+  const key = `${body.userData.model}:${stilts}:${foot.points.length}:${[rect.x0, rect.x1, rect.z0, rect.z1, rest.y, rest.slope.x, rest.slope.z, cells.x0, cells.x1, cells.z0, cells.z1, sides.z0, sides.z1].map((n) => n.toFixed(3)).join(',')}`;
   const shared = sharedModel(body);
   if (shared && ITEM_SPOTS.has(key)) return ITEM_SPOTS.get(key) as ItemSpot | null;
-  const found = searchItemSpot(body, foot, rest, cells, stilts);
+  const found = searchItemSpot(body, foot, rest, { cells, sides }, stilts);
   if (shared) ITEM_SPOTS.set(key, found);
   return found;
 }
@@ -187,14 +189,14 @@ function sharedModel(body: THREE.Object3D): boolean {
   return typeof body.userData.model === 'string' && body.matrixWorld.equals(IDENTITY);
 }
 
-function searchItemSpot(body: THREE.Object3D, { rect, points }: Footprint, rest: { y: number; slope: { x: number; z: number } }, cells: CellRect, stilts: boolean): ItemSpot | null {
+function searchItemSpot(body: THREE.Object3D, { rect, points }: Footprint, rest: { y: number; slope: { x: number; z: number } }, room: { cells: CellRect; sides: Sides }, stilts: boolean): ItemSpot | null {
   const feet = footings(body);
   const exact = exactFootings(body);
   const tops = exactTops(body);
   const onLegSpots = fittedSpot(rect, points, rest, feet, exact, tops);
   if (onLegSpots) return onLegSpots;
   if (heldOn(points, planeAt(rect, rest), exact, tops)) return { dx: 0, dz: 0, y: rest.y, slope: rest.slope, legs: false };
-  const shifts = shiftsWithin(shiftRange(rect, cells), FACE_COLUMN);
+  const shifts = shiftsWithin(shiftRange(rect, room.cells, room.sides), FACE_COLUMN);
   for (const support of [SHIFT_SUPPORT, MIN_SUPPORT]) {
     for (const [dx, dz] of shifts) {
       const moved = shifted(points, dx, dz);
@@ -237,11 +239,13 @@ function shifted(points: Sample[], dx: number, dz: number): Sample[] {
   return points.map(([x, z, lift]) => [x + dx, z + dz, lift]);
 }
 
-function shiftRange(rect: CellRect, cells: CellRect): { x0: number; x1: number; z0: number; z1: number } {
+function shiftRange(rect: CellRect, cells: CellRect, sides: Sides): { x0: number; x1: number; z0: number; z1: number } {
   const cx = (rect.x0 + rect.x1) / 2;
   const cz = (rect.z0 + rect.z1) / 2;
   const half = { x: (rect.x1 - rect.x0) / 2, z: (rect.z1 - rect.z0) / 2 };
-  return { x0: cells.x0 - half.x - cx, x1: cells.x1 + half.x - cx, z0: cells.z0 - half.z - cz, z1: cells.z1 + half.z - cz };
+  const z0 = Math.max(cells.z0 - half.z - cz, Math.min(0, sides.z0 - rect.z0));
+  const z1 = Math.min(cells.z1 + half.z - cz, Math.max(0, sides.z1 - rect.z1));
+  return { x0: cells.x0 - half.x - cx, x1: cells.x1 + half.x - cx, z0, z1 };
 }
 
 const SHIFT_SUPPORT = MIN_SUPPORT + 0.05;
