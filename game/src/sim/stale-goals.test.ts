@@ -15,7 +15,7 @@ describe('a goal left stale under an interruption', () => {
     raider.brain.goals = [
       { kind: 'sell', targetId: 'kiln', destination: { x: 300, y: 300 }, phase: 'travel', reason: 'sellCargo' },
       { kind: 'loot', targetId: 'cargo-gone-1', destination: { x: 44, y: 44 }, phase: 'act', reason: 'takeHandedCargo' },
-      { kind: 'investigate', targetId: lawman.id, destination: { ...lawman.pos }, phase: 'travel', reason: 'heardHostile' },
+      { kind: 'investigate', targetId: lawman.id, destination: { ...lawman.pos }, phase: 'travel', reason: 'heardHostile', chase: { turn: w.turn, gap: 10 } },
     ];
     forceOption('hostileSeen', 'keep');
     forceOption('resume', 'resume');

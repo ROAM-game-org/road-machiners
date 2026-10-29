@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { NPCS, type TraitId } from '../data/npcs';
+import { NPCS, SPAWN, type TraitId } from '../data/npcs';
 import { inFeud } from './combat';
 import { joinCompany } from './companies';
 import { judgeDanger } from './npc-decisions';
 import { makePeace } from './parley';
-import { fightSide, perceivedGroup, spokesman } from './sides';
+import { fightSide, fightsSideOf, perceivedGroup, spokesman } from './sides';
 import { allegianceFor } from './spawn';
 import { addState } from './states';
 import { addVehicle, emptyWorld, npcBrain, startCombat } from './testkit';
@@ -109,5 +109,60 @@ describe('perceived groups', () => {
     expect(spokesman(w, merc).id).toBe(merc.id);
     leader.pos = { x: 56, y: 100 };
     expect(spokesman(w, member).id).toBe(member.id);
+  });
+});
+
+describe('a truck fighting the side of a driver', () => {
+  function sideScene(): { w: World; raider: Vehicle; foe: Vehicle } {
+    const w = emptyWorld({ x: 120, y: 120 });
+    const raider = npc(w, 'buggy', ['raider'], 40);
+    const foe = npc(w, 'trader', ['trader'], 52);
+    refreshVision(w);
+    return { w, raider, foe };
+  }
+
+  it('holds for a truck fighting the driver itself, in either direction', () => {
+    const { w, raider, foe } = sideScene();
+    startCombat(w, raider, foe);
+    expect(fightsSideOf(w, foe, raider)).toBe(true);
+  });
+
+  it('holds for a truck fighting a company mate however far away', () => {
+    const { w, raider, foe } = sideScene();
+    const mate = npc(w, 'buggy', ['raider'], 40, 100);
+    joinCompany(w, mate, raider, 'crew', crew);
+    startCombat(w, foe, mate);
+    expect(fightsSideOf(w, foe, raider)).toBe(true);
+  });
+
+  it('holds for a truck fighting a nearby ally in sight', () => {
+    const { w, raider, foe } = sideScene();
+    const ally = npc(w, 'buggy', ['raider'], 44);
+    startCombat(w, foe, ally);
+    expect(fightsSideOf(w, foe, raider)).toBe(true);
+  });
+
+  it('does not hold for an ally beyond the help reach', () => {
+    const { w, raider, foe } = sideScene();
+    const ally = npc(w, 'buggy', ['raider'], 40, 40 + SPAWN.neighborHelp + 5);
+    startCombat(w, foe, ally);
+    expect(fightsSideOf(w, foe, raider)).toBe(false);
+  });
+
+  it('does not hold for a nearby ally the driver cannot see', () => {
+    const { w, raider, foe } = sideScene();
+    const ally = npc(w, 'buggy', ['raider'], 48);
+    w.vehicles[0].pos = { x: 44, y: 30 };
+    w.obstacles = [...w.obstacles, { id: 'cover', kind: 'rock', pos: { x: 44, y: 40 }, r: 1.5 }];
+    refreshVision(w);
+    startCombat(w, foe, ally);
+    expect(fightsSideOf(w, foe, raider)).toBe(false);
+  });
+
+  it('does not hold for a fight with a stranger', () => {
+    const { w, raider, foe } = sideScene();
+    const stranger = npc(w, 'trader', ['trader'], 56);
+    startCombat(w, foe, stranger);
+    expect(fightsSideOf(w, foe, raider)).toBe(false);
   });
 });
