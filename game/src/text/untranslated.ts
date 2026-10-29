@@ -4,6 +4,7 @@ const DEBUG_CONSOLE = 'The debug console is a dev tool. It stays English.';
 const DEV_REPORT = 'Progression and income reports are dev tools read in a terminal. They stay English.';
 const CRASH_REPORT = 'A line of the crash report a player pastes into a bug report. It stays as the code wrote it.';
 const DEV_SIM = 'Simulation mode is a dev page that shows a playthrough run. It stays English, apart from the game words it reads from the catalog.';
+const BAKE_REPORT = 'The hunting spots bake logs a report to the terminal of the map bake. It stays English.';
 const DEV_LAB = 'The block lab is a dev page for tuning the combat score. It stays English.';
 const SIM_MODE = 'Simulation mode is a dev page that replays a bot run with every truck on the map. It stays English.';
 const FONT_SAMPLE = 'A sample string that makes the browser load the font. No player reads it.';
@@ -28,6 +29,7 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/three/save-migrations.ts', text: 'player money', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: 'cost basis', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: 'pile   basis', reason: MIGRATION_LABEL },
+  { file: 'src/sim/hunting-spots-bake.ts', text: '*', reason: BAKE_REPORT },
   { file: 'src/sim/progression/activity.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/sim/progression/job-checks.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/sim/hunting-spots-bake.ts', text: '*', reason: 'The hunting spots bake log is a dev tool read in a terminal. It stays English.' },
