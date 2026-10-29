@@ -26,11 +26,8 @@ const en = (line: Parameters<typeof lineKey>[0]): string => entryText('en', line
 
 function faceKitGunForward(v: Vehicle): void {
   const gun = v.items.find((it) => it.kind === 'part' && it.part.defId === 'mg');
-  const seat = v.items.find((it) => it.kind === 'part' && it.part.defId === 'panniers');
-  if (!gun || !seat) throw new Error('The start kit has no gun or panniers to swap');
-  const gunSpot = { x: gun.x, y: gun.y };
-  Object.assign(gun, { x: seat.x, y: seat.y, rot: 0 });
-  Object.assign(seat, gunSpot);
+  if (!gun) throw new Error('The start kit has no gun');
+  if (gun.rot !== 0) throw new Error('The start kit gun does not face forward');
 }
 
 function emptyWorld(...args: Parameters<typeof emptyKitWorld>): World {
@@ -443,7 +440,7 @@ describe('rounds', () => {
   it('an aimed miss that lands on the truck hits the lane where it landed', () => {
     const { w, me, buggy, mg } = range(4, Math.PI);
     for (const p of mountedParts(buggy)) p.hp = 1e9;
-    const wheel = mountedItems(buggy).find((it) => it.x === 1 && it.y === 2)!.part;
+    const wheel = mountedItems(buggy).find((it) => it.part.defId === 'wheel')!.part;
     order(me, mg.part.id, buggy.id, wheel.id);
     const odds = hitOdds(w, me, mg, buggy, wheel.id);
     expect(odds.bodyChance).toBeGreaterThan(odds.chance);
