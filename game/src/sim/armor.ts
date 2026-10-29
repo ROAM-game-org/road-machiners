@@ -63,20 +63,39 @@ export function cabShieldWith(v: Vehicle): (extra: GridItem | null) => number {
   const lanesOf = (item: GridItem) => itemCells(item).map((c) => laneKey(g, c)).filter((key) => cabLanes.has(key));
   const armor = mountedItems(v, 'armor');
   const armorLanes = armor.map(lanesOf);
+  const held = new Set(armorLanes.flat());
+  const heldCounts = countBySide(held);
   return (extra) => {
-    const lanes = extra ? withExtra(v, armor, armorLanes, extra, lanesOf) : armorLanes;
-    const shielded = new Set(lanes.flat());
-    const perSide = new Map<string, number>();
-    for (const key of shielded) perSide.set(key[0], (perSide.get(key[0]) ?? 0) + 1);
-    return [...perSide.values()].reduce((sum, n) => sum + Math.sqrt(n), 0);
+    const added = extra ? extraLanes(v, extra, lanesOf) : null;
+    if (!added || added.length === 0) return sideRootSum(armorLanes, heldCounts);
+    const counts = countBySide(new Set([...held, ...added]));
+    return sideRootSum(withLanesAt(armor, armorLanes, extra!, added), counts);
   };
 }
 
-function withExtra(v: Vehicle, armor: GridItem[], armorLanes: string[][], extra: GridItem, lanesOf: (item: GridItem) => string[]): string[][] {
+function extraLanes(v: Vehicle, extra: GridItem, lanesOf: (item: GridItem) => string[]): string[] | null {
   if (extra.kind !== 'part' || partDef(extra.part.defId).kind !== 'armor') throw new Error('cabShieldWith takes an armor item as its extra');
-  if (!isMounted(v.chassisId, extra)) return armorLanes;
+  return isMounted(v.chassisId, extra) ? lanesOf(extra) : null;
+}
+
+function withLanesAt(armor: GridItem[], armorLanes: string[][], extra: GridItem, lanes: string[]): string[][] {
   const at = armor.findIndex((it) => it.y > extra.y || (it.y === extra.y && it.x > extra.x));
-  return at < 0 ? [...armorLanes, lanesOf(extra)] : [...armorLanes.slice(0, at), lanesOf(extra), ...armorLanes.slice(at)];
+  return at < 0 ? [...armorLanes, lanes] : [...armorLanes.slice(0, at), lanes, ...armorLanes.slice(at)];
+}
+
+function countBySide(keys: Iterable<string>): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const key of keys) counts.set(key[0], (counts.get(key[0]) ?? 0) + 1);
+  return counts;
+}
+
+function sideRootSum(lanes: string[][], counts: Map<string, number>): number {
+  const order = new Set<string>();
+  for (const list of lanes) {
+    for (const key of list) order.add(key[0]);
+    if (order.size === counts.size) break;
+  }
+  return [...order].reduce((sum, side) => sum + Math.sqrt(counts.get(side)!), 0);
 }
 
 function laneKey(g: Grid, c: { x: number; y: number }): string {
