@@ -1,7 +1,6 @@
 import { FIELD_SPARE_WEAR, OLD_PLACES, OLD_PLACE_TYPES, OLD_TABLES, SALVAGE, STORY_WRECKS, type LootRange, type LootTable, type OldPlaceType, type StoryWreck } from '../data/salvage';
-import { REGION } from '../data/region';
+import { DRAFT, REGION } from '../data/region';
 import OLD_SPOTS_FILE from '../data/old-spots.json';
-import { DRAFT } from '../data/region';
 import { CRATE_MASS, ECONOMY, GOODS } from '../data/goods';
 import { BREAKABLE, RULES } from '../data/rules';
 import { WRECK_LOOKS } from '../data/territory';

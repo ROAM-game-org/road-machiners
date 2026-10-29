@@ -1,9 +1,8 @@
 import { CONTRACTS, type ClaimLook } from '../data/market';
-import { REGION } from '../data/region';
+import { DRAFT, REGION } from '../data/region';
 import { BIG_SHELL_RADIUS, CLUE_PIECES, CLUE_SPOTS, type CluePiece } from '../data/territory';
 import { gridSquareOf, sameGridSquare, type GridSquare } from './map-grid';
 import CLAIM_CLUES_FILE from '../data/claim-clues.json';
-import { DRAFT } from '../data/region';
 import { territoryAt } from './territory';
 import type { World } from './types';
 import { bearing, dist, type Vec } from './vec';

@@ -1,10 +1,9 @@
 import { CONTRACTS, EFFORT, type Threat } from '../data/market';
 import { ECONOMY } from '../data/goods';
 import { RULES } from '../data/rules';
-import { REGION } from '../data/region';
+import { DRAFT, REGION } from '../data/region';
 import type { OldPlaceType } from '../data/salvage';
 import SURVEY_SITES_FILE from '../data/survey-sites.json';
-import { DRAFT } from '../data/region';
 import { atlasOf, type AtlasKey } from './atlas';
 import { DIRECTIONS } from '../data/directions';
 import { directionsFromSite } from './directions';
