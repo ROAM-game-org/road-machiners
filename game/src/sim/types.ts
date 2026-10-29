@@ -661,7 +661,9 @@ export type GameEvent =
   | { t: 'bountyClosed'; case: string; target: string; status: Exclude<CaseStatus, 'open'>; amount: number; collector: string | null }
   | { t: 'settlement'; faction: StandingFactionId; price: number }
   | { t: 'asked'; by: string; of: string; target: string; told: boolean }
-  | { t: 'huntWithdrawn'; by: string; target: string; posse: CasePosse };
+  | { t: 'huntWithdrawn'; by: string; target: string; posse: CasePosse }
+  | { t: 'enteredSite'; vehicle: string; site: string }
+  | { t: 'leftSite'; vehicle: string; site: string };
 
 export type GameModeId = 'roaming' | 'chaosHighway';
 export type ModeRules = { traffic: boolean; looting: boolean; npcKnockouts: boolean; playerKnockouts: boolean; yielding: boolean; radio: boolean; rescue: boolean; roadWrecks: boolean; run: boolean; standing: boolean; bounties: boolean };
@@ -763,4 +765,7 @@ export type World = {
   sunward: SunwardFacts | null;
   moments: Record<MomentId, MomentState> | null;
   crimes: CrimeCase[];
+  sheltered: ShelteredTruck[];
 };
+
+export type ShelteredTruck = { vehicle: Vehicle; site: string };

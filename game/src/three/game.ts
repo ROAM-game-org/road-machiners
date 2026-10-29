@@ -1185,7 +1185,7 @@ export class Game {
       this.truckFx.emit(this.world, display, f, frames !== null, playDt, seen);
     }
     this.pin.settle();
-    this.vehicleViews.keepOnly(ids);
+    this.vehicleViews.settle(ids, now, this.world.events);
   }
 
   private shownFrame(v: Vehicle, played: VehicleFrame | null | undefined): VehicleFrame {

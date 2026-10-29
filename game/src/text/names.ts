@@ -6,6 +6,7 @@ import type { LocalId, NoteId, TermId } from '../data/locals';
 import { FEMALE_NAMES, FIRST_NAMES, SURNAMES, type TraitId } from '../data/npcs';
 import { BASIC_RANK, type BasicId, type PerkId } from '../data/skills';
 import type { DeedId, StandingCause, Octant, Faction, GameModeId, GoalReason, MoneyReason, Refusal, SimNote, SkillId, UnitId, Vehicle, World, WorldSetup, WorldSettings } from '../sim/types';
+import { namedTruck } from '../sim/sites';
 import { byId, list, t, type Msg } from './msg';
 
 export const partName = (defId: string): Msg => byId(`part.${defId}`);
@@ -99,7 +100,7 @@ export function vehicleTitle(world: World, v: Vehicle): Msg {
 }
 
 export function vehicleTitleOf(world: World, id: string): Msg {
-  const v = world.vehicles.find((x) => x.id === id) ?? world.removed.find((x) => x.id === id);
+  const v = namedTruck(world, id);
   if (!v) throw new Error(`No vehicle ${id} to name`);
   return vehicleTitle(world, v);
 }

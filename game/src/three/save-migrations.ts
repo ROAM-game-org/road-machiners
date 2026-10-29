@@ -3,7 +3,7 @@ import { CORES_2_1, CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { GOAL_REASONS_2_19, LINES_2_19, WARN_LINES_2_19 } from './save-text-2-19';
 import { LAYOUTS_2_34 } from './save-layouts-2-34';
 
-import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withRunWait_72_73, withHeardCentres_81_82, withShortRoadScenes_90_91, withChaosHighwayIntro_91_92, withPastContracts_92_93, withoutVarga_79_80, withStapleRestock_83_84, withSunward_84_85, withHollowFort_85_86, withOfferedNight_86_87, withFollowHeadings_87_88, withKovacMounts_88_89, withTractorPivot_93_94, withProgressAnchor_65_66, withDutyLegs_59_60, withEncounters_64_65, withStandardPaint_94_95, withThreeColorPaint_95_96, withMutedPaint_96_97, withOddFronts_102_103, withoutFetchAndBounty_103_104, withLeanDirections_104_105, withMovedHollow_107_108, withHollowLaager_108_109, withCaseRestitution_109_110, withCasePosse_110_111, withRefitQueues_112_113, withChaosHighwayName_113_114, withWreckSquares_114_115, withMoments_115_116, withDialogueSeen_116_117, withoutLenaGlare_117_118, withChaseRecords_120_121 } from './save-steps-late';
+import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withRunWait_72_73, withHeardCentres_81_82, withShortRoadScenes_90_91, withChaosHighwayIntro_91_92, withPastContracts_92_93, withoutVarga_79_80, withStapleRestock_83_84, withSunward_84_85, withHollowFort_85_86, withOfferedNight_86_87, withFollowHeadings_87_88, withKovacMounts_88_89, withTractorPivot_93_94, withProgressAnchor_65_66, withDutyLegs_59_60, withEncounters_64_65, withStandardPaint_94_95, withThreeColorPaint_95_96, withMutedPaint_96_97, withOddFronts_102_103, withoutFetchAndBounty_103_104, withLeanDirections_104_105, withMovedHollow_107_108, withHollowLaager_108_109, withCaseRestitution_109_110, withCasePosse_110_111, withRefitQueues_112_113, withChaosHighwayName_113_114, withWreckSquares_114_115, withMoments_115_116, withDialogueSeen_116_117, withoutLenaGlare_117_118, withShelteredHollow_120_121, withChaseRecords_120_121 } from './save-steps-late';
 
 export type SavedJson = Record<string, unknown>;
 
@@ -819,6 +819,7 @@ export const TINY_STEPS: readonly NamedStep[] = [
   { name: 'withoutLenaGlare', step: withoutLenaGlare_117_118 },
   { name: 'marksStopPace', step: (world) => world },
   { name: 'withMeetingRoles', step: (world) => world },
+  { name: 'withShelteredHollow', step: withShelteredHollow_120_121 },
   { name: 'withOddJobs', step: (world) => world },
   { name: 'withChaseRecords', step: withChaseRecords_120_121 },
 ];

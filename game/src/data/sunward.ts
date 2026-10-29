@@ -28,6 +28,7 @@ export const SUNWARD = {
   straightReach: 4,
   vigilInset: 3,
   fileGap: 4,
+  padClear: 8,
   memberRadius: 0.8,
   sightMargin: 2,
   meetTurns: 12,
@@ -40,17 +41,11 @@ export const SUNWARD = {
 };
 
 export type HollowPiece = { look: 'shack' | 'hullChunk' | 'drums' | 'woodpile'; at: { x: number; y: number }; r: number; yaw: number };
-export type HollowBay = { x: number; y: number; heading: number };
 export type HollowSpot = { x: number; y: number };
 
 const HOLLOW_POS = { x: 304, y: 520 };
 const HOLLOW_RADIUS = 5;
 const GATE_BEARING = -0.97;
-const BAY_ROW = 2.6;
-const BAY_STEP = 2.2;
-const BAY_FRONT = 6.3;
-const BAYS_IN_FIRST_ROW = 6;
-const BAYS_IN_SECOND_ROW = 5;
 const GATE_BETWEEN_TOWERS = 20;
 
 export function hollowTurn(gateBearing: number): number {
@@ -62,27 +57,15 @@ function inGateFrame(along: number, across: number): HollowSpot {
   return { x: a.x * along - a.y * across, y: a.y * along + a.x * across };
 }
 
-function bay(along: number, across: number): HollowBay {
-  return { ...inGateFrame(along, across), heading: GATE_BEARING - Math.sign(across) * (Math.PI / 4) };
-}
-
 function piece(look: HollowPiece['look'], along: number, across: number, r: number, yaw: number): HollowPiece {
   return { look, at: inGateFrame(along, across), r, yaw: GATE_BEARING + yaw };
 }
-
-const alongOf = (k: number): number => BAY_FRONT + k * BAY_STEP;
-const SECOND_ROW_BAYS = Array.from({ length: BAYS_IN_SECOND_ROW }, (_, k) => BAYS_IN_SECOND_ROW - 1 - k);
-const BAY_SPOTS: readonly [number, number][] = [
-  [alongOf(BAYS_IN_FIRST_ROW - 1), -BAY_ROW],
-  ...SECOND_ROW_BAYS.flatMap((k): [number, number][] => [[alongOf(k), -BAY_ROW], [alongOf(k), BAY_ROW]]),
-];
 
 export const HOLLOW = {
   id: 'sunward-hollow',
   pos: HOLLOW_POS,
   radius: HOLLOW_RADIUS,
-  bayGap: 0.4,
-  maxReach: 19,
+  maxReach: 12,
   site: {
     id: 'sunward-hollow',
     kind: 'camp' as const,
@@ -97,7 +80,6 @@ export const HOLLOW = {
     piece('drums', 4.7, 3.9, 0.44, 0.4),
     piece('woodpile', 4.6, -3.9, 0.63, 0.8),
   ] as HollowPiece[],
-  bays: BAY_SPOTS.map(([along, across]) => bay(along, across)) as HollowBay[],
   lanterns: [inGateFrame(-1.6, -1)] as HollowSpot[],
   fire: inGateFrame(0.4, -1.6),
 };

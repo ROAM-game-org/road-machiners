@@ -7,7 +7,11 @@ import { setHeadless } from '../sim/fidelity';
 import { spawnNpcs } from '../sim/spawn';
 import { dawnAfter, duskTurn, membersOf, orderDusk, phaseAt, rideOutTurn } from '../sim/sunward';
 import { testDrive } from '../sim/testkit';
+import { everyTruck, leaveSite } from '../sim/sites';
+import { hollowPad } from '../sim/hollow-layout';
 import type { Vehicle, World } from '../sim/types';
+import type { Vec } from '../sim/vec';
+import { expect } from 'vitest';
 import { refreshVision } from '../sim/vision';
 import { endTurn } from '../sim/world';
 import { standardWorld } from './world-cache';
@@ -16,6 +20,7 @@ export function quietWorld(seed: number): World {
   const w = standardWorld(seed);
   const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
   w.vehicles = [playerVehicle(w)];
+  w.sheltered = [];
   playerVehicle(w).pos = { x: bowl.pos.x + bowl.radius + 6, y: bowl.pos.y };
   refreshVision(w);
   w.events = [];
@@ -78,10 +83,20 @@ export function watchedFromTheGate(w: World): World {
   return w;
 }
 
-export const BAY_LEFT = 3;
+export function beyondPad(by: number): Vec {
+  const pad = hollowPad();
+  const a = Math.atan2(pad.y - HOLLOW.pos.y, pad.x - HOLLOW.pos.x);
+  return { x: pad.x + Math.cos(a) * by, y: pad.y + Math.sin(a) * by };
+}
 
 export function riderAt(w: World, id: string): Vehicle {
-  const v = w.vehicles.find((x) => x.id === id);
+  const v = everyTruck(w).find((x) => x.id === id);
   if (!v) throw new Error(`No rider ${id}`);
   return v;
+}
+
+export function letOut(w: World, id: string): Vehicle {
+  w.events = [];
+  expect(leaveSite(w, id)).toBe(true);
+  return riderAt(w, id);
 }

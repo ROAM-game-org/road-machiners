@@ -326,8 +326,8 @@ function stateOf(world: World, trucks: Map<string, Fields>): StreamState {
   return { turn: world.turn, day: clockOf(world.turn).day, mapHash: world.mapHash, trucks, player: playerFields(world) };
 }
 
-function enterLine(turn: number, id: string, fields: Fields): StreamLine {
-  return { kind: 'enter', turn, id, ...fields };
+function enterLine(turn: number, id: string, fields: Fields, came?: string): StreamLine {
+  return { kind: 'enter', turn, id, ...(came ? { came } : {}), ...fields };
 }
 
 function sessionLine(world: World, ctx: StreamContext, from: string): StreamLine {
@@ -369,11 +369,12 @@ function moveLines(turn: number, prev: StreamState, now: Map<string, Fields>): S
   return rows.length > 0 ? [{ kind: 'moves', turn, m: rows }] : [];
 }
 
-function enterLines(turn: number, prev: StreamState, now: Map<string, Fields>): StreamLine[] {
-  return [...now].filter(([id]) => !prev.trucks.has(id)).map(([id, fields]) => enterLine(turn, id, fields));
+function enterLines(turn: number, prev: StreamState, events: readonly GameEvent[], now: Map<string, Fields>): StreamLine[] {
+  const fromSite = new Set(events.flatMap((e) => (e.t === 'leftSite' ? [e.vehicle] : [])));
+  return [...now].filter(([id]) => !prev.trucks.has(id)).map(([id, fields]) => enterLine(turn, id, fields, fromSite.has(id) ? 'site' : undefined));
 }
 
-const LEAVE_REASONS: Partial<Record<GameEvent['t'], string>> = { destroyed: 'wrecked', npcKnockout: 'knockedOut', despawn: 'despawned' };
+const LEAVE_REASONS: Partial<Record<GameEvent['t'], string>> = { destroyed: 'wrecked', npcKnockout: 'knockedOut', despawn: 'despawned', enteredSite: 'entered' };
 
 function leaveReason(world: World, prev: StreamState, events: readonly GameEvent[], id: string): string {
   const cause = events.find((e) => LEAVE_REASONS[e.t] !== undefined && (e as { vehicle?: string }).vehicle === id);
@@ -400,7 +401,7 @@ export function streamStep(prev: StreamState, world: World, events: readonly Gam
   const state = stateOf(world, now);
   const happened = eventLines(world, events, eventScope(prev, now));
   if (state.day !== prev.day) return { lines: [...keyframeLines(world, ctx, 'day', state), ...happened], state };
-  const lines = [...leaveLines(world, prev, events, now), ...enterLines(world.turn, prev, now), ...moveLines(world.turn, prev, now), ...changeLines(world.turn, prev, now), ...playerLines(world.turn, prev, state.player), ...happened];
+  const lines = [...leaveLines(world, prev, events, now), ...enterLines(world.turn, prev, events, now), ...moveLines(world.turn, prev, now), ...changeLines(world.turn, prev, now), ...playerLines(world.turn, prev, state.player), ...happened];
   return { lines, state };
 }
 
@@ -428,7 +429,7 @@ export class RunStream {
 }
 
 
-const NON_FIELDS = new Set(['kind', 'turn', 'id', 'sid']);
+const NON_FIELDS = new Set(['kind', 'turn', 'id', 'sid', 'came']);
 
 function fieldsOf(line: StreamLine): Fields {
   return Object.fromEntries(Object.entries(line).filter(([key]) => !NON_FIELDS.has(key)));

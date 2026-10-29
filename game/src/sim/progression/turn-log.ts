@@ -150,7 +150,7 @@ function foesSeen(world: World, me: Vehicle): SeenFoe[] {
 }
 
 const OWN = new Set(['money', 'contract', 'claimRival', 'claimLead', 'death', 'knockout', 'wake', 'skillUp', 'supply', 'townPatch', 'scrapPatch', 'searched', 'discover', 'outpostReached', 'roadOpened', 'runLost']);
-export const QUIET = new Set(['practice', 'activity', 'arrived', 'spawn', 'despawn', 'info', 'weather']);
+export const QUIET = new Set(['practice', 'activity', 'arrived', 'spawn', 'despawn', 'info', 'weather', 'enteredSite', 'leftSite']);
 
 export function touchesPlayer(e: GameEvent, me: string): boolean {
   if (QUIET.has(e.t)) return false;
