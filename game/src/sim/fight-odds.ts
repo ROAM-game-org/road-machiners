@@ -1,5 +1,5 @@
 import { PARTS, type WeaponDef } from '../data/parts';
-import { gunSpans, sidePlanner, spanSides, SIDES, type Round, type Side } from './armor';
+import { gunLayoutKey, gunSpans, sidePlanner, spanSides, SIDES, type Round, type Side } from './armor';
 import { corePart, mountedItems, mountedParts, shieldParts, sideOf } from './grid';
 import { vehicleStats, weaponOn } from './stats';
 import type { GridItem, PartInstance, Vehicle, World } from './types';
@@ -122,7 +122,7 @@ export function killRate(def: WeaponDef, target: Target, side: Side): number {
 }
 
 export function gunsBySide(v: Vehicle): Record<Side, WeaponDef[]> {
-  return kept(gunCache, loadoutKey(v), () => buildGunsBySide(v));
+  return kept(gunCache, gunLayoutKey(v), () => buildGunsBySide(v));
 }
 
 function buildGunsBySide(v: Vehicle): Record<Side, WeaponDef[]> {

@@ -419,9 +419,28 @@ export function spanDegrees(spans: readonly FireSpan[]): number {
   return spans.reduce((sum, s) => sum + s.to - s.from, 0);
 }
 
+export function gunLayoutKey(v: Vehicle): string {
+  const placed = v.items.flatMap((it) => (it.kind === 'part' && isGunOrTall(it) ? [`${it.x},${it.y},${it.rot},${it.part.defId},${it.part.wear},${it.part.hp > 0 ? 1 : 0}`] : []));
+  return `${v.chassisId};${placed.join(';')}`;
+}
+
+function isGunOrTall(it: Extract<GridItem, { kind: 'part' }>): boolean {
+  const def = partDef(it.part.defId);
+  return def.kind === 'weapon' || Boolean(def.tall);
+}
+
+const OPEN_ARCS_KEPT = 512;
+const openArcCache = new Map<string, number[]>();
+
 export function openArcShares(v: Vehicle): number[] {
+  const key = gunLayoutKey(v);
+  const known = openArcCache.get(key);
+  if (known) return known;
   const tall = tallItems(v);
-  return mountedItems(v, 'weapon').map((item) => shareOpen(v, tall, item));
+  const shares = mountedItems(v, 'weapon').map((item) => shareOpen(v, tall, item));
+  if (openArcCache.size >= OPEN_ARCS_KEPT) openArcCache.clear();
+  openArcCache.set(key, shares);
+  return shares;
 }
 
 function shareOpen(v: Vehicle, tall: readonly GridItem[], item: GridItem): number {
