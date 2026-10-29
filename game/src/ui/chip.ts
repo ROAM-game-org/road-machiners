@@ -14,9 +14,11 @@ export type ChipOptions = {
 
 export function chipEl(value: Child, opts: ChipOptions = {}): HTMLElement {
   const classes = ["chip", opts.bad ? "bad" : "", opts.className ?? ""].filter(Boolean).join(" ");
-  const attrs: Record<string, string | Msg> = { class: classes };
-  if (opts.title) attrs.title = opts.title;
-  if (opts.label) attrs["aria-label"] = opts.label;
+  const attrs: Record<string, string | Msg> = {
+    class: classes,
+    ...(opts.title ? { title: opts.title } : {}),
+    ...(opts.label ? { "aria-label": opts.label } : {}),
+  };
   const shown = opts.readout && value !== null ? el("span", { class: "num" }, value) : value;
   return el("span", attrs, opts.icon ? createIcon(opts.icon) : null, shown, ...(opts.extra ?? []));
 }

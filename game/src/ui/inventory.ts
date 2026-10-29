@@ -84,7 +84,7 @@ import {
   type PixelRect,
 } from "./inventory-draw";
 import { fillGhost, garageLooks, type GarageLooks } from "./garage-draw";
-import { fuelLiters, kg, moneyEl, moneyMsg, pricedEl } from "./units";
+import { fuelLiters, moneyEl, moneyMsg, pricedEl } from "./units";
 import { maxSpeedSteps } from "../sim/stats";
 import { getSearchAction, powerChip } from "./hud-readout";
 import {
