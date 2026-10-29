@@ -6,6 +6,8 @@ import { reportIncident } from './relations';
 import { gunFor } from './factory';
 import { mountedParts } from './grid';
 import { addState, stateOf, strayData } from './states';
+import { vehicleStats } from './stats';
+import { bearing, DEG } from './vec';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import type { Vehicle, World } from './types';
 
@@ -137,6 +139,7 @@ describe('blasts', () => {
     const far = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 36, y: 34 }, Math.PI / 2);
     const gun = mountedParts(me, 'weapon')[0];
     me.weaponOrders[gun.id] = { targetId: target.id, aim: 'body' };
+    me.heading = bearing(me.pos, target.pos) - vehicleStats(w, me).weapons[0].facing * DEG;
     const dealt = fire(w, me, 12);
     expect(dealt.get(beside.id) ?? 0).toBeGreaterThan(0);
     expect(dealt.has(far.id)).toBe(false);
