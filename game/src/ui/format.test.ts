@@ -1120,3 +1120,41 @@ describe("the Bounty hunter Wanted mark", () => {
     expect(wantedBounty(w, robber)).toBe(11097);
   });
 });
+
+describe("say lines", () => {
+  function scene() {
+    const w = emptyWorld();
+    const far = addVehicle(w, "independent", "buggy", [], { x: 100, y: 100 });
+    const other = addVehicle(w, "independent", "buggy", [], { x: 120, y: 100 });
+    const near = addVehicle(w, "independent", "buggy", [], { x: 30, y: 30 });
+    w.player.visible = [Math.floor(near.pos.y) * w.size + Math.floor(near.pos.x)];
+    const shout = (speaker: string, to: string): GameEvent => ({ t: "say", speaker, to, line: "givenBySky", vars: {} });
+    return { w, far, other, near, shout };
+  }
+
+  it("gives no line for a shout between two trucks out of sight", () => {
+    const { w, far, other, shout } = scene();
+    expect(eventText(w, shout(far.id, other.id))).toBeNull();
+  });
+
+  it("names the speaker once the player sees the speaker", () => {
+    const { w, near, other, shout } = scene();
+    expect(eventText(w, shout(near.id, other.id))).not.toBeNull();
+  });
+
+  it("shows a line said to the player by a truck out of sight", () => {
+    const { w, far, shout } = scene();
+    expect(eventText(w, shout(far.id, w.player.vehicleId))).not.toBeNull();
+  });
+
+  it("shows a line the player says to a truck out of sight", () => {
+    const { w, far, shout } = scene();
+    expect(eventText(w, shout(w.player.vehicleId, far.id))).not.toBeNull();
+  });
+
+  it("shows everything with the full log", () => {
+    const { w, far, other, shout } = scene();
+    w.player.fullLog = true;
+    expect(eventText(w, shout(far.id, other.id))).not.toBeNull();
+  });
+});
