@@ -2,7 +2,7 @@ import { chassisDef } from '../data/chassis';
 import { CHAOS_HIGHWAY, HIGHWAY } from '../data/modes';
 import { RULES } from '../data/rules';
 import { haulerOf, playerVehicle } from './damage';
-import { backOutSpot } from './back-out';
+import { backOutSpot } from './free-spot';
 import { footprint, noseReach, rigMiddle, sideReach } from './rig';
 import { isDefeated } from './defeat';
 import { betweenLevels, inYard, yardSpots } from './outpost-gates';

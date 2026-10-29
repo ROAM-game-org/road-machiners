@@ -71,8 +71,8 @@ describe.each(TARGETS)('$look in $territory', ({ territory, look, near }) => {
     me.order = null;
     const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { ...entry }, Math.atan2(stock.pos.y - entry.y, stock.pos.x - entry.x));
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
-    let goal = spotGoal(w, territory);
-    while (goal.targetId !== stock.id) goal = spotGoal(w, territory);
+    let goal = spotGoal(w, territory, []);
+    while (goal.targetId !== stock.id) goal = spotGoal(w, territory, []);
     npc.brain.goals = [goal];
     forceOption('salvageSeen', 'keep');
 

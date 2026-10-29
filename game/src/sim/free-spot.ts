@@ -1,7 +1,10 @@
-import { CHEATS } from '../data/rules';
+import { CHEATS, RULES } from '../data/rules';
 import { isFree } from './spawn';
-import type { World } from './types';
+import { vehicleStats } from './stats';
+import type { Vehicle, World } from './types';
 import type { Vec } from './vec';
+
+const WAYS_OUT = [180, 135, -135, 90, -90].map((deg) => (deg * Math.PI) / 180);
 
 export function spotNear(center: Vec, accepts: (pos: Vec) => boolean): Vec | null {
   if (accepts(center)) return { ...center };
@@ -27,4 +30,11 @@ function circlePoints(center: Vec, r: number, count: number): Vec[] {
     const a = (2 * Math.PI * i) / count;
     return { x: center.x + Math.cos(a) * r, y: center.y + Math.sin(a) * r };
   });
+}
+
+export function backOutSpot(world: World, v: Vehicle): Vec {
+  const back = RULES.reverse.distance + RULES.minAimDistance;
+  const spots = WAYS_OUT.map((turn) => ({ x: v.pos.x + Math.cos(v.heading + turn) * back, y: v.pos.y + Math.sin(v.heading + turn) * back }));
+  const radius = vehicleStats(world, v).radius;
+  return spots.find((spot) => isFree(world, spot, radius, v.id)) ?? spots[0];
 }
