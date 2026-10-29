@@ -229,9 +229,18 @@ export function driveStats(world: World, v: Vehicle): DriveStats {
 type Drive = { maxSpeed: number; accel: number; fuelMult: number };
 type DriveShares = { limpSpeed: number; limpAccel: number; load: number; brokenWheels: number; force: number };
 
+function topSpeedOf(world: World, v: Vehicle, s: Pick<DriveShares, 'limpSpeed' | 'load' | 'brokenWheels'>): number {
+  return walkSpeed(world, v, s.limpSpeed, s.load, s.brokenWheels, inOverdrive(world, v), null);
+}
+
+export function vehicleMaxSpeed(world: World, v: Vehicle): number {
+  if (isShutDown(world, v)) return 0;
+  return topSpeedOf(world, v, { limpSpeed: limpSpeedOf(world, v), load: loadFactor(v), brokenWheels: brokenWheelCount(v) });
+}
+
 function driveOf(world: World, v: Vehicle, s: DriveShares): Drive {
   if (isShutDown(world, v)) return { maxSpeed: 0, accel: 0, fuelMult: 0 };
-  const maxSpeed = walkSpeed(world, v, s.limpSpeed, s.load, s.brokenWheels, inOverdrive(world, v), null);
+  const maxSpeed = topSpeedOf(world, v, s);
   if (!hasWorkingEngine(v) || isStalled(world, v)) return { maxSpeed, accel: s.limpAccel, fuelMult: 0 };
   const ch = chassisDef(v.chassisId);
   const e = wornDef<EngineDef>(mountedParts(v, 'engine')[0]);
@@ -245,15 +254,24 @@ export function plainMaxSpeed(world: World, v: Vehicle): number {
   return walkSpeed(world, v, limpSpeedOf(world, v), loadFactor(v), brokenWheelCount(v), false, null);
 }
 
+function reshapesGuns(chassisId: string): boolean {
+  const ability = chassisAbility(chassisId);
+  return Boolean(ability?.range || ability?.reloadCut || ability?.arc);
+}
+
+export function weaponArc(chassisId: string, defId: string): number {
+  const def = partDef(defId) as WeaponDef;
+  return reshapesGuns(chassisId) ? Math.min(360, def.arc + arcBonus(chassisId)) : def.arc;
+}
+
 export function weaponOn(v: Vehicle, part: PartInstance): WeaponDef {
   const def = wornDef<WeaponDef>(part);
-  const ability = chassisAbility(v.chassisId);
-  if (!ability?.range && !ability?.reloadCut && !ability?.arc) return def;
+  if (!reshapesGuns(v.chassisId)) return def;
   return {
     ...def,
     range: def.range * rangeFactor(v.chassisId),
     reload: Math.max(1, def.reload - reloadCut(v.chassisId)),
-    arc: Math.min(360, def.arc + arcBonus(v.chassisId)),
+    arc: weaponArc(v.chassisId, part.defId),
   };
 }
 
@@ -290,15 +308,15 @@ export function npcMassRoom(v: Vehicle, share = templateSpeedShare(v)): number {
 
 export function massRoomAbove(v: Vehicle, share: number, floorSpeed: number): number {
   const needed = neededLoadFactor(v, share, floorSpeed);
-  const base = loadMass(v);
-  const factor = (extra: number) => loadFactorAt(v.chassisId, base + extra);
-  if (factor(0) < needed) return 0;
+  if (loadFactor(v) < needed) return 0;
+  const held = loadMass(v);
+  const factorWith = (extra: number) => loadFactorAt(v.chassisId, held + extra);
   let low = 0;
   let high = chassisDef(v.chassisId).ratedMass;
-  while (factor(high) >= needed) high *= 2;
+  while (factorWith(high) >= needed) high *= 2;
   while (high - low > 1) {
     const mid = (low + high) / 2;
-    if (factor(mid) >= needed) low = mid;
+    if (factorWith(mid) >= needed) low = mid;
     else high = mid;
   }
   return low;

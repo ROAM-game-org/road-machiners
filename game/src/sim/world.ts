@@ -371,6 +371,7 @@ export function endTurn(
     const troubleBefore = troubleOf(w);
     w.turn++;
     advanceWeather(w);
+    settleMeetings(w);
     planNpcOrders(w);
     planHaulerOrder(w);
     freezeDriving(w);
