@@ -1,0 +1,9 @@
+{
+  "turn": 2400,
+  "setup": { "mode": "roaming" },
+  "chaosHighway": null,
+  "player": { "money": 900 },
+  "vehicles": [
+    { "id": "v1", "pos": { "x": 100, "y": 100 }, "job": null }
+  ]
+}
