@@ -6,6 +6,7 @@ import { mapAt } from '../sim/highway';
 import type { World } from '../sim/types';
 import type { SlotId } from './save-slots';
 import { savedMisfit, savedRevisionsOf, savedRunId, saveOf, storedSave, writeSave } from './save';
+import { withSquareGrid_121_122 } from './save-step-square-grid';
 import { armorRowOfItem_120_121, chaosHighwayMode_113_114, mutedColor_96_97, paintOfPreset_95_96 } from './save-steps-late';
 import type { SaveSlots } from './save-db';
 
@@ -128,12 +129,31 @@ function vehicleOf(world: Json, id: unknown): Json | null {
 }
 
 const ARMOR_ROWS_OUTSIDE_BEFORE = 121;
+const SQUARE_GRID_BEFORE = 122;
+const OFF_GRID = -1;
+
+function savedItemOf(item: CarriedItem, i: number): Json {
+  const spot = { id: `item${i}`, x: item.x, y: item.y, rot: item.rot };
+  if (item.kind === 'good') return { ...spot, kind: 'good', good: item.good };
+  return { ...spot, kind: 'part', part: { id: `part${i}`, defId: item.part.defId, hp: item.part.hp, wear: item.part.wear, rebuilt: item.part.rebuilt } };
+}
+
+function onSquareGrid(chassisId: string, items: CarriedItem[]): CarriedItem[] {
+  const vehicle = { id: 'rescued', faction: 'player', chassisId, items: items.map(savedItemOf) };
+  const moved = withSquareGrid_121_122({ player: { vehicleId: 'rescued', storage: [] }, vehicles: [vehicle] });
+  const spots = new Map(((moved.vehicles as Json[])[0].items as Json[]).map((it) => [it.id, it]));
+  return items.map((item, i) => {
+    const spot = spots.get(`item${i}`);
+    return spot ? { ...item, x: spot.x as number, y: spot.y as number, rot: spot.rot as CarriedItem['rot'] } : { ...item, x: OFF_GRID, y: OFF_GRID };
+  });
+}
 
 function itemsOf(vehicle: Json, format: number): CarriedItem[] {
   const read = listOf(vehicle.items).map(itemOf).filter((it): it is CarriedItem => it !== null);
   const chassisId = idOf(vehicle.chassisId);
-  if (!formatBefore(format, ARMOR_ROWS_OUTSIDE_BEFORE) || chassisId === null) return read;
-  return read.map((it) => (it.y < 0 ? it : { ...it, y: armorRowOfItem_120_121(chassisId, it.y, it.kind === 'part' ? it.part.defId : null) }));
+  if (chassisId === null) return read;
+  const outside = formatBefore(format, ARMOR_ROWS_OUTSIDE_BEFORE) ? read.map((it) => (it.y < 0 ? it : { ...it, y: armorRowOfItem_120_121(chassisId, it.y, it.kind === 'part' ? it.part.defId : null) })) : read;
+  return formatBefore(format, SQUARE_GRID_BEFORE) ? onSquareGrid(chassisId, outside) : outside;
 }
 
 function truckOf(world: Json, player: Json, format: number): Carried['truck'] {

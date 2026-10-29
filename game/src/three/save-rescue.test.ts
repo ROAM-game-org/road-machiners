@@ -118,10 +118,11 @@ describe('readCarried', () => {
     expect(readCarried(junk[3]).truck).toBeNull();
   });
 
-  it('moves the rows of a truck from before format 2.121 onto the outside armor rows, and leaves a newer truck alone', () => {
+  it('moves the rows of a truck from before format 2.121 onto the outside armor rows and one from before 2.122 onto the square grid, and leaves a newer truck alone', () => {
     const rows = (minor: number) => readCarried({ format: { major: 2, minor }, world: FORMAT_2_120 }).truck!.items.map((it) => it.y);
-    expect(rows(120)).toEqual([0, 3, 9, 1, 1, 4, 6, 8]);
-    expect(rows(121)).toEqual([0, 2, 7, 0, 0, 3, 5, 7]);
+    expect(rows(120)).toEqual([0, 4, 13, 1, 1, 5, 9, 12]);
+    expect(rows(121)).toEqual([0, 3, 10, 1, 1, 4, 7, 10]);
+    expect(rows(122)).toEqual([0, 2, 7, 0, 0, 3, 5, 7]);
   });
 
   it('drops items with float coordinates and keeps a debt', () => {
