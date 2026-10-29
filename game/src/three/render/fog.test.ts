@@ -32,6 +32,12 @@ function groundChunks(): TerrainChunk[] {
   return out;
 }
 
+function fogOn(world: World, ground: TerrainChunk[], limit: SightLimit, props: readonly number[]): FogView {
+  const view = new FogView(world, ground[0].mesh.material as THREE.MeshLambertMaterial, limit, props);
+  for (const chunk of ground) view.attach(chunk);
+  return view;
+}
+
 function lookAttributes(ground: TerrainChunk[]): THREE.BufferAttribute[] {
   return ground.map((g) => g.mesh.geometry.getAttribute('fogLook') as THREE.BufferAttribute);
 }
@@ -42,7 +48,7 @@ function looks(ground: TerrainChunk[]): number[][] {
 
 function fresh(world: World): number[][] {
   const ground = groundChunks();
-  new FogView(world, ground, new SightLimit(SIZE), []);
+  fogOn(world, ground, new SightLimit(SIZE), []);
   return looks(ground);
 }
 
@@ -57,7 +63,7 @@ describe('fog diff update', () => {
     const rnd = random(3);
     const explored = new Uint8Array(SIZE * SIZE);
     const ground = groundChunks();
-    const view = new FogView(fogWorld([], explored.slice()), ground, new SightLimit(SIZE), []);
+    const view = fogOn(fogWorld([], explored.slice()), ground, new SightLimit(SIZE), []);
     for (let step = 0; step < 40; step++) {
       const visible = disk(rnd() * SIZE, rnd() * SIZE, 1 + rnd() * 12);
       for (const t of visible) explored[t] = 1;
@@ -72,7 +78,7 @@ describe('fog diff update', () => {
   it('greys tiles a chart reveals out of sight', () => {
     const explored = new Uint8Array(SIZE * SIZE);
     const ground = groundChunks();
-    const view = new FogView(fogWorld(disk(5, 5, 3), explored.slice()), ground, new SightLimit(SIZE), []);
+    const view = fogOn(fogWorld(disk(5, 5, 3), explored.slice()), ground, new SightLimit(SIZE), []);
     for (let y = 40; y < 50; y++) explored.fill(1, y * SIZE + 41, y * SIZE + 53);
     const world = fogWorld(disk(5, 5, 3), explored.slice());
     view.update(world, []);
@@ -82,7 +88,7 @@ describe('fog diff update', () => {
   it('dirties neighbouring chunks when a tile on a chunk border changes', () => {
     const explored = new Uint8Array(SIZE * SIZE);
     const ground = groundChunks();
-    const view = new FogView(fogWorld([], explored), ground, new SightLimit(SIZE), []);
+    const view = fogOn(fogWorld([], explored), ground, new SightLimit(SIZE), []);
     for (const [x, y] of [[31, 31], [32, 32], [31, 32], [63, 0], [64, 69], [0, 31]]) {
       const world = fogWorld([y * SIZE + x], explored);
       view.update(world, []);
@@ -93,7 +99,7 @@ describe('fog diff update', () => {
   it('leaves chunks without changed tiles untouched', () => {
     const explored = new Uint8Array(SIZE * SIZE);
     const ground = groundChunks();
-    const view = new FogView(fogWorld([], explored), ground, new SightLimit(SIZE), []);
+    const view = fogOn(fogWorld([], explored), ground, new SightLimit(SIZE), []);
     const before = lookAttributes(ground).map((a) => a.version);
     view.update(fogWorld(disk(5, 5, 3), explored), []);
     const changed = lookAttributes(ground).map((a, i) => a.version !== before[i]);
@@ -112,7 +118,7 @@ describe('fog diff update', () => {
     });
     const ground = groundChunks();
     const rule = disk(5, 5, 3);
-    const view = new FogView(fogWorld(rule, explored.slice()), ground, limit, []);
+    const view = fogOn(fogWorld(rule, explored.slice()), ground, limit, []);
     const props = [40 * SIZE + 40, 40 * SIZE + 41];
     view.update(fogWorld(rule, explored.slice()), props);
 
@@ -120,8 +126,20 @@ describe('fog diff update', () => {
     expect(looks(ground)).toEqual(fresh(fogWorld(rule, explored.slice())));
   });
 
+  it('gives a chunk attached after vision changes the same look as one attached at the start', () => {
+    const explored = new Uint8Array(SIZE * SIZE);
+    const ground = groundChunks();
+    const view = new FogView(fogWorld(disk(5, 5, 3), explored.slice()), ground[0].mesh.material as THREE.MeshLambertMaterial, new SightLimit(SIZE), []);
+    view.attach(ground[0]);
+    for (let y = 30; y < 50; y++) explored.fill(1, y * SIZE + 20, y * SIZE + 60);
+    const world = fogWorld(disk(40, 40, 6), explored.slice());
+    view.update(world, []);
+    for (const chunk of ground.slice(1)) view.attach(chunk);
+    expect(looks(ground)).toEqual(fresh(world));
+  });
+
   it('rejects a seen-prop tile outside the map', () => {
-    const view = new FogView(fogWorld([], new Uint8Array(SIZE * SIZE)), groundChunks(), new SightLimit(SIZE), []);
+    const view = fogOn(fogWorld([], new Uint8Array(SIZE * SIZE)), groundChunks(), new SightLimit(SIZE), []);
     expect(() => view.update(fogWorld([], new Uint8Array(SIZE * SIZE)), [SIZE * SIZE])).toThrow('outside');
   });
 });

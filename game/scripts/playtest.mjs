@@ -196,6 +196,12 @@ const fps = await page.evaluate(() => new Promise((done) => {
   requestAnimationFrame(f);
 }));
 const state = await page.evaluate(() => ({ turn: window.__ROAM__.state.turn, crashed: document.querySelector('.crash-screen') !== null }));
+const allCellsMs = await page.evaluate(() => {
+  const start = performance.now();
+  window.__ROAM__.buildAllCells();
+  return performance.now() - start;
+});
+console.log(`built every map cell in ${(allCellsMs / 1000).toFixed(1)} s`);
 const blank = await page.evaluate(() => {
   const c = document.querySelector('#game canvas');
   return !c || c.width === 0;

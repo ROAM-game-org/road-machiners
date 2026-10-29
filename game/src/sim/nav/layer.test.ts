@@ -9,8 +9,9 @@ import { route } from '../path';
 import type { Obstacle } from '../types';
 import { dist, type Vec } from '../vec';
 import { stampOverlay } from './astar';
-import { CELL, CLEARANCE, climbTaste, slowAt, dynamicBlockers, makeTaste, navLayer, tasteAt, tasted, tasteKey, tasteOf, terrainNav, tileIndex, warmLayers } from './layer';
-import { CHASSIS } from '../../data/chassis';
+import { blockedAt, CELL, CLEARANCE, climbTaste, slowAt, dynamicBlockers, makeTaste, navLayer, tasteAt, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type NavLayer } from './layer';
+import { pieceTable, regionAt } from './cells';
+import { perfSnapshot, resetPerf } from '../../perf';
 import { editableTerrain, emptyWorld, npcBrain } from '../testkit';
 import { newWorld } from '../world';
 import { TEST_MAP } from '../../test/map';
@@ -18,6 +19,17 @@ import { budget } from '../../test/budget';
 import { defaultSetup } from '../settings';
 
 const { scale, strength } = REGION.navigation.taste;
+
+function mismatchesNear(a: NavLayer, b: NavLayer, from: Vec, to: Vec): number {
+  let wrong = 0;
+  for (let y = Math.floor(from.y / CELL); y <= Math.floor(to.y / CELL); y++)
+    for (let x = Math.floor(from.x / CELL); x <= Math.floor(to.x / CELL); x++) {
+      const c = y * a.n + x;
+      if (blockedAt(a, c) !== blockedAt(b, c) || slowAt(a, c) !== slowAt(b, c)) wrong++;
+      else if (a.grid.regions.slow[regionAt(a.grid, c)] !== b.grid.regions.slow[regionAt(b.grid, c)]) wrong++;
+    }
+  return wrong;
+}
 const ROOF_EDGE = 1e-9;
 
 describe('climb taste', () => {
@@ -197,13 +209,13 @@ describe('prop footprints', () => {
     });
   });
 
-  it('builds a new layer when a prop turns in place', () => {
+  it('changes the layer when a prop turns in place', () => {
     const w = emptyWorld();
     w.obstacles = [ruin];
-    const before = navLayer(w.terrain, w.obstacles, radius);
+    const before = navLayer(w.terrain, w.obstacles, radius).id;
     w.obstacles = [{ ...ruin, yaw: 1 }];
 
-    expect(navLayer(w.terrain, w.obstacles, radius) === before).toBe(false);
+    expect(navLayer(w.terrain, w.obstacles, radius).id).not.toBe(before);
   });
 });
 
@@ -232,12 +244,12 @@ describe('breakable props', () => {
     const w = emptyWorld();
     const fence = fenceAt('fence-0', { x: 40.2, y: 40.3 });
     w.obstacles = [fence];
-    const open = navLayer(w.terrain, [], radius);
+    const cell = cellAt(navLayer(w.terrain, [], radius).n, fence.pos);
+    const open = slowAt(navLayer(w.terrain, [], radius), cell);
     const layer = navLayer(w.terrain, w.obstacles, radius);
-    const cell = cellAt(layer.n, fence.pos);
 
-    expect(layer.blocked[cell]).toBe(0);
-    expect(slowAt(layer, cell)).toBeCloseTo(slowAt(open, cell) * BREAKABLE.routeCost);
+    expect(blockedAt(layer, cell)).toBe(false);
+    expect(slowAt(layer, cell)).toBeCloseTo(open * BREAKABLE.routeCost);
   });
 
   it('patches a layer when fences break or appear to the same bytes as a fresh build', () => {
@@ -248,28 +260,27 @@ describe('breakable props', () => {
     const patched = emptyWorld().terrain;
     for (const obstacles of sets) {
       const layer = navLayer(patched, obstacles, radius);
-      const fresh = navLayer(emptyWorld().terrain, obstacles, radius);
-      expect(Buffer.from(layer.marks!.buffer).equals(Buffer.from(fresh.marks!.buffer))).toBe(true);
-      expect(Buffer.from(layer.coarse.slow.buffer).equals(Buffer.from(fresh.coarse.slow.buffer))).toBe(true);
-      expect(Buffer.from(layer.blocked.buffer).equals(Buffer.from(fresh.blocked.buffer))).toBe(true);
+      const fresh = navLayer({ ...emptyWorld().terrain }, obstacles, radius);
+      expect(mismatchesNear(layer, fresh, { x: 20, y: 20 }, { x: 80, y: 80 })).toBe(0);
     }
   });
 
-  it('warms every chassis radius on the map to the same bytes as building each radius alone', () => {
+  it('loads the baked route summary equal to a fresh build of every cell', () => {
     const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
-    const radii = [...new Set(Object.values(CHASSIS).map((c) => c.radius))];
-    const alone = { ...w.terrain };
-    warmLayers(w.terrain, w.obstacles, radii);
-    const bytes = (a: ArrayBufferView) => Buffer.from(a.buffer, a.byteOffset, a.byteLength);
-    for (const r of radii) {
-      const warmed = navLayer(w.terrain, w.obstacles, r);
-      const built = navLayer(alone, w.obstacles, r);
-      expect(bytes(warmed.blocked).equals(bytes(built.blocked))).toBe(true);
-      expect(bytes(warmed.coarse.region.local).equals(bytes(built.coarse.region.local))).toBe(true);
-      expect(bytes(warmed.coarse.edgeStart).equals(bytes(built.coarse.edgeStart))).toBe(true);
-      expect(bytes(warmed.coarse.edges).equals(bytes(built.coarse.edges))).toBe(true);
-    }
-  }, budget(180_000));
+    const plain = { ...w.terrain, routes: undefined };
+    for (const r of [0.6, 0.95]) expect(pieceTable(navLayer(w.terrain, w.obstacles, r).grid)).toEqual(pieceTable(navLayer(plain, w.obstacles, r).grid));
+  }, budget(120_000));
+
+  it('rebuilds only the cells whose props changed, to the same summary as a fresh build', () => {
+    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const center = { x: 600, y: 600 };
+    const ring = Array.from({ length: 48 }, (_, i): Obstacle => ({ id: `ring-${i}`, pos: { x: center.x + 9 * Math.cos((i / 48) * 2 * Math.PI), y: center.y + 9 * Math.sin((i / 48) * 2 * Math.PI) }, r: 1, kind: 'rock' }));
+    const obstacles = [...w.obstacles.filter((o) => dist(o.pos, center) > 12), ...ring];
+    resetPerf();
+    const layer = navLayer(w.terrain, obstacles, 0.6);
+    expect(perfSnapshot()['route-cell-repieced'].calls).toBeLessThan(10);
+    expect(pieceTable(layer.grid)).toEqual(pieceTable(navLayer({ ...w.terrain, routes: undefined }, obstacles, 0.6).grid));
+  }, budget(120_000));
 
   it('keeps a shack blocked', () => {
     const w = emptyWorld();
@@ -277,7 +288,7 @@ describe('breakable props', () => {
     w.obstacles = [shack];
     const layer = navLayer(w.terrain, w.obstacles, radius);
 
-    expect(layer.blocked[cellAt(layer.n, shack.pos)]).toBe(1);
+    expect(blockedAt(layer, cellAt(layer.n, shack.pos))).toBe(true);
   });
 
   const crossExtra = (2 * grow + 0.1) * (BREAKABLE.routeCost - 1);
@@ -301,18 +312,20 @@ describe('breakable props', () => {
     expect(crosses(w.obstacles, from, route(w, from, { x: 60 + gap, y: 120 }, radius, []))).toBe(true);
   });
 
-  it('builds a new layer when a fence breaks in place and the same one when it grows back', () => {
+  it('changes the layer when a fence breaks in place and restores it when the fence grows back', () => {
     const w = emptyWorld();
     const fence = fenceAt('fence-0', { x: 40.2, y: 40.3 });
     const other = fenceAt('fence-1', { x: 80.2, y: 80.3 });
-    w.obstacles = [fence];
-    const whole = navLayer(w.terrain, w.obstacles, radius);
-    w.obstacles = [other];
-    const broken = navLayer(w.terrain, w.obstacles, radius);
-    w.obstacles = [fence];
+    const slowOf = (obstacles: Obstacle[]) => {
+      const layer = navLayer(w.terrain, obstacles, radius);
+      return { id: layer.id, slow: slowAt(layer, cellAt(layer.n, fence.pos)) };
+    };
+    const whole = slowOf([fence]);
+    const broken = slowOf([other]);
+    const back = slowOf([fence]);
 
-    expect(broken === whole).toBe(false);
-    expect(slowAt(broken, cellAt(broken.n, fence.pos))).toBeCloseTo(slowAt(whole, cellAt(whole.n, fence.pos)) / BREAKABLE.routeCost);
-    expect(navLayer(w.terrain, w.obstacles, radius)).toBe(whole);
+    expect(broken.id).not.toBe(whole.id);
+    expect(broken.slow).toBeCloseTo(whole.slow / BREAKABLE.routeCost);
+    expect(back.slow).toBe(whole.slow);
   });
 });

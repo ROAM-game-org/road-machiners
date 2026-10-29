@@ -7,7 +7,8 @@ import { PHYSICS } from '../data/physics';
 import { boxDistance, boxSegmentDistance, isBreakable, isDriveObstacle, propBoxes, propReach } from './mapgen';
 import { BREAKABLE } from '../data/rules';
 import { findCells, nearestFreeCell, stampOverlay } from './nav/astar';
-import { COARSE, componentOf, dynamicBlockers, navLayer, onRouteRoad, slowAt, terrainNav } from './nav/layer';
+import { blockedAt, buildEveryCell, COARSE, componentOf, dynamicBlockers, navLayer, onRouteRoad, slowAt, terrainNav } from './nav/layer';
+import { regionAt } from './nav/cells';
 import { continueRoute, keepRoute, route, routeLength, straightClear, type Blocker } from './path';
 import { nextRandom } from './rng';
 import { isCliff, tileAt, tileSlope, type Terrain } from './terrain';
@@ -570,18 +571,21 @@ describe('long routes search a coarse corridor', () => {
 
   it('coarse regions are the connected pieces of each block, linked where their cells touch', () => {
     const layer = navLayer(w.terrain, w.obstacles, 0.6);
+    buildEveryCell(layer);
     const n = layer.n;
-    const { n: bn, region, block, slow, edgeStart, edges } = layer.coarse;
+    const { bn } = layer.grid;
+    const { block, slow, links } = layer.grid.regions;
+    const region = (c: number) => regionAt(layer.grid, c);
     expect(bn).toBe(Math.ceil(n / COARSE));
     const blockOfCell = (x: number, y: number) => Math.floor(y / COARSE) * bn + Math.floor(x / COARSE);
-    const linked = (a: number, b: number) => edges.subarray(edgeStart[a], edgeStart[a + 1]).includes(b);
+    const linked = (a: number, b: number) => links[a].includes(b);
     const slowSum = new Float64Array(block.length);
     const size = new Uint32Array(block.length);
     let wrong = 0;
     for (let y = 0; y < n; y++)
       for (let x = 0; x < n; x++) {
         const c = y * n + x;
-        const r = region.at(c);
+        const r = region(c);
         if ((r === 0) !== (layer.blocked[c] === 1)) wrong++;
         if (r === 0) continue;
         if (block[r] !== blockOfCell(x, y)) wrong++;
@@ -591,7 +595,7 @@ describe('long routes search a coarse corridor', () => {
           const nx = x + dx;
           const ny = y + dy;
           if (nx < 0 || nx >= n || ny >= n) continue;
-          const o = region.at(ny * n + nx);
+          const o = region(ny * n + nx);
           if (o === 0) continue;
           if (blockOfCell(nx, ny) === blockOfCell(x, y)) {
             if (o !== r) wrong++;
@@ -599,8 +603,8 @@ describe('long routes search a coarse corridor', () => {
         }
       }
     expect(wrong).toBe(0);
-    for (let r = 1; r < block.length; r++) expect(slow[r]).toBeCloseTo(slowSum[r] / size[r], 5);
-    expect(block.length - 1).toBeGreaterThan(new Set(block.subarray(1)).size);
+    for (let r = 1; r < block.length; r++) if (block[r] !== -1) expect(slow[r]).toBeCloseTo(slowSum[r] / size[r], 5);
+    expect(block.length - 1).toBeGreaterThan(new Set(block.slice(1)).size);
   });
 
   it('free cells share a component exactly when a step path joins them', () => {
@@ -616,11 +620,11 @@ describe('long routes search a coarse corridor', () => {
     const inside = cell(center);
     const outside = cell({ x: 30, y: 30 });
     const far = cell({ x: 500, y: 400 });
-    expect(layer.blocked[inside]).toBe(0);
+    expect(blockedAt(layer, inside)).toBe(false);
     expect(componentOf(layer, inside)).not.toBe(componentOf(layer, outside));
     expect(componentOf(layer, outside)).toBe(componentOf(layer, far));
     let blockedWithComponent = 0;
-    for (let c = 0; c < n * n; c++) if (layer.blocked[c] && componentOf(layer, c) !== 0) blockedWithComponent++;
+    for (let c = 0; c < n * n; c++) if (blockedAt(layer, c) && componentOf(layer, c) !== 0) blockedWithComponent++;
     expect(blockedWithComponent).toBe(0);
   });
 

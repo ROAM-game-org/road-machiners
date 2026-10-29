@@ -12,6 +12,7 @@ export type Terrain = {
   heights: number[];
   types: TerrainTypeId[];
   atlas: AtlasKey;
+  routes?: Uint8Array;
 };
 
 const T = TERRAIN;
@@ -135,6 +136,10 @@ export type BakedMap = { hash: string; seed: number; terrain: Terrain; props: Ba
 export type MapGrid = { size: number; heights: Float32Array; types: Uint8Array; props: BakedProp[] };
 
 export const TYPE_IDS = Object.keys(TERRAIN_TYPES) as TerrainTypeId[];
+
+export function routesFile(mapFile: string): string {
+  return mapFile.replace(/\.bin$/, '.routes.bin');
+}
 
 export const BUILT_NONE = 0;
 export const BUILT_OLD_ROAD = 1;

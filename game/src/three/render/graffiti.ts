@@ -9,14 +9,15 @@ import { groundAt, groundSlope, type Terrain } from '../../sim/terrain';
 import type { Obstacle, World } from '../../sim/types';
 import { dist, type Vec } from '../../sim/vec';
 import { buildProp } from './obstacles';
-import type { RenderScope } from './scope';
-import { chunkGeometry, TERRAIN_CHUNK } from './terrain';
+import type { Rect, RenderScope } from './scope';
+import { chunkGeometry } from './terrain';
 
 const S = PHYSICS.metersPerTile;
 
 export const GRAFFITI = {
   tilesPerSign: 7200,
   minGapTiles: 30,
+  regionTiles: 96,
   propShare: 0.5,
   steepSlope: 0.9,
   edgeTiles: 8,
@@ -89,8 +90,6 @@ export type SignFit = {
   indices: number[];
 };
 
-export type GraffitiMark = { id: string; stage: SignStage; color: number; size: number; at: { x: number; y: number; z: number }; normal: { x: number; y: number; z: number } };
-
 export function facesCamera(direction: Vec): boolean {
   return direction.x * GRAFFITI.camera.x + direction.y * GRAFFITI.camera.y >= GRAFFITI.facesCamera;
 }
@@ -113,33 +112,63 @@ function isGraffitiProp(o: Obstacle): boolean {
   return o.kind === 'landmark' && GRAFFITI_PROP_LOOKS.has(o.look) && !isBreakable(o) && /^[a-zA-Z]+-\d+$/.test(o.id);
 }
 
-function propSites(obstacles: readonly Obstacle[]): GraffitiSite[] {
-  return obstacles
-    .filter(isGraffitiProp)
-    .map((o) => ({ id: o.id, pos: o.pos, priority: hashStr(`${o.id}:pick`), paint: paintOf(o.id), face: null, obstacle: o }));
-}
+export type GraffitiRegion = { index: number; rect: Rect; target: number };
 
-function cliffSites(t: Terrain): GraffitiSite[] {
-  const sites: GraffitiSite[] = [];
-  const edge = GRAFFITI.edgeTiles;
-  for (let y = edge; y < t.size - edge; y++)
-    for (let x = edge; x < t.size - edge; x++) {
-      const slope = groundSlope(t, y * t.size + x);
-      const steep = Math.hypot(slope.x, slope.y);
-      const face = { x: -slope.x / steep, y: -slope.y / steep };
-      if (steep < GRAFFITI.steepSlope || !facesCamera(face)) continue;
-      const id = `cliff-${x}-${y}`;
-      sites.push({ id, pos: { x: x + 0.5, y: y + 0.5 }, priority: hash2(x, y), paint: paintOf(id), face, obstacle: null });
+export function graffitiRegions(size: number): GraffitiRegion[] {
+  const side = GRAFFITI.regionTiles;
+  if (side < 2 * GRAFFITI.minGapTiles) throw new Error(`Graffiti regions of ${side} tiles cannot keep signs ${GRAFFITI.minGapTiles} tiles apart`);
+  const regions: GraffitiRegion[] = [];
+  let area = 0;
+  for (let y0 = 0; y0 < size; y0 += side)
+    for (let x0 = 0; x0 < size; x0 += side) {
+      const rect = { x0, y0, x1: Math.min(size, x0 + side), y1: Math.min(size, y0 + side) };
+      const before = Math.floor(area / GRAFFITI.tilesPerSign);
+      area += (rect.x1 - rect.x0) * (rect.y1 - rect.y0);
+      regions.push({ index: regions.length, rect, target: Math.floor(area / GRAFFITI.tilesPerSign) - before });
     }
-  return sites;
+  return regions;
 }
 
-export function graffitiSites(t: Terrain, obstacles: readonly Obstacle[]): GraffitiSites {
-  const byPriority = (a: GraffitiSite, b: GraffitiSite) => b.priority - a.priority || (a.id < b.id ? -1 : 1);
-  return { props: propSites(obstacles).sort(byPriority), cliffs: cliffSites(t).sort(byPriority) };
+function within(rect: Rect, p: Vec): boolean {
+  const keep = GRAFFITI.minGapTiles / 2;
+  return p.x - rect.x0 >= keep && rect.x1 - p.x >= keep && p.y - rect.y0 >= keep && rect.y1 - p.y >= keep;
 }
 
-export function chooseGraffiti<F>(size: number, sites: GraffitiSites, fit: (site: GraffitiSite) => F | null): GraffitiPlaced<F>[] {
+function bySitePriority(a: GraffitiSite, b: GraffitiSite): number {
+  return b.priority - a.priority || (a.id < b.id ? -1 : 1);
+}
+
+export class GraffitiCandidates {
+  private readonly props: GraffitiSite[];
+
+  constructor(private readonly terrain: Terrain, obstacles: readonly Obstacle[]) {
+    this.props = obstacles.filter(isGraffitiProp).map((o) => ({ id: o.id, pos: o.pos, priority: hashStr(`${o.id}:pick`), paint: paintOf(o.id), face: null, obstacle: o }));
+  }
+
+  sitesIn(region: GraffitiRegion): GraffitiSites {
+    return { props: this.props.filter((s) => within(region.rect, s.pos)).sort(bySitePriority), cliffs: this.cliffsIn(region.rect).sort(bySitePriority) };
+  }
+
+  private cliffsIn(rect: Rect): GraffitiSite[] {
+    const t = this.terrain;
+    const sites: GraffitiSite[] = [];
+    const edge = GRAFFITI.edgeTiles;
+    for (let y = Math.max(edge, rect.y0); y < Math.min(t.size - edge, rect.y1); y++)
+      for (let x = Math.max(edge, rect.x0); x < Math.min(t.size - edge, rect.x1); x++) {
+        const pos = { x: x + 0.5, y: y + 0.5 };
+        if (!within(rect, pos)) continue;
+        const slope = groundSlope(t, y * t.size + x);
+        const steep = Math.hypot(slope.x, slope.y);
+        const face = { x: -slope.x / steep, y: -slope.y / steep };
+        if (steep < GRAFFITI.steepSlope || !facesCamera(face)) continue;
+        const id = `cliff-${x}-${y}`;
+        sites.push({ id, pos, priority: hash2(x, y), paint: paintOf(id), face, obstacle: null });
+      }
+    return sites;
+  }
+}
+
+export function chooseRegionGraffiti<F>(region: GraffitiRegion, sites: GraffitiSites, fit: (site: GraffitiSite) => F | null): GraffitiPlaced<F>[] {
   const placed: GraffitiPlaced<F>[] = [];
   const fill = (list: readonly GraffitiSite[], count: number) => {
     for (const site of list) {
@@ -149,9 +178,8 @@ export function chooseGraffiti<F>(size: number, sites: GraffitiSites, fit: (site
       if (found !== null) placed.push({ site, fit: found });
     }
   };
-  const target = graffitiTarget(size);
-  fill(sites.props, Math.round(target * GRAFFITI.propShare));
-  fill(sites.cliffs, target);
+  fill(sites.props, Math.round(region.target * GRAFFITI.propShare));
+  fill(sites.cliffs, region.target);
   return placed;
 }
 
@@ -380,17 +408,12 @@ function blockedInFront(buckets: ObstacleBuckets<Obstacle>, own: Obstacle | null
   return buckets.alongSegment(at, at, radius).some((o) => o !== own && o.kind !== 'site' && o.kind !== 'water' && inFront(o, at, fit, radius));
 }
 
-function batchesOf(placed: GraffitiPlaced<SignFit>[], mapSize: number): Batch[] {
-  const batches = new Map<string, Batch>();
-  for (const { site, fit } of placed) {
-    const cx = Math.floor(site.pos.x / TERRAIN_CHUNK);
-    const cy = Math.floor(site.pos.y / TERRAIN_CHUNK);
-    const key = `${cx},${cy}`;
-    const batch = batches.get(key) ?? { positions: [], normals: [], uvs: [], colors: [], indices: [], center: { x: Math.min(mapSize, (cx + 0.5) * TERRAIN_CHUNK), y: Math.min(mapSize, (cy + 0.5) * TERRAIN_CHUNK) } };
-    batches.set(key, batch);
-    addToBatch(batch, site.paint, fit);
-  }
-  return [...batches.values()];
+function regionCenter(r: GraffitiRegion): Vec {
+  return { x: (r.rect.x0 + r.rect.x1) / 2, y: (r.rect.y0 + r.rect.y1) / 2 };
+}
+
+function regionReach(r: GraffitiRegion): number {
+  return Math.hypot(r.rect.x1 - r.rect.x0, r.rect.y1 - r.rect.y0) / 2;
 }
 
 export function graffitiLift(sunIntensity: number): number {
@@ -398,46 +421,51 @@ export function graffitiLift(sunIntensity: number): number {
 }
 
 export class GraffitiViews {
-  readonly marks: readonly GraffitiMark[];
   private material: THREE.MeshLambertMaterial | null = null;
   private lift = 1;
 
   constructor(world: World, scope: RenderScope) {
     const buckets = new ObstacleBuckets<Obstacle>(world.obstacles, world.size);
-    const placed = chooseGraffiti(world.size, graffitiSites(world.terrain, world.obstacles), (site) => {
-      const fit = fitSite(world.terrain, site);
-      return fit && !blockedInFront(buckets, site.obstacle, fit) ? fit : null;
-    });
-    this.marks = placed.map(({ site, fit }) => ({ id: site.id, stage: site.paint.stage, color: site.paint.color, size: fit.size, at: fit.center.clone(), normal: fit.normal.clone() }));
-    if (placed.length > 0) this.draw(placed, world.size, scope);
+    const candidates = new GraffitiCandidates(world.terrain, world.obstacles);
+    const fit = (site: GraffitiSite): SignFit | null => {
+      const found = fitSite(world.terrain, site);
+      return found && !blockedInFront(buckets, site.obstacle, found) ? found : null;
+    };
+    for (const region of graffitiRegions(world.size))
+      if (region.target > 0) scope.place(regionCenter(region), regionReach(region), () => this.draw(region, chooseRegionGraffiti(region, candidates.sitesIn(region), fit)));
   }
 
-  private draw(placed: GraffitiPlaced<SignFit>[], mapSize: number, scope: RenderScope): void {
-    const material = new THREE.MeshLambertMaterial({
+  private paint(): THREE.MeshLambertMaterial {
+    this.material ??= new THREE.MeshLambertMaterial({
       map: graffitiAtlas(),
       vertexColors: true,
-      emissive: SHADE_LIFT,
+      emissive: new THREE.Color(SHADE_LIFT).multiplyScalar(this.lift),
       transparent: true,
       depthWrite: false,
       polygonOffset: true,
       polygonOffsetFactor: OFFSET_UNITS,
       polygonOffsetUnits: OFFSET_UNITS,
     });
-    this.material = material;
-    for (const batch of batchesOf(placed, mapSize)) {
-      const mesh = new THREE.Mesh(geometryOf(batch), material);
-      mesh.name = `graffiti-${batch.center.x}-${batch.center.y}`;
-      mesh.receiveShadow = true;
-      mesh.matrixAutoUpdate = false;
-      mesh.updateMatrix();
-      scope.add(mesh, batch.center, (TERRAIN_CHUNK / 2) * Math.SQRT2);
-    }
+    return this.material;
+  }
+
+  private draw(region: GraffitiRegion, placed: GraffitiPlaced<SignFit>[]): THREE.Mesh {
+    const center = regionCenter(region);
+    const batch: Batch = { positions: [], normals: [], uvs: [], colors: [], indices: [], center };
+    for (const { site, fit } of placed) addToBatch(batch, site.paint, fit);
+    const mesh = new THREE.Mesh(geometryOf(batch), this.paint());
+    mesh.name = `graffiti-${center.x}-${center.y}`;
+    mesh.receiveShadow = true;
+    mesh.matrixAutoUpdate = false;
+    mesh.updateMatrix();
+    return mesh;
   }
 
   light(sunIntensity: number): void {
     const lift = graffitiLift(sunIntensity);
-    if (!this.material || lift === this.lift) return;
+    if (lift === this.lift) return;
     this.lift = lift;
+    if (!this.material) return;
     this.material.emissive.setHex(SHADE_LIFT).multiplyScalar(lift);
   }
 }

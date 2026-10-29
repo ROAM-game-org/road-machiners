@@ -3,6 +3,8 @@ import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
 import { CHASSIS } from '../data/chassis';
 import { warmRoutes } from '../sim/path';
+import { PERF } from '../data/perf';
+import { buildCellsAround } from '../sim/nav/layer';
 import { endTurn } from '../sim/world';
 import { inQuestLanguage } from '../sim/quests';
 import { QUEST_LANGUAGES, type QuestLanguage } from '../data/quests';
@@ -209,13 +211,26 @@ export function startTurnWorker(): void {
       const task = taskOf(request, obstacles, terrain);
       resetPerf();
       answer(task, task.terrain);
+      buildWhileIdle(task.terrain, task.world);
     } catch (error) {
       self.postMessage({ id: request.id, error: describeWorkerError(error) } satisfies WorkerFailure);
     }
   };
 }
 
-type Answerable = (TurnTask & { kind: 'turn'; id: number }) | (PreviewTask & { kind: 'preview'; id: number });
+let idleRun = 0;
+
+function buildWhileIdle(terrain: World['terrain'], world: TurnState): void {
+  const run = ++idleRun;
+  const center = world.vehicles.find((v) => v.id === world.player.vehicleId)?.pos;
+  if (!center) return;
+  const step = () => {
+    if (run === idleRun && buildCellsAround(terrain, center, performance.now() + PERF.routes.idleSliceMs)) setTimeout(step, 0);
+  };
+  setTimeout(step, 0);
+}
+
+type Answerable =(TurnTask & { kind: 'turn'; id: number }) | (PreviewTask & { kind: 'preview'; id: number });
 
 function taskOf(request: TurnRequest | PreviewRequest, obstacles: Obstacle[] | null, terrain: World['terrain'] | null): Answerable & { terrain: World['terrain'] } {
   if (!obstacles) throw new Error('Turn worker has no obstacles');

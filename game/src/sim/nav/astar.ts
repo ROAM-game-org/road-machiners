@@ -2,6 +2,7 @@
 import { REGION } from '../../data/region';
 import { count } from '../../perf';
 import type { Blocker } from './buckets';
+import { cellOfBlock, cellOfFine, costsWithin, endRegion, ensureCell, ensureFine, regionAt, stepCost, triIndex } from './cells';
 import { CELL, COARSE, componentOf, slowAt, stampBlockers, tasted, tastedCoarse, type NavLayer, type Taste } from './layer';
 
 export type Overlay = { stamp: Uint32Array; gen: number };
@@ -42,24 +43,44 @@ function begin(size: number): number {
 export function nearestFreeCell(layer: NavLayer, ov: Overlay, c: number, component: number | null = null, maxRing = Infinity): number | null {
   const n = layer.n;
   const g = begin(n * n);
+  const holds = component === null ? null : cellsHolding(layer, component);
   let tail = 0;
   queue[tail++] = c;
   seen[c] = g;
   for (let i = 0; i < tail; i++) {
     const cur = queue[i];
-    if (isFree(layer, ov, cur) && (component === null || componentOf(layer, cur) === component)) return cur;
-    const count = neighbours(n, cur);
-    for (let k = 0; k < count; k++) {
-      const next = around[k];
-      if (seen[next] === g || ringOf(n, c, next) > maxRing) continue;
-      seen[next] = g;
-      queue[tail++] = next;
-    }
+    if (freeIn(layer, ov, cur, component, holds)) return cur;
+    tail = ringOut(n, cur, c, g, maxRing, tail);
   }
   return null;
 }
 
+function freeIn(layer: NavLayer, ov: Overlay, c: number, component: number | null, holds: Uint8Array | null): boolean {
+  if (holds !== null && holds[cellOfFine(layer.grid, c)] === 0) return false;
+  return isFree(layer, ov, c) && (component === null || componentOf(layer, c) === component);
+}
+
+function ringOut(n: number, cur: number, c: number, g: number, maxRing: number, tail: number): number {
+  const count = neighbours(n, cur);
+  for (let k = 0; k < count; k++) {
+    const next = around[k];
+    if (seen[next] === g || ringOf(n, c, next) > maxRing) continue;
+    seen[next] = g;
+    queue[tail++] = next;
+  }
+  return tail;
+}
+
+function cellsHolding(layer: NavLayer, component: number): Uint8Array {
+  const P = layer.grid.pieces;
+  const holds = new Uint8Array(layer.grid.m * layer.grid.m);
+  for (let p = 1; p < P.cell.length; p++) if (P.cell[p] !== -1 && P.comp[p] === component) holds[P.cell[p]] = 1;
+  return holds;
+}
+
 function isFree(layer: NavLayer, ov: Overlay, c: number): boolean {
+  const cell = cellOfFine(layer.grid, c);
+  if (layer.grid.built[cell] === 0) ensureCell(layer.cells, cell);
   return !layer.blocked[c] && ov.stamp[c] !== ov.gen;
 }
 
@@ -178,16 +199,17 @@ function coveredCost(layer: NavLayer, ov: Overlay | null, r: number): number {
 }
 
 function coveredShare(layer: NavLayer, ov: Overlay, r: number): number {
-  const { n: bn, block, region } = layer.coarse;
+  const g = layer.grid;
+  const block = g.regions.block[r];
   const n = layer.n;
-  const x0 = (block[r] % bn) * COARSE;
-  const y0 = Math.floor(block[r] / bn) * COARSE;
+  const x0 = (block % g.bn) * COARSE;
+  const y0 = Math.floor(block / g.bn) * COARSE;
   let own = 0;
   let covered = 0;
   for (let y = y0; y < Math.min(n, y0 + COARSE); y++)
     for (let x = x0; x < Math.min(n, x0 + COARSE); x++) {
       const c = y * n + x;
-      if (region.at(c) !== r) continue;
+      if (regionAt(g, c) !== r) continue;
       own++;
       if (ov.stamp[c] === ov.gen) covered++;
     }
@@ -230,64 +252,192 @@ let coarseClosed = new Uint32Array(0);
 let coarseGen = 0;
 let inCorridor = new Uint32Array(0);
 let corridorGen = 0;
+let inCells = new Uint32Array(0);
+let cellsGen = 0;
 
 function markCorridor(layer: NavLayer, start: number, goal: number, taste: Taste | null, ring: number, avoid: Overlay | null): boolean {
-  const { n: bn, region, block, x: rx, y: ry, slow, edgeStart, edges } = layer.coarse;
-  const regions = block.length;
-  if (coarseSeen.length !== regions || coarseGen === 0xffffffff) {
-    coarseCost = new Float64Array(regions);
-    coarseFrom = new Int32Array(regions);
-    coarseSeen = new Uint32Array(regions);
-    coarseClosed = new Uint32Array(regions);
-    coarseGen = 0;
-  }
-  if (inCorridor.length !== bn * bn || corridorGen === 0xffffffff) {
-    inCorridor = new Uint32Array(bn * bn);
-    corridorGen = 0;
-  }
-  const g = ++coarseGen;
+  const grid = layer.grid;
+  const R = grid.regions;
+  const bn = grid.bn;
   const from = startRegion(layer, start, goal);
-  const to = region.at(goal);
-  const w = REGION.navigation.heuristicWeight;
-  const gx = rx[to];
-  const gy = ry[to];
+  ensureFine(layer.cells, goal);
+  const to = regionAt(grid, goal);
+  if (!markCells(layer, from, to, avoid, taste)) return false;
+  coarseRoom(R.block.length, bn);
+  const g = ++coarseGen;
+  const search = { layer, taste, avoid, g, to, w: REGION.navigation.heuristicWeight };
   heapSize = 0;
   coarseCost[from] = 0;
   coarseFrom[from] = -1;
   coarseSeen[from] = g;
-  heapPush(from, heuristic(rx[from], ry[from], gx, gy) * w);
+  heapPush(from, heuristic(R.x[from], R.y[from], R.x[to], R.y[to]) * search.w);
   while (heapSize > 0) {
     const cur = heapPop();
-    if (cur === to) {
-      const cg = ++corridorGen;
-      for (let r = to; r !== -1; r = coarseFrom[r]) {
-        const x = block[r] % bn;
-        const y = Math.floor(block[r] / bn);
-        for (let dy = -ring; dy <= ring; dy++)
-          for (let dx = -ring; dx <= ring; dx++) {
-            const nx = x + dx;
-            const ny = y + dy;
-            if (nx >= 0 && ny >= 0 && nx < bn && ny < bn) inCorridor[ny * bn + nx] = cg;
-          }
-      }
-      return true;
-    }
+    if (cur === to) return markBlocks(layer, to, ring);
     if (coarseClosed[cur] === g) continue;
     coarseClosed[cur] = g;
-    const base = coarseCost[cur];
-    for (let e = edgeStart[cur]; e < edgeStart[cur + 1]; e++) {
-      const next = edges[e];
-      if (coarseClosed[next] === g) continue;
-      const step = Math.hypot(rx[next] - rx[cur], ry[next] - ry[cur]) * ((slow[cur] + slow[next]) / 2) * coveredCost(layer, avoid, next);
-      const c = base + tastedCoarse(taste, step, ((rx[cur] + rx[next]) / 2) * CELL, ((ry[cur] + ry[next]) / 2) * CELL, block[cur], block[next]);
-      if (coarseSeen[next] === g && c >= coarseCost[next]) continue;
-      coarseSeen[next] = g;
-      coarseCost[next] = c;
-      coarseFrom[next] = cur;
-      heapPush(next, c + heuristic(rx[next], ry[next], gx, gy) * w);
-    }
+    for (const next of R.links[cur]) if (coarseClosed[next] !== g && inCells[cellOfBlock(grid, R.block[next])] === cellsGen) relaxRegion(search, cur, next);
   }
   return false;
+}
+
+type RegionSearch = { layer: NavLayer; taste: Taste | null; avoid: Overlay | null; g: number; to: number; w: number };
+
+function relaxRegion(s: RegionSearch, cur: number, next: number): void {
+  const R = s.layer.grid.regions;
+  const step = stepCost(R, cur, next) * coveredCost(s.layer, s.avoid, next);
+  const c = coarseCost[cur] + tastedCoarse(s.taste, step, ((R.x[cur] + R.x[next]) / 2) * CELL, ((R.y[cur] + R.y[next]) / 2) * CELL, R.block[cur], R.block[next]);
+  if (coarseSeen[next] === s.g && c >= coarseCost[next]) return;
+  coarseSeen[next] = s.g;
+  coarseCost[next] = c;
+  coarseFrom[next] = cur;
+  heapPush(next, c + heuristic(R.x[next], R.y[next], R.x[s.to], R.y[s.to]) * s.w);
+}
+
+function coarseRoom(regions: number, bn: number): void {
+  if (coarseSeen.length < regions || coarseGen === 0xffffffff) {
+    const room = Math.max(regions, coarseSeen.length * 2);
+    coarseCost = new Float64Array(room);
+    coarseFrom = new Int32Array(room);
+    coarseSeen = new Uint32Array(room);
+    coarseClosed = new Uint32Array(room);
+    coarseGen = 0;
+  }
+  if (inCorridor.length === bn * bn && corridorGen !== 0xffffffff) return;
+  inCorridor = new Uint32Array(bn * bn);
+  corridorGen = 0;
+}
+
+function markBlocks(layer: NavLayer, to: number, ring: number): boolean {
+  const { bn, regions: R } = layer.grid;
+  const cg = ++corridorGen;
+  for (let r = to; r !== -1; r = coarseFrom[r]) {
+    const x = R.block[r] % bn;
+    const y = Math.floor(R.block[r] / bn);
+    for (let ny = Math.max(0, y - ring); ny <= Math.min(bn - 1, y + ring); ny++) for (let nx = Math.max(0, x - ring); nx <= Math.min(bn - 1, x + ring); nx++) inCorridor[ny * bn + nx] = cg;
+  }
+  return true;
+}
+
+let pieceCost = new Float64Array(0);
+let pieceFrom = new Int32Array(0);
+let pieceSeen = new Uint32Array(0);
+let pieceClosed = new Uint32Array(0);
+let pieceGen = 0;
+
+function markCells(layer: NavLayer, from: number, to: number, avoid: Overlay | null, taste: Taste | null): boolean {
+  const chain = crossingCells(layer, from, to, avoid, taste);
+  if (chain === null) return false;
+  const m = layer.grid.m;
+  if (inCells.length !== m * m || cellsGen === 0xffffffff) {
+    inCells = new Uint32Array(m * m);
+    cellsGen = 0;
+  }
+  const cg = ++cellsGen;
+  const ring = avoid === null ? REGION.navigation.cellRing : REGION.navigation.avoidCellRing;
+  count('route-crossing-cells', chain.length);
+  for (const cell of chain) markCellsAround(layer, cell, ring, cg);
+  return true;
+}
+
+function markCellsAround(layer: NavLayer, cell: number, ring: number, cg: number): void {
+  const m = layer.grid.m;
+  const cx = cell % m;
+  const cy = Math.floor(cell / m);
+  for (let y = Math.max(0, cy - ring); y <= Math.min(m - 1, cy + ring); y++)
+    for (let x = Math.max(0, cx - ring); x <= Math.min(m - 1, cx + ring); x++) {
+      if (inCells[y * m + x] === cg) continue;
+      inCells[y * m + x] = cg;
+      ensureCell(layer.cells, y * m + x);
+    }
+}
+
+const cheapest = new WeakMap<Float32Array, number>();
+
+function cheapestSlow(layer: NavLayer): number {
+  let low = cheapest.get(layer.slow);
+  if (low === undefined) {
+    low = layer.slow.reduce((a, b) => Math.min(a, b), Infinity);
+    cheapest.set(layer.slow, low);
+  }
+  return low;
+}
+
+function crossingCells(layer: NavLayer, from: number, to: number, avoid: Overlay | null, taste: Taste | null): number[] | null {
+  const grid = layer.grid;
+  const R = grid.regions;
+  const P = grid.pieces;
+  const T = grid.portals;
+  const [a, b] = [R.piece[from], R.piece[to]];
+  if (a === b) return [P.cell[a]];
+  const goal = T.a.length;
+  crossingRoom(goal + 1);
+  const goalCost = costsWithin(grid, to);
+  const s: CrossingSearch = { layer, avoid, taste, g: ++pieceGen, goal, to, b, rate: cheapestSlow(layer), toGoal: new Map(P.ends[b].map((t) => [t, goalCost(endRegion(grid, t, b))])) };
+  heapSize = 0;
+  const fromStart = costsWithin(grid, from);
+  for (const t of P.ends[a]) relaxCrossing(s, t, fromStart(endRegion(grid, t, a)), -1);
+  while (heapSize > 0) {
+    const cur = heapPop();
+    if (cur === goal) return chainCells(grid, pieceFrom[goal], a, b);
+    if (pieceClosed[cur] === s.g) continue;
+    pieceClosed[cur] = s.g;
+    expandCrossing(s, cur);
+  }
+  return null;
+}
+
+type CrossingSearch = { layer: NavLayer; avoid: Overlay | null; taste: Taste | null; g: number; goal: number; to: number; b: number; rate: number; toGoal: Map<number, number> };
+
+function crossingRoom(size: number): void {
+  if (pieceSeen.length >= size && pieceGen !== 0xffffffff) return;
+  const room = Math.max(size, pieceSeen.length * 2);
+  pieceCost = new Float64Array(room);
+  pieceFrom = new Int32Array(room);
+  pieceSeen = new Uint32Array(room);
+  pieceClosed = new Uint32Array(room);
+  pieceGen = 0;
+}
+
+function expandCrossing(s: CrossingSearch, cur: number): void {
+  const { pieces: P, portals: T } = s.layer.grid;
+  const goalLeg = s.toGoal.get(cur);
+  if (goalLeg !== undefined) relaxCrossing(s, s.goal, goalLeg, cur);
+  for (const side of [T.a[cur], T.b[cur]]) {
+    const ends = P.ends[side];
+    const i = ends.indexOf(cur);
+    for (let j = 0; j < ends.length; j++) if (j !== i) relaxCrossing(s, ends[j], P.tri[side][triIndex(ends.length, i, j)], cur);
+  }
+}
+
+function relaxCrossing(s: CrossingSearch, t: number, step: number, prev: number): void {
+  const c = (prev === -1 ? 0 : pieceCost[prev]) + weighCrossing(s, t, step);
+  if (pieceClosed[t] === s.g || (pieceSeen[t] === s.g && c >= pieceCost[t])) return;
+  pieceSeen[t] = s.g;
+  pieceCost[t] = c;
+  pieceFrom[t] = prev;
+  heapPush(t, c + crossingAhead(s, t));
+}
+
+function crossingAhead(s: CrossingSearch, t: number): number {
+  if (t === s.goal) return 0;
+  const { portals: T, regions: R } = s.layer.grid;
+  return Math.hypot(T.x[t] - R.x[s.to], T.y[t] - R.y[s.to]) * s.rate;
+}
+
+function weighCrossing(s: CrossingSearch, t: number, step: number): number {
+  if (t === s.goal) return step;
+  const T = s.layer.grid.portals;
+  const covered = s.avoid !== null && s.avoid.stamp[Math.round(T.y[t]) * s.layer.n + Math.round(T.x[t])] === s.avoid.gen;
+  return tasted(s.taste, covered ? step * (1 + COVERED_COST) : step, (T.x[t] + 0.5) * CELL, (T.y[t] + 0.5) * CELL);
+}
+
+function chainCells(grid: NavLayer['grid'], last: number, a: number, b: number): number[] {
+  const T = grid.portals;
+  const P = grid.pieces;
+  const cells = [P.cell[a], P.cell[b]];
+  for (let t = last; t !== -1; t = pieceFrom[t]) cells.push(P.cell[T.a[t]], P.cell[T.b[t]]);
+  return cells;
 }
 
 export function coarseCells(layer: NavLayer, start: number, goal: number, taste: Taste | null): number[] | null {
@@ -298,14 +448,14 @@ export function coarseCells(layer: NavLayer, start: number, goal: number, taste:
 function coarseChain(layer: NavLayer, start: number, goal: number, taste: Taste | null): number[] | null {
   if (!connected(layer, start, goal) || !markCorridor(layer, start, goal, taste, 1, null)) return null;
   const chain: number[] = [];
-  for (let r = layer.coarse.region.at(goal); r !== -1; r = coarseFrom[r]) chain.push(r);
+  for (let r = regionAt(layer.grid, goal); r !== -1; r = coarseFrom[r]) chain.push(r);
   return chain.reverse();
 }
 
 export function coarseWaypoint(layer: NavLayer, start: number, goal: number, taste: Taste | null, reachCells: number): number | null {
   const chain = coarseChain(layer, start, goal, taste);
   if (chain === null) return null;
-  const { x: rx, y: ry } = layer.coarse;
+  const { x: rx, y: ry } = layer.grid.regions;
   let along = 0;
   for (let i = 1; i < chain.length; i++) {
     along += Math.hypot(rx[chain[i]] - rx[chain[i - 1]], ry[chain[i]] - ry[chain[i - 1]]);
@@ -315,16 +465,17 @@ export function coarseWaypoint(layer: NavLayer, start: number, goal: number, tas
 }
 
 function cellOfRegion(layer: NavLayer, r: number): number {
-  const { n: bn, block, region, x: rx, y: ry } = layer.coarse;
+  const g = layer.grid;
+  const { block, x: rx, y: ry } = g.regions;
   const n = layer.n;
-  const x0 = (block[r] % bn) * COARSE;
-  const y0 = Math.floor(block[r] / bn) * COARSE;
+  const x0 = (block[r] % g.bn) * COARSE;
+  const y0 = Math.floor(block[r] / g.bn) * COARSE;
   let best = -1;
   let bestGap = Infinity;
   for (let y = y0; y < Math.min(n, y0 + COARSE); y++)
     for (let x = x0; x < Math.min(n, x0 + COARSE); x++) {
       const gap = Math.hypot(x - rx[r], y - ry[r]);
-      if (region.at(y * n + x) === r && gap < bestGap) {
+      if (regionAt(g, y * n + x) === r && gap < bestGap) {
         best = y * n + x;
         bestGap = gap;
       }
@@ -333,8 +484,9 @@ function cellOfRegion(layer: NavLayer, r: number): number {
 }
 
 function startRegion(layer: NavLayer, start: number, goal: number): number {
-  const region = layer.coarse.region;
-  if (region.at(start) !== 0) return region.at(start);
+  ensureFine(layer.cells, start);
+  const own = regionAt(layer.grid, start);
+  if (own !== 0) return own;
   const n = layer.n;
   const x = start % n;
   const y = Math.floor(start / n);
@@ -344,7 +496,7 @@ function startRegion(layer: NavLayer, start: number, goal: number): number {
       const ny = y + dy;
       if (nx < 0 || ny < 0 || nx >= n || ny >= n) continue;
       const c = ny * n + nx;
-      if (componentOf(layer, c) === componentOf(layer, goal)) return region.at(c);
+      if (componentOf(layer, c) === componentOf(layer, goal)) return regionAt(layer.grid, c);
     }
   throw new Error(`start cell ${start} has no free neighbour joined to goal ${goal}`);
 }
@@ -392,7 +544,7 @@ function fineSearch(layer: NavLayer, ov: Overlay, start: number, goal: number, c
 function canEnter(layer: NavLayer, ov: Overlay, c: number, g: number, corridor: boolean): boolean {
   if (!isFree(layer, ov, c) || closed[c] === g) return false;
   const n = layer.n;
-  const bn = layer.coarse.n;
+  const bn = layer.grid.bn;
   return !corridor || inCorridor[Math.floor(Math.floor(c / n) / COARSE) * bn + Math.floor((c % n) / COARSE)] === corridorGen;
 }
 

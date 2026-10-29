@@ -173,6 +173,47 @@ describe('render scope bounds', () => {
   });
 });
 
+describe('render scope placements', () => {
+  const mesh = (name: string, at: Vec) => () => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(S, S, S), new THREE.MeshBasicMaterial());
+    m.name = name;
+    m.position.set(at.x * S, 0, at.y * S);
+    return m;
+  };
+
+  it('builds nothing until asked, and never builds a placement removed before its cell built', () => {
+    const scope = new RenderScope(new THREE.Group(), SIZE, new SightLimit(SIZE), true, false);
+    let built = 0;
+    const at = { x: 40, y: 40 };
+    const kept = scope.place(at, 1, () => (built++, mesh('kept', at)()));
+    const dropped = scope.place(at, 1, () => (built++, mesh('dropped', at)()));
+    expect(built).toBe(0);
+    scope.remove(dropped);
+    while (scope.buildNext(kept.cell));
+    expect(built).toBe(1);
+    expect(kept.built?.name).toBe('kept');
+    expect(scope.pendingCount).toBe(0);
+    expect(() => scope.remove(dropped)).toThrow(/not in the render scope/);
+  });
+
+  it('removes a built placement from its cell', () => {
+    const root = new THREE.Group();
+    const scope = new RenderScope(root, SIZE, new SightLimit(SIZE), true, false);
+    const at = { x: 40, y: 40 };
+    const p = scope.place(at, 1, mesh('crate', at));
+    scope.buildNext(p.cell);
+    const obj = p.built!;
+    scope.remove(p);
+    expect(attached(obj, root)).toBe(false);
+  });
+
+  it('throws at build time when a placement leaves its claim', () => {
+    const scope = new RenderScope(new THREE.Group(), SIZE, new SightLimit(SIZE), true, false);
+    const p = scope.place({ x: 40, y: 40 }, 1, mesh('stray', { x: 90, y: 40 }));
+    expect(() => scope.buildNext(p.cell)).toThrow(/stray/);
+  });
+});
+
 describe('sight limit', () => {
   function shaders(material: THREE.Material): { vertexShader: string; fragmentShader: string } {
     const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.lambert.vertexShader, fragmentShader: THREE.ShaderLib.lambert.fragmentShader };
