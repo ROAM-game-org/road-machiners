@@ -19,6 +19,30 @@ const ROAD = HIGHWAY.road;
 const NORTH = -Math.PI / 2;
 const DEGREE = Math.PI / 180;
 
+const maps = new Map<string, BakedMap>();
+const layers = new Map<string, ReturnType<typeof navLayer>>();
+
+function windowMap(seed: number, window: number): BakedMap {
+  const key = `${seed}:${window}`;
+  let map = maps.get(key);
+  if (!map) {
+    map = highwayMap(seed, window);
+    maps.set(key, map);
+  }
+  return map;
+}
+
+function haulerLayer(seed: number, window: number): ReturnType<typeof navLayer> {
+  const key = `${seed}:${window}`;
+  let layer = layers.get(key);
+  if (!layer) {
+    const map = windowMap(seed, window);
+    layer = navLayer(map.terrain, mapObstacles(map), CHASSIS.hauler.radius);
+    layers.set(key, layer);
+  }
+  return layer;
+}
+
 function propKey(p: BakedProp, shiftY: number): string {
   return [p.kind, p.pos.x.toFixed(4), (p.pos.y + shiftY).toFixed(4), p.yaw.toFixed(4), p.r.toFixed(4)].join(':');
 }
@@ -145,8 +169,8 @@ describe('a highway window', () => {
   it('agrees with the next window in their overlap square, but for the shut gates', () => {
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
       for (const k of [0, 1, 2, 3, 4]) {
-        const a = highwayMap(seed, k);
-        const b = highwayMap(seed, k + 1);
+        const a = windowMap(seed, k);
+        const b = windowMap(seed, k + 1);
         const row = SIZE + 1;
         const stride = windowShift(seed, k).y;
         const overlap = SIZE - stride;
@@ -161,7 +185,7 @@ describe('a highway window', () => {
 
   it('lays four lanes of asphalt, a flat verge, badlands and ridges by the distance from the centerline', () => {
     for (const seed of [1, 2, 3]) {
-      const map = highwayMap(seed, 1);
+      const map = windowMap(seed, 1);
       const span = windowSpan(seed, 1);
       for (let n = span.from + 60; n < span.to - 60; n += 9) {
         if ([1, 2].some((j) => Math.abs(n - milestoneAt(seed, j)) < 14) || sceneAt(seed, n, 4) !== null) continue;
@@ -184,7 +208,7 @@ describe('a highway window', () => {
   });
 
   it('makes every prop a baked obstacle with its own id, inside the window', () => {
-    const map = highwayMap(4, 3);
+    const map = windowMap(4, 3);
     const obstacles = mapObstacles(map);
 
     expect(obstacles.every(isBakedObstacle)).toBe(true);
@@ -192,7 +216,7 @@ describe('a highway window', () => {
   });
 
   it('shows no Icarus feature', () => {
-    const map = highwayMap(3, 1);
+    const map = windowMap(3, 1);
     const atlas = atlasOf(map.terrain);
 
     expect([atlas.towns, atlas.hazards]).toEqual([[], []]);
@@ -270,7 +294,7 @@ describe('the highway road', () => {
   it('keeps the lanes on asphalt and the verge off it on bends', () => {
     for (let seed = 1; seed <= 10; seed++) {
       for (const k of [0, 1, 2]) {
-        const map = highwayMap(seed, k);
+        const map = windowMap(seed, k);
         for (let n = milestoneAt(seed, k) + ROAD.bend.ends; n < milestoneAt(seed, k + 1) - ROAD.bend.ends; n += 2) {
           if (sceneAt(seed, n, 4) !== null) continue;
           for (const side of [-1, 1]) {
@@ -283,11 +307,9 @@ describe('the highway road', () => {
   });
 
   it('lets the widest truck drive from the south milestone to the north outpost yard', () => {
-    const radius = CHASSIS.hauler.radius;
     for (const seed of [1, 2, 3, 4, 5, 6]) {
       for (const k of [0, 1, 2, 3]) {
-        const map = highwayMap(seed, k);
-        const layer = navLayer(map.terrain, mapObstacles(map), radius);
+        const layer = haulerLayer(seed, k);
         const from = outpostFort(seed, k, k).pos;
         const to = outpostFort(seed, k, k + 1).pos;
         const start = componentOf(layer, cellOf(from));
@@ -367,7 +389,7 @@ describe('an outpost fort', () => {
 
   it('puts concrete outside the lanes and asphalt in them, on flat ground across the road (IV1)', () => {
     for (const seed of [1, 2, 3]) {
-      const map = highwayMap(seed, 1);
+      const map = windowMap(seed, 1);
       for (const j of [1, 2]) {
         const n = milestoneAt(seed, j);
         for (const along of [-3, 0, 3]) {
@@ -387,7 +409,7 @@ describe('an outpost fort', () => {
   it('keeps every loose prop out of the footprint and the gateways, and builds one fort and line in both windows that hold it (IV8)', () => {
     for (const seed of [1, 2, 3, 4, 5]) {
       for (const window of [0, 1, 2, 3]) {
-        const map = highwayMap(seed, window);
+        const map = windowMap(seed, window);
         for (const j of fortsOf(window)) {
           const loose = map.props.filter((p) => !FORT_KINDS.has(p.kind));
           const inside = loose.filter((p) => {
@@ -399,8 +421,8 @@ describe('an outpost fort', () => {
       }
       for (const j of [1, 2, 3]) {
         const near = (window: number) => (p: BakedProp) => p.kind !== 'fortOutpostShut' && Math.abs(alongAcross(seed, window, j, p.pos).along) < 40;
-        const a = highwayMap(seed, j - 1).props.filter(near(j - 1));
-        const b = highwayMap(seed, j).props.filter(near(j));
+        const a = windowMap(seed, j - 1).props.filter(near(j - 1));
+        const b = windowMap(seed, j).props.filter(near(j));
         expect(b.map((p) => propKey(p, -windowShift(seed, j - 1).y)).sort(), `seed ${seed} fort ${j}`).toEqual(a.map((p) => propKey(p, 0)).sort());
       }
     }
@@ -408,7 +430,7 @@ describe('an outpost fort', () => {
 
   it('closes the north gate of the next fort and the south gate of the last one with a shut gate prop (IV3)', () => {
     for (const window of [0, 1, 2]) {
-      const shut = highwayMap(3, window).props.filter((p) => p.kind === 'fortOutpostShut');
+      const shut = windowMap(3, window).props.filter((p) => p.kind === 'fortOutpostShut');
       expect(shut).toHaveLength(window === 0 ? 1 : 2);
       const north = outpostGateSpots(3, window, window + 1).north.center;
       expect(shut.some((p) => Math.hypot(p.pos.x - north.x, p.pos.y - north.y) < 0.01)).toBe(true);
@@ -417,8 +439,7 @@ describe('an outpost fort', () => {
 
   it('can be reached from the asphalt by the widest truck', () => {
     for (const seed of [1, 2, 3, 4, 5, 6]) {
-      const map = highwayMap(seed, 0);
-      const layer = navLayer(map.terrain, mapObstacles(map), CHASSIS.hauler.radius);
+      const layer = haulerLayer(seed, 0);
       const road = roadPoint(seed, 0, milestoneAt(seed, 1) - 20, ROAD.lanes[0]);
       expect(componentOf(layer, cellOf(outpostFort(seed, 0, 1).pos)), `seed ${seed}`).toBe(componentOf(layer, cellOf(road)));
     }

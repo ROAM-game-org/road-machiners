@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { GAME_MODES } from '../data/modes';
 import { startKit } from '../data/start';
 import { TEST_MAP } from '../test/map';
+import { standardWorld } from '../test/world-cache';
 import { defaultSetup, modeKit, modeMap, modeRules, modeRulesOf } from './settings';
 import { highwayMap } from './highway';
 import { chaosHighwayWorld } from './testkit';
@@ -22,7 +23,7 @@ function fingerprint(w: World): object {
 
 describe('game mode rules', () => {
   it('keeps every Roaming rule on and plays no run', () => {
-    const world = newWorld(7, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    const world = standardWorld(7);
     const { run, ...open } = modeRules(world);
 
     expect(run).toBe(false);
@@ -61,7 +62,7 @@ describe('game mode rules', () => {
   });
 
   it('throws on a mode that is not a game mode', () => {
-    const world = newWorld(7, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    const world = standardWorld(7);
     world.setup = { ...world.setup, mode: 'chaos' as never };
 
     expect(() => modeRules(world)).toThrow(/Unknown game mode chaos/);
@@ -76,7 +77,7 @@ describe('game mode rules', () => {
 
 describe('a new world by mode', () => {
   it('builds a Roaming world as before the Chaos Highway mode, with the Hollow filled at the start', () => {
-    const world = newWorld(7, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    const world = standardWorld(7);
 
     expect(world.chaosHighway).toBeNull();
     expect(fingerprint(world)).toEqual({

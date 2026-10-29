@@ -7,6 +7,7 @@ import { gridOf, MOUNT_CELLS, mountedParts, mountSpots, type Spot } from './grid
 import { burnFuel } from './resources';
 import { vehicleStats } from './stats';
 import type { Terrain } from './terrain';
+import type { TerrainTypeId } from '../data/terrain';
 import { emptyWorldFrom, flatTerrain, PLAIN_KIT } from '../test/empty-world';
 import { DECISIONS, NPC_UPKEEP, STATE_WEIGHTS, TRAITS, type DecisionId, type DecisionOptions } from '../data/npcs';
 import { addState } from './states';
@@ -111,6 +112,24 @@ export function editableTerrain(w: World): Terrain {
 export function raiseCliff(w: World, x: number, y: number): void {
   const t = editableTerrain(w) as { size: number; heights: number[] };
   t.heights[y * (t.size + 1) + x] += 20;
+}
+
+const uniformTerrains = new WeakMap<Terrain, Map<TerrainTypeId, Terrain>>();
+
+export function uniformGround(w: World, type: TerrainTypeId): void {
+  const base = w.terrain;
+  let byType = uniformTerrains.get(base);
+  if (!byType) {
+    byType = new Map();
+    uniformTerrains.set(base, byType);
+  }
+  const shared = byType.get(type);
+  if (shared) {
+    w.terrain = shared;
+    return;
+  }
+  editableTerrain(w).types.fill(type);
+  byType.set(type, w.terrain);
 }
 
 export { PLAIN_KIT, flatTerrain };

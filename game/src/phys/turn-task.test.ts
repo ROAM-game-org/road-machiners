@@ -1,12 +1,10 @@
 import { beforeAll, expect, it } from "vitest";
-import { startKit } from "../data/start";
 import { playerVehicle } from "../sim/damage";
 import { corePart } from "../sim/grid";
 import { currentQuestLanguage, inQuestLanguage, setQuestLanguage } from "../sim/quests";
-import { defaultSetup } from "../sim/settings";
 import { addVehicle, emptyWorld } from "../sim/testkit";
-import { TEST_MAP } from "../test/map";
-import { endTurn, newWorld, setMoveOrder } from "../sim/world";
+import { standardWorld } from "../test/world-cache";
+import { endTurn, setMoveOrder } from "../sim/world";
 import {
   buildDrive,
   captureDrive,
@@ -115,7 +113,7 @@ it("rejects a tail with a crash, a passed order point or a rope", () => {
 });
 
 function fallingWorld() {
-  const world = newWorld(1337, startKit("standard"), TEST_MAP, defaultSetup("roaming"));
+  const world = standardWorld(1337);
   const me = playerVehicle(world);
   const raider = addVehicle(world, "scrapjaw", "buggy", [], { x: me.pos.x + 6, y: me.pos.y });
   me.lastHitBy = raider.id;
@@ -162,7 +160,7 @@ it("restores the quest language when the run throws", () => {
 });
 
 it("samples sight along the player's drive every sight step and at its end, with the tiles vision gives there", () => {
-  const world = newWorld(7, startKit("standard"), TEST_MAP, defaultSetup("roaming"));
+  const world = standardWorld(7);
   const me = playerVehicle(world);
   const points = Array.from({ length: 12 }, (_, i) => ({ x: me.pos.x + i * 0.1, y: me.pos.y }));
   const sight = sightAlong(world, points);
@@ -177,7 +175,7 @@ it("samples sight along the player's drive every sight step and at its end, with
 
 it("sends the obstacles to a worker only when their content changed since the last send", () => {
   const sent = new SentObstacles();
-  const { terrain: _terrain, ...state } = newWorld(7, startKit("standard"), TEST_MAP, defaultSetup("roaming"));
+  const { terrain: _terrain, ...state } = standardWorld(7);
   expect(sent.split(state).obstacles).toBe(state.obstacles);
   const copy = structuredClone(state);
   const again = sent.split(copy);

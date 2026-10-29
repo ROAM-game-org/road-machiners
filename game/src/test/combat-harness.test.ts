@@ -13,14 +13,14 @@ beforeAll(async () => {
 
 
 describe('combat harness', () => {
-  it('gives the same report for the same fight', () => {
-    expect(runFight(FIGHT)).toEqual(runFight(FIGHT));
+  let base: ReturnType<typeof runFight>;
+  beforeAll(() => {
+    base = runFight(FIGHT);
   });
 
-  it('gives the same report for a seed after other seeds ran', () => {
-    const first = runFight(FIGHT);
+  it('gives the same report for the same fight, also after another seed ran', () => {
     runFight({ ...FIGHT, seed: 4 });
-    expect(runFight(FIGHT)).toEqual(first);
+    expect(runFight(FIGHT)).toEqual(base);
   });
 
   it('refuses a seed that is not a whole number', () => {
@@ -28,14 +28,14 @@ describe('combat harness', () => {
   });
 
   it('counts the rounds both sides fire', () => {
-    const r = runFight(FIGHT);
+    const r = base;
     expect(r.a.rounds).toBeGreaterThan(0);
     expect(r.b.rounds).toBeGreaterThan(0);
     expect(r.a.hits).toBeLessThanOrEqual(r.a.rounds);
   });
 
   it('a standing player never moves', () => {
-    expect(runFight(FIGHT).a.speed).toBe(0);
+    expect(base.a.speed).toBe(0);
   });
 
   it('has two brains of one faction fight each other', () => {

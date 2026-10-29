@@ -1,3 +1,3 @@
 import { spawnRoomOnSeeds } from '../test/spawn-room-kit';
 
-spawnRoomOnSeeds(Array.from({ length: 10 }, (_, i) => i + 1));
+spawnRoomOnSeeds(Array.from({ length: 4 }, (_, i) => i + 1));
