@@ -100,10 +100,10 @@ ALONG_X = (0, math.pi / 2, 0)
 
 ENGINE_X = 1.24  # PHYSICS.bodies.courier.engine.x
 ENGINE_Y = 0.0  # -PHYSICS.bodies.courier.engine.z
-ENGINE_HALF = (0.314, 0.372)  # the drawn engine: restOn() of the engine cells on the roof crest, measured with the model built
-HOLE_MARGIN = 0.02
+ENGINE_HALF = (0.34, 0.40)  # the drawn engine: the whole 0.1 m height map cells of the bay floor inside the hole, about the anchor
+HOLE_MARGIN = 0.03
 HOLE = ((ENGINE_X - ENGINE_HALF[0] - HOLE_MARGIN, ENGINE_Y - ENGINE_HALF[1] - HOLE_MARGIN), (ENGINE_X + ENGINE_HALF[0] + HOLE_MARGIN, ENGINE_Y + ENGINE_HALF[1] + HOLE_MARGIN))
-LID = [(COWL_X, 0.17, 0.62), (0.8, 0.175, 0.585), (1.0, 0.165, 0.54), (1.2, 0.14, 0.525), (1.4, 0.1, 0.49), (HOLE[1][0], 0.04, 0.45), (1.72, -0.04, 0.41), (1.84, -0.14, 0.37), (1.92, -0.26, 0.33), (1.96, -0.38, 0.3)]
+LID = [(COWL_X, 0.17, 0.62), (0.8, 0.175, 0.585), (1.0, 0.165, 0.54), (1.2, 0.14, 0.525), (1.4, 0.1, 0.5), (HOLE[1][0], 0.04, 0.5), (1.72, -0.04, 0.43), (1.84, -0.14, 0.37), (1.92, -0.26, 0.33), (1.96, -0.38, 0.3)]
 SIDE_STEPS = (8, 3)
 DETAIL_TWIST = 20.0  # a window or vent folds more than paint may, since dark glass shows no shard
 DETAIL_LIFT = 0.008  # laid-on details stand this far off the surface they lie on, clear of the 4 mm coplanar band
