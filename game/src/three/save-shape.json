@@ -19,11 +19,11 @@
     "heard": "boolean"
    },
    "eightToNine": {
-    "driver": "null",
+    "driver": "string",
     "heard": "boolean"
    },
    "fromTheWest": {
-    "driver": "null",
+    "driver": "string",
     "heard": "boolean"
    }
   },
