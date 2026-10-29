@@ -94,7 +94,7 @@ Every truck that `followsTraffic()` in `src/sim/ai.ts` obeys these rules on a ro
 - A cell holds its blocked cells, breakable marks and coarse regions: the connected parts of each 8 by 8 block of half-tile cells, linked where they touch.
 - A piece is the connected part of a cell. A crossing joins two pieces of neighbouring cells at their cheapest touching regions. Each piece keeps the cost between each pair of its crossings.
 - Pieces, crossings and their costs for every chassis radius come baked in `public/maps/icarus.routes.bin`, from `npm run routes:bake`. The file stores a key per cell from its ground and solid props. A layer rebuilds only the cells whose key differs, such as the Hollow or another kit's props. A map with no baked file, like Chaos Highway, builds every cell when the layer is made.
-- `warmRoutes` loads the baked pieces for every chassis in the turn worker when it gets the terrain. While idle, each worker builds cells outward from the player in slices of `PERF.routes.idleSliceMs`.
+- Boot sends the terrain to the turn worker as soon as the map loads. `prepareRouteTerrain()` builds the route ground and the cell keys there while the world is made. Layers load their baked pieces when a route first needs that chassis. While idle, each worker builds cells outward from the player in slices of `PERF.routes.idleSliceMs`.
 - The layer cache keeps one layer per solid prop set and radius, up to 16.
 - Wrecks and parked vehicles are stamped per query.
 - Breakable props are not blocks. They are one byte per cell in `NavLayer.marks`. `slowAt()` multiplies those cells' cost by `BREAKABLE.routeCost`.

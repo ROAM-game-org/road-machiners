@@ -43,6 +43,10 @@ The user approved slightly changed route shapes.
 - The summary file is 6.6 MB, 3.3 MB gzipped, next to a 6.4 MB gzipped map.
 - `hunting-spots.json` was rebaked: 61 spots where 59 were, from the changed route shapes.
 
+- On basin-regions after the merge and the early terrain send, production boot, two runs: fresh game ready 5.1 s with scene 1.3 s, saved world ready 3.9 s with scene 1.2 s. `npm run perf` on the dev server at load average 5: boot 4.8 s, first preview 211 ms against 1.36 s before, frame p95 50 ms, slowest worker turn 245 ms against 182 ms before. Every budget missed before this work as well. Playtest PASS at 60 fps.
+
 ## Known risks
+
+- Worker turns 2 to 4 after boot build the cells of far NPC trips and run 60 to 100 ms longer than before. The player's wait per turn stays at 11 to 18 ms.
 
 - A full build of every cell, for a map with no baked file or a world whose props differ everywhere, costs about 1.2 s per truck size against 0.9 s before.
