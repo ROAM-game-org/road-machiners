@@ -184,6 +184,21 @@ export function cargoRowsOn(chassisId: string, defId: string): number {
   return rowsAtWidth(chassisId, Math.floor(def.extraRows * cargoRowFactor(chassisId)));
 }
 
+const hitGridCache = new Map<Grid, Grid>();
+
+export function hitGridOf(v: Vehicle): Grid {
+  const g = gridOf(v);
+  const spare = chassisDef(v.chassisId).spareRows ?? 0;
+  if (spare === 0) return g;
+  const cached = hitGridCache.get(g);
+  if (cached) return cached;
+  const from = g.chassisH + rowsAtWidth(v.chassisId, bedRows(v.chassisId));
+  const cells = [...g.cells.slice(0, from), ...g.cells.slice(from + spare)];
+  const hit = Object.freeze({ ...g, h: g.h - spare, deadFrom: g.deadFrom - spare, cells: Object.freeze(cells) as (Cell | null)[][] });
+  hitGridCache.set(g, hit);
+  return hit;
+}
+
 function rowsAtWidth(chassisId: string, oldRows: number): number {
   return Math.round((oldRows * chassisDef(chassisId).oldGrid.width) / baseGrid(chassisId).w);
 }

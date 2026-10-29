@@ -9,7 +9,7 @@ import { chassisAbility, partArmorBonus } from './chassis-features';
 import { weaponOn } from './stats';
 import { wornDef } from './wear';
 import { damagePart } from './damage';
-import { baseGrid, cellKey, facingOf, gridOf, itemCells, isMounted, itemSize, mountedItems, shieldParts, sideOf, type Grid, type SideLetter } from './grid';
+import { baseGrid, cellKey, facingOf, hitGridOf, itemCells, isMounted, itemSize, mountedItems, shieldParts, sideOf, type Grid, type SideLetter } from './grid';
 import type { GridItem, PartInstance, Vehicle, World } from './types';
 import { angleDiff, bearing, dist, type Vec } from './vec';
 
@@ -58,7 +58,7 @@ export function cabShield(v: Vehicle): number {
 }
 
 export function cabShieldWith(v: Vehicle): (extra: GridItem | null) => number {
-  const g = gridOf(v);
+  const g = hitGridOf(v);
   const cab = mountedItems(v, 'core').filter((it) => isCab(partDef(it.part.defId))).flatMap(itemCells);
   const cabLanes = new Set(cab.flatMap((c) => [`F${c.x}`, `B${c.x}`, `L${c.y}`, `R${c.y}`]));
   const armor = mountedItems(v, 'armor');
@@ -200,7 +200,7 @@ function blastAmount(v: Vehicle, target: BlastCell, between: PartInstance[], rou
 }
 
 export function laneCount(v: Vehicle, side: Side): number {
-  const g = gridOf(v);
+  const g = hitGridOf(v);
   return side === 'front' || side === 'rear' ? g.w : g.h;
 }
 
@@ -244,15 +244,15 @@ export function walkLane(world: World, v: Vehicle, side: Side, lane: number, rou
 }
 
 export function planLane(v: Vehicle, side: Side, lane: number, round: Round): { part: PartInstance; amount: number }[] {
-  return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round, 1, laneCellShare(v.chassisId, side), spenderOf(v));
+  return walkCells(laneOwners(hitGridOf(v), cellOwners(v), side, lane), round, 1, laneCellShare(v.chassisId, side), spenderOf(v));
 }
 
 export function planCrashLane(v: Vehicle, side: Side, lane: number, round: Round, falloff = RULES.crashFalloff): { part: PartInstance; amount: number }[] {
-  return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round, falloff, laneCellShare(v.chassisId, side), hitterOf(v));
+  return walkCells(laneOwners(hitGridOf(v), cellOwners(v), side, lane), round, falloff, laneCellShare(v.chassisId, side), hitterOf(v));
 }
 
 export function sidePlanner(v: Vehicle): (side: Side, round: Round) => { part: PartInstance; amount: number }[][] {
-  const g = gridOf(v);
+  const g = hitGridOf(v);
   const owner = cellOwners(v);
   const sides = new Map<Side, LaneCell[][]>();
   const spend = spenderOf(v);
@@ -323,7 +323,7 @@ function spendRound(v: Vehicle, part: PartInstance, left: { pen: number; damage:
 
 export function heldPart(v: Vehicle, side: Side, lane: number): PartInstance | null {
   const owner = cellOwners(v);
-  const g = gridOf(v);
+  const g = hitGridOf(v);
   const working = (at: number) => laneCells(g, side, at).flatMap((c) => owner.get(cellKey(c.x, c.y)) ?? []).find((p) => p.hp > 0);
   for (const at of lanesOutFrom(lane, laneCount(v, side))) {
     const part = working(at);
@@ -375,7 +375,7 @@ function shareOf(def: PartDef, round: Round): number {
 }
 
 export function passShare(v: Vehicle, side: Side, round: { pen: number; blast: boolean }): number {
-  const g = gridOf(v);
+  const g = hitGridOf(v);
   const owner = cellOwners(v);
   const lanes = Array.from({ length: laneCount(v, side) }, (_, lane) => firstParts(g, owner, side, lane));
   const pass = (part: PartInstance) => {
