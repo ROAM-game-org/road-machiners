@@ -126,8 +126,13 @@
 :is(.instrument-actions, .weapon-head) .switch::after {
   right: var(--space-1);
 }/* A smaller lever keeps the switch row short. The margin takes back the space the scale frees. */
-:is(.instrument-actions, .weapon-head) .switch-lever {
+:is(.instrument-actions, .weapon-head) .switch-handle {
   order: -1;
+  width: 10px;
+  height: var(--icon-xs);
+}
+:is(.instrument-actions, .weapon-head) .switch-lever {
+  flex: none;
   transform: scale(0.5);
   margin: -7px -6px;
 }
@@ -193,16 +198,31 @@
   display: none;
 }
 /* The lever stands on a hex nut and leans up when the switch is on. */
-.switch > .icon-lock {
+.switch .icon-lock {
   width: var(--icon-l);
   height: var(--icon-l);
   margin: var(--space-1) 0;
 }
-:is(.instrument-actions, .weapon-head) .switch > .icon-lock {
+:is(.instrument-actions, .weapon-head) .switch .icon-lock {
   width: var(--icon-xs);
   height: var(--icon-xs);
   margin: 0;
-  order: -1;
+  flex: none;
+}
+.switch-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.label-stack {
+  display: inline-grid;
+  justify-items: start;
+}
+.label-stack > * {
+  grid-area: 1 / 1;
+}
+.label-reserve {
+  visibility: hidden;
 }
 .switch-lever {
   position: relative;

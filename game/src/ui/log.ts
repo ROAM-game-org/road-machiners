@@ -30,7 +30,10 @@ function lineRow(l: LogLine): HTMLElement {
   return el(
     "div",
     { class: l.cls },
-    ...spans.map((sp) => el("span", { class: sp.cls }, sp.text)),
+    ...spans.flatMap((sp) => {
+      const span = el("span", { class: sp.cls }, sp.text);
+      return sp.cls === "log-time" ? [span, document.createTextNode(" ")] : [span];
+    }),
   );
 }
 

@@ -43,7 +43,7 @@ import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, t
 import { createCompassDial, createIcon, createSpeedDial, repairingPart } from "./cards";
 import { aimMarks, orderLock, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
-import { createSwitch } from "./switch";
+import { createSwitch, lockSlot, stackedLabel } from "./switch";
 import { Tips, type TipSwitch } from "./tips";
 import { kph, moneyEl } from "./units";
 import { playerVehicle } from "../sim/damage";
@@ -175,8 +175,8 @@ export function mapInstrument(w: World, busy: boolean, openMap: () => void): HTM
   ];
 }
 
-function readoutClass(r: { warning: boolean; danger?: boolean }): string {
-  return ["resource", r.warning ? "alert" : "", r.danger ? "danger" : ""].filter(Boolean).join(" ");
+function readoutClass(r: { warning: boolean; danger?: boolean; idle?: boolean }): string {
+  return ["resource", r.warning ? "alert" : "", r.danger ? "danger" : "", r.idle ? "idle" : ""].filter(Boolean).join(" ");
 }
 
 export class Hud {
@@ -519,7 +519,7 @@ export class Hud {
         onclick: () => reason === null && this.actions.douseEngine(),
         title: reason ?? keyLabel(t("hud.costsSupplies", { n: ENGINE_HEAT.douseSupplies }), "G"),
       },
-      block === "noBasic" ? createIcon("lock") : null,
+      lockSlot(block === "noBasic"),
       t("hud.douse"),
     );
   }
@@ -536,7 +536,7 @@ export class Hud {
         onclick: () => reason === null && this.actions.firstAid(),
         title: reason ?? keyLabel(t("hud.costsSupplies", { n: cost }), "U"),
       },
-      block === "noBasic" ? createIcon("lock") : null,
+      lockSlot(block === "noBasic"),
       t("hud.firstAid"),
     );
   }
@@ -552,7 +552,7 @@ export class Hud {
         onclick: () => !busy && this.actions.openCharacter(),
         title: busy ? TURN_PLAYING : keyLabel(marked ? t("hud.characterMarked") : t("hud.character"), "C"),
       },
-      marked ? t("hud.driverMarked") : t("hud.driver"),
+      stackedLabel([t("hud.driver"), t("hud.driverMarked")], marked ? 1 : 0),
     );
   }
 
@@ -632,8 +632,8 @@ export class Hud {
         el(
           "span",
           {
-            class: `resource ${entry.warning ? "alert" : ""}`,
-            title: entry.label,
+            class: readoutClass(entry),
+            title: entry.tip ?? entry.label,
             "data-resource": entry.id,
           },
           entry.icon ? createIcon(entry.icon) : null,

@@ -401,7 +401,7 @@
   overflow-wrap: normal;
   line-height: 1;
 }
-#ui.phone .instruments .instrument-actions .switch-lever {
+#ui.phone .instruments .instrument-actions .switch-handle:has(.switch-lever) {
   display: none;
 }
 #ui.phone .instruments .speed-value {

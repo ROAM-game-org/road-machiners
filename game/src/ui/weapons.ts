@@ -339,7 +339,7 @@ export class UtilityRow {
         el("span", { class: "weapon-name" }, name),
         createIcon("utility"),
         BADGE[status.state] ? el("span", { class: "slot-badge", "data-badge": BADGE[status.state], "aria-hidden": "true" }) : null,
-        el("span", { "data-status": "" }, status.text),
+        el("span", { "data-status": "", title: status.text }, status.text),
         status.reload ? rechargeBar(status.reload) : null,
       ),
     );

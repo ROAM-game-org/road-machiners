@@ -3,7 +3,7 @@ import { cabKnockChance } from './cab-knock';
 import { maxHp } from './wear';
 import { RULES } from '../data/rules';
 import { autoOrders, isHostile, resolveDestroyed } from './combat';
-import { advanceNpcKnockouts, checkKnockout, knockOutNpc, refitAtHome } from './defeat';
+import { advanceNpcKnockouts, checkKnockout, knockOutNpc, refitAtHome, standDown } from './defeat';
 import { corePart, coreParts } from './grid';
 import { addVehicle, emptyWorld, npcBrain, rngStateWhere } from './testkit';
 import type { Vehicle, World } from './types';
@@ -120,6 +120,15 @@ describe('towing a knocked-out truck', () => {
 });
 
 describe('NPC waking', () => {
+  it('wakes with gaveUp set when it gave up', () => {
+    const { w, me, buggy } = beside();
+    standDown(w, buggy, me.id);
+    me.pos = { x: 200, y: 200 };
+    refreshVision(w);
+    advanceNpcKnockouts(w);
+    expect(w.events).toContainEqual({ t: 'npcWake', vehicle: buggy.id, gaveUp: true });
+  });
+
   it('stays out while the truck that beat it sees it', () => {
     const { w, buggy } = beside();
     breakCab(w, buggy, false);
@@ -137,7 +146,7 @@ describe('NPC waking', () => {
     expect(buggy.defeat?.phase).toBe('retreat');
     expect(corePart(buggy, 'cab').hp).toBeGreaterThan(0);
     expect(coreParts(buggy, 'wheel')[0].hp).toBeGreaterThan(0);
-    expect(w.events).toContainEqual({ t: 'npcWake', vehicle: buggy.id });
+    expect(w.events).toContainEqual({ t: 'npcWake', vehicle: buggy.id, gaveUp: false });
   });
 
   it('wakes at the turn limit with its attacker still watching', () => {

@@ -533,6 +533,14 @@ describe("patch log", () => {
     expect(en(line?.text)).toBe(`The patch with ${en(vehicleName(w, npc.id))} is off.`);
     expect(line?.cls).toBe("dim");
   });
+
+  it("says an NPC that gave up can drive again, in both languages", () => {
+    const w = emptyWorld();
+    const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 40, y: 30 });
+    const line = eventText(w, { t: "npcWake", vehicle: npc.id, gaveUp: true });
+    expect(en(line?.text)).toBe(`${en(vehicleName(w, npc.id))} can drive again`);
+    expect(resolve(line!.text, "ru")).toContain("снова может ехать");
+  });
 });
 
 describe("shot log", () => {
@@ -781,7 +789,7 @@ describe("wake-up log", () => {
   it("says an NPC regains consciousness, so the line does not read as cut off", () => {
     const w = emptyWorld();
     const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 40, y: 30 });
-    const line = eventText(w, { t: "npcWake", vehicle: npc.id });
+    const line = eventText(w, { t: "npcWake", vehicle: npc.id, gaveUp: false });
     expect(en(line?.text)).toBe(`${en(vehicleName(w, npc.id))} regains consciousness`);
     expect(line?.cls).toBe("dim");
   });
@@ -789,10 +797,24 @@ describe("wake-up log", () => {
 
 describe("player wake-up", () => {
   it("is a notable event, and its log line is plain ink", () => {
-    expect(isNotable({ t: "wake" })).toBe(true);
-    const line = eventText(emptyWorld(), { t: "wake" });
+    expect(isNotable({ t: "wake", gaveUp: false })).toBe(true);
+    const line = eventText(emptyWorld(), { t: "wake", gaveUp: false });
     expect(en(line?.text)).toBe("You come to.");
     expect(line?.cls).toBe("");
+  });
+
+  it("tells a driver who gave up that they can drive again, and stays notable", () => {
+    expect(isNotable({ t: "wake", gaveUp: true })).toBe(true);
+    const line = eventText(emptyWorld(), { t: "wake", gaveUp: true });
+    expect(en(line?.text)).toBe("You can drive again.");
+    expect(resolve(line!.text, "ru")).toBe("Вы снова можете ехать.");
+  });
+
+  it("names the crash in the knockout line, which is not notable", () => {
+    expect(isNotable({ t: "knockout", crash: true })).toBe(false);
+    expect(en(eventText(emptyWorld(), { t: "knockout", crash: true })?.text)).toBe("The crash knocks you out.");
+    expect(resolve(eventText(emptyWorld(), { t: "knockout", crash: true })!.text, "ru")).toBe("От удара вы теряете сознание.");
+    expect(en(eventText(emptyWorld(), { t: "knockout", crash: false })?.text)).toBe("You are knocked out.");
   });
 });
 

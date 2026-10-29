@@ -271,22 +271,17 @@ export class TownScreen {
     }
     const underQuest = w.player.quests.live !== null;
     this.root.classList.toggle("under-quest", underQuest);
-    this.root.classList.toggle("on-section", this.page !== null);
     if (!underQuest) this.drawPage(w, shopId, this.page);
   }
 
   private drawPage(w: World, shopId: string, page: TownPage): void {
-    const truck = this.showsTruck(w, shopId, page) ? el("div", { class: "town-truck" }, this.inventory.render()) : null;
+    const truck = page === "garage" || page === "market" ? el("div", { class: "town-truck" }, this.inventory.render()) : null;
     this.choices = page === null ? this.frontChoices(w, shopId) : this.sectionChoices(shopId, page);
     this.root.replaceChildren(
       this.bandOf(w, this.artKey(shopId), shopDef(shopId).kind !== "garage"),
-      el(
-        "div",
-        { class: "ink-body" },
+      this.bodyOf(
         el("div", { class: "ink-head" }, el("h2", { class: "quest-place" }, this.heading(shopId)), el("p", { class: "qt-line" }, proseOf(shopId, page))),
         page === null ? null : this.sectionPanel(w, shopId, shopDef(shopId), page, truck),
-        el("div", { class: "ink-choices quest-choices" }, ...this.choices.map((c, i) => choiceButton(c, i))),
-        el("div", { class: "ink-status bad" }, this.error),
       ),
     );
     if (truck) this.inventory.fitTo(truck);
@@ -300,20 +295,27 @@ export class TownScreen {
   private drawDesk(w: World, desk: string): void {
     const underQuest = w.player.quests.live !== null;
     this.root.classList.toggle("under-quest", underQuest);
-    this.root.classList.toggle("on-section", this.page !== null);
     if (underQuest) return;
     this.choices = this.deskChoices(desk);
     const people = this.page === "people";
     this.root.replaceChildren(
       this.bandOf(w, TOWN_ART[desk]?.band ?? null, true),
-      el(
-        "div",
-        { class: "ink-body" },
+      this.bodyOf(
         el("div", { class: "ink-head" }, el("h2", { class: "quest-place" }, this.heading(desk)), people ? el("p", { class: "qt-line" }, t("town.line.people")) : null),
         people ? null : el("div", { class: "ink-panel" }, deskBody(w, (cmd) => this.run(cmd))),
-        el("div", { class: "ink-choices quest-choices" }, ...this.choices.map((c, i) => choiceButton(c, i))),
-        el("div", { class: "ink-status bad" }, this.error),
       ),
+    );
+  }
+
+  private bodyOf(head: HTMLElement, panel: HTMLElement | null): HTMLElement {
+    const buttons = this.choices.map((c, i) => choiceButton(c, i));
+    const exit = buttons.pop();
+    const status = el("div", { class: "ink-status bad", ...(this.error ? { title: this.error } : {}) }, this.error);
+    return el(
+      "div",
+      { class: "ink-body" },
+      el("div", { class: "ink-scroll" }, head, panel, el("div", { class: "ink-choices quest-choices" }, ...buttons)),
+      el("div", { class: "ink-foot" }, exit ?? null, status),
     );
   }
 
@@ -374,17 +376,11 @@ export class TownScreen {
     return [...locals, { id: "back", label: t("town.back"), reason: null, go: () => this.back() }];
   }
 
-  private showsTruck(w: World, shopId: string, page: TownPage): boolean {
-    if (page === "garage") return true;
-    return page === "market" && !this.chartsShown(shopId);
-  }
-
   private chartsShown(shopId: string): boolean {
     return this.marketTab === "charts" && shopDef(shopId).charts;
   }
 
   private sectionPanel(w: World, shopId: string, def: ShopDef, page: TownSection, truck: HTMLElement | null): HTMLElement | null {
-    if (page === "market" && !truck) return el("div", { class: "ink-panel" }, this.marketTabs(def), this.charts(w, shopId));
     if (truck) {
       const shop = page === "garage" ? this.garage(w, shopId, def) : this.market(w, shopId, def);
       return el("div", { class: "ink-panel wide" }, el("div", { class: "town-split" }, truck, el("div", { class: "town-shop" }, shop)));
@@ -493,6 +489,7 @@ export class TownScreen {
 
   private market(w: World, shopId: string, def: ShopDef): HTMLElement {
     const state = shopState(w, shopId);
+    if (this.chartsShown(shopId)) return el("div", {}, this.marketTabs(def), this.charts(w, shopId));
     return el(
       "div",
       {},
