@@ -92,19 +92,28 @@ function alongRow(chassisId: string, lane: number): number {
   const { half } = spanOf(chassisId);
   if (lane <= 0) return half.x;
   if (lane >= baseGrid(chassisId).h - 1) return -half.x;
-  return half.x - (lane - 0.5) * cellSteps(chassisId).row;
+  const { row } = cellSteps(chassisId);
+  return ((baseGrid(chassisId).h - 2) * row) / 2 - (lane - 0.5) * row;
+}
+
+function acrossColumn(chassisId: string, lane: number): number {
+  const { half } = spanOf(chassisId);
+  const last = baseGrid(chassisId).w - 1;
+  if (lane <= 0) return -half.z;
+  if (lane >= last) return half.z;
+  const { col } = cellSteps(chassisId);
+  return -((last - 1) * col) / 2 + (lane - 0.5) * col;
 }
 
 function laneFace(v: Vehicle, side: Side, lane: number): { unit: number; at: Local } {
   const { center, half } = spanOf(v.chassisId);
   const n = laneCount(v, side);
-  const across = (lane + 0.5) / n;
   const all = unitsOf(v.chassisId);
   const face = (unit: number, fwd: number, right: number) => ({ unit, at: { fwd: fwd - all[unit].offset, right } });
   const row = () => unitOfRow(v.chassisId, Math.min(n - 1, Math.max(0, Math.round(lane)))).index;
   switch (side) {
-    case 'front': return face(0, center + half.x, (across * 2 - 1) * half.z);
-    case 'rear': return face(all.length - 1, center - half.x, (across * 2 - 1) * half.z);
+    case 'front': return face(0, center + half.x, acrossColumn(v.chassisId, lane));
+    case 'rear': return face(all.length - 1, center - half.x, acrossColumn(v.chassisId, lane));
     case 'left': return face(row(), center + alongRow(v.chassisId, lane), -half.z);
     case 'right': return face(row(), center + alongRow(v.chassisId, lane), half.z);
   }

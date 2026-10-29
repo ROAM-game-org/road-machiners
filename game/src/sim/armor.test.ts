@@ -1,9 +1,10 @@
 import { partDef, type WeaponDef } from '../data/parts';
 import { describe, expect, it } from 'vitest';
+import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
 import { aimWithin, openArcShares, gunBlockers, gunLayoutScore, gunSpans, laneCount, lanePoint, partLane, planBlast, planLane, sideToward, spanDegrees, spanSides, spansHold, walkLane, type FireSpan } from './armor';
 import { fireBlock, inArc, resolveDestroyed } from './combat';
-import { cellCenter } from './body';
+import { GRID_CELL, cellCenter, spanOf } from './body';
 import { makePart } from './factory';
 import { advanceKnockout, checkKnockout } from './defeat';
 import { baseGrid, corePart, coreParts, facingOf, gridOf, itemCells, itemSize, mountedItems, mountedParts } from './grid';
@@ -53,7 +54,7 @@ describe('walkLane', () => {
     const round = { damage: 1, pen: 2, blast: false, armorShare: 1 };
     expect(walkLane(w, v, 'front', 2, round)[0].part).toBe(partAt(v, 2, 0).id);
     expect(walkLane(w, v, 'left', 2, round)[0].part).toBe(partAt(v, 1, 2).id);
-    expect(walkLane(w, v, 'right', 2, round)[0].part).toBe(partAt(v, 5, 2).id);
+    expect(walkLane(w, v, 'right', 2, round)[0].part).toBe(partAt(v, 4, 2).id);
     expect(walkLane(w, v, 'rear', 1, { ...round, pen: 3 })[0].part).toBe(partAt(v, 1, last - 2).id);
   });
 
@@ -361,46 +362,47 @@ function cornerAngle(dx: number, dy: number): number {
 
 describe('shadows of tall parts', () => {
   it('a gun in the bed cannot fire forward across the cab, however far it stands', () => {
-    const v = truckWith(emptyWorld(), 'longbed', [{ defId: 'mg', x: 4, y: 9 }]);
-    const edge = cornerAngle(1.5, -4);
+    const v = truckWith(emptyWorld(), 'longbed', [{ defId: 'mg', x: 3, y: 12 }]);
+    const edge = cornerAngle(1.5, -5.5);
     expect(gunSpans(v, itemOf(v, 'mg'))).toEqual([{ from: -135, to: -edge }, { from: edge, to: 135 }]);
   });
 
   it('a heavy machine gun beside the cab loses the angles over the cab and keeps the rest', () => {
-    const v = truckWith(emptyWorld(), 'longbed', [{ defId: 'heavyMg', x: 1, y: 5 }]);
-    expect(gunSpans(v, itemOf(v, 'heavyMg'))).toEqual([{ from: -135, to: cornerAngle(1.5, -2) }, { from: 90, to: 135 }]);
+    const v = truckWith(emptyWorld(), 'longbed', [{ defId: 'heavyMg', x: 1, y: 8 }]);
+    expect(gunSpans(v, itemOf(v, 'heavyMg'))).toEqual([{ from: -135, to: cornerAngle(0.5, -4.5) }, { from: cornerAngle(3.5, -1.5), to: 135 }]);
   });
 
   it('a gun beside the hood fires forward and loses only the angles back across the cab', () => {
     const v = truckWith(emptyWorld(), 'longbed', [{ defId: 'mg', x: 5, y: 2 }]);
-    expect(rounded(gunSpans(v, itemOf(v, 'mg')))).toEqual([{ from: -111.8, to: 135 }]);
+    expect(rounded(gunSpans(v, itemOf(v, 'mg')))).toEqual([{ from: Math.round(cornerAngle(-3.5, 1.5) * 10) / 10, to: 135 }]);
   });
 
   it('a gun facing away from the hauler cab keeps its whole arc', () => {
-    const v = truckWith(emptyWorld(), 'hauler', [{ defId: 'shotgun', x: 2, y: 6, rot: 2 }]);
+    const v = truckWith(emptyWorld(), 'hauler', [{ defId: 'shotgun', x: 2, y: 10, rot: 2 }]);
     expect(gunSpans(v, itemOf(v, 'shotgun'))).toEqual([{ from: 135, to: 225 }]);
   });
 
   it('a gun behind the hauler cab loses the slice the cab covers, off its own lane', () => {
-    const v = truckWith(emptyWorld(), 'hauler', [{ defId: 'mg', x: 2, y: 6 }]);
-    expect(gunSpans(v, itemOf(v, 'mg'))).toEqual([{ from: -135, to: cornerAngle(2.5, -5) }, { from: cornerAngle(4.5, -2), to: 135 }]);
+    const v = truckWith(emptyWorld(), 'hauler', [{ defId: 'mg', x: 2, y: 10 }]);
+    expect(gunSpans(v, itemOf(v, 'mg'))).toEqual([{ from: -135, to: cornerAngle(1.5, -9.5) }, { from: cornerAngle(4.5, -6.5), to: 135 }]);
   });
 
   it('a cargo box behind a gun blinds it there, and a flat rack does not', () => {
     const w = emptyWorld();
-    const boxed = truckWith(w, 'hauler', [{ defId: 'mg', x: 2, y: 4 }, { defId: 'trailerBox', x: 2, y: 6 }]);
-    const racked = truckWith(w, 'hauler', [{ defId: 'mg', x: 2, y: 4 }, { defId: 'rack', x: 2, y: 6 }]);
+    const boxed = truckWith(w, 'hauler', [{ defId: 'mg', x: 2, y: 10 }, { defId: 'trailerBox', x: 3, y: 13 }]);
+    const racked = truckWith(w, 'hauler', [{ defId: 'mg', x: 2, y: 10 }, { defId: 'rack', x: 3, y: 13 }]);
     expect(spansHold(gunSpans(boxed, itemOf(boxed, 'mg')), 130)).toBe(false);
     expect(spansHold(gunSpans(racked, itemOf(racked, 'mg')), 130)).toBe(true);
   });
 
   it('a driver seat blocks a gun behind it', () => {
     const v = truckWith(emptyWorld(), 'courier', [{ defId: 'mg', x: 2, y: 7 }]);
-    expect(spansHold(gunSpans(v, itemOf(v, 'mg')), 0)).toBe(false);
+    const gun = v.items.find((it) => it.kind === 'part' && it.part.defId === 'mg')!;
+    expect(spansHold(gunSpans(v, gun), 0)).toBe(false);
   });
 
   it('a gun beside the convertible hardtop cab loses the angles toward the cab, off its own lane', () => {
-    const v = truckWith(emptyWorld(), 'convertible', [{ defId: 'mg', x: 4, y: 7 }]);
+    const v = truckWith(emptyWorld(), 'convertible', [{ defId: 'mg', x: 5, y: 7 }]);
     const spans = gunSpans(v, itemOf(v, 'mg'));
     expect(spansHold(spans, -30)).toBe(false);
     expect(spansHold(spans, 0)).toBe(true);
@@ -408,7 +410,7 @@ describe('shadows of tall parts', () => {
   });
 
   it('a tall gun never blocks itself', () => {
-    const v = truckWith(emptyWorld(), 'hauler', [{ defId: 'cannon', x: 2, y: 6, rot: 2 }]);
+    const v = truckWith(emptyWorld(), 'hauler', [{ defId: 'cannon', x: 2, y: 10, rot: 2 }]);
     expect(spanDegrees(gunSpans(v, itemOf(v, 'cannon')))).toBe(Math.min((partDef('cannon') as WeaponDef).arc, 360));
   });
 });
@@ -416,7 +418,7 @@ describe('shadows of tall parts', () => {
 describe('firing past tall parts', () => {
   it('reports a target ahead of a gun behind the cab as blocked', () => {
     const w = emptyWorld();
-    const me = truckWith(w, 'longbed', [{ defId: 'mg', x: 4, y: 9 }]);
+    const me = truckWith(w, 'longbed', [{ defId: 'mg', x: 3, y: 12 }]);
     const ahead = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: 45, y: 40 });
     const gun = vehicleStats(w, me).weapons[0];
     expect(inArc(me, gun, ahead)).toBe(false);
@@ -425,7 +427,7 @@ describe('firing past tall parts', () => {
 
   it('lets the same gun fire at a target on its open flank', () => {
     const w = emptyWorld();
-    const me = truckWith(w, 'longbed', [{ defId: 'mg', x: 4, y: 9 }]);
+    const me = truckWith(w, 'longbed', [{ defId: 'mg', x: 3, y: 12 }]);
     const beside = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: 40, y: 45 });
     const gun = vehicleStats(w, me).weapons[0];
     expect(inArc(me, gun, beside)).toBe(true);
@@ -444,7 +446,7 @@ describe('span sides', () => {
 
 describe('gun blockers', () => {
   it('names the cab as what blocks a bed gun', () => {
-    const v = truckWith(emptyWorld(), 'longbed', [{ defId: 'mg', x: 4, y: 9 }]);
+    const v = truckWith(emptyWorld(), 'longbed', [{ defId: 'mg', x: 3, y: 12 }]);
     expect(gunBlockers(v, itemOf(v, 'mg')).map((b) => b.kind === 'part' && b.part.defId)).toEqual(['cabPickup']);
   });
 
@@ -456,29 +458,29 @@ describe('gun blockers', () => {
 
 describe('gun layout', () => {
   it('scores a bed gun turned away from the cab above the same gun facing the cab', () => {
-    const facingCab = truckWith(emptyWorld(), 'longbed', [{ defId: 'mg', x: 4, y: 9 }]);
-    const facingAway = truckWith(emptyWorld(), 'longbed', [{ defId: 'mg', x: 4, y: 9, rot: 2 }]);
+    const facingCab = truckWith(emptyWorld(), 'longbed', [{ defId: 'mg', x: 3, y: 12 }]);
+    const facingAway = truckWith(emptyWorld(), 'longbed', [{ defId: 'mg', x: 3, y: 12, rot: 2 }]);
     expect(gunLayoutScore(facingAway)).toBe(3 * 361 + 270);
     expect(gunLayoutScore(facingCab)).toBeLessThan(gunLayoutScore(facingAway));
   });
 
   it('scores a cargo box behind two guns below a flat rack there', () => {
-    const guns = [{ defId: 'mg', x: 2, y: 6 }, { defId: 'mg', x: 3, y: 6 }];
-    const boxed = truckWith(emptyWorld(), 'hauler', [...guns, { defId: 'trailerBox', x: 2, y: 8 }]);
-    const racked = truckWith(emptyWorld(), 'hauler', [...guns, { defId: 'rack', x: 2, y: 8 }]);
+    const guns = [{ defId: 'mg', x: 2, y: 11 }, { defId: 'mg', x: 3, y: 11 }];
+    const boxed = truckWith(emptyWorld(), 'hauler', [...guns, { defId: 'trailerBox', x: 3, y: 14 }]);
+    const racked = truckWith(emptyWorld(), 'hauler', [...guns, { defId: 'rack', x: 3, y: 14 }]);
     expect(gunLayoutScore(boxed)).toBeLessThan(gunLayoutScore(racked));
   });
 
   it('reads the open share of a gun arc: low facing the cab and a box, full once turned away', () => {
     const w = emptyWorld();
-    const box = { defId: 'trailerBox', x: 1, y: 4 };
+    const box = { defId: 'trailerBox', x: 1, y: 9 };
     const share = (gun: { defId: string; x: number; y: number; rot?: Rot }, extra: { defId: string; x: number; y: number }[] = []) => {
       const v = truckWith(w, 'longbed', [gun, ...extra]);
       return openArcShares(v)[0];
     };
-    expect(share({ defId: 'shotgun', x: 2, y: 6 }, [box])).toBeLessThan(0.5);
-    expect(share({ defId: 'shotgun', x: 2, y: 6, rot: 2 }, [box])).toBe(1);
-    expect(share({ defId: 'shotgun', x: 3, y: 9, rot: 2 })).toBe(1);
+    expect(share({ defId: 'shotgun', x: 3, y: 12 }, [box])).toBeLessThan(0.5);
+    expect(share({ defId: 'shotgun', x: 3, y: 12, rot: 2 }, [box])).toBe(1);
+    expect(share({ defId: 'shotgun', x: 5, y: 9, rot: 2 })).toBe(1);
   });
 
 });
@@ -527,7 +529,7 @@ describe('aimWithin', () => {
 describe('gun facing', () => {
   const gunAt = (defId: string, rot: Rot) => {
     const w = emptyWorld();
-    const v = truckWith(w, 'hauler', [{ defId, x: 2, y: 6, rot }]);
+    const v = truckWith(w, 'hauler', [{ defId, x: 2, y: 10, rot }]);
     return { w, v, item: itemOf(v, defId) };
   };
   const spot = (v: Vehicle, dx: number, dy: number) => ({ x: v.pos.x + dx, y: v.pos.y + dy });
@@ -588,11 +590,15 @@ describe('lanePoint on the sides', () => {
   it('puts a side lane level with the body row of the same index, and the end lanes at the faces', () => {
     const { v } = plated();
     v.heading = 0;
-    const last = baseGrid(v.chassisId).h - 1;
-    const along = (lane: number) => lanePoint(v, 'left', lane).x;
+    const { h } = baseGrid(v.chassisId);
+    const last = h - 1;
+    const { half } = spanOf(v.chassisId);
+    const innerHalf = ((h - 2) * GRID_CELL) / 2;
+    const along = (lane: number) => lanePoint(v, 'left', lane).x * PHYSICS.metersPerTile;
     const row = (along(1) - along(2));
+    expect(row).toBeCloseTo(GRID_CELL, 5);
     expect(row).toBeCloseTo(along(2) - along(3), 5);
-    expect(along(0) - along(1)).toBeCloseTo(row / 2, 5);
-    expect(along(last - 1) - along(last)).toBeCloseTo(row / 2, 5);
+    expect(along(0) - along(1)).toBeCloseTo(half.x - (innerHalf - GRID_CELL / 2), 5);
+    expect(along(last - 1) - along(last)).toBeCloseTo(half.x - (innerHalf - GRID_CELL / 2), 5);
   });
 });

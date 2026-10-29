@@ -241,7 +241,7 @@ describe('gun power draw', () => {
 
   it('a gun draws 1 plus half per extra cell, times 1 plus a quarter per tier above 1', () => {
     for (const def of Object.values(PARTS)) {
-      if (def.kind === 'weapon') expect(def.draw, def.id).toBeCloseTo((1 + 0.5 * (def.w * def.h - 1)) * (1 + 0.25 * (def.tier - 1)));
+      if (def.kind === 'weapon') expect(def.draw, def.id).toBeCloseTo((1 + 0.5 * (def.bulk.w * def.bulk.h - 1)) * (1 + 0.25 * (def.tier - 1)));
     }
   });
 
@@ -396,7 +396,7 @@ describe('max speed steps', () => {
   };
 
   const FROZEN: Record<string, number> = {
-    bare: 1.04, stock: 9.875716226804332, manyGuns: 4.906412009420447, brokenGun: 8.703054785359077, overload: 3.046229250680652,
+    bare: 1.04, stock: 9.875716226804332, manyGuns: 4.906412009420447, brokenGun: 8.703054785359077, overload: 3.122310255777496,
     heavy: 1, worn: 9.217335145017376, wheels: 7.135204973866129, overdrive: 13.134702581649762, transmission: 1.04,
     brokenEngine: 1.04, stalled: 1.04, storm: 5.925429736082600, towing: 5.9254297360826,
   };

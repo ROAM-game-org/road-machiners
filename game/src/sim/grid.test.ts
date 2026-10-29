@@ -316,10 +316,12 @@ describe('the cargo bay cell', () => {
 
 describe('built-in bed rows', () => {
   const rowsOf: Record<string, number> = { scout: 1, hauler: 2, longbed: 3 };
+  const rescaled = (id: string, oldRows: number) => Math.round((oldRows * CHASSIS[id].oldGrid.width) / baseGrid(id).w);
+  const bedRowsOf = (id: string) => rescaled(id, rowsOf[id] ?? 0) + (CHASSIS[id].spareRows ?? 0);
 
-  it('add full-width plain rows right under the layout of the scout, hauler and longbed only', () => {
+  it('add full-width plain rows right under the layout, the bed rows of the scout, hauler and longbed rescaled to the grid width plus the spare rows', () => {
     for (const id of PLAYER_CHASSIS) {
-      const rows = rowsOf[id] ?? 0;
+      const rows = bedRowsOf(id);
       const g = bareGrid(id);
       const layout = baseGrid(id);
       expect(g.h, id).toBe(layout.h + rows);
@@ -336,7 +338,7 @@ describe('built-in bed rows', () => {
   });
 
   it('keep the layout grid alone', () => {
-    expect(baseGrid('scout').h).toBe(10);
+    expect(baseGrid('scout').h).toBe(CHASSIS.scout.layout.length);
   });
 
   it('keep their cargo when every cargo part breaks', () => {
@@ -344,7 +346,7 @@ describe('built-in bed rows', () => {
     const v = addVehicle(w, 'scrapjaw', 'longbed', ['rack'], { x: 40, y: 40 });
     for (const p of mountedParts(v, 'cargo')) p.hp = 0;
     const g = gridOf(v);
-    expect(g.deadFrom).toBe(g.chassisH + rowsOf.longbed);
+    expect(g.deadFrom).toBe(g.chassisH + bedRowsOf('longbed'));
     const crate: GridItem = { id: 'i-crate', x: 0, y: g.chassisH, rot: 0, kind: 'good', good: 'salt' };
     expect(onDeadRow(g, crate)).toBe(false);
     expect(placementError(g, v.items, crate, null)).toBeNull();
@@ -357,8 +359,9 @@ describe('sorokonoga trailer cargo', () => {
   it('gives half again as many rows from every cargo part, rounded down', () => {
     for (const id of cargoIds) {
       const own = (partDef(id) as { extraRows: number }).extraRows;
-      expect(cargoRowsOn('sorokonoga', id), id).toBe(Math.floor(own * 1.5));
-      expect(cargoRowsOn('hauler', id), id).toBe(own);
+      const rescaled = (chassis: string, rows: number) => Math.round((rows * CHASSIS[chassis].oldGrid.width) / baseGrid(chassis).w);
+      expect(cargoRowsOn('sorokonoga', id), id).toBe(rescaled('sorokonoga', Math.floor(own * 1.5)));
+      expect(cargoRowsOn('hauler', id), id).toBe(rescaled('hauler', own));
     }
   });
 });

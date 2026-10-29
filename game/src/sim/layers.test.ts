@@ -17,7 +17,7 @@ function part(w: World, defId: string, x: number, y: number, rot: Rot = 0): Grid
 function platedNose(): { w: World; v: Vehicle } {
   const w = emptyWorld();
   const v = addVehicle(w, 'scrapjaw', 'scout', [], { x: 40, y: 40 });
-  for (let x = 1; x <= 5; x++) v.items.push(part(w, 'steelPlate', x, 0));
+  for (let x = 1; x <= 4; x++) v.items.push(part(w, 'steelPlate', x, 0));
   return { w, v };
 }
 
@@ -35,13 +35,13 @@ describe('accessory layer', () => {
     v.items.push(ram);
     expect(isMounted(v.chassisId, ram)).toBe(true);
     expect(layerOf(gridOf(v), ram)).toBe('accessory');
-    expect(mountedItems(v, 'armor')).toHaveLength(5);
+    expect(mountedItems(v, 'armor')).toHaveLength(4);
   });
 
   it('keeps two accessories off the same cell', () => {
     const { w, v } = platedNose();
     withRam(w, v, 1);
-    expect(placementError(gridOf(v), v.items, part(w, 'ram', 3, 0), null)).toEqual({ id: 'inTheWay' });
+    expect(placementError(gridOf(v), v.items, part(w, 'ram', 2, 0), null)).toEqual({ id: 'inTheWay' });
   });
 
   it('keeps two plates off the same cell', () => {
@@ -66,14 +66,14 @@ describe('accessory layer', () => {
   it('moves a ram along the nose without swapping out the plates under it', () => {
     const { w, v } = platedNose();
     const ram = withRam(w, v, 1);
-    const plan = planItemMove(v, ram.id, { x: 3, y: 0, rot: 0 });
+    const plan = planItemMove(v, ram.id, { x: 2, y: 0, rot: 0 });
     expect(plan.error).toBeNull();
   });
 
   it('installs a ram in the middle of the nose', () => {
     const { w, v } = platedNose();
     const ram = part(w, 'ram', 0, 0);
-    expect(installSpot(v, ram as Extract<GridItem, { kind: 'part' }>)).toEqual({ x: 2, y: 0, rot: 0 });
+    expect(installSpot(v, ram as Extract<GridItem, { kind: 'part' }>)).toEqual({ x: 1, y: 0, rot: 0 });
   });
 });
 
