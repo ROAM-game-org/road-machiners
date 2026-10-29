@@ -23,7 +23,7 @@
     "heard": "boolean"
    },
    "fromTheWest": {
-    "driver": "null",
+    "driver": "string",
     "heard": "boolean"
    }
   },
