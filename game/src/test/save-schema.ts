@@ -35,8 +35,9 @@ function unsupported(type: Type, path: string, ctx: Ctx): never {
 }
 
 function isProjectSymbol(symbol: TsSymbol, ctx: Ctx): boolean {
-  const paths = symbol.declarations.map((declaration) => String(declaration.path));
-  return paths.length > 0 && paths.every((path) => path.startsWith(ctx.root) && !path.includes('/node_modules/'));
+  const root = ctx.root.toLowerCase();
+  const paths = symbol.declarations.map((declaration) => String(declaration.path).toLowerCase());
+  return paths.length > 0 && paths.every((path) => path.startsWith(root) && !path.includes('/node_modules/'));
 }
 
 function defName(type: Type, ctx: Ctx): string | null {
