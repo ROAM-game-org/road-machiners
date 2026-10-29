@@ -12,7 +12,7 @@ import { el } from "./dom";
 import { cellSteps } from "../sim/body";
 import { uiSize } from "./ui-size";
 import { truckOutline } from "./plans";
-import { coreArt, dressGrid, drawnSprite, partArt, tierAttr, truckBackdrop, type GarageLook } from "./garage-draw";
+import { coreArt, dressGrid, drawnSprite, hiddenArt, partArt, tierAttr, truckBackdrop, type GarageLook } from "./garage-draw";
 import { conditionMeter, gridItemIcon, itemTip, jobDone, toneStyle, workMeterEl } from "./cards";
 import { kg } from "./units";
 import { byId, t, type Msg } from "../text/msg";
@@ -234,7 +234,7 @@ function artOf(look: GarageLook, it: GridItem, m: GridMetrics, rect: PixelRect):
     return body ? (coreArt(body, it.part, m, rect) ?? el("span", { class: "inv-art" })) : null;
   }
   const sprite = drawnSprite(look, it);
-  return sprite ? partArt(sprite, m, rect) : null;
+  return sprite ? partArt(sprite, m, rect) : hiddenArt(look, it);
 }
 
 function itemClass(it: GridItem, mounted: boolean): string {

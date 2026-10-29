@@ -367,6 +367,30 @@
 .inv-grid .inv-item.drawn.blocking {
   --edge: var(--garage-edge-danger);
 }
+.inv-item.drawn .inv-art.hidden-part {
+  inset: 3px;
+  border-radius: 4px;
+  background: var(--garage-hidden-wash);
+  box-shadow: 0 0 8px 2px var(--garage-hidden-glow);
+}
+.inv-grid .inv-item.drawn:hover .inv-art.hidden-part {
+  background: var(--garage-hidden-hover);
+}
+.inv-grid .inv-item.drawn:is(.selected, .holding) .inv-art.hidden-part {
+  outline: 2px solid var(--ink-bright);
+}
+.inv-grid .inv-item.drawn.blocking .inv-art.hidden-part {
+  outline: 2px solid var(--danger);
+}
+.inv-item.drawn[data-tier="hurt"] .inv-art.hidden-part {
+  background: var(--garage-tint-hurt);
+}
+.inv-item.drawn[data-tier="crit"] .inv-art.hidden-part {
+  background: var(--garage-tint-crit);
+}
+.inv-item.drawn[data-tier="broken"] .inv-art.hidden-part {
+  background: var(--garage-tint-broken);
+}
 .inv-ghost.drawn {
   background: none;
   border-color: transparent;

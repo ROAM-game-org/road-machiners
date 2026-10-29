@@ -5,6 +5,7 @@ import type { GridItem, PartInstance, Vehicle, World } from "../sim/types";
 import { maxHp } from "../sim/wear";
 import { playerTrucks } from "../sim/damage";
 import { coreItems, isCore, mountSpotsOf, type GarageBody, type GarageNeed, type GaragePart, type GarageRenders, type GarageSprite } from "../three/render/garageRender";
+import { hidesInside } from "../three/render/vehicle";
 import { el } from "./dom";
 import { tierOf } from "./hud-readout";
 import { rectOf, turnedIcon, type GridMetrics, type PixelPoint, type PixelRect } from "./inventory-draw";
@@ -93,6 +94,10 @@ export function tierAttr(it: GridItem): string {
 
 function standsOnTruck(look: GarageLook, it: GridItem): it is PartItem {
   return isPartItem(it) && !isCore(it.part) && isMounted(look.truck.chassisId, it) && onTruck(look.truck, it);
+}
+
+export function hiddenArt(look: GarageLook, it: GridItem): HTMLElement | null {
+  return hidesInside(look.truck, it) ? el("span", { class: "inv-art hidden-part" }) : null;
 }
 
 export function drawnSprite(look: GarageLook, it: GridItem): GarageSprite | null {
