@@ -32,7 +32,7 @@ export const SLOW_PASS_TURNS = 55;
 type Prey = 'trader' | 'player' | 'playerEmpty' | 'empty' | 'parked' | 'brute';
 
 function nightTurn(): number {
-  for (let t = 1; t < 2000; t++) if (sunAt(t) === null) return t;
+  for (let t = 1; t < TIME.turnsPerDay; t++) if (sunAt(t) === null) return t;
   throw new Error('No night turn');
 }
 
