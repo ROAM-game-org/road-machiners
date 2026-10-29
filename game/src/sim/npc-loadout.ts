@@ -145,15 +145,15 @@ function equipmentCost(v: Vehicle): number {
 }
 
 function fits(b: Build, v: Vehicle): boolean {
-  return fitsAnywhere(b, v) && everyGunBears(v);
+  return withinMeans(b, v) && meetsSpeedFloor(v, 0, b.rules.minSpeed) && everyGunBears(v) && keepsHaul(b, v);
 }
 
-function fitsAnywhere(b: Build, v: Vehicle): boolean {
-  return equipmentCost(v) <= b.budget && vehicleMass(v) <= chassisDef(v.chassisId).ratedMass && meetsSpeedFloor(v, 0, b.rules.minSpeed) && keepsHaul(b, v);
+function withinMeans(b: Build, v: Vehicle): boolean {
+  return equipmentCost(v) <= b.budget && vehicleMass(v) <= chassisDef(v.chassisId).ratedMass;
 }
 
 function repacked(b: Build, v: Vehicle, item: PartItem, accept: (next: Vehicle) => boolean): Vehicle | null {
-  if (!fitsAnywhere(b, { ...v, items: [...v.items, item] })) return null;
+  if (!withinMeans(b, { ...v, items: [...v.items, item] })) return null;
   return repackWith(v, item, accept, b.repacks);
 }
 
@@ -165,7 +165,7 @@ function mounted(b: Build, v: Vehicle, defId: string, mount?: SideLetter[]): Veh
   const next = copyOf(v);
   const part = makePart(b.world, defId, 0);
   if (mountPart(b.world, next, part, mount)) return fits(b, next) ? next : null;
-  return mount ? null : repacked(b, v, { id: newId(b.world, 'i'), x: 0, y: 0, rot: 0, kind: 'part', part }, (x) => everyGunBears(x));
+  return mount ? null : repacked(b, v, { id: newId(b.world, 'i'), x: 0, y: 0, rot: 0, kind: 'part', part }, (x) => fits(b, x));
 }
 
 type LineGunMount = (v: Vehicle, defId: string) => Vehicle | null;
@@ -228,7 +228,7 @@ function gunSpotFits(b: Build, next: Vehicle, front: boolean): boolean {
 
 function bestGunSpot(b: Build, v: Vehicle, item: PartItem, score: (v: Vehicle) => number, front: boolean): Vehicle | null {
   const fitting = mountSpots(gridOf(v), v.items, item, MOUNT_CELLS.weapon).map((spot) => ({ ...v, items: [...v.items, { ...item, ...spot }] })).filter((next) => gunSpotFits(b, next, front));
-  if (!fitting.length) return repacked(b, v, item, (next) => everyGunBears(next) && (!front || coversFront(next)));
+  if (!fitting.length) return repacked(b, v, item, (next) => gunSpotFits(b, next, front) && meetsSpeedFloor(next, 0, b.rules.minSpeed));
   if (!meetsSpeedFloor(fitting[0], 0, b.rules.minSpeed)) return null;
   return fitting.map((next) => ({ next, value: score(next) })).reduce((a, c) => (c.value > a.value ? c : a)).next;
 }
