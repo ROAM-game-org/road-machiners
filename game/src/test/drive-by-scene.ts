@@ -16,7 +16,7 @@ import { stateOf } from '../sim/states';
 import { addVehicle, npcBrain, testDrive } from '../sim/testkit';
 import type { Vehicle, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
-import { exposureAt, watchPost } from '../sim/watch-posts';
+import { exposureAt, seesGround, watchPost } from '../sim/watch-posts';
 import { endTurn, newWorld } from '../sim/world';
 import { formatNpcPass } from '../ui/format';
 import { resolve } from '../text/resolve';
@@ -36,10 +36,10 @@ function nightTurn(): number {
   throw new Error('No night turn');
 }
 
-const NIGHT_PASS_SHARE = 0.6;
+const PASS_SHARE = 0.6;
 
-function nightPassPoint(post: Vec, ground: Vec): Vec {
-  const reach = TERRAIN.vision.radius * TIME.nightSight * NIGHT_PASS_SHARE;
+function passPoint(post: Vec, ground: Vec, night: boolean): Vec {
+  const reach = TERRAIN.vision.radius * (night ? TIME.nightSight : 1) * PASS_SHARE;
   const gap = dist(post, ground);
   if (gap <= reach) return ground;
   return { x: post.x + ((ground.x - post.x) * reach) / gap, y: post.y + ((ground.y - post.y) * reach) / gap };
@@ -47,10 +47,12 @@ function nightPassPoint(post: Vec, ground: Vec): Vec {
 
 function roadGround(w: World, night: boolean): { ground: Vec; post: Vec; dir: Vec } {
   const hidden = huntingGrounds(w).map((g) => watchPost(w, g)).filter((p): p is Vec => p !== null && exposureAt(w, p) === 0);
-  if (hidden.length === 0) throw new Error('No raid post is hidden from prey traffic');
-  const scenes = hidden.map((post) => ({ post, ...nearestStretch(post) }));
-  const nearest = scenes.reduce((best, s) => (dist(s.post, s.ground) < dist(best.post, best.ground) ? s : best));
-  return night ? { ...nearest, ground: nightPassPoint(nearest.post, nearest.ground) } : nearest;
+  const scenes = hidden.map((post) => {
+    const road = nearestStretch(post);
+    return { post, dir: road.dir, ground: passPoint(post, road.ground, night) };
+  }).filter((s) => seesGround(w, s.post, s.ground));
+  if (scenes.length === 0) throw new Error('No hidden raid post sees ground toward its road');
+  return scenes.reduce((best, s) => (dist(s.post, s.ground) < dist(best.post, best.ground) ? s : best));
 }
 
 function nearestStretch(post: Vec): { ground: Vec; dir: Vec } {
