@@ -33,7 +33,7 @@ export const FORTRESS_SITES: Record<string, FortressSite> = {
 
 export const NOSE_FRONT = 82.85;
 
-export const NOSE_APRON = { height: 1.25, run: 10, clear: 4, ramp: 4 };
+export const NOSE_ROCK = { seed: 4111, front: 2.5, jag: 2, jagCell: 4, run: 26, inner: 8, blend: 10, rough: 2.5, roughCell: 9, clear: 4, ramp: 6, ship: { from: -38, to: 3, axis: 10, half: 5, fade: 4 } };
 
 export const FORTRESS = {
   inset: 1.25,

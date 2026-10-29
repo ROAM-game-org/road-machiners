@@ -1,6 +1,6 @@
 
 import { describe, expect, it } from 'vitest';
-import { FORTRESS_SITES, NOSE_APRON } from '../data/fortress';
+import { FORTRESS_SITES, NOSE_ROCK } from '../data/fortress';
 import { REGION } from '../data/region';
 import { TERRAIN } from '../data/terrain';
 import { FORT_MODELS, fortressPieces, insideCurtain, pitDepth } from '../sim/fortress';
@@ -39,35 +39,42 @@ describe('fortress layer', () => {
     expect(d.props.filter((p) => !FORT_MODELS.has(p.kind))).toEqual([]);
   });
 
-  it('raises Nose rock as ground that keeps the height of its rock columns', () => {
+  it('raises Nose rock as ground that keeps the height of its rock columns under the ship', () => {
     const nose = REGION.towns.find((t) => t.id === 'nose')!;
     const boxes = rockBoxes(nose);
+    const { u, v } = noseFrame(nose);
+    const { from, to, axis, half } = NOSE_ROCK.ship;
     const tallest = Math.max(...boxes.map((b) => b.z1)) / PHYSICS.metersPerTile;
-    let top = 0;
-    for (const b of boxes) {
-      const at = { x: Math.round(b.center.x), y: Math.round(b.center.y) };
-      if (boxDistance(b, at) > 0) continue;
-      const lift = d.heights[at.y * n + at.x] - RIM;
-      top = Math.max(top, lift);
-      expect(lift, `rock column at ${at.x},${at.y}`).toBeGreaterThan(b.z1 / PHYSICS.metersPerTile / 2);
-    }
-    expect(tallest).toBeGreaterThan(10);
-    expect(top).toBeGreaterThan(tallest * 0.8);
-  });
-
-  it('raises the ground around Nose rock, outside its circle and off its roads and pads', () => {
-    const nose = REGION.towns.find((t) => t.id === 'nose')!;
-    const boxes = rockBoxes(nose);
-    const raised: { p: { x: number; y: number }; h: number }[] = [];
-    for (let y = Math.floor(nose.pos.y - 70); y <= nose.pos.y + 70; y++) {
-      for (let x = Math.floor(nose.pos.x - 70); x <= nose.pos.x + 70; x++) {
-        const h = d.heights[y * n + x] - RIM;
-        if (h !== 0 && boxes.every((b) => boxDistance(b, { x, y }) > 1)) raised.push({ p: { x, y }, h });
+    const bed: { lift: number; column: number }[] = [];
+    for (let du = from; du <= to; du++) {
+      for (let dv = axis - half; dv <= axis + half; dv++) {
+        const at = { x: Math.round(nose.pos.x + du * u.x + dv * v.x), y: Math.round(nose.pos.y + du * u.y + dv * v.y) };
+        const under = boxes.filter((b) => boxDistance(b, at) === 0);
+        if (under.length > 0) bed.push({ lift: d.heights[at.y * n + at.x] - RIM, column: Math.max(...under.map((b) => b.z1)) / PHYSICS.metersPerTile });
       }
     }
-    expect(Math.max(...raised.map((r) => r.h))).toBeLessThanOrEqual(NOSE_APRON.height);
-    expect(Math.max(...raised.map((r) => r.h))).toBeGreaterThan(NOSE_APRON.height * (1 - 1 / NOSE_APRON.run) - 1e-3);
+    expect(tallest).toBeGreaterThan(10);
+    expect(bed.length).toBeGreaterThan(100);
+    expect(bed.filter((b) => b.lift >= 0.8 * b.column).length / bed.length).toBeGreaterThan(0.9);
+  });
+
+  it('slopes Nose rock down into the land outside its circle, off its roads and pads, and only there', () => {
+    const nose = REGION.towns.find((t) => t.id === 'nose')!;
+    const boxes = rockBoxes(nose);
+    const raised: { p: { x: number; y: number }; h: number; from: number }[] = [];
+    const reach = 120;
+    for (let y = Math.floor(nose.pos.y - reach); y <= nose.pos.y + reach; y++) {
+      for (let x = Math.floor(nose.pos.x - reach); x <= nose.pos.x + reach; x++) {
+        const h = d.heights[y * n + x] - RIM;
+        const from = Math.min(...boxes.map((b) => boxDistance(b, { x, y })));
+        if (h !== 0 && from > 1) raised.push({ p: { x, y }, h, from });
+      }
+    }
+    const tallest = Math.max(...boxes.map((b) => b.z1)) / PHYSICS.metersPerTile;
     expect(Math.min(...raised.map((r) => r.h))).toBeGreaterThan(0);
+    expect(raised.filter((r) => r.from > 8).length).toBeGreaterThan(1000);
+    expect(Math.max(...raised.filter((r) => r.from > NOSE_ROCK.run / 2).map((r) => r.h))).toBeLessThan(tallest * 0.75);
+    expect(Math.max(...raised.map((r) => r.from))).toBeLessThanOrEqual(NOSE_ROCK.run + 1);
     for (const { p } of raised) expect(dist(p, nose.pos)).toBeGreaterThan(nose.radius);
     const scree = typeCode('scree');
     const up = (x: number, y: number) => d.heights[y * n + x] > RIM;
@@ -77,8 +84,8 @@ describe('fortress layer', () => {
     }
     const roads = REGION.roads.flatMap((road) => road.slice(1).map((b, i) => [road[i], b] as const));
     for (const { p } of raised) {
-      expect(Math.min(...roads.map(([a, b]) => segmentDist(p, a, b))) - REGION.roadWidth / 2).toBeGreaterThan(NOSE_APRON.clear);
-      for (const pad of sitePads(nose)) expect(dist(p, pad) - REGION.sites.pad.width / 2).toBeGreaterThan(NOSE_APRON.clear);
+      expect(Math.min(...roads.map(([a, b]) => segmentDist(p, a, b))) - REGION.roadWidth / 2).toBeGreaterThan(NOSE_ROCK.clear);
+      for (const pad of sitePads(nose)) expect(dist(p, pad) - REGION.sites.pad.width / 2).toBeGreaterThan(NOSE_ROCK.clear);
     }
   });
 
