@@ -8,7 +8,7 @@ import { buyChassis } from './economy';
 import { partDef } from '../data/parts';
 import { makePart, makeVehicle } from './factory';
 import { MOUNT_CELLS, baseGrid, bareGrid, cargoCellsGained, cargoRowsOn, cellCount, findSpot, freeCells, gridOf, layerOf, isMounted, onDeadRow, placementError, itemCells, mountedItems, mountedParts, plateSide, sideOf, type Cell } from './grid';
-import { getLayoutError, moveItem, mountPart, storePart } from './inventory';
+import { getLayoutError, moveItem, mountPart, storePart, stowSpot } from './inventory';
 import { generateNpcLoadout } from './npc-loadout';
 import { addVehicle, emptyWorld } from './testkit';
 import type { GridItem, Vehicle, World } from './types';
@@ -438,5 +438,48 @@ describe('placement from a layout built once', () => {
         expect(getLayoutError(v, shifted)).toEqual(first(shifted));
       }
     }
+  });
+});
+
+describe('loose storage on deck cells', () => {
+  const deckSpot = (chassisId: string): { x: number; y: number } => {
+    const cell = cellsOfLayout(chassisId).find((c) => c.letter === 'D');
+    if (!cell) throw new Error(`No deck cell on ${chassisId}`);
+    return cell;
+  };
+
+  it('takes a goods crate on a deck cell', () => {
+    const w = emptyWorld();
+    const v = addVehicle(w, 'scrapjaw', 'scout', [], { x: 40, y: 40 });
+    const { x, y } = deckSpot('scout');
+    const crate: GridItem = { id: 'i-crate', x, y, rot: 0, kind: 'good', good: 'salt' };
+    expect(placementError(gridOf(v), v.items, crate, null)).toBeNull();
+  });
+
+  it('takes a spare engine part on a deck cell without mounting it', () => {
+    const w = emptyWorld();
+    const v = addVehicle(w, 'scrapjaw', 'scout', [], { x: 40, y: 40 });
+    const { x, y } = deckSpot('scout');
+    const spare: GridItem = { id: 'i-spare', x, y, rot: 0, kind: 'part', part: makePart(w, 'stockEngine', 0) };
+    expect(placementError(gridOf(v), v.items, spare, null)).toBeNull();
+    expect(isMounted('scout', spare)).toBe(false);
+    v.items.push(spare);
+    expect(mountedParts(v, 'engine')).not.toContain(spare.part);
+  });
+
+  it('stows a goods crate on a deck cell when the storage rows are full', () => {
+    const w = emptyWorld();
+    const v = addVehicle(w, 'scrapjaw', 'scout', [], { x: 40, y: 40 });
+    const g = gridOf(v);
+    for (let y = 0; y < g.h; y++) {
+      for (let x = 0; x < g.w; x++) {
+        if (g.cells[y][x] === '.') v.items.push({ id: `i-fill-${x}-${y}`, x, y, rot: 0, kind: 'good', good: 'scrap' });
+      }
+    }
+    const crate: GridItem = { id: 'i-crate', x: 0, y: 0, rot: 0, kind: 'good', good: 'salt' };
+    const spot = stowSpot(v, crate)!;
+    expect(spot).not.toBeNull();
+    expect(spot.y).toBeLessThan(g.chassisH);
+    expect(baseGrid('scout').cells[spot.y][spot.x]).toBe('D');
   });
 });
