@@ -12,7 +12,7 @@ import { isJunk, maxHp, partValue } from '../wear';
 import { inCombat, isHostile } from '../combat';
 import { canFirstAid, startFirstAid, startStrip, stripYield } from '../jobs';
 import { maxHealthOf } from '../health';
-import { aimGuns, isSoftTarget } from './aim';
+import { aimGuns, gunStand, isSoftTarget } from './aim';
 import { hostileToPlayer, playerCanAct, setAutoFire, setAutoRepair, setMoveOrder, setWeaponOrder } from '../world';
 import { playerVehicle, vehicleById } from '../damage';
 import { isDefeated, isKnockedOut } from '../defeat';
@@ -50,7 +50,7 @@ import { procurerGoal } from './procurer';
 import { fuelForWay, fuelReaches, reachable, SHOP_SITES } from './reach';
 import { searcherGoal, takeSearch } from './searcher';
 import { surveyorGoal as surveyGoal, type SurveyorMoves } from './surveyor';
-import { BIGGEST_PART_CELLS, driveTo, driveToSite, mountBought, Orders, rearm, REPAIR_PARTS, upgradeGear, type BotTurn, type UpgradeStyle } from './orders';
+import { BIGGEST_PART_CELLS, driveTo, driveToSite, mountBought, Orders, rearm, replyPick, REPAIR_PARTS, upgradeGear, type BotTurn, type UpgradeStyle } from './orders';
 
 export type Archetype = 'trader' | 'scavenger' | 'hunter' | 'fastTrader' | 'hauler' | 'procurer' | 'searcher' | 'surveyor' | 'climber' | 'markov' | 'escort' | 'sprinter';
 export const ARCHETYPES: readonly Archetype[] = ['trader', 'scavenger', 'hunter', 'fastTrader', 'hauler', 'procurer', 'searcher', 'surveyor', 'climber', 'markov', 'escort', 'sprinter'];
@@ -181,7 +181,7 @@ function answerCall(o: Orders, replies: Partial<Record<TopicId, LineId>> = DEFEN
     const at = `${call.with}:${call.topic}:${call.node}`;
     if (seen.has(at)) throw new Error(`Bot call loops back to ${at}`);
     seen.add(at);
-    const pick = Math.max(0, currentOptions(o.world).findIndex((option) => option.line === replyTo(o.world, call, replies)));
+    const pick = replyPick(currentOptions(o.world).map((option) => option.line), replyTo(o.world, call, replies));
     o.run(call.topic ? (w) => chooseOption(w, pick) : hangUp);
   }
 }
@@ -862,7 +862,7 @@ function edgeAlong(pos: Vec, way: Vec, size: number): Vec {
 
 function charge(o: Orders, foe: Vehicle, goal: Goal): void {
   if (goal === 'hunter') aimGuns(o, foe);
-  driveTo(o, foe.pos);
+  driveTo(o, goal === 'hunter' ? gunStand(o, foe) : foe.pos);
 }
 
 function fights(o: Orders, foe: Vehicle, goal: Goal): boolean {
