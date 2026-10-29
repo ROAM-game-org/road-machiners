@@ -1,6 +1,6 @@
 # Square grid and garage remake
 
-**Status:** executing
+**Status:** validating
 **Branch:** garage-view
 **Worktree:** .worktrees/garage-view
 **Goal:** Every truck's grid is made of square 0.45 m cells that lie over the truck's real top surfaces, so a mounted part's drawing lands on its own cells in the garage and in the 3D game. Each truck holds the same loadouts as before: the same guns, armor, engine, cargo and utilities fit, and prices, rated mass, gun draw and combat numbers stay where they were. The garage view shows the truck quietly at rest, the grid near the pointer, installed parts raised over a faded body, and the fit cells of a picked part. Players use it to fit parts without reading a puzzle. The user confirms it from screenshots of several chassis and from a playtest. Useless if: the grid is square but parts still drift off their cells on some trucks; a truck that held three guns now holds two, or one more; a save loads with parts silently lost; prices or rated mass jump because cell counts changed; the garage is clean at rest but the picked and dragged states are as busy as before; it was checked only on the scout.
@@ -23,14 +23,15 @@
 ### Grid
 
 - One cell size for every truck, 0.45 m square, defined once in `sim/body.ts`.
-- Each chassis gets new layout strings. Its inner columns are the most 0.45 m columns that fit inside the width where its gun bases stand today, and its body rows are its length divided by 0.45 m, rounded. The grid is centered on the body. The scout becomes 4 columns by 12 rows.
+- Each chassis gets new layout strings. Its inner columns are the width where its gun bases stand today divided by 0.45 m and rounded, and may grow up to the body width divided by 0.45 m when the truck cannot keep its capacity otherwise. Its body rows are its length divided by 0.45 m, rounded. The grid is centered on the body. The scout becomes 4 columns by 12 rows. Measured widths are in `game/tmp/square-widths.json`.
 - The armor ring stays one cell outside the inner grid on all four sides. In 3D, plates keep sitting on the body faces, so armor looks as it does now.
 - A conversion script in `game/scripts/` writes the new layouts and core spots once. It samples the old layout under each new cell's center in meters. The new layouts are then committed as data and checked by the rules below, and the script is deleted.
 - `cellSteps` returns 0.45 for both axes. `cellRect` places cells from the grid center, not by stretching over the body.
 
 ### Balance stays where it was
 
-- Part footprints are rebuilt from meters at the typical old cell, 0.42 m across and 0.65 m along: widths stay, and lengths of 1, 2 and 3 become 1, 3 and 4. Rams keep 3 across.
+- Part footprints are rebuilt from meters at the typical old cell, 0.42 m across and 0.65 m along: widths stay, and lengths of 1, 2 and 3 become 1, 3 and 4. Rams keep 3 across. The small built-ins `wheel`, `tank`, `transmission` and `cab` keep their length, since they ride the small cars, whose old rows were 0.46 to 0.5 m long, so 2 rows of 0.45 m match them.
+- Layouts are designed per truck against `game/tmp/square-check.ts`, which scores a candidate against the old capacities in `game/tmp/square-targets.json`. Shapes bigger than one cell must fit exactly as many times as before, one-cell shapes at least as many.
 - Each chassis must keep its old capacity. For every chassis and every common shape, the number of parts that fit on their own mounts must equal the old count: guns of each size, engines, armor pieces per edge, cargo frames and utilities. Where the converted layout misses, its `D`, `E` and edge cells are hand-tuned until the counts match. A test checks this against a table of the old counts made once from the old layouts.
 - Balance numbers that read cell counts read a part's `bulk` instead, its old `w * h`, written into each part def. Chassis value and rated mass keep their old per-chassis results through the same rule: deck and armor counts read the old counts from the capacity table, so no price or rating moves.
 - Cargo parts add rows. A row on the new grid is narrower in meters, so rows per cargo part are rescaled to keep the same added area, rounded up.
@@ -120,6 +121,21 @@ Approach: split a part's size into two meanings first, with no behavior change, 
 - RK1 — Hand-tuned layouts drift from the look the user approved. Mitigation: garage screenshots of every chassis before closing.
 - RK2 — A save that fit before loses parts. Mitigation: IV5 and its log lines.
 
+## Verify
+
+All work is merged on branch `sq-grid` in `.worktrees/sq-grid`.
+
+- IV1 holds. `GRID_CELL` is 0.45 m, and `cellSteps` returns it on both axes for every chassis.
+- IV2 holds. On the final layouts, 0 of 3930 gun spots put the base center outside its own cells, and no spot fails to stand. Before the change, 1753 of 4369 spots had the base more than a quarter cell off.
+- IV3 holds except where the Hands-off decisions say otherwise. The capacity checker passes on 12 of 18 chassis. The bus, lincoln, carrier and courier lost one gun of some shapes so nothing floats, and the niva holds 4 small guns instead of 6.
+- IV4 holds. Value and rated mass read `oldGrid`, and the chassis tests pin them.
+- IV5 holds. On a full old world at seed 1337, the save step places every item, or logs it as dropped from an NPC: 83 items. The player truck lost nothing. The save rescue now carries a truck the way the step chain does, and a test runs both on six old saves.
+- IV6 holds. Garage screenshots at rest show no cell washes and no grid lines on the scout, hauler, bus, lincoln and sorokonoga.
+- IV7 holds. The wiki truck page, the models doc and the saves doc describe the square grid.
+- AS2 does not hold. See the first Deferred item.
+- In the game, `npm run playtest` played 30 turns at 60 fps with no page error. `npm run combat` with two merc builds against three buggy lineups, seeds 1 to 5, ran on both grids. Fights end in fewer turns on the new grid, and both grids end mostly in truces and flights.
+- The full test suite on `sq-grid` fails 10 files, against 19 before this work, and every one of the 10 failed before. Two of them have one test more failing than before, both listed under Deferred: the courier flee test in `combat-harness` and the loader small-part cells in `truckSupport`.
+
 ## Conclusion
 
 ### Hands-off decisions
@@ -129,3 +145,37 @@ Approach: split a part's size into two meanings first, with no behavior change, 
 - udesign: an even front or back edge centers a 3-cell ram one cell left of center, so rams keep 3 cells.
 - udesign: a saved part with no legal spot goes to the player's storage, or is dropped from an NPC truck, with a log line.
 - uplan: plan auto-approved.
+- uexecute: work runs in worktrees `sq-bulk`, `sq-grid`, `sq-ui` and `sq-save`, all cut from `garage-view`, merged into `sq-grid`. Agent-made worktrees came from the stale `origin/main` and were discarded.
+- uexecute: the baseline full run before any change failed 19 test files; the list is in `game/tmp/baseline-failing-files.txt`.
+- uexecute: the small built-ins `wheel`, `tank`, `transmission` and `cab` keep 2 rows; the 1-row shapes, like 2x1 racks, need at least their old count, not the exact count.
+- uexecute: cores may share a wheel column in rows the wheel does not use, since a 3-wide cab cannot clear both wheel columns on 4 to 6 columns. The scout keeps the user's 4 by 12.
+- uexecute: some trucks bend the gun width rule: van and bukhanka by up to 0.22 m a side, the tractor's 6 columns run 0.03 m past its body, and the bukhanka takes a 13th row.
+- uexecute: prices, rated mass and cargo rows read `oldGrid` per chassis, the old deck count, armor count and row width, so none of them moves.
+- uexecute: crate room, counted as deck, bay and plain cells plus the plain rows under the chassis, equals the old room on every truck or exceeds it by the fewest cells possible. Surplus cells became holes with no surface; missing cells came back as plain spare rows under the chassis. A test freezes the old room per truck.
+- uexecute: bed rows under the chassis keep plain rounding of old rows times old width over new width. Rounding up would add a row on the scout, hauler and longbed and break the crate room match.
+- uexecute: every truck keeps a plain front and back row, except where the old gun count needs those cells as deck: hauler, buggy, wagon, courier, longbed, carrier, jeep, bus and niva.
+
+- uexecute: save step `withSquareGrid_121_122` in its own files. Unknown chassis pass untouched, since load repair removes retired ones after the steps. A part that fits nowhere in its own rotation is turned as a last resort, with a warning. On a full standard world at seed 1337 with the final layouts it drops 83 of the NPC items, up from 80 on the first layouts. Most are armor plates on small cars: 17 on jeeps, 23 on buggies and 11 on couriers. Plates two cells long become three and the front and back edges are narrower. One NPC van also loses a slug cannon, and NPC nivas lose 5 crates of goods. Every lane still takes armor. The player truck lost nothing.
+
+- uexecute: gun bases slid off their cells mostly because `plateSpot` searched for a flat seat up to half a base past the cells, not because of overhanging cells. The search now stays inside the gun's own cells: 662 of 4376 gun spots had the base center outside its cells, now 0.
+- uexecute: balance is held by best packing per truck. Fire-arc first-fit mounting, as NPC loadouts do it, fits one or two fewer guns than before on most big trucks. Accepted and logged, since a player can still fit the old loadout.
+- uexecute: a full side of armor takes as many plates as before; the front and back take one plate fewer, with the same lanes covered.
+- uexecute: Sunward riders on the night schedule no longer stop for salvage. A loot detour stalled them short of their posts, and the new grid's id shift exposed it.
+- uexecute: the hunter bot now picks a stand point where its gun reaches the target, and refuses mercy when it cannot ask a foe to stand down. Before, a reply it could not pick silently fell back to accepting the plea.
+- uexecute: parts never floating beats exact gun capacity where the loss is one gun of a shape. Deck cells over a sloped tail, roof edge, fender or cowl step became plain or blank on the bus, lincoln, courier and carrier, each losing one gun of some shapes. The convertible's floating spots predate this work: it had 29 known spots and now has 10, kept as its known list.
+- uexecute: same-lane head-on avoidance crashed about half the time on any layout. A truck now predicts a holder along the headings toward its destination and stops when its way around would need a turn past 90 degrees. Crashes over 20 id shifts went from 10 to 0.
+- uexecute: an armed NPC truck now always mounts a gun covering its front when its layout has such a spot. Before, a buggy could roll only a side flamer.
+
+- uexecute: a lane cell costs a round its share of the old cell's meters, per chassis, from the old row length for front and rear lanes and the old column width for side lanes. Blank cells inside the body cost the same, so a hole is no shortcut. Aiming at a part reads its old footprint, so grown parts are not wider targets.
+- uexecute: the hauler tank lies lengthwise again. Across the truck it shielded the transmission from every rear lane, and an mg could not stop the hauler from behind.
+
+### Deferred (needs user input)
+- Combat toughness moved, and it comes from the layouts, not from per-cell cost. Toughness is the rounds a truck takes to be stopped from each side. Armed trucks, with an mg, a stock engine and plates on every edge, are 25 to 40 percent easier to stop from the front and rear on most trucks. For example, the wagon front fell from 28.9 to 17.3. Bare sides rose by up to 82 percent on the loader's left. The causes: transmissions now share rows with the rear wheels, so a wheel shields them; narrow trucks lost one lane per end; 3-cell plates leave more front and back lanes bare; and the 3x3 cabs. A test raider duel moved from 90 to 71 percent raider wins. Decide whether to tune layouts and armor toward the old toughness per side, or to accept the shift and retune fights. Tables are in `game/tmp/final-*.txt` in the `sq-tough` worktree.
+- Small cars got smaller in capacity terms where their old cells were short: niva below, and plates on the jeep, courier and buggy. Decide whether small-car loadouts may shrink or their grids should grow.
+- The courier lost its only spot for a gun 1 cell wide and 3 long, like the recoilless rifle, when its deck over the fender and cowl step was demoted so nothing floats. Decide whether the courier needs that spot back.
+- Loader cells (2,12), (5,12) and (5,6) lie over walls and the lower fender, so a small box there does not stand on the truck. Demoting them costs more than one gun per shape: 1x2 guns from 12 to 9. Decide between floating small parts on those cells and the lost capacity.
+- A 2-wide cargo frame on the longbed's front row does not stand on the truck at seed 1337. Demoting one cell only moves the fault along the row. Decide whether the longbed front row stays deck.
+- NPC couriers roll a gun about half as often as before: at standard gear 25 of 60 rolls, against 55. The courier picks its cargo part and utilities first, and they take the top cells of both gun lanes. A patch that makes utilities take the spot leaving the most gun spots open is at `game/tmp/loadout.patch` in `.worktrees/sq-merc`. It brings couriers back to 60 of 60, but it reshuffles NPC loadouts everywhere, and two dice-dependent harness tests then need new seeds. Decide whether to apply it.
+- The combat harness test "names the courier side when it flees a stronger truck" fails on seed 2. The merc rolls its 3 percent keep option and goes trading, so neither side flees. It is a dice tail that the new loadout draws moved onto this seed, not a rule fault. Its file failed before this work on other tests.
+- A loaded truck keeps less room for goods than before. Parts grew in cells by about half while the free room of an empty truck stayed equal. The hold-up hauler with 30 parts has 19 free cells, down from 27. Decide whether goods room on a loaded truck must hold, which would mean more room on every truck.
+- Niva capacity: it holds 4 small guns instead of 6, the best its body allows, because it needs 18 deck cells and has 12 free. Decide between a smaller loadout, smaller built-ins for the niva, or a grid past its body.
