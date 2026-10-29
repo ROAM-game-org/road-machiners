@@ -44,6 +44,8 @@ export const NPC_BEHAVIOR = {
   keepWork: 400,
   noticeMemory: 3,
   fleeMemory: 30,
+  berthMargin: 4,
+  berthCost: 6,
   fightSearchTurns: 6,
   closeInTiles: 0.5,
   fleeCalmTurns: 6,
