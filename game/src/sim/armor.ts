@@ -5,7 +5,7 @@ import { footprint, nearestUnit, poseToWorld, sideReach, unitPose, worldToPose, 
 
 import { isShield, partDef, type PartDef } from '../data/parts';
 import { chassisAbility, partArmorBonus } from './chassis-features';
-import { weaponOn } from './stats';
+import { weaponArc } from './stats';
 import { wornDef } from './wear';
 import { damagePart } from './damage';
 import { baseGrid, cellKey, facingOf, gridOf, itemCells, isMounted, itemSize, mountedItems, shieldParts, sideOf, type Grid, type SideLetter } from './grid';
@@ -56,30 +56,64 @@ export function cabShield(v: Vehicle): number {
   return cabShieldWith(v)(null);
 }
 
+const LANE_ROW = 1024;
+const LANE_SIDE_CODE: Record<string, number> = { F: 1, B: 2, L: 3, R: 4 };
+
 export function cabShieldWith(v: Vehicle): (extra: GridItem | null) => number {
   const g = gridOf(v);
   const cab = mountedItems(v, 'core').filter((it) => isCab(partDef(it.part.defId))).flatMap(itemCells);
-  const cabLanes = new Set(cab.flatMap((c) => [`F${c.x}`, `B${c.x}`, `L${c.y}`, `R${c.y}`]));
+  const cabLanes = new Set(cab.flatMap((c) => [laneNumber('F', c.x), laneNumber('B', c.x), laneNumber('L', c.y), laneNumber('R', c.y)]));
+  const lanesOf = (item: GridItem) => itemCells(item).map((c) => laneKey(g, c)).filter((key) => cabLanes.has(key));
   const armor = mountedItems(v, 'armor');
+  const armorLanes = armor.map(lanesOf);
+  const held = new Set(armorLanes.flat());
+  const heldCounts = countBySide(held);
   return (extra) => {
-    const items = extra ? withExtra(v, armor, extra) : armor;
-    const shielded = new Set(items.flatMap(itemCells).map((c) => laneKey(g, c)).filter((key) => cabLanes.has(key)));
-    const perSide = new Map<string, number>();
-    for (const key of shielded) perSide.set(key[0], (perSide.get(key[0]) ?? 0) + 1);
-    return [...perSide.values()].reduce((sum, n) => sum + Math.sqrt(n), 0);
+    const added = extra ? extraLanes(v, extra, lanesOf) : null;
+    if (!added || added.length === 0) return sideRootSum(armorLanes, heldCounts);
+    const counts = countBySide(new Set([...held, ...added]));
+    return sideRootSum(withLanesAt(armor, armorLanes, extra!, added), counts);
   };
 }
 
-function withExtra(v: Vehicle, armor: GridItem[], extra: GridItem): GridItem[] {
+function extraLanes(v: Vehicle, extra: GridItem, lanesOf: (item: GridItem) => number[]): number[] | null {
   if (extra.kind !== 'part' || partDef(extra.part.defId).kind !== 'armor') throw new Error('cabShieldWith takes an armor item as its extra');
-  if (!isMounted(v.chassisId, extra)) return armor;
-  const at = armor.findIndex((it) => it.y > extra.y || (it.y === extra.y && it.x > extra.x));
-  return at < 0 ? [...armor, extra] : [...armor.slice(0, at), extra, ...armor.slice(at)];
+  return isMounted(v.chassisId, extra) ? lanesOf(extra) : null;
 }
 
-function laneKey(g: Grid, c: { x: number; y: number }): string {
+function withLanesAt(armor: GridItem[], armorLanes: number[][], extra: GridItem, lanes: number[]): number[][] {
+  const at = armor.findIndex((it) => it.y > extra.y || (it.y === extra.y && it.x > extra.x));
+  return at < 0 ? [...armorLanes, lanes] : [...armorLanes.slice(0, at), lanes, ...armorLanes.slice(at)];
+}
+
+function sideOfLane(key: number): number {
+  return Math.floor(key / LANE_ROW);
+}
+
+function countBySide(keys: Iterable<number>): Map<number, number> {
+  const counts = new Map<number, number>();
+  for (const key of keys) counts.set(sideOfLane(key), (counts.get(sideOfLane(key)) ?? 0) + 1);
+  return counts;
+}
+
+function sideRootSum(lanes: number[][], counts: Map<number, number>): number {
+  const order = new Set<number>();
+  for (const list of lanes) {
+    for (const key of list) order.add(sideOfLane(key));
+    if (order.size === counts.size) break;
+  }
+  return [...order].reduce((sum, side) => sum + Math.sqrt(counts.get(side)!), 0);
+}
+
+function laneNumber(letter: string, at: number): number {
+  return LANE_SIDE_CODE[letter] * LANE_ROW + at;
+}
+
+function laneKey(g: Grid, c: { x: number; y: number }): number {
   const letter = g.cells[c.y]?.[c.x] ?? '';
-  return letter === 'F' || letter === 'B' ? `${letter}${c.x}` : `${letter}${c.y}`;
+  const code = LANE_SIDE_CODE[letter];
+  if (!code) return 0;
+  return code * LANE_ROW + (letter === 'F' || letter === 'B' ? c.x : c.y);
 }
 
 function isCab(def: PartDef): boolean {
@@ -417,9 +451,28 @@ export function spanDegrees(spans: readonly FireSpan[]): number {
   return spans.reduce((sum, s) => sum + s.to - s.from, 0);
 }
 
+export function gunLayoutKey(v: Vehicle): string {
+  const placed = v.items.flatMap((it) => (it.kind === 'part' && isGunOrTall(it) ? [`${it.x},${it.y},${it.rot},${it.part.defId},${it.part.wear},${it.part.hp > 0 ? 1 : 0}`] : []));
+  return `${v.chassisId};${placed.join(';')}`;
+}
+
+function isGunOrTall(it: Extract<GridItem, { kind: 'part' }>): boolean {
+  const def = partDef(it.part.defId);
+  return def.kind === 'weapon' || Boolean(def.tall);
+}
+
+const OPEN_ARCS_KEPT = 512;
+const openArcCache = new Map<string, number[]>();
+
 export function openArcShares(v: Vehicle): number[] {
+  const key = gunLayoutKey(v);
+  const known = openArcCache.get(key);
+  if (known) return known;
   const tall = tallItems(v);
-  return mountedItems(v, 'weapon').map((item) => shareOpen(v, tall, item));
+  const shares = mountedItems(v, 'weapon').map((item) => shareOpen(v, tall, item));
+  if (openArcCache.size >= OPEN_ARCS_KEPT) openArcCache.clear();
+  openArcCache.set(key, shares);
+  return shares;
 }
 
 function shareOpen(v: Vehicle, tall: readonly GridItem[], item: GridItem): number {
@@ -447,7 +500,7 @@ function spansIn(v: Vehicle, tall: readonly GridItem[], item: GridItem): FireSpa
 
 function arcPieces(v: Vehicle, item: GridItem): FireSpan[] {
   if (item.kind !== 'part') throw new Error(`${item.id} is not a part`);
-  const { arc } = weaponOn(v, item.part);
+  const arc = weaponArc(v.chassisId, item.part.defId);
   if (arc >= 360) return [{ from: -180, to: 180 }];
   const from = wrapFrom(facingOf(item) - arc / 2);
   return splitAtBack(from, from + arc);
@@ -459,16 +512,33 @@ function shadowsOf(tall: readonly GridItem[], item: GridItem): { blocker: GridIt
   const oy = item.y + h / 2;
   return tall.filter((blocker) => blocker.id !== item.id).map((blocker) => ({
     blocker,
-    pieces: itemCells(blocker).flatMap(({ x, y }) => {
-      const center = gridAngle(x + 0.5 - ox, y + 0.5 - oy);
-      const off = (a: number) => wrapDegrees(a - center);
-      const corners = [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]].map(([cx, cy]) => gridAngle(cx - ox, cy - oy));
-      const left = corners.reduce((best, a) => (off(a) < off(best) ? a : best));
-      const right = corners.reduce((best, a) => (off(a) > off(best) ? a : best));
-      const from = wrapFrom(left);
-      return splitAtBack(from, from + off(right) - off(left));
-    }),
+    pieces: itemCells(blocker).flatMap(({ x, y }) => cellShadow(x, y, ox, oy)),
   }));
+}
+
+const SHADOW_KEY_RANGE = 128;
+const cellShadows = new Map<number, readonly FireSpan[]>();
+
+function cellShadow(x: number, y: number, ox: number, oy: number): readonly FireSpan[] {
+  const parts = [x, y, ox * 2, oy * 2];
+  if (!parts.every((n) => Number.isInteger(n) && n >= 0 && n < SHADOW_KEY_RANGE)) throw new Error(`Shadow cell ${x},${y} from ${ox},${oy} is off the grid`);
+  const key = parts.reduce((acc, n) => acc * SHADOW_KEY_RANGE + n, 0);
+  let pieces = cellShadows.get(key);
+  if (!pieces) {
+    pieces = Object.freeze(buildCellShadow(x, y, ox, oy).map((piece) => Object.freeze(piece)));
+    cellShadows.set(key, pieces);
+  }
+  return pieces;
+}
+
+function buildCellShadow(x: number, y: number, ox: number, oy: number): FireSpan[] {
+  const center = gridAngle(x + 0.5 - ox, y + 0.5 - oy);
+  const off = (a: number) => wrapDegrees(a - center);
+  const corners = [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]].map(([cx, cy]) => gridAngle(cx - ox, cy - oy));
+  const left = corners.reduce((best, a) => (off(a) < off(best) ? a : best));
+  const right = corners.reduce((best, a) => (off(a) > off(best) ? a : best));
+  const from = wrapFrom(left);
+  return splitAtBack(from, from + off(right) - off(left));
 }
 
 function gridAngle(dx: number, dy: number): number {

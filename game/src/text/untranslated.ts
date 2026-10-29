@@ -73,6 +73,7 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/ui/sim/truck-icons.ts', text: '*', reason: SIM_MODE },
   { file: 'src/three/sound.ts', text: 'score   heat  surprise  ', reason: DEV_LAB },
   { file: 'src/sim/progression/run-timeline.ts', text: '*', reason: DEV_REPORT },
+  { file: 'src/sim/hunting-spots-bake.ts', text: '*', reason: 'The hunting spots bake logs its prey traffic to the terminal of the bake script. It stays English.' },
   { file: 'src/ui/fonts.ts', text: 'Road Machiners 0123456789', reason: FONT_SAMPLE },
   { file: 'src/ui/fonts.ts', text: 'Дорожные машинисты 0123456789', reason: FONT_SAMPLE },
   { file: 'src/ui/quest-screen.ts', text: 'Quest art', reason: CRASH_REPORT },
