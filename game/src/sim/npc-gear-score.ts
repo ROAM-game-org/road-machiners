@@ -27,7 +27,9 @@ export function armorQuality(world: World, defId: string, wear: number): number 
   return quality;
 }
 
-export function gearScorer(world: World, p: LoadoutPriorities, bare: Vehicle, paysFuel: boolean): (v: Vehicle) => number {
+export type GearScore = ((v: Vehicle) => number) & { spotScorer: (placed: Vehicle) => (v: Vehicle) => number };
+
+export function gearScorer(world: World, p: LoadoutPriorities, bare: Vehicle, paysFuel: boolean): GearScore {
   const edge = Object.fromEntries(SIDE_LETTERS.map((letter) => [letter, baseGrid(bare.chassisId).cells.flat().filter((cell) => cell === letter).length]));
   const target = targetOf(bare);
   const tierOne = Object.values(PARTS).filter((d): d is WeaponDef => d.kind === 'weapon' && d.tier === 1 && !isLineGun(d));
@@ -63,11 +65,22 @@ export function gearScorer(world: World, p: LoadoutPriorities, bare: Vehicle, pa
     return sides.reduce((a, b) => a + b, 0) / sides.length;
   };
 
-  return (v) =>
-    (p.armor / PRIORITY_TOP) * armorValue(v) +
-    (p.firepower / PRIORITY_TOP) * fireValue(v) +
-    GEAR_SCORE.speedWeight * (p.speed / PRIORITY_TOP) * speedValue(v) +
-    (p.cargo / PRIORITY_TOP) * (1 - (1 - Math.min(1, freeCells(v) / bareCells)) ** GEAR_SCORE.cargoCurvePower);
+  const cargoValue = (v: Vehicle) => 1 - (1 - Math.min(1, freeCells(v) / bareCells)) ** GEAR_SCORE.cargoCurvePower;
+
+  const total = (armor: number, fire: number, speed: number, cargo: number) =>
+    (p.armor / PRIORITY_TOP) * armor +
+    (p.firepower / PRIORITY_TOP) * fire +
+    GEAR_SCORE.speedWeight * (p.speed / PRIORITY_TOP) * speed +
+    (p.cargo / PRIORITY_TOP) * cargo;
+
+  const score = (v: Vehicle) => total(armorValue(v), fireValue(v), speedValue(v), cargoValue(v));
+  const spotScorer = (placed: Vehicle) => {
+    const armor = armorValue(placed);
+    const speed = speedValue(placed);
+    const cargo = cargoValue(placed);
+    return (v: Vehicle) => total(armor, fireValue(v), speed, cargo);
+  };
+  return Object.assign(score, { spotScorer });
 }
 
 function shieldedCells(world: World, v: Vehicle): Map<number, { side: SideLetter; miss: number }> {

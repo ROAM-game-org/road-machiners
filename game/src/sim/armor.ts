@@ -60,21 +60,23 @@ export function cabShieldWith(v: Vehicle): (extra: GridItem | null) => number {
   const g = gridOf(v);
   const cab = mountedItems(v, 'core').filter((it) => isCab(partDef(it.part.defId))).flatMap(itemCells);
   const cabLanes = new Set(cab.flatMap((c) => [`F${c.x}`, `B${c.x}`, `L${c.y}`, `R${c.y}`]));
+  const lanesOf = (item: GridItem) => itemCells(item).map((c) => laneKey(g, c)).filter((key) => cabLanes.has(key));
   const armor = mountedItems(v, 'armor');
+  const armorLanes = armor.map(lanesOf);
   return (extra) => {
-    const items = extra ? withExtra(v, armor, extra) : armor;
-    const shielded = new Set(items.flatMap(itemCells).map((c) => laneKey(g, c)).filter((key) => cabLanes.has(key)));
+    const lanes = extra ? withExtra(v, armor, armorLanes, extra, lanesOf) : armorLanes;
+    const shielded = new Set(lanes.flat());
     const perSide = new Map<string, number>();
     for (const key of shielded) perSide.set(key[0], (perSide.get(key[0]) ?? 0) + 1);
     return [...perSide.values()].reduce((sum, n) => sum + Math.sqrt(n), 0);
   };
 }
 
-function withExtra(v: Vehicle, armor: GridItem[], extra: GridItem): GridItem[] {
+function withExtra(v: Vehicle, armor: GridItem[], armorLanes: string[][], extra: GridItem, lanesOf: (item: GridItem) => string[]): string[][] {
   if (extra.kind !== 'part' || partDef(extra.part.defId).kind !== 'armor') throw new Error('cabShieldWith takes an armor item as its extra');
-  if (!isMounted(v.chassisId, extra)) return armor;
+  if (!isMounted(v.chassisId, extra)) return armorLanes;
   const at = armor.findIndex((it) => it.y > extra.y || (it.y === extra.y && it.x > extra.x));
-  return at < 0 ? [...armor, extra] : [...armor.slice(0, at), extra, ...armor.slice(at)];
+  return at < 0 ? [...armorLanes, lanesOf(extra)] : [...armorLanes.slice(0, at), lanesOf(extra), ...armorLanes.slice(at)];
 }
 
 function laneKey(g: Grid, c: { x: number; y: number }): string {

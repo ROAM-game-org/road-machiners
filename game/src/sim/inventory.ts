@@ -55,7 +55,7 @@ function bestArcSpot(v: Vehicle, item: GridItem, mount: Cell[]): Spot | null {
   return best;
 }
 
-function bestShieldSpot(v: Vehicle, item: GridItem, mount: Cell[]): Spot | null {
+function bestShieldSpot(v: Vehicle, item: PartItem, mount: Cell[]): Spot | null {
   let best: Spot | null = null;
   let bestScore = [-1, -1, -1];
   const g = gridOf(v);
@@ -63,10 +63,16 @@ function bestShieldSpot(v: Vehicle, item: GridItem, mount: Cell[]): Spot | null 
   const taken = new Set(v.items.filter((it) => layerOf(g, it) === 'base').flatMap(itemCells).map((c) => `${c.x},${c.y}`));
   for (const spot of mountSpots(g, v.items, item, mount)) {
     const placed = { ...item, ...spot };
-    const score = [shield(placed), Number(g.cells[spot.y][spot.x] === 'F'), closedEnds(g, taken, placed)];
-    if (ranksAbove(score, bestScore)) [best, bestScore] = [spot, score];
+    const score = betterShieldScore([shield(placed), Number(g.cells[spot.y][spot.x] === 'F')], bestScore, () => closedEnds(g, taken, placed));
+    if (score) [best, bestScore] = [spot, score];
   }
   return best;
+}
+
+function betterShieldScore(lead: number[], bestScore: number[], ends: () => number): number[] | null {
+  if (lead[0] !== bestScore[0] || lead[1] !== bestScore[1]) return ranksAbove(lead, bestScore) ? [...lead, ends()] : null;
+  const closed = ends();
+  return closed > bestScore[2] ? [...lead, closed] : null;
 }
 
 function ranksAbove(a: number[], b: number[]): boolean {
