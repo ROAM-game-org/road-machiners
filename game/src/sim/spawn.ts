@@ -13,7 +13,7 @@ import { isDriveObstacle, touchesObstacle } from "./mapgen";
 import { generateNpcLoadout, type NpcLoadout } from "./npc-loadout";
 import { getKnownSite, profileOf } from "./npc-decisions";
 import { chance, randInt, randRange, type Rng } from "./rng";
-import { isFortress, siteGates, siteUnder, type Site } from "./sites";
+import { everyTruck, isFortress, siteGates, siteUnder, type Site } from "./sites";
 import { modeRules } from "./settings";
 import { isLone } from "./pairs";
 import { startEscort } from "./tow";
@@ -143,8 +143,8 @@ function dealSite(world: World, decks: Map<string, Site[]>, sites: readonly Site
   return site;
 }
 
-function aliveOf(world: World, tpl: NpcTemplate): number {
-  return world.vehicles.filter((v) => v.brain?.templateId === tpl.id).length;
+export function aliveOf(world: World, tpl: NpcTemplate): number {
+  return everyTruck(world).filter((v) => v.brain?.templateId === tpl.id).length;
 }
 
 function spawnWithEscorts(world: World, tpl: NpcTemplate, pick: () => Site): void {

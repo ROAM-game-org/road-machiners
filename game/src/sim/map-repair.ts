@@ -51,6 +51,7 @@ export const REBAKE_MOVE = {
   sunward: 'shift',
   moments: 'keep',
   crimes: 'shift',
+  sheltered: 'shift',
   events: 'drop',
   removed: 'drop',
   weather: 'drop',
@@ -380,6 +381,10 @@ const WORLD_HANDLERS: Handlers<World, typeof REBAKE_MOVE> = {
     return sunward;
   },
   crimes: (crimes, ctx) => crimes.map((c) => ({ ...c, at: at(ctx, c.at), lead: { ...c.lead, at: at(ctx, c.lead.at) } })),
+  sheltered: (sheltered, ctx) => {
+    for (const s of sheltered) applyMoves(s.vehicle, VEHICLE_MOVE, VEHICLE_HANDLERS, { ...ctx, self: s.vehicle.id });
+    return sheltered;
+  },
   events: () => [],
   removed: () => [],
   weather: () => [],

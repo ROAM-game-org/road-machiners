@@ -135,6 +135,20 @@ describe('repairMap positions', () => {
     expectNear((player.order as { dest: Vec }).dest, scaled({ x: 150, y: 150 }));
   });
 
+  it('scales a truck sheltered inside a site with its brain, and leaves it inside', () => {
+    const w = oldScaleBase();
+    const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 120, y: 90 });
+    npc.brain = npcBrain('scavenger', { x: 100, y: 100 }, ['scavenger']);
+    w.vehicles = w.vehicles.filter((v) => v !== npc);
+    w.sheltered = [{ vehicle: npc, site: 'bowl' }];
+
+    const out = repairMap(savedOf(w, OLD_SIZE), TEST_MAP);
+    const inside = out.sheltered[0].vehicle;
+    expect(out.vehicles.some((v) => v.id === npc.id)).toBe(false);
+    expectNear(inside.pos, scaled({ x: 120, y: 90 }));
+    expectNear(inside.brain!.home, scaled({ x: 100, y: 100 }));
+  });
+
   it('scales the positions in contracts, shop offers, states and the Sunward hunt', () => {
     const w = oldScaleBase();
     const escort = { id: 'ct-escort', shop: 'bowl', kind: 'escort', client: 'v1', to: 'nose', reward: 1, deadline: 9, window: 9, tier: 1, threat: 'raiders', span: 3, together: 0, seen: { x: 11, y: 12, turn: 5 }, apart: 0, stuck: 0, holdUntil: null } as unknown as Contract;

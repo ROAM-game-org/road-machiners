@@ -14,6 +14,7 @@ import type { BotOptions } from './bot';
 import { emptyLedger, LEDGER_KEYS, type Ledger } from './orders';
 import { FAR_MOVER, netWorth, playTurns, type PlayedTurn } from './record';
 import { cardOf } from './sim-cards';
+import { everyTruck } from '../sites';
 import { economyOf, marketSample, sampleEvents, StockFlows, type EconTag, type Economy, type SampleEvent } from './sim-economy';
 import { QUIET } from './turn-log';
 
@@ -253,7 +254,7 @@ export function markersOf(world: World, text: SimText): Marker[] {
 }
 
 export function logEntries(world: World, events: readonly GameEvent[], text: SimText): LogEntry[] {
-  const known = [...world.vehicles, ...world.removed].map((v) => v.id);
+  const known = [...everyTruck(world), ...world.removed].map((v) => v.id);
   return events.map((e) => {
     const json = JSON.stringify(e);
     const plain = text.event(world, e);
