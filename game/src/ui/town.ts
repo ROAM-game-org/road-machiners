@@ -45,7 +45,7 @@ import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
 import { fitsClaim } from "../sim/claims";
 import { acceptContract, deliverContract, goodStock, haulShort, isMet, knowsMarket, onOrder, pressureOf, spareGoods, searchRefusal, shopAt, shopState, stockShort, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
 import { escortBlocked, escortFit } from "../sim/escort-job";
-import type { PartInstance, RoadNews, Vehicle, World } from "../sim/types";
+import type { PartInstance, Refusal, RoadNews, Vehicle, World } from "../sim/types";
 import { onRelief, recipeRunning } from "../sim/production";
 import { liveRoadNews } from "../sim/road-news";
 import { compareBase, createBareItemIcon, createIcon, createItemIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
@@ -70,6 +70,8 @@ import { QUESTS, startQuest } from "../sim/quests";
 import { localsAt } from "../sim/dialogue-rules";
 import type { UiHost } from "./host";
 import { coinEl, moneyEl, moneyMsg } from "./units";
+import { ODD_JOBS } from "../data/odd-jobs";
+import { oddJobsBlock, oddJobsPay, startOddJobs } from "../sim/odd-jobs";
 import { list, num, SPACE, t, type Msg } from "../text/msg";
 import { driverName, factionName, goodName, localName, localRole, placeProse, refusalText, siteName, templateName, vehicleTitle } from "../text/names";
 import { commandFailure, stanceTag } from "./format";
@@ -104,7 +106,7 @@ type TownPage = TownSection | null;
 
 type ClosedAt = { shopId: string; turn: number };
 
-type TownChoice = { id: string; label: Msg; reason: Msg | null; go: () => void };
+type TownChoice = { id: string; label: Msg; reason: Msg | null; pay?: number; go: () => void };
 
 export type TownFrame = { band: HTMLElement; picture: HTMLElement; heading: Msg; art: string | null };
 
@@ -345,7 +347,23 @@ export class TownScreen {
       const a = access[section];
       return { id: section, label: t(`town.go.${section}`), reason: a.open ? null : sectionReason(a.reason), go: () => this.go(section) };
     });
-    return [...sections, { id: "leave", label: t("town.go.leave"), reason: null, go: () => this.back() }];
+    return [...sections, this.oddJobsChoice(w), { id: "leave", label: t("town.go.leave"), reason: null, go: () => this.back() }];
+  }
+
+  private oddJobsChoice(w: World): TownChoice {
+    const block = oddJobsBlock(w);
+    return {
+      id: "oddJobs",
+      label: t("town.go.oddJobs", { h: gameHours(ODD_JOBS.shiftTurns) }),
+      reason: block ? oddJobsReason(w, block) : null,
+      pay: oddJobsPay(ODD_JOBS.shiftTurns),
+      go: () => this.startShift(),
+    };
+  }
+
+  private startShift(): void {
+    this.run(startOddJobs);
+    if (this.error === null) this.close();
   }
 
   private sectionChoices(shopId: string, page: TownSection): TownChoice[] {
@@ -1178,8 +1196,13 @@ function proseOf(shopId: string, page: TownPage): Msg {
   return page === null ? placeProse(shopId) : t(`town.line.${page}`);
 }
 
+export function oddJobsReason(w: World, block: Refusal): Msg {
+  return block.id === "notHiring" ? t("town.oddJobs.notHiring", { money: moneyMsg(ODD_JOBS.hireBelow) }) : refusalText(w, block);
+}
+
 function choiceButton(c: TownChoice, i: number): HTMLElement {
-  const check = c.reason ? el("span", { class: "quest-check" }, c.reason) : null;
+  const slot = c.reason ?? (c.pay === undefined ? null : moneyEl(c.pay));
+  const check = slot ? el("span", { class: "quest-check" }, slot) : null;
   const button = reasonButton([check, t("quest.choice", { n: i + 1, text: c.label })], c.go, c.reason);
   button.className = c.id === "back" || c.id === "leave" ? "quest-choice compact" : "quest-choice";
   button.dataset.townGo = c.id;
