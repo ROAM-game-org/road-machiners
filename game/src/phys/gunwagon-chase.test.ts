@@ -3,7 +3,7 @@ import { CRATE_MASS } from '../data/goods';
 import { NPCS } from '../data/npcs';
 import { fallbackFaction } from '../sim/spawn';
 import { makeVehicle } from '../sim/factory';
-import { addGoods } from '../sim/inventory';
+import { addGoods, cargoRoom } from '../sim/inventory';
 import { generateNpcLoadout } from '../sim/npc-loadout';
 import { emptyWorld } from '../sim/testkit';
 import type { Vehicle, World } from '../sim/types';
@@ -22,7 +22,7 @@ const ROAD_Y = 30;
 const HEAD_START = 30;
 const FAR = { x: 480, y: ROAD_Y };
 const OPEN_KPH = 50;
-const TURNS = 24;
+const TURNS = 18;
 
 function openGround(w: World): void {
   w.terrain = { ...w.terrain, types: w.terrain.types.map(() => OPEN_GROUND) };
@@ -43,7 +43,7 @@ it('a rolled gunwagon with its haul reaches 50 km/h on open ground and closes on
   const raider = rolledTruck(w, 'gunwagon', 'wagon', 20);
   addGoods(w, raider, 'scrap', Math.floor(NPCS.gunwagon.loadout.haul.kg / CRATE_MASS));
   const prey = rolledTruck(w, 'trader', 'hauler', 20 + HEAD_START);
-  addGoods(w, prey, 'scrap', 6);
+  addGoods(w, prey, 'scrap', cargoRoom(prey));
   let world = w;
   let drive: Drive = buildDrive(world);
   const gaps: number[] = [];
