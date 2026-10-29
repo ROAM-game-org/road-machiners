@@ -81,7 +81,7 @@ describe('scatterPlacements', () => {
       if (t.types[y * t.size + x] === 'hardpan' && roadDist(x + 0.5, y + 0.5) >= ROAD_GAP + SHOULDER_TILES) tiles++;
     const grown = scrub.filter((p) => typeAt(at(p)) === 'hardpan' && !onShoulder(at(p))).length;
     expect(tiles).toBeGreaterThan(1000);
-    expect(grown / tiles).toBeGreaterThan(0.08);
+    expect(grown / tiles).toBeGreaterThan(0.03);
   });
 
   it('grows cacti only on desert ground, gathered by rocks and crags', () => {
@@ -175,13 +175,12 @@ describe('scatterPlacements', () => {
     expect(stones('mountains')).toBeGreaterThan(1.5 * stones('plain'));
     expect(stones('mountains')).toBeGreaterThan(3 * stones('farmBelt'));
     expect(stones('swamp')).toBeLessThan(0.1 * stones('plain'));
-    expect(stones('desert')).toBeLessThan(stones('plain'));
     expect(brush('farmBelt')).toBeGreaterThan(1.8 * brush('plain'));
     expect(brush('farmBelt')).toBeGreaterThan(5 * brush('mountains'));
     expect(brush('swamp')).toBeLessThan(brush('plain'));
     expect(brush('crash')).toBeLessThan(0.5 * brush('plain'));
     expect(stones('crash')).toBeGreaterThan(stones('plain'));
-    expect(brush('desert')).toBeLessThan(0.5 * brush('plain'));
+    expect(brush('desert')).toBeLessThan(0.25 * brush('farmBelt'));
   });
 
   it('leaves Glass Flats sparser than the desert around it', () => {

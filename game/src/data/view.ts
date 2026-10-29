@@ -15,12 +15,12 @@ export const SCATTER: {
 } = {
   block: 4,
   regions: {
-    plain: { pebbles: 1, scrub: 1, cactus: 1 },
-    mountains: { pebbles: 2.2, scrub: 0.35, cactus: 0.5 },
-    farmBelt: { pebbles: 0.25, scrub: 2.5, cactus: 0 },
-    swamp: { pebbles: 0.05, scrub: 0.7, cactus: 0 },
+    plain: { pebbles: 0.5, scrub: 0.5, cactus: 1 },
+    mountains: { pebbles: 1.1, scrub: 0.175, cactus: 0.5 },
+    farmBelt: { pebbles: 0.125, scrub: 1.25, cactus: 0 },
+    swamp: { pebbles: 0.025, scrub: 0.35, cactus: 0 },
     desert: { pebbles: 0.5, scrub: 0.4, cactus: 1 },
-    crash: { pebbles: 1.6, scrub: 0.3, cactus: 0 },
+    crash: { pebbles: 0.8, scrub: 0.15, cactus: 0 },
   },
   glassFlats: { share: { pebbles: 0.1, scrub: 0.1, cactus: 0.2 }, fadeOut: 1.6 },
   patch: { frequency: 1 / 14, depth: 0.8, pebbleSeed: 31, scrubSeed: 57 },
