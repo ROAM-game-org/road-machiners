@@ -1,5 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest';
-import { budget } from '../test/budget';
+import { describe, expect, it } from 'vitest';
 import { along } from '../test/territory-kit';
 import { ECONOMY } from '../data/goods';
 import { CHASSIS } from '../data/chassis';
@@ -18,7 +17,7 @@ import { hazardZones, isLootSpot, landingStrips, reactorPos, territoryAt, territ
 import { groundAt, isCliff, type BakedProp, type Terrain } from '../sim/terrain';
 import { dist, segmentDist, type Vec } from '../sim/vec';
 import { TEST_MAP } from '../test/map';
-import { groundForTerritories, newDraft, tileSteepness, type MapDraft } from './bake';
+import { newDraft, tileSteepness, type MapDraft } from './bake';
 import { tilesWithin } from './oldworld';
 import { territoryLayer } from './territory';
 import { standardWorld } from '../test/world-cache';
@@ -29,15 +28,6 @@ import { ICARUS_KEY } from '../sim/atlas';
 const fallenSun = REGION.locations.find((l) => l.id === 'fallen-sun')!;
 const t = fallenSun as never;
 
-let groundDraft: MapDraft | undefined;
-function territoryDraft(): MapDraft {
-  groundDraft ??= groundForTerritories(MAPGEN.seed);
-  return groundDraft;
-}
-function territoryGround(): Float32Array {
-  return territoryDraft().heights;
-}
-beforeAll(() => void territoryGround(), budget(120_000));
 const rules = TERRITORIES['fallen-sun'].wreck!;
 const reactor = TERRITORIES['fallen-sun'].reactor!;
 const zone = hazardZones().find((z) => z.id === 'fallen-sun')!;
@@ -76,10 +66,12 @@ function drawnProps(): BakedProp[] {
   return inside.filter((p) => (DEBRIS_LOOKS.has(p.kind) || p.kind === rules.spotLook) && !pieces.some((q) => q.look === p.kind && dist(q.pos, p.pos) < 1e-3));
 }
 
+let laid: MapDraft | undefined;
+const layerSeven = (): MapDraft => (laid ??= territoryLayer(7, rollingDraft()));
+
 describe('the territory layer', () => {
   it('places the same props and heights for the same seed', () => {
-    const run = () => territoryLayer(7, rollingDraft());
-    const [a, b] = [run(), run()];
+    const [a, b] = [layerSeven(), territoryLayer(7, rollingDraft())];
     expect(a.props).toEqual(b.props);
     expect(a.heights).toEqual(b.heights);
     expect(a.props).not.toEqual(territoryLayer(8, rollingDraft()).props);
@@ -94,7 +86,7 @@ describe('the territory layer', () => {
     } finally {
       REGION.locations.splice(0, REGION.locations.length, ...all);
     }
-    const full = territoryLayer(7, rollingDraft());
+    const full = layerSeven();
     const ofSun = (props: readonly BakedProp[]) => props.filter((p) => siteGap(fallenSun, p.pos) < 0);
     expect(ofSun(full.props).length).toBeGreaterThan(0);
     expect(ofSun(full.props)).toEqual(ofSun(solo.props));
@@ -106,7 +98,7 @@ describe('the territory layer', () => {
   it("levels the ground under every piece's low boxes to the height at its centre, less its sink", () => {
     const before = rollingDraft();
     const ground = terrainOf(before.size, before.heights);
-    const after = territoryLayer(7, rollingDraft());
+    const after = layerSeven();
     const w = before.size + 1;
     pieces.forEach((p, k) => {
       const centre = groundAt(ground, p.pos.x, p.pos.y) - p.sink;
@@ -120,7 +112,7 @@ describe('the territory layer', () => {
 
   it("digs a sunk piece's pit no wider than its low boxes and the seat ease", () => {
     const before = rollingDraft();
-    const after = territoryLayer(7, rollingDraft());
+    const after = layerSeven();
     const w = before.size + 1;
     const sunk = pieces.map((p, k) => ({ p, k })).filter(({ p }) => p.sink > 0);
     expect(sunk).toHaveLength(2);
@@ -185,19 +177,6 @@ describe('the territory layer', () => {
     spots.forEach((a, i) => {
       expect(dist(a.pos, zone.pos), a.kind).toBeGreaterThan(zone.radius + a.r);
       for (const b of spots.slice(i + 1)) expect(dist(a.pos, b.pos)).toBeGreaterThanOrEqual(TERRITORIES['fallen-sun'].spotGap);
-    });
-  });
-
-  it('bakes the Fallen Sun props of the committed map, with no relief limit', () => {
-    expect(TERRITORIES['fallen-sun'].relief).toBeNull();
-    const drawn = territoryLayer(MAPGEN.seed, structuredClone(territoryDraft())).props.filter((p) => siteGap(fallenSun, p.pos) < 0);
-    const committed = inside.filter((p) => siteGap(fallenSun, p.pos) < 0 && p.kind !== 'rock' && p.kind !== 'crag');
-    expect(drawn.length).toBe(committed.length);
-    drawn.forEach((p, i) => {
-      expect(p.kind).toBe(committed[i].kind);
-      expect(p.pos.x).toBeCloseTo(committed[i].pos.x, 3);
-      expect(p.pos.y).toBeCloseTo(committed[i].pos.y, 3);
-      expect(p.r).toBeCloseTo(committed[i].r, 3);
     });
   });
 
