@@ -90,21 +90,24 @@ Every truck that `followsTraffic()` in `src/sim/ai.ts` obeys these rules on a ro
 
 ## Route planning and caches
 
-- Grids are built once per terrain and vehicle radius.
-- `warmRoutes` builds them for every chassis in the turn worker when it gets the terrain. It calls `warmLayers()`, which stamps the solid props once for every radius at the same time, since one distance test per cell serves each radius.
-- The layer cache keeps the newest layer for each radius and drops older ones first.
-- The preview worker builds a grid the first time a preview needs it.
-- The main thread routes only for a tow deal the player opens, so it builds that radius's grid then.
+- Route grids are built per 32-tile cell, the first time a search reads that cell. `src/sim/nav/cells.ts` owns the cells.
+- A cell holds its blocked cells, breakable marks and coarse regions: the connected parts of each 8 by 8 block of half-tile cells, linked where they touch.
+- A piece is the connected part of a cell. A crossing joins two pieces of neighbouring cells at their cheapest touching regions. Each piece keeps the cost between each pair of its crossings.
+- Pieces, crossings and their costs for every chassis radius come baked in `public/maps/icarus.routes.bin`, from `npm run routes:bake`. The file stores a key per cell from its ground and solid props. A layer rebuilds only the cells whose key differs, such as the Hollow or another kit's props. A map with no baked file, like Chaos Highway, builds every cell when the layer is made.
+- `warmRoutes` loads the baked pieces for every chassis in the turn worker when it gets the terrain. While idle, each worker builds cells outward from the player in slices of `PERF.routes.idleSliceMs`.
+- The layer cache keeps one layer per solid prop set and radius, up to 16.
 - Wrecks and parked vehicles are stamped per query.
 - Breakable props are not blocks. They are one byte per cell in `NavLayer.marks`. `slowAt()` multiplies those cells' cost by `BREAKABLE.routeCost`.
-- A coarse region id is kept as one local byte per cell plus the first id of its block, in `RegionGrid`. The region map costs a quarter of a full id grid.
-- A broken or new fence patches a cached grid around its own footprint. The patch equals a fresh build byte for byte.
+- A broken or new fence restamps the built cells around its own footprint. The result equals a fresh build.
+- Connected areas come from the pieces, so `drivable()` and `reachesFrom()` build only the cells they read.
+- Claim wrecks come from `claim-clues.json`, which holds every reachable remote wreck of the map, so a new game floods no climb map.
 - `src/sim/prop-index.ts` indexes obstacles for sight lines, shade rays, breakable props on far walks and the free-spot test of spawns and woken trucks. It is keyed by each obstacle's id and place, since `update()` clones the world every turn. Route planning builds its static set the same way in `src/sim/nav/layer.ts`.
 
 ## Long routes
 
 A route never searches every cell of the map.
 
+- Long routes first search the crossings for a chain of cells, with the driver's taste at each crossing. The coarse search then runs only in those cells and `REGION.navigation.cellRing` cells around them. A try that avoids blockers widens that to `REGION.navigation.avoidCellRing`, since a wreck wall inside a cell does not show on its crossings.
 - Long routes search a coarse corridor first, two coarse blocks to each side of the coarse path. One block missed narrow gaps through steep ground and gave paths 8% over the best.
 - A physics driver plans a trip longer than `REGION.navigation.farWindow` one window at a time with `routeAhead()`. It keeps the trip as a `partial` route. It plans the next window once it is within `REGION.navigation.lookahead` tiles of the window end.
 - A corridor that misses its goal is widened once. Then it is planned again with the regions that fresh wrecks or parked trucks cover made costly.

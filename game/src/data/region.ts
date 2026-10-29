@@ -348,6 +348,9 @@ export const REGION = {
   danger: 1,
   navigation: {
     heuristicWeight: 1.2,
+    cellTiles: 32,
+    cellRing: 1,
+    avoidCellRing: 4,
     offRoadCost: 1.75,
     taste: { scale: 40 * MAP_SPREAD, strength: 0.6 },
     lookahead: 48,
