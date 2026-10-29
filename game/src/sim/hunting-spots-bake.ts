@@ -14,7 +14,7 @@ import { isTerritory, nearestPad, siteGap, type Site } from './sites';
 import { territoryEntries, territoryOfStock, territorySpots } from './territory';
 import type { SalvageStock, World } from './types';
 import { dist, type Vec } from './vec';
-import { isHideSpot } from './watch-posts';
+import { isHideSpot, seesGround } from './watch-posts';
 
 export type HuntingSpotsBake = { spots: Vec[]; samples: Vec[] };
 
@@ -25,7 +25,8 @@ type Leg = { trip: Trip; path: Vec[]; length: number; stops: SalvageStock[] };
 const SEARCH_CUT = 1;
 
 export function makeHuntingSpots(world: World, traffic: Float64Array): HuntingSpotsBake {
-  return { spots: pickSpots(world, traffic), samples: trafficSamples(world.size, traffic) };
+  const samples = trafficSamples(world.size, traffic);
+  return { spots: pickSpots(world, traffic, samples), samples };
 }
 
 export function preyTraffic(world: World, log: (line: string) => void): Float64Array {
@@ -175,12 +176,16 @@ function keepsSiteGap(p: Vec): boolean {
 
 type Scored = { p: Vec; score: number };
 
-function pickSpots(world: World, traffic: Float64Array): Vec[] {
-  const usable = scoreCandidates(world.size, traffic).filter(({ p }) => keepsSiteGap(p) && isHideSpot(world, p));
+function pickSpots(world: World, traffic: Float64Array, samples: readonly Vec[]): Vec[] {
+  const usable = scoreCandidates(world.size, traffic).filter(({ p }) => keepsSiteGap(p) && isHideSpot(world, p) && seesTraffic(world, p, samples));
   const spacing = 2 * TERRAIN.vision.radius;
   const spots: Vec[] = [];
   for (const candidate of usable) if (isPeak(candidate, usable, spacing) && spots.every((s) => dist(s, candidate.p) >= spacing)) spots.push(candidate.p);
   return spots;
+}
+
+function seesTraffic(world: World, p: Vec, samples: readonly Vec[]): boolean {
+  return samples.some((s) => dist(s, p) <= TERRAIN.vision.radius && seesGround(world, p, s));
 }
 
 function isPeak(candidate: Scored, all: Scored[], spacing: number): boolean {

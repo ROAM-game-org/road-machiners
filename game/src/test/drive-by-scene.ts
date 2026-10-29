@@ -16,7 +16,7 @@ import { stateOf } from '../sim/states';
 import { addVehicle, npcBrain, testDrive } from '../sim/testkit';
 import type { Vehicle, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
-import { exposureAt, seesGround, watchPost } from '../sim/watch-posts';
+import { exposureAt, watchPost } from '../sim/watch-posts';
 import { endTurn, newWorld } from '../sim/world';
 import { formatNpcPass } from '../ui/format';
 import { resolve } from '../text/resolve';
@@ -47,16 +47,13 @@ function nightPassPoint(post: Vec, ground: Vec): Vec {
 
 function roadGround(w: World, night: boolean): { ground: Vec; post: Vec; dir: Vec } {
   const hidden = huntingGrounds(w).map((g) => watchPost(w, g)).filter((p): p is Vec => p !== null && exposureAt(w, p) === 0);
-  const scenes = hidden.flatMap((post) => {
-    const seen = nearestSeenStretch(w, post);
-    return seen ? [{ post, ...seen }] : [];
-  });
-  if (scenes.length === 0) throw new Error('No hidden raid post sees a road');
+  if (hidden.length === 0) throw new Error('No raid post is hidden from prey traffic');
+  const scenes = hidden.map((post) => ({ post, ...nearestStretch(post) }));
   const nearest = scenes.reduce((best, s) => (dist(s.post, s.ground) < dist(best.post, best.ground) ? s : best));
   return night ? { ...nearest, ground: nightPassPoint(nearest.post, nearest.ground) } : nearest;
 }
 
-function nearestSeenStretch(w: World, post: Vec): { ground: Vec; dir: Vec } | null {
+function nearestStretch(post: Vec): { ground: Vec; dir: Vec } {
   let best: { ground: Vec; dir: Vec } | null = null;
   for (const road of REGION.roads)
     for (let i = 1; i < road.length; i++) {
@@ -65,12 +62,11 @@ function nearestSeenStretch(w: World, post: Vec): { ground: Vec; dir: Vec } | nu
       const len = dist(a, b);
       if (len === 0) continue;
       const dir = { x: (b.x - a.x) / len, y: (b.y - a.y) / len };
-      for (let t = 0; t <= len; t++) {
-        const ground = { x: a.x + dir.x * t, y: a.y + dir.y * t };
-        if (!seesGround(w, post, ground)) continue;
-        if (best === null || dist(post, ground) < dist(post, best.ground)) best = { ground, dir };
-      }
+      const t = Math.max(0, Math.min(len, (post.x - a.x) * dir.x + (post.y - a.y) * dir.y));
+      const ground = { x: a.x + dir.x * t, y: a.y + dir.y * t };
+      if (best === null || dist(post, ground) < dist(post, best.ground)) best = { ground, dir };
     }
+  if (best === null) throw new Error('The map has no road');
   return best;
 }
 
