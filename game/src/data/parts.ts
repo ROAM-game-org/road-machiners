@@ -828,8 +828,13 @@ function scaleMass(def: Unpriced<PartDef>): Unpriced<PartDef> {
   return def;
 }
 
+const knownDefs = new Map<string, PartDef>();
+
 export function partDef(id: string): PartDef {
+  const known = knownDefs.get(id);
+  if (known) return known;
   const def = PARTS[id];
   if (!def) throw new Error(`Unknown part ${id}`);
+  knownDefs.set(id, def);
   return def;
 }
