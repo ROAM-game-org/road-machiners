@@ -8,8 +8,7 @@ import { encounterAvailable } from './encounters';
 import { canSpareFor } from './aid';
 import { isLineGun } from '../data/parts';
 import { ECONOMY } from '../data/goods';
-import { ESCORT_JOB, SHOPS } from '../data/market';
-import { graphEdges } from '../data/market';
+import { ESCORT_JOB, SHOPS, graphEdges, type ShopDef } from '../data/market';
 import { legRisk } from './road-news';
 import { goodStock, goodValue, shopState, stockTarget } from './market';
 import { routeThreat } from './escort-job';
@@ -28,12 +27,11 @@ import { vehicleById } from './damage';
 import { sensesOf } from './detect';
 import { affordableBuyCount, getTradePrice, getUpkeepReserve } from './economy';
 export { getUpkeepReserve } from './economy';
-import { cargoRoom } from './inventory';
+import { cargoRoom, hasCargoRoom } from './inventory';
 import { hasPerceivedLoot, knowsCargo, perceivedLoad } from './look-over';
 import { maxHp } from './wear';
 import { corePart, freeCells, mountedParts } from './grid';
 import { hasRansom, ransomOf } from './haul';
-import { hasCargoRoom } from './inventory';
 import { inDanger, topGoal } from './npc-activities';
 import { sampleWeighted } from './npc-loadout';
 import { getResources } from './resources';
@@ -58,6 +56,7 @@ import { icarusAtlas } from './atlas';
 import { canVehicleSee } from './vision';
 import { huntsOffRoad } from './hunt-style';
 import { postsOf } from './watch-posts';
+import { keepsToItself } from './sunward';
 import { bandAtLeast, bandToward, heedsCall, isAlly, isOutlaw, isRaider, lawCalls } from './relations';
 
 export type NpcProfile = {
@@ -735,10 +734,10 @@ type OptionName = DecisionOptions[DecisionId];
 const AVAILABLE: Record<OptionName, Availability> = {
   keep: always,
   pay: (world, vehicle) => canPayBounty(world, vehicle),
-  fight: canFightSubject,
+  fight: (world, vehicle, decision, subject) => !keepsToItself(world, vehicle) && canFightSubject(world, vehicle, decision, subject),
   fightBack: canFightSubject,
   flee: canDrive,
-  investigate: canInvestigate,
+  investigate: (world, vehicle, decision, subject) => !keepsToItself(world, vehicle) && canInvestigate(world, vehicle, decision, subject),
   rob: canRobSubject,
   ram: canRamSubject,
   tow: canTow,
@@ -748,7 +747,7 @@ const AVAILABLE: Record<OptionName, Availability> = {
   scavenge: canScavenge,
   raid: canRaid,
   prowl: canProwl,
-  loot: canLootSubject,
+  loot: (world, vehicle, decision, subject) => !keepsToItself(world, vehicle) && canLootSubject(world, vehicle, decision, subject),
   wait: always,
   linger: (world, vehicle) => lingerReasonNow(world, vehicle) !== null,
   patrol: canPatrol,

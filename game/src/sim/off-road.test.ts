@@ -13,6 +13,7 @@ import { dist } from './vec';
 import { endTurn } from './world';
 import { worldLine } from './progression/turn-log';
 import { TEST_MAP } from '../test/map';
+import { TIME } from '../data/time';
 
 function driver(w: World, faction: Faction, goal: NpcActivity['kind'] | null): Vehicle {
   const v = addVehicle(w, faction, 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
@@ -61,6 +62,42 @@ describe('keepsOffRoads', () => {
     expect(keepsOffRoads(w, driver(w, 'nose', 'flee'))).toBe(false);
     w.player.fuel = 0;
     expect(keepsOffRoads(w, w.vehicles[0])).toBe(false);
+  });
+});
+
+describe('keepsOffRoads for the Sunward', () => {
+  const atHour = (hour: number): number => Math.ceil(1 + (hour - TIME.startHour) * (TIME.turnsPerDay / 24));
+
+  function member(w: World): Vehicle {
+    const v = driver(w, 'sunward', 'explore');
+    v.brain = { ...npcBrain('cavalcade', { x: 60, y: 60 }, ['cultist']), goals: v.brain!.goals };
+    return v;
+  }
+
+  it('sends a member off the roads by day and lets it take them at night', () => {
+    const w = emptyWorld();
+    const car = member(w);
+    w.turn = atHour(15);
+    expect(keepsOffRoads(w, car)).toBe(true);
+    w.turn = atHour(21);
+    expect(keepsOffRoads(w, car)).toBe(false);
+  });
+
+  it('leaves a trader on the roads by day and by night', () => {
+    const w = emptyWorld();
+    const trader = driver(w, 'independent', 'travel');
+    for (const hour of [15, 21]) {
+      w.turn = atHour(hour);
+      expect(keepsOffRoads(w, trader)).toBe(false);
+    }
+  });
+
+  it('lets a member take the roads once the order has fallen', () => {
+    const w = emptyWorld();
+    const car = member(w);
+    w.turn = atHour(15);
+    w.sunward!.collapsed = w.turn;
+    expect(keepsOffRoads(w, car)).toBe(false);
   });
 });
 
