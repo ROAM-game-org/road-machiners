@@ -193,6 +193,7 @@ describe('NPC driving', () => {
     let w = standardWorld();
     w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
+    w.player.encounters.next = Number.MAX_SAFE_INTEGER;
     const bowl = REGION.towns[0];
     const npc = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: bowl.pos.x + bowl.radius + 2, y: bowl.pos.y });
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
