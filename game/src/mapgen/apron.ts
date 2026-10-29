@@ -8,7 +8,7 @@ import { siteGap } from '../sim/sites';
 import { territoryAt } from '../sim/territory';
 import { clamp, dist, type Vec } from '../sim/vec';
 import type { MapDraft } from './bake';
-import { place, prop, ruleRng } from './oldworld';
+import { pickLook, place, prop, ruleRng } from './oldworld';
 
 const APRON_SEED = 1;
 const CACHE_SEED = 2;
@@ -106,6 +106,13 @@ export function apronClump(noiseSeed: number, pos: Vec): number {
 }
 
 function rubble(rng: Rng, pos: Vec, angle: number): ReturnType<typeof prop> {
+  if (chance(rng, CRASH.apron.parts.share)) return shipPart(rng, pos, angle);
   if (chance(rng, CRASH.apron.shards)) return prop('hullShard', pos, randRange(rng, ...CRASH.apron.radius), angle + randRange(rng, -0.4, 0.4));
   return prop('rimRock', pos, randRange(rng, ...CRASH.apron.radius), randRange(rng, 0, Math.PI * 2));
+}
+
+function shipPart(rng: Rng, pos: Vec, angle: number): ReturnType<typeof prop> {
+  const look = pickLook(rng, CRASH.apron.parts.looks);
+  const yaw = look.aligned ? angle + randRange(rng, -0.4, 0.4) : randRange(rng, 0, Math.PI * 2);
+  return prop(look.look, pos, randRange(rng, ...look.radius), yaw);
 }

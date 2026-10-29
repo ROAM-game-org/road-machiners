@@ -55,6 +55,16 @@ describe('the Fallen Sun apron', () => {
     expect(clump).toBeGreaterThan(0.5);
   });
 
+  it('mixes ship parts among the rocks and shards', () => {
+    const parts = new Set(CRASH.apron.parts.looks.map((l) => l.look));
+    const share = outside.filter((p) => parts.has(p.kind)).length / outside.length;
+    expect(share).toBeGreaterThan(CRASH.apron.parts.share * 0.8);
+    expect(share).toBeLessThan(CRASH.apron.parts.share * 1.2);
+    for (const look of parts) expect(outside.some((p) => p.kind === look), look).toBe(true);
+    expect(outside.some((p) => p.kind === 'rimRock')).toBe(true);
+    expect(outside.some((p) => p.kind === 'hullShard')).toBe(true);
+  });
+
   it('draws the same pieces for the same seed', () => {
     expect(apronDraws(MAPGEN.seed)).toEqual(apronDraws(MAPGEN.seed));
   });

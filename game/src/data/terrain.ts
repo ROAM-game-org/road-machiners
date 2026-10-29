@@ -1052,7 +1052,7 @@ export const FARM_BELT = {
   keepOff: 25,
 };
 
-export const CRASH = { seedOffset: 9500, scorch: 0.5, glassTrail: { share: 0.4, width: [142, 21] as [number, number], cover: 0.55, cell: 6, stretch: 5 }, apron: { reach: 370, density: 0.12, edge: 60, falloff: 1.8, taper: 0.25, downrange: 0.85, bareBelow: -0.35, bareEase: 0.5, clump: { broad: 60, fine: 18, fineShare: 0.35, from: 0.42, to: 0.62 }, radius: [0.7, 1.6] as [number, number], shards: 0.25, caches: { count: 10, from: 60, clump: 0.85, apart: 50, radius: [0.6, 0.8] as [number, number], tries: 20000 } } };
+export const CRASH = { seedOffset: 9500, scorch: 0.5, glassTrail: { share: 0.4, width: [142, 21] as [number, number], cover: 0.55, cell: 6, stretch: 5 }, apron: { reach: 370, density: 0.12, edge: 60, falloff: 1.8, taper: 0.25, downrange: 0.85, bareBelow: -0.35, bareEase: 0.5, clump: { broad: 60, fine: 18, fineShare: 0.35, from: 0.42, to: 0.62 }, radius: [0.7, 1.6] as [number, number], shards: 0.25, parts: { share: 0.3, looks: [{ look: 'hullChunk', weight: 4, radius: [0.8, 1.5], aligned: true }, { look: 'wingShard', weight: 2, radius: [1.75, 1.75], aligned: true }, { look: 'powerCell', weight: 2, radius: [0.4, 0.4], aligned: false }, { look: 'habitat', weight: 1, radius: [2, 2], aligned: true }] as DebrisLook[] }, caches: { count: 10, from: 60, clump: 0.85, apart: 50, radius: [0.6, 0.8] as [number, number], tries: 20000 } } };
 
 export const SWAMP = {
   seedOffset: 9300,
