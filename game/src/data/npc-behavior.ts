@@ -49,6 +49,8 @@ export const NPC_BEHAVIOR = {
   fleeCalmTurns: 6,
   fightStallTurns: 20,
   fightWearShare: 0.05,
+  chaseStallTurns: 8,
+  chaseGainTiles: 2,
   crippledInvestigate: 0.01,
   lootedResume: 0.01,
   ram: {
