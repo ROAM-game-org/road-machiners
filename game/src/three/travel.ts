@@ -10,7 +10,7 @@ import {
 } from "../phys/drive";
 import type { TurnClock } from "./render/hazards";
 import { frameAt, type VehicleFrame } from "../phys/frames";
-import { joinTurn, SentObstacles, withTail, type LiveSight, type PreparedTurn, type Tail, type TurnRequest, type TurnResponse } from "../phys/turn";
+import { joinTurn, SentObstacles, withTail, type LiveSight, type PreparedTurn, type Tail, type TerrainRequest, type TurnRequest, type TurnResponse } from "../phys/turn";
 import { CONFIG, steppedSpeedIndex } from "../config";
 import { PHYSICS } from "../data/physics";
 import type { QuestLanguage } from "../data/quests";
@@ -297,6 +297,10 @@ export class Travel {
     return this.isPlaying(playback) || this.shouldAdvance(now);
   }
 
+  sendTerrain(terrain: World["terrain"]): void {
+    this.turns.sendTerrain(terrain);
+  }
+
   warm(world: World, drive: DriveSnapshot): Promise<void> {
     return this.turns.warm(world, drive);
   }
@@ -540,6 +544,13 @@ export class TurnPreparation {
   private fail(id: number | null, message: string): void {
     if (this.pending && (id === null || this.pending.id === id)) this.pending.failure = message;
     else reportError(new Error(message));
+  }
+
+  sendTerrain(terrain: World["terrain"]): void {
+    if (this.load.gaveUp || this.load.waiting) return;
+    this.worker ??= this.createWorker();
+    this.worker.postMessage({ kind: "terrain", terrain } satisfies TerrainRequest);
+    this.terrain = terrain;
   }
 
   warm(world: World, drive: DriveSnapshot): Promise<void> {

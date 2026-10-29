@@ -215,6 +215,8 @@ const loading = Promise.all([
 ]);
 bootStep('loading the map');
 const map = await boot.track('map', fetchMap());
+const travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(PLAY_EASE, PHYSICS.stepsPerSecond));
+travel.sendTerrain(map.terrain);
 const slots = await openSaves(saveKey, window.localStorage, allSlots(CONFIG.saveSlots));
 gameContext.watchSaves(slots);
 flushSaves = () => slots.flush();
@@ -228,7 +230,6 @@ bootStep('loading the save');
 const { world, runId, loadedFrom, fresh } = await bootWorld();
 const log = new RunLog(slots.backend, runId, GAME_VERSION, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
-const travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(PLAY_EASE, PHYSICS.stepsPerSecond));
 const routesReady = initPhysics().then(() => travel.warm(world, driveSnapshotOf(world)));
 bootStep('building the ground');
 await boot.track('ground', () => groundTexture(world));

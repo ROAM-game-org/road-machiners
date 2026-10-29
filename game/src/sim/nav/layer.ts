@@ -566,6 +566,10 @@ export function blockedAt(layer: NavLayer, cell: number): boolean {
   return layer.blocked[cell] === 1;
 }
 
+export function prepareRouteTerrain(terrain: Terrain): void {
+  tileKeys(terrainEntry(terrain), terrain);
+}
+
 export function buildEveryCell(layer: NavLayer): void {
   ensureAll(layer.cells);
 }

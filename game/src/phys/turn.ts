@@ -4,7 +4,7 @@ import { RULES } from '../data/rules';
 import { CHASSIS } from '../data/chassis';
 import { warmRoutes } from '../sim/path';
 import { PERF } from '../data/perf';
-import { buildCellsAround } from '../sim/nav/layer';
+import { buildCellsAround, prepareRouteTerrain } from '../sim/nav/layer';
 import { endTurn } from '../sim/world';
 import { inQuestLanguage } from '../sim/quests';
 import { QUEST_LANGUAGES, type QuestLanguage } from '../data/quests';
@@ -202,6 +202,7 @@ export function startTurnWorker(): void {
     const request = event.data;
     if (request.kind === 'terrain') {
       terrain = request.terrain;
+      timed('route-terrain', () => prepareRouteTerrain(request.terrain));
       return;
     }
     obstacles = request.obstacles ?? obstacles;
