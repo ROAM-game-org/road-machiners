@@ -457,6 +457,16 @@ describe('meetings', () => {
     expect(routeBlockers(w, high).some((b) => dist(b.pos, low.pos) < 0.5)).toBe(false);
   });
 
+  it('the path a giver swerves around ends where the holder stops', () => {
+    const { w, low, high } = faceOff('lowFirst');
+    const farthest = () => Math.min(...routeBlockers(w, low).filter((b) => b.pos.y === high.pos.y).map((b) => b.pos.x));
+    settleMeetings(w);
+    const passing = farthest();
+    high.order = { kind: 'stopAt', dest: { x: high.pos.x - 2, y: high.pos.y } };
+    expect(farthest()).toBeGreaterThanOrEqual(high.pos.x - 2);
+    expect(passing).toBeLessThan(high.pos.x - 2);
+  });
+
   it('the first turn of an encounter already has its roles when orders are planned', () => {
     const { w, low, high } = faceOff('lowFirst');
     let rolesAtMove: boolean | null = null;
