@@ -32,6 +32,7 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/sim/hunting-spots-bake.ts', text: '*', reason: BAKE_REPORT },
   { file: 'src/sim/progression/activity.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/sim/progression/job-checks.ts', text: '*', reason: DEV_REPORT },
+  { file: 'src/sim/hunting-spots-bake.ts', text: '*', reason: 'The hunting spots bake log is a dev tool read in a terminal. It stays English.' },
   { file: 'src/sim/settings.ts', text: 'World setup', reason: SETTING_LABEL },
   { file: 'src/sim/settings.ts', text: 'world setup field', reason: SETTING_LABEL },
   { file: 'src/sim/settings.ts', text: 'World settings', reason: SETTING_LABEL },
