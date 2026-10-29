@@ -12,8 +12,8 @@ import { isJunk, maxHp, partValue } from '../wear';
 import { inCombat, isHostile } from '../combat';
 import { canFirstAid, startFirstAid, startStrip, stripYield } from '../jobs';
 import { maxHealthOf } from '../health';
-import { aimGuns, gunStand, isSoftTarget } from './aim';
-import { hostileToPlayer, playerCanAct, setAutoFire, setAutoRepair, setMoveOrder, setWeaponOrder } from '../world';
+import { engageGuns, gunStand, isSoftTarget, refusedToYield, setFire } from './aim';
+import { hostileToPlayer, playerCanAct, setAutoRepair, setMoveOrder } from '../world';
 import { playerVehicle, vehicleById } from '../damage';
 import { isDefeated, isKnockedOut } from '../defeat';
 import { askTopic, callVehicle, canAskTopic, chooseOption, currentOptions, hangUp } from '../dialogue';
@@ -208,11 +208,6 @@ function keepSwitches(o: Orders): void {
 
 function underFire(world: World, me: Vehicle): boolean {
   return inCombat(world, me);
-}
-
-function setFire(o: Orders, on: boolean): void {
-  if (o.world.player.autoFire !== on) o.run((w) => setAutoFire(w, on));
-  if (!on) for (const id of Object.keys(o.me.weaponOrders)) o.run((w) => setWeaponOrder(w, id, null));
 }
 
 function holds(o: Orders): boolean {
@@ -741,9 +736,8 @@ function engageFoe(o: Orders): boolean {
 
 function engageSeen(o: Orders, foe: Vehicle): boolean {
   if (dangerOf(o.world, foe) * HUNT_MARGIN > 1 || !isSoftTarget(o.world, foe)) return false;
-  setFire(o, true);
-  aimGuns(o, foe);
-  if (!demandYield(o, foe)) driveTo(o, foe.pos);
+  engageGuns(o, foe);
+  if (!demandYield(o, foe)) driveTo(o, refusedToYield(o.world, foe) ? gunStand(o, foe) : foe.pos);
   return true;
 }
 
@@ -861,7 +855,7 @@ function edgeAlong(pos: Vec, way: Vec, size: number): Vec {
 }
 
 function charge(o: Orders, foe: Vehicle, goal: Goal): void {
-  if (goal === 'hunter') aimGuns(o, foe);
+  if (goal === 'hunter') engageGuns(o, foe);
   driveTo(o, goal === 'hunter' ? gunStand(o, foe) : foe.pos);
 }
 
