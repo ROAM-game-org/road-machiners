@@ -27,8 +27,8 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
     halfZ: 1.46,
     old: [' FFFFFFF ', 'L.......R', 'LXDEEXXXR', 'LXDEEXXXR', 'LDDXXXXDR', 'LDDXXDDDR', 'LDDDDDDDR', 'LXDDDXDXR', 'LXDDDXDXR', 'L.......R', ' BBBBBBB '],
     oldCore: [{ defId: 'cabPickup', x: 5, y: 2, rot: 1 }, { defId: 'transmissionMid', x: 3, y: 4 }, { defId: 'tankMid', x: 5, y: 7 }, { defId: 'wheelMid', x: 1, y: 2 }, { defId: 'wheelMid', x: 7, y: 2 }, { defId: 'wheelMid', x: 1, y: 7 }, { defId: 'wheelMid', x: 7, y: 7 }],
-    next: [' FFFFFF ', 'L.DXXX.R', 'LDDXXX.R', 'LXDXXXXR', 'LXDEEDXR', 'LXDEEDXR', 'LDDEEDDR', 'LDDDDDDR', 'LDDXXDDR', 'LDDXXDDR', 'LXDXXDXR', 'LXDXXXXR', 'LXDDDDXR', 'LDDDDDDR', 'L.    .R', ' BBBBBB '],
-    nextCore: [{ defId: 'wheelMid', x: 1, y: 3 }, { defId: 'wheelMid', x: 6, y: 3 }, { defId: 'wheelMid', x: 1, y: 10 }, { defId: 'wheelMid', x: 6, y: 10 }, { defId: 'cabPickup', x: 3, y: 1 }, { defId: 'transmissionMid', x: 3, y: 8 }, { defId: 'tankMid', x: 3, y: 11, rot: 1 }],
+    next: [' FFFFFF ', 'L.DXXX.R', 'L.DXXX.R', 'LXDXXXXR', 'LXDEEDXR', 'LXDEEDXR', 'LDDEEDDR', 'LDDDDDDR', 'LDDDDDDR', 'LDDXXXDR', 'LXDXXXXR', 'LXDXXXXR', 'LXDDDDXR', 'LDDDDDDR', 'L.    .R', ' BBBBBB '],
+    nextCore: [{ defId: 'wheelMid', x: 1, y: 3 }, { defId: 'wheelMid', x: 6, y: 3 }, { defId: 'wheelMid', x: 1, y: 10 }, { defId: 'wheelMid', x: 6, y: 10 }, { defId: 'cabPickup', x: 3, y: 1 }, { defId: 'transmissionMid', x: 3, y: 9 }, { defId: 'tankMid', x: 5, y: 9 }],
   },
   buggy: {
     halfX: 1.9500000000000002,

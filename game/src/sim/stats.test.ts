@@ -299,7 +299,7 @@ const HAULER_TEN_GUNS: { x: number; y: number; rot: 0 | 1 }[] = [
   { x: 1, y: 6, rot: 0 },
   { x: 6, y: 6, rot: 0 },
   { x: 2, y: 7, rot: 0 },
-  { x: 5, y: 8, rot: 0 },
+  { x: 3, y: 7, rot: 1 },
   { x: 2, y: 10, rot: 0 },
   { x: 3, y: 12, rot: 1 },
   { x: 1, y: 13, rot: 1 },
