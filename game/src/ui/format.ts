@@ -56,6 +56,7 @@ export function jobLabel(world: World, v: Vehicle, job: Job): Msg {
   if (job.kind === 'search') return t('job.search');
   if (job.kind === 'weld') return t('job.weld');
   if (job.kind === 'firstAid') return t('job.firstAid');
+  if (job.kind === 'oddJobs') return t('job.oddJobs');
   if (job.kind === 'survey') return t('job.survey', { place: t(`contract.place.${surveyPlaceType(job.site)}`) });
   return partJobLabel(v, job);
 }
@@ -431,7 +432,7 @@ function damageSpans(world: World, vehicleId: string, hits: PartHit[]): LogSpan[
 }
 
 function jobText(world: World, e: Extract<GameEvent, { t: 'job' }>): LogLine | null {
-  if (e.vehicle !== world.player.vehicleId || (e.outcome === 'done' && (e.job.kind === 'search' || e.job.kind === 'survey'))) return null;
+  if (e.vehicle !== world.player.vehicleId || (e.outcome === 'done' && (e.job.kind === 'search' || e.job.kind === 'survey' || e.job.kind === 'oddJobs'))) return null;
   const what = jobLabel(world, playerVehicle(world), e.job);
   const lines = {
     started: line(t('log.jobStarted', { what, n: e.job.turnsLeft }), ''),
