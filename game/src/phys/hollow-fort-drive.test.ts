@@ -2,8 +2,9 @@ import { beforeAll, expect, it } from 'vitest';
 import { HOLLOW } from '../data/sunward';
 import { playerVehicle } from '../sim/damage';
 import { insideCurtain } from '../sim/fortress';
-import { hollowBays, hollowReach } from '../sim/hollow-layout';
-import { duskTurn, isCavalcadeCar, membersOf, rideOutTurn } from '../sim/sunward';
+import { hollowReach } from '../sim/hollow-layout';
+import { duskTurn, gateOrder, rideOutTurn, sunwardFacts } from '../sim/sunward';
+import { requireTruck } from '../sim/sites';
 import { addVehicle } from '../sim/testkit';
 import type { Vec } from '../sim/vec';
 import { dist } from '../sim/vec';
@@ -27,7 +28,7 @@ function towardGate(distance: number): Vec {
 function farScene(turn: number): World {
   const w = standardWorld(5);
   const me = playerVehicle(w);
-  w.vehicles = [me, ...membersOf(w)];
+  w.vehicles = [me];
   me.pos = { x: HOLLOW.pos.x + 60, y: HOLLOW.pos.y - 60 };
   me.speed = 0;
   me.order = null;
@@ -63,22 +64,18 @@ it('stops a stranger driving at the shut gatehouse outside the curtain', () => {
   expect(everInside).toBe(false);
 }, budget(300_000));
 
-it('pulls the Cavalcade out of its bays in gate order at ride-out, with no stall', () => {
+it('lets the Cavalcade out of the pad in gate order at ride-out and drives each car clear of the Hollow, with no stall', () => {
   const out = rideOutTurn(duskTurn(1));
   const w = farScene(out - 2);
-  const bays = hollowBays();
-  const firstGone = new Map<string, number>();
+  const left: string[] = [];
   let stalls = 0;
-  run(w, 60, (next, turn) => {
+  const last = run(w, 60, (next) => {
     stalls += next.events.filter((e) => e.t === 'stall').length;
-    for (const car of membersOf(next).filter(isCavalcadeCar)) {
-      const home = bays.find((b) => dist(b, car.brain!.home) < 0.5)!;
-      if (!firstGone.has(car.id) && dist(car.pos, home) > 6) firstGone.set(car.id, turn);
-    }
+    for (const e of next.events) if (e.t === 'leftSite') left.push(e.vehicle);
   });
   expect(stalls).toBe(0);
-  const order = [...firstGone.entries()].sort((a, b) => a[1] - b[1]).map(([id]) => id);
-  const rank = (id: string) => bays.findIndex((b) => dist(b, membersOf(w).find((v) => v.id === id)!.brain!.home) < 0.5);
-  expect(order.length).toBeGreaterThanOrEqual(6);
-  expect(order.map(rank)).toEqual([...order.map(rank)].sort((a, b) => a - b));
+  expect(left.length).toBeGreaterThanOrEqual(6);
+  const night = sunwardFacts(last).night!;
+  expect(left).toEqual([...gateOrder(last, night), ...(night.hunt?.party ?? [])].slice(0, left.length));
+  for (const id of left.slice(0, -1)) expect(dist(requireTruck(last, id).pos, HOLLOW.pos)).toBeGreaterThan(hollowReach());
 }, budget(600_000));

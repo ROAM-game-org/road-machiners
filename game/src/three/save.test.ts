@@ -11,7 +11,7 @@ import { noteDeed } from '../sim/relations';
 import { addState } from '../sim/states';
 import { canStowPart, moveItem, storePart, stowPart, stowSpot, takeFromStorage } from '../sim/inventory';
 import { buyStockPart } from '../sim/economy';
-import { buyChart } from '../sim/charts';
+import { buyChart, chartsOnSale } from '../sim/charts';
 import { bareVehicle, makePart } from '../sim/factory';
 import { PARTS } from '../data/parts';
 import type { Faction, GridItem, World } from '../sim/types';
@@ -28,11 +28,11 @@ import { itemMass, vehicleMass } from '../sim/mass';
 import { clearGame, clearSlot, hasSave, loadWorld, packExplored, SaveError, unpackExplored, saveKey, saveInTown, isDayStart, saveOf, savedRunId, saveWorld, SaveHold, writeSave, SAVE_FORMAT } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
 import { REGION } from '../data/region';
-import { sitePads } from '../sim/sites';
+import { shelteredAt, sitePads } from '../sim/sites';
 import { hireEscort } from '../sim/tow';
 import { TEST_MAP } from '../test/map';
 import { advanceSunward, duskTurn, membersOf, rideOutTurn, sunwardFacts } from '../sim/sunward';
-import { hollowBays, hollowObstacles } from '../sim/hollow-layout';
+import { hollowObstacles, hollowPad } from '../sim/hollow-layout';
 import { fillHollow, isFree } from '../sim/spawn';
 import { reusedWorld } from '../test/world-cache';
 import { isBakedObstacle, isBreakable, mapObstacles } from '../sim/mapgen';
@@ -504,7 +504,7 @@ describe('game save', () => {
     start.player.money = 100000;
     start.player.explored.fill(0);
     start.player.discovered = [];
-    const bought = buyChart(start, { col: 0, row: 4 });
+    const bought = buyChart(start, chartsOnSale(start, 'bowl')[0].square);
     writeSave(slots, 'auto', bought, RUN, 1000);
 
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
@@ -1241,7 +1241,7 @@ describe('relations in a save', () => {
     expect(loaded.events).toEqual([]);
   });
 
-  it('gives back the order parked in the fort bays, awarding nothing at load', () => {
+  it('gives back the order resting inside the Hollow, awarding nothing at load', () => {
     const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
     fillHollow(w);
     w.events = [];
@@ -1250,9 +1250,9 @@ describe('relations in a save', () => {
     writeSave(slots, 'auto', w, 'run-1', 1000);
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
 
-    const members = (x: typeof w) => membersOf(x).map((v) => ({ id: v.id, pos: v.pos, home: v.brain!.home }));
-    expect(members(loaded)).toEqual(members(w));
-    expect(members(loaded).every((m) => hollowBays().some((b) => b.x === m.home.x && b.y === m.home.y))).toBe(true);
+    expect(loaded.sheltered).toEqual(w.sheltered);
+    expect(shelteredAt(loaded, 'sunward-hollow')).toHaveLength(membersOf(w).length);
+    expect(membersOf(loaded).every((v) => v.brain!.home.x === hollowPad().x && v.brain!.home.y === hollowPad().y)).toBe(true);
     expect(loaded.player.xp).toBe(w.player.xp);
     expect(loaded.player.money).toBe(w.player.money);
     expect(loaded.events).toEqual([]);

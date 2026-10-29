@@ -242,7 +242,7 @@ export class VehicleView {
   }
 
   private keepsLook(o: THREE.Mesh): boolean {
-    const m = o.material;
+    const m = (o.material as THREE.Material).userData.fadeOf ?? o.material;
     return this.silhouettes.includes(m as THREE.MeshBasicMaterial) || m === this.lampMat || m === this.radioMat || this.isContactShadow(o) || o.userData.outline;
   }
 

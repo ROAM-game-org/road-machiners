@@ -37,6 +37,7 @@ function member(w: World, pos: Vec): Vehicle {
 function crater(): World {
   const w = standardWorld(5);
   w.vehicles = [playerVehicle(w)];
+  w.sheltered = [];
   w.turn = duskTurn(1) + 80;
   playerVehicle(w).pos = { ...vigilGrounds()[0] };
   refreshVision(w);
@@ -587,8 +588,10 @@ describe('meeting the stranger at the vigil', () => {
   function ring(): World {
     const w = standardWorld(5);
     w.vehicles = [playerVehicle(w)];
+    w.sheltered = [];
     fillHollow(w);
-    w.vehicles = w.vehicles.filter((v) => !isSunwardMember(v) || isCavalcadeCar(v));
+    w.vehicles.push(...w.sheltered.map((s) => s.vehicle).filter(isCavalcadeCar));
+    w.sheltered = [];
     w.turn = rideOutTurn(duskTurn(1)) + SUNWARD.driveTurns + 10;
     advanceSunward(w);
     const posts = vigilPosts(w);

@@ -204,6 +204,7 @@ function stagedWorld(world: SavedWorld, quests: QuestRepair): SavedMapWorld {
     ...world,
     player: { ...world.player, explored, visible: [], contacts: [], clouds: [], notes: quests.notes, quests: { ...quests.quests, live: null } },
     vehicles: world.vehicles.map((v) => ({ ...v, trail: [] })),
+    sheltered: world.sheltered.map((s) => ({ ...s, vehicle: { ...s.vehicle, trail: [] } })),
     events: [],
     removed: [],
   };
@@ -334,7 +335,7 @@ function isCount(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0;
 }
 
-const WORLD_LISTS = ['vehicles', 'obstacles', 'broken', 'salvage', 'weather', 'dustClouds', 'states', 'craters'] as const;
+const WORLD_LISTS = ['vehicles', 'sheltered', 'obstacles', 'broken', 'salvage', 'weather', 'dustClouds', 'states', 'craters'] as const;
 
 function isWorld(value: unknown): value is SavedWorld {
   if (!value || typeof value !== 'object') return false;
@@ -384,9 +385,10 @@ export function saveOf(world: World): { format: typeof SAVE_FORMAT; steps: Saved
   const { terrain: _terrain, events: _events, removed: _removed, ...saved } = world;
   const { visible: _visible, contacts: _contacts, clouds: _clouds, quests: { live: _live, ...quests }, ...player } = saved.player;
   const vehicles = saved.vehicles.map(({ trail: _trail, ...vehicle }) => vehicle);
+  const sheltered = saved.sheltered.map(({ vehicle: { trail: _trail, ...vehicle }, site }) => ({ vehicle, site }));
   const obstacles = saved.obstacles.filter((o) => !isBakedObstacle(o) && !isHollowObstacle(o));
   const broken = saved.broken.map(({ obstacle, turn }) => ({ id: obstacle.id, turn }));
-  return { format: SAVE_FORMAT, steps: { from: TINY_FROM, names: TINY_STEPS.map((named) => named.name) }, quests: questRevisions(QUESTS), world: { ...saved, player: { ...player, quests, explored: packExplored(player.explored) }, vehicles, obstacles, broken } };
+  return { format: SAVE_FORMAT, steps: { from: TINY_FROM, names: TINY_STEPS.map((named) => named.name) }, quests: questRevisions(QUESTS), world: { ...saved, player: { ...player, quests, explored: packExplored(player.explored) }, vehicles, sheltered, obstacles, broken } };
 }
 
 export function packExplored(explored: Uint8Array): string {

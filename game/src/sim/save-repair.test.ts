@@ -154,6 +154,27 @@ describe('repairContent', () => {
     expect(() => advanceContracts(w)).not.toThrow();
   });
 
+  it('repairs a truck sheltered inside a site like one outside, and removes it when it cannot be fixed', () => {
+    const w = fresh();
+    const [kept, doomed] = npcs(w);
+    kept.brain!.driver = 'Nobody Known';
+    doomed.chassisId = 'ghostChassis';
+    w.vehicles = w.vehicles.filter((v) => v !== kept && v !== doomed);
+    w.sheltered = [{ vehicle: kept, site: 'bowl' }, { vehicle: doomed, site: 'bowl' }];
+
+    repairContent(w);
+    expect(w.sheltered.map((s) => s.vehicle.id)).toEqual([kept.id]);
+    expect(FIRST_NAMES.some((n) => w.sheltered[0].vehicle.brain!.driver.startsWith(n))).toBe(true);
+  });
+
+  it('throws on a truck that stands both outside and inside a site', () => {
+    const w = fresh();
+    const npc = npcs(w)[0];
+    w.sheltered = [{ vehicle: structuredClone(npc), site: 'bowl' }];
+
+    expect(() => repairContent(w)).toThrow(/twice/);
+  });
+
   it('moves parts that no longer fit to storage for the player and drops them for an NPC', () => {
     const w = fresh();
     const me = playerVehicle(w);

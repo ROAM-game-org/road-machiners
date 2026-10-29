@@ -7,10 +7,12 @@ import { NPCS } from '../data/npcs';
 import { TIME } from '../data/time';
 import { addVehicle, emptyWorld, chaosHighwayWorld, npcBrain } from './testkit';
 import { addGoods } from './inventory';
+import { getResources } from './resources';
+import { fuelCap } from './stats';
 import { knockOutNpc } from './defeat';
-import { siteGap, sitePads } from './sites';
+import { canUseSite, everyTruck, isSheltered, leaveSite, shelteredAt, siteGap, sitePads } from './sites';
 import { standardWorld } from '../test/world-cache';
-import { fillHollowByDay, orderWorld, quietWorld } from '../test/sunward-kit';
+import { beyondPad, fillHollowByDay, letOut, orderWorld, quietWorld, riderAt } from '../test/sunward-kit';
 import { playerVehicle } from './damage';
 import { joinCompany } from './companies';
 import { noteDefeat } from './relations';
@@ -26,7 +28,7 @@ import { fortressPieces, fortressProps, insideCurtain } from './fortress';
 import { sunwardDusk, sunwardHunt, sunwardLedger } from './cheats';
 import { generateNpcLoadout } from './npc-loadout';
 import { callVehicle, currentLine, currentOptions } from './dialogue';
-import { bayHeading, hollowBays, hollowDiscs, hollowObstacles, hollowReach, isHollowObstacle } from './hollow-layout';
+import { hollowDiscs, hollowObstacles, hollowPad, hollowReach, hollowSitesFor, isHollowObstacle } from './hollow-layout';
 import {
   advanceSunward, isCavalcadeCar, isHunterCar, avoidsCrater, fallenSun, vigilPosts, collapseOrder, craterExit, CRATER_NIGHT, inCraterZone, nightSafe, shunsAtNight, vigilGrounds, dawnAfter, hollowLampsLit, huntTonight, planSunward, spawnsAtHollow, duskTurn, orderDusk, nextRideOut, nightWindow, rideOutTurn, lastDusk, membersOf, phaseAt, returnTurn, sunwardFacts, sunwardPhase,
 } from './sunward';
@@ -98,6 +100,11 @@ describe('the Sunward clock', () => {
     expect(w.sunward).toBeNull();
     expect(() => sunwardPhase(w)).toThrow(/no Sunward order/);
     expect(w.obstacles.some(isHollowObstacle)).toBe(false);
+    expect(hollowSitesFor(w)).toEqual([]);
+  });
+
+  it('draws its pad while the order stands', () => {
+    expect(hollowSitesFor(orderWorld(5))).toEqual([HOLLOW.site]);
   });
 });
 
@@ -108,19 +115,14 @@ describe('the Hollow', () => {
     expect(props).toEqual(hollowObstacles());
   });
 
-  it('starts full: a new Roaming world holds eight Cavalcade cars and three hunters, each at its own bay and heading', () => {
+  it('starts full: a new Roaming world holds eight Cavalcade cars and three hunters, all resting inside with the pad as home', () => {
     const w = standardWorld(5);
     const members = membersOf(w);
     expect(members.filter(isCavalcadeCar)).toHaveLength(SUNWARD.cavalcade);
     expect(members.filter(isHunterCar)).toHaveLength(SUNWARD.hunters);
-    const bays = hollowBays();
-    const taken = members.map((v) => bays.findIndex((b) => dist(b, v.pos) < 0.01));
-    expect(new Set(taken).size).toBe(members.length);
-    expect(taken.every((bay) => bay >= 0)).toBe(true);
-    members.forEach((v, k) => {
-      expect(v.heading).toBeCloseTo(bayHeading(taken[k]), 6);
-      expect(dist(v.brain!.home, v.pos)).toBeLessThan(0.01);
-    });
+    expect(shelteredAt(w, HOLLOW.id).map((v) => v.id).sort()).toEqual(members.map((v) => v.id).sort());
+    expect(w.vehicles.some((v) => v.faction === 'sunward')).toBe(false);
+    for (const v of members) expect(dist(v.brain!.home, hollowPad())).toBeLessThan(0.01);
   });
 
   it('gives Chaos Highway no Sunward car', () => {
@@ -150,9 +152,9 @@ describe('the Hollow', () => {
     expect(Math.abs(toGate - toCrater)).toBeLessThan(0.25);
   });
 
-  it('parks every car outside the curtain in a laager that stays within the reach bound, with the lamps by a piece', () => {
-    for (const bay of hollowBays()) expect(insideCurtain(HOLLOW.site, bay, 0)).toBe(false);
-    expect(hollowBays()).toHaveLength(SUNWARD.cavalcade + SUNWARD.hunters);
+  it('opens its pad on the gate side outside the curtain, keeps the laager within the reach bound and the lamps by a piece', () => {
+    expect(insideCurtain(HOLLOW.site, hollowPad(), 0)).toBe(false);
+    expect(canUseSite(hollowPad(), HOLLOW.site)).toBe(true);
     expect(hollowReach()).toBeLessThanOrEqual(HOLLOW.maxReach);
     const pieces = hollowObstacles();
     const looks = (o: Obstacle): string => (o.kind === 'landmark' ? o.look : '');
@@ -172,7 +174,7 @@ describe('the Hollow', () => {
   it('keeps its walls solid, so no truck spawns or parks in them', () => {
     const w = quietWorld(5);
     for (const wall of hollowObstacles().filter((o) => o.kind === 'landmark' && o.look === 'fortScrapWall').slice(0, 5)) expect(isFree(w, wall.pos, 0.9, null)).toBe(false);
-    for (const bay of hollowBays()) expect(isFree(w, bay, 0.9, null)).toBe(true);
+    expect(isFree(w, hollowPad(), 0.9, null)).toBe(true);
   });
 
   it('is found by sight like any place, and only once', () => {
@@ -188,8 +190,8 @@ describe('the Hollow', () => {
 describe('the silent ride', () => {
   it('answers a call with silence and offers nothing but Hang up', () => {
     const w = orderWorld(5);
-    const member = membersOf(w)[0];
-    playerVehicle(w).pos = { x: member.pos.x, y: member.pos.y + 6 };
+    const member = letOut(w, membersOf(w)[0].id);
+    playerVehicle(w).pos = beyondPad(6);
     refreshVision(w);
 
     const called = callVehicle(w, member.id);
@@ -201,9 +203,9 @@ describe('the silent ride', () => {
   it('stays silent for a car with a brave or coward streak', () => {
     for (const extra of ['brave', 'coward'] as const) {
       const w = orderWorld(5);
-      const member = membersOf(w)[0];
+      const member = letOut(w, membersOf(w)[0].id);
       member.brain!.traits = ['cultist', extra];
-      playerVehicle(w).pos = { x: member.pos.x, y: member.pos.y + 6 };
+      playerVehicle(w).pos = beyondPad(6);
       refreshVision(w);
 
       const called = callVehicle(w, member.id);
@@ -215,7 +217,7 @@ describe('the silent ride', () => {
 });
 
 describe('the order refills', () => {
-  it('spawns members in the Hollow bays by day while the player is far', () => {
+  it('spawns members inside the Hollow by day while the player is far', () => {
     let w = quietWorld(5);
     fillHollowByDay(w);
     const members = membersOf(w);
@@ -223,9 +225,8 @@ describe('the order refills', () => {
     expect(members.filter((v) => v.brain!.templateId === 'hunter')).toHaveLength(SUNWARD.hunters);
     for (const v of members) {
       expect(v.faction).toBe('sunward');
-      expect(hollowBays().some((b) => dist(b, v.pos) < 0.01)).toBe(true);
+      expect(isSheltered(w, v.id)).toBe(true);
     }
-    expect(new Set(members.map((v) => `${v.pos.x},${v.pos.y}`)).size).toBe(members.length);
   });
 
   it('spawns nobody at night or while the Hollow is in the player gray vision', () => {
@@ -297,7 +298,7 @@ describe('the hunting parties', () => {
     const hunters = membersOf(w).filter((v) => v.brain!.templateId === 'hunter');
     expect(night.hunt?.party.sort()).toEqual(hunters.map((v) => v.id).sort());
     for (const id of night.roster) expect(hunters.map((v) => v.id)).not.toContain(id);
-    const leader = w.vehicles.find((v) => v.id === night.hunt!.party[0])!;
+    const leader = letOut(w, night.hunt!.party[0]);
     const trader = spawnAt(w, NPCS.trader, generateNpcLoadout(w, NPCS.trader), { x: leader.pos.x + 6, y: leader.pos.y }, 'independent');
 
     planSunward(w, leader);
@@ -313,7 +314,7 @@ describe('the hunting parties', () => {
     w.turn = rideOutTurn(duskTurn(day));
     advanceSunward(w);
     const night = sunwardFacts(w).night!;
-    const leader = w.vehicles.find((v) => v.id === night.hunt!.party[0])!;
+    const leader = letOut(w, night.hunt!.party[0]);
     spawnAt(w, NPCS.trader, generateNpcLoadout(w, NPCS.trader), { x: leader.pos.x + 6, y: leader.pos.y }, 'independent');
 
     planSunward(w, leader);
@@ -329,7 +330,7 @@ describe('the hunting parties', () => {
     w.turn = duskTurn(day) + 1;
     advanceSunward(w);
     const hunt = sunwardFacts(w).night!.hunt!;
-    const leader = w.vehicles.find((v) => v.id === hunt.party[0])!;
+    const leader = letOut(w, hunt.party[0]);
     const [a, b] = hunt.grounds;
     const at = (p: Vec, by: number): Vec => ({ x: p.x + by, y: p.y });
     const plan = (pos: Vec) => {
@@ -364,13 +365,13 @@ describe('the hunting parties', () => {
     w.turn = duskTurn(day) + 1;
     advanceSunward(w);
     const hunt = sunwardFacts(w).night!.hunt!;
-    const fallen = w.vehicles.find((v) => v.id === hunt.party[1])!;
+    const fallen = letOut(w, hunt.party[1]);
     fallen.defeat = { phase: 'out', turns: 0, unseen: 0, foes: [], gaveUp: false };
 
     advanceSunward(w);
 
     expect(hunt.over).toBe(true);
-    const other = w.vehicles.find((v) => v.id === hunt.party[2])!;
+    const other = letOut(w, hunt.party[2]);
     planSunward(w, other);
     expect(other.brain!.goals[0].reason).not.toBe('huntRoad');
   });
@@ -381,7 +382,7 @@ describe('the night ledger and the collapse', () => {
     const w = orderWorld(5);
     w.turn = duskTurn(1) + 70;
     advanceSunward(w);
-    const roster = sunwardFacts(w).night!.roster.map((id) => w.vehicles.find((v) => v.id === id)!);
+    const roster = sunwardFacts(w).night!.roster.map((id) => riderAt(w, id));
     return { w, roster };
   }
 

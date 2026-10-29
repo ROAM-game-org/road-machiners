@@ -422,6 +422,7 @@ export const WINDOW_MOVE = {
   fields: 'drop',
   flares: 'drop',
   lines: 'drop',
+  sheltered: 'drop',
 } as const satisfies { [K in keyof World]-?: Move };
 
 const DROPPED: { [K in keyof World as (typeof WINDOW_MOVE)[K] extends 'drop' ? K : never]: () => World[K] } = {
@@ -433,6 +434,7 @@ const DROPPED: { [K in keyof World as (typeof WINDOW_MOVE)[K] extends 'drop' ? K
   fields: () => [],
   flares: () => [],
   lines: () => [],
+  sheltered: () => [],
 };
 
 function requireMovable(world: World, run: ChaosHighwayRun): void {
