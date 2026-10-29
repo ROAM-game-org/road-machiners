@@ -121,7 +121,10 @@
   padding: var(--space-9) 0;
 }
 .truck-shell:has(> .inv-grid.drawn) {
-  padding: var(--space-9);
+  padding: var(--space-9) var(--space-9) var(--space-9) var(--space-7);
+}
+:where(#ui:not(.narrow)) .inv-truck:has(.inv-grid.drawn) {
+  margin-right: calc(var(--space-9) * -1);
 }
 .inv-grid {
   position: relative;
