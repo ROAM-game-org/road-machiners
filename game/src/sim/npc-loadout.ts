@@ -13,6 +13,7 @@ import { vehicleMass } from './mass';
 import { armorQuality, gearScorer } from './npc-gear-score';
 import { massRoomAbove, meetsSpeedFloor, npcMassRoom, speedShare, vehicleStats } from './stats';
 import { nextRandom, type Rng } from './rng';
+import { repackWith, type RepackMemo } from './repack';
 import type { GridItem, Vehicle, World } from './types';
 
 export type NpcLoadout = {
@@ -128,7 +129,7 @@ export type GearRules = { armored: boolean; armorFirst: boolean; gunFirst: boole
 export const TOP_GUN_TIER = Math.max(...Object.values(PARTS).filter((d) => d.kind === 'weapon').map((d) => d.tier));
 export const OPEN_GEAR: GearRules = { armored: true, armorFirst: false, gunFirst: false, gunTier: TOP_GUN_TIER, money: null, paysFuel: true, minSpeed: MIN_NPC_SPEED, cargoPart: true };
 
-type Build = { world: World; budget: number; engineWear: number; keep: Load; keepShare: number; rules: GearRules; front: boolean };
+type Build = { world: World; budget: number; engineWear: number; keep: Load; keepShare: number; rules: GearRules; front: boolean; repacks: RepackMemo };
 
 const NO_RESERVE: Load = { kg: 0, cells: 0 };
 
@@ -144,7 +145,16 @@ function equipmentCost(v: Vehicle): number {
 }
 
 function fits(b: Build, v: Vehicle): boolean {
-  return equipmentCost(v) <= b.budget && vehicleMass(v) <= chassisDef(v.chassisId).ratedMass && meetsSpeedFloor(v, 0, b.rules.minSpeed) && everyGunBears(v) && keepsHaul(b, v);
+  return fitsAnywhere(b, v) && everyGunBears(v);
+}
+
+function fitsAnywhere(b: Build, v: Vehicle): boolean {
+  return equipmentCost(v) <= b.budget && vehicleMass(v) <= chassisDef(v.chassisId).ratedMass && meetsSpeedFloor(v, 0, b.rules.minSpeed) && keepsHaul(b, v);
+}
+
+function repacked(b: Build, v: Vehicle, item: PartItem, accept: (next: Vehicle) => boolean): Vehicle | null {
+  if (!fitsAnywhere(b, { ...v, items: [...v.items, item] })) return null;
+  return repackWith(v, item, accept, b.repacks);
 }
 
 function copyOf(v: Vehicle): Vehicle {
@@ -153,7 +163,9 @@ function copyOf(v: Vehicle): Vehicle {
 
 function mounted(b: Build, v: Vehicle, defId: string, mount?: SideLetter[]): Vehicle | null {
   const next = copyOf(v);
-  return mountPart(b.world, next, makePart(b.world, defId, 0), mount) && fits(b, next) ? next : null;
+  const part = makePart(b.world, defId, 0);
+  if (mountPart(b.world, next, part, mount)) return fits(b, next) ? next : null;
+  return mount ? null : repacked(b, v, { id: newId(b.world, 'i'), x: 0, y: 0, rot: 0, kind: 'part', part }, (x) => everyGunBears(x));
 }
 
 type LineGunMount = (v: Vehicle, defId: string) => Vehicle | null;
@@ -215,17 +227,10 @@ function gunSpotFits(b: Build, next: Vehicle, front: boolean): boolean {
 }
 
 function bestGunSpot(b: Build, v: Vehicle, item: PartItem, score: (v: Vehicle) => number, front: boolean): Vehicle | null {
-  const spots = mountSpots(gridOf(v), v.items, item, MOUNT_CELLS.weapon);
-  let best: Vehicle | null = null;
-  let bestScore = -Infinity;
-  for (const spot of spots) {
-    const next = { ...v, items: [...v.items, { ...item, ...spot }] };
-    if (!gunSpotFits(b, next, front)) continue;
-    if (best === null && !meetsSpeedFloor(next, 0, b.rules.minSpeed)) return null;
-    const value = score(next);
-    if (value > bestScore) [best, bestScore] = [next, value];
-  }
-  return best;
+  const fitting = mountSpots(gridOf(v), v.items, item, MOUNT_CELLS.weapon).map((spot) => ({ ...v, items: [...v.items, { ...item, ...spot }] })).filter((next) => gunSpotFits(b, next, front));
+  if (!fitting.length) return repacked(b, v, item, (next) => everyGunBears(next) && (!front || coversFront(next)));
+  if (!meetsSpeedFloor(fitting[0], 0, b.rules.minSpeed)) return null;
+  return fitting.map((next) => ({ next, value: score(next) })).reduce((a, c) => (c.value > a.value ? c : a)).next;
 }
 
 function withArmor(b: Build, v: Vehicle, defId: string, sides: SideLetter[]): Vehicle | null {
@@ -313,7 +318,7 @@ function chooseVehicle(probe: World, rng: Rng, wearRng: Rng, template: NpcTempla
   const chassis = chassisId ?? sampleWeighted(rng, fastEnough(template, rules.minSpeed));
   const bare = makeVehicle(probe, { faction: 'independent', chassisId: chassis, parts: [], spares: [], cargo: {}, pos: { x: 0, y: 0 }, heading: 0, brain: null });
   const keepShare = speedShare(table.priorities);
-  const open: Build = { world: probe, budget: chassisDef(chassis).value + (rules.money ?? level.money), engineWear: wearOf(wearRng, level), keep: NO_RESERVE, keepShare, rules, front: false };
+  const open: Build = { world: probe, budget: chassisDef(chassis).value + (rules.money ?? level.money), engineWear: wearOf(wearRng, level), keep: NO_RESERVE, keepShare, rules, front: false, repacks: new Map() };
   const powered = chooseEngine(open, rng, table.priorities, bare);
   const front = table.armed && gunsFor(rules).some((id) => withGun(open, () => 0, powered, id, true) !== null);
   const b: Build = { ...open, keep: keepsHaul({ ...open, keep: table.haul }, powered) ? table.haul : NO_RESERVE, front };
@@ -394,7 +399,7 @@ export type Refit = { priorities: LoadoutPriorities; money: number; allowed: (v:
 
 export function refitLoadout(world: World, rng: Rng, truck: Vehicle, refit: Refit): Vehicle {
   const probe = { ...world };
-  const b: Build = { world: probe, budget: equipmentCost(truck) + refit.money, engineWear: 0, keep: NO_RESERVE, keepShare: speedShare(refit.priorities), rules: { ...OPEN_GEAR, paysFuel: refit.paysFuel }, front: false };
+  const b: Build = { world: probe, budget: equipmentCost(truck) + refit.money, engineWear: 0, keep: NO_RESERVE, keepShare: speedShare(refit.priorities), rules: { ...OPEN_GEAR, paysFuel: refit.paysFuel }, front: false, repacks: new Map() };
   const powered = { ...truck, items: truck.items.filter((it) => it.kind === 'part' && ['core', 'engine'].includes(partDef(it.part.defId).kind)) };
   const score = gearScorer(probe, refit.priorities, powered, refit.paysFuel);
   const moves = gearMoves(b, score).map((move): GearMove => (v) => {

@@ -231,7 +231,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   courier: {
     id: 'courier', maxSpeed: 9.75, accel: 3, brake: 3, turnSlow: 125, turnFast: 42, reverseTurn: 80,
     mass: 280, handlingMass: 1100, radius: 0.5,
-    layout: [' FFFF ', 'LXEEXR', 'LXEEXR', 'L.EE.R', 'LDD DR', 'LDD.DR', 'LDDXXR', 'L.XX.R', 'LXXXXR', 'LXXXXR', ' BBBB '],
+    layout: [' FFFF ', 'LXEEXR', 'LXEEXR', 'L.EE.R', 'LDD DR', 'LDD.DR', 'LDDXXR', 'LDXX.R', 'LXXXXR', 'LXXXXR', ' BBBB '],
     core: [
       { defId: 'cab', x: 3, y: 6, rot: 1 },
       { defId: 'transmission', x: 2, y: 8 },
