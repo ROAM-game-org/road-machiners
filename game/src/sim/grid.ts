@@ -302,17 +302,32 @@ function isWeapon(item: GridItem): boolean {
 
 export function mountSpots(g: Grid, items: GridItem[], item: GridItem, mount: Cell[]): Spot[] {
   const taken = occupiedCells(g, items, item.id)[isAccessoryItem(item) ? 'accessory' : 'base'];
-  const tries = allSpots(g, isWeapon(item) ? 4 : 2);
+  const turns = isWeapon(item) ? 4 : 2;
   const sizes = [0, 1, 2, 3].map((rot) => itemSize({ ...item, rot: rot as Rot }));
-  const free = (s: Spot, letter: Cell) => {
+  const free = (s: Spot) => {
     const { w, h } = sizes[s.rot];
-    for (let dy = 0; dy < h; dy++) {
-      const row = g.cells[s.y + dy];
-      for (let dx = 0; dx < w; dx++) if (row?.[s.x + dx] !== letter || taken.has(cellKey(s.x + dx, s.y + dy))) return false;
-    }
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) if (taken.has(cellKey(s.x + dx, s.y + dy))) return false;
     return true;
   };
-  return mount.flatMap((letter) => tries.filter((s) => free(s, letter)));
+  return mount.flatMap((letter) => spotsOnLetter(g, letter, turns, sizes).filter(free));
+}
+
+const letterSpotCache = new WeakMap<Grid, Map<string, readonly Spot[]>>();
+
+function spotsOnLetter(g: Grid, letter: Cell, turns: 2 | 4, sizes: { w: number; h: number }[]): readonly Spot[] {
+  const byKey = letterSpotCache.get(g) ?? new Map<string, readonly Spot[]>();
+  letterSpotCache.set(g, byKey);
+  const key = `${letter}|${turns}|${sizes[0].w}x${sizes[0].h}`;
+  const known = byKey.get(key);
+  if (known) return known;
+  const covers = (s: Spot) => {
+    const { w, h } = sizes[s.rot];
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) if (g.cells[s.y + dy]?.[s.x + dx] !== letter) return false;
+    return true;
+  };
+  const spots = allSpots(g, turns).filter(covers);
+  byKey.set(key, spots);
+  return spots;
 }
 
 const KEY_ROW = 1024;

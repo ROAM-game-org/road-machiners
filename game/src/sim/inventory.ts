@@ -60,10 +60,11 @@ function bestShieldSpot(v: Vehicle, item: PartItem, mount: Cell[]): Spot | null 
   let bestScore = [-1, -1, -1];
   const g = gridOf(v);
   const shield = cabShieldWith(v);
-  const taken = new Set(v.items.filter((it) => layerOf(g, it) === 'base').flatMap(itemCells).map((c) => `${c.x},${c.y}`));
+  let taken: Set<string> | null = null;
+  const takenCells = () => (taken ??= new Set(v.items.filter((it) => layerOf(g, it) === 'base').flatMap(itemCells).map((c) => `${c.x},${c.y}`)));
   for (const spot of mountSpots(g, v.items, item, mount)) {
     const placed = { ...item, ...spot };
-    const score = betterShieldScore([shield(placed), Number(g.cells[spot.y][spot.x] === 'F')], bestScore, () => closedEnds(g, taken, placed));
+    const score = betterShieldScore([shield(placed), Number(g.cells[spot.y][spot.x] === 'F')], bestScore, () => closedEnds(g, takenCells(), placed));
     if (score) [best, bestScore] = [spot, score];
   }
   return best;
