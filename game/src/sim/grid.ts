@@ -131,7 +131,7 @@ export function bareGrid(chassisId: string): Grid {
   const cached = bareGridCache.get(chassisId);
   if (cached) return cached;
   const base = baseGrid(chassisId);
-  const rows = bedRows(chassisId);
+  const rows = rowsAtWidth(chassisId, bedRows(chassisId)) + (chassisDef(chassisId).spareRows ?? 0);
   const bed = Array.from({ length: rows }, () => Object.freeze(Array.from({ length: base.w }, () => '.' as Cell | null)));
   const grid = Object.freeze({
     w: base.w,
@@ -181,7 +181,11 @@ export function cargoCellsGained(chassisId: string, defId: string): number {
 export function cargoRowsOn(chassisId: string, defId: string): number {
   const def = partDef(defId);
   if (def.kind !== 'cargo') throw new Error(`${defId} is not a cargo part`);
-  return Math.floor(def.extraRows * cargoRowFactor(chassisId));
+  return rowsAtWidth(chassisId, Math.floor(def.extraRows * cargoRowFactor(chassisId)));
+}
+
+function rowsAtWidth(chassisId: string, oldRows: number): number {
+  return Math.round((oldRows * chassisDef(chassisId).oldGrid.width) / baseGrid(chassisId).w);
 }
 
 export function onDeadRow(g: Grid, item: GridItem): boolean {
