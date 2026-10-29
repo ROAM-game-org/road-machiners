@@ -53,3 +53,9 @@ export function shadowHolds(shadow: FireSpan, angle: number): boolean {
 export function roundedSpans(spans: FireSpan[]): FireSpan[] {
   return spans.map((s) => ({ from: Math.round(s.from * 10) / 10, to: Math.round(s.to * 10) / 10 }));
 }
+
+export const SCOUT_THREE_GUNS: readonly { defId: 'heavyMg'; wear: 0; at: { x: number; y: number; rot: Rot } }[] = [
+  { defId: 'heavyMg', wear: 0, at: { x: 4, y: 5, rot: 0 } },
+  { defId: 'heavyMg', wear: 0, at: { x: 2, y: 2, rot: 1 } },
+  { defId: 'heavyMg', wear: 0, at: { x: 1, y: 9, rot: 3 } },
+];

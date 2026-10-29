@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SCOUT_THREE_GUNS } from '../test/layout-spots';
 import { NPCS, type TraitId } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { REGION } from '../data/region';
@@ -30,12 +31,7 @@ function createNpc(templateId = 'scavenger') {
   return { world, npc };
 }
 
-const THREE_GUNS = [
-  { defId: 'stockEngine', wear: 0 },
-  { defId: 'mg', wear: 0, at: { x: 4, y: 4, rot: 0 as const } },
-  { defId: 'mg', wear: 0, at: { x: 1, y: 4, rot: 2 as const } },
-  { defId: 'mg', wear: 0, at: { x: 1, y: 8, rot: 0 as const } },
-];
+const THREE_GUNS = [{ defId: 'stockEngine', wear: 0 }, ...SCOUT_THREE_GUNS];
 
 function loadedTrader(world: World, pos: { x: number; y: number }, parts = [{ defId: 'mg', wear: 0 }, { defId: 'stockEngine', wear: 0 }]): Vehicle {
   const trader = makeVehicle(world, { faction: 'independent', chassisId: 'scout', parts, spares: [], cargo: {}, pos, heading: 0, brain: null });

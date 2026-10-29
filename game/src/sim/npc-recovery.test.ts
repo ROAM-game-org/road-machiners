@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SCOUT_THREE_GUNS } from '../test/layout-spots';
 import { NPC_BEHAVIOR, NPCS, SPAWN, type TraitId } from '../data/npcs';
 import { REGION } from '../data/region';
 import { planNpcOrders } from './ai';
@@ -54,8 +55,7 @@ function shareOfSeeds(world: World, npcId: string, check: (x: World, npc: Vehicl
 }
 
 function addThreeGunScout(world: World, pos: { x: number; y: number }): Vehicle {
-  const at = (x: number, y: number, rot: 0 | 2) => ({ defId: 'mg', wear: 0, at: { x, y, rot } });
-  const parts = [{ defId: 'stockEngine', wear: 0 }, at(4, 4, 0), at(1, 4, 2), at(1, 8, 0)];
+  const parts = [{ defId: 'stockEngine', wear: 0 }, ...SCOUT_THREE_GUNS];
   const mate = makeVehicle(world, { faction: 'independent', chassisId: 'scout', parts, spares: [], cargo: {}, pos, heading: 0, brain: null });
   world.vehicles.push(mate);
   return mate;
@@ -150,6 +150,7 @@ describe('NPC gameplay recovery', () => {
     const enemy = addVehicle(world, 'scrapjaw', 'buggy', ['mg'], { x: 33, y: 30 });
     fireAt(world, enemy, npc);
     corePart(npc, 'cab').hp = 1;
+    corePart(npc, 'transmission').hp = 1;
     const odds = fightOddsAgainst(world, npc, enemy);
     expect(odds.getaway).toBeLessThan(odds.win);
     const fled = shareOfSeeds(world, npc.id, (x, me) => {
