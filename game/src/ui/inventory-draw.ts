@@ -12,7 +12,7 @@ import { el } from "./dom";
 import { cellSteps } from "../sim/body";
 import { uiSize } from "./ui-size";
 import { truckOutline } from "./plans";
-import { coreArt, drawnSprite, partArt, tierAttr, truckBackdrop, type GarageLook } from "./garage-draw";
+import { coreArt, dressGrid, drawnSprite, partArt, tierAttr, truckBackdrop, type GarageLook } from "./garage-draw";
 import { conditionMeter, gridItemIcon, itemTip, jobDone, toneStyle, workMeterEl } from "./cards";
 import { kg } from "./units";
 import { byId, t, type Msg } from "../text/msg";
@@ -142,25 +142,18 @@ export function lootGoodItem(good: string): GridItem {
   return { id: `loot-${good}`, x: 0, y: 0, rot: 0, kind: "good", good };
 }
 
-export function gridEl(g: Grid, chassisId: string, m: GridMetrics, look: GarageLook | null): HTMLElement {
+export function gridEl(g: Grid, chassisId: string, m: GridMetrics, look: GarageLook | null, picked: { item: GridItem } | null): HTMLElement {
   const size = gridSize(m);
   const grid = el("div", { class: look ? "inv-grid drawn" : "inv-grid", style: `width:${size.width}px;height:${size.height}px` });
   grid.addEventListener("contextmenu", (e) => e.preventDefault());
   grid.append(look ? lookUnder(look, m) : truckOutline(chassisId, m));
-  const taken = look ? takenCells(look.truck, m.chassisRows) : new Set<string>();
   for (let y = 0; y < g.h; y++)
     for (let x = 0; x < g.w; x++) {
       const node = gridCellEl(g, x, y, m);
-      if (node && taken.has(`${x},${y}`)) node.classList.add("taken");
       if (node) grid.append(node);
     }
+  if (look) dressGrid(grid, m, picked?.item ?? null);
   return grid;
-}
-
-export function takenCells(truck: Vehicle, chassisRows: number): Set<string> {
-  const loose = truck.items.filter((it) => it.kind !== "part" || partDef(it.part.defId).kind !== "core");
-  const cells = loose.flatMap((it) => itemCells(it)).filter((c) => c.y < chassisRows);
-  return new Set(cells.map((c) => `${c.x},${c.y}`));
 }
 
 function lookUnder(look: GarageLook, m: GridMetrics): HTMLElement {
@@ -211,7 +204,7 @@ function itemClasses(it: GridItem, mounted: boolean, outer: boolean, drawn: bool
   return `${itemClass(it, mounted)}${outer ? " outer" : ""}${drawn ? " drawn" : ""}`;
 }
 
-const LAYERS_PER_BAND = 32;
+export const LAYERS_PER_BAND = 32;
 
 export function drawnLayer(it: GridItem, art: HTMLElement | null): string {
   if (!art) return "";
@@ -333,15 +326,21 @@ export function blockerIds(v: Vehicle, it: GridItem): string[] {
   return gunBlockers(v, it).map((b) => b.id);
 }
 
-export function fanSvg(v: Vehicle, it: GridItem, m: GridMetrics): SVGSVGElement {
+export type PixelPoint = { x: number; y: number };
+
+function tileCenter(m: GridMetrics, it: GridItem): PixelPoint {
   const { w, h } = itemSize(it);
   const box = rectOf(m, it.x, it.y, w, h);
-  const cx = box.left + box.width / 2;
-  const cy = box.top + box.height / 2;
+  return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+}
+
+export function fanSvg(v: Vehicle, it: GridItem, m: GridMetrics, pivot: PixelPoint | null): SVGSVGElement {
+  const { x: cx, y: cy } = pivot ?? tileCenter(m, it);
   const size = gridSize(m);
   const radius = Math.max(size.width, size.height);
   const svg = document.createElementNS(SVG, "svg");
   svg.setAttribute("class", "inv-fan");
+  svg.style.zIndex = String(LAYERS_PER_BAND);
   svg.setAttribute("width", String(size.width));
   svg.setAttribute("height", String(size.height));
   for (const span of gunSpans(v, it)) {
