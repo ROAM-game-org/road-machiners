@@ -2,7 +2,7 @@ import { partDef, type WeaponDef } from '../data/parts';
 import { describe, expect, it } from 'vitest';
 import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
-import { aimWithin, openArcShares, gunBlockers, gunLayoutScore, gunSpans, laneCount, lanePoint, partLane, planBlast, planLane, sideToward, spanDegrees, spanSides, spansHold, walkLane, type FireSpan } from './armor';
+import { aimWithin, openArcShares, gunBlockers, gunLayoutScore, gunSpans, laneCount, lanePoint, laneCellShare, partLane, planBlast, planLane, sideToward, spanDegrees, spanSides, spansHold, walkLane, type FireSpan } from './armor';
 import { fireBlock, inArc, resolveDestroyed } from './combat';
 import { GRID_CELL, cellCenter, spanOf } from './body';
 import { makePart } from './factory';
@@ -120,7 +120,7 @@ describe('walkLane', () => {
   it('armor scales damage down when pen is below it, and a round of pen equal to it spends all its damage there', () => {
     const { v, plate } = plated();
     const armor = partDef(plate.defId).armor;
-    const cellPen = RULES.cellPen * RULES.laneCellShare.lengthwise;
+    const cellPen = RULES.cellPen * laneCellShare(v.chassisId, 'front');
     const weak = planLane(v, 'front', 2, { damage: 12, pen: armor / 2 + cellPen, blast: false, armorShare: 1 })[0].amount;
     const full = planLane(v, 'front', 2, { damage: 12, pen: armor + cellPen, blast: false, armorShare: 1 })[0].amount;
     expect(weak).toBeCloseTo(6);

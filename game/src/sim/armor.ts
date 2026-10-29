@@ -1,6 +1,7 @@
 import { RULES } from '../data/rules';
 import { PHYSICS } from '../data/physics';
-import { cellCenter, cellRect, cellSteps, spanOf, unitOfRow, unitsOf, type CellRect } from './body';
+import { chassisDef } from '../data/chassis';
+import { GRID_CELL, cellCenter, cellRect, cellSteps, spanOf, unitOfRow, unitsOf, type CellRect } from './body';
 import { footprint, nearestUnit, poseToWorld, sideReach, unitPose, worldToPose, type UnitPose } from './rig';
 
 import { isShield, partDef, type PartDef } from '../data/parts';
@@ -243,11 +244,11 @@ export function walkLane(world: World, v: Vehicle, side: Side, lane: number, rou
 }
 
 export function planLane(v: Vehicle, side: Side, lane: number, round: Round): { part: PartInstance; amount: number }[] {
-  return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round, 1, cellShare(side), spenderOf(v));
+  return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round, 1, laneCellShare(v.chassisId, side), spenderOf(v));
 }
 
 export function planCrashLane(v: Vehicle, side: Side, lane: number, round: Round, falloff = RULES.crashFalloff): { part: PartInstance; amount: number }[] {
-  return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round, falloff, cellShare(side), hitterOf(v));
+  return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round, falloff, laneCellShare(v.chassisId, side), hitterOf(v));
 }
 
 export function sidePlanner(v: Vehicle): (side: Side, round: Round) => { part: PartInstance; amount: number }[][] {
@@ -256,9 +257,10 @@ export function sidePlanner(v: Vehicle): (side: Side, round: Round) => { part: P
   const sides = new Map<Side, LaneCell[][]>();
   const spend = spenderOf(v);
   return (side, round) => {
+    const share = laneCellShare(v.chassisId, side);
     let lanes = sides.get(side);
     if (!lanes) sides.set(side, (lanes = Array.from({ length: laneCount(v, side) }, (_, lane) => laneOwners(g, owner, side, lane))));
-    return lanes.map((cells) => walkCells(cells, round, 1, cellShare(side), spend));
+    return lanes.map((cells) => walkCells(cells, round, 1, share, spend));
   };
 }
 
@@ -267,13 +269,18 @@ type LaneCell = { parts: readonly PartInstance[] } | null;
 const NO_PARTS: readonly PartInstance[] = [];
 
 function laneOwners(g: Grid, owner: Map<number, PartInstance[]>, side: Side, lane: number): LaneCell[] {
-  return laneCells(g, side, lane).map((c) => (g.cells[c.y][c.x] === null && c.y < g.deadFrom ? null : { parts: owner.get(cellKey(c.x, c.y)) ?? NO_PARTS }));
+  return laneCells(g, side, lane).map((c) => (isRingCorner(g, c) ? null : { parts: owner.get(cellKey(c.x, c.y)) ?? NO_PARTS }));
+}
+
+function isRingCorner(g: Grid, c: { x: number; y: number }): boolean {
+  return (c.x === 0 || c.x === g.w - 1) && (c.y === 0 || c.y === g.chassisH - 1) && g.cells[c.y][c.x] === null;
 }
 
 type Spend = (part: PartInstance, left: { pen: number; damage: number }, round: Round) => { part: PartInstance; amount: number };
 
-function cellShare(side: Side): number {
-  return side === 'front' || side === 'rear' ? RULES.laneCellShare.lengthwise : RULES.laneCellShare.crosswise;
+export function laneCellShare(chassisId: string, side: Side): number {
+  const { row, col } = chassisDef(chassisId).oldGrid;
+  return GRID_CELL / (side === 'front' || side === 'rear' ? row : col);
 }
 
 function walkCells(cells: LaneCell[], round: Round, falloff: number, share: number, spend: Spend): { part: PartInstance; amount: number }[] {
