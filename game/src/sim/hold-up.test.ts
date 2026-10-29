@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { RULES } from '../data/rules';
-import { UNITS } from '../data/units';
 import { getUpkeepReserve, roadGoodAsk } from './economy';
 import { cashCut, hasRansom, haulPrice, haulValue, ransomOf } from './haul';
 import { addGoods, cargoRoom } from './inventory';
@@ -30,15 +29,13 @@ function fillRoom(w: World, v: Vehicle): void {
   while (cargoRoom(v) > 0) addGoods(w, v, 'scrap', 1);
 }
 
-const whole = (cents: number) => cents / UNITS.centsPerM;
-
 describe('the hold-up price', () => {
   it('is the road ask of the haul, rounded up to whole M', () => {
     const { w, robber, victim } = setup();
     addGoods(w, victim, 'electronics', 2);
     const ransom = ransomOf(w, robber, victim);
     expect(ransom.haul.length).toBeGreaterThan(0);
-    expect(ransom.money).toBe(Math.ceil((2 * roadGoodAsk('electronics')) / UNITS.centsPerM) * UNITS.centsPerM);
+    expect(ransom.money).toBe(roadGoodAsk('electronics', 2));
     expect(ransom.money).toBe(haulPrice(ransom.haul));
     expect(ransom.money).toBeGreaterThan(haulValue(ransom.haul));
   });
@@ -46,7 +43,7 @@ describe('the hold-up price', () => {
   it('asks 19 M for two scrap crates', () => {
     const { w, robber, victim } = setup();
     addGoods(w, victim, 'scrap', 2);
-    expect(ransomOf(w, robber, victim).money).toBe(1900);
+    expect(ransomOf(w, robber, victim).money).toBe(19);
   });
 
   it('is the same for an NPC victim and the player for the same goods', () => {
@@ -67,10 +64,10 @@ describe('the hold-up price', () => {
     fillRoom(w, robber);
     addGoods(w, victim, 'electronics', 2);
     const reserve = getUpkeepReserve(victim);
-    victim.resources!.money = reserve + 400;
+    victim.resources!.money = reserve + 4;
     const ransom = ransomOf(w, robber, victim);
     expect(ransom.haul).toEqual([]);
-    expect(ransom.money).toBe(Math.floor((400 * RULES.holdUp.cutShare) / UNITS.centsPerM) * UNITS.centsPerM);
+    expect(ransom.money).toBe(Math.floor(4 * RULES.holdUp.cutShare));
   });
 
   it('is nothing at or under the reserve and in debt', () => {
@@ -87,7 +84,7 @@ describe('the hold-up price', () => {
     victim.resources!.money = getUpkeepReserve(victim) + RULES.holdUp.cutCap * 10 + 37;
     expect(cashCut(w, victim)).toBe(RULES.holdUp.cutCap);
     victim.resources!.money = getUpkeepReserve(victim) + 1234;
-    expect(cashCut(w, victim) % UNITS.centsPerM).toBe(0);
+    expect(Number.isInteger(cashCut(w, victim))).toBe(true);
   });
 
   it('makes a full robber hold up a rich victim and not a poor one', () => {
@@ -175,6 +172,6 @@ describe('settling a hold-up', () => {
     const ransom = ransomOf(w, robber, victim);
     giveInTo(w, victim, robber, ransom);
     expect(getResources(w, victim).money).toBeGreaterThanOrEqual(getUpkeepReserve(victim));
-    expect(whole(getResources(w, robber).money)).toBe(whole(ransom.money));
+    expect(getResources(w, robber).money).toBe(ransom.money);
   });
 });

@@ -79,6 +79,7 @@ import { startStanding } from "../data/npc-behavior";
 import { driftStanding } from "./relations";
 import { advanceSunward, freshSunward, HOLLOW_ID } from "./sunward";
 import { hollowObstaclesFor } from "./hollow-layout";
+import { payoutM } from './money';
 
 export function seedStreams(seed: number): Pick<World, 'seed' | 'rngState' | 'marketRng' | 'nameRng' | 'searchRng'> {
   if (!Number.isInteger(seed)) throw new Error(`Seed must be an integer, got ${seed}`);
@@ -758,6 +759,6 @@ function placePart(world: World, truck: Vehicle, item: CarriedItem & { kind: 'pa
 
 function carryGoods(world: World, truck: Vehicle, goods: Record<string, number>, stay: boolean): void {
   for (const [good, units] of Object.entries(goods)) {
-    if (good in GOODS) world.player.money += (units - (stay ? addGoods(world, truck, good, units) : 0)) * GOODS[good].value;
+    if (good in GOODS) world.player.money += payoutM((units - (stay ? addGoods(world, truck, good, units) : 0)) * GOODS[good].value);
   }
 }

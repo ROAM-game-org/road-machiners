@@ -18,7 +18,6 @@ import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import { remember } from './memory';
 import { flatChoices, pickText } from '../test/quest-testkit';
 import type { World } from './types';
-import { UNITS } from '../data/units';
 import { cloneWorld } from './world';
 
 const site = (id: string) => [...REGION.towns, ...REGION.locations].find((s) => s.id === id)!;
@@ -325,7 +324,7 @@ describe('wagon Seven', () => {
     const next = picked(talk(w, 'nose_lena', [BENCH]), [PUT,SIGN]);
 
     expect(worldVars(next).wagon_fate).toBe('logged');
-    expect(next.player.money - w.player.money).toBe(20 * UNITS.centsPerM);
+    expect(next.player.money - w.player.money).toBe(20);
     expect(choices(next, 'nose_lena')).not.toContain(BENCH);
   });
 
@@ -335,7 +334,7 @@ describe('wagon Seven', () => {
     const next = picked(talk(w, 'nose_lena', [BENCH]), [PUT,ASK_TELLER]);
 
     expect(worldVars(next).wagon_fate).toBe('admitted');
-    expect(next.player.money - w.player.money).toBe(20 * UNITS.centsPerM);
+    expect(next.player.money - w.player.money).toBe(20);
   });
 
   it('logs the stub without a fee when Teller will not sign and calls the driver a looter', () => {
@@ -353,7 +352,7 @@ describe('wagon Seven', () => {
     const next = picked(talk(w, 'nose_lena', [BENCH]), [PUT,'Step outside with Teller.', "Take Teller's M's."]);
 
     expect(worldVars(next).wagon_fate).toBe('buried');
-    expect(next.player.money - w.player.money).toBe(60 * UNITS.centsPerM);
+    expect(next.player.money - w.player.money).toBe(60);
     expect(questView(startQuest(next, QUESTS, 'nose_lena', 'start'), QUESTS).lines[0].text).toContain('Teller drinks better');
   });
 
@@ -371,7 +370,7 @@ describe('wagon Seven', () => {
       const w = holding('salvage-yard', pin);
       const next = talk(w, 'yard_sefa', ['I\'ve got the brake rod from wagon Seven.','Sell her the stub and the place.']);
       expect(worldVars(next).wagon_fate).toBe('sold');
-      expect(next.player.money - w.player.money).toBe(price * UNITS.centsPerM);
+      expect(next.player.money - w.player.money).toBe(price);
     }
   });
 
@@ -452,7 +451,7 @@ describe('the depot leak at Nose', () => {
     expect(view.view).toBe('page');
     expect(view.stats).toEqual([
       { name: 'watches', label: 'Watches', value: '4' },
-      { name: 'money', label: "M's", value: `${w.player.money / UNITS.centsPerM} M` },
+      { name: 'money', label: "M's", value: `${w.player.money} M` },
       { name: 'alarm', label: 'Talk', value: 'quiet' },
     ]);
     expect(view.facts).toEqual([expect.stringContaining('Duty board: a red rag marks')]);
@@ -466,7 +465,7 @@ describe('the depot leak at Nose', () => {
 
     const done = talk(w, 'nose_kovac', [...SOLID_CASE, 'Go to Kovac with a name.', 'Corporal Vance.']);
 
-    expect(done.player.money - w.player.money).toBe(150 * UNITS.centsPerM);
+    expect(done.player.money - w.player.money).toBe(150);
     expect(done.player.quests.world).toEqual({ depot_thief: 'vance' });
     expect(done.player.quests.session).toBeNull();
     expect(questView(startQuest(done, QUESTS, 'nose_kovac', 'start'), QUESTS).lines[0].text).toContain('The depot is quiet these days.');
@@ -491,7 +490,7 @@ describe('the depot leak at Nose', () => {
   it('sells out for the envelope, or loses the trail to too much noise', () => {
     const w = parkedAt('nose');
     const sold = talk(w, 'nose_kovac', [...OPEN, LEDGER, GATE, SABINE, 'Let her see what you know.', 'Take the envelope.']);
-    expect(sold.player.money - w.player.money).toBe(60 * UNITS.centsPerM);
+    expect(sold.player.money - w.player.money).toBe(60);
     expect(sold.player.quests.world).toEqual({ depot_thief: 'bought' });
 
     const loud = talk(w, 'nose_kovac', [...OPEN, LEDGER, GATE, "Search Vance's bunk.", SABINE, 'Lean on her.']);
@@ -505,11 +504,11 @@ describe('the depot leak at Nose', () => {
     const index = pickIndex(at, PAY);
     expect(questView(at, QUESTS)).toMatchObject({ costs: expect.arrayContaining([20]), locked: [false, false, false] });
     const paid = chooseQuestOption(at, QUESTS, index);
-    expect(w.player.money - paid.player.money).toBe(20 * UNITS.centsPerM);
+    expect(w.player.money - paid.player.money).toBe(20);
     expect(vars(paid)).toMatchObject({ knows_scar: true });
 
     const broke = cloneWorld(w);
-    broke.player.money = 19 * UNITS.centsPerM;
+    broke.player.money = 19;
     const short = talk(broke, 'nose_kovac', [...OPEN, SABINE]);
     expect(questView(short, QUESTS).locked[pickIndex(short, PAY)]).toBe(true);
     expect(() => pickText(short, PAY)).toThrow('costs 20 M, more than the player holds');
@@ -558,7 +557,7 @@ describe('locals at stalls', () => {
 
     const paid = talk(w, 'pump_agnes', [...OPEN, 'Tell him what she said.', 'Take the purse.']);
     expect(paid.player.quests.world).toEqual({ pipe_fate: 'searched', marr_regard: 'bought' });
-    expect(paid.player.money - w.player.money).toBe(20 * UNITS.centsPerM);
+    expect(paid.player.money - w.player.money).toBe(20);
     expect([...choices(paid, 'pump_agnes')].sort()).toEqual(['Goodbye.'].sort());
 
     const unpaid = talk(w, 'pump_agnes', [...OPEN, 'Tell him what she said.', 'Leave it in his hand.']);
@@ -593,7 +592,7 @@ describe('locals at stalls', () => {
 
     expect(questView(lost, QUESTS).choices).toContain(SIGN);
     expect(lost.player.quests.world).toEqual({ marr_regard: 'enemy' });
-    expect(w.player.money - lost.player.money).toBe(50 * UNITS.centsPerM);
+    expect(w.player.money - lost.player.money).toBe(50);
   });
 
   it('pays the gate patrol with a bribe, signs Mirela\'s book and pays on delivery', () => {
@@ -602,7 +601,7 @@ describe('locals at stalls', () => {
 
     const signed = talk(w, 'pump_agnes', [...gate, SIGN]);
     expect(signed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'delivered' });
-    expect(signed.player.money - w.player.money).toBe(10 * UNITS.centsPerM);
+    expect(signed.player.money - w.player.money).toBe(10);
 
     const filed = talk(w, 'pump_agnes', [...gate, 'Keep your hand off the cloth.']);
     expect(filed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'filed' });
@@ -614,7 +613,7 @@ describe('locals at stalls', () => {
 
     const seized = talk(w, 'pump_agnes', [...gate, LIE, 'Hand it over.']);
     expect(seized.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'seized' });
-    expect(w.player.money - seized.player.money).toBe(40 * UNITS.centsPerM);
+    expect(w.player.money - seized.player.money).toBe(40);
 
     const handed = talk(w, 'pump_agnes', [...gate, 'Hand him the copy.']);
     expect(handed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'seized' });
@@ -626,7 +625,7 @@ describe('locals at stalls', () => {
 
     const bought = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', LIE, 'Pay him to forget it.', LOCK]);
     expect(questView(bought, QUESTS).choices).toContain(SIGN);
-    expect(w.player.money - bought.player.money).toBe(100 * UNITS.centsPerM);
+    expect(w.player.money - bought.player.money).toBe(100);
   });
 
   it('bills a failed glass window fit on the top terrace, shuts the terrace and still reaches the lock house', () => {
@@ -634,7 +633,7 @@ describe('locals at stalls', () => {
 
     const sheared = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE, BOLT]);
     expect(questView(sheared, QUESTS).choices).toEqual([LOCK]);
-    expect(w.player.money - sheared.player.money).toBe(90 * UNITS.centsPerM);
+    expect(w.player.money - sheared.player.money).toBe(90);
 
     const signed = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE, BOLT, LOCK, SIGN]);
     expect(signed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'delivered' });
@@ -654,7 +653,7 @@ describe('locals at stalls', () => {
     const read = talk(w, 'pump_agnes', [...ROAD, 'Cut the seal and read the copy.', 'Drive on to the Bowl gate.', "Slip the older one a few M's.", 'Hold the copy up in the market.']);
 
     expect(read.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'read' });
-    expect(w.player.money - read.player.money).toBe(90 * UNITS.centsPerM);
+    expect(w.player.money - read.player.money).toBe(90);
   });
 });
 
@@ -788,9 +787,9 @@ describe('Petra Quell at the Roadhouse', () => {
     target.brain = npcBrain('trader', target.pos, ['trader']);
     w.player.contracts.push({
       id: 'ct-s', shop: 'bowl', kind: 'search', target: target.id, driver: 'Mack Holt', template: 'trader',
-      lead: { at: { x: 0, y: 0 }, turn: 10 }, reward: 3700, deadline: 900, window: 600, tier: 1, delivered: false,
+      lead: { at: { x: 0, y: 0 }, turn: 10 }, reward: 37, deadline: 900, window: 600, tier: 1, delivered: false,
     });
-    w.player.money = 10 * UNITS.centsPerM;
+    w.player.money = 10;
     if (withCar) {
       const car = addVehicle(w, 'marshals', 'scout', ['stockEngine'], { x: 650, y: 100 });
       car.brain = npcBrain('marshal', car.pos, ['marshal']);
@@ -801,7 +800,7 @@ describe('Petra Quell at the Roadhouse', () => {
     return w;
   }
 
-  const money = (w: World) => w.player.money / UNITS.centsPerM;
+  const money = (w: World) => w.player.money;
 
   it('lists Petra at the Marshalls desk', () => {
     expect(localsAt(CRIME.post).map((l) => l.id)).toEqual(['petra']);

@@ -27,7 +27,7 @@ describe('inventory grid', () => {
   it('the standard kit starts with a scout, 333 M, two cargo parts, and full resources', () => {
     const w = emptyWorld();
     expect(w.vehicles[0].chassisId).toBe('scout');
-    expect(w.player.money).toBe(33300);
+    expect(w.player.money).toBe(333);
     expect(goodsCount(w.vehicles[0]).parts).toBe(2);
     expect(w.player.fuel).toBe(CHASSIS.scout.fuelCap);
     expect(w.player.supplies).toBe(RULES.baseSupplies);

@@ -42,7 +42,7 @@ beforeAll(() => {
 });
 
 function claimFor(stock: SalvageStock, part: PartInstance, over: Partial<ClaimContract> = {}): ClaimContract {
-  return { id: 'ct-claim', shop: 'bowl', kind: 'claim', stockId: stock.id, at: { ...stock.pos }, partId: part.id, defId: part.defId, reward: 900, deadline: 900, window: 900, tier: PARTS[part.defId].tier, rivalAt: 900, rival: null, leads: [], ...over };
+  return { id: 'ct-claim', shop: 'bowl', kind: 'claim', stockId: stock.id, at: { ...stock.pos }, partId: part.id, defId: part.defId, reward: 9, deadline: 900, window: 900, tier: PARTS[part.defId].tier, rivalAt: 900, rival: null, leads: [], ...over };
 }
 
 function claimWorld(posted: 'board' | 'held' = 'board'): { w: World; stock: SalvageStock; part: PartInstance; claim: ClaimContract } {
@@ -205,7 +205,7 @@ describe('delivery', () => {
     w = acceptContract(w, 'ct-claim');
     expect(w.player.contracts).toHaveLength(1);
     w = deliverContract(w, 'ct-claim');
-    expect(w.player.money).toBe(money + 900);
+    expect(w.player.money).toBe(money + 9);
     expect(w.player.contracts).toEqual([]);
     expect(practiceOf(w, 'contract')).toHaveLength(1);
     expect(spareParts(playerVehicle(w)).some((p) => p.id === part.id)).toBe(false);

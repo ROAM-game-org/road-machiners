@@ -48,4 +48,4 @@ for (const step of recordTurns(seed, 'searcher', turns)) {
   if (step.world.turn % 25 === 0) save(lines, posts);
 }
 const summary = save(lines, posts);
-console.log(`searcher-${seed}: ${summary.turns} turns, ${posts.length} searches posted, ${summary.effort.claimed} claimed, efforts ${summary.effort.efforts.join(', ') || 'none'}, running cost ${summary.effort.runningCost.toFixed(1)} cents a turn, rewardTurns ${summary.rewardTurns ?? 'none'}`);
+console.log(`searcher-${seed}: ${summary.turns} turns, ${posts.length} searches posted, ${summary.effort.claimed} claimed, efforts ${summary.effort.efforts.join(', ') || 'none'}, running cost ${summary.effort.runningCost.toFixed(1)} M a turn, rewardTurns ${summary.rewardTurns ?? 'none'}`);

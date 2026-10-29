@@ -26,7 +26,7 @@ import { isDefeated, isKnockedOut } from './defeat';
 import { fightOdds, type FightOdds } from './fight-odds';
 import { vehicleById } from './damage';
 import { sensesOf } from './detect';
-import { affordableBuyCount, getTradePrice, getUpkeepReserve } from './economy';
+import { affordableBuyCount, getTradeRate, getUpkeepReserve } from './economy';
 export { getUpkeepReserve } from './economy';
 import { cargoRoom } from './inventory';
 import { hasPerceivedLoot, knowsCargo, perceivedLoad } from './look-over';
@@ -312,8 +312,8 @@ export type TradeOutlook = { buy: number; profit: number; count: number; fuel: n
 
 export function tradeOutlook(world: World, vehicle: Vehicle, plan: TradePlan, spend: number, trip: number, rig = tradeRig(world, vehicle)): TradeOutlook {
   const fuel = tripFuelCost(world, vehicle, trip, rig.fuelPerTile);
-  const buy = getTradePrice(world, vehicle, plan.source, plan.good, 'buy');
-  const profit = getTradePrice(world, vehicle, plan.sellShop, plan.good, 'sell') - buy;
+  const buy = getTradeRate(world, vehicle, plan.source, plan.good, 'buy');
+  const profit = getTradeRate(world, vehicle, plan.sellShop, plan.good, 'sell') - buy;
   const count = affordableBuyCount(world, vehicle, plan.source, plan.good, rig.room, spend);
   const risk = count * goodValue(plan.good) * legRisk(world, plan.source, plan.sellShop);
   const net = count * profit - fuel - risk;

@@ -102,7 +102,7 @@ describe('a new world by mode', () => {
   it('gives the Chaos Highway player the Chaos Highway kit with no opening', () => {
     const world = chaosHighwayWorld(7);
 
-    expect(world.player.money).toBe(8000);
+    expect(world.player.money).toBe(80);
     expect(world.player.autoRepair).toBe(true);
     expect(world.vehicles[0].items.filter((it) => it.kind === 'good' && it.good === 'parts')).toHaveLength(1);
   });

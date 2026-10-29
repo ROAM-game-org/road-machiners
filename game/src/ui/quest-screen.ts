@@ -14,7 +14,6 @@ import type { TownFrame } from './town';
 import { choiceButtons, drawLines, lastTagged, pagesOf, paragraphsOf, type Drawn } from './quest-lines';
 import { renderLine, TermTip, type Reveal } from './quest-text';
 import { MONEY_STAT } from '../data/quests';
-import { UNITS } from '../data/units';
 import { token } from './tokens';
 import { uiSize } from './ui-size';
 
@@ -55,14 +54,14 @@ export function questFrameFits(width: number, height: number, stacked: boolean):
   return width <= (height * across) / down + slack;
 }
 
-function moneyChange(cents: number): Msg {
-  const amount = Math.round(Math.abs(cents) / UNITS.centsPerM);
-  return cents > 0 ? t('quest.moneyGained', { amount }) : t('quest.moneyPaid', { amount });
+function moneyChange(change: number): Msg {
+  const amount = Math.abs(change);
+  return change > 0 ? t('quest.moneyGained', { amount }) : t('quest.moneyPaid', { amount });
 }
 
-function statRow(stat: QuestView['stats'][number], change: number, cents: number): HTMLElement {
+function statRow(stat: QuestView['stats'][number], change: number, balance: number): HTMLElement {
   const delta = change === 0 ? null : el('span', { class: change > 0 ? 'quest-delta good' : 'quest-delta bad' }, moneyChange(change));
-  const value = stat.name === MONEY_STAT ? t('call.money', { amount: Math.floor(cents / UNITS.centsPerM) }) : verbatim(stat.value);
+  const value = stat.name === MONEY_STAT ? t('call.money', { amount: balance }) : verbatim(stat.value);
   const label = stat.name === MONEY_STAT ? null : el('span', {}, verbatim(stat.label));
   return el('div', { class: change === 0 ? 'quest-stat' : 'quest-stat new' }, label, el('b', {}, delta, value));
 }
