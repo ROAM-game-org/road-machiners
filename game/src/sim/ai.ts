@@ -497,14 +497,18 @@ function horizon(world: World, v: Vehicle): { vs: number; t: number } {
   return { vs, t: 1 + vs / sv.brake };
 }
 
+function sweptReach(x: Vehicle, travel: number): number {
+  return x.order?.kind === "stopAt" ? Math.min(travel, dist(x.pos, x.order.dest)) : travel;
+}
+
 function sweptPath(world: World, v: Vehicle, x: Vehicle): Blocker[] {
   const sx = vehicleStats(world, x);
   const r = sx.radius;
   const radii = vehicleStats(world, v).radius + r;
   const { vs, t } = horizon(world, v);
   const xs = Math.min(sx.maxSpeed, x.speed + sx.accel);
-  const reach = xs * t;
-  const steps = Math.ceil(reach / r);
+  const reach = sweptReach(x, xs * t);
+  const steps = Math.max(1, Math.ceil(reach / r));
   const tail = Math.cos(angleDiff(x.heading, bearing(v.pos, x.pos))) > 0 ? radii : 0;
   const circles: Blocker[] = [];
   for (let i = 0; i <= steps; i++) {
