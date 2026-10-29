@@ -556,6 +556,8 @@ describe('talk of the order', () => {
     expect(askCrater(w, npc).player.call?.line.line).toBe(talkOf(npc).repeatLine);
   });
 
+  const BUSIEST_ACCOUNT_AT_ONE_IN_2500 = 16;
+
   it('spreads the accounts over the drivers, with the eight lamps and the lost cousin each told by one account only', () => {
     const w = crater();
     w.turn = duskTurn(1) - 100;
@@ -567,7 +569,7 @@ describe('talk of the order', () => {
     const counts = new Map<string, number>();
     for (const a of accounts) counts.set(a, (counts.get(a) ?? 0) + 1);
     expect(counts.size).toBeGreaterThanOrEqual(6);
-    expect(Math.max(...counts.values())).toBeLessThanOrEqual(10);
+    expect(Math.max(...counts.values())).toBeLessThanOrEqual(BUSIEST_ACCOUNT_AT_ONE_IN_2500);
     const text = (id: string) => resolve(t(`line.${id}` as never, {} as never), 'en');
     expect(CRATER_ACCOUNTS.standing.filter((id) => /\beight\b/i.test(text(id)))).toEqual(['craterLamps']);
     expect(CRATER_ACCOUNTS.standing.filter((id) => /cousin|brother|sister|uncle|aunt/i.test(text(id)))).toEqual(['carsDraggedIntoTheDark']);
