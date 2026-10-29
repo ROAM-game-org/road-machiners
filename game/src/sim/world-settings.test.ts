@@ -76,7 +76,7 @@ describe('Damage setting', () => {
       return [...hitsOf(e.hitsA), ...hitsOf(e.hitsB)];
     };
 
-    expectScaled(crash(2), crash(1), 2);
+    expectScaled(crash(2), crash(1), 2, 3);
   });
 
   it('doubles a ground crash and a landing', () => {
