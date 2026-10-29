@@ -3,9 +3,9 @@ import { GEAR_SCORE, PRIORITY_TOP, type LoadoutPriorities } from '../data/npcs';
 import { isLineGun, PARTS, partDef, type EngineDef, type WeaponDef } from '../data/parts';
 import { makePart } from './factory';
 import { gunsBySide, killRate, targetOf, THREATS } from './fight-odds';
-import { baseGrid, cellKey, freeCells, itemCells, mountedItems, plateSide, type SideLetter } from './grid';
+import { baseGrid, cellKey, freeCells, isMounted, itemCells, mountedItems, plateSide, type SideLetter } from './grid';
 import { vehicleStats } from './stats';
-import type { Vehicle, World } from './types';
+import type { GridItem, Vehicle, World } from './types';
 import { wornDef } from './wear';
 
 const SIDE_LETTERS: readonly SideLetter[] = ['F', 'L', 'R', 'B'];
@@ -52,7 +52,13 @@ export function gearScorer(world: World, p: LoadoutPriorities, bare: Vehicle, pa
     return sides.reduce((a, b) => a + b, 0) / sides.length;
   };
 
-  const speedValue = (v: Vehicle) => vehicleStats(world, v).maxSpeed / bareSpeed / (paysFuel ? engineFuelUse(v) : 1);
+  const speeds = new Map<string, number>();
+  const speedValue = (v: Vehicle) => {
+    const key = v.items.map(speedKey(v)).sort().join('|');
+    let speed = speeds.get(key);
+    if (speed === undefined) speeds.set(key, (speed = vehicleStats(world, v).maxSpeed / bareSpeed / (paysFuel ? engineFuelUse(v) : 1)));
+    return speed;
+  };
 
   const fireValue = (v: Vehicle) => {
     const guns = gunsBySide(v);
@@ -68,6 +74,14 @@ export function gearScorer(world: World, p: LoadoutPriorities, bare: Vehicle, pa
     (p.firepower / PRIORITY_TOP) * fireValue(v) +
     GEAR_SCORE.speedWeight * (p.speed / PRIORITY_TOP) * speedValue(v) +
     (p.cargo / PRIORITY_TOP) * (1 - (1 - Math.min(1, freeCells(v) / bareCells)) ** GEAR_SCORE.cargoCurvePower);
+}
+
+function speedKey(v: Vehicle): (it: GridItem) => string {
+  return (it) => {
+    if (it.kind === 'good') return `good:${it.good}`;
+    if (it.kind === 'parcel') return `parcel:${it.contract}`;
+    return `${it.part.defId}:${it.part.wear}:${it.part.hp}:${isMounted(v.chassisId, it)}`;
+  };
 }
 
 function shieldedCells(world: World, v: Vehicle): Map<number, { side: SideLetter; miss: number }> {

@@ -227,7 +227,9 @@ function gunSpotFits(b: Build, next: Vehicle, front: boolean): boolean {
 }
 
 function bestGunSpot(b: Build, v: Vehicle, item: PartItem, score: (v: Vehicle) => number, front: boolean): Vehicle | null {
-  const fitting = mountSpots(gridOf(v), v.items, item, MOUNT_CELLS.weapon).map((spot) => ({ ...v, items: [...v.items, { ...item, ...spot }] })).filter((next) => gunSpotFits(b, next, front));
+  const all = mountSpots(gridOf(v), v.items, item, MOUNT_CELLS.weapon).map((spot) => ({ ...v, items: [...v.items, { ...item, ...spot }] }));
+  if (all.length && !keepsHaul(b, all[0])) return null;
+  const fitting = all.filter((next) => everyGunBears(next) && (!front || coversFront(next)));
   if (!fitting.length) return repacked(b, v, item, (next) => gunSpotFits(b, next, front) && meetsSpeedFloor(next, 0, b.rules.minSpeed));
   if (!meetsSpeedFloor(fitting[0], 0, b.rules.minSpeed)) return null;
   return fitting.map((next) => ({ next, value: score(next) })).reduce((a, c) => (c.value > a.value ? c : a)).next;
