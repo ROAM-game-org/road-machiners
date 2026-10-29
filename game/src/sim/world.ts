@@ -363,6 +363,7 @@ export function endTurn(
   return timed('turn', () => update(world, (w) => {
     w.turn++;
     advanceWeather(w);
+    settleMeetings(w);
     planNpcOrders(w);
     planHaulerOrder(w);
     freezeDriving(w);
