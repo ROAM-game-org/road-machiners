@@ -413,6 +413,11 @@ export function holdsPost(v: Vehicle): boolean {
   return isSunwardMember(v) && top?.kind === 'wait' && top.reason === 'keepVigil' && top.destination !== null && dist(v.pos, top.destination) <= RULES.arriveRadius * 2;
 }
 
+export function ridesOnSchedule(v: Vehicle): boolean {
+  const reason = topGoal(v)?.reason;
+  return isSunwardMember(v) && (reason === 'rideVigil' || reason === 'keepVigil' || reason === 'rideHome');
+}
+
 function postOf(world: World, v: Vehicle): Vec {
   const night = sunwardFacts(world).night!;
   const seat = gateOrder(world, night).indexOf(v.id);
