@@ -2,6 +2,7 @@ import { defaultSetup } from '../../sim/settings';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { PHYSICS } from '../../data/physics';
+import { REGION } from '../../data/region';
 import { START_KITS } from '../../data/start';
 import { ZONES, type ZoneKind } from '../../data/terrain';
 import { SCATTER } from '../../data/view';
@@ -180,6 +181,21 @@ describe('scatterPlacements', () => {
     expect(brush('swamp')).toBeLessThan(brush('plain'));
     expect(brush('crash')).toBeLessThan(0.5 * brush('plain'));
     expect(stones('crash')).toBeGreaterThan(stones('plain'));
+    expect(brush('desert')).toBeLessThan(0.5 * brush('plain'));
+  });
+
+  it('leaves Glass Flats sparser than the desert around it', () => {
+    const site = REGION.locations.find((l) => l.id === 'glass-flats')!;
+    const near = (p: { matrix: THREE.Matrix4 }, from: number, to: number) => {
+      const d = Math.hypot(at(p).x - site.pos.x, at(p).y - site.pos.y) / site.radius;
+      return d >= from && d < to;
+    };
+    const ring = (from: number, to: number) => Math.PI * site.radius ** 2 * (to ** 2 - from ** 2);
+    const inner = scrub.filter((p) => near(p, 0, 1)).length / ring(0, 1);
+    const outer = scrub.filter((p) => near(p, 2, 3)).length / ring(2, 3);
+    expect(outer).toBeGreaterThan(0);
+    expect(inner).toBeLessThan(0.25 * outer);
+    expect(pebbles.filter((p) => near(p, 0, 1)).length / ring(0, 1)).toBeLessThan(0.25 * (pebbles.filter((p) => near(p, 2, 3)).length / ring(2, 3)));
   });
 
   it('varies density in patches inside one region', () => {

@@ -21,14 +21,14 @@ export const ROAD_GAP = REGION.roadWidth / 2 + 0.3;
 export const SHOULDER_TILES = 2;
 export const OBSTACLE_GAP = 0.5;
 export const CACTUS_NEAR_ROCK = 2;
-const PEBBLE_CHANCE = 0.3;
-const PEBBLE_ON_DESERT = 0.45;
-const PEBBLE_ON_SHOULDER = 0.6;
-const SCRUB_ON_SCRUB = 0.45;
-const SCRUB_ELSEWHERE = 0.04;
-const SCRUB_ON_DESERT = 0.14;
-const CACTUS_ON_DESERT = 0.01;
-const CACTUS_BY_ROCK = 0.06;
+const PEBBLE_CHANCE = 0.15;
+const PEBBLE_ON_DESERT = 0.22;
+const PEBBLE_ON_SHOULDER = 0.3;
+const SCRUB_ON_SCRUB = 0.22;
+const SCRUB_ELSEWHERE = 0.02;
+const SCRUB_ON_DESERT = 0.07;
+const CACTUS_ON_DESERT = 0.005;
+const CACTUS_BY_ROCK = 0.03;
 const DEBRIS_CENTER = 0.03;
 const DEBRIS_EDGE = 0.5;
 const DEBRIS_SCRUB = 0.25;
@@ -203,11 +203,27 @@ export function regionShare(cx: number, cy: number): ScatterShare {
   const { frequency, depth, pebbleSeed, scrubSeed } = SCATTER.patch;
   const pebblePatch = 1 + depth * (2 * valueNoise(cx * frequency + pebbleSeed, cy * frequency + pebbleSeed) - 1);
   const scrubPatch = 1 + depth * (2 * valueNoise(cx * frequency + scrubSeed, cy * frequency + scrubSeed) - 1);
+  const glass = glassFlatsWeight(cx, cy);
+  const G = SCATTER.glassFlats.share;
   return {
-    pebbles: (pebbles + plain * R.plain.pebbles) * pebblePatch,
-    scrub: (scrub + plain * R.plain.scrub) * scrubPatch,
-    cactus: cactus + plain * R.plain.cactus,
+    pebbles: (pebbles + plain * R.plain.pebbles) * pebblePatch * (1 + glass * (G.pebbles - 1)),
+    scrub: (scrub + plain * R.plain.scrub) * scrubPatch * (1 + glass * (G.scrub - 1)),
+    cactus: (cactus + plain * R.plain.cactus) * (1 + glass * (G.cactus - 1)),
   };
+}
+
+const GLASS_FLATS = glassFlatsSite();
+
+function glassFlatsSite(): { pos: Vec; radius: number } {
+  const site = REGION.locations.find((l) => l.id === 'glass-flats');
+  if (site === undefined) throw new Error('Scatter needs the glass-flats location for its density rule');
+  return site;
+}
+
+function glassFlatsWeight(x: number, y: number): number {
+  const d = Math.hypot(x - GLASS_FLATS.pos.x, y - GLASS_FLATS.pos.y) / GLASS_FLATS.radius;
+  const k = Math.min(1, Math.max(0, (SCATTER.glassFlats.fadeOut - d) / (SCATTER.glassFlats.fadeOut - 1)));
+  return k * k * (3 - 2 * k);
 }
 
 function regional(c: Chances, share: ScatterShare): Chances {
