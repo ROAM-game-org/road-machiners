@@ -15,6 +15,7 @@ import { inShade, sunAt } from './sun';
 import { straightClear } from './path';
 import { vehicleStats } from './stats';
 import { cloneWorld, endTurn } from './world';
+import { makeVehicle } from './factory';
 import { addVehicle, emptyWorld, finishBusiness, npcBrain, sizedUp, testDrive } from './testkit';
 import { siteGates, sitePads } from './sites';
 import { budget } from '../test/budget';
@@ -29,8 +30,16 @@ function createNpc(templateId = 'scavenger') {
   return { world, npc };
 }
 
-function loadedTrader(world: World, pos: { x: number; y: number }, parts = ['mg', 'stockEngine']): Vehicle {
-  const trader = addVehicle(world, 'independent', 'scout', parts, pos);
+const THREE_GUNS = [
+  { defId: 'stockEngine', wear: 0 },
+  { defId: 'mg', wear: 0, at: { x: 4, y: 4, rot: 0 as const } },
+  { defId: 'mg', wear: 0, at: { x: 1, y: 4, rot: 2 as const } },
+  { defId: 'mg', wear: 0, at: { x: 1, y: 8, rot: 0 as const } },
+];
+
+function loadedTrader(world: World, pos: { x: number; y: number }, parts = [{ defId: 'mg', wear: 0 }, { defId: 'stockEngine', wear: 0 }]): Vehicle {
+  const trader = makeVehicle(world, { faction: 'independent', chassisId: 'scout', parts, spares: [], cargo: {}, pos, heading: 0, brain: null });
+  world.vehicles.push(trader);
   trader.brain = npcBrain('trader', trader.pos, TRAITS_OF.trader);
   addGoods(world, trader, 'scrap', 2);
   return trader;
@@ -78,7 +87,7 @@ describe('NPC restraint', () => {
     const { world, npc } = createNpc('buggy');
     sizedUp(world, npc, loadedTrader(world, { x: 33, y: 30 }));
     const alone = shareOfSeeds(world, npc.id, (x, me) => thinkNpc(x, me).kind === 'flee');
-    sizedUp(world, npc, loadedTrader(world, { x: 33, y: 32 }, ['mg', 'mg', 'mg', 'stockEngine']));
+    sizedUp(world, npc, loadedTrader(world, { x: 33, y: 32 }, THREE_GUNS));
     const grouped = shareOfSeeds(world, npc.id, (x, me) => thinkNpc(x, me).kind === 'flee');
     expect(grouped).toBeGreaterThan(0.25);
     expect(grouped).toBeGreaterThan(alone + 0.2);

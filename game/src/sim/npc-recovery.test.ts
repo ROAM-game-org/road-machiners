@@ -10,6 +10,7 @@ import { ledPoint, resolveNpcActivities, thinkNpc, topGoal } from './npc-activit
 import { chooseOn } from './tracks';
 import { fightOddsAgainst, judgeDanger, perceiveDanger, usefulContacts } from './npc-decisions';
 import { siteGates } from './sites';
+import { makeVehicle } from './factory';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import type { NpcActivity, Vehicle, World } from './types';
 import { cloneWorld } from './world';
@@ -50,6 +51,14 @@ function shareOfSeeds(world: World, npcId: string, check: (x: World, npc: Vehicl
     if (check(x, x.vehicles.find((v) => v.id === npcId)!)) held++;
   }
   return held / seeds;
+}
+
+function addThreeGunScout(world: World, pos: { x: number; y: number }): Vehicle {
+  const at = (x: number, y: number, rot: 0 | 2) => ({ defId: 'mg', wear: 0, at: { x, y, rot } });
+  const parts = [{ defId: 'stockEngine', wear: 0 }, at(4, 4, 0), at(1, 4, 2), at(1, 8, 0)];
+  const mate = makeVehicle(world, { faction: 'independent', chassisId: 'scout', parts, spares: [], cargo: {}, pos, heading: 0, brain: null });
+  world.vehicles.push(mate);
+  return mate;
 }
 
 const byId = (world: World, id: string) => world.vehicles.find((v) => v.id === id)!;
@@ -208,7 +217,7 @@ describe('NPC gameplay recovery', () => {
   it('mostly withdraws from a locally stronger enemy group', () => {
     const { world, npc } = createScenario('buggy');
     for (const pos of [{ x: 33, y: 30 }, { x: 34, y: 32 }]) {
-      const mate = addVehicle(world, 'independent', 'scout', ['mg', 'mg', 'mg', 'stockEngine'], pos);
+      const mate = addThreeGunScout(world, pos);
       mate.brain = npcBrain('scavenger', mate.pos, ['scavenger']);
       addGoods(world, mate, 'scrap', 2);
     }
