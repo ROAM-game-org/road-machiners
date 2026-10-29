@@ -340,11 +340,11 @@ describe('physics turns', () => {
       expect(meanSkid('glass')).toBeGreaterThan(10);
     });
 
-    it('a braking truck slides further on glass than on sand', () => {
+    it('a braking truck slides further on glass, losing only the grip share of the speed it loses on sand', () => {
       const sand = onGround('sand', { kind: 'brake' }, 1);
       const glass = onGround('glass', { kind: 'brake' }, 1);
-      expect(me(glass).pos.x - 20).toBeGreaterThan((me(sand).pos.x - 20) * 1.5);
-      expect(me(glass).speed).toBeGreaterThan(me(sand).speed);
+      expect(me(glass).pos.x).toBeGreaterThan(me(sand).pos.x);
+      expect((SPEED - me(glass).speed) / (SPEED - me(sand).speed)).toBeCloseTo(TERRAIN_TYPES.glass.grip / TERRAIN_TYPES.sand.grip, 1);
     });
 
     it('a truck turns wider on glass than on sand with the same click', () => {
@@ -354,10 +354,10 @@ describe('physics turns', () => {
       expect(Math.abs(angleDiff(me(glass).heading, Math.PI / 2))).toBeGreaterThan(Math.abs(angleDiff(me(sand).heading, Math.PI / 2)));
     });
 
-    it('a truck eases off for a side click sooner on glass than on sand', () => {
+    it('a truck takes a side click slower on glass than on sand once its weak brakes have bitten', () => {
       const click: MoveOrder = { kind: 'through', dest: { x: 24, y: 60 } };
-      const sand = onGround('sand', click, 1);
-      const glass = onGround('glass', click, 1);
+      const sand = onGround('sand', click, 2);
+      const glass = onGround('glass', click, 2);
       expect(me(glass).speed).toBeLessThan(me(sand).speed * 0.8);
     });
 
