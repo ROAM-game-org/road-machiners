@@ -30,7 +30,7 @@ describe('aimFor', () => {
 
   it('aims at the cab once the foe refused to give up', () => {
     const { w, foe, weapon } = duel(['mg', 'stockEngine']);
-    foe.heading = Math.PI / 2;
+    foe.heading = -Math.PI / 2;
     w.player.talked[foe.id] = { yieldDemand: 'refused' };
 
     expect(aimFor(w, foe, weapon)).toBe(corePart(foe, 'cab').id);
