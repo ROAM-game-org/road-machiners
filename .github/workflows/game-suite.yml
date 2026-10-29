@@ -8,17 +8,40 @@ on:
         description: Commit to test
         required: true
         type: string
+      files:
+        description: Test files to run, separated by spaces. Empty runs the whole suite.
+        required: false
+        default: ''
+        type: string
+      workers:
+        description: Vitest workers. Empty lets Vitest choose.
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
+
+env:
+  SHARDS: '8'
+  SHARD_WORKERS: '2'
 
 jobs:
   suite:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     container: mcr.microsoft.com/playwright:v1.63.0-noble
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     env:
       SHA: ${{ inputs.sha }}
+      FILES: ${{ inputs.files }}
+      WORKERS: ${{ inputs.workers }}
+      SHARD: ${{ matrix.shard }}
+      SHARD_JOBS: ${{ strategy.job-total }}
+      TEST_FAILURES_FILE: tmp/test-failures.json
       TEST_STALL_MINUTES: '10'
       TEST_SUITE_MINUTES: '35'
       TEST_TIMEOUTS: 'off'
@@ -42,15 +65,61 @@ jobs:
         id: tests
         working-directory: game
         run: |
+          for file in $FILES; do echo "$file" | grep -Eq '^src/[A-Za-z0-9_./-]+\.test\.ts$' || { echo "bad test file $file"; exit 2; }; done
+          if [ -n "$WORKERS" ]; then echo "$WORKERS" | grep -Eq '^[1-9][0-9]?$' || { echo "bad workers $WORKERS"; exit 2; }; export TEST_WORKERS="$WORKERS"; else export TEST_WORKERS="$SHARD_WORKERS"; fi
+          [ "$SHARD_JOBS" = "$SHARDS" ] || { echo "the matrix runs $SHARD_JOBS shards but SHARDS is $SHARDS"; exit 2; }
+          all="$FILES"
+          if [ -z "$all" ]; then all=$(find src -name '*.test.ts' | sort); fi
+          mine=$(printf '%s\n' $all | awk -v shard="$SHARD" -v shards="$SHARDS" 'NR % shards == shard % shards')
+          echo "runner: $(nproc) CPUs,$(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2), $TEST_WORKERS workers"
+          echo "shard $SHARD of $SHARDS runs $(printf '%s\n' $mine | grep -c .) of $(printf '%s\n' $all | grep -c .) test files"
+          if [ -z "$mine" ]; then
+            mkdir -p tmp
+            echo '{"failed":[],"unhandledErrors":0}' > "$TEST_FAILURES_FILE"
+            exit 0
+          fi
           code=0
-          npm run test:cached || code=$?
+          npm run test:cached -- $mine || code=$?
           if [ "$code" -eq 3 ]; then
             echo "over=1" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           exit "$code"
+      - name: failed tests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-failures-${{ matrix.shard }}
+          path: game/tmp/test-failures.json
+          if-no-files-found: ignore
+          retention-days: 7
       - name: suite time limit
         if: steps.tests.outputs.over == '1'
         run: |
           echo "The suite ran past TEST_SUITE_MINUTES with no failed test."
           exit 1
+
+  failures:
+    needs: suite
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: test-failures-*
+          path: shards
+      - name: merge the shard records
+        run: |
+          found=$(find shards -name test-failures.json 2>/dev/null | wc -l)
+          if [ "$found" -ne "$SHARDS" ]; then
+            echo "$found of $SHARDS shards wrote a failure record, so the run has none."
+            exit 0
+          fi
+          jq -s '{failed: (map(.failed) | add), unhandledErrors: (map(.unhandledErrors) | add)}' shards/*/test-failures.json > test-failures.json
+          jq -c '{failed: (.failed | length), unhandledErrors}' test-failures.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-failures
+          path: test-failures.json
+          if-no-files-found: ignore
+          retention-days: 7

@@ -125,7 +125,10 @@ function templateFromSetup(): World {
   return emptyWorldFrom(provided);
 }
 
-export function emptyWorld(pos: Vec = { x: 30, y: 30 }): World {
+const DEFAULT_EMPTY_POS: Vec = { x: 30, y: 30 };
+let seenFromDefault: World | undefined;
+
+function emptyWorldAt(pos: Vec): World {
   emptyTemplate ??= templateFromSetup();
   const w = cloneWorld(emptyTemplate);
   const p = w.vehicles[0];
@@ -133,6 +136,12 @@ export function emptyWorld(pos: Vec = { x: 30, y: 30 }): World {
   p.heading = 0;
   refreshVision(w);
   return w;
+}
+
+export function emptyWorld(pos: Vec = DEFAULT_EMPTY_POS): World {
+  if (pos.x !== DEFAULT_EMPTY_POS.x || pos.y !== DEFAULT_EMPTY_POS.y) return emptyWorldAt(pos);
+  seenFromDefault ??= emptyWorldAt(pos);
+  return cloneWorld(seenFromDefault);
 }
 
 export function addLootSpot(w: World): { spot: Obstacle; stock: SalvageStock } {
