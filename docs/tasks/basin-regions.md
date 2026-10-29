@@ -198,12 +198,26 @@ The user's first look at the baked map asked for these changes.
 - PT10 — Scatter density follows `SCATTER.regions`, and boulder odds follow `GEOLOGY.boulders.zoneOdds`.
 - PT11 — `wing_shard` is a ramp in physics, nav and sight, and its model carries the slab to the ground.
 
+## Playtest round 2
+
+The user drove the round 1 map. The Glass Flats debris trail and the Fallen Sun field size are right. The lore lines are accepted.
+
+- PT12 — The Fallen Sun debris field holds ship parts, not only rocks and jagged metal.
+- PT13 — Shrubs and rocks are half as dense everywhere. The desert near Glass Flats was as dense as the plain, and Glass Flats itself is sparser still.
+- PT14 — Nose rock is a box with a flat top and straight walls, and its scaffolds hang on the cliff face. It needs sloped, broken sides that join the range, a rough top, and scaffolds that stand on the ground.
+
+### Round 2 progress
+
+- PT12 — 30% of the apron pieces are ship parts from `CRASH.apron.parts`: hull chunks, wing shards, power cells and habitats.
+- PT13 — Every scatter chance in `scatter.ts` is halved. Desert scrub share fell from 1 to 0.4, and `SCATTER.glassFlats` thins Glass Flats to a tenth of its stones and bushes, fading out by 1.6 radii. Desert bushes fell from 87 to 19 per 1000 tiles, and Glass Flats bushes from 69 to 1.5.
+- PT14 — `raiseRock()` turns the rock boxes into a distance field. Outside the fort the rock slopes down over `NOSE_ROCK.run` tiles with a rough top, clear of roads and pads. Inside the fort it rises over a ragged face a few tiles deep, so ground in front of the face stays at yard level. Only the ship's bed keeps the flat box tops.
+
 ## Conclusion
 
 The 7.5 km Icarus map now has regions that differ on the scale of kilometres. A range rings Nose, a black-mud swamp sits at Dustwell's spring, dunes fill the SE desert, and a farm belt of canals and abandoned farms runs along the dry river past Bowl. Old Orchard, Glass Flats and the Fallen Sun keep only their authored cores and grow from the land. Glass Flats sits off road in the SE corner, and the descent path carries debris and glass from it to the Fallen Sun.
 
 - AS1 held with one nudge: the Sunward Hollow spot and gate bearing moved to the 7.5 km map.
-- AS2 is unconfirmed: the lore page carries the swamp line, plus lines on the range, farm belt and desert, all awaiting the user's OK.
+- AS2 held: the user accepted the lore lines on the swamp, the range, the farm belt and the desert.
 - AS3 held: the mountains pass the cliff share check without a fault step.
 - UK1: the full bake takes about 230 s.
 - UK2: zone shapes were tuned on renders, hands-off.
@@ -227,7 +241,6 @@ The 7.5 km Icarus map now has regions that differ on the scale of kilometres. A 
 - Scope flag kept for the user: territory outlines are authored polygons, with Glass Flats scaled up. Only their ground and contents grow from mapgen, not the outline shape (IV5).
 
 ### Deferred (needs user input)
-- Lore: `game/docs/lore/README.md` gained lines on the rim and range, the farm belt, the SE desert and the black mud swamp. They need the user's read and OK.
 - `src/sim/path-raiders.test.ts` takes 111 s alone, mostly building the full-map reference layers. Its setup needs a smaller world, which is a rewrite of the nav reference tests.
 - Ways out of Nose now read "At Nose, turn right onto the road heading west. At Nose, turn left onto…" just past the gate, since the ring road's junctions count as at Nose. It needs a call on how ring-road turns are told. Seen in `survey-skiff-26224` from Nose.
 
