@@ -43,18 +43,9 @@ function armorTouched(c: ChassisDef, cells: Cell[]): Set<string> {
 
 const FRONT_ENGINE: readonly string[] = ['longbed', 'tractor'];
 
-const TANK_BESIDE_WHEELS: Record<string, string> = {
-  courier: 'With the cab and transmission off the wheel columns and the 2x2 deck block kept, a wheel column is the only place left for the tank.',
-};
-
 const SMALL_CAR = 'A small car whose 5 inner columns were 4 before odd fronts. A 3x2 cab would fill its middle and leave no deck block.';
 
 const WIDENED = ['buggy', 'courier', 'jeep', 'niva', 'bus', 'carrier', 'wagon'];
-
-const OPEN_NEW_COLUMN: Record<string, string> = {
-  jeep: 'Its tank shields the engine from the rear. Moving it into the new column would open the engine to rear fire.',
-  carrier: 'Its tank shields the cab from the rear. Moving it into the new column would open the cab to rear fire.',
-};
 
 const SEAT_CAB: Record<string, string> = {
   buggy: SMALL_CAR,
@@ -88,12 +79,16 @@ const RING_CELLS_ADDED = 4;
 
 const columns = (cells: Cell[]) => new Set(cells.map((cell) => cell.x));
 
+const wheelRowSpans = (c: ChassisDef) => coreCells(c, 'wheel').map((cell) => `${cell.x},${cell.y}`);
+
 describe('chassis grids', () => {
-  it('keeps cabs, transmissions and engine bays out of the wheel columns', () => {
+  it('keeps engine bays out of the wheel columns and cabs and transmissions off every wheel cell, though they may share a wheel column in rows its wheel does not use', () => {
     for (const [id, c] of Object.entries(CHASSIS)) {
       const wheels = columns(coreCells(c, 'wheel'));
-      const parts = [...coreCells(c, 'cab'), ...coreCells(c, 'transmission'), ...engineCells(c)];
-      expect(parts.filter((cell) => wheels.has(cell.x)), id).toEqual([]);
+      expect(engineCells(c).filter((cell) => wheels.has(cell.x)), `${id} engine`).toEqual([]);
+      const parts = [...coreCells(c, 'cab'), ...coreCells(c, 'transmission')];
+      const wheelCells = new Set(wheelRowSpans(c));
+      expect(parts.filter((cell) => wheelCells.has(`${cell.x},${cell.y}`)), id).toEqual([]);
     }
   });
 
@@ -106,11 +101,10 @@ describe('chassis grids', () => {
     }
   });
 
-  it('keeps tanks out of the wheel columns but on the chassis listed', () => {
+  it('keeps tanks off every wheel cell, though a tank may share a wheel column in rows its wheel does not use', () => {
     for (const [id, c] of Object.entries(CHASSIS)) {
-      const wheels = columns(coreCells(c, 'wheel'));
-      const shared = coreCells(c, 'tank').some((cell) => wheels.has(cell.x));
-      expect(shared, id).toBe(id in TANK_BESIDE_WHEELS);
+      const wheelCells = new Set(wheelRowSpans(c));
+      expect(coreCells(c, 'tank').filter((cell) => wheelCells.has(`${cell.x},${cell.y}`)), id).toEqual([]);
     }
   });
 
@@ -121,21 +115,26 @@ describe('chassis grids', () => {
     }
   });
 
-  it('gives every front and back edge an odd number of cells, so a 3-cell ram sits centered', () => {
+  it('gives every front and back edge room for a 3-cell ram, centered on an odd edge and one cell left of center on an even one', () => {
     for (const [id, c] of Object.entries(CHASSIS)) {
       const edges = [c.layout[0], c.layout[c.layout.length - 1]].map((row) => [...row].filter((ch) => ch === 'F' || ch === 'B').length);
-      for (const cells of edges.filter((n) => n > 0)) expect(cells % 2, id).toBe(1);
+      for (const cells of edges) {
+        expect(cells, id).toBeGreaterThanOrEqual(3);
+        const spare = cells - 3;
+        const left = Math.floor(spare / 2);
+        expect(spare - left - left, id).toBe(spare % 2);
+      }
     }
   });
 
-  it('puts a built-in part or the engine bay in every column of a widened truck but those listed, so its new column does not let front shots through', () => {
+  it('puts a built-in part or the engine bay in every column of a widened truck, so its new column does not let front shots through', () => {
     const open = WIDENED.filter((id) => {
       const c = CHASSIS[id];
       const roles = c.core.map((core) => partDef(core.defId)).flatMap((def) => (def.kind === 'core' ? [def.role] : []));
       const filled = columns([...new Set(roles)].flatMap((role) => coreCells(c, role)).concat(engineCells(c)));
       return Array.from({ length: c.layout[0].length - 2 }, (_, i) => i + 1).some((x) => !filled.has(x));
     });
-    expect(open).toEqual(Object.keys(OPEN_NEW_COLUMN));
+    expect(open).toEqual([]);
   });
 
   it('keeps every chassis value at its value before the layout rules', () => {
@@ -158,9 +157,9 @@ describe('chassis grids', () => {
 
   it('gives the scout a free front and back row that hold cargo beside side armor', () => {
     const rows = CHASSIS.scout.layout;
-    expect(rows.length).toBe(10);
-    expect(rows[1]).toBe('L.....R');
-    expect(rows[rows.length - 2]).toBe('L.....R');
+    const free = `L${'.'.repeat(rows[0].length - 2)}R`;
+    expect(rows[1]).toBe(free);
+    expect(rows[rows.length - 2]).toBe(free);
   });
 
   it('keeps every armor column outside the model and every armor row full width', () => {
@@ -177,11 +176,14 @@ describe('chassis grids', () => {
     }
   });
 
-  it('puts the wheels, two cells long each, one column in from the side armor', () => {
+  it('puts one wheel in each corner, one column in from the side armor', () => {
     for (const [id, c] of Object.entries(CHASSIS)) {
       const w = c.layout[0].length;
-      const wheels = coreCells(c, 'wheel');
-      expect(wheels.map((cell) => cell.x).sort(), id).toEqual([1, 1, 1, 1, w - 2, w - 2, w - 2, w - 2].sort());
+      const middle = c.layout.length / 2;
+      const wheels = c.core.filter((part) => { const def = partDef(part.defId); return def.kind === 'core' && def.role === 'wheel'; });
+      const corner = (x: number, front: boolean) => wheels.filter((part) => part.x === x && (part.y + partDef(part.defId).h / 2 < middle) === front).length;
+      expect(wheels.length, id).toBe(4);
+      expect([corner(1, true), corner(1, false), corner(w - 2, true), corner(w - 2, false)], id).toEqual([1, 1, 1, 1]);
     }
   });
 
@@ -222,16 +224,29 @@ function hasDeckBlock(c: ChassisDef, w: number, h: number): boolean {
 describe('core part sizes', () => {
   const parts = Object.values(PARTS);
 
-  it('sizes every cab 1x2 or 3x2', () => {
-    for (const p of parts.filter((d) => d.kind === 'core' && d.role === 'cab')) expect([p.w, p.h].join('x'), p.id).toMatch(/^(1x2|3x2)$/);
+  const GROWN_LENGTH: Record<number, number> = { 1: 1, 2: 3, 3: 4 };
+  const KEEPS_LENGTH = ['cab', 'transmission', 'wheel', 'tank'];
+  const gridSize = (p: { id: string; bulk: { w: number; h: number } }) => [p.bulk.w, KEEPS_LENGTH.includes(p.id) ? p.bulk.h : GROWN_LENGTH[p.bulk.h]];
+
+  it('sizes every cab 1x2 or 3x2 before the square grid, and the open seat keeps its length while the closed cabs grow to 3x3', () => {
+    for (const p of parts.filter((d) => d.kind === 'core' && d.role === 'cab')) {
+      expect([p.bulk.w, p.bulk.h].join('x'), p.id).toMatch(/^(1x2|3x2)$/);
+      expect([p.w, p.h], p.id).toEqual(gridSize(p));
+    }
   });
 
-  it('gives every transmission 2 by 2 cells', () => {
-    for (const p of parts.filter((d) => d.kind === 'core' && d.role === 'transmission')) expect([p.w, p.h], p.id).toEqual([2, 2]);
+  it('gives every transmission 2 by 2 cells before the square grid, and the plain one keeps its length while the sturdier ones grow to 2x3', () => {
+    for (const p of parts.filter((d) => d.kind === 'core' && d.role === 'transmission')) {
+      expect([p.bulk.w, p.bulk.h], p.id).toEqual([2, 2]);
+      expect([p.w, p.h], p.id).toEqual(gridSize(p));
+    }
   });
 
-  it('gives every fuel tank two cells along the truck', () => {
-    for (const p of parts.filter((d) => d.kind === 'core' && d.role === 'tank')) expect([p.w, p.h], p.id).toEqual([1, 2]);
+  it('gives every fuel tank two cells along the truck before the square grid, and the plain one keeps its length while the others grow to three', () => {
+    for (const p of parts.filter((d) => d.kind === 'core' && d.role === 'tank')) {
+      expect([p.bulk.w, p.bulk.h], p.id).toEqual([1, 2]);
+      expect([p.w, p.h], p.id).toEqual(gridSize(p));
+    }
   });
 
   it('gives every engine at least 2 by 2 cells', () => {
@@ -247,10 +262,11 @@ describe('core part sizes', () => {
     const h = Math.max(...engines.map((d) => d.h));
     for (const [id, c] of Object.entries(CHASSIS)) {
       const bay = new Set(engineCells(c).map((cell) => `${cell.x},${cell.y}`));
-      const fits = [...bay].some((key) => {
+      const holds = (bw: number, bh: number) => [...bay].some((key) => {
         const [x, y] = key.split(',').map(Number);
-        return Array.from({ length: w * h }, (_, i) => `${x + (i % w)},${y + Math.floor(i / w)}`).every((k) => bay.has(k));
+        return Array.from({ length: bw * bh }, (_, i) => `${x + (i % bw)},${y + Math.floor(i / bw)}`).every((k) => bay.has(k));
       });
+      const fits = holds(w, h) || holds(h, w);
       expect(fits, id).toBe(true);
     }
   });
