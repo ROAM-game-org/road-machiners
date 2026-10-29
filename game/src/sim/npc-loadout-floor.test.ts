@@ -7,7 +7,8 @@ import { freeCells, mountedParts } from './grid';
 import { loadFactor } from './mass';
 import { generateNpcLoadout } from './npc-loadout';
 import { allegianceFor, spawnAt } from './spawn';
-import { gunDrag, npcMassRoom } from './stats';
+import { gunCapacity, gunDrag, npcMassRoom } from './stats';
+import { topSpeedFactor } from './chassis-features';
 import { wornDef } from './wear';
 import { addGoods } from './inventory';
 import { CRATE_MASS } from '../data/goods';
@@ -22,7 +23,7 @@ describe('NPC speed floor and wear odds', () => {
       for (let seed = 1; seed <= 3; seed++) {
         const v = rolled(template, level, seed);
         const engine = wornDef<EngineDef>(mountedParts(v, 'engine')[0]);
-        const speed = (CHASSIS[v.chassisId].maxSpeed + engine.speedBonus) * loadFactor(v) * gunDrag(v, engine.capacity);
+        const speed = (CHASSIS[v.chassisId].maxSpeed + engine.speedBonus) * topSpeedFactor(v.chassisId) * loadFactor(v) * gunDrag(v, gunCapacity(v)!);
         expect(speed, `${level} ${describeLoadout(v)}`).toBeGreaterThanOrEqual(MIN_NPC_SPEED - 1e-9);
       }
     }
