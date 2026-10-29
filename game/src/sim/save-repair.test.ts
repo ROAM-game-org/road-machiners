@@ -16,7 +16,7 @@ import { advanceContracts, goodStock, standingPrice } from './market';
 import { haulerOf, playerVehicle } from './damage';
 import { currentLine, currentOptions, talkOf } from './dialogue';
 import { makePart } from './factory';
-import { corePart, gridOf, mountedParts } from './grid';
+import { corePart, gridOf, layoutError, mountedParts } from './grid';
 import { vehicleMass } from './mass';
 import { npcTraits } from './npc-decisions';
 import { pendingPerkPairs, practice, skillLevel } from './progress';
@@ -176,6 +176,28 @@ describe('repairContent', () => {
     expect(w.player.storage.some((p) => p.id === 'p-spare')).toBe(true);
     expect(npc.items.includes(gun)).toBe(false);
     expect(w.vehicles.includes(npc)).toBe(true);
+  });
+
+  it('reseats a gun whose barrel lies over another gun instead of dropping it', () => {
+    const w = fresh();
+    const me = playerVehicle(w);
+    me.items = me.items.filter((it) => !(it.kind === 'part' && partDef(it.part.defId).kind === 'weapon'));
+    const front = { ...partItem('front', 'shotgun', 2, 1), id: 'i-front' } as GridItem;
+    const behind = { ...partItem('behind', 'slugCannon', 2, 4), id: 'i-behind' } as GridItem;
+    me.items.push(front, behind);
+    me.chassisId = 'hauler';
+    const money = w.player.money;
+    const events = w.events.length;
+    const storage = w.player.storage.length;
+    repairContent(w);
+    const guns = me.items.filter((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'weapon');
+    expect(guns.length + (w.player.storage.length - storage)).toBe(2);
+    expect(layoutError(gridOf(me), me.items)).toBeNull();
+    expect(w.player.money).toBe(money);
+    expect(w.events.length).toBe(events);
+    const again = JSON.stringify(w);
+    repairContent(w);
+    expect(JSON.stringify(w)).toBe(again);
   });
 
   it('removes an NPC whose core part is out of place', () => {
