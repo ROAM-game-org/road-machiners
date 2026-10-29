@@ -15,6 +15,17 @@ const SETTING_LABEL = 'A label inside a setup parse error, which only the consol
 const SAVE_DB_ERROR = 'An error message of the save database, which only the console and a bug report show.';
 
 export const UNTRANSLATED: readonly Untranslated[] = [
+  { file: 'src/sim/progression/sim-cards.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/sim/progression/sim-mode.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/three/sim-worker.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/economy-pages.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/economy-reads.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/economy-view.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/heat-map.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/page.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/panels.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/sim-text.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/truck-icons.ts', text: '*', reason: DEV_SIM },
   { file: 'src/ui/save-screen.ts', text: 'Road Machiners', reason: 'The game title stays as it is in every language, as on the boot screen.' },
   { file: 'src/three/main.ts', text: 'confirm()', reason: 'The browser adapter shows text its caller already resolved with say().' },
   { file: 'src/three/save.ts', text: 'confirm()', reason: 'The browser adapter shows text its caller already resolved with say().' },
