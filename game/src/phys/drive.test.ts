@@ -7,7 +7,7 @@ import { makePart } from '../sim/factory';
 import { addGoods, mountPart, removeAllGoods } from '../sim/inventory';
 import { vehicleMass } from '../sim/mass';
 import { corePart } from '../sim/grid';
-import { addVehicle, editableTerrain, emptyWorld, npcBrain, partHp } from '../sim/testkit';
+import { addVehicle, editableTerrain, emptyWorld, npcBrain, partHp, uniformGround } from '../sim/testkit';
 import type { MoveOrder, World } from '../sim/types';
 import { angleDiff, bearing, dist, type Vec } from '../sim/vec';
 import { REGION } from '../data/region';
@@ -20,8 +20,8 @@ import { bodyOf } from '../sim/body';
 import { buildDrive, freeDrive, GROUND, toMps, initPhysics, routeAim, simulateTurn, syncDrive, type Drive, type TurnResult } from './drive';
 import { rotateBy, upOf } from './frames';
 import { physicsMove } from './turn';
-import { turnaroundSpeed } from './turnaround';
 import type { VehicleFrame } from './frames';
+import { turnaroundSpeed } from './turnaround';
 import { playerTow, unhitch } from '../sim/tow';
 import { callVehicle } from '../sim/dialogue';
 import { chooseText } from '../sim/dialogue-testkit';
@@ -270,7 +270,7 @@ describe('physics turns', () => {
 
     beforeAll(async () => {
       const w = emptyWorld();
-      editableTerrain(w).types.fill('mud');
+      uniformGround(w, 'mud');
       const mud = await playYielding(setMoveOrder(w, order), 3);
       mudSkill0 = mud.w;
       freeDrive(mud.d);
@@ -297,7 +297,7 @@ describe('physics turns', () => {
 
     function onGround(type: 'sand' | 'glass', order: MoveOrder, turns: number): World {
       const w = emptyWorld({ x: 20, y: 40 });
-      editableTerrain(w).types.fill(type);
+      uniformGround(w, type);
       w.vehicles[0].speed = SPEED;
       const { w: after, d } = play(setMoveOrder(w, order), turns);
       freeDrive(d);
@@ -311,7 +311,7 @@ describe('physics turns', () => {
 
     function meanSkid(type: 'sand' | 'glass'): number {
       let w = emptyWorld({ x: 20, y: 40 });
-      editableTerrain(w).types.fill(type);
+      uniformGround(w, type);
       w.vehicles[0].speed = SPEED;
       w = setMoveOrder(w, { kind: 'through', dest: { x: 30, y: 70 } });
       let d = buildDrive(w);
