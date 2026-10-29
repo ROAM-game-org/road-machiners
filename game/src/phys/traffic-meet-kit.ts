@@ -94,7 +94,7 @@ export function meet(angle: number, speed: number, seconds: number): Meeting {
 
 export type HeadOn = Meeting & { stalls: number };
 
-const HEAD_ON_GAP = 20;
+const HEAD_ON_GAP = 30;
 const STALL_FAR = 8;
 const STALL_STEP = 0.5;
 
