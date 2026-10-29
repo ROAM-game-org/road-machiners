@@ -76,7 +76,7 @@ const CRATE_ROOM_BEFORE_SQUARE_GRID: Record<string, number> = {
 };
 
 const CRATE_ROOM_EXCESS: Record<string, number> = {
-  tractor: 1, loader: 1, lincoln: 1, longbed: 2, bus: 4, semi: 25,
+  tractor: 1, loader: 1, longbed: 2, bus: 4, lincoln: 6, convertible: 2, jeep: 1, hauler: 3, semi: 28,
 };
 
 const NOT_FREE_EDGE_ROWS: Record<string, string[]> = {
@@ -92,6 +92,8 @@ const NOT_FREE_EDGE_ROWS: Record<string, string[]> = {
 };
 
 const RING_CELLS_ADDED = 4;
+
+const CLEAN_HOLE_CHASSIS = ['semi', 'lincoln', 'convertible', 'bus', 'carrier', 'jeep', 'hauler', 'wagon', 'van'];
 
 const columns = (cells: Cell[]) => new Set(cells.map((cell) => cell.x));
 
@@ -185,6 +187,22 @@ describe('chassis grids', () => {
         expect(row[1] + row[row.length - 2], `${id} ${edge}`).toBe('..');
         expect(row.slice(1, -1).replace(/[. ]/g, ''), `${id} ${edge}`).toBe('');
       }
+    }
+  });
+
+  it('never leaves a blank inner cell between two cargo or deck cells, across or along', () => {
+    for (const id of CLEAN_HOLE_CHASSIS) {
+      const rows = CHASSIS[id].layout;
+      const at = (x: number, y: number) => rows[y]?.[x] ?? '#';
+      const sandwiched: string[] = [];
+      for (let y = 1; y < rows.length - 1; y++) {
+        for (let x = 1; x < rows[y].length - 1; x++) {
+          if (rows[y][x] !== ' ') continue;
+          if ('CD'.includes(at(x - 1, y)) && 'CD'.includes(at(x + 1, y))) sandwiched.push(`${x},${y} across`);
+          if ('CD'.includes(at(x, y - 1)) && 'CD'.includes(at(x, y + 1))) sandwiched.push(`${x},${y} along`);
+        }
+      }
+      expect(sandwiched, id).toEqual([]);
     }
   });
 
