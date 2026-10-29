@@ -75,6 +75,7 @@ function choiceSeen(story: Story, point: Point, index: number, replies: Record<s
 export function seenAt(story: Story, ink: string, replies: Record<string, string>): boolean[] {
   story.state.LoadJson(ink);
   const point = pointNow(story);
+  if (Object.keys(replies).length === 0) return point.choices.map(() => false);
   const memo: Replies = new Map();
   return point.choices.map((_, i) => choiceSeen(story, point, i, replies, memo));
 }
