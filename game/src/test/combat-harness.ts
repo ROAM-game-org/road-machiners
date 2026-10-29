@@ -359,7 +359,8 @@ function loadoutOf(w: World, gear: Gear): NpcLoadout {
   if (gear.kind === 'outfit') return bareLoadout(gear.outfit.chassis);
   if (gear.kind === 'npc') return generateNpcLoadout(w, NPCS[gear.template], null, gear.level);
   const kit = START_KITS[gear.id];
-  return { chassisId: kit.chassis, level: 'standard', parts: kit.parts.map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {} };
+  const placed = (kit.placed ?? []).map(({ defId, ...at }) => ({ defId, wear: 0, at }));
+  return { chassisId: kit.chassis, level: 'standard', parts: [...placed, ...kit.parts.map((defId) => ({ defId, wear: 0 }))], spares: [], cargo: {} };
 }
 
 function setAgainst(w: World, aId: string, bId: string): void {

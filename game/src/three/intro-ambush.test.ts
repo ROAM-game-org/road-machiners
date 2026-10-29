@@ -4,7 +4,7 @@ import { AMBUSH, GREEN_PIT, WAKE_TOWN } from '../data/intro';
 import { HATTIE_MET, TOWED_TO_BOWL } from '../data/quests';
 import { NPCS } from '../data/npcs';
 import { REGION } from '../data/region';
-import { START_KITS, startKit } from '../data/start';
+import { kitPartIds, START_KITS, startKit } from '../data/start';
 import { buyStockPart } from '../sim/economy';
 import { makePart } from '../sim/factory';
 import { addStockPart } from '../sim/market';
@@ -332,13 +332,13 @@ describe('the fall and the wake in Bowl', () => {
     const w = ambushed();
     w.player.money = START_KITS.arrival.money;
     const me = playerVehicle(w);
-    me.items = me.items.filter((item) => item.kind !== 'part' || !START_KITS.arrival.parts.includes(item.part.defId));
+    me.items = me.items.filter((item) => item.kind !== 'part' || !kitPartIds(START_KITS.arrival).includes(item.part.defId));
     const bowl = w.shops[WAKE_TOWN];
-    bowl.stock = bowl.stock.filter((part) => !START_KITS.arrival.parts.includes(part.defId));
+    bowl.stock = bowl.stock.filter((part) => !kitPartIds(START_KITS.arrival).includes(part.defId));
     knockedOutBy(w);
     let next = closeScene(runUntilAwake(closeScene(w)));
-    const stocked = next.shops[WAKE_TOWN].stock.filter((part) => START_KITS.arrival.parts.includes(part.defId));
-    expect(stocked.map((part) => part.defId).sort()).toEqual([...START_KITS.arrival.parts].sort());
+    const stocked = next.shops[WAKE_TOWN].stock.filter((part) => kitPartIds(START_KITS.arrival).includes(part.defId));
+    expect(stocked.map((part) => part.defId).sort()).toEqual([...kitPartIds(START_KITS.arrival)].sort());
     for (const part of stocked) next = buyStockPart(next, part.id);
     expect(next.player.money).toBeGreaterThanOrEqual(0);
     expect(savedAndLoaded(next).shops[WAKE_TOWN].stock).toEqual(next.shops[WAKE_TOWN].stock);
@@ -347,7 +347,7 @@ describe('the fall and the wake in Bowl', () => {
   it('adds no kit part to Bowl that the shop already sells', () => {
     const w = ambushed();
     const bowl = w.shops[WAKE_TOWN];
-    for (const defId of START_KITS.arrival.parts) addStockPart(bowl, makePart(w, defId, 0));
+    for (const defId of kitPartIds(START_KITS.arrival)) addStockPart(bowl, makePart(w, defId, 0));
     const before = [...bowl.stock];
     knockedOutBy(w);
     const next = runUntilAwake(closeScene(w));

@@ -1,6 +1,6 @@
 import { CHAOS_HIGHWAY, GAME_MODES, HAZARDS, type EnemyCard, type Line } from '../data/modes';
 import { PARTS } from '../data/parts';
-import { HAULER_KIT, startKit } from '../data/start';
+import { HAULER_KIT, kitPartIds, startKit } from '../data/start';
 import { milestoneAt, stretchStream } from './highway';
 import { nextRandom, randInt, randRange, type Rng } from './rng';
 import { enemyGearGrowth } from './settings';
@@ -117,7 +117,7 @@ function startGear(): number {
   const id = GAME_MODES.chaosHighway.kit;
   if (id === null) throw new Error('Chaos Highway has no start kit to measure the player gear from');
   const kit = startKit(id);
-  const defs = [...kit.parts, ...(kit.placed ?? []).map((p) => p.defId), ...HAULER_KIT.parts];
+  const defs = [...kitPartIds(kit), ...HAULER_KIT.parts];
   return kit.money + defs.reduce((sum, defId) => sum + PARTS[defId].value, 0);
 }
 
