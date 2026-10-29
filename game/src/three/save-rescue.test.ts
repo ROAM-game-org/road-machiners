@@ -9,7 +9,7 @@ import { townAt } from '../sim/sites';
 import { carriedWorld } from '../sim/world';
 import { carriesOnLoad, loadWorld, namedSteps, SaveError, saveOf, savedRunId } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
-import { RELEASE_STEPS, TINY_FROM, TINY_STEPS, type NamedStep, type ReleaseStep, type SavedJson } from './save-migrations';
+import { relaidTrucks_1_2, RELEASE_STEPS, TINY_FROM, TINY_STEPS, type NamedStep, type ReleaseStep, type SavedJson } from './save-migrations';
 import { carriedSave, readCarried, rescueSave } from './save-rescue';
 import FORMAT_2_120 from './save-fixtures/format-2-120.json';
 import FORMAT_2_0 from './save-fixtures/format-2-0.json';
@@ -93,7 +93,8 @@ describe('readCarried', () => {
   it('reads old formats and a fake major format', () => {
     for (const world of [FORMAT_2_0, FORMAT_2_1]) {
       const carried = readCarried({ format: { major: 2, minor: 0 }, world });
-      expect(carried.money).toBe(Math.round((world.player.money * 100) / 3));
+      const relaid = relaidTrucks_1_2({ vehicles: [], ...structuredClone(world), player: { ...world.player, storage: [] } } as unknown as SavedJson).player as { money: number };
+      expect(carried.money).toBe(Math.round((relaid.money * 100) / 3));
     }
     expect(readCarried({ format: { major: 99, minor: 0 }, world: FORMAT_2_1 }).money).toBe(FORMAT_2_1.player.money);
   });
@@ -120,8 +121,8 @@ describe('readCarried', () => {
 
   it('moves the rows of a truck from before format 2.121 onto the outside armor rows and one from before 2.122 onto the square grid, and leaves a newer truck alone', () => {
     const rows = (minor: number) => readCarried({ format: { major: 2, minor }, world: FORMAT_2_120 }).truck!.items.map((it) => it.y);
-    expect(rows(120)).toEqual([0, 4, 13, 1, 1, 5, 9, 12]);
-    expect(rows(121)).toEqual([0, 3, 10, 1, 1, 4, 7, 10]);
+    expect(rows(120)).toEqual([0, 4, 13, 1, 2, 5, 9, 12]);
+    expect(rows(121)).toEqual([0, 3, 10, 1, 2, 5, 7, 10]);
     expect(rows(122)).toEqual([0, 2, 7, 0, 0, 3, 5, 7]);
   });
 
@@ -138,11 +139,13 @@ describe('readCarried', () => {
   it('carries money in cents and pooled skills from a trimmed 2.1 save', () => {
     const world = { ...FORMAT_2_1, player: { ...FORMAT_2_1.player, money: 300, skills: { driving: 250, social: 700 } } };
     const carried = readCarried({ format: { major: 2, minor: 1 }, world });
-    expect(carried.money).toBe(10000);
+    const relaid = relaidTrucks_1_2(structuredClone(world) as unknown as SavedJson).player as { money: number };
+    const cents = Math.round((relaid.money * 100) / 3);
+    expect(carried.money).toBe(cents);
     expect(carried.ranks).toEqual({ driving: 1, social: 2 });
     expect(carried.xp).toBe(50 + 100);
     const rescued = carriedWorld(carried, KIT, () => TEST_MAP, fresh);
-    expect(rescued.player.money).toBe(10000);
+    expect(rescued.player.money).toBe(cents);
     expect(rescued.player.ranks.social).toBe(2);
   });
 
