@@ -7,7 +7,7 @@ import { makePart } from '../sim/factory';
 import { addGoods, mountPart, removeAllGoods } from '../sim/inventory';
 import { vehicleMass } from '../sim/mass';
 import { corePart } from '../sim/grid';
-import { addVehicle, editableTerrain, emptyWorld, npcBrain, partHp } from '../sim/testkit';
+import { addVehicle, editableTerrain, emptyWorld, npcBrain, partHp, uniformGround } from '../sim/testkit';
 import type { MoveOrder, World } from '../sim/types';
 import { angleDiff, bearing, dist, type Vec } from '../sim/vec';
 import { REGION } from '../data/region';
@@ -269,7 +269,7 @@ describe('physics turns', () => {
 
     beforeAll(async () => {
       const w = emptyWorld();
-      editableTerrain(w).types.fill('mud');
+      uniformGround(w, 'mud');
       const mud = await playYielding(setMoveOrder(w, order), 3);
       mudSkill0 = mud.w;
       freeDrive(mud.d);
@@ -296,7 +296,7 @@ describe('physics turns', () => {
 
     function onGround(type: 'sand' | 'glass', order: MoveOrder, turns: number): World {
       const w = emptyWorld({ x: 20, y: 40 });
-      editableTerrain(w).types.fill(type);
+      uniformGround(w, type);
       w.vehicles[0].speed = SPEED;
       const { w: after, d } = play(setMoveOrder(w, order), turns);
       freeDrive(d);

@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { makeVehicle } from '../sim/factory';
 import { addGoods } from '../sim/inventory';
-import { editableTerrain, emptyWorld } from '../sim/testkit';
+import { editableTerrain, emptyWorld, uniformGround } from '../sim/testkit';
 import type { MoveOrder, World } from '../sim/types';
 import { angleDiff } from '../sim/vec';
 import type { TerrainTypeId } from '../data/terrain';
@@ -45,11 +45,13 @@ function withChassis(w: World, chassis: Chassis): void {
 
 function skidRun(o: SkidOpts): Skid {
   let w: World = emptyWorld({ x: 20, y: 60 });
-  const types = editableTerrain(w).types;
-  types.fill(o.ground);
   if (o.from) {
+    const types = editableTerrain(w).types;
+    types.fill(o.ground);
     const n = w.terrain.size;
     for (let j = 0; j < n; j++) for (let i = 0; i < 28; i++) types[j * n + i] = o.from;
+  } else {
+    uniformGround(w, o.ground);
   }
   withChassis(w, o.chassis ?? 'scout');
   w.vehicles[0].speed = o.speed;
