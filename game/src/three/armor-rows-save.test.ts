@@ -22,7 +22,8 @@ describe('armor on all four edges across a save', () => {
     const plate = (x: number, y: number, rot: Rot): GridItem => ({ id: newId(w, 'i'), x, y, rot, kind: 'part', part: makePart(w, 'plates', 0) });
     const crate = (x: number, y: number): GridItem => ({ id: newId(w, 'i'), x, y, rot: 0, kind: 'good', good: 'scrap' });
     const armor = [plate(2, 0, 1), plate(2, g.chassisH - 1, 1), plate(0, 3, 0), plate(g.w - 1, 3, 0)];
-    const goods = [crate(2, 1), crate(3, g.chassisH - 2)];
+    const tail = g.cells.slice(1, g.chassisH - 1).flatMap((row, i) => row.slice(1, -1).flatMap((cell, x) => (cell === '.' || cell === 'D' ? [{ x: x + 1, y: i + 1 }] : []))).pop()!;
+    const goods = [crate(2, 1), crate(tail.x, tail.y)];
     for (const item of [...armor, ...goods]) {
       expect(placementError(gridOf(me), me.items, item, null)).toBeNull();
       me.items = [...me.items, item];
