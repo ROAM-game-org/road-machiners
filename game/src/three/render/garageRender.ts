@@ -279,11 +279,17 @@ function* coreSprites(pass: Pass, view: VehicleView, meshes: readonly Drawn[], b
   const cores = new Map<string, GarageSprite>();
   for (const item of bare.items) {
     if (item.kind !== 'part') continue;
-    const along = isCab(item.part) ? cabWindow(bare, item, glassMeshes([...meshes])) : null;
-    const sprite = yield* alone(pass, view, meshes, item.part.id, origin, along);
+    const sprite = yield* coreSprite(pass, view, meshes, bare, item, origin);
     if (sprite?.url) cores.set(item.part.id, sprite);
   }
   return cores;
+}
+
+function* coreSprite(pass: Pass, view: VehicleView, meshes: readonly Drawn[], bare: Vehicle, item: PartItem, origin: { x: number; z: number }): Generator<PortraitWait, GarageSprite | null, void> {
+  if (!isCab(item.part)) return yield* alone(pass, view, meshes, item.part.id, origin, null);
+  const sprite = yield* alone(pass, view, meshes, item.part.id, origin, cabWindow(bare, item, glassMeshes([...meshes])));
+  if (!sprite?.url) throw new Error(`The ${bare.chassisId} cab drew no pixels of its own`);
+  return sprite;
 }
 
 export function pivotOf(point: { x: number; z: number }, origin: { x: number; z: number }): GaragePivot {
