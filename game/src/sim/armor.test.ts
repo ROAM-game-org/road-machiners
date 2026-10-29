@@ -12,6 +12,7 @@ import { vehicleStats } from './stats';
 import { maxHp } from './wear';
 import { leakFuel } from './supplies';
 import { addVehicle, emptyWorld, npcBrain, rngStateWhere } from './testkit';
+import { coreItem, freeMounts, rectOf, roundedSpans, shadowHolds, shadowOf } from '../test/layout-spots';
 import type { GridItem, Rot, Vehicle, World } from './types';
 
 const partAt = (v: Vehicle, x: number, y: number) =>
@@ -53,8 +54,8 @@ describe('walkLane', () => {
     const last = gridOf(v).chassisH - 1;
     const round = { damage: 1, pen: 2, blast: false, armorShare: 1 };
     expect(walkLane(w, v, 'front', 2, round)[0].part).toBe(partAt(v, 2, 0).id);
-    expect(walkLane(w, v, 'left', 2, round)[0].part).toBe(partAt(v, 1, 2).id);
-    expect(walkLane(w, v, 'right', 2, round)[0].part).toBe(partAt(v, 4, 2).id);
+    expect(walkLane(w, v, 'left', 3, round)[0].part).toBe(partAt(v, 1, 3).id);
+    expect(walkLane(w, v, 'right', 3, round)[0].part).toBe(partAt(v, 4, 3).id);
     expect(walkLane(w, v, 'rear', 1, { ...round, pen: 3 })[0].part).toBe(partAt(v, 1, last - 2).id);
   });
 
@@ -353,65 +354,110 @@ function itemOf(v: Vehicle, defId: string): GridItem {
   return mountedItems(v).find((it) => it.part.defId === defId)!;
 }
 
-function rounded(spans: FireSpan[]): FireSpan[] {
-  return spans.map((s) => ({ from: Math.round(s.from * 10) / 10, to: Math.round(s.to * 10) / 10 }));
+function cabShadow(v: Vehicle, gun: GridItem): FireSpan {
+  return shadowOf(gun, coreItem(v, 'cab'));
 }
 
-function cornerAngle(dx: number, dy: number): number {
-  return (Math.atan2(dx, -dy) * 180) / Math.PI;
+function without(arc: FireSpan, shadow: FireSpan): FireSpan[] {
+  return [{ from: arc.from, to: shadow.from }, { from: shadow.to, to: arc.to }];
+}
+
+function putGun(w: World, v: Vehicle, defId: string, spot: { x: number; y: number; rot: Rot }): void {
+  v.items.push({ id: `i-test-${v.items.length}`, x: spot.x, y: spot.y, rot: spot.rot, kind: 'part', part: makePart(w, defId, 0) });
+}
+
+function overlap(a: GridItem, b: GridItem): boolean {
+  const p = rectOf(a);
+  const q = rectOf(b);
+  return p.x0 < q.x1 && q.x0 < p.x1 && p.y0 < q.y1 && q.y0 < p.y1;
 }
 
 describe('shadows of tall parts', () => {
   it('a gun in the bed cannot fire forward across the cab, however far it stands', () => {
     const v = truckWith(emptyWorld(), 'longbed', [{ defId: 'mg', x: 3, y: 12 }]);
-    const edge = cornerAngle(1.5, -5.5);
-    expect(gunSpans(v, itemOf(v, 'mg'))).toEqual([{ from: -135, to: -edge }, { from: edge, to: 135 }]);
+    const gun = itemOf(v, 'mg');
+    expect(roundedSpans(gunSpans(v, gun))).toEqual(roundedSpans(without({ from: -135, to: 135 }, cabShadow(v, gun))));
   });
 
   it('a heavy machine gun beside the cab loses the angles over the cab and keeps the rest', () => {
     const v = truckWith(emptyWorld(), 'longbed', [{ defId: 'heavyMg', x: 1, y: 8 }]);
-    expect(gunSpans(v, itemOf(v, 'heavyMg'))).toEqual([{ from: -135, to: cornerAngle(0.5, -4.5) }, { from: cornerAngle(3.5, -1.5), to: 135 }]);
+    const gun = itemOf(v, 'heavyMg');
+    expect(roundedSpans(gunSpans(v, gun))).toEqual(roundedSpans(without({ from: -135, to: 135 }, cabShadow(v, gun))));
   });
 
   it('a gun beside the hood fires forward and loses only the angles back across the cab', () => {
     const v = truckWith(emptyWorld(), 'longbed', [{ defId: 'mg', x: 5, y: 2 }]);
-    expect(rounded(gunSpans(v, itemOf(v, 'mg')))).toEqual([{ from: Math.round(cornerAngle(-3.5, 1.5) * 10) / 10, to: 135 }]);
+    const gun = itemOf(v, 'mg');
+    const shadow = cabShadow(v, gun);
+    expect(roundedSpans(gunSpans(v, gun))).toEqual(roundedSpans([{ from: shadow.to, to: 135 }]));
   });
 
   it('a gun facing away from the hauler cab keeps its whole arc', () => {
-    const v = truckWith(emptyWorld(), 'hauler', [{ defId: 'shotgun', x: 2, y: 10, rot: 2 }]);
+    const w = emptyWorld();
+    const v = truckWith(w, 'hauler', []);
+    putGun(w, v, 'shotgun', freeMounts(w, v, 'shotgun', 2).at(-1)!);
     expect(gunSpans(v, itemOf(v, 'shotgun'))).toEqual([{ from: 135, to: 225 }]);
   });
 
   it('a gun behind the hauler cab loses the slice the cab covers, off its own lane', () => {
-    const v = truckWith(emptyWorld(), 'hauler', [{ defId: 'mg', x: 2, y: 10 }]);
-    expect(gunSpans(v, itemOf(v, 'mg'))).toEqual([{ from: -135, to: cornerAngle(1.5, -9.5) }, { from: cornerAngle(4.5, -6.5), to: 135 }]);
+    const w = emptyWorld();
+    const v = truckWith(w, 'hauler', []);
+    const cab = rectOf(coreItem(v, 'cab'));
+    const spot = freeMounts(w, v, 'mg').find((s) => s.y >= cab.y1 && (s.x + 1 <= cab.x0 || s.x >= cab.x1))!;
+    putGun(w, v, 'mg', spot);
+    const gun = itemOf(v, 'mg');
+    const shadow = cabShadow(v, gun);
+    expect(shadow.from).toBeGreaterThan(-135);
+    expect(shadow.to).toBeLessThan(135);
+    expect(roundedSpans(gunSpans(v, gun))).toEqual(roundedSpans(without({ from: -135, to: 135 }, shadow)));
   });
 
   it('a cargo box behind a gun blinds it there, and a flat rack does not', () => {
     const w = emptyWorld();
-    const boxed = truckWith(w, 'hauler', [{ defId: 'mg', x: 2, y: 10 }, { defId: 'trailerBox', x: 3, y: 13 }]);
-    const racked = truckWith(w, 'hauler', [{ defId: 'mg', x: 2, y: 10 }, { defId: 'rack', x: 3, y: 13 }]);
+    const base = truckWith(w, 'hauler', []);
+    const cab = coreItem(base, 'cab');
+    const found =freeMounts(w, base, 'mg').flatMap((g) => {
+      const withGun = truckWith(w, 'hauler', []);
+      putGun(w, withGun, 'mg', g);
+      const gun = itemOf(withGun, 'mg');
+      return freeMounts(w, withGun, 'trailerBox').map((b) => ({ g, b, gun, probe: { ...gun, id: 'box', x: b.x, y: b.y, rot: b.rot, part: makePart(w, 'trailerBox', 0) } as GridItem }));
+    }).find(({ gun, probe }) => !overlap(gun, probe) && shadowHolds(shadowOf(gun, probe), 130) && !shadowHolds(shadowOf(gun, cab), 130))!;
+    const boxed = truckWith(w, 'hauler', []);
+    const racked = truckWith(w, 'hauler', []);
+    for (const v of [boxed, racked]) putGun(w, v, 'mg', found.g);
+    putGun(w, boxed, 'trailerBox', found.b);
+    putGun(w, racked, 'rack', found.b);
     expect(spansHold(gunSpans(boxed, itemOf(boxed, 'mg')), 130)).toBe(false);
     expect(spansHold(gunSpans(racked, itemOf(racked, 'mg')), 130)).toBe(true);
   });
 
   it('a driver seat blocks a gun behind it', () => {
-    const v = truckWith(emptyWorld(), 'courier', [{ defId: 'mg', x: 2, y: 7 }]);
-    const gun = v.items.find((it) => it.kind === 'part' && it.part.defId === 'mg')!;
+    const v = truckWith(emptyWorld(), 'niva', [{ defId: 'mg', x: 1, y: 5 }]);
+    const gun = itemOf(v, 'mg');
+    expect(shadowHolds(cabShadow(v, gun), 0)).toBe(true);
     expect(spansHold(gunSpans(v, gun), 0)).toBe(false);
   });
 
   it('a gun beside the convertible hardtop cab loses the angles toward the cab, off its own lane', () => {
-    const v = truckWith(emptyWorld(), 'convertible', [{ defId: 'mg', x: 5, y: 7 }]);
-    const spans = gunSpans(v, itemOf(v, 'mg'));
-    expect(spansHold(spans, -30)).toBe(false);
+    const w = emptyWorld();
+    const v = truckWith(w, 'convertible', []);
+    const cab = rectOf(coreItem(v, 'cab'));
+    const spot = freeMounts(w, v, 'mg').find((s) => s.y >= cab.y0 && s.y + 3 <= cab.y1 && (s.x + 1 <= cab.x0 || s.x >= cab.x1))!;
+    putGun(w, v, 'mg', spot);
+    const gun = itemOf(v, 'mg');
+    const shadow = cabShadow(v, gun);
+    const toward = (shadow.from + shadow.to) / 2;
+    const away = toward > 0 ? -80 : 80;
+    const spans = gunSpans(v, gun);
+    expect(spansHold(spans, toward)).toBe(false);
     expect(spansHold(spans, 0)).toBe(true);
-    expect(spansHold(spans, -80)).toBe(true);
+    expect(spansHold(spans, away)).toBe(true);
   });
 
   it('a tall gun never blocks itself', () => {
-    const v = truckWith(emptyWorld(), 'hauler', [{ defId: 'cannon', x: 2, y: 10, rot: 2 }]);
+    const w = emptyWorld();
+    const v = truckWith(w, 'hauler', []);
+    putGun(w, v, 'cannon', freeMounts(w, v, 'cannon', 2).at(-1)!);
     expect(spanDegrees(gunSpans(v, itemOf(v, 'cannon')))).toBe(Math.min((partDef('cannon') as WeaponDef).arc, 360));
   });
 });
@@ -466,9 +512,28 @@ describe('gun layout', () => {
   });
 
   it('scores a cargo box behind two guns below a flat rack there', () => {
-    const guns = [{ defId: 'mg', x: 2, y: 11 }, { defId: 'mg', x: 3, y: 11 }];
-    const boxed = truckWith(emptyWorld(), 'hauler', [...guns, { defId: 'trailerBox', x: 3, y: 14 }]);
-    const racked = truckWith(emptyWorld(), 'hauler', [...guns, { defId: 'rack', x: 3, y: 14 }]);
+    const w = emptyWorld();
+    const base = truckWith(w, 'hauler', []);
+    const spots = freeMounts(w, base, 'mg');
+    const first = spots[0];
+    const second = spots.find((s) => s.x !== first.x || Math.abs(s.y - first.y) >= 3)!;
+    const withGuns = () => {
+      const v = truckWith(w, 'hauler', []);
+      putGun(w, v, 'mg', first);
+      putGun(w, v, 'mg', second);
+      return v;
+    };
+    const behind = withGuns();
+    const boxSpot = freeMounts(w, behind, 'trailerBox').find((b) => {
+      const probe: GridItem = { id: 'box', x: b.x, y: b.y, rot: b.rot, kind: 'part', part: makePart(w, 'trailerBox', 0) };
+      const guns = mountedItems(behind, 'weapon');
+      const inArc = [-130, -90, -45, 45, 90, 130];
+      return guns.every((gun) => !overlap(gun, probe)) && guns.some((gun) => inArc.some((a) => shadowHolds(shadowOf(gun, probe), a)));
+    })!;
+    const boxed = withGuns();
+    const racked = withGuns();
+    putGun(w, boxed, 'trailerBox', boxSpot);
+    putGun(w, racked, 'rack', boxSpot);
     expect(gunLayoutScore(boxed)).toBeLessThan(gunLayoutScore(racked));
   });
 
@@ -530,7 +595,8 @@ describe('aimWithin', () => {
 describe('gun facing', () => {
   const gunAt = (defId: string, rot: Rot) => {
     const w = emptyWorld();
-    const v = truckWith(w, 'hauler', [{ defId, x: 2, y: 10, rot }]);
+    const v = truckWith(w, 'hauler', []);
+    putGun(w, v, defId, freeMounts(w, v, defId, rot).at(-1)!);
     return { w, v, item: itemOf(v, defId) };
   };
   const spot = (v: Vehicle, dx: number, dy: number) => ({ x: v.pos.x + dx, y: v.pos.y + dy });
