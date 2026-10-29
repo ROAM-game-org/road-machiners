@@ -819,6 +819,7 @@ export const TINY_STEPS: readonly NamedStep[] = [
   { name: 'withoutLenaGlare', step: withoutLenaGlare_117_118 },
   { name: 'marksStopPace', step: (world) => world },
   { name: 'withMeetingRoles', step: (world) => world },
+  { name: 'withOddJobs', step: (world) => world },
 ];
 
 function withOfferingsRedated_111_112(world: SavedJson): SavedJson {
