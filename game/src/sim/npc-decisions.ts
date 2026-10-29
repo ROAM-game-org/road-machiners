@@ -680,7 +680,7 @@ function canResume(_world: World, vehicle: Vehicle): boolean {
 
 function canTrade(world: World, vehicle: Vehicle): boolean {
   const offer = tradeOfferer(world, vehicle);
-  return offer !== null && tradePlans().some((plan) => offer(plan).length > 0);
+  return offer !== null && tradePlans().some((plan) => planOnBeat(vehicle, plan) && offer(plan).length > 0);
 }
 
 function canScavenge(world: World, vehicle: Vehicle): boolean {
