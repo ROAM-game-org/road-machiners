@@ -4,6 +4,7 @@ import { GEAR_DRAWS, GEAR_LEVELS, GEAR_LEVEL_IDS, GEAR_SCORE, GEAR_WHIM, MIN_NPC
 import { NPC_UTILITY_PARTS } from '../data/npc-utilities';
 import { isLineGun, isShield, PARTS, partDef, type PartKind } from '../data/parts';
 import { openArcShares } from './armor';
+import { gunsBySide } from './fight-odds';
 import { chassisTopSpeed } from './chassis-features';
 import { makePart, makeVehicle, newId, type PartSpec } from './factory';
 import { freeCells, gridOf, mountCellsOf, mountedItems, MOUNT_CELLS, mountSpots, plateSide, type SideLetter } from './grid';
@@ -127,7 +128,7 @@ export type GearRules = { armored: boolean; armorFirst: boolean; gunFirst: boole
 export const TOP_GUN_TIER = Math.max(...Object.values(PARTS).filter((d) => d.kind === 'weapon').map((d) => d.tier));
 export const OPEN_GEAR: GearRules = { armored: true, armorFirst: false, gunFirst: false, gunTier: TOP_GUN_TIER, money: null, paysFuel: true, minSpeed: MIN_NPC_SPEED, cargoPart: true };
 
-type Build = { world: World; budget: number; engineWear: number; keep: Load; keepShare: number; rules: GearRules };
+type Build = { world: World; budget: number; engineWear: number; keep: Load; keepShare: number; rules: GearRules; front: boolean };
 
 const NO_RESERVE: Load = { kg: 0, cells: 0 };
 
@@ -191,10 +192,14 @@ function withEngine(b: Build, v: Vehicle, defId: string): Vehicle | null {
   return mountPart(b.world, next, makePart(b.world, defId, b.engineWear)) && fits(b, next) ? next : null;
 }
 
-function withGun(b: Build, score: (v: Vehicle) => number, v: Vehicle, defId: string): Vehicle | null {
+function coversFront(v: Vehicle): boolean {
+  return gunsBySide(v).front.some((def) => !isLineGun(def));
+}
+
+function withGun(b: Build, score: (v: Vehicle) => number, v: Vehicle, defId: string, front = false): Vehicle | null {
   if (!affords(b, v, partDef(defId))) return null;
   const item: PartItem = { id: newId(b.world, 'i'), x: 0, y: 0, rot: 0, kind: 'part', part: makePart(b.world, defId, 0) };
-  return bestGunSpot(b, v, item, score);
+  return bestGunSpot(b, v, item, score, front);
 }
 
 function everyGunBears(v: Vehicle): boolean {
@@ -205,13 +210,17 @@ function affords(b: Build, v: Vehicle, def: { value: number; mass: number }): bo
   return equipmentCost(v) + def.value <= b.budget && vehicleMass(v) + def.mass <= chassisDef(v.chassisId).ratedMass;
 }
 
-function bestGunSpot(b: Build, v: Vehicle, item: PartItem, score: (v: Vehicle) => number): Vehicle | null {
+function gunSpotFits(b: Build, next: Vehicle, front: boolean): boolean {
+  return everyGunBears(next) && keepsHaul(b, next) && (!front || coversFront(next));
+}
+
+function bestGunSpot(b: Build, v: Vehicle, item: PartItem, score: (v: Vehicle) => number, front: boolean): Vehicle | null {
   const spots = mountSpots(gridOf(v), v.items, item, MOUNT_CELLS.weapon);
   let best: Vehicle | null = null;
   let bestScore = -Infinity;
   for (const spot of spots) {
     const next = { ...v, items: [...v.items, { ...item, ...spot }] };
-    if (!everyGunBears(next) || !keepsHaul(b, next)) continue;
+    if (!gunSpotFits(b, next, front)) continue;
     if (best === null && !meetsSpeedFloor(next, 0, b.rules.minSpeed)) return null;
     const value = score(next);
     if (value > bestScore) [best, bestScore] = [next, value];
@@ -304,9 +313,10 @@ function chooseVehicle(probe: World, rng: Rng, wearRng: Rng, template: NpcTempla
   const chassis = chassisId ?? sampleWeighted(rng, fastEnough(template, rules.minSpeed));
   const bare = makeVehicle(probe, { faction: 'independent', chassisId: chassis, parts: [], spares: [], cargo: {}, pos: { x: 0, y: 0 }, heading: 0, brain: null });
   const keepShare = speedShare(table.priorities);
-  const open: Build = { world: probe, budget: chassisDef(chassis).value + (rules.money ?? level.money), engineWear: wearOf(wearRng, level), keep: NO_RESERVE, keepShare, rules };
+  const open: Build = { world: probe, budget: chassisDef(chassis).value + (rules.money ?? level.money), engineWear: wearOf(wearRng, level), keep: NO_RESERVE, keepShare, rules, front: false };
   const powered = chooseEngine(open, rng, table.priorities, bare);
-  const b: Build = { ...open, keep: keepsHaul({ ...open, keep: table.haul }, powered) ? table.haul : NO_RESERVE };
+  const front = table.armed && gunsFor(rules).some((id) => withGun(open, () => 0, powered, id, true) !== null);
+  const b: Build = { ...open, keep: keepsHaul({ ...open, keep: table.haul }, powered) ? table.haul : NO_RESERVE, front };
   return pickGear(b, rng, table.priorities, withFirstPicks(b, rng, template, powered), powered);
 }
 
@@ -318,7 +328,7 @@ function withFirstPicks(b: Build, rng: Rng, template: NpcTemplate, powered: Vehi
   const lineGun = table.armed ? (x: Vehicle, id: string) => withLineGun(b, rng, table.priorities, powered, x, id) : undefined;
   if (b.rules.cargoPart) v = chooseOptionalPart(b, rng, v, table.cargoPart, keeps);
   v = chooseOptionalPart(b, rng, v, utilityPoolOf(template), keeps, lineGun);
-  if (table.armed && !hasRealGun(v)) v = chooseFirstGun(b, rng, table.priorities, v, powered);
+  if (table.armed && !gunned(b, v)) v = chooseFirstGun(b, rng, table.priorities, v, powered);
   return b.rules.armorFirst ? pickWith(b, rng, armorMoves(b), gearScorer(b.world, table.priorities, powered, b.rules.paysFuel), v) : v;
 }
 
@@ -334,14 +344,18 @@ function hasRealGun(v: Vehicle): boolean {
   return mountedItems(v, 'weapon').some((item) => !isLineGun(partDef(item.part.defId)));
 }
 
+function gunned(b: Build, v: Vehicle): boolean {
+  return b.front ? coversFront(v) : hasRealGun(v);
+}
+
 function canArm(b: Build, v: Vehicle, score: (v: Vehicle) => number): boolean {
-  return hasRealGun(v) || gunsFor(b.rules).some((id) => withGun(b, score, v, id) !== null);
+  return gunned(b, v) || gunsFor(b.rules).some((id) => withGun(b, score, v, id, b.front) !== null);
 }
 
 function firstGunOffers(b: Build, rng: Rng, p: LoadoutPriorities, v: Vehicle, powered: Vehicle, keeps: (next: Vehicle) => boolean = () => true): { v: Vehicle; worth: number }[] {
   const score = gearScorer(b.world, p, powered, b.rules.paysFuel);
   const now = score(powered);
-  const gunsOn = (x: Vehicle) => drawOffers(b, rng, x, gunsFor(b.rules).map((id) => (y: Vehicle) => withGun(b, score, y, id)), (next) => (keeps(next) ? score(next) - now : null));
+  const gunsOn = (x: Vehicle) => drawOffers(b, rng, x, gunsFor(b.rules).map((id) => (y: Vehicle) => withGun(b, score, y, id, b.front)), (next) => (keeps(next) ? score(next) - now : null));
   const drawn = gunsOn(v);
   if (drawn.length) return drawn;
   return ENGINES.map((id) => withEngine(b, v, id)).filter((x): x is Vehicle => x !== null).flatMap(gunsOn);
@@ -380,7 +394,7 @@ export type Refit = { priorities: LoadoutPriorities; money: number; allowed: (v:
 
 export function refitLoadout(world: World, rng: Rng, truck: Vehicle, refit: Refit): Vehicle {
   const probe = { ...world };
-  const b: Build = { world: probe, budget: equipmentCost(truck) + refit.money, engineWear: 0, keep: NO_RESERVE, keepShare: speedShare(refit.priorities), rules: { ...OPEN_GEAR, paysFuel: refit.paysFuel } };
+  const b: Build = { world: probe, budget: equipmentCost(truck) + refit.money, engineWear: 0, keep: NO_RESERVE, keepShare: speedShare(refit.priorities), rules: { ...OPEN_GEAR, paysFuel: refit.paysFuel }, front: false };
   const powered = { ...truck, items: truck.items.filter((it) => it.kind === 'part' && ['core', 'engine'].includes(partDef(it.part.defId).kind)) };
   const score = gearScorer(probe, refit.priorities, powered, refit.paysFuel);
   const moves = gearMoves(b, score).map((move): GearMove => (v) => {
