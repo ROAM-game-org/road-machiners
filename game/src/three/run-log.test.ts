@@ -5,7 +5,7 @@ import type { World } from '../sim/types';
 import { cloneWorld, newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
 import { RunLog } from './run-log';
-import { memoryBackend } from './save-db';
+import { DatabaseLost, memoryBackend } from './save-db';
 
 function start(): World {
   return { ...newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming')), turn: 400 };
@@ -128,5 +128,24 @@ describe('RunLog', () => {
     log.begin(start(), null);
     await log.flush();
     expect(errors.map((e) => (e as Error).message)).toEqual(['Quota exceeded']);
+  });
+
+  it('writes a resync keyframe and shows no save note after the database is lost', async () => {
+    const backend = memoryBackend();
+    let lost = true;
+    const losing = { ...backend, appendLog: (id: string, entries: Parameters<typeof backend.appendLog>[1]) => (lost ? Promise.reject(new DatabaseLost('roam.save', new DOMException('Lost.', 'InvalidStateError'))) : backend.appendLog(id, entries)) };
+    const errors: unknown[] = [];
+    const world = start();
+    const log = new RunLog(losing, 'run', 'v', (e) => errors.push(e));
+    log.begin(world, null);
+    await log.flush();
+    lost = false;
+    log.note(after(world, (w) => { w.turn += 1; }));
+    await log.flush();
+
+    const records = await backend.readLog('run');
+
+    expect(errors).toEqual([]);
+    expect(records[0]).toMatchObject({ kind: 'session', from: 'resync' });
   });
 });

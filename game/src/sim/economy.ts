@@ -7,7 +7,7 @@ import { UNITS } from "../data/units";
 import { partDef } from "../data/parts";
 import { RULES } from "../data/rules";
 import { NPC_UPKEEP } from "../data/npcs";
-import { REGION, type TownDef } from "../data/region";
+import { REGION } from "../data/region";
 import { CONDITION } from "../data/wear";
 import { fitStores, getResources } from "./resources";
 import { isJunk, maxHp, partValue, rebuildJunk, restorePart, scrapPatchPart, scrapValue, wearFactor } from "./wear";
@@ -18,8 +18,8 @@ import { addState, endState, stateOf } from "./states";
 import { inTowReach } from "./tow";
 import { addCoreParts } from "./factory";
 import { practice, skillEffect, vehicleHasPerk } from "./progress";
-import { addStockPart, goodPrice, goodStock, lotPrice, moveStock, onOrder, recordTrade, requireShop, requireSpareGoods, shopAt, shopState, siteOf, stockForSale, takeStockPart } from "./market";
-import { canUseSite, requireTown, townAt, townNear } from "./sites";
+import { addStockPart, goodPrice, goodStock, lotPrice, moveStock, onOrder, recordTrade, requireShop, requireSpareGoods, shopAt, shopNear, shopState, siteOf, stockForSale, takeStockPart } from "./market";
+import { canUseSite, requireTown, townAt } from "./sites";
 import { corePart, coreParts, freeCells, goodsCount, mountedParts } from "./grid";
 import { addGoods, cargoRoom, mountPart, removeGoods, spareParts, stowParcel, stowPart, type ParcelItem } from "./inventory";
 import type { NpcState, PartInstance, Refusal, ShopMoneyKind, Vehicle, World } from "./types";
@@ -332,14 +332,14 @@ function drawService(world: World, shopId: string, kind: Supply, units: number):
 
 export function scrapPatch(world: World): void {
   if (!modeRules(world).rescue) return;
-  const town = needsPatchInTown(world);
-  if (!town) return;
+  const shopId = patchShopNeeded(world);
+  if (!shopId) return;
   const me = playerVehicle(world);
   const noEngine = mountedParts(me, 'engine').length === 0;
-  const engine = noEngine ? shelfEngine(world, town.id) : null;
+  const engine = noEngine ? shelfEngine(world, shopId) : null;
   if (noEngine && (!engine || holdsLooseEngine(world, me))) return;
-  if (canPayFix(world, me, town.id, engine)) return;
-  if (engine) fitEngineOnCredit(world, me, town.id, engine);
+  if (canPayFix(world, me, shopId, engine)) return;
+  if (engine) fitEngineOnCredit(world, me, shopId, engine);
   const stranded = isStranded(world, me);
   if (stranded) for (const part of driveParts(me)) scrapPatchPart(part, RULES.scrapPatch);
   const fuel = scrapFuel(world, me);
@@ -394,11 +394,11 @@ function criticalParts(v: Vehicle): PartInstance[] {
   return [...driveParts(v), corePart(v, 'cab')];
 }
 
-function needsPatchInTown(world: World): TownDef | null {
+function patchShopNeeded(world: World): string | null {
   const me = playerVehicle(world);
   if (world.player.state !== 'active') return null;
   if (!isStranded(world, me) && scrapFuelNeed(world, me) === 0) return null;
-  return townNear(world);
+  return shopNear(world);
 }
 
 function canPayFix(world: World, v: Vehicle, shopId: string, engine: PartInstance | null): boolean {
