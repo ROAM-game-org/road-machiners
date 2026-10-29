@@ -57,6 +57,15 @@ describe('escortMove', () => {
     expect(destOf(escortMove(w, playerVehicle(w)))).toEqual(followSpot(w, playerVehicle(w), haulerOf(w), 0));
   });
 
+  it('never puts a held pace on the follow order', () => {
+    const w = started();
+    haulerOf(w).speed = 5;
+    refreshVision(w);
+    const order = escortMove(w, playerVehicle(w));
+    expect(order.kind).not.toBe('brake');
+    expect('pace' in order).toBe(false);
+  });
+
   it('fights a foe in sight by the NPC fight point while within its gun reach of the hauler', () => {
     const w = started();
     const me = playerVehicle(w);
