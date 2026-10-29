@@ -4,7 +4,7 @@ import { heightAt } from '../sim/terrain';
 import type { UnitPose } from '../sim/rig';
 import type { Vehicle, World } from '../sim/types';
 import { wheelMounts } from './body';
-import type { Quat, V3 } from './frames';
+import { headingQuat, rideHeightAt, type Quat, type V3 } from './frames';
 
 const S = PHYSICS.metersPerTile;
 const REFINE_PASSES = 3;
@@ -14,9 +14,19 @@ export type Seat = { pos: V3; rot: Quat; forward: V3 };
 type Basis = { x: V3; y: V3; z: V3 };
 
 export function seatUnits(w: World, v: Vehicle, poses: UnitPose[]): Seat[] {
+  if (v.speed !== 0) return seatLevel(w, v, poses);
   const front = seatFront(w, v, poses[0]);
   if (poses.length === 1) return [front];
   return [front, seatRear(w, v, poses[1], front)];
+}
+
+function seatLevel(w: World, v: Vehicle, poses: UnitPose[]): Seat[] {
+  const height = Math.max(...poses.map((pose) => rideHeightAt(w, v, pose)));
+  return poses.map((pose) => ({
+    pos: { x: pose.pos.x * S, y: height, z: pose.pos.y * S },
+    rot: headingQuat(pose.heading),
+    forward: { x: Math.cos(pose.heading), y: 0, z: Math.sin(pose.heading) },
+  }));
 }
 
 function seatFront(w: World, v: Vehicle, pose: UnitPose): Seat {
