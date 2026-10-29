@@ -82,7 +82,7 @@ import {
   rectOf,
   type PixelRect,
 } from "./inventory-draw";
-import { fillGhost, garageLooks, type GarageLooks } from "./garage-draw";
+import { fillGhost, garageLooks, pivotPx, type GarageLooks } from "./garage-draw";
 import { fuelLiters, kg, moneyEl, moneyMsg, pricedEl } from "./units";
 import { maxSpeedSteps } from "../sim/stats";
 import { getSearchAction, powerChip } from "./hud-readout";
@@ -205,7 +205,7 @@ export class InventoryView {
     const g = gridOf(me);
     this.showSelection(w);
     this.looks = garageLooks(this.host.garageRenders?.() ?? null, w, me, this.otherItems(w), this.truck);
-    const grid = gridEl(g, me.chassisId, this.scale.measure(me, true), this.looks.own);
+    const grid = gridEl(g, me.chassisId, this.scale.measure(me, true), this.looks.own, this.selection(w));
     grid.append(...this.gridItems(w, me));
     this.gridEl = grid;
     this.showFan(me, this.selectedGun(me));
@@ -307,7 +307,7 @@ export class InventoryView {
   private drawFan(grid: HTMLElement, me: Vehicle, it: GridItem): void {
     const def = weaponDefOf(it);
     if (!def) return;
-    grid.append(fanSvg(me, it, this.scale.mine));
+    grid.append(fanSvg(me, it, this.scale.mine, pivotPx(this.looks.own, it, this.scale.mine)));
     for (const id of blockerIds(me, it)) grid.querySelector(`[data-item-id="${id}"]`)?.classList.add("blocking");
   }
 
@@ -679,7 +679,7 @@ export class InventoryView {
     const target = w.vehicles.find((v) => v.id === truckId);
     if (!target || !isKnockedOut(target))
       return el("div", { class: "inv-truck inv-target" }, el("h3", {}, t("inv.truckGone")));
-    const grid = gridEl(gridOf(target), target.chassisId, this.scale.measure(target, false), this.looks.other);
+    const grid = gridEl(gridOf(target), target.chassisId, this.scale.measure(target, false), this.looks.other, null);
     const removing = removalMarks(w, target);
     grid.append(...target.items.map((it) => markTaken(w, this.truckItemEl(target, it, grid), removing.get(it.id))));
     return el(

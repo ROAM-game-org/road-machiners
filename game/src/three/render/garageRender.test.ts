@@ -6,7 +6,7 @@ import { makePart } from '../../sim/factory';
 import { baseGrid, itemCells, layerOf, mountCellsOf } from '../../sim/grid';
 import type { PartInstance, Vehicle } from '../../sim/types';
 import { bare } from '../../test/gun-clearance-kit';
-import { BODY_PAD_M, GARAGE_MAX_SIDE, GARAGE_PX_PER_METER, GarageRenders, bodyKey, coreItems, mountSpotsOf, planJobs, shotSize, spriteKey, type BuildGarageJob, type GarageJob, type GarageNeed } from './garageRender';
+import { BODY_PAD_M, GARAGE_MAX_SIDE, GARAGE_PX_PER_METER, GarageRenders, bodyKey, cabWindow, coreItems, mountSpotsOf, narrowedTo, pivotOf, planJobs, shotSize, spriteKey, type BuildGarageJob, type GarageJob, type GarageNeed } from './garageRender';
 import type { PortraitWait } from './truckPortrait';
 import { VehicleView } from './vehicle';
 
@@ -261,5 +261,29 @@ describe('garage render size', () => {
     view.root.traverse((o) => o instanceof THREE.Mesh && o.visible && !o.userData.outline && box.expandByObject(o));
     const size = shotSize({ left: box.min.z - BODY_PAD_M, right: box.max.z + BODY_PAD_M, top: box.max.x + BODY_PAD_M, bottom: box.min.x - BODY_PAD_M });
     expect(Math.max(size.width, size.height)).toBeLessThanOrEqual(GARAGE_MAX_SIDE);
+  });
+});
+
+describe('the marks a garage sprite carries', () => {
+  it('measures a pivot from the grid origin, across to the right and down the truck', () => {
+    const pivot = pivotOf({ x: 3, z: -0.4 }, { x: 5, z: -1 });
+    expect(pivot.x).toBeCloseTo(0.6, 9);
+    expect(pivot.y).toBe(2);
+  });
+
+  it('cuts a frame to a window along the truck and keeps its width', () => {
+    expect(narrowedTo({ left: -1, right: 1, top: 4, bottom: -4 }, { min: -1, max: 2 })).toEqual({ left: -1, right: 1, top: 2, bottom: -1 });
+    expect(narrowedTo({ left: -1, right: 1, top: 1, bottom: 0 }, { min: -1, max: 2 })).toEqual({ left: -1, right: 1, top: 1, bottom: 0 });
+  });
+
+  it('gives the cab a window as long as its own cells when no glass is drawn', () => {
+    const { v } = bare('scout');
+    const cab = coreItems(v).find((it) => {
+      const def = partDef(it.part.defId);
+      return def.kind === 'core' && def.role === 'cab';
+    })!;
+    const window = cabWindow(v, cab, []);
+    expect(window.max).toBeGreaterThan(window.min);
+    expect(window.max - window.min).toBeLessThan(2);
   });
 });

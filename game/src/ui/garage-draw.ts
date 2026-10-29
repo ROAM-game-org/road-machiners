@@ -7,7 +7,8 @@ import { playerTrucks } from "../sim/damage";
 import { coreItems, isCore, mountSpotsOf, type GarageBody, type GarageNeed, type GaragePart, type GarageRenders, type GarageSprite } from "../three/render/garageRender";
 import { el } from "./dom";
 import { tierOf } from "./hud-readout";
-import { turnedIcon, type GridMetrics, type PixelRect } from "./inventory-draw";
+import { rectOf, turnedIcon, type GridMetrics, type PixelPoint, type PixelRect } from "./inventory-draw";
+import { uiSize } from "./ui-size";
 
 type PartItem = Extract<GridItem, { kind: "part" }>;
 
@@ -126,6 +127,45 @@ export function fillGhost(ghost: HTMLElement, look: GarageLook | null, it: GridI
   if (dragOver) markMounts(dragOver, it);
 }
 
-export function markMounts(grid: HTMLElement, it: GridItem): void {
-  grid.dataset.mounts = isPartItem(it) && !isCore(it.part) ? mountCellsOf(it.part.defId).join(" ") : "";
+export function markMounts(grid: HTMLElement, it: GridItem | null): void {
+  grid.dataset.mounts = it && isPartItem(it) && !isCore(it.part) ? mountCellsOf(it.part.defId).join(" ") : "";
+}
+
+export function pivotPx(look: GarageLook | null, it: GridItem, m: GridMetrics): PixelPoint | null {
+  const sprite = look ? drawnSprite(look, it) : null;
+  if (!sprite) return null;
+  if (!sprite.pivot) throw new Error(`The drawn ${itemLabelId(it)} has no pivot`);
+  return { x: sprite.pivot.x * m.pxPerMeter, y: sprite.pivot.y * m.pxPerMeter };
+}
+
+function itemLabelId(it: GridItem): string {
+  return isPartItem(it) ? it.part.defId : it.kind;
+}
+
+export function dressGrid(grid: HTMLElement, m: GridMetrics, picked: GridItem | null): void {
+  lightNearPointer(grid, m);
+  markMounts(grid, picked);
+}
+
+const NEAR_FULL = 1;
+const NEAR_FADE = 1;
+
+export function lightNearPointer(grid: HTMLElement, m: GridMetrics): void {
+  const cells = [...grid.querySelectorAll<HTMLElement>(".inv-cell[data-cell]:not(.spare)")].map((node) => {
+    const [x, y] = node.dataset.cell!.split(",").map(Number);
+    const r = rectOf(m, x, y, 1, 1);
+    return { node, x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  });
+  grid.addEventListener("pointermove", (e) => {
+    const at = grid.getBoundingClientRect();
+    const px = uiSize().toLayer(e.clientX - at.left);
+    const py = uiSize().toLayer(e.clientY - at.top);
+    for (const c of cells) {
+      const away = Math.hypot((px - c.x) / m.cellW, (py - c.y) / m.cellH);
+      c.node.style.setProperty("--near", String(Math.max(0, Math.min(1, 1 - (away - NEAR_FULL) / NEAR_FADE))));
+    }
+  });
+  grid.addEventListener("pointerleave", () => {
+    for (const c of cells) c.node.style.removeProperty("--near");
+  });
 }

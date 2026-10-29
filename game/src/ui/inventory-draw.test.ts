@@ -10,10 +10,11 @@ import { plannedTruck } from "../sim/inventory";
 import { takeFromTruck } from "../sim/salvage";
 import { refreshVision } from "../sim/vision";
 import { resolve } from "../text/resolve";
-import { cellAt, drawnLayer, takenCells, gridMetrics, gridSize, itemLabel, itemName, itemState, nextRot, rectOf, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
+import { cellAt, drawnLayer, LAYERS_PER_BAND, gridMetrics, gridSize, itemLabel, itemName, itemState, nextRot, rectOf, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
 import { cellCenter, cellSteps } from "../sim/body";
 import { kg } from "./units";
-import { backgroundNeeds, ownNeed, shownNeed } from "./garage-draw";
+import { backgroundNeeds, ownNeed, pivotPx, shownNeed, type GarageLook } from "./garage-draw";
+import type { GarageSprite } from "../three/render/garageRender";
 import { partDef } from "../data/parts";
 
 const world = emptyWorld();
@@ -246,11 +247,35 @@ describe("the garage grid's layers and marks", () => {
     expect(z(placedAt("mg", 0, 0))).toBeGreaterThan(z(placedAt("scrapSheet", 0, 20)));
   });
 
-  it("marks only the cells of loose parts as taken, never a built-in part's", () => {
+  it("keeps the fan above every part and under every gun", () => {
+    expect(LAYERS_PER_BAND).toBeGreaterThan(z(placedAt("scrapSheet", 0, 40)));
+    expect(z(placedAt("mg", 0, 0))).toBeGreaterThan(LAYERS_PER_BAND);
+  });
+});
+
+describe("the pivot a fan starts from", () => {
+  const sprite = (pivot: GarageSprite["pivot"]): GarageSprite => ({ url: "blob:x", left: 0, top: 0, width: 1, height: 1, pivot });
+  const lookWith = (made: GarageSprite | null): { look: GarageLook; gun: GridItem } => {
     const w = emptyWorld();
-    const truck = addVehicle(w, "player", "scout", [], { x: 30, y: 30 });
-    expect(takenCells(truck, baseGrid("scout").h).size).toBe(0);
-    const withGun = { ...truck, items: [...truck.items, placedAt("mg", 1, 2)] };
-    expect([...takenCells(withGun, baseGrid("scout").h)]).toContain("1,2");
+    const me = w.vehicles[0];
+    const gun = me.items.find((it) => it.kind === "part" && partDef(it.part.defId).kind === "weapon")!;
+    return { look: { renders: { sprite: () => made }, paint: w.player.paint, truck: me } as unknown as GarageLook, gun };
+  };
+  const m = gridMetrics("scout", gridOf(emptyWorld().vehicles[0]), 100);
+
+  it("is the sprite's pivot in grid pixels", () => {
+    const { look, gun } = lookWith(sprite({ x: 0.5, y: 1.25 }));
+    expect(pivotPx(look, gun, m)).toEqual({ x: 50, y: 125 });
+  });
+
+  it("is missing for a gun drawn as a tile", () => {
+    expect(pivotPx(null, lookWith(null).gun, m)).toBeNull();
+    const { look, gun } = lookWith(null);
+    expect(pivotPx(look, gun, m)).toBeNull();
+  });
+
+  it("throws for a drawn gun that carries no pivot", () => {
+    const { look, gun } = lookWith(sprite(undefined));
+    expect(() => pivotPx(look, gun, m)).toThrow(/no pivot/);
   });
 });
