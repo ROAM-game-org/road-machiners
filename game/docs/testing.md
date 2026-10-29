@@ -6,7 +6,7 @@ Tests are part of the game. Each test guards one rule, has a cost that every lat
 
 These are the design faults of the suite. The rules below exist to stop each one from growing.
 
-- Tests reach rules through whole worlds. About half the test files build a world, many of them on the real map with every NPC the seed draws. Their cost grows with the game's content, and a content change breaks tests that never meant to check content.
+- Tests reach rules through whole worlds. About one test file in five builds a whole start world on the real map, with every NPC the seed draws. Their cost grows with the game's content, and a content change breaks tests that never meant to check content.
 - Time limits measured the machine, not the test. Agents raised them test by test, then the factory switched them off. A hang there has no deadline, and a slow test shows no cost.
 - Cost showed only at merge time. The CPU limits ran only on GitHub Actions, so the agent who wrote a slow test never saw it, and a later merge fixer paid for it.
 - Goldens pin side effects. A test that pins the random stream or the next id after world creation moves with every new prop or truck. Each agent re-pins it, so it guards nothing.

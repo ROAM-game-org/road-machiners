@@ -93,7 +93,7 @@ what: The factory read a check that ran out of time as machine noise and ran it 
 cost: Merge jobs reran unchanged commits until their four-hour limit in about twenty-five merges, every merge failed for two days, release playtests burned hours of agent time on reruns, and dev took no green suite for three days while a hand push of cards checked only by their own tests left it red.
 
 ID: R26
-what: The cost of the game tests grew with the game and nobody owned it. About half the test files build a whole world on the real map, files rebuilt map bakes, nav layers and quest states for each test, and each agent answered a slow test with a larger timeout instead of a cheaper setup. Time limits only ran on CI, so the agent who wrote a slow test never saw its cost.
+what: The cost of the game tests grew with the game and nobody owned it. About one test file in five builds a whole start world on the real map, files rebuilt map bakes, nav layers and quest states for each test, and each agent answered a slow test with a larger timeout instead of a cheaper setup. Time limits only ran on CI, so the agent who wrote a slow test never saw its cost.
 cost: Suite runs took 15 to 25 minutes on the factory and timed out on CI, cards waited hours for checks, single test files took minutes, and a test file outgrew the memory of a test worker.
 
 ID: R27
