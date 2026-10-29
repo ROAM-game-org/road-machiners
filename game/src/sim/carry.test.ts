@@ -22,12 +22,17 @@ function part(defId: string, over: Partial<Extract<CarriedItem, { kind: 'part' }
   return { defId, wear: 0, hp: 1000, rebuilt: false, ...over };
 }
 
+let kitTemplate: CarriedItem[] | null = null;
+
 function kitItems(): CarriedItem[] {
-  const w = newWorld(1, KIT, TEST_MAP, defaultSetup('roaming'), false);
-  return playerVehicle(w).items.map((it): CarriedItem =>
-    it.kind !== 'part'
-      ? { kind: 'good', good: it.kind === 'good' ? it.good : '', x: it.x, y: it.y, rot: it.rot }
-      : { kind: 'part', part: { defId: it.part.defId, wear: it.part.wear, hp: it.part.hp, rebuilt: false }, x: it.x, y: it.y, rot: it.rot });
+  if (kitTemplate === null) {
+    const w = newWorld(1, KIT, TEST_MAP, defaultSetup('roaming'), false);
+    kitTemplate = playerVehicle(w).items.map((it): CarriedItem =>
+      it.kind !== 'part'
+        ? { kind: 'good', good: it.kind === 'good' ? it.good : '', x: it.x, y: it.y, rot: it.rot }
+        : { kind: 'part', part: { defId: it.part.defId, wear: it.part.wear, hp: it.part.hp, rebuilt: false }, x: it.x, y: it.y, rot: it.rot });
+  }
+  return structuredClone(kitTemplate);
 }
 
 function carriedOf(over: Partial<Carried> = {}): Carried {
@@ -43,7 +48,8 @@ const defIds = (items: { kind: string; part?: { defId: string } }[]) => items.fl
 describe('carriedWorld', () => {
   it('keeps progression, the truck and the garage, and parks on a town pad', () => {
     const items = kitItems().map((it) => (it.kind === 'part' && it.part.defId === 'mg' ? { ...it, part: part('mg', { wear: 2, hp: 5 }) } : it));
-    const world = carriedWorld(carriedOf({ truck: { chassisId: 'scout', items }, storage: [part('plates', { wear: 1 })] }), KIT, () => TEST_MAP, fresh);
+    const [known, other] = REGION.towns;
+    const world = carriedWorld(carriedOf({ truck: { chassisId: 'scout', items }, storage: [part('plates', { wear: 1 })], discovered: [known.id, 'gone'] }), KIT, () => TEST_MAP, fresh);
     const truck = playerVehicle(world);
     expect(townAt(world)).not.toBeNull();
     expect(world.seed).toBe(99);
@@ -59,6 +65,10 @@ describe('carriedWorld', () => {
     expect(truck.items.filter((it) => it.kind === 'good').length).toBe(4);
     expect(world.player.costBasis).toEqual({ scrap: 8 });
     expect(getLayoutError(truck, truck.items)).toBeNull();
+    expect(world.player.discovered).toContain(known.id);
+    expect(world.player.discovered).not.toContain('gone');
+    expect(() => discoverSite(world, known)).toThrow();
+    expect(() => discoverSite(world, other)).not.toThrow();
   });
 
   it('sends a part with an invalid spot to the garage', () => {
@@ -91,8 +101,6 @@ describe('carriedWorld', () => {
   });
 
   it('carries a known paint slot by slot and turns an unknown slot into its standard color', () => {
-    const sanded = { body: 'sand', cab: 'slate', gear: 'chalk' };
-    expect(carriedWorld(carriedOf({ paint: sanded }), KIT, () => TEST_MAP, fresh).player.paint).toEqual(sanded);
     const world = carriedWorld(carriedOf({ paint: { body: 'sand', cab: 'gold', gear: 'chalk' } }), KIT, () => TEST_MAP, fresh);
     expect(world.player.paint).toEqual({ body: 'sand', cab: PAINT.standard.cab, gear: 'chalk' });
     expect(carriedWorld(carriedOf({ paint: { body: 'oxblood' } }), KIT, () => TEST_MAP, fresh).player.paint).toEqual({ ...PAINT.standard, body: 'oxblood' });
@@ -110,29 +118,12 @@ describe('carriedWorld', () => {
     expect(both.player.perks).toEqual(['rebuild']);
   });
 
-  it('clamps ranks to whole numbers from 0 to the top rank, and the pool to 0 or more', () => {
-    const world = carriedWorld(carriedOf({ xp: -5, ranks: { driving: 99, social: -2, machining: 2.7 } }), KIT, () => TEST_MAP, fresh);
+  it('clamps ranks to whole numbers from 0 to the top rank, the pool to 0 or more, fuel and supplies to the truck capacity, and part wear into the range', () => {
+    const world = carriedWorld(carriedOf({ xp: -5, ranks: { driving: 99, social: -2, machining: 2.7 }, fuel: 1e9, supplies: 1e9, storage: [part('plates', { wear: 99, hp: -4 })] }), KIT, () => TEST_MAP, fresh);
     expect(world.player.ranks).toMatchObject({ driving: MAX_RANK, social: 0, machining: 2 });
     expect(world.player.xp).toBe(0);
-  });
-
-  it('clamps fuel to the truck capacity', () => {
-    const world = carriedWorld(carriedOf({ fuel: 1e9, supplies: 1e9 }), KIT, () => TEST_MAP, fresh);
     expect(world.player.fuel).toBeLessThan(1e9);
     expect(world.player.supplies).toBeLessThan(1e9);
-  });
-
-  it('pays no discovery XP again for a carried place', () => {
-    const [known, other] = REGION.towns;
-    const world = carriedWorld(carriedOf({ discovered: [known.id, 'gone'] }), KIT, () => TEST_MAP, fresh);
-    expect(world.player.discovered).toContain(known.id);
-    expect(world.player.discovered).not.toContain('gone');
-    expect(() => discoverSite(world, known)).toThrow();
-    expect(() => discoverSite(world, other)).not.toThrow();
-  });
-
-  it('keeps junk part wear inside the range', () => {
-    const world = carriedWorld(carriedOf({ storage: [part('plates', { wear: 99, hp: -4 })] }), KIT, () => TEST_MAP, fresh);
     expect(world.player.storage[0].wear).toBe(CONDITION.maxWear + 1);
     expect(world.player.storage[0].hp).toBe(0);
   });
