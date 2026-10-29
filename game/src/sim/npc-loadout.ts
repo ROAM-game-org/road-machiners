@@ -296,27 +296,36 @@ function armorMoves(b: Build): GearMove[] {
   return ARMOR.flatMap((id) => SIDE_GROUPS.filter((sides) => mountsOn(id, sides)).flatMap((sides): GearMove[] => [(v) => withArmor(b, v, id, sides), (v) => withBetterArmor(b, v, id, sides)]));
 }
 
-function takeStep(b: Build, rng: Rng, v: Vehicle, moves: GearMove[], score: (v: Vehicle) => number, now: number, mustAct = false): Vehicle | null {
+function takeStep(b: Build, rng: Rng, v: Vehicle, moves: GearMove[], score: (v: Vehicle) => number, now: number, mustAct = false, dead = new Set<GearMove>()): Vehicle | null {
   const drawn = drawOffers(b, rng, v, moves, (next) => {
     const gain = score(next) - now;
     return gain > 0 || (mustAct && gain === 0) ? gain : null;
-  });
+  }, dead);
   if (!drawn.length) return null;
   if (nextRandom(rng) < GEAR_WHIM) return drawn[Math.floor(nextRandom(rng) * drawn.length)].v;
   return drawn.reduce((a, c) => (c.worth > a.worth ? c : a)).v;
 }
 
-function drawOffers(b: Build, rng: Rng, v: Vehicle, moves: GearMove[], gainOf: (next: Vehicle) => number | null): { v: Vehicle; worth: number }[] {
-  const order = [...moves];
+function drawOffers(b: Build, rng: Rng, v: Vehicle, moves: GearMove[], gainOf: (next: Vehicle) => number | null, dead = new Set<GearMove>()): { v: Vehicle; worth: number }[] {
+  const order = moves.filter((move) => !dead.has(move));
   const drawn: { v: Vehicle; worth: number }[] = [];
   for (let i = 0; i < order.length && drawn.length < GEAR_DRAWS; i++) {
     const pick = i + Math.floor(nextRandom(rng) * (order.length - i));
     [order[i], order[pick]] = [order[pick], order[i]];
-    const next = order[i](v);
-    const gain = next && gainOf(next);
-    if (next && gain !== null) drawn.push({ v: next, worth: gain / used(b, v, next) });
+    const offer = offerOf(b, v, order[i], gainOf, dead);
+    if (offer) drawn.push(offer);
   }
   return drawn;
+}
+
+function offerOf(b: Build, v: Vehicle, move: GearMove, gainOf: (next: Vehicle) => number | null, dead: Set<GearMove>): { v: Vehicle; worth: number } | null {
+  const next = move(v);
+  if (!next) {
+    dead.add(move);
+    return null;
+  }
+  const gain = gainOf(next);
+  return gain === null ? null : { v: next, worth: gain / used(b, v, next) };
 }
 
 function used(b: Build, v: Vehicle, next: Vehicle): number {
@@ -416,9 +425,11 @@ function pickGear(b: Build, rng: Rng, p: LoadoutPriorities, v: Vehicle, powered:
 }
 
 function pickWith(b: Build, rng: Rng, moves: GearMove[], score: (v: Vehicle) => number, v: Vehicle): Vehicle {
+  const dead = new Set<GearMove>();
   for (;;) {
-    const next = takeStep(b, rng, v, moves, score, score(v));
+    const next = takeStep(b, rng, v, moves, score, score(v), false, dead);
     if (!next) return v;
+    if (v.items.some((it) => !next.items.includes(it))) dead.clear();
     v = next;
   }
 }
@@ -434,9 +445,7 @@ export function refitLoadout(world: World, rng: Rng, truck: Vehicle, refit: Refi
     const next = move(v);
     return next && refit.allowed(next) ? next : null;
   });
-  let v = truck;
-  for (let next = takeStep(b, rng, v, moves, score, score(v)); next; next = takeStep(b, rng, v, moves, score, score(v))) v = next;
-  return v;
+  return pickWith(b, rng, moves, score, truck);
 }
 
 function mountedNonCore(v: Vehicle): PartSpec[] {
