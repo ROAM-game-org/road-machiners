@@ -540,7 +540,7 @@ describe('decision points', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = w.player.vehicleId;
     const raider = addNpc(w, 'scrapjaw', 'buggy', ['raider'], { x: 70, y: 30 });
-    raider.brain!.goals = [{ kind: 'investigate', targetId: me, destination: { x: 30, y: 30 }, phase: 'travel', reason: 'heardHostile' }];
+    raider.brain!.goals = [{ kind: 'investigate', targetId: me, destination: { x: 30, y: 30 }, phase: 'travel', reason: 'heardHostile', chase: { turn: w.turn, gap: 40 } }];
     chooseOn(w, raider, me, { x: 30, y: 30 }, 'investigate', false);
     w.turn += NPC_BEHAVIOR.noticeMemory + 1;
     thinkNpc(w, raider);

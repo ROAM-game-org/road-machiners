@@ -7,9 +7,10 @@ import { alongOf, toRoad } from './highway';
 import { addGoods } from './inventory';
 import { holdsUp, optionWeights, passReason, judgeDanger } from './npc-decisions';
 import { thinkNpc, topGoal } from './npc-activities';
+import { joinCompany } from './companies';
 import { addState, stateOf } from './states';
 import { addVehicle, emptyWorld, forceOption, chaosHighwayWorld, npcBrain, sizedUp, startCombat, testDrive } from './testkit';
-import type { Vehicle, World } from './types';
+import type { GameEvent, Vehicle, World } from './types';
 import { endTurn } from './world';
 
 function scumbagAndPrey(gap = 5): { w: World; robber: Vehicle; prey: Vehicle } {
@@ -163,6 +164,123 @@ describe('a raider sizing up the player', () => {
     thinkNpc(w, me);
     expect(me.brain!.goals.some((g) => g.kind === 'sizeUp')).toBe(false);
     expect(stateOf(w, 'backedOff', me.id, w.player.vehicleId)).toBeNull();
+  });
+});
+
+function raiderBehindPlayer(gap: number): { w: World; raider: Vehicle; player: Vehicle } {
+  const w = emptyWorld({ x: 60, y: 60 });
+  for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
+  const player = playerVehicle(w);
+  player.speed = 4;
+  addGoods(w, player, 'electronics', 3);
+  const raider = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine', 'mg'], { x: 60 - gap, y: 60 });
+  raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+  forceOption('hostileSeen', 'fight');
+  thinkNpc(w, raider);
+  expect(topGoal(raider)).toMatchObject({ kind: 'sizeUp', targetId: player.id });
+  return { w, raider, player };
+}
+
+function chaseTurn(w: World, raider: Vehicle, player: Vehicle, raiderStep: number, playerStep: number): GameEvent[] {
+  w.turn++;
+  player.pos = { x: player.pos.x + playerStep, y: player.pos.y };
+  raider.pos = { x: raider.pos.x + raiderStep, y: raider.pos.y };
+  w.events = [];
+  thinkNpc(w, raider);
+  return w.events;
+}
+
+describe('a size-up of a truck the robber is not gaining on', () => {
+  it('gives up the size-up and backs off the prey once the gap has not shrunk for the stall turns', () => {
+    const { w, raider, player } = raiderBehindPlayer(14);
+    const events: GameEvent[] = [];
+    let turns = 0;
+    for (; turns < 3 * NPC_BEHAVIOR.chaseStallTurns && topGoal(raider)?.kind === 'sizeUp'; turns++) events.push(...chaseTurn(w, raider, player, 2, 3));
+    expect(turns).toBe(NPC_BEHAVIOR.chaseStallTurns + 1);
+    expect(events).toContainEqual(expect.objectContaining({ t: 'activity', vehicle: raider.id, previous: 'sizeUp', reason: 'truckGotAway' }));
+    expect(stateOf(w, 'backedOff', raider.id, player.id)).not.toBeNull();
+    expect(stateOf(w, 'feud', raider.id, player.id)).toBeNull();
+  });
+
+  it('does not size the prey up again on the next turns once it gave up', () => {
+    const { w, raider, player } = raiderBehindPlayer(14);
+    for (let turn = 0; turn <= NPC_BEHAVIOR.chaseStallTurns; turn++) chaseTurn(w, raider, player, 2, 3);
+    for (let turn = 0; turn < 3; turn++) {
+      chaseTurn(w, raider, player, 2, 3);
+      expect(raider.brain!.goals.some((g) => g.kind === 'sizeUp' || g.kind === 'fight')).toBe(false);
+    }
+  });
+
+  it('keeps on while it closes in, however slowly', () => {
+    const { w, raider, player } = raiderBehindPlayer(18);
+    for (let turn = 0; turn < 2 * NPC_BEHAVIOR.chaseStallTurns; turn++) {
+      chaseTurn(w, raider, player, 2.5, 2);
+      expect(topGoal(raider)).toMatchObject({ kind: 'sizeUp', targetId: player.id });
+    }
+  });
+
+  it('keeps on while it holds within look-over reach', () => {
+    const { w, raider, player } = raiderBehindPlayer(LOOK_OVER.reach - 1);
+    for (let turn = 0; turn < 2 * NPC_BEHAVIOR.chaseStallTurns; turn++) {
+      chaseTurn(w, raider, player, 0, 0);
+      expect(topGoal(raider)?.kind).toBe('sizeUp');
+    }
+  });
+});
+
+describe('a raider whose prey fights its side', () => {
+  function crewOf(w: World): { leader: Vehicle; mate: Vehicle } {
+    const leader = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine', 'mg'], { x: 72, y: 60 }, Math.PI);
+    leader.brain = npcBrain('buggy', leader.pos, ['raider']);
+    const mate = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine', 'mg'], { x: 72, y: 72.5 }, Math.PI);
+    mate.brain = npcBrain('buggy', mate.pos, ['raider']);
+    joinCompany(w, mate, leader, 'crew', { kind: 'crew', camp: 'kiln' });
+    return { leader, mate };
+  }
+
+  function preyWorld(): World {
+    const w = emptyWorld({ x: 60, y: 60 });
+    for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
+    addGoods(w, playerVehicle(w), 'electronics', 3);
+    forceOption('hostileSeen', 'fight');
+    return w;
+  }
+
+  it('turns its size-up into a fight once the prey fights its crew mate', () => {
+    const w = preyWorld();
+    const { leader, mate } = crewOf(w);
+    thinkNpc(w, mate);
+    expect(topGoal(mate)).toMatchObject({ kind: 'sizeUp', targetId: w.player.vehicleId });
+    startCombat(w, playerVehicle(w), leader);
+    w.turn++;
+    thinkNpc(w, mate);
+    expect(topGoal(mate)).toMatchObject({ kind: 'fight', targetId: w.player.vehicleId, reason: 'fightHostile' });
+    expect(mate.brain!.goals.some((g) => g.kind === 'sizeUp')).toBe(false);
+  });
+
+  it('fights at once, with no size-up, when it first sees the prey fighting a nearby ally', () => {
+    const w = preyWorld();
+    const ally = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine', 'mg'], { x: 72, y: 60 }, Math.PI);
+    ally.brain = npcBrain('buggy', ally.pos, ['raider']);
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine', 'mg'], { x: 72, y: 66 }, Math.PI);
+    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+    startCombat(w, playerVehicle(w), ally);
+    thinkNpc(w, raider);
+    expect(topGoal(raider)).toMatchObject({ kind: 'fight', targetId: w.player.vehicleId, reason: 'fightHostile' });
+  });
+
+  it('still drops its size-up, and fights nobody, when the prey fights a stranger', () => {
+    const w = preyWorld();
+    const { mate } = crewOf(w);
+    thinkNpc(w, mate);
+    const stranger = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 50, y: 60 });
+    stranger.brain = npcBrain('trader', stranger.pos, ['trader']);
+    startCombat(w, playerVehicle(w), stranger);
+    w.turn++;
+    w.events = [];
+    thinkNpc(w, mate);
+    expect(mate.brain!.goals.some((g) => g.kind === 'sizeUp' || g.kind === 'fight')).toBe(false);
+    expect(w.events).toContainEqual(expect.objectContaining({ t: 'activity', vehicle: mate.id, previous: 'sizeUp', reason: 'inCombat' }));
   });
 });
 

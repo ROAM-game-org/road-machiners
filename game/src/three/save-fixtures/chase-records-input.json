@@ -1,0 +1,15 @@
+{
+  "turn": 3120,
+  "player": { "money": 900 },
+  "vehicles": [
+    { "id": "v1", "chassisId": "scout", "faction": "player", "pos": { "x": 40, "y": 40 } },
+    { "id": "v2", "chassisId": "buggy", "faction": "scrapjaw", "pos": { "x": 52, "y": 45 }, "brain": { "goals": [
+      { "kind": "raid", "targetId": null, "destination": { "x": 90, "y": 90 }, "phase": "travel", "reason": "tripToSite" },
+      { "kind": "sizeUp", "targetId": "v1", "destination": { "x": 40, "y": 40 }, "phase": "travel", "reason": "sizingUp" }
+    ] } },
+    { "id": "v3", "chassisId": "buggy", "faction": "scrapjaw", "pos": { "x": 10, "y": 10 }, "brain": { "goals": [
+      { "kind": "investigate", "targetId": "v1", "destination": { "x": 34, "y": 40 }, "heard": { "x": 34, "y": 42 }, "phase": "travel", "reason": "heardHostile" }
+    ] } },
+    { "id": "v4", "chassisId": "scout", "faction": "independent", "pos": { "x": 70, "y": 20 }, "brain": null }
+  ]
+}
