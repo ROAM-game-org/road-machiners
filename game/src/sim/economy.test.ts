@@ -124,6 +124,7 @@ describe("trade", () => {
 
   it("buying raises the local price and selling lowers it", () => {
     const w = longbedAtBowl();
+    w.player.money = getLotTradePrice(w, w.vehicles[0], "bowl", "scrap", 20, "buy");
     const before = buyPrice(w, "bowl", "scrap");
     const after = buyGood(w, "scrap", 20);
     expect(buyPrice(after, "bowl", "scrap")).toBeGreaterThan(before);
@@ -741,7 +742,7 @@ describe("part value and trade price", () => {
 describe("supplies", () => {
   it("supplies drain each turn and running out hurts health", () => {
     const w = emptyWorld();
-    w.player.supplies = 0.01;
+    w.player.supplies = (RULES.suppliesPerTurn * heatAt(w, w.vehicles[0].pos)) / 2;
     consumeSupplies(w);
     expect(w.player.supplies).toBe(0);
     expect(w.player.health).toBe(RULES.maxHealth - RULES.starveDamage);
