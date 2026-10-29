@@ -376,8 +376,7 @@ export function trafficStops(world: World, v: Vehicle, dest: Vec): boolean {
 function detourTooHard(world: World, v: Vehicle, open: Vec[], around: Vec[], moving: Vehicle[]): boolean {
   const { vs, t } = horizon(world, v);
   if (routeLength(v.pos, around) - routeLength(v.pos, open) > vs * t) return true;
-  const ahead = alongRoute(v.pos, around, vs);
-  const turnsAway = dist(v.pos, ahead) > 0 && Math.abs(angleDiff(v.heading, bearing(v.pos, ahead))) > RULES.traffic.crossCone;
+  const turnsAway = [around[0], alongRoute(v.pos, around, vs)].some((p) => p && dist(v.pos, p) > 0 && Math.abs(angleDiff(v.heading, bearing(v.pos, p))) > RULES.traffic.crossCone);
   return turnsAway && moving.some((x) => reachesWithinTurn(world, v, x, vs));
 }
 
