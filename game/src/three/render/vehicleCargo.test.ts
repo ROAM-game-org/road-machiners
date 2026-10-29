@@ -5,7 +5,7 @@ import { PARTS } from '../../data/parts';
 import { wheelMounts } from '../../phys/body';
 import { bodyOf, cellRect, highestUnder } from '../../sim/body';
 import { makePart } from '../../sim/factory';
-import { baseGrid, itemCells, placementError } from '../../sim/grid';
+import { baseGrid, itemCells, mountSpots, placementError, type Cell } from '../../sim/grid';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import type { GridItem, Rot, Vehicle } from '../../sim/types';
 import { loadModels } from './models';
@@ -24,10 +24,11 @@ function semiWithCargo(): { v: Vehicle; rack: PartItem; crate: GridItem } {
   const w = emptyWorld();
   const v = addVehicle(w, 'player', 'semi', ['workhorseDiesel', 'rack', 'plates'], { x: 30, y: 30 });
   const rack = v.items.find((it): it is PartItem => it.kind === 'part' && it.part.defId === 'rack')!;
-  rack.x = 1;
-  rack.y = 2;
-  rack.rot = 0;
-  const crate: GridItem = { id: 'crate', x: 3, y: 2, rot: 0, kind: 'good', good: 'scrap' };
+  Object.assign(rack, mountSpots(baseGrid('semi'), v.items, rack, ['C'])[0]);
+  const crate: GridItem = { id: 'crate', x: 0, y: 0, rot: 0, kind: 'good', good: 'scrap' };
+  const bay = mountSpots(baseGrid('semi'), v.items, crate, ['C'])[0];
+  if (!bay) throw new Error('The semi has no free bay cell for a crate beside the rack');
+  Object.assign(crate, bay);
   v.items.push(crate);
   return { v, rack, crate };
 }
@@ -85,23 +86,40 @@ function withParts(chassisId: string, placed: Placed[]): { v: Vehicle; items: Pa
   return { v, items };
 }
 
-const REPORTED_BUGGY: Placed[] = [
-  { defId: 'panniers', x: 2, y: 5, rot: 0 },
-  { defId: 'caltrops', x: 2, y: 6, rot: 0 },
-  { defId: 'mg', x: 1, y: 5, rot: 0 },
-  { defId: 'plowRam', x: 1, y: 10, rot: 0 },
-  { defId: 'plowRam', x: 1, y: 0, rot: 0 },
-  { defId: 'ceramicPlates', x: 0, y: 4, rot: 0 },
-  { defId: 'ceramicPlates', x: 5, y: 4, rot: 0 },
-  { defId: 'ceramicPlates', x: 0, y: 1, rot: 0 },
-  { defId: 'ceramicPlates', x: 5, y: 1, rot: 0 },
-  { defId: 'workhorseDiesel', x: 2, y: 2, rot: 0 },
-  { defId: 'ceramicTile', x: 0, y: 7, rot: 0 },
-  { defId: 'ceramicTile', x: 5, y: 7, rot: 0 },
-  { defId: 'ceramicTile', x: 0, y: 8, rot: 0 },
-  { defId: 'ceramicTile', x: 5, y: 8, rot: 0 },
-  { defId: 'panniers', x: 4, y: 7, rot: 0 },
+type Wanted = { defId: string; on: Cell[]; end: 'first' | 'last' };
+
+const REPORTED_BUGGY: Wanted[] = [
+  { defId: 'workhorseDiesel', on: ['E'], end: 'first' },
+  { defId: 'mg', on: ['D'], end: 'first' },
+  { defId: 'plowRam', on: ['F'], end: 'first' },
+  { defId: 'plowRam', on: ['B'], end: 'last' },
+  { defId: 'ceramicPlates', on: ['L'], end: 'first' },
+  { defId: 'ceramicPlates', on: ['R'], end: 'first' },
+  { defId: 'ceramicPlates', on: ['L'], end: 'last' },
+  { defId: 'ceramicPlates', on: ['R'], end: 'last' },
+  { defId: 'ceramicTile', on: ['L'], end: 'first' },
+  { defId: 'ceramicTile', on: ['R'], end: 'first' },
+  { defId: 'ceramicTile', on: ['L'], end: 'last' },
+  { defId: 'ceramicTile', on: ['R'], end: 'last' },
+  { defId: 'panniers', on: ['D'], end: 'first' },
+  { defId: 'caltrops', on: ['.'], end: 'first' },
+  { defId: 'panniers', on: ['.'], end: 'last' },
 ];
+
+function reportedBuggyPlacements(): Placed[] {
+  const w = emptyWorld();
+  const v = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 30, y: 30 });
+  const grid = baseGrid('buggy');
+  const taken: PartItem[] = [];
+  return REPORTED_BUGGY.map(({ defId, on, end }, i) => {
+    const probe: PartItem = { id: `i-${defId}-${i}`, x: 0, y: 0, rot: 0, kind: 'part', part: makePart(w, defId, 0) };
+    const spots = mountSpots(grid, [...v.items, ...taken], probe, on);
+    const spot = end === 'first' ? spots[0] : spots[spots.length - 1];
+    if (!spot) throw new Error(`The buggy has no ${on.join('')} spot for ${defId}`);
+    taken.push({ ...probe, ...spot });
+    return { defId, ...spot };
+  });
+}
 
 const ALWAYS_DRAWN_KINDS = new Set(['weapon', 'armor', 'engine', 'core']);
 
@@ -118,8 +136,10 @@ function rimCells(chassisId: string): { x: number; y: number }[] {
 
 describe('parts on bare nose and tail cells', () => {
   it('builds the buggy view with caltrops on the plain row behind its nose, and keeps an anchor for them', () => {
-    const { v, caltrops } = withCaltropsAt('buggy', 4, 1);
-    expect(baseGrid('buggy').cells[1][4]).toBe('.');
+    const x = baseGrid('buggy').cells[1].indexOf('.');
+    expect(x).toBeGreaterThan(0);
+    const { v, caltrops } = withCaltropsAt('buggy', x, 1);
+    expect(baseGrid('buggy').cells[1][x]).toBe('.');
     expect(placementError(baseGrid('buggy'), v.items, caltrops, null)).toBeNull();
     v.items.push(caltrops);
     const view = new VehicleView(v, true, PAINT.standard, 'world');
@@ -144,7 +164,7 @@ describe('parts on bare nose and tail cells', () => {
   });
 
   it('builds the reported buggy with panniers on the plain row before its tail', () => {
-    const { v, items } = withParts('buggy', REPORTED_BUGGY);
+    const { v, items } = withParts('buggy', reportedBuggyPlacements());
     const grid = baseGrid('buggy');
     for (const item of items) {
       expect(placementError(grid, v.items, item, null), `${item.part.defId} ${item.x},${item.y}`).toBeNull();
