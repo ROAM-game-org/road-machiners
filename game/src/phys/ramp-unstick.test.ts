@@ -1,9 +1,9 @@
 import { beforeAll, expect, it } from 'vitest';
 import { START_KITS } from '../data/start';
-import { makeVehicle } from '../sim/factory';
+import { makePart, newId } from '../sim/factory';
 import { highwayMap } from '../sim/highway';
 import { defaultSetup } from '../sim/settings';
-import type { World } from '../sim/types';
+import type { GridItem, Rot, World } from '../sim/types';
 import { endTurn, newWorld, setMoveOrder } from '../sim/world';
 import { budget } from '../test/budget';
 import { bodyState, buildDrive, freeDrive, initPhysics, type Drive, type TurnResult } from './drive';
@@ -15,7 +15,20 @@ beforeAll(async () => {
 
 const SEED = 66;
 const RAMP_WINDOW = 2;
-const LOADOUT = ['mg', 'slugCannon', 'slugCannon', 'plowRam', 'heavyDiesel'];
+const LAYOUT: [string, number, number, Rot][] = [
+  ['cabPickup', 2, 7, 0],
+  ['transmission', 2, 11, 0],
+  ['tank', 2, 5, 0],
+  ['wheel', 1, 2, 0],
+  ['wheel', 4, 2, 0],
+  ['wheel', 1, 11, 0],
+  ['wheel', 4, 11, 0],
+  ['mg', 1, 8, 2],
+  ['slugCannon', 1, 4, 2],
+  ['slugCannon', 4, 4, 0],
+  ['plowRam', 1, 13, 0],
+  ['heavyDiesel', 2, 2, 0],
+];
 const LIP_POSE = {
   at: { x: 830.9, y: 6.46, z: 1169.73 },
   turn: { x: -0.0867, y: 0.8774, z: -0.3816, w: 0.2775 },
@@ -31,7 +44,7 @@ function scoutOnRampLip(): World {
   w.chaosHighway!.groups = [];
   w.player.fuel = 999;
   const me = w.vehicles[0];
-  me.items = makeVehicle(w, { faction: 'player', chassisId: me.chassisId, parts: LOADOUT.map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {}, pos: me.pos, heading: 0, brain: null }).items;
+  me.items = LAYOUT.map(([defId, x, y, rot]): GridItem => ({ id: newId(w, 'i'), x, y, rot, kind: 'part', part: makePart(w, defId, 0) }));
   me.pos = { x: LIP_POSE.at.x / 4, y: LIP_POSE.at.z / 4 };
   me.heading = Math.atan2(2 * LIP_POSE.turn.y * LIP_POSE.turn.w, 1 - 2 * LIP_POSE.turn.y * LIP_POSE.turn.y);
   me.speed = 0;
