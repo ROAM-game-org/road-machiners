@@ -11,7 +11,7 @@ import { heldPart, laneCount, lanePoint, partLane, planBlast, planLane, sideTowa
 import { damagePart, haulerOf, playerVehicle, wholeDamage } from './damage';
 import { presentedSpan, reachMeters, unitPose } from './rig';
 import { rollCabKnock } from "./cab-knock";
-import { corePart, itemSize, mountedItems, mountedParts } from './grid';
+import { corePart, itemBulk, mountedItems, mountedParts } from './grid';
 import { practice, skillEffect, vehicleHasPerk } from './progress';
 import { canVehicleSee, hasLineOfFire } from './vision';
 import { createWreckSalvage, removeStocks } from './salvage';
@@ -251,7 +251,7 @@ function aiming(shooter: Vehicle, target: Vehicle, aim: Aim): Aiming {
     return { side, lanes, body, width: body, center: 0, lane: null };
   const item = mountedItems(target).find((it) => it.part.id === aim);
   if (!item) throw new Error(`${target.id} has no mounted part ${aim}`);
-  const size = itemSize(item);
+  const size = itemBulk(item);
   const cells = side === "front" || side === "rear" ? size.w : size.h;
   const lane = partLane(target, aim, side);
   return {

@@ -43,7 +43,7 @@ export const CHASSIS_FEATURES: Record<string, ChassisAbility> = {
   sorokonoga: { id: 'trailer', arc: 30, reloadCut: 1, cargoRows: 1.5, deckArmor: 1 },
 };
 
-export type OldGrid = { deck: number; armor: number; width: number };
+export type OldGrid = { deck: number; armor: number; width: number; row: number; col: number };
 
 export type ChassisDef = {
   id: string;
@@ -74,7 +74,7 @@ export type ChassisDef = {
 
 export const CHASSIS_PRICE_MODIFIERS = { perDeckCell: 2000, perArmorCell: 1000, perTopSpeed: 2666.67 };
 
-export type ChassisInput = Omit<ChassisDef, 'value' | 'ratedMass'>;
+export type ChassisInput = Omit<ChassisDef, 'value' | 'ratedMass' | 'oldGrid'> & { oldGrid: Omit<OldGrid, 'row' | 'col'> };
 
 export function chassisModifier(def: ChassisInput): number {
   const m = CHASSIS_PRICE_MODIFIERS;
@@ -92,8 +92,31 @@ export function ratedMassOf(def: ChassisInput): number {
 function finishChassis(def: ChassisInput): ChassisDef {
   const value = Math.round(def.base + chassisModifier(def));
   if (value <= 0) throw new Error(`Chassis ${def.id} prices at ${value}. Raise its base.`);
-  return { ...def, value, ratedMass: ratedMassOf(def) };
+  const cell = OLD_CELL[def.id];
+  if (!cell) throw new Error(`Chassis ${def.id} has no old cell size`);
+  return { ...def, oldGrid: { ...def.oldGrid, ...cell }, value, ratedMass: ratedMassOf(def) };
 }
+
+const OLD_CELL: Record<string, { row: number; col: number }> = {
+  scout: { row: 0.650, col: 0.444 },
+  hauler: { row: 0.678, col: 0.417 },
+  buggy: { row: 0.488, col: 0.384 },
+  wagon: { row: 0.680, col: 0.400 },
+  courier: { row: 0.458, col: 0.372 },
+  van: { row: 0.651, col: 0.488 },
+  longbed: { row: 0.651, col: 0.386 },
+  carrier: { row: 0.651, col: 0.417 },
+  tractor: { row: 0.713, col: 0.377 },
+  jeep: { row: 0.507, col: 0.388 },
+  convertible: { row: 0.649, col: 0.436 },
+  bus: { row: 0.708, col: 0.371 },
+  loader: { row: 0.700, col: 0.423 },
+  niva: { row: 0.454, col: 0.388 },
+  bukhanka: { row: 0.520, col: 0.488 },
+  lincoln: { row: 0.649, col: 0.488 },
+  semi: { row: 0.707, col: 0.443 },
+  sorokonoga: { row: 0.700, col: 0.417 },
+};
 
 const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   scout: {
@@ -134,7 +157,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
     mass: 2730,
     handlingMass: 5800,
     radius: 0.8,
-    layout: [' FFFFFF ', 'L.DXXXDR', 'LDDXXX.R', 'LXDXXXXR', 'LXDEEDXR', 'LXDEEDXR', 'LDDEEDDR', 'LDDDDDDR', 'LDDXXDDR', 'LDDXXDDR', 'LXDXXDXR', 'LXDXXXXR', 'LXDDDDXR', 'LDDDDDDR', 'L.    .R', ' BBBBBB '],
+    layout: [' FFFFFF ', 'L.DXXXDR', 'LDDXXX.R', 'LXDXXXXR', 'LXDEEDXR', 'LXDEEDXR', 'LDDEEDDR', 'LDDDDDDR', 'LDDXXDDR', 'LDDXXDDR', 'LXDXXXXR', 'LXDDDXXR', 'LXDDDXXR', 'LDDDDDDR', 'L.    .R', ' BBBBBB '],
     core: [
       { defId: 'wheelMid', x: 1, y: 3 },
       { defId: 'wheelMid', x: 6, y: 3 },
@@ -142,7 +165,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelMid', x: 6, y: 10 },
       { defId: 'cabPickup', x: 3, y: 1 },
       { defId: 'transmissionMid', x: 3, y: 8 },
-      { defId: 'tankMid', x: 3, y: 11, rot: 1 },
+      { defId: 'tankMid', x: 5, y: 10 },
     ],
     oldGrid: { deck: 25, armor: 32, width: 9 },
     fuelCap: 80,
