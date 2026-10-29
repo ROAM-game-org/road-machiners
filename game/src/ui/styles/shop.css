@@ -562,7 +562,8 @@
   justify-content: flex-end;
   white-space: nowrap;
 }
-.part-line > button {
+.part-line > button,
+.part-line > .tag {
   justify-self: end;
 }
 #ui button.part-sum {
@@ -654,7 +655,8 @@
   .part-line > .price {
     grid-area: price;
   }
-  .part-line > button:not(.part-sum) {
+  .part-line > button:not(.part-sum),
+  .part-line > .tag {
     grid-area: action;
   }
   #ui button.part-sum {

@@ -167,11 +167,13 @@ One grammar for every control and every selectable thing.
 | planned | A choice that is not committed yet | Dashed accent outline |
 | working | Timed work in progress | Accent progress meter |
 | disabled | Cannot be used now | Dimmed, with its reason |
+| spent | The row's own action is done | Dimmed row, past-tense tag in the control's slot, no hover |
 | seen | A radio option or talk choice with nothing new behind it | Sunk surface, same ink. Hover and focus still apply |
 | unaffordable | Needs more money | Price in danger ink |
 | locked | Needs progress, like a rank | Lock icon |
 
 - A control uses only the states in this table.
+- A row in a trade list keeps its slot until the player leaves the list. A row whose action removes it from the list stays as a spent row, drawn from what was on screen, so a second click lands on nothing and the next row never slides under the pointer. `RowSlots` in `src/ui/row-slots.ts` owns this. A refused action changes nothing.
 - A screen that is only for looking, like the inventory over a scene, gives every control that changes the world the disabled state with one reason read from one function (`lookReason()`), before any reason of its own.
 - While the driver is knocked out, every control that gives the truck an order is off with one reason, Knocked out, from `orderLock()` in `src/ui/weapons.ts`. It comes before Turn playing and before the control's own reason, so it stays steady across the auto turns, and the control's key does nothing. Look controls (Driver, Map, Journal, Menu, the log and the auto turn button) stay on. The inventory is a look screen then, through `lookReason()`.
 - A disabled control still takes hover and focus, so its reason can show. It uses `aria-disabled` and the shared tooltip, and the reason is one short fact like Need 12 M more.
@@ -290,6 +292,7 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
 - `.tabs` is a row of medium tab buttons, and `.tabs.sub` the small row inside a tab.
 - `.row` is a list line with a faint line under it. `.tile` is a boxed list item edged in its `--tone`.
 - `.skill-level` is a row of small pips that fill from the left for a level out of a few: a skill rank.
+- `.spent` is a list row whose own action is done: dimmed, no hover, a `.tag` with one past-tense word (Sold, Bought, Swapped, Taken, Delivered, Paid, Settled) where the button was. It is a clone of the row as last drawn, so it never reads the game state.
 - `.chip` is a small boxed value. `.tag` is an outlined word in the color of its text.
 - A contract's raider danger is one `.tag` after its summary: `dim` for safe, plain for risky and `bad` for dangerous. An escort offer words it as the road and a survey as the ground, on the board, in the town tab and in the journal.
 - `.contract-clue` is one told clue per survey place still open, on its own line under its contract. It starts with the place kind, then the map grid square the place lies in, like "square C4" (`gridSquareText()` in `src/ui/format.ts`, the one way a square prints), and ends with a `.tag` marked "found" when the place has been spotted but not surveyed. On a held row it tells the posting shop's way to the place, the square it lies in, then what it looks like. The board and the HUD dock keep the short compass clue.

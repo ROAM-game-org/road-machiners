@@ -27,6 +27,7 @@ export const PIECES: Piece[] = [
   { name: ".art-band", note: "A wide picture across the top of a page, with the place name and chips over its lower edge.", build: () => sample("art-band", "") },
   { name: ".ink-page", note: "The frame of the town page and of a quest in town: a band on top, then a scrolling region with a heading, prose, an optional panel and numbered choices in a centered text column, and a foot pinned under it that holds the way out and the status line.", build: () => inkPage() },
   { name: ".tag", note: "An outlined word.", build: () => text("span", "tag", "buy") },
+  { name: ".spent", note: "A row whose own action is done. It keeps its slot, dimmed, with a past-tense tag where the button was, until the player leaves the list.", build: () => el("div", { class: "row spent" }, "A part ", text("span", "tag", "Sold")) },
   { name: ".contract-clue", note: "One open survey place per line: the kind, then the posting shop's way there, then what it looks like. A found place has a tag last.", build: () => el("span", { class: "contract-clue" }, "Lookout, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. Where the road runs closest, leave the road and head south and a touch east, a fair way. A lone building on high ground. ", text("span", "tag", "found")) },
   { name: ".amount .coin", note: "Money from moneyEl(): the M's coin, then the number. Debt is in danger ink.", build: () => moneyEl(1500) },
   { name: ".meter", note: "A bar that fills from the left.", build: () => meter("meter", 70) },

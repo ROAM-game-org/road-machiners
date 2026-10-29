@@ -4,7 +4,7 @@ import { crossesRail } from './bridge';
 import { count, timed } from '../perf';
 import { canStepOut, connected, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
 import type { Blocker } from './nav/buckets';
-import { CELL, CLEARANCE, blockerKey, climbTaste, componentOf, dynamicBlockers, navLayer, nearCliff, nightTaste, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
+import { CELL, CLEARANCE, blockerKey, climbNeedOnRoads, climbTaste, componentOf, dynamicBlockers, navLayer, nearCliff, nightTaste, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
 import { keepsOffRoads } from './off-road';
 import { climbGrade } from './stats';
 import type { Vehicle, World } from './types';
@@ -63,12 +63,17 @@ export function drivable(world: World, from: Vec, to: Vec, radius: number): bool
   return connected(layer, cellOf(layer, from), cellOf(layer, to));
 }
 
-export function reachesFrom(world: World, anchor: Vec, radius: number): (p: Vec) => boolean {
+export function reachesFrom(world: World, anchor: Vec, radius: number, climbSteps: number): (p: Vec) => boolean {
   const layer = navLayer(world.terrain, world.obstacles, radius);
   const target = startComponent(layer, cellOf(layer, anchor));
   if (target === 0) throw new Error(`No nav component at anchor (${anchor.x}, ${anchor.y}) for radius ${radius}`);
   const size = world.terrain.size;
-  return (p) => p.x >= 0 && p.y >= 0 && p.x < size && p.y < size && startComponent(layer, cellOf(layer, p)) === target;
+  const need = climbNeedOnRoads(layer);
+  return (p) => {
+    if (p.x < 0 || p.y < 0 || p.x >= size || p.y >= size) return false;
+    const cell = cellOf(layer, p);
+    return startComponent(layer, cell) === target && (need === null || need[cell] <= climbSteps);
+  };
 }
 
 export function warmRoutes(world: World, radii: number[]): void {

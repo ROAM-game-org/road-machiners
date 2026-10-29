@@ -1,7 +1,8 @@
 
 import { RULES } from "../data/rules";
 import { restBend, rigDiscs, straighten } from "./rig";
-import { maxTurn, vehicleStats, type VehicleStats } from "./stats";
+import { climbGrade, maxTurn, vehicleStats, type VehicleStats } from "./stats";
+import { REGION } from "../data/region";
 import type { Blocker } from "./path";
 import { hasPads, nearestPad, nearestSitePad, siteUnder } from "./sites";
 import { reachesFrom, straightClear } from "./path";
@@ -165,7 +166,8 @@ export function setDownSpot(world: World, v: Vehicle): Vec {
   const others = world.vehicles.filter((o) => o.id !== v.id).flatMap(rigDiscs);
   const straight = restBend(v.chassisId);
   const anchor = nearestSitePad(atlasOf(world.terrain), v.pos).pad;
-  const reaches = reachesFrom(world, anchor, vehicleStats(world, v).radius);
+  const climbSteps = Math.floor(climbGrade(world, v) / REGION.navigation.climbStep + 1e-9);
+  const reaches = reachesFrom(world, anchor, vehicleStats(world, v).radius, climbSteps);
   for (let ring = 0; ring * step <= reach; ring++) {
     const spots = Math.max(1, Math.ceil(2 * Math.PI * ring));
     for (let i = 0; i < spots; i++) {
