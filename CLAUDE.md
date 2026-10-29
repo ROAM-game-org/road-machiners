@@ -15,6 +15,10 @@ This repo holds ROAM, a turn-based wasteland truck RPG, and the AI coding agent-
 - Work on the factory from `factory/`. Read `factory/CLAUDE.md` first.
 - Game and factory never import each other.
 
+## Landing on dev
+
+GitHub refuses a push to `dev` unless the full game suite passed on that exact commit. Land a branch with `scripts/land-dev.sh <branch>` from the repo root. It merges `dev` in, runs the suite on GitHub Actions in about 10 minutes, and pushes when it passes. Run it in the background.
+
 ## No comments
 
 Comments are banned in source files, including module docstrings. Write code that explains itself with clear names and small functions. The pre-commit hook strips any comment it finds, so a comment is wasted work.
