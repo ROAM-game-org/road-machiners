@@ -197,8 +197,10 @@ describe('auto mounting on the deck', () => {
   it('lets a gun and a cargo frame compete for the same deck cells', () => {
     const w = emptyWorld();
     const v = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine'], { x: 40, y: 40 });
-    v.items.push({ id: 'i-rack', x: 2, y: 10, rot: 0, kind: 'part', part: makePart(w, 'rack', 0) });
-    v.items.push({ id: 'i-mg', x: 5, y: 11, rot: 0, kind: 'part', part: makePart(w, 'mg', 0) });
+    const rackSpot = freeMounts(w, v, 'rack')[0];
+    v.items.push({ id: 'i-rack', x: rackSpot.x, y: rackSpot.y, rot: 0, kind: 'part', part: makePart(w, 'rack', 0) });
+    const gunSpot = freeMounts(w, v, 'mg')[0];
+    v.items.push({ id: 'i-mg', x: gunSpot.x, y: gunSpot.y, rot: 0, kind: 'part', part: makePart(w, 'mg', 0) });
     expect(mountedItems(v, 'cargo').map((it) => it.id)).toEqual(['i-rack']);
     expect(mountedItems(v, 'weapon').map((it) => it.id)).toEqual(['i-mg']);
   });
