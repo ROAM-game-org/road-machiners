@@ -6,7 +6,8 @@ import { setMoveOrder } from './world';
 import { dist, polylineDist, type Vec } from './vec';
 import { siteGap, sitePads } from './sites';
 import { discoverSites, mappedSites } from './locations';
-import { buyChart, sheetAt } from './charts';
+import { buyChart } from './charts';
+import { gridSquareOf } from './map-grid';
 import { emptyWorld } from './testkit';
 import { refreshVision, tileCenter } from './vision';
 import { bodyOf } from './body';
@@ -132,7 +133,7 @@ describe('sites on the player map', () => {
   it('maps the sites on a bought chart and changes nothing in the world', () => {
     const world = blank();
     world.player.money = 100000;
-    const bought = buyChart(world, sheetAt(world.size, bowl.pos));
+    const bought = buyChart(world, gridSquareOf(bowl.pos));
     const before = JSON.stringify([bought.player.explored.length, bought.player.discovered, bought.events.length]);
     expect(mappedSites(bought).has('bowl')).toBe(true);
     expect(JSON.stringify([bought.player.explored.length, bought.player.discovered, bought.events.length])).toBe(before);
