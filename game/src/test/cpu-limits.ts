@@ -1,6 +1,6 @@
 export const TEST_CPU_LIMIT_MS = 30_000;
 export const FILE_CPU_LIMIT_MS = 90_000;
-export const REFERENCE_WORKLOAD_MS = 1000;
+export const REFERENCE_WORKLOAD_MS = 1470;
 export const WORKLOAD_RUNS = 3;
 
 export function cpuLimitsOn(env: NodeJS.ProcessEnv): boolean {
