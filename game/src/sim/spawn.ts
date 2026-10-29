@@ -358,7 +358,7 @@ function insideFortress(world: World, pos: Vec): boolean {
 export function isFree(world: World, pos: Vec, radius: number, ignoreId: string | null): boolean {
   if (!onMap(world, pos, radius) || insideFortress(world, pos)) return false;
   const margin = 0.3;
-  if (world.obstacles.filter(isDriveObstacle).some((o) => touchesObstacle(o, world.terrain, pos, radius, margin))) return false;
+  if (world.obstacles.some((o) => isDriveObstacle(o) && touchesObstacle(o, world.terrain, pos, radius, margin))) return false;
   return world.vehicles.every(
     (v) => v.id === ignoreId || spawnDiscs(v).every((d) => dist(d.pos, pos) >= d.r + radius + margin),
   );
