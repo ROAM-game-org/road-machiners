@@ -23,6 +23,7 @@ describe('physics slopes', () => {
       w.terrain = structuredClone(w.terrain);
       const n = w.terrain.size;
       for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) w.terrain.heights[j * (n + 1) + i] = i * HILL_GRADE;
+      Object.freeze(w.terrain);
       me(w).heading = Math.PI;
       const { w: after, d } = play(w, 8);
       freeDrive(d);
@@ -35,6 +36,7 @@ describe('physics slopes', () => {
       w0.terrain = structuredClone(w0.terrain);
       const n = w0.terrain.size;
       for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) w0.terrain.heights[j * (n + 1) + i] = Math.max(0, i - 28) * HILL_GRADE;
+      Object.freeze(w0.terrain);
       const hauler = makeVehicle(w0, { faction: 'player', chassisId: 'hauler', parts: ['mg', 'stockEngine', 'plates', 'trailerBox'].map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {}, pos: { x: 26, y: 30 }, heading: 0, brain: null });
       w0.vehicles[0] = { ...hauler, id: me(w0).id };
       addGoods(w0, me(w0), 'scrap', 999);
@@ -50,6 +52,7 @@ describe('physics slopes', () => {
       w0.terrain = structuredClone(w0.terrain);
       const n = w0.terrain.size;
       for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) w0.terrain.heights[j * (n + 1) + i] = Math.max(0, i - 28) * LIMP_GRADE;
+      Object.freeze(w0.terrain);
       const courier = makeVehicle(w0, { faction: 'player', chassisId: 'courier', parts: [{ defId: 'stockEngine', wear: 0 }], spares: [], cargo: {}, pos: { x: 26, y: 30 }, heading: 0, brain: null });
       w0.vehicles[0] = { ...courier, id: me(w0).id };
       mountedParts(me(w0), 'engine')[0].hp = 0;

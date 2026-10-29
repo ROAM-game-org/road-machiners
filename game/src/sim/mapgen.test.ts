@@ -109,7 +109,7 @@ describe('world from the baked map', () => {
   });
 
   it('places the same baked props for every world seed', () => {
-    const bakedOf = (seed: number) => newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming')).obstacles.filter(isBakedObstacle);
+    const bakedOf = (seed: number) => standardWorld(seed).obstacles.filter(isBakedObstacle);
     expect(bakedOf(7)).toEqual(bakedOf(1337));
   });
 
