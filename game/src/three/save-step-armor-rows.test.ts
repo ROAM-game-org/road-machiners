@@ -12,9 +12,8 @@ const migrated = (): Saved => step.step(structuredClone(FORMAT_2_120) as SavedJs
 const rowsOf = (world: Saved, vehicleId: string) => Object.fromEntries(world.vehicles.find((v) => v.id === vehicleId)!.items.map((it) => [it.id, it.y]));
 
 describe('save migration 120 to 121, armor rows outside the truck', () => {
-  it('is the newest tiny step, from format 120', () => {
+  it('is the tiny step from format 120', () => {
     expect(TINY_STEPS[120 - TINY_FROM]).toBe(step);
-    expect(TINY_STEPS[TINY_STEPS.length - 1]).toBe(step);
   });
 
   it('moves inner rows down one, keeps front armor on the front row and sends back armor to the new back row', () => {
