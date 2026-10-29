@@ -9,7 +9,7 @@ function finished(mod: TestModule): boolean {
   return done && [...mod.children.allTests()].every((test) => test.result().state !== 'pending');
 }
 
-function isWorkerRpcTimeout(error: unknown): boolean {
+export function isWorkerRpcTimeout(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'message' in error && error.message === WORKER_RPC_TIMEOUT;
 }
 
