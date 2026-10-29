@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
-import { oddJobsReason, GARAGE_ONLY, goodRoutesTitle, marketHint, newsWell, pressureHint, showsRelief, townPageOnOpen, tradeEstimate } from "./town";
+import { oddJobsReason, GARAGE_ONLY, townPageOnOpen } from "./town";
+import { goodRoutesTitle, marketHint, newsWell, pressureHint, showsRelief, tradeEstimate } from "./shop-rows";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
 import { RELIEF, SHOPS } from "../data/market";
