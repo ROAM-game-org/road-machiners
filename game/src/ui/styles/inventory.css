@@ -368,28 +368,31 @@
   --edge: var(--garage-edge-danger);
 }
 .inv-item.drawn .inv-art.hidden-part {
-  inset: 3px;
-  border-radius: 4px;
-  background: var(--garage-hidden-wash);
-  border: 1px dashed var(--garage-hidden-line);
-  box-shadow: 0 0 10px 2px var(--garage-hidden-glow);
+  --glow: var(--garage-hidden-halo);
+  filter: var(--edge) var(--glow);
 }
-.inv-grid .inv-item.drawn:hover .inv-art.hidden-part {
+.inv-item.drawn:is([data-tier="hurt"], [data-tier="crit"], [data-tier="broken"]) .inv-art.hidden-part {
+  --glow: var(--halo);
+}
+.inv-item.drawn .inv-art.hidden-part.packed {
+  inset: 3px;
+}
+.inv-art.hidden-part .art-glow {
+  background: var(--garage-hidden-wash);
+}
+.inv-art.hidden-part.packed .art-glow {
+  border-radius: 4px;
+}
+.inv-grid .inv-item.drawn:hover .inv-art.hidden-part .art-glow {
   background: var(--garage-hidden-hover);
 }
-.inv-grid .inv-item.drawn:is(.selected, .holding) .inv-art.hidden-part {
-  outline: 2px solid var(--ink-bright);
-}
-.inv-grid .inv-item.drawn.blocking .inv-art.hidden-part {
-  outline: 2px solid var(--danger);
-}
-.inv-item.drawn[data-tier="hurt"] .inv-art.hidden-part {
+.inv-item.drawn[data-tier="hurt"] .inv-art.hidden-part .art-glow {
   background: var(--garage-tint-hurt);
 }
-.inv-item.drawn[data-tier="crit"] .inv-art.hidden-part {
+.inv-item.drawn[data-tier="crit"] .inv-art.hidden-part .art-glow {
   background: var(--garage-tint-crit);
 }
-.inv-item.drawn[data-tier="broken"] .inv-art.hidden-part {
+.inv-item.drawn[data-tier="broken"] .inv-art.hidden-part .art-glow {
   background: var(--garage-tint-broken);
 }
 .inv-ghost.drawn {

@@ -63,7 +63,7 @@ type Turret = { head: THREE.Group; tip: THREE.Vector3; spans: FireSpan[]; facing
 type Look = { tone: number; step: number; partId: string | null; dents: boolean };
 const PRISTINE: Look = { tone: 1, step: 0, partId: null, dents: false };
 
-export type ViewScene = 'world' | 'portrait';
+export type ViewScene = 'world' | 'portrait' | 'xray';
 
 type Anchor = { local: THREE.Vector3; parent: THREE.Object3D };
 
@@ -366,7 +366,8 @@ export class VehicleView {
     const wheelItems: PartItem[] = [];
     const guns: PartItem[] = [];
     this.spots.clear();
-    for (const item of onBody.filter((it) => !hidesInside(v, it) && !wouldFloat(v, it) && this.standsUp(v, it))) {
+    const drawn = (it: GridItem) => (hidesInside(v, it) ? this.scene === 'xray' && this.standsUp(v, it, true) : !wouldFloat(v, it) && this.standsUp(v, it));
+    for (const item of onBody.filter(drawn)) {
       this.drawItem(v, item, paint, wheelItems, guns);
       yield;
     }
@@ -376,7 +377,7 @@ export class VehicleView {
   private *mergeUnits(v: Vehicle, merged: THREE.Group[]): Generator<void, void> {
     const armorIds = armorIdsOf(v);
     for (const unit of this.units) {
-      const group = mergeParts(unit.still, armorIds, this.scene === 'portrait' ? 'parts' : 'armor');
+      const group = mergeParts(unit.still, armorIds, this.scene === 'world' ? 'armor' : 'parts');
       unit.body.add(group);
       merged.push(group);
       yield;
@@ -387,7 +388,7 @@ export class VehicleView {
     if (this.scene === 'world') for (const shade of [CLOUD_SHADOWS, MODEL_FILL]) shade.shadeTree(this.root);
     const plain = [...this.silhouettes];
     this.units.forEach((unit, i) => this.cutArmor(unit, merged[i], plain));
-    if (this.scene === 'portrait') {
+    if (this.scene !== 'world') {
       this.dropContactShadow();
       dropShadows(this.root);
     }
@@ -550,9 +551,9 @@ export class VehicleView {
     return drawn;
   }
 
-  private standsUp(v: Vehicle, item: GridItem): boolean {
+  private standsUp(v: Vehicle, item: GridItem, level = false): boolean {
     if (!standsFlat(v, item)) return true;
-    const spot = itemSpotOf(v, item, this.unitOf(v, item).base);
+    const spot = itemSpotOf(v, item, this.unitOf(v, item).base) ?? (level ? { dx: 0, dz: 0, y: standingY(v, item), slope: { x: 0, z: 0 }, legs: false } : null);
     if (spot) this.spots.set(item, spot);
     return spot !== null;
   }

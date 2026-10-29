@@ -96,8 +96,28 @@ function standsOnTruck(look: GarageLook, it: GridItem): it is PartItem {
   return isPartItem(it) && !isCore(it.part) && isMounted(look.truck.chassisId, it) && onTruck(look.truck, it);
 }
 
-export function hiddenArt(look: GarageLook, it: GridItem): HTMLElement | null {
-  return hidesInside(look.truck, it) ? el("span", { class: "inv-art hidden-part" }) : null;
+function glowOf(sprite: GarageSprite): HTMLElement {
+  const mask = `url("${sprite.url}")`;
+  const glow = el("div", { class: "art-glow" });
+  glow.style.setProperty("-webkit-mask-image", mask);
+  glow.style.setProperty("mask-image", mask);
+  return el("div", { class: "inv-art hidden-part", "aria-hidden": "true" }, glow);
+}
+
+function hiddenSprite(look: GarageLook, it: PartItem): GarageSprite | null {
+  if (!isCore(it.part)) return drawnSprite(look, it);
+  const body = look.renders.body(look.truck, look.paint);
+  if (!body) return null;
+  const sprite = body.cores.get(it.part.id);
+  if (!sprite) throw new Error(`The ${look.truck.chassisId} body has no outline of its hidden ${it.part.defId}`);
+  return sprite;
+}
+
+export function hiddenArt(look: GarageLook, it: GridItem, m: GridMetrics, box: PixelRect): HTMLElement | null {
+  if (!hidesInside(look.truck, it)) return null;
+  if (!isPartItem(it) || !(isCore(it.part) || isMounted(look.truck.chassisId, it))) return el("span", { class: "inv-art hidden-part packed" }, el("div", { class: "art-glow" }));
+  const sprite = hiddenSprite(look, it);
+  return sprite ? placed(glowOf(sprite), sprite, m, box) : null;
 }
 
 export function drawnSprite(look: GarageLook, it: GridItem): GarageSprite | null {
