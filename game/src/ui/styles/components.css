@@ -99,6 +99,14 @@
   border: 1px solid;
 }
 
+/* A row whose own action is done. It keeps its slot, dimmed, with a past-tense tag where the button was, and takes no click. */
+.spent {
+  opacity: 0.55;
+  pointer-events: none;
+  user-select: none;
+  cursor: default;
+}
+
 /* A bar that fills from the left. Health by default, accent for progress. */
 .meter {
   height: var(--meter-m);
