@@ -472,9 +472,14 @@ export const TOWN_CHASSIS: Record<string, readonly string[]> = {
 
 export const HAULER_CHASSIS = 'semi';
 
+const knownDefs = new Map<string, ChassisDef>();
+
 export function chassisDef(id: string): ChassisDef {
+  const known = knownDefs.get(id);
+  if (known) return known;
   const def = CHASSIS[id];
   if (!def) throw new Error(`Unknown chassis ${id}`);
+  knownDefs.set(id, def);
   return def;
 }
 

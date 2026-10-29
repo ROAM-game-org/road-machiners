@@ -56,10 +56,13 @@ export function cabShield(v: Vehicle): number {
   return cabShieldWith(v)(null);
 }
 
+const LANE_ROW = 1024;
+const LANE_SIDE_CODE: Record<string, number> = { F: 1, B: 2, L: 3, R: 4 };
+
 export function cabShieldWith(v: Vehicle): (extra: GridItem | null) => number {
   const g = gridOf(v);
   const cab = mountedItems(v, 'core').filter((it) => isCab(partDef(it.part.defId))).flatMap(itemCells);
-  const cabLanes = new Set(cab.flatMap((c) => [`F${c.x}`, `B${c.x}`, `L${c.y}`, `R${c.y}`]));
+  const cabLanes = new Set(cab.flatMap((c) => [laneNumber('F', c.x), laneNumber('B', c.x), laneNumber('L', c.y), laneNumber('R', c.y)]));
   const lanesOf = (item: GridItem) => itemCells(item).map((c) => laneKey(g, c)).filter((key) => cabLanes.has(key));
   const armor = mountedItems(v, 'armor');
   const armorLanes = armor.map(lanesOf);
@@ -73,34 +76,44 @@ export function cabShieldWith(v: Vehicle): (extra: GridItem | null) => number {
   };
 }
 
-function extraLanes(v: Vehicle, extra: GridItem, lanesOf: (item: GridItem) => string[]): string[] | null {
+function extraLanes(v: Vehicle, extra: GridItem, lanesOf: (item: GridItem) => number[]): number[] | null {
   if (extra.kind !== 'part' || partDef(extra.part.defId).kind !== 'armor') throw new Error('cabShieldWith takes an armor item as its extra');
   return isMounted(v.chassisId, extra) ? lanesOf(extra) : null;
 }
 
-function withLanesAt(armor: GridItem[], armorLanes: string[][], extra: GridItem, lanes: string[]): string[][] {
+function withLanesAt(armor: GridItem[], armorLanes: number[][], extra: GridItem, lanes: number[]): number[][] {
   const at = armor.findIndex((it) => it.y > extra.y || (it.y === extra.y && it.x > extra.x));
   return at < 0 ? [...armorLanes, lanes] : [...armorLanes.slice(0, at), lanes, ...armorLanes.slice(at)];
 }
 
-function countBySide(keys: Iterable<string>): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const key of keys) counts.set(key[0], (counts.get(key[0]) ?? 0) + 1);
+function sideOfLane(key: number): number {
+  return Math.floor(key / LANE_ROW);
+}
+
+function countBySide(keys: Iterable<number>): Map<number, number> {
+  const counts = new Map<number, number>();
+  for (const key of keys) counts.set(sideOfLane(key), (counts.get(sideOfLane(key)) ?? 0) + 1);
   return counts;
 }
 
-function sideRootSum(lanes: string[][], counts: Map<string, number>): number {
-  const order = new Set<string>();
+function sideRootSum(lanes: number[][], counts: Map<number, number>): number {
+  const order = new Set<number>();
   for (const list of lanes) {
-    for (const key of list) order.add(key[0]);
+    for (const key of list) order.add(sideOfLane(key));
     if (order.size === counts.size) break;
   }
   return [...order].reduce((sum, side) => sum + Math.sqrt(counts.get(side)!), 0);
 }
 
-function laneKey(g: Grid, c: { x: number; y: number }): string {
+function laneNumber(letter: string, at: number): number {
+  return LANE_SIDE_CODE[letter] * LANE_ROW + at;
+}
+
+function laneKey(g: Grid, c: { x: number; y: number }): number {
   const letter = g.cells[c.y]?.[c.x] ?? '';
-  return letter === 'F' || letter === 'B' ? `${letter}${c.x}` : `${letter}${c.y}`;
+  const code = LANE_SIDE_CODE[letter];
+  if (!code) return 0;
+  return code * LANE_ROW + (letter === 'F' || letter === 'B' ? c.x : c.y);
 }
 
 function isCab(def: PartDef): boolean {
