@@ -213,15 +213,15 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
     mass: 2130,
     handlingMass: 3700,
     radius: 0.8,
-    layout: [' FFFFFF ', 'LDDD   R', 'LXDXXXXR', 'LXDXXXXR', 'LXDXXXXR', 'LDEEDDDR', 'LDEEDDDR', 'LDEEDDDR', 'LD  DXDR', 'LDDDDXDR', 'LDDDDXDR', 'LXDXXDXR', 'LXDXXDXR', 'LXDXXDXR', 'LD    DR', ' BBBBBB '],
+    layout: [' FFFFFF ', 'LDDD   R', 'LXDXXXXR', 'LXDXXXXR', 'LXDXXXXR', 'LDEEDDDR', 'LDEEDDDR', 'LDEEDDDR', 'LD  DDXR', 'LDDXXDXR', 'LDDXXDXR', 'LXDXXDXR', 'LXDDDDXR', 'LXDDDDXR', 'LD    DR', ' BBBBBB '],
     core: [
       { defId: 'wheelHeavy', x: 1, y: 2 },
       { defId: 'wheelHeavy', x: 6, y: 2 },
       { defId: 'wheelHeavy', x: 1, y: 11 },
       { defId: 'wheelHeavy', x: 6, y: 11 },
       { defId: 'cabPickup', x: 3, y: 2 },
-      { defId: 'transmissionHeavy', x: 3, y: 11 },
-      { defId: 'tankHeavy', x: 5, y: 8 },
+      { defId: 'transmissionHeavy', x: 3, y: 9 },
+      { defId: 'tankHeavy', x: 6, y: 8 },
     ],
     oldGrid: { deck: 25, armor: 32, width: 9 },
     fuelCap: 60,
@@ -265,11 +265,11 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   longbed: {
     id: 'longbed', maxSpeed: 4.55, accel: 0.8, brake: 1.8, turnSlow: 70, turnFast: 20, reverseTurn: 40,
     mass: 2900, handlingMass: 7200, radius: 0.95,
-    layout: [' FFFFFF ', 'LDDDDDDR', 'LDDEEDDR', 'LDDEEDDR', 'LX EEDXR', 'LX DDDXR', 'LXXXXDXR', 'LDXXXDDR', 'LDXXXDDR', 'LDXXXDDR', 'LDXXXDDR', 'LDXXXDDR', 'LDDDDDDR', 'LXDDDDXR', 'LXDDDDXR', 'LXDDDDXR', 'LDDDDDDR', ' BBBBBB '],
+    layout: [' FFFFFF ', 'LDDDDDDR', 'LDDEEDDR', 'LDDEEDDR', 'LX EEDXR', 'LXXXXDXR', 'LXXXXDXR', 'LDXXXDDR', 'LDXXXDDR', 'LDDXXDDR', 'LDDXXDDR', 'LDDXXDDR', 'LDDDDDDR', 'LXDDDDXR', 'LXDDDDXR', 'LXDDDDXR', 'LDDDDDDR', ' BBBBBB '],
     core: [
       { defId: 'cabPickup', x: 2, y: 6 },
       { defId: 'transmissionHeavy', x: 3, y: 9 },
-      { defId: 'tankHeavy', x: 2, y: 9 },
+      { defId: 'tankHeavy', x: 2, y: 5, rot: 1 },
       { defId: 'wheelHeavy', x: 1, y: 4 },
       { defId: 'wheelHeavy', x: 6, y: 4 },
       { defId: 'wheelHeavy', x: 1, y: 13 },
@@ -332,11 +332,11 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   convertible: {
     id: 'convertible', maxSpeed: 9.4, accel: 2.5, brake: 3, turnSlow: 110, turnFast: 40, reverseTurn: 70,
     mass: 750, handlingMass: 2000, radius: 0.6,
-    layout: [' FFFFF ', 'LD   DR', 'LDXXXDR', 'LXXXXXR', 'LX  XXR', 'LDDD  R', 'LDDXXXR', 'LDDXXXR', 'LDDXXXR', 'L  DDDR', 'LXEEDXR', 'LXEEDXR', 'LDEEDDR', 'LD   DR', ' BBBBB '],
+    layout: [' FFFFF ', 'LD   DR', 'LDXXDDR', 'LXXXXXR', 'LX  XXR', 'LDDDX R', 'LDDXXXR', 'LDDXXXR', 'LDDXXXR', 'L  DDDR', 'LXEEDXR', 'LXEEDXR', 'LDEEDDR', 'LD   DR', ' BBBBB '],
     core: [
       { defId: 'cabHardtop', x: 3, y: 6, rot: 1 },
       { defId: 'transmission', x: 2, y: 2 },
-      { defId: 'tankLong', x: 4, y: 2 },
+      { defId: 'tankLong', x: 4, y: 3 },
       { defId: 'wheel', x: 1, y: 3 },
       { defId: 'wheel', x: 5, y: 3 },
       { defId: 'wheel', x: 1, y: 10 },
@@ -348,11 +348,11 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   bus: {
     id: 'bus', maxSpeed: 5.5, accel: 0.9, brake: 2, turnSlow: 65, turnFast: 22, reverseTurn: 40,
     mass: 3000, handlingMass: 6800, radius: 0.9,
-    layout: [' FFFFF ', 'LDXXXDR', 'LDXXXDR', 'LDXXXDR', 'LDDDDDR', 'LXXXDXR', 'LXXXDXR', 'LXXXDXR', 'LDDDDDR', 'LDDDDDR', 'LDXXXDR', 'LDDDDDR', 'LDDDDDR', 'LXDDDXR', 'LXEEDXR', 'LXEEDXR', 'LDEEDDR', 'LDDDDDR', 'LDDDDDR', 'L     R', ' BBBBB '],
+    layout: [' FFFFF ', 'LDXXXDR', 'LDXXXDR', 'LDXXXDR', 'LDDDDDR', 'LXXXDXR', 'LXXXDXR', 'LXXXDXR', 'LDDDDDR', 'LDDDDDR', 'LXXXDDR', 'LDDDDDR', 'LDDDDDR', 'LXDDDXR', 'LXEEDXR', 'LXEEDXR', 'LDEEDDR', 'LDDDDDR', 'LDDDDDR', 'L     R', ' BBBBB '],
     core: [
       { defId: 'cabPickup', x: 2, y: 1 },
       { defId: 'transmissionMid', x: 2, y: 5 },
-      { defId: 'tankMid', x: 2, y: 10, rot: 1 },
+      { defId: 'tankMid', x: 1, y: 10, rot: 1 },
       { defId: 'wheelMid', x: 1, y: 5 },
       { defId: 'wheelMid', x: 5, y: 5 },
       { defId: 'wheelMid', x: 1, y: 13 },
@@ -416,7 +416,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   lincoln: {
     id: 'lincoln', maxSpeed: 8.6, accel: 2.0, brake: 2.2, turnSlow: 80, turnFast: 26, reverseTurn: 45,
     mass: 900, handlingMass: 2400, radius: 0.85,
-    layout: [' FFFFF ', 'LD    R', 'LDDD  R', 'LDDDDDR', 'LXEEEXR', 'LXEEEXR', 'LDXXXDR', 'LDXXXDR', 'LDXXXDR', 'LDDDDDR', 'LDDDDDR', 'LD  DDR', 'LX   XR', 'LXXXXXR', 'LDXX  R', 'LDXX  R', 'LD    R', ' BBBBB '],
+    layout: [' FFFFF ', 'LD    R', 'LDDD  R', 'LDDDDDR', 'LXEEEXR', 'LXEEEXR', 'LDXXXDR', 'LDXXXDR', 'LDXXXDR', 'LDDDDDR', 'LDDDDDR', 'LD  DDR', 'LXXXXXR', 'LXDDDXR', 'LDXX  R', 'LDXX  R', 'LD    R', ' BBBBB '],
     core: [
       { defId: 'wheel', x: 1, y: 4 },
       { defId: 'wheel', x: 5, y: 4 },
@@ -424,7 +424,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheel', x: 5, y: 12 },
       { defId: 'cabHardtop', x: 2, y: 6, rot: 1 },
       { defId: 'transmission', x: 2, y: 14 },
-      { defId: 'tankLong', x: 2, y: 13, rot: 1 },
+      { defId: 'tankLong', x: 2, y: 12, rot: 1 },
     ],
     oldGrid: { deck: 21, armor: 32, width: 7 },
     fuelCap: 85, fuelPerTile: 0.36, base: 46000, showsCores: false, showsEngine: true, tier: 3, look: 'lincoln',

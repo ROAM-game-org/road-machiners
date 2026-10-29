@@ -76,7 +76,7 @@ const CRATE_ROOM_BEFORE_SQUARE_GRID: Record<string, number> = {
 };
 
 const CRATE_ROOM_EXCESS: Record<string, number> = {
-  hauler: 7, buggy: 2, courier: 4, longbed: 2, carrier: 2, tractor: 7, jeep: 5, convertible: 2, bus: 1, loader: 6, semi: 18, sorokonoga: 6,
+  hauler: 7, buggy: 2, courier: 4, longbed: 3, carrier: 2, tractor: 7, jeep: 5, convertible: 3, bus: 1, loader: 6, semi: 18, sorokonoga: 6, lincoln: 3,
 };
 
 const RING_CELLS_ADDED = 4;

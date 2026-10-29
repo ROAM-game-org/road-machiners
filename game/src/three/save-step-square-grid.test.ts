@@ -166,25 +166,25 @@ describe('save migration 121 to 122, square grid', () => {
   it('sends a part that fits nowhere on a player truck to storage and reports it', () => {
     const guns = Array.from({ length: 5 }, (_, i) => partItem(`gun${i}`, 'mg', 1, 4));
     const out = run(worldOf([truck('t1', 'scout', guns, { weaponOrders: { gun4: { targetId: 'x' }, gun0: { targetId: 'y' } } })]));
-    expect(out.vehicles[0].items).toHaveLength(3);
+    expect(out.vehicles[0].items).toHaveLength(4);
     expectLegal(out.vehicles[0]);
-    expect(out.player.storage.map((p) => p.id)).toEqual(['p-gun3', 'p-gun4']);
+    expect(out.player.storage.map((p) => p.id)).toEqual(['p-gun4']);
     expect(Object.keys(out.vehicles[0].weaponOrders!)).toEqual(['gun0']);
     const lines = warnings().filter((w) => w.includes('player storage'));
-    expect(lines).toHaveLength(2);
-    expect(lines[0]).toContain('t1 (scout) item gun3 (mg)');
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('t1 (scout) item gun4 (mg)');
   });
 
   it('drops the part on an NPC truck and reports it', () => {
     const guns = Array.from({ length: 5 }, (_, i) => partItem(`gun${i}`, 'mg', 1, 4));
     const out = run(worldOf([truck('p0', 'scout', []), truck('n1', 'scout', guns, { faction: 'raiders' })], 'p0'));
-    expect(out.vehicles[1].items).toHaveLength(3);
+    expect(out.vehicles[1].items).toHaveLength(4);
     expect(out.player.storage).toEqual([]);
-    expect(warnings().filter((w) => w.includes('n1 (scout) item') && w.includes('was dropped'))).toHaveLength(2);
+    expect(warnings().filter((w) => w.includes('n1 (scout) item') && w.includes('was dropped'))).toHaveLength(1);
   });
 
   it('maps refit moves and pickups, keeps a moved item at its new spot and drops queued steps that name a lost item', () => {
-    const guns = Array.from({ length: 4 }, (_, i) => partItem(`gun${i}`, 'mg', 1, 4));
+    const guns = Array.from({ length: 5 }, (_, i) => partItem(`gun${i}`, 'mg', 1, 4));
     const job = {
       kind: 'refit',
       turnsLeft: 1,
@@ -192,7 +192,7 @@ describe('save migration 121 to 122, square grid', () => {
       moves: [{ itemId: 'gun0', from: { x: 1, y: 4, rot: 0 }, to: { x: 5, y: 4, rot: 0 } }],
       pickup: null,
       queue: [
-        { moves: [{ itemId: 'gun3', from: { x: 1, y: 4, rot: 0 }, to: { x: 5, y: 4, rot: 0 } }], pickup: null },
+        { moves: [{ itemId: 'gun4', from: { x: 1, y: 4, rot: 0 }, to: { x: 5, y: 4, rot: 0 } }], pickup: null },
         { moves: [{ itemId: 'gun1', from: { x: 5, y: 4, rot: 0 }, to: { x: 1, y: 4, rot: 0 } }], pickup: null },
       ],
     };
