@@ -12,7 +12,8 @@ import { MEMORY, MIN_CHANCE, NPC_BEHAVIOR, NPC_UPKEEP, NPCS, TRAITS, type TraitI
 import { SHOPS } from '../data/market';
 import { partDef } from '../data/parts';
 import { damagePart } from './wear';
-import { getKnownSite, getUpkeepReserve, judgeDanger, noteStripped, optionChances, optionWeights, tradeOffers, tradeSpend, tripFuelCost, usefulContacts, visibleDowned, visibleSalvage } from './npc-decisions';
+import { getKnownSite, getUpkeepReserve, judgeDanger, noteStripped, optionChances, optionWeights, tradeOffers, tradeSpend, tripFuelCost, usefulContacts } from './npc-decisions';
+import { visibleDowned, visibleSalvage } from './loot-picks';
 import { affordableBuyCount, getLotTradePrice, getTradePrice, getTradeRate } from './economy';
 import { cargoRoom } from './inventory';
 import { ECONOMY, GOODS } from '../data/goods';

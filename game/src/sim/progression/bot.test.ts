@@ -529,7 +529,7 @@ describe('botOrders', () => {
     expect(mountedParts(me, 'engine')).toHaveLength(1);
     expect(mountedParts(me).filter((p) => !['core', 'engine'].includes(partDef(p.defId).kind)).length).toBeLessThan(gearBefore);
     expect(turn.world.player.money).toBeGreaterThanOrEqual(0);
-    expect(turn.world.player.supplies).toBeGreaterThan(0);
+    expect(turn.ledger.gear).toBeGreaterThan(0);
   });
 
   it('has a broke truck without an engine at a stall sell a spare and mount a bought engine', () => {

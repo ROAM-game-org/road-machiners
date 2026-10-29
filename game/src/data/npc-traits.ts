@@ -21,7 +21,7 @@ const BASE_TRADE_STAKE = 200;
 export const TRAITS: Record<TraitId, Trait> = {
   scavenger: {
     towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: ['fallen-sun', 'orchard', 'glass-flats'], travelSites: [], contactReactRadius: 12, boldness: 1, fuelMargin: 1, robs: 'offDuty', tradeStake: BASE_TRADE_STAKE,
-    weights: { idle: { scavenge: { add: 10 }, linger: { add: 1.5 } }, salvageSeen: { loot: { add: 3 } }, strandedSeen: { tow: { add: 9 } }, hostileSeen: { fight: { add: 2 } }, aidAsked: { give: { mul: 2 } }, needySeen: { aid: { add: 0.02 } }, strangerSeen: { tale: { add: 0.1 }, tip: { add: 0.08 } } },
+    weights: { idle: { scavenge: { add: 10 }, linger: { add: 1.5 } }, spotWork: { work: { add: 4 } }, salvageSeen: { loot: { add: 3 } }, strandedSeen: { tow: { add: 9 } }, hostileSeen: { fight: { add: 2 } }, aidAsked: { give: { mul: 2 } }, needySeen: { aid: { add: 0.02 } }, strangerSeen: { tale: { add: 0.1 }, tip: { add: 0.08 } } },
   },
   trader: {
     towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: [], travelSites: [], contactReactRadius: 12, boldness: 1, fuelMargin: 0.75, robs: 'offDuty', tradeStake: 833,
@@ -72,11 +72,11 @@ export const TRAITS: Record<TraitId, Trait> = {
   },
   roamer: {
     towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: ['fallen-sun', 'orchard', 'glass-flats'], travelSites: [], contactReactRadius: 12, boldness: 1, fuelMargin: 1, robs: 'offDuty', tradeStake: BASE_TRADE_STAKE,
-    weights: { idle: { explore: { add: 10 }, trade: { add: 3 }, scavenge: { add: 2 }, linger: { add: 4 } }, salvageSeen: { loot: { add: 3 } }, strandedSeen: { tow: { add: 3 } }, escortSeen: { hire: { add: 0.2 } }, aidAsked: { give: { mul: 2 } }, needySeen: { aid: { add: 0.02 } }, strangerSeen: { tale: { add: 0.1 }, tip: { add: 0.08 } } },
+    weights: { idle: { explore: { add: 10 }, trade: { add: 3 }, scavenge: { add: 2 }, linger: { add: 4 } }, spotWork: { work: { add: 1 } }, salvageSeen: { loot: { add: 3 } }, strandedSeen: { tow: { add: 3 } }, escortSeen: { hire: { add: 0.2 } }, aidAsked: { give: { mul: 2 } }, needySeen: { aid: { add: 0.02 } }, strangerSeen: { tale: { add: 0.1 }, tip: { add: 0.08 } } },
   },
   vulture: {
     towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: ['fallen-sun', 'orchard', 'glass-flats'], travelSites: [], contactReactRadius: 12, boldness: 1, fuelMargin: 1, robs: 'offDuty', tradeStake: BASE_TRADE_STAKE,
-    weights: { idle: { prowl: { add: 10 }, scavenge: { add: 2 } }, salvageSeen: { loot: { add: 20 } }, crashed: { retaliate: { add: 0.5 } }, strangerSeen: { tip: { add: 0.08 } }, helpCalled: { help: { mul: 0.3 } } },
+    weights: { idle: { prowl: { add: 10 }, scavenge: { add: 2 } }, spotWork: { work: { add: 1 } }, salvageSeen: { loot: { add: 20 } }, crashed: { retaliate: { add: 0.5 } }, strangerSeen: { tip: { add: 0.08 } }, helpCalled: { help: { mul: 0.3 } } },
   },
   supplier: {
     towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: [], travelSites: [], contactReactRadius: 12, boldness: 1, fuelMargin: 1, robs: 'never', tradeStake: 833,

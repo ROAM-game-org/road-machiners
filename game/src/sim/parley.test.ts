@@ -9,7 +9,7 @@ import { asksOf, chooseText } from './dialogue-testkit';
 import { addGoods } from './inventory';
 import { takeAllLoot } from './locations';
 import { pushGoal, resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
-import { visibleSalvage } from './npc-decisions';
+import { visibleSalvage } from './loot-picks';
 import { makePeace, plead, standDownTo, yieldTo } from './parley';
 import { claimantOf, emptyHidden, hasCargo, lootBlocker, looterOf } from './salvage';
 import { beginSearch } from './search';
