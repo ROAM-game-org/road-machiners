@@ -3,11 +3,10 @@ import { CHASSIS, PLAYER_CHASSIS } from '../data/chassis';
 import { NPCS } from '../data/npcs';
 import { PARTS } from '../data/parts';
 import { REGION } from '../data/region';
-import { bedRows } from './chassis-features';
 import { buyChassis } from './economy';
 import { partDef } from '../data/parts';
 import { makePart, makeVehicle } from './factory';
-import { MOUNT_CELLS, baseGrid, bareGrid, cargoCellsGained, cargoRowsOn, cellCount, findSpot, freeCells, gridOf, layerOf, isMounted, onDeadRow, placementError, itemCells, mountedItems, mountedParts, plateSide, sideOf, type Cell } from './grid';
+import { MOUNT_CELLS, baseGrid, bareGrid, cargoCellsGained, cargoRowsOn, cellCount, findSpot, freeCells, gridOf, layerOf, isMounted, onDeadRow, placementError, itemCells, mountedItems, mountedParts, mountSpots, plateSide, sideOf, type Cell } from './grid';
 import { getLayoutError, moveItem, mountPart, storePart, stowSpot } from './inventory';
 import { generateNpcLoadout } from './npc-loadout';
 import { addVehicle, emptyWorld } from './testkit';
@@ -125,8 +124,9 @@ describe('broken cargo rows', () => {
     const { v, box } = boxTruck(['rack', 'trailerBox']);
     box.hp = 0;
     const g = gridOf(v);
-    expect(g.deadFrom).toBe(g.chassisH + bedRows('hauler') + rackRows);
-    expect(g.cells[g.chassisH + bedRows('hauler')].every((c) => c === '.')).toBe(true);
+    const storage = bareGrid('hauler').h - baseGrid('hauler').h;
+    expect(g.deadFrom).toBe(g.chassisH + storage + rackRows);
+    expect(g.cells[g.chassisH + storage].every((c) => c === '.')).toBe(true);
     expect(g.h - g.deadFrom).toBe(boxRows);
   });
 
@@ -458,11 +458,13 @@ describe('loose storage on deck cells', () => {
 
   it('takes a spare engine part on a deck cell without mounting it', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'scrapjaw', 'scout', [], { x: 40, y: 40 });
-    const { x, y } = deckSpot('scout');
-    const spare: GridItem = { id: 'i-spare', x, y, rot: 0, kind: 'part', part: makePart(w, 'stockEngine', 0) };
+    const v = addVehicle(w, 'scrapjaw', 'hauler', [], { x: 40, y: 40 });
+    const loose: GridItem = { id: 'i-spare', x: 0, y: 0, rot: 0, kind: 'part', part: makePart(w, 'stockEngine', 0) };
+    const onDeck = mountSpots(gridOf(v), v.items, loose, ['D'])[0];
+    if (!onDeck) throw new Error('No deck spot on the hauler takes an engine');
+    const spare: GridItem = { ...loose, ...onDeck };
     expect(placementError(gridOf(v), v.items, spare, null)).toBeNull();
-    expect(isMounted('scout', spare)).toBe(false);
+    expect(isMounted('hauler', spare)).toBe(false);
     v.items.push(spare);
     expect(mountedParts(v, 'engine')).not.toContain(spare.part);
   });

@@ -76,19 +76,7 @@ const CRATE_ROOM_BEFORE_SQUARE_GRID: Record<string, number> = {
 };
 
 const CRATE_ROOM_EXCESS: Record<string, number> = {
-  tractor: 1, loader: 1, longbed: 2, bus: 4, lincoln: 6, convertible: 2, jeep: 1, hauler: 3, semi: 30,
-};
-
-const NOT_FREE_EDGE_ROWS: Record<string, string[]> = {
-  buggy: ['front'],
-  courier: ['front', 'back'],
-  niva: ['front', 'back'],
-  hauler: ['front'],
-  wagon: ['front'],
-  longbed: ['front', 'back'],
-  bus: ['front', 'back'],
-  jeep: ['back'],
-  carrier: ['back'],
+  hauler: 7, buggy: 2, courier: 4, longbed: 2, carrier: 2, tractor: 7, jeep: 5, convertible: 2, bus: 1, loader: 6, semi: 18, sorokonoga: 6,
 };
 
 const RING_CELLS_ADDED = 4;
@@ -180,14 +168,9 @@ describe('chassis grids', () => {
     expect(excess).toEqual(CRATE_ROOM_EXCESS);
   });
 
-  it('keeps a free front and back row of plain cells beside the side armor on every chassis but those listed', () => {
-    for (const [id, c] of Object.entries(CHASSIS).filter(([id]) => id !== 'bukhanka')) {
-      const edges = { front: c.layout[1], back: c.layout[c.layout.length - 2] };
-      for (const [edge, row] of Object.entries(edges).filter(([edge]) => !(NOT_FREE_EDGE_ROWS[id] ?? []).includes(edge))) {
-        expect(row[1] + row[row.length - 2], `${id} ${edge}`).toBe('..');
-        expect(row.slice(1, -1).replace(/[. ]/g, ''), `${id} ${edge}`).toBe('');
-      }
-    }
+  it('keeps no plain cell on any truck body, so loose items lie on deck, bay or storage rows', () => {
+    const plain = Object.entries(CHASSIS).filter(([, c]) => c.layout.join('').includes('.')).map(([id]) => id);
+    expect(plain).toEqual([]);
   });
 
   it('never leaves a blank inner cell between two cargo or deck cells, across or along', () => {
@@ -204,11 +187,6 @@ describe('chassis grids', () => {
       }
       expect(sandwiched, id).toEqual([]);
     }
-  });
-
-  it('gives the scout a free front and back row that hold cargo beside side armor', () => {
-    const rows = CHASSIS.scout.layout;
-    for (const row of [rows[1], rows[rows.length - 2]]) expect(row.replace(/ /g, '.')).toBe(`L${'.'.repeat(rows[0].length - 2)}R`);
   });
 
   it('keeps every armor column outside the model and every armor row full width', () => {
@@ -334,7 +312,7 @@ describe('deck blocks for the bigger guns', () => {
 describe('shown cores', () => {
   it('shows the transmission and the tank on the junk-built trucks and hides them on the others', () => {
     const shown = Object.entries(CHASSIS).filter(([, c]) => c.showsCores).map(([id]) => id).sort();
-    expect(shown).toEqual(['courier', 'scout', 'wagon']);
+    expect(shown).toEqual(['scout', 'wagon']);
   });
 
   it('draws the engine on every chassis but the buggy, whose closed nose deck holds a full-size spare where the engine would stand', () => {

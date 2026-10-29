@@ -19,7 +19,7 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
     halfZ: 1.1100000000000003,
     old: [' FFFFF ', 'L.....R', 'LXEEDXR', 'LXEEDXR', 'LDXXXDR', 'LDXXXDR', 'LXXXXXR', 'LXXXXXR', 'L.....R', ' BBBBB '],
     oldCore: [{ defId: 'cabPickup', x: 2, y: 4 }, { defId: 'transmission', x: 2, y: 6 }, { defId: 'tank', x: 4, y: 6 }, { defId: 'wheel', x: 1, y: 2 }, { defId: 'wheel', x: 5, y: 2 }, { defId: 'wheel', x: 1, y: 6 }, { defId: 'wheel', x: 5, y: 6 }],
-    next: [' FFFF ', 'L.  .R', 'L.DDDR', 'LXEEXR', 'LXEEXR', 'LDEEDR', 'LXXXDR', 'LXXXDR', 'LXXXXR', 'LDDDXR', 'LXXXXR', 'LXXXXR', 'L....R', ' BBBB '],
+    next: [' FFFF ', 'LD  DR', 'LDDDDR', 'LXEEXR', 'LXEEXR', 'LDEEDR', 'LXXXDR', 'LXXXDR', 'LXXXXR', 'LDDDXR', 'LXXXXR', 'LXXXXR', 'LDDDDR', ' BBBB '],
     nextCore: [{ defId: 'cabPickup', x: 1, y: 6 }, { defId: 'transmission', x: 2, y: 10 }, { defId: 'tank', x: 4, y: 8 }, { defId: 'wheel', x: 1, y: 3 }, { defId: 'wheel', x: 4, y: 3 }, { defId: 'wheel', x: 1, y: 10 }, { defId: 'wheel', x: 4, y: 10 }],
   },
   hauler: {
@@ -27,7 +27,7 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
     halfZ: 1.46,
     old: [' FFFFFFF ', 'L.......R', 'LXDEEXXXR', 'LXDEEXXXR', 'LDDXXXXDR', 'LDDXXDDDR', 'LDDDDDDDR', 'LXDDDXDXR', 'LXDDDXDXR', 'L.......R', ' BBBBBBB '],
     oldCore: [{ defId: 'cabPickup', x: 5, y: 2, rot: 1 }, { defId: 'transmissionMid', x: 3, y: 4 }, { defId: 'tankMid', x: 5, y: 7 }, { defId: 'wheelMid', x: 1, y: 2 }, { defId: 'wheelMid', x: 7, y: 2 }, { defId: 'wheelMid', x: 1, y: 7 }, { defId: 'wheelMid', x: 7, y: 7 }],
-    next: [' FFFFFF ', 'L.DXXX.R', 'L.DXXX.R', 'LXDXXXXR', 'LXDEEDXR', 'LXDEEDXR', 'LDDEEDDR', 'LDDDDDDR', 'LDDDDDDR', 'LDDXXXDR', 'LXDXXXXR', 'LXDXXXXR', 'LXDDDDXR', 'LDDDDDDR', 'L.    .R', ' BBBBBB '],
+    next: [' FFFFFF ', 'L DXXX R', 'L DXXX R', 'LXDXXXXR', 'LXDEEDXR', 'LXDEEDXR', 'LDDEEDDR', 'LDDDDDDR', 'LDDDDDDR', 'LDDXXXDR', 'LXDXXXXR', 'LXDXXXXR', 'LXDDDDXR', 'LDDDDDDR', 'LD    DR', ' BBBBBB '],
     nextCore: [{ defId: 'wheelMid', x: 1, y: 3 }, { defId: 'wheelMid', x: 6, y: 3 }, { defId: 'wheelMid', x: 1, y: 10 }, { defId: 'wheelMid', x: 6, y: 10 }, { defId: 'cabPickup', x: 3, y: 1 }, { defId: 'transmissionMid', x: 3, y: 9 }, { defId: 'tankMid', x: 5, y: 9 }],
   },
   buggy: {
@@ -35,7 +35,7 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
     halfZ: 0.96,
     old: [' FFFFF ', 'L.....R', 'LXEE.XR', 'LXEE.XR', 'LDDXX.R', 'LDDXX.R', 'LXXX.XR', 'LXXX.XR', 'L.....R', ' BBBBB '],
     oldCore: [{ defId: 'cab', x: 3, y: 4 }, { defId: 'transmission', x: 2, y: 6 }, { defId: 'tank', x: 4, y: 4 }, { defId: 'wheel', x: 1, y: 2 }, { defId: 'wheel', x: 5, y: 2 }, { defId: 'wheel', x: 1, y: 6 }, { defId: 'wheel', x: 5, y: 6 }],
-    next: [' FFFF ', 'LX..XR', 'LXEEXR', 'L.EEXR', 'LXEEXR', 'LXDDDR', 'L.DDDR', 'LXXXXR', 'LXXXXR', 'L....R', ' BBBB '],
+    next: [' FFFF ', 'LX  XR', 'LXEEXR', 'L EEXR', 'LXEEXR', 'LXDDDR', 'LDDDDR', 'LXXXXR', 'LXXXXR', 'L DDDR', ' BBBB '],
     nextCore: [{ defId: 'tank', x: 1, y: 4 }, { defId: 'transmission', x: 2, y: 7 }, { defId: 'cab', x: 4, y: 3 }, { defId: 'wheel', x: 1, y: 1 }, { defId: 'wheel', x: 4, y: 1 }, { defId: 'wheel', x: 1, y: 7 }, { defId: 'wheel', x: 4, y: 7 }],
   },
   wagon: {
@@ -43,7 +43,7 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
     halfZ: 1.4,
     old: [' FFFFFFF ', 'L.......R', 'LXDXXXDXR', 'LXDXXXDXR', 'LDEEDDXDR', 'LDEEDDXDR', 'LDDDXXDDR', 'LXDDXXDXR', 'LXDDDDDXR', 'L.......R', ' BBBBBBB '],
     oldCore: [{ defId: 'cabPickup', x: 3, y: 2 }, { defId: 'transmissionHeavy', x: 4, y: 6 }, { defId: 'tankHeavy', x: 6, y: 4 }, { defId: 'wheelHeavy', x: 1, y: 2 }, { defId: 'wheelHeavy', x: 7, y: 2 }, { defId: 'wheelHeavy', x: 1, y: 7 }, { defId: 'wheelHeavy', x: 7, y: 7 }],
-    next: [' FFFFFF ', 'LDDD   R', 'LXDXXXXR', 'LXDXXXXR', 'LXDXXXXR', 'LDEEDDDR', 'LDEEDDDR', 'LDEEDDDR', 'L.  DXDR', 'LDDDDXDR', 'LDDDDXDR', 'LXDXXDXR', 'LXDXXDXR', 'LXDXXDXR', 'L.    .R', ' BBBBBB '],
+    next: [' FFFFFF ', 'LDDD   R', 'LXDXXXXR', 'LXDXXXXR', 'LXDXXXXR', 'LDEEDDDR', 'LDEEDDDR', 'LDEEDDDR', 'LD  DXDR', 'LDDDDXDR', 'LDDDDXDR', 'LXDXXDXR', 'LXDXXDXR', 'LXDXXDXR', 'LD    DR', ' BBBBBB '],
     nextCore: [{ defId: 'wheelHeavy', x: 1, y: 2 }, { defId: 'wheelHeavy', x: 6, y: 2 }, { defId: 'wheelHeavy', x: 1, y: 11 }, { defId: 'wheelHeavy', x: 6, y: 11 }, { defId: 'cabPickup', x: 3, y: 2 }, { defId: 'transmissionHeavy', x: 3, y: 11 }, { defId: 'tankHeavy', x: 5, y: 8 }],
   },
   courier: {
@@ -51,7 +51,7 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
     halfZ: 0.9300000000000002,
     old: [' FFFFF ', 'L.....R', 'LX.XXXR', 'LX.XXXR', 'LDEE.XR', 'LDEE.XR', 'LDXX.DR', 'LXDD.XR', 'LXDD.XR', 'L.....R', ' BBBBB '],
     oldCore: [{ defId: 'cab', x: 2, y: 6, rot: 1 }, { defId: 'transmission', x: 3, y: 2 }, { defId: 'tank', x: 5, y: 4 }, { defId: 'wheel', x: 1, y: 2 }, { defId: 'wheel', x: 5, y: 2 }, { defId: 'wheel', x: 1, y: 7 }, { defId: 'wheel', x: 5, y: 7 }],
-    next: [' FFFF ', 'LXEEXR', 'LXEEXR', 'L.EE.R', 'LDD DR', 'LDD.DR', 'LDDXXR', 'LDXX.R', 'LXXXXR', 'LXXXXR', ' BBBB '],
+    next: [' FFFF ', 'LXEEXR', 'LXEEXR', 'L EE R', 'LDD DR', 'LDDDDR', 'LDDXXR', 'LDXXDR', 'LXXXXR', 'LXXXXR', ' BBBB '],
     nextCore: [{ defId: 'cab', x: 3, y: 6, rot: 1 }, { defId: 'transmission', x: 2, y: 8 }, { defId: 'tank', x: 2, y: 7, rot: 1 }, { defId: 'wheel', x: 1, y: 1 }, { defId: 'wheel', x: 4, y: 1 }, { defId: 'wheel', x: 1, y: 8 }, { defId: 'wheel', x: 4, y: 8 }],
   },
   van: {
@@ -59,7 +59,7 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
     halfZ: 1.22,
     old: [' FFFFF ', 'L.....R', 'LXEEDXR', 'LXEEDXR', 'LDXXDDR', 'LDXXDDR', 'LDXXDDR', 'LXXXXXR', 'LXXXXXR', 'L.....R', ' BBBBB '],
     oldCore: [{ defId: 'cabPickup', x: 2, y: 4, rot: 1 }, { defId: 'transmissionMid', x: 2, y: 7 }, { defId: 'tankMid', x: 4, y: 7 }, { defId: 'wheelMid', x: 1, y: 2 }, { defId: 'wheelMid', x: 5, y: 2 }, { defId: 'wheelMid', x: 1, y: 7 }, { defId: 'wheelMid', x: 5, y: 7 }],
-    next: [' FFFFF ', 'L.   .R', 'LXDEEXR', 'LXDEEXR', 'LXDEEXR', 'LDDDD.R', 'L  DDDR', 'LXXXDDR', 'LXXXDDR', 'LXXXDDR', 'LXXXXXR', 'LXXXXXR', 'LXXXXXR', 'L.   .R', ' BBBBB '],
+    next: [' FFFFF ', 'LD   DR', 'LXDEEXR', 'LXDEEXR', 'LXDEEXR', 'LDDDDDR', 'L  DDDR', 'LXXXDDR', 'LXXXDDR', 'LXXXDDR', 'LXXXXXR', 'LXXXXXR', 'LXXXXXR', 'LD   DR', ' BBBBB '],
     nextCore: [{ defId: 'wheelMid', x: 1, y: 2 }, { defId: 'wheelMid', x: 5, y: 2 }, { defId: 'wheelMid', x: 1, y: 10 }, { defId: 'wheelMid', x: 5, y: 10 }, { defId: 'cabPickup', x: 1, y: 7 }, { defId: 'transmissionMid', x: 2, y: 10 }, { defId: 'tankMid', x: 4, y: 10 }],
   },
   longbed: {
@@ -75,7 +75,7 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
     halfZ: 1.46,
     old: [' FFFFFFF ', 'L.......R', 'LXDXXD.XR', 'LXDXXD.XR', 'LDEEXX.DR', 'LDEEXX.DR', 'LDDDXX.DR', 'LXDDXX.XR', 'LXDDDD.XR', 'L.......R', ' BBBBBBB '],
     oldCore: [{ defId: 'cabPickup', x: 4, y: 4, rot: 1 }, { defId: 'transmissionHeavy', x: 3, y: 2 }, { defId: 'tankHeavy', x: 4, y: 7, rot: 1 }, { defId: 'wheelHeavy', x: 1, y: 2 }, { defId: 'wheelHeavy', x: 7, y: 2 }, { defId: 'wheelHeavy', x: 1, y: 7 }, { defId: 'wheelHeavy', x: 7, y: 7 }],
-    next: [' FFFFFF ', 'L.   ..R', 'L.DXXD.R', 'LX.XXDXR', 'LX.XXDXR', 'LXEEDDXR', 'LDEEDXDR', 'LDEEDXDR', 'LDXXXXDR', 'LXXXXDXR', 'LXXXXDXR', 'LXDDDDXR', 'LDDDDD.R', 'L.D.DD.R', ' BBBBBB '],
+    next: [' FFFFFF ', 'LD   DDR', 'L DXXD R', 'LXDXXDXR', 'LXDXXDXR', 'LXEEDDXR', 'LDEEDXDR', 'LDEEDXDR', 'LDXXXXDR', 'LXXXXDXR', 'LXXXXDXR', 'LXDDDDXR', 'LDDDDDDR', 'L   DD R', ' BBBBBB '],
     nextCore: [{ defId: 'wheelHeavy', x: 1, y: 3 }, { defId: 'wheelHeavy', x: 6, y: 3 }, { defId: 'wheelHeavy', x: 1, y: 9 }, { defId: 'wheelHeavy', x: 6, y: 9 }, { defId: 'cabPickup', x: 2, y: 8 }, { defId: 'transmissionHeavy', x: 3, y: 2 }, { defId: 'tankHeavy', x: 5, y: 6 }],
   },
   tractor: {
@@ -83,7 +83,7 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
     halfZ: 1.3200000000000003,
     old: [' FFFFFFF ', 'L.......R', 'LXDEEDDXR', 'LXDEEDDXR', 'LDDXXXDDR', 'LDDXXXDDR', 'LDDDDXDDR', 'LXDXXXDXR', 'LXDXXDDXR', 'L.......R', ' BBBBBBB '],
     oldCore: [{ defId: 'cabPickup', x: 3, y: 4 }, { defId: 'transmissionHeavy', x: 3, y: 7 }, { defId: 'tankHeavy', x: 5, y: 6 }, { defId: 'wheelHeavy', x: 1, y: 2 }, { defId: 'wheelHeavy', x: 7, y: 2 }, { defId: 'wheelHeavy', x: 1, y: 7 }, { defId: 'wheelHeavy', x: 7, y: 7 }],
-    next: [' FFFFFF ', 'L.    .R', 'LXEEDDXR', 'LXEEDDXR', 'LXEEDDXR', 'LDDDDDDR', 'LDDXXXDR', 'LDDXXXDR', 'LDXXXXDR', 'LDXDDDDR', 'LDXDDDDR', 'LXDXXDXR', 'LXDXXDXR', 'LXDXXDXR', 'L.    .R', ' BBBBBB '],
+    next: [' FFFFFF ', 'L      R', 'LXEEDDXR', 'LXEEDDXR', 'LXEEDDXR', 'LDDDDDDR', 'LDDXXXDR', 'LDDXXXDR', 'LDXXXXDR', 'LDXDDDDR', 'LDXDDDDR', 'LXDXXDXR', 'LXDXXDXR', 'LXDXXDXR', 'LD    DR', ' BBBBBB '],
     nextCore: [{ defId: 'cabPickup', x: 3, y: 6 }, { defId: 'transmissionHeavy', x: 3, y: 11 }, { defId: 'tankHeavy', x: 2, y: 8 }, { defId: 'wheelHeavy', x: 1, y: 2 }, { defId: 'wheelHeavy', x: 6, y: 2 }, { defId: 'wheelHeavy', x: 1, y: 11 }, { defId: 'wheelHeavy', x: 6, y: 11 }],
   },
   jeep: {
@@ -91,7 +91,7 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
     halfZ: 0.97,
     old: [' FFFFF ', 'L.....R', 'LX.XXXR', 'LX.XXXR', 'LD.XDDR', 'LD.XDDR', 'LX.EEXR', 'LX.EEXR', 'LD.XXDR', 'L.....R', ' BBBBB '],
     oldCore: [{ defId: 'cab', x: 3, y: 4 }, { defId: 'transmission', x: 3, y: 2 }, { defId: 'tank', x: 3, y: 8, rot: 1 }, { defId: 'wheel', x: 1, y: 2 }, { defId: 'wheel', x: 5, y: 2 }, { defId: 'wheel', x: 1, y: 6 }, { defId: 'wheel', x: 5, y: 6 }],
-    next: [' FFFF ', 'L.  .R', 'LXXXXR', 'LXXXXR', 'LXDDDR', 'LXDDDR', 'L.DDDR', 'L.EE.R', 'LXEEXR', 'LXEEXR', 'L  XXR', ' BBBB '],
+    next: [' FFFF ', 'L    R', 'LXXXXR', 'LXXXXR', 'LXDDDR', 'LXDDDR', 'LDDDDR', 'LDEEDR', 'LXEEXR', 'LXEEXR', 'L  XXR', ' BBBB '],
     nextCore: [{ defId: 'cab', x: 1, y: 4 }, { defId: 'transmission', x: 2, y: 2 }, { defId: 'tank', x: 3, y: 10, rot: 1 }, { defId: 'wheel', x: 1, y: 2 }, { defId: 'wheel', x: 4, y: 2 }, { defId: 'wheel', x: 1, y: 8 }, { defId: 'wheel', x: 4, y: 8 }],
   },
   convertible: {
@@ -99,7 +99,7 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
     halfZ: 1.09,
     old: [' FFFFF ', 'L.....R', 'LXXXXXR', 'LXXXXXR', 'LDXXDDR', 'LDXXDDR', 'LDXXDDR', 'LXEEDXR', 'LXEEDXR', 'L.....R', ' BBBBB '],
     oldCore: [{ defId: 'cabHardtop', x: 2, y: 4, rot: 1 }, { defId: 'transmission', x: 2, y: 2 }, { defId: 'tankLong', x: 4, y: 2 }, { defId: 'wheel', x: 1, y: 2 }, { defId: 'wheel', x: 5, y: 2 }, { defId: 'wheel', x: 1, y: 7 }, { defId: 'wheel', x: 5, y: 7 }],
-    next: [' FFFFF ', 'L.   .R', 'L.XXX.R', 'LXXXXXR', 'LX  XXR', 'LDDD  R', 'LDDXXXR', 'LDDXXXR', 'LDDXXXR', 'L  DDDR', 'LXEEDXR', 'LXEEDXR', 'LDEED.R', 'L.   .R', ' BBBBB '],
+    next: [' FFFFF ', 'LD   DR', 'LDXXXDR', 'LXXXXXR', 'LX  XXR', 'LDDD  R', 'LDDXXXR', 'LDDXXXR', 'LDDXXXR', 'L  DDDR', 'LXEEDXR', 'LXEEDXR', 'LDEEDDR', 'LD   DR', ' BBBBB '],
     nextCore: [{ defId: 'cabHardtop', x: 3, y: 6, rot: 1 }, { defId: 'transmission', x: 2, y: 2 }, { defId: 'tankLong', x: 4, y: 2 }, { defId: 'wheel', x: 1, y: 3 }, { defId: 'wheel', x: 5, y: 3 }, { defId: 'wheel', x: 1, y: 10 }, { defId: 'wheel', x: 5, y: 10 }],
   },
   bus: {
@@ -107,7 +107,7 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
     halfZ: 1.3,
     old: [' FFFFFFF ', 'L.......R', 'LXXXXD.XR', 'LXXXXD.XR', 'LDDDDD.DR', 'LDDDDD.DR', 'LDDDDD.DR', 'LDDXXXXDR', 'LDDXX..DR', 'LDDEED.DR', 'LXDEED.XR', 'LXDDDD.XR', 'L.......R', ' BBBBBBB '],
     oldCore: [{ defId: 'cabPickup', x: 2, y: 2 }, { defId: 'transmissionMid', x: 3, y: 7 }, { defId: 'tankMid', x: 5, y: 7, rot: 1 }, { defId: 'wheelMid', x: 1, y: 2 }, { defId: 'wheelMid', x: 7, y: 2 }, { defId: 'wheelMid', x: 1, y: 10 }, { defId: 'wheelMid', x: 7, y: 10 }],
-    next: [' FFFFF ', 'LDXXXDR', 'LDXXXDR', 'LDXXXDR', 'LDDDDDR', 'LXXXDXR', 'LXXXDXR', 'LXXXDXR', 'LDDDDDR', 'LDDDDDR', 'LDXXXDR', 'LDDDDDR', 'LDDDDDR', 'LXDDDXR', 'LXEEDXR', 'LXEEDXR', 'LDEEDDR', 'LDDDDDR', 'LDDDDDR', 'L  ...R', ' BBBBB '],
+    next: [' FFFFF ', 'LDXXXDR', 'LDXXXDR', 'LDXXXDR', 'LDDDDDR', 'LXXXDXR', 'LXXXDXR', 'LXXXDXR', 'LDDDDDR', 'LDDDDDR', 'LDXXXDR', 'LDDDDDR', 'LDDDDDR', 'LXDDDXR', 'LXEEDXR', 'LXEEDXR', 'LDEEDDR', 'LDDDDDR', 'LDDDDDR', 'L     R', ' BBBBB '],
     nextCore: [{ defId: 'cabPickup', x: 2, y: 1 }, { defId: 'transmissionMid', x: 2, y: 5 }, { defId: 'tankMid', x: 2, y: 10, rot: 1 }, { defId: 'wheelMid', x: 1, y: 5 }, { defId: 'wheelMid', x: 5, y: 5 }, { defId: 'wheelMid', x: 1, y: 13 }, { defId: 'wheelMid', x: 5, y: 13 }],
   },
   loader: {
@@ -115,7 +115,7 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
     halfZ: 1.48,
     old: [' FFFFFFF ', 'L.......R', 'LXDDDDDXR', 'LXXXDDDXR', 'LDXXXXDDR', 'LDXXXXDDR', 'LDXEEDDDR', 'LXXEEDDXR', 'LXDDDDDXR', 'L.......R', ' BBBBBBB '],
     oldCore: [{ defId: 'cabPickup', x: 2, y: 3, rot: 1 }, { defId: 'transmissionHeavy', x: 4, y: 4 }, { defId: 'tankHeavy', x: 2, y: 6 }, { defId: 'wheelHeavy', x: 1, y: 2 }, { defId: 'wheelHeavy', x: 7, y: 2 }, { defId: 'wheelHeavy', x: 1, y: 7 }, { defId: 'wheelHeavy', x: 7, y: 7 }],
-    next: [' FFFFFF ', 'L.    .R', 'LDDDDDDR', 'LXXXXDXR', 'LXXXXDXR', 'LXXXXDXR', 'LDXXXDDR', 'LDXXXDDR', 'LDXXXDDR', 'LDDDDDDR', 'LDDDDDDR', 'LXDEEDXR', 'LXDEEDXR', 'LXDEEDXR', 'L.    .R', ' BBBBBB '],
+    next: [' FFFFFF ', 'LD    DR', 'LDDDDDDR', 'LXXXXDXR', 'LXXXXDXR', 'LXXXXDXR', 'LDXXX DR', 'LDXXXDDR', 'LDXXXDDR', 'LDDDDDDR', 'LDDDDDDR', 'LXDEEDXR', 'LX EE XR', 'LXDEEDXR', 'LD    DR', ' BBBBBB '],
     nextCore: [{ defId: 'cabPickup', x: 2, y: 3 }, { defId: 'transmissionHeavy', x: 3, y: 6 }, { defId: 'tankHeavy', x: 2, y: 6 }, { defId: 'wheelHeavy', x: 1, y: 3 }, { defId: 'wheelHeavy', x: 6, y: 3 }, { defId: 'wheelHeavy', x: 1, y: 11 }, { defId: 'wheelHeavy', x: 6, y: 11 }],
   },
   niva: {
@@ -131,7 +131,7 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
     halfZ: 1.22,
     old: [' FFFFF ', 'L.....R', 'LXXXXXR', 'LXXXXXR', 'LDEEDDR', 'LDEEDDR', 'LDDDDDR', 'LDXXXDR', 'LXXXXXR', 'LXDDDXR', 'L.....R', ' BBBBB '],
     oldCore: [{ defId: 'cabPickup', x: 2, y: 2 }, { defId: 'transmissionMid', x: 2, y: 7 }, { defId: 'tankMid', x: 4, y: 7 }, { defId: 'wheelMid', x: 1, y: 2 }, { defId: 'wheelMid', x: 5, y: 2 }, { defId: 'wheelMid', x: 1, y: 8 }, { defId: 'wheelMid', x: 5, y: 8 }],
-    next: [' FFFFF ', 'LXXXXXR', 'LXXXXXR', 'LXXXXXR', 'LDEEDDR', 'LDEEDDR', 'LDEEDDR', 'LDDDDDR', 'LD.D.DR', 'LDDDDDR', 'LXXXXXR', 'LXXXXXR', 'LXXXXXR', ' BBBBB '],
+    next: [' FFFFF ', 'LXXXXXR', 'LXXXXXR', 'LXXXXXR', 'LDEEDDR', 'LDEEDDR', 'LDEEDDR', 'LDDDDDR', 'LDDDDDR', 'LDDDDDR', 'LXXXXXR', 'LXXXXXR', 'LXXXXXR', ' BBBBB '],
     nextCore: [{ defId: 'wheelMid', x: 1, y: 1 }, { defId: 'wheelMid', x: 5, y: 1 }, { defId: 'wheelMid', x: 1, y: 10 }, { defId: 'wheelMid', x: 5, y: 10 }, { defId: 'cabPickup', x: 2, y: 1 }, { defId: 'transmissionMid', x: 2, y: 10 }, { defId: 'tankMid', x: 4, y: 10 }],
   },
   lincoln: {
@@ -139,7 +139,7 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
     halfZ: 1.22,
     old: [' FFFFF ', 'L.....R', 'LXDDDXR', 'LXEEDXR', 'LDEEDDR', 'LDXXDDR', 'LDXXDDR', 'LDXXDDR', 'LDXXXDR', 'LXXXXXR', 'LXDDDXR', 'L.....R', ' BBBBB '],
     oldCore: [{ defId: 'cabHardtop', x: 2, y: 5, rot: 1 }, { defId: 'transmission', x: 2, y: 8 }, { defId: 'tankLong', x: 4, y: 8 }, { defId: 'wheel', x: 1, y: 2 }, { defId: 'wheel', x: 5, y: 2 }, { defId: 'wheel', x: 1, y: 9 }, { defId: 'wheel', x: 5, y: 9 }],
-    next: [' FFFFF ', 'L.  ..R', 'LDDD  R', 'L.DDDDR', 'LXEEEXR', 'LXEEEXR', 'LDXXXDR', 'LDXXXDR', 'LDXXXDR', 'LDDDDDR', 'LDDDDDR', 'LDD.DDR', 'LX   XR', 'LXXXXXR', 'L.XX  R', 'L.XX  R', 'L.  ..R', ' BBBBB '],
+    next: [' FFFFF ', 'LD    R', 'LDDD  R', 'LDDDDDR', 'LXEEEXR', 'LXEEEXR', 'LDXXXDR', 'LDXXXDR', 'LDXXXDR', 'LDDDDDR', 'LDDDDDR', 'LD  DDR', 'LX   XR', 'LXXXXXR', 'LDXX  R', 'LDXX  R', 'LD    R', ' BBBBB '],
     nextCore: [{ defId: 'wheel', x: 1, y: 4 }, { defId: 'wheel', x: 5, y: 4 }, { defId: 'wheel', x: 1, y: 12 }, { defId: 'wheel', x: 5, y: 12 }, { defId: 'cabHardtop', x: 2, y: 6, rot: 1 }, { defId: 'transmission', x: 2, y: 14 }, { defId: 'tankLong', x: 2, y: 13, rot: 1 }],
   },
   semi: {
@@ -147,7 +147,7 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
     halfZ: 1.5500000000000003,
     old: [' FFFFFFF ', 'L.......R', 'LCCCCCCCR', 'LXCEEECXR', 'LXCEEECXR', 'LCCCCCCCR', 'LCCXXXCCR', 'LCCXXXCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCXXXCCR', 'LCCXXXCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LXCCCCCXR', 'LXCCCCCXR', 'L.......R', ' BBBBBBB '],
     oldCore: [{ defId: 'cabPickup', x: 3, y: 6 }, { defId: 'transmissionMid', x: 3, y: 10 }, { defId: 'tankMid', x: 5, y: 10 }, { defId: 'wheelMid', x: 1, y: 3 }, { defId: 'wheelMid', x: 7, y: 3 }, { defId: 'wheelMid', x: 1, y: 27 }, { defId: 'wheelMid', x: 7, y: 27 }],
-    next: [' FFFFFFF ', 'L.     .R', 'L.     .R', 'LX     XR', 'LX.EEE.XR', 'LX.EEE.XR', 'LCC   CCR', 'LCCXXXCCR', 'LCCXXXCCR', 'LCCXXX  R', 'LCCCCC  R', 'LCCCCC  R', 'L  XXXCCR', 'L  XXXCCR', 'L  XXXCCR', 'LCC   CCR', 'LCCCCCCCR', 'LCCCCCCCR', 'L       R', 'L       R', 'L       R', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LX     XR', 'LX     XR', 'LX     XR', 'L.     .R', 'L.     .R', ' BBBBBBB '],
+    next: [' FFFFFFF ', 'L       R', 'L       R', 'LX     XR', 'LX EEE XR', 'LX EEE XR', 'LCC   CCR', 'LCCXXXCCR', 'LCCXXXCCR', 'LCCXXX  R', 'LCCCCC  R', 'LCCCCC  R', 'L  XXXCCR', 'L  XXXCCR', 'L  XXXCCR', 'LCC   CCR', 'LCCCCCCCR', 'LCCCCCCCR', 'L       R', 'L       R', 'L       R', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LCCCCCCCR', 'LX     XR', 'LX     XR', 'LX     XR', 'L       R', 'L       R', ' BBBBBBB '],
     nextCore: [{ defId: 'cabPickup', x: 3, y: 7 }, { defId: 'transmissionMid', x: 3, y: 12 }, { defId: 'tankMid', x: 5, y: 12 }, { defId: 'wheelMid', x: 1, y: 3 }, { defId: 'wheelMid', x: 7, y: 3 }, { defId: 'wheelMid', x: 1, y: 42 }, { defId: 'wheelMid', x: 7, y: 42 }],
   },
   sorokonoga: {
@@ -155,7 +155,7 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
     halfZ: 1.46,
     old: [' FFFFFFF ', 'L.......R', 'LX.....XR', 'LX.XXX.XR', 'L..XXX..R', 'L.EEXXX.R', 'L.EEXXX.R', 'L.......R', 'LDDDDDDDR', 'LDDDDDDDR', 'LDDDDDDDR', 'L.......R', 'L.......R', 'LDDDDDDDR', 'LX.DDD.XR', 'LX.DDD.XR', 'L.......R', ' BBBBBBB '],
     oldCore: [{ defId: 'cabPickup', x: 3, y: 3 }, { defId: 'transmissionHeavy', x: 4, y: 5 }, { defId: 'tankHeavy', x: 6, y: 5 }, { defId: 'wheelHeavy', x: 1, y: 2 }, { defId: 'wheelHeavy', x: 7, y: 2 }, { defId: 'wheelHeavy', x: 1, y: 14 }, { defId: 'wheelHeavy', x: 7, y: 14 }],
-    next: [' FFFFF ', 'L. ...R', 'L.....R', 'LXXXXXR', 'LXXXXXR', 'LXXXXXR', 'L.EEX.R', 'L.EEX.R', 'L.EEX.R', 'L..XX.R', 'L..XX.R', 'L.DXX.R', 'LDDDDDR', 'LDDDDDR', 'LD...DR', 'LDDD.DR', 'LDD.DDR', 'LDDDDDR', 'LDDDDDR', 'LD.DDDR', 'LDDDD.R', 'LDDDDDR', 'LXD.DXR', 'LXD.DXR', 'LX..DXR', 'L.....R', ' BBBBB '],
+    next: [' FFFFF ', 'L  DDDR', 'L     R', 'LXXXXXR', 'LXXXXXR', 'LXXXXXR', 'LDEEXDR', 'LDEEXDR', 'LDEEXDR', 'LDDXXDR', 'LDDXXDR', 'L DXX R', 'LDDDDDR', 'LDDDDDR', 'LDDDDDR', 'LDDDDDR', 'LDDDDDR', 'LDDDDDR', 'LDDDDDR', 'LDDDDDR', 'LDDDDDR', 'LDDDDDR', 'LXDDDXR', 'LXDDDXR', 'LXDDDXR', 'LDDDDDR', ' BBBBB '],
     nextCore: [{ defId: 'wheelHeavy', x: 1, y: 3 }, { defId: 'wheelHeavy', x: 5, y: 3 }, { defId: 'wheelHeavy', x: 1, y: 22 }, { defId: 'wheelHeavy', x: 5, y: 22 }, { defId: 'cabPickup', x: 2, y: 3 }, { defId: 'tankHeavy', x: 4, y: 6 }, { defId: 'transmissionHeavy', x: 3, y: 9 }],
   },
 };
