@@ -249,7 +249,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   van: {
     id: 'van', maxSpeed: 6.5, accel: 1.5, brake: 3, turnSlow: 100, turnFast: 35, reverseTurn: 65,
     mass: 1100, handlingMass: 3000, radius: 0.7,
-    layout: [' FFFFF ', 'LD   DR', 'LXDEEXR', 'LXDEEXR', 'LXDEEXR', 'LDDDDDR', 'L  DDDR', 'LXXXDDR', 'LXXXDDR', 'LXXXDDR', 'LXXXXXR', 'LXXXXXR', 'LXXXXXR', 'LD   DR', ' BBBBB '],
+    layout: [' FFFFF ', 'L     R', 'LXDEEXR', 'LXDEEXR', 'LXDEEXR', 'LDDDDDR', 'L  DDDR', 'LXXXDDR', 'LXXXDDR', 'LXXXDDR', 'LXXXXXR', 'LXXXXXR', 'LXXXXXR', 'LD   DR', ' BBBBB '],
     core: [
       { defId: 'wheelMid', x: 1, y: 2 },
       { defId: 'wheelMid', x: 5, y: 2 },
@@ -260,6 +260,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'tankMid', x: 4, y: 10 },
     ],
     oldGrid: { deck: 11, armor: 28, width: 7 },
+    spareRows: 1,
     fuelCap: 55, fuelPerTile: 0.24, base: 35333, showsCores: false, showsEngine: true, tier: 2, look: 'van',
   },
   longbed: {
@@ -499,7 +500,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
     mass: 4100, handlingMass: 8400, radius: 1.0,
     layout: [
       ' FFFFF ',
-      'L  DDDR',
+      'L  D  R',
       'L     R',
       'LXXXXXR',
       'LXXXXXR',
