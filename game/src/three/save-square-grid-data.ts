@@ -36,7 +36,7 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
     old: [' FFFFF ', 'L.....R', 'LXEE.XR', 'LXEE.XR', 'LDDXX.R', 'LDDXX.R', 'LXXX.XR', 'LXXX.XR', 'L.....R', ' BBBBB '],
     oldCore: [{ defId: 'cab', x: 3, y: 4 }, { defId: 'transmission', x: 2, y: 6 }, { defId: 'tank', x: 4, y: 4 }, { defId: 'wheel', x: 1, y: 2 }, { defId: 'wheel', x: 5, y: 2 }, { defId: 'wheel', x: 1, y: 6 }, { defId: 'wheel', x: 5, y: 6 }],
     next: [' FFFF ', 'LX..XR', 'LXEEXR', 'L.EEXR', 'LXEEXR', 'LXDDDR', 'L.DDDR', 'LXXXXR', 'LXXXXR', 'L....R', ' BBBB '],
-    nextCore: [{ defId: 'cab', x: 1, y: 4 }, { defId: 'transmission', x: 2, y: 7 }, { defId: 'tank', x: 4, y: 3 }, { defId: 'wheel', x: 1, y: 1 }, { defId: 'wheel', x: 4, y: 1 }, { defId: 'wheel', x: 1, y: 7 }, { defId: 'wheel', x: 4, y: 7 }],
+    nextCore: [{ defId: 'tank', x: 1, y: 4 }, { defId: 'transmission', x: 2, y: 7 }, { defId: 'cab', x: 4, y: 3 }, { defId: 'wheel', x: 1, y: 1 }, { defId: 'wheel', x: 4, y: 1 }, { defId: 'wheel', x: 1, y: 7 }, { defId: 'wheel', x: 4, y: 7 }],
   },
   wagon: {
     halfX: 3.0600000000000005,
