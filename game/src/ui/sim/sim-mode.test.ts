@@ -22,19 +22,32 @@ function framesOf(messages: FromSim[]): Frame[] {
 }
 
 describe('simulation mode', () => {
+  const hour = TIME.turnsPerDay / 24;
+  const SAMPLE_TURNS = Math.ceil(hour) + 1;
   let start: World;
+  let harnessStart: World;
+  let startJson: string;
+  let played: { messages: FromSim[]; run: SimRun; atTurns: { worldJson: string; messageCount: number; history: unknown[] }[] };
   beforeAll(() => {
     start = simWorld(TEST_MAP, 1);
-  }, 120000);
-
-  it('plays the same game as the playthrough harness for the same seed', () => {
-    const harnessStart = playthroughWorld(TEST_MAP, 1, 'markov');
-    expect(JSON.parse(JSON.stringify(harnessStart))).toEqual(JSON.parse(JSON.stringify(start)));
+    startJson = JSON.stringify(start);
+    harnessStart = playthroughWorld(TEST_MAP, 1, 'markov');
     const messages: FromSim[] = [];
     const run = new SimRun(start, SIM_TEXT, (m: FromSim) => messages.push(m));
-    for (let i = 0; i < TURNS; i++) run.handle({ kind: 'step' });
+    const atTurns: { worldJson: string; messageCount: number; history: unknown[] }[] = [];
+    for (let i = 1; i <= SCAN_TURNS; i++) {
+      run.handle({ kind: 'step' });
+      if (i === TURNS || i === SAMPLE_TURNS) atTurns[i] = { worldJson: JSON.stringify(run.current().world), messageCount: messages.length, history: [...run.current().history] };
+    }
+    played = { messages, run, atTurns };
+  }, 240000);
+
+  it('plays the same game as the playthrough harness for the same seed', () => {
+    expect(JSON.parse(JSON.stringify(harnessStart))).toEqual(JSON.parse(startJson));
+    const at = played.atTurns[TURNS];
+    const messages = played.messages.slice(0, at.messageCount);
     const recorded = [...playTurns(harnessStart, 'seed 1 markov', 'markov', TURNS, PLAYTHROUGH_OPTIONS, FAR_MOVER)];
-    expect(JSON.parse(JSON.stringify(run.current().world))).toEqual(JSON.parse(JSON.stringify(recorded[TURNS - 1].next)));
+    expect(JSON.parse(at.worldJson)).toEqual(JSON.parse(JSON.stringify(recorded[TURNS - 1].next)));
     const frames = framesOf(messages);
     expect(messages.some((m) => m.kind === 'failed')).toBe(false);
     expect(frames).toHaveLength(TURNS + 1);
@@ -136,9 +149,7 @@ describe('simulation mode', () => {
   });
 
   it('writes every card and log line of a played run in plain words, with no ids, code words, flags or JSON', () => {
-    const messages: FromSim[] = [];
-    const run = new SimRun(start, SIM_TEXT, (m: FromSim) => messages.push(m));
-    for (let i = 0; i < SCAN_TURNS; i++) run.handle({ kind: 'step' });
+    const { messages, run } = played;
     expect(messages.filter((m) => m.kind === 'failed')).toEqual([]);
     const { world, ledger } = run.current();
     const cards = world.vehicles.map((v) => cardOf(world, v.id, ledger, SIM_TEXT));
@@ -150,16 +161,13 @@ describe('simulation mode', () => {
   }, 240000);
 
   it('samples money, net worth and XP once per game hour and sends the history first', () => {
-    const messages: FromSim[] = [];
-    const run = new SimRun(start, SIM_TEXT, (m: FromSim) => messages.push(m));
-    const hour = TIME.turnsPerDay / 24;
-    const turns = Math.ceil(hour) + 1;
-    for (let i = 0; i < turns; i++) run.handle({ kind: 'step' });
+    const at = played.atTurns[SAMPLE_TURNS];
+    const messages = played.messages.slice(0, at.messageCount);
     expect(messages[0]).toEqual({ kind: 'history', samples: [{ turn: start.turn, money: start.player.money, worth: Math.round(netWorth(start)), xp: Math.floor(start.player.xp), market: marketSample(start), events: [] }] });
     const sampled = framesOf(messages).flatMap((f) => (f.sample ? [f.sample] : []));
     expect(sampled).toHaveLength(1);
     expect(Math.floor(sampled[0].turn / hour)).toBe(Math.floor(start.turn / hour) + 1);
-    expect(run.current().history).toEqual([...(messages[0] as { samples: unknown[] }).samples, sampled[0]]);
+    expect(at.history).toEqual([...(messages[0] as { samples: unknown[] }).samples, sampled[0]]);
   }, 120000);
 
   it('shows a card for a truck with no driver instead of stopping the run', () => {
