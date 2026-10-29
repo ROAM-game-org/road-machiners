@@ -654,3 +654,27 @@ export function withoutRoadScene_122_123(world: SavedJson): SavedJson {
   if (player.quests.live?.quest !== 'intro_road') return dropped;
   return { ...dropped, player: { ...player, quests: { ...player.quests, live: null } } };
 }
+
+function chaseSpot_120_121(goal: SavedJson): SavedJson | null {
+  if (goal.kind === 'sizeUp') return goal.destination as SavedJson;
+  if (goal.kind === 'investigate') return (goal.heard ?? goal.destination) as SavedJson;
+  return null;
+}
+
+function withChaseRecord_120_121(turn: number, pos: SavedJson, goal: SavedJson): SavedJson {
+  const spot = chaseSpot_120_121(goal);
+  if (!spot || goal.chase) return goal;
+  const gap = Math.hypot((spot.x as number) - (pos.x as number), (spot.y as number) - (pos.y as number));
+  return { ...goal, chase: { turn, gap } };
+}
+
+export function withChaseRecords_120_121(world: SavedJson): SavedJson {
+  const turn = world.turn as number;
+  const withBrain = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null | undefined;
+    if (!brain) return v;
+    const goals = (brain.goals as SavedJson[]).map((goal) => withChaseRecord_120_121(turn, v.pos as SavedJson, goal));
+    return { ...v, brain: { ...brain, goals } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(withBrain) };
+}

@@ -987,7 +987,7 @@ describe('NPC activities', () => {
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       raider.brain.goals = [
         { kind: 'raid', targetId: null, destination: { x: 100, y: 100 }, phase: 'travel', reason: 'tripToSite' },
-        { kind: 'investigate', targetId: player.id, destination: { x: 30, y: 30 }, phase: 'travel', reason: 'heardHostile' },
+        { kind: 'investigate', targetId: player.id, destination: { x: 30, y: 30 }, phase: 'travel', reason: 'heardHostile', chase: { turn: w.turn, gap: TERRAIN.vision.radius + 5 } },
       ];
       chooseOn(w, raider, player.id, { x: 30, y: 30 }, 'investigate', false);
       return { w, player, raider };
@@ -1002,6 +1002,31 @@ describe('NPC activities', () => {
       thinkNpc(w, raider);
       expect(topGoal(raider)).toMatchObject({ kind: 'sizeUp', targetId: player.id });
       expect(raider.brain!.goals.some((g) => g.kind === 'investigate')).toBe(false);
+    });
+
+    it('gives up the investigation once it has gained no ground for the stall turns', () => {
+      const { w, player, raider } = investigating();
+      player.pos = { x: 0, y: 120 };
+      const ended: number[] = [];
+      for (let turn = 1; turn <= 3 * NPC_BEHAVIOR.chaseStallTurns && ended.length === 0; turn++) {
+        w.turn++;
+        w.events = [];
+        thinkNpc(w, raider);
+        if (w.events.some((e) => e.t === 'activity' && e.vehicle === raider.id && e.previous === 'investigate' && e.reason === 'truckGotAway')) ended.push(turn);
+      }
+      expect(ended).toEqual([NPC_BEHAVIOR.chaseStallTurns + 1]);
+      expect(topGoal(raider)?.kind).toBe('raid');
+    });
+
+    it('keeps the investigation while it closes on the heard spot', () => {
+      const { w, player, raider } = investigating();
+      player.pos = { x: 0, y: 120 };
+      for (let turn = 0; turn < 2 * NPC_BEHAVIOR.chaseStallTurns; turn++) {
+        w.turn++;
+        raider.pos = { x: raider.pos.x - 0.5, y: raider.pos.y };
+        thinkNpc(w, raider);
+        expect(topGoal(raider)?.kind).toBe('investigate');
+      }
     });
 
     it('goes back to its own work on keep', () => {

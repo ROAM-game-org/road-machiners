@@ -142,6 +142,7 @@ export type Job =
   | { kind: "strip"; partId: string; turnsLeft: number; total: number }
   | { kind: "weld"; turnsLeft: number; total: number }
   | { kind: "firstAid"; turnsLeft: number; total: number }
+  | { kind: "oddJobs"; turnsLeft: number; total: number }
   | { kind: "survey"; contractId: string; site: string; turnsLeft: number; total: number }
   | { kind: "business"; siteId: string; deal: BusinessDeal; turnsLeft: number; total: number }
   | RefitJob;
@@ -227,7 +228,7 @@ export type SimNote =
   | { id: 'core' }
   | { id: 'spawnBlocked'; template: string };
 
-export type MoneyReason = { kind: 'contract' } | { kind: 'towing'; vehicle: string } | { kind: 'outpost' } | { kind: 'holdUp'; vehicle: string };
+export type MoneyReason = { kind: 'contract' } | { kind: 'towing'; vehicle: string } | { kind: 'outpost' } | { kind: 'holdUp'; vehicle: string } | { kind: 'oddJobs' };
 
 export type PlacementRefusal = { id: 'noFit' } | { id: 'inTheWay' } | { id: 'armorOnly' };
 
@@ -236,6 +237,7 @@ export type Refusal =
   | { id: 'badLayout'; cause: PlacementRefusal }
   | { id: 'itemGone' }
   | { id: 'cargoOwed' }
+  | { id: 'notHiring' }
   | { id: 'refitRunning' }
   | { id: 'gatesShut' }
   | { id: 'twoInTheWay' }
@@ -305,6 +307,7 @@ export type NpcActivity = {
   shipment?: Shipment;
   perceived?: number;
   worn?: { turn: number; condition: number };
+  chase?: ChaseRecord;
   demands?: boolean;
   until?: number;
   watchUntil?: number;
@@ -315,6 +318,8 @@ export type NpcActivity = {
   asked?: string[];
   heard?: Vec;
 };
+
+export type ChaseRecord = { turn: number; gap: number };
 
 export type Shipment = { good: string; from: string; to: string };
 

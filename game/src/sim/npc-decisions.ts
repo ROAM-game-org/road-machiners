@@ -289,7 +289,9 @@ export function tradeSpend(world: World, vehicle: Vehicle): number {
   return Math.min(getResources(world, vehicle).money - getUpkeepReserve(vehicle), stake);
 }
 
-export const tradeOffers = (world: World, vehicle: Vehicle): Weighted<TradePlan>[] => tradePlans().flatMap(tradeOfferer(world, vehicle) ?? (() => []));
+export const tradeOffers = (world: World, vehicle: Vehicle): Weighted<TradePlan>[] => tradePlans().filter((plan) => planOnBeat(vehicle, plan)).flatMap(tradeOfferer(world, vehicle) ?? (() => []));
+
+const planOnBeat = (vehicle: Vehicle, plan: TradePlan): boolean => !hasTrait(vehicle, 'lawman') || (onBeat(vehicle, getKnownSite(plan.source).pos) && onBeat(vehicle, getKnownSite(plan.sellShop).pos));
 
 const tradePlans = (): TradePlan[] => Object.values(SHOPS).flatMap((from) => Object.values(SHOPS).filter((to) => to.id !== from.id).flatMap((to) => from.goods.filter((good) => to.goods.includes(good)).map((good) => ({ source: from.id, good, sellShop: to.id }))));
 
@@ -332,6 +334,7 @@ export function supplyOffers(world: World, vehicle: Vehicle): Weighted<TradePlan
   if (!modeRules(world).traffic) return [];
   const [spend, rig] = [tradeSpend(world, vehicle), tradeRig(world, vehicle)];
   return graphEdges().flatMap((edge) => {
+    if (!planOnBeat(vehicle, { source: edge.from, good: edge.good, sellShop: edge.to })) return [];
     const short = stockTarget(edge.to, edge.good) - goodStock(shopState(world, edge.to), edge.good);
     if (short <= 0) return [];
     return runOffer(world, vehicle, { source: edge.from, good: edge.good, sellShop: edge.to }, spend, short / stockTarget(edge.to, edge.good), rig);
@@ -478,7 +481,9 @@ function pointsAlong(line: readonly Vec[], spacing: number): Vec[] {
 }
 
 export function huntingGroundsAway(world: World, vehicle: Vehicle): Vec[] {
-  return huntingGrounds(world).filter((point) => dist(vehicle.pos, point) > RULES.arriveRadius * 2);
+  const grounds = huntingGrounds(world).filter((point) => dist(vehicle.pos, point) > RULES.arriveRadius * 2);
+  const gates = beatGates(vehicle);
+  return gates ? grounds.filter((point) => withinGateReach(gates, point)) : grounds;
 }
 
 export function lawmanTowns(): readonly Site[] {
@@ -543,6 +548,16 @@ export function patrolSite(vehicle: Vehicle): Site {
   return npcProfile(vehicle).bases.length > 0 ? homeCamp(vehicle) : nearestHome(vehicle, npcProfile(vehicle).towns);
 }
 
+const withinGateReach = (gates: readonly Vec[], point: Vec): boolean => gates.some((gate) => dist(gate, point) <= NPC_BEHAVIOR.patrolRadius);
+
+export function beatGates(vehicle: Vehicle): readonly Vec[] | null {
+  return hasTrait(vehicle, 'lawman') ? siteGates(patrolSite(vehicle)) : null;
+}
+
+export function onBeat(vehicle: Vehicle, point: Vec): boolean {
+  return !hasTrait(vehicle, 'lawman') || withinGateReach(siteGates(patrolSite(vehicle)), point);
+}
+
 const patrolStops = new Map<string, readonly Vec[]>();
 
 export function patrolPoints(site: Site): readonly Vec[] {
@@ -563,8 +578,7 @@ function roadStops(site: Site, spacing: number): readonly Vec[] {
   const cached = patrolStops.get(key);
   if (cached) return cached;
   const gates = siteGates(site);
-  const near = (p: Vec) => gates.some((gate) => dist(gate, p) <= NPC_BEHAVIOR.patrolRadius);
-  const points = REGION.roads.flatMap((road) => pointsAlong(road, spacing)).filter((p) => near(p) && siteUnder(icarusAtlas(), p) === null);
+  const points = REGION.roads.flatMap((road) => pointsAlong(road, spacing)).filter((p) => withinGateReach(gates, p) && siteUnder(icarusAtlas(), p) === null);
   patrolStops.set(key, points);
   return points;
 }
@@ -666,7 +680,7 @@ function canResume(_world: World, vehicle: Vehicle): boolean {
 
 function canTrade(world: World, vehicle: Vehicle): boolean {
   const offer = tradeOfferer(world, vehicle);
-  return offer !== null && tradePlans().some((plan) => offer(plan).length > 0);
+  return offer !== null && tradePlans().some((plan) => planOnBeat(vehicle, plan) && offer(plan).length > 0);
 }
 
 function canScavenge(world: World, vehicle: Vehicle): boolean {

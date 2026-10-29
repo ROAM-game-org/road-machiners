@@ -310,7 +310,7 @@ describe('NPC gameplay recovery', () => {
     const { world, npc } = createScenario('scavenger');
     const enemy = addVehicle(world, 'scrapjaw', 'wagon', ['heavyMg', 'mg', 'stockEngine'], { x: 36, y: 30 });
     enemy.brain = npcBrain('gunwagon', enemy.pos, ['raider']);
-    const look: NpcActivity = { kind: 'investigate', targetId: enemy.id, destination: { ...enemy.pos }, phase: 'travel', reason: 'heardHostile' };
+    const look: NpcActivity = { kind: 'investigate', targetId: enemy.id, destination: { ...enemy.pos }, phase: 'travel', reason: 'heardHostile', chase: { turn: world.turn, gap: 6 } };
     npc.brain!.goals = [workGoal('scavenger'), look];
     fireAt(world, enemy, npc);
     let fled = 0;

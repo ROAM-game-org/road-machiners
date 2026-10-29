@@ -152,6 +152,7 @@ export function noteText(note: SimNote): Msg {
 export function moneyReasonText(world: World, reason: MoneyReason): Msg {
   if (reason.kind === 'towing') return t('money.towing', { vehicle: vehicleTitleOf(world, reason.vehicle) });
   if (reason.kind === 'outpost') return t('money.outpost');
+  if (reason.kind === 'oddJobs') return t('money.oddJobs');
   if (reason.kind === 'holdUp') return t('money.holdUp', { vehicle: vehicleTitleOf(world, reason.vehicle) });
   return t('money.contract');
 }

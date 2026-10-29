@@ -97,7 +97,7 @@ function stationsOf(profile: Profile, ground: number) {
 type Band = [number, number];
 type Reference = { height: Band; hood?: Band; roof: Band; deck?: Band; roofStart?: Band; noseDrop?: Band; tailDrop?: Band };
 
-const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'longbed' | 'courier' | 'hauler' | 'tractor' | 'jeep' | 'carrier' | 'loader' | 'bus' | 'buggy' | 'convertible' | 'van', Reference> = {
+const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'longbed' | 'courier' | 'hauler' | 'wagon' | 'tractor' | 'jeep' | 'carrier' | 'loader' | 'bus' | 'buggy' | 'convertible' | 'van', Reference> = {
   lincoln: { height: [1.56, 1.8], hood: [0.34, 0.42], roof: [0.14, 0.24], deck: [0.22, 0.3] },
   niva: { height: [1.89, 2.19], hood: [0.22, 0.28], roof: [0.55, 1], tailDrop: [0, 0.1] },
   bukhanka: { height: [2.34, 2.7], roof: [0.75, 1], roofStart: [0, 0.12], noseDrop: [0.15, 9], tailDrop: [0, 0.15] },
@@ -107,6 +107,7 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'lo
   longbed: { height: [2.55, 2.75], hood: [0.19, 0.25], roof: [0.1, 0.16], roofStart: [0.25, 0.31], deck: [0.53, 0.6] },
   courier: { height: [1.7, 1.8], roofStart: [0.4, 0.47], roof: [0.18, 0.26], noseDrop: [0.8, 1.2], tailDrop: [0.7, 0.95] },
   hauler: { height: [2.55, 2.71], roofStart: [0.07, 0.12], roof: [0.21, 0.27], deck: [0.58, 0.66] },
+  wagon: { height: [2.38, 2.54], roofStart: [0.13, 0.17], roof: [0.17, 0.23], noseDrop: [0.6, 0.9] },
   tractor: { height: [2.9, 3.2], hood: [0.327, 0.361], roofStart: [0.353, 0.39], roof: [0.275, 0.304], deck: [0.317, 0.35] },
   jeep: { height: [1.95, 2.05], roofStart: [0.31, 0.37], roof: [0.18, 0.26], noseDrop: [0.9, 1.05], tailDrop: [0.95, 1.15] },
   buggy: { height: [1.5, 1.6], roof: [0.4, 0.47], noseDrop: [0.55, 0.75], tailDrop: [0.03, 0.2] },
@@ -137,7 +138,7 @@ function straightProfile(id: string): Profile {
 }
 
 describe('trucks built from a reference photo keep its proportions', () => {
-  it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout', 'longbed', 'courier', 'hauler', 'tractor', 'jeep', 'carrier', 'loader', 'bus', 'buggy', 'convertible', 'van'] as const)('%s', (id) => {
+  it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout', 'longbed', 'courier', 'hauler', 'wagon', 'tractor', 'jeep', 'carrier', 'loader', 'bus', 'buggy', 'convertible', 'van'] as const)('%s', (id) => {
     const body = PHYSICS.bodies[id === 'scout' ? 'pickup' : id];
     const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
     const got = stationsOf(straightProfile(id), ground);
@@ -401,6 +402,32 @@ describe('the hauler GAZ-66', () => {
     });
     expect(rows.length).toBeGreaterThan(0);
     expect(Math.max(...rows)).toBeLessThanOrEqual(1.46);
+  });
+});
+
+describe('the wagon short-nosed gun truck', () => {
+  const body = PHYSICS.bodies.wagon;
+  const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
+  const wagon = stationsOf(straightProfile('wagon'), ground);
+  const hauler = stationsOf(straightProfile('hauler'), ground);
+
+  it('parts from the hauler: the roof starts further back than the hauler, over a lower roof', () => {
+    expect(wagon.roofStart).toBeGreaterThanOrEqual(0.13);
+    expect(wagon.roofStart).toBeGreaterThan(hauler.roofStart);
+    expect(wagon.height).toBeLessThanOrEqual(2.49 + NEAR);
+    expect(wagon.height).toBeLessThan(hauler.height);
+  });
+
+  it('steps down to a hood at least 0.6 m under the roof over the front 0.08 of its length', () => {
+    expect(wagon.noseDrop).toBeGreaterThanOrEqual(0.6);
+  });
+
+  it('keeps 6.1 m long and 2.8 m wide', () => {
+    const boxes = SHAPES.base_wagon.boxes;
+    const along = Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0));
+    const across = Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0));
+    expect(Math.abs(along - 6.1)).toBeLessThanOrEqual(0.05);
+    expect(Math.abs(across - 2.8)).toBeLessThanOrEqual(0.05);
   });
 });
 

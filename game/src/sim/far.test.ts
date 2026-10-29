@@ -247,7 +247,7 @@ describe('far NPC travel', () => {
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
     const goals = [
       { kind: 'raid' as const, targetId: null, destination: { x: 30 + LIVE + 70, y: 80 }, phase: 'travel' as const, reason: 'tripToSite' as const },
-      { kind: 'investigate' as const, targetId: w.player.vehicleId, destination: { x: 30 + LIVE + 60, y: 80 }, phase: 'travel' as const, reason: 'heardHostile' as const },
+      { kind: 'investigate' as const, targetId: w.player.vehicleId, destination: { x: 30 + LIVE + 60, y: 80 }, phase: 'travel' as const, reason: 'heardHostile' as const, chase: { turn: w.turn, gap: 20 } },
     ];
     npc.brain.goals = structuredClone(goals);
     w.states.push({ id: 'feud-test', kind: 'feud', holder: npc.id, other: w.player.vehicleId, turnsLeft: 10, born: w.turn, data: { kind: 'feud', robbery: false } });
