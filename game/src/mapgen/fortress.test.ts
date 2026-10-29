@@ -1,26 +1,21 @@
 
 import { describe, expect, it } from 'vitest';
-import { FORTRESS_SITES, NOSE_ROCK } from '../data/fortress';
+import { FORTRESS_SITES, NOSE_RISE, NOSE_ROCK } from '../data/fortress';
 import { REGION } from '../data/region';
 import { TERRAIN } from '../data/terrain';
 import { FORT_MODELS, fortressPieces, insideCurtain, pitDepth } from '../sim/fortress';
 import { PHYSICS } from '../data/physics';
-import { boxDistance, propBoxes, propObstacle } from '../sim/mapgen';
-import { noseFrame, noseRocks } from '../sim/nose';
-import type { Site } from '../sim/sites';
+import { noseFrame } from '../sim/nose';
 import { sitePads } from '../sim/sites';
 import { dist, segmentDist } from '../sim/vec';
 import { newDraft, typeCode, type MapDraft } from './bake';
 import { fortressLayer } from './fortress';
+import { noseRiseAt, noseRiseReach } from './nose-rise';
 
 const RIM = 5;
 const SAND = typeCode('sand');
 const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
 const pit = FORTRESS_SITES.bowl.pit!;
-
-function rockBoxes(nose: Site) {
-  return noseRocks(nose).flatMap((p, k) => propBoxes(propObstacle(p, k)));
-}
 
 function flatDraft(): MapDraft {
   const d = newDraft(REGION.size);
@@ -39,42 +34,45 @@ describe('fortress layer', () => {
     expect(d.props.filter((p) => !FORT_MODELS.has(p.kind))).toEqual([]);
   });
 
-  it('raises Nose rock as ground that keeps the height of its rock columns under the ship', () => {
-    const nose = REGION.towns.find((t) => t.id === 'nose')!;
-    const boxes = rockBoxes(nose);
-    const { u, v } = noseFrame(nose);
-    const { from, to, axis, half } = NOSE_ROCK.ship;
-    const tallest = Math.max(...boxes.map((b) => b.z1)) / PHYSICS.metersPerTile;
-    const bed: { lift: number; column: number }[] = [];
-    for (let du = from; du <= to; du++) {
-      for (let dv = axis - half; dv <= axis + half; dv++) {
-        const at = { x: Math.round(nose.pos.x + du * u.x + dv * v.x), y: Math.round(nose.pos.y + du * u.y + dv * v.y) };
-        const under = boxes.filter((b) => boxDistance(b, at) === 0);
-        if (under.length > 0) bed.push({ lift: d.heights[at.y * n + at.x] - RIM, column: Math.max(...under.map((b) => b.z1)) / PHYSICS.metersPerTile });
-      }
+  const nose = REGION.towns.find((t) => t.id === 'nose')!;
+  const frame = noseFrame(nose);
+  const S = PHYSICS.metersPerTile;
+  const corners: { p: { x: number; y: number }; lift: number; rise: ReturnType<typeof noseRiseAt>; x: number; v: number }[] = [];
+  const window = Math.ceil(noseRiseReach() / S + NOSE_ROCK.run + NOSE_ROCK.jag);
+  for (let y = Math.floor(nose.pos.y - window); y <= nose.pos.y + window; y++) {
+    for (let x = Math.floor(nose.pos.x - window); x <= nose.pos.x + window; x++) {
+      const du = (x - nose.pos.x) * frame.u.x + (y - nose.pos.y) * frame.u.y;
+      const dv = (x - nose.pos.x) * frame.v.x + (y - nose.pos.y) * frame.v.y;
+      corners.push({ p: { x, y }, lift: d.heights[y * n + x] - RIM, rise: noseRiseAt(du * S, dv * S), x: du * S, v: dv * S });
     }
-    expect(tallest).toBeGreaterThan(10);
-    expect(bed.length).toBeGreaterThan(100);
-    expect(bed.filter((b) => b.lift >= 0.8 * b.column).length / bed.length).toBeGreaterThan(0.9);
+  }
+
+  it('raises Nose rock to the heightfield of its model, give or take the facet jitter', () => {
+    const rock = corners.filter((c) => c.rise !== null);
+    expect(rock.length).toBeGreaterThan(2000);
+    for (const c of rock) expect(Math.abs(c.lift - Math.max(0, c.rise!.height) / S), `corner ${c.p.x},${c.p.y}`).toBeLessThanOrEqual(c.rise!.jitter / S + 1e-4);
+    expect(Math.max(...rock.map((c) => c.lift))).toBeGreaterThan(10);
+  });
+
+  it('lays a cradle under the ship below its belly, and a low front toward the yard', () => {
+    const { joint, axisV, hullR, cradleTop, cradleLift, jitter, frontV } = NOSE_RISE;
+    const clearOfCrag = NOSE_RISE.crag.edgeX + NOSE_RISE.crag.edgePad;
+    const cradle = corners.filter((c) => c.rise !== null && Math.abs(c.v - axisV) < S && c.x > clearOfCrag && c.x < joint.x + 50);
+    expect(cradle.length).toBeGreaterThan(20);
+    for (const c of cradle) {
+      const belly = joint.z + (c.x - joint.x) * Math.tan((NOSE_RISE.pitch * Math.PI) / 180) - hullR;
+      expect(c.lift * S, `cradle at ${c.x.toFixed(0)}`).toBeLessThanOrEqual(Math.min(belly, cradleTop) + cradleLift + jitter.rubble + 1e-3);
+    }
+    const front = corners.filter((c) => c.rise !== null && c.v < frontV + S && Math.hypot(c.x, c.v) < NOSE_RISE.mountStart);
+    expect(front.length).toBeGreaterThan(10);
+    for (const c of front) expect(c.lift * S, `front at ${c.x.toFixed(0)}`).toBeLessThan(NOSE_RISE.terraceZ + 2 * jitter.rubble);
   });
 
   it('slopes Nose rock down into the land outside its circle, off its roads and pads, and only there', () => {
-    const nose = REGION.towns.find((t) => t.id === 'nose')!;
-    const boxes = rockBoxes(nose);
-    const raised: { p: { x: number; y: number }; h: number; from: number }[] = [];
-    const reach = 120;
-    for (let y = Math.floor(nose.pos.y - reach); y <= nose.pos.y + reach; y++) {
-      for (let x = Math.floor(nose.pos.x - reach); x <= nose.pos.x + reach; x++) {
-        const h = d.heights[y * n + x] - RIM;
-        const from = Math.min(...boxes.map((b) => boxDistance(b, { x, y })));
-        if (h !== 0 && from > 1) raised.push({ p: { x, y }, h, from });
-      }
-    }
-    const tallest = Math.max(...boxes.map((b) => b.z1)) / PHYSICS.metersPerTile;
+    const raised = corners.filter((c) => c.rise === null && c.lift !== 0).map((c) => ({ p: c.p, h: c.lift }));
     expect(Math.min(...raised.map((r) => r.h))).toBeGreaterThan(0);
-    expect(raised.filter((r) => r.from > 8).length).toBeGreaterThan(1000);
-    expect(Math.max(...raised.filter((r) => r.from > NOSE_ROCK.run / 2).map((r) => r.h))).toBeLessThan(tallest * 0.75);
-    expect(Math.max(...raised.map((r) => r.from))).toBeLessThanOrEqual(NOSE_ROCK.run + 1);
+    expect(raised.length).toBeGreaterThan(1000);
+    expect(Math.max(...raised.map((r) => r.h))).toBeLessThan(NOSE_RISE.peak / S);
     for (const { p } of raised) expect(dist(p, nose.pos)).toBeGreaterThan(nose.radius);
     const scree = typeCode('scree');
     const up = (x: number, y: number) => d.heights[y * n + x] > RIM;

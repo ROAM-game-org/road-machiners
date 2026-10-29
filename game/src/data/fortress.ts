@@ -33,7 +33,44 @@ export const FORTRESS_SITES: Record<string, FortressSite> = {
 
 export const NOSE_FRONT = 82.85;
 
-export const NOSE_ROCK = { seed: 4111, front: 2.5, jag: 2, jagCell: 4, run: 26, inner: 8, blend: 10, rough: 2.5, roughCell: 9, clear: 4, ramp: 6, ship: { from: -38, to: 3, axis: 10, half: 5, fade: 4 } };
+export const NOSE_ROCK = { seed: 4111, jag: 2, jagCell: 4, run: 26, blend: 10, jitterCell: 2, footBlur: 4, clear: 4, ramp: 6 };
+
+export const NOSE_RISE = {
+  frontV: 4,
+  clip: 120,
+  arc: [60, 215] as [number, number],
+  reach: 220,
+  reachEnds: 160,
+  reachWobble: 12,
+  bendX: -105,
+  bend: 1.6,
+  gate: { x: 92, v: 80, r: 34 },
+  terraceZ: 6,
+  platformEnd: 19,
+  platform: [-44, 8] as [number, number],
+  platformFade: 14,
+  axisV: 40,
+  hullR: 18,
+  joint: { x: -45, z: 38 },
+  tipLength: 56,
+  fall: 30,
+  pitch: 9.5,
+  cradleHalf: 8,
+  cradleTop: 22,
+  cradleLift: 1.5,
+  back: { from: 60, run: 56, rise: 20, power: 1.3 },
+  slope: { run: 20, rise: 14 },
+  peak: 56,
+  endShare: 0.55,
+  mountStart: 80,
+  mountPower: 1.2,
+  ringShare: 0.55,
+  crest: 0.3,
+  footZ: 8,
+  footPower: 0.8,
+  jitter: { platform: 0.3, rubble: 1.6, foot: 1, footRise: 2.5 },
+  crag: { edgeX: -90, edgePad: 6, near: 60, far: 22, farRun: 37, nearRun: 10, base: 10, top: 44, climbRun: 12, climbPower: 0.8, outFall: 0.7, jitter: 5 },
+};
 
 export const FORTRESS = {
   inset: 1.25,
