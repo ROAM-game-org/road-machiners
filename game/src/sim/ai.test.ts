@@ -6,11 +6,12 @@ import { givesWayTo, planNpcOrders, routeBlockers, settleMeetings, standingBlock
 import { PHYSICS } from '../data/physics';
 import { vehicleStats } from './stats';
 import { topGoal } from './npc-activities';
-import { addVehicle, emptyWorld, npcBrain } from './testkit';
+import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
 import { addState } from './states';
 import { startEscort } from './tow';
 import type { Vehicle, World } from './types';
 import { dist } from './vec';
+import { endTurn } from './world';
 
 function lowerIdFirst(first: Vehicle, second: Vehicle): void {
   if (first.id < second.id) return;
@@ -454,6 +455,27 @@ describe('meetings', () => {
     expect(givesWayTo(w, high, low)).toBe(false);
     expect(routeBlockers(w, low).some((b) => dist(b.pos, high.pos) < 0.5)).toBe(true);
     expect(routeBlockers(w, high).some((b) => dist(b.pos, low.pos) < 0.5)).toBe(false);
+  });
+
+  it('the path a giver swerves around ends where the holder stops', () => {
+    const { w, low, high } = faceOff('lowFirst');
+    const farthest = () => Math.min(...routeBlockers(w, low).filter((b) => b.pos.y === high.pos.y).map((b) => b.pos.x));
+    settleMeetings(w);
+    const passing = farthest();
+    high.order = { kind: 'stopAt', dest: { x: high.pos.x - 2, y: high.pos.y } };
+    expect(farthest()).toBeGreaterThanOrEqual(high.pos.x - 2);
+    expect(passing).toBeLessThan(high.pos.x - 2);
+  });
+
+  it('the first turn of an encounter already has its roles when orders are planned', () => {
+    const { w, low, high } = faceOff('lowFirst');
+    let rolesAtMove: boolean | null = null;
+    endTurn(w, (next) => {
+      const [giver, holder] = [next.vehicles.find((v) => v.id === low.id)!, next.vehicles.find((v) => v.id === high.id)!];
+      rolesAtMove = givesWayTo(next, giver, holder) && !givesWayTo(next, holder, giver);
+      testDrive(next);
+    });
+    expect(rolesAtMove).toBe(true);
   });
 
   it('the role holds while the giver swerve points it away', () => {
