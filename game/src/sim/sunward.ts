@@ -14,7 +14,7 @@ import { canDrag, dragHeldBy, inTowReach, isOnRope, startDrag } from './tow';
 import { boundToOrder, callStrangers, dropSpot, lightZone, nearTheLight, offeringOf, seize } from './sunward-crater';
 import { inTruce } from './relations';
 import { canVehicleSee, grayRadius, tileCenter } from './vision';
-import { fuelCap, suppliesCap } from './stats';
+import { fuelCap, suppliesCap, vehicleStats } from './stats';
 import { clockOf } from './sun';
 import { isTerritory, siteGap } from './sites';
 import { territoryGrounds } from './territory';
@@ -369,10 +369,16 @@ function holdStation(world: World, v: Vehicle, phase: NightPhase): NpcActivity {
 }
 
 function carAhead(world: World, v: Vehicle, phase: NightPhase): Vehicle | null {
-  const column = gateOrder(world, sunwardFacts(world).night!).flatMap((id) => world.vehicles.filter((x) => x.id === id && !isDefeated(x) && inColumn(x, phase)));
+  const rides = (x: Vehicle) => x.id === v.id || (!isDefeated(x) && !limps(world, x));
+  const column = gateOrder(world, sunwardFacts(world).night!).flatMap((id) => world.vehicles.filter((x) => x.id === id && rides(x) && inColumn(x, phase)));
   const at = column.findIndex((x) => x.id === v.id);
   if (at < 0) throw new Error(`${v.id} rides tonight but is not in the Cavalcade's column`);
   return at === 0 ? null : column[at - 1];
+}
+
+function limps(world: World, v: Vehicle): boolean {
+  const stats = vehicleStats(world, v);
+  return stats.maxSpeed <= stats.limpSpeed;
 }
 
 function inColumn(v: Vehicle, phase: NightPhase): boolean {
