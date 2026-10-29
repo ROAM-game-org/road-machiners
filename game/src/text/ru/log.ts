@@ -540,6 +540,7 @@ export const LOG: Translation<typeof EN> = {
   'refusal.noFit': 'Сюда не влезает',
   'refusal.inTheWay': 'Что-то мешает',
   'refusal.armorOnly': 'По бокам ставится только броня',
+  'refusal.barrel': 'Ствол перекрывает другое оружие',
   'refusal.badLayout': '{cause}. Предметы выпадут из сетки или наложатся друг на друга.',
   'refusal.itemGone': 'Этого предмета уже нет',
   'refusal.refitRunning': 'Сначала закончите переоснащение, прежде чем брать или сбрасывать груз',

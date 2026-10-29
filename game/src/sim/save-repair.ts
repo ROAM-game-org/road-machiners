@@ -15,6 +15,7 @@ import { HAULER_KIT, START_KITS } from '../data/start';
 import { CONDITION } from '../data/wear';
 import { settleAims } from './combat';
 import { newId, chargeFor, gunFor, makePart } from './factory';
+import { installSpot, stowSpot } from './inventory';
 import { findSpot, gridOf, mountedItems, onDeadRow, placementError, type Grid } from './grid';
 import { settleEscortJob } from './escort-job';
 import { addShop, finishContract, isMet, parcelOf, removeParcel, type Contract, type ShopState } from './market';
@@ -362,7 +363,7 @@ function misfits(v: Vehicle): GridItem[] {
   for (const item of rest) {
     const grid = gridOf({ ...v, items: kept });
     if (fitsGrid(grid, kept, item)) kept.push(item);
-    else if (!relocated(grid, kept, item)) dropped.push(item);
+    else if (!relocated(v, grid, kept, item)) dropped.push(item);
   }
   return dropped;
 }
@@ -371,8 +372,19 @@ function fitsGrid(grid: Grid, kept: GridItem[], item: GridItem): boolean {
   return onDeadRow(grid, item) || placementError(grid, kept, item, item.id) === null;
 }
 
-function relocated(grid: Grid, kept: GridItem[], item: GridItem): boolean {
-  if (item.kind === 'part') return false;
+function reseatedGun(v: Vehicle, kept: GridItem[], item: GridItem): boolean {
+  if (item.kind !== 'part' || partDef(item.part.defId).kind !== 'weapon') return false;
+  if (placementError(gridOf({ ...v, items: kept }), kept, item, item.id)?.id !== 'barrel') return false;
+  const seated = { ...v, items: kept };
+  const spot = installSpot(seated, item) ?? stowSpot(seated, item);
+  if (!spot) return false;
+  Object.assign(item, spot);
+  kept.push(item);
+  return true;
+}
+
+function relocated(v: Vehicle, grid: Grid, kept: GridItem[], item: GridItem): boolean {
+  if (item.kind === 'part') return reseatedGun(v, kept, item);
   const spot = findSpot(grid, kept, item, null, null);
   if (!spot) return false;
   Object.assign(item, spot);
