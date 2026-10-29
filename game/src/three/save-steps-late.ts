@@ -248,6 +248,23 @@ export function withHollowLaager_108_109(world: SavedJson): SavedJson {
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(rehome) };
 }
 
+const HOLLOW_PAD_121 = { x: 308.2397464837026, y: 513.8133571499616 };
+const BAY_MATCH_121 = 0.5;
+
+function onLaagerBay_120_121(at: { x: number; y: number } | null): boolean {
+  return at !== null && LAAGER_BAYS_109.some((b) => Math.hypot(b.x - at.x, b.y - at.y) <= BAY_MATCH_121);
+}
+
+export function withShelteredHollow_120_121(world: SavedJson): SavedJson {
+  const rehome = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    if (!brain || !onLaagerBay_120_121(brain.home as { x: number; y: number })) return v;
+    const goals = (brain.goals as SavedJson[]).map((g) => (onLaagerBay_120_121(g.destination as { x: number; y: number } | null) ? { ...g, destination: { ...HOLLOW_PAD_121 } } : g));
+    return { ...v, brain: { ...brain, home: { ...HOLLOW_PAD_121 }, goals } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(rehome), sheltered: [] };
+}
+
 export function withOfferedNight_86_87(world: SavedJson): SavedJson {
   const sunward = world.sunward as SavedJson | null;
   const night = sunward?.night as SavedJson | null | undefined;
