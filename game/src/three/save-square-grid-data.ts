@@ -9,7 +9,7 @@ export type FrozenChassis = {
   nextCore: readonly FrozenCore[];
 };
 
-export type FrozenPart = { kind: string; mounts: string; role?: string; old: readonly [number, number]; next: readonly [number, number] };
+export type FrozenPart = { kind: string; mounts: string; old: readonly [number, number]; next: readonly [number, number] };
 
 export const SQUARE_CELL_121_122 = 0.45;
 
@@ -177,7 +177,7 @@ export const PARTS_121_122: Readonly<Record<string, FrozenPart>> = {
   rocketRack: { kind: 'weapon', mounts: 'D', old: [2, 2], next: [2, 3] },
   sniperCannon: { kind: 'weapon', mounts: 'D', old: [2, 3], next: [2, 4] },
   grenadeLauncher: { kind: 'weapon', mounts: 'D', old: [2, 2], next: [2, 3] },
-  tankGun: { kind: 'weapon', mounts: 'D', old: [2, 3], next: [2, 3] },
+  tankGun: { kind: 'weapon', mounts: 'D', old: [2, 3], next: [2, 4] },
   flechette: { kind: 'weapon', mounts: 'D', old: [2, 2], next: [2, 3] },
   harpoon: { kind: 'weapon', mounts: 'D', old: [1, 2], next: [1, 3] },
   sprout: { kind: 'utility', mounts: 'D', old: [1, 1], next: [1, 1] },
@@ -221,18 +221,18 @@ export const PARTS_121_122: Readonly<Record<string, FrozenPart>> = {
   heavyFrame: { kind: 'cargo', mounts: 'DC', old: [2, 2], next: [2, 3] },
   jerrycans: { kind: 'store', mounts: 'D', old: [1, 1], next: [1, 1] },
   supplyLocker: { kind: 'store', mounts: 'D', old: [1, 1], next: [1, 1] },
-  cab: { kind: 'core', mounts: 'X', role: 'cab', old: [1, 2], next: [1, 2] },
-  cabPickup: { kind: 'core', mounts: 'X', role: 'cab', old: [3, 2], next: [3, 2] },
-  cabHardtop: { kind: 'core', mounts: 'X', role: 'cab', old: [3, 2], next: [3, 2] },
-  transmission: { kind: 'core', mounts: 'X', role: 'transmission', old: [2, 2], next: [2, 2] },
-  transmissionMid: { kind: 'core', mounts: 'X', role: 'transmission', old: [2, 2], next: [2, 2] },
-  transmissionHeavy: { kind: 'core', mounts: 'X', role: 'transmission', old: [2, 2], next: [2, 2] },
-  wheel: { kind: 'core', mounts: 'X', role: 'wheel', old: [1, 2], next: [1, 2] },
-  wheelMid: { kind: 'core', mounts: 'X', role: 'wheel', old: [1, 2], next: [1, 2] },
-  wheelHeavy: { kind: 'core', mounts: 'X', role: 'wheel', old: [1, 2], next: [1, 2] },
-  tank: { kind: 'core', mounts: 'X', role: 'tank', old: [1, 2], next: [1, 2] },
-  tankLong: { kind: 'core', mounts: 'X', role: 'tank', old: [1, 2], next: [1, 2] },
-  tankMid: { kind: 'core', mounts: 'X', role: 'tank', old: [1, 2], next: [1, 2] },
-  tankHeavy: { kind: 'core', mounts: 'X', role: 'tank', old: [1, 2], next: [1, 2] },
+  cab: { kind: 'core', mounts: 'X', old: [1, 2], next: [1, 2] },
+  cabPickup: { kind: 'core', mounts: 'X', old: [3, 2], next: [3, 3] },
+  cabHardtop: { kind: 'core', mounts: 'X', old: [3, 2], next: [3, 3] },
+  transmission: { kind: 'core', mounts: 'X', old: [2, 2], next: [2, 2] },
+  transmissionMid: { kind: 'core', mounts: 'X', old: [2, 2], next: [2, 3] },
+  transmissionHeavy: { kind: 'core', mounts: 'X', old: [2, 2], next: [2, 3] },
+  wheel: { kind: 'core', mounts: 'X', old: [1, 2], next: [1, 2] },
+  wheelMid: { kind: 'core', mounts: 'X', old: [1, 2], next: [1, 3] },
+  wheelHeavy: { kind: 'core', mounts: 'X', old: [1, 2], next: [1, 3] },
+  tank: { kind: 'core', mounts: 'X', old: [1, 2], next: [1, 2] },
+  tankLong: { kind: 'core', mounts: 'X', old: [1, 2], next: [1, 3] },
+  tankMid: { kind: 'core', mounts: 'X', old: [1, 2], next: [1, 3] },
+  tankHeavy: { kind: 'core', mounts: 'X', old: [1, 2], next: [1, 3] },
   scanner: { kind: 'scanner', mounts: 'D', old: [1, 1], next: [1, 1] },
 };

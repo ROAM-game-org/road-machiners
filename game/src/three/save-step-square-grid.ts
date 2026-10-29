@@ -274,23 +274,31 @@ function whyMoved(ctx: Ctx, req: Req, nearest: At): string {
   return shapeLegal(ctx, req, nearest) ? 'its nearest spot is taken' : 'its nearest spot is not legal for it';
 }
 
+function turnsFor(e: Entry): number[] {
+  const rot = e.at.rot;
+  if (e.part === null) return [rot];
+  return e.part.kind === 'weapon' ? [rot, (rot + 2) % 4, (rot + 1) % 4, (rot + 3) % 4] : [rot, rot ^ 1];
+}
+
 function placeEntry(ctx: Ctx, e: Entry): Spot | null {
-  const req = requestOf(e, e.at.rot, e.mounted);
-  const found = findFor(ctx, e, req, ctx.occupied);
-  if (found.chosen === null || found.nearest === null) return null;
-  occupy(ctx.occupied, req, found.chosen);
-  const same = found.chosen.x === found.nearest.x && found.chosen.y === found.nearest.y;
-  if (!same) warnItem(ctx, e, `moved from nearest spot ${found.nearest.x},${found.nearest.y} to ${found.chosen.x},${found.chosen.y}: ${whyMoved(ctx, req, found.nearest)}`);
-  return { ...found.chosen, rot: e.at.rot };
+  for (const rot of turnsFor(e)) {
+    const req = requestOf(e, rot, e.mounted);
+    const found = findFor(ctx, e, req, ctx.occupied);
+    if (found.chosen === null || found.nearest === null) continue;
+    occupy(ctx.occupied, req, found.chosen);
+    reportMove(ctx, e, req, found, rot);
+    return { ...found.chosen, rot };
+  }
+  return null;
+}
+
+function reportMove(ctx: Ctx, e: Entry, req: Req, found: Found, rot: number): void {
+  const { nearest, chosen } = found as { nearest: At; chosen: At };
+  if (rot !== e.at.rot) warnItem(ctx, e, `turned from rotation ${e.at.rot} to ${rot} and moved to ${chosen.x},${chosen.y}, since it fits nowhere in its own rotation`);
+  else if (chosen.x !== nearest.x || chosen.y !== nearest.y) warnItem(ctx, e, `moved from nearest spot ${nearest.x},${nearest.y} to ${chosen.x},${chosen.y}: ${whyMoved(ctx, req, nearest)}`);
 }
 
 const CORE_PAIRS = new Map<string, { old: FrozenCore; next: FrozenCore }[]>();
-
-function roleOf(defId: string): string {
-  const role = partOf_121_122(defId).role;
-  if (role === undefined) throw new Error(`Part ${defId} is no core part`);
-  return role;
-}
 
 function corePairs(chassisId: string): { old: FrozenCore; next: FrozenCore }[] {
   const cached = CORE_PAIRS.get(chassisId);
@@ -298,11 +306,10 @@ function corePairs(chassisId: string): { old: FrozenCore; next: FrozenCore }[] {
   const c = chassisOf_121_122(chassisId);
   const seen = new Map<string, number>();
   const pairs = c.oldCore.map((old) => {
-    const role = roleOf(old.defId);
-    const n = seen.get(role) ?? 0;
-    seen.set(role, n + 1);
-    const next = c.nextCore.filter((k) => roleOf(k.defId) === role)[n];
-    if (next === undefined) throw new Error(`Chassis ${chassisId} has no new ${role} core spot number ${n}`);
+    const n = seen.get(old.defId) ?? 0;
+    seen.set(old.defId, n + 1);
+    const next = c.nextCore.filter((k) => k.defId === old.defId)[n];
+    if (next === undefined) throw new Error(`Chassis ${chassisId} has no new ${old.defId} core spot number ${n}`);
     return { old, next };
   });
   CORE_PAIRS.set(chassisId, pairs);
@@ -314,8 +321,7 @@ function isCoreEntry(e: Entry): boolean {
 }
 
 function coreIndex(pairs: readonly { old: FrozenCore }[], claimed: ReadonlySet<number>, e: Entry): number {
-  const role = roleOf(e.defId as string);
-  return pairs.findIndex((p, i) => !claimed.has(i) && p.old.x === e.at.x && p.old.y === e.at.y && roleOf(p.old.defId) === role);
+  return pairs.findIndex((p, i) => !claimed.has(i) && p.old.x === e.at.x && p.old.y === e.at.y && p.old.defId === e.defId);
 }
 
 function pinCores(ctx: Ctx, entries: readonly Entry[]): Map<string, Spot> {

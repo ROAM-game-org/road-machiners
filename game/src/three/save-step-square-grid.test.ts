@@ -137,11 +137,22 @@ describe('save migration 121 to 122, square grid', () => {
     expectLegal(truck('t1', 'scout', out));
   });
 
-  it('gives a heavier variant of a core part the spot of its role', () => {
-    const c = CHASSIS_121_122.hauler;
+  it.each(Object.keys(CHASSIS_121_122))('puts every built-in core of the %s on its exact new core spot, legally', (chassisId) => {
+    const c = CHASSIS_121_122[chassisId];
     const items = c.oldCore.map((k, i) => partItem(`core${i}`, k.defId, k.x, k.y, k.rot ?? 0));
-    const out = run(worldOf([truck('t1', 'hauler', items)])).vehicles[0].items;
-    expect(out.map((i) => `${i.part!.defId}@${i.x},${i.y},${i.rot}`).sort()).toEqual(c.nextCore.map((k) => `${k.defId}@${k.x},${k.y},${k.rot ?? 0}`).sort());
+    const out = run(worldOf([truck('t1', chassisId, items)])).vehicles[0];
+    const spots = out.items.map((i) => `${i.part!.defId}@${i.x},${i.y},${i.rot}`).sort();
+    expect(spots).toEqual(c.nextCore.map((k) => `${k.defId}@${k.x},${k.y},${k.rot ?? 0}`).sort());
+    expectLegal(out);
+    out.items.forEach((i) => expect(mountedOn(chassisId, i), `${chassisId} ${i.id} sits on X cells`).toBe(true));
+    expect(warnings()).toEqual([]);
+  });
+
+  it('places a core part that is not at its built-in spot like any other mounted part', () => {
+    const swapped = partItem('w', 'wheelHeavy', 1, 2);
+    const out = run(worldOf([truck('t1', 'scout', [swapped])])).vehicles[0];
+    expectLegal(out);
+    expect(mountedOn('scout', out.items[0])).toBe(true);
   });
 
   it('sends a part that fits nowhere on a player truck to storage and reports it', () => {
@@ -189,5 +200,16 @@ describe('save migration 121 to 122, square grid', () => {
 
   it('refuses a part it does not know', () => {
     expect(() => run(worldOf([truck('t1', 'scout', [partItem('x', 'ghostPart', 1, 4)])]))).toThrow('ghostPart');
+  });
+});
+
+describe('square grid step, a gun that fits nowhere in its rotation', () => {
+  it('turns it as a last resort, says so, and keeps the truck legal', () => {
+    const out = run(worldOf([truck('t1', 'buggy', [partItem('side', 'mg', 1, 5, 1)])]));
+    const gun = out.vehicles[0].items[0];
+    expect(gun.rot).not.toBe(1);
+    expectLegal(out.vehicles[0]);
+    expect(mountedOn('buggy', gun)).toBe(true);
+    expect(warnings().find((w) => w.includes('t1 (buggy) item side'))).toContain('turned from rotation 1 to');
   });
 });
