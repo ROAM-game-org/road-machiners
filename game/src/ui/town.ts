@@ -62,7 +62,9 @@ import { hostileToPlayer } from "../sim/world";
 import { escortStatusText, estimateText, estimateTitle, gameHours, GOODS_COLUMNS, lotTitle, PROFIT_HEAD_TITLE, saleEstimate, surveyPlacesLeft, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
 import { contractRow } from "./contract-row";
-import { buyChart, chartsOnSale, sheetAt, sheetId, sheetTiles, type Sheet, type SheetOffer } from "../sim/charts";
+import { buyChart, chartsOnSale, type SheetOffer } from "../sim/charts";
+import { gridSquareArea, gridSquareOf, sameGridSquare, type GridSquare } from "../sim/map-grid";
+import { REGION } from "../data/region";
 import { mapScene, MapView, observeBox } from "./map-view";
 import { toPx, type Viewport } from "./map-geometry";
 import { token } from "./tokens";
@@ -126,11 +128,11 @@ export class TownScreen {
   private paintPlan: TruckPaint | null = null;
   private rows = new PartRows(() => this.render());
   private band = new ArtBand();
-  private sheet: Sheet | null = null;
-  private hoverSheet: Sheet | null = null;
+  private square: GridSquare | null = null;
+  private hoverSquare: GridSquare | null = null;
   private chartOffers: SheetOffer[] = [];
   private chartsBox: HTMLElement | null = null;
-  private chartsView = new MapView({ kind: "fit" }, CHARTS_SIZE, CHARTS_SIZE, (ctx, view) => this.drawSheets(ctx, view));
+  private chartsView = new MapView({ kind: "fit" }, CHARTS_SIZE, CHARTS_SIZE, (ctx, view) => this.drawSquares(ctx, view));
 
   private inventory: InventoryView;
 
@@ -141,18 +143,18 @@ export class TownScreen {
     window.addEventListener("keydown", (e) => this.onKey(e), true);
     this.inventory = new InventoryView(host, () => this.render(), false);
     this.chartsView.canvas.addEventListener("click", (e) => {
-      this.sheet = this.sheetAt(e.clientX, e.clientY);
+      this.square = this.squareAt(e.clientX, e.clientY);
       this.render();
     });
     this.chartsView.canvas.addEventListener("pointermove", (e) => {
-      const over = this.sheetAt(e.clientX, e.clientY);
-      if (over && this.hoverSheet && sheetId(over) === sheetId(this.hoverSheet)) return;
-      if (!over && !this.hoverSheet) return;
-      this.hoverSheet = over;
+      const over = this.squareAt(e.clientX, e.clientY);
+      if (over && this.hoverSquare && sameGridSquare(over, this.hoverSquare)) return;
+      if (!over && !this.hoverSquare) return;
+      this.hoverSquare = over;
       this.chartsView.update(mapScene(this.host.world()), null);
     });
     this.chartsView.canvas.addEventListener("pointerleave", () => {
-      this.hoverSheet = null;
+      this.hoverSquare = null;
       this.chartsView.update(mapScene(this.host.world()), null);
     });
   }
@@ -640,12 +642,12 @@ export class TownScreen {
 
   private charts(w: World, shopId: string): HTMLElement {
     const offers = chartsOnSale(w, shopId);
-    const picked = offers.find((o) => this.sheet && sheetId(o.sheet) === sheetId(this.sheet)) ?? null;
-    if (!picked) this.sheet = null;
+    const picked = offers.find((o) => this.square && sameGridSquare(o.square, this.square)) ?? null;
+    if (!picked) this.square = null;
     this.chartOffers = offers;
     this.chartsView.update(mapScene(w), null);
     const buy = picked
-      ? this.priceButton(w, t("goods.buy"), picked.price, (x) => buyChart(x, picked.sheet), null, "buy-chart")
+      ? this.priceButton(w, t("goods.buy"), picked.price, (x) => buyChart(x, picked.square), null, "buy-chart")
       : null;
     return el("div", { class: "charts" }, this.chartsMap(), buy);
   }
@@ -658,16 +660,16 @@ export class TownScreen {
     return box;
   }
 
-  private sheetAt(clientX: number, clientY: number): Sheet | null {
+  private squareAt(clientX: number, clientY: number): GridSquare | null {
     const p = this.chartsView.pick(clientX, clientY);
-    if (!p) return null;
-    const sheet = sheetAt(this.host.world().size, p);
-    return this.chartOffers.some((o) => sheetId(o.sheet) === sheetId(sheet)) ? sheet : null;
+    if (!p || p.x < 0 || p.y < 0 || p.x > REGION.size || p.y > REGION.size) return null;
+    const square = gridSquareOf(p);
+    return this.chartOffers.some((o) => sameGridSquare(o.square, square)) ? square : null;
   }
 
-  private drawSheets(ctx: CanvasRenderingContext2D, view: Viewport): void {
-    const trace = (sheet: Sheet) => {
-      const b = sheetTiles(this.host.world().size, sheet);
+  private drawSquares(ctx: CanvasRenderingContext2D, view: Viewport): void {
+    const trace = (square: GridSquare) => {
+      const b = gridSquareArea(square);
       const corners = [
         { x: b.x0, y: b.y0 },
         { x: b.x1, y: b.y0 },
@@ -681,12 +683,12 @@ export class TownScreen {
     ctx.lineWidth = 1;
     ctx.strokeStyle = token("--line-strong");
     for (const o of this.chartOffers) {
-      trace(o.sheet);
+      trace(o.square);
       ctx.stroke();
     }
-    const mark = (sheet: Sheet | null, stroke: string, fill: string | null) => {
-      if (!sheet) return;
-      trace(sheet);
+    const mark = (square: GridSquare | null, stroke: string, fill: string | null) => {
+      if (!square) return;
+      trace(square);
       if (fill) {
         ctx.fillStyle = fill;
         ctx.fill();
@@ -695,8 +697,8 @@ export class TownScreen {
       ctx.lineWidth = 2;
       ctx.stroke();
     };
-    mark(this.hoverSheet, token("--ink-bright"), null);
-    mark(this.sheet, token("--accent"), token("--accent-wash"));
+    mark(this.hoverSquare, token("--ink-bright"), null);
+    mark(this.square, token("--accent"), token("--accent-wash"));
   }
 
   private contracts(w: World, shopId: string): HTMLElement {
