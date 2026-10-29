@@ -236,15 +236,24 @@ export function plainMaxSpeed(world: World, v: Vehicle): number {
   return walkSpeed(world, v, limpSpeedOf(world, v), loadFactor(v), brokenWheelCount(v), false, null);
 }
 
+function reshapesGuns(chassisId: string): boolean {
+  const ability = chassisAbility(chassisId);
+  return Boolean(ability?.range || ability?.reloadCut || ability?.arc);
+}
+
+export function weaponArc(chassisId: string, defId: string): number {
+  const def = partDef(defId) as WeaponDef;
+  return reshapesGuns(chassisId) ? Math.min(360, def.arc + arcBonus(chassisId)) : def.arc;
+}
+
 export function weaponOn(v: Vehicle, part: PartInstance): WeaponDef {
   const def = wornDef<WeaponDef>(part);
-  const ability = chassisAbility(v.chassisId);
-  if (!ability?.range && !ability?.reloadCut && !ability?.arc) return def;
+  if (!reshapesGuns(v.chassisId)) return def;
   return {
     ...def,
     range: def.range * rangeFactor(v.chassisId),
     reload: Math.max(1, def.reload - reloadCut(v.chassisId)),
-    arc: Math.min(360, def.arc + arcBonus(v.chassisId)),
+    arc: weaponArc(v.chassisId, part.defId),
   };
 }
 

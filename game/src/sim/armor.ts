@@ -5,7 +5,7 @@ import { footprint, nearestUnit, poseToWorld, sideReach, unitPose, worldToPose, 
 
 import { isShield, partDef, type PartDef } from '../data/parts';
 import { chassisAbility, partArmorBonus } from './chassis-features';
-import { weaponOn } from './stats';
+import { weaponArc } from './stats';
 import { wornDef } from './wear';
 import { damagePart } from './damage';
 import { baseGrid, cellKey, facingOf, gridOf, itemCells, isMounted, itemSize, mountedItems, shieldParts, sideOf, type Grid, type SideLetter } from './grid';
@@ -449,7 +449,7 @@ function spansIn(v: Vehicle, tall: readonly GridItem[], item: GridItem): FireSpa
 
 function arcPieces(v: Vehicle, item: GridItem): FireSpan[] {
   if (item.kind !== 'part') throw new Error(`${item.id} is not a part`);
-  const { arc } = weaponOn(v, item.part);
+  const arc = weaponArc(v.chassisId, item.part.defId);
   if (arc >= 360) return [{ from: -180, to: 180 }];
   const from = wrapFrom(facingOf(item) - arc / 2);
   return splitAtBack(from, from + arc);
