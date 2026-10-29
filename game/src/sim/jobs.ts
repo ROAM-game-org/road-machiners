@@ -13,7 +13,7 @@ import { corePart, coreParts, freeCells, goodsCount, isMounted, itemSize, mounte
 import { addGoods, applyRefitLayout, getRefitLayout, NOTHING_TAKEN, refitStepLayout, refitStepWork, removeGoods, startRefitStep, stowPart } from "./inventory";
 import { makePart } from "./factory";
 import { promisedParts } from "./patch";
-import { requireSpareGoods, spareGoods } from "./market";
+import { requireSpareGoods, shopAt, spareGoods } from "./market";
 import { isJunk, maxHp } from "./wear";
 import { repairPlan, repairTurn } from "./repair";
 import { hasBasic, practice, vehicleHasPerk } from "./progress";
@@ -21,6 +21,7 @@ import { finishTruckPickup } from "./salvage";
 import { isSearchStalled, searchTurn } from "./search";
 import { isSurveyStalled, surveyTurn } from "./survey";
 import { hasWorkingUtility } from "./utility";
+import { oddJobsTurn, payOddJobs } from "./odd-jobs";
 import type { GridItem, Job, PartInstance, RefitJob, RefitPickup, RefitStep, Refusal, Vehicle, World } from "./types";
 import { getKnownSite } from "./npc-decisions";
 import { canUseSite } from "./sites";
@@ -68,7 +69,7 @@ export function repairBlocker(world: World, v: Vehicle, partId: string): Refusal
   return workBlocker(world, v) ?? patchBlocker(world, v, partId);
 }
 
-function workBlocker(world: World, v: Vehicle): Refusal | null {
+export function workBlocker(world: World, v: Vehicle): Refusal | null {
   if (inCombat(world, v)) return { id: "inCombat" };
   if (v.job && !isAutoPatch(v.job)) return { id: "busy", job: v.job.kind };
   return v.speed > RULES.parkedSpeed ? { id: "stopFirst" } : null;
@@ -256,6 +257,7 @@ function isStalled(world: World, v: Vehicle, job: Job): boolean {
 function isSiteWorkStalled(world: World, v: Vehicle, job: Job): boolean {
   if (job.kind === "business") return !canUseSite(v.pos, getKnownSite(job.siteId));
   if (job.kind === "firstAid") return world.player.supplies < firstAidTurnSupplies(world);
+  if (job.kind === "oddJobs") return shopAt(world) === null;
   return job.kind === "weld" && (!hasWeldScrap(world, v) || !weldFits(v));
 }
 
@@ -267,6 +269,7 @@ function jobTurn(world: World, v: Vehicle, job: Job): boolean {
   if (job.kind === "weld") return weldTurn(world, v, job);
   if (job.kind === "business") return businessTurn(job);
   if (job.kind === "firstAid") return firstAidTurn(world, v, job);
+  if (job.kind === "oddJobs") return oddJobsTurn(world, v, job);
   throw new Error(`Unhandled job kind ${job.kind}`);
 }
 
@@ -354,6 +357,7 @@ function endJob(
   outcome: "done" | "cancelled",
 ): void {
   v.job = null;
+  if (job.kind === "oddJobs") payOddJobs(world, v, job);
   world.events.push({ t: "job", vehicle: v.id, job: { ...job }, outcome });
   if (outcome === "done") practiceFieldJob(world, v, job);
 }

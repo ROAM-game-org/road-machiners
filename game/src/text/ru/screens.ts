@@ -607,6 +607,8 @@ export const SCREENS: Translation<typeof EN> = {
   'town.go.board': 'Посмотреть доску',
   'town.go.people': 'Поискать местных',
   'town.go.bar': 'Посмотреть, кто на стоянке',
+  'town.go.oddJobs': 'Взять подработку на {h, plural, one {# час} few {# часа} many {# часов} other {# часа}}',
+  'town.oddJobs.notHiring': 'Для тех, у кого меньше {money}',
   'town.go.leave': 'Ехать дальше',
   'town.back': 'Назад',
   'trade.tab.market': 'Рынок',
