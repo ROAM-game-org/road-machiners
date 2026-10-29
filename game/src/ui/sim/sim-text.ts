@@ -156,6 +156,8 @@ const SIM_WORDS: Words = {
   arrived: (world, e) => ({ text: `${nameOf(world, e.vehicle)} arrives`, tone: 'dim' }),
   spawn: (world, e) => ({ text: `${nameOf(world, e.vehicle)} enters the map`, tone: 'dim' }),
   despawn: (world, e) => ({ text: `${nameOf(world, e.vehicle)} leaves the map`, tone: 'dim' }),
+  enteredSite: (world, e) => ({ text: `${nameOf(world, e.vehicle)} drives into ${english(siteName(e.site))}`, tone: 'dim' }),
+  leftSite: (world, e) => ({ text: `${nameOf(world, e.vehicle)} drives out of ${english(siteName(e.site))}`, tone: 'dim' }),
   practice: (_world, e) => ({ text: `${e.xp.toFixed(1)} XP from ${words(e.source)}`, tone: 'dim' }),
   weather: (_world, e) => ({ text: `A ${words(e.event.kind)} ${e.outcome === 'started' ? 'begins' : 'ends'}`, tone: 'dim' }),
 };
