@@ -11,7 +11,7 @@ import { noteDeed } from '../sim/relations';
 import { addState } from '../sim/states';
 import { canStowPart, moveItem, storePart, stowPart, stowSpot, takeFromStorage } from '../sim/inventory';
 import { buyStockPart } from '../sim/economy';
-import { buyChart } from '../sim/charts';
+import { buyChart, chartsOnSale } from '../sim/charts';
 import { bareVehicle, makePart } from '../sim/factory';
 import { PARTS } from '../data/parts';
 import type { Faction, GridItem, World } from '../sim/types';
@@ -506,7 +506,7 @@ describe('game save', () => {
     start.player.money = 100000;
     start.player.explored.fill(0);
     start.player.discovered = [];
-    const bought = buyChart(start, { col: 0, row: 4 });
+    const bought = buyChart(start, chartsOnSale(start, 'bowl')[0].square);
     writeSave(slots, 'auto', bought, RUN, 1000);
 
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
