@@ -52,7 +52,7 @@ Art and sound, in `docs/art/`:
 Reference:
 
 - [Tools](docs/tools.md): command flags, config, browser checks, debug console and perf timers.
-- [Testing](docs/testing.md): the rules every test follows, what it may cost and how to fix a failing or slow test.
+- [Testing](docs/testing.md): the rules every test follows.
 - [Publishing](docs/publishing.md), [Wiki](docs/wiki/README.md).
 
 ## Commands
@@ -138,6 +138,7 @@ Read the project-local skills before related work:
 - Find the existing code that does the same kind of thing, and match everything it handles. A new way to end a deal must settle money, states and goals like the old ways.
 - Tests check the side effects of a change, not only the behavior you asked for.
 - Every sim rule change gets a Vitest test.
+- Read [Testing](docs/testing.md) before you write, speed up or fix a test. Many older tests break its rules, so never copy their setup.
 - After render or game changes, run `npm run playtest`.
 - Playtest game behavior with the progression recorder, not by hand or in the browser. Record the bots that meet the change, then read the report and the analyzer before you draw a conclusion. A 3-seed 5-day batch takes about 10 minutes per bot, so run it in the background with a log. [Tools](docs/tools.md) has the flags.
 - Use a Playwright script in `tmp/` on the real GPU only for what the screen shows: UI, rendering and screenshots. [Tools](docs/tools.md#browser-checks) describes it. The game is on `window.__ROAM__` in dev.

@@ -15,7 +15,7 @@ These are the design faults of the suite. The rules below exist to stop each one
 
 ## Rules
 
-Each rule has the check that enforces it. A rule with no automated check is checked in review.
+Each rule has the check that enforces it. A rule with no automated check is checked in review. Many tests in the repo predate these rules, so a nearby test file is no model for a new one.
 
 ### T1. Test the rule at its owner, with the smallest world that shows it
 
@@ -45,7 +45,7 @@ Check: the pre-commit hook rejects a new time limit in a test file.
 
 ### T5. Keep every case, seed, turn and roll
 
-Never cut a sample to make a test faster or to make it pass. A cut sample hides the rare case it was there to catch. To cut cost, make each case cheaper or share the setup, as T3 says. When you split cases over files, the split keeps the total: two files of 10 seeds replace one file of 20.
+Never cut a sample to make a test faster or to make it pass. A cut sample hides the rare case it was there to catch. A sample is anything the test steps over: cases, seeds, turns, rolls, spots, angles and grid steps. A coarser step, like checking every 3 degrees instead of every degree, is a cut too. To cut cost, make each case cheaper or share the setup, as T3 says. When you split cases over files, the split keeps the total: two files of 10 seeds replace one file of 20.
 
 Check: the pre-commit hook rejects a commit that lowers the total of a sample count in test files.
 
