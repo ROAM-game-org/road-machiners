@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import FORMAT_2_107 from './save-fixtures/format-2-107.json';
 import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
-import { hollowBays } from '../sim/hollow-layout';
+import { LAAGER_BAYS_109 } from './save-steps-late';
 
 type Saved = typeof FORMAT_2_107;
 type Point = { x: number; y: number };
@@ -11,7 +11,7 @@ const toPreLaager = (world: Saved): SavedJson => stepAt(107, world as unknown as
 const laagered = (world: Saved): Saved => stepAt(108, toPreLaager(world)) as unknown as Saved;
 const fixture = () => structuredClone(FORMAT_2_107);
 const car = (w: Saved, id: string) => w.vehicles.find((v) => v.id === id)!;
-const bayIndex = (p: Point) => hollowBays().findIndex((b) => Math.hypot(b.x - p.x, b.y - p.y) < 0.01);
+const bayIndex = (p: Point) => LAAGER_BAYS_109.findIndex((b) => Math.hypot(b.x - p.x, b.y - p.y) < 0.01);
 
 describe('save migration 108 to 109, the Hollow draws its cars up in a laager', () => {
   it('sends every Sunward home to the laager bay of the same index and moves no car', () => {

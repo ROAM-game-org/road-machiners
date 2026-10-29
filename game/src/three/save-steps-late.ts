@@ -221,7 +221,7 @@ export function withMovedHollow_107_108(world: SavedJson): SavedJson {
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(rehome), player: { ...player, discovered } };
 }
 
-const LAAGER_BAYS_109 = [
+export const LAAGER_BAYS_109 = [
   { x: 311.635, y: 504.26 }, { x: 310.391, y: 506.074 }, { x: 314.681, y: 509.014 }, { x: 309.148, y: 507.889 }, { x: 313.437, y: 510.829 }, { x: 307.904, y: 509.704 },
   { x: 312.193, y: 512.644 }, { x: 306.66, y: 511.519 }, { x: 310.95, y: 514.458 }, { x: 305.417, y: 513.333 }, { x: 309.706, y: 516.273 },
 ];
