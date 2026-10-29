@@ -21,6 +21,9 @@ const MAXED_DAY_SIGHT = TERRAIN.vision.radius * (1 + SKILL_EFFECTS.perception.si
 const MIN_ROAD_GAP = Number(process.env.MIN_ROAD_GAP ?? MAXED_DAY_SIGHT + SUNWARD.sightMargin + SIGHT_MARGIN);
 const MIN_SITE_GAP = Number(process.env.MIN_SITE_GAP ?? TERRAIN.vision.radius * TERRAIN.vision.grayFactor);
 const MIN_CRATER_GAP = Number(process.env.MIN_CRATER_GAP ?? 30);
+const MIN_PASS_GAP = Number(process.env.MIN_PASS_GAP ?? TERRAIN.vision.radius * TERRAIN.vision.grayFactor);
+const AREA = (process.env.AREA ?? '').split(',').filter((v) => v !== '').map(Number);
+if (AREA.length !== 0 && AREA.length !== 4) throw new Error(`AREA takes x0,y0,x1,y1, got ${process.env.AREA}`);
 const DRIVE_BAND = [Number(process.env.DRIVE_MIN ?? 0), Number(process.env.DRIVE_MAX ?? 280)];
 const PICK = Number(process.env.PICK ?? 25);
 const POST_RING = Number(process.env.POST_RING ?? 11);
@@ -41,6 +44,33 @@ const fallenSun = REGION.locations.find((l) => l.id === 'fallen-sun');
 const light = lightZone();
 const sites = [...REGION.towns, ...REGION.locations];
 const drive = world.obstacles.filter(isDriveObstacle);
+const inhabited = sites.filter((s) => s.kind !== 'territory');
+const scout = world.vehicles.find((v) => v.chassisId === 'scout');
+if (!scout) throw new Error('The picker world has no scout to ride the candidate routes as a Cavalcade car');
+
+function rider(from, to) {
+  const goal = { kind: 'explore', targetId: null, destination: to, phase: 'travel', reason: 'rideVigil' };
+  return { ...scout, id: 'hollow-rider', faction: 'sunward', pos: from, brain: { templateId: 'cavalcade', traits: ['cultist'], goals: [goal] } };
+}
+
+function rideFacts(from, path) {
+  const points = [from, ...path];
+  let length = 0;
+  let onRoad = 0;
+  const closest = new Map(inhabited.map((s) => [s.id, Infinity]));
+  for (let i = 1; i < points.length; i++) {
+    const [a, b] = [points[i - 1], points[i]];
+    const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y)));
+    for (let k = 0; k < n; k++) {
+      const p = { x: a.x + ((b.x - a.x) * k) / n, y: a.y + ((b.y - a.y) * k) / n };
+      length += Math.hypot(b.x - a.x, b.y - a.y) / n;
+      if (atlas.roadIndex.nearestWithin(p.x, p.y, REGION.roadWidth) <= REGION.roadWidth) onRoad += Math.hypot(b.x - a.x, b.y - a.y) / n;
+      for (const s of inhabited) closest.set(s.id, Math.min(closest.get(s.id), siteGap(s, p)));
+    }
+  }
+  const [nearest, gap] = [...closest.entries()].reduce((best, e) => (e[1] < best[1] ? e : best));
+  return { roadShare: onRoad / length, nearest, passGap: gap };
+}
 
 function moveHollowOffMap() {
   const shift = { x: -10000 - HOLLOW.pos.x, y: -10000 - HOLLOW.pos.y };
@@ -120,6 +150,7 @@ const rejected = { crater: 0, road: 0, site: 0, relief: 0, props: 0, bays: 0, ca
 for (let y = 20; y < terrain.size - 20; y += STEP) {
   for (let x = 20; x < terrain.size - 20; x += STEP) {
     const p = { x, y };
+    if (AREA.length === 4 && (x < AREA[0] || y < AREA[1] || x > AREA[2] || y > AREA[3])) continue;
     const craterGap = siteGap(fallenSun, p);
     if (craterGap < MIN_CRATER_GAP || craterGap > DRIVE_BAND[1]) { rejected.crater++; continue; }
     const bearing = Math.atan2(light.pos.y - p.y, light.pos.x - p.x);
@@ -144,17 +175,18 @@ for (const c of candidates) {
   if (tried++ >= PICK) break;
   if (process.env.VERBOSE) console.log(`try (${c.p.x}, ${c.p.y})`);
   const goal = postToward(c.p);
-  const path = route(world, c.gate, goal, CHASSIS_RADIUS, []);
+  const path = route(world, c.gate, goal, CHASSIS_RADIUS, [], rider(c.gate, goal));
   const end = path[path.length - 1];
   if (!end || Math.hypot(end.x - goal.x, end.y - goal.y) > 3) continue;
   const length = routeLength(c.gate, path);
-  if (process.env.VERBOSE) console.log(`(${c.p.x}, ${c.p.y}) drive ${length.toFixed(0)} crater edge ${c.craterGap.toFixed(0)} relief ${c.relief.toFixed(2)}`);
-  if (length < DRIVE_BAND[0] || length > DRIVE_BAND[1]) continue;
-  picked.push({ ...c, drive: length });
+  const ride = rideFacts(c.gate, path);
+  if (process.env.VERBOSE) console.log(`(${c.p.x}, ${c.p.y}) drive ${length.toFixed(0)} on road ${(ride.roadShare * 100).toFixed(0)}% passes ${ride.nearest} at ${ride.passGap.toFixed(0)} crater edge ${c.craterGap.toFixed(0)} relief ${c.relief.toFixed(2)}`);
+  if (length < DRIVE_BAND[0] || length > DRIVE_BAND[1] || ride.passGap < MIN_PASS_GAP) continue;
+  picked.push({ ...c, drive: length, ...ride });
 }
 console.log(JSON.stringify(rejected));
 console.log(`map ${TEST_MAP.hash}, ${candidates.length} candidates pass the gaps, relief, props and camera`);
 picked.sort((a, b) => a.drive - b.drive);
 for (const c of picked) {
-  console.log(`(${c.p.x}, ${c.p.y}) gate bearing ${c.bearing.toFixed(2)} relief ${c.relief.toFixed(2)} road ${c.road.toFixed(0)} site ${c.site.toFixed(0)} crater edge ${c.craterGap.toFixed(0)} drive ${c.drive.toFixed(0)}`);
+  console.log(`(${c.p.x}, ${c.p.y}) gate bearing ${c.bearing.toFixed(2)} relief ${c.relief.toFixed(2)} road ${c.road.toFixed(0)} site ${c.site.toFixed(0)} crater edge ${c.craterGap.toFixed(0)} drive ${c.drive.toFixed(0)} on road ${(c.roadShare * 100).toFixed(0)}% nearest ${c.nearest} at ${c.passGap.toFixed(0)}`);
 }
