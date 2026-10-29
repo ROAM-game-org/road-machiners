@@ -255,6 +255,19 @@ describe('grid and model correspondence', () => {
     expect(low).toEqual([]);
   });
 
+  it('centres each wheel core of the third layout pass chassis within half a cell of its model wheel along the truck', () => {
+    for (const id of ['semi', 'lincoln', 'convertible', 'bus', 'carrier', 'jeep', 'hauler', 'wagon', 'van']) {
+      for (const c of CHASSIS[id].core.filter((core) => core.defId.includes('wheel'))) {
+        const h = partDef(c.defId).h;
+        const first = cellCenter(id, c.x, c.y);
+        const last = cellCenter(id, c.x, c.y + h - 1);
+        const along = (first.x + last.x) / 2;
+        const axle = unitBody(id, first.unit).wheelX;
+        expect(Math.abs(Math.abs(along) - axle), `${id} wheel ${c.x},${c.y} is off the model wheel`).toBeLessThanOrEqual(GRID_CELL / 2 + 1e-9);
+      }
+    }
+  });
+
   it('projects each wheel core into its corner of the truck', () => {
     for (const id of ids) {
             const wheels = CHASSIS[id].core.filter((c) => c.defId.includes('wheel'));
