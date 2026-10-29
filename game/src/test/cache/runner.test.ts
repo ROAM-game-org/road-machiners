@@ -1,11 +1,11 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { testId } from './store';
 
 const GAME = process.cwd();
-const RUNNER_FILES = ['scripts/test-cache.mjs', 'src/test/cache/fingerprint.ts', 'src/test/cache/store.ts', 'src/test/cache/select.ts', 'src/test/cache/reads-setup.ts', 'src/test/cache/stall.ts', 'src/test/cache/verdict.ts'];
+const RUNNER_FILES = ['scripts/test-cache.mjs', 'src/test/cache/fingerprint.ts', 'src/test/cache/store.ts', 'src/test/cache/select.ts', 'src/test/cache/reads-setup.ts', 'src/test/cache/stall.ts', 'src/test/cache/verdict.ts', 'src/test/cache/failures.ts'];
 const CONFIG = `import { defineConfig } from 'vitest/config';
 export default defineConfig({ test: { include: ['src/**/*.test.ts'], maxWorkers: 2, minWorkers: 1, testTimeout: 0 } });
 `;
@@ -37,7 +37,7 @@ it('waits for the gate', async () => {
 `;
 
 function childEnv(extra: Record<string, string>): NodeJS.ProcessEnv {
-  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('VITEST') && key !== 'TEST_CACHE_READS' && key !== 'TEST_STALL_MINUTES' && key !== 'TEST_SUITE_MINUTES'));
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('VITEST') && key !== 'TEST_CACHE_READS' && key !== 'TEST_STALL_MINUTES' && key !== 'TEST_SUITE_MINUTES' && key !== 'TEST_FAILURES_FILE'));
   return { ...env, ...extra };
 }
 
@@ -114,13 +114,64 @@ describe('test:cached', { timeout: 4 * RUN_LIMIT_MS }, () => {
     expect(second.code).toBe(1);
   });
 
+  it('writes each failed test by file and full name to TEST_FAILURES_FILE, with a file that failed outside its tests', () => {
+    put('src/fails.test.ts', `import { describe, expect, it } from 'vitest';\ndescribe('sums', () => { it('is wrong', () => expect(1).toBe(2)); it('is right', () => expect(1).toBe(1)); });\n`);
+    put('src/broken.test.ts', `import { it } from 'vitest';\nimport { missing } from './nowhere';\nit('never runs', () => missing());\n`);
+    put('src/rpc.test.ts', passingTestWithRpcTimeout);
+
+    const run = runCached({ TEST_FAILURES_FILE: 'tmp/failures.json' });
+    const record = JSON.parse(readFileSync(join(root, 'tmp', 'failures.json'), 'utf8')) as { failed: { file: string; test: string | null }[]; unhandledErrors: number; unfinished: string[] };
+
+    expect(run.code).toBe(1);
+    expect(record.failed.sort((x, y) => x.file.localeCompare(y.file))).toEqual([{ file: 'src/broken.test.ts', test: null }, { file: 'src/fails.test.ts', test: 'sums > is wrong' }]);
+    expect(record.unhandledErrors).toBe(0);
+    expect(record.unfinished).toEqual([]);
+  });
+
+  const recordOf = () => JSON.parse(readFileSync(join(root, 'tmp', 'failures.json'), 'utf8'));
+  const failedAndHung = { failed: [{ file: 'src/fails.test.ts', test: 'is wrong' }], unhandledErrors: 0, unfinished: ['src/hangs.test.ts'] };
+
+  it('writes an empty record for a passing run', () => {
+    expect(runCached({ TEST_FAILURES_FILE: 'tmp/failures.json' }).code).toBe(0);
+    expect(recordOf()).toEqual({ failed: [], unhandledErrors: 0, unfinished: [] });
+  });
+
+  it('writes the failed tests and the unfinished files of a stalled run', () => {
+    put('src/hangs.test.ts', hangingTest);
+    put('src/fails.test.ts', failingTest);
+
+    const run = runCached({ TEST_FAILURES_FILE: 'tmp/failures.json', TEST_STALL_MINUTES: '0.25' });
+
+    expect(run.code).toBe(1);
+    expect(recordOf()).toEqual(failedAndHung);
+  });
+
+  it('writes the failed tests and the unfinished files of a run past its suite limit', () => {
+    put('src/hangs.test.ts', hangingTest);
+    put('src/fails.test.ts', failingTest);
+
+    const run = runCached({ TEST_FAILURES_FILE: 'tmp/failures.json', TEST_SUITE_MINUTES: '0.25' });
+
+    expect(run.code).toBe(1);
+    expect(recordOf()).toEqual(failedAndHung);
+  });
+
+  it('writes no failed test and the unfinished files for a run past its suite limit with no failure', () => {
+    put('src/hangs.test.ts', hangingTest);
+
+    const run = runCached({ TEST_FAILURES_FILE: 'tmp/failures.json', TEST_SUITE_MINUTES: '0.1' });
+
+    expect(run.code).toBe(3);
+    expect(recordOf()).toEqual({ failed: [], unhandledErrors: 0, unfinished: ['src/hangs.test.ts'] });
+  });
+
   it('stops a run whose test never finishes and names it, and keeps the passes of the other files', () => {
     put('src/hangs.test.ts', `import { it } from 'vitest';\nit('waits forever', () => new Promise(() => {}));\n`);
 
     const run = runCached({ TEST_STALL_MINUTES: '0.25' });
 
     expect(run.code).toBe(1);
-    expect(run.out).toContain('[test-cache] StallError: no test finished in 0.25 minutes. Still running: src/hangs.test.ts > waits forever');
+    expect(run.out).toContain('[test-cache] StallError: no test finished in 0.25 minutes. Still running: src/hangs.test.ts');
     expect([cached('src/a.test.ts'), cached('src/b.test.ts'), cached('src/hangs.test.ts')]).toEqual([true, true, false]);
   });
 

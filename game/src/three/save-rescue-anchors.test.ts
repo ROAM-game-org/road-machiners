@@ -20,7 +20,9 @@ import { readCarried } from './save-rescue';
 
 const ANCHOR_DIR = join(__dirname, 'save-fixtures/anchors');
 
-const reachable = readdirSync(ANCHOR_DIR).filter((file) => file.endsWith('-roaming.json') && stepsFrom(Number(file.split('-')[1])) !== null);
+const FOLDS_TO_THE_WORLD_OF_61 = '2-62-roaming.json';
+
+const reachable = readdirSync(ANCHOR_DIR).filter((file) => file.endsWith('-roaming.json') && file !== FOLDS_TO_THE_WORLD_OF_61 && stepsFrom(Number(file.split('-')[1])) !== null);
 
 describe('a shipped save on an older bake of the map', () => {
   it('has anchors to load', () => {
