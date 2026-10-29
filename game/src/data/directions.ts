@@ -1,4 +1,5 @@
 import type { LandmarkLook } from '../sim/types';
+import { MAP_SPREAD } from './region';
 
 export const DIRECTIONS = {
   joinSnap: 6,
@@ -10,7 +11,7 @@ export const DIRECTIONS = {
   directReach: 40,
   placeSlack: 15,
   cueReach: 25,
-  headingReach: 25,
+  headingReach: 25 * MAP_SPREAD,
   keepAngle: 0.5,
   maxSteps: 5,
   maxCount: 3,

@@ -35,6 +35,8 @@ function site(id: string): Vec {
   return found.pos;
 }
 
+const NEAR_BOWL: Vec = { x: site('bowl').x + 100, y: site('bowl').y - 100 };
+
 function to(id: string): DirectionTarget {
   return { kind: 'site', id };
 }
@@ -102,7 +104,7 @@ describe('directionsTo', () => {
 
   it('gives a wreck spot off the road a leave step and a rough search', () => {
     const net = roadNetworkOf(w);
-    const [road] = nearestRoadPoints(net, { x: 300, y: 300 }, 200, 1);
+    const [road] = nearestRoadPoints(net, NEAR_BOWL, 200, 1);
     const spot = { x: road.pos.x, y: road.pos.y + 30 };
     const steps = directionsTo(w, site('bowl'), { kind: 'spot', pos: spot, clue: 'wreck' });
     expect(kinds(steps).slice(-2)).toEqual(['leave', 'search']);
@@ -117,7 +119,7 @@ describe('directionsTo', () => {
   it('names the gates of Nose on different sides though both face south', () => {
     const steps = directionsFromSite(w, 'nose', to('bowl'));
     expect(steps[0]).toMatchObject({ do: 'gate' });
-    const sides = [...new Set(['bowl', 'granary', 'marshal-post'].map((id) => (directionsFromSite(w, 'nose', to(id))[0] as { side: string }).side))];
+    const sides = [...new Set(SITES.filter((s) => s.id !== 'nose').map((s) => (directionsFromSite(w, 'nose', to(s.id))[0] as { side: string }).side))];
     expect(sides.length).toBeGreaterThan(1);
   });
 
@@ -190,7 +192,8 @@ describe('headingAlong', () => {
   });
 
   it('stops at the reach on a road that bends later', () => {
-    const line = [{ x: 0, y: 0 }, { x: 0, y: -30 }, { x: 200, y: -30 }];
+    const reach = DIRECTIONS.headingReach;
+    const line = [{ x: 0, y: 0 }, { x: 0, y: -1.2 * reach }, { x: 8 * reach, y: -1.2 * reach }];
     expect(headingAlong([line], DIRECTIONS.headingReach)).toBe('north');
   });
 
@@ -383,7 +386,7 @@ describe('directionsFromSite', () => {
 
   it('ends a place way on the leave step with no search step', () => {
     const net = roadNetworkOf(w);
-    const [road] = nearestRoadPoints(net, { x: 300, y: 300 }, 200, 1);
+    const [road] = nearestRoadPoints(net, NEAR_BOWL, 200, 1);
     const steps = directionsFromSite(w, 'bowl', place({ x: road.pos.x, y: road.pos.y + 30 }));
     expect(steps.some((s) => s.do === 'search')).toBe(false);
     expect(steps[steps.length - 1].do).toBe('leave');
