@@ -11,7 +11,7 @@ Parts are defined in `src/data/parts.ts`, chassis in `src/data/chassis.ts` and g
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | scout | Scout pickup | 1 | 815 | 7.8 | 2 | 3 | 680 | 4240 | 0.6 | 40 | 0.25 | 6 x 14 | cabPickup, transmission, tank, wheel, wheel, wheel, wheel | bowl, nose | bed |
 | hauler | Hauler | 2 | 1,226 | 5.2 | 1 | 2 | 2730 | 7990 | 0.8 | 80 | 0.4 | 8 x 16 | wheelMid, wheelMid, wheelMid, wheelMid, cabPickup, transmissionMid, tankMid | bowl | bed |
-| buggy | Buggy | 1 | 643 | 9.1 | 3 | 3 | 230 | 3680 | 0.5 | 30 | 0.2 | 6 x 11 | cab, transmission, tank, wheel, wheel, wheel, wheel | bowl, nose | nimble |
+| buggy | Buggy | 1 | 643 | 9.1 | 3 | 3 | 230 | 3680 | 0.5 | 30 | 0.2 | 6 x 11 | tank, transmission, cab, wheel, wheel, wheel, wheel | bowl, nose | nimble |
 | wagon | Gunwagon | 2 | 1,008 | 3.9 | 1 | 2 | 2130 | 7390 | 0.8 | 60 | 0.4 | 8 x 16 | wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, cabPickup, transmissionHeavy, tankHeavy | nose | gunMounts |
 | courier | Courier | 1 | 774 | 9.75 | 3 | 3 | 280 | 4150 | 0.5 | 24 | 0.18 | 6 x 11 | cab, transmission, tank, wheel, wheel, wheel, wheel | bowl, nose | racing |
 | van | Utility van | 2 | 1,027 | 6.5 | 1.5 | 3 | 1100 | 5190 | 0.7 | 55 | 0.24 | 7 x 15 | wheelMid, wheelMid, wheelMid, wheelMid, cabPickup, transmissionMid, tankMid | bowl | armored |
