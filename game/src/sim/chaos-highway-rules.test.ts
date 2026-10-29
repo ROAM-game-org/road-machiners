@@ -16,6 +16,11 @@ import { vehicleStats } from './stats';
 import { damagePart, maxHp } from './wear';
 import { chaosHighwayWorld } from './testkit';
 import type { Vehicle, World } from './types';
+import { reusedWorld } from '../test/world-cache';
+
+function startWorld(seed = 3): World {
+  return reusedWorld(`chaos highway ${seed}`, () => chaosHighwayWorld(seed));
+}
 
 const CHASERS = Object.entries(CHAOS_HIGHWAY.cards).filter(([, card]) => card.chase).map(([id]) => id);
 const BLOCKERS = Object.entries(CHAOS_HIGHWAY.cards).filter(([, card]) => !card.chase).map(([id]) => id);
@@ -39,8 +44,8 @@ describe('Chaos Highway waves', () => {
       const stretch = CHAOS_HIGHWAY.cards[template].from;
       expect(waveGear(template, stretch, CHAOS_HIGHWAY.cards[template].floor, false).minSpeed).toBe(CHAOS_HIGHWAY.chaseSpeed);
       for (const seed of [1, 2, 3]) {
-        const [truck] = spawned(chaosHighwayWorld(seed), [template], stretch);
-        expect(vehicleStats(chaosHighwayWorld(seed), truck).maxSpeed, `${template} seed ${seed}`).toBeGreaterThanOrEqual(CHAOS_HIGHWAY.chaseSpeed);
+        const [truck] = spawned(startWorld(seed), [template], stretch);
+        expect(vehicleStats(startWorld(seed), truck).maxSpeed, `${template} seed ${seed}`).toBeGreaterThanOrEqual(CHAOS_HIGHWAY.chaseSpeed);
       }
     }
     for (const template of BLOCKERS) expect(waveGear(template, CHAOS_HIGHWAY.cards[template].from, CHAOS_HIGHWAY.cards[template].floor, false).minSpeed).toBe(MIN_NPC_SPEED);
@@ -51,7 +56,7 @@ describe('Chaos Highway waves', () => {
   });
 
   it('builds every card, plain and elite, from its floor money to four times it, without running out of room', () => {
-    const w = chaosHighwayWorld(1);
+    const w = startWorld(1);
     for (const [template, card] of Object.entries(CHAOS_HIGHWAY.cards)) {
       for (const elite of [false, true]) {
         for (const times of [1, 4]) {
@@ -77,13 +82,13 @@ describe('Chaos Highway waves', () => {
 
   it('spawns wave trucks with every part at full HP', () => {
     for (const stretch of [1, 4, 30]) {
-      const [truck] = spawned(chaosHighwayWorld(2), ['buggy'], stretch);
+      const [truck] = spawned(startWorld(2), ['buggy'], stretch);
       for (const part of mountedParts(truck)) expect(part.hp, `stretch ${stretch} ${part.defId}`).toBe(maxHp(part));
     }
   });
 
   it('never makes two wave trucks hostile to each other, even from rival factions, and keeps them hostile to the player', () => {
-    const w = chaosHighwayWorld(4);
+    const w = startWorld(4);
     const [raider] = spawned(w, ['buggy'], 1);
     const run = w.chaosHighway!;
     const rivalGroup = { ...run.groups[0], id: 'g1-rival', templates: ['courier'], vehicles: [], spawned: false };
@@ -99,7 +104,7 @@ describe('Chaos Highway waves', () => {
 
 describe('Chaos Highway fire', () => {
   it('has a wave truck shoot the gun truck in reach, even with the hauler nearer', () => {
-    const w = chaosHighwayWorld(2);
+    const w = startWorld(2);
     const [truck] = spawned(w, ['buggy'], 1);
     const hauler = haulerOf(w);
     const me = playerVehicle(w);
@@ -117,7 +122,7 @@ describe('Chaos Highway fire', () => {
 
 describe('Chaos Highway rolling start', () => {
   it('waits far ahead of its moving prey, rolls north faster as the prey closes but slower than the prey, and leaves the fight AI in charge in gun reach', () => {
-    const w = chaosHighwayWorld(2);
+    const w = startWorld(2);
     const [truck] = spawned(w, ['buggy'], 1);
     const prey = groupPrey(w, truck);
     const window = w.chaosHighway!.window;
@@ -155,7 +160,7 @@ describe('Chaos Highway rolling start', () => {
   });
 
   it('hands a hunter that its prey has hit to the fight drive at any gap', () => {
-    const w = chaosHighwayWorld(2);
+    const w = startWorld(2);
     const [truck] = spawned(w, ['buggy'], 1);
     const prey = groupPrey(w, truck);
     prey.speed = 4;
@@ -168,7 +173,7 @@ describe('Chaos Highway rolling start', () => {
   });
 
   it('runs at full speed for a point ahead of a prey that is out of its gun reach ahead, and leaves a prey in reach to the fight AI', () => {
-    const w = chaosHighwayWorld(2);
+    const w = startWorld(2);
     const [truck] = spawned(w, ['buggy'], 1);
     const prey = groupPrey(w, truck);
     prey.speed = 4;
@@ -185,7 +190,7 @@ describe('Chaos Highway rolling start', () => {
   });
 
   it('spawns group trucks parked out of the hauler sight, heading north along the road', () => {
-    const w = chaosHighwayWorld(3);
+    const w = startWorld(3);
     const trucks = spawned(w, ['buggy', 'courier'], 1);
     for (const truck of trucks) {
       expect(truck.speed).toBe(0);
@@ -207,7 +212,7 @@ describe('Chaos Highway prey', () => {
   }
 
   it('goes for the gun truck in a tie and while the hauler is nearer by less than the margin', () => {
-    const w = chaosHighwayWorld(2);
+    const w = startWorld(2);
     const [truck] = spawned(w, ['buggy'], 1);
     unarmed(playerVehicle(w));
     apart(w, truck, 10, 10);
@@ -217,7 +222,7 @@ describe('Chaos Highway prey', () => {
   });
 
   it('goes for the hauler once it is nearer by more than the margin, and hunts and shoots it', () => {
-    const w = chaosHighwayWorld(2);
+    const w = startWorld(2);
     const [truck] = spawned(w, ['buggy'], 1);
     unarmed(playerVehicle(w));
     apart(w, truck, 4, 4 + CHAOS_HIGHWAY.playerMargin + 2);
@@ -229,7 +234,7 @@ describe('Chaos Highway prey', () => {
   });
 
   it('goes for the gun truck that hit it, however near the hauler is', () => {
-    const w = chaosHighwayWorld(2);
+    const w = startWorld(2);
     const [truck] = spawned(w, ['buggy'], 1);
     unarmed(playerVehicle(w));
     apart(w, truck, 3, 30);
@@ -238,7 +243,7 @@ describe('Chaos Highway prey', () => {
   });
 
   it('goes for the gun truck whose gun can hit it, however near the hauler is', () => {
-    const w = chaosHighwayWorld(2);
+    const w = startWorld(2);
     const [truck] = spawned(w, ['buggy'], 1);
     const me = playerVehicle(w);
     const [mw] = vehicleStats(w, me).weapons;
@@ -267,7 +272,7 @@ describe('Chaos Highway nerve', () => {
   }
 
   it('knocks out a wave truck once it has lost the nerve share of its HP, and counts it beaten', () => {
-    const w = chaosHighwayWorld(5);
+    const w = startWorld(5);
     const [truck] = spawned(w, ['buggy'], 2);
     const group = w.chaosHighway!.groups[0];
     hurt(truck, CHAOS_HIGHWAY.nerve - 0.1);
