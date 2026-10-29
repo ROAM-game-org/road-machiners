@@ -15,6 +15,7 @@ import { CRATE_MASS } from '../data/goods';
 import { npcMassRoom } from './stats';
 import type { GridItem, Rot, Vehicle, World } from './types';
 import { sitePads } from './sites';
+import { coreItem, freeMounts } from '../test/layout-spots';
 import { siteOf } from './market';
 import { advanceJobs } from './jobs';
 
@@ -54,7 +55,8 @@ describe('inventory grid', () => {
   it('items cannot overlap or leave the grid', () => {
     const w = emptyWorld();
     const g = good(w);
-    expect(() => moveItem(w, g.id, { x: 1, y: 2, rot: 0 })).toThrow('Refused: builtInFixed');
+    const tank = coreItem(w.vehicles[0], 'tank');
+    expect(() => moveItem(w, g.id, { x: tank.x, y: tank.y, rot: 0 })).toThrow('Refused: builtInFixed');
     expect(() => moveItem(w, g.id, { x: 9, y: 0, rot: 0 })).toThrow('Refused: badLayout');
   });
 
@@ -124,9 +126,9 @@ describe('inventory grid', () => {
     w = storePart(w, item(w, 'panniers').id);
     w = update(w, (d) => { d.player.storage.push(makePart(d, 'heavyMg', 0)); });
     const id = w.player.storage.find((p) => p.defId === 'heavyMg')!.id;
-    const stacked = takeFromStorage(w, id, { x: 1, y: 4, rot: 0 });
+    const stacked = takeFromStorage(w, id, freeMounts(w, w.vehicles[0], 'heavyMg')[0]);
     expect(vehicleStats(stacked, stacked.vehicles[0]).weapons.map((m) => m.def.id)).toEqual(['heavyMg']);
-    const across = takeFromStorage(w, id, { x: 1, y: 1, rot: 1 });
+    const across = takeFromStorage(w, id, { x: 1, y: 12, rot: 1 });
     expect(vehicleStats(across, across.vehicles[0]).weapons).toHaveLength(0);
   });
 
@@ -143,7 +145,7 @@ describe('inventory grid', () => {
     w = storePart(w, item(w, 'panniers').id);
     const free = freeCells(w.vehicles[0]);
     w = update(w, (d) => { d.player.storage.push(makePart(d, 'mg', 0)); });
-    w = takeFromStorage(w, w.player.storage.find((p) => p.defId === 'mg')!.id, { x: 1, y: 4, rot: 0 });
+    w = takeFromStorage(w, w.player.storage.find((p) => p.defId === 'mg')!.id, freeMounts(w, w.vehicles[0], 'mg', 1)[0]);
     expect(freeCells(w.vehicles[0])).toBe(free - PARTS.mg.w * PARTS.mg.h);
     expect(vehicleStats(w, w.vehicles[0]).weapons).toHaveLength(2);
   });
