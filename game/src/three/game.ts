@@ -1029,7 +1029,7 @@ export class Game {
   private advanceTurn(now: number, dt: number): { at: number | null; playMs: number } {
     const held = this.holdsTime();
     if (held) this.travel.pause();
-    const speed = this.travel.getSpeed(now, CONFIG.travelFastSpeed);
+    const speed = this.travel.paceSpeed(this.world, now, held ? 0 : dt, CONFIG.travelFastSpeed);
     const playMs = this.tickWorldClock(heldPlayMs(dt, this.play.isHeld(), CONFIG.playbackFrameMs), speed, now);
     const wasPlaying = this.anim !== null;
     const phase = this.phase;

@@ -243,7 +243,7 @@ export const LOG: Translation<typeof EN> = {
   'log.siteEvent.breakdown': 'Производство {site, case, at} встало. Пока не починят, {good, case, gen} почти не будет.',
   'log.engineCredit': 'В гараже вам ставят {part, case, acc} в долг.',
   'log.scrapPatch': 'Вы латаете грузовик ломом, и он снова трогается с места.',
-  'log.scrapPatchFuel': 'Вы латаете грузовик ломом, и он снова трогается с места. Горожане отдали вам {liters} л топлива.',
+  'log.scrapPatchFuel': 'Вы латаете грузовик ломом, и он снова трогается с места. Местные отдали вам {liters} л топлива.',
   'log.npcKnockout': '{who} {who, gender, m {потерял} f {потеряла} n {потеряло} pl {потеряли}} сознание',
   'log.joins': '{who} вступает в бой',
   'log.standing.hostile': '{faction} теперь {faction, gender, m {относится} f {относится} n {относится} pl {относятся}} к вам враждебно',
