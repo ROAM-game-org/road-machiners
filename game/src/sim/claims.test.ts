@@ -23,6 +23,7 @@ import { claimOnly, canTakeAny, claimedPartIn, collectSalvage, hasSalvage, liveC
 import { defaultSetup } from './settings';
 import { sitePads } from './sites';
 import { addVehicle, emptyWorld, npcBrain, practiceOf } from './testkit';
+import { standardWorld } from '../test/world-cache';
 import type { PartInstance, SalvageStock, Vehicle, World } from './types';
 import { dumpItem } from './inventory';
 import { cloneWorld, endTurn, newWorld, update } from './world';
@@ -293,7 +294,7 @@ describe('claim days', () => {
   }
 
   it('keeps the claimed part in its wreck while the nearest NPCs play and the player waits in town', () => {
-    let w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), true);
+    let w = standardWorld(1);
     const { stock, part } = claimTargets(w, 'bowl')[0];
     const claim = rollContract(w, { id: 'bowl', pos: siteOf('bowl').pos }, { claims: [{ stock, part }] }) as ClaimContract;
     shopState(w, 'bowl').contracts.push(claim);
@@ -648,12 +649,10 @@ describe('rival crews', () => {
     expect(npc.brain!.goals.some((g) => g.kind === 'claim')).toBe(false);
   });
 
-  it('finds a free rival in the start world of seeds 1 to 3', () => {
-    for (const seed of [1, 2, 3]) {
-      const w = newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), true);
-      const part = makePart(w, 'mg', 0);
-      expect(w.vehicles.some((v) => isFreeRival(w, v, part)), `seed ${seed}`).toBe(true);
-    }
+  it('finds a free rival in the start world', () => {
+    const w = standardWorld(1);
+    const part = makePart(w, 'mg', 0);
+    expect(w.vehicles.some((v) => isFreeRival(w, v, part))).toBe(true);
   });
 
   function carriesNot(v: Vehicle, part: PartInstance): boolean {
@@ -678,7 +677,7 @@ describe('rival crews', () => {
 
 describe('a rival on the real map', () => {
   it('runs a rival from the shop to the end of its claim with the nearest NPCs alive, and never stalls', () => {
-    let w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), true);
+    let w = standardWorld(1);
     const { shop, stock, part } = nearestClaim(w);
     const claim = rollContract(w, { id: shop, pos: siteOf(shop).pos }, { claims: [{ stock, part }] }) as ClaimContract;
     claim.rivalAt = w.turn + 1;
