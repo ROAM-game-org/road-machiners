@@ -114,7 +114,7 @@ describe('save migration 121 to 122, square grid', () => {
     run(afterArmor());
     const line = warnings().find((w) => w.includes('crateF'))!;
     expect(line).toContain('s1 (scout)');
-    expect(line).toMatch(/its nearest spot is (taken|not legal for it)/);
+    expect(line).toContain('its nearest spot is not legal for it');
     expect(warnings().find((w) => w.includes('bedBox'))).toContain('its nearest spot is not legal for it');
   });
 
@@ -141,9 +141,7 @@ describe('save migration 121 to 122, square grid', () => {
     const out = run(worldOf([truck('t1', 'scout', items)])).vehicles[0].items;
     const spots = out.map((i) => `${i.part!.defId}@${i.x},${i.y}`).sort();
     expect(spots).toEqual(c.nextCore.map((k) => `${k.defId}@${k.x},${k.y}`).sort());
-    const wheels = c.nextCore.filter((k) => k.defId === 'wheel').map((k) => `${k.x},${k.y}`).sort();
-    expect(wheels).toHaveLength(4);
-    expect(out.filter((i) => i.part!.defId === 'wheel').map((i) => `${i.x},${i.y}`).sort()).toEqual(wheels);
+    expect(out.filter((i) => i.part!.defId === 'wheel').map((i) => `${i.x},${i.y}`).sort()).toEqual(['1,10', '1,3', '4,10', '4,3']);
     expectLegal(truck('t1', 'scout', out));
   });
 

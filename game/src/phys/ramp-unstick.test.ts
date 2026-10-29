@@ -1,12 +1,13 @@
 import { beforeAll, expect, it } from 'vitest';
 import { START_KITS } from '../data/start';
 import { partDef } from '../data/parts';
+import { makePart } from '../sim/factory';
+import { mountPart } from '../sim/inventory';
 import { highwayMap } from '../sim/highway';
 import { defaultSetup } from '../sim/settings';
 import type { World } from '../sim/types';
 import { endTurn, newWorld, setMoveOrder } from '../sim/world';
 import { budget } from '../test/budget';
-import { mountParts } from '../test/mount-kit';
 import { bodyState, buildDrive, freeDrive, initPhysics, type Drive, type TurnResult } from './drive';
 import { physicsMove } from './turn';
 
@@ -32,7 +33,8 @@ function scoutOnRampLip(): World {
   w.chaosHighway!.groups = [];
   w.player.fuel = 999;
   const me = w.vehicles[0];
-  me.items = [...me.items.filter((i) => i.kind === 'part' && partDef(i.part.defId).kind === 'core'), ...mountParts(w, me, FITTED)];
+  me.items = me.items.filter((i) => i.kind === 'part' && partDef(i.part.defId).kind === 'core');
+  for (const defId of FITTED) if (!mountPart(w, me, makePart(w, defId, 0))) throw new Error(`The scout has no free mount for ${defId}`);
   me.pos = { x: LIP_POSE.at.x / 4, y: LIP_POSE.at.z / 4 };
   me.heading = Math.atan2(2 * LIP_POSE.turn.y * LIP_POSE.turn.w, 1 - 2 * LIP_POSE.turn.y * LIP_POSE.turn.y);
   me.speed = 0;

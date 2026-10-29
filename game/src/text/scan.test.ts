@@ -12,7 +12,7 @@ const SCANNED = ['src/ui', 'src/three', 'src/sim', 'src/data', 'src/render', 'sr
 
 const PROSE = /[A-Za-z]{2,}[ ]+[A-Za-z]{2,}|\b[A-Z][a-z]{2,}\b/;
 const CYRILLIC = /[Ѐ-ӿ]/;
-const CODE_SHAPES = [/^[a-z0-9 -]*-[a-z0-9 -]*$/, /^\s*</, /;\s*\n|\n.*;/, /#(include|define|undef)\b|\b(varying|uniform) \w+ \w+;/, /\b\d+px\b/, /^(Key[A-Z]|Digit|Arrow[A-Z])/];
+const CODE_SHAPES = [/^[a-z0-9 -]*-[a-z0-9 -]*$/, /^\s*</, /;\s*\n|\n.*;/, /#(include|define|undef)\b|\b(varying|uniform) \w+ \w+;/, /\b\d+px\b/, /^(Key[A-Z]|Digit|Arrow[A-Z])/, /^[ .FBLRDECX]+$/];
 const TEXT_SINK_PROPS = new Set(['textContent', 'innerText', 'title']);
 const TEXT_ATTRS = new Set(['title', 'aria-label', 'aria-valuetext', 'placeholder', 'alt']);
 const DIALOGS = new Set(['alert', 'confirm', 'prompt']);
@@ -21,7 +21,7 @@ const CODE_CALLS = new Set([
   'removeEventListener', 'getItem', 'setItem', 'removeItem', 'add', 'remove', 'toggle', 'contains', 'setProperty', 'runKey', 'getAttribute',
   'hasAttribute', 'removeAttribute', 'mark', 'measure', 'dispatchEvent', 'postMessage', 'fetch', 'getContext', 'require',
 ]);
-const CODE_KEYS = new Set(['class', 'className', 'id', 'role', 'type', 'style', 'href', 'target', 'rel', 'kind', 'key', 'code', 'tabindex', 'for', 'layout']);
+const CODE_KEYS = new Set(['class', 'className', 'id', 'role', 'type', 'style', 'href', 'target', 'rel', 'kind', 'key', 'code', 'tabindex', 'for']);
 
 function isNode(x: unknown): x is Node {
   return typeof x === 'object' && x !== null && typeof (x as Node).type === 'string';
