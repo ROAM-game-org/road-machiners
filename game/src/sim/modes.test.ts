@@ -83,7 +83,7 @@ describe('a new world by mode', () => {
     expect(fingerprint(world)).toEqual({
       streams: [-785001798, -783155452, -1818829172, 1936023925],
       nextId: 2013,
-      counts: [34, 6048, 128, 7],
+      counts: [23, 6048, 128, 7],
       npcs: [['trader', 117.25, 580.66], ['trader', 119.62, 577.45], ['buggy', 149.33, 99.41]],
       bowlStock: ['reinforcedSection', 'smokeMortar', 'lightFrame', 'flatFour', 'cannon', 'sprout', 'flatbed', 'claymoreRam', 'enclosedFrame', 'patcherCrane', 'stockEngine'],
     });

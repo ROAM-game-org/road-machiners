@@ -4,6 +4,7 @@ import { REGION } from '../data/region';
 import { addVehicle, emptyWorld, npcBrain, startCombat, testDrive } from './testkit';
 import { canEnter, enterSite, everyTruck, isSheltered, leaveSite, shelteredAt, shelterNew, sitePads } from './sites';
 import { addState } from './states';
+import { startChase } from './chase';
 import { playerVehicle } from './damage';
 import { aliveOf } from './spawn';
 import { cloneWorld, endTurn } from './world';
@@ -204,7 +205,7 @@ const NAMING_GOALS: Record<NpcActivity['kind'], GoalFate | null> = {
 function holdingGoal(kind: NpcActivity['kind'], reason: GoalReason): { w: World; car: Vehicle; holder: Vehicle } {
   const { w, car } = bowlWorld();
   const holder = kind === 'pursue' || kind === 'patrol' ? trader(w, nearPad(0)) : raider(w, nearPad(0));
-  holder.brain!.goals = [{ kind, targetId: car.id, destination: { ...car.pos }, phase: 'travel', reason, perceived: w.turn }];
+  holder.brain!.goals = [{ kind, targetId: car.id, destination: { ...car.pos }, phase: 'travel', reason, perceived: w.turn, chase: startChase(w, holder, car.pos) }];
   return { w, car, holder };
 }
 
