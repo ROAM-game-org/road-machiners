@@ -64,7 +64,7 @@ Every NPC carries a set of traits instead of one class. Each trait adds activiti
 - Scumbag robs trucks that carry a valuable load and look weaker than it.
 - Coward flees more often and fights back less.
 - Brave almost never runs, pleads or gives up its cargo.
-- Lawman patrols the roads out to about a sixth of the way to the other town and fights Scrapjaw and Kiln raiders on sight. Its home town pays it at each patrol stop. It attacks whoever fires the first shot at a lawful NPC it sees or starts robbing one, the player included. [Factions and relations](factions.md) has the rule.
+- Lawman patrols the roads out to about a sixth of the way to the other town and fights Scrapjaw and Kiln raiders on sight. Its home town pays it at each patrol stop. Its own errands, a look around, a trade or supply run, a prowl or a sale it can make at home, stay within its patrol reach. A fight, a tow or a call for help may take it farther, and its next patrol brings it home. It attacks whoever fires the first shot at a lawful NPC it sees or starts robbing one, the player included. [Factions and relations](factions.md) has the rule.
 - Vulture prowls the hunting grounds for wrecks and knocked-out trucks, and rarely helps anyone. Most vultures are cowards and some are scumbags.
 - Courier travels between towns and locations, and almost never stops for salvage. Couriers run in pairs of two couriers, and one follows the other as its escort. The town or stall a pair reaches pays each of them for the trip, and a territory pays nothing.
 - Roamer mostly explores random places, off road too, and trades and scavenges when it finds a chance.
