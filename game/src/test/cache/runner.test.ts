@@ -93,7 +93,8 @@ describe('test:cached', { timeout: 4 * RUN_LIMIT_MS }, () => {
   });
 
   it('runs a test again after its source changes, and every test after the config changes', () => {
-    expect(runCached().out).toContain('[test-cache] ran 2, skipped 0');
+    expect(runCached({ TEST_FAILURES_FILE: 'tmp/failures.json' }).out).toContain('[test-cache] ran 2, skipped 0');
+    expect(JSON.parse(readFileSync(join(root, 'tmp', 'failures.json'), 'utf8'))).toEqual({ failed: [], unhandledErrors: 0 });
 
     put('src/a.ts', `export const value = 'a';\nexport const extra = 1;\n`);
     expect(runCached().out).toContain('[test-cache] ran 1, skipped 1');
@@ -114,7 +115,7 @@ describe('test:cached', { timeout: 4 * RUN_LIMIT_MS }, () => {
     expect(second.code).toBe(1);
   });
 
-  it('writes each failed test by file and full name to TEST_FAILURES_FILE, with a file that failed outside its tests', () => {
+  it('writes each failed test by file and full name to TEST_FAILURES_FILE, with a file that failed outside its tests, and fails despite worker RPC timeouts', () => {
     put('src/fails.test.ts', `import { describe, expect, it } from 'vitest';\ndescribe('sums', () => { it('is wrong', () => expect(1).toBe(2)); it('is right', () => expect(1).toBe(1)); });\n`);
     put('src/broken.test.ts', `import { it } from 'vitest';\nimport { missing } from './nowhere';\nit('never runs', () => missing());\n`);
     put('src/rpc.test.ts', passingTestWithRpcTimeout);
@@ -123,30 +124,31 @@ describe('test:cached', { timeout: 4 * RUN_LIMIT_MS }, () => {
     const record = JSON.parse(readFileSync(join(root, 'tmp', 'failures.json'), 'utf8')) as { failed: { file: string; test: string | null }[]; unhandledErrors: number };
 
     expect(run.code).toBe(1);
+    expect(run.out).not.toContain('every test passed');
     expect(record.failed.sort((x, y) => x.file.localeCompare(y.file))).toEqual([{ file: 'src/broken.test.ts', test: null }, { file: 'src/fails.test.ts', test: 'sums > is wrong' }]);
     expect(record.unhandledErrors).toBe(0);
   });
 
-  it('writes an empty record for a passing run and none for a stalled run', () => {
-    expect(runCached({ TEST_FAILURES_FILE: 'tmp/failures.json' }).code).toBe(0);
-    expect(JSON.parse(readFileSync(join(root, 'tmp', 'failures.json'), 'utf8'))).toEqual({ failed: [], unhandledErrors: 0 });
-    put('src/hangs.test.ts', hangingTest);
-    expect(runCached({ TEST_FAILURES_FILE: 'tmp/failures.json', TEST_STALL_MINUTES: '0.25' }).code).toBe(1);
-    expect(existsSync(join(root, 'tmp', 'failures.json'))).toBe(false);
-  });
-
-  it('writes no record for a run past its suite limit', () => {
+  it('exits 1 and writes no record when the suite runs past its limit after a file failed', () => {
     put('src/hangs.test.ts', hangingTest);
     put('src/fails.test.ts', failingTest);
-    expect(runCached({ TEST_FAILURES_FILE: 'tmp/failures.json', TEST_SUITE_MINUTES: '0.25' }).code).toBe(1);
+    put('tmp/failures.json', '{}');
+
+    const run = runCached({ TEST_FAILURES_FILE: 'tmp/failures.json', TEST_SUITE_MINUTES: '0.25' });
+
+    expect(run.out).toContain('[test-cache] SuiteTimeError');
+    expect(run.code).toBe(1);
     expect(existsSync(join(root, 'tmp', 'failures.json'))).toBe(false);
   });
 
-  it('stops a run whose test never finishes and names it, and keeps the passes of the other files', () => {
+  it('stops a run whose test never finishes and names it, keeps the passes of the other files and writes no failure record', () => {
     put('src/hangs.test.ts', `import { it } from 'vitest';\nit('waits forever', () => new Promise(() => {}));\n`);
 
-    const run = runCached({ TEST_STALL_MINUTES: '0.25' });
+    put('tmp/failures.json', '{}');
 
+    const run = runCached({ TEST_STALL_MINUTES: '0.25', TEST_FAILURES_FILE: 'tmp/failures.json' });
+
+    expect(existsSync(join(root, 'tmp', 'failures.json'))).toBe(false);
     expect(run.code).toBe(1);
     expect(run.out).toContain('[test-cache] StallError: no test finished in 0.25 minutes. Still running: src/hangs.test.ts');
     expect([cached('src/a.test.ts'), cached('src/b.test.ts'), cached('src/hangs.test.ts')]).toEqual([true, true, false]);
@@ -159,16 +161,6 @@ describe('test:cached', { timeout: 4 * RUN_LIMIT_MS }, () => {
 
     expect(run.out).toContain('[test-cache] SuiteTimeError: the suite ran past its limit of 0.1 minutes');
     expect(run.code).toBe(3);
-  });
-
-  it('exits 1 when the suite runs past its limit after a file failed', () => {
-    put('src/hangs.test.ts', hangingTest);
-    put('src/fails.test.ts', failingTest);
-
-    const run = runCached({ TEST_SUITE_MINUTES: '0.25' });
-
-    expect(run.out).toContain('[test-cache] SuiteTimeError');
-    expect(run.code).toBe(1);
   });
 
   it('passes a run whose every test passed when its only unhandled errors are worker RPC timeouts', () => {
@@ -187,16 +179,6 @@ describe('test:cached', { timeout: 4 * RUN_LIMIT_MS }, () => {
     const run = runCached();
 
     expect(run.out).toContain('Test timed out in 100ms');
-    expect(run.code).toBe(1);
-  });
-
-  it('fails a run with a failed test even when the other unhandled errors are worker RPC timeouts', () => {
-    put('src/rpc.test.ts', passingTestWithRpcTimeout);
-    put('src/fails.test.ts', failingTest);
-
-    const run = runCached();
-
-    expect(run.out).not.toContain('every test passed');
     expect(run.code).toBe(1);
   });
 
