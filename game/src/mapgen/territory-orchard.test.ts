@@ -18,14 +18,18 @@ import { BUILT_CANAL, BUILT_PAD, BUILT_TRACK } from './newworld';
 import { BUILT_FIELD, BUILT_OLD_ROAD, ruleRng, tileOf, tilesWithin } from './oldworld';
 import { TERRITORY_SEED_OFFSET, territoryLayer } from './territory';
 import { budget } from '../test/budget';
+import { TEST_MAP } from '../test/map';
 import { standardWorld } from '../test/world-cache';
 import { ICARUS_KEY } from '../sim/atlas';
 
 
-let groundHeights: Float32Array | undefined;
+let bakedGround: MapDraft | undefined;
+function territoryDraft(): MapDraft {
+  bakedGround ??= groundForTerritories(MAPGEN.seed);
+  return bakedGround;
+}
 function territoryGround(): Float32Array {
-  groundHeights ??= groundForTerritories(MAPGEN.seed).heights;
-  return groundHeights;
+  return territoryDraft().heights;
 }
 beforeAll(() => void territoryGround(), budget(120_000));
 
@@ -388,5 +392,21 @@ describe('the orchard farm', () => {
     const moved = structuredClone(rules);
     moved.farm!.buildings[0].poses[0].at = onOrchardRoad(-30, 40);
     expect(() => fillFarm(groundDraft(), orchard, moved, moved.farm!, ruleRng(7, 1))).toThrow(/outside/);
+  });
+});
+
+describe('the Fallen Sun on the committed map', () => {
+  it('bakes the Fallen Sun props of the committed map, with no relief limit', () => {
+    const fallenSun = REGION.locations.find((l) => l.id === 'fallen-sun')!;
+    expect(TERRITORIES['fallen-sun'].relief).toBeNull();
+    const drawn = territoryLayer(MAPGEN.seed, structuredClone(territoryDraft())).props.filter((p) => siteGap(fallenSun, p.pos) < 0);
+    const committed = TEST_MAP.props.filter((p) => siteGap(fallenSun, p.pos) < 0 && p.kind !== 'rock' && p.kind !== 'crag');
+    expect(drawn.length).toBe(committed.length);
+    drawn.forEach((p, i) => {
+      expect(p.kind).toBe(committed[i].kind);
+      expect(p.pos.x).toBeCloseTo(committed[i].pos.x, 3);
+      expect(p.pos.y).toBeCloseTo(committed[i].pos.y, 3);
+      expect(p.r).toBeCloseTo(committed[i].r, 3);
+    });
   });
 });

@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { START_KITS } from '../data/start';
-import { TEST_MAP } from '../test/map';
-import { defaultSetup } from './settings';
+import { standardWorld } from '../test/world-cache';
 import { hangUp } from './dialogue';
 import { testDrive } from './testkit';
 import type { World } from './types';
-import { endTurn, newWorld } from './world';
+import { endTurn } from './world';
 
 const PHRASE = /[A-Za-z]{2,} [A-Za-z]{2,}/;
 
@@ -23,7 +21,7 @@ function phrases(w: World): [string, string][] {
 
 describe('the sim keeps no English', () => {
   it('holds no phrase in events, goals or the call over many turns', () => {
-    let w = newWorld(7, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    let w = standardWorld(7);
     const found: [string, string][] = [];
     let events = 0;
     for (let turn = 0; turn < 25; turn++) {
@@ -37,7 +35,7 @@ describe('the sim keeps no English', () => {
   }, 120_000);
 
   it('the check catches a phrase', () => {
-    const w = newWorld(7, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const w = standardWorld(7);
     w.events = [{ t: 'arrived', vehicle: 'Some truck' }];
     expect(phrases(w)).toEqual([['events[0].vehicle', 'Some truck']]);
   });
