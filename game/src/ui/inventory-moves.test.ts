@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { REGION } from "../data/region";
 import { partDef } from "../data/parts";
 import { makePart } from "../sim/factory";
-import { gridOf, isMounted, mountedParts, placementError } from "../sim/grid";
+import { gridOf, isMounted, itemCells, mountedParts, placementError } from "../sim/grid";
 import { fieldMoveIsInstant, moveItem, mountPart, plannedRefitTurns, plannedVehicle, removeAllGoods, spareParts, startRefit, stowPart, stowSpot } from "../sim/inventory";
 import { sitePads } from "../sim/sites";
 import { emptyWorld } from "../sim/testkit";
@@ -13,6 +13,11 @@ import { emptyHidden } from "../sim/salvage";
 
 const bowl = REGION.towns.find((t) => t.id === "bowl")!;
 const gridClick = (item: GridItem): ClickedItem => ({ source: "grid", item, id: item.id, stockId: null, truckId: null });
+const freeCargoSpots = (w: World, avoid: { x: number; y: number }[] = []): { x: number; y: number; rot: Rot }[] => {
+  const me = w.vehicles[0];
+  const taken = new Set([...me.items.flatMap(itemCells), ...avoid].map((c) => `${c.x},${c.y}`));
+  return gridOf(me).cells.flatMap((row, y) => row.flatMap((cell, x) => (cell === "." && !taken.has(`${x},${y}`) ? [{ x, y, rot: 0 as Rot }] : [])));
+};
 const partOf = (w: World, defId: string) => w.vehicles[0].items.find((it) => it.kind === "part" && it.part.defId === defId)!;
 
 describe("click selection", () => {
@@ -196,10 +201,10 @@ describe("field refit plan", () => {
 
 describe("instant field moves", () => {
   const crateOf = (w: World, x: number) => w.vehicles[0].items.find((it) => it.kind === "good" && it.x === x && it.y === 1)!;
-  const freeCargo = { x: 5, y: 10, rot: 0 as Rot };
 
   it("moves a crate at once and starts no job", () => {
     const w = emptyWorld();
+    const freeCargo = freeCargoSpots(w)[0];
     const crate = crateOf(w, 3);
     expect(fieldMoveIsInstant(w.vehicles[0], {}, crate.id, freeCargo)).toBe(true);
     const next = moveItem(w, crate.id, freeCargo);
@@ -236,7 +241,7 @@ describe("instant field moves", () => {
     const away = stowSpot(me, mg)!;
     const plan = planAfterMove(me, {}, mg.id, away);
     const crate = crateOf(w, 3);
-    const spot = { x: 6, y: 10, rot: 0 as Rot };
+    const spot = freeCargoSpots(w, [away, mg])[0];
     expect(fieldMoveIsInstant(me, plan, crate.id, spot)).toBe(true);
     const next = moveItem(w, crate.id, spot).vehicles[0];
     expect(plannedVehicle(next, plan).items.find((it) => it.id === mg.id)).toMatchObject(away);
@@ -263,7 +268,8 @@ describe("pickups with a plan pending", () => {
     const truck = pickupTruck(me, plan);
     expect(problemAt(truck, scrap("n1", away.x, away.y))).not.toBeNull();
     expect(problemAt(truck, scrap("n2", mg.x, mg.y))).not.toBeNull();
-    expect(problemAt(truck, scrap("n3", 6, 10))).toBeNull();
+    const open = freeCargoSpots(w, [away, mg])[0];
+    expect(problemAt(truck, scrap("n3", open.x, open.y))).toBeNull();
     expect(me.items.some((it) => it.id.startsWith("planned:"))).toBe(false);
   });
 
