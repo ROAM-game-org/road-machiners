@@ -238,7 +238,8 @@ const FACES: Record<string, { dx: number; dy: number }> = { F: { dx: 0, dy: -1 }
 
 function openFaces(chassisId: string, x: number, y: number): string[] {
   const g = baseGrid(chassisId);
-  return Object.entries(FACES).filter(([, f]) => g.cells[y + f.dy]?.[x + f.dx] == null).map(([letter]) => letter);
+  const insideBody = (nx: number, ny: number) => nx >= 1 && nx <= g.w - 2 && ny >= 1 && ny <= g.h - 2;
+  return Object.entries(FACES).filter(([, f]) => g.cells[y + f.dy]?.[x + f.dx] == null && !insideBody(x + f.dx, y + f.dy)).map(([letter]) => letter);
 }
 
 function cellsOfLayout(chassisId: string): { x: number; y: number; letter: Cell }[] {
@@ -301,7 +302,7 @@ describe('side armor skin', () => {
     const crate: GridItem = { id: 'i-crate', x: 3, y: 0, rot: 0, kind: 'good', good: 'salt' };
     expect(placementError(g, [], crate, null)).toEqual({ id: 'armorOnly' });
     expect(placementError(g, [], { ...crate, y: g.h - 1 }, null)).toEqual({ id: 'armorOnly' });
-    expect(placementError(g, [], { ...crate, y: 1 }, null)).toBeNull();
+    expect(placementError(g, [], { ...crate, x: 1, y: 1 }, null)).toBeNull();
     const plate: GridItem = { id: 'i-plate', x: 2, y: 0, rot: 0, kind: 'part', part: makePart(w, 'steelPlate', 0) };
     expect(placementError(g, [], plate, null)).toBeNull();
   });

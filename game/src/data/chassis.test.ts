@@ -6,7 +6,7 @@ import { GANG_PAINT, TEMPLATE_PAINT } from '../render/palette';
 import { CHAOS_HIGHWAY } from './modes';
 import { NPCS } from './npcs';
 import { PARTS, partDef } from './parts';
-import { bareGrid, cellCount } from '../sim/grid';
+import { bareGrid, baseGrid } from '../sim/grid';
 
 type Cell = { x: number; y: number };
 
@@ -70,9 +70,25 @@ const RATED_MASS_BEFORE_RING = {
   jeep: 3920, convertible: 4440, bus: 9010, loader: 9060, niva: 4410, bukhanka: 5360, lincoln: 5540, semi: 16430, sorokonoga: 10800,
 };
 
-const CARGO_CELLS_BEFORE_RING = {
-  scout: 47, hauler: 81, buggy: 40, wagon: 63, courier: 45, van: 45, longbed: 104, carrier: 63, tractor: 63,
-  jeep: 45, convertible: 45, bus: 84, loader: 63, niva: 50, bukhanka: 50, lincoln: 55, semi: 203, sorokonoga: 112,
+const CRATE_ROOM_BEFORE_SQUARE_GRID: Record<string, number> = {
+  scout: 23, hauler: 57, buggy: 20, wagon: 39, courier: 25, van: 21, longbed: 80, carrier: 39, tractor: 39,
+  jeep: 25, convertible: 21, bus: 60, loader: 39, niva: 30, lincoln: 31, semi: 177, sorokonoga: 88,
+};
+
+const CRATE_ROOM_EXCESS: Record<string, number> = {
+  tractor: 1, loader: 1, lincoln: 1, longbed: 2, bus: 4, semi: 25,
+};
+
+const NOT_FREE_EDGE_ROWS: Record<string, string[]> = {
+  buggy: ['front'],
+  courier: ['front', 'back'],
+  niva: ['front', 'back'],
+  hauler: ['front'],
+  wagon: ['front'],
+  longbed: ['front', 'back'],
+  bus: ['front', 'back'],
+  jeep: ['back'],
+  carrier: ['back'],
 };
 
 const RING_CELLS_ADDED = 4;
@@ -150,16 +166,31 @@ describe('chassis grids', () => {
     expect(Object.fromEntries(Object.entries(CHASSIS).map(([id, c]) => [id, c.ratedMass - ring]))).toEqual(RATED_MASS_BEFORE_RING);
   });
 
-  it('keeps the cargo room of every chassis', () => {
-    const now = Object.fromEntries(Object.keys(CHASSIS).map((id) => [id, cellCount(bareGrid(id))]));
-    expect(now).toEqual(CARGO_CELLS_BEFORE_RING);
+  it('gives every chassis at least the crate room it had before the square grid, and exactly that where the grid allows', () => {
+    const room = (id: string) => {
+      const c = CHASSIS[id];
+      const plain = c.layout.join('').split('').filter((ch) => 'DC.'.includes(ch)).length;
+      return plain + (bareGrid(id).h - baseGrid(id).h) * c.layout[0].length;
+    };
+    const now = Object.fromEntries(Object.keys(CHASSIS).filter((id) => id !== 'bukhanka').map((id) => [id, room(id)]));
+    const excess = Object.fromEntries(Object.entries(now).map(([id, n]) => [id, n - CRATE_ROOM_BEFORE_SQUARE_GRID[id]]).filter(([, n]) => n !== 0));
+    expect(Object.entries(now).filter(([id, n]) => n < CRATE_ROOM_BEFORE_SQUARE_GRID[id]).map(([id]) => id)).toEqual([]);
+    expect(excess).toEqual(CRATE_ROOM_EXCESS);
+  });
+
+  it('keeps a free front and back row of plain cells beside the side armor on every chassis but those listed', () => {
+    for (const [id, c] of Object.entries(CHASSIS).filter(([id]) => id !== 'bukhanka')) {
+      const edges = { front: c.layout[1], back: c.layout[c.layout.length - 2] };
+      for (const [edge, row] of Object.entries(edges).filter(([edge]) => !(NOT_FREE_EDGE_ROWS[id] ?? []).includes(edge))) {
+        expect(row[1] + row[row.length - 2], `${id} ${edge}`).toBe('..');
+        expect(row.slice(1, -1).replace(/[. ]/g, ''), `${id} ${edge}`).toBe('');
+      }
+    }
   });
 
   it('gives the scout a free front and back row that hold cargo beside side armor', () => {
     const rows = CHASSIS.scout.layout;
-    const free = `L${'.'.repeat(rows[0].length - 2)}R`;
-    expect(rows[1]).toBe(free);
-    expect(rows[rows.length - 2]).toBe(free);
+    for (const row of [rows[1], rows[rows.length - 2]]) expect(row.replace(/ /g, '.')).toBe(`L${'.'.repeat(rows[0].length - 2)}R`);
   });
 
   it('keeps every armor column outside the model and every armor row full width', () => {
@@ -171,7 +202,7 @@ describe('chassis grids', () => {
       for (const row of c.layout.slice(1, last)) {
         expect(row.length, id).toBe(w);
         expect(row[0] + row[w - 1], id).toBe('LR');
-        expect(row.slice(1, -1), id).not.toMatch(/[FBLR ]/);
+        expect(row.slice(1, -1), id).not.toMatch(/[FBLR]/);
       }
     }
   });
