@@ -409,9 +409,12 @@ describe('new-world layer on a baked draft', () => {
     return { ...from, heights: from.heights.slice(), types: from.types.slice(), props: from.props.map((p) => ({ ...p, pos: { ...p.pos } })), sand: from.sand.slice(), flow: from.flow.slice(), slumped: from.slumped.slice(), built: from.built.slice() };
   }
 
+  let layered: MapDraft | undefined;
+  const layer = (): MapDraft => (layered ??= newWorldLayer(SEED, clone(d)));
+
   it('places every kind off roads, sites and the deck, apart from each other and off cliffs', () => {
     const before = d.props.length;
-    const out = newWorldLayer(SEED, clone(d));
+    const out = layer();
 
     const added = out.props.slice(before);
     for (const kind of ['shack', 'fence', 'junk', 'carWreck']) expect(ofKind({ ...out, props: added }, kind).length).toBeGreaterThan(0);
@@ -423,7 +426,7 @@ describe('new-world layer on a baked draft', () => {
   });
 
   it('marks pools and scrub only off built ground and old-world marks', () => {
-    const out = newWorldLayer(SEED, clone(d));
+    const out = layer();
 
     for (const code of [BUILT_SCRUB, BUILT_DIRTY_WATER]) expect(tilesMarked(out, code).length).toBeGreaterThan(0);
     for (const code of [BUILT_SCRUB, BUILT_DIRTY_WATER, BUILT_TOXIC]) expect(tilesMarked(out, code).filter(onBuilt)).toEqual([]);
@@ -432,7 +435,7 @@ describe('new-world layer on a baked draft', () => {
   });
 
   it('leaves every fence line open', () => {
-    const out = newWorldLayer(SEED, clone(d));
+    const out = layer();
 
     const lines = fenceLines(out);
     expect(lines.length).toBeGreaterThan(0);
@@ -440,7 +443,7 @@ describe('new-world layer on a baked draft', () => {
   });
 
   it('gives the same props and marks for the same seed', () => {
-    const a = newWorldLayer(SEED, clone(d));
+    const a = layer();
     const b = newWorldLayer(SEED, clone(d));
 
     expect(b.props).toEqual(a.props);
