@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { makeVehicle } from '../sim/factory';
 import { addGoods } from '../sim/inventory';
-import { editableTerrain, emptyWorld } from '../sim/testkit';
+import { editableTerrain, emptyWorld, uniformGround } from '../sim/testkit';
 import type { MoveOrder, World } from '../sim/types';
 import { angleDiff } from '../sim/vec';
 import type { TerrainTypeId } from '../data/terrain';
@@ -16,8 +16,9 @@ beforeAll(async () => { await initPhysics(); });
 
 type Click = { dx: number; dy: number } | 'brake';
 type Chassis = 'scout' | 'loadedHauler' | 'buggy';
-type SkidOpts = { ground: TerrainTypeId; speed: number; clicks: Click[]; chassis?: Chassis; from?: TerrainTypeId };
-type Skid = { peakSlip: number; meanSlip: number; maxHeadingOff: number; speeds: number[]; headingAfterBrake: number };
+type SkidOpts = { ground: TerrainTypeId; speed: number; clicks: Click[]; chassis?: Chassis; from?: TerrainTypeId; lead?: number };
+type Slip = { peakSlip: number; meanSlip: number; maxHeadingOff: number };
+type Skid = Slip & { speeds: number[]; headingAfterBrake: number; lead: Slip };
 
 const RAD = 180 / Math.PI;
 const AHEAD = 10;
@@ -44,11 +45,13 @@ function withChassis(w: World, chassis: Chassis): void {
 
 function skidRun(o: SkidOpts): Skid {
   let w: World = emptyWorld({ x: 20, y: 60 });
-  const types = editableTerrain(w).types;
-  types.fill(o.ground);
   if (o.from) {
+    const types = editableTerrain(w).types;
+    types.fill(o.ground);
     const n = w.terrain.size;
     for (let j = 0; j < n; j++) for (let i = 0; i < 28; i++) types[j * n + i] = o.from;
+  } else {
+    uniformGround(w, o.ground);
   }
   withChassis(w, o.chassis ?? 'scout');
   w.vehicles[0].speed = o.speed;
@@ -58,7 +61,8 @@ function skidRun(o: SkidOpts): Skid {
   const speeds: number[] = [];
   let headingAfterBrake = 0;
   let braked = false;
-  for (const c of o.clicks) {
+  let leadFrames = 0;
+  for (const [turn, c] of o.clicks.entries()) {
     const v = w.vehicles[0];
     if (c === 'brake' && !braked) { braked = true; headingAfterBrake = v.heading; }
     const order: MoveOrder = c === 'brake' ? { kind: 'brake' } : { kind: 'through', dest: { x: v.pos.x + c.dx, y: v.pos.y + c.dy }, pace: o.speed };
@@ -69,8 +73,18 @@ function skidRun(o: SkidOpts): Skid {
     d = next!;
     speeds.push(w.vehicles[0].speed);
     if (c === 'brake' && speeds.length === o.clicks.indexOf('brake') + 1) headingAfterBrake = angleDiff(headingAfterBrake, w.vehicles[0].heading);
+    if (turn + 1 === o.lead) leadFrames = frames.length;
   }
   freeDrive(d);
+  return {
+    ...slipOf(frames),
+    speeds,
+    headingAfterBrake: Math.abs(headingAfterBrake) * RAD,
+    lead: slipOf(frames.slice(0, leadFrames)),
+  };
+}
+
+function slipOf(frames: VehicleFrame[]): Slip {
   const slips: number[] = [];
   let maxHeadingOff = 0;
   frames.slice(1).forEach((f, i) => {
@@ -84,15 +98,13 @@ function skidRun(o: SkidOpts): Skid {
     peakSlip: Math.max(0, ...slips),
     meanSlip: slips.reduce((s, x) => s + x, 0) / Math.max(1, slips.length),
     maxHeadingOff,
-    speeds,
-    headingAfterBrake: Math.abs(headingAfterBrake) * RAD,
   };
 }
 
 const GROUNDS = ['road', 'hardpan', 'mud', 'glass'] as const;
 type Table = Record<(typeof GROUNDS)[number], Skid>;
-function onGrounds(clicks: Click[], speed: number, chassis?: Chassis): Table {
-  return Object.fromEntries(GROUNDS.map((ground) => [ground, skidRun({ ground, speed, clicks, chassis })])) as Table;
+function onGrounds(clicks: Click[], speed: number, lead?: number, grounds: readonly (typeof GROUNDS)[number][] = GROUNDS): Table {
+  return Object.fromEntries(grounds.map((ground) => [ground, skidRun({ ground, speed, clicks, lead })])) as Table;
 }
 const stopTurns = (s: Skid, from: number) => s.speeds.slice(from).findIndex((v) => v < 0.5) + 1;
 
@@ -116,14 +128,14 @@ describe('skids', () => {
   });
 
   describe('fast reversal', () => {
-    let fast: Table;
+    let fast: Record<(typeof GROUNDS)[number], Slip>;
     let slow: Table;
     let braked: Table;
     beforeAll(() => {
-      fast = onGrounds(FAST_REVERSAL, FAST);
       slow = onGrounds(SLOW_REVERSAL, SLOW);
-      braked = onGrounds([...FAST_REVERSAL, ...BRAKE], FAST);
-      if (process.env.SKID_TABLE) console.log(JSON.stringify({ fast: summary(fast), slow: summary(slow), braked: summary(braked) }));
+      braked = onGrounds([...FAST_REVERSAL, ...BRAKE], FAST, FAST_REVERSAL.length);
+      fast = Object.fromEntries(GROUNDS.map((g) => [g, braked[g].lead])) as typeof fast;
+      if (process.env.SKID_TABLE) console.log(JSON.stringify({ slow: summary(slow), braked: summary(braked) }));
     }, budget(480_000));
 
     it('slides more on mud and most on glass', () => {
@@ -162,7 +174,7 @@ describe('skids', () => {
 
   describe('gradual turn', () => {
     it('stays near its line on road and hardpan, and a little looser on mud', () => {
-      const t = onGrounds(GRADUAL, FAST);
+      const t = onGrounds(GRADUAL, FAST, undefined, ['road', 'hardpan', 'mud']);
       expect(t.road.meanSlip).toBeLessThan(1);
       expect(t.hardpan.meanSlip).toBeLessThan(1);
       expect(t.mud.meanSlip).toBeLessThan(3);
