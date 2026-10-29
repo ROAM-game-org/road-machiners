@@ -384,7 +384,7 @@ describe('the watch', () => {
   it('records the pass reason when a watching raider looks the prey over and keeps', () => {
     const { w, raider, player } = watchingRaiderSeeing();
     addGoods(w, player, 'scrap', 2);
-    raider.brain!.goals.push(sizeUpGoal(player));
+    raider.brain!.goals.push(sizeUpGoal(w, raider, player));
     sizedUp(w, raider, player);
     forceOption('sizedUp', 'keep');
     w.events = [];

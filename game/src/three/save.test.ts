@@ -229,7 +229,7 @@ describe('game save', () => {
     world.turn = 900;
     const raider = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 40 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
-    raider.brain.goals = [{ kind: 'investigate', targetId: 'player', destination: { x: 70, y: 52 }, phase: 'travel', reason: 'springOnPrey', heard: { x: 64, y: 50 } }];
+    raider.brain.goals = [{ kind: 'investigate', targetId: 'player', destination: { x: 70, y: 52 }, phase: 'travel', reason: 'springOnPrey', heard: { x: 64, y: 50 }, chase: { turn: 900, gap: 26 } }];
     writeSave(slots, 'auto', world, RUN, 1000);
 
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;

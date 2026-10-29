@@ -132,6 +132,7 @@ const ACTIVITY_MOVE = {
   shipment: 'keep',
   perceived: 'keep',
   worn: 'keep',
+  chase: 'shift',
   demands: 'keep',
   until: 'keep',
   watchUntil: 'keep',
@@ -270,6 +271,7 @@ const ACTIVITY_HANDLERS: Handlers<NpcActivity, typeof ACTIVITY_MOVE> = {
   destination: (destination, ctx) => destination && at(ctx, destination),
   leg: (leg, ctx) => leg && { ...leg, from: at(ctx, leg.from) },
   heard: (heard, ctx) => heard && at(ctx, heard),
+  chase: (chase, ctx) => chase && { ...chase, gap: chase.gap * ctx.ratio },
 };
 
 function shiftActivity(goal: NpcActivity, ctx: Ctx): NpcActivity {

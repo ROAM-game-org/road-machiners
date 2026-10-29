@@ -304,6 +304,7 @@ export function autoRuns(world: World): boolean {
   if (waitsOnPlayer(world)) return false;
   if (p.state === 'knockedOut' || isTowed(world)) return true;
   if (readyDeal(world)) return false;
+  if (playerVehicle(world).job?.kind === 'oddJobs') return true;
   return waitsOnBeacon(world);
 }
 
