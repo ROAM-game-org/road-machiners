@@ -246,7 +246,7 @@ function spawnNext(world: World, run: ChaosHighwayRun, progress: number): void {
 
 export function waveGear(template: string, stretch: number, money: number, elite: boolean): GearRules {
   const minSpeed = CHAOS_HIGHWAY.cards[template].chase ? CHAOS_HIGHWAY.chaseSpeed : MIN_NPC_SPEED;
-  return { ...waveOf(stretch).gear, armored: elite, armorFirst: elite, money, minSpeed };
+  return { ...waveOf(stretch).gear, armored: elite, armorFirst: elite, money, minSpeed, chassisFloor: minSpeed };
 }
 
 export function spawnGroup(world: World, run: ChaosHighwayRun, group: WaveGroup, progress: number): void {

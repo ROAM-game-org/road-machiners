@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CHAOS_HIGHWAY } from '../data/modes';
-import { MIN_NPC_SPEED, NPCS } from '../data/npcs';
+import { MIN_NPC_SPEED, NPCS, RAIDER_CHASE_SPEED } from '../data/npcs';
 import { TERRAIN } from '../data/terrain';
 import { autoOrders, groupPrey, isHostile, targetBlock } from './combat';
 import { type Vec, dist } from './vec';
@@ -10,7 +10,7 @@ import { haulerOf, playerVehicle } from './damage';
 import { advanceChaosHighway, hurtShare, planStretch, spawnGroup, waveGear, waveOf } from './chaos-highway';
 import { alongOf, milestoneAt, roadHeading, roadPoint, toRoad } from './highway';
 import { rollingOrder } from './hunters';
-import { generateNpcLoadout, OPEN_GEAR } from './npc-loadout';
+import { generateNpcLoadout, openGear } from './npc-loadout';
 import { mountedParts } from './grid';
 import { vehicleStats } from './stats';
 import { damagePart, maxHp } from './wear';
@@ -35,7 +35,8 @@ function spawned(w: World, templates: string[], stretch: number): Vehicle[] {
 
 describe('Chaos Highway waves', () => {
   it('keeps the roaming speed floor for every truck built outside a run', () => {
-    expect(OPEN_GEAR.minSpeed).toBe(MIN_NPC_SPEED);
+    expect(openGear(NPCS.trader.loadout).minSpeed).toBe(MIN_NPC_SPEED);
+    expect(openGear(NPCS.gunwagon.loadout).minSpeed).toBe(RAIDER_CHASE_SPEED);
   });
 
   it('builds every chasing card at least as fast as the chase speed, and lets blockers be slow', () => {
@@ -48,6 +49,10 @@ describe('Chaos Highway waves', () => {
       }
     }
     for (const template of BLOCKERS) expect(waveGear(template, CHAOS_HIGHWAY.cards[template].from, CHAOS_HIGHWAY.cards[template].floor, false).minSpeed).toBe(MIN_NPC_SPEED);
+    for (const template of Object.keys(CHAOS_HIGHWAY.cards)) {
+      const gear = waveGear(template, CHAOS_HIGHWAY.cards[template].from, CHAOS_HIGHWAY.cards[template].floor, false);
+      expect(gear.chassisFloor).toBe(gear.minSpeed);
+    }
   });
 
   it('builds every card, plain and elite, from its floor money to four times it, without running out of room', () => {
