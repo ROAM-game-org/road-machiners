@@ -86,21 +86,21 @@ function withParts(chassisId: string, placed: Placed[]): { v: Vehicle; items: Pa
 }
 
 const REPORTED_BUGGY: Placed[] = [
-  { defId: 'panniers', x: 1, y: 4, rot: 0 },
-  { defId: 'caltrops', x: 2, y: 4, rot: 0 },
-  { defId: 'mg', x: 1, y: 5, rot: 1 },
-  { defId: 'plowRam', x: 1, y: 9, rot: 0 },
+  { defId: 'panniers', x: 2, y: 5, rot: 0 },
+  { defId: 'caltrops', x: 2, y: 6, rot: 0 },
+  { defId: 'mg', x: 1, y: 5, rot: 0 },
+  { defId: 'plowRam', x: 1, y: 10, rot: 0 },
   { defId: 'plowRam', x: 1, y: 0, rot: 0 },
-  { defId: 'ceramicPlates', x: 0, y: 5, rot: 0 },
-  { defId: 'ceramicPlates', x: 6, y: 5, rot: 0 },
-  { defId: 'ceramicPlates', x: 0, y: 2, rot: 0 },
-  { defId: 'ceramicPlates', x: 6, y: 2, rot: 0 },
+  { defId: 'ceramicPlates', x: 0, y: 4, rot: 0 },
+  { defId: 'ceramicPlates', x: 5, y: 4, rot: 0 },
+  { defId: 'ceramicPlates', x: 0, y: 1, rot: 0 },
+  { defId: 'ceramicPlates', x: 5, y: 1, rot: 0 },
   { defId: 'workhorseDiesel', x: 2, y: 2, rot: 0 },
   { defId: 'ceramicTile', x: 0, y: 7, rot: 0 },
-  { defId: 'ceramicTile', x: 6, y: 7, rot: 0 },
-  { defId: 'ceramicTile', x: 0, y: 4, rot: 0 },
-  { defId: 'ceramicTile', x: 6, y: 4, rot: 0 },
-  { defId: 'panniers', x: 4, y: 8, rot: 0 },
+  { defId: 'ceramicTile', x: 5, y: 7, rot: 0 },
+  { defId: 'ceramicTile', x: 0, y: 8, rot: 0 },
+  { defId: 'ceramicTile', x: 5, y: 8, rot: 0 },
+  { defId: 'panniers', x: 4, y: 7, rot: 0 },
 ];
 
 const ALWAYS_DRAWN_KINDS = new Set(['weapon', 'armor', 'engine', 'core']);
