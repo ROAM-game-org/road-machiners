@@ -142,7 +142,7 @@ export function plateSpot(body: THREE.Object3D, chassisId: string, plate: CellRe
   const step = cellSize(chassisId, plate);
   const smallest = Math.min(1, RISER_TOP_SIDE / Math.max(size.x, size.z));
   const center = { x: (plate.x0 + plate.x1) / 2, z: (plate.z0 + plate.z1) / 2 };
-  const shifts = shiftsWithin({ x0: cells.x0 - size.x / 2 - center.x, x1: cells.x1 + size.x / 2 - center.x, z0: cells.z0 - size.z / 2 - center.z, z1: cells.z1 + size.z / 2 - center.z }, step);
+  const shifts = shiftsWithin({ x0: cells.x0 - center.x, x1: cells.x1 - center.x, z0: cells.z0 - center.z, z1: cells.z1 - center.z }, step);
   const feet = footings(body);
   const fits = (dx: number, dz: number, shrink: number) => nearCells(cells, center.x + dx, center.z + dz, (size.x * shrink) / 2, (size.z * shrink) / 2);
   for (let shrink = 1; shrink >= smallest; shrink -= step / Math.max(size.x, size.z)) {
