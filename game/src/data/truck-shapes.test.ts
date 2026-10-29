@@ -317,7 +317,7 @@ describe('the scout pickup', () => {
 
   it('closes the hood round the engine footprint', () => {
     const engineCells = CHASSIS.scout.layout.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'E' ? [{ x, y }] : [])));
-    const { rect } = restOn('scout', cellRect('scout', engineCells));
+    const rect = cellRect('scout', engineCells);
     const anchor = engineAnchor('scout');
     const margin = 0.05;
     const half = { x: (rect.x1 - rect.x0) / 2 + margin, y: (rect.z1 - rect.z0) / 2 + margin };
