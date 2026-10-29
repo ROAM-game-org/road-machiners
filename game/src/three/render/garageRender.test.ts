@@ -19,7 +19,7 @@ function scout(): { truck: Vehicle; part: (defId: string) => PartInstance } {
 }
 
 function firstOf(kind: string, size: number): string {
-  const def = Object.values(PARTS).find((d) => d.kind === kind && d.w * d.h === size && mountSpotsOf('scout', { id: 'probe', defId: d.id } as PartInstance).length > 1);
+  const def = Object.values(PARTS).find((d) => d.kind === kind && d.bulk.w * d.bulk.h === size && mountSpotsOf('scout', { id: 'probe', defId: d.id } as PartInstance).length > 1);
   if (!def) throw new Error(`No ${kind} of ${size} cells mounts twice on the scout`);
   return def.id;
 }
