@@ -21,7 +21,7 @@ const CODE_CALLS = new Set([
   'removeEventListener', 'getItem', 'setItem', 'removeItem', 'add', 'remove', 'toggle', 'contains', 'setProperty', 'runKey', 'getAttribute',
   'hasAttribute', 'removeAttribute', 'mark', 'measure', 'dispatchEvent', 'postMessage', 'fetch', 'getContext', 'require',
 ]);
-const CODE_KEYS = new Set(['class', 'className', 'id', 'role', 'type', 'style', 'href', 'target', 'rel', 'kind', 'key', 'code', 'tabindex', 'for']);
+const CODE_KEYS = new Set(['class', 'className', 'id', 'role', 'type', 'style', 'href', 'target', 'rel', 'kind', 'key', 'code', 'tabindex', 'for', 'layout']);
 
 function isNode(x: unknown): x is Node {
   return typeof x === 'object' && x !== null && typeof (x as Node).type === 'string';

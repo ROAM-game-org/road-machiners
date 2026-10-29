@@ -11,8 +11,16 @@ const SVG = 'Static SVG markup of an icon, with no words in it.';
 
 const MIGRATION_LABEL = 'A label inside a save migration error, which only the console and a bug report show.';
 const SETTING_LABEL = 'A label inside a setup parse error, which only the console and a bug report show.';
+const SAVE_STEP_LOG = 'A part of a console warning the square grid save step logs for each part it moves, which only a bug report shows.';
+const SAVE_STEP_FILE = 'src/three/save-step-square-grid.ts';
 
 export const UNTRANSLATED: readonly Untranslated[] = [
+  { file: SAVE_STEP_FILE, text: 'its nearest spot is taken', reason: SAVE_STEP_LOG },
+  { file: SAVE_STEP_FILE, text: 'its nearest spot is not legal for it', reason: SAVE_STEP_LOG },
+  { file: SAVE_STEP_FILE, text: 'turned from rotation   to   and moved to  , , since it fits nowhere in its own rotation', reason: SAVE_STEP_LOG },
+  { file: SAVE_STEP_FILE, text: 'moved from nearest spot  ,  to  , :  ', reason: SAVE_STEP_LOG },
+  { file: SAVE_STEP_FILE, text: 'fits nowhere on the square grid and went to player storage', reason: SAVE_STEP_LOG },
+  { file: SAVE_STEP_FILE, text: 'fits nowhere on the square grid and was dropped', reason: SAVE_STEP_LOG },
   { file: 'src/ui/save-screen.ts', text: 'Road Machiners', reason: 'The game title stays as it is in every language, as on the boot screen.' },
   { file: 'src/three/main.ts', text: 'confirm()', reason: 'The browser adapter shows text its caller already resolved with say().' },
   { file: 'src/three/save.ts', text: 'confirm()', reason: 'The browser adapter shows text its caller already resolved with say().' },
