@@ -225,7 +225,7 @@ export type SimNote =
 
 export type MoneyReason = { kind: 'contract' } | { kind: 'towing'; vehicle: string } | { kind: 'outpost' } | { kind: 'holdUp'; vehicle: string };
 
-export type PlacementRefusal = { id: 'noFit' } | { id: 'inTheWay' } | { id: 'armorOnly' };
+export type PlacementRefusal = { id: 'noFit' } | { id: 'inTheWay' } | { id: 'armorOnly' } | { id: 'barrel' };
 
 export type Refusal =
   | PlacementRefusal

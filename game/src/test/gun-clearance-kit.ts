@@ -237,7 +237,7 @@ function topOf(root: THREE.Object3D, o: THREE.Object3D): THREE.Object3D {
   return at;
 }
 
-function headPlan(view: VehicleView, id: string): Plan | null {
+export function headPlan(view: VehicleView, id: string): Plan | null {
   const meshes = meshesNamed(view.root, `${id} head`);
   if (meshes.length === 0) return null;
   const frame = topOf(view.root, meshes[0]);

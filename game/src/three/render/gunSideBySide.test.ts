@@ -6,8 +6,12 @@ import { emptyWorld, npcBrain } from '../../sim/testkit';
 import { fallbackFaction } from '../../sim/spawn';
 import type { Vehicle } from '../../sim/types';
 import { PAINT } from '../../data/chassis';
-import { SLOW, gunContacts, gunOverlaps, headCount, loneHeadY, headY, mountedGuns } from '../../test/gun-clearance-kit';
-import { VehicleView } from './vehicle';
+import { SLOW, bare, gunContacts, gunOverlaps, headCount, headPlan, loneHeadY, headY, mountedGuns } from '../../test/gun-clearance-kit';
+import { UNPRICED_WEAPONS } from '../../data/weapons';
+import { MOUNT_CELLS, baseGrid, itemCells, mountSpots, type Cell } from '../../sim/grid';
+import { cellRect } from '../../sim/body';
+import { makePart } from '../../sim/factory';
+import { LANE_GAP, VehicleView } from './vehicle';
 
 function rolled(templateId: string, seed: number): Vehicle {
   const t = NPCS[templateId];
@@ -69,5 +73,39 @@ describe('guns on one truck at rest', () => {
     expect(gunContacts(v, 'world')).toEqual([]);
     expect(gunOverlaps(v, 'world')).toEqual([]);
     for (const g of mountedGuns(v)) expect(headY(v, g.id, 'world')).toBeCloseTo(loneHeadY(v, g.id, 'world'), 3);
+  }, SLOW);
+});
+
+describe('heads fit their lanes', () => {
+  it('keeps every head inside the columns or rows of its footprint', () => {
+    const problems: string[] = [];
+    for (const chassisId of ['hauler', 'gunwagon']) {
+      for (const defId of Object.keys(UNPRICED_WEAPONS)) {
+        for (const rot of [0, 1] as const) {
+          for (const tag of ['a', 'b', 'c']) {
+            const { world, v } = bare(chassisId);
+            const part = { ...makePart(world, defId, 0), id: `lane-${tag}-${defId}` };
+            const probe = { id: 'gun', kind: 'part' as const, x: 0, y: 0, rot, part };
+            const spot = mountSpots(baseGrid(chassisId), v.items, probe, MOUNT_CELLS.weapon as Cell[]).find((s) => s.rot === rot);
+            if (!spot) continue;
+            const gun = { ...probe, ...spot };
+            v.items.push(gun);
+            const view = new VehicleView(v, true, PAINT.standard, 'world');
+            view.root.updateMatrixWorld(true);
+            const plan = headPlan(view, gun.id);
+            const lane = cellRect(chassisId, itemCells(gun));
+            view.dispose();
+            if (!plan) {
+              problems.push(`${chassisId} ${defId} r${rot}: no head`);
+              continue;
+            }
+            const [lo, hi] = rot % 2 === 0 ? [lane.z0, lane.z1] : [lane.x0, lane.x1];
+            const [a, b] = rot % 2 === 0 ? [plan.z0, plan.z1] : [plan.x0, plan.x1];
+            if (a < lo + LANE_GAP - 0.002 || b > hi - LANE_GAP + 0.002) problems.push(`${chassisId} ${defId} r${rot} ${tag}: head ${a.toFixed(3)}..${b.toFixed(3)} lane ${lo.toFixed(3)}..${hi.toFixed(3)}`);
+          }
+        }
+      }
+    }
+    expect(problems).toEqual([]);
   }, SLOW);
 });

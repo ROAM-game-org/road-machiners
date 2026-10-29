@@ -39,6 +39,8 @@ const ROT_YAW = Math.PI / 2;
 
 
 const GUN_GAP = 0.03;
+export const LANE_GAP = 0.01;
+const MIN_LANE_SCALE = 0.5;
 const SAMPLE_REACH = 0.1;
 
 const SILHOUETTE_OPACITY = 0.5;
@@ -626,6 +628,7 @@ export class VehicleView {
     mount.updateMatrix();
     const pivot = headAt.clone().applyMatrix4(mount.matrix);
     const own = rectOf(v, item);
+    head.scale.z = laneScale(head, pivot, facing, own, item.rot % 2 === 0 ? 'z' : 'x');
     const ground = surfaceSamples(v.chassisId, own.unit, pivot, Math.max(shape.core, shape.reach) + SAMPLE_REACH)
       .filter((s) => !(s.x >= own.x0 && s.x <= own.x1 && s.z >= own.z0 && s.z <= own.z1))
       .map((s): Obstacle => ({ x0: s.x - s.half, x1: s.x + s.half, z0: s.z - s.half, z1: s.z + s.half, top: s.y }));
@@ -900,6 +903,20 @@ function anchorPoint(v: Pick<Vehicle, 'chassisId'>, item: GridItem): THREE.Vecto
   const surface = highestUnder(v.chassisId, rect);
   const y = surface === -Infinity ? standingY(v, item) : surface;
   return new THREE.Vector3((rect.x0 + rect.x1) / 2, y, (rect.z0 + rect.z1) / 2);
+}
+
+export function laneScale(head: THREE.Object3D, pivot: { x: number; z: number }, facing: number, lane: CellRect, across: 'x' | 'z'): number {
+  const box = new THREE.Box3().setFromObject(head);
+  const turn = headingQuat(facing * DEG);
+  const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(new THREE.Quaternion(turn.x, turn.y, turn.z, turn.w));
+  const sign = (across === 'z' ? dir.z : dir.x) >= 0 ? 1 : -1;
+  const [lo, hi] = across === 'z' ? [lane.z0, lane.z1] : [lane.x0, lane.x1];
+  const at = pivot[across];
+  const roomUp = hi - LANE_GAP - at;
+  const roomDown = at - (lo + LANE_GAP);
+  const sides = sign > 0 ? [[box.max.z, roomUp], [-box.min.z, roomDown]] : [[box.max.z, roomDown], [-box.min.z, roomUp]];
+  const fit = Math.min(1, ...sides.filter(([extent]) => extent > 0).map(([extent, room]) => room / extent));
+  return Math.max(MIN_LANE_SCALE, fit);
 }
 
 function rectOf(v: Pick<Vehicle, 'chassisId'>, item: GridItem): CellRect {

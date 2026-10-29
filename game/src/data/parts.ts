@@ -49,6 +49,7 @@ export type WeaponDef = PartBase & {
   magazine: number;
   reload: number;
   arc: number;
+  reach: number;
   spread: number;
   rounds: number;
   recoil: number;
