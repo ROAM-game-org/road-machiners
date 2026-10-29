@@ -138,7 +138,7 @@ describe('field refits', () => {
     const w = emptyWorld();
     const engine = w.vehicles[0].items.find((item) => item.kind === 'part' && item.part.defId === 'stockEngine');
     if (!engine) throw new Error('Expected engine');
-    expect(() => moveItem(w, engine.id, { x: 4, y: 1, rot: 0 })).toThrow('Refused: twoInTheWay');
+    expect(() => moveItem(w, engine.id, { x: 1, y: 0, rot: 0 })).toThrow('Refused: twoInTheWay');
   });
 
   it('cancels when a required item has changed position', () => {

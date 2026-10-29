@@ -28,7 +28,7 @@ const TOWN_START_CHASSIS = [...BY_RADIUS.slice(0, 5), BY_RADIUS[BY_RADIUS.length
 
 describe('townStart', () => {
   it.each(TOWN_START_CHASSIS)('parks a %s on a town pad with no vehicle on top of it', (chassis) => {
-    const kit = { ...START_KITS.standard, chassis, parts: [], cargo: {}, storage: [], opening: null };
+    const kit = { ...START_KITS.standard, chassis, parts: [], placed: [], cargo: {}, storage: [], opening: null };
     const world = newWorld(7, kit, TEST_MAP, defaultSetup('roaming'), true, townStart());
     const truck = playerVehicle(world);
     expect(townAt(world), chassis).not.toBeNull();
