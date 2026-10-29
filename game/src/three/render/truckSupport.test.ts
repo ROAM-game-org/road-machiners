@@ -86,16 +86,14 @@ describe('truck support', () => {
 });
 
 describe('small parts on every deck cell', () => {
-  it('a caltrops box on any deck cell of any truck stands on the truck', { timeout: SLOW }, () => {
+  it.each(Object.keys(CHASSIS))('a caltrops box on any deck cell of the %s stands on the truck', { timeout: SLOW }, (chassisId) => {
     const faults: string[] = [];
-    for (const chassisId of Object.keys(CHASSIS)) {
-      const w = emptyWorld();
-      const base = addVehicle(w, 'scrapjaw', chassisId, [], { x: 40, y: 30 });
-      const box = makePart(w, 'caltrops', 0);
-      const probe: GridItem = { id: 'probe', kind: 'part', part: box, x: 0, y: 0, rot: 0 };
-      for (const spot of mountSpots(gridOf(base), base.items, probe, MOUNT_CELLS.store)) {
-        faults.push(...faultsOf({ ...base, items: [...base.items, { ...probe, ...spot }] }));
-      }
+    const w = emptyWorld();
+    const base = addVehicle(w, 'scrapjaw', chassisId, [], { x: 40, y: 30 });
+    const box = makePart(w, 'caltrops', 0);
+    const probe: GridItem = { id: 'probe', kind: 'part', part: box, x: 0, y: 0, rot: 0 };
+    for (const spot of mountSpots(gridOf(base), base.items, probe, MOUNT_CELLS.store)) {
+      faults.push(...faultsOf({ ...base, items: [...base.items, { ...probe, ...spot }] }));
     }
     expect(faults).toEqual([]);
   });

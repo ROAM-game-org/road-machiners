@@ -126,14 +126,9 @@ function escort(o: Orders): void {
   const foe = escortFoe(o.world, o.me);
   const stall = stallOf(o.world, o.me);
   const parking = !foe && haulerAtPad(o.world, hauler);
-  const order = unpaced(parking ? unlessStuck(o.world, o.me, stall, () => parkInYard(o.world)) : escortMove(o.world, o.me, foe, stall));
+  const order = parking ? unlessStuck(o.world, o.me, stall, () => parkInYard(o.world)) : escortMove(o.world, o.me, foe, stall);
   if (!sameMove(o.me.order, order)) o.run((w) => setMoveOrder(w, order));
   if (foe) focusFire(o, foe);
-}
-
-function unpaced(order: MoveOrder): MoveOrder {
-  if (order.kind === 'brake') return order;
-  return { kind: order.kind, dest: order.dest };
 }
 
 function parkInYard(world: World): MoveOrder {
