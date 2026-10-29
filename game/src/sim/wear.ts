@@ -7,7 +7,7 @@ import { CONDITION, WEAR } from '../data/wear';
 import { playerVehicle } from './damage';
 import { corePart, mountedParts } from './grid';
 import { practice, regionOf } from './progress';
-import { chance, randInt } from './rng';
+import { chance, randRange } from './rng';
 import { tileAt } from './terrain';
 import { isTowed } from './tow';
 import type { PartInstance, Vehicle, World } from './types';
@@ -41,10 +41,8 @@ function terrainWearOf(v: Vehicle, terrainWear: number): number {
 }
 
 function breakDown(world: World, v: Vehicle, oddsScale: number, floor: (id: string) => number): void {
-  const working = mountedParts(v).filter((p) => p.hp > 0);
-  if (working.length === 0) return;
-  if (!chance(world, Math.min(1, WEAR.breakdownChancePerTile * oddsScale))) return;
-  const part = working[randInt(world, 0, working.length - 1)];
+  const part = strainedPart(world, mountedParts(v).filter((p) => p.hp > 0), WEAR.breakdownChancePerTile * oddsScale);
+  if (!part) return;
   damagePart(part, Math.round(maxHp(part) * WEAR.breakdownHpShare), floor(part.id));
   world.events.push({ t: 'breakdown', vehicle: v.id, part: part.id });
 }
@@ -52,11 +50,31 @@ function breakDown(world: World, v: Vehicle, oddsScale: number, floor: (id: stri
 function failDrive(world: World, v: Vehicle, oddsScale: number): void {
   const engine = mountedParts(v, 'engine')[0];
   const working = [engine, corePart(v, 'transmission')].filter((p): p is PartInstance => p !== undefined && p.hp > 0);
-  if (working.length === 0) return;
-  if (!chance(world, Math.min(1, WEAR.failureChancePerTile * oddsScale))) return;
-  const part = working[randInt(world, 0, working.length - 1)];
+  const part = strainedPart(world, working, WEAR.failureChancePerTile * oddsScale);
+  if (!part) return;
   damagePart(part, part.hp, 0);
   world.events.push({ t: 'breakdown', vehicle: v.id, part: part.id });
+}
+
+function strainedPart(world: World, working: PartInstance[], worstOdds: number): PartInstance | null {
+  if (working.length === 0) return null;
+  const strains = working.map(strain);
+  const mean = strains.reduce((a, s) => a + s, 0) / strains.length;
+  if (!chance(world, Math.min(1, worstOdds * mean))) return null;
+  let pick = randRange(world, 0, mean * strains.length);
+  for (const [i, s] of strains.entries()) {
+    pick -= s;
+    if (pick < 0) return working[i];
+  }
+  return working[working.length - 1];
+}
+
+function strain(part: PartInstance): number {
+  return WEAR.freshStrain + (1 - WEAR.freshStrain) * (1 - part.hp / maxHp(part));
+}
+
+export function tendParts(v: Vehicle): void {
+  for (const part of mountedParts(v)) if (!isJunk(part)) restorePart(part, maxHp(part));
 }
 
 function trailWear(world: World, v: Vehicle): { distance: number; terrainWear: number } {
