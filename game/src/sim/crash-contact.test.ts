@@ -291,7 +291,7 @@ describe('the hauler semi ramming a buggy', () => {
     const world = emptyWorld();
     const semi = addVehicle(world, 'player', 'semi', ['workhorseDiesel'], { x: 30, y: 30 });
     const buggy = addVehicle(world, 'scrapjaw', 'buggy', ['stockEngine'], { x: 34, y: 30 });
-    applyContactCrash(world, semi, buggy, buggy.id, 6, { a: { side: 'front', lanes: [3, 4] }, b: { side: 'left', lanes: [1, 2] } }, { a: 6, b: 0 });
+    applyContactCrash(world, semi, buggy, buggy.id, 6, { a: { side: 'front', lanes: [3, 4] }, b: { side: 'left', lanes: [2, 3, 4] } }, { a: 6, b: 0 });
     const collision = world.events.find((e) => e.t === 'collision');
     if (collision?.t !== 'collision') throw new Error('No collision');
     const sum = (hits: { damage: number }[]) => hits.reduce((total, hit) => total + hit.damage, 0);
