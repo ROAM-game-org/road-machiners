@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BOUNTY, CRIME } from '../data/market';
-import type { TraitId } from '../data/npcs';
+import { NPCS, type TraitId } from '../data/npcs';
 import { advanceCrimes, fileReports, noteKnockout, openCasesOn, payCasesAtDesk, stepPosse } from './crime';
 import { callVehicle, chooseOption, currentOptions, radioSpeakers, raiseCalls } from './dialogue';
 import { playerVehicle } from './damage';
@@ -251,10 +251,13 @@ describe('a target with no answer open', () => {
   });
 });
 
+const QUIET_TURNS = 1_000_000;
+
 describe('the idle Marshall', () => {
   it('waits at the post with its partner and no case, without dropping the wait each turn, and raises no stall', () => {
     const post = getKnownSite('marshal-post');
     let w = emptyWorld({ x: 100, y: 700 });
+    for (const id of Object.keys(NPCS)) w.spawnTimer[id] = QUIET_TURNS;
     const marshal = marshalAt(w, nearestPad(post, post.pos));
     const partner = marshalAt(w, { x: marshal.pos.x + 3, y: marshal.pos.y });
     startEscort(w, partner, marshal, null, 0);

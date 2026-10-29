@@ -35,8 +35,8 @@ export const RULES = {
   cellPen: 0.5,
   crashPen: 4,
   crashFalloff: 0.6,
-  groundCrash: 3,
-  landingDamage: 0.25,
+  groundCrash: 1.5,
+  landingDamage: 0.125,
   wheelLoss: 0.15,
   tankLeak: 1,
 

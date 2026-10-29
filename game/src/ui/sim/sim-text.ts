@@ -7,7 +7,7 @@ import type { RecipeRun } from '../../sim/production';
 import type { EconTag } from '../../sim/progression/sim-economy';
 import { carriedPart } from '../../sim/salvage';
 import type { SiteEventKind } from '../../data/market';
-import { worldPlaces } from '../../sim/sites';
+import { everyTruck, namedTruck, worldPlaces } from '../../sim/sites';
 import { TIME } from '../../data/time';
 import type { TraitId } from '../../data/npcs';
 import type { UtilityEffectType } from '../../data/parts';
@@ -41,10 +41,6 @@ const words = (id: string): string => id.replace(/([A-Z])/g, ' $1').toLowerCase(
 const capital = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
 const place = (pos: Vec): string => english(gridSquareText(gridSquareOf(pos)));
 
-function findAny(world: World, id: string): Vehicle | undefined {
-  return world.vehicles.find((v) => v.id === id) ?? world.removed.find((v) => v.id === id);
-}
-
 function nameOf(world: World, id: string): string {
   return id === world.player.vehicleId ? PLAYER_NAME : english(vehicleName(world, id));
 }
@@ -54,7 +50,7 @@ const ID_LIKE = /\d/;
 
 function thingName(world: World, id: string): string {
   const prop = PROP_ID.exec(id);
-  return prop && !findAny(world, id) ? `a ${words(prop[1]!)}` : nameOf(world, id);
+  return prop && !namedTruck(world, id) ? `a ${words(prop[1]!)}` : nameOf(world, id);
 }
 
 function stockText(world: World, id: string): string {
@@ -63,7 +59,7 @@ function stockText(world: World, id: string): string {
 }
 
 function targetName(world: World, id: string): string {
-  if (findAny(world, id)) return nameOf(world, id);
+  if (namedTruck(world, id)) return nameOf(world, id);
   if (world.salvage.some((s) => s.id === id)) return stockText(world, id);
   return worldPlaces(world).some((s) => s.id === id) ? english(siteName(id)) : thingName(world, id);
 }
@@ -74,7 +70,7 @@ type Words = { [K in GameEvent['t']]?: (world: World, e: Of<K>) => Spoken };
 const JOB_OUTCOME = { started: 'starts', done: 'finishes', cancelled: 'stops', skipped: 'skips' } as const;
 
 function jobWords(world: World, e: Of<'job'>): string {
-  const v = findAny(world, e.vehicle);
+  const v = namedTruck(world, e.vehicle);
   const label = v ? english(jobLabel(world, v, e.job)) : words(e.job.kind);
   return `${nameOf(world, e.vehicle)} ${JOB_OUTCOME[e.outcome]}: ${label}`;
 }
@@ -160,6 +156,8 @@ const SIM_WORDS: Words = {
   arrived: (world, e) => ({ text: `${nameOf(world, e.vehicle)} arrives`, tone: 'dim' }),
   spawn: (world, e) => ({ text: `${nameOf(world, e.vehicle)} enters the map`, tone: 'dim' }),
   despawn: (world, e) => ({ text: `${nameOf(world, e.vehicle)} leaves the map`, tone: 'dim' }),
+  enteredSite: (world, e) => ({ text: `${nameOf(world, e.vehicle)} drives into ${english(siteName(e.site))}`, tone: 'dim' }),
+  leftSite: (world, e) => ({ text: `${nameOf(world, e.vehicle)} drives out of ${english(siteName(e.site))}`, tone: 'dim' }),
   practice: (_world, e) => ({ text: `${e.xp.toFixed(1)} XP from ${words(e.source)}`, tone: 'dim' }),
   weather: (_world, e) => ({ text: `A ${words(e.event.kind)} ${e.outcome === 'started' ? 'begins' : 'ends'}`, tone: 'dim' }),
 };
@@ -219,7 +217,7 @@ function gameWords(world: World, e: GameEvent): Spoken | null {
 }
 
 function fieldWords(world: World, e: GameEvent): string {
-  const known = new Set([...world.vehicles, ...world.removed].map((v) => v.id));
+  const known = new Set([...everyTruck(world), ...world.removed].map((v) => v.id));
   const fields = Object.entries(e).filter(([key]) => key !== 't').flatMap(([key, value]) => fieldWord(world, known, key, value));
   return fields.length > 0 ? `${capital(words(e.t))}: ${fields.join(', ')}` : capital(words(e.t));
 }

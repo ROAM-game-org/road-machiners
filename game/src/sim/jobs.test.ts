@@ -7,10 +7,12 @@ import { CONDITION, REPAIR } from '../data/wear';
 import { damagePart, maxHp, partValue } from './wear';
 import { makePart } from './factory';
 import { addVehicle, emptyWorld, practiceOf , startCombat } from './testkit';
+import { bedRows } from './chassis-features';
 import { corePart, goodsCount, gridOf, mountedParts } from './grid';
+import { vehicleStats } from './stats';
 import { addGoods, moveItem, mountPart, removeGoods, stowPart } from './inventory';
 import type { Job } from './types';
-import { advanceJobs, cancelRefit, repairBlocker, stoppedByCombat, startAutoRepair, startJob, startRepair, startStrip, startWeld } from './jobs';
+import { advanceJobs, cancelRefit, repairBlocker, stoppedByCombat, startAutoRepair, startJob, startRepair, startStrip, startWeld, stripTurns, stripYield } from './jobs';
 import { PERK_NUMBERS } from '../data/skills';
 import { repairPlan } from './repair';
 import { addState } from './states';
@@ -434,13 +436,82 @@ describe('strip job', () => {
     expect(next.events.some((e) => e.t === 'job' && e.outcome === 'cancelled')).toBe(true);
   });
 
-  it('refuses a mounted part and a built-in part', () => {
+  it('refuses a built-in part', () => {
+    const w = emptyWorld();
+    const cab = corePart(w.vehicles[0], 'cab');
+    expect(() => startStrip(w, cab.id)).toThrow(/built-in/);
+  });
+
+  it('strips a mounted junk plate where it sits, after the unmount time', () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const mounted = mountedParts(me).find((p) => partDef(p.defId).kind === 'armor')!;
-    expect(() => startStrip(w, mounted.id)).toThrow(/spare/);
-    const cab = corePart(me, 'cab');
-    expect(() => startStrip(w, cab.id)).toThrow(/spare/);
+    const plate = mountedParts(me).find((p) => partDef(p.defId).kind === 'armor')!;
+    plate.hp = 0;
+    plate.wear = CONDITION.maxWear + 1;
+    const units = stripYield(me, plate);
+    const held = goodsCount(me).parts ?? 0;
+
+    const next = startStrip(w, plate.id);
+    const job = next.vehicles[0].job;
+    if (job?.kind !== 'strip') throw new Error('No strip job');
+    expect(job.total).toBe(stripTurns(next, next.vehicles[0], plate.id));
+    expect(job.total).toBeGreaterThan(STRIP.turns);
+    const before = vehicleStats(next, next.vehicles[0]);
+    for (let i = 0; i < job.total - 1; i++) advanceJobs(next);
+    const mid = next.vehicles[0];
+    expect(mountedParts(mid).some((p) => p.id === plate.id)).toBe(true);
+    expect(vehicleStats(next, mid)).toEqual(before);
+    advanceJobs(next);
+
+    const truck = next.vehicles[0];
+    expect(truck.job).toBeNull();
+    expect(truck.items.some((it) => it.kind === 'part' && it.part.id === plate.id)).toBe(false);
+    expect((goodsCount(truck).parts ?? 0) - held).toBe(units);
+    expect(next.events.some((e) => e.t === 'job' && e.outcome === 'done')).toBe(true);
+  });
+
+  it('refuses to strip a mounted rack that holds a part in its rows', () => {
+    const w = emptyWorld();
+    const npc = addVehicle(w, 'player', 'hauler', ['rack'], { x: 60, y: 60 });
+    w.player.vehicleId = npc.id;
+    const rack = mountedParts(npc, 'cargo').find((p) => p.defId === 'rack')!;
+    const rackRows = (partDef('rack') as { extraRows: number }).extraRows;
+    const row = gridOf(npc).chassisH + bedRows('hauler') + rackRows - 1;
+    npc.items.push({ id: 'i-crate', x: 0, y: row, rot: 0, kind: 'part', part: makePart(w, 'mg', 0) });
+    expect(() => startStrip(w, rack.id)).toThrow('Refused: emptyRackFirst');
+  });
+
+  it('strips a mounted gun and drops its order', () => {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    const gun = mountedParts(me).find((p) => partDef(p.defId).kind === 'weapon');
+    if (!gun) throw new Error('No mounted gun');
+    me.weaponOrders[gun.id] = { target: 'any' } as never;
+    const next = startStrip(w, gun.id);
+    const total = (next.vehicles[0].job as { total: number }).total;
+    for (let i = 0; i < total; i++) advanceJobs(next);
+    const truck = next.vehicles[0];
+    expect(mountedParts(truck).some((p) => p.id === gun.id)).toBe(false);
+    expect(truck.weaponOrders[gun.id]).toBeUndefined();
+  });
+
+  it('strips a mounted engine', () => {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    const engine = mountedParts(me).find((p) => partDef(p.defId).kind === 'engine')!;
+    const next = startStrip(w, engine.id);
+    const total = (next.vehicles[0].job as { total: number }).total;
+    for (let i = 0; i < total; i++) advanceJobs(next);
+    expect(mountedParts(next.vehicles[0]).some((p) => p.id === engine.id)).toBe(false);
+  });
+
+  it('does not pay a stripped knife its own bonus', () => {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    const knife = makePart(w, 'scrapersKnife', 0);
+    if (!mountPart(w, me, knife)) throw new Error('No deck room for the scraper');
+    const plain = Math.max(1, Math.round((partValue(knife) * STRIP.yieldShare) / GOODS.parts.value));
+    expect(stripYield(me, knife)).toBe(plain);
   });
 });
 

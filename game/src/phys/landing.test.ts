@@ -74,7 +74,7 @@ describe('ground impacts', () => {
     const { lost, wheels } = drop(3, UPRIGHT);
     for (const id of wheels) expect(lost.get(id)).toBeGreaterThan(0);
     for (const [id, hp] of lost) if (!wheels.includes(id)) expect(hp).toBe(0);
-    expect(total(lost)).toBeLessThan(40);
+    expect(total(lost)).toBeLessThan(15);
   });
 
   it('a truck settling from rest takes no damage', () => {

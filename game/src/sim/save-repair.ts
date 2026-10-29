@@ -14,10 +14,12 @@ import { SKILL_IDS, XP_SOURCES } from '../data/skills';
 import { HAULER_KIT, START_KITS } from '../data/start';
 import { CONDITION } from '../data/wear';
 import { settleAims } from './combat';
+import { everyTruck } from './sites';
 import { newId, chargeFor, gunFor, makePart } from './factory';
+import { installSpot, stowSpot } from './inventory';
 import { findSpot, gridOf, mountedItems, onDeadRow, placementError, type Grid } from './grid';
 import { settleEscortJob } from './escort-job';
-import { addShop, finishContract, isMet, parcelOf, removeParcel, type Contract, type ShopState } from './market';
+import { addShop, contractTruck, finishContract, isMet, parcelOf, removeParcel, type Contract, type ShopState } from './market';
 import { reviseMemories } from './memory';
 import { isPerkId } from './progress';
 import { modeRules } from './settings';
@@ -31,22 +33,29 @@ type PartItem = Extract<GridItem, { kind: 'part' }>;
 type ShopDefinition = (typeof SHOPS)[string];
 
 export function repairContent(world: World): void {
+  requireUniqueTrucks(world);
   dropStateKinds(world);
   dropGoneContent(world);
   const doomed = new Set<string>();
   repairTrucks(world, doomed);
   removeNpcs(world, doomed);
   clampParts(world);
-  for (const v of world.vehicles) fitGoals(world, v);
+  for (const v of everyTruck(world)) fitGoals(world, v);
   repairShops(world);
   renameDrivers(world);
   repairPlayer(world);
   repairCall(world);
-  for (const v of world.vehicles) fitPriceMemories(v);
+  for (const v of everyTruck(world)) fitPriceMemories(v);
   fitRoadNews(world);
   fitSites(world);
   fitWaves(world);
   releaseGoneHolders(world);
+}
+
+function requireUniqueTrucks(world: World): void {
+  const ids = everyTruck(world).map((v) => v.id);
+  const twice = ids.find((id, i) => ids.indexOf(id) !== i);
+  if (twice !== undefined) throw new Error(`Truck ${twice} stands in the world twice`);
 }
 
 function isShop(id: string): boolean {
@@ -113,7 +122,7 @@ function siteGone(site: string | null): boolean {
 
 function fitSites(world: World): void {
   for (const s of world.states.filter((x) => siteGone(stateSite(x)))) if (world.states.includes(s)) endState(world, s, 'broken');
-  for (const v of world.vehicles) if (siteGone(jobSite(v.job))) v.job = null;
+  for (const v of everyTruck(world)) if (siteGone(jobSite(v.job))) v.job = null;
 }
 
 function isWaveTemplate(id: string): boolean {
@@ -164,7 +173,7 @@ function dropStateKinds(world: World): void {
 }
 
 function dropGoneContent(world: World): void {
-  for (const v of world.vehicles) stripVehicle(v);
+  for (const v of everyTruck(world)) stripVehicle(v);
   world.player.storage = knownParts(world.player.storage);
   for (const stock of world.salvage) stripSalvage(stock);
   for (const shop of Object.values(world.shops)) stripShop(shop);
@@ -278,7 +287,7 @@ function ownTruckIds(world: World): Set<string> {
 
 function repairTrucks(world: World, doomed: Set<string>): void {
   const own = ownTruckIds(world);
-  for (const v of world.vehicles) {
+  for (const v of everyTruck(world)) {
     if (own.has(v.id)) repairOwnTruck(world, v);
     else repairNpc(world, v, doomed);
   }
@@ -362,7 +371,7 @@ function misfits(v: Vehicle): GridItem[] {
   for (const item of rest) {
     const grid = gridOf({ ...v, items: kept });
     if (fitsGrid(grid, kept, item)) kept.push(item);
-    else if (!relocated(grid, kept, item)) dropped.push(item);
+    else if (!relocated(v, grid, kept, item)) dropped.push(item);
   }
   return dropped;
 }
@@ -371,8 +380,19 @@ function fitsGrid(grid: Grid, kept: GridItem[], item: GridItem): boolean {
   return onDeadRow(grid, item) || placementError(grid, kept, item, item.id) === null;
 }
 
-function relocated(grid: Grid, kept: GridItem[], item: GridItem): boolean {
-  if (item.kind === 'part') return false;
+function reseatedGun(v: Vehicle, kept: GridItem[], item: GridItem): boolean {
+  if (item.kind !== 'part' || partDef(item.part.defId).kind !== 'weapon') return false;
+  if (placementError(gridOf({ ...v, items: kept }), kept, item, item.id)?.id !== 'barrel') return false;
+  const seated = { ...v, items: kept };
+  const spot = installSpot(seated, item) ?? stowSpot(seated, item);
+  if (!spot) return false;
+  Object.assign(item, spot);
+  kept.push(item);
+  return true;
+}
+
+function relocated(v: Vehicle, grid: Grid, kept: GridItem[], item: GridItem): boolean {
+  if (item.kind === 'part') return reseatedGun(v, kept, item);
   const spot = findSpot(grid, kept, item, null, null);
   if (!spot) return false;
   Object.assign(item, spot);
@@ -394,6 +414,7 @@ function dropParcelContract(world: World, id: string): void {
 function removeNpcs(world: World, doomed: ReadonlySet<string>): void {
   if (doomed.size === 0) return;
   world.vehicles = world.vehicles.filter((v) => !doomed.has(v.id));
+  world.sheltered = world.sheltered.filter((s) => !doomed.has(s.vehicle.id));
   if (world.player.call && doomed.has(world.player.call.with)) world.player.call = null;
   settleStates(world);
   settleAims(world);
@@ -401,8 +422,8 @@ function removeNpcs(world: World, doomed: ReadonlySet<string>): void {
 }
 
 function namesGone(c: Contract, doomed: ReadonlySet<string>): boolean {
-  if (c.kind === 'escort' || c.kind === 'rescue') return doomed.has(c.client);
-  return c.kind === 'search' && doomed.has(c.target);
+  const truck = contractTruck(c);
+  return truck !== null && doomed.has(truck);
 }
 
 function settleLost(world: World, c: Contract): void {
@@ -412,7 +433,7 @@ function settleLost(world: World, c: Contract): void {
 
 function allParts(world: World): PartInstance[] {
   return [
-    ...world.vehicles.flatMap((v) => v.items.filter(isPartItem).map((it) => it.part)),
+    ...everyTruck(world).flatMap((v) => v.items.filter(isPartItem).map((it) => it.part)),
     ...world.player.storage,
     ...world.salvage.flatMap((s) => [...s.parts, ...s.hidden.parts]),
     ...Object.values(world.shops).flatMap((s) => s.stock),
@@ -490,7 +511,7 @@ function nameFor(seed: string, taken: ReadonlySet<string>): string {
 
 function renameDrivers(world: World): void {
   const renames = new Map<string, string>();
-  const taken = new Set(world.vehicles.flatMap((v) => (v.brain && isName(v.brain.driver) ? [v.brain.driver] : [])));
+  const taken = new Set(everyTruck(world).flatMap((v) => (v.brain && isName(v.brain.driver) ? [v.brain.driver] : [])));
   const fixed = (name: string, seed: string): string => {
     if (isName(name)) return name;
     const known = renames.get(name);
@@ -500,7 +521,7 @@ function renameDrivers(world: World): void {
     renames.set(name, next);
     return next;
   };
-  for (const v of world.vehicles) if (v.brain) v.brain.driver = fixed(v.brain.driver, v.id);
+  for (const v of everyTruck(world)) if (v.brain) v.brain.driver = fixed(v.brain.driver, v.id);
   for (const c of [...world.player.contracts, ...Object.values(world.shops).flatMap((s) => s.contracts)]) renameInContract(c, fixed);
 }
 

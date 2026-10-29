@@ -22,9 +22,9 @@ function roundTrip(w: World): World {
   return loadWorld(slots, 'auto', TEST_MAP)!;
 }
 
-describe('save migration 120 to 121, size-ups and investigations keep a chase record', () => {
+describe('save migration 122 to 123, size-ups and investigations keep a chase record', () => {
   it('sits after the meeting roles step', () => {
-    expect(TINY_STEPS[121 - TINY_FROM]).toBe(chaseStep);
+    expect(TINY_STEPS[122 - TINY_FROM]).toBe(chaseStep);
   });
 
   it('starts a size-up chase at the save turn, from the truck to where it last saw its target', () => {

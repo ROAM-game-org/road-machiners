@@ -838,6 +838,11 @@ export function isMet(c: Contract): boolean {
   return (c.kind === 'rescue' && c.fulfilled) || (c.kind === 'search' && c.delivered);
 }
 
+export function contractTruck(c: Contract): string | null {
+  if (c.kind === 'escort' || c.kind === 'rescue') return c.client;
+  return c.kind === 'search' ? c.target : null;
+}
+
 export function advanceContracts(world: World): void {
   for (const c of world.player.contracts.filter((x) => !isMet(x))) settleContract(world, c);
   requireParcels(world);

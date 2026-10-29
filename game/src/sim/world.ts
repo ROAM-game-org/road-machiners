@@ -171,6 +171,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     sunward: modeMap(setup.mode) === 'icarus' ? freshSunward() : null,
     moments: modeMap(setup.mode) === 'icarus' ? freshMoments() : null,
     crimes: [],
+    sheltered: [],
   };
   world.obstacles = generateObstacles(world, map, [...hollowObstaclesFor(world), ...openingObstacles(kit, start)]);
   const truck = makeVehicle(world, {

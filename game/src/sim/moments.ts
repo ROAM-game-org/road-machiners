@@ -53,14 +53,22 @@ export function passMoments(world: World): void {
   if (!world.moments) return;
   const moments = world.moments;
   const lost = MOMENT_IDS.filter((id) => !moments[id].heard && moments[id].driver !== null && world.removed.some((v) => v.id === moments[id].driver));
-  for (const id of lost) {
-    moments[id].driver = null;
-    assign(world, id, world.vehicles);
-  }
+  for (const id of lost) reassign(world, id);
   const spawned = world.events.flatMap((e) => (e.t === 'spawn' ? [e.vehicle] : []));
   if (spawned.length === 0) return;
   const fresh = world.vehicles.filter((v) => spawned.includes(v.id));
   for (const id of MOMENT_IDS) if (!moments[id].heard && moments[id].driver === null) assign(world, id, fresh);
+}
+
+export function handOnMoments(world: World, goneId: string): void {
+  if (!world.moments) return;
+  const moments = world.moments;
+  for (const id of MOMENT_IDS) if (!moments[id].heard && moments[id].driver === goneId) reassign(world, id);
+}
+
+function reassign(world: World, id: MomentId): void {
+  momentsOf(world)[id].driver = null;
+  assign(world, id, world.vehicles);
 }
 
 export function releaseGoneHolders(world: World): void {

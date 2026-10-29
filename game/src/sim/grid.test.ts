@@ -4,6 +4,7 @@ import { NPCS } from '../data/npcs';
 import { PARTS } from '../data/parts';
 import { REGION } from '../data/region';
 import { bedRows } from './chassis-features';
+import { barrelClash } from './barrels';
 import { buyChassis } from './economy';
 import { partDef } from '../data/parts';
 import { makePart, makeVehicle } from './factory';
@@ -364,7 +365,7 @@ describe('placement from a layout built once', () => {
     if (others.some((o) => itemCells(o).some((c) => cells.some((d) => d.x === c.x && d.y === c.y)))) return { id: 'inTheWay' };
     const onSkin = item.kind === 'part' && (partDef(item.part.defId).kind === 'armor' || layer === 'accessory');
     if (!onSkin && cells.some((c) => g.cells[c.y][c.x] === 'L' || g.cells[c.y][c.x] === 'R')) return { id: 'armorOnly' };
-    return null;
+    return barrelClash(g.chassisId, items.filter((o) => o.id !== ignoreId), item) ? { id: 'barrel' } : null;
   }
 
   function oracleSpot(g: ReturnType<typeof gridOf>, items: GridItem[], item: GridItem, avoid: Cell[] | null) {

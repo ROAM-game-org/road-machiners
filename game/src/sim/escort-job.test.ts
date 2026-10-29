@@ -500,6 +500,7 @@ describe('on the turn pipeline', () => {
 
   it('runs a whole escort from the board to the pay without the player waiting long', () => {
     const { w, trader, offer } = setup();
+    for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     const money = w.player.money;
     let next = take(w, offer);
     const drive = follow(trader);
