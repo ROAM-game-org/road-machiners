@@ -19,7 +19,7 @@ Each rule has the check that enforces it. A rule with no automated check is chec
 
 ### T1. Test the rule at its owner, with the smallest world that shows it
 
-Call the function that owns the rule. Build the world with `emptyWorld()`, `flatTerrain()` and `addVehicle()` from the test kit, with only the trucks, sites and goods the rule reads. Use `standardWorld()` or the real map only when the rule is about the real map or the start world, like a spawn spot or a road on the baked map. Never rebake the map or rebuild nav layers in a test.
+Call the function that owns the rule. Build the world with `emptyWorld()`, `flatTerrain()` and `addVehicle()` from the test kit, with only the trucks, sites and goods the rule reads. An empty world costs milliseconds, and a start world on the real map costs seconds. When the rule reads one real object, like a claim wreck, a shop or a pad, add a stand-in for that object to an empty world instead of building the start world to get it. Use `standardWorld()` or the real map only when the rule is about the real map or the start world, like a spawn spot or a road on the baked map. Never rebake the map or rebuild nav layers in a test.
 
 Check: the CPU limits, on every run.
 
@@ -31,7 +31,9 @@ Check: review. A test that reads `world.vehicles.find(...)` on a generated world
 
 ### T3. Stay inside the budget
 
-A test should take under 2 s and a file under 10 s on a laptop. The hard CPU limits in [Tools](tools.md#tests) apply on every run, scaled by the speed of the machine, so a file that passes on your machine passes on CI. A file near its limit gets cheaper setup or a split. Share one world per file with `reusedWorld()` and clone it, and never build the same world in each test.
+A test should take under 2 s and a file under 10 s on a laptop. The hard CPU limits in [Tools](tools.md#tests) apply on every run, scaled by the speed of the machine, so a file that passes on your machine passes on CI.
+
+To fix a slow file, first find where its time goes. Time its setup and its hot helpers, and look for repeated work: the same world built per case, the same geometry checked many times, objects never freed. Make that work cheaper, and keep every case. Share one world per file with `reusedWorld()` and clone it. Split a file only when each case is already cheap and the file is still over its budget. A split lowers the cost of one file but not of the suite, and the suite's total time is the budget that ran out.
 
 Check: the CPU limits, on every run.
 
@@ -43,7 +45,7 @@ Check: the pre-commit hook rejects a new time limit in a test file.
 
 ### T5. Keep every case, seed, turn and roll
 
-Never cut a sample to make a test faster or to make it pass. A cut sample hides the rare case it was there to catch. To cut cost, make each case cheaper, share the setup, or split the cases over more tests or files. A split keeps the total: two files of 10 seeds replace one file of 20.
+Never cut a sample to make a test faster or to make it pass. A cut sample hides the rare case it was there to catch. To cut cost, make each case cheaper or share the setup, as T3 says. When you split cases over files, the split keeps the total: two files of 10 seeds replace one file of 20.
 
 Check: the pre-commit hook rejects a commit that lowers the total of a sample count in test files.
 
