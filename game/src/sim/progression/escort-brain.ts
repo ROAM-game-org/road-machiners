@@ -66,7 +66,9 @@ function clearOf(foe: Vehicle, spot: Vec, from: Vec, clearance: number): Vec {
 export function followMove(world: World, me: Vehicle, leader: Vehicle): MoveOrder {
   const spot = clearFollowSpot(world, me, leader);
   if (leader.speed <= RULES.parkedSpeed) return { kind: 'stopAt', dest: spot };
-  return { kind: 'through', dest: spot, pace: followPace(me, leader, spot) };
+  const pace = followPace(me, leader, spot);
+  if (pace <= RULES.parkedSpeed) return { kind: 'stopAt', dest: spot };
+  return { kind: 'through', dest: spot, pace };
 }
 
 const FOLLOW_RANKS = [0, 1, 2, 3];

@@ -114,8 +114,16 @@ describe('save migration 121 to 122, square grid', () => {
     run(afterArmor());
     const line = warnings().find((w) => w.includes('crateF'))!;
     expect(line).toContain('s1 (scout)');
-    expect(line).toContain('its nearest spot is taken');
+    expect(line).toContain('its nearest spot is not legal for it');
     expect(warnings().find((w) => w.includes('bedBox'))).toContain('its nearest spot is not legal for it');
+  });
+
+  it('says a crate left its nearest spot because another crate holds it', () => {
+    const crate = (id: string): Item => ({ id, kind: 'good', x: 2, y: 3, rot: 0, good: 'salt' });
+    run(worldOf([truck('t1', 'scout', [crate('first'), crate('second')])]));
+    const line = warnings().find((w) => w.includes('second'))!;
+    expect(line).toContain('t1 (scout)');
+    expect(line).toContain('its nearest spot is taken');
   });
 
   it('keeps bed rows in order below the new chassis rows', () => {
@@ -133,7 +141,7 @@ describe('save migration 121 to 122, square grid', () => {
     const out = run(worldOf([truck('t1', 'scout', items)])).vehicles[0].items;
     const spots = out.map((i) => `${i.part!.defId}@${i.x},${i.y}`).sort();
     expect(spots).toEqual(c.nextCore.map((k) => `${k.defId}@${k.x},${k.y}`).sort());
-    expect(out.filter((i) => i.part!.defId === 'wheel').map((i) => `${i.x},${i.y}`).sort()).toEqual(['1,11', '1,2', '4,11', '4,2']);
+    expect(out.filter((i) => i.part!.defId === 'wheel').map((i) => `${i.x},${i.y}`).sort()).toEqual(['1,10', '1,3', '4,10', '4,3']);
     expectLegal(truck('t1', 'scout', out));
   });
 
@@ -205,11 +213,15 @@ describe('save migration 121 to 122, square grid', () => {
 
 describe('square grid step, a gun that fits nowhere in its rotation', () => {
   it('turns it as a last resort, says so, and keeps the truck legal', () => {
-    const out = run(worldOf([truck('t1', 'buggy', [partItem('side', 'mg', 1, 5, 1)])]));
+    const rows = CHASSIS_121_122.buggy.next;
+    const fits = (w: number, h: number) => rows.some((row, y) => [...row].some((_, x) => Array.from({ length: w * h }, (__, i) => rows[y + Math.floor(i / w)]?.[x + (i % w)]).every((c) => c === 'D')));
+    const sideways = Object.entries(PARTS_121_122).find(([, d]) => d.kind === 'weapon' && d.mounts === 'D' && !fits(...d.next) && fits(d.next[1], d.next[0]));
+    expect(sideways, 'a gun that fits the buggy turned but not upright').toBeDefined();
+    const out = run(worldOf([truck('t1', 'buggy', [partItem('side', sideways![0], 1, 4, 0)])]));
     const gun = out.vehicles[0].items[0];
-    expect(gun.rot).not.toBe(1);
+    expect(gun.rot).not.toBe(0);
     expectLegal(out.vehicles[0]);
     expect(mountedOn('buggy', gun)).toBe(true);
-    expect(warnings().find((w) => w.includes('t1 (buggy) item side'))).toContain('turned from rotation 1 to');
+    expect(warnings().find((w) => w.includes('t1 (buggy) item side'))).toContain('turned from rotation 0 to');
   });
 });

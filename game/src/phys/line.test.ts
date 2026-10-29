@@ -2,10 +2,10 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { PHYSICS } from '../data/physics';
 import { HARPOON } from '../data/utilities';
-import { mountedParts } from '../sim/grid';
+import { gridOf, itemCells, mountSpots, mountedItems, mountedParts } from '../sim/grid';
 import { lineAnchors, type LineAnchor } from '../sim/harpoon';
 import { addVehicle, emptyWorld, npcBrain } from '../sim/testkit';
-import type { Vehicle, World } from '../sim/types';
+import type { Rot, Vehicle, World } from '../sim/types';
 import { buildDrive, freeDrive, initPhysics, simulateTurn, syncDrive, type Drive, type TurnResult } from './drive';
 import { rotateBy, upOf } from './frames';
 import { applyTurn } from './turn';
@@ -17,12 +17,25 @@ beforeAll(async () => {
 const S = PHYSICS.metersPerTile;
 const HALF_THROTTLE = ((0.5 / PHYSICS.driver.throttleGain) * PHYSICS.turnSeconds) / S;
 
+function centerHarpoon(v: Vehicle): void {
+  const item = mountedItems(v, 'weapon').find((i) => i.part.defId === 'harpoon');
+  if (!item) throw new Error('The harpoon did not mount');
+  const g = gridOf(v);
+  const middle = (s: { x: number; y: number; rot: Rot }) => {
+    const rows = itemCells({ ...item, ...s }).map((c) => c.y);
+    return Math.abs((Math.min(...rows) + Math.max(...rows) + 1) / 2 - g.chassisH / 2);
+  };
+  const spot = mountSpots(g, v.items, item, ['D']).reduce((best, s) => (middle(s) < middle(best) ? s : best));
+  Object.assign(item, spot);
+}
+
 function tethered(opts: { pace?: number; from?: string; to?: string; speed?: number } = {}): { w: World; hauler: Vehicle; scout: Vehicle } {
   const w = emptyWorld();
   const hauler = addVehicle(w, 'independent', opts.from ?? 'hauler', ['stockEngine', 'harpoon'], { x: 30, y: 30 });
   const scout = addVehicle(w, 'independent', opts.to ?? 'scout', ['stockEngine'], { x: 33, y: 30 });
   w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || v === hauler || v === scout);
   w.vehicles[0].pos = { x: 30, y: 26 };
+  centerHarpoon(hauler);
   const harpoon = mountedParts(hauler, 'weapon').find((p) => p.defId === 'harpoon');
   if (!harpoon) throw new Error('The harpoon did not mount');
   const held = mountedParts(scout, 'engine')[0];
@@ -136,6 +149,7 @@ describe('harpoon line physics', () => {
     const target = addVehicle(w, 'independent', to, ['stockEngine'], { x: 33, y: 30 });
     w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || v === shooter || v === target);
     w.vehicles[0].pos = { x: 10, y: 10 };
+    centerHarpoon(shooter);
     const harpoon = mountedParts(shooter, 'weapon').find((p) => p.defId === 'harpoon');
     if (!harpoon) throw new Error('The harpoon did not mount');
     w.lines = [{ id: 'l1', from: shooter.id, fromPart: harpoon.id, to: target.id, toPart: mountedParts(target, 'engine')[0].id, length: 0, turnsLeft: 9 }];
