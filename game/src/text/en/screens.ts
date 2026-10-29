@@ -593,6 +593,8 @@ export const SCREENS = {
   'town.go.board': 'Read the board',
   'town.go.people': 'Look for locals',
   'town.go.bar': 'See who is parked',
+  'town.go.oddJobs': m('Do odd jobs for {h, plural, one {# hour} other {# hours}}', { h: 'count' }),
+  'town.oddJobs.notHiring': m('For drivers under {money}', { money: 'text' }),
   'town.go.leave': 'Drive on',
   'town.back': 'Back',
   'trade.tab.market': 'Market',

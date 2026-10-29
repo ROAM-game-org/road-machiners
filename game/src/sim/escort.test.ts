@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { NPC_BEHAVIOR, NPCS, type TraitId } from '../data/npcs';
 import { REGION, type TerritoryDef } from '../data/region';
 import { RULES } from '../data/rules';
+import { waitsForFollowers } from './company-wait';
 import { planNpcOrders } from './ai';
 import { fireWeapons } from './combat';
 import { goalHolds, thinkNpc, topGoal } from './npc-activities';
@@ -461,12 +462,19 @@ describe('a leader with escorts', () => {
     expect(convoy.order?.kind).not.toBe('brake');
   });
 
-  it('drives on while a lagging escort is busy with a goal of its own', () => {
+  it('waits while its escort is at a service stop', () => {
     const { w, convoy } = pair(60 - NPC_BEHAVIOR.escortWaitGap - 1);
     const guard = escortsOf(w, convoy.id)[0];
     guard.brain!.goals.push({ kind: 'resupply', targetId: 'bowl', destination: { ...BOWL.pos }, phase: 'travel', reason: 'lowFuel' });
     planNpcOrders(w);
-    expect(convoy.order?.kind).not.toBe('brake');
+    expect(convoy.order?.kind).toBe('brake');
+  });
+
+  it('does not hold for an escort that fights', () => {
+    const { w, convoy } = pair(60 - NPC_BEHAVIOR.escortWaitGap - 1);
+    const guard = escortsOf(w, convoy.id)[0];
+    guard.brain!.goals.push({ kind: 'fight', targetId: 'bowl', destination: null, phase: 'travel', reason: 'attackTarget' } as never);
+    expect(waitsForFollowers(w, convoy, convoy.brain!.goals[0])).toBe(false);
   });
 
   it('drives on while its escort lags beyond the catch-up gap', () => {
