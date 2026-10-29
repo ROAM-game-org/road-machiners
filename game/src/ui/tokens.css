@@ -146,9 +146,10 @@
   --garage-edge-hover: drop-shadow(1.5px 0 0 var(--line-hover)) drop-shadow(-1.5px 0 0 var(--line-hover)) drop-shadow(0 1.5px 0 var(--line-hover)) drop-shadow(0 -1.5px 0 var(--line-hover));
   --garage-edge-pick: drop-shadow(2px 0 0 var(--ink-bright)) drop-shadow(-2px 0 0 var(--ink-bright)) drop-shadow(0 2px 0 var(--ink-bright)) drop-shadow(0 -2px 0 var(--ink-bright));
   --garage-edge-danger: drop-shadow(2px 0 0 var(--danger)) drop-shadow(-2px 0 0 var(--danger)) drop-shadow(0 2px 0 var(--danger)) drop-shadow(0 -2px 0 var(--danger));
-  --garage-hidden-wash: rgba(232, 222, 196, 0.1);
-  --garage-hidden-glow: rgba(232, 222, 196, 0.16);
-  --garage-hidden-hover: rgba(232, 222, 196, 0.2);
+  --garage-hidden-wash: rgba(232, 222, 196, 0.2);
+  --garage-hidden-glow: rgba(232, 222, 196, 0.35);
+  --garage-hidden-line: rgba(232, 222, 196, 0.55);
+  --garage-hidden-hover: rgba(232, 222, 196, 0.32);
   --garage-tint-hurt: rgba(255, 196, 60, 0.28);
   --garage-tint-crit: rgba(255, 120, 40, 0.38);
   --garage-tint-broken: rgba(255, 44, 40, 0.5);

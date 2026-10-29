@@ -371,7 +371,8 @@
   inset: 3px;
   border-radius: 4px;
   background: var(--garage-hidden-wash);
-  box-shadow: 0 0 8px 2px var(--garage-hidden-glow);
+  border: 1px dashed var(--garage-hidden-line);
+  box-shadow: 0 0 10px 2px var(--garage-hidden-glow);
 }
 .inv-grid .inv-item.drawn:hover .inv-art.hidden-part {
   background: var(--garage-hidden-hover);
