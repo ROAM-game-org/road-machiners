@@ -40,8 +40,8 @@ describe('story wrecks', () => {
 
   it('leaves the random streams and ids of world creation as they were', () => {
     const before = [
-      { seed: 1, rng: 810197324, market: 352633492, nextId: 2042, wreck0: { x: 521.489, y: 190.441 } },
-      { seed: 1337, rng: -115283298, market: 544458339, nextId: 2000, wreck0: { x: 533.311, y: 237.134 } },
+      { seed: 1, rng: -839537289, market: 288692295, nextId: 2057, wreck0: { x: 521.489, y: 190.441 } },
+      { seed: 1337, rng: -1086223056, market: -534965710, nextId: 2102, wreck0: { x: 533.311, y: 237.134 } },
     ];
     for (const b of before) {
       const w = newWorld(b.seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));

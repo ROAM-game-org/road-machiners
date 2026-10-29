@@ -20,28 +20,35 @@ function rolled(templateId: string, seed: number): Vehicle {
   return makeVehicle(world, { ...l, faction: fallbackFaction(t), brain: npcBrain(t.id, { x: 50, y: 50 }, t.traits), pos: { x: 50, y: 50 }, heading: 0 });
 }
 
-function sample(): { label: string; v: Vehicle }[] {
-  const out: { label: string; v: Vehicle }[] = [];
-  for (const id of Object.keys(NPCS)) {
-    for (let seed = 1; seed <= 6; seed++) {
-      try {
-        out.push({ label: `${id}#${seed}`, v: rolled(id, seed) });
-      } catch {
-        continue;
-      }
+type Sampled = { label: string; v: Vehicle };
+
+const sampled = new Map<string, Sampled[]>();
+
+function sampleOf(id: string): Sampled[] {
+  const known = sampled.get(id);
+  if (known) return known;
+  const out: Sampled[] = [];
+  for (let seed = 1; seed <= 6; seed++) {
+    try {
+      out.push({ label: `${id}#${seed}`, v: rolled(id, seed) });
+    } catch {
+      continue;
     }
   }
+  sampled.set(id, out);
   return out;
 }
 
+function sample(): Sampled[] {
+  return Object.keys(NPCS).flatMap(sampleOf);
+}
+
 describe('guns on one truck at rest', () => {
-  it('never meet on NPC loadouts of every template', () => {
+  it.each(['world', 'portrait'] as const)('never meet on NPC loadouts of every template in the %s view', (mode) => {
     const problems: string[] = [];
     for (const { label, v } of sample()) {
-      for (const mode of ['world', 'portrait'] as const) {
-        problems.push(...gunContacts(v, mode).map((p) => `${label} ${mode} ${p}`));
-        problems.push(...gunOverlaps(v, mode).map((p) => `${label} ${mode} ${p}`));
-      }
+      problems.push(...gunContacts(v, mode).map((p) => `${label} ${mode} ${p}`));
+      problems.push(...gunOverlaps(v, mode).map((p) => `${label} ${mode} ${p}`));
     }
     expect(problems).toEqual([]);
   }, SLOW);
@@ -55,9 +62,9 @@ describe('guns on one truck at rest', () => {
     expect(problems).toEqual([]);
   }, SLOW);
 
-  it('stand at the height each has alone', () => {
+  it.each(Object.keys(NPCS))('stand at the height each has alone on the %s loadouts', (templateId) => {
     const problems: string[] = [];
-    for (const { label, v } of sample()) {
+    for (const { label, v } of sampleOf(templateId)) {
       for (const g of mountedGuns(v)) {
         const full = headY(v, g.id, 'world');
         const alone = loneHeadY(v, g.id, 'world');
