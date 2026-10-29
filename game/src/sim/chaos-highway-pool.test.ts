@@ -6,6 +6,7 @@ import { spawnGroup, waveOf } from './chaos-highway';
 import { alongOf, toRoad } from './highway';
 import { vehicleStats } from './stats';
 import { chaosHighwayWorld } from './testkit';
+import { reusedWorld } from '../test/world-cache';
 import { dist } from './vec';
 import type { GameEvent, World } from './types';
 import { endTurn } from './world';
@@ -17,7 +18,7 @@ function moveAllFar(w: World): void {
 }
 
 function loneGroup(template: string): World {
-  const w = chaosHighwayWorld(5);
+  const w = reusedWorld('chaos highway 5', () => chaosHighwayWorld(5));
   const run = w.chaosHighway!;
   const group = { ...run.groups[0], from: 'ahead' as const, templates: [template], level: waveOf(6).level };
   run.groups = [group];
