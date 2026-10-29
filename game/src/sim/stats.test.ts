@@ -12,6 +12,7 @@ import { PARTS, type EngineDef, type StoreDef } from '../data/parts';
 import { makePart } from './factory';
 import { mountPart, stowPart } from './inventory';
 import { addVehicle, emptyWorld } from './testkit';
+import { freeMounts } from '../test/layout-spots';
 import { maxHp, wornDef } from './wear';
 
 describe('worn parts in vehicle stats', () => {
@@ -291,6 +292,19 @@ describe('gun power draw', () => {
   });
 });
 
+const HAULER_TEN_GUNS: { x: number; y: number; rot: 0 | 1 }[] = [
+  { x: 2, y: 1, rot: 0 },
+  { x: 2, y: 4, rot: 0 },
+  { x: 5, y: 4, rot: 0 },
+  { x: 1, y: 6, rot: 0 },
+  { x: 6, y: 6, rot: 0 },
+  { x: 2, y: 7, rot: 0 },
+  { x: 5, y: 8, rot: 0 },
+  { x: 2, y: 10, rot: 0 },
+  { x: 3, y: 12, rot: 1 },
+  { x: 1, y: 13, rot: 1 },
+];
+
 describe('max speed steps', () => {
   type Scenario = { build: () => { w: World; v: Vehicle }; kinds: string[] };
   const base = (parts: string[], chassis = 'scout') => {
@@ -312,7 +326,10 @@ describe('max speed steps', () => {
     overload: {
       build: () => {
         const s = base(['stockEngine'], 'hauler');
-        for (let i = 0; i < 10; i++) if (!mountPart(s.w, s.v, makePart(s.w, 'mg', 0))) throw new Error('The hauler has no room for gun ' + i);
+        HAULER_TEN_GUNS.forEach((at, i) => {
+          if (!freeMounts(s.w, s.v, 'mg', at.rot).some((m) => m.x === at.x && m.y === at.y)) throw new Error('The hauler has no room for gun ' + i);
+          s.v.items.push({ id: `mg${i}`, ...at, kind: 'part', part: makePart(s.w, 'mg', 0) });
+        });
         return s;
       },
       kinds: ['chassis', 'engine', 'load', 'guns'],
