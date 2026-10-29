@@ -210,7 +210,7 @@ The user drove the round 1 map. The Glass Flats debris trail and the Fallen Sun 
 
 - PT12 — 30% of the apron pieces are ship parts from `CRASH.apron.parts`: hull chunks, wing shards, power cells and habitats.
 - PT13 — Every scatter chance in `scatter.ts` is halved. Desert scrub share fell from 1 to 0.4, and `SCATTER.glassFlats` thins Glass Flats to a tenth of its stones and bushes, fading out by 1.6 radii. Desert bushes fell from 87 to 19 per 1000 tiles, and Glass Flats bushes from 69 to 1.5.
-- PT14 — `raiseRock()` turns the rock boxes into a distance field. Outside the fort the rock slopes down over `NOSE_ROCK.run` tiles with a rough top, clear of roads and pads. Inside the fort it rises over a ragged face a few tiles deep, so ground in front of the face stays at yard level. Only the ship's bed keeps the flat box tops.
+- PT14 — The box tops were the wrong source: each rock column is a long strip at the peak height, which made the flat table and buried the ship. `src/mapgen/nose-rise.ts` ports the `nose_rise` and `nose_crag` height functions, so the ground has the designed 6 m terrace and rubble slope toward the yard, the cradle under the ship and the crest behind it, with facet jitter. Outside the fort the foot slopes into the land over `NOSE_ROCK.run` tiles, clear of roads and pads. The scaffolds stand on the yard. `old-spots` now reads the map file without its route summary, so the bake order is map, old spots, routes, survey pictures. Playtest passes at 59 fps.
 
 ## Conclusion
 
