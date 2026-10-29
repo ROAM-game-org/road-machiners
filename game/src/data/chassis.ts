@@ -208,7 +208,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   courier: {
     id: 'courier', maxSpeed: 9.75, accel: 3, brake: 3, turnSlow: 125, turnFast: 42, reverseTurn: 80,
     mass: 280, handlingMass: 1100, radius: 0.5,
-    layout: [' FFFF ', 'LXEEXR', 'LXEEXR', 'LDEEDR', 'LDD DR', 'LDD.DR', 'LDDXXR', 'L.XX.R', 'LXXXXR', 'LXXXXR', ' BBBB '],
+    layout: [' FFFF ', 'LXEEXR', 'LXEEXR', 'L.EE.R', 'LDD DR', 'LDD.DR', 'LDDXXR', 'L.XX.R', 'LXXXXR', 'LXXXXR', ' BBBB '],
     core: [
       { defId: 'cab', x: 3, y: 6, rot: 1 },
       { defId: 'transmission', x: 2, y: 8 },
@@ -257,7 +257,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   carrier: {
     id: 'carrier', maxSpeed: 5.2, accel: 1, brake: 2.5, turnSlow: 75, turnFast: 28, reverseTurn: 50,
     mass: 3200, handlingMass: 5200, radius: 0.85,
-    layout: [' FFFFFF ', 'L.   ..R', 'L.DXXD.R', 'LX.XXDXR', 'LX.XXDXR', 'LXEEDDXR', 'LDEEDXDR', 'LDEEDXDR', 'LDXXXXDR', 'LXXXXDXR', 'LXXXXDXR', 'LXDDDDXR', 'LDDDDD.R', 'LDDDD..R', ' BBBBBB '],
+    layout: [' FFFFFF ', 'L.   ..R', 'L.DXXD.R', 'LX.XXDXR', 'LX.XXDXR', 'LXEEDDXR', 'LDEEDXDR', 'LDEEDXDR', 'LDXXXXDR', 'LXXXXDXR', 'LXXXXDXR', 'LXDDDDXR', 'LDDDDD.R', 'L.D.DD.R', ' BBBBBB '],
     core: [
       { defId: 'wheelHeavy', x: 1, y: 3 },
       { defId: 'wheelHeavy', x: 6, y: 3 },
@@ -322,7 +322,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   bus: {
     id: 'bus', maxSpeed: 5.5, accel: 0.9, brake: 2, turnSlow: 65, turnFast: 22, reverseTurn: 40,
     mass: 3000, handlingMass: 6800, radius: 0.9,
-    layout: [' FFFFF ', 'LDXXXDR', 'LDXXXDR', 'LDXXXDR', 'LDDDDDR', 'LXXXDXR', 'LXXXDXR', 'LXXXDXR', 'LDDDDDR', 'LDDDDDR', 'LDXXXDR', 'LDDDDDR', 'LDDDDDR', 'LXDDDXR', 'LXEEDXR', 'LXEEDXR', 'LDEEDDR', 'LDDDDDR', 'LDDDDDR', 'L  DDDR', ' BBBBB '],
+    layout: [' FFFFF ', 'LDXXXDR', 'LDXXXDR', 'LDXXXDR', 'LDDDDDR', 'LXXXDXR', 'LXXXDXR', 'LXXXDXR', 'LDDDDDR', 'LDDDDDR', 'LDXXXDR', 'LDDDDDR', 'LDDDDDR', 'LXDDDXR', 'LXEEDXR', 'LXEEDXR', 'LDEEDDR', 'LDDDDDR', 'LDDDDDR', 'L  ...R', ' BBBBB '],
     core: [
       { defId: 'cabPickup', x: 2, y: 1 },
       { defId: 'transmissionMid', x: 2, y: 5 },
@@ -389,7 +389,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   lincoln: {
     id: 'lincoln', maxSpeed: 8.6, accel: 2.0, brake: 2.2, turnSlow: 80, turnFast: 26, reverseTurn: 45,
     mass: 900, handlingMass: 2400, radius: 0.85,
-    layout: [' FFFFF ', 'L.  ..R', 'LDDD  R', 'L.DDDDR', 'LXEEEXR', 'LXEEEXR', 'LDXXXDR', 'LDXXXDR', 'LDXXXDR', 'LDDDDDR', 'LDDDDDR', 'LDDDDDR', 'LX   XR', 'LXXXXXR', 'L.XX  R', 'L.XX  R', 'L.  ..R', ' BBBBB '],
+    layout: [' FFFFF ', 'L.  ..R', 'LDDD  R', 'L.DDDDR', 'LXEEEXR', 'LXEEEXR', 'LDXXXDR', 'LDXXXDR', 'LDXXXDR', 'LDDDDDR', 'LDDDDDR', 'LDD.DDR', 'LX   XR', 'LXXXXXR', 'L.XX  R', 'L.XX  R', 'L.  ..R', ' BBBBB '],
     core: [
       { defId: 'wheel', x: 1, y: 4 },
       { defId: 'wheel', x: 5, y: 4 },
