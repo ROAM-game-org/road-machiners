@@ -4,7 +4,7 @@ import { isLineGun, PARTS, partDef, type EngineDef, type WeaponDef } from '../da
 import { makePart } from './factory';
 import { gunsBySide, killRate, targetOf, THREATS } from './fight-odds';
 import { baseGrid, cellKey, freeCells, itemCells, mountedItems, plateSide, type SideLetter } from './grid';
-import { vehicleStats } from './stats';
+import { vehicleMaxSpeed } from './stats';
 import type { Vehicle, World } from './types';
 import { wornDef } from './wear';
 
@@ -32,7 +32,7 @@ export function gearScorer(world: World, p: LoadoutPriorities, bare: Vehicle, pa
   const target = targetOf(bare);
   const tierOne = Object.values(PARTS).filter((d): d is WeaponDef => d.kind === 'weapon' && d.tier === 1 && !isLineGun(d));
   const saturation = (GEAR_SCORE.gunSaturation * tierOne.reduce((sum, def) => sum + killRate(def, target, 'front'), 0)) / tierOne.length;
-  const bareSpeed = vehicleStats(world, bare).maxSpeed;
+  const bareSpeed = vehicleMaxSpeed(world, bare);
   const bareCells = freeCells(bare);
   const rates = new Map<string, number>();
   const rateOf = (def: WeaponDef) => {
@@ -52,7 +52,7 @@ export function gearScorer(world: World, p: LoadoutPriorities, bare: Vehicle, pa
     return sides.reduce((a, b) => a + b, 0) / sides.length;
   };
 
-  const speedValue = (v: Vehicle) => vehicleStats(world, v).maxSpeed / bareSpeed / (paysFuel ? engineFuelUse(v) : 1);
+  const speedValue = (v: Vehicle) => vehicleMaxSpeed(world, v) / bareSpeed / (paysFuel ? engineFuelUse(v) : 1);
 
   const fireValue = (v: Vehicle) => {
     const guns = gunsBySide(v);

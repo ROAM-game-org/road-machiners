@@ -11,7 +11,7 @@ import { maxHp, wornDef } from './wear';
 import { gunSpans, type FireSpan } from './armor';
 import { corePart, coreParts, facingOf, itemCells, mountedItems, mountedParts } from './grid';
 import { unitOfCells } from './body';
-import { loadFactor, loadMass, vehicleMass } from './mass';
+import { loadFactor, loadFactorAt, loadMass, vehicleMass } from './mass';
 import { getResources } from './resources';
 import { isTowing } from './tow';
 import { isShutDown } from './utility';
@@ -211,9 +211,18 @@ export function vehicleStats(world: World, v: Vehicle): VehicleStats {
 type Drive = { maxSpeed: number; accel: number; fuelMult: number };
 type DriveShares = { limpSpeed: number; limpAccel: number; load: number; brokenWheels: number; force: number };
 
+function topSpeedOf(world: World, v: Vehicle, s: Pick<DriveShares, 'limpSpeed' | 'load' | 'brokenWheels'>): number {
+  return walkSpeed(world, v, s.limpSpeed, s.load, s.brokenWheels, inOverdrive(world, v), null);
+}
+
+export function vehicleMaxSpeed(world: World, v: Vehicle): number {
+  if (isShutDown(world, v)) return 0;
+  return topSpeedOf(world, v, { limpSpeed: limpSpeedOf(world, v), load: loadFactor(v), brokenWheels: brokenWheelCount(v) });
+}
+
 function driveOf(world: World, v: Vehicle, s: DriveShares): Drive {
   if (isShutDown(world, v)) return { maxSpeed: 0, accel: 0, fuelMult: 0 };
-  const maxSpeed = walkSpeed(world, v, s.limpSpeed, s.load, s.brokenWheels, inOverdrive(world, v), null);
+  const maxSpeed = topSpeedOf(world, v, s);
   if (!hasWorkingEngine(v) || isStalled(world, v)) return { maxSpeed, accel: s.limpAccel, fuelMult: 0 };
   const ch = chassisDef(v.chassisId);
   const e = wornDef<EngineDef>(mountedParts(v, 'engine')[0]);
@@ -273,12 +282,14 @@ export function npcMassRoom(v: Vehicle, share = templateSpeedShare(v)): number {
 export function massRoomAbove(v: Vehicle, share: number, floorSpeed: number): number {
   const needed = neededLoadFactor(v, share, floorSpeed);
   if (loadFactor(v) < needed) return 0;
+  const held = loadMass(v);
+  const factorWith = (extra: number) => loadFactorAt(v.chassisId, held + extra);
   let low = 0;
   let high = chassisDef(v.chassisId).ratedMass;
-  while (loadFactor(v, high) >= needed) high *= 2;
+  while (factorWith(high) >= needed) high *= 2;
   while (high - low > 1) {
     const mid = (low + high) / 2;
-    if (loadFactor(v, mid) >= needed) low = mid;
+    if (factorWith(mid) >= needed) low = mid;
     else high = mid;
   }
   return low;
