@@ -582,7 +582,7 @@ export type GameEvent =
   | { t: 'cargoSpilled'; vehicle: string; part: string; pile: string | null; units: number }
   | { t: 'destroyed'; vehicle: string; by: string }
   | { t: 'npcKnockout'; vehicle: string; by: string }
-  | { t: 'npcWake'; vehicle: string }
+  | { t: 'npcWake'; vehicle: string; gaveUp: boolean }
   | { t: 'arrived'; vehicle: string }
   | { t: 'spawn'; vehicle: string }
   | { t: 'despawn'; vehicle: string }
@@ -604,8 +604,8 @@ export type GameEvent =
   | { t: 'death'; cause: DeathCause }
   | { t: 'coreBurn'; vehicle: string }
   | { t: 'sunwardFallen' }
-  | { t: 'knockout' }
-  | { t: 'wake' }
+  | { t: 'knockout'; crash: boolean }
+  | { t: 'wake'; gaveUp: boolean }
   | { t: 'scrapPatch'; fuel: number }
   | { t: 'engineCredit'; part: string }
   | { t: 'townPatch' }

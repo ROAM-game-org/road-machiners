@@ -41,7 +41,7 @@ describe("stingOf", () => {
     expect(stingOf([{ t: "weather", event: overcast, outcome: "started" }], "p")).toBeNull();
   });
   it("plays no sting on a knockout, which is only a log line and a mark", () => {
-    expect(stingOf([{ t: "knockout" }], "p")).toBeNull();
+    expect(stingOf([{ t: "knockout", crash: false }], "p")).toBeNull();
   });
 });
 
