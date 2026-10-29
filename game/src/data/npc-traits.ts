@@ -16,7 +16,7 @@ export type Trait = {
   weights: TraitWeights;
 };
 
-const BASE_TRADE_STAKE = 20000;
+const BASE_TRADE_STAKE = 200;
 
 export const TRAITS: Record<TraitId, Trait> = {
   scavenger: {
@@ -24,7 +24,7 @@ export const TRAITS: Record<TraitId, Trait> = {
     weights: { idle: { scavenge: { add: 10 }, linger: { add: 1.5 } }, spotWork: { work: { add: 4 } }, salvageSeen: { loot: { add: 3 } }, strandedSeen: { tow: { add: 9 } }, hostileSeen: { fight: { add: 2 } }, aidAsked: { give: { mul: 2 } }, needySeen: { aid: { add: 0.02 } }, strangerSeen: { tale: { add: 0.1 }, tip: { add: 0.08 } } },
   },
   trader: {
-    towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: [], travelSites: [], contactReactRadius: 12, boldness: 1, fuelMargin: 0.75, robs: 'offDuty', tradeStake: 83300,
+    towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: [], travelSites: [], contactReactRadius: 12, boldness: 1, fuelMargin: 0.75, robs: 'offDuty', tradeStake: 833,
     weights: {
       idle: { trade: { add: 30 }, haul: { add: 1 }, explore: { add: 0.3 }, linger: { add: 1 } }, strandedSeen: { tow: { add: 9 } },
       hostileSeen: { fight: { mul: 0.002 } }, attacked: { fightBack: { mul: 0.1 } }, ramChance: { ram: { mul: 0.001 } },
@@ -79,7 +79,7 @@ export const TRAITS: Record<TraitId, Trait> = {
     weights: { idle: { prowl: { add: 10 }, scavenge: { add: 2 } }, spotWork: { work: { add: 1 } }, salvageSeen: { loot: { add: 20 } }, crashed: { retaliate: { add: 0.5 } }, strangerSeen: { tip: { add: 0.08 } }, helpCalled: { help: { mul: 0.3 } } },
   },
   supplier: {
-    towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: [], travelSites: [], contactReactRadius: 12, boldness: 1, fuelMargin: 1, robs: 'never', tradeStake: 83300,
+    towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: [], travelSites: [], contactReactRadius: 12, boldness: 1, fuelMargin: 1, robs: 'never', tradeStake: 833,
     weights: {
       idle: { haul: { add: 30 }, trade: { add: 15 }, scavenge: { mul: 0.001 } }, strandedSeen: { tow: { add: 9 } },
       hostileSeen: { fight: { mul: 0.002 } }, attacked: { fightBack: { mul: 0.1 } }, threatened: { comply: { add: 1 }, fightBack: { mul: 0.1 } }, warnedOff: { comply: { add: 1 }, fightBack: { mul: 0.1 } },

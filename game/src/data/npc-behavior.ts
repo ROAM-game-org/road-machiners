@@ -44,6 +44,8 @@ export const NPC_BEHAVIOR = {
   keepWork: 400,
   noticeMemory: 3,
   fleeMemory: 30,
+  berthMargin: 4,
+  berthCost: 6,
   fightSearchTurns: 6,
   closeInTiles: 0.5,
   fleeCalmTurns: 6,
@@ -64,9 +66,9 @@ export const NPC_BEHAVIOR = {
   robStronger: 0.015,
   robNearGuards: 0.015,
   lootAppeal: {
-    rob: { poor: 5000, rich: 16667, poorMul: 0.02 },
-    raid: { poor: 0, rich: 13333, poorMul: 0.002 },
-    hunt: { poor: 0, rich: 6667, poorMul: 0.002 },
+    rob: { poor: 50, rich: 166.67, poorMul: 0.02 },
+    raid: { poor: 0, rich: 133.33, poorMul: 0.002 },
+    hunt: { poor: 0, rich: 66.67, poorMul: 0.002 },
   },
   fightNearGuards: 0.001,
   towNearTown: { factor: 0.02, crawl: 15, far: 60 },
@@ -102,7 +104,7 @@ export const AID = {
   fillShare: 0.25,
   giftShare: 0.25,
   poorCondition: 0.5,
-  poorValue: 133333,
+  poorValue: 1333.33,
   handoverTurns: 1,
 };
 

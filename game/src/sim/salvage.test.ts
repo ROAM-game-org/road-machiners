@@ -314,7 +314,7 @@ describe('finite salvage', () => {
     delete w.player.costBasis.scrap;
     w.salvage.push({ id: 'test-stock', pos: { x: 30, y: 30 }, radius: 1, goods: { scrap: 3 }, parts: [], hidden: emptyHidden() });
     collectSalvage(w, w.vehicles[0], 'test-stock', 100);
-    expect(w.player.costBasis.scrap).toBe(GOODS.scrap.value);
+    expect(w.player.costBasis.scrap).toBeCloseTo(GOODS.scrap.value, 9);
   });
 });
 

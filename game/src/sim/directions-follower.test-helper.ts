@@ -80,6 +80,11 @@ function firstExits(graph: RoadGraph, node: number, first: Follow): RoadExit[] {
   return exitsAt(graph, node).filter((e) => sameName(roadName(graph, e.edge, node), first.road) && [DIRECTIONS.headingReach, DIRECTIONS.headingReach / 2].some((reach) => lookDown(graph, node, e, reach) === first.heading));
 }
 
+function onlyRoadExit(graph: RoadGraph, node: number, first: Follow): RoadExit[] {
+  const named = exitsAt(graph, node).filter((e) => sameName(roadName(graph, e.edge, node), first.road));
+  return named.length === 1 ? named : [];
+}
+
 export function ambiguousStarts(world: World, answers: readonly { from: Vec; steps: readonly DirectionStep[] }[]): string[] {
   return answers.flatMap(({ from, steps }) => {
     const first = steps.find((s): s is Follow => s.do === 'follow');

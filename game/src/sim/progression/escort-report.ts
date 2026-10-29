@@ -103,7 +103,7 @@ export function table(runs: readonly SeedRun[], cell: (row: StretchRow) => strin
 export function startGearM(): number {
   const kit = startKit('chaosHighway');
   const parts = [...kit.parts, ...(kit.placed ?? []).map((p) => p.defId), ...HAULER_KIT.parts];
-  return Math.round(parts.reduce((sum, id) => sum + PARTS[id].value, 0) / 100);
+  return Math.round(parts.reduce((sum, id) => sum + PARTS[id].value, 0));
 }
 
 export function gearShares(lines: readonly RunLine[]): number[] {

@@ -156,7 +156,7 @@ describe('haul text', () => {
 
 describe('currency in dialogue', () => {
   it("groups an amount and names the unit", () => {
-    const vars: CallVars = { town: { kind: 'town', id: 'bowl' }, fee: { kind: 'money', amount: 150000 } };
+    const vars: CallVars = { town: { kind: 'town', id: 'bowl' }, fee: { kind: 'money', amount: 1500 } };
     expect(en(lineText('pullPaid', vars))).toContain('1,500 M when we get there.');
   });
 });

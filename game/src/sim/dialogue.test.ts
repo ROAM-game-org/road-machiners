@@ -1000,7 +1000,7 @@ describe('claim wreck topic', () => {
     const part = makePart(w, 'mg', 0);
     const at = { x: npc.pos.x + 20, y: npc.pos.y };
     w.salvage = [{ id: 'armyTruck-1', pos: at, radius: 0.6, goods: {}, parts: [], hidden: { ...emptyHidden(), parts: [part] } }];
-    const claim = { id: 'ct-claim', shop: 'bowl', kind: 'claim' as const, stockId: 'armyTruck-1', at, partId: part.id, defId: part.defId, reward: 900, deadline: 9000, window: 9000, tier: 1 as const, rivalAt: 9000, rival: null, leads: [] };
+    const claim = { id: 'ct-claim', shop: 'bowl', kind: 'claim' as const, stockId: 'armyTruck-1', at, partId: part.id, defId: part.defId, reward: 9, deadline: 9000, window: 9000, tier: 1 as const, rivalAt: 9000, rival: null, leads: [] };
     w.player.contracts = [claim];
     return { w, npc, claim };
   }
@@ -1416,7 +1416,7 @@ describe('asking after someone', () => {
     target.brain.driver = 'Mack Holt';
     w.player.contracts.push({
       id: 'ct-s', shop: 'bowl', kind: 'search', target: target.id, driver: 'Mack Holt', template: 'trader',
-      lead: { at: { x: 0, y: 0 }, turn: 0 }, reward: 3700, deadline: 900, window: 600, tier: 1, delivered: false,
+      lead: { at: { x: 0, y: 0 }, turn: 0 }, reward: 37, deadline: 900, window: 600, tier: 1, delivered: false,
     });
     stowParcel(playerVehicle(w), { id: 'i-parcel', x: 0, y: 0, rot: 0, kind: 'parcel', contract: 'ct-s' });
     return { w, witness, target };

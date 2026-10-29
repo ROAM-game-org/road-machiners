@@ -527,7 +527,7 @@ function pileGoods(w: World, good: string): number {
 }
 
 function campValue(raider: Vehicle): number {
-  const goods = Object.entries(goodsCount(raider)).reduce((sum, [good, count]) => sum + count * campGoodPrice(good), 0);
+  const goods = Object.entries(goodsCount(raider)).reduce((sum, [good, count]) => sum + campGoodPrice(good, count), 0);
   return goods + spareParts(raider).reduce((sum, part) => sum + campPartPrice(part), 0);
 }
 
@@ -600,7 +600,7 @@ describe('going home with loot', () => {
     const { goals, value, looted } = sale!;
     expect(goals).toEqual([expect.objectContaining({ kind: 'sell', targetId: scrapjaw.id })]);
     expect(looted).toBe(carried);
-    expect(value).toBe(carried * campGoodPrice('electronics'));
+    expect(value).toBe(campGoodPrice("electronics", carried));
     const after = getResources(end, vehicle(end, raider.id)).money;
     expect(after).toBeLessThanOrEqual(money + value);
     expect(after).toBeGreaterThan(money + value - fuelBill(end, raider.id));

@@ -131,7 +131,7 @@ describe('RadioStation', () => {
     const w2 = later(w, RADIO.minGapTurns);
     w2.shops.bowl.contracts = [{
       id: 's1', shop: 'bowl', kind: 'search', target: 'v1', driver: 'Jed Cobb', template: 'trader',
-      lead: { at: { x: 1, y: 1 }, turn: 0 }, reward: 3700, deadline: 9999, window: 100, tier: 1, delivered: false,
+      lead: { at: { x: 1, y: 1 }, turn: 0 }, reward: 37, deadline: 9999, window: 100, tier: 1, delivered: false,
     }];
     s.hear(w2);
     const b = s.next()!;
@@ -144,7 +144,7 @@ describe('RadioStation', () => {
     const s = tuned(w);
     const w2 = later(w, RADIO.minGapTurns);
     const centre = w2.size / 2;
-    w2.shops.bowl.contracts = [{ id: 'c5', shop: 'bowl', kind: 'rescue', client: 'v1', driver: 'Jed Cobb', need: 'fuel', area: { x: centre + 50, y: centre - 50 }, reward: 200, deadline: 900, window: 400, tier: 1, fulfilled: false }];
+    w2.shops.bowl.contracts = [{ id: 'c5', shop: 'bowl', kind: 'rescue', client: 'v1', driver: 'Jed Cobb', need: 'fuel', area: { x: centre + 50, y: centre - 50 }, reward: 2, deadline: 900, window: 400, tier: 1, fulfilled: false }];
     s.hear(w2);
     const b = s.next()!;
     expect(b.topic).toBe('rescue');

@@ -313,13 +313,13 @@ describe('a broke target', () => {
     const w = emptyWorld({ x: 300, y: 300 });
     const me = playerVehicle(w);
     fileAgainst(w, me, { x: 300, y: 300 });
-    w.player.money = 1000;
+    w.player.money = 10;
     const marshal = marshalAt(w, { x: 306, y: 300 });
     planMarshal(w, marshal, [me]);
     raiseCalls(w);
     expect(w.player.call?.topic).toBe('bountyDemand');
     const pay = currentOptions(w).find((o) => o.line === 'payTheBook')!;
-    expect(pay.short).toBe(CRIME.fine.robbed - 1000);
+    expect(pay.short).toBe(CRIME.fine.robbed - 10);
     const next = chooseOption(w, currentOptions(w).findIndex((o) => o.line === 'notPaying'));
     expect(stateOf(next, 'feud', marshal.id, me.id)).not.toBeNull();
     const after = structuredClone(next);
@@ -327,7 +327,7 @@ describe('a broke target', () => {
     hit.lastHitBy = marshal.id;
     noteKnockout(after, hit);
     expect(after.crimes[0].status).toBe('collected');
-    expect(after.player.money).toBe(1000);
+    expect(after.player.money).toBe(10);
   });
 });
 
@@ -642,7 +642,7 @@ describe('the paid Marshall lead', () => {
     w.turn = 50;
     w.player.contracts.push({
       id: 'ct-s', shop: 'bowl', kind: 'search', target: target.id, driver: 'Mack Holt', template: 'trader',
-      lead: { at: { x: 0, y: 0 }, turn: 10 }, reward: 3700, deadline: 900, window: 600, tier: 1, delivered: false,
+      lead: { at: { x: 0, y: 0 }, turn: 10 }, reward: 37, deadline: 900, window: 600, tier: 1, delivered: false,
     });
     return { w, target, marshal: marshalAt(w, { x: 650, y: 100 }) };
   }

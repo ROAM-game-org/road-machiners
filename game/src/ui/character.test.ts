@@ -131,7 +131,7 @@ describe("inventory header money", () => {
   it("prints money as the M's coin and the number", () => {
     stubDom();
     const world = emptyWorld();
-    world.player.money = 3300;
+    world.player.money = 33;
     const chips = truckChips(world) as unknown as FakeNode;
     const money = chips.all((n) => n.className.split(" ").includes("amount"))[0];
     expect((money.children[0] as FakeNode).className).toBe("coin");
@@ -141,7 +141,7 @@ describe("inventory header money", () => {
   it("prints debt as a negative amount in danger ink", () => {
     stubDom();
     const world = emptyWorld();
-    world.player.money = -3300;
+    world.player.money = -33;
     const chips = truckChips(world) as unknown as FakeNode;
     const money = chips.all((n) => n.className.split(" ").includes("amount"))[0];
     expect(money.className).toContain("bad");

@@ -20,16 +20,16 @@ const hint = (...args: Parameters<typeof pressureHint>) => {
 
 describe("the reason a purchase is out of reach", () => {
   it("is empty when the money covers the price", () => {
-    expect(shortBy(1000, 1000)).toBeNull();
-    expect(shortBy(5000, 1000)).toBeNull();
+    expect(shortBy(10, 10)).toBeNull();
+    expect(shortBy(50, 10)).toBeNull();
   });
 
   it("names the missing money in whole M", () => {
-    expect(en(shortBy(0, 1200))).toBe("Need 12 M's more");
+    expect(en(shortBy(0, 12))).toBe("Need 12 M's more");
   });
 
   it("counts a debt into what is missing", () => {
-    expect(en(shortBy(-300, 1200))).toBe("Need 15 M's more");
+    expect(en(shortBy(-3, 12))).toBe("Need 15 M's more");
   });
 });
 
@@ -239,7 +239,7 @@ describe("the price of a case at the Marshalls desk", () => {
 
   const robbery = (restitution: number): CrimeCase => ({
     id: "case1", crime: "1:me:npc-x:robbed", offense: "robbed", target: "me", victim: "npc-x", issuer: { kind: "faction", faction: "bowl" },
-    reporters: ["npc-x"], site: "bowl", at: { x: 0, y: 0 }, turn: 1, filed: 2, owed: 11097, restitution, escrow: 0, status: "open",
+    reporters: ["npc-x"], site: "bowl", at: { x: 0, y: 0 }, turn: 1, filed: 2, owed: 111, restitution, escrow: 0, status: "open",
     closed: null, hunter: null, retryAt: null, offered: null, known: true, posse: 'lone', lead: { at: { x: 0, y: 0 }, turn: 1, heading: 0 },
   });
   const tipRows = (price: FakeNode) => price.all((n) => n.has("tooltip-row")).map((row) => [row.className, row.text()]);
@@ -251,21 +251,21 @@ describe("the price of a case at the Marshalls desk", () => {
   });
 
   it("is fine and restitution, and its breakdown gives Base in muted ink and Restitution in danger ink", () => {
-    const price = casePrice(robbery(4000), true) as unknown as FakeNode;
+    const price = casePrice(robbery(40), true) as unknown as FakeNode;
     expect(price.has("case-price")).toBe(true);
     expect(price.text()).toBe("151");
-    expect(tipRows(casePriceTip(robbery(4000)) as unknown as FakeNode)).toEqual([["tooltip-row base", "Base111"], ["tooltip-row down", "Restitution40"]]);
+    expect(tipRows(casePriceTip(robbery(40)) as unknown as FakeNode)).toEqual([["tooltip-row base", "Base111"], ["tooltip-row down", "Restitution40"]]);
   });
 
   it("prints in danger ink when the player cannot pay it", () => {
-    expect((casePrice(robbery(4000), false) as unknown as FakeNode).has("bad")).toBe(true);
+    expect((casePrice(robbery(40), false) as unknown as FakeNode).has("bad")).toBe(true);
     expect((casePrice(robbery(0), false) as unknown as FakeNode).has("bad")).toBe(true);
   });
 });
 
 describe("the odd jobs choice reason", () => {
   it("names the hire limit for a driver with too much cash", () => {
-    expect(en(oddJobsReason(emptyWorld(), { id: "notHiring" }))).toBe("For drivers under 56 M's");
+    expect(en(oddJobsReason(emptyWorld(), { id: "notHiring" }))).toBe("For drivers under 55 M's");
   });
 
   it("gives the refusal text for any other block", () => {

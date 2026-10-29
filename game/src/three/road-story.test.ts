@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { ALA_HIRED, GAME_OPENED_QUESTS, GAME_WORLD_VARS, ROAD_STORY } from '../data/quests';
-import { UNITS } from '../data/units';
 import { startKit } from '../data/start';
 import { haulerOf, playerVehicle } from '../sim/damage';
 import { driveOn } from '../sim/chaos-highway';
@@ -141,8 +140,8 @@ describe('the scenes at parked outposts', () => {
 
 describe('the road story data', () => {
   it('quotes the pay from the sim', () => {
-    expect(QUEST_QUERIES.stretch_pay(chaosHighwayWorld(SEED), [1])).toBe(payOf(1) / UNITS.centsPerM);
-    expect(QUEST_QUERIES.stretch_pay(chaosHighwayWorld(SEED), [2])).toBe(payOf(2) / UNITS.centsPerM);
+    expect(QUEST_QUERIES.stretch_pay(chaosHighwayWorld(SEED), [1])).toBe(payOf(1));
+    expect(QUEST_QUERIES.stretch_pay(chaosHighwayWorld(SEED), [2])).toBe(payOf(2));
     expect(() => QUEST_QUERIES.stretch_pay(chaosHighwayWorld(SEED), [0])).toThrow(/stretch/);
     expect(() => QUEST_QUERIES.stretch_pay(chaosHighwayWorld(SEED), [1.5])).toThrow(/whole/);
   });

@@ -11,6 +11,7 @@ const FONT_SAMPLE = 'A sample string that makes the browser load the font. No pl
 const SVG = 'Static SVG markup of an icon, with no words in it.';
 
 const MIGRATION_LABEL = 'A label inside a save migration error, which only the console and a bug report show.';
+const MONEY_LABEL = 'A label inside a whole-M money error, which only the console and a bug report show.';
 const SETTING_LABEL = 'A label inside a setup parse error, which only the console and a bug report show.';
 const SAVE_DB_ERROR = 'An error message of the save database, which only the console and a bug report show.';
 
@@ -42,6 +43,24 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/three/save-migrations.ts', text: 'player money', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: 'cost basis', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: 'pile   basis', reason: MIGRATION_LABEL },
+  { file: 'src/three/save-steps-late.ts', text: 'past contract', reason: MIGRATION_LABEL },
+  { file: 'src/three/save-steps-late.ts', text: 'call money', reason: MIGRATION_LABEL },
+  { file: 'src/three/save-steps-late.ts', text: 'call deal', reason: MIGRATION_LABEL },
+  { file: 'src/three/save-steps-late.ts', text: 'call price', reason: MIGRATION_LABEL },
+  { file: 'src/three/save-steps-late.ts', text: 'witnessed memory', reason: MIGRATION_LABEL },
+  { file: 'src/three/save-steps-late.ts', text: 'courier aid value', reason: MIGRATION_LABEL },
+  { file: 'src/three/save-steps-late.ts', text: 'Chaos Highway', reason: MIGRATION_LABEL },
+  { file: 'src/three/save-steps-late.ts', text: 'wave group money', reason: MIGRATION_LABEL },
+  { file: 'src/three/save-steps-late.ts', text: 'cost basis', reason: MIGRATION_LABEL },
+  { file: 'src/three/save-steps-late.ts', text: 'pile   basis', reason: MIGRATION_LABEL },
+  { file: 'src/sim/chaos-highway.ts', text: 'outpost pay', reason: MONEY_LABEL },
+  { file: 'src/sim/crime.ts', text: 'case stake', reason: MONEY_LABEL },
+  { file: 'src/sim/crime.ts', text: 'embezzlement fine', reason: MONEY_LABEL },
+  { file: 'src/sim/duty.ts', text: 'guard pay', reason: MONEY_LABEL },
+  { file: 'src/sim/economy.ts', text: 'transfer from  ', reason: MONEY_LABEL },
+  { file: 'src/sim/patch.ts', text: 'patch price', reason: MONEY_LABEL },
+  { file: 'src/sim/states.ts', text: 'tow fee', reason: MONEY_LABEL },
+  { file: 'src/sim/tow.ts', text: 'escort fee', reason: MONEY_LABEL },
   { file: 'src/sim/hunting-spots-bake.ts', text: '*', reason: BAKE_REPORT },
   { file: 'src/sim/progression/activity.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/sim/progression/job-checks.ts', text: '*', reason: DEV_REPORT },

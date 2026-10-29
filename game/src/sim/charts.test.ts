@@ -57,7 +57,7 @@ describe('charts', () => {
       const b = gridSquareSpan(s);
       return b.x1 - b.x0 === 98 && b.y1 - b.y0 === 98;
     })!;
-    expect(chartPrice(unexploredIn(w, biggest))).toBe(740);
+    expect(chartPrice(unexploredIn(w, biggest))).toBe(7);
   });
 
   it('prices by the unexplored share', () => {

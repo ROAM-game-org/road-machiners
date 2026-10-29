@@ -1,5 +1,6 @@
 
 import { REGION } from '../../data/region';
+import { NPC_BEHAVIOR } from '../../data/npcs';
 import { BREAKABLE } from '../../data/rules';
 import { TERRAIN, TERRAIN_TYPES, type TerrainTypeId } from '../../data/terrain';
 import { timed } from '../../perf';
@@ -618,7 +619,9 @@ function components(count: number, edgeStart: Int32Array, edges: Int32Array): In
   return comp;
 }
 
-export type Taste = { seed: number; side: number; values: Float32Array | null; shy: Float32Array | null; night: Float32Array | null; size: number; climb: number; steep: Float32Array | null; shares: Float32Array | null };
+export type Berth = { x: number; y: number; r: number };
+
+export type Taste = { seed: number; side: number; values: Float32Array | null; shy: Float32Array | null; night: Float32Array | null; size: number; climb: number; steep: Float32Array | null; shares: Float32Array | null; berths: Berth[] | null };
 
 const TASTES_MAX = 256;
 const tastes = new Map<string, Taste>();
@@ -642,7 +645,7 @@ export function makeTaste(seed: number, size: number): Taste {
   const side = Math.ceil(size / scale) + 2;
   const values = new Float32Array(side * side);
   for (let y = 0; y < side; y++) for (let x = 0; x < side; x++) values[y * side + x] = 1 + strength * (hashRandom(seed, x, y) - 0.5);
-  return { seed, side, values, shy: null, night: null, size, climb: Infinity, steep: null, shares: null };
+  return { seed, side, values, shy: null, night: null, size, climb: Infinity, steep: null, shares: null, berths: null };
 }
 
 export function offRoadTaste(taste: Taste, nav: TerrainNav): Taste {
@@ -670,9 +673,13 @@ function nightMask(nav: TerrainNav, zone: NightZone): Float32Array {
   return mask;
 }
 
+export function berthTaste(taste: Taste, berths: Berth[]): Taste {
+  return berths.length === 0 ? taste : { ...taste, berths };
+}
+
 export function climbTaste(taste: Taste | null, nav: TerrainNav, climb: number): Taste | null {
   if (climb >= TERRAIN.drive.maxSlope) return taste;
-  const base = taste ?? { seed: 0, side: 0, values: null, shy: null, night: null, size: nav.size, climb: Infinity, steep: null, shares: null };
+  const base = taste ?? { seed: 0, side: 0, values: null, shy: null, night: null, size: nav.size, climb: Infinity, steep: null, shares: null, berths: null };
   return { ...base, climb, steep: nav.steep, shares: blockOverClimb(nav, climb) };
 }
 
@@ -710,8 +717,17 @@ export function tasteAt(t: Taste, x: number, y: number): number {
 }
 
 function noisy(t: Taste, cost: number, x: number, y: number): number {
-  const c = cost * tasteAt(t, x, y) * (t.night ? t.night[tileIndex(t.size, x, y)] : 1);
+  const c = cost * tasteAt(t, x, y) * (t.night ? t.night[tileIndex(t.size, x, y)] : 1) * (t.berths && inBerth(t.berths, x, y) ? NPC_BEHAVIOR.berthCost : 1);
   return t.shy ? c * t.shy[tileIndex(t.size, x, y)] : c;
+}
+
+function inBerth(berths: Berth[], x: number, y: number): boolean {
+  for (const b of berths) if ((x - b.x) ** 2 + (y - b.y) ** 2 <= b.r * b.r) return true;
+  return false;
+}
+
+function berthKey(berths: Berth[]): string {
+  return berths.map((b) => `${Math.round(b.x)},${Math.round(b.y)},${Math.round(b.r)}`).join(';');
 }
 
 export function tasted(t: Taste | null, cost: number, x: number, y: number): number {
@@ -731,7 +747,8 @@ export function tasteKey(t: Taste | null): string {
   if (!t) return 'plain';
   const noise = t.values ? (t.shy ? `${t.seed}:off` : String(t.seed)) : 'flat';
   const styled = t.night ? `${noise}:n` : noise;
-  return t.steep ? `${styled}:c${t.climb}` : styled;
+  const berthed = t.berths ? `${styled}:b${berthKey(t.berths)}` : styled;
+  return t.steep ? `${berthed}:c${t.climb}` : berthed;
 }
 
 function smooth(f: number): number {
