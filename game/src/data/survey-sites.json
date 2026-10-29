@@ -1,5 +1,5 @@
 {
- "mapHash": "007f51cc",
+ "mapHash": "633d12fc",
  "sites": [
   {
    "id": "survey-waterTower-4149",
@@ -1143,6 +1143,43 @@
    ]
   },
   {
+   "id": "survey-ruin-4541",
+   "type": "lookout",
+   "pos": {
+    "x": 1125,
+    "y": 747
+   },
+   "props": [
+    {
+     "id": "ruin-4541",
+     "pos": {
+      "x": 1125,
+      "y": 747
+     },
+     "reach": 1.5986739268423114
+    }
+   ],
+   "lay": "rise",
+   "clues": [
+    {
+     "landmark": "fallen-sun",
+     "tiles": 150
+    },
+    {
+     "landmark": "granary",
+     "tiles": 425
+    },
+    {
+     "landmark": "kiln",
+     "tiles": 450
+    },
+    {
+     "landmark": "nose",
+     "tiles": 500
+    }
+   ]
+  },
+  {
    "id": "survey-house-4550",
    "type": "lookout",
    "pos": {
@@ -1942,7 +1979,7 @@
    ]
   },
   {
-   "id": "survey-skiff-26224",
+   "id": "survey-skiff-26227",
    "type": "boats",
    "pos": {
     "x": 326.1781005859375,
@@ -1950,7 +1987,7 @@
    },
    "props": [
     {
-     "id": "skiff-26224",
+     "id": "skiff-26227",
      "pos": {
       "x": 326.1781005859375,
       "y": 1225.11767578125
@@ -1958,7 +1995,7 @@
      "reach": 0.7076589806845472
     },
     {
-     "id": "skiff-26225",
+     "id": "skiff-26228",
      "pos": {
       "x": 323.6546630859375,
       "y": 1224.492919921875
@@ -1975,7 +2012,7 @@
    ]
   },
   {
-   "id": "survey-skiff-26226",
+   "id": "survey-skiff-26229",
    "type": "boats",
    "pos": {
     "x": 385.6114807128906,
@@ -1983,7 +2020,7 @@
    },
    "props": [
     {
-     "id": "skiff-26226",
+     "id": "skiff-26229",
      "pos": {
       "x": 385.6114807128906,
       "y": 1239.452392578125
@@ -2000,7 +2037,7 @@
    ]
   },
   {
-   "id": "survey-skiff-26230",
+   "id": "survey-skiff-26233",
    "type": "boats",
    "pos": {
     "x": 665.4669799804688,
@@ -2008,7 +2045,7 @@
    },
    "props": [
     {
-     "id": "skiff-26230",
+     "id": "skiff-26233",
      "pos": {
       "x": 665.4669799804688,
       "y": 1323.5369873046875
@@ -2016,7 +2053,7 @@
      "reach": 0.7076589806845472
     },
     {
-     "id": "skiff-26231",
+     "id": "skiff-26234",
      "pos": {
       "x": 662.4804077148438,
       "y": 1324.3123779296875
@@ -2024,7 +2061,7 @@
      "reach": 0.7076589806845472
     },
     {
-     "id": "fishingBoat-26229",
+     "id": "fishingBoat-26232",
      "pos": {
       "x": 660.3289794921875,
       "y": 1322.4962158203125
@@ -2057,7 +2094,7 @@
    ]
   },
   {
-   "id": "survey-fishingBoat-26232",
+   "id": "survey-fishingBoat-26235",
    "type": "boats",
    "pos": {
     "x": 771.047119140625,
@@ -2065,7 +2102,7 @@
    },
    "props": [
     {
-     "id": "fishingBoat-26232",
+     "id": "fishingBoat-26235",
      "pos": {
       "x": 771.047119140625,
       "y": 1362.42626953125
@@ -2090,7 +2127,7 @@
    ]
   },
   {
-   "id": "survey-shipCache-22882",
+   "id": "survey-shipCache-22893",
    "type": "wreckage",
    "pos": {
     "x": 876.6061401367188,
@@ -2098,7 +2135,7 @@
    },
    "props": [
     {
-     "id": "shipCache-22882",
+     "id": "shipCache-22893",
      "pos": {
       "x": 876.6061401367188,
       "y": 1163.8802490234375
@@ -2119,7 +2156,7 @@
    ]
   },
   {
-   "id": "survey-shipCache-22884",
+   "id": "survey-shipCache-22895",
    "type": "wreckage",
    "pos": {
     "x": 1169.5360107421875,
@@ -2127,7 +2164,7 @@
    },
    "props": [
     {
-     "id": "shipCache-22884",
+     "id": "shipCache-22895",
      "pos": {
       "x": 1169.5360107421875,
       "y": 545.8343505859375
@@ -2160,7 +2197,7 @@
    ]
   },
   {
-   "id": "survey-shipCache-22887",
+   "id": "survey-shipCache-22898",
    "type": "wreckage",
    "pos": {
     "x": 818.6663208007812,
@@ -2168,7 +2205,7 @@
    },
    "props": [
     {
-     "id": "shipCache-22887",
+     "id": "shipCache-22898",
      "pos": {
       "x": 818.6663208007812,
       "y": 711.2130126953125

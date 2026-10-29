@@ -886,6 +886,11 @@ describe("standing numbers", () => {
 
 describe("survey contract text", () => {
   const [first, second] = surveySites(TEST_MAP);
+  const surveySiteAt = (prefix: string, at: { x: number; y: number }): string => {
+    const site = surveySites(TEST_MAP).find((s) => s.id.startsWith(prefix) && Math.hypot(s.pos.x - at.x, s.pos.y - at.y) < 1);
+    if (!site) throw new Error(`No ${prefix} survey site at ${at.x}, ${at.y}`);
+    return site.id;
+  };
   const survey = (done: boolean[]): Extract<Contract, { kind: "survey" }> => ({
     id: "c3", shop: "bowl", kind: "survey", reward: 3000, deadline: 100, window: 100, tier: 1,
     points: [first, second].slice(0, done.length).map((site, i) => ({ site: site.id, found: done[i], done: done[i] })),
@@ -986,7 +991,7 @@ describe("survey contract text", () => {
   });
 
   it("tells the posting shop's way to a place, with the look and lay and the found tag last", () => {
-    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "bowl", points: [{ site: "survey-skiff-26230", found: true, done: false }] };
+    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "bowl", points: [{ site: surveySiteAt("survey-skiff-", { x: 665.5, y: 1323.5 }), found: true, done: false }] };
     vi.stubGlobal("document", {
       createElement: () => new TextNode(),
       createTextNode: (value: string) => Object.assign(new TextNode(), { children: [value] }),
@@ -1000,7 +1005,7 @@ describe("survey contract text", () => {
   });
 
   it("keeps the compass clue when no full way can be told", () => {
-    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "nose", points: [{ site: "survey-tank-4993", found: false, done: false }] };
+    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "nose", points: [{ site: surveySiteAt("survey-tank-", { x: 307.6, y: 1516.6 }), found: false, done: false }] };
     const w = emptyWorld();
     expect(en(surveyWayText(w, c, c.points[0]))).toBe(en(surveyClueText(surveyClue(c, c.points[0]))));
     vi.stubGlobal("document", {
