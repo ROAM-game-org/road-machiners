@@ -134,7 +134,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
     mass: 2730,
     handlingMass: 5800,
     radius: 0.8,
-    layout: [' FFFFFF ', 'L.DXXXDR', 'LDDXXX.R', 'LXDXXXXR', 'LXDEEDXR', 'LXDEEDXR', 'LDDEEDDR', 'LDDDDDDR', 'LDDXXDDR', 'LDDXXDDR', 'LXDXXDXR', 'LXDXXXXR', 'LXDDDDXR', 'LDDDDDDR', 'L.    .R', ' BBBBBB '],
+    layout: [' FFFFFF ', 'L.DXXX.R', 'LDDXXX.R', 'LXDXXXXR', 'LXDEEDXR', 'LXDEEDXR', 'LDDEEDDR', 'LDDDDDDR', 'LDDXXDDR', 'LDDXXDDR', 'LXDXXDXR', 'LXDXXXXR', 'LXDDDDXR', 'LDDDDDDR', 'L.    .R', ' BBBBBB '],
     core: [
       { defId: 'wheelMid', x: 1, y: 3 },
       { defId: 'wheelMid', x: 6, y: 3 },
@@ -389,7 +389,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   lincoln: {
     id: 'lincoln', maxSpeed: 8.6, accel: 2.0, brake: 2.2, turnSlow: 80, turnFast: 26, reverseTurn: 45,
     mass: 900, handlingMass: 2400, radius: 0.85,
-    layout: [' FFFFF ', 'L.  ..R', 'LDDD  R', 'L.DEEDR', 'LXDEEXR', 'LXDEEXR', 'LDXXXDR', 'LDXXXDR', 'LDXXXDR', 'LDDDDDR', 'LDDDDDR', 'LDDDDDR', 'LX   XR', 'LXXXXXR', 'L.XX  R', 'L.XX  R', 'L.  ..R', ' BBBBB '],
+    layout: [' FFFFF ', 'L.  ..R', 'LDDD  R', 'L.DDDDR', 'LXEEEXR', 'LXEEEXR', 'LDXXXDR', 'LDXXXDR', 'LDXXXDR', 'LDDDDDR', 'LDDDDDR', 'LDDDDDR', 'LX   XR', 'LXXXXXR', 'L.XX  R', 'L.XX  R', 'L.  ..R', ' BBBBB '],
     core: [
       { defId: 'wheel', x: 1, y: 4 },
       { defId: 'wheel', x: 5, y: 4 },

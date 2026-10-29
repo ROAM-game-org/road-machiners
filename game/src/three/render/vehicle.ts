@@ -7,7 +7,7 @@ import { isShield, partDef, type PartDef, type PartKind } from '../../data/parts
 import { PHYSICS } from '../../data/physics';
 import { wheelMounts } from '../../phys/body';
 import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
-import { cellCenter, cellRect, engineAnchor, highestUnder, restOn, roofSpot, spanOf, surfaceSamples, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
+import { cellCenter, cellRect, engineAnchor, engineRest, highestUnder, restOn, roofSpot, spanOf, surfaceSamples, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL, paintOf, type TruckColors } from '../../render/palette';
 import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOffset, dentsOf, type PartBox, grayShare, grayed, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
@@ -572,7 +572,7 @@ export class VehicleView {
 
   private placeEngine(v: Vehicle, item: PartItem, paint: number): THREE.Object3D {
     const obj = model(itemModel(item));
-    const at = footprint(v, item, 0);
+    const at = footprint(v, item, 0, (engineRest(v.chassisId, rectOf(v, item)) ?? restOf(v, item)).rect);
     const anchor = engineAnchor(v.chassisId);
     place(obj, { ...at, pos: new THREE.Vector3(anchor.x, anchor.y, anchor.z) });
     tint(obj, paint, lookOf(item));
@@ -961,8 +961,7 @@ function lookOf(item: GridItem): Look {
   return { tone: item.part.hp > 0 ? 1 : BROKEN_TONE[kind], step, partId: item.part.id, dents: kind !== 'weapon' };
 }
 
-export function footprint(v: Pick<Vehicle, 'chassisId'>, item: GridItem, y: number): Placement {
-  const rect = restOf(v, item).rect;
+export function footprint(v: Pick<Vehicle, 'chassisId'>, item: GridItem, y: number, rect: CellRect = restOf(v, item).rect): Placement {
   const size = itemBulk(item);
   const dx = rect.x1 - rect.x0 > 0 ? rect.x1 - rect.x0 : size.h * CELL.along;
   const dz = rect.z1 - rect.z0 > 0 ? rect.z1 - rect.z0 : size.w * CELL.across;
