@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
-import { GARAGE_ONLY, goodRoutesTitle, marketHint, newsWell, pressureHint, showsRelief, townPageOnOpen, tradeEstimate } from "./town";
+import { oddJobsReason, GARAGE_ONLY, goodRoutesTitle, marketHint, newsWell, pressureHint, showsRelief, townPageOnOpen, tradeEstimate } from "./town";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
 import { RELIEF, SHOPS } from "../data/market";
@@ -259,5 +259,15 @@ describe("the price of a case at the Marshalls desk", () => {
   it("prints in danger ink when the player cannot pay it", () => {
     expect((casePrice(robbery(4000), false) as unknown as FakeNode).has("bad")).toBe(true);
     expect((casePrice(robbery(0), false) as unknown as FakeNode).has("bad")).toBe(true);
+  });
+});
+
+describe("the odd jobs choice reason", () => {
+  it("names the hire limit for a driver with too much cash", () => {
+    expect(en(oddJobsReason(emptyWorld(), { id: "notHiring" }))).toBe("For drivers under 56 M's");
+  });
+
+  it("gives the refusal text for any other block", () => {
+    expect(en(oddJobsReason(emptyWorld(), { id: "stopFirst" }))).toBe("Stop the truck first");
   });
 });
