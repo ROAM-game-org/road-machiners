@@ -3,7 +3,7 @@ import { CRATE_MASS, GOODS } from '../data/goods';
 import { GEAR_DRAWS, GEAR_LEVELS, GEAR_LEVEL_IDS, GEAR_SCORE, GEAR_WHIM, GUN_SPOT_PICKS, MIN_NPC_SPEED, NPC_UPKEEP, PRIORITY_TOP, type CargoRoll, type GearLevel, type Load, type LoadoutPriorities, type NpcLoadoutTable, type NpcTemplate, type Weighted } from '../data/npcs';
 import { NPC_UTILITY_PARTS } from '../data/npc-utilities';
 import { isLineGun, isShield, PARTS, partDef, type PartKind } from '../data/parts';
-import { openArcShares } from './armor';
+import { gunSpans, openArcShares, spanSides, type Side } from './armor';
 import { gunsBySide } from './fight-odds';
 import { chassisTopSpeed } from './chassis-features';
 import { makePart, makeVehicle, newId, type PartSpec } from './factory';
@@ -214,19 +214,32 @@ function withGun(b: Build, v: Vehicle, defId: string, front = false): Vehicle | 
   return pickedGunSpot(b, v, item, front);
 }
 
-const GUN_SPOTS = new Map<string, Spot[]>();
+type RankedSpot = { spot: Spot; sides: Side[] };
+const GUN_SPOTS = new Map<string, RankedSpot[]>();
 
-function rankedGunSpots(v: Vehicle, item: PartItem): Spot[] {
+function rankedGunSpots(v: Vehicle, item: PartItem): RankedSpot[] {
   const key = `${v.chassisId}|${JSON.stringify(partDef(item.part.defId))}`;
   let spots = GUN_SPOTS.get(key);
   if (!spots) GUN_SPOTS.set(key, (spots = rankGunSpots(v, item)));
   return spots;
 }
 
-function rankGunSpots(v: Vehicle, item: PartItem): Spot[] {
+function rankGunSpots(v: Vehicle, item: PartItem): RankedSpot[] {
   const core = { ...v, items: v.items.filter((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'core') };
-  const share = (spot: Spot) => openArcShares({ ...core, items: [...core.items, { ...item, ...spot }] })[0];
-  return mountSpots(gridOf(core), core.items, item, MOUNT_CELLS.weapon).map((spot) => ({ spot, share: share(spot) })).sort((a, c) => c.share - a.share).map((r) => r.spot);
+  const rank = (spot: Spot) => {
+    const gun = { ...item, ...spot };
+    const bare = { ...core, items: [...core.items, gun] };
+    return { spot, sides: spanSides(gunSpans(bare, gun)), share: openArcShares(bare)[0] };
+  };
+  return mountSpots(gridOf(core), core.items, item, MOUNT_CELLS.weapon).map(rank).sort((a, c) => c.share - a.share).map(({ spot, sides }) => ({ spot, sides }));
+}
+
+function orderedGunSpots(v: Vehicle, item: PartItem): Spot[] {
+  const open = new Set(mountSpots(gridOf(v), v.items, item, MOUNT_CELLS.weapon).map(spotKey));
+  const guns = gunsBySide(v);
+  const bare = (side: Side) => !guns[side].some((def) => !isLineGun(def));
+  const free = rankedGunSpots(v, item).filter((r) => open.has(spotKey(r.spot)));
+  return [...free.filter((r) => r.sides.some(bare)), ...free.filter((r) => !r.sides.some(bare))].map((r) => r.spot);
 }
 
 const spotKey = (s: Spot) => `${s.x},${s.y},${s.rot}`;
@@ -244,8 +257,7 @@ function gunSpotFits(b: Build, next: Vehicle, front: boolean): boolean {
 }
 
 function pickedGunSpot(b: Build, v: Vehicle, item: PartItem, front: boolean): Vehicle | null {
-  const open = new Set(mountSpots(gridOf(v), v.items, item, MOUNT_CELLS.weapon).map(spotKey));
-  const places = rankedGunSpots(v, item).filter((s) => open.has(spotKey(s))).map((spot) => ({ ...v, items: [...v.items, { ...item, ...spot }] }));
+  const places = orderedGunSpots(v, item).map((spot) => ({ ...v, items: [...v.items, { ...item, ...spot }] }));
   if (places.length && !keepsHaul(b, places[0])) return null;
   const picks = topBearing(places, front);
   if (!picks.length) return repacked(b, v, item, (next) => gunSpotFits(b, next, front) && meetsSpeedFloor(next, 0, b.rules.minSpeed));
