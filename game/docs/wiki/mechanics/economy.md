@@ -72,6 +72,10 @@ Salvage lies hidden until a search turns it up. Territory loot spots and road wr
 
 Fuel and supplies limit range. Fuel burns per tile by chassis, times heat. Below 20% of tank capacity, the truck's top speed is halved. The truck crawls when fuel runs out. Supplies burn per turn, times heat. A full load lasts about 920 daytime turns. Without supplies the character loses health down to 30. Nothing refills supplies for free: every shop sells fuel and supplies at the same prices.
 
+## Odd jobs
+
+A player parked at any shop site with less than one day of the tier 1 wage (56 M) can do odd jobs from the town page. The choice is off at 56 M or more, and it names that limit. A shift is 150 turns, eight game hours, and runs on its own: turns advance until the shift ends, as on the beacon. It pays 5.95 cents a turn, which nets about 20 M a game day after the supplies the driver eats. A shift that ends early pays for the turns worked and gives no XP. Moving, combat or any other order ends it. The pay shows in the ledger as odd jobs.
+
 ## Charts
 
 Bowl and Nose sell charts of unexplored land. The map is cut into six by six square sheets, 130 tiles a side on Icarus, and each sheet is sold in the chart town nearest its centre, so every sheet has exactly one seller. A sheet is on sale while it still holds an unexplored tile.
