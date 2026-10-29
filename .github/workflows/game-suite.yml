@@ -61,6 +61,12 @@ jobs:
       - name: npm ci
         working-directory: game
         run: npm ci
+      - name: restore the pass cache
+        uses: actions/cache/restore@v4
+        with:
+          path: game/tmp/pass-cache
+          key: suite-pass-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: suite-pass-${{ matrix.shard }}-
       - name: tests
         id: tests
         working-directory: game
@@ -70,7 +76,7 @@ jobs:
           [ "$SHARD_JOBS" = "$SHARDS" ] || { echo "the matrix runs $SHARD_JOBS shards but SHARDS is $SHARDS"; exit 2; }
           all="$FILES"
           if [ -z "$all" ]; then all=$(find src -name '*.test.ts' | sort); fi
-          mine=$(printf '%s\n' $all | awk -v shard="$SHARD" -v shards="$SHARDS" 'NR % shards == shard % shards')
+          mine=$(for file in $all; do sum=$(printf '%s' "$file" | cksum | cut -d' ' -f1); if [ $((sum % SHARDS + 1)) -eq "$SHARD" ]; then echo "$file"; fi; done)
           echo "runner: $(nproc) CPUs,$(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2), $TEST_WORKERS workers"
           echo "shard $SHARD of $SHARDS runs $(printf '%s\n' $mine | grep -c .) of $(printf '%s\n' $all | grep -c .) test files"
           if [ -z "$mine" ]; then
@@ -79,7 +85,7 @@ jobs:
             exit 0
           fi
           code=0
-          npm run test:cached -- $mine || code=$?
+          npm run test:cached -- --cache tmp/pass-cache $mine || code=$?
           if [ "$code" -eq 3 ]; then
             echo "over=1" >> "$GITHUB_OUTPUT"
             exit 0
@@ -93,6 +99,12 @@ jobs:
           path: game/tmp/test-failures.json
           if-no-files-found: ignore
           retention-days: 7
+      - name: save the pass cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: game/tmp/pass-cache
+          key: suite-pass-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
       - name: suite time limit
         if: steps.tests.outputs.over == '1'
         run: |
@@ -103,6 +115,8 @@ jobs:
     needs: suite
     if: always()
     runs-on: ubuntu-latest
+    permissions:
+      statuses: write
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -115,11 +129,22 @@ jobs:
             echo "$found of $SHARDS shards wrote a failure record, so the run has none."
             exit 0
           fi
-          jq -s '{failed: (map(.failed) | add), unhandledErrors: (map(.unhandledErrors) | add), unfinished: (map(.unfinished) | add)}' shards/*/test-failures.json > test-failures.json
-          jq -c '{failed: (.failed | length), unhandledErrors}' test-failures.json
+          jq -s '{failed: (map(.failed) | add), unhandledErrors: (map(.unhandledErrors) | add), unfinished: (map(.unfinished // []) | add)}' shards/*/test-failures.json > test-failures.json
+          jq -c '{failed: (.failed | length), unhandledErrors, unfinished}' test-failures.json
       - uses: actions/upload-artifact@v4
         with:
           name: test-failures
           path: test-failures.json
           if-no-files-found: ignore
           retention-days: 7
+      - name: commit status
+        if: inputs.files == '' && inputs.workers == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ inputs.sha }}
+          RESULT: ${{ needs.suite.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          echo "$SHA" | grep -Eq '^[0-9a-f]{40}$' || { echo "a commit status needs the full sha, not $SHA"; exit 1; }
+          if [ "$RESULT" = success ]; then state=success; else state=failure; fi
+          gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state="$state" -f context="game suite" -f target_url="$RUN_URL" -f description="full suite: $RESULT"
