@@ -122,7 +122,7 @@ describe("grid metrics", () => {
 
     expect(m.cellW).toBeCloseTo(steps.col * PX_PER_METER, 9);
     expect(m.cellH).toBeCloseTo(steps.row * PX_PER_METER, 9);
-    expect(m.cellH / m.cellW).toBeGreaterThan(1.5);
+    expect(m.cellH / m.cellW).toBeCloseTo(1, 9);
   });
 
   it("put neighbouring cells as far apart in pixels as their centers are in meters", () => {
