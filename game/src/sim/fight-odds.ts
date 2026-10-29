@@ -25,7 +25,6 @@ export type Target = { sides: Record<Side, SideTarget>; stops: Map<string, numbe
 
 const LOADOUTS_KEPT = 512;
 const targetCache = new Map<string, Target>();
-const gunCache = new Map<string, Record<Side, WeaponDef[]>>();
 
 function loadoutKey(v: Vehicle): string {
   return `${v.chassisId}|${JSON.stringify(v.items)}`;
@@ -115,7 +114,7 @@ export function killRate(def: WeaponDef, target: Target, side: Side): number {
 }
 
 export function gunsBySide(v: Vehicle): Record<Side, WeaponDef[]> {
-  return kept(gunCache, loadoutKey(v), () => buildGunsBySide(v));
+  return buildGunsBySide(v);
 }
 
 function buildGunsBySide(v: Vehicle): Record<Side, WeaponDef[]> {

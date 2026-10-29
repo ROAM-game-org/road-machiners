@@ -417,7 +417,7 @@ export type FireSpan = { from: number; to: number };
 
 const SIDE_CENTER: Record<Side, number> = { front: 0, right: 90, rear: 180, left: -90 };
 
-export function gunSpans(v: Vehicle, item: GridItem): FireSpan[] {
+export function gunSpans(v: Vehicle, item: GridItem): readonly FireSpan[] {
   return spansIn(v, tallItems(v), item);
 }
 
@@ -466,7 +466,30 @@ export function gunLayoutScore(v: Vehicle): number {
   return covered.size * (360 * guns.length + 1) + sum;
 }
 
-function spansIn(v: Vehicle, tall: readonly GridItem[], item: GridItem): FireSpan[] {
+const SPANS_KEPT = 4096;
+const spanCache = new Map<string, readonly FireSpan[]>();
+
+function spansIn(v: Vehicle, tall: readonly GridItem[], item: GridItem): readonly FireSpan[] {
+  const key = spanKey(v, tall, item);
+  const known = spanCache.get(key);
+  if (known) return known;
+  if (spanCache.size >= SPANS_KEPT) spanCache.clear();
+  const spans = Object.freeze(openSpans(v, tall, item).map((s) => Object.freeze(s)));
+  spanCache.set(key, spans);
+  return spans;
+}
+
+function spanKey(v: Vehicle, tall: readonly GridItem[], item: GridItem): string {
+  if (item.kind !== 'part') throw new Error(`${item.id} is not a part`);
+  const place = (it: GridItem) => {
+    const { w, h } = itemSize(it);
+    return `${it.x},${it.y},${w},${h}`;
+  };
+  const blockers = tall.filter((blocker) => blocker.id !== item.id).map(place);
+  return `${place(item)},${item.rot},${weaponOn(v, item.part).arc}|${blockers.join('|')}`;
+}
+
+function openSpans(v: Vehicle, tall: readonly GridItem[], item: GridItem): FireSpan[] {
   const shadows = shadowsOf(tall, item).flatMap((s) => s.pieces);
   const open = arcPieces(v, item).flatMap((piece) => shadows.reduce((left, cut) => left.flatMap((p) => subtract(p, cut)), [piece]));
   return joinAcrossBack(mergeSpans(open));

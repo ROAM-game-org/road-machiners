@@ -58,7 +58,7 @@ const RADIO_TIP = 1.6;
 const RADIO_HALO = 0.6;
 const CHAIN_SIDE = 0.4;
 
-type Turret = { head: THREE.Group; tip: THREE.Vector3; spans: FireSpan[]; facing: number; unit: number };
+type Turret = { head: THREE.Group; tip: THREE.Vector3; spans: readonly FireSpan[]; facing: number; unit: number };
 
 type Look = { tone: number; step: number; partId: string | null; dents: boolean };
 const PRISTINE: Look = { tone: 1, step: 0, partId: null, dents: false };

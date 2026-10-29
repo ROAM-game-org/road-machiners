@@ -84,7 +84,7 @@ function preyOf(world: World, shooter: Vehicle): string | null {
 }
 
 export type ShotSource = { def: WeaponDef };
-export type AimedSource = ShotSource & { spans: FireSpan[]; facing: number; unit: number };
+export type AimedSource = ShotSource & { spans: readonly FireSpan[]; facing: number; unit: number };
 
 
 export function inArc(shooter: Vehicle, mw: AimedSource, target: Vehicle): boolean {

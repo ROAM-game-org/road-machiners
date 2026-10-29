@@ -11,7 +11,7 @@ import { freeCells, gridOf, mountCellsOf, mountedItems, MOUNT_CELLS, mountSpots,
 import { addGoods, mountPart, stowPart } from './inventory';
 import { vehicleMass } from './mass';
 import { armorQuality, gearScorer } from './npc-gear-score';
-import { massRoomAbove, meetsSpeedFloor, npcMassRoom, speedShare, vehicleStats } from './stats';
+import { massRoomAbove, meetsSpeedFloor, npcMassRoom, maxSpeedOf, speedShare } from './stats';
 import { nextRandom, type Rng } from './rng';
 import { repackWith, type RepackMemo } from './repack';
 import type { GridItem, Vehicle, World } from './types';
@@ -355,7 +355,7 @@ function chooseEngine(b: Build, rng: Rng, p: LoadoutPriorities, bare: Vehicle): 
   const offers = ENGINES.map((id) => withEngine(b, bare, id));
   const options = offers.filter((v): v is Vehicle => v !== null);
   if (!options.length) throw new Error(`No engine keeps the speed floor on ${bare.chassisId} at wear ${b.engineWear} within the gear money`);
-  const fastest = options.reduce((a, c) => (vehicleStats(b.world, c).maxSpeed > vehicleStats(b.world, a).maxSpeed ? c : a));
+  const fastest = options.reduce((a, c) => (maxSpeedOf(b.world, c) > maxSpeedOf(b.world, a) ? c : a));
   const score = gearScorer(b.world, p, fastest, b.rules.paysFuel);
   const engine = takeStep(b, rng, bare, ENGINES.map((id) => (v: Vehicle) => withEngine(b, v, id)), score, 0, true);
   if (!engine) throw new Error(`No engine adds speed to ${bare.chassisId}`);

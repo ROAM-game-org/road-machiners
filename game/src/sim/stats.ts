@@ -11,7 +11,7 @@ import { maxHp, wornDef } from './wear';
 import { gunSpans, type FireSpan } from './armor';
 import { corePart, coreParts, facingOf, itemCells, mountedItems, mountedParts } from './grid';
 import { unitOfCells } from './body';
-import { loadFactor, loadMass, vehicleMass } from './mass';
+import { loadFactor, loadFactorAt, loadMass, vehicleMass } from './mass';
 import { getResources } from './resources';
 import { isTowing } from './tow';
 import { isShutDown } from './utility';
@@ -20,7 +20,7 @@ import { DEG } from './vec';
 import { weatherOn } from './weather';
 import { fuelUseScale } from './settings';
 
-export type MountedWeapon = { part: PartInstance; def: WeaponDef; spans: FireSpan[]; facing: number; unit: number };
+export type MountedWeapon = { part: PartInstance; def: WeaponDef; spans: readonly FireSpan[]; facing: number; unit: number };
 
 export type VehicleStats = {
   maxSpeed: number;
@@ -227,6 +227,11 @@ export function plainMaxSpeed(world: World, v: Vehicle): number {
   return walkSpeed(world, v, limpSpeedOf(world, v), loadFactor(v), brokenWheelCount(v), false, null);
 }
 
+export function maxSpeedOf(world: World, v: Vehicle): number {
+  if (isShutDown(world, v)) return 0;
+  return walkSpeed(world, v, limpSpeedOf(world, v), loadFactor(v), brokenWheelCount(v), inOverdrive(world, v), null);
+}
+
 export function weaponOn(v: Vehicle, part: PartInstance): WeaponDef {
   const def = wornDef<WeaponDef>(part);
   const ability = chassisAbility(v.chassisId);
@@ -272,13 +277,15 @@ export function npcMassRoom(v: Vehicle, share = templateSpeedShare(v)): number {
 
 export function massRoomAbove(v: Vehicle, share: number, floorSpeed: number): number {
   const needed = neededLoadFactor(v, share, floorSpeed);
-  if (loadFactor(v) < needed) return 0;
+  const base = loadMass(v);
+  const factor = (extra: number) => loadFactorAt(v.chassisId, base + extra);
+  if (factor(0) < needed) return 0;
   let low = 0;
   let high = chassisDef(v.chassisId).ratedMass;
-  while (loadFactor(v, high) >= needed) high *= 2;
+  while (factor(high) >= needed) high *= 2;
   while (high - low > 1) {
     const mid = (low + high) / 2;
-    if (loadFactor(v, mid) >= needed) low = mid;
+    if (factor(mid) >= needed) low = mid;
     else high = mid;
   }
   return low;

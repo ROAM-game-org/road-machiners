@@ -50,7 +50,7 @@ export function shadowHolds(shadow: FireSpan, angle: number): boolean {
   return [angle - 360, angle, angle + 360].some((a) => a > shadow.from && a < shadow.to);
 }
 
-export function roundedSpans(spans: FireSpan[]): FireSpan[] {
+export function roundedSpans(spans: readonly FireSpan[]): FireSpan[] {
   return spans.map((s) => ({ from: Math.round(s.from * 10) / 10, to: Math.round(s.to * 10) / 10 }));
 }
 
