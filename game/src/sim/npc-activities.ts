@@ -17,7 +17,7 @@ import { isFree } from './spawn';
 import { bodyStop } from './meeting-stop';
 import { huntsOffRoad } from './hunt-style';
 import {
-  tradeOffers, supplyOffers, decide, keepsWord, offersChoice, perceiveDanger, getKnownSite, patrolStopsOf, patrolSite, travelSitesAway,
+  tradeOffers, supplyOffers, beatGates, onBeat, decide, keepsWord, offersChoice, perceiveDanger, getKnownSite, patrolStopsOf, patrolSite, travelSitesAway,
   huntingGroundsAway, raiderGroundsAway, isHostileContact, isWeak, huntsPrey, npcProfile, salvageSitesAway, npcSenses, usefulContacts, visibleDowned, visibleHostiles, visibleSalvage, type NpcProfile, type TradePlan,
   passReason, canStartFight, lootTaken, stockLootInvalid, truckLootInvalid, worksOnLoot, holdsOffRobbery, giveUpStrandedRobberies, forgetFullHold, noteCannotHold, noteStripped, hasSaleCargo, lootPassedUp, robbedFor, bodyCondition, givesUpUnarmed, yields, canFlee,
 } from './npc-decisions';
@@ -159,10 +159,17 @@ function fleeDestination(world: World, vehicle: Vehicle, profile: NpcProfile, th
 }
 
 export function saleGoal(world: World, vehicle: Vehicle, profile: NpcProfile): NpcActivity {
-  const buyers = profile.markets.map(getKnownSite);
+  const buyers = saleBuyers(world, vehicle, profile);
   buyers.sort((a, b) => cargoSaleValue(world, vehicle, b.id) - cargoSaleValue(world, vehicle, a.id) || dist(vehicle.pos, a.pos) - dist(vehicle.pos, b.pos));
   if (!buyers[0]) throw new Error(`${vehicle.id} knows no buyer`);
   return createSiteActivity('sell', buyers[0].id, 'sellCargo');
+}
+
+function saleBuyers(world: World, vehicle: Vehicle, profile: NpcProfile): Site[] {
+  const markets = profile.markets.map(getKnownSite);
+  const onTheBeat = markets.filter((site) => onBeat(vehicle, site.pos));
+  const pays = (sites: Site[]) => sites.some((site) => cargoSaleValue(world, vehicle, site.id) > 0);
+  return onTheBeat.length > 0 && (pays(onTheBeat) || !pays(markets)) ? onTheBeat : markets;
 }
 
 function tradeGoal(world: World, vehicle: Vehicle): NpcActivity {
@@ -231,11 +238,19 @@ function travelGoal(world: World, vehicle: Vehicle): NpcActivity {
   return isTerritory(site) ? tripGoal(vehicle, site) : createSiteActivity('travel', site.id, 'tripToSite');
 }
 
+function beatPoint(world: World, gates: readonly Vec[], radius: number): Vec {
+  const gate = gates[randInt(world, 0, gates.length - 1)];
+  const reach = NPC_BEHAVIOR.patrolRadius;
+  const inWorld = (value: number) => clamp(value, radius, world.size - radius);
+  return { x: inWorld(randRange(world, gate.x - reach, gate.x + reach)), y: inWorld(randRange(world, gate.y - reach, gate.y + reach)) };
+}
+
 export function exploreGoal(world: World, vehicle: Vehicle): NpcActivity {
   const radius = vehicleStats(world, vehicle).radius;
+  const gates = beatGates(vehicle);
   for (let i = 0; i < SPAWN.tries; i++) {
-    const point = { x: randRange(world, radius, world.size - radius), y: randRange(world, radius, world.size - radius) };
-    if (isFree(world, point, radius, vehicle.id)) return createActivity('explore', null, point, 'explore');
+    const point = gates ? beatPoint(world, gates, radius) : { x: randRange(world, radius, world.size - radius), y: randRange(world, radius, world.size - radius) };
+    if (onBeat(vehicle, point) && isFree(world, point, radius, vehicle.id)) return createActivity('explore', null, point, 'explore');
   }
   return createActivity('wait', null, null, 'noExplorePoint');
 }

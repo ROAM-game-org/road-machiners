@@ -530,7 +530,7 @@ describe('jobs in combat', () => {
 
 describe('which jobs combat stops', () => {
   it('lets combat stop every job but the survey', () => {
-    const kinds: Job['kind'][] = ['repair', 'search', 'strip', 'weld', 'firstAid', 'survey', 'business', 'refit'];
+    const kinds: Job['kind'][] = ['repair', 'search', 'strip', 'weld', 'firstAid', 'survey', 'business', 'oddJobs', 'refit'];
     expect(kinds.filter((k) => !stoppedByCombat(k))).toEqual(['survey']);
   });
 });
