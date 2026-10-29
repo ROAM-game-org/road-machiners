@@ -4,10 +4,11 @@ import { advanceFar } from './far';
 import { corePart, mountedParts } from './grid';
 import { onRouteRoad, terrainNav } from './nav/layer';
 import { topGoal } from './npc-activities';
-import { keepsOffRoads } from './off-road';
+import { routeStyle } from './off-road';
 import { sitePads } from './sites';
 import { addVehicle, editableTerrain, emptyWorld, npcBrain } from './testkit';
 import { npcHomeSite } from './tow';
+import type { TraitId } from '../data/npcs';
 import type { Faction, NpcActivity, Vehicle, World } from './types';
 import { dist } from './vec';
 import { endTurn } from './world';
@@ -22,11 +23,11 @@ function driver(w: World, faction: Faction, goal: NpcActivity['kind'] | null): V
   return v;
 }
 
-describe('keepsOffRoads', () => {
+describe('routeStyle', () => {
   it('holds for a raider that retreats or flees', () => {
     const w = emptyWorld();
-    expect(keepsOffRoads(w, driver(w, 'scrapjaw', 'retreat'))).toBe(true);
-    expect(keepsOffRoads(w, driver(w, 'scrapjaw', 'flee'))).toBe(true);
+    expect(routeStyle(w, driver(w, 'scrapjaw', 'retreat'))).toBe('hidden');
+    expect(routeStyle(w, driver(w, 'scrapjaw', 'flee'))).toBe('hidden');
   });
 
   it('holds for a stranded raider whatever its goal', () => {
@@ -37,12 +38,12 @@ describe('keepsOffRoads', () => {
     corePart(geared, 'transmission').hp = 0;
     const engineless = driver(w, 'scrapjaw', null);
     mountedParts(engineless, 'engine')[0].hp = 0;
-    expect([dry, geared, engineless].map((v) => keepsOffRoads(w, v))).toEqual([true, true, true]);
+    expect([dry, geared, engineless].map((v) => routeStyle(w, v))).toEqual(['hidden', 'hidden', 'hidden']);
   });
 
   it('leaves a healthy raider not hunting on the roads', () => {
     const w = emptyWorld();
-    for (const goal of ['sell', 'fight', null] as const) expect(keepsOffRoads(w, driver(w, 'scrapjaw', goal))).toBe(false);
+    for (const goal of ['sell', 'fight', null] as const) expect(routeStyle(w, driver(w, 'scrapjaw', goal))).toBe('road');
   });
 
   it('sends a raider out on a raid, a patrol or an investigation off the roads', () => {
@@ -50,7 +51,7 @@ describe('keepsOffRoads', () => {
     for (const goal of ['raid', 'patrol', 'investigate'] as const) {
       const v = driver(w, 'scrapjaw', goal);
       v.brain!.traits = ['raider'];
-      expect(keepsOffRoads(w, v)).toBe(true);
+      expect(routeStyle(w, v)).toBe('hidden');
     }
   });
 
@@ -58,14 +59,35 @@ describe('keepsOffRoads', () => {
     const w = emptyWorld();
     const trader = driver(w, 'independent', 'travel');
     trader.resources!.fuel = 0;
-    expect(keepsOffRoads(w, trader)).toBe(false);
-    expect(keepsOffRoads(w, driver(w, 'nose', 'flee'))).toBe(false);
+    expect(routeStyle(w, trader)).toBe('road');
+    expect(routeStyle(w, driver(w, 'nose', 'flee'))).toBe('road');
     w.player.fuel = 0;
-    expect(keepsOffRoads(w, w.vehicles[0])).toBe(false);
+    expect(routeStyle(w, w.vehicles[0])).toBe('road');
+  });
+
+  it('gives scavengers and roamers the cut style and every other trade the road', () => {
+    const w = emptyWorld();
+    const styleOf = (trait: TraitId) => {
+      const v = driver(w, 'independent', 'travel');
+      v.brain!.traits = [trait];
+      return routeStyle(w, v);
+    };
+    expect([styleOf('scavenger'), styleOf('roamer')]).toEqual(['cut', 'cut']);
+    for (const trait of ['trader', 'courier', 'guard', 'lawman', 'merc'] as const) expect(styleOf(trait), trait).toBe('road');
+  });
+
+  it('keeps a raider scavenger hidden while it flees and cut otherwise', () => {
+    const w = emptyWorld();
+    const flee = driver(w, 'scrapjaw', 'flee');
+    flee.brain!.traits = ['raider', 'scavenger'];
+    expect(routeStyle(w, flee)).toBe('hidden');
+    const idle = driver(w, 'scrapjaw', 'sell');
+    idle.brain!.traits = ['raider', 'scavenger'];
+    expect(routeStyle(w, idle)).toBe('cut');
   });
 });
 
-describe('keepsOffRoads for the Sunward', () => {
+describe('routeStyle for the Sunward', () => {
   const atHour = (hour: number): number => Math.ceil(1 + (hour - TIME.startHour) * (TIME.turnsPerDay / 24));
 
   function member(w: World): Vehicle {
@@ -78,9 +100,9 @@ describe('keepsOffRoads for the Sunward', () => {
     const w = emptyWorld();
     const car = member(w);
     w.turn = atHour(15);
-    expect(keepsOffRoads(w, car)).toBe(true);
+    expect(routeStyle(w, car)).toBe('hidden');
     w.turn = atHour(21);
-    expect(keepsOffRoads(w, car)).toBe(false);
+    expect(routeStyle(w, car)).toBe('road');
   });
 
   it('leaves a trader on the roads by day and by night', () => {
@@ -88,7 +110,7 @@ describe('keepsOffRoads for the Sunward', () => {
     const trader = driver(w, 'independent', 'travel');
     for (const hour of [15, 21]) {
       w.turn = atHour(hour);
-      expect(keepsOffRoads(w, trader)).toBe(false);
+      expect(routeStyle(w, trader)).toBe('road');
     }
   });
 
@@ -97,7 +119,7 @@ describe('keepsOffRoads for the Sunward', () => {
     const car = member(w);
     w.turn = atHour(15);
     w.sunward!.collapsed = w.turn;
-    expect(keepsOffRoads(w, car)).toBe(false);
+    expect(routeStyle(w, car)).toBe('road');
   });
 });
 
@@ -108,8 +130,8 @@ describe('the recorder world log', () => {
     const runner = driver(w, 'scrapjaw', 'flee');
     const healthy = driver(w, 'scrapjaw', 'sell');
     const trucks = worldLine(w, [])!.trucks!;
-    expect(trucks.find((t) => t.id === runner.id)).toMatchObject({ offRoad: true, onRoad: true });
-    expect(trucks.find((t) => t.id === healthy.id)).toMatchObject({ offRoad: false, onRoad: true });
+    expect(trucks.find((t) => t.id === runner.id)).toMatchObject({ style: 'hidden', onRoad: true });
+    expect(trucks.find((t) => t.id === healthy.id)).toMatchObject({ style: 'road', onRoad: true });
   });
 });
 
@@ -158,7 +180,7 @@ describe('raiders keeping off roads in the turn pipeline', () => {
       const v = byId(w, id);
       turn++;
       if (v.brain!.goals.at(-1)?.kind === 'rearm') return true;
-      if (v.order) expect(v.brain!.farRoute?.offRoad).toBe(true);
+      if (v.order) expect(v.brain!.farRoute?.style).toBe('hidden');
       if (onRoad(w, v)) road.push(turn);
     });
     expect(Math.max(0, ...road)).toBeLessThanOrEqual(4);
@@ -177,16 +199,16 @@ describe('raiders keeping off roads in the turn pipeline', () => {
     const patrol = raider(w, nearKiln(-5, -160));
     patrol.brain!.goals = [{ kind: 'sell', targetId: 'kiln', destination: nearKiln(-5, -10), phase: 'travel', reason: 'patrolTown' }];
     w = play(w, 7, (w) => {
-      expect(byId(w, trader.id).brain!.farRoute?.offRoad).toBe(false);
-      expect(byId(w, patrol.id).brain!.farRoute?.offRoad).toBe(false);
+      expect(byId(w, trader.id).brain!.farRoute?.style).toBe('road');
+      expect(byId(w, patrol.id).brain!.farRoute?.style).toBe('road');
       expect(onRoad(w, byId(w, patrol.id))).toBe(true);
-      expect(byId(w, dry.id).brain!.farRoute?.offRoad).toBe(true);
+      expect(byId(w, dry.id).brain!.farRoute?.style).toBe('hidden');
     });
     expect(topGoal(byId(w, dry.id))?.kind).toBe('resupply');
     expect(onRoad(w, byId(w, dry.id))).toBe(false);
     byId(w, patrol.id).resources!.fuel = 0;
     w = play(w, 6, () => {});
-    expect(byId(w, patrol.id).brain!.farRoute?.offRoad).toBe(true);
+    expect(byId(w, patrol.id).brain!.farRoute?.style).toBe('hidden');
     expect(onRoad(w, byId(w, patrol.id))).toBe(false);
   }, 120_000);
 });

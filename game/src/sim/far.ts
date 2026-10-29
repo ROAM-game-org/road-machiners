@@ -3,7 +3,7 @@ import { chassisDef } from '../data/chassis';
 import { RULES } from '../data/rules';
 import { inLiveRange, isHeadless } from './fidelity';
 import { boxSegmentDistance, propBoxes, propReach } from './mapgen';
-import { keepsOffRoads } from './off-road';
+import { ROUTE_STYLES, routeStyle, type RouteStyle } from './off-road';
 import { route } from './path';
 import { propSlotsAlong } from './prop-index';
 import { breakProp } from './salvage';
@@ -62,7 +62,7 @@ export function advanceFar(w: World, v: Vehicle): void {
 
   const s = fuelLimited(w, v, full, v.speed, order);
   const next = orderSpeed(s, v.speed, v.pos, order, driveMode(v));
-  const style = { offRoad: keepsOffRoads(w, v), night: avoidsCrater(w, v) };
+  const style = { route: routeStyle(w, v), night: avoidsCrater(w, v) };
   const points = farPoints(w, v, order.dest, style, full, s);
 
   const planned = follow(v.pos, points, (v.speed + next) / 2);
@@ -85,7 +85,7 @@ export function advanceFar(w: World, v: Vehicle): void {
   }
 }
 
-function farPoints(w: World, v: Vehicle, dest: Vec, style: RouteStyle, full: VehicleStats, s: VehicleStats): Vec[] {
+function farPoints(w: World, v: Vehicle, dest: Vec, style: FarStyle, full: VehicleStats, s: VehicleStats): Vec[] {
   const onRope = getHitchedTowIds(w);
   const stored = keptFarRoute(v);
   if (stored && dist(stored.dest, dest) < RULES.arriveRadius && sameStyle(stored, style)) return stored.points;
@@ -103,17 +103,17 @@ function radiusOf(v: Vehicle): number {
   return chassisDef(v.chassisId).radius;
 }
 
-type FarRoute = { dest: Vec; points: Vec[]; offRoad: boolean; night?: true };
-type RouteStyle = { offRoad: boolean; night: boolean };
+type FarRoute = { dest: Vec; points: Vec[]; style: RouteStyle; night?: true };
+type FarStyle = { route: RouteStyle; night: boolean };
 
-function farRouteOf(dest: Vec, points: Vec[], style: RouteStyle): FarRoute {
-  const route: FarRoute = { dest: { ...dest }, points, offRoad: style.offRoad };
+function farRouteOf(dest: Vec, points: Vec[], style: FarStyle): FarRoute {
+  const route: FarRoute = { dest: { ...dest }, points, style: style.route };
   if (style.night) route.night = true;
   return route;
 }
 
-function sameStyle(stored: FarRoute, style: RouteStyle): boolean {
-  return keptOffRoad(stored) === style.offRoad && (stored.night === true) === style.night;
+function sameStyle(stored: FarRoute, style: FarStyle): boolean {
+  return keptStyle(stored) === style.route && (stored.night === true) === style.night;
 }
 const playerRoutes = new Map<string, { route: FarRoute; at: Vec }>();
 
@@ -121,9 +121,9 @@ export function clearFarRoutes(): void {
   playerRoutes.clear();
 }
 
-function keptOffRoad(stored: FarRoute): boolean {
-  if (typeof stored.offRoad !== 'boolean') throw new Error('A far route has no offRoad flag');
-  return stored.offRoad;
+function keptStyle(stored: FarRoute): RouteStyle {
+  if (!ROUTE_STYLES.includes(stored.style)) throw new Error(`A far route has an unknown style: ${String(stored.style)}`);
+  return stored.style;
 }
 
 function keptFarRoute(v: Vehicle): FarRoute | undefined {

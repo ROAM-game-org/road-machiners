@@ -982,7 +982,7 @@ describe('the player towing an NPC', () => {
 
   it('hitching an NPC drops its kept far route', () => {
     const { w, npc } = strandedNpc();
-    npc.brain!.farRoute = { dest: { ...bowl.pos }, points: [{ ...npc.pos }, { ...bowl.pos }], offRoad: false };
+    npc.brain!.farRoute = { dest: { ...bowl.pos }, points: [{ ...npc.pos }, { ...bowl.pos }], style: 'road' };
     const r = pick(pick(callVehicle(w, npc.id), OFFER), HITCH);
     expect(find(r, npc.id).brain!.farRoute).toBeUndefined();
   });
@@ -1233,7 +1233,7 @@ describe('NPCs towing each other', () => {
 
   it('a hitched client drops its kept far route, so it drives on from the drop point', () => {
     const s = roadside(bowl, TRADER, SCAVENGER);
-    s.client.brain!.farRoute = { dest: { ...bowl.pos }, points: [{ ...s.client.pos }, { ...bowl.pos }], offRoad: false };
+    s.client.brain!.farRoute = { dest: { ...bowl.pos }, points: [{ ...s.client.pos }, { ...bowl.pos }], style: 'road' };
     const hitch = runUntil(s.w, 40, (w) => isOnRope(w, s.client.id));
     expect(find(hitch.w, s.client.id).brain!.farRoute).toBeUndefined();
   });
