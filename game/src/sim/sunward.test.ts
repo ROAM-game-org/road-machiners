@@ -31,7 +31,7 @@ import { fortressPieces, fortressProps, insideCurtain } from './fortress';
 import { sunwardDusk, sunwardHunt, sunwardLedger } from './cheats';
 import { generateNpcLoadout } from './npc-loadout';
 import { callVehicle, currentLine, currentOptions } from './dialogue';
-import { hollowDiscs, hollowObstacles, hollowPad, hollowReach, isHollowObstacle } from './hollow-layout';
+import { hollowDiscs, hollowObstacles, hollowPad, hollowReach, hollowSitesFor, isHollowObstacle } from './hollow-layout';
 import {
   advanceSunward, isCavalcadeCar, isHunterCar, avoidsCrater, fallenSun, gateOrder, vigilPosts, collapseOrder, craterExit, CRATER_NIGHT, inCraterZone, nightSafe, shunsAtNight, vigilGrounds, dawnAfter, hollowLampsLit, huntTonight, planSunward, spawnsAtHollow, duskTurn, orderDusk, nextRideOut, nightWindow, rideOutTurn, lastDusk, membersOf, phaseAt, returnTurn, sunwardFacts, sunwardPhase, holdsPost,
 } from './sunward';
@@ -144,6 +144,11 @@ describe('the Sunward clock', () => {
     expect(w.sunward).toBeNull();
     expect(() => sunwardPhase(w)).toThrow(/no Sunward order/);
     expect(w.obstacles.some(isHollowObstacle)).toBe(false);
+    expect(hollowSitesFor(w)).toEqual([]);
+  });
+
+  it('draws its pad while the order stands', () => {
+    expect(hollowSitesFor(orderWorld(5))).toEqual([HOLLOW.site]);
   });
 });
 

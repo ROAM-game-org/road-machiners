@@ -86,6 +86,10 @@ export function hollowObstaclesFor(world: Pick<World, 'sunward'>): Obstacle[] {
   return world.sunward ? hollowObstacles() : [];
 }
 
+export function hollowSitesFor(world: Pick<World, 'sunward'>): (typeof HOLLOW.site)[] {
+  return world.sunward ? [HOLLOW.site] : [];
+}
+
 export function isHollowObstacle(o: Obstacle): boolean {
   return /^hollow-\d+$/.test(o.id);
 }
