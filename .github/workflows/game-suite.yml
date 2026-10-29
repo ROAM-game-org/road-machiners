@@ -23,7 +23,8 @@ permissions:
   contents: read
 
 env:
-  SHARDS: '4'
+  SHARDS: '8'
+  SHARD_WORKERS: '2'
 
 jobs:
   suite:
@@ -33,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     env:
       SHA: ${{ inputs.sha }}
       FILES: ${{ inputs.files }}
@@ -65,11 +66,12 @@ jobs:
         working-directory: game
         run: |
           for file in $FILES; do echo "$file" | grep -Eq '^src/[A-Za-z0-9_./-]+\.test\.ts$' || { echo "bad test file $file"; exit 2; }; done
-          if [ -n "$WORKERS" ]; then echo "$WORKERS" | grep -Eq '^[1-9][0-9]?$' || { echo "bad workers $WORKERS"; exit 2; }; export TEST_WORKERS="$WORKERS"; fi
+          if [ -n "$WORKERS" ]; then echo "$WORKERS" | grep -Eq '^[1-9][0-9]?$' || { echo "bad workers $WORKERS"; exit 2; }; export TEST_WORKERS="$WORKERS"; else export TEST_WORKERS="$SHARD_WORKERS"; fi
           [ "$SHARD_JOBS" = "$SHARDS" ] || { echo "the matrix runs $SHARD_JOBS shards but SHARDS is $SHARDS"; exit 2; }
           all="$FILES"
           if [ -z "$all" ]; then all=$(find src -name '*.test.ts' | sort); fi
           mine=$(printf '%s\n' $all | awk -v shard="$SHARD" -v shards="$SHARDS" 'NR % shards == shard % shards')
+          echo "runner: $(nproc) CPUs,$(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2), $TEST_WORKERS workers"
           echo "shard $SHARD of $SHARDS runs $(printf '%s\n' $mine | grep -c .) of $(printf '%s\n' $all | grep -c .) test files"
           if [ -z "$mine" ]; then
             mkdir -p tmp
