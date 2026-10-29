@@ -102,8 +102,8 @@ const REPORTED_BUGGY: Wanted[] = [
   { defId: 'ceramicTile', on: ['L'], end: 'last' },
   { defId: 'ceramicTile', on: ['R'], end: 'last' },
   { defId: 'panniers', on: ['D'], end: 'first' },
-  { defId: 'caltrops', on: ['.'], end: 'first' },
-  { defId: 'panniers', on: ['.'], end: 'last' },
+  { defId: 'caltrops', on: ['D'], end: 'first' },
+  { defId: 'panniers', on: ['D'], end: 'last' },
 ];
 
 function reportedBuggyPlacements(): Placed[] {
@@ -135,11 +135,11 @@ function rimCells(chassisId: string): { x: number; y: number }[] {
 }
 
 describe('parts on bare nose and tail cells', () => {
-  it('builds the buggy view with caltrops on the plain row behind its nose, and keeps an anchor for them', () => {
-    const x = baseGrid('buggy').cells[1].indexOf('.');
+  it('builds the buggy view with caltrops on the deck row before its tail, and keeps an anchor for them', () => {
+    const tail = baseGrid('buggy').chassisH - 2;
+    const x = baseGrid('buggy').cells[tail].indexOf('D');
     expect(x).toBeGreaterThan(0);
-    const { v, caltrops } = withCaltropsAt('buggy', x, 1);
-    expect(baseGrid('buggy').cells[1][x]).toBe('.');
+    const { v, caltrops } = withCaltropsAt('buggy', x, tail);
     expect(placementError(baseGrid('buggy'), v.items, caltrops, null)).toBeNull();
     v.items.push(caltrops);
     const view = new VehicleView(v, true, PAINT.standard, 'world');
@@ -163,7 +163,7 @@ describe('parts on bare nose and tail cells', () => {
     expect(placementError(baseGrid('buggy'), v.items, caltrops, null)).toEqual({ id: 'armorOnly' });
   });
 
-  it('builds the reported buggy with panniers on the plain row before its tail', () => {
+  it('builds the reported buggy with panniers on the deck row before its tail', () => {
     const { v, items } = withParts('buggy', reportedBuggyPlacements());
     const grid = baseGrid('buggy');
     for (const item of items) {
@@ -171,7 +171,7 @@ describe('parts on bare nose and tail cells', () => {
       v.items.push(item);
     }
     const tailPanniers = items[items.length - 1];
-    expect(grid.cells[tailPanniers.y][tailPanniers.x]).toBe('.');
+    expect(tailPanniers.y).toBe(grid.chassisH - 2);
     let view: VehicleView | undefined;
     expect(() => { view = new VehicleView(v, true, PAINT.standard, 'world'); }).not.toThrow();
     expect(view!.hasPart(tailPanniers.part.id)).toBe(true);

@@ -122,6 +122,7 @@ function roomFor(pieces: Piece[], from: number, taken: Set<number>): boolean {
   const reach = new Set<number>();
   let need = 0;
   for (let i = from; i < pieces.length; i++) {
+    if (!pieces[i].spots.some((s) => s.cells.every((c) => !taken.has(c)))) return false;
     need += pieces[i].area;
     for (const c of pieces[i].reach) if (!taken.has(c)) reach.add(c);
   }

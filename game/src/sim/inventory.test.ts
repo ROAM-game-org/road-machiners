@@ -97,7 +97,7 @@ describe('inventory grid', () => {
     const mg = item(w, 'mg');
     if (mg.kind !== 'part') throw new Error('Expected weapon');
     w.vehicles[0].items.push({ ...mg, id: 'spare-item', part: { ...mg.part, id: 'spare-part' }, x: 3, y: rackRow, rot: 1 });
-    const next = moveItem(w, 'spare-item', { x: mg.x, y: mg.y, rot: 0 });
+    const next = moveItem(w, 'spare-item', { x: mg.x, y: mg.y, rot: mg.rot });
     expect(next.vehicles[0].job).toMatchObject({ kind: 'refit', total: 10 });
     for (let turn = 0; turn < 9; turn++) advanceJobs(next);
     expect(next.vehicles[0].items.find((it) => it.id === mg.id)).toMatchObject({ x: mg.x, y: mg.y });
@@ -112,7 +112,7 @@ describe('inventory grid', () => {
     const mg = item(w, 'mg');
     if (mg.kind !== 'part') throw new Error('Expected weapon');
     w.vehicles[0].items.push({ ...mg, id: 'spare-item', part: { ...mg.part, id: 'spare-part' }, x: 3, y: rackRow, rot: 1 });
-    const next = moveItem(w, 'spare-item', { x: mg.x, y: mg.y, rot: 0 });
+    const next = moveItem(w, 'spare-item', { x: mg.x, y: mg.y, rot: mg.rot });
     expect(next.vehicles[0].job).toBeNull();
     expect(next.vehicles[0].items.find((entry) => entry.id === mg.id)).toMatchObject({ x: 3, y: rackRow, rot: 1 });
     expect(next.vehicles[0].items.find((entry) => entry.id === 'spare-item')).toMatchObject({ x: mg.x, y: mg.y });
@@ -128,8 +128,8 @@ describe('inventory grid', () => {
     const id = w.player.storage.find((p) => p.defId === 'heavyMg')!.id;
     const stacked = takeFromStorage(w, id, freeMounts(w, w.vehicles[0], 'heavyMg')[0]);
     expect(vehicleStats(stacked, stacked.vehicles[0]).weapons.map((m) => m.def.id)).toEqual(['heavyMg']);
-    const across = takeFromStorage(w, id, { x: 1, y: 12, rot: 1 });
-    expect(vehicleStats(across, across.vehicles[0]).weapons).toHaveLength(0);
+    const stowed = takeFromStorage(w, id, { x: 1, y: CHASSIS.scout.layout.length, rot: 1 });
+    expect(vehicleStats(stowed, stowed.vehicles[0]).weapons).toHaveLength(0);
   });
 
   it('removing the panniers is blocked while their row holds items', () => {
@@ -307,7 +307,7 @@ describe('garage work at every shop', () => {
     const mg = item(w, 'mg');
     if (mg.kind !== 'part') throw new Error('Expected weapon');
     w.vehicles[0].items.push({ ...mg, id: 'spare-item', part: { ...mg.part, id: 'spare-part' }, x: 3, y: rackRow, rot: 1 });
-    const next = moveItem(w, 'spare-item', { x: mg.x, y: mg.y, rot: 0 });
+    const next = moveItem(w, 'spare-item', { x: mg.x, y: mg.y, rot: mg.rot });
     expect(next.vehicles[0].job).toBeNull();
     expect(next.vehicles[0].items.find((it) => it.id === mg.id)).toMatchObject({ x: 3, y: rackRow, rot: 1 });
     expect(next.vehicles[0].items.find((it) => it.id === 'spare-item')).toMatchObject({ x: mg.x, y: mg.y });
@@ -340,7 +340,7 @@ describe('garage work at every shop', () => {
 
     it('runs one job for a plan of several moves, with turns from the original layout', () => {
       const { w, mg } = withSpare();
-      const layout = { 'spare-item': { x: mg.x, y: mg.y, rot: 0 as const }, [mg.id]: { x: 3, y: rackRow, rot: 1 as const } };
+      const layout = { 'spare-item': { x: mg.x, y: mg.y, rot: mg.rot }, [mg.id]: { x: 3, y: rackRow, rot: 1 as const } };
       const next = startRefit(w, layout);
       expect(next.vehicles[0].job).toMatchObject({ kind: 'refit', total: 10 });
       expect(plannedRefitTurns(w, w.vehicles[0], layout)).toBe(10);

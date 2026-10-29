@@ -26,7 +26,7 @@ describe('armor on all four edges across a save', () => {
       return { ...probe, ...spot };
     };
     const crate = (x: number, y: number): GridItem => ({ id: newId(w, 'i'), x, y, rot: 0, kind: 'good', good: 'scrap' });
-    const tail = g.cells.slice(1, g.chassisH - 1).flatMap((row, i) => row.slice(1, -1).flatMap((cell, x) => (cell === '.' || cell === 'D' ? [{ x: x + 1, y: i + 1 }] : []))).pop()!;
+    const tail = g.cells.slice(1, g.chassisH - 1).flatMap((row, i) => row.slice(1, -1).flatMap((cell, x) => (cell === 'C' || cell === 'D' ? [{ x: x + 1, y: i + 1 }] : []))).pop()!;
     const head = findSpot(gridOf(me), me.items, crate(0, 0), null, null)!;
     const place = (item: GridItem) => {
       expect(placementError(gridOf(me), me.items, item, null)).toBeNull();

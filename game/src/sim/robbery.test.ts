@@ -218,7 +218,7 @@ describe('danger', () => {
 
   it('a tank is a bigger threat than a scout', () => {
     const { w, driver } = judge();
-    const tank = addVehicle(w, 'scrapjaw', 'carrier', ['sniperCannon', 'plates', 'stockEngine'], { x: 10, y: 10 });
+    const tank = addVehicle(w, 'scrapjaw', 'carrier', ['cannon', 'mg', 'plates', 'stockEngine'], { x: 10, y: 10 });
     const scout = addVehicle(w, 'scrapjaw', 'scout', ['mg', 'stockEngine'], { x: 60, y: 10 });
     expect(judgeDanger(w, driver, tank)).toBeGreaterThan(judgeDanger(w, driver, scout) * 3);
   });

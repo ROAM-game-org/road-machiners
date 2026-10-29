@@ -188,7 +188,7 @@ describe("field refit plan", () => {
   it("turns a gun round in place and starts one job from the plan", () => {
     const w = emptyWorld();
     const mg = partOf(w, "mg");
-    const plan = planAfterMove(w.vehicles[0], {}, mg.id, { x: mg.x, y: mg.y, rot: 2 });
+    const plan = planAfterMove(w.vehicles[0], {}, mg.id, { x: mg.x, y: mg.y, rot: ((mg.rot + 2) % 4) as Rot });
     expect(plannedRefitTurns(w, w.vehicles[0], plan)).toBeGreaterThan(0);
     expect(startRefit(w, plan).vehicles[0].job).toMatchObject({ kind: "refit" });
   });
