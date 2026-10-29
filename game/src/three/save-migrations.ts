@@ -302,7 +302,7 @@ function footprintCells_42_43(item: SavedJson, defId: string | null): string[] {
   return cells;
 }
 
-function withWideMg_42_43(world: SavedJson): SavedJson {
+export function withWideMg_42_43(world: SavedJson): SavedJson {
   const player = world.player as Player;
   const storage = [...player.storage];
   const widen = (v: SavedJson): SavedJson => {
@@ -663,7 +663,7 @@ function inOrder(steps: readonly Step[]): Step {
   return (world) => steps.reduce((w, step) => step(w), world);
 }
 
-function relaidTrucks_1_2(world: SavedJson): SavedJson {
+export function relaidTrucks_1_2(world: SavedJson): SavedJson {
   const player = { ...(world.player as Player), storage: [...(world.player as Player).storage] };
   const vehicles = (world.vehicles as SavedJson[]).map((v) => relayVehicle(v, v.id === player.vehicleId ? player : null));
   return { ...world, player, vehicles };
