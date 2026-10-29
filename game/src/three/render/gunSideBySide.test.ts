@@ -79,7 +79,7 @@ describe('guns on one truck at rest', () => {
 describe('heads fit their lanes', () => {
   it('keeps every head inside the columns or rows of its footprint', () => {
     const problems: string[] = [];
-    for (const chassisId of ['hauler', 'gunwagon']) {
+    for (const chassisId of ['hauler', 'wagon']) {
       for (const defId of Object.keys(UNPRICED_WEAPONS)) {
         for (const rot of [0, 1] as const) {
           for (const tag of ['a', 'b', 'c']) {
