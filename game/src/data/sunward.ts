@@ -3,7 +3,7 @@ import { DRAFT } from './region';
 import { TERRAIN } from './terrain';
 
 const CAVALCADE_CARS = 8;
-const HOLLOW_POS = DRAFT?.hollow?.pos ?? { x: 976, y: 1016 };
+const HOLLOW_POS = DRAFT?.hollow?.pos ?? { x: 128, y: 1752 };
 
 export const SUNWARD = {
   cavalcade: CAVALCADE_CARS,
@@ -22,8 +22,8 @@ export const SUNWARD = {
   huntRoadStep: 6,
   huntGroundGap: 2 * TERRAIN.vision.radius,
   huntSalt: 0x68756e74,
-  rideLeadTurns: 140,
-  driveTurns: 179,
+  rideLeadTurns: 440,
+  driveTurns: 479,
   returnMarginTurns: 19,
   avoidMargin: 12,
   avoidCost: 6,
@@ -49,7 +49,7 @@ export type HollowBay = { x: number; y: number; heading: number };
 export type HollowSpot = { x: number; y: number };
 
 const HOLLOW_RADIUS = 5;
-const GATE_BEARING = DRAFT?.hollow?.gateBearing ?? -1.37;
+const GATE_BEARING = DRAFT?.hollow?.gateBearing ?? -0.81;
 const BAY_ROW = 2.6;
 const BAY_STEP = 2.2;
 const BAY_FRONT = 6.3;

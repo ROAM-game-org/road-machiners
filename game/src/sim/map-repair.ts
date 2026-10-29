@@ -413,6 +413,7 @@ export function fitBake(world: World, map: BakedMap): void {
   const dropped = new Set(world.salvage.filter((s) => oldSpotOf(s) && sameProp(s, s.pos, picks.get(s.id)) === null).map((s) => s.id));
   world.salvage = world.salvage.filter((s) => !dropped.has(s.id));
   purgeDropped(world, dropped, map);
+  snapSunwardHomes(world);
 }
 
 type Fate = Map<string, Obstacle | null>;
@@ -557,10 +558,15 @@ function purgeDropped(world: World, dropped: Set<string>, map: BakedMap): void {
 
 
 function snapSunwardHomes(world: World): void {
-  const bays = hollowBays();
-  for (const v of world.vehicles.filter(isSunwardMember)) {
+  const free = [...hollowBays()];
+  const members = world.vehicles.filter(isSunwardMember);
+  if (members.length > free.length) throw new Error(`The Sunward order has ${members.length} members and the Hollow ${free.length} bays`);
+  const byGap = members.map((v) => ({ v, gap: Math.min(...free.map((bay) => dist(bay, v.brain!.home))) })).sort((a, b) => a.gap - b.gap || a.v.id.localeCompare(b.v.id));
+  for (const { v } of byGap) {
     const home = v.brain!.home;
-    v.brain!.home = bays.reduce((best, bay) => (dist(bay, home) < dist(best, home) ? bay : best));
+    const bay = free.reduce((best, b) => (dist(b, home) < dist(best, home) ? b : best));
+    free.splice(free.indexOf(bay), 1);
+    v.brain!.home = bay;
   }
 }
 

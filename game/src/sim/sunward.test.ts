@@ -346,7 +346,7 @@ function nightRun(): NightRun {
   const dusk = duskTurn(1);
   const out = rideOutTurn(dusk);
   const back = returnTurn(dusk);
-  const morningTurn = dawnAfter(dusk) + 120;
+  const morningTurn = returnTurn(dusk) + SUNWARD.rideLeadTurns;
   const checkpoints = new Map<number, World>();
   const stallTurns: number[] = [];
   const brokenAfterStart = new Set<string>();
@@ -495,7 +495,7 @@ describe('the vigil posts', () => {
     }
   });
 
-  it('lies a long ride across open ground from the gate, and every post can be reached', () => {
+  it('lies a ride of over an hour from the gate, and every post can be reached', () => {
     const w = standardWorld(5);
     const gate = HOLLOW.site.gates[0];
     const rides = vigilPosts(w).map((post) => {
@@ -503,8 +503,8 @@ describe('the vigil posts', () => {
       expect(dist(path[path.length - 1], post)).toBeLessThan(2);
       return routeLength(gate, path);
     });
-    expect(Math.min(...rides)).toBeGreaterThan(200);
-    expect(Math.max(...rides)).toBeLessThan(340);
+    expect(Math.min(...rides)).toBeGreaterThan(1400);
+    expect(Math.max(...rides)).toBeLessThan(1800);
   });
 });
 

@@ -178,6 +178,17 @@ describe('repairMap positions', () => {
     for (const v of membersOf(out)) expect(bays.some((b) => b.x === v.brain!.home.x && b.y === v.brain!.home.y)).toBe(true);
   });
 
+  it('gives every Sunward car its own bay when the Hollow has moved far from their homes, on any load', () => {
+    const w = base();
+    fillHollow(w);
+    const members = membersOf(w);
+    members.forEach((v, k) => (v.brain!.home = { x: 900 + k, y: 900 }));
+    fitBake(w, TEST_MAP);
+    const homes = membersOf(w).map((v) => hollowBays().findIndex((b) => b.x === v.brain!.home.x && b.y === v.brain!.home.y));
+    expect(homes.every((k) => k >= 0)).toBe(true);
+    expect(new Set(homes).size).toBe(members.length);
+  });
+
   it('moves a truck standing in a prop to the nearest free spot and leaves a free truck where it is', () => {
     const w = base();
     const rock = mapObstacles(TEST_MAP).find((o) => o.kind === 'rock')!;
@@ -426,12 +437,13 @@ describe('repairMap moved town gates', () => {
     const money = w.player.money;
 
     const out = repairMap(savedOf(w), TEST_MAP);
+    settleTrucks(out);
 
     const moved = out.vehicles.find((v) => v.id === npc.id)!;
     const stop = getActivityDestination(out, moved, moved.brain!.goals[0])!;
     const pad = nearestPad(nose, stop);
     expect(dist(stop, pad)).toBeLessThan(REGION.sites.pad.length / 2);
-    expect(dist(playerVehicle(out).pos, OLD_NOSE_PAD) > 0 || isFree(out, playerVehicle(out).pos, 0.5, me.id)).toBe(true);
+    expect(isFree(out, playerVehicle(out).pos, chassisDef(playerVehicle(out).chassisId).radius, me.id)).toBe(true);
     expect(out.player.money).toBe(money);
     expect(out.events.filter((e) => ['stall', 'practice', 'money'].includes(e.t))).toEqual([]);
   });
