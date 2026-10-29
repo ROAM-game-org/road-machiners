@@ -229,7 +229,7 @@ The 7.5 km Icarus map now has regions that differ on the scale of kilometres. A 
 ### Deferred (needs user input)
 - Lore: `game/docs/lore/README.md` gained lines on the rim and range, the farm belt, the SE desert and the black mud swamp. They need the user's read and OK.
 - `src/sim/path-raiders.test.ts` takes 111 s alone, mostly building the full-map reference layers. Its setup needs a smaller world, which is a rewrite of the nav reference tests.
-- The directions test "heads west for Bowl" gets northWest on base and on this branch, because `headingReach` is not scaled with the map size.
+- Ways out of Nose now read "At Nose, turn right onto the road heading west. At Nose, turn left onto…" just past the gate, since the ring road's junctions count as at Nose. It needs a call on how ring-road turns are told. Seen in `survey-skiff-26224` from Nose.
 
 ### Hands-off decisions
 - make: size Large, full flow — the user approved the design and asked for hands-off execution.
