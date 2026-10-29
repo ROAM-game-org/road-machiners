@@ -216,6 +216,8 @@ const HOT = 2;
 
 type WeatherWord = 'heatwave' | 'overcast' | 'storm' | 'stormNear';
 
+const WEATHER_ORDER: WeatherWord[] = ["storm", "stormNear", "heatwave", "overcast"];
+
 function weatherLabel(w: World, pos: Vec): { text: Msg; clear: boolean } {
   const words = new Set<WeatherWord>();
   for (const e of w.weather) {
@@ -224,7 +226,7 @@ function weatherLabel(w: World, pos: Vec): { text: Msg; clear: boolean } {
     else if (dist(pos, e.pos) - e.radius <= TERRAIN.vision.radius) words.add("stormNear");
   }
   if (words.size === 0) return { text: t("weather.clear"), clear: true };
-  return { text: list([...words].map((word) => t(`weather.${word}`))), clear: false };
+  return { text: list(WEATHER_ORDER.filter((word) => words.has(word)).map((word) => t(`weather.${word}`))), clear: false };
 }
 
 export function moneyLabel(money: number): Msg {
@@ -361,7 +363,7 @@ export function powerChip(steps: SpeedStep[], v: Vehicle): PowerChip {
   return { text, detail, over };
 }
 
-export type Readout = { id: string; label: Msg; value: Msg; warning: boolean; danger?: boolean; progress?: number; icon?: IconName; balance?: number; tip?: Msg };
+export type Readout = { id: string; label: Msg; value: Msg; warning: boolean; danger?: boolean; progress?: number; idle?: boolean; icon?: IconName; balance?: number; tip?: Msg };
 
 export function getHudReadout(w: World) {
   const me = playerVehicle(w);
@@ -384,7 +386,7 @@ export function getHudReadout(w: World) {
   const survival: Readout[] = [
     { id: "heat", label: t("readout.heat"), value: t("readout.celsius", { n: celsius(heat) }), warning: heat >= HOT, icon: "heat" },
     { id: "engine", label: t("readout.engine"), value: t("readout.celsius", { n: engineCelsius(p.engineHeat) }), warning: p.engineHeat >= ENGINE_HEAT.warnAt, progress: p.engineHeat, icon: "engineHeat" },
-    ...(weather.clear ? [] : [{ id: "weather", label: t("readout.weather"), value: weather.text, warning: storm }]),
+    { id: "weather", label: t("readout.weather"), value: weather.text, warning: storm, idle: weather.clear, tip: weather.text },
   ];
   return {
     speed: kph(me.speed),

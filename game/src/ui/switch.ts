@@ -30,14 +30,26 @@ export function createSwitch(o: SwitchOptions): HTMLElement {
       title: reason ?? (o.key ? keyLabel(o.title, o.key) : o.title),
       onclick: () => reason === null && o.onclick(),
     },
-    el("span", { class: "switch-option" }, o.checked ? o.on : o.off),
+    stackedLabel([o.on, o.off], o.checked ? 0 : 1, "switch-option"),
     switchHandle(o),
     o.key ? keyCorner(o.key) : null,
   );
 }
 
+export function stackedLabel(variants: Msg[], shown: number, className?: string): HTMLElement {
+  return el(
+    "span",
+    { class: className ? `label-stack ${className}` : "label-stack" },
+    ...variants.map((variant, i) => (i === shown ? el("span", {}, variant) : el("span", { class: "label-reserve", "aria-hidden": "true" }, variant))),
+  );
+}
+
+export function lockSlot(locked: boolean): HTMLElement {
+  return el("span", { class: locked ? "lock-slot" : "lock-slot label-reserve", "aria-hidden": locked ? undefined : "true" }, createIcon("lock"));
+}
+
 function switchHandle(o: SwitchOptions): HTMLElement {
-  return o.locked ? createIcon("lock") : switchLever(o.checked ? "up" : "down");
+  return el("span", { class: "switch-handle" }, o.locked ? createIcon("lock") : switchLever(o.checked ? "up" : "down"));
 }
 
 function switchLever(position: "up" | "down"): HTMLElement {
