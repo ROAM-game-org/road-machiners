@@ -12,6 +12,7 @@ const SVG = 'Static SVG markup of an icon, with no words in it.';
 
 const MIGRATION_LABEL = 'A label inside a save migration error, which only the console and a bug report show.';
 const SETTING_LABEL = 'A label inside a setup parse error, which only the console and a bug report show.';
+const SAVE_DB_ERROR = 'An error message of the save database, which only the console and a bug report show.';
 
 export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/ui/save-screen.ts', text: 'Road Machiners', reason: 'The game title stays as it is in every language, as on the boot screen.' },
@@ -19,6 +20,7 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/three/save.ts', text: 'confirm()', reason: 'The browser adapter shows text its caller already resolved with say().' },
   { file: 'src/three/render/interiors/bowl.ts', text: 'stilt tank', reason: 'A label inside a site build error, which only a bake or a test shows.' },
   { file: 'src/three/render/shadowFilter.ts', text: 'float getPointShadow', reason: 'A GLSL snippet patched into the shadow shader, with no words in it.' },
+  { file: 'src/three/save-db.ts', text: 'The   transaction was aborted', reason: SAVE_DB_ERROR },
   { file: 'src/three/save-migrations.ts', text: 'contract   reward', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: 'call money', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: 'call deal price', reason: MIGRATION_LABEL },
