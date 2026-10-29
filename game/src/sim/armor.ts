@@ -461,16 +461,33 @@ function shadowsOf(tall: readonly GridItem[], item: GridItem): { blocker: GridIt
   const oy = item.y + h / 2;
   return tall.filter((blocker) => blocker.id !== item.id).map((blocker) => ({
     blocker,
-    pieces: itemCells(blocker).flatMap(({ x, y }) => {
-      const center = gridAngle(x + 0.5 - ox, y + 0.5 - oy);
-      const off = (a: number) => wrapDegrees(a - center);
-      const corners = [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]].map(([cx, cy]) => gridAngle(cx - ox, cy - oy));
-      const left = corners.reduce((best, a) => (off(a) < off(best) ? a : best));
-      const right = corners.reduce((best, a) => (off(a) > off(best) ? a : best));
-      const from = wrapFrom(left);
-      return splitAtBack(from, from + off(right) - off(left));
-    }),
+    pieces: itemCells(blocker).flatMap(({ x, y }) => cellShadow(x, y, ox, oy)),
   }));
+}
+
+const SHADOW_KEY_RANGE = 128;
+const cellShadows = new Map<number, readonly FireSpan[]>();
+
+function cellShadow(x: number, y: number, ox: number, oy: number): readonly FireSpan[] {
+  const parts = [x, y, ox * 2, oy * 2];
+  if (!parts.every((n) => Number.isInteger(n) && n >= 0 && n < SHADOW_KEY_RANGE)) throw new Error(`Shadow cell ${x},${y} from ${ox},${oy} is off the grid`);
+  const key = parts.reduce((acc, n) => acc * SHADOW_KEY_RANGE + n, 0);
+  let pieces = cellShadows.get(key);
+  if (!pieces) {
+    pieces = Object.freeze(buildCellShadow(x, y, ox, oy).map((piece) => Object.freeze(piece)));
+    cellShadows.set(key, pieces);
+  }
+  return pieces;
+}
+
+function buildCellShadow(x: number, y: number, ox: number, oy: number): FireSpan[] {
+  const center = gridAngle(x + 0.5 - ox, y + 0.5 - oy);
+  const off = (a: number) => wrapDegrees(a - center);
+  const corners = [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]].map(([cx, cy]) => gridAngle(cx - ox, cy - oy));
+  const left = corners.reduce((best, a) => (off(a) < off(best) ? a : best));
+  const right = corners.reduce((best, a) => (off(a) > off(best) ? a : best));
+  const from = wrapFrom(left);
+  return splitAtBack(from, from + off(right) - off(left));
 }
 
 function gridAngle(dx: number, dy: number): number {
