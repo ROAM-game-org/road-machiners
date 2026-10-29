@@ -38,11 +38,17 @@ function linesToChoice(story: Story): string[] | null {
   return lines.filter((line) => line !== '');
 }
 
-function replyTo(story: Story, point: Point, index: number): Reply | null {
+type Replies = Map<string, Reply | null>;
+
+function replyTo(story: Story, point: Point, index: number, memo: Replies): Reply | null {
+  const key = `${index}:${point.ink}`;
+  if (memo.has(key)) return memo.get(key)!;
   story.state.LoadJson(point.ink);
   story.ChooseChoiceIndex(index);
   const lines = linesToChoice(story);
-  return lines === null ? null : { lines, next: pointNow(story) };
+  const reply = lines === null ? null : { lines, next: pointNow(story) };
+  memo.set(key, reply);
+  return reply;
 }
 
 function isQuestion(point: Point, index: number, reply: Reply | null, replies: Record<string, string>): boolean | null {
@@ -50,24 +56,25 @@ function isQuestion(point: Point, index: number, reply: Reply | null, replies: R
   return replies[point.choices[index].key] === replyHash(reply.lines);
 }
 
-function topicSeen(story: Story, here: Point, there: Point, replies: Record<string, string>): boolean {
-  const repliesTo = there.choices.map((choice, j) => (choice.priced ? null : replyTo(story, there, j)));
+function topicSeen(story: Story, here: Point, there: Point, replies: Record<string, string>, memo: Replies): boolean {
+  const repliesTo = there.choices.map((choice, j) => (choice.priced ? null : replyTo(story, there, j, memo)));
   const asked = repliesTo.map((reply, j) => isQuestion(there, j, reply, replies));
   const back = repliesTo.some((reply) => reply !== null && sameKeys(reply.next, here));
   const questions = asked.filter((a) => a !== null);
   return back && questions.length > 0 && questions.every(Boolean);
 }
 
-function choiceSeen(story: Story, point: Point, index: number, replies: Record<string, string>): boolean {
+function choiceSeen(story: Story, point: Point, index: number, replies: Record<string, string>, memo: Replies): boolean {
   if (point.choices[index].priced) return false;
-  const reply = replyTo(story, point, index);
+  const reply = replyTo(story, point, index, memo);
   if (!reply || reply.next.choices.length === 0) return false;
   if (sameKeys(reply.next, point)) return replies[point.choices[index].key] === replyHash(reply.lines);
-  return topicSeen(story, point, reply.next, replies);
+  return topicSeen(story, point, reply.next, replies, memo);
 }
 
 export function seenAt(story: Story, ink: string, replies: Record<string, string>): boolean[] {
   story.state.LoadJson(ink);
   const point = pointNow(story);
-  return point.choices.map((_, i) => choiceSeen(story, point, i, replies));
+  const memo: Replies = new Map();
+  return point.choices.map((_, i) => choiceSeen(story, point, i, replies, memo));
 }
