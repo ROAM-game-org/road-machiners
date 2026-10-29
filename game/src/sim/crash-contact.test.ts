@@ -41,7 +41,7 @@ describe('crash contacts', () => {
 
   it('does not damage wheels outside the touched lanes and the lanes beside them', () => {
     const world = emptyWorld();
-    const vehicle = addVehicle(world, 'scrapjaw', 'scout', ['stockEngine', 'ram'], { x: 40, y: 40 });
+    const vehicle = addVehicle(world, 'scrapjaw', 'convertible', ['stockEngine', 'ram'], { x: 40, y: 40 });
     const wheels = mountedParts(vehicle).filter((part) => part.defId === 'wheel');
     const before = wheels.map((part) => part.hp);
     applyContactCrash(world, vehicle, null, 'rock', 6, { a: { side: 'front', lanes: [3] }, b: null }, null);
@@ -54,8 +54,8 @@ describe('crash contacts', () => {
     const vehicle = addVehicle(world, 'scrapjaw', 'scout', ['stockEngine'], { x: 40, y: 40 });
     applyContactCrash(world, vehicle, null, 'rock', RULES.hardCrashSpeed * 1.5, { a: { side: 'front', lanes: [1] }, b: null }, null);
     expect(wheelLoss(vehicle, 1, 2)).toBeGreaterThan(0);
-    expect(wheelLoss(vehicle, 1, 6)).toBeGreaterThan(0);
-    expect(wheelLoss(vehicle, 1, 6)).toBeLessThan(wheelLoss(vehicle, 1, 2) * RULES.crashFalloff ** 3);
+    expect(wheelLoss(vehicle, 1, 11)).toBeGreaterThan(0);
+    expect(wheelLoss(vehicle, 1, 11)).toBeLessThan(wheelLoss(vehicle, 1, 2) * RULES.crashFalloff ** 3);
   });
 
   it('spills a smaller hit into the lanes beside the touched lane', () => {
