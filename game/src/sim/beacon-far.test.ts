@@ -3,6 +3,7 @@ import { BEACON } from '../data/tow';
 import { REGION } from '../data/region';
 import { standardWorld } from '../test/world-cache';
 import { playerVehicle } from './damage';
+import { hangUp } from './dialogue';
 import { nearestRoadPoint } from './salvage';
 import { siteGap } from './sites';
 import { isFree } from './spawn';
@@ -43,7 +44,7 @@ describe('a beacon at the emptiest point of Icarus', () => {
     w.player.money = 0;
     w.player.fuel = 0;
     w = setBeacon(w, true);
-    for (let i = 0; i < RESCUE_TURNS && playerTow(w) === null; i++) w = endTurn(w, testDrive);
+    for (let i = 0; i < RESCUE_TURNS && playerTow(w) === null; i++) w = w.player.call ? hangUp(w) : endTurn(w, testDrive);
     expect(playerTow(w)).not.toBeNull();
     expect(w.player.money).toBe(0);
   }, 300_000);
