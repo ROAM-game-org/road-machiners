@@ -243,11 +243,11 @@ export function walkLane(world: World, v: Vehicle, side: Side, lane: number, rou
 }
 
 export function planLane(v: Vehicle, side: Side, lane: number, round: Round): { part: PartInstance; amount: number }[] {
-  return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round, 1, spenderOf(v));
+  return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round, 1, cellShare(side), spenderOf(v));
 }
 
 export function planCrashLane(v: Vehicle, side: Side, lane: number, round: Round, falloff = RULES.crashFalloff): { part: PartInstance; amount: number }[] {
-  return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round, falloff, hitterOf(v));
+  return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round, falloff, cellShare(side), hitterOf(v));
 }
 
 export function sidePlanner(v: Vehicle): (side: Side, round: Round) => { part: PartInstance; amount: number }[][] {
@@ -258,7 +258,7 @@ export function sidePlanner(v: Vehicle): (side: Side, round: Round) => { part: P
   return (side, round) => {
     let lanes = sides.get(side);
     if (!lanes) sides.set(side, (lanes = Array.from({ length: laneCount(v, side) }, (_, lane) => laneOwners(g, owner, side, lane))));
-    return lanes.map((cells) => walkCells(cells, round, 1, spend));
+    return lanes.map((cells) => walkCells(cells, round, 1, cellShare(side), spend));
   };
 }
 
@@ -272,7 +272,11 @@ function laneOwners(g: Grid, owner: Map<number, PartInstance[]>, side: Side, lan
 
 type Spend = (part: PartInstance, left: { pen: number; damage: number }, round: Round) => { part: PartInstance; amount: number };
 
-function walkCells(cells: LaneCell[], round: Round, falloff: number, spend: Spend): { part: PartInstance; amount: number }[] {
+function cellShare(side: Side): number {
+  return side === 'front' || side === 'rear' ? RULES.laneCellShare.lengthwise : RULES.laneCellShare.crosswise;
+}
+
+function walkCells(cells: LaneCell[], round: Round, falloff: number, share: number, spend: Spend): { part: PartInstance; amount: number }[] {
   checkRound(round);
   const hits: { part: PartInstance; amount: number }[] = [];
   const struck = new Set<string>();
@@ -280,8 +284,8 @@ function walkCells(cells: LaneCell[], round: Round, falloff: number, spend: Spen
   for (const cell of cells) {
     if (left.pen <= 0) break;
     if (cell === null) continue;
-    if (hits.length > 0) left.damage *= falloff;
-    left.pen -= RULES.cellPen;
+    if (hits.length > 0) left.damage *= falloff ** share;
+    left.pen -= RULES.cellPen * share;
     strikeCell(cell.parts, { left, round, struck, hits, spend });
   }
   return hits;

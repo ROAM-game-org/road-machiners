@@ -33,6 +33,7 @@ export const RULES = {
   ramDamage: 2.5,
   hardCrashSpeed: 4,
   cellPen: 0.5,
+  laneCellShare: { lengthwise: 0.45 / 0.65, crosswise: 1 },
   crashPen: 4,
   crashFalloff: 0.6,
   groundCrash: 3,

@@ -119,8 +119,9 @@ describe('walkLane', () => {
   it('armor scales damage down when pen is below it, and a round of pen equal to it spends all its damage there', () => {
     const { v, plate } = plated();
     const armor = partDef(plate.defId).armor;
-    const weak = planLane(v, 'front', 2, { damage: 12, pen: armor / 2 + RULES.cellPen, blast: false, armorShare: 1 })[0].amount;
-    const full = planLane(v, 'front', 2, { damage: 12, pen: armor + RULES.cellPen, blast: false, armorShare: 1 })[0].amount;
+    const cellPen = RULES.cellPen * RULES.laneCellShare.lengthwise;
+    const weak = planLane(v, 'front', 2, { damage: 12, pen: armor / 2 + cellPen, blast: false, armorShare: 1 })[0].amount;
+    const full = planLane(v, 'front', 2, { damage: 12, pen: armor + cellPen, blast: false, armorShare: 1 })[0].amount;
     expect(weak).toBeCloseTo(6);
     expect(full).toBeCloseTo(12);
   });
