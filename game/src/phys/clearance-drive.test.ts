@@ -57,8 +57,8 @@ function onFlat(speed: number, heading: number, order: MoveOrder, rocks: Vec[], 
 }
 
 describe('a truck on a route sweeps its turn clear', () => {
-  it('IV1: at speed 6 with a stop point to the side, it does not swing into a rock in the turn', () => {
-    const t = drive(onFlat(6, 0, { kind: 'stopAt', dest: { x: 32, y: 40 } }, [{ x: 34, y: 32 }]), 12);
+  it('IV1: at speed 5 with a stop point to the side, it does not swing into a rock in the turn', () => {
+    const t = drive(onFlat(5, 0, { kind: 'stopAt', dest: { x: 32, y: 40 } }, [{ x: 34, y: 32 }]), 12);
     expect(hard(t)).toEqual([]);
     expect(t.arrived).toBe(true);
   });

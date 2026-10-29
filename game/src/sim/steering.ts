@@ -1,5 +1,6 @@
 
 import { RULES } from "../data/rules";
+import { PHYSICS } from "../data/physics";
 import { restBend, rigDiscs, straighten } from "./rig";
 import { maxTurn, vehicleStats, type VehicleStats } from "./stats";
 import type { Blocker } from "./path";
@@ -70,6 +71,20 @@ export function throughSpeed(s: VehicleStats, speed: number, d: number, pace: nu
 function routeSpeed(s: VehicleStats, speed: number, d: number): number {
   if (!Number.isFinite(d) || !Number.isFinite(speed)) throw new Error(`Route speed needs finite distance and speed, got ${d} and ${speed}`);
   return clamp(2 * d - speed, Math.min(speed, s.maxSpeed), Math.min(s.maxSpeed, speed + s.accel));
+}
+
+export function brakeDecel(s: Pick<VehicleStats, "brake">): number {
+  return (s.brake * PHYSICS.metersPerTile) / PHYSICS.turnSeconds ** 2;
+}
+
+export function brakeImpulse(full: number, mass: number, speed: number, target: number): number {
+  const over = target < 0 ? target - speed : speed - target;
+  return target === 0 ? full : Math.min(full, mass * Math.max(0, over));
+}
+
+export function stopDistance(s: Pick<VehicleStats, "brake">, speed: number): number {
+  if (!(s.brake > 0)) throw new Error(`A brake of ${s.brake} never stops a truck`);
+  return (speed * speed) / (2 * s.brake);
 }
 
 export function zoneSpeed(s: VehicleStats, speed: number, d: number): number {

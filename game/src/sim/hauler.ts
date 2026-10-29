@@ -11,7 +11,8 @@ import { craterDip, windowCraters } from './road-hazards';
 import { CLEARANCE, dynamicBlockers, staticSet } from './nav/layer';
 import { engineHot, heldHeatSpeed } from './engine-heat';
 import { plainFuelSpeed } from './far';
-import { isStalled, isStranded, plainMaxSpeed } from './stats';
+import { isStalled, isStranded, plainMaxSpeed, vehicleStats } from './stats';
+import { stopDistance } from './steering';
 import { isShutDown } from './utility';
 import { inCombat } from './combat';
 import { workOf } from './states';
@@ -86,7 +87,7 @@ export function waitsForGunTruck(world: World, hauler: Vehicle): boolean {
   if (betweenLevels(world) || dist(hauler.pos, parkSpot(world)) <= HAULER.approach) return false;
   const gunTruck = playerVehicle(world);
   const lag = alongNow(world, hauler) - alongNow(world, gunTruck);
-  if (lag <= (isParked(hauler) ? HAULER.resumeGap : HAULER.waitGap)) return false;
+  if (lag + stopDistance(vehicleStats(world, hauler), hauler.speed) <= (isParked(hauler) ? HAULER.resumeGap : HAULER.waitGap)) return false;
   return dist(gunTruck.pos, hauler.pos) <= HAULER.apartGap || !gunTruckFree(world, gunTruck);
 }
 
