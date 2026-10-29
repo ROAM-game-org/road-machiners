@@ -1,5 +1,5 @@
 import type { SavedJson } from './save-migrations';
-import { CHASSIS_121_122, PARTS_121_122, SQUARE_CELL_121_122, type FrozenChassis, type FrozenCore, type FrozenPart } from './save-square-grid-data';
+import { CHASSIS_121_122, PARTS_121_122, SQUARE_CELL_121_122, STORAGE_ROWS_121_122, type FrozenChassis, type FrozenCore, type FrozenPart } from './save-square-grid-data';
 
 type Side = 'old' | 'next';
 type Dim = { w: number; h: number };
@@ -497,7 +497,9 @@ function moveVehicle(world: SavedJson, defs: ReadonlyMap<string, string>, v: Sav
   const job = (v.job ?? null) as SavedJson | null;
   const entries = entriesOf(first, v.items as SavedJson[]);
   const itemDefs = itemDefsOf(entries, job, defs);
-  const ctx = { ...first, rowsBelow: rowsBelowOf(first.old, entries, targetSpots(job, defs, itemDefs)) };
+  const storage = STORAGE_ROWS_121_122[first.chassisId];
+  if (storage === undefined) throw new Error(`The square grid step does not know the storage rows of ${first.chassisId}`);
+  const ctx = { ...first, rowsBelow: Math.max(storage, rowsBelowOf(first.old, entries, targetSpots(job, defs, itemDefs))) };
   const result = placeAll(ctx, entries);
   entries.filter((e) => result.get(e.id) === null).forEach((e) => settleLost(ctx, e, stored));
   const removed = removedIds(entries, result);
