@@ -9,7 +9,7 @@ import { newWorld } from '../src/sim/world.ts';
 import { defaultSetup } from '../src/sim/settings.ts';
 import { route, routeLength } from '../src/sim/path.ts';
 import { heightAt, isCliff, tileAt } from '../src/sim/terrain.ts';
-import { siteGap } from '../src/sim/sites.ts';
+import { siteGap, sitePads } from '../src/sim/sites.ts';
 import { atlasOf } from '../src/sim/atlas.ts';
 import { fortressProps } from '../src/sim/fortress.ts';
 import { clearOfDecks, clearOfSites, isDriveObstacle, overlapsAny } from '../src/sim/mapgen.ts';
@@ -26,6 +26,7 @@ const PICK = Number(process.env.PICK ?? 25);
 const POST_RING = Number(process.env.POST_RING ?? 11);
 const MAX_RELIEF = Number(process.env.MAX_RELIEF ?? 1.2);
 const STEP = 4;
+const PAD_RADIUS = Math.hypot(REGION.sites.pad.length, REGION.sites.pad.width) / 2;
 const CHASSIS_RADIUS = 0.9;
 const CAMERA_REACH = 30;
 const GRAZE = 0.816 / Math.SQRT2;
@@ -97,8 +98,8 @@ function layout(p, bearing) {
   const site = { ...HOLLOW.site, pos: p, turn: hollowTurn(bearing), gates: [{ x: p.x + Math.cos(bearing) * HOLLOW.radius, y: p.y + Math.sin(bearing) * HOLLOW.radius }] };
   const fort = fortressProps(site).map((o) => ({ pos: o.pos, r: o.r }));
   const inside = HOLLOW.pieces.map((o) => ({ pos: at(o.at), r: o.r }));
-  const bays = HOLLOW.bays.map(at);
-  return { site, pieces: [...fort, ...inside], bays, discs: [...fort, ...inside, ...bays.map((pos) => ({ pos, r: SUNWARD.memberRadius }))] };
+  const pads = sitePads(site);
+  return { site, pieces: [...fort, ...inside], pads, discs: [...fort, ...inside, ...pads.map((pos) => ({ pos, r: PAD_RADIUS }))] };
 }
 
 function hiddenFromCamera(spot) {
@@ -116,7 +117,7 @@ function postToward(p) {
 }
 
 const candidates = [];
-const rejected = { crater: 0, road: 0, site: 0, relief: 0, props: 0, bays: 0, camera: 0 };
+const rejected = { crater: 0, road: 0, site: 0, relief: 0, props: 0, pads: 0, camera: 0 };
 for (let y = 20; y < terrain.size - 20; y += STEP) {
   for (let x = 20; x < terrain.size - 20; x += STEP) {
     const p = { x, y };
@@ -131,8 +132,8 @@ for (let y = 20; y < terrain.size - 20; y += STEP) {
     const relief = footprintRelief(fort.discs);
     if (relief > MAX_RELIEF) { rejected.relief++; continue; }
     if (fort.pieces.some((o) => overlapsAny(drive, o.pos, o.r) || !clearOfSites(atlas, o.pos, o.r) || !clearOfDecks(atlas, o.pos, o.r))) { rejected.props++; continue; }
-    if (fort.bays.some((b) => overlapsAny(drive, b, 1.5))) { rejected.bays++; continue; }
-    const hidden = [...fort.bays, fort.site.gates[0]].filter(hiddenFromCamera).length;
+    if (fort.pads.some((b) => overlapsAny(drive, b, PAD_RADIUS))) { rejected.pads++; continue; }
+    const hidden = [...fort.pads, fort.site.gates[0]].filter(hiddenFromCamera).length;
     if (hidden > 0) { rejected.camera++; continue; }
     candidates.push({ p, bearing, craterGap, road, site, relief, gate: fort.site.gates[0] });
   }

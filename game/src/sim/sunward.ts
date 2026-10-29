@@ -1,5 +1,5 @@
 import { HOLLOW, SUNWARD } from '../data/sunward';
-import { hollowBays, hollowReach } from './hollow-layout';
+import { hollowPad, hollowReach } from './hollow-layout';
 import { REGION, type TerritoryDef } from '../data/region';
 import { RULES } from '../data/rules';
 import { TIME } from '../data/time';
@@ -16,7 +16,7 @@ import { inTruce } from './relations';
 import { canVehicleSee, grayRadius, tileCenter } from './vision';
 import { fuelCap, suppliesCap } from './stats';
 import { clockOf } from './sun';
-import { isTerritory, siteGap } from './sites';
+import { canEnter, canUseSite, enterSite, isTerritory, leaveSite, shelteredAt, siteGap } from './sites';
 import { territoryGrounds } from './territory';
 import type { NpcActivity, NpcState, Obstacle, SunwardFacts, SunwardHunt, SunwardNight, Vehicle, World } from './types';
 import { hashRandom } from './rng';
@@ -124,6 +124,10 @@ export function isHunterCar(v: Vehicle): boolean {
 }
 
 export function membersOf(world: World): Vehicle[] {
+  return [...shelteredAt(world, HOLLOW_ID), ...world.vehicles].filter(isSunwardMember);
+}
+
+function outsideMembers(world: World): Vehicle[] {
   return world.vehicles.filter(isSunwardMember);
 }
 
@@ -148,9 +152,14 @@ export function discoverHollow(world: World, discover: (world: World, site: { id
 }
 
 export function advanceSunward(world: World): void {
-  if (!orderStands(world)) return;
-  if (phaseAt(world.turn) === 'rest') restMembers(world);
-  else openTonight(world);
+  if (world.sunward === null) return;
+  if (!orderStands(world)) {
+    releaseFallen(world);
+    return;
+  }
+  if (phaseAt(world.turn) !== 'rest') openTonight(world);
+  restMembers(world);
+  releaseRiders(world);
 }
 
 function openTonight(world: World): void {
@@ -162,7 +171,46 @@ function openTonight(world: World): void {
 }
 
 function restMembers(world: World): void {
-  for (const v of membersOf(world)) restAtBay(world, v);
+  for (const v of outsideMembers(world)) if (restsAtHome(world, v)) restInside(world, v);
+}
+
+function restsAtHome(world: World, v: Vehicle): boolean {
+  const top = topGoal(v);
+  return top?.kind === 'wait' && top.reason === 'restHollow' && goesHome(world, v, phaseAt(world.turn)) && !isKnockedOut(v);
+}
+
+function restInside(world: World, v: Vehicle): void {
+  if (!canEnter(world, v, HOLLOW.site)) return;
+  if (isDefeated(v)) refitAtHome(world, v);
+  const stores = getResources(world, v);
+  stores.fuel = Math.max(stores.fuel, fuelCap(v));
+  stores.supplies = Math.max(stores.supplies, suppliesCap(v));
+  enterSite(world, v, HOLLOW.site);
+}
+
+function releaseRiders(world: World): void {
+  const riders = ridersTonight(world);
+  const inside = new Set(shelteredAt(world, HOLLOW_ID).map((v) => v.id));
+  const next = riders.find((id) => inside.has(id));
+  if (next === undefined || !gateClear(world, riders) || !leaveSite(world, next)) return;
+  planSunward(world, world.vehicles.find((v) => v.id === next)!);
+}
+
+function ridersTonight(world: World): string[] {
+  const night = sunwardFacts(world).night;
+  const phase = phaseAt(world.turn);
+  if (!night || (phase !== 'ride' && phase !== 'vigil')) return [];
+  return [...gateOrder(world, night), ...(huntOf(world)?.party ?? [])];
+}
+
+function gateClear(world: World, riders: string[]): boolean {
+  const pad = hollowPad();
+  return !world.vehicles.some((x) => riders.includes(x.id) && !isDefeated(x) && dist(x.pos, pad) < SUNWARD.padClear);
+}
+
+function releaseFallen(world: World): void {
+  const [inside] = shelteredAt(world, HOLLOW_ID);
+  if (inside) leaveSite(world, inside.id);
 }
 
 function openNight(world: World, dusk: number): SunwardNight {
@@ -271,18 +319,6 @@ function endHunt(world: World, hunt: SunwardHunt): void {
   for (const s of world.states.filter((x) => x.kind === 'feud' && hunt.party.includes(x.holder) && x.other === hunt.prey)) endState(world, s, 'expired');
 }
 
-function atBay(v: Vehicle): boolean {
-  return dist(v.pos, v.brain!.home) <= RULES.arriveRadius * 2;
-}
-
-function restAtBay(world: World, v: Vehicle): void {
-  if (!atBay(v) || isKnockedOut(v)) return;
-  if (isDefeated(v)) refitAtHome(world, v);
-  const stores = getResources(world, v);
-  stores.fuel = Math.max(stores.fuel, fuelCap(v));
-  stores.supplies = Math.max(stores.supplies, suppliesCap(v));
-}
-
 export function vigilGrounds(): Vec[] {
   return territoryGrounds(FALLEN_SUN).filter((p) => siteGap(FALLEN_SUN, p) < -SUNWARD.vigilInset);
 }
@@ -329,15 +365,19 @@ function nightDuty(world: World, v: Vehicle): NpcActivity | null {
 function offeringWatched(world: World, v: Vehicle): Vehicle | null {
   const holder = world.vehicles.find((x) => offeringOf(world, x.id) !== null);
   if (!holder) return null;
-  const nearest = membersOf(world).filter((m) => !isDefeated(m)).sort((a, b) => dist(a.pos, holder.pos) - dist(b.pos, holder.pos)).slice(0, SUNWARD.watchers);
+  const nearest = outsideMembers(world).filter((m) => !isDefeated(m)).sort((a, b) => dist(a.pos, holder.pos) - dist(b.pos, holder.pos)).slice(0, SUNWARD.watchers);
   return nearest.includes(v) ? holder : null;
 }
 
 function scheduleGoal(world: World, v: Vehicle): NpcActivity {
   const phase = phaseAt(world.turn);
-  if (phase === 'rest' || !ridesTonight(world, v) || nearHome(v, phase)) return homeGoal(world, v);
+  if (goesHome(world, v, phase)) return homeGoal(world, v);
   if (phase === 'vigil' || atCrater(v, phase)) return vigilGoal(world, v);
   return columnGoal(world, v, phase);
+}
+
+function goesHome(world: World, v: Vehicle, phase: NightPhase): boolean {
+  return phase === 'rest' || !ridesTonight(world, v) || nearHome(v, phase);
 }
 
 function columnGoal(world: World, v: Vehicle, phase: NightPhase): NpcActivity {
@@ -380,15 +420,8 @@ function inColumn(v: Vehicle, phase: NightPhase): boolean {
 }
 
 export function gateOrder(world: World, night: SunwardNight): string[] {
-  const bays = hollowBays();
-  const bayOf = (id: string): number => {
-    const v = world.vehicles.find((x) => x.id === id);
-    const bay = v ? bays.findIndex((b) => dist(b, v.brain!.home) < 0.5) : -1;
-    if (bay < 0) throw new Error(`Cavalcade car ${id} has no bay in the Hollow`);
-    return bay;
-  };
-  const ranked = night.roster.filter((id) => world.vehicles.some((x) => x.id === id)).map((id) => ({ id, bay: bayOf(id) }));
-  return ranked.sort((a, b) => a.bay - b.bay).map((r) => r.id);
+  const here = new Set(membersOf(world).map((v) => v.id));
+  return night.roster.filter((id) => here.has(id));
 }
 
 function atCrater(v: Vehicle, phase: NightPhase): boolean {
@@ -396,7 +429,7 @@ function atCrater(v: Vehicle, phase: NightPhase): boolean {
 }
 
 function homeGoal(world: World, v: Vehicle): NpcActivity {
-  if (atBay(v)) return { ...goal('wait', v.brain!.home, 'restHollow'), until: nextRideOut(world.turn) };
+  if (canUseSite(v.pos, HOLLOW.site)) return { ...goal('wait', v.brain!.home, 'restHollow'), until: nextRideOut(world.turn) };
   return goal('explore', v.brain!.home, 'rideHome');
 }
 

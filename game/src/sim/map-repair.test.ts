@@ -15,7 +15,7 @@ import { fitBake, repairMap, settleTrucks, type SavedMapWorld } from './map-repa
 import { isRoadWreck, oldSpotOf, oldSpotPicks, oldStockId, renewSalvage, stockOldSpots } from './salvage';
 import { defaultSetup } from './settings';
 import { fillHollow, isFree } from './spawn';
-import { hollowBays, isHollowObstacle } from './hollow-layout';
+import { hollowPad, isHollowObstacle } from './hollow-layout';
 import { membersOf } from './sunward';
 import { surveySites } from './survey';
 import { isLootSpot } from './territory';
@@ -174,18 +174,16 @@ describe('repairMap positions', () => {
     expectNear(grounds[1], scaled({ x: 33, y: 34 }));
   });
 
-  it('snaps the home of a Sunward car to the nearest fort bay', () => {
+  it('snaps the home of a Sunward car to the Hollow pad', () => {
     const w = oldScaleBase();
     fillHollow(w);
-    const bays = hollowBays();
     const members = membersOf(w);
     expect(members.length).toBeGreaterThan(0);
     members.forEach((v) => {
-      const bay = bays.reduce((best, b) => (dist(b, v.brain!.home) < dist(best, v.brain!.home) ? b : best));
-      v.brain!.home = { x: bay.x / RATIO + 0.1, y: bay.y / RATIO - 0.1 };
+      v.brain!.home = { x: v.brain!.home.x / RATIO + 0.1, y: v.brain!.home.y / RATIO - 0.1 };
     });
     const out = repairMap(savedOf(w, OLD_SIZE), TEST_MAP);
-    for (const v of membersOf(out)) expect(bays.some((b) => b.x === v.brain!.home.x && b.y === v.brain!.home.y)).toBe(true);
+    for (const v of membersOf(out)) expect(v.brain!.home).toEqual(hollowPad());
   });
 
   it('moves a truck standing in a prop to the nearest free spot and leaves a free truck where it is', () => {

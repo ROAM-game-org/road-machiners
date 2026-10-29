@@ -7,21 +7,22 @@ import { isRig } from "./body";
 import { footprint, rigDiscs } from "./rig";
 import { PERSONALITY_IDS, type PersonalityId } from "../data/personalities";
 import { REGION } from "../data/region";
+import { HOLLOW } from "../data/sunward";
 import { playerVehicle } from "./damage";
 import { makeVehicle } from "./factory";
 import { isDriveObstacle, touchesObstacle } from "./mapgen";
 import { generateNpcLoadout, type NpcLoadout } from "./npc-loadout";
 import { getKnownSite, profileOf } from "./npc-decisions";
 import { chance, randInt, randRange, type Rng } from "./rng";
-import { everyTruck, isFortress, siteGates, siteUnder, type Site } from "./sites";
+import { everyTruck, isFortress, shelterNew, siteGates, siteUnder, type Site } from "./sites";
 import { modeRules } from "./settings";
 import { isLone } from "./pairs";
 import { startEscort } from "./tow";
 import type { NpcFactionId, Vehicle, World } from "./types";
 import { dist, type Vec } from "./vec";
 import { atlasOf } from "./atlas";
-import { bayHeading, hollowBays } from "./hollow-layout";
-import { isSunwardMember, spawnsAtHollow } from "./sunward";
+import { hollowPad } from "./hollow-layout";
+import { spawnsAtHollow } from "./sunward";
 
 export function spawnNpcs(world: World): void {
   if (!modeRules(world).traffic) return;
@@ -40,26 +41,18 @@ function tickSpawn(world: World, tpl: NpcTemplate): void {
 
 export function fillHollow(world: World): void {
   for (const tpl of Object.values(NPCS).filter((t) => t.spawn.kind === 'hollow')) {
-    while (aliveOf(world, tpl) < tpl.cap) if (!spawnInBay(world, tpl)) break;
+    while (aliveOf(world, tpl) < tpl.cap) spawnInside(world, tpl);
   }
 }
 
 function refillHollow(world: World, tpl: NpcTemplate): void {
-  if (spawnsAtHollow(world) && aliveOf(world, tpl) < tpl.cap) spawnInBay(world, tpl);
+  if (spawnsAtHollow(world) && aliveOf(world, tpl) < tpl.cap) spawnInside(world, tpl);
 }
 
-function spawnInBay(world: World, tpl: NpcTemplate): Vehicle | null {
-  const loadout = generateNpcLoadout(world, tpl);
-  const radius = chassisDef(loadout.chassisId).radius;
-  const homes = world.vehicles.filter(isSunwardMember).map((v) => v.brain!.home);
-  const bay = hollowBays().findIndex((p) => !homes.some((h) => dist(h, p) < 0.5) && isFree(world, p, radius, null));
-  if (bay < 0) {
-    world.events.push({ t: 'info', note: { id: 'spawnBlocked', template: tpl.id }, debug: true });
-    return null;
-  }
-  const v = spawnAt(world, tpl, loadout, hollowBays()[bay], allegianceFor(world, tpl, null, null));
-  v.heading = bayHeading(bay);
-  return v;
+function spawnInside(world: World, tpl: NpcTemplate): void {
+  const v = makeNpc(world, tpl, generateNpcLoadout(world, tpl), hollowPad(), allegianceFor(world, tpl, null, null));
+  shelterNew(world, v, HOLLOW.site);
+  world.events.push({ t: "spawn", vehicle: v.id });
 }
 
 function tickPairs(world: World, tpl: NpcTemplate): void {
@@ -272,6 +265,13 @@ function townFaction(world: World, site: Site | null): NpcFactionId {
 }
 
 export function spawnAt(world: World, tpl: NpcTemplate, loadout: NpcLoadout, pos: Vec, faction: NpcFactionId): Vehicle {
+  const v = makeNpc(world, tpl, loadout, pos, faction);
+  world.vehicles.push(v);
+  world.events.push({ t: "spawn", vehicle: v.id });
+  return v;
+}
+
+function makeNpc(world: World, tpl: NpcTemplate, loadout: NpcLoadout, pos: Vec, faction: NpcFactionId): Vehicle {
   const v = makeVehicle(world, {
     faction,
     ...loadout,
@@ -295,8 +295,6 @@ export function spawnAt(world: World, tpl: NpcTemplate, loadout: NpcLoadout, pos
   });
   if (!v.resources) throw new Error(`${tpl.id} spawned without resources`);
   v.resources.money = tpl.money;
-  world.vehicles.push(v);
-  world.events.push({ t: "spawn", vehicle: v.id });
   return v;
 }
 

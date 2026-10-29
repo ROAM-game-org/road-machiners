@@ -122,7 +122,7 @@ describe('leaving a site', () => {
     expect(leaveSite(w, car.id)).toBe(true);
 
     const out = w.vehicles.find((v) => v.id === car.id)!;
-    expect(w.sheltered).toEqual([]);
+    expect(shelteredAt(w, BOWL.id)).toEqual([]);
     expect(dist(out.pos, PAD)).toBeLessThan(REGION.sites.pad.width / 2);
     const away = Math.atan2(out.pos.y - BOWL.pos.y, out.pos.x - BOWL.pos.x);
     expect(Math.abs(Math.atan2(Math.sin(out.heading - away), Math.cos(out.heading - away)))).toBeLessThan(0.01);

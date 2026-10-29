@@ -8,6 +8,7 @@ import { setHeadless } from '../src/sim/fidelity.ts';
 import { advanceFar } from '../src/sim/far.ts';
 import { playerVehicle } from '../src/sim/damage.ts';
 import { fillHollow } from '../src/sim/spawn.ts';
+import { everyTruck, isSheltered } from '../src/sim/sites.ts';
 import { refreshVision } from '../src/sim/vision.ts';
 import { hangUp } from '../src/sim/dialogue.ts';
 import { clockOf } from '../src/sim/sun.ts';
@@ -81,12 +82,12 @@ function playNight(seed) {
     else if (w.turn < dawnAfter(dusk)) night.nightZone += strangersInZone(w);
     noteNight(w, night);
   }
-  night.stragglers = membersOf(w).filter((v) => !atHome(v)).map((v) => `${v.brain.templateId}:${v.brain.goals.at(-1)?.kind ?? '-'}/${v.brain.goals.at(-1)?.reason ?? '-'}${v.defeat ? '/' + v.defeat.phase : ''}${foeOf(w, v)}@${Math.round(Math.hypot(v.pos.x - v.brain.home.x, v.pos.y - v.brain.home.y))}`);
+  night.stragglers = membersOf(w).filter((v) => !atHome(w, v)).map((v) => `${v.brain.templateId}:${v.brain.goals.at(-1)?.kind ?? '-'}/${v.brain.goals.at(-1)?.reason ?? '-'}${v.defeat ? '/' + v.defeat.phase : ''}${foeOf(w, v)}@${Math.round(Math.hypot(v.pos.x - v.brain.home.x, v.pos.y - v.brain.home.y))}`);
   return night;
 }
 
 function noteStall(w, e) {
-  const v = w.vehicles.find((x) => x.id === e.vehicle);
+  const v = everyTruck(w).find((x) => x.id === e.vehicle);
   const at = v ? `${v.brain?.templateId} at (${v.pos.x.toFixed(0)}, ${v.pos.y.toFixed(0)}), ${Math.round(Math.hypot(v.pos.x - v.brain.home.x, v.pos.y - v.brain.home.y))} from home` : 'gone';
   console.log(`stall at ${clockText(w.turn)} (${phaseAt(w.turn)}): ${e.vehicle} ${at}, goal ${e.goal}/${e.reason}`);
 }
@@ -99,7 +100,7 @@ function noteNight(w, night) {
   noteStopped(w, facts, night);
   noteHolds(w, facts, night);
   if (w.turn === night.dusk + LATE_AFTER) noteLate(w, facts, night);
-  if (w.turn === dawnAfter(night.dusk)) night.homeAtDawn = membersOf(w).filter(atHome).length;
+  if (w.turn === dawnAfter(night.dusk)) night.homeAtDawn = membersOf(w).filter((v) => atHome(w, v)).length;
   noteHome(w, night);
 }
 
@@ -113,7 +114,7 @@ function noteLate(w, facts, night) {
   night.late = facts.roster.filter((id) => !night.held.has(id)).map((id) => {
     const v = w.vehicles.find((x) => x.id === id);
     const top = v?.brain.goals.at(-1);
-    return v ? `${id} ${top?.kind}/${top?.reason}${foeOf(w, v)} ${Math.round(Math.hypot(v.pos.x - v.brain.home.x, v.pos.y - v.brain.home.y))} tiles from the bay${v.defeat ? ` ${v.defeat.phase}` : ''}` : `${id} gone`;
+    return v ? `${id} ${top?.kind}/${top?.reason}${foeOf(w, v)} ${Math.round(Math.hypot(v.pos.x - v.brain.home.x, v.pos.y - v.brain.home.y))} tiles from home${v.defeat ? ` ${v.defeat.phase}` : ''}` : `${id} gone`;
   });
 }
 
@@ -139,7 +140,7 @@ function noteAway(w, v, night) {
 function noteHome(w, night) {
   if (w.turn <= returnTurn(night.dusk)) return;
   const members = membersOf(w);
-  for (const v of members.filter((x) => atHome(x) && !night.homeAt.has(x.id))) night.homeAt.set(v.id, w.turn);
+  for (const v of members.filter((x) => atHome(w, x) && !night.homeAt.has(x.id))) night.homeAt.set(v.id, w.turn);
   if (night.home === null && night.homeAt.size === members.length) night.home = Math.max(...night.homeAt.values());
 }
 
@@ -149,8 +150,8 @@ function foeOf(w, v) {
   return foe?.brain ? `~${foe.brain.templateId}` : '';
 }
 
-function atHome(v) {
-  return Math.hypot(v.pos.x - v.brain.home.x, v.pos.y - v.brain.home.y) < 2;
+function atHome(w, v) {
+  return isSheltered(w, v.id);
 }
 
 setHeadless(true);
@@ -162,6 +163,6 @@ for (const seed of seeds) {
   const first = r.held.size > 0 ? Math.min(...r.held.values()) : null;
   if (last !== null && r.stopped.size === 0) slowest = Math.max(slowest, last - r.out);
   const nightTurns = dawnAfter(r.dusk) - r.dusk;
-  console.log(`seed ${seed}: roster ${r.roster}, stopped on the way ${r.stopped.size}, hunt ${r.hunt}, ride-out ${clockText(r.out)}, ${r.held.size} of ${r.roster} hold a post from ${first === null ? '-' : clockText(first)} to ${last === null ? '-' : clockText(last)} (last arrival ${last === null ? '-' : last - r.out} turns after ride-out, ${last === null ? '-' : last - r.dusk} after dusk, by dusk+19 ${last !== null && last <= r.dusk + LATE_AFTER}; not yet at a post at dusk+19: [${r.late.join('; ')}]), first car leaves its post ${r.leftPost === null ? 'never before the return' : clockText(r.leftPost)} (return ${clockText(returnTurn(r.dusk))}), all home ${r.home === null ? `NOT before the next ride-out (${r.homeAt.size} of ${SUNWARD.cavalcade + SUNWARD.hunters} came home)` : clockText(r.home)} (${r.home === null ? '-' : r.next - r.home} turns before the next ride-out), ${r.homeAtDawn} of ${SUNWARD.cavalcade + SUNWARD.hunters} in their bays at dawn, strangers in the crater zone per turn: day ${(r.dayZone / (r.dusk - r.out + LEAD_IN)).toFixed(2)} night ${(r.nightZone / nightTurns).toFixed(2)}, stalls ${r.stalls}, away at the end [${r.stragglers.join(' ')}], hunts per week ${huntsPerWeek(newWorld(seed, startKit('standard'), TEST_MAP, defaultSetup('roaming'), false))}`);
+  console.log(`seed ${seed}: roster ${r.roster}, stopped on the way ${r.stopped.size}, hunt ${r.hunt}, ride-out ${clockText(r.out)}, ${r.held.size} of ${r.roster} hold a post from ${first === null ? '-' : clockText(first)} to ${last === null ? '-' : clockText(last)} (last arrival ${last === null ? '-' : last - r.out} turns after ride-out, ${last === null ? '-' : last - r.dusk} after dusk, by dusk+19 ${last !== null && last <= r.dusk + LATE_AFTER}; not yet at a post at dusk+19: [${r.late.join('; ')}]), first car leaves its post ${r.leftPost === null ? 'never before the return' : clockText(r.leftPost)} (return ${clockText(returnTurn(r.dusk))}), all home ${r.home === null ? `NOT before the next ride-out (${r.homeAt.size} of ${SUNWARD.cavalcade + SUNWARD.hunters} came home)` : clockText(r.home)} (${r.home === null ? '-' : r.next - r.home} turns before the next ride-out), ${r.homeAtDawn} of ${SUNWARD.cavalcade + SUNWARD.hunters} inside at dawn, strangers in the crater zone per turn: day ${(r.dayZone / (r.dusk - r.out + LEAD_IN)).toFixed(2)} night ${(r.nightZone / nightTurns).toFixed(2)}, stalls ${r.stalls}, away at the end [${r.stragglers.join(' ')}], hunts per week ${huntsPerWeek(newWorld(seed, startKit('standard'), TEST_MAP, defaultSetup('roaming'), false))}`);
 }
 console.log(`slowest last arrival over the seeds with no car stopped on the way: ${slowest} turns after ride-out, lead needed ${slowest + 5}`);
