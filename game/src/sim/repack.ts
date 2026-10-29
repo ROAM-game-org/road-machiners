@@ -4,13 +4,12 @@ import type { GridItem, Vehicle } from './types';
 type PartItem = Extract<GridItem, { kind: 'part' }>;
 type Place = { spot: Spot; cells: number[] };
 type Piece = { item: PartItem; shape: string; spots: Place[]; area: number; reach: Set<number> };
-export type RepackMemo = Map<string, boolean>;
+export type RepackMemo = Map<string, Set<string> | false>;
 
 const DECK: readonly Cell[] = ['D', 'C'];
 export const REPACK_STEPS = 20000;
 export const REPACK_LEAVES = 32;
-export const REPACK_TALLY = { searches: 0, capped: 0 };
-
+export const REPACK_TALLY = { searches: 0, capped: 0, steps: 0 };
 export function isMovable(v: Vehicle, item: GridItem): item is PartItem {
   return item.kind === 'part' && isMounted(v.chassisId, item) && mountCellsOf(item.part.defId).every((c) => DECK.includes(c));
 }
@@ -21,14 +20,14 @@ export function repackWith(v: Vehicle, item: PartItem, accept: (next: Vehicle) =
   const movable = v.items.filter((it): it is PartItem => isMovable(v, it));
   const pieces = [...movable, item].map((it) => pieceOf(g, fixed, it, movable)).sort(byPackOrder);
   const key = memoKey(v, fixed, pieces);
-  const known = memo.get(key);
-  if (known === false) return null;
+  let known = memo.get(key);
   if (known === undefined) {
-    const packs = search(canonical(pieces), sameShape, (placed) => placed);
-    memo.set(key, packs !== null);
-    if (!packs) return null;
+    const packs = search(canonical(pieces), sameShape, (placed) => placed.map(placeKey));
+    known = packs ? new Set(packs) : false;
+    memo.set(key, known);
   }
-  return search(pieces, samePart, (placed) => {
+  if (known === false) return null;
+  return search(pieces.map((p) => packedFirst(p, known)), samePart, (placed) => {
     const next = { ...v, items: [...fixed, ...placed] };
     return accept(next) ? next : null;
   });
@@ -43,6 +42,7 @@ function search<T>(pieces: Piece[], same: (a: Piece, b: Piece) => boolean, leaf:
   const run: Run<T> = { pieces, same, leaf, taken: new Set(), placed: [], steps: 0, leaves: 0 };
   const found = fill(run, 0, 0);
   REPACK_TALLY.searches++;
+  REPACK_TALLY.steps += run.steps;
   if (found === null && spent(run)) REPACK_TALLY.capped++;
   return found;
 }
@@ -97,6 +97,15 @@ function shapeOf(item: PartItem): string {
 
 function canonical(pieces: Piece[]): Piece[] {
   return pieces.map((p) => ({ ...p, spots: distinctCells(p.spots) })).sort((a, b) => b.area - a.area || a.shape.localeCompare(b.shape));
+}
+
+function placeKey(item: PartItem): string {
+  return `${shapeOf(item)}@${itemCells(item).map((c) => cellKey(c.x, c.y)).sort((a, b) => a - b).join(',')}`;
+}
+
+function packedFirst(piece: Piece, packed: Set<string>): Piece {
+  const hit = (p: Place) => packed.has(`${piece.shape}@${[...p.cells].sort((a, b) => a - b).join(',')}`);
+  return { ...piece, spots: [...piece.spots.filter(hit), ...piece.spots.filter((p) => !hit(p))] };
 }
 
 function distinctCells(spots: Place[]): Place[] {
