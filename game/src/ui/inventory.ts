@@ -1,7 +1,6 @@
 
 import { chassisDef } from "../data/chassis";
 import { isShield, partDef } from "../data/parts";
-import { STRIP } from "../data/salvage";
 import { isJunk, maxHp } from "../sim/wear";
 import { playerVehicle, truckFor } from "../sim/damage";
 import { instantMoveItem } from "../sim/cheats";
@@ -31,7 +30,7 @@ import {
   takeFromStorage,
   type RefitLayout,
 } from "../sim/inventory";
-import { cancelRefit, startRepair, startStrip, startWeld, stripYield } from "../sim/jobs";
+import { cancelRefit, startRepair, startStrip, startWeld, stripTurns, stripYield } from "../sim/jobs";
 import { vehicleHasPerk } from "../sim/progress";
 import { PERK_NUMBERS } from "../data/skills";
 import { repairPlan } from "../sim/repair";
@@ -90,6 +89,7 @@ import {
   canFieldPatch,
   patchBlocker,
   stripBlocker,
+  stripRoomText,
   weldBlocker,
   doubleClickCommand,
   dragStartOf,
@@ -455,7 +455,7 @@ export class InventoryView {
     const buttons: (HTMLElement | null)[] = [
       canFieldPatch(this.mine(w), mounted, item.part.id) ? this.patchButton(w, this.mine(w), item.part) : null,
       shopAt(w) || this.atOutpost(w) ? this.repairButton(w, item.part) : null,
-      !mounted && partDef(item.part.defId).kind !== "core"
+      partDef(item.part.defId).kind !== "core" && this.mine(w).id === w.player.vehicleId
         ? this.stripButton(w, this.mine(w), item.part)
         : null,
     ];
@@ -521,9 +521,9 @@ export class InventoryView {
       {
         class: "inv-patch",
         onpointerdown: (e: Event) => e.stopPropagation(),
-        ...disabledWith(this.look() ?? stripBlocker(w, me), () => this.run((world) => startStrip(world, part.id))),
+        ...disabledWith(this.look() ?? stripBlocker(w, me) ?? stripRoomText(w, me, part), () => this.run((world) => startStrip(world, part.id))),
       },
-      t("inv.stripLabel", { turns: STRIP.turns, parts: stripYield(me, part) }),
+      t("inv.stripLabel", { turns: stripTurns(w, me, part.id), parts: stripYield(me, part) }),
     );
   }
 
