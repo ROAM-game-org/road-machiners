@@ -397,7 +397,8 @@ describe('shadows of tall parts', () => {
 
   it('a driver seat blocks a gun behind it', () => {
     const v = truckWith(emptyWorld(), 'courier', [{ defId: 'mg', x: 2, y: 7 }]);
-    expect(spansHold(gunSpans(v, itemOf(v, 'mg')), 0)).toBe(false);
+    const gun = v.items.find((it) => it.kind === 'part' && it.part.defId === 'mg')!;
+    expect(spansHold(gunSpans(v, gun), 0)).toBe(false);
   });
 
   it('a gun beside the convertible hardtop cab loses the angles toward the cab, off its own lane', () => {
