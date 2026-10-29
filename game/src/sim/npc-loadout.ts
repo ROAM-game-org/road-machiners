@@ -271,20 +271,25 @@ function takeStep(b: Build, rng: Rng, v: Vehicle, moves: GearMove[], score: Gear
 function drawOffers(b: Build, rng: Rng, v: Vehicle, moves: GearMove[], gainOf: (next: Vehicle) => number | null): { v: Vehicle; worth: number }[] {
   const order = [...moves];
   const drawn: { v: Vehicle; worth: number }[] = [];
+  const usedBy = usedFrom(b, v);
   for (let i = 0; i < order.length && drawn.length < GEAR_DRAWS; i++) {
     const pick = i + Math.floor(nextRandom(rng) * (order.length - i));
     [order[i], order[pick]] = [order[pick], order[i]];
     const next = order[i](v);
     const gain = next && gainOf(next);
-    if (next && gain !== null) drawn.push({ v: next, worth: gain / used(b, v, next) });
+    if (next && gain !== null) drawn.push({ v: next, worth: gain / usedBy(next) });
   }
   return drawn;
 }
 
-function used(b: Build, v: Vehicle, next: Vehicle): number {
-  const money = (equipmentCost(next) - equipmentCost(v)) / Math.max(1, b.budget - equipmentCost(v));
-  const mass = (vehicleMass(next) - vehicleMass(v)) / Math.max(1, massRoom(b, v));
-  return Math.max(money, mass, MIN_USED);
+function usedFrom(b: Build, v: Vehicle): (next: Vehicle) => number {
+  let spent: { cost: number; mass: number; moneyLeft: number; massLeft: number } | null = null;
+  return (next) => {
+    spent ??= { cost: equipmentCost(v), mass: vehicleMass(v), moneyLeft: Math.max(1, b.budget - equipmentCost(v)), massLeft: Math.max(1, massRoom(b, v)) };
+    const money = (equipmentCost(next) - spent.cost) / spent.moneyLeft;
+    const mass = (vehicleMass(next) - spent.mass) / spent.massLeft;
+    return Math.max(money, mass, MIN_USED);
+  };
 }
 const MIN_USED = 1e-3;
 

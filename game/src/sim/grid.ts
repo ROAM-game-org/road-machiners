@@ -91,9 +91,30 @@ export function plateSide(chassisId: string, item: GridItem): SideLetter {
   return size.w >= size.h ? 'F' : 'L';
 }
 
+const mountLetters = new Map<string, Map<string, (Cell | null)[]>>();
+
 function mountLetter(chassisId: string, item: GridItem): Cell | null {
   if (item.kind !== 'part') return null;
   const base = baseGrid(chassisId);
+  if (!onBaseGrid(base, item)) return null;
+  const table = mountLetterTable(chassisId, item.part.defId);
+  const at = (item.rot * base.h + item.y) * base.w + item.x;
+  return table[at] !== undefined ? table[at] : (table[at] = computeMountLetter(base, item));
+}
+
+function onBaseGrid(base: Grid, item: GridItem): boolean {
+  return item.x >= 0 && item.y >= 0 && item.x < base.w && item.y < base.h;
+}
+
+function mountLetterTable(chassisId: string, defId: string): (Cell | null)[] {
+  const byDef = mountLetters.get(chassisId) ?? new Map<string, (Cell | null)[]>();
+  mountLetters.set(chassisId, byDef);
+  const table = byDef.get(defId) ?? [];
+  byDef.set(defId, table);
+  return table;
+}
+
+function computeMountLetter(base: Grid, item: GridItem & { kind: 'part' }): Cell | null {
   const first = letterAt(base, item.x, item.y);
   if (first === null || !mountCellsOf(item.part.defId).includes(first)) return null;
   return coversOnly(base, item, first) ? first : null;
@@ -227,14 +248,29 @@ function isSkin(cell: Cell | null): boolean {
   return cell === 'L' || cell === 'R';
 }
 
+const cellCounts = new WeakMap<Grid, number>();
+
 export function cellCount(g: Grid): number {
-  return g.cells.flat().filter((c) => c !== null && !isSkin(c)).length;
+  let count = cellCounts.get(g);
+  if (count === undefined) {
+    count = g.cells.flat().filter((c) => c !== null && !isSkin(c)).length;
+    cellCounts.set(g, count);
+  }
+  return count;
 }
 
 export function freeCells(v: Vehicle): number {
   const g = gridOf(v);
-  const used = v.items.filter((it) => layerOf(g, it) === 'base').reduce((a, it) => a + itemCells(it).filter((c) => !isSkin(g.cells[c.y]?.[c.x] ?? null)).length, 0);
+  let used = 0;
+  for (const it of v.items) if (layerOf(g, it) === 'base') used += unskinnedCellsOf(g, it);
   return cellCount(g) - used;
+}
+
+function unskinnedCellsOf(g: Grid, item: GridItem): number {
+  const { w, h } = itemSize(item);
+  let count = 0;
+  for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) if (!isSkin(g.cells[item.y + dy]?.[item.x + dx] ?? null)) count++;
+  return count;
 }
 
 export function placementError(g: Grid, items: GridItem[], item: GridItem, ignoreId: string | null): PlacementRefusal | null {
