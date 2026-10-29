@@ -75,7 +75,7 @@ jobs:
           echo "shard $SHARD of $SHARDS runs $(printf '%s\n' $mine | grep -c .) of $(printf '%s\n' $all | grep -c .) test files"
           if [ -z "$mine" ]; then
             mkdir -p tmp
-            echo '{"failed":[],"unhandledErrors":0}' > "$TEST_FAILURES_FILE"
+            echo '{"failed":[],"unhandledErrors":0,"unfinished":[]}' > "$TEST_FAILURES_FILE"
             exit 0
           fi
           code=0
@@ -115,7 +115,7 @@ jobs:
             echo "$found of $SHARDS shards wrote a failure record, so the run has none."
             exit 0
           fi
-          jq -s '{failed: (map(.failed) | add), unhandledErrors: (map(.unhandledErrors) | add)}' shards/*/test-failures.json > test-failures.json
+          jq -s '{failed: (map(.failed) | add), unhandledErrors: (map(.unhandledErrors) | add), unfinished: (map(.unfinished) | add)}' shards/*/test-failures.json > test-failures.json
           jq -c '{failed: (.failed | length), unhandledErrors}' test-failures.json
       - uses: actions/upload-artifact@v4
         with:
