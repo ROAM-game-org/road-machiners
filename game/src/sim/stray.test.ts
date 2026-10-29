@@ -4,7 +4,7 @@ import { laneCount, lanePoint, planBlast } from './armor';
 import { fireWeapons, inFeud, shotDamage } from './combat';
 import { reportIncident } from './relations';
 import { gunFor } from './factory';
-import { mountedParts } from './grid';
+import { mountedItems, mountedParts } from './grid';
 import { addState, stateOf, strayData } from './states';
 import { vehicleStats } from './stats';
 import { bearing, DEG } from './vec';
@@ -101,6 +101,7 @@ describe('stray fire', () => {
   it('the player keeps no stray fire state', () => {
     const { w, me, target } = range();
     const gun = mountedParts(target, 'weapon')[0];
+    target.heading = -mountedItems(target, 'weapon')[0].rot * (Math.PI / 2);
     me.pos = { x: 42, y: 30.2 };
     const aimed = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 41, y: 30 }, Math.PI / 2);
     target.weaponOrders = { [gun.id]: { targetId: aimed.id, aim: 'body' } };
