@@ -14,7 +14,6 @@ export const SCREENS: Translation<typeof EN> = {
   'boot.map': 'Читаем карту',
   'boot.physics': 'Запускаем физику',
   'boot.models': 'Загружаем модели',
-  'boot.sounds': 'Загружаем звуки',
   'boot.loadSave': 'Загружаем сохранение',
   'boot.newGame': 'Начинаем новую игру',
   'boot.ground': 'Рисуем землю',
