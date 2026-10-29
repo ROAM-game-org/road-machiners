@@ -229,12 +229,15 @@ function boxOf(it: GridItem, chassisId: string, outer: boolean, m: GridMetrics):
 }
 
 function artOf(look: GarageLook, it: GridItem, m: GridMetrics, rect: PixelRect): HTMLElement | null {
-  if (it.kind === "part" && partDef(it.part.defId).kind === "core") {
-    const body = look.renders.body(look.truck, look.paint);
-    return body ? (coreArt(body, it.part, m, rect) ?? el("span", { class: "inv-art" })) : null;
-  }
+  if (it.kind === "part" && partDef(it.part.defId).kind === "core") return builtInArt(look, it, m, rect);
   const sprite = drawnSprite(look, it);
   return sprite ? partArt(sprite, m, rect) : hiddenArt(look, it);
+}
+
+function builtInArt(look: GarageLook, it: Extract<GridItem, { kind: "part" }>, m: GridMetrics, rect: PixelRect): HTMLElement | null {
+  const body = look.renders.body(look.truck, look.paint);
+  if (!body) return null;
+  return coreArt(body, it.part, m, rect) ?? hiddenArt(look, it) ?? el("span", { class: "inv-art" });
 }
 
 function itemClass(it: GridItem, mounted: boolean): string {
