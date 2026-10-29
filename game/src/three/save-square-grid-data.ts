@@ -51,8 +51,8 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
     halfZ: 0.9300000000000002,
     old: [' FFFFF ', 'L.....R', 'LX.XXXR', 'LX.XXXR', 'LDEE.XR', 'LDEE.XR', 'LDXX.DR', 'LXDD.XR', 'LXDD.XR', 'L.....R', ' BBBBB '],
     oldCore: [{ defId: 'cab', x: 2, y: 6, rot: 1 }, { defId: 'transmission', x: 3, y: 2 }, { defId: 'tank', x: 5, y: 4 }, { defId: 'wheel', x: 1, y: 2 }, { defId: 'wheel', x: 5, y: 2 }, { defId: 'wheel', x: 1, y: 7 }, { defId: 'wheel', x: 5, y: 7 }],
-    next: [' FFFF ', 'LXEEXR', 'LXEEXR', 'L EE R', 'LDD DR', 'LDDDDR', 'LDDXXR', 'LDXXDR', 'LXXXXR', 'LXXXXR', ' BBBB '],
-    nextCore: [{ defId: 'cab', x: 3, y: 6, rot: 1 }, { defId: 'transmission', x: 2, y: 8 }, { defId: 'tank', x: 2, y: 7, rot: 1 }, { defId: 'wheel', x: 1, y: 1 }, { defId: 'wheel', x: 4, y: 1 }, { defId: 'wheel', x: 1, y: 8 }, { defId: 'wheel', x: 4, y: 8 }],
+    next: [' FFFF ', 'LXEEXR', 'LXEEXR', 'L EE R', 'LDDXXR', 'LDDDDR', 'LDDXXR', 'LDDDDR', 'LXXXXR', 'LXXXXR', ' BBBB '],
+    nextCore: [{ defId: 'cab', x: 3, y: 6, rot: 1 }, { defId: 'transmission', x: 2, y: 8 }, { defId: 'tank', x: 3, y: 4, rot: 1 }, { defId: 'wheel', x: 1, y: 1 }, { defId: 'wheel', x: 4, y: 1 }, { defId: 'wheel', x: 1, y: 8 }, { defId: 'wheel', x: 4, y: 8 }],
   },
   van: {
     halfX: 2.9299999999999997,
@@ -75,7 +75,7 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
     halfZ: 1.46,
     old: [' FFFFFFF ', 'L.......R', 'LXDXXD.XR', 'LXDXXD.XR', 'LDEEXX.DR', 'LDEEXX.DR', 'LDDDXX.DR', 'LXDDXX.XR', 'LXDDDD.XR', 'L.......R', ' BBBBBBB '],
     oldCore: [{ defId: 'cabPickup', x: 4, y: 4, rot: 1 }, { defId: 'transmissionHeavy', x: 3, y: 2 }, { defId: 'tankHeavy', x: 4, y: 7, rot: 1 }, { defId: 'wheelHeavy', x: 1, y: 2 }, { defId: 'wheelHeavy', x: 7, y: 2 }, { defId: 'wheelHeavy', x: 1, y: 7 }, { defId: 'wheelHeavy', x: 7, y: 7 }],
-    next: [' FFFFFF ', 'LD   DDR', 'L DXXD R', 'LXDXXDXR', 'LXDXXDXR', 'LXEEDDXR', 'LDEEDXDR', 'LDEEDXDR', 'LDXXXXDR', 'LXXXXDXR', 'LXXXXDXR', 'LXDDDDXR', 'LDDDDDDR', 'L   DD R', ' BBBBBB '],
+    next: [' FFFFFF ', 'LD   DDR', 'L DXXD R', 'LXDXXDXR', 'LXDXXDXR', 'LXEEDDXR', 'LDEEDXDR', 'LDEEDXDR', 'LDXXXXDR', 'LXXXXDXR', 'LXXXXDXR', 'LXDDDDXR', 'L DDDD R', 'L   DD R', ' BBBBBB '],
     nextCore: [{ defId: 'wheelHeavy', x: 1, y: 3 }, { defId: 'wheelHeavy', x: 6, y: 3 }, { defId: 'wheelHeavy', x: 1, y: 9 }, { defId: 'wheelHeavy', x: 6, y: 9 }, { defId: 'cabPickup', x: 2, y: 8 }, { defId: 'transmissionHeavy', x: 3, y: 2 }, { defId: 'tankHeavy', x: 5, y: 6 }],
   },
   tractor: {

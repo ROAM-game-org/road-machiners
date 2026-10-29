@@ -232,11 +232,11 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   courier: {
     id: 'courier', maxSpeed: 9.75, accel: 3, brake: 3, turnSlow: 125, turnFast: 42, reverseTurn: 80,
     mass: 280, handlingMass: 1100, radius: 0.5,
-    layout: [' FFFF ', 'LXEEXR', 'LXEEXR', 'L EE R', 'LDD DR', 'LDDDDR', 'LDDXXR', 'LDXXDR', 'LXXXXR', 'LXXXXR', ' BBBB '],
+    layout: [' FFFF ', 'LXEEXR', 'LXEEXR', 'L EE R', 'LDDXXR', 'LDDDDR', 'LDDXXR', 'LDDDDR', 'LXXXXR', 'LXXXXR', ' BBBB '],
     core: [
       { defId: 'cab', x: 3, y: 6, rot: 1 },
       { defId: 'transmission', x: 2, y: 8 },
-      { defId: 'tank', x: 2, y: 7, rot: 1 },
+      { defId: 'tank', x: 3, y: 4, rot: 1 },
       { defId: 'wheel', x: 1, y: 1 },
       { defId: 'wheel', x: 4, y: 1 },
       { defId: 'wheel', x: 1, y: 8 },
@@ -282,7 +282,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   carrier: {
     id: 'carrier', maxSpeed: 5.2, accel: 1, brake: 2.5, turnSlow: 75, turnFast: 28, reverseTurn: 50,
     mass: 3200, handlingMass: 5200, radius: 0.85,
-    layout: [' FFFFFF ', 'LD   DDR', 'L DXXD R', 'LXDXXDXR', 'LXDXXDXR', 'LXEEDDXR', 'LDEEDXDR', 'LDEEDXDR', 'LDXXXXDR', 'LXXXXDXR', 'LXXXXDXR', 'LXDDDDXR', 'LDDDDDDR', 'L   DD R', ' BBBBBB '],
+    layout: [' FFFFFF ', 'LD   DDR', 'L DXXD R', 'LXDXXDXR', 'LXDXXDXR', 'LXEEDDXR', 'LDEEDXDR', 'LDEEDXDR', 'LDXXXXDR', 'LXXXXDXR', 'LXXXXDXR', 'LXDDDDXR', 'L DDDD R', 'L   DD R', ' BBBBBB '],
     core: [
       { defId: 'wheelHeavy', x: 1, y: 3 },
       { defId: 'wheelHeavy', x: 6, y: 3 },
