@@ -186,9 +186,9 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
     radius: 0.5,
     layout: [' FFFF ', 'LX..XR', 'LXEEXR', 'L.EEXR', 'LXEEXR', 'LXDDDR', 'L.DDDR', 'LXXXXR', 'LXXXXR', 'L....R', ' BBBB '],
     core: [
-      { defId: 'cab', x: 1, y: 4 },
+      { defId: 'tank', x: 1, y: 4 },
       { defId: 'transmission', x: 2, y: 7 },
-      { defId: 'tank', x: 4, y: 3 },
+      { defId: 'cab', x: 4, y: 3 },
       { defId: 'wheel', x: 1, y: 1 },
       { defId: 'wheel', x: 4, y: 1 },
       { defId: 'wheel', x: 1, y: 7 },
