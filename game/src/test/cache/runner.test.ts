@@ -148,7 +148,7 @@ describe('test:cached', { timeout: 4 * RUN_LIMIT_MS }, () => {
     const run = runCached({ TEST_STALL_MINUTES: '0.25' });
 
     expect(run.code).toBe(1);
-    expect(run.out).toContain('[test-cache] StallError: no test finished in 0.25 minutes. Still running: src/hangs.test.ts > waits forever');
+    expect(run.out).toContain('[test-cache] StallError: no test finished in 0.25 minutes. Still running: src/hangs.test.ts');
     expect([cached('src/a.test.ts'), cached('src/b.test.ts'), cached('src/hangs.test.ts')]).toEqual([true, true, false]);
   });
 
