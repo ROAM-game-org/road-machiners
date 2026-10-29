@@ -3,7 +3,7 @@ import { CHASSIS } from '../data/chassis';
 import { makeVehicle } from '../sim/factory';
 import { emptyWorld } from '../sim/testkit';
 import type { Vehicle, World } from '../sim/types';
-import { endTurn } from '../sim/world';
+import { cloneWorld, endTurn } from '../sim/world';
 import { buildDrive, freeDrive, initPhysics, simulateTurn, type TurnResult } from './drive';
 import type { VehicleFrame } from './frames';
 import { physicsMove } from './turn';
@@ -17,7 +17,7 @@ beforeAll(async () => {
 });
 
 function soloWorld(chassisId: string): { world: World; vehicle: Vehicle } {
-  const world = structuredClone(fixture);
+  const world = cloneWorld(fixture);
   const vehicle = makeVehicle(world, { faction: 'player', chassisId, parts: [{ defId: 'stockEngine', wear: 0 }], spares: [], cargo: {}, pos: { x: 30, y: 30 }, heading: 0, brain: null });
   world.vehicles = [vehicle];
   world.player.vehicleId = vehicle.id;
