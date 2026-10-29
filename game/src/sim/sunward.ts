@@ -14,7 +14,8 @@ import { canDrag, dragHeldBy, inTowReach, isOnRope, startDrag } from './tow';
 import { boundToOrder, callStrangers, dropSpot, lightZone, nearTheLight, offeringOf, seize } from './sunward-crater';
 import { inTruce } from './relations';
 import { canVehicleSee, grayRadius, tileCenter } from './vision';
-import { fuelCap, suppliesCap } from './stats';
+import { NPC_UPKEEP } from '../data/npc-behavior';
+import { fuelCap, suppliesCap, vehicleStats } from './stats';
 import { clockOf } from './sun';
 import { isTerritory, siteGap } from './sites';
 import { territoryGrounds } from './territory';
@@ -22,6 +23,7 @@ import type { NpcActivity, NpcState, Obstacle, SunwardFacts, SunwardHunt, Sunwar
 import { hashRandom } from './rng';
 import type { NightZone } from './nav/layer';
 import { dist, type Vec } from './vec';
+import { tendParts } from './wear';
 
 export type SunwardPhase = 'rest' | 'ride' | 'vigil' | 'home' | 'fallen';
 export type NightPhase = Exclude<SunwardPhase, 'fallen'>;
@@ -270,8 +272,14 @@ function huntDragEndings(world: World, hunt: SunwardHunt): string[] {
 }
 
 function huntSpent(world: World, hunt: SunwardHunt): boolean {
-  const fallen = hunt.party.some((id) => world.vehicles.some((v) => v.id === id && isDefeated(v)));
-  return fallen || hunt.breaks >= SUNWARD.huntBreaks || world.turn >= returnTurn(orderDusk(world.turn));
+  const party = world.vehicles.filter((v) => hunt.party.includes(v.id));
+  const fallen = party.some(isDefeated);
+  const dry = party.some((v) => getResources(world, v).fuel <= fuelHome(world, v));
+  return fallen || dry || hunt.breaks >= SUNWARD.huntBreaks || world.turn >= returnTurn(orderDusk(world.turn));
+}
+
+function fuelHome(world: World, v: Vehicle): number {
+  return dist(v.pos, v.brain!.home) * vehicleStats(world, v).fuelPerTile * NPC_UPKEEP.fuelReserve;
 }
 
 function noteHuntDrag(hunt: SunwardHunt, ending: string): void {
@@ -291,6 +299,7 @@ function atBay(v: Vehicle): boolean {
 function restAtBay(world: World, v: Vehicle): void {
   if (!atBay(v) || isKnockedOut(v)) return;
   if (isDefeated(v)) refitAtHome(world, v);
+  tendParts(v);
   const stores = getResources(world, v);
   stores.fuel = Math.max(stores.fuel, fuelCap(v));
   stores.supplies = Math.max(stores.supplies, suppliesCap(v));

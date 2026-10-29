@@ -17,6 +17,7 @@ import { setHeadless } from './fidelity';
 import { followingOf, joinCompany } from './companies';
 import { noteDefeat } from './relations';
 import { route, routeLength } from './path';
+import { ROAD_INDEX } from './road-index';
 import { lightZone } from './sunward-crater';
 import { RULES } from '../data/rules';
 import { makeTaste, nightTaste, tasted, terrainNav } from './nav/layer';
@@ -35,6 +36,7 @@ import {
 } from './sunward';
 import type { Obstacle, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
+import { maxHp } from './wear';
 
 function segmentGap(p: Vec, a: Vec, b: Vec): number {
   const dx = b.x - a.x;
@@ -495,16 +497,33 @@ describe('the vigil posts', () => {
     }
   });
 
-  it('lies a ride of over an hour from the gate, and every post can be reached', () => {
+  it('lies a long ride across open ground from the gate, out of sight of every town and raider camp, and every post can be reached', () => {
     const w = standardWorld(5);
     const gate = HOLLOW.site.gates[0];
+    const car = membersOf(w).find((v) => v.brain!.templateId === 'cavalcade')!;
+    const inhabited = [...REGION.towns, ...REGION.locations.filter((s) => s.kind === 'camp')];
+    const gray = TERRAIN.vision.radius * TERRAIN.vision.grayFactor;
     const rides = vigilPosts(w).map((post) => {
-      const path = route(w, gate, post, 0.9, []);
+      const rider = { ...car, pos: gate, brain: { ...car.brain!, goals: [{ kind: 'explore' as const, targetId: null, destination: post, phase: 'travel' as const, reason: 'rideVigil' as const }] } };
+      const path = route(w, gate, post, 0.9, [], rider);
       expect(dist(path[path.length - 1], post)).toBeLessThan(2);
-      return routeLength(gate, path);
+      const points = [gate, ...path];
+      let onRoad = 0;
+      for (let i = 1; i < points.length; i++) {
+        const [a, b] = [points[i - 1], points[i]];
+        const n = Math.max(1, Math.ceil(dist(a, b)));
+        for (let k = 0; k < n; k++) {
+          const p = { x: a.x + ((b.x - a.x) * k) / n, y: a.y + ((b.y - a.y) * k) / n };
+          if (ROAD_INDEX.nearestWithin(p.x, p.y, REGION.roadWidth) <= REGION.roadWidth) onRoad += dist(a, b) / n;
+          for (const s of inhabited) expect(siteGap(s, p), `${s.id} at ${p.x.toFixed(0)}, ${p.y.toFixed(0)}`).toBeGreaterThan(gray);
+        }
+      }
+      const length = routeLength(gate, path);
+      expect(onRoad / length).toBeLessThan(0.1);
+      return length;
     });
-    expect(Math.min(...rides)).toBeGreaterThan(1400);
-    expect(Math.max(...rides)).toBeLessThan(1800);
+    expect(Math.min(...rides)).toBeGreaterThan(700);
+    expect(Math.max(...rides)).toBeLessThan(1000);
   });
 });
 
@@ -609,6 +628,37 @@ describe('the hunting parties', () => {
     const other = w.vehicles.find((v) => v.id === hunt.party[2])!;
     planSunward(w, other);
     expect(other.brain!.goals[0].reason).not.toBe('huntRoad');
+  });
+
+  it('goes home when a hunter has only the fuel for the ride home', () => {
+    const w = orderWorld(5);
+    const day = Array.from({ length: 200 }, (_, i) => i + 1).find((d) => huntTonight(w, d))!;
+    w.turn = duskTurn(day) + 1;
+    advanceSunward(w);
+    const hunt = sunwardFacts(w).night!.hunt!;
+    const party = hunt.party.map((id) => w.vehicles.find((v) => v.id === id)!);
+    for (const v of party) v.pos = { ...fallenSun().pos };
+    advanceSunward(w);
+    expect(hunt.over).toBe(false);
+
+    party[0].resources!.fuel = 1;
+    advanceSunward(w);
+
+    expect(hunt.over).toBe(true);
+  });
+});
+
+describe('the Hollow by day', () => {
+  it('tends every resting car back to full HP in its bay', () => {
+    const w = orderWorld(5);
+    w.turn = dawnAfter(duskTurn(1)) + 1;
+    const car = membersOf(w).find(isCavalcadeCar)!;
+    const parts = car.items.flatMap((i) => (i.kind === 'part' ? [i.part] : []));
+    for (const p of parts) p.hp = Math.max(1, Math.round(p.hp / 2));
+
+    advanceSunward(w);
+
+    expect(parts.every((p) => p.hp === maxHp(p))).toBe(true);
   });
 });
 
