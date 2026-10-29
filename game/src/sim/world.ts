@@ -160,6 +160,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     events: [],
     removed: [],
     spawnTimer: {},
+    spawnQueue: [],
     weather: [],
     dustClouds: [],
     states: [],

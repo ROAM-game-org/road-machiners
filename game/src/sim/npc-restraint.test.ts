@@ -11,7 +11,7 @@ import { addGoods } from './inventory';
 import { advanceJobs } from './jobs';
 import { resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
 import { getKnownSite } from './npc-decisions';
-import { fallbackFaction, spawnInitial } from './spawn';
+import { fallbackFaction, spawnInitial, spawnQueueNow } from './spawn';
 import { inShade, sunAt } from './sun';
 import { straightClear } from './path';
 import { vehicleStats } from './stats';
@@ -59,6 +59,7 @@ describe('NPC restraint', () => {
       const world = emptyWorld();
       world.rngState = seed;
       spawnInitial(world);
+      spawnQueueNow(world);
       return world.vehicles.filter((v) => v.faction === 'scrapjaw');
     });
     expect(raiders.some((npc) => Object.entries(goodsCount(npc)).some(([good, count]) => good !== 'parts' && count > 0))).toBe(true);

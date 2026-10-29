@@ -36,6 +36,7 @@ export const REBAKE_MOVE = {
   nextId: 'keep',
   setup: 'keep',
   spawnTimer: 'keep',
+  spawnQueue: 'keep',
   roadNews: 'keep',
   chaosHighway: 'keep',
   size: 'rebuild',

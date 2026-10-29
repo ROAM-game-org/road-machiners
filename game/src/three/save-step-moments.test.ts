@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import FORMAT_2_115 from './save-fixtures/format-2-115.json';
 import { START_KITS } from '../data/start';
 import { defaultSetup } from '../sim/settings';
+import { assignMoments } from '../sim/moments';
+import { spawnQueueNow } from '../sim/spawn';
 import type { World } from '../sim/types';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
@@ -21,6 +23,8 @@ function roundTrip(w: World): World {
 describe('moments in a save', () => {
   it('load gives back the same holders and heard moments and awards nothing', () => {
     const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    spawnQueueNow(w);
+    assignMoments(w);
     expect(Object.values(w.moments!).some((m) => m.driver !== null)).toBe(true);
     w.moments!.crucible.heard = true;
     const loaded = roundTrip(w);

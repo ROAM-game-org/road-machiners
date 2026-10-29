@@ -17,7 +17,7 @@ import { isFortress, siteGates, siteUnder, type Site } from "./sites";
 import { modeRules } from "./settings";
 import { isLone } from "./pairs";
 import { startEscort } from "./tow";
-import type { NpcFactionId, Vehicle, World } from "./types";
+import type { NpcFactionId, QueuedSpawn, Vehicle, World } from "./types";
 import { dist, type Vec } from "./vec";
 import { atlasOf } from "./atlas";
 import { bayHeading, hollowBays } from "./hollow-layout";
@@ -25,7 +25,32 @@ import { isSunwardMember, spawnsAtHollow } from "./sunward";
 
 export function spawnNpcs(world: World): void {
   if (!modeRules(world).traffic) return;
+  spawnQueued(world);
   for (const tpl of Object.values(NPCS)) if (tpl.spawn.kind !== "escort") tickSpawn(world, tpl);
+}
+
+function spawnQueued(world: World): void {
+  for (const entry of world.spawnQueue.slice(0, SPAWN.startPerTurn)) {
+    const { tpl, places } = queuedPlaces(entry);
+    if (!spawnListed(world, tpl, places)) return;
+    world.spawnQueue = world.spawnQueue.filter((e) => e !== entry);
+  }
+}
+
+export function spawnQueueNow(world: World): void {
+  for (const entry of world.spawnQueue) {
+    const { tpl, places } = queuedPlaces(entry);
+    spawnRequired(world, tpl, places);
+  }
+  world.spawnQueue = [];
+}
+
+function queuedPlaces(entry: QueuedSpawn): { tpl: NpcTemplate; places: SpawnPlace[] } {
+  const tpl = NPCS[entry.templateId];
+  if (!tpl) throw new Error(`Queued spawn names unknown template ${entry.templateId}`);
+  const dealt = sitesFor(tpl).find((site) => site.id === entry.siteId);
+  if (!dealt) throw new Error(`Queued ${tpl.id} names site ${entry.siteId}, where it does not spawn`);
+  return { tpl, places: rosterPlaces(tpl, dealt) };
 }
 
 function tickSpawn(world: World, tpl: NpcTemplate): void {
@@ -33,6 +58,14 @@ function tickSpawn(world: World, tpl: NpcTemplate): void {
   world.spawnTimer[tpl.id] = left;
   if (left > 0) return;
   world.spawnTimer[tpl.id] = tpl.interval;
+  if (!isQueued(world, tpl)) spawnByTimer(world, tpl);
+}
+
+function isQueued(world: World, tpl: NpcTemplate): boolean {
+  return world.spawnQueue.some((entry) => entry.templateId === tpl.id);
+}
+
+function spawnByTimer(world: World, tpl: NpcTemplate): void {
   if (tpl.pairs) tickPairs(world, tpl);
   else if (tpl.spawn.kind === 'hollow') refillHollow(world, tpl);
   else if (aliveOf(world, tpl) < tpl.cap) spawnWithEscorts(world, tpl, () => siteFor(world, tpl));
@@ -100,10 +133,7 @@ export function spawnInitial(world: World): void {
   const places: SpawnPlace[] = [{ site: town, gate }, { site: town, gate: null }];
   for (const id of SPAWN.startTraffic.templates) spawnRequired(world, NPCS[id], places);
   const decks = new Map<string, Site[]>();
-  for (const id of SPAWN.initial) {
-    const tpl = NPCS[id];
-    spawnRequired(world, tpl, rosterPlaces(tpl, dealSite(world, decks, sitesFor(tpl))));
-  }
+  world.spawnQueue = SPAWN.initial.map((id) => ({ templateId: id, siteId: dealSite(world, decks, sitesFor(NPCS[id])).id }));
   if (world.sunward) fillHollowAtStart(world);
 }
 
@@ -154,13 +184,24 @@ function spawnWithEscorts(world: World, tpl: NpcTemplate, pick: () => Site): voi
 
 function spawnRequired(world: World, tpl: NpcTemplate, places: readonly SpawnPlace[]): void {
   const loadout = generateNpcLoadout(world, tpl);
-  const leader = places.reduce<Vehicle | null>(
-    (placed, place) => placed ?? placeLeader(world, tpl, loadout, () => place.site, place.gate),
-    null,
-  );
+  const leader = placeListed(world, tpl, loadout, places);
   if (!leader) throw new Error(`No room to spawn ${tpl.id} at ${places.map((p) => p.site.id).join()} in the new world`);
   const missed = spawnEscorts(world, tpl, leader);
   if (missed.length > 0) throw new Error(`No free spot to spawn ${missed[0].id} beside ${tpl.id} in the new world`);
+}
+
+function spawnListed(world: World, tpl: NpcTemplate, places: readonly SpawnPlace[]): Vehicle | null {
+  const leader = placeListed(world, tpl, generateNpcLoadout(world, tpl), places);
+  if (!leader) {
+    world.events.push({ t: 'info', note: { id: 'spawnBlocked', template: tpl.id }, debug: true });
+    return null;
+  }
+  spawnEscorts(world, tpl, leader);
+  return leader;
+}
+
+function placeListed(world: World, tpl: NpcTemplate, loadout: NpcLoadout, places: readonly SpawnPlace[]): Vehicle | null {
+  return places.reduce<Vehicle | null>((placed, place) => placed ?? placeLeader(world, tpl, loadout, () => place.site, place.gate), null);
 }
 
 function spawnEscorts(world: World, tpl: NpcTemplate, leader: Vehicle): NpcTemplate[] {

@@ -822,7 +822,12 @@ export const TINY_STEPS: readonly NamedStep[] = [
   { name: 'withMeetingRoles', step: (world) => world },
   { name: 'withArmorRowsOutside', step: withArmorRowsOutside_120_121 },
   { name: 'withSquareGrid', step: withSquareGrid_121_122 },
+  { name: 'withSpawnQueue', step: withSpawnQueue_122_123 },
 ];
+
+function withSpawnQueue_122_123(world: SavedJson): SavedJson {
+  return { ...world, spawnQueue: [] };
+}
 
 function withOfferingsRedated_111_112(world: SavedJson): SavedJson {
   const redate = (s: SavedJson): SavedJson => (s.kind === 'offering' ? { ...s, born: world.turn } : s);

@@ -74,9 +74,8 @@ afterEach(() => warn.mockRestore());
 const warnings = () => warn.mock.calls.map((c) => String(c[0]));
 
 describe('save migration 121 to 122, square grid', () => {
-  it('is the newest tiny step, from format 121', () => {
+  it('is the tiny step from format 121', () => {
     expect(TINY_STEPS[121 - TINY_FROM]).toBe(step);
-    expect(TINY_STEPS[TINY_STEPS.length - 1]).toBe(step);
   });
 
   it('puts every fixture item on a legal spot of the new grid with no overlaps, and loses none unreported', () => {

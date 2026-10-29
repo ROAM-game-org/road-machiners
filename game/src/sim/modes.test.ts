@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { GAME_MODES } from '../data/modes';
+import { SPAWN } from '../data/npcs';
 import { startKit } from '../data/start';
 import { TEST_MAP } from '../test/map';
 import { defaultSetup, modeKit, modeMap, modeRules, modeRulesOf } from './settings';
@@ -80,12 +81,13 @@ describe('a new world by mode', () => {
 
     expect(world.chaosHighway).toBeNull();
     expect(fingerprint(world)).toEqual({
-      streams: [-1666527341, -1102861437, -1818829172, 1936023925],
-      nextId: 2065,
-      counts: [34, 6048, 128, 7],
-      npcs: [['trader', 117.23, 578.74], ['trader', 123.6, 575.68], ['buggy', 151.24, 100.12]],
-      bowlStock: ['flatFour', 'oilSpiller', 'longRifle', 'patcherCrane', 'sniperCannon', 'racingV6', 'sniperCannon', 'caltrops', 'flamer', 'stockEngine'],
+      streams: [1459084387, -1937427795, -2067017660, 1936023925],
+      nextId: 855,
+      counts: [14, 6048, 128, 7],
+      npcs: [['trader', 117.23, 578.74], ['trader', 123.6, 575.68], ['cavalcade', 311.63, 504.26]],
+      bowlStock: ['enclosedFrame', 'smokeMortar', 'patcherCrane', 'smokeMortar', 'pneumobolter', 'caltrops', 'spacedTile', 'heavyMg', 'stockEngine'],
     });
+    expect(world.spawnQueue).toHaveLength(SPAWN.initial.length);
   });
 
   it('starts a Chaos Highway world with no traffic, salvage, shops or road wrecks', () => {

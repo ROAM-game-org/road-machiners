@@ -421,6 +421,8 @@ export type StateData =
   | { kind: 'bountyStop'; owed: number; answered: boolean }
   | { kind: 'none' };
 export type LootWarnAnswer = 'comply' | 'refuse' | 'fightBack';
+export type QueuedSpawn = { templateId: string; siteId: string };
+
 export type NpcState = {
   id: string;
   kind: StateKindId;
@@ -746,6 +748,7 @@ export type World = {
   events: GameEvent[];
   removed: Vehicle[];
   spawnTimer: Record<string, number>;
+  spawnQueue: QueuedSpawn[];
   weather: WeatherEvent[];
   dustClouds: DustCloud[];
   states: NpcState[];
