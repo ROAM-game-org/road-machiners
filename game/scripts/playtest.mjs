@@ -5,6 +5,9 @@ import { gpuArgs, isSoftware, rendererOf } from './gpu.mjs';
 import { emulateWebGL2Floor } from './gpu-floor.mjs';
 import { checkHighwayNightInSoftware, checkNightGround, NIGHT_TURNS } from './night-ground.mjs';
 import { playUrl } from './game-url.mjs';
+import { watchStalls } from './stall-watch.mjs';
+
+watchStalls('The playtest', process.env);
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
