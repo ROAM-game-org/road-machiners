@@ -75,6 +75,7 @@ describe.each(TARGETS)('$look in $territory', ({ territory, look, near }) => {
     while (goal.targetId !== stock.id) goal = spotGoal(w, territory);
     npc.brain.goals = [goal];
     forceOption('salvageSeen', 'keep');
+    for (const other of w.salvage) if (other.id !== stock.id) npc.brain.noticed[`salvageSeen:${other.id}`] = w.turn;
 
     let d = buildDrive(w);
     let turns = 0;
