@@ -492,6 +492,10 @@ function payCost(w: World, cost: number | null, choice: string): void {
 }
 
 export function questView(world: World, bundle: QuestBundle): QuestView {
+  return { ...questPage(world, bundle), seen: seenChoices(world, bundle) };
+}
+
+export function questPage(world: World, bundle: QuestBundle): Omit<QuestView, 'seen'> {
   const { live, session } = world.player.quests;
   if (!live) throw new Error('No quest is on view');
   const quest = questOf(bundle, live.quest);
@@ -501,7 +505,6 @@ export function questView(world: World, bundle: QuestBundle): QuestView {
     view: quest.view,
     lines: live.lines,
     choices: live.choices,
-    seen: seenChoices(world, bundle),
     costs: live.costs,
     checks: live.checks,
     locked: live.costs.map((cost) => cost !== null && cost > money),
