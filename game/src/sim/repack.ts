@@ -9,9 +9,8 @@ type Piece = { item: PartItem; shape: string; spots: Place[]; area: number; reac
 export type RepackMemo = Map<string, Set<string> | false>;
 
 const DECK: readonly Cell[] = ['D', 'C'];
-export const REPACK_STEPS = 20000;
-export const REPACK_LEAVES = 32;
-export const REPACK_TALLY = { searches: 0, capped: 0, steps: 0 };
+const REPACK_STEPS = 20000;
+const REPACK_LEAVES = 32;
 export function isMovable(v: Vehicle, item: GridItem): item is PartItem {
   return item.kind === 'part' && isMounted(v.chassisId, item) && mountCellsOf(item.part.defId).every((c) => DECK.includes(c));
 }
@@ -42,11 +41,7 @@ type Run<T> = { pieces: Piece[]; same: (a: Piece, b: Piece) => boolean; leaf: (p
 
 function search<T>(pieces: Piece[], same: (a: Piece, b: Piece) => boolean, leaf: (placed: PartItem[]) => T | null, laned: boolean): T | null {
   const run: Run<T> = { pieces, same, leaf, taken: new Set(), placed: [], lanes: laned ? new Set() : null, steps: 0, leaves: 0 };
-  const found = fill(run, 0, 0);
-  REPACK_TALLY.searches++;
-  REPACK_TALLY.steps += run.steps;
-  if (found === null && spent(run)) REPACK_TALLY.capped++;
-  return found;
+  return fill(run, 0, 0);
 }
 
 function spent<T>(run: Run<T>): boolean {
