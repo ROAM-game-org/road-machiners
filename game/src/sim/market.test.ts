@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ECONOMY, GOODS } from '../data/goods';
 import { partDef } from '../data/parts';
 import { DISTANCE_PREMIUM, EFFORT, PRICE_FACTOR, PRESSURE_MAX, SHOPS, SHORT_PRESSURE } from '../data/market';
+import { chargeM } from './money';
 import { dist } from './vec';
 import { emptyWorld, addVehicle } from './testkit';
 import type { Vehicle, World } from './types';
@@ -12,6 +13,7 @@ import {
   estimateTurns,
   goodBasePrice,
   goodPrice,
+  goodRate,
   goodStock,
   initShop,
   moveStock,
@@ -128,10 +130,10 @@ describe('market', () => {
     const lot = lotPrice('granary', state, 'grain', 'buy', ECONOMY.spread, 5);
     let summed = 0;
     for (let i = 0; i < 5; i++) {
-      summed += goodPrice('granary', state, 'grain', 'buy', ECONOMY.spread);
+      summed += goodRate('granary', state, 'grain', 'buy', ECONOMY.spread);
       recordTrade('granary', state, 'grain', 1, 'buy');
     }
-    expect(lot).toBe(summed);
+    expect(lot).toBe(Math.max(1, chargeM(summed)));
   });
 
   it('throws pricing a buy of more crates than the stock holds', () => {

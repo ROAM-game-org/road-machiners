@@ -17,7 +17,7 @@ import { tearLine } from '../sim/harpoon';
 import { breakProp } from '../sim/salvage';
 import { isOnRope } from '../sim/tow';
 import { burnFuel } from '../sim/resources';
-import { setDown } from '../sim/steering';
+import { setDown, settleSetSpeed } from '../sim/steering';
 import { clearanceFor } from '../sim/clearance';
 import type { MoveOrder, Obstacle, Pose, Vehicle, World } from '../sim/types';
 import { angleDiff, dist, lerp, type Vec } from '../sim/vec';
@@ -335,6 +335,7 @@ function applyDriven(w: World, r: TurnResult, v: Vehicle, frames: TurnResult['fr
   if (v.brain) delete v.brain.farRoute;
   const s = bodyState(r.next, v.id);
   const start = poseOf(v);
+  const startSpeed = v.speed;
   Object.assign(v, bodyPose(r.next, v));
   checkBend(v);
   if ((v.strandedTurns ?? 0) >= RULES.stranded.turns) v.strandedTurns = 0;
@@ -344,6 +345,7 @@ function applyDriven(w: World, r: TurnResult, v: Vehicle, frames: TurnResult['fr
   setDownIfStuck(w, v);
   v.trail = trailOf(start, frames);
   burnFuel(w, v, pathLength(v.trail));
+  settleSetSpeed(v, startSpeed);
   settleOrder(w, v, r.results[v.id]);
 }
 

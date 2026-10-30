@@ -22,7 +22,7 @@ export const WEAR = {
 
 export const PATCH = {
   share: 0.25,
-  laborPerTurn: 266.67,
+  laborPerTurn: 2.6667,
 };
 
 export const REPAIR = {

@@ -33,7 +33,7 @@ function turn(w: World, d: Drive, bumps: Bump[]): { w: World; d: Drive } {
 }
 
 function tradingWorld(): { w: World; traderId: string } {
-  const w = standardWorld(1337);
+  const w = standardWorld(5);
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   const [bowl, nose] = REGION.towns;
@@ -104,7 +104,7 @@ export function meet(angle: number, speed: number, seconds: number): Meeting {
 
 export type HeadOn = Meeting & { stalls: number };
 
-const HEAD_ON_GAP = 20;
+const HEAD_ON_GAP = 30;
 const STALL_FAR = 8;
 const STALL_STEP = 0.5;
 

@@ -137,7 +137,8 @@ type Worn<D extends PartDef> = (def: D, hp: number, steps: number) => D;
 const wornWeapon: Worn<WeaponDef> = (def, hp, steps) => {
   const keep = worse(steps);
   const round = { ...def.round, damage: def.round.damage * keep, pen: def.round.pen * keep };
-  return { ...def, hp, round, range: def.range * keep, spread: def.spread * costlier(steps) };
+  const line = def.line && { ...def.line };
+  return { ...def, hp, round, classes: [...def.classes], ...(line && { line }), range: def.range * keep, spread: def.spread * costlier(steps) };
 };
 
 const wornEngine: Worn<EngineDef> = (def, hp, steps) => ({

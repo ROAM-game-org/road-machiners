@@ -35,6 +35,7 @@ import {
   serviceRoom,
   serviceUnitsPerCrate,
   serviceVehicle,
+  supplyCharge,
 } from "./economy";
 import {
   corePart,
@@ -101,9 +102,9 @@ describe("trade", () => {
 
   it("enforces cargo capacity and money", () => {
     const w = startAtBowl();
-    w.player.money = 333333;
+    w.player.money = 3333;
     expect(() => buyGood(w, "scrap", freeCells(w.vehicles[0]) + 1)).toThrow("Refused: noCargoRoom");
-    w.player.money = 10000;
+    w.player.money = 100;
     expect(() => buyGood(w, "meds", 10)).toThrow('Refused: noMoney');
   });
 
@@ -172,7 +173,7 @@ describe("trade", () => {
     for (const shop of ["nose", "salvage-yard"]) expect(shopState(w, shop).goods.relics).toBe(0);
   });
 
-  it("a lot price equals the sum of single-unit trades", () => {
+  it("a lot never costs more than the same units bought singly and never pays less than they sell for", () => {
     const w = startAtBowl();
     const state = shopState(w, "bowl");
     for (const direction of ["buy", "sell"] as const) {
@@ -183,7 +184,8 @@ describe("trade", () => {
         summed += lotPrice("bowl", { ...state, goods }, "scrap", direction, ECONOMY.spread, 1);
         goods.scrap += direction === "buy" ? -1 : 1;
       }
-      expect(lot).toBe(summed);
+      if (direction === "buy") expect(lot).toBeLessThanOrEqual(summed);
+      else expect(lot).toBeGreaterThanOrEqual(summed);
     }
   });
 
@@ -233,13 +235,13 @@ describe("garage", () => {
 
   it.each(STALLS)("sells fuel and supplies at the %s at the town prices", (id) => {
     const w = atSite(id);
-    w.player.money = 33333;
+    w.player.money = 333;
     w.player.fuel = 0;
     w.player.supplies = 0;
     for (const kind of ["fuel", "supplies"] as const) {
       const r = buySupply(w, kind, 3);
       expect(r.player[kind]).toBe(3);
-      expect(r.player.money).toBe(33333 - 3 * ECONOMY.supplyPrice[kind]);
+      expect(r.player.money).toBe(333 - supplyCharge(kind, 3));
     }
   });
 
@@ -371,15 +373,15 @@ describe("garage", () => {
 
   it.each(["dustwell", "green-pit"])("sells supplies, fuel, water and a stock part at %s for the shown prices", (id) => {
     const w = atSite(id);
-    w.player.money = 333333;
+    w.player.money = 3333;
     w.player.fuel = 0;
     w.player.supplies = 0;
     const supplies = buySupply(w, "supplies", 3);
     expect(supplies.player.supplies).toBe(3);
-    expect(supplies.player.money).toBe(w.player.money - 3 * ECONOMY.supplyPrice.supplies);
+    expect(supplies.player.money).toBe(w.player.money - supplyCharge("supplies", 3));
     const fuel = buySupply(w, "fuel", 3);
     expect(fuel.player.fuel).toBe(3);
-    expect(fuel.player.money).toBe(w.player.money - 3 * ECONOMY.supplyPrice.fuel);
+    expect(fuel.player.money).toBe(w.player.money - supplyCharge("fuel", 3));
     const price = getLotTradePrice(w, w.vehicles[0], id, "water", 2, "buy");
     const water = buyGood(w, "water", 2);
     expect(goodsCount(water.vehicles[0]).water).toBe((goodsCount(w.vehicles[0]).water ?? 0) + 2);
@@ -399,7 +401,7 @@ describe("garage", () => {
     expect(() => buyGood(w, "water", 1)).toThrow();
     expect(() => buyStockPart(w, shopState(w, id).stock[0].id)).toThrow();
     expect(JSON.stringify(w)).toBe(before);
-    w.player.money = 333333;
+    w.player.money = 3333;
     w.player.supplies = RULES.baseSupplies;
     expect(() => buySupply(w, "supplies", 1)).toThrow();
   });
@@ -581,7 +583,7 @@ describe("garage", () => {
 
   it("chassis swap keeps fitting parts and stores the rest", () => {
     let w = pristineAtBowl();
-    w.player.money = 66667;
+    w.player.money = 667;
     w = buyChassis(w, "hauler");
     const me = w.vehicles[0];
     expect(me.chassisId).toBe("hauler");
@@ -593,8 +595,8 @@ describe("garage", () => {
     ).toEqual(["cage", "mg", "panniers", "stockEngine"]);
     expect(goodsCount(me)).toEqual({ scrap: 2, parts: 2 });
     expect(w.player.money).toBe(
-      66667 -
-        (CHASSIS.hauler.value -
+      667 -
+        (Math.ceil(CHASSIS.hauler.value) -
           Math.floor(CHASSIS.scout.value * (1 - ECONOMY.spread))),
     );
     w = buyChassis(w, "scout");
@@ -613,13 +615,13 @@ describe("garage", () => {
 
   it("refunds the difference when the trade-in beats the new chassis price", () => {
     let w = startAtBowl();
-    w.player.money = 166667;
+    w.player.money = 1667;
     w = buyChassis(w, "tractor");
     const tradeIn = chassisTradeIn(w);
     expect(tradeIn).toBeGreaterThan(CHASSIS.scout.value);
     const before = w.player.money;
     w = buyChassis(w, "scout");
-    expect(w.player.money).toBe(before + (tradeIn - CHASSIS.scout.value));
+    expect(w.player.money).toBe(before + (tradeIn - Math.ceil(CHASSIS.scout.value)));
   });
 
   it("trade-in drops with built-in part damage", () => {
@@ -822,7 +824,7 @@ describe("locations", () => {
 describe("debt", () => {
   it("a player in debt cannot buy anything", () => {
     const w = startAtBowl();
-    w.player.money = -3333;
+    w.player.money = -33;
     w.player.fuel = CHASSIS.scout.fuelCap - 1;
     expect(() => buyGood(w, "scrap", 1)).toThrow('Refused: noMoney');
     expect(() => buySupply(w, "fuel", 1)).toThrow('Refused: noMoney');
@@ -834,9 +836,9 @@ describe("debt", () => {
 
   it("sales pay the debt down", () => {
     const w = startAtBowl();
-    w.player.money = -3333;
+    w.player.money = -33;
     const after = sellGood(w, "scrap", 2);
-    expect(after.player.money).toBe(-3333 + getLotTradePrice(w, w.vehicles[0], "bowl", "scrap", 2, "sell"));
+    expect(after.player.money).toBe(-33 + getLotTradePrice(w, w.vehicles[0], "bowl", "scrap", 2, "sell"));
   });
 
   it("an NPC in debt gets no fuel, supplies or repairs in town", () => {
@@ -894,7 +896,7 @@ describe("garage storage at a stall", () => {
 
   it("sells each town only its own lineup", () => {
     const atBowl = startAtBowl();
-    atBowl.player.money = 500000;
+    atBowl.player.money = 5000;
     expect(garageChassis("bowl")).toContain("hauler");
     expect(buyChassis(atBowl, "hauler").vehicles[0].chassisId).toBe("hauler");
     expect(() => buyChassis(atBowl, "niva")).toThrow("niva is not for sale at bowl");

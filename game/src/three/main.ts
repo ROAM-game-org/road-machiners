@@ -1,5 +1,5 @@
 
-import { formatSupport, loadBank, recoverBank, reportFailures, type BankOptions, type LoadedBank } from '../audio/bank';
+import { filesOf, formatSupport, recoverBank, reportFailures, SoundBank, startBank, type BankOptions, type LoadedBank } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
 import { CONFIG, ERROR_REPORT_URL, FEEDBACK_URL, GAME_VERSION, PLAY_EASE, SFX_BYTES } from '../config';
@@ -195,6 +195,12 @@ async function recoverSounds(loaded: LoadedBank): Promise<void> {
   for (const failure of loaded.failures) console.warn(`Sound ${failure.file} failed to decode as ${failure.kind} and ${recovered.has(failure.file) ? 'decoded later' : 'stays a stand-in'}`, failure.errors);
   for (const report of reportFailures(loaded.failures, loaded.bank.size, recovered, soundOptions.support)) reportError(report);
 }
+function soundsArrived(loaded: LoadedBank): void {
+  if (loaded.format !== BANK.formats[0].ext) console.warn(`Sounds play from the ${loaded.format} twins, since ${BANK.formats[0].ext} did not decode`);
+  for (const failure of loaded.unreachable) console.warn(`Sound ${failure.file} could not be fetched`, failure.errors);
+  if (loaded.failures.length) whenVisible(() => void recoverSounds(loaded).catch(reportError));
+  performance.mark('roam:sounds');
+}
 const boot = BootScreen.adopt(() => void flushSaves().then(() => window.location.reload(), reportError));
 const uiFonts = fontsReady(language.current() === 'ru' ? 'ru' : 'en');
 const reporter = ERROR_REPORT_URL ? new ErrorReporter(ERROR_REPORT_URL, gameContext) : null;
@@ -203,21 +209,23 @@ const surface = openWebGL(document.createElement('canvas'), GAME_GL);
 const mixer = new Mixer(MIX);
 mixer.unlockOn(window);
 const soundSettings = new SoundSettings(mixer, window.localStorage);
-bootStep('loading physics, models and sounds');
-const soundOptions: BankOptions = { expectedBytes: SFX_BYTES, support: formatSupport(), progress: boot.count('sounds') };
+bootStep('loading physics and models');
+const soundOptions: BankOptions = { expectedBytes: SFX_BYTES, support: formatSupport() };
 const musicFaults: unknown[] = [];
 let reportMusicFault: (err: unknown) => void = (err) => musicFaults.push(err);
-const music = new CombatMusic(mixer.ctx, mixer.input('music'), bankKitLoader(mixer.ctx, { expectedBytes: SFX_BYTES, support: soundOptions.support }), Math.random, (err) => reportMusicFault(err));
+const sounds = new SoundBank(filesOf(BOOT_SOUNDS));
+let bankSettled!: () => void;
+const afterBank = new Promise<void>((resolve) => (bankSettled = resolve));
+const kitLoader = bankKitLoader(mixer.ctx, { expectedBytes: SFX_BYTES, support: soundOptions.support });
+const music = new CombatMusic(mixer.ctx, mixer.input('music'), (name) => afterBank.then(() => kitLoader(name)), Math.random, (err) => reportMusicFault(err));
 const loading = Promise.all([
   boot.track('physics', initPhysics()),
   boot.track('models', loadModels(undefined, boot.count('models')).then(reportStandIns).then(paintSurfaceMasks)),
-  boot.track('sounds', Promise.all([loadBank(mixer.ctx, BOOT_SOUNDS, soundOptions), music.ready()]).then(([bank]) => bank)),
 ]);
 bootStep('loading the map');
-const map = await boot.track('map', fetchMap());
+const [map, slots] = await Promise.all([boot.track('map', fetchMap()), openSaves(saveKey, window.localStorage, allSlots(CONFIG.saveSlots))]);
 const travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(PLAY_EASE, PHYSICS.stepsPerSecond));
 travel.sendTerrain(map.terrain);
-const slots = await openSaves(saveKey, window.localStorage, allSlots(CONFIG.saveSlots));
 gameContext.watchSaves(slots);
 flushSaves = () => slots.flush();
 persistSaves().catch(reportError);
@@ -228,22 +236,19 @@ const newGameActions: NewGameActions = {
 };
 bootStep('loading the save');
 const { world, runId, loadedFrom, fresh } = await bootWorld();
-const log = new RunLog(slots.backend, runId, GAME_VERSION, (err) => slots.onError(err));
+const log = new RunLog(slots, runId, GAME_VERSION, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
 const routesReady = initPhysics().then(() => travel.warm(world, driveSnapshotOf(world)));
 bootStep('building the ground');
 await boot.track('ground', () => groundTexture(world));
-bootStep('waiting for physics, models and sounds');
-const [, , loadedBank] = await loading;
-const { bank } = loadedBank;
-if (loadedBank.format !== BANK.formats[0].ext) console.warn(`Sounds play from the ${loadedBank.format} twins, since ${BANK.formats[0].ext} did not decode`);
-for (const failure of loadedBank.unreachable) console.warn(`Sound ${failure.file} could not be fetched`, failure.errors);
+bootStep('waiting for physics and models');
+await loading;
 bootStep('starting the game');
 const radio = new RadioPanel(new RadioStation(Math.random), () => game.loops.nextTrack());
 radio.hear(world);
 const overlay = element('overlay');
 const game = await boot.track('scene', async () => {
-  const built = new Game(world, { slots, runId, log, mapHash: world.mapHash }, element('game'), overlay, new SoundPlayer(mixer, bank, SOUNDS), music, soundSettings, radio, surface, travel);
+  const built = new Game(world, { slots, runId, log, mapHash: world.mapHash }, element('game'), overlay, new SoundPlayer(mixer, sounds, SOUNDS), music, soundSettings, radio, surface, travel);
   await routesReady;
   return built;
 });
@@ -264,9 +269,9 @@ onEveryError(() => game.holdSaves());
 bootStep('running');
 await uiFonts;
 boot.showText();
-if (loadedBank.failures.length) whenVisible(() => void recoverSounds(loadedBank).catch(reportError));
 gameContext.watch({ world: () => game.state, log: () => game.logTexts() });
 performance.mark('roam:ready');
+startBank(mixer.ctx, BOOT_SOUNDS, soundOptions, sounds).loaded.then(soundsArrived).catch(reportError).finally(bankSettled);
 void boot.finish();
 if (import.meta.env.DEV) {
   (window as any).__ROAM__ = Object.assign(game, { language, buildAllCells: () => game.streamer.buildAll() });

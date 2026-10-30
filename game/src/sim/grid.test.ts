@@ -4,6 +4,7 @@ import { NPCS } from '../data/npcs';
 import { PARTS } from '../data/parts';
 import { REGION } from '../data/region';
 import { bedRows } from './chassis-features';
+import { barrelClash } from './barrels';
 import { buyChassis } from './economy';
 import { partDef } from '../data/parts';
 import { makePart, makeVehicle } from './factory';
@@ -294,16 +295,27 @@ describe('side armor skin', () => {
     expect(placementError(g, [], { id: 'g', x: g.w - 1, y: 2, rot: 0, kind: 'good', good: 'scrap' }, null)).toEqual({ id: 'armorOnly' });
   });
 
-  it('does not count the side columns as cargo cells', () => {
+  it('does not count the armor ring as cargo cells', () => {
     const w = emptyWorld();
     const v = addVehicle(w, 'scrapjaw', 'scout', [], { x: 40, y: 40 });
     const g = baseGrid('scout');
-    const skin = g.cells.flat().filter((c) => c === 'L' || c === 'R').length;
-    expect(skin).toBe(2 * (g.h - 2));
+    const skin = g.cells.flat().filter((c) => c === 'F' || c === 'B' || c === 'L' || c === 'R').length;
+    expect(skin).toBe(2 * (g.h - 2) + 2 * (g.w - 2));
     expect(cellCount(g)).toBe(g.cells.flat().filter((c) => c !== null).length - skin);
     const before = freeCells(v);
     v.items.push({ id: 'i-plate', x: 0, y: 2, rot: 0, kind: 'part', part: makePart(w, 'steelPlate', 0) });
     expect(freeCells(v)).toBe(before);
+  });
+
+  it('refuses goods and spare parts on the front and back rows, and takes armor and a ram there', () => {
+    const w = emptyWorld();
+    const g = baseGrid('scout');
+    const crate: GridItem = { id: 'i-crate', x: 3, y: 0, rot: 0, kind: 'good', good: 'salt' };
+    expect(placementError(g, [], crate, null)).toEqual({ id: 'armorOnly' });
+    expect(placementError(g, [], { ...crate, y: g.h - 1 }, null)).toEqual({ id: 'armorOnly' });
+    expect(placementError(g, [], { ...crate, y: 1 }, null)).toBeNull();
+    const plate: GridItem = { id: 'i-plate', x: 2, y: 0, rot: 0, kind: 'part', part: makePart(w, 'steelPlate', 0) };
+    expect(placementError(g, [], plate, null)).toBeNull();
   });
 });
 
@@ -336,7 +348,7 @@ describe('built-in bed rows', () => {
   });
 
   it('keep the layout grid alone', () => {
-    expect(baseGrid('scout').h).toBe(8);
+    expect(baseGrid('scout').h).toBe(10);
   });
 
   it('keep their cargo when every cargo part breaks', () => {
@@ -374,8 +386,8 @@ describe('placement from a layout built once', () => {
     const others = items.filter((o) => o.id !== ignoreId && oracleLayer(g, o) === layer);
     if (others.some((o) => itemCells(o).some((c) => cells.some((d) => d.x === c.x && d.y === c.y)))) return { id: 'inTheWay' };
     const onSkin = item.kind === 'part' && (partDef(item.part.defId).kind === 'armor' || layer === 'accessory');
-    if (!onSkin && cells.some((c) => g.cells[c.y][c.x] === 'L' || g.cells[c.y][c.x] === 'R')) return { id: 'armorOnly' };
-    return null;
+    if (!onSkin && cells.some((c) => 'FBLR'.includes(g.cells[c.y][c.x] ?? ' ') && g.cells[c.y][c.x] !== null)) return { id: 'armorOnly' };
+    return barrelClash(g.chassisId, items.filter((o) => o.id !== ignoreId), item) ? { id: 'barrel' } : null;
   }
 
   function oracleSpot(g: ReturnType<typeof gridOf>, items: GridItem[], item: GridItem, avoid: Cell[] | null) {

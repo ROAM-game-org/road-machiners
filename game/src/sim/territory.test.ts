@@ -107,12 +107,13 @@ function territoryValue(id: string): number {
 }
 
 describe('ship relics in the Fallen Sun', () => {
-  it('add at most 15% to its middle loot value', () => {
+  it('make up between a fifth and a third of its loot value', () => {
     const { wreck } = TERRITORIES['fallen-sun'];
     const spots = wreck!.patches.reduce((n, p) => n + p.spots, 0);
     const relics = (wreck!.caches.length * SALVAGE[wreck!.cacheTable].relicChance + spots * SALVAGE[wreck!.spotTable].relicChance) * GOODS.relics.value;
     expect(relics).toBeGreaterThan(0);
-    expect(relics).toBeLessThanOrEqual(0.15 * territoryValue('fallen-sun'));
+    expect(relics).toBeLessThanOrEqual((territoryValue('fallen-sun') + relics) / 3);
+    expect(relics).toBeGreaterThanOrEqual((territoryValue('fallen-sun') + relics) / 5);
   });
 
   it('stay out of the Orchard farmhouse', () => {

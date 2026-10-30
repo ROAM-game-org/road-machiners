@@ -198,7 +198,7 @@ export function plannedRefitTurns(world: World, v: Vehicle, layout: RefitLayout)
   return movesWork(world, planned, layoutPlan(planned, layout).turns);
 }
 
-function movesWork(world: World, v: Vehicle, planned: number): number {
+export function movesWork(world: World, v: Vehicle, planned: number): number {
   return planned > 0 && !atGarage(world, v.id) ? refitTurns(world, v, planned) : 0;
 }
 

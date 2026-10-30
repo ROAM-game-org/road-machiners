@@ -44,7 +44,7 @@ function atShop(shopId: string): World {
 }
 
 function order(over: Partial<Procure> = {}): Procure {
-  return { id: 'ct-procure', shop: 'bowl', kind: 'procure', good: 'salt', units: 4, cratePay: 800, reward: 5000, deadline: 500, window: 500, tier: 1, ...over };
+  return { id: 'ct-procure', shop: 'bowl', kind: 'procure', good: 'salt', units: 4, cratePay: 8, reward: 50, deadline: 500, window: 500, tier: 1, ...over };
 }
 
 function rollOnly(w: World, shopId: string): Contract | null {
@@ -223,7 +223,7 @@ describe('taking and handing in a supply order', () => {
 
   it('moves exactly the ordered crates into the posting shop with cause contract, and pays and trains once', () => {
     let w = atShop('bowl');
-    w.player.contracts = [order({ units: 4, reward: 5000, cratePay: 800 })];
+    w.player.contracts = [order({ units: 4, reward: 50, cratePay: 8 })];
     addGoods(w, playerVehicle(w), 'salt', 6);
     const stock = w.shops.bowl.goods.salt;
     const money = w.player.money;
@@ -234,12 +234,12 @@ describe('taking and handing in a supply order', () => {
     expect(moves).toEqual([['bowl', 'salt', 4, 'contract']]);
     expect(w.shops.bowl.goods.salt).toBe(stock + 4);
     expect(goodsCount(playerVehicle(w)).salt).toBe(2);
-    expect(w.player.money).toBe(money + 5000);
+    expect(w.player.money).toBe(money + 50);
     expect(w.player.costBasis.salt).toBe(basis);
     expect(w.events.filter((e) => e.t === 'money')).toHaveLength(1);
     expect(practiceOf(w, 'contract')).toHaveLength(1);
     expect(w.player.contracts).toHaveLength(0);
-    expect(w.player.pastContracts.at(-1)).toMatchObject({ outcome: 'done', amount: 5000 });
+    expect(w.player.pastContracts.at(-1)).toMatchObject({ outcome: 'done', amount: 50 });
   });
 
   it('keeps the handed-in crates off the counter for the order window, so they cannot be bought back for the next order', () => {
@@ -285,8 +285,8 @@ describe('taking and handing in a supply order', () => {
   });
 
   it('trains Social from the travel pay only, not the crates', () => {
-    const c = order({ units: 4, cratePay: 800, reward: 5000 });
-    expect(contractXp(c)).toBe(Math.round((5000 - 4 * 800) * CONTRACTS.procure.xpPerEffort));
+    const c = order({ units: 4, cratePay: 8, reward: 50 });
+    expect(contractXp(c)).toBe(Math.round((50 - 4 * 8) * CONTRACTS.procure.xpPerEffort));
   });
 
   it('pays a round trip to the maker at least what a rush haul on that road pays', () => {

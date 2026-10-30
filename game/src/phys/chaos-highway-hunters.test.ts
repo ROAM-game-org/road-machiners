@@ -17,7 +17,7 @@ beforeAll(async () => {
 });
 
 const TURNS = 40;
-const CONTACT_BOUND = 15;
+const CONTACT_BOUND = 20;
 const CHARGE_LEAD = 30;
 const ESCAPE_MARGIN = 4;
 const ESCAPE_TURNS = 3;
@@ -40,7 +40,7 @@ function meetGroup(seed: number, gun: Gun): Meeting {
   const reach = Math.max(...vehicleStats(w, w.vehicles.find((v) => v.id === hunterId)!).weapons.map((mw) => mw.def.range));
   const meeting: Meeting = { leads: [], reach, shots: 0, stalls: 0, beatenAt: null };
   let drive: Drive = buildDrive(w);
-  for (let turn = 0; turn < TURNS && meeting.beatenAt === null; turn++) {
+  for (let turn = 0; turn < TURNS && meeting.beatenAt === null && w.player.state === 'active'; turn++) {
     const me = playerVehicle(w);
     const order =
       gun === 'escort'

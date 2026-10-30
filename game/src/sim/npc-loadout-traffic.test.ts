@@ -4,6 +4,7 @@ import { cloneWorld } from './world';
 import { gunSpans } from './armor';
 import { mountedItems } from './grid';
 import { generateNpcLoadout } from './npc-loadout';
+import { everyTruck } from './sites';
 import { allegianceFor, spawnAt, spawnInitial, spawnNpcs } from './spawn';
 import { emptyWorld } from './testkit';
 import { budget } from '../test/budget';
@@ -33,7 +34,7 @@ describe('NPC equipment generation', () => {
       world.vehicles.filter((v) => v.brain).forEach((v, i) => { v.pos = { x: 5 + (i % 40) * 4, y: world.size - 5 - Math.floor(i / 40) * 4 }; });
     }
     for (const template of Object.values(NPCS)) {
-      const vehicles = world.vehicles.filter((v) => v.brain?.templateId === template.id);
+      const vehicles = everyTruck(world).filter((v) => v.brain?.templateId === template.id);
       expect(vehicles.length, template.id).toBe(template.cap);
       expect(new Set(vehicles.map(describeLoadout)).size).toBeGreaterThan(1);
     }

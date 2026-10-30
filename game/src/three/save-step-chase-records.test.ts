@@ -10,7 +10,7 @@ import { newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
 import { loadWorld, saveOf } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
-import { TINY_STEPS, type SavedJson } from './save-migrations';
+import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
 
 const chaseStep = TINY_STEPS.find((s) => s.name === 'withChaseRecords')!;
 const migrated = (): SavedJson[] => chaseStep.step(structuredClone(FORMAT_2_120) as SavedJson).vehicles as SavedJson[];
@@ -22,9 +22,9 @@ function roundTrip(w: World): World {
   return loadWorld(slots, 'auto', TEST_MAP)!;
 }
 
-describe('save migration 120 to 121, size-ups and investigations keep a chase record', () => {
-  it('sits after the road scene step', () => {
-    expect(TINY_STEPS.indexOf(chaseStep)).toBeGreaterThan(TINY_STEPS.findIndex((s) => s.name === 'withoutRoadScene'));
+describe('save migration 122 to 123, size-ups and investigations keep a chase record', () => {
+  it('sits after the meeting roles step', () => {
+    expect(TINY_STEPS[122 - TINY_FROM]).toBe(chaseStep);
   });
 
   it('starts a size-up chase at the save turn, from the truck to where it last saw its target', () => {

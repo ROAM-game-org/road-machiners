@@ -30,10 +30,12 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-4);
-  font: var(--text-dense) var(--font-mono);
+  font: var(--text-dense) var(--font-ui);
   color: var(--ink);
 }
-.chip .icon,
+.chips .amount {
+  font-family: var(--font-mono);
+}
 .price .icon,
 .note > .icon {
   width: var(--icon-m);

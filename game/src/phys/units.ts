@@ -2,12 +2,13 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { PHYSICS } from '../data/physics';
 import { couplingOf, unitBody, unitsOf, type Body } from '../sim/body';
 import { unitMasses } from '../sim/mass';
-import { unitPoses, type UnitPose } from '../sim/rig';
+import { unitPoses } from '../sim/rig';
 import type { Vehicle, World } from '../sim/types';
 import { angleDiff, clamp } from '../sim/vec';
 import { toMps, type Car, type Drive, type Trailer } from './drive';
 import { wheelMounts } from './body';
-import { headingOf, headingQuat, rideHeightAt, type V3, type VehicleFrame, type WheelFrame } from './frames';
+import { seatUnits, type Seat } from './seat';
+import { headingOf, type V3, type VehicleFrame, type WheelFrame } from './frames';
 
 const T = PHYSICS.truck;
 const STEP = 1 / PHYSICS.stepsPerSecond;
@@ -65,16 +66,15 @@ function setMass(body: RAPIER.RigidBody, b: Body, mass: number): void {
 }
 
 export function placeBodies(bodies: RAPIER.RigidBody[], w: World, v: Vehicle): void {
-  const poses = unitPoses(v);
-  const height = Math.max(...poses.map((pose) => rideHeightAt(w, v, pose)));
-  bodies.forEach((body, unit) => placeBody(body, v, poses[unit], height));
+  const seats = seatUnits(w, v, unitPoses(v));
+  bodies.forEach((body, unit) => placeBody(body, v, seats[unit]));
 }
 
-function placeBody(body: RAPIER.RigidBody, v: Vehicle, pose: UnitPose, height: number): void {
-  body.setTranslation({ x: pose.pos.x * PHYSICS.metersPerTile, y: height, z: pose.pos.y * PHYSICS.metersPerTile }, true);
-  body.setRotation(headingQuat(pose.heading), true);
+function placeBody(body: RAPIER.RigidBody, v: Vehicle, seat: Seat): void {
+  body.setTranslation(seat.pos, true);
+  body.setRotation(seat.rot, true);
   const fwd = toMps(v.speed);
-  body.setLinvel({ x: Math.cos(pose.heading) * fwd, y: 0, z: Math.sin(pose.heading) * fwd }, true);
+  body.setLinvel({ x: seat.forward.x * fwd, y: seat.forward.y * fwd, z: seat.forward.z * fwd }, true);
   body.setAngvel({ x: 0, y: 0, z: 0 }, true);
 }
 

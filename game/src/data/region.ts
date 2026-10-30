@@ -352,6 +352,7 @@ export const REGION = {
     cellRing: 1,
     avoidCellRing: 4,
     offRoadCost: 1.75,
+    shortcutCost: 1.2,
     taste: { scale: 40 * MAP_SPREAD, strength: 0.6 },
     lookahead: 48,
     farWindow: 240,

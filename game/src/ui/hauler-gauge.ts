@@ -1,5 +1,5 @@
 import { haulerOf } from "../sim/damage";
-import { haulerShare } from "../sim/hauler-gauge";
+import { haulerShare } from "../sim/hauler";
 import type { World } from "../sim/types";
 import { t } from "../text/msg";
 import { chassisPortrait } from "./cards";

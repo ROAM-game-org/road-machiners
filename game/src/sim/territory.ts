@@ -174,8 +174,8 @@ export function reactorPos(t: TerritoryDef): Vec {
   return onMap(t, reactor.at);
 }
 
-export function spotGoal(world: World, territoryId: string): NpcActivity {
-  const spots = territorySpots(world, territoryId);
+export function spotGoal(world: World, territoryId: string, candidates: readonly SalvageStock[]): NpcActivity {
+  const spots = candidates.length > 0 ? candidates : territorySpots(world, territoryId);
   if (!spots.length) throw new Error(`Territory ${territoryId} has no baked loot spots`);
   const spot = spots[randInt(world, 0, spots.length - 1)];
   return { kind: 'scavenge', targetId: spot.id, destination: { ...spot.pos }, phase: 'travel', reason: 'searchSpot' };

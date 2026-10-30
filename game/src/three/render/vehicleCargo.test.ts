@@ -25,9 +25,9 @@ function semiWithCargo(): { v: Vehicle; rack: PartItem; crate: GridItem } {
   const v = addVehicle(w, 'player', 'semi', ['workhorseDiesel', 'rack', 'plates'], { x: 30, y: 30 });
   const rack = v.items.find((it): it is PartItem => it.kind === 'part' && it.part.defId === 'rack')!;
   rack.x = 1;
-  rack.y = 1;
+  rack.y = 2;
   rack.rot = 0;
-  const crate: GridItem = { id: 'crate', x: 3, y: 1, rot: 0, kind: 'good', good: 'scrap' };
+  const crate: GridItem = { id: 'crate', x: 3, y: 2, rot: 0, kind: 'good', good: 'scrap' };
   v.items.push(crate);
   return { v, rack, crate };
 }
@@ -86,21 +86,21 @@ function withParts(chassisId: string, placed: Placed[]): { v: Vehicle; items: Pa
 }
 
 const REPORTED_BUGGY: Placed[] = [
-  { defId: 'panniers', x: 1, y: 3, rot: 0 },
-  { defId: 'caltrops', x: 2, y: 3, rot: 0 },
-  { defId: 'mg', x: 1, y: 4, rot: 1 },
-  { defId: 'plowRam', x: 1, y: 7, rot: 0 },
+  { defId: 'panniers', x: 1, y: 4, rot: 0 },
+  { defId: 'caltrops', x: 2, y: 4, rot: 0 },
+  { defId: 'mg', x: 1, y: 5, rot: 1 },
+  { defId: 'plowRam', x: 1, y: 9, rot: 0 },
   { defId: 'plowRam', x: 1, y: 0, rot: 0 },
-  { defId: 'ceramicPlates', x: 0, y: 4, rot: 0 },
-  { defId: 'ceramicPlates', x: 6, y: 4, rot: 0 },
-  { defId: 'ceramicPlates', x: 0, y: 1, rot: 0 },
-  { defId: 'ceramicPlates', x: 6, y: 1, rot: 0 },
-  { defId: 'workhorseDiesel', x: 2, y: 1, rot: 0 },
-  { defId: 'ceramicTile', x: 0, y: 6, rot: 0 },
-  { defId: 'ceramicTile', x: 6, y: 6, rot: 0 },
-  { defId: 'ceramicTile', x: 0, y: 3, rot: 0 },
-  { defId: 'ceramicTile', x: 6, y: 3, rot: 0 },
-  { defId: 'panniers', x: 4, y: 7, rot: 0 },
+  { defId: 'ceramicPlates', x: 0, y: 5, rot: 0 },
+  { defId: 'ceramicPlates', x: 6, y: 5, rot: 0 },
+  { defId: 'ceramicPlates', x: 0, y: 2, rot: 0 },
+  { defId: 'ceramicPlates', x: 6, y: 2, rot: 0 },
+  { defId: 'workhorseDiesel', x: 2, y: 2, rot: 0 },
+  { defId: 'ceramicTile', x: 0, y: 7, rot: 0 },
+  { defId: 'ceramicTile', x: 6, y: 7, rot: 0 },
+  { defId: 'ceramicTile', x: 0, y: 4, rot: 0 },
+  { defId: 'ceramicTile', x: 6, y: 4, rot: 0 },
+  { defId: 'panniers', x: 4, y: 8, rot: 0 },
 ];
 
 const ALWAYS_DRAWN_KINDS = new Set(['weapon', 'armor', 'engine', 'core']);
@@ -117,9 +117,9 @@ function rimCells(chassisId: string): { x: number; y: number }[] {
 }
 
 describe('parts on bare nose and tail cells', () => {
-  it('builds the buggy view with caltrops on its bare nose cell, and keeps an anchor for them', () => {
-    const { v, caltrops } = withCaltropsAt('buggy', 4, 0);
-    expect(baseGrid('buggy').cells[0][4]).toBe('F');
+  it('builds the buggy view with caltrops on the plain row behind its nose, and keeps an anchor for them', () => {
+    const { v, caltrops } = withCaltropsAt('buggy', 4, 1);
+    expect(baseGrid('buggy').cells[1][4]).toBe('.');
     expect(placementError(baseGrid('buggy'), v.items, caltrops, null)).toBeNull();
     v.items.push(caltrops);
     const view = new VehicleView(v, true, PAINT.standard, 'world');
@@ -137,7 +137,13 @@ describe('parts on bare nose and tail cells', () => {
     }
   });
 
-  it('builds the reported buggy with panniers on its bare tail cell', () => {
+  it('refuses caltrops on the armor row of the nose', () => {
+    const { v, caltrops } = withCaltropsAt('buggy', 4, 0);
+    expect(baseGrid('buggy').cells[0][4]).toBe('F');
+    expect(placementError(baseGrid('buggy'), v.items, caltrops, null)).toEqual({ id: 'armorOnly' });
+  });
+
+  it('builds the reported buggy with panniers on the plain row before its tail', () => {
     const { v, items } = withParts('buggy', REPORTED_BUGGY);
     const grid = baseGrid('buggy');
     for (const item of items) {
@@ -145,7 +151,7 @@ describe('parts on bare nose and tail cells', () => {
       v.items.push(item);
     }
     const tailPanniers = items[items.length - 1];
-    expect(grid.cells[tailPanniers.y][tailPanniers.x]).toBe('B');
+    expect(grid.cells[tailPanniers.y][tailPanniers.x]).toBe('.');
     let view: VehicleView | undefined;
     expect(() => { view = new VehicleView(v, true, PAINT.standard, 'world'); }).not.toThrow();
     expect(view!.hasPart(tailPanniers.part.id)).toBe(true);

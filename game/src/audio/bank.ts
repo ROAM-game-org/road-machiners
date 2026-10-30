@@ -3,7 +3,55 @@ import { withinMs } from "../stall";
 import { publicUrl } from "../public-url";
 import { BANK, beatLoopSeconds, type Cue, type SoundFormat } from "../data/sounds";
 
-export type Bank = Map<string, AudioBuffer>;
+export class SoundBank {
+  private buffers = new Map<string, AudioBuffer>();
+  private waiting = new Map<string, Set<(buffer: AudioBuffer) => void>>();
+
+  private files: ReadonlySet<string>;
+
+  constructor(files: readonly string[]) {
+    this.files = new Set(files);
+  }
+
+  get size(): number {
+    return this.files.size;
+  }
+
+  has(file: string): boolean {
+    return this.buffers.has(file);
+  }
+
+  values(): IterableIterator<AudioBuffer> {
+    return this.buffers.values();
+  }
+
+  get(file: string): AudioBuffer | undefined {
+    this.check(file);
+    return this.buffers.get(file);
+  }
+
+  set(file: string, buffer: AudioBuffer): void {
+    this.check(file);
+    this.buffers.set(file, buffer);
+    const runs = this.waiting.get(file);
+    this.waiting.delete(file);
+    for (const run of runs ?? []) run(buffer);
+  }
+
+  onArrive(file: string, run: (buffer: AudioBuffer) => void): () => void {
+    this.check(file);
+    const runs = this.waiting.get(file) ?? new Set();
+    this.waiting.set(file, runs);
+    runs.add(run);
+    return () => void runs.delete(run);
+  }
+
+  private check(file: string): void {
+    if (!this.files.has(file)) throw new Error(`Sound file ${file} is not in the bank`);
+  }
+}
+
+export type Bank = SoundBank;
 export type FailureKind = "fetch" | "bytes" | "codec" | "decoder";
 export type DecodeEvidence = {
   status: number | null;
@@ -96,6 +144,8 @@ export function reportFailures(failures: DecodeFailure[], total: number, recover
   });
 }
 
+export const filesOf = (sounds: Record<string, Cue>): string[] => Object.values(sounds).flatMap((c) => c.files);
+
 type Job = { ctx: BaseAudioContext; options: BankOptions; decodedMegabytes: () => number };
 
 function cueOf(sounds: Record<string, Cue>, file: string): Cue {
@@ -106,11 +156,23 @@ function preferring(ext: string): SoundFormat[] {
   return [...BANK.formats].sort((a, b) => Number(b.ext === ext) - Number(a.ext === ext));
 }
 
-export async function loadBank(ctx: BaseAudioContext, sounds: Record<string, Cue>, options: BankOptions): Promise<LoadedBank> {
-  const files = Object.values(sounds).flatMap((c) => c.files);
-  const decoded = new Map<string, AudioBuffer>();
+export function loadBank(ctx: BaseAudioContext, sounds: Record<string, Cue>, options: BankOptions): Promise<LoadedBank> {
+  return startBank(ctx, sounds, options).loaded;
+}
+
+export function startBank(
+  ctx: BaseAudioContext,
+  sounds: Record<string, Cue>,
+  options: BankOptions,
+  bank = new SoundBank(filesOf(sounds)),
+): { bank: SoundBank; loaded: Promise<LoadedBank> } {
+  return { bank, loaded: fillBank(ctx, sounds, options, bank) };
+}
+
+async function fillBank(ctx: BaseAudioContext, sounds: Record<string, Cue>, options: BankOptions, bank: SoundBank): Promise<LoadedBank> {
+  const files = filesOf(sounds);
   const failed: DecodeFailure[] = [];
-  const job: Job = { ctx, options, decodedMegabytes: () => megabytesOf(decoded.values()) };
+  const job: Job = { ctx, options, decodedMegabytes: () => megabytesOf(bank.values()) };
   let order = BANK.formats;
   let done = 0;
   let next = 0;
@@ -120,14 +182,14 @@ export async function loadBank(ctx: BaseAudioContext, sounds: Record<string, Cue
       const file = files[next++];
       const result = await decodeInFormats(job, file, cueOf(sounds, file), order, 0, BANK.tries);
       if ("buffer" in result) {
-        decoded.set(file, result.buffer);
+        bank.set(file, result.buffer);
         if (result.format !== order[0]) order = preferring(result.format.ext);
       } else failed.push({ file, kind: result.kind, evidence: result.evidence, errors: result.errors });
       options.progress?.(++done, files.length);
     }
   }
   await Promise.all(Array.from({ length: Math.min(BANK.decodeAtOnce, files.length) }, worker));
-  const bank: Bank = new Map(files.map((f) => [f, decoded.get(f) ?? standIn(ctx, sounds, decoded, f)]));
+  for (const f of files) if (!bank.has(f)) bank.set(f, standIn(ctx, sounds, bank, f));
   const inFileOrder = files.flatMap((f) => failed.filter((x) => x.file === f));
   return {
     bank,
@@ -260,11 +322,10 @@ function fitLoop(ctx: BaseAudioContext, buffer: AudioBuffer, seconds: number, fi
   return fitted;
 }
 
-function standIn(ctx: BaseAudioContext, sounds: Record<string, Cue>, decoded: Map<string, AudioBuffer>, file: string): AudioBuffer {
+function standIn(ctx: BaseAudioContext, sounds: Record<string, Cue>, decoded: SoundBank, file: string): AudioBuffer {
   const cue = cueOf(sounds, file);
   for (const sibling of cue.files) {
-    const buffer = decoded.get(sibling);
-    if (buffer) return buffer;
+    if (decoded.has(sibling)) return decoded.get(sibling)!;
   }
   const seconds = cue.beat ? beatLoopSeconds(cue.beat) : BANK.silentSeconds;
   return ctx.createBuffer(1, Math.max(1, Math.ceil(seconds * ctx.sampleRate)), ctx.sampleRate);

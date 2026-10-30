@@ -6,6 +6,7 @@ import {
   type PaintCanvas,
 } from "../../render/groundPaint";
 import { atlasOf } from "../../sim/atlas";
+import { hollowSitesFor } from "../../sim/hollow-layout";
 import { deckAt, railOffset, type Deck } from "../../sim/bridge";
 import { deckHeight, deckSegments, type DeckSegment, type Terrain } from "../../sim/terrain";
 import type { World } from "../../sim/types";
@@ -105,7 +106,7 @@ export function chunkGeometry(t: Terrain, x: number, y: number, width: number, d
 
 export function groundMaterial(w: World): THREE.MeshLambertMaterial {
   const material = new THREE.MeshLambertMaterial({ map: groundTexture(w) });
-  drawRoads(material, mapCanvas(w, TEXTURE_SIDE), w.terrain);
+  drawRoads(material, mapCanvas(w, TEXTURE_SIDE), w.terrain, hollowSitesFor(w));
   facetGround(material);
   NIGHT_POOLS.light(material);
   return material;

@@ -370,7 +370,7 @@ export function judgeStrandedFoe(world: World, npc: Vehicle): void {
 }
 
 function spare(world: World, npc: Vehicle, prey: Vehicle): void {
-  if (!prey.brain) world.events.push({ t: 'say', speaker: npc.id, line: SPARE_LINE, vars: {} });
+  if (!prey.brain) world.events.push({ t: 'say', speaker: npc.id, to: prey.id, line: SPARE_LINE, vars: {} });
   makePeace(world, npc, prey);
 }
 

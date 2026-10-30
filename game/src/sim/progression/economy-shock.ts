@@ -77,7 +77,7 @@ function stockpile(world: World): World {
   const me = playerVehicle(world);
   me.pos = { ...sitePads(siteOf('granary'))[0] };
   me.speed = 0;
-  world.player.money = 100000000;
+  world.player.money = 1000000;
   let w = world;
   while (goodStock(shopState(w, 'granary'), 'rations') > 0) {
     const room = me.items.length;
@@ -221,7 +221,7 @@ function formatRun(run: ShockRun): string[] {
     ...table(['flow', 'crates per day'], Object.entries(run.flows).sort().map(([k, n]) => [k, (n / run.days).toFixed(1)])),
     ...table(['site:good', 'stock by quarter day'], stockRows(run)),
     ...table(['essential', 'days to recover within 20%'], Object.entries(run.recoveryDays).map(([k, d]) => [k, d === null ? 'not yet' : `${d}`])),
-    ...table(['best route', 'margin per 20 crates after fuel (cents)'], run.margins.map((m) => [`${m.good} ${m.from} to ${m.to}`, `${m.margin}`])),
+    ...table(['best route', 'margin per 20 crates after fuel (M)'], run.margins.map((m) => [`${m.good} ${m.from} to ${m.to}`, `${m.margin}`])),
   ];
 }
 

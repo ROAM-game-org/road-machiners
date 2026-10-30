@@ -302,7 +302,7 @@ describe('far NPC travel', () => {
     far.brain.goals = [{ kind: 'sell', targetId: null, destination: null, phase: 'travel', reason: 'patrolTown' }];
     far.order = { kind: 'stopAt', dest: { x: 180, y: 120 } };
     advanceFar(w, far);
-    expect(far.brain.farRoute!.offRoad).toBe(false);
+    expect(far.brain.farRoute!.style).toBe('road');
     const marker = { x: 180, y: 120 };
     far.brain.farRoute!.points = [marker];
     advanceFar(w, far);
@@ -310,7 +310,7 @@ describe('far NPC travel', () => {
     far.resources!.fuel = 0;
     advanceFar(w, far);
     const route = far.brain.farRoute!;
-    expect(route.offRoad).toBe(true);
+    expect(route.style).toBe('hidden');
     expect(route.dest).toEqual(marker);
     expect(route.points.length).toBeGreaterThan(1);
     expect(route.points.slice(0, -1).every((p) => Math.abs(p.y - 120) >= 3)).toBe(true);
@@ -322,7 +322,7 @@ describe('far NPC travel', () => {
     far.brain = npcBrain('trader', { x: 0, y: 0 }, ['trader']);
     far.order = { kind: 'stopAt', dest: { x: 150, y: 120 } };
     far.brain.farRoute = { dest: { x: 150, y: 120 }, points: [{ x: 150, y: 120 }] } as NonNullable<typeof far.brain.farRoute>;
-    expect(() => advanceFar(w, far)).toThrow(/offRoad/);
+    expect(() => advanceFar(w, far)).toThrow(/unknown style/);
   });
 
   it('adds a body at the sim pose when a far vehicle crosses into range', () => {
@@ -430,7 +430,7 @@ describe('far travel contact', () => {
     addState(w, 'tow', mover.id, towed.id, { kind: 'tow', site: 'bowl', fee: 0, waived: 0, hitched: true });
     const dest = { x: 200, y: 120 };
     mover.brain = npcBrain('trader', mover.pos, ['trader']);
-    mover.brain.farRoute = { dest, points: [dest], offRoad: false };
+    mover.brain.farRoute = { dest, points: [dest], style: 'road' };
     mover.order = { kind: 'through', dest };
 
     advanceFar(w, mover);
@@ -475,6 +475,29 @@ describe('far travel contact', () => {
   });
 });
 
+describe('far routes of cut drivers', () => {
+  function scavengerOn(style: 'road' | 'cut'): { w: ReturnType<typeof emptyWorld>; v: ReturnType<typeof addVehicle> } {
+    const w = emptyWorld();
+    const v = addVehicle(w, 'independent', 'buggy', ['mg', 'stockEngine'], { x: 120, y: 120 });
+    v.brain = npcBrain('scavenger', v.pos, ['scavenger']);
+    const dest = { x: 180, y: 120 };
+    v.brain.farRoute = { dest, points: [{ x: 150, y: 120 }, dest], style };
+    v.order = { kind: 'stopAt', dest };
+    return { w, v };
+  }
+
+  it('keeps a stored cut route and plans again over a stored road route', () => {
+    const kept = scavengerOn('cut');
+    advanceFar(kept.w, kept.v);
+    expect(kept.v.brain!.farRoute!.style).toBe('cut');
+    expect(kept.v.brain!.farRoute!.points[0]).toEqual({ x: 150, y: 120 });
+    const stale = scavengerOn('road');
+    advanceFar(stale.w, stale.v);
+    expect(stale.v.brain!.farRoute!.style).toBe('cut');
+    expect(stale.v.brain!.farRoute!.points[0]).not.toEqual({ x: 150, y: 120 });
+  });
+});
+
 describe('far NPCs and breakable props', () => {
   function fenceLine(x: number, y: number): Obstacle[] {
     return Array.from({ length: 64 }, (_, k) => ({ id: `fence-${k}`, pos: { x, y: y - 30 + k * 0.95 }, r: 0.5, kind: 'landmark' as const, look: 'fence' as const, yaw: Math.PI / 2 }));
@@ -504,7 +527,7 @@ describe('far NPCs and breakable props', () => {
     w.obstacles = fenceLine(x, 80);
     const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: x - 10, y: 80 });
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
-    npc.brain.farRoute = { dest: { x: x + 10, y: 80 }, points: [{ x: x + 10, y: 80 }], offRoad: false };
+    npc.brain.farRoute = { dest: { x: x + 10, y: 80 }, points: [{ x: x + 10, y: 80 }], style: 'road' };
     npc.order = { kind: 'stopAt', dest: { x: x + 10, y: 80 } };
 
     for (let i = 0; i < 12 && npc.order; i++) advanceFar(w, npc);

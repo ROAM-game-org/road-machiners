@@ -3,12 +3,13 @@ import { ECONOMY, GOODS } from '../data/goods';
 import { haulerOf, playerVehicle, truckFor } from './damage';
 import { partDef } from '../data/parts';
 import { getResources } from './resources';
-import { basicParts, basicsRepairCost, allParts, garageParts, garageRepair, partRepairCost, partTradePrice, pay, receiveBoughtPart, swapChassis, repairCost, supplyRoom, type Supply } from './economy';
+import { basicParts, basicsRepairCost, allParts, garageParts, garageRepair, partRepairCost, partTradePrice, pay, receiveBoughtPart, supplyCharge, swapChassis, repairCost, supplyRoom, type Supply } from './economy';
 import { outpostFactsAt, outpostTrucks, reachedOutpostAt, type Outpost } from './chaos-highway';
 import { isJunk } from './wear';
 import { addGoods, cargoRoom } from './inventory';
 import type { PartInstance, Vehicle, World } from './types';
 import { playerCommand, Refused } from './world';
+import { chargeM } from './money';
 
 const REPAIR_GOOD = 'parts';
 
@@ -55,7 +56,7 @@ export function outpostBuySupply(world: World, kind: Supply, n: number, truckId?
     requireOutpost(w, truckId);
     const truck = truckFor(w, truckId);
     if (!Number.isInteger(n) || n <= 0 || n > supplyRoom(w, kind, truck)) throw new Error(`Cannot buy ${n} ${kind}`);
-    pay(w, ECONOMY.supplyPrice[kind] * n);
+    pay(w, supplyCharge(kind, n));
     getResources(w, truck)[kind] += n;
   });
 }
@@ -92,7 +93,7 @@ export function outpostBuyChassis(world: World, chassisId: string): World {
 }
 
 export function outpostGoodPrice(): number {
-  return Math.ceil(GOODS[REPAIR_GOOD].value * CHAOS_HIGHWAY.goodsMarkup);
+  return chargeM(GOODS[REPAIR_GOOD].value * CHAOS_HIGHWAY.goodsMarkup);
 }
 
 export function outpostGoodRoom(v: Vehicle): number {

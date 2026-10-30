@@ -86,8 +86,11 @@ const settle = async (page) => {
   }), SETTLE_FRAMES);
 };
 
+const COLD_TURN_FACTOR = 3;
+
 const playNightTurns = async (page, turns, turnLimitMs) => {
   for (let i = 0; i < turns; i++) {
+    const limit = i === 0 ? turnLimitMs * COLD_TURN_FACTOR : turnLimitMs;
     if (await page.evaluate(() => window.__ROAM__.state.call !== null)) await page.keyboard.press('Escape');
     const next = await page.evaluate(() => {
       const g = window.__ROAM__;
@@ -97,7 +100,7 @@ const playNightTurns = async (page, turns, turnLimitMs) => {
     await page.waitForFunction((turn) => {
       const g = window.__ROAM__;
       return g.state.turn >= turn && !g.travel.isPlaying(g.anim);
-    }, next, { timeout: turnLimitMs, polling: 50 });
+    }, next, { timeout: limit, polling: 50 });
   }
 };
 

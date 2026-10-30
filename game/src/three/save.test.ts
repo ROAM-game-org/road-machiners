@@ -28,11 +28,11 @@ import { itemMass, vehicleMass } from '../sim/mass';
 import { clearGame, clearSlot, hasSave, loadWorld, packExplored, SaveError, unpackExplored, saveKey, saveInTown, isDayStart, saveOf, savedRunId, saveWorld, SaveHold, writeSave, SAVE_FORMAT } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
 import { REGION } from '../data/region';
-import { sitePads } from '../sim/sites';
+import { shelteredAt, sitePads } from '../sim/sites';
 import { hireEscort } from '../sim/tow';
 import { TEST_MAP } from '../test/map';
 import { advanceSunward, duskTurn, membersOf, rideOutTurn, sunwardFacts } from '../sim/sunward';
-import { hollowBays, hollowObstacles } from '../sim/hollow-layout';
+import { hollowObstacles, hollowPad } from '../sim/hollow-layout';
 import { fillHollow, isFree } from '../sim/spawn';
 import { reusedWorld } from '../test/world-cache';
 import { isBakedObstacle, isBreakable, mapObstacles } from '../sim/mapgen';
@@ -320,7 +320,7 @@ describe('game save', () => {
     trader.brain.goals = [{ kind: 'sell', targetId: 'nose', destination: { ...siteOf('nose').pos }, phase: 'travel', reason: 'deliverCargo' }];
     world.turn = 300;
     const escort: Contract = {
-      id: 'ct-e', shop: 'bowl', kind: 'escort', client: trader.id, to: 'nose', reward: 4800, deadline: Number.MAX_SAFE_INTEGER, window: 75, tier: 2, threat: 2,
+      id: 'ct-e', shop: 'bowl', kind: 'escort', client: trader.id, to: 'nose', reward: 48, deadline: Number.MAX_SAFE_INTEGER, window: 75, tier: 2, threat: 2,
       span: 300, together: 210, seen: { x: pad.x + 5, y: pad.y, turn: 295 }, apart: 12, stuck: 0, holdUntil: 340,
     };
     world.player.contracts = [escort];
@@ -338,8 +338,8 @@ describe('game save', () => {
   it('keeps the past contracts across a reload, and awards nothing', () => {
     const slots = makeSlots();
     const world = emptyWorld();
-    const haul: Contract = { id: 'ct-h', shop: 'bowl', kind: 'haul', good: 'salt', units: 3, to: 'nose', reward: 10000, deadline: 500, window: 500, rush: false, tier: 1 };
-    const claim: Contract = { id: 'ct-c', shop: 'nose', kind: 'claim', stockId: 's-1', at: { x: 50, y: 50 }, partId: 'p-1', defId: 'mg', reward: 12000, deadline: 900, window: 600, tier: 1, rivalAt: 700, rival: null, leads: [{ turn: 40, from: { x: 3, y: 4 }, driver: 'd-1' }] };
+    const haul: Contract = { id: 'ct-h', shop: 'bowl', kind: 'haul', good: 'salt', units: 3, to: 'nose', reward: 100, deadline: 500, window: 500, rush: false, tier: 1 };
+    const claim: Contract = { id: 'ct-c', shop: 'nose', kind: 'claim', stockId: 's-1', at: { x: 50, y: 50 }, partId: 'p-1', defId: 'mg', reward: 120, deadline: 900, window: 600, tier: 1, rivalAt: 700, rival: null, leads: [{ turn: 40, from: { x: 3, y: 4 }, driver: 'd-1' }] };
     world.player.pastContracts = [{ contract: haul, outcome: 'failed', turn: 501, amount: -1800 }, { contract: claim, outcome: 'done', turn: 640, amount: 12000 }];
     writeSave(slots, 'auto', world, RUN, 1000);
 
@@ -358,7 +358,7 @@ describe('game save', () => {
       shop: 'bowl',
       kind: 'survey',
       points: [{ site: a.id, found: true, done: true }, { site: b.id, found: true, done: false }, { site: c.id, found: false, done: false }],
-      reward: 3000,
+      reward: 30,
       deadline: 900,
       window: 900,
       tier: 1,
@@ -401,7 +401,7 @@ describe('game save', () => {
     const held = goodsCount(truck);
     expect(addGoods(world, truck, 'electronics', 3)).toBe(3);
     expect(addGoods(world, truck, 'tools', 2)).toBe(2);
-    const haul: Contract = { id: 'ct-h', shop: 'bowl', kind: 'haul', good: 'salt', units: 4, to: 'nose', reward: 900, deadline: 900, window: 900, rush: false, tier: 1 };
+    const haul: Contract = { id: 'ct-h', shop: 'bowl', kind: 'haul', good: 'salt', units: 4, to: 'nose', reward: 9, deadline: 900, window: 900, rush: false, tier: 1 };
     expect(addGoods(world, truck, 'salt', 4)).toBe(4);
     world.player.contracts = [haul];
     world.player.costBasis = { electronics: 5000, tools: 3500, salt: 867 };
@@ -992,7 +992,7 @@ describe('game save', () => {
     const world = standardWorld();
     const npc = world.vehicles.find((v) => v.brain);
     if (!npc?.brain) throw new Error('The start world needs an NPC');
-    npc.brain.farRoute = { dest: { x: 300, y: 200 }, points: [{ x: 290, y: 205 }, { x: 300, y: 200 }], offRoad: false };
+    npc.brain.farRoute = { dest: { x: 300, y: 200 }, points: [{ x: 290, y: 205 }, { x: 300, y: 200 }], style: 'road' };
     saveWorld(slots, { ...world, turn: 21 }, RUN, 20, 1000);
     expect(savedWorldOf(slots, 'auto')).not.toHaveProperty('terrain');
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
@@ -1250,7 +1250,7 @@ describe('relations in a save', () => {
     expect(loaded.events).toEqual([]);
   });
 
-  it('gives back the order parked in the fort bays, awarding nothing at load', () => {
+  it('gives back the order resting inside the Hollow, awarding nothing at load', () => {
     const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
     fillHollow(w);
     w.events = [];
@@ -1259,9 +1259,9 @@ describe('relations in a save', () => {
     writeSave(slots, 'auto', w, 'run-1', 1000);
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
 
-    const members = (x: typeof w) => membersOf(x).map((v) => ({ id: v.id, pos: v.pos, home: v.brain!.home }));
-    expect(members(loaded)).toEqual(members(w));
-    expect(members(loaded).every((m) => hollowBays().some((b) => b.x === m.home.x && b.y === m.home.y))).toBe(true);
+    expect(loaded.sheltered).toEqual(w.sheltered);
+    expect(shelteredAt(loaded, 'sunward-hollow')).toHaveLength(membersOf(w).length);
+    expect(membersOf(loaded).every((v) => v.brain!.home.x === hollowPad().x && v.brain!.home.y === hollowPad().y)).toBe(true);
     expect(loaded.player.xp).toBe(w.player.xp);
     expect(loaded.player.money).toBe(w.player.money);
     expect(loaded.events).toEqual([]);

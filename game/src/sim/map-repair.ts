@@ -9,8 +9,9 @@ import { finishContract, type Contract } from './market';
 import { reviseMemories } from './memory';
 import { isRoadWreck, isStockGoal, isStoryWreck, liveClaims, oldSpotOf, oldSpotPicks, oldStockId, rollStock, type ClaimContract, type OldSpotPick } from './salvage';
 import { modeRules } from './settings';
+import { everyTruck } from './sites';
 import { isFree } from './spawn';
-import { hollowBays, hollowObstaclesFor, isHollowObstacle } from './hollow-layout';
+import { hollowObstaclesFor, hollowPad, isHollowObstacle } from './hollow-layout';
 import { isSunwardMember } from './sunward';
 import { surveySites } from './survey';
 import { isLootSpot, spotTable } from './territory';
@@ -51,6 +52,7 @@ export const REBAKE_MOVE = {
   sunward: 'shift',
   moments: 'keep',
   crimes: 'shift',
+  sheltered: 'shift',
   events: 'drop',
   removed: 'drop',
   weather: 'drop',
@@ -71,6 +73,7 @@ const VEHICLE_MOVE = {
   heading: 'keep',
   bend: 'keep',
   speed: 'keep',
+  setSpeed: 'keep',
   stormExposure: 'drop',
   strandedTurns: 'keep',
   strandedAt: 'shift',
@@ -382,6 +385,10 @@ const WORLD_HANDLERS: Handlers<World, typeof REBAKE_MOVE> = {
     return sunward;
   },
   crimes: (crimes, ctx) => crimes.map((c) => ({ ...c, at: at(ctx, c.at), lead: { ...c.lead, at: at(ctx, c.lead.at) } })),
+  sheltered: (sheltered, ctx) => {
+    for (const s of sheltered) applyMoves(s.vehicle, VEHICLE_MOVE, VEHICLE_HANDLERS, { ...ctx, self: s.vehicle.id });
+    return sheltered;
+  },
   events: () => [],
   removed: () => [],
   weather: () => [],
@@ -550,7 +557,7 @@ function purgeDropped(world: World, dropped: Set<string>, map: BakedMap): void {
   world.player.scavenged = world.player.scavenged.filter((id) => !dropped.has(id));
   world.player.rumored = world.player.rumored.filter((id) => !dropped.has(id));
   world.states = world.states.filter((s) => s.data.kind !== 'lootWarning' || !dropped.has(s.data.targetId));
-  for (const v of world.vehicles) {
+  for (const v of everyTruck(world)) {
     if (jobLapses(v.job, dropped, cancelled, sites)) v.job = null;
     if (!v.brain) continue;
     v.brain.goals = v.brain.goals.filter((goal) => !namesDropped(goal, dropped, cancelled));
@@ -560,16 +567,7 @@ function purgeDropped(world: World, dropped: Set<string>, map: BakedMap): void {
 
 
 function snapSunwardHomes(world: World): void {
-  const free = [...hollowBays()];
-  const members = world.vehicles.filter(isSunwardMember);
-  if (members.length > free.length) throw new Error(`The Sunward order has ${members.length} members and the Hollow ${free.length} bays`);
-  const byGap = members.map((v) => ({ v, gap: Math.min(...free.map((bay) => dist(bay, v.brain!.home))) })).sort((a, b) => a.gap - b.gap || a.v.id.localeCompare(b.v.id));
-  for (const { v } of byGap) {
-    const home = v.brain!.home;
-    const bay = free.reduce((best, b) => (dist(b, home) < dist(best, home) ? b : best));
-    free.splice(free.indexOf(bay), 1);
-    v.brain!.home = bay;
-  }
+  for (const v of everyTruck(world).filter(isSunwardMember)) v.brain!.home = hollowPad();
 }
 
 export function settleTrucks(world: World): void {

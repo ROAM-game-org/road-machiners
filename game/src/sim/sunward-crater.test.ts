@@ -9,7 +9,7 @@ import { checkDeath } from './defeat';
 import { followTower, dragOf, isOnRope, startDrag, unhitch } from './tow';
 import { advanceStates, settleStates } from './states';
 import { refreshVision } from './vision';
-import { boundToOrder, callStrangers, craterNews, dropSpot, giveWord, inDropRing, lightZone, meetingLapsed, meetStrangers, offeringOf, wordGap } from './sunward-crater';
+import { boundToOrder, callStrangers, craterNews, dropSpot, giveWord, inDropRing, lightZone, meetingLapsed, meetStrangers, offeringOf, shoutGiven, wordGap } from './sunward-crater';
 import { chooseOn } from './tracks';
 import { endTurn } from './world';
 import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
@@ -37,6 +37,7 @@ function member(w: World, pos: Vec): Vehicle {
 function crater(): World {
   const w = standardWorld(5);
   w.vehicles = [playerVehicle(w)];
+  w.sheltered = [];
   w.turn = duskTurn(1) + 80;
   playerVehicle(w).pos = { ...vigilGrounds()[0] };
   refreshVision(w);
@@ -290,6 +291,17 @@ describe('the vigil invitation', () => {
     expect(w.player.call).toBeNull();
   });
 
+  it('shouts the given line at the truck the harpoon struck', () => {
+    const { w, caller } = vigil();
+    w.turn = duskTurn(1);
+    sunwardFacts(w).night = { dusk: duskTurn(1), roster: [], beaten: [], calls: {}, hunt: null, shouted: [], offered: [] };
+    w.events = [];
+
+    shoutGiven(w, caller, playerVehicle(w));
+
+    expect(w.events).toEqual([{ t: 'say', speaker: caller.id, to: playerVehicle(w).id, line: 'givenBySky', vars: {} }]);
+  });
+
   it('makes no call before dusk to a stranger in the crater while a car already holds its post', () => {
     const { w } = vigil();
     w.turn = duskTurn(1) - 1;
@@ -352,7 +364,7 @@ describe('the vigil invitation', () => {
     expect(feuds(w, caller)).toHaveLength(1);
     const lines = said(w, 'wordBroken');
     expect(lines).toHaveLength(1);
-    expect(lines[0]).toMatchObject({ speaker: caller.id });
+    expect(lines[0]).toMatchObject({ speaker: caller.id, to: me.id });
   });
 
   it('breaks on the free turn when the truck leaves the crater', () => {
@@ -585,8 +597,10 @@ describe('meeting the stranger at the vigil', () => {
   function ring(): World {
     const w = standardWorld(5);
     w.vehicles = [playerVehicle(w)];
+    w.sheltered = [];
     fillHollow(w);
-    w.vehicles = w.vehicles.filter((v) => !isSunwardMember(v) || isCavalcadeCar(v));
+    w.vehicles.push(...w.sheltered.map((s) => s.vehicle).filter(isCavalcadeCar));
+    w.sheltered = [];
     w.turn = rideOutTurn(duskTurn(1)) + SUNWARD.driveTurns + 10;
     advanceSunward(w);
     const posts = vigilPosts(w);

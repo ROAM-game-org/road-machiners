@@ -32,7 +32,7 @@ const partOf = (v: Vehicle, defId: string) => mountedParts(v).find((p) => p.defI
 function ramToRear(v: Vehicle): void {
   const item = mountedItems(v).find((it) => it.part.defId === 'ram')!;
   const owner = v.items.find((it) => it.id === item.id)!;
-  owner.y = 7;
+  owner.y = 9;
   expect(mountedItems(v).some((it) => it.part.defId === 'ram')).toBe(true);
 }
 
@@ -89,9 +89,9 @@ describe('rams', () => {
       return { v, part: crashOf(w).hitsB[0].part };
     };
     const rear = firstHit(38.5);
-    expect(rear.part).toBe(partAt(rear.v, 1, 6).id);
+    expect(rear.part).toBe(partAt(rear.v, 1, 7).id);
     const front = firstHit(41.5);
-    expect(front.part).toBe(partAt(front.v, 1, 1).id);
+    expect(front.part).toBe(partAt(front.v, 1, 2).id);
   });
 
   it('an obstacle hit lands on the side facing it at full share', () => {

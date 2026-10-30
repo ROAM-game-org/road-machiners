@@ -77,6 +77,8 @@ const STOPS: StopTable = {
   stall: no,
   collision: (e, w) => ramsTruck(e, w) || hurtsByCrash(e, w),
   empty: no,
+  enteredSite: no,
+  leftSite: no,
   shot: (e, w) => isOwn(w, e.shooter) || isOwn(w, e.target),
   partDisabled: ownVehicle,
   cargoSpilled: ownVehicle,

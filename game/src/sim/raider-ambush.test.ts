@@ -269,7 +269,7 @@ describe('the watch', () => {
 
   it('flees prey that outguns it, when it has a getaway', () => {
     const { w, raider } = watchingRaider(200);
-    const brute = addVehicle(w, 'independent', 'hauler', ['mg', 'mg', 'mg', 'mg', 'mg', 'stockEngine'], { x: raider.pos.x + 8, y: raider.pos.y });
+    const brute = addVehicle(w, 'independent', 'hauler', ['heavyMg', 'heavyMg', 'mg', 'mg', 'mg', 'stockEngine'], { x: raider.pos.x + 8, y: raider.pos.y });
     brute.brain = npcBrain('trader', brute.pos, ['trader']);
     if (addGoods(w, brute, 'electronics', 6) < 6) throw new Error('No room for the cargo');
     const danger = judgeDanger(w, raider, brute);
@@ -528,7 +528,7 @@ function pileGoods(w: World, good: string): number {
 }
 
 function campValue(raider: Vehicle): number {
-  const goods = Object.entries(goodsCount(raider)).reduce((sum, [good, count]) => sum + count * campGoodPrice(good), 0);
+  const goods = Object.entries(goodsCount(raider)).reduce((sum, [good, count]) => sum + campGoodPrice(good, count), 0);
   return goods + spareParts(raider).reduce((sum, part) => sum + campPartPrice(part), 0);
 }
 
@@ -601,7 +601,7 @@ describe('going home with loot', () => {
     const { goals, value, looted } = sale!;
     expect(goals).toEqual([expect.objectContaining({ kind: 'sell', targetId: scrapjaw.id })]);
     expect(looted).toBe(carried);
-    expect(value).toBe(carried * campGoodPrice('electronics'));
+    expect(value).toBe(campGoodPrice("electronics", carried));
     const after = getResources(end, vehicle(end, raider.id)).money;
     expect(after).toBeLessThanOrEqual(money + value);
     expect(after).toBeGreaterThan(money + value - fuelBill(end, raider.id));

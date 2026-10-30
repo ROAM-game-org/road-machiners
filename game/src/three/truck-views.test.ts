@@ -39,7 +39,7 @@ describe('truck views', () => {
     const { world, truck, budget, scene, trucks } = setUp();
     const near = truck('near', LIVE_REACH / 2);
     trucks.park(world, [near]);
-    trucks.prune();
+    trucks.prune(0, []);
     expect(trucks.views.has('near')).toBe(false);
     expect(scene.children).toHaveLength(0);
     budget.open = false;
@@ -54,9 +54,9 @@ describe('truck views', () => {
     const far = truck('far', LIVE_REACH + 5);
     const nearView = trucks.viewOf('near', near, true, PAINT.standard);
     trucks.viewOf('far', far, true, PAINT.standard);
-    trucks.prune();
+    trucks.prune(0, []);
     trucks.park(world, [near, far]);
-    trucks.prune();
+    trucks.prune(0, []);
     expect(scene.children).toHaveLength(0);
     expect(trucks.views.size).toBe(0);
     budget.open = false;

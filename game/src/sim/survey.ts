@@ -23,6 +23,7 @@ import { heightAt, type BakedMap, type Terrain } from './terrain';
 import type { DirectionStep, Job, Vehicle, World } from './types';
 import { gridSquareOf, type GridSquare } from './map-grid';
 import { bearing, dist, type Vec } from './vec';
+import { fairM } from './money';
 
 export type SurveyProp = { id: string; pos: Vec; reach: number };
 export type SurveyLay = 'rise' | 'hollow' | 'flat';
@@ -169,7 +170,7 @@ export function surveyLoopTurns(shopPos: Vec, sites: Vec[]): number {
 }
 
 export function surveyReward(turns: number): number {
-  return Math.round(turns * EFFORT.wage[1] * CONTRACTS.survey.rewardFactor);
+  return fairM(turns * EFFORT.wage[1] * CONTRACTS.survey.rewardFactor);
 }
 
 function pickSites(world: World, free: SurveySite[]): SurveySite[] {

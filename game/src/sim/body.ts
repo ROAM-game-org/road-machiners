@@ -202,7 +202,11 @@ export function cellCenter(chassisId: string, x: number, y: number): { x: number
 export function cellSteps(chassisId: string): { row: number; col: number } {
   const { w, h } = baseGrid(chassisId);
   const { half } = spanOf(chassisId);
-  return { row: (2 * half.x) / h, col: (2 * half.z) / (w - 2) };
+  return { row: (2 * half.x) / (h - 2), col: (2 * half.z) / (w - 2) };
+}
+
+export function bodyRows(chassisId: string): number {
+  return baseGrid(chassisId).h - 2;
 }
 
 function singleCellRect(chassisId: string, x: number, y: number, unit: Unit): Omit<CellRect, 'unit'> {
@@ -210,7 +214,7 @@ function singleCellRect(chassisId: string, x: number, y: number, unit: Unit): Om
   const { center, half } = spanOf(chassisId);
   const shift = center - unit.offset;
   const { row: rowStep, col: colStep } = cellSteps(chassisId);
-  const along = { x0: shift + half.x - (y + 1) * rowStep, x1: shift + half.x - y * rowStep };
+  const along = { x0: shift + half.x - y * rowStep, x1: shift + half.x - (y - 1) * rowStep };
   const across = { z0: -half.z + (x - 1) * colStep, z1: -half.z + x * colStep };
   const side = ringSign(x, w, -1);
   const end = ringSign(y, h, 1);
@@ -247,6 +251,16 @@ export function surfaceAt(chassisId: string, rect: CellRect): number {
   const best = highestUnder(chassisId, rect);
   if (best === -Infinity) throw new Error(`The ${chassisId} model has no surface under x ${rect.x0}..${rect.x1}, z ${rect.z0}..${rect.z1}`);
   return best;
+}
+
+function nearestSurface(chassisId: string, rect: CellRect): number {
+  const map = unitShape(chassisId, rect.unit).heights;
+  for (let grow = 1; grow <= 4; grow++) {
+    const pad = grow * map.cell;
+    const y = highestUnder(chassisId, { ...rect, x0: rect.x0 - pad, x1: rect.x1 + pad, z0: rect.z0 - pad, z1: rect.z1 + pad });
+    if (y !== -Infinity) return y;
+  }
+  throw new Error(`The ${chassisId} model has no surface near x ${rect.x0}..${rect.x1}, z ${rect.z0}..${rect.z1}`);
 }
 
 export function highestUnder(chassisId: string, rect: CellRect): number {
@@ -344,7 +358,7 @@ function restFlat(map: HeightMap, samples: Sample[], rect: CellRect): Rest | nul
 
 function perch(chassisId: string, map: HeightMap, samples: Sample[], rect: CellRect): Rest {
   const tops = samples.map((sm) => sm.top).filter(Number.isFinite);
-  if (tops.length === 0) return { y: surfaceAt(chassisId, rect), rect, perched: true, slope: FLAT };
+  if (tops.length === 0) return { y: nearestSurface(chassisId, rect), rect, perched: true, slope: FLAT };
   const highest = Math.max(...tops);
   const leaning = leanOn(map, samples, rect, highest - Math.min(...tops), false);
   return leaning ? { ...leaning, perched: true } : { y: highest, rect, perched: true, slope: FLAT };
@@ -390,14 +404,18 @@ type Sample = { i: number; j: number; top: number };
 type Box = { i0: number; i1: number; j0: number; j1: number; empty: boolean; cut: [boolean, boolean, boolean, boolean] };
 
 function samplesUnder(map: HeightMap, rect: CellRect): Sample[] {
-  const range = (lo: number, hi: number) => {
-    const first = Math.ceil((lo - 1e-6) / map.cell);
-    const last = Math.floor((hi + 1e-6) / map.cell) - 1;
+  const range = (lo: number, hi: number, outward: boolean) => {
+    const first = outward ? Math.floor((lo + 1e-6) / map.cell) : Math.ceil((lo - 1e-6) / map.cell);
+    const last = outward ? Math.ceil((hi - 1e-6) / map.cell) - 1 : Math.floor((hi + 1e-6) / map.cell) - 1;
     return Array.from({ length: Math.max(0, last - first + 1) }, (_, k) => first + k);
   };
-  return range(rect.x0, rect.x1).flatMap((i) => range(-rect.z1, -rect.z0).flatMap((j) => {
-    const top = map.top[i - map.i0]?.[j - map.j0];
-    return [{ i, j, top: typeof top === 'number' ? top / 100 : -Infinity }];
+  const whole = new Set(range(rect.x0, rect.x1, false));
+  const topAt = (i: number, j: number) => map.top[i - map.i0]?.[j - map.j0];
+  const hangsOff = (i: number, j: number) => [i - 1, i + 1].some((n) => !whole.has(n) && typeof topAt(n, j) !== 'number');
+  return range(rect.x0, rect.x1, true).flatMap((i) => range(-rect.z1, -rect.z0, false).flatMap((j) => {
+    const top = topAt(i, j);
+    if (typeof top !== 'number') return [{ i, j, top: -Infinity }];
+    return whole.has(i) ? [{ i, j, top: hangsOff(i, j) ? -Infinity : top / 100 }] : [];
   }));
 }
 
@@ -458,7 +476,7 @@ export function lanesAt(chassisId: string, axis: 'column' | 'row', a: number, b:
   const shift = center - u.offset;
   const lane = axis === 'column'
     ? (z: number) => (z < -half.z ? 0 : z >= half.z ? w - 1 : 1 + Math.floor(((z + half.z) * (w - 2)) / (2 * half.z)))
-    : (x: number) => Math.min(u.rows[1] - 1, Math.max(u.rows[0], Math.floor(((shift + half.x - x) * h) / (2 * half.x))));
+    : (x: number) => Math.min(u.rows[1] - 1, Math.max(u.rows[0], x > shift + half.x ? 0 : x <= shift - half.x ? h - 1 : 1 + Math.floor(((shift + half.x - x) * (h - 2)) / (2 * half.x))));
   const first = Math.min(lane(a), lane(b));
   const last = Math.max(lane(a), lane(b));
   return Array.from({ length: last - first + 1 }, (_, i) => first + i);

@@ -86,7 +86,7 @@ function seenNpcJob(w: World, v: Vehicle): JobMark | null {
   return work && { label: workLabel(w, v, work), progress: workProgress(work) };
 }
 
-export function aimsBody(w: World, weapons: MountedWeapon[], targetId: string): boolean {
+export function aimsBody(w: World, weapons: readonly MountedWeapon[], targetId: string): boolean {
   const orders = playerVehicle(w).weaponOrders;
   return weapons.length > 0 && weapons.every((mw) => orders[mw.part.id]?.targetId === targetId && orders[mw.part.id].aim === "body");
 }
@@ -114,7 +114,7 @@ export function aimActions(h: AimHost) {
   };
 }
 
-export function toggleBodyAim(w: World, weapons: MountedWeapon[], target: Vehicle): World {
+export function toggleBodyAim(w: World, weapons: readonly MountedWeapon[], target: Vehicle): World {
   const aimed = aimsBody(w, weapons, target.id);
   if (w.player.autoFire) w = setAutoFire(w, false);
   for (const mw of weapons)
@@ -122,7 +122,7 @@ export function toggleBodyAim(w: World, weapons: MountedWeapon[], target: Vehicl
   return w;
 }
 
-export function aimAtPart(w: World, weapons: MountedWeapon[], target: Vehicle, partId: string): World {
+export function aimAtPart(w: World, weapons: readonly MountedWeapon[], target: Vehicle, partId: string): World {
   const orders = playerVehicle(w).weaponOrders;
   const aimed = weapons.length > 0 && weapons.every((mw) => orders[mw.part.id]?.targetId === target.id && orders[mw.part.id].aim === partId);
   if (w.player.autoFire) w = setAutoFire(w, false);
@@ -623,7 +623,7 @@ export class WeaponPanel {
 export function weaponsForClick(
   world: World,
   selected: string | null,
-): MountedWeapon[] {
+): readonly MountedWeapon[] {
   const all = vehicleStats(world, playerVehicle(world)).weapons;
   return selected ? all.filter((m) => m.part.id === selected) : all;
 }

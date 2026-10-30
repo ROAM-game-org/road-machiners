@@ -58,6 +58,18 @@ export function turnClockOf(a: Playback | null): TurnClock | null {
 type Pose = { pos: Vec; heading: number };
 type OpenStop = { tail: Tail; ends: Record<string, Pose> };
 
+export class FastPace {
+  private speed = 1;
+
+  step(realMs: number, target: number, fastSpeed: number): number {
+    if (!(realMs >= 0)) throw new Error(`The pace only moves forward, got ${realMs} ms`);
+    if (!(target >= 1 && target <= fastSpeed)) throw new Error(`A pace target lies between 1 and ${fastSpeed}, got ${target}`);
+    const reach = ((fastSpeed - 1) * realMs) / CONFIG.playEaseMs;
+    this.speed += Math.max(-reach, Math.min(reach, target - this.speed));
+    return this.speed;
+  }
+}
+
 export class Creep {
   private readonly endMs: number;
   private ms: number;
@@ -198,6 +210,7 @@ export class Travel {
   private autoPress = false;
   private tapHalts = false;
   private remainder = 0;
+  private readonly pace = new FastPace();
   private readonly turns: TurnPreparation;
   private creep: Creep | null = null;
   private open: OpenStop | null = null;
@@ -428,6 +441,12 @@ export class Travel {
     this.creep = null;
     this.open = null;
     return join;
+  }
+
+  paceSpeed(world: World, now: number, realMs: number, fastSpeed: number): number {
+    const outrunsNothing = this.turns.isReady(world) || !this.continues(world, now);
+    const held = this.pace.step(realMs, this.isFast(now) && outrunsNothing ? fastSpeed : 1, fastSpeed);
+    return Math.max(held, this.automatic ? CONFIG.travelSpeeds[this.speedIndex] : 1);
   }
 
   getSpeed(now: number, fastSpeed: number): number {

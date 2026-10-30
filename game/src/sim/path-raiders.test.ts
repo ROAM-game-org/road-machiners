@@ -12,6 +12,7 @@ import { regionAt } from './nav/cells';
 import { continueRoute, keepRoute, route, routeLength, straightClear, type Blocker } from './path';
 import { nextRandom } from './rng';
 import { isCliff, tileAt, tileSlope, type Terrain } from './terrain';
+import type { TraitId } from '../data/npcs';
 import type { Obstacle, Vehicle, World } from './types';
 import { siteGap, siteGates, sitePads } from './sites';
 import { raiderGrounds, raiderPatrolPosts } from './npc-decisions';
@@ -26,15 +27,36 @@ import { defaultSetup } from './settings';
 
 const startWorld = (seed: number): World => reusedWorld(`path ${seed}`, () => newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false));
 
-describe('raiders that keep off roads', () => {
-  function roadWorld(...roads: Vec[][]): World {
-    const w = emptyWorld();
-    const t = editableTerrain(w);
-    for (let y = 0; y < t.size; y++)
-      for (let x = 0; x < t.size; x++) t.types[y * t.size + x] = roads.some((r) => polylineDist({ x: x + 0.5, y: y + 0.5 }, r) < REGION.roadWidth / 2) ? 'road' : 'hardpan';
-    return w;
-  }
+function roadWorld(...roads: Vec[][]): World {
+  const w = emptyWorld();
+  const t = editableTerrain(w);
+  for (let y = 0; y < t.size; y++)
+    for (let x = 0; x < t.size; x++) t.types[y * t.size + x] = roads.some((r) => polylineDist({ x: x + 0.5, y: y + 0.5 }, r) < REGION.roadWidth / 2) ? 'road' : 'hardpan';
+  return w;
+}
 
+function roadRuns(w: World, from: Vec, points: Vec[]): number[] {
+  const nav = terrainNav(w.terrain);
+  const runs: number[] = [];
+  let run = 0;
+  let prev = from;
+  for (const p of points) {
+    const n = Math.max(1, Math.ceil(dist(prev, p) * 4));
+    for (let k = 0; k < n; k++) {
+      if (onRouteRoad(nav, prev.x + ((p.x - prev.x) * k) / n, prev.y + ((p.y - prev.y) * k) / n)) run += dist(prev, p) / n;
+      else if (run > 0) {
+        runs.push(run);
+        run = 0;
+      }
+    }
+    prev = p;
+  }
+  if (run > 0) runs.push(run);
+  return runs;
+}
+const total = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+
+describe('raiders that keep off roads', () => {
   function raider(w: World, pos: Vec): Vehicle {
     const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], pos);
     v.brain = npcBrain('test', pos, ['raider']);
@@ -44,27 +66,6 @@ describe('raiders that keep off roads', () => {
   function flee(v: Vehicle): void {
     v.brain!.goals.push({ kind: 'flee', targetId: null, destination: null, phase: 'travel', reason: 'escapeAttacker' });
   }
-
-  function roadRuns(w: World, from: Vec, points: Vec[]): number[] {
-    const nav = terrainNav(w.terrain);
-    const runs: number[] = [];
-    let run = 0;
-    let prev = from;
-    for (const p of points) {
-      const n = Math.max(1, Math.ceil(dist(prev, p) * 4));
-      for (let k = 0; k < n; k++) {
-        if (onRouteRoad(nav, prev.x + ((p.x - prev.x) * k) / n, prev.y + ((p.y - prev.y) * k) / n)) run += dist(prev, p) / n;
-        else if (run > 0) {
-          runs.push(run);
-          run = 0;
-        }
-      }
-      prev = p;
-    }
-    if (run > 0) runs.push(run);
-    return runs;
-  }
-  const total = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 
   it('drives beside a road that a raider on patrol drives along, to the same end', () => {
     const a = { x: 30, y: 100 };
@@ -137,13 +138,13 @@ describe('raiders that keep off roads', () => {
     v.brain!.goals.pop();
     expect(route(w, a, b, 0.6, [], v)).toEqual(plain);
     expect(off).not.toEqual(plain);
-    const kept = keepRoute(w, b, plain, [], v, false);
-    expect(kept.offRoad).toBe(false);
+    const kept = keepRoute(w, b, plain, [], v);
+    expect(kept.style).toBe('road');
     expect(continueRoute(w, a, kept, b, 0.6, [], v)).not.toBeNull();
     v.resources!.fuel = 0;
     expect(continueRoute(w, a, kept, b, 0.6, [], v)).toBeNull();
-    const keptOff = keepRoute(w, b, off, [], v, false);
-    expect(keptOff.offRoad).toBe(true);
+    const keptOff = keepRoute(w, b, off, [], v);
+    expect(keptOff.style).toBe('hidden');
     expect(continueRoute(w, a, keptOff, b, 0.6, [], v)).not.toBeNull();
   });
 });
@@ -773,5 +774,53 @@ describe('raider hunting routes on the map', () => {
     expect(dist(points.at(-1)!, side(1))).toBeLessThanOrEqual(4);
     const across = (p: Vec): number => Math.sign((p.x - centre.x) * normal.x + (p.y - centre.y) * normal.y);
     expect(across(side(-1))).not.toBe(across(points.at(-1)!));
+  });
+});
+
+describe('scavengers and roamers that cut across open ground', () => {
+  const a = { x: 30, y: 100 };
+  const b = { x: 90, y: 100 };
+  const detour = (height: number) => roadWorld([a, { x: a.x, y: a.y + height }, { x: b.x, y: a.y + height }, b]);
+
+  function driverWith(w: World, traits: TraitId[]): Vehicle {
+    const v = addVehicle(w, 'independent', 'buggy', ['mg', 'stockEngine'], a);
+    v.brain = npcBrain('test', a, traits);
+    v.brain.goals = [{ kind: 'sell', targetId: null, destination: null, phase: 'travel', reason: 'tripToSite' }];
+    return v;
+  }
+
+  const roadShare = (w: World, points: Vec[]) => total(roadRuns(w, a, points)) / routeLength(a, points);
+
+  it.each(['scavenger', 'roamer'] as const)('crosses the field where a %s would otherwise take a long road dogleg, and a trader keeps the road', (trait) => {
+    const w = detour(20);
+    const cut = route(w, a, b, 0.6, [], driverWith(w, [trait]));
+    const road = route(w, a, b, 0.6, [], driverWith(w, ['trader']));
+    expect(routeLength(a, cut)).toBeLessThan(routeLength(a, road) * 0.8);
+    expect(roadShare(w, cut)).toBeLessThan(0.3);
+    expect(roadShare(w, road)).toBeGreaterThan(0.7);
+  });
+
+  it('keeps the road when the road way is only slightly longer', () => {
+    const w = detour(5);
+    const drivers = Array.from({ length: 10 }, () => driverWith(w, ['scavenger']));
+    const keepers = drivers.filter((driver) => roadShare(w, route(w, a, b, 0.6, [], driver)) > 0.7);
+    expect(keepers.length).toBeGreaterThan(drivers.length / 2);
+    const road = route(w, a, b, 0.6, [], driverWith(w, ['trader']));
+    expect(roadShare(w, road)).toBeGreaterThan(0.7);
+  });
+
+  it('drops a kept route of another style, and keeps its own', () => {
+    const w = detour(20);
+    const trader = driverWith(w, ['trader']);
+    trader.id = 'road-trader';
+    const kept = keepRoute(w, b, route(w, a, b, 0.6, [], trader), [], trader);
+    expect(kept.style).toBe('road');
+    expect(continueRoute(w, a, kept, b, 0.6, [], trader)).not.toBeNull();
+    trader.brain!.traits = ['scavenger'];
+    expect(continueRoute(w, a, kept, b, 0.6, [], trader)).toBeNull();
+    const midway = { x: 50, y: 100 };
+    const cutKept = keepRoute(w, b, route(w, midway, b, 0.6, [], trader), [], trader);
+    expect(cutKept.style).toBe('cut');
+    expect(continueRoute(w, midway, cutKept, b, 0.6, [], trader)).not.toBeNull();
   });
 });

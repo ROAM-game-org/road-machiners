@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BOUNTY, CRIME } from '../data/market';
-import type { TraitId } from '../data/npcs';
+import { NPCS, type TraitId } from '../data/npcs';
 import { advanceCrimes, fileReports, noteKnockout, openCasesOn, payCasesAtDesk, stepPosse } from './crime';
 import { callVehicle, chooseOption, currentOptions, radioSpeakers, raiseCalls } from './dialogue';
 import { playerVehicle } from './damage';
@@ -251,10 +251,13 @@ describe('a target with no answer open', () => {
   });
 });
 
+const QUIET_TURNS = 1_000_000;
+
 describe('the idle Marshall', () => {
   it('waits at the post with its partner and no case, without dropping the wait each turn, and raises no stall', () => {
     const post = getKnownSite('marshal-post');
     let w = emptyWorld({ x: 100, y: 700 });
+    for (const id of Object.keys(NPCS)) w.spawnTimer[id] = QUIET_TURNS;
     const marshal = marshalAt(w, nearestPad(post, post.pos));
     const partner = marshalAt(w, { x: marshal.pos.x + 3, y: marshal.pos.y });
     startEscort(w, partner, marshal, null, 0);
@@ -310,13 +313,13 @@ describe('a broke target', () => {
     const w = emptyWorld({ x: 300, y: 300 });
     const me = playerVehicle(w);
     fileAgainst(w, me, { x: 300, y: 300 });
-    w.player.money = 1000;
+    w.player.money = 10;
     const marshal = marshalAt(w, { x: 306, y: 300 });
     planMarshal(w, marshal, [me]);
     raiseCalls(w);
     expect(w.player.call?.topic).toBe('bountyDemand');
     const pay = currentOptions(w).find((o) => o.line === 'payTheBook')!;
-    expect(pay.short).toBe(CRIME.fine.robbed - 1000);
+    expect(pay.short).toBe(CRIME.fine.robbed - 10);
     const next = chooseOption(w, currentOptions(w).findIndex((o) => o.line === 'notPaying'));
     expect(stateOf(next, 'feud', marshal.id, me.id)).not.toBeNull();
     const after = structuredClone(next);
@@ -324,7 +327,7 @@ describe('a broke target', () => {
     hit.lastHitBy = marshal.id;
     noteKnockout(after, hit);
     expect(after.crimes[0].status).toBe('collected');
-    expect(after.player.money).toBe(1000);
+    expect(after.player.money).toBe(10);
   });
 });
 
@@ -639,7 +642,7 @@ describe('the paid Marshall lead', () => {
     w.turn = 50;
     w.player.contracts.push({
       id: 'ct-s', shop: 'bowl', kind: 'search', target: target.id, driver: 'Mack Holt', template: 'trader',
-      lead: { at: { x: 0, y: 0 }, turn: 10 }, reward: 3700, deadline: 900, window: 600, tier: 1, delivered: false,
+      lead: { at: { x: 0, y: 0 }, turn: 10 }, reward: 37, deadline: 900, window: 600, tier: 1, delivered: false,
     });
     return { w, target, marshal: marshalAt(w, { x: 650, y: 100 }) };
   }

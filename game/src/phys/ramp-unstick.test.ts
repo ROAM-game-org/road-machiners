@@ -16,18 +16,18 @@ beforeAll(async () => {
 const SEED = 66;
 const RAMP_WINDOW = 2;
 const LAYOUT: [string, number, number, Rot][] = [
-  ['cabPickup', 2, 3, 0],
-  ['transmission', 2, 5, 0],
-  ['tank', 4, 5, 0],
-  ['wheel', 1, 1, 0],
-  ['wheel', 5, 1, 0],
-  ['wheel', 1, 5, 0],
-  ['wheel', 5, 5, 0],
-  ['mg', 4, 1, 0],
-  ['slugCannon', 1, 3, 2],
-  ['slugCannon', 5, 3, 0],
-  ['plowRam', 2, 7, 0],
-  ['heavyDiesel', 2, 1, 0],
+  ['cabPickup', 2, 4, 0],
+  ['transmission', 2, 6, 0],
+  ['tank', 4, 6, 0],
+  ['wheel', 1, 2, 0],
+  ['wheel', 5, 2, 0],
+  ['wheel', 1, 6, 0],
+  ['wheel', 5, 6, 0],
+  ['mg', 4, 2, 0],
+  ['slugCannon', 1, 4, 2],
+  ['slugCannon', 5, 4, 0],
+  ['plowRam', 2, 8, 0],
+  ['heavyDiesel', 2, 2, 0],
 ];
 const LIP_POSE = {
   at: { x: 830.9, y: 6.46, z: 1169.73 },

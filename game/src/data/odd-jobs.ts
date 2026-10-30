@@ -3,7 +3,7 @@ import { EFFORT } from "./market";
 import { RULES } from "./rules";
 import { TIME } from "./time";
 
-const NET_PER_DAY = 2000;
+const NET_PER_DAY = 20;
 const SHIFT_TURNS = TIME.turnsPerDay / 3;
 const FOOD_PER_TURN = RULES.suppliesPerTurn * ECONOMY.supplyPrice.supplies;
 

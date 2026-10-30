@@ -4,7 +4,7 @@ import { HUNT, NPCS } from '../data/npcs';
 import { REGION } from '../data/region';
 import { TERRAIN } from '../data/terrain';
 import { isBakedObstacle, propReach } from './mapgen';
-import { CELL, CLEARANCE, nearCliff, staticSet, terrainNav, tileIndex, type StaticSet, type TerrainNav } from './nav/layer';
+import { CELL, CLEARANCE, NO_CLIMB, nearCliff, staticSet, terrainNav, tileIndex, type StaticSet, type TerrainNav } from './nav/layer';
 import type { Blocker } from './nav/buckets';
 import { lawmanTowns } from './npc-decisions';
 import { reachesFrom } from './path';
@@ -30,7 +30,7 @@ function postReach(): number {
 
 function roadReach(world: World): (p: Vec) => boolean {
   const road = REGION.roads[0];
-  return reachesFrom(world, road[Math.floor(road.length / 2)], raiderRadius());
+  return reachesFrom(world, road[Math.floor(road.length / 2)], raiderRadius(), NO_CLIMB - 1);
 }
 
 type TrafficSamples = Map<number, Vec[]>;

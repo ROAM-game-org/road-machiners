@@ -239,7 +239,7 @@ function tradesFrom(world: World, trader: Vehicle, spend: number, from: string, 
       const plan = { source: from, good, sellShop: to };
       const tiles = tradeLegTiles(plan);
       const outlook = tradeOutlook(world, trader, plan, spend, tiles);
-      return [{ good, goodName: text.good(good), fromId: from, toId: to, from: text.site(from), to: text.site(to), buy, sell, gain: sell - buy, crates, load: outlook.count, fuel: outlook.fuel, risk: outlook.risk, net: outlook.net, worth: outlook.worth, tiles, distanceText: text.distance(tiles), risky: legRisk(world, from, to) > 0 }];
+      return [{ good, goodName: text.good(good), fromId: from, toId: to, from: text.site(from), to: text.site(to), buy, sell, gain: outlook.profit, crates, load: outlook.count, fuel: outlook.fuel, risk: outlook.risk, net: outlook.net, worth: outlook.worth, tiles, distanceText: text.distance(tiles), risky: legRisk(world, from, to) > 0 }];
     });
   });
 }

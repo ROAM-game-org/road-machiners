@@ -5,6 +5,7 @@ import type { FireBlock } from "./combat";
 import type { GearLevel, TraitId } from "../data/npcs";
 import type { Band } from "../data/npc-behavior";
 import type { PropKind, Terrain } from "./terrain";
+import type { RouteStyle } from './off-road';
 import type { Vec } from "./vec";
 import type { LineId, TopicId } from "../data/dialogue";
 import type { GroupId } from "../data/personalities";
@@ -208,7 +209,7 @@ export type GoalReason =
   | 'restHollow' | 'rideVigil' | 'keepVigil' | 'rideHome' | 'huntRoad' | 'dragToLight' | 'leaveCrater' | 'orderFell' | 'meetStranger'
   | 'sizingUp' | 'poorLoad' | 'sizedUpBy'
   | 'bountyHunt' | 'atPost' | 'caseClosed' | 'huntGaveUp' | 'cargoLost' | 'backToPost'
-  | 'watchSunset' | 'restShade' | 'tendGrave';
+  | 'watchSunset' | 'restShade' | 'tendGrave' | 'lookAround';
 
 export type SimNote =
   | { id: 'engineHot' }
@@ -230,7 +231,7 @@ export type SimNote =
 
 export type MoneyReason = { kind: 'contract' } | { kind: 'towing'; vehicle: string } | { kind: 'outpost' } | { kind: 'holdUp'; vehicle: string } | { kind: 'oddJobs' };
 
-export type PlacementRefusal = { id: 'noFit' } | { id: 'inTheWay' } | { id: 'armorOnly' };
+export type PlacementRefusal = { id: 'noFit' } | { id: 'inTheWay' } | { id: 'armorOnly' } | { id: 'barrel' };
 
 export type Refusal =
   | PlacementRefusal
@@ -353,7 +354,7 @@ export type NpcBrain = {
     fightTurn?: 1 | -1;
     targetSeen?: { id: string; turn: number; pos: Vec; heading: number; speed: number };
     whim?: { kind: 'keep' | 'rush' | 'halt' | 'veer'; until: number; angle: number };
-    farRoute?: { dest: Vec; points: Vec[]; offRoad: boolean; night?: true; partial?: true };
+    farRoute?: { dest: Vec; points: Vec[]; style: RouteStyle; night?: true; partial?: true };
     musteredAt?: number;
     memories: Memory[];
 };
@@ -380,6 +381,7 @@ export type Vehicle = {
   heading: number;
   bend?: number;
   speed: number;
+  setSpeed?: number;
   stormExposure: Record<string, number>;
   strandedTurns?: number;
   strandedAt?: Vec;
@@ -641,7 +643,7 @@ export type GameEvent =
   | { t: 'breakdown'; vehicle: string; part: string }
   | { t: 'searched'; stock: string }
   | { t: 'weather'; event: WeatherEvent; outcome: 'started' | 'ended' }
-  | { t: 'say'; speaker: string; line: LineId; vars: CallVars }
+  | { t: 'say'; speaker: string; to: string; line: LineId; vars: CallVars }
   | { t: 'call'; with: string; outcome: 'opened' | 'ended' }
   | { t: 'honk'; vehicle: string }
   | { t: 'aidStarted'; giver: string; receiver: string }
@@ -665,7 +667,9 @@ export type GameEvent =
   | { t: 'bountyClosed'; case: string; target: string; status: Exclude<CaseStatus, 'open'>; amount: number; collector: string | null }
   | { t: 'settlement'; faction: StandingFactionId; price: number }
   | { t: 'asked'; by: string; of: string; target: string; told: boolean }
-  | { t: 'huntWithdrawn'; by: string; target: string; posse: CasePosse };
+  | { t: 'huntWithdrawn'; by: string; target: string; posse: CasePosse }
+  | { t: 'enteredSite'; vehicle: string; site: string }
+  | { t: 'leftSite'; vehicle: string; site: string };
 
 export type GameModeId = 'roaming' | 'chaosHighway';
 export type ModeRules = { traffic: boolean; looting: boolean; npcKnockouts: boolean; playerKnockouts: boolean; yielding: boolean; radio: boolean; rescue: boolean; roadWrecks: boolean; run: boolean; standing: boolean; bounties: boolean };
@@ -767,4 +771,7 @@ export type World = {
   sunward: SunwardFacts | null;
   moments: Record<MomentId, MomentState> | null;
   crimes: CrimeCase[];
+  sheltered: ShelteredTruck[];
 };
+
+export type ShelteredTruck = { vehicle: Vehicle; site: string };

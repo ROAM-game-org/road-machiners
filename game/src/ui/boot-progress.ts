@@ -4,17 +4,16 @@ import { list, t, type Msg } from '../text/msg';
 
 const SIGN_SHARES = SIGN_STAGES.length + 1;
 
-export type BootStep = 'code' | 'map' | 'physics' | 'models' | 'sounds' | 'world' | 'ground' | 'scene' | 'frame';
+export type BootStep = 'code' | 'map' | 'physics' | 'models' | 'world' | 'ground' | 'scene' | 'frame';
 export type BootState = 'waiting' | 'running' | 'done' | 'failed';
 
-export const BOOT_STEPS: readonly BootStep[] = ['code', 'map', 'physics', 'models', 'sounds', 'world', 'ground', 'scene', 'frame'];
+export const BOOT_STEPS: readonly BootStep[] = ['code', 'map', 'physics', 'models', 'world', 'ground', 'scene', 'frame'];
 
 export const BOOT_TEXT = {
   code: t('boot.code'),
   map: t('boot.map'),
   physics: t('boot.physics'),
   models: t('boot.models'),
-  sounds: t('boot.sounds'),
   loadSave: t('boot.loadSave'),
   newGame: t('boot.newGame'),
   nextWindow: t('boot.nextWindow'),
