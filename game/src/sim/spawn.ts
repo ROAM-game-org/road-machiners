@@ -47,6 +47,11 @@ export function spawnQueueNow(world: World): void {
   world.spawnQueue = [];
 }
 
+export function queuedSpawnFits(entry: QueuedSpawn): boolean {
+  const tpl = NPCS[entry.templateId];
+  return !!tpl && sitesFor(tpl).some((site) => site.id === entry.siteId);
+}
+
 function queuedPlaces(entry: QueuedSpawn): { tpl: NpcTemplate; places: SpawnPlace[] } {
   const tpl = NPCS[entry.templateId];
   if (!tpl) throw new Error(`Queued spawn names unknown template ${entry.templateId}`);

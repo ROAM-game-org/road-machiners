@@ -31,9 +31,11 @@ import { maxHp, restorePart } from './wear';
 import { cloneWorld, endTurn, newWorld } from './world';
 
 let base: World;
+let dealt: World['spawnQueue'];
 
 beforeAll(() => {
   base = newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
+  dealt = base.spawnQueue;
   spawnQueueNow(base);
 });
 
@@ -78,7 +80,7 @@ describe('repairContent', () => {
 
   it('drops a queued start spawn whose template or site left the data and keeps the rest', () => {
     const w = fresh();
-    const keep = { templateId: Object.keys(NPCS)[0], siteId: REGION.towns[0].id };
+    const keep = dealt[0];
     w.spawnQueue = [keep, { templateId: 'gone', siteId: keep.siteId }, { templateId: keep.templateId, siteId: 'gone' }];
     repairContent(w);
     expect(w.spawnQueue).toEqual([keep]);
