@@ -43,13 +43,17 @@ describe('explore places', () => {
 
   it('prefer places farther from the road', () => {
     const inRangeOf = (pos: { x: number; y: number }) => places.filter((p) => dist(pos, p.pos) >= EXPLORE.minHop && dist(pos, p.pos) <= EXPLORE.range);
-    const start = places.map((p) => ({ x: p.pos.x, y: p.pos.y + EXPLORE.minHop })).find((pos) => new Set(inRangeOf(pos).map((p) => p.roadGap)).size > 1);
-    expect(start).toBeDefined();
-    const npc = roamerAt(world, start!);
+    const spread = (pos: { x: number; y: number }) => {
+      const gaps = inRangeOf(pos).map((p) => p.roadGap);
+      return gaps.length === 0 ? 0 : Math.max(...gaps) - Math.min(...gaps);
+    };
+    const start = places.map((p) => ({ x: p.pos.x, y: p.pos.y + EXPLORE.minHop })).reduce((best, pos) => (spread(pos) > spread(best) ? pos : best));
+    expect(spread(start)).toBeGreaterThan(0);
+    const npc = roamerAt(world, start);
     const gaps: number[] = [];
-    for (let i = 0; i < 200; i++) gaps.push(explorePlace(world, npc)!.roadGap);
+    for (let i = 0; i < 600; i++) gaps.push(explorePlace(world, npc)!.roadGap);
     const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
-    expect(mean(gaps)).toBeGreaterThan(mean(inRangeOf(start!).map((p) => p.roadGap)));
+    expect(mean(gaps)).toBeGreaterThan(mean(inRangeOf(start).map((p) => p.roadGap)));
   });
 
   it('give nothing when no place lies in range', () => {
