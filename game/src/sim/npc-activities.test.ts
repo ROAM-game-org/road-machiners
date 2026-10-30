@@ -988,7 +988,7 @@ describe('NPC activities', () => {
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       raider.brain.goals = [
         { kind: 'raid', targetId: null, destination: { x: 100, y: 100 }, phase: 'travel', reason: 'tripToSite' },
-        { kind: 'investigate', targetId: player.id, destination: { x: 30, y: 30 }, phase: 'travel', reason: 'heardHostile', chase: { turn: w.turn, gap: TERRAIN.vision.radius + 5 } },
+        { kind: 'investigate', targetId: player.id, destination: { x: 30, y: 30 }, phase: 'travel', reason: 'heardHostile', chase: { turn: w.turn, gap: TERRAIN.vision.radius + 2 } },
       ];
       chooseOn(w, raider, player.id, { x: 30, y: 30 }, 'investigate', false);
       return { w, player, raider };
