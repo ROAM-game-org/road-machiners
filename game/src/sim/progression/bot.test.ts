@@ -230,6 +230,7 @@ describe('botOrders', () => {
   it('has a scavenger with no salvage left and every site found trade instead', () => {
     const w = saltGlut(parkedAt('nose'));
     w.salvage = [];
+    w.shops.nose.stock = [];
     w.player.discovered = [...REGION.towns, ...REGION.locations].map((site) => site.id);
 
     const turn = botOrders(w, 'scavenger');
