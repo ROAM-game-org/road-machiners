@@ -22,36 +22,36 @@ const refused = (items: GridItem[], item: GridItem) => placementError(hauler, it
 
 describe('barrel lanes', () => {
   it('lists the lane cells ahead of a gun and none behind it', () => {
-    const cells = barrelCells('hauler', part('slugCannon', 2, 6, 0));
+    const cells = barrelCells('hauler', part('slugCannon', 2, 7, 0));
     expect(cells.length).toBeGreaterThan(0);
-    expect(cells.every((c) => c.x === 2 && c.y < 6)).toBe(true);
+    expect(cells.every((c) => c.x === 2 && c.y < 7)).toBe(true);
   });
 
   it('refuses a gun behind another gun in its lane, whichever is placed second', () => {
-    const shotgun = part('shotgun', 2, 1, 0);
-    const slug = part('slugCannon', 2, 4, 0);
+    const shotgun = part('shotgun', 2, 2, 0);
+    const slug = part('slugCannon', 2, 5, 0);
     expect(refused([shotgun], slug)).toEqual({ id: 'barrel' });
     expect(refused([slug], shotgun)).toEqual({ id: 'barrel' });
   });
 
   it('refuses two barrels that cross', () => {
-    const forward = part('slugCannon', 2, 6, 0);
-    const across = part('slugCannon', 5, 4, 3);
+    const forward = part('slugCannon', 2, 7, 0);
+    const across = part('slugCannon', 5, 5, 3);
     expect(refused([forward], across)).toEqual({ id: 'barrel' });
     expect(refused([across], forward)).toEqual({ id: 'barrel' });
   });
 
   it('allows the reported pair in neighbouring lanes', () => {
-    const shotgun = part('shotgun', 1, 3, 0);
-    const slug = part('slugCannon', 2, 3, 2);
+    const shotgun = part('shotgun', 1, 4, 0);
+    const slug = part('slugCannon', 2, 4, 2);
     expect(refused([shotgun], slug)).toBeNull();
     expect(layoutError(hauler, [shotgun, slug])).toBeNull();
   });
 
   it('allows cargo and a scanner under a barrel', () => {
-    const slug = part('slugCannon', 2, 6, 0);
-    expect(refused([slug], good(2, 4))).toBeNull();
-    expect(refused([slug], part('scanner', 2, 3, 0))).toBeNull();
+    const slug = part('slugCannon', 2, 7, 0);
+    expect(refused([slug], good(2, 5))).toBeNull();
+    expect(refused([slug], part('scanner', 2, 4, 0))).toBeNull();
   });
 
   it('allows a spare gun on plain cells under a barrel', () => {
@@ -72,7 +72,7 @@ describe('barrel lanes', () => {
   });
 
   it('reports the clash in a layout', () => {
-    expect(layoutError(hauler, [part('shotgun', 2, 1, 0), part('slugCannon', 2, 4, 0)])).toEqual({ id: 'barrel' });
+    expect(layoutError(hauler, [part('shotgun', 2, 2, 0), part('slugCannon', 2, 5, 0)])).toEqual({ id: 'barrel' });
   });
 
   it('never lists a mount spot that placement refuses, on every chassis', () => {
