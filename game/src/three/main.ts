@@ -223,7 +223,7 @@ const newGameActions: NewGameActions = {
 };
 bootStep('loading the save');
 const { world, runId, loadedFrom, fresh } = await bootWorld();
-const log = new RunLog(slots.backend, runId, GAME_VERSION, (err) => slots.onError(err));
+const log = new RunLog(slots, runId, GAME_VERSION, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
 bootStep('building the ground');
 await boot.track('ground', () => groundTexture(world));

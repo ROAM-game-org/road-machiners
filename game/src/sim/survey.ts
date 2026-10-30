@@ -1,4 +1,4 @@
-import { CONTRACTS, EFFORT } from '../data/market';
+import { CONTRACTS, EFFORT, type Threat } from '../data/market';
 import { ECONOMY } from '../data/goods';
 import { RULES } from '../data/rules';
 import { REGION } from '../data/region';
@@ -12,6 +12,7 @@ import { startJob } from './jobs';
 import { mapObstacles, propReach } from './mapgen';
 import { navLayer } from './nav/layer';
 import { hasSalvage, MAX_RADIUS, nearestRoadPoint, offRoad, oldPlaces, propHash, reachable, type OldPlace } from './salvage';
+import { threatAt } from './raider-threat';
 import { randInt } from './rng';
 import { playerCommand } from './world';
 import { siteGap, type Site } from './sites';
@@ -20,6 +21,7 @@ import { heightAt, type BakedMap, type Terrain } from './terrain';
 import type { DirectionStep, Job, Vehicle, World } from './types';
 import { gridSquareOf, type GridSquare } from './map-grid';
 import { bearing, dist, type Vec } from './vec';
+import { fairM } from './money';
 
 export type SurveyProp = { id: string; pos: Vec; reach: number };
 export type SurveyLay = 'rise' | 'hollow' | 'flat';
@@ -123,6 +125,15 @@ export function surveySite(world: World, id: string): SurveySite {
   return site;
 }
 
+export function surveyPlaceThreat(world: World, siteId: string): Threat {
+  return threatAt(world, surveySite(world, siteId).pos);
+}
+
+export function surveyThreat(world: World, c: SurveyContract): Threat {
+  if (c.points.length === 0) throw new Error(`Survey ${c.id} has no places`);
+  return Math.max(...c.points.map((p) => surveyPlaceThreat(world, p.site))) as Threat;
+}
+
 export function isSurveyMet(c: SurveyContract): boolean {
   return c.points.every((p) => p.done);
 }
@@ -151,7 +162,7 @@ export function surveyLoopTurns(shopPos: Vec, sites: Vec[]): number {
 }
 
 export function surveyReward(turns: number): number {
-  return Math.round(turns * EFFORT.wage[1] * CONTRACTS.survey.rewardFactor);
+  return fairM(turns * EFFORT.wage[1] * CONTRACTS.survey.rewardFactor);
 }
 
 function pickSites(world: World, free: SurveySite[]): SurveySite[] {

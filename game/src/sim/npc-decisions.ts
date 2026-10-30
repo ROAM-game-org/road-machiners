@@ -8,8 +8,7 @@ import { encounterAvailable } from './encounters';
 import { canSpareFor } from './aid';
 import { isLineGun } from '../data/parts';
 import { ECONOMY } from '../data/goods';
-import { ESCORT_JOB, SHOPS, type ShopDef } from '../data/market';
-import { graphEdges } from '../data/market';
+import { ESCORT_JOB, SHOPS, graphEdges, type ShopDef } from '../data/market';
 import { legRisk } from './road-news';
 import { goodStock, goodValue, shopState, stockTarget } from './market';
 import { routeThreat } from './escort-job';
@@ -26,37 +25,39 @@ import { isDefeated, isKnockedOut } from './defeat';
 import { fightOdds, type FightOdds } from './fight-odds';
 import { vehicleById } from './damage';
 import { sensesOf } from './detect';
-import { affordableBuyCount, getTradePrice, getUpkeepReserve } from './economy';
+import { affordableBuyCount, getTradeRate, getUpkeepReserve } from './economy';
 export { getUpkeepReserve } from './economy';
-import { cargoRoom } from './inventory';
+import { cargoRoom, hasCargoRoom } from './inventory';
 import { hasPerceivedLoot, knowsCargo, perceivedLoad } from './look-over';
 import { maxHp } from './wear';
 import { corePart, freeCells, mountedParts } from './grid';
 import { hasRansom, ransomOf } from './haul';
-import { hasCargoRoom } from './inventory';
 import { inDanger, topGoal } from './npc-activities';
 import { sampleWeighted } from './npc-loadout';
 import { getResources } from './resources';
 import { skillEffect } from './progress';
 import { randRange } from './rng';
-import { recall, remember } from './memory';
-import { backedOff, canReachSalvage, canTakeAny, canTakeFromTruck, CANNOT_HOLD, CLAIMED, claimOnly, hasCargo, hasSalvage, holdsClaim, lootBlocker, STRIPPED, worksOn } from './salvage';
+import { remember } from './memory';
+import { canReachSalvage, canTakeAny, canTakeFromTruck, CANNOT_HOLD, CLAIMED, claimOnly, hasSalvage, holdsClaim, lootBlocker, STRIPPED, worksOn } from './salvage';
 import { passesUpLoot } from './loot-warning';
-import { canUseSite, isTerritory, siteGap, siteGates, siteUnder, type Site } from './sites';
-import { territoryAt, territoryGrounds } from './territory';
-import { addState, boundTo, endState, givesWord, isRobberyFeud, robbing, stateOf, statesHeld } from './states';
+import { canUseSite, isTerritory, siteGates, siteUnder, type Site } from './sites';
+import { territoryAt } from './territory';
+import { seesDowned, seesStock, visibleDowned, visibleSalvage, workableSpots } from './loot-picks';
+import { divideTurf, turfClaimants, worldHuntingSpots } from './hunting-spots';
+import { addState, bindingStatesHeld, boundTo, endState, givesWord, isRobberyFeud, robbing, stateOf, statesHeld } from './states';
 import { isStranded, vehicleStats } from './stats';
-import { canHire, canTakeEscort, declineFactor, escortsOf, inTowReach, isOnRope, strandedAt, towSite, unguardedLeader } from './tow';
+import { canHire, canTakeEscort, declineFactor, escortsOf, inTowReach, isOnRope, strandedAt, towSite } from './tow';
 import { leaderToJoin } from './pairs';
 import { ownSide, perceivedGroup } from './sides';
 import { canJoin, canMuster, heldBackByCrew, joinFactor } from './crews';
-import { followersOf } from './companies';
-import type { Contact, GoalReason, NpcActivity, PassReason, SalvageStock, Vehicle, World } from './types';
+import { companyOf, followersOf, followingOf } from './companies';
+import type { Contact, GoalReason, NpcActivity, PassReason, Vehicle, World } from './types';
 import { clamp, dist, type Vec } from './vec';
 import { icarusAtlas } from './atlas';
 import { canVehicleSee } from './vision';
 import { huntsOffRoad } from './hunt-style';
 import { postsOf } from './watch-posts';
+import { keepsToItself } from './sunward';
 import { bandAtLeast, bandToward, heedsCall, isAlly, isOutlaw, isRaider, lawCalls } from './relations';
 
 export type NpcProfile = {
@@ -149,26 +150,66 @@ export function perceiveDanger(world: World, observer: Vehicle, other: Vehicle):
   return judgeDanger(world, observer, other) * randRange(world, 1 - spread, 1 + spread);
 }
 
-export function dangerJoining(world: World, vehicle: Vehicle, friend: Vehicle, foes: Vehicle[]): number {
-  const ours = new Map([...ownSide(world, vehicle), ...perceivedGroup(world, vehicle, friend)].map((v) => [v.id, v]));
-  const theirs = new Map(foes.flatMap((foe) => perceivedGroup(world, vehicle, foe)).filter((v) => !ours.has(v.id)).map((v) => [v.id, v]));
+export function dangerJoining(world: World, speaker: Vehicle, fighters: Vehicle[], friend: Vehicle, foes: Vehicle[]): number {
+  const fighting = new Set(fighters.map((v) => v.id));
+  const { leader, members } = companyOf(world, speaker);
+  const company = new Set([leader, ...members].map((v) => v.id));
+  const own = ownSide(world, speaker).filter((v) => !company.has(v.id) || fighting.has(v.id));
+  const ours = new Map([...own, ...perceivedGroup(world, speaker, friend)].map((v) => [v.id, v]));
+  const theirs = new Map(foes.flatMap((foe) => perceivedGroup(world, speaker, foe)).filter((v) => !ours.has(v.id)).map((v) => [v.id, v]));
   const spread = NPC_BEHAVIOR.dangerSpread;
   return strengthRatio(fightOdds(world, [...ours.values()], [...theirs.values()])) * randRange(world, 1 - spread, 1 + spread);
 }
 
-export function canAnswerCall(world: World, vehicle: Vehicle, caller: Vehicle): boolean {
+export function canAnswerCall(world: World, speaker: Vehicle, caller: Vehicle): boolean {
   const foes = awakeFoesOf(world, caller);
-  if (foes.length === 0 || vehicle.brain === null || !heedsCall(world, vehicle, caller, foes)) return false;
-  if (isDefeated(vehicle) || isStranded(world, vehicle) || firepower(world, vehicle) <= 0 || inDanger(vehicle)) return false;
-  if (hasTrait(vehicle, 'coward') && !bandAtLeast(bandToward(world, vehicle, caller), 'friendly')) return false;
-  return !keepsWord(world, vehicle, 'helpCalled', caller.id);
+  if (foes.length === 0 || speaker.brain === null || !heedsCall(world, speaker, caller, foes)) return false;
+  if (isDefeated(speaker) || isStranded(world, speaker) || inDanger(speaker)) return false;
+  if (inCombatWithOther(world, speaker, caller.id) || isHostile(world, speaker, caller)) return false;
+  if (keepsWord(world, speaker, 'helpCalled', caller.id)) return false;
+  return callFighters(world, speaker, caller).length > 0;
 }
 
-function helpFactor(world: World, vehicle: Vehicle, _decision: DecisionId, subject: string | null): number {
+function freeToJoin(world: World, member: Vehicle): boolean {
+  if (holdsClaim(world, member.id)) return false;
+  const following = followingOf(world, member);
+  return bindingStatesHeld(world, member.id).every((state) => state === following);
+}
+
+function canFight(world: World, member: Vehicle, caller: Vehicle, foes: Vehicle[]): boolean {
+  if (member.brain === null || isDefeated(member) || isStranded(world, member) || inDanger(member)) return false;
+  if (firepower(world, member) <= 0 || inCombatWithOther(world, member, caller.id)) return false;
+  return heedsCall(world, member, caller, foes) && freeToJoin(world, member);
+}
+
+export function callFighters(world: World, speaker: Vehicle, caller: Vehicle): Vehicle[] {
+  const foes = awakeFoesOf(world, caller);
+  const { leader, members } = companyOf(world, speaker);
+  const crew = leader.id === speaker.id ? [speaker, ...members.filter((m) => canVehicleSee(world, speaker, m.pos))] : [speaker];
+  return crew.filter((member) => canFight(world, member, caller, foes));
+}
+
+function advantageOf(danger: number): number {
+  return danger > 0 ? 1 / danger : Infinity;
+}
+
+function oddsFactor(danger: number): number {
+  const advantage = advantageOf(danger);
+  return advantage > 1 ? Math.min(advantage, HELP_CALL.oddsCap) ** HELP_CALL.oddsPower : 1;
+}
+
+export function staysOutOfCall(world: World, speaker: Vehicle, caller: Vehicle, danger: number): boolean {
+  if (!hasTrait(speaker, 'coward') || bandAtLeast(bandToward(world, speaker, caller), 'friendly')) return false;
+  return advantageOf(danger) < HELP_CALL.cowardEdge;
+}
+
+function helpFactor(world: World, vehicle: Vehicle, _decision: DecisionId, subject: string | null, danger: number | null): number {
+  if (danger === null) throw new Error(`${vehicle.id} weighs a call for help with no danger`);
   const caller = subjectOf(world, 'helpCalled', subject);
-  if (lawCalls(vehicle, caller, awakeFoesOf(world, caller))) return HELP_CALL.law;
+  if (lawCalls(vehicle, caller, awakeFoesOf(world, caller))) return HELP_CALL.law * oddsFactor(danger);
   const band = bandToward(world, vehicle, caller);
-  return band === 'allied' ? HELP_CALL.allied : band === 'friendly' ? HELP_CALL.friendly : 1;
+  const bandFactor = band === 'allied' ? HELP_CALL.allied : band === 'friendly' ? HELP_CALL.friendly : 1;
+  return bandFactor * oddsFactor(danger);
 }
 
 export function isManageable(vehicle: Vehicle, danger: number): boolean {
@@ -248,72 +289,56 @@ export function tradeSpend(world: World, vehicle: Vehicle): number {
   return Math.min(getResources(world, vehicle).money - getUpkeepReserve(vehicle), stake);
 }
 
-export function tradeOffers(world: World, vehicle: Vehicle): Weighted<TradePlan>[] {
-  if (!modeRules(world).traffic) return [];
-  const spend = tradeSpend(world, vehicle);
-  const shops = Object.values(SHOPS);
-  return shops.flatMap((source) => shops.filter((buyer) => buyer.id !== source.id).flatMap((buyer) => runOffers(world, vehicle, source, buyer, spend)));
+export const tradeOffers = (world: World, vehicle: Vehicle): Weighted<TradePlan>[] => tradePlans().filter((plan) => planOnBeat(vehicle, plan)).flatMap(tradeOfferer(world, vehicle) ?? (() => []));
+
+const planOnBeat = (vehicle: Vehicle, plan: TradePlan): boolean => !hasTrait(vehicle, 'lawman') || (onBeat(vehicle, getKnownSite(plan.source).pos) && onBeat(vehicle, getKnownSite(plan.sellShop).pos));
+
+const tradePlans = (): TradePlan[] => Object.values(SHOPS).flatMap((from) => Object.values(SHOPS).filter((to) => to.id !== from.id).flatMap((to) => from.goods.filter((good) => to.goods.includes(good)).map((good) => ({ source: from.id, good, sellShop: to.id }))));
+
+function tradeOfferer(world: World, vehicle: Vehicle): ((plan: TradePlan) => Weighted<TradePlan>[]) | null {
+  if (!modeRules(world).traffic) return null;
+  const [spend, rig] = [tradeSpend(world, vehicle), tradeRig(world, vehicle)];
+  return (plan) => runOffer(world, vehicle, plan, spend, 1, rig);
 }
 
-export function tripFuelCost(world: World, vehicle: Vehicle, tiles: number): number {
+const tradeRig = (world: World, vehicle: Vehicle) => ({ fuelPerTile: vehicleStats(world, vehicle).fuelPerTile, room: cargoRoom(vehicle) });
+
+export function tripFuelCost(world: World, vehicle: Vehicle, tiles: number, fuelPerTile = vehicleStats(world, vehicle).fuelPerTile): number {
   if (!Number.isFinite(tiles) || tiles < 0) throw new Error(`${vehicle.id} prices the fuel of a trip of ${tiles} tiles`);
-  return tiles * vehicleStats(world, vehicle).fuelPerTile * ECONOMY.supplyPrice.fuel;
+  return tiles * fuelPerTile * ECONOMY.supplyPrice.fuel;
 }
 
-function runOffers(world: World, vehicle: Vehicle, source: ShopDef, buyer: ShopDef, spend: number): Weighted<TradePlan>[] {
-  return source.goods.filter((good) => buyer.goods.includes(good)).flatMap((good) => runOffer(world, vehicle, { source: source.id, good, sellShop: buyer.id }, spend, 1));
-}
+export type TradeOutlook = { buy: number; profit: number; count: number; fuel: number; risk: number; net: number; worth: boolean };
 
-function runOffer(world: World, vehicle: Vehicle, plan: TradePlan, spend: number, need: number): Weighted<TradePlan>[] {
-  const sourcePos = getKnownSite(plan.source).pos;
-  const trip = dist(vehicle.pos, sourcePos) + dist(sourcePos, getKnownSite(plan.sellShop).pos);
-  const fuel = tripFuelCost(world, vehicle, trip);
-  const buy = getTradePrice(world, vehicle, plan.source, plan.good, 'buy');
-  const profit = getTradePrice(world, vehicle, plan.sellShop, plan.good, 'sell') - buy;
-  if (spend < buy || profit <= 0) return [];
-  const count = affordableBuyCount(world, vehicle, plan.source, plan.good, cargoRoom(vehicle), spend);
+export function tradeOutlook(world: World, vehicle: Vehicle, plan: TradePlan, spend: number, trip: number, rig = tradeRig(world, vehicle)): TradeOutlook {
+  const fuel = tripFuelCost(world, vehicle, trip, rig.fuelPerTile);
+  const buy = getTradeRate(world, vehicle, plan.source, plan.good, 'buy');
+  const profit = getTradeRate(world, vehicle, plan.sellShop, plan.good, 'sell') - buy;
+  const count = affordableBuyCount(world, vehicle, plan.source, plan.good, rig.room, spend);
   const risk = count * goodValue(plan.good) * legRisk(world, plan.source, plan.sellShop);
   const net = count * profit - fuel - risk;
-  return net > 0 ? [{ value: plan, weight: (net * need) / trip }] : [];
+  return { buy, profit, count, fuel, risk, net, worth: spend >= buy && profit > 0 && net > 0 };
+}
+
+export function tradeLegTiles(plan: TradePlan): number {
+  return dist(getKnownSite(plan.source).pos, getKnownSite(plan.sellShop).pos);
+}
+
+function runOffer(world: World, vehicle: Vehicle, plan: TradePlan, spend: number, need: number, rig: ReturnType<typeof tradeRig>): Weighted<TradePlan>[] {
+  const trip = dist(vehicle.pos, getKnownSite(plan.source).pos) + tradeLegTiles(plan);
+  const outlook = tradeOutlook(world, vehicle, plan, spend, trip, rig);
+  return outlook.worth ? [{ value: plan, weight: (outlook.net * need) / trip }] : [];
 }
 
 export function supplyOffers(world: World, vehicle: Vehicle): Weighted<TradePlan>[] {
   if (!modeRules(world).traffic) return [];
-  const spend = tradeSpend(world, vehicle);
+  const [spend, rig] = [tradeSpend(world, vehicle), tradeRig(world, vehicle)];
   return graphEdges().flatMap((edge) => {
+    if (!planOnBeat(vehicle, { source: edge.from, good: edge.good, sellShop: edge.to })) return [];
     const short = stockTarget(edge.to, edge.good) - goodStock(shopState(world, edge.to), edge.good);
     if (short <= 0) return [];
-    return runOffer(world, vehicle, { source: edge.from, good: edge.good, sellShop: edge.to }, spend, short / stockTarget(edge.to, edge.good));
+    return runOffer(world, vehicle, { source: edge.from, good: edge.good, sellShop: edge.to }, spend, short / stockTarget(edge.to, edge.good), rig);
   });
-}
-
-export function visibleSalvage(world: World, vehicle: Vehicle): SalvageStock[] {
-  const stripped = strippedStocks(vehicle);
-  const visible = world.salvage.filter((stock) => seesSalvage(world, vehicle, stock, stripped));
-  return visible.sort((a, b) => dist(vehicle.pos, a.pos) - dist(vehicle.pos, b.pos));
-}
-
-export function visibleDowned(world: World, vehicle: Vehicle): Vehicle[] {
-  const visible = world.vehicles.filter((v) => seesDowned(world, vehicle, v));
-  return visible.sort((a, b) => dist(vehicle.pos, a.pos) - dist(vehicle.pos, b.pos));
-}
-
-function seesDowned(world: World, vehicle: Vehicle, target: Vehicle): boolean {
-  if (target.id === vehicle.id || !isKnockedOut(target) || !seesLoot(world, vehicle, target.id, target.pos)) return false;
-  return (!inTowReach(vehicle, target) || canTakeFromTruck(vehicle, target)) && lootTaken(world, vehicle, target.id) === null;
-}
-
-function seesLoot(world: World, vehicle: Vehicle, id: string, pos: Vec): boolean {
-  return !knownUnfit(vehicle, id) && canVehicleSee(world, vehicle, pos);
-}
-
-function strippedStocks(vehicle: Vehicle): ReadonlySet<string> {
-  return new Set(recall(vehicle, 'stripped').map((m) => m.fact.stock));
-}
-
-function seesSalvage(world: World, vehicle: Vehicle, stock: SalvageStock, stripped: ReadonlySet<string>): boolean {
-  if (stripped.has(stock.id) || backedOff(stock, vehicle.id) || !seesLoot(world, vehicle, stock.id, stock.pos)) return false;
-  return (!canReachSalvage(vehicle, stock) || canTakeAny(world, vehicle, stock)) && lootTaken(world, vehicle, stock.id) === null;
 }
 
 export function lootTaken(world: World, vehicle: Vehicle, targetId: string | null): GoalReason | null {
@@ -331,7 +356,7 @@ export function holdFull(vehicle: Vehicle): boolean {
   return fullAt !== undefined && freeCells(vehicle) <= fullAt;
 }
 
-function knownUnfit(vehicle: Vehicle, targetId: string): boolean {
+export function knownUnfit(vehicle: Vehicle, targetId: string): boolean {
   return vehicle.brain!.unfit?.includes(targetId) ?? false;
 }
 
@@ -405,16 +430,8 @@ export function salvageSitesAway(vehicle: Vehicle) {
   return npcProfile(vehicle).salvageSites.map(getKnownSite).filter((site) => !stands(vehicle, site));
 }
 
-let grounds: readonly Vec[] | null = null;
-
-export function huntingGrounds(): readonly Vec[] {
-  if (grounds) return grounds;
-  const sites = [...REGION.towns, ...REGION.locations];
-  const lonely = (p: Vec) => sites.every((site) => siteGap(site, p) >= HUNT.siteDistance);
-  const roadPoints = REGION.roads.flatMap((road) => pointsAlong(road, HUNT.roadSpacing)).filter(lonely);
-  const inTerritories = REGION.locations.filter(isTerritory).flatMap(territoryGrounds);
-  grounds = [...roadPoints, ...inTerritories];
-  return grounds;
+export function huntingGrounds(world: World): readonly Vec[] {
+  return worldHuntingSpots(world).spots;
 }
 
 function pointsAlong(line: readonly Vec[], spacing: number): Vec[] {
@@ -434,11 +451,11 @@ function pointsAlong(line: readonly Vec[], spacing: number): Vec[] {
   return points;
 }
 
-export function huntingGroundsAway(vehicle: Vehicle): Vec[] {
-  return huntingGrounds().filter((point) => dist(vehicle.pos, point) > RULES.arriveRadius * 2);
+export function huntingGroundsAway(world: World, vehicle: Vehicle): Vec[] {
+  const grounds = huntingGrounds(world).filter((point) => dist(vehicle.pos, point) > RULES.arriveRadius * 2);
+  const gates = beatGates(vehicle);
+  return gates ? grounds.filter((point) => withinGateReach(gates, point)) : grounds;
 }
-
-const raiderStops = new Map<string, readonly Vec[]>();
 
 export function lawmanTowns(): readonly Site[] {
   const ids = new Set(Object.values(NPCS).filter((t) => t.traits.includes('lawman') && t.spawn.kind === 'sites').flatMap((t) => (t.spawn.kind === 'sites' ? t.spawn.ids : [])));
@@ -457,24 +474,30 @@ export function nearLawGate(pos: Vec): boolean {
 }
 
 export function raiderGrounds(world: World, camp: Site): readonly Vec[] {
-  return campPosts(world, camp, campGrounds(camp), 'raid');
+  return campPosts(world, camp, campGrounds(world, camp), 'raid');
 }
 
 function campPosts(world: World, camp: Site, grounds: readonly Vec[], kind: string): readonly Vec[] {
   const posts = postsOf(world, `${kind}:${camp.id}`, grounds);
-  if (posts.length === 0) throw new Error(`Camp ${camp.id} has no ${kind} post`);
+  if (grounds.length > 0 && posts.length === 0) throw new Error(`Camp ${camp.id} has no ${kind} post`);
   return posts;
 }
 
-function campGrounds(camp: Site): readonly Vec[] {
-  const cached = raiderStops.get(camp.id);
-  if (cached) return cached;
-  const camps = REGION.locations.filter((site) => site.kind === 'camp');
-  const nearestCamp = (p: Vec) => camps.reduce((best, c) => (dist(p, c.pos) < dist(p, best.pos) ? c : best));
-  const gates = lawmanTowns().flatMap((town) => siteGates(town));
-  const points = huntingGrounds().filter((p) => nearestCamp(p).id === camp.id && gates.every((gate) => dist(gate, p) > HUNT.lawReach));
-  raiderStops.set(camp.id, points);
-  return points;
+const turfs = new WeakMap<readonly Vec[], Map<string, Vec[]>>();
+
+function turfOf(spots: readonly Vec[]): Map<string, Vec[]> {
+  let turf = turfs.get(spots);
+  if (!turf) {
+    turf = divideTurf(spots, turfClaimants());
+    turfs.set(spots, turf);
+  }
+  return turf;
+}
+
+function campGrounds(world: World, camp: Site): readonly Vec[] {
+  const turf = turfOf(huntingGrounds(world)).get(camp.id);
+  if (!turf) throw new Error(`Camp ${camp.id} claims no hunting turf`);
+  return turf;
 }
 
 export function raiderGroundsAway(world: World, vehicle: Vehicle): Vec[] {
@@ -494,6 +517,16 @@ export function homeCamp(vehicle: Vehicle): Site {
 
 export function patrolSite(vehicle: Vehicle): Site {
   return npcProfile(vehicle).bases.length > 0 ? homeCamp(vehicle) : nearestHome(vehicle, npcProfile(vehicle).towns);
+}
+
+const withinGateReach = (gates: readonly Vec[], point: Vec): boolean => gates.some((gate) => dist(gate, point) <= NPC_BEHAVIOR.patrolRadius);
+
+export function beatGates(vehicle: Vehicle): readonly Vec[] | null {
+  return hasTrait(vehicle, 'lawman') ? siteGates(patrolSite(vehicle)) : null;
+}
+
+export function onBeat(vehicle: Vehicle, point: Vec): boolean {
+  return !hasTrait(vehicle, 'lawman') || withinGateReach(siteGates(patrolSite(vehicle)), point);
 }
 
 const patrolStops = new Map<string, readonly Vec[]>();
@@ -516,8 +549,7 @@ function roadStops(site: Site, spacing: number): readonly Vec[] {
   const cached = patrolStops.get(key);
   if (cached) return cached;
   const gates = siteGates(site);
-  const near = (p: Vec) => gates.some((gate) => dist(gate, p) <= NPC_BEHAVIOR.patrolRadius);
-  const points = REGION.roads.flatMap((road) => pointsAlong(road, spacing)).filter((p) => near(p) && siteUnder(icarusAtlas(), p) === null);
+  const points = REGION.roads.flatMap((road) => pointsAlong(road, spacing)).filter((p) => withinGateReach(gates, p) && siteUnder(icarusAtlas(), p) === null);
   patrolStops.set(key, points);
   return points;
 }
@@ -618,7 +650,8 @@ function canResume(_world: World, vehicle: Vehicle): boolean {
 }
 
 function canTrade(world: World, vehicle: Vehicle): boolean {
-  return tradeOffers(world, vehicle).length > 0;
+  const offer = tradeOfferer(world, vehicle);
+  return offer !== null && tradePlans().some((plan) => planOnBeat(vehicle, plan) && offer(plan).length > 0);
 }
 
 function canScavenge(world: World, vehicle: Vehicle): boolean {
@@ -630,7 +663,7 @@ function canLootSubject(world: World, vehicle: Vehicle, decision: DecisionId, su
   if (subject === null) throw new Error(`${decision} needs a subject`);
   if (!hasCargoRoom(vehicle) || holdFull(vehicle)) return false;
   const stock = world.salvage.find((entry) => entry.id === subject);
-  if (stock) return seesSalvage(world, vehicle, stock, strippedStocks(vehicle));
+  if (stock) return seesStock(world, vehicle, stock);
   const truck = world.vehicles.find((v) => v.id === subject);
   return truck !== undefined && seesDowned(world, vehicle, truck);
 }
@@ -640,7 +673,7 @@ function canRaid(world: World, vehicle: Vehicle): boolean {
 }
 
 function canProwl(world: World, vehicle: Vehicle): boolean {
-  return canDrive(world, vehicle) && !holdFull(vehicle) && huntingGroundsAway(vehicle).length > 0;
+  return canDrive(world, vehicle) && !holdFull(vehicle) && huntingGroundsAway(world, vehicle).length > 0;
 }
 
 function canPatrol(world: World, vehicle: Vehicle): boolean {
@@ -673,10 +706,10 @@ type OptionName = DecisionOptions[DecisionId];
 const AVAILABLE: Record<OptionName, Availability> = {
   keep: always,
   pay: (world, vehicle) => canPayBounty(world, vehicle),
-  fight: canFightSubject,
+  fight: (world, vehicle, decision, subject) => !keepsToItself(world, vehicle) && canFightSubject(world, vehicle, decision, subject),
   fightBack: canFightSubject,
   flee: canDrive,
-  investigate: canInvestigate,
+  investigate: (world, vehicle, decision, subject) => !keepsToItself(world, vehicle) && canInvestigate(world, vehicle, decision, subject),
   rob: canRobSubject,
   ram: canRamSubject,
   tow: canTow,
@@ -684,9 +717,11 @@ const AVAILABLE: Record<OptionName, Availability> = {
   new: always,
   trade: canTrade,
   scavenge: canScavenge,
+  work: (world, vehicle) => workableSpots(world, vehicle).length > 0,
+  moveOn: always,
   raid: canRaid,
   prowl: canProwl,
-  loot: canLootSubject,
+  loot: (world, vehicle, decision, subject) => !keepsToItself(world, vehicle) && canLootSubject(world, vehicle, decision, subject),
   wait: always,
   linger: (world, vehicle) => lingerReasonNow(world, vehicle) !== null,
   patrol: canPatrol,
@@ -965,6 +1000,8 @@ const SITUATION: Record<OptionName, SituationFactor> = {
   new: neutral,
   trade: neutral,
   scavenge: scavengeFactor,
+  work: neutral,
+  moveOn: neutral,
   raid: neutral,
   prowl: neutral,
   loot: neutral,
@@ -1093,6 +1130,7 @@ const DECISION_KINDS: Record<DecisionId, 'venture' | 'response'> = {
   surrenderOffered: 'response',
   resume: 'response',
   idle: 'venture',
+  spotWork: 'venture',
   escortSeen: 'venture',
   hireOffered: 'response',
   aidAsked: 'response',
@@ -1117,6 +1155,10 @@ export function offersChoice(world: World, vehicle: Vehicle, decision: DecisionI
   const options = Object.keys(DECISIONS[decision]) as OptionName[];
   if (!options.includes('keep')) return true;
   return options.some((option) => option !== 'keep' && optionOpen(world, vehicle, decision, subject, option));
+}
+
+export function anyOptionOpen(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {
+  return (Object.keys(DECISIONS[decision]) as OptionName[]).some((option) => optionOpen(world, vehicle, decision, subject, option));
 }
 
 function optionOpen(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, option: OptionName): boolean {
@@ -1148,6 +1190,7 @@ export function decide<D extends DecisionId>(world: World, vehicle: Vehicle, dec
 }
 
 function checkWeights(vehicle: Vehicle, decision: DecisionId, weights: Partial<Record<OptionName, number>>): void {
+  if (Object.keys(weights).length === 0) throw new Error(`${vehicle.id} has no open option at ${decision}`);
   for (const [option, weight] of Object.entries(weights) as [OptionName, number][]) {
     if (!Number.isFinite(weight) || weight < 0) throw new Error(`${vehicle.id} has weight ${weight} for ${option} at ${decision}`);
   }

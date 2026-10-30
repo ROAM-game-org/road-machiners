@@ -4,10 +4,11 @@ import { RULES } from '../data/rules';
 import { getUpkeepReserve, partSellPrice, roadGoodAsk, roadPartAsk } from './economy';
 import { getResources } from './resources';
 import { UNITS } from '../data/units';
-import { findSpot, freeCells, gridOf, isMounted } from './grid';
+import { findSpot, freeCells, gridOf, isMounted, type Spot } from './grid';
 import { cargoRoom, stowPlace } from './inventory';
 import { looseCargo, takeError } from './salvage';
 import type { CallVar, GridItem, Vehicle, World } from './types';
+import { payoutM } from './money';
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;
 type GoodItem = Extract<GridItem, { kind: 'good' }>;
@@ -34,29 +35,38 @@ function inPickupOrder(items: GridItem[]): GridItem[] {
   return [...parts, ...kinds.flatMap((kind) => goods.filter((item) => item.good === kind))];
 }
 
-function fitsAll(winner: Vehicle, items: GridItem[]): boolean {
+function placeAll(winner: Vehicle, items: GridItem[]): Vehicle | null {
   const probe: Vehicle = { ...winner, items: [...winner.items] };
   for (const item of inPickupOrder(items)) {
-    if (item.kind === 'part') {
-      const spot = stowPlace(probe, item);
-      if (!spot) return false;
-      probe.items.push({ ...item, ...spot });
-      continue;
-    }
-    if (cargoRoom(probe) < 1) return false;
-    const spot = findSpot(gridOf(probe), probe.items, item, null, null);
-    if (!spot) return false;
+    const spot = item.kind === 'part' ? stowPlace(probe, item) : crateSpot(probe, item);
+    if (!spot) return null;
     probe.items.push({ ...item, ...spot });
   }
-  return true;
+  return probe;
+}
+
+function crateSpot(probe: Vehicle, item: GridItem): Spot | null {
+  if (cargoRoom(probe) < 1) return null;
+  return findSpot(gridOf(probe), probe.items, item, null, null);
 }
 
 function choose(winner: Vehicle, candidates: GridItem[], chosen: GridItem[], limit: number): GridItem[] {
   const picked = [...chosen];
+  let probe = placeAll(winner, picked);
+  if (!probe) return picked;
   const cells = freeCells(winner);
   for (const item of candidates) {
     if (picked.length - chosen.length >= limit || picked.length >= cells) break;
-    if (fitsAll(winner, [...picked, item])) picked.push(item);
+    if (item.kind === 'part') {
+      const rebuilt = placeAll(winner, [...picked, item]);
+      if (!rebuilt) continue;
+      probe = rebuilt;
+    } else {
+      const spot = crateSpot(probe, item);
+      if (!spot) continue;
+      probe.items.push({ ...item, ...spot });
+    }
+    picked.push(item);
   }
   return picked;
 }
@@ -66,7 +76,7 @@ export function cargoHaul(winner: Vehicle, loser: Vehicle): GridItem[] {
 }
 
 export function strippable(winner: Vehicle, loser: Vehicle): boolean {
-  return cargoHaul(winner, loser).length > 0 || removableParts(loser).some((item) => fitsAll(winner, [item]));
+  return cargoHaul(winner, loser).length > 0 || removableParts(loser).some((item) => placeAll(winner, [item]) !== null);
 }
 
 export function haulVar(items: GridItem[]): Extract<CallVar, { kind: 'haul' }> {
@@ -92,22 +102,27 @@ export function haulValue(items: GridItem[]): number {
   return items.reduce((sum, item) => sum + value(item), 0);
 }
 
-function askOf(item: GridItem): number {
-  if (item.kind === 'parcel') throw new Error(`Parcel ${item.id} is nobody's loot`);
-  return item.kind === 'part' ? roadPartAsk(item.part) : roadGoodAsk(item.good);
+function goodLots(items: GridItem[]): Map<string, number> {
+  const lots = new Map<string, number>();
+  for (const item of items) {
+    if (item.kind === 'parcel') throw new Error(`Parcel ${item.id} is nobody's loot`);
+    if (item.kind === 'good') lots.set(item.good, (lots.get(item.good) ?? 0) + 1);
+  }
+  return lots;
 }
 
 export function haulPrice(items: GridItem[]): number {
   if (items.length === 0) throw new Error('A haul price needs a haul');
-  const asked = items.reduce((sum, item) => sum + askOf(item), 0);
-  return Math.ceil(asked / UNITS.centsPerM) * UNITS.centsPerM;
+  const parts = items.reduce((sum, item) => sum + (item.kind === 'part' ? roadPartAsk(item.part) : 0), 0);
+  const goods = [...goodLots(items)].reduce((sum, [good, count]) => sum + roadGoodAsk(good, count), 0);
+  return parts + goods;
 }
 
 export function cashCut(world: World, victim: Vehicle): number {
   const spare = getResources(world, victim).money - getUpkeepReserve(victim);
   if (spare <= 0) return 0;
   const cut = Math.min(RULES.holdUp.cutCap, spare * RULES.holdUp.cutShare);
-  return Math.floor(cut / UNITS.centsPerM) * UNITS.centsPerM;
+  return payoutM(cut);
 }
 
 export function ransomOf(world: World, robber: Vehicle, victim: Vehicle): Ransom {

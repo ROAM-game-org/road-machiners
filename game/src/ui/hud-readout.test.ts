@@ -16,7 +16,7 @@ import { t, verbatim, type Msg } from "../text/msg";
 import { chassisName, driverName, professionName, siteName } from "../text/names";
 import { resolve } from "../text/resolve";
 import type { Vehicle } from "../sim/types";
-import { ContextPicker, getContextActions, getHudReadout, getRescueReadout, overdriveSwitch, versionLabel } from "./hud-readout";
+import { ContextPicker, getContextActions, getHudReadout, getRescueReadout, getSearchAction, overdriveSwitch, versionLabel } from "./hud-readout";
 import type { ContextAction } from "./hud";
 import { GAME_VERSION } from "../config";
 import { REGION } from '../data/region';
@@ -304,10 +304,28 @@ describe('search in combat', () => {
   });
 });
 
+describe('survey in combat', () => {
+  it('offers a ready Survey while Search stays blocked', () => {
+    const [site] = surveySites(TEST_MAP);
+    const { w, spot } = spotWorld();
+    w.salvage = [{ id: spot.id, pos: spot.pos, radius: propReach(spot), goods: { scrap: 1 }, parts: [], hidden: emptyHidden() }];
+    const me = playerVehicle(w);
+    me.pos = { x: site.pos.x + 1, y: site.pos.y };
+    w.player.contracts = [{ id: 'ct-s', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: true, done: false }], reward: 3000, deadline: 900, window: 900, tier: 1 }];
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: me.pos.x + 6, y: me.pos.y });
+    startCombat(w, raider, me);
+    const survey = actions(w)[0];
+    expect(survey).toMatchObject({ ready: true });
+    expect(survey.combat).toBeUndefined();
+    me.pos = { ...spot.pos };
+    expect(getSearchAction(w, w.salvage[0])).toMatchObject({ ready: false, combat: STATE_TURNS.combat });
+  });
+});
+
 describe("critical vehicle readout", () => {
   it("keeps money, survival resources and driver condition visible", () => {
     const w = emptyWorld();
-    w.player.money = 123450;
+    w.player.money = 1235;
     w.player.fuel = 18.5;
     w.player.supplies = 7.25;
     expect(getHudReadout(w).resources.map((r) => en(r.label))).toEqual([
@@ -362,14 +380,25 @@ describe("critical vehicle readout", () => {
       turnsLeft: 2,
       total: 4,
     };
-    expect(getHudReadout(w).survival.map((r) => en(r.label))).toEqual(["Heat", "Engine"]);
+    expect(getHudReadout(w).survival.map((r) => en(r.label))).toEqual(["Heat", "Engine", "Weather"]);
   });
-  it("shows the weather only when it is not clear", () => {
+  it("keeps the weather slot when the weather is clear", () => {
     const w = emptyWorld();
-    expect(getHudReadout(w).survival.map((r) => r.id)).not.toContain("weather");
+    const clear = getHudReadout(w).survival.find((r) => r.id === "weather")!;
+    expect({ value: en(clear.value), idle: clear.idle, warning: clear.warning }).toEqual({ value: "Clear", idle: true, warning: false });
     w.weather = [{ id: "h", kind: "heatwave", turnsLeft: 9, born: w.turn } as World["weather"][number]];
     const weather = getHudReadout(w).survival.find((r) => r.id === "weather")!;
-    expect({ label: en(weather.label), value: en(weather.value), warning: weather.warning }).toEqual({ label: "Weather", value: "Heat wave", warning: false });
+    expect({ label: en(weather.label), value: en(weather.value), warning: weather.warning, idle: weather.idle }).toEqual({ label: "Weather", value: "Heat wave", warning: false, idle: false });
+  });
+  it("lists the weather words most severe first", () => {
+    const w = emptyWorld();
+    const pos = playerVehicle(w).pos;
+    w.weather = [
+      { id: "h", kind: "heatwave", turnsLeft: 9, born: w.turn } as World["weather"][number],
+      { id: "s", kind: "storm", turnsLeft: 9, born: w.turn, pos: { ...pos }, radius: 5 } as World["weather"][number],
+    ];
+    const weather = getHudReadout(w).survival.find((r) => r.id === "weather")!;
+    expect(en(weather.value).indexOf("storm")).toBeLessThan(en(weather.value).indexOf("Heat wave"));
   });
   it("marks low fuel on the fuel readout with its cause", () => {
     const w = emptyWorld();
@@ -424,9 +453,9 @@ describe("rescue readout", () => {
 
   it("shows negative money as a negative amount with a warning", () => {
     const w = emptyWorld();
-    w.player.money = -120050;
+    w.player.money = -1201;
     const money = getHudReadout(w).resources[0];
-    expect({ value: en(money.value), balance: money.balance, warning: money.warning }).toEqual({ value: "\u22121,201 M's", balance: -120050, warning: true });
+    expect({ value: en(money.value), balance: money.balance, warning: money.warning }).toEqual({ value: "\u22121,201 M's", balance: -1201, warning: true });
   });
   it("gives only the M's entry a balance", () => {
     const { resources } = getHudReadout(emptyWorld());
@@ -494,7 +523,7 @@ describe('parcel handover action', () => {
     npc.speed = npcSpeed;
     w.player.contracts.push({
       id: 'ct-s', shop: 'bowl', kind: 'search', target: npc.id, driver: npc.brain.driver, template: 'trader',
-      lead: { at: { x: 0, y: 0 }, turn: 0 }, reward: 9200, deadline: 900, window: 600, tier: 1, delivered: false,
+      lead: { at: { x: 0, y: 0 }, turn: 0 }, reward: 92, deadline: 900, window: 600, tier: 1, delivered: false,
     });
     stowParcel(me, { id: 'i-parcel', x: 0, y: 0, rot: 0, kind: 'parcel', contract: 'ct-s' });
     addState(w, 'handover', npc.id, w.player.vehicleId, { kind: 'none' });
@@ -702,7 +731,7 @@ describe('survey interaction', () => {
   function atSurveySite() {
     const [site] = surveySites(TEST_MAP);
     const w = emptyWorld({ x: site.pos.x + 1, y: site.pos.y });
-    w.player.contracts = [{ id: 'ct-s', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: true, done: false }], reward: 3000, deadline: 900, window: 900, tier: 1 }];
+    w.player.contracts = [{ id: 'ct-s', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: true, done: false }], reward: 30, deadline: 900, window: 900, tier: 1 }];
     return w;
   }
 

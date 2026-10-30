@@ -4,8 +4,8 @@ import { PHYSICS } from "../../data/physics";
 import { REGION } from "../../data/region";
 import { TERRAIN_TYPES } from "../../data/terrain";
 import { desertWeight, glassField, lookTypes, ROAD_PLAIN, ROAD_SAND, type PaintCanvas } from "../../render/groundPaint";
-import { atlasOf, atlasSites, type Atlas } from "../../sim/atlas";
-import { sitePads } from "../../sim/sites";
+import { atlasOf, atlasSites } from "../../sim/atlas";
+import { sitePads, type Site } from "../../sim/sites";
 import type { Terrain } from "../../sim/terrain";
 import { mix, PAL } from "../../render/palette";
 import { HIGHWAY } from "../../data/modes";
@@ -48,7 +48,7 @@ const WEAR_TEAR_FROM = 0.92;
 const WEAR_GRAIN = 2;
 const WEAR_DUST = 0.05;
 
-export function drawRoads(material: THREE.MeshLambertMaterial, mask: PaintCanvas, t: Terrain): void {
+export function drawRoads(material: THREE.MeshLambertMaterial, mask: PaintCanvas, t: Terrain, shelters: readonly Site[]): void {
   paintRoadMask(mask, atlasOf(t), roadHoles(t));
   const pixel = S / mask.res / PIXEL_SPLIT;
   const uniforms = {
@@ -82,7 +82,7 @@ export function drawRoads(material: THREE.MeshLambertMaterial, mask: PaintCanvas
     glassSeam: { value: GLASS_SEAM },
     glassSeamColor: { value: new THREE.Color(GLASS_SEAM_COLOR) },
     glassDust: { value: new THREE.Color(GLASS_DUST) },
-    ...padUniforms(atlasOf(t), pixel),
+    ...padUniforms([...atlasSites(atlasOf(t)), ...shelters], pixel),
     ...wearUniforms(mask, t),
   };
   const worn = "highwayWear" in uniforms;
@@ -292,10 +292,10 @@ function roadHoles(t: Terrain): RoadHole[] {
   return windowCraters(key.seed, key.window).map((c) => ({ pos: fromRoad(key.seed, key.window, c.at.n, c.at.u), radius: Math.max(inset, c.radius - inset) }));
 }
 
-function padUniforms(atlas: Atlas, pixel: number) {
+function padUniforms(sites: readonly Site[], pixel: number) {
   const centers: THREE.Vector2[] = [];
   const axes: THREE.Vector2[] = [];
-  for (const site of atlasSites(atlas))
+  for (const site of sites)
     for (const pad of sitePads(site)) {
       centers.push(new THREE.Vector2(pad.x * S, pad.y * S));
       axes.push(new THREE.Vector2(pad.x - site.pos.x, pad.y - site.pos.y).normalize());

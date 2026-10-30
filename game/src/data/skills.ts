@@ -42,7 +42,7 @@ const EFFECTS = {
 export type SkillEffect<S extends SkillId> = keyof (typeof EFFECTS)[S] & string;
 export const SKILL_EFFECTS: { [S in SkillId]: Record<SkillEffect<S>, number> } = EFFECTS;
 
-export const RANK_COSTS: readonly number[] = [200, 400, 600, 800, 1000];
+export const RANK_COSTS: readonly number[] = [200, 400, 1200, 2200, 3500];
 export const MAX_RANK = RANK_COSTS.length;
 
 export type XpSourceDef = { skill: SkillId; weight: number; scaled: boolean; repeat: number };
@@ -60,19 +60,19 @@ export const XP_SOURCES: Record<XpSource, XpSourceDef> = {
   heat: { skill: 'toughness', weight: 0.3, scaled: true, repeat: 0.9 },
   damage: { skill: 'toughness', weight: 1.5, scaled: false, repeat: 0.95 },
   knockout: { skill: 'toughness', weight: 100, scaled: false, repeat: 0.5 },
-  profit: { skill: 'social', weight: 0.024, scaled: false, repeat: 0.8 },
+  profit: { skill: 'social', weight: 2.4, scaled: false, repeat: 0.8 },
   deal: { skill: 'social', weight: 30, scaled: false, repeat: 0.5 },
   call: { skill: 'social', weight: 8, scaled: false, repeat: 0 },
   honk: { skill: 'social', weight: 2, scaled: false, repeat: 0 },
   contract: { skill: 'social', weight: 1, scaled: false, repeat: 0.8 },
-  freeTow: { skill: 'social', weight: 0.024, scaled: false, repeat: 0.5 },
-  aid: { skill: 'social', weight: 0.024, scaled: false, repeat: 0.5 },
+  freeTow: { skill: 'social', weight: 2.4, scaled: false, repeat: 0.5 },
+  aid: { skill: 'social', weight: 2.4, scaled: false, repeat: 0.5 },
 };
 
 export const XP_RULES = {
   easy: 0.25,
   hard: 2,
-  dailyCap: 150,
+  dailyCap: 55,
   overCap: 0.1,
   repeatHalfLife: 200,
   forgetBelow: 0.01,
@@ -167,8 +167,8 @@ export const MAIN_SKILL: Record<Archetype, SkillId | null> = {
 };
 
 export const TARGET_DAYS = {
-  main: { 2: 4, 4: 16, 5: 30 },
-  off: { 2: 10 },
-} as const satisfies Record<'main' | 'off', Partial<Record<number, number>>>;
+  one: { 2: 4, 4: 16, 5: 30 },
+  every: { 1: 3, 2: 10 },
+} as const satisfies Record<'one' | 'every', Partial<Record<number, number>>>;
 
 export const TARGET_TOLERANCE = 0.3;

@@ -248,6 +248,23 @@ export function withHollowLaager_108_109(world: SavedJson): SavedJson {
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(rehome) };
 }
 
+const HOLLOW_PAD_121 = { x: 308.2397464837026, y: 513.8133571499616 };
+const BAY_MATCH_121 = 0.5;
+
+function onLaagerBay_120_121(at: { x: number; y: number } | null): boolean {
+  return at !== null && LAAGER_BAYS_109.some((b) => Math.hypot(b.x - at.x, b.y - at.y) <= BAY_MATCH_121);
+}
+
+export function withShelteredHollow_120_121(world: SavedJson): SavedJson {
+  const rehome = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    if (!brain || !onLaagerBay_120_121(brain.home as { x: number; y: number })) return v;
+    const goals = (brain.goals as SavedJson[]).map((g) => (onLaagerBay_120_121(g.destination as { x: number; y: number } | null) ? { ...g, destination: { ...HOLLOW_PAD_121 } } : g));
+    return { ...v, brain: { ...brain, home: { ...HOLLOW_PAD_121 }, goals } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(rehome), sheltered: [] };
+}
+
 export function withOfferedNight_86_87(world: SavedJson): SavedJson {
   const sunward = world.sunward as SavedJson | null;
   const night = sunward?.night as SavedJson | null | undefined;
@@ -628,4 +645,181 @@ export function withMoments_115_116(world: SavedJson): SavedJson {
   if (world.moments !== undefined) return world;
   const moments = world.chaosHighway === null ? Object.fromEntries(MOMENT_IDS_115.map((id) => [id, { driver: null, heard: false }])) : null;
   return { ...world, moments };
+}
+
+export function withDialogueSeen_116_117(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  const quests = player.quests as SavedJson | undefined;
+  return {
+    ...world,
+    player: {
+      ...player,
+      ...(call ? { call: { ...call, group: null, asked: [] } } : {}),
+      ...(quests ? { quests: { ...quests, seen: {} } } : {}),
+    },
+  };
+}
+
+export function withoutLenaGlare_117_118(world: SavedJson): SavedJson {
+  return ['heard_glare', 'asked_glare'].reduce((w, name) => dropQuestVar(w, 'nose_lena', name), world);
+}
+
+function chaseSpot_120_121(goal: SavedJson): SavedJson | null {
+  if (goal.kind === 'sizeUp') return goal.destination as SavedJson;
+  if (goal.kind === 'investigate') return (goal.heard ?? goal.destination) as SavedJson;
+  return null;
+}
+
+function withChaseRecord_120_121(turn: number, pos: SavedJson, goal: SavedJson): SavedJson {
+  const spot = chaseSpot_120_121(goal);
+  if (!spot || goal.chase) return goal;
+  const gap = Math.hypot((spot.x as number) - (pos.x as number), (spot.y as number) - (pos.y as number));
+  return { ...goal, chase: { turn, gap } };
+}
+
+export function withChaseRecords_120_121(world: SavedJson): SavedJson {
+  const turn = world.turn as number;
+  const withBrain = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null | undefined;
+    if (!brain) return v;
+    const goals = (brain.goals as SavedJson[]).map((goal) => withChaseRecord_120_121(turn, v.pos as SavedJson, goal));
+    return { ...v, brain: { ...brain, goals } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(withBrain) };
+}
+
+const OLD_CENTS_PER_M_116 = 100;
+
+function oldShown_123_124(cents: unknown, what: string): number {
+  if (typeof cents !== 'number' || !Number.isFinite(cents)) throw new Error(`Saved ${what} is ${String(cents)}, not a number`);
+  const whole = Math.round(cents);
+  if (whole === 0) return 0;
+  return Math.sign(whole) * Math.ceil(Math.abs(whole) / OLD_CENTS_PER_M_116);
+}
+
+function rate_123_124(cents: unknown, what: string): number {
+  if (typeof cents !== 'number' || !Number.isFinite(cents)) throw new Error(`Saved ${what} is ${String(cents)}, not a number`);
+  return cents / OLD_CENTS_PER_M_116;
+}
+
+function amountsOf_123_124(record: SavedJson, keys: string[], what: string): SavedJson {
+  const next: SavedJson = { ...record };
+  for (const key of keys) if (key in record) next[key] = oldShown_123_124(record[key], `${what} ${key}`);
+  return next;
+}
+
+function ratesOf_123_124(record: SavedJson, what: string): SavedJson {
+  return Object.fromEntries(Object.entries(record).map(([k, v]) => [k, rate_123_124(v, `${what} ${k}`)]));
+}
+
+function contract_123_124(c: SavedJson): SavedJson {
+  return amountsOf_123_124(c, ['reward', 'cratePay'], `contract ${String(c.id)}`);
+}
+
+function pastContract_123_124(past: SavedJson): SavedJson {
+  return { ...amountsOf_123_124(past, ['amount'], 'past contract'), contract: contract_123_124(past.contract as SavedJson) };
+}
+
+function callVars_123_124(vars: SavedJson): SavedJson {
+  const shown = (v: SavedJson): SavedJson => {
+    if (v.kind === 'money') return amountsOf_123_124(v, ['amount'], 'call money');
+    if (v.kind === 'deal') return amountsOf_123_124(v, ['price'], 'call deal');
+    if (v.kind === 'prices') return { ...v, goods: (v.goods as SavedJson[]).map((g) => amountsOf_123_124(g, ['buy', 'sell'], 'call price')) };
+    return v;
+  };
+  return Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, shown(v as SavedJson)]));
+}
+
+function call_123_124(call: SavedJson): SavedJson {
+  const line = call.line as SavedJson;
+  return { ...call, vars: callVars_123_124(call.vars as SavedJson), line: { ...line, vars: callVars_123_124(line.vars as SavedJson) } };
+}
+
+const STATE_AMOUNTS_123_124: Record<string, string[]> = {
+  tow: ['fee', 'waived'],
+  towPromise: ['fee'],
+  escort: ['fee'],
+  hire: ['fee'],
+  patch: ['price'],
+  aid: ['price'],
+  bountyStop: ['owed'],
+};
+
+function state_123_124(state: SavedJson): SavedJson {
+  const data = state.data as SavedJson;
+  const keys = STATE_AMOUNTS_123_124[data.kind as string];
+  if (!keys) return state;
+  return { ...state, data: amountsOf_123_124(data, keys, `${String(data.kind)} state ${String(state.id)}`) };
+}
+
+function brain_123_124(brain: SavedJson): SavedJson {
+  const memories = (brain.memories as SavedJson[] | undefined)?.map((m) => {
+    const fact = m.fact as SavedJson;
+    return fact.kind === 'witnessed' ? { ...m, fact: amountsOf_123_124(fact, ['restitution'], 'witnessed memory') } : m;
+  });
+  return memories ? { ...brain, memories } : brain;
+}
+
+function vehicle_123_124(v: SavedJson): SavedJson {
+  const resources = v.resources as SavedJson | null | undefined;
+  const brain = v.brain as SavedJson | null | undefined;
+  return {
+    ...v,
+    ...(resources ? { resources: amountsOf_123_124(resources, ['money'], `vehicle ${String(v.id)}`) } : {}),
+    ...(brain ? { brain: brain_123_124(brain) } : {}),
+  };
+}
+
+function story_123_124(encounters: SavedJson | undefined): SavedJson | undefined {
+  const story = encounters?.story as SavedJson | null | undefined;
+  if (!encounters || !story || !('aidValue' in story)) return encounters;
+  return { ...encounters, story: { ...story, aidValue: rate_123_124(story.aidValue, 'courier aid value') } };
+}
+
+function highway_123_124(run: SavedJson | null | undefined): SavedJson | null | undefined {
+  if (!run) return run;
+  return {
+    ...amountsOf_123_124(run, ['earned'], 'Chaos Highway'),
+    groups: (run.groups as SavedJson[]).map((g) => ({ ...g, money: rate_123_124(g.money, 'wave group money') })),
+  };
+}
+
+export function withWholeMoney_123_124(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  const encounters = story_123_124(player.encounters as SavedJson | undefined);
+  return {
+    ...world,
+    player: {
+      ...amountsOf_123_124(player, ['money'], 'player'),
+      costBasis: ratesOf_123_124(player.costBasis as SavedJson, 'cost basis'),
+      contracts: (player.contracts as SavedJson[]).map(contract_123_124),
+      pastContracts: ((player.pastContracts as SavedJson[] | undefined) ?? []).map(pastContract_123_124),
+      call: call ? call_123_124(call) : null,
+      ...(encounters ? { encounters } : {}),
+    },
+    shops: Object.fromEntries(
+      Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).map(contract_123_124) }]),
+    ),
+    vehicles: (world.vehicles as SavedJson[]).map(vehicle_123_124),
+    salvage: (world.salvage as SavedJson[]).map((stock) => {
+      const pile = stock.pile as SavedJson | undefined;
+      return pile ? { ...stock, pile: { ...pile, basis: ratesOf_123_124(pile.basis as SavedJson, `pile ${String(stock.id)} basis`) } } : stock;
+    }),
+    states: (world.states as SavedJson[]).map(state_123_124),
+    crimes: ((world.crimes as SavedJson[] | undefined) ?? []).map((c) => amountsOf_123_124(c, ['owed', 'restitution', 'escrow'], `case ${String(c.id)}`)),
+    chaosHighway: highway_123_124(world.chaosHighway as SavedJson | null | undefined) ?? null,
+  };
+}
+
+export function withRouteStyles_124_125(world: SavedJson): SavedJson {
+  const styled = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    const route = brain?.farRoute as SavedJson | undefined;
+    if (!brain || !route || route.style !== undefined) return v;
+    const { offRoad, ...rest } = route;
+    return { ...v, brain: { ...brain, farRoute: { ...rest, style: offRoad === true ? 'hidden' : 'road' } } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(styled) };
 }

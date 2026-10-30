@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { NPCS } from '../data/npcs';
-import { UNITS } from '../data/units';
 import { playerVehicle } from './damage';
-import { callVehicle, chooseOption, currentOptions, hangUp, raiseCalls } from './dialogue';
+import { callVehicle, currentOptions, hangUp, raiseCalls } from './dialogue';
+import { asksOf, chooseText } from './dialogue-testkit';
 import { getUpkeepReserve } from './economy';
 import { cashCut, ransomOf } from './haul';
 import { addGoods, cargoRoom } from './inventory';
@@ -18,15 +18,13 @@ import { entryText } from '../text/resolve';
 import type { Vehicle, World } from './types';
 
 const en = (line: Parameters<typeof lineKey>[0]): string => entryText('en', lineKey(line));
-const texts = (w: World): string[] => currentOptions(w).map((o) => en(o.line));
+const texts = (w: World): string[] => [...currentOptions(w).map((o) => en(o.line)), ...asksOf(w)];
 const PAY = "Here are your M's. Now back off.";
 const DROP = 'Fine. Take it.';
 const REFUSE = 'Come and get it.';
 
 function pick(w: World, text: string): World {
-  const i = texts(w).indexOf(text);
-  if (i < 0) throw new Error(`No option "${text}" in ${texts(w).join(' | ')}`);
-  return chooseOption(w, i);
+  return chooseText(w, text);
 }
 
 function ambush(cargo: boolean, fullRobber = false): { w: World; raider: Vehicle } {
@@ -301,9 +299,9 @@ describe('robbing a driver for M', () => {
   });
 });
 
-describe('the cent math', () => {
+describe('the cut math', () => {
   it('names whole M', () => {
     const { w } = ambush(false);
-    expect(cashCut(w, playerVehicle(w)) % UNITS.centsPerM).toBe(0);
+    expect(Number.isInteger(cashCut(w, playerVehicle(w)))).toBe(true);
   });
 });

@@ -9,7 +9,7 @@ import type { Msg } from "../text/msg";
 import { caseVictimName, clock, eventText, heldContractClock, heldContractDue } from "./format";
 
 const en = (msg: Msg | null | undefined): string => resolve(msg!, "en");
-const haul: Extract<Contract, { kind: "haul" }> = { id: "h", shop: "bowl", kind: "haul", good: "salt", units: 3, to: "nose", reward: 10000, deadline: 500, window: 400, rush: false, tier: 1 };
+const haul: Extract<Contract, { kind: "haul" }> = { id: "h", shop: "bowl", kind: "haul", good: "salt", units: 3, to: "nose", reward: 100, deadline: 500, window: 400, rush: false, tier: 1 };
 const lateWorld = () => {
   const w = emptyWorld(sitePads(siteOf("bowl"))[0]);
   w.turn = 600;
@@ -54,9 +54,9 @@ describe("embezzlement words", () => {
     expect(en(caseVictimName(emptyWorld(), embezzled))).toBe("The Granary");
   });
 
-  it("logs the filing against the player with the crates kept and the price", () => {
+  it("keeps the filing against the player out of the log until a Marshall demands it", () => {
     const w = emptyWorld();
-    const e: GameEvent = { t: "bountyFiled", case: "c", target: w.player.vehicleId, reporter: "granary", offense: "embezzled", victim: "granary", site: "granary", owed: 2600, kept: { good: "salt", crates: 3 } };
-    expect(en(eventText(w, e)!.text)).toMatch(/^The Granary posts a bounty: you kept 3 crates of salt\. The Marshalls want 26 M's\.$/);
+    const e: GameEvent = { t: "bountyFiled", case: "c", target: w.player.vehicleId, reporter: "granary", offense: "embezzled", victim: "granary", site: "granary", owed: 26, kept: { good: "salt", crates: 3 } };
+    expect(eventText(w, e)).toBeNull();
   });
 });

@@ -233,6 +233,7 @@ export const REGION = {
   navigation: {
     heuristicWeight: 1.2,
     offRoadCost: 1.75,
+    shortcutCost: 1.2,
     taste: { scale: 40, strength: 0.6 },
     lookahead: 48,
     slopeCost: 1,

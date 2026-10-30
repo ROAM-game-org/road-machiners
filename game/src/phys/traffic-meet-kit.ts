@@ -1,15 +1,13 @@
 import { NPCS } from '../data/npcs';
 import { REGION } from '../data/region';
-import { START_KITS } from '../data/start';
 import { addGoods } from '../sim/inventory';
-import { defaultSetup } from '../sim/settings';
 import { addVehicle, npcBrain } from '../sim/testkit';
 import type { Vehicle, World } from '../sim/types';
 import { isFree } from '../sim/spawn';
 import { vehicleStats } from '../sim/stats';
-import type { Vec } from '../sim/vec';
-import { endTurn, newWorld, setMoveOrder } from '../sim/world';
-import { TEST_MAP } from '../test/map';
+import { dist, type Vec } from '../sim/vec';
+import { cloneWorld, endTurn, setMoveOrder } from '../sim/world';
+import { standardWorld } from '../test/world-cache';
 import { buildDrive, freeDrive, type Drive } from './drive';
 import { physicsMove } from './turn';
 
@@ -21,6 +19,7 @@ const MEETING_TURNS = 12;
 const OVERTAKE_GAP = 6;
 const START_SEARCH = 40;
 const MIN_BACK = 6;
+const CLEAR_OF_TOWN = 30;
 
 function turn(w: World, d: Drive, bumps: Bump[]): { w: World; d: Drive } {
   let next: Drive | null = null;
@@ -29,11 +28,12 @@ function turn(w: World, d: Drive, bumps: Bump[]): { w: World; d: Drive } {
     bumps.push(...r.crashes);
   }));
   freeDrive(d);
+  after.player.call = null;
   return { w: after, d: next! };
 }
 
 function tradingWorld(): { w: World; traderId: string } {
-  const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+  const w = standardWorld(4);
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   const [bowl, nose] = REGION.towns;
@@ -42,6 +42,25 @@ function tradingWorld(): { w: World; traderId: string } {
   addGoods(w, trader, 'scrap', 1);
   trader.brain.goals = [{ kind: 'sell', targetId: nose.id, destination: { ...nose.pos }, phase: 'travel', reason: 'deliverCargo' }];
   return { w, traderId: trader.id };
+}
+
+let warmed: { w: World; traderId: string } | null = null;
+
+function underwayWorld(): { w: World; traderId: string } {
+  if (!warmed) {
+    const bumps: Bump[] = [];
+    let { w, traderId } = tradingWorld();
+    let d = buildDrive(w);
+    for (let i = 0; i < 30 && !underway(w.vehicles.find((v) => v.id === traderId)!); i++) ({ w, d } = turn(w, d, bumps));
+    freeDrive(d);
+    warmed = { w, traderId };
+  }
+  return { w: cloneWorld(warmed.w), traderId: warmed.traderId };
+}
+
+function underway(trader: Vehicle): boolean {
+  const [bowl] = REGION.towns;
+  return trader.speed >= 3 && dist(trader.pos, bowl.pos) > bowl.radius + CLEAR_OF_TOWN;
 }
 
 function freeStart(w: World, me: Vehicle, ahead: Vec, dir: number, back: number): Vec {
@@ -57,11 +76,10 @@ function freeStart(w: World, me: Vehicle, ahead: Vec, dir: number, back: number)
 
 export function meet(angle: number, speed: number, seconds: number): Meeting {
   const bumps: Bump[] = [];
-  let { w, traderId } = tradingWorld();
-  let d = buildDrive(w);
+  let { w, traderId } = underwayWorld();
+  let d: Drive;
   const traderOf = () => w.vehicles.find((v) => v.id === traderId)!;
   const playerOf = () => w.vehicles.find((v) => v.faction === 'player')!;
-  for (let i = 0; i < 30 && traderOf().speed < 3; i++) ({ w, d } = turn(w, d, bumps));
   const t = traderOf();
   const ahead = { x: t.pos.x + Math.cos(t.heading) * seconds * t.speed, y: t.pos.y + Math.sin(t.heading) * seconds * t.speed };
   const dir = t.heading + Math.PI + angle;
@@ -70,7 +88,6 @@ export function meet(angle: number, speed: number, seconds: number): Meeting {
   me.pos = freeStart(w, me, ahead, dir, speed * seconds + (angle === 0 ? t.speed * seconds + OVERTAKE_GAP : 0));
   me.heading = dir + Math.PI;
   me.speed = speed;
-  freeDrive(d);
   d = buildDrive(w);
   const dest = { x: ahead.x - Math.cos(dir) * 10, y: ahead.y - Math.sin(dir) * 10 };
   w = setMoveOrder(w, { kind: 'through', dest });
@@ -93,18 +110,16 @@ const STALL_STEP = 0.5;
 
 export function meetHeadOn(lane: number, speed: number): HeadOn {
   const bumps: Bump[] = [];
-  let { w, traderId } = tradingWorld();
-  let d = buildDrive(w);
+  let { w, traderId } = underwayWorld();
+  let d: Drive;
   const traderOf = () => w.vehicles.find((v) => v.id === traderId)!;
   const playerOf = () => w.vehicles.find((v) => v.faction === 'player')!;
-  for (let i = 0; i < 30 && traderOf().speed < 3; i++) ({ w, d } = turn(w, d, bumps));
   const t = traderOf();
   const side = { x: t.pos.x - Math.sin(t.heading) * lane, y: t.pos.y + Math.cos(t.heading) * lane };
   const me = playerOf();
   me.pos = freeStart(w, me, side, t.heading, HEAD_ON_GAP);
   me.heading = t.heading + Math.PI;
   me.speed = speed;
-  freeDrive(d);
   d = buildDrive(w);
   const dest = { x: t.pos.x - Math.cos(t.heading) * 10, y: t.pos.y - Math.sin(t.heading) * 10 };
   w = setMoveOrder(w, { kind: 'through', dest });

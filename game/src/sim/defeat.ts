@@ -5,7 +5,7 @@ import { chassisDef } from "../data/chassis";
 import { RULES } from "../data/rules";
 import { isJunk, maxHp, restorePart } from "./wear";
 import { haulerOf, playerVehicle } from "./damage";
-import { beatenBy, isHostile } from "./combat";
+import { beatenBy, crashOnly, isHostile } from "./combat";
 import { rollCabKnock } from "./cab-knock";
 import { openCoreDeath, openFirstFall } from "./quests";
 import { corePart, mountedParts } from "./grid";
@@ -61,7 +61,7 @@ function knockOutPlayer(world: World, me: Vehicle): void {
   world.player.knockouts++;
   noteKnockout(world, me);
   settleRevenge(world, me);
-  world.events.push({ t: "knockout" });
+  world.events.push({ t: "knockout", crash: crashOnly(world, me.id) });
   openFirstFall(world, me.defeat!.foes);
 }
 
@@ -97,10 +97,11 @@ export function advanceKnockout(world: World): string[] | null {
   if (!me.defeat) throw new Error("A knocked-out player truck has no defeat");
   const foes = me.defeat.foes;
   if (attackerWatches(world, me, foes) && p.knockoutTurns < RULES.knockoutMaxTurns) return null;
+  const gaveUp = me.defeat.gaveUp;
   patchBrokenCore(me);
   delete me.defeat;
   p.state = "active";
-  world.events.push({ t: "wake" });
+  world.events.push({ t: "wake", gaveUp });
   return foes;
 }
 
@@ -219,7 +220,7 @@ function advanceNpcKnockout(world: World, v: Vehicle): void {
   if (attackerWatches(world, v, defeat.foes) && defeat.turns < RULES.knockoutMaxTurns) return;
   patchBrokenCore(v);
   v.defeat = { ...defeat, phase: "retreat", unseen: 0 };
-  world.events.push({ t: "npcWake", vehicle: v.id });
+  world.events.push({ t: "npcWake", vehicle: v.id, gaveUp: defeat.gaveUp });
 }
 
 function heldDown(world: World, v: Vehicle): boolean {

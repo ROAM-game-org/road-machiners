@@ -7,6 +7,8 @@ import { MEMORY, NPC_BEHAVIOR } from './npc-behavior';
 import { MAP_SCALE } from './region';
 import { TERRAIN } from './terrain';
 import { TIME } from './time';
+import { itemValue } from './units';
+import { fairM } from '../sim/money';
 import type { WitnessedOffense } from '../sim/types';
 
 
@@ -16,9 +18,9 @@ export type ItemKind = 'weapon' | 'engine' | 'armor' | 'accessory' | 'cargo' | '
 
 export const EFFORT = {
   wage: {
-    1: 12.33,
-    2: 33.33,
-    3: 73.33,
+    1: 0.1233,
+    2: 0.3333,
+    3: 0.7333,
   } as Record<Tier, number>,
 
   bands: {
@@ -84,7 +86,7 @@ export const CONTRACTS = {
     valueShare: 0.05,
     units: [3, 12] as [number, number],
     lateShare: 1,
-    xpPerEffort: 0.003,
+    xpPerEffort: 0.3,
     rush: {
       chance: 0.25,
       durationFactor: 1.5,
@@ -105,14 +107,14 @@ export const CONTRACTS = {
     rivalTraits: ['scavenger', 'vulture', 'roamer', 'trader'] as readonly TraitId[],
     durationFactor: 2.5,
     slackTurns: Math.round(TIME.turnsPerDay / 2),
-    xpPerEffort: 0.003,
+    xpPerEffort: 0.3,
   },
 
   procure: {
     units: [3, 12] as [number, number],
     travelFactor: 0.5,
     slackTurns: EFFORT.handlingTurns * 2,
-    xpPerEffort: 0.003,
+    xpPerEffort: 0.3,
   },
 
   search: {
@@ -120,7 +122,7 @@ export const CONTRACTS = {
     rewardTurns: 750,
     freshTurns: Math.round(TIME.turnsPerDay / 4),
     awayTiles: TERRAIN.vision.radius,
-    xpPerEffort: 0.0045,
+    xpPerEffort: 0.45,
   },
 
   survey: {
@@ -134,21 +136,23 @@ export const CONTRACTS = {
     clue: { range: 36 * MAP_SCALE, roundTiles: 25, band: 40, nearby: 40, layRing: 30, rise: 2, hollow: -1.3 },
     rewardFactor: 15,
     knowledgeRange: 12,
-    xpPerEffort: 0.003,
+    xpPerEffort: 0.3,
   },
   escort: {
-    xpPerEffort: 0.003,
+    xpPerEffort: 0.3,
   },
 
   rescue: {
     range: 26.4 * MAP_SCALE,
     areaRadius: 13,
     areaOffset: 11,
-    xpPerEffort: 0.003,
+    xpPerEffort: 0.3,
   },
 };
 
 export type Threat = Tier;
+
+export const RAIDER_THREAT = { reach: 40, risky: 1, dangerous: 3 };
 
 export const ESCORT_JOB = {
   postTurns: 75,
@@ -156,7 +160,6 @@ export const ESCORT_JOB = {
   stuckTurns: 120,
   holdTurns: 90,
   apartGap: NPC_BEHAVIOR.escortCatchUpGap,
-  threatReach: 40,
   minWin: { 1: 0.55, 2: 0.65, 3: 0.75 } as Record<Threat, number>,
   threatPremium: { 1: 0.6, 2: 1, 3: 1.5 } as Record<Threat, number>,
   postWeight: { 1: 0.2, 2: 1, 3: 2 } as Record<Threat, number>,
@@ -486,7 +489,7 @@ export function rationsValue(values: Record<string, number>, wage: number): numb
   if (!recipe) throw new Error('The Granary has no rations recipe');
   const inputs = Object.entries(recipe.inputs).reduce((sum, [good, n]) => sum + n * requireValue(values, good), 0);
   const work = recipe.everyCycles * PRODUCTION.cycleTurns * wage;
-  return Math.round((inputs + work) / recipe.outputs.rations);
+  return itemValue((inputs + work) / recipe.outputs.rations);
 }
 
 function requireValue(values: Record<string, number>, good: string): number {
@@ -520,7 +523,7 @@ export const TOWN_MARKETS = Object.keys(SHOPS);
 export const STALL_MARKETS = Object.values(SHOPS).filter((s) => s.kind === 'stall').map((s) => s.id);
 
 const BOUNTY_WAGE = EFFORT.wage[1];
-const wageOf = (turns: number): number => Math.round(turns * BOUNTY_WAGE);
+const wageOf = (turns: number): number => fairM(turns * BOUNTY_WAGE);
 const FINE_TURNS: Record<WitnessedOffense, number> = { attacked: 450, robbed: 900, killed: 2700 };
 
 export const CRIME = {

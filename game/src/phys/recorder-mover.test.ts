@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { recordTurns, stepsFrom } from '../sim/progression/record';
+import { stepsFrom } from '../sim/progression/record';
+import { recordTurns } from '../sim/progression/record-node';
 import { haulerOf, playerVehicle } from '../sim/damage';
 import { yardSpots } from '../sim/outpost-gates';
 import { chaosHighwayWorld, parkInYard } from '../sim/testkit';

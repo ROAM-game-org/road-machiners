@@ -1,4 +1,4 @@
-import type { BrokenProp, Player, QuestState, Vehicle, World } from '../sim/types';
+import type { BrokenProp, Player, QuestState, ShelteredTruck, Vehicle, World } from '../sim/types';
 import SAVED_SCHEMA from './save-schema.json';
 
 type SavedPlayer = Omit<Player, 'visible' | 'contacts' | 'clouds' | 'quests' | 'explored'> & {
@@ -6,8 +6,9 @@ type SavedPlayer = Omit<Player, 'visible' | 'contacts' | 'clouds' | 'quests' | '
   explored: string;
 };
 
-export type SavedWorld = Omit<World, 'terrain' | 'events' | 'removed' | 'vehicles' | 'broken' | 'player'> & {
+export type SavedWorld = Omit<World, 'terrain' | 'events' | 'removed' | 'vehicles' | 'sheltered' | 'broken' | 'player'> & {
   vehicles: Omit<Vehicle, 'trail'>[];
+  sheltered: { vehicle: Omit<Vehicle, 'trail'>; site: ShelteredTruck['site'] }[];
   broken: { id: BrokenProp['obstacle']['id']; turn: number }[];
   player: SavedPlayer;
 };

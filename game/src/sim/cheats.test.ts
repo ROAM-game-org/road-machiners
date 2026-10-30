@@ -32,7 +32,7 @@ import { stormStrength } from './weather';
 import { canUseSite, isTerritory, siteGap, worldPlaces } from './sites';
 import { endTurn, hostileToPlayer, newWorld, update } from './world';
 import { highwayMap } from './highway';
-import { TEST_MAP } from '../test/map';
+import { standardWorld } from '../test/world-cache';
 import { defaultSetup } from './settings';
 
 function withSpawned(w: World, templateId: string, hostile: boolean): { w: World; id: string } {
@@ -308,7 +308,7 @@ describe('noclipMove', () => {
 
   it('names an open radio call as what blocks the flight', () => {
     const w = emptyWorld();
-    w.player.call = { with: 'v9', topic: null, node: 'demand', vars: {}, line: { line: 'demandCargo', vars: {} } };
+    w.player.call = { with: 'v9', topic: null, node: 'demand', vars: {}, line: { line: 'demandCargo', vars: {} }, group: null, asked: [] };
     expect(() => noclipMove(w, { x: 80, y: 90 })).toThrow('Cannot fly while a radio call is open');
   });
 });
@@ -357,7 +357,7 @@ describe('teleport', () => {
 
 describe('places and time', () => {
   it('teleports to the usable spot of every named place, found through the name catalog', () => {
-    const w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const w = standardWorld(1);
     const named = Object.keys(NAMES).filter((key) => key.startsWith('site.')).map((key) => key.slice('site.'.length)).filter((id) => !RETIRED_SITES.includes(id));
     const places = worldPlaces(w);
     expect(places.map((p) => p.id).sort()).toEqual([...named].sort());
@@ -372,7 +372,7 @@ describe('places and time', () => {
   });
 
   it('teleports to the Hollow gate pad, also after the order falls', () => {
-    const w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const w = standardWorld(1);
     const fallen = update(w, (d) => {
       d.sunward!.collapsed = 5;
     });
@@ -389,7 +389,7 @@ describe('places and time', () => {
   });
 
   it('sends a teleport to a territory to where its road ends', () => {
-    const w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const w = standardWorld(1);
     const sun = REGION.locations.find((l) => l.id === 'fallen-sun')!;
     expect(Math.abs(siteGap(sun, placeSpot(w, sun.id)))).toBeLessThan(1e-6);
   });

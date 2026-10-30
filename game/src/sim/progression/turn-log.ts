@@ -4,7 +4,7 @@ import { playerVehicle } from '../damage';
 import { goodsCount, mountedParts } from '../grid';
 import { onRouteRoad, terrainNav } from '../nav/layer';
 import { fightOddsAgainst } from '../npc-decisions';
-import { keepsOffRoads } from '../off-road';
+import { routeStyle, type RouteStyle } from '../off-road';
 import { REGION } from '../../data/region';
 import { ROAD_INDEX } from '../road-index';
 import { getResources } from '../resources';
@@ -86,7 +86,7 @@ function runField(world: World): { run?: string } {
 const SNAPSHOT_TURNS = 10;
 
 export type WorldLine = { t: number; events?: GameEvent[]; money?: NpcLedger; trucks?: TruckSnap[] };
-export type TruckSnap = { id: string; who: string; faction: string; chassis: string; pos: [number, number]; speed: number; order: string | null; goals: string[]; money: number; fuel: number; sup: number; stranded: boolean; hp: number; states: string[]; offRoad: boolean; onRoad: boolean; roadGap: number };
+export type TruckSnap = { id: string; who: string; faction: string; chassis: string; pos: [number, number]; speed: number; order: string | null; goals: string[]; money: number; fuel: number; sup: number; stranded: boolean; hp: number; states: string[]; style: RouteStyle; onRoad: boolean; roadGap: number };
 
 export function worldLine(world: World, events: readonly GameEvent[], npcMoney: NpcLedger = {}): WorldLine | null {
   const line: WorldLine = { t: world.turn, ...eventsField(events), ...moneyField(npcMoney) };
@@ -107,7 +107,7 @@ function meanHp(v: Vehicle): number {
   return Math.round(parts.reduce((sum, p) => sum + (100 * p.hp) / maxHp(p), 0) / Math.max(1, parts.length));
 }
 
-function snap(world: World, v: Vehicle): TruckSnap {
+export function snap(world: World, v: Vehicle): TruckSnap {
   const hp = meanHp(v);
   return {
     id: v.id,
@@ -124,7 +124,7 @@ function snap(world: World, v: Vehicle): TruckSnap {
     stranded: isStranded(world, v),
     hp,
     states: world.states.filter((s) => s.holder === v.id).map((s) => `${s.kind}>${s.other}`),
-    offRoad: keepsOffRoads(world, v),
+    style: routeStyle(world, v),
     onRoad: onRouteRoad(terrainNav(world.terrain), v.pos.x, v.pos.y),
     roadGap: roadGap(v),
   };
@@ -150,7 +150,7 @@ function foesSeen(world: World, me: Vehicle): SeenFoe[] {
 }
 
 const OWN = new Set(['money', 'contract', 'claimRival', 'claimLead', 'death', 'knockout', 'wake', 'skillUp', 'supply', 'townPatch', 'scrapPatch', 'searched', 'discover', 'outpostReached', 'roadOpened', 'runLost']);
-const QUIET = new Set(['practice', 'activity', 'arrived', 'spawn', 'despawn', 'info', 'weather']);
+export const QUIET = new Set(['practice', 'activity', 'arrived', 'spawn', 'despawn', 'info', 'weather', 'enteredSite', 'leftSite']);
 
 export function touchesPlayer(e: GameEvent, me: string): boolean {
   if (QUIET.has(e.t)) return false;

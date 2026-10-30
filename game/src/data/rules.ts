@@ -4,6 +4,7 @@ import type { LandmarkLook } from '../sim/types';
 export const RULES = {
   substeps: 26,
   crawlSpeed: 1,
+  setSpeedStep: 20 / 14.4,
   lowFuelThreshold: 0.2,
   lowFuelSpeedFactor: 0.5,
   fuelUseFactor: 0.045,
@@ -14,7 +15,7 @@ export const RULES = {
   reverse: { cone: 20, distance: 1, maxDistance: 6 },
   meetStep: 0.3,
   arriveRadius: 0.5,
-  throttleZones: { reach: 10, brake: 0.25, hold: 0.5, accelerate: 0.25 },
+  throttleZones: { reach: 10, brake: 0.25, hold: 0.5, accelerate: 0.25, minHalfAngle: Math.PI / 12 },
   reclickRadius: 0.75,
   passRadius: 1,
   minAimDistance: 1.5,
@@ -35,8 +36,8 @@ export const RULES = {
   cellPen: 0.5,
   crashPen: 4,
   crashFalloff: 0.6,
-  groundCrash: 3,
-  landingDamage: 0.25,
+  groundCrash: 1.5,
+  landingDamage: 0.125,
   wheelLoss: 0.15,
   tankLeak: 1,
 
@@ -92,7 +93,7 @@ export const RULES = {
   retreatTeleportTurns: 50,
   holdUp: {
     cutShare: 0.5,
-    cutCap: 8800,
+    cutCap: 88,
   },
 };
 

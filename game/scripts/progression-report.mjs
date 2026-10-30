@@ -2,7 +2,6 @@ import { createReadStream, readdirSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { MAX_RANK, SKILL_IDS } from '../src/data/skills.ts';
 import { TIME } from '../src/data/time.ts';
-import { UNITS } from '../src/data/units.ts';
 import { parseRun, replay, targetMisses, WORTH_KEYS } from '../src/sim/progression/replay.ts';
 import { LEDGER_KEYS } from '../src/sim/progression/orders.ts';
 import { fightTotals, ledgerTotals, TIERS, tierDays, wageByTier } from '../src/sim/progression/record.ts';
@@ -10,7 +9,7 @@ import { measuredRewardTurns, searchEffort } from '../src/sim/progression/turn-l
 
 const dirs = process.argv.slice(2).filter((a) => a !== '--');
 if (dirs.length > 2) throw new Error('Pass one dir to report on, or two to compare');
-const inM = (digits) => (cents) => (cents / UNITS.centsPerM).toFixed(digits);
+const inM = (digits) => (amount) => amount.toFixed(digits);
 
 const sides = [];
 for (const dir of dirs.length > 0 ? dirs : ['tmp/progression']) sides.push(await readDir(dir));
@@ -164,13 +163,15 @@ function printEndings(group) {
 
 function printSkills(group) {
   const levels = Array.from({ length: MAX_RANK }, (_, i) => `R${i + 1}`);
-  const rows = [['skill', ...levels.map((l) => `${l} day`), 'XP/day']];
-  for (const skill of SKILL_IDS) {
-    const curves = group.map((r) => r.curve[skill]);
-    const cells = levels.map((_, i) => levelCell(curves.map((c) => c.levels[i]), group.length));
-    rows.push([skill, ...cells, spread(curves.map((c) => c.perDay), (n) => n.toFixed(0))]);
-  }
+  const rows = [['family', 'XP/day']];
+  for (const skill of SKILL_IDS) rows.push([skill, spread(group.map((r) => r.curve.families[skill].perDay), (n) => n.toFixed(0))]);
+  rows.push(['pooled', spread(group.map((r) => r.curve.pooled.perDay), (n) => n.toFixed(0))]);
   printTable(rows);
+  const ranks = [['rank', ...levels.map((l) => `${l} day`)]];
+  for (const [label, kind] of [['one skill', 'one'], ['every skill', 'every']]) {
+    ranks.push([label, ...levels.map((_, i) => levelCell(group.map((r) => r.curve.pooled[kind][i]), group.length))]);
+  }
+  printTable(ranks);
   for (const run of group) for (const miss of run.misses) console.log(`  seed ${run.seed}: ${miss}`);
   if (group.every((run) => run.misses.length === 0)) console.log('  all targets met');
 }

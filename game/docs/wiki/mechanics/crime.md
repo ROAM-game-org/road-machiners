@@ -1,6 +1,6 @@
 # Crime and the Marshalls
 
-A calm attack, robbery or killing on the open road has a slow answer. Nobody knows of it until a driver who saw it reports it at a town or outpost. The report becomes a bounty, and a Marshall from the Roadhouse rides out to collect it. The answer is in Roaming only. Chaos Highway has the `bounties` mode switch off. `src/sim/crime.ts` owns the memories, reports, cases and money. `src/sim/marshals.ts` owns the hunt and the demand. The numbers are `CRIME` and `BOUNTY` in `src/data/market.ts`.
+A calm attack, robbery or killing on the open road has a slow answer. Nobody knows of it until a driver who saw it reports it at a town or site. The report becomes a bounty, and a Marshall from the Roadhouse rides out to collect it. The answer is in Roaming only. Chaos Highway has the `bounties` mode switch off. `src/sim/crime.ts` owns the memories, reports, cases and money. `src/sim/marshals.ts` owns the hunt and the demand. The numbers are `CRIME` and `BOUNTY` in `src/data/market.ts`.
 
 ```
 incident (calm attack or robbery) or killing (a wreck of a driver that remembers the killer wronged it)
@@ -84,6 +84,6 @@ open case
 
 - Parked on a Roadhouse pad, the player opens a desk with one tab. It lists each open case with Pay at its fine plus restitution, and Pay all.
 - It lists each lawful organized faction that holds the player hostile with Settle. Settling lifts that standing to −49, wary, and changes nothing else: memories, feuds and other cases stay.
-- The price is the days of drift it skips at the tier 1 wage: (−49 − standing) / 10 a day × 450 turns × 12.33 cents. From −100 that is about 283 M's.
+- The price is the days of drift it skips at the tier 1 wage: (−49 − standing) / 10 a day × 450 turns × 0.1233 M. From −100 that is about 283 M's.
 - The desk offers Look for locals beside Drive on. Petra Quell is the one local. While the player holds a search, she sells the newest Marshall sighting of its target for `CRIME.leadFee` (about 3 M's), only when it is newer than the lead held. With none she says so and charges nothing.
 - Settle is off while a case that faction issued is open, or while the player is short.

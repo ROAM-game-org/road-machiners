@@ -8,7 +8,8 @@ import { emptyWorld } from "../sim/testkit";
 import type { World } from "../sim/types";
 import { setMoveOrder } from "../sim/world";
 import { reportError } from "./crash";
-import { PlanPreparation } from "./plan-preview";
+import { PAL } from "../render/palette";
+import { firstTurnColor, PlanPreparation, throttleColor } from "./plan-preview";
 
 vi.mock("./crash", () => ({ reportError: vi.fn() }));
 
@@ -183,4 +184,18 @@ it("gives up on a preview worker that never loads with one download failure", ()
   plans.request(world, drive, "me");
   expect(TestWorker.created).toBe(6);
   vi.useRealTimers();
+});
+
+it("colors the hover ring and the first turn by the pace the click would hold", () => {
+  const w = emptyWorld({ x: 200, y: 200 });
+  const me = w.vehicles.find((v) => v.id === w.player.vehicleId)!;
+  me.speed = 4;
+  const far = { x: me.pos.x + 80, y: me.pos.y };
+  const held = setMoveOrder(w, { kind: "through", dest: far });
+  const me2 = held.vehicles.find((v) => v.id === w.player.vehicleId)!;
+  expect(throttleColor(held, me2, { x: me2.pos.x + 1, y: me2.pos.y })).toBe(PAL.throttle.brake);
+  expect(firstTurnColor(held, me2)).toBe(PAL.throttle.accelerate);
+  const slow = setMoveOrder(held, { kind: "through", dest: far, pace: 1 });
+  const me3 = slow.vehicles.find((v) => v.id === w.player.vehicleId)!;
+  expect(firstTurnColor(slow, me3)).toBe(PAL.throttle.brake);
 });

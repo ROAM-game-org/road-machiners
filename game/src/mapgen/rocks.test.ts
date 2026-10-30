@@ -17,16 +17,19 @@ const SITES = [...REGION.towns, ...REGION.locations];
 
 function expectClear(rocks: BakedProp[]): void {
   const bridge = deckById('canyon-bridge');
+  const faults: string[] = [];
+  const at = (rock: BakedProp) => `${rock.pos.x},${rock.pos.y}`;
   for (const rock of rocks) {
     const { x, y } = rock.pos;
-    expect(Math.min(x, y, SIZE - x, SIZE - y)).toBeGreaterThanOrEqual(O.edgeMargin);
-    expect(ROAD_INDEX.nearestWithin(x, y, Infinity)).toBeGreaterThanOrEqual(REGION.roadWidth / 2 + O.roadClearance + rock.r);
-    for (const site of SITES) expect(siteGap(site, rock.pos)).toBeGreaterThan(O.siteClearance + rock.r);
-    expect(segmentDist(rock.pos, bridge.from, bridge.to)).toBeGreaterThanOrEqual(bridge.width / 2 + rock.r);
+    if (Math.min(x, y, SIZE - x, SIZE - y) < O.edgeMargin) faults.push(`rock at ${at(rock)} is inside the margin`);
+    if (ROAD_INDEX.nearestWithin(x, y, Infinity) < REGION.roadWidth / 2 + O.roadClearance + rock.r) faults.push(`rock at ${at(rock)} is on a road`);
+    for (const site of SITES) if (siteGap(site, rock.pos) <= O.siteClearance + rock.r) faults.push(`rock at ${at(rock)} is on site ${site.id}`);
+    if (segmentDist(rock.pos, bridge.from, bridge.to) < bridge.width / 2 + rock.r) faults.push(`rock at ${at(rock)} is on the bridge`);
   }
   for (let a = 0; a < rocks.length; a++) for (let b = a + 1; b < rocks.length; b++) {
-    expect(dist(rocks[a].pos, rocks[b].pos)).toBeGreaterThanOrEqual(rocks[a].r + rocks[b].r + O.gap);
+    if (dist(rocks[a].pos, rocks[b].pos) < rocks[a].r + rocks[b].r + O.gap) faults.push(`rocks at ${at(rocks[a])} and ${at(rocks[b])} touch`);
   }
+  expect(faults).toEqual([]);
 }
 
 const FOOT = 300;

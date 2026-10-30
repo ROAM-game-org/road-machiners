@@ -18,4 +18,12 @@ describe("lookReason", () => {
     world.player.quests.live = null;
     expect(lookReason(world)).toBeNull();
   });
+
+  it("names the knockout, and lets a live scene win", () => {
+    const world = emptyWorld();
+    world.player.state = "knockedOut";
+    expect(say(lookReason(world)!)).toBe("Knocked out");
+    world.player.quests.live = live;
+    expect(say(lookReason(world)!)).toBe("Not during a scene");
+  });
 });

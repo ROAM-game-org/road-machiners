@@ -16,7 +16,7 @@ function reload(w: World): World {
   return loadWorld(slots, 'auto', TEST_MAP)!;
 }
 
-const haul: Contract = { id: 'ct-haul', shop: 'granary', kind: 'haul', good: 'salt', units: 3, to: 'nose', reward: 10000, deadline: 500, window: 400, rush: false, tier: 1 };
+const haul: Contract = { id: 'ct-haul', shop: 'granary', kind: 'haul', good: 'salt', units: 3, to: 'nose', reward: 100, deadline: 500, window: 400, rush: false, tier: 1 };
 
 function held(): World {
   const w = emptyWorld(sitePads(siteOf('granary'))[0]);

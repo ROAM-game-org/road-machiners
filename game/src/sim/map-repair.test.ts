@@ -15,7 +15,7 @@ import { fitBake, repairMap, settleTrucks, type SavedMapWorld } from './map-repa
 import { isRoadWreck, oldSpotOf, oldSpotPicks, oldStockId, renewSalvage, stockOldSpots } from './salvage';
 import { defaultSetup } from './settings';
 import { fillHollow, isFree } from './spawn';
-import { hollowBays, isHollowObstacle } from './hollow-layout';
+import { hollowPad, isHollowObstacle } from './hollow-layout';
 import { membersOf } from './sunward';
 import { surveySites } from './survey';
 import { isLootSpot } from './territory';
@@ -98,7 +98,7 @@ describe('repairMap positions', () => {
     brain.progress = { key: 'k', since: 1, at: { x: 3, y: 3 } };
     brain.recoveryGoal = { x: 4, y: 4 };
     brain.stalled = 2;
-    brain.farRoute = { dest: { x: 5, y: 5 }, points: [{ x: 5, y: 5 }], offRoad: false };
+    brain.farRoute = { dest: { x: 5, y: 5 }, points: [{ x: 5, y: 5 }], style: 'road' };
     brain.tracks = { v1: { at: { x: 10, y: 20 }, turn: 3, sighted: true, seenSince: null, choice: null, chosenInSight: false } };
     brain.targetSeen = { id: 'v1', turn: 2, pos: { x: 30, y: 40 }, heading: 1, speed: 2 };
     brain.memories = [{ turn: 1, fact: { kind: 'sighting', vehicle: 'v1', at: { x: 50, y: 60 }, heading: 0 } }, { turn: 1, fact: { kind: 'helped', by: 'v1', deed: 'aided' } }];
@@ -135,6 +135,20 @@ describe('repairMap positions', () => {
     expectNear((player.order as { dest: Vec }).dest, scaled({ x: 150, y: 150 }));
   });
 
+  it('scales a truck sheltered inside a site with its brain, and leaves it inside', () => {
+    const w = oldScaleBase();
+    const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 120, y: 90 });
+    npc.brain = npcBrain('scavenger', { x: 100, y: 100 }, ['scavenger']);
+    w.vehicles = w.vehicles.filter((v) => v !== npc);
+    w.sheltered = [{ vehicle: npc, site: 'bowl' }];
+
+    const out = repairMap(savedOf(w, OLD_SIZE), TEST_MAP);
+    const inside = out.sheltered[0].vehicle;
+    expect(out.vehicles.some((v) => v.id === npc.id)).toBe(false);
+    expectNear(inside.pos, scaled({ x: 120, y: 90 }));
+    expectNear(inside.brain!.home, scaled({ x: 100, y: 100 }));
+  });
+
   it('scales the positions in contracts, shop offers, states and the Sunward hunt', () => {
     const w = oldScaleBase();
     const escort = { id: 'ct-escort', shop: 'bowl', kind: 'escort', client: 'v1', to: 'nose', reward: 1, deadline: 9, window: 9, tier: 1, threat: 'raiders', span: 3, together: 0, seen: { x: 11, y: 12, turn: 5 }, apart: 0, stuck: 0, holdUntil: null } as unknown as Contract;
@@ -160,18 +174,16 @@ describe('repairMap positions', () => {
     expectNear(grounds[1], scaled({ x: 33, y: 34 }));
   });
 
-  it('snaps the home of a Sunward car to the nearest fort bay', () => {
+  it('snaps the home of a Sunward car to the Hollow pad', () => {
     const w = oldScaleBase();
     fillHollow(w);
-    const bays = hollowBays();
     const members = membersOf(w);
     expect(members.length).toBeGreaterThan(0);
     members.forEach((v) => {
-      const bay = bays.reduce((best, b) => (dist(b, v.brain!.home) < dist(best, v.brain!.home) ? b : best));
-      v.brain!.home = { x: bay.x / RATIO + 0.1, y: bay.y / RATIO - 0.1 };
+      v.brain!.home = { x: v.brain!.home.x / RATIO + 0.1, y: v.brain!.home.y / RATIO - 0.1 };
     });
     const out = repairMap(savedOf(w, OLD_SIZE), TEST_MAP);
-    for (const v of membersOf(out)) expect(bays.some((b) => b.x === v.brain!.home.x && b.y === v.brain!.home.y)).toBe(true);
+    for (const v of membersOf(out)) expect(v.brain!.home).toEqual(hollowPad());
   });
 
   it('moves a truck standing in a prop to the nearest free spot and leaves a free truck where it is', () => {

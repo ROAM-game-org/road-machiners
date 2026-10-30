@@ -1,7 +1,8 @@
-import { awakeFoesOf, inCombat, inCombatWithOther, isHostile } from './combat';
-import { sameCompany } from './companies';
+import { awakeFoesOf, engageInSight, inCombat, inCombatWithOther, isHostile } from './combat';
+import { companyOf, sameCompany } from './companies';
+import { spokesman } from './sides';
 import { playerVehicle } from './damage';
-import { canAnswerCall, decide, dangerJoining, isManageable } from './npc-decisions';
+import { callFighters, canAnswerCall, decide, dangerJoining, isManageable, staysOutOfCall } from './npc-decisions';
 import { fightGoal, inDanger, interrupt } from './npc-activities';
 import { sideAgainst } from './relations';
 import { modeRules } from './settings';
@@ -21,26 +22,37 @@ export function canAskHelp(world: World, npc: Vehicle): boolean {
   return stateOf(world, 'helpRefused', npc.id, me.id) === null;
 }
 
-export function helpAnswer(world: World, npc: Vehicle): HelpAnswer {
+export function helpAnswer(world: World, asked: Vehicle): HelpAnswer {
   const me = playerVehicle(world);
-  if (!canAnswerCall(world, npc, me)) return 'refuse';
-  const danger = dangerJoining(world, npc, me, awakeFoesOf(world, me));
-  if (!isManageable(npc, danger)) return 'outgunned';
-  return decide(world, npc, 'helpCalled', me.id, danger) === 'help' ? 'help' : 'refuse';
+  const speaker = spokesman(world, asked);
+  if (!canAnswerCall(world, speaker, me)) return 'refuse';
+  const danger = dangerJoining(world, speaker, callFighters(world, speaker, me), me, awakeFoesOf(world, me));
+  if (!isManageable(speaker, danger)) return 'outgunned';
+  if (staysOutOfCall(world, speaker, me, danger)) return 'refuse';
+  return decide(world, speaker, 'helpCalled', me.id, danger) === 'help' ? 'help' : 'refuse';
 }
 
-export function joinPlayerFight(world: World, npc: Vehicle): void {
+export function joinPlayerFight(world: World, asked: Vehicle): void {
   const me = playerVehicle(world);
+  const speaker = spokesman(world, asked);
   const foes = awakeFoesOf(world, me);
-  if (foes.length === 0 || !canAnswerCall(world, npc, me)) throw new Error(`${npc.id} cannot answer the call for help`);
-  for (const foe of foes) sideAgainst(world, npc, foe.id);
-  const nearest = foes.reduce((best, foe) => (dist(npc.pos, foe.pos) < dist(npc.pos, best.pos) ? foe : best));
-  world.events.push({ t: 'joins', vehicle: npc.id, against: nearest.id, victim: me.id });
-  interrupt(world, npc, fightGoal(world, npc, nearest, 'answeredCall'));
+  if (foes.length === 0 || !canAnswerCall(world, speaker, me)) throw new Error(`${asked.id} cannot answer the call for help`);
+  for (const fighter of callFighters(world, speaker, me)) joinFight(world, fighter, me, foes);
 }
 
-export function turnDownCall(world: World, npc: Vehicle): void {
+function joinFight(world: World, fighter: Vehicle, me: Vehicle, foes: Vehicle[]): void {
+  for (const foe of foes) sideAgainst(world, fighter, foe.id);
+  const nearest = foes.reduce((best, foe) => (dist(fighter.pos, foe.pos) < dist(fighter.pos, best.pos) ? foe : best));
+  world.events.push({ t: 'joins', vehicle: fighter.id, against: nearest.id, victim: me.id });
+  interrupt(world, fighter, fightGoal(world, fighter, nearest, 'answeredCall'));
+  engageInSight(world, fighter);
+}
+
+export function turnDownCall(world: World, asked: Vehicle): void {
   const me = playerVehicle(world);
-  if (stateOf(world, 'helpRefused', npc.id, me.id)) throw new Error(`${npc.id} already turned down a call for help`);
-  addState(world, 'helpRefused', npc.id, me.id, { kind: 'none' });
+  if (stateOf(world, 'helpRefused', asked.id, me.id)) throw new Error(`${asked.id} already turned down a call for help`);
+  const speaker = spokesman(world, asked);
+  const { leader, members } = companyOf(world, speaker);
+  const refusing = speaker.id === leader.id ? [speaker, ...members] : [asked];
+  for (const member of refusing) if (member.id === asked.id || canAskHelp(world, member)) addState(world, 'helpRefused', member.id, me.id, { kind: 'none' });
 }

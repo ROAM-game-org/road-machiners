@@ -153,13 +153,13 @@
 
 /* Page view: art, one page of text with its choices, and the quest's numbers and facts. */
 #ui .modal.quest-screen.quest-page {
-  top: 40px;
+  top: var(--modal-top);
   width: min(var(--quest-page-width), calc(var(--layer-w) - var(--space-10) * 2));
-  height: min(var(--quest-page-height), calc(var(--layer-h) - var(--quest-page-clearance)));
+  height: var(--page-height);
   max-height: none;
   display: grid;
   grid-template-columns:
-    min(calc(min(var(--quest-page-height), var(--layer-h) - var(--quest-page-clearance)) * 0.95), calc(100% - var(--quest-side-width) - var(--quest-text-min)))
+    min(calc(var(--page-height) * 0.95), calc(100% - var(--quest-side-width) - var(--quest-text-min)))
     minmax(0, 1fr)
     var(--quest-side-width);
   grid-template-rows: minmax(0, 1fr);
@@ -562,7 +562,8 @@
   justify-content: flex-end;
   white-space: nowrap;
 }
-.part-line > button {
+.part-line > button,
+.part-line > .tag {
   justify-self: end;
 }
 #ui button.part-sum {
@@ -654,7 +655,8 @@
   .part-line > .price {
     grid-area: price;
   }
-  .part-line > button:not(.part-sum) {
+  .part-line > button:not(.part-sum),
+  .part-line > .tag {
     grid-area: action;
   }
   #ui button.part-sum {

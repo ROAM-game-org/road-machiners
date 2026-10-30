@@ -5,7 +5,7 @@ import { POLICIES, type Policy } from './bot';
 import { INCOME_KIT, INCOME_SKILL_RANK, largestTraderLoad, playIncome, SAMPLE_TURNS, sampleWorld, type IncomeRun } from './income';
 import { addVehicle, emptyWorld, npcBrain } from '../testkit';
 import { addGoods } from '../inventory';
-import { startWorld } from './record';
+import { startWorld } from './record-node';
 import { TRAITS } from '../../data/npcs';
 import { formatIncomeReport, gateReport, pairedDifference } from './income-report';
 
@@ -52,7 +52,7 @@ describe('largestTraderLoad', () => {
   it('is the trader stake at the best ratio of the player sell price to the trader buy price', () => {
     const load = largestTraderLoad(startWorld(1, INCOME_KIT, INCOME_SKILL_RANK));
     expect(load).toBeGreaterThan(TRAITS.trader.tradeStake);
-    expect(load).toBeCloseTo(168964.1, 1);
+    expect(load).toBeCloseTo(1666, 0);
   }, RUN_TIMEOUT);
 });
 

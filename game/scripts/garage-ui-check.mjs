@@ -178,7 +178,7 @@ try {
     const { chassisDef } = await import('/src/data/chassis.ts');
     const ids = garageChassis(townNear(g.state).id);
     const top = ids.reduce((a, b) => (chassisDef(b).value > chassisDef(a).value ? b : a));
-    g.apply(buyChassis(setMoney(g.state, 1e7), top));
+    g.apply(buyChassis(setMoney(g.state, 1e5), top));
   });
   await page.waitForTimeout(500);
   await garage(page, 'trucks');

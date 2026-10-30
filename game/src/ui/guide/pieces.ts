@@ -30,10 +30,11 @@ export const PIECES: Piece[] = [
   { name: ".tile", note: "A boxed list item edged in its tone.", build: () => sample("tile", "A tile") },
   { name: ".chip", note: "A small boxed value.", build: chipSample },
   { name: ".art-band", note: "A wide picture across the top of a page, with the place name and chips over its lower edge.", build: () => sample("art-band", "") },
-  { name: ".ink-page", note: "The frame of the town page and of a quest in town: a band on top, then a heading, prose, an optional panel and numbered choices in a centered text column.", build: () => inkPage() },
+  { name: ".ink-page", note: "The frame of the town page and of a quest in town: a band on top, then a scrolling region with a heading, prose, an optional panel and numbered choices in a centered text column, and a foot pinned under it that holds the way out and the status line.", build: () => inkPage() },
   { name: ".tag", note: "An outlined word.", build: () => text("span", "tag", "buy") },
+  { name: ".spent", note: "A row whose own action is done. It keeps its slot, dimmed, with a past-tense tag where the button was, until the player leaves the list.", build: () => el("div", { class: "row spent" }, "A part ", text("span", "tag", "Sold")) },
   { name: ".contract-clue", note: "One open survey place per line: the kind, then the posting shop's way there, then what it looks like. A found place has a tag last.", build: () => el("span", { class: "contract-clue" }, "Lookout, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. Where the road runs closest, leave the road and head south and a touch east, a fair way. A lone building on high ground. ", text("span", "tag", "found")) },
-  { name: ".amount .coin", note: "Money from moneyEl(): the M's coin, then the number. Debt is in danger ink.", build: () => moneyEl(1500) },
+  { name: ".amount .coin", note: "Money from moneyEl(): the M's coin, then the number. Debt is in danger ink.", build: () => moneyEl(15) },
   { name: ".meter", note: "A bar that fills from the left.", build: () => meter("meter", 70) },
   { name: ".meter.progress", note: "A bar for timed work.", build: () => meter("meter progress", 40) },
   { name: ".meter.broken", note: "A bar of a broken part.", build: () => meter("meter broken", 100) },
@@ -47,6 +48,7 @@ export const PIECES: Piece[] = [
   { name: ".drawer-tabs", note: "The tab row of the phone layout: one word button per drawer, .selected on the open one and .marked for attention.", build: () => drawerTabs() },
   { name: ".log-strip", note: "The newest log line on one row above End turn on a phone. It never wraps, and a tap opens the Log drawer.", build: () => logStrip() },
   { name: ".option-switch", note: "A row of equal buttons that picks one value for a setting: the language and the UI size. aria-pressed marks the chosen one, and a value that cannot be used is aria-disabled with its reason.", build: () => optionSwitch() },
+  { name: ".seen", note: "An option with nothing new behind it: a radio option or a talk choice the player has heard out. It fills with the sunk surface and keeps its ink, hover and focus.", build: () => seenOptions() },
   { name: ".num", note: "A number in the mono face.", build: () => text("span", "num", "1 240") },
 ];
 
@@ -60,10 +62,20 @@ function inkPage(): HTMLElement {
     el(
       "div",
       { class: "ink-body" },
-      el("div", { class: "ink-head" }, text("h2", "quest-place", "Nose"), text("p", "qt-line", "The hull leans over the sheds like a cliff that rusts.")),
-      el("div", { class: "ink-choices quest-choices" }, choice("1. Go to the garage"), choice("2. See who is parked", "No drivers in sight"), choice("3. Drive on")),
+      el(
+        "div",
+        { class: "ink-scroll" },
+        el("div", { class: "ink-head" }, text("h2", "quest-place", "Nose"), text("p", "qt-line", "The hull leans over the sheds like a cliff that rusts.")),
+        el("div", { class: "ink-choices quest-choices" }, choice("1. Go to the garage"), choice("2. See who is parked", "No drivers in sight")),
+      ),
+      el("div", { class: "ink-foot" }, choice("3. Drive on"), text("div", "ink-status bad", "")),
     ),
   );
+}
+
+function seenOptions(): HTMLElement {
+  const option = (words: string, extra = ""): HTMLElement => el("button", { class: `dialogue-option${extra}` }, words);
+  return el("div", { class: "dialogue-options" }, option("1. About the road…"), option("2. Want to trade?", " seen"), option("3. Hang up."));
 }
 
 function minimapPiece(): HTMLElement {

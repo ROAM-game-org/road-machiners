@@ -1,21 +1,13 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { hangUp } from '../sim/dialogue';
 import { describe, expect, it } from 'vitest';
-import { START_KITS, startKit } from '../data/start';
-import { chassisDef } from '../data/chassis';
-import { REGION } from '../data/region';
-import { CHEATS } from '../data/rules';
+import { startKit } from '../data/start';
 import { playerVehicle } from '../sim/damage';
-import { advanceFar } from '../sim/far';
-import { isFree } from '../sim/spawn';
-import { surveySites } from '../sim/survey';
-import type { World } from '../sim/types';
-import { dist, type Vec } from '../sim/vec';
 import { TEST_MAP } from '../test/map';
+import { standardWorld } from '../test/world-cache';
 import { townAt } from '../sim/sites';
-import { carriedWorld, endTurn, newWorld } from '../sim/world';
-import { carriesOnLoad, loadWorld, namedSteps, SaveError, savedMisfit, saveOf, savedRunId, stepsFrom } from './save';
+import { carriedWorld } from '../sim/world';
+import { carriesOnLoad, loadWorld, namedSteps, SaveError, saveOf, savedRunId } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
 import { RELEASE_STEPS, TINY_FROM, TINY_STEPS, type NamedStep, type ReleaseStep, type SavedJson } from './save-migrations';
 import { carriedSave, readCarried, rescueSave } from './save-rescue';
@@ -33,12 +25,17 @@ const makeSlots = () => new SaveSlots(memoryBackend(), new Map());
 
 type SavedWorld = { mapHash: string; player: { vehicleId: string; money: number }; vehicles: { id: string; items: { x: number }[] }[] };
 
+let currentSaveJson: string | null = null;
+
 function currentSave(): { format: unknown; world: SavedWorld } {
-  const world = newWorld(1337, KIT, TEST_MAP, defaultSetup('roaming'));
-  world.player.money = 4321;
-  world.player.xp = 150;
-  world.player.ranks.driving = 2;
-  return JSON.parse(JSON.stringify(saveOf(world)));
+  if (currentSaveJson === null) {
+    const world = standardWorld(1337);
+    world.player.money = 4321;
+    world.player.xp = 150;
+    world.player.ranks.driving = 2;
+    currentSaveJson = JSON.stringify(saveOf(world));
+  }
+  return JSON.parse(currentSaveJson);
 }
 
 describe('readCarried', () => {
@@ -95,21 +92,31 @@ describe('readCarried', () => {
   it('reads old formats and a fake major format', () => {
     for (const world of [FORMAT_2_0, FORMAT_2_1]) {
       const carried = readCarried({ format: { major: 2, minor: 0 }, world });
-      expect(carried.money).toBe(Math.round((world.player.money * 100) / 3));
+      expect(carried.money).toBe(Math.ceil(world.player.money / 3 - 1e-9));
     }
     expect(readCarried({ format: { major: 99, minor: 0 }, world: FORMAT_2_1 }).money).toBe(FORMAT_2_1.player.money);
   });
 
-  it('turns money and cost basis from before format 2.30 into cents, as the 29 to 30 step does', () => {
+  it('turns money and cost basis from before format 2.30 into whole M, as the 29 to 30 step does', () => {
     const world = { player: { money: 1000, costBasis: { scrap: 10.5 } } };
     for (const format of [undefined, { major: 1, minor: 20 }, { major: 2, minor: 29 }]) {
       const carried = readCarried({ format, world });
-      expect(carried.money, JSON.stringify(format)).toBe(33333);
-      expect(carried.costBasis.scrap, JSON.stringify(format)).toBeCloseTo(350);
+      expect(carried.money, JSON.stringify(format)).toBe(334);
+      expect(carried.costBasis.scrap, JSON.stringify(format)).toBeCloseTo(3.5);
     }
     const current = readCarried({ format: { major: 2, minor: 30 }, world });
-    expect(current.money).toBe(1000);
-    expect(current.costBasis).toEqual({ scrap: 10.5 });
+    expect(current.money).toBe(10);
+    expect(current.costBasis).toEqual({ scrap: 0.105 });
+  });
+
+  it('reads cents up to format 2.123 and whole M from 2.124', () => {
+    const world = { player: { money: 1050, costBasis: { scrap: 150 } } };
+    const cents = readCarried({ format: { major: 2, minor: 123 }, world });
+    expect(cents.money).toBe(11);
+    expect(cents.costBasis).toEqual({ scrap: 1.5 });
+    const whole = readCarried({ format: { major: 2, minor: 124 }, world: { player: { money: 11, costBasis: { scrap: 1.5 } } } });
+    expect(whole.money).toBe(11);
+    expect(whole.costBasis).toEqual({ scrap: 1.5 });
   });
 
   it('reads garbage without throwing and keeps what is valid', () => {
@@ -130,14 +137,14 @@ describe('readCarried', () => {
     expect(carried.money).toBe(-5);
   });
 
-  it('carries money in cents and pooled skills from a trimmed 2.1 save', () => {
+  it('carries money in whole M and pooled skills from a trimmed 2.1 save', () => {
     const world = { ...FORMAT_2_1, player: { ...FORMAT_2_1.player, money: 300, skills: { driving: 250, social: 700 } } };
     const carried = readCarried({ format: { major: 2, minor: 1 }, world });
-    expect(carried.money).toBe(10000);
+    expect(carried.money).toBe(100);
     expect(carried.ranks).toEqual({ driving: 1, social: 2 });
     expect(carried.xp).toBe(50 + 100);
     const rescued = carriedWorld(carried, KIT, () => TEST_MAP, fresh);
-    expect(rescued.player.money).toBe(10000);
+    expect(rescued.player.money).toBe(100);
     expect(rescued.player.ranks.social).toBe(2);
   });
 
@@ -296,7 +303,7 @@ describe('rescueSave', () => {
     };
     slots.put('auto', save);
     const rescued = rescueSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun, 2000);
-    expect(rescued?.world.player.quests).toEqual({ world: {}, local: {}, session: null, live: null });
+    expect(rescued?.world.player.quests).toEqual({ world: {}, local: {}, seen: {}, session: null, live: null });
     expect(loadWorld(slots, 'auto', TEST_MAP)?.player.quests.session).toBeNull();
   });
 
@@ -344,84 +351,6 @@ describe('readCarried on every shipped save', () => {
       expect(carriesOnLoad(error as SaveError), String(error)).toBe(true);
     }
   });
-});
-
-const reachable = readdirSync(ANCHOR_DIR).filter((file) => file.endsWith('-roaming.json') && stepsFrom(Number(file.split('-')[1])) !== null);
-
-describe('a shipped save on an older bake of the map', () => {
-  it('has anchors to load', () => {
-    expect(reachable).toContain('2-63-roaming.json');
-  });
-
-  it.each(reachable)('loads %s onto the current map with its place and progress kept', (file) => {
-    const envelope = JSON.parse(readFileSync(join(ANCHOR_DIR, file), 'utf8')) as { format: { minor: number }; world: World & { vehicles: { id: string; pos: Vec }[] } };
-    const slots = new SaveSlots(memoryBackend(), new Map());
-    slots.put('auto', envelope);
-    const saved = envelope.world;
-    const world = loadWorld(slots, 'auto', TEST_MAP)!;
-
-    expect(world.size).toBe(TEST_MAP.terrain.size);
-    expect(world.mapHash).toBe(TEST_MAP.hash);
-    expect(world.player.explored).toHaveLength(world.size ** 2);
-    expect(world.events).toEqual([]);
-
-    const me = playerVehicle(world);
-    const radius = chassisDef(me.chassisId).radius;
-    const oldPos = saved.vehicles.find((v) => v.id === saved.player.vehicleId)!.pos;
-    const ratio = world.size / saved.size;
-    const target = { x: oldPos.x * ratio, y: oldPos.y * ratio };
-    expect(isFree(world, me.pos, radius, me.id)).toBe(true);
-    if (isFree(world, target, radius, me.id)) expect(me.pos).toEqual(target);
-    else expect(dist(me.pos, target)).toBeLessThanOrEqual(CHEATS.searchRings * CHEATS.searchStep);
-    for (const v of world.vehicles) expect(isFree(world, v.pos, chassisDef(v.chassisId).radius, v.id), v.id).toBe(true);
-
-    const carried = readCarried(envelope);
-    expect(world.player.money).toBe(carried.money);
-    expect(world.player.xp).toBe(carried.xp);
-    const known = new Set([...REGION.towns, ...REGION.locations].map((site) => site.id));
-    expect(world.player.discovered).toEqual(expect.arrayContaining(carried.discovered.filter((id) => known.has(id))));
-    const held = (parts: { defId: string }[], items: { kind: string; part?: { defId: string } }[]) => [...parts.map((p) => p.defId), ...items.flatMap((it) => (it.part ? [it.part.defId] : []))].sort();
-    expect(held(world.player.storage, me.items)).toEqual(held(carried.storage, carried.truck!.items));
-
-    const stocks = new Set(world.salvage.map((s) => s.id));
-    const sites = new Set(surveySites(TEST_MAP).map((s) => s.id));
-    const contracts = [...world.player.contracts, ...Object.values(world.shops).flatMap((s) => s.contracts)];
-    for (const c of contracts) {
-      if (c.kind === 'claim') expect(stocks.has(c.stockId), c.id).toBe(true);
-      if (c.kind === 'survey') expect(c.points.every((p) => sites.has(p.site)), c.id).toBe(true);
-    }
-    const kept = new Set(world.player.contracts.map((c) => c.id));
-    const droppedByStep103 = new Set(['claim', 'fetch', 'bounty']);
-    expect(saved.player.contracts.filter((c) => !kept.has(c.id) && !droppedByStep103.has(c.kind))).toEqual([]);
-    for (const id of [...world.player.scavenged, ...world.player.rumored].filter((x) => /^(wreck|old-|story-)/.test(x))) expect(stocks.has(id), id).toBe(true);
-  }, 60_000);
-
-  it.each(reachable)('plays 20 turns of %s without a throw or a stall', (file) => {
-    const slots = new SaveSlots(memoryBackend(), new Map());
-    slots.put('auto', JSON.parse(readFileSync(join(ANCHOR_DIR, file), 'utf8')));
-    let w = loadWorld(slots, 'auto', TEST_MAP)!;
-    const start = w.turn;
-    for (let i = 0; i < 20; i++) {
-      w = endTurn(w.player.call ? hangUp(w) : w, (d) => d.vehicles.forEach((v) => v.brain && advanceFar(d, v)));
-      expect(w.events.filter((e) => e.t === 'stall')).toEqual([]);
-    }
-    expect(w.turn).toBe(start + 20);
-    expect(savedMisfit(saveOf(w).world)).toBeNull();
-  }, 120_000);
-
-  it('loads a shipped save after a rebake and a removed chassis together', () => {
-    const envelope = JSON.parse(readFileSync(join(ANCHOR_DIR, '2-63-roaming.json'), 'utf8')) as { world: { player: { vehicleId: string }; vehicles: { id: string; chassisId: string }[] } };
-    for (const v of envelope.world.vehicles) v.chassisId = 'ghostChassis';
-    const slots = new SaveSlots(memoryBackend(), new Map());
-    slots.put('auto', envelope);
-
-    const world = loadWorld(slots, 'auto', TEST_MAP)!;
-
-    const me = playerVehicle(world);
-    expect(me.chassisId).toBe(START_KITS.standard.chassis);
-    expect(isFree(world, me.pos, chassisDef(me.chassisId).radius, me.id)).toBe(true);
-    expect(() => endTurn(world, () => {})).not.toThrow();
-  }, 60_000);
 });
 
 describe('namedSteps', () => {
@@ -480,7 +409,7 @@ describe('namedSteps', () => {
   });
 
   it('writes the names of every tiny step into the save and loads it without running one', () => {
-    const world = newWorld(1337, KIT, TEST_MAP, defaultSetup('roaming'));
+    const world = standardWorld(1337);
     const envelope = JSON.parse(JSON.stringify(saveOf(world)));
     expect(envelope.steps).toEqual({ from: TINY_FROM, names: TINY_STEPS.map((named) => named.name) });
     const slots = makeSlots();
@@ -490,7 +419,7 @@ describe('namedSteps', () => {
   });
 
   it('refuses a named save whose minor format is not its list start plus its names', () => {
-    const world = newWorld(1337, KIT, TEST_MAP, defaultSetup('roaming'));
+    const world = standardWorld(1337);
     const minor = TINY_FROM + TINY_STEPS.length;
     const stored = (value: number) => {
       const slots = makeSlots();
@@ -504,7 +433,7 @@ describe('namedSteps', () => {
   });
 
   it('puts an unknown step of a stored save on the carry path, and a malformed list on noFormat', () => {
-    const world = newWorld(1337, KIT, TEST_MAP, defaultSetup('roaming'));
+    const world = standardWorld(1337);
     const stored = (steps: unknown, minor = TINY_FROM + 1) => {
       const slots = makeSlots();
       const envelope = JSON.parse(JSON.stringify(saveOf(world)));

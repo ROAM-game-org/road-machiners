@@ -1,6 +1,3 @@
-// Bands draped on the ground. Throttle zones fanned ahead of the truck, like the 2D src/render/throttle.ts.
-// The caller supplies the half-angle (it already clamps a minimum so barely-turning trucks keep
-// visible zones) and the hover color (throttle color under the cursor, or PAL.plan off any zone).
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
@@ -49,14 +46,10 @@ export class ZonesView {
     return mesh;
   }
 
-  hideBands(): void {
-    for (const k of Object.keys(this.bands) as Throttle[]) this.bands[k].visible = false;
-  }
-
   update(terrain: Terrain, pos: Vec, heading: number, speed: number, halfAngle: number): void {
     const z = zoneEdges();
-    const brakeEnd = speed === 0 ? z.restBrakeEnd : z.brakeEnd;
-    const holdEnd = speed === 0 ? z.restBrakeEnd : z.holdEnd;
+    const brakeEnd = speed === 0 ? 0 : z.brakeEnd;
+    const holdEnd = speed === 0 ? 0 : z.holdEnd;
     this.band('brake', terrain, pos, heading, halfAngle, 0, brakeEnd);
     this.band('hold', terrain, pos, heading, halfAngle, brakeEnd, holdEnd);
     this.band('accelerate', terrain, pos, heading, halfAngle, holdEnd, z.reach);

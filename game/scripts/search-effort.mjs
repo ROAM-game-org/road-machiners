@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { EFFORT } from '../src/data/market.ts';
 import { heldSearch, rollContract, searchCandidates, shopAt, siteOf } from '../src/sim/market.ts';
-import { recordTurns } from '../src/sim/progression/record.ts';
+import { recordTurns } from '../src/sim/progression/record-node.ts';
 import { measuredRewardTurns, searchEffort, turnLine } from '../src/sim/progression/turn-log.ts';
 
 const USAGE = 'Usage: npm run search:effort -- --seed <n> --turns <n> [--post-until <turn>] [--out tmp/search-effort]';
@@ -48,4 +48,4 @@ for (const step of recordTurns(seed, 'searcher', turns)) {
   if (step.world.turn % 25 === 0) save(lines, posts);
 }
 const summary = save(lines, posts);
-console.log(`searcher-${seed}: ${summary.turns} turns, ${posts.length} searches posted, ${summary.effort.claimed} claimed, efforts ${summary.effort.efforts.join(', ') || 'none'}, running cost ${summary.effort.runningCost.toFixed(1)} cents a turn, rewardTurns ${summary.rewardTurns ?? 'none'}`);
+console.log(`searcher-${seed}: ${summary.turns} turns, ${posts.length} searches posted, ${summary.effort.claimed} claimed, efforts ${summary.effort.efforts.join(', ') || 'none'}, running cost ${summary.effort.runningCost.toFixed(1)} M a turn, rewardTurns ${summary.rewardTurns ?? 'none'}`);

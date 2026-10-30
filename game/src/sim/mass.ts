@@ -33,8 +33,11 @@ export function unitMasses(v: Vehicle): number[] {
 }
 
 export function loadFactor(v: Loadout, extraMass = 0): number {
-  const ch = chassisDef(v.chassisId);
-  const mass = loadMass(v) + extraMass;
+  return loadFactorAt(v.chassisId, loadMass(v) + extraMass);
+}
+
+export function loadFactorAt(chassisId: string, mass: number): number {
+  const ch = chassisDef(chassisId);
   const overload = mass > ch.ratedMass ? (ch.ratedMass / mass) ** RULES.overloadExponent : 1;
   return Math.sqrt(ch.handlingMass / mass) * overload;
 }

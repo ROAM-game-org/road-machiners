@@ -617,6 +617,19 @@ export function turnPartHits(world: World): Map<string, PartHit[]> {
   return out;
 }
 
+export function crashOnly(world: World, vehicleId: string): boolean {
+  let crashed = false;
+  for (const e of world.events) {
+    if (e.t === "caltrops" && e.vehicle === vehicleId && e.hits.length > 0) return false;
+    for (const [id, hits] of eventHits(e)) {
+      if (id !== vehicleId || hits.length === 0) continue;
+      if (e.t !== "collision") return false;
+      crashed = true;
+    }
+  }
+  return crashed;
+}
+
 function eventHits(e: GameEvent): [string, PartHit[]][] {
   if (e.t === "shot") return [...shotDamage(e)];
   if (e.t === "collision") return [[e.a, e.hitsA], [e.b, e.hitsB]];
@@ -843,6 +856,11 @@ export function noteEngagements(world: World, gaps: HuntGaps): void {
     const target = huntedTarget(world, v);
     if (target && closesIn(world, v, target, gaps.get(v.id))) engage(world, v, target);
   }
+}
+
+export function engageInSight(world: World, v: Vehicle): void {
+  const target = huntedTarget(world, v);
+  if (target) engage(world, v, target);
 }
 
 function closesIn(world: World, v: Vehicle, target: Vehicle, before: number | undefined): boolean {

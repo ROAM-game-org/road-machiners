@@ -29,6 +29,7 @@ export type NpcLoadoutTable = {
   goods: Weighted<CargoRoll | null>[];
   spares: SpareTable | null;
   haul: Load;
+  minSpeed: number;
 };
 
 export type LoadoutPriorities = { speed: number; firepower: number; armor: number; cargo: number };
@@ -36,6 +37,7 @@ export const PRIORITY_TOP = 3;
 export const SPEED_SHARE = { low: 0.4, high: 0.6 };
 
 export const MIN_NPC_SPEED = RULES.limpSpeed * 2;
+export const RAIDER_CHASE_SPEED = 3.9;
 
 export const GEAR_DRAWS = 3;
 export const GEAR_WHIM = 0.1;
@@ -45,11 +47,11 @@ export const GEAR_SCORE = { armorQualityScale: 28, armorCurvePower: 2, gunSatura
 const GOOD_WEAR: Weighted<number>[] = [{ value: 2, weight: 1 }, { value: 3, weight: 3 }, { value: 4, weight: 12 }];
 
 export const GEAR_LEVELS: Record<GearLevel, { money: number; wear: Weighted<number>[]; cargo: number }> = {
-  poor: { money: 125000, wear: [{ value: 3, weight: 1 }, { value: 4, weight: 15 }], cargo: 0.5 },
-  light: { money: 146000, wear: GOOD_WEAR, cargo: 0.75 },
-  standard: { money: 171000, wear: GOOD_WEAR, cargo: 1 },
-  heavy: { money: 208000, wear: GOOD_WEAR, cargo: 1 },
-  loaded: { money: 275000, wear: GOOD_WEAR, cargo: 1.5 },
+  poor: { money: 1250, wear: [{ value: 3, weight: 1 }, { value: 4, weight: 15 }], cargo: 0.5 },
+  light: { money: 1460, wear: GOOD_WEAR, cargo: 0.75 },
+  standard: { money: 1710, wear: GOOD_WEAR, cargo: 1 },
+  heavy: { money: 2080, wear: GOOD_WEAR, cargo: 1 },
+  loaded: { money: 2750, wear: GOOD_WEAR, cargo: 1.5 },
 };
 
 const TRADER_SPARES: SpareTable = {
@@ -123,6 +125,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: { good: "electronics", count: 1 }, weight: 1 },
     ],
     haul: { kg: 200, cells: 3 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   gunwagon: {
@@ -148,6 +151,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: { good: "electronics", count: 2 }, weight: 1 },
     ],
     haul: { kg: 400, cells: 5 },
+    minSpeed: RAIDER_CHASE_SPEED,
     spares: null,
   },
   trader: {
@@ -173,6 +177,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     ],
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: TRADER_SPARES,
   },
   scavenger: {
@@ -202,6 +207,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: { good: "electronics", count: 1 }, weight: 1 },
     ],
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   bowlPatrol: {
@@ -216,6 +222,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     cargoPart: MOSTLY_NO_CARGO_PART,
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   nosePatrol: {
@@ -229,6 +236,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     cargoPart: MOSTLY_NO_CARGO_PART,
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   marshal: {
@@ -242,6 +250,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     cargoPart: [{ value: null, weight: 1 }],
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   courier: {
@@ -265,6 +274,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: { good: "meds", count: 2 }, weight: 2 },
     ],
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   roamer: {
@@ -292,6 +302,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: { good: "tools", count: 1 }, weight: 1 },
     ],
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   vulture: {
@@ -320,6 +331,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: { good: "batteries", count: 1 }, weight: 2 },
     ],
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   convoy: {
@@ -340,6 +352,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     ],
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   convoyGuard: {
@@ -355,6 +368,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     cargoPart: MOSTLY_NO_CARGO_PART,
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   cavalcade: {
@@ -364,12 +378,12 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: "buggy", weight: 5 },
       { value: "jeep", weight: 3 },
       { value: "scout", weight: 3 },
-      { value: "niva", weight: 2 },
     ],
     priorities: { speed: 2, firepower: 3, armor: 2, cargo: 0 },
     cargoPart: [{ value: null, weight: 1 }],
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   hunter: {
@@ -383,6 +397,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     cargoPart: [{ value: null, weight: 1 }],
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   merc: {
@@ -398,6 +413,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     cargoPart: MOSTLY_NO_CARGO_PART,
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
 };
@@ -439,7 +455,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     loadout: LOADOUTS.trader,
     aggroRange: 0,
     fightStyle: 'hold',
-    money: 133300,
+    money: 1333,
     cap: 8,
     pairs: false,
     interval: 12,
@@ -531,7 +547,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     loadout: LOADOUTS.convoy,
     aggroRange: 0,
     fightStyle: 'hold',
-    money: 133300,
+    money: 1333,
     cap: 2,
     pairs: false,
     interval: 100,
@@ -639,6 +655,7 @@ export type DecisionOptions = {
   mugging: 'demand' | 'attack';
   resume: 'resume' | 'new';
   bountyDemanded: 'pay' | 'fight' | 'flee';
+  spotWork: 'work' | 'moveOn';
   idle: 'trade' | 'scavenge' | 'raid' | 'prowl' | 'wait' | 'patrol' | 'travel' | 'explore' | 'haul' | 'escort' | 'muster' | 'linger';
   crewAsked: 'join' | 'decline';
   crewCalled: 'fight' | 'flee' | 'keep';
@@ -682,6 +699,7 @@ export const DECISIONS: { [D in DecisionId]: Record<DecisionOptions[D], number> 
   mugging: { demand: 3, attack: 2 },
   resume: { resume: 9, new: 1 },
   bountyDemanded: { pay: 3, fight: 1, flee: 1 },
+  spotWork: { work: 0, moveOn: 1 },
   idle: { trade: 0, scavenge: 1, raid: 0, prowl: 0, wait: 0.1, patrol: 0, travel: 0, explore: 0, haul: 0, escort: 0, muster: 0, linger: 0 },
   crewAsked: { join: 2, decline: 1 },
   crewCalled: { fight: 3, flee: 0.5, keep: 1 },
@@ -762,3 +780,5 @@ export const STATE_TURNS: Record<StateKindId, number | null> = {
 
 export { CREW, FEMALE_NAMES, FIRST_NAMES, HELP_CALL, HIRE, HUNT, LOOK_OVER, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, SURNAMES, TRADE_TIP } from './npc-behavior';
 export { TRAITS, type Trait } from './npc-traits';
+
+export const EXPLORE = { range: 120, minHop: 30, gapCap: 20, lookTurns: 19 };

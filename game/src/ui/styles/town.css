@@ -30,50 +30,10 @@
   white-space: nowrap;
   color: var(--ink-muted);
 }
-.town-page .ink-body:not(:has(.ink-panel)) {
-  grid-template-rows: auto auto auto minmax(0, 1fr);
-  align-content: start;
-}
-.town-page .ink-body:not(:has(.ink-panel)) .ink-status {
-  grid-row: 4;
-}
-#ui:not(.phone, .narrow) .town-page:not(.on-section, .under-quest) .ink-band {
-  flex: 1 1 0;
-  display: flex;
-  flex-direction: column;
-  min-height: min(var(--art-band-height), calc(0.26 * var(--layer-h)));
-}
-#ui:not(.phone, .narrow) .town-page:not(.on-section, .under-quest) .ink-band > .art-band {
-  flex: 1;
-  height: auto;
-}
-#ui:not(.phone, .narrow) .town-page:not(.on-section, .under-quest) .ink-body {
-  flex: 0 1 auto;
-  overflow: auto;
-}
-#ui:not(.phone, .narrow) .town-page:not(.on-section, .under-quest) .ink-body:not(:has(.ink-panel)) {
-  grid-template-rows: auto auto auto auto;
-}
-.town-page.on-section .ink-band > .art-band {
-  height: min(var(--art-band-height), calc(0.14 * var(--layer-h)));
-}
-.town-page.on-section .ink-body {
-  padding-top: var(--space-5);
-  padding-bottom: var(--space-5);
-}
-.town-page.on-section .ink-head .qt-line {
-  margin-bottom: var(--space-3);
-}
 .town-page .ink-choices {
   padding-top: var(--space-3);
 }
 #ui .town-page .quest-choice.compact {
   align-self: flex-start;
   padding: var(--space-2) var(--space-6);
-}
-.town-page .ink-body:has(.ink-panel.wide) :is(.ink-head, .ink-choices, .ink-status) {
-  grid-column: 1 / -1;
-}
-.town-page .ink-body:has(.ink-panel.wide) .ink-head .quest-place {
-  margin-bottom: var(--space-2);
 }

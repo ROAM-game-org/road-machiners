@@ -21,6 +21,7 @@ import { optionWeights, tradeOffers } from './npc-decisions';
 import { getResources } from './resources';
 import { addState, stateOf } from './states';
 import { chaosHighwayWorld } from './testkit';
+import { reusedWorld } from '../test/world-cache';
 import type { ChaosHighwayRun, Vehicle, WaveGroup, World } from './types';
 import { heightAt } from './terrain';
 import { cloneWorld, endTurn, newWorld } from './world';
@@ -80,9 +81,13 @@ function roadSpot(w: World, v: Vehicle): { along: number; across: number } {
   return { along: alongOf(w.seed, at), across: acrossOf(w.seed, at) };
 }
 
+function startWorld(seed = 3): World {
+  return reusedWorld(`chaos highway ${seed}`, () => chaosHighwayWorld(seed));
+}
+
 const SEEDS = Array.from({ length: 20 }, (_, i) => i + 1);
 const STRETCHES = Array.from({ length: 10 }, (_, i) => i + 1);
-const PLAN_WORLD = chaosHighwayWorld();
+const PLAN_WORLD = startWorld();
 
 function wavesOf(seed: number, j: number): PlannedWave[] {
   const { budget, base } = stretchBudget(PLAN_WORLD, j);
@@ -210,7 +215,7 @@ describe('the sides a group comes from', () => {
 
   it('spawns ahead of the player or out in the badlands ahead on its side, inside the window', () => {
     for (const from of ['ahead', 'left', 'right'] as const) {
-      const w = chaosHighwayWorld();
+      const w = startWorld();
       moveTo(w, milestoneAt(w.seed, 0) + 120);
       const first = group(w);
       first.from = from;
@@ -251,7 +256,7 @@ describe('spawning out of the gun truck sight', () => {
 
   it.each(CASES)('puts a group from $from beyond the sight of a gun truck', ({ from, lead, across }) => {
     for (const rank of [0, 5]) {
-      const w = chaosHighwayWorld();
+      const w = startWorld();
       w.player.ranks.perception = rank;
       const at = milestoneAt(w.seed, 0) + 120;
       moveTo(w, at);
@@ -268,7 +273,7 @@ describe('spawning out of the gun truck sight', () => {
   });
 
   it('waits with no failure clock while every spot is in sight, then spawns when one is not', () => {
-    const w = chaosHighwayWorld();
+    const w = startWorld();
     const first = group(w);
     first.from = 'ahead';
     moveTo(w, first.at + 1);
@@ -287,7 +292,7 @@ describe('spawning out of the gun truck sight', () => {
   });
 
   it('clears a running failure clock once the only blocker is sight', () => {
-    const w = chaosHighwayWorld();
+    const w = startWorld();
     const first = group(w);
     first.from = 'ahead';
     moveTo(w, first.at + 1);
@@ -302,7 +307,7 @@ describe('spawning out of the gun truck sight', () => {
 
 describe('the pace of encounters', () => {
   it('holds a group until the hauler reaches its road distance, however many turns pass', () => {
-    const w = chaosHighwayWorld();
+    const w = startWorld();
     moveTo(w, group(w).at - 5);
     for (let t = 0; t < 50; t++) {
       w.turn++;
@@ -317,7 +322,7 @@ describe('the pace of encounters', () => {
   });
 
   it('follows the hauler, not the player, for when a group is due', () => {
-    const w = chaosHighwayWorld();
+    const w = startWorld();
     const at = group(w).at;
     playerVehicle(w).pos = roadPoint(w.seed, runOf(w).window, at + 10, HIGHWAY.road.lanes[2]);
     haulerOf(w).pos = roadPoint(w.seed, runOf(w).window, at - 10, HIGHWAY.road.lanes[1]);
@@ -327,7 +332,7 @@ describe('the pace of encounters', () => {
   });
 
   it('spawns the groups in order, one per turn, even with the hauler past them all', () => {
-    const w = chaosHighwayWorld();
+    const w = startWorld();
     const run = runOf(w);
     expect(run.groups.length).toBeGreaterThan(1);
     moveTo(w, run.groups[run.groups.length - 1].at + 1);
@@ -340,7 +345,7 @@ describe('the pace of encounters', () => {
   });
 
   it('spawns hostile groups that hunt their prey and hold both player trucks foes', () => {
-    const w = chaosHighwayWorld();
+    const w = startWorld();
     const first = spawnFirst(w);
 
     for (const v of trucksOf(w, first)) {
@@ -352,7 +357,7 @@ describe('the pace of encounters', () => {
   });
 
   it('spawns a due group while an earlier one still fights near the hauler, so not fighting holds nothing back', () => {
-    let w = chaosHighwayWorld(4);
+    let w = startWorld(4);
     for (let k = 0; k < 4; k++) w = nextLevel(w);
     const run = runOf(w);
     const first = milestoneAt(w.seed, run.window) + 100;
@@ -367,7 +372,7 @@ describe('the pace of encounters', () => {
   });
 
   it('never puts more than the cap of trucks on the road at once', () => {
-    let w = chaosHighwayWorld();
+    let w = startWorld();
     for (let k = 0; k < 7; k++) w = nextLevel(w);
     const run = runOf(w);
     const first = milestoneAt(w.seed, run.window) + 100;
@@ -400,7 +405,7 @@ describe('the pace of encounters', () => {
 
 describe('a group racing in', () => {
   it('drives at its own speed near and far, with no overdrive', () => {
-    const w = chaosHighwayWorld();
+    const w = startWorld();
     const first = spawnFirst(w);
     const [v] = trucksOf(w, first);
     const me = playerVehicle(w);
@@ -415,7 +420,7 @@ describe('a group racing in', () => {
   });
 
   it('drives at full speed toward a player out of sight, never stopping at the hunted point', () => {
-    const w = chaosHighwayWorld();
+    const w = startWorld();
     const [v] = trucksOf(w, spawnFirst(w));
     const me = playerVehicle(w);
     v.pos = { x: me.pos.x, y: me.pos.y + CHAOS_HIGHWAY.pacing.near + 10 };
@@ -428,7 +433,7 @@ describe('a group racing in', () => {
   });
 
   it('leaves the overdrive of the player to its switch, and no Roaming truck overdrives', () => {
-    const w = chaosHighwayWorld();
+    const w = startWorld();
     const me = playerVehicle(w);
     w.player.overdrive = false;
     expect(inOverdrive(w, me)).toBe(false);
@@ -446,7 +451,7 @@ function nextLevel(w: World): World {
 
 describe('arriving at an outpost', () => {
   it('pays once and ends the level there, with the window left where it is', () => {
-    const w = chaosHighwayWorld();
+    const w = startWorld();
     const money = w.player.money;
 
     const after = arrive(w);
@@ -463,7 +468,7 @@ describe('arriving at an outpost', () => {
   });
 
   it('wins the level in a fight, sends the hostiles off the road and ends their fight that turn', () => {
-    let w = chaosHighwayWorld();
+    let w = startWorld();
     const first = spawnFirst(w);
     const me = playerVehicle(w);
     parkOnNext(w);
@@ -483,7 +488,7 @@ describe('arriving at an outpost', () => {
   });
 
   it('opens the next window on Drive on at the paid outpost, with the player in the same spot and on the same ground', () => {
-    const w = arrive(chaosHighwayWorld());
+    const w = arrive(startWorld());
     const before = playerVehicle(w).pos;
     const ground = w.terrain.types[Math.floor(before.y) * w.size + Math.floor(before.x)];
     w.player.explored[95 * w.size + 5] = 1;
@@ -512,7 +517,7 @@ describe('arriving at an outpost', () => {
 
   it('keeps both trucks on the same pad and ground through several window moves on any stretch length', () => {
     for (const seed of [2, 5, 9]) {
-      let w = chaosHighwayWorld(seed);
+      let w = startWorld(seed);
       for (let move = 0; move < 3; move++) {
         const arrived = arrive(w);
         const trucks = [haulerOf(arrived), playerVehicle(arrived)];
@@ -530,7 +535,7 @@ describe('arriving at an outpost', () => {
   });
 
   it('spawns nothing between levels, even off the pad, and pays nothing more', () => {
-    const w = arrive(chaosHighwayWorld());
+    const w = arrive(startWorld());
     const money = w.player.money;
     moveTo(w, milestoneAt(w.seed, 1) + 20);
     for (let t = 0; t < 200; t++) {
@@ -546,26 +551,26 @@ describe('arriving at an outpost', () => {
   });
 
   it('drives on only with both trucks parked in the yard of the paid next outpost', () => {
-    const early = chaosHighwayWorld();
+    const early = startWorld();
     parkOnNext(early);
     expect(canDriveOn(early)).toBe(false);
     expect(() => driveOn(early)).toThrow(/Drive on/);
 
-    const off = arrive(chaosHighwayWorld());
+    const off = arrive(startWorld());
     moveTo(off, milestoneAt(off.seed, 1) + 20);
     expect(canDriveOn(off)).toBe(false);
     expect(() => driveOn(off)).toThrow(/Drive on/);
 
-    const opened = nextLevel(chaosHighwayWorld());
+    const opened = nextLevel(startWorld());
     expect(canDriveOn(opened)).toBe(false);
     expect(() => driveOn(opened)).toThrow(/Drive on/);
   });
 
   it('completes on reaching the yard at speed, but not outside it', () => {
-    const moving = chaosHighwayWorld();
+    const moving = startWorld();
     parkOnNext(moving);
     haulerOf(moving).speed = 8;
-    const off = chaosHighwayWorld();
+    const off = startWorld();
     moveTo(off, milestoneAt(off.seed, 1) - 20);
 
     for (const w of [moving, off]) advanceChaosHighway(w);
@@ -574,7 +579,7 @@ describe('arriving at an outpost', () => {
   });
 
   it('pays the base alone whatever the wrecks, and keeps the run totals', () => {
-    const w = chaosHighwayWorld();
+    const w = startWorld();
     runOf(w).groups[0].wrecked = 2;
     const money = w.player.money;
 
@@ -587,7 +592,7 @@ describe('arriving at an outpost', () => {
   });
 
   it('counts a wreck of a group truck toward the stretch', () => {
-    const w = chaosHighwayWorld();
+    const w = startWorld();
     const group = spawnFirst(w);
     w.events = [{ t: 'destroyed', vehicle: group.vehicles[0], by: w.player.vehicleId }];
 
@@ -597,7 +602,7 @@ describe('arriving at an outpost', () => {
   });
 
   it('removes the trucks of a finished stretch and awards no XP for it', () => {
-    const w = chaosHighwayWorld();
+    const w = startWorld();
     const group = spawnFirst(w);
     for (const v of w.vehicles) if (group.vehicles.includes(v.id)) v.pos = { x: v.pos.x + 100, y: v.pos.y };
     w.states = w.states.filter((s) => s.kind !== 'combat');
@@ -615,17 +620,17 @@ describe('arriving at an outpost', () => {
   });
 
   it('refuses to move the window before the outpost is paid or with the player off the pad', () => {
-    const early = chaosHighwayWorld();
+    const early = startWorld();
     parkOnNext(early);
     expect(() => moveWindow(early)).toThrow(/waits at outpost 1/);
 
-    const off = arrive(chaosHighwayWorld());
+    const off = arrive(startWorld());
     moveTo(off, milestoneAt(off.seed, 1) + 20);
     expect(() => moveWindow(off)).toThrow(/parked/);
   });
 
   it('discovers the outpost fort as any site, with its line and its XP', () => {
-    const w = chaosHighwayWorld();
+    const w = startWorld();
     parkOnNext(w);
     const xp = w.player.xp;
 
@@ -637,13 +642,13 @@ describe('arriving at an outpost', () => {
   });
 
   it('names a move for every world field', () => {
-    expect(Object.keys(WINDOW_MOVE).sort()).toEqual(Object.keys(chaosHighwayWorld()).sort());
+    expect(Object.keys(WINDOW_MOVE).sort()).toEqual(Object.keys(startWorld()).sort());
   });
 });
 
 describe('the endless run', () => {
   it('stays bounded over thirty stretches', () => {
-    let w = chaosHighwayWorld();
+    let w = startWorld();
     const sizes: number[] = [];
     for (let k = 0; k < 30; k++) {
       w = nextLevel(w);
@@ -666,7 +671,7 @@ describe('the endless run', () => {
   });
 
   it('reads the stretch and the distance to the next outpost, with no total', () => {
-    const w = chaosHighwayWorld();
+    const w = startWorld();
     moveTo(w, milestoneAt(w.seed, 1) - 50);
 
     const readout = chaosHighwayReadout(w)!;
@@ -676,7 +681,7 @@ describe('the endless run', () => {
   });
 
   it('reads the next stretch at its full length between levels', () => {
-    const w = arrive(chaosHighwayWorld());
+    const w = arrive(startWorld());
 
     expect(chaosHighwayReadout(w)).toEqual({ stretch: 2, toOutpost: stretchLength(w.seed, 2), outpostId: 'outpost-2' });
   });
@@ -684,7 +689,7 @@ describe('the endless run', () => {
 
 describe('a Chaos Highway world on the highway', () => {
   it('shows no Icarus place in three hundred turns of the run', () => {
-    let w = chaosHighwayWorld(5);
+    let w = startWorld(5);
     const ids = w.obstacles.map((o) => o.id);
     for (let i = 0; i < 300 && w.player.state === 'active'; i++) {
       const me = playerVehicle(w);
@@ -700,7 +705,7 @@ describe('a Chaos Highway world on the highway', () => {
 
 describe('ending a Chaos Highway run', () => {
   it('lets only a stranded truck end the run', () => {
-    const w = chaosHighwayWorld();
+    const w = startWorld();
 
     expect(canAbandonRun(w)).toBe(false);
     expect(() => abandonRun(w)).toThrow(/stranded/);
@@ -713,7 +718,7 @@ describe('ending a Chaos Highway run', () => {
   });
 
   it('runs no more turns once the run is lost', () => {
-    const w = chaosHighwayWorld();
+    const w = startWorld();
     w.player.fuel = 0;
     const ended = abandonRun(w);
 
@@ -723,7 +728,7 @@ describe('ending a Chaos Highway run', () => {
 
 describe('a Chaos Highway group truck between fights', () => {
   it('weighs its idle options with no shops in the world, and finds no trade', () => {
-    const w = chaosHighwayWorld();
+    const w = startWorld();
     const group = spawnFirst(w);
     const npc = w.vehicles.find((v) => v.id === group.vehicles[0])!;
     getResources(w, npc).money = 5000;
@@ -733,7 +738,7 @@ describe('a Chaos Highway group truck between fights', () => {
   });
 
   it('keeps driving at a moving player through a halt whim, which only parks a roaming truck', () => {
-    const w = chaosHighwayWorld();
+    const w = startWorld();
     const group = spawnFirst(w);
     const npc = w.vehicles.find((v) => v.id === group.vehicles[0])!;
     const me = playerVehicle(w);
@@ -753,7 +758,7 @@ describe('a Chaos Highway group truck between fights', () => {
 
 describe('the gear money of a stretch', () => {
   const withGrowth = (growth: number): World => {
-    const w = chaosHighwayWorld();
+    const w = startWorld();
     return { ...w, setup: { ...w.setup, settings: { ...w.setup.settings, enemyGearGrowth: growth } } };
   };
   const partsValue = (v: Vehicle): number =>

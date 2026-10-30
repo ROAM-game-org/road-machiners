@@ -1,12 +1,10 @@
 import { beforeAll, expect, it } from "vitest";
-import { startKit } from "../data/start";
 import { playerVehicle } from "../sim/damage";
 import { corePart } from "../sim/grid";
 import { currentQuestLanguage, inQuestLanguage, setQuestLanguage } from "../sim/quests";
-import { defaultSetup } from "../sim/settings";
 import { addVehicle, emptyWorld } from "../sim/testkit";
-import { TEST_MAP } from "../test/map";
-import { endTurn, newWorld, setMoveOrder } from "../sim/world";
+import { standardWorld } from "../test/world-cache";
+import { endTurn, setMoveOrder } from "../sim/world";
 import {
   buildDrive,
   captureDrive,
@@ -19,7 +17,7 @@ import {
 import { computeTurn, isCleanTail, liveSightOf, physicsMove, SentObstacles, withTail } from "./turn";
 import { toMap, type VehicleFrame } from "./frames";
 import { PHYSICS } from "../data/physics";
-import { visibleTiles } from "../sim/vision";
+import { seenPropTiles, visibleTiles } from "../sim/vision";
 
 beforeAll(initPhysics);
 
@@ -116,7 +114,7 @@ it("rejects a tail with a crash, a passed order point or a rope", () => {
 });
 
 function fallingWorld() {
-  const world = newWorld(1337, startKit("standard"), TEST_MAP, defaultSetup("roaming"));
+  const world = standardWorld(1337);
   const me = playerVehicle(world);
   const raider = addVehicle(world, "scrapjaw", "buggy", [], { x: me.pos.x + 6, y: me.pos.y });
   me.lastHitBy = raider.id;
@@ -163,19 +161,24 @@ it("restores the quest language when the run throws", () => {
 });
 
 it("samples live sight along the player's frames every sight step, with the tiles vision gives there", () => {
-  const world = newWorld(7, startKit("standard"), TEST_MAP, defaultSetup("roaming"));
+  const world = standardWorld(7);
   const me = playerVehicle(world);
   const S = PHYSICS.metersPerTile;
   const frames = Array.from({ length: 12 }, (_, i) => ({ pos: { x: (me.pos.x + i * 0.1) * S, y: 0, z: me.pos.y * S } }) as VehicleFrame);
   const sight = liveSightOf(world, frames);
   expect(sight.steps).toEqual([0, 4, 8]);
-  sight.steps.forEach((step, k) => expect(sight.tiles[k]).toEqual([...visibleTiles(world, toMap(frames[step].pos))].sort((a, b) => a - b)));
-  expect(liveSightOf(world, undefined)).toEqual({ steps: [], tiles: [] });
+  sight.steps.forEach((step, k) => {
+    const at = toMap(frames[step].pos);
+    const visible = visibleTiles(world, at);
+    expect(sight.tiles[k]).toEqual([...visible].sort((a, b) => a - b));
+    expect(sight.props[k]).toEqual(seenPropTiles(world, at, visible));
+  });
+  expect(liveSightOf(world, undefined)).toEqual({ steps: [], tiles: [], props: [] });
 });
 
 it("sends the obstacles to a worker only when their content changed since the last send", () => {
   const sent = new SentObstacles();
-  const { terrain: _terrain, ...state } = newWorld(7, startKit("standard"), TEST_MAP, defaultSetup("roaming"));
+  const { terrain: _terrain, ...state } = standardWorld(7);
   expect(sent.split(state).obstacles).toBe(state.obstacles);
   const copy = structuredClone(state);
   const again = sent.split(copy);

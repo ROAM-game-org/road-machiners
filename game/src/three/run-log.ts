@@ -1,7 +1,7 @@
 import { timed } from '../perf';
 import { RunStream, type StreamLine } from '../sim/run-stream';
 import type { GameEvent, World } from '../sim/types';
-import type { SaveBackend } from './save-db';
+import { DatabaseLost, type SaveBackend } from './save-db';
 import type { SlotId } from './save-slots';
 
 export class RunLog {
@@ -11,7 +11,7 @@ export class RunLog {
   private pending = new Set<Promise<void>>();
   private lost = false;
 
-  constructor(private backend: SaveBackend, readonly runId: string, version: string, private onError: (err: unknown) => void) {
+  constructor(private logs: Pick<SaveBackend, 'appendLog' | 'readLog'>, readonly runId: string, version: string, private onError: (err: unknown) => void) {
     this.stream = new RunStream({ runId, version, sessionId: freshSessionId() });
   }
 
@@ -40,15 +40,15 @@ export class RunLog {
   }
 
   async lines(header: Record<string, unknown>): Promise<string> {
-    const records = await this.backend.readLog(this.runId);
+    const records = await this.logs.readLog(this.runId);
     return [header, ...records].map((r) => JSON.stringify(r)).join('\n') + '\n';
   }
 
   private write(entries: StreamLine[]): void {
     if (entries.length === 0) return;
-    const done = Promise.resolve().then(() => this.backend.appendLog(this.runId, entries)).catch((err) => {
+    const done = Promise.resolve().then(() => this.logs.appendLog(this.runId, entries)).catch((err) => {
       this.lost = true;
-      this.onError(err);
+      if (!(err instanceof DatabaseLost)) this.onError(err);
     }).finally(() => this.pending.delete(done));
     this.pending.add(done);
   }
