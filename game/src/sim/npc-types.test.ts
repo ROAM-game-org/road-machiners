@@ -13,7 +13,7 @@ import { huntingGrounds, optionChances, optionWeights, raiderGrounds, raiderPatr
 import { resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
 import { siteGates, sitePads } from './sites';
 import { fallbackFaction, spawnInitial, spawnNpcs } from './spawn';
-import { addVehicle, emptyWorld, finishBusiness, forceOption, npcBrain } from './testkit';
+import { addVehicle, emptyWorld, finishBusiness, forceOption, npcBrain, spotWithoutExplorePlaces } from './testkit';
 import { TEST_MAP } from '../test/map';
 import { roadNetworkOf } from './road-network';
 import type { NpcActivity, Vehicle, World } from './types';
@@ -172,7 +172,7 @@ describe('independent', () => {
   it('explore free points along the roads, on more than one road', () => {
     const w = emptyWorld({ x: 300, y: 300 });
     w.terrain = TEST_MAP.terrain;
-    const npc = createNpc(w, 'roamer', ['roamer'], 'scout', ['mg', 'stockEngine'], { x: 300, y: 310 });
+    const npc = createNpc(w, 'roamer', ['roamer'], 'scout', ['mg', 'stockEngine'], spotWithoutExplorePlaces(w));
     forceOption('idle', 'explore');
     const goals = idleGoals(w, npc.id, 30).filter((g) => g.kind === 'explore');
     expect(goals.length).toBeGreaterThan(25);

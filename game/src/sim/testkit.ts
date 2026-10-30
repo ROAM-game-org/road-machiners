@@ -16,6 +16,8 @@ import { resolveNpcActivities } from './npc-activities';
 import type { GameEvent, Obstacle, PartInstance, SalvageStock, Vehicle, World, XpSource } from './types';
 import { alongOf, highwayMap, milestoneAt, roadHeading, roadPoint, toRoad } from './highway';
 import { CHAOS_HIGHWAY, HIGHWAY } from '../data/modes';
+import { EXPLORE } from '../data/npcs';
+import { explorePlaces } from './explore';
 import { dist, type Vec } from './vec';
 import { REGION } from '../data/region';
 import { propReach } from './mapgen';
@@ -323,4 +325,15 @@ export function openingStopPoint(w: World): Vec {
 
 export function setShopPressure(w: World, shopId: string, good: string, pressure: number): void {
   w.shops[shopId].goods[good] = Math.max(0, Math.round(stockTarget(shopId, good) * (1 - pressure / PRODUCTION.elasticity)));
+}
+
+export function spotWithoutExplorePlaces(w: World): Vec {
+  const places = explorePlaces({ hash: w.mapHash, terrain: w.terrain });
+  const step = EXPLORE.minHop;
+  for (let y = step; y < w.size - step; y += step)
+    for (let x = step; x < w.size - step; x += step) {
+      const at = { x, y };
+      if (!places.some((p) => dist(at, p.pos) <= EXPLORE.range)) return at;
+    }
+  throw new Error('Every spot of the map has an explore place in range');
 }

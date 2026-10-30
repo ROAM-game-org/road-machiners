@@ -1,7 +1,7 @@
 import { TERRAIN } from '../data/terrain';
 import { describe, expect, it } from 'vitest';
 import { contactsOf } from './detect';
-import { addLootSpot, addVehicle, editableTerrain, emptyWorld, finishBusiness, forceOption, npcBrain, rngStateForForcedRolls, setShopPressure, sizedUp, startCombat, testDrive } from './testkit';
+import { addLootSpot, addVehicle, editableTerrain, emptyWorld, finishBusiness, forceOption, npcBrain, rngStateForForcedRolls, setShopPressure, sizedUp, spotWithoutExplorePlaces, startCombat, testDrive } from './testkit';
 import { standingPressures } from './market';
 import { propReach } from './mapgen';
 import { planNpcOrders } from './ai';
@@ -1469,7 +1469,8 @@ describe('point goals', () => {
 describe('explore', () => {
   it('drives to points along the roads, so every road gets traffic in proportion to its length', () => {
     const w = emptyWorld({ x: 10, y: 10 });
-    const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 150, y: 150 });
+    const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], spotWithoutExplorePlaces(w));
+    npc.brain = npcBrain('roamer', npc.pos, ['roamer']);
     const { edges } = roadNetworkOf(w);
     const total = edges.reduce((sum, e) => sum + e.length, 0);
     const hits = new Set<number>();
