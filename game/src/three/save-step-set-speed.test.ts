@@ -13,10 +13,6 @@ const setSpeedStep = TINY_STEPS.find((s) => s.name === 'withSetSpeed')!;
 const step = (world: unknown): unknown => setSpeedStep.step(structuredClone(world) as SavedJson);
 
 describe('save migration withSetSpeed, a manual driver may hold a set speed', () => {
-  it('is the newest step', () => {
-    expect(TINY_STEPS[TINY_STEPS.length - 1]).toBe(setSpeedStep);
-  });
-
   it('leaves the world as it was', () => {
     expect(step(FORMAT_2_117)).toEqual(FORMAT_2_117);
   });
