@@ -1,6 +1,7 @@
 
+import { explorePlace } from './explore';
 import { isLingerReason, lingerGoal, lingerInvalid } from './linger';
-import { NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, type DecisionOptions, type Weighted } from '../data/npcs';
+import { EXPLORE, NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, type DecisionOptions, type Weighted } from '../data/npcs';
 import { SHOPS } from '../data/market';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
@@ -215,6 +216,8 @@ function beatPoint(world: World, gates: readonly Vec[], radius: number): Vec {
 }
 
 export function exploreGoal(world: World, vehicle: Vehicle): NpcActivity {
+  const place = explorePlace(world, vehicle);
+  if (place) return createActivity('explore', null, { ...place.pos }, 'explore');
   const radius = vehicleStats(world, vehicle).radius;
   const gates = beatGates(vehicle);
   for (let i = 0; i < SPAWN.tries; i++) {
@@ -409,7 +412,7 @@ function haulLost(vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
 }
 
 function escortWaitInvalid(world: World, vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
-  if (goal.reason === 'atPost') return null;
+  if (goal.reason === 'atPost' || goal.reason === 'lookAround') return null;
   if (isLingerReason(goal.reason)) return lingerInvalid(world, goal);
   if (escortsOf(world, vehicle.id).length > 0) return 'escortHired';
   if (goal.reason !== 'awaitEscort') return null;
@@ -1123,6 +1126,12 @@ function arrivalResolver(reason: GoalReason): Resolver {
   };
 }
 
+function resolveExplore(world: World, vehicle: Vehicle, activity: NpcActivity): void {
+  if (!reachedDestination(world, vehicle, activity)) return;
+  finishLeg(world, vehicle, activity, 'exploredSpot');
+  if (activity.reason === 'explore') pushGoal(world, vehicle, { ...createActivity('wait', null, { ...vehicle.pos }, 'lookAround'), phase: 'act', until: world.turn + EXPLORE.lookTurns });
+}
+
 function resolveRetreat(world: World, vehicle: Vehicle, activity: NpcActivity): void {
   const site = reachSite(vehicle, activity);
   if (site) beginRearm(world, vehicle, site);
@@ -1156,7 +1165,7 @@ const RESOLVERS: Partial<Record<NpcActivity['kind'], Resolver>> = {
   travel: resolveTravel,
   prowl: arrivalResolver('prowledRoad'),
   patrol: arrivalResolver('patrolledRoad'),
-  explore: arrivalResolver('exploredSpot'),
+  explore: resolveExplore,
 };
 
 function resolveActivity(world: World, vehicle: Vehicle, activity: NpcActivity): void {

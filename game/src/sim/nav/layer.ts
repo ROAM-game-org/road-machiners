@@ -25,6 +25,7 @@ export type TerrainNav = {
   tileCost: Float64Array;
   flatCost: Float64Array;
   roadTile: Uint8Array;
+  openTile: Uint8Array;
   roadShy: Float32Array;
   slow: Float32Array;
   steep: Float32Array;
@@ -80,11 +81,12 @@ function terrainEntry(t: Terrain) {
   return e;
 }
 
-function tileLayers(t: Terrain): Pick<TerrainNav, 'cliffTile' | 'tileCost' | 'flatCost' | 'roadTile' | 'roadShy' | 'steep'> {
+function tileLayers(t: Terrain): Pick<TerrainNav, 'cliffTile' | 'tileCost' | 'flatCost' | 'roadTile' | 'openTile' | 'roadShy' | 'steep'> {
   const cliffTile = new Uint8Array(t.size * t.size);
   const tileCost = new Float64Array(t.size * t.size);
   const flatCost = new Float64Array(t.size * t.size);
   const roadTile = new Uint8Array(t.size * t.size);
+  const openTile = new Uint8Array(t.size * t.size);
   const steep = new Float32Array(t.size * t.size);
   const sites = atlasSites(atlasOf(t)).filter((s) => !isTerritory(s));
   for (let i = 0; i < t.size * t.size; i++) {
@@ -95,8 +97,9 @@ function tileLayers(t: Terrain): Pick<TerrainNav, 'cliffTile' | 'tileCost' | 'fl
     flatCost[i] = routeCost(t.types[i], bySite);
     tileCost[i] = flatCost[i] * slopeCost(t, i);
     roadTile[i] = t.types[i] === 'road' && !bySite ? 1 : 0;
+    openTile[i] = t.types[i] !== 'road' && !bySite ? 1 : 0;
   }
-  return { cliffTile, tileCost, flatCost, roadTile, steep, roadShy: roadShyField(t.size, roadTile) };
+  return { cliffTile, tileCost, flatCost, roadTile, openTile, steep, roadShy: roadShyField(t.size, roadTile) };
 }
 
 function roadShyField(size: number, roadTile: Uint8Array): Float32Array {
@@ -621,7 +624,7 @@ function components(count: number, edgeStart: Int32Array, edges: Int32Array): In
 
 export type Berth = { x: number; y: number; r: number };
 
-export type Taste = { seed: number; side: number; values: Float32Array | null; shy: Float32Array | null; night: Float32Array | null; size: number; climb: number; steep: Float32Array | null; shares: Float32Array | null; berths: Berth[] | null };
+export type Taste = { seed: number; side: number; values: Float32Array | null; shy: Float32Array | null; night: Float32Array | null; cut: Float32Array | null; size: number; climb: number; steep: Float32Array | null; shares: Float32Array | null; berths: Berth[] | null };
 
 const TASTES_MAX = 256;
 const tastes = new Map<string, Taste>();
@@ -645,11 +648,29 @@ export function makeTaste(seed: number, size: number): Taste {
   const side = Math.ceil(size / scale) + 2;
   const values = new Float32Array(side * side);
   for (let y = 0; y < side; y++) for (let x = 0; x < side; x++) values[y * side + x] = 1 + strength * (hashRandom(seed, x, y) - 0.5);
-  return { seed, side, values, shy: null, night: null, size, climb: Infinity, steep: null, shares: null, berths: null };
+  return { seed, side, values, shy: null, night: null, cut: null, size, climb: Infinity, steep: null, shares: null, berths: null };
 }
 
 export function offRoadTaste(taste: Taste, nav: TerrainNav): Taste {
   return { ...taste, shy: nav.roadShy, size: nav.size };
+}
+
+const cutMasks = new WeakMap<TerrainNav, Float32Array>();
+
+export function cutTaste(taste: Taste, nav: TerrainNav): Taste {
+  let mask = cutMasks.get(nav);
+  if (!mask) {
+    mask = cutMask(nav);
+    cutMasks.set(nav, mask);
+  }
+  return { ...taste, cut: mask, size: nav.size };
+}
+
+function cutMask(nav: TerrainNav): Float32Array {
+  const open = REGION.navigation.shortcutCost / REGION.navigation.offRoadCost;
+  const mask = new Float32Array(nav.size * nav.size);
+  for (let i = 0; i < mask.length; i++) mask[i] = nav.openTile[i] === 1 ? open : 1;
+  return mask;
 }
 
 export type NightZone = { center: Vec; reach: number; cost: number; inside: (x: number, y: number) => boolean };
@@ -679,7 +700,7 @@ export function berthTaste(taste: Taste, berths: Berth[]): Taste {
 
 export function climbTaste(taste: Taste | null, nav: TerrainNav, climb: number): Taste | null {
   if (climb >= TERRAIN.drive.maxSlope) return taste;
-  const base = taste ?? { seed: 0, side: 0, values: null, shy: null, night: null, size: nav.size, climb: Infinity, steep: null, shares: null, berths: null };
+  const base = taste ?? { seed: 0, side: 0, values: null, shy: null, night: null, cut: null, size: nav.size, climb: Infinity, steep: null, shares: null, berths: null };
   return { ...base, climb, steep: nav.steep, shares: blockOverClimb(nav, climb) };
 }
 
@@ -717,7 +738,7 @@ export function tasteAt(t: Taste, x: number, y: number): number {
 }
 
 function noisy(t: Taste, cost: number, x: number, y: number): number {
-  const c = cost * tasteAt(t, x, y) * (t.night ? t.night[tileIndex(t.size, x, y)] : 1) * (t.berths && inBerth(t.berths, x, y) ? NPC_BEHAVIOR.berthCost : 1);
+  const c = cost * tasteAt(t, x, y) * (t.night ? t.night[tileIndex(t.size, x, y)] : 1) * (t.cut ? t.cut[tileIndex(t.size, x, y)] : 1) * (t.berths && inBerth(t.berths, x, y) ? NPC_BEHAVIOR.berthCost : 1);
   return t.shy ? c * t.shy[tileIndex(t.size, x, y)] : c;
 }
 
@@ -743,10 +764,18 @@ export function tastedCoarse(t: Taste | null, cost: number, x: number, y: number
   return c * (1 + Math.max(t.shares[blockA], t.shares[blockB]) * (REGION.navigation.overClimbCost - 1));
 }
 
+function noiseKey(t: Taste): string {
+  if (!t.values) return 'flat';
+  return t.shy ? `${t.seed}:off` : String(t.seed);
+}
+
+function withSuffix(key: string, on: boolean, suffix: string): string {
+  return on ? `${key}:${suffix}` : key;
+}
+
 export function tasteKey(t: Taste | null): string {
   if (!t) return 'plain';
-  const noise = t.values ? (t.shy ? `${t.seed}:off` : String(t.seed)) : 'flat';
-  const styled = t.night ? `${noise}:n` : noise;
+  const styled = withSuffix(withSuffix(noiseKey(t), t.night !== null, 'n'), t.cut !== null, 'cut');
   const berthed = t.berths ? `${styled}:b${berthKey(t.berths)}` : styled;
   return t.steep ? `${berthed}:c${t.climb}` : berthed;
 }

@@ -24,7 +24,6 @@ export type Throttle = "brake" | "hold" | "accelerate";
 export type ZoneEdges = {
   brakeEnd: number;
   holdEnd: number;
-  restBrakeEnd: number;
   reach: number;
 };
 
@@ -36,7 +35,6 @@ export function zoneEdges(): ZoneEdges {
   return {
     brakeEnd: reach * Z.brake,
     holdEnd: reach * (Z.brake + Z.hold),
-    restBrakeEnd: reach / 3,
     reach,
   };
 }
@@ -47,10 +45,14 @@ export function driveMode(v: Pick<Vehicle, "direct">): DriveMode {
   return v.direct ? "direct" : "route";
 }
 
+export function zoneSpeedOf(me: Pick<Vehicle, "direct" | "setSpeed" | "speed">): number {
+  return me.direct && me.setSpeed !== undefined ? me.setSpeed : me.speed;
+}
+
 export function throttleFor(d: number, speed: number, mode: DriveMode): Throttle {
   if (mode === "route") return d > speed ? "accelerate" : "hold";
   const z = zoneEdges();
-  if (speed === 0) return d < z.restBrakeEnd ? "brake" : "accelerate";
+  if (speed === 0) return "accelerate";
   if (d < z.brakeEnd) return "brake";
   if (d < z.holdEnd) return "hold";
   return "accelerate";
@@ -71,6 +73,34 @@ export function throughSpeed(s: VehicleStats, speed: number, d: number, pace: nu
 function routeSpeed(s: VehicleStats, speed: number, d: number): number {
   if (!Number.isFinite(d) || !Number.isFinite(speed)) throw new Error(`Route speed needs finite distance and speed, got ${d} and ${speed}`);
   return clamp(2 * d - speed, Math.min(speed, s.maxSpeed), Math.min(s.maxSpeed, speed + s.accel));
+}
+
+export function setSpeedTarget(v: Pick<Vehicle, "direct" | "setSpeed">, s: VehicleStats, order: MoveOrder | null): number | undefined {
+  if (!v.direct || v.setSpeed === undefined) return undefined;
+  if (order && (order.kind !== "through" || order.pace !== undefined)) return undefined;
+  return Math.min(v.setSpeed, s.maxSpeed);
+}
+
+export function clickSetSpeed(s: VehicleStats, me: Pick<Vehicle, "pos" | "speed" | "setSpeed">, p: Vec): number {
+  const base = me.setSpeed ?? me.speed;
+  if (!Number.isFinite(base)) throw new Error(`Set speed needs a finite speed, got ${base}`);
+  const zone = throttleFor(dist(me.pos, p), base, "direct");
+  if (zone === "brake") return Math.max(0, base - RULES.setSpeedStep);
+  if (zone === "accelerate") return Math.min(s.maxSpeed, base + RULES.setSpeedStep);
+  return base;
+}
+
+export function settleSetSpeed(v: Vehicle, startSpeed: number): void {
+  if (startSpeed > RULES.parkedSpeed && v.speed <= RULES.parkedSpeed) zeroSetSpeed(v);
+}
+
+export function zeroSetSpeed(v: Vehicle): void {
+  if (v.setSpeed !== undefined) v.setSpeed = 0;
+}
+
+export function switchSetSpeed(v: Vehicle, direct: boolean): void {
+  if (direct) v.setSpeed = v.speed > RULES.parkedSpeed ? v.speed : 0;
+  else delete v.setSpeed;
 }
 
 export function zoneSpeed(s: VehicleStats, speed: number, d: number): number {
@@ -129,7 +159,7 @@ export function playerOrder(world: World, me: Vehicle, dest: Vec, shift: boolean
 export function orderThrottle(me: Vehicle, order: MoveOrder): Throttle {
   if (order.kind === "brake") return "brake";
   if (order.pace !== undefined) return order.pace <= RULES.crawlSpeed ? "brake" : "hold";
-  return throttleFor(dist(me.pos, order.dest), me.speed, driveMode(me));
+  return throttleFor(dist(me.pos, order.dest), zoneSpeedOf(me), driveMode(me));
 }
 
 function onSite(world: World, p: Vec): boolean {
@@ -185,6 +215,7 @@ export function setDown(world: World, v: Vehicle): void {
   v.pos = setDownSpot(world, v);
   straighten(v);
   v.speed = 0;
+  zeroSetSpeed(v);
   v.strandedTurns = RULES.stranded.turns;
   delete v.strandedAt;
 }

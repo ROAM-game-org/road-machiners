@@ -812,3 +812,14 @@ export function withWholeMoney_123_124(world: SavedJson): SavedJson {
     chaosHighway: highway_123_124(world.chaosHighway as SavedJson | null | undefined) ?? null,
   };
 }
+
+export function withRouteStyles_124_125(world: SavedJson): SavedJson {
+  const styled = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    const route = brain?.farRoute as SavedJson | undefined;
+    if (!brain || !route || route.style !== undefined) return v;
+    const { offRoad, ...rest } = route;
+    return { ...v, brain: { ...brain, farRoute: { ...rest, style: offRoad === true ? 'hidden' : 'road' } } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(styled) };
+}

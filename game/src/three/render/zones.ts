@@ -48,8 +48,8 @@ export class ZonesView {
 
   update(terrain: Terrain, pos: Vec, heading: number, speed: number, halfAngle: number): void {
     const z = zoneEdges();
-    const brakeEnd = speed === 0 ? z.restBrakeEnd : z.brakeEnd;
-    const holdEnd = speed === 0 ? z.restBrakeEnd : z.holdEnd;
+    const brakeEnd = speed === 0 ? 0 : z.brakeEnd;
+    const holdEnd = speed === 0 ? 0 : z.holdEnd;
     this.band('brake', terrain, pos, heading, halfAngle, 0, brakeEnd);
     this.band('hold', terrain, pos, heading, halfAngle, brakeEnd, holdEnd);
     this.band('accelerate', terrain, pos, heading, halfAngle, holdEnd, z.reach);

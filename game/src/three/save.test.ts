@@ -990,7 +990,7 @@ describe('game save', () => {
     const world = standardWorld();
     const npc = world.vehicles.find((v) => v.brain);
     if (!npc?.brain) throw new Error('The start world needs an NPC');
-    npc.brain.farRoute = { dest: { x: 300, y: 200 }, points: [{ x: 290, y: 205 }, { x: 300, y: 200 }], offRoad: false };
+    npc.brain.farRoute = { dest: { x: 300, y: 200 }, points: [{ x: 290, y: 205 }, { x: 300, y: 200 }], style: 'road' };
     saveWorld(slots, { ...world, turn: 21 }, RUN, 20, 1000);
     expect(savedWorldOf(slots, 'auto')).not.toHaveProperty('terrain');
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;

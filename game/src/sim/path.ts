@@ -4,8 +4,8 @@ import { crossesRail } from './bridge';
 import { count, timed } from '../perf';
 import { canStepOut, connected, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
 import type { Blocker } from './nav/buckets';
-import { CELL, CLEARANCE, berthTaste, blockerKey, climbNeedOnRoads, climbTaste, componentOf, dynamicBlockers, navLayer, nearCliff, nightTaste, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type Berth, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
-import { keepsOffRoads } from './off-road';
+import { CELL, CLEARANCE, berthTaste, blockerKey, climbNeedOnRoads, climbTaste, componentOf, cutTaste, dynamicBlockers, navLayer, nearCliff, nightTaste, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type Berth, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
+import { routeStyle, type RouteStyle } from './off-road';
 import { climbGrade } from './stats';
 import type { Vehicle, World } from './types';
 import { avoidsCrater, CRATER_NIGHT } from './sunward';
@@ -45,13 +45,18 @@ function routeTaste(world: World, nav: TerrainNav, driver: Vehicle | undefined):
 }
 
 function styledTaste(world: World, nav: TerrainNav, driver: Vehicle, taste: Taste): Taste {
-  const keeping = keepsOffRoads(world, driver) ? offRoadTaste(taste, nav) : taste;
+  const keeping = styledByRoute(routeStyle(world, driver), taste, nav);
   const styled = avoidsCrater(world, driver) ? nightTaste(keeping, nav, CRATER_NIGHT) : keeping;
   return berthTaste(styled, berthsOf(world, driver));
 }
 
 function crossesBerth(berths: Berth[] | null | undefined, from: Vec, to: Vec): boolean {
   return berths?.some((b) => segmentDist(b, from, to) <= b.r) ?? false;
+}
+
+function styledByRoute(style: RouteStyle, taste: Taste, nav: TerrainNav): Taste {
+  if (style === 'hidden') return offRoadTaste(taste, nav);
+  return style === 'cut' ? cutTaste(taste, nav) : taste;
 }
 
 function climbLimit(world: World, driver: Vehicle): number {
@@ -129,14 +134,14 @@ export function clearLines(world: World, radius: number, extra: Blocker[]): (a: 
   return (a, b) => lineCost(nav, statics, blockers, a, b, radius + CLEARANCE, Infinity, nav.tileCost, null) < Infinity;
 }
 
-export type KeptRoute = { dest: Vec; points: Vec[]; blockers: string[]; offRoad: boolean; night: boolean };
+export type KeptRoute = { dest: Vec; points: Vec[]; blockers: string[]; style: RouteStyle; night: boolean };
 
 export function keepRoute(world: World, dest: Vec, points: Vec[], extra: Blocker[], driver?: Vehicle): KeptRoute {
-  return { dest: { ...dest }, points, blockers: dynamicBlockers(world.obstacles, world.terrain, extra).map((o) => blockerKey([o])), offRoad: plansOffRoad(world, driver), night: plansNight(world, driver) };
+  return { dest: { ...dest }, points, blockers: dynamicBlockers(world.obstacles, world.terrain, extra).map((o) => blockerKey([o])), style: plannedStyle(world, driver), night: plansNight(world, driver) };
 }
 
-function plansOffRoad(world: World, driver: Vehicle | undefined): boolean {
-  return driver !== undefined && keepsOffRoads(world, driver);
+function plannedStyle(world: World, driver: Vehicle | undefined): RouteStyle {
+  return driver ? routeStyle(world, driver) : 'road';
 }
 
 function plansNight(world: World, driver: Vehicle | undefined): boolean {
@@ -148,7 +153,7 @@ export function continueRoute(world: World, from: Vec, kept: KeptRoute, to: Vec,
 }
 
 function continueKept(world: World, from: Vec, kept: KeptRoute, to: Vec, radius: number, extra: Blocker[], driver: Vehicle | undefined): Vec[] | null {
-  if (kept.offRoad !== plansOffRoad(world, driver) || kept.night !== plansNight(world, driver)) return null;
+  if (kept.style !== plannedStyle(world, driver) || kept.night !== plansNight(world, driver)) return null;
   const c = legCheck(world, kept, radius, extra);
   const { rest, moved } = remainingPoints(from, kept, to);
   if (lastBrokenLeg(c, from, rest, moved) >= 0) return null;
