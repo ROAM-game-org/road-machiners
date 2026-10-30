@@ -167,6 +167,16 @@ function heuristic(x: number, y: number, gx: number, gy: number): number {
 
 const LONG_CELLS = 32;
 
+type Box = { x0: number; y0: number; x1: number; y1: number };
+
+function shortBox(n: number, a: number, b: number): Box {
+  const ax = a % n;
+  const ay = Math.floor(a / n);
+  const bx = b % n;
+  const by = Math.floor(b / n);
+  return { x0: Math.min(ax, bx) - LONG_CELLS, y0: Math.min(ay, by) - LONG_CELLS, x1: Math.max(ax, bx) + LONG_CELLS, y1: Math.max(ay, by) + LONG_CELLS };
+}
+
 export function findCells(layer: NavLayer, ov: Overlay, start: number, goal: number, taste: Taste | null): Int32Array | null {
   const cells = findCellsToward(layer, ov, start, goal, taste);
   return cells && cells[cells.length - 1] === goal ? cells : null;
@@ -176,7 +186,7 @@ export function findCellsToward(layer: NavLayer, ov: Overlay, start: number, goa
   if (start === goal) return Int32Array.of(start);
   if (!connected(layer, start, goal)) return null;
   const n = layer.n;
-  if (heuristic(start % n, Math.floor(start / n), goal % n, Math.floor(goal / n)) <= LONG_CELLS) return fineSearch(layer, ov, start, goal, false, taste);
+  if (heuristic(start % n, Math.floor(start / n), goal % n, Math.floor(goal / n)) <= LONG_CELLS) return fineSearch(layer, ov, start, goal, false, taste, shortBox(n, start, goal));
   return corridorSearch(layer, ov, start, goal, taste);
 }
 
@@ -501,7 +511,7 @@ function startRegion(layer: NavLayer, start: number, goal: number): number {
   throw new Error(`start cell ${start} has no free neighbour joined to goal ${goal}`);
 }
 
-function fineSearch(layer: NavLayer, ov: Overlay, start: number, goal: number, corridor: boolean, taste: Taste | null): Int32Array {
+function fineSearch(layer: NavLayer, ov: Overlay, start: number, goal: number, corridor: boolean, taste: Taste | null, box: Box | null = null): Int32Array {
   const n = layer.n;
   const g = begin(n * n);
   const w = REGION.navigation.heuristicWeight;
@@ -512,13 +522,15 @@ function fineSearch(layer: NavLayer, ov: Overlay, start: number, goal: number, c
   from[start] = -1;
   seen[start] = g;
   heapPush(start, heuristic(start % n, Math.floor(start / n), gx, gy) * w);
+  let expanded = 0;
   let nearest = start;
   let nearestLeft = Infinity;
   while (heapSize > 0) {
     const cur = heapPop();
-    if (cur === goal) return unwind(goal);
+    if (cur === goal) return finished(goal, expanded);
     if (closed[cur] === g) continue;
     closed[cur] = g;
+    expanded++;
     const left = heuristic(cur % n, Math.floor(cur / n), gx, gy);
     if (left < nearestLeft) {
       nearest = cur;
@@ -527,7 +539,7 @@ function fineSearch(layer: NavLayer, ov: Overlay, start: number, goal: number, c
     const count = neighbours(n, cur);
     for (let k = 0; k < count; k++) {
       const next = around[k];
-      if (!canEnter(layer, ov, next, g, corridor)) continue;
+      if (!canEnter(layer, ov, next, g, corridor, box)) continue;
       const nx = next % n;
       const ny = Math.floor(next / n);
       const c = cost[cur] + tasted(taste, aroundStep[k] * slowAt(layer, next), (nx + 0.5) * CELL, (ny + 0.5) * CELL);
@@ -538,14 +550,24 @@ function fineSearch(layer: NavLayer, ov: Overlay, start: number, goal: number, c
       heapPush(next, c + heuristic(nx, ny, gx, gy) * w);
     }
   }
-  return unwind(nearest);
+  return finished(nearest, expanded);
 }
 
-function canEnter(layer: NavLayer, ov: Overlay, c: number, g: number, corridor: boolean): boolean {
+function finished(end: number, expanded: number): Int32Array {
+  count('route-search-cells', expanded);
+  return unwind(end);
+}
+
+function canEnter(layer: NavLayer, ov: Overlay, c: number, g: number, corridor: boolean, box: Box | null): boolean {
   if (!isFree(layer, ov, c) || closed[c] === g) return false;
   const n = layer.n;
+  if (box && !inBox(box, c % n, Math.floor(c / n))) return false;
   const bn = layer.grid.bn;
   return !corridor || inCorridor[Math.floor(Math.floor(c / n) / COARSE) * bn + Math.floor((c % n) / COARSE)] === corridorGen;
+}
+
+function inBox(box: Box, x: number, y: number): boolean {
+  return x >= box.x0 && x <= box.x1 && y >= box.y0 && y <= box.y1;
 }
 
 function unwind(goal: number): Int32Array {
