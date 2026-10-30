@@ -32,7 +32,7 @@ status=1
 if [ "$ready" = 1 ]; then
   status=0
   ${stepCall('playtest')}
-  ${playtest} || status=$?
+  env -u TEST_TIMEOUTS ${playtest} || status=$?
 else
   echo "dev server did not start in ${SERVER_TRIES} seconds"
 fi

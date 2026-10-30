@@ -16,7 +16,7 @@ export const realRun: Run = (cmd, args, opts) => new Promise((done, fail) => {
   child.on('close', (code) => {
     if (timer) clearTimeout(timer);
     log?.end();
-    if (timedOut) done({ code: code ?? 1, stdout, stderr: `${stderr}\n${cmd} timed out after ${opts.timeoutMs} ms and was killed` });
+    if (timedOut) done({ code: code ?? 1, stdout, stderr: `${stderr}\n${cmd} timed out after ${opts.timeoutMs} ms and was killed`, timedOut: true });
     else done({ code: code ?? 1, stdout, stderr });
   });
   if (opts.input !== undefined) child.stdin.end(opts.input);

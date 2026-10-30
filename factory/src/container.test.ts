@@ -10,7 +10,7 @@ type Call = { cmd: string; args: string[]; opts?: RunOptions };
 
 const HOME = resolve('tmp/factory-container-test');
 const tokenPrices: FactoryConfig['tokenPrices'] = { opus: { input: 4, output: 20, cacheRead: 0.2, cacheWrite5m: 5, cacheWrite1h: 8 } };
-const cfg = { image: 'img:1', oauthToken: 'secret-token', elevenlabsKey: 'sound-key', sfxMaxGenerations: 6, agyMaxRuns: 20, agyModel: 'flash', codexModel: 'sol', codexEffort: 'medium', agentJobMaxMinutes: 30, agentCompactWindow: 200000, home: HOME, tokenPrices } as FactoryConfig;
+const cfg = { image: 'img:1', oauthToken: 'secret-token', elevenlabsKey: 'sound-key', sfxMaxGenerations: 6, agyMaxRuns: 20, agyModel: 'flash', codexModel: 'sol', codexEffort: 'medium', agentJobMaxMinutes: 30, agentCompactWindow: 200000, home: HOME, tokenPrices, jobsSlice: null } as FactoryConfig;
 
 function writeLogins(): void {
   mkdirSync(`${HOME}/codex`, { recursive: true });
@@ -315,6 +315,18 @@ describe('dockerContainer', () => {
     const { run, calls } = fakeRun();
     await dockerContainer(run, cfg, null).shell('checks', '/c','x', '/l');
     expect(runCall(calls).args.join(' ')).toContain('-e TEST_TIMEOUTS=off');
+  });
+
+  it('puts agent and shell containers in the jobs slice only when the host has one', async () => {
+    const on = fakeRun();
+    const sliced = { ...cfg, jobsSlice: 'roam-factory-jobs.slice' };
+    await dockerContainer(on.run, sliced, null).agent({ clone: '/w/c', dir: 'game', model: 'opus', prompt: 'p', log: '/l' });
+    await dockerContainer(on.run, sliced, null).shell('checks', '/c','x', '/l');
+    const runs = on.calls.filter((call) => call.args[0] === 'run' && call.args[1] === '--rm');
+    expect(runs.map((call) => call.args.join(' '))).toEqual([expect.stringContaining('--cgroup-parent roam-factory-jobs.slice'), expect.stringContaining('--cgroup-parent roam-factory-jobs.slice')]);
+    const off = fakeRun();
+    await dockerContainer(off.run, { ...cfg, jobsSlice: null }, null).shell('checks', '/c','x', '/l');
+    expect(runCall(off.calls).args).not.toContain('--cgroup-parent');
   });
 
   it('gives agent and shell containers the GPU with its graphics drivers only when the GPU is on', async () => {

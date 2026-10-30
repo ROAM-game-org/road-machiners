@@ -4,7 +4,7 @@ Run the factory on your Mac to test it before the server. The server setup is in
 
 ## Steps
 
-1. Copy `factory/.env.example` to `factory/.env` and fill it in. Set `FACTORY_HOME` and `FACTORY_WEB_ROOT` to folders under your home, `FACTORY_PUBLIC_URL=http://localhost:8080` and `FACTORY_GPU=off`, since Docker on a Mac has no GPU.
+1. Copy `factory/.env.example` to `factory/.env` and fill it in. Set `FACTORY_HOME` and `FACTORY_WEB_ROOT` to folders under your home, `FACTORY_PUBLIC_URL=http://localhost:8080` `FACTORY_GPU=off`, since Docker on a Mac has no GPU, and `FACTORY_JOBS_SLICE=off`, since a Mac has no systemd.
 2. Run `export FACTORY_UID=$(id -u)` in the shell you use for the compose commands. The Hermes compose file runs Hermes as that user.
 3. Make the folders: `mkdir -p "$FACTORY_HOME"/{inbox,committee,state,logs,hermes,codex,agy} "$FACTORY_WEB_ROOT"`.
 4. Build the images: `docker build -t "$FACTORY_IMAGE" factory/docker` and `docker build -t "$FACTORY_IMAGE-proxy" factory/docker/proxy`.

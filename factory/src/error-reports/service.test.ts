@@ -188,7 +188,7 @@ describe('error server', () => {
   async function start(ipPerHour = 2): Promise<{ url: string; home: string; calls: string[] }> {
     const { home, deps, calls } = setup();
     const cfg = { home, publicUrl: 'https://play.test/play', errorOrigins: 'https://html.itch.zone', errorBodyKb: 64, errorIpPerHour: ipPerHour, reportIpPerHour: 5, reportMaxChars: 3000, errorDiskMb: 10, errorUnzippedMb: 1 };
-    const feedback = new Feedback({ cfg, store: openStore(home), classify: async () => { throw new Error('no filter in this test'); }, github: deps.github, now: deps.now, log: () => undefined, alert: () => undefined });
+    const feedback = new Feedback({ cfg, store: openStore(home), classify: async () => { throw new Error('no filter in this test'); }, github: { ...deps.github, issue: async () => { throw new Error('no issue read in this test'); } }, now: deps.now, log: () => undefined, alert: () => undefined });
     const server = new ErrorServer(new ErrorReports(deps), feedback, cfg, deps.now, () => undefined);
     servers.push(server);
     return { url: `http://127.0.0.1:${await server.listenPort(0)}/errors`, home, calls };

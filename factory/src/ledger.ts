@@ -5,7 +5,7 @@ import { withLockSync } from './lock';
 import { transcriptUsage } from './transcript';
 import { archiveTranscripts } from './transcript-archive';
 import type { CardFacts, CardFlow, CardStep } from './card-events';
-import type { Column, JobStage, LedgerJobStage, Route, TokenPrice } from './types';
+import type { Column, FailedTest, JobStage, LedgerJobStage, Route, Stage, TokenPrice } from './types';
 import { reportAttempt, type Observation } from './observability';
 
 export type ModelUsage = { model: string; input: number; output: number; cacheRead: number; cacheWrite: number; cost: number };
@@ -22,6 +22,7 @@ export type LedgerLine =
   | { kind: 'route'; issue: number; route: Route; by: string; at: string }
   | { kind: 'post'; id: number; channel?: string; text: string; at: string }
   | { kind: 'control'; action: string; issue: number | null; by: string; reason: string; at: string }
+  | { kind: 'baseline'; stage: Stage; into: string; base: string; head: string; excluded: FailedTest[]; failing: FailedTest[]; at: string }
   | ({ kind: 'card'; issue: number; step: CardStep; to: Column; at: string; flow?: CardFlow } & CardFacts);
 
 const LEDGER_LOCK_MS = 30_000;
@@ -160,9 +161,19 @@ export function openPart(home: string, jobId: string, kind: PartKind, at: Date):
 
 export function closePart(home: string, jobId: string, id: string, at: Date): void {
   const path = join(openPartsDir(home, jobId), `${id}.json`);
-  const open = JSON.parse(readFileSync(path, 'utf8')) as Omit<JobPart, 'endedAt'>;
+  const open = readOpenPart(path);
+  if (open === null) return;
   appendFileSync(partsPath(home, jobId), `${JSON.stringify({ ...open, endedAt: at.toISOString() })}\n`);
-  rmSync(path);
+  rmSync(path, { force: true });
+}
+
+function readOpenPart(path: string): Omit<JobPart, 'endedAt'> | null {
+  try {
+    return JSON.parse(readFileSync(path, 'utf8')) as Omit<JobPart, 'endedAt'>;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    throw error;
+  }
 }
 
 function takeParts(home: string, jobId: string, endedAt: Date): JobPart[] {

@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { drainInbox, parseCommand } from './inbox';
 import { solidPng } from './media-fixtures';
-import { EMPTY_STATE, readState, writeState } from './state';
+import { EMPTY_STATE, readState, updateState, writeState } from './state';
 import type { Card, Ctx, FactoryConfig, FactoryState, ReleaseState } from './types';
 
 const ROOT = resolve('tmp/factory-inbox-test');
@@ -436,6 +436,18 @@ describe('control files', () => {
     expect(failure.error).toContain('#4: Issue #4 is not on the board');
     expect(calls).toEqual([]);
     expect(sent).toEqual([]);
+  });
+
+  it('drops the rejections of an order once the same order on the same card applies, and keeps the others', async () => {
+    const otherAction = { stage: 'control' as const, issue: null, error: '#4: the hold failed', cause: 'error' as const, log: null, at: '2026-10-24T16:50:00.000Z', control: { action: 'hold', issue: 4 } };
+    updateState(statePath, (state) => ({ ...state, failures: [otherAction] }));
+    putControl('1-control.json', { action: 'move', issue: 4, to: 'design' });
+    putControl('2-control.json', { action: 'move', issue: 5, to: 'design' });
+    await drainInbox(fakeCtx([], [], []));
+    expect(readState(statePath).failures.map((failure) => failure.control)).toEqual([{ action: 'hold', issue: 4 }, { action: 'move', issue: 4 }, { action: 'move', issue: 5 }]);
+    putControl('3-control.json', { action: 'move', issue: 4, to: 'design' });
+    await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Testing', labels: [] }], [], []));
+    expect(readState(statePath).failures.map((failure) => failure.control)).toEqual([{ action: 'hold', issue: 4 }, { action: 'move', issue: 5 }]);
   });
 
   it('fails a bad shape and an unknown actor as control failures', async () => {

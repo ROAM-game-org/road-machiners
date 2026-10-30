@@ -299,10 +299,10 @@ function harness(job: Job | null, alive: boolean, cards: Card[] = [], comments: 
   const pinned: string[] = [];
   const github = { cards: async () => cards, card: async (n: number) => cards.find((row) => row.issue === n) ?? null, candidates: async () => [], addLabel: async (n: number, l: string) => { labels.push(`${n}:${l}`); }, comments: async () => comments, removeLabel: async (n: number, l: string) => { removed.push(`${n}:${l}`); } };
   const telegram = { sendMessage: async (_chat: string, text: string) => { sent.push(text); return 1; } };
-  const cfg = { home: dir, webRoot: join(dir, 'web'), repo: 'o/r', committeeChat: 'c', triageTimeoutMinutes: 30, designTimeoutMinutes: 30, implementTimeoutMinutes: 120, verifyTimeoutMinutes: 30, testTimeoutMinutes: 30, branchTimeoutMinutes: 30, mergeTimeoutMinutes: 30, replyRouteMinutes: 15, needsInfoHours: 24, minFreeGb: 0.001, minAvailableGb: 1, logDays: 14, transcriptDays: 10,cpuLight: 0.25, cpuImplement: 0.25, cpuTest: 0.5, vitestWorkersImplement: 2, vitestWorkersTest: 4, ...CFG };
+  const cfg = { home: dir, webRoot: join(dir, 'web'), repo: 'o/r', committeeChat: 'c', triageTimeoutMinutes: 30, designTimeoutMinutes: 30, implementTimeoutMinutes: 120, verifyTimeoutMinutes: 30, testTimeoutMinutes: 30, branchTimeoutMinutes: 30, mergeTimeoutMinutes: 30, replyRouteMinutes: 15, needsInfoHours: 24, minFreeGb: 0.001, minAvailableGb: 1, logDays: 14, transcriptDays: 10,cpuLight: 0.25, cpuImplement: 0.25, cpuTest: 0.5, vitestWorkersImplement: 2, vitestWorkersTest: 4, jobsSlice: null, ...CFG };
   const repo = { fetch: async () => {},headHash: async (branch: string) => { if (branch === RELEASE.branch) return 'rel0001'; if (branch === 'main') return 'main0001'; if (branch !== 'dev') throw new Error(`unexpected branch ${branch}`); return devHead; } };
   const ctx = { cfg, github, telegram, repo, statePath, now: () => NOW, log: () => undefined } as unknown as Ctx;
-  const deps: TickDeps = { isAlive: () => alive, kill: async (_run, pid, id) => { killed.push(`${pid} ${id}`); }, removeContainers: async (_run, id) => { killed.push(`containers ${id}`); }, spawn: (args, _cwd, _log, id, cpus, testWorkers) => { parseStage(args[0]); spawned.push([...args, id]); pinned.push(`${args[0]} ${cpus} ${testWorkers}`); return 77; }, cores: () => 4, repair: async () => { throw new Error('no repair expected'); }, publicTick: async () => undefined };
+  const deps: TickDeps = { isAlive: () => alive, kill: async (_run, pid, id) => { killed.push(`${pid} ${id}`); }, removeContainers: async (_run, id) => { killed.push(`containers ${id}`); }, spawn: (args, _cwd, _log, id, cpus, testWorkers) => { parseStage(args[0]); spawned.push([...args, id]); pinned.push(`${args[0]} ${cpus} ${testWorkers}`); return 77; }, cores: () => 4, availableGb: () => null, repair: async () => { throw new Error('no repair expected'); }, publicTick: async () => undefined };
   return { ctx, sent, labels, removed, deps, killed, spawned, pinned };
 }
 
@@ -444,6 +444,28 @@ describe('tick', () => {
     await tick(h.ctx, '/code', h.deps);
     expect(h.spawned).toEqual([]);
     expect(existsSync(join(h.ctx.cfg.home, 'work', 'issue-9'))).toBe(false);
+  });
+
+  it('starts no job while available memory is under the minimum, and still cleans and checks running jobs', async () => {
+    const h = harness(null, true, [card(8, 'Design'), card(9, 'Done')]);
+    mkdirSync(join(h.ctx.cfg.home, 'work', 'issue-9'), { recursive: true });
+    h.ctx.cfg.minAvailableGb = 1;
+    h.deps.availableGb = () => 0.7;
+    await tick(h.ctx, '/code', h.deps);
+    expect(h.spawned).toEqual([]);
+    expect(existsSync(join(h.ctx.cfg.home, 'work', 'issue-9'))).toBe(false);
+    expect(readObservation(h.ctx.cfg.home, 'scheduler')?.data).toMatchObject({ type: 'scheduler', status: 'memory-low' });
+    h.deps.availableGb = () => 2.5;
+    await tick(h.ctx, '/code', h.deps);
+    expect(h.spawned.map((args) => args[0])).toEqual(['design']);
+  });
+
+  it('starts jobs as usual on a host that reports no available memory', async () => {
+    const h = harness(null, true, [card(8, 'Design')]);
+    h.ctx.cfg.minAvailableGb = 1;
+    h.deps.availableGb = () => null;
+    await tick(h.ctx, '/code', h.deps);
+    expect(h.spawned.map((args) => args[0])).toEqual(['design']);
   });
 
   it('keeps the clone of a card the board list omits, since its own issue shows it open', async () => {

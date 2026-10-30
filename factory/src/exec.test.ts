@@ -8,6 +8,7 @@ describe('realRun', () => {
     expect(Date.now() - started).toBeLessThan(5000);
     expect(result.code).not.toBe(0);
     expect(result.stderr).toContain('sleep timed out after 200 ms and was killed');
+    expect(result.timedOut).toBe(true);
   });
 
   it('returns a program that ends in time unchanged', async () => {

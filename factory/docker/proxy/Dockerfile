@@ -1,5 +1,5 @@
 # Egress proxy for agent containers. It lets CONNECT and HTTP through to the hosts in allowlist and denies the rest.
-FROM alpine:3.22
+FROM alpine:3.24
 
 RUN apk add --no-cache tinyproxy
 

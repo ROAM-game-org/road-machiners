@@ -87,6 +87,18 @@ describe('merging on GitHub', () => {
     expect((await host('worktree', 'list')).trim().split('\n')).toHaveLength(1);
   });
 
+  it('fetch deletes the free local branches and keeps one a linked worktree has checked out', async () => {
+    const { home, repo, host } = await setup();
+    await host('branch', 'stale', 'origin/dev');
+    await host('branch', 'held', 'origin/dev');
+    const linked = join(home, 'linked');
+    await host('worktree', 'add', linked, 'held');
+    await repo.fetch();
+    expect((await host('for-each-ref', '--format=%(refname:short)', 'refs/heads')).trim()).toBe('held');
+    expect((await realRun('git', ['symbolic-ref', '--short', 'HEAD'], { cwd: linked })).stdout.trim()).toBe('held');
+    await repo.fetch();
+  });
+
   it('throws a conflict with its files and leaves GitHub as it was', async () => {
     const { repo, commit, head } = await setup();
     await commit('factory/issue-4', 'f.txt', 'four\n');
