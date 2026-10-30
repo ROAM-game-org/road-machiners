@@ -154,6 +154,15 @@ describe('playtest', () => {
     expect(harnessRuns(run).map((shell) => shell.pin)).toEqual([undefined, undefined]);
   });
 
+  it('dispatches the full sha of the release head, though the release tracks it abbreviated', async () => {
+    const run = setup();
+    run.turns = [clean];
+    run.f.ctx.repo.fullHash = async (commit: string) => commit.padEnd(40, 'f');
+    await playtest(run.f.ctx, 11);
+    expect(run.suites).toEqual(['abc1234'.padEnd(40, 'f')]);
+    expect(run.suites[0]).toMatch(/^abc1234[0-9a-f]{33}$/);
+  });
+
   it('gives a failed release suite to the agent after the first play, then checks its fix on GitHub Actions', async () => {
     const run = setup();
     run.failingSuites = ['abc1234'];
