@@ -11,7 +11,25 @@ describe('the playtest stall watch', () => {
   });
 
   it('stays off without TEST_STALL_MINUTES', () => {
-    expect(watchStalls('The playtest', {}, fakeStream(), () => undefined)).toBeNull();
+    expect(watchStalls('The playtest', {}, fakeStream(), () => undefined).timer).toBeNull();
+  });
+
+  it('closes what the run registered before it exits on a stall', async () => {
+    vi.useFakeTimers();
+    const exit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const stream = fakeStream();
+    const order: string[] = [];
+    const watch = watchStalls('The playtest', { TEST_STALL_MINUTES: '1' }, stream);
+    watch.closeOnStall(async () => {
+      order.push('browser closed');
+    });
+    exit.mockImplementation((() => {
+      order.push('exit');
+    }) as never);
+    await vi.advanceTimersByTimeAsync(70_000);
+    expect(order.slice(0, 2)).toEqual(['browser closed', 'exit']);
+    vi.restoreAllMocks();
   });
 
   it('refuses a stall limit that is not a positive number of minutes', () => {

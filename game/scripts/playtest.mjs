@@ -7,7 +7,7 @@ import { checkHighwayNightInSoftware, checkNightGround, NIGHT_TURNS } from './ni
 import { playUrl } from './game-url.mjs';
 import { watchStalls } from './stall-watch.mjs';
 
-watchStalls('The playtest', process.env);
+const stallWatch = watchStalls('The playtest', process.env);
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -27,6 +27,7 @@ const HIGHWAY_BOOT_LIMIT_MS = 300000;
 
 mkdirSync('.playtest', { recursive: true });
 const browser = await chromium.launch({ args: cpu ? [] : gpuArgs() });
+stallWatch.closeOnStall(() => browser.close());
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 if (timeoutsOff) page.setDefaultTimeout(0);
 const renderer = await rendererOf(page);
