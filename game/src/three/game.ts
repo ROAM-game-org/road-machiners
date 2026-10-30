@@ -54,6 +54,7 @@ import { aimedTarget, CollisionCues, collisionSteps, scoreEventMs, gunfireSeen, 
 import { Labels, VehicleMarkers } from "./render/labels";
 import { ObstacleViews } from "./render/obstacles";
 import { CraterViews } from "./render/craters";
+import { GRAFFITI } from "./render/graffiti";
 import { playBreak } from "./render/partDebris";
 import { BreakCues, shownItems, type PartBreak } from "./breakCues";
 import { PathView } from "./render/path";
@@ -1095,6 +1096,7 @@ export class Game {
     this.hud.showRecenter(!this.follow.isFollowing());
     const daylight = daylightAt(lightTurnOf(this.world, this.anim));
     lightScene(this.sun, this.sky, truck, daylight);
+    this.craters.graffiti.step(GRAFFITI.stepMs);
     this.craters.graffiti.light(daylight.sunIntensity);
     this.fx.light({ sun: this.sun, sky: this.sky });
     CLOUD_SHADOWS.sync(this.world, lightTurnOf(this.world, this.anim), this.play.frameMs());

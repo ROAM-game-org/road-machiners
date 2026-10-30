@@ -13,7 +13,6 @@ export const SCREENS = {
   'boot.map': 'Reading the map',
   'boot.physics': 'Starting physics',
   'boot.models': 'Loading models',
-  'boot.sounds': 'Loading sounds',
   'boot.loadSave': 'Loading your save',
   'boot.newGame': 'Starting a new game',
   'boot.ground': 'Painting the ground',
