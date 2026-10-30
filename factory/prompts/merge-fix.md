@@ -4,7 +4,7 @@ The factory merged these approved issue branches into it:
 
 {{cards}}
 
-It then ran the full checks on the merged result, and they failed. The end of the log:
+It then ran the full checks on the merged result, and they failed:
 
 {{failure}}
 
@@ -16,7 +16,8 @@ Fix the cause, so the merged result passes. The failure may come from two cards 
 The committee approved each card by playing it. Keep the behavior each card was approved with. Change only what the fix needs.
 A test over its CPU limit gets cheaper: find the work it repeats and make that cheaper, and build shared worlds once and clone them. Split its cases into more tests or files only after that. Never cut its cases, seeds, turns or samples.
 When the failure lists failed tests that also fail on {{into}}, the factory reran them there. Leave those alone and fix only the tests it lists as failing only here.
-Run the exact failing test first, to see the failure yourself. Then run it again with the typecheck to confirm the fix. A test run that hangs or times out has not passed, so find out why. Do not run the full suite, since the factory runs it again after you. Run the playtest only when the failure is the playtest, and then find where it stops: a playtest that prints nothing for the stall limit fails with the last line it printed, and the same commit hangs the same way on every rerun.
+Fix every failure in this round, not only the first or the last one. A full suite run takes the factory up to 20 minutes, so each failure you leave costs another round.
+First run every failed test file the failure lists, together, to see all the failures yourself. Fix them all. Then run every listed file again, with the typecheck, and commit only when all of them pass. A test run that hangs or times out has not passed, so find out why. Do not run the full suite, since the factory runs it again after you. Run the playtest only when the failure is the playtest, and then find where it stops: a playtest that prints nothing for the stall limit fails with the last line it printed, and the same commit hangs the same way on every rerun.
 Commit the fix with a message that names the cards it touches.
 {{fixDocs}}
 Never add `.github/` files, and never bump SAVE_MAJOR.

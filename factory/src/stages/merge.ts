@@ -106,12 +106,28 @@ export async function checkAndPush(ctx: Ctx, land: Landing, conflictUsd: number,
 }
 
 async function fixUntilPasses(ctx: Ctx, land: Landing, fixes: number, conflicts: number, fixPrompt: (failure: string) => string): Promise<number> {
+  const check = checksOnceEachHead(ctx, land, () => timed(land.clock, 'checks', () => mergedChecks(ctx, land)));
   try {
-    return await untilPasses(ctx.cfg.mergingBudgetUsd, fixes, () => timed(land.clock, 'checks', () => mergedChecks(ctx, land)), (failure) => timed(land.clock, 'fixes', () => land.agent(fixPrompt(failure))));
+    return await untilPasses(ctx.cfg.mergingBudgetUsd, fixes, check, (failure) => timed(land.clock, 'fixes', () => land.agent(fixPrompt(failure))));
   } catch (error) {
     if (error instanceof BudgetError) throw new BudgetError(`${error.message}\nThe budget counts only fix rounds. The job also spent $${conflicts.toFixed(2)} on conflicts.`);
     throw error;
   }
+}
+
+function checksOnceEachHead(ctx: Ctx, land: Landing, checks: () => Promise<string | null>): () => Promise<string | null> {
+  let checked: { head: string; failure: string | null } | null = null;
+  return async () => {
+    const dirty = await dirtyClone(ctx, land);
+    if (dirty !== null) return dirty;
+    const head = await ctx.repo.workHead(land.dir);
+    if (checked !== null && checked.head === head) {
+      ctx.log(land.stage, null, `the fix round made no commit, so ${head} keeps its failure and the checks do not run again`);
+      return `${checked.failure}\n\nYour last round made no commit, so the head is still ${head} and the factory did not run the checks again. The failure above still stands. Commit the fix. Changes left uncommitted are never tested.`;
+    }
+    checked = { head, failure: await checks() };
+    return checked.failure;
+  };
 }
 
 const MERGE_BATCH_CARDS = 3;
@@ -170,11 +186,18 @@ export async function mergeIn(ctx: Ctx, land: Landing, { branch, message, reason
   return cost;
 }
 
+async function testedInWork(ctx: Ctx, land: Landing): Promise<boolean> {
+  return (await ctx.repo.changedInWork(land.dir, `origin/${land.into}`)).some(isGameSource);
+}
+
+async function dirtyClone(ctx: Ctx, land: Landing): Promise<string | null> {
+  const dirty = await testedInWork(ctx, land) ? await uncommitted(ctx, land.dir) : '';
+  return dirty === '' ? null : `The clone has changes that are not committed, so the full suite cannot test them. Commit them or remove them:\n${dirty}`;
+}
+
 async function mergedChecks(ctx: Ctx, land: Landing): Promise<string | null> {
   const log = releaseLog(ctx, `${land.stage}-checks-${land.into.replaceAll('/', '-')}`);
-  const tested = (await ctx.repo.changedInWork(land.dir, `origin/${land.into}`)).some(isGameSource);
-  const dirty = tested ? await uncommitted(ctx, land.dir) : '';
-  if (dirty !== '') return `The clone has changes that are not committed, so the full suite cannot test them. Commit them or remove them:\n${dirty}`;
+  const tested = await testedInWork(ctx, land);
   const { suite } = tested ? await suiteOnHead(ctx, land) : { suite: Promise.resolve(null) };
   const script = checkScript(playtestCommand(ctx.cfg, false), '');
   const at = { stage: land.stage, issue: null };

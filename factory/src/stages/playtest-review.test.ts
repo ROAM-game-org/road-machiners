@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { judge, logFacts, readReview, type LogFacts, type Review } from './playtest-review';
+import { judge, logFacts, parseReview, readReview, type LogFacts, type Review } from './playtest-review';
 import { WANT, logText } from './playtest-fixtures';
 
 
@@ -41,6 +41,22 @@ describe('readReview', () => {
     expect(() => readReview(JSON.stringify(review({ verdict: 'ok' as Review['verdict'] })))).toThrow('verdict ok');
     expect(() => readReview(JSON.stringify(review({ findings: [{ ...important, severity: 'big' as 'important' }] })))).toThrow('severity big');
     expect(() => readReview(JSON.stringify({ ...review(), fixes: undefined }))).toThrow('no fixes list');
+  });
+
+  it('names every broken field at once, so one repair can fix them all', () => {
+    const broken = review({ verdict: 'done' as Review['verdict'], fixes: [{ commit: 'x' } as unknown as string], findings: [{ ...important, severity: 'medium' as 'minor' }, { ...old, known: false as unknown as number, fixed: 'abc' as unknown as boolean }] });
+    expect(parseReview(JSON.stringify(broken))).toEqual({ errors: [
+      'The playtest verdict done is not clean, fixed or blocked',
+      'The fixes list holds an item that is not a string',
+      'Finding F1 has severity medium, not important or minor',
+      'Finding F2 has known false, not an issue number or null',
+      'Finding F2 has fixed abc, not true or false',
+    ] });
+  });
+
+  it('reports JSON that does not parse or is not one object', () => {
+    expect(parseReview('{"verdict": "clean",')).toEqual({ errors: [expect.stringContaining('.factory/playtest.json is not valid JSON')] });
+    expect(parseReview('[]')).toEqual({ errors: ['.factory/playtest.json is not one JSON object'] });
   });
 
   it('fails on a finding with no cause, no reason for its cause or a known issue that is not a number', () => {

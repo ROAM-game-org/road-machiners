@@ -313,6 +313,9 @@ export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | n
     async headHash(branch) {
       return (await git(['rev-parse', '--short', await ref(branch)])).trim();
     },
+    async fullHash(commit) {
+      return (await git(['rev-parse', '--verify', '--end-of-options', `${commit}^{commit}`])).trim();
+    },
     async forkPoint(a, b) {
       return (await git(['rev-parse', '--short', (await git(['merge-base', await ref(a), await ref(b)])).trim()])).trim();
     },

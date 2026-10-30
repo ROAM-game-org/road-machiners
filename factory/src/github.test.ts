@@ -153,6 +153,18 @@ describe('ghClient', () => {
     expect(failed.size).toBe(3);
   });
 
+  it('retries a read that lost its connection, like the suite run read that ended a merge job', async () => {
+    const waits: number[] = [];
+    const answers: RunResult[] = [
+      { code: 1, stdout: '', stderr: 'stream error: stream ID 1; CANCEL; received from peer' },
+      { code: 1, stdout: '', stderr: 'read tcp 10.0.0.2:443: connection reset by peer' },
+      ok(JSON.stringify({ number: 7, title: 't', body: '', labels: [], createdAt: 't', state: 'OPEN', author: { login: 'a' } })),
+    ];
+    const run: Run = async () => answers.shift() ?? ok('');
+    expect((await ghClient(run, CFG, async (ms) => { waits.push(ms); }).issue(7)).number).toBe(7);
+    expect(waits).toEqual([15000, 30000]);
+  });
+
   it('fails a read with the gateway error once the retries run out', async () => {
     const waits: number[] = [];
     const run: Run = async () => ({ code: 1, stdout: '', stderr: 'gh: HTTP 502' });
@@ -164,6 +176,7 @@ describe('ghClient', () => {
     const failures: RunResult[] = [
       { code: 1, stdout: '', stderr: 'gh: HTTP 502' },
       { code: 1, stdout: '', stderr: 'gh timed out after 60000 ms and was killed', timedOut: true },
+      { code: 1, stdout: '', stderr: 'stream error: stream ID 3; CANCEL; received from peer' },
     ];
     for (const failure of failures) {
       const calls: string[][] = [];
