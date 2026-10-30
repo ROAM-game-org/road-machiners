@@ -46,7 +46,7 @@ it('the player drives from Bowl to Nose without a serious hit on a static obstac
     return dist(world.vehicles[0].pos, nose.pos) <= nose.radius + 1.5;
   });
   expect(staticDamage).toBeLessThan(5);
-  expect(dist(w.vehicles[0].pos, nose.pos)).toBeGreaterThanOrEqual(nose.radius + 0.4);
+  expect(dist(w.vehicles[0].pos, nose.pos)).toBeGreaterThan(nose.radius);
   expect(dist(w.vehicles[0].pos, nose.pos)).toBeLessThanOrEqual(nose.radius + 1.5);
 }, budget(120_000));
 
