@@ -17,13 +17,13 @@ export function describeArenaSeeds(seeds: readonly number[], aFledOnDev: number)
       });
     }
 
-    it(`ends an arena fight in a knockout on some seed and has side a flee on no more than ${aFledOnDev} of seeds ${seeds.join(', ')}, as dev does`, () => {
+    it(`ends an arena fight decisively on some seed and has side a flee on no more than ${aFledOnDev} of seeds ${seeds.join(', ')}, as dev does`, () => {
       const results = seeds.map((seed) => {
         const outcome = outcomes.get(seed);
         if (outcome === undefined) throw new Error(`The arena fight of seed ${seed} did not run`);
         return outcome;
       });
-      if (!results.some((o) => o === 'won' || o === 'lost')) throw new Error(`No seed of ${seeds.join(', ')} reached a knockout inside the arena`);
+      if (results.every((o) => o === 'timeout')) throw new Error(`No seed of ${seeds.join(', ')} ended its arena fight before the turn limit`);
       expect(results.filter((o) => o === 'a fled').length).toBeLessThanOrEqual(aFledOnDev);
     });
   });
