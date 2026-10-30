@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { AgentRun, Ctx } from '../types';
-import { markResumed } from '../sessions';
+import { markResumed, markTimedOut } from '../sessions';
 import { EMPTY_STATE, writeState } from '../state';
 import { solidPng } from '../media-fixtures';
 import { factoryPaths } from '../diff-guard';
@@ -68,6 +68,30 @@ describe('runAgent sessions', () => {
     expect(marked.runs[0].session).toEqual({ dir: `${HOME}/sessions/issue-7`, id: runs[0].session?.id, resume: true });
     expect(marked.logs).toContain(`resuming round implement, session ${runs[0].session?.id}`);
     expect(logs).toHaveLength(2);
+  });
+
+  it('tells a session resumed after a timeout the time limit, when this run stops and that a second timeout fails', async () => {
+    const { ctx, runs } = markedCtx([]);
+    await runAgent(ctx, 7, 'implement', 'implement', 'p');
+    saved(runs[0]);
+    const marked = markedCtx([7]);
+    markTimedOut(HOME, 7, 200);
+    marked.ctx.statePath = `${HOME}/state.json`;
+    writeState(marked.ctx.statePath, { ...EMPTY_STATE, jobs: [{ id: 'implement-7', stage: 'implement', issue: 7, pid: 1, startedAt: '2026-10-30T16:11:26.000Z', log: '/l.log' }] });
+    await runAgent(marked.ctx, 7, 'implement', 'implement', 'p');
+    expect(marked.runs[0].prompt).toMatch(new RegExp(`^${RESUME_NOTE.replace(/[.]/g, '\\.')}\n\n`));
+    expect(marked.runs[0].prompt).toContain('the last run passed 200 minutes. This run has the same 200 minutes and stops at 2026-10-30T19:31:26.000Z. A second timeout fails the job');
+  });
+
+  it('refuses a timeout note when no card job of the issue runs, instead of guessing when the run stops', async () => {
+    const { ctx, runs } = markedCtx([]);
+    await runAgent(ctx, 7, 'implement', 'implement', 'p');
+    saved(runs[0]);
+    const marked = markedCtx([7]);
+    markTimedOut(HOME, 7, 200);
+    marked.ctx.statePath = `${HOME}/state.json`;
+    writeState(marked.ctx.statePath, EMPTY_STATE);
+    await expect(runAgent(marked.ctx, 7, 'implement', 'implement', 'p')).rejects.toThrow('no card job of it runs now');
   });
 
   it('gives a round with no stored session the full prompt, so a later round of a resumed job starts fresh', async () => {

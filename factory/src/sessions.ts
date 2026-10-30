@@ -6,6 +6,7 @@ import type { AgentSession, JobStage } from './types';
 
 const STAGE_FILE = 'resumes';
 const ERROR_FILE = 'stopped-on';
+const TIMEOUT_FILE = 'timed-out-after-minutes';
 
 export function sessionsDir(home: string, issue: number): string {
   return join(home, 'sessions', `issue-${issue}`);
@@ -35,6 +36,20 @@ export function markResumed(home: string, issue: number, stage: JobStage, error:
   if (error !== null) writeFileSync(join(dir, ERROR_FILE), error);
   writeFileSync(join(dir, `${STAGE_FILE}.tmp`), stage);
   renameSync(join(dir, `${STAGE_FILE}.tmp`), join(dir, STAGE_FILE));
+}
+
+export function markTimedOut(home: string, issue: number, minutes: number): void {
+  const dir = sessionsDir(home, issue);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, TIMEOUT_FILE), String(minutes));
+}
+
+export function timedOutMinutes(home: string, issue: number): number | null {
+  const file = join(sessionsDir(home, issue), TIMEOUT_FILE);
+  if (!existsSync(file)) return null;
+  const minutes = Number(readFileSync(file, 'utf8'));
+  if (!Number.isFinite(minutes) || minutes <= 0) throw new Error(`The timeout record ${file} holds no minute count`);
+  return minutes;
 }
 
 export function resumeError(home: string, issue: number): string | null {

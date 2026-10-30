@@ -14,7 +14,7 @@ import { reportAttempt, reportScheduler } from './observability';
 import { pruneCaptions } from './post-status';
 import { isAlive, killJob, removeJobContainers, spawnJob } from './jobs';
 import { repairClone } from './repair-clone';
-import { clearSessions, markResumed } from './sessions';
+import { clearSessions, markResumed, markTimedOut } from './sessions';
 import { requeueKept } from './stages/kept-approval';
 import { adoptQuestionMedia } from './stages/common';
 import { nextBatchCards, waitingMerges } from './stages/merge';
@@ -364,6 +364,7 @@ async function resumeJob(ctx: Ctx, job: Job & { issue: number }, deps: TickDeps,
   else await deps.removeContainers(ctx.run, job.id);
   recordJob(ctx.cfg.home, ctx.cfg.tokenPrices, ctx.now(), job, outcome);
   markResumed(ctx.cfg.home, job.issue, job.stage);
+  if (outcome === 'timeout') markTimedOut(ctx.cfg.home, job.issue, timeoutOf(ctx.cfg, job.stage));
   updateState(ctx.statePath, (state) => interruptJob(state, job));
   const cause = outcome === 'timeout' ? `timed out after ${timeoutOf(ctx.cfg, job.stage)} minutes` : 'process died';
   ctx.log('tick', job.issue, `${job.stage} ${cause}, it resumes once on the next start`);

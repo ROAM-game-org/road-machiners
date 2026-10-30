@@ -6,7 +6,8 @@ import { fetchMedia, mediaSection, type MediaEntry } from '../media';
 import { CommitteeDecisionError, guardDiff } from '../diff-guard';
 import { askedAt, isAnswered, questionPostsOf, recordAsked, recordQuestionPost } from '../questions';
 import { MESSAGE_LIMIT } from '../telegram-limits';
-import { resumeError, resumedStage, roundSession } from '../sessions';
+import { resumeError, resumedStage, roundSession, timedOutMinutes } from '../sessions';
+import { CARD_JOBS } from '../position';
 import { adoptReplyMedia, readCommitteeMedia } from '../reply-media';
 import { issueReports } from '../error-reports/service';
 import { readState } from '../state';
@@ -141,9 +142,20 @@ export async function acquireMedia(ctx: Ctx, issue: number, stage: CardStage): P
 
 export const RESUME_NOTE = 'A stop cut this job off. The work clone keeps your commits and changed files. Read them with git log and git status, then continue from there. If your task is already done, say so and stop.';
 
-function resumeNote(ctx: Ctx, issue: number): string {
+export function resumeNote(ctx: Ctx, issue: number): string {
   const error = resumeError(ctx.cfg.home, issue);
-  return error === null ? RESUME_NOTE : `${RESUME_NOTE}\n\nThe job stopped on this error. Fix its cause if it is in your work:\n\n${error}`;
+  const parts = [RESUME_NOTE, ...timeoutNote(ctx, issue)];
+  if (error !== null) parts.push(`The job stopped on this error. Fix its cause if it is in your work:\n\n${error}`);
+  return parts.join('\n\n');
+}
+
+function timeoutNote(ctx: Ctx, issue: number): string[] {
+  const minutes = timedOutMinutes(ctx.cfg.home, issue);
+  if (minutes === null) return [];
+  const job = readState(ctx.statePath).jobs.find((row) => row.issue === issue && CARD_JOBS.includes(row.stage));
+  if (job === undefined) throw new Error(`Issue #${issue} timed out before, but no card job of it runs now`);
+  const deadline = new Date(new Date(job.startedAt).getTime() + minutes * 60_000).toISOString();
+  return [`The stop was the time limit of this stage: the last run passed ${minutes} minutes. This run has the same ${minutes} minutes and stops at ${deadline}. A second timeout fails the job and leaves the card stuck. Plan the rest of the work to finish before then.`];
 }
 
 export function isResuming(ctx: Ctx, issue: number): boolean {

@@ -7,7 +7,7 @@ import { parseStage } from './jobs';
 import { solidPng } from './media-fixtures';
 import { readLedger } from './ledger';
 import { readObservation, type SchedulerData } from './observability';
-import { resumedStage } from './sessions';
+import { resumedStage, timedOutMinutes } from './sessions';
 import { checkJobs, chooseJobs, evaluateSchedule, tick, timeoutOf, type TickDeps } from './tick';
 import { EMPTY_STATE, clearQueued, readState, updateState, writeState } from './state';
 import { HOTFIX_LABEL, NEEDS_INFO_LABEL, STUCK_LABEL, VOTING_LABEL, type Card, type ReleaseState, type Ctx, type IssueComment, type FactoryConfig, type FactoryState, type Job } from './types';
@@ -912,6 +912,7 @@ describe('tick', () => {
       expect(logs).toContain('design timed out after 30 minutes, it resumes once on the next start');
       expect(args(h)).toEqual([['design', '5']]);
       expect(resumedStage(h.ctx.cfg.home, 5)).toBe('design');
+      expect(timedOutMinutes(h.ctx.cfg.home, 5)).toBe(30);
       const after = readState(h.ctx.statePath);
       expect(after).toMatchObject({ interrupted: [5], failures: [] });
       expect(after.cardStarts).toEqual({ 5: [NOW.toISOString()] });
@@ -945,6 +946,7 @@ describe('tick', () => {
       await checkJobs(dead.ctx, dead.deps);
       expect(dead.killed).toEqual(['containers design-job']);
       expect(readState(dead.ctx.statePath)).toMatchObject({ jobs: [], interrupted: [5], failures: [] });
+      expect(timedOutMinutes(dead.ctx.cfg.home, 5)).toBe(null);
     });
 
     it('clears a lingering mark and the sessions of a timed out job', async () => {
