@@ -86,3 +86,12 @@ describe('the writing rules', () => {
     expect(filled(name)).not.toContain(humanizer);
   });
 });
+
+describe('the testing prompt', () => {
+  it('puts what a stopped probe left unverified into the approval description, the only text the committee post shows', () => {
+    const prompt = filled('test');
+    expect(prompt).not.toContain('approval notes');
+    expect(prompt).toContain('note what it left unverified for the description in `.factory/approval.json`');
+    expect(prompt).toContain('It also names what a stopped probe left unverified');
+  });
+});

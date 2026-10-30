@@ -55,9 +55,9 @@ const SEAT_CAB: Record<string, string> = {
 };
 
 const VALUES = {
-  scout: 81467, hauler: 122534, buggy: 64267, wagon: 100733, courier: 77333, van: 102666, longbed: 179466,
-  carrier: 162534, tractor: 146067, jeep: 72867, convertible: 99734, bus: 126667, loader: 169600, niva: 104934, bukhanka: 115000, lincoln: 142933, semi: 140000,
-  sorokonoga: 176567,
+  scout: 814.67, hauler: 1225.34, buggy: 642.67, wagon: 1007.33, courier: 773.33, van: 1026.66, longbed: 1794.66,
+  carrier: 1625.34, tractor: 1460.67, jeep: 728.67, convertible: 997.34, bus: 1266.67, loader: 1696, niva: 1049.34, bukhanka: 1150, lincoln: 1429.33, semi: 1400,
+  sorokonoga: 1765.67,
 };
 
 const NO_DECK_BLOCK: Record<string, string> = {
@@ -144,10 +144,6 @@ describe('chassis grids', () => {
   });
 
   it('keeps every chassis value at its value before the layout rules', () => {
-    expect(Object.fromEntries(Object.entries(CHASSIS).map(([id, c]) => [id, c.value]))).toEqual(VALUES);
-  });
-
-  it('keeps every chassis worth what it was before the armor ring moved outside', () => {
     expect(Object.fromEntries(Object.entries(CHASSIS).map(([id, c]) => [id, c.value]))).toEqual(VALUES);
   });
 

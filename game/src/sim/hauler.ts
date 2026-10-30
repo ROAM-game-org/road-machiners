@@ -2,7 +2,7 @@ import { chassisDef } from '../data/chassis';
 import { CHAOS_HIGHWAY, HIGHWAY } from '../data/modes';
 import { RULES } from '../data/rules';
 import { haulerOf, playerVehicle } from './damage';
-import { backOutSpot } from './back-out';
+import { backOutSpot } from './free-spot';
 import { footprint, noseReach, rigMiddle, sideReach } from './rig';
 import { isDefeated } from './defeat';
 import { betweenLevels, inYard, yardSpots } from './outpost-gates';
@@ -11,10 +11,13 @@ import { craterDip, windowCraters } from './road-hazards';
 import { CLEARANCE, dynamicBlockers, staticSet } from './nav/layer';
 import { engineHot, heldHeatSpeed } from './engine-heat';
 import { plainFuelSpeed } from './far';
-import { isStalled, isStranded, plainMaxSpeed } from './stats';
+import { isStalled, isStranded, plainMaxSpeed, vehicleStats } from './stats';
+import { stopDistance } from './steering';
 import { isShutDown } from './utility';
 import { inCombat } from './combat';
 import { workOf } from './states';
+import { mountedParts } from './grid';
+import { maxHp } from './wear';
 import type { MoveOrder, Vehicle, World } from './types';
 import { dist, segmentDist, type Vec } from './vec';
 
@@ -86,7 +89,7 @@ export function waitsForGunTruck(world: World, hauler: Vehicle): boolean {
   if (betweenLevels(world) || dist(hauler.pos, parkSpot(world)) <= HAULER.approach) return false;
   const gunTruck = playerVehicle(world);
   const lag = alongNow(world, hauler) - alongNow(world, gunTruck);
-  if (lag <= (isParked(hauler) ? HAULER.resumeGap : HAULER.waitGap)) return false;
+  if (lag + stopDistance(vehicleStats(world, hauler), hauler.speed) <= (isParked(hauler) ? HAULER.resumeGap : HAULER.waitGap)) return false;
   return dist(gunTruck.pos, hauler.pos) <= HAULER.apartGap || !gunTruckFree(world, gunTruck);
 }
 
@@ -315,4 +318,10 @@ export function watchHaulerStall(world: World): void {
   if (world.turn - anchor.turn < HAULER.stallTurns) return;
   world.events.push({ t: 'stall', vehicle: hauler.id, goal: null, reason: 'idle' });
   anchors.set(hauler.id, { turn: world.turn, along });
+}
+
+export function haulerShare(hauler: Vehicle): number {
+  const parts = mountedParts(hauler);
+  const max = parts.reduce((sum, p) => sum + maxHp(p), 0);
+  return max === 0 ? 0 : parts.reduce((sum, p) => sum + p.hp, 0) / max;
 }

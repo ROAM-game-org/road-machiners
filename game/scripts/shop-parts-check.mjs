@@ -36,7 +36,7 @@ async function setup(page) {
     for (let i = 0; i < 16; i++) stock.push(f.makePart(w, defs[i % defs.length].id, i % 3));
     stock[3].hp = 0;
     w.shops.nose.stock = stock;
-    w = c.setMoney(w, 400);
+    w = c.setMoney(w, 4);
     g.apply(w);
     g.town.open();
   });

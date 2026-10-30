@@ -120,7 +120,7 @@ describe('raider camps', () => {
     const rng = structuredClone(w.marketRng);
     sellAtCamp(w, raider, 'kiln', 0);
     expect(goodsCount(raider).salt).toBeUndefined();
-    expect(getResources(w, raider).money).toBe(money + 2 * campGoodPrice('salt'));
+    expect(getResources(w, raider).money).toBe(money + campGoodPrice('salt', 2));
     expect(campGoodPrice('salt')).toBeLessThan(GOODS.salt.value);
     expect(w.shops).toEqual(shops);
     expect(w.marketRng).toEqual(rng);

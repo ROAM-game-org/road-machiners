@@ -1,8 +1,8 @@
 import { PARTS, type WeaponDef } from '../data/parts';
-import { gunSpans, sidePlanner, spanSides, SIDES, type Round, type Side } from './armor';
+import { gunLayoutKey, gunSpans, sidePlanner, spanSides, SIDES, type Round, type Side } from './armor';
 import { corePart, mountedItems, mountedParts, shieldParts, sideOf } from './grid';
 import { vehicleStats, weaponOn } from './stats';
-import type { PartInstance, Vehicle, World } from './types';
+import type { GridItem, PartInstance, Vehicle, World } from './types';
 import { dist } from './vec';
 
 const LETTER_SIDE: Record<string, Side> = { F: 'front', B: 'rear', L: 'left', R: 'right' };
@@ -25,9 +25,17 @@ export type Target = { sides: Record<Side, SideTarget>; stops: Map<string, numbe
 
 const LOADOUTS_KEPT = 512;
 const targetCache = new Map<string, Target>();
+const gunCache = new Map<string, Record<Side, WeaponDef[]>>();
 
 function loadoutKey(v: Vehicle): string {
-  return `${v.chassisId}|${JSON.stringify(v.items)}`;
+  return `${v.chassisId}|${v.items.map(itemKey).join(';')}`;
+}
+
+function itemKey(item: GridItem): string {
+  if (item.kind !== 'part') return JSON.stringify(item);
+  const { part } = item;
+  const state = part.gun || part.charge ? JSON.stringify([part.gun, part.charge]) : '';
+  return `${item.id},${item.x},${item.y},${item.rot},${part.id},${part.defId},${part.hp},${part.wear},${part.rebuilt ?? ''},${state}`;
 }
 
 function kept<T>(cache: Map<string, T>, key: string, build: () => T): T {
@@ -114,7 +122,7 @@ export function killRate(def: WeaponDef, target: Target, side: Side): number {
 }
 
 export function gunsBySide(v: Vehicle): Record<Side, WeaponDef[]> {
-  return buildGunsBySide(v);
+  return kept(gunCache, gunLayoutKey(v), () => buildGunsBySide(v));
 }
 
 function buildGunsBySide(v: Vehicle): Record<Side, WeaponDef[]> {

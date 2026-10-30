@@ -20,6 +20,7 @@ import { workTimeMult } from './utility';
 import type { CallVar, NpcState, PartInstance, PatchDeal, StateData, Vehicle, World } from './types';
 import { dist } from './vec';
 import { noteDeed } from './relations';
+import { fairM, requireWholeM } from './money';
 
 export type PatchPlan = { parts: number; turns: number; priceTurns: number };
 type Roles = { patcher: Vehicle; client: Vehicle };
@@ -85,7 +86,7 @@ function priceOf(world: World, deal: PatchDeal, roles: Roles, plan: PatchPlan): 
   if (deal === 'free') return 0;
   const full = deal === 'ownParts' ? labor : labor + partsValue(world, roles.client, plan.parts);
   const mechanic = vehicleHasPerk(world, roles.patcher, 'roadMechanic') ? PERK_NUMBERS.roadMechanic.price : 1;
-  return Math.round(full * mechanic * (1 - skillEffect(world, roles.client, 'social', 'patchPrice')));
+  return fairM(full * mechanic * (1 - skillEffect(world, roles.client, 'social', 'patchPrice')));
 }
 
 function partsPayer(deal: PatchDeal, roles: Roles): Vehicle {
@@ -191,6 +192,7 @@ export function settlePatch(world: World, s: NpcState): void {
   const data = patchData(s);
   const roles = { patcher: vehicleById(world, s.holder), client: vehicleById(world, s.other) };
   removeGoods(partsPayer(data.deal, roles), 'parts', data.parts);
+  requireWholeM(data.price, 'patch price');
   getResources(world, roles.client).money -= data.price;
   getResources(world, roles.patcher).money += data.price;
   liftAgreedParts(data, roles.client);

@@ -52,8 +52,8 @@ Patrols of the Bowl Farmers and the Nose Army are hostile to raiders. `reportInc
 | `RULES.collisionMinImpact` | 1.5 |
 | `RULES.hardCrashSpeed` | 4 |
 | `RULES.crashPen` | 4 |
-| `RULES.groundCrash` | 3 |
-| `RULES.landingDamage` | 0.25 |
+| `RULES.groundCrash` | 1.5 |
+| `RULES.landingDamage` | 0.125 |
 | `RULES.knockoutMaxTurns` | 30 |
 | `RULES.npcDeathChance` | 0.05 |
 | `RULES.cabKnock` | {"below":0.5,"hazard":0.75,"playerHealth":75} |

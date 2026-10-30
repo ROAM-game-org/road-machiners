@@ -9,8 +9,9 @@ import { finishContract, type Contract } from './market';
 import { reviseMemories } from './memory';
 import { isRoadWreck, isStockGoal, isStoryWreck, liveClaims, oldSpotOf, oldSpotPicks, oldStockId, rollStock, type ClaimContract, type OldSpotPick } from './salvage';
 import { modeRules } from './settings';
+import { everyTruck } from './sites';
 import { isFree } from './spawn';
-import { hollowBays, hollowObstaclesFor, isHollowObstacle } from './hollow-layout';
+import { hollowObstaclesFor, hollowPad, isHollowObstacle } from './hollow-layout';
 import { isSunwardMember } from './sunward';
 import { surveySites } from './survey';
 import { isLootSpot, spotTable } from './territory';
@@ -52,6 +53,7 @@ export const REBAKE_MOVE = {
   sunward: 'shift',
   moments: 'keep',
   crimes: 'shift',
+  sheltered: 'shift',
   events: 'drop',
   removed: 'drop',
   weather: 'drop',
@@ -72,6 +74,7 @@ const VEHICLE_MOVE = {
   heading: 'keep',
   bend: 'keep',
   speed: 'keep',
+  setSpeed: 'keep',
   stormExposure: 'drop',
   strandedTurns: 'keep',
   strandedAt: 'shift',
@@ -131,6 +134,7 @@ const ACTIVITY_MOVE = {
   shipment: 'keep',
   perceived: 'keep',
   worn: 'keep',
+  chase: 'shift',
   demands: 'keep',
   until: 'keep',
   watchUntil: 'keep',
@@ -269,6 +273,7 @@ const ACTIVITY_HANDLERS: Handlers<NpcActivity, typeof ACTIVITY_MOVE> = {
   destination: (destination, ctx) => destination && at(ctx, destination),
   leg: (leg, ctx) => leg && { ...leg, from: at(ctx, leg.from) },
   heard: (heard, ctx) => heard && at(ctx, heard),
+  chase: (chase, ctx) => chase && { ...chase, gap: chase.gap * ctx.ratio },
 };
 
 function shiftActivity(goal: NpcActivity, ctx: Ctx): NpcActivity {
@@ -381,6 +386,10 @@ const WORLD_HANDLERS: Handlers<World, typeof REBAKE_MOVE> = {
     return sunward;
   },
   crimes: (crimes, ctx) => crimes.map((c) => ({ ...c, at: at(ctx, c.at), lead: { ...c.lead, at: at(ctx, c.lead.at) } })),
+  sheltered: (sheltered, ctx) => {
+    for (const s of sheltered) applyMoves(s.vehicle, VEHICLE_MOVE, VEHICLE_HANDLERS, { ...ctx, self: s.vehicle.id });
+    return sheltered;
+  },
   events: () => [],
   removed: () => [],
   weather: () => [],
@@ -548,7 +557,7 @@ function purgeDropped(world: World, dropped: Set<string>, map: BakedMap): void {
   world.player.scavenged = world.player.scavenged.filter((id) => !dropped.has(id));
   world.player.rumored = world.player.rumored.filter((id) => !dropped.has(id));
   world.states = world.states.filter((s) => s.data.kind !== 'lootWarning' || !dropped.has(s.data.targetId));
-  for (const v of world.vehicles) {
+  for (const v of everyTruck(world)) {
     if (jobLapses(v.job, dropped, cancelled, sites)) v.job = null;
     if (!v.brain) continue;
     v.brain.goals = v.brain.goals.filter((goal) => !namesDropped(goal, dropped, cancelled));
@@ -558,11 +567,7 @@ function purgeDropped(world: World, dropped: Set<string>, map: BakedMap): void {
 
 
 function snapSunwardHomes(world: World): void {
-  const bays = hollowBays();
-  for (const v of world.vehicles.filter(isSunwardMember)) {
-    const home = v.brain!.home;
-    v.brain!.home = bays.reduce((best, bay) => (dist(bay, home) < dist(best, home) ? bay : best));
-  }
+  for (const v of everyTruck(world).filter(isSunwardMember)) v.brain!.home = hollowPad();
 }
 
 export function settleTrucks(world: World): void {

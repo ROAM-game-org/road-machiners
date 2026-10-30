@@ -7,7 +7,7 @@ import { TOW } from './tow';
 import { ECONOMY, GOODS } from './goods';
 import { START_KITS } from './start';
 import { GEAR_LEVELS } from './npcs';
-import { UNITS } from './units';
+import { itemValue, UNITS } from './units';
 import { XP_SOURCES } from './skills';
 import { CONTRACTS, EFFORT } from './market';
 
@@ -48,8 +48,8 @@ const PRICED_STATS: Record<PartDef['kind'], string[]> = {
 
 describe('item prices', () => {
   it('prices every part at its base plus its stat modifier', () => {
-    for (const def of Object.values(PARTS)) expect(def.value, def.id).toBe(Math.round(def.base + partModifier(def)));
-    for (const def of Object.values(CHASSIS)) expect(def.value, def.id).toBe(Math.round(def.base + chassisModifier(def)));
+    for (const def of Object.values(PARTS)) expect(def.value, def.id).toBe(itemValue(def.base + partModifier(def)));
+    for (const def of Object.values(CHASSIS)) expect(def.value, def.id).toBe(itemValue(def.base + chassisModifier(def)));
   });
 
   it('raises the value when a priced stat grows', () => {
@@ -94,36 +94,38 @@ describe('tow fees', () => {
   });
 });
 
-describe('money in cents', () => {
+describe('money in whole M', () => {
   it('sells 5 L of fuel for exactly 1 M at a town', () => {
     expect(UNITS.fuelLiters).toBe(5);
-    expect(ECONOMY.supplyPrice.fuel).toBe(UNITS.centsPerM);
+    expect(ECONOMY.supplyPrice.fuel).toBe(1);
   });
 
-  it('keeps every money amount a whole number of cents', () => {
+  it('keeps every start and gear purse a whole number of M', () => {
     const amounts: [string, number][] = [
-      ...Object.values(PARTS).map((d): [string, number] => [d.id, d.value]),
-      ...Object.values(CHASSIS).map((d): [string, number] => [d.id, d.value]),
-      ...Object.values(GOODS).map((d): [string, number] => [d.id, d.value]),
-      ...Object.entries(ECONOMY.supplyPrice).map(([id, v]): [string, number] => [`supply ${id}`, v]),
-      ...Object.entries(START_KITS).flatMap(([id, kit]): [string, number][] => [
-        [`${id} money`, kit.money],
-        ...Object.entries(kit.costBasis).map(([g, v]): [string, number] => [`${id} ${g} basis`, v]),
-      ]),
+      ...Object.entries(START_KITS).map(([id, kit]): [string, number] => [`${id} money`, kit.money]),
       ...Object.entries(GEAR_LEVELS).map(([id, g]): [string, number] => [`${id} gear money`, g.money]),
     ];
     for (const [id, amount] of amounts) expect(Number.isInteger(amount), id).toBe(true);
   });
+
+  it('keeps every item value to a hundredth of an M', () => {
+    const values: [string, number][] = [
+      ...Object.values(PARTS).map((d): [string, number] => [d.id, d.value]),
+      ...Object.values(CHASSIS).map((d): [string, number] => [d.id, d.value]),
+      ...Object.values(GOODS).map((d): [string, number] => [d.id, d.value]),
+    ];
+    for (const [id, value] of values) expect(Math.abs(value * 100 - Math.round(value * 100)), id).toBeLessThan(1e-6);
+  });
 });
 
-describe('XP per money in cents', () => {
-  const OLD_PER_CENT = 3 / 100;
+describe('XP per M', () => {
+  const PER_M = 3;
 
-  it('pays profit, free tow and aid XP as before', () => {
-    for (const source of ['profit', 'freeTow', 'aid'] as const) expect(XP_SOURCES[source].weight, source).toBeCloseTo(0.8 * OLD_PER_CENT, 10);
+  it('pays profit, free tow and aid XP at 0.8 of the base rate', () => {
+    for (const source of ['profit', 'freeTow', 'aid'] as const) expect(XP_SOURCES[source].weight, source).toBeCloseTo(0.8 * PER_M, 10);
   });
 
-  it('pays contract XP as before', () => {
-    expect(CONTRACTS.haul.xpPerEffort).toBeCloseTo(0.1 * OLD_PER_CENT, 10);
+  it('pays contract XP at 0.1 of the base rate', () => {
+    expect(CONTRACTS.haul.xpPerEffort).toBeCloseTo(0.1 * PER_M, 10);
   });
 });

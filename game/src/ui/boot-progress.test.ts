@@ -13,7 +13,7 @@ describe('BootProgress', () => {
     expect(BOOT_STEPS.slice(1).every((s) => p.state(s) === 'waiting')).toBe(true);
     expect(en(p.stageLine)).toBe(en(BOOT_TEXT.code));
     expect(p.finished).toBe(0);
-    expect(p.total).toBe(9);
+    expect(p.total).toBe(8);
   });
 
   it('raises finished by one per finished step', () => {
@@ -35,17 +35,17 @@ describe('BootProgress', () => {
       p.finish(step);
       seen.push(p.signStages);
     }
-    expect(seen).toEqual([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4]);
+    expect(seen).toEqual([0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]);
   });
 
   it('shows counts in the stage line but not the live line', () => {
     const p = new BootProgress();
     p.finish('code');
-    p.start('sounds');
-    p.count('sounds', 31, 76);
-    expect(en(p.stageLine)).toBe('Loading sounds 31 of 76');
-    expect(en(p.liveLine)).toBe('Loading sounds');
-    expect(ru(p.stageLine)).toBe('Загружаем звуки (31 из 76)');
+    p.start('models');
+    p.count('models', 31, 76);
+    expect(en(p.stageLine)).toBe('Loading models 31 of 76');
+    expect(en(p.liveLine)).toBe('Loading models');
+    expect(ru(p.stageLine)).toBe('Загружаем модели (31 из 76)');
   });
 
   it('joins running steps with a comma', () => {

@@ -43,7 +43,7 @@ import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, t
 import { createCompassDial, createIcon, createSpeedDial, repairingPart } from "./cards";
 import { aimMarks, orderLock, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
-import { createSwitch } from "./switch";
+import { createSwitch, lockSlot, stackedLabel } from "./switch";
 import { Tips, type TipSwitch } from "./tips";
 import { kph, moneyEl } from "./units";
 import { playerVehicle } from "../sim/damage";
@@ -175,8 +175,8 @@ export function mapInstrument(w: World, busy: boolean, openMap: () => void): HTM
   ];
 }
 
-function readoutClass(r: { warning: boolean; danger?: boolean }): string {
-  return ["resource", r.warning ? "alert" : "", r.danger ? "danger" : ""].filter(Boolean).join(" ");
+function readoutClass(r: { warning: boolean; danger?: boolean; idle?: boolean }): string {
+  return ["resource", r.warning ? "alert" : "", r.danger ? "danger" : "", r.idle ? "idle" : ""].filter(Boolean).join(" ");
 }
 
 export class Hud {
@@ -519,7 +519,7 @@ export class Hud {
         onclick: () => reason === null && this.actions.douseEngine(),
         title: reason ?? keyLabel(t("hud.costsSupplies", { n: ENGINE_HEAT.douseSupplies }), "G"),
       },
-      block === "noBasic" ? createIcon("lock") : null,
+      lockSlot(block === "noBasic"),
       t("hud.douse"),
     );
   }
@@ -536,7 +536,7 @@ export class Hud {
         onclick: () => reason === null && this.actions.firstAid(),
         title: reason ?? keyLabel(t("hud.costsSupplies", { n: cost }), "U"),
       },
-      block === "noBasic" ? createIcon("lock") : null,
+      lockSlot(block === "noBasic"),
       t("hud.firstAid"),
     );
   }
@@ -552,7 +552,7 @@ export class Hud {
         onclick: () => !busy && this.actions.openCharacter(),
         title: busy ? TURN_PLAYING : keyLabel(marked ? t("hud.characterMarked") : t("hud.character"), "C"),
       },
-      marked ? t("hud.driverMarked") : t("hud.driver"),
+      stackedLabel([t("hud.driver"), t("hud.driverMarked")], marked ? 1 : 0),
     );
   }
 
@@ -569,7 +569,7 @@ export class Hud {
     );
   }
 
-  renderTop(w: World): void {
+  renderTop(w: World, live: World): void {
     const readout = getHudReadout(w);
     const busy = this.actions.isBusy();
     this.condition.render(playerVehicle(w), w.player.paint, undefined, repairingPart(w, playerVehicle(w)));
@@ -579,9 +579,10 @@ export class Hud {
     this.tips.update(w, this.actions.autoTravel());
     if (!this.top.firstChild) this.top.append(this.clockSlot, this.speedSlot, this.readoutSlot, this.actionSlot);
     this.renderClock(readout.clock);
-    const held = playerVehicle(w).order;
-    const pace = held && held.kind !== "brake" ? held.pace : undefined;
-    this.renderSpeedometer(readout, busy, pace === undefined || readout.manual ? null : kph(pace));
+    const me = playerVehicle(live);
+    const pace = me.order && me.order.kind !== "brake" ? me.order.pace : undefined;
+    const mark = me.direct ? me.setSpeed : pace;
+    this.renderSpeedometer(readout, busy, mark === undefined ? null : kph(mark));
     this.fillReadouts(readout);
     this.renderActions(w, readout.manual, busy);
   }
@@ -604,7 +605,7 @@ export class Hud {
         disabled: busy,
         onclick: () => this.actions.openInventory(),
       },
-      createSpeedDial(readout.speed, readout.maxSpeed, pace),
+      createSpeedDial(readout.speed, readout.maxSpeed, readout.dialTop, pace),
       el("span", { class: "speed-value" }, num(readout.speed, "int")),
       createIcon("truck"),
     );
@@ -632,8 +633,8 @@ export class Hud {
         el(
           "span",
           {
-            class: `resource ${entry.warning ? "alert" : ""}`,
-            title: entry.label,
+            class: readoutClass(entry),
+            title: entry.tip ?? entry.label,
             "data-resource": entry.id,
           },
           entry.icon ? createIcon(entry.icon) : null,

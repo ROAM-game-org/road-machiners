@@ -5,6 +5,7 @@ import { GAME_MODES } from '../data/modes';
 import { SPAWN } from '../data/npcs';
 import { startKit } from '../data/start';
 import { TEST_MAP } from '../test/map';
+import { standardWorld } from '../test/world-cache';
 import { defaultSetup, modeKit, modeMap, modeRules, modeRulesOf } from './settings';
 import { highwayMap } from './highway';
 import { chaosHighwayWorld } from './testkit';
@@ -23,7 +24,7 @@ function fingerprint(w: World): object {
 
 describe('game mode rules', () => {
   it('keeps every Roaming rule on and plays no run', () => {
-    const world = newWorld(7, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    const world = standardWorld(7);
     const { run, ...open } = modeRules(world);
 
     expect(run).toBe(false);
@@ -62,7 +63,7 @@ describe('game mode rules', () => {
   });
 
   it('throws on a mode that is not a game mode', () => {
-    const world = newWorld(7, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    const world = standardWorld(7);
     world.setup = { ...world.setup, mode: 'chaos' as never };
 
     expect(() => modeRules(world)).toThrow(/Unknown game mode chaos/);
@@ -77,15 +78,15 @@ describe('game mode rules', () => {
 
 describe('a new world by mode', () => {
   it('builds a Roaming world as before the Chaos Highway mode, with the Hollow filled at the start', () => {
-    const world = newWorld(7, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    const world = standardWorld(7);
 
     expect(world.chaosHighway).toBeNull();
     expect(fingerprint(world)).toEqual({
-      streams: [1459084387, -1937427795, -2067017660, 1936023925],
-      nextId: 855,
-      counts: [14, 6048, 128, 7],
-      npcs: [['trader', 117.23, 578.74], ['trader', 123.6, 575.68], ['cavalcade', 311.63, 504.26]],
-      bowlStock: ['enclosedFrame', 'smokeMortar', 'patcherCrane', 'smokeMortar', 'pneumobolter', 'caltrops', 'spacedTile', 'heavyMg', 'stockEngine'],
+      streams: [-1234022187, -1681663007, -2067017660, 1936023925],
+      nextId: 809,
+      counts: [3, 6048, 128, 7],
+      npcs: [['trader', 117.82, 577.25], ['trader', 118.2, 582.79]],
+      bowlStock: ['smokeMortar', 'plowRam', 'reinforcedSection', 'battleRifle', 'ceramicPlates', 'longRifle', 'oilSpiller', 'gatling', 'reinforcedSection', 'scrapersKnife', 'enclosedFrame', 'stockEngine'],
     });
     expect(world.spawnQueue).toHaveLength(SPAWN.initial.length);
   });
@@ -103,7 +104,7 @@ describe('a new world by mode', () => {
   it('gives the Chaos Highway player the Chaos Highway kit with no opening', () => {
     const world = chaosHighwayWorld(7);
 
-    expect(world.player.money).toBe(8000);
+    expect(world.player.money).toBe(80);
     expect(world.player.autoRepair).toBe(true);
     expect(world.vehicles[0].items.filter((it) => it.kind === 'good' && it.good === 'parts')).toHaveLength(1);
   });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { NPCS } from '../data/npcs';
 import { BEACON } from '../data/tow';
 import { REGION } from '../data/region';
 import { standardWorld } from '../test/world-cache';
@@ -7,7 +8,7 @@ import { hangUp } from './dialogue';
 import { nearestRoadPoint } from './salvage';
 import { siteGap } from './sites';
 import { isFree } from './spawn';
-import { testDrive } from './testkit';
+import { addVehicle, npcBrain, testDrive } from './testkit';
 import { playerTow, setBeacon } from './tow';
 import type { World } from './types';
 import { dist, type Vec } from './vec';
@@ -43,6 +44,9 @@ describe('a beacon at the emptiest point of Icarus', () => {
     playerVehicle(w).trail = [];
     w.player.money = 0;
     w.player.fuel = 0;
+    const road = nearestRoadPoint(pos);
+    const tower = addVehicle(w, 'independent', 'hauler', ['stockEngine'], road, Math.PI);
+    tower.brain = npcBrain('trader', road, NPCS.trader.traits);
     w = setBeacon(w, true);
     for (let i = 0; i < RESCUE_TURNS && playerTow(w) === null; i++) w = w.player.call ? hangUp(w) : endTurn(w, testDrive);
     expect(playerTow(w)).not.toBeNull();

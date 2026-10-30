@@ -23,6 +23,7 @@ export type FactoryConfig = {
   publicUrl: string;
   image: string;
   gpu: boolean;
+  jobsSlice: string | null;
   oauthToken: string;
   elevenlabsKey: string;
   sfxMaxGenerations: number;
@@ -109,7 +110,7 @@ export type FactoryConfig = {
 export type TokenPrice = { input: number; output: number; cacheRead: number; cacheWrite5m: number; cacheWrite1h: number };
 
 export type RunOptions = { activity: Activity; cwd?: string; env?: Record<string, string>; input?: string; logPath?: string; onStdout?: (chunk: string) => void; timeoutMs?: number };
-export type RunResult = { code: number; stdout: string; stderr: string };
+export type RunResult = { code: number; stdout: string; stderr: string; timedOut?: true };
 export type Run = (cmd: string, args: string[], opts: RunOptions) => Promise<RunResult>;
 
 export type Reaction = { login: string; content: string };
@@ -148,8 +149,9 @@ export const JOB_ISSUE: Record<JobStage, 'github-issue' | 'none'> = {
   release: 'none', merge: 'none', dev: 'none', waste: 'none', answer: 'none',
 };
 export type Route = 'answer' | 'patch' | 'redesign';
-export type FailureCause = 'timeout' | 'died' | 'github' | 'disk' | 'decision' | 'error';
-export type Failure = { stage: Stage; issue: number | null; error: string; cause: FailureCause | null; log: string | null; at: string; batch?: number[]; cleared?: number[] };
+export type FailureCause = 'timeout' | 'died' | 'github' | 'disk' | 'decision' | 'baseline' | 'error';
+export type RejectedControl = { action: string; issue: number | null };
+export type Failure = { stage: Stage; issue: number | null; error: string; cause: FailureCause | null; log: string | null; at: string; batch?: number[]; cleared?: number[]; control?: RejectedControl };
 export type ChatReply = { chat: string; messageId: number | null };
 export type Removal = { issue: number; by: string; text: string };
 
@@ -259,12 +261,16 @@ export interface GitHub {
   closePullRequest(branch: string, comment: string): Promise<void>;
   reopen(number: number): Promise<void>;
   errorIssue(number: number): Promise<FingerprintIssue>;
-  dispatchSuite(sha: string): Promise<number>;
+  dispatchSuite(sha: string, scope?: SuiteScope): Promise<number>;
   suiteRun(id: number): Promise<SuiteRun>;
   suiteLog(id: number): Promise<string>;
+  suiteFailures(id: number): Promise<SuiteFailures | null>;
 }
 
 export type SuiteRun = { done: boolean; started: boolean; passed: boolean; testsFailed: boolean; conclusion: string | null; url: string };
+export type SuiteScope = { files: string[]; workers: number };
+export type FailedTest = { file: string; test: string | null };
+export type SuiteFailures = { failed: FailedTest[]; unhandledErrors: number };
 
 export type InlineButton = { text: string; data: string };
 

@@ -94,21 +94,31 @@ describe('readCarried', () => {
     for (const world of [FORMAT_2_0, FORMAT_2_1]) {
       const carried = readCarried({ format: { major: 2, minor: 0 }, world });
       const relaid = relaidTrucks_1_2({ vehicles: [], ...structuredClone(world), player: { ...world.player, storage: [] } } as unknown as SavedJson).player as { money: number };
-      expect(carried.money).toBe(Math.round((relaid.money * 100) / 3));
+      expect(carried.money).toBe(Math.ceil(relaid.money / 3 - 1e-9));
     }
     expect(readCarried({ format: { major: 99, minor: 0 }, world: FORMAT_2_1 }).money).toBe(FORMAT_2_1.player.money);
   });
 
-  it('turns money and cost basis from before format 2.30 into cents, as the 29 to 30 step does', () => {
+  it('turns money and cost basis from before format 2.30 into whole M, as the 29 to 30 step does', () => {
     const world = { player: { money: 1000, costBasis: { scrap: 10.5 } } };
     for (const format of [undefined, { major: 1, minor: 20 }, { major: 2, minor: 29 }]) {
       const carried = readCarried({ format, world });
-      expect(carried.money, JSON.stringify(format)).toBe(33333);
-      expect(carried.costBasis.scrap, JSON.stringify(format)).toBeCloseTo(350);
+      expect(carried.money, JSON.stringify(format)).toBe(334);
+      expect(carried.costBasis.scrap, JSON.stringify(format)).toBeCloseTo(3.5);
     }
     const current = readCarried({ format: { major: 2, minor: 30 }, world });
-    expect(current.money).toBe(1000);
-    expect(current.costBasis).toEqual({ scrap: 10.5 });
+    expect(current.money).toBe(10);
+    expect(current.costBasis).toEqual({ scrap: 0.105 });
+  });
+
+  it('reads cents up to format 2.123 and whole M from 2.124', () => {
+    const world = { player: { money: 1050, costBasis: { scrap: 150 } } };
+    const cents = readCarried({ format: { major: 2, minor: 123 }, world });
+    expect(cents.money).toBe(11);
+    expect(cents.costBasis).toEqual({ scrap: 1.5 });
+    const whole = readCarried({ format: { major: 2, minor: 124 }, world: { player: { money: 11, costBasis: { scrap: 1.5 } } } });
+    expect(whole.money).toBe(11);
+    expect(whole.costBasis).toEqual({ scrap: 1.5 });
   });
 
   it('reads garbage without throwing and keeps what is valid', () => {
@@ -119,11 +129,11 @@ describe('readCarried', () => {
     expect(readCarried(junk[3]).truck).toBeNull();
   });
 
-  it('moves the rows of a truck from before format 2.121 onto the outside armor rows and one from before 2.122 onto the square grid, and leaves a newer truck alone', () => {
+  it('moves the rows of a truck from before format 2.128 onto the outside armor rows and one from before 2.129 onto the square grid, and leaves a newer truck alone', () => {
     const rows = (minor: number) => readCarried({ format: { major: 2, minor }, world: FORMAT_2_120 }).truck!.items.map((it) => it.y);
-    expect(rows(120)).toEqual([0, 4, 13, 1, 2, 5, 9, 12]);
-    expect(rows(121)).toEqual([0, 3, 10, 1, 2, 5, 7, 10]);
-    expect(rows(122)).toEqual([0, 2, 7, 0, 0, 3, 5, 7]);
+    expect(rows(127)).toEqual([0, 4, 13, 1, 2, 5, 9, 12]);
+    expect(rows(128)).toEqual([0, 3, 10, 1, 2, 5, 7, 10]);
+    expect(rows(129)).toEqual([0, 2, 7, 0, 0, 3, 5, 7]);
   });
 
   it('drops items with float coordinates and keeps a debt', () => {
@@ -136,16 +146,16 @@ describe('readCarried', () => {
     expect(carried.money).toBe(-5);
   });
 
-  it('carries money in cents and pooled skills from a trimmed 2.1 save', () => {
+  it('carries money in whole M and pooled skills from a trimmed 2.1 save', () => {
     const world = { ...FORMAT_2_1, player: { ...FORMAT_2_1.player, money: 300, skills: { driving: 250, social: 700 } } };
     const carried = readCarried({ format: { major: 2, minor: 1 }, world });
     const relaid = relaidTrucks_1_2(structuredClone(world) as unknown as SavedJson).player as { money: number };
-    const cents = Math.round((relaid.money * 100) / 3);
-    expect(carried.money).toBe(cents);
+    const whole = Math.ceil(relaid.money / 3 - 1e-9);
+    expect(carried.money).toBe(whole);
     expect(carried.ranks).toEqual({ driving: 1, social: 2 });
     expect(carried.xp).toBe(50 + 100);
     const rescued = carriedWorld(carried, KIT, () => TEST_MAP, fresh);
-    expect(rescued.player.money).toBe(cents);
+    expect(rescued.player.money).toBe(whole);
     expect(rescued.player.ranks.social).toBe(2);
   });
 

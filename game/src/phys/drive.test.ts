@@ -7,7 +7,7 @@ import { makePart } from '../sim/factory';
 import { addGoods, mountPart, removeAllGoods } from '../sim/inventory';
 import { vehicleMass } from '../sim/mass';
 import { corePart } from '../sim/grid';
-import { addVehicle, editableTerrain, emptyWorld, npcBrain, partHp } from '../sim/testkit';
+import { addVehicle, editableTerrain, emptyWorld, npcBrain, partHp, uniformGround } from '../sim/testkit';
 import type { MoveOrder, World } from '../sim/types';
 import { angleDiff, bearing, dist, type Vec } from '../sim/vec';
 import { REGION } from '../data/region';
@@ -20,8 +20,8 @@ import { bodyOf } from '../sim/body';
 import { buildDrive, freeDrive, GROUND, toMps, initPhysics, routeAim, simulateTurn, syncDrive, type Drive, type TurnResult } from './drive';
 import { rotateBy, upOf } from './frames';
 import { physicsMove } from './turn';
-import { turnaroundSpeed } from './turnaround';
 import type { VehicleFrame } from './frames';
+import { turnaroundSpeed } from './turnaround';
 import { playerTow, unhitch } from '../sim/tow';
 import { callVehicle } from '../sim/dialogue';
 import { chooseText } from '../sim/dialogue-testkit';
@@ -270,7 +270,7 @@ describe('physics turns', () => {
 
     beforeAll(async () => {
       const w = emptyWorld();
-      editableTerrain(w).types.fill('mud');
+      uniformGround(w, 'mud');
       const mud = await playYielding(setMoveOrder(w, order), 3);
       mudSkill0 = mud.w;
       freeDrive(mud.d);
@@ -297,7 +297,7 @@ describe('physics turns', () => {
 
     function onGround(type: 'sand' | 'glass', order: MoveOrder, turns: number): World {
       const w = emptyWorld({ x: 20, y: 40 });
-      editableTerrain(w).types.fill(type);
+      uniformGround(w, type);
       w.vehicles[0].speed = SPEED;
       const { w: after, d } = play(setMoveOrder(w, order), turns);
       freeDrive(d);
@@ -311,7 +311,7 @@ describe('physics turns', () => {
 
     function meanSkid(type: 'sand' | 'glass'): number {
       let w = emptyWorld({ x: 20, y: 40 });
-      editableTerrain(w).types.fill(type);
+      uniformGround(w, type);
       w.vehicles[0].speed = SPEED;
       w = setMoveOrder(w, { kind: 'through', dest: { x: 30, y: 70 } });
       let d = buildDrive(w);
@@ -340,11 +340,11 @@ describe('physics turns', () => {
       expect(meanSkid('glass')).toBeGreaterThan(10);
     });
 
-    it('a braking truck slides further on glass than on sand', () => {
+    it('a braking truck slides further on glass, losing only the grip share of the speed it loses on sand', () => {
       const sand = onGround('sand', { kind: 'brake' }, 1);
       const glass = onGround('glass', { kind: 'brake' }, 1);
-      expect(me(glass).pos.x - 20).toBeGreaterThan((me(sand).pos.x - 20) * 1.5);
-      expect(me(glass).speed).toBeGreaterThan(me(sand).speed);
+      expect(me(glass).pos.x).toBeGreaterThan(me(sand).pos.x);
+      expect((SPEED - me(glass).speed) / (SPEED - me(sand).speed)).toBeCloseTo(TERRAIN_TYPES.glass.grip / TERRAIN_TYPES.sand.grip, 1);
     });
 
     it('a truck turns wider on glass than on sand with the same click', () => {
@@ -354,10 +354,10 @@ describe('physics turns', () => {
       expect(Math.abs(angleDiff(me(glass).heading, Math.PI / 2))).toBeGreaterThan(Math.abs(angleDiff(me(sand).heading, Math.PI / 2)));
     });
 
-    it('a truck eases off for a side click sooner on glass than on sand', () => {
+    it('a truck takes a side click slower on glass than on sand once its weak brakes have bitten', () => {
       const click: MoveOrder = { kind: 'through', dest: { x: 24, y: 60 } };
-      const sand = onGround('sand', click, 1);
-      const glass = onGround('glass', click, 1);
+      const sand = onGround('sand', click, 2);
+      const glass = onGround('glass', click, 2);
       expect(me(glass).speed).toBeLessThan(me(sand).speed * 0.8);
     });
 

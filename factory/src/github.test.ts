@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GithubError, ghClient } from './github';
+import { GithubError, ghClient, isRead } from './github';
 import { COLUMNS, type FactoryConfig, type Run, type RunResult } from './types';
 
 const CFG = { repo: 'o/r', projectOwner: 'o', projectNumber: 3, githubAppId: '42', githubRetries: 3, githubRetryBaseSeconds: 15, githubTimeoutSeconds: 60 } as FactoryConfig;
@@ -107,11 +107,93 @@ describe('ghClient', () => {
     await expect(ghClient(run, CFG, async () => {}).reopen(7)).rejects.toBeInstanceOf(GithubError);
   });
 
-  it('gives every call the timeout and does not retry a call that timed out', async () => {
+  it('gives every call the timeout and does not retry a write that timed out', async () => {
     const timeouts: (number | undefined)[] = [];
-    const run: Run = async (_cmd, _args, opts) => { timeouts.push(opts?.timeoutMs); return { code: 1, stdout: '', stderr: 'gh timed out after 60000 ms and was killed' }; };
+    const run: Run = async (_cmd, _args, opts) => { timeouts.push(opts?.timeoutMs); return { code: 1, stdout: '', stderr: 'gh timed out after 60000 ms and was killed', timedOut: true }; };
     await expect(ghClient(run, CFG, async () => {}).reopen(7)).rejects.toThrow('timed out');
     expect(timeouts).toEqual([60000]);
+  });
+
+  it('retries a read that hit a GitHub gateway error, with the rate-limit waits', async () => {
+    const waits: number[] = [];
+    const answers: RunResult[] = [
+      { code: 1, stdout: '', stderr: 'gh: HTTP 502' },
+      { code: 1, stdout: '', stderr: 'gh: HTTP 504' },
+      { code: 1, stdout: '', stderr: 'gh: HTTP 503' },
+      ok(JSON.stringify({ number: 7, title: 't', body: '', labels: [], createdAt: 't', state: 'OPEN', author: { login: 'a' } })),
+    ];
+    const run: Run = async () => answers.shift() ?? ok('');
+    const issue = await ghClient(run, CFG, async (ms) => { waits.push(ms); }).issue(7);
+    expect(issue.number).toBe(7);
+    expect(waits).toEqual([15000, 30000, 60000]);
+  });
+
+  it('retries a read that timed out', async () => {
+    let calls = 0;
+    const run: Run = async (_cmd, args) => {
+      calls++;
+      if (calls === 1) return { code: 1, stdout: '', stderr: 'gh timed out after 60000 ms and was killed', timedOut: true };
+      return fake([], project(ALL))(_cmd, args, { activity: 'git' });
+    };
+    expect((await ghClient(run, CFG, async () => {}).cards()).map((card) => card.issue)).toEqual([7]);
+    expect(calls).toBeGreaterThan(1);
+  });
+
+  it('reads the board through GraphQL gateway errors on every page query', async () => {
+    const calls: string[][] = [];
+    const inner = fake(calls, project(ALL));
+    const failed = new Set<string>();
+    const run: Run = async (cmd, args, opts) => {
+      const text = args.join(' ');
+      const kind = ['projectV2(number', 'items(first', 'issues(states: OPEN'].find((key) => text.includes(key));
+      if (kind && !failed.has(kind)) { failed.add(kind); return { code: 1, stdout: '', stderr: 'gh: HTTP 504' }; }
+      return inner(cmd, args, opts);
+    };
+    expect((await ghClient(run, CFG, async () => {}).cards()).map((card) => card.issue)).toEqual([7]);
+    expect(failed.size).toBe(3);
+  });
+
+  it('fails a read with the gateway error once the retries run out', async () => {
+    const waits: number[] = [];
+    const run: Run = async () => ({ code: 1, stdout: '', stderr: 'gh: HTTP 502' });
+    await expect(ghClient(run, CFG, async (ms) => { waits.push(ms); }).issue(7)).rejects.toThrow('HTTP 502');
+    expect(waits).toHaveLength(3);
+  });
+
+  it('never repeats a write or a mutation that hit a gateway error or timed out', async () => {
+    const failures: RunResult[] = [
+      { code: 1, stdout: '', stderr: 'gh: HTTP 502' },
+      { code: 1, stdout: '', stderr: 'gh timed out after 60000 ms and was killed', timedOut: true },
+    ];
+    for (const failure of failures) {
+      const calls: string[][] = [];
+      const run: Run = async (cmd, args, opts) => {
+        const text = args.join(' ');
+        if (args[1] === 'comment' || text.includes('mutation(') || args.includes('title=t')) { calls.push(args); return failure; }
+        return fake([], project(ALL))(cmd, args, opts);
+      };
+      const client = ghClient(run, CFG, async () => {});
+      await expect(client.comment(1, 'Hello')).rejects.toThrow();
+      await expect(client.move(7, 'Done')).rejects.toThrow();
+      expect(calls).toHaveLength(2);
+    }
+  });
+
+  it('tells reads from writes by their gh arguments', () => {
+    expect(isRead(['issue', 'view', '7'])).toBe(true);
+    expect(isRead(['pr', 'list', '--head', 'b'])).toBe(true);
+    expect(isRead(['run', 'view', '9', '--log-failed'])).toBe(true);
+    expect(isRead(['run', 'download', '9', '-n', 'test-failures'])).toBe(true);
+    expect(isRead(['api', 'repos/o/r/actions/runs/9'])).toBe(true);
+    expect(isRead(['api', '-X', 'GET', 'repos/o/r/issues'])).toBe(true);
+    expect(isRead(['api', 'graphql', '-f', 'query=query($a: ID!) { node(id: $a) { id } }'])).toBe(true);
+    expect(isRead(['api', 'graphql', '-f', 'query=mutation($a: ID!) { x(input: {id: $a}) { id } }'])).toBe(false);
+    expect(isRead(['api', 'repos/o/r/issues', '-f', 'title=t'])).toBe(false);
+    expect(isRead(['api', '-X', 'POST', 'repos/o/r/actions/workflows/w/dispatches'])).toBe(false);
+    expect(isRead(['issue', 'comment', '7', '--body', 'b'])).toBe(false);
+    expect(isRead(['issue', 'edit', '7', '--add-label', 'l'])).toBe(false);
+    expect(isRead(['release', 'create', 'v1'])).toBe(false);
+    expect(isRead(['label', 'create', 'l'])).toBe(false);
   });
 
   it('sends one call at a time, even after a failed call', async () => {
@@ -185,7 +267,7 @@ describe('ghClient', () => {
 
   it('shows the real error when the project lookup fails for another reason', async () => {
     const run: Run = async () => ({ code: 1, stdout: '', stderr: 'HTTP 502: Bad Gateway' });
-    await expect(ghClient(run, CFG).cards()).rejects.toThrow('502');
+    await expect(ghClient(run, CFG, async () => {}).cards()).rejects.toThrow('502');
   });
 
   it('tries the organization when the owner is not a user', async () => {

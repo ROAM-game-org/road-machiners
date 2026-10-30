@@ -17,8 +17,19 @@ const STRETCHES = Array.from({ length: 30 }, (_, i) => i + 1);
 const SEEDS = Array.from({ length: 20 }, (_, i) => i + 1);
 const GROWTHS = [0, 0.25, 1, 2];
 
+const worlds = new Map<number, World>();
+
+function seedWorld(seed = 3): World {
+  let w = worlds.get(seed);
+  if (!w) {
+    w = chaosHighwayWorld(seed);
+    worlds.set(seed, w);
+  }
+  return w;
+}
+
 function withGrowth(growth: number): World {
-  const w = chaosHighwayWorld();
+  const w = seedWorld();
   return { ...w, setup: { ...w.setup, settings: { ...w.setup.settings, enemyGearGrowth: growth } } };
 }
 
@@ -64,7 +75,7 @@ describe('Chaos Highway director', () => {
     expect(eliteCap(DIRECTOR.elite.from)).toBe(1);
     expect(eliteCap(DIRECTOR.elite.from + DIRECTOR.elite.every)).toBe(2);
     for (const seed of SEEDS) {
-      const world = chaosHighwayWorld(seed);
+      const world = seedWorld(seed);
       for (const j of STRETCHES) {
         const waves = directStretch(world, j);
         expect(waves.filter((w) => w.elite).length, `stretch ${j} seed ${seed}`).toBeLessThanOrEqual(eliteCap(j));
@@ -76,7 +87,7 @@ describe('Chaos Highway director', () => {
   it('places the waves in order inside the stretch, clear of both outposts and at least one spacing apart on average', () => {
     for (const j of [1, 4, 12]) {
       for (const seed of SEEDS) {
-        const waves = directStretch(chaosHighwayWorld(seed), j);
+        const waves = directStretch(seedWorld(seed), j);
         const from = milestoneAt(seed, j - 1) + HAZARDS.clearAfterOutpost;
         const to = milestoneAt(seed, j) - HAZARDS.clearBeforeOutpost;
         expect(waves.length).toBeLessThanOrEqual(Math.floor((to - from) / DIRECTOR.spacing));
@@ -90,21 +101,21 @@ describe('Chaos Highway director', () => {
   });
 
   it('plans the same waves for the same seed and draws only the cards open at the stretch', () => {
-    expect(directStretch(chaosHighwayWorld(7), 5)).toEqual(directStretch(chaosHighwayWorld(7), 5));
+    expect(directStretch(seedWorld(7), 5)).toEqual(directStretch(seedWorld(7), 5));
     for (const j of [1, 2, 6]) {
       const open = new Set(cardsOf(j).map(([id]) => id));
-      for (const seed of SEEDS) for (const wave of directStretch(chaosHighwayWorld(seed), j)) expect(open.has(wave.template), `${wave.template} at stretch ${j}`).toBe(true);
+      for (const seed of SEEDS) for (const wave of directStretch(seedWorld(seed), j)) expect(open.has(wave.template), `${wave.template} at stretch ${j}`).toBe(true);
     }
   });
 
   it('opens with small plain waves that grow into more and larger waves with elites', () => {
-    const trucks = (j: number) => SEEDS.map((seed) => directStretch(chaosHighwayWorld(seed), j).reduce((sum, wave) => sum + wave.size, 0));
+    const trucks = (j: number) => SEEDS.map((seed) => directStretch(seedWorld(seed), j).reduce((sum, wave) => sum + wave.size, 0));
     const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
-    const first = SEEDS.flatMap((seed) => directStretch(chaosHighwayWorld(seed), 1));
+    const first = SEEDS.flatMap((seed) => directStretch(seedWorld(seed), 1));
     expect(first.every((wave) => !wave.elite && wave.size <= Math.ceil(DIRECTOR.wave.size.first))).toBe(true);
     expect(mean(trucks(3))).toBeGreaterThan(mean(trucks(1)));
     expect(mean(trucks(10))).toBeGreaterThan(mean(trucks(3)));
-    expect(SEEDS.some((seed) => directStretch(chaosHighwayWorld(seed), DIRECTOR.elite.from).some((wave) => wave.elite))).toBe(true);
+    expect(SEEDS.some((seed) => directStretch(seedWorld(seed), DIRECTOR.elite.from).some((wave) => wave.elite))).toBe(true);
   });
 
   it('arms every card with a gun at the plain and the elite gear money of its first stretch', () => {

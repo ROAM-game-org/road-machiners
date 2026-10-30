@@ -56,7 +56,9 @@ async function reviveVote(ctx: Ctx, store: PublicStore, issue: number): Promise<
     ctx.log('public', issue, 'the card waits for votes but has no proposal, so the voting label is removed and triage runs again');
     return;
   }
-  if (proposal.closedAt !== null && store.reopenUnattempted(issue)) ctx.log('public', issue, 'the proposal closed before any post attempt while the card still waits for votes, so it is open again and waits for its post');
+  if (!store.closedUnattempted(issue)) return;
+  if ((await ctx.github.issue(issue)).state === 'CLOSED') return;
+  if (store.reopenUnattempted(issue)) ctx.log('public', issue, 'the proposal closed before any post attempt while the card still waits for votes, so it is open again and waits for its post');
 }
 
 export async function closeByHand(ctx: Ctx, store: PublicStore, issue: number): Promise<void> {

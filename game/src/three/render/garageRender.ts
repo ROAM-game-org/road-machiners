@@ -219,19 +219,19 @@ function spriteFrame(meshes: readonly Drawn[], partId: string, along: AlongTruck
   return frame && frame.top > frame.bottom ? frame : null;
 }
 
-function clearAround(pass: Pass, meshes: readonly Drawn[], partId: string, hidden: boolean): void {
+function clearAround(pass: Pass, meshes: readonly Drawn[], partId: string, hidden: boolean, mates: ReadonlySet<string>): void {
   for (const mesh of meshes) {
     if (mesh.userData.partId === partId) continue;
-    if (hidden || mesh.material.transparent) mesh.visible = false;
+    if (hidden || mesh.material.transparent || mates.has(mesh.userData.partId)) mesh.visible = false;
     else mesh.material = pass.occluder;
   }
 }
 
-function* alone(pass: Pass, view: VehicleView, meshes: readonly Drawn[], partId: string, origin: { x: number; z: number }, along: AlongTruck | null, hidden = false): Generator<PortraitWait, GarageSprite | null, void> {
+function* alone(pass: Pass, view: VehicleView, meshes: readonly Drawn[], partId: string, origin: { x: number; z: number }, along: AlongTruck | null, hidden = false, mates: ReadonlySet<string> = new Set()): Generator<PortraitWait, GarageSprite | null, void> {
   const frame = spriteFrame(meshes, partId, along);
   if (!frame) return null;
   const originals = meshes.map((m) => [m, m.material, m.visible] as const);
-  clearAround(pass, meshes, partId, hidden);
+  clearAround(pass, meshes, partId, hidden, mates);
   try {
     return yield* shoot(pass, view.root, snapped(frame, origin), origin);
   } finally {
@@ -318,12 +318,13 @@ function pivoted(sprite: GarageSprite, view: VehicleView, item: PartItem, origin
 function* batchSteps(pass: Pass, job: BatchJob, store: GarageStore, trash: { dispose(): void }[]): Generator<PortraitWait, void, void> {
   const truck: Vehicle = { ...job.truck, items: [...coreItems(job.truck), ...job.placements.map((p) => p.item)] };
   const origin = gridOrigin(job.chassisId);
+  const mates = new Set(job.placements.map((p) => p.item.part.id));
   for (const hidden of [false, true]) {
     const placements = job.placements.filter((p) => hidesInside(truck, p.item) === hidden);
     if (!placements.length) continue;
     const { view, meshes } = yield* builtView(truck, job.paint, trash, hidden ? 'xray' : 'portrait');
     for (const placement of placements) {
-      const sprite = yield* alone(pass, view, meshes, placement.item.part.id, origin, null, hidden);
+      const sprite = yield* alone(pass, view, meshes, placement.item.part.id, origin, null, hidden, mates);
       store.putSprite(placement.key, placement.loose, sprite ? pivoted(sprite, view, placement.item, origin) : NOTHING_DRAWN);
     }
   }

@@ -331,6 +331,18 @@ describe('finite hidden salvage', () => {
     expect(wreck.parts.length).toBeGreaterThan(0);
   });
 
+  it("leaves Ship Metal out of a destroyed truck's wreck unless it carried some", () => {
+    const empty = emptyWorld();
+    const bare = addVehicle(empty, 'scrapjaw', 'scout', ['mg'], { x: 40, y: 30 });
+    createWreckSalvage(empty, bare);
+    expect(empty.salvage.find((s) => s.id === wreckStockId(bare.id))!.goods.relics ?? 0).toBe(0);
+    const loaded = emptyWorld();
+    const hauler = addVehicle(loaded, 'scrapjaw', 'scout', ['mg'], { x: 40, y: 30 });
+    addGoods(loaded, hauler, 'relics', 2);
+    createWreckSalvage(loaded, hauler);
+    expect(loaded.salvage.find((s) => s.id === wreckStockId(hauler.id))!.goods.relics).toBe(2);
+  });
+
   it('reveals from hidden only and conserves the total', () => {
     const w = emptyWorld();
     const s = hiddenStock('rich', { x: 30, y: 30 }, { goods: { scrap: 20 }, fuel: 5, supplies: 2 });

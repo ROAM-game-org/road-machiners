@@ -7,6 +7,7 @@ import { gridOf, MOUNT_CELLS, mountedParts, mountSpots, type Spot } from './grid
 import { burnFuel } from './resources';
 import { vehicleStats } from './stats';
 import type { Terrain } from './terrain';
+import type { TerrainTypeId } from '../data/terrain';
 import { emptyWorldFrom, flatTerrain, PLAIN_KIT } from '../test/empty-world';
 import { DECISIONS, NPC_UPKEEP, STATE_WEIGHTS, TRAITS, type DecisionId, type DecisionOptions } from '../data/npcs';
 import { addState } from './states';
@@ -82,7 +83,7 @@ export function parkedAtOutpost(seed = 3): World {
   const w = chaosHighwayWorld(seed);
   parkInYard(w, 1);
   const parked = endTurn(w, () => {});
-  parked.player.money = 10_000_000;
+  parked.player.money = 100_000;
   return parked;
 }
 
@@ -108,6 +109,24 @@ export function editableTerrain(w: World): Terrain {
   return w.terrain;
 }
 
+const uniformTerrains = new WeakMap<Terrain, Map<TerrainTypeId, Terrain>>();
+
+export function uniformGround(w: World, type: TerrainTypeId): void {
+  const base = w.terrain;
+  let byType = uniformTerrains.get(base);
+  if (!byType) {
+    byType = new Map();
+    uniformTerrains.set(base, byType);
+  }
+  const shared = byType.get(type);
+  if (shared) {
+    w.terrain = shared;
+    return;
+  }
+  editableTerrain(w).types.fill(type);
+  byType.set(type, w.terrain);
+}
+
 export { PLAIN_KIT, flatTerrain };
 
 const runner = (globalThis as { __vitest_worker__?: unknown }).__vitest_worker__ ? await import('vitest') : null;
@@ -125,7 +144,10 @@ function templateFromSetup(): World {
   return emptyWorldFrom(provided);
 }
 
-export function emptyWorld(pos: Vec = { x: 30, y: 30 }): World {
+const DEFAULT_EMPTY_POS: Vec = { x: 30, y: 30 };
+let seenFromDefault: World | undefined;
+
+function emptyWorldAt(pos: Vec): World {
   emptyTemplate ??= templateFromSetup();
   const w = cloneWorld(emptyTemplate);
   const p = w.vehicles[0];
@@ -133,6 +155,12 @@ export function emptyWorld(pos: Vec = { x: 30, y: 30 }): World {
   p.heading = 0;
   refreshVision(w);
   return w;
+}
+
+export function emptyWorld(pos: Vec = DEFAULT_EMPTY_POS): World {
+  if (pos.x !== DEFAULT_EMPTY_POS.x || pos.y !== DEFAULT_EMPTY_POS.y) return emptyWorldAt(pos);
+  seenFromDefault ??= emptyWorldAt(pos);
+  return cloneWorld(seenFromDefault);
 }
 
 export function addLootSpot(w: World): { spot: Obstacle; stock: SalvageStock } {

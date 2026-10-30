@@ -8,13 +8,15 @@ import type { SlotId } from './save-slots';
 import { savedMisfit, savedRevisionsOf, savedRunId, saveOf, storedSave, writeSave } from './save';
 import { LAYOUTS_2_34 } from './save-layouts-2-34';
 import { relaidTrucks_1_2, withWideMg_42_43 } from './save-migrations';
-import { withSquareGrid_121_122 } from './save-step-square-grid';
-import { armorRowOfItem_120_121, chaosHighwayMode_113_114, mutedColor_96_97, paintOfPreset_95_96, withOddFronts_102_103 } from './save-steps-late';
+import { withSquareGrid_128_129 } from './save-step-square-grid';
+import { armorRowOfItem_127_128, chaosHighwayMode_113_114, mutedColor_96_97, paintOfPreset_95_96, withOddFronts_102_103 } from './save-steps-late';
 import type { SaveSlots } from './save-db';
 
 type Json = Record<string, unknown>;
 
 const CENTS_PER_MONEY_29_30 = 100 / 3;
+const CENTS_PER_M = 100;
+const WHOLE_M_BEFORE = 124;
 const XP_TO_REACH_9_10 = [0, 200, 600, 1200, 2000, 3000];
 
 function pooledSkills_9_10(skills: Record<string, number>): { xp: number; ranks: Record<string, number> } {
@@ -133,8 +135,8 @@ function vehicleOf(world: Json, id: unknown): Json | null {
 const RELAID_BEFORE = 2;
 const WIDE_MG_BEFORE = 43;
 const ODD_FRONTS_BEFORE = 103;
-const ARMOR_ROWS_OUTSIDE_BEFORE = 121;
-const SQUARE_GRID_BEFORE = 122;
+const ARMOR_ROWS_OUTSIDE_BEFORE = 128;
+const SQUARE_GRID_BEFORE = 129;
 const OFF_GRID = -1;
 const RESCUED_ID = 'rescued';
 const NO_PLAYER_VEHICLE = 'none';
@@ -185,7 +187,7 @@ function garageAndMoney(player: Json, money: number): Pick<Placed, 'storage' | '
 }
 
 function onSquareGrid(chassisId: string, items: CarriedItem[]): CarriedItem[] {
-  const moved = withSquareGrid_121_122({ player: { vehicleId: RESCUED_ID, storage: [] }, vehicles: [savedVehicleOf(chassisId, items)] });
+  const moved = withSquareGrid_128_129({ player: { vehicleId: RESCUED_ID, storage: [] }, vehicles: [savedVehicleOf(chassisId, items)] });
   const spots = new Map(((moved.vehicles as Json[])[0].items as Json[]).map((it) => [it.id, it]));
   return items.map((item, i) => {
     const spot = spots.get(`item${i}`);
@@ -198,7 +200,7 @@ function placedOn(vehicle: Json | null, format: number, player: boolean, storage
   const chassisId = idOf(vehicle?.chassisId);
   const early = WORLD_STEPS.filter((s) => formatBefore(format, s.before)).reduce((placed, s) => throughStep(s, chassisId, placed, player), { items: read, storage, money: 0 });
   if (chassisId === null) return early;
-  const outside = formatBefore(format, ARMOR_ROWS_OUTSIDE_BEFORE) ? early.items.map((it) => (it.y < 0 ? it : { ...it, y: armorRowOfItem_120_121(chassisId, it.y, it.kind === 'part' ? it.part.defId : null) })) : early.items;
+  const outside = formatBefore(format, ARMOR_ROWS_OUTSIDE_BEFORE) ? early.items.map((it) => (it.y < 0 ? it : { ...it, y: armorRowOfItem_127_128(chassisId, it.y, it.kind === 'part' ? it.part.defId : null) })) : early.items;
   return { ...early, items: formatBefore(format, SQUARE_GRID_BEFORE) ? onSquareGrid(chassisId, outside) : outside };
 }
 
@@ -211,18 +213,18 @@ function truckOf(world: Json, player: Json, format: number): { truck: Carried['t
 
 const HAULER_FORMAT_2_60 = 2060;
 
-function runOf(world: Json, format: number): CarriedRun | null {
+function runOf(world: Json, format: number, money: MoneyReader): CarriedRun | null {
   const saved = formatBefore(format, CHAOS_HIGHWAY_NAME_BEFORE) ? world.furyRoad : world.chaosHighway;
   if (saved === null || saved === undefined) return null;
   const run = objectOf(saved) ?? {};
   if (!('hauler' in run) && format < HAULER_FORMAT_2_60) return null;
-  return readRun(world, run, format);
+  return readRun(world, run, money, format);
 }
 
 type RunTotals = { window: number; earned: number; wrecks: number };
 
-function readRun(world: Json, run: Json, format: number): CarriedRun {
-  const [window, earned, wrecks] = [windowOf(run.window), countOf(run.earned), countOf(run.wrecks)];
+function readRun(world: Json, run: Json, money: MoneyReader, format: number): CarriedRun {
+  const [window, earned, wrecks] = [windowOf(run.window), money.amount(countOf(run.earned)), countOf(run.wrecks)];
   const hauler = vehicleOf(world, objectOf(run.hauler)?.id);
   if (window === null || earned === null || wrecks === null || !hauler) throw new Error('The Chaos Highway run in this save has no readable window, totals or hauler, so it cannot be rescued');
   return carriedRun(run, { window, earned, wrecks }, hauler, format);
@@ -266,11 +268,11 @@ export function readCarried(raw: unknown, prices: Readonly<Record<string, number
 
 function readFormatted(raw: unknown, world: Json, player: Json): Carried {
   const format = formatNumber(raw);
-  const scale = formatBefore(format, 30) ? CENTS_PER_MONEY_29_30 : 1;
+  const money = moneyReader(format);
   const mounted = truckOf(world, player, format);
   return {
     seed: isGridInt(world.seed) ? world.seed : null,
-    money: centsOf(player.money, mounted.money, scale),
+    money: money.amount(typeof player.money === 'number' ? player.money + mounted.money : player.money),
     ...pooledOf(player),
     xpBySource: countsOf(player.xpBySource),
     perks: listOf(player.perks).flatMap((id) => idOf(id) ?? []).map((id) => renamedIn(RENAMED_PERKS_RESCUE, id)),
@@ -281,12 +283,12 @@ function readFormatted(raw: unknown, world: Json, player: Json): Carried {
     autoRepair: flagOf(player.autoRepair),
     fuel: countOf(player.fuel),
     supplies: countOf(player.supplies),
-    costBasis: Object.fromEntries(Object.entries(countsOf(player.costBasis)).map(([good, basis]) => [good, basis * scale])),
+    costBasis: Object.fromEntries(Object.entries(countsOf(player.costBasis)).map(([good, basis]) => [good, money.rate(basis)])),
     truck: mounted.truck,
     storage: mounted.storage,
     setup: setupOf(world.setup, format),
     quests: questVarsOf(player.quests, format),
-    run: runOf(world, format),
+    run: runOf(world, format, money),
     notes: [...new Set(listOf(player.notes).flatMap(noteOf))],
     revisions: savedRevisionsOf(raw),
     refunded: 0,
@@ -357,8 +359,16 @@ function formatNumber(raw: unknown): number {
   return part('major') * 1000 + part('minor');
 }
 
-function centsOf(value: unknown, refund: number, scale: number): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? Math.round((value + refund) * scale) : null;
+type MoneyReader = { amount: (value: unknown) => number | null; rate: (value: number) => number };
+
+function moneyReader(format: number): MoneyReader {
+  const centsPer = formatBefore(format, 30) ? CENTS_PER_MONEY_29_30 : 1;
+  if (!formatBefore(format, WHOLE_M_BEFORE)) return { amount: (value) => (typeof value === 'number' && Number.isFinite(value) ? value : null), rate: (value) => value };
+  const shown = (cents: number): number => (Math.round(cents) === 0 ? 0 : Math.sign(cents) * Math.ceil(Math.abs(Math.round(cents)) / CENTS_PER_M));
+  return {
+    amount: (value) => (typeof value === 'number' && Number.isFinite(value) ? shown(value * centsPer) : null),
+    rate: (value) => (value * centsPer) / CENTS_PER_M,
+  };
 }
 
 function pooledOf(player: Json): Pick<Carried, 'xp' | 'ranks'> {

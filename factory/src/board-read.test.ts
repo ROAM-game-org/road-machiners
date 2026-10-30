@@ -27,7 +27,7 @@ const waits: number[] = [];
 const recordWait = async (ms: number) => { waits.push(ms); };
 
 function ctxFor(fake: ReturnType<typeof boardFake>): Ctx {
-  const cfg = { ...BOARD_CFG, home: ROOT, committeeBootstrapTelegram: '11', committeeBootstrapGithub: 'boss', committeeChat: '-5', tokenPrices: {}, minFreeGb: 0, replyRouteMinutes: 60 } as FactoryConfig;
+  const cfg = { ...BOARD_CFG, home: ROOT, committeeBootstrapTelegram: '11', committeeBootstrapGithub: 'boss', committeeChat: '-5', tokenPrices: {}, minFreeGb: 0, replyRouteMinutes: 60, jobsSlice: null } as FactoryConfig;
   return { cfg, statePath, now: () => NOW, log: () => undefined, run: fake.run, github: ghClient(fake.run, cfg, noWait), telegram: {}, repo: {} } as unknown as Ctx;
 }
 

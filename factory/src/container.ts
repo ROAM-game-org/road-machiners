@@ -19,12 +19,13 @@ const REMOVE_TIMEOUT_MS = 60_000;
 
 export const FACTORY_LABEL = 'factory=1';
 
-function baseArgs(jobId: string | null, cpus: string | null, testWorkers: number | null, gpu: boolean, peakDir: string): string[] {
+function baseArgs(jobId: string | null, cpus: string | null, testWorkers: number | null, cfg: FactoryConfig, peakDir: string): string[] {
   const label = jobId === null ? [] : ['--label', jobLabel(jobId)];
+  const slice = cfg.jobsSlice === null ? [] : ['--cgroup-parent', cfg.jobsSlice];
   const pin = cpus === null ? [] : ['--cpuset-cpus', cpus];
   const workers = testWorkers === null ? [] : ['-e', `TEST_WORKERS=${testWorkers}`];
-  const card = gpu ? ['--gpus', 'all', '-e', 'NVIDIA_DRIVER_CAPABILITIES=all'] : [];
-  return ['run', '--rm', '--label', FACTORY_LABEL, ...label, ...pin, ...workers, ...card, '-e', 'TEST_TIMEOUTS=off', '-v', `${peakDir}:${PEAK_MOUNT}`];
+  const card = cfg.gpu ? ['--gpus', 'all', '-e', 'NVIDIA_DRIVER_CAPABILITIES=all'] : [];
+  return ['run', '--rm', '--label', FACTORY_LABEL, ...label, ...slice, ...pin, ...workers, ...card, '-e', 'TEST_TIMEOUTS=off', '-v', `${peakDir}:${PEAK_MOUNT}`];
 }
 
 const PEAK_MOUNT = '/factory-peak';
@@ -227,7 +228,7 @@ export function dockerContainer(run: Run, cfg: FactoryConfig, jobId: string | nu
       const logins = publicOutput === true ? [] : [...codexMount(cfg.home), ...agyMount(cfg.home)];
       const readOnlyArgs = await readOnlyMounts(cfg.home, readOnly);
       const argsFor = (peakDir: string) => [
-        ...baseArgs(jobId, cpus, testWorkers, cfg.gpu, peakDir), '-i', ...mountArgs(cfg, clone, dir, mediaDir), ...logins,...sessionMount(session), ...readOnlyArgs, ...networkArgs(openNetwork === true), ...Object.keys(env).flatMap((key) => ['-e', key]), cfg.image,
+        ...baseArgs(jobId, cpus, testWorkers, cfg, peakDir), '-i', ...mountArgs(cfg, clone, dir, mediaDir), ...logins,...sessionMount(session), ...readOnlyArgs, ...networkArgs(openNetwork === true), ...Object.keys(env).flatMap((key) => ['-e', key]), cfg.image,
         'bash', '-c', `${PEAK_TRAP}; factory-agent "$@"`, 'factory-agent', '-p', '--model', model, ...effortArgs(effort), ...advisorArgs(advisor), ...disallowedArgs(disallowedTools), '--permission-mode', 'bypassPermissions', '--output-format', 'stream-json', '--verbose', ...sessionArgs(session),
       ];
       const input = [skill, outputsNote(dir, cfg.agentJobMaxMinutes), prompt].filter((part) => part !== undefined).join('\n\n');
@@ -247,7 +248,7 @@ export function dockerContainer(run: Run, cfg: FactoryConfig, jobId: string | nu
     async shell(kind, clone, script, log, env = {}, mounts = {}, limitMinutes, pin = { cpus, testWorkers }) {
       await ensureProxy(run, cfg);
       const extraMounts = Object.entries(mounts).flatMap(([host, path]) => ['-v', `${host}:${path}`]);
-      const args = (peakDir: string) => (named: string[]) => [...baseArgs(jobId, pin.cpus, pin.testWorkers, cfg.gpu, peakDir), ...named, ...mountArgs(cfg, clone, GAME_DIR), ...extraMounts, ...networkArgs(false), ...envArgs(env), cfg.image, 'bash', '-lc', `${PEAK_TRAP}\n${script}`];
+      const args = (peakDir: string) => (named: string[]) => [...baseArgs(jobId, pin.cpus, pin.testWorkers, cfg, peakDir), ...named, ...mountArgs(cfg, clone, GAME_DIR), ...extraMounts, ...networkArgs(false), ...envArgs(env), cfg.image, 'bash', '-lc', `${PEAK_TRAP}\n${script}`];
       const result = await asPart(cfg, jobId, kind, () => withPeak(cfg, jobId, (peakDir) => runLimited(run, log, limitMinutes, args(peakDir))));
       must(result, `shell in ${clone}`);
     },

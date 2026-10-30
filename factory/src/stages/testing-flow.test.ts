@@ -12,7 +12,7 @@ const POOLS = { cpuLight: 0.125, cpuImplement: 0.375, cpuTest: 0.5, vitestWorker
 
 vi.mock('node:os', async (original) => ({ ...(await original<typeof Os>()), availableParallelism: () => 8 }));
 vi.mock('../deploy', () => ({ checkScope: () => undefined, publishBuild: (_ctx: unknown, _clone: string, scope: string) => `https://play.test/${scope}/`, recordBuild: () => undefined }));
-const { runStage: runPost, approvalCaption, timeoutOnly } = await import('./checks');
+const { runStage: runPost, approvalCaption, errorLines, timeoutOnly } = await import('./checks');
 const { runStage: runVerify, taskText } = await import('./verify');
 const { runStage: runHarden } = await import('./harden');
 
@@ -529,7 +529,7 @@ describe('captions', () => {
   });
 
   it('tells a timeout-only failure from a real one', () => {
-    const seen = (failure: string, timedOut = false) => ({ failure, timedOut });
+    const seen = (failure: string, timedOut = false) => ({ failure, timedOut, errors: errorLines(failure) });
     expect(timeoutOnly(seen(TIMEOUT_FAILURE))).toBe(true);
     expect(timeoutOnly(seen(`${TIMEOUT_FAILURE}\nError: expected 1 to be 2`))).toBe(false);
     expect(timeoutOnly(seen('typecheck failed'))).toBe(false);

@@ -4,15 +4,18 @@ const DEBUG_CONSOLE = 'The debug console is a dev tool. It stays English.';
 const DEV_REPORT = 'Progression and income reports are dev tools read in a terminal. They stay English.';
 const CRASH_REPORT = 'A line of the crash report a player pastes into a bug report. It stays as the code wrote it.';
 const DEV_SIM = 'Simulation mode is a dev page that shows a playthrough run. It stays English, apart from the game words it reads from the catalog.';
+const BAKE_REPORT = 'The hunting spots bake logs a report to the terminal of the map bake. It stays English.';
 const DEV_LAB = 'The block lab is a dev page for tuning the combat score. It stays English.';
 const SIM_MODE = 'Simulation mode is a dev page that replays a bot run with every truck on the map. It stays English.';
 const FONT_SAMPLE = 'A sample string that makes the browser load the font. No player reads it.';
 const SVG = 'Static SVG markup of an icon, with no words in it.';
 
 const MIGRATION_LABEL = 'A label inside a save migration error, which only the console and a bug report show.';
+const MONEY_LABEL = 'A label inside a whole-M money error, which only the console and a bug report show.';
 const SETTING_LABEL = 'A label inside a setup parse error, which only the console and a bug report show.';
 const SAVE_STEP_LOG = 'A part of a console warning the square grid save step logs for each part it moves, which only a bug report shows.';
 const SAVE_STEP_FILE = 'src/three/save-step-square-grid.ts';
+const SAVE_DB_ERROR = 'An error message of the save database, which only the console and a bug report show.';
 
 export const UNTRANSLATED: readonly Untranslated[] = [
   { file: SAVE_STEP_FILE, text: 'its nearest spot is taken', reason: SAVE_STEP_LOG },
@@ -21,6 +24,17 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: SAVE_STEP_FILE, text: 'moved from nearest spot  ,  to  , :  ', reason: SAVE_STEP_LOG },
   { file: SAVE_STEP_FILE, text: 'fits nowhere on the square grid and went to player storage', reason: SAVE_STEP_LOG },
   { file: SAVE_STEP_FILE, text: 'fits nowhere on the square grid and was dropped', reason: SAVE_STEP_LOG },
+  { file: 'src/sim/progression/sim-cards.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/sim/progression/sim-mode.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/three/sim-worker.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/economy-pages.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/economy-reads.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/economy-view.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/heat-map.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/page.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/panels.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/sim-text.ts', text: '*', reason: DEV_SIM },
+  { file: 'src/ui/sim/truck-icons.ts', text: '*', reason: DEV_SIM },
   { file: 'src/ui/save-screen.ts', text: 'Road Machiners', reason: 'The game title stays as it is in every language, as on the boot screen.' },
   { file: 'src/three/main.ts', text: 'confirm()', reason: 'The browser adapter shows text its caller already resolved with say().' },
   { file: 'src/three/save.ts', text: 'confirm()', reason: 'The browser adapter shows text its caller already resolved with say().' },
@@ -28,6 +42,7 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/sim/hunting-spots-bake.ts', text: 'Each trip of a kind is equally likely. Prey cruise   tiles a turn, route radius  .', reason: 'A log line of the offline hunting spots bake, which only a developer reads.' },
   { file: 'src/three/render/interiors/bowl.ts', text: 'stilt tank', reason: 'A label inside a site build error, which only a bake or a test shows.' },
   { file: 'src/three/render/shadowFilter.ts', text: 'float getPointShadow', reason: 'A GLSL snippet patched into the shadow shader, with no words in it.' },
+  { file: 'src/three/save-db.ts', text: 'The   transaction was aborted', reason: SAVE_DB_ERROR },
   { file: 'src/three/save-migrations.ts', text: 'contract   reward', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: 'call money', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: 'call deal price', reason: MIGRATION_LABEL },
@@ -38,8 +53,28 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/three/save-migrations.ts', text: 'player money', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: 'cost basis', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: 'pile   basis', reason: MIGRATION_LABEL },
+  { file: 'src/three/save-steps-late.ts', text: 'past contract', reason: MIGRATION_LABEL },
+  { file: 'src/three/save-steps-late.ts', text: 'call money', reason: MIGRATION_LABEL },
+  { file: 'src/three/save-steps-late.ts', text: 'call deal', reason: MIGRATION_LABEL },
+  { file: 'src/three/save-steps-late.ts', text: 'call price', reason: MIGRATION_LABEL },
+  { file: 'src/three/save-steps-late.ts', text: 'witnessed memory', reason: MIGRATION_LABEL },
+  { file: 'src/three/save-steps-late.ts', text: 'courier aid value', reason: MIGRATION_LABEL },
+  { file: 'src/three/save-steps-late.ts', text: 'Chaos Highway', reason: MIGRATION_LABEL },
+  { file: 'src/three/save-steps-late.ts', text: 'wave group money', reason: MIGRATION_LABEL },
+  { file: 'src/three/save-steps-late.ts', text: 'cost basis', reason: MIGRATION_LABEL },
+  { file: 'src/three/save-steps-late.ts', text: 'pile   basis', reason: MIGRATION_LABEL },
+  { file: 'src/sim/chaos-highway.ts', text: 'outpost pay', reason: MONEY_LABEL },
+  { file: 'src/sim/crime.ts', text: 'case stake', reason: MONEY_LABEL },
+  { file: 'src/sim/crime.ts', text: 'embezzlement fine', reason: MONEY_LABEL },
+  { file: 'src/sim/duty.ts', text: 'guard pay', reason: MONEY_LABEL },
+  { file: 'src/sim/economy.ts', text: 'transfer from  ', reason: MONEY_LABEL },
+  { file: 'src/sim/patch.ts', text: 'patch price', reason: MONEY_LABEL },
+  { file: 'src/sim/states.ts', text: 'tow fee', reason: MONEY_LABEL },
+  { file: 'src/sim/tow.ts', text: 'escort fee', reason: MONEY_LABEL },
+  { file: 'src/sim/hunting-spots-bake.ts', text: '*', reason: BAKE_REPORT },
   { file: 'src/sim/progression/activity.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/sim/progression/job-checks.ts', text: '*', reason: DEV_REPORT },
+  { file: 'src/sim/hunting-spots-bake.ts', text: '*', reason: 'The hunting spots bake log is a dev tool read in a terminal. It stays English.' },
   { file: 'src/sim/settings.ts', text: 'World setup', reason: SETTING_LABEL },
   { file: 'src/sim/settings.ts', text: 'world setup field', reason: SETTING_LABEL },
   { file: 'src/sim/settings.ts', text: 'World settings', reason: SETTING_LABEL },
@@ -59,11 +94,11 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/three/crash.ts', text: 'Boot step:  ', reason: CRASH_REPORT },
   { file: 'src/three/crash.ts', text: 'Browser:  ', reason: CRASH_REPORT },
   { file: 'src/three/crash.ts', text: 'Page:  ', reason: CRASH_REPORT },
-  { file: 'src/three/main.ts', text: 'loading physics, models and sounds', reason: CRASH_REPORT },
+  { file: 'src/three/main.ts', text: 'loading physics and models', reason: CRASH_REPORT },
   { file: 'src/three/main.ts', text: 'loading the map', reason: CRASH_REPORT },
   { file: 'src/three/main.ts', text: 'loading the save', reason: CRASH_REPORT },
   { file: 'src/three/main.ts', text: 'building the ground', reason: CRASH_REPORT },
-  { file: 'src/three/main.ts', text: 'waiting for physics, models and sounds', reason: CRASH_REPORT },
+  { file: 'src/three/main.ts', text: 'waiting for physics and models', reason: CRASH_REPORT },
   { file: 'src/three/main.ts', text: 'starting the game', reason: CRASH_REPORT },
   { file: 'src/three/map-file.ts', text: 'Map file', reason: CRASH_REPORT },
   { file: 'src/three/shader-errors.ts', text: '*', reason: CRASH_REPORT },
@@ -81,6 +116,8 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/ui/sim/truck-icons.ts', text: '*', reason: SIM_MODE },
   { file: 'src/three/sound.ts', text: 'score   heat  surprise  ', reason: DEV_LAB },
   { file: 'src/sim/progression/run-timeline.ts', text: '*', reason: DEV_REPORT },
+  { file: 'src/sim/hunting-spots-bake.ts', text: '*', reason: 'The hunting spots bake logs its prey traffic to the terminal of the bake script. It stays English.' },
+  { file: 'src/three/render/vehicleArmorChecks.ts', text: '*', reason: 'The armor test checks name a failed chassis and plate in their assertion messages. Only tests read them. They stay English.' },
   { file: 'src/ui/fonts.ts', text: 'Road Machiners 0123456789', reason: FONT_SAMPLE },
   { file: 'src/ui/fonts.ts', text: 'Дорожные машинисты 0123456789', reason: FONT_SAMPLE },
   { file: 'src/ui/quest-screen.ts', text: 'Quest art', reason: CRASH_REPORT },
@@ -113,6 +150,8 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/sim/progression/escort-report.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/data/region.ts', text: 'Icarus', reason: 'The map name is an id the bake and the tests read. No screen shows it.' },
   { file: 'src/sim/market.ts', text: 'cargo value', reason: 'A label inside a haul input error, which only the console and a bug report show.' },
+  { file: 'src/sim/hunting-spots-bake.ts', text: ' :   drivers,   trips, mean round trip   turns', reason: 'A line the hunting spots bake prints to the console. No screen shows it.' },
+  { file: 'src/sim/hunting-spots-bake.ts', text: 'Each trip of a kind is equally likely. Prey cruise   tiles a turn, route radius  .', reason: 'A line the hunting spots bake prints to the console. No screen shows it.' },
   { file: 'src/sim/terrain.ts', text: 'Prop   group', reason: 'A label inside a map file write error, which only a bake shows.' },
   { file: 'src/sim/terrain.ts', text: 'Prop   step', reason: 'A label inside a map file write error, which only a bake shows.' },
   { file: 'src/three/travel.ts', text: 'Turn worker', reason: 'An internal error the turn throws to the console and the bug report, never shown in words.' },

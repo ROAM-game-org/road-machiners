@@ -7,7 +7,7 @@ import { defaultSetup } from '../../sim/settings';
 import { newWorld } from '../../sim/world';
 import { dist } from '../../sim/vec';
 import { TEST_MAP } from '../../test/map';
-import { chooseGraffiti, fitSite, GRAFFITI, GRAFFITI_PROP_LOOKS, graffitiLift, graffitiSites, graffitiTarget, GRID, type GraffitiPlaced, type SignFit } from './graffiti';
+import { chooseGraffiti, GraffitiPlacer, fitSite, GRAFFITI, GRAFFITI_PROP_LOOKS, graffitiLift, graffitiSites, graffitiTarget, GRID, type GraffitiPlaced, type SignFit } from './graffiti';
 import { loadModels } from './models';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
@@ -25,6 +25,14 @@ const placed = plan();
 const VIEW = new THREE.Vector3(1, 0.816, 1).normalize();
 
 describe('graffiti placement', () => {
+  it('places the same signs when stepped one fit at a time', () => {
+    const placer = new GraffitiPlacer(world.size, sites, (site) => fitSite(t, site));
+    let steps = 0;
+    while (!placer.step(0)) steps++;
+    expect(steps).toBeGreaterThan(1);
+    expect(placer.placed.map((p) => [p.site.id, p.fit.positions])).toEqual(placed.map((p) => [p.site.id, p.fit.positions]));
+  });
+
   it('is the same on every run', () => {
     const again = plan();
     expect(again.map((p) => [p.site.id, p.site.paint, p.fit.positions])).toEqual(placed.map((p) => [p.site.id, p.site.paint, p.fit.positions]));

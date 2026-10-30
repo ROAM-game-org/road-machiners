@@ -15,6 +15,7 @@ type Track = { id: string; from: number; anchor: [number, number]; order: string
 type Holdings = { parts: Map<string, string>; goods: Damage; money: number };
 
 const NOTED_EVENTS = new Set(['death', 'knockout', 'wake', 'runLost', 'roadOpened', 'outpostReached', 'destroyed', 'npcKnockout']);
+const LEAVE_WORDS: Record<string, string> = { entered: 'went into a site' };
 const ORDER_KEYS = ['order', 'guns', 'utils'] as const;
 const sum = (values: Damage | undefined) => Object.values(values ?? {}).reduce((a, b) => a + b, 0);
 
@@ -105,18 +106,19 @@ class Timeline {
     this.names.set(id, `${line.faction}/${line.template ?? line.driver ?? 'own'}/${line.chassis} ${id}`);
     if (line.faction === 'player' || (this.keyframe && this.before.has(id))) return;
     const where = line.pos as [number, number];
-    this.note(`${this.arrivalWord(seenBefore)}: ${this.label(id)} at ${where[0]},${where[1]}`);
+    this.note(`${this.arrivalWord(seenBefore, line.came === 'site')}: ${this.label(id)} at ${where[0]},${where[1]}`);
   }
 
-  private arrivalWord(seenBefore: boolean): string {
+  private arrivalWord(seenBefore: boolean, fromSite: boolean): string {
     if (this.keyframe && this.sessions === 1) return 'in view at start';
+    if (fromSite) return 'came out of a site';
     return seenBefore ? 'came back into view' : 'came into view';
   }
 
   leave(line: StreamLine): void {
     const id = line.id as string;
     if (this.reader.truck(id).faction === 'player') return;
-    if (line.why !== 'unseen' && line.why !== 'window') this.note(`${this.label(id)} ${line.why}`);
+    if (line.why !== 'unseen' && line.why !== 'window') this.note(`${this.label(id)} ${LEAVE_WORDS[String(line.why)] ?? line.why}`);
   }
 
   change(line: StreamLine): void {

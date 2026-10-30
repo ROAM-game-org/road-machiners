@@ -1,4 +1,3 @@
-// Chromium flags for drawing on the GPU. The GPU is Metal on a Mac and Vulkan on Linux, like the factory's NVIDIA host.
 const ANGLE = {
   darwin: ['--use-angle=metal'],
   linux: ['--use-angle=vulkan', '--enable-features=Vulkan', '--disable-vulkan-surface'],

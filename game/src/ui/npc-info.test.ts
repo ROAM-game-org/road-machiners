@@ -296,9 +296,9 @@ it('names both trucks, the destination and the fee in a tow between NPCs', () =>
   client.brain = { ...npcBrain('trader', client.pos, ['trader']), driver: 'Cal Rusk' };
   refreshVision(w);
   expect(lineEn(w, { t: 'towHitched', by: tower.id, client: client.id, site: 'kiln' })).toEqual({ text: 'Scavenger Gus Wick takes Trader Cal Rusk in tow to Kiln Camp.', cls: 'dim' });
-  expect(lineEn(w, { t: 'towDone', by: tower.id, client: client.id, fee: 1250 })).toEqual({ text: 'Scavenger Gus Wick tows Trader Cal Rusk in and takes 13 M\'s.', cls: 'dim' });
+  expect(lineEn(w, { t: 'towDone', by: tower.id, client: client.id, fee: 13 })).toEqual({ text: 'Scavenger Gus Wick tows Trader Cal Rusk in and takes 13 M\'s.', cls: 'dim' });
   expect(lineEn(w, { t: 'towDropped', by: tower.id, client: client.id, reason: 'danger' })).toEqual({ text: 'Scavenger Gus Wick drops the tow of Trader Cal Rusk.', cls: 'dim' });
-  expect(lineEn(w, { t: 'towDone', by: tower.id, client: w.player.vehicleId, fee: 1200 })).toEqual({ text: 'Scavenger Gus Wick tows you into town and takes 12 M\'s.', cls: 'bad' });
+  expect(lineEn(w, { t: 'towDone', by: tower.id, client: w.player.vehicleId, fee: 12 })).toEqual({ text: 'Scavenger Gus Wick tows you into town and takes 12 M\'s.', cls: 'bad' });
 });
 
 describe('vehicle state line', () => {

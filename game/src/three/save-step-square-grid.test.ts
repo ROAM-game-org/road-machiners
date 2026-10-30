@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import FORMAT_2_120 from './save-fixtures/format-2-120.json';
 import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
-import { CHASSIS_121_122, PARTS_121_122 } from './save-square-grid-data';
+import { CHASSIS_128_129, PARTS_128_129 } from './save-square-grid-data';
 
 type Spot = { x: number; y: number; rot: number };
 type Item = Spot & { id: string; kind: string; part?: { id: string; defId: string; hp: number; wear: number }; good?: string };
@@ -24,7 +24,7 @@ const worldOf = (vehicles: Vehicle[], vehicleId = vehicles[0].id): Saved => ({ p
 
 const dimOf = (it: Item) => {
   if (!it.part) return { w: 1, h: 1 };
-  const [w, h] = PARTS_121_122[it.part.defId].next;
+  const [w, h] = PARTS_128_129[it.part.defId].next;
   return it.rot % 2 === 1 ? { w: h, h: w } : { w, h };
 };
 
@@ -33,20 +33,20 @@ const cellsOf = (it: Item) => {
   return Array.from({ length: w * h }, (_, i) => ({ x: it.x + (i % w), y: it.y + Math.floor(i / w) }));
 };
 
-const letters = (chassisId: string, it: Item) => cellsOf(it).map((c) => CHASSIS_121_122[chassisId].next[c.y]?.[c.x] ?? '#');
+const letters = (chassisId: string, it: Item) => cellsOf(it).map((c) => CHASSIS_128_129[chassisId].next[c.y]?.[c.x] ?? '#');
 
 function mountedOn(chassisId: string, it: Item): boolean {
   if (!it.part) return false;
   const l = letters(chassisId, it);
-  return l.every((c) => c === l[0]) && PARTS_121_122[it.part.defId].mounts.includes(l[0]);
+  return l.every((c) => c === l[0]) && PARTS_128_129[it.part.defId].mounts.includes(l[0]);
 }
 
 function layerOf(chassisId: string, it: Item): string {
-  return it.part && PARTS_121_122[it.part.defId].kind === 'accessory' && mountedOn(chassisId, it) ? 'accessory' : 'base';
+  return it.part && PARTS_128_129[it.part.defId].kind === 'accessory' && mountedOn(chassisId, it) ? 'accessory' : 'base';
 }
 
 function expectLegal(v: Vehicle): void {
-  const rows = CHASSIS_121_122[v.chassisId].next;
+  const rows = CHASSIS_128_129[v.chassisId].next;
   const width = Math.max(...rows.map((r) => r.length));
   const taken = new Set<string>();
   for (const it of v.items) {
@@ -60,7 +60,7 @@ function expectLegal(v: Vehicle): void {
       expect(taken.has(key), `${v.id} ${it.id} overlaps at ${key}`).toBe(false);
       taken.add(key);
     }
-    const kind = it.part ? PARTS_121_122[it.part.defId].kind : 'good';
+    const kind = it.part ? PARTS_128_129[it.part.defId].kind : 'good';
     if (kind !== 'armor' && !mountedOn(v.chassisId, it)) expect(l.some((c) => SKIN.includes(c)), `${v.id} ${it.id} loose on skin`).toBe(false);
   }
 }
@@ -73,15 +73,15 @@ afterEach(() => warn.mockRestore());
 
 const warnings = () => warn.mock.calls.map((c) => String(c[0]));
 
-describe('save migration 121 to 122, square grid', () => {
-  it('is the tiny step from format 121', () => {
-    expect(TINY_STEPS[121 - TINY_FROM]).toBe(step);
+describe('save migration 128 to 129, square grid', () => {
+  it('is the tiny step from format 128', () => {
+    expect(TINY_STEPS[128 - TINY_FROM]).toBe(step);
   });
 
   it('puts every fixture item on a legal spot of the new grid with no overlaps, and loses none unreported', () => {
     const before = afterArmor();
     const after = run(before);
-    const known = (v: Vehicle) => v.chassisId in CHASSIS_121_122;
+    const known = (v: Vehicle) => v.chassisId in CHASSIS_128_129;
     for (const v of after.vehicles.filter(known)) expectLegal(v);
     const count = (w: Saved) => w.vehicles.filter(known).reduce((n, v) => n + v.items.length, 0);
     const dropped = warnings().filter((w) => w.includes('was dropped')).length;
@@ -126,7 +126,7 @@ describe('save migration 121 to 122, square grid', () => {
   });
 
   it('keeps bed rows in order below the new chassis rows', () => {
-    const rows = CHASSIS_121_122.hauler.next.length;
+    const rows = CHASSIS_128_129.hauler.next.length;
     const bed = run(afterArmor()).vehicles.find((v) => v.id === 'h1')!.items;
     const crate = bed.find((i) => i.id === 'bedCrate')!;
     expect(crate.y).toBeGreaterThanOrEqual(rows);
@@ -135,7 +135,7 @@ describe('save migration 121 to 122, square grid', () => {
   });
 
   it('puts built-in core items on the new core spots of their chassis', () => {
-    const c = CHASSIS_121_122.scout;
+    const c = CHASSIS_128_129.scout;
     const items = c.oldCore.map((k, i) => partItem(`core${i}`, k.defId, k.x, k.y, k.rot ?? 0));
     const out = run(worldOf([truck('t1', 'scout', items)])).vehicles[0].items;
     const spots = out.map((i) => `${i.part!.defId}@${i.x},${i.y}`).sort();
@@ -144,8 +144,8 @@ describe('save migration 121 to 122, square grid', () => {
     expectLegal(truck('t1', 'scout', out));
   });
 
-  it.each(Object.keys(CHASSIS_121_122))('puts every built-in core of the %s on its exact new core spot, legally', (chassisId) => {
-    const c = CHASSIS_121_122[chassisId];
+  it.each(Object.keys(CHASSIS_128_129))('puts every built-in core of the %s on its exact new core spot, legally', (chassisId) => {
+    const c = CHASSIS_128_129[chassisId];
     const items = c.oldCore.map((k, i) => partItem(`core${i}`, k.defId, k.x, k.y, k.rot ?? 0));
     const out = run(worldOf([truck('t1', chassisId, items)])).vehicles[0];
     const spots = out.items.map((i) => `${i.part!.defId}@${i.x},${i.y},${i.rot}`).sort();
@@ -199,7 +199,7 @@ describe('save migration 121 to 122, square grid', () => {
     const v = out.vehicles[0];
     const gun0 = v.items.find((i) => i.id === 'gun0')!;
     expect(v.job!.moves[0].from).toEqual({ x: gun0.x, y: gun0.y, rot: 0 });
-    expect(CHASSIS_121_122.scout.next[v.job!.moves[0].to.y][v.job!.moves[0].to.x]).toBe('D');
+    expect(CHASSIS_128_129.scout.next[v.job!.moves[0].to.y][v.job!.moves[0].to.x]).toBe('D');
     expect(v.job!.queue).toHaveLength(1);
     expect(v.job!.queue[0].moves[0].itemId).toBe('gun1');
     expect(warnings().some((w) => w.includes('dropped queued refit step 1'))).toBe(true);
@@ -212,9 +212,9 @@ describe('save migration 121 to 122, square grid', () => {
 
 describe('square grid step, a gun that fits nowhere in its rotation', () => {
   it('turns it as a last resort, says so, and keeps the truck legal', () => {
-    const rows = CHASSIS_121_122.buggy.next;
+    const rows = CHASSIS_128_129.buggy.next;
     const fits = (w: number, h: number) => rows.some((row, y) => [...row].some((_, x) => Array.from({ length: w * h }, (__, i) => rows[y + Math.floor(i / w)]?.[x + (i % w)]).every((c) => c === 'D')));
-    const sideways = Object.entries(PARTS_121_122).find(([, d]) => d.kind === 'weapon' && d.mounts === 'D' && !fits(...d.next) && fits(d.next[1], d.next[0]));
+    const sideways = Object.entries(PARTS_128_129).find(([, d]) => d.kind === 'weapon' && d.mounts === 'D' && !fits(...d.next) && fits(d.next[1], d.next[0]));
     expect(sideways, 'a gun that fits the buggy turned but not upright').toBeDefined();
     const out = run(worldOf([truck('t1', 'buggy', [partItem('side', sideways![0], 1, 4, 0)])]));
     const gun = out.vehicles[0].items[0];

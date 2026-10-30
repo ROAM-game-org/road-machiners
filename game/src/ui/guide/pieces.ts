@@ -1,4 +1,6 @@
+import { chipEl } from "../chip";
 import { devEl as el } from "../dom";
+import { verbatim } from "../../text/msg";
 import { moneyEl } from "../units";
 
 export interface Piece {
@@ -8,6 +10,9 @@ export interface Piece {
 }
 
 const text = (tag: string, cls: string, words: string): HTMLElement => el(tag, { class: cls }, words);
+
+const chipSample = (): HTMLElement =>
+  el("span", { class: "chips" }, chipEl(verbatim("Scout pickup"), { icon: "truck" }), chipEl(verbatim("1,680 / 3,840 kg"), { icon: "mass", readout: true }));
 
 const sample = (cls: string, words: string): HTMLElement => el("div", { class: cls }, words);
 
@@ -23,12 +28,13 @@ export const PIECES: Piece[] = [
   { name: ".btn-danger", note: "A hostile action.", build: () => text("button", "btn-danger", "Danger") },
   { name: ".row", note: "A list line with a faint line under it.", build: () => sample("row", "A row") },
   { name: ".tile", note: "A boxed list item edged in its tone.", build: () => sample("tile", "A tile") },
-  { name: ".chip", note: "A small boxed value.", build: () => text("span", "chip", "120 scrap") },
+  { name: ".chip", note: "A small boxed value.", build: chipSample },
   { name: ".art-band", note: "A wide picture across the top of a page, with the place name and chips over its lower edge.", build: () => sample("art-band", "") },
-  { name: ".ink-page", note: "The frame of the town page and of a quest in town: a band on top, then a heading, prose, an optional panel and numbered choices in a centered text column.", build: () => inkPage() },
+  { name: ".ink-page", note: "The frame of the town page and of a quest in town: a band on top, then a scrolling region with a heading, prose, an optional panel and numbered choices in a centered text column, and a foot pinned under it that holds the way out and the status line.", build: () => inkPage() },
   { name: ".tag", note: "An outlined word.", build: () => text("span", "tag", "buy") },
+  { name: ".spent", note: "A row whose own action is done. It keeps its slot, dimmed, with a past-tense tag where the button was, until the player leaves the list.", build: () => el("div", { class: "row spent" }, "A part ", text("span", "tag", "Sold")) },
   { name: ".contract-clue", note: "One open survey place per line: the kind, then the posting shop's way there, then what it looks like. A found place has a tag last.", build: () => el("span", { class: "contract-clue" }, "Lookout, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. Where the road runs closest, leave the road and head south and a touch east, a fair way. A lone building on high ground. ", text("span", "tag", "found")) },
-  { name: ".amount .coin", note: "Money from moneyEl(): the M's coin, then the number. Debt is in danger ink.", build: () => moneyEl(1500) },
+  { name: ".amount .coin", note: "Money from moneyEl(): the M's coin, then the number. Debt is in danger ink.", build: () => moneyEl(15) },
   { name: ".meter", note: "A bar that fills from the left.", build: () => meter("meter", 70) },
   { name: ".meter.progress", note: "A bar for timed work.", build: () => meter("meter progress", 40) },
   { name: ".meter.broken", note: "A bar of a broken part.", build: () => meter("meter broken", 100) },
@@ -56,8 +62,13 @@ function inkPage(): HTMLElement {
     el(
       "div",
       { class: "ink-body" },
-      el("div", { class: "ink-head" }, text("h2", "quest-place", "Nose"), text("p", "qt-line", "The hull leans over the sheds like a cliff that rusts.")),
-      el("div", { class: "ink-choices quest-choices" }, choice("1. Go to the garage"), choice("2. See who is parked", "No drivers in sight"), choice("3. Drive on")),
+      el(
+        "div",
+        { class: "ink-scroll" },
+        el("div", { class: "ink-head" }, text("h2", "quest-place", "Nose"), text("p", "qt-line", "The hull leans over the sheds like a cliff that rusts.")),
+        el("div", { class: "ink-choices quest-choices" }, choice("1. Go to the garage"), choice("2. See who is parked", "No drivers in sight")),
+      ),
+      el("div", { class: "ink-foot" }, choice("3. Drive on"), text("div", "ink-status bad", "")),
     ),
   );
 }

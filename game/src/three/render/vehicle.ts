@@ -39,6 +39,8 @@ const ROT_YAW = Math.PI / 2;
 
 
 const GUN_GAP = 0.03;
+export const LANE_GAP = 0.01;
+const MIN_LANE_SCALE = 0.5;
 const SAMPLE_REACH = 0.1;
 
 const SILHOUETTE_OPACITY = 0.5;
@@ -240,7 +242,7 @@ export class VehicleView {
   }
 
   private keepsLook(o: THREE.Mesh): boolean {
-    const m = o.material;
+    const m = (o.material as THREE.Material).userData.fadeOf ?? o.material;
     return this.silhouettes.includes(m as THREE.MeshBasicMaterial) || m === this.lampMat || m === this.radioMat || this.isContactShadow(o) || o.userData.outline;
   }
 
@@ -625,8 +627,14 @@ export class VehicleView {
     const mount = model(look.mount);
     place(mount, stand.at);
     mount.updateMatrix();
+    const across = item.rot % 2 === 0 ? 'z' : 'x';
     const pivot = headAt.clone().applyMatrix4(mount.matrix);
     const own = rectOf(v, item);
+    const fit = laneFit(head, pivot, facing, own, across, weaponReach(item));
+    head.scale.z = fit.scale;
+    const along = across === 'z' ? 'x' : 'z';
+    pivot[across] += fit.shift;
+    pivot[along] += fit.slide;
     const ground = surfaceSamples(v.chassisId, own.unit, pivot, Math.max(shape.core, shape.reach) + SAMPLE_REACH)
       .filter((s) => !(s.x >= own.x0 && s.x <= own.x1 && s.z >= own.z0 && s.z <= own.z1))
       .map((s): Obstacle => ({ x0: s.x - s.half, x1: s.x + s.half, z0: s.z - s.half, z1: s.z + s.half, top: s.y }));
@@ -643,6 +651,8 @@ export class VehicleView {
     for (const leg of plateLegs(unit.base, plateOf(look.mount, unit.index, at), top, (role) => this.legModel(item, paint, role))) unit.still.add(leg);
     mount.updateMatrix();
     head.position.copy(headAt.applyMatrix4(mount.matrix));
+    head.position[across] += fit.shift;
+    head.position[along] += fit.slide;
     this.anchors.set(item.part.id, { local: head.position.clone(), parent: unit.body });
     const turn = headingQuat(facing * DEG);
     head.quaternion.set(turn.x, turn.y, turn.z, turn.w);
@@ -881,7 +891,12 @@ export function weaponStand(v: Pick<Vehicle, 'chassisId'>, item: GridItem, body:
   const mount = weaponLook(item.part.id, item.part.defId).mount;
   const at = footprint(v, item, standingY(v, item));
   const cells = rectOf(v, item);
-  moveBySpot(at, plateSpot(body, v.chassisId, plateOf(mount, cells.unit, at), cells));
+  const standing = at.pos.y;
+  const topOf = (moved: CellRect) => {
+    const under = highestUnder(v.chassisId, moved);
+    return Math.max(under === -Infinity ? standing : under, highestAhead(v.chassisId, moved));
+  };
+  moveBySpot(at, plateSpot(body, v.chassisId, plateOf(mount, cells.unit, at), cells, topOf));
   const unit = cells.unit;
   const plate = plateOf(mount, unit, at);
   const under = highestUnder(v.chassisId, plate);
@@ -901,6 +916,46 @@ function anchorPoint(v: Pick<Vehicle, 'chassisId'>, item: GridItem): THREE.Vecto
   const surface = highestUnder(v.chassisId, rect);
   const y = surface === -Infinity ? standingY(v, item) : surface;
   return new THREE.Vector3((rect.x0 + rect.x1) / 2, y, (rect.z0 + rect.z1) / 2);
+}
+
+const FORWARD = [{ x: 1, z: 0 }, { x: 0, z: 1 }, { x: -1, z: 0 }, { x: 0, z: -1 }] as const;
+
+export function laneFit(head: THREE.Object3D, pivot: { x: number; z: number }, facing: number, lane: CellRect, across: 'x' | 'z', reach: number): { scale: number; shift: number; slide: number } {
+  const box = new THREE.Box3().setFromObject(head);
+  const turn = headingQuat(facing * DEG);
+  const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(new THREE.Quaternion(turn.x, turn.y, turn.z, turn.w));
+  const sign = (across === 'z' ? dir.z : dir.x) >= 0 ? 1 : -1;
+  const [lo, hi] = (across === 'z' ? [lane.z0, lane.z1] : [lane.x0, lane.x1]).map((e, i) => e + (i === 0 ? LANE_GAP : -LANE_GAP));
+  const [behind, ahead] = sign > 0 ? [-box.min.z, box.max.z] : [box.max.z, -box.min.z];
+  const width = Math.max(behind, 0) + Math.max(ahead, 0);
+  const scale = width > 0 ? Math.max(MIN_LANE_SCALE, Math.min(1, (hi - lo) / width)) : 1;
+  const at = pivot[across];
+  const low = lo + Math.max(behind, 0) * scale;
+  const high = hi - Math.max(ahead, 0) * scale;
+  const shift = low > high ? (low + high) / 2 - at : Math.min(Math.max(at, low), high) - at;
+  return { scale, shift, slide: alongSlide(box, pivot, facing, lane, reach) };
+}
+
+function alongSlide(box: THREE.Box3, pivot: { x: number; z: number }, facing: number, lane: CellRect, reach: number): number {
+  const heading = FORWARD[(((facing / 90) % 4) + 4) % 4];
+  const axis = heading.x !== 0 ? 'x' : 'z';
+  const sign = heading.x !== 0 ? heading.x : heading.z;
+  const [a, b] = axis === 'x' ? [lane.x0, lane.x1] : [lane.z0, lane.z1];
+  const rear = sign > 0 ? a : b;
+  const center = (a + b) / 2;
+  const at = pivot[axis] * sign;
+  const forward = Math.max(box.max.x, 0);
+  const back = Math.max(-box.min.x, 0);
+  const high = center * sign + reach - forward;
+  const low = rear * sign + back;
+  const wanted = low > high ? high : Math.min(Math.max(at, low), high);
+  return (wanted - at) * sign;
+}
+
+function weaponReach(item: PartItem): number {
+  const def = partDef(item.part.defId);
+  if (def.kind !== 'weapon') throw new Error(`Part ${def.id} is not a gun`);
+  return def.reach;
 }
 
 function rectOf(v: Pick<Vehicle, 'chassisId'>, item: GridItem): CellRect {

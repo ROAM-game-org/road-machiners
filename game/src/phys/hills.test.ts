@@ -16,13 +16,19 @@ import { chaosHighwayWorld, PLAIN_KIT } from '../sim/testkit';
 import { defaultSetup } from '../sim/settings';
 import { ICARUS_DECKS } from '../sim/bridge';
 import { atlasOf } from '../sim/atlas';
+import { reusedWorld } from '../test/world-cache';
+import type { World } from '../sim/types';
 
 beforeAll(async () => {
   await initPhysics();
 });
 
+function plainWorld(): World {
+  return reusedWorld('hills plain', () => newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming')));
+}
+
 function driveRoute(start: Vec, target: Vec): { maxTilt: number; remaining: number; minDeckRise: number } {
-  let w = newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
+  let w = plainWorld();
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   w.vehicles[0].pos = { ...start };
   w.player.fuel = 999;
@@ -78,7 +84,7 @@ it('the Bowl crater exit leans the truck without rolling it onto its side', () =
 
 it('the terrain collider is a heightfield whose surface matches the corner grid', () => {
   const S = PHYSICS.metersPerTile;
-  const w = newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
+  const w = plainWorld();
   const t = w.terrain;
   const drive = buildDrive(w);
   const ground = drive.world.getCollider(drive.terrain);
@@ -114,7 +120,7 @@ it('the terrain collider is a heightfield whose surface matches the corner grid'
 it('builds only the ramp decks on the Chaos Highway highway, and every Icarus deck on Icarus', () => {
   const road = chaosHighwayWorld(5);
   const highway = buildDrive(road);
-  const icarus = buildDrive(newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming')));
+  const icarus = buildDrive(plainWorld());
   const ramps = atlasOf(road.terrain).decks.decks;
 
   expect(ramps.every((d) => d.id.startsWith('ramp-'))).toBe(true);

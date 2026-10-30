@@ -5,6 +5,7 @@ import { milestoneAt, stretchStream } from './highway';
 import { nextRandom, randInt, randRange, type Rng } from './rng';
 import { enemyGearGrowth } from './settings';
 import type { World } from './types';
+import { fairM } from './money';
 
 const DIRECTOR = CHAOS_HIGHWAY.director;
 
@@ -29,7 +30,7 @@ export function expectedGear(j: number): number {
 export function stretchBudget(world: World, j: number): StretchBudget {
   const growth = enemyGearGrowth(world);
   const gear = expectedGear(1) + growth * (expectedGear(j) - expectedGear(1));
-  return { budget: lineAt(DIRECTOR.budget, j), base: Math.round((DIRECTOR.truckShare / 100) * gear), growth };
+  return { budget: lineAt(DIRECTOR.budget, j), base: fairM((DIRECTOR.truckShare / 100) * gear), growth };
 }
 
 export function directStretch(world: World, j: number): PlannedWave[] {

@@ -47,7 +47,7 @@ describe('candidate', () => {
     const scripts: string[] = [];
     f.ctx.container.shell = async (_kind, _dir, script) => { scripts.push(script); };
     await candidate(f.ctx, 11);
-    expect(scripts[0]).toContain('  npm run playtest || status=$?');
+    expect(scripts[0]).toContain('  env -u TEST_TIMEOUTS npm run playtest || status=$?');
     expect(scripts[0]).not.toContain('--no-fps-gate');
   });
 

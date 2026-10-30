@@ -428,14 +428,18 @@ type Sample = { i: number; j: number; top: number };
 type Box = { i0: number; i1: number; j0: number; j1: number; empty: boolean; cut: [boolean, boolean, boolean, boolean] };
 
 function samplesUnder(map: HeightMap, rect: CellRect): Sample[] {
-  const range = (lo: number, hi: number) => {
-    const first = Math.ceil((lo - 1e-6) / map.cell);
-    const last = Math.floor((hi + 1e-6) / map.cell) - 1;
+  const range = (lo: number, hi: number, outward: boolean) => {
+    const first = outward ? Math.floor((lo + 1e-6) / map.cell) : Math.ceil((lo - 1e-6) / map.cell);
+    const last = outward ? Math.ceil((hi - 1e-6) / map.cell) - 1 : Math.floor((hi + 1e-6) / map.cell) - 1;
     return Array.from({ length: Math.max(0, last - first + 1) }, (_, k) => first + k);
   };
-  return range(rect.x0, rect.x1).flatMap((i) => range(-rect.z1, -rect.z0).flatMap((j) => {
-    const top = map.top[i - map.i0]?.[j - map.j0];
-    return [{ i, j, top: typeof top === 'number' ? top / 100 : -Infinity }];
+  const whole = new Set(range(rect.x0, rect.x1, false));
+  const topAt = (i: number, j: number) => map.top[i - map.i0]?.[j - map.j0];
+  const hangsOff = (i: number, j: number) => [i - 1, i + 1].some((n) => !whole.has(n) && typeof topAt(n, j) !== 'number');
+  return range(rect.x0, rect.x1, true).flatMap((i) => range(-rect.z1, -rect.z0, false).flatMap((j) => {
+    const top = topAt(i, j);
+    if (typeof top !== 'number') return [{ i, j, top: -Infinity }];
+    return whole.has(i) ? [{ i, j, top: hangsOff(i, j) ? -Infinity : top / 100 }] : [];
   }));
 }
 

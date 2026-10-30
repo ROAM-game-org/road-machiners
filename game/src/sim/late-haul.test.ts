@@ -8,6 +8,7 @@ import { goodsCount } from './grid';
 import { addGoods, dumpItem, removeGoods } from './inventory';
 import { acceptContract, advanceContracts, deliverContract, goodValue, isLate, lateBy, spareGoods, type Contract } from './market';
 import { bountyTerms } from './marshals';
+import { fairM } from './money';
 import { sitePads } from './sites';
 import { addVehicle, emptyWorld } from './testkit';
 import type { CrimeCase, GameEvent, World } from './types';
@@ -18,7 +19,7 @@ type Haul = Extract<Contract, { kind: 'haul' }>;
 
 const nose = REGION.towns.find((t) => t.id === 'nose')!;
 const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
-const haulOf = (over: Partial<Haul> = {}): Haul => ({ id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'salt', units: 3, to: 'nose', reward: 10000, deadline: 500, window: 400, rush: false, tier: 1, ...over });
+const haulOf = (over: Partial<Haul> = {}): Haul => ({ id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'salt', units: 3, to: 'nose', reward: 100, deadline: 500, window: 400, rush: false, tier: 1, ...over });
 
 function holding(contract: Haul, crates = contract.units, at = bowl): World {
   const w = emptyWorld(sitePads(at)[0]);
@@ -74,8 +75,8 @@ describe('a haul past its deadline', () => {
   it('is still paid in full when handed in on time', () => {
     const w = deliverContract(moveTo(holding(haulOf()), nose), 'ct-haul');
 
-    expect(w.player.pastContracts.map((p) => [p.outcome, p.amount])).toEqual([['done', 10000]]);
-    expect(w.player.money).toBe(holding(haulOf()).player.money + 10000);
+    expect(w.player.pastContracts.map((p) => [p.outcome, p.amount])).toEqual([['done', 100]]);
+    expect(w.player.money).toBe(holding(haulOf()).player.money + 100);
   });
 
   it('is handed in late with the crates left after a partial loss, and refuses an empty truck', () => {
@@ -100,7 +101,7 @@ describe('the late limit', () => {
     expect(w.player.contracts).toEqual([]);
     expect(w.player.pastContracts.map((p) => [p.outcome, p.amount])).toEqual([['failed', 0]]);
     expect(moneyEvents(w.events)).toEqual([]);
-    expect(c).toMatchObject({ offense: 'embezzled', target: w.player.vehicleId, victim: 'bowl', site: 'bowl', status: 'open', issuer: { kind: 'faction', faction: 'bowl' }, owed: 3 * goodValue('salt'), reporters: [], escrow: 0 });
+    expect(c).toMatchObject({ offense: 'embezzled', target: w.player.vehicleId, victim: 'bowl', site: 'bowl', status: 'open', issuer: { kind: 'faction', faction: 'bowl' }, owed: fairM(3 * goodValue('salt')), reporters: [], escrow: 0 });
     expect(c.lead).toMatchObject({ heading: null, turn: lateBy(haulOf()) + 1 });
     expect(salt(w)).toBe(3);
     const filed = w.events.find((e) => e.t === 'bountyFiled');
@@ -122,7 +123,7 @@ describe('the late limit', () => {
       advanceContracts(d);
     });
     expect(none.crimes).toHaveLength(1);
-    const room = CRIME.minStake + 50;
+    const room = CRIME.minStake + 1;
     const partial = update(holding(haulOf()), (d) => {
       d.turn = lateBy(haulOf()) + 1;
       fillCases(d, CRIME.maxOwed - room);
@@ -152,7 +153,7 @@ describe('the late limit', () => {
   it('counts only the crates owed to this haul when another haul holds the rest', () => {
     const w = update(holding(haulOf({ units: 2 }), 3), (d) => { d.player.contracts.push(haulOf({ id: 'ct-other', units: 2, deadline: 5000 })); d.turn = lateBy(haulOf()) + 1; advanceContracts(d); });
 
-    expect(w.crimes[0].owed).toBe(1 * goodValue('salt'));
+    expect(w.crimes[0].owed).toBe(fairM(goodValue('salt')));
   });
 });
 
@@ -219,7 +220,7 @@ describe('an embezzlement case', () => {
   it('shows in the player owed total and the Marshalls demand', () => {
     const w = filedCase();
 
-    expect(owedBy(w, w.player.vehicleId)).toBe(3 * goodValue('salt'));
+    expect(owedBy(w, w.player.vehicleId)).toBe(fairM(3 * goodValue('salt')));
     expect(JSON.stringify(bountyTerms(w))).toContain('offenseEmbezzled');
   });
 
@@ -231,7 +232,7 @@ describe('an embezzlement case', () => {
     });
 
     expect(w.crimes[0].status).toBe('paid');
-    expect(w.player.money).toBe(100000 - 3 * goodValue('salt'));
+    expect(w.player.money).toBe(100000 - fairM(3 * goodValue('salt')));
   });
 
   it('is taken by a Marshall hunt, collected on a knockout and lapses after the bounty days', () => {

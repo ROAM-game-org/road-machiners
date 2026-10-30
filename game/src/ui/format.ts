@@ -12,6 +12,7 @@ import { PERK_LEVELS } from '../data/skills';
 import { TERRAIN } from '../data/terrain';
 import { TIME } from '../data/time';
 import { playerVehicle, vehicleById } from '../sim/damage';
+import { namedTruck, requireTruck } from '../sim/sites';
 import { gaveUp, isKnockedOut } from '../sim/defeat';
 import { OPENING_WRECK_ID } from '../sim/opening';
 import type { Work, WorkLeft } from '../sim/states';
@@ -56,6 +57,7 @@ export function jobLabel(world: World, v: Vehicle, job: Job): Msg {
   if (job.kind === 'search') return t('job.search');
   if (job.kind === 'weld') return t('job.weld');
   if (job.kind === 'firstAid') return t('job.firstAid');
+  if (job.kind === 'oddJobs') return t('job.oddJobs');
   if (job.kind === 'survey') return t('job.survey', { place: t(`contract.place.${surveyPlaceType(job.site)}`) });
   return partJobLabel(v, job);
 }
@@ -162,13 +164,9 @@ const OBSTACLE_ID = new RegExp(`^(wreck|rock|bld|${OPENING_WRECK_ID}$)`);
 
 export function vehicleName(world: World, id: string): Msg {
   if (id === world.player.vehicleId) return t('log.you');
-  const v = findAny(world, id);
+  const v = namedTruck(world, id);
   if (v) return vehicleTitle(world, v);
   return OBSTACLE_ID.test(id) || isStoryWreck({ id }) ? t('log.anObstacle') : t('log.something');
-}
-
-function findAny(world: World, id: string): Vehicle | undefined {
-  return world.vehicles.find((v) => v.id === id) ?? world.removed.find((v) => v.id === id);
 }
 
 function partName(world: World, vehicleId: string, partId: string): Msg {
@@ -431,7 +429,7 @@ function damageSpans(world: World, vehicleId: string, hits: PartHit[]): LogSpan[
 }
 
 function jobText(world: World, e: Extract<GameEvent, { t: 'job' }>): LogLine | null {
-  if (e.vehicle !== world.player.vehicleId || (e.outcome === 'done' && (e.job.kind === 'search' || e.job.kind === 'survey'))) return null;
+  if (e.vehicle !== world.player.vehicleId || (e.outcome === 'done' && (e.job.kind === 'search' || e.job.kind === 'survey' || e.job.kind === 'oddJobs'))) return null;
   const what = jobLabel(world, playerVehicle(world), e.job);
   const lines = {
     started: line(t('log.jobStarted', { what, n: e.job.turnsLeft }), ''),
@@ -450,7 +448,7 @@ function weatherText(world: World, e: Extract<GameEvent, { t: 'weather' }>): Log
 
 function honkText(world: World, e: Extract<GameEvent, { t: 'honk' }>): LogLine {
   if (e.vehicle === world.player.vehicleId) return line(t('log.youHonk'), 'dim');
-  const v = findAny(world, e.vehicle);
+  const v = namedTruck(world, e.vehicle);
   return line(v && playerSees(world, v.pos) ? t('log.honksBack', { who: vehicleTitle(world, v) }) : t('log.hornUnseen'), '');
 }
 
@@ -483,7 +481,9 @@ function aidStartedText(world: World, e: Extract<GameEvent, { t: 'aidStarted' }>
   return line(t('log.aidStartThem', { who: vehicleName(world, e.giver) }), '');
 }
 
-function sayText(world: World, e: Extract<GameEvent, { t: 'say' }>): LogLine {
+function sayText(world: World, e: Extract<GameEvent, { t: 'say' }>): LogLine | null {
+  const mine = e.speaker === world.player.vehicleId || e.to === world.player.vehicleId;
+  if (!mine && !playerNotices(world, e.speaker)) return null;
   const cls = e.speaker === world.player.vehicleId ? 'dim' : '';
   return line(t('log.say', { who: vehicleName(world, e.speaker), line: lineText(e.line, e.vars) }), cls);
 }
@@ -568,7 +568,7 @@ function playerNotices(world: World, ...ids: string[]): boolean {
   if (world.player.fullLog) return true;
   return ids.some((id) => {
     if (id === world.player.vehicleId) return true;
-    const v = findAny(world, id);
+    const v = namedTruck(world, id);
     return v !== undefined && playerSees(world, v.pos);
   });
 }
@@ -675,8 +675,7 @@ export function searchTarget(c: Extract<Contract, { kind: 'search' }>): Msg {
 
 function rivalFirstText(world: World, c: Contract): LogLine {
   if (c.kind !== 'claim' || c.rival === null) throw new Error(`Contract ${c.id} lapsed to a rival it never had`);
-  const rival = world.vehicles.find((v) => v.id === c.rival) ?? world.removed.find((v) => v.id === c.rival);
-  if (!rival) throw new Error(`No rival truck ${c.rival} for contract ${c.id}`);
+  const rival = requireTruck(world, c.rival);
   return line(t('log.contract.lapsedRival', { driver: driverName(rival), part: partNameOf(c.defId), shop: siteName(c.shop) }), 'bad');
 }
 
@@ -802,7 +801,7 @@ export function claimRivalMark(world: World, c: Contract): HTMLElement | null {
 function claimRivalText(world: World, e: Extract<GameEvent, { t: 'claimRival' }>): LogLine | null {
   const c = world.player.contracts.find((x) => x.id === e.contract);
   if (c?.kind !== 'claim') return null;
-  return line(t('log.contract.rival', { shop: siteName(c.shop), driver: driverName(vehicleById(world, e.vehicle)), part: partNameOf(c.defId) }), 'bad');
+  return line(t('log.contract.rival', { shop: siteName(c.shop), driver: driverName(requireTruck(world, e.vehicle)), part: partNameOf(c.defId) }), 'bad');
 }
 
 function claimLeadText(world: World, e: Extract<GameEvent, { t: 'claimLead' }>): LogLine {
@@ -913,7 +912,7 @@ function moneyText(world: World, e: Extract<GameEvent, { t: 'money' }>): LogLine
 
 function lookedOverText(world: World, e: Extract<GameEvent, { t: 'lookedOver' }>): LogLine | null {
   if (e.target !== world.player.vehicleId) return null;
-  const looker = findAny(world, e.by);
+  const looker = namedTruck(world, e.by);
   if (!looker || !playerSees(world, looker.pos)) return null;
   return line(t('log.lookedOver', { who: vehicleName(world, e.by) }), '');
 }
@@ -1020,7 +1019,7 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   engineCredit: (_, e) => line(t('log.engineCredit', { part: partNameOf(e.part) }), 'good'),
   scrapPatch: (_, e) => line(e.fuel > 0 ? t('log.scrapPatchFuel', { liters: fuelLiters(e.fuel) }) : t('log.scrapPatch'), 'good'),
   npcKnockout: (world, e) => line(t('log.npcKnockout', { who: vehicleName(world, e.vehicle) }), 'good'),
-  npcWake: (world, e) => line(t('log.npcWake', { who: vehicleName(world, e.vehicle) }), 'dim'),
+  npcWake: (world, e) => line(t(e.gaveUp ? 'log.npcWakeGaveUp' : 'log.npcWake', { who: vehicleName(world, e.vehicle) }), 'dim'),
   stateEnded: stateEndedText,
   lookedOver: lookedOverText,
   empty: quiet,
@@ -1086,8 +1085,8 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   death: () => line(t('log.death'), 'bad'),
   coreBurn: () => null,
   sunwardFallen: () => line(t('log.sunwardFallen'), 'good'),
-  knockout: () => line(t('log.knockout'), 'bad'),
-  wake: () => line(t('log.wake'), ''),
+  knockout: (_w, e) => line(t(e.crash ? 'log.knockoutCrash' : 'log.knockout'), 'bad'),
+  wake: (_w, e) => line(t(e.gaveUp ? 'log.wakeGaveUp' : 'log.wake'), ''),
   searched: (_, e) => searchedText(e.stock),
   contract: (world, e) => (e.cause === 'rival' ? rivalFirstText(world, e.contract) : contractEventText(world, e)),
   claimRival: claimRivalText,
@@ -1096,6 +1095,8 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   breakdown: breakdownText,
   spawn: quiet,
   despawn: quiet,
+  enteredSite: quiet,
+  leftSite: quiet,
   arrived: quiet,
 };
 

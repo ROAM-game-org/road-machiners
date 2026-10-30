@@ -3,7 +3,7 @@ import { FIRST_NAMES, NPCS, SPAWN, SURNAMES } from '../data/npcs';
 import { REGION } from '../data/region';
 import { START_KITS } from '../data/start';
 import { playerVehicle } from './damage';
-import { siteGap, siteGates, sitePads } from './sites';
+import { everyTruck, siteGap, siteGates, sitePads } from './sites';
 import { allegianceFor, isFree, spawnNpcs, spawnQueueNow } from './spawn';
 import { carriedWorld } from './world';
 import type { World } from './types';
@@ -125,7 +125,7 @@ describe('NPC spawns', () => {
     const neutralSites = REGION.towns.length + REGION.locations.filter((l) => l.kind !== 'camp' && l.kind !== 'territory').length;
     for (const seed of [1, 2, 42, 1337, 7919, 15838, 23757, 31676]) {
       const world = startWorld(seed);
-      const npcs = world.vehicles.filter((v) => v.brain);
+      const npcs = everyTruck(world).filter((v) => v.brain);
       const followers = new Set(world.states.filter((s) => s.kind === 'escort').map((s) => s.holder));
       expect(npcs.map((v) => v.brain!.templateId).sort()).toEqual(roster);
       const perSite = new Map<string, number>();

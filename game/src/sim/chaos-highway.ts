@@ -30,6 +30,7 @@ import type { ChaosHighwayRun, GroupSide, OutpostFacts, PartInstance, RunLossCau
 import { refreshVision, sightRadius } from './vision';
 import { dist, type Vec } from './vec';
 import { playerCommand } from './world';
+import { requireWholeM } from './money';
 
 
 export type Outpost = OutpostFacts & { id: string; spots: YardSpots };
@@ -246,7 +247,7 @@ function spawnNext(world: World, run: ChaosHighwayRun, progress: number): void {
 
 export function waveGear(template: string, stretch: number, money: number, elite: boolean): GearRules {
   const minSpeed = CHAOS_HIGHWAY.cards[template].chase ? CHAOS_HIGHWAY.chaseSpeed : MIN_NPC_SPEED;
-  return { ...waveOf(stretch).gear, armored: elite, armorFirst: elite, money, minSpeed };
+  return { ...waveOf(stretch).gear, armored: elite, armorFirst: elite, money, minSpeed, chassisFloor: minSpeed };
 }
 
 export function spawnGroup(world: World, run: ChaosHighwayRun, group: WaveGroup, progress: number): void {
@@ -368,6 +369,7 @@ function completeStretch(world: World, run: ChaosHighwayRun): void {
   const post = factsOf(run, j);
   const wrecks = run.groups.reduce((n, g) => n + g.wrecked, 0);
   const pay = payOf(j);
+  requireWholeM(pay, 'outpost pay');
   world.player.money += pay;
   world.events.push({ t: 'money', amount: pay, reason: { kind: 'outpost' } });
   post.paid = true;
@@ -423,6 +425,7 @@ export const WINDOW_MOVE = {
   fields: 'drop',
   flares: 'drop',
   lines: 'drop',
+  sheltered: 'drop',
 } as const satisfies { [K in keyof World]-?: Move };
 
 const DROPPED: { [K in keyof World as (typeof WINDOW_MOVE)[K] extends 'drop' ? K : never]: () => World[K] } = {
@@ -434,6 +437,7 @@ const DROPPED: { [K in keyof World as (typeof WINDOW_MOVE)[K] extends 'drop' ? K
   fields: () => [],
   flares: () => [],
   lines: () => [],
+  sheltered: () => [],
 };
 
 function requireMovable(world: World, run: ChaosHighwayRun): void {

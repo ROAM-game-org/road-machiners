@@ -112,6 +112,23 @@ describe('scope and keyframe', () => {
     expect(ofKind(lines, 'event')[0]).toMatchObject({ t: 'destroyed', vehicle: near.id });
   });
 
+  it('leaves a truck that drives into a site as entered and marks its return as coming out of the site', () => {
+    const { world, near } = seeing();
+    const stream = new RunStream(CTX);
+    stream.begin(world, 'new');
+    const inside = next(world, (w) => {
+      w.vehicles = w.vehicles.filter((v) => v.id !== near.id);
+    });
+    const went = stream.step(inside, [{ t: 'enteredSite', vehicle: near.id, site: 'sunward-hollow' }]);
+    expect(ofKind(went, 'leave')).toEqual([{ kind: 'leave', turn: inside.turn, id: near.id, why: 'entered', sid: 's1' }]);
+
+    const out = next(world, (w) => refreshVision(w));
+    out.turn = inside.turn + 1;
+    const came = ofKind(stream.step(out, [{ t: 'leftSite', vehicle: near.id, site: 'sunward-hollow' }]), 'enter');
+    expect(came).toMatchObject([{ id: near.id, came: 'site' }]);
+    expect(replay([...stream.begin(world, 'new'), ...came]).truck(near.id)).not.toHaveProperty('came');
+  });
+
   it('gives a killer that is gone its own reason, not the victim one', () => {
     const { world, near } = seeing();
     const stream = new RunStream(CTX);

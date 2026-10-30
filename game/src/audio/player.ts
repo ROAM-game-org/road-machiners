@@ -28,6 +28,7 @@ export class SoundPlayer {
     if (cue.loop) throw new Error(`Sound ${id} is a loop; use loop()`);
     const ctx = this.mixer.ctx;
     const buf = selection ? this.getBuffer(id, cue, selection.file) : this.variant(id, cue);
+    if (!buf) return;
     const rate = selection ? this.checkedRate(id, selection.rate) : 1 + (Math.random() * 2 - 1) * cue.pitchJitter;
     const start = ctx.currentTime + delayMs / 1000;
     if (!this.voices.admit(id, cue.maxVoices, ctx.currentTime, start + buf.duration / rate)) return;
@@ -44,10 +45,34 @@ export class SoundPlayer {
 
   loop(id: string, at: Placement, file?: string): LoopHandle {
     const cue = this.loopCue(id);
-    const src = this.loopSource(file === undefined ? this.variant(id, cue) : this.getBuffer(id, cue, file));
-    const gain = this.chain(src, cue, at);
-    src.start();
-    return this.loopHandle(src, gain, cue);
+    const chosen = file ?? cue.files[this.nextIndex(id, cue)];
+    const buffer = this.getBuffer(id, cue, chosen);
+    const gain = this.chain(null, cue, at);
+    if (buffer) return this.loopHandle(this.loopSource(buffer, gain), gain, cue);
+    return this.pendingLoop(chosen, gain, cue);
+  }
+
+  private pendingLoop(file: string, gain: GainNode, cue: Cue): LoopHandle {
+    let started: LoopHandle | null = null;
+    let rate = 1;
+    const ctx = this.mixer.ctx;
+    const cancel = this.bank.onArrive(file, (buffer) => {
+      started = this.loopHandle(this.loopSource(buffer, gain, rate), gain, cue);
+    });
+    const abandon = (): void => {
+      cancel();
+      gain.disconnect();
+    };
+    return {
+      setGain: (g, ramp) => (started ? started.setGain(g, ramp) : gain.gain.setTargetAtTime(cue.volume * g, ctx.currentTime, ramp / 3)),
+      set: (r, level) => {
+        if (started) return started.set(r, level);
+        rate = r;
+        gain.gain.setTargetAtTime(cue.volume * level, ctx.currentTime, FRAME_SMOOTH_SECONDS);
+      },
+      once: (points) => (started ? started.once(points) : abandon()),
+      stop: (fadeMs) => (started ? started.stop(fadeMs) : abandon()),
+    };
   }
 
   private loopCue(id: string): Cue {
@@ -56,10 +81,13 @@ export class SoundPlayer {
     return cue;
   }
 
-  private loopSource(buffer: AudioBuffer): AudioBufferSourceNode {
+  private loopSource(buffer: AudioBuffer, gain: GainNode, rate = 1): AudioBufferSourceNode {
     const src = this.mixer.ctx.createBufferSource();
     src.buffer = buffer;
     src.loop = true;
+    src.playbackRate.value = rate;
+    src.connect(gain);
+    src.start();
     return src;
   }
 
@@ -94,11 +122,9 @@ export class SoundPlayer {
     return rate;
   }
 
-  private getBuffer(id: string, cue: Cue, file: string): AudioBuffer {
+  private getBuffer(id: string, cue: Cue, file: string): AudioBuffer | undefined {
     if (!cue.files.includes(file)) throw new Error(`Sound ${id} has no file ${file}`);
-    const buffer = this.bank.get(file);
-    if (!buffer) throw new Error(`Sound file ${file} was not loaded`);
-    return buffer;
+    return this.bank.get(file);
   }
 
   private cue(id: string): Cue {
@@ -113,20 +139,18 @@ export class SoundPlayer {
     return i;
   }
 
-  private variant(id: string, cue: Cue): AudioBuffer {
-    const file = cue.files[this.nextIndex(id, cue)];
-    const buf = this.bank.get(file);
-    if (!buf) throw new Error(`Sound file ${file} was not loaded`);
-    return buf;
+  private variant(id: string, cue: Cue): AudioBuffer | undefined {
+    return this.bank.get(cue.files[this.nextIndex(id, cue)]);
   }
 
-  private chain(src: AudioNode, cue: Cue, at: Placement): GainNode {
+  private chain(src: AudioNode | null, cue: Cue, at: Placement): GainNode {
     const ctx = this.mixer.ctx;
     const gain = ctx.createGain();
     gain.gain.value = cue.volume * at.gain;
     const pan = ctx.createStereoPanner();
     pan.pan.value = at.pan;
-    src.connect(gain).connect(pan).connect(this.mixer.input(cue.bus));
+    src?.connect(gain);
+    gain.connect(pan).connect(this.mixer.input(cue.bus));
     return gain;
   }
 }

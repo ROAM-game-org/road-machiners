@@ -5,7 +5,7 @@ import { SPAWN } from '../data/npcs';
 import { REGION } from '../data/region';
 import { getResources } from './resources';
 import { siteGates } from './sites';
-import { autoOrders, beatenBy, chanceSteps, fireWeapons, hitOdds, isHostile, laneOfOffset, missPoint, noteAttack, resolveDestroyed, wreckVehicle } from './combat';
+import { autoOrders, beatenBy, crashOnly, chanceSteps, fireWeapons, hitOdds, isHostile, laneOfOffset, missPoint, noteAttack, resolveDestroyed, wreckVehicle } from './combat';
 import { knockOutNpc } from './defeat';
 import { NPC_BEHAVIOR } from '../data/npc-behavior';
 import { thinkNpc, topGoal } from './npc-activities';
@@ -1011,5 +1011,42 @@ describe('missPoint', () => {
 
   it('throws when the shooter stands on the target', () => {
     expect(() => missPoint({ x: 5, y: 5 }, { x: 5, y: 5 }, 1)).toThrow();
+  });
+});
+
+describe('crashOnly', () => {
+  const hit = [{ part: 'cab', damage: 10 }];
+  const crash = (a: string, b: string, hitsA = hit): GameEvent => ({ t: 'collision', a, b, impact: 5, hitsA, hitsB: [] });
+  const shot = (target: string): GameEvent => ({
+    t: 'shot', shooter: 'x', weapon: 'w', target, aim: 'center', chance: 1, damageChance: 1, side: 'front',
+    rounds: [{ struck: target, hits: hit, blast: [] }],
+  } as unknown as GameEvent);
+
+  it('is true when only a collision hurt the truck', () => {
+    const w = emptyWorld();
+    w.events = [crash(w.vehicles[0].id, 'prop')];
+    expect(crashOnly(w, w.vehicles[0].id)).toBe(true);
+  });
+
+  it('is false when a shot also hurt it', () => {
+    const w = emptyWorld();
+    const id = w.vehicles[0].id;
+    w.events = [crash(id, 'prop'), shot(id)];
+    expect(crashOnly(w, id)).toBe(false);
+  });
+
+  it('is false when caltrops also hurt it', () => {
+    const w = emptyWorld();
+    const id = w.vehicles[0].id;
+    w.events = [crash(id, 'prop'), { t: 'caltrops', vehicle: id, field: 'f', source: 's', hits: hit }];
+    expect(crashOnly(w, id)).toBe(false);
+  });
+
+  it('is false with no hits, or when the collision hit another truck', () => {
+    const w = emptyWorld();
+    const id = w.vehicles[0].id;
+    expect(crashOnly(w, id)).toBe(false);
+    w.events = [crash(id, 'other', [])];
+    expect(crashOnly(w, id)).toBe(false);
   });
 });

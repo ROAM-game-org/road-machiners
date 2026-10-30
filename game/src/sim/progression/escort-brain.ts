@@ -8,10 +8,10 @@ import { isKnockedOut } from '../defeat';
 import { corePart } from '../grid';
 import { alongOf, toRoad } from '../highway';
 import { inArc } from '../combat';
-import { backOutSpot } from '../back-out';
+import { backOutSpot } from '../free-spot';
 import { isFree } from '../spawn';
 import { vehicleStats, type MountedWeapon } from '../stats';
-import { followPace, followSpot } from '../tow';
+import { followSpot } from '../tow';
 import type { MoveOrder, Vehicle, World } from '../types';
 import { bearing, dist, type Vec } from '../vec';
 import { hasLineOfFire, playerSees } from '../vision';
@@ -66,9 +66,7 @@ function clearOf(foe: Vehicle, spot: Vec, from: Vec, clearance: number): Vec {
 export function followMove(world: World, me: Vehicle, leader: Vehicle): MoveOrder {
   const spot = clearFollowSpot(world, me, leader);
   if (leader.speed <= RULES.parkedSpeed) return { kind: 'stopAt', dest: spot };
-  const pace = followPace(me, leader, spot);
-  if (pace <= RULES.parkedSpeed) return { kind: 'stopAt', dest: spot };
-  return { kind: 'through', dest: spot, pace };
+  return { kind: 'through', dest: spot };
 }
 
 const FOLLOW_RANKS = [0, 1, 2, 3];

@@ -11,9 +11,8 @@ import { randRange } from "./rng";
 import { isFree } from "./spawn";
 import { parkedVehicles } from "./steering";
 import { fieldBlockers } from "./hazards";
-import { isStranded, vehicleStats, type MountedWeapon } from "./stats";
-import { traderWaits } from "./escort-job";
-import { AWAITED_KINDS, followersOf } from "./companies";
+import { vehicleStats, type MountedWeapon } from "./stats";
+import { waitsForFollowers } from "./company-wait";
 import { followPace, getHitchedTowIds, isOnRope, ropeClientOf } from "./tow";
 import { ramImpact, ramValue } from "./crash-contact";
 import { ramsReadily } from "./npc-decisions";
@@ -117,7 +116,7 @@ function startRecovery(v: Vehicle): void {
 function nextOrder(world: World, v: Vehicle, activity: NpcActivity, goal: Vec | null, stops: boolean): MoveOrder {
   if (!goal) return { kind: "brake" };
   if (v.brain!.recovery) return holdOnStretch(world, v, { kind: "stopAt", dest: v.brain!.recoveryGoal! });
-  if (stops || waitsForEscort(world, v, activity)) return { kind: "brake" };
+  if (stops || waitsForFollowers(world, v, activity)) return { kind: "brake" };
   return holdOnStretch(world, v, driveOrder(world, v, activity, goal));
 }
 
@@ -129,21 +128,6 @@ function orderPoint(world: World, v: Vehicle, activity: NpcActivity): Vec | null
   const seen = perceivedTarget(world, v, target);
   noteTarget(world, v, target);
   return computeFightGoal(world, v, target, seen);
-}
-
-function waitsForEscort(world: World, v: Vehicle, activity: NpcActivity): boolean {
-  if (activity.kind === "fight" || activity.kind === "flee" || activity.kind === "resupply") return false;
-  return followersOf(world, v.id, AWAITED_KINDS).some((e) => (e.brain ? waitsForGuard(world, v, e) : traderWaits(world, v, e)));
-}
-
-function waitsForGuard(world: World, v: Vehicle, guard: Vehicle): boolean {
-  if (isStranded(world, guard) || isOnRope(world, guard.id)) return false;
-  const gap = dist(guard.pos, v.pos);
-  return topGoal(guard)?.kind === "follow" && gap > NPC_BEHAVIOR.escortWaitGap && gap <= waitLimit(v);
-}
-
-function waitLimit(v: Vehicle): number {
-  return NPCS[v.brain!.templateId]?.pairs ? NPC_BEHAVIOR.pairWaitLimit : NPC_BEHAVIOR.escortCatchUpGap;
 }
 
 function driveOrder(world: World, v: Vehicle, activity: NpcActivity, dest: Vec): MoveOrder {
@@ -312,7 +296,7 @@ function inReach(shooter: Vehicle, mw: MountedWeapon, target: Vehicle): boolean 
   return gap > 0 && gap <= mw.def.range && inArc(shooter, mw, target);
 }
 
-function gunShare(weapons: MountedWeapon[], bears: (mw: MountedWeapon) => boolean): number {
+function gunShare(weapons: readonly MountedWeapon[], bears: (mw: MountedWeapon) => boolean): number {
   const working = weapons.filter((mw) => mw.part.hp > 0);
   const perTurn = (mw: MountedWeapon) => sustainedDamage(mw.def);
   const total = working.reduce((sum, mw) => sum + perTurn(mw), 0);
@@ -527,10 +511,14 @@ function horizon(world: World, v: Vehicle): { vs: number; t: number } {
   return { vs, t: 1 + vs / sv.brake };
 }
 
+function sweptReach(x: Vehicle, travel: number): number {
+  return x.order?.kind === "stopAt" ? Math.min(travel, dist(x.pos, x.order.dest)) : travel;
+}
+
 function sweptPath(world: World, v: Vehicle, x: Vehicle): Blocker[] {
   const sx = vehicleStats(world, x);
-  const reach = Math.min(sx.maxSpeed, x.speed + sx.accel) * horizon(world, v).t;
-  const steps = Math.ceil(reach / sx.radius);
+  const reach = sweptReach(x, Math.min(sx.maxSpeed, x.speed + sx.accel) * horizon(world, v).t);
+  const steps = Math.max(1, Math.ceil(reach / sx.radius));
   return lines(x, reach, sx.radius).flatMap((heading, n) => sweptLine(world, v, x, heading, reach, n === 0 ? 0 : 1, steps));
 }
 

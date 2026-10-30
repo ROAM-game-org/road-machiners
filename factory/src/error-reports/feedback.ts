@@ -18,7 +18,7 @@ export type FeedbackDeps = {
   cfg: Pick<FactoryConfig, 'home' | 'reportMaxChars' | 'reportIpPerHour' | 'errorDiskMb' | 'errorUnzippedMb'>;
   store: PublicStore;
   classify: Classify;
-  github: Pick<GitHub, 'createIssue'>;
+  github: Pick<GitHub, 'createIssue' | 'issue'>;
   now: () => Date;
   log: (line: string) => void;
   alert: (line: string) => void;
@@ -56,7 +56,7 @@ export class Feedback {
     const { cfg, store, now } = this.deps;
     const request = parseRequest(unzip(body, cfg.errorUnzippedMb), cfg.reportMaxChars);
     const issue = issueOf(this.deps, request.build);
-    const decision = await this.classify(filterInput(store, request.text, issue));
+    const decision = await this.classify(await this.filterInput(request, issue));
     const at = now().toISOString();
     const row = { address, build: request.build, version: request.context.version, kind: request.kind, text: request.text, intent: decision.intent, sincere: decision.sincere, at };
     if (decision.verdict === 'reject') {
@@ -66,6 +66,21 @@ export class Feedback {
     checkRoom(cfg.home, cfg.errorDiskMb, body.length, now());
     if (issue !== null && !needsOwnIssue(decision)) return this.comment(row, request, decision, issue, body);
     return this.open(row, request, decision, body);
+  }
+
+  private async filterInput(request: FeedbackRequest, issue: number | null): Promise<FilterInput> {
+    if (issue === null) return { source: 'report', text: request.text };
+    const parent = this.deps.store.parentPitch(issue) ?? (request.build === CANDIDATE_BUILD ? null : await this.cardTitle(issue));
+    return parent === null ? { source: 'comment', text: request.text } : { source: 'comment', text: request.text, parent };
+  }
+
+  private async cardTitle(issue: number): Promise<string> {
+    try {
+      return (await this.deps.github.issue(issue)).title;
+    } catch (error) {
+      this.deps.log(`feedback could not read the title of #${issue}: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Rejected('filter', 503, 'The report could not be checked now. Try again later.');
+    }
   }
 
   private async classify(input: FilterInput): Promise<Decision> {
@@ -100,12 +115,6 @@ export class Feedback {
 const isFactoryFailure = (error: unknown): boolean => !(error instanceof Rejected) || error.status >= 500;
 
 const needsOwnIssue = (decision: Decision): boolean => decision.relevance === 'other' && (decision.kind === 'bug' || decision.kind === 'feature');
-
-function filterInput(store: PublicStore, text: string, issue: number | null): FilterInput {
-  if (issue === null) return { source: 'report', text };
-  const parent = store.parentPitch(issue);
-  return parent === null ? { source: 'comment', text } : { source: 'comment', text, parent };
-}
 
 type ReportFields = { address: string; build: string; version: string; kind: string; text: string; intent: string; sincere: number; at: string };
 

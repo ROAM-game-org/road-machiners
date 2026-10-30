@@ -3,6 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
 import { gpuArgs } from './gpu.mjs';
 import { playUrl } from './game-url.mjs';
+import { checkHudOutlineFixed } from './hud-outline.mjs';
 
 const url = process.argv[2];
 if (!url) throw new Error('Usage: node scripts/ui-playtest.mjs <dev-server-url>');
@@ -126,10 +127,9 @@ function checkClockSpan(m) {
 
 async function moneyCellWidth(page, whole) {
   await page.evaluate(async whole => {
-    const { UNITS } = await import('/src/data/units.ts');
     const game = window.__ROAM__;
     const world = structuredClone(game.state);
-    world.player.money = whole * UNITS.centsPerM;
+    world.player.money = whole;
     game.apply(world);
   }, whole);
   await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
@@ -190,6 +190,7 @@ async function checkInstruments(page) {
   assert(m.lines, 'Instrument button contents must sit on one line');
   assert(!m.horn, 'Horn is for touch only');
   await checkMoneyCellFixed(page);
+  await checkHudOutlineFixed(page, 'in English at the instruments check');
   for (const other of [m.log, m.weapons].filter(Boolean)) {
     assert(!doRectsOverlap(panel, other), `Instruments must not overlap the log or weapons: ${JSON.stringify([panel, other])}`);
   }
@@ -375,6 +376,7 @@ async function checkWeaponDock(page) {
     if (guns !== most) await trimGuns(page, guns);
     if (guns !== 1) await checkWeaponIcons(page, guns, guns === most);
     for (const viewport of DOCK_VIEWPORTS) await checkDockLayout(page, viewport);
+    if (guns === most) await checkHudOutlineFixed(page, `with ${guns} guns at ${page.viewportSize().width}x${page.viewportSize().height}`);
   }
 }
 

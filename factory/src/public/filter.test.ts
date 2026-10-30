@@ -57,6 +57,17 @@ describe('filterWith', () => {
     expect(body.questions[1].choices.map((choice: { value: string }) => choice.value)).toEqual(['bug', 'feature', 'question', 'feedback', 'chatter']);
   });
 
+  it('tells the relevance question that a report on another part of the game under a build is not about it', async () => {
+    const { fetch, sent } = fake(200, answers(intent(0.95, 0.03, 0.02), pick('kind', 'bug'), pick('route', 'redesign'), pick('relevance', 'other'), pick('language', 'en')));
+    const text = 'Misses are often still too random, flying not towards enemy but in weird uniform cones';
+    expect(await filterWith(CFG, fetch)({ source: 'comment', text, parent: 'Different sounds for armor hits and part hits' })).toMatchObject({ relevance: 'other' });
+    const relevance = bodyOf(sent).questions.find((question: { name: string }) => question.name === 'relevance');
+    expect(relevance.instructions).toContain('or was sent from that test build');
+    expect(relevance.instructions).toContain('a report about another part of the game, even a near one, is not about the change');
+    const other = relevance.choices.find((choice: { value: string }) => choice.value === 'other');
+    expect(other.description).toContain('From a build of different sounds for armor hits and part hits');
+  });
+
   it('asks a chat message only its intent and kind, and gives it no route and no parent', async () => {
     const { fetch, sent } = fake(200, answers(intent(0.95, 0.03, 0.02), pick('kind', 'question'), pick('language', 'ru')));
     expect(await filterWith(CFG, fetch)({ source: 'message', text: 'How do I repair the engine?' })).toMatchObject({ kind: 'question', route: 'none', relevance: 'other', language: 'ru' });

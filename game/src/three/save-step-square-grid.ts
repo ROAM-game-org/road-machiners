@@ -1,5 +1,5 @@
 import type { SavedJson } from './save-migrations';
-import { CHASSIS_121_122, PARTS_121_122, SQUARE_CELL_121_122, STORAGE_ROWS_121_122, type FrozenChassis, type FrozenCore, type FrozenPart } from './save-square-grid-data';
+import { CHASSIS_128_129, PARTS_128_129, SQUARE_CELL_128_129, STORAGE_ROWS_128_129, type FrozenChassis, type FrozenCore, type FrozenPart } from './save-square-grid-data';
 
 type Side = 'old' | 'next';
 type Dim = { w: number; h: number };
@@ -52,14 +52,14 @@ const KEY = 1024;
 const EPS = 1e-9;
 const SKIN = 'FBLR';
 
-function chassisOf_121_122(id: string): FrozenChassis {
-  if (!Object.hasOwn(CHASSIS_121_122, id)) throw new Error(`The square grid step does not know chassis ${id}`);
-  return CHASSIS_121_122[id];
+function chassisOf_128_129(id: string): FrozenChassis {
+  if (!Object.hasOwn(CHASSIS_128_129, id)) throw new Error(`The square grid step does not know chassis ${id}`);
+  return CHASSIS_128_129[id];
 }
 
-function partOf_121_122(defId: string): FrozenPart {
-  if (!Object.hasOwn(PARTS_121_122, defId)) throw new Error(`The square grid step does not know part ${defId}`);
-  return PARTS_121_122[defId];
+function partOf_128_129(defId: string): FrozenPart {
+  if (!Object.hasOwn(PARTS_128_129, defId)) throw new Error(`The square grid step does not know part ${defId}`);
+  return PARTS_128_129[defId];
 }
 
 function oldSteps(c: FrozenChassis, w: number, h: number) {
@@ -67,7 +67,7 @@ function oldSteps(c: FrozenChassis, w: number, h: number) {
 }
 
 function nextSteps(w: number, h: number) {
-  const cell = SQUARE_CELL_121_122;
+  const cell = SQUARE_CELL_128_129;
   return { row: cell, col: cell, front: ((h - 2) * cell) / 2, left: -((w - 2) * cell) / 2 };
 }
 
@@ -77,7 +77,7 @@ function geoOf(chassisId: string, side: Side): Geo {
   const key = `${chassisId}|${side}`;
   const cached = GEOS.get(key);
   if (cached) return cached;
-  const c = chassisOf_121_122(chassisId);
+  const c = chassisOf_128_129(chassisId);
   const rows = side === 'old' ? c.old : c.next;
   const w = Math.max(...rows.map((r) => r.length));
   const h = rows.length;
@@ -303,7 +303,7 @@ const CORE_PAIRS = new Map<string, { old: FrozenCore; next: FrozenCore }[]>();
 function corePairs(chassisId: string): { old: FrozenCore; next: FrozenCore }[] {
   const cached = CORE_PAIRS.get(chassisId);
   if (cached) return cached;
-  const c = chassisOf_121_122(chassisId);
+  const c = chassisOf_128_129(chassisId);
   const seen = new Map<string, number>();
   const pairs = c.oldCore.map((old) => {
     const n = seen.get(old.defId) ?? 0;
@@ -349,7 +349,7 @@ function byPlacement(a: Entry, b: Entry): number {
 }
 
 function entryOf(ctx: Ctx, json: SavedJson, defId: string | null, at: Spot): Entry {
-  const part = defId === null ? null : partOf_121_122(defId);
+  const part = defId === null ? null : partOf_128_129(defId);
   const oldDim = part === null ? { w: 1, h: 1 } : turned(part.old, at.rot);
   return { json, id: json.id as string, defId, part, at, oldDim, mounted: isMountedOld(ctx.old, part, at, oldDim) };
 }
@@ -384,12 +384,12 @@ function withoutOrders(v: SavedJson, key: 'weaponOrders' | 'utilityOrders', ids:
   return { ...v, [key]: Object.fromEntries(kept) };
 }
 
-function partDefsOf_121_122(node: unknown, out: Map<string, string>): Map<string, string> {
-  if (Array.isArray(node)) node.forEach((n) => partDefsOf_121_122(n, out));
+function partDefsOf_128_129(node: unknown, out: Map<string, string>): Map<string, string> {
+  if (Array.isArray(node)) node.forEach((n) => partDefsOf_128_129(n, out));
   else if (node !== null && typeof node === 'object') {
     const record = node as SavedJson;
     if (typeof record.id === 'string' && typeof record.defId === 'string') out.set(record.id, record.defId);
-    Object.values(record).forEach((n) => partDefsOf_121_122(n, out));
+    Object.values(record).forEach((n) => partDefsOf_128_129(n, out));
   }
   return out;
 }
@@ -467,7 +467,7 @@ function targetSpots(job: SavedJson | null, defs: ReadonlyMap<string, string>, i
   const spots = steps.flatMap((s) => [...(s.moves as SavedJson[]).flatMap((m) => [m.from, m.to].map((at) => ({ at: at as Spot, id: m.itemId as string }))), ...(s.pickup ? [{ at: (s.pickup as SavedJson).to as Spot, id: (s.pickup as SavedJson).itemId as string }] : [])]);
   return spots.map(({ at, id }) => {
     const defId = itemDefs.get(id) ?? null;
-    return { at, dim: defId === null ? { w: 1, h: 1 } : turned(partOf_121_122(defId).old, at.rot) };
+    return { at, dim: defId === null ? { w: 1, h: 1 } : turned(partOf_128_129(defId).old, at.rot) };
   });
 }
 
@@ -497,7 +497,7 @@ function moveVehicle(world: SavedJson, defs: ReadonlyMap<string, string>, v: Sav
   const job = (v.job ?? null) as SavedJson | null;
   const entries = entriesOf(first, v.items as SavedJson[]);
   const itemDefs = itemDefsOf(entries, job, defs);
-  const storage = STORAGE_ROWS_121_122[first.chassisId];
+  const storage = STORAGE_ROWS_128_129[first.chassisId];
   if (storage === undefined) throw new Error(`The square grid step does not know the storage rows of ${first.chassisId}`);
   const ctx = { ...first, rowsBelow: Math.max(storage, rowsBelowOf(first.old, entries, targetSpots(job, defs, itemDefs))) };
   const result = placeAll(ctx, entries);
@@ -508,10 +508,10 @@ function moveVehicle(world: SavedJson, defs: ReadonlyMap<string, string>, v: Sav
   return withJob(ordered, { ctx, moved: movedOf(entries, result), removed, defs, itemDefs });
 }
 
-export function withSquareGrid_121_122(world: SavedJson): SavedJson {
+export function withSquareGrid_128_129(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
-  const defs = partDefsOf_121_122(world, new Map());
+  const defs = partDefsOf_128_129(world, new Map());
   const stored: SavedJson[] = [];
-  const vehicles = (world.vehicles as SavedJson[]).map((v) => (Object.hasOwn(CHASSIS_121_122, v.chassisId as string) ? moveVehicle(world, defs, v, stored) : v));
+  const vehicles = (world.vehicles as SavedJson[]).map((v) => (Object.hasOwn(CHASSIS_128_129, v.chassisId as string) ? moveVehicle(world, defs, v, stored) : v));
   return { ...world, player: { ...player, storage: [...(player.storage as SavedJson[]), ...stored] }, vehicles };
 }

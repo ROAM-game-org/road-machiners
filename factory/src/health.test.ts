@@ -2,7 +2,18 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { availableGb, healthFile, writeHealth } from './health';
+import { availableGb, healthFile, requireCappedSlice, writeHealth } from './health';
+
+describe('requireCappedSlice', () => {
+  it('passes a slice with a byte cap and a host with no slice', () => {
+    expect(() => requireCappedSlice('roam-factory-jobs.slice', () => '11811160064')).not.toThrow();
+    expect(() => requireCappedSlice(null, () => { throw new Error('not read'); })).not.toThrow();
+  });
+
+  it('stops on a slice with no cap, as before the deploy installs it', () => {
+    expect(() => requireCappedSlice('roam-factory-jobs.slice', () => 'infinity')).toThrow('roam-factory-jobs.slice has MemoryMax "infinity"');
+  });
+});
 
 describe('writeHealth', () => {
   it('writes the time, the free space, the available memory and their minimums, and returns them', () => {

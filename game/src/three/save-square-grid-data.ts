@@ -11,13 +11,13 @@ export type FrozenChassis = {
 
 export type FrozenPart = { kind: string; mounts: string; old: readonly [number, number]; next: readonly [number, number] };
 
-export const SQUARE_CELL_121_122 = 0.45;
+export const SQUARE_CELL_128_129 = 0.45;
 
-export const STORAGE_ROWS_121_122: Readonly<Record<string, number>> = {
+export const STORAGE_ROWS_128_129: Readonly<Record<string, number>> = {
   scout: 1, hauler: 3, buggy: 2, wagon: 0, courier: 3, van: 1, longbed: 3, carrier: 1, tractor: 1, jeep: 3, convertible: 0, bus: 1, loader: 1, niva: 3, bukhanka: 1, lincoln: 0, semi: 0, sorokonoga: 2,
 };
 
-export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
+export const CHASSIS_128_129: Readonly<Record<string, FrozenChassis>> = {
   scout: {
     halfX: 2.6,
     halfZ: 1.1100000000000003,
@@ -164,7 +164,7 @@ export const CHASSIS_121_122: Readonly<Record<string, FrozenChassis>> = {
   },
 };
 
-export const PARTS_121_122: Readonly<Record<string, FrozenPart>> = {
+export const PARTS_128_129: Readonly<Record<string, FrozenPart>> = {
   mg: { kind: 'weapon', mounts: 'D', old: [1, 2], next: [1, 3] },
   shotgun: { kind: 'weapon', mounts: 'D', old: [1, 2], next: [1, 3] },
   longRifle: { kind: 'weapon', mounts: 'D', old: [1, 2], next: [1, 3] },

@@ -24,6 +24,7 @@ export const GRAFFITI = {
   facesCamera: 0.35,
   fade: { min: 0.7, max: 0.95 },
   variants: 2,
+  stepMs: 4,
 } as const;
 
 export const GRAFFITI_PROP_LOOKS: ReadonlySet<string> = new Set(['crag', 'house', 'silo', 'shack', 'farmhouse', 'barn', 'bunker', 'scrapWall']);
@@ -139,20 +140,49 @@ export function graffitiSites(t: Terrain, obstacles: readonly Obstacle[]): Graff
   return { props: propSites(obstacles).sort(byPriority), cliffs: cliffSites(t).sort(byPriority) };
 }
 
-export function chooseGraffiti<F>(size: number, sites: GraffitiSites, fit: (site: GraffitiSite) => F | null): GraffitiPlaced<F>[] {
-  const placed: GraffitiPlaced<F>[] = [];
-  const fill = (list: readonly GraffitiSite[], count: number) => {
-    for (const site of list) {
-      if (placed.length >= count) return;
-      if (placed.some((p) => dist(p.site.pos, site.pos) < GRAFFITI.minGapTiles)) continue;
-      const found = fit(site);
-      if (found !== null) placed.push({ site, fit: found });
+export class GraffitiPlacer<F> {
+  readonly placed: GraffitiPlaced<F>[] = [];
+  private readonly lists: { sites: readonly GraffitiSite[]; count: number }[];
+  private list = 0;
+  private next = 0;
+
+  constructor(size: number, sites: GraffitiSites, private fit: (site: GraffitiSite) => F | null) {
+    const target = graffitiTarget(size);
+    this.lists = [
+      { sites: sites.props, count: Math.round(target * GRAFFITI.propShare) },
+      { sites: sites.cliffs, count: target },
+    ];
+  }
+
+  get done(): boolean {
+    return this.list >= this.lists.length;
+  }
+
+  step(untilMs: number): boolean {
+    if (this.done) return true;
+    do this.advance();
+    while (!this.done && performance.now() < untilMs);
+    return this.done;
+  }
+
+  private advance(): void {
+    const { sites, count } = this.lists[this.list];
+    if (this.next >= sites.length || this.placed.length >= count) {
+      this.list++;
+      this.next = 0;
+      return;
     }
-  };
-  const target = graffitiTarget(size);
-  fill(sites.props, Math.round(target * GRAFFITI.propShare));
-  fill(sites.cliffs, target);
-  return placed;
+    const site = sites[this.next++];
+    if (this.placed.some((p) => dist(p.site.pos, site.pos) < GRAFFITI.minGapTiles)) return;
+    const found = this.fit(site);
+    if (found !== null) this.placed.push({ site, fit: found });
+  }
+}
+
+export function chooseGraffiti<F>(size: number, sites: GraffitiSites, fit: (site: GraffitiSite) => F | null): GraffitiPlaced<F>[] {
+  const placer = new GraffitiPlacer(size, sites, fit);
+  placer.step(Infinity);
+  return placer.placed;
 }
 
 type Hit = { point: THREE.Vector3; normal: THREE.Vector3 };
@@ -398,18 +428,24 @@ export function graffitiLift(sunIntensity: number): number {
 }
 
 export class GraffitiViews {
-  readonly marks: readonly GraffitiMark[];
+  marks: readonly GraffitiMark[] = [];
   private material: THREE.MeshLambertMaterial | null = null;
   private lift = 1;
+  private readonly placer: GraffitiPlacer<SignFit>;
 
-  constructor(world: World, scope: RenderScope) {
+  constructor(private world: World, private scope: RenderScope) {
     const buckets = new ObstacleBuckets<Obstacle>(world.obstacles, world.size);
-    const placed = chooseGraffiti(world.size, graffitiSites(world.terrain, world.obstacles), (site) => {
+    this.placer = new GraffitiPlacer(world.size, graffitiSites(world.terrain, world.obstacles), (site) => {
       const fit = fitSite(world.terrain, site);
       return fit && !blockedInFront(buckets, site.obstacle, fit) ? fit : null;
     });
+  }
+
+  step(budgetMs: number): void {
+    if (this.placer.done || !this.placer.step(performance.now() + budgetMs)) return;
+    const placed = this.placer.placed;
     this.marks = placed.map(({ site, fit }) => ({ id: site.id, stage: site.paint.stage, color: site.paint.color, size: fit.size, at: fit.center.clone(), normal: fit.normal.clone() }));
-    if (placed.length > 0) this.draw(placed, world.size, scope);
+    if (placed.length > 0) this.draw(placed, this.world.size, this.scope);
   }
 
   private draw(placed: GraffitiPlaced<SignFit>[], mapSize: number, scope: RenderScope): void {

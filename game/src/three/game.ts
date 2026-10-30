@@ -22,7 +22,7 @@ import { driveSnapshotOf, type PreparedTurn } from "../phys/turn";
 import { playerTrucks, playerVehicle, vehicleById } from "../sim/damage";
 
 import { inOverdrive, isStranded, vehicleStats } from "../sim/stats";
-import { zoneHalfAngle } from "../sim/steering";
+import { zoneHalfAngle, zoneSpeedOf } from "../sim/steering";
 import type { Vehicle, World } from "../sim/types";
 import { grayRadius, playerSees, seenPropTiles, tileOf } from "../sim/vision";
 import type { Vec } from "../sim/vec";
@@ -54,6 +54,7 @@ import { aimedTarget, CollisionCues, collisionSteps, scoreEventMs, gunfireSeen, 
 import { Labels, VehicleMarkers } from "./render/labels";
 import { ObstacleViews } from "./render/obstacles";
 import { CraterViews } from "./render/craters";
+import { GRAFFITI } from "./render/graffiti";
 import { playBreak } from "./render/partDebris";
 import { BreakCues, shownItems, type PartBreak } from "./breakCues";
 import { PathView } from "./render/path";
@@ -391,6 +392,7 @@ export class Game {
     this.travel.pause();
     this.world = next;
     this.saves.logWorld(next);
+    if (this.anim && !this.anim.impacts) return this.refreshUi();
     this.hud.logHeld(next, this.reveal.settle(next));
     this.refreshUi();
   }
@@ -437,7 +439,7 @@ export class Game {
     if (!this.anim || this.anim.impacts)
       this.obstacles.sync(this.world.obstacles, this.world.salvage, this.world.broken);
     this.craters.sync(this.world);
-    this.hud.renderTop(this.displayWorld());
+    this.hud.renderTop(this.displayWorld(), this.world);
     this.hud.markCombat(inCombat(this.world, playerVehicle(this.world)));
     this.hud.renderRescue(this.displayWorld(), this.callShown());
     if (!this.anim && deathShows(this.world)) this.death.show(this.world);
@@ -578,9 +580,9 @@ export class Game {
     if (this.picker.updateCue(this.canClick())) this.renderer.domElement.style.cursor = this.picker.stopCue ? "pointer" : "";
   }
 
-  private canClick(): boolean {
-    return !this.anim && !this.modalOpen() && playerCanAct(this.world);
-  }
+  private canClick(): boolean { return !this.anim && this.canOrder(); }
+
+  private canOrder(): boolean { return !this.modalOpen() && playerCanAct(this.world); }
 
   private touchDown(e: PointerEvent): void {
     this.touchIntent(this.touch.down(e.pointerId, e.clientX, e.clientY, performance.now()));
@@ -626,7 +628,7 @@ export class Game {
     const point = this.canClick() && this.utilityAim.pointPending();
     if (this.modalOpen() || action.kind !== "ground" || point) return this.touchTap(x, y);
     const p = this.rig.groundUnder(x, y, this.ground);
-    if (this.canClick() && p) this.controls.order(p, true);
+    if (this.canOrder() && p) this.controls.order(p, true);
   }
 
   private touchTap(x: number, y: number): void {
@@ -666,7 +668,7 @@ export class Game {
     if (this.modalOpen()) return;
     const action = this.picker.action(x, y);
     if (action.kind === "vehicle") return this.clickVehicle(action.id);
-    if (!this.canClick()) return;
+    if (!this.canOrder()) return;
     switch (action.kind) {
       case "stop":
         return this.apply(setMoveOrder(this.world, { kind: "brake" }));
@@ -1029,7 +1031,7 @@ export class Game {
   private advanceTurn(now: number, dt: number): { at: number | null; playMs: number } {
     const held = this.holdsTime();
     if (held) this.travel.pause();
-    const speed = this.travel.getSpeed(now, CONFIG.travelFastSpeed);
+    const speed = this.travel.paceSpeed(this.world, now, held ? 0 : dt, CONFIG.travelFastSpeed);
     const playMs = this.tickWorldClock(heldPlayMs(dt, this.play.isHeld(), CONFIG.playbackFrameMs), speed, now);
     const wasPlaying = this.anim !== null;
     const phase = this.phase;
@@ -1094,6 +1096,7 @@ export class Game {
     this.hud.showRecenter(!this.follow.isFollowing());
     const daylight = daylightAt(lightTurnOf(this.world, this.anim));
     lightScene(this.sun, this.sky, truck, daylight);
+    this.craters.graffiti.step(GRAFFITI.stepMs);
     this.craters.graffiti.light(daylight.sunIntensity);
     this.fx.light({ sun: this.sun, sky: this.sky });
     CLOUD_SHADOWS.sync(this.world, lightTurnOf(this.world, this.anim), this.play.frameMs());
@@ -1185,7 +1188,7 @@ export class Game {
       this.truckFx.emit(this.world, display, f, frames !== null, playDt, seen);
     }
     this.pin.settle();
-    this.vehicleViews.keepOnly(ids);
+    this.vehicleViews.settle(ids, now, this.world.events);
   }
 
   private shownFrame(v: Vehicle, played: VehicleFrame | null | undefined): VehicleFrame {
@@ -1230,7 +1233,7 @@ export class Game {
     const s = vehicleStats(this.world, me);
     const sel = s.weapons.filter((m) => m.part.id === this.selected);
     this.weaponRange.set(this.world.terrain, vehicleOrigins(me), sel);
-    this.zones.update(this.world.terrain, me.pos, me.heading, me.speed, zoneHalfAngle(s, me.speed));
+    this.zones.update(this.world.terrain, me.pos, me.heading, zoneSpeedOf(me), zoneHalfAngle(s, me.speed));
     const hover = this.hoverGround;
     const color = hover ? throttleColor(this.world, me, hover) : PAL.plan;
     this.zones.hover(this.world.terrain, hover, color);

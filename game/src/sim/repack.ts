@@ -1,8 +1,10 @@
+import { barrelCells } from './barrels';
 import { cellKey, gridOf, isMounted, itemCells, itemSize, mountCellsOf, mountSpots, type Cell, type Grid, type Spot } from './grid';
+import { partDef } from '../data/parts';
 import type { GridItem, Vehicle } from './types';
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;
-type Place = { spot: Spot; cells: number[] };
+type Place = { spot: Spot; cells: number[]; lane: number[] };
 type Piece = { item: PartItem; shape: string; spots: Place[]; area: number; reach: Set<number> };
 export type RepackMemo = Map<string, Set<string> | false>;
 
@@ -22,7 +24,7 @@ export function repackWith(v: Vehicle, item: PartItem, accept: (next: Vehicle) =
   const key = memoKey(v, fixed, pieces);
   let known = memo.get(key);
   if (known === undefined) {
-    const packs = search(canonical(pieces), sameShape, (placed) => placed.map(placeKey));
+    const packs = search(canonical(pieces), sameShape, (placed) => placed.map(placeKey), false);
     known = packs ? new Set(packs) : false;
     memo.set(key, known);
   }
@@ -30,16 +32,16 @@ export function repackWith(v: Vehicle, item: PartItem, accept: (next: Vehicle) =
   return search(pieces.map((p) => packedFirst(p, known)), samePart, (placed) => {
     const next = { ...v, items: [...fixed, ...placed] };
     return accept(next) ? next : null;
-  });
+  }, true);
 }
 
 const sameShape = (a: Piece, b: Piece) => a.shape === b.shape;
 const samePart = (a: Piece, b: Piece) => a.item.part.defId === b.item.part.defId;
 
-type Run<T> = { pieces: Piece[]; same: (a: Piece, b: Piece) => boolean; leaf: (placed: PartItem[]) => T | null; taken: Set<number>; placed: PartItem[]; steps: number; leaves: number };
+type Run<T> = { pieces: Piece[]; same: (a: Piece, b: Piece) => boolean; leaf: (placed: PartItem[]) => T | null; taken: Set<number>; placed: PartItem[]; lanes: Set<number> | null; steps: number; leaves: number };
 
-function search<T>(pieces: Piece[], same: (a: Piece, b: Piece) => boolean, leaf: (placed: PartItem[]) => T | null): T | null {
-  const run: Run<T> = { pieces, same, leaf, taken: new Set(), placed: [], steps: 0, leaves: 0 };
+function search<T>(pieces: Piece[], same: (a: Piece, b: Piece) => boolean, leaf: (placed: PartItem[]) => T | null, laned: boolean): T | null {
+  const run: Run<T> = { pieces, same, leaf, taken: new Set(), placed: [], lanes: laned ? new Set() : null, steps: 0, leaves: 0 };
   const found = fill(run, 0, 0);
   REPACK_TALLY.searches++;
   REPACK_TALLY.steps += run.steps;
@@ -72,13 +74,16 @@ function firstSpot<T>(run: Run<T>, i: number, from: number): number {
 
 function place<T>(run: Run<T>, i: number, s: number): T | null {
   const piece = run.pieces[i];
-  const { spot, cells } = piece.spots[s];
+  const { spot, cells, lane } = piece.spots[s];
   if (cells.some((c) => run.taken.has(c))) return null;
+  if (run.lanes && (lane.some((c) => run.taken.has(c) || run.lanes!.has(c)) || cells.some((c) => run.lanes!.has(c)))) return null;
   for (const c of cells) run.taken.add(c);
+  for (const c of lane) run.lanes?.add(c);
   run.placed.push({ ...piece.item, ...spot });
   const done = fill(run, i + 1, s + 1);
   run.placed.pop();
   for (const c of cells) run.taken.delete(c);
+  for (const c of lane) run.lanes?.delete(c);
   return done;
 }
 
@@ -86,8 +91,14 @@ function pieceOf(g: Grid, fixed: GridItem[], item: PartItem, movable: PartItem[]
   const held = movable.filter((it) => it.part.defId === item.part.defId);
   const isHeld = (s: Spot) => held.some((it) => it.x === s.x && it.y === s.y && it.rot === s.rot);
   const all = mountSpots(g, fixed, item, mountCellsOf(item.part.defId));
-  const spots = [...all.filter(isHeld), ...all.filter((s) => !isHeld(s))].map((spot) => ({ spot, cells: itemCells({ ...item, ...spot }).map((c) => cellKey(c.x, c.y)) }));
+  const spots = [...all.filter(isHeld), ...all.filter((s) => !isHeld(s))].map((spot) => placeOf(g, item, spot));
   return { item, shape: shapeOf(item), spots, area: spots[0]?.cells.length ?? Infinity, reach: new Set(spots.flatMap((s) => s.cells)) };
+}
+
+function placeOf(g: Grid, item: PartItem, spot: Spot): Place {
+  const placed = { ...item, ...spot };
+  const lane = partDef(item.part.defId).kind === 'weapon' ? barrelCells(g.chassisId, placed) : [];
+  return { spot, cells: itemCells(placed).map((c) => cellKey(c.x, c.y)), lane: lane.map((c) => cellKey(c.x, c.y)) };
 }
 
 function shapeOf(item: PartItem): string {

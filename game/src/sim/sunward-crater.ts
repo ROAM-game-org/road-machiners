@@ -189,7 +189,7 @@ export function breakWord(world: World, s: NpcState): void {
   const caller = world.vehicles.find((v) => v.id === s.other);
   const holder = world.vehicles.find((v) => v.id === s.holder);
   if (!caller || !holder || isDefeated(caller)) return;
-  world.events.push({ t: 'say', speaker: caller.id, line: 'wordBroken', vars: {} });
+  world.events.push({ t: 'say', speaker: caller.id, to: holder.id, line: 'wordBroken', vars: {} });
   seize(world, caller, holder);
 }
 
@@ -289,5 +289,5 @@ export function shoutGiven(world: World, shooter: Vehicle, target: Vehicle): voi
   const night = nightOf(world);
   if (!night || !isSunwardMember(shooter) || night.shouted.includes(target.id)) return;
   night.shouted.push(target.id);
-  world.events.push({ t: 'say', speaker: shooter.id, line: 'givenBySky', vars: {} });
+  world.events.push({ t: 'say', speaker: shooter.id, to: target.id, line: 'givenBySky', vars: {} });
 }

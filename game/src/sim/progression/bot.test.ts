@@ -230,6 +230,7 @@ describe('botOrders', () => {
   it('has a scavenger with no salvage left and every site found trade instead', () => {
     const w = saltGlut(parkedAt('nose'));
     w.salvage = [];
+    w.shops.nose.stock = [];
     w.player.discovered = [...REGION.towns, ...REGION.locations].map((site) => site.id);
 
     const turn = botOrders(w, 'scavenger');
@@ -348,7 +349,7 @@ describe('botOrders', () => {
       return botOrders(w, 'trader').world;
     };
 
-    expect(stranded(66667).player.beacon).toBe(true);
+    expect(stranded(667).player.beacon).toBe(true);
     expect(stranded(0).player.beacon).toBe(false);
   });
 
@@ -387,8 +388,8 @@ describe('botOrders', () => {
     };
 
     expect(offerTo(0, 'there')).toBeNull();
-    expect(offerTo(66667, 'elsewhere')).toBeNull();
-    expect(offerTo(66667, 'there')).toMatchObject({ data: { hitched: true } });
+    expect(offerTo(667, 'elsewhere')).toBeNull();
+    expect(offerTo(667, 'there')).toMatchObject({ data: { hitched: true } });
   });
 
   it('has a stranded truck without an engine buy and mount one in town', () => {
@@ -407,10 +408,10 @@ describe('botOrders', () => {
       const w = withoutEngine(parkedAt('bowl'));
       const me = playerVehicle(w);
       me.pos = { x: me.pos.x + 8, y: me.pos.y };
-      w.player.money = 66667;
+      w.player.money = 667;
       for (const shop of Object.values(w.shops)) shop.stock = shop.stock.filter((p) => partDef(p.defId).kind !== 'engine');
       if (engineInStock) w.shops.bowl.stock.push(makePart(w, 'stockEngine', 0));
-      w.player.contracts.push({ id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'salt', units: 1, to: 'nose', reward: 10000, deadline: 5000, window: 5000, rush: false, tier: 1 });
+      w.player.contracts.push({ id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'salt', units: 1, to: 'nose', reward: 100, deadline: 5000, window: 5000, rush: false, tier: 1 });
       addGoods(w, me, 'salt', 1);
       return botOrders(w, 'trader').world;
     };
@@ -426,7 +427,7 @@ describe('botOrders', () => {
 
   it('has a trader whose haul goods are gone trade on', () => {
     const w = saltGlut(parkedAt('nose'));
-    w.player.contracts.push({ id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'fuel', units: 12, to: 'nose', reward: 10000, deadline: 5000, window: 5000, rush: false, tier: 1 });
+    w.player.contracts.push({ id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'fuel', units: 12, to: 'nose', reward: 100, deadline: 5000, window: 5000, rush: false, tier: 1 });
 
     const turn = botOrders(w, 'trader');
 
@@ -435,7 +436,7 @@ describe('botOrders', () => {
 
   it('has a bot in debt in town sell gear to clear it', () => {
     const w = parkedAt('bowl');
-    w.player.money = -2000;
+    w.player.money = -20;
 
     const turn = botOrders(w, 'trader');
 
@@ -482,7 +483,7 @@ describe('botOrders', () => {
     const me = playerVehicle(w);
     expect(mountPart(w, me, makePart(w, 'rack', 0))).toBe(true);
     const units = addGoods(w, me, 'tools', 99);
-    w.player.contracts.push({ id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'tools', units, to: 'nose', reward: 10000, deadline: 5000, window: 5000, rush: false, tier: 1 });
+    w.player.contracts.push({ id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'tools', units, to: 'nose', reward: 100, deadline: 5000, window: 5000, rush: false, tier: 1 });
     for (const p of mountedParts(me, 'core')) if (partDef(p.defId).id === 'transmission') p.hp = 0;
     w.player.money = 0;
 
@@ -506,7 +507,7 @@ describe('botOrders', () => {
     const w = parkedAt('bowl');
     const me = playerVehicle(w);
     me.items = me.items.filter((it) => it.kind !== 'part' || !mountedParts(me, 'weapon').includes(it.part));
-    w.player.money = 20000;
+    w.player.money = 200;
     w.shops.bowl.stock = [makePart(w, 'mg', 0), makePart(w, 'heavyMg', 0)];
 
     const turn = botOrders(w, 'hunter');
@@ -529,7 +530,7 @@ describe('botOrders', () => {
     expect(mountedParts(me, 'engine')).toHaveLength(1);
     expect(mountedParts(me).filter((p) => !['core', 'engine'].includes(partDef(p.defId).kind)).length).toBeLessThan(gearBefore);
     expect(turn.world.player.money).toBeGreaterThanOrEqual(0);
-    expect(turn.world.player.supplies).toBeGreaterThan(0);
+    expect(turn.ledger.gear).toBeGreaterThan(0);
   });
 
   it('has a broke truck without an engine at a stall sell a spare and mount a bought engine', () => {
@@ -824,7 +825,7 @@ describe('the hunter', () => {
     const w = parkedAt('bowl');
     const me = playerVehicle(w);
     for (const part of mountedParts(me)) part.hp = Math.floor(maxHp(part) / 4);
-    w.player.money = 66667;
+    w.player.money = 667;
     const merc = addVehicle(w, 'independent', 'van', ['mg', 'stockEngine'], { x: me.pos.x + 8, y: me.pos.y });
     merc.brain = npcBrain('merc', merc.pos, NPCS.merc.traits);
     startCombat(w, merc, me);
@@ -928,7 +929,7 @@ describe('the hunter', () => {
 
   it('has a hauler take the haul on the board it is parked at before it trades', () => {
     const w = parkedAt('bowl');
-    w.shops.bowl.contracts = [{ id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'scrap', units: 3, to: 'nose', reward: 20000, deadline: 5000, window: 600, rush: false, tier: 2 }];
+    w.shops.bowl.contracts = [{ id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'scrap', units: 3, to: 'nose', reward: 200, deadline: 5000, window: 600, rush: false, tier: 2 }];
 
     expect(botOrders(w, 'hauler').world.player.contracts.map((c) => c.id)).toEqual(['ct-haul']);
   });
@@ -936,7 +937,7 @@ describe('the hunter', () => {
   it('has a hauler hand a late haul in with the crates it still holds and sell none of the owed ones', () => {
     const w = parkedAt('nose');
     w.turn = 700;
-    w.player.contracts = [{ id: 'ct-late', shop: 'bowl', kind: 'haul', good: 'salt', units: 5, to: 'nose', reward: 20000, deadline: 600, window: 300, rush: false, tier: 1 }];
+    w.player.contracts = [{ id: 'ct-late', shop: 'bowl', kind: 'haul', good: 'salt', units: 5, to: 'nose', reward: 200, deadline: 600, window: 300, rush: false, tier: 1 }];
     addGoods(w, playerVehicle(w), 'salt', 3);
 
     const turn = botOrders(w, 'hauler');
@@ -947,7 +948,7 @@ describe('the hunter', () => {
 
   it('has a trader keep the crates a held haul owes when it sells at a shop', () => {
     const w = parkedAt('nose');
-    w.player.contracts = [{ id: 'ct-held', shop: 'bowl', kind: 'haul', good: 'salt', units: 3, to: 'granary', reward: 20000, deadline: 5000, window: 300, rush: false, tier: 1 }];
+    w.player.contracts = [{ id: 'ct-held', shop: 'bowl', kind: 'haul', good: 'salt', units: 3, to: 'granary', reward: 200, deadline: 5000, window: 300, rush: false, tier: 1 }];
     addGoods(w, playerVehicle(w), 'salt', 5);
 
     const after = botOrders(w, 'trader').world;
@@ -958,7 +959,7 @@ describe('the hunter', () => {
   it('has a surveyor search from the clue, never the place, until it finds it', () => {
     const site = surveySites(TEST_MAP)[0];
     const w = parkedAt('bowl');
-    const survey: Contract = { id: 'ct-survey', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: false, done: false }], reward: 20000, deadline: 5000, window: 600, tier: 1 };
+    const survey: Contract = { id: 'ct-survey', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: false, done: false }], reward: 200, deadline: 5000, window: 600, tier: 1 };
     w.player.contracts = [survey];
     const clue = cluePoint(w, surveyClue(survey, survey.points[0]));
     const heading = (world: World) => {
@@ -977,7 +978,7 @@ describe('the hunter', () => {
   it('has a surveyor take a survey on the board it is parked at, survey in reach of a site and report it done at the shop', () => {
     const site = surveySites(TEST_MAP)[0];
     const w = parkedAt('bowl');
-    const offer: Contract = { id: 'ct-survey', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: false, done: false }], reward: 20000, deadline: 5000, window: 600, tier: 1 };
+    const offer: Contract = { id: 'ct-survey', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: false, done: false }], reward: 200, deadline: 5000, window: 600, tier: 1 };
     w.shops.bowl.contracts = [offer];
     const taken = botOrders(w, 'surveyor').world;
     expect(taken.player.contracts.map((c) => c.id)).toEqual(['ct-survey']);
@@ -993,12 +994,12 @@ describe('the hunter', () => {
     taken.vehicles[0].pos = { ...sitePads(siteOf('bowl'))[0] };
     const paid = botOrders(taken, 'surveyor').world;
     expect(paid.player.contracts).toEqual([]);
-    expect(paid.player.money).toBe(taken.player.money + 20000);
+    expect(paid.player.money).toBe(taken.player.money + 200);
   });
 
   it('has a climber buy a gun toward hunting while still earning by trade', () => {
     const w = parkedAt('bowl');
-    w.player.money = 300000;
+    w.player.money = 3000;
     w.shops.bowl.stock = [makePart(w, 'mg', 0)];
     const before = mountedParts(playerVehicle(w), 'weapon').length;
 
@@ -1010,7 +1011,7 @@ describe('the hunter', () => {
 
   it('has a climber trade before taking a haul when it is building its weapons', () => {
     const w = saltGlut(parkedAt('nose'));
-    w.shops.nose.contracts = [{ id: 'ct-haul', shop: 'nose', kind: 'haul', good: 'scrap', units: 3, to: 'bowl', reward: 600, deadline: 5000, window: 600, rush: false, tier: 2 }];
+    w.shops.nose.contracts = [{ id: 'ct-haul', shop: 'nose', kind: 'haul', good: 'scrap', units: 3, to: 'bowl', reward: 6, deadline: 5000, window: 600, rush: false, tier: 2 }];
 
     const turn = botOrders(w, 'climber');
 
@@ -1147,7 +1148,7 @@ describe('the hunter', () => {
     const me = playerVehicle(w);
     addGoods(w, me, 'scrap', 100);
     const units = goodsCount(me).scrap;
-    w.player.contracts = [{ id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'scrap', units, to: 'nose', reward: 600, deadline: 5000, window: 600, rush: false, tier: 2 }];
+    w.player.contracts = [{ id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'scrap', units, to: 'nose', reward: 6, deadline: 5000, window: 600, rush: false, tier: 2 }];
     expect(freeCells(me)).toBe(0);
 
     expect(playerVehicle(botOrders(w, 'hunter').world).order).not.toBeNull();
@@ -1205,7 +1206,7 @@ describe('the hunter', () => {
   it('has a bot in town top up its repair parts to the standard kit stock before buying gear', () => {
     const w = parkedAt('bowl');
     const me = playerVehicle(w);
-    w.player.money = 2000;
+    w.player.money = 20;
     removeAllGoods(me);
     const want = START_KITS.standard.cargo.parts ?? 0;
     expect(want).toBeGreaterThan(0);
@@ -1450,8 +1451,8 @@ describe('haulMarginAt', () => {
 
   it('grows with the money and room of the load', () => {
     const w = robberWorld();
-    expect(haulMarginAt(w, 66667, 20)).toBeGreaterThan(haulMarginAt(w, 6667, 20));
-    expect(haulMarginAt(w, 66667, 20)).toBeGreaterThan(haulMarginAt(w, 66667, 2));
+    expect(haulMarginAt(w, 667, 20)).toBeGreaterThan(haulMarginAt(w, 67, 20));
+    expect(haulMarginAt(w, 667, 20)).toBeGreaterThan(haulMarginAt(w, 667, 2));
   });
 });
 
@@ -1489,7 +1490,7 @@ describe('the procurer bot', () => {
     removeAllGoods(me);
     me.speed = 0;
     w.player.discovered = ['granary', 'dustwell'];
-    w.shops.granary.contracts = [{ id: 'ct-p', shop: 'granary', kind: 'procure', good: 'water', units: 4, cratePay: 900, reward: 9000, deadline: 900, window: 600, tier: 1 }];
+    w.shops.granary.contracts = [{ id: 'ct-p', shop: 'granary', kind: 'procure', good: 'water', units: 4, cratePay: 9, reward: 90, deadline: 900, window: 600, tier: 1 }];
     const seen: GameEvent[] = [];
     for (let i = 0; i < 160 && !seen.some((e) => e.t === 'contract' && e.outcome === 'done'); i++) {
       const turn = botOrders(w, 'procurer', { noGear: true });
@@ -1499,7 +1500,7 @@ describe('the procurer bot', () => {
     }
     const outcomes = seen.flatMap((e) => (e.t === 'contract' && e.contract.id === 'ct-p' ? [e.outcome] : []));
     expect([...new Set(outcomes)]).toEqual(['accepted', 'done']);
-    expect(seen).toContainEqual({ t: 'money', amount: 9000, reason: { kind: 'contract' } });
+    expect(seen).toContainEqual({ t: 'money', amount: 90, reason: { kind: 'contract' } });
   });
 });
 

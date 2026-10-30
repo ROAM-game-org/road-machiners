@@ -40,7 +40,6 @@ import type { World, XpSource } from "../sim/types";
 import { devEl, el, panel } from "./dom";
 import { partName, perkName } from "../text/names";
 import { resolve } from "../text/resolve";
-import { UNITS } from "../data/units";
 import { moneyText } from "./units";
 import { toggleSeeAll } from "./see-all";
 
@@ -98,10 +97,9 @@ function setter(name: string, help: string, set: (world: World, n: number) => Wo
 
 function moneySetter(): Command {
   return command("money <n>", "Set money in M.", { min: 1, max: 1 }, (world, [text], usage) => {
-    const cents = parseNumber(text, usage) * UNITS.centsPerM;
-    const whole = Math.round(cents);
-    if (Math.abs(cents - whole) > 1e-6) throw new CheatError(`Money takes at most two decimals, got ${text}`);
-    return changed(setMoney(world, whole), `money set to ${moneyText(whole)}`);
+    const amount = parseNumber(text, usage);
+    if (!Number.isInteger(amount)) throw new CheatError(`Money takes whole M, got ${text}`);
+    return changed(setMoney(world, amount), `money set to ${moneyText(amount)}`);
   });
 }
 

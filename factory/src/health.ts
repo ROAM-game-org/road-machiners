@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, renameSync, statfsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -15,7 +16,17 @@ export function requireAgyLogin(home: string): string {
   return file;
 }
 
-export type Health = { at: string; freeGb: number; minFreeGb: number; availableGb: number | null; minAvailableGb: number };
+export function systemdMemoryMax(slice: string): string {
+  return execFileSync('systemctl', ['show', slice, '--property', 'MemoryMax', '--value'], { encoding: 'utf8', timeout: 10_000 }).trim();
+}
+
+export function requireCappedSlice(slice: string | null, memoryMax: (slice: string) => string = systemdMemoryMax): void {
+  if (slice === null) return;
+  const max = memoryMax(slice);
+  if (!/^\d+$/.test(max)) throw new Error(`${slice} has MemoryMax "${max}", so job containers have no memory cap. Run infra/deploy/deploy.py, which installs the slice with FACTORY_JOBS_MEMORY_GB.`);
+}
+
+export type Health ={ at: string; freeGb: number; minFreeGb: number; availableGb: number | null; minAvailableGb: number };
 
 export function freeGb(path: string): number {
   const stats = statfsSync(path);

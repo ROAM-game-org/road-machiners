@@ -13,7 +13,7 @@ function reload(w: World): World {
   return loadWorld(slots, 'auto', TEST_MAP)!;
 }
 
-const order: Contract = { id: 'ct-procure', shop: 'bowl', kind: 'procure', good: 'salt', units: 5, cratePay: 900, reward: 9000, deadline: 800, window: 700, tier: 1 };
+const order: Contract = { id: 'ct-procure', shop: 'bowl', kind: 'procure', good: 'salt', units: 5, cratePay: 9, reward: 90, deadline: 800, window: 700, tier: 1 };
 
 describe('supply orders across a save', () => {
   it('loads a held order and its withheld good the same, and awards nothing', () => {

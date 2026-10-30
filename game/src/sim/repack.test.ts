@@ -66,6 +66,15 @@ describe('repackWith', () => {
     }
   });
 
+  it('keeps a repacked gun out of the barrel lanes of the guns beside it', () => {
+    const w = emptyWorld();
+    const v = bare(w, 'courier');
+    for (const [defId, x, y, rot] of [['flamer', 1, 4, 0], ['harpoon', 2, 4, 2]] as const) v.items.push({ id: defId, kind: 'part', x, y, rot, part: makePart(w, defId, 0) });
+    const after = repackWith(v, loose(w, 'mg'), () => true, new Map());
+    expect(after).not.toBeNull();
+    legal(after!);
+  });
+
   it('honors the accept test', () => {
     const w = emptyWorld();
     const v = bare(w, 'hauler');
