@@ -1,8 +1,7 @@
 import type { TruckPaint } from "../data/chassis";
 import { isShield, partDef } from "../data/parts";
 import { PX_PER_METER } from "../three/render/portraitPixels";
-import { spanOf } from "../sim/body";
-import { baseGrid } from "../sim/grid";
+import { bodyRows, cellSteps } from "../sim/body";
 import type { Vehicle } from "../sim/types";
 import { chassisSize, type Glow, type Portrait, type TruckPortraits } from "../three/render/truckPortrait";
 import { bindAttr, unbindAttr } from "../text/language";
@@ -187,8 +186,8 @@ export class TruckConditionView {
     this.aim = aim;
     this.parts = this.readout.update(vehicle);
     const drawn = portrait ? this.parts.filter((part) => portrait.has(part.id)) : [];
-    const rows = baseGrid(vehicle.chassisId).h;
-    this.scale = CELL / (PX_PER_METER * ((2 * spanOf(vehicle.chassisId).half.x) / rows));
+    const rows = bodyRows(vehicle.chassisId);
+    this.scale = CELL / (PX_PER_METER * cellSteps(vehicle.chassisId).row);
     if (this.maxRows !== null) this.root.style.zoom = String(Math.min(1, this.maxRows / rows));
     this.size = portrait ?? chassisSize(vehicle.chassisId);
     this.stage.style.width = `${this.size.width * this.scale}px`;

@@ -5,6 +5,7 @@ import { RULES } from './rules';
 import { START_KITS } from './start';
 import { SUNWARD } from './sunward';
 import { BOUNTY } from './market';
+import { CRATE_MASS } from './goods';
 
 export const NPC_RESOURCES = {
   money: START_KITS.standard.money,
@@ -176,7 +177,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: "heavyFrame", weight: 1 },
     ],
     goods: NO_GOODS,
-    haul: { kg: 0, cells: 0 },
+    haul: { kg: CRATE_MASS, cells: 1 },
     minSpeed: MIN_NPC_SPEED,
     spares: TRADER_SPARES,
   },

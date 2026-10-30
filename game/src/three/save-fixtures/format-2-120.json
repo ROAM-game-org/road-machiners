@@ -1,9 +1,375 @@
 {
-  "turn": 2400,
-  "setup": { "mode": "roaming" },
-  "chaosHighway": null,
-  "player": { "money": 900 },
-  "vehicles": [
-    { "id": "v1", "pos": { "x": 100, "y": 100 }, "job": null }
+ "turn": 10,
+ "player": {
+  "vehicleId": "s1",
+  "storage": [
+   {
+    "id": "p-stock-ram",
+    "defId": "ram",
+    "hp": 50,
+    "wear": 0
+   }
   ]
+ },
+ "salvage": [
+  {
+   "id": "st1",
+   "parts": [
+    {
+     "id": "p-stock-ram",
+     "defId": "ram",
+     "hp": 50,
+     "wear": 0
+    }
+   ]
+  }
+ ],
+ "vehicles": [
+  {
+   "id": "s1",
+   "chassisId": "scout",
+   "items": [
+    {
+     "id": "ram",
+     "x": 2,
+     "y": 0,
+     "rot": 0,
+     "kind": "part",
+     "part": {
+      "id": "p-ram",
+      "defId": "ram",
+      "hp": 50,
+      "wear": 0
+     }
+    },
+    {
+     "id": "plateL",
+     "x": 0,
+     "y": 2,
+     "rot": 0,
+     "kind": "part",
+     "part": {
+      "id": "p-plateL",
+      "defId": "steelPlate",
+      "hp": 50,
+      "wear": 0
+     }
+    },
+    {
+     "id": "spike",
+     "x": 2,
+     "y": 7,
+     "rot": 0,
+     "kind": "part",
+     "part": {
+      "id": "p-spike",
+      "defId": "spikeCluster",
+      "hp": 50,
+      "wear": 0
+     }
+    },
+    {
+     "id": "crateF",
+     "x": 3,
+     "y": 0,
+     "rot": 0,
+     "kind": "good",
+     "good": "salt"
+    },
+    {
+     "id": "spare",
+     "x": 2,
+     "y": 0,
+     "rot": 0,
+     "kind": "part",
+     "part": {
+      "id": "p-spare",
+      "defId": "stockEngine",
+      "hp": 50,
+      "wear": 0
+     }
+    },
+    {
+     "id": "mg",
+     "x": 3,
+     "y": 3,
+     "rot": 0,
+     "kind": "part",
+     "part": {
+      "id": "p-mg",
+      "defId": "mg",
+      "hp": 50,
+      "wear": 0
+     }
+    },
+    {
+     "id": "crateIn",
+     "x": 1,
+     "y": 5,
+     "rot": 0,
+     "kind": "good",
+     "good": "scrap"
+    },
+    {
+     "id": "crateB",
+     "x": 4,
+     "y": 7,
+     "rot": 0,
+     "kind": "good",
+     "good": "scrap"
+    }
+   ],
+   "job": {
+    "kind": "refit",
+    "turnsLeft": 2,
+    "total": 3,
+    "moves": [
+     {
+      "itemId": "plateL",
+      "from": {
+       "x": 0,
+       "y": 2,
+       "rot": 0
+      },
+      "to": {
+       "x": 0,
+       "y": 3,
+       "rot": 0
+      }
+     }
+    ],
+    "pickup": {
+     "from": "stock",
+     "stockId": "st1",
+     "partId": "p-stock-ram",
+     "itemId": "newRam",
+     "to": {
+      "x": 3,
+      "y": 7,
+      "rot": 0
+     }
+    },
+    "queue": [
+     {
+      "moves": [
+       {
+        "itemId": "crateF",
+        "from": {
+         "x": 3,
+         "y": 0,
+         "rot": 0
+        },
+        "to": {
+         "x": 3,
+         "y": 6,
+         "rot": 0
+        }
+       }
+      ],
+      "pickup": {
+       "from": "truck",
+       "vehicleId": "s1",
+       "partId": "p-spike",
+       "itemId": "spike",
+       "to": {
+        "x": 1,
+        "y": 0,
+        "rot": 0
+       }
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "h1",
+   "chassisId": "hauler",
+   "items": [
+    {
+     "id": "bedCrate",
+     "x": 1,
+     "y": 9,
+     "rot": 0,
+     "kind": "good",
+     "good": "salt"
+    },
+    {
+     "id": "bedBox",
+     "x": 0,
+     "y": 10,
+     "rot": 0,
+     "kind": "part",
+     "part": {
+      "id": "p-bedBox",
+      "defId": "trailerBox",
+      "hp": 50,
+      "wear": 0
+     }
+    },
+    {
+     "id": "front",
+     "x": 4,
+     "y": 0,
+     "rot": 0,
+     "kind": "part",
+     "part": {
+      "id": "p-front",
+      "defId": "ram",
+      "hp": 50,
+      "wear": 0
+     }
+    },
+    {
+     "id": "nose",
+     "x": 5,
+     "y": 0,
+     "rot": 0,
+     "kind": "good",
+     "good": "salt"
+    }
+   ],
+   "job": null
+  },
+  {
+   "id": "m1",
+   "chassisId": "semi",
+   "items": [
+    {
+     "id": "tailPlate",
+     "x": 3,
+     "y": 28,
+     "rot": 1,
+     "kind": "part",
+     "part": {
+      "id": "p-tailPlate",
+      "defId": "plates",
+      "hp": 50,
+      "wear": 0
+     }
+    },
+    {
+     "id": "midPlate",
+     "x": 0,
+     "y": 12,
+     "rot": 0,
+     "kind": "part",
+     "part": {
+      "id": "p-midPlate",
+      "defId": "plates",
+      "hp": 50,
+      "wear": 0
+     }
+    },
+    {
+     "id": "hood",
+     "x": 3,
+     "y": 0,
+     "rot": 0,
+     "kind": "part",
+     "part": {
+      "id": "p-hood",
+      "defId": "ram",
+      "hp": 50,
+      "wear": 0
+     }
+    },
+    {
+     "id": "c1",
+     "x": 2,
+     "y": 28,
+     "rot": 0,
+     "kind": "good",
+     "good": "salt"
+    }
+   ],
+   "job": null
+  },
+  {
+   "id": "o1",
+   "chassisId": "sorokonoga",
+   "items": [
+    {
+     "id": "f",
+     "x": 2,
+     "y": 0,
+     "rot": 0,
+     "kind": "part",
+     "part": {
+      "id": "p-f",
+      "defId": "ram",
+      "hp": 50,
+      "wear": 0
+     }
+    },
+    {
+     "id": "b",
+     "x": 4,
+     "y": 15,
+     "rot": 0,
+     "kind": "part",
+     "part": {
+      "id": "p-b",
+      "defId": "plowRam",
+      "hp": 50,
+      "wear": 0
+     }
+    },
+    {
+     "id": "g",
+     "x": 2,
+     "y": 7,
+     "rot": 0,
+     "kind": "part",
+     "part": {
+      "id": "p-g",
+      "defId": "mg",
+      "hp": 50,
+      "wear": 0
+     }
+    },
+    {
+     "id": "l",
+     "x": 0,
+     "y": 1,
+     "rot": 0,
+     "kind": "part",
+     "part": {
+      "id": "p-l",
+      "defId": "steelPlate",
+      "hp": 50,
+      "wear": 0
+     }
+    }
+   ],
+   "job": null
+  },
+  {
+   "id": "r1",
+   "chassisId": "retiredCar",
+   "items": [
+    {
+     "id": "x",
+     "x": 1,
+     "y": 0,
+     "rot": 0,
+     "kind": "good",
+     "good": "salt"
+    },
+    {
+     "id": "y",
+     "x": 2,
+     "y": 3,
+     "rot": 0,
+     "kind": "part",
+     "part": {
+      "id": "p-y",
+      "defId": "mg",
+      "hp": 50,
+      "wear": 0
+     }
+    }
+   ],
+   "job": null
+  }
+ ]
 }

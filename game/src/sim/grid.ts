@@ -248,7 +248,7 @@ export function goodsCount(v: Vehicle): Record<string, number> {
 }
 
 function isSkin(cell: Cell | null): boolean {
-  return cell === 'L' || cell === 'R';
+  return cell === 'F' || cell === 'B' || cell === 'L' || cell === 'R';
 }
 
 const cellCounts = new WeakMap<Grid, number>();

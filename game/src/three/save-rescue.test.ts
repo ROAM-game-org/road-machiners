@@ -11,6 +11,7 @@ import { carriesOnLoad, loadWorld, namedSteps, SaveError, saveOf, savedRunId } f
 import { memoryBackend, SaveSlots } from './save-db';
 import { RELEASE_STEPS, TINY_FROM, TINY_STEPS, type NamedStep, type ReleaseStep, type SavedJson } from './save-migrations';
 import { carriedSave, readCarried, rescueSave } from './save-rescue';
+import FORMAT_2_120 from './save-fixtures/format-2-120.json';
 import FORMAT_2_0 from './save-fixtures/format-2-0.json';
 import FORMAT_2_1 from './save-fixtures/format-2-1.json';
 import FORMAT_2_9 from './save-fixtures/format-2-9.json';
@@ -125,6 +126,12 @@ describe('readCarried', () => {
     expect(readCarried(junk[8]).perks).toEqual(['rebuild']);
     expect(readCarried(junk[8]).money).toBeNull();
     expect(readCarried(junk[3]).truck).toBeNull();
+  });
+
+  it('moves the rows of a truck from before format 2.125 onto the outside armor rows, and leaves a newer truck alone', () => {
+    const rows = (minor: number) => readCarried({ format: { major: 2, minor }, world: FORMAT_2_120 }).truck!.items.map((it) => it.y);
+    expect(rows(124)).toEqual([0, 3, 9, 1, 1, 4, 6, 8]);
+    expect(rows(125)).toEqual([0, 2, 7, 0, 0, 3, 5, 7]);
   });
 
   it('drops items with float coordinates and keeps a debt', () => {

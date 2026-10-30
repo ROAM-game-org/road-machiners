@@ -1,6 +1,6 @@
 import { RULES } from '../data/rules';
 import { PHYSICS } from '../data/physics';
-import { cellCenter, cellRect, spanOf, unitOfRow, unitsOf, type CellRect } from './body';
+import { cellCenter, cellRect, cellSteps, spanOf, unitOfRow, unitsOf, type CellRect } from './body';
 import { footprint, nearestUnit, poseToWorld, sideReach, unitPose, worldToPose, type UnitPose } from './rig';
 
 import { isShield, partDef, type PartDef } from '../data/parts';
@@ -122,6 +122,13 @@ function isCab(def: PartDef): boolean {
 
 type Local = { fwd: number; right: number };
 
+function alongRow(chassisId: string, lane: number): number {
+  const { half } = spanOf(chassisId);
+  if (lane <= 0) return half.x;
+  if (lane >= baseGrid(chassisId).h - 1) return -half.x;
+  return half.x - (lane - 0.5) * cellSteps(chassisId).row;
+}
+
 function laneFace(v: Vehicle, side: Side, lane: number): { unit: number; at: Local } {
   const { center, half } = spanOf(v.chassisId);
   const n = laneCount(v, side);
@@ -132,8 +139,8 @@ function laneFace(v: Vehicle, side: Side, lane: number): { unit: number; at: Loc
   switch (side) {
     case 'front': return face(0, center + half.x, (across * 2 - 1) * half.z);
     case 'rear': return face(all.length - 1, center - half.x, (across * 2 - 1) * half.z);
-    case 'left': return face(row(), center + (1 - across * 2) * half.x, -half.z);
-    case 'right': return face(row(), center + (1 - across * 2) * half.x, half.z);
+    case 'left': return face(row(), center + alongRow(v.chassisId, lane), -half.z);
+    case 'right': return face(row(), center + alongRow(v.chassisId, lane), half.z);
   }
 }
 

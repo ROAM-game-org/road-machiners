@@ -6,6 +6,7 @@ import { GANG_PAINT, TEMPLATE_PAINT } from '../render/palette';
 import { CHAOS_HIGHWAY } from './modes';
 import { NPCS } from './npcs';
 import { PARTS, partDef } from './parts';
+import { bareGrid, cellCount } from '../sim/grid';
 
 type Cell = { x: number; y: number };
 
@@ -73,7 +74,17 @@ const NO_DECK_BLOCK: Record<string, string> = {
   scout: 'A cab clear of the wheels on 5 columns leaves only single deck columns.',
 };
 
-const RATED_MASS = 3840;
+const RATED_MASS_BEFORE_RING = {
+  scout: 3840, hauler: 7590, buggy: 3280, wagon: 6990, courier: 3750, van: 4790, longbed: 8930, carrier: 7620, tractor: 8460,
+  jeep: 3920, convertible: 4440, bus: 9010, loader: 9060, niva: 4410, bukhanka: 5360, lincoln: 5540, semi: 16430, sorokonoga: 10800,
+};
+
+const CARGO_CELLS_BEFORE_RING = {
+  scout: 47, hauler: 81, buggy: 40, wagon: 63, courier: 45, van: 45, longbed: 104, carrier: 63, tractor: 63,
+  jeep: 45, convertible: 45, bus: 84, loader: 63, niva: 50, bukhanka: 50, lincoln: 55, semi: 203, sorokonoga: 112,
+};
+
+const RING_CELLS_ADDED = 4;
 
 const columns = (cells: Cell[]) => new Set(cells.map((cell) => cell.x));
 
@@ -131,21 +142,21 @@ describe('chassis grids', () => {
     expect(Object.fromEntries(Object.entries(CHASSIS).map(([id, c]) => [id, c.value]))).toEqual(VALUES);
   });
 
-  it('keeps the scout worth what it was before its cab moved', () => {
-    expect(CHASSIS.scout.value).toBe(814.67);
-    expect(CHASSIS.scout.ratedMass).toBe(RATED_MASS);
+  it('rates every chassis at the old mass plus tier 1 armor for its four new side cells', () => {
+    const ring = RING_CELLS_ADDED * 100;
+    expect(Object.fromEntries(Object.entries(CHASSIS).map(([id, c]) => [id, c.ratedMass - ring]))).toEqual(RATED_MASS_BEFORE_RING);
   });
 
-  it('keeps the scout grid the same size with the same cells', () => {
-    const before = [' FFFFF ', 'LXEEDXR', 'LXEEDXR', 'LXXXDDR', 'LXXXDDR', 'LXXXXXR', 'LXXXXXR', ' BBBBB '];
-    const count = (rows: readonly string[]) => {
-      const n: Record<string, number> = {};
-      for (const ch of rows.join('')) n[ch] = (n[ch] ?? 0) + 1;
-      return n;
-    };
-    expect(CHASSIS.scout.layout.length).toBe(before.length);
-    expect(CHASSIS.scout.layout.every((row) => row.length === before[0].length)).toBe(true);
-    expect(count(CHASSIS.scout.layout)).toEqual(count(before));
+  it('keeps the cargo room of every chassis', () => {
+    const now = Object.fromEntries(Object.keys(CHASSIS).map((id) => [id, cellCount(bareGrid(id))]));
+    expect(now).toEqual(CARGO_CELLS_BEFORE_RING);
+  });
+
+  it('gives the scout a free front and back row that hold cargo beside side armor', () => {
+    const rows = CHASSIS.scout.layout;
+    expect(rows.length).toBe(10);
+    expect(rows[1]).toBe('L.....R');
+    expect(rows[rows.length - 2]).toBe('L.....R');
   });
 
   it('keeps every armor column outside the model and every armor row full width', () => {
