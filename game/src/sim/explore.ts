@@ -1,6 +1,7 @@
 import { EXPLORE } from '../data/npcs';
 import { REGION } from '../data/region';
 import type { AtlasKey } from './atlas';
+import { onBeat } from './npc-decisions';
 import { sampleWeighted } from './npc-loadout';
 import { ROAD_INDEX } from './road-index';
 import { oldSpotPicks, oldStockId } from './salvage';
@@ -38,7 +39,7 @@ export function explorePlaces(map: ExploreMap): readonly ExplorePlace[] {
 export function explorePlace(world: World, vehicle: Vehicle): ExplorePlace | null {
   const near = explorePlaces({ hash: world.mapHash, terrain: world.terrain }).filter((p) => {
     const gap = dist(vehicle.pos, p.pos);
-    return gap >= EXPLORE.minHop && gap <= EXPLORE.range;
+    return gap >= EXPLORE.minHop && gap <= EXPLORE.range && onBeat(vehicle, p.pos);
   });
   if (near.length === 0) return null;
   return sampleWeighted(world, near.map((value) => ({ value, weight: Math.min(value.roadGap, EXPLORE.gapCap) + 1 })));
