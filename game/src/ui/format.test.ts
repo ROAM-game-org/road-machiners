@@ -133,7 +133,7 @@ describe("conditionStatus", () => {
 });
 
 describe("contract text", () => {
-  const order: Contract = { id: "c1", shop: "bowl", kind: "procure", good: "salt", units: 5, cratePay: 900, reward: 100, deadline: 100, window: 100, tier: 1 };
+  const order: Contract = { id: "c1", shop: "bowl", kind: "procure", good: "salt", units: 5, cratePay: 9, reward: 1, deadline: 100, window: 100, tier: 1 };
 
   it("shows the deadline as the game time the contract fails", () => {
     expect(en(contractDue(order))).toBe("by Day 1 12:19");
@@ -146,9 +146,9 @@ describe("contract text", () => {
 
   it("logs a collected bounty when the player's truck collected it", () => {
     const w = emptyWorld();
-    const line = eventText(w, { t: "bountyClosed", case: "k1", target: "gone", status: "collected", amount: 5500, collector: w.player.vehicleId })!;
+    const line = eventText(w, { t: "bountyClosed", case: "k1", target: "gone", status: "collected", amount: 55, collector: w.player.vehicleId })!;
     expect([en(line.text), line.cls]).toEqual(["You collect the bounty on a driver: 55 M's", "good"]);
-    expect(eventText(w, { t: "bountyClosed", case: "k1", target: "gone", status: "collected", amount: 5500, collector: "marshal-1" })).toBeNull();
+    expect(eventText(w, { t: "bountyClosed", case: "k1", target: "gone", status: "collected", amount: 55, collector: "marshal-1" })).toBeNull();
   });
 
   it("tells the player nothing when a claim is filed against them, in the log or a toast", () => {
@@ -161,7 +161,7 @@ describe("contract text", () => {
   describe("search", () => {
     const search: Contract = {
       id: "c3", shop: "bowl", kind: "search", target: "v1", driver: "Jed Cobb", template: "trader",
-      lead: { at: { x: 1, y: 1 }, turn: 0 }, reward: 9200, deadline: 100, window: 100, tier: 1, delivered: false,
+      lead: { at: { x: 1, y: 1 }, turn: 0 }, reward: 92, deadline: 100, window: 100, tier: 1, delivered: false,
     };
 
     it("names who gets the parcel and where to claim", () => {
@@ -189,7 +189,7 @@ describe("contract text", () => {
   });
 
   describe("a rescue", () => {
-    const rescue: Extract<Contract, { kind: "rescue" }> = { id: "c9", shop: "bowl", kind: "rescue", client: "v5", driver: "Jed Cobb", need: "fuel", area: { x: 0, y: 0 }, reward: 100, deadline: 100, window: 100, tier: 1, fulfilled: false };
+    const rescue: Extract<Contract, { kind: "rescue" }> = { id: "c9", shop: "bowl", kind: "rescue", client: "v5", driver: "Jed Cobb", need: "fuel", area: { x: 0, y: 0 }, reward: 1, deadline: 100, window: 100, tier: 1, fulfilled: false };
 
     it("names the driver, and reads as ready to claim once met", () => {
       expect(en(contractSummary(rescue))).toBe("Rescue Jed Cobb");
@@ -218,7 +218,7 @@ describe("contract text", () => {
   it("says where a claimed part lies from the posting shop, and in which territory", () => {
     const orchard = REGION.locations.find((l) => l.id === "orchard")!;
     const shop = REGION.towns.find((l) => l.id === "bowl")!;
-    const claim: Contract = { id: "c4", shop: "bowl", kind: "claim", stockId: "armyTruck-1", at: { ...orchard.pos }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
+    const claim: Contract = { id: "c4", shop: "bowl", kind: "claim", stockId: "armyTruck-1", at: { ...orchard.pos }, partId: "p1", defId: "mg", reward: 1, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
     const text = en(contractSummary(claim));
     expect(text.startsWith("Recover MG turret from an army truck ")).toBe(true);
     expect(text).toContain(" of Bowl, about ");
@@ -228,7 +228,7 @@ describe("contract text", () => {
 
   it("names the wreck kind, a compass point and a rounded distance in the clue", () => {
     const shop = REGION.towns.find((l) => l.id === "bowl")!;
-    const claim: Contract = { id: "c5", shop: "bowl", kind: "claim", stockId: "tank-3", at: { x: shop.pos.x + 300, y: shop.pos.y - 10 }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
+    const claim: Contract = { id: "c5", shop: "bowl", kind: "claim", stockId: "tank-3", at: { x: shop.pos.x + 300, y: shop.pos.y - 10 }, partId: "p1", defId: "mg", reward: 1, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
     expect(gridSquareOf(claim.at)).toEqual({ column: 4, row: 6 });
     expect(en(contractSummary(claim))).toBe("Recover MG turret from a dead tank in square E7, east of Bowl, about 1.3 km out");
     expect(resolve(contractSummary(claim), "ru")).toContain("в квадрате Д7,");
@@ -239,7 +239,7 @@ describe("contract text", () => {
     const wrecks = claimWrecks(world);
     const claimAt = (id: string, shop: string): ClaimContract => {
       const wreck = wrecks.find((w) => w.id === id)!;
-      return { id: "cw", shop, kind: "claim", stockId: id, at: { ...wreck.pos }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
+      return { id: "cw", shop, kind: "claim", stockId: id, at: { ...wreck.pos }, partId: "p1", defId: "mg", reward: 1, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
     };
     expect(en(contractSummary(claimAt("hullCache-2599", "nose")))).toMatch(/ in Fallen Sun, inside the small arch shell$/);
     const offset = wrecks.find((w) => bakedTier(w.id, "bowl") === "offset" && claimClue(claimAt(w.id, "bowl")).where?.piece === "farmhouse")!;
@@ -252,7 +252,7 @@ describe("contract text", () => {
     const w = emptyWorld();
     const rival = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 40, y: 40 });
     rival.brain = npcBrain("scavenger", rival.pos, ["scavenger"]);
-    const claim: Contract = { id: "c6", shop: "bowl", kind: "claim", stockId: "tank-3", at: { x: 90, y: 40 }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: rival.id, leads: [] };
+    const claim: Contract = { id: "c6", shop: "bowl", kind: "claim", stockId: "tank-3", at: { x: 90, y: 40 }, partId: "p1", defId: "mg", reward: 1, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: rival.id, leads: [] };
     w.player.contracts = [claim];
     const sent = eventText(w, { t: "claimRival", contract: claim.id, vehicle: rival.id })!;
     expect([en(sent.text), sent.cls]).toEqual(["Bowl sent Jed Cobb after the MG turret too", "bad"]);
@@ -264,13 +264,13 @@ describe("contract text", () => {
   });
 
   it("starts a rush haul's summary with Rush and leaves a standard haul plain", () => {
-    const haul: Contract = { id: "c3", shop: "bowl", kind: "haul", good: "salt", units: 3, to: "nose", reward: 100, deadline: 100, window: 100, rush: false, tier: 1 };
+    const haul: Contract = { id: "c3", shop: "bowl", kind: "haul", good: "salt", units: 3, to: "nose", reward: 1, deadline: 100, window: 100, rush: false, tier: 1 };
     expect(en(contractSummary(haul)).startsWith("Haul 3")).toBe(true);
     expect(en(contractSummary({ ...haul, rush: true })).startsWith("Rush: Haul 3")).toBe(true);
   });
 
   it("counts a haul in crates", () => {
-    const haul: Contract = { id: "c4", shop: "bowl", kind: "haul", good: "salt", units: 5, to: "nose", reward: 100, deadline: 100, window: 100, rush: false, tier: 1 };
+    const haul: Contract = { id: "c4", shop: "bowl", kind: "haul", good: "salt", units: 5, to: "nose", reward: 1, deadline: 100, window: 100, rush: false, tier: 1 };
     expect(en(contractSummary(haul))).toBe("Haul 5 crates of Salt to Nose");
     expect(en(contractSummary({ ...haul, units: 1 }))).toBe("Haul 1 crate of Salt to Nose");
   });
@@ -637,8 +637,8 @@ describe("NPC names in the log", () => {
 describe("money text", () => {
   it("reads a money event in M with its sign", () => {
     const w = emptyWorld();
-    const gain = eventText(w, { t: "money", amount: 4067, reason: { kind: "contract" } })!;
-    const loss = eventText(w, { t: "money", amount: -100, reason: { kind: "contract" } })!;
+    const gain = eventText(w, { t: "money", amount: 41, reason: { kind: "contract" } })!;
+    const loss = eventText(w, { t: "money", amount: -1, reason: { kind: "contract" } })!;
     expect([en(gain.text), gain.cls]).toEqual(["+41 M's: contract", "good"]);
     expect(loss.cls).toBe("bad");
   });
@@ -649,19 +649,19 @@ describe("tow text", () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 34, y: 30 });
     const town = REGION.towns[0].id;
-    expect(en(eventText(w, { t: "money", amount: 12000, reason: { kind: "contract" } })!.text)).toBe("+120 M's: contract");
-    expect(en(eventText(w, { t: "money", amount: -4000, reason: { kind: "contract" } })!.text)).toBe("\u221240 M's: contract");
-    expect(en(eventText(w, { t: "towOffer", by: npc.id, town, fee: 100 })!.text)).toMatch(/ for 1 M\.$/);
+    expect(en(eventText(w, { t: "money", amount: 120, reason: { kind: "contract" } })!.text)).toBe("+120 M's: contract");
+    expect(en(eventText(w, { t: "money", amount: -40, reason: { kind: "contract" } })!.text)).toBe("\u221240 M's: contract");
+    expect(en(eventText(w, { t: "towOffer", by: npc.id, town, fee: 1 })!.text)).toMatch(/ for 1 M\.$/);
   });
   it("says free for a fee of 0 and keeps the price otherwise", () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 34, y: 30 });
     const town = REGION.towns[0].id;
     expect(en(eventText(w, { t: "towOffer", by: npc.id, town, fee: 0 })?.text)).toMatch(/ for free\.$/);
-    expect(en(eventText(w, { t: "towOffer", by: npc.id, town, fee: 4000 })?.text)).toMatch(/ for 40 M's\.$/);
+    expect(en(eventText(w, { t: "towOffer", by: npc.id, town, fee: 40 })?.text)).toMatch(/ for 40 M's\.$/);
     const free = eventText(w, { t: "towDone", by: npc.id, client: w.player.vehicleId, fee: 0 })!;
     expect([en(free.text), free.cls]).toEqual([expect.stringMatching(/tows you into town for free\.$/), ""]);
-    const paid = eventText(w, { t: "towDone", by: npc.id, client: w.player.vehicleId, fee: 4067 })!;
+    const paid = eventText(w, { t: "towDone", by: npc.id, client: w.player.vehicleId, fee: 41 })!;
     expect([en(paid.text), paid.cls]).toEqual([expect.stringMatching(/takes 41 M's\.$/), "bad"]);
     const other = addVehicle(w, "independent", "buggy", ["stockEngine"], { x: 50, y: 30 });
     expect(en(eventText(w, { t: "towDone", by: npc.id, client: other.id, fee: 0 })?.text)).toMatch(/ in for free\.$/);
@@ -714,19 +714,19 @@ describe("found log", () => {
 
 describe("saleEstimate", () => {
   it("words a loss per unit against the average cost", () => {
-    const e = saleEstimate(11, 1200, 2000);
-    expect(e).toEqual({ kind: "loss", perUnit: 800, avgCost: 2000 });
+    const e = saleEstimate(11, 12, 20);
+    expect(e).toEqual({ kind: "loss", perUnit: 8, avgCost: 20 });
     expect(en(estimateText(e))).toBe("\u22128");
     expect(en(estimateTitle(e))).toBe("Avg cost 20 M's");
   });
 
   it("words a gain", () => {
-    expect(en(estimateText(saleEstimate(1, 3800, 500)))).toBe("+33");
+    expect(en(estimateText(saleEstimate(1, 38, 5)))).toBe("+33");
   });
 
   it("calls a rounded zero even, never -0", () => {
-    for (const basis of [3700, 3700.4]) {
-      const e = saleEstimate(2, 3700, basis);
+    for (const basis of [37, 37.004]) {
+      const e = saleEstimate(2, 37, basis);
       expect(e.kind).toBe("even");
       expect(en(estimateText(e))).toBe("0");
     }
@@ -745,7 +745,7 @@ describe("saleEstimate", () => {
   });
 
   it("keeps multi-digit values whole", () => {
-    expect(en(estimateText(saleEstimate(12, 98700, 123400)))).toBe("\u2212247");
+    expect(en(estimateText(saleEstimate(12, 987, 1234)))).toBe("\u2212247");
   });
 
   it("only ever gives a signed number, ? or nothing", () => {
@@ -776,8 +776,8 @@ describe("goods table words", () => {
   });
 
   it("words lot totals", () => {
-    expect(en(lotTitle("buy", 5, 180))).toBe("Buy 5 for 2 M's total");
-    expect(en(lotTitle("sell", 11, 31200))).toBe("Sell all 11 for 312 M's total");
+    expect(en(lotTitle("buy", 5, 2))).toBe("Buy 5 for 2 M's total");
+    expect(en(lotTitle("sell", 11, 312))).toBe("Sell all 11 for 312 M's total");
   });
 });
 
@@ -818,9 +818,9 @@ describe("Chaos Highway log lines", () => {
   it("tells an outpost arrival with its pay once, and the run's end", () => {
     const w = emptyWorld();
 
-    expect(logEn(w, { t: "outpostReached", milestone: 2, pay: 37000, wrecks: 3 })).toEqual({ text: "Outpost 2. You earn 370 M's for the road. 3 trucks wrecked on the way.", cls: "good" });
-    expect(logEn(w, { t: "outpostReached", milestone: 1, pay: 15000, wrecks: 0 })?.text).toBe("Outpost 1. You earn 150 M's for the road.");
-    expect(eventText(w, { t: "money", amount: 15000, reason: { kind: "outpost" } })).toBeNull();
+    expect(logEn(w, { t: "outpostReached", milestone: 2, pay: 370, wrecks: 3 })).toEqual({ text: "Outpost 2. You earn 370 M's for the road. 3 trucks wrecked on the way.", cls: "good" });
+    expect(logEn(w, { t: "outpostReached", milestone: 1, pay: 150, wrecks: 0 })?.text).toBe("Outpost 1. You earn 150 M's for the road.");
+    expect(eventText(w, { t: "money", amount: 150, reason: { kind: "outpost" } })).toBeNull();
     expect(logEn(w, { t: "runLost", stretch: 3, cause: "wrecked" })?.text).toBe("Your truck is wrecked. The run ends on stretch 3.");
     expect(logEn(w, { t: "runLost", stretch: 2, cause: "abandoned" })?.text).toBe("You end the run on stretch 2.");
   });
@@ -905,7 +905,7 @@ describe("standing numbers", () => {
 describe("survey contract text", () => {
   const [first, second] = surveySites(TEST_MAP);
   const survey = (done: boolean[]): Extract<Contract, { kind: "survey" }> => ({
-    id: "c3", shop: "bowl", kind: "survey", reward: 3000, deadline: 100, window: 100, tier: 1,
+    id: "c3", shop: "bowl", kind: "survey", reward: 30, deadline: 100, window: 100, tier: 1,
     points: [first, second].slice(0, done.length).map((site, i) => ({ site: site.id, found: done[i], done: done[i] })),
   });
 

@@ -1,6 +1,7 @@
 
 import { assignMoments, freshMoments, passMoments } from './moments';
 import { advanceCrimes, learnCasesAtDesk } from './crime';
+import { switchSetSpeed, zeroSetSpeed } from './steering';
 import { settleCrews } from './crews';
 import { CHASSIS, isPaletteId, PAINT, PAINT_SLOTS } from '../data/chassis';
 import { GOODS } from '../data/goods';
@@ -79,6 +80,7 @@ import { startStanding } from "../data/npc-behavior";
 import { driftStanding } from "./relations";
 import { advanceSunward, freshSunward, HOLLOW_ID } from "./sunward";
 import { hollowObstaclesFor } from "./hollow-layout";
+import { payoutM } from './money';
 
 export function seedStreams(seed: number): Pick<World, 'seed' | 'rngState' | 'marketRng' | 'nameRng' | 'searchRng'> {
   if (!Number.isInteger(seed)) throw new Error(`Seed must be an integer, got ${seed}`);
@@ -336,6 +338,7 @@ export function playerCommand(world: World, fn: (draft: World) => void): World {
 export function setMoveOrder(world: World, order: MoveOrder | null): World {
   return playerCommand(world, (w) => {
     if (gatesShut(w)) throw new Refused({ id: 'gatesShut' });
+    if (order?.kind === 'brake') zeroSetSpeed(playerVehicle(w));
     playerVehicle(w).order =
       order && order.kind !== "brake"
         ? {
@@ -504,6 +507,13 @@ export function setDirect(world: World, on: boolean): World {
     const me = playerVehicle(w);
     me.direct = on;
     if (on && me.order && me.order.kind !== 'brake') delete me.order.pace;
+    switchSetSpeed(me, on);
+  });
+}
+
+export function setManualSpeed(world: World, speed: number): World {
+  return playerCommand(world, (w) => {
+    playerVehicle(w).setSpeed = speed;
   });
 }
 
@@ -758,6 +768,6 @@ function placePart(world: World, truck: Vehicle, item: CarriedItem & { kind: 'pa
 
 function carryGoods(world: World, truck: Vehicle, goods: Record<string, number>, stay: boolean): void {
   for (const [good, units] of Object.entries(goods)) {
-    if (good in GOODS) world.player.money += (units - (stay ? addGoods(world, truck, good, units) : 0)) * GOODS[good].value;
+    if (good in GOODS) world.player.money += payoutM((units - (stay ? addGoods(world, truck, good, units) : 0)) * GOODS[good].value);
   }
 }

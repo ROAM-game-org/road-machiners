@@ -14,7 +14,7 @@ import { propsAroundInOrder } from '../sim/prop-index';
 import { playerVehicle } from '../sim/damage';
 import { groundSpeed, vehicleStats, type VehicleStats } from '../sim/stats';
 import { continueRoute, keepRoute, route, type KeptRoute } from '../sim/path';
-import { backsToDestination, driveMode, orderSpeed } from '../sim/steering';
+import { backsToDestination, brakeDecel, brakeImpulse, driveMode, orderSpeed, setSpeedTarget } from '../sim/steering';
 import { givesWayTo, routeBlockers, standingBlockers, yieldsToTraffic } from '../sim/ai';
 import { clearanceFor, type Clearance, type Mover } from '../sim/clearance';
 import { combatFoesOf } from '../sim/combat';
@@ -592,25 +592,26 @@ function crashTarget(other: number, owner: Map<number, string>, obstacleOf: Map<
   return owner.get(other) ?? obstacleOf.get(other) ?? (d.decks.some((c) => c.rails.includes(other) || c.lips.includes(other)) ? RAIL : EDGE);
 }
 
-type Plan = { dest: Vec | null; route: Vec[] | null; target: number; stopAt: boolean; engine: boolean; maxSteer: number; engineForce: number; brakeForce: number; stopDecel: number; clearance: Clearance | null; room: Clearance | null };
+type Plan = { dest: Vec | null; route: Vec[] | null; target: number; stopAt: boolean; engine: boolean; maxSteer: number; engineForce: number; mass: number; brakeForce: number; stopDecel: number; clearance: Clearance | null; room: Clearance | null };
 
 function planTurn(w: World, v: Vehicle, full: VehicleStats, body: RAPIER.RigidBody, order: MoveOrder | null, mem: Memory): Plan {
   const ch = chassisDef(v.chassisId);
   const speed = Math.max(0, toTilesPerTurn(forwardSpeed(body)));
   const s = fuelLimited(w, v, full, speed, order);
   const engine = s.maxSpeed > 0;
+  const set = setSpeedTarget(v, s, order);
   const base = {
     engine,
     maxSteer: T.maxSteer * (s.turnSlow / (ch.turnSlow * DEG)),
     engineForce: (full.mass * T.engineAccel * (s.accel / ch.accel)) / 2,
-    brakeForce: T.brakeForce * (ch.handlingMass / 1000),
-    stopDecel: D.stopDecel * (ch.handlingMass / full.mass),
+    mass: full.mass,
+    brakeForce: full.mass * brakeDecel(s) * DT,
+    stopDecel: Math.min(D.stopDecel * (ch.handlingMass / full.mass), brakeDecel(s)),
     clearance: null,
     room: null,
   };
-  if (!order) return { ...base, dest: null, route: null, target: idleTarget(speed), stopAt: false };
-  if (order.kind === 'brake') return { ...base, dest: null, route: null, target: 0, stopAt: false };
-  if (yieldsToTraffic(w, v)) return { ...base, dest: null, route: null, target: 0, stopAt: false };
+  if (!order) return { ...base, dest: null, route: null, target: set === undefined ? idleTarget(speed) : toMps(engine ? set : speed), stopAt: false };
+  if (order.kind === 'brake' || yieldsToTraffic(w, v)) return { ...base, dest: null, route: null, target: 0, stopAt: false };
   const blockers = routeBlockers(w, v);
   const stored = mem.route && dist(mem.route.dest, order.dest) < RULES.arriveRadius && mem.route.radius === s.radius ? continueRoute(w, v.pos, mem.route, order.dest, s.radius, blockers, v) : null;
   const path = v.direct ? null : stored ?? [...route(w, v.pos, order.dest, s.radius, blockers, v)];
@@ -620,8 +621,7 @@ function planTurn(w: World, v: Vehicle, full: VehicleStats, body: RAPIER.RigidBo
   Object.assign(mem, { clearAhead: Infinity, clearMoving: Infinity, clearBehind: Infinity, clearAt: 0, roomAt: 0, roomBack: null, roomTurn: null });
   const drive = (next: number) => toMps(engine ? next : speed);
   if (order.kind === 'stopAt') return { ...base, clearance, room, dest: stopPoint(path, order.dest), route: path, target: drive(orderSpeed(s, speed, v.pos, order, driveMode(v))), stopAt: true };
-  const next = orderSpeed(s, speed, v.pos, order, driveMode(v));
-  return { ...base, clearance, room, dest: order.dest, route: path, target: drive(next), stopAt: false };
+  return { ...base, clearance, room, dest: order.dest, route: path, target: drive(set ?? orderSpeed(s, speed, v.pos, order, driveMode(v))), stopAt: false };
 }
 
 function stopPoint(path: Vec[] | null, dest: Vec): Vec {
@@ -928,7 +928,7 @@ function applyPedals(c: Car, target: number, speed: number): void {
   const u = clamp((target - speed) * D.throttleGain + slopeThrottle(c, target, cap), -1, 1);
   const more = wantsMore(u, target);
   const pushing = plan.engine && more;
-  const brake = more ? 0 : brakeOf(plan, u, target);
+  const brake = more ? 0 : brakeOf(c, speed, target);
   const force = pushing ? u * cap : 0;
   c.holding = target === 0 && brake > 0;
   setBrakes(c, brake);
@@ -937,7 +937,7 @@ function applyPedals(c: Car, target: number, speed: number): void {
 
 function setBrakes(c: Car, brake: number): void {
   const controllers = c.rear ? [c.ctl, c.rear.ctl] : [c.ctl];
-  const perWheel = (brake * 4) / controllers.reduce((sum, ctl) => sum + ctl.numWheels(), 0);
+  const perWheel = brake / controllers.reduce((sum, ctl) => sum + ctl.numWheels(), 0);
   for (const ctl of controllers) for (let i = 0; i < ctl.numWheels(); i++) ctl.setWheelBrake(i, perWheel);
 }
 
@@ -1029,8 +1029,8 @@ function climbSine(c: Car, sign: number): number {
   return run === 0 ? 0 : along.y / run;
 }
 
-function brakeOf(plan: Plan, u: number, target: number): number {
-  return Math.abs(u) * plan.brakeForce + (target === 0 ? plan.brakeForce : 0);
+function brakeOf(c: Car, speed: number, target: number): number {
+  return brakeImpulse(c.plan.brakeForce * c.grip, c.plan.mass, speed, target);
 }
 
 function passedThrough(dest: Vec, route: Vec[] | null, mem: Memory, at: Vec, heading: number, speed: number): boolean {

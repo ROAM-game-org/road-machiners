@@ -6,15 +6,16 @@ import { RULES } from '../data/rules';
 import { unitOfCells, unitsOf } from './body';
 import { mountedMassShare } from './chassis-features';
 import { isMounted, itemCells } from './grid';
+import type { Loadout } from './loadout-memo';
 import type { GridItem, Vehicle } from './types';
 
-export function vehicleMass(v: Vehicle): number {
+export function vehicleMass(v: Loadout): number {
   let mass = chassisDef(v.chassisId).mass;
   for (const it of v.items) mass += itemMass(it);
   return mass;
 }
 
-export function loadMass(v: Vehicle): number {
+export function loadMass(v: Loadout): number {
   const share = mountedMassShare(v.chassisId);
   if (share === 1) return vehicleMass(v);
   let mass = chassisDef(v.chassisId).mass;
@@ -31,7 +32,7 @@ export function unitMasses(v: Vehicle): number[] {
   return masses;
 }
 
-export function loadFactor(v: Vehicle, extraMass = 0): number {
+export function loadFactor(v: Loadout, extraMass = 0): number {
   return loadFactorAt(v.chassisId, loadMass(v) + extraMass);
 }
 

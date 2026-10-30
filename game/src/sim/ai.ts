@@ -296,7 +296,7 @@ function inReach(shooter: Vehicle, mw: MountedWeapon, target: Vehicle): boolean 
   return gap > 0 && gap <= mw.def.range && inArc(shooter, mw, target);
 }
 
-function gunShare(weapons: MountedWeapon[], bears: (mw: MountedWeapon) => boolean): number {
+function gunShare(weapons: readonly MountedWeapon[], bears: (mw: MountedWeapon) => boolean): number {
   const working = weapons.filter((mw) => mw.part.hp > 0);
   const perTurn = (mw: MountedWeapon) => sustainedDamage(mw.def);
   const total = working.reduce((sum, mw) => sum + perTurn(mw), 0);

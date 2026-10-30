@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { count, runs, summary } from '../test/drive-by-scene';
+import { count, runs, summary, TURNS } from '../test/drive-by-scene';
+
+const BRUTE_SEEDS = Array.from({ length: 24 }, (_, i) => i + 1);
+const MOST_ENGAGED = 12;
 
 describe.each([['by day', false], ['at night', true]])('drive-by %s on the real map', (_label, night) => {
   const minTrader = night ? 3 : 5;
@@ -17,9 +20,9 @@ describe.each([['by day', false], ['at night', true]])('drive-by %s on the real 
   });
 
   it('flees or passes with outgunned from prey that outguns it', () => {
-    const results = runs('brute', night);
+    const results = runs('brute', night, TURNS, BRUTE_SEEDS);
     const wary = count(results, (r) => r.fled || r.passed.includes('outgunned'));
-    expect(count(results, (r) => r.engaged), summary(results)).toBeLessThanOrEqual(3);
-    expect(wary, summary(results)).toBeGreaterThanOrEqual(night ? 1 : 4);
+    expect(count(results, (r) => r.engaged), summary(results, BRUTE_SEEDS)).toBeLessThanOrEqual(MOST_ENGAGED);
+    expect(wary, summary(results, BRUTE_SEEDS)).toBeGreaterThanOrEqual(night ? 3 : 8);
   });
 });

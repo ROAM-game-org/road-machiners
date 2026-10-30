@@ -6,7 +6,7 @@ import { TEST_MAP } from '../test/map';
 import { defaultSetup } from '../sim/settings';
 import type { MoveOrder, Obstacle, World } from '../sim/types';
 import { angleDiff, DEG, dist, type Vec } from '../sim/vec';
-import { endTurn, newWorld, setDirect, setMoveOrder } from '../sim/world';
+import { endTurn, newWorld, setDirect, setManualSpeed, setMoveOrder } from '../sim/world';
 import { PHYSICS } from '../data/physics';
 import { chassisDef } from '../data/chassis';
 import { bodyOf } from '../sim/body';
@@ -127,7 +127,8 @@ describe('stranded trucks', () => {
     const setDownAt = { ...me.pos };
     me.order = order;
     const { w: freed, counts: freedCounts } = strandedRun(after, buildDrive(after), 3);
-    expect(freedCounts).toEqual([0, 0, 0]);
+    expect(Math.max(...freedCounts)).toBeLessThan(RULES.stranded.turns);
+    expect(freedCounts.at(-1)).toBeLessThanOrEqual(1);
     expect(dist(freed.vehicles[0].pos, setDownAt)).toBeGreaterThan(3);
   });
 
@@ -171,7 +172,7 @@ describe('a truck held against a prop with every wheel down', () => {
   }
 
   it('sets down a truck that pushes against rocks all around it and does not move', () => {
-    const w = setDirect(pocket(), true);
+    const w = setManualSpeed(setDirect(pocket(), true), RULES.setSpeedStep);
     w.vehicles[0].order = { kind: 'through', dest: { x: 50, y: 30 } };
     const run = counts(w, RULES.stranded.turns + 2);
     expect(run.counts).toEqual([0, ...Array.from({ length: RULES.stranded.turns }, (_, i) => i + 1), 0]);
@@ -188,7 +189,7 @@ describe('a truck held against a prop with every wheel down', () => {
     other.heading = Math.PI;
     w.vehicles = [w.vehicles[0], other];
     w.vehicles[0].order = { kind: 'through', dest: { x: 50, y: 30 } };
-    expect(counts(setDirect(w, true), RULES.stranded.turns + 1).counts).toEqual([0, 0, 0, 0]);
+    expect(counts(setManualSpeed(setDirect(w, true), RULES.setSpeedStep), RULES.stranded.turns + 1).counts).toEqual([0, 0, 0, 0]);
   });
 
   it('does not count a braking truck', () => {

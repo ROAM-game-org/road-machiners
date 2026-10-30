@@ -11,7 +11,7 @@ export type Gate = 'open' | 'price' | 'help' | 'closed';
 
 export type Personality = { gates: Partial<Record<TopicId, Gate>> };
 
-export const TALK_PRICE = 1000;
+export const TALK_PRICE = 10;
 
 export const PERSONALITIES: Record<PersonalityId, Personality> = {
   talkative: { gates: {} },
@@ -58,7 +58,7 @@ export const TRAIT_TALK: Record<TraitId, TraitTalk> = { ...SUNWARD_TRAIT_TALK,
   marshal: { voice: { greeting: 'marshalGreeting', repeatLine: 'marshalRepeat', refusal: 'marshalRefusal', warnOff: 'marshalWarnOff', honksBack: true }, topics: ['bountyDemand', 'payBounty', 'directions', 'lastSeen', 'roadLesson', 'tow', 'towFree', ...PARLEY] },
   trader: { voice: { greeting: 'goAhead', repeatLine: 'weAlreadyTalkedAbout', refusal: 'nothingToSayTo', warnOff: 'thisOneIsSpokenFor', honksBack: true }, topics: [...HELP, 'directions', 'lastSeen', 'parcel', 'roadLesson', 'marketNews', 'rumor', 'sunwardTalk', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', 'escortHold', 'escortGo', ...TALES, ...CHALLENGE, ...MOMENT_TALK, ...PARLEY] },
   scavenger: { voice: { greeting: 'yeahMakeItQuick', repeatLine: 'iToldYouAlready', refusal: 'getOffMyChannel', warnOff: 'thatsMyPick', honksBack: true }, topics: [...HELP, 'directions', 'lastSeen', 'parcel', 'roadLesson', 'rumor', 'sunwardTalk', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', ...TALES, 'salvageTip', ...CHALLENGE, ...MOMENT_TALK, ...PARLEY] },
-  raider: { voice: { greeting: 'getLost', repeatLine: 'getLost', refusal: 'hehNo', warnOff: 'offMyLootNow', honksBack: false }, topics: [...HELP, 'roadLesson', 'demand', 'demandCut', ...CHALLENGE, ...PARLEY] },
+  raider: { voice: { greeting: 'getLost', repeatLine: 'getLost', refusal: 'hehNo', warnOff: 'offMyLootNow', honksBack: false }, topics: [...HELP, 'demand', 'demandCut', ...CHALLENGE, ...PARLEY] },
   scumbag: { voice: null, topics: [...HELP, 'demand', 'demandCut', ...CHALLENGE, ...PARLEY] },
   coward: { voice: null, topics: [...HELP, ...PARLEY] },
   brave: { voice: null, topics: [...HELP, ...CHALLENGE, ...PARLEY] },

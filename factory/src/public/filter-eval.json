@@ -446,5 +446,21 @@
       "#601 Add an exploration minimap and maps you can buy"
     ],
     "addressed": true
+  },
+  {
+    "label": "keep",
+    "from": "game report from the #1041 armor and part hit sounds build",
+    "text": "Misses are often still too random, flying not towards enemy but in weird uniform cones",
+    "source": "comment",
+    "parent": "Different sounds for armor hits and part hits",
+    "relevance": "other"
+  },
+  {
+    "label": "keep",
+    "from": "game report on the change of a card build",
+    "text": "Armor hits and part hits still sound the same to me, I cannot tell which one I hit",
+    "source": "comment",
+    "parent": "Different sounds for armor hits and part hits",
+    "relevance": "parent"
   }
 ]

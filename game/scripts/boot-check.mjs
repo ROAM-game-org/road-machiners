@@ -154,7 +154,7 @@ async function freshGame(browser, viewport) {
   expect(values.every((v, i) => i === 0 || (v >= values[i - 1] && v - values[i - 1] <= 3)), `${viewport.name}: the bar never falls and rises by whole steps (${[...new Set(values)].join(",")})`);
   expect(stages(log).includes('Starting a new game'), `${viewport.name}: the fresh game reads "Starting a new game"`);
   expect(stages(log).includes('Reading the map'), `${viewport.name}: the map step shows its name`);
-  expect(/Loading sounds \d+ of \d+/.test(stages(log)), `${viewport.name}: sounds show a real file count`);
+  expect(!/sounds/i.test(stages(log)), `${viewport.name}: the boot screen never waits on sounds`);
   expect(await page.evaluate(() => !document.body.innerText.includes('The game crashed')), `${viewport.name}: no crash screen`);
   await shot(page, `${SHOT_PREFIX}${viewport.name}-playing.png`);
   expect(await page.evaluate(() => getComputedStyle(document.querySelector('#report .feedback')).display === 'none'), `${viewport.name}: the page report corner is hidden in play`);
@@ -296,6 +296,23 @@ async function flakyMap(browser, viewport) {
   await page.context().close();
 }
 
+async function soundsLater(browser, viewport) {
+  const errors = [];
+  const page = await open(browser, viewport, errors);
+  const held = [];
+  await page.route('**/sfx/**', (route) => held.push(route));
+  await page.goto(playUrl(url));
+  await cleared(page);
+  expect(await page.evaluate(() => !document.body.innerText.includes('The game crashed')), `${viewport.name}: held sounds show no crash screen`);
+  expect(await page.evaluate(() => performance.getEntriesByName('roam:sounds').length === 0), `${viewport.name}: the game started before any sound arrived`);
+  expect(errors.length === 0, `${viewport.name}: held sounds cause no page errors ${errors.join('; ')}`);
+  await page.unroute('**/sfx/**');
+  await Promise.all(held.map((route) => route.continue().catch(() => {})));
+  await page.waitForFunction(() => performance.getEntriesByName('roam:sounds').length > 0, null, { timeout: BOOT_LIMIT_MS });
+  expect(true, `${viewport.name}: the sounds arrive after start`);
+  await page.context().close();
+}
+
 async function failedCode(browser, viewport) {
   const page = await open(browser, viewport, []);
   await page.route('**/src/three/main.ts*', (route) => route.abort());
@@ -349,6 +366,86 @@ async function hungSaves(browser, viewport) {
   await page.goto(url);
   await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: BOOT_LIMIT_MS });
   expect(warnings.some((text) => text.includes('Saves go to local storage')), `${viewport.name}: a silent IndexedDB open falls back to local storage`);
+  await page.context().close();
+}
+
+const FIREFOX_LOST = 'A mutation operation was attempted on a database that did not allow mutations.';
+const SAVE_FAILED_TEXT = 'The game could not save.';
+
+const BREAKABLE_PUT = (message) => {
+  const put = IDBObjectStore.prototype.put;
+  IDBObjectStore.prototype.put = function (...args) {
+    if (window.__breakPut === 'once') window.__breakPut = null;
+    else if (window.__breakPut !== 'always') return put.apply(this, args);
+    throw new DOMException(message, 'InvalidStateError');
+  };
+};
+
+async function storedSlot(page, slot) {
+  return page.evaluate(async (wanted) => {
+    const names = (await indexedDB.databases()).map((d) => d.name).filter((name) => name === 'roam.save');
+    if (names.length === 0) return null;
+    const db = await new Promise((resolve, reject) => {
+      const open = indexedDB.open(names[0]);
+      open.onsuccess = () => resolve(open.result);
+      open.onerror = () => reject(open.error);
+    });
+    const envelope = await new Promise((resolve, reject) => {
+      const read = db.transaction('saves', 'readonly').objectStore('saves').get(wanted);
+      read.onsuccess = () => resolve(read.result ?? null);
+      read.onerror = () => reject(read.error);
+    });
+    db.close();
+    return envelope ? `${envelope.world?.seed}:${envelope.world?.turn}` : null;
+  }, slot);
+}
+
+const localSaves = (page) => page.evaluate(() => Object.fromEntries(Object.keys(localStorage).filter((key) => key === 'roam.save' || key.startsWith('roam.save:')).map((key) => [key, ((world) => `${world?.seed}:${world?.turn}`)(JSON.parse(localStorage.getItem(key)).world)])));
+
+async function lostDatabase(browser, viewport, breaking) {
+  const errors = [];
+  const page = await open(browser, viewport, errors);
+  const warnings = [];
+  page.on('console', (message) => message.type() === 'warning' && warnings.push(message.text()));
+  await page.addInitScript(BREAKABLE_PUT, FIREFOX_LOST);
+  await page.goto(playUrl(url));
+  await cleared(page);
+  const saved = await page.evaluate(async (mode) => {
+    window.requestAnimationFrame = () => 0;
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const slots = window.__ROAM__.saves.run.slots;
+    const failed = slots.onError;
+    window.__saveErrors = [];
+    slots.onError = (err) => {
+      window.__saveErrors.push(String(err));
+      failed(err);
+    };
+    window.__breakPut = mode;
+    window.__ROAM__.saves.menuActions(() => window.__ROAM__.state).save('slot1');
+    await window.__ROAM__.saves.run.slots.flush();
+    return `${window.__ROAM__.state.seed}:${window.__ROAM__.state.turn}`;
+  }, breaking);
+  const label = `${viewport.name}: a put that throws ${breaking === 'once' ? 'once' : 'for good'}`;
+  const hud = await page.evaluate(() => document.body.innerText);
+  expect(!hud.includes(SAVE_FAILED_TEXT), `${label} shows no save note`);
+  const saveErrors = await page.evaluate(() => window.__saveErrors);
+  expect(saveErrors.length === 0, `${label} sends no save error ${saveErrors.join('; ')}`);
+  const local = await localSaves(page);
+  if (breaking === 'once') {
+    expect((await storedSlot(page, 'slot1')) === saved, `${label} lands the save in IndexedDB on a fresh connection`);
+    expect(Object.keys(local).length === 0, `${label} leaves local storage empty ${JSON.stringify(local)} ${warnings.filter((text) => text.includes('save')).join('; ')}`);
+  } else {
+    expect(local['roam.save:slot1'] === saved, `${label} lands the save in local storage ${JSON.stringify(local)}`);
+    expect('roam.save' in local, `${label} moves the autosave to local storage too`);
+    expect(warnings.some((text) => text.includes('Saves go to local storage')), `${label} warns that saves go to local storage`);
+  }
+  await page.evaluate(() => (window.__bootLog = []));
+  await page.reload();
+  await cleared(page);
+  expect(await page.evaluate(() => `${window.__ROAM__.state.seed}:${window.__ROAM__.state.turn}`) === saved, `${label} boots the saved world ${saved} again`);
+  expect(Object.keys(await localSaves(page)).length === 0, `${label} moves local storage saves back into IndexedDB on the next boot`);
+  expect((await storedSlot(page, 'slot1')) === saved, `${label} has the save in IndexedDB after the next boot`);
+  expect(errors.length === 0, `${label} has no page errors ${errors.join('; ')}`);
   await page.context().close();
 }
 
@@ -439,12 +536,16 @@ for (const viewport of VIEWPORTS) {
   if (!only || only === 'failedMap') await inBrowser((browser) => failedMap(browser, viewport));
   if (!only || only === 'unreachable') await inBrowser((browser) => unreachable(browser, viewport));
   if (!only || only === 'flakyMap') await inBrowser((browser) => flakyMap(browser, viewport));
+  if (!only || only === 'soundsLater') await inBrowser((browser) => soundsLater(browser, viewport));
   if (!only || only === 'failedCode') await inBrowser((browser) => failedCode(browser, viewport));
   if (!only || only === 'brokenCode') {
     for (const language of ['en', 'ru']) await inBrowser((browser) => brokenCode(browser, viewport, language));
   }
   if (only === 'stalledMap') await inBrowser((browser) => stalledMap(browser, viewport));
   if (!only || only === 'hungSaves') await inBrowser((browser) => hungSaves(browser, viewport));
+  if (!only || only === 'lostDatabase') {
+    for (const breaking of ['once', 'always']) await inBrowser((browser) => lostDatabase(browser, viewport, breaking));
+  }
   if (!only || only === 'droppedModel') await inBrowser((browser) => droppedModel(browser, viewport));
   if (!only || only === 'lostModel') await inBrowser((browser) => lostModel(browser, viewport));
   if (!only || only === 'droppedWorker') await inBrowser((browser) => droppedWorker(browser, viewport));

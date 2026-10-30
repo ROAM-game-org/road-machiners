@@ -6,9 +6,9 @@ import { CLIP_TOLERANCE, cellRect, highestUnder, restOn } from '../../sim/body';
 import { baseGrid, isMounted, itemCells } from '../../sim/grid';
 import type { GridItem } from '../../sim/types';
 import { loadModels, model } from './models';
-import { baseModel, partModel } from '../../render/partLooks';
+import { baseModel, partModel, weaponLook } from '../../render/partLooks';
 import * as THREE from 'three';
-import { postColumn } from './gunStand';
+import { plateLegs, plateOf, postColumn } from './gunStand';
 import { armorPlacement } from './armorCut';
 import { footprint, standingY, weaponStand, wouldFloat } from './vehicle';
 import { budget } from '../../test/budget';
@@ -172,39 +172,72 @@ describe('placing any item on any cell', () => {
   }, budget(120_000));
 });
 
+describe('gun plate legs and braces', () => {
+  it.each(Object.keys(CHASSIS))('a gun on any cell of %s gets legs and braces that reach the body', (id) => {
+    const { w, h, cells } = baseGrid(id);
+    const mounts = [...new Set(GUNS.map((def) => weaponLook('p', def.id).mount))];
+    const problems: string[] = [];
+    for (const mount of mounts) {
+      const def = GUNS.find((d) => weaponLook('p', d.id).mount === mount) as (typeof GUNS)[number];
+      for (const rot of [0, 1] as const) {
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const item = { id: 'g', kind: 'part', x, y, rot, part: { id: 'p', defId: def.id, hp: 1, wear: 0 } } as unknown as GridItem;
+            const cs = itemCells(item);
+            if (!cs.every((c) => cells[c.y]?.[c.x] && cells[c.y][c.x] !== 'L' && cells[c.y][c.x] !== 'R')) continue;
+            const body = baseUnder(id, item);
+            const where = `${mount} rot ${rot} at ${x},${y}`;
+            try {
+              const stand = weaponStand({ chassisId: id }, item, body);
+              for (const lift of [0, 0.2, 0.8, 1.8]) {
+                const top = stand.top + lift;
+                const at = { ...stand.at, pos: stand.at.pos.clone().setY(top) };
+                plateLegs(body, plateOf(mount, cellRect(id, cs).unit, at), top, () => new THREE.Object3D());
+              }
+            } catch (e) {
+              problems.push(`${where}: ${(e as Error).message}`);
+            }
+          }
+        }
+      }
+    }
+    expect(problems).toEqual([]);
+  }, budget(120_000));
+});
+
 const UNRESTABLE: Record<string, string[]> = {
-  lincoln: ['amRifle rot 0 at 4,3', 'recoilless rot 0 at 4,3', 'battleRifle rot 0 at 4,3'],
+  lincoln: ['amRifle rot 0 at 4,4', 'recoilless rot 0 at 4,4', 'battleRifle rot 0 at 4,4'],
   convertible: [
-    'mg rot 0 at 4,3',
-    'mg rot 0 at 4,5',
-    'mg rot 1 at 4,3',
-    'shotgun rot 0 at 4,3',
-    'shotgun rot 0 at 4,5',
-    'shotgun rot 1 at 4,3',
-    'longRifle rot 0 at 4,3',
-    'longRifle rot 0 at 4,5',
-    'longRifle rot 1 at 4,3',
-    'flamer rot 0 at 4,3',
-    'flamer rot 0 at 4,5',
-    'flamer rot 1 at 4,3',
-    'slugCannon rot 0 at 4,3',
-    'slugCannon rot 0 at 4,5',
-    'slugCannon rot 1 at 4,3',
-    'heavyMg rot 0 at 4,3',
-    'heavyMg rot 0 at 4,5',
-    'heavyMg rot 1 at 4,3',
-    'amRifle rot 0 at 4,3',
+    'mg rot 0 at 4,4',
+    'mg rot 0 at 4,6',
+    'mg rot 1 at 4,4',
+    'shotgun rot 0 at 4,4',
+    'shotgun rot 0 at 4,6',
+    'shotgun rot 1 at 4,4',
+    'longRifle rot 0 at 4,4',
+    'longRifle rot 0 at 4,6',
+    'longRifle rot 1 at 4,4',
+    'flamer rot 0 at 4,4',
+    'flamer rot 0 at 4,6',
+    'flamer rot 1 at 4,4',
+    'slugCannon rot 0 at 4,4',
+    'slugCannon rot 0 at 4,6',
+    'slugCannon rot 1 at 4,4',
+    'heavyMg rot 0 at 4,4',
+    'heavyMg rot 0 at 4,6',
+    'heavyMg rot 1 at 4,4',
     'amRifle rot 0 at 4,4',
     'amRifle rot 0 at 4,5',
-    'recoilless rot 0 at 4,3',
+    'amRifle rot 0 at 4,6',
     'recoilless rot 0 at 4,4',
     'recoilless rot 0 at 4,5',
-    'battleRifle rot 0 at 4,3',
+    'recoilless rot 0 at 4,6',
     'battleRifle rot 0 at 4,4',
     'battleRifle rot 0 at 4,5',
-    'harpoon rot 0 at 4,3',
-    'harpoon rot 0 at 4,5',
-    'harpoon rot 1 at 4,3',
+    'battleRifle rot 0 at 4,6',
+    'harpoon rot 0 at 4,4',
+    'harpoon rot 0 at 4,6',
+    'harpoon rot 1 at 4,4',
   ],
 };
 

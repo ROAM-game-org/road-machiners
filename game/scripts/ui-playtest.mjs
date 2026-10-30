@@ -127,10 +127,9 @@ function checkClockSpan(m) {
 
 async function moneyCellWidth(page, whole) {
   await page.evaluate(async whole => {
-    const { UNITS } = await import('/src/data/units.ts');
     const game = window.__ROAM__;
     const world = structuredClone(game.state);
-    world.player.money = whole * UNITS.centsPerM;
+    world.player.money = whole;
     game.apply(world);
   }, whole);
   await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));

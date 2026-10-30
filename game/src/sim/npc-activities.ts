@@ -1,6 +1,7 @@
 
+import { explorePlace } from './explore';
 import { isLingerReason, lingerGoal, lingerInvalid } from './linger';
-import { NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, type DecisionOptions, type Weighted } from '../data/npcs';
+import { EXPLORE, NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, type DecisionOptions, type Weighted } from '../data/npcs';
 import { SHOPS } from '../data/market';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
@@ -18,7 +19,7 @@ import { bodyStop } from './meeting-stop';
 import { huntsOffRoad } from './hunt-style';
 import {
   tradeOffers, supplyOffers, beatGates, onBeat, decide, keepsWord, offersChoice, perceiveDanger, getKnownSite, patrolStopsOf, patrolSite, travelSitesAway,
-  huntingGroundsAway, raiderGroundsAway, isHostileContact, isWeak, huntsPrey, npcProfile, salvageSitesAway, npcSenses, usefulContacts, visibleDowned, visibleHostiles, visibleSalvage, type NpcProfile, type TradePlan,
+  huntingGroundsAway, raiderGroundsAway, isHostileContact, isWeak, huntsPrey, npcProfile, npcSenses, usefulContacts, visibleHostiles, type NpcProfile, type TradePlan,
   passReason, canStartFight, lootTaken, stockLootInvalid, truckLootInvalid, worksOnLoot, holdsOffRobbery, giveUpStrandedRobberies, forgetFullHold, noteCannotHold, noteStripped, hasSaleCargo, lootPassedUp, robbedFor, bodyCondition, givesUpUnarmed, yields, canFlee,
 } from './npc-decisions';
 import { chooseNpcRepair, continueNpcRepair, repairsHere, resolveNpcRepair } from './npc-repair';
@@ -26,21 +27,21 @@ import { getResources } from './resources';
 import { standingPressures } from './market';
 import { claimInvalid, resolveClaim } from './claim-run';
 import { remember, rememberSightings } from './memory';
-import { chance, charCodes, hashRandom, randInt, randRange } from './rng';
+import { charCodes, hashRandom, randInt, randRange } from './rng';
 import { sampleWeighted } from './npc-loadout';
-import { canLootTruck, canReachSalvage, canTakeAny, CANNOT_HOLD, CLAIMED, claimOnly, hasSalvage, isStockGoal, lootTruckTurn, searchTarget, STRIPPED, oldSpotOf, oldSpotsNear, oldStockId } from './salvage';
+import { canLootTruck, canReachSalvage, canTakeAny, CANNOT_HOLD, CLAIMED, claimOnly, hasSalvage, isStockGoal, lootTruckTurn, searchTarget, STRIPPED, oldSpotOf } from './salvage';
 import { beginSearch } from './search';
 import { onNeedySeen } from './aid';
 import { onStrangerSeen } from './encounters';
 import { vehicleById } from './damage';
 import { demandsFirst, judgeStrandedFoe, plead, warnedOff } from './parley';
 import { heldByLooter } from './loot-warning';
+import { scavengeGoal, visibleDowned, visibleSalvage, workSpotGoal } from './loot-picks';
 import { addState, declareFeud, endState, stateOf, statesHeld } from './states';
 import { isStranded, suppliesCap, vehicleStats } from './stats';
 import type { Contact, GoalReason, Job, NpcActivity, NpcBrain, NpcState, RefitJob, SalvageStock, Track, Vehicle, World } from './types';
 import { canUseSite, GOAL_REACH, isTerritory, nearestPad, parkedOn, type Site } from './sites';
-import { spotGoal, territoryOfStock, tripGoal } from './territory';
-import { OLD_PLACES, type OldPlaceType } from '../data/salvage';
+import { territoryOfStock, tripGoal } from './territory';
 import { clamp, dist, leadsAwayBy, pointsAway, type Vec } from './vec';
 import { canVehicleSee } from './vision';
 import { chaseStalled, startChase } from './chase';
@@ -183,38 +184,6 @@ function tradeRun(world: World, vehicle: Vehicle, offers: Weighted<TradePlan>[],
   return { ...createSiteActivity('trade', plan.source, reason), purchase: { good: plan.good, sellShop: plan.sellShop } };
 }
 
-function scavengeGoal(world: World, vehicle: Vehicle): NpcActivity {
-  const stock = visibleSalvage(world, vehicle)[0];
-  const truck = visibleDowned(world, vehicle)[0];
-  if (truck && (!stock || dist(vehicle.pos, truck.pos) < dist(vehicle.pos, stock.pos))) return createActivity('loot', truck.id, { ...truck.pos }, 'lootDowned');
-  if (stock) return createActivity('scavenge', stock.id, { ...stock.pos }, 'collectSalvage');
-  return siteGoal(world, vehicle);
-}
-
-function siteGoal(world: World, vehicle: Vehicle): NpcActivity {
-  const sites = salvageSitesAway(vehicle);
-  if (sites.length === 0) throw new Error(`${vehicle.id} chose to scavenge with no salvage known`);
-  const old = oldSpotGoal(world, vehicle);
-  if (old) return old;
-  const site = sites[randInt(world, 0, sites.length - 1)];
-  return isTerritory(site) ? spotGoal(world, site.id) : createSiteActivity('scavenge', site.id, 'searchSite');
-}
-
-const OLD_SPOT_GOALS: Record<OldPlaceType, GoalReason> = {
-  homestead: 'searchOldRuin',
-  hamlet: 'searchOldRuin',
-  lookout: 'searchOldRuin',
-  hulks: 'searchOldHulks',
-  boats: 'searchOldBoats',
-};
-
-function oldSpotGoal(world: World, vehicle: Vehicle): NpcActivity | null {
-  const near = oldSpotsNear(world, vehicle.pos, OLD_PLACES.npcRange);
-  if (near.length === 0 || !chance(world, OLD_PLACES.npcShare)) return null;
-  const pick = near[randInt(world, 0, near.length - 1)];
-  return createActivity('scavenge', oldStockId(pick), { ...pick.pos }, OLD_SPOT_GOALS[pick.type]);
-}
-
 type IdleGoal = (world: World, vehicle: Vehicle) => NpcActivity;
 
 function huntingGoal(kind: 'raid' | 'prowl', reason: GoalReason, grounds: (world: World, vehicle: Vehicle) => Vec[]): IdleGoal {
@@ -247,6 +216,8 @@ function beatPoint(world: World, gates: readonly Vec[], radius: number): Vec {
 }
 
 export function exploreGoal(world: World, vehicle: Vehicle): NpcActivity {
+  const place = explorePlace(world, vehicle);
+  if (place) return createActivity('explore', null, { ...place.pos }, 'explore');
   const radius = vehicleStats(world, vehicle).radius;
   const gates = beatGates(vehicle);
   for (let i = 0; i < SPAWN.tries; i++) {
@@ -441,7 +412,7 @@ function haulLost(vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
 }
 
 function escortWaitInvalid(world: World, vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
-  if (goal.reason === 'atPost') return null;
+  if (goal.reason === 'atPost' || goal.reason === 'lookAround') return null;
   if (isLingerReason(goal.reason)) return lingerInvalid(world, goal);
   if (escortsOf(world, vehicle.id).length > 0) return 'escortHired';
   if (goal.reason !== 'awaitEscort') return null;
@@ -1013,8 +984,12 @@ function fixedNext(world: World, vehicle: Vehicle): NpcActivity | null {
   return isMarshal(vehicle) ? createActivity('wait', null, null, 'atPost') : null;
 }
 
+function leaveGoal(world: World, vehicle: Vehicle, profile: NpcProfile): NpcActivity {
+  return hasSaleCargo(vehicle) ? saleGoal(world, vehicle, profile) : idleGoal(world, vehicle);
+}
+
 function roadNext(world: World, vehicle: Vehicle, profile: NpcProfile): NpcActivity {
-  const next = nightSafe(world, vehicle, hasSaleCargo(vehicle) ? saleGoal(world, vehicle, profile) : idleGoal(world, vehicle));
+  const next = nightSafe(world, vehicle, workSpotGoal(world, vehicle) ?? leaveGoal(world, vehicle, profile));
   if ((next.kind === 'wait' && next.until === undefined) || topGoal(vehicle) === next) return next;
   pushGoal(world, vehicle, next);
   const service = serviceGoal(world, vehicle, profile);
@@ -1151,6 +1126,12 @@ function arrivalResolver(reason: GoalReason): Resolver {
   };
 }
 
+function resolveExplore(world: World, vehicle: Vehicle, activity: NpcActivity): void {
+  if (!reachedDestination(world, vehicle, activity)) return;
+  finishLeg(world, vehicle, activity, 'exploredSpot');
+  if (activity.reason === 'explore') pushGoal(world, vehicle, { ...createActivity('wait', null, { ...vehicle.pos }, 'lookAround'), phase: 'act', until: world.turn + EXPLORE.lookTurns });
+}
+
 function resolveRetreat(world: World, vehicle: Vehicle, activity: NpcActivity): void {
   const site = reachSite(vehicle, activity);
   if (site) beginRearm(world, vehicle, site);
@@ -1184,7 +1165,7 @@ const RESOLVERS: Partial<Record<NpcActivity['kind'], Resolver>> = {
   travel: resolveTravel,
   prowl: arrivalResolver('prowledRoad'),
   patrol: arrivalResolver('patrolledRoad'),
-  explore: arrivalResolver('exploredSpot'),
+  explore: resolveExplore,
 };
 
 function resolveActivity(world: World, vehicle: Vehicle, activity: NpcActivity): void {

@@ -8,7 +8,7 @@ import { isKnockedOut } from '../defeat';
 import { corePart } from '../grid';
 import { alongOf, toRoad } from '../highway';
 import { inArc } from '../combat';
-import { backOutSpot } from '../back-out';
+import { backOutSpot } from '../free-spot';
 import { isFree } from '../spawn';
 import { vehicleStats, type MountedWeapon } from '../stats';
 import { followSpot } from '../tow';

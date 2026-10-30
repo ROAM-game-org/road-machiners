@@ -20,6 +20,7 @@ import type { Terrain } from './terrain';
 import type { EscortEnd, NpcActivity, Vehicle, World } from './types';
 import { clamp, dist } from './vec';
 import { canVehicleSee } from './vision';
+import { fairM } from './money';
 
 export type EscortContract = Extract<Contract, { kind: 'escort' }>;
 export type EscortStatus = 'together' | 'waiting' | 'holding' | 'apart' | 'stuck';
@@ -45,7 +46,7 @@ export function routeThreat(world: World, from: string, to: string): Threat {
 
 export function escortReward(from: string, to: string, threat: Threat): number {
   const turns = estimateTurns(siteOf(from).pos, siteOf(to).pos);
-  return Math.round(contractReward(turns, 0, false) * ESCORT_JOB.threatPremium[threat]);
+  return fairM(contractReward(turns, 0, false) * ESCORT_JOB.threatPremium[threat]);
 }
 
 export function heldEscort(world: World): EscortContract | null {

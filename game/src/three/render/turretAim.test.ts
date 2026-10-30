@@ -52,7 +52,7 @@ describe('turret aim', () => {
   });
 
   it.each([1, 2, 3] as const)('a turret at rot %i rests at the allowed bearing nearest its facing', (rot) => {
-    const spot = { chassis: 'longbed', x: 2, y: 8 };
+    const spot = { chassis: 'longbed', x: 2, y: 9 };
     const w = emptyWorld();
     const v = addVehicle(w, 'scrapjaw', spot.chassis, ['mg', 'stockEngine'], { x: 40, y: 40 });
     const item = mountedItems(v, 'weapon')[0];

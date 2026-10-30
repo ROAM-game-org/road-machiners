@@ -26,7 +26,7 @@ Waiting limits
 Run a playtest, screenshot or test job at most 2 times for one question.
 A recorder run uses at most 600 turns and 1 seed.
 Never raise a script's timeout or wait option to make a slow run finish.
-Stop a screenshot or probe that has not finished in 10 minutes, write what it left unverified into the approval notes and go on.
+Stop a screenshot or probe that has not finished in 10 minutes, note what it left unverified for the description in `.factory/approval.json` and go on.
 The whole stage should finish in 45 minutes.
 
 Fix every problem you find yourself, in this session: a bug, a blocker, or a look that does not match the issue, the task file, the reference images, `game/docs/DESIGN.md` or, for the UI and overlays, `game/docs/ui.md`.
@@ -77,7 +77,7 @@ Recapture after a code change that changes what they show.
 
 Write `.factory/approval.json` with this shape.
 `{"description": "...", "howToTry": "..."}`
-The description is plain text about what changed, under 300 characters.
+The description is plain text about what changed, under 300 characters. It also names what a stopped probe left unverified, since the committee post shows only this file.
 The howToTry text is the steps a committee member follows in the browser, under 400 characters.
 They play the branch build from a link in the post, so start the steps from the loaded game, not from `npm run dev`.
 

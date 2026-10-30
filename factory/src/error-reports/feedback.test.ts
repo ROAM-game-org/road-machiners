@@ -4,6 +4,7 @@ import { gunzipSync, gzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Decision, FilterInput } from '../public/decision';
 import { openStore, type PublicStore } from '../public/store';
+import type { Issue } from '../types';
 import { playerReportsDir } from './files';
 import { alertPath, ErrorReports, ErrorServer, issueReports, readStore } from './service';
 import { Feedback } from './feedback';
@@ -16,7 +17,7 @@ type World = { url: string; home: string; store: PublicStore; created: string[];
 const servers: ErrorServer[] = [];
 afterEach(async () => { await Promise.all(servers.splice(0).map((server) => server.close())); });
 
-async function start(over: { failIssues?: boolean; ipPerHour?: number; maxChars?: number; diskMb?: number } = {}): Promise<World> {
+async function start(over: { failIssues?: boolean; failReads?: boolean; ipPerHour?: number; maxChars?: number; diskMb?: number } = {}): Promise<World> {
   mkdirSync('tmp', { recursive: true });
   const home = mkdtempSync(join('tmp', 'factory-feedback-'));
   mkdirSync(join(home, 'state'), { recursive: true });
@@ -30,7 +31,10 @@ async function start(over: { failIssues?: boolean; ipPerHour?: number; maxChars?
   const asked: FilterInput[] = [];
   const logged: string[] = [];
   let decision: Decision | Error = ACCEPT_BUG;
-  const github = { createIssue: async (title: string, body: string, labels: string[]) => { if (over.failIssues) throw new Error('GitHub refused the issue.'); created.push(`${title} [${labels.join(',')}]\n${body}`); return 200 + created.length; } };
+  const github = {
+    createIssue: async (title: string, body: string, labels: string[]) => { if (over.failIssues) throw new Error('GitHub refused the issue.'); created.push(`${title} [${labels.join(',')}]\n${body}`); return 200 + created.length; },
+    issue: async (number: number) => { if (over.failReads) throw new Error('gh: HTTP 502'); return { number, title: `Card ${number} title` } as Issue; },
+  };
   const cfg = { home, publicUrl: 'https://play.test/play', errorOrigins: 'https://html.itch.zone', errorBodyKb: 64, errorIpPerHour: 5, reportIpPerHour: over.ipPerHour ?? 5, reportMaxChars: over.maxChars ?? 100, errorDiskMb: over.diskMb ?? 1, errorUnzippedMb: 1 };
   const classify = async (input: FilterInput) => { asked.push(input); if (decision instanceof Error) throw decision; return decision; };
   let at = NOW;
@@ -154,6 +158,27 @@ describe('feedback route', () => {
     expect(store.unsentComments()).toEqual([]);
     expect(created).toHaveLength(1);
     expect(created[0]).toMatch(/\[feature-request,player-report\]/);
+  });
+
+  it('asks if a report on the build of a card with no proposal is about that card, by the card title', async () => {
+    const { url, store, created, asked, setDecision } = await start();
+    setDecision({ ...ACCEPT_BUG, route: 'redesign', relevance: 'other' });
+    await send(url, request({ build: 'hash12' }));
+    expect(asked).toEqual([{ source: 'comment', text: 'The truck sinks\ninto the road', parent: 'Card 12 title' }]);
+    expect(store.unsentComments()).toEqual([]);
+    expect(store.pendingRoutes()).toEqual([]);
+    expect(created).toHaveLength(1);
+    expect(created[0]).toMatch(/\[bug,player-report\]/);
+  });
+
+  it('answers 503 and keeps the report unstored when the card title cannot be read', async () => {
+    const { url, store, created, asked } = await start({ failReads: true });
+    const response = await send(url, request({ build: 'hash12' }));
+    expect(response.status).toBe(503);
+    expect(asked).toEqual([]);
+    expect(created).toEqual([]);
+    expect(store.unclassifiedComments(100)).toEqual([]);
+    expect((await send(url, request({ build: 'hash12' }))).status).toBe(503);
   });
 
   it('keeps an off-topic question on a card build as a comment of the card, with no issue', async () => {

@@ -16,7 +16,7 @@ import { memoryBackend, SaveSlots } from './save-db';
 function search(id: string, target: string, delivered: boolean): Contract {
   return {
     id, shop: 'bowl', kind: 'search', target, driver: 'Jed Cobb', template: 'trader',
-    lead: { at: { x: 40, y: 52 }, turn: 20 }, reward: 9200, deadline: 900, window: 600, tier: 1, delivered,
+    lead: { at: { x: 40, y: 52 }, turn: 20 }, reward: 92, deadline: 900, window: 600, tier: 1, delivered,
   };
 }
 

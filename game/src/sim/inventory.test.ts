@@ -27,7 +27,7 @@ describe('inventory grid', () => {
   it('the standard kit starts with a scout, 333 M, two cargo parts, and full resources', () => {
     const w = emptyWorld();
     expect(w.vehicles[0].chassisId).toBe('scout');
-    expect(w.player.money).toBe(33300);
+    expect(w.player.money).toBe(333);
     expect(goodsCount(w.vehicles[0]).parts).toBe(2);
     expect(w.player.fuel).toBe(CHASSIS.scout.fuelCap);
     expect(w.player.supplies).toBe(RULES.baseSupplies);
@@ -54,7 +54,7 @@ describe('inventory grid', () => {
   it('items cannot overlap or leave the grid', () => {
     const w = emptyWorld();
     const g = good(w);
-    expect(() => moveItem(w, g.id, { x: 1, y: 1, rot: 0 })).toThrow('Refused: builtInFixed');
+    expect(() => moveItem(w, g.id, { x: 1, y: 2, rot: 0 })).toThrow('Refused: builtInFixed');
     expect(() => moveItem(w, g.id, { x: 9, y: 0, rot: 0 })).toThrow('Refused: badLayout');
   });
 
@@ -124,9 +124,9 @@ describe('inventory grid', () => {
     w = storePart(w, item(w, 'panniers').id);
     w = update(w, (d) => { d.player.storage.push(makePart(d, 'heavyMg', 0)); });
     const id = w.player.storage.find((p) => p.defId === 'heavyMg')!.id;
-    const stacked = takeFromStorage(w, id, { x: 4, y: 1, rot: 0 });
+    const stacked = takeFromStorage(w, id, { x: 4, y: 2, rot: 0 });
     expect(vehicleStats(stacked, stacked.vehicles[0]).weapons.map((m) => m.def.id)).toEqual(['heavyMg']);
-    const across = takeFromStorage(w, id, { x: 4, y: 0, rot: 1 });
+    const across = takeFromStorage(w, id, { x: 4, y: 1, rot: 1 });
     expect(vehicleStats(across, across.vehicles[0]).weapons).toHaveLength(0);
   });
 
@@ -143,7 +143,7 @@ describe('inventory grid', () => {
     w = storePart(w, item(w, 'panniers').id);
     const free = freeCells(w.vehicles[0]);
     w = update(w, (d) => { d.player.storage.push(makePart(d, 'mg', 0)); });
-    w = takeFromStorage(w, w.player.storage.find((p) => p.defId === 'mg')!.id, { x: 4, y: 1, rot: 0 });
+    w = takeFromStorage(w, w.player.storage.find((p) => p.defId === 'mg')!.id, { x: 4, y: 2, rot: 0 });
     expect(freeCells(w.vehicles[0])).toBe(free - PARTS.mg.w * PARTS.mg.h);
     expect(vehicleStats(w, w.vehicles[0]).weapons).toHaveLength(2);
   });
@@ -164,12 +164,13 @@ function mountedItemOf(v: Vehicle, defId: string): GridItem {
 }
 
 describe('auto mounting armor', () => {
-  it('packs 2-cell plates against the edge ends and each other, so an even side fills with them', () => {
+  it('packs 2-cell plates against the edge ends and each other, so an even side fills with them but for the pair the cab shield splits', () => {
     const w = emptyWorld();
     const v = addVehicle(w, 'scrapjaw', 'scout', [], { x: 40, y: 40 });
     const side = gridOf(v).cells.flat().filter((c) => c === 'L').length;
-    for (let i = 0; i < side / 2; i++) expect(mountPart(w, v, makePart(w, 'plates', 0), ['L'])).toBe(true);
-    expect(mountedItems(v, 'armor')).toHaveLength(side / 2);
+    const fitted = Array.from({ length: side / 2 }, () => mountPart(w, v, makePart(w, 'plates', 0), ['L'])).filter(Boolean).length;
+    expect(fitted).toBe(side / 2 - 1);
+    expect(mountedItems(v, 'armor')).toHaveLength(fitted);
   });
 });
 
@@ -193,8 +194,8 @@ describe('auto mounting on the deck', () => {
   it('lets a gun and a cargo frame compete for the same deck cells', () => {
     const w = emptyWorld();
     const v = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine'], { x: 40, y: 40 });
-    v.items.push({ id: 'i-rack', x: 2, y: 5, rot: 0, kind: 'part', part: makePart(w, 'rack', 0) });
-    v.items.push({ id: 'i-mg', x: 4, y: 5, rot: 0, kind: 'part', part: makePart(w, 'mg', 0) });
+    v.items.push({ id: 'i-rack', x: 2, y: 6, rot: 0, kind: 'part', part: makePart(w, 'rack', 0) });
+    v.items.push({ id: 'i-mg', x: 4, y: 6, rot: 0, kind: 'part', part: makePart(w, 'mg', 0) });
     expect(mountedItems(v, 'cargo').map((it) => it.id)).toEqual(['i-rack']);
     expect(mountedItems(v, 'weapon').map((it) => it.id)).toEqual(['i-mg']);
   });

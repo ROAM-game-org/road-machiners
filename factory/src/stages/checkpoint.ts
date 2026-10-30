@@ -2,6 +2,12 @@ import { usageFromOutput } from '../ledger';
 
 export class BudgetError extends Error {}
 
+export class BaselineFailureError extends Error {
+  constructor(readonly into: string, readonly base: string, readonly tests: string[], detail: string) {
+    super(`The checks fail only on tests that fail on ${into} at ${base} too, so no fix round runs and nothing merges. Failed tests: ${tests.join('; ')}.\n${detail}`);
+  }
+}
+
 export function runCost(stream: string): number {
   return usageFromOutput(stream, '').costUsd;
 }

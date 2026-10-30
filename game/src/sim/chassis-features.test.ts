@@ -17,13 +17,16 @@ import { addState } from './states';
 import { tileAt } from './terrain';
 import type { Vehicle, World } from './types';
 import { applyWear } from './wear';
+import { setLoadoutMemo } from './loadout-memo';
 
 function withAbility<T>(chassisId: string, patch: Partial<ChassisAbility> | null, run: () => T): T {
   const original = CHASSIS_FEATURES[chassisId];
   CHASSIS_FEATURES[chassisId] = patch === null ? { id: original.id } : { ...original, ...patch };
+  setLoadoutMemo(false);
   try {
     return run();
   } finally {
+    setLoadoutMemo(true);
     CHASSIS_FEATURES[chassisId] = original;
   }
 }

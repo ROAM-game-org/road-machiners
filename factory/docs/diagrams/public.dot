@@ -37,7 +37,7 @@ digraph public {
     message -> plugin;
   }
 
-  filter [label="Decisions API filter\nspam, kind, language,\nabout its thread, route,\nabout known work\n20 chat messages an hour per player"];
+  filter [label="Decisions API filter\nspam, kind, language,\nabout its thread, route,\nabout known work\n60 chat messages an hour per player"];
   linked [label="Linked to known work\nwhile its issue is open\nno new issue, vote or route"];
   digest [label="Digest comment\non the issue\nat most one an hour"];
   newIssue [label="Own issue\nbug or feature-request\nand player-report"];
@@ -54,7 +54,7 @@ digraph public {
   comment -> filter;
   feedback -> filter;
   plugin -> filter;
-  filter -> digest [label="about its thread, or report\nfrom a card's build\nor the candidate"];
+  filter -> digest [label="about its thread, a report\nabout the change of a card's build,\nor a report from the candidate"];
   filter -> linked [label="off its thread or with none,\nabout known work"];
   linked -> digest;
   filter -> newIssue [label="bug or feature off its thread\nor with none, no open known work,\nany other report"];
@@ -69,6 +69,7 @@ digraph public {
   edge [color="#dc2626", fontcolor="#dc2626", style=dashed, penwidth=1.3];
   filter -> patch [label="patch"];
   filter -> redesign [label="redesign"];
+  proposal -> proposal [label="closed unposted\nwhile its issue is open:\nopened again"];
 
   edge [color="#6b7280", fontcolor="#6b7280", style=dashed, penwidth=1.3];
   filter -> rejected [label="spam"];

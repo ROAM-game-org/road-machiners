@@ -211,6 +211,27 @@ describe("CombatMusic", () => {
     music.setCombat(false);
   });
 
+  it("starts the music when its song arrives during a fight", async () => {
+    let arrive!: (kit: Kit) => void;
+    const music = new CombatMusic(fakeCtx(), {} as AudioNode, (name) => new Promise((resolve) => { arrive = (kit) => resolve(kit); void name; }), () => 0, (e) => { throw e; });
+    music.setCombat(true);
+    expect(music.inCombat).toBe(false);
+    arrive(kitOf(Object.keys(COMBAT_SONGS)[0]));
+    await music.ready();
+    expect(music.inCombat).toBe(true);
+    music.setCombat(false);
+  });
+
+  it("stays silent when the fight ended before the song arrived", async () => {
+    let arrive!: (kit: Kit) => void;
+    const music = new CombatMusic(fakeCtx(), {} as AudioNode, () => new Promise((resolve) => { arrive = (kit) => resolve(kit); }), () => 0, (e) => { throw e; });
+    music.setCombat(true);
+    music.setCombat(false);
+    arrive(kitOf(Object.keys(COMBAT_SONGS)[0]));
+    await music.ready();
+    expect(music.session).toBeNull();
+  });
+
   it("boots and stays silent in combat when no song loads", async () => {
     const errors: unknown[] = [];
     const music = new CombatMusic(fakeCtx(), {} as AudioNode, async () => { throw new Error("no song"); }, () => 0, (e) => errors.push(e));

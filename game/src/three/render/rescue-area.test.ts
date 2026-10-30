@@ -11,7 +11,7 @@ const terrain: Terrain = { size: 100, heights: Array(101 * 101).fill(0), types: 
 
 const SCREEN = { width: 800, height: 600 };
 
-const rescue = (id: string, fulfilled: boolean): Contract => ({ id, shop: 'bowl', kind: 'rescue', client: 'v1', driver: 'Jed Cobb', need: 'fuel', area: { x: 50, y: 50 }, reward: 100, deadline: 900, window: 400, tier: 1, fulfilled });
+const rescue = (id: string, fulfilled: boolean): Contract => ({ id, shop: 'bowl', kind: 'rescue', client: 'v1', driver: 'Jed Cobb', need: 'fuel', area: { x: 50, y: 50 }, reward: 1, deadline: 900, window: 400, tier: 1, fulfilled });
 
 describe('rescue area ring', () => {
   it('draws one dashed ring of the area radius around each held unmet rescue', () => {

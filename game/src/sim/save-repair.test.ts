@@ -311,14 +311,14 @@ describe('repairContent', () => {
     const w = fresh();
     const [client] = npcs(w);
     const me = playerVehicle(w);
-    const survey = { id: 'c-done', shop: 'ghostShop', kind: 'survey', points: [{ site: REGION.towns[0].id, found: true, done: true }], reward: 900, deadline: w.turn + 20, window: 20, tier: 'low' } as const;
-    const escort = { id: 'c-esc', shop: 'ghostShop', kind: 'escort', client: client.id, to: REGION.towns[0].id, reward: 500, deadline: w.turn + 20, window: 20, tier: 'low', threat: 'low', span: 10, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null } as const;
+    const survey = { id: 'c-done', shop: 'ghostShop', kind: 'survey', points: [{ site: REGION.towns[0].id, found: true, done: true }], reward: 9, deadline: w.turn + 20, window: 20, tier: 'low' } as const;
+    const escort = { id: 'c-esc', shop: 'ghostShop', kind: 'escort', client: client.id, to: REGION.towns[0].id, reward: 5, deadline: w.turn + 20, window: 20, tier: 'low', threat: 'low', span: 10, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null } as const;
     w.player.contracts.push(survey as never, escort as never);
     addState(w, 'escort', me.id, client.id, { kind: 'escort', site: REGION.towns[0].id, fee: 0 });
     const money = w.player.money;
 
     repairContent(w);
-    expect(w.player.money).toBe(money + 900);
+    expect(w.player.money).toBe(money + 9);
     expect(w.player.contracts.some((c) => c.id === 'c-done' || c.id === 'c-esc')).toBe(false);
     expect(w.states.some((s) => s.kind === 'escort' && s.holder === me.id && s.other === client.id)).toBe(false);
     expect(() => endTurn(w, () => {})).not.toThrow();
@@ -378,6 +378,7 @@ describe('repairContent', () => {
       ['ghostTopic', { topic: 'ghostTopic' as never }],
       ['ghostNode', { topic: 'directions', node: 'ghostNode' }],
       ['ghostLine', { line: { line: 'ghostLine' as never, vars: {} } }],
+      ['removedRaiderLesson', { line: { line: 'lessonRaiderPay' as never, vars: {} } }],
     ];
     for (const [, over] of drift) {
       const w = fresh();

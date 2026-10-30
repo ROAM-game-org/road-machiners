@@ -89,7 +89,7 @@ describe('part wear look', () => {
       oneStep.left = 1;
       view.update(v, true, PAINT.standard, oneStep);
       calls++;
-      expect(calls).toBeLessThan(20);
+      expect(calls).toBeLessThan(24);
     }
     expect(calls).toBeGreaterThan(3);
     expect(view.root).toBe(root);

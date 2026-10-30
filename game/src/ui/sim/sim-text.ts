@@ -248,7 +248,7 @@ export const SIM_TEXT: SimText = {
   memory: memoryLine,
   state: (kind) => STATE[kind],
   words,
-  money: (cents) => english(moneyMsg(cents)),
+  money: (amount) => english(moneyMsg(amount)),
   fuel: (units) => `${fuelLiters(units)} L`,
   speed: (tilesPerTurn) => `${kph(tilesPerTurn)} km/h`,
   distance: (tiles) => english(distanceText(tiles)),

@@ -4,6 +4,7 @@ import type { LandmarkLook } from '../sim/types';
 export const RULES = {
   substeps: 26,
   crawlSpeed: 1,
+  setSpeedStep: 20 / 14.4,
   lowFuelThreshold: 0.2,
   lowFuelSpeedFactor: 0.5,
   fuelUseFactor: 0.045,
@@ -92,7 +93,7 @@ export const RULES = {
   retreatTeleportTurns: 50,
   holdUp: {
     cutShare: 0.5,
-    cutCap: 8800,
+    cutCap: 88,
   },
 };
 

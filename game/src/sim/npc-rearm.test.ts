@@ -36,8 +36,8 @@ function raider(): { w: World; v: Vehicle } {
   return { w, v };
 }
 
-const gunsOf = (v: Vehicle): PartInstance[] => mountedParts(v, 'weapon');
-const armorOf = (v: Vehicle): PartInstance[] => mountedParts(v, 'armor');
+const gunsOf = (v: Vehicle): readonly PartInstance[] => mountedParts(v, 'weapon');
+const armorOf = (v: Vehicle): readonly PartInstance[] => mountedParts(v, 'armor');
 
 function crippleGear(v: Vehicle): void {
   for (const gun of gunsOf(v)) gun.hp = 0;

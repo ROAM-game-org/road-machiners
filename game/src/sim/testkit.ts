@@ -83,7 +83,7 @@ export function parkedAtOutpost(seed = 3): World {
   const w = chaosHighwayWorld(seed);
   parkInYard(w, 1);
   const parked = endTurn(w, () => {});
-  parked.player.money = 10_000_000;
+  parked.player.money = 100_000;
   return parked;
 }
 

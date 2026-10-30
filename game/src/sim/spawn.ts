@@ -23,6 +23,7 @@ import { dist, type Vec } from "./vec";
 import { atlasOf } from "./atlas";
 import { hollowPad } from "./hollow-layout";
 import { spawnsAtHollow } from "./sunward";
+import { fairM } from './money';
 
 export function spawnNpcs(world: World): void {
   if (!modeRules(world).traffic) return;
@@ -294,7 +295,7 @@ function makeNpc(world: World, tpl: NpcTemplate, loadout: NpcLoadout, pos: Vec, 
     },
   });
   if (!v.resources) throw new Error(`${tpl.id} spawned without resources`);
-  v.resources.money = tpl.money;
+  v.resources.money = fairM(tpl.money);
   return v;
 }
 
