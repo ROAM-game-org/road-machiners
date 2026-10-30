@@ -37,15 +37,15 @@ function driver(w: World, traits: TraitId[], id?: string): Vehicle {
 }
 
 describe('lesson data', () => {
-  it('maps every voiced trait to one trade and no voiceless trait', () => {
+  it('maps every voiced trait but the raider to one trade and no voiceless trait', () => {
     for (const [trait, talk] of Object.entries(TRAIT_TALK)) {
-      expect(Object.hasOwn(LESSON_TRADES, trait)).toBe(talk.voice !== null && !talk.only);
+      expect(Object.hasOwn(LESSON_TRADES, trait)).toBe(talk.voice !== null && !talk.only && trait !== 'raider');
     }
   });
 
   it('fills every slot of every trade once, with every lesson line used once', () => {
     const used = Object.values(LESSONS).flatMap((t) => [...WEAKNESSES.map((weak) => t.weak[weak]), ...t.general]);
-    expect(used).toHaveLength(70);
+    expect(used).toHaveLength(56);
     expect([...used].sort()).toEqual([...LESSON_LINE_IDS].sort());
   });
 
@@ -58,6 +58,11 @@ describe('lesson data', () => {
 
   it('offers the topic to every voiced trait', () => {
     for (const trait of Object.keys(LESSON_TRADES)) expect(TRAIT_TALK[trait as TraitId].topics).toContain('roadLesson');
+  });
+
+  it('never offers the topic to a raider', () => {
+    expect(TRAIT_TALK.raider.topics).not.toContain('roadLesson');
+    expect(Object.hasOwn(LESSON_TRADES, 'raider')).toBe(false);
   });
 });
 
@@ -83,9 +88,8 @@ describe('lesson text', () => {
 
   const tradeLines = (trade: LessonTrade): string[] => [...Object.values(LESSONS[trade].weak), ...LESSONS[trade].general].map((id) => entryText('en', lineKey(id)));
 
-  it('keeps the law tic and the raider tic to a few lines', () => {
+  it('keeps the law tic to a few lines', () => {
     expect(tradeLines('law').filter((text) => /for the record/i.test(text)).length).toBeLessThanOrEqual(3);
-    expect(tradeLines('raider').filter((text) => /\bfriend\b/i.test(text)).length).toBeLessThanOrEqual(4);
   });
 
   it('opens no more than two lines of one trade with the same words', () => {
@@ -231,7 +235,6 @@ describe('picking a lesson', () => {
   it('speaks a scumbag in the voice of its main trade', () => {
     const w = emptyWorld();
     expect(lessonTrade(driver(w, ['trader', 'scumbag']))).toBe('hauler');
-    expect(lessonTrade(driver(w, ['scumbag', 'raider']))).toBe('raider');
     const trades: Record<string, LessonTrade> = { lawman: 'law', merc: 'gunHand', vulture: 'salvager' };
     for (const [trait, trade] of Object.entries(trades)) expect(lessonTrade(driver(w, [trait as TraitId]))).toBe(trade);
   });
@@ -239,5 +242,6 @@ describe('picking a lesson', () => {
   it('throws for a driver with no voiced trait', () => {
     const w = emptyWorld();
     expect(() => lessonTrade(driver(w, ['scumbag', 'coward']))).toThrow(/no trait/);
+    expect(() => lessonTrade(driver(w, ['scumbag', 'raider']))).toThrow(/no trait/);
   });
 });

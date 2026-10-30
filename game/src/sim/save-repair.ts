@@ -365,7 +365,7 @@ function fitItems(v: Vehicle): GridItem[] {
 }
 
 function misfits(v: Vehicle): GridItem[] {
-  const mountedCores: GridItem[] = mountedItems(v, 'core');
+  const mountedCores: readonly GridItem[] = mountedItems(v, 'core');
   const kept: GridItem[] = v.items.filter((it) => mountedCores.includes(it));
   const dropped: GridItem[] = [];
   const rest = v.items.filter((it) => !kept.includes(it)).sort((a, b) => fitRank(a) - fitRank(b));
