@@ -58,6 +58,7 @@ export type FactoryConfig = {
   releaseDays: number;
   playtestTurns: number;
   playtestRuns: number;
+  playtestReviewRepairs: number;
   playtestTimeoutMinutes: number;
   mergeTimeoutMinutes: number;
   checksTimeoutMinutes: number;
@@ -270,7 +271,7 @@ export interface GitHub {
 export type SuiteRun = { done: boolean; started: boolean; passed: boolean; testsFailed: boolean; conclusion: string | null; url: string };
 export type SuiteScope = { files: string[]; workers: number };
 export type FailedTest = { file: string; test: string | null };
-export type SuiteFailures = { failed: FailedTest[]; unhandledErrors: number };
+export type SuiteFailures = { failed: FailedTest[]; unfinished: string[]; unhandledErrors: number };
 
 export type InlineButton = { text: string; data: string };
 
@@ -323,6 +324,7 @@ export interface HostRepo {
   mergeBranchIntoWork(dir: string, branch: string, message?: string): Promise<{ commit: string | null; conflicts: string[] }>;
   isMerged(base: string, branch: string): Promise<boolean>;
   headHash(branch: string): Promise<string>;
+  fullHash(commit: string): Promise<string>;
   forkPoint(a: string, b: string): Promise<string>;
   diff(base: string, branch: string): Promise<string>;
   changedFiles(base: string, branch: string): Promise<string[]>;

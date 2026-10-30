@@ -222,6 +222,15 @@ describe('merging only a checked build', () => {
     expect(await repo.headHash('main')).toBe((await head('main')).slice(0, 7));
   });
 
+  it('resolves an abbreviated commit or a branch to the full 40 character sha', async () => {
+    const { repo, head } = await setup();
+    const full = await head('main');
+    expect(await repo.fullHash(full.slice(0, 9))).toBe(full);
+    expect(await repo.fullHash(await repo.headHash('main'))).toBe(full);
+    expect(await repo.fullHash('origin/main')).toBe(full);
+    await expect(repo.fullHash('0123456789')).rejects.toThrow();
+  });
+
   it('creates a branch on GitHub and refuses one that exists', async () => {
     const { repo, head } = await setup();
     await repo.createBranch('release/x', 'dev');

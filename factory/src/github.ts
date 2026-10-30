@@ -86,6 +86,7 @@ const NOT_THIS_KIND = /Could not resolve to an? (User|Organization)/;
 
 const RATE_LIMITED = /rate limit|HTTP 429|submitted too quickly/i;
 const UPSTREAM_DOWN = /HTTP 50[234]\b/;
+const CONNECTION_LOST = /stream error|connection reset|unexpected EOF|TLS handshake timeout|i\/o timeout/i;
 const READ_COMMANDS = new Set(['view', 'list', 'download']);
 const FIELD_FLAGS = new Set(['-f', '-F', '--field', '--raw-field', '--input']);
 const TAG_EXISTS = /a release with the same tag name already exists/;
@@ -100,6 +101,7 @@ type Wait = (ms: number) => Promise<void>;
 const sleep: Wait = (ms) => new Promise((done) => setTimeout(done, ms));
 
 export const SUITE_WORKFLOW = 'game-suite.yml';
+const FULL_SHA = /^[0-9a-f]{40}$/;
 export const SUITE_TESTS_STEP = 'tests';
 export const SUITE_FAILURES_ARTIFACT = 'test-failures';
 const SUITE_FAILURES_FILE = 'test-failures.json';
@@ -374,6 +376,7 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
       await gh(['issue', 'reopen', String(number), '-R', repo]);
     },
     async dispatchSuite(sha, scope) {
+      if (!FULL_SHA.test(sha)) throw new Error(`The dispatch of ${SUITE_WORKFLOW} needs a full 40 character commit sha, not ${sha}`);
       const inputs = scope === undefined ? [] : ['-f', `inputs[files]=${scope.files.join(' ')}`, '-f', `inputs[workers]=${scope.workers}`];
       const out = await gh(['api', '-X', 'POST', `repos/${repo}/actions/workflows/${SUITE_WORKFLOW}/dispatches`, '-f', 'ref=main', '-f', `inputs[sha]=${sha}`, ...inputs, '-F', 'return_run_details=true']);
       const id = out.trim() === '' ? undefined : (JSON.parse(out) as { workflow_run_id?: number }).workflow_run_id;
@@ -418,11 +421,20 @@ const isFailedTest = (row: unknown): row is FailedTest => {
   return typeof file === 'string' && file !== '' && (test === null || typeof test === 'string');
 };
 
+const isFileList = (value: unknown): value is string[] => Array.isArray(value) && value.every((file) => typeof file === 'string' && file !== '');
+
+type RawFailures = { failed?: unknown; unfinished?: unknown; unhandledErrors?: unknown };
+
+function isWellFormed(raw: RawFailures): raw is SuiteFailures {
+  const failedOk = Array.isArray(raw.failed) && raw.failed.every(isFailedTest);
+  return failedOk && isFileList(raw.unfinished) && Number.isInteger(raw.unhandledErrors) && (raw.unhandledErrors as number) >= 0;
+}
+
 export function suiteFailuresOf(text: string): SuiteFailures | null {
   try {
-    const { failed, unhandledErrors } = JSON.parse(text) as { failed?: unknown; unhandledErrors?: unknown };
-    if (!Array.isArray(failed) || !failed.every(isFailedTest) || !Number.isInteger(unhandledErrors) || (unhandledErrors as number) < 0) return null;
-    return { failed: failed.map(({ file, test }) => ({ file, test })), unhandledErrors: unhandledErrors as number };
+    const raw = JSON.parse(text) as RawFailures;
+    if (!isWellFormed(raw)) return null;
+    return { failed: raw.failed.map(({ file, test }) => ({ file, test })), unfinished: raw.unfinished, unhandledErrors: raw.unhandledErrors };
   } catch {
     return null;
   }
@@ -430,7 +442,7 @@ export function suiteFailuresOf(text: string): SuiteFailures | null {
 
 function retriable(result: RunResult, read: boolean): boolean {
   if (RATE_LIMITED.test(result.stderr)) return true;
-  return read && (result.timedOut === true || UPSTREAM_DOWN.test(result.stderr));
+  return read && (result.timedOut === true || UPSTREAM_DOWN.test(result.stderr) || CONNECTION_LOST.test(result.stderr));
 }
 
 export function isRead(args: string[]): boolean {
