@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Object3D, Raycaster, Vector3, type Mesh } from 'three';
 import { loadModels, model } from './models';
 import { buildSites, lampMount } from './sites';
-import { posed } from './trees';
+import { posed } from './propInstances';
 import { FORTRESS_LAMPS } from '../../data/fortress';
 import { PHYSICS } from '../../data/physics';
 import { REGION } from '../../data/region';

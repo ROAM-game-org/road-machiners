@@ -17,14 +17,14 @@ import type { V3, VehicleFrame } from '../../phys/frames';
 import type { TurnResult } from '../../phys/drive';
 import { DebrisSim, disposeTree, FLY_REACH, truckBoxes } from './debris';
 import { dent } from './vehicle';
-import { instancedModel, model, socket } from './models';
+import { instancedModel, model, socket, type ModelName } from './models';
 import { NIGHT_POOLS } from './lightPools';
 import { FORT_MODELS } from '../../sim/fortress';
 import { OutpostGateViews } from './outpostGates';
 import { PartDebris } from './partDebris';
 import type { RenderScope } from './scope';
 import { TERRAIN_CHUNK } from './terrain';
-import { posed, TreeInstances } from './trees';
+import { posed, PropInstances } from './propInstances';
 
 const S = PHYSICS.metersPerTile;
 const CRATES_RADIUS = 1.5;
@@ -49,6 +49,7 @@ export class ObstacleViews {
   private clock = 0;
   private readonly bows = new Map<string, THREE.Object3D>();
   private readonly breach = breachSpot();
+  private readonly batchLooks = new Map<THREE.Material, THREE.Material>();
 
   private gates: OutpostGateViews | null = null;
 
@@ -62,9 +63,9 @@ export class ObstacleViews {
     if (this.unchanged(obstacles, salvage, broken)) return;
     this.syncDebris(broken);
     this.syncPiles(salvage);
-    const fixed = this.fixed ?? this.addFixed(obstacles, broken);
+    const fixed = this.fixed ?? this.addFixed(obstacles, broken, salvage);
     syncRocks(fixed.rocks, obstacles);
-    syncTrees(fixed, obstacles);
+    syncFixedProps(fixed, obstacles);
     this.syncViews(obstacles);
     this.syncLoot(salvage);
   }
@@ -76,7 +77,7 @@ export class ObstacleViews {
   }
 
   private syncViews(obstacles: Obstacle[]): void {
-    const views = obstacles.filter((o) => o.kind !== 'rock' && !isTree(o));
+    const views = obstacles.filter((o) => o.kind !== 'rock' && !this.fixed?.props.holds(o.id));
     for (const o of views) if (!this.byId.has(o.id)) this.addView(o);
     const seen = new Set(views.map((o) => o.id));
     for (const [id, obj] of this.byId) {
@@ -95,6 +96,7 @@ export class ObstacleViews {
     const want = lootableProps(salvage);
     for (const id of want) {
       if (this.lit.has(id)) continue;
+      if (this.fixed?.props.holds(id)) this.addView(this.fixed.props.withdraw(id));
       const swatches = this.swatches.get(id);
       if (!swatches) throw new Error(`Lootable prop ${id} has no view`);
       paintSwatches(swatches, 'loot');
@@ -107,18 +109,30 @@ export class ObstacleViews {
     this.lit = want;
   }
 
-  private addFixed(obstacles: Obstacle[], broken: readonly BrokenProp[]): Fixed {
-    const trees = [...obstacles.filter(isTree), ...broken.map((b) => b.obstacle).filter(isTree)];
+  private addFixed(obstacles: Obstacle[], broken: readonly BrokenProp[], salvage: SalvageStock[]): Fixed {
+    const loot = lootableProps(salvage);
+    const plain = [...obstacles, ...broken.map((b) => b.obstacle)].filter(isPlain).filter((o) => !loot.has(o.id));
     this.fixed = {
       rocks: this.addRocks(obstacles.filter((o) => o.kind === 'rock')),
-      trees: new TreeInstances(this.scope, this.terrain, trees),
-      treeIds: new Set(trees.map((o) => o.id)),
+      props: new PropInstances(this.scope, this.terrain, plain, (name, source) => this.batchMaterial(name, source)),
     };
     addPowerLines(this.terrain, obstacles, this.scope);
     return this.fixed;
   }
 
+  private batchMaterial(name: ModelName, source: THREE.Material): THREE.Material {
+    const cached = this.batchLooks.get(source);
+    if (cached) return cached;
+    const look = source.clone();
+    look.userData.shared = true;
+    glowShipMaterial(look as THREE.MeshLambertMaterial);
+    if (FORT_PIECE_MODELS.has(name)) NIGHT_POOLS.light(look);
+    this.batchLooks.set(source, look);
+    return look;
+  }
+
   private addView(o: Obstacle): void {
+    if (this.fixed?.props.holds(o.id)) throw new Error(`Prop ${o.id} still has a visible instance slot`);
     const obj = buildObstacle(this.terrain, o);
     obj.traverse((m) => {
       m.updateMatrix();
@@ -169,8 +183,8 @@ export class ObstacleViews {
   }
 
   private dropStanding(id: string): void {
-    if (this.fixed?.trees.has(id)) {
-      this.fixed.trees.hide(id);
+    if (this.fixed?.props.holds(id)) {
+      this.fixed.props.hide(id);
       return;
     }
     const standing = this.byId.get(id);
@@ -248,7 +262,7 @@ export class ObstacleViews {
     }
     for (const list of byChunk.values()) {
       const placed = list.map((o) => rockPlacement(this.terrain, o));
-      const group = instancedModel(rockModel(list[0].id), placed.map((p) => p.matrix), placed.map((p) => p.tint));
+      const group = instancedModel(rockModel(list[0].id), placed.map((p) => p.matrix), placed.map((p) => p.tint), (m) => m);
       const center = list.reduce((c, o) => ({ x: c.x + o.pos.x / list.length, y: c.y + o.pos.y / list.length }), { x: 0, y: 0 });
       const reach = Math.max(...list.map((o) => dist(center, o.pos) + propReach(o)));
       this.scope.add(group, center, reach);
@@ -308,6 +322,8 @@ function lightFortPiece(obj: THREE.Object3D): void {
     if (o instanceof THREE.Mesh) for (const material of Array.isArray(o.material) ? o.material : [o.material]) NIGHT_POOLS.light(material);
   });
 }
+
+const PER_PROP_MODELS: ReadonlySet<string> = new Set(['hulk', 'building', 'reactor', 'ship_bow']);
 
 export type HulkPose = Extract<PropPose, { model: 'hulk' }>;
 
@@ -426,12 +442,14 @@ function breachCore(): THREE.Mesh {
 }
 
 export function paintShipGlow(obj: THREE.Object3D): void {
-  eachMaterial(obj, (m) => {
-    if (m.name !== 'ship_glow') return;
-    m.emissive.setHex(PAL.shipGlow);
-    m.emissiveIntensity = SHIP_GLOW.emissive;
-    m.color.multiplyScalar(SHIP_GLOW.base);
-  });
+  eachMaterial(obj, glowShipMaterial);
+}
+
+function glowShipMaterial(m: THREE.MeshLambertMaterial): void {
+  if (m.name !== 'ship_glow') return;
+  m.emissive.setHex(PAL.shipGlow);
+  m.emissiveIntensity = SHIP_GLOW.emissive;
+  m.color.multiplyScalar(SHIP_GLOW.base);
 }
 
 function paintRoof(house: THREE.Object3D, id: string): void {
@@ -461,11 +479,11 @@ function buildWater(t: Terrain, o: Obstacle): THREE.Object3D {
 
 type Landmark = Extract<Obstacle, { kind: 'landmark' }>;
 
-function isTree(o: Obstacle): o is Landmark {
-  return o.kind === 'landmark' && o.look === 'deadTree';
+function isPlain(o: Obstacle): o is Landmark {
+  return o.kind === 'landmark' && !PER_PROP_MODELS.has(propPose(o).model);
 }
 
-type Fixed = { rocks: Set<string>; trees: TreeInstances; treeIds: Set<string> };
+type Fixed = { rocks: Set<string>; props: PropInstances };
 
 function syncRocks(ids: Set<string>, obstacles: readonly Obstacle[]): void {
   const rocks = obstacles.filter((o) => o.kind === 'rock');
@@ -473,10 +491,14 @@ function syncRocks(ids: Set<string>, obstacles: readonly Obstacle[]): void {
   if (rocks.length !== ids.size) throw new Error('A map rock was removed; rocks are drawn as fixed instances');
 }
 
-function syncTrees(fixed: Fixed, obstacles: readonly Obstacle[]): void {
-  const standing = new Set(obstacles.filter(isTree).map((o) => o.id));
-  for (const id of standing) fixed.trees.show(id);
-  for (const id of fixed.treeIds) if (!standing.has(id)) fixed.trees.hide(id);
+function syncFixedProps(fixed: Fixed, obstacles: readonly Obstacle[]): void {
+  const standing = new Set<string>();
+  for (const o of obstacles) {
+    if (!fixed.props.has(o.id)) continue;
+    standing.add(o.id);
+    fixed.props.show(o.id);
+  }
+  for (const id of fixed.props.ids()) if (!standing.has(id)) fixed.props.hide(id);
 }
 
 export const REACTOR_GLOW = { emissive: 2.2, intensity: 500, range: 40, decay: 1.5 };
