@@ -223,6 +223,14 @@ describe('loot colors on props', () => {
     expect(colorsAt(root, 10).length).toBe(plainA.length);
   });
 
+  it('keeps a house landmark on its own view so its roof color by id holds', () => {
+    const { root, views } = setup();
+
+    views.sync([{ id: 'home', pos: { x: 12, y: 12 }, r: 1, kind: 'landmark', look: 'house', yaw: 0 }], [], []);
+
+    expect(instanceMeshes(root)).toHaveLength(0);
+  });
+
   it('gives a prop that is lootable at the first sync its own view', () => {
     const { root, views } = setup();
 

@@ -323,7 +323,7 @@ function lightFortPiece(obj: THREE.Object3D): void {
   });
 }
 
-const PER_PROP_MODELS: ReadonlySet<string> = new Set(['hulk', 'reactor', 'ship_bow']);
+const PER_PROP_MODELS: ReadonlySet<string> = new Set(['hulk', 'building', 'reactor', 'ship_bow']);
 
 export type HulkPose = Extract<PropPose, { model: 'hulk' }>;
 
