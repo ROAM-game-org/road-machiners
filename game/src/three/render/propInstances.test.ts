@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { initPhysics } from '../../phys/drive';
 import type { Terrain } from '../../sim/terrain';
 import type { Obstacle } from '../../sim/types';
-import { loadModels } from './models';
-import { ObstacleViews } from './obstacles';
+import { loadModels, model } from './models';
+import { buildProp, ObstacleViews } from './obstacles';
 import { RenderScope, SightLimit } from './scope';
-import { TreeInstances } from './trees';
+import { PropInstances } from './propInstances';
 import { ICARUS_KEY } from '../../sim/atlas';
 
 type Landmark = Extract<Obstacle, { kind: 'landmark' }>;
@@ -20,6 +20,7 @@ await loadModels(async (name) => {
 await initPhysics();
 
 const SIZE = 64;
+const same = (_model: string, source: THREE.Material): THREE.Material => source;
 
 function flat(): Terrain {
   return { size: SIZE, heights: new Array<number>((SIZE + 1) * (SIZE + 1)).fill(0), types: new Array(SIZE * SIZE).fill('hardpan'), atlas: ICARUS_KEY };
@@ -31,10 +32,10 @@ function tree(id: string, x: number, y: number): Landmark {
 
 const TREES = [tree('deadTree-0', 5, 5), tree('deadTree-1', 7, 6), tree('deadTree-2', 9, 4), tree('deadTree-3', 40, 5)];
 
-function build(): { root: THREE.Group; trees: TreeInstances } {
+function build(): { root: THREE.Group; trees: PropInstances } {
   const root = new THREE.Group();
   const scope = new RenderScope(root, SIZE, new SightLimit(SIZE), true, true);
-  return { root, trees: new TreeInstances(scope, flat(), TREES) };
+  return { root, trees: new PropInstances(scope, flat(), TREES, same) };
 }
 
 function meshesOf(root: THREE.Group, chunk: string): THREE.InstancedMesh[] {
@@ -61,7 +62,7 @@ function zeroInstances(mesh: THREE.InstancedMesh): number {
   return zero;
 }
 
-describe('TreeInstances', () => {
+describe('PropInstances', () => {
   it('draws one instance per tree in its chunk', () => {
     const { root } = build();
 
@@ -114,15 +115,85 @@ describe('TreeInstances', () => {
     const root = new THREE.Group();
     const scope = new RenderScope(root, SIZE, new SightLimit(SIZE), true, true);
 
-    expect(() => new TreeInstances(scope, flat(), [TREES[0], TREES[0]])).toThrow(/deadTree-0/);
+    expect(() => new PropInstances(scope, flat(), [TREES[0], TREES[0]], same)).toThrow(/deadTree-0/);
   });
 
-  it('refuses a landmark that is not a dead tree', () => {
+  it('groups two models in one chunk into separate instanced groups', () => {
     const root = new THREE.Group();
     const scope = new RenderScope(root, SIZE, new SightLimit(SIZE), true, true);
-    const fence: Landmark = { ...tree('fence-1', 5, 5), look: 'fence' };
+    const fence: Landmark = { ...tree('fence-1', 6, 6), look: 'fence' };
 
-    expect(() => new TreeInstances(scope, flat(), [fence])).toThrow(/fence-1/);
+    new PropInstances(scope, flat(), [TREES[0], fence], same);
+
+    const counts = meshesOf(root, 'scope-chunk-0-0').map((m) => m.count);
+    expect(counts.every((c) => c === 1)).toBe(true);
+    expect(counts.length).toBeGreaterThan(meshesOf(build().root, 'scope-chunk-0-0').length);
+  });
+
+  it('draws 30 fort walls as one instanced mesh per material piece, whatever the count', () => {
+    const wall = (i: number): Landmark => ({ ...tree(`fortPatchworkWall-${i}`, 2 + i, 5), look: 'fortPatchworkWall' });
+    const draw = (n: number): THREE.InstancedMesh[] => {
+      const root = new THREE.Group();
+      const scope = new RenderScope(root, SIZE, new SightLimit(SIZE), true, true);
+      new PropInstances(scope, flat(), Array.from({ length: n }, (_, i) => wall(i)), same);
+      return meshesOf(root, 'scope-chunk-0-0');
+    };
+
+    const few = draw(2);
+    const many = draw(30);
+
+    expect(many.length).toBe(few.length);
+    let pieces = 0;
+    model('fort_patchwork_wall').traverse((o) => {
+      if (o instanceof THREE.Mesh) pieces++;
+    });
+    expect(many).toHaveLength(pieces);
+    expect(many.map((m) => m.count)).toEqual(many.map(() => 30));
+  });
+
+  it('keeps a withdrawn slot hidden for good', () => {
+    const { root, trees } = build();
+    const meshes = meshesOf(root, 'scope-chunk-0-0');
+
+    const back = trees.withdraw('deadTree-1');
+    trees.show('deadTree-1');
+
+    expect(back.id).toBe('deadTree-1');
+    expect(trees.holds('deadTree-1')).toBe(false);
+    expect(trees.has('deadTree-1')).toBe(true);
+    expect(meshes.map(zeroInstances)).toEqual(meshes.map(() => 1));
+  });
+
+  it('throws when it withdraws an unknown, hidden or withdrawn prop', () => {
+    const { trees } = build();
+    trees.hide('deadTree-0');
+    trees.withdraw('deadTree-1');
+
+    expect(() => trees.withdraw('deadTree-9')).toThrow(/deadTree-9/);
+    expect(() => trees.withdraw('deadTree-0')).toThrow(/deadTree-0/);
+    expect(() => trees.withdraw('deadTree-1')).toThrow(/deadTree-1/);
+  });
+
+  it('puts each instance where a per-prop copy of the same model stands', () => {
+    const { root } = build();
+    const single = new RenderScope(new THREE.Group(), SIZE, new SightLimit(SIZE), true, true);
+    const probe = new THREE.Group();
+    const lone = buildProp(flat(), TREES[1]);
+    lone.updateMatrixWorld(true);
+    probe.add(lone);
+    const pieces: THREE.Matrix4[] = [];
+    lone.traverse((o) => {
+      if (o instanceof THREE.Mesh) pieces.push(o.matrixWorld.clone());
+    });
+    const batched = meshesOf(root, 'scope-chunk-0-0');
+    const at = new THREE.Matrix4();
+
+    expect(single).toBeDefined();
+    expect(batched).toHaveLength(pieces.length);
+    batched.forEach((mesh, i) => {
+      mesh.getMatrixAt(1, at);
+      at.elements.forEach((e, k) => expect(e).toBeCloseTo(pieces[i].elements[k], 4));
+    });
   });
 });
 
@@ -170,9 +241,13 @@ describe('ObstacleViews dead trees', () => {
     expect(root.getObjectByName('scope-chunk-0-0')?.children).toHaveLength(1);
   });
 
-  it('throws on a tree that appears after the bake', () => {
-    const { obstacles } = views();
+  it('gives a tree that appears after the bake its own view', () => {
+    const { root, obstacles } = views();
+    const batched = meshesOf(root, 'scope-chunk-0-0').map((m) => m.count);
 
-    expect(() => obstacles.sync([...TREES, tree('deadTree-9', 12, 12)], [], [])).toThrow(/deadTree-9/);
+    obstacles.sync([...TREES, tree('deadTree-9', 12, 12)], [], []);
+
+    expect(meshesOf(root, 'scope-chunk-0-0').map((m) => m.count)).toEqual(batched);
+    expect(root.getObjectByName('scope-chunk-0-0')?.children.length).toBeGreaterThan(1);
   });
 });

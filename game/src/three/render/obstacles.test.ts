@@ -23,6 +23,26 @@ function groupOf(...names: string[]): THREE.Group {
   return g;
 }
 
+function standingAt(mesh: THREE.Mesh): THREE.Vector3[] {
+  if (!(mesh instanceof THREE.InstancedMesh)) return [mesh.getWorldPosition(new THREE.Vector3())];
+  const out: THREE.Vector3[] = [];
+  const m = new THREE.Matrix4();
+  for (let i = 0; i < mesh.count; i++) {
+    mesh.getMatrixAt(i, m);
+    if (m.elements.every((e) => e === 0)) continue;
+    out.push(new THREE.Vector3().setFromMatrixPosition(m.premultiply(mesh.matrixWorld)));
+  }
+  return out;
+}
+
+function instanceMeshes(root: THREE.Object3D): THREE.InstancedMesh[] {
+  const out: THREE.InstancedMesh[] = [];
+  root.traverse((o) => {
+    if (o instanceof THREE.InstancedMesh && !o.userData.outline) out.push(o);
+  });
+  return out;
+}
+
 function materialsOf(g: THREE.Group): THREE.MeshLambertMaterial[] {
   return g.children.map((c) => (c as THREE.Mesh).material as THREE.MeshLambertMaterial);
 }
@@ -81,11 +101,9 @@ describe('loot colors on props', () => {
   function colorsAt(root: THREE.Group, x: number, y = 20): number[] {
     root.updateMatrixWorld(true);
     const out: number[] = [];
-    const at = new THREE.Vector3();
     root.traverse((o) => {
       if (!(o instanceof THREE.Mesh)) return;
-      o.getWorldPosition(at);
-      if (Math.abs(at.x / S - x) < 2 && Math.abs(at.z / S - y) < 2) out.push((o.material as THREE.MeshLambertMaterial).color.getHex());
+      for (const at of standingAt(o)) if (Math.abs(at.x / S - x) < 2 && Math.abs(at.z / S - y) < 2) out.push((o.material as THREE.MeshLambertMaterial).color.getHex());
     });
     return out;
   }
@@ -173,7 +191,7 @@ describe('loot colors on props', () => {
 
   it('changes no emissive or geometry', () => {
     const { root, views } = setup();
-    views.sync(obstacles, world(false, false, false), []);
+    views.sync(obstacles, world(true, true, true), []);
     const shape = (): string => {
       const parts: string[] = [];
       root.traverse((o) => {
@@ -182,8 +200,82 @@ describe('loot colors on props', () => {
       return parts.join();
     };
     const before = shape();
+    views.sync(obstacles, world(false, false, false), []);
     views.sync(obstacles, world(true, true, true), []);
     expect(shape()).toBe(before);
+  });
+
+  it('batches plain props, withdraws one that turns lootable and shows it with loot colors in the same sync', () => {
+    const { root, views } = setup();
+    const twin = setup();
+    twin.views.sync(obstacles, world(false, false, false), []);
+    views.sync(obstacles, world(false, false, false), []);
+    const batched = instanceMeshes(root);
+    expect(batched.length).toBeGreaterThan(0);
+    const plainA = colorsAt(root, 10);
+
+    views.sync(obstacles, world(true, false, false), []);
+    expect(colorsAt(root, 10)).not.toEqual(plainA);
+    expect(batched.some((m) => standingAt(m).length < m.count)).toBe(true);
+
+    views.sync(obstacles, world(false, false, false), []);
+    expect(colorsAt(root, 10)).toEqual(colorsAt(twin.root, 10));
+    expect(colorsAt(root, 10).length).toBe(plainA.length);
+  });
+
+  it('gives a prop that is lootable at the first sync its own view', () => {
+    const { root, views } = setup();
+
+    views.sync(obstacles, world(true, false, false), []);
+
+    const twin = setup();
+    twin.views.sync(obstacles, world(false, false, false), []);
+    expect(colorsAt(root, 10)).not.toEqual(colorsAt(twin.root, 10));
+  });
+
+  it('keeps the source materials of a model untouched by its batches', () => {
+    const { views } = setup();
+    const before = model('fort_patchwork_wall');
+    const glow = (): string[] => {
+      const out: string[] = [];
+      model('escape_pod').traverse((o) => {
+        if (o instanceof THREE.Mesh) out.push(`${(o.material as THREE.MeshLambertMaterial).color.getHex()}:${(o.material as THREE.MeshLambertMaterial).emissive.getHex()}`);
+      });
+      return out;
+    };
+    const pod = glow();
+    views.sync([{ id: 'pod', pos: { x: 12, y: 12 }, r: 1, kind: 'landmark', look: 'escapePod', yaw: 0 }, { id: 'wall', pos: { x: 14, y: 12 }, r: 1, kind: 'landmark', look: 'fortPatchworkWall', yaw: 0 }], [], []);
+
+    expect(glow()).toEqual(pod);
+    expect(before).toBeDefined();
+  });
+
+  it('hides a batched fence while it is broken and shows it again when it is back', () => {
+    const { root, views } = setup();
+    const fence: Obstacle = { id: 'fence-1', pos: { x: 25, y: 25 }, r: 0.5, kind: 'landmark', look: 'fence', yaw: 0 };
+    const near = (): number => instanceMeshes(root).reduce((n, m) => n + standingAt(m).filter((p) => Math.abs(p.x / S - 25) < 2).length, 0);
+    views.sync([fence], [], []);
+    const standing = near();
+
+    views.sync([], [], [{ obstacle: fence, turn: 1 }]);
+    const broken = near();
+    views.sync([fence], [], []);
+
+    expect(standing).toBeGreaterThan(0);
+    expect(broken).toBe(0);
+    expect(near()).toBe(standing);
+  });
+
+  it('marks batch materials shared so disposing a per-prop view leaves them', () => {
+    const { root, views } = setup();
+    views.sync(obstacles, world(false, false, false), []);
+    const shared = instanceMeshes(root).map((m) => m.material as THREE.Material);
+    views.sync(obstacles, world(true, false, false), []);
+    views.sync(obstacles, world(false, false, false), []);
+    views.sync([], world(false, false, false), []);
+
+    expect(shared.length).toBeGreaterThan(0);
+    expect(shared.every((m) => m.userData.shared === true)).toBe(true);
   });
 
   it('draws a pile with the lifted crates', () => {
@@ -221,11 +313,9 @@ describe('roadside props broken at load', () => {
   function meshesAt(root: THREE.Group): number {
     root.updateMatrixWorld(true);
     let found = 0;
-    const at = new THREE.Vector3();
     root.traverse((o) => {
       if (!(o instanceof THREE.Mesh)) return;
-      o.getWorldPosition(at);
-      if (Math.abs(at.x / S - sign.pos.x) < 4 && Math.abs(at.z / S - sign.pos.y) < 4) found++;
+      for (const at of standingAt(o)) if (Math.abs(at.x / S - sign.pos.x) < 4 && Math.abs(at.z / S - sign.pos.y) < 4) found++;
     });
     return found;
   }

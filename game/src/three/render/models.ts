@@ -394,7 +394,7 @@ export function model(name: ModelName): THREE.Object3D {
   return copy;
 }
 
-export function instancedModel(name: ModelName, placements: THREE.Matrix4[], tints: number[]): THREE.Group {
+export function instancedModel(name: ModelName, placements: THREE.Matrix4[], tints: number[], materialOf: (source: THREE.Material) => THREE.Material): THREE.Group {
   if (placements.length === 0) throw new Error(`Instanced ${name} needs at least one placement`);
   if (tints.length !== placements.length) throw new Error(`Instanced ${name} has ${placements.length} placements but ${tints.length} tints`);
   const src = source(name);
@@ -407,7 +407,7 @@ export function instancedModel(name: ModelName, placements: THREE.Matrix4[], tin
   src.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;
     local.multiplyMatrices(toRoot, o.matrixWorld);
-    const mesh = new THREE.InstancedMesh(o.geometry, o.material, placements.length);
+    const mesh = new THREE.InstancedMesh(o.geometry, materialOf(o.material as THREE.Material), placements.length);
     placements.forEach((placement, i) => {
       mesh.setMatrixAt(i, matrix.multiplyMatrices(placement, local));
       mesh.setColorAt(i, color.setScalar(tints[i]));
