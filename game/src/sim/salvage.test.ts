@@ -346,7 +346,8 @@ describe('ship relics', () => {
       expect(relicsAfterRolls(table, 2000) / 2000).toBeCloseTo(table.relicChance, 1);
     expect(relicsAfterRolls(SALVAGE.roadWreck, 5000) / 5000).toBeCloseTo(SALVAGE.roadWreck.relicChance, 2);
     expect(OLD_TABLES.wreckage).toBe(SALVAGE.hullScrap);
-    for (const table of [SALVAGE.landmark, SALVAGE.farmStores, SALVAGE.armyStores, SALVAGE.cityStores, ...Object.values(OLD_TABLES).filter((t) => t !== SALVAGE.hullScrap)])
+    for (const table of [OLD_TABLES.hulks, OLD_TABLES.boats]) expect(relicsAfterRolls(table, 5000) / 5000).toBeCloseTo(table.relicChance, 2);
+    for (const table of [SALVAGE.landmark, SALVAGE.farmStores, SALVAGE.armyStores, SALVAGE.cityStores, OLD_TABLES.homestead, OLD_TABLES.hamlet, OLD_TABLES.lookout])
       expect(relicsAfterRolls(table, 500)).toBe(0);
   });
 
