@@ -48,6 +48,7 @@ import type {
   World,
 } from "../sim/types";
 import { keyLabel, phoneMode, touchMode } from "./input-mode";
+import { chipEl } from "./chip";
 import { disabledWith, el, panel, uiRoot } from "./dom";
 import { lookReason } from "./unstuck-reason";
 import { uiSize } from "./ui-size";
@@ -82,7 +83,7 @@ import {
   type PixelRect,
 } from "./inventory-draw";
 import { fillGhost, garageLooks, type GarageLooks } from "./garage-draw";
-import { fuelLiters, kg, moneyEl, moneyMsg, pricedEl } from "./units";
+import { fuelLiters, moneyEl, moneyMsg, pricedEl } from "./units";
 import { maxSpeedSteps } from "../sim/stats";
 import { getSearchAction, powerChip } from "./hud-readout";
 import {
@@ -1185,33 +1186,34 @@ export class InventoryScreen {
 
 function featureChip(chassisId: string): HTMLElement | null {
   const name = chassisAbilityName(chassisId);
-  return name ? el("span", { class: "chip", title: chassisAbilityLine(chassisId) ?? name }, name) : null;
+  return name ? chipEl(name, { title: chassisAbilityLine(chassisId) ?? name }) : null;
 }
 
-export function truckChips(w: World, opts: { freeCells: boolean } = { freeCells: true }, truckId?: string): HTMLElement {
+export function truckChips(w: World, opts: { freeCells: boolean; feature?: boolean } = { freeCells: true }, truckId?: string): HTMLElement {
   const me = truckFor(w, truckId);
   const mass = loadMass(me);
   const rated = chassisDef(me.chassisId).ratedMass;
   return el(
     "span",
     { class: "chips" },
-    el("span", { class: "chip" }, createIcon("truck"), chassisName(chassisDef(me.chassisId).id)),
-    featureChip(me.chassisId),
-    el("span", { class: "chip" }, moneyEl(w.player.money)),
-    opts.freeCells ? el("span", { class: "chip", title: t("inv.freeCellsTitle") }, createIcon("cells"), t("inv.freeCells", { n: freeCells(me) })) : null,
-    el(
-      "span",
-      { class: `chip${mass > rated ? " bad" : ""}`, title: t("inv.loadTitle") },
-      createIcon("load"),
-      t("speed.loadChip", { mass: kg(mass), rated: kg(rated) }),
-    ),
+    chipEl(chassisName(chassisDef(me.chassisId).id), { icon: "truck" }),
+    opts.feature === false ? null : featureChip(me.chassisId),
+    chipEl(moneyEl(w.player.money)),
+    opts.freeCells ? chipEl(t("inv.freeCells", { n: freeCells(me) }), { icon: "cells", title: t("inv.freeCellsTitle") }) : null,
+    chipEl(t("speed.loadChip", { mass: Math.round(mass), rated: Math.round(rated) }), {
+      icon: "mass",
+      readout: true,
+      bad: mass > rated,
+      title: t("inv.loadTitle"),
+    }),
     powerChipNode(w, me),
   );
 }
 
 function powerChipNode(w: World, me: Vehicle): HTMLElement {
   const chip = powerChip(maxSpeedSteps(w, me), me);
-  return el("span", { class: `chip${chip.over ? " bad" : ""}`, title: chip.detail, "aria-label": chip.detail }, createIcon("power"), chip.text);
+  const cost = chip.cost ? [createIcon("speed"), el("span", { class: "num" }, chip.cost)] : [];
+  return chipEl(chip.ratio, { icon: "power", readout: !chip.words, bad: chip.over, title: chip.detail, label: chip.detail, extra: cost });
 }
 
 const ROTATE_KEYCAP = "R";

@@ -49,7 +49,8 @@ import type { PartInstance, Refusal, Vehicle, World } from "../sim/types";
 import { compareBase, createBareItemIcon, createIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
 import { RowSlots, type SlotRow } from "./row-slots";
-import { caption, countCell, deskBody, goodsHead, keepFocus, marketHint, newsWell, owedTitle, profitCell, recipeLine, stockedGoodName, suppliesHead, tradeEstimate, priceEl, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, livePaintPlan, paintTab, planWithSlot, type PriceHint } from "./shop-rows";
+import { caption, countCell, deskBody, goodsHead, keepFocus, marketHint, newsWell, owedTitle, priceEl, priceHead, profitCell, recipeLine, stockedGoodName, suppliesHead, tradeEstimate, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, livePaintPlan, paintTab, planWithSlot, type PriceHint } from "./shop-rows";
+import { chipEl } from "./chip";
 import { el, isBrowserChord, panel } from "./dom";
 import { ArtBand } from "./art-band";
 import { callError } from "./dialogue";
@@ -283,7 +284,7 @@ export class TownScreen {
   }
 
   private drawPage(w: World, shopId: string, page: TownPage): void {
-    const truck = page === "garage" || page === "market" ? el("div", { class: "town-truck" }, this.inventory.render()) : null;
+    const truck = page === "garage" || page === "market" ? el("div", { class: "town-truck" }, page === "garage" ? this.repairBar(w) : null, this.inventory.render()) : null;
     this.choices = page === null ? this.frontChoices(w, shopId) : this.sectionChoices(shopId, page);
     this.root.replaceChildren(
       this.bandOf(w, this.artKey(shopId), shopDef(shopId).kind !== "garage"),
@@ -341,7 +342,7 @@ export class TownScreen {
   }
 
   private bandOf(w: World, art: string | null, freeCells: boolean): HTMLElement {
-    const chips = truckChips(w, { freeCells });
+    const chips = truckChips(w, { freeCells, feature: false });
     return el("div", { class: "ink-band" }, this.band.frame(art), el("div", { class: "ink-chips" }, chips));
   }
 
@@ -417,7 +418,7 @@ export class TownScreen {
       ),
     );
     const body = { buyParts: () => this.buyParts(w, shopId), sellParts: () => this.sellParts(w), trucks: () => this.trucks(w, shopId), paint: () => this.paint(w) }[this.garageTab]();
-    return el("div", {}, this.repairBar(w), el("div", { class: "tabs sub" }, ...buttons), body);
+    return el("div", {}, el("div", { class: "tabs sub" }, ...buttons), body);
   }
 
   private bar(w: World, shopId: string): HTMLElement {
@@ -1086,8 +1087,8 @@ function partnerChips(npc: Vehicle): HTMLElement {
     "span",
     { class: "chips" },
     el("span", { class: "dim" }, t("trade.them")),
-    el("span", { class: "chip", title: t("trade.theirMoney") }, moneyEl(money)),
-    el("span", { class: "chip", title: t("trade.theirCells") }, createIcon("cells"), t("inv.freeCells", { n: freeCells(npc) })),
+    chipEl(moneyEl(money), { title: t("trade.theirMoney") }),
+    chipEl(t("inv.freeCells", { n: freeCells(npc) }), { icon: "cells", title: t("trade.theirCells") }),
   );
 }
 
