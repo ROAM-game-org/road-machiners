@@ -3,7 +3,7 @@ import { CRATE_MASS, GOODS } from '../data/goods';
 import { GEAR_DRAWS, GEAR_LEVELS, GEAR_LEVEL_IDS, GEAR_SCORE, GEAR_WHIM, MIN_NPC_SPEED, NPC_UPKEEP, PRIORITY_TOP, type CargoRoll, type GearLevel, type Load, type LoadoutPriorities, type NpcLoadoutTable, type NpcTemplate, type Weighted } from '../data/npcs';
 import { NPC_UTILITY_PARTS } from '../data/npc-utilities';
 import { isLineGun, isShield, PARTS, partDef, type PartKind } from '../data/parts';
-import { openArcShares } from './armor';
+import { gunSpans, openArcShares, spanSides } from './armor';
 import { chassisTopSpeed } from './chassis-features';
 import { makePart, makeVehicle, newId, type PartSpec } from './factory';
 import { freeCells, gridOf, mountCellsOf, mountedItems, MOUNT_CELLS, mountSpots, plateSide, type SideLetter } from './grid';
@@ -382,7 +382,13 @@ function chooseFirstGun(b: Build, rng: Rng, p: LoadoutPriorities, v: Vehicle, po
 function withLineGun(b: Build, rng: Rng, p: LoadoutPriorities, powered: Vehicle, v: Vehicle, lineId: string): Vehicle | null {
   if (hasRealGun(v)) return mounted(b, v, lineId);
   const offers = firstGunOffers(b, rng, p, v, powered, (next) => mounted(b, next, lineId) !== null);
-  return offers.length ? mounted(b, bestOffer(offers), lineId) : null;
+  if (!offers.length) return null;
+  const facingFront = offers.filter(({ v: armed }) => hasFrontRealGun(mounted(b, armed, lineId) ?? armed));
+  return mounted(b, bestOffer(facingFront.length ? facingFront : offers), lineId);
+}
+
+function hasFrontRealGun(v: Vehicle): boolean {
+  return mountedItems(v, 'weapon').some((item) => !isLineGun(partDef(item.part.defId)) && spanSides(gunSpans(v, item)).includes('front'));
 }
 
 function pickGear(b: Build, rng: Rng, p: LoadoutPriorities, v: Vehicle, powered: Vehicle): Vehicle {
