@@ -509,7 +509,7 @@ function requireNoOldSpots(gone: Set<string>): void {
 }
 
 export function renewSalvage(world: World): void {
-  if (!modeRules(world).looting || world.turn % TIME.turnsPerDay !== 0) return;
+  if (!modeRules(world).looting || world.turn % TIME.workDayTurns !== 0) return;
   for (const o of world.obstacles.filter(isLootSpot)) restockSite(world, spotStock(world, o.id), spotTable(o));
   for (const stock of world.salvage) {
     const old = oldSpotOf(stock);
@@ -561,7 +561,7 @@ function turnOverRoadWrecks(world: World): void {
   for (const stock of world.salvage.filter(isRoadWreck)) {
     if (hasSalvage(stock)) continue;
     stock.emptySince ??= world.turn;
-    if (world.turn - stock.emptySince < SALVAGE.wreckClearDays * TIME.turnsPerDay || inPlayerView(world, stock.pos)) continue;
+    if (world.turn - stock.emptySince < SALVAGE.wreckClearDays * TIME.workDayTurns || inPlayerView(world, stock.pos)) continue;
     replaceRoadWreck(world, stock);
   }
 }
@@ -591,7 +591,7 @@ export function breakProp(world: World, id: string, vehicleId: string, impact: n
 }
 
 function regrowBroken(world: World): void {
-  const due = world.broken.filter((b) => world.turn - b.turn >= BREAKABLE.regrowDays * TIME.turnsPerDay);
+  const due = world.broken.filter((b) => world.turn - b.turn >= BREAKABLE.regrowDays * TIME.workDayTurns);
   const back = due.filter(({ obstacle }) => canRegrow(world, obstacle));
   if (back.length === 0) return;
   world.broken = world.broken.filter((b) => !back.includes(b));

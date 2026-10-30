@@ -910,3 +910,18 @@ export function withArmorRowsOutside_127_128(world: SavedJson): SavedJson {
   });
   return { ...world, vehicles };
 }
+
+const OLD_TURNS_PER_DAY_XP = 5760;
+const OLD_START_HOUR_XP = 7;
+const WORK_DAY_TURNS_XP = 450;
+
+function oldClockDay_XP(turn: number): number {
+  return Math.floor((OLD_START_HOUR_XP + ((turn - 1) * 24) / OLD_TURNS_PER_DAY_XP) / 24) + 1;
+}
+
+export function withXpWorkWindow(world: SavedJson): SavedJson {
+  const { xpDay, ...player } = world.player as SavedJson;
+  const turn = world.turn as number;
+  const xpWindow = xpDay === oldClockDay_XP(turn) ? Math.floor((turn - 1) / WORK_DAY_TURNS_XP) : -1;
+  return { ...world, player: { ...player, xpWindow } };
+}

@@ -515,7 +515,7 @@ export type Player = {
   xp: number;
   ranks: Record<SkillId, number>;
   xpToday: Record<SkillId, number>;
-  xpDay: number;
+  xpWindow: number;
   repeats: Record<string, Repeat>;
   xpBySource: Record<XpSource, number>;
   perks: PerkId[];

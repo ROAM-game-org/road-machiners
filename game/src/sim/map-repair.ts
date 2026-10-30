@@ -153,7 +153,7 @@ const PLAYER_MOVE = {
   xp: 'keep',
   ranks: 'keep',
   xpToday: 'keep',
-  xpDay: 'keep',
+  xpWindow: 'keep',
   repeats: 'keep',
   xpBySource: 'keep',
   perks: 'keep',

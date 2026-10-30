@@ -15,7 +15,7 @@ const LABEL = { candidate: 'test', commit: 'abc' };
 
 describe('playIncome', () => {
   it('reconciles its ledger and gives a finite rate on a short run', () => {
-    const run = playIncome(1337, 'robber', SHORT_TURNS / TIME.turnsPerDay, LABEL);
+    const run = playIncome(1337, 'robber', SHORT_TURNS / TIME.workDayTurns, LABEL);
 
     const net = run.endWorth - run.startWorth;
     expect(run.hours).toBeCloseTo((SHORT_TURNS * 24) / TIME.turnsPerDay);

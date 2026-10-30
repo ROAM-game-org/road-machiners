@@ -187,7 +187,7 @@ describe('the production clock', () => {
     const run = () => {
       const w = emptyWorld();
       w.turn = 1;
-      runCycles(w, (TIME.turnsPerDay / CYCLE) * 10);
+      runCycles(w, (TIME.workDayTurns / CYCLE) * 10);
       return { goods: Object.fromEntries(Object.entries(w.shops).map(([id, s]) => [id, s.goods])), rng: w.marketRng.rngState };
     };
     expect(run()).toEqual(run());
@@ -256,7 +256,7 @@ describe('site events', () => {
       runCycles(copy, r.everyCycles * 4);
       return shopState(copy, 'pump-station').goods.fuelDrums;
     });
-    state.event = { kind: 'surge', recipe: 'pump', until: w.turn + TIME.turnsPerDay };
+    state.event = { kind: 'surge', recipe: 'pump', until: w.turn + TIME.workDayTurns };
     withoutEvents(() => runCycles(w, r.everyCycles * 4));
     expect(state.goods.fuelDrums - stockTarget('pump-station', 'fuelDrums')).toBe(quiet * 2);
     expect(goodPrice('pump-station', state, 'fuelDrums', 'buy', ECONOMY.spread)).toBeLessThan(before);
@@ -267,7 +267,7 @@ describe('site events', () => {
     const def = SITE_EVENTS.find((e) => e.kind === 'breakdown' && e.site === 'dustwell')!;
     const state = shopState(w, 'dustwell');
     const tools = state.goods.tools;
-    state.event = { kind: 'breakdown', recipe: def.recipe, until: w.turn + def.days * TIME.turnsPerDay };
+    state.event = { kind: 'breakdown', recipe: def.recipe, until: w.turn + def.days * TIME.workDayTurns };
     runCycles(w, 1);
     expect(state.goods.tools).toBe(tools - 1);
     expect(state.event!.until - w.turn).toBeLessThanOrEqual(def.repairTurns);
@@ -281,7 +281,7 @@ describe('site events', () => {
     const def = SITE_EVENTS.find((e) => e.kind === 'breakdown' && e.site === 'dustwell')!;
     const state = shopState(w, 'dustwell');
     state.goods.tools = 0;
-    const until = w.turn + def.days * TIME.turnsPerDay;
+    const until = w.turn + def.days * TIME.workDayTurns;
     state.event = { kind: 'breakdown', recipe: def.recipe, until };
     runCycles(w, Math.floor((until - w.turn) / CYCLE) - 1);
     expect(state.event).not.toBeNull();
@@ -293,7 +293,7 @@ describe('site events', () => {
     const w = quietWorld();
     const rng = w.rngState;
     const market = w.marketRng.rngState;
-    w.turn = TIME.turnsPerDay * 3 - 1;
+    w.turn = TIME.workDayTurns * 3 - 1;
     runCycles(w, 1);
     expect(w.marketRng.rngState).not.toBe(market);
     const afterDay = w.marketRng.rngState;

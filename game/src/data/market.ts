@@ -77,11 +77,11 @@ export const CONTRACTS = {
   pastKept: 30,
 
 
-  warnTurns: Math.round(TIME.turnsPerDay / 12),
+  warnTurns: Math.round(TIME.workDayTurns / 12),
 
   haul: {
     durationFactor: 2.5,
-    slackTurns: Math.round(TIME.turnsPerDay / 4),
+    slackTurns: Math.round(TIME.workDayTurns / 4),
     rewardFactor: 24,
     valueShare: 0.05,
     units: [3, 12] as [number, number],
@@ -106,7 +106,7 @@ export const CONTRACTS = {
     leadStepTiles: 12.5,
     rivalTraits: ['scavenger', 'vulture', 'roamer', 'trader'] as readonly TraitId[],
     durationFactor: 2.5,
-    slackTurns: Math.round(TIME.turnsPerDay / 2),
+    slackTurns: Math.round(TIME.workDayTurns / 2),
     xpPerEffort: 0.3,
   },
 
@@ -120,7 +120,7 @@ export const CONTRACTS = {
   search: {
     durationTurns: [600, 900] as [number, number],
     rewardTurns: 750,
-    freshTurns: Math.round(TIME.turnsPerDay / 4),
+    freshTurns: Math.round(TIME.workDayTurns / 4),
     awayTiles: TERRAIN.vision.radius,
     xpPerEffort: 0.45,
   },
@@ -357,21 +357,21 @@ export type SiteEconomy = {
 };
 
 export const PRODUCTION = {
-  cycleTurns: Math.round(TIME.turnsPerDay / 24),
+  cycleTurns: Math.round(TIME.workDayTurns / 24),
   elasticity: 0.6,
   bufferDays: 1.5,
   fullShare: 1.6,
   minTarget: { garage: 120, stall: 30 } as Record<'garage' | 'stall', number>,
 };
 
-export const CYCLES_PER_DAY = TIME.turnsPerDay / PRODUCTION.cycleTurns;
+export const CYCLES_PER_DAY = TIME.workDayTurns / PRODUCTION.cycleTurns;
 
 export const SERVICE_GOOD: Record<'fuel' | 'supplies', string> = { fuel: 'fuelDrums', supplies: 'rations' };
 
 export const ESSENTIAL_GOODS: readonly string[] = ['water', 'grain', 'rations', 'fuelDrums'];
 
 export const RELIEF = {
-  delayTurns: Math.round(TIME.turnsPerDay * 1.5),
+  delayTurns: Math.round(TIME.workDayTurns * 1.5),
   everyCycles: 4,
   ceilingShare: 0.15,
 };
@@ -541,10 +541,10 @@ export const CRIME = {
 };
 
 export const BOUNTY = {
-  lapseTurns: 5 * TIME.turnsPerDay,
-  huntTurns: TIME.turnsPerDay / 2,
-  retryTurns: TIME.turnsPerDay / 2,
-  offerGapTurns: TIME.turnsPerDay,
+  lapseTurns: 5 * TIME.workDayTurns,
+  huntTurns: TIME.workDayTurns / 2,
+  retryTurns: TIME.workDayTurns / 2,
+  offerGapTurns: TIME.workDayTurns,
   stopTurns: 10,
   searchReach: 60,
   leadReach: 6,

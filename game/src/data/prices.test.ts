@@ -90,7 +90,7 @@ describe('tow fees', () => {
   });
 
   it('never cost more than a day of tier-1 earnings', () => {
-    expect(TOW.maxFee).toBeLessThanOrEqual(EFFORT.wage[1] * TIME.turnsPerDay);
+    expect(TOW.maxFee).toBeLessThanOrEqual(EFFORT.wage[1] * TIME.workDayTurns);
   });
 });
 

@@ -62,8 +62,8 @@ describe("who is hired", () => {
 
 describe("the pay", () => {
   it("nets 20 M a day after a day of food, and below the tier 1 wage", () => {
-    const food = TIME.turnsPerDay * RULES.suppliesPerTurn * ECONOMY.supplyPrice.supplies;
-    expect(Math.abs(oddJobsPay(TIME.turnsPerDay) - food - ODD_JOBS.netPerDay)).toBeLessThanOrEqual(2);
+    const food = TIME.workDayTurns * RULES.suppliesPerTurn * ECONOMY.supplyPrice.supplies;
+    expect(Math.abs(oddJobsPay(TIME.workDayTurns) - food - ODD_JOBS.netPerDay)).toBeLessThanOrEqual(2);
     expect(ODD_JOBS.payPerTurn).toBeLessThan(EFFORT.wage[1]);
   });
 

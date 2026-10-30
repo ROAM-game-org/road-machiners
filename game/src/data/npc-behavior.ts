@@ -134,11 +134,11 @@ export const CREW = {
 };
 
 export const HIRE = {
-  turns: TIME.turnsPerDay,
+  turns: TIME.workDayTurns,
 };
 
 export const MEMORY = {
-  turns: { prices: TIME.turnsPerDay, stripped: TIME.turnsPerDay, wronged: ENCOUNTERS.wrongedTurns, helped: 2 * TIME.turnsPerDay, sighting: TIME.turnsPerDay, witnessed: 3 * TIME.turnsPerDay } satisfies Record<MemoryFact['kind'], number>,
+  turns: { prices: TIME.workDayTurns, stripped: TIME.workDayTurns, wronged: ENCOUNTERS.wrongedTurns, helped: 2 * TIME.workDayTurns, sighting: TIME.workDayTurns, witnessed: 3 * TIME.workDayTurns } satisfies Record<MemoryFact['kind'], number>,
 };
 
 export const TRADE_TIP = { share: 0.2 };
@@ -211,7 +211,7 @@ export const STANDING_DELTA: Record<DeedId, number> = {
   aided: 5, towed: 5, patched: 5, defended: 8, contract: 3, failedContract: -5,
 };
 
-export const DEEDS = { repeatTurns: TIME.turnsPerDay };
+export const DEEDS = { repeatTurns: TIME.workDayTurns };
 
 export const STANDING = { dailyDrift: 10, dailyGainCap: 15 };
 

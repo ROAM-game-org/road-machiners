@@ -78,7 +78,7 @@ function requireSameRuns(a, b) {
 
 function ledgerPerDay(runs) {
   const each = runs.map((r) => {
-    const days = r.rows.reduce((sum, row) => sum + row.turns, 0) / TIME.turnsPerDay;
+    const days = r.rows.reduce((sum, row) => sum + row.turns, 0) / TIME.workDayTurns;
     const totals = ledgerTotals(r.rows);
     return Object.fromEntries(LEDGER_KEYS.map((key) => [key, totals[key] / days]));
   });
@@ -133,7 +133,7 @@ async function readValues(path) {
 
 function printArchetype(archetype, group) {
   const seeds = group.map((r) => r.seed).join(', ');
-  const days = group.map((r) => Number((r.turns / TIME.turnsPerDay).toFixed(1)));
+  const days = group.map((r) => Number((r.turns / TIME.workDayTurns).toFixed(1)));
   console.log(`\n${archetype}: ${group.length} seeds (${seeds}), ${Math.min(...days)} to ${Math.max(...days)} days`);
   printEndings(group);
   printSkills(group);
@@ -212,7 +212,7 @@ function printNetWorth(group) {
 }
 
 function printLedger(group) {
-  const totals = group.map((r) => ({ days: r.rows.reduce((sum, row) => sum + row.turns, 0) / TIME.turnsPerDay, ledger: ledgerTotals(r.rows) }));
+  const totals = group.map((r) => ({ days: r.rows.reduce((sum, row) => sum + row.turns, 0) / TIME.workDayTurns, ledger: ledgerTotals(r.rows) }));
   const rows = [['M per day', ...LEDGER_KEYS]];
   rows.push(['median', ...LEDGER_KEYS.map((key) => spread(totals.map((t) => t.ledger[key] / t.days), inM(2)))]);
   console.log('');
@@ -227,7 +227,7 @@ function spreadOrNone(values, format) {
 function levelCell(turns, seeds) {
   const reached = turns.filter((t) => t !== null);
   if (reached.length === 0) return 'never';
-  const cell = spread(reached, (t) => (t / TIME.turnsPerDay).toFixed(1));
+  const cell = spread(reached, (t) => (t / TIME.workDayTurns).toFixed(1));
   return reached.length === seeds ? cell : `${cell} [${reached.length}/${seeds}]`;
 }
 

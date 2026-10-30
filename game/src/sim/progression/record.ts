@@ -131,7 +131,7 @@ export function startWorldOn(map: BakedMap, seed: number, kit = 'standard', rank
       p.xpToday[skill] = 0;
     }
     for (const source of Object.keys(p.xpBySource) as XpSource[]) p.xpBySource[source] = 0;
-    p.xpDay = 1;
+    p.xpWindow = 0;
   });
 }
 
@@ -219,7 +219,7 @@ export class StallWatch {
       this.anchor = { turn, pos: { ...pos } };
       return;
     }
-    if (turn - this.anchor.turn < TIME.turnsPerDay) return;
+    if (turn - this.anchor.turn < TIME.workDayTurns) return;
     const at = `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`;
     throw new Error(`${this.label}: the player truck stalled at turn ${turn} at ${at}; it moved under ${STALL_TILES} tile since turn ${this.anchor.turn}`);
   }

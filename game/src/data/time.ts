@@ -20,6 +20,7 @@ export const TURN_CLOCK_SECONDS = turnClock(turnClockSetting());
 
 export const TIME = {
   turnsPerDay: Math.round(SECONDS_PER_DAY / TURN_CLOCK_SECONDS),
+  workDayTurns: 450,
   startHour: 7,
   sunrise: 6,
   sunset: 20,
@@ -35,3 +36,11 @@ export const TIME = {
     number
   >,
 };
+
+export function workDayOf(turn: number): number {
+  return Math.floor((turn - 1) / TIME.workDayTurns);
+}
+
+export function workDayStart(turn: number): number {
+  return workDayOf(turn) * TIME.workDayTurns + 1;
+}

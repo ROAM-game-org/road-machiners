@@ -417,7 +417,7 @@ function settleable(world: World): StandingFactionId[] {
 
 export function settlePrice(standing: number): number {
   const days = (BANDS.hostile + 1 - standing) / STANDING.dailyDrift;
-  return fairM(days * TIME.turnsPerDay * CRIME.wage * CRIME.settleWage);
+  return fairM(days * TIME.workDayTurns * CRIME.wage * CRIME.settleWage);
 }
 
 export function settlementQuote(world: World, faction: StandingFactionId): SettlementQuote | null {

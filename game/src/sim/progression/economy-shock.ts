@@ -45,7 +45,7 @@ export type ShockRun = {
 const HAUL_CRATES = 20;
 const HAUL_FUEL_PER_TILE = 0.4;
 const RECOVERED_SHARE = 0.2;
-const SAMPLE_TURNS = Math.round(TIME.turnsPerDay / 4);
+const SAMPLE_TURNS = Math.round(TIME.workDayTurns / 4);
 
 function npcsOf(world: World, templates: readonly string[]): Vehicle[] {
   return world.vehicles.filter((v) => v.brain && templates.includes(v.brain.templateId));
@@ -69,7 +69,7 @@ function massacre(world: World): boolean {
 }
 
 function pumpSurge(world: World): boolean {
-  shopState(world, 'pump-station').event = { kind: 'surge', recipe: 'pump', until: world.turn + TIME.turnsPerDay };
+  shopState(world, 'pump-station').event = { kind: 'surge', recipe: 'pump', until: world.turn + TIME.workDayTurns };
   return true;
 }
 
@@ -176,25 +176,25 @@ function noteHour(rec: Recording): void {
 function playTurn(rec: Recording, onDay: (s: DaySample) => void): void {
   rec.world.player.call = null;
   rec.world = endTurn(rec.world, (x) => { for (const v of x.vehicles) advanceFar(x, v); });
-  if (rec.world.turn % Math.round(TIME.turnsPerDay / 24) === 0) noteHour(rec);
+  if (rec.world.turn % Math.round(TIME.workDayTurns / 24) === 0) noteHour(rec);
   if (rec.world.turn % SAMPLE_TURNS !== 0) return;
-  const s = sample(rec.world, rec.world.turn / TIME.turnsPerDay, rec.rationingHours);
+  const s = sample(rec.world, rec.world.turn / TIME.workDayTurns, rec.rationingHours);
   rec.samples.push(s);
   onDay(s);
 }
 
 function shockDayOf(rec: Recording): number | null {
-  return rec.shockTurn !== null && rec.shockTurn >= 0 ? rec.shockTurn / TIME.turnsPerDay : null;
+  return rec.shockTurn !== null && rec.shockTurn >= 0 ? rec.shockTurn / TIME.workDayTurns : null;
 }
 
-export function playShock(seed: number, days: number, shock: Shock, shockAt: number = TIME.turnsPerDay, onDay: (s: DaySample) => void = () => {}): ShockRun {
+export function playShock(seed: number, days: number, shock: Shock, shockAt: number = TIME.workDayTurns, onDay: (s: DaySample) => void = () => {}): ShockRun {
   const rec = startRecording(seed, shock);
   watchStock((_shopId, good, delta, cause: StockCause) => {
     const key = `${cause}:${good}:${delta > 0 ? 'in' : 'out'}`;
     rec.flows[key] = (rec.flows[key] ?? 0) + Math.abs(delta);
   });
   try {
-    for (let turn = 0; turn < days * TIME.turnsPerDay; turn++) {
+    for (let turn = 0; turn < days * TIME.workDayTurns; turn++) {
       tryShock(rec, shock, shockAt);
       playTurn(rec, onDay);
     }

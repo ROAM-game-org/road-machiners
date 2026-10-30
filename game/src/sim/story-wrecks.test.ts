@@ -72,7 +72,7 @@ describe('story wrecks', () => {
     w.obstacles = [...w.obstacles, { id: WAGON.id, pos: WAGON.pos, r: WAGON.r, kind: 'wreck', hulk: { chassisId: 'wagon', yaw: WAGON.yaw } }];
 
     for (let day = 1; day <= 10; day++) {
-      w.turn = day * TIME.turnsPerDay;
+      w.turn = day * TIME.workDayTurns;
       renewSalvage(w);
     }
 

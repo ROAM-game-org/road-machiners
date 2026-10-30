@@ -36,7 +36,7 @@ function freeId(world: World): string {
 }
 
 export function fadeCraters(world: World): void {
-  const due = CRATER.days * TIME.turnsPerDay;
+  const due = CRATER.days * TIME.workDayTurns;
   world.craters = world.craters.filter((c) => world.turn - c.turn < due || !canVanish(world, c.pos, craterReach(c)));
 }
 

@@ -459,7 +459,7 @@ function worldWithLootedWreck(playerPos: Vec, pos: Vec): World {
 
 function runDays(w: World, days: number): void {
   for (let day = 0; day < days; day++) {
-    w.turn = (Math.floor(w.turn / TIME.turnsPerDay) + 1) * TIME.turnsPerDay;
+    w.turn = (Math.floor(w.turn / TIME.workDayTurns) + 1) * TIME.workDayTurns;
     renewSalvage(w);
   }
 }
@@ -492,7 +492,7 @@ describe('spot restock', () => {
   it('restocks only on the last turn of a day', () => {
     const { w, stock } = spotWorld();
     emptyStock(stock);
-    for (let turn = 1; turn < TIME.turnsPerDay; turn++) {
+    for (let turn = 1; turn < TIME.workDayTurns; turn++) {
       w.turn = turn;
       renewSalvage(w);
     }
@@ -606,7 +606,7 @@ describe('breakable props', () => {
 
   it('grows back beyond gray vision once its days have passed', () => {
     const w = worldWithFence(far);
-    w.turn = TIME.turnsPerDay;
+    w.turn = TIME.workDayTurns;
     breakProp(w, 'fence-7', w.vehicles[0].id, 3);
 
     runDays(w, BREAKABLE.regrowDays - 1);

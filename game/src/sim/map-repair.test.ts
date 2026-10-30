@@ -311,7 +311,7 @@ describe('repairMap stocks', () => {
     expect(world.salvage.filter((s) => oldSpotOf(s)).map((s) => s.id).sort()).toEqual(picks.map(oldStockId).sort());
     for (const o of world.obstacles.filter(isLootSpot)) expect(stockOf(world, o.id).pos).toEqual(o.pos);
     expect(new Set(world.salvage.map((s) => s.id)).size).toBe(world.salvage.length);
-    world.turn = TIME.turnsPerDay * 3;
+    world.turn = TIME.workDayTurns * 3;
     expect(() => renewSalvage(world)).not.toThrow();
   });
 

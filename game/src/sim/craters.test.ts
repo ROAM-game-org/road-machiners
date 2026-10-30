@@ -177,7 +177,7 @@ describe('digCrater', () => {
 });
 
 describe('fadeCraters', () => {
-  const days = CRATER.days * TIME.turnsPerDay;
+  const days = CRATER.days * TIME.workDayTurns;
 
   function dug(): { w: World; at: Vec } {
     const w = emptyWorld({ x: 30, y: 30 });

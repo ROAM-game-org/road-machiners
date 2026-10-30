@@ -63,7 +63,7 @@ export type IncomeRun = {
 export type RunLabel = { candidate: string; commit: string };
 
 export function playIncome(seed: number, policy: Policy, days: number, label: RunLabel): IncomeRun {
-  const turns = Math.round(days * TIME.turnsPerDay);
+  const turns = Math.round(days * TIME.workDayTurns);
   const start = startWorld(seed, INCOME_KIT, INCOME_SKILL_RANK);
   const startWorth = worth(start);
   const ledger: Record<string, number> = {};
@@ -90,7 +90,7 @@ export function playIncome(seed: number, policy: Policy, days: number, label: Ru
     played++;
     last = next;
     if (played % SAMPLE_TURNS === 0) samples.push(sampleWorld(next));
-    if (played % TIME.turnsPerDay !== 0) continue;
+    if (played % TIME.workDayTurns !== 0) continue;
     npcKnockoutsByDay.push(dayKnockouts);
     towsByDay.push(dayTows);
     dayKnockouts = 0;
@@ -103,7 +103,7 @@ export function playIncome(seed: number, policy: Policy, days: number, label: Ru
   return {
     seed,
     policy,
-    days: played / TIME.turnsPerDay,
+    days: played / TIME.workDayTurns,
     hours: (played * HOURS_PER_DAY) / TIME.turnsPerDay,
     startWorth,
     endWorth: worth(last),

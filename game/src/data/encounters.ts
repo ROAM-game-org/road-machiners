@@ -2,10 +2,10 @@ import type { Topic } from './dialogue';
 import { TIME } from './time';
 
 export const ENCOUNTERS = {
-  gapTurns: TIME.turnsPerDay / 3,
+  gapTurns: TIME.workDayTurns / 3,
   pendingTurns: 10,
-  storyGapTurns: TIME.turnsPerDay * 2,
-  wrongedTurns: TIME.turnsPerDay * 6,
+  storyGapTurns: TIME.workDayTurns * 2,
+  wrongedTurns: TIME.workDayTurns * 6,
   tip: { valueShare: 0.1 },
   favorShare: 2,
   favorReserve: 5,

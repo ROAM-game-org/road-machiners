@@ -34,8 +34,8 @@ export class JobTally {
 
   failure(archetype: Archetype): string | null {
     const job = JOBS[archetype];
-    const days = this.turns / TIME.turnsPerDay;
-    if (!job || days < job.grace || this.turns % TIME.turnsPerDay !== 0) return null;
+    const days = this.turns / TIME.workDayTurns;
+    if (!job || days < job.grace || this.turns % TIME.workDayTurns !== 0) return null;
     const rate = job.read(this.tally) / days;
     if (rate >= job.floor) return null;
     return `${archetype} does not play its job: ${rate.toFixed(1)} ${job.what} per day over ${days} days, floor ${job.floor}`;

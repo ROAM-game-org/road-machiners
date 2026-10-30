@@ -35,6 +35,12 @@ import { RELEASE_STEPS, TINY_FROM, TINY_STEPS as STEPS, type SavedJson } from '.
 
 const TINY_STEPS: Record<number, (world: SavedJson) => SavedJson> = Object.fromEntries(STEPS.map((named, i) => [TINY_FROM + i, named.step]));
 
+function namedStep(name: string): (world: SavedJson) => SavedJson {
+  const found = STEPS.find((named) => named.name === name);
+  if (!found) throw new Error(`No tiny step named ${name}`);
+  return found.step;
+}
+
 describe('save migration 63 to 64', () => {
   it('keeps every contract as it is, since old saves hold no rescue and the new kind adds no field to the others', () => {
     const next = TINY_STEPS[63](structuredClone(FORMAT_2_62));
@@ -898,7 +904,7 @@ describe('TINY_STEPS[101]', () => {
   });
 });
 
-describe('TINY_STEPS[122]', () => {
+describe('withoutRoadScene', () => {
   type Quests = { world: Record<string, unknown>; local: Record<string, Record<string, unknown>>; session: { quest: string; checkpoint: string; seed: number } | null; live: { quest: string } | null };
   type Saved = { player: { quests: Quests } };
   const saved = (quests: Partial<Quests>): Saved => {
@@ -906,7 +912,7 @@ describe('TINY_STEPS[122]', () => {
     world.player.quests = { world: {}, local: {}, session: null, live: null, ...quests };
     return world;
   };
-  const stepped = (world: Saved) => TINY_STEPS[122](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+  const stepped = (world: Saved) => namedStep('withoutRoadScene')(structuredClone(world) as unknown as SavedJson) as unknown as Saved;
 
   it('closes the scene whether it is open or only on view, and keeps another scene on view', () => {
     const open = saved({ session: { quest: 'intro_road', checkpoint: 'start', seed: 3 }, live: { quest: 'intro_road' } });
@@ -915,6 +921,31 @@ describe('TINY_STEPS[122]', () => {
     expect(stepped(onView).player.quests.live).toBeNull();
     const other = saved({ live: { quest: 'intro_bowl' } });
     expect(stepped(other).player.quests.live).toEqual({ quest: 'intro_bowl' });
+  });
+});
+
+describe('xpByWorkDay', () => {
+  type Saved = { turn: number; player: { xpDay?: number; xpWindow?: number; xpToday: Record<string, number> } };
+  const saved = (turn: number, xpDay: number): SavedJson => ({ ...structuredClone(FORMAT_2_101), turn, player: { ...structuredClone(FORMAT_2_101.player), xpDay, xpToday: { driving: 12 } } }) as unknown as SavedJson;
+  const stepped = (world: SavedJson) => namedStep('xpByWorkDay')(world) as unknown as Saved;
+
+  it('keeps the count of the current clock day in the work window the turn is in', () => {
+    const next = stepped(saved(1000, 1));
+    expect(next.player.xpWindow).toBe(2);
+    expect(next.player.xpToday).toEqual({ driving: 12 });
+    expect('xpDay' in next.player).toBe(false);
+  });
+
+  it('opens a fresh window when the saved day is not the current clock day', () => {
+    const next = stepped(saved(1000, 7));
+    expect(next.player.xpWindow).toBe(-1);
+  });
+
+  it('changes nothing else in the world', () => {
+    const before = saved(1000, 1);
+    const next = stepped(structuredClone(before)) as unknown as Record<string, unknown>;
+    const { xpDay: _gone, ...player } = (before.player as SavedJson);
+    expect({ ...next, player: { ...(next.player as SavedJson), xpWindow: undefined } }).toEqual({ ...before, player: { ...player, xpWindow: undefined } });
   });
 });
 

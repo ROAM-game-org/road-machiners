@@ -114,7 +114,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       xp: 0,
       ranks: { driving: kit.ranks, perception: kit.ranks, machining: kit.ranks, toughness: kit.ranks, social: kit.ranks },
       xpToday: { driving: 0, perception: 0, machining: 0, toughness: 0, social: 0 },
-      xpDay: 1,
+      xpWindow: 0,
       repeats: {},
       xpBySource: {
         roughTiles: 0, ram: 0, escape: 0,

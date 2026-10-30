@@ -1,5 +1,5 @@
 {
- "format": "2.131",
+ "format": "2.132",
  "shape": {
   "broken": [],
   "chaosHighway": "null",
@@ -151,14 +151,14 @@
     "roughTiles": "number",
     "search": "number"
    },
-   "xpDay": "number",
    "xpToday": {
     "driving": "number",
     "machining": "number",
     "perception": "number",
     "social": "number",
     "toughness": "number"
-   }
+   },
+   "xpWindow": "number"
   },
   "rngState": "number",
   "roadNews": [],

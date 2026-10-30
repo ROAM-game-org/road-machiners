@@ -22,11 +22,11 @@ const search = (turn: number, amount: number): TraceLine => ({ turn, source: 'se
 describe('replay', () => {
   it('applies the daily cap per family and per day', () => {
     simpleSearchXp();
-    const dayTwo = TIME.turnsPerDay * 0.75;
+    const dayTwo = TIME.workDayTurns * 0.75;
     expect(clockOf(40).day).toBe(1);
     expect(clockOf(dayTwo).day).toBe(2);
 
-    const curve = replay([search(10, 100), search(40, 400), search(dayTwo, 50), search(dayTwo + 10, 150)], 2 * TIME.turnsPerDay);
+    const curve = replay([search(10, 100), search(40, 400), search(dayTwo, 50), search(dayTwo + 10, 150)], 2 * TIME.workDayTurns);
 
     expect(curve.families.machining.total).toBe(450);
     expect(curve.families.machining.perDay).toBe(225);
@@ -93,7 +93,7 @@ describe('replay', () => {
   });
 
   it('counts XP per day up to the death turn it is given', () => {
-    const curve = replay([search(10, 1)], TIME.turnsPerDay / 2);
+    const curve = replay([search(10, 1)], TIME.workDayTurns / 2);
 
     expect(curve.families.machining.perDay).toBe(curve.families.machining.total * 2);
   });
@@ -116,7 +116,7 @@ describe('parseRunEnd', () => {
 });
 
 describe('targetMisses', () => {
-  const day = (d: number) => d * TIME.turnsPerDay;
+  const day = (d: number) => d * TIME.workDayTurns;
   const pooledWith = (kind: 'one' | 'every', days: (number | null)[]): Curve => ({
     families: { driving: { total: 0, perDay: 0 }, perception: { total: 0, perDay: 0 }, machining: { total: 0, perDay: 0 }, toughness: { total: 0, perDay: 0 }, social: { total: 0, perDay: 0 } },
     pooled: { total: 0, perDay: 0, one: [null, null, null, null, null], every: [null, null, null, null, null], [kind]: days },
