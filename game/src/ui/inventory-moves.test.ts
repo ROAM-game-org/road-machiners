@@ -195,8 +195,8 @@ describe("field refit plan", () => {
 });
 
 describe("instant field moves", () => {
-  const crateOf = (w: World, x: number) => w.vehicles[0].items.find((it) => it.kind === "good" && it.x === x && it.y === 8)!;
-  const freeCargo = { x: 5, y: 8, rot: 0 as Rot };
+  const crateOf = (w: World, x: number) => w.vehicles[0].items.find((it) => it.kind === "good" && it.x === x && it.y === 1)!;
+  const freeCargo = { x: 5, y: 10, rot: 0 as Rot };
 
   it("moves a crate at once and starts no job", () => {
     const w = emptyWorld();
@@ -209,8 +209,8 @@ describe("instant field moves", () => {
 
   it("swaps two crates at once", () => {
     const w = emptyWorld();
-    const a = crateOf(w, 0);
-    expect(fieldMoveIsInstant(w.vehicles[0], {}, a.id, { x: 3, y: 8, rot: 0 })).toBe(true);
+    const a = crateOf(w, 1);
+    expect(fieldMoveIsInstant(w.vehicles[0], {}, a.id, { x: 3, y: 1, rot: 0 })).toBe(true);
   });
 
   it("keeps a mounted gun move as a plan", () => {
@@ -236,7 +236,7 @@ describe("instant field moves", () => {
     const away = stowSpot(me, mg)!;
     const plan = planAfterMove(me, {}, mg.id, away);
     const crate = crateOf(w, 3);
-    const spot = { x: 6, y: 8, rot: 0 as Rot };
+    const spot = { x: 6, y: 10, rot: 0 as Rot };
     expect(fieldMoveIsInstant(me, plan, crate.id, spot)).toBe(true);
     const next = moveItem(w, crate.id, spot).vehicles[0];
     expect(plannedVehicle(next, plan).items.find((it) => it.id === mg.id)).toMatchObject(away);
@@ -263,7 +263,7 @@ describe("pickups with a plan pending", () => {
     const truck = pickupTruck(me, plan);
     expect(problemAt(truck, scrap("n1", away.x, away.y))).not.toBeNull();
     expect(problemAt(truck, scrap("n2", mg.x, mg.y))).not.toBeNull();
-    expect(problemAt(truck, scrap("n3", 6, 8))).toBeNull();
+    expect(problemAt(truck, scrap("n3", 6, 10))).toBeNull();
     expect(me.items.some((it) => it.id.startsWith("planned:"))).toBe(false);
   });
 

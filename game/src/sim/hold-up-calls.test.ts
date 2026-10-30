@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { NPCS } from '../data/npcs';
-import { UNITS } from '../data/units';
 import { playerVehicle } from './damage';
 import { callVehicle, currentOptions, hangUp, raiseCalls } from './dialogue';
 import { asksOf, chooseText } from './dialogue-testkit';
@@ -300,9 +299,9 @@ describe('robbing a driver for M', () => {
   });
 });
 
-describe('the cent math', () => {
+describe('the cut math', () => {
   it('names whole M', () => {
     const { w } = ambush(false);
-    expect(cashCut(w, playerVehicle(w)) % UNITS.centsPerM).toBe(0);
+    expect(Number.isInteger(cashCut(w, playerVehicle(w)))).toBe(true);
   });
 });

@@ -81,11 +81,11 @@ describe('a new world by mode', () => {
 
     expect(world.chaosHighway).toBeNull();
     expect(fingerprint(world)).toEqual({
-      streams: [-785001798, -783155452, -1818829172, 1936023925],
-      nextId: 2013,
-      counts: [34, 6048, 128, 7],
-      npcs: [['trader', 117.25, 580.66], ['trader', 119.62, 577.45], ['buggy', 149.33, 99.41]],
-      bowlStock: ['reinforcedSection', 'smokeMortar', 'lightFrame', 'flatFour', 'cannon', 'sprout', 'flatbed', 'claymoreRam', 'enclosedFrame', 'patcherCrane', 'stockEngine'],
+      streams: [-1746535844, -1038920240, -1818829172, 1936023925],
+      nextId: 2076,
+      counts: [23, 6048, 128, 7],
+      npcs: [['trader', 118.5, 573.27], ['trader', 116.61, 583.5], ['buggy', 150.57, 103.44]],
+      bowlStock: ['harpoon', 'caltrops', 'scrapersKnife', 'heavyMg', 'jerrycans', 'rack', 'lightFrame', 'lightFrame', 'spikeStrip', 'stockEngine'],
     });
   });
 
@@ -102,7 +102,7 @@ describe('a new world by mode', () => {
   it('gives the Chaos Highway player the Chaos Highway kit with no opening', () => {
     const world = chaosHighwayWorld(7);
 
-    expect(world.player.money).toBe(8000);
+    expect(world.player.money).toBe(80);
     expect(world.player.autoRepair).toBe(true);
     expect(world.vehicles[0].items.filter((it) => it.kind === 'good' && it.good === 'parts')).toHaveLength(1);
   });

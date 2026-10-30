@@ -194,7 +194,7 @@ describe('a stranded player not worth the trouble', () => {
   it('a driver that judges the player not worth it says so, makes peace and never offers', () => {
     const { w: start, lawman } = strandedByLawman('spare');
     const w = endTurn(start, testDrive);
-    expect(w.events).toContainEqual({ t: 'say', speaker: lawman.id, line: SPARE_LINE, vars: {} });
+    expect(w.events).toContainEqual({ t: 'say', speaker: lawman.id, to: w.player.vehicleId, line: SPARE_LINE, vars: {} });
     expect(w.player.call?.topic).not.toBe('giveUp');
     expect(isHostile(w, w.vehicles.find((v) => v.id === lawman.id)!, playerVehicle(w))).toBe(false);
   });

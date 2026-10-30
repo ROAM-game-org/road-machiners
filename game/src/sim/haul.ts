@@ -8,6 +8,7 @@ import { findSpot, freeCells, gridOf, isMounted, type Spot } from './grid';
 import { cargoRoom, stowPlace } from './inventory';
 import { looseCargo, takeError } from './salvage';
 import type { CallVar, GridItem, Vehicle, World } from './types';
+import { payoutM } from './money';
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;
 type GoodItem = Extract<GridItem, { kind: 'good' }>;
@@ -101,22 +102,27 @@ export function haulValue(items: GridItem[]): number {
   return items.reduce((sum, item) => sum + value(item), 0);
 }
 
-function askOf(item: GridItem): number {
-  if (item.kind === 'parcel') throw new Error(`Parcel ${item.id} is nobody's loot`);
-  return item.kind === 'part' ? roadPartAsk(item.part) : roadGoodAsk(item.good);
+function goodLots(items: GridItem[]): Map<string, number> {
+  const lots = new Map<string, number>();
+  for (const item of items) {
+    if (item.kind === 'parcel') throw new Error(`Parcel ${item.id} is nobody's loot`);
+    if (item.kind === 'good') lots.set(item.good, (lots.get(item.good) ?? 0) + 1);
+  }
+  return lots;
 }
 
 export function haulPrice(items: GridItem[]): number {
   if (items.length === 0) throw new Error('A haul price needs a haul');
-  const asked = items.reduce((sum, item) => sum + askOf(item), 0);
-  return Math.ceil(asked / UNITS.centsPerM) * UNITS.centsPerM;
+  const parts = items.reduce((sum, item) => sum + (item.kind === 'part' ? roadPartAsk(item.part) : 0), 0);
+  const goods = [...goodLots(items)].reduce((sum, [good, count]) => sum + roadGoodAsk(good, count), 0);
+  return parts + goods;
 }
 
 export function cashCut(world: World, victim: Vehicle): number {
   const spare = getResources(world, victim).money - getUpkeepReserve(victim);
   if (spare <= 0) return 0;
   const cut = Math.min(RULES.holdUp.cutCap, spare * RULES.holdUp.cutShare);
-  return Math.floor(cut / UNITS.centsPerM) * UNITS.centsPerM;
+  return payoutM(cut);
 }
 
 export function ransomOf(world: World, robber: Vehicle, victim: Vehicle): Ransom {

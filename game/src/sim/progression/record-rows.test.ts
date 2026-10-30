@@ -74,7 +74,7 @@ describe('netWorth', () => {
 });
 
 describe('netWorth with a haul contract', () => {
-  const haul: Contract = { id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'salt', units: 3, to: 'nose', reward: 300, deadline: 500, window: 500, rush: false, tier: 1 };
+  const haul: Contract = { id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'salt', units: 3, to: 'nose', reward: 3, deadline: 500, window: 500, rush: false, tier: 1 };
 
   it('does not count the units the contract carries, and counts the rest', () => {
     const own = update(emptyWorld({ x: 100, y: 100 }), (w) => { addGoods(w, playerVehicle(w), 'salt', 2); });

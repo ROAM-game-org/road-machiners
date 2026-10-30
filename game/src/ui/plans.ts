@@ -22,7 +22,7 @@ function planBox(chassisId: string, m: GridMetrics, symbolId: string): HTMLEleme
   const grid = baseGrid(chassisId);
   const box = el("div", { class: "truck-outline", "aria-hidden": "true" }, useSvg(symbolId, true));
   const [x, w] = [1 - PLAN_PAD, grid.w - 2 + 2 * PLAN_PAD].map((v) => v * m.cellW);
-  const [y, h] = [-PLAN_PAD, grid.h + 2 * PLAN_PAD].map((v) => v * m.cellH);
+  const [y, h] = [1 - PLAN_PAD, grid.h - 2 + 2 * PLAN_PAD].map((v) => v * m.cellH);
   box.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px`;
   return box;
 }

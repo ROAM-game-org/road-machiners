@@ -14,7 +14,7 @@ import type { GameEvent, World } from "./types";
 
 const bowl = REGION.towns.find((t) => t.id === "bowl")!;
 
-function brokeAtBowl(money = 1000): World {
+function brokeAtBowl(money = 10): World {
   const w = emptyWorld(sitePads(bowl)[0]);
   w.vehicles[0].speed = 0;
   w.player.money = money;
@@ -31,8 +31,8 @@ function moneyEvents(w: World): GameEvent[] {
 
 describe("who is hired", () => {
   it("hires a driver under a day of the tier 1 wage", () => {
-    expect(oddJobsBlock(brokeAtBowl(10 * 100))).toBeNull();
-    expect(oddJobsBlock(brokeAtBowl(-4000))).toBeNull();
+    expect(oddJobsBlock(brokeAtBowl(10))).toBeNull();
+    expect(oddJobsBlock(brokeAtBowl(-40))).toBeNull();
   });
 
   it("turns away a driver at the limit", () => {
@@ -79,15 +79,15 @@ describe("a shift", () => {
     w.events = [];
     workTurns(w, ODD_JOBS.shiftTurns);
     expect(w.vehicles[0].job).toBeNull();
-    expect(w.player.money).toBe(1000 + oddJobsPay(ODD_JOBS.shiftTurns));
+    expect(w.player.money).toBe(10 + oddJobsPay(ODD_JOBS.shiftTurns));
     expect(moneyEvents(w)).toEqual([{ t: "money", amount: oddJobsPay(ODD_JOBS.shiftTurns), reason: { kind: "oddJobs" } }]);
     expect(w.events).toContainEqual(expect.objectContaining({ t: "job", outcome: "done" }));
   });
 
   it("pays off debt first because money is one number", () => {
-    const w = startOddJobs(brokeAtBowl(-4000));
+    const w = startOddJobs(brokeAtBowl(-40));
     workTurns(w, ODD_JOBS.shiftTurns);
-    expect(w.player.money).toBe(-4000 + oddJobsPay(ODD_JOBS.shiftTurns));
+    expect(w.player.money).toBe(-40 + oddJobsPay(ODD_JOBS.shiftTurns));
   });
 
   it("pays the worked turns when the truck drives off", () => {
@@ -97,7 +97,7 @@ describe("a shift", () => {
     w.vehicles[0].speed = 30;
     advanceJobs(w);
     expect(w.vehicles[0].job).toBeNull();
-    expect(w.player.money).toBe(1000 + oddJobsPay(40));
+    expect(w.player.money).toBe(10 + oddJobsPay(40));
     expect(moneyEvents(w)).toHaveLength(1);
     expect(w.events).toContainEqual(expect.objectContaining({ t: "job", outcome: "cancelled" }));
   });
@@ -109,7 +109,7 @@ describe("a shift", () => {
     startCombat(w, raider, w.vehicles[0]);
     advanceJobs(w);
     expect(w.vehicles[0].job).toBeNull();
-    expect(w.player.money).toBe(1000 + oddJobsPay(10));
+    expect(w.player.money).toBe(10 + oddJobsPay(10));
   });
 
   it("pays the worked turns when the truck leaves the pad", () => {
@@ -118,7 +118,7 @@ describe("a shift", () => {
     w.vehicles[0].pos = { x: 30, y: 30 };
     advanceJobs(w);
     expect(w.vehicles[0].job).toBeNull();
-    expect(w.player.money).toBe(1000 + oddJobsPay(25));
+    expect(w.player.money).toBe(10 + oddJobsPay(25));
   });
 
   it("pays nothing and raises no money event for a shift cancelled at once", () => {
@@ -126,7 +126,7 @@ describe("a shift", () => {
     w.events = [];
     w.vehicles[0].speed = 30;
     advanceJobs(w);
-    expect(w.player.money).toBe(1000);
+    expect(w.player.money).toBe(10);
     expect(moneyEvents(w)).toEqual([]);
   });
 

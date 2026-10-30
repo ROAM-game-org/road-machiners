@@ -125,7 +125,7 @@ describe('xpFor', () => {
   const fresh = { xp: 0, xpToday: { driving: 0, perception: 0, machining: 0, toughness: 0, social: 0 }, xpDay: 1, repeats: {} };
 
   it('pays an unscaled source its weight per unit', () => {
-    expect(xpFor(fresh, 'profit', 100, null, 'bowl:salt', 1)).toBeCloseTo(XP_SOURCES.profit.weight * 100);
+    expect(xpFor(fresh, 'profit', 10, null, 'bowl:salt', 1)).toBeCloseTo(XP_SOURCES.profit.weight * 10);
   });
 
   it('rejects a difficulty on an unscaled source', () => {
@@ -145,7 +145,7 @@ describe('xpFor', () => {
 
   it('forgets the cap on a new day', () => {
     const capped = { ...fresh, xpToday: { ...fresh.xpToday, social: XP_RULES.dailyCap } };
-    expect(xpFor(capped, 'profit', 100, null, 'bowl:salt', 1 + TIME.turnsPerDay)).toBeCloseTo(XP_SOURCES.profit.weight * 100);
+    expect(xpFor(capped, 'profit', 10, null, 'bowl:salt', 1 + TIME.turnsPerDay)).toBeCloseTo(XP_SOURCES.profit.weight * 10);
   });
 
   it('rejects negative amounts', () => {
@@ -156,7 +156,7 @@ describe('xpFor', () => {
 describe('repeats on one target', () => {
   it('each earlier event on a target multiplies the pay by its repeat factor', () => {
     const w = emptyWorld();
-    for (let i = 0; i < 3; i++) practice(w, 'profit', 10, null, 'bowl:salt');
+    for (let i = 0; i < 3; i++) practice(w, 'profit', 5, null, 'bowl:salt');
     const pay = w.events.flatMap((e) => (e.t === 'practice' ? [e.xp] : []));
     const r = XP_SOURCES.profit.repeat;
     expect(pay[1] / pay[0]).toBeCloseTo(r);

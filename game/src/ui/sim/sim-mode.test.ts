@@ -75,7 +75,7 @@ describe('simulation mode', () => {
     expect(markers.every((m) => m.name !== '' && m.name !== m.id)).toBe(true);
     const hud = hudOf(world, SIM_TEXT);
     expect(hud.money).toBe(SIM_TEXT.money(world.player.money));
-    expect(hud.money).toBe(`${Math.ceil(world.player.money / 100)} M's`);
+    expect(hud.money).toBe(`${world.player.money} M's`);
     expect(hud.worth).toBe(SIM_TEXT.money(netWorth(world)));
   });
 

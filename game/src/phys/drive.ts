@@ -14,7 +14,7 @@ import { propsAroundInOrder } from '../sim/prop-index';
 import { playerVehicle } from '../sim/damage';
 import { groundSpeed, vehicleStats, type VehicleStats } from '../sim/stats';
 import { continueRoute, keepRoute, route, type KeptRoute } from '../sim/path';
-import { backsToDestination, brakeDecel, brakeImpulse, driveMode, orderSpeed } from '../sim/steering';
+import { backsToDestination, brakeDecel, brakeImpulse, driveMode, orderSpeed, setSpeedTarget } from '../sim/steering';
 import { givesWayTo, routeBlockers, standingBlockers, yieldsToTraffic } from '../sim/ai';
 import { clearanceFor, type Clearance, type Mover } from '../sim/clearance';
 import { combatFoesOf } from '../sim/combat';
@@ -599,6 +599,7 @@ function planTurn(w: World, v: Vehicle, full: VehicleStats, body: RAPIER.RigidBo
   const speed = Math.max(0, toTilesPerTurn(forwardSpeed(body)));
   const s = fuelLimited(w, v, full, speed, order);
   const engine = s.maxSpeed > 0;
+  const set = setSpeedTarget(v, s, order);
   const base = {
     engine,
     maxSteer: T.maxSteer * (s.turnSlow / (ch.turnSlow * DEG)),
@@ -609,7 +610,7 @@ function planTurn(w: World, v: Vehicle, full: VehicleStats, body: RAPIER.RigidBo
     clearance: null,
     room: null,
   };
-  if (!order) return { ...base, dest: null, route: null, target: idleTarget(speed), stopAt: false };
+  if (!order) return { ...base, dest: null, route: null, target: set === undefined ? idleTarget(speed) : toMps(engine ? set : speed), stopAt: false };
   if (order.kind === 'brake' || yieldsToTraffic(w, v)) return { ...base, dest: null, route: null, target: 0, stopAt: false };
   const blockers = routeBlockers(w, v);
   const stored = mem.route && dist(mem.route.dest, order.dest) < RULES.arriveRadius && mem.route.radius === s.radius ? continueRoute(w, v.pos, mem.route, order.dest, s.radius, blockers, v) : null;
@@ -620,8 +621,7 @@ function planTurn(w: World, v: Vehicle, full: VehicleStats, body: RAPIER.RigidBo
   Object.assign(mem, { clearAhead: Infinity, clearMoving: Infinity, clearBehind: Infinity, clearAt: 0, roomAt: 0, roomBack: null, roomTurn: null });
   const drive = (next: number) => toMps(engine ? next : speed);
   if (order.kind === 'stopAt') return { ...base, clearance, room, dest: stopPoint(path, order.dest), route: path, target: drive(orderSpeed(s, speed, v.pos, order, driveMode(v))), stopAt: true };
-  const next = orderSpeed(s, speed, v.pos, order, driveMode(v));
-  return { ...base, clearance, room, dest: order.dest, route: path, target: drive(next), stopAt: false };
+  return { ...base, clearance, room, dest: order.dest, route: path, target: drive(set ?? orderSpeed(s, speed, v.pos, order, driveMode(v))), stopAt: false };
 }
 
 function stopPoint(path: Vec[] | null, dest: Vec): Vec {

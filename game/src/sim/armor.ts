@@ -1,6 +1,6 @@
 import { RULES } from '../data/rules';
 import { PHYSICS } from '../data/physics';
-import { cellCenter, cellRect, spanOf, unitOfRow, unitsOf, type CellRect } from './body';
+import { cellCenter, cellRect, cellSteps, spanOf, unitOfRow, unitsOf, type CellRect } from './body';
 import { footprint, nearestUnit, poseToWorld, sideReach, unitPose, worldToPose, type UnitPose } from './rig';
 
 import { isShield, partDef, type PartDef } from '../data/parts';
@@ -9,6 +9,7 @@ import { weaponArc } from './stats';
 import { wornDef } from './wear';
 import { damagePart } from './damage';
 import { baseGrid, cellKey, facingOf, gridOf, itemCells, isMounted, itemSize, mountedItems, shieldParts, sideOf, type Grid, type SideLetter } from './grid';
+import type { Loadout } from './loadout-memo';
 import type { GridItem, PartInstance, Vehicle, World } from './types';
 import { angleDiff, bearing, dist, type Vec } from './vec';
 
@@ -81,7 +82,7 @@ function extraLanes(v: Vehicle, extra: GridItem, lanesOf: (item: GridItem) => nu
   return isMounted(v.chassisId, extra) ? lanesOf(extra) : null;
 }
 
-function withLanesAt(armor: GridItem[], armorLanes: number[][], extra: GridItem, lanes: number[]): number[][] {
+function withLanesAt(armor: readonly GridItem[], armorLanes: number[][], extra: GridItem, lanes: number[]): number[][] {
   const at = armor.findIndex((it) => it.y > extra.y || (it.y === extra.y && it.x > extra.x));
   return at < 0 ? [...armorLanes, lanes] : [...armorLanes.slice(0, at), lanes, ...armorLanes.slice(at)];
 }
@@ -122,6 +123,13 @@ function isCab(def: PartDef): boolean {
 
 type Local = { fwd: number; right: number };
 
+function alongRow(chassisId: string, lane: number): number {
+  const { half } = spanOf(chassisId);
+  if (lane <= 0) return half.x;
+  if (lane >= baseGrid(chassisId).h - 1) return -half.x;
+  return half.x - (lane - 0.5) * cellSteps(chassisId).row;
+}
+
 function laneFace(v: Vehicle, side: Side, lane: number): { unit: number; at: Local } {
   const { center, half } = spanOf(v.chassisId);
   const n = laneCount(v, side);
@@ -132,8 +140,8 @@ function laneFace(v: Vehicle, side: Side, lane: number): { unit: number; at: Loc
   switch (side) {
     case 'front': return face(0, center + half.x, (across * 2 - 1) * half.z);
     case 'rear': return face(all.length - 1, center - half.x, (across * 2 - 1) * half.z);
-    case 'left': return face(row(), center + (1 - across * 2) * half.x, -half.z);
-    case 'right': return face(row(), center + (1 - across * 2) * half.x, half.z);
+    case 'left': return face(row(), center + alongRow(v.chassisId, lane), -half.z);
+    case 'right': return face(row(), center + alongRow(v.chassisId, lane), half.z);
   }
 }
 
@@ -285,7 +293,19 @@ type LaneCell = { parts: readonly PartInstance[] } | null;
 const NO_PARTS: readonly PartInstance[] = [];
 
 function laneOwners(g: Grid, owner: Map<number, PartInstance[]>, side: Side, lane: number): LaneCell[] {
-  return laneCells(g, side, lane).map((c) => (g.cells[c.y][c.x] === null && c.y < g.deadFrom ? null : { parts: owner.get(cellKey(c.x, c.y)) ?? NO_PARTS }));
+  const lengthwise = side === 'front' || side === 'rear';
+  return laneCells(g, side, lane).map((c) => {
+    const parts = owner.get(cellKey(c.x, c.y)) ?? NO_PARTS;
+    return isOffBody(g, c) || (lengthwise && isEmptyEndRow(g, c, parts)) ? null : { parts };
+  });
+}
+
+function isOffBody(g: Grid, c: { x: number; y: number }): boolean {
+  return g.cells[c.y][c.x] === null && c.y < g.deadFrom;
+}
+
+function isEmptyEndRow(g: Grid, c: { y: number }, parts: readonly PartInstance[]): boolean {
+  return parts.length === 0 && (c.y === 1 || c.y === g.h - 2);
 }
 
 type Spend = (part: PartInstance, left: { pen: number; damage: number }, round: Round) => { part: PartInstance; amount: number };
@@ -355,7 +375,7 @@ function cellOwners(v: Vehicle): Map<number, PartInstance[]> {
   return owner;
 }
 
-function outerFirst<T extends GridItem & { kind: 'part' }>(items: T[]): T[] {
+function outerFirst<T extends GridItem & { kind: 'part' }>(items: readonly T[]): T[] {
   const outer = (it: T) => (partDef(it.part.defId).kind === 'accessory' ? 0 : 1);
   return [...items].sort((a, b) => outer(a) - outer(b));
 }
@@ -424,7 +444,7 @@ export type FireSpan = { from: number; to: number };
 
 const SIDE_CENTER: Record<Side, number> = { front: 0, right: 90, rear: 180, left: -90 };
 
-export function gunSpans(v: Vehicle, item: GridItem): FireSpan[] {
+export function gunSpans(v: Loadout, item: GridItem): FireSpan[] {
   return spansIn(v, tallItems(v), item);
 }
 
@@ -492,13 +512,13 @@ export function gunLayoutScore(v: Vehicle): number {
   return covered.size * (360 * guns.length + 1) + sum;
 }
 
-function spansIn(v: Vehicle, tall: readonly GridItem[], item: GridItem): FireSpan[] {
+function spansIn(v: Loadout, tall: readonly GridItem[], item: GridItem): FireSpan[] {
   const shadows = shadowsOf(tall, item).flatMap((s) => s.pieces);
   const open = arcPieces(v, item).flatMap((piece) => shadows.reduce((left, cut) => left.flatMap((p) => subtract(p, cut)), [piece]));
   return joinAcrossBack(mergeSpans(open));
 }
 
-function arcPieces(v: Vehicle, item: GridItem): FireSpan[] {
+function arcPieces(v: Loadout, item: GridItem): FireSpan[] {
   if (item.kind !== 'part') throw new Error(`${item.id} is not a part`);
   const arc = weaponArc(v.chassisId, item.part.defId);
   if (arc >= 360) return [{ from: -180, to: 180 }];
@@ -564,7 +584,7 @@ function mergeSpans(pieces: FireSpan[]): FireSpan[] {
   return merged;
 }
 
-function tallItems(v: Vehicle): GridItem[] {
+function tallItems(v: Loadout): GridItem[] {
   return v.items.filter((it) => it.kind === 'part' && Boolean(partDef(it.part.defId).tall));
 }
 

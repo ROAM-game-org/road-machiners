@@ -214,7 +214,7 @@ describe('exposure', () => {
     v.heading = Math.PI;
     const mg = v.items.find((it) => it.kind === 'part' && it.part.defId === 'mg')!;
     mg.x = 2;
-    mg.y = 1;
+    mg.y = 2;
     const strip = new Set(mountedParts(v, 'armor').filter((p) => sideOf(v, p) !== keep).map((p) => p.id));
     v.items = v.items.filter((it) => it.kind !== 'part' || !strip.has(it.part.id));
     return exposure(w, gun, gun, v);

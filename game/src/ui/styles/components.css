@@ -81,10 +81,20 @@
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-4) var(--space-1) var(--space-2);
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  line-height: 1;
   background: var(--surface-well);
   border: 1px solid var(--line-soft);
+}
+
+.chip > .icon,
+.chip .coin {
+  width: var(--icon-s);
+  height: var(--icon-s);
+}
+.chip .amount {
+  gap: var(--space-3);
 }
 
 /* A told survey clue, on its own line under the contract it belongs to. */
@@ -97,6 +107,14 @@
   padding: 0 var(--space-3);
   font-size: var(--text-dense);
   border: 1px solid;
+}
+
+/* A row whose own action is done. It keeps its slot, dimmed, with a past-tense tag where the button was, and takes no click. */
+.spent {
+  opacity: 0.55;
+  pointer-events: none;
+  user-select: none;
+  cursor: default;
 }
 
 /* A bar that fills from the left. Health by default, accent for progress. */

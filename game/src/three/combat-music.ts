@@ -29,6 +29,7 @@ export function bankKitLoader(ctx: BaseAudioContext, options: BankOptions): KitL
 
 export class CombatMusic {
   private kit: Kit | null = null;
+  private wanted = false;
   private playingTitle: string | null = null;
   private loading: Promise<void>;
   private current: BlockSession | null = null;
@@ -63,6 +64,7 @@ export class CombatMusic {
   }
 
   setCombat(on: boolean): void {
+    this.wanted = on;
     if (on === this.inCombat) return;
     if (on) this.start();
     else this.stop();
@@ -85,7 +87,7 @@ export class CombatMusic {
   private switchTo(kit: Kit): void {
     this.kit = kit;
     const old = this.current;
-    if (!old?.inCombat) return;
+    if (!old?.inCombat) return this.startIfWanted();
     const at = old.end(this.ctx.currentTime);
     const tail = old.played.at(-1)!;
     for (const v of tail.voices) v.fadeOut(at + old.beatSeconds, old.beatSeconds / 2);
@@ -109,6 +111,10 @@ export class CombatMusic {
     this.timer ??= setInterval(() => this.tick(), TICK_MS);
   }
 
+  private startIfWanted(): void {
+    if (this.wanted && !this.inCombat) this.start();
+  }
+
   private stop(): void {
     this.current?.end(this.ctx.currentTime);
     this.voices.release();
@@ -122,5 +128,6 @@ export class CombatMusic {
     const name = names[Math.floor(this.roll() * names.length)];
     if (this.kit?.name === name) return;
     this.kit = (await this.load(name)) ?? this.kit;
+    this.startIfWanted();
   }
 }

@@ -5,7 +5,7 @@ import { isKnockedOut } from '../defeat';
 import { goodsCount, mountedParts } from '../grid';
 import { topGoal } from '../npc-activities';
 import { getResources } from '../resources';
-import { worldPlaces } from '../sites';
+import { isSheltered, namedTruck, worldPlaces } from '../sites';
 import { vehicleStats } from '../stats';
 import type { PartInstance, Vehicle, World } from '../types';
 import type { Vec } from '../vec';
@@ -27,8 +27,8 @@ export function cardOf(world: World, id: string, ledger: Ledger, text: SimText):
 }
 
 function goneCard(world: World, id: string, text: SimText): Card {
-  const v = world.removed.find((x) => x.id === id);
-  return { id, title: v ? text.truck(world, v) : 'This truck', doing: 'Left the map', tags: [], stats: [], facts: [], sections: [], way: NO_WAY };
+  const v = namedTruck(world, id);
+  return { id, title: v ? text.truck(world, v) : 'This truck', doing: isSheltered(world, id) ? 'Inside a site' : 'Left the map', tags: [], stats: [], facts: [], sections: [], way: NO_WAY };
 }
 
 function driverlessCard(world: World, v: Vehicle, text: SimText): Card {
@@ -45,7 +45,7 @@ function driverlessCard(world: World, v: Vehicle, text: SimText): Card {
 }
 
 function npcTags(world: World, v: Vehicle, s: TruckSnap): string[] {
-  const on: [string, boolean][] = [['In combat', inCombat(world, v)], ['Knocked out', isKnockedOut(v)], ['Stranded', s.stranded], ['Keeps off roads', s.offRoad]];
+  const on: [string, boolean][] = [['In combat', inCombat(world, v)], ['Knocked out', isKnockedOut(v)], ['Stranded', s.stranded], ['Keeps off roads', s.style === 'hidden']];
   return on.filter(([, yes]) => yes).map(([name]) => name);
 }
 

@@ -115,7 +115,7 @@ describe('calls', () => {
     const next = callVehicle(w, npc.id);
     expect(next.player.call).toEqual({ with: npc.id, topic: null, node: HUB, vars: {}, line: { line: TRAIT_TALK.trader.voice!.greeting, vars: {} }, group: null, asked: [] });
     expect(next.events).toContainEqual({ t: 'call', with: npc.id, outcome: 'opened' });
-    expect(next.events).toContainEqual({ t: 'say', speaker: npc.id, line: TRAIT_TALK.trader.voice!.greeting, vars: {} });
+    expect(next.events).toContainEqual({ t: 'say', speaker: npc.id, to: w.player.vehicleId, line: TRAIT_TALK.trader.voice!.greeting, vars: {} });
   });
 
   it('cannot reach a truck out of sight', () => {
@@ -296,7 +296,7 @@ describe('NPC calls', () => {
     let next = callVehicle(w, npc.id);
     next = chooseText(next, en(TOPICS.directions.ask!.say));
     expect(next.player.call?.topic).toBeNull();
-    expect(next.events).toContainEqual({ t: 'say', speaker: npc.id, line: TRAIT_TALK.trader.voice!.repeatLine, vars: {} });
+    expect(next.events).toContainEqual({ t: 'say', speaker: npc.id, to: w.player.vehicleId, line: TRAIT_TALK.trader.voice!.repeatLine, vars: {} });
     expect(next.player.call?.line).toEqual({ line: TRAIT_TALK.trader.voice!.repeatLine, vars: {} });
   });
 });
@@ -1000,7 +1000,7 @@ describe('claim wreck topic', () => {
     const part = makePart(w, 'mg', 0);
     const at = { x: npc.pos.x + 20, y: npc.pos.y };
     w.salvage = [{ id: 'armyTruck-1', pos: at, radius: 0.6, goods: {}, parts: [], hidden: { ...emptyHidden(), parts: [part] } }];
-    const claim = { id: 'ct-claim', shop: 'bowl', kind: 'claim' as const, stockId: 'armyTruck-1', at, partId: part.id, defId: part.defId, reward: 900, deadline: 9000, window: 9000, tier: 1 as const, rivalAt: 9000, rival: null, leads: [] };
+    const claim = { id: 'ct-claim', shop: 'bowl', kind: 'claim' as const, stockId: 'armyTruck-1', at, partId: part.id, defId: part.defId, reward: 9, deadline: 9000, window: 9000, tier: 1 as const, rivalAt: 9000, rival: null, leads: [] };
     w.player.contracts = [claim];
     return { w, npc, claim };
   }
@@ -1308,7 +1308,7 @@ describe('trucks on the radio', () => {
 
   it('reads the radio talk events and nothing else', () => {
     const plea = { kind: 'surrender' } as never;
-    expect(radioSpeakers([{ t: 'say', speaker: 'a', line: 'hangUp', vars: {} }], 'p')).toEqual(['a']);
+    expect(radioSpeakers([{ t: 'say', speaker: 'a', to: 'p', line: 'hangUp', vars: {} }], 'p')).toEqual(['a']);
     expect(radioSpeakers([{ t: 'call', with: 'a', outcome: 'opened' }], 'p').sort()).toEqual(['a', 'p']);
     expect(radioSpeakers([{ t: 'plea', from: 'a', to: 'b', plea, accepted: true }], 'p').sort()).toEqual(['a', 'b']);
     expect(radioSpeakers([{ t: 'plea', from: 'a', to: 'p', plea, accepted: null }], 'p')).toEqual(['a']);
@@ -1416,7 +1416,7 @@ describe('asking after someone', () => {
     target.brain.driver = 'Mack Holt';
     w.player.contracts.push({
       id: 'ct-s', shop: 'bowl', kind: 'search', target: target.id, driver: 'Mack Holt', template: 'trader',
-      lead: { at: { x: 0, y: 0 }, turn: 0 }, reward: 3700, deadline: 900, window: 600, tier: 1, delivered: false,
+      lead: { at: { x: 0, y: 0 }, turn: 0 }, reward: 37, deadline: 900, window: 600, tier: 1, delivered: false,
     });
     stowParcel(playerVehicle(w), { id: 'i-parcel', x: 0, y: 0, rot: 0, kind: 'parcel', contract: 'ct-s' });
     return { w, witness, target };
@@ -1559,7 +1559,7 @@ describe('road lessons', () => {
     expect(Object.keys(VOICED)).toHaveLength(2);
   });
 
-  it('is not offered by a raider hostile over cargo, and is by the same raider once the player carries nothing', () => {
+  it('is not offered by a raider, hostile over cargo or at peace', () => {
     const { w, npc } = withNpc('buggy', 'scrapjaw');
     expect(isHostile(w, npc, playerVehicle(w))).toBe(true);
     expect(asksOf(callVehicle(w, npc.id))).not.toContain(askText);
@@ -1570,7 +1570,7 @@ describe('road lessons', () => {
     player.items = player.items.filter((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'core');
     refreshVision(empty);
     expect(isHostile(empty, raider, player)).toBe(false);
-    expect(offers(empty, raider)).toBe(true);
+    expect(offers(empty, raider)).toBe(false);
   });
 
   it('is hidden by a feud', () => {
@@ -1596,7 +1596,7 @@ describe('road lessons', () => {
     const lesson = told.player.call!.vars.lesson;
     expect(lesson).toEqual({ kind: 'line', line: expect.stringMatching(/^lessonHauler/) });
     expect(told.player.call?.line.line).toBe('lessonTold');
-    expect(told.events).toContainEqual({ t: 'say', speaker: npc.id, line: 'lessonTold', vars: { lesson } });
+    expect(told.events).toContainEqual({ t: 'say', speaker: npc.id, to: w.player.vehicleId, line: 'lessonTold', vars: { lesson } });
     expect(told.player.money).toBe(money);
     expect(told.player.notes).toEqual(notes);
     expect(told.player.discovered).toEqual(explored);

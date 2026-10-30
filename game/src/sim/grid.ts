@@ -2,11 +2,13 @@
 import { chassisDef } from '../data/chassis';
 import { bedRows, cargoRowFactor } from './chassis-features';
 import { isShield, partDef, type CoreDef, type PartKind } from '../data/parts';
+import { barrelField, type BarrelField } from './barrels';
+import { loadoutFact, loadoutSlot, type Loadout } from './loadout-memo';
 import type { GridItem, PartInstance, PlacementRefusal, Rot, Vehicle } from './types';
 
 export type SideLetter = 'F' | 'B' | 'L' | 'R';
 export type Cell = 'D' | 'C' | 'E' | SideLetter | 'X' | '.';
-export type Grid = { w: number; h: number; chassisH: number; deadFrom: number; cells: (Cell | null)[][] };
+export type Grid = { chassisId: string; w: number; h: number; chassisH: number; deadFrom: number; cells: (Cell | null)[][] };
 export type Spot = { x: number; y: number; rot: Rot };
 
 export const MOUNT_CELLS: Record<PartKind, Cell[]> = {
@@ -52,7 +54,7 @@ export function baseGrid(chassisId: string): Grid {
   const rows = chassisDef(chassisId).layout;
   const w = Math.max(...rows.map((r) => r.length));
   const cells = rows.map((r) => Array.from({ length: w }, (_, x) => toCell(r[x] ?? ' ')));
-  const grid = { w, h: rows.length, chassisH: rows.length, deadFrom: rows.length, cells };
+  const grid = { chassisId, w, h: rows.length, chassisH: rows.length, deadFrom: rows.length, cells };
   baseGridCache.set(chassisId, grid);
   return grid;
 }
@@ -149,6 +151,7 @@ export function bareGrid(chassisId: string): Grid {
   const rows = bedRows(chassisId);
   const bed = Array.from({ length: rows }, () => Object.freeze(Array.from({ length: base.w }, () => '.' as Cell | null)));
   const grid = Object.freeze({
+    chassisId,
     w: base.w,
     h: base.h + rows,
     chassisH: base.h,
@@ -177,6 +180,7 @@ export function gridOf(v: Vehicle): Grid {
   const row = (cell: Cell | null) => Object.freeze(Array.from({ length: base.w }, () => cell));
   const rows = [...Array.from({ length: working }, () => row('.')), ...Array.from({ length: dead }, () => row(null))];
   const grid = Object.freeze({
+    chassisId: v.chassisId,
     w: base.w,
     h: base.h + working + dead,
     chassisH: base.chassisH,
@@ -205,22 +209,47 @@ export function onDeadRow(g: Grid, item: GridItem): boolean {
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;
 
-export function mountedItems(v: Vehicle, kind?: PartKind): PartItem[] {
-  const out: PartItem[] = [];
-  for (const it of v.items) if (it.kind === 'part' && (!kind || partDef(it.part.defId).kind === kind) && isMounted(v.chassisId, it)) out.push(it);
-  return out.sort((a, b) => a.y - b.y || a.x - b.x);
+const ALL = '*';
+type ByKey<T> = Readonly<Record<string, readonly T[]>>;
+
+function grouped<T>(entries: readonly T[], keyOf: (entry: T) => string): Record<string, T[]> {
+  const out: Record<string, T[]> = {};
+  for (const entry of entries) (out[keyOf(entry)] ??= []).push(entry);
+  return out;
 }
 
-export function mountedParts(v: Vehicle, kind?: PartKind): PartInstance[] {
-  return mountedItems(v, kind).map((it) => it.part);
+const KIND_LISTS = loadoutSlot((loadout): ByKey<PartItem> => {
+  const mounted = loadout.items
+    .filter((it): it is PartItem => it.kind === 'part' && isMounted(loadout.chassisId, it))
+    .sort((a, b) => a.y - b.y || a.x - b.x);
+  return { ...grouped(mounted, (it) => partDef(it.part.defId).kind), [ALL]: mounted };
+});
+
+const PART_LISTS = loadoutSlot((loadout): ByKey<PartInstance> => {
+  const lists: Record<string, PartInstance[]> = {};
+  for (const [key, items] of Object.entries(loadoutFact(loadout, KIND_LISTS))) lists[key] = items.map((it) => it.part);
+  return lists;
+});
+
+const CORE_LISTS = loadoutSlot((loadout): ByKey<PartInstance> => grouped(loadoutFact(loadout, PART_LISTS).core ?? [], (part) => (partDef(part.defId) as CoreDef).role));
+
+
+const NONE: readonly never[] = Object.freeze([]);
+
+export function mountedItems(v: Loadout, kind?: PartKind): readonly PartItem[] {
+  return loadoutFact(v, KIND_LISTS)[kind ?? ALL] ?? NONE;
+}
+
+export function mountedParts(v: Loadout, kind?: PartKind): readonly PartInstance[] {
+  return loadoutFact(v, PART_LISTS)[kind ?? ALL] ?? NONE;
 }
 
 export function shieldParts(v: Vehicle): PartInstance[] {
   return mountedParts(v).filter((part) => isShield(partDef(part.defId)));
 }
 
-export function coreParts(v: Vehicle, role: CoreDef['role']): PartInstance[] {
-  return mountedParts(v, 'core').filter((p) => (partDef(p.defId) as CoreDef).role === role);
+export function coreParts(v: Loadout, role: CoreDef['role']): readonly PartInstance[] {
+  return loadoutFact(v, CORE_LISTS)[role] ?? NONE;
 }
 
 export function corePart(v: Vehicle, role: CoreDef['role']): PartInstance {
@@ -245,7 +274,7 @@ export function goodsCount(v: Vehicle): Record<string, number> {
 }
 
 function isSkin(cell: Cell | null): boolean {
-  return cell === 'L' || cell === 'R';
+  return cell === 'F' || cell === 'B' || cell === 'L' || cell === 'R';
 }
 
 const cellCounts = new WeakMap<Grid, number>();
@@ -274,13 +303,13 @@ function unskinnedCellsOf(g: Grid, item: GridItem): number {
 }
 
 export function placementError(g: Grid, items: GridItem[], item: GridItem, ignoreId: string | null): PlacementRefusal | null {
-  return placementErrorIn(g, occupiedCells(g, items, ignoreId), item);
+  return placementErrorIn(g, occupiedCells(g, items, ignoreId), item, barrelField(g.chassisId, items, ignoreId));
 }
 
-export function placementErrorIn(g: Grid, occupied: Occupied, item: GridItem): PlacementRefusal | null {
+export function placementErrorIn(g: Grid, occupied: Occupied, item: GridItem, barrels: BarrelField): PlacementRefusal | null {
   const cells = itemCells(item);
   if (crossesChassisEnd(g, cells) || !cells.every((c) => onGrid(g, c))) return { id: 'noFit' };
-  return clashIn(g, occupied[layerOf(g, item)], item, cells);
+  return clashIn(g, occupied[layerOf(g, item)], item, cells) ?? (barrels.clashes(item) ? { id: 'barrel' } : null);
 }
 
 export function layoutError(g: Grid, items: GridItem[]): PlacementRefusal | null {
@@ -296,7 +325,7 @@ export function layoutError(g: Grid, items: GridItem[]): PlacementRefusal | null
     if (cells.some((c) => (counts.get(cellKey(c.x, c.y)) ?? 0) > 1)) return { id: 'inTheWay' };
     if (armorClash(g, item, cells)) return { id: 'armorOnly' };
   }
-  return null;
+  return items.some((it) => isWeapon(it) && barrelField(g.chassisId, items, it.id).clashes(it)) ? { id: 'barrel' } : null;
 }
 
 function clashIn(g: Grid, taken: Set<number>, item: GridItem, cells: { x: number; y: number }[]): PlacementRefusal | null {
@@ -326,7 +355,8 @@ export function findSpot(g: Grid, items: GridItem[], item: GridItem, mount: Cell
   if (mount) return mountSpots(g, items, item, mount)[0] ?? null;
   const tries = allSpots(g);
   const occupied = occupiedCells(g, items, item.id);
-  const fits = (s: Spot) => placementErrorIn(g, occupied, { ...item, ...s }) === null;
+  const barrels = barrelField(g.chassisId, items, item.id);
+  const fits = (s: Spot) => placementErrorIn(g, occupied, { ...item, ...s }, barrels) === null;
   const onlyOn = (s: Spot, cell: Cell) => itemCells({ ...item, ...s }).every((c) => g.cells[c.y]?.[c.x] === cell);
   const allowed = (s: Spot) => fits(s) && !(avoid && avoid.some((a) => onlyOn(s, a)));
   return tries.find((s) => allowed(s) && onlyOn(s, '.')) ?? tries.find(allowed) ?? null;
@@ -345,7 +375,9 @@ export function mountSpots(g: Grid, items: GridItem[], item: GridItem, mount: Ce
     for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) if (taken.has(cellKey(s.x + dx, s.y + dy))) return false;
     return true;
   };
-  return mount.flatMap((letter) => spotsOnLetter(g, letter, turns, sizes).filter(free));
+  const barrels = isWeapon(item) ? barrelField(g.chassisId, items, item.id) : null;
+  const clear = (s: Spot) => !barrels || !barrels.clashes({ ...item, ...s });
+  return mount.flatMap((letter) => spotsOnLetter(g, letter, turns, sizes).filter((s) => free(s) && clear(s)));
 }
 
 const letterSpotCache = new WeakMap<Grid, Map<string, readonly Spot[]>>();

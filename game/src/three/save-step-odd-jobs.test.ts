@@ -28,7 +28,7 @@ function shiftWorld(): World {
   const me = playerVehicle(w);
   me.pos = sitePads(bowl)[0];
   me.speed = 0;
-  w.player.money = 1000;
+  w.player.money = 10;
   return startOddJobs(w);
 }
 

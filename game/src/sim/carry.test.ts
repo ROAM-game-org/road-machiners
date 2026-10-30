@@ -1,3 +1,4 @@
+import { payoutM } from './money';
 import { describe, expect, it } from 'vitest';
 import { PAINT } from '../data/chassis';
 import { GOODS } from '../data/goods';
@@ -83,7 +84,7 @@ describe('carriedWorld', () => {
     const world = carriedWorld(carriedOf({ truck: { chassisId: 'scout', items: [...kitItems().filter((it) => it.kind === 'part'), ...many] } }), KIT, () => TEST_MAP, fresh);
     const held = playerVehicle(world).items.filter((it) => it.kind === 'good').length;
     expect(held).toBeLessThan(200);
-    expect(world.player.money).toBe(777 + (200 - held) * GOODS.scrap.value);
+    expect(world.player.money).toBe(777 + payoutM((200 - held) * GOODS.scrap.value));
   });
 
   it('drops unknown ids and gives an unknown chassis the kit truck', () => {
@@ -96,7 +97,11 @@ describe('carriedWorld', () => {
     expect(playerVehicle(other).chassisId).toBe(KIT.chassis);
     expect(other.player.storage.map((p) => p.defId)).toEqual(expect.arrayContaining(['mg']));
     expect(ids(other).filter((id) => id.startsWith('ghost'))).toEqual([]);
-    const value = (goods: { kind: string; good?: string }[]) => goods.reduce((n, it) => n + (it.kind === 'good' && it.good ? GOODS[it.good].value : 0), 0);
+    const value = (goods: { kind: string; good?: string }[]) => {
+      const units: Record<string, number> = {};
+      for (const it of goods) if (it.kind === 'good' && it.good) units[it.good] = (units[it.good] ?? 0) + 1;
+      return Object.entries(units).reduce((n, [good, count]) => n + payoutM(count * GOODS[good].value), 0);
+    };
     expect(other.player.money).toBe(777 + value(kitItems()));
   });
 

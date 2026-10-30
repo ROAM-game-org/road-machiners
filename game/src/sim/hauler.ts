@@ -2,7 +2,7 @@ import { chassisDef } from '../data/chassis';
 import { CHAOS_HIGHWAY, HIGHWAY } from '../data/modes';
 import { RULES } from '../data/rules';
 import { haulerOf, playerVehicle } from './damage';
-import { backOutSpot } from './back-out';
+import { backOutSpot } from './free-spot';
 import { footprint, noseReach, rigMiddle, sideReach } from './rig';
 import { isDefeated } from './defeat';
 import { betweenLevels, inYard, yardSpots } from './outpost-gates';
@@ -16,6 +16,8 @@ import { stopDistance } from './steering';
 import { isShutDown } from './utility';
 import { inCombat } from './combat';
 import { workOf } from './states';
+import { mountedParts } from './grid';
+import { maxHp } from './wear';
 import type { MoveOrder, Vehicle, World } from './types';
 import { dist, segmentDist, type Vec } from './vec';
 
@@ -316,4 +318,10 @@ export function watchHaulerStall(world: World): void {
   if (world.turn - anchor.turn < HAULER.stallTurns) return;
   world.events.push({ t: 'stall', vehicle: hauler.id, goal: null, reason: 'idle' });
   anchors.set(hauler.id, { turn: world.turn, along });
+}
+
+export function haulerShare(hauler: Vehicle): number {
+  const parts = mountedParts(hauler);
+  const max = parts.reduce((sum, p) => sum + maxHp(p), 0);
+  return max === 0 ? 0 : parts.reduce((sum, p) => sum + p.hp, 0) / max;
 }

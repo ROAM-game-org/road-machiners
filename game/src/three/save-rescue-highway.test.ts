@@ -51,13 +51,19 @@ function clearOfProps(world: World, truck: Vehicle): boolean {
   return world.obstacles.filter(isDriveObstacle).every((o) => !touchesObstacle(o, world.terrain, truck.pos, 1));
 }
 
+const CENTS_PER_M = 100;
+
+function wholeM(cents: number): number {
+  return Math.ceil(cents / CENTS_PER_M);
+}
+
 function expectKept(world: World, save: Fixture): void {
   const old = save.world;
-  expect(world.player.money).toBe(old.player.money);
+  expect(world.player.money).toBe(wholeM(old.player.money));
   expect(world.player.xp).toBe(old.player.xp);
   expect(world.player.ranks).toEqual(old.player.ranks);
   expect(world.player.storage.map((p) => p.defId)).toEqual(old.player.storage.map((p) => p.defId));
-  expect(world.chaosHighway!.earned).toBe(old.furyRoad.earned);
+  expect(world.chaosHighway!.earned).toBe(wholeM(old.furyRoad.earned));
   expect(world.chaosHighway!.wrecks).toBe(old.furyRoad.wrecks);
   for (const [truck, savedId] of [[playerVehicle(world), old.player.vehicleId], [haulerOf(world), old.furyRoad.hauler.id]] as const) {
     expect(partsOf(truck.items)).toEqual(partsOf(savedTruck(save, savedId).items));
@@ -167,7 +173,7 @@ describe('rescueSave on a Chaos Highway run from an older highway', () => {
     const { world } = rescued(old as unknown as Fixture);
 
     expectWaitingAt(world, 0);
-    expect(world.player.money).toBe(MID_STRETCH.world.player.money);
+    expect(world.player.money).toBe(wholeM(MID_STRETCH.world.player.money));
   });
 });
 

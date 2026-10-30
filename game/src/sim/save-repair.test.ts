@@ -16,7 +16,7 @@ import { advanceContracts, goodStock, standingPrice } from './market';
 import { haulerOf, playerVehicle } from './damage';
 import { currentLine, currentOptions, talkOf } from './dialogue';
 import { makePart } from './factory';
-import { corePart, gridOf, mountedParts } from './grid';
+import { corePart, gridOf, layoutError, mountedParts } from './grid';
 import { vehicleMass } from './mass';
 import { npcTraits } from './npc-decisions';
 import { pendingPerkPairs, practice, skillLevel } from './progress';
@@ -154,6 +154,27 @@ describe('repairContent', () => {
     expect(() => advanceContracts(w)).not.toThrow();
   });
 
+  it('repairs a truck sheltered inside a site like one outside, and removes it when it cannot be fixed', () => {
+    const w = fresh();
+    const [kept, doomed] = npcs(w);
+    kept.brain!.driver = 'Nobody Known';
+    doomed.chassisId = 'ghostChassis';
+    w.vehicles = w.vehicles.filter((v) => v !== kept && v !== doomed);
+    w.sheltered = [{ vehicle: kept, site: 'bowl' }, { vehicle: doomed, site: 'bowl' }];
+
+    repairContent(w);
+    expect(w.sheltered.map((s) => s.vehicle.id)).toEqual([kept.id]);
+    expect(FIRST_NAMES.some((n) => w.sheltered[0].vehicle.brain!.driver.startsWith(n))).toBe(true);
+  });
+
+  it('throws on a truck that stands both outside and inside a site', () => {
+    const w = fresh();
+    const npc = npcs(w)[0];
+    w.sheltered = [{ vehicle: structuredClone(npc), site: 'bowl' }];
+
+    expect(() => repairContent(w)).toThrow(/twice/);
+  });
+
   it('moves parts that no longer fit to storage for the player and drops them for an NPC', () => {
     const w = fresh();
     const me = playerVehicle(w);
@@ -176,6 +197,28 @@ describe('repairContent', () => {
     expect(w.player.storage.some((p) => p.id === 'p-spare')).toBe(true);
     expect(npc.items.includes(gun)).toBe(false);
     expect(w.vehicles.includes(npc)).toBe(true);
+  });
+
+  it('reseats a gun whose barrel lies over another gun instead of dropping it', () => {
+    const w = fresh();
+    const me = playerVehicle(w);
+    me.items = me.items.filter((it) => !(it.kind === 'part' && partDef(it.part.defId).kind === 'weapon'));
+    const front = { ...partItem('front', 'shotgun', 2, 1), id: 'i-front' } as GridItem;
+    const behind = { ...partItem('behind', 'slugCannon', 2, 4), id: 'i-behind' } as GridItem;
+    me.items.push(front, behind);
+    me.chassisId = 'hauler';
+    const money = w.player.money;
+    const events = w.events.length;
+    const storage = w.player.storage.length;
+    repairContent(w);
+    const guns = me.items.filter((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'weapon');
+    expect(guns.length + (w.player.storage.length - storage)).toBe(2);
+    expect(layoutError(gridOf(me), me.items)).toBeNull();
+    expect(w.player.money).toBe(money);
+    expect(w.events.length).toBe(events);
+    const again = JSON.stringify(w);
+    repairContent(w);
+    expect(JSON.stringify(w)).toBe(again);
   });
 
   it('removes an NPC whose core part is out of place', () => {
@@ -268,14 +311,14 @@ describe('repairContent', () => {
     const w = fresh();
     const [client] = npcs(w);
     const me = playerVehicle(w);
-    const survey = { id: 'c-done', shop: 'ghostShop', kind: 'survey', points: [{ site: REGION.towns[0].id, found: true, done: true }], reward: 900, deadline: w.turn + 20, window: 20, tier: 'low' } as const;
-    const escort = { id: 'c-esc', shop: 'ghostShop', kind: 'escort', client: client.id, to: REGION.towns[0].id, reward: 500, deadline: w.turn + 20, window: 20, tier: 'low', threat: 'low', span: 10, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null } as const;
+    const survey = { id: 'c-done', shop: 'ghostShop', kind: 'survey', points: [{ site: REGION.towns[0].id, found: true, done: true }], reward: 9, deadline: w.turn + 20, window: 20, tier: 'low' } as const;
+    const escort = { id: 'c-esc', shop: 'ghostShop', kind: 'escort', client: client.id, to: REGION.towns[0].id, reward: 5, deadline: w.turn + 20, window: 20, tier: 'low', threat: 'low', span: 10, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null } as const;
     w.player.contracts.push(survey as never, escort as never);
     addState(w, 'escort', me.id, client.id, { kind: 'escort', site: REGION.towns[0].id, fee: 0 });
     const money = w.player.money;
 
     repairContent(w);
-    expect(w.player.money).toBe(money + 900);
+    expect(w.player.money).toBe(money + 9);
     expect(w.player.contracts.some((c) => c.id === 'c-done' || c.id === 'c-esc')).toBe(false);
     expect(w.states.some((s) => s.kind === 'escort' && s.holder === me.id && s.other === client.id)).toBe(false);
     expect(() => endTurn(w, () => {})).not.toThrow();
@@ -335,6 +378,7 @@ describe('repairContent', () => {
       ['ghostTopic', { topic: 'ghostTopic' as never }],
       ['ghostNode', { topic: 'directions', node: 'ghostNode' }],
       ['ghostLine', { line: { line: 'ghostLine' as never, vars: {} } }],
+      ['removedRaiderLesson', { line: { line: 'lessonRaiderPay' as never, vars: {} } }],
     ];
     for (const [, over] of drift) {
       const w = fresh();

@@ -16,10 +16,10 @@ import type { Contract } from '../sim/market';
 vi.mock('../fetch-asset', async (orig) => ({ ...(await orig<typeof import('../fetch-asset')>()), fetchAsset: vi.fn(async () => new ArrayBuffer(1)) }));
 
 const stock = (id: string, pos: { x: number; y: number }): SalvageStock => ({ id, pos, radius: 0.6, goods: { scrap: 2 }, parts: [], hidden: emptyHidden() });
-const haul: Contract = { id: 'ct-h', shop: 'bowl', kind: 'haul', good: 'scrap', units: 3, to: 'nose', reward: 20000, deadline: 5000, window: 600, rush: false, tier: 2 };
-const claim = (leads: Extract<Contract, { kind: 'claim' }>['leads'] = []): Extract<Contract, { kind: 'claim' }> => ({ id: 'ct-1', shop: 'bowl', kind: 'claim', stockId: 'armyTruck-1', at: { x: 100, y: 50 }, partId: 'p1', defId: 'mg', reward: 900, deadline: 9000, window: 9000, tier: 1, rivalAt: 9000, rival: null, leads });
-const order: Extract<Contract, { kind: 'procure' }> = { id: 'ct-b', shop: 'nose', kind: 'procure', good: 'water', units: 6, cratePay: 900, reward: 11100, deadline: 900, window: 900, tier: 1 };
-const escort: Contract = { id: 'ct-e', shop: 'bowl', kind: 'escort', client: 'v-gone', to: 'nose', reward: 8000, deadline: 2000, window: 2000, tier: 1, threat: 2, span: 100, together: 40, seen: null, apart: 0, stuck: 0, holdUntil: null };
+const haul: Contract = { id: 'ct-h', shop: 'bowl', kind: 'haul', good: 'scrap', units: 3, to: 'nose', reward: 200, deadline: 5000, window: 600, rush: false, tier: 2 };
+const claim = (leads: Extract<Contract, { kind: 'claim' }>['leads'] = []): Extract<Contract, { kind: 'claim' }> => ({ id: 'ct-1', shop: 'bowl', kind: 'claim', stockId: 'armyTruck-1', at: { x: 100, y: 50 }, partId: 'p1', defId: 'mg', reward: 9, deadline: 9000, window: 9000, tier: 1, rivalAt: 9000, rival: null, leads });
+const order: Extract<Contract, { kind: 'procure' }> = { id: 'ct-b', shop: 'nose', kind: 'procure', good: 'water', units: 6, cratePay: 9, reward: 111, deadline: 900, window: 900, tier: 1 };
+const escort: Contract = { id: 'ct-e', shop: 'bowl', kind: 'escort', client: 'v-gone', to: 'nose', reward: 80, deadline: 2000, window: 2000, tier: 1, threat: 2, span: 100, together: 40, seen: null, apart: 0, stuck: 0, holdUntil: null };
 
 function everyKind(): Contract[] {
   const [site] = surveySites(TEST_MAP);
@@ -27,10 +27,10 @@ function everyKind(): Contract[] {
     haul,
     order,
     claim(),
-    { id: 'ct-s', shop: 'nose', kind: 'search', target: 'v-x', driver: 'Jed Cobb', template: 'trader', lead: { at: { x: 1, y: 1 }, turn: 0 }, reward: 9000, deadline: 900, window: 600, tier: 1, delivered: false },
-    { id: 'ct-r', shop: 'bowl', kind: 'rescue', client: 'v-y', driver: 'Ada Cobb', need: 'fuel', area: { x: 40, y: 40 }, reward: 3000, deadline: 900, window: 600, tier: 1, fulfilled: false },
+    { id: 'ct-s', shop: 'nose', kind: 'search', target: 'v-x', driver: 'Jed Cobb', template: 'trader', lead: { at: { x: 1, y: 1 }, turn: 0 }, reward: 90, deadline: 900, window: 600, tier: 1, delivered: false },
+    { id: 'ct-r', shop: 'bowl', kind: 'rescue', client: 'v-y', driver: 'Ada Cobb', need: 'fuel', area: { x: 40, y: 40 }, reward: 30, deadline: 900, window: 600, tier: 1, fulfilled: false },
     escort,
-    { id: 'ct-v', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: false, done: false }], reward: 3000, deadline: 900, window: 600, tier: 1 },
+    { id: 'ct-v', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: false, done: false }], reward: 30, deadline: 900, window: 600, tier: 1 },
   ];
 }
 
@@ -59,8 +59,8 @@ describe('journal entries', () => {
   it('lists past contracts newest first, with the day each ended', () => {
     const w = emptyWorld();
     w.player.pastContracts = [
-      { contract: haul, outcome: 'failed', turn: 10, amount: -1800 },
-      { contract: order, outcome: 'done', turn: TIME.turnsPerDay + 10, amount: 11100 },
+      { contract: haul, outcome: 'failed', turn: 10, amount: -18 },
+      { contract: order, outcome: 'done', turn: TIME.turnsPerDay + 10, amount: 111 },
     ];
 
     const { past } = journalEntries(w);
@@ -193,8 +193,8 @@ describe('journal screen', () => {
   it('shows a past supply order in its posted wording, with its outcome and the money it moved', () => {
     const w = emptyWorld();
     w.player.pastContracts = [
-      { contract: order, outcome: 'done', turn: 10, amount: 11100 },
-      { contract: haul, outcome: 'failed', turn: 20, amount: -1800 },
+      { contract: order, outcome: 'done', turn: 10, amount: 111 },
+      { contract: haul, outcome: 'failed', turn: 20, amount: -18 },
       { contract: escort, outcome: 'lapsed', turn: 30, amount: 0 },
     ];
 
@@ -211,8 +211,8 @@ describe('journal screen', () => {
   it('explains the negative amount of a failed haul as the price of the kept cargo, and nothing else', () => {
     const w = emptyWorld();
     w.player.pastContracts = [
-      { contract: order, outcome: 'done', turn: 10, amount: 11100 },
-      { contract: haul, outcome: 'failed', turn: 20, amount: -1800 },
+      { contract: order, outcome: 'done', turn: 10, amount: 111 },
+      { contract: haul, outcome: 'failed', turn: 20, amount: -18 },
       { contract: escort, outcome: 'lapsed', turn: 30, amount: 0 },
     ];
 
@@ -251,7 +251,7 @@ describe('journal screen', () => {
     const w = emptyWorld();
     const [a, b, c] = surveySites(TEST_MAP);
     const survey: Extract<Contract, { kind: 'survey' }> = {
-      id: 'ct-s', shop: 'bowl', kind: 'survey', reward: 3000, deadline: 900, window: 600, tier: 1,
+      id: 'ct-s', shop: 'bowl', kind: 'survey', reward: 30, deadline: 900, window: 600, tier: 1,
       points: [{ site: a.id, found: true, done: true }, { site: b.id, found: true, done: false }, { site: c.id, found: false, done: false }],
     };
     w.player.contracts = [survey];
@@ -271,7 +271,7 @@ describe('journal screen', () => {
   });
 
   const surveyOf = (sites: string[], states: { found: boolean; done: boolean }[] = []): Extract<Contract, { kind: 'survey' }> => ({
-    id: 'ct-s', shop: 'bowl', kind: 'survey', reward: 3000, deadline: 900, window: 600, tier: 1,
+    id: 'ct-s', shop: 'bowl', kind: 'survey', reward: 30, deadline: 900, window: 600, tier: 1,
     points: sites.map((site, i) => ({ site, found: states[i]?.found ?? false, done: states[i]?.done ?? false })),
   });
   const picturesOf = (place: FakeNode) => place.all((n) => n.className === 'survey-picture');

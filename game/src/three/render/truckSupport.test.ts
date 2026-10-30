@@ -98,3 +98,16 @@ describe('small parts on every deck cell', () => {
     expect(faults).toEqual([]);
   });
 });
+
+describe('guns the error report drew', () => {
+  it('a harpoon stowed on the scout rear row and one beside the courier side window stand on the truck', { timeout: SLOW }, () => {
+    const faults: string[] = [];
+    for (const [chassisId, spot] of [['scout', { x: 4, y: 7, rot: 1 }], ['courier', { x: 1, y: 3, rot: 0 }]] as const) {
+      const w = emptyWorld();
+      const base = addVehicle(w, 'scrapjaw', chassisId, [], { x: 40, y: 30 });
+      const gun: GridItem = { id: 'harpoon', kind: 'part', part: makePart(w, 'harpoon', 0), ...spot };
+      faults.push(...faultsOf({ ...base, items: [...base.items, gun] }));
+    }
+    expect(faults).toEqual([]);
+  });
+});

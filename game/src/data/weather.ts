@@ -1,4 +1,3 @@
-// Visual-only dust moving over the region. Distances are in map tiles; speeds are tiles per second.
 export const WEATHER = {
   cloudSpacing: 30,
   stormSpacing: 90,

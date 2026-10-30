@@ -569,7 +569,7 @@ export class Hud {
     );
   }
 
-  renderTop(w: World): void {
+  renderTop(w: World, live: World): void {
     const readout = getHudReadout(w);
     const busy = this.actions.isBusy();
     this.condition.render(playerVehicle(w), w.player.paint, undefined, repairingPart(w, playerVehicle(w)));
@@ -579,9 +579,10 @@ export class Hud {
     this.tips.update(w, this.actions.autoTravel());
     if (!this.top.firstChild) this.top.append(this.clockSlot, this.speedSlot, this.readoutSlot, this.actionSlot);
     this.renderClock(readout.clock);
-    const held = playerVehicle(w).order;
-    const pace = held && held.kind !== "brake" ? held.pace : undefined;
-    this.renderSpeedometer(readout, busy, pace === undefined || readout.manual ? null : kph(pace));
+    const me = playerVehicle(live);
+    const pace = me.order && me.order.kind !== "brake" ? me.order.pace : undefined;
+    const mark = me.direct ? me.setSpeed : pace;
+    this.renderSpeedometer(readout, busy, mark === undefined ? null : kph(mark));
     this.fillReadouts(readout);
     this.renderActions(w, readout.manual, busy);
   }
@@ -604,7 +605,7 @@ export class Hud {
         disabled: busy,
         onclick: () => this.actions.openInventory(),
       },
-      createSpeedDial(readout.speed, readout.maxSpeed, pace),
+      createSpeedDial(readout.speed, readout.maxSpeed, readout.dialTop, pace),
       el("span", { class: "speed-value" }, num(readout.speed, "int")),
       createIcon("truck"),
     );
