@@ -39,6 +39,7 @@ function roadWorld(pick: OldSpotPick): { w: World; npc: Vehicle; stock: SalvageS
   const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], freeNear(w, nearestRoadPoint(pick.pos)));
   npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
   forceOption('salvageSeen', 'keep');
+  w.salvage = w.salvage.filter((s) => s.id === oldStockId(pick));
   const stock = w.salvage.find((s) => s.id === oldStockId(pick))!;
   stock.goods = { ...Object.fromEntries(Object.keys(OLD_TABLES[pick.type].goods).map((g) => [g, 0])), scrap: 2, parts: 1 };
   stock.parts = [];
