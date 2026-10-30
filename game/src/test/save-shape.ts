@@ -51,7 +51,9 @@ export function newGameShape(): Shape {
       { id: 'i-plain', x: 0, y: 0, rot: 0, kind: 'part', part: makePart(world, PLAIN_ID, 0) },
     ];
   }
-  world.player.quests.session = { quest: 'q', checkpoint: 'c', seed: 1 };
+  if (!world.moments) throw new Error('The new world keeps no moments');
+  for (const moment of Object.values(world.moments)) moment.driver = world.vehicles[0].id;
+  world.player.quests.session ={ quest: 'q', checkpoint: 'c', seed: 1 };
   world.vehicles.find((v) => v.id === world.player.vehicleId)!.items.push({ id: 'i-parcel', x: 0, y: 0, rot: 0, kind: 'parcel', contract: 'c' });
   return shapeOf(JSON.parse(JSON.stringify(saveOf(world).world)));
 }

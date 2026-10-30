@@ -29,7 +29,7 @@ export const WORLD_SETTINGS: Record<keyof WorldSettings, WorldSettingDef> = {
   enemyGearGrowth: { default: 1, min: 0, max: 2, step: 0.25, modes: ['chaosHighway'] },
 };
 
-export type WaveGear = Omit<GearRules, 'money' | 'armored' | 'armorFirst' | 'minSpeed'>;
+export type WaveGear = Omit<GearRules, 'money' | 'armored' | 'armorFirst' | 'minSpeed' | 'chassisFloor'>;
 export type WavePlan = { level: GearLevel; gear: WaveGear };
 const EARLY_GEAR: WaveGear = { gunFirst: true, gunTier: 1, paysFuel: false, cargoPart: false };
 const MIDDLE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 2 };
