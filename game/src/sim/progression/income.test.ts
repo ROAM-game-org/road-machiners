@@ -7,6 +7,9 @@ import { addVehicle, emptyWorld, npcBrain } from '../testkit';
 import { addGoods } from '../inventory';
 import { startWorld } from './record-node';
 import { TRAITS } from '../../data/npcs';
+import { SHOPS } from '../../data/market';
+import { playerVehicle } from '../damage';
+import { getTradePrice } from '../economy';
 import { formatIncomeReport, gateReport, pairedDifference } from './income-report';
 
 const SHORT_TURNS = 30;
@@ -50,9 +53,22 @@ describe('sampleWorld', () => {
 
 describe('largestTraderLoad', () => {
   it('is the trader stake at the best ratio of the player sell price to the trader buy price', () => {
-    const load = largestTraderLoad(startWorld(1, INCOME_KIT, INCOME_SKILL_RANK));
+    const world = startWorld(1, INCOME_KIT, INCOME_SKILL_RANK);
+    const trader = world.vehicles.find((v) => v.brain?.templateId === 'trader')!;
+    const me = playerVehicle(world);
+    let best = 0;
+    for (const source of Object.values(SHOPS)) {
+      for (const buyer of Object.values(SHOPS)) {
+        if (buyer.id === source.id) continue;
+        for (const good of source.goods) {
+          if (!buyer.goods.includes(good)) continue;
+          best = Math.max(best, getTradePrice(world, me, buyer.id, good, 'sell') / getTradePrice(world, trader, source.id, good, 'buy'));
+        }
+      }
+    }
+    const load = largestTraderLoad(world);
     expect(load).toBeGreaterThan(TRAITS.trader.tradeStake);
-    expect(load).toBeCloseTo(1666, 0);
+    expect(load).toBeCloseTo(TRAITS.trader.tradeStake * best, 6);
   }, RUN_TIMEOUT);
 });
 
