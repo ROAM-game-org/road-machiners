@@ -25,7 +25,7 @@ const OPEN_KPH = 50;
 const TURNS = 18;
 
 function openGround(w: World): void {
-  w.terrain = { ...w.terrain, types: w.terrain.types.map(() => OPEN_GROUND) };
+  w.terrain = Object.freeze({ ...w.terrain, types: Object.freeze(w.terrain.types.map(() => OPEN_GROUND)) });
 }
 
 function rolledTruck(w: World, templateId: string, chassisId: string, x: number): Vehicle {
