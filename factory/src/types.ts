@@ -58,6 +58,7 @@ export type FactoryConfig = {
   releaseDays: number;
   playtestTurns: number;
   playtestRuns: number;
+  playtestReviewRepairs: number;
   playtestTimeoutMinutes: number;
   mergeTimeoutMinutes: number;
   checksTimeoutMinutes: number;
