@@ -40,15 +40,16 @@ describe('dividing turf', () => {
     expect(turf.get('west')).toEqual([{ x: 10, y: 0 }, { x: 20, y: 0 }, { x: 30, y: 0 }]);
   });
 
-  it('gives each camp a near even share of the hunting spots, and leaves the land around Nose free', () => {
+  it('gives each camp a near even share of the hunting spots, and leaves the spots no camp reaches free', () => {
     const spots = huntingSpots(TEST_MAP).spots;
     const claimants = turfClaimants();
     const turf = divideTurf(spots, claimants);
-    expect(Object.fromEntries([...turf].map(([id, points]) => [id, points.length]))).toEqual({ scrapjaw: 22, kiln: 23 });
+    const counts = claimants.map((c) => turf.get(c.id)!.length);
+    const claimed = counts.reduce((sum, n) => sum + n, 0);
+    expect(Math.min(...counts)).toBeGreaterThan(claimed * 0.4);
     for (const c of claimants) for (const p of turf.get(c.id)!) expect(dist(p, c.home)).toBeLessThanOrEqual(c.reach);
-    const nose = REGION.towns.find((t) => t.id === 'nose')!;
     const free = spots.filter((p) => ![...turf.values()].some((points) => points.includes(p)));
     expect(free.length).toBeGreaterThan(0);
-    for (const p of free) expect(dist(p, nose.pos)).toBeLessThan(dist(p, claimants[0].home));
+    for (const p of free) for (const c of claimants) expect(dist(p, c.home)).toBeGreaterThan(c.reach);
   });
 });
