@@ -392,6 +392,7 @@ export function getHudReadout(w: World) {
     speed: kph(me.speed),
     heading: me.heading,
     maxSpeed: kph(steps[steps.length - 1].speed),
+    dialTop: kph(Math.max(...steps.filter((s) => s.kind !== "chassis").map((s) => s.speed))),
     maxSpeedTip: speedTip(kph(steps[0].speed), speedRows(weather.text, steps), notes),
     manual: me.direct,
     clock: clock(w.turn),

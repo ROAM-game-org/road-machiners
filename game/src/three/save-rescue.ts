@@ -6,7 +6,7 @@ import { mapAt } from '../sim/highway';
 import type { World } from '../sim/types';
 import type { SlotId } from './save-slots';
 import { savedMisfit, savedRevisionsOf, savedRunId, saveOf, storedSave, writeSave } from './save';
-import { armorRowOfItem_124_125, chaosHighwayMode_113_114, mutedColor_96_97, paintOfPreset_95_96 } from './save-steps-late';
+import { armorRowOfItem_126_127, chaosHighwayMode_113_114, mutedColor_96_97, paintOfPreset_95_96 } from './save-steps-late';
 import type { SaveSlots } from './save-db';
 
 type Json = Record<string, unknown>;
@@ -129,13 +129,13 @@ function vehicleOf(world: Json, id: unknown): Json | null {
   return listOf(world.vehicles).map(objectOf).find((v) => v !== null && v.id === id) ?? null;
 }
 
-const ARMOR_ROWS_OUTSIDE_BEFORE = 125;
+const ARMOR_ROWS_OUTSIDE_BEFORE = 127;
 
 function itemsOf(vehicle: Json, format: number): CarriedItem[] {
   const read = listOf(vehicle.items).map(itemOf).filter((it): it is CarriedItem => it !== null);
   const chassisId = idOf(vehicle.chassisId);
   if (!formatBefore(format, ARMOR_ROWS_OUTSIDE_BEFORE) || chassisId === null) return read;
-  return read.map((it) => (it.y < 0 ? it : { ...it, y: armorRowOfItem_124_125(chassisId, it.y, it.kind === 'part' ? it.part.defId : null) }));
+  return read.map((it) => (it.y < 0 ? it : { ...it, y: armorRowOfItem_126_127(chassisId, it.y, it.kind === 'part' ? it.part.defId : null) }));
 }
 
 function truckOf(world: Json, player: Json, format: number): Carried['truck'] {

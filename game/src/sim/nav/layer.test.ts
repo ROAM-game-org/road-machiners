@@ -3,6 +3,7 @@ import { PHYSICS } from '../../data/physics';
 import { BROKEN_WING, BROKEN_WING_POINT, REGION } from '../../data/region';
 import { START_KITS } from '../../data/start';
 import { BREAKABLE } from '../../data/rules';
+import { TERRAIN_TYPES } from '../../data/terrain';
 import { deckById } from '../bridge';
 import { boxDistance, boxSegmentDistance, isBreakable, propBoxes } from '../mapgen';
 import { perfSnapshot } from '../../perf';
@@ -10,7 +11,7 @@ import { route } from '../path';
 import type { Obstacle, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { stampOverlay } from './astar';
-import { CELL, CLEARANCE, climbTaste, dynamicBlockers, makeTaste, navLayer, type NavLayer, tasteAt, tasted, tasteKey, tasteOf, terrainNav, tileIndex } from './layer';
+import { CELL, CLEARANCE, climbTaste, cutTaste, dynamicBlockers, makeTaste, navLayer, type NavLayer, tasteAt, tasted, tasteKey, tasteOf, terrainNav, tileIndex } from './layer';
 import { editableTerrain, emptyWorld, npcBrain } from '../testkit';
 import { newWorld } from '../world';
 import { TEST_MAP } from '../../test/map';
@@ -84,6 +85,38 @@ describe('route taste', () => {
 
   it('gives the player and brainless vehicles no taste', () => {
     expect(tasteOf(emptyWorld(), { id: 'v1', brain: null })).toBeNull();
+  });
+});
+
+describe('cut taste', () => {
+  const nav = () => {
+    const w = emptyWorld();
+    const t = editableTerrain(w);
+    for (let i = 0; i < t.types.length; i++) t.types[i] = i % t.size < 100 ? 'road' : 'hardpan';
+    return terrainNav(t);
+  };
+
+  it('keeps open ground between the road cost and the plain open cost, never under a road tile', () => {
+    const { offRoadCost, shortcutCost } = REGION.navigation;
+    const openSpeeds = Object.values(TERRAIN_TYPES).filter((type) => type.id !== 'road').map((type) => type.speed);
+    expect(shortcutCost).toBeGreaterThanOrEqual(Math.max(...openSpeeds));
+    expect(shortcutCost).toBeLessThan(offRoadCost);
+  });
+
+  it('prices open tiles at the shortcut share of the plain price and leaves road tiles alone', () => {
+    const n = nav();
+    const plain = makeTaste(3, n.size);
+    const cut = cutTaste(plain, n);
+    const open = tasted(cut, 10, 150.5, 20.5) / tasted(plain, 10, 150.5, 20.5);
+    expect(open).toBeCloseTo(REGION.navigation.shortcutCost / REGION.navigation.offRoadCost, 6);
+    expect(tasted(cut, 10, 50.5, 20.5)).toBe(tasted(plain, 10, 50.5, 20.5));
+  });
+
+  it('builds the mask once per terrain and keeps cut routes apart in the cache', () => {
+    const n = nav();
+    const plain = makeTaste(3, n.size);
+    expect(cutTaste(plain, n).cut).toBe(cutTaste(plain, n).cut);
+    expect(tasteKey(cutTaste(plain, n))).not.toBe(tasteKey(plain));
   });
 });
 
