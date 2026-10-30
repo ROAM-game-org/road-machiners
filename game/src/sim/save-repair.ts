@@ -183,6 +183,7 @@ function dropGoneContent(world: World): void {
   world.player.pastContracts = world.player.pastContracts.filter((p) => contractFits(p.contract));
   dropUnknownKeys(world.player.costBasis);
   dropHulks(world);
+  world.spawnQueue = world.spawnQueue.filter((e) => isTemplate(e.templateId) && isSite(e.siteId));
 }
 
 function outpostsOf(world: World): OutpostFacts[] {

@@ -23,6 +23,7 @@ import { pendingPerkPairs, practice, skillLevel } from './progress';
 import { TIME } from '../data/time';
 import { repairContent } from './save-repair';
 import { defaultSetup } from './settings';
+import { spawnQueueNow } from './spawn';
 import { addState, advanceStates, settleStates } from './states';
 import { chaosHighwayStart } from './testkit';
 import type { CallVars, GridItem, NpcState, Vehicle, World } from './types';
@@ -33,6 +34,7 @@ let base: World;
 
 beforeAll(() => {
   base = newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
+  spawnQueueNow(base);
 });
 
 function fresh(): World {
@@ -72,6 +74,14 @@ describe('repairContent', () => {
     expect(w.player.perks).toEqual([]);
     expect(pendingPerkPairs(w).some((pair) => pair.perks.includes('teardown'))).toBe(true);
     expect([w.player.money, w.player.xp]).toEqual([money, xp]);
+  });
+
+  it('drops a queued start spawn whose template or site left the data and keeps the rest', () => {
+    const w = fresh();
+    const keep = { templateId: Object.keys(NPCS)[0], siteId: REGION.towns[0].id };
+    w.spawnQueue = [keep, { templateId: 'gone', siteId: keep.siteId }, { templateId: keep.templateId, siteId: 'gone' }];
+    repairContent(w);
+    expect(w.spawnQueue).toEqual([keep]);
   });
 
   it('leaves a Chaos Highway world with no drift alone', () => {
@@ -209,10 +219,11 @@ describe('repairContent', () => {
     me.chassisId = 'hauler';
     const money = w.player.money;
     const events = w.events.length;
-    const storage = w.player.storage.length;
+    const isGun = (p: { defId: string }) => partDef(p.defId).kind === 'weapon';
+    const storage = w.player.storage.filter(isGun).length;
     repairContent(w);
     const guns = me.items.filter((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'weapon');
-    expect(guns.length + (w.player.storage.length - storage)).toBe(2);
+    expect(guns.length + (w.player.storage.filter(isGun).length - storage)).toBe(2);
     expect(layoutError(gridOf(me), me.items)).toBeNull();
     expect(w.player.money).toBe(money);
     expect(w.events.length).toBe(events);
