@@ -3,7 +3,7 @@ import { CONTRACTS, EFFORT, SHOPS } from '../data/market';
 import { chassisDef } from '../data/chassis';
 import { GOODS } from '../data/goods';
 import { graphEdges } from '../data/market';
-import { REGION } from '../data/region';
+import { MAP_SPREAD, REGION } from '../data/region';
 import { playerVehicle } from './damage';
 import { makePart } from './factory';
 import { goodsCount } from './grid';
@@ -130,14 +130,14 @@ describe('haul pay and rush', () => {
     expect(Math.abs(tools - grain - 8 * (GOODS.tools.value - GOODS.grain.value) * CONTRACTS.haul.valueShare)).toBeLessThanOrEqual(1);
   });
 
-  it('prices the reported Bowl to Granary tools haul at the salvage wage with a window under the old 934 turns', () => {
+  it('prices the reported Bowl to Granary tools haul at the salvage wage with a window under the old 934 turns scaled to the map', () => {
     const turns = estimateTurns(siteOf('bowl').pos, siteOf('granary').pos);
     const reward = contractReward(turns, 8 * GOODS.tools.value, false);
     const OLD_TIER_RATIO = 2.2 / 0.37;
     const cut = 8 * GOODS.tools.value * CONTRACTS.haul.valueShare;
     expect(reward).toBeCloseTo(turns * EFFORT.wage[1] * CONTRACTS.haul.rewardFactor + cut, 0);
     expect(reward).toBeLessThan(turns * EFFORT.wage[1] * 5 * OLD_TIER_RATIO);
-    expect(haulWindow(turns, false)).toBeLessThan(934);
+    expect(haulWindow(turns, false)).toBeLessThan(934 * MAP_SPREAD);
   });
 
   it('keeps a rush window at least 1.1 times the slowest measured loaded drive on every pair', () => {

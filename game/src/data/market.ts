@@ -80,7 +80,7 @@ export const CONTRACTS = {
   warnTurns: Math.round(TIME.workDayTurns / 12),
 
   haul: {
-    durationFactor: 2.5,
+    durationFactor: 3,
     slackTurns: Math.round(TIME.workDayTurns / 4),
     rewardFactor: 24,
     valueShare: 0.05,
