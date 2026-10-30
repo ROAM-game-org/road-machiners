@@ -11,9 +11,8 @@ const BASELINE_WORKERS = 1;
 
 const sameTest = (a: FailedTest, b: FailedTest): boolean => a.file === b.file && a.test === b.test;
 
-
 function comparable(record: SuiteFailures | null): record is SuiteFailures {
-  return record !== null && record.failed.length > 0 && record.unhandledErrors === 0;
+  return record !== null && record.failed.length > 0 && record.unfinished.length === 0 && record.unhandledErrors === 0;
 }
 
 export async function withoutBaseline(ctx: Ctx, check: BaselineCheck, result: FailedSuite): Promise<string> {

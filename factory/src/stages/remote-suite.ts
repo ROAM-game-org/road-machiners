@@ -16,7 +16,7 @@ type At = { stage: Stage; issue: number | null };
 
 export const testName = (test: FailedTest): string => (test.test === null ? `${test.file} (the file itself)` : `${test.file} > ${test.test}`);
 
-export type SuiteResult ={ failure: null } | { failure: string; url: string; record: SuiteFailures | null };
+export type SuiteResult = { failure: null } | { failure: string; url: string; record: SuiteFailures | null };
 
 export async function remoteSuite(ctx: Ctx, at: At, sha: string): Promise<string | null> {
   return (await remoteSuiteResult(ctx, at, sha)).failure;

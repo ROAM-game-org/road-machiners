@@ -309,6 +309,15 @@ describe('merge queue', () => {
       expect(calls.some((call) => call.startsWith('rerun'))).toBe(false);
     });
 
+    it('keeps the whole failure, with no rerun, when a test file never finished, since its failures are unknown', async () => {
+      changed = ['game/src/sim/fuel.ts'];
+      suitePlan = [{ passed: false, record: { failed: [RAID], unfinished: ['src/sim/slow.test.ts'], unhandledErrors: 0 } }, { passed: true, record: null }];
+      await merge(fakeCtx());
+      expect(runs).toHaveLength(1);
+      expect(runs[0]!.prompt).toContain('Test files that never finished, 1:\n- src/sim/slow.test.ts');
+      expect(calls.some((call) => call.startsWith('rerun'))).toBe(false);
+    });
+
     it('keeps the whole failure when the rerun on the base cannot run or leaves no record', async () => {
       changed = ['game/src/sim/fuel.ts'];
       baselineDown = true;
