@@ -6,7 +6,7 @@ One long low slab body with a straight beltline at 0.10 m. The hood runs 41 % of
 with a low center ridge and a cutout over the engine cells, an upright chrome grille standing proud of the nose between squared fender ends,
 and a chrome wrap bumper. The hardtop greenhouse is narrower than the body, in dark vinyl: the windshield stands upright because guns on the roof cells need a step, not a slope,
 the roof runs back to -0.97 and a thick C-pillar slopes to the trunk lid at -1.62. The trunk is the last 27 %.
-Wheels sit on rows 1 and 9 in the outer columns, radius 0.42 m, half width 0.17 m, mount 0.2 m below the center. Arches are cut on them.
+Wheels sit on rows 1 and 9 in the outer columns, radius 0.48 m, half width 0.19 m, mount 0.2 m below the center. Arches are cut on them.
 The sockets arch_front, arch_rear (the left arch center at the hub) and arch_front_top (its crown) let wheelArches.test.ts check them against physics.
 The sill hangs 0.15 m below the collider bottom as skin only.
 Run: blender --background --python tools/blender/base_lincoln.py -- public/models/base_lincoln.glb [tmp/base_lincoln.png]
@@ -34,13 +34,14 @@ from parts_common_base import (  # noqa: E402
     level_sockets,
     surface_z,
 )
+from parts_common_core import PROUD  # noqa: E402
 
 SEED = 314
 G = Grid(rows=11, cols=5, half_height=0.35)
 WHEEL_X = 1.95  # PHYSICS.bodies.lincoln.wheelX
 WHEEL_Y = -0.2  # PHYSICS.bodies.lincoln.wheelY
-WHEEL_R = 0.42  # PHYSICS.bodies.lincoln.wheelRadius
-WHEEL_HALF_W = 0.17  # PHYSICS.bodies.lincoln.wheelHalfWidth
+WHEEL_R = 0.48
+WHEEL_HALF_W = 0.19
 HUB_Z = WHEEL_Y - SUSPENSION_REST
 WHEELS_X = [WHEEL_X, -WHEEL_X]
 WELL_Y = G.col_y(0) - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall
@@ -131,9 +132,9 @@ def nose(kit: Kit) -> None:
     kit.box("grille", (0.08, 0.62, 0.42), (FRONT - 0.02, 0, DECK - 0.12), "metal_light")
     kit.box("grille_header", (0.1, 0.72, 0.06), (FRONT - 0.03, 0, DECK + 0.12), "metal_light")
     for s, sy in (("l", 1), ("r", -1)):
-        kit.box(f"fender_face_{s}", (0.04, 0.5, 0.3), (FRONT - 0.02, sy * 0.78, DECK - 0.14), "paint")
+        kit.box(f"fender_face_{s}", (0.04, 0.5, 0.3), (FRONT - 0.02 + PROUD, sy * 0.78, DECK - 0.14), "paint")
         kit.box(f"lamp_{s}", (0.05, 0.14, 0.14), (FRONT - 0.02, sy * (SIDE - 0.1), DECK - 0.1), "light")
-        kit.box(f"wrap_{s}", (0.7, 0.07, 0.22), (FRONT - 0.37, sy * (SIDE - 0.02), -0.4), "metal_light")
+        kit.box(f"wrap_{s}", (0.7, 0.07, 0.22 - 2 * PROUD), (FRONT - 0.37, sy * (SIDE - 0.02), -0.4), "metal_light")
     kit.box("bumper", (0.14, 2 * SIDE, 0.22), (FRONT - 0.04, 0, -0.4), "metal_light")
     kit.box("rear_bumper", (0.12, 2 * SIDE, 0.22), (BACK + 0.04, 0, -0.4), "metal_light")
     mirrored(kit, "taillight", (INSET, 0.5, 0.12), BACK - INSET / 2 + 0.02, SIDE - 0.4, DECK - 0.12, "red")

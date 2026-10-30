@@ -13,8 +13,9 @@ export const FORT_PROPS = {
   compound: { wall: 'fortCompoundWall', tower: 'fortCompoundTower', gate: 'fortCompoundGate' },
   ring: { wall: 'fortRingWall', gate: 'fortRingGate' },
   yard: { wall: 'fortYardWall', tower: 'fortYardTower', gate: 'fortYardGate' },
+  outpost: { wall: 'fortOutpostWall', tower: 'fortOutpostTower', gate: 'fortOutpostGate' },
 } as const satisfies Record<FortressStyle, Partial<Record<FortressKind, PropKind>>>;
-const FORT_STYLE_NAMES = { pumpworks: 'pumpworks', cistern: 'cistern', shipMetal: 'ship', scrap: 'scrap', patchwork: 'patchwork', compound: 'compound', ring: 'ring', yard: 'yard' } as const satisfies Record<FortressStyle, string>;
+const FORT_STYLE_NAMES = { pumpworks: 'pumpworks', cistern: 'cistern', shipMetal: 'ship', scrap: 'scrap', patchwork: 'patchwork', compound: 'compound', ring: 'ring', yard: 'yard', outpost: 'outpost' } as const satisfies Record<FortressStyle, string>;
 export type FortModel = { [S in FortressStyle]: `fort_${(typeof FORT_STYLE_NAMES)[S]}_${keyof (typeof FORT_PROPS)[S] & string}` }[FortressStyle];
 
 export const FORT_MODELS: ReadonlyMap<PropKind, { model: FortModel; piece: FortressKind }> = new Map(
@@ -91,7 +92,8 @@ export function fortressPieces(site: Site): FortressPiece[] {
   const outline = corners.map((c) => c.pos);
   const walls = cutOutline(outline, cuts, (i) => onFortressRock(site, lerpVec(outline[i], outline[(i + 1) % outline.length], 0.5))).flatMap((run) => wallRun(mergeShortEnds(run, corners)));
   const standing = cornerPieces(site, corners, houses).filter((p) => !onFortressRock(site, p.pos));
-  return [...laid.flatMap((l) => l.pieces), ...walls, ...standing];
+  const gates = laid.flatMap((l) => l.pieces);
+  return [...gates, ...walls, ...standing];
 }
 
 export function onFortressRock(site: Site, p: Vec): boolean {

@@ -15,7 +15,7 @@ function serve(answer: (url: string, init?: RequestInit) => Uint8Array) {
     calls.push({ url, init });
     return new Response(answer(url, init).slice().buffer);
   };
-  return { calls, deps: { fetch, wait: async () => {} } };
+  return { calls, deps: { fetch, wait: async () => {}, delaysMs: [] } };
 }
 
 describe('fetchMap', () => {

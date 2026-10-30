@@ -69,10 +69,10 @@ describe.each(TARGETS)('$look in $territory', ({ territory, look, near }) => {
     me.pos = { x: site.pos.x + site.radius * 2, y: site.pos.y + site.radius * 2 };
     me.speed = 0;
     me.order = null;
-    const npc = addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], { ...entry }, Math.atan2(stock.pos.y - entry.y, stock.pos.x - entry.x));
+    const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { ...entry }, Math.atan2(stock.pos.y - entry.y, stock.pos.x - entry.x));
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
-    let goal = spotGoal(w, territory);
-    while (goal.targetId !== stock.id) goal = spotGoal(w, territory);
+    let goal = spotGoal(w, territory, []);
+    while (goal.targetId !== stock.id) goal = spotGoal(w, territory, []);
     npc.brain.goals = [goal];
     forceOption('salvageSeen', 'keep');
 
@@ -86,7 +86,11 @@ describe.each(TARGETS)('$look in $territory', ({ territory, look, near }) => {
       const scavenger = w.vehicles.find((v) => v.id === npc.id)!;
       maxStuck = Math.max(maxStuck, scavenger.brain!.stuck ?? 0);
       if (scavenger.job?.kind === 'search' && scavenger.job.stockId === stock.id) searcher = scavenger;
-      else expect(topGoal(scavenger)?.targetId, `turn ${turns}`).toBe(stock.id);
+      else {
+        const top = topGoal(scavenger);
+        expect(top?.targetId === stock.id || top?.kind === 'loot', `turn ${turns}`).toBe(true);
+        expect(scavenger.brain!.goals.some((g) => g.kind === 'scavenge' && g.targetId === stock.id), `turn ${turns}`).toBe(true);
+      }
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     }
     freeDrive(d);

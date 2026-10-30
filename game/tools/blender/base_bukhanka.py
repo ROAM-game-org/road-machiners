@@ -27,11 +27,13 @@ from parts_common_base import (  # noqa: E402
     Grid,
     arch_cut,
     check_base,
+    check_door_gap,
     cut_boxes,
     flare,
     hull_layers,
     level_sockets,
 )
+from parts_common_core import PROUD  # noqa: E402
 
 SEED = 312
 G = Grid(rows=8, cols=5, half_height=0.5)
@@ -110,6 +112,7 @@ def glazing(kit: Kit) -> None:
             "glass",
             rot=(0, -rake, 0),
         )
+    check_door_gap("door_window", *DOOR_WINDOW, WIN_BOTTOM, WHEELS_X, HUB_Z, WHEEL_R + ARCH_CLEARANCE)
     for lo, hi in (DOOR_WINDOW, *SIDE_WINDOWS):
         mirrored(kit, f"window{lo:.2f}", (abs(hi - lo), 0.03, WIN_TOP - WIN_BOTTOM), (lo + hi) / 2, SIDE - 0.035, (WIN_TOP + WIN_BOTTOM) / 2, "glass")
 
@@ -117,7 +120,7 @@ def glazing(kit: Kit) -> None:
 def front_face(kit: Kit) -> None:
     """Wide-set round headlamps, small lamps below them and a dark low grille panel between."""
     for s, sy in (("l", 1), ("r", -1)):
-        kit.cylinder(f"lamp_{s}", 0.15, 0.06, (FRONT - 0.03, sy * LAMP_Y, LAMP_Z), "light", rot=(0, 1.5708, 0), vertices=8)
+        kit.cylinder(f"lamp_{s}", 0.15, 0.06, (FRONT - 0.03 + PROUD, sy * LAMP_Y, LAMP_Z), "light", rot=(0, 1.5708, 0), vertices=8)
         kit.box(f"lamp_small_{s}", (0.05, 0.12, 0.1), (FRONT - 0.01, sy * (LAMP_Y + 0.0), LAMP_Z - 0.3), "light")
     kit.box("grille", (0.06, 0.7, 0.4), (FRONT - 0.01, 0, -0.27), "under")
     mirrored(kit, "taillight", (INSET, 0.14, 0.3), BACK - INSET / 2 + 0.01, SIDE - 0.3, 0.0, "red")

@@ -186,12 +186,13 @@ uniform float hazeUvPerMeter;`;
 const HAZE_SHIFT = `
   vec2 hazeCell = (vHazeXZ - hazeOrigin) / ${S.toFixed(4)} + 0.5;
   float hazeOn = texture2D(hazeMask, hazeCell / ${SIDE.toFixed(1)}).r;
+  vec2 hazeShift = vec2(0.0);
+  if (hazeOn > 0.0) {
   vec2 hazeP = vHazeXZ;
   float hazeT = hazeTime;
   vec2 hazeWarp = ${glslFloat(HAZE.warp.depth)} * vec2(
     sin(hazeP.y * ${glslFloat(TAU / HAZE.warp.wave)} + hazeT * ${glslFloat(HAZE.warp.speed)}),
     sin(hazeP.x * ${glslFloat(TAU / HAZE.warp.wave * 0.83)} - hazeT * ${glslFloat(HAZE.warp.speed * 1.37)}));
-  vec2 hazeShift = vec2(0.0);
 ${HAZE.waves.map(waveGlsl).join('\n')}
   float hazeGust = smoothstep(0.35, 0.95, 0.5 + 0.5 * sin(hazeP.x * ${glslFloat(TAU / HAZE.gust)} + hazeT * ${glslFloat(HAZE.gustSpeed)}
     + 1.7 * sin(hazeP.y * ${glslFloat(TAU / HAZE.gust * 0.71)} - hazeT * ${glslFloat(HAZE.gustSpeed * 0.63)}))
@@ -204,6 +205,7 @@ ${HAZE.waves.map(waveGlsl).join('\n')}
       directionalLightShadows[0].shadowBias, directionalLightShadows[0].shadowRadius, vDirectionalShadowCoord[0]);
   #endif
   hazeShift *= hazeOn * hazeLit * hazeGust * ${glslFloat(HAZE.shift / HAZE.waves.reduce((sum, w) => sum + w.weight, 0))};
+  }
   #define vMapUv (vMapUv + hazeShift * hazeUvPerMeter)
   #define vRoadXZ (vRoadXZ + hazeShift)`;
 

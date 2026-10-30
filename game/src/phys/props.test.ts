@@ -9,7 +9,8 @@ import { BROKEN_WING, BROKEN_WING_POINT } from '../data/region';
 import { FALLEN_SUN_DECKS } from '../data/territory';
 import { WEAR } from '../data/wear';
 import { START_KITS } from '../data/start';
-import { bodyOf } from '../sim/body';
+import { bodyOf, rideOf, unitsOf } from '../sim/body';
+import { reachMeters } from '../sim/rig';
 import { coreParts } from '../sim/grid';
 import { vehicleStats } from '../sim/stats';
 import { maxHp } from '../sim/wear';
@@ -60,9 +61,10 @@ function paced(from: { x: number; y: number }, to: { x: number; y: number }, pac
   return w;
 }
 
-function play(w: World, turns: number): { w: World; hits: string[]; crashes: Crash[]; breaks: Break[]; live: string[]; speeds: number[] } {
+function play(w: World, turns: number): { w: World; hits: string[]; impacts: number[]; crashes: Crash[]; breaks: Break[]; live: string[]; speeds: number[] } {
   let d = buildDrive(w);
   const hits: string[] = [];
+  const impacts: number[] = [];
   const crashes: Crash[] = [];
   const breaks: Break[] = [];
   const speeds: number[] = [];
@@ -71,6 +73,7 @@ function play(w: World, turns: number): { w: World; hits: string[]; crashes: Cra
     const id = me(w).id;
     w = endTurn(w, physicsMove(d, (x) => (r = x)));
     hits.push(...w.events.flatMap((e) => (e.t === 'collision' ? [e.b] : [])));
+    impacts.push(...w.events.flatMap((e) => (e.t === 'collision' ? [e.impact] : [])));
     crashes.push(...r!.crashes);
     breaks.push(...r!.breaks);
     const frames = r!.frames[id];
@@ -80,7 +83,7 @@ function play(w: World, turns: number): { w: World; hits: string[]; crashes: Cra
   }
   const live = Object.keys(d.obstacles);
   freeDrive(d);
-  return { w, hits, crashes, breaks, live, speeds };
+  return { w, hits, impacts, crashes, breaks, live, speeds };
 }
 
 const halfWidth = (w: World) => bodyOf(me(w).chassisId).half.z / S;
@@ -166,9 +169,8 @@ describe('prop colliders follow the model shape', () => {
   });
 
   it('every truck roof at rest is below the clearance under which props are left out', () => {
-    for (const id of Object.keys(CHASSIS)) {
-      const b = bodyOf(id);
-      const roof = b.wheelRadius + PHYSICS.truck.suspensionRest - b.wheelY + Math.max(...b.boxes.map((box) => box.at.y + box.half.y));
+    for (const [id, b] of Object.keys(CHASSIS).flatMap((chassis) => unitsOf(chassis).map((u) => [chassis, u.body] as const))) {
+      const roof = rideOf(b) + Math.max(...b.boxes.map((box) => box.at.y + box.half.y));
       expect(roof, id).toBeLessThanOrEqual(PHYSICS.truckRoof + 1e-9);
       expect(PHYSICS.truckRoof, id).toBeLessThan(PHYSICS.truckClearance);
     }
@@ -189,11 +191,9 @@ describe('prop colliders follow the model shape', () => {
     freeDrive(d);
   });
 
-  it('the live margin for props covers a turn of the fastest truck plus the longest body', () => {
-    const topSpeed = Math.max(...Object.values(CHASSIS).map((c) => c.maxSpeed));
+  it('the live margin for props covers a turn of every truck at its top speed plus its whole body', () => {
     const bonus = Math.max(...Object.values(PARTS).map((p) => ('speedBonus' in p ? p.speedBonus : 0)));
-    const longest = Math.max(...Object.keys(CHASSIS).map((id) => Math.hypot(bodyOf(id).half.x, bodyOf(id).half.z))) / S;
-    expect((topSpeed + bonus) * RULES.overdriveBoost + longest).toBeLessThan(PHYSICS.propLiveMargin);
+    for (const c of Object.values(CHASSIS)) expect((c.maxSpeed + bonus) * RULES.overdriveBoost + reachMeters(c.id) / S, c.id).toBeLessThan(PHYSICS.propLiveMargin);
   });
 });
 
@@ -205,11 +205,17 @@ describe('breakable props', () => {
   it('a fast truck breaks a fence and drives on through it', () => {
     const { w, crashes, breaks } = play(paced({ x: 34, y: 30 }, { x: 60, y: 30 }, fast, [fence]), 8);
 
-    expect(breaks).toEqual([{ prop: 'fence1', vehicle: me(w).id, step: expect.any(Number) }]);
+    expect(breaks).toEqual([{ prop: 'fence1', vehicle: me(w).id, impact: expect.any(Number), step: expect.any(Number) }]);
     expect(crashes).toEqual([]);
     expect(w.obstacles).toEqual([]);
     expect(w.broken.map((b) => b.obstacle)).toEqual([fence]);
     expect(me(w).pos.x).toBeGreaterThan(42);
+  });
+
+  it('the smash event carries the impact of the break in tiles per turn', () => {
+    const { impacts, breaks } = play(paced({ x: 34, y: 30 }, { x: 60, y: 30 }, fast, [fence]), 8);
+    expect(breaks[0].impact).toBeGreaterThanOrEqual(BREAKABLE.breakSpeed);
+    expect(impacts).toEqual([toTilesPerTurn(breaks[0].impact)]);
   });
 
   it('breaking a fence costs the truck its slowdown share of speed, not a full stop', () => {
@@ -314,7 +320,7 @@ describe('Broken Wing', () => {
     expect(hits).toEqual([]);
     expect(me(w).pos.x).toBeGreaterThan(end.x - 2);
     const b = bodyOf(me(w).chassisId);
-    const rest = b.wheelRadius + PHYSICS.truck.suspensionRest - b.wheelY;
+    const rest = rideOf(b);
     const onDeck = frames.filter((f) => deckAt(ICARUS_DECKS, f.at.x, f.at.y)?.deck.id === deck.id);
     expect(onDeck.length).toBeGreaterThan(0);
     for (const f of onDeck) expect(Math.abs(f.y - heightAt(w.terrain, f.at.x, f.at.y) * S - rest)).toBeLessThan(0.5);
@@ -370,7 +376,7 @@ describe('a Fallen Sun flap', () => {
         if (alongOf(a) <= flap.length && alongOf(b) > flap.length) lipSpeed = dist(a, b) * PHYSICS.stepsPerSecond;
       }
       const b = bodyOf(me(w).chassisId);
-      const rest = b.wheelRadius + PHYSICS.truck.suspensionRest - b.wheelY;
+      const rest = rideOf(b);
       const air = Math.max(...frames.map((f) => f.pos.y - heightAt(w.terrain, toMap(f.pos).x, toMap(f.pos).y) * S - rest));
       freeDrive(d);
       d = r!.next;
@@ -398,12 +404,12 @@ describe('a Fallen Sun flap', () => {
   }, 120_000);
 });
 
-describe('a Fury Road hull-plate ramp', () => {
+describe('a Chaos Highway hull-plate ramp', () => {
   function rampWorld(): { w: World; ramp: Deck } {
     for (let seed = 1; seed <= 40; seed++) {
       const plain = stretchLayout(seed, 1).scenes.filter((s) => s.kind === 'ramp' && s.craters.length === 0).flatMap((s) => s.ramps.map((r) => r.id));
       if (plain.length === 0) continue;
-      const w = newWorld(seed, START_KITS.combat, highwayMap(seed, 0), defaultSetup('furyRoad'));
+      const w = newWorld(seed, START_KITS.combat, highwayMap(seed, 0), defaultSetup('chaosHighway'));
       const ramp = atlasOf(w.terrain).decks.decks.find((d) => plain.includes(d.id));
       if (ramp) return { w, ramp };
     }
@@ -416,7 +422,7 @@ describe('a Fury Road hull-plate ramp', () => {
     const alongOf = (p: Vec) => (p.x - ramp.from.x) * ramp.axis.x + (p.y - ramp.from.y) * ramp.axis.y;
     const [start, end] = [on(-14), on(ramp.length + 24)];
     w.obstacles = w.obstacles.filter((o) => segmentDist(o.pos, start, end) > ramp.width / 2 + 3);
-    w.furyRoad!.groups = [];
+    w.chaosHighway!.groups = [];
     me(w).pos = on(-10);
     me(w).heading = Math.atan2(ramp.axis.y, ramp.axis.x);
     me(w).speed = vehicleStats(w, me(w)).maxSpeed;
@@ -433,7 +439,7 @@ describe('a Fury Road hull-plate ramp', () => {
       w = endTurn(w, physicsMove(d, (x) => (r = x)));
       hits.push(...r!.crashes.map((c) => c.b));
       const b = bodyOf(me(w).chassisId);
-      const rest = b.wheelRadius + PHYSICS.truck.suspensionRest - b.wheelY;
+      const rest = rideOf(b);
       air = Math.max(air, ...r!.frames[id].filter((f) => alongOf(toMap(f.pos)) > ramp.length).map((f) => f.pos.y - heightAt(w.terrain, toMap(f.pos).x, toMap(f.pos).y) * S - rest));
       freeDrive(d);
       d = r!.next;

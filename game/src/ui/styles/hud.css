@@ -1,10 +1,11 @@
 #ui .instruments {
   padding: var(--space-2) var(--space-4);
   display: grid;
-  grid-template-columns: var(--dial-w) repeat(4, minmax(0, 1fr));
+  grid-template-columns: calc(var(--compass-w) + var(--space-2) + var(--dial-w)) repeat(4, minmax(var(--lcd-cell-w), 1fr));
   grid-template-areas:
     "dial heat money clock clock"
     "dial fuel supplies engine driver";
+  grid-template-rows: auto auto auto;
   grid-auto-flow: row dense;
   column-gap: var(--space-3);
   row-gap: var(--space-2);
@@ -15,7 +16,7 @@
   grid-area: clock;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: var(--space-4);
   padding: var(--space-1) var(--space-3);
   background: var(--lcd);
@@ -62,6 +63,9 @@
   grid-area: dial;
   align-self: center;
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 .speed-dial-slot {
   display: flex;
@@ -85,7 +89,7 @@
   bottom: calc(100% + var(--hud-gap));
   z-index: var(--z-popup);
   width: max-content;
-  max-width: min(var(--panel-m), calc(100vw - var(--space-9)));
+  max-width: min(var(--panel-m), calc(var(--layer-w) - var(--space-9)));
   cursor: default;
 }
 .speed-max:hover .speed-tip,
@@ -123,15 +127,45 @@
   grid-area: heat;
 }
 .resource[data-resource="weather"] {
+  grid-row: 3;
+  grid-column: 2 / -1;
+  min-width: 0;
+}
+#ui .instruments:has([data-resource="run"]) .resource[data-resource="weather"] {
   grid-column: 2 / span 2;
 }
 .resource[data-resource="run"] {
+  grid-row: 3;
   grid-column: 4 / span 2;
+  --value-w: 9ch;
+}
+.resource[data-resource="weather"] strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.resource.idle {
+  opacity: 0.45;
+}
+.resource.idle strong {
+  visibility: hidden;
+}
+.resource[data-resource="money"] {
+  --value-w: 7ch;
+}
+.resource[data-resource="fuel"],
+.resource[data-resource="supplies"],
+.resource[data-resource="heat"],
+.resource[data-resource="engine"] {
+  --value-w: 6ch;
+}
+.resource[data-resource="driver"] {
+  --value-w: 4ch;
 }
 .resource {
   position: relative;
   display: grid;
-  grid-template-columns: var(--icon-s) auto;
+  grid-template-columns: var(--icon-s) minmax(var(--value-w, 0), auto);
   justify-content: start;
   align-items: center;
   column-gap: var(--space-2);
@@ -175,6 +209,9 @@
   background: var(--lcd-ink);
   color: var(--lcd);
 }
+.resource.danger {
+  border-color: var(--danger);
+}
 .resource.alert .icon svg {
   fill: var(--lcd);
   stroke: var(--lcd);
@@ -204,13 +241,18 @@
   padding-top: var(--space-2);
   border-top: 1px solid var(--bevel-light);
 }
-#ui .instrument-actions button.instrument-button {
+#ui .instrument-actions button.instrument-button .icon-lock {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+}
+#ui :where(.instrument-actions) button.instrument-button {
   position: relative;
   display: inline-flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-1);
   font-size: var(--text-caption);
-  padding: var(--space-1) var(--space-3);
+  height: var(--btn-h-s);
+  padding: 0 var(--space-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-s);
   white-space: nowrap;
@@ -363,6 +405,14 @@
 }
 .utility-slot .weapon-pick [data-status] {
   font: var(--text-caption) / 1.2 var(--font-mono);
+  white-space: normal;
+  justify-self: center;
+  text-align: center;
+  min-height: 2.4em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 /* One look per utility slot state (data-state in src/ui/weapons.ts). Only aiming fills the slot. */
 #ui .utility-slot .weapon-pick {
@@ -435,8 +485,6 @@
   bottom: var(--space-1);
 }
 #ui .turn-control {
-  right: var(--space-7);
-  bottom: var(--hud-inset);
   border: 0;
   background: none;
   padding: 0;

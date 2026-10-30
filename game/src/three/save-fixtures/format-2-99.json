@@ -1,0 +1,1 @@
+{"turn": 2410, "player": {"money": 7300, "health": 40, "supplies": 6}, "vehicles": [{"id": "v1", "chassisId": "scout", "faction": "player", "pos": {"x": 5, "y": 6}, "job": {"kind": "firstAid", "turnsLeft": 12, "total": 14}}]}

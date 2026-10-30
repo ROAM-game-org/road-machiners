@@ -92,9 +92,11 @@ poolWorld = instanceMatrix * poolWorld;
 #endif
 vPoolXZ = (modelMatrix * poolWorld).xz;`;
 
-const POOL_FRAGMENT = `vec3 poolNormal = inverseTransformDirection(normal, viewMatrix);
-vec2 poolAt = (vPoolXZ + poolNormal.xz * poolPush) / poolSpan;
-gl_FragColor.rgb += diffuseColor.rgb * poolColor * (texture2D(poolMap, poolAt).r * poolGain * poolLevel);
+const POOL_FRAGMENT = `if (poolLevel > 0.0) {
+  vec3 poolNormal = inverseTransformDirection(normal, viewMatrix);
+  vec2 poolAt = (vPoolXZ + poolNormal.xz * poolPush) / poolSpan;
+  gl_FragColor.rgb += diffuseColor.rgb * poolColor * (texture2D(poolMap, poolAt).r * poolGain * poolLevel);
+}
 #include <tonemapping_fragment>`;
 
 const POOL_UNIFORMS = 'uniform sampler2D poolMap;\nuniform float poolSpan;\nuniform float poolPush;\nuniform float poolGain;\nuniform float poolLevel;\nuniform vec3 poolColor;\nvarying vec2 vPoolXZ;';

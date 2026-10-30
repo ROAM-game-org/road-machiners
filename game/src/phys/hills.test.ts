@@ -2,7 +2,8 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { PHYSICS } from '../data/physics';
 import { beforeAll, expect, it } from 'vitest';
 import { randRange } from '../sim/rng';
-import { deckAt } from '../sim/bridge';
+import { deckAt, deckById } from '../sim/bridge';
+import { REGION, scalePoint } from '../data/region';
 import { heightAt } from '../sim/terrain';
 import { dist, type Vec } from '../sim/vec';
 import { endTurn, newWorld, setMoveOrder } from '../sim/world';
@@ -11,17 +12,23 @@ import { toMap } from './frames';
 import { physicsMove } from './turn';
 import { TEST_MAP } from '../test/map';
 import { budget } from '../test/budget';
-import { furyRoadWorld, PLAIN_KIT } from '../sim/testkit';
+import { chaosHighwayWorld, PLAIN_KIT } from '../sim/testkit';
 import { defaultSetup } from '../sim/settings';
 import { ICARUS_DECKS } from '../sim/bridge';
 import { atlasOf } from '../sim/atlas';
+import { reusedWorld } from '../test/world-cache';
+import type { World } from '../sim/types';
 
 beforeAll(async () => {
   await initPhysics();
 });
 
+function plainWorld(): World {
+  return reusedWorld('hills plain', () => newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming')));
+}
+
 function driveRoute(start: Vec, target: Vec): { maxTilt: number; remaining: number; minDeckRise: number } {
-  let w = newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
+  let w = plainWorld();
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   w.vehicles[0].pos = { ...start };
   w.player.fuel = 999;
@@ -46,10 +53,13 @@ function driveRoute(start: Vec, target: Vec): { maxTilt: number; remaining: numb
   return { maxTilt: maxTilt * 180 / Math.PI, remaining: dist(w.vehicles[0].pos, target), minDeckRise };
 }
 
+const B = deckById('canyon-bridge');
+const alongBridge = (along: number): Vec => ({ x: B.from.x + B.axis.x * along, y: B.from.y + B.axis.y * along });
+
 it('a truck stays under 20 degrees of tilt at both canyon road crossings', () => {
   for (const [start, target] of [
-    [{ x: 417, y: 125.33 }, { x: 443, y: 129.67 }],
-    [{ x: 490, y: 375 }, { x: 507, y: 358 }],
+    [scalePoint({ x: 83.4, y: 25.066 }), scalePoint({ x: 88.6, y: 25.934 })],
+    [alongBridge(-0.5), alongBridge(B.length + 0.5)],
   ] as [Vec, Vec][]) {
     const result = driveRoute(start, target);
     expect(result.remaining).toBeLessThan(3);
@@ -58,22 +68,23 @@ it('a truck stays under 20 degrees of tilt at both canyon road crossings', () =>
 }, budget(60_000));
 
 it('a truck crosses Canyon Bridge on the deck, above the canyon', () => {
-  const result = driveRoute({ x: 486, y: 379 }, { x: 509, y: 356 });
+  const result = driveRoute(alongBridge(-4.95), alongBridge(B.length + 2.12));
   expect(result.remaining).toBeLessThan(3);
   expect(result.minDeckRise).toBeGreaterThan(0);
   expect(result.minDeckRise).toBeLessThan(2);
 }, budget(60_000));
 
 it('the Bowl crater exit leans the truck without rolling it onto its side', () => {
-  const start = newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming')).vehicles[0].pos;
-  const result = driveRoute(start, { x: 101, y: 432 });
+  const bowl = REGION.towns.find((t) => t.id === 'bowl')!.pos;
+  const start = REGION.roads[0].find((p) => dist(p, bowl) > 100)!;
+  const result = driveRoute(start, { x: bowl.x + 21, y: bowl.y - 38 });
   expect(result.remaining).toBeLessThan(3);
   expect(result.maxTilt).toBeLessThan(45);
 }, budget(60_000));
 
 it('the terrain collider is a heightfield whose surface matches the corner grid', () => {
   const S = PHYSICS.metersPerTile;
-  const w = newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
+  const w = plainWorld();
   const t = w.terrain;
   const drive = buildDrive(w);
   const ground = drive.world.getCollider(drive.terrain);
@@ -106,10 +117,10 @@ it('the terrain collider is a heightfield whose surface matches the corner grid'
   freeDrive(drive);
 });
 
-it('builds only the ramp decks on the Fury Road highway, and every Icarus deck on Icarus', () => {
-  const road = furyRoadWorld(5);
+it('builds only the ramp decks on the Chaos Highway highway, and every Icarus deck on Icarus', () => {
+  const road = chaosHighwayWorld(5);
   const highway = buildDrive(road);
-  const icarus = buildDrive(newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming')));
+  const icarus = buildDrive(plainWorld());
   const ramps = atlasOf(road.terrain).decks.decks;
 
   expect(ramps.every((d) => d.id.startsWith('ramp-'))).toBe(true);

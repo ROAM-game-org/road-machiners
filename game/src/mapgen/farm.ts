@@ -3,24 +3,19 @@ import { PHYSICS } from '../data/physics';
 import { REGION, type TerritoryDef } from '../data/region';
 import { EMPLACEMENT, type BuildingGroup, type ClutterRule, type Emplacement, type FarmRoad, type FarmRules, type GroveBlock, type GroveRule, type Pad, type Run, type TerritoryRules } from '../data/territory';
 import { TERRAIN } from '../data/terrain';
-import { flattenFalloff } from '../sim/elevation';
-import { ICARUS_KEY } from '../sim/atlas';
 import { boxDistance, propBoxes, type PosedBox } from '../sim/mapgen';
-import { gradePaths, type GradedPad } from '../sim/road-grade';
-import { ROAD_INDEX } from '../sim/road-index';
+import type { GradedPad } from '../sim/road-grade';
 import { chance, randInt, randRange, type Rng } from '../sim/rng';
 import { siteGap } from '../sim/sites';
 import { groundAt, type BakedProp } from '../sim/terrain';
 import { angleDiff, bearing, dist, segmentDist, type Vec } from '../sim/vec';
 import { footprintRelief, tileSteepness, type MapDraft } from './bake';
-import { at, mark, markLine, markRoads, onNewRoad, steep, type Touch } from './marks';
+import { at, gradeTerritoryRoads, mark, markLine, markRoads, onNewRoad, steep, throwOnRoadCliffs, type Touch } from './marks';
 import { BUILT_CANAL, BUILT_PAD, BUILT_TRACK } from './newworld';
 import { BUILT_FIELD, BUILT_OLD_ROAD, facing, prop, RoadLine, tileCenter, tileOf, tilesWithin } from './oldworld';
 
 const LENGTH_SLACK = 1e-6;
 const LINE_SAMPLE = 0.25;
-const NEW_ROAD_SURFACE = REGION.roadWidth / 2 + 1;
-const ROAD_END_SLACK = 1;
 const TRIES = 40;
 const STRAY_FRAY = 4;
 const ROW_LINE = 0.1;
@@ -167,25 +162,13 @@ function padCorners(d: MapDraft, p: BakedProp): number[] {
 function gradeFarmRoads(d: MapDraft, t: TerritoryDef, roads: readonly FarmRoad[], buildings: readonly BakedProp[]): void {
   const pads = levelPads(d, buildings);
   const before = Float32Array.from(d.heights);
-  const paths = roads.map((road) => ({ points: road.points.map((p) => shift(t, p)), width: road.width, grade: road.grade ?? TERRAIN.roadGrade }));
-  const graded = gradePaths({ size: d.size, heights: Array.from(d.heights), types: [], atlas: ICARUS_KEY }, paths, TERRAIN.farmGradeMargin, pads);
-  const reach = Math.max(ROAD_END_SLACK + Math.max(...roads.map((road) => road.width / 2)) + TERRAIN.farmGradeMargin, Math.SQRT2 + TERRAIN.levelMargin);
-  graded.forEach((h, k) => {
-    if (h === d.heights[k]) return;
-    const corner = { x: k % (d.size + 1), y: Math.floor(k / (d.size + 1)) };
-    if (siteGap(t, corner) > reach) throw new Error(`${t.id} road grading moves the ground at ${at(corner)}, outside the territory`);
-    const onPad = pads.some((pad) => dist(pad.pos, corner) <= pad.r);
-    d.heights[k] += (h - d.heights[k]) * (onPad ? 1 : 1 - newRoadHold(corner));
-  });
+  const onMap = roads.map((road) => ({ ...road, points: road.points.map((p) => shift(t, p)) }));
+  gradeTerritoryRoads(d, t, onMap, pads);
   for (const p of buildings) {
     const cliff = tilesWithin(d.size, p.pos, padRadius(p) + TERRAIN.levelMargin + 1).find((tile) => steep(d, tile) && tileSteepness(before, d.size, tile) <= TERRAIN.drive.maxSlope);
     if (cliff !== undefined) throw new Error(`${t.id} ${p.kind} at ${at(p.pos)} levels its ground into a cliff at ${at(tileCenter(d.size, cliff))}`);
   }
-}
-
-export function newRoadHold(p: Vec): number {
-  const d = ROAD_INDEX.nearestWithin(p.x, p.y, NEW_ROAD_SURFACE + TERRAIN.farmGradeMargin);
-  return d === Infinity ? 0 : flattenFalloff(d - NEW_ROAD_SURFACE, TERRAIN.farmGradeMargin);
+  throwOnRoadCliffs(d, t, onMap);
 }
 
 function placeRuns(d: MapDraft, t: TerritoryDef, runs: readonly Run[], spots: readonly BakedProp[], marked: Touch, relief: number | null, debrisGap: number, rng: Rng): BakedProp[] {

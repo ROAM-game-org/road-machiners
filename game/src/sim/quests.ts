@@ -1,6 +1,8 @@
 
 import { Story } from 'inkjs';
+import { choiceKeyAt, EffectLookahead, replyHash, seenAt } from './quest-seen';
 import {
+  ALA_HIRED,
   AMBUSH_RAIDER,
   CHECKPOINT_TAG,
   CHECK_TAG,
@@ -9,14 +11,18 @@ import {
   GAME_OPENED_QUESTS,
   INTRO_STEP,
   INTRO_STEPS,
+  HATTIE_MET,
   type IntroStep,
+  type WellCheckpoint,
   MONEY_STAT,
   QUEST_LANGUAGES,
   QUEST_VIEWS,
+  ROAD_STORY,
   type CompiledQuest,
   type QuestBundle,
   type QuestFact,
   type QuestLanguage,
+  type QuestLinks,
   type QuestScene,
   type QuestStat,
   type QuestText,
@@ -25,25 +31,48 @@ import {
   type QuestVarDecl,
   type QuestViewKind,
   WAGON_SEEN,
+  TOWN_SCENES,
+  type TownScene,
+  type TownSceneCondition,
+  type TownSection,
 } from '../data/quests';
+import { SALVAGE_GOODS } from '../data/intro';
 import BUNDLE from '../data/quests.json';
-import type { NoteId } from '../data/locals';
+import { isNoteId, type NoteId } from '../data/locals';
+import { GOODS } from '../data/goods';
+import { CRIME } from '../data/market';
 import { REGION } from '../data/region';
 import { WAGON_SEVEN } from '../data/salvage';
 import { SKILL_IDS } from '../data/skills';
-import { UNITS } from '../data/units';
+import { playerVehicle } from './damage';
+import { mountedParts } from './grid';
 import { skillLevel } from './progress';
-import { boardFull, holdsNote, isNoteId, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
+import { boardFull, holdsNote, localsAt, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
+import { canDriveOn } from './chaos-highway';
+import { payOf } from './chaos-highway-director';
+import { heldSearch, noteSearchLead, requireShop, shortHere, siteOf } from './market';
+import { marshalLead } from './marshals';
+import { worksDown } from './production';
 import { hashRandom } from './rng';
 import { storyStock } from './salvage';
-import type { QuestCheck, QuestLine, QuestLive, QuestSession, QuestState, QuestVars, SkillId, World } from './types';
+import type { Vehicle, QuestCheck, QuestLine, QuestLive, QuestSession, QuestState, QuestVars, SkillId, World } from './types';
+import { sunwardFacts } from './sunward';
+import { offeredTonight } from './sunward-crater';
 import { update } from './world';
+import { inCombat } from './combat';
+import { isKnockedOut } from './defeat';
+import { goodsCount } from './grid';
+import { requireWholeM } from './money';
+import { parkedOn } from './sites';
+import { dist } from './vec';
+import { playerSees } from './vision';
 
 export type QuestView = {
   quest: string;
   view: QuestViewKind;
   lines: QuestLine[];
   choices: string[];
+  seen: boolean[];
   costs: (number | null)[];
   checks: (QuestCheck | null)[];
   locked: boolean[];
@@ -55,7 +84,7 @@ export type QuestView = {
 export type QuestQuery = (world: World, args: readonly unknown[]) => QuestValue;
 export type QuestEffect = (world: World, args: readonly unknown[]) => void;
 
-type Runner = { story: Story; world: World | null; restoring: string | null };
+type Runner = { story: Story; world: World | null; restoring: string | null; looking: boolean };
 
 const INK_SEED_RANGE = 2 ** 31;
 const runners = new WeakMap<QuestText, Runner>();
@@ -69,6 +98,16 @@ export function currentQuestLanguage(): QuestLanguage {
   return questLanguage;
 }
 
+export function inQuestLanguage<T>(lang: QuestLanguage, run: () => T): T {
+  const before = questLanguage;
+  questLanguage = lang;
+  try {
+    return run();
+  } finally {
+    questLanguage = before;
+  }
+}
+
 function textOf(quest: CompiledQuest): QuestText {
   return quest.text[questLanguage];
 }
@@ -78,14 +117,23 @@ const pickedChecks = new WeakMap<World, QuestCheck>();
 const SITES = new Set([...REGION.towns, ...REGION.locations].map((s) => s.id));
 
 export const QUEST_QUERIES: Record<string, QuestQuery> = {
-  money: (world) => Math.floor(world.player.money / UNITS.centsPerM),
+  money: (world) => world.player.money,
+  engine_missing: (world) => mountedParts(playerVehicle(world), 'engine').length === 0,
   has_note: (world, args) => holdsNote(world, noteArg('has_note', args)),
   found: (world, args) => world.player.discovered.includes(siteArg('found', args)),
+  cult_broken: (world) => sunwardFacts(world).collapsed !== null,
+  offered_tonight: (world) => offeredTonight(world, world.player.vehicleId),
   searched: (world, args) => world.player.scavenged.includes(storyStock(world, textArg('searched', args, 0)).id),
   has_work: (world) => townWork(world) !== null,
   has_offers: (world) => townOffers(world).length > 0,
   board_full: (world) => boardFull(world),
+  short_of: (world, args) => shortHere(world, requireShop(world), goodArg('short_of', args)),
+  works_down: (world) => worksDown(world, requireShop(world)),
   skill: (world, args) => skillLevel(world, skillArg('skill', args)),
+  holds_search: (world) => heldSearch(world)?.delivered === false,
+  marshal_lead: (world) => marshalLead(world) !== null,
+  lead_price: () => leadPrice(),
+  stretch_pay: (_world, args) => stretchPay(wholeArg('stretch_pay', args, 0)),
   passed: (world) => {
     const check = pickedChecks.get(world);
     if (!check) throw new Error('passed() ran with no # check choice picked');
@@ -97,13 +145,18 @@ export const QUEST_EFFECTS: Record<string, QuestEffect> = {
   give_money: (world, args) => {
     const amount = wholeArg('give_money', args, 0);
     if (amount < 0) throw new Error(`give_money takes no negative amount, got ${amount}`);
-    world.player.money += amount * UNITS.centsPerM;
+    world.player.money += amount;
   },
   pay: (world, args) => {
     const amount = wholeArg('pay', args, 0);
     if (amount < 0) throw new Error(`pay takes no negative amount, got ${amount}`);
-    if (world.player.money < amount * UNITS.centsPerM) throw new Error(`pay(${amount}) needs more money than the player holds. Check money() first`);
-    world.player.money -= amount * UNITS.centsPerM;
+    if (world.player.money < amount) throw new Error(`pay(${amount}) needs more money than the player holds. Check money() first`);
+    world.player.money -= amount;
+  },
+  take_marshal_lead: (world) => {
+    const lead = marshalLead(world);
+    if (!lead) throw new Error('take_marshal_lead ran with no Marshall sighting newer than the lead');
+    noteSearchLead(world, lead.at, lead.turn);
   },
   note: (world, args) => learnNote(world, noteArg('note', args)),
   take_work: (world) => takeTownWork(world),
@@ -112,6 +165,16 @@ export const QUEST_EFFECTS: Record<string, QuestEffect> = {
     begun.set(world, textArg('begin', args, 0));
   },
 };
+
+function stretchPay(stretch: number): number {
+  if (stretch < 1) throw new Error(`stretch_pay needs a stretch of 1 or more, got ${stretch}`);
+  return payOf(stretch);
+}
+
+function leadPrice(): number {
+  if (CRIME.leadFee < 1) throw new Error(`lead_price would be under 1 M, got ${CRIME.leadFee}`);
+  return CRIME.leadFee;
+}
 
 function wholeArg(fn: string, args: readonly unknown[], index: number): number {
   const value = args[index];
@@ -138,6 +201,12 @@ function skillArg(fn: string, args: readonly unknown[]): SkillId {
   return skill;
 }
 
+function goodArg(fn: string, args: readonly unknown[]): string {
+  const id = textArg(fn, args, 0);
+  if (!GOODS[id]) throw new Error(`${fn} names no good ${id}`);
+  return id;
+}
+
 function siteArg(fn: string, args: readonly unknown[]): string {
   const id = textArg(fn, args, 0);
   if (!SITES.has(id)) throw new Error(`${fn} names no town or location ${id}`);
@@ -147,12 +216,52 @@ function siteArg(fn: string, args: readonly unknown[]): string {
 export function parseBundle(value: unknown): QuestBundle {
   if (!isRecord(value) || !isRecord(value.world) || !Array.isArray(value.externals) || !isRecord(value.quests)) throw new Error('Quest bundle has no world, externals or quests');
   const quests = Object.fromEntries(Object.entries(value.quests).map(([id, quest]) => [id, parseQuest(id, quest)]));
-  return { world: parseVars('world', value.world), externals: value.externals.map(String), quests };
+  const bundle = { world: parseVars('world', value.world), externals: value.externals.map(String), quests };
+  checkQuestLinks(bundle);
+  return bundle;
+}
+
+export function checkQuestLinks(bundle: QuestBundle): void {
+  for (const [id, quest] of Object.entries(bundle.quests)) checkLinks(id, quest.links, bundle);
 }
 
 function parseQuest(id: string, value: unknown): CompiledQuest {
   if (!isRecord(value) || !isRecord(value.vars) || !Array.isArray(value.checkpoints) || !Array.isArray(value.art) || !isRecord(value.text)) throw new Error(`Quest ${id} has no vars, checkpoints, art or text`);
-  return { vars: parseVars(id, value.vars), checkpoints: value.checkpoints.map(String), view: parseView(id, value.view), art: value.art.map(String), text: parseTexts(id, value.text) };
+  return { vars: parseVars(id, value.vars), checkpoints: value.checkpoints.map(String), view: parseView(id, value.view), art: value.art.map(String), revision: parseRevision(id, value.revision), links: parseLinks(id, value.links), text: parseTexts(id, value.text) };
+}
+
+function parseRevision(id: string, value: unknown): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) throw new Error(`Quest ${id} has no revision`);
+  return value;
+}
+
+function parseLinks(id: string, value: unknown): QuestLinks {
+  if (!isRecord(value) || !isRecord(value.writes)) throw new Error(`Quest ${id} has no links`);
+  const texts = (key: string): string[] => {
+    const list = value[key];
+    if (!Array.isArray(list) || !list.every((item) => typeof item === 'string')) throw new Error(`Quest ${id} has bad ${key} links`);
+    return list;
+  };
+  const writes = Object.fromEntries(Object.entries(value.writes).map(([name, values]) => {
+    if (!Array.isArray(values) || !values.every(isQuestValue)) throw new Error(`Quest ${id} writes bad values to ${name}`);
+    return [name, values];
+  }));
+  return { reads: texts('reads'), readsNotes: texts('readsNotes'), writes, notes: texts('notes'), begins: texts('begins') };
+}
+
+function checkLinks(id: string, links: QuestLinks, bundle: QuestBundle): void {
+  const unknownVar = [...links.reads, ...Object.keys(links.writes)].find((name) => !bundle.world[name]);
+  if (unknownVar) throw new Error(`Quest ${id} links to world variable ${unknownVar}, which world.ink does not declare`);
+  const badValue = Object.entries(links.writes).find(([name, values]) => values.some((v) => typeof v !== bundle.world[name].type));
+  if (badValue) throw new Error(`Quest ${id} writes a value of the wrong type to ${badValue[0]}`);
+  const unknownNote = [...links.notes, ...links.readsNotes].find((note) => !isNoteId(note));
+  if (unknownNote) throw new Error(`Quest ${id} links to note ${unknownNote}, which is no note`);
+  const unknownQuest = links.begins.find((quest) => !bundle.quests[quest]);
+  if (unknownQuest) throw new Error(`Quest ${id} begins ${unknownQuest}, which is no quest`);
+}
+
+export function isQuestValue(value: unknown): value is QuestValue {
+  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
 }
 
 function parseView(id: string, value: unknown): QuestViewKind {
@@ -233,6 +342,37 @@ export function openWreckScene(w: World, stockId: string): void {
   openQuest(w, QUESTS, GAME_OPENED_QUESTS.wagonSeven, 'start');
 }
 
+export function openCoreDeath(w: World): void {
+  if (w.player.quests.session) return;
+  openQuest(w, QUESTS, GAME_OPENED_QUESTS.coreDeath, 'start');
+}
+
+export function openRoadScene(w: World): void {
+  if (!w.chaosHighway || w.player.quests.session) return;
+  if (worldVar(w, ALA_HIRED) !== true || !canDriveOn(w)) return;
+  const scene = ROAD_STORY[w.chaosHighway.window + 1];
+  if (!scene || worldVar(w, scene.gate) === true) return;
+  setWorldVar(w, scene.gate, true);
+  openQuest(w, QUESTS, scene.quest, 'start');
+}
+
+export function openTownScene(w: World, scene: TownScene): void {
+  if (w.player.quests.session) return;
+  if (questVar(w, QUESTS, scene.quest, scene.gate) === true) return;
+  setWorldVar(w, scene.gate, true);
+  openQuest(w, QUESTS, scene.quest, scene.checkpoint);
+}
+
+export function freeToTalk(w: World): boolean {
+  return w.player.state === 'active' && !w.player.quests.session && !w.player.call && !inCombat(w, playerVehicle(w));
+}
+
+export function openWellScene(w: World, checkpoint: WellCheckpoint): void {
+  if (w.player.quests.session) return;
+  setWorldVar(w, HATTIE_MET, true);
+  openQuest(w, QUESTS, GAME_OPENED_QUESTS.introWake, checkpoint);
+}
+
 export function introStep(w: World): IntroStep {
   const step = worldVar(w, INTRO_STEP);
   const known = INTRO_STEPS.find((s) => s === step);
@@ -252,6 +392,7 @@ export function chooseQuestOption(world: World, bundle: QuestBundle, index: numb
     payCost(w, live.costs[index], live.choices[index]);
     const check = live.checks[index];
     if (check) pickedChecks.set(w, check);
+    const key = choiceKeyAt(runnerOf(bundle, questOf(bundle, session.quest)).story, live.ink, index);
     try {
       runQuest(w, bundle, session.quest, (story) => {
         story.state.LoadJson(live.ink);
@@ -260,7 +401,46 @@ export function chooseQuestOption(world: World, bundle: QuestBundle, index: numb
     } finally {
       pickedChecks.delete(w);
     }
+    noteReply(w.player.quests, session.quest, key);
   });
+}
+
+function noteReply(state: QuestState, questId: string, key: string): void {
+  if (state.live?.quest !== questId) return;
+  const kept = state.seen[questId];
+  const entry = kept?.lang === questLanguage ? kept : { lang: questLanguage, replies: {} };
+  entry.replies[key] = replyHash(state.live.lines.map((line) => line.text));
+  state.seen[questId] = entry;
+}
+
+const looked = new WeakMap<QuestLive, { replies: Record<string, string> | null; seen: boolean[] }>();
+
+export function seenChoices(world: World, bundle: QuestBundle): boolean[] {
+  const { live, session } = world.player.quests;
+  if (!live || !session) return [];
+  const replies = repliesHeard(world.player.quests, live);
+  const known = looked.get(live);
+  if (known && known.replies === replies) return known.seen;
+  const seen = replies ? lookAhead(world, bundle, live, replies) : live.choices.map(() => false);
+  looked.set(live, { replies, seen });
+  return seen;
+}
+
+function repliesHeard(state: QuestState, live: QuestLive): Record<string, string> | null {
+  const entry = state.seen[live.quest];
+  return entry?.lang === live.lang ? entry.replies : null;
+}
+
+function lookAhead(world: World, bundle: QuestBundle, live: QuestLive, replies: Record<string, string>): boolean[] {
+  const runner = runnerOf(bundle, questOf(bundle, live.quest));
+  runner.world = world;
+  runner.looking = true;
+  try {
+    return seenAt(runner.story, live.ink, replies);
+  } finally {
+    runner.looking = false;
+    runner.world = null;
+  }
 }
 
 function liveIn(state: QuestState, session: QuestSession): QuestLive {
@@ -271,9 +451,11 @@ function liveIn(state: QuestState, session: QuestSession): QuestLive {
 }
 
 export function relanguageQuest(world: World, bundle: QuestBundle): World {
-  if (world.player.quests.live?.lang === questLanguage) return world;
+  const { live, session } = world.player.quests;
+  if (!session || live?.lang === questLanguage) return world;
   return update(world, (w) => {
     w.player.quests.live = null;
+    delete w.player.quests.seen[session.quest];
     restoreQuest(w, bundle);
   });
 }
@@ -304,11 +486,16 @@ export function leaveQuest(world: World): World {
 
 function payCost(w: World, cost: number | null, choice: string): void {
   if (cost === null) return;
-  if (w.player.money < cost * UNITS.centsPerM) throw new Error(`"${choice}" costs ${cost} M, more than the player holds`);
-  w.player.money -= cost * UNITS.centsPerM;
+  requireWholeM(cost, `choice "${choice}" cost`);
+  if (w.player.money < cost) throw new Error(`"${choice}" costs ${cost} M, more than the player holds`);
+  w.player.money -= cost;
 }
 
 export function questView(world: World, bundle: QuestBundle): QuestView {
+  return { ...questPage(world, bundle), seen: seenChoices(world, bundle) };
+}
+
+export function questPage(world: World, bundle: QuestBundle): Omit<QuestView, 'seen'> {
   const { live, session } = world.player.quests;
   if (!live) throw new Error('No quest is on view');
   const quest = questOf(bundle, live.quest);
@@ -382,24 +569,6 @@ export function questProblems(state: QuestState, bundle: QuestBundle): Error[] {
 }
 
 export type CarriedQuestVars = { world: Record<string, unknown>; local: Record<string, Record<string, unknown>> };
-
-export function fittingQuestVars(carried: CarriedQuestVars, bundle: QuestBundle): { world: QuestVars; local: Record<string, QuestVars>; lost: string[] } {
-  const world = fitting(carried.world, bundle.world, (name) => name);
-  const locals = Object.entries(carried.local).map(([id, vars]) => [id, fitting(vars, bundle.quests[id]?.vars ?? {}, (name) => `${id}.${name}`)] as const);
-  const local = Object.fromEntries(locals.filter(([, fit]) => Object.keys(fit.kept).length > 0).map(([id, fit]) => [id, fit.kept]));
-  return { world: world.kept, local, lost: [...world.lost, ...locals.flatMap(([, fit]) => fit.lost)] };
-}
-
-function fitting(vars: Record<string, unknown>, decls: Record<string, QuestVarDecl>, label: (name: string) => string): { kept: QuestVars; lost: string[] } {
-  const kept: QuestVars = {};
-  const lost: string[] = [];
-  for (const [name, value] of Object.entries(vars)) {
-    const decl = decls[name];
-    if (!decl || typeof value !== decl.type) lost.push(label(name));
-    else if (value !== decl.init) kept[name] = value as QuestVars[string];
-  }
-  return { kept, lost };
-}
 
 function localProblems(id: string, vars: QuestVars, bundle: QuestBundle): Error[] {
   const quest = bundle.quests[id];
@@ -523,7 +692,7 @@ function runnerOf(bundle: QuestBundle, quest: CompiledQuest): Runner {
   const text = textOf(quest);
   const known = runners.get(text);
   if (known) return known;
-  const runner: Runner = { story: new Story(text.story), world: null, restoring: null };
+  const runner: Runner = { story: new Story(text.story), world: null, restoring: null, looking: false };
   for (const name of bundle.externals) bindExternal(runner, name);
   runners.set(text, runner);
   return runner;
@@ -538,6 +707,7 @@ function bindExternal(runner: Runner, name: string): void {
 }
 
 function effectWorld(runner: Runner, name: string): World {
+  if (runner.looking) throw new EffectLookahead(`${EffectLookahead.name}: ${name}`);
   if (runner.restoring) throw new Error(`Effect ${name} ran while loading checkpoint ${runner.restoring}, so every load would run it again. Move it after a choice.`);
   return runnerWorld(runner);
 }
@@ -561,4 +731,53 @@ function openSession(state: QuestState): QuestSession {
 function questSeed(w: World, questId: string): number {
   const codes = [...questId].map((c) => c.charCodeAt(0));
   return Math.floor(hashRandom(w.seed, w.turn, ...codes) * INK_SEED_RANGE);
+}
+
+export type SectionAccess = { open: true } | { open: false; reason: 'noLocals' | 'noDrivers' };
+
+const TOWN_SCENE_CONDITIONS: Record<TownSceneCondition, (w: World) => boolean> = {
+  newSeller: (w) => w.player.xpBySource.profit === 0 && carriesSalvage(playerVehicle(w)),
+};
+
+function carriesSalvage(v: Vehicle): boolean {
+  const held = goodsCount(v);
+  return SALVAGE_GOODS.some((good) => (held[good] ?? 0) > 0);
+}
+
+export function barDrivers(w: World, shopId: string): Vehicle[] {
+  const site = siteOf(shopId);
+  const me = playerVehicle(w);
+  return w.vehicles
+    .filter((v) => v.id !== me.id && v.brain && !isKnockedOut(v) && parkedOn(v, site) && playerSees(w, v.pos))
+    .sort((a, b) => dist(a.pos, me.pos) - dist(b.pos, me.pos));
+}
+
+export function townSections(w: World, shopId: string): Record<TownSection, SectionAccess> {
+  return {
+    garage: { open: true },
+    market: { open: true },
+    board: { open: true },
+    people: localsAt(shopId).length > 0 ? { open: true } : { open: false, reason: 'noLocals' },
+    bar: barDrivers(w, shopId).length > 0 ? { open: true } : { open: false, reason: 'noDrivers' },
+  };
+}
+
+export function pickTownSection(world: World, from: TownSection | null, to: TownSection | null): World {
+  return update(world, (w) => {
+    const shopId = requireShop(w);
+    if (to !== null) requireOpenSection(w, shopId, to);
+    const scene = freeToTalk(w) ? sceneFor(w, shopId, from, to) : null;
+    if (scene) openTownScene(w, scene);
+  });
+}
+
+function requireOpenSection(w: World, shopId: string, section: TownSection): void {
+  const access = townSections(w, shopId)[section];
+  if (!access.open) throw new Error(`The ${section} section is off at ${shopId}: ${access.reason}`);
+}
+
+function sceneFor(w: World, shopId: string, from: TownSection | null, to: TownSection | null): TownScene | null {
+  const here = TOWN_SCENES.filter((s) => s.place === shopId && worldVar(w, s.gate) !== true && (s.when === null || TOWN_SCENE_CONDITIONS[s.when](w)));
+  const leaving = from === null ? undefined : here.find((s) => s.moment === 'leave' && s.section === from);
+  return leaving ?? (to === null ? null : here.find((s) => s.moment === 'enter' && s.section === to) ?? null);
 }

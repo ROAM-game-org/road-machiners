@@ -8,6 +8,8 @@ import { noseRocks } from '../sim/nose';
 import { sitePads, type Site } from '../sim/sites';
 import { dist, segmentDist, type Vec } from '../sim/vec';
 import { typeCode, type MapDraft } from './bake';
+import { steep } from './marks';
+import { tileOf } from './oldworld';
 
 export function fortressLayer(d: MapDraft): MapDraft {
   const sites = [...REGION.towns, ...REGION.locations].filter((site) => site.id in FORTRESS_SITES);
@@ -18,7 +20,7 @@ export function fortressLayer(d: MapDraft): MapDraft {
   const rocks = noseRocks(nose);
   const rockBoxes = rocks.flatMap((p, k) => propBoxes(propObstacle(p, k)));
   raiseApron(d, nose, rockBoxes, Math.max(...rocks.map((p) => p.r)));
-  const clear = d.props.filter((p) => !rockBoxes.some((b) => boxDistance(b, p.pos) < p.r));
+  const clear = d.props.filter((p) => !rockBoxes.some((b) => boxDistance(b, p.pos) < p.r) && !(p.kind === 'rock' && steep(d, tileOf(d.size, p.pos))));
   return { ...d, props: [...clear, ...props, ...rocks] };
 }
 

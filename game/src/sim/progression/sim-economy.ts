@@ -1,0 +1,245 @@
+import { ECONOMY } from '../../data/goods';
+import { graphEdges, isFoundGood, PRODUCTION, SERVICE_GOOD, SHOPS, SHORT_PRESSURE, shopDef, siteRecipes, tradedGoods, type Recipe, type SiteEventKind } from '../../data/market';
+import { TIME } from '../../data/time';
+import { rationing } from '../economy';
+import { goodPrice, goodStock, onOrder, pressureOf, shopState, siteOf, stockForSale, stockShort, stockTarget, type ShopState, type StockCause } from '../market';
+import { goodsCount } from '../grid';
+import { isDefeated } from '../defeat';
+import { cargoRoom } from '../inventory';
+import { npcProfile, tradeLegTiles, tradeOutlook } from '../npc-decisions';
+import { missingInputs, onRelief, recipeRunning, type RecipeRun } from '../production';
+import { legRisk, liveRoadNews, shipmentOf } from '../road-news';
+import type { RoadNewsKind, Vehicle, World } from '../types';
+import type { SimText } from './sim-mode';
+
+export type EconInput = { good: string; name: string; have: number; need: number };
+export type EconGood = { good: string; name: string; stock: number; target: number; found: boolean; shortBelow: number; pressure: number; buy: number; sell: number; buyText: string; sellText: string; tags: { id: EconTag; text: string }[] };
+export type EconLine = { recipe: string; name: string; run: RecipeRun; runText: string; inputs: string[]; outputs: string[]; outputGoods: string[]; missing: EconInput[]; everyHours: number; event: string | null };
+export type EconFlow = { good: string; name: string; cause: StockCause; causeText: string; units: number };
+export type EconEvent = { kind: SiteEventKind; text: string; hoursLeft: number };
+export type EconShop = { id: string; name: string; x: number; y: number; goods: EconGood[]; lines: EconLine[]; flows: EconFlow[]; event: EconEvent | null; contracts: number; parts: number };
+export type EconShipment = { truck: string; truckName: string; good: string; goodName: string; units: number; fromId: string; toId: string; from: string; to: string; fromXY: { x: number; y: number }; toXY: { x: number; y: number } };
+export type EconNews = { turn: number; hoursAgo: number; kind: RoadNewsKind; kindText: string; good: string; goodName: string; units: number; fromId: string; toId: string; from: string; to: string };
+export type EconEdge = { good: string; goodName: string; fromId: string; toId: string; from: string; to: string };
+export type EconTrade = { good: string; goodName: string; fromId: string; toId: string; from: string; to: string; buy: number; sell: number; gain: number; crates: number; load: number; fuel: number; risk: number; net: number; worth: boolean; tiles: number; distanceText: string; risky: boolean };
+export type EconTag = 'short' | 'rationing' | 'slowImport' | 'onOrder';
+export type SampleEvent = { shop: string; kind: SiteEventKind | RoadNewsKind; good: string };
+export type Economy = { turn: number; flowHours: number; shops: EconShop[]; shipments: EconShipment[]; news: EconNews[]; edges: EconEdge[]; trades: EconTrade[]; trader: string | null };
+
+const TURNS_PER_HOUR = TIME.turnsPerDay / 24;
+const SUPPLY_OF_GOOD: Record<string, 'fuel' | 'supplies'> = Object.fromEntries(Object.entries(SERVICE_GOOD).map(([kind, good]) => [good, kind as 'fuel' | 'supplies']));
+
+type Move = { shop: string; good: string; cause: StockCause; delta: number };
+type Bucket = { turn: number; moves: Move[] };
+
+export class StockFlows {
+  private buckets: Bucket[] = [];
+
+  constructor(private readonly startTurn: number) {}
+
+  record(turn: number, shop: string, good: string, delta: number, cause: StockCause): void {
+    const last = this.buckets[this.buckets.length - 1];
+    if (last && last.turn === turn) last.moves.push({ shop, good, cause, delta });
+    else this.buckets.push({ turn, moves: [{ shop, good, cause, delta }] });
+    while (turn - this.buckets[0].turn >= TIME.turnsPerDay) this.buckets.shift();
+  }
+
+  hours(turn: number): number {
+    return Math.min(TIME.turnsPerDay, turn - this.startTurn) / TURNS_PER_HOUR;
+  }
+
+  totals(shop: string): { good: string; cause: StockCause; units: number }[] {
+    const sums = new Map<string, { good: string; cause: StockCause; units: number }>();
+    for (const move of this.buckets.flatMap((b) => b.moves).filter((m) => m.shop === shop)) {
+      const key = `${move.good}|${move.cause}`;
+      const sum = sums.get(key) ?? { good: move.good, cause: move.cause, units: 0 };
+      sum.units += move.delta;
+      sums.set(key, sum);
+    }
+    return [...sums.values()].filter((s) => s.units !== 0).sort((a, b) => Math.abs(b.units) - Math.abs(a.units));
+  }
+}
+
+export function economyOf(world: World, flows: StockFlows, text: SimText): Economy {
+  const trader = referenceTrader(world);
+  return {
+    turn: world.turn,
+    flowHours: flows.hours(world.turn),
+    shops: Object.keys(world.shops).map((id) => shopOf(world, id, flows, text)),
+    shipments: shipmentsOf(world, text),
+    news: newsOf(world, text),
+    edges: graphEdges().map((e) => ({ good: e.good, goodName: text.good(e.good), fromId: e.from, toId: e.to, from: text.site(e.from), to: text.site(e.to) })),
+    trades: trader ? tradesOf(world, trader, text) : [],
+    trader: trader ? text.truck(world, trader) : null,
+  };
+}
+
+export function marketLayout(): { shop: string; good: string }[] {
+  return Object.keys(SHOPS).flatMap((shop) => tradedGoods(shop).map((good) => ({ shop, good })));
+}
+
+export function marketSample(world: World): number[] {
+  return marketLayout().flatMap(({ shop, good }) => {
+    const state = shopState(world, shop);
+    return [goodStock(state, good), goodPrice(shop, state, good, 'buy', ECONOMY.spread)];
+  });
+}
+
+export function sampleEvents(world: World, since: number): SampleEvent[] {
+  const site = Object.entries(world.shops).flatMap(([shop, state]) => siteEventGoods(shop, state).map((good) => ({ shop, kind: state.event!.kind, good })));
+  const news = world.roadNews.filter((n) => n.turn > since).map((n) => ({ shop: n.to, kind: n.kind, good: n.good }));
+  return [...site, ...news];
+}
+
+function siteEventGoods(shop: string, state: ShopState): string[] {
+  const recipe = siteRecipes(shop).find((r) => r.id === state.event?.recipe);
+  return recipe ? Object.keys(recipe.outputs) : [];
+}
+
+function shopOf(world: World, id: string, flows: StockFlows, text: SimText): EconShop {
+  const state = shopState(world, id);
+  const pos = siteOf(id).pos;
+  return {
+    id,
+    name: text.site(id),
+    x: pos.x,
+    y: pos.y,
+    goods: Object.keys(state.goods).map((good) => goodOf(world, id, state, good, text)),
+    lines: siteRecipes(id).map((recipe) => lineOf(world, id, state, recipe, text)),
+    flows: flows.totals(id).map((f) => ({ good: f.good, name: text.good(f.good), cause: f.cause, causeText: text.cause(f.cause), units: f.units })),
+    event: state.event ? { kind: state.event.kind, text: text.siteEvent(state.event.kind), hoursLeft: Math.max(0, Math.round((state.event.until - world.turn) / TURNS_PER_HOUR)) } : null,
+    contracts: state.contracts.length,
+    parts: state.stock.length,
+  };
+}
+
+function shortLimit(shopId: string, good: string): number {
+  let limit = -1;
+  for (let stock = 0; stock <= stockTarget(shopId, good); stock++) if (pressureOf(shopId, good, stock) >= SHORT_PRESSURE) limit = stock;
+  return limit;
+}
+
+function goodOf(world: World, shopId: string, state: ShopState, good: string, text: SimText): EconGood {
+  const stock = goodStock(state, good);
+  const buy = goodPrice(shopId, state, good, 'buy', ECONOMY.spread);
+  const sell = goodPrice(shopId, state, good, 'sell', ECONOMY.spread);
+  return {
+    good,
+    name: text.good(good),
+    stock,
+    target: stockTarget(shopId, good),
+    found: isFoundGood(good),
+    shortBelow: shortLimit(shopId, good),
+    pressure: pressureOf(shopId, good, stock),
+    buy,
+    sell,
+    buyText: text.money(buy),
+    sellText: text.money(sell),
+    tags: tagsOf(world, shopId, state, good).map((id) => ({ id, text: text.tag(id) })),
+  };
+}
+
+function tagsOf(world: World, shopId: string, state: ShopState, good: string): EconTag[] {
+  const tags: [EconTag, boolean][] = [
+    ['short', stockShort(shopId, state, good)],
+    ['rationing', rationsGood(world, shopId, good)],
+    ['slowImport', onRelief(world, shopId, good)],
+    ['onOrder', onOrder(world, shopId, good)],
+  ];
+  return tags.filter(([, on]) => on).map(([tag]) => tag);
+}
+
+function rationsGood(world: World, shopId: string, good: string): boolean {
+  const supply = SUPPLY_OF_GOOD[good];
+  return supply !== undefined && shopDef(shopId).supplies.includes(supply) && rationing(world, shopId, supply);
+}
+
+function lineOf(world: World, shopId: string, state: ShopState, recipe: Recipe, text: SimText): EconLine {
+  const run = recipeRunning(world, shopId, recipe.id);
+  const batch = run === 'fallback' ? { inputs: {}, outputs: recipe.fallback ?? recipe.outputs } : recipe;
+  const event = state.event?.recipe === recipe.id ? state.event.kind : null;
+  return {
+    recipe: recipe.id,
+    name: text.recipe(recipe.id),
+    run,
+    runText: text.run(run),
+    inputs: crates(batch.inputs, text),
+    outputs: crates(batch.outputs, text),
+    outputGoods: Object.keys(recipe.outputs),
+    missing: missingInputs(state, recipe).map((m) => ({ ...m, name: text.good(m.good) })),
+    everyHours: (recipe.everyCycles * PRODUCTION.cycleTurns) / TURNS_PER_HOUR,
+    event: event === null ? null : text.siteEvent(event),
+  };
+}
+
+function crates(goods: Record<string, number>, text: SimText): string[] {
+  return Object.entries(goods).map(([good, n]) => `${n} ${text.good(good)}`);
+}
+
+function shipmentsOf(world: World, text: SimText): EconShipment[] {
+  return world.vehicles.flatMap((v) => {
+    const shipment = shipmentOf(v);
+    if (!shipment) return [];
+    return [{
+      truck: v.id,
+      truckName: text.truck(world, v),
+      good: shipment.good,
+      goodName: text.good(shipment.good),
+      units: goodsCount(v)[shipment.good] ?? 0,
+      fromId: shipment.from,
+      toId: shipment.to,
+      from: text.site(shipment.from),
+      to: text.site(shipment.to),
+      fromXY: { ...siteOf(shipment.from).pos },
+      toXY: { ...siteOf(shipment.to).pos },
+    }];
+  });
+}
+
+function newsOf(world: World, text: SimText): EconNews[] {
+  return liveRoadNews(world).map((n) => ({
+    turn: n.turn,
+    hoursAgo: Math.round((world.turn - n.turn) / TURNS_PER_HOUR),
+    kind: n.kind,
+    kindText: text.newsKind(n.kind),
+    good: n.good,
+    goodName: text.good(n.good),
+    units: n.units,
+    fromId: n.from,
+    toId: n.to,
+    from: text.site(n.from),
+    to: text.site(n.to),
+  }));
+}
+
+export function referenceTrader(world: World): Vehicle | null {
+  const traders = world.vehicles.filter((v) => v.brain?.traits?.includes('trader') && !isDefeated(v));
+  return traders.reduce<Vehicle | null>((best, v) => (best === null || cargoRoom(v) > cargoRoom(best) ? v : best), null);
+}
+
+function tradesOf(world: World, trader: Vehicle, text: SimText): EconTrade[] {
+  const spend = npcProfile(trader).tradeStake;
+  const best = new Map<string, EconTrade>();
+  for (const trade of Object.keys(world.shops).flatMap((from) => tradesFrom(world, trader, spend, from, text))) {
+    const known = best.get(trade.good);
+    if (!known || trade.net > known.net) best.set(trade.good, trade);
+  }
+  return [...best.values()].sort((a, b) => Number(b.worth) - Number(a.worth) || b.net - a.net);
+}
+
+function tradesFrom(world: World, trader: Vehicle, spend: number, from: string, text: SimText): EconTrade[] {
+  const source = shopState(world, from);
+  return Object.keys(source.goods).flatMap((good) => {
+    const crates = stockForSale(world, from, good);
+    if (crates <= 0) return [];
+    const buy = goodPrice(from, source, good, 'buy', ECONOMY.spread);
+    return Object.keys(world.shops).filter((to) => to !== from && tradedGoods(to).includes(good)).flatMap((to) => {
+      const sell = goodPrice(to, shopState(world, to), good, 'sell', ECONOMY.spread);
+      if (sell <= buy) return [];
+      const plan = { source: from, good, sellShop: to };
+      const tiles = tradeLegTiles(plan);
+      const outlook = tradeOutlook(world, trader, plan, spend, tiles);
+      return [{ good, goodName: text.good(good), fromId: from, toId: to, from: text.site(from), to: text.site(to), buy, sell, gain: outlook.profit, crates, load: outlook.count, fuel: outlook.fuel, risk: outlook.risk, net: outlook.net, worth: outlook.worth, tiles, distanceText: text.distance(tiles), risky: legRisk(world, from, to) > 0 }];
+    });
+  });
+}

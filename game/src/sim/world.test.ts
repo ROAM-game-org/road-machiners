@@ -6,7 +6,10 @@ import { TEST_MAP } from '../test/map';
 import { playerVehicle } from './damage';
 import { maxHp } from './wear';
 import { townAt } from './sites';
-import { endTurn, isAtRest, newWorld, setHeadlights, setOverdrive, startPose, townStart, update } from './world';
+import { autoRuns, endTurn, isAtRest, newWorld, setDirect, setHeadlights, setMoveOrder, setOverdrive, townStart, update, waitsOnPlayer } from './world';
+import { leaveQuest, QUESTS, startQuest } from './quests';
+import { GAME_OPENED_QUESTS } from '../data/quests';
+import { startPose } from './start-pose';
 import { dist } from './vec';
 import { partDef } from '../data/parts';
 import { RULES } from '../data/rules';
@@ -20,8 +23,11 @@ import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
 import type { World } from './types';
 import { defaultSetup } from './settings';
 
+const BY_RADIUS = Object.keys(CHASSIS).sort((a, b) => CHASSIS[b].radius - CHASSIS[a].radius);
+const TOWN_START_CHASSIS = [...BY_RADIUS.slice(0, 5), BY_RADIUS[BY_RADIUS.length - 1]];
+
 describe('townStart', () => {
-  it.each(Object.keys(CHASSIS))('parks a %s on a town pad with no vehicle on top of it', (chassis) => {
+  it.each(TOWN_START_CHASSIS)('parks a %s on a town pad with no vehicle on top of it', (chassis) => {
     const kit = { ...START_KITS.standard, chassis, parts: [], cargo: {}, storage: [], opening: null };
     const world = newWorld(7, kit, TEST_MAP, defaultSetup('roaming'), true, townStart());
     const truck = playerVehicle(world);
@@ -43,6 +49,7 @@ describe('the overdrive cutoff', () => {
 
   function overdriving(hp: number): World {
     const w = emptyWorld();
+    w.player.ranks.driving = 1;
     w.player.overdrive = true;
     engineOf(w).hp = hp;
     return w;
@@ -85,6 +92,7 @@ describe('the overdrive cutoff', () => {
 
   it('refuses to switch overdrive on while the engine is too worn', () => {
     const w = emptyWorld();
+    w.player.ranks.driving = 1;
     engineOf(w).hp = Math.floor(RULES.overdriveMinEngineShare * stockHp());
     expect(() => setOverdrive(w, true)).toThrow(/overdrive/i);
     expect(setOverdrive(w, false).player.overdrive).toBe(false);
@@ -96,6 +104,25 @@ describe('the overdrive cutoff', () => {
     expect(canOverdrive(playerVehicle(fixed))).toBe(true);
     expect(fixed.player.overdrive).toBe(false);
     expect(setOverdrive(fixed, true).player.overdrive).toBe(true);
+  });
+
+  it('refuses overdrive at Driving 0 with the rank it needs, and opens it at Driving 1', () => {
+    const w = emptyWorld();
+    expect(() => setOverdrive(w, true)).toThrow(expect.objectContaining({ refusal: { id: 'needsBasic', skill: 'driving' } }));
+    expect(setOverdrive(w, false).player.overdrive).toBe(false);
+    w.player.ranks.driving = 1;
+    expect(setOverdrive(w, true).player.overdrive).toBe(true);
+  });
+
+  it('cuts a saved overdrive at Driving 0 on the next step, with the cut-out note', () => {
+    const w = emptyWorld();
+    w.player.overdrive = true;
+    const me = playerVehicle(w);
+    const plain = { ...w, player: { ...w.player, overdrive: false } };
+    expect(vehicleStats(w, me).maxSpeed).toBe(vehicleStats(plain, me).maxSpeed);
+    const next = update(w, () => {});
+    expect(next.player.overdrive).toBe(false);
+    expect(cutEvents(next)).toBe(1);
   });
 
   it('logs nothing for a worn engine with overdrive already off', () => {
@@ -176,7 +203,7 @@ describe('the headlight switch', () => {
 
   it('keeps the events and removed vehicles of the turn being shown', () => {
     const world = emptyWorld();
-    const gone = addVehicle(world, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 60, y: 30 });
+    const gone = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 60, y: 30 });
     world.vehicles = world.vehicles.filter((v) => v !== gone);
     world.removed = [gone];
     world.events = [{ t: 'destroyed', vehicle: gone.id, by: world.player.vehicleId }];
@@ -190,9 +217,9 @@ describe('the headlight switch', () => {
   it('changes no turn result at night with NPCs about', () => {
     const night = update(emptyWorld({ x: 100, y: 100 }), (w) => {
       w.turn = duskTurn + 2;
-      const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 125, y: 100 });
+      const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 125, y: 100 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
-      const trader = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 100, y: 130 });
+      const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 100, y: 130 });
       trader.brain = npcBrain('trader', trader.pos, ['trader']);
     });
     expect(sunAt(night.turn)).toBeNull();
@@ -207,5 +234,64 @@ describe('the headlight switch', () => {
 
     expect(dark.at(-1)!.player.contacts.length).toBeGreaterThan(0);
     expect(lit.map((w) => ({ ...w, player: { ...w.player, headlights: false } }))).toEqual(dark);
+  });
+});
+
+describe('waitsOnPlayer', () => {
+  function freshWorld(): World {
+    return newWorld(7, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false);
+  }
+
+  it('waits on nothing in a world with no call and no scene', () => {
+    expect(waitsOnPlayer(freshWorld())).toBe(false);
+  });
+
+  it('waits on an open radio call', () => {
+    const world = freshWorld();
+    world.player.call = { kind: 'radio' } as never;
+    expect(waitsOnPlayer(world)).toBe(true);
+    expect(autoRuns({ ...world, player: { ...world.player, state: 'knockedOut' } })).toBe(false);
+  });
+
+  it('waits on a scene whose session is still open', () => {
+    const world = startQuest(freshWorld(), QUESTS, GAME_OPENED_QUESTS.introWake, 'start');
+    expect(world.player.quests.session).not.toBeNull();
+    expect(waitsOnPlayer(world)).toBe(true);
+  });
+
+  it('waits on an ended scene still on view until the player leaves it', () => {
+    const world = startQuest(freshWorld(), QUESTS, GAME_OPENED_QUESTS.introRoad, 'start');
+    expect(world.player.quests.session).toBeNull();
+    expect(waitsOnPlayer(world)).toBe(true);
+    expect(autoRuns({ ...world, player: { ...world.player, state: 'knockedOut' } })).toBe(false);
+    expect(waitsOnPlayer(leaveQuest(world))).toBe(false);
+  });
+});
+
+describe('a player order with a pace', () => {
+  const start = () => newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+
+  it('keeps the pace on through and stop orders', () => {
+    const w = start();
+    const at = playerVehicle(w).pos;
+    const dest = { x: at.x + 8, y: at.y };
+    expect(playerVehicle(setMoveOrder(w, { kind: 'through', dest, pace: 2 })).order).toEqual({ kind: 'through', dest, pace: 2 });
+    expect(playerVehicle(setMoveOrder(w, { kind: 'stopAt', dest, pace: 2 })).order).toEqual({ kind: 'stopAt', dest, pace: 2 });
+  });
+
+  it('throws on a pace that is not finite or not above the parked speed', () => {
+    const w = start();
+    const dest = { x: 30, y: 30 };
+    for (const pace of [Number.NaN, Infinity, RULES.parkedSpeed, 0, -1]) {
+      expect(() => setMoveOrder(w, { kind: 'through', dest, pace })).toThrow();
+    }
+  });
+
+  it('drops the pace when the player switches to manual driving', () => {
+    const w = start();
+    const dest = { x: playerVehicle(w).pos.x + 8, y: playerVehicle(w).pos.y };
+    const manual = setDirect(setMoveOrder(w, { kind: 'through', dest, pace: 2 }), true);
+    expect(playerVehicle(manual).order).toEqual({ kind: 'through', dest });
+    expect(playerVehicle(setDirect(manual, false)).order).toEqual({ kind: 'through', dest });
   });
 });

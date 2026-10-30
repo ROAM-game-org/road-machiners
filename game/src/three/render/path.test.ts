@@ -29,6 +29,16 @@ describe("waypoint marker", () => {
     expect(orderIcon(path).visible).toBe(false);
   });
 
+  it("reuses its line and marker materials across redraws, so a new plan compiles no shader", () => {
+    const path = new PathView(terrain);
+    const frame = (x: number) => ({ pos: { x, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels: [] });
+    const materials = () => new Set(path.preview.children.map((c) => (c as THREE.Mesh).material));
+    path.set([[frame(0), frame(1)], [frame(1), frame(2)]], 0xff0000, null, false);
+    const first = materials();
+    path.set([[frame(0), frame(3)], [frame(3), frame(4)]], 0xff0000, null, false);
+    expect(materials()).toEqual(first);
+  });
+
   it("hides without an order", () => {
     const path = new PathView(terrain);
     path.show(true, emptyWorld({ x: 1, y: 1 }), false);

@@ -14,7 +14,7 @@ import { dist, segmentDist, type Vec } from '../sim/vec';
 import { footprintRelief, tileSteepness, type MapDraft } from './bake';
 import { fillFarm, placeBuildingGroups, touchesMarks } from './farm';
 import { fillGlass } from './glass';
-import { at, markRoads, type Touch } from './marks';
+import { at, gradeTerritoryRoads, markRoads, throwOnRoadCliffs, type Touch } from './marks';
 import { prop, ruleRng, tileOf } from './oldworld';
 
 export const TERRITORY_SEED_OFFSET = 9100;
@@ -40,6 +40,7 @@ type Ground = Draws & {
 };
 
 function fill(d: MapDraft, t: TerritoryDef, rules: TerritoryRules, rng: Rng): void {
+  if (rules.wreck?.gradeRoads) gradeTerritoryRoads(d, t, territoryRoads(t).roads, []);
   const pieces = rules.wreck ? placePieces(d, t, rules.wreck) : [];
   if (rules.reactor) d.props.push(prop(rules.reactor.look, reactorPos(t), rules.reactor.radius, 0));
   if (rules.wreck) fillWreck({ d, t, rules, rng }, rules, rules.wreck, pieces);
@@ -60,6 +61,7 @@ function fillWreck(draws: Draws, rules: TerritoryRules, wreck: WreckRules, piece
   const { roads, spurs } = territoryRoads(t);
   const [onWeb, onSpur] = [markRoads(d, t, roads, 'inside'), markRoads(d, t, spurs, 'spur')];
   const onRoad: Touch = (pos, r) => onWeb(pos, r) || onSpur(pos, r);
+  throwOnRoadCliffs(d, t, roads);
   const pieceBoxes = territoryPieces(t).flatMap((p) => propBoxes(pieceObstacle(p, 'piece')));
   const caches = territoryCaches(t).map((c) => prop(wreck.cacheLook, c.pos, wreck.cacheRadius, c.yaw));
   for (const c of caches) if (onRoad(c.pos, c.r) || touchesMarks(d, c.pos, c.r)) throw new Error(`${t.id} cache at ${at(c.pos)} stands on a dirt road`);

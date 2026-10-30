@@ -1,0 +1,215 @@
+import { describe, expect, it } from "vitest";
+import { PARTS } from "../../data/parts";
+import { makePart } from "../../sim/factory";
+import { mountPart } from "../../sim/inventory";
+import { emptyWorld } from "../../sim/testkit";
+import { TruckConditionReadout } from "../../ui/hud-readout";
+import { BODY_ID, conditionItems, EMPTY_ID, TINTS, boundsOf, centerOf, cropOf, flipRows, fullBox, hiddenOver, idsOf, indexIds, linearToSrgb, partMaskOf, solidMaskOf, tintMask, unpremultiply } from "./portraitPixels";
+
+const size = (width: number, height: number) => ({ width, height });
+
+function ids(width: number, rows: number[][]): Uint16Array {
+  return Uint16Array.from(rows.flat());
+}
+
+function litAll(count: number, alpha = 255): Uint8ClampedArray {
+  const lit = new Uint8ClampedArray(count * 4);
+  for (let p = 0; p < count; p++) lit.set([120, 100, 80, alpha], p * 4);
+  return lit;
+}
+
+describe("partMaskOf", () => {
+  it("keeps the lit pixels of one part and clears the rest", () => {
+    const map = ids(3, [[0, 2, 2], [1, 2, 3]]);
+    const mask = partMaskOf(litAll(6), map, size(3, 2), 2, fullBox(size(3, 2)));
+    const alphas = Array.from({ length: 6 }, (_, p) => mask[p * 4 + 3]);
+    expect(alphas).toEqual([0, 255, 255, 0, 255, 0]);
+    expect(Array.from(mask.slice(4, 8))).toEqual([120, 100, 80, 255]);
+  });
+
+  it("drops pixels the lit render left transparent", () => {
+    const map = ids(2, [[2, 2]]);
+    const lit = litAll(2);
+    lit[7] = 0;
+    const mask = partMaskOf(lit, map, size(2, 1), 2, fullBox(size(2, 1)));
+    expect([mask[3], mask[7]]).toEqual([255, 0]);
+  });
+
+  it("rejects a lit buffer of another size", () => {
+    expect(() => partMaskOf(litAll(3), ids(2, [[0, 0]]), size(2, 1), 2, fullBox(size(2, 1)))).toThrow();
+  });
+});
+
+describe("centerOf", () => {
+  it("is a part pixel next to the middle of the part's pixels", () => {
+    const map = ids(4, [[0, 0, 0, 0], [0, 5, 5, 0], [0, 5, 5, 0], [0, 0, 0, 0]]);
+    expect(centerOf(map, size(4, 4), 5, indexIds(map, size(4, 4)).get(5))).toEqual({ x: 1.5, y: 1.5 });
+  });
+
+  it("stays on the part when the middle of a bent part falls outside it", () => {
+    const map = ids(3, [[5, 5, 5], [0, 0, 5], [0, 0, 5]]);
+    const c = centerOf(map, size(3, 3), 5, indexIds(map, size(3, 3)).get(5));
+    expect(map[Math.floor(c.y) * 3 + Math.floor(c.x)]).toBe(5);
+  });
+
+  it("fails loud for a part with no pixels", () => {
+    expect(() => centerOf(ids(2, [[0, 0]]), size(2, 1), 7, undefined)).toThrow();
+  });
+});
+
+describe("solidMaskOf", () => {
+  it("fills every pixel of the id opaque and leaves the rest clear", () => {
+    const mask = solidMaskOf(ids(3, [[4, BODY_ID, 4]]), size(3, 1), 4, fullBox(size(3, 1)));
+    expect(Array.from(mask)).toEqual([255, 255, 255, 255, 0, 0, 0, 0, 255, 255, 255, 255]);
+  });
+});
+
+describe("indexIds", () => {
+  const map = ids(4, [[0, 5, 5, 0], [0, 0, 5, 0], [6, 0, 0, 0]]);
+  const index = indexIds(map, size(4, 3));
+
+  it("records the box, count and sums of each id in one pass", () => {
+    expect(index.get(5)).toMatchObject({ box: { x: 1, y: 0, width: 2, height: 2 }, count: 3, sumX: 5, sumY: 1 });
+    expect(index.get(6)).toMatchObject({ box: { x: 0, y: 2, width: 1, height: 1 }, count: 1 });
+    expect(index.has(EMPTY_ID)).toBe(false);
+  });
+
+  it("counts the lit pixels of an id when given the lit render", () => {
+    const lit = litAll(12);
+    lit[(1 * 4 + 2) * 4 + 3] = 0;
+    expect(indexIds(map, size(4, 3), lit).get(5)?.lit).toBe(2);
+  });
+
+  it("makes box-limited masks and centers equal to the whole-image ones", () => {
+    const whole = partMaskOf(litAll(12), map, size(4, 3), 5, fullBox(size(4, 3)));
+    const entry = index.get(5)!;
+    const small = partMaskOf(litAll(12), map, size(4, 3), 5, entry.box);
+    expect(small).toEqual(cropOf(whole, size(4, 3), entry.box));
+    expect(centerOf(map, size(4, 3), 5, entry)).toEqual({ x: 2.5, y: 0.5 });
+    const solid = solidMaskOf(map, size(4, 3), 5, entry.box);
+    expect(Array.from({ length: 4 }, (_, p) => solid[p * 4 + 3])).toEqual([255, 255, 0, 255]);
+  });
+});
+
+describe("hiddenOver", () => {
+  it("claims the pixels of the id that covers most of its footprint", () => {
+    const map = ids(5, [[EMPTY_ID, BODY_ID, BODY_ID, 3, BODY_ID]]);
+    const hidden = ids(5, [[8, 8, 8, 8, EMPTY_ID]]);
+    expect(Array.from(hiddenOver(map, hidden))).toEqual([EMPTY_ID, 8, 8, 3, BODY_ID]);
+  });
+
+  it("takes from a part that covers it, so a part hidden under another part still shows", () => {
+    const map = ids(5, [[EMPTY_ID, 3, 3, 3, 3]]);
+    const hidden = ids(5, [[8, 8, 8, EMPTY_ID, EMPTY_ID]]);
+    expect(Array.from(hiddenOver(map, hidden))).toEqual([EMPTY_ID, 8, 8, 3, 3]);
+  });
+
+  it("never takes the last pixels of a part", () => {
+    const map = ids(3, [[EMPTY_ID, 3, 3]]);
+    const hidden = ids(3, [[8, 8, 8]]);
+    expect(Array.from(hiddenOver(map, hidden))).toEqual([EMPTY_ID, 3, 3]);
+  });
+});
+
+describe("idsOf", () => {
+  it("reads the id from red and green and treats clear pixels as empty", () => {
+    const rgba = Uint8ClampedArray.from([5, 0, 0, 255, 0x2c, 0x01, 0, 255, 9, 9, 9, 0]);
+    expect(Array.from(idsOf(rgba))).toEqual([5, 0x12c, EMPTY_ID]);
+  });
+});
+
+describe("boundsOf and cropOf", () => {
+  it("crops a mask to its lit pixels", () => {
+    const rgba = new Uint8ClampedArray(4 * 3 * 4);
+    rgba.set([9, 9, 9, 255], (1 * 4 + 1) * 4);
+    rgba.set([7, 7, 7, 255], (2 * 4 + 2) * 4);
+    const box = boundsOf(rgba, size(4, 3));
+    expect(box).toEqual({ x: 1, y: 1, width: 2, height: 2 });
+    expect(Array.from(cropOf(rgba, size(4, 3), box))).toEqual([9, 9, 9, 255, 0, 0, 0, 0, 0, 0, 0, 0, 7, 7, 7, 255]);
+  });
+
+  it("fails loud on a mask with no lit pixels", () => {
+    expect(() => boundsOf(new Uint8ClampedArray(16), size(2, 2))).toThrow();
+  });
+});
+
+describe("tintMask", () => {
+  function gradient(): Uint8ClampedArray {
+    const mask = new Uint8ClampedArray(100 * 4);
+    for (let p = 0; p < 100; p++) mask.set([p * 2, p * 2, p * 2, 255], p * 4);
+    return mask;
+  }
+
+  it("recolors with the tint and maps brightness between its levels", () => {
+    const out = tintMask(gradient(), TINTS.hurt);
+    const tint = TINTS.hurt;
+    const darkest = out.slice(0, 3);
+    const brightest = out.slice(99 * 4, 99 * 4 + 3);
+    expect(darkest[0]).toBeCloseTo(tint.rgb[0] * tint.lo, 0);
+    expect(brightest[0]).toBeCloseTo(tint.rgb[0] * tint.hi, 0);
+    expect(brightest[2]).toBeCloseTo(tint.rgb[2] * tint.hi, 0);
+  });
+
+  it("gives a flat patch the full tint, not the darkest level", () => {
+    const flat = litAll(50);
+    const out = tintMask(flat, TINTS.crit);
+    expect(out[0]).toBeCloseTo(TINTS.crit.rgb[0] * TINTS.crit.hi, 0);
+  });
+
+  it("keeps alpha and skips clear pixels", () => {
+    const mask = gradient();
+    mask.set([200, 200, 200, 0], 0);
+    const out = tintMask(mask, TINTS.steel);
+    expect(Array.from(out.slice(0, 4))).toEqual([200, 200, 200, 0]);
+    expect(out[7]).toBe(255);
+  });
+
+  it("fails loud on a mask with no pixels", () => {
+    expect(() => tintMask(new Uint8ClampedArray(8), TINTS.tire)).toThrow();
+  });
+});
+
+describe("readback fixes", () => {
+  it("divides color by alpha", () => {
+    const px = Uint8ClampedArray.from([10, 20, 5, 51, 9, 9, 9, 0]);
+    unpremultiply(px);
+    expect(Array.from(px.slice(0, 4))).toEqual([50, 100, 25, 51]);
+    expect(Array.from(px.slice(4, 8))).toEqual([9, 9, 9, 0]);
+  });
+
+  it("encodes linear bytes to sRGB and leaves alpha", () => {
+    const px = Uint8ClampedArray.from([0, 13, 255, 77]);
+    linearToSrgb(px);
+    expect(Array.from(px)).toEqual([0, 64, 255, 77]);
+  });
+
+  it("flips rows", () => {
+    const px = Uint8ClampedArray.from([1, 1, 1, 1, 2, 2, 2, 2]);
+    flipRows(px, 1, 2);
+    expect(Array.from(px)).toEqual([2, 2, 2, 2, 1, 1, 1, 1]);
+  });
+
+  it("flips id rows too", () => {
+    const map = Uint16Array.from([1, 2, 3, 4]);
+    flipRows(map, 2, 2);
+    expect(Array.from(map)).toEqual([3, 4, 1, 2]);
+  });
+});
+
+const ACCESSORIES = Object.values(PARTS).filter((def) => def.kind === "accessory").map((def) => def.id);
+
+describe("conditionItems", () => {
+  it.each(ACCESSORIES)("lists a mounted %s and reads it as a hit part", (defId) => {
+    const world = emptyWorld();
+    const v = world.vehicles[0];
+    const part = makePart(world, defId, 0);
+    expect(mountPart(world, v, part)).toBe(true);
+    expect(conditionItems(v).map((item) => item.part.id)).toContain(part.id);
+    const readout = new TruckConditionReadout();
+    readout.update(v);
+    part.hp = part.hp / 2;
+    const row = readout.update(v).find((r) => r.id === part.id);
+    expect(row).toMatchObject({ defId, hit: true, broken: false });
+    expect(row?.percent).toBeLessThan(100);
+  });
+});

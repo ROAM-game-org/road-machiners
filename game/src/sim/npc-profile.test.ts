@@ -7,7 +7,7 @@ import { addVehicle, emptyWorld, npcBrain } from './testkit';
 describe('NPC traits', () => {
   it('unions the sites of two traits, takes the widest contact radius and multiplies boldness and fuel margin', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], { x: 10, y: 10 });
+    const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 10, y: 10 });
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger', 'raider']);
     const profile = npcProfile(npc);
     expect(profile.towns).toEqual(['bowl', 'nose']);
@@ -15,9 +15,8 @@ describe('NPC traits', () => {
     expect(profile.salvageSites).toEqual(TRAITS.scavenger.salvageSites);
     expect(profile.contactReactRadius).toBe(TRAITS.raider.contactReactRadius);
     expect(profileOf(['scumbag', 'scavenger']).contactReactRadius).toBe(TRAITS.scavenger.contactReactRadius);
-    expect(profileOf(['trader'])).toEqual({ towns: TRAITS.trader.towns, bases: [], markets: TRAITS.trader.markets, salvageSites: [], travelSites: [], haulSites: TRAITS.trader.haulSites, contactReactRadius: TRAITS.trader.contactReactRadius, boldness: 1, fuelMargin: TRAITS.trader.fuelMargin, robs: 'offDuty', tradeStake: TRAITS.trader.tradeStake });
+    expect(profileOf(['trader'])).toEqual({ towns: TRAITS.trader.towns, bases: [], markets: TRAITS.trader.markets, salvageSites: [], travelSites: [], contactReactRadius: TRAITS.trader.contactReactRadius, boldness: 1, fuelMargin: TRAITS.trader.fuelMargin, robs: 'offDuty', tradeStake: TRAITS.trader.tradeStake });
     expect(profileOf(['courier', 'supplier']).travelSites).toEqual(TRAITS.courier.travelSites);
-    expect(profileOf(['courier', 'supplier']).haulSites).toEqual(TRAITS.supplier.haulSites);
     expect(profileOf(['scavenger', 'scumbag', 'coward']).boldness).toBeCloseTo(TRAITS.scumbag.boldness * TRAITS.coward.boldness);
     expect(profileOf(['trader', 'coward']).fuelMargin).toBeCloseTo(TRAITS.trader.fuelMargin * TRAITS.coward.fuelMargin);
   });
@@ -35,7 +34,7 @@ describe('NPC traits', () => {
 
   it('throws on an unknown trait or a brain without traits', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], { x: 10, y: 10 });
+    const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 10, y: 10 });
     npc.brain = npcBrain('scavenger', npc.pos, ['pirate' as TraitId]);
     expect(() => npcTraits(npc)).toThrow(/pirate/);
     expect(() => profileOf(['pirate' as TraitId])).toThrow(/pirate/);

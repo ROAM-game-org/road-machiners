@@ -1,0 +1,327 @@
+import { BEATS_PER_BAR, SCORE_BLOCKS } from "../data/sounds";
+import { BlockSequencer, blocksOf, Fading, WHOLE_SECTIONS, type Block, type Jumps, type Role, type Section } from "../audio/designer";
+
+export type BlockSong = {
+  title: string;
+  file: string;
+  guitars: string;
+  cymbals: { file: string; from: number; start: number; gain: number };
+  bpm: number;
+  length: number;
+  barTimes: number[];
+  barPower: { ss: number; gg: number; sg: number }[];
+  barEntry: number[];
+  sections: Section[];
+  jumps: Jumps;
+  quietExits: number[];
+  jumpBlockBars: number;
+  end: number;
+};
+export type Part = "song" | "guitars" | "cymbals";
+export type VoiceHandle = { fadeOut(at: number, fade: number): void; cut(at: number): void };
+export type BlockOutput = {
+  voice(part: Part, offset: number, when: number, length: number, fade: number, level: number): VoiceHandle;
+  lean(offset: number, at: number, length: number, songScale: number, guitarLevel: number, release: number): VoiceHandle;
+};
+export type Played = { label: string; role: Role | "end"; bar: number; bars: number; start: number; end: number; voices: VoiceHandle[]; heat: number; ways: string; join: string; level: number };
+export type Lane = "guitars" | "cymbals";
+export type Overlay = { lane: Lane; from: number; to: number; bar: number; handle: VoiceHandle };
+export type BlockEvent = keyof typeof SCORE_BLOCKS.weights;
+export type Fired = { kind: BlockEvent; at: number; heat: number; surprise: number; lanes: boolean };
+
+export const TURN_SECONDS = 1;
+export const LANES: Lane[] = ["guitars", "cymbals"];
+export const BLOCK_EVENTS = Object.keys(SCORE_BLOCKS.weights) as BlockEvent[];
+const DENSE_TURN: { kind: BlockEvent; most: number; chance: number }[] = [
+  { kind: "hit", most: 10, chance: 1 },
+  { kind: "miss", most: 8, chance: 1 },
+  { kind: "struck", most: 3, chance: 1 },
+  { kind: "crit", most: 2, chance: 0.5 },
+  { kind: "crash", most: 1, chance: 0.05 },
+  { kind: "sighted", most: 1, chance: 0.05 },
+  { kind: "knockout", most: 1, chance: 0.05 },
+];
+const WAYS_SHOWN = 4;
+
+type Spot = { block: Played; at: number; bar: number; beat: number; barSeconds: number };
+
+export class BlockSession {
+  readonly played: Played[] = [];
+  readonly fired: Fired[] = [];
+  readonly overlays: Overlay[] = [];
+  readonly heats: { at: number; value: number }[] = [];
+  readonly beatSeconds: number;
+  cymbalGain: number = SCORE_BLOCKS.cymbalGain;
+  private heat = new Fading(SCORE_BLOCKS.heatHalfLifeSeconds);
+  private surprise = new Fading(SCORE_BLOCKS.surpriseHalfLifeSeconds);
+  private familiar = new Map<BlockEvent, Fading>();
+  private nudge: Partial<Record<Role, number>> = {};
+  private peakHeat = 0;
+  private sequencer: BlockSequencer | null = null;
+  private blocks: Block[];
+  private wanted = new Set<Lane>();
+  private nextAt = 0;
+  private targetPower: number;
+
+  constructor(
+    private song: BlockSong,
+    private out: BlockOutput,
+    private roll: () => number,
+  ) {
+    this.beatSeconds = (song.barTimes[1] - song.barTimes[0]) / BEATS_PER_BAR;
+    this.blocks = blocksOf(song.sections, SCORE_BLOCKS.arc.blockBars);
+    const powers = this.blocks.map((b) => this.power(b.bar, b.bars, 0)).sort((a, b) => a - b);
+    this.targetPower = powers[Math.floor(powers.length / 2)];
+  }
+
+  get inCombat(): boolean {
+    return this.sequencer !== null;
+  }
+
+  get barsPlayed(): number {
+    return this.sequencer?.barsPlayed ?? 0;
+  }
+
+  playingAt(t: number): Played | undefined {
+    return this.played.find((p) => p.start <= t && t < p.end);
+  }
+
+  open(lane: Lane, at: number): boolean {
+    return this.overlays.some((o) => o.lane === lane && o.from <= at && at < o.to);
+  }
+
+  heatAt(t: number): number {
+    const last = this.heats.filter((h) => h.at <= t).at(-1);
+    if (!last) return 0;
+    return last.value * 0.5 ** ((t - last.at) / SCORE_BLOCKS.heatHalfLifeSeconds);
+  }
+
+  start(now: number): void {
+    const start = now + SCORE_BLOCKS.startLeadSeconds;
+    this.heat = new Fading(SCORE_BLOCKS.heatHalfLifeSeconds);
+    this.surprise = new Fading(SCORE_BLOCKS.surpriseHalfLifeSeconds);
+    this.familiar.clear();
+    this.nudge = {};
+    this.peakHeat = 0;
+    this.sequencer = new BlockSequencer(this.blocks, SCORE_BLOCKS.arc, this.song, this.roll);
+    this.nextAt = this.schedule(this.sequencer.next(0), start, 0);
+  }
+
+  end(now: number): number {
+    const at = this.lineAfter(now + SCORE_BLOCKS.startLeadSeconds, 1);
+    for (const p of this.played.filter((x) => x.end > at)) this.cut(p, at);
+    this.sequencer = null;
+    this.wanted.clear();
+    for (const o of this.overlays.filter((x) => x.to > at)) {
+      o.handle.cut(at);
+      o.to = Math.max(o.from, at);
+    }
+    const offset = this.barTime(this.song.end);
+    const length = this.song.length - offset;
+    const level = this.levelOf(this.song.end, 1, false);
+    const voices = [this.out.voice("song", offset, at, length, SCORE_BLOCKS.seamSeconds, level)];
+    this.played.push({ label: "end", role: "end", bar: this.song.end, bars: 1, start: at, end: at + length, voices, heat: this.heat.read(at), ways: "", join: "end", level });
+    return at;
+  }
+
+  fire(kind: BlockEvent, at: number): Fired | null {
+    if (!this.inCombat) return null;
+    const weight = SCORE_BLOCKS.weights[kind];
+    this.heat.add(at, weight);
+    this.heats.push({ at, value: this.heat.read(at) });
+    this.peakHeat = Math.max(this.peakHeat, this.heat.read(at));
+    this.surprise.add(at, weight / (1 + this.familiarity(kind).read(at)));
+    this.familiarity(kind).add(at, 1);
+    const surprise = this.surprise.read(at);
+    const lanes = surprise >= SCORE_BLOCKS.surpriseLine;
+    if (lanes) this.askLanes(at);
+    this.addNudge(kind);
+    const fired = { kind, at, heat: this.heat.read(at), surprise, lanes };
+    this.fired.push(fired);
+    return fired;
+  }
+
+  private askLanes(at: number): void {
+    for (const lane of LANES) if (!this.open(lane, at)) this.wanted.add(lane);
+  }
+
+  private addNudge(kind: BlockEvent): void {
+    for (const [role, factor] of Object.entries(SCORE_BLOCKS.nudges[kind] ?? {}) as [Role, number][]) this.nudge[role] = (this.nudge[role] ?? 1) * factor;
+  }
+
+  denseTurn(start: number): void {
+    for (const { kind, most, chance } of DENSE_TURN) {
+      if (this.roll() >= chance) continue;
+      const count = 1 + Math.floor(this.roll() * most);
+      for (let i = 0; i < count; i++) this.fire(kind, start + this.roll() * TURN_SECONDS);
+    }
+  }
+
+  tick(now: number): void {
+    if (!this.sequencer) return;
+    if (this.nextAt - now < SCORE_BLOCKS.aheadSeconds) {
+      const h = Math.max(this.peakHeat, this.heat.read(this.nextAt));
+      this.nextAt = this.schedule(this.sequencer.next(h, this.nudge), this.nextAt, h);
+      if (this.sequencer.tookHeat) {
+        this.nudge = {};
+        this.peakHeat = 0;
+      }
+    }
+    for (const lane of LANES) this.startOverlay(lane, now);
+  }
+
+  private familiarity(kind: BlockEvent): Fading {
+    let f = this.familiar.get(kind);
+    if (!f) {
+      f = new Fading(SCORE_BLOCKS.familiarHalfLifeSeconds);
+      this.familiar.set(kind, f);
+    }
+    return f;
+  }
+
+  private power(bar: number, bars: number, push: number): number {
+    let sum = 0;
+    for (let i = bar - 1; i < bar - 1 + bars; i++) {
+      const p = this.song.barPower[i];
+      sum += p.ss + 2 * push * p.sg + push * push * p.gg;
+    }
+    return sum / bars;
+  }
+
+  private levelOf(bar: number, bars: number, pushed: boolean): number {
+    const plain = this.power(bar, bars, 0);
+    const heard = this.power(bar, bars, pushed ? SCORE_BLOCKS.guitarPush : 0);
+    return Math.sqrt(Math.min(plain, this.targetPower) / heard);
+  }
+
+  private barTime(bar: number): number {
+    return this.song.barTimes[bar - 1];
+  }
+
+  private joinOf(block: Block): string {
+    const before = this.played.at(-1);
+    if (!before || before.role === "end") return "start";
+    return before.bar + before.bars === block.bar ? "follows" : "jump";
+  }
+
+  private schedule(block: Block, when: number, heatNow: number): number {
+    const offset = this.barTime(block.bar);
+    const length = this.barTime(block.bar + block.bars) - offset;
+    const join = this.joinOf(block);
+    const fade = SCORE_BLOCKS.seamSeconds;
+    const entry = this.song.barEntry[block.bar - 1];
+    if (join === "jump") {
+      for (const v of this.played.at(-1)!.voices) v.fadeOut(when + entry, fade);
+      this.endLanesAt(when);
+    }
+    const section = this.sectionOf(block.bar);
+    const level = this.levelOf(section.from, section.bars, false);
+    const voices = [this.out.voice("song", offset, when, length, fade, level)];
+    const label = `${block.role} ${block.bar}-${block.bar + block.bars - 1}`;
+    this.played.push({ label, role: block.role, bar: block.bar, bars: block.bars, start: when, end: when + length, voices, heat: heatNow, ways: this.waysText(), join, level });
+    return when + length;
+  }
+
+  private spotAt(lane: Lane, now: number): Spot | null {
+    const at = this.lineAfter(now + SCORE_BLOCKS.eventLeadSeconds, lane === "cymbals" ? 1 : BEATS_PER_BAR);
+    const block = this.played.find((p) => p.role !== "end" && p.start <= at + 1e-6 && at < p.end - 1e-6);
+    if (!block) return null;
+    const barSeconds = (block.end - block.start) / block.bars;
+    const beats = Math.round((at - block.start) / this.beatSeconds);
+    return { block, at, bar: block.bar + Math.floor(beats / BEATS_PER_BAR), beat: beats % BEATS_PER_BAR, barSeconds };
+  }
+
+  private startOverlay(lane: Lane, now: number): void {
+    if (!this.wanted.has(lane)) return;
+    const spot = this.spotAt(lane, now);
+    if (!spot || this.open(lane, spot.at)) return;
+    this.wanted.delete(lane);
+    if (!this.laneFits(lane, spot.bar)) return;
+    const toPhraseEnd = (this.phraseEndBar(spot.bar) - spot.bar) * spot.barSeconds - spot.beat * this.beatSeconds;
+    const length = Math.min(toPhraseEnd, this.nextJumpAfter(spot.at) - spot.at);
+    const handle = lane === "guitars" ? this.lean(spot, length) : this.cymbals(spot, length);
+    this.overlays.push({ lane, from: spot.at, to: spot.at + length, bar: spot.bar, handle });
+  }
+
+  private nextJumpAfter(at: number): number {
+    return this.played.find((p) => p.join === "jump" && p.start > at)?.start ?? Infinity;
+  }
+
+  private endLanesAt(at: number): void {
+    for (const o of this.overlays.filter((x) => x.from < at && x.to > at)) {
+      const release = Math.min(this.beatSeconds, at - o.from);
+      o.handle.fadeOut(at - release / 2, release / 2);
+      o.to = at;
+    }
+  }
+
+  private laneFits(lane: Lane, bar: number): boolean {
+    const role = this.sectionOf(bar).role;
+    if (lane === "cymbals") return role === "wall";
+    return role !== "solo" && this.guitarShare(bar, this.phraseEndBar(bar) - bar) > -SCORE_BLOCKS.guitarAbsentDb;
+  }
+
+  private lean(spot: Spot, length: number): VoiceHandle {
+    const section = this.sectionOf(spot.bar);
+    const plain = spot.block.level;
+    const leaned = this.levelOf(section.from, section.bars, true);
+    return this.out.lean(this.barTime(spot.bar), spot.at, length, leaned / plain, leaned, this.releaseOf(spot, length));
+  }
+
+  private guitarShare(bar: number, bars: number): number {
+    const span = this.song.barPower.slice(bar - 1, bar - 1 + bars);
+    return 10 * Math.log10(span.reduce((s, p) => s + p.gg, 0) / span.reduce((s, p) => s + p.ss, 0));
+  }
+
+  private cymbals(spot: Spot, length: number): VoiceHandle {
+    const section = this.sectionOf(spot.bar);
+    const source = this.song.cymbals.from + ((spot.bar - section.from) % SCORE_BLOCKS.arc.phraseBars);
+    const offset = this.barTime(source) + spot.beat * this.beatSeconds - this.song.cymbals.start;
+    const handle = this.out.voice("cymbals", offset, spot.at, length, SCORE_BLOCKS.seamSeconds, this.song.cymbals.gain * this.cymbalGain);
+    const release = this.releaseOf(spot, length);
+    handle.fadeOut(spot.at + length - release / 2, release / 2);
+    return handle;
+  }
+
+  private releaseOf(spot: Spot, length: number): number {
+    return Math.min(spot.barSeconds, length);
+  }
+
+  private sectionOf(bar: number): Section {
+    const s = this.song.sections.find((x) => x.from <= bar && bar < x.from + x.bars);
+    if (!s) throw new Error(`Bar ${bar} is in no section`);
+    return s;
+  }
+
+  private phraseEndBar(bar: number): number {
+    const s = this.sectionOf(bar);
+    const end = s.from + s.bars;
+    if (WHOLE_SECTIONS.has(s.role)) return end;
+    const phrase = SCORE_BLOCKS.arc.phraseBars;
+    return Math.min(end, s.from + Math.ceil((bar - s.from + 1) / phrase) * phrase);
+  }
+
+  private cut(p: Played, at: number): void {
+    for (const v of p.voices) v.cut(at);
+    p.end = Math.max(p.start, Math.min(p.end, at));
+  }
+
+  private gridBlock(t: number): Played | undefined {
+    const live = this.played.filter((p) => p.role !== "end");
+    return live.find((p) => p.start <= t && t < p.end) ?? live.at(-1);
+  }
+
+  private lineAfter(t: number, beats: number): number {
+    const p = this.gridBlock(t);
+    if (!p) throw new Error("A grid line was asked for with no block playing");
+    const step = this.beatSeconds * beats;
+    return p.start + Math.ceil((t - p.start) / step - 1e-6) * step;
+  }
+
+  private waysText(): string {
+    return this.sequencer!.choices
+      .slice(0, WAYS_SHOWN)
+      .map((c) => `${c.role} ${c.from}${c.taken ? " taken" : ""}`)
+      .join(", ");
+  }
+}

@@ -30,7 +30,7 @@ describe("breakRounds", () => {
   });
 
   it("gives a collision break and an unowned break no round", () => {
-    const c: GameEvent = { t: "collision", a: "t", b: "x", hitsA: [dmg("a")], hitsB: [] };
+    const c: GameEvent = { t: "collision", a: "t", b: "x", impact: 3, hitsA: [dmg("a")], hitsB: [] };
     expect(breakRounds([off("a"), c]).map((b) => [b.owner, b.round])).toEqual([[null, null]]);
     expect(breakRounds([off("a")]).map((b) => b.round)).toEqual([null]);
   });
@@ -52,7 +52,7 @@ describe("breakRounds", () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
     const pos = { x: 33, y: 30 };
-    const buggy = addVehicle(w, "raiders", "buggy", ["mg", "stockEngine"], pos, Math.PI);
+    const buggy = addVehicle(w, "scrapjaw", "buggy", ["mg", "stockEngine"], pos, Math.PI);
     buggy.brain = npcBrain("buggy", pos, ["raider"]);
     const gun = buggy.items.find((i) => i.kind === "part" && i.part.defId === "mg");
     const mg = me.items.find((i) => i.kind === "part" && i.part.defId === "mg");
@@ -71,7 +71,7 @@ describe("breakRounds", () => {
 
 describe("BreakCues", () => {
   const s = shot([round([dmg("a")]), round([dmg("b")])]);
-  const c: GameEvent = { t: "collision", a: "t", b: "x", hitsA: [], hitsB: [] };
+  const c: GameEvent = { t: "collision", a: "t", b: "x", impact: 3, hitsA: [], hitsB: [] };
   const events = [off("a"), off("b"), s, off("z"), c];
 
   it("hands each break out once", () => {

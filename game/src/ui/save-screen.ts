@@ -1,37 +1,28 @@
 
-import type { CarryReport } from '../sim/world';
 import { bindAttr } from '../text/language';
-import { list, t, verbatim, type Msg } from '../text/msg';
-import { goodName, partName, settingName } from '../text/names';
-import { WORLD_SETTINGS } from '../data/modes';
+import { t, verbatim, type Msg } from '../text/msg';
 import type { SaveError } from '../three/save';
-import type { SlotId } from '../three/save-slots';
+import type { SlotId, SlotInfo } from '../three/save-slots';
+import { SaveList, saveSummary, slotRealTime } from './save-panel';
 import { disabledWith, download, el, panel } from './dom';
 import { openNewGame, type NewGameActions } from './new-game';
 import { OptionsPanel } from './options';
-import { moneyMsg } from './units';
+import type { SoundSettings } from './sound';
 
-export function saveErrorText(error: SaveError): Msg {
-  const code = error.code;
-  if (code !== 'incompatible' && code !== 'newer' && code !== 'notMigrated') return t(`save.error.${code}`);
-  if (!error.format) throw new Error(`Save error ${code} names no format`);
-  return t(`save.error.${code}`, error.format);
-}
-
-export function chooseSaveFate(reason: Msg, canMigrate: boolean, stored: unknown, newGame: NewGameActions): Promise<void> {
+export function chooseSaveFate(error: SaveError, canMigrate: boolean, stored: unknown, newGame: NewGameActions, sound: SoundSettings): Promise<void> {
   return new Promise((resolve) => {
-    const root = savePanel(t('save.needsMigrating'));
+    const root = savePanel(sound, canMigrate ? t('save.needsMigrating') : t('save.doesNotFit'));
     const migrate = () => {
       root.remove();
       resolve();
     };
+    const migrateButtons = canMigrate ? [el('button', { onclick: migrate }, t('save.migrate'))] : [];
     root.append(
-      el('div', {}, t('save.migrateExplain')),
-      el('div', { class: 'dim' }, reason),
+      el('div', { class: 'dim' }, verbatim(error.code)),
       el(
         'div',
         { class: 'death-buttons' },
-        el('button', disabledWith(canMigrate ? null : t('save.unreadable'), migrate), t('save.migrate')),
+        ...migrateButtons,
         el('button', { onclick: () => openNewGame(newGame, () => {}) }, t('menu.newGame')),
         el('button', { onclick: () => downloadSave(stored) }, t('save.download')),
       ),
@@ -42,57 +33,45 @@ export function chooseSaveFate(reason: Msg, canMigrate: boolean, stored: unknown
 
 const TITLE = verbatim('Road Machiners');
 
-export function chooseStart(newest: SlotId | null, newGame: NewGameActions): Promise<SlotId> {
+export function chooseStart(saves: SlotInfo[], newGame: NewGameActions, sound: SoundSettings): Promise<SlotId> {
   return new Promise((resolve) => {
     const root = panel('start-menu');
     root.setAttribute('role', 'dialog');
     bindAttr(root, 'aria-label', TITLE);
+    const next = saves[0] ?? null;
+    const none = next === null ? t('save.none') : null;
     const play = (slot: SlotId) => {
+      saveList.close();
       root.remove();
       resolve(slot);
     };
-    const continueAttrs = newest === null ? disabledWith(t('save.none'), () => {}) : { onclick: () => play(newest) };
-    const continueButton = el('button', { class: 'btn-l', ...continueAttrs }, t('menu.continue'));
+    const continueButton = el('button', { class: 'btn-l', ...disabledWith(none, () => next && play(next.slot)) }, t('menu.continue'));
+    const loadButton = el('button', { class: 'btn-l', ...disabledWith(none, () => saveList.openLoad(saves, play)) }, t('menu.load'));
+    const saveList = new SaveList(() => loadButton.focus());
     const newGameButton = el('button', { class: 'btn-l', onclick: () => openNewGame(newGame, () => {}) }, t('menu.newGame'));
     const optionsButton = el('button', { class: 'btn-l' }, t('menu.options'));
-    const startOptions = new OptionsPanel(() => optionsButton.focus());
+    const startOptions = new OptionsPanel(sound, () => optionsButton.focus());
     optionsButton.addEventListener('click', () => startOptions.open());
-    root.append(el('h1', {}, TITLE), el('div', { class: 'start-buttons' }, continueButton, newGameButton, optionsButton));
-    (newest === null ? newGameButton : continueButton).focus();
+    const resumes = next === null ? [] : [continueCaption(next, continueButton)];
+    root.append(el('h1', {}, TITLE), el('div', { class: 'start-buttons' }, el('div', { class: 'start-continue' }, continueButton, ...resumes), el('div', { class: 'start-others' }, loadButton, newGameButton, optionsButton)));
+    (next === null ? newGameButton : continueButton).focus();
   });
 }
 
-export function showCarryReport(report: CarryReport): Promise<void> {
-  return new Promise((resolve) => {
-    const root = savePanel(t('save.migrated'));
-    const lines = reportLines(report);
-    root.append(
-      ...(lines.length === 0 ? [el('div', {}, t('save.allCarried'))] : lines.map((line) => el('div', {}, line))),
-      el('div', { class: 'death-buttons' }, el('button', { onclick: () => { root.remove(); resolve(); } }, t('save.driveOn'))),
-    );
-  });
+function continueCaption(info: SlotInfo, continueButton: HTMLElement): HTMLElement {
+  continueButton.setAttribute('aria-describedby', 'start-save');
+  return el('div', { class: 'start-save', id: 'start-save', title: slotRealTime(info) ?? undefined }, ...saveSummary(info));
 }
 
 function downloadSave(stored: unknown): void {
   download('roam-save.json', typeof stored === 'string' ? stored : JSON.stringify(stored), 'application/json');
 }
 
-const options = new OptionsPanel(() => document.querySelector<HTMLElement>('.save-screen .options-button')?.focus());
-
-function savePanel(title: Msg): HTMLElement {
+function savePanel(sound: SoundSettings, title: Msg): HTMLElement {
+  const options = new OptionsPanel(sound, () => document.querySelector<HTMLElement>('.save-screen .options-button')?.focus());
   const root = panel('death save-screen');
   root.setAttribute('role', 'alertdialog');
   bindAttr(root, 'aria-label', title);
   root.append(el('h3', {}, title), el('button', { class: 'options-button', onclick: () => options.open() }, t('menu.options')));
   return root;
-}
-
-function reportLines(report: CarryReport): Msg[] {
-  const sold = report.sold.map((s) => t('save.sold', { n: s.units, good: goodName(s.good), money: moneyMsg(s.money) }));
-  return [
-    ...(report.toGarage.length > 0 ? [t('save.toGarage', { parts: list(report.toGarage.map(partName)) })] : []),
-    ...sold,
-    ...(report.lost.length > 0 ? [t('save.lost', { ids: list(report.lost.map(verbatim)) })] : []),
-    ...report.settingsReset.map((id) => t('save.settingReset', { setting: settingName(id), pct: Math.round(WORLD_SETTINGS[id].default * 100) })),
-  ];
 }

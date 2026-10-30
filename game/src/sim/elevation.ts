@@ -2,6 +2,7 @@
 import { TERRAIN, type Basin } from '../data/terrain';
 import { REGION } from '../data/region';
 import { bridgeCut, ICARUS_DECKS } from './bridge';
+import { strongestStamp } from './ground-stamps';
 import { INDEX_CELL, ROAD_INDEX, RoadIndex } from './road-index';
 import { heightFromElevation } from './terrain';
 import { clamp, lerp, pointInPolygon, type Vec } from './vec';
@@ -104,10 +105,18 @@ export function broadAt(seed: number, x: number, y: number): number {
   return bowls(rollingAt(seed, x, y), x, y);
 }
 
+function stamped(x: number, y: number, at: (x: number, y: number) => number): number {
+  const here = at(x, y);
+  const stamp = strongestStamp({ x, y });
+  return stamp === null ? here : here + (at(x - stamp.site.shift.x, y - stamp.site.shift.y) - here) * stamp.share;
+}
+
 function noiseRelief(seed: number, x: number, y: number): number {
   const relief = TERRAIN.relief;
-  const ridges = Math.abs(noise2(x * relief.ridgeFrequency, y * relief.ridgeFrequency, seed + 5000) - 0.5) * relief.ridgeAmplitude;
-  return rawElevation(seed, x, y) + ridges;
+  return stamped(x, y, (px, py) => {
+    const ridges = Math.abs(noise2(px * relief.ridgeFrequency, py * relief.ridgeFrequency, seed + 5000) - 0.5) * relief.ridgeAmplitude;
+    return rawElevation(seed, px, py) + ridges;
+  });
 }
 
 function rollingAt(seed: number, x: number, y: number): number {
@@ -125,7 +134,7 @@ function rollingAt(seed: number, x: number, y: number): number {
 
 function siteRolling(seed: number, x: number, y: number): number {
   const relief = TERRAIN.relief;
-  let rolling = (noise2(x * relief.broadFrequency, y * relief.broadFrequency, seed + 4000) - 0.5) * relief.broadAmplitude;
+  let rolling = stamped(x, y, (px, py) => (noise2(px * relief.broadFrequency, py * relief.broadFrequency, seed + 4000) - 0.5) * relief.broadAmplitude);
   for (let k = 0; k < SITES.length; k++) {
     const site = SITES[k];
     const dx = site.pos.x - x;
@@ -242,7 +251,8 @@ function lipShare(gap: number, bank: number): number {
 
 function swell(b: Basin, x: number, y: number): number {
   const { frequency, amplitude } = b.floorRelief;
-  return noise2(x * frequency, y * frequency, BASIN_RELIEF_SEED + Math.round(b.center.x) * 1009 + Math.round(b.center.y)) * amplitude;
+  const from = b.reliefFrom;
+  return noise2((x - b.center.x + from.x) * frequency, (y - b.center.y + from.y) * frequency, BASIN_RELIEF_SEED + Math.round(from.x) * 1009 + Math.round(from.y)) * amplitude;
 }
 
 function bowl(center: Vec, radius: number, bank: number, size: number, x: number, y: number): number {

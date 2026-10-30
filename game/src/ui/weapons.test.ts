@@ -11,6 +11,7 @@ import type { UiHost } from "./host";
 import { makePart } from "../sim/factory";
 import { mountPart } from "../sim/inventory";
 import { wornReload } from "../sim/utility";
+import { orderLock, lockReason } from "./weapons";
 import { HoverHold, UtilityRow, WeaponPanel, aimAtPart, aimMarks, aimsBody, bodyMarks, InspectPin, gunsLabel, aimName, ammoCells, canForceReload, reloadBlock, getWeaponReadout, toggleBodyAim, vehicleMarks, shortStatus, weaponGrid, utilityKey, utilitySlots, utilityStatus } from "./weapons";
 import { EN } from "../text/en";
 import type { Msg } from "../text/msg";
@@ -43,7 +44,7 @@ function en(msg: Msg | null | undefined): string | null {
 function createDuel() {
   const world = emptyWorld();
   const me = world.vehicles[0];
-  const target = addVehicle(world, "raiders", "buggy", ["mg", "stockEngine"], {
+  const target = addVehicle(world, "scrapjaw", "buggy", ["mg", "stockEngine"], {
     x: 33,
     y: 30,
   });
@@ -125,7 +126,7 @@ describe("weapon readout at current positions", () => {
   it("does not expose a hidden target through a stale order", () => {
     const { world, target, gun } = createDuel();
     world.obstacles = [
-      { id: "rock", kind: "rock", pos: { x: 31.5, y: 30 }, r: 0.8 },
+      { id: "rock", kind: "rock", pos: { x: 31.5, y: 30 }, r: 1.2 },
     ];
     refreshVision(world);
     expect(readout(world, gun)).toEqual({
@@ -180,9 +181,18 @@ describe("aiming the body", () => {
     expect(toggleBodyAim(aimed, [gun], target).vehicles[0].weaponOrders).toEqual({});
   });
 
+  it("refuses an unseen target and leaves the orders empty", () => {
+    const { world, target, gun } = createDuel();
+    world.vehicles[0].weaponOrders = {};
+    target.pos = { x: 400, y: 400 };
+    refreshVision(world);
+    expect(() => toggleBodyAim(world, [gun], target)).toThrow("Refused: unseen");
+    expect(world.vehicles[0].weaponOrders).toEqual({});
+  });
+
   it("moves an order from another vehicle instead of clearing it", () => {
     const { world, gun } = createDuel();
-    const other = addVehicle(world, "raiders", "buggy", ["mg", "stockEngine"], { x: 30, y: 33 });
+    const other = addVehicle(world, "scrapjaw", "buggy", ["mg", "stockEngine"], { x: 30, y: 33 });
     refreshVision(world);
     const moved = toggleBodyAim(world, [gun], other);
     expect(moved.vehicles[0].weaponOrders[gun.part.id].targetId).toBe(other.id);
@@ -441,7 +451,7 @@ describe("weapon panel keys and the turn button", () => {
       runKey: vi.fn(),
       searchStock: vi.fn(),
       autoTravel: () => auto,
-      getTurnPhase: () => null,
+      getTurnPhase: () => null, menuOpen: () => false,
     } satisfies UiHost;
     const panel = new WeaponPanel(host);
     panel.render();
@@ -613,7 +623,7 @@ describe("disabled reasons on the weapon bar", () => {
     setup(world);
     const host = {
       world: () => world, apply: vi.fn(), announce: vi.fn(), selectedWeapon: () => null, selectWeapon: vi.fn(), selectedUtility: () => null, selectUtility: vi.fn(),
-      searchStock: vi.fn(), pressTurn: vi.fn(), releaseTurn: vi.fn(), runKey: vi.fn(), autoTravel: () => false, getTurnPhase: () => phase,
+      searchStock: vi.fn(), pressTurn: vi.fn(), releaseTurn: vi.fn(), runKey: vi.fn(), autoTravel: () => false, getTurnPhase: () => phase, menuOpen: () => false,
     } satisfies UiHost;
     new WeaponPanel(host).render();
     const find = (text: string) => (ui.children as FakeNode[]).map((n) => n.find((b) => b.tag === "button" && b.text().includes(text))).find(Boolean)!;
@@ -633,6 +643,50 @@ describe("disabled reasons on the weapon bar", () => {
   it("names a knocked out driver", () => {
     const { find } = build(null, (w) => { w.player.state = "knockedOut"; });
     expect(find("Auto fire").attrs.get("title")).toBe("Knocked out");
+  });
+
+  it("keeps the knockout reason steady while a turn plays", () => {
+    const { find } = build("moving", (w) => { w.player.state = "knockedOut"; });
+    for (const text of ["Auto fire", "All", "Hold"]) {
+      expect(find(text).attrs.get("aria-disabled")).toBe("true");
+      expect(find(text).attrs.get("title")).toBe("Knocked out");
+    }
+  });
+
+  it("does not select or toggle auto fire while knocked out", () => {
+    const { host } = build(null, (w) => { w.player.state = "knockedOut"; });
+    const { world } = createDuel();
+    world.player.state = "knockedOut";
+    const panel = new WeaponPanel({ ...host, world: () => world });
+    panel.selectWeapon("x");
+    panel.toggleAuto();
+    panel.pressKey(1);
+    expect(host.selectWeapon).not.toHaveBeenCalled();
+    expect(host.apply).not.toHaveBeenCalled();
+  });
+});
+
+describe("orderLock", () => {
+  const reason = (w: World, playing: boolean) => en(orderLock(w, playing));
+
+  it("says Knocked out whether or not a turn plays", () => {
+    const { world } = createDuel();
+    world.player.state = "knockedOut";
+    expect(reason(world, false)).toBe("Knocked out");
+    expect(reason(world, true)).toBe("Knocked out");
+  });
+
+  it("says Turn playing only while a turn plays for an active player", () => {
+    const { world } = createDuel();
+    expect(reason(world, false)).toBeNull();
+    expect(reason(world, true)).toBe("Turn playing");
+  });
+
+  it("leaves towed and on the radio to lockReason", () => {
+    const { world } = createDuel();
+    world.player.call = { with: "x" } as never;
+    expect(reason(world, false)).toBeNull();
+    expect(en(lockReason(world, null))).not.toBeNull();
   });
 
   it("says why Reload does nothing", () => {
@@ -667,7 +721,7 @@ describe("the utility row", () => {
       runKey: vi.fn(),
       searchStock: vi.fn(),
       autoTravel: () => false,
-      getTurnPhase: vi.fn<() => "moving" | null>(() => null),
+      getTurnPhase: vi.fn<() => "moving" | null>(() => null), menuOpen: () => false,
     } satisfies UiHost;
     return { world, host, row: new UtilityRow(host), sprout, mortar };
   }
@@ -722,6 +776,35 @@ describe("the utility row", () => {
     expect(utilityEn(world.w, claymore, false)).toEqual({ state: "armed", text: "armed" });
   });
 
+  describe("an armed claymore ram", () => {
+    function armed() {
+      const built = build();
+      const claymore = makePart(built.world.w, "claymoreRam", 0);
+      if (!mountPart(built.world.w, built.world.w.vehicles[0], claymore)) throw new Error("No room for the claymore ram");
+      claymore.charge = { reload: 0, armed: true };
+      const slot = utilitySlots(built.world.w).indexOf(claymore);
+      return { ...built, claymore, slot };
+    }
+
+    it("takes a disarm order on a press, shows it as set, and drops it on a second press", () => {
+      const { world, host, row, claymore, slot } = armed();
+      row.selectUtility(slot);
+      expect(world.w.vehicles[0].utilityOrders[claymore.id]).toEqual({ kind: "disarm" });
+      expect(utilityEn(world.w, claymore, false)).toEqual({ state: "set", text: "disarms this turn" });
+      row.selectUtility(slot);
+      expect(world.w.vehicles[0].utilityOrders[claymore.id]).toBeUndefined();
+      expect(utilityEn(world.w, claymore, false)).toEqual({ state: "armed", text: "armed" });
+      expect(host.apply).toHaveBeenCalledTimes(2);
+    });
+
+    it("takes no order on a shut down truck", () => {
+      const { world, host, row, slot } = armed();
+      world.w.vehicles[0].shutDown = { from: world.w.turn, until: world.w.turn + 2 };
+      row.selectUtility(slot);
+      expect(host.apply).not.toHaveBeenCalled();
+    });
+  });
+
   it("blocks an oil spiller with too little fuel to spill", () => {
     const w = emptyWorld();
     const spiller = makePart(w, "oilSpiller", 0);
@@ -751,7 +834,7 @@ function harpoonDuel(gap = 5) {
   const me = w.vehicles[0];
   const harpoon = makePart(w, "harpoon", 0);
   if (!mountPart(w, me, harpoon)) throw new Error("No deck room for the harpoon");
-  const target = addVehicle(w, "traders", "hauler", ["stockEngine"], { x: me.pos.x - gap, y: me.pos.y }, Math.PI / 2);
+  const target = addVehicle(w, "independent", "hauler", ["stockEngine"], { x: me.pos.x - gap, y: me.pos.y }, Math.PI / 2);
   refreshVision(w);
   return { w, me, harpoon, target };
 }
