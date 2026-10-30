@@ -20,7 +20,7 @@ function post(world) {
   if (board.some((c) => c.kind === 'search')) return null;
   const sought = searchCandidates(world, shopId, world.shops[shopId]);
   if (sought.length === 0) return null;
-  const contract = rollContract(world, { id: shopId, pos: siteOf(shopId).pos }, [], [], [], [], sought);
+  const contract = rollContract(world, { id: shopId, pos: siteOf(shopId).pos }, { sought });
   board.push(contract);
   return { turn: world.turn, shop: shopId, target: contract.target };
 }
