@@ -100,6 +100,7 @@ type Wait = (ms: number) => Promise<void>;
 const sleep: Wait = (ms) => new Promise((done) => setTimeout(done, ms));
 
 export const SUITE_WORKFLOW = 'game-suite.yml';
+const FULL_SHA = /^[0-9a-f]{40}$/;
 export const SUITE_TESTS_STEP = 'tests';
 export const SUITE_FAILURES_ARTIFACT = 'test-failures';
 const SUITE_FAILURES_FILE = 'test-failures.json';
@@ -374,6 +375,7 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
       await gh(['issue', 'reopen', String(number), '-R', repo]);
     },
     async dispatchSuite(sha, scope) {
+      if (!FULL_SHA.test(sha)) throw new Error(`The dispatch of ${SUITE_WORKFLOW} needs a full 40 character commit sha, not ${sha}`);
       const inputs = scope === undefined ? [] : ['-f', `inputs[files]=${scope.files.join(' ')}`, '-f', `inputs[workers]=${scope.workers}`];
       const out = await gh(['api', '-X', 'POST', `repos/${repo}/actions/workflows/${SUITE_WORKFLOW}/dispatches`, '-f', 'ref=main', '-f', `inputs[sha]=${sha}`, ...inputs, '-F', 'return_run_details=true']);
       const id = out.trim() === '' ? undefined : (JSON.parse(out) as { workflow_run_id?: number }).workflow_run_id;

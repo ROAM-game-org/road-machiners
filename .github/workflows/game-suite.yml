@@ -54,7 +54,7 @@ jobs:
           persist-credentials: false
       - name: checkout the commit
         run: |
-          echo "$SHA" | grep -Eq '^[0-9a-f]{7,40}$'
+          echo "$SHA" | grep -Eq '^[0-9a-f]{40}$'
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git checkout --quiet --detach "$SHA"
           git log -1 --format='%H %s'

@@ -121,6 +121,7 @@ function fakeCtx(budget = 5): Ctx {
       },
       fetchFromWork: async () => 'head1',
       headHash: async (branch: string) => `${branch}-tip`,
+      fullHash: async (commit: string) => commit,
       changedInWork: async (_dir: string, from: string) => (from === 'head1' ? movedBy : changed),
       workHead: async () => `merged${++heads}`,
       diff: async () => diff,

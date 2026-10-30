@@ -131,6 +131,7 @@ function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: s
       push: async (commit: string, branch: string) => { calls.push(`push ${commit} ${branch}`); },
       diff: async () => '',
       headHash: async () => 'abc123',
+      fullHash: async (commit: string) => commit,
       fetch: async () => undefined,
       catchUpBase: async (_dir: string, base: string) => { bases.push(`merge ${base}`); return kept === null ? { commit: 'base0001', conflicts, kept } : { commit: null, conflicts: [], kept }; },
       mergeBranchIntoWork: async () => ({ commit: null, conflicts: [] }),

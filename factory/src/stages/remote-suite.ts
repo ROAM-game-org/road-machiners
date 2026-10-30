@@ -22,7 +22,8 @@ export async function remoteSuite(ctx: Ctx, at: At, sha: string): Promise<string
 
 const suiteName = (scope: SuiteScope | undefined): string => (scope === undefined ? 'full suite' : `rerun of ${scope.files.length} test files`);
 
-export async function remoteSuiteResult(ctx: Ctx, at: At, sha: string, scope?: SuiteScope): Promise<SuiteResult> {
+export async function remoteSuiteResult(ctx: Ctx, at: At, commit: string, scope?: SuiteScope): Promise<SuiteResult> {
+  const sha = await ctx.repo.fullHash(commit);
   const id = await onActions(`the dispatch for ${sha} failed`, () => ctx.github.dispatchSuite(sha, scope));
   const startBy = ctx.now().getTime() + ctx.cfg.suiteStartMinutes * 60_000;
   for (let read = 0; ; read++) {
