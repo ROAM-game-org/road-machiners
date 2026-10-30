@@ -24,7 +24,7 @@ export function fortressLayer(d: MapDraft): MapDraft {
   if (nose === undefined) throw new Error('Nose is no fortress site, and its rock masses stand in its frame');
   const rockBoxes = noseRocks(nose).flatMap((p, k) => propBoxes(propObstacle(p, k)));
   raiseRock(d, nose);
-  const clear = d.props.filter((p) => !rockBoxes.some((b) => boxDistance(b, p.pos) < p.r) && !(p.kind === 'rock' && steep(d, tileOf(d.size, p.pos))));
+  const clear = d.props.filter((p) => !rockBoxes.some((b) => boxDistance(b, p.pos) < p.r) && !((p.kind === 'rock' || p.kind === 'crag') && steep(d, tileOf(d.size, p.pos))));
   return { ...d, props: [...clear, ...props] };
 }
 

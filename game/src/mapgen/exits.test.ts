@@ -4,7 +4,7 @@ import { EXITS, TERRAIN } from '../data/terrain';
 import { ROAD_INDEX } from '../sim/road-index';
 import { siteGap } from '../sim/sites';
 import { newDraft, tileSteepness, typeCode, type MapDraft } from './bake';
-import { exitLayer, ravineEscape, trappedFloors } from './exits';
+import { dropCliffProps, exitLayer, ravineEscape, trappedFloors } from './exits';
 
 const RIM = 5;
 const DEPTH = 3;
@@ -67,5 +67,17 @@ describe('ravine exits', () => {
   it('never fills the trench floor', () => {
     const n = after.size + 1;
     for (let y = TRENCH.y0; y <= TRENCH.y1; y++) for (let x = TRENCH.x0; x <= TRENCH.x1; x++) expect(after.heights[y * n + x]).toBeLessThanOrEqual(RIM - DEPTH);
+  });
+
+  it('drops the clearable props that stand on a cliff tile and keeps the rest', () => {
+    const d = newDraft(REGION.size);
+    d.heights.fill(RIM);
+    d.types.fill(typeCode('sand'));
+    const n = d.size + 1;
+    for (let y = 0; y <= d.size; y++) for (let x = 300; x <= d.size; x++) d.heights[y * n + x] = RIM + 8;
+    const prop = (kind: 'deadTree' | 'ruin', x: number) => ({ kind, pos: { x, y: 200.5 }, r: 1, yaw: 0, group: 0, step: 0 });
+    d.props = [prop('deadTree', 299.5), prop('ruin', 299.5), prop('deadTree', 100.5)];
+    expect(tileSteepness(d.heights, d.size, 200 * d.size + 299)).toBeGreaterThan(TERRAIN.drive.maxSlope);
+    expect(dropCliffProps(d).props).toEqual([prop('ruin', 299.5), prop('deadTree', 100.5)]);
   });
 });

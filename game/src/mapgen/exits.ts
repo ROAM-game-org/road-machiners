@@ -25,7 +25,15 @@ export function exitLayer(d: MapDraft): MapDraft {
   let out = exitPass(d);
   for (let pass = 1; pass < EXITS.passes && trappedFloors(out).length > 0; pass++) out = exitPass(out);
   for (let pass = 0; pass < EXITS.passes && trappedFloors(out).length > 0; pass++) out = trailsOut(out);
-  return out;
+  return dropCliffProps(out);
+}
+
+export function dropCliffProps(d: MapDraft): MapDraft {
+  return { ...d, props: d.props.filter((p) => !(EXITS.clearKinds.includes(p.kind) && onCliff(d, p))) };
+}
+
+function onCliff(d: MapDraft, p: BakedProp): boolean {
+  return tileSteepness(d.heights, d.size, Math.floor(p.pos.y) * d.size + Math.floor(p.pos.x)) > TERRAIN.drive.maxSlope;
 }
 
 function trailsOut(d: MapDraft): MapDraft {
