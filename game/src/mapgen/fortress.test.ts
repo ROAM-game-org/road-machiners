@@ -87,6 +87,23 @@ describe('fortress layer', () => {
     }
   });
 
+  it('raises no ground lower than the Nose seat once the rock has sloped out to it', () => {
+    const draft = flatDraft();
+    const nose = REGION.towns.find((t) => t.id === 'nose')!;
+    const low = RIM - 3;
+    const far = noseRiseReach() / PHYSICS.metersPerTile + NOSE_ROCK.run + NOSE_ROCK.jag;
+    for (let j = 0; j <= draft.size; j++) {
+      for (let i = 0; i <= draft.size; i++) if (dist({ x: i, y: j }, nose.pos) > nose.radius + 4) draft.heights[j * (draft.size + 1) + i] = low;
+    }
+    const baked = fortressLayer(draft);
+    const out: number[] = [];
+    for (let j = 0; j <= draft.size; j++) {
+      for (let i = 0; i <= draft.size; i++) if (dist({ x: i, y: j }, nose.pos) > far) out.push(baked.heights[j * (draft.size + 1) + i]);
+    }
+    expect(out.length).toBeGreaterThan(1000);
+    expect(out.every((h) => h <= low)).toBe(true);
+  });
+
   it('clears the earlier props Nose rock would bury, and keeps the rest', () => {
     const draft = flatDraft();
     const nose = REGION.towns.find((t) => t.id === 'nose')!;

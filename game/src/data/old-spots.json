@@ -1,5 +1,5 @@
 {
- "mapHash": "633d12fc",
+ "mapHash": "233889d4",
  "picks": [
   {
    "propId": "ruin-4138",
@@ -65,7 +65,7 @@
    "reach": 1.214549813717
   },
   {
-   "propId": "skiff-26229",
+   "propId": "skiff-26215",
    "type": "boats",
    "pos": {
     "x": 385.6114807128906,
@@ -74,7 +74,7 @@
    "reach": 0.7076589806845472
   },
   {
-   "propId": "shipCache-22893",
+   "propId": "shipCache-22880",
    "type": "wreckage",
    "pos": {
     "x": 876.6061401367188,
@@ -83,7 +83,7 @@
    "reach": 0.8483290593292819
   },
   {
-   "propId": "shipCache-22897",
+   "propId": "shipCache-22884",
    "type": "wreckage",
    "pos": {
     "x": 1049.1783447265625,
@@ -92,7 +92,7 @@
    "reach": 0.8381670297555915
   },
   {
-   "propId": "shipCache-22898",
+   "propId": "shipCache-22885",
    "type": "wreckage",
    "pos": {
     "x": 818.6663208007812,

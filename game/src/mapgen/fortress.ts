@@ -35,12 +35,14 @@ function raiseRock(d: MapDraft, site: Site): void {
   const base = d.heights[Math.round(site.pos.y) * (d.size + 1) + Math.round(site.pos.x)];
   const g = rockGrid(d.size, site, noseRiseReach() / S + NOSE_ROCK.run);
   const r = rockReach(g);
-  const lift = rockLift(site);
+  const fade = rockFade(site);
   const raised = new Uint8Array(g.w * g.h);
   for (let k = 0; k < raised.length; k++) {
     const at = (g.y0 + Math.floor(k / g.w)) * (d.size + 1) + g.x0 + (k % g.w);
-    const top = base + lift({ x: g.x0 + (k % g.w), y: g.y0 + Math.floor(k / g.w) }, r.depth[k], r.top[k]);
-    if (Math.fround(top) <= d.heights[at]) continue;
+    const share = fade({ x: g.x0 + (k % g.w), y: g.y0 + Math.floor(k / g.w) }, r.depth[k]);
+    const ground = d.heights[at];
+    const top = ground + (base + r.top[k] - ground) * share;
+    if (Math.fround(top) <= ground) continue;
     d.heights[at] = top;
     raised[k] = 1;
   }
@@ -135,15 +137,15 @@ function neighbour(g: RockGrid, k: number, di: number, dj: number): number {
   return i < 0 || j < 0 || i >= g.w || j >= g.h ? -1 : j * g.w + i;
 }
 
-function rockLift(site: Site): (p: Vec, out: number, top: number) => number {
+function rockFade(site: Site): (p: Vec, out: number) => number {
   const { seed, jag, jagCell, run, blend } = NOSE_ROCK;
-  const clearOfRoads = roadShare(site, run);
-  return (p, out, top) => {
-    if (out === 0) return top;
+  const clearOfRoads = roadShare(site, noseRiseReach() / S + run);
+  return (p, out) => {
+    if (out === 0) return 1;
     const beyond = smooth(unit((dist(p, site.pos) - site.radius - TERRAIN.types.siteMargin) / blend));
     if (beyond === 0) return 0;
     const edge = out + jag * noise2(p.x / jagCell, p.y / jagCell, seed);
-    return top * smooth(unit(1 - edge / run)) * clearOfRoads(p) * beyond;
+    return smooth(unit(1 - edge / run)) * clearOfRoads(p) * beyond;
   };
 }
 
@@ -151,9 +153,9 @@ function unit(t: number): number {
   return Math.min(1, Math.max(0, t));
 }
 
-function roadShare(site: Site, far: number): (p: Vec) => number {
+function roadShare(site: Site, reach: number): (p: Vec) => number {
   const { clear, ramp } = NOSE_ROCK;
-  const roads = REGION.roads.flatMap((road) => road.slice(1).map((b, i) => [road[i], b] as const)).filter(([a, b]) => segmentDist(site.pos, a, b) < far * 3);
+  const roads = REGION.roads.flatMap((road) => road.slice(1).map((b, i) => [road[i], b] as const)).filter(([a, b]) => segmentDist(site.pos, a, b) < reach);
   const pads = sitePads(site);
   return (p) => {
     const fromRoad = Math.min(...roads.map(([a, b]) => segmentDist(p, a, b) - REGION.roadWidth / 2), ...pads.map((pad) => dist(p, pad) - REGION.sites.pad.width / 2));

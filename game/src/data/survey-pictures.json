@@ -1,5 +1,5 @@
 {
-  "mapHash": "633d12fc",
+  "mapHash": "233889d4",
   "sites": {
     "survey-waterTower-4149": "0.85b9aa81",
     "survey-ruin-4158": "0.8fb5a1af",
@@ -42,12 +42,12 @@
     "survey-tank-5081": "0.8107d4b4",
     "survey-tank-5087": "0.27dd5576",
     "survey-tank-5092": "0.01097746",
-    "survey-skiff-26227": "0.41f66bb",
-    "survey-skiff-26229": "0.ff3ca0b4",
-    "survey-skiff-26233": "0.27e73863",
-    "survey-fishingBoat-26235": "0.6a4fae86",
-    "survey-shipCache-22893": "0.304e03c8",
-    "survey-shipCache-22895": "0.c91f83b7",
-    "survey-shipCache-22898": "0.2d4448c2"
+    "survey-skiff-26213": "0.5d7fb757",
+    "survey-skiff-26215": "0.efdf4672",
+    "survey-skiff-26219": "0.42fe35df",
+    "survey-fishingBoat-26221": "0.e25f696f",
+    "survey-shipCache-22880": "0.e4762b2",
+    "survey-shipCache-22882": "0.88cfa45e",
+    "survey-shipCache-22885": "0.0c61ab78"
   }
 }
