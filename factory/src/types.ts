@@ -161,6 +161,7 @@ export type PlaytestState = {
   passed: string | null;
   blocked: { sha: string; reason: string } | null;
   notes: string[];
+  recovered?: { branch: string; sha: string; base: string; reason: string } | null;
 };
 
 export type IssueMerge = { issue: number; title: string; sha: string; into: string; reverted: string[] };

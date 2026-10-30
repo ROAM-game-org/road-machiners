@@ -69,13 +69,14 @@ Flags hold on any position:
 - None: `release` is null. `cut` makes one.
 - Cut with open tasks: `release` is set, and release tasks are not all done. The playtest and the candidate wait. An open task is a `release-task` card outside Done, or an issue in `release.tasks` that the board does not show in Done.
 - Playtest: every release task is done, and `release.playtest.passed` is not the release head. The playtest runs.
+- Playtest review invalid: the job fails with every validation error, never a clean play. `release.playtest.recovered` names the branch `factory/playtest-recovery-<day>` that holds the agent's commits. A `retry` plays them.
 - Playtest blocked: `release.playtest.blocked` holds the commit and the reason. The tracking card has `factory-stuck`. `retry <tracking> [decision]` lifts it.
 - Candidate building: `release.playtest.passed` is the release head and no post is current. The candidate runs.
 - Candidate posted: `release.postId` holds the current candidate post, and `release.candidateSha` the commit it plays. Ship runs when a member presses Ship, or on `ship`. A tick that finds the release head past `candidateSha` drops the post and a queued Ship, unless a Ship runs. Ship refuses a release head other than `candidateSha`.
 - Shipping: `release.shipping` holds the release head and the features Ship found on it before it merged into `main`. A Ship that runs again on the same head reuses that list, since the release is then already on `main`. `release.removed` takes an issue as soon as its reverts are pushed, so a removal that runs again goes on with the remaining steps.
 - Shipped: `ship` merged the release into `main`, closed its cards and set `release` to null. A tag that already exists counts as made.
 
-`release.playtest` holds the playtest of the open release: `seed`, fixed at the cut; `runs`, every play started, which names the audit folders; `passed`, the commit a clean play approved, which is also the next job's baseline; `blocked`; and `notes`, the members' decisions from `retry`. One job plays at most `FACTORY_PLAYTEST_RUNS` times, so the state keeps no count of plays left.
+`release.playtest` holds the playtest of the open release: `seed`, fixed at the cut; `runs`, every play started, which names the audit folders; `passed`, the commit a clean play approved, which is also the next job's baseline; `blocked`; `notes`, the members' decisions from `retry`; and `recovered`, set when a review failed validation after the agent committed fixes: the branch holding those commits on GitHub, their head, the release head they were made on and the validation errors. The next job plays them first when the release is still at that base, and clears the record once a review reads. One job plays at most `FACTORY_PLAYTEST_RUNS` times, so the state keeps no count of plays left.
 
 The public post of a shipped release has its own position in `releasePost`, beside the next open release. `factory release` prints it as `public post`.
 

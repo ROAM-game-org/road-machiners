@@ -52,32 +52,83 @@ const VERDICTS = ['clean', 'fixed', 'blocked'];
 const SEVERITIES = ['important', 'minor'];
 const CAUSES = ['release', 'old'];
 const LISTS = ['observations', 'suspected', 'limitations', 'findings', 'fixes'] as const;
+const TEXT_LISTS = ['observations', 'suspected', 'limitations', 'fixes'] as const;
+const TEXTS = ['summary', 'drama'] as const;
+
+export class ReviewError extends Error {
+  constructor(readonly errors: string[]) {
+    super(`The playtest review is invalid, ${errors.length} ${errors.length === 1 ? 'error' : 'errors'}: ${errors.join('; ')}`);
+    this.name = 'ReviewError';
+  }
+}
+
+const isText = (value: unknown): boolean => typeof value === 'string' && value.trim() !== '';
+const shown = (value: unknown): string => (typeof value === 'string' ? value : JSON.stringify(value) ?? 'undefined').slice(0, 60);
 
 export function readReview(text: string | null): Review {
   if (text === null) throw new Error('The playtest agent wrote no .factory/playtest.json');
-  const review = JSON.parse(text) as Review;
-  if (!VERDICTS.includes(review.verdict)) throw new Error(`The playtest verdict ${String(review.verdict)} is not clean, fixed or blocked`);
-  const missing = LISTS.find((key) => !Array.isArray(review[key]));
-  if (missing) throw new Error(`The playtest review has no ${missing} list`);
+  const review = parse(text);
+  const errors = reviewErrors(review);
+  if (errors.length > 0) throw new ReviewError(errors);
   return { ...review, findings: review.findings.map(readFinding), explanations: explanationsOf(review.explanations), blocker: review.blocker ?? null };
 }
 
+function parse(text: string): Review {
+  try {
+    const review: unknown = JSON.parse(text);
+    if (typeof review === 'object' && review !== null && !Array.isArray(review)) return review as Review;
+  } catch (error) {
+    throw new ReviewError([`.factory/playtest.json is not valid JSON: ${(error as Error).message}`]);
+  }
+  throw new ReviewError(['.factory/playtest.json is not a JSON object']);
+}
+
+function reviewErrors(review: Review): string[] {
+  const errors: string[] = [];
+  if (!VERDICTS.includes(review.verdict)) errors.push(`The playtest verdict ${shown(review.verdict)} is not clean, fixed or blocked`);
+  for (const key of TEXTS) if (!isText(review[key])) errors.push(`The playtest review has no ${key} text`);
+  for (const key of LISTS) if (!Array.isArray(review[key])) errors.push(`The playtest review has no ${key} list`);
+  for (const key of TEXT_LISTS) {
+    const list: unknown = review[key];
+    if (Array.isArray(list)) list.forEach((entry, i) => { if (typeof entry !== 'string') errors.push(`The playtest review ${key}[${i}] is ${shown(entry)}, not a string`); });
+  }
+  if (review.blocker !== undefined && review.blocker !== null && typeof review.blocker !== 'string') errors.push(`The playtest review blocker is ${shown(review.blocker)}, not a string or null`);
+  errors.push(...explanationErrors(review.explanations));
+  if (Array.isArray(review.findings)) review.findings.forEach((finding, i) => errors.push(...findingErrors(finding, i)));
+  return errors;
+}
+
+function explanationErrors(given: unknown): string[] {
+  if (given === undefined || given === null) return [];
+  if (typeof given !== 'object' || Array.isArray(given)) return ['The playtest review explanations is not an object'];
+  return (['death', 'quiet'] as const).flatMap((key) => {
+    const value = (given as Record<string, unknown>)[key];
+    return value === undefined || value === null || typeof value === 'string' ? [] : [`The playtest review explanations.${key} is ${shown(value)}, not a string or null`];
+  });
+}
+
 const FINDING_RULES: ((finding: Finding) => string | null)[] = [
-  (finding) => (SEVERITIES.includes(finding.severity) ? null : `has severity ${String(finding.severity)}, not important or minor`),
-  (finding) => (CAUSES.includes(finding.cause) ? null : `has cause ${String(finding.cause)}, not release or old`),
-  (finding) => (typeof finding.why === 'string' && finding.why.trim() !== '' ? null : 'gives no reason for its cause'),
-  (finding) => (finding.known === null || Number.isInteger(finding.known) ? null : `has known ${String(finding.known)}, not an issue number or null`),
-  (finding) => (typeof finding.fixed === 'boolean' ? null : `has fixed ${String(finding.fixed)}, not true or false`),
+  (finding) => (isText(finding.title) ? null : 'has no title'),
+  (finding) => (isText(finding.evidence) ? null : 'has no evidence'),
+  (finding) => (SEVERITIES.includes(finding.severity) ? null : `has severity ${shown(finding.severity)}, not important or minor`),
+  (finding) => (CAUSES.includes(finding.cause) ? null : `has cause ${shown(finding.cause)}, not release or old`),
+  (finding) => (isText(finding.why) ? null : 'gives no reason for its cause'),
+  (finding) => (finding.known === null || Number.isInteger(finding.known) ? null : `has known ${shown(finding.known)}, not an issue number or null`),
+  (finding) => (typeof finding.fixed === 'boolean' ? null : `has fixed ${shown(finding.fixed)}, not true or false`),
 ];
 
-function readFinding(given: Finding): Finding {
-  const finding = { ...given, known: given.known ?? null, fixed: given.fixed ?? false };
-  for (const rule of FINDING_RULES) {
+function findingErrors(given: unknown, index: number): string[] {
+  if (typeof given !== 'object' || given === null || Array.isArray(given)) return [`Finding ${index + 1} is not an object`];
+  const finding = normalFinding(given as Finding);
+  const name = isText(finding.id) ? String(finding.id) : `#${index + 1}`;
+  return FINDING_RULES.flatMap((rule) => {
     const reason = rule(finding);
-    if (reason !== null) throw new Error(`Finding ${finding.id} ${reason}`);
-  }
-  return finding;
+    return reason === null ? [] : [`Finding ${name} ${reason}`];
+  });
 }
+
+const normalFinding = (given: Finding): Finding => ({ ...given, known: given.known ?? null, fixed: given.fixed ?? false });
+const readFinding = normalFinding;
 
 function explanationsOf(given: Partial<Review['explanations']> | undefined): Review['explanations'] {
   return { death: given?.death ?? null, quiet: given?.quiet ?? null };

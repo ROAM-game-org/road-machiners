@@ -260,6 +260,7 @@ function candidatePost(release: ReleaseState): string {
 function playtestLines(playtest: PlaytestState, runs: number): string[] {
   const lines = [`playtest: seed ${playtest.seed}, ${playtest.runs} plays, at most ${runs} per job, passed ${playtest.passed ?? 'none'}`];
   if (playtest.blocked) lines.push(`playtest blocked at ${playtest.blocked.sha}: ${playtest.blocked.reason}`);
+  if (playtest.recovered) lines.push(`playtest fixes recovered on ${playtest.recovered.branch} at ${playtest.recovered.sha}, made on ${playtest.recovered.base}: ${playtest.recovered.reason}`);
   return [...lines, ...playtest.notes.map((note) => `playtest decision: ${note}`)];
 }
 

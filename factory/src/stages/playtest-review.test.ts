@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { judge, logFacts, readReview, type LogFacts, type Review } from './playtest-review';
+import { ReviewError, judge, logFacts, readReview, type LogFacts, type Review } from './playtest-review';
 import { WANT, logText } from './playtest-fixtures';
 
 
@@ -36,6 +36,26 @@ describe('logFacts', () => {
 });
 
 describe('readReview', () => {
+  it('lists every error of a review at once, as the playtest agent of #1280 wrote it', () => {
+    const bad = { ...review(), findings: [{ ...important, severity: 'medium', fixed: '4ed3af9e5' }, { ...important, id: 'F2', severity: 'low', title: 7 }], fixes: [{ commit: 'ab08425b4' }], blocker: 5 };
+    const error = (() => { try { readReview(JSON.stringify(bad)); } catch (e) { return e as ReviewError; } throw new Error('accepted'); })();
+    expect(error).toBeInstanceOf(ReviewError);
+    expect(error.errors).toEqual([
+      'The playtest review fixes[0] is {"commit":"ab08425b4"}, not a string',
+      'The playtest review blocker is 5, not a string or null',
+      'Finding F1 has severity medium, not important or minor',
+      'Finding F1 has fixed 4ed3af9e5, not true or false',
+      'Finding F2 has no title',
+      'Finding F2 has severity low, not important or minor',
+    ]);
+  });
+
+  it('reports a review that is not JSON or not an object, and every missing part of an empty one', () => {
+    expect(() => readReview('{"verdict":')).toThrow('is not valid JSON');
+    expect(() => readReview('[]')).toThrow('is not a JSON object');
+    expect(() => readReview('{}')).toThrow(/verdict undefined.*no summary text.*no drama text.*no observations list.*no suspected list.*no limitations list.*no findings list.*no fixes list/);
+  });
+
   it('fails on a missing review, an unknown verdict or severity, or a missing list', () => {
     expect(() => readReview(null)).toThrow('wrote no .factory/playtest.json');
     expect(() => readReview(JSON.stringify(review({ verdict: 'ok' as Review['verdict'] })))).toThrow('verdict ok');

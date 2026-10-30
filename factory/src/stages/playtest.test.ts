@@ -6,7 +6,7 @@ import { stepScript } from '../activity';
 import { EMPTY_STATE, newPlaytest, readState, writeState } from '../state';
 import { testPoolPin } from '../cpus';
 import type { AgentRun, Issue, Pin, ReleaseState, ShellKind } from '../types';
-import { SUITE_BRANCH, auditDir, playtest } from './playtest';
+import { SUITE_BRANCH, auditDir, playtest, recoveryBranch } from './playtest';
 import { SUITE_DOWN_MARK } from './remote-suite';
 import { logText } from './playtest-fixtures';
 import type { Finding, Review } from './playtest-review';
@@ -394,5 +394,116 @@ describe('playtest', () => {
     expect(run.suites).toEqual(['abc1234']);
     expect(harnessRuns(run)).toHaveLength(2);
     expect(release(run.f).playtest).toMatchObject({ runs: 7, passed: 'abc1234' });
+  });
+
+  describe('a review that fails validation', () => {
+    const RECOVERY = recoveryBranch(RELEASE);
+    // The review of the second playtest of #1280: severity medium, a commit hash for fixed, and objects in fixes.
+    const invalid = (over: Record<string, unknown> = {}): string => JSON.stringify({
+      verdict: 'fixed', summary: 'Fixed three bugs.', drama: 'A raid.', observations: [], suspected: [], limitations: ['far mode'],
+      findings: [
+        { ...releaseBug, severity: 'medium', fixed: '4ed3af9e5' },
+        { ...releaseBug, id: 'F2', severity: 'low', fixed: null },
+      ],
+      fixes: [{ commit: '4ed3af9e5', what: 'wrap the HUD' }], explanations: { death: null, quiet: null }, blocker: null, ...over,
+    });
+
+    it('keeps the agent commits on a recovery branch, saves the raw review and fails with every error, and never passes the release', async () => {
+      const run = setup();
+      run.turns = [{ review: invalid(), commit: 'fix0001' }];
+      const failure = await playtest(run.f.ctx, 11).catch((error: Error) => error);
+      expect(failure).toBeInstanceOf(Error);
+      const message = (failure as Error).message;
+      for (const part of ['4 errors', 'Finding F1 has severity medium', 'Finding F1 has fixed 4ed3af9e5', 'Finding F2 has severity low', 'fixes[0] is {"commit"']) expect(message).toContain(part);
+      expect(message).toContain(`fix0001 are on ${RECOVERY}`);
+      expect(message).toContain('never a clean playtest');
+      expect(run.replaced).toEqual([`fix0001 ${RECOVERY}`]);
+      expect(release(run.f).playtest).toMatchObject({ runs: 1, passed: null, blocked: null, recovered: { branch: RECOVERY, sha: 'fix0001', base: 'abc1234' } });
+      const audit = auditDir(run.f.ctx, release(run.f), 1);
+      expect(readFileSync(join(audit, 'playtest.invalid.json'), 'utf8')).toContain('4ed3af9e5');
+      expect(readFileSync(join(audit, 'review-errors.txt'), 'utf8').trim().split('\n')).toHaveLength(4);
+      expect(pushes(run.f)).toEqual([]);
+      expect(checkRuns(run)).toEqual([]);
+      expect(comments(run.f)).toEqual([]);
+    });
+
+    it('also keeps the commits when the review is not JSON or is missing', async () => {
+      const broken = setup();
+      broken.turns = [{ review: '{"verdict": ', commit: 'fix0001' }];
+      await expect(playtest(broken.f.ctx, 11)).rejects.toThrow('is not valid JSON');
+      expect(broken.replaced).toEqual([`fix0001 ${RECOVERY}`]);
+      const missing = setup();
+      missing.turns = [{ commit: 'fix0001' }];
+      await expect(playtest(missing.f.ctx, 11)).rejects.toThrow('wrote no .factory/playtest.json');
+      expect(missing.replaced).toEqual([`fix0001 ${RECOVERY}`]);
+    });
+
+    it('records nothing when the agent committed nothing', async () => {
+      const run = setup();
+      run.turns = [{ review: invalid() }];
+      await expect(playtest(run.f.ctx, 11)).rejects.toThrow('The agent committed nothing since this play');
+      expect(run.replaced).toEqual([]);
+      expect(release(run.f).playtest.recovered ?? null).toBeNull();
+    });
+
+    it('never pushes commits that fail the diff checks, and still fails with the review errors', async () => {
+      const run = setup();
+      run.changed = ['.github/workflows/x.yml'];
+      run.turns = [{ review: invalid(), commit: 'fix0001' }];
+      const failure = await playtest(run.f.ctx, 11).catch((error: Error) => error);
+      expect((failure as Error).message).toContain('Finding F1 has severity medium');
+      expect((failure as Error).message).toContain('could not be kept');
+      expect(run.replaced).toEqual([]);
+      expect(release(run.f).playtest.recovered ?? null).toBeNull();
+    });
+
+    function retry(run: Run): void {
+      const ask = run.f.ctx.run;
+      run.f.ctx.run = async (cmd: string, args: string[], options: Parameters<typeof ask>[2]) => {
+        run.f.calls.push(`run ${args.join(' ')}`);
+        if (args.includes('--verify')) return { code: 0, stdout: 'fix0001\n', stderr: '' };
+        if (args.includes('merge')) {
+          run.cloneHead = 'fix0001';
+          return { code: 0, stdout: '', stderr: '' };
+        }
+        run.f.calls.pop();
+        return ask(cmd, args, options);
+      };
+    }
+    const recovered = { branch: RECOVERY, sha: 'fix0001', base: 'abc1234', reason: 'severity medium' };
+
+    it('plays the recovered commits on a retry, runs every gate on them, and clears the record', async () => {
+      const run = setup({ playtest: { ...RELEASE.playtest, runs: 1, recovered } });
+      retry(run);
+      run.turns = [clean];
+      await playtest(run.f.ctx, 11);
+      expect(run.f.calls).toContain(`run -C ${CLONE} merge --ff-only fix0001`);
+      expect(harnessRuns(run).map((shell) => /--sha (\S+)/.exec(shell.script)?.[1])).toEqual(['fix0001', 'main001']);
+      expect(run.prompts[0]).toContain('commit fix0001');
+      expect(run.prompts[0]).toContain('failed validation');
+      expect(run.suites).toEqual(['abc1234', 'fix0001']);
+      expect(checkRuns(run)).toHaveLength(1);
+      expect(pushes(run.f)).toEqual([`push fix0001 ${BRANCH}`]);
+      expect(release(run.f).playtest).toMatchObject({ runs: 2, passed: 'fix0001', recovered: null });
+    });
+
+    it('still blocks recovered commits whose play has an unfixed important finding, and lands nothing', async () => {
+      const run = setup({ playtest: { ...RELEASE.playtest, runs: 1, recovered } });
+      retry(run);
+      run.turns = [{ review: review({ findings: [releaseBug] }) }];
+      await expect(playtest(run.f.ctx, 11)).rejects.toThrow('important findings the release caused');
+      expect(pushes(run.f)).toEqual([]);
+      expect(release(run.f).playtest.passed).toBeNull();
+      expect(release(run.f).playtest.blocked).toMatchObject({ sha: 'fix0001' });
+    });
+
+    it('plays the release head plainly when the release moved since the commits were made', async () => {
+      const run = setup({ playtest: { ...RELEASE.playtest, runs: 1, recovered: { ...recovered, base: 'old0001' } } });
+      retry(run);
+      run.turns = [clean];
+      await playtest(run.f.ctx, 11);
+      expect(run.f.calls.some((call) => call.includes('merge --ff-only'))).toBe(false);
+      expect(harnessRuns(run).map((shell) => /--sha (\S+)/.exec(shell.script)?.[1])).toEqual(['abc1234', 'main001']);
+    });
   });
 });

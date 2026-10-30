@@ -13,7 +13,7 @@ import { remoteSuite } from './remote-suite';
 import { guardDiff } from '../diff-guard';
 import { agentHome, fillPrompt, issueText, playtestCommand, readOutput, resetOutputs } from './common';
 import { mergeResolving } from './merge-resolve';
-import { judge, logFacts, readReview, type Finding, type LogFacts, type Outcome, type Review } from './playtest-review';
+import { ReviewError, judge, logFacts, readReview, type Finding, type LogFacts, type Outcome, type Review } from './playtest-review';
 import { featureLine, openReleaseTasks, releaseFeatures, releaseLog, requireRelease } from './release-common';
 
 const LOG = `${OUT_DIR}/playtest/log.jsonl`;
@@ -45,8 +45,9 @@ export async function playtest(ctx: Ctx, issue: number): Promise<void> {
   rmSync(dir, { recursive: true, force: true });
   await ctx.repo.prepareWorkClone(release.branch, release.branch, dir);
   if (!(await cloneAt(ctx, dir, start))) return;
+  const recovered = await recoverFixes(ctx, release, dir, start);
   const session = await openSession(ctx, release, dir, start, baseline);
-  const { plays, end } = await rounds(ctx, session);
+  const { plays, end } = await rounds(ctx, session, recovered);
   if (end.outcome === 'blocked') return block(ctx, session, plays, end);
   const next = await pass(ctx, session, end.head);
   await ctx.github.comment(release.issue, comment(session, plays, end, next, report(session)));
@@ -103,9 +104,9 @@ async function baselineOf(ctx: Ctx, release: ReleaseState): Promise<Baseline> {
   return { branch: release.branch, sha: await ctx.repo.forkPoint('main', release.branch), kind: 'main where the release branched off it, since this release has not passed yet' };
 }
 
-async function rounds(ctx: Ctx, session: Session): Promise<{ plays: RunMeta[]; end: Ending }> {
+async function rounds(ctx: Ctx, session: Session, recovered: string | null): Promise<{ plays: RunMeta[]; end: Ending }> {
   const plays: RunMeta[] = [];
-  let next: Next = { sha: session.start, prompt: firstPrompt(ctx, session) };
+  let next: Next = { sha: recovered ?? session.start, prompt: firstPrompt(ctx, session, recovered) };
   for (let play = 1; ; play++) {
     const round = await playRound(ctx, session, next, play);
     plays.push(round.meta);
@@ -119,10 +120,10 @@ async function playRound(ctx: Ctx, session: Session, next: Next, play: number): 
   const last = play === ctx.cfg.playtestRuns;
   const { run } = countPlay(ctx);
   const startedAt = ctx.now().toISOString();
-  const facts = play === 1 ? await firstPlay(ctx, session) : await playRelease(ctx, session, next.sha);
+  const facts = play === 1 ? await firstPlay(ctx, session, next.sha) : await playRelease(ctx, session, next.sha);
   for (const name of ['playtest.json', 'playtest.md']) rmSync(join(session.home, OUT_DIR, name), { force: true });
   await session.agent(next.prompt);
-  const review = readReview(readOutput(session.home, 'playtest.json'));
+  const review = await readKept(ctx, session, next.sha, run);
   const head = await cloneHead(ctx, session);
   const outcome = judge(facts, review, { moved: head !== next.sha, last, fixedEarlier: next.sha !== session.start });
   const bugs = await openOldBugs(ctx, session, next.sha, review);
@@ -165,8 +166,8 @@ async function fixChecks(ctx: Ctx, session: Session, sha: string, failure: strin
   return { sha: head, prompt: replayPrompt(ctx, session, head, play) };
 }
 
-async function firstPlay(ctx: Ctx, session: Session): Promise<LogFacts> {
-  const [facts] = await Promise.all([playRelease(ctx, session, session.start), playBaseline(ctx, session)]);
+async function firstPlay(ctx: Ctx, session: Session, sha: string): Promise<LogFacts> {
+  const [facts] = await Promise.all([playRelease(ctx, session, sha), playBaseline(ctx, session)]);
   return facts;
 }
 
@@ -293,12 +294,69 @@ async function openBugs(ctx: Ctx): Promise<string> {
   return ['# Open bug issues', ...(bugs.length ? bugs.map((bug) => `- #${bug.number} ${bug.title}`) : ['- none']), ''].join('\n');
 }
 
-function firstPrompt(ctx: Ctx, session: Session): string {
+function firstPrompt(ctx: Ctx, session: Session, recovered: string | null): string {
   const { release, start, baseline } = session;
-  return fillPrompt('release-playtest', {
-    sha: start, seed: String(release.playtest.seed), turns: String(ctx.cfg.playtestTurns), runs: String(ctx.cfg.playtestRuns),
+  const prompt = fillPrompt('release-playtest', {
+    sha: recovered ?? start, seed: String(release.playtest.seed), turns: String(ctx.cfg.playtestTurns), runs: String(ctx.cfg.playtestRuns),
     baseline: baseline.sha, baselineKind: baseline.kind,
   });
+  if (recovered === null) return prompt;
+  return `${prompt}\n\nThe clone holds fixes that an earlier job of this release committed between ${start} and ${recovered}. Its review failed validation, so no play checked them. Treat them as fixes of an earlier round: the play is of ${recovered}, and a finding they fixed may be marked fixed once the play shows it gone. Write the review exactly in the format above.`;
+}
+
+export function recoveryBranch(release: Pick<ReleaseState, 'day'>): string {
+  return `factory/playtest-recovery-${release.day}`;
+}
+
+async function recoverFixes(ctx: Ctx, release: ReleaseState, dir: string, start: string): Promise<string | null> {
+  const kept = release.playtest.recovered;
+  if (!kept) return null;
+  if (kept.base !== start) {
+    ctx.log('playtest', release.issue, `the recovered fixes on ${kept.branch} were made on ${kept.base}, but the release is at ${start}, so they are not played`);
+    return null;
+  }
+  const tip = await ctx.run('git', ['-C', dir, 'rev-parse', '--verify', `origin/${kept.branch}`], { activity: 'git' });
+  if (tip.code !== 0 || !tip.stdout.trim().startsWith(kept.sha)) {
+    ctx.log('playtest', release.issue, `the recovered fixes ${kept.sha} are not on ${kept.branch}, so they are not played`);
+    return null;
+  }
+  must(await ctx.run('git', ['-C', dir, 'merge', '--ff-only', tip.stdout.trim()], { activity: 'git' }), 'git merge of the recovered playtest fixes');
+  ctx.log('playtest', release.issue, `playing the fixes recovered from ${kept.branch}, at ${kept.sha}`);
+  return kept.sha;
+}
+
+async function readKept(ctx: Ctx, session: Session, sha: string, run: number): Promise<Review> {
+  const text = readOutput(session.home, 'playtest.json');
+  try {
+    const review = readReview(text);
+    if (session.release.playtest.recovered) setPlaytest(ctx, (playtest) => ({ ...playtest, recovered: null }));
+    return review;
+  } catch (error) {
+    throw await keepFailed(ctx, session, sha, run, text, error as Error);
+  }
+}
+
+async function keepFailed(ctx: Ctx, session: Session, sha: string, run: number, text: string | null, error: Error): Promise<Error> {
+  const dir = auditDir(ctx, session.release, run);
+  mkdirSync(dir, { recursive: true });
+  if (text !== null) writeFileSync(join(dir, 'playtest.invalid.json'), text);
+  const report = agentOutputPath(session.home, 'playtest.md');
+  if (report !== null) copyFileSync(report, join(dir, 'playtest.md'));
+  const errors = error instanceof ReviewError ? error.errors : [error.message];
+  writeFileSync(join(dir, 'review-errors.txt'), `${errors.join('\n')}\n`);
+  const kept = await keepFixes(ctx, session, sha, error.message).catch((failure: Error) => `The agent's commits could not be kept: ${failure.message}`);
+  return new Error(`${error.message}. ${kept} The raw review is in ${dir}. An invalid review is never a clean playtest.`);
+}
+
+async function keepFixes(ctx: Ctx, session: Session, sha: string, reason: string): Promise<string> {
+  const head = await cloneHead(ctx, session);
+  if (head === sha) return 'The agent committed nothing since this play.';
+  guardDiff({ files: await ctx.repo.changedFiles(session.start, head), diff: await ctx.repo.diff(session.start, head) });
+  checkScope(head);
+  const branch = recoveryBranch(session.release);
+  await ctx.repo.replaceBranch(head, branch);
+  setPlaytest(ctx, (playtest) => ({ ...playtest, recovered: { branch, sha: head, base: session.start, reason: reason.slice(0, 1000) } }));
+  return `The agent's commits up to ${head} are on ${branch}, and factory retry plays them first.`;
 }
 
 function replayPrompt(ctx: Ctx, session: Session, sha: string, play: number): string {
