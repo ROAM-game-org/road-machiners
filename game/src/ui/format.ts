@@ -10,7 +10,7 @@ import { el } from './dom';
 import { escortStatus, turnsLeft } from '../sim/escort-job';
 import { PERK_LEVELS } from '../data/skills';
 import { TERRAIN } from '../data/terrain';
-import { TIME } from '../data/time';
+import { gameHours } from '../data/time';
 import { playerVehicle, vehicleById } from '../sim/damage';
 import { namedTruck, requireTruck } from '../sim/sites';
 import { gaveUp, isKnockedOut } from '../sim/defeat';
@@ -703,9 +703,7 @@ export function postedSummary(c: Contract): Msg {
   return (POSTED_WORDS[c.kind] as (x: Contract) => Msg)(c);
 }
 
-export function gameHours(turns: number): number {
-  return Math.max(1, Math.round(turns / (TIME.turnsPerDay / 24)));
-}
+export { gameHours };
 
 function surveyPlaces(c: SurveyContract): Msg {
   const types = [...new Set(c.points.map((p) => surveyPlaceType(p.site)))];

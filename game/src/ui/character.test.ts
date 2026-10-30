@@ -92,10 +92,10 @@ describe("character screen", () => {
     expect(button.attrs.has("aria-disabled")).toBe(false);
   });
 
-  it("has one row per skill and says today and the cap once", () => {
+  it("has one row per skill and says when the XP window began and the cap once", () => {
     const root = openCharacter(emptyWorld());
     expect(root.all((n) => n.className.includes("skill-row"))).toHaveLength(5);
-    expect(root.text().match(/Today/g)).toHaveLength(1);
+    expect(root.text().match(/Since 7:00/g)).toHaveLength(1);
     expect(root.text()).toContain(`max ${XP_RULES.dailyCap} XP`);
     expect(root.all((n) => n.className === "skill-name")[0].attrs.get("title")).toMatch(/^Earns XP from /);
   });

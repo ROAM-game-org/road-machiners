@@ -44,3 +44,7 @@ export function workDayOf(turn: number): number {
 export function workDayStart(turn: number): number {
   return workDayOf(turn) * TIME.workDayTurns + 1;
 }
+
+export function gameHours(turns: number): number {
+  return Math.max(1, Math.round(turns / (TIME.turnsPerDay / 24)));
+}

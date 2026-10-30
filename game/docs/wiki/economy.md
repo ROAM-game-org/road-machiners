@@ -95,7 +95,7 @@ Sites run their recipes on the production clock, one cycle every `PRODUCTION.cyc
 | nose | meds | 120 | - | 24 | - |
 | nose | electronics | 120 | - | 24 | - |
 | nose | relics | 120 | - | 24 | - |
-| pump-station | fuelDrums | 231 | 370 | - | 10 |
+| pump-station | fuelDrums | 229 | 367 | - | 10 |
 | pump-station | tools | 30 | - | - | - |
 | pump-station | batteries | 30 | - | - | - |
 | pump-station | rations | 30 | - | 12 | 1 |
@@ -145,7 +145,7 @@ The player's truck pays no upkeep. NPC drivers pay under `NPC_UPKEEP`.
 | `PRODUCTION.elasticity` | 0.6 |
 | `ECONOMY.supplyPrice.fuel` | 1 |
 | `ECONOMY.supplyPrice.supplies` | 1.67 |
-| `PRODUCTION.cycleTurns` | 240 |
+| `PRODUCTION.cycleTurns` | 19 |
 | `PRODUCTION.bufferDays` | 1.5 |
 | `PRODUCTION.fullShare` | 1.6 |
 | `ECONOMY.repairShare` | 0.425 |

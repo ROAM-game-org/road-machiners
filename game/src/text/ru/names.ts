@@ -297,7 +297,7 @@ export const NAMES: Translation<typeof EN> = {
   'perk.readDriver': 'Видеть насквозь',
   'perk.readDriver.rule': 'Вы видите черты других водителей.',
   'perk.spotter': 'Наводчик',
-  'perk.spotter.rule': 'Пометьте замеченный грузовик, и вы будете следить за ним сутки.',
+  'perk.spotter.rule': 'Пометьте замеченный грузовик, и вы будете следить за ним {span}.',
   'perk.cargoEye': 'Наметанный глаз',
   'perk.cargoEye.rule': 'Вы видите товары и запчасти в любом замеченном грузовике.',
   'perk.nightEyes': 'Ночное зрение',

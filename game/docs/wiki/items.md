@@ -217,7 +217,7 @@ Yellow deck parts with one job each. An active utility acts once on an order and
 | fuelDrums | Diesel | 1 | 10 |
 | water | Water | 1 | 6 |
 | relics | Ship Metal | 3 | 44 |
-| rations | Rations | 1 | 40 |
+| rations | Rations | 1 | 12 |
 <!-- /wiki:goods -->
 
 ## Numbers

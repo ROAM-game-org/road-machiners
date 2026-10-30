@@ -56,7 +56,7 @@ export const SCREENS = {
   'character.grows': m('Earns XP from {what}', { what: 'text' }),
   'character.rankOf': m('Rank {rank} of {max}', { rank: 'int', max: 'int' }),
   'character.rank': m('Rank {rank}', { rank: 'int' }),
-  'character.today': 'Earned today',
+  'character.today': m('Earned since {time}', { time: 'text' }),
   'character.todayXp': m('{n} / {cap} XP', { n: 'int', cap: 'int' }),
   'character.max': 'max',
   'character.spendTitle': m('Spend {cost} XP on {skill} rank {rank}', { cost: 'int', skill: 'text', rank: 'int' }),

@@ -184,7 +184,7 @@ A timed state between two vehicles, like a feud or a tow, is owned by `src/sim/s
 | combat | 10 | false |
 | lootWarning | 30 | false |
 | crew | 300 | true |
-| hire | 5760 | true |
+| hire | 450 | true |
 | lookOver |  | false |
 | sizedUp |  | false |
 | cavalcade |  | true |

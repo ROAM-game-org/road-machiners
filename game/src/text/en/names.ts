@@ -297,7 +297,7 @@ export const NAMES = {
   'perk.readDriver': 'Read the driver',
   'perk.readDriver.rule': 'You see the traits of other drivers.',
   'perk.spotter': 'Spotter',
-  'perk.spotter.rule': 'Mark a seen truck, and it stays tracked for a day.',
+  'perk.spotter.rule': m('Mark a seen truck, and it stays tracked for {span}.', { span: 'text' }),
   'perk.cargoEye': 'Cargo eye',
   'perk.cargoEye.rule': 'You see the goods and spare parts in any seen truck.',
   'perk.nightEyes': 'Night eyes',
