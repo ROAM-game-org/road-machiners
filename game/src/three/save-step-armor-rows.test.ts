@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import FORMAT_2_120 from './save-fixtures/format-2-120.json';
 import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
-import { armorRowCell_126_127 } from './save-steps-late';
+import { armorRowCell_127_128 } from './save-steps-late';
 
 type Spot = { x: number; y: number; rot: number };
 type Step = { moves: { itemId: string; from: Spot; to: Spot }[]; pickup: { itemId: string; to: Spot } | null };
@@ -11,9 +11,9 @@ const step = TINY_STEPS.find((s) => s.name === 'withArmorRowsOutside')!;
 const migrated = (): Saved => step.step(structuredClone(FORMAT_2_120) as SavedJson) as unknown as Saved;
 const rowsOf = (world: Saved, vehicleId: string) => Object.fromEntries(world.vehicles.find((v) => v.id === vehicleId)!.items.map((it) => [it.id, it.y]));
 
-describe('save migration 126 to 127, armor rows outside the truck', () => {
-  it('is the tiny step from format 126', () => {
-    expect(TINY_STEPS[126 - TINY_FROM]).toBe(step);
+describe('save migration 127 to 128, armor rows outside the truck', () => {
+  it('is the tiny step from format 127', () => {
+    expect(TINY_STEPS[127 - TINY_FROM]).toBe(step);
   });
 
   it('moves inner rows down one, keeps front armor on the front row and sends back armor to the new back row', () => {
@@ -49,16 +49,16 @@ describe('save migration 126 to 127, armor rows outside the truck', () => {
 
   it('is a bijection onto the new grid, so no two items can land on one cell', () => {
     for (const rows of [8, 9, 16, 29]) {
-      const plain = Array.from({ length: rows + 3 }, (_, y) => armorRowCell_126_127(rows, y, false));
+      const plain = Array.from({ length: rows + 3 }, (_, y) => armorRowCell_127_128(rows, y, false));
       expect(new Set(plain).size).toBe(plain.length);
-      const shields = [0, rows - 1].map((y) => armorRowCell_126_127(rows, y, true));
+      const shields = [0, rows - 1].map((y) => armorRowCell_127_128(rows, y, true));
       expect(shields).toEqual([0, rows + 1]);
       expect(shields.some((y) => plain.includes(y))).toBe(false);
     }
   });
 
   it('refuses a row that is not a whole number of zero or more', () => {
-    expect(() => armorRowCell_126_127(8, -1, false)).toThrow();
-    expect(() => armorRowCell_126_127(8, 1.5, false)).toThrow();
+    expect(() => armorRowCell_127_128(8, -1, false)).toThrow();
+    expect(() => armorRowCell_127_128(8, 1.5, false)).toThrow();
   });
 });

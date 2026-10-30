@@ -341,10 +341,11 @@ describe('ship relics', () => {
     return found;
   };
 
-  it('turn up in hull caches at their chance, in field spots less, and nowhere else', () => {
-    expect(relicsAfterRolls(SALVAGE.hullCache, 2000) / 2000).toBeCloseTo(SALVAGE.hullCache.relicChance, 1);
-    expect(relicsAfterRolls(SALVAGE.hullScrap, 2000) / 2000).toBeCloseTo(SALVAGE.hullScrap.relicChance, 1);
-    for (const table of [SALVAGE.landmark, SALVAGE.roadWreck, SALVAGE.farmStores, SALVAGE.armyStores, SALVAGE.engineScrap, SALVAGE.cityStores, ...Object.values(OLD_TABLES)])
+  it('turn up in every wreck at its chance and in no store', () => {
+    for (const table of [SALVAGE.hullCache, SALVAGE.hullScrap, SALVAGE.engineScrap])
+      expect(relicsAfterRolls(table, 2000) / 2000).toBeCloseTo(table.relicChance, 1);
+    expect(relicsAfterRolls(SALVAGE.roadWreck, 5000) / 5000).toBeCloseTo(SALVAGE.roadWreck.relicChance, 2);
+    for (const table of [SALVAGE.landmark, SALVAGE.farmStores, SALVAGE.armyStores, SALVAGE.cityStores])
       expect(relicsAfterRolls(table, 500)).toBe(0);
   });
 

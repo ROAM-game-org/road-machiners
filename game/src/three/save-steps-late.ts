@@ -824,82 +824,82 @@ export function withRouteStyles_124_125(world: SavedJson): SavedJson {
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(styled) };
 }
 
-const OLD_ROWS_126_127: Readonly<Record<string, number>> = {
+const OLD_ROWS_127_128: Readonly<Record<string, number>> = {
   scout: 8, hauler: 9, buggy: 8, wagon: 9, courier: 9, van: 9, longbed: 11, carrier: 9, tractor: 9, jeep: 9,
   convertible: 9, bus: 12, loader: 9, niva: 10, bukhanka: 10, lincoln: 11, semi: 29, sorokonoga: 16,
 };
 
-const SHIELDS_126_127: ReadonlySet<string> = new Set([
+const SHIELDS_127_128: ReadonlySet<string> = new Set([
   'plates', 'cage', 'ram', 'scrapPanels', 'ceramicPlates', 'spacedArmor', 'reinforcedCage', 'plowRam', 'claymoreRam', 'steelPlate', 'scrapSheet',
   'ceramicTile', 'spacedTile', 'cageSection', 'reinforcedSection', 'spikeCluster', 'spikeStrip',
 ]);
 
-function armorEdgeRow_126_127(rows: number, y: number, shield: boolean): number | null {
+function armorEdgeRow_127_128(rows: number, y: number, shield: boolean): number | null {
   if (y === 0) return shield ? 0 : 1;
   if (y === rows - 1) return shield ? rows + 1 : rows;
   return null;
 }
 
-export function armorRowCell_126_127(rows: number, y: number, shield: boolean): number {
+export function armorRowCell_127_128(rows: number, y: number, shield: boolean): number {
   if (!Number.isInteger(y) || y < 0) throw new Error(`A grid item at row ${y} cannot move onto the outside armor rows`);
   if (y >= rows) return y + 2;
-  return armorEdgeRow_126_127(rows, y, shield) ?? y + 1;
+  return armorEdgeRow_127_128(rows, y, shield) ?? y + 1;
 }
 
-export function armorRowOfItem_126_127(chassisId: string, y: number, defId: string | null): number {
-  const rows = OLD_ROWS_126_127[chassisId];
-  return rows === undefined ? y : armorRowCell_126_127(rows, y, defId !== null && SHIELDS_126_127.has(defId));
+export function armorRowOfItem_127_128(chassisId: string, y: number, defId: string | null): number {
+  const rows = OLD_ROWS_127_128[chassisId];
+  return rows === undefined ? y : armorRowCell_127_128(rows, y, defId !== null && SHIELDS_127_128.has(defId));
 }
 
-function partDefsOf_126_127(node: unknown, out: Map<string, string>): Map<string, string> {
-  if (Array.isArray(node)) node.forEach((n) => partDefsOf_126_127(n, out));
+function partDefsOf_127_128(node: unknown, out: Map<string, string>): Map<string, string> {
+  if (Array.isArray(node)) node.forEach((n) => partDefsOf_127_128(n, out));
   else if (node !== null && typeof node === 'object') {
     const record = node as SavedJson;
     if (typeof record.id === 'string' && typeof record.defId === 'string') out.set(record.id, record.defId);
-    Object.values(record).forEach((n) => partDefsOf_126_127(n, out));
+    Object.values(record).forEach((n) => partDefsOf_127_128(n, out));
   }
   return out;
 }
 
-type Spot_126_127 = SavedJson & { x: number; y: number };
-type Moved_126_127 = (spot: Spot_126_127, defId: string | null) => Spot_126_127;
+type Spot_127_128 = SavedJson & { x: number; y: number };
+type Moved_127_128 = (spot: Spot_127_128, defId: string | null) => Spot_127_128;
 
-function mappedStep_126_127(step: SavedJson, defs: Map<string, string>, vehicleItems: Map<string, string | null>, move: Moved_126_127): SavedJson {
-  const moves = (step.moves as SavedJson[]).map((m) => ({ ...m, from: move(m.from as Spot_126_127, vehicleItems.get(m.itemId as string) ?? null), to: move(m.to as Spot_126_127, vehicleItems.get(m.itemId as string) ?? null) }));
+function mappedStep_127_128(step: SavedJson, defs: Map<string, string>, vehicleItems: Map<string, string | null>, move: Moved_127_128): SavedJson {
+  const moves = (step.moves as SavedJson[]).map((m) => ({ ...m, from: move(m.from as Spot_127_128, vehicleItems.get(m.itemId as string) ?? null), to: move(m.to as Spot_127_128, vehicleItems.get(m.itemId as string) ?? null) }));
   const pickup = step.pickup as SavedJson | null;
-  return { ...step, moves, pickup: pickup && { ...pickup, to: move(pickup.to as Spot_126_127, defs.get(pickup.partId as string) ?? null) } };
+  return { ...step, moves, pickup: pickup && { ...pickup, to: move(pickup.to as Spot_127_128, defs.get(pickup.partId as string) ?? null) } };
 }
 
-function refitSteps_126_127(job: SavedJson | null): SavedJson[] {
+function refitSteps_127_128(job: SavedJson | null): SavedJson[] {
   return job?.kind === 'refit' ? [job, ...(job.queue as SavedJson[])] : [];
 }
 
-function itemDefsOf_126_127(items: (Spot_126_127 & { id: string; part?: SavedJson })[], job: SavedJson | null, defs: Map<string, string>): Map<string, string | null> {
+function itemDefsOf_127_128(items: (Spot_127_128 & { id: string; part?: SavedJson })[], job: SavedJson | null, defs: Map<string, string>): Map<string, string | null> {
   const itemDefs = new Map(items.map((it) => [it.id, (it.part?.defId as string | undefined) ?? null]));
-  for (const step of refitSteps_126_127(job)) {
+  for (const step of refitSteps_127_128(job)) {
     const pickup = step.pickup as SavedJson | null;
     if (pickup) itemDefs.set(pickup.itemId as string, defs.get(pickup.partId as string) ?? null);
   }
   return itemDefs;
 }
 
-function armorRowsOutside_126_127(v: SavedJson, defs: Map<string, string>, rows: number): SavedJson {
-  const shield = (defId: string | null) => defId !== null && SHIELDS_126_127.has(defId);
-  const move: Moved_126_127 = (spot, defId) => ({ ...spot, y: armorRowCell_126_127(rows, spot.y, shield(defId)) });
-  const items = v.items as (Spot_126_127 & { id: string; part?: SavedJson })[];
+function armorRowsOutside_127_128(v: SavedJson, defs: Map<string, string>, rows: number): SavedJson {
+  const shield = (defId: string | null) => defId !== null && SHIELDS_127_128.has(defId);
+  const move: Moved_127_128 = (spot, defId) => ({ ...spot, y: armorRowCell_127_128(rows, spot.y, shield(defId)) });
+  const items = v.items as (Spot_127_128 & { id: string; part?: SavedJson })[];
   const job = v.job as SavedJson | null;
-  const itemDefs = itemDefsOf_126_127(items, job, defs);
+  const itemDefs = itemDefsOf_127_128(items, job, defs);
   const moved = items.map((it) => move(it, itemDefs.get(it.id) ?? null));
   if (job?.kind !== 'refit') return { ...v, items: moved };
-  const queue = (job.queue as SavedJson[]).map((s) => mappedStep_126_127(s, defs, itemDefs, move));
-  return { ...v, items: moved, job: { ...job, ...mappedStep_126_127(job, defs, itemDefs, move), queue } };
+  const queue = (job.queue as SavedJson[]).map((s) => mappedStep_127_128(s, defs, itemDefs, move));
+  return { ...v, items: moved, job: { ...job, ...mappedStep_127_128(job, defs, itemDefs, move), queue } };
 }
 
-export function withArmorRowsOutside_126_127(world: SavedJson): SavedJson {
-  const defs = partDefsOf_126_127(world, new Map());
+export function withArmorRowsOutside_127_128(world: SavedJson): SavedJson {
+  const defs = partDefsOf_127_128(world, new Map());
   const vehicles = (world.vehicles as SavedJson[]).map((v) => {
-    const rows = OLD_ROWS_126_127[v.chassisId as string];
-    return rows === undefined ? v : armorRowsOutside_126_127(v, defs, rows);
+    const rows = OLD_ROWS_127_128[v.chassisId as string];
+    return rows === undefined ? v : armorRowsOutside_127_128(v, defs, rows);
   });
   return { ...world, vehicles };
 }
