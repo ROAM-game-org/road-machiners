@@ -11,6 +11,7 @@ export type PublicEvent = ReactionCountEvent | ReactionEvent | ForwardEvent | Co
 
 export type CommentKind = DecisionKind | 'rejected';
 export type PublicRoute = 'none' | 'patch' | 'redesign';
+const CLOSED_UNATTEMPTED = 'posted_at is null and attempted_at is null and closed_at is not null';
 export type Proposal = { issue: number; pitch: string; chat: string | null; messageId: number | null; postedAt: string | null; closedAt: string | null };
 export type Tally = { up: number; down: number };
 export type BuildPost = { issue: number; build: string; chat: string; messageId: number; postedAt: string };
@@ -164,8 +165,12 @@ export class PublicStore {
     this.db.prepare('update proposals set shown_footer = ? where issue = ?').run(footer, issue);
   }
 
+  closedUnattempted(issue: number): boolean {
+    return this.db.prepare(`select 1 from proposals where issue = ? and ${CLOSED_UNATTEMPTED}`).get(issue) !== undefined;
+  }
+
   reopenUnattempted(issue: number): boolean {
-    return this.db.prepare('update proposals set closed_at = null where issue = ? and posted_at is null and attempted_at is null and closed_at is not null').run(issue).changes === 1;
+    return this.db.prepare(`update proposals set closed_at = null where issue = ? and ${CLOSED_UNATTEMPTED}`).run(issue).changes === 1;
   }
 
   closeProposal(issue: number, now: Date): void {

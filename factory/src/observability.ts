@@ -11,7 +11,7 @@ export type Activity = typeof ACTIVITIES[number];
 export const MILESTONE_PATTERN = /^[A-Za-z0-9 ,.'-]{3,80}$/;
 export type Milestone = string;
 export type ActivityData = { type: 'activity'; activity: Activity; phase: 'running' | 'completed' | 'failed'; source: 'runner' | 'agent'; milestone?: Milestone | null; progressAt?: string | null; ownerPid?: number | null };
-export type SchedulerData = { type: 'scheduler'; status: 'checking' | 'ready' | 'paused' | 'disk-low' | 'failed'; report: ScheduleReport | null; counts: Partial<Record<Column, number>> };
+export type SchedulerData = { type: 'scheduler'; status: 'checking' | 'ready' | 'paused' | 'disk-low' | 'memory-low' | 'failed'; report: ScheduleReport | null; counts: Partial<Record<Column, number>> };
 export type ManagerData = { type: 'manager'; activity: Activity; intent?: Activity | null; phase: 'running' | 'completed' | 'failed'; issue: number | null };
 export type AttemptData = { type: 'attempt'; jobId: string; stage: JobStage; issue: number | null; startedAt: string; outcome: JobOutcome | 'started'; previousId: string | null };
 export type ObservationData = ActivityData | SchedulerData | ManagerData | AttemptData;
@@ -51,7 +51,7 @@ function validateManagerIntent(data: ManagerData): void {
   if (data.intent != null && !ACTIVITIES.includes(data.intent)) throw new Error('Invalid manager intent');
 }
 function validateScheduler(data: SchedulerData): void {
-  if (!['checking', 'ready', 'paused', 'disk-low', 'failed'].includes(data.status)) throw new Error('Invalid scheduler status');
+  if (!['checking', 'ready', 'paused', 'disk-low', 'memory-low', 'failed'].includes(data.status)) throw new Error('Invalid scheduler status');
   for (const [column, count] of Object.entries(data.counts)) validateFunnelCount(column, count);
   if (data.report === null) return;
   for (const decision of data.report.decisions) validateDecision(decision);

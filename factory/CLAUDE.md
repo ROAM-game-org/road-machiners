@@ -38,3 +38,4 @@ Run these from `factory/`. Run `npm ci` first.
 - A change to factory state, like a new state field, queue or card position, updates `docs/state.md`, `src/position.ts` and the `factory` CLI in `src/ctl.ts` in the same commit.
 - A new column, job stage, queue, activity or wait reason needs a label in `src/dashboard/labels.ts`. `npm run typecheck` fails until it has one.
 - The factory never imports game code.
+- The game suite contract spans both branches: the workflow on `main`, and the runner and its failure record in the tested commit on `dev`. A change to it lands on `main` and `dev` in the same session. A dispatch from `main` on a `dev` commit proves it before the factory relies on it.

@@ -1,6 +1,6 @@
 # Agent image: Claude Code with the ultrapack plugin, Codex and agy, an entry script that links the game's project skills, plus the browser tooling the game's tests and builds need.
 # The Playwright tag matches the playwright version in game/package-lock.json.
-FROM mcr.microsoft.com/playwright:v1.63.0-noble
+FROM mcr.microsoft.com/playwright:v1.64.1-noble
 
 # ffmpeg serves the game's sound scripts. Pillow serves the compare sheets of the Blender image skill. The X and GL libraries let Blender load in background mode.
 # Graphviz renders the factory's process diagrams, which a factory change updates.

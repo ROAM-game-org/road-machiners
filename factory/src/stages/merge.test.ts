@@ -3,9 +3,10 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readLedger } from '../ledger';
 import { EMPTY_STATE, readState, updateState, writeState } from '../state';
-import { RELEASE_TASK_LABEL, STUCK_LABEL, type AgentRun, type Card, type Ctx } from '../types';
+import { RELEASE_TASK_LABEL, STUCK_LABEL, type AgentRun, type Card, type Ctx, type FailedTest, type Failure, type SuiteFailures, type SuiteScope } from '../types';
 import { CheckTimeoutError } from '../container';
-import { BudgetError } from './checkpoint';
+import { causeOf } from '../fail';
+import { BaselineFailureError, BudgetError } from './checkpoint';
 
 const deployed: string[] = [];
 vi.mock('../deploy', () => ({ deployDev: async () => { deployed.push('dev'); return 'https://play.test/dev/'; } }));
@@ -31,6 +32,8 @@ let scripts: string[] = [];
 let heads = 0;
 let suites: string[] = [];
 let failingSuites = 0;
+let suitePlan: { passed: boolean; record: SuiteFailures | null }[] = [];
+let baselineDown = false;
 let suiteDown = false;
 let replaced: string[] = [];
 let dirty: string[] = [];
@@ -62,6 +65,8 @@ beforeEach(() => {
   heads = 0;
   suites = [];
   failingSuites = 0;
+  suitePlan = [];
+  baselineDown = false;
   suiteDown = false;
   replaced = [];
   dirty = [];
@@ -83,16 +88,17 @@ function fakeCtx(budget = 5): Ctx {
       comment: async (issue: number, body: string) => { comments.push(`${issue} ${body}`); },
       addLabel: async (issue: number, label: string) => { calls.push(`label ${issue} ${label}`); },
       move: async (issue: number, column: string) => { calls.push(`move ${issue} ${column}`); },
-      dispatchSuite: async (sha: string) => {
-        if (suiteDown) throw new Error('HTTP 503');
-        calls.push(`suite ${sha}`);
+      dispatchSuite: async (sha: string, scope?: SuiteScope) => {
+        if (suiteDown || (scope !== undefined && baselineDown)) throw new Error('HTTP 503');
+        calls.push(scope === undefined ? `suite ${sha}` : `rerun ${sha} ${scope.files.join(',')} workers ${scope.workers}`);
         return suites.push(sha);
       },
       suiteRun: async (id: number) => {
-        const failed = id <= failingSuites;
+        const failed = suitePlan.length > 0 ? !suitePlan[id - 1]!.passed : id <= failingSuites;
         return { done: true, started: true, passed: !failed, testsFailed: failed, conclusion: failed ? 'failure' : 'success', url: `https://github.com/o/r/actions/runs/${id}` };
       },
       suiteLog: async (id: number) => `FAIL src/sim/raid.test.ts in run ${id}`,
+      suiteFailures: async (id: number) => suitePlan[id - 1]?.record ?? null,
     },
     telegram: { sendMessage: async (_chat: string, text: string) => { calls.push(`message ${text}`); return 1; } },
     container: {
@@ -114,6 +120,7 @@ function fakeCtx(budget = 5): Ctx {
         return merges[branch]?.shift() ?? { commit: null, conflicts: [] };
       },
       fetchFromWork: async () => 'head1',
+      headHash: async (branch: string) => `${branch}-tip`,
       changedInWork: async (_dir: string, from: string) => (from === 'head1' ? movedBy : changed),
       workHead: async () => `merged${++heads}`,
       diff: async () => diff,
@@ -149,6 +156,21 @@ describe('merge queue', () => {
     expect(readState(`${home}/state.json`).approvedResolving).toEqual({});
   });
 
+  it('clears the earlier failures of each merged card, and keeps a batch row for a member that did not merge', async () => {
+    const row = (over: Partial<Failure>): Failure => ({ stage: 'merge', issue: null, error: 'timed out', cause: 'timeout', log: null, at: '2026-09-29T10:00:00.000Z', ...over });
+    updateState(`${home}/state.json`, (state) => ({ ...state, failures: [
+      row({ batch: [5, 6] }),
+      row({ batch: [5, 7] }),
+      row({ stage: 'catch-up', issue: 5, error: 'catch-up timed out' }),
+      row({ stage: 'verify', issue: 8, error: 'other card' }),
+    ] }));
+    await merge(fakeCtx());
+    expect(readState(`${home}/state.json`).failures).toEqual([
+      row({ batch: [5, 7], cleared: [5] }),
+      row({ stage: 'verify', issue: 8, error: 'other card' }),
+    ]);
+  });
+
   it('runs the full suite on GitHub Actions for the merged head, and only the playtest and build on the server', async () => {
     changed = ['game/src/sim/fuel.ts', 'game/docs/notes.md'];
     await merge(fakeCtx());
@@ -174,6 +196,97 @@ describe('merge queue', () => {
     expect(runs[0]!.prompt).toContain('The full suite failed on GitHub Actions for head1');
     expect(runs[0]!.prompt).toContain('FAIL src/sim/raid.test.ts in run 1');
     expect(calls.filter((call) => /^(suite|checks|agent|push)/.test(call))).toEqual(['suite head1', 'checks', 'agent', 'suite head1', 'checks', 'push head1 dev']);
+  });
+
+  describe('failures the base also has (#1103)', () => {
+    const RAID = { file: 'src/sim/raid.test.ts', test: 'raids > reach 5' };
+    const FUEL = { file: 'src/sim/fuel.test.ts', test: 'burns fuel' };
+    const failing = (...failed: FailedTest[]) => ({ passed: false, record: { failed, unhandledErrors: 0 } });
+    const ledgerBaselines = () => readLedger(home, new Date(0)).filter((line) => line.kind === 'baseline');
+
+    it('fails with the baseline cause and no fix round when every failed test fails on the base too', async () => {
+      changed = ['game/src/sim/fuel.ts'];
+      suitePlan = [failing(RAID), failing(RAID)];
+      const error = await merge(fakeCtx()).catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(BaselineFailureError);
+      expect(causeOf(error)).toBe('baseline');
+      expect(runs).toEqual([]);
+      expect(calls.filter((call) => /^(suite|rerun|agent|push)/.test(call))).toEqual(['suite head1', 'rerun dev-tip src/sim/raid.test.ts workers 1']);
+      expect(calls).toContain('label 5 factory-stuck');
+      expect(calls).toContain('label 6 factory-stuck');
+      expect(comments.filter((comment) => comment.includes('fail only on tests that also fail on dev at dev-tip'))).toHaveLength(2);
+      expect(comments[0]).toContain('- src/sim/raid.test.ts > raids > reach 5');
+      expect(ledgerBaselines()).toMatchObject([{ stage: 'merge', into: 'dev', base: 'dev-tip', head: 'head1', excluded: [RAID], failing: [] }]);
+    });
+
+    it('sends only the new failures to the session, names the base ones, and still fails on the base ones alone after the fix', async () => {
+      changed = ['game/src/sim/fuel.ts'];
+      suitePlan = [failing(RAID, FUEL), failing(RAID), failing(RAID), failing(RAID)];
+      await expect(merge(fakeCtx())).rejects.toBeInstanceOf(BaselineFailureError);
+      expect(runs).toHaveLength(1);
+      expect(runs[0]!.prompt).toContain('Leave them alone: src/sim/raid.test.ts > raids > reach 5.');
+      expect(runs[0]!.prompt).toContain('Fix these, which fail only here: src/sim/fuel.test.ts > burns fuel.');
+      expect(calls.filter((call) => /^(suite|rerun|agent|push)/.test(call))).toEqual([
+        'suite head1', 'rerun dev-tip src/sim/fuel.test.ts,src/sim/raid.test.ts workers 1', 'agent', 'suite head1', 'rerun dev-tip src/sim/raid.test.ts workers 1',
+      ]);
+      expect(ledgerBaselines().map((line) => line.kind === 'baseline' && line.failing)).toEqual([[FUEL], []]);
+    });
+
+    it('never counts a file that failed as a whole as the base\'s, so its own failures reach the session', async () => {
+      changed = ['game/src/sim/fuel.ts'];
+      const whole = { file: 'src/sim/raid.test.ts', test: null };
+      suitePlan = [failing(whole), failing(whole), { passed: true, record: null }];
+      await merge(fakeCtx());
+      expect(runs).toHaveLength(1);
+      expect(runs[0]!.prompt).not.toContain('Leave them alone');
+      expect(ledgerBaselines()).toEqual([]);
+    });
+
+    it('labels the cards stuck and keeps the baseline cause when the card comment fails', async () => {
+      changed = ['game/src/sim/fuel.ts'];
+      suitePlan = [failing(RAID), failing(RAID)];
+      const ctx = fakeCtx();
+      ctx.github.comment = async () => { throw new Error('gh: HTTP 502'); };
+      const error = await merge(ctx).catch((caught: unknown) => caught);
+      expect(causeOf(error)).toBe('baseline');
+      expect(calls).toContain('label 5 factory-stuck');
+      expect(calls).toContain('label 6 factory-stuck');
+    });
+
+    it('keeps the whole failure when the base passes the failed tests', async () => {
+      changed = ['game/src/sim/fuel.ts'];
+      suitePlan = [failing(RAID), { passed: true, record: { failed: [], unhandledErrors: 0 } }, { passed: true, record: null }];
+      await merge(fakeCtx());
+      expect(runs).toHaveLength(1);
+      expect(runs[0]!.prompt).not.toContain('Leave them alone');
+      expect(calls).toContain('push head1 dev');
+      expect(ledgerBaselines()).toEqual([]);
+    });
+
+    it('keeps the whole failure, with no rerun, when the run left no record or unhandled errors', async () => {
+      changed = ['game/src/sim/fuel.ts'];
+      suitePlan = [{ passed: false, record: null }, { passed: false, record: { failed: [RAID], unhandledErrors: 1 } }, { passed: true, record: null }];
+      await merge(fakeCtx());
+      expect(runs).toHaveLength(2);
+      expect(calls.some((call) => call.startsWith('rerun'))).toBe(false);
+    });
+
+    it('keeps the whole failure when the rerun on the base cannot run or leaves no record', async () => {
+      changed = ['game/src/sim/fuel.ts'];
+      baselineDown = true;
+      suitePlan = [failing(RAID), { passed: true, record: null }];
+      await merge(fakeCtx());
+      expect(runs).toHaveLength(1);
+      expect(logs.some((line) => line.includes('could not run, so every failure counts'))).toBe(true);
+      baselineDown = false;
+      runs = [];
+      calls = [];
+      suites = [];
+      suitePlan = [failing(RAID), { passed: false, record: null }, { passed: true, record: null }];
+      await merge(fakeCtx());
+      expect(runs).toHaveLength(1);
+      expect(runs[0]!.prompt).not.toContain('Leave them alone');
+    });
   });
 
   it('sends a fix left uncommitted back to the merge session before any suite runs', async () => {

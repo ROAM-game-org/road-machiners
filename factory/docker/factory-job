@@ -35,6 +35,17 @@ report() {
     fi
     tail -n 20 "$dir/log" 2>/dev/null || true
 }
+live_in_group() {
+    ps -eo pgid=,stat=,pid=,args= | awk -v group="$1" '$1 == group && $2 !~ /^Z/'
+}
+settle() {
+    tries=0
+    while [ -n "$(live_in_group "$1")" ]; do
+        tries=$((tries + 1))
+        [ "$tries" -le 20 ] || return 1
+        sleep 0.5
+    done
+}
 wait_seconds=${FACTORY_JOB_WAIT_SECONDS:-540}
 [ "$#" -ge 2 ] || usage
 action=$1
@@ -54,7 +65,8 @@ case "$action" in
         printf '%s' "$4" > "$dir/limit"
         date +%s > "$dir/started"
         # setsid detaches the job, so it outlives this call. timeout runs the command in a process group of its own, and its pid names that group for stop.
-        setsid sh -c 'timeout --kill-after=30s "$1m" sh -c "$2" > "$3/log" 2>&1 & echo $! > "$3/pid.tmp"; mv "$3/pid.tmp" "$3/pid"; wait $!; echo $? > "$3/exit"' _ "$4" "$5" "$dir" < /dev/null > /dev/null 2>&1 &
+        # When the command ends, any process left in its group is killed, since a busy vite-node sim ignores TERM and would hold its memory for the rest of the container.
+        setsid sh -c 'timeout --kill-after=30s "$1m" sh -c "$2" > "$3/log" 2>&1 & echo $! > "$3/pid.tmp"; mv "$3/pid.tmp" "$3/pid"; wait $!; code=$?; kill -s KILL -- "-$(cat "$3/pid")" 2>/dev/null; echo $code > "$3/exit"' _ "$4" "$5" "$dir" < /dev/null > /dev/null 2>&1 &
         tries=0
         until [ -f "$dir/pid" ]; do
             tries=$((tries + 1))
@@ -82,7 +94,14 @@ case "$action" in
         [ "$#" -eq 2 ] || usage
         [ -f "$dir/pid" ] || { printf 'No job %s\n' "$2" >&2; exit 2; }
         [ -f "$dir/exit" ] && { printf 'Job %s already ended\n' "$2"; exit 0; }
-        kill -s TERM -- "-$(cat "$dir/pid")"
+        group=$(cat "$dir/pid")
+        kill -s TERM -- "-$group" 2>/dev/null || true
+        settle "$group" || kill -s KILL -- "-$group" 2>/dev/null || true
+        if ! settle "$group"; then
+            printf 'Job %s still has processes after a KILL:\n' "$2" >&2
+            live_in_group "$group" >&2
+            exit 1
+        fi
         printf 'Stopped job %s.\n' "$2"
         ;;
     *) usage ;;
