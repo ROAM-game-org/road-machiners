@@ -1,8 +1,7 @@
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { TARGET_DAYS, TARGET_TOLERANCE, XP_RULES, XP_SOURCES } from '../../data/skills';
-import { TIME } from '../../data/time';
+import { TIME, workDayOf } from '../../data/time';
 import { cumulativeCost } from '../progress';
-import { clockOf } from '../sun';
 import type { TraceLine } from './record';
 import { parseRunEnd, replay, targetMisses, type Curve } from './replay';
 
@@ -22,9 +21,9 @@ const search = (turn: number, amount: number): TraceLine => ({ turn, source: 'se
 describe('replay', () => {
   it('applies the daily cap per family and per day', () => {
     simpleSearchXp();
-    const dayTwo = TIME.workDayTurns * 0.75;
-    expect(clockOf(40).day).toBe(1);
-    expect(clockOf(dayTwo).day).toBe(2);
+    const dayTwo = TIME.workDayTurns + 40;
+    expect(workDayOf(40)).toBe(0);
+    expect(workDayOf(dayTwo)).toBe(1);
 
     const curve = replay([search(10, 100), search(40, 400), search(dayTwo, 50), search(dayTwo + 10, 150)], 2 * TIME.workDayTurns);
 
