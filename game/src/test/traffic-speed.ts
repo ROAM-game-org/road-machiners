@@ -1,10 +1,5 @@
-// Traffic speed harness: plays a world of NPCs through the real turn pipeline and samples how fast each truck drives
-// on the road, in km/h of the path it drove that turn. Samples fall into classes (healthy ordinary cars, ordinary cars
-// on low fuel, worn ordinary cars, armed and heavy roles, towing rigs) so a before-and-after comparison reads per class.
 
-import { defaultSetup } from '../sim/settings';
 import { PHYSICS } from '../data/physics';
-import { START_KITS } from '../data/start';
 import { TERRAIN_TYPES } from '../data/terrain';
 import { buildDrive, freeDrive, initPhysics, type Drive } from '../phys/drive';
 import { physicsMove } from '../phys/turn';
@@ -14,17 +9,15 @@ import { advanceFar } from '../sim/far';
 import { mountedParts, coreParts } from '../sim/grid';
 import { loadFactor } from '../sim/mass';
 import { getResources } from '../sim/resources';
-import { fuelCap, getMobilityCondition, gunDrag, isStranded, vehicleStats } from '../sim/stats';
+import { fuelCap, getMobilityCondition, gunCapacity, gunDrag, isStranded, vehicleStats } from '../sim/stats';
 import { tileAt } from '../sim/terrain';
 import { isOnRope, isTowing } from '../sim/tow';
-import type { EngineDef } from '../data/parts';
 import type { Pose, Vehicle, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
-import { wornDef } from '../sim/wear';
 import { weatherAt } from '../sim/weather';
-import { endTurn, newWorld } from '../sim/world';
+import { endTurn } from '../sim/world';
 import { RULES } from '../data/rules';
-import { TEST_MAP } from './map';
+import { standardWorld } from './world-cache';
 
 export type TrafficLayer = 'physics' | 'far';
 export const TRAFFIC_LAYERS: readonly TrafficLayer[] = ['physics', 'far'];
@@ -77,6 +70,8 @@ export type TrafficRun = {
   resupplyStarts: number;
   maxDry: number;
   collisions: number;
+  truckCollisions: number;
+  damagingTruckCollisions: number;
 };
 
 export function classify(s: TrafficSample): TrafficClass {
@@ -147,6 +142,8 @@ export type TrafficSummary = {
   resupplyStarts: number;
   maxDry: number;
   collisionsPer100NpcTurns: number;
+  truckCollisionsPer100NpcTurns: number;
+  damagingTruckCollisionsPer100NpcTurns: number;
 };
 
 export function summarize(runs: TrafficRun[]): TrafficSummary {
@@ -168,6 +165,8 @@ export function summarize(runs: TrafficRun[]): TrafficSummary {
     resupplyStarts: runs.reduce((a, r) => a + r.resupplyStarts, 0),
     maxDry: Math.max(...runs.map((r) => r.maxDry)),
     collisionsPer100NpcTurns: npcTurns ? (100 * runs.reduce((a, r) => a + r.collisions, 0)) / npcTurns : NaN,
+    truckCollisionsPer100NpcTurns: npcTurns ? (100 * runs.reduce((a, r) => a + r.truckCollisions, 0)) / npcTurns : NaN,
+    damagingTruckCollisionsPer100NpcTurns: npcTurns ? (100 * runs.reduce((a, r) => a + r.damagingTruckCollisions, 0)) / npcTurns : NaN,
   };
 }
 
@@ -214,15 +213,15 @@ function formatOne(s: TrafficSummary): string {
     ...s.healthyByChassis.map(([id, sp]) => spreadRow(id, sp)),
     '', `Healthy ordinary moving samples under ${SLOW_KPH} km/h by cause: ${SLOW_CAUSES.map((c) => `${c} ${pct(s.healthySlowCauses[c])}`).join(', ')}.`,
     `Low-fuel share of ordinary moving samples: ${pct(s.lowFuelShare)}.`,
-    `Resupply goal starts: ${s.resupplyStarts}. Most NPCs dry at once: ${s.maxDry}. Collisions per 100 NPC turns: ${s.collisionsPer100NpcTurns.toFixed(2)}.`,
+    `Resupply goal starts: ${s.resupplyStarts}. Most NPCs dry at once: ${s.maxDry}. Collisions per 100 NPC turns: ${s.collisionsPer100NpcTurns.toFixed(2)}, between trucks ${s.truckCollisionsPer100NpcTurns.toFixed(2)}, damaging between trucks ${s.damagingTruckCollisionsPer100NpcTurns.toFixed(2)}.`,
   ].join('\n');
 }
 
 export async function recordTraffic(seed: number, turns: number, layer: TrafficLayer): Promise<TrafficRun> {
   if (!TRAFFIC_LAYERS.includes(layer)) throw new Error(`unknown traffic layer "${layer}"`);
-  let w = newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+  let w = standardWorld(seed);
   w.player.god = true;
-  const run: TrafficRun = { seed, layer, turns, samples: [], npcTurns: 0, resupplyStarts: 0, maxDry: 0, collisions: 0 };
+  const run: TrafficRun = { seed, layer, turns, samples: [], npcTurns: 0, resupplyStarts: 0, maxDry: 0, collisions: 0, truckCollisions: 0, damagingTruckCollisions: 0 };
   const play = layer === 'physics' ? await physicsPlayer(w) : farPlayer();
   const goals = new Map<string, string | null>();
   for (let i = 0; i < turns; i++) {
@@ -265,14 +264,25 @@ function startOf(w: World, v: Vehicle, seed: number, layer: TrafficLayer): Traff
     startKph: v.speed * KPH, endKph: 0, drivenKph: 0, maxKph: vehicleStats(w, v).maxSpeed * KPH,
     fuelShare: cap > 0 ? fuel / cap : 0, lowFuel: fuel > 0 && fuel < cap * RULES.lowFuelThreshold,
     mobility: getMobilityCondition(v), brokenWheels: coreParts(v, 'wheel').filter((p) => p.hp <= 0).length,
-    gunDrag: engine ? gunDrag(v, wornDef<EngineDef>(engine).capacity) : 1, loadFactor: loadFactor(v),
+    gunDrag: engine ? gunDrag(v, gunCapacity(v)!) : 1, loadFactor: loadFactor(v),
     weatherSpeed: weatherAt(w, v.pos).speed, onRoad: isRoad(w, v.pos), stranded: isStranded(w, v),
     towing: isTowing(w, v.id), towed: isOnRope(w, v.id), inCombat: inCombat(w, v), goal: v.brain!.goals.at(-1)?.kind ?? null,
   };
 }
 
+function countCollisions(w: World, run: TrafficRun): void {
+  const ids = new Set(w.vehicles.map((v) => v.id));
+  for (const e of w.events) {
+    if (e.t !== 'collision') continue;
+    run.collisions++;
+    if (!ids.has(e.a) || !ids.has(e.b)) continue;
+    run.truckCollisions++;
+    if (e.hitsA.length + e.hitsB.length > 0) run.damagingTruckCollisions++;
+  }
+}
+
 function record(w: World, before: Map<string, TrafficSample>, run: TrafficRun, goals: Map<string, string | null>): void {
-  run.collisions += w.events.filter((e) => e.t === 'collision').length;
+  countCollisions(w, run);
   const drivers = w.vehicles.filter((v) => v.brain);
   run.npcTurns += drivers.length;
   run.maxDry = Math.max(run.maxDry, drivers.filter((v) => getResources(w, v).fuel <= 0).length);

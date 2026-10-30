@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
+import { bedRows } from './chassis-features';
+import { atlasOf, atlasSites } from './atlas';
 import { chassisDef, PLAYER_CHASSIS } from '../data/chassis';
 import { gunSpans } from './armor';
 import { mountedItems } from './grid';
 import { generateNpcLoadout } from './npc-loadout';
 import { partDef } from '../data/parts';
-import { REGION } from '../data/region';
+import { REGION, RETIRED_SITES } from '../data/region';
+import { HOLLOW } from '../data/sunward';
+import { NAMES } from '../text/en/names';
 import { WEATHER } from '../data/weather';
 import { CHEATS, RULES } from '../data/rules';
 import { START_KITS } from '../data/start';
@@ -16,17 +20,19 @@ import {
 import { playerVehicle } from './damage';
 import { maxHealthOf } from './health';
 import { corePart, goodsCount, gridOf, mountedParts } from './grid';
-import { installSpot, removeAllGoods, spareParts, stowSpot } from './inventory';
+import { installSpot, removeAllGoods, spareParts, stowPart, stowSpot } from './inventory';
+import { makePart } from './factory';
 import { clockOf } from './sun';
 import { maxHp } from './wear';
 import { addState, stateOf } from './states';
-import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, startCombat, testDrive } from './testkit';
+import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, sizedUp, startCombat, testDrive } from './testkit';
 import type { World } from './types';
 import { dist } from './vec';
 import { stormStrength } from './weather';
-import { canUseSite, siteGap } from './sites';
-import { endTurn, hostileToPlayer, newWorld } from './world';
-import { TEST_MAP } from '../test/map';
+import { canUseSite, isTerritory, siteGap, worldPlaces } from './sites';
+import { endTurn, hostileToPlayer, newWorld, update } from './world';
+import { highwayMap } from './highway';
+import { standardWorld } from '../test/world-cache';
 import { defaultSetup } from './settings';
 
 function withSpawned(w: World, templateId: string, hostile: boolean): { w: World; id: string } {
@@ -88,15 +94,15 @@ describe('resource cheats', () => {
   });
 
   it('grants a perk below its skill rank', () => {
-    const w = grantPerk(emptyWorld(), 'bountyTalk');
-    expect(w.player.perks).toEqual(['bountyTalk']);
+    const w = grantPerk(emptyWorld(), 'bountyHunter');
+    expect(w.player.perks).toEqual(['bountyHunter']);
   });
 
   it('refuses an unknown perk and a second perk from one pair', () => {
     expect(() => grantPerk(emptyWorld(), 'flying')).toThrow(CheatError);
-    const w = grantPerk(emptyWorld(), 'bountyTalk');
+    const w = grantPerk(emptyWorld(), 'bountyHunter');
     expect(() => grantPerk(w, 'paidTruce')).toThrow(CheatError);
-    expect(() => grantPerk(w, 'bountyTalk')).toThrow(CheatError);
+    expect(() => grantPerk(w, 'bountyHunter')).toThrow(CheatError);
   });
 });
 
@@ -114,7 +120,10 @@ describe('part cheats', () => {
   });
 
   it('spills the cargo off a cargo part it breaks', () => {
-    const w = damagePartTo(emptyWorld(), 'panniers', 0);
+    const loaded = emptyWorld();
+    const row = chassisDef('scout').layout.length + bedRows('scout');
+    playerVehicle(loaded).items.push({ id: 'i-spill', kind: 'good', good: 'scrap', x: 0, y: row, rot: 0 });
+    const w = damagePartTo(loaded, 'panniers', 0);
     const me = playerVehicle(w);
     const g = gridOf(me);
     expect(me.items.filter((it) => it.y >= g.deadFrom)).toEqual([]);
@@ -135,6 +144,14 @@ describe('part cheats', () => {
     const me = playerVehicle(w);
     expect(spareParts(me).map((p) => p.defId)).toContain('plates');
     expect(goodsCount(me).salt).toBe(2);
+  });
+
+  it('gives a part onto free mount cells once the plain cells are full', () => {
+    const w = emptyWorld();
+    const me = playerVehicle(w);
+    while (stowPart(w, me, makePart(w, 'cage', 0)));
+    const cages = (v: typeof me) => v.items.filter((it) => it.kind === 'part' && it.part.defId === 'cage').length;
+    expect(cages(playerVehicle(give(w, 'cage', 1)))).toBe(cages(me) + 1);
   });
 
   it('rejects a give without room and keeps the world unchanged', () => {
@@ -220,7 +237,8 @@ describe('frozen NPCs', () => {
     forceOption('mugging', 'demand');
     const called = (frozen: boolean): boolean => {
       const start = frozen ? toggleFrozen(emptyWorld()) : emptyWorld();
-      const { w } = withSpawned(start, 'gunwagon', true);
+      const { w, id } = withSpawned(start, 'gunwagon', true);
+      sizedUp(w, w.vehicles.find((v) => v.id === id)!, w.vehicles.find((v) => v.id === w.player.vehicleId)!);
       w.rngState = rngStateForForcedRolls(1);
       return endTurn(w, testDrive).player.call !== null;
     };
@@ -274,7 +292,7 @@ describe('instantMoveItem', () => {
 describe('noclipMove', () => {
   it('puts the truck on an obstacle, stops it and refreshes vision', () => {
     const w = emptyWorld();
-    w.obstacles.push({ id: 'rock-x', pos: { x: 80, y: 90 }, r: 2, kind: 'rock' });
+    w.obstacles = [...w.obstacles, { id: 'rock-x', pos: { x: 80, y: 90 }, r: 2, kind: 'rock' }];
     const me = playerVehicle(w);
     me.speed = 3;
     me.order = { kind: 'through', dest: { x: 50, y: 50 } };
@@ -290,7 +308,7 @@ describe('noclipMove', () => {
 
   it('names an open radio call as what blocks the flight', () => {
     const w = emptyWorld();
-    w.player.call = { with: 'v9', topic: null, node: 'demand', vars: {}, line: { line: 'demandCargo', vars: {} } };
+    w.player.call = { with: 'v9', topic: null, node: 'demand', vars: {}, line: { line: 'demandCargo', vars: {} }, group: null, asked: [] };
     expect(() => noclipMove(w, { x: 80, y: 90 })).toThrow('Cannot fly while a radio call is open');
   });
 });
@@ -308,9 +326,10 @@ describe('teleport', () => {
 
   it('finds the nearest free spot next to an obstacle', () => {
     const w = emptyWorld();
-    w.obstacles.push({ id: 'rock-x', pos: { x: 80, y: 90 }, r: 2, kind: 'rock' });
-    const moved = playerVehicle(teleport(w, { x: 80, y: 90 }));
-    const d = dist(moved.pos, { x: 80, y: 90 });
+    const rock = { x: 300, y: 300 };
+    w.obstacles = [...w.obstacles, { id: 'rock-x', pos: rock, r: 2, kind: 'rock' }];
+    const moved = playerVehicle(teleport(w, rock));
+    const d = dist(moved.pos, rock);
     expect(d).toBeGreaterThan(2);
     expect(d).toBeLessThanOrEqual(CHEATS.searchStep * CHEATS.searchRings);
   });
@@ -322,7 +341,7 @@ describe('teleport', () => {
 
   it('rejects a player on a tow rope', () => {
     const w = emptyWorld();
-    const tower = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 40, y: 30 });
+    const tower = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 40, y: 30 });
     addState(w, 'tow', tower.id, w.player.vehicleId, { kind: 'tow', site: REGION.towns[0].id, fee: 10, waived: 0, hitched: true });
     expect(() => teleport(w, { x: 80, y: 90 })).toThrow(/towed/);
   });
@@ -337,17 +356,40 @@ describe('teleport', () => {
 });
 
 describe('places and time', () => {
-  it('teleports to a spot where every town and location can be used', () => {
-    const w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
-    for (const place of [...REGION.towns, ...REGION.locations.filter((l) => l.kind !== 'territory')]) {
-      const next = teleport(w, placeSpot(w, place.id));
-      expect(canUseSite(playerVehicle(next).pos, place), place.id).toBe(true);
+  it('teleports to the usable spot of every named place, found through the name catalog', () => {
+    const w = standardWorld(1);
+    const named = Object.keys(NAMES).filter((key) => key.startsWith('site.')).map((key) => key.slice('site.'.length)).filter((id) => !RETIRED_SITES.includes(id));
+    const places = worldPlaces(w);
+    expect(places.map((p) => p.id).sort()).toEqual([...named].sort());
+    for (const id of named) {
+      const place = places.find((p) => p.id === id)!;
+      const pos = playerVehicle(teleport(w, placeSpot(w, id))).pos;
+      if (isTerritory(place)) expect(Math.abs(siteGap(place, pos)), id).toBeLessThan(1e-6);
+      else expect(canUseSite(pos, place), id).toBe(true);
     }
-    expect(() => placeSpot(w, 'atlantis')).toThrow(new RegExp(REGION.towns[0].id));
+    for (const id of RETIRED_SITES) expect(places.some((p) => p.id === id), id).toBe(false);
+    expect(() => placeSpot(w, 'atlantis')).toThrow(/sunward-hollow/);
+  });
+
+  it('teleports to the Hollow gate pad, also after the order falls', () => {
+    const w = standardWorld(1);
+    const fallen = update(w, (d) => {
+      d.sunward!.collapsed = 5;
+    });
+    for (const world of [w, fallen]) {
+      const pos = playerVehicle(teleport(world, placeSpot(world, 'sunward-hollow'))).pos;
+      expect(canUseSite(pos, HOLLOW.site)).toBe(true);
+      expect(dist(pos, HOLLOW.pos)).toBeGreaterThan(HOLLOW.radius);
+    }
+  });
+
+  it('refuses a place id on Chaos Highway', () => {
+    const w = newWorld(3, START_KITS.chaosHighway, highwayMap(3, 0), defaultSetup('chaosHighway'));
+    expect(() => placeSpot(w, 'orchard')).toThrow(CheatError);
   });
 
   it('sends a teleport to a territory to where its road ends', () => {
-    const w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const w = standardWorld(1);
     const sun = REGION.locations.find((l) => l.id === 'fallen-sun')!;
     expect(Math.abs(siteGap(sun, placeSpot(w, sun.id)))).toBeLessThan(1e-6);
   });
@@ -393,8 +435,15 @@ describe('places and time', () => {
     expect(() => startWeather(w, 'storm', 400, -1)).toThrow(CheatError);
   });
 
-  it('reveals the whole map', () => {
-    expect(revealMap(emptyWorld()).player.explored.every((t) => t === 1)).toBe(true);
+  it('reveals the whole map and charts every place without XP', () => {
+    const before = emptyWorld();
+    const after = revealMap(before);
+    expect(after.player.explored.every((t) => t === 1)).toBe(true);
+    const ids = atlasSites(atlasOf(after.terrain)).map((s) => s.id);
+    expect(ids.length).toBeGreaterThan(0);
+    expect(ids.filter((id) => !after.player.discovered.includes(id))).toEqual([]);
+    expect(after.player.xp).toBe(before.player.xp);
+    expect(after.player.xpToday).toEqual(before.player.xpToday);
   });
 });
 
@@ -474,9 +523,9 @@ describe('vehicle cheats', () => {
 
   it('kills hostiles or all other vehicles', () => {
     const w = emptyWorld();
-    const foe = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const foe = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     addState(w, 'feud', foe.id, w.player.vehicleId, { kind: 'feud', robbery: false });
-    addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 30, y: 40 });
+    addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 30, y: 40 });
     expect(killVehicles(w, 'hostiles').vehicles).toHaveLength(2);
     expect(killVehicles(w, 'all').vehicles.map((v) => v.id)).toEqual([w.player.vehicleId]);
     expect(killVehicles(emptyWorld(), 'hostiles').vehicles).toHaveLength(1);
@@ -490,7 +539,7 @@ describe('vehicle cheats', () => {
 
   it('drops the tow when the tower is killed, so the next turn runs', () => {
     const w = emptyWorld();
-    const tower = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 40, y: 30 });
+    const tower = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 40, y: 30 });
     tower.brain = npcBrain('trader', tower.pos, ['trader']);
     addState(w, 'tow', tower.id, w.player.vehicleId, { kind: 'tow', site: REGION.towns[0].id, fee: 10, waived: 0, hitched: true });
     const next = killVehicles(w, tower.id);
@@ -501,9 +550,9 @@ describe('vehicle cheats', () => {
 
   it('ends feuds with a killed vehicle, so its enemy drops the fight next turn', () => {
     const w = emptyWorld();
-    const hunter = addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const hunter = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 40, y: 30 });
     hunter.brain = npcBrain('scavenger', hunter.pos, ['scavenger']);
-    const prey = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 45, y: 30 });
+    const prey = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 45, y: 30 });
     addState(w, 'feud', hunter.id, prey.id, { kind: 'feud', robbery: false });
     hunter.brain.goals.push({ kind: 'fight', targetId: prey.id, destination: { ...prey.pos }, phase: 'travel', reason: 'tripToSite', worn: { turn: w.turn, condition: 1 } });
     const next = killVehicles(w, prey.id);
@@ -514,12 +563,12 @@ describe('vehicle cheats', () => {
 
   it('lists other vehicles by distance', () => {
     const w = emptyWorld();
-    const far = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 50, y: 30 });
-    const near = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 35, y: 30 });
+    const far = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 50, y: 30 });
+    const near = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 35, y: 30 });
     addState(w, 'feud', near.id, w.player.vehicleId, { kind: 'feud', robbery: false });
     expect(nearbyVehicles(w)).toEqual([
-      { id: near.id, driver: null, templateId: null, faction: 'raiders', distance: 5, hostile: true },
-      { id: far.id, driver: null, templateId: null, faction: 'traders', distance: 20, hostile: false },
+      { id: near.id, driver: null, templateId: null, faction: 'scrapjaw', distance: 5, hostile: true },
+      { id: far.id, driver: null, templateId: null, faction: 'independent', distance: 20, hostile: false },
     ]);
   });
 });

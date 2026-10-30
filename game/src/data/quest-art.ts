@@ -1,15 +1,10 @@
+import type { TownSection } from './quests';
 import { publicUrl } from '../public-url';
+import ENTRIES from './quest-art.json';
 
-export type QuestArt = { file: string; focusX: number };
+export type QuestArt = { file: string; focusX: number; focusY: number };
 
-export const QUEST_ART: Record<string, QuestArt> = {
-  arrival_rim: { file: 'arrival_rim.webp', focusX: 30 },
-  arrival_house: { file: 'arrival_house.webp', focusX: 50 },
-  arrival_pickup: { file: 'arrival_pickup.webp', focusX: 35 },
-  cab_link: { file: 'cab_link.webp', focusX: 62 },
-  fall_cab: { file: 'fall_cab.webp', focusX: 60 },
-  bowl_yard: { file: 'bowl_yard.webp', focusX: 60 },
-};
+export const QUEST_ART: Record<string, QuestArt> = structuredClone(ENTRIES);
 
 export function questArt(key: string): QuestArt {
   const art = QUEST_ART[key];
@@ -20,3 +15,14 @@ export function questArt(key: string): QuestArt {
 export function questArtUrl(key: string): string {
   return publicUrl(`quest-art/${questArt(key).file}`);
 }
+
+export type TownArt = { band: string; sections: Partial<Record<TownSection, string>> };
+export const TOWN_ART: Record<string, TownArt> = {
+  bowl: { band: 'town_bowl', sections: { market: 'bowl_scale' } },
+  nose: { band: 'town_nose', sections: {} },
+  'salvage-yard': { band: 'town_salvage_yard', sections: {} },
+  granary: { band: 'town_granary', sections: {} },
+  'pump-station': { band: 'town_pump_station', sections: {} },
+  dustwell: { band: 'town_dustwell', sections: {} },
+  'green-pit': { band: 'town_green_pit', sections: {} },
+};

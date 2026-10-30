@@ -12,6 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit  # noqa: E402
+from parts_common_core import PROUD  # noqa: E402
 from parts_common_cargo import CARGO_MAX_H, brace, footprint, run  # noqa: E402
 
 SEED = 105
@@ -36,7 +37,7 @@ def build(kit: Kit) -> None:
             kit.box("post", (TUBE, TUBE, HEIGHT - 2 * TUBE), (x, y, HEIGHT / 2), "metal_light")
     # Painted top ring.
     for y in (-hy, hy):
-        kit.box("top_x", (length, TUBE * 1.2, TUBE * 1.2), (0, y, top), "paint", dent_by=0.004)
+        kit.box("top_x", (length, TUBE * 1.2, TUBE * 1.2), (0, y - PROUD * (1 if y > 0 else -1), top), "paint", dent_by=0.004)
     for x in (-hx, hx):
         kit.box("top_y", (TUBE * 1.2, width - 2 * TUBE, TUBE * 1.2), (x, 0, top), "paint", dent_by=0.004)
     # Cross braces on the long sides and a mid rail on the ends.

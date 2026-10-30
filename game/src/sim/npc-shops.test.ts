@@ -12,7 +12,7 @@ const site = (id: string) => [...REGION.towns, ...REGION.locations].find((s) => 
 
 function traderAt(id: string) {
   const w = emptyWorld({ x: 5, y: 5 });
-  const npc = addVehicle(w, 'traders', 'hauler', ['stockEngine'], sitePads(site(id))[0]);
+  const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], sitePads(site(id))[0]);
   npc.brain = npcBrain('trader', npc.pos, ['trader']);
   npc.resources!.money = 166_667;
   return { w, npc };
@@ -34,7 +34,7 @@ describe('NPCs use stalls as well as towns', () => {
 
   it('sends a truck with no engine past the stall it stands at to a town, since only a town refits it', () => {
     const w = emptyWorld({ x: 5, y: 5 });
-    const npc = addVehicle(w, 'traders', 'hauler', [], sitePads(site('salvage-yard'))[0]);
+    const npc = addVehicle(w, 'independent', 'hauler', [], sitePads(site('salvage-yard'))[0]);
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
     npc.resources!.money = 166_667;
     const activity = thinkNpc(w, npc);
@@ -44,7 +44,7 @@ describe('NPCs use stalls as well as towns', () => {
 
   it('sends a damaged raider to a camp', () => {
     const w = emptyWorld({ x: 5, y: 5 });
-    const npc = addVehicle(w, 'raiders', 'hauler', [], sitePads(site('pump-station'))[0]);
+    const npc = addVehicle(w, 'scrapjaw', 'hauler', [], sitePads(site('pump-station'))[0]);
     npc.brain = npcBrain('buggy', npc.pos, ['raider']);
     npc.resources!.money = 166_667;
     corePart(npc, 'cab').hp = 1;

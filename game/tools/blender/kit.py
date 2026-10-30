@@ -8,6 +8,7 @@ glTF +X/-Z/+Y, so the front stays +X in Three.js.
 from __future__ import annotations
 
 import argparse
+import math
 import random
 import sys
 from collections.abc import Mapping
@@ -15,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import bpy
-from mathutils import Vector
+from mathutils import Euler, Matrix, Vector
 
 Vec3 = tuple[float, float, float]
 
@@ -27,6 +28,10 @@ PREVIEW_PX = (900, 700)
 # One truck deck cell in meters, matching PHYSICS.cell in src/data/physics.ts.
 CELL_ACROSS = 0.484  # Blender Y
 CELL_ALONG = 0.65  # Blender X
+
+# A round part's polygon strays at most this far, in meters, from its true circle.
+ROUND_SAG = 0.004
+ROUND_MIN_SIDES = 12
 
 
 @dataclass(frozen=True)
@@ -43,6 +48,16 @@ def parse_args() -> Args:
     parser.add_argument("preview", type=Path, nargs="?", help="optional preview .png from the game camera angle")
     ns = parser.parse_args(argv)
     return Args(out=ns.out, preview=ns.preview)
+
+
+def round_sides(radius: float) -> int:
+    """The fewest sides, a multiple of 4 and at least 12, whose polygon strays at most ROUND_SAG from a circle of this drawn radius."""
+    if radius <= 0:
+        raise ValueError(f"a round part needs a positive radius, got {radius}")
+    sides = ROUND_MIN_SIDES
+    while radius * (1 - math.cos(math.pi / sides)) > ROUND_SAG:
+        sides += 4
+    return sides
 
 
 def linear(hex_color: int) -> tuple[float, float, float, float]:
@@ -68,6 +83,14 @@ class Kit:
         self._parts: list[bpy.types.Object] = []
         self._sockets: list[bpy.types.Object] = []
         self._materials = {name: _material(name, hex_color) for name, hex_color in colors.items()}
+
+    def parts(self, names: list[str]) -> list[bpy.types.Object]:
+        """The named parts, before the join. Raises on a name no part has."""
+        by_name = {obj.name: obj for obj in self._parts}
+        missing = [n for n in names if n not in by_name]
+        if missing:
+            raise KeyError(f"no part named {missing}")
+        return [by_name[n] for n in names]
 
     def dent(self, obj: bpy.types.Object, amount: float) -> None:
         """Pushes each vertex up to `amount` meters in a random direction, so flat panels read as battered."""
@@ -96,6 +119,14 @@ class Kit:
         """Adds a cylinder with its axis along local Z before rot. Low vertex counts keep the faceted look."""
         bpy.ops.mesh.primitive_cylinder_add(vertices=vertices, radius=radius, depth=depth, location=loc, rotation=rot)
         return self._add(bpy.context.object, name, mat, dent_by)
+
+    def settle(self, rot: Vec3, drop: float) -> None:
+        """Tilts every part so far about the origin (euler XYZ in radians), then lowers it by drop meters."""
+        m = Matrix.Translation((0, 0, -drop)) @ Euler(rot, "XYZ").to_matrix().to_4x4()
+        for obj in self._parts:
+            obj.data.transform(obj.matrix_basis)
+            obj.matrix_basis = Matrix.Identity(4)
+            obj.data.transform(m)
 
     def socket(self, name: str, loc: Vec3) -> None:
         """Adds an empty named socket_<name> at loc, where another model attaches. models.ts reads and removes it."""

@@ -6,7 +6,7 @@
   z-index: var(--z-save);
   box-sizing: border-box;
   width: var(--panel-m);
-  max-width: calc(100vw - 2 * var(--hud-inset));
+  max-width: calc(var(--layer-w) - 2 * var(--hud-inset));
   font-size: var(--text-dense);
 }
 .options h3 {
@@ -24,14 +24,18 @@
   font-size: var(--text-dense);
   font-weight: normal;
 }
-.language-switch {
+.options section + section {
+  margin-top: var(--space-5);
+}
+#ui .options-sound {
+  --knob-size: 28px;
+}
+.options .sound-row {
   display: flex;
-  gap: var(--space-3);
+  align-items: stretch;
+  gap: var(--space-2);
 }
-.language-option {
-  flex: 1;
-}
-#ui .language-option[aria-pressed="true"] {
-  border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent-dim);
+.options .sound-row .sound-mute {
+  align-items: center;
+  margin-left: var(--space-2);
 }

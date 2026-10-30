@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { World } from './types';
-import { recordTurns } from './progression/record';
+import { recordTurns } from './progression/record-node';
 import type { Archetype } from './progression/bot';
 
 const RUN_TIMEOUT = 600_000;

@@ -1,24 +1,28 @@
-import { HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, TRAITS } from '../data/npcs';
+import { getUpkeepReserve } from './economy';
+import { DECISIONS, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, TRAITS } from '../data/npcs';
 import { partDef, type PartDef } from '../data/parts';
 import { REGION } from '../data/region';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { TERRAIN } from '../data/terrain';
 import { corePart, coreParts, mountedParts } from './grid';
 import { maxHp } from './wear';
-import { addGoods } from './inventory';
-import { canRob, decide, fitToHunt, holdsUp, huntingGrounds, isWeak, judgeDanger, lawmanTowns, nearLawGate, raiderGrounds, optionChances, optionWeights } from './npc-decisions';
+import { addGoods, mountPart } from './inventory';
+import { makePart } from './factory';
+import { canFlee, canRob, decide, firepower, fitToHunt, holdsUp, huntingGrounds, isManageable, isWeak, judgeDanger, lawmanTowns, nearLawGate, raiderGrounds, optionChances, optionWeights } from './npc-decisions';
 import { isTerritory, siteGap, siteGates } from './sites';
-import { hazardZones, territoryEntries, territoryGrounds } from './territory';
+import { hazardZones } from './territory';
+import { divideTurf, huntingSpots, turfClaimants } from './hunting-spots';
+import { TEST_MAP } from '../test/map';
 import { noteHurt, thinkNpc, topGoal } from './npc-activities';
 import { chooseOn, trackOf } from './tracks';
 import { addState, endState, stateOf } from './states';
 import { playerVehicle } from './damage';
-import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls } from './testkit';
+import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, sizedUp } from './testkit';
 import { watchPost } from './watch-posts';
 import type { TraitId } from '../data/npcs';
-import type { Faction, Vehicle, World } from './types';
-import { dist, polylineDist, type Vec } from './vec';
-import { fuelCap } from './stats';
+import type { Faction, NpcActivity, Vehicle, World } from './types';
+import { dist, type Vec } from './vec';
+import { fuelCap, isStranded } from './stats';
 import { getResources } from './resources';
 import { RULES } from '../data/rules';
 import { refreshVision } from './vision';
@@ -45,8 +49,8 @@ describe('decision weights', () => {
 
   it('never picks an unavailable option over 500 seeds', () => {
     const w = emptyWorld({ x: 80, y: 80 });
-    const npc = addNpc(w, 'scavengers', 'scavenger', ['scavenger'], { x: 10, y: 10 }, ['stockEngine']);
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 14, y: 10 });
+    const npc = addNpc(w, 'independent', 'scavenger', ['scavenger'], { x: 10, y: 10 }, ['stockEngine']);
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: 14, y: 10 });
     expect(optionWeights(w, npc, 'hostileSeen', raider.id, judgeDanger(w, npc, raider))).not.toHaveProperty('fight');
     for (let seed = 0; seed < 500; seed++) {
       w.rngState = seed;
@@ -56,7 +60,7 @@ describe('decision weights', () => {
 
   it('picks an available option with no weight at about 1%', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const scav = addNpc(w, 'scavengers', 'scavenger', ['scavenger'], { x: 60, y: 30 });
+    const scav = addNpc(w, 'independent', 'scavenger', ['scavenger'], { x: 60, y: 30 });
     expect(optionWeights(w, scav, 'contactHeard', w.player.vehicleId, null).investigate).toBe(0);
     const draws = 5000;
     let picked = 0;
@@ -65,17 +69,86 @@ describe('decision weights', () => {
     expect(picked / draws).toBeLessThan(0.018);
   });
 
+  describe('a driver bound for a deal', () => {
+    const dealGoals: NpcActivity[] = [
+      { kind: 'meet', targetId: null, destination: { x: 20, y: 10 }, phase: 'travel', reason: 'pickUpAid' },
+      { kind: 'patch', targetId: null, destination: { x: 20, y: 10 }, phase: 'travel', reason: 'patchTruck' },
+      { kind: 'tow', targetId: null, destination: { x: 20, y: 10 }, phase: 'travel', reason: 'helpStranded' },
+    ];
+
+    function setup(goal: NpcActivity | null) {
+      const w = emptyWorld({ x: 200, y: 200 });
+      const courier = addNpc(w, 'independent', 'courier', ['trader'], { x: 10, y: 10 });
+      const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: 150, y: 10 });
+      raider.brain = npcBrain('raider', raider.pos, ['raider']);
+      if (goal) courier.brain!.goals.push({ ...goal });
+      return { w, courier, raider };
+    }
+
+    for (const goal of dealGoals) {
+      it(`keeps on with a ${goal.kind} on top when a hostile it hears is not aimed at it`, () => {
+        const idle = setup(null);
+        const deal = setup(goal);
+        const before = optionWeights(idle.w, idle.courier, 'contactHeard', idle.raider.id, null);
+        const after = optionWeights(deal.w, deal.courier, 'contactHeard', deal.raider.id, null);
+        expect(after.keep).toBeCloseTo(before.keep! * NPC_BEHAVIOR.keepWork);
+        expect(after.flee).toBeCloseTo(before.flee!);
+      });
+    }
+
+    it('flees as an idle driver does when the hostile holds a fight goal on it', () => {
+      const idle = setup(null);
+      const deal = setup(dealGoals[0]);
+      deal.raider.brain!.goals.push({ kind: 'fight', targetId: deal.courier.id, destination: { ...deal.courier.pos }, phase: 'travel', reason: 'fightHostile', worn: { turn: 0, condition: 1 } });
+      expect(optionWeights(deal.w, deal.courier, 'contactHeard', deal.raider.id, null)).toEqual(optionWeights(idle.w, idle.courier, 'contactHeard', idle.raider.id, null));
+    });
+
+    it('flees as an idle driver does when the hostile is among its attackers', () => {
+      const idle = setup(null);
+      const deal = setup(dealGoals[0]);
+      deal.courier.brain!.attackers[deal.raider.id] = true;
+      expect(optionWeights(deal.w, deal.courier, 'contactHeard', deal.raider.id, null)).toEqual(optionWeights(idle.w, idle.courier, 'contactHeard', idle.raider.id, null));
+    });
+
+    it('gets the plain weights when its truck is weak', () => {
+      const idle = setup(null);
+      const deal = setup(dealGoals[0]);
+      for (const side of [idle, deal]) getResources(side.w, side.courier).health = 0;
+      expect(isWeak(deal.w, deal.courier)).toBe(true);
+      expect(optionWeights(deal.w, deal.courier, 'contactHeard', deal.raider.id, null)).toEqual(optionWeights(idle.w, idle.courier, 'contactHeard', idle.raider.id, null));
+    });
+
+    it('is not eager to fight a manageable hostile it sees', () => {
+      const idle = setup(null);
+      const deal = setup(dealGoals[0]);
+      idle.raider.pos = { x: 14, y: 10 };
+      deal.raider.pos = { x: 14, y: 10 };
+      const danger = judgeDanger(idle.w, idle.courier, idle.raider);
+      expect(isManageable(idle.courier, danger)).toBe(true);
+      const eager = optionWeights(idle.w, idle.courier, 'hostileSeen', idle.raider.id, danger).fight;
+      const bound = optionWeights(deal.w, deal.courier, 'hostileSeen', deal.raider.id, danger).fight;
+      expect(bound).toBeCloseTo(eager! / NPC_BEHAVIOR.manageableFight);
+    });
+
+    it('flees a heard hostile under 2.5 in 100 over 5000 rolls', () => {
+      const { w, courier, raider } = setup(dealGoals[0]);
+      let fled = 0;
+      for (let i = 0; i < 5000; i++) if (decide(w, courier, 'contactHeard', raider.id, null) === 'flee') fled++;
+      expect(fled / 5000).toBeLessThan(0.025);
+    });
+  });
+
   it('offers a raid only to raiders', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const raider = addNpc(w, 'raiders', 'buggy', ['raider'], { x: 60, y: 30 });
-    const merc = addNpc(w, 'mercs', 'merc', ['merc'], { x: 70, y: 30 });
+    const raider = addNpc(w, 'scrapjaw', 'buggy', ['raider'], { x: 60, y: 30 });
+    const merc = addNpc(w, 'independent', 'merc', ['merc'], { x: 70, y: 30 });
     expect(optionWeights(w, raider, 'idle', null, null)).toHaveProperty('raid');
     expect(optionWeights(w, merc, 'idle', null, null)).not.toHaveProperty('raid');
   });
 
   it('keeps with no roll when keep is the only available option', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const raider = addNpc(w, 'raiders', 'buggy', ['raider'], { x: 60, y: 30 });
+    const raider = addNpc(w, 'scrapjaw', 'buggy', ['raider'], { x: 60, y: 30 });
     raider.resources!.fuel = 0;
     expect(Object.keys(optionWeights(w, raider, 'contactHeard', w.player.vehicleId, null))).toEqual(['keep']);
     const rng = w.rngState;
@@ -83,10 +156,74 @@ describe('decision weights', () => {
     expect(w.rngState).toBe(rng);
   });
 
+  describe('a driver whose truck can only crawl', () => {
+    function crawler(strand: boolean) {
+      const w = emptyWorld({ x: 30, y: 30 });
+      const raider = addNpc(w, 'scrapjaw', 'buggy', ['raider'], { x: 60, y: 30 });
+      w.vehicles[0].pos = { x: 64, y: 30 };
+      if (strand) mountedParts(raider, 'engine')[0].hp = 0;
+      refreshVision(w);
+      return { w, raider };
+    }
+
+    it('is stranded by its engine with fuel in the tank', () => {
+      const { w, raider } = crawler(true);
+      expect(isStranded(w, raider)).toBe(true);
+      expect(getResources(w, raider).fuel).toBeGreaterThan(0);
+    });
+
+    it('only keeps when it hears or sees a hostile, with no roll', () => {
+      const { w, raider } = crawler(true);
+      const player = w.player.vehicleId;
+      expect(Object.keys(optionWeights(w, raider, 'contactHeard', player, null))).toEqual(['keep']);
+      expect(Object.keys(optionWeights(w, raider, 'hostileSeen', player, null))).toEqual(['keep']);
+      const rng = w.rngState;
+      expect(decide(w, raider, 'contactHeard', player, null)).toBe('keep');
+      expect(w.rngState).toBe(rng);
+    });
+
+    it('does not flee when shot, but fights back, and still begs in a parley', () => {
+      const { w, raider } = crawler(true);
+      const player = w.player.vehicleId;
+      addState(w, 'combat', player, raider.id, { kind: 'none' });
+      const shot = Object.keys(optionWeights(w, raider, 'attacked', player, null));
+      expect(shot).toContain('fightBack');
+      expect(shot).not.toContain('flee');
+      const parley = Object.keys(optionWeights(w, raider, 'parley', player, null));
+      expect(parley).toEqual(expect.arrayContaining(['truce', 'beg']));
+      expect(parley).not.toContain('flee');
+    });
+
+    it('does not wander, prowl, rush, veer or keep away', () => {
+      const { w, raider } = crawler(true);
+      const idle = Object.keys(optionWeights(w, raider, 'idle', null, null));
+      expect(idle).not.toContain('explore');
+      expect(idle).not.toContain('prowl');
+      const whim = Object.keys(optionWeights(w, raider, 'fightWhim', w.player.vehicleId, null));
+      expect(whim).not.toContain('rush');
+      expect(whim).not.toContain('veer');
+    });
+
+    it('offers a truck that can drive the same options as before', () => {
+      const { w, raider } = crawler(false);
+      const player = w.player.vehicleId;
+      expect(optionWeights(w, raider, 'contactHeard', player, null)).toHaveProperty('flee');
+      expect(optionWeights(w, raider, 'contactHeard', player, null)).toHaveProperty('investigate');
+      expect(optionWeights(w, raider, 'hostileSeen', player, null)).toHaveProperty('fight');
+      expect(optionWeights(w, raider, 'hostileSeen', player, null)).toHaveProperty('flee');
+      expect(canFlee(w, raider)).toBe(true);
+    });
+
+    it('cannot flee', () => {
+      const { w, raider } = crawler(true);
+      expect(canFlee(w, raider)).toBe(false);
+    });
+  });
+
   it('throws on a situation factor at or below zero', () => {
     const w = emptyWorld({ x: 80, y: 80 });
-    const npc = addNpc(w, 'scavengers', 'scavenger', ['scavenger'], { x: 10, y: 10 });
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 14, y: 10 });
+    const npc = addNpc(w, 'independent', 'scavenger', ['scavenger'], { x: 10, y: 10 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: 14, y: 10 });
     const missFlee = NPC_BEHAVIOR.missFlee;
     NPC_BEHAVIOR.missFlee = 0;
     onTestFinished(() => { NPC_BEHAVIOR.missFlee = missFlee; });
@@ -96,16 +233,16 @@ describe('decision weights', () => {
 
   it('makes fight unavailable without a working weapon', () => {
     const w = emptyWorld({ x: 80, y: 80 });
-    const npc = addNpc(w, 'scavengers', 'scavenger', ['scavenger'], { x: 10, y: 10 }, ['stockEngine']);
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 14, y: 10 });
+    const npc = addNpc(w, 'independent', 'scavenger', ['scavenger'], { x: 10, y: 10 }, ['stockEngine']);
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: 14, y: 10 });
     expect(optionWeights(w, npc, 'hostileSeen', raider.id, judgeDanger(w, npc, raider))).not.toHaveProperty('fight');
   });
 
   it('raises flee weight when outgunned or damaged', () => {
     const w = emptyWorld({ x: 80, y: 80 });
-    const npc = addNpc(w, 'scavengers', 'scavenger', ['scavenger'], { x: 10, y: 10 }, ['mg', 'stockEngine']);
-    const weak = addVehicle(w, 'raiders', 'buggy', ['stockEngine'], { x: 24, y: 10 });
-    const strong = addVehicle(w, 'raiders', 'wagon', ['tankGun', 'stockEngine'], { x: 10, y: 28 });
+    const npc = addNpc(w, 'independent', 'scavenger', ['scavenger'], { x: 10, y: 10 }, ['mg', 'stockEngine']);
+    const weak = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: 24, y: 10 });
+    const strong = addVehicle(w, 'scrapjaw', 'wagon', ['tankGun', 'stockEngine'], { x: 10, y: 28 });
     const calm = optionWeights(w, npc, 'hostileSeen', weak.id, judgeDanger(w, npc, weak)).flee!;
     expect(optionWeights(w, npc, 'hostileSeen', strong.id, judgeDanger(w, npc, strong)).flee).toBeGreaterThan(calm);
     corePart(npc, 'cab').hp = 1;
@@ -114,21 +251,21 @@ describe('decision weights', () => {
 
   it('does not count a truck weak for one broken wheel', () => {
     const w = emptyWorld({ x: 80, y: 80 });
-    const npc = addNpc(w, 'scavengers', 'scavenger', ['scavenger'], { x: 10, y: 10 });
+    const npc = addNpc(w, 'independent', 'scavenger', ['scavenger'], { x: 10, y: 10 });
     coreParts(npc, 'wheel')[0].hp = 0;
     expect(isWeak(w, npc)).toBe(false);
   });
 
   it('counts a truck weak when it cannot drive', () => {
     const w = emptyWorld({ x: 80, y: 80 });
-    const npc = addNpc(w, 'scavengers', 'scavenger', ['scavenger'], { x: 10, y: 10 });
+    const npc = addNpc(w, 'independent', 'scavenger', ['scavenger'], { x: 10, y: 10 });
     corePart(npc, 'transmission').hp = 0;
     expect(isWeak(w, npc)).toBe(true);
   });
 
   it('counts a truck weak when most of it is broken, even with a sound cab', () => {
     const w = emptyWorld({ x: 80, y: 80 });
-    const npc = addNpc(w, 'scavengers', 'scavenger', ['scavenger'], { x: 10, y: 10 }, ['mg', 'stockEngine', 'plates']);
+    const npc = addNpc(w, 'independent', 'scavenger', ['scavenger'], { x: 10, y: 10 }, ['mg', 'stockEngine', 'plates']);
     const cab = corePart(npc, 'cab');
     for (const part of mountedParts(npc)) if (part !== cab) part.hp = Math.floor(maxHp(part) * 0.2);
     expect(isWeak(w, npc)).toBe(true);
@@ -137,8 +274,8 @@ describe('decision weights', () => {
   it('a coward flees from an equal truck more often than a plain scavenger', () => {
     const flees = (traits: TraitId[]) => {
       const w = emptyWorld({ x: 80, y: 80 });
-      const npc = addNpc(w, 'scavengers', 'scavenger', traits, { x: 10, y: 10 });
-      addNpc(w, 'raiders', 'buggy', ['raider'], { x: 24, y: 10 });
+      const npc = addNpc(w, 'independent', 'scavenger', traits, { x: 10, y: 10 });
+      addNpc(w, 'scrapjaw', 'buggy', ['raider'], { x: 24, y: 10 });
       let count = 0;
       for (let seed = 0; seed < 100; seed++) {
         const x = cloneWorld(w);
@@ -153,9 +290,9 @@ describe('decision weights', () => {
 
   it('adds fight weight only against the feud target', () => {
     const w = emptyWorld({ x: 80, y: 80 });
-    const npc = addNpc(w, 'scavengers', 'scavenger', ['scavenger'], { x: 10, y: 10 });
-    const a = addVehicle(w, 'raiders', 'buggy', [], { x: 14, y: 10 });
-    const b = addVehicle(w, 'raiders', 'buggy', [], { x: 14, y: 12 });
+    const npc = addNpc(w, 'independent', 'scavenger', ['scavenger'], { x: 10, y: 10 });
+    const a = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 14, y: 10 });
+    const b = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 14, y: 12 });
     const before = optionWeights(w, npc, 'hostileSeen', a.id, judgeDanger(w, npc, a)).fight!;
     addState(w, 'feud', npc.id, a.id, { kind: 'feud', robbery: false });
     expect(optionWeights(w, npc, 'hostileSeen', a.id, judgeDanger(w, npc, a)).fight).toBeGreaterThan(before);
@@ -164,8 +301,8 @@ describe('decision weights', () => {
 
   it('a trader rarely starts a fight', () => {
     const w = emptyWorld({ x: 80, y: 80 });
-    const trader = addNpc(w, 'traders', 'trader', ['trader'], { x: 10, y: 10 }, ['autocannon', 'stockEngine']);
-    addVehicle(w, 'raiders', 'buggy', [], { x: 14, y: 10 });
+    const trader = addNpc(w, 'independent', 'trader', ['trader'], { x: 10, y: 10 }, ['autocannon', 'stockEngine']);
+    addVehicle(w, 'scrapjaw', 'buggy', [], { x: 14, y: 10 });
     const seeds = 1000;
     let fights = 0;
     for (let seed = 0; seed < seeds; seed++) {
@@ -179,7 +316,7 @@ describe('decision weights', () => {
 
   it('a tower the player turned down offers a tow rarely', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const trader = addNpc(w, 'traders', 'trader', ['trader'], { x: 36, y: 30 });
+    const trader = addNpc(w, 'independent', 'trader', ['trader'], { x: 36, y: 30 });
     const me = w.player.vehicleId;
     w.player.fuel = 0;
     const eager = optionChances(optionWeights(w, trader, 'strandedSeen', me, null)).tow!;
@@ -192,9 +329,10 @@ describe('decision weights', () => {
 
   it('a turned-down tower that picks tow again gets over it and keeps its tow goal', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const trader = addNpc(w, 'traders', 'trader', ['trader'], { x: 36, y: 30 });
+    const trader = addNpc(w, 'independent', 'trader', ['trader'], { x: 36, y: 30 });
     const me = w.player.vehicleId;
     w.player.fuel = 0;
+    w.player.beacon = true;
     addState(w, 'turnedDown', trader.id, me, { kind: 'none' });
     forceOption('strandedSeen', 'tow');
     w.rngState = rngStateForForcedRolls(6);
@@ -207,7 +345,7 @@ describe('decision weights', () => {
 describe('fit to hunt', () => {
   function raider(): { w: World; v: Vehicle } {
     const w = emptyWorld({ x: 80, y: 80 });
-    return { w, v: addNpc(w, 'raiders', 'buggy', ['raider'], { x: 10, y: 10 }, ['mg', 'stockEngine', 'plates']) };
+    return { w, v: addNpc(w, 'scrapjaw', 'buggy', ['raider'], { x: 10, y: 10 }, ['mg', 'stockEngine', 'plates']) };
   }
 
   it('holds for a fresh raider', () => {
@@ -231,6 +369,17 @@ describe('fit to hunt', () => {
     const { w, v } = raider();
     v.items = v.items.filter((it) => !(it.kind === 'part' && partDef(it.part.defId).kind === 'weapon'));
     expect(fitToHunt(w, v)).toBe(false);
+  });
+
+  it('fails with only a harpoon, and holds again beside a real gun', () => {
+    const { w, v } = raider();
+    v.items = v.items.filter((it) => !(it.kind === 'part' && partDef(it.part.defId).kind === 'weapon'));
+    expect(mountPart(w, v, makePart(w, 'harpoon', 0))).toBe(true);
+    expect(firepower(w, v)).toBe(0);
+    expect(fitToHunt(w, v)).toBe(false);
+    expect(mountPart(w, v, makePart(w, 'mg', 0))).toBe(true);
+    expect(firepower(w, v)).toBeGreaterThan(0);
+    expect(fitToHunt(w, v)).toBe(true);
   });
 
   it('fails with the body at the recover condition', () => {
@@ -258,7 +407,7 @@ describe('fit to hunt', () => {
 describe('aid decisions', () => {
   function aidChances(traits: TraitId[], decision: 'aidAsked' | 'needySeen'): Record<string, number> {
     const w = emptyWorld({ x: 30, y: 30 });
-    const npc = addNpc(w, 'traders', 'trader', traits, { x: 36, y: 30 });
+    const npc = addNpc(w, 'independent', 'trader', traits, { x: 36, y: 30 });
     npc.resources!.fuel = fuelCap(npc);
     w.player.fuel = 1;
     return optionChances(optionWeights(w, npc, decision, w.player.vehicleId, null)) as Record<string, number>;
@@ -297,9 +446,9 @@ describe('fight back', () => {
 
   function shotTrader(traits: TraitId[], damage: number) {
     const w = emptyWorld({ x: 80, y: 80 });
-    const trader = addNpc(w, 'traders', 'trader', traits, { x: 10, y: 10 }, ['autocannon', 'stockEngine']);
+    const trader = addNpc(w, 'independent', 'trader', traits, { x: 10, y: 10 }, ['autocannon', 'stockEngine']);
     trader.brain!.goals = [{ kind: 'wait', targetId: null, destination: null, phase: 'act', reason: 'tripToSite' }];
-    const raider = addNpc(w, 'raiders', 'buggy', ['raider'], { x: 14, y: 10 });
+    const raider = addNpc(w, 'scrapjaw', 'buggy', ['raider'], { x: 14, y: 10 });
     w.events = [{ t: 'shot', shooter: raider.id, weapon: 'w', target: trader.id, aim: 'body', chance: 1, damageChance: 1, side: 'front', rounds: [round(trader.id, damage)] }];
     noteHurt(w);
     w.events = [];
@@ -352,8 +501,8 @@ describe('fight back', () => {
 describe('decision points', () => {
   it('the same hostile in sight fires one roll', () => {
     const w = emptyWorld({ x: 50, y: 50 });
-    const npc = addNpc(w, 'scavengers', 'scavenger', ['scavenger'], { x: 10, y: 10 });
-    const raider = addVehicle(w, 'raiders', 'buggy', [], { x: 14, y: 10 });
+    const npc = addNpc(w, 'independent', 'scavenger', ['scavenger'], { x: 10, y: 10 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 14, y: 10 });
     const chosen = () => trackOf(npc, raider.id)?.choice ?? null;
     npc.brain!.goals = [{ kind: 'scavenge', targetId: 'salvage-yard', destination: { x: 100, y: 100 }, phase: 'travel', reason: 'searchSite' }];
     const keeps = (seed: number) => {
@@ -373,7 +522,7 @@ describe('decision points', () => {
     thinkNpc(w, npc);
     thinkNpc(w, npc);
     expect(w.rngState).toBe(rng);
-    w.obstacles.push({ id: 'cover', kind: 'rock', pos: { x: 12, y: 10 }, r: 1 });
+    w.obstacles = [...w.obstacles, { id: 'cover', kind: 'rock', pos: { x: 12, y: 10 }, r: 1 }];
     w.turn += NPC_BEHAVIOR.noticeMemory;
     thinkNpc(w, npc);
     expect(chosen()).toBe('keep');
@@ -390,8 +539,8 @@ describe('decision points', () => {
   it('a truck a goal targets stays tracked while out of perception', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = w.player.vehicleId;
-    const raider = addNpc(w, 'raiders', 'buggy', ['raider'], { x: 70, y: 30 });
-    raider.brain!.goals = [{ kind: 'investigate', targetId: me, destination: { x: 30, y: 30 }, phase: 'travel', reason: 'heardHostile' }];
+    const raider = addNpc(w, 'scrapjaw', 'buggy', ['raider'], { x: 70, y: 30 });
+    raider.brain!.goals = [{ kind: 'investigate', targetId: me, destination: { x: 30, y: 30 }, phase: 'travel', reason: 'heardHostile', chase: { turn: w.turn, gap: 40 } }];
     chooseOn(w, raider, me, { x: 30, y: 30 }, 'investigate', false);
     w.turn += NPC_BEHAVIOR.noticeMemory + 1;
     thinkNpc(w, raider);
@@ -402,7 +551,7 @@ describe('decision points', () => {
   it('knows a truck it drove past and now only hears as the same truck', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = w.vehicles[0];
-    const trader = addNpc(w, 'traders', 'trader', ['trader'], { x: 34, y: 30 });
+    const trader = addNpc(w, 'independent', 'trader', ['trader'], { x: 34, y: 30 });
     trader.brain!.goals = [{ kind: 'wait', targetId: null, destination: null, phase: 'act', reason: 'idle' }];
     thinkNpc(w, trader);
     expect(trackOf(trader, me.id)).toMatchObject({ sighted: true, choice: null, at: me.pos });
@@ -417,8 +566,8 @@ describe('decision points', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.vehicles[0].speed = 4;
     const beyond = 30 + TERRAIN.vision.radius + 5;
-    const raider = addNpc(w, 'raiders', 'buggy', ['raider'], { x: beyond, y: 30 });
-    const scav = addNpc(w, 'scavengers', 'scavenger', ['scavenger'], { x: 60 - beyond, y: 30 });
+    const raider = addNpc(w, 'scrapjaw', 'buggy', ['raider'], { x: beyond, y: 30 });
+    const scav = addNpc(w, 'independent', 'scavenger', ['scavenger'], { x: 60 - beyond, y: 30 });
     addState(w, 'feud', scav.id, w.player.vehicleId, { kind: 'feud', robbery: false });
     expect(optionWeights(w, raider, 'contactHeard', w.player.vehicleId, null).investigate).toBeGreaterThan(0);
     expect(optionWeights(w, scav, 'contactHeard', w.player.vehicleId, null).investigate).toBe(0);
@@ -436,8 +585,8 @@ describe('decision points', () => {
 
   it('fires attacked once per new shot, even a miss', () => {
     const w = emptyWorld({ x: 80, y: 80 });
-    const npc = addNpc(w, 'scavengers', 'scavenger', ['scavenger'], { x: 10, y: 10 });
-    const raider = addVehicle(w, 'raiders', 'buggy', [], { x: 14, y: 10 });
+    const npc = addNpc(w, 'independent', 'scavenger', ['scavenger'], { x: 10, y: 10 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 14, y: 10 });
     chooseOn(w, npc, raider.id, raider.pos, 'keep', true);
     npc.brain!.goals = [{ kind: 'wait', targetId: null, destination: null, phase: 'act', reason: 'tripToSite' }];
     forceOption('attacked', 'flee');
@@ -465,7 +614,7 @@ describe('truce answers', () => {
   const setup = (robbery: boolean) => {
     const w = emptyWorld({ x: 80, y: 80 });
     const me = w.player.vehicleId;
-    const robber = addNpc(w, 'scavengers', 'scavenger', ['scavenger', 'scumbag'], { x: 14, y: 10 }, ['autocannon', 'stockEngine']);
+    const robber = addNpc(w, 'independent', 'scavenger', ['scavenger', 'scumbag'], { x: 14, y: 10 }, ['autocannon', 'stockEngine']);
     addState(w, 'feud', robber.id, me, { kind: 'feud', robbery });
     const accept = () => optionChances(optionWeights(w, robber, 'truceOffered', me, judgeDanger(w, robber, find(w, me)))).accept!;
     return { robber, accept };
@@ -485,7 +634,7 @@ describe('truce answers', () => {
   it('a confident raider rarely takes a truce from prey with loot', () => {
     const w = emptyWorld({ x: 80, y: 80 });
     const me = find(w, w.player.vehicleId);
-    const raider = addNpc(w, 'raiders', 'raider', ['raider'], { x: 14, y: 10 }, ['autocannon', 'stockEngine']);
+    const raider = addNpc(w, 'scrapjaw', 'raider', ['raider'], { x: 14, y: 10 }, ['autocannon', 'stockEngine']);
     const accept = () => optionChances(optionWeights(w, raider, 'truceOffered', me.id, judgeDanger(w, raider, me))).accept!;
     addGoods(w, me, 'scrap', 2);
     expect(accept()).toBeLessThan(0.1);
@@ -503,7 +652,7 @@ describe('truce offers', () => {
     const w = emptyWorld({ x: 80, y: 80 });
     const me = find(w, w.player.vehicleId);
     if (playerBroken) for (const p of mountedParts(me)) if (brokenInRam(partDef(p.defId))) p.hp = 0;
-    const raider = addNpc(w, 'raiders', 'gunwagon', ['raider'], { x: 14, y: 10 }, ['autocannon', 'stockEngine']);
+    const raider = addNpc(w, 'scrapjaw', 'gunwagon', ['raider'], { x: 14, y: 10 }, ['autocannon', 'stockEngine']);
     addState(w, 'feud', raider.id, me.id, { kind: 'feud', robbery: false });
     if (raiderCab !== null) corePart(raider, 'cab').hp = raiderCab;
     return optionChances(optionWeights(w, raider, 'parley', me.id, judgeDanger(w, raider, me)));
@@ -519,12 +668,88 @@ describe('truce offers', () => {
   });
 });
 
+describe('losing drivers break off', () => {
+  const MAX_CAB = (v: Vehicle) => maxHp(corePart(v, 'cab'));
+
+  function fight(chassis: string, dx: number, cab: number, traits: TraitId[], opts: { faction?: Faction; template?: string; health?: number } = {}) {
+    const w = emptyWorld({ x: 80, y: 80 });
+    const me = find(w, w.player.vehicleId);
+    const npc = addVehicle(w, opts.faction ?? 'scrapjaw', chassis, ['autocannon', 'stockEngine'], { x: 80 + dx, y: 80 });
+    npc.brain = npcBrain(opts.template ?? 'gunwagon', npc.pos, traits);
+    corePart(npc, 'cab').hp = MAX_CAB(npc) * cab;
+    if (opts.health !== undefined) getResources(w, npc).health = RULES.maxHealth * opts.health;
+    const danger = judgeDanger(w, npc, me);
+    const chances = (decision: 'parley' | 'attacked') => optionChances(optionWeights(w, npc, decision, me.id, danger));
+    const weights = (decision: 'parley' | 'attacked') => optionWeights(w, npc, decision, me.id, danger);
+    return { w, me, npc, chances, weights };
+  }
+
+  it('a raider at half that can outrun the foe flees far more than a healthy one', () => {
+    const healthy = fight('courier', 14, 1, ['raider']).weights('parley');
+    const hurt = fight('courier', 14, 0.45, ['raider']).weights('parley');
+    expect(hurt.flee!).toBeGreaterThan(healthy.flee! * 100);
+    expect(fight('courier', 14, 0.45, ['raider']).chances('parley').flee!).toBeGreaterThan(0.1);
+  });
+
+  it('a raider at half that cannot outrun the foe pleads and gets no flee boost', () => {
+    const trapped = fight('buggy', 6, 0.45, ['raider']);
+    const weights = trapped.weights('parley');
+    expect(weights.flee!).toBeLessThanOrEqual(DECISIONS.parley.flee);
+    const chances = trapped.chances('parley');
+    expect(chances.truce! + chances.beg!).toBeGreaterThan(0.08);
+  });
+
+  it('a raider whose plea was refused runs when it can get away', () => {
+    const { w, me, npc, chances } = fight('courier', 14, 0.45, ['raider']);
+    addState(w, 'plea', npc.id, me.id, { kind: 'plea', plea: 'truce', answered: true });
+    const c = chances('parley');
+    expect(c.flee!).toBeGreaterThan(c.truce!);
+    expect(c.flee!).toBeGreaterThan(c.beg!);
+    expect(c.flee!).toBeGreaterThan(0.1);
+  });
+
+  it('a trader at half that cannot get away pleads often', () => {
+    const c = fight('buggy', 6, 0.45, ['trader'], { faction: 'independent', template: 'trader' }).chances('parley');
+    expect(c.truce! + c.beg!).toBeGreaterThan(0.3);
+  });
+
+  it('a driver above half gets the weights of an unhurt one', () => {
+    for (const [chassis, dx] of [['courier', 14], ['buggy', 6]] as const) {
+      const fresh = fight(chassis, dx, 1, ['raider']);
+      const bruised = fight(chassis, dx, 0.6, ['raider']);
+      expect(bruised.weights('parley')).toEqual(fresh.weights('parley'));
+      expect(bruised.weights('attacked')).toEqual(fresh.weights('attacked'));
+    }
+  });
+
+  it('a hurt driver with a whole truck counts as losing', () => {
+    const healthy = fight('courier', 14, 1, ['raider']).weights('parley');
+    const hurt = fight('courier', 14, 1, ['raider'], { health: 0.45 }).weights('parley');
+    expect(hurt.flee!).toBeGreaterThan(healthy.flee! * 100);
+  });
+
+  it('a brave raider at half still almost never runs', () => {
+    const plain = fight('courier', 14, 0.45, ['raider']).chances('parley').flee!;
+    const brave = fight('courier', 14, 0.45, ['raider', 'brave']).chances('parley').flee!;
+    expect(brave).toBeLessThan(0.03);
+    expect(brave).toBeLessThan(plain / 5);
+  });
+
+  it('a hurt trader flees when shot at only if it can get away', () => {
+    const trader = { faction: 'independent', template: 'trader' } as const;
+    const gets = (cab: number) => fight('courier', 14, cab, ['trader'], trader).weights('attacked').flee!;
+    expect(gets(0.45)).toBeGreaterThan(gets(1) * 10);
+    const trapped = (cab: number) => fight('buggy', 6, cab, ['trader'], trader).weights('attacked').flee!;
+    expect(trapped(0.45)).toBeLessThanOrEqual(trapped(1) * 1.5);
+  });
+});
+
 describe('robbery after a truce', () => {
   it('a robber never robs a truck it holds a truce with, from either side', () => {
     const w = emptyWorld({ x: 10, y: 10 });
     const me = find(w, w.player.vehicleId);
     addGoods(w, me, 'scrap', 2);
-    const robber = addNpc(w, 'scavengers', 'scavenger', ['scavenger', 'scumbag'], { x: 14, y: 10 }, ['autocannon', 'stockEngine']);
+    const robber = addNpc(w, 'independent', 'scavenger', ['scavenger', 'scumbag'], { x: 14, y: 10 }, ['autocannon', 'stockEngine']);
     refreshVision(w);
     expect(canRob(w, robber, me)).toBe(true);
     const truce = addState(w, 'truce', me.id, robber.id, { kind: 'none' });
@@ -543,65 +768,38 @@ describe('hunting grounds', () => {
     for (const t of Object.values(NPCS).filter((t) => t.traits.includes('raider'))) expect([...TRAITS.raider.bases].sort(), t.id).toEqual(camps);
   });
 
-  const grounds = huntingGrounds();
-  const territories = REGION.locations.filter(isTerritory);
-  const lootPads = territories.flatMap(territoryGrounds);
-  const isPad = (p: Vec) => lootPads.some((pad) => dist(p, pad) < 0.01);
-  const onRoad = (p: Vec) => !isPad(p) && REGION.roads.some((road) => polylineDist(p, road) < 0.01);
+  const grounds = huntingGrounds(emptyWorld());
 
-  it('lie on lonely road stretches and in the territories', () => {
-    expect(lootPads.length).toBeGreaterThan(0);
-    for (const pad of lootPads) expect(grounds).toContainEqual(pad);
-    expect(grounds.filter(onRoad).length).toBeGreaterThanOrEqual(4);
+  it('are the baked hunting spots of the map', () => {
+    expect(grounds.length).toBeGreaterThan(0);
+    expect(grounds).toEqual(huntingSpots(TEST_MAP).spots);
   });
 
-  it('wait at every road into the Fallen Sun', () => {
-    const entries = territoryEntries(territories.find((t) => t.id === 'fallen-sun')!);
-    expect(entries).toHaveLength(3);
-    for (const p of entries) expect(grounds).toContainEqual(p);
+  it('keep twice the sight radius apart, so no two watch the same traffic', () => {
+    for (const p of grounds) for (const q of grounds) if (p !== q) expect(dist(p, q)).toBeGreaterThanOrEqual(2 * TERRAIN.vision.radius);
   });
 
-  it('reach into each territory, outside every hazard', () => {
-    for (const t of territories) for (const p of territoryGrounds(t)) expect(grounds).toContainEqual(p);
-    for (const p of grounds) for (const z of hazardZones()) expect(dist(p, z.pos)).toBeGreaterThan(z.radius);
+  it('stay out of every hazard and lawman reach, and away from towns, stalls and camps', () => {
+    const gates = lawmanTowns().flatMap((town) => siteGates(town));
+    const sites = [...REGION.towns, ...REGION.locations].filter((site) => !isTerritory(site));
+    for (const p of grounds) {
+      for (const z of hazardZones()) expect(dist(p, z.pos)).toBeGreaterThan(z.radius);
+      for (const gate of gates) expect(dist(p, gate)).toBeGreaterThan(HUNT.lawReach);
+      for (const site of sites) expect(siteGap(site, p)).toBeGreaterThanOrEqual(HUNT.siteDistance);
+    }
   });
 
-  describe('in Old Orchard', () => {
-    const orchard = territories.find((t) => t.id === 'orchard')!;
-    const orchardGrounds = territoryGrounds(orchard);
-    const watchesOrchard = (p: Vec) => orchardGrounds.some((q) => dist(p, q) <= Math.max(...HUNT.postRings));
-    const isOrchardGround = (p: Vec) => orchardGrounds.some((q) => q.x === p.x && q.y === p.y);
-
-    it('hold every orchard ground', () => {
-      expect(orchardGrounds.length).toBeGreaterThan(0);
-      for (const p of orchardGrounds) expect(grounds).toContainEqual(p);
-    });
-
-    it('send a prowling vulture to an orchard ground', () => {
-      const w = emptyWorld({ x: 30, y: 30 });
-      const npc = addNpc(w, 'vultures', 'vulture', ['vulture'], { x: 30, y: 30 }, ['longRifle', 'stockEngine']);
-      forceOption('idle', 'prowl');
-      const goals = Array.from({ length: 40 }, (_, seed) => {
-        const x = cloneWorld(w);
-        x.rngState = Math.imul(seed + 1, 2654435761);
-        return thinkNpc(x, find(x, npc.id));
-      }).filter((g) => g.kind === 'prowl');
-      expect(goals.filter((g) => isOrchardGround(g.destination!)).length).toBeGreaterThan(0);
-    });
-
-    it('are shared by the raiders of Scrapjaw and Kiln', () => {
-      const camps = REGION.locations.filter((l) => l.kind === 'camp');
-      const w = emptyWorld();
-      const covering = Object.fromEntries(camps.map((c): [string, number] => [c.id, raiderGrounds(w, c).filter(watchesOrchard).length]).filter(([, n]) => n > 0));
-      expect(covering).toEqual({ kiln: 3, scrapjaw: 6 });
-    });
-  });
-
-  it('keeps road grounds far from every site, and none at a town or camp', () => {
-    const sites = [...REGION.towns, ...REGION.locations];
-    for (const p of grounds.filter(onRoad)) for (const site of sites) expect(siteGap(site, p)).toBeGreaterThanOrEqual(HUNT.siteDistance);
-    const guarded = [...REGION.towns, ...REGION.locations.filter((l) => l.kind === 'camp')];
-    for (const p of grounds) for (const site of guarded) expect(dist(p, site.pos)).toBeGreaterThan(site.radius + REGION.sites.pad.length);
+  it('send a prowling vulture to a hunting ground', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const npc = addNpc(w, 'independent', 'vulture', ['vulture'], { x: 30, y: 30 }, ['longRifle', 'stockEngine']);
+    forceOption('idle', 'prowl');
+    const goals = Array.from({ length: 40 }, (_, seed) => {
+      const x = cloneWorld(w);
+      x.rngState = Math.imul(seed + 1, 2654435761);
+      return thinkNpc(x, find(x, npc.id));
+    }).filter((g) => g.kind === 'prowl');
+    expect(goals.length).toBeGreaterThan(0);
+    for (const g of goals) expect(grounds).toContainEqual(g.destination);
   });
 });
 
@@ -611,16 +809,15 @@ describe('raider grounds', () => {
   const kiln = camps.find((c) => c.id === 'kiln')!;
   const lawGates = () => lawmanTowns().flatMap((town) => siteGates(town));
 
-  it('are watch posts of hunting grounds outside lawman reach, for each camp', () => {
+  it('are watch posts of the turf each camp claims, outside lawman reach', () => {
     const w = emptyWorld();
-    const posts = huntingGrounds().map((g) => watchPost(w, g));
+    const turf = divideTurf(huntingGrounds(w), turfClaimants());
     expect(lawmanTowns().map((t) => t.id).sort()).toEqual(['bowl', 'nose']);
     for (const camp of [scrapjaw, kiln]) {
+      const posts = turf.get(camp.id)!.map((g) => watchPost(w, g)).filter((p) => p !== null);
       expect(raiderGrounds(w, camp).length).toBeGreaterThanOrEqual(2);
-      for (const p of raiderGrounds(w, camp)) {
-        expect(posts).toContainEqual(p);
-        for (const gate of lawGates()) expect(dist(gate, p)).toBeGreaterThan(HUNT.lawReach);
-      }
+      expect(raiderGrounds(w, camp)).toEqual(posts);
+      for (const p of raiderGrounds(w, camp)) for (const gate of lawGates()) expect(dist(gate, p)).toBeGreaterThan(HUNT.lawReach);
     }
   });
 
@@ -643,8 +840,8 @@ describe('a driver that gave its word', () => {
   function meeting() {
     const w = emptyWorld({ x: 80, y: 80 });
     const me = w.vehicles[0];
-    const npc = addNpc(w, 'traders', 'trader', ['trader', 'scumbag'], { x: 40, y: 30 });
-    const passer = addVehicle(w, 'traders', 'scout', [], { x: 44, y: 34 });
+    const npc = addNpc(w, 'independent', 'trader', ['trader', 'scumbag'], { x: 40, y: 30 });
+    const passer = addVehicle(w, 'independent', 'scout', [], { x: 44, y: 34 });
     if (addGoods(w, passer, 'scrap', 2) < 2) throw new Error('No room for the passer goods');
     addState(w, 'trade', npc.id, me.id, { kind: 'none' });
     npc.brain!.goals = [{ kind: 'meet', targetId: me.id, destination: { ...me.pos }, phase: 'travel', reason: 'pullOver' }];
@@ -659,12 +856,12 @@ describe('a driver that gave its word', () => {
     expect(npc.brain!.noticed).not.toHaveProperty([`preySeen:${passer.id}`]);
     endState(w, stateOf(w, 'trade', npc.id, me.id)!, 'fulfilled');
     thinkNpc(w, npc);
-    expect(topGoal(npc)).toMatchObject({ kind: 'fight', targetId: passer.id });
+    expect(topGoal(npc)).toMatchObject({ kind: 'sizeUp', targetId: passer.id });
   });
 
   it('still reacts to a hostile in sight', () => {
     const { w, npc } = meeting();
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 46, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: 46, y: 30 });
     forceOption('hostileSeen', 'fight');
     thinkNpc(w, npc);
     expect(topGoal(npc)).toMatchObject({ kind: 'fight', targetId: raider.id });
@@ -674,17 +871,21 @@ describe('a driver that gave its word', () => {
 describe('warn-off decisions', () => {
   function warnChances(traits: TraitId[], parts = ['mg', 'stockEngine']): Record<string, number> {
     const w = emptyWorld({ x: 30, y: 30 });
-    const npc = addNpc(w, 'scavengers', 'scavenger', traits, { x: 36, y: 30 }, parts);
+    const npc = addNpc(w, 'independent', 'scavenger', traits, { x: 36, y: 30 }, parts);
     return optionChances(optionWeights(w, npc, 'warnedOff', w.player.vehicleId, judgeDanger(w, npc, playerVehicle(w)))) as Record<string, number>;
   }
 
   const plain = () => warnChances(['scavenger']);
 
-  it('a raider or lawman fights back more and backs off less than a plain driver', () => {
-    for (const traits of [['raider'], ['lawman']] as TraitId[][]) {
-      expect(warnChances(traits).fightBack).toBeGreaterThan(plain().fightBack);
-      expect(warnChances(traits).comply).toBeLessThan(plain().comply);
-    }
+  it('a lawman fights back more and backs off less than a plain driver', () => {
+    expect(warnChances(['lawman']).fightBack).toBeGreaterThan(plain().fightBack);
+    expect(warnChances(['lawman']).comply).toBeLessThan(plain().comply);
+  });
+
+  it('a raider after the player loot defies more and backs off less than a plain driver', () => {
+    const raider = warnChances(['raider']);
+    expect(raider.fightBack + raider.refuse).toBeGreaterThan(plain().fightBack + plain().refuse);
+    expect(raider.comply).toBeLessThan(plain().comply);
   });
 
   it('a coward or trader backs off more and a trader fights back less than a plain driver', () => {
@@ -694,7 +895,7 @@ describe('warn-off decisions', () => {
 
   it('a driver with revenge on the player fights back more', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const npc = addNpc(w, 'scavengers', 'scavenger', ['scavenger'], { x: 36, y: 30 });
+    const npc = addNpc(w, 'independent', 'scavenger', ['scavenger'], { x: 36, y: 30 });
     const danger = judgeDanger(w, npc, playerVehicle(w));
     const calm = optionWeights(w, npc, 'warnedOff', w.player.vehicleId, danger).fightBack!;
     addState(w, 'revenge', npc.id, w.player.vehicleId, { kind: 'none' });
@@ -718,9 +919,10 @@ describe('holdsUp', () => {
   const setup = (robbery: boolean) => {
     const w = emptyWorld({ x: 80, y: 80 });
     const me = find(w, w.player.vehicleId);
-    const robber = addNpc(w, 'scavengers', 'scavenger', ['scavenger', 'scumbag'], { x: 14, y: 10 }, ['autocannon', 'stockEngine']);
+    const robber = addNpc(w, 'independent', 'scavenger', ['scavenger', 'scumbag'], { x: 14, y: 10 }, ['autocannon', 'stockEngine']);
     addState(w, 'feud', robber.id, me.id, { kind: 'feud', robbery });
     addGoods(w, me, 'scrap', 2);
+    sizedUp(w, robber, me);
     return { w, me, robber, up: () => holdsUp(w, robber, me, judgeDanger(w, robber, me)) };
   };
 
@@ -731,8 +933,10 @@ describe('holdsUp', () => {
   it('a raider holds up a non-raider with cargo', () => {
     const w = emptyWorld({ x: 80, y: 80 });
     const me = find(w, w.player.vehicleId);
-    const raider = addNpc(w, 'raiders', 'buggy', ['raider'], { x: 14, y: 10 }, ['autocannon', 'stockEngine']);
+    const raider = addNpc(w, 'scrapjaw', 'buggy', ['raider'], { x: 14, y: 10 }, ['autocannon', 'stockEngine']);
     addGoods(w, me, 'scrap', 2);
+    expect(holdsUp(w, raider, me, judgeDanger(w, raider, me))).toBe(false);
+    sizedUp(w, raider, me);
     expect(holdsUp(w, raider, me, judgeDanger(w, raider, me))).toBe(true);
   });
 
@@ -743,7 +947,15 @@ describe('holdsUp', () => {
     expect(setup(false).up()).toBe(false);
     const bare = setup(true);
     bare.me.items = bare.me.items.filter((i) => i.kind !== 'good');
+    bare.w.player.money = getUpkeepReserve(bare.me);
     expect(bare.up()).toBe(false);
+  });
+
+  it('a confident robber holds up prey with no cargo for a cash cut when its money is above the reserve', () => {
+    const bare = setup(true);
+    bare.me.items = bare.me.items.filter((i) => i.kind !== 'good');
+    bare.w.player.money = getUpkeepReserve(bare.me) + 100000;
+    expect(bare.up()).toBe(true);
   });
 
   it('a robber that follows a leader holds up nobody', () => {

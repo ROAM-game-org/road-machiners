@@ -12,7 +12,8 @@ import { escortsOf } from '../tow';
 import { SHOPS } from '../../data/market';
 import { haulMarginAt, wouldRob, type Policy } from './bot';
 import { LEDGER_KEYS, type BotNote, type BotTurn } from './orders';
-import { FAR_MOVER, playTurns, startWorld } from './record';
+import { FAR_MOVER, playTurns } from './record';
+import { startWorld } from './record-node';
 
 export const INCOME_KIT = 'midgame';
 export const INCOME_SKILL_RANK = 2;
@@ -207,7 +208,7 @@ function eventMoney(e: GameEvent, me: string): Paid {
   return [moneyEvent, towFee, escortFee, aidPay, patchFee].flatMap((pays) => pays(e, me));
 }
 
-const LEDGER_LINES: Record<MoneyReason['kind'], string> = { contract: 'contract', failedHaul: 'failed haul contract', towing: 'towing', outpost: 'outpost pay' };
+const LEDGER_LINES: Record<MoneyReason['kind'], string> = { contract: 'contract', towing: 'towing', outpost: 'outpost pay', holdUp: 'hold-up', oddJobs: 'odd jobs' };
 
 function moneyEvent(e: GameEvent): Paid {
   if (e.t !== 'money') return [];
@@ -283,8 +284,9 @@ function grantedMercy(e: Extract<GameEvent, { t: 'plea' }>, target: string, me: 
 function targetKind(world: World, id: string): TargetKind {
   const v = world.vehicles.find((x) => x.id === id);
   if (!v) throw new Error(`Robbery target ${id} is gone`);
-  if (v.faction === 'traders') return 'trader';
-  if (v.faction === 'convoys') return 'convoy';
-  throw new Error(`Robbery target ${id} is of faction ${v.faction}`);
+  const template = v.brain?.templateId;
+  if (template === 'trader') return 'trader';
+  if (template === 'convoy') return 'convoy';
+  throw new Error(`Robbery target ${id} is a ${template ?? 'brainless truck'}`);
 }
 

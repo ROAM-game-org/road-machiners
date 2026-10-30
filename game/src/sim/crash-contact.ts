@@ -1,19 +1,19 @@
 import { PHYSICS } from '../data/physics';
-import { lanesAt } from './body';
+import { frontBody, lanesAt, unitsOf } from './body';
+import { nearestUnit } from './rig';
 import { corePart, coreParts, mountedParts } from './grid';
 import { NPC_BEHAVIOR } from '../data/npcs';
 import { isHostile, noteCollision } from './combat';
 import { getMobilityCondition, isStranded, vehicleStats } from './stats';
 import { angleDiff, bearing, dist, type Vec } from './vec';
-import { laneCount, passShare, planCrashLane, planLane, ramMult, sideToward, type PartHit, type Round, type Side } from './armor';
+import { laneCount, passShare, planCrashLane, ramMult, sideToward, type PartHit, type Round, type Side } from './armor';
 import { partDef, sustainedDamage } from '../data/parts';
 import { isJunk, maxHp, restorePart } from './wear';
-import { damagePart } from './damage';
+import { damagePart, isOwnedTruck } from './damage';
 import { RULES } from '../data/rules';
 import { practice, skillEffect, vehicleHasPerk } from './progress';
 import { PERK_NUMBERS } from '../data/skills';
 import { vehicleMass } from './mass';
-import { bodyOf } from './body';
 import { towsClient } from './tow';
 import { claymoresSetOff, detonateOnCrash, detonateOnObstacle } from './claymore';
 import type { Vehicle, World } from './types';
@@ -22,15 +22,28 @@ import { damageScale } from './settings';
 export type CrashContact = { side: Side; lanes: number[] };
 export type CrashGeometry = { a: CrashContact; b: CrashContact | null };
 
-export function applyContactCrash(world: World, a: Vehicle, b: Vehicle | null, what: string, impact: number, contact: CrashGeometry): void {
+export type CrashApproach = { a: number; b: number };
+export type CrashFault = { a: boolean; b: boolean };
+
+export function crashFault(approach: CrashApproach): CrashFault {
+  if (!Number.isFinite(approach.a) || !Number.isFinite(approach.b)) throw new Error('Bad crash approach');
+  const a = Math.max(0, approach.a);
+  const b = Math.max(0, approach.b);
+  const total = a + b;
+  const atFault = (own: number) => own >= RULES.crashFault.still && own >= RULES.crashFault.share * total;
+  return { a: atFault(a), b: atFault(b) };
+}
+
+export function applyContactCrash(world: World, a: Vehicle, b: Vehicle | null, what: string, impact: number, contact: CrashGeometry, approach: CrashApproach | null): void {
   if (!Number.isFinite(impact) || impact < 0) throw new Error(`Bad crash impact ${impact}`);
   if (Boolean(b) !== Boolean(contact.b)) throw new Error('Crash geometry does not match the bodies');
+  if (Boolean(b) !== Boolean(approach)) throw new Error('Crash approach does not match the bodies');
   if (b) {
     const blasts = claymoreBlasts(world, a, b, impact, contact);
     const { hitsA, hitsB } = damageVehicleCrash(world, a, b, impact, contact);
     stallRammed(world, a, b, hitsA, hitsB);
-    noteCollision(world, a, b, hitsA, hitsB);
-    world.events.push({ t: 'collision', a: a.id, b: b.id, hitsA, hitsB });
+    noteCollision(world, a, b, hitsA, hitsB, crashFault(approach!));
+    world.events.push({ t: 'collision', a: a.id, b: b.id, impact, hitsA, hitsB });
     blasts();
     practiceRam(world, a, b, hitsA, hitsB);
     return;
@@ -38,14 +51,14 @@ export function applyContactCrash(world: World, a: Vehicle, b: Vehicle | null, w
   const crash = { impact, own: contact.a, theirs: null };
   const rams = world.obstacles.some((o) => o.id === what) ? claymoresSetOff(world, a, null, crash) : [];
   const hitsA = applyContactDamage(world, a, contact.a, impact, 1, hardCrash(impact));
-  world.events.push({ t: 'collision', a: a.id, b: what, hitsA, hitsB: [] });
+  world.events.push({ t: 'collision', a: a.id, b: what, impact, hitsA, hitsB: [] });
   detonateOnObstacle(world, a, what, rams, crash);
 }
 
 export function applyGroundCrash(world: World, v: Vehicle, what: string, impact: number, contact: CrashContact): void {
   if (!Number.isFinite(impact) || impact < 0) throw new Error(`Bad ground crash impact ${impact}`);
   const hitsA = applyContactDamage(world, v, contact, impact, 1, RULES.groundCrash, true);
-  world.events.push({ t: 'collision', a: v.id, b: what, hitsA, hitsB: [] });
+  world.events.push({ t: 'collision', a: v.id, b: what, impact, hitsA, hitsB: [] });
 }
 
 export function applyLanding(world: World, v: Vehicle, what: string, impact: number): void {
@@ -54,7 +67,7 @@ export function applyLanding(world: World, v: Vehicle, what: string, impact: num
   const driving = skillEffect(world, v, 'driving', 'crashDamage');
   const damage = RULES.ramDamage * RULES.crashDamage * damageScale(world) * RULES.landingDamage * impact * impact * Math.max(0, 1 - driving);
   const hitsA = coreParts(v, 'wheel').filter((wheel) => wheel.hp > 0).map((wheel) => ({ part: wheel.id, damage: damagePart(world, v, wheel, damage) }));
-  world.events.push({ t: 'collision', a: v.id, b: what, hitsA, hitsB: [] });
+  world.events.push({ t: 'collision', a: v.id, b: what, impact, hitsA, hitsB: [] });
 }
 
 function claymoreBlasts(world: World, a: Vehicle, b: Vehicle, impact: number, contact: CrashGeometry): () => void {
@@ -97,8 +110,8 @@ function playerRam(world: World, a: Vehicle, b: Vehicle, hitsA: PartHit[], hitsB
 function damageVehicleCrash(world: World, a: Vehicle, b: Vehicle, impact: number, contact: CrashGeometry): { hitsA: PartHit[]; hitsB: PartHit[] } {
   if (!contact.b) throw new Error('Vehicle crash has no target contact');
   const share = vehicleMass(b) / (vehicleMass(a) + vehicleMass(b));
-  const multA = ramMult(a, contact.a.side);
-  const multB = ramMult(b, contact.b.side);
+  const multA = ramMult(a, contact.a);
+  const multB = ramMult(b, contact.b);
   if (towsClient(world, a, b) || towsClient(world, b, a)) return { hitsA: [], hitsB: [] };
   const hitsA = applyContactDamage(world, a, contact.a, impact, share, multB);
   const hitsB = applyContactDamage(world, b, contact.b, impact, 1 - share, multA);
@@ -119,9 +132,8 @@ function applyContactDamage(world: World, vehicle: Vehicle, contact: CrashContac
 
 function strikeLane(world: World, vehicle: Vehicle, side: Side, lane: number, round: Round, hits: Map<string, number>, ground: boolean): void {
   const copy = structuredClone(vehicle);
-  const draft = { ...world, player: structuredClone(world.player), events: [] };
-  // A fixed ground strike carries through the crushed body; vehicle-to-vehicle strikes lose energy with depth.
-  for (const hit of (ground ? planLane : planCrashLane)(copy, side, lane, round)) {
+  const draft = { ...world, player: scratchPlayer(world, vehicle), events: [] };
+  for (const hit of planCrashLane(copy, side, lane, round, ground ? 1 : undefined)) {
     hits.set(hit.part.id, (hits.get(hit.part.id) ?? 0) + damagePart(draft, copy, hit.part, hit.amount));
   }
 }
@@ -165,7 +177,7 @@ export function forecastRam(world: World, attacker: Vehicle, target: Vehicle, im
   const other = structuredClone(target);
   for (const part of mountedParts(other)) if (!isJunk(part)) restorePart(part, maxHp(part));
   const intact = structuredClone(other);
-  const draft = { ...world, player: structuredClone(world.player), events: [] };
+  const draft = { ...world, player: scratchPlayer(world, attacker, target), events: [] };
   own.heading = bearing(attacker.pos, target.pos);
   damageVehicleCrash(draft, own, other, impact, estimateCrashGeometry(own, other, other.pos));
   const minimum = NPC_BEHAVIOR.fleeCondition;
@@ -239,21 +251,22 @@ export function estimateCrashGeometry(a: Vehicle, b: Vehicle | null, from: Vec):
 }
 
 function estimateBodyContact(vehicle: Vehicle, other: Vehicle | null, from: Vec): CrashContact {
-  const angle = bearing(vehicle.pos, from) - vehicle.heading;
+  const unit = nearestUnit(vehicle, from);
+  const angle = bearing(unit.pos, from) - unit.heading;
   const normal = { x: Math.cos(angle), y: Math.sin(angle) };
   const side = selectContactSide(normal);
   const front = side === 'front' || side === 'rear';
-  const extent = other ? computeProjectedExtent(other, vehicle.heading, front) : 0;
-  const distance = Math.hypot(from.x - vehicle.pos.x, from.y - vehicle.pos.y) * PHYSICS.metersPerTile;
+  const extent = other ? computeProjectedExtent(other, unit.heading, front) : 0;
+  const distance = Math.hypot(from.x - unit.pos.x, from.y - unit.pos.y) * PHYSICS.metersPerTile;
   const across = front ? Math.sin(angle) * distance : Math.cos(angle) * distance;
   const points = front
     ? [{ x: 0, y: across - extent }, { x: 0, y: across + extent }]
     : [{ x: across - extent, y: 0 }, { x: across + extent, y: 0 }];
-  return locateCrashContact(vehicle.chassisId, points, normal);
+  return locateCrashContact(vehicle.chassisId, unit.unit, points, normal);
 }
 
 function computeProjectedExtent(vehicle: Vehicle, heading: number, front: boolean): number {
-  const body = bodyOf(vehicle.chassisId);
+  const body = frontBody(vehicle.chassisId);
   const relative = vehicle.heading - heading;
   const c = Math.abs(Math.cos(relative));
   const s = Math.abs(Math.sin(relative));
@@ -265,16 +278,29 @@ function selectContactSide(normal: Vec): Side {
   return normal.y >= 0 ? 'right' : 'left';
 }
 
-export function locateCrashContact(chassisId: string, points: Vec[], normal: Vec): CrashContact {
+export function locateCrashContact(chassisId: string, unit: number, points: Vec[], normal: Vec): CrashContact {
   if (points.length === 0) throw new Error('Crash has no contact points');
-  const side = selectContactSide(normal);
+  const side = unitSide(chassisId, unit, normal);
   const front = side === 'front' || side === 'rear';
   const values = points.map((point) => (front ? point.y : point.x));
-  return { side, lanes: lanesAt(chassisId, front ? 'column' : 'row', Math.min(...values), Math.max(...values)) };
+  return { side, lanes: lanesAt(chassisId, front ? 'column' : 'row', Math.min(...values), Math.max(...values), unit) };
+}
+
+function unitSide(chassisId: string, unit: number, normal: Vec): Side {
+  const side = selectContactSide(normal);
+  const inner = (side === 'rear' && unit < unitsOf(chassisId).length - 1) || (side === 'front' && unit > 0);
+  if (!inner) return side;
+  return normal.y >= 0 ? 'right' : 'left';
 }
 
 export function computeClosingSpeed(relative: Vec, normal: Vec): number {
   const length = Math.hypot(normal.x, normal.y);
   if (!(length > 0)) throw new Error('Crash normal has no horizontal direction');
   return Math.max(0, (relative.x * normal.x + relative.y * normal.y) / length);
+}
+
+function scratchPlayer(world: World, ...hurt: Vehicle[]): World['player'] {
+  if (!hurt.some((v) => isOwnedTruck(world, v))) return world.player;
+  const { explored, visible, ...rest } = world.player;
+  return { ...structuredClone(rest), explored, visible };
 }

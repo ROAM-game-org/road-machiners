@@ -103,14 +103,31 @@
   --cond-w3: #b9a888;
   --cond-w4: #a8997f;
   --cond-junk: #909395;
-  --cond-broken-fill: #262626;
-  --cond-broken-shade: #151515;
-  --cond-broken-light: #333333;
+
+  /* Rendered truck condition drawing: the panel, the dimmed body and parts, and the damage tiers */
+  --cond-pad: var(--space-6);
+  --cond-panel: rgba(0, 0, 0, 0.3);
+  --cond-blur: 6px;
+  --cond-edge: #0b0c0d;
+  --cond-meter-w: 40px;
+  --cond-body-filter: brightness(0.5) drop-shadow(1px 0 0 var(--cond-edge)) drop-shadow(-1px 0 0 var(--cond-edge)) drop-shadow(0 1px 0 var(--cond-edge)) drop-shadow(0 -1px 0 var(--cond-edge));
+  --cond-parts-filter: brightness(1);
+  --cond-glow-edge: drop-shadow(0.5px 0 0 var(--cond-edge)) drop-shadow(-0.5px 0 0 var(--cond-edge)) drop-shadow(0 0.5px 0 var(--cond-edge)) drop-shadow(0 -0.5px 0 var(--cond-edge));
+  --cond-glow-edge-damaged: drop-shadow(1px 0 0 var(--cond-edge)) drop-shadow(-1px 0 0 var(--cond-edge)) drop-shadow(0 1px 0 var(--cond-edge)) drop-shadow(0 -1px 0 var(--cond-edge));
+  --cond-halo-hurt: drop-shadow(0 0 2px rgba(255, 196, 60, 0.9)) drop-shadow(0 0 4px rgba(255, 196, 60, 0.6));
+  --cond-halo-crit: drop-shadow(0 0 2px rgba(255, 120, 40, 0.8)) drop-shadow(0 0 3px rgba(255, 120, 40, 0.5));
+  --cond-halo-broken: drop-shadow(0 0 2px rgb(255, 44, 40)) drop-shadow(0 0 4px rgba(255, 44, 40, 0.8));
+  --cond-hatch: repeating-linear-gradient(135deg, rgba(8, 8, 8, 0.42) 0 1.5px, transparent 1.5px 5px);
+  --cond-pick-filter: brightness(0) invert(1) drop-shadow(1px 0 0 var(--ink-bright)) drop-shadow(-1px 0 0 var(--ink-bright)) drop-shadow(0 1px 0 var(--ink-bright)) drop-shadow(0 -1px 0 var(--ink-bright));
+  --cond-pick-opacity: 0.55;
+  --cond-cells: rgba(255, 244, 214, 0.22);
 
   /* Truck grid cell kinds: the dark grid in the inventory and the bright map on truck cards */
   --cell-line: #58656b;
   --cell-ink: #a0adb2;
   --cell-plan-line: #b9c6ca;
+  --plan-detail-faint: rgba(185, 198, 202, 0.3);
+  --plan-glass-faint: rgba(185, 198, 202, 0.12);
   --cell-plain: #303d44;
   --cell-deck: #483e36;
   --cell-bay: #3b4a3c;
@@ -118,6 +135,22 @@
   --cell-engine: #3d4b50;
   --cell-side: #414c52;
   --cell-none: #20292e;
+  --cell-grid-line: rgba(255, 244, 214, 0.3);
+  --cell-grid-line-drag: rgba(255, 244, 214, 0.55);
+  --garage-body-filter: brightness(0.8);
+  --garage-mount-wash: rgba(159, 220, 122, 0.14);
+  --garage-mount-line: rgba(159, 220, 122, 0.5);
+  --garage-cell-deck: rgba(230, 178, 88, 0.12);
+  --garage-cell-bay: rgba(78, 196, 170, 0.12);
+  --garage-cell-engine: rgba(96, 160, 226, 0.12);
+  --garage-cell-armor: rgba(176, 128, 222, 0.12);
+  --garage-cell-built-in: rgba(10, 14, 18, 0.24);
+  --garage-cell-taken: rgba(240, 96, 70, 0.22);
+  --garage-edge-hover: drop-shadow(1.5px 0 0 var(--line-hover)) drop-shadow(-1.5px 0 0 var(--line-hover)) drop-shadow(0 1.5px 0 var(--line-hover)) drop-shadow(0 -1.5px 0 var(--line-hover));
+  --garage-edge-pick: drop-shadow(2px 0 0 var(--accent)) drop-shadow(-2px 0 0 var(--accent)) drop-shadow(0 2px 0 var(--accent)) drop-shadow(0 -2px 0 var(--accent));
+  --garage-tint-hurt: rgba(255, 196, 60, 0.28);
+  --garage-tint-crit: rgba(255, 120, 40, 0.38);
+  --garage-tint-broken: rgba(255, 44, 40, 0.5);
   --map-plain: #3a4a52;
   --map-deck: #b0775a;
   --map-bay: #7f9a7a;
@@ -184,6 +217,7 @@
   --icon-2xl: 36px;
   --icon-3xl: 44px;
   --icon-hero: 56px;
+  --icon-sign: 112px;
 
   /* Text button heights: small, medium (the plain button) and large */
   --btn-h-s: 24px;
@@ -196,7 +230,9 @@
   --meter-l: 6px;
   --pip: 10px;
   --dial-w: 108px;
+  --lcd-cell-w: 88px;
   --dial-h: 65px;
+  --compass-w: 60px;
   --slider-thumb: 12px;
   --slider-track: 4px;
   --slider-tick: 20px;
@@ -209,16 +245,26 @@
   --panel-m-height: 340px;
   --info-lists-height: 100px;
   --dock-width: 282px;
+  --minimap-size: 180px;
+  --world-map-size: 640px;
+  --map-chrome: 190px;
   --modal-width: 1360px;
   --modal-height: 760px;
   --modal-reserve: 250px;
   --talk-width: 640px;
   --quest-page-width: 1584px;
   --quest-page-height: 900px;
-  --quest-page-clearance: 80px;
+  --page-bottom: 40px;
+  --art-band-height: 200px;
+  --art-band-phone-height: 72px;
+  --survey-picture-w: 132px;
   --quest-text-width: 680px;
   --quest-text-min: 620px;
   --quest-side-width: 230px;
+  --quest-art-min: 280px;
+  --quest-frame-column: 3 / 4;
+  --quest-frame-band: 3 / 1;
+  --quest-art-zoom: 1.08;
   --modal-close-gutter: 120px;
   --tab-min-width: 85px;
   --tip-left: 457px;
@@ -233,24 +279,41 @@
   --log-height: 122px;
   --marker-min-width: 72px;
   --marker-max-width: 180px;
-  --narrow-log-bottom: 176px;
   --narrow-log-height: 80px;
   --narrow-modal-clearance: 290px;
 
   /* HUD placement */
   --hud-inset: 14px;
   --hud-gap: 8px;
+  --modal-top: calc(var(--safe-top) + var(--touch-target) + var(--hud-gap));
+  --page-height: min(var(--quest-page-height), calc(var(--layer-h) - var(--modal-top) - var(--page-bottom)));
   --hud-hover-top: 64px;
   --hud-notice-top: 112px;
+  --ui-scale: 1;
+  --layer-w: calc(100vw / var(--ui-scale));
+  --layer-h: calc(100dvh / var(--ui-scale));
+  --safe-top: max(var(--hud-inset), calc(env(safe-area-inset-top) / var(--ui-scale)));
+  --safe-right: max(var(--hud-inset), calc(env(safe-area-inset-right) / var(--ui-scale)));
+  --safe-bottom: max(var(--hud-inset), calc(env(safe-area-inset-bottom) / var(--ui-scale)));
+  --safe-left: max(var(--hud-inset), calc(env(safe-area-inset-left) / var(--ui-scale)));
+  --touch-target: max(32px, calc(32px / var(--ui-scale)));
+  --phone-readouts-h: 100px;
+  --phone-strip-h: var(--touch-target);
+  --phone-bar-h: calc(var(--phone-readouts-h) + var(--hud-gap) + var(--btn-h-l) + var(--hud-gap) + var(--phone-strip-h));
+  --phone-end-w: 96px;
+  --phone-tab-w: 56px;
 
   /* Layers, bottom to top */
   --z-outline: 1;
+  --z-accessory: 1;
+  --z-grid-lines: 64;
   --z-badge: 2;
   --z-hud: 3;
   --z-popup: 5;
   --z-modal: 20;
   --z-over-modal: 21;
   --z-log-open: 22;
+  --z-over-scene: 23;
   --z-feedback: 25;
   --z-toast: 30;
   --z-console: 40;
@@ -259,19 +322,33 @@
   --z-new-game-block: 59;
   --z-save: 60;
   --z-new-game: 70;
+  --z-tip: 80;
   --z-boot: 1000;
   --z-drag: 1000;
   --z-crash: 100000;
+  --z-report: 100001;
 }
 
-@media (max-width: 1100px) {
-  :root {
-    --dock-width: 246px;
-  }
+#report {
+  --ui-scale: 1;
+  --layer-w: 100vw;
+  --layer-h: 100dvh;
+  --safe-top: max(var(--hud-inset), env(safe-area-inset-top));
+  --safe-left: max(var(--hud-inset), env(safe-area-inset-left));
+  --touch-target: 32px;
 }
 
-@media (max-width: 720px) {
+#ui:where(.compact) {
+  --dock-width: 246px;
+}
+
+#ui:where(.narrow) {
+  --dock-width: 200px;
+  --lcd-cell-w: 0px;
+}
+
+@media (orientation: landscape) {
   :root {
-    --dock-width: 200px;
+    --phone-bar-h: calc(var(--phone-readouts-h) + var(--hud-gap) + var(--phone-strip-h));
   }
 }

@@ -27,11 +27,13 @@ from parts_common_base import (  # noqa: E402
     Grid,
     arch_cut,
     check_base,
+    check_door_gap,
     cut_boxes,
     flare,
     hull_layers,
     level_sockets,
 )
+from parts_common_core import PROUD  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 313
@@ -67,7 +69,7 @@ def mirrored(kit: Kit, name: str, size: tuple[float, float, float], x: float, y:
 
 def lower_body(kit: Kit) -> None:
     """The hood-high body with arches cut on the wheels and the engine cutout, flares and a skid."""
-    low = hull_layers("lower", [(SILL, FRONT, BACK, SIDE, 0.12), (HOOD - 0.05, FRONT, BACK, SIDE, 0.12), (HOOD, FRONT - 0.04, BACK + 0.02, SIDE - 0.05, 0.12)])
+    low = hull_layers("lower", [(SILL, FRONT - 2 * PROUD, BACK, SIDE, 0.12), (HOOD - 0.05, FRONT - 2 * PROUD, BACK, SIDE, 0.12), (HOOD, FRONT - 0.04, BACK + 0.02, SIDE - 0.05, 0.12)])
     arch_cut(low, WHEELS_X, HUB_Z, WHEEL_R, WELL_Y, SILL)
     cut_boxes(low, [((BAY_BACK, BAY_RIGHT, BAY_FLOOR), (BAY_FRONT, BAY_LEFT, HOOD + 0.2))])
     low.data.materials.clear()  # the booleans leave an empty slot, which would take the faces off the paint
@@ -100,6 +102,7 @@ def cabin(kit: Kit) -> None:
     side_y = SIDE - 0.1
     door = [(0.5, lo), (-0.45, lo), (-0.45, hi), (0.5 - 0.15, hi)]
     quarter = [(-0.62, lo + 0.05), (-1.55, lo + 0.05), (-1.55, hi), (-0.62, hi)]
+    check_door_gap("door_glass", 0.5, -0.45, lo, WHEELS_X, HUB_Z, WHEEL_R + ARCH_CLEARANCE)
     for name, prof in (("door_glass", door), ("quarter_glass", quarter)):
         prism(kit, f"{name}_l", prof, side_y + 0.015, side_y + 0.045, "glass")
         prism(kit, f"{name}_r", prof, -side_y - 0.045, -side_y - 0.015, "glass")
@@ -113,7 +116,7 @@ def nose(kit: Kit) -> None:
     """A full-width dark grille with round headlamps inset at each end, lamp blocks at the hood corners and a thick bumper."""
     kit.box("grille", (0.06, 2 * (SIDE - 0.1), 0.36), (FRONT - 0.03, 0, -0.22), "under")
     for s, sy in (("l", 1), ("r", -1)):
-        kit.cylinder(f"lamp_{s}", 0.13, 0.06, (FRONT - 0.03, sy * (SIDE - 0.26), -0.22), "light", rot=(0, math.pi / 2, 0), vertices=8)
+        kit.cylinder(f"lamp_{s}", 0.13, 0.06, (FRONT - 0.03 + PROUD, sy * (SIDE - 0.26), -0.22), "light", rot=(0, math.pi / 2, 0), vertices=8)
         kit.box(f"corner_lamp_{s}", (0.06, 0.26, 0.1), (FRONT - 0.04, sy * (SIDE - 0.2), HOOD - 0.07), "light")
     kit.box("bumper", (0.12, 2 * SIDE, 0.22), (FRONT - 0.06, 0, -0.58), "under")
 

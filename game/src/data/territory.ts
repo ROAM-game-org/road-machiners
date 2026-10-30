@@ -7,12 +7,38 @@ import type { DeckSpec, DeckStation } from './terrain';
 
 export { onOrchardRoad };
 
-export type SpotTable = 'landmark' | 'hullScrap' | 'roadWreck' | 'farmStores' | 'armyStores' | 'engineScrap' | 'cityStores';
-export const WRECK_LOOKS: readonly PropKind[] = ['armyTruck', 'shipCache', 'hullCache', 'engineCache', 'deadTruck', 'tank'];
+export type SpotTable = 'landmark' | 'hullCache' | 'hullScrap' | 'roadWreck' | 'farmStores' | 'armyStores' | 'engineScrap' | 'cityStores';
+export const WRECK_LOOKS: readonly PropKind[] = ['armyTruck', 'shipCache', 'hullCache', 'engineCache', 'deadTruck', 'tank', 'fishingBoat', 'riverBarge', 'skiff'];
+export type CluePiece =
+  | 'tube' | 'hub' | 'bow' | 'bigShell' | 'smallShell' | 'drum' | 'tower' | 'gantry' | 'furrow' | 'engine' | 'frame'
+  | 'watchtower' | 'compound' | 'farmhouse' | 'barn' | 'hangar' | 'blockhouse' | 'guardHut';
+export type CluePieceRule = { piece: CluePiece; open: boolean };
+export const CLUE_PIECES: Partial<Record<LandmarkLook, CluePieceRule>> = {
+  shipCage: { piece: 'tube', open: true },
+  shipHub: { piece: 'hub', open: false },
+  shipBow: { piece: 'bow', open: false },
+  hullShell: { piece: 'smallShell', open: true },
+  hullDrum: { piece: 'drum', open: false },
+  hullTower: { piece: 'tower', open: false },
+  hullGantry: { piece: 'gantry', open: false },
+  engineNozzle: { piece: 'engine', open: false },
+  engineFrame: { piece: 'frame', open: false },
+  watchtower: { piece: 'watchtower', open: false },
+  ruinCompound: { piece: 'compound', open: true },
+  farmhouse: { piece: 'farmhouse', open: false },
+  barn: { piece: 'barn', open: false },
+  quonset: { piece: 'hangar', open: false },
+  bunker: { piece: 'blockhouse', open: false },
+  guardPost: { piece: 'guardHut', open: false },
+};
+export const BIG_SHELL_RADIUS = 5;
+export type ClueSpot = { piece: CluePiece; at: Vec; r: number; open: boolean };
+export type Disc = { at: Vec; radius: number };
 export type Hazard = {
   radius: number;
   healthPerTurn: number;
   floor: number;
+  core: { radius: number; healthPerTurn: number; light: Disc } | null;
 };
 export type HullPiece = { look: LandmarkLook; at: Vec; yaw: number; r: number; sink?: number };
 export type Cache = { at: Vec; yaw: number };
@@ -79,6 +105,7 @@ export type WreckRules = {
   spotRadius: [number, number];
   buildings: BuildingGroup[];
   seatEase: number;
+  gradeRoads: boolean;
   rimRocks: RimRocks | null;
   scree: { from: number; to: number } | null;
   roads: FarmRoad[];
@@ -124,6 +151,9 @@ const FURROW_AXIS: Vec = { x: (FURROW_TAIL.x - FURROW_HEAD.x) / FURROW_LENGTH, y
 export function inFurrow(s: number, lat: number): Vec {
   return { x: FURROW_HEAD.x + FURROW_AXIS.x * s - FURROW_AXIS.y * lat, y: FURROW_HEAD.y + FURROW_AXIS.y * s + FURROW_AXIS.x * lat };
 }
+export const CLUE_SPOTS: Record<string, ClueSpot[]> = {
+  'fallen-sun': [{ piece: 'furrow', at: inFurrow(8, 0), r: 10, open: true }],
+};
 const WING = { up: 15, span: 24, down: 46, ease: 49, end: 56, tail: 59 };
 const WING_EASE_RISE = 1.2;
 const PIER_SINK = 2.6;
@@ -225,7 +255,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         { at: { x: 10.2, y: 2.1 }, yaw: 1.37 },
       ],
       cacheLook: 'hullCache',
-      cacheTable: 'landmark',
+      cacheTable: 'hullCache',
       cacheRadius: 0.7,
       patches: [
         { at: { x: -6.5, y: 32.4 }, radius: 10, debris: DENSE, spots: 3 },
@@ -243,6 +273,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
       spotRadius: [0.6, 0.8],
       buildings: [],
       seatEase: 3,
+      gradeRoads: false,
       rimRocks: { from: 1, to: 10, out: [0.5, 6], count: 28, size: [2.5, 4] },
       scree: { from: 20, to: 2 },
       roads: [
@@ -297,10 +328,10 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
       ],
       spurs: [
         dirt(LANE, [[-1.8, -33], [-1.5, -38.5], [-2.2, -45], [-4.3, -53.5]]),
-        dirt(LANE, [inFurrow(WING.end - 1, -6), [-13, 105], [-3, 102], [2, 100.5]]),
+        dirt(LANE, [inFurrow(WING.end - 1, -6), [-12.5, 106], [-12.5, 110.5]]),
         dirt(LANE, [[-30.3, 31], [-33, 37], [-33, 44], [-32.8, 52]]),
         dirt(LANE, [[14.9, 39.6], [19.5, 58]]),
-        dirt(LANE, [[40, 18.9], [45.5, 25], [51, 30.5], [54.5, 33.5]]),
+        dirt(LANE, [[40, 18.9], [47.4, 18], [54.8, 21.5]]),
       ],
       spurFade: 5,
       decks: [
@@ -336,11 +367,12 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         radius: 8,
         healthPerTurn: 5,
         floor: 30,
+        core: { radius: 3.5, healthPerTurn: 8, light: { at: { x: 24.4, y: -24.85 }, radius: 2.25 } },
       },
     },
   },
   orchard: {
-    seed: 1,
+    seed: 3,
     wreck: null,
     farm: {
       spine: { from: AT(-30, 0), to: AT(44, 0), band: 30 },
@@ -361,10 +393,10 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
       ],
       buildings: [
         { look: 'farmhouse', table: 'landmark', turnJitter: 0.06, shift: 0.3, poses: [pose(12, 14, 4, ACROSS)] },
-        { look: 'barn', table: 'farmStores', turnJitter: 0.06, shift: 0.3, poses: [pose(-12, 29.5, 3.7, ACROSS), pose(-6, 30.5, 2.2, ACROSS), pose(54.5, 32, 3.7, ALONG)] },
-        { look: 'quonset', table: 'armyStores', turnJitter: 0.06, shift: 0.3, poses: [pose(25, -13, 3.2, ACROSS), pose(30, -19, 3.2, ACROSS), pose(34, -26, 3.2, ACROSS), pose(51, -27, 3.2, ALONG)] },
+        { look: 'barn', table: 'farmStores', turnJitter: 0.06, shift: 0.3, poses: [pose(-12, 29.5, 3.7, ACROSS), pose(-2.5, 31, 2.2, ACROSS), pose(54.5, 32, 3.7, ALONG)] },
+        { look: 'quonset', table: 'armyStores', turnJitter: 0.06, shift: 0.3, poses: [pose(25, -13, 3.2, ACROSS), pose(30, -19, 3.2, ACROSS), pose(34, -26, 3.2, ACROSS), pose(50.8538, -26.5218, 3.2, ALONG)] },
         { look: 'bunker', table: 'armyStores', turnJitter: 0.06, shift: 0.3, poses: [pose(0, -10, 3.9, ALONG)] },
-        { look: 'guardPost', table: 'armyStores', turnJitter: 0.06, shift: 0.3, poses: [pose(-25.5, -6.5, 1.1, ALONG), pose(8, -28, 1.1, ACROSS), pose(13.5, -25, 1.1, ALONG), pose(68, 11.5, 1.1, ALONG), pose(-14.5, 12, 1.1, ALONG)] },
+        { look: 'guardPost', table: 'armyStores', turnJitter: 0.06, shift: 0.3, poses: [pose(-25.5, -6.5, 1.1, ALONG), pose(8, -28, 1.1, ACROSS), pose(13.5, -25, 1.1, ALONG), pose(68.2348, 11.9415, 1.1, ALONG), pose(-14.5, 12, 1.1, ALONG)] },
         {
           look: 'armyTruck',
           table: 'roadWreck',
@@ -373,7 +405,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
           poses: [
             ...[-27, -22, -17].map((s) => pose(s, 16, 1.1, ALONG)),
             { at: AT(8, 20.5), r: 1.1, turn: ALONG, shoulder: true },
-            { at: AT(60.5, 28), r: 1.1, turn: ALONG, shoulder: true },
+            { at: AT(60.5, 29), r: 1.1, turn: ALONG, shoulder: true },
             { at: AT(-7,-9.5), r: 1.1, turn: ALONG, shoulder: true },
             { at: AT(-20, -1.5), r: 1.1, turn: ALONG, shoulder: true },
             { at: AT(16, 1.5), r: 1.1, turn: Math.PI, shoulder: true },
@@ -381,7 +413,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
             { at: AT(-16,26), r: 1.1, turn: 0.6, shoulder: true },
           ],
         },
-        { look: 'armyCache', table: 'armyStores', turnJitter: 0.3, shift: 0.3, poses: [pose(32.5, 7.5, 0.9, ALONG), pose(24, -5.5, 0.9, ACROSS), pose(21, -34, 0.9, ALONG), pose(43, 5.5, 0.9, ALONG)] },
+        { look: 'armyCache', table: 'armyStores', turnJitter: 0.3, shift: 0.3, poses: [pose(32.8567, 7.4177, 0.9, ALONG), pose(24, -5.5, 0.9, ACROSS), pose(20.0256, -33.775, 0.9, ALONG), pose(43.0174, 5.0003, 0.9, ALONG)] },
       ],
       pads: [
         { at: AT(-22, 16), size: { x: 12, y: 10 }, turn: ALONG },
@@ -404,18 +436,18 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         { points: [AT(40, 12.6), AT(50.5, 12.6)], width: 1 },
         { points: [AT(38.75, -10), AT(38.75, -28)], width: 1 },
       ],
-      groves: { look: 'deadTree', rowGap: 3, treeGap: 1.5, jitter: 0.3, missing: 0.12, radius: 0.35, maxTrees: 750, keep: 0.7, strays: 180 },
+      groves: { look: 'deadTree', rowGap: 3, treeGap: 1.5, jitter: 0.3, missing: 0.12, radius: 0.35, maxTrees: 750, keep: 0.7, strays: 260 },
       blocks: [
         block(20.2, 26.2, 4.6, 16.5, 'across', 0.02),
         block(12.8, 21, 21, 32, 'along', -0.03),
-        block(-0.5, 8.2, 21, 31.5, 'along', 0.02),
-        block(-7.5, 1.5, 10, 19.5, 'across', -0.02),
+        block(-4.9077, 3.7923, 14.6760, 25.1760, 'along', 0.02),
+        block(-8.2945, 0.7055, 10.8194, 20.3194, 'across', -0.02),
         block(-33, -16.5, 4.6, 7.6, 'along', 0.01),
         block(-29, -19.5, 28.5, 32.5, 'along', -0.02),
         block(8, 16.4, -5, -20, 'across', 0.02),
         block(33, 45, -4.6, -9, 'along', -0.02),
         block(44, 55, -4.6, -13.5, 'across', 0.05),
-        block(41, 56, -16.5, -22, 'along', 0.04),
+        block(39.5374, 54.5374, -15.1360, -20.6360, 'along', 0.04),
         block(-23.5, -12.3, -6.6, -22.3, 'across', -0.02),
         block(-8, 1.5, -23.5, -29.3, 'along', 0.06),
         block(40, 50.5, 14.3, 33.5, 'along', 0.03),
@@ -449,23 +481,23 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         { ...PERIMETER, points: [AT(69, 30), AT(69, 39)] },
       ],
       emplacements: [
-        dig(-27, -14, NORTH, 2, 0),
-        dig(-19, -27, SOUTH_WEST, 1, 1),
+        dig(-27, -14, NORTH, 2, 1),
+        dig(-19, -27, SOUTH_WEST, 1, 2),
         dig(-13, -26.5, NORTH, 2, 3),
-        dig(-9, -5, NORTH, 3, 1),
-        dig(-12, 5, SOUTH, 2, 1),
+        dig(-9, -5, NORTH, 3, 2),
+        dig(-12, 5, SOUTH, 2, 2),
         dig(-4, 5, WEST, 3, 3),
         dig(6, 5, NORTH, 3, 3),
-        dig(1, 7, NORTH, 3, 0),
-        dig(3, -18, NORTH_WEST, 2, 1),
-        dig(-1, -18, NORTH, 1, 0),
-        dig(-9, -18, EAST, 1, 1),
-        dig(18, 8, NORTH, 2, 0),
-        dig(8, -23, WEST, 2, 1),
+        dig(1, 7, NORTH, 3, 2),
+        dig(3, -18, NORTH_WEST, 2, 2),
+        dig(-1, -18, NORTH, 1, 2),
+        dig(-9, -18, EAST, 1, 2),
+        dig(18, 8, NORTH, 2, 1),
+        dig(8, -23, WEST, 2, 2),
         dig(14, -28, NORTH_EAST, 3, 3),
         dig(15, -23, NORTH_EAST, 2, 2),
         dig(12, -33, EAST, 2, 0),
-        dig(31, -6, NORTH, 1, 0),
+        dig(31, -6, NORTH, 2, 0),
         dig(23, -24, NORTH_EAST, 2, 2),
         dig(41, -30, NORTH, 3, 2),
         dig(42, -25, SOUTH_WEST, 2, 0),
@@ -480,7 +512,12 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         dig(24, 21, EAST, 3, 1),
         dig(31, 23, NORTH, 3, 0),
         dig(38, 23, NORTH, 3, 0),
-        dig(70, 41, NORTH, 1, 0),
+        dig(70, 41, NORTH, 2, 0),
+        dig(-20, -8, NORTH, 2, 1),
+        dig(26, 2, NORTH, 2, 1),
+        dig(58, -12, NORTH_EAST, 2, 1),
+        dig(-26, 12, WEST, 2, 1),
+        dig(15, 28, EAST, 2, 1),
       ],
       clutter: [
         { look: 'drums', count: 6, radius: [0.4, 0.48], near: ['armyTruck', 'quonset'], reach: 4 },
@@ -553,6 +590,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         },
       ],
       seatEase: 3,
+      gradeRoads: true,
       rimRocks: null,
       scree: null,
       roads: [

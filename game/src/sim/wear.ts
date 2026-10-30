@@ -1,6 +1,7 @@
 
+import { offRoadWear } from './chassis-features';
 import { ECONOMY } from '../data/goods';
-import { partDef, type PartDef } from '../data/parts';
+import { partDef, type EngineDef, type PartDef, type PartKind, type ScannerDef, type ShieldDef, type UtilityDef, type WeaponDef } from '../data/parts';
 import { TERRAIN_TYPES, type TerrainTypeId } from '../data/terrain';
 import { CONDITION, WEAR } from '../data/wear';
 import { playerVehicle } from './damage';
@@ -23,7 +24,7 @@ function wearVehicle(world: World, v: Vehicle): void {
   if (distance <= 0) return;
   const speedFactor = 1 + WEAR.speedWeight * v.speed;
   const weatherWear = weatherOn(world, v).wear;
-  const oddsScale = distance * terrainWear * speedFactor * weatherWear;
+  const oddsScale = distance * terrainWearOf(v, terrainWear) * speedFactor * weatherWear;
   const cab = corePart(v, 'cab').id;
   const floor = (id: string): number => (id === cab ? 1 : 0);
 
@@ -33,6 +34,10 @@ function wearVehicle(world: World, v: Vehicle): void {
 
   breakDown(world, v, oddsScale, floor);
   failDrive(world, v, oddsScale);
+}
+
+function terrainWearOf(v: Vehicle, terrainWear: number): number {
+  return SMOOTHEST + Math.max(0, terrainWear - SMOOTHEST) * offRoadWear(v.chassisId);
 }
 
 function breakDown(world: World, v: Vehicle, oddsScale: number, floor: (id: string) => number): void {
@@ -109,35 +114,45 @@ function costlier(steps: number): number {
   return 1 + CONDITION.stepLoss * steps;
 }
 
+type Worn<D extends PartDef> = (def: D, hp: number, steps: number) => D;
+
+const wornWeapon: Worn<WeaponDef> = (def, hp, steps) => {
+  const keep = worse(steps);
+  const round = { ...def.round, damage: def.round.damage * keep, pen: def.round.pen * keep };
+  const line = def.line && { ...def.line };
+  return { ...def, hp, round, classes: [...def.classes], ...(line && { line }), range: def.range * keep, spread: def.spread * costlier(steps) };
+};
+
+const wornEngine: Worn<EngineDef> = (def, hp, steps) => ({
+  ...def,
+  hp,
+  speedBonus: def.speedBonus - CONDITION.speedLoss.speedBonus * steps,
+  accelBonus: def.accelBonus - CONDITION.speedLoss.accelBonus * steps,
+  capacity: def.capacity * worse(steps),
+  fuelMult: def.fuelMult * costlier(steps),
+  heat: def.heat * costlier(steps),
+});
+
+const wornShield: Worn<ShieldDef> = (def, hp, steps) => ({ ...def, hp, armor: def.armor * worse(steps), blastArmor: def.blastArmor * worse(steps) });
+
+const wornScanner: Worn<ScannerDef> = (def, hp, steps) => ({ ...def, hp, range: def.range * worse(steps) });
+
+const wornUtility: Worn<UtilityDef> = (def, hp, steps) => ({ ...def, hp, reload: wornReloadTurns(def.reload, steps) });
+
+const WORN: Partial<Record<PartKind, Worn<PartDef>>> = {
+  weapon: wornWeapon as Worn<PartDef>,
+  engine: wornEngine as Worn<PartDef>,
+  armor: wornShield as Worn<PartDef>,
+  accessory: wornShield as Worn<PartDef>,
+  scanner: wornScanner as Worn<PartDef>,
+  utility: wornUtility as Worn<PartDef>,
+};
+
 export function wornDef<T extends PartDef>(part: PartInstance): T {
   const def = partDef(part.defId);
-  const steps = part.wear;
   const hp = maxHp(part);
-  const keep = worse(steps);
-  switch (def.kind) {
-    case 'weapon': {
-      const round = { ...def.round, damage: def.round.damage * keep, pen: def.round.pen * keep };
-      return { ...def, hp, round, range: def.range * keep, spread: def.spread * costlier(steps) } as T;
-    }
-    case 'engine':
-      return {
-        ...def,
-        hp,
-        speedBonus: def.speedBonus - CONDITION.speedLoss.speedBonus * steps,
-        accelBonus: def.accelBonus - CONDITION.speedLoss.accelBonus * steps,
-        capacity: def.capacity * keep,
-        fuelMult: def.fuelMult * costlier(steps),
-        heat: def.heat * costlier(steps),
-      } as T;
-    case 'armor':
-      return { ...def, hp, armor: def.armor * keep, blastArmor: def.blastArmor * keep } as T;
-    case 'scanner':
-      return { ...def, hp, range: def.range * keep } as T;
-    case 'utility':
-      return { ...def, hp, reload: wornReloadTurns(def.reload, steps) } as T;
-    default:
-      return { ...def, hp } as T;
-  }
+  const worn = WORN[def.kind];
+  return (worn ? worn(def, hp, part.wear) : { ...def, hp }) as T;
 }
 
 export function wornTurns(turns: number, steps: number): number {

@@ -10,12 +10,12 @@ import { addGoods } from './inventory';
 import { advanceJobs } from './jobs';
 import { resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
 import { getKnownSite } from './npc-decisions';
-import { spawnInitial } from './spawn';
+import { fallbackFaction, spawnInitial } from './spawn';
 import { inShade, sunAt } from './sun';
 import { straightClear } from './path';
 import { vehicleStats } from './stats';
 import { cloneWorld, endTurn } from './world';
-import { addVehicle, emptyWorld, finishBusiness, npcBrain, testDrive  } from './testkit';
+import { addVehicle, emptyWorld, finishBusiness, npcBrain, sizedUp, testDrive } from './testkit';
 import { siteGates, sitePads } from './sites';
 import { budget } from '../test/budget';
 import type { NpcActivity, Vehicle, World } from './types';
@@ -24,13 +24,13 @@ const TRAITS_OF: Record<string, TraitId[]> = { scavenger: ['scavenger'], buggy: 
 
 function createNpc(templateId = 'scavenger') {
   const world = emptyWorld({ x: 200, y: 200 });
-  const npc = addVehicle(world, NPCS[templateId].faction, 'scout', ['mg', 'stockEngine'], { x: 30, y: 30 });
+  const npc = addVehicle(world, fallbackFaction(NPCS[templateId]), 'scout', ['mg', 'stockEngine'], { x: 30, y: 30 });
   npc.brain = npcBrain(templateId, npc.pos, TRAITS_OF[templateId]);
   return { world, npc };
 }
 
 function loadedTrader(world: World, pos: { x: number; y: number }, parts = ['mg', 'stockEngine']): Vehicle {
-  const trader = addVehicle(world, 'traders', 'scout', parts, pos);
+  const trader = addVehicle(world, 'independent', 'scout', parts, pos);
   trader.brain = npcBrain('trader', trader.pos, TRAITS_OF.trader);
   addGoods(world, trader, 'scrap', 2);
   return trader;
@@ -54,7 +54,7 @@ describe('NPC restraint', () => {
       const world = emptyWorld();
       world.rngState = seed;
       spawnInitial(world);
-      return world.vehicles.filter((v) => v.faction === 'raiders');
+      return world.vehicles.filter((v) => v.faction === 'scrapjaw');
     });
     expect(raiders.some((npc) => Object.entries(goodsCount(npc)).some(([good, count]) => good !== 'parts' && count > 0))).toBe(true);
     expect(raiders.some((npc) => (goodsCount(npc).parts ?? 0) > 0)).toBe(true);
@@ -63,7 +63,7 @@ describe('NPC restraint', () => {
   it('mostly keeps civilian work and never opens fire at an uninvolved hostile', () => {
     const { world, npc } = createNpc();
     npc.brain!.goals = [{ ...scavengeGoal }];
-    addVehicle(world, 'raiders', 'buggy', ['mg'], { x: 33, y: 30 });
+    addVehicle(world, 'scrapjaw', 'buggy', ['mg'], { x: 33, y: 30 });
     const kept = shareOfSeeds(world, npc.id, (x, me) => {
       planNpcOrders(x);
       assignAutoOrders(x);
@@ -76,25 +76,34 @@ describe('NPC restraint', () => {
 
   it('judges the nearby hostile faction group before attacking', () => {
     const { world, npc } = createNpc('buggy');
-    loadedTrader(world, { x: 33, y: 30 });
+    sizedUp(world, npc, loadedTrader(world, { x: 33, y: 30 }));
     const alone = shareOfSeeds(world, npc.id, (x, me) => thinkNpc(x, me).kind === 'flee');
-    loadedTrader(world, { x: 33, y: 32 }, ['mg', 'mg', 'mg', 'stockEngine']);
+    sizedUp(world, npc, loadedTrader(world, { x: 33, y: 32 }, ['mg', 'mg', 'mg', 'stockEngine']));
     const grouped = shareOfSeeds(world, npc.id, (x, me) => thinkNpc(x, me).kind === 'flee');
     expect(grouped).toBeGreaterThan(0.25);
     expect(grouped).toBeGreaterThan(alone + 0.2);
   });
 
-  it('mostly sets on an isolated manageable target, and robs it or fights it', () => {
+  it('mostly sets on an isolated manageable target, sizes it up holding fire, and then robs it or fights it', () => {
     const { world, npc } = createNpc('buggy');
-    const prey = addVehicle(world, 'traders', 'scout', ['stockEngine'], { x: 33, y: 30 });
+    const prey = addVehicle(world, 'independent', 'scout', ['stockEngine'], { x: 33, y: 30 });
     prey.brain = npcBrain('trader', prey.pos, ['trader']);
     addGoods(world, prey, 'electronics', 3);
+    const sizing = shareOfSeeds(world, npc.id, (x, me) => {
+      planNpcOrders(x);
+      assignAutoOrders(x);
+      const sizes = topGoal(me)?.kind === 'sizeUp';
+      if (sizes) expect(me.weaponOrders).toEqual({});
+      return sizes;
+    });
+    expect(sizing).toBeGreaterThan(0.6);
+    sizedUp(world, npc, prey);
     const fought = shareOfSeeds(world, npc.id, (x, me) => {
       planNpcOrders(x);
       assignAutoOrders(x);
       const fights = topGoal(me)?.kind === 'fight';
       if (fights) expect(Object.keys(me.weaponOrders)).toHaveLength(1);
-      const paid = topGoal(me)?.kind === 'loot' && topGoal(me)?.reason === 'takeHandedCargo';
+      const paid = (topGoal(me)?.kind === 'loot' && topGoal(me)?.reason === 'takeHandedCargo') || x.events.some((e) => e.t === 'holdUp');
       return fights || paid;
     });
     expect(fought).toBeGreaterThan(0.9);
@@ -104,7 +113,7 @@ describe('NPC restraint', () => {
     const { world, npc } = createNpc('buggy');
     const gate = siteGates(REGION.towns[0])[0];
     npc.pos = { x: gate.x + 3, y: gate.y };
-    const prey = addVehicle(world, 'traders', 'scout', [], gate);
+    const prey = addVehicle(world, 'independent', 'scout', [], gate);
     prey.brain = npcBrain('trader', prey.pos, TRAITS_OF.trader);
     addGoods(world, prey, 'scrap', 1);
     const fought = shareOfSeeds(world, npc.id, (x, me) => {
@@ -127,7 +136,7 @@ describe('NPC field repairs', () => {
     cab.hp = partDef(cab.defId).hp * 0.2;
     const before = cab.hp;
     const sun = sunAt(world.turn)!;
-    world.obstacles.push({ id: 'shade-rock', kind: 'rock', pos: { x: 34, y: 33 }, r: 1 });
+    world.obstacles = [...world.obstacles, { id: 'shade-rock', kind: 'rock', pos: { x: 34, y: 33 }, r: 1 }];
     expect(inShade(world, npc.pos, sun)).toBe(false);
     planNpcOrders(world);
     const activity = topGoal(npc)!;
@@ -151,13 +160,14 @@ describe('NPC field repairs', () => {
 
   it('keeps repairing where it stands after drifting off its shade spot', () => {
     const { world, npc } = createNpc();
+    world.vehicles[0].pos = { x: 30, y: 36 };
     addGoods(world, npc, 'parts', 2);
     const cab = corePart(npc, 'cab');
     cab.hp = partDef(cab.defId).hp * 0.4;
     const engine = mountedParts(npc, 'engine')[0];
     engine.hp = partDef(engine.defId).hp * 0.45;
     const before = { cab: cab.hp, engine: engine.hp };
-    world.obstacles.push({ id: 'shade-rock', kind: 'rock', pos: { x: 34, y: 33 }, r: 1 });
+    world.obstacles = [...world.obstacles, { id: 'shade-rock', kind: 'rock', pos: { x: 34, y: 33 }, r: 1 }];
     planNpcOrders(world);
     const spot = { ...topGoal(npc)!.destination! };
     npc.pos = { ...spot };
@@ -206,7 +216,7 @@ describe('NPC field repairs', () => {
     const { world, npc } = createNpc();
     addGoods(world, npc, 'parts', 2);
     corePart(npc, 'cab').hp = 1;
-    world.obstacles.push({ id: 'shade-rock', kind: 'rock', pos: { x: 34, y: 33 }, r: 1 });
+    world.obstacles = [...world.obstacles, { id: 'shade-rock', kind: 'rock', pos: { x: 34, y: 33 }, r: 1 }];
     if (started) planNpcOrders(world);
     npc.resources!.fuel = 0;
     planNpcOrders(world);
@@ -220,7 +230,7 @@ describe('NPC field repairs', () => {
     const { world, npc } = createNpc();
     addGoods(world, npc, 'parts', 2);
     corePart(npc, 'cab').hp = 1;
-    addVehicle(world, 'raiders', 'buggy', ['mg'], { x: 33, y: 30 });
+    addVehicle(world, 'scrapjaw', 'scout', ['mg'], { x: 33, y: 30 });
     const answered = shareOfSeeds(world, npc.id, (x, me) => {
       planNpcOrders(x);
       resolveNpcActivities(x);
@@ -239,7 +249,7 @@ describe('NPC field repairs', () => {
     planNpcOrders(world);
     resolveNpcActivities(world);
     expect(npc.job?.kind).toBe('repair');
-    addVehicle(world, 'raiders', 'buggy', ['mg'], { x: 33, y: 30 });
+    addVehicle(world, 'scrapjaw', 'buggy', ['mg'], { x: 33, y: 30 });
 
     const turn = (seed: number) => {
       const start = cloneWorld(world);

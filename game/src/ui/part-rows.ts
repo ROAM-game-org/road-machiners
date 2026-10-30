@@ -2,10 +2,13 @@
 import { partDef } from "../data/parts";
 import { partName } from "../text/names";
 import type { PartInstance, World } from "../sim/types";
-import { conditionTag, footprint, headlineStat, partDetail, partIconEl, statChip, toneStyle } from "./cards";
+import { conditionTag, footprint, headlineStat, itemTip, partDetail, partIconEl, statChip, toneStyle } from "./cards";
+import type { Msg } from "../text/msg";
 import { el } from "./dom";
 import { conditionStatus, conditionTier } from "./format";
 import { moneyEl } from "./units";
+import { SPENT_DROP, type RowSlots } from "./row-slots";
+import { uiSize } from "./ui-size";
 
 export type PartRow = {
   world: World;
@@ -14,6 +17,7 @@ export type PartRow = {
   price: number;
   payable: boolean;
   action: HTMLElement;
+  done: Msg;
   onHover: (on: boolean) => void;
 };
 
@@ -40,19 +44,20 @@ export class PartRows {
   private open: string | null = null;
   private reveal = false;
 
-  constructor(private onChange: () => void) {}
+  constructor(private onChange: () => void, private slots: RowSlots) {}
 
   collapse(): void {
     this.open = null;
   }
 
-  list(rows: PartRow[]): HTMLElement {
+  list(key: string, rows: PartRow[]): HTMLElement {
     const seen = new Set<string>();
     for (const r of rows) {
       if (seen.has(r.part.id)) throw new Error(`Part ${r.part.id} is listed twice`);
       seen.add(r.part.id);
     }
-    return el("ul", { class: "part-rows" }, ...rows.map((r) => this.row(r)));
+    const placed = this.slots.place(key, rows.map((r) => ({ id: r.part.id, row: this.row(r), action: r.action, done: r.done })));
+    return el("ul", { class: "part-rows" }, ...placed);
   }
 
   private row(r: PartRow): HTMLElement {
@@ -76,7 +81,7 @@ export class PartRows {
       "li",
       { class: `part-row tile toned k-${partDef(r.part.defId).kind}${isOpen ? " on" : ""}`, style: toneStyle(r.part.defId), "data-part-row": id },
       el("div", { class: "part-line" }, head, el("span", { class: `price${r.payable ? "" : " bad"}` }, moneyEl(r.price)), r.action),
-      isOpen ? el("div", { class: "part-detail", id: detailId }, ...partDetail(r.world, r.part, r.base)) : null,
+      isOpen ? el("div", { class: "part-detail", id: detailId, [SPENT_DROP]: "" }, ...partDetail(r.world, r.part, r.base)) : null,
     );
     li.addEventListener("mouseenter", () => r.onHover(true));
     li.addEventListener("mouseleave", () => r.onHover(false));
@@ -89,7 +94,7 @@ export class PartRows {
     return el(
       "span",
       { class: "part-name" },
-      el("b", { title: partName(part.defId) }, partName(part.defId)),
+      el("b", { title: itemTip(part.defId) }, partName(part.defId)),
       conditionTag(part),
       showStatus ? el("span", { class: status.tone }, status.text) : null,
     );
@@ -140,13 +145,13 @@ export class PartRows {
     row.querySelector<HTMLElement>(".part-sum")?.focus({ preventScroll: true });
     if (target === focused) {
       const box = scrollerOf(row);
-      if (box) box.scrollTop += row.getBoundingClientRect().top - place.top;
+      if (box) box.scrollTop += uiSize().toLayer(row.getBoundingClientRect().top - place.top);
     }
   }
 }
 
 function scrollBoxes(root: HTMLElement): HTMLElement[] {
-  return [...root.querySelectorAll<HTMLElement>(".town-shop, .town-split, .outpost-body")];
+  return [...root.querySelectorAll<HTMLElement>(".town-shop, .town-split, .outpost-body, .ink-panel, .ink-scroll")];
 }
 
 function rowIds(root: HTMLElement): string[] {
