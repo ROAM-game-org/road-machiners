@@ -4,7 +4,7 @@ import { climbGrade, vehicleStats } from "./stats";
 import { REGION } from "../data/region";
 import { CELL, climbNeed, navLayer } from "./nav/layer";
 import { chassisDef } from "../data/chassis";
-import { backsToDestination, clickOrder, parkedVehicles, setDown, setDownSpot, orderSpeed, throttleFor, throughSpeed, zoneAt, zoneEdges, zoneHalfAngle, zonePace, zoneSpeed, orderThrottle, playerOrder } from "./steering";
+import { backsToDestination, clickOrder, clickSetSpeed, zoneSpeedOf, parkedVehicles, setDown, setDownSpot, setSpeedTarget, settleSetSpeed, orderSpeed, throttleFor, throughSpeed, zoneAt, zoneEdges, zoneHalfAngle, zonePace, zoneSpeed, orderThrottle, playerOrder } from "./steering";
 import { DEG, dist } from "./vec";
 import { addVehicle, editableTerrain, emptyWorld, npcBrain } from "./testkit";
 import { addState } from "./states";
@@ -15,7 +15,7 @@ import { nearestSitePad } from "./sites";
 import { atlasOf } from "./atlas";
 import { PERK_NUMBERS } from "../data/skills";
 import { PLAYER_CHASSIS } from "../data/chassis";
-import type { MoveOrder, Obstacle, World } from "./types";
+import type { MoveOrder, Obstacle, Vehicle, World } from "./types";
 import type { Vec } from "./vec";
 
 function setup(speed: number) {
@@ -88,10 +88,17 @@ describe("route mode speed by distance", () => {
 });
 
 describe("click orders", () => {
-  it("at rest the red zone is one third of reach and green is two thirds", () => {
+  it("at rest every distance is green", () => {
     const z = zoneEdges();
-    expect(throttleFor(z.reach / 3 - 0.01, 0, 'direct')).toBe("brake");
-    expect(throttleFor(z.reach / 3 + 0.01, 0, 'direct')).toBe("accelerate");
+    for (const d of [0.1, z.brakeEnd, z.holdEnd, z.reach + 5]) expect(throttleFor(d, 0, 'direct')).toBe("accelerate");
+    expect(throttleFor(0.1, 0.01, 'direct')).toBe("brake");
+  });
+
+  it("in manual driving the set speed decides stopped, so a backing truck is moving and a drifting one is stopped", () => {
+    expect(zoneSpeedOf({ direct: true, setSpeed: 2, speed: 0 })).toBe(2);
+    expect(zoneSpeedOf({ direct: true, setSpeed: 0, speed: 0.02 })).toBe(0);
+    expect(zoneSpeedOf({ direct: true, setSpeed: undefined, speed: 3 })).toBe(3);
+    expect(zoneSpeedOf({ direct: false, setSpeed: 2, speed: 3 })).toBe(3);
   });
 
   it("a nearby ground click remains a destination", () => {
@@ -230,6 +237,86 @@ describe("setting a stranded truck down", () => {
   });
 });
 
+describe("set speed of manual driving", () => {
+  const z = zoneEdges();
+  const step = RULES.setSpeedStep;
+  const through = { kind: "through", dest: { x: 50, y: 30 } } as const;
+  const driver = (setSpeed?: number) => ({ direct: true, setSpeed });
+  const ahead = (v: Vehicle, d: number): Vec => ({ x: v.pos.x + Math.cos(v.heading) * d, y: v.pos.y + Math.sin(v.heading) * d });
+
+  it("a click changes the set speed once by its zone: red lowers, yellow keeps, green raises", () => {
+    const { v, s } = setup(3);
+    v.setSpeed = 4;
+    expect(clickSetSpeed(s, v, ahead(v, z.brakeEnd / 2))).toBeCloseTo(4 - step);
+    expect(clickSetSpeed(s, v, ahead(v, (z.brakeEnd + z.holdEnd) / 2))).toBe(4);
+    expect(clickSetSpeed(s, v, ahead(v, z.holdEnd + 0.5))).toBeCloseTo(4 + step);
+  });
+
+  it("the step does not depend on how deep in the zone the click lands", () => {
+    const { v, s } = setup(3);
+    v.setSpeed = 4;
+    expect(clickSetSpeed(s, v, ahead(v, z.holdEnd + 0.1))).toBe(clickSetSpeed(s, v, ahead(v, z.reach - 0.1)));
+    expect(clickSetSpeed(s, v, ahead(v, 0.2))).toBe(clickSetSpeed(s, v, ahead(v, z.brakeEnd - 0.1)));
+  });
+
+  it("only the distance counts: the same in every direction, and past the reach is green", () => {
+    const { v, s } = setup(3);
+    v.setSpeed = 4;
+    const at = (d: number, angle: number): Vec => ({ x: v.pos.x + Math.cos(v.heading + angle) * d, y: v.pos.y + Math.sin(v.heading + angle) * d });
+    for (const angle of [Math.PI / 2, Math.PI, -2]) {
+      expect(clickSetSpeed(s, v, at(z.brakeEnd / 2, angle))).toBeCloseTo(4 - step);
+      expect(clickSetSpeed(s, v, at((z.brakeEnd + z.holdEnd) / 2, angle))).toBe(4);
+      expect(clickSetSpeed(s, v, at(z.holdEnd + 0.5, angle))).toBeCloseTo(4 + step);
+    }
+    expect(clickSetSpeed(s, v, ahead(v, z.reach + 40))).toBeCloseTo(4 + step);
+  });
+
+  it("with no set speed a click starts from the measured speed, and stays between zero and top speed", () => {
+    const { v, s } = setup(3);
+    expect(clickSetSpeed(s, v, ahead(v, z.holdEnd + 0.5))).toBeCloseTo(3 + step);
+    v.setSpeed = s.maxSpeed;
+    expect(clickSetSpeed(s, v, ahead(v, z.holdEnd + 0.5))).toBe(s.maxSpeed);
+    v.speed = 0;
+    v.setSpeed = 0;
+    expect(clickSetSpeed(s, v, ahead(v, 0.5))).toBeCloseTo(step);
+    expect(clickSetSpeed(s, v, ahead(v, -0.5))).toBeCloseTo(step);
+    expect(clickSetSpeed(s, v, ahead(v, z.reach - 0.5))).toBeCloseTo(step);
+  });
+
+  it("the target is the set speed under the top speed, whatever the order point's distance", () => {
+    const { s } = setup(4);
+    expect(setSpeedTarget(driver(3), s, through)).toBe(3);
+    expect(setSpeedTarget(driver(3), s, { kind: "through", dest: { x: 0.1, y: 0 } })).toBe(3);
+    expect(setSpeedTarget(driver(3), s, null)).toBe(3);
+    expect(setSpeedTarget(driver(s.maxSpeed + 3), s, null)).toBe(s.maxSpeed);
+  });
+
+  it("route mode, no set speed, brake, stop-at and pace orders give none", () => {
+    const { s } = setup(4);
+    expect(setSpeedTarget({ direct: false, setSpeed: 5 }, s, through)).toBeUndefined();
+    expect(setSpeedTarget(driver(), s, through)).toBeUndefined();
+    expect(setSpeedTarget(driver(5), s, { kind: "brake" })).toBeUndefined();
+    expect(setSpeedTarget(driver(5), s, { kind: "stopAt", dest: through.dest })).toBeUndefined();
+    expect(setSpeedTarget(driver(5), s, { ...through, pace: 2 })).toBeUndefined();
+  });
+
+  it("a truck that comes to rest gets a set speed of zero, one that starts from rest keeps it", () => {
+    const { v } = setup(0);
+    v.setSpeed = 4;
+    settleSetSpeed(v, 3);
+    expect(v.setSpeed).toBe(0);
+    v.setSpeed = 4;
+    settleSetSpeed(v, 0);
+    expect(v.setSpeed).toBe(4);
+  });
+
+  it("throws on a non-finite speed", () => {
+    const { v, s } = setup(4);
+    v.setSpeed = NaN;
+    expect(() => clickSetSpeed(s, v, ahead(v, 5))).toThrow();
+  });
+});
+
 describe("route pace", () => {
   const stop = (dest: Vec, pace?: number): MoveOrder => ({ kind: "stopAt", dest, ...(pace === undefined ? {} : { pace }) });
 
@@ -274,8 +361,8 @@ describe("route speed by the colored zones", () => {
     expect(zoneAt(s, v, ahead(v, (z.brakeEnd + z.holdEnd) / 2))).toBe("hold");
     expect(zoneAt(s, v, ahead(v, z.holdEnd + 0.5))).toBe("accelerate");
     v.speed = 0;
-    expect(zoneAt(s, v, ahead(v, z.restBrakeEnd - 0.5))).toBe("brake");
-    expect(zoneAt(s, v, ahead(v, z.restBrakeEnd + 0.5))).toBe("accelerate");
+    expect(zoneAt(s, v, ahead(v, 0.5))).toBe("accelerate");
+    expect(zoneAt(s, v, ahead(v, z.holdEnd - 0.5))).toBe("accelerate");
   });
 
   it("zoneAt is null past the reach and outside the fan", () => {

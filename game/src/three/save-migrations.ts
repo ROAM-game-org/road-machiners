@@ -824,6 +824,7 @@ export const TINY_STEPS: readonly NamedStep[] = [
   { name: 'withChaseRecords', step: withChaseRecords_120_121 },
   { name: 'withWholeMoney', step: withWholeMoney_123_124 },
   { name: 'withRouteStyles', step: withRouteStyles_124_125 },
+  { name: 'withSetSpeed', step: (world) => world },
 ];
 
 function withOfferingsRedated_111_112(world: SavedJson): SavedJson {

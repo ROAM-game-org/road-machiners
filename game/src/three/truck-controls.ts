@@ -7,15 +7,15 @@ import { handOverParcel, readyHandover } from "../sim/parcel";
 import { playerVehicle } from "../sim/damage";
 import { canDouse, douseEngine } from "../sim/engine-heat";
 import { isBusy, startFirstAid } from "../sim/jobs";
-import { inOverdrive, overdriveBlock } from "../sim/stats";
+import { inOverdrive, overdriveBlock, vehicleStats } from "../sim/stats";
 import { canLoot, canScavenge, scavenge } from "../sim/locations";
 import { startSurvey } from "../sim/survey";
 import { shopAt } from "../sim/market";
 import { reachedOutpostAt } from "../sim/chaos-highway";
 import type { World } from "../sim/types";
 import type { Vec } from "../sim/vec";
-import { playerOrder } from "../sim/steering";
-import { actBlock, playerCanAct, Refused, setAutoRepair, setDirect, setHeadlights, setMoveOrder, setOverdrive } from "../sim/world";
+import { clickSetSpeed, playerOrder } from "../sim/steering";
+import { actBlock, playerCanAct, Refused, setAutoRepair, setDirect, setHeadlights, setManualSpeed, setMoveOrder, setOverdrive } from "../sim/world";
 import { markError, markVehicle } from "../sim/detect";
 import { lookOver } from "../sim/look-over";
 import { hasBasic } from "../sim/progress";
@@ -37,7 +37,9 @@ export class TruckControls {
 
   order(dest: Vec, shift: boolean): void {
     const w = this.host.world();
-    this.host.apply(setMoveOrder(w, playerOrder(w, playerVehicle(w), dest, shift)));
+    const me = playerVehicle(w);
+    const next = setMoveOrder(w, playerOrder(w, me, dest, shift));
+    this.host.apply(me.direct ? setManualSpeed(next, clickSetSpeed(vehicleStats(w, me), me, dest)) : next);
   }
 
   toggleManual(): void {
