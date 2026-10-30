@@ -72,6 +72,21 @@ describe("LogStrip", () => {
     expect((root.children[0] as FakeNode).className).toBe("good");
   });
 
+  it("puts one space between the time and the line, so a copied row keeps it", () => {
+    vi.stubGlobal("document", {
+      createElement: (tag: string) => new FakeNode(tag),
+      createTextNode: (data: string) => Object.assign(new FakeNode("#text"), { textContent: data }),
+      getElementById: () => new FakeNode("div"),
+    });
+    const strip = new LogStrip();
+    strip.show(new LogBook().add(1, { text: verbatim("Second"), cls: "good" }));
+    const row = (strip.root as unknown as FakeNode).children[0] as FakeNode;
+    const kids = row.children as FakeNode[];
+    expect(kids.map((k) => k.tag)).toEqual(["span", "#text", "span"]);
+    expect(kids[1].textContent).toBe(" ");
+    expect(kids[0].className).toBe("log-time");
+  });
+
   it("replaces the line it showed", () => {
     const strip = new LogStrip();
     const book = new LogBook();

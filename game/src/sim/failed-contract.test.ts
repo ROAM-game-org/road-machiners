@@ -8,9 +8,9 @@ import type { GameEvent, World } from './types';
 import { update } from './world';
 
 const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
-const haul = (id = 'ct-haul', deadline = 500): Extract<Contract, { kind: 'haul' }> => ({ id, shop: 'bowl', kind: 'haul', good: 'salt', units: 3, to: 'nose', reward: 10000, deadline, window: 500, rush: false, tier: 1 });
-const claim = (): Contract => ({ id: 'ct-claim', shop: 'granary', kind: 'claim', stockId: 's-1', at: { x: 50, y: 50 }, partId: 'p-1', defId: 'mg', reward: 12000, deadline: 900, window: 600, tier: 1, rivalAt: 700, rival: 'v-rival', leads: [] });
-const offer = (id = 'ct-next'): Contract => ({ id, shop: 'bowl', kind: 'haul', good: 'salt', units: 1, to: 'nose', reward: 4000, deadline: 5000, window: 500, rush: false, tier: 1 });
+const haul = (id = 'ct-haul', deadline = 500): Extract<Contract, { kind: 'haul' }> => ({ id, shop: 'bowl', kind: 'haul', good: 'salt', units: 3, to: 'nose', reward: 100, deadline, window: 500, rush: false, tier: 1 });
+const claim = (): Contract => ({ id: 'ct-claim', shop: 'granary', kind: 'claim', stockId: 's-1', at: { x: 50, y: 50 }, partId: 'p-1', defId: 'mg', reward: 120, deadline: 900, window: 600, tier: 1, rivalAt: 700, rival: 'v-rival', leads: [] });
+const offer = (id = 'ct-next'): Contract => ({ id, shop: 'bowl', kind: 'haul', good: 'salt', units: 1, to: 'nose', reward: 40, deadline: 5000, window: 500, rush: false, tier: 1 });
 
 function atBowlHolding(...held: Contract[]): World {
   const w = emptyWorld(sitePads(bowl)[0]);

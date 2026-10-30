@@ -4,9 +4,10 @@ import { startKit } from '../data/start';
 import { addGoods } from '../sim/inventory';
 import { playerVehicle } from '../sim/damage';
 import { siteOf } from '../sim/market';
-import { chooseQuestOption, QUESTS, questView, setIntroStep, setWorldVar } from '../sim/quests';
+import { pickTownSection, QUESTS, questView, setIntroStep, setWorldVar } from '../sim/quests';
 import { defaultSetup } from '../sim/settings';
 import { nearestPad } from '../sim/sites';
+import { flatChoices, pickText } from '../test/quest-testkit';
 import { finishQuest } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { endTurn, newWorld } from '../sim/world';
@@ -35,13 +36,8 @@ function parkAt(w: World, siteId: string): World {
 
 const wait = (w: World): World => endTurn(w, () => {});
 const spoken = (w: World): string => questView(w, QUESTS).lines.map((l) => l.text).join(' ');
-const choices = (w: World): string[] => questView(w, QUESTS).choices;
 
-function choose(w: World, text: string): World {
-  const index = choices(w).indexOf(text);
-  if (index < 0) throw new Error(`No choice ${text} in ${choices(w).join(', ')}`);
-  return chooseQuestOption(w, QUESTS, index);
-}
+const choose = (w: World, text: string): World => pickText(w, text);
 
 function savedAndLoaded(w: World): World {
   const slots = new SaveSlots(memoryBackend(), new Map());
@@ -56,15 +52,15 @@ describe('Hattie at her well for a driver who arrives on their own', () => {
     const w = wait(parkAt(introWorld(), 'bowl'));
     expect(w.player.quests.session).toEqual(expect.objectContaining({ quest: 'intro_bowl' }));
     expect(w.player.quests.world.hattie_met).toBe(true);
-    expect(spoken(w)).toContain("I'm Hattie, this is my well");
+    expect(spoken(w)).toContain("I'm Hattie, this is my cistern");
     expect(questView(w, QUESTS).choices.length).toBeGreaterThan(0);
   });
 
   it('never offers the knockout questions and ends on a leave line that does not mention a slate', () => {
     const w = wait(parkAt(introWorld(), 'bowl'));
-    expect(choices(w)).not.toContain('What happened to me?');
+    expect(flatChoices(w)).not.toContain('What happened to me?');
     const asked = choose(w, 'What do I do now?');
-    expect(choices(asked)).not.toContain('Who brought me in?');
+    expect(flatChoices(asked)).not.toContain('Who brought me in?');
     const left = choose(asked, "I'll go.");
     expect(left.player.quests.session).toBeNull();
     expect(left.player.money).toBe(w.player.money);
@@ -82,7 +78,7 @@ describe('Hattie at her well for a driver who arrives on their own', () => {
   it('loads mid-meeting on the same question list and awards nothing', () => {
     const w = choose(wait(parkAt(introWorld(), 'bowl')), 'Where am I?');
     const loaded = savedAndLoaded(w);
-    expect(choices(loaded)).toEqual(choices(w));
+    expect(flatChoices(loaded)).toEqual(flatChoices(w));
     expect(loaded.player.money).toBe(w.player.money);
     expect(loaded.player.xp).toEqual(w.player.xp);
     expect(loaded.events).toEqual([]);
@@ -111,7 +107,7 @@ describe('Hattie at her well for a driver who arrives on their own', () => {
     addGoods(w, playerVehicle(w), 'scrap', 2);
     const first = wait(w);
     expect(first.player.quests.session?.quest).toBe('intro_bowl');
-    const later = wait(finishQuest(first));
+    const later = pickTownSection(finishQuest(first), null, 'market');
     expect(later.player.quests.session?.quest).toBe('bowl_scale');
   });
 });

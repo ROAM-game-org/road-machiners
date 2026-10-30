@@ -3,13 +3,13 @@ import { chassisDef } from '../data/chassis';
 import { RULES } from '../data/rules';
 import { inLiveRange, isHeadless } from './fidelity';
 import { boxSegmentDistance, propBoxes, propReach } from './mapgen';
-import { keepsOffRoads } from './off-road';
+import { ROUTE_STYLES, routeStyle, type RouteStyle } from './off-road';
 import { route } from './path';
 import { propSlotsAlong } from './prop-index';
 import { breakProp } from './salvage';
 import { burnFuel, getResources } from './resources';
 import { fuelCap, plainFuelPerTile, plainMaxSpeed, vehicleStats, type VehicleStats } from './stats';
-import { driveMode, parkedVehicles, throughSpeed } from './steering';
+import { driveMode, orderSpeed, parkedVehicles, setSpeedTarget, settleSetSpeed } from './steering';
 import { fieldBlockers } from './hazards';
 import { getHitchedTowIds, isOnRope, ropeClientOf } from './tow';
 import type { Blocker } from './nav/buckets';
@@ -43,10 +43,14 @@ export function fuelLimited(w: World, v: Vehicle, s: VehicleStats, speed: number
   const low = fuelLimit(w, v, s.fuelPerTile > 0) === 'low';
   const limit = low ? Math.max(lowFuelSpeed(s.maxSpeed), speed - s.brake) : s.maxSpeed;
   const capped = low ? { ...s, maxSpeed: limit } : s;
-  const wanted = order?.kind === 'through' ? throughSpeed(capped, speed, dist(v.pos, order.dest), order.pace, driveMode(v)) : Math.min(capped.maxSpeed, speed + capped.accel);
+  const wanted = order && order.kind !== 'brake' ? wantedSpeed(capped, v, speed, order) : Math.min(capped.maxSpeed, speed + capped.accel);
   if (wanted * s.fuelPerTile <= fuel) return capped;
   const cap = Math.max(s.limpSpeed, speed - s.brake);
   return { ...s, maxSpeed: cap, accel: Math.min(s.accel, s.limpAccel) };
+}
+
+function wantedSpeed(s: VehicleStats, v: Vehicle, speed: number, order: Exclude<MoveOrder, { kind: 'brake' }>): number {
+  return setSpeedTarget(v, s, order) ?? orderSpeed(s, speed, v.pos, order, driveMode(v));
 }
 
 export function advanceFar(w: World, v: Vehicle): void {
@@ -55,14 +59,16 @@ export function advanceFar(w: World, v: Vehicle): void {
   const order = v.order;
   if (!order || order.kind === 'brake') {
     v.speed = Math.max(0, v.speed - full.brake);
+    delete v.setSpeed;
     v.trail = Array.from({ length: RULES.substeps + 1 }, () => ({ ...start }));
     if (order && v.speed === 0) v.order = null;
     return;
   }
 
   const s = fuelLimited(w, v, full, v.speed, order);
-  const next = order.kind === 'through' ? throughSpeed(s, v.speed, dist(v.pos, order.dest), order.pace, driveMode(v)) : Math.min(s.maxSpeed, v.speed + s.accel);
-  const style = { offRoad: keepsOffRoads(w, v), night: avoidsCrater(w, v) };
+  const next = wantedSpeed(s, v, v.speed, order);
+  const startSpeed = v.speed;
+  const style = { route: routeStyle(w, v), night: avoidsCrater(w, v) };
   const points = farPoints(w, v, order.dest, style, full, s);
 
   const planned = follow(v.pos, points, (v.speed + next) / 2);
@@ -76,6 +82,7 @@ export function advanceFar(w: World, v: Vehicle): void {
   const last = v.trail[v.trail.length - 1];
   Object.assign(v, { pos: { x: end.x, y: end.y }, heading: last.heading }, bendField(last.bend));
   v.speed = done && order.kind === 'stopAt' ? 0 : block ? Math.min(next, block.other.speed) : next;
+  settleSetSpeed(v, startSpeed);
   burnFuel(w, v, walk.moved);
   breakCrossed(w, v, walk.path, full.radius);
   keepFarRoute(v, done || block ? undefined : farRouteOf(order.dest, walk.ahead, style));
@@ -85,7 +92,7 @@ export function advanceFar(w: World, v: Vehicle): void {
   }
 }
 
-function farPoints(w: World, v: Vehicle, dest: Vec, style: RouteStyle, full: VehicleStats, s: VehicleStats): Vec[] {
+function farPoints(w: World, v: Vehicle, dest: Vec, style: FarStyle, full: VehicleStats, s: VehicleStats): Vec[] {
   const onRope = getHitchedTowIds(w);
   const stored = keptFarRoute(v);
   if (stored && dist(stored.dest, dest) < RULES.arriveRadius && sameStyle(stored, style)) return stored.points;
@@ -103,17 +110,17 @@ function radiusOf(v: Vehicle): number {
   return chassisDef(v.chassisId).radius;
 }
 
-type FarRoute = { dest: Vec; points: Vec[]; offRoad: boolean; night?: true };
-type RouteStyle = { offRoad: boolean; night: boolean };
+type FarRoute = { dest: Vec; points: Vec[]; style: RouteStyle; night?: true };
+type FarStyle = { route: RouteStyle; night: boolean };
 
-function farRouteOf(dest: Vec, points: Vec[], style: RouteStyle): FarRoute {
-  const route: FarRoute = { dest: { ...dest }, points, offRoad: style.offRoad };
+function farRouteOf(dest: Vec, points: Vec[], style: FarStyle): FarRoute {
+  const route: FarRoute = { dest: { ...dest }, points, style: style.route };
   if (style.night) route.night = true;
   return route;
 }
 
-function sameStyle(stored: FarRoute, style: RouteStyle): boolean {
-  return keptOffRoad(stored) === style.offRoad && (stored.night === true) === style.night;
+function sameStyle(stored: FarRoute, style: FarStyle): boolean {
+  return keptStyle(stored) === style.route && (stored.night === true) === style.night;
 }
 const playerRoutes = new Map<string, { route: FarRoute; at: Vec }>();
 
@@ -121,9 +128,9 @@ export function clearFarRoutes(): void {
   playerRoutes.clear();
 }
 
-function keptOffRoad(stored: FarRoute): boolean {
-  if (typeof stored.offRoad !== 'boolean') throw new Error('A far route has no offRoad flag');
-  return stored.offRoad;
+function keptStyle(stored: FarRoute): RouteStyle {
+  if (!ROUTE_STYLES.includes(stored.style)) throw new Error(`A far route has an unknown style: ${String(stored.style)}`);
+  return stored.style;
 }
 
 function keptFarRoute(v: Vehicle): FarRoute | undefined {

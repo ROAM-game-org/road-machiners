@@ -87,6 +87,25 @@ describe('timeline', () => {
     expect(text).toMatch(/holdings changed: money -150.*gained mg/);
   });
 
+  it('tells a truck that drove into a site and came back out from one that went out of view', () => {
+    let world = emptyWorld();
+    world.turn = 3;
+    const car = addVehicle(world, 'scrapjaw', 'buggy', ['mg'], { x: 38, y: 30 });
+    refreshVision(world);
+    const stream = new RunStream(CTX);
+    const lines = stream.begin(world, 'new');
+    const parked = world.vehicles.find((v) => v.id === car.id)!;
+    world = advance(world, (w) => { w.vehicles = w.vehicles.filter((v) => v.id !== car.id); });
+    lines.push(...stream.step(world, [{ t: 'enteredSite', vehicle: car.id, site: 'sunward-hollow' }]));
+    world = advance(world, (w) => { w.vehicles.push(structuredClone(parked)); refreshVision(w); });
+    lines.push(...stream.step(world, [{ t: 'leftSite', vehicle: car.id, site: 'sunward-hollow' }]));
+
+    const text = timeline(lines, 'day').join('\n');
+    expect(text).toMatch(new RegExp(`${car.id} went into a site`));
+    expect(text).toMatch(new RegExp(`came out of a site: .*${car.id}`));
+    expect(text).not.toContain('came back into view');
+  });
+
   it('does not report the trucks of a reload keyframe as arrivals', () => {
     const lines = story();
     const again = new RunStream(CTX);

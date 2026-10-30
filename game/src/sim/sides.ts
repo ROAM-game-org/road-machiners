@@ -1,6 +1,6 @@
 import { SPAWN } from '../data/npcs';
-import { combatFoesOf, isHostile } from './combat';
-import { companyOf } from './companies';
+import { awakeFoesOf, combatFoesOf, isHostile } from './combat';
+import { companyOf, sameCompany } from './companies';
 import { isDefeated } from './defeat';
 import { isAlly } from './relations';
 import type { Vehicle, World } from './types';
@@ -55,6 +55,10 @@ export function fightSide(w: World, v: Vehicle): Vehicle[] {
   const ties = tiesOf(w, v);
   const mates = (x: Vehicle) => v.brain !== null && x.brain !== null && mateNearby(w, v, x);
   return [v, ...others(w, v, (x) => mates(x) || sidesWithInSight(w, ties, x))];
+}
+
+export function fightsSideOf(w: World, foe: Vehicle, driver: Vehicle): boolean {
+  return awakeFoesOf(w, foe).some((v) => v.id === driver.id || sameCompany(w, driver, v) || (mateNearby(w, driver, v) && canVehicleSee(w, driver, v.pos)));
 }
 
 export function spokesman(w: World, v: Vehicle): Vehicle {

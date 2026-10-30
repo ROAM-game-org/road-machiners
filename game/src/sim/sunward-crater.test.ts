@@ -9,13 +9,15 @@ import { checkDeath } from './defeat';
 import { followTower, dragOf, isOnRope, startDrag, unhitch } from './tow';
 import { advanceStates, settleStates } from './states';
 import { refreshVision } from './vision';
-import { boundToOrder, callStrangers, craterNews, dropSpot, giveWord, inDropRing, lightZone, meetingLapsed, meetStrangers, offeringOf, wordGap } from './sunward-crater';
+import { boundToOrder, callStrangers, craterNews, dropSpot, giveWord, inDropRing, lightZone, meetingLapsed, meetStrangers, offeringOf, shoutGiven, wordGap } from './sunward-crater';
 import { chooseOn } from './tracks';
 import { endTurn } from './world';
 import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
 import { watchStalls } from './npc-watchdog';
-import { advanceSunward, craterExit, gateOrder, isCavalcadeCar, planSunward, dawnAfter, duskTurn, fallenSun, isSunwardMember, returnTurn, sunwardFacts, vigilGrounds, vigilPosts } from './sunward';
-import { callVehicle, chooseOption, currentOptions, hangUp, raiseCalls, talkOf } from './dialogue';
+import { advanceSunward, craterExit, gateOrder, isCavalcadeCar, planSunward, dawnAfter, duskTurn, fallenSun, isSunwardMember, returnTurn, rideOutTurn, sunwardFacts, vigilGrounds, vigilPosts } from './sunward';
+import { callVehicle, hangUp, raiseCalls, talkOf } from './dialogue';
+import type { LineId } from '../data/dialogue';
+import { chooseLine, offersLine } from './dialogue-testkit';
 import { topGoal } from './npc-activities';
 import { CRATER_ACCOUNTS, SUNWARD } from '../data/sunward';
 import { REGION } from '../data/region';
@@ -35,6 +37,7 @@ function member(w: World, pos: Vec): Vehicle {
 function crater(): World {
   const w = standardWorld(5);
   w.vehicles = [playerVehicle(w)];
+  w.sheltered = [];
   w.turn = duskTurn(1) + 80;
   playerVehicle(w).pos = { ...vigilGrounds()[0] };
   refreshVision(w);
@@ -260,10 +263,8 @@ describe('the vigil invitation', () => {
     return w;
   }
 
-  function answer(w: World, line: string): World {
-    const index = currentOptions(w).findIndex((o) => o.line === line);
-    if (index < 0) throw new Error(`No option ${line}`);
-    return chooseOption(w, index);
+  function answer(w: World, line: LineId): World {
+    return chooseLine(w, line);
   }
 
   const feuds = (w: World, member: Vehicle) => w.states.filter((s) => s.kind === 'feud' && s.holder === member.id && s.other === w.player.vehicleId);
@@ -288,6 +289,17 @@ describe('the vigil invitation', () => {
     expect(feuds(w, caller)).toHaveLength(1);
     raiseCalls(later(w, SUNWARD.callGap));
     expect(w.player.call).toBeNull();
+  });
+
+  it('shouts the given line at the truck the harpoon struck', () => {
+    const { w, caller } = vigil();
+    w.turn = duskTurn(1);
+    sunwardFacts(w).night = { dusk: duskTurn(1), roster: [], beaten: [], calls: {}, hunt: null, shouted: [], offered: [] };
+    w.events = [];
+
+    shoutGiven(w, caller, playerVehicle(w));
+
+    expect(w.events).toEqual([{ t: 'say', speaker: caller.id, to: playerVehicle(w).id, line: 'givenBySky', vars: {} }]);
   });
 
   it('makes no call before dusk to a stranger in the crater while a car already holds its post', () => {
@@ -352,7 +364,7 @@ describe('the vigil invitation', () => {
     expect(feuds(w, caller)).toHaveLength(1);
     const lines = said(w, 'wordBroken');
     expect(lines).toHaveLength(1);
-    expect(lines[0]).toMatchObject({ speaker: caller.id });
+    expect(lines[0]).toMatchObject({ speaker: caller.id, to: me.id });
   });
 
   it('breaks on the free turn when the truck leaves the crater', () => {
@@ -497,12 +509,11 @@ describe('talk of the order', () => {
 
   function askCrater(w: World, npc: Vehicle): World {
     const open = callVehicle(w, npc.id);
-    const index = currentOptions(open).findIndex((o) => o.line === 'askAboutTheCrater');
-    expect(index).toBeGreaterThanOrEqual(0);
-    return chooseOption(open, index);
+    expect(offersLine(open, 'askAboutTheCrater')).toBe(true);
+    return chooseLine(open, 'askAboutTheCrater');
   }
 
-  const offers = (w: World, npc: Vehicle) => currentOptions(callVehicle(w, npc.id)).some((o) => o.line === 'askAboutTheCrater');
+  const offers = (w: World, npc: Vehicle) => offersLine(callVehicle(w, npc.id), 'askAboutTheCrater');
   const newsOf = (w: World): string => {
     const news = w.player.call?.vars.news;
     if (!news || news.kind !== 'line') throw new Error('No crater account on the line');
@@ -545,6 +556,8 @@ describe('talk of the order', () => {
     expect(askCrater(w, npc).player.call?.line.line).toBe(talkOf(npc).repeatLine);
   });
 
+  const BUSIEST_ACCOUNT_AT_ONE_IN_2500 = 16;
+
   it('spreads the accounts over the drivers, with the eight lamps and the lost cousin each told by one account only', () => {
     const w = crater();
     w.turn = duskTurn(1) - 100;
@@ -556,7 +569,7 @@ describe('talk of the order', () => {
     const counts = new Map<string, number>();
     for (const a of accounts) counts.set(a, (counts.get(a) ?? 0) + 1);
     expect(counts.size).toBeGreaterThanOrEqual(6);
-    expect(Math.max(...counts.values())).toBeLessThanOrEqual(10);
+    expect(Math.max(...counts.values())).toBeLessThanOrEqual(BUSIEST_ACCOUNT_AT_ONE_IN_2500);
     const text = (id: string) => resolve(t(`line.${id}` as never, {} as never), 'en');
     expect(CRATER_ACCOUNTS.standing.filter((id) => /\beight\b/i.test(text(id)))).toEqual(['craterLamps']);
     expect(CRATER_ACCOUNTS.standing.filter((id) => /cousin|brother|sister|uncle|aunt/i.test(text(id)))).toEqual(['carsDraggedIntoTheDark']);
@@ -586,9 +599,11 @@ describe('meeting the stranger at the vigil', () => {
   function ring(): World {
     const w = standardWorld(5);
     w.vehicles = [playerVehicle(w)];
+    w.sheltered = [];
     fillHollow(w);
-    w.vehicles = w.vehicles.filter((v) => !isSunwardMember(v) || isCavalcadeCar(v));
-    w.turn = duskTurn(1) + SUNWARD.driveTurns + 10;
+    w.vehicles.push(...w.sheltered.map((s) => s.vehicle).filter(isCavalcadeCar));
+    w.sheltered = [];
+    w.turn = rideOutTurn(duskTurn(1)) + SUNWARD.driveTurns + 10;
     advanceSunward(w);
     const posts = vigilPosts(w);
     gateOrder(w, sunwardFacts(w).night!).forEach((id, seat) => pose(w.vehicles.find((v) => v.id === id)!, posts[seat]));

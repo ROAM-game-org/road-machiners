@@ -41,7 +41,7 @@ describe("stingOf", () => {
     expect(stingOf([{ t: "weather", event: overcast, outcome: "started" }], "p")).toBeNull();
   });
   it("plays no sting on a knockout, which is only a log line and a mark", () => {
-    expect(stingOf([{ t: "knockout" }], "p")).toBeNull();
+    expect(stingOf([{ t: "knockout", crash: false }], "p")).toBeNull();
   });
 });
 
@@ -227,9 +227,9 @@ describe("engine sound assignment", () => {
     expect(last().gain).toBe(0);
   });
 
-  it("plays the strained engine on the same bus and level as the engine, so mute and volume match", () => {
+  it("plays the strained engine on the engine's bus and loop, about 3 dB quieter, so overheating tells by tone", () => {
     expect(SOUNDS["engine-strain"].bus).toBe(SOUNDS.engine.bus);
-    expect(SOUNDS["engine-strain"].volume).toBe(SOUNDS.engine.volume);
+    expect(SOUNDS["engine-strain"].volume).toBeLessThan(SOUNDS.engine.volume * 10 ** (-3 / 20));
     expect(SOUNDS["engine-strain"].loop).toBe(true);
   });
 });

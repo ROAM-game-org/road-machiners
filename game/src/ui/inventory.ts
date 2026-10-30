@@ -1,7 +1,6 @@
 
 import { chassisDef } from "../data/chassis";
 import { isShield, partDef } from "../data/parts";
-import { STRIP } from "../data/salvage";
 import { isJunk, maxHp } from "../sim/wear";
 import { playerVehicle, truckFor } from "../sim/damage";
 import { instantMoveItem } from "../sim/cheats";
@@ -31,7 +30,7 @@ import {
   takeFromStorage,
   type RefitLayout,
 } from "../sim/inventory";
-import { cancelRefit, startRepair, startStrip, startWeld, stripYield } from "../sim/jobs";
+import { cancelRefit, startRepair, startStrip, startWeld, stripTurns, stripYield } from "../sim/jobs";
 import { vehicleHasPerk } from "../sim/progress";
 import { PERK_NUMBERS } from "../data/skills";
 import { repairPlan } from "../sim/repair";
@@ -49,6 +48,7 @@ import type {
   World,
 } from "../sim/types";
 import { keyLabel, phoneMode, touchMode } from "./input-mode";
+import { chipEl } from "./chip";
 import { disabledWith, el, panel, uiRoot } from "./dom";
 import { lookReason } from "./unstuck-reason";
 import { uiSize } from "./ui-size";
@@ -83,13 +83,14 @@ import {
   type PixelRect,
 } from "./inventory-draw";
 import { fillGhost, garageLooks, type GarageLooks } from "./garage-draw";
-import { fuelLiters, kg, moneyEl, moneyMsg, pricedEl } from "./units";
+import { fuelLiters, moneyEl, moneyMsg, pricedEl } from "./units";
 import { maxSpeedSteps } from "../sim/stats";
 import { getSearchAction, powerChip } from "./hud-readout";
 import {
   canFieldPatch,
   patchBlocker,
   stripBlocker,
+  stripRoomText,
   weldBlocker,
   doubleClickCommand,
   dragStartOf,
@@ -167,7 +168,7 @@ export class InventoryView {
       this.select(null);
     });
     window.addEventListener("keydown", (e) => {
-      if (!isRotateKey(e)) return;
+      if (!isRotateKey(e) || this.host.menuOpen()) return;
       if (this.drag) this.rotate();
       else this.rotateSelected();
     });
@@ -455,7 +456,7 @@ export class InventoryView {
     const buttons: (HTMLElement | null)[] = [
       canFieldPatch(this.mine(w), mounted, item.part.id) ? this.patchButton(w, this.mine(w), item.part) : null,
       shopAt(w) || this.atOutpost(w) ? this.repairButton(w, item.part) : null,
-      !mounted && partDef(item.part.defId).kind !== "core"
+      partDef(item.part.defId).kind !== "core" && this.mine(w).id === w.player.vehicleId
         ? this.stripButton(w, this.mine(w), item.part)
         : null,
     ];
@@ -521,9 +522,9 @@ export class InventoryView {
       {
         class: "inv-patch",
         onpointerdown: (e: Event) => e.stopPropagation(),
-        ...disabledWith(this.look() ?? stripBlocker(w, me), () => this.run((world) => startStrip(world, part.id))),
+        ...disabledWith(this.look() ?? stripBlocker(w, me) ?? stripRoomText(w, me, part), () => this.run((world) => startStrip(world, part.id))),
       },
-      t("inv.stripLabel", { turns: STRIP.turns, parts: stripYield(me, part) }),
+      t("inv.stripLabel", { turns: stripTurns(w, me, part.id), parts: stripYield(me, part) }),
     );
   }
 
@@ -1072,7 +1073,7 @@ export class InventoryView {
   }
 
   private run(cmd: (w: World) => World, quiet = false): void {
-    if (this.look()) throw new Error("Inventory command during a scene");
+    if (this.look()) throw new Error("Inventory command in look mode");
     try {
       const w = this.host.world();
       const next = cmd(w);
@@ -1185,33 +1186,34 @@ export class InventoryScreen {
 
 function featureChip(chassisId: string): HTMLElement | null {
   const name = chassisAbilityName(chassisId);
-  return name ? el("span", { class: "chip", title: chassisAbilityLine(chassisId) ?? name }, name) : null;
+  return name ? chipEl(name, { title: chassisAbilityLine(chassisId) ?? name }) : null;
 }
 
-export function truckChips(w: World, opts: { freeCells: boolean } = { freeCells: true }, truckId?: string): HTMLElement {
+export function truckChips(w: World, opts: { freeCells: boolean; feature?: boolean } = { freeCells: true }, truckId?: string): HTMLElement {
   const me = truckFor(w, truckId);
   const mass = loadMass(me);
   const rated = chassisDef(me.chassisId).ratedMass;
   return el(
     "span",
     { class: "chips" },
-    el("span", { class: "chip" }, createIcon("truck"), chassisName(chassisDef(me.chassisId).id)),
-    featureChip(me.chassisId),
-    el("span", { class: "chip" }, moneyEl(w.player.money)),
-    opts.freeCells ? el("span", { class: "chip", title: t("inv.freeCellsTitle") }, createIcon("cells"), t("inv.freeCells", { n: freeCells(me) })) : null,
-    el(
-      "span",
-      { class: `chip${mass > rated ? " bad" : ""}`, title: t("inv.loadTitle") },
-      createIcon("load"),
-      t("speed.loadChip", { mass: kg(mass), rated: kg(rated) }),
-    ),
+    chipEl(chassisName(chassisDef(me.chassisId).id), { icon: "truck" }),
+    opts.feature === false ? null : featureChip(me.chassisId),
+    chipEl(moneyEl(w.player.money)),
+    opts.freeCells ? chipEl(t("inv.freeCells", { n: freeCells(me) }), { icon: "cells", title: t("inv.freeCellsTitle") }) : null,
+    chipEl(t("speed.loadChip", { mass: Math.round(mass), rated: Math.round(rated) }), {
+      icon: "mass",
+      readout: true,
+      bad: mass > rated,
+      title: t("inv.loadTitle"),
+    }),
     powerChipNode(w, me),
   );
 }
 
 function powerChipNode(w: World, me: Vehicle): HTMLElement {
   const chip = powerChip(maxSpeedSteps(w, me), me);
-  return el("span", { class: `chip${chip.over ? " bad" : ""}`, title: chip.detail, "aria-label": chip.detail }, createIcon("power"), chip.text);
+  const cost = chip.cost ? [createIcon("speed"), el("span", { class: "num" }, chip.cost)] : [];
+  return chipEl(chip.ratio, { icon: "power", readout: !chip.words, bad: chip.over, title: chip.detail, label: chip.detail, extra: cost });
 }
 
 const ROTATE_KEYCAP = "R";

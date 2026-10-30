@@ -36,7 +36,7 @@ Nobody agrees, and each guess has its believers.
 - Pierce sold the Old Army's guns to Scrapjaw, then made every driver buy a gun to be insured.
 - Somebody in the Pierce office sold the roads of insured trucks to robbers. He went north-west and never came back.
 - The Administrator keeps a book in the crane office that could bring down both towns.
-- The old Senate families on the top terraces send a tanker to Dustwell that never shows up in any book.
+- The old Senate families on the top terraces send a truck to Dustwell for water that never shows up in any book.
 
 ## The road
 
@@ -46,7 +46,7 @@ Nobody agrees, and each guess has its believers.
 - A Nose brake rod is cheap steel, and on a sharp bend it will snap and nothing will slow you.
 - In the north-west there are towns whose trucks carry no guns, because a guard paid by every town keeps the roads.
 - The glass on the Glass Flats all points the same way, toward the Fallen Sun.
-- The number the Sunward chant at the rim is the year the radio count stops.
+- The tone the Sunward sing at the rim is the one the radio tone stops on.
 - Kiln riders let you go if you fight hard enough. They strip you if you don't.
 - The marshals can reach any stranded truck on the plain before nightfall.
 - The marshals know every truck's route before it leaves.

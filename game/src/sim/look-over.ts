@@ -5,11 +5,14 @@ import { playerVehicle, vehicleById } from './damage';
 import { isKnockedOut } from './defeat';
 import { freeCells, hasLoot, isLoot, isMounted, itemCells, mountedItems } from './grid';
 import { cargoValue } from './market';
+import { chaseStalled, startChase } from './chase';
 import { createActivity, fightGoal, fightTargetLost, finishGoal, fleeFrom, interrupt, popGoal, react, topGoal } from './npc-activities';
-import { canRob, decide, holdsUp, npcProfile, perceiveDanger, type NpcProfile } from './npc-decisions';
+import { huntsOffRoad } from './hunt-style';
+import { canRob, decide, holdsUp, huntsPrey, npcProfile, passReason, perceiveDanger, type NpcProfile } from './npc-decisions';
 import { answersHoldUp } from './parley';
 import { basicRefusal, hasPerk } from './progress';
 import { reportIncident } from './relations';
+import { fightsSideOf } from './sides';
 import { addState, stateOf, type WorkLeft } from './states';
 import { chooseOn, trackOf } from './tracks';
 import type { Contact, GoalReason, NpcActivity, NpcState, Refusal, StateEnding, Vehicle, World } from './types';
@@ -142,7 +145,7 @@ export function onPreySeen(world: World, vehicle: Vehicle): void {
   for (const target of prey) {
     if (react(world, vehicle, 'preySeen', target.id) !== 'rob') continue;
     if (knowsCargo(world, vehicle, target)) startRobbery(world, vehicle, target);
-    else interrupt(world, vehicle, sizeUpGoal(target));
+    else interrupt(world, vehicle, sizeUpGoal(world, vehicle, target));
     return;
   }
 }
@@ -154,8 +157,8 @@ function startRobbery(world: World, vehicle: Vehicle, target: Vehicle): void {
   interrupt(world, vehicle, fightGoal(world, vehicle, target, 'robCargo'));
 }
 
-export function sizeUpGoal(target: Vehicle): NpcActivity {
-  return createActivity('sizeUp', target.id, { ...target.pos }, 'sizingUp');
+export function sizeUpGoal(world: World, vehicle: Vehicle, target: Vehicle): NpcActivity {
+  return { ...createActivity('sizeUp', target.id, { ...target.pos }, 'sizingUp'), chase: startChase(world, vehicle, target.pos) };
 }
 
 export function reactToLookOvers(world: World): void {
@@ -205,14 +208,21 @@ export function lookOverPrey(world: World, vehicle: Vehicle): void {
 function afterSizedUp(world: World, vehicle: Vehicle, target: Vehicle): void {
   if (!knowsCargo(world, vehicle, target)) throw new Error(`${vehicle.id} weighs the load of ${target.id} without a look-over`);
   const raid = huntsForLoot(world, vehicle, target);
-  const option = decide(world, vehicle, 'sizedUp', target.id, perceiveDanger(world, vehicle, target));
+  const danger = perceiveDanger(world, vehicle, target);
+  const option = decide(world, vehicle, 'sizedUp', target.id, danger);
   if (option === 'keep') {
+    recordPass(world, vehicle, target, danger);
     backOffPrey(world, vehicle, target, raid);
     return finishGoal(world, vehicle, 'poorLoad');
   }
   popGoal(world, vehicle, 'robCargo');
   if (raid) interrupt(world, vehicle, fightGoal(world, vehicle, target, 'fightHostile'));
   else startRobbery(world, vehicle, target);
+}
+
+function recordPass(world: World, vehicle: Vehicle, target: Vehicle, danger: number): void {
+  if (!huntsPrey(vehicle) || !huntsOffRoad(vehicle.brain ?? undefined)) return;
+  world.events.push({ t: 'preyPassed', vehicle: vehicle.id, prey: target.id, reason: passReason(world, vehicle, target, danger) });
 }
 
 function backOffPrey(world: World, vehicle: Vehicle, target: Vehicle, raid: boolean): void {
@@ -242,6 +252,26 @@ export function abandonLostSizing(world: World, vehicle: Vehicle, contacts: Cont
   finishGoal(world, vehicle, 'lostTarget');
 }
 
+export function joinSideFight(world: World, vehicle: Vehicle): void {
+  const goal = topGoal(vehicle);
+  if (goal?.kind !== 'sizeUp') return;
+  const target = vehicleById(world, goal.targetId!);
+  if (isKnockedOut(target) || !isHostile(world, vehicle, target) || !fightsSideOf(world, target, vehicle)) return;
+  popGoal(world, vehicle, 'fightHostile');
+  interrupt(world, vehicle, fightGoal(world, vehicle, target, 'fightHostile'));
+}
+
+export function abandonHopelessSizing(world: World, vehicle: Vehicle): void {
+  const goal = topGoal(vehicle);
+  if (goal?.kind !== 'sizeUp') return;
+  const track = trackOf(vehicle, goal.targetId!);
+  if (!track) throw new Error(`${vehicle.id} sizes up ${goal.targetId} with no track of it`);
+  if (!chaseStalled(world, vehicle, goal, track.at, LOOK_OVER.reach)) return;
+  const target = vehicleById(world, goal.targetId!);
+  backOffPrey(world, vehicle, target, huntsForLoot(world, vehicle, target));
+  finishGoal(world, vehicle, 'truckGotAway');
+}
+
 export function steerSizeUp(world: World, vehicle: Vehicle, goal: NpcActivity): void {
   const track = trackOf(vehicle, goal.targetId!);
   if (!track) throw new Error(`${vehicle.id} sizes up ${goal.targetId} with no track of it`);
@@ -251,5 +281,5 @@ export function steerSizeUp(world: World, vehicle: Vehicle, goal: NpcActivity): 
 }
 
 export function sizesUpFirst(world: World, vehicle: Vehicle, enemy: Vehicle): boolean {
-  return huntsForLoot(world, vehicle, enemy) && !knowsCargo(world, vehicle, enemy) && !(enemy.id in vehicle.brain!.attackers);
+  return huntsForLoot(world, vehicle, enemy) && !knowsCargo(world, vehicle, enemy) && !(enemy.id in vehicle.brain!.attackers) && !fightsSideOf(world, enemy, vehicle);
 }

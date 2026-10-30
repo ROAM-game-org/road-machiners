@@ -29,8 +29,8 @@ function fillLog(page) {
     const lines = [
       t('log.jobCancelled', { what: t('job.remove', { part: n.partName('tankHeavy'), truck: t('vehicle.npc', { profession: n.professionName('convoyGuard'), driver: n.fullName('Dmitri Tulloch') }) }) }),
       t('log.jobStarted', { what: t('job.repair', { part: n.partName('enclosedFrame') }), n: 12 }),
-      t('log.escortHired', { client: t('vehicle.npc', { profession: n.professionName('convoy'), driver: n.fullName('Lorna Morozov') }), who: t('vehicle.npc', { profession: n.professionName('merc'), driver: n.fullName('Elias Drummond') }), site: n.siteName('canyon-bridge'), fee: moneyMsg(12345) }),
-      t('log.contract.accepted', { what: t('contract.procure', { n: 12, good: n.goodName('electronics'), site: n.siteName('salvage-yard') }), reward: moneyMsg(4200) }),
+      t('log.escortHired', { client: t('vehicle.npc', { profession: n.professionName('convoy'), driver: n.fullName('Lorna Morozov') }), who: t('vehicle.npc', { profession: n.professionName('merc'), driver: n.fullName('Elias Drummond') }), site: n.siteName('canyon-bridge'), fee: moneyMsg(123) }),
+      t('log.contract.accepted', { what: t('contract.procure', { n: 12, good: n.goodName('electronics'), site: n.siteName('salvage-yard') }), reward: moneyMsg(42) }),
       t('note.hazard'),
       t('log.towDroppedYou.blocked', { who: t('vehicle.npc', { profession: n.professionName('bowlFarmer'), driver: n.fullName('Hester Kessler') }) }),
       t('log.scrapPatchFuel', { liters: 40 }),
@@ -53,6 +53,7 @@ async function openTown(page, tab) {
     g.apply(c.teleport(g.state, c.placeSpot(g.state, 'bowl')));
     g.screens.town.open();
   });
+  await frames(page);
   await page.evaluate((tab) => {
     const go = (id) => document.querySelector(`.town-page [data-town-go="${id}"]`)?.click();
     go('back');
@@ -62,7 +63,14 @@ async function openTown(page, tab) {
   }, tab);
 }
 
-const closeTown = (page) => page.evaluate(() => window.__ROAM__.screens.town.close());
+const closeTown = (page) => page.evaluate(() => {
+  const g = window.__ROAM__;
+  g.screens.town.close();
+  const world = structuredClone(g.state);
+  world.player.quests.session = null;
+  world.player.quests.live = null;
+  g.apply(world);
+});
 
 async function openShortMarket(page) {
   await page.evaluate(async () => {
@@ -100,12 +108,15 @@ async function openCall(page, node) {
     }
     const next = structuredClone(w);
     const way = node === 'directions' ? await longestDirections(w) : null;
-    const deal = { deal: { kind: 'deal', deal: 'ownParts', patcher: 'player', price: 1250, parts: 3, turns: 4 } };
+    const deal = { deal: { kind: 'deal', deal: 'ownParts', patcher: 'player', price: 13, parts: 3, turns: 4 } };
+    const hub = { with: npc.id, topic: null, node: 'hub', vars: {}, group: null, asked: [], line: { line: 'whatDoYouWant', vars: {} } };
     next.player.call = node === 'hub'
-      ? { with: npc.id, topic: null, node: 'hub', vars: {}, line: { line: 'whatDoYouWant', vars: {} } }
+      ? hub
+      : node === 'group'
+      ? { ...hub, group: 'helpTrade', asked: ['tradeTalk'] }
       : node === 'directions'
-      ? { with: npc.id, topic: 'directions', node: 'answer', vars: way.vars, line: { line: way.line, vars: way.vars } }
-      : { with: npc.id, topic: 'patchRequest', node: 'terms', vars: deal, line: { line: 'dealTerms', vars: deal } };
+      ? { with: npc.id, topic: 'directions', node: 'answer', vars: way.vars, group: null, asked: [], line: { line: way.line, vars: way.vars } }
+      : { with: npc.id, topic: 'patchRequest', node: 'terms', vars: deal, group: null, asked: [], line: { line: 'dealTerms', vars: deal } };
     g.apply(next);
     async function longestDirections(world) {
       const { directionsTo } = await import('/src/sim/directions.ts');
@@ -187,7 +198,7 @@ async function probe(page, locale) {
 }
 
 async function boot() {
-  const browser = await chromium.launch({ args: cpu ? [] : gpuArgs() });
+  const browser = await chromium.launch({ args: cpu ? ['--disable-dev-shm-usage'] : gpuArgs() });
   const context = await browser.newContext({ viewport: { width: VIEWPORTS[0][0], height: VIEWPORTS[0][1] } });
   const page = await context.newPage();
   page.setDefaultTimeout(BOOT_LIMIT_MS);
@@ -291,7 +302,7 @@ const openSurveyJournal = async (page) => {
     const world = structuredClone(g.state);
     const sites = surveySites({ hash: world.mapHash, terrain: world.terrain }).filter((s) => s.type !== 'boats').slice(0, 3);
     const points = sites.map((s, i) => ({ site: s.id, found: i > 0, done: i > 1 }));
-    world.player.contracts.push({ id, shop: 'bowl', kind: 'survey', points, reward: 3000, deadline: 9000, window: 600, tier: 1 });
+    world.player.contracts.push({ id, shop: 'bowl', kind: 'survey', points, reward: 30, deadline: 9000, window: 600, tier: 1 });
     g.apply(world);
   }, SURVEY_CONTRACT_ID);
   await key(page, 'KeyJ');
@@ -308,29 +319,138 @@ const closeSurveyJournal = async (page) => {
   }, SURVEY_CONTRACT_ID);
 };
 
+const NAV_STEPS = [
+  { name: 'front', go: [] },
+  { name: 'garage-buy', go: ['garage'], tab: ['data-garage-tab', 'buyParts'] },
+  { name: 'garage-sell', go: ['garage'], tab: ['data-garage-tab', 'sellParts'] },
+  { name: 'garage-paint', go: ['garage'], tab: ['data-garage-tab', 'paint'] },
+  { name: 'market-goods', go: ['market'], tab: ['data-market-tab', 'goods'] },
+  { name: 'market-charts', go: ['market'], tab: ['data-market-tab', 'charts'] },
+  { name: 'board', go: ['board'] },
+  { name: 'people', go: ['people'] },
+  { name: 'bar', go: ['bar'] },
+];
+
+async function openTownClear(page) {
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const c = await import('/src/sim/cheats.ts');
+    const { setWorldVar } = await import('/src/sim/quests.ts');
+    const { TOWN_SCENES } = await import('/src/data/quests.ts');
+    g.screens.town.close();
+    const world = structuredClone(g.state);
+    world.player.quests.session = null;
+    world.player.quests.live = null;
+    for (const scene of TOWN_SCENES) setWorldVar(world, scene.gate, true);
+    g.apply(c.teleport(world, c.placeSpot(world, 'bowl')));
+    g.screens.town.open();
+  });
+  await frames(page);
+}
+
+function townMarks(page, withError) {
+  return page.evaluate((withError) => {
+    const box = (node) => {
+      const r = node.getBoundingClientRect();
+      return { x: r.left, y: r.top, w: r.width, h: r.height, bottom: r.bottom };
+    };
+    const root = document.querySelector('.town-page');
+    const exit = root.querySelector('.ink-foot [data-town-go]');
+    const marks = {
+      exit: exit ? box(exit) : null,
+      band: box(root.querySelector('.ink-band')),
+      heading: box(root.querySelector('.ink-head .quest-place')),
+      page: box(root),
+    };
+    return { ...marks, withError };
+  }, withError);
+}
+
+const sameWithin = (a, b) => Math.abs(a - b) <= 1;
+const rounded = (n) => Math.round(n);
+
+function moved(label, keys, first, now) {
+  return keys.filter((k) => !sameWithin(first[k], now[k])).map((k) => `${label}.${k} ${rounded(first[k])} -> ${rounded(now[k])}`);
+}
+
+function exitOutside(now) {
+  const { exit, page } = now;
+  const inside = exit.y >= page.y - 1 && exit.bottom <= page.bottom + 1 && exit.x >= page.x - 1;
+  return inside ? [] : [`exit outside the page (${rounded(exit.bottom)} of ${rounded(page.bottom)})`];
+}
+
+function navDiffs(first, now) {
+  if (!now.exit) return ['no way out in the foot'];
+  return [
+    ...exitOutside(now),
+    ...moved('exit', ['x', 'bottom', 'h'], first.exit, now.exit),
+    ...moved('band', ['h'], first.band, now.band),
+    ...moved('heading', ['x', 'y'], first.heading, now.heading),
+  ];
+}
+
+const clickIn = (page, step) => page.evaluate(({ go, tab }) => {
+  const root = document.querySelector('.town-page');
+  const goTo = (id) => root.querySelector(`[data-town-go="${id}"]`)?.click();
+  goTo('back');
+  for (const id of go) goTo(id);
+  if (tab) root.querySelector(`[${tab[0]}="${tab[1]}"]`)?.click();
+}, step);
+
+async function townNavFaults(page) {
+  const faults = [];
+  const note = (path, text) => faults.push({ kind: 'nav-moved', path, text, sizes: '' });
+  await openTownClear(page);
+  let first = null;
+  for (const step of NAV_STEPS) {
+    await clickIn(page, step);
+    await frames(page);
+    const marks = await townMarks(page, false);
+    await page.screenshot({ path: `${OUT}/nav-${step.name}-${page.viewportSize().width}x${page.viewportSize().height}.png` });
+    first ??= marks;
+    for (const d of navDiffs(first, marks)) note(step.name, d);
+  }
+  await clickIn(page, NAV_STEPS[0]);
+  await frames(page);
+  await page.evaluate(async () => {
+    const town = window.__ROAM__.screens.town;
+    const { t } = await import('/src/text/msg.ts');
+    town.error = t('town.reason.onCall');
+    town.render();
+  });
+  await frames(page);
+  const errored = await townMarks(page, true);
+  for (const d of navDiffs(first, errored)) note('status-line', d);
+  await openTownClear(page);
+  return faults;
+}
+
 const STATES = {
   menu: { setup: () => undefined, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   log: { setup: fillLog },
-  inventory: { setup: openInventory, teardown: escape },
-  'quest-page': { setup: openQuestPage, teardown: closeQuestPage },
+  inventory: { setup: openInventory, teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
+  'quest-page': { setup: openQuestPage, teardown: closeQuestPage, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'quest-inventory': { setup: openQuestInventory, teardown: async (page) => { await escape(page); await closeQuestPage(page); } },
-  shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown },
-  trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown },
+  shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
+  trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
+  'full-shop': { setup: (page) => page.evaluate(() => window.__ROAM__.openFullShop()), teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'trade-shortage': { setup: openShortMarket, teardown: closeTown },
   charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown },
   'journal-survey': { setup: openSurveyJournal, teardown: closeSurveyJournal, viewports: [...VIEWPORTS, PHONE] },
   'world-map': { setup: (page) => key(page, 'KeyM'), teardown: escape },
   minimap: { setup: (page) => setMinimap(page, true), teardown: (page) => setMinimap(page, false) },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown },
-  'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown },
+  'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'town-board': { setup: (page) => openTown(page, 'contracts'), teardown: closeTown },
+  'town-nav': { setup: openTownClear, teardown: closeTown, check: townNavFaults, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'town-people': { setup: (page) => openTown(page, 'people'), teardown: closeTown },
   paint: { setup: (page) => openTown(page, 'paint'), teardown: closeTown },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
+  'call-group': { setup: (page) => openCall(page, 'group'), teardown: hangUp },
   'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp },
   'call-deal': { setup: (page) => openCall(page, 'deal'), teardown: hangUp },
   help: { setup: openHelp, teardown: closeHelp },
-  character: { setup: (page) => key(page, 'KeyC'), teardown: escape },
+  character: { setup: (page) => key(page, 'KeyC'), teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   saves: { setup: openSaves, teardown: escape },
   options: { setup: openOptions, teardown: escape },
   'start-menu': { setup: openStartMenu, teardown: closeStartMenu },
@@ -343,7 +463,8 @@ const STATES = {
 const ONLY = process.env.LAYOUT_STATES?.split(',');
 const PICKED = Object.entries(STATES).filter(([name]) => !ONLY || name === 'log' || ONLY.includes(name));
 
-const WINDOWS = [...new Set(PICKED.flatMap(([, state]) => state.viewports ?? VIEWPORTS))];
+const ONLY_SIZES = process.env.LAYOUT_SIZES?.split(',').filter(Boolean);
+const WINDOWS = [...new Set(PICKED.flatMap(([, state]) => state.viewports ?? VIEWPORTS))].filter((v) => !ONLY_SIZES || ONLY_SIZES.includes(v.join('x')));
 
 const started = Date.now();
 const seconds = () => Math.round((Date.now() - started) / 1000);
@@ -356,7 +477,7 @@ async function capture(page, locale, [width, height], [name, state], size = 1) {
   await frames(page);
   const label = size === 1 ? `${width}x${height}` : `${width}x${height}-ui${Math.round(size * 100)}`;
   await page.screenshot({ path: `${OUT}/${name}-${locale}-${label}.png` });
-  for (const f of [...await faultsIn(page, locale), ...await frameFaults(page)]) report.push({ state: name, locale, viewport: label, ...f });
+  for (const f of [...await faultsIn(page, locale), ...await frameFaults(page), ...(state.check ? await state.check(page) : [])]) report.push({ state: name, locale, viewport: label, ...f });
   captures++;
   console.log(`${name} ${locale} ${label} at ${seconds()} s`);
   if (state.teardown) await state.teardown(page);

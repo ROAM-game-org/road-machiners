@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { createVitest } from 'vitest/node';
 import { globalKey } from '../src/test/cache/fingerprint';
+import { clearFailureRecord, failureRecord, partialFailureRecord, writeFailureRecord } from '../src/test/cache/failures';
 import { recordRun, selectTests } from '../src/test/cache/select';
 import { createStallWatch, stallMinutes, suiteMinutes, suiteOverMessage } from '../src/test/cache/stall';
 import { testId } from '../src/test/cache/store';
@@ -103,21 +104,48 @@ function failedFiles() {
   };
 }
 
+function moduleProgress() {
+  const running = new Map();
+  const ended = [];
+  const selectedFiles = [];
+  return {
+    selectedFiles,
+    partialRecord(unhandledErrors) {
+      const endedFiles = new Set(ended.map((mod) => relative(root, mod.moduleId)));
+      const unfinished = selectedFiles.filter((file) => !endedFiles.has(file));
+      return partialFailureRecord(root, ended, [...running.values()], unhandledErrors, unfinished);
+    },
+    reporter: {
+      onTestModuleStart(mod) {
+        running.set(mod.moduleId, mod);
+      },
+      onTestModuleEnd(mod) {
+        running.delete(mod.moduleId);
+        ended.push(mod);
+      },
+    },
+  };
+}
+
 const CLOSE_LIMIT_MS = 10_000;
 const OVER_TIME_EXIT = 3;
 
-function stopAtSuiteLimit(limitMinutes, times, failures, vitest, readsDir) {
+function stopAtSuiteLimit(limitMinutes, times, failures, vitest, readsDir, saveRecord) {
+  let over = false;
   const timer = setTimeout(async () => {
+    over = true;
     console.log(suiteOverMessage(limitMinutes, times.finished));
     const code = failures.any() ? 1 : OVER_TIME_EXIT;
+    saveRecord();
     await Promise.race([vitest.close(), new Promise((done) => setTimeout(done, CLOSE_LIMIT_MS))]);
     rmSync(readsDir, { recursive: true, force: true });
     process.exit(code);
   }, limitMinutes * 60_000);
   timer.unref();
+  return () => over;
 }
 
-function stopOnStall(watch, vitest, readsDir) {
+function stopOnStall(watch, vitest, readsDir, saveRecord) {
   let stalled = false;
   const timer = setInterval(async () => {
     const stall = watch.stalled(Date.now());
@@ -125,6 +153,7 @@ function stopOnStall(watch, vitest, readsDir) {
     stalled = true;
     clearInterval(timer);
     console.log(stall);
+    saveRecord();
     await Promise.race([vitest.close(), new Promise((done) => setTimeout(done, CLOSE_LIMIT_MS))]);
     rmSync(readsDir, { recursive: true, force: true });
     process.exit(1);
@@ -134,6 +163,8 @@ function stopOnStall(watch, vitest, readsDir) {
 }
 
 const { cache, related, filters } = parseArgs(process.argv.slice(2));
+const failuresFile = process.env.TEST_FAILURES_FILE ? resolve(root, process.env.TEST_FAILURES_FILE) : null;
+if (failuresFile) clearFailureRecord(failuresFile);
 mkdirSync(join(root, 'tmp'), { recursive: true });
 const readsDir = mkdtempSync(join(root, 'tmp', 'test-cache-reads-'));
 process.env.TEST_CACHE_READS = readsDir;
@@ -144,10 +175,14 @@ const suiteLimit = suiteMinutes(process.env);
 const recorder = passRecorder(cache, readsDir);
 const times = fileTimes();
 const failures = failedFiles();
-const reporters = ['default', recorder.reporter, times.reporter, failures.reporter, ...(watch ? [stallReporter(watch)] : [])];
+const progress = moduleProgress();
+const saveRecord = () => {
+  if (failuresFile) writeFailureRecord(failuresFile, progress.partialRecord(vitest.state.getUnhandledErrors()));
+};
+const reporters = ['default', recorder.reporter, progress.reporter, times.reporter, failures.reporter, ...(watch ? [stallReporter(watch)] : [])];
 const vitest = await createVitest('test', { watch: false, reporters, ...(related ? { related } : {}) });
-const stalled = watch ? stopOnStall(watch, vitest, readsDir) : () => false;
-if (suiteLimit !== null) stopAtSuiteLimit(suiteLimit, times, failures, vitest, readsDir);
+const stalled = watch ? stopOnStall(watch, vitest, readsDir, saveRecord) : () => false;
+const overTime = suiteLimit === null ? () => false : stopAtSuiteLimit(suiteLimit, times, failures, vitest, readsDir, saveRecord);
 try {
   vitest.projects[0].config.setupFiles.push(resolve(root, 'src/test/cache/reads-setup.ts'));
   await vitest.init();
@@ -157,13 +192,17 @@ try {
   const tests = specs.map(relOf);
   const { run, skipped } = cache ? selectTests(root, cache, key, tests) : { run: tests, skipped: [] };
   const selected = specs.filter((spec) => run.includes(relOf(spec)));
+  progress.selectedFiles.push(...selected.map(relOf));
   recorder.start(key);
+  let record = { failed: [], unhandledErrors: 0, unfinished: [] };
   if (selected.length) {
     const { testModules, unhandledErrors } = await vitest.runTestSpecifications(selected);
     const verdict = runVerdict(testModules, unhandledErrors);
     if (verdict === 'passedPastRpcTimeouts') console.log(rpcTimeoutNote(unhandledErrors.length));
     failed = verdict === 'failed';
+    record = failureRecord(root, testModules, unhandledErrors);
   }
+  if (failuresFile && !stalled() && !overTime()) writeFailureRecord(failuresFile, record);
   console.log(`[test-cache] ran ${run.length}, skipped ${skipped.length}, uncacheable ${recorder.uncacheable()}`);
 } finally {
   await vitest.close();

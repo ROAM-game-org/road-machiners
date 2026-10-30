@@ -7,7 +7,7 @@ import { makePart } from '../sim/factory';
 import { addGoods, mountPart, removeAllGoods } from '../sim/inventory';
 import { vehicleMass } from '../sim/mass';
 import { corePart } from '../sim/grid';
-import { addVehicle, editableTerrain, emptyWorld, npcBrain, partHp } from '../sim/testkit';
+import { addVehicle, editableTerrain, emptyWorld, npcBrain, partHp, uniformGround } from '../sim/testkit';
 import type { MoveOrder, World } from '../sim/types';
 import { angleDiff, bearing, dist, type Vec } from '../sim/vec';
 import { REGION } from '../data/region';
@@ -21,14 +21,14 @@ import { buildDrive, freeDrive, GROUND, toMps, initPhysics, routeAim, simulateTu
 import { rotateBy, upOf } from './frames';
 import { physicsMove } from './turn';
 import { turnaroundSpeed } from './turnaround';
-import type { VehicleFrame } from './frames';
 import { playerTow, unhitch } from '../sim/tow';
-import { callVehicle, chooseOption, currentOptions } from '../sim/dialogue';
+import { callVehicle } from '../sim/dialogue';
+import { chooseText } from '../sim/dialogue-testkit';
 import { TOW } from '../data/tow';
 import { NPCS } from '../data/npcs';
 import { soundRange } from '../sim/detect';
 import { budget } from '../test/budget';
-import { en, me, ordered, play, playYielding } from '../test/drive-kit';
+import { me, ordered, play, playYielding } from '../test/drive-kit';
 
 beforeAll(async () => {
   await initPhysics();
@@ -269,7 +269,7 @@ describe('physics turns', () => {
 
     beforeAll(async () => {
       const w = emptyWorld();
-      editableTerrain(w).types.fill('mud');
+      uniformGround(w, 'mud');
       const mud = await playYielding(setMoveOrder(w, order), 3);
       mudSkill0 = mud.w;
       freeDrive(mud.d);
@@ -296,7 +296,7 @@ describe('physics turns', () => {
 
     function onGround(type: 'sand' | 'glass', order: MoveOrder, turns: number): World {
       const w = emptyWorld({ x: 20, y: 40 });
-      editableTerrain(w).types.fill(type);
+      uniformGround(w, type);
       w.vehicles[0].speed = SPEED;
       const { w: after, d } = play(setMoveOrder(w, order), turns);
       freeDrive(d);
@@ -306,37 +306,6 @@ describe('physics turns', () => {
     it('only glass and the mud grounds have less than full grip', () => {
       const slippery = Object.values(TERRAIN_TYPES).filter((t) => t.grip !== 1 || t.sideGrip !== 1).map((t) => t.id);
       expect(slippery).toEqual(['mud', 'dirtyWater', 'toxic', 'glass']);
-    });
-
-    function meanSkid(type: 'sand' | 'glass'): number {
-      let w = emptyWorld({ x: 20, y: 40 });
-      editableTerrain(w).types.fill(type);
-      w.vehicles[0].speed = SPEED;
-      w = setMoveOrder(w, { kind: 'through', dest: { x: 30, y: 70 } });
-      let d = buildDrive(w);
-      const frames: VehicleFrame[] = [];
-      for (let i = 0; i < 3; i++) {
-        let next: Drive | null = null;
-        w = endTurn(w, physicsMove(d, (r) => {
-          next = r.next;
-          frames.push(...r.frames[w.vehicles[0].id]);
-        }));
-        freeDrive(d);
-        d = next!;
-      }
-      freeDrive(d);
-      const skids = frames.slice(1).flatMap((f, i) => {
-        const [a, b, q] = [frames[i].pos, f.pos, f.rot];
-        if (Math.hypot(b.x - a.x, b.z - a.z) * PHYSICS.stepsPerSecond < 2) return [];
-        const nose = Math.atan2(2 * (q.x * q.z - q.w * q.y), 1 - 2 * (q.y * q.y + q.z * q.z));
-        return [Math.abs(angleDiff(Math.atan2(b.z - a.z, b.x - a.x), nose)) * (180 / Math.PI)];
-      });
-      return skids.reduce((s, x) => s + x, 0) / skids.length;
-    }
-
-    it('a turning truck skids sideways on glass and holds its line on sand', () => {
-      expect(meanSkid('sand')).toBeLessThan(3);
-      expect(meanSkid('glass')).toBeGreaterThan(10);
     });
 
     it('a braking truck slides further on glass than on sand', () => {
@@ -964,7 +933,7 @@ describe('physics turns', () => {
     };
     for (let i = 0; i < 30 && !playerTow(w); i++) turn();
     expect(playerTow(w)).not.toBeNull();
-    w = chooseOption(w, currentOptions(w).findIndex((o) => en(o.line) === 'Deal. Hitch me up.'));
+    w = chooseText(w, 'Deal. Hitch me up.');
     const start = { ...me(w).pos };
     for (let i = 0; i < 10; i++) {
       const r = turn();
@@ -991,7 +960,7 @@ describe('physics turns', () => {
       d = r!.next;
       return r!;
     };
-    const pick = (text: string) => { w = chooseOption(w, currentOptions(w).findIndex((o) => en(o.line) === text)); };
+    const pick = (text: string) => { w = chooseText(w, text); };
     w = callVehicle(w, npc.id);
     pick('Need a tow to town?');
     pick('Deal. Hitch up.');

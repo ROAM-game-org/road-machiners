@@ -10,7 +10,7 @@ import { playerVehicle } from '../sim/damage';
 import { learnNote, localOfQuest, takeTownWork, townWork } from '../sim/dialogue-rules';
 import { makeVehicle } from '../sim/factory';
 import { shopAt, siteOf } from '../sim/market';
-import { chooseQuestOption, inQuestLanguage, QUEST_EFFECTS, QUEST_QUERIES, questView, restoreQuest, startQuest, type QuestView } from '../sim/quests';
+import { chooseQuestOption, inQuestLanguage, QUEST_EFFECTS, QUEST_QUERIES, questPage, questView, restoreQuest, seenChoices, startQuest, type QuestView } from '../sim/quests';
 import { isStoryWreck } from '../sim/salvage';
 import { sitePads } from '../sim/sites';
 import type { SearchContract } from '../sim/market';
@@ -29,11 +29,13 @@ const SEARCH_QUEST = 'roadhouse_petra';
 const STAND_IN = 'check-searched';
 const FAR = { x: 1, y: 1 };
 
+export type QuestPage = Omit<QuestView, 'seen'>;
 export type QuestScenes = (questId: string) => World[];
 export type SceneWalk = { states: number; stopped: boolean; problems: string[]; visited: Record<QuestLanguage, Set<string>> };
-type Scene = { problems: string[]; seen: Map<string, Seen>; known: Set<string>; visited: Record<QuestLanguage, Set<string>>; loads: Set<string> };
+type Scene = { problems: string[]; seen: Map<string, Seen>; known: Set<string>; visited: Record<QuestLanguage, Set<string>>; loads: Set<string>; looked: Set<string> };
 
 export const QUEST_STATE_LIMIT = 5000;
+export const QUEST_CHOICE_CAP = 5;
 
 export type QuestCheck = {
   shared: QuestReport;
@@ -190,7 +192,7 @@ function inWords(lang: QuestLanguage): string {
 
 function walkScene(start: World, bundle: QuestBundle, id: string, limit: number): SceneWalk {
   const visited = eachLanguage(() => new Set<string>());
-  const scene: Scene = { problems: [], seen: new Map(), known: new Set(), visited, loads: new Set() };
+  const scene: Scene = { problems: [], seen: new Map(), known: new Set(), visited, loads: new Set(), looked: new Set() };
   const { problems, seen } = scene;
   const queue = bundle.quests[id].checkpoints.flatMap((checkpoint) => attempt(problems, `${id}: checkpoint ${checkpoint}`, () => atCheckpoint(walkOf(eachLanguage(() => startQuest(start, bundle, id, checkpoint)), []), checkpoint)));
   for (const walk of queue) scene.known.add(walk.key);
@@ -212,12 +214,14 @@ function step(walk: Walk, bundle: QuestBundle, id: string, scene: Scene): Walk[]
   const split = twinSplit(walk.worlds, views);
   if (split) problems.push(`${where}: ${split}`);
   if (split || view === null || view.quest !== id) return [];
+  if (view.choices.length > QUEST_CHOICE_CAP) problems.push(`${where}: shows ${view.choices.length} choices at once, over the cap of ${QUEST_CHOICE_CAP}: ${view.choices.join(' | ')}`);
   for (const lang of QUEST_LANGUAGES) for (const path of Object.keys(inkOf(walk.worlds[lang]).visitCounts)) visited[lang].add(path);
   for (const lang of QUEST_LANGUAGES) problems.push(...markupOf(views[lang] ?? view).map((problem) => `${where}${inWords(lang)}: ${problem}`));
   const load = loadKey(walk.worlds.en);
   if (!view.ended && !scene.loads.has(load)) {
     scene.loads.add(load);
     attempt(problems, `${where}: a load here fails`, () => reloaded(walk, bundle));
+    for (const lang of QUEST_LANGUAGES) if (firstLook(scene, lang, walk.worlds[lang], view)) attempt(problems, `${where}${inWords(lang)}: the look-ahead fails`, () => inQuestLanguage(lang, () => seenChoices(walk.worlds[lang], bundle)));
   }
   return view.choices.flatMap((text, index) => (view.locked[index] ? [] : attempt(problems, `${id}: after ${[...walk.picks, text].join(' > ')}`, () => {
     const picked = pick(walk, bundle, index, [...walk.picks, text], scene.known);
@@ -227,28 +231,35 @@ function step(walk: Walk, bundle: QuestBundle, id: string, scene: Scene): Walk[]
   })).flatMap((next) => (next ? [next] : [])));
 }
 
-function viewOf(world: World, bundle: QuestBundle, where: string, problems: string[]): QuestView | null {
+function firstLook(scene: Scene, lang: QuestLanguage, world: World, view: QuestPage): boolean {
+  const key = `${lang}|${world.player.quests.session?.checkpoint}|${view.choices.join('|')}`;
+  if (scene.looked.has(key)) return false;
+  scene.looked.add(key);
+  return true;
+}
+
+function viewOf(world: World, bundle: QuestBundle, where: string, problems: string[]): QuestPage | null {
   try {
-    return questView(world, bundle);
+    return questPage(world, bundle);
   } catch (err) {
     problems.push(`${where}: ${err instanceof Error ? err.message : String(err)}`);
     return null;
   }
 }
 
-function twinSplit(worlds: Record<QuestLanguage, World>, views: Record<QuestLanguage, QuestView | null>): string | null {
+function twinSplit(worlds: Record<QuestLanguage, World>, views: Record<QuestLanguage, QuestPage | null>): string | null {
   const en = outcomeOf(worlds.en, views.en);
   const split = QUEST_LANGUAGES.find((lang) => outcomeOf(worlds[lang], views[lang]) !== en);
   return split === undefined ? null : `the ${split} twin parts from the English one. English: ${en}. ${split}: ${outcomeOf(worlds[split], views[split])}`;
 }
 
-function outcomeOf(world: World, view: QuestView | null): string {
+function outcomeOf(world: World, view: QuestPage | null): string {
   const { quests, money, notes, contracts } = world.player;
   const shown = view && { quest: view.quest, choices: view.choices.length, costs: view.costs, checks: view.checks, locked: view.locked, facts: view.facts.length, ended: view.ended };
   return JSON.stringify({ shown, world: quests.world, local: quests.local, session: quests.session, money, notes: notes.map((n) => n.id), contracts: contracts.map((c) => c.id) });
 }
 
-function markupOf(view: QuestView): string[] {
+function markupOf(view: QuestPage): string[] {
   return [
     ...view.lines.flatMap((line) => markupProblems(line.text, line.tags)),
     ...view.choices.flatMap((choice) => markupProblems(choice, [])),

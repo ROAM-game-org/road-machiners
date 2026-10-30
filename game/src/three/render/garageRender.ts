@@ -191,14 +191,14 @@ function* shoot(pass: Pass, root: THREE.Object3D, frame: Frame, origin: { x: num
   }
 }
 
-function* alone(pass: Pass, view: VehicleView, meshes: readonly Drawn[], partId: string, origin: { x: number; z: number }): Generator<PortraitWait, GarageSprite | null, void> {
+function* alone(pass: Pass, view: VehicleView, meshes: readonly Drawn[], partId: string, origin: { x: number; z: number }, mates: ReadonlySet<string> = new Set()): Generator<PortraitWait, GarageSprite | null, void> {
   const own = meshes.filter((m) => m.userData.partId === partId);
   const frame = frameOf(own, SPRITE_PAD_M);
   if (!frame) return null;
   const originals = meshes.map((m) => [m, m.material, m.visible] as const);
   for (const mesh of meshes) {
     if (mesh.userData.partId === partId) continue;
-    if (mesh.material.transparent) mesh.visible = false;
+    if (mesh.material.transparent || mates.has(mesh.userData.partId)) mesh.visible = false;
     else mesh.material = pass.occluder;
   }
   try {
@@ -263,8 +263,9 @@ function* batchSteps(pass: Pass, job: BatchJob, store: GarageStore, trash: { dis
   const truck: Vehicle = { ...job.truck, items: [...coreItems(job.truck), ...job.placements.map((p) => p.item)] };
   const { view, meshes } = yield* builtView(truck, job.paint, trash);
   const origin = gridOrigin(job.chassisId);
+  const mates = new Set(job.placements.map((p) => p.item.part.id));
   for (const placement of job.placements) {
-    const sprite = yield* alone(pass, view, meshes, placement.item.part.id, origin);
+    const sprite = yield* alone(pass, view, meshes, placement.item.part.id, origin, mates);
     store.putSprite(placement.key, placement.loose, sprite ?? NOTHING_DRAWN);
   }
 }

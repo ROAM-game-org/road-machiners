@@ -113,6 +113,85 @@ export function clips(world: World, v: Vehicle): string[] {
   return problems;
 }
 
+const BOTH_SIDES = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+const EDGE_TOLERANCE = 0.01;
+const GUN_ROLES = ['head', 'mount', 'post', 'leg', 'brace'] as const;
+
+function meshesNamed(root: THREE.Object3D, name: string): THREE.Mesh[] {
+  const out: THREE.Mesh[] = [];
+  root.traverse((o) => {
+    if (o.name !== name) return;
+    o.traverse((m) => {
+      if (m instanceof THREE.Mesh && !m.userData.outline) out.push(m);
+    });
+  });
+  return out;
+}
+
+function edgesPass(through: readonly THREE.Mesh[], solid: readonly THREE.Mesh[]): boolean {
+  const targets = solid.map((m) => {
+    const copy = new THREE.Mesh(m.geometry, BOTH_SIDES);
+    copy.matrixAutoUpdate = false;
+    copy.matrixWorld.copy(m.matrixWorld);
+    return copy;
+  });
+  const caster = new THREE.Raycaster();
+  const from = new THREE.Vector3();
+  const to = new THREE.Vector3();
+  const dir = new THREE.Vector3();
+  for (const m of through) {
+    const p = m.geometry.getAttribute('position');
+    const idx = m.geometry.index;
+    const count = idx ? idx.count : p.count;
+    const at = (i: number) => (idx ? idx.getX(i) : i);
+    for (let t = 0; t < count; t += 3) {
+      for (let e = 0; e < 3; e++) {
+        from.fromBufferAttribute(p, at(t + e)).applyMatrix4(m.matrixWorld);
+        to.fromBufferAttribute(p, at(t + ((e + 1) % 3))).applyMatrix4(m.matrixWorld);
+        const len = from.distanceTo(to);
+        if (len < EDGE_TOLERANCE) continue;
+        dir.subVectors(to, from).divideScalar(len);
+        caster.set(from, dir);
+        caster.far = len;
+        if (caster.intersectObjects(targets, false).length > 0) return true;
+      }
+    }
+  }
+  return false;
+}
+
+export type GunView = 'world' | 'portrait';
+
+export function mountedGuns(v: Vehicle): Extract<GridItem, { kind: 'part' }>[] {
+  return v.items.filter((it): it is Extract<GridItem, { kind: 'part' }> => it.kind === 'part' && partDef(it.part.defId).kind === 'weapon' && isMounted(v.chassisId, it));
+}
+
+export function headCount(view: VehicleView): number {
+  let n = 0;
+  view.root.traverse((o) => {
+    if (o.name.endsWith(' head')) n++;
+  });
+  return n;
+}
+
+export function gunContacts(v: Vehicle, mode: GunView): string[] {
+  const view = new VehicleView(v, true, PAINT.standard, mode);
+  view.root.updateMatrixWorld(true);
+  const guns = mountedGuns(v);
+  const lines: string[] = [];
+  for (const a of guns) {
+    const heads = meshesNamed(view.root, `${a.id} head`);
+    for (const b of guns) {
+      if (a === b) continue;
+      for (const role of GUN_ROLES) {
+        if (edgesPass(heads, meshesNamed(view.root, `${b.id} ${role}`))) lines.push(`${v.chassisId} ${a.part.defId}@${a.x},${a.y} r${a.rot} into ${b.part.defId}@${b.x},${b.y} r${b.rot} ${role}`);
+      }
+    }
+  }
+  view.dispose();
+  return lines;
+}
+
 export function place(world: World, v: Vehicle, defId: string | null, good: string | null, x: number, y: number, rot: 0 | 1): boolean {
   const item = (defId
     ? { id: newId(world, 'i'), kind: 'part', x, y, rot, part: { id: newId(world, 'p'), defId, hp: 1, wear: 0, ...(partDef(defId).kind === 'weapon' ? { gun: { cooldown: 0, ammo: 1, reloadWork: 0 } } : {}) } }
@@ -149,3 +228,68 @@ export function fill(world: World, v: Vehicle): void {
   for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) if (g.cells[y][x] === '.' || g.cells[y][x] === 'D') place(world, v, null, 'electronics', x, y, 0);
 }
 
+
+type Plan = { x0: number; x1: number; z0: number; z1: number };
+
+function topOf(root: THREE.Object3D, o: THREE.Object3D): THREE.Object3D {
+  let at = o;
+  while (at.parent && at.parent !== root) at = at.parent;
+  return at;
+}
+
+export function headPlan(view: VehicleView, id: string): Plan | null {
+  const meshes = meshesNamed(view.root, `${id} head`);
+  if (meshes.length === 0) return null;
+  const frame = topOf(view.root, meshes[0]);
+  frame.updateMatrixWorld(true);
+  const inverse = frame.matrixWorld.clone().invert();
+  const box = new THREE.Box3();
+  const p = new THREE.Vector3();
+  for (const m of meshes) {
+    const pos = m.geometry.getAttribute('position');
+    for (let i = 0; i < pos.count; i++) box.expandByPoint(p.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld).applyMatrix4(inverse));
+  }
+  return { x0: box.min.x, x1: box.max.x, z0: box.min.z, z1: box.max.z };
+}
+
+function planOverlap(a: Plan, b: Plan, shrink: number): boolean {
+  return a.x0 + shrink < b.x1 && a.x1 - shrink > b.x0 && a.z0 + shrink < b.z1 && a.z1 - shrink > b.z0;
+}
+
+export function gunOverlaps(v: Vehicle, mode: GunView): string[] {
+  const view = new VehicleView(v, true, PAINT.standard, mode);
+  view.root.updateMatrixWorld(true);
+  const guns = mountedGuns(v);
+  const heads = new Map(guns.map((g) => [g.id, headPlan(view, g.id)]));
+  const lines: string[] = [];
+  for (const a of guns) {
+    const head = heads.get(a.id);
+    if (!head) continue;
+    const unit = unitOfCells(v.chassisId, itemCells(a)).index;
+    for (const b of guns) {
+      if (a === b || unitOfCells(v.chassisId, itemCells(b)).index !== unit) continue;
+      const feet = cellRect(v.chassisId, itemCells(b));
+      const other = heads.get(b.id);
+      const label = `${v.chassisId} ${a.part.defId}@${a.x},${a.y} r${a.rot} over ${b.part.defId}@${b.x},${b.y} r${b.rot}`;
+      if (planOverlap(head, feet, EDGE_TOLERANCE)) lines.push(`${label} footprint`);
+      if (other && planOverlap(head, other, EDGE_TOLERANCE)) lines.push(`${label} head`);
+    }
+  }
+  view.dispose();
+  return lines;
+}
+
+export function headY(v: Vehicle, itemId: string, mode: GunView): number {
+  const view = new VehicleView(v, true, PAINT.standard, mode);
+  view.root.updateMatrixWorld(true);
+  const found = view.root.getObjectByName(`${itemId} head`);
+  if (!found) throw new Error(`No head for ${itemId}`);
+  const y = new THREE.Vector3().setFromMatrixPosition(found.matrixWorld).y;
+  view.dispose();
+  return y;
+}
+
+export function loneHeadY(v: Vehicle, itemId: string, mode: GunView): number {
+  const others = new Set(mountedGuns(v).filter((g) => g.id !== itemId));
+  return headY({ ...v, items: v.items.filter((it) => !others.has(it as never)) }, itemId, mode);
+}

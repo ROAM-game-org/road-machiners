@@ -3,7 +3,8 @@ import { backUpClear, forwardTurnClear, turnaroundSpeed, turnRadius } from './tu
 import { bodyOf } from '../sim/body';
 import { CHASSIS } from '../data/chassis';
 import { addVehicle, emptyWorld } from '../sim/testkit';
-import { endTurn, setDirect, setMoveOrder } from '../sim/world';
+import { endTurn, setDirect, setManualSpeed, setMoveOrder } from '../sim/world';
+import { vehicleStats } from '../sim/stats';
 import { buildDrive, freeDrive, initPhysics, type TurnResult } from './drive';
 import { physicsMove } from './turn';
 import { PHYSICS } from '../data/physics';
@@ -129,7 +130,7 @@ function fullLockCircleFromRest(chassisId: string): number {
   const v = addVehicle(w, 'player', chassisId, ['stockEngine'], { x: 60, y: 60 });
   w.vehicles = [v];
   w.player.vehicleId = v.id;
-  w = setMoveOrder(setDirect(w, true), { kind: 'through', dest: { x: 60, y: 30 } });
+  w = setMoveOrder(setManualSpeed(setDirect(w, true), vehicleStats(w, v).accel), { kind: 'through', dest: { x: 60, y: 30 } });
   const d = buildDrive(w);
   let r: TurnResult | null = null;
   endTurn(w, physicsMove(d, (x) => (r = x)));

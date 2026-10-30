@@ -2,6 +2,7 @@
   "name": "roam",
   "scripts": {
     "dev": "vite",
+    "sim": "vite --open /sim.html",
     "build": "tsc && vite build",
     "typecheck": "tsc",
     "test": "vitest run",
@@ -43,6 +44,7 @@
     "map:bake": "vite-node scripts/map-bake.mjs",
     "icons": "node scripts/icons.mjs",
     "survey:pictures": "node scripts/survey-pictures.mjs",
+    "sim:sprites": "node scripts/sim-sprites.mjs",
     "quest-art": "uv run --quiet --with pillow --with numpy python -I tools/quest-art/post.py",
     "quest-art:crops": "uv run --quiet --with pillow python -I tools/quest-art/crops.py",
     "models:bake": "vite-node scripts/models-bake.mjs",
@@ -75,7 +77,7 @@
     "@types/three": "^0.186.0",
     "clipper-lib": "^6.4.2",
     "oxc-parser": "0.151.0",
-    "playwright": "^1.63.0",
+    "playwright": "^1.64.1",
     "typescript": "^7.0.2",
     "vite": "^7.3.6",
     "vitest": "^3.2.7"

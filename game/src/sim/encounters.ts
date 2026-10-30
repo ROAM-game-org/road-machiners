@@ -15,6 +15,7 @@ import { meanLootValue } from './salvage';
 import { modeRules } from './settings';
 import type { CourierBeat, CourierStory, CourierTopic, EncounterId, EncounterLog, StateEnding, Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
+import { fairM } from './money';
 
 const TOPIC_OF: Record<EncounterId, TopicId> = { tale: 'tale', tip: 'salvageTip', challenge: 'challenge', courier: 'courierShort' };
 
@@ -129,7 +130,7 @@ export function closeEncounter(world: World, npc: Vehicle, id: EncounterId): voi
 }
 
 export function tipPrice(): number {
-  return Math.round(ENCOUNTERS.tip.valueShare * meanLootValue(SALVAGE.roadWreck));
+  return fairM(ENCOUNTERS.tip.valueShare * meanLootValue(SALVAGE.roadWreck));
 }
 
 export function raiseEncounter(world: World, npc: Vehicle, topic: TopicId): void {
@@ -170,7 +171,7 @@ export function favorAmount(world: World, npc: Vehicle): number {
   const story = storyOf(world, npc);
   if (story.aidValue < 0) throw new Error(`The courier story holds a negative aid value ${story.aidValue}`);
   const spare = getResources(world, npc).money - ENCOUNTERS.favorReserve;
-  return Math.max(0, Math.min(Math.round(story.aidValue * ENCOUNTERS.favorShare), spare));
+  return Math.max(0, Math.min(fairM(story.aidValue * ENCOUNTERS.favorShare), spare));
 }
 
 function dueTopic(world: World, npc: Vehicle, story: CourierStory): CourierTopic | null {

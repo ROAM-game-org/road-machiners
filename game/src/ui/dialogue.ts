@@ -117,6 +117,7 @@ export type DialogueHost = {
   talk(next: World): void;
   inspected(): string | null;
   busy(): boolean;
+  menuOpen(): boolean;
   commit(next: World): void;
   log(next: World): void;
   playHorn(vehicleId: string, delayMs: number): void;
@@ -168,15 +169,15 @@ export class DialoguePanel {
     window.addEventListener('keydown', (e) => this.onKey(e), true);
   }
 
-  render(w: World): void {
-    const call = w.player.call;
+  render(w: World, shown = true): void {
+    const call = shown ? w.player.call : null;
     this.root.style.display = call ? '' : 'none';
     if (!call) {
       this.drawn = '';
       return this.root.replaceChildren();
     }
     const offered = currentOptions(w);
-    const key = JSON.stringify([call, offered.map((o) => o.line), language()]);
+    const key = JSON.stringify([call, offered.map((o) => [o.line, o.seen === true]), language()]);
     if (key === this.drawn) return;
     this.drawn = key;
     const npc = vehicleById(w, call.with);
@@ -184,7 +185,7 @@ export class DialoguePanel {
     this.root.classList.remove('qt-done');
     const options = offered.map((o, i) => {
       const short = o.short ? t('trade.needMore', { price: moneyMsg(o.short) }) : null;
-      return el('button', { class: 'dialogue-option', 'aria-disabled': short ? 'true' : undefined, title: short ?? undefined, onclick: () => short || this.choose(i) }, t('call.option', { n: i + 1, line: lineText(o.line, call.vars) }));
+      return el('button', { class: o.seen ? 'dialogue-option seen' : 'dialogue-option', 'aria-disabled': short ? 'true' : undefined, title: short ?? undefined, onclick: () => short || this.choose(i) }, t('call.option', { n: i + 1, line: lineText(o.line, call.vars) }));
     });
     const line = renderLine(`“${say(lineText(call.line.line, call.line.vars))}”`, ['reveal:word'], 0).el;
     line.classList.add('dialogue-line');
@@ -192,7 +193,7 @@ export class DialoguePanel {
   }
 
   private onKey(e: KeyboardEvent): void {
-    if (isBrowserChord(e) || isTyping()) return;
+    if (isBrowserChord(e) || isTyping() || this.host.menuOpen()) return;
     if (this.host.busy()) return this.onBusyKey(e);
     const handled = this.host.world().player.call ? this.onCallKey(e.code) : this.onFreeKey(e.code);
     if (handled) e.stopImmediatePropagation();

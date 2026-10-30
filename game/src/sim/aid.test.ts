@@ -177,7 +177,7 @@ describe('aid deal', () => {
   it('pays no more than the NPC holds', () => {
     const { w: start, npc } = withDriver(34);
     find(start, npc.id).resources!.fuel = 1;
-    const w0 = agreed(start, npc.id, playerGift(5, 5 * ECONOMY.supplyPrice.fuel));
+    const w0 = agreed(start, npc.id, playerGift(10, 10 * ECONOMY.supplyPrice.fuel));
     find(w0, npc.id).resources!.money = 7;
     const money0 = w0.player.money;
     const run = runUntil(w0, 3, (x) => !aidOpen(x, npc.id));

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { NPC_BEHAVIOR, NPCS, type TraitId } from '../data/npcs';
 import { planNpcOrders } from './ai';
+import { watchStalls } from './npc-watchdog';
 import { getResources } from './resources';
+import { corePart } from './grid';
+import { addGoods } from './inventory';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import { startEscort, steerFollow } from './tow';
 import type { NpcActivity, Vehicle, World } from './types';
@@ -36,6 +39,83 @@ describe('a leader waiting for its escort', () => {
     getResources(w, guard).fuel = 0;
     planNpcOrders(w);
     expect(convoy.order?.kind).not.toBe('brake');
+  });
+});
+
+function upkeep(kind: 'repair' | 'resupply'): NpcActivity {
+  if (kind === 'repair') return { kind, targetId: null, destination: null, phase: 'act', reason: 'patchParts' };
+  return { kind, targetId: 'bowl', destination: { x: 60, y: 90 }, phase: 'travel', reason: 'lowFuel' };
+}
+
+function wornDown(w: World, guard: Vehicle): void {
+  addGoods(w, guard, 'parts', 4);
+  corePart(guard, 'cab').hp = 1;
+}
+
+describe('a leader waiting for a follower that keeps its truck running', () => {
+  it.each([
+    ['repair', 10],
+    ['repair', 25],
+    ['resupply', 5],
+    ['resupply', 25],
+  ] as const)('brakes for a guard on %s at gap %i', (kind, gap) => {
+    const { w, convoy, guard } = convoyWithGuardAt(60 - gap);
+    if (kind === 'repair') wornDown(w, guard);
+    guard.brain!.goals.push(upkeep(kind));
+    planNpcOrders(w);
+    expect(convoy.order?.kind).toBe('brake');
+  });
+
+  it('drives on once the guard repairs beyond the catch-up gap', () => {
+    const { w, convoy, guard } = convoyWithGuardAt(60 - NPC_BEHAVIOR.escortCatchUpGap - 1);
+    wornDown(w, guard);
+    guard.brain!.goals.push(upkeep('repair'));
+    planNpcOrders(w);
+    expect(convoy.order?.kind).not.toBe('brake');
+  });
+
+  it('drives on for a stranded repairing guard', () => {
+    const { w, convoy, guard } = convoyWithGuardAt(40);
+    wornDown(w, guard);
+    guard.brain!.goals.push(upkeep('repair'));
+    getResources(w, guard).fuel = 0;
+    planNpcOrders(w);
+    expect(convoy.order?.kind).not.toBe('brake');
+  });
+
+  it('does not wait while the convoy heads for its own service stop', () => {
+    const { w, convoy, guard } = convoyWithGuardAt(40);
+    convoy.brain!.goals = [upkeep('resupply')];
+    wornDown(w, guard);
+    guard.brain!.goals.push(upkeep('repair'));
+    planNpcOrders(w);
+    expect(convoy.order?.kind).not.toBe('brake');
+  });
+
+  it('brakes for a courier partner that repairs far behind', () => {
+    const w = emptyWorld({ x: 400, y: 200 });
+    const leader = createNpc(w, 'courier', ['courier'], 'scout', ['mg', 'stockEngine'], { x: 200, y: 60 });
+    leader.brain!.goals = [{ ...SELL }];
+    const partner = createNpc(w, 'courier', ['courier'], 'scout', ['mg', 'stockEngine'], { x: 200 - NPC_BEHAVIOR.escortCatchUpGap - 30, y: 60 });
+    startEscort(w, partner, leader, null, 0);
+    wornDown(w, partner);
+    partner.brain!.goals.push(upkeep('repair'));
+    planNpcOrders(w);
+    expect(leader.order?.kind).toBe('brake');
+  });
+
+  it('raises no stall while the convoy waits through a long repair', () => {
+    const { w, convoy, guard } = convoyWithGuardAt(40);
+    wornDown(w, guard);
+    guard.brain!.goals.push(upkeep('repair'));
+    for (let i = 0; i < NPC_BEHAVIOR.stallTurns + 5; i++) {
+      w.turn++;
+      guard.brain!.progress = { key: 'x', since: w.turn, at: { ...guard.pos } };
+      planNpcOrders(w);
+      watchStalls(w);
+    }
+    expect(w.events.some((e) => e.t === 'stall' && e.vehicle === convoy.id)).toBe(false);
+    expect(convoy.brain!.goals[0].kind).toBe('sell');
   });
 });
 

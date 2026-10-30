@@ -138,7 +138,7 @@ describe('the window swap in the game', () => {
     const moved = driveOn(paid);
     expect(changeMapIfMoved(run, moved, new SaveHold(), storage, reload)).toBe(true);
     await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce());
-    const logged = await run.slots.backend.readLog('run-1');
+    const logged = await run.slots.readLog('run-1');
     expect(logged.some((r) => r.kind === 'event' && r.t === 'roadOpened' && r.turn === moved.turn)).toBe(true);
     expect(takeBootRequest(storage, SAVE_KEY)).toEqual({ slot: 'auto', reason: 'road' });
     expect(loadWorld(run.slots, 'auto', TEST_MAP)?.chaosHighway?.window).toBe(1);

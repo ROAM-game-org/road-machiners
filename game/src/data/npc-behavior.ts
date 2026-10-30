@@ -44,11 +44,15 @@ export const NPC_BEHAVIOR = {
   keepWork: 400,
   noticeMemory: 3,
   fleeMemory: 30,
+  berthMargin: 4,
+  berthCost: 6,
   fightSearchTurns: 6,
   closeInTiles: 0.5,
   fleeCalmTurns: 6,
   fightStallTurns: 20,
   fightWearShare: 0.05,
+  chaseStallTurns: 8,
+  chaseGainTiles: 2,
   crippledInvestigate: 0.01,
   lootedResume: 0.01,
   ram: {
@@ -62,9 +66,9 @@ export const NPC_BEHAVIOR = {
   robStronger: 0.015,
   robNearGuards: 0.015,
   lootAppeal: {
-    rob: { poor: 5000, rich: 16667, poorMul: 0.02 },
-    raid: { poor: 0, rich: 13333, poorMul: 0.002 },
-    hunt: { poor: 0, rich: 6667, poorMul: 0.002 },
+    rob: { poor: 50, rich: 166.67, poorMul: 0.02 },
+    raid: { poor: 0, rich: 133.33, poorMul: 0.002 },
+    hunt: { poor: 0, rich: 66.67, poorMul: 0.002 },
   },
   fightNearGuards: 0.001,
   towNearTown: { factor: 0.02, crawl: 15, far: 60 },
@@ -100,12 +104,11 @@ export const AID = {
   fillShare: 0.25,
   giftShare: 0.25,
   poorCondition: 0.5,
-  poorValue: 133333,
+  poorValue: 1333.33,
   handoverTurns: 1,
 };
 
 export const HUNT = {
-  roadSpacing: 60,
   siteDistance: 40,
   lawReach: NPC_BEHAVIOR.patrolRadius + TERRAIN.vision.radius,
   offRoadGoals: ['raid', 'patrol', 'investigate', 'sizeUp'] as const,
@@ -213,7 +216,7 @@ export const STANDING = { dailyDrift: 10, dailyGainCap: 15 };
 
 export const INTERVENE = { range: 10, friendly: 0.25 };
 
-export const HELP_CALL = { allied: 450, friendly: 27, law: 450 };
+export const HELP_CALL = { allied: 450, friendly: 27, law: 450, oddsPower: 2.2, oddsCap: 4, cowardEdge: 3 };
 
 export const REFUSE_KNOWN_AT = -15;
 
@@ -223,6 +226,11 @@ export const SITE_FACTIONS: Partial<Record<string, NpcFactionId>> = {
   scrapjaw: 'scrapjaw',
   kiln: 'kiln',
   'marshal-post': 'marshals',
+};
+
+export const TURF = {
+  reachPerFaction: 300,
+  shares: { scrapjaw: 2 / 3, kiln: 1 / 3 } as Partial<Record<NpcFactionId, number>>,
 };
 
 export const TOWN_TRADER_SHARE = 1 / 3;

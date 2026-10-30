@@ -359,6 +359,14 @@ describe('tick', () => {
     expect(readState(h.ctx.statePath).failures).toMatchObject([{ stage: 'merge', issue: null, error: 'timed out after 30 minutes', batch: [6, 7] }]);
   });
 
+  it('leaves a batch card that reached Done meanwhile unlabeled when its merge job dies', async () => {
+    const merge = { ...job('2026-01-10T06:00:00Z', 'merge', null), batch: [6, 7] };
+    const h = harness(merge, false, [card(6, 'Done'), card(7, 'Merging')]);
+    writeState(h.ctx.statePath, state({ jobs: [merge] }));
+    await checkJobs(h.ctx, h.deps);
+    expect(h.labels).toEqual([`7:${STUCK_LABEL}`]);
+  });
+
   it('forgets the caught-up base head of a card that left Merging', async () => {
     const h = harness(null, false, [card(5, 'Merging', [STUCK_LABEL]), card(9, 'Done')]);
     writeState(h.ctx.statePath, state({ caughtUpTo: { 5: DEV, 9: DEV } }));

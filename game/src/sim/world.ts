@@ -1,6 +1,7 @@
 
 import { assignMoments, freshMoments, passMoments } from './moments';
 import { advanceCrimes, learnCasesAtDesk } from './crime';
+import { switchSetSpeed, zeroSetSpeed } from './steering';
 import { settleCrews } from './crews';
 import { CHASSIS, isPaletteId, PAINT, PAINT_SLOTS } from '../data/chassis';
 import { GOODS } from '../data/goods';
@@ -20,7 +21,7 @@ import { isOutpostSite } from './highway';
 import { generateObstacles, touchesObstacle } from './mapgen';
 import { atlasOf, icarusAtlas } from './atlas';
 import type { BakedMap } from './terrain';
-import { planNpcOrders } from './ai';
+import { planNpcOrders, settleMeetings } from './ai';
 import { assignUtilityOrders } from './npc-utility';
 import { applyGodMode, freezeDriving, freezeFire } from './cheats';
 import { assignAutoOrders, dropMagazine, fireWeapons, huntGaps, isHostile, noteEngagements, resolveDestroyed, settleAims } from './combat';
@@ -79,6 +80,7 @@ import { startStanding } from "../data/npc-behavior";
 import { driftStanding } from "./relations";
 import { advanceSunward, freshSunward, HOLLOW_ID } from "./sunward";
 import { hollowObstaclesFor } from "./hollow-layout";
+import { payoutM } from './money';
 
 export function seedStreams(seed: number): Pick<World, 'seed' | 'rngState' | 'marketRng' | 'nameRng' | 'searchRng'> {
   if (!Number.isInteger(seed)) throw new Error(`Seed must be an integer, got ${seed}`);
@@ -147,7 +149,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       beacon: false,
       call: null,
       talked: {},
-      quests: { world: {}, local: {}, session: null, live: null },
+      quests: { world: {}, local: {}, session: null, live: null, seen: {} },
       god: false,
       fullLog: false,
       frozen: false,
@@ -171,6 +173,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     sunward: modeMap(setup.mode) === 'icarus' ? freshSunward() : null,
     moments: modeMap(setup.mode) === 'icarus' ? freshMoments() : null,
     crimes: [],
+    sheltered: [],
   };
   world.obstacles = generateObstacles(world, map, [...hollowObstaclesFor(world), ...openingObstacles(kit, start)]);
   const truck = makeVehicle(world, {
@@ -303,6 +306,7 @@ export function autoRuns(world: World): boolean {
   if (waitsOnPlayer(world)) return false;
   if (p.state === 'knockedOut' || isTowed(world)) return true;
   if (readyDeal(world)) return false;
+  if (playerVehicle(world).job?.kind === 'oddJobs') return true;
   return waitsOnBeacon(world);
 }
 
@@ -334,6 +338,7 @@ export function playerCommand(world: World, fn: (draft: World) => void): World {
 export function setMoveOrder(world: World, order: MoveOrder | null): World {
   return playerCommand(world, (w) => {
     if (gatesShut(w)) throw new Refused({ id: 'gatesShut' });
+    if (order?.kind === 'brake') zeroSetSpeed(playerVehicle(w));
     playerVehicle(w).order =
       order && order.kind !== "brake"
         ? {
@@ -342,9 +347,16 @@ export function setMoveOrder(world: World, order: MoveOrder | null): World {
               x: clamp(order.dest.x, 0, w.size),
               y: clamp(order.dest.y, 0, w.size),
             },
+            ...heldPace(order.pace),
           }
         : order;
   });
+}
+
+function heldPace(pace: number | undefined): { pace?: number } {
+  if (pace === undefined) return {};
+  if (!Number.isFinite(pace) || pace <= RULES.parkedSpeed) throw new Error(`A move order pace must be above ${RULES.parkedSpeed}, got ${pace}`);
+  return { pace };
 }
 
 export function endTurn(
@@ -356,6 +368,7 @@ export function endTurn(
   return timed('turn', () => update(world, (w) => {
     w.turn++;
     advanceWeather(w);
+    settleMeetings(w);
     planNpcOrders(w);
     planHaulerOrder(w);
     freezeDriving(w);
@@ -430,6 +443,7 @@ export function endTurn(
     noteHurt(w);
     settleShutdowns(w);
     settleClaymores(w);
+    settleMeetings(w);
     watchStalls(w);
     watchHaulerStall(w);
     endCallIfOut(w);
@@ -490,7 +504,16 @@ export function cutPlayerLine(world: World, harpoonId: string): World {
 
 export function setDirect(world: World, on: boolean): World {
   return playerCommand(world, (w) => {
-    playerVehicle(w).direct = on;
+    const me = playerVehicle(w);
+    me.direct = on;
+    if (on && me.order && me.order.kind !== 'brake') delete me.order.pace;
+    switchSetSpeed(me, on);
+  });
+}
+
+export function setManualSpeed(world: World, speed: number): World {
+  return playerCommand(world, (w) => {
+    playerVehicle(w).setSpeed = speed;
   });
 }
 
@@ -745,6 +768,6 @@ function placePart(world: World, truck: Vehicle, item: CarriedItem & { kind: 'pa
 
 function carryGoods(world: World, truck: Vehicle, goods: Record<string, number>, stay: boolean): void {
   for (const [good, units] of Object.entries(goods)) {
-    if (good in GOODS) world.player.money += (units - (stay ? addGoods(world, truck, good, units) : 0)) * GOODS[good].value;
+    if (good in GOODS) world.player.money += payoutM((units - (stay ? addGoods(world, truck, good, units) : 0)) * GOODS[good].value);
   }
 }

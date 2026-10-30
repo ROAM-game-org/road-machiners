@@ -19,19 +19,19 @@ describe("runCommand dispatch", () => {
 
     const result = runCommand(w, "money 5000");
 
-    expect(result.world?.player.money).toBe(500000);
+    expect(result.world?.player.money).toBe(5000);
     expect(result.lines).toEqual(["money set to 5,000 M's"]);
   });
 
-  it("sets money in M with up to two decimals", () => {
-    expect(runCommand(emptyWorld(), "money 1.67").world?.player.money).toBe(167);
-    expect(errorOf("money 1.675").message).toContain("1.675");
+  it("sets money in whole M", () => {
+    expect(runCommand(emptyWorld(), "money 167").world?.player.money).toBe(167);
+    expect(errorOf("money 1.5").message).toContain("1.5");
   });
 
   it("matches the command name without case and tolerates extra spaces", () => {
     const result = runCommand(emptyWorld(), "  MONEY   250 ");
 
-    expect(result.world?.player.money).toBe(25000);
+    expect(result.world?.player.money).toBe(250);
   });
 
   it("leaves the input world unchanged", () => {

@@ -1,6 +1,6 @@
 
 import { oilSlickLength } from "../data/utilities";
-import { CHASSIS, chassisDef, isTruckPaint, PAINT, samePaint, type TruckPaint } from "../data/chassis";
+import { chassisDef, isTruckPaint, PAINT, samePaint, type TruckPaint } from "../data/chassis";
 import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, type ShieldDef, type ScannerDef, type CargoDef, type StoreDef, type UtilityDef, type FieldRepair } from "../data/parts";
 import { VIEW } from "../data/view";
 import { playerVehicle } from "../sim/damage";
@@ -102,7 +102,6 @@ export function dialShare(speed: number, maxSpeed: number): number {
 }
 
 const DIAL_STEP = 20;
-const DIAL_TOP = Math.ceil(Math.max(...Object.values(CHASSIS).map((c) => kph(chassisTopSpeed(c.id)))) / DIAL_STEP) * DIAL_STEP;
 const DIAL_X = 60;
 const DIAL_Y = 50;
 const DIAL_R = 40;
@@ -112,17 +111,15 @@ function dialPoint(share: number, r: number): string {
   return `${(DIAL_X - r * Math.cos(a)).toFixed(2)} ${(DIAL_Y - r * Math.sin(a)).toFixed(2)}`;
 }
 
-function dialScale(): string {
+function dialScale(top: number): string {
   const ticks: string[] = [];
-  for (let v = 0; v <= DIAL_TOP; v += DIAL_STEP / 2) {
-    const share = v / DIAL_TOP;
+  for (let v = 0; v <= top; v += DIAL_STEP / 2) {
+    const share = v / top;
     const major = v % DIAL_STEP === 0;
     ticks.push(`<path class="${major ? "dial-major" : "dial-minor"}" d="M${dialPoint(share, DIAL_R)}L${dialPoint(share, DIAL_R - (major ? 6 : 3))}"/>`);
   }
   return ticks.join("");
 }
-
-const DIAL_SCALE = dialScale();
 
 const COMPASS = { rim: 31, face: 27, tick: 25, letters: 17, needle: 14 };
 const COMPASS_POINTS = [
@@ -172,14 +169,25 @@ export function createCompassDial(heading: number): HTMLElement {
   return dial;
 }
 
-export function createSpeedDial(speed: number, maxSpeed: number): HTMLElement {
+export function dialPaceTick(pace: number | null, top: number): string {
+  if (pace === null) return "";
+  const share = dialShare(pace, top);
+  return `<path class="dial-pace" d="M${dialPoint(share, DIAL_R + 1)}L${dialPoint(share, DIAL_R - 10)}"/>`;
+}
+
+export function createSpeedDial(speed: number, maxSpeed: number, top: number, pace: number | null = null): HTMLElement {
   const dial = el("span", { class: "speed-dial", "aria-hidden": "true" });
-  const angle = dialShare(speed, DIAL_TOP) * 180;
-  const limit = dialShare(maxSpeed, DIAL_TOP);
-  const redline = `<path class="dial-redline" d="M${dialPoint(limit, DIAL_R - 1)}A${DIAL_R - 1} ${DIAL_R - 1} 0 0 1 ${dialPoint(1, DIAL_R - 1)}"/>`;
-  const needle = `<path class="dial-needle" d="M${DIAL_X - DIAL_R + 3} ${DIAL_Y}L${DIAL_X} ${DIAL_Y - 1.4}L${DIAL_X + 7} ${DIAL_Y - 0.8}V${DIAL_Y + 0.8}L${DIAL_X} ${DIAL_Y + 1.4}z" transform="rotate(${angle} ${DIAL_X} ${DIAL_Y})"/>`;
-  dial.innerHTML = `<svg viewBox="0 0 120 72"><rect class="dial-rim" x="1" y="1" width="118" height="70" rx="9"/><rect class="dial-face" x="4" y="4" width="112" height="64" rx="6"/>${redline}${DIAL_SCALE}${needle}<circle class="dial-pin" cx="${DIAL_X}" cy="${DIAL_Y}" r="4.5"/><circle class="dial-cap" cx="${DIAL_X}" cy="${DIAL_Y}" r="1.6"/></svg>`;
+  dial.innerHTML = speedDialSvg(speed, maxSpeed, top, pace);
   return dial;
+}
+
+export function speedDialSvg(speed: number, maxSpeed: number, top: number, pace: number | null): string {
+  const angle = dialShare(speed, top) * 180;
+  const limit = dialShare(maxSpeed, top);
+  const redline = limit < 1 ? `<path class="dial-redline" d="M${dialPoint(limit, DIAL_R - 1)}A${DIAL_R - 1} ${DIAL_R - 1} 0 0 1 ${dialPoint(1, DIAL_R - 1)}"/>` : "";
+  const held = dialPaceTick(pace, top);
+  const needle = `<path class="dial-needle" d="M${DIAL_X - DIAL_R + 3} ${DIAL_Y}L${DIAL_X} ${DIAL_Y - 1.4}L${DIAL_X + 7} ${DIAL_Y - 0.8}V${DIAL_Y + 0.8}L${DIAL_X} ${DIAL_Y + 1.4}z" transform="rotate(${angle} ${DIAL_X} ${DIAL_Y})"/>`;
+  return `<svg viewBox="0 0 120 72"><rect class="dial-rim" x="1" y="1" width="118" height="70" rx="9"/><rect class="dial-face" x="4" y="4" width="112" height="64" rx="6"/>${redline}${dialScale(top)}${held}${needle}<circle class="dial-pin" cx="${DIAL_X}" cy="${DIAL_Y}" r="4.5"/><circle class="dial-cap" cx="${DIAL_X}" cy="${DIAL_Y}" r="1.6"/></svg>`;
 }
 
 type Sheet = "items" | "chassis";

@@ -4,6 +4,7 @@ import { hearMoment, momentDue } from './moments';
 import { owedBy } from './crime';
 import { answerDemand, callsPartner, demandOpen, huntedCases, isMarshal, payHailedBounty, hearTerms } from './marshals';
 import { pickLesson } from './lessons';
+import { pickStory } from './road-stories';
 import { canAskHelp, helpAnswer, joinPlayerFight, turnDownCall } from './help-call';
 import { canHireGuard, dismissGuard, guardFee, guardTaken, hireGuard, isPlayerGuard } from './hire';
 import { COLD_LINES, TOPIC_GATES, type ConditionId, type DialogueOption, type EffectId, type LineId, type PrepareId, type TopicId } from '../data/dialogue';
@@ -40,11 +41,12 @@ import { isStranded } from './stats';
 import { addState, aidData, declareFeud, stateOf, towData } from './states';
 import { agreeAid, aidHolds, aidPrice, canSpareFor, hasAid, isLow, playerAid, refuseAid, spareAid, wantedAid, type AidAmounts } from './aid';
 import { spread, startTrade, tradeWith, transfer } from './economy';
-import { acceptOffer, canTowNpc, isTowing, hitchNpc, isOnRope, npcTowTerms, playerTow, playerTowing, refuseOffer, releaseNpc, strandedPlayerAt } from './tow';
+import { acceptOffer, canTowNpc, isTowing, hitchNpc, isOnRope, npcTowTerms, playerTow, playerTowing, refuseOffer, releaseNpc, strandedPlayerAt, towWaitsForFight } from './tow';
 import type { Call, CallVar, CallVars, DirectionTarget, GridItem, MemoryFact, NpcState, Plea, TopicOutcome, Vehicle, World } from './types';
 import { bearing, dist, type Vec } from './vec';
 import { craterNews, giveWord, knowsTheCrater, prepareVigilCall, refuseVigil, vigilCallDue } from './sunward-crater';
 import { directionsTo } from './directions';
+import { fairM } from './money';
 
 function mayDemand(world: World, npc: Vehicle): boolean {
   return world.player.talked[npc.id]?.demand === undefined && knowsCargo(world, npc, playerVehicle(world));
@@ -244,7 +246,7 @@ function rememberedPrices(world: World, fact: PriceFact): { good: string; buy: n
 }
 
 function trucePrice(npc: Vehicle): number {
-  return Math.round(vehicleValue(npc) * PERK_NUMBERS.paidTruce.share);
+  return fairM(vehicleValue(npc) * PERK_NUMBERS.paidTruce.share);
 }
 
 function aidVar(a: AidAmounts): CallVar {
@@ -351,6 +353,7 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   },
   noTrade: (world, npc) => tradeWith(world, npc) === null,
   npcCalm: (world, npc) => !inCombat(world, npc),
+  playerCalm: (world) => !towWaitsForFight(world, playerVehicle(world)),
   hasDeal: (_world, _npc, vars) => vars.deal !== undefined,
   noDeal: (_world, _npc, vars) => vars.deal === undefined,
   hasHaul: (_world, _npc, vars) => namesHaul(vars),
@@ -743,7 +746,8 @@ export const PREPARES: Record<PrepareId, Prepare> = {
   },
   taleNews: (world, npc): CallVars => {
     const site = siteRumor(world, npc);
-    return site ? rumorVars(world, site) : { tip: { kind: 'tip', tip: tradeTip(npc) } };
+    const story: CallVar = { kind: 'line', line: pickStory(world, npc) };
+    return site ? { ...rumorVars(world, site), story } : { tip: { kind: 'tip', tip: tradeTip(npc) }, story };
   },
   tipTerms: (world, npc): CallVars => {
     const target = tipTarget(world, npc);

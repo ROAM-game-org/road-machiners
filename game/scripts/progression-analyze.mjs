@@ -190,6 +190,7 @@ async function analyzeWorld(name, path) {
   if (flaps.length > 0) console.log(`flapping: ${flaps.slice(0, 12).join('; ')}`);
   printPopulation(lines);
   printOffRoad(lines);
+  printRouteStyles(lines);
   printAmbushes(lines);
   printNpcDeaths(lines);
   printSolvency(lines);
@@ -232,9 +233,9 @@ function printOffRoad(lines) {
   const moving = lines.flatMap((l) => l.trucks ?? []).filter((v) => GANGS.has(v.faction) && v.speed > 0);
   if (moving.length === 0) return;
   const share = (vs) => `${vs.filter((v) => v.onRoad).length}/${vs.length} on road`;
-  const by = Map.groupBy(moving.filter((v) => v.offRoad), offRoadReason);
+  const by = Map.groupBy(moving.filter((v) => v.style === 'hidden'), offRoadReason);
   const off = [...by.entries()].map(([why, vs]) => `${why} ${share(vs)}`).join(', ') || 'none';
-  console.log(`raiders keeping off roads: ${off}; healthy raiders ${share(moving.filter((v) => !v.offRoad))}`);
+  console.log(`raiders keeping off roads: ${off}; healthy raiders ${share(moving.filter((v) => v.style !== 'hidden'))}`);
   const hunting = by.get('hunting') ?? [];
   const onRoad = hunting.filter((v) => v.onRoad).length;
   if (hunting.length > 0) {
@@ -242,6 +243,16 @@ function printOffRoad(lines) {
     console.log(`hunting raiders within 6 tiles of a road ${within(6)}/${hunting.length}, within 10 tiles ${within(10)}/${hunting.length}`);
   }
   if (hunting.length > 0 && onRoad / hunting.length > HUNT_ROAD_TARGET) console.log(`MISS: hunting raiders on road above ${100 * HUNT_ROAD_TARGET}%`);
+}
+
+function printRouteStyles(lines) {
+  const moving = lines.flatMap((l) => l.trucks ?? []).filter((v) => v.speed > 0 && v.who !== 'player');
+  if (moving.length === 0) return;
+  const text = (vs) => `${vs.filter((v) => v.onRoad).length}/${vs.length} on road, mean road gap ${(vs.reduce((s, v) => s + v.roadGap, 0) / vs.length).toFixed(1)}`;
+  const byWho = Map.groupBy(moving, (v) => v.who);
+  console.log(`route styles: ${[...byWho.entries()].map(([who, vs]) => `${who} ${text(vs)}`).join('; ')}`);
+  const byStyle = Map.groupBy(moving, (v) => v.style);
+  console.log(`by style: ${[...byStyle.entries()].map(([style, vs]) => `${style} ${text(vs)}`).join('; ')}`);
 }
 
 function printAmbushes(lines) {

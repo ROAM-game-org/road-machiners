@@ -12,7 +12,7 @@ ROAM's voice comes from the author's own wasteland and adventure stories. These 
 
 Narration runs through the character's head. Between the plain facts, the character thinks: a judgment, a complaint, a question to themselves, a guess that may be wrong. "Bradley was a good axe, even though he was an insufferable dickhead." "Should have approached from the sun side." "Does dying by a bullet beat starving in the desert? Hell yeah." In a page scene this is the second person: "Walking south-west was stupid. Not that the south-east had anything better."
 
-A page of bare facts, one after another, reads as a telegram even when each sentence is fine. "The house has lost its roof. The fence posts lean. The goat pen holds no goats." lists what a camera sees. Give the facts a reaction, or join them to what the character wants.
+A page of bare facts, one after another, reads as a telegram even when each sentence is fine. "The house has lost its roof. The fence posts lean. The tap gives nothing." lists what a camera sees. Give the facts a reaction, or join them to what the character wants.
 
 About a quarter of the sentences carry this voice, as in the author's stories. The rest say plainly what happens. The habits below are the strongest kind of voice, so save them for a turn in the scene, like the moment before a fight. A simile or a joke on every line flattens all of them, and so does none at all.
 
@@ -62,7 +62,7 @@ The old world left words behind, and people use them for new things without know
 
 Gatekeepers, traders and clerks price news. A toll drops if you tell the gate what you saw on the road. A stranger's story is worth something to somebody, and people say so.
 
-Kovac: "Toll's the usual. Half, if you tell me what's parked at Kiln."
+Kovac: "Tell me what's parked at Kiln, and I'll tell you which road is clear."
 
 ### Swearing like weather
 
@@ -70,13 +70,13 @@ Rough people swear plainly and without heat, the way they'd mention the wind. Sw
 
 ### Competence shows in small checks
 
-Show skill as habit. A veteran checks the tires and belts at every stop, counts their knives before a talk and notices the man who steps out of their line of sight. The narrator respects it in a few words.
+Show skill as habit. A veteran checks the tires and belts at every stop, touches the knife at their belt before a talk and notices the man who steps out of their line of sight. The narrator respects it in a few words.
 
 "The old one takes a casual step to the side, out of your sight. Figures how he lived this long."
 
 ### Hope, then the floor
 
-Give the player a reason to hope, then take it away with a plain fact they see for themselves. The rifle across the hill was a plank. The water truck was hauling sand. The reversal comes from what the character notices, never from a narrator's twist.
+Give the player a reason to hope, then take it away with a plain fact they see for themselves. The rifle across the hill was a plank. The water barrels were full of sand. The reversal comes from what the character notices, never from a narrator's twist.
 
 ### Violence is fast, then ugly
 
@@ -98,13 +98,15 @@ End a scene on a dry, small line, often the next chore or a flat joke. Never end
 
 Write their voice sheet in [Voices](../lore/voices.md) first. A sheet answers five questions.
 
-1. What one speech rule shows in every line they say? Kovac states one fact, then what follows from it. Hattie asks where you came from, then tells you the plain truth. Ruben winds through water and his grandmother before he lands.
+1. What one speech rule shows in every line they say? Kovac states one fact, then what follows from it. Hattie asks where you came from, then tells you the plain truth. Ruben winds through water and fields before he lands.
 2. What do they want from the player? A stranger is a buyer, a pair of hands, a witness, a messenger or a risk. A person with nothing to want has nothing to say.
 3. What do they notice first about the player? It is the most visible thing: a battered truck, a Nose seal on the door, a stranger towed in on a chain, a name on someone's list.
 4. How long do their sentences run? A boaster runs long. A veteran runs short. A frightened clerk starts sentences and abandons them.
 5. What do they avoid talking about? The thing a person steers around tells the player more than the thing they say.
 
 Match the voice to the place. Bowl talks of fields, seasons and family. Nose talks of orders, rations and the log. The Yard talks of prices and what things are worth. A stranger learns the town from how its people speak before anyone explains it.
+
+A speaker talks from their own corner of a place that holds hundreds or thousands of people. Their job is one stall, crew or canteen among many, and their talk names the crowds, crews and neighbours around them. [People and scale](../lore/world.md#people-and-scale) says how big each place is.
 
 A minor speaker gets a clear job and no quirk. A gate sentry with a funny tic reads as someone important, and the player wastes time on him.
 
@@ -128,7 +130,7 @@ Bad: "The wind talks, if you know how to listen."
 
 Good: "Lena. I fix the Army's trucks, and anybody else's if they pay. If it's broken, put it on the bench."
 
-Good, after the first fall: "You're the one they dragged in on a chain. Sit down before you fall down. I'm Hattie, and this is my well."
+Good, after the first fall: "You're the one they dragged in on a chain. Sit down before you fall down. I'm Hattie, and this is my cistern."
 
 Vary the greeting on what changed since the last visit. Kovac greets a player who caught the depot thief differently from a stranger. A person who sees the player for the third time with the same question says so.
 
@@ -154,7 +156,7 @@ A world fact comes up as part of what the speaker wants: a complaint, a price, a
 
 Bad: "Pierce Corporation insures trucks and lends money to the towns."
 
-Good, a Granary driver: "Pierce wouldn't pay when my axle went. They're the insurers at Nose. They take your coin every season, and when my truck broke they found a reason: I had pulled my gun off the bed to save weight."
+Good, a Granary driver: "Pierce wouldn't pay when my brother didn't come back. They're the insurers at Nose. They take your M's every season, and when he went missing they found a reason: he had pulled his gun off the bed to save weight."
 
 People live inside the basin's facts. Guns on every truck, the Kiln fee and the Senate are old and ordinary to them. Nobody announces them.
 
@@ -168,7 +170,7 @@ The player is a stranger. When a speaker uses a local word, the same answer says
 
 Bad: "Some. Good drivers, bad paper. They wear the same coat."
 
-Good, Dag: "A few, yes. They drive well, but Pierce won't insure a tenant's truck. So they ride in our coats, and the Senate keeps their names off the roll that would earn them a vote."
+Good, Dag: "A few, yes. They drive well, but no tenant can pay for Pierce paper. So they ride in our coats, and the Senate keeps their names off the roll that would earn them a vote."
 
 ### Depth on the player's terms
 
@@ -224,7 +226,7 @@ Each choice changes what Bo says next. None of them is a test with a right answe
 
 ### Exits and actions
 
-The way out is always there. It can be plain, like "[Goodbye.]", or in the moment, like "[Leave him to his tires.]". An action the player does instead of saying uses a bracketed verb, like "[Put the brass on the table.]".
+The way out is always there. It can be plain, like "[Goodbye.]", or in the moment, like "[Leave him to his tires.]". An action the player does instead of saying uses a bracketed verb, like "[Put the M's on the table.]".
 
 ## Dodges, lies and refusals
 
@@ -284,6 +286,12 @@ Humor comes from the speaker's own logic. The speaker does not know they are fun
 
 Good, Jory: "Either the pipe exists or those cabbages are saints."
 
+Read a joke word for word. If what it says is something the speaker can't mean, cut it and end on the plain fact.
+
+Bad, Jory: "My grandfather died one season short, which was bad timing, but he always kept his own schedule." Word for word, the grandfather chose when to die.
+
+Good, Jory: "My grandfather served nine years and three seasons, then died. The Senate counted the one season he was missing more carefully than all the years he'd served."
+
 Say a grim fact flat and let the player react. The flatness is what lands.
 
 Good, Sefa: "What we find of their dead, we bury with their boots on. Nobody on either side likes it, which is how you know it works."
@@ -308,3 +316,4 @@ No jokes that need knowledge from outside the basin. No jokes about the game its
 3. Read it aloud. A line you stumble on is a line the player skips.
 4. Play every branch with `npm run quest -- <quest>`, including the failures.
 5. Read the changed lines against the [Humanizer](humanizer.md#how-roam-uses-it) the way its How ROAM uses it section says for fiction.
+6. Put every practice, cause and detail the talk states through the [sense check](../lore/README.md#sense-check).

@@ -7,13 +7,15 @@ import { handOverParcel, readyHandover } from "../sim/parcel";
 import { playerVehicle } from "../sim/damage";
 import { canDouse, douseEngine } from "../sim/engine-heat";
 import { isBusy, startFirstAid } from "../sim/jobs";
-import { inOverdrive, overdriveBlock } from "../sim/stats";
+import { inOverdrive, overdriveBlock, vehicleStats } from "../sim/stats";
 import { canLoot, canScavenge, scavenge } from "../sim/locations";
 import { startSurvey } from "../sim/survey";
 import { shopAt } from "../sim/market";
 import { reachedOutpostAt } from "../sim/chaos-highway";
 import type { World } from "../sim/types";
-import { playerCanAct, Refused, setAutoRepair, setDirect, setHeadlights, setOverdrive } from "../sim/world";
+import type { Vec } from "../sim/vec";
+import { clickSetSpeed, playerOrder } from "../sim/steering";
+import { actBlock, playerCanAct, Refused, setAutoRepair, setDirect, setHeadlights, setManualSpeed, setMoveOrder, setOverdrive } from "../sim/world";
 import { markError, markVehicle } from "../sim/detect";
 import { lookOver } from "../sim/look-over";
 import { hasBasic } from "../sim/progress";
@@ -33,6 +35,13 @@ export type ControlsHost = {
 export class TruckControls {
   constructor(private host: ControlsHost) {}
 
+  order(dest: Vec, shift: boolean): void {
+    const w = this.host.world();
+    const me = playerVehicle(w);
+    const next = setMoveOrder(w, playerOrder(w, me, dest, shift));
+    this.host.apply(me.direct ? setManualSpeed(next, clickSetSpeed(vehicleStats(w, me), me, dest)) : next);
+  }
+
   toggleManual(): void {
     const w = this.host.world();
     if (!playerCanAct(w)) return;
@@ -42,6 +51,7 @@ export class TruckControls {
 
   toggleAutoRepair(): void {
     const w = this.host.world();
+    if (actBlock(w) === "knockedOut") return;
     this.host.apply(setAutoRepair(w, !w.player.autoRepair));
   }
 
@@ -58,6 +68,7 @@ export class TruckControls {
 
   toggleHeadlights(): void {
     const w = this.host.world();
+    if (actBlock(w) === "knockedOut") return;
     this.host.commit(setHeadlights(w, !w.player.headlights));
   }
 
@@ -142,7 +153,7 @@ export class TruckContext {
       outpost: () => reachedOutpostAt(h.world()) && h.openOutpost(),
       downed: () => 'id' in target && h.openDowned(target.id),
       stock: () => 'id' in target && this.searchStock(target.id, action.combat),
-      survey: () => target.kind === 'survey' && this.surveySite(target.contractId, target.id, action.combat),
+      survey: () => target.kind === 'survey' && this.surveySite(target.contractId, target.id),
       loot: () => 'id' in target && this.lootStock(target.id),
       empty: () => undefined,
     };
@@ -173,9 +184,9 @@ export class TruckContext {
     }
   }
 
-  private surveySite(contractId: string, site: string, combat?: number): void {
+  private surveySite(contractId: string, site: string): void {
     const w = this.host.world();
-    if (isBusy(playerVehicle(w)) || combat !== undefined) return;
+    if (isBusy(playerVehicle(w))) return;
     this.host.apply(startSurvey(w, contractId, site));
     this.host.pushEvents();
   }

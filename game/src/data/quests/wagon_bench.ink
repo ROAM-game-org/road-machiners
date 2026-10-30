@@ -23,7 +23,7 @@ A young soldier sits on a crate by the bench with his left arm in a sling, sorti
   }
   -> bench
 + [Put it back in your pocket and leave.]
-  You leave her to her bolts. Behind you the soldier goes back to sorting, one-handed.
+  You leave the bench as it is. Behind you the soldier goes back to sorting, one-handed.
   -> END
 
 === bench ===
@@ -85,7 +85,7 @@ Corporal Teller. A word outside, driver. # speaker: Teller
 + {not offer_heard} [Step outside with Teller.]
   ~ offer_heard = true
   ~ report_seen = true
-  The yard is hot and smells of the wash pit. Teller stands where the shed wall hides him from the bench. # page
+  The yard is hot and smells of the oil sump. Teller stands where the shed wall hides him from the bench. # page
   Look. I wrote that raiders ran her down and the cannon went over the edge. A wagon down a slope isn't worth a tow, so command wrote her off, and nobody drove out to look at her brakes. # speaker: Teller
   Command's order says a depot rod holds if you take the bends slow. So if a rod goes on a bend, the driver took it fast. I was driving. # speaker: Teller
   In Nose a corporal's family eats on his card. My sister draws her bread on my stripes. Lose them, and her card goes back to the clerk, and she's got a boy of her own. # speaker: Teller
@@ -139,9 +139,9 @@ Teller goes out to the yard without a word. Duvall picks up his half of the rod 
   Teller takes his hand off his watch. It's the soldier who breaks him, not you, and you're glad of it.
   The brake rod went on the bend, and she went over. I took the bend fast. I said raiders to keep my stripes. They pay my sister's ration card. # speaker: Teller
   Lena sends Duvall for Sergeant Kovac. Teller says it again in front of him and signs it. Kovac writes it under the raid report and crosses nothing out.
-  Corporal. Water cart, from tomorrow. Leave the stripes on my desk. # speaker: Kovac
+  Corporal. Barrel runs, from tomorrow. Leave the stripes on my desk. # speaker: Kovac
   And my sister's bread? # speaker: Teller
-  A water carter's card feeds one man. Rations aren't mine to give. # speaker: Kovac
+  A barrel runner's card feeds one man. Rations aren't mine to give. # speaker: Kovac
   Kovac holds out his hand for the half rod. It's what you carried it up here for, and you give it to him. He counts out the finder's rate for it, {fee} M. Then he draws a line through two depot trucks with the same rods, off the road until Lena has looked at them.
   ~ wagon_fate = "admitted"
   ~ give_money(fee)
@@ -162,6 +162,6 @@ You go back out to the yard. Teller counts M's into your hand one at a time, and
 { wagon_rod == "bent":
   He doesn't look at its face. He doesn't know what he's looking for.
 }
-He walks it to the wash pit and drops it through the grate. You hear it hit water.
+He walks it to the oil sump and drops it through the grate. You hear it hit the oil.
 When you go back past the shed, Lena is writing on a scrap of sign-out sheet and doesn't look up. Duvall is turning his half of the rod over in his fingers. Kovac's page still says raiders, and the trucks with the same rods still go out in the morning.
 -> END

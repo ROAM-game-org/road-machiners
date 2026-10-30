@@ -1,8 +1,8 @@
 import { PARTS, type WeaponDef } from '../data/parts';
-import { gunSpans, sidePlanner, spanSides, SIDES, type Round, type Side } from './armor';
+import { gunLayoutKey, gunSpans, sidePlanner, spanSides, SIDES, type Round, type Side } from './armor';
 import { corePart, mountedItems, mountedParts, shieldParts, sideOf } from './grid';
 import { vehicleStats, weaponOn } from './stats';
-import type { PartInstance, Vehicle, World } from './types';
+import type { GridItem, PartInstance, Vehicle, World } from './types';
 import { dist } from './vec';
 
 const LETTER_SIDE: Record<string, Side> = { F: 'front', B: 'rear', L: 'left', R: 'right' };
@@ -21,13 +21,41 @@ function threatRounds(weapons: WeaponDef[], groups: number): Round[] {
 type Planner = ReturnType<typeof sidePlanner>;
 type SideTarget = { armored: Planner; bare: Planner; armor: PartInstance[]; vital: PartInstance[] };
 
-export type Target = { sides: Record<Side, SideTarget> };
+export type Target = { sides: Record<Side, SideTarget>; stops: Map<string, number> };
+
+const LOADOUTS_KEPT = 512;
+const targetCache = new Map<string, Target>();
+const gunCache = new Map<string, Record<Side, WeaponDef[]>>();
+
+function loadoutKey(v: Vehicle): string {
+  return `${v.chassisId}|${v.items.map(itemKey).join(';')}`;
+}
+
+function itemKey(item: GridItem): string {
+  if (item.kind !== 'part') return JSON.stringify(item);
+  const { part } = item;
+  const state = part.gun || part.charge ? JSON.stringify([part.gun, part.charge]) : '';
+  return `${item.id},${item.x},${item.y},${item.rot},${part.id},${part.defId},${part.hp},${part.wear},${part.rebuilt ?? ''},${state}`;
+}
+
+function kept<T>(cache: Map<string, T>, key: string, build: () => T): T {
+  const known = cache.get(key);
+  if (known) return known;
+  if (cache.size >= LOADOUTS_KEPT) cache.clear();
+  const made = build();
+  cache.set(key, made);
+  return made;
+}
 
 export function targetOf(v: Vehicle): Target {
+  return kept(targetCache, loadoutKey(v), () => buildTarget(v));
+}
+
+function buildTarget(v: Vehicle): Target {
   const armored = sidePlanner(v);
   const vital = vitalParts(v);
   const sides = Object.fromEntries(SIDES.map((side) => [side, sideTarget(v, side, armored, vital)])) as Record<Side, SideTarget>;
-  return { sides };
+  return { sides, stops: new Map() };
 }
 
 function vitalParts(v: Vehicle): PartInstance[] {
@@ -43,7 +71,15 @@ function sideTarget(v: Vehicle, side: Side, armored: Planner, vital: PartInstanc
 }
 
 export function roundsToStop(target: Target, side: Side, round: Round): number {
-  const t = target.sides[side];
+  const key = `${side}|${round.damage}|${round.pen}|${round.armorShare}|${round.blast}`;
+  const known = target.stops.get(key);
+  if (known !== undefined) return known;
+  const rounds = sideRoundsToStop(target.sides[side], side, round);
+  target.stops.set(key, rounds);
+  return rounds;
+}
+
+function sideRoundsToStop(t: SideTarget, side: Side, round: Round): number {
   if (t.vital.length === 0) return 0;
   const armored = damageByPart(t.armored(side, round));
   const bare = t.bare === t.armored ? armored : damageByPart(t.bare(side, round));
@@ -86,6 +122,10 @@ export function killRate(def: WeaponDef, target: Target, side: Side): number {
 }
 
 export function gunsBySide(v: Vehicle): Record<Side, WeaponDef[]> {
+  return kept(gunCache, gunLayoutKey(v), () => buildGunsBySide(v));
+}
+
+function buildGunsBySide(v: Vehicle): Record<Side, WeaponDef[]> {
   const out: Record<Side, WeaponDef[]> = { front: [], rear: [], left: [], right: [] };
   for (const item of mountedItems(v, 'weapon')) {
     if (item.part.hp <= 0) continue;

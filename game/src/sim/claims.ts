@@ -12,6 +12,7 @@ import { spotLookOf, territoryAt, territoryOfStock } from './territory';
 import type { PartInstance, SalvageStock, StateKindId, Vehicle, World } from './types';
 import { isJunk, partValue } from './wear';
 import { dist, type Vec } from './vec';
+import { fairM } from './money';
 
 export type ClaimTarget = { stock: SalvageStock; part: PartInstance };
 
@@ -58,7 +59,7 @@ function requireTurns(turns: number): void {
 
 export function claimReward(part: PartInstance, travelPay: number): number {
   if (!Number.isFinite(travelPay) || travelPay < 0) throw new Error(`A claim needs a finite travel pay of at least 0, got ${travelPay}`);
-  return Math.round(partValue(part) + travelPay * CONTRACTS.claim.travelShare);
+  return fairM(partValue(part) + travelPay * CONTRACTS.claim.travelShare);
 }
 
 export function claimRivalAt(postTurn: number, turns: number): number {

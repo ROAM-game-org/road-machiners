@@ -5,7 +5,7 @@ import { skillEffect } from './progress';
 import { playerVehicle, truckFor } from './damage';
 import { newId } from './factory';
 import { cabShieldWith, gunLayoutScore } from './armor';
-import { findSpot, freeCells, gridOf, isMounted, itemCells, itemSize, layerOf, mountCellsOf, mountSpots, placementError, type Cell, type Grid, type Spot } from './grid';
+import { cellKey, findSpot, freeCells, gridOf, isMounted, itemCells, itemSize, layerOf, layoutError, mountCellsOf, mountSpots, occupiedCells, placementError, type Cell, type Grid, type Spot } from './grid';
 import { atGarage, requireGarage } from './garage';
 import { disarm } from './claymore';
 import { workTimeMult } from './utility';
@@ -55,18 +55,25 @@ function bestArcSpot(v: Vehicle, item: GridItem, mount: Cell[]): Spot | null {
   return best;
 }
 
-function bestShieldSpot(v: Vehicle, item: GridItem, mount: Cell[]): Spot | null {
+function bestShieldSpot(v: Vehicle, item: PartItem, mount: Cell[]): Spot | null {
   let best: Spot | null = null;
   let bestScore = [-1, -1, -1];
   const g = gridOf(v);
   const shield = cabShieldWith(v);
-  const taken = new Set(v.items.filter((it) => layerOf(g, it) === 'base').flatMap(itemCells).map((c) => `${c.x},${c.y}`));
+  let taken: Set<number> | null = null;
+  const takenCells = () => (taken ??= occupiedCells(g, v.items, null).base);
   for (const spot of mountSpots(g, v.items, item, mount)) {
     const placed = { ...item, ...spot };
-    const score = [shield(placed), Number(g.cells[spot.y][spot.x] === 'F'), closedEnds(g, taken, placed)];
-    if (ranksAbove(score, bestScore)) [best, bestScore] = [spot, score];
+    const score = betterShieldScore([shield(placed), Number(g.cells[spot.y][spot.x] === 'F')], bestScore, () => closedEnds(g, takenCells(), placed));
+    if (score) [best, bestScore] = [spot, score];
   }
   return best;
+}
+
+function betterShieldScore(lead: number[], bestScore: number[], ends: () => number): number[] | null {
+  if (lead[0] !== bestScore[0] || lead[1] !== bestScore[1]) return ranksAbove(lead, bestScore) ? [...lead, ends()] : null;
+  const closed = ends();
+  return closed > bestScore[2] ? [...lead, closed] : null;
 }
 
 function ranksAbove(a: number[], b: number[]): boolean {
@@ -74,13 +81,13 @@ function ranksAbove(a: number[], b: number[]): boolean {
   return at >= 0 && a[at] > b[at];
 }
 
-function closedEnds(g: Grid, taken: Set<string>, item: GridItem): number {
+function closedEnds(g: Grid, taken: Set<number>, item: GridItem): number {
   const cells = itemCells(item);
   const edge = g.cells[cells[0].y][cells[0].x];
   const along = edge === 'F' || edge === 'B' ? { dx: 1, dy: 0 } : { dx: 0, dy: 1 };
   const xs = cells.map((c) => c.x * along.dx + c.y * along.dy);
   const at = (n: number) => (along.dx ? { x: n, y: cells[0].y } : { x: cells[0].x, y: n });
-  const closed = (c: { x: number; y: number }) => g.cells[c.y]?.[c.x] !== edge || taken.has(`${c.x},${c.y}`);
+  const closed = (c: { x: number; y: number }) => g.cells[c.y]?.[c.x] !== edge || taken.has(cellKey(c.x, c.y));
   return Number(closed(at(Math.min(...xs) - 1))) + Number(closed(at(Math.max(...xs) + 1)));
 }
 
@@ -191,7 +198,7 @@ export function plannedRefitTurns(world: World, v: Vehicle, layout: RefitLayout)
   return movesWork(world, planned, layoutPlan(planned, layout).turns);
 }
 
-function movesWork(world: World, v: Vehicle, planned: number): number {
+export function movesWork(world: World, v: Vehicle, planned: number): number {
   return planned > 0 && !atGarage(world, v.id) ? refitTurns(world, v, planned) : 0;
 }
 
@@ -367,12 +374,8 @@ export function requireIdleRefit(v: Vehicle): void {
 }
 
 export function getLayoutError(v: Vehicle, items: GridItem[]): Refusal | null {
-  const grid = gridOf({ ...v, items });
-  for (const item of items) {
-    const error = placementError(grid, items, item, item.id);
-    if (error) return { id: 'badLayout', cause: error };
-  }
-  return null;
+  const cause = layoutError(gridOf({ ...v, items }), items);
+  return cause ? { id: 'badLayout', cause } : null;
 }
 
 export function planItemMove(v: Vehicle, itemId: string, to: Spot): PlanResult {

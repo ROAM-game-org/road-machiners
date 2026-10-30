@@ -72,7 +72,7 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   lastSighting: ['sighting'],
   claimWreckBearing: ['bearing', 'distance'],
   courierNeed: ['aid', 'price'],
-  taleNews: ['site', 'way', 'tip'],
+  taleNews: ['site', 'way', 'tip', 'story'],
   tipTerms: ['price', 'way', 'square'],
   courierNews: ['site', 'way', 'square', 'tip'],
   courierFavorTerms: ['price'],
@@ -93,6 +93,7 @@ const SAMPLE: Record<string, CallVar> = {
   aid: { kind: 'aid', fuel: 2, supplies: 3 },
   warnLine: { kind: 'line', line: 'thatsMyPick' },
   lesson: { kind: 'line', line: 'lessonLawGates' },
+  story: { kind: 'line', line: 'storyHaulerGoats' },
   news: { kind: 'line', line: 'carsDraggedIntoTheDark' },
   offense: { kind: 'line', line: 'offenseRobbed' },
   haul: { kind: 'haul', goods: { scrap: 2 }, parts: ['mg'] },
@@ -155,7 +156,7 @@ describe('haul text', () => {
 
 describe('currency in dialogue', () => {
   it("groups an amount and names the unit", () => {
-    const vars: CallVars = { town: { kind: 'town', id: 'bowl' }, fee: { kind: 'money', amount: 150000 } };
+    const vars: CallVars = { town: { kind: 'town', id: 'bowl' }, fee: { kind: 'money', amount: 1500 } };
     expect(en(lineText('pullPaid', vars))).toContain('1,500 M when we get there.');
   });
 });

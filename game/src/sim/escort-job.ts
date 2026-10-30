@@ -1,15 +1,15 @@
 import { ESCORT_JOB, SHOPS, type Threat } from '../data/market';
 import { NPC_BEHAVIOR } from '../data/npcs';
-import { REGION } from '../data/region';
 import { inCombat, isHostile } from './combat';
 import { playerVehicle } from './damage';
 import { isDefeated } from './defeat';
 import { newId } from './factory';
 import { fightOdds } from './fight-odds';
 import { contractReward, estimateTurns, finishContract, shopState, siteOf, type Contract } from './market';
-import { decide, firepower, getKnownSite, keepsWord, raiderGrounds, raiderPatrolPosts } from './npc-decisions';
+import { decide, firepower, getKnownSite, keepsWord } from './npc-decisions';
 import { inDanger, pushGoal, topGoal } from './npc-activities';
 import { lieUpSpot } from './npc-service';
+import { threatAlong } from './raider-threat';
 import { reachedSite } from './sites';
 import { endState, stateOf } from './states';
 import { isStranded } from './stats';
@@ -18,8 +18,9 @@ import { shipmentOf } from './road-news';
 import { escortsOf, hireEscort, isOnRope } from './tow';
 import type { Terrain } from './terrain';
 import type { EscortEnd, NpcActivity, Vehicle, World } from './types';
-import { clamp, dist, segmentDist, type Vec } from './vec';
+import { clamp, dist } from './vec';
 import { canVehicleSee } from './vision';
+import { fairM } from './money';
 
 export type EscortContract = Extract<Contract, { kind: 'escort' }>;
 export type EscortStatus = 'together' | 'waiting' | 'holding' | 'apart' | 'stuck';
@@ -28,12 +29,6 @@ export type EscortBlock = 'weak' | 'escorting' | 'full';
 const NO_DEADLINE = Number.MAX_SAFE_INTEGER;
 
 const threats = new WeakMap<Terrain, Map<string, Threat>>();
-
-function postsNear(world: World, from: Vec, to: Vec): number {
-  const camps = REGION.locations.filter((site) => site.kind === 'camp');
-  const posts = camps.flatMap((camp) => [...raiderGrounds(world, camp), ...raiderPatrolPosts(world, camp)]);
-  return posts.filter((post) => segmentDist(post, from, to) <= ESCORT_JOB.threatReach).length;
-}
 
 export function routeThreat(world: World, from: string, to: string): Threat {
   let cache = threats.get(world.terrain);
@@ -44,15 +39,14 @@ export function routeThreat(world: World, from: string, to: string): Threat {
   const key = `${from}>${to}`;
   const hit = cache.get(key);
   if (hit) return hit;
-  const count = postsNear(world, siteOf(from).pos, siteOf(to).pos);
-  const threat: Threat = count === 0 ? 1 : count <= 2 ? 2 : 3;
+  const threat = threatAlong(world, siteOf(from).pos, siteOf(to).pos);
   cache.set(key, threat);
   return threat;
 }
 
 export function escortReward(from: string, to: string, threat: Threat): number {
   const turns = estimateTurns(siteOf(from).pos, siteOf(to).pos);
-  return Math.round(contractReward(turns, 0, false) * ESCORT_JOB.threatPremium[threat]);
+  return fairM(contractReward(turns, 0, false) * ESCORT_JOB.threatPremium[threat]);
 }
 
 export function heldEscort(world: World): EscortContract | null {

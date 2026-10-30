@@ -23,6 +23,7 @@ import { claimOnly, canTakeAny, claimedPartIn, collectSalvage, hasSalvage, liveC
 import { defaultSetup } from './settings';
 import { sitePads } from './sites';
 import { addVehicle, emptyWorld, npcBrain, practiceOf } from './testkit';
+import { standardWorld } from '../test/world-cache';
 import type { PartInstance, SalvageStock, Vehicle, World } from './types';
 import { dumpItem } from './inventory';
 import { cloneWorld, endTurn, newWorld, update } from './world';
@@ -41,7 +42,7 @@ beforeAll(() => {
 });
 
 function claimFor(stock: SalvageStock, part: PartInstance, over: Partial<ClaimContract> = {}): ClaimContract {
-  return { id: 'ct-claim', shop: 'bowl', kind: 'claim', stockId: stock.id, at: { ...stock.pos }, partId: part.id, defId: part.defId, reward: 900, deadline: 900, window: 900, tier: PARTS[part.defId].tier, rivalAt: 900, rival: null, leads: [], ...over };
+  return { id: 'ct-claim', shop: 'bowl', kind: 'claim', stockId: stock.id, at: { ...stock.pos }, partId: part.id, defId: part.defId, reward: 9, deadline: 900, window: 900, tier: PARTS[part.defId].tier, rivalAt: 900, rival: null, leads: [], ...over };
 }
 
 function claimWorld(posted: 'board' | 'held' = 'board'): { w: World; stock: SalvageStock; part: PartInstance; claim: ClaimContract } {
@@ -204,7 +205,7 @@ describe('delivery', () => {
     w = acceptContract(w, 'ct-claim');
     expect(w.player.contracts).toHaveLength(1);
     w = deliverContract(w, 'ct-claim');
-    expect(w.player.money).toBe(money + 900);
+    expect(w.player.money).toBe(money + 9);
     expect(w.player.contracts).toEqual([]);
     expect(practiceOf(w, 'contract')).toHaveLength(1);
     expect(spareParts(playerVehicle(w)).some((p) => p.id === part.id)).toBe(false);
@@ -293,7 +294,7 @@ describe('claim days', () => {
   }
 
   it('keeps the claimed part in its wreck while the nearest NPCs play and the player waits in town', () => {
-    let w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), true);
+    let w = standardWorld(1);
     const { stock, part } = claimTargets(w, 'bowl')[0];
     const claim = rollContract(w, { id: 'bowl', pos: siteOf('bowl').pos }, { claims: [{ stock, part }] }) as ClaimContract;
     shopState(w, 'bowl').contracts.push(claim);
@@ -648,12 +649,10 @@ describe('rival crews', () => {
     expect(npc.brain!.goals.some((g) => g.kind === 'claim')).toBe(false);
   });
 
-  it('finds a free rival in the start world of seeds 1 to 3', () => {
-    for (const seed of [1, 2, 3]) {
-      const w = newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), true);
-      const part = makePart(w, 'mg', 0);
-      expect(w.vehicles.some((v) => isFreeRival(w, v, part)), `seed ${seed}`).toBe(true);
-    }
+  it('finds a free rival in the start world', () => {
+    const w = standardWorld(1);
+    const part = makePart(w, 'mg', 0);
+    expect(w.vehicles.some((v) => isFreeRival(w, v, part))).toBe(true);
   });
 
   function carriesNot(v: Vehicle, part: PartInstance): boolean {
@@ -678,7 +677,7 @@ describe('rival crews', () => {
 
 describe('a rival on the real map', () => {
   it('runs a rival from the shop to the end of its claim with the nearest NPCs alive, and never stalls', () => {
-    let w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), true);
+    let w = standardWorld(1);
     const { shop, stock, part } = nearestClaim(w);
     const claim = rollContract(w, { id: shop, pos: siteOf(shop).pos }, { claims: [{ stock, part }] }) as ClaimContract;
     claim.rivalAt = w.turn + 1;

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { XP_RULES } from "../data/skills";
 import { emptyWorld } from "../sim/testkit";
 import type { QuestLive, World } from "../sim/types";
 import { CharacterScreen } from "./character";
@@ -95,7 +96,7 @@ describe("character screen", () => {
     const root = openCharacter(emptyWorld());
     expect(root.all((n) => n.className.includes("skill-row"))).toHaveLength(5);
     expect(root.text().match(/Today/g)).toHaveLength(1);
-    expect(root.text()).toContain("max 150 XP");
+    expect(root.text()).toContain(`max ${XP_RULES.dailyCap} XP`);
     expect(root.all((n) => n.className === "skill-name")[0].attrs.get("title")).toMatch(/^Earns XP from /);
   });
 
@@ -114,7 +115,7 @@ describe("character screen", () => {
     world.player.state = "knockedOut";
     const perk = openCharacter(world).all((n) => n.tag === "button" && n.className === "perk")[0];
     expect(perk.attrs.get("aria-disabled")).toBe("true");
-    expect(perk.attrs.get("data-reason")).toBe("You are knocked out");
+    expect(perk.attrs.get("data-reason")).toBe("Knocked out");
   });
 
   it("prints the XP pool as a number and a unit", () => {
@@ -124,13 +125,47 @@ describe("character screen", () => {
   });
 });
 
+describe("truck chips", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const chipsOf = (opts?: { freeCells: boolean; feature?: boolean }): FakeNode[] => {
+    stubDom();
+    return (truckChips(emptyWorld(), opts) as unknown as FakeNode).all((n) => n.className.split(" ").includes("chip"));
+  };
+  const hasIcon = (chip: FakeNode, name: string) => chip.all((n) => n.className.split(" ").includes(`icon-${name}`)).length > 0;
+
+  it("prints the mass as numbers in the mono class with one kg and the mass icon", () => {
+    const mass = chipsOf().find((c) => hasIcon(c, "mass"))!;
+    expect(mass.text()).toMatch(/^[\d,]+ \/ [\d,]+ kg$/);
+    expect(mass.all((n) => n.className === "num")).toHaveLength(1);
+    expect(chipsOf().some((c) => hasIcon(c, "load"))).toBe(false);
+  });
+
+  it("keeps the power chip to numbers and icons", () => {
+    const power = chipsOf().find((c) => hasIcon(c, "power"))!;
+    expect(power.text()).toMatch(/^[\d.]+ \/ [\d.]+(−\d+%)?$/);
+    expect(power.text()).not.toMatch(/power|speed/i);
+  });
+
+  it("leaves the chassis feature off the chips when asked", () => {
+    const withFeature = chipsOf({ freeCells: true });
+    const without = chipsOf({ freeCells: true, feature: false });
+    expect(without.length).toBe(withFeature.length - 1);
+  });
+
+  it("keeps words out of the mono class", () => {
+    const truck = chipsOf().find((c) => hasIcon(c, "truck"))!;
+    expect(truck.all((n) => n.className === "num")).toHaveLength(0);
+  });
+});
+
 describe("inventory header money", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("prints money as the M's coin and the number", () => {
     stubDom();
     const world = emptyWorld();
-    world.player.money = 3300;
+    world.player.money = 33;
     const chips = truckChips(world) as unknown as FakeNode;
     const money = chips.all((n) => n.className.split(" ").includes("amount"))[0];
     expect((money.children[0] as FakeNode).className).toBe("coin");
@@ -140,7 +175,7 @@ describe("inventory header money", () => {
   it("prints debt as a negative amount in danger ink", () => {
     stubDom();
     const world = emptyWorld();
-    world.player.money = -3300;
+    world.player.money = -33;
     const chips = truckChips(world) as unknown as FakeNode;
     const money = chips.all((n) => n.className.split(" ").includes("amount"))[0];
     expect(money.className).toContain("bad");

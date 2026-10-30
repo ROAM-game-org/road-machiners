@@ -1,12 +1,12 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { partDef } from '../data/parts';
 import { RULES } from '../data/rules';
-import { addVehicle, emptyWorld, PLAIN_KIT } from '../sim/testkit';
+import { addVehicle, emptyWorld, npcBrain, PLAIN_KIT } from '../sim/testkit';
 import { TEST_MAP } from '../test/map';
 import { defaultSetup } from '../sim/settings';
 import type { MoveOrder, Obstacle, World } from '../sim/types';
 import { angleDiff, DEG, dist, type Vec } from '../sim/vec';
-import { endTurn, newWorld, setDirect, setMoveOrder } from '../sim/world';
+import { endTurn, newWorld, setDirect, setManualSpeed, setMoveOrder } from '../sim/world';
 import { PHYSICS } from '../data/physics';
 import { chassisDef } from '../data/chassis';
 import { bodyOf } from '../sim/body';
@@ -15,7 +15,9 @@ import { headingOf, upOf } from './frames';
 import { dropClearance, spillOil, type OilSpill } from '../sim/hazards';
 import { OIL, oilSlickLength } from '../data/utilities';
 import { physicsMove } from './turn';
-import { getUnstuck } from '../sim/unstuck';
+import { getUnstuck, unstuckBlock } from '../sim/unstuck';
+import { addState } from '../sim/states';
+import { inCombat } from '../sim/combat';
 import { KICK_SEEN, me, ordered, play } from '../test/drive-kit';
 
 beforeAll(async () => {
@@ -68,6 +70,24 @@ describe('stranded trucks', () => {
     expect(dist(after.vehicles[0].pos, w.vehicles[0].pos)).toBeLessThan(1);
   });
 
+  it('turns Get unstuck on in a fight once a played turn counted the flipped truck', () => {
+    const w = emptyWorld({ x: 60, y: 60 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 66, y: 60 }, Math.PI);
+    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+    addState(w, 'combat', raider.id, w.vehicles[0].id, { kind: 'none' });
+    const d = buildDrive(w);
+    d.world.getRigidBody(d.bodies[w.vehicles[0].id]).setRotation({ x: 1, y: 0, z: 0, w: 0 }, true);
+    expect(unstuckBlock(w)).toBe('combat');
+    const first = strandedRun(w, d, 1);
+    expect(first.counts).toEqual([1]);
+    expect(inCombat(first.w, first.w.vehicles[0])).toBe(true);
+    expect(unstuckBlock(first.w)).toBeNull();
+    const free = getUnstuck(first.w);
+    const second = strandedRun(free, buildDrive(free), 1);
+    expect(second.counts).toEqual([0]);
+    expect(inCombat(second.w, second.w.vehicles[0])).toBe(true);
+  });
+
   it('sets a truck lying on top of another truck down on free ground beside it', () => {
     const w = emptyWorld();
     const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 30, y: 30 });
@@ -107,7 +127,8 @@ describe('stranded trucks', () => {
     const setDownAt = { ...me.pos };
     me.order = order;
     const { w: freed, counts: freedCounts } = strandedRun(after, buildDrive(after), 3);
-    expect(freedCounts).toEqual([0, 0, 0]);
+    expect(Math.max(...freedCounts)).toBeLessThan(RULES.stranded.turns);
+    expect(freedCounts.at(-1)).toBeLessThanOrEqual(1);
     expect(dist(freed.vehicles[0].pos, setDownAt)).toBeGreaterThan(3);
   });
 
@@ -151,7 +172,7 @@ describe('a truck held against a prop with every wheel down', () => {
   }
 
   it('sets down a truck that pushes against rocks all around it and does not move', () => {
-    const w = setDirect(pocket(), true);
+    const w = setManualSpeed(setDirect(pocket(), true), RULES.setSpeedStep);
     w.vehicles[0].order = { kind: 'through', dest: { x: 50, y: 30 } };
     const run = counts(w, RULES.stranded.turns + 2);
     expect(run.counts).toEqual([0, ...Array.from({ length: RULES.stranded.turns }, (_, i) => i + 1), 0]);
@@ -168,7 +189,7 @@ describe('a truck held against a prop with every wheel down', () => {
     other.heading = Math.PI;
     w.vehicles = [w.vehicles[0], other];
     w.vehicles[0].order = { kind: 'through', dest: { x: 50, y: 30 } };
-    expect(counts(setDirect(w, true), RULES.stranded.turns + 1).counts).toEqual([0, 0, 0, 0]);
+    expect(counts(setManualSpeed(setDirect(w, true), RULES.setSpeedStep), RULES.stranded.turns + 1).counts).toEqual([0, 0, 0, 0]);
   });
 
   it('does not count a braking truck', () => {

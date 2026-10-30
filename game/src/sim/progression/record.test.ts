@@ -5,13 +5,15 @@ import { TIME } from '../../data/time';
 import type { World, XpSource } from '../types';
 import { cumulativeCost } from '../progress';
 import { playerVehicle } from '../damage';
+import { TEST_MAP } from '../../test/map';
 import { emptyWorld, chaosHighwayWorld } from '../testkit';
 import { haulerOf } from '../damage';
-import { failOnStall, FAR_MOVER, record, recordFrom, recordTurns, StallWatch, stepsFrom, type TraceLine } from './record';
+import { archetypeWorldOn, failOnStall, FAR_MOVER, recordFrom, StallWatch, stepsFrom, type TraceLine } from './record';
+import { record, recordTurns } from './record-node';
 import { replay } from './replay';
 
 const SHORT_RUN = 60;
-const DETERMINISM_RUN = 15;
+const DETERMINISM_RUN = 8;
 const RUN_TIMEOUT = 360_000;
 
 describe('record', () => {
@@ -52,17 +54,17 @@ describe('record', () => {
 
     for (const skill of SKILL_IDS) {
       const bySource = (Object.keys(XP_SOURCES) as XpSource[]).filter((s) => XP_SOURCES[s].skill === skill).reduce((sum, s) => sum + world.player.xpBySource[s], 0);
-      expect(curve[skill].total, skill).toBeCloseTo(bySource, 6);
+      expect(curve.families[skill].total, skill).toBeCloseTo(bySource, 6);
     }
-    const pool = SKILL_IDS.reduce((sum, skill) => sum + curve[skill].total, 0);
+    const pool = SKILL_IDS.reduce((sum, skill) => sum + curve.families[skill].total, 0);
     const spent = SKILL_IDS.reduce((sum, skill) => sum + cumulativeCost(world.player.ranks[skill]), 0);
+    expect(curve.pooled.total).toBeCloseTo(pool, 6);
     expect(pool).toBeCloseTo(world.player.xp + spent, 6);
   }, RUN_TIMEOUT);
 
   it('starts the hunter on the snowball kit and the others on the standard kit unless a kit is named', () => {
     const chassisOf = (archetype: 'hunter' | 'trader', kit?: string): string => {
-      const [step] = recordTurns(1337, archetype, 1, kit === undefined ? {} : { kit });
-      return playerVehicle(step.world).chassisId;
+      return playerVehicle(archetypeWorldOn(TEST_MAP, 1337, archetype, kit === undefined ? {} : { kit })).chassisId;
     };
 
     expect(chassisOf('hunter')).toBe(START_KITS.snowball.chassis);

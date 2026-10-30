@@ -1,3 +1,4 @@
+import { itemValue } from '../data/units';
 import { describe, expect, it } from 'vitest';
 import { GOODS } from '../data/goods';
 import { EFFORT, SHOPS } from '../data/market';
@@ -82,7 +83,7 @@ describe('the production graph', () => {
   it('values rations at their inputs plus the turns of tier 1 work, per crate', () => {
     const r = recipe('granary', 'rations');
     const inputs = Object.entries(r.inputs).reduce((sum, [good, n]) => sum + n * GOODS[good].value, 0);
-    const expected = Math.round((inputs + r.everyCycles * CYCLE * EFFORT.wage[1]) / r.outputs.rations);
+    const expected = itemValue((inputs + r.everyCycles * CYCLE * EFFORT.wage[1]) / r.outputs.rations);
     expect(GOODS.rations.value).toBe(expected);
     expect(rationsValue(Object.fromEntries(Object.values(GOODS).map((g) => [g.id, g.value])), EFFORT.wage[1])).toBe(expected);
   });

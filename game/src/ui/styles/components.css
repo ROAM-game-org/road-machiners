@@ -81,10 +81,20 @@
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-4) var(--space-1) var(--space-2);
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  line-height: 1;
   background: var(--surface-well);
   border: 1px solid var(--line-soft);
+}
+
+.chip > .icon,
+.chip .coin {
+  width: var(--icon-s);
+  height: var(--icon-s);
+}
+.chip .amount {
+  gap: var(--space-3);
 }
 
 /* A told survey clue, on its own line under the contract it belongs to. */
@@ -97,6 +107,14 @@
   padding: 0 var(--space-3);
   font-size: var(--text-dense);
   border: 1px solid;
+}
+
+/* A row whose own action is done. It keeps its slot, dimmed, with a past-tense tag where the button was, and takes no click. */
+.spent {
+  opacity: 0.55;
+  pointer-events: none;
+  user-select: none;
+  cursor: default;
 }
 
 /* A bar that fills from the left. Health by default, accent for progress. */
@@ -308,9 +326,9 @@
 
 #ui .panel.modal.ink-page {
   z-index: var(--z-log-open);
-  top: 40px;
+  top: var(--modal-top);
   width: min(var(--quest-page-width), calc(var(--layer-w) - var(--space-10) * 2));
-  height: min(var(--quest-page-height), calc(var(--layer-h) - var(--quest-page-clearance)));
+  height: var(--page-height);
   max-height: none;
   display: flex;
   flex-direction: column;
@@ -324,7 +342,7 @@
   flex: none;
 }
 .ink-page .ink-band > .art-band {
-  height: min(var(--art-band-height), calc(0.26 * var(--layer-h)));
+  height: min(var(--art-band-height), calc(0.14 * var(--layer-h)));
   border-width: 0 0 1px;
 }
 .ink-page .ink-chips {
@@ -386,6 +404,46 @@
   grid-column: 2;
   grid-row: 4;
 }
+.ink-page .ink-scroll {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.ink-page .ink-scroll > :is(.ink-head, .ink-panel, .ink-choices) {
+  flex: none;
+  width: min(var(--quest-text-width), 100%);
+}
+.ink-page .ink-scroll > .ink-panel {
+  flex: 1 1 auto;
+  min-height: calc(0.4 * var(--layer-h));
+}
+.ink-page .ink-scroll > .ink-panel.wide {
+  width: 100%;
+}
+.ink-page .ink-foot {
+  grid-column: 2;
+  grid-row: 3;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding-top: var(--space-4);
+}
+.ink-page .ink-foot > .quest-choice {
+  flex: none;
+  align-self: center;
+}
+.ink-page .ink-foot > .ink-status {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .ink-page .ink-side {
   grid-column: 3;
   grid-row: 1 / -1;
@@ -397,9 +455,23 @@
   scrollbar-width: thin;
 }
 #ui.phone .panel.modal.ink-page {
-  top: var(--safe-top);
+  top: var(--modal-top);
   width: auto;
-  height: auto;
+  height: var(--page-height);
+  overflow: auto;
+}
+#ui.phone .ink-page .ink-body {
+  flex: 1 0 auto;
+  padding-bottom: 0;
+}
+#ui.phone .ink-page .ink-scroll {
+  overflow: visible;
+}
+#ui.phone .ink-page .ink-foot {
+  position: sticky;
+  bottom: 0;
+  padding-bottom: var(--space-5);
+  background: var(--surface-panel);
 }
 :where(#ui.phone, #ui.narrow) .ink-page .ink-band > .art-band {
   height: var(--art-band-phone-height);
@@ -414,7 +486,7 @@
   grid-template-rows: auto minmax(0, 1fr) auto auto auto;
   padding: var(--space-5) var(--space-6);
 }
-:where(#ui.phone, #ui.narrow) .ink-page :is(.ink-head, .ink-panel, .ink-panel.wide, .ink-choices, .ink-status) {
+:where(#ui.phone, #ui.narrow) .ink-page :is(.ink-head, .ink-panel, .ink-panel.wide, .ink-choices, .ink-status, .ink-scroll, .ink-foot) {
   grid-column: 1;
 }
 :where(#ui.phone, #ui.narrow) .ink-page .ink-side {
@@ -428,4 +500,13 @@
 }
 .ink-page .ink-head .talk-head {
   margin-bottom: var(--space-5);
+}
+
+:is(#ui, #report) .dialogue-option.seen,
+:is(#ui, #report) .quest-choice.seen {
+  background: var(--surface-sunk);
+}
+:is(#ui, #report) .dialogue-option.seen:hover,
+:is(#ui, #report) .quest-choice.seen:hover {
+  background: var(--surface-hover);
 }

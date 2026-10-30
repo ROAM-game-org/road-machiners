@@ -488,8 +488,11 @@ describe('old-world layer', () => {
     return d;
   }
 
+  let layered: MapDraft | undefined;
+  const layer = (): MapDraft => (layered ??= oldWorldLayer(SEED, rollingDraft()));
+
   it('keeps every prop off roads, sites and the deck, and apart from each other', () => {
-    const d = oldWorldLayer(SEED, rollingDraft());
+    const d = layer();
 
     const standing = d.props;
     expect(new Set(standing.map((p) => p.kind)).size).toBeGreaterThan(5);
@@ -500,7 +503,7 @@ describe('old-world layer', () => {
   });
 
   it('marks old roads and fields only off roads, the deck, sites and pads', () => {
-    const d = oldWorldLayer(SEED, rollingDraft());
+    const d = layer();
 
     const marked = [...tilesMarked(d, BUILT_OLD_ROAD), ...tilesMarked(d, BUILT_FIELD)];
     expect(tilesMarked(d, BUILT_OLD_ROAD).length).toBeGreaterThan(100);
@@ -514,7 +517,7 @@ describe('old-world layer', () => {
   });
 
   it('gives the same props and marks for the same seed', () => {
-    const a = oldWorldLayer(SEED, rollingDraft());
+    const a = layer();
     const b = oldWorldLayer(SEED, rollingDraft());
 
     expect(b.props).toEqual(a.props);

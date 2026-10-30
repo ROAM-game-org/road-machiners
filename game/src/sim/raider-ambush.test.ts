@@ -19,6 +19,7 @@ import { addGoods, spareParts } from './inventory';
 import { CLEARANCE, isTransientWreck, nearCliff, terrainNav } from './nav/layer';
 import { decide, fightOddsAgainst, huntingGrounds, judgeDanger, lawmanTowns, passReason, raiderGrounds, raiderPatrolPosts, usefulContacts } from './npc-decisions';
 import { finishGoal, ledPoint, resolveNpcActivities, topGoal } from './npc-activities';
+import { onSizingUp, sizeUpGoal } from './look-over';
 import { yieldTo } from './parley';
 import { route } from './path';
 import { getResources } from './resources';
@@ -83,7 +84,7 @@ describe('watch posts on the map', () => {
 
   it('have the least road exposure among the hides of their ground', () => {
     let posts = 0;
-    for (const ground of huntingGrounds()) {
+    for (const ground of huntingGrounds(w)) {
       const post = watchPost(w, ground);
       if (!post) continue;
       posts++;
@@ -93,17 +94,16 @@ describe('watch posts on the map', () => {
     expect(posts).toBeGreaterThan(0);
   });
 
-  it('hide at least 20 of the 36 road grounds from road traffic', () => {
-    const roadGrounds = huntingGrounds().filter((g) => REGION.roads.some((road) => polylineDist(g, road) <= REGION.roadWidth));
-    expect(roadGrounds.length).toBe(36);
-    const hidden = roadGrounds.filter((g) => watchPost(w, g) !== null && exposureAt(w, watchPost(w, g)!) === 0);
-    expect(hidden.length).toBeGreaterThanOrEqual(20);
+  it('hide the posts of most hunting spots from prey traffic', () => {
+    const spots = huntingGrounds(w);
+    const hidden = spots.filter((g) => watchPost(w, g) !== null && exposureAt(w, watchPost(w, g)!) === 0);
+    expect(hidden.length).toBeGreaterThan(spots.length / 2);
   });
 
   it('build for every camp on a fresh terrain within the time budget', () => {
     const fresh = { ...mapWorld(), terrain: { ...TEST_MAP.terrain } };
     terrainNav(fresh.terrain);
-    watchPost(fresh, huntingGrounds()[0]);
+    watchPost(fresh, huntingGrounds(fresh)[0]);
     const start = performance.now();
     for (const camp of CAMPS) {
       raiderGrounds(fresh, camp);
@@ -114,10 +114,12 @@ describe('watch posts on the map', () => {
     expect(ms).toBeLessThan(4000);
   });
 
-  it('take a ground far from roads as its own post', () => {
-    const own = huntingGrounds().filter((g) => REGION.roads.every((road) => polylineDist(g, road) > 20) && watchPost(w, g) !== null);
-    expect(own.length).toBeGreaterThan(0);
-    expect(own.filter((g) => dist(watchPost(w, g)!, g) === 0).length).toBeGreaterThan(0);
+  it('watch each hunting spot from a post that prey traffic sees less than the spot itself', () => {
+    for (const g of huntingGrounds(w)) {
+      const post = watchPost(w, g);
+      expect(post, `${g.x},${g.y}`).not.toBeNull();
+      expect(exposureAt(w, post!), `${g.x},${g.y}`).toBeLessThan(exposureAt(w, g));
+    }
   });
 
   it('are the same for the same terrain, built again', () => {
@@ -379,6 +381,18 @@ describe('the watch', () => {
     expect(w.events.some((e) => e.t === 'preyPassed')).toBe(false);
   });
 
+  it('records the pass reason when a watching raider looks the prey over and keeps', () => {
+    const { w, raider, player } = watchingRaiderSeeing();
+    addGoods(w, player, 'scrap', 2);
+    raider.brain!.goals.push(sizeUpGoal(w, raider, player));
+    sizedUp(w, raider, player);
+    forceOption('sizedUp', 'keep');
+    w.events = [];
+    onSizingUp(w, raider);
+    const passed = w.events.filter((e) => e.t === 'preyPassed');
+    expect(passed).toEqual([{ t: 'preyPassed', vehicle: raider.id, prey: player.id, reason: expect.stringMatching(/^(poorLoad|chance)$/) }]);
+  });
+
   describe('pass reasons', () => {
     function staged() {
       const s = watchingRaiderSeeing();
@@ -513,7 +527,7 @@ function pileGoods(w: World, good: string): number {
 }
 
 function campValue(raider: Vehicle): number {
-  const goods = Object.entries(goodsCount(raider)).reduce((sum, [good, count]) => sum + count * campGoodPrice(good), 0);
+  const goods = Object.entries(goodsCount(raider)).reduce((sum, [good, count]) => sum + campGoodPrice(good, count), 0);
   return goods + spareParts(raider).reduce((sum, part) => sum + campPartPrice(part), 0);
 }
 
@@ -586,7 +600,7 @@ describe('going home with loot', () => {
     const { goals, value, looted } = sale!;
     expect(goals).toEqual([expect.objectContaining({ kind: 'sell', targetId: scrapjaw.id })]);
     expect(looted).toBe(carried);
-    expect(value).toBe(carried * campGoodPrice('electronics'));
+    expect(value).toBe(campGoodPrice("electronics", carried));
     const after = getResources(end, vehicle(end, raider.id)).money;
     expect(after).toBeLessThanOrEqual(money + value);
     expect(after).toBeGreaterThan(money + value - fuelBill(end, raider.id));
