@@ -188,6 +188,7 @@ describe('independent', () => {
 
   it('explore more often than anything else when idle', () => {
     const w = emptyWorld({ x: 300, y: 300 });
+    w.salvage = [];
     const npc = createNpc(w, 'roamer', ['roamer'], 'scout', ['mg', 'stockEngine'], sitePads(siteById('bowl'))[0]);
     const chances = optionChances(optionWeights(w, npc, 'idle', null, null));
     const best = Object.entries(chances).sort((a, b) => b[1] - a[1])[0][0];
