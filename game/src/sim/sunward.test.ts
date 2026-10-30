@@ -289,6 +289,7 @@ describe('the hunting parties', () => {
     const leader = riderAt(w, leaderId);
     leader.pos = { x: HOLLOW.pos.x + hollowReach() + SUNWARD.fileGap + 30, y: HOLLOW.pos.y };
     const follower = letOut(w, followerId);
+    follower.pos = { x: leader.pos.x - 5, y: leader.pos.y };
     planSunward(w, follower);
     expect(topGoal(follower)?.kind).toBe('follow');
     expect(followingOf(w, follower)?.kind).toBe('cavalcade');
