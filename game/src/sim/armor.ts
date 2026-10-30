@@ -292,7 +292,19 @@ type LaneCell = { parts: readonly PartInstance[] } | null;
 const NO_PARTS: readonly PartInstance[] = [];
 
 function laneOwners(g: Grid, owner: Map<number, PartInstance[]>, side: Side, lane: number): LaneCell[] {
-  return laneCells(g, side, lane).map((c) => (g.cells[c.y][c.x] === null && c.y < g.deadFrom ? null : { parts: owner.get(cellKey(c.x, c.y)) ?? NO_PARTS }));
+  const lengthwise = side === 'front' || side === 'rear';
+  return laneCells(g, side, lane).map((c) => {
+    const parts = owner.get(cellKey(c.x, c.y)) ?? NO_PARTS;
+    return isOffBody(g, c) || (lengthwise && isEmptyEndRow(g, c, parts)) ? null : { parts };
+  });
+}
+
+function isOffBody(g: Grid, c: { x: number; y: number }): boolean {
+  return g.cells[c.y][c.x] === null && c.y < g.deadFrom;
+}
+
+function isEmptyEndRow(g: Grid, c: { y: number }, parts: readonly PartInstance[]): boolean {
+  return parts.length === 0 && (c.y === 1 || c.y === g.h - 2);
 }
 
 type Spend = (part: PartInstance, left: { pen: number; damage: number }, round: Round) => { part: PartInstance; amount: number };

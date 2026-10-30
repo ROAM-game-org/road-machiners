@@ -214,7 +214,7 @@ describe('NPC activities', () => {
   it('drops a scavenge goal when nothing left in the stock fits its cargo', () => {
     const { w, npc } = createScavenger();
     addGoods(w, npc, 'scrap', freeCells(npc) - 1);
-    w.salvage = [{ id: 'wreck-test', pos: { x: 10.5, y: 10 }, radius: 0.6, goods: {}, parts: [makePart(w, 'plates', 0)], hidden: emptyHidden() }];
+    w.salvage = [{ id: 'wreck-test', pos: { x: 10.5, y: 10 }, radius: 0.6, goods: {}, parts: [makePart(w, 'flatFour', 0)], hidden: emptyHidden() }];
     npc.speed = 0;
     npc.brain!.goals = [{ kind: 'scavenge', targetId: 'wreck-test', destination: { ...npc.pos }, phase: 'travel', reason: 'collectSalvage' as const }];
     w.events = [];
@@ -226,7 +226,7 @@ describe('NPC activities', () => {
   it('does not see a reachable stock as salvage when nothing in it fits', () => {
     const { w, npc } = createScavenger();
     addGoods(w, npc, 'scrap', freeCells(npc) - 1);
-    w.salvage = [{ id: 'wreck-test', pos: { x: 10.5, y: 10 }, radius: 0.6, goods: {}, parts: [makePart(w, 'plates', 0)], hidden: emptyHidden() }];
+    w.salvage = [{ id: 'wreck-test', pos: { x: 10.5, y: 10 }, radius: 0.6, goods: {}, parts: [makePart(w, 'flatFour', 0)], hidden: emptyHidden() }];
     npc.speed = 0;
     expect(visibleSalvage(w, npc)).toEqual([]);
     w.salvage[0].goods.scrap = 1;
