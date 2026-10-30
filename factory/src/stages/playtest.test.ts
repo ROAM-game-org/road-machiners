@@ -43,7 +43,7 @@ const POOLS = { cpuLight: 0.125, cpuImplement: 0.375, cpuTest: 0.5, vitestWorker
 
 function setup(state: Partial<ReleaseState> = {}, start = 'abc1234'): Run {
   const f = fake();
-  f.ctx.cfg = { ...f.ctx.cfg, designModel: 'opus', playtestTurns: 100, playtestRuns: 3, gpu: true, suiteStartMinutes: 15, suitePollSeconds: 0, ...POOLS };
+  f.ctx.cfg = { ...f.ctx.cfg, designModel: 'opus', playtestTurns: 100, playtestRuns: 3, playtestReviewRepairs: 2, gpu: true, suiteStartMinutes: 15, suitePollSeconds: 0, ...POOLS };
   writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, ...state, playtest: { ...RELEASE.playtest, ...state.playtest } } });
   const run: Run = {
     f, shells: [], prompts: [], sessions: [], releaseHead: start, cloneHead: start, turns: [], checkFailures: 0, dirty: '', pushFails: false, mainMerged: true, passedAncestor: true,
@@ -199,6 +199,7 @@ describe('playtest', () => {
     await playtest(run.f.ctx, 11);
     expect(harnessRuns(run).map((shell) => /--sha (\S+)/.exec(shell.script)?.[1])).toEqual(['abc1234', 'main001', 'fix0001']);
     expect(run.prompts[1]).toContain('commit fix0001');
+    expect(run.prompts[1]).toContain('`.factory/playtest.json` has exactly this shape.');
     expect(run.sessions[0]).toMatchObject({ resume: false });
     expect(run.sessions[1]).toEqual({ ...run.sessions[0], resume: true });
     expect(checkRuns(run)).toHaveLength(1);
@@ -371,8 +372,50 @@ describe('playtest', () => {
     await expect(playtest(harness.f.ctx, 11)).rejects.toThrow('wrote no playtest log at');
     expect(release(harness.f).playtest.runs).toBe(1);
     const agent = setup();
-    await expect(playtest(agent.f.ctx, 11)).rejects.toThrow('wrote no .factory/playtest.json');
+    await expect(playtest(agent.f.ctx, 11)).rejects.toThrow('still breaks its rules after 2 repairs:\nThe playtest agent wrote no .factory/playtest.json');
+    expect(agent.prompts).toHaveLength(3);
     expect(release(agent.f).playtest).toMatchObject({ runs: 1, passed: null });
+  });
+
+  it('writes the review rules with the baseline for the agent to read again before it writes the review', async () => {
+    const run = setup();
+    run.turns = [clean];
+    await playtest(run.f.ctx, 11);
+    const rules = readFileSync(join(HOME, 'playtest-review.md'), 'utf8');
+    expect(rules).toContain('`git diff main001...HEAD`');
+    expect(rules).toContain('"severity": "important" | "minor"');
+    expect(run.prompts[0]).toContain(rules.trim());
+    expect(run.prompts[0]).toContain('Read `.factory/playtest-review.md` again right before you write `.factory/playtest.json`');
+  });
+
+  it('sends a review that breaks its rules back to the same session with every error and the rules, and plays nothing again', async () => {
+    const run = setup();
+    const broken = review({ findings: [{ ...releaseBug, severity: 'medium' as 'minor', fixed: 'abc' as unknown as boolean }], fixes: [{ commit: 'x' } as unknown as string] });
+    run.turns = [{ review: broken }, clean];
+    const onDisk: string[] = [];
+    const agent = run.f.ctx.container.agent;
+    run.f.ctx.container.agent = async (agentRun: AgentRun) => {
+      if (agentRun.prompt.includes('could not read')) onDisk.push(readFileSync(join(HOME, 'playtest.json'), 'utf8'));
+      return agent(agentRun);
+    };
+    await playtest(run.f.ctx, 11);
+    expect(run.prompts).toHaveLength(2);
+    expect(run.prompts[1]).toContain('- The fixes list holds an item that is not a string\n- Finding F1 has severity medium, not important or minor\n- Finding F1 has fixed abc, not true or false');
+    expect(run.prompts[1]).toContain('Never pick `minor` or `old` only to make the file read.');
+    expect(run.prompts[1]).toContain(readFileSync(join(HOME, 'playtest-review.md'), 'utf8').trim());
+    expect(onDisk).toEqual([broken]);
+    expect(run.sessions[1]).toEqual({ ...run.sessions[0], resume: true });
+    expect(harnessRuns(run)).toHaveLength(2);
+    expect(release(run.f).playtest).toMatchObject({ runs: 1, passed: 'abc1234', blocked: null });
+  });
+
+  it('fails with every error left when the review still breaks its rules after the repairs, and spends no other play', async () => {
+    const run = setup();
+    run.turns = [{ review: review({ findings: [{ ...releaseBug, severity: 'medium' as 'minor', cause: 'both' as 'old' }] }) }, {}, {}];
+    await expect(playtest(run.f.ctx, 11)).rejects.toThrow('The playtest review still breaks its rules after 2 repairs:\nFinding F1 has severity medium, not important or minor\nFinding F1 has cause both, not release or old');
+    expect(run.prompts).toHaveLength(3);
+    expect(harnessRuns(run)).toHaveLength(2);
+    expect(release(run.f).playtest).toMatchObject({ runs: 1, passed: null });
   });
 
   it('plays nothing and spends no play when the clone is not at the release head it read, so the audit never names the wrong commit', async () => {
