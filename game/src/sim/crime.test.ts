@@ -25,6 +25,7 @@ import { addGoods } from './inventory';
 import { hearTerms } from './marshals';
 import { giveInTo, payOff, settleCashThreat, settlePlayerPlea, settleThreat } from './parley';
 import { looseCargo } from './salvage';
+import { fairM } from './money';
 
 function npc(w: World, faction: Faction, template: string, traits: TraitId[], pos: Vec): Vehicle {
   const v = addVehicle(w, faction, 'scout', ['mg', 'stockEngine'], pos);
@@ -448,8 +449,8 @@ describe('restitution of a robbery', () => {
     settleThreat(w, victim, 'comply');
     const value = holdUpValue(w);
     expect(value).toBeGreaterThan(0);
-    expect(witnessed(witness).map((m) => m.fact.restitution)).toEqual([value]);
-    expect(fileBy(w, witness).restitution).toBe(value);
+    expect(witnessed(witness).map((m) => m.fact.restitution)).toEqual([fairM(value)]);
+    expect(fileBy(w, witness).restitution).toBe(fairM(value));
   });
 
   it('adds the money of a cash cut', () => {
@@ -483,7 +484,7 @@ describe('restitution of a robbery', () => {
     giveInTo(w, victim, robber, { haul: looseCargo(victim), money: 0 });
     const value = holdUpValue(w);
     expect(value).toBeGreaterThan(0);
-    expect(fileBy(w, witness).restitution).toBe(value);
+    expect(fileBy(w, witness).restitution).toBe(fairM(value));
   });
 
   it('adds what the player pays for mercy in a robbery fight', () => {
@@ -534,6 +535,17 @@ describe('restitution of a robbery', () => {
     const stranger = trader(w, 'independent', { x: 300, y: 300 });
     payOff(w, stranger, robber, 1000);
     expect(witnessed(witness).map((m) => m.fact.restitution)).toEqual([1200, 0]);
+  });
+
+  it("rounds fractional cargo restitution to whole M before a bounty is paid", () => {
+    const { w, robber, victim, witness } = scene();
+    rob(w, robber, victim);
+    noteHandover(w, robber, victim, 4.6);
+    const c = fileBy(w, witness);
+    expect(c.restitution).toBe(5);
+    robber.resources!.money = caseOwed(c);
+    expect(() => payBounty(w, robber, [c], null)).not.toThrow();
+    expect(c.status).toBe("paid");
   });
 
   it('throws on a negative or endless value, and on a negative restitution', () => {
