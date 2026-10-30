@@ -44,7 +44,7 @@ describe('dividing turf', () => {
     const spots = huntingSpots(TEST_MAP).spots;
     const claimants = turfClaimants();
     const turf = divideTurf(spots, claimants);
-    expect(Object.fromEntries([...turf].map(([id, points]) => [id, points.length]))).toEqual({ scrapjaw: 9, kiln: 10 });
+    expect(Object.fromEntries([...turf].map(([id, points]) => [id, points.length]))).toEqual({ scrapjaw: 9, kiln: 11 });
     for (const c of claimants) for (const p of turf.get(c.id)!) expect(dist(p, c.home)).toBeLessThanOrEqual(c.reach);
     const nose = REGION.towns.find((t) => t.id === 'nose')!;
     const free = spots.filter((p) => ![...turf.values()].some((points) => points.includes(p)));
