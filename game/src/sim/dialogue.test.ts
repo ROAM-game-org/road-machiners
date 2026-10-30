@@ -30,6 +30,7 @@ import { addVehicle, emptyWorld, chaosHighwayWorld, forceOption, npcBrain, pract
 import type { TraitId } from '../data/npcs';
 import type { SalvageStock, Vehicle, World } from './types';
 import { directionsTo } from './directions';
+import { siteOf } from './market';
 import { gridSquareOf } from './map-grid';
 import { dist } from './vec';
 import { refreshVision } from './vision';
@@ -190,8 +191,9 @@ describe('directions', () => {
   it('names the known town nearest the player and marks it discovered', () => {
     const { w, npc } = withNpc('trader', 'independent');
     w.player.discovered = [];
-    playerVehicle(w).pos = { x: 100, y: 450 };
-    npc.pos = { x: 106, y: 450 };
+    const gate = siteOf('nose').pos;
+    playerVehicle(w).pos = { x: gate.x - 100, y: gate.y };
+    npc.pos = { x: gate.x - 94, y: gate.y };
     refreshVision(w);
     const me = playerVehicle(w).pos;
     const nearest = REGION.towns.filter((t) => ['bowl', 'nose'].includes(t.id)).sort((a, b) => dist(me, a.pos) - dist(me, b.pos))[0];
