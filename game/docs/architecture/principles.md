@@ -20,7 +20,7 @@ Plan check: list each rule the change reads outside `src/sim/`, and name the sim
 
 ## 3. Hot code uses an index
 
-Code that runs per turn, per frame, per truck or per pair never scans a whole world list. It queries an index. `ObstacleBuckets` in `src/sim/nav/buckets.ts` answers questions about obstacles near a point or along a segment. `RoadIndex` answers questions about roads. Cached nav layers in `src/sim/nav/layer.ts` hold route data.
+Code that runs per turn, per frame, per truck or per pair never scans a whole world list. It queries an index. `ObstacleBuckets` in `src/sim/nav/buckets.ts` answers questions about obstacles near a point or along a segment. `RoadIndex` answers questions about roads. Cached nav layers in `src/sim/nav/layer.ts` hold route data. `src/sim/loadout-memo.ts` holds the facts derived from one truck's items, like its mounted parts per kind and role, its mass, worn engine, gun draw and weapon spans. `mountedItems()`, `mountedParts()`, `coreParts()` and `vehicleStats()` read it, and a new loadout fact is a new slot there, never a cache in the caller.
 
 A filter over `world.obstacles`, `world.roads` or `world.vehicles` inside a function that runs per point, per segment or per check is a violation. So is a filter that only narrows the list after a full pass over it.
 
@@ -42,7 +42,7 @@ Plan check: list every source or sink of value the change adds or changes, with 
 
 ## 5. Save facts, derive the rest
 
-`World` holds facts only. Derived data and caches live outside it and are rebuilt from the facts. A cache key compares ids, not object identity, because the world is cloned every turn. Any change to a type reachable from `World` needs a save migration, as [Saves](saves.md) and `CLAUDE.md` describe.
+`World` holds facts only. Derived data and caches live outside it and are rebuilt from the facts. A cache key compares ids, not object identity, because the world is cloned every turn. The loadout memo is the one exception: it is keyed by a truck's items array, so it never outlives its world copy, and it checks a fingerprint of the items on every read, so no writer of items has to tell it. Any change to a type reachable from `World` needs a save migration, as [Saves](saves.md) and `CLAUDE.md` describe.
 
 Why: a stored derived value drifts away from the facts it came from. Players keep their saves across updates.
 

@@ -15,12 +15,12 @@ import { standardWorld } from '../test/world-cache';
 import { beyondPad, fillHollowByDay, letOut, orderWorld, quietWorld, riderAt, runTo } from '../test/sunward-kit';
 import { RULES } from '../data/rules';
 import { playerVehicle } from './damage';
-import { joinCompany } from './companies';
+import { followingOf, joinCompany } from './companies';
 import { noteDefeat } from './relations';
 import { route, routeLength } from './path';
 import { lightZone } from './sunward-crater';
 import { makeTaste, nightTaste, tasted, terrainNav } from './nav/layer';
-import { topGoal } from './npc-activities';
+import { thinkNpc, topGoal } from './npc-activities';
 import { clockOf } from './sun';
 import { refreshVision } from './vision';
 import { discoverSites } from './locations';
@@ -36,7 +36,7 @@ import { ROAD_INDEX } from './road-index';
 import { callVehicle, currentLine, currentOptions } from './dialogue';
 import { hollowDiscs, hollowObstacles, hollowPad, hollowReach, hollowSitesFor, isHollowObstacle } from './hollow-layout';
 import {
-  advanceSunward, isCavalcadeCar, isHunterCar, avoidsCrater, fallenSun, vigilPosts, collapseOrder, craterExit, CRATER_NIGHT, inCraterZone, nightSafe, shunsAtNight, vigilGrounds, dawnAfter, hollowLampsLit, huntTonight, planSunward, spawnsAtHollow, duskTurn, orderDusk, nextRideOut, nightWindow, rideOutTurn, lastDusk, membersOf, keepsToItself, phaseAt, returnTurn, sunwardFacts, sunwardPhase,
+  advanceSunward, isCavalcadeCar, isHunterCar, avoidsCrater, fallenSun, gateOrder, vigilPosts, collapseOrder, craterExit, CRATER_NIGHT, inCraterZone, nightSafe, shunsAtNight, vigilGrounds, dawnAfter, hollowLampsLit, huntTonight, planSunward, spawnsAtHollow, duskTurn, orderDusk, nextRideOut, nightWindow, rideOutTurn, lastDusk, membersOf, keepsToItself, phaseAt, returnTurn, sunwardFacts, sunwardPhase,
 } from './sunward';
 import type { Obstacle, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
@@ -280,6 +280,30 @@ describe('the vigil posts', () => {
 });
 
 describe('the hunting parties', () => {
+  it('sends a defeated column follower home instead of keeping its column follow and state', () => {
+    const w = orderWorld(5);
+    w.turn = rideOutTurn(duskTurn(1)) + 1;
+    advanceSunward(w);
+    const night = sunwardFacts(w).night!;
+    const [leaderId, followerId] = gateOrder(w, night);
+    const leader = riderAt(w, leaderId);
+    leader.pos = { x: HOLLOW.pos.x + hollowReach() + SUNWARD.fileGap + 30, y: HOLLOW.pos.y };
+    const follower = letOut(w, followerId);
+    follower.pos = { x: leader.pos.x - 5, y: leader.pos.y };
+    planSunward(w, follower);
+    expect(topGoal(follower)?.kind).toBe('follow');
+    expect(followingOf(w, follower)?.kind).toBe('cavalcade');
+    follower.pos = { x: leader.pos.x - 5, y: leader.pos.y };
+    follower.defeat = { phase: 'retreat', turns: 0, unseen: 0, foes: [], gaveUp: false };
+
+    const action = thinkNpc(w, follower);
+
+    expect(action).toMatchObject({ kind: 'explore', reason: 'rideHome' });
+    expect(topGoal(follower)).toBe(action);
+    expect(follower.brain!.goals.every((g) => g.kind !== 'follow')).toBe(true);
+    expect(followingOf(w, follower)).toBeNull();
+  });
+
   it('rides out on a few nights a week by a hash of the seed and the day, with a cooldown, and draws no world random number', () => {
     const w = quietWorld(5);
     const before = { rng: w.rngState, market: w.marketRng.rngState, names: w.nameRng.rngState, search: w.searchRng.rngState };
