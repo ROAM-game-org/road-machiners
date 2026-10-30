@@ -63,6 +63,26 @@ describe('remoteSuite', () => {
     expect(failure).not.toContain('line 0\n');
   });
 
+  it('names every failed test and unfinished file of the record above the log tail, so the fix agent sees all of them', async () => {
+    const failed = Array.from({ length: 39 }, (_, i) => ({ file: `src/f${i % 21}.test.ts`, test: `case ${i}` }));
+    const record = { failed: [...failed, { file: 'src/whole.test.ts', test: null }], unfinished: ['src/slow.test.ts'], unhandledErrors: 2 };
+    const { ctx } = fakeCtx({ reads: [{ ...RUN, started: true, done: true, testsFailed: true, conclusion: 'failure' }], log: 'FAIL src/f20.test.ts > case 20' });
+    ctx.github.suiteFailures = async () => record;
+    const failure = (await remoteSuite(ctx, AT, 'abc1234'))!;
+    expect(failure).toContain('Every failure of the run, 40 failed tests in 22 files:');
+    for (const test of failed) expect(failure).toContain(`- ${test.file} > ${test.test}\n`);
+    expect(failure).toContain('- src/whole.test.ts (the file itself)');
+    expect(failure).toContain('Test files that never finished, 1:\n- src/slow.test.ts');
+    expect(failure).toContain('Unhandled errors outside any test: 2.');
+    expect(failure.indexOf('src/slow.test.ts')).toBeLessThan(failure.indexOf('FAIL src/f20.test.ts > case 20'));
+  });
+
+  it('says the failure list is missing when the run wrote no readable record', async () => {
+    const { ctx } = fakeCtx({ reads: [{ ...RUN, started: true, done: true, testsFailed: true, conclusion: 'failure' }], log: 'FAIL src/a.test.ts' });
+    ctx.github.suiteFailures = async () => null;
+    expect(await remoteSuite(ctx, AT, 'abc1234')).toContain('no readable failure record');
+  });
+
   it('is a machine failure when the run fails outside the test step', async () => {
     const { ctx } = fakeCtx({ reads: [{ ...RUN, started: true, done: true, conclusion: 'failure' }] });
     await expect(remoteSuite(ctx, AT, 'abc1234')).rejects.toThrow(SuiteMachineError);
@@ -201,16 +221,18 @@ describe('the suite calls of the GitHub client', () => {
       writeFileSync(join(args[8]!, 'test-failures.json'), text);
       return ok('');
     };
-    const record = { failed: [{ file: 'src/a.test.ts', test: 'a > b' }, { file: 'src/c.test.ts', test: null }], unhandledErrors: 0 };
+    const record = { failed: [{ file: 'src/a.test.ts', test: 'a > b' }, { file: 'src/c.test.ts', test: null }], unfinished: ['src/d.test.ts'], unhandledErrors: 0 };
     expect(await ghClient(download(JSON.stringify(record)), CFG).suiteFailures(77)).toEqual(record);
     expect(await ghClient(download(null), CFG).suiteFailures(77)).toBeNull();
-    expect(await ghClient(download('{"failed":[{"file":""}],"unhandledErrors":0}'), CFG).suiteFailures(77)).toBeNull();
-    expect(await ghClient(download('{"failed":[],"unhandledErrors":-1}'), CFG).suiteFailures(77)).toBeNull();
+    expect(await ghClient(download('{"failed":[{"file":""}],"unfinished":[],"unhandledErrors":0}'), CFG).suiteFailures(77)).toBeNull();
+    expect(await ghClient(download('{"failed":[],"unfinished":[],"unhandledErrors":-1}'), CFG).suiteFailures(77)).toBeNull();
+    expect(await ghClient(download('{"failed":[],"unhandledErrors":0}'), CFG).suiteFailures(77)).toBeNull();
+    expect(await ghClient(download('{"failed":[],"unfinished":[""],"unhandledErrors":0}'), CFG).suiteFailures(77)).toBeNull();
     expect(await ghClient(download('not json'), CFG).suiteFailures(77)).toBeNull();
   });
 
   it('gives the failure record with a failed suite, and none when it cannot be read', async () => {
-    const record = { failed: [{ file: 'src/a.test.ts', test: 'a' }], unhandledErrors: 0 };
+    const record = { failed: [{ file: 'src/a.test.ts', test: 'a' }], unfinished: [], unhandledErrors: 0 };
     const failed = { ...RUN, started: true, done: true, testsFailed: true, conclusion: 'failure' };
     const { ctx } = fakeCtx({ reads: [failed] });
     ctx.github.suiteFailures = async () => record;

@@ -199,10 +199,47 @@ describe('merge queue', () => {
     expect(calls.filter((call) => /^(suite|checks|agent|push)/.test(call))).toEqual(['suite head1', 'checks', 'agent', 'suite head1', 'checks', 'push head1 dev']);
   });
 
+  it('runs no checks after a fix round that made no commit, and gives the session the same failure back', async () => {
+    changed = ['game/src/sim/fuel.ts'];
+    failingSuites = 1;
+    const ctx = fakeCtx();
+    const commits = ['card5', 'card6', 'merged1', 'merged1', 'merged2'];
+    ctx.repo.workHead = async () => commits.shift() ?? 'merged2';
+    await merge(ctx);
+    expect(calls.filter((call) => /^(suite|checks|agent|push)/.test(call))).toEqual(['suite head1', 'checks', 'agent', 'agent', 'suite head1', 'checks', 'push head1 dev']);
+    expect(runs[1]!.prompt).toContain('FAIL src/sim/raid.test.ts in run 1');
+    expect(runs[1]!.prompt).toContain('made no commit, so the head is still merged1');
+    expect(logs).toContain('the fix round made no commit, so merged1 keeps its failure and the checks do not run again');
+  });
+
+  it('ends at the budget when every fix round commits nothing, with one run of the checks', async () => {
+    changed = ['game/src/sim/fuel.ts'];
+    failingSuites = 9;
+    costs = [3, 3];
+    const ctx = fakeCtx(5);
+    ctx.repo.workHead = async () => 'merged1';
+    await expect(merge(ctx)).rejects.toBeInstanceOf(BudgetError);
+    expect(calls.filter((call) => /^(suite|checks|agent)/.test(call))).toEqual(['suite head1', 'checks', 'agent', 'agent']);
+  });
+
+  it('sends a fix left uncommitted back first, and then the unchanged head keeps its suite failure', async () => {
+    changed = ['game/src/sim/fuel.ts'];
+    dirty = ['', ' M game/src/sim/fuel.ts\n', '', ''];
+    failingSuites = 1;
+    const ctx = fakeCtx();
+    const commits = ['card5', 'card6', 'merged1', 'merged1', 'merged2'];
+    ctx.repo.workHead = async () => commits.shift() ?? 'merged2';
+    await merge(ctx);
+    expect(runs[1]!.prompt).toContain('changes that are not committed');
+    expect(runs[2]!.prompt).toContain('FAIL src/sim/raid.test.ts in run 1');
+    expect(runs[2]!.prompt).toContain('made no commit');
+    expect(calls.filter((call) => /^(suite|checks|agent|push)/.test(call))).toEqual(['suite head1', 'checks', 'agent', 'agent', 'agent', 'suite head1', 'checks', 'push head1 dev']);
+  });
+
   describe('failures the base also has (#1103)', () => {
     const RAID = { file: 'src/sim/raid.test.ts', test: 'raids > reach 5' };
     const FUEL = { file: 'src/sim/fuel.test.ts', test: 'burns fuel' };
-    const failing = (...failed: FailedTest[]) => ({ passed: false, record: { failed, unhandledErrors: 0 } });
+    const failing = (...failed: FailedTest[]) => ({ passed: false, record: { failed, unfinished: [], unhandledErrors: 0 } });
     const ledgerBaselines = () => readLedger(home, new Date(0)).filter((line) => line.kind === 'baseline');
 
     it('fails with the baseline cause and no fix round when every failed test fails on the base too', async () => {
@@ -256,7 +293,7 @@ describe('merge queue', () => {
 
     it('keeps the whole failure when the base passes the failed tests', async () => {
       changed = ['game/src/sim/fuel.ts'];
-      suitePlan = [failing(RAID), { passed: true, record: { failed: [], unhandledErrors: 0 } }, { passed: true, record: null }];
+      suitePlan = [failing(RAID), { passed: true, record: { failed: [], unfinished: [], unhandledErrors: 0 } }, { passed: true, record: null }];
       await merge(fakeCtx());
       expect(runs).toHaveLength(1);
       expect(runs[0]!.prompt).not.toContain('Leave them alone');
@@ -266,7 +303,7 @@ describe('merge queue', () => {
 
     it('keeps the whole failure, with no rerun, when the run left no record or unhandled errors', async () => {
       changed = ['game/src/sim/fuel.ts'];
-      suitePlan = [{ passed: false, record: null }, { passed: false, record: { failed: [RAID], unhandledErrors: 1 } }, { passed: true, record: null }];
+      suitePlan = [{ passed: false, record: null }, { passed: false, record: { failed: [RAID], unfinished: [], unhandledErrors: 1 } }, { passed: true, record: null }];
       await merge(fakeCtx());
       expect(runs).toHaveLength(2);
       expect(calls.some((call) => call.startsWith('rerun'))).toBe(false);

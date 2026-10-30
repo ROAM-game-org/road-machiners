@@ -97,10 +97,12 @@ async function checkpoint(ctx: Ctx, issue: number, base: string, build: string, 
   return postCheckpoint(ctx, issue, base, build, kind);
 }
 
-const KEEP_APPROVED = 'Keep the behavior the committee approved. If the fix cannot pass without changing it, write why to `.factory/intent-changed.md` as well.';
+const FIX_ALL = 'Fix every failure it lists in this round, not only the first or the last one, since each one you leave costs another full run of the checks. Run every failed test file together before and after the fix.';
+
+const KEEP_APPROVED ='Keep the behavior the committee approved. If the fix cannot pass without changing it, write why to `.factory/intent-changed.md` as well.';
 
 async function fixRound(ctx: Ctx, issue: number, home: string, failure: string, approved: boolean): Promise<string> {
-  const prompt = `The factory's checks of your pushed branch failed. Fix the cause, commit, and end again.${approved ? ` ${KEEP_APPROVED}` : ''} The end of the log:\n\n${failure}`;
+  const prompt = `The factory's checks of your pushed branch failed. ${FIX_ALL} Commit, and end again.${approved ? ` ${KEEP_APPROVED}` : ''} The failure:\n\n${failure}`;
   const stream = await runAgent(ctx, issue, 'verify', ROUND, prompt, { continue: true });
   throwIfNeedsCommittee(home);
   return stream;

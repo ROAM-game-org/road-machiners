@@ -2,7 +2,7 @@ import { FAILURE_TAIL_LINES, stripAnsi } from '../fail';
 import { GithubError } from '../github';
 import { JOB_ID_ENV } from '../jobs';
 import { reportObservation } from '../observability';
-import type { Ctx, Stage, SuiteFailures, SuiteRun, SuiteScope } from '../types';
+import type { Ctx, FailedTest, Stage, SuiteFailures, SuiteRun, SuiteScope } from '../types';
 
 export const SUITE_DOWN_MARK = 'The full suite on GitHub Actions could not run';
 
@@ -14,7 +14,9 @@ export class SuiteMachineError extends GithubError {
 
 type At = { stage: Stage; issue: number | null };
 
-export type SuiteResult = { failure: null } | { failure: string; url: string; record: SuiteFailures | null };
+export const testName = (test: FailedTest): string => (test.test === null ? `${test.file} (the file itself)` : `${test.file} > ${test.test}`);
+
+export type SuiteResult ={ failure: null } | { failure: string; url: string; record: SuiteFailures | null };
 
 export async function remoteSuite(ctx: Ctx, at: At, sha: string): Promise<string | null> {
   return (await remoteSuiteResult(ctx, at, sha)).failure;
@@ -42,7 +44,19 @@ async function verdict(ctx: Ctx, at: At, id: number, sha: string, run: SuiteRun)
   const log = await onActions(`reading the log of run ${id} failed`, () => ctx.github.suiteLog(id));
   const tail = stripAnsi(log).split('\n').slice(-FAILURE_TAIL_LINES).join('\n');
   const record = await failuresOf(ctx, at, id);
-  return { failure: `The full suite failed on GitHub Actions for ${sha}: ${run.url}\n${tail}`, url: run.url, record };
+  return { failure: failureText(sha, run.url, tail, record), url: run.url, record };
+}
+
+export function failureText(sha: string, url: string, tail: string, record: SuiteFailures | null): string {
+  return `The full suite failed on GitHub Actions for ${sha}: ${url}\n\n${recordText(record)}\n\nThe last ${FAILURE_TAIL_LINES} lines of the failed log:\n${tail}`;
+}
+
+function recordText(record: SuiteFailures | null): string {
+  if (record === null) return 'The run wrote no readable failure record, so only the log below shows what failed. Find every failed test in it, not only the last one.';
+  const lines = [`Every failure of the run, ${record.failed.length} failed tests in ${new Set(record.failed.map((test) => test.file)).size} files:`, ...record.failed.map((test) => `- ${testName(test)}`)];
+  if (record.unfinished.length > 0) lines.push(`Test files that never finished, ${record.unfinished.length}:`, ...record.unfinished.map((file) => `- ${file}`));
+  if (record.unhandledErrors > 0) lines.push(`Unhandled errors outside any test: ${record.unhandledErrors}. The log shows them.`);
+  return lines.join('\n');
 }
 
 async function failuresOf(ctx: Ctx, at: At, id: number): Promise<SuiteFailures | null> {

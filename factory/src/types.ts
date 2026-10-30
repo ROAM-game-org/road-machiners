@@ -271,7 +271,7 @@ export interface GitHub {
 export type SuiteRun = { done: boolean; started: boolean; passed: boolean; testsFailed: boolean; conclusion: string | null; url: string };
 export type SuiteScope = { files: string[]; workers: number };
 export type FailedTest = { file: string; test: string | null };
-export type SuiteFailures = { failed: FailedTest[]; unhandledErrors: number };
+export type SuiteFailures = { failed: FailedTest[]; unfinished: string[]; unhandledErrors: number };
 
 export type InlineButton = { text: string; data: string };
 
