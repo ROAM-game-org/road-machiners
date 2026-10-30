@@ -154,7 +154,7 @@ async function freshGame(browser, viewport) {
   expect(values.every((v, i) => i === 0 || (v >= values[i - 1] && v - values[i - 1] <= 3)), `${viewport.name}: the bar never falls and rises by whole steps (${[...new Set(values)].join(",")})`);
   expect(stages(log).includes('Starting a new game'), `${viewport.name}: the fresh game reads "Starting a new game"`);
   expect(stages(log).includes('Reading the map'), `${viewport.name}: the map step shows its name`);
-  expect(/Loading sounds \d+ of \d+/.test(stages(log)), `${viewport.name}: sounds show a real file count`);
+  expect(!/sounds/i.test(stages(log)), `${viewport.name}: the boot screen never waits on sounds`);
   expect(await page.evaluate(() => !document.body.innerText.includes('The game crashed')), `${viewport.name}: no crash screen`);
   await shot(page, `${SHOT_PREFIX}${viewport.name}-playing.png`);
   expect(await page.evaluate(() => getComputedStyle(document.querySelector('#report .feedback')).display === 'none'), `${viewport.name}: the page report corner is hidden in play`);
@@ -293,6 +293,23 @@ async function flakyMap(browser, viewport) {
   expect(dropped, `${viewport.name}: the first map request was dropped`);
   expect((await page.$('#boot .boot-retry')) === null, `${viewport.name}: a single dropped request offers no retry`);
   expect(errors.length === 0, `${viewport.name}: a single dropped request has no page errors ${errors.join('; ')}`);
+  await page.context().close();
+}
+
+async function soundsLater(browser, viewport) {
+  const errors = [];
+  const page = await open(browser, viewport, errors);
+  const held = [];
+  await page.route('**/sfx/**', (route) => held.push(route));
+  await page.goto(playUrl(url));
+  await cleared(page);
+  expect(await page.evaluate(() => !document.body.innerText.includes('The game crashed')), `${viewport.name}: held sounds show no crash screen`);
+  expect(await page.evaluate(() => performance.getEntriesByName('roam:sounds').length === 0), `${viewport.name}: the game started before any sound arrived`);
+  expect(errors.length === 0, `${viewport.name}: held sounds cause no page errors ${errors.join('; ')}`);
+  await page.unroute('**/sfx/**');
+  await Promise.all(held.map((route) => route.continue().catch(() => {})));
+  await page.waitForFunction(() => performance.getEntriesByName('roam:sounds').length > 0, null, { timeout: BOOT_LIMIT_MS });
+  expect(true, `${viewport.name}: the sounds arrive after start`);
   await page.context().close();
 }
 
@@ -519,6 +536,7 @@ for (const viewport of VIEWPORTS) {
   if (!only || only === 'failedMap') await inBrowser((browser) => failedMap(browser, viewport));
   if (!only || only === 'unreachable') await inBrowser((browser) => unreachable(browser, viewport));
   if (!only || only === 'flakyMap') await inBrowser((browser) => flakyMap(browser, viewport));
+  if (!only || only === 'soundsLater') await inBrowser((browser) => soundsLater(browser, viewport));
   if (!only || only === 'failedCode') await inBrowser((browser) => failedCode(browser, viewport));
   if (!only || only === 'brokenCode') {
     for (const language of ['en', 'ru']) await inBrowser((browser) => brokenCode(browser, viewport, language));

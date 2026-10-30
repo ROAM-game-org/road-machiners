@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BANK, beatLoopSeconds, type Cue } from '../data/sounds';
 import { ASSET_RETRY_DELAYS_MS } from '../fetch-asset';
-import { BeatLengthMismatch, loadBank, recoverBank, reportFailures, type BankOptions } from './bank';
+import { BeatLengthMismatch, loadBank, recoverBank, reportFailures, SoundBank, startBank, type BankOptions } from './bank';
 
 const SOUNDS = { a: { files: ['a.ogg'] }, b: { files: ['b.ogg'] } } as unknown as Record<string, Cue>;
 const PAIR = { hit: { files: ['hit-1.ogg', 'hit-2.ogg'] } } as unknown as Record<string, Cue>;
@@ -469,5 +469,42 @@ describe('loadBank with beat cues', () => {
     const { failures } = await loadBank(sized(loop + 20), BEAT, options());
     expect(failures[0].errors.every((e) => e instanceof BeatLengthMismatch)).toBe(true);
     expect(failures[0].errors).toHaveLength(BANK.formats.length);
+  });
+});
+
+describe('SoundBank', () => {
+  it('gives undefined for a pending file and throws for one outside its set', () => {
+    const bank = new SoundBank(['a.ogg']);
+    expect(bank.get('a.ogg')).toBeUndefined();
+    expect(() => bank.get('z.ogg')).toThrow();
+    expect(() => bank.set('z.ogg', real)).toThrow();
+    expect(() => bank.onArrive('z.ogg', () => {})).toThrow();
+  });
+
+  it('runs an arrival hook once, and not after it is cancelled', () => {
+    const bank = new SoundBank(['a.ogg', 'b.ogg']);
+    const first = vi.fn();
+    const cancelled = vi.fn();
+    bank.onArrive('a.ogg', first);
+    bank.onArrive('b.ogg', cancelled)();
+    bank.set('a.ogg', real);
+    bank.set('a.ogg', real);
+    bank.set('b.ogg', real);
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(first).toHaveBeenCalledWith(real);
+    expect(cancelled).not.toHaveBeenCalled();
+  });
+});
+
+describe('startBank', () => {
+  it('fills the bank before loaded resolves, and stand-ins come last', async () => {
+    vi.stubGlobal('fetch', async (url: string) => reply({ ok: !url.includes('hit-2.'), status: 404 }));
+    vi.useFakeTimers();
+    const started = startBank(ctx, PAIR, options());
+    expect(started.bank.get('hit-1.ogg')).toBeUndefined();
+    const loaded = await afterRetries(started.loaded);
+    expect(loaded.bank).toBe(started.bank);
+    expect(started.bank.get('hit-1.ogg')).toBe(real);
+    expect(started.bank.get('hit-2.ogg')).toBe(real);
   });
 });
