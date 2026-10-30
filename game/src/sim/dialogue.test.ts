@@ -1559,7 +1559,7 @@ describe('road lessons', () => {
     expect(Object.keys(VOICED)).toHaveLength(2);
   });
 
-  it('is not offered by a raider hostile over cargo, and is by the same raider once the player carries nothing', () => {
+  it('is not offered by a raider, hostile over cargo or at peace', () => {
     const { w, npc } = withNpc('buggy', 'scrapjaw');
     expect(isHostile(w, npc, playerVehicle(w))).toBe(true);
     expect(asksOf(callVehicle(w, npc.id))).not.toContain(askText);
@@ -1570,7 +1570,7 @@ describe('road lessons', () => {
     player.items = player.items.filter((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'core');
     refreshVision(empty);
     expect(isHostile(empty, raider, player)).toBe(false);
-    expect(offers(empty, raider)).toBe(true);
+    expect(offers(empty, raider)).toBe(false);
   });
 
   it('is hidden by a feud', () => {
