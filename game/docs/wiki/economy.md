@@ -137,7 +137,7 @@ The player's truck pays no upkeep. NPC drivers pay under `NPC_UPKEEP`.
 | `ECONOMY.spread` | 0.2 |
 | `ECONOMY.roadSpread` | 0.3 |
 | `PRICE_FACTOR.make` | 0.75 |
-| `DISTANCE_PREMIUM.perTile` | 0.0021 |
+| `DISTANCE_PREMIUM.perTile` | 0.0021 / `MAP_SPREAD`, 0.000875 on Icarus |
 | `CONDITION.valueFactor` | 1, 0.7, 0.55, 0.45, 0.35 |
 | `ECONOMY.scrapPerKg` | 0.0633 |
 | `EFFORT.wage` | {"1":0.1233,"2":0.3333,"3":0.7333} |
