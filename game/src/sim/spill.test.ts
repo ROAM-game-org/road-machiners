@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { partDef } from '../data/parts';
+import { bedRows } from './chassis-features';
 import { gridOf, itemCells, mountedParts } from './grid';
 import { moveItem } from './inventory';
 import { makePart } from './factory';
@@ -61,14 +62,14 @@ describe('cargo spills', () => {
 
   it('an item lying partly on a dead row spills whole', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'traders', 'hauler', ['rack', 'trailerBox'], { x: 60, y: 60 });
+    const npc = addVehicle(w, 'independent', 'hauler', ['rack', 'trailerBox'], { x: 60, y: 60 });
     const g = gridOf(npc);
     const box = mountedParts(npc, 'cargo').find((p) => p.defId === 'trailerBox')!;
     const rackRows = (partDef('rack') as { extraRows: number }).extraRows;
-    const tall: GridItem = { id: 'i-tall', x: 0, y: g.chassisH + rackRows - 1, rot: 1, kind: 'part', part: makePart(w, 'rack', 0) };
+    const tall: GridItem = { id: 'i-tall', x: 0, y: g.chassisH + bedRows('hauler') + rackRows - 1, rot: 1, kind: 'part', part: makePart(w, 'rack', 0) };
     npc.items.push(tall);
     box.hp = 0;
-    expect(gridOf(npc).deadFrom).toBe(g.chassisH + rackRows);
+    expect(gridOf(npc).deadFrom).toBe(g.chassisH + bedRows('hauler') + rackRows);
     spillDeadRows(w);
     expect(npc.items.some((it) => it.id === 'i-tall')).toBe(false);
     const pile = w.salvage.find((s) => s.pile)!;
@@ -121,6 +122,7 @@ describe('cargo spills', () => {
 
   it('an open refit that moved a spilled item cancels', () => {
     const { w, me } = loadedPlayer();
+    w.player.autoRepair = false;
     const gun = me.items.find((it) => it.kind === 'part' && it.part.defId === 'mg')!;
     const target = onRow(me, lastRow(me))[0];
     me.items = me.items.filter((it) => it === target || it.kind !== 'good' || it.y !== target.y);
@@ -129,5 +131,20 @@ describe('cargo spills', () => {
     panniersOf(next.vehicles[0]).hp = 0;
     next = endTurn(next, testDrive);
     expect(next.vehicles[0].job).toBeNull();
+  });
+});
+
+describe('built-in bed rows', () => {
+  it('stay when every cargo part breaks, and spill only the part rows', () => {
+    const w = emptyWorld();
+    const npc = addVehicle(w, 'independent', 'hauler', ['rack'], { x: 40, y: 40 });
+    const g = gridOf(npc);
+    const bedY = g.chassisH;
+    const partY = g.h - 1;
+    npc.items.push({ id: 'bed-salt', x: 0, y: bedY, rot: 0, kind: 'good', good: 'salt' }, { id: 'part-salt', x: 0, y: partY, rot: 0, kind: 'good', good: 'salt' });
+    for (const p of mountedParts(npc, 'cargo')) p.hp = 0;
+    spillDeadRows(w);
+    expect(npc.items.some((it) => it.id === 'bed-salt')).toBe(true);
+    expect(npc.items.some((it) => it.id === 'part-salt')).toBe(false);
   });
 });

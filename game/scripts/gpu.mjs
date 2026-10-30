@@ -1,4 +1,3 @@
-// Chromium flags for drawing on the GPU. The GPU is Metal on a Mac and Vulkan on Linux, like the factory's NVIDIA host.
 const ANGLE = {
   darwin: ['--use-angle=metal'],
   linux: ['--use-angle=vulkan', '--enable-features=Vulkan', '--disable-vulkan-surface'],
@@ -8,7 +7,7 @@ const SOFTWARE_RENDERERS = /SwiftShader|llvmpipe/;
 export function gpuArgs() {
   const angle = ANGLE[process.platform];
   if (!angle) throw new Error(`No GPU flags for ${process.platform}. Run with --cpu.`);
-  return [...angle, '--enable-gpu', '--ignore-gpu-blocklist'];
+  return [...angle, '--enable-gpu', '--ignore-gpu-blocklist', '--disable-dev-shm-usage'];
 }
 
 export function rendererOf(page) {

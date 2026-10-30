@@ -13,7 +13,7 @@ const side = (name: (typeof SIDES)[number]) => SIDES.indexOf(name);
 
 function vanWith(armor: { id: string; side: Cell; count: number }[]) {
   const w = emptyWorld();
-  const v = addVehicle(w, 'traders', 'van', ['stockEngine'], { x: 30, y: 30 });
+  const v = addVehicle(w, 'independent', 'van', ['stockEngine'], { x: 30, y: 30 });
   for (const { id, side: at, count } of armor) for (let i = 0; i < count; i++) expect(mountPart(w, v, makePart(w, id, 0), [at])).toBe(true);
   return v;
 }
@@ -52,6 +52,12 @@ describe('gear score', () => {
     expect(score(vanWith([{ id: 'plates', side: 'F', count: 1 }]))).toBeGreaterThan(score(vanWith([])));
   });
 
+  it('scores a ram over a full row of plates higher than the plates alone', () => {
+    const { score } = scorer(priorities({ armor: 3 }));
+    const plated = [{ id: 'steelPlate', side: 'F' as Cell, count: 5 }];
+    expect(score(vanWith([...plated, { id: 'ram', side: 'F', count: 1 }]))).toBeGreaterThan(score(vanWith(plated)));
+  });
+
   it('scores armor of a better quality higher on the same side', () => {
     const { score } = scorer(priorities({ armor: 3 }));
     expect(score(vanWith([{ id: 'plates', side: 'F', count: 1 }]))).toBeGreaterThan(score(vanWith([{ id: 'cage', side: 'F', count: 1 }])));
@@ -72,9 +78,21 @@ describe('gear score', () => {
     expect(scorer(priorities({ speed: 3 })).score(armed())).toBeLessThan(scorer(priorities({ speed: 3 })).score(vanWith([])));
   });
 
+  it('gives a harpoon no fire value', () => {
+    const { score } = scorer(priorities({ firepower: 3 }));
+    const withGun = (id: string) => {
+      const w = emptyWorld();
+      const v = vanWith([]);
+      expect(mountPart(w, v, makePart(w, id, 0))).toBe(true);
+      return v;
+    };
+    expect(score(withGun('harpoon'))).toBeCloseTo(score(vanWith([])));
+    expect(score(withGun('mg'))).toBeGreaterThan(score(withGun('harpoon')));
+  });
+
   it('weighs speed against the fuel it burns only for a driver who pays for fuel', () => {
     const w = emptyWorld();
-    const powered = (engine: string) => addVehicle(w, 'traders', 'van', [engine], { x: 30, y: 30 });
+    const powered = (engine: string) => addVehicle(w, 'independent', 'van', [engine], { x: 30, y: 30 });
     const speedy = priorities({ speed: 3 });
     const paying = gearScorer(w, speedy, powered('stockEngine'), true);
     const free = gearScorer(w, speedy, powered('stockEngine'), false);

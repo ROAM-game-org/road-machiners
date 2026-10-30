@@ -4,7 +4,8 @@ import { NPC_BEHAVIOR, NPCS, type TraitId } from '../data/npcs';
 import { playerVehicle } from './damage';
 import { chooseOption, currentOptions, hangUp, raiseCalls } from './dialogue';
 import { pushGoal, resolveNpcActivities, topGoal } from './npc-activities';
-import { lootTaken, optionChances, optionWeights, visibleSalvage } from './npc-decisions';
+import { lootTaken, optionChances, optionWeights } from './npc-decisions';
+import { visibleSalvage } from './loot-picks';
 import { answerLootWarning, contestLoot, pendingWarningTo, settleLootWarning, warnedOffTarget, warnTruck } from './loot-warning';
 import { emptyHidden, looterOf } from './salvage';
 import { beginSearch, startSearch } from './search';
@@ -25,7 +26,7 @@ function quietWorld(): World {
 }
 
 function driver(w: World, x: number, y: number, traits: TraitId[] = ['scavenger']): Vehicle {
-  const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine', 'mg'], { x, y });
+  const npc = addVehicle(w, 'independent', 'scout', ['stockEngine', 'mg'], { x, y });
   npc.brain = npcBrain('scavenger', npc.pos, traits);
   npc.speed = 0;
   return npc;

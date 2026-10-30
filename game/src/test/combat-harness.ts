@@ -1,7 +1,8 @@
 
-import { CHASSIS } from '../data/chassis';
+import { CHASSIS, CHASSIS_FEATURES } from '../data/chassis';
 import { DECISIONS, GEAR_LEVEL_IDS, NPC_BEHAVIOR, NPCS, TRAITS, type GearLevel } from '../data/npcs';
-import { PARTS } from '../data/parts';
+import { PARTS, type PartDef } from '../data/parts';
+import { coversSide, sideToward, type PartHit } from '../sim/armor';
 import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
 import { SKILL_EFFECTS } from '../data/skills';
@@ -10,17 +11,19 @@ import { TERRAIN } from '../data/terrain';
 import { PERF } from '../data/perf';
 import { buildDrive, freeDrive, type Drive } from '../phys/drive';
 import { physicsMove } from '../phys/turn';
-import { isHostile } from '../sim/combat';
+import { inCombat, isHostile } from '../sim/combat';
+import { joinCompany } from '../sim/companies';
+import { homeCamp } from '../sim/npc-decisions';
 import { isDefeated } from '../sim/defeat';
-import { makePart } from '../sim/factory';
+import { makePart, makeVehicle } from '../sim/factory';
 import { mountPart } from '../sim/inventory';
 import { hangUp } from '../sim/dialogue';
 import { isMounted, mountedParts } from '../sim/grid';
 import { maxHp } from '../sim/wear';
 import { CONDITION } from '../data/wear';
 import { generateNpcLoadout, type NpcLoadout } from '../sim/npc-loadout';
-import { topGoal } from '../sim/npc-activities';
-import { spawnAt } from '../sim/spawn';
+import { placeBase, topGoal } from '../sim/npc-activities';
+import { allegianceFor, spawnAt } from '../sim/spawn';
 import { addState, endState, stateOf } from '../sim/states';
 import { vehicleStats } from '../sim/stats';
 import type { Obstacle, Vehicle, World } from '../sim/types';
@@ -36,7 +39,7 @@ import { stretchLayout } from '../sim/road-hazards';
 export type Policy = 'stand' | 'orbit' | 'charge' | 'kite';
 export const POLICIES: Policy[] = ['stand', 'orbit', 'charge', 'kite'];
 
-export type Outfit = { gun: string; armor: string | null; ram?: string };
+export type Outfit = { gun: string; guns: number; armor: string | null; ram?: string; chassis: string };
 
 export type Gear = { kind: 'kit'; id: string } | { kind: 'npc'; template: string; level: GearLevel | null } | { kind: 'outfit'; outfit: Outfit };
 
@@ -51,12 +54,18 @@ export type Fight = {
   maxTurns: number;
   arena: number | null;
   road?: number | null;
+  crew?: 'a' | 'b' | null;
+  guard?: boolean;
+  late?: number | null;
+  bystander?: string | null;
 };
 
-export type Side = { rounds: number; hits: number; odds: number; damage: number; speed: number };
+export type Side = { rounds: number; hits: number; odds: number; damage: number; speed: number; ramCrashes: number; ramsLanded: number };
 export type Outcome = 'won' | 'lost' | 'a fled' | 'b fled' | 'truce' | 'timeout';
 const OUTCOMES: Outcome[] = ['won', 'lost', 'a fled', 'b fled', 'truce', 'timeout'];
-export type FightReport = { fight: Fight; outcome: Outcome; turns: number; crashes: number; a: Side; b: Side; bHpLeft: number | null; spread: number | null };
+export type Tally = { left: number; out: number; fled: number };
+export type Bystander = 'calm' | 'fought' | 'out';
+export type FightReport = { fight: Fight; outcome: Outcome; turns: number; crashes: number; a: Side; b: Side; bHpLeft: number | null; spread: number | null; tally: { a: Tally; b: Tally }; bystander: Bystander | null };
 
 const CENTER: Vec = { x: TEST_MAP.terrain.size / 2, y: TEST_MAP.terrain.size / 2 };
 const FLED_RANGE = 40;
@@ -83,8 +92,20 @@ function wearStep(text: string): number {
 }
 
 export function parseLineup(text: string): Truck[] {
-  return text.split('+').map(parseTruck);
+  return truckSpecs(text).map(parseTruck);
 }
+
+function truckSpecs(text: string): string[] {
+  const specs: string[] = [];
+  for (const piece of text.split('+')) {
+    const last = specs.length - 1;
+    if (last >= 0 && takesRam(specs[last]) && PARTS[piece.split('@')[0]]) specs[last] += `+${piece}`;
+    else specs.push(piece);
+  }
+  return specs;
+}
+
+const takesRam = (spec: string): boolean => spec.includes('/') && !spec.includes('+');
 
 function defaultGear(driver: string, scripted: boolean): Gear {
   return scripted ? { kind: 'kit', id: 'standard' } : { kind: 'npc', template: driver, level: null };
@@ -100,13 +121,20 @@ function parseGear(text: string): Gear {
   return { kind: 'npc', template, level: (level as GearLevel | undefined) ?? null };
 }
 
+const OUTFIT_CHASSIS = 'hauler';
+
 function parseOutfit(text: string): Outfit {
-  const [gun, rest] = text.split('/');
-  const [armor, ram] = rest.split('+');
-  return { gun, armor: armor === 'bare' ? null : armor, ...(ram ? { ram } : {}) };
+  const [gunText, rest] = text.split('/');
+  const [loadText, chassis = OUTFIT_CHASSIS] = rest.split('@');
+  if (!CHASSIS[chassis]) throw new Error(`Unknown chassis "${chassis}" in outfit "${text}"`);
+  const [gun, count = '1'] = gunText.split('*');
+  const guns = Number(count);
+  if (!Number.isInteger(guns) || guns < 1) throw new Error(`An outfit mounts a whole number of guns from 1, got "${count}" in "${text}"`);
+  const [armor, ram] = loadText.split('+');
+  return { gun, guns, armor: armor === 'bare' ? null : armor, chassis, ...(ram ? { ram } : {}) };
 }
 
-const TABLES: Record<string, object> = { RULES, PHYSICS, NPCS, PARTS, CHASSIS, TRAITS, DECISIONS, NPC_BEHAVIOR, SKILL_EFFECTS, CONDITION };
+const TABLES: Record<string, object> = { RULES, PHYSICS, NPCS, PARTS, CHASSIS, CHASSIS_FEATURES, TRAITS, DECISIONS, NPC_BEHAVIOR, SKILL_EFFECTS, CONDITION };
 
 export function setNumber(assignment: string): void {
   const [path, raw] = assignment.split('=');
@@ -140,12 +168,21 @@ type Ground = { center: Vec; axis: Vec; parked: Vec };
 
 const FLAT_GROUND: Ground = { center: CENTER, axis: { x: 1, y: 0 }, parked: PARKED };
 
+export type GroupFlags = Pick<Fight, 'crew' | 'guard' | 'late' | 'bystander'>;
+
+export function parseGroupFlags(flags: { crew: string | null; guard: boolean; late: string | null; bystander: string | null }): GroupFlags {
+  if (flags.crew !== null && flags.crew !== 'a' && flags.crew !== 'b') throw new Error(`--crew takes a or b, got "${flags.crew}"`);
+  if (flags.late !== null && !/^b:\d+$/.test(flags.late)) throw new Error(`--late takes b:<turn>, got "${flags.late}"`);
+  if (flags.bystander !== null && !NPCS[flags.bystander]) throw new Error(`Unknown bystander "${flags.bystander}"`);
+  return { crew: flags.crew, guard: flags.guard, late: flags.late === null ? null : Number(flags.late.slice(2)), bystander: flags.bystander };
+}
+
 export function parseRoad(text: string | null): number | null {
   if (text === null) return null;
   const [name, seed] = text.split(':');
-  if (name !== 'fury-road') throw new Error(`--map takes fury-road or fury-road:<seed>, got "${text}"`);
+  if (name !== 'chaos-highway') throw new Error(`--map takes chaos-highway or chaos-highway:<seed>, got "${text}"`);
   const n = seed === undefined ? 1 : Number(seed);
-  if (!Number.isInteger(n)) throw new Error(`--map fury-road:<seed> needs a whole seed, got "${seed}"`);
+  if (!Number.isInteger(n)) throw new Error(`--map chaos-highway:<seed> needs a whole seed, got "${seed}"`);
   return n;
 }
 
@@ -161,9 +198,9 @@ function groundOf(fight: Fight): Ground {
 }
 
 function roadBase(kit: string, seed: number): World {
-  const w = newWorld(seed, START_KITS[kit] ?? missing('kit', kit), highwayMap(seed, 0), defaultSetup('furyRoad'), false);
-  w.furyRoad!.groups = [];
-  w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || v.id === w.furyRoad!.hauler.id);
+  const w = newWorld(seed, START_KITS[kit] ?? missing('kit', kit), highwayMap(seed, 0), defaultSetup('chaosHighway'), false);
+  w.chaosHighway!.groups = [];
+  w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || v.id === w.chaosHighway!.hauler.id);
   w.states = [];
   const ground = roadGround(seed);
   const me = w.vehicles.find((v) => v.id === w.player.vehicleId)!;
@@ -215,7 +252,9 @@ function isScripted(t: Truck): boolean {
 }
 
 function scriptedTruck(fight: Fight): Truck | null {
-  if (fight.b.some(isScripted) || (fight.a.length > 1 && fight.a.some(isScripted))) throw new Error('A scripted driver drives the player truck, alone on side a');
+  const guards = fight.guard === true && isScripted(fight.a[0]) && fight.a.slice(1).every((t) => t.driver === 'merc');
+  if (fight.b.some(isScripted) || (fight.a.length > 1 && fight.a.some(isScripted) && !guards)) throw new Error('A scripted driver drives the player truck, alone on side a but for its hired mercs');
+  if (fight.guard && !guards) throw new Error('--guard needs a scripted player on side a, followed by one merc');
   return isScripted(fight.a[0]) ? fight.a[0] : null;
 }
 
@@ -225,7 +264,7 @@ function baseKit(t: Truck | null): string {
   return t.gear.kind === 'kit' ? t.gear.id : 'combat';
 }
 
-type Ids = { a: string[]; b: string[] };
+type Ids = { a: string[]; b: string[]; pairs: [string, string][]; late: Vehicle | null; bystander: string | null };
 
 function setup(fight: Fight): { w: World; ids: Ids } {
   if (fight.arena !== null && fight.arena <= fight.gap / 2 + LINE_SPACING) throw new Error(`An arena of ${fight.arena} tiles leaves no room for a gap of ${fight.gap}`);
@@ -238,13 +277,51 @@ function setup(fight: Fight): { w: World; ids: Ids } {
   if (scripted && scripted.wear !== null) rebuildAt(w, player, scripted.wear);
   if (scripted) player.pos = along(ground, -fight.gap / 2, 0);
   else park(player, ground.parked);
-  const npcA = scripted ? [] : fight.a;
-  const ids: Ids = { a: scripted ? [player.id] : [], b: [] };
+  const npcA = scripted ? fight.a.slice(1) : fight.a;
+  const ids: Ids = { a: scripted ? [player.id] : [], b: [], pairs: [], late: null, bystander: null };
   ids.a.push(...placeSide(w, npcA, ground, -fight.gap / 2, 0));
   ids.b.push(...placeSide(w, fight.b, ground, fight.gap / 2, Math.PI));
-  for (const a of ids.a) for (const b of ids.b) setAgainst(w, a, b);
+  const followers = [...(fight.crew ? formCrew(w, ids[fight.crew]) : []), ...(fight.guard ? hireGuards(w, ids.a.slice(1)) : [])];
+  if (fight.late) ids.late = holdBack(w, ids.b.at(-1)!);
+  ids.pairs = ids.a.flatMap((a) => ids.b.map((b): [string, string] => [a, b])).filter(([a, b]) => !followers.includes(a) && !followers.includes(b) && b !== ids.late?.id);
+  for (const [a, b] of ids.pairs) setAgainst(w, a, b);
+  if (fight.bystander) ids.bystander = placeBystander(w, fight, ground);
   refreshVision(w);
   return { w: setAutoFire(w, true), ids };
+}
+
+function formCrew(w: World, side: string[]): string[] {
+  const [leader, ...members] = side.map((id) => w.vehicles.find((v) => v.id === id)!);
+  if (!leader?.brain || members.length === 0) throw new Error('--crew needs a side of two or more NPC raiders');
+  for (const m of members) {
+    joinCompany(w, m, leader, 'crew', { kind: 'crew', camp: homeCamp(leader).id });
+    placeBase(w, m, { kind: 'follow', targetId: leader.id, destination: { ...leader.pos }, phase: 'travel', reason: 'crewLeader' });
+  }
+  return members.map((m) => m.id);
+}
+
+function hireGuards(w: World, mercs: string[]): string[] {
+  const me = w.vehicles.find((v) => v.id === w.player.vehicleId)!;
+  for (const id of mercs) {
+    const merc = w.vehicles.find((v) => v.id === id)!;
+    joinCompany(w, merc, me, 'hire', { kind: 'hire', fee: 0 });
+    placeBase(w, merc, { kind: 'follow', targetId: me.id, destination: { ...me.pos }, phase: 'travel', reason: 'hiredGuard' });
+  }
+  return mercs;
+}
+
+function holdBack(w: World, id: string): Vehicle {
+  const late = w.vehicles.find((v) => v.id === id)!;
+  w.vehicles = w.vehicles.filter((v) => v !== late);
+  return late;
+}
+
+function placeBystander(w: World, fight: Fight, ground: Ground): string {
+  const reach = (fight.arena ?? fight.gap) - LINE_SPACING;
+  const tpl = NPCS[fight.bystander!] ?? missing('bystander template', fight.bystander!);
+  const v = spawnAt(w, tpl, sideLoadout(w, { kind: 'npc', template: tpl.id, level: null }), along(ground, 0, reach), allegianceFor(w, tpl, null, null));
+  v.heading = Math.atan2(ground.axis.y, ground.axis.x) + Math.PI / 2;
+  return v.id;
 }
 
 function along(ground: Ground, forward: number, side: number): Vec {
@@ -260,7 +337,7 @@ function park(player: Vehicle, at: Vec): void {
 function placeSide(w: World, trucks: Truck[], ground: Ground, forward: number, turn: number): string[] {
   return trucks.map((t, i) => {
     const pos = along(ground, forward, (i - (trucks.length - 1) / 2) * LINE_SPACING);
-    const v = spawnAt(w, NPCS[t.driver], sideLoadout(w, t.gear), pos);
+    const v = spawnAt(w, NPCS[t.driver], sideLoadout(w, t.gear), pos, allegianceFor(w, NPCS[t.driver], null, null));
     if (t.gear.kind === 'outfit') outfit(w, v, t.gear.outfit);
     if (t.wear !== null) rebuildAt(w, v, t.wear);
     v.heading = Math.atan2(ground.axis.y, ground.axis.x) + turn;
@@ -275,11 +352,11 @@ function rebuildAt(w: World, v: Vehicle, wear: number): void {
 
 function sideLoadout(w: World, gear: Gear): NpcLoadout {
   const loadout = loadoutOf(w, gear);
-  return w.furyRoad === null ? loadout : { ...loadout, cargo: {}, spares: [] };
+  return w.chaosHighway === null ? loadout : { ...loadout, cargo: {}, spares: [] };
 }
 
 function loadoutOf(w: World, gear: Gear): NpcLoadout {
-  if (gear.kind === 'outfit') return BARE_HAULER;
+  if (gear.kind === 'outfit') return bareLoadout(gear.outfit.chassis);
   if (gear.kind === 'npc') return generateNpcLoadout(w, NPCS[gear.template], null, gear.level);
   const kit = START_KITS[gear.id];
   return { chassisId: kit.chassis, level: 'standard', parts: kit.parts.map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {} };
@@ -298,14 +375,21 @@ function setAgainst(w: World, aId: string, bId: string): void {
 function outfit(w: World, v: Vehicle, o: Outfit): void {
   if (PARTS[o.gun]?.kind !== 'weapon') throw new Error(`Unknown weapon "${o.gun}"`);
   if (o.armor !== null && PARTS[o.armor]?.kind !== 'armor') throw new Error(`Unknown armor "${o.armor}"`);
-  if (v.chassisId !== 'hauler') throw new Error(`Outfits go on a hauler, not a ${v.chassisId}`);
+  if (v.chassisId !== o.chassis) rechassis(w, v, o.chassis);
   v.items = v.items.filter((it) => it.kind === 'part' && PARTS[it.part.defId].kind === 'core');
-  for (const id of ['stockEngine', o.gun]) if (!mountPart(w, v, makePart(w, id, 0))) throw new Error(`${id} does not fit the hauler`);
-  if (o.ram && !mountPart(w, v, makePart(w, o.ram, 0))) throw new Error(`${o.ram} does not fit the hauler`);
+  for (const id of ['stockEngine', ...Array.from({ length: o.guns }, () => o.gun)]) if (!mountPart(w, v, makePart(w, id, 0))) throw new Error(`${id} does not fit the ${o.chassis}`);
+  if (o.ram && !mountPart(w, v, makePart(w, o.ram, 0))) throw new Error(`${o.ram} does not fit the ${o.chassis}`);
   if (o.armor) while (mountPart(w, v, makePart(w, o.armor, 0)));
 }
 
-const BARE_HAULER: NpcLoadout = { chassisId: 'hauler', level: 'standard', parts: [], spares: [], cargo: {} };
+function rechassis(w: World, v: Vehicle, chassisId: string): void {
+  const fresh = makeVehicle(w, { faction: v.faction, chassisId, parts: [], spares: [], cargo: {}, pos: v.pos, heading: v.heading, brain: null });
+  v.chassisId = chassisId;
+  v.items = fresh.items;
+  v.bend = fresh.bend;
+}
+
+const bareLoadout = (chassisId: string): NpcLoadout => ({ chassisId, level: 'standard', parts: [], spares: [], cargo: {} });
 
 const KITE_HOLD = 0.8;
 
@@ -342,7 +426,7 @@ export function turnLine(w: World, turn: number): string {
 }
 
 const partHp = (v: Vehicle) => mountedParts(v).reduce((sum, p) => sum + p.hp, 0);
-const side = (): Side => ({ rounds: 0, hits: 0, odds: 0, damage: 0, speed: 0 });
+const side = (): Side => ({ rounds: 0, hits: 0, odds: 0, damage: 0, speed: 0, ramCrashes: 0, ramsLanded: 0 });
 
 type Count = { ids: Ids; a: Side; b: Side; crashes: number; leaver: 'a' | 'b' | null; center: Vec; spread: number };
 
@@ -379,6 +463,27 @@ function countMoves(w: World, c: Count): void {
   const across = (x: string, y: string) => (c.ids.a.includes(x) && c.ids.b.includes(y)) || (c.ids.b.includes(x) && c.ids.a.includes(y));
   c.crashes += w.events.filter((e) => e.t === 'collision' && across(e.a, e.b)).length;
 }
+
+function countRams(w: World, c: Count): void {
+  for (const ev of w.events) {
+    if (ev.t !== 'collision' || !sideOf(c, ev.a) || !sideOf(c, ev.b) || sideOf(c, ev.a) === sideOf(c, ev.b)) continue;
+    noteRam(w, sideOf(c, ev.a)!, ev.a, ev.b, ev.hitsA);
+    noteRam(w, sideOf(c, ev.b)!, ev.b, ev.a, ev.hitsB);
+  }
+}
+
+function noteRam(w: World, s: Side, id: string, otherId: string, hits: PartHit[]): void {
+  const v = w.vehicles.find((x) => x.id === id);
+  const other = w.vehicles.find((x) => x.id === otherId);
+  if (!v || !other || hits.length === 0) return;
+  const struck = sideToward(v, other.pos);
+  const rams = new Set(mountedParts(v).filter((p) => ramPart(PARTS[p.defId]) && coversSide(v, p, struck)).map((p) => p.id));
+  if (rams.size === 0) return;
+  s.ramCrashes++;
+  if (hits.some((h) => rams.has(h.part))) s.ramsLanded++;
+}
+
+const ramPart = (def: PartDef): boolean => (def.kind === 'armor' || def.kind === 'accessory') && def.ramMult > 1;
 
 function countDamage(w: World, c: Count, before: Map<string, number>): void {
   for (const v of w.vehicles) {
@@ -423,6 +528,7 @@ function playTurn(w: World, d: Drive, c: Count, arena: boolean): { w: World; d: 
   countShots(w, c);
   countDamage(w, c, before);
   countMoves(w, c);
+  countRams(w, c);
   noteLeaver(w, c);
   countSpread(w, c);
   return { w, d: next! };
@@ -431,13 +537,14 @@ function playTurn(w: World, d: Drive, c: Count, arena: boolean): { w: World; d: 
 function countSpread(w: World, c: Count): void {
   if (w.terrain.atlas.kind !== 'highway') return;
   const trucks = [...inFight(w, c.ids.a), ...inFight(w, c.ids.b)];
-  for (const v of trucks) c.spread = Math.max(c.spread, Math.abs(acrossOf(w.seed, toRoad(w.terrain.atlas.window, v.pos))));
+  for (const v of trucks) c.spread = Math.max(c.spread, Math.abs(acrossOf(w.seed, toRoad(w.seed, w.terrain.atlas.window, v.pos))));
 }
 
 function keepArenaFight(w: World, ids: Ids): void {
-  const a = inFight(w, ids.a);
-  const b = inFight(w, ids.b);
-  for (const x of a) for (const y of b) {
+  const live = new Set([...inFight(w, ids.a), ...inFight(w, ids.b)].map((v) => v.id));
+  for (const [xId, yId] of ids.pairs) {
+    if (!live.has(xId) || !live.has(yId)) continue;
+    const [x, y] = [vehicleOf(w, xId), vehicleOf(w, yId)];
     if (isHostile(w, x, y) || isHostile(w, y, x)) continue;
     for (const [holder, other] of [[x, y], [y, x]]) {
       const truce = stateOf(w, 'truce', holder.id, other.id);
@@ -445,6 +552,21 @@ function keepArenaFight(w: World, ids: Ids): void {
     }
     setAgainst(w, x.id, y.id);
   }
+}
+
+function vehicleOf(w: World, id: string): Vehicle {
+  return w.vehicles.find((v) => v.id === id) ?? missing('truck', id);
+}
+
+function arrive(w: World, ids: Ids): void {
+  const late = ids.late!;
+  w.vehicles = [...w.vehicles, late];
+  ids.late = null;
+  for (const a of ids.a) {
+    ids.pairs.push([a, late.id]);
+    setAgainst(w, a, late.id);
+  }
+  refreshVision(w);
 }
 
 function steer(w: World, fight: Fight, c: Count): World {
@@ -463,14 +585,44 @@ export function runFight(fight: Fight, watch?: (w: World, turn: number) => void)
   let turns = 0;
   while (outcome === null && turns < fight.maxTurns) {
     if (w.player.call) w = hangUp(w);
+    if (c.ids.late && turns >= fight.late!) {
+      arrive(w, c.ids);
+      freeDrive(d);
+      d = buildDrive(w);
+    }
     w = steer(w, fight, c);
     ({ w, d } = playTurn(w, d, c, fight.arena !== null));
     turns++;
     watch?.(w, turns);
-    outcome = outcomeOf(w, c);
+    outcome = c.ids.late ? null : outcomeOf(w, c);
   }
   freeDrive(d);
-  return { fight, outcome: outcome ?? 'timeout', turns, crashes: c.crashes, a: c.a, b: c.b, bHpLeft: outcome === 'won' ? hpLeft(w, c.ids.b) : null, spread: fight.road === undefined || fight.road === null ? null : c.spread };
+  const spread = fight.road === undefined || fight.road === null ? null : c.spread;
+  return { fight, outcome: outcome ?? 'timeout', turns, crashes: c.crashes, a: c.a, b: c.b, bHpLeft: outcome === 'won' ? hpLeft(w, c.ids.b) : null, spread, tally: tallies(w, c.ids), bystander: bystanderFate(w, c.ids.bystander) };
+}
+
+function tallies(w: World, ids: Ids): { a: Tally; b: Tally } {
+  const a = inFight(w, ids.a);
+  const b = inFight(w, ids.b);
+  return { a: tally(w, ids.a, b), b: tally(w, ids.b, a) };
+}
+
+function tally(w: World, side: string[], foes: Vehicle[]): Tally {
+  const out: Tally = { left: 0, out: 0, fled: 0 };
+  for (const id of side) {
+    const v = w.vehicles.find((x) => x.id === id);
+    if (!v || inFight(w, [id]).length === 0) out.out++;
+    else if (foes.length > 0 && dist(v.pos, nearest(v, foes).pos) > FLED_RANGE) out.fled++;
+    else out.left++;
+  }
+  return out;
+}
+
+function bystanderFate(w: World, id: string | null): Bystander | null {
+  if (id === null) return null;
+  const v = w.vehicles.find((x) => x.id === id);
+  if (!v || isDefeated(v)) return 'out';
+  return inCombat(w, v) || Object.keys(v.brain!.attackers).length > 0 ? 'fought' : 'calm';
 }
 
 function hpLeft(w: World, ids: string[]): number {
@@ -500,10 +652,10 @@ export function formatReport(reports: FightReport[], sets: string[]): string {
     `# Combat harness`,
     '',
     `${reports.length} fights. Changed numbers: ${sets.length ? sets.join(', ') : 'none'}.`,
-    'A truck is driver:gear. On a road map, across is the largest distance any fighting truck reached from the centerline, in tiles. Won means every side b truck is out, lost every side a truck. A fled and b fled name the side that left the fight. Truce means no truck is hostile to the other side any more. Speed is tiles per turn. Hit is rounds that hit. Odds is the mean hit chance shown for those rounds. Damage is part HP the side takes off the other per turn. Crashes are per fight. B hp left is the mean share of max part HP the side b trucks keep in won fights.',
+    'A truck is driver:gear. On a road map, across is the largest distance any fighting truck reached from the centerline, in tiles. Won means every side b truck is out, lost every side a truck. A fled and b fled name the side that left the fight. Truce means no truck is hostile to the other side any more. Speed is tiles per turn. Hit is rounds that hit. Odds is the mean hit chance shown for those rounds. Damage is part HP the side takes off the other per turn. Crashes are per fight. Rams landed counts the damaging crashes on a side that carries a ram or spikes in which they took the hit, out of all damaging crashes on that side. The side is the one facing the other truck at the end of the turn. B hp left is the mean share of max part HP the side b trucks keep in won fights.',
     '',
-    '| a | b | won | lost | a fled | b fled | truce | timeout | turns | crashes | a speed | a hit | a odds | a dmg/turn | b speed | b hit | b odds | b dmg/turn | b hp left | across |',
-    '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
+    '| a | b | won | lost | a fled | b fled | truce | timeout | turns | crashes | a speed | a hit | a odds | a dmg/turn | a rams landed | b speed | b hit | b odds | b dmg/turn | b rams landed | b hp left | across | a left/out/fled | b left/out/fled | bystander |',
+    '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
   ];
   for (const g of groups(reports)) lines.push(groupRow(g));
   return lines.join('\n') + '\n';
@@ -516,10 +668,19 @@ function groupRow(g: Group): string {
   const turns = sum((r) => r.turns);
   const sideCells = (pick: (r: FightReport) => Side) => {
     const rounds = sum((r) => pick(r).rounds);
-    return [(sum((r) => pick(r).speed) / turns).toFixed(1), pct(sum((r) => pick(r).hits), rounds), pct(sum((r) => pick(r).odds), rounds), (sum((r) => pick(r).damage) / turns).toFixed(1)];
+    const ramCrashes = sum((r) => pick(r).ramCrashes);
+    const landed = ramCrashes > 0 ? `${sum((r) => pick(r).ramsLanded)}/${ramCrashes}` : '-';
+    return [(sum((r) => pick(r).speed) / turns).toFixed(1), pct(sum((r) => pick(r).hits), rounds), pct(sum((r) => pick(r).odds), rounds), (sum((r) => pick(r).damage) / turns).toFixed(1), landed];
   };
-  const cells = [g.a, g.b, ...OUTCOMES.map(count), (turns / rs.length).toFixed(1), (sum((r) => r.crashes) / rs.length).toFixed(1), ...sideCells((r) => r.a), ...sideCells((r) => r.b), hpLeftCell(rs), spreadCell(rs)];
+  const tallied = (pick: (r: FightReport) => Tally) => `${sum((r) => pick(r).left)}/${sum((r) => pick(r).out)}/${sum((r) => pick(r).fled)}`;
+  const cells = [g.a, g.b, ...OUTCOMES.map(count), (turns / rs.length).toFixed(1), (sum((r) => r.crashes) / rs.length).toFixed(1), ...sideCells((r) => r.a), ...sideCells((r) => r.b), hpLeftCell(rs), spreadCell(rs), tallied((r) => r.tally.a), tallied((r) => r.tally.b), bystanderCell(rs)];
   return `| ${cells.join(' | ')} |`;
+}
+
+function bystanderCell(rs: FightReport[]): string {
+  const fates = rs.flatMap((r) => (r.bystander === null ? [] : [r.bystander]));
+  if (fates.length === 0) return '-';
+  return (['calm', 'fought', 'out'] as const).map((f) => `${fates.filter((x) => x === f).length} ${f}`).join(', ');
 }
 
 function spreadCell(rs: FightReport[]): string {

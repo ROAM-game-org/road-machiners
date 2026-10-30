@@ -1,13 +1,17 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { GAME_NOTES } from '../data/locals';
+import * as QUEST_DATA from '../data/quests';
 import { START_KITS } from '../data/start';
-import { UNITS } from '../data/units';
 import { TEST_MAP } from '../test/map';
-import { chooseQuestOption, fittingQuestVars, QUEST_QUERIES, leaveQuest, questProblems, questView, relanguageQuest, restoreQuest, setQuestLanguage, startQuest } from './quests';
+import { chooseQuestOption, QUEST_QUERIES, leaveQuest, questProblems, questView, relanguageQuest, restoreQuest, setQuestLanguage, startQuest } from './quests';
 import { defaultSetup } from './settings';
-import type { QuestBundle } from '../data/quests';
 import { compileBundle, readQuestSources, withEnglishTwins } from '../test/quest-compile';
 import type { World } from './types';
 import { cloneWorld, newWorld } from './world';
+
+type QuestBundle = QUEST_DATA.QuestBundle;
 
 const QUESTS = compileBundle(withEnglishTwins(readQuestSources('src/test/quests')));
 const RUMORS = 'Heard any rumors?';
@@ -36,6 +40,7 @@ describe('startQuest', () => {
       view: 'talk',
       lines: [{ text: 'Hattie sets her bucket down by the well.', tags: [] }],
       choices: ['Heard any rumors?', 'Leave.'],
+      seen: [false, false],
       costs: [null, null],
       checks: [null, null],
       locked: [false, false],
@@ -73,7 +78,7 @@ describe('chooseQuestOption', () => {
   it('pays money through the give_money effect in whole M', () => {
     const before = world();
     const after = play(before, 'sample_bowl', 'start', [RUMORS, COIN]);
-    expect(after.player.money - before.player.money).toBe(5 * UNITS.centsPerM);
+    expect(after.player.money - before.player.money).toBe(5);
   });
 
   it('closes the session at the end and keeps the last lines on view', () => {
@@ -114,7 +119,7 @@ describe('pay and begin', () => {
   it('takes money in whole M through pay, and refuses more than the player holds', () => {
     const bundle = bundleOf({ q: '=== start ===\n# checkpoint: start\n+ [Pay.]\n  ~ pay(3)\n  -> END\n+ [Pay a fortune.]\n  ~ pay(999999)\n  -> END\n' });
     const before = startQuest(world(), bundle, 'q', 'start');
-    expect(chooseQuestOption(before, bundle, 0).player.money).toBe(before.player.money - 3 * UNITS.centsPerM);
+    expect(chooseQuestOption(before, bundle, 0).player.money).toBe(before.player.money - 3);
     expect(() => chooseQuestOption(before, bundle, 1)).toThrow('pay(999999) needs more money than the player holds');
   });
 
@@ -205,6 +210,13 @@ describe('quest language', () => {
     expect(questView(switched, bundle).choices).toEqual(questView(w, bundle).choices);
     expect(inRussian(() => relanguageQuest(switched, bundle))).toBe(switched);
   });
+
+  it('keeps the lines of an ended quest when the language changes', () => {
+    const ended = play(world(), 'sample_bowl', 'start', [LEAVE]);
+    expect(ended.player.quests.session).toBeNull();
+    expect(inRussian(() => relanguageQuest(ended, bundle))).toBe(ended);
+    expect(ended.player.quests.live).not.toBeNull();
+  });
 });
 
 describe('leaveQuest', () => {
@@ -221,24 +233,10 @@ describe('leaveQuest', () => {
   });
 });
 
-describe('fittingQuestVars', () => {
-  it('keeps the variables that still fit and lists the rest as lost', () => {
-    const carried = {
-      world: { sample_wagon_heard: true, retired_flag: true },
-      local: { sample_bowl: { trust: 2, paid: 'yes' }, gone_quest: { n: 1 } },
-    };
-    expect(fittingQuestVars(carried, QUESTS)).toEqual({
-      world: { sample_wagon_heard: true },
-      local: { sample_bowl: { trust: 2 } },
-      lost: ['retired_flag', 'sample_bowl.paid', 'gone_quest.n'],
-    });
-  });
-});
-
 describe('questProblems', () => {
   it('lists stored names the bundle does not declare', () => {
     const w = world();
-    w.player.quests = { world: { gone: 1 }, local: { sample_bowl: { trust: 'x' }, lost: {} }, session: { quest: 'sample_bowl', checkpoint: 'nowhere', seed: 1 }, live: null };
+    w.player.quests = { world: { gone: 1 }, local: { sample_bowl: { trust: 'x' }, lost: {} }, session: { quest: 'sample_bowl', checkpoint: 'nowhere', seed: 1 }, live: null, seen: {} };
     expect(questProblems(w.player.quests, QUESTS).map((e) => e.message)).toEqual([
       'World variable gone is not declared',
       'Variable trust of quest sample_bowl holds a string, not a number',
@@ -259,5 +257,44 @@ describe('skill query', () => {
     expect(QUEST_QUERIES.skill(w, ['machining'])).toBe(3);
     expect(QUEST_QUERIES.skill(w, ['social'])).toBe(w.player.ranks.social);
     expect(() => QUEST_QUERIES.skill(w, ['charm'])).toThrow(/no skill charm/);
+  });
+});
+
+const SIM_SOURCE = new URL('.', import.meta.url).pathname;
+const QUEST_EFFECT_NOTE = "noteArg('note'";
+
+function simCalls(call: string): { file: string; target: string }[] {
+  const pattern = new RegExp(`\\b${call}\\(\\w+,\\s*([^,)]+)`, 'g');
+  return readdirSync(SIM_SOURCE, { recursive: true, encoding: 'utf8' })
+    .filter((file) => file.endsWith('.ts') && !file.endsWith('.test.ts'))
+    .flatMap((file) => [...readFileSync(join(SIM_SOURCE, file), 'utf8').matchAll(pattern)].map((m) => ({ file, target: m[1].trim() })))
+    .filter(({ target }) => !target.includes(':'));
+}
+
+function namedValues(target: string): unknown[] {
+  if (target === 'scene.gate') return Object.values(QUEST_DATA.ROAD_STORY).map((scene) => scene.gate);
+  return [namedValue(target)];
+}
+
+function namedValue(target: string): unknown {
+  const literal = target.match(/^'([^']*)'$/)?.[1];
+  if (literal !== undefined) return literal;
+  const note = target.match(/^GAME_NOTES\.(\w+)$/)?.[1];
+  if (note !== undefined) return GAME_NOTES[note as keyof typeof GAME_NOTES];
+  return (QUEST_DATA as Record<string, unknown>)[target];
+}
+
+describe('state the game writes outside quests', () => {
+  it('lists every world variable the sim sets in GAME_WORLD_VARS', () => {
+    const targets = [...simCalls('setWorldVar').flatMap(({ target }) => namedValues(target)), ...(simCalls('setIntroStep').length > 0 ? [QUEST_DATA.INTRO_STEP] : [])];
+    expect(targets.length).toBeGreaterThan(0);
+    expect(targets.filter((name) => typeof name !== 'string' || !(name in QUEST_DATA.GAME_WORLD_VARS))).toEqual([]);
+  });
+
+  it('lists every note the sim gives outside a quest effect in GAME_NOTES', () => {
+    const gameNotes: readonly unknown[] = Object.values(GAME_NOTES);
+    const notes = simCalls('learnNote').filter(({ target }) => target !== QUEST_EFFECT_NOTE);
+    expect(notes.length).toBeGreaterThan(0);
+    expect(notes.filter(({ target }) => !gameNotes.includes(namedValue(target)))).toEqual([]);
   });
 });

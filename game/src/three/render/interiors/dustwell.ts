@@ -18,6 +18,7 @@ const SQUAT = { x: -0.1, z: 1.9, height: 0.42 };
 const SHED = { x: 0.3, z: -0.3, yaw: -Math.PI / 2 };
 const MARKET = { x: 2.3, z: 1.6, drums: { u: 0.2, v: 1.7 } };
 const PIPE = { size: 0.08, lift: 0.12, support: 0.6 };
+const TROUGH = { x: 3.1, z: -1.3, length: 1.1, width: 0.45, rim: 0.16, wall: 0.06, water: 0.1 };
 const PUMP_LANTERN = { x: -1.7, z: 1.4, yaw: -Math.PI / 2 };
 
 export function buildDustwell(b: SiteBuilder): void {
@@ -26,6 +27,7 @@ export function buildDustwell(b: SiteBuilder): void {
   b.addModel('storage_tank', SQUAT.x, SQUAT.z, 0.6, new THREE.Vector3(1, SQUAT.height, 1)).name = 'dustwell-tank';
   addShed(b, 'dustwell', SHED);
   addPipes(b);
+  addTrough(b);
   b.addLantern(PUMP_LANTERN.x, PUMP_LANTERN.z, PUMP_LANTERN.yaw);
   addMarket(b, 'dustwell', MARKET);
 }
@@ -38,6 +40,12 @@ function addPumpjack(b: SiteBuilder): void {
   beam.position.copy(socket('pumpjack_base', 'beam'));
   base.add(beam);
   b.addMover(beam, rock(new THREE.Vector3(0, 0, 1), STROKE.amplitude, STROKE.period));
+}
+
+function addTrough(b: SiteBuilder): void {
+  const { x, z, length, width, rim, wall, water } = TROUGH;
+  b.addBox(x, z, length, rim, width, PAL.rust.dark);
+  b.addBox(x, z, length - wall * 2, water, width - wall * 2, PAL.waterLight, rim - water / 2);
 }
 
 function addPipes(b: SiteBuilder): void {

@@ -4,14 +4,15 @@ The fixed facts of ROAM's world. Lore, art, sound and content all keep to them.
 
 ## Timeline
 
-- The Old World ended in the Chaos, a full apocalypse that lasted about 200 years.
+- The Old World ended in the Spiral, the Race and the Exodus, as [The end of the Old World](old-world-end.md) records. The Chaos that came after lasted about 200 years.
 - The Chaos ended about 50 years ago. The oldest people alive were born in its last years.
 - The ship fell over Icarus somewhere in the middle of the Chaos, roughly 100 to 150 years ago. Nobody knows the year. People in the basin still count time from the fall.
-- The ship matters only to this region. The rest of the world went through the Chaos for its own reasons and never heard of it.
+- The ship matters only to this region. The rest of the world never heard of it.
 - After the Chaos, Nose and Bowl fought a war over the basin. The Old Army ended it and kept the peace until it left Old Orchard.
 
 ## The Old World
 
+- The Old World's history is our own until about the time LCD screens came in. After that it branches off.
 - The old nations are gone. Their cultures survive only in glimpses: a name, a truck, a building, a word.
 - No single old culture leads. Names, trucks and buildings mix many of them.
 - No real nation exists today, and nobody speaks of one as alive.
@@ -21,7 +22,7 @@ The fixed facts of ROAM's world. Lore, art, sound and content all keep to them.
 
 - Daily life runs at about the level of the mid-1900s: diesel engines, radios, generators, electric light in towns and hand-built guns.
 - Computers are rare relics. Nobody makes them.
-- Every settlement has workshops that weld, patch, rebore guns and brew fuel.
+- Every settlement has workshops that weld, patch and rebore guns.
 - Real industry exists only in pockets. Nose runs the basin's one workshop line that builds whole engines and guns. Other complex goods come from outside regions with long-haul convoys.
 - A few scattered scholars partly understand the ship's technology: the last members of the Lunar Society, the Apprentice and a few cranks. No town holds that knowledge.
 - Everyone else uses ship parts that still work, like power cells and hull plating, without knowing how they work.
@@ -43,23 +44,30 @@ The fixed facts of ROAM's world. Lore, art, sound and content all keep to them.
 
 By year 130 nobody drives the open road without a gun. Every driver knows why, and the reasons pile on each other:
 
-- For thirty years the Old Army held the guns and patrolled the roads. When it ended in year 112, its rifles went loose across the basin and nobody patrolled the roads.
+- The Old Army held the guns and patrolled the roads. When it ended in year 112, its rifles went loose across the basin and nobody patrolled the roads.
 - Each town guards only the road near its walls. The Nose refused to share the cost of a guard for the whole basin. The open road between the towns has no guard.
-- Pierce insures only trucks that carry a gun, and from year 128 only on a mount with two pins.
-- The Nose lets no truck out of its gate without a gun. Its workshop line hands out a steel turning mount with every gate pass.
+- Pierce insures only trucks that carry a gun.
+- The Nose stops no truck at its gate, armed or not.
 - Kiln Camp strips trucks that neither pay nor fight. A truck that fights hard is often let go.
 - Hull plate from the wrecks is everywhere, and a welder can cut a gun mount from it in a day. The turning mount on a truck bed is called a swivel. Otto Brann of the Salvage Yard built the first one.
 - A swivel turns on an electric motor. The driver aims and fires it through the link. Nobody rides in the bed or holds the gun.
 - Guns are cheap. The Salvage Yard sells the Old Army's stripped guns at the crossroads.
 
-Drivers say a truck is "pinned twice" when it is ready for the road. A swivel with one pin can slide on a bend and swing the gun into the cab.
+Drivers check their brake rod before the north bend. The cheap steel rod that the Nose line hands out can snap on a bend, and then nothing slows the truck.
 
-## People
+## People and scale
 
 - About 20,000 people live in Icarus.
 - Each town holds a few thousand. Bowl is larger than Nose.
 - Each smaller site holds a few hundred. The rest are squatters and drivers.
+- Every place a truck can enter is at least a small town. It has a garage, a shop, a market and a place to find people, and it has streets, crowds and work going on all day.
+- A site of a few hundred is a small town, not a city. It has a few pumps or pumpjacks, a few cranes, a few tankers waiting and a few dozen people in its yard at once.
+- Each place runs its trade at working scale. Green Pit has a line of pumps, tanks and water trucks waiting to load. The Pump Station has a whole still yard, the Salvage Yard has cutting lines and crews, and the Granary has drying floors and a tin works.
+- A named person runs one corner of a place, like a canteen, a pump crew or a stall. Nobody runs a whole place alone, and no place is one building with a few people.
+- The map shows each place as a few models, like tabletop miniatures. Lore, text and pictures describe the real place the models stand for.
+- Test any place by asking whether it has the people and the plant to make what the road uses. Trucks, guns, fuel and rations for the whole basin come out of these places.
 - Most people in the basin descend in part from the Given, the survivors who came down in the ship's escape pods. See [Peoples](peoples.md).
+- While the Sunward ride, drivers keep away from the Fallen Sun after dark. By day they still work the crater.
 
 ## Beyond the basin
 

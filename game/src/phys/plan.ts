@@ -24,17 +24,20 @@ function simulate(drive: Drive, w: World, me: Vehicle): { turns: VehicleFrame[][
   const turns: VehicleFrame[][] = [];
   let d = drive;
   let v = me;
-  for (let i = 0; i < PLAN_TURNS; i++) {
-    const r = simulateTurn(d, w);
-    turns.push(r.frames[me.id]);
-    w.events = [];
-    applyTurn(w, r);
+  try {
+    for (let i = 0; i < PLAN_TURNS; i++) {
+      const r = simulateTurn(d, w);
+      if (d !== drive) freeDrive(d);
+      d = r.next;
+      turns.push(r.frames[me.id]);
+      w.events = [];
+      applyTurn(w, r);
+      v = w.vehicles.find((x) => x.id === me.id)!;
+      if (!v.order && v.speed < 0.05) break;
+    }
+  } finally {
     if (d !== drive) freeDrive(d);
-    d = r.next;
-    v = w.vehicles.find((x) => x.id === me.id)!;
-    if (!v.order && v.speed < 0.05) break;
   }
-  if (d !== drive) freeDrive(d);
   return { turns, v };
 }
 

@@ -12,7 +12,7 @@ Every word a player reads comes from one catalog in `src/text/`, in English and 
   - `text`: a nested message.
   - `name`: a string shown as it is, like a key cap.
 - Russian in `src/text/ru/` gives words for every English key, so a missing key fails tsc. An entry is a string, or for a name a `noun(gender, nom, gen, dat, acc, ins, prep)` with its form in every case and its gender `m`, `f`, `n` or `pl`. Forms are written as inside a sentence: a common noun in lower case, a proper name capitalized.
-- Keys group by area: `screens` for panels and menus, `log` for the log and the sim's ids, `talk` for radio talk and J.J.'s broadcasts, `names` for data names. A key names its part of the game and its id, like `goal.lowFuel`, `part.mg`, `line.dealTerms` or `radio.dawn.2`.
+- Keys group by area: `screens` for panels and menus, `log` for the log and the sim's ids, `talk` for radio talk and J.J.'s broadcasts, `names` for data names, `lore` for the in-world description of every part, good and the parcel (`lore.part.<id>`, `lore.good.<id>`, `lore.parcel`, built by `partLore` and `goodLore`; [Item lore](lore/README.md#item-lore) has the writing rules). A key names its part of the game and its id, like `goal.lowFuel`, `part.mg`, `line.dealTerms` or `radio.dawn.2`.
 - The message syntax is a strict ICU subset: `{name}` and `{n, plural, one {...} few {...} many {...} other {...}}`, where `#` is the formatted count. A literal brace is not allowed. `src/text/resolve.ts` alone parses and resolves it.
 - Russian adds two forms for text params. `{part, case, gen}` puts a name in a case: `nom`, `gen`, `dat`, `acc`, `ins` or `prep`. `{who, gender, m {починил} f {починила} n {починило} pl {починили}}` agrees with a name's gender and needs all four forms.
 - A name shown on its own, or put in a sentence with plain `{x}`, is nominative and capitalized. A name in a case keeps its form as written. A phrase like `{profession} {driver}` passes its case to its names and takes the gender of its last name. A list passes its case to every item and is plural when it holds several.
@@ -33,7 +33,11 @@ The sim never imports `src/text/` and never makes English. `src/sim/types.ts` de
 - `UnitId`: the unit of a counted call value.
 - `LineId` in `src/data/dialogue.ts`: every radio line, by id. A call keeps the id of the line said last.
 
-A truck has no saved name. Its title comes from the player's own truck or from its template's profession and its driver. A bounty names its target by template. Save step 19 to 20 maps old saves to the ids, as [Saves](saves.md) describes.
+A truck has no saved name. Its title comes from the player's own truck or from its template's profession and its driver. Save step 19 to 20 maps old saves to the ids, as [Saves](saves.md) describes.
+
+## Compass words
+
+Code and data name map axes: "map north" is −y, and `Octant` ids, survey sectors, claim angles and gate sides all mean map directions. Player words name map directions too: north is map −y, which the fixed 3D view draws toward the top right of the screen. `src/text/compass.ts` is the only place that turns a map angle into an octant (`compassOctant()`), with the same bins as the sim. `compassText()`, `bearingText()` and the radio's basin and storm words call it, and `compassName()` names an `Octant` id directly. A new direction word in UI code goes through them too.
 
 ## The active language and live text
 
@@ -55,17 +59,17 @@ A truck has no saved name. Its title comes from the player's own truck or from i
 All of them run in `npm test` and `npm run typecheck`. Together the text tests take about 5 seconds.
 
 - tsc: a missing key in a language, a wrong param, or a string passed to `el()` as text fails to compile. So does an id of a closed union, like a goal reason, without its words.
-- `src/text/catalog.test.ts`: no Russian entry holds a form the committee rejected, like «чинено» or «удлинённая платформа». Every entry parses in every language, uses exactly its schema's params, and has exactly the language's plural forms (`one, other` in English and `one, few, many, other` in Russian). No Russian entry may copy its English, apart from a short list of brands and language names. Radio talk and broadcasts hold none of the game phrases in `src/test/out-of-character.ts`, like "your turn", "level up" or «твой ход». Everyday words like "turn", "level", «ход» and «уровень» pass.
+- `src/text/catalog.test.ts`: no Russian entry holds a form the committee rejected, like «чинено» or «удлинённая платформа». Every entry parses in every language, uses exactly its schema's params, and has exactly the language's plural forms (`one, other` in English and `one, few, many, other` in Russian). No entry in any language holds a semicolon. No Russian entry may copy its English, apart from a short list of brands and language names. Radio talk and broadcasts hold none of the game phrases in `src/test/out-of-character.ts`, like "your turn", "level up" or «твой ход». Everyday words like "turn", "level", «ход» and «уровень» pass.
 - `src/text/coverage.test.ts`: every data id the game can show, like each part, chassis, good, template, site, terrain, trait, skill, perk, radio line and broadcast, has its words in every language.
 - `src/text/scan.test.ts`: it parses every production file of `src/ui`, `src/three`, `src/sim`, `src/data`, `src/render` and `src/text` with `oxc-parser`. It fails on a prose literal, on a text sink like `.textContent =`, `.title =`, `setAttribute` of a text attribute or `confirm()` without `say()`, on `.innerHTML =`, on Cyrillic outside `src/text/ru/`, and on `as Msg`, `new Msg` or `verbatim` of a literal outside `src/text/`. Each failure prints `file:line`, the rule and the literal.
 - `src/text/fixtures.test.ts`: an old save migrates, and every goal, call, contract and truck title it holds reads in both languages.
 - `src/sim/text-free.test.ts`: a seeded world played for 120 turns holds no phrase in its events, goals or call.
 - `npm run layout`, below, checks the real DOM. `npm run playtest` picks Russian by keyboard alone through Menu → Options → Language, checks the HUD and the log, checks that the choice outlives a reload, and picks English back by mouse. It fails on any language control outside the Options panel.
-- `npm run text:review` is not a check. It writes the review sheet for reading Russian in context, as [Russian copy](../russian-style.md) describes.
+- `npm run text:review` is not a check. It writes the review sheet for reading Russian in context, as [Russian copy](../writing/russian.md) describes.
 
 ### The allowlist
 
-`src/text/untranslated.ts` lists text the scan lets through, as `{ file, text, reason }`. Every entry needs a reason, and an entry nothing uses fails the scan. Missing Russian never falls back to English: there is no fallback path at all. New text ships its English and Russian entries in the same change.
+`src/text/untranslated.ts` lists text the scan lets through, as `{ file, text, reason }`. Every entry needs a reason, and an entry nothing uses fails the scan. Missing Russian never falls back to English: there is no fallback path at all. New text ships its English and Russian entries in the same change. Read new English text against the [Humanizer](../writing/humanizer.md#how-roam-uses-it) first, the way its How ROAM uses it section says.
 
 ### The layout check
 
@@ -95,4 +99,4 @@ Each of these stays as it is, with a follow-up where one makes sense.
 
 ## Russian copy
 
-[Russian copy](../russian-style.md) holds the style rules, bad and good examples and the glossary. agy writes all Russian text by it, with Codex and then Claude Sonnet as the fallback when agy is unavailable.
+[Russian copy](../writing/russian.md) holds the style rules, bad and good examples and the glossary. agy writes all Russian text by it, with Codex and then Claude Sonnet as the fallback when agy is unavailable.

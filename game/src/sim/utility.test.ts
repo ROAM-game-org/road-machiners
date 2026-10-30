@@ -2,14 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { partDef, type UtilityDef } from '../data/parts';
 import { makePart } from './factory';
 import { mountPart } from './inventory';
-import { addVehicle, emptyWorld } from './testkit';
+import { addVehicle, emptyWorld, testDrive } from './testkit';
 import type { PartInstance, Vehicle, World } from './types';
-import { activateUtilities, advanceUtilityEffects, hasWorkingUtility, pointReach, tickCharges, utilityBlock, utilityOrderError, wornReload } from './utility';
-import { setUtilityOrder } from './world';
+import { activateUtilities, advanceLines, advanceUtilityEffects, hasWorkingUtility, pointReach, tickCharges, utilityBlock, utilityOrderError, wornReload } from './utility';
+import { dist } from './vec';
+import { endTurn, setUtilityOrder } from './world';
 
 function withUtility(defId: string): { w: World; v: Vehicle; part: PartInstance } {
   const w = emptyWorld();
-  const v = addVehicle(w, 'traders', 'hauler', [defId], { x: 40, y: 30 });
+  const v = addVehicle(w, 'independent', 'hauler', [defId], { x: 40, y: 30 });
   const part = v.items.flatMap((it) => (it.kind === 'part' && it.part.defId === defId ? [it.part] : []))[0];
   return { w, v, part };
 }
@@ -56,7 +57,7 @@ describe('utility orders', () => {
 
   it('refuses a utility that is not mounted', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'traders', 'hauler', [], { x: 40, y: 30 });
+    const v = addVehicle(w, 'independent', 'hauler', [], { x: 40, y: 30 });
     const part = makePart(w, 'sprout', 0);
     mountPart(w, v, part, ['F', 'B', 'L', 'R']);
 
@@ -193,6 +194,20 @@ describe('the activation step', () => {
     expect(far.w.smoke).toEqual([]);
   });
 
+  it('acts at turn start, so a sprout smokes where the truck stood before it drove', () => {
+    const { w, part } = playerWith('sprout');
+    const me = w.vehicles[0];
+    const start = { ...me.pos };
+    me.speed = 2;
+    me.order = { kind: 'through', dest: { x: start.x + 30, y: start.y } };
+    me.utilityOrders[part.id] = { kind: 'self' };
+
+    const after = endTurn(w, testDrive);
+
+    expect(dist(after.vehicles[0].pos, start)).toBeGreaterThan(1);
+    expect(after.smoke).toMatchObject([{ source: me.id, pos: start }]);
+  });
+
   it('hands an accepted arming order to the claymore ram, which keeps its reload at 0', () => {
     const { w, v, part } = withUtility('claymoreRam');
     v.utilityOrders[part.id] = { kind: 'self' };
@@ -234,6 +249,9 @@ describe('utility effects in the world', () => {
     expect(w.smoke.map((s) => s.turnsLeft)).toEqual([1]);
     expect(w.fields).toEqual([]);
     expect(w.flares.map((f) => f.turnsLeft)).toEqual([2]);
+    expect(w.lines).toHaveLength(1);
+
+    advanceLines(w);
     expect(w.lines).toEqual([]);
   });
 });

@@ -39,7 +39,7 @@ describe('Damage setting', () => {
     const me = sturdy(addVehicle(w, 'player', 'hauler', ['stockEngine', 'cannon'], old.pos, 0));
     me.id = old.id;
     w.vehicles = [me];
-    const npc = sturdy(addVehicle(w, 'raiders', 'hauler', ['stockEngine', 'cannon'], { x: 64, y: 60 }, Math.PI));
+    const npc = sturdy(addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine', 'cannon'], { x: 64, y: 60 }, Math.PI));
     me.weaponOrders[vehicleStats(w, me).weapons[0].part.id] = { targetId: npc.id, aim: 'body' };
     npc.weaponOrders[vehicleStats(w, npc).weapons[0].part.id] = { targetId: me.id, aim: 'body' };
     fireWeapons(w);
@@ -61,9 +61,9 @@ describe('Damage setting', () => {
   it('doubles a crash between two NPCs on both trucks', () => {
     const crash = (damage: number) => {
       const w = withSettings(emptyWorld(), { damage });
-      const a = sturdy(addVehicle(w, 'raiders', 'scout', ['stockEngine', 'ram'], { x: 40, y: 40 }));
-      const b = sturdy(addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 43, y: 40 }, Math.PI));
-      applyContactCrash(w, a, b, b.id, 6, { a: { side: 'front', lanes: [2] }, b: { side: 'front', lanes: [2] } });
+      const a = sturdy(addVehicle(w, 'scrapjaw', 'scout', ['stockEngine', 'ram'], { x: 40, y: 40 }));
+      const b = sturdy(addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 43, y: 40 }, Math.PI));
+      applyContactCrash(w, a, b, b.id, 6, { a: { side: 'front', lanes: [2] }, b: { side: 'front', lanes: [2] } }, { a: 6, b: 0 });
       const e = w.events.find((x) => x.t === 'collision');
       if (e?.t !== 'collision') throw new Error('No collision');
       return [...hitsOf(e.hitsA), ...hitsOf(e.hitsB)];
@@ -75,7 +75,7 @@ describe('Damage setting', () => {
   it('doubles a ground crash and a landing', () => {
     const fall = (damage: number) => {
       const w = withSettings(emptyWorld(), { damage });
-      const v = sturdy(addVehicle(w, 'raiders', 'scout', ['stockEngine'], { x: 40, y: 40 }));
+      const v = sturdy(addVehicle(w, 'scrapjaw', 'scout', ['stockEngine'], { x: 40, y: 40 }));
       applyGroundCrash(w, v, 'ground', 8, { side: 'front', lanes: [1, 2, 3] });
       applyLanding(w, v, 'ground', 8);
       return w.events.flatMap((e) => (e.t === 'collision' ? hitsOf(e.hitsA) : []));
@@ -100,7 +100,7 @@ describe('Damage setting', () => {
 describe('Fuel use setting', () => {
   function trucks(fuelUse: number) {
     const w = withSettings(emptyWorld(), { fuelUse });
-    const npc = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 10, y: 10 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 10, y: 10 });
     return { w, list: [w.vehicles[0], npc] };
   }
 
@@ -133,7 +133,7 @@ describe('Fuel use setting', () => {
   it('burns 1.5 times the fuel on a far NPC step over the same way', () => {
     const farStep = (fuelUse: number) => {
       const w = withSettings(emptyWorld(), { fuelUse });
-      const far = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 120, y: 120 });
+      const far = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 120, y: 120 });
       far.speed = 2;
       far.order = { kind: 'through', dest: { x: 200, y: 120 } };
       const before = getResources(w, far).fuel;
@@ -161,7 +161,7 @@ describe('Supply use setting', () => {
   it('halves the supplies the player and an NPC eat per turn', () => {
     const eaten = (supplyUse: number) => {
       const w = withSettings(emptyWorld(), { supplyUse });
-      const npc = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 10, y: 10 });
+      const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 10, y: 10 });
       return [w.vehicles[0], npc].map((v) => {
         const before = getResources(w, v).supplies;
         for (let i = 0; i < 10; i++) consumeVehicleSupplies(w, v);

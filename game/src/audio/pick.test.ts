@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loudestAt, pickVariant, shuffled, spatial, VoiceLimiter } from "./pick";
+import { crashLevel, pickVariant, shuffled, spatial, VoiceLimiter } from "./pick";
 
 describe("shuffled", () => {
   it("reorders a copy by its rolls and keeps every item", () => {
@@ -60,11 +60,30 @@ describe("VoiceLimiter", () => {
   });
 });
 
-describe("loudestAt", () => {
-  it("finds the middle of the loudest window", () => {
-    const samples = new Float32Array(1000);
-    for (let i = 600; i < 610; i++) samples[i] = 1;
-    samples[100] = 0.5;
-    expect(loudestAt(samples, 1000, 0.01)).toBeCloseTo(0.605);
+describe("crashLevel", () => {
+  const curve = { quietImpact: 1.5, fullImpact: 4, quietGain: 0.25 };
+
+  it("plays the quiet gain at and below the quiet impact", () => {
+    expect(crashLevel(0, curve)).toBe(0.25);
+    expect(crashLevel(1.5, curve)).toBe(0.25);
+  });
+
+  it("rises in a straight line up to the full impact", () => {
+    expect(crashLevel(2.75, curve)).toBeCloseTo(0.625);
+    expect(crashLevel(2, curve)).toBeLessThan(crashLevel(3, curve));
+  });
+
+  it("never passes full gain", () => {
+    expect(crashLevel(4, curve)).toBe(1);
+    expect(crashLevel(40, curve)).toBe(1);
+  });
+
+  it("throws on a bad impact or a bad curve", () => {
+    expect(() => crashLevel(NaN, curve)).toThrow();
+    expect(() => crashLevel(Infinity, curve)).toThrow();
+    expect(() => crashLevel(-1, curve)).toThrow();
+    expect(() => crashLevel(2, { ...curve, fullImpact: 1.5 })).toThrow();
+    expect(() => crashLevel(2, { ...curve, quietGain: 0 })).toThrow();
+    expect(() => crashLevel(2, { ...curve, quietGain: 1.2 })).toThrow();
   });
 });

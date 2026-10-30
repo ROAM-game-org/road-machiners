@@ -1,6 +1,27 @@
-#ui .log {
+/* The one owner of the bottom right: the right dock, the log and End turn, bottom up, one gap apart and right aligned.
+   Nothing in it carries a position number of its own. */
+#ui:not(.phone) .right-column {
+  position: absolute;
   right: var(--space-7);
-  bottom: 112px;
+  bottom: var(--hud-inset);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--hud-gap);
+}
+#ui:not(.phone) .right-column > .panel {
+  position: relative;
+}
+#ui:not(.phone) .right-column > .right-dock {
+  order: 0;
+}
+#ui:not(.phone) .right-column > .log {
+  order: 1;
+}
+#ui:not(.phone) .right-column > .turn-control {
+  order: 2;
+}
+#ui .log {
   width: var(--dock-width);
   height: var(--log-height);
   display: flex;
@@ -9,16 +30,19 @@
 /* The one owner of the stack above the log: the contracts at the old contracts spot, the radio in the space above.
    Panels in it carry no position numbers of their own. */
 #ui .right-dock {
-  position: absolute;
-  right: var(--space-7);
-  bottom: 246px;
   width: var(--dock-width);
   display: flex;
   flex-direction: column;
   gap: var(--hud-gap);
 }
+#ui:not(.phone) .right-dock {
+  max-height: calc(var(--layer-h) - var(--safe-top) - var(--hud-inset) - var(--log-height) - var(--icon-hero) - var(--space-9) - var(--hud-gap) - var(--hud-gap));
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
 #ui .right-dock > .panel {
   position: static;
+  flex: none;
 }
 #ui .right-dock > .radio {
   order: 0;
@@ -26,7 +50,7 @@
 #ui .right-dock > .contracts {
   order: 1;
 }
-/* Waste Of Time Radio: a pager screen over a faceplate of volume knobs, at the top of the right dock. The drawn parts are in drawings.css. */
+/* Waste Of Time Radio: a pager screen, at the top of the right dock. The drawn parts are in drawings.css. */
 #ui .radio {
   --radio-line: 14px;
   --radio-lines: 3;
@@ -50,17 +74,6 @@
     opacity: 0;
   }
 }
-.radio-faceplate {
-  display: flex;
-  align-items: stretch;
-  justify-content: space-between;
-  gap: 0;
-}
-.radio-mute {
-  display: flex;
-  align-items: center;
-  margin-left: var(--space-2);
-}
 .radio-keys {
   display: flex;
   justify-content: flex-end;
@@ -71,6 +84,19 @@
   gap: var(--space-4);
   padding: var(--space-1) 0;
   color: var(--ink-muted);
+}
+.contract-line > .num {
+  flex: none;
+  white-space: nowrap;
+}
+.contract-line .claim-rival {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.contract-line .claim-rival > .icon {
+  width: var(--icon-m);
+  height: var(--icon-m);
 }
 #ui .log .panel-title {
   margin: 0;

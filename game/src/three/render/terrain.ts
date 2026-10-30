@@ -1,12 +1,12 @@
 import * as THREE from "three";
 import { PHYSICS } from "../../data/physics";
-import { REGION } from "../../data/region";
 import {
   paintGroundCanvas,
   TERRAIN_MARGIN,
   type PaintCanvas,
 } from "../../render/groundPaint";
 import { atlasOf } from "../../sim/atlas";
+import { hollowSitesFor } from "../../sim/hollow-layout";
 import { deckAt, railOffset, type Deck } from "../../sim/bridge";
 import { deckHeight, deckSegments, type DeckSegment, type Terrain } from "../../sim/terrain";
 import type { World } from "../../sim/types";
@@ -16,12 +16,13 @@ import type { RenderScope } from "./scope";
 
 const S = PHYSICS.metersPerTile;
 const TEXTURE_SIDE = 2048;
-const GROUND_PIXELS_PER_TILE = TEXTURE_SIDE / (REGION.size + 2 * TERRAIN_MARGIN);
+const DENSITY_REFERENCE_TILES = 600;
+const GROUND_PIXELS_PER_TILE = TEXTURE_SIDE / (DENSITY_REFERENCE_TILES + 2 * TERRAIN_MARGIN);
 export const TERRAIN_CHUNK = 32;
 const FACET_TINT = 0.04;
 
-function groundSide(w: World): number {
-  return Math.min(TEXTURE_SIDE, Math.round(GROUND_PIXELS_PER_TILE * (w.size + 2 * TERRAIN_MARGIN)));
+export function groundSide(size: number): number {
+  return Math.min(TEXTURE_SIDE, Math.round(GROUND_PIXELS_PER_TILE * (size + 2 * TERRAIN_MARGIN)));
 }
 
 function mapCanvas(w: World, side: number): PaintCanvas {
@@ -52,7 +53,7 @@ export function groundTexture(w: World): THREE.CanvasTexture {
 }
 
 function paintTexture(w: World): THREE.CanvasTexture {
-  const c = mapCanvas(w, groundSide(w));
+  const c = mapCanvas(w, groundSide(w.size));
   paintGroundCanvas(c, w.terrain, { hillshade: 0.35 });
   const texture = new THREE.CanvasTexture(c.ctx.canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -102,12 +103,17 @@ export function chunkGeometry(t: Terrain, x: number, y: number, width: number, d
   return geo;
 }
 
-export function terrainMesh(w: World, scope: RenderScope): TerrainChunk[] {
-  const chunks: TerrainChunk[] = [];
+export function groundMaterial(w: World): THREE.MeshLambertMaterial {
   const material = new THREE.MeshLambertMaterial({ map: groundTexture(w) });
-  drawRoads(material, mapCanvas(w, TEXTURE_SIDE), w.terrain);
+  drawRoads(material, mapCanvas(w, TEXTURE_SIDE), w.terrain, hollowSitesFor(w));
   facetGround(material);
   NIGHT_POOLS.light(material);
+  return material;
+}
+
+export function terrainMesh(w: World, scope: RenderScope): TerrainChunk[] {
+  const chunks: TerrainChunk[] = [];
+  const material = groundMaterial(w);
   for (let y = 0; y < w.size; y += TERRAIN_CHUNK)
     for (let x = 0; x < w.size; x += TERRAIN_CHUNK) {
       const width = Math.min(TERRAIN_CHUNK, w.size - x);

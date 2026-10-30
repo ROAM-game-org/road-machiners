@@ -3,7 +3,6 @@ import { chassisDef, PLAYER_CHASSIS } from '../data/chassis';
 import { GOOD_IDS, GOODS } from '../data/goods';
 import { GEAR_LEVEL_IDS, NPCS, type GearLevel, type NpcTemplate } from '../data/npcs';
 import { PARTS } from '../data/parts';
-import { REGION } from '../data/region';
 import { CHEATS } from '../data/rules';
 import { PERK_IDS } from '../data/skills';
 import { TIME } from '../data/time';
@@ -13,24 +12,30 @@ import { playerVehicle } from './damage';
 import { makePart, makeVehicle } from './factory';
 import { maxHealthOf } from './health';
 import { corePart, mountedParts, type Spot } from './grid';
-import { addGoods, applyRefitLayout, planItemMove, stowPart } from './inventory';
+import { addGoods, applyRefitLayout, mountPart, planItemMove, stowPart } from './inventory';
 import { disarm } from './claymore';
 import { generateNpcLoadout } from './npc-loadout';
 import { grantXp, isPerkId, pickedFromPair } from './progress';
-import { isTerritory, nearestPad, type Site } from './sites';
+import { isTerritory, nearestPad, worldPlaces } from './sites';
 import { territoryEntries } from './territory';
-import { isFree, spawnAt } from './spawn';
+import { allegianceFor, spawnAt } from './spawn';
+import { firstFree, freeSpotNear } from './free-spot';
 import { declareFeud, settleStates } from './states';
 import { isTowed } from './tow';
 import { clockOf } from './sun';
-import type { Faction, Vehicle, World } from './types';
+import type { Faction, SunwardHunt, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 import { randInt } from './rng';
 import { refreshVision } from './vision';
+import { atlasOf, atlasSites } from './atlas';
+import { chartSite } from './locations';
 import { WEATHER } from '../data/weather';
 import { makeWeather } from './weather';
 import { hostileToPlayer, playerCanAct, update } from './world';
 import { fuelCap, suppliesCap } from './stats';
+import { advanceSunward, nextRideOut, orderRides, orderStands, startHuntTonight, sunwardPhase } from './sunward';
+import { fillHollow } from './spawn';
+import { SUNWARD } from '../data/sunward';
 import { spillDeadRows } from './spill';
 
 export class CheatError extends Error {}
@@ -128,7 +133,8 @@ export function give(world: World, id: string, count: number): World {
 function givePart(w: World, defId: string, count: number): void {
   const me = playerVehicle(w);
   for (let i = 0; i < count; i++) {
-    if (!stowPart(w, me, makePart(w, defId, 0))) throw new CheatError(`No room for ${count} ${defId}`);
+    const part = makePart(w, defId, 0);
+    if (!stowPart(w, me, part) && !mountPart(w, me, part)) throw new CheatError(`No room for ${count} ${defId}`);
   }
 }
 
@@ -185,34 +191,12 @@ export function applyGodMode(world: World): void {
   world.player.supplies = suppliesCap(me);
 }
 
-function freeSpotNear(w: World, center: Vec, radius: number, ignoreId: string | null): Vec | null {
-  if (isFree(w, center, radius, ignoreId)) return { ...center };
-  for (let ring = 1; ring <= CHEATS.searchRings; ring++) {
-    const r = ring * CHEATS.searchStep;
-    const points = Math.ceil((2 * Math.PI * r) / CHEATS.searchStep);
-    const spot = firstFree(w, circlePoints(center, r, points), radius, ignoreId);
-    if (spot) return spot;
-  }
-  return null;
-}
-
-function circlePoints(center: Vec, r: number, count: number): Vec[] {
-  return Array.from({ length: count }, (_, i) => {
-    const a = (2 * Math.PI * i) / count;
-    return { x: center.x + Math.cos(a) * r, y: center.y + Math.sin(a) * r };
-  });
-}
-
 function frontFirst(center: Vec, heading: number, r: number, count: number): Vec[] {
   const step = (2 * Math.PI) / count;
   return Array.from({ length: count }, (_, i) => {
     const a = heading + Math.ceil(i / 2) * step * (i % 2 === 0 ? -1 : 1);
     return { x: center.x + Math.cos(a) * r, y: center.y + Math.sin(a) * r };
   });
-}
-
-function firstFree(w: World, points: Vec[], radius: number, ignoreId: string | null): Vec | null {
-  return points.find((p) => isFree(w, p, radius, ignoreId)) ?? null;
 }
 
 export function teleport(world: World, target: Vec): World {
@@ -250,7 +234,8 @@ export function noclipMove(world: World, target: Vec): World {
 }
 
 export function placeSpot(world: World, id: string): Vec {
-  const places: Site[] = [...REGION.towns, ...REGION.locations];
+  if (world.chaosHighway !== null) throw new CheatError('Chaos Highway has no named places. Use tp <x> <y>');
+  const places = worldPlaces(world);
   const place = places.find((p) => p.id === id);
   if (!place) throw new CheatError(`Unknown place ${id}. Places: ${places.map((p) => p.id).join(', ')}`);
   const from = playerVehicle(world).pos;
@@ -268,6 +253,34 @@ export function skipToHour(world: World, hour: number): World {
     });
   }
   throw new Error(`No turn within a day of ${world.turn} starts hour ${hour}`);
+}
+
+export function sunwardDusk(world: World): World {
+  if (!orderStands(world)) throw new CheatError('No Sunward order stands in this world');
+  return update(world, (w) => {
+    fillHollow(w);
+    w.turn = nextRideOut(w.turn);
+    advanceSunward(w);
+    refreshVision(w);
+  });
+}
+
+export function sunwardHunt(world: World): World {
+  if (!orderRides(world)) throw new CheatError('The hunters ride only on a night of the vigil. Try sunward dusk first');
+  return update(world, (w) => startHuntTonight(w));
+}
+
+export function sunwardLedger(world: World): string[] {
+  if (!world.sunward) throw new CheatError('No Sunward order in this world');
+  const { collapsed, night } = world.sunward;
+  if (collapsed !== null) return [`The order fell on turn ${collapsed}.`];
+  if (!night) return ['No night has opened yet.'];
+  return [`Night from turn ${night.dusk}, phase ${sunwardPhase(world)}`, `Roster: ${night.roster.join(', ')}`, `Beaten: ${night.beaten.length} of ${SUNWARD.collapseAt}: ${night.beaten.join(', ')}`, huntLine(night.hunt)];
+}
+
+function huntLine(hunt: SunwardHunt | null): string {
+  if (!hunt) return 'Hunt: none';
+  return `Hunt: ${hunt.party.join(', ')}${hunt.over ? ' (over)' : ''}`;
 }
 
 export function startWeather(world: World, kind: string, turns: number | null, offsetTiles: number): World {
@@ -295,6 +308,9 @@ export function startWeather(world: World, kind: string, turns: number | null, o
 export function revealMap(world: World): World {
   return update(world, (w) => {
     w.player.explored.fill(1);
+    for (const site of atlasSites(atlasOf(w.terrain))) {
+      if (!w.player.discovered.includes(site.id)) chartSite(w, site);
+    }
     refreshVision(w);
   });
 }
@@ -325,11 +341,10 @@ export function randomKit(world: World, level: number | null): World {
   const choices = kitChoices();
   return update(world, (w) => {
     const gear = gearLevelOf(level ?? randInt(w, 1, GEAR_LEVEL_IDS.length));
-    const { tpl, chassisId } = choices[randInt(w, 0, choices.length - 1)];
     const old = playerVehicle(w);
+    const { chassisId, loadout } = rollArmedKit(w, choices, gear);
     const spot = freeSpotNear(w, old.pos, chassisDef(chassisId).radius, old.id);
     if (!spot) throw new CheatError(`No free spot for a ${chassisId} here`);
-    const loadout = generateNpcLoadout(w, tpl, chassisId, gear);
     const truck = makeVehicle(w, { faction: 'player', chassisId, parts: loadout.parts, spares: [], cargo: {}, pos: spot, heading: old.heading, brain: null });
     truck.id = old.id;
     w.vehicles = w.vehicles.map((v) => (v.id === old.id ? truck : v));
@@ -337,6 +352,15 @@ export function randomKit(world: World, level: number | null): World {
     w.player.supplies = Math.min(w.player.supplies, suppliesCap(truck));
     refreshVision(w);
   });
+}
+
+function rollArmedKit(w: World, choices: { tpl: NpcTemplate; chassisId: string }[], gear: GearLevel): { chassisId: string; loadout: ReturnType<typeof generateNpcLoadout> } {
+  for (let attempt = 0; attempt < CHEATS.armedKitTries; attempt++) {
+    const { tpl, chassisId } = choices[randInt(w, 0, choices.length - 1)];
+    const loadout = generateNpcLoadout(w, tpl, chassisId, gear);
+    if (loadout.parts.some((part) => PARTS[part.defId].kind === 'weapon')) return { chassisId, loadout };
+  }
+  throw new CheatError(`No random kit of gear ${gear} carries a gun`);
 }
 
 function gearLevelOf(level: number): GearLevel {
@@ -352,7 +376,7 @@ function spawnInDraft(w: World, tpl: NpcTemplate, hostile: boolean): void {
   const circle = frontFirst(me.pos, me.heading, CHEATS.spawnDistance, CHEATS.spawnAngles);
   const spot = firstFree(w, circle, radius, null) ?? freeSpotNear(w, me.pos, radius, null);
   if (!spot) throw new CheatError(`No free spot to spawn ${tpl.id}`);
-  const v = spawnAt(w, tpl, loadout, spot);
+  const v = spawnAt(w, tpl, loadout, spot, allegianceFor(w, tpl, null, null));
   if (hostile) declareFeud(w, v, w.player.vehicleId);
 }
 

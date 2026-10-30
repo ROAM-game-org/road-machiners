@@ -22,6 +22,17 @@ export function spatial(screenX: number, width: number, distance: number, halfGa
   return { pan: side * panWidth, gain: 1 / (1 + distance / halfGainMeters) };
 }
 
+export type CrashCurve = { quietImpact: number; fullImpact: number; quietGain: number };
+
+export function crashLevel(impact: number, curve: CrashCurve): number {
+  if (!Number.isFinite(impact) || impact < 0) throw new Error(`Bad crash impact ${impact}`);
+  const { quietImpact, fullImpact, quietGain } = curve;
+  if (!(fullImpact > quietImpact)) throw new Error(`Crash curve needs full impact ${fullImpact} above quiet impact ${quietImpact}`);
+  if (!(quietGain > 0 && quietGain <= 1)) throw new Error(`Crash quiet gain ${quietGain} is outside (0, 1]`);
+  const share = Math.min(1, Math.max(0, (impact - quietImpact) / (fullImpact - quietImpact)));
+  return quietGain + (1 - quietGain) * share;
+}
+
 export class VoiceLimiter {
   private ends = new Map<string, number[]>();
 
@@ -32,17 +43,4 @@ export class VoiceLimiter {
     this.ends.set(cue, live);
     return free;
   }
-}
-
-export function loudestAt(samples: Float32Array, sampleRate: number, windowSeconds: number): number {
-  const n = Math.max(1, Math.round(windowSeconds * sampleRate));
-  let best = 0;
-  let bestAt = 0;
-  for (let start = 0; start < samples.length; start += n) {
-    let sum = 0;
-    const end = Math.min(samples.length, start + n);
-    for (let i = start; i < end; i++) sum += samples[i] * samples[i];
-    if (sum > best) [best, bestAt] = [sum, start + (end - start) / 2];
-  }
-  return bestAt / sampleRate;
 }
