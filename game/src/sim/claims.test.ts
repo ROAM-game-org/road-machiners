@@ -684,7 +684,7 @@ describe('a rival on the real map', () => {
     shopState(w, shop).contracts.push(claim);
     keepNearestDrivers(w, 4, [], shop);
     const pads = sitePads(siteOf(shop));
-    w.vehicles.filter((v) => v.id !== w.player.vehicleId).forEach((v, i) => { v.pos = { ...pads[i % pads.length] }; });
+    w.vehicles.filter((v) => v.id !== w.player.vehicleId).forEach((v, i) => { const pad = pads[i % pads.length]; const lap = Math.floor(i / pads.length); v.pos = { x: pad.x + lap * 3, y: pad.y }; });
     const move = (d: World): void => { for (const v of d.vehicles) if (v.id !== d.player.vehicleId) advanceFar(d, v); };
     let rival: string | null = null;
     let ended = false;

@@ -269,7 +269,7 @@ describe('the watch', () => {
 
   it('flees prey that outguns it, when it has a getaway', () => {
     const { w, raider } = watchingRaider(200);
-    const brute = addVehicle(w, 'independent', 'hauler', ['mg', 'mg', 'mg', 'mg', 'mg', 'stockEngine'], { x: raider.pos.x + 8, y: raider.pos.y });
+    const brute = addVehicle(w, 'independent', 'hauler', ['heavyMg', 'heavyMg', 'mg', 'mg', 'mg', 'stockEngine'], { x: raider.pos.x + 8, y: raider.pos.y });
     brute.brain = npcBrain('trader', brute.pos, ['trader']);
     if (addGoods(w, brute, 'electronics', 6) < 6) throw new Error('No room for the cargo');
     const danger = judgeDanger(w, raider, brute);

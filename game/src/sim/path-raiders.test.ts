@@ -788,6 +788,7 @@ describe('scavengers and roamers that cut across open ground', () => {
   it('drops a kept route of another style, and keeps its own', () => {
     const w = detour(20);
     const trader = driverWith(w, ['trader']);
+    trader.id = 'road-trader';
     const kept = keepRoute(w, b, route(w, a, b, 0.6, [], trader), [], trader);
     expect(kept.style).toBe('road');
     expect(continueRoute(w, a, kept, b, 0.6, [], trader)).not.toBeNull();

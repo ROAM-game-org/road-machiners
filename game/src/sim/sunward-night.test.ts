@@ -66,7 +66,7 @@ describe('the night schedule', () => {
       expect(followingOf(w, v)).toBeNull();
     });
 
-    w = runTo(w, dawnAfter(duskTurn(1)) + 120);
+    w = runTo(w, nextRideOut(dawnAfter(duskTurn(1))) - 1);
     for (const v of membersOf(w).filter((x) => !seen.broken.has(x.id))) expect(isSheltered(w, v.id)).toBe(true);
     expect(membersOf(w).map((v) => v.id).sort()).toEqual(members.map((v) => v.id).sort());
     expect(seen.stalls).toBe(0);
