@@ -13,6 +13,8 @@ beforeAll(async () => {
 
 
 const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8];
+const ARENA_A_FLED_ON_DEV = 2;
+const arenaOutcomes = new Map<number, FightReport['outcome']>();
 
 function firstFight(seeds: number[], make: (seed: number) => Fight, reaches: (r: FightReport) => boolean, what: string, skipErrorStart?: string): FightReport {
   for (const seed of seeds) {
@@ -74,9 +76,20 @@ describe('combat harness', () => {
     expect(runFight(fight).outcome).toBe('won');
   });
 
-  it('a damaged arena fighter turns back when it cannot escape for repairs', () => {
-    const r = firstFight(SEEDS, (seed) => ({ ...FIGHT, a: parseLineup('buggy'), b: parseLineup('buggy'), seed, maxTurns: 200, arena: 9 }), (x) => x.outcome === 'won' || x.outcome === 'lost', 'a knockout inside the arena');
-    expect(['won', 'lost']).toContain(r.outcome);
+  for (const seed of SEEDS) {
+    it(`a damaged arena fighter turns back when it cannot escape for repairs, seed ${seed}`, () => {
+      arenaOutcomes.set(seed, runFight({ ...FIGHT, a: parseLineup('buggy'), b: parseLineup('buggy'), seed, maxTurns: 200, arena: 9 }).outcome);
+    });
+  }
+
+  it('ends an arena fight in a knockout on some seed and has side a flee on no more seeds than dev', () => {
+    const outcomes = SEEDS.map((seed) => {
+      const outcome = arenaOutcomes.get(seed);
+      if (outcome === undefined) throw new Error(`The arena fight of seed ${seed} did not run`);
+      return outcome;
+    });
+    if (!outcomes.some((o) => o === 'won' || o === 'lost')) throw new Error(`No seed of ${SEEDS.join(', ')} reached a knockout inside the arena`);
+    expect(outcomes.filter((o) => o === 'a fled').length).toBeLessThanOrEqual(ARENA_A_FLED_ON_DEV);
   });
 
   it('keeps every truck inside the arena ring', () => {
