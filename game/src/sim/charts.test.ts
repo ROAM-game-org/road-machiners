@@ -53,11 +53,13 @@ describe('charts', () => {
 
   it('prices a fully unexplored square of the most tiles', () => {
     const w = atBowl();
-    const biggest = gridSquares().find((s) => {
+    const area = (s: GridSquare) => {
       const b = gridSquareSpan(s);
-      return b.x1 - b.x0 === 98 && b.y1 - b.y0 === 98;
-    })!;
-    expect(chartPrice(unexploredIn(w, biggest))).toBe(7);
+      return (b.x1 - b.x0) * (b.y1 - b.y0);
+    };
+    const biggest = gridSquares().reduce((a, b) => (area(b) > area(a) ? b : a));
+    expect(area(biggest)).toBe(234 * 234);
+    expect(chartPrice(unexploredIn(w, biggest))).toBe(34);
   });
 
   it('prices by the unexplored share', () => {
