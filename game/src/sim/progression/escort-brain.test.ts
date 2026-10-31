@@ -57,6 +57,20 @@ describe('escortMove', () => {
     expect(destOf(escortMove(w, playerVehicle(w)))).toEqual(followSpot(w, playerVehicle(w), haulerOf(w), 0));
   });
 
+  it('stops at its follow spot when it reaches it this turn, so a gun truck faster than the hauler never coasts past it with no order', () => {
+    const w = started();
+    const me = playerVehicle(w);
+    const hauler = haulerOf(w);
+    hauler.speed = 4.5;
+    const spot = followSpot(w, me, hauler, 0);
+    me.pos = { x: spot.x, y: spot.y + 2 };
+    me.speed = 7.2;
+    refreshVision(w);
+    expect(escortMove(w, me).kind).toBe('stopAt');
+    me.speed = 1;
+    expect(escortMove(w, me).kind).toBe('through');
+  });
+
   it('never puts a held pace on the follow order', () => {
     const w = started();
     haulerOf(w).speed = 5;
