@@ -2,9 +2,9 @@ import { mkdirSync, renameSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
-import { gpuArgs, rendererOf } from './gpu.mjs';
+import { launchChromium } from './gpu.mjs';
 
-const USAGE = 'Usage: npm run shot -- [<scene.shot.ts>] [--model a,b] [--truck <chassis> --hp 100,50,0] [--camera quarter|game|front|back|top|left|right|bottom|all] [--zoom 1] [--hour 12] [--out tmp/shots] [--cpu]';
+const USAGE = 'Usage: npm run shot -- [<scene.shot.ts>] [--model a,b] [--truck <chassis> --hp 100,50,0] [--camera quarter|game|front|back|top|left|right|bottom|all] [--zoom 1] [--hour 12] [--out tmp/shots]';
 const LIMIT_MS = 180000;
 const FLAGS = ['model', 'truck', 'hp', 'camera', 'zoom', 'hour'];
 
@@ -37,11 +37,10 @@ function query() {
 }
 
 const params = query();
-const cpu = process.argv.includes('--cpu');
 const outDir = arg('out') ?? 'tmp/shots';
 const server = await createServer({ server: { port: 5195, strictPort: false }, logLevel: 'error' });
 await server.listen();
-const browser = await chromium.launch({ args: cpu ? [] : gpuArgs() });
+const { browser } = await launchChromium(chromium);
 try {
   const page = await browser.newPage();
   const errors = [];
@@ -52,7 +51,6 @@ try {
   const { shot, failed } = await page.evaluate(() => ({ shot: window.__SHOT__, failed: window.__SHOT_ERROR__ }));
   if (failed) throw new Error(failed);
   if (errors.length > 0) throw new Error(`Page errors:\n${errors.join('\n')}`);
-  if (!cpu) console.log(`renderer: ${await rendererOf(page)}`);
   mkdirSync(outDir, { recursive: true });
   const file = `${outDir}/${shot.name}.png`;
   writeFileSync(`${file}.tmp`, Buffer.from(shot.png.slice(shot.png.indexOf(',') + 1), 'base64'));

@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
-import { gpuArgs, isSoftware, rendererOf } from './gpu.mjs';
+import { launchChromium } from './gpu.mjs';
 import { emulateWebGL2Floor } from './gpu-floor.mjs';
 import { checkHighwayNightInSoftware, checkNightGround, NIGHT_TURNS } from './night-ground.mjs';
 import { playUrl } from './game-url.mjs';
@@ -11,28 +11,25 @@ const arg = (name, fallback) => {
   return i >= 0 ? process.argv[i + 1] : fallback;
 };
 const url = arg('url', 'http://localhost:5173');
-const cpu = process.argv.includes('--cpu');
-const fpsGate = !cpu && !process.argv.includes('--no-fps-gate');
-const turns = Number(arg('turns', cpu ? '4' : '12'));
+const fpsGate = !process.argv.includes('--no-fps-gate');
 const MIN_FPS = 50;
 const timeoutsOff = process.env.TEST_TIMEOUTS === 'off';
-const TURN_LIMIT_MS = timeoutsOff ? 0 : cpu ? 60000 : 10000;
 const CRASH_ATTEMPTS = 3;
 const attempt = Number(process.env.PLAYTEST_ATTEMPT ?? '1');
 const BOOT_LIMIT_MS = timeoutsOff ? 0 : 30000;
 const HIGHWAY_BOOT_LIMIT_MS = 300000;
 
 mkdirSync('.playtest', { recursive: true });
-const browser = await chromium.launch({ args: cpu ? [] : gpuArgs() });
-const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-if (timeoutsOff) page.setDefaultTimeout(0);
-const renderer = await rendererOf(page);
-console.log(`renderer ${renderer}`);
-if (!cpu && isSoftware(renderer)) {
+const { browser, software } = await launchChromium(chromium);
+if (software && fpsGate) {
   await browser.close();
-  console.error(`FAIL\nThe GPU playtest got the software renderer ${renderer}. Run with --cpu on a machine without a GPU.`);
+  console.error(`FAIL\nThe frame rate check needs the GPU, and this run draws in software. Pass --no-fps-gate to play in software without it.`);
   process.exit(1);
 }
+const turns = Number(arg('turns', software ? '4' : '12'));
+const TURN_LIMIT_MS = timeoutsOff ? 0 : software ? 60000 : 10000;
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+if (timeoutsOff) page.setDefaultTimeout(0);
 const retryAfterBrowserCrash = async () => {
   await browser.close().catch(() => {});
   if (attempt >= CRASH_ATTEMPTS) {
@@ -204,7 +201,7 @@ const nightProblems = await checkNightGround(page, {
   shot: '.playtest/night-roaming.png',
   bootLimitMs: BOOT_LIMIT_MS,
   turnLimitMs: TURN_LIMIT_MS,
-  nightTurns: cpu ? 0 : NIGHT_TURNS,
+  nightTurns: software ? 0 : NIGHT_TURNS,
 });
 
 const reload = async () => {

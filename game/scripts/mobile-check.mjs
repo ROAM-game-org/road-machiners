@@ -1,6 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
-import { gpuArgs, isSoftware, rendererOf } from './gpu.mjs';
+import { launchChromium } from './gpu.mjs';
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -8,11 +8,16 @@ const arg = (name, fallback) => {
 };
 const url = arg('url', 'http://localhost:5173');
 const only = arg('only', '');
-const cpu = process.argv.includes('--cpu');
 const fast = process.argv.includes('--fast');
 const uiSizeArg = arg('ui-size', '');
-const BOOT_LIMIT_MS = process.env.TEST_TIMEOUTS === 'off' ? 0 : cpu ? 240000 : 60000;
-const STEP_LIMIT_MS = process.env.TEST_TIMEOUTS === 'off' ? 0 : cpu ? 120000 : 30000;
+let bootLimitMs = 0;
+let stepLimitMs = 0;
+
+function setLimits(software) {
+  if (process.env.TEST_TIMEOUTS === 'off') return;
+  bootLimitMs = software ? 240000 : 60000;
+  stepLimitMs = software ? 120000 : 30000;
+}
 const SEED = 4242;
 const OUT = 'tmp/mobile';
 const SIZES = { portrait: { width: 390, height: 844 }, landscape: { width: 844, height: 390 }, phone: { width: 798, height: 375 } };
@@ -71,7 +76,7 @@ class Touch {
 
   async box(selector, which = 0) {
     const locator = this.page.locator(selector).nth(which);
-    await locator.waitFor({ state: 'visible', timeout: STEP_LIMIT_MS });
+    await locator.waitFor({ state: 'visible', timeout: stepLimitMs });
     await locator.scrollIntoViewIfNeeded();
     const box = await locator.boundingBox();
     if (!box) throw new Error(`No box for ${selector}`);
@@ -164,7 +169,7 @@ async function context(browser, orientation, storageState, uiSize = uiSizeArg) {
   const ctx = await browser.newContext({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: fast ? 1 : 2, storageState });
   if (uiSize !== '') await ctx.addInitScript(([key, pct]) => { if (localStorage.getItem(key) === null) localStorage.setItem(key, String(Number(pct) / 100)); }, [UI_SIZE_KEY, String(uiSize)]);
   const page = await ctx.newPage();
-  page.setDefaultTimeout(STEP_LIMIT_MS);
+  page.setDefaultTimeout(stepLimitMs);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
   page.on('dialog', (d) => d.accept());
@@ -237,7 +242,7 @@ const playerOf = () => window.__ROAM__.state.vehicles.find((v) => v.faction === 
 async function waitGame(page) {
   for (let attempt = 0; ; attempt++) {
     try {
-      await page.waitForFunction(() => window.__ROAM__?.state && !document.getElementById('boot'), null, { timeout: BOOT_LIMIT_MS || undefined });
+      await page.waitForFunction(() => window.__ROAM__?.state && !document.getElementById('boot'), null, { timeout: bootLimitMs || undefined });
       break;
     } catch (err) {
       if (attempt >= 5 || !/destroyed|navigation/.test(err.message)) throw err;
@@ -268,7 +273,7 @@ async function freshStart(session, orientation, step) {
   const { page, touch } = session;
   await step('boot-menu', async () => {
     await page.goto(`${url}/?seed=${SEED}`);
-    await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: BOOT_LIMIT_MS || undefined });
+    await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: bootLimitMs || undefined });
   }, null);
   await step('new-game', () => touch.tapOn('#ui .start-menu >> text=New game'), () => page.locator('#ui .mode-list').isVisible(), { scope: '#ui .new-game' });
   await step('skip-intro', () => touch.tapOn('#ui .new-game .intro-toggle'), async () => ((await page.locator('#ui .intro-toggle').getAttribute('aria-checked')) === 'true' ? true : 'intro not skipped'), { scope: '#ui .new-game' });
@@ -417,7 +422,7 @@ async function townAndShop(session, step) {
     if (!frame) return false;
     const at = g.rig.screenOf(frame.pos);
     return Math.hypot(at.x - window.innerWidth / 2, at.y - window.innerHeight / 2) < 25;
-  }, null, { timeout: STEP_LIMIT_MS });
+  }, null, { timeout: stepLimitMs });
   const spot = await game(page, async (center) => {
     const g = window.__ROAM__;
     const f = await import('/src/phys/frames.ts');
@@ -652,7 +657,7 @@ async function saveAndContinue(session, step, orientation) {
   await touch.tapOn('.save-panel .close');
   await step('reload-continue', async () => {
     await page.reload();
-    await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: BOOT_LIMIT_MS || undefined });
+    await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: bootLimitMs || undefined });
     await touch.tapOn('#ui .start-menu >> text=Continue');
     await sleep(1500);
     await waitGame(page);
@@ -766,8 +771,8 @@ async function portraitJourney(browser) {
   const turn = await game(page, () => window.__ROAM__.state.turn);
   await step('end-turn', async () => {
     await touch.tapOn('.end-turn');
-    await page.waitForFunction((t) => window.__ROAM__.state.turn > t, turn, { timeout: STEP_LIMIT_MS });
-    await page.waitForFunction(() => !window.__ROAM__.anim, null, { timeout: STEP_LIMIT_MS });
+    await page.waitForFunction((t) => window.__ROAM__.state.turn > t, turn, { timeout: stepLimitMs });
+    await page.waitForFunction(() => !window.__ROAM__.anim, null, { timeout: stepLimitMs });
   }, async () => ((await game(page, () => window.__ROAM__.state.turn)) > turn ? true : 'turn did not grow'));
   await inspectAndAim(session, step, orientation);
   await townAndShop(session, step);
@@ -797,7 +802,7 @@ async function continueSaved(session, step) {
   const { page, touch } = session;
   await step('boot-continue', async () => {
     await page.goto(`${url}/?seed=${SEED}`);
-    await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: BOOT_LIMIT_MS || undefined });
+    await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: bootLimitMs || undefined });
     await touch.tapOn('#ui .start-menu >> text=Continue');
     await sleep(1500);
     await waitGame(page);
@@ -835,8 +840,8 @@ async function landscapeJourney(browser, storage, orientation = 'landscape', uiS
   const turn = await game(page, () => window.__ROAM__.state.turn);
   await step('end-turn', async () => {
     await touch.tapOn('.end-turn');
-    await page.waitForFunction((t) => window.__ROAM__.state.turn > t, turn, { timeout: STEP_LIMIT_MS * 4 });
-    await page.waitForFunction(() => !window.__ROAM__.anim, null, { timeout: STEP_LIMIT_MS * 4 });
+    await page.waitForFunction((t) => window.__ROAM__.state.turn > t, turn, { timeout: stepLimitMs * 4 });
+    await page.waitForFunction(() => !window.__ROAM__.anim, null, { timeout: stepLimitMs * 4 });
   }, async () => ((await game(page, () => window.__ROAM__.state.turn)) > turn ? true : 'turn did not grow'));
   await game(page, async () => {
     const g = window.__ROAM__;
@@ -860,8 +865,8 @@ async function landscapeJourney(browser, storage, orientation = 'landscape', uiS
   await step('end-turn-after-turn', async () => {
     const before = await game(page, () => window.__ROAM__.state.turn);
     await touch.tapOn('.end-turn');
-    await page.waitForFunction((t) => window.__ROAM__.state.turn > t, before, { timeout: STEP_LIMIT_MS * 4 });
-    await page.waitForFunction(() => !window.__ROAM__.anim, null, { timeout: STEP_LIMIT_MS * 4 });
+    await page.waitForFunction((t) => window.__ROAM__.state.turn > t, before, { timeout: stepLimitMs * 4 });
+    await page.waitForFunction(() => !window.__ROAM__.anim, null, { timeout: stepLimitMs * 4 });
   }, null);
   await session.ctx.close();
 }
@@ -877,7 +882,7 @@ async function uiSizeJourney(browser, storage) {
   const step = stepper(session, orientation);
   await step('size-boot-menu', async () => {
     await page.goto(`${url}/?seed=${SEED}`);
-    await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: BOOT_LIMIT_MS || undefined });
+    await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: bootLimitMs || undefined });
   }, async () => ((await appliedSize(page)) === 1 ? true : 'the default size is not 100%'));
   await step('size-continue', async () => {
     await touch.tapOn('#ui .start-menu >> text=Continue');
@@ -903,7 +908,7 @@ async function uiSizeJourney(browser, storage) {
   await closeDrawer(page, touch);
   await step('size-reload-keeps', async () => {
     await page.reload();
-    await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: BOOT_LIMIT_MS || undefined });
+    await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: bootLimitMs || undefined });
   }, async () => {
     const applied = await appliedSize(page);
     return applied === 0.9 ? true : `applied ${applied} after the reload`;
@@ -913,7 +918,8 @@ async function uiSizeJourney(browser, storage) {
 
 async function main() {
   await mkdir(OUT, { recursive: true });
-  const browser = await chromium.launch({ args: cpu ? [] : gpuArgs() });
+  const { browser, software } = await launchChromium(chromium);
+  setLimits(software);
   try {
     const orientations = only ? [only] : ['portrait', 'landscape', 'phone', 'size'];
     if (orientations.includes('tap')) await tapJourney(browser);
@@ -933,6 +939,4 @@ async function main() {
 }
 
 void playerOf;
-void isSoftware;
-void rendererOf;
 await main();

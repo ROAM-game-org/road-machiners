@@ -1,5 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import { chromium, firefox } from 'playwright';
+import { launchChromium } from './gpu.mjs';
 import { playUrl } from './game-url.mjs';
 
 const arg = (name, fallback) => {
@@ -8,7 +9,6 @@ const arg = (name, fallback) => {
 };
 const url = arg('url', 'http://localhost:5173');
 const only = arg('only', '');
-const cpu = process.argv.includes('--cpu');
 const ENGINES = { chromium, firefox };
 const engine = arg('browser', 'chromium');
 if (!ENGINES[engine]) throw new Error(`Unknown --browser ${engine}. Use chromium or firefox.`);
@@ -27,17 +27,6 @@ const START_TEXT = {
   ru: 'Игра не загрузилась. Откройте игру в другом браузере.',
 };
 const STALL_LIMIT_MS = 300000;
-
-const GPU_ARGS = {
-  darwin: ['--use-angle=metal'],
-  linux: ['--use-angle=vulkan', '--enable-features=Vulkan', '--disable-vulkan-surface'],
-};
-function launchArgs() {
-  if (cpu || engine !== 'chromium') return [];
-  const angle = GPU_ARGS[process.platform];
-  if (!angle) throw new Error(`No GPU flags for ${process.platform}. Run with --cpu.`);
-  return [...angle, '--enable-gpu', '--ignore-gpu-blocklist'];
-}
 
 const problems = [];
 const expect = (ok, message) => {
@@ -516,7 +505,7 @@ async function lostWorker(browser, viewport) {
 
 mkdirSync('.playtest', { recursive: true });
 async function inBrowser(run) {
-  const browser = await ENGINES[engine].launch({ args: launchArgs(), headless: engine === 'chromium' });
+  const browser = engine === 'chromium' ? (await launchChromium(chromium)).browser : await ENGINES[engine].launch({ headless: false });
   try {
     await run(browser);
   } finally {
