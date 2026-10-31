@@ -321,12 +321,12 @@ function replayPrompt(ctx: Ctx, session: Session, sha: string, play: number): st
 function history(ctx: Ctx, release: ReleaseState): string {
   const runs = Array.from({ length: release.playtest.runs }, (_, i) => i + 1).flatMap((run) => {
     const path = join(auditDir(ctx, release, run), 'meta.json');
-    if (!existsSync(path)) return [`- play ${run}: no record, it did not finish`];
+    if (!existsSync(path)) return [`- run ${run}: no record, it did not finish`];
     const meta = JSON.parse(readFileSync(path, 'utf8')) as RunMeta;
-    return [`- play ${run} at ${meta.sha}: ${meta.outcome}, ${meta.reason}`];
+    return [`- run ${run} at ${meta.sha}: ${meta.outcome}, ${meta.reason}`];
   });
   const notes = release.playtest.notes.map((note) => `- ${note}`);
-  return ['# Earlier plays of this release', ...(runs.length ? runs : ['- none']), '', '# Decisions of the committee', ...(notes.length ? notes : ['- none']), ''].join('\n');
+  return ['# Plays of earlier jobs on this release', 'Their run numbers count across the release. They count toward no play limit of this job.', ...(runs.length ? runs : ['- none']), '', '# Decisions of the committee', ...(notes.length ? notes : ['- none']), ''].join('\n');
 }
 
 export function auditDir(ctx: Ctx, release: ReleaseState, run: number): string {
