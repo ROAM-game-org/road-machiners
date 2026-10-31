@@ -7,7 +7,7 @@ import { pointInPolygon, type Vec } from '../../sim/vec';
 
 const S = PHYSICS.metersPerTile;
 
-export const POOLS = { texelsPerTile: 4, maxSide: 2048, radius: 1.8, gain: 0.5, push: 0.5, margin: 2 };
+export const POOLS = { texelsPerTile: 4, maxSide: 2048, radius: 1.8, gain: 0.5, push: 0.7, margin: 2 };
 const HALO = { size: 1.6, texels: 64 };
 
 export type PoolLamp = { site: Site; x: number; z: number; inside: boolean };
