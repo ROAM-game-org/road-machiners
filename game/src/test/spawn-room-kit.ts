@@ -2,21 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { NPCS, SPAWN } from '../data/npcs';
 import { START_KITS } from '../data/start';
 import { playerVehicle } from '../sim/damage';
-import { defaultSetup } from '../sim/settings';
 import type { World } from '../sim/types';
 import { dist } from '../sim/vec';
 import { spawnQueueNow } from '../sim/spawn';
-import { carriedWorld, newWorld } from '../sim/world';
+import { carriedWorld } from '../sim/world';
 import { budget } from './budget';
 import { TEST_MAP } from './map';
-import { reusedWorld } from './world-cache';
-
-const startWorld = (seed: number) =>
-  reusedWorld(`start ${seed}`, () => {
-    const w = newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
-    spawnQueueNow(w);
-    return w;
-  });
+import { reusedWorld, standardWorld } from './world-cache';
 
 const carried = (seed: number) =>
   reusedWorld(`carried ${seed}`, () => {
@@ -49,7 +41,7 @@ export function spawnRoomOnSeeds(seeds: readonly number[]): void {
 
     it('never spawns a leader into a crowd', () => {
       for (const seed of seeds) {
-        for (const w of [startWorld(seed), carried(seed)]) {
+        for (const w of [standardWorld(seed), carried(seed)]) {
           for (const v of leaders(w)) {
             const before = w.vehicles.slice(0, w.vehicles.indexOf(v));
             const crowd = before.filter((o) => dist(o.pos, v.pos) < SPAWN.crowd.reach).length;

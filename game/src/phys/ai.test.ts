@@ -1,6 +1,5 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
-import { START_KITS } from '../data/start';
 import { RULES } from '../data/rules';
 import { NPCS } from '../data/npcs';
 import { REGION } from '../data/region';
@@ -13,13 +12,12 @@ import type { Vehicle, World } from '../sim/types';
 import { loadWorld, writeSave } from '../three/save';
 import { memoryBackend, SaveSlots } from '../three/save-db';
 import { angleDiff, dist } from '../sim/vec';
-import { endTurn, newWorld, setMoveOrder } from '../sim/world';
+import { endTurn, setMoveOrder } from '../sim/world';
 import { buildDrive, freeDrive, initPhysics, type Drive } from './drive';
 import { physicsMove } from './turn';
 import { TEST_MAP } from '../test/map';
 import { budget } from '../test/budget';
-import { defaultSetup } from '../sim/settings';
-import { reusedWorld } from '../test/world-cache';
+import { standardWorld } from '../test/world-cache';
 
 const HEAD_ON_SHIFT = { x: 50, y: -14 };
 const HEAD_ON_CLEAR = 45;
@@ -30,10 +28,6 @@ function at(x: number, y: number): { x: number; y: number } {
 
 function dropClaimRuns(w: World): void {
   for (const shop of Object.values(w.shops)) shop.contracts = shop.contracts.filter((c) => c.kind !== 'claim');
-}
-
-function standardWorld(): World {
-  return reusedWorld('standard', () => newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming')));
 }
 
 beforeAll(async () => {
@@ -166,9 +160,8 @@ describe('NPC driving', () => {
   });
 
   it('travels between towns without entering either site', () => {
-    let w = standardWorld();
+    let w = standardWorld(1337);
     w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
-    w.spawnQueue = [];
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     const bowl = REGION.towns[0];
     const nose = REGION.towns[1];
@@ -191,9 +184,8 @@ describe('NPC driving', () => {
   }, budget(120_000));
 
   it('passes the oncoming player without stopping or touching it', () => {
-    let w = standardWorld();
+    let w = standardWorld(1337);
     w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
-    w.spawnQueue = [];
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     w.player.encounters.next = Number.MAX_SAFE_INTEGER;
     const bowl = REGION.towns[0];
@@ -230,9 +222,8 @@ describe('NPC driving', () => {
   it.each([-3, -1.5].flatMap((dx) => [-3, -1.5, 0, 1.5, 3].map((dy) => [dx, dy])))(
     'two NPCs closing head-on never touch: second goal offset %s,%s',
     (dx, dy) => {
-      let w = standardWorld();
+      let w = standardWorld(1337);
       w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
-      w.spawnQueue = [];
       for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
       w.vehicles[0].pos = at(300, 200);
       w.obstacles = w.obstacles.filter((o) => dist(o.pos, at(290, 134)) > HEAD_ON_CLEAR);
@@ -261,9 +252,8 @@ describe('NPC driving', () => {
   );
 
   it.each([false, true])('a wagon and a van meeting head-on at road speed never touch: ids swapped %s', (swapped) => {
-    let w = standardWorld();
+    let w = standardWorld(1337);
     w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
-    w.spawnQueue = [];
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     w.vehicles[0].pos = at(300, 200);
     w.obstacles = w.obstacles.filter((o) => dist(o.pos, at(290, 134)) > HEAD_ON_CLEAR);

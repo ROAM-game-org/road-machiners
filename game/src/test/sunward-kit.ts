@@ -20,7 +20,6 @@ export function quietWorld(seed: number): World {
   const w = standardWorld(seed);
   const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
   w.vehicles = [playerVehicle(w)];
-  w.spawnQueue = [];
   w.sheltered = [];
   playerVehicle(w).pos = { x: bowl.pos.x + bowl.radius + 6, y: bowl.pos.y };
   refreshVision(w);

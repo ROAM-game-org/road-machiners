@@ -78,7 +78,7 @@ describe('game mode rules', () => {
 
 describe('a new world by mode', () => {
   it('builds a Roaming world as before the Chaos Highway mode, with the Hollow filled at the start', () => {
-    const world = standardWorld(7);
+    const world = newWorld(7, startKit("standard"), TEST_MAP, defaultSetup("roaming"));
 
     expect(world.chaosHighway).toBeNull();
     expect(fingerprint(world)).toEqual({
