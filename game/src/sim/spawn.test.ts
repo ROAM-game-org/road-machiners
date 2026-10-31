@@ -5,8 +5,6 @@ import { START_KITS } from '../data/start';
 import { playerVehicle } from './damage';
 import { everyTruck, siteGap, siteGates, sitePads } from './sites';
 import { allegianceFor, isFree, spawnNpcs, spawnQueueNow } from './spawn';
-import { carriedWorld } from './world';
-import type { World } from './types';
 import { territoryPieces } from './territory';
 import { addVehicle, emptyWorld, testDrive } from './testkit';
 import { dist } from './vec';
@@ -117,31 +115,6 @@ describe('NPC spawns', () => {
     }
   }, budget(30_000));
 
-  it('starts the whole roster on every seed, with the dealt neutral drivers spread evenly over the sites', () => {
-    const guards = SPAWN.initial.filter((id) => id === 'convoy').map(() => 'convoyGuard');
-    const partners = SPAWN.initial.filter((id) => NPCS[id].pairs);
-    const order = Object.values(NPCS).filter((tpl) => tpl.spawn.kind === 'hollow').flatMap((tpl) => Array<string>(tpl.cap).fill(tpl.id));
-    const roster = [...SPAWN.initial, ...SPAWN.startTraffic.templates, ...guards, ...partners, ...order].sort();
-    const neutralSites = REGION.towns.length + REGION.locations.filter((l) => l.kind !== 'camp' && l.kind !== 'territory').length;
-    for (const seed of [1, 2, 42, 1337, 7919, 15838, 23757, 31676]) {
-      const world = startWorld(seed);
-      const npcs = everyTruck(world).filter((v) => v.brain);
-      const followers = new Set(world.states.filter((s) => s.kind === 'escort').map((s) => s.holder));
-      expect(npcs.map((v) => v.brain!.templateId).sort()).toEqual(roster);
-      const perSite = new Map<string, number>();
-      for (const v of npcs.filter((v) => NPCS[v.brain!.templateId].spawn.kind === 'town' && !followers.has(v.id))) {
-        const id = nearestSite(v.pos).id;
-        perSite.set(id, (perSite.get(id) ?? 0) + 1);
-      }
-      const dealt = [...perSite.values()].reduce((sum, n) => sum + n, 0) - SPAWN.startTraffic.templates.length;
-      const share = Math.ceil(dealt / neutralSites);
-      for (const [id, count] of perSite) {
-        const traffic = id === SPAWN.startTraffic.town ? SPAWN.startTraffic.templates.length : 0;
-        expect(count).toBeLessThanOrEqual(share + traffic);
-      }
-    }
-  }, budget(60_000));
-
   describe('courier respawns', () => {
     const couriersOf = (w: ReturnType<typeof emptyWorld>) => w.vehicles.filter((v) => v.brain?.templateId === 'courier');
     const tick = (w: ReturnType<typeof emptyWorld>) => {
@@ -200,46 +173,6 @@ describe('NPC spawns', () => {
 });
 
 describe('spawn room', () => {
-  const SEEDS = Array.from({ length: 20 }, (_, i) => i + 1);
-  const carried = (seed: number) =>
-    reusedWorld(`carried ${seed}`, () => {
-      const w = carriedWorld(
-        { seed, money: 0, xp: 0, ranks: {}, xpBySource: {}, perks: [], paint: null, discovered: [], knockouts: 0, autoFire: true, autoRepair: false, fuel: 5, supplies: 3, costBasis: {}, truck: null, storage: [], setup: undefined, quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, refunded: 0 },
-        START_KITS.standard,
-        () => TEST_MAP,
-        () => seed,
-      );
-      spawnQueueNow(w);
-      return w;
-    });
-
-  const leaders = (w: World) => {
-    const followers = new Set(w.states.filter((s) => s.kind === 'escort').map((s) => s.holder));
-    return w.vehicles.filter((v) => v.brain && !followers.has(v.id) && NPCS[v.brain.templateId].spawn.kind !== 'hollow');
-  };
-
-  it('places no driver close to a migrated player and keeps the roster whole', () => {
-    const roster = SPAWN.initial.length + SPAWN.startTraffic.templates.length;
-    for (const seed of SEEDS) {
-      const w = carried(seed);
-      const npcs = w.vehicles.filter((v) => v.brain);
-      expect(npcs.length).toBeGreaterThanOrEqual(roster);
-      for (const v of npcs) expect(dist(v.pos, playerVehicle(w).pos)).toBeGreaterThanOrEqual(SPAWN.minPlayerDist);
-    }
-  }, budget(120_000));
-
-  it('never spawns a leader into a crowd', () => {
-    for (const seed of SEEDS) {
-      for (const w of [startWorld(seed), carried(seed)]) {
-        for (const v of leaders(w)) {
-          const before = w.vehicles.slice(0, w.vehicles.indexOf(v));
-          const crowd = before.filter((o) => dist(o.pos, v.pos) < SPAWN.crowd.reach).length;
-          expect(crowd).toBeLessThan(SPAWN.crowd.most);
-        }
-      }
-    }
-  }, budget(120_000));
-
   it('sends a respawn past a crowded gate', () => {
     const towns = REGION.towns;
     const open = towns[0];

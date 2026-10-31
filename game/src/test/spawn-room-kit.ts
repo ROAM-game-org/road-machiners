@@ -5,22 +5,30 @@ import { playerVehicle } from '../sim/damage';
 import { defaultSetup } from '../sim/settings';
 import type { World } from '../sim/types';
 import { dist } from '../sim/vec';
+import { spawnQueueNow } from '../sim/spawn';
 import { carriedWorld, newWorld } from '../sim/world';
 import { budget } from './budget';
 import { TEST_MAP } from './map';
 import { reusedWorld } from './world-cache';
 
-const startWorld = (seed: number) => reusedWorld(`start ${seed}`, () => newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming')));
+const startWorld = (seed: number) =>
+  reusedWorld(`start ${seed}`, () => {
+    const w = newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    spawnQueueNow(w);
+    return w;
+  });
 
 const carried = (seed: number) =>
-  reusedWorld(`carried ${seed}`, () =>
-    carriedWorld(
+  reusedWorld(`carried ${seed}`, () => {
+    const w = carriedWorld(
       { seed, money: 0, xp: 0, ranks: {}, xpBySource: {}, perks: [], paint: null, discovered: [], knockouts: 0, autoFire: true, autoRepair: false, fuel: 5, supplies: 3, costBasis: {}, truck: null, storage: [], setup: undefined, quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, refunded: 0 },
       START_KITS.standard,
       () => TEST_MAP,
       () => seed,
-    ),
-  );
+    );
+    spawnQueueNow(w);
+    return w;
+  });
 
 const leaders = (w: World) => {
   const followers = new Set(w.states.filter((s) => s.kind === 'escort').map((s) => s.holder));
@@ -34,7 +42,7 @@ export function spawnRoomOnSeeds(seeds: readonly number[]): void {
       for (const seed of seeds) {
         const w = carried(seed);
         const npcs = w.vehicles.filter((v) => v.brain);
-        expect(npcs.length + w.spawnQueue.length).toBeGreaterThanOrEqual(roster);
+        expect(npcs.length).toBeGreaterThanOrEqual(roster);
         for (const v of npcs) expect(dist(v.pos, playerVehicle(w).pos)).toBeGreaterThanOrEqual(SPAWN.minPlayerDist);
       }
     }, budget(120_000));
