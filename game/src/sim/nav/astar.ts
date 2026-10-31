@@ -39,15 +39,16 @@ function begin(size: number): number {
   return ++gen;
 }
 
-export function nearestFreeCell(layer: NavLayer, ov: Overlay, c: number, component: number | null = null, maxRing = Infinity): number | null {
+export function nearestFreeCell(layer: NavLayer, ov: Overlay, c: number, component: number | null = null, maxRing = Infinity, accepts: (cell: number) => boolean = () => true): number | null {
   const n = layer.n;
   const g = begin(n * n);
+  const takes = (cell: number) => isFree(layer, ov, cell) && inComponent(layer, cell, component) && accepts(cell);
   let tail = 0;
   queue[tail++] = c;
   seen[c] = g;
   for (let i = 0; i < tail; i++) {
     const cur = queue[i];
-    if (isFree(layer, ov, cur) && (component === null || componentOf(layer, cur) === component)) return cur;
+    if (takes(cur)) return cur;
     const count = neighbours(n, cur);
     for (let k = 0; k < count; k++) {
       const next = around[k];
@@ -57,6 +58,10 @@ export function nearestFreeCell(layer: NavLayer, ov: Overlay, c: number, compone
     }
   }
   return null;
+}
+
+function inComponent(layer: NavLayer, c: number, component: number | null): boolean {
+  return component === null || componentOf(layer, c) === component;
 }
 
 function isFree(layer: NavLayer, ov: Overlay, c: number): boolean {
