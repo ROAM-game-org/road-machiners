@@ -51,6 +51,7 @@ function referenceBuggy(w: World, pos: Vec): Vehicle {
 }
 
 function holdNpcSpawns(w: World): void {
+  w.spawnQueue = [];
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
 }
 

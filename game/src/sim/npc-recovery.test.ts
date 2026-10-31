@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SCOUT_THREE_GUNS } from '../test/layout-spots';
 import { NPC_BEHAVIOR, NPCS, SPAWN, type TraitId } from '../data/npcs';
 import { REGION } from '../data/region';
 import { planNpcOrders } from './ai';
@@ -10,6 +11,7 @@ import { ledPoint, resolveNpcActivities, thinkNpc, topGoal } from './npc-activit
 import { chooseOn } from './tracks';
 import { fightOddsAgainst, judgeDanger, perceiveDanger, usefulContacts } from './npc-decisions';
 import { siteGates } from './sites';
+import { makeVehicle } from './factory';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import type { NpcActivity, Vehicle, World } from './types';
 import { cloneWorld } from './world';
@@ -50,6 +52,13 @@ function shareOfSeeds(world: World, npcId: string, check: (x: World, npc: Vehicl
     if (check(x, x.vehicles.find((v) => v.id === npcId)!)) held++;
   }
   return held / seeds;
+}
+
+function addThreeGunScout(world: World, pos: { x: number; y: number }): Vehicle {
+  const parts = [{ defId: 'stockEngine', wear: 0 }, ...SCOUT_THREE_GUNS];
+  const mate = makeVehicle(world, { faction: 'independent', chassisId: 'scout', parts, spares: [], cargo: {}, pos, heading: 0, brain: null });
+  world.vehicles.push(mate);
+  return mate;
 }
 
 const byId = (world: World, id: string) => world.vehicles.find((v) => v.id === id)!;
@@ -141,6 +150,7 @@ describe('NPC gameplay recovery', () => {
     const enemy = addVehicle(world, 'scrapjaw', 'buggy', ['mg'], { x: 33, y: 30 });
     fireAt(world, enemy, npc);
     corePart(npc, 'cab').hp = 1;
+    corePart(npc, 'transmission').hp = 1;
     const odds = fightOddsAgainst(world, npc, enemy);
     expect(odds.getaway).toBeLessThan(odds.win);
     const fled = shareOfSeeds(world, npc.id, (x, me) => {
@@ -208,7 +218,7 @@ describe('NPC gameplay recovery', () => {
   it('mostly withdraws from a locally stronger enemy group', () => {
     const { world, npc } = createScenario('buggy');
     for (const pos of [{ x: 33, y: 30 }, { x: 34, y: 32 }]) {
-      const mate = addVehicle(world, 'independent', 'scout', ['mg', 'mg', 'mg', 'stockEngine'], pos);
+      const mate = addThreeGunScout(world, pos);
       mate.brain = npcBrain('scavenger', mate.pos, ['scavenger']);
       addGoods(world, mate, 'scrap', 2);
     }

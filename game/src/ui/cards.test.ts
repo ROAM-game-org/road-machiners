@@ -80,8 +80,8 @@ describe("cargo cards", () => {
   const head = (defId: string) => headlineStat(courierWorld, part(defId), null).stat;
 
   it("headline the net cargo cells on the player's chassis", () => {
-    expect(head("panniers")).toMatchObject({ icon: "cells", value: 6 });
-    expect(head("heavyFrame")).toMatchObject({ icon: "cells", value: 38 });
+    expect(head("panniers")).toMatchObject({ icon: "cells", value: 5 });
+    expect(head("heavyFrame")).toMatchObject({ icon: "cells", value: 36 });
   });
 
   it("marks a heavy frame better than panniers", () => {

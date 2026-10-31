@@ -38,6 +38,7 @@ const SHELF_LEG_TURNS = 15;
 function orchardWorld(): World {
   const w = reusedWorld('orchard', () => newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming')));
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
+  w.spawnQueue = [];
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   return w;
 }

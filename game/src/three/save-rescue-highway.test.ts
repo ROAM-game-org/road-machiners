@@ -10,8 +10,9 @@ import type { Vehicle, World } from '../sim/types';
 import { carriedWorld, endTurn, type Carried } from '../sim/world';
 import { maxHp } from '../sim/wear';
 import { TEST_MAP } from '../test/map';
-import { loadWorld, SaveError } from './save';
+import { loadWorld, SaveError, stepsFrom } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
+import type { SavedJson } from './save-migrations';
 import { readCarried, rescueSave } from './save-rescue';
 import MID_STRETCH from './save-fixtures/highway-3-mid-stretch.json';
 import PAID from './save-fixtures/highway-3-paid.json';
@@ -145,10 +146,12 @@ describe('rescueSave on a Chaos Highway run from an older highway', () => {
     expect(() => rescueSave(slotsWith(broken), 'auto', TEST_MAP, KIT, fresh, freshRun, 2000)).toThrow(/cannot be rescued/);
   });
 
-  it('carries a run saved under the new name of format 114 as it carries one under the old name', () => {
-    const { furyRoad, ...rest } = structuredClone(MID_STRETCH.world);
-    const named = { format: { major: 2, minor: 114 }, world: { ...rest, chaosHighway: furyRoad, setup: { ...rest.setup, mode: 'chaosHighway' } } };
+  it('carries a run saved under the new name as the steps carry one under the old name', () => {
+    const stepped = stepsFrom(MID_STRETCH.format.minor)!.reduce((world, step) => step(world), structuredClone(MID_STRETCH.world) as unknown as SavedJson);
+    const named = { format: { major: 2, minor: 130 }, world: stepped };
 
+    expect(stepped.chaosHighway).not.toBeUndefined();
+    expect(stepped.furyRoad).toBeUndefined();
     expect(readCarried(named).run).toEqual(readCarried(MID_STRETCH).run);
     expect((readCarried(named).setup as { mode: string }).mode).toBe('chaosHighway');
   });

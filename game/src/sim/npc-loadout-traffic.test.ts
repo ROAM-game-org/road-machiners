@@ -5,7 +5,7 @@ import { gunSpans } from './armor';
 import { mountedItems } from './grid';
 import { generateNpcLoadout } from './npc-loadout';
 import { everyTruck } from './sites';
-import { allegianceFor, spawnAt, spawnInitial, spawnNpcs } from './spawn';
+import { allegianceFor, spawnAt, spawnInitial, spawnNpcs, spawnQueueNow } from './spawn';
 import { emptyWorld } from './testkit';
 import { budget } from '../test/budget';
 import { describeLoadout, fixture, useLoadoutFixture } from './npc-loadout-kit';
@@ -19,6 +19,7 @@ describe('NPC equipment generation', () => {
       const world = cloneWorld(fixture);
       world.rngState = seed;
       spawnInitial(world);
+      spawnQueueNow(world);
       for (const v of world.vehicles) {
         if (v.brain) (seen[NPCS[v.brain.templateId].traits[0]] ??= new Set<string>()).add(describeLoadout(v));
       }
@@ -45,6 +46,9 @@ describe('NPC equipment generation', () => {
     const b = cloneWorld(fixture);
     spawnInitial(a);
     spawnInitial(b);
+    expect(a.spawnQueue).toEqual(b.spawnQueue);
+    spawnQueueNow(a);
+    spawnQueueNow(b);
     expect(a.vehicles).toEqual(b.vehicles);
     expect(a.rngState).toBe(b.rngState);
   });

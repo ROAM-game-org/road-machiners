@@ -14,6 +14,7 @@ import { defaultSetup } from './settings';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import { standingPressures } from './market';
 import { refreshVision } from './vision';
+import { spawnQueueNow } from './spawn';
 import { newWorld } from './world';
 import type { Vehicle, World } from './types';
 
@@ -54,7 +55,9 @@ describe('personality draw', () => {
   it('uses every personality across a handful of seeds', () => {
     const seen = new Set<string>();
     for (let seed = 1; seed <= 6 && seen.size < PERSONALITY_IDS.length; seed++) {
-      for (const v of newWorld(seed * 7919, START_KITS.standard, TEST_MAP, defaultSetup('roaming')).vehicles) if (v.brain) seen.add(v.brain.personality);
+      const w = newWorld(seed * 7919, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+      spawnQueueNow(w);
+      for (const v of w.vehicles) if (v.brain) seen.add(v.brain.personality);
     }
 
     expect([...seen].sort()).toEqual([...PERSONALITY_IDS].sort());

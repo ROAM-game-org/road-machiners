@@ -54,7 +54,7 @@ export class WeaponRangeView {
     this.root.visible = false;
   }
 
-  private draw(terrain: Terrain, reaches: (GunOrigin & { range: number; spans: FireSpan[] })[]): void {
+  private draw(terrain: Terrain, reaches: (GunOrigin & { range: number; spans: readonly FireSpan[] })[]): void {
     this.root.visible = reaches.length > 0;
     const points: THREE.Vector3[] = [];
     const idx: number[] = [];
@@ -125,7 +125,7 @@ function rimPoints(span: FireSpan, heading: number, point: (angle: number) => TH
 
 
 export type IconSpot = { angle: number; distance: number };
-export type HoverArc = { weapon: MountedWeapon; slot: number; spans: FireSpan[]; spent: boolean; spot: IconSpot };
+export type HoverArc = { weapon: MountedWeapon; slot: number; spans: readonly FireSpan[]; spent: boolean; spot: IconSpot };
 
 const ICON_RANGE_SHARE = 0.5;
 const ICON_NUDGE_SHARE = 0.15;

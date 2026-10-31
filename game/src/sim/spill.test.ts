@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { partDef } from '../data/parts';
-import { bedRows } from './chassis-features';
-import { gridOf, itemCells, mountedParts } from './grid';
+import { bareGrid, gridOf, itemCells, mountedParts } from './grid';
 import { moveItem } from './inventory';
 import { makePart } from './factory';
 import { spillDeadRows } from './spill';
@@ -63,13 +62,12 @@ describe('cargo spills', () => {
   it('an item lying partly on a dead row spills whole', () => {
     const w = emptyWorld();
     const npc = addVehicle(w, 'independent', 'hauler', ['rack', 'trailerBox'], { x: 60, y: 60 });
-    const g = gridOf(npc);
     const box = mountedParts(npc, 'cargo').find((p) => p.defId === 'trailerBox')!;
     const rackRows = (partDef('rack') as { extraRows: number }).extraRows;
-    const tall: GridItem = { id: 'i-tall', x: 0, y: g.chassisH + bedRows('hauler') + rackRows - 1, rot: 1, kind: 'part', part: makePart(w, 'rack', 0) };
+    const tall: GridItem = { id: 'i-tall', x: 0, y: bareGrid('hauler').h + rackRows - 1, rot: 1, kind: 'part', part: makePart(w, 'rack', 0) };
     npc.items.push(tall);
     box.hp = 0;
-    expect(gridOf(npc).deadFrom).toBe(g.chassisH + bedRows('hauler') + rackRows);
+    expect(gridOf(npc).deadFrom).toBe(bareGrid('hauler').h + rackRows);
     spillDeadRows(w);
     expect(npc.items.some((it) => it.id === 'i-tall')).toBe(false);
     const pile = w.salvage.find((s) => s.pile)!;

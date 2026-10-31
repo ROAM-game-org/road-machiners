@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SCOUT_THREE_GUNS } from '../test/layout-spots';
 import { NPCS, type TraitId } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { REGION } from '../data/region';
@@ -10,11 +11,12 @@ import { addGoods } from './inventory';
 import { advanceJobs } from './jobs';
 import { resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
 import { getKnownSite } from './npc-decisions';
-import { fallbackFaction, spawnInitial } from './spawn';
+import { fallbackFaction, spawnInitial, spawnQueueNow } from './spawn';
 import { inShade, sunAt } from './sun';
 import { straightClear } from './path';
 import { vehicleStats } from './stats';
 import { cloneWorld, endTurn } from './world';
+import { makeVehicle } from './factory';
 import { addVehicle, emptyWorld, finishBusiness, npcBrain, sizedUp, testDrive } from './testkit';
 import { siteGates, sitePads } from './sites';
 import { budget } from '../test/budget';
@@ -29,8 +31,11 @@ function createNpc(templateId = 'scavenger') {
   return { world, npc };
 }
 
-function loadedTrader(world: World, pos: { x: number; y: number }, parts = ['mg', 'stockEngine']): Vehicle {
-  const trader = addVehicle(world, 'independent', 'scout', parts, pos);
+const THREE_GUNS = [{ defId: 'stockEngine', wear: 0 }, ...SCOUT_THREE_GUNS];
+
+function loadedTrader(world: World, pos: { x: number; y: number }, parts = [{ defId: 'mg', wear: 0 }, { defId: 'stockEngine', wear: 0 }]): Vehicle {
+  const trader = makeVehicle(world, { faction: 'independent', chassisId: 'scout', parts, spares: [], cargo: {}, pos, heading: 0, brain: null });
+  world.vehicles.push(trader);
   trader.brain = npcBrain('trader', trader.pos, TRAITS_OF.trader);
   addGoods(world, trader, 'scrap', 2);
   return trader;
@@ -54,6 +59,7 @@ describe('NPC restraint', () => {
       const world = emptyWorld();
       world.rngState = seed;
       spawnInitial(world);
+      spawnQueueNow(world);
       return world.vehicles.filter((v) => v.faction === 'scrapjaw');
     });
     expect(raiders.some((npc) => Object.entries(goodsCount(npc)).some(([good, count]) => good !== 'parts' && count > 0))).toBe(true);
@@ -78,7 +84,7 @@ describe('NPC restraint', () => {
     const { world, npc } = createNpc('buggy');
     sizedUp(world, npc, loadedTrader(world, { x: 33, y: 30 }));
     const alone = shareOfSeeds(world, npc.id, (x, me) => thinkNpc(x, me).kind === 'flee');
-    sizedUp(world, npc, loadedTrader(world, { x: 33, y: 32 }, ['mg', 'mg', 'mg', 'stockEngine']));
+    sizedUp(world, npc, loadedTrader(world, { x: 33, y: 32 }, THREE_GUNS));
     const grouped = shareOfSeeds(world, npc.id, (x, me) => thinkNpc(x, me).kind === 'flee');
     expect(grouped).toBeGreaterThan(0.25);
     expect(grouped).toBeGreaterThan(alone + 0.2);

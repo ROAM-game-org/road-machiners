@@ -36,7 +36,7 @@ describe('barrel lanes', () => {
 
   it('refuses two barrels that cross', () => {
     const forward = part('slugCannon', 2, 7, 0);
-    const across = part('slugCannon', 5, 5, 3);
+    const across = part('slugCannon', 4, 8, 3);
     expect(refused([forward], across)).toEqual({ id: 'barrel' });
     expect(refused([across], forward)).toEqual({ id: 'barrel' });
   });
@@ -54,21 +54,20 @@ describe('barrel lanes', () => {
     expect(refused([slug], part('scanner', 2, 4, 0))).toBeNull();
   });
 
-  it('allows a spare gun on plain cells under a barrel', () => {
+  it('allows a spare gun on body cells under a barrel', () => {
     const found = Object.keys(CHASSIS).flatMap((id) => {
       const g = baseGrid(id);
       const gun = part('slugCannon', 0, 0, 0);
       return mountSpots(g, [], gun, MOUNT_CELLS.weapon as Cell[]).flatMap((spot) => {
         const mounted = { ...gun, ...spot };
-        const plain = barrelCells(id, mounted).find((c) => g.cells[c.y][c.x] === '.');
+        const plain = barrelCells(id, mounted).find((c) => itemCells(part('mg', c.x, c.y, 0)).every((cell) => g.cells[cell.y]?.[cell.x] === 'X'));
         return plain ? [{ id, mounted, plain }] : [];
       });
     })[0];
     expect(found).toBeDefined();
     const spare = part('mg', found.plain.x, found.plain.y, 0);
     const g = baseGrid(found.id);
-    const cells = itemCells(spare);
-    if (cells.every((c) => g.cells[c.y]?.[c.x] === '.')) expect(placementError(g, [found.mounted], spare, null)).toBeNull();
+    expect(placementError(g, [found.mounted], spare, null)).toBeNull();
   });
 
   it('reports the clash in a layout', () => {

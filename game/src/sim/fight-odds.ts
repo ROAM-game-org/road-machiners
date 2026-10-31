@@ -152,8 +152,10 @@ function rates(d: Duel, mySide: Side, theirSide: Side): { mine: number; theirs: 
 function duelRates(world: World, d: Duel): { mine: number; theirs: number } {
   const pairs = SIDES.flatMap((mySide) => SIDES.map((theirSide) => rates(d, mySide, theirSide)));
   const edge = (r: { mine: number; theirs: number }) => firstShare(1 / r.mine, 1 / r.theirs);
-  const best = pairs.reduce((x, y) => (edge(y) > edge(x) ? y : x));
-  const worst = pairs.reduce((x, y) => (edge(y) < edge(x) ? y : x));
+  const better = (x: { mine: number; theirs: number }, y: { mine: number; theirs: number }) => edge(y) > edge(x) || (edge(y) === edge(x) && y.mine > x.mine);
+  const best = pairs.reduce((x, y) => (better(x, y) ? y : x));
+  const worse = (x: { mine: number; theirs: number }, y: { mine: number; theirs: number }) => edge(y) < edge(x) || (edge(y) === edge(x) && y.theirs > x.theirs);
+  const worst = pairs.reduce((x, y) => (worse(x, y) ? y : x));
   const e = speedEdge(world, d.a, d.b);
   return { mine: mix(e, best.mine, worst.mine), theirs: mix(e, best.theirs, worst.theirs) };
 }

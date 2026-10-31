@@ -21,15 +21,13 @@ export function armorQuality(world: World, defId: string, wear: number): number 
     const def = partDef(defId);
     const selfHarm = def.kind === 'accessory' && def.claymore ? def.claymore.selfBlast.damage : 0;
     const shield = THREATS.reduce((sum, round) => sum + (worn.hp * worn.armor) / (round.pen * round.armorShare), 0) / THREATS.length - selfHarm;
-    quality = 1 - Math.exp(-shield / (def.w * def.h) / GEAR_SCORE.armorQualityScale);
+    quality = 1 - Math.exp(-shield / (def.bulk.w * def.bulk.h) / GEAR_SCORE.armorQualityScale);
     qualityCache.set(key, quality);
   }
   return quality;
 }
 
-export type GearScore = ((v: Vehicle) => number) & { spotScorer: (placed: Vehicle) => (v: Vehicle) => number };
-
-export function gearScorer(world: World, p: LoadoutPriorities, bare: Vehicle, paysFuel: boolean): GearScore {
+export function gearScorer(world: World, p: LoadoutPriorities, bare: Vehicle, paysFuel: boolean): (v: Vehicle) => number {
   const edge = Object.fromEntries(SIDE_LETTERS.map((letter) => [letter, baseGrid(bare.chassisId).cells.flat().filter((cell) => cell === letter).length]));
   const target = targetOf(bare);
   const tierOne = Object.values(PARTS).filter((d): d is WeaponDef => d.kind === 'weapon' && d.tier === 1 && !isLineGun(d));
@@ -67,20 +65,11 @@ export function gearScorer(world: World, p: LoadoutPriorities, bare: Vehicle, pa
 
   const cargoValue = (v: Vehicle) => 1 - (1 - Math.min(1, freeCells(v) / bareCells)) ** GEAR_SCORE.cargoCurvePower;
 
-  const total = (armor: number, fire: number, speed: number, cargo: number) =>
-    (p.armor / PRIORITY_TOP) * armor +
-    (p.firepower / PRIORITY_TOP) * fire +
-    GEAR_SCORE.speedWeight * (p.speed / PRIORITY_TOP) * speed +
-    (p.cargo / PRIORITY_TOP) * cargo;
-
-  const score = (v: Vehicle) => total(armorValue(v), fireValue(v), speedValue(v), cargoValue(v));
-  const spotScorer = (placed: Vehicle) => {
-    const armor = armorValue(placed);
-    const speed = speedValue(placed);
-    const cargo = cargoValue(placed);
-    return (v: Vehicle) => total(armor, fireValue(v), speed, cargo);
-  };
-  return Object.assign(score, { spotScorer });
+  return (v) =>
+    (p.armor / PRIORITY_TOP) * armorValue(v) +
+    (p.firepower / PRIORITY_TOP) * fireValue(v) +
+    GEAR_SCORE.speedWeight * (p.speed / PRIORITY_TOP) * speedValue(v) +
+    (p.cargo / PRIORITY_TOP) * cargoValue(v);
 }
 
 function shieldedCells(world: World, v: Vehicle): Map<number, { side: SideLetter; miss: number }> {

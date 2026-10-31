@@ -8,7 +8,7 @@ import { playerVehicle } from './damage';
 import { truckSupplyForSale } from './economy';
 import { makePart } from './factory';
 import { corePart, mountedParts } from './grid';
-import { stowPart } from './inventory';
+import { mountPart, stowPart } from './inventory';
 import { vehicleValue } from './market';
 import { thinkNpc, topGoal } from './npc-activities';
 import { fuelReserveFor } from './npc-service';
@@ -372,7 +372,7 @@ describe('unprompted aid offer', () => {
   it('does not roll for a rich player', () => {
     const { w, npc } = needyScene();
     const me = playerVehicle(w);
-    for (const id of ['flamer', 'slugCannon', 'shotgun', 'longRifle']) expect(stowPart(w, me, makePart(w, id, 0))).toBe(true);
+    for (const id of ['flamer', 'slugCannon', 'shotgun', 'longRifle']) expect(stowPart(w, me, makePart(w, id, 0)) || mountPart(w, me, makePart(w, id, 0))).toBe(true);
     for (const item of me.items) if (item.kind === 'part') item.part.wear = 0;
     expect(vehicleValue(me)).toBeGreaterThan(AID.poorValue);
     onNeedySeen(w, npc);

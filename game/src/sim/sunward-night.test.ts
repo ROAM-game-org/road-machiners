@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { SUNWARD } from '../data/sunward';
 import { RULES } from '../data/rules';
 import { topGoal } from './npc-activities';
@@ -10,6 +10,10 @@ import { dist } from './vec';
 import { orderWorld, riderAt, runFarTo, runTo, seen, watchedFromTheGate } from '../test/sunward-kit';
 
 describe('the night schedule', () => {
+  beforeAll(() => {
+    orderWorld(5);
+  });
+
   it('lets one car out of the Hollow at a time while the player watches, rides to the light without turning back and holds a post until the return', () => {
     let w = watchedFromTheGate(orderWorld(5));
     const dusk = duskTurn(1);

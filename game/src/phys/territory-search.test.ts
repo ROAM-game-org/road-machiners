@@ -9,6 +9,7 @@ import { propReach } from '../sim/mapgen';
 import { topGoal } from '../sim/npc-activities';
 import { collectSalvage, salvageInRange } from '../sim/salvage';
 import { startSearch } from '../sim/search';
+import { spawnQueueNow } from '../sim/spawn';
 import { spotGoal, territoryCaches, territoryEntries, territorySpots } from '../sim/territory';
 import { addVehicle, forceOption, npcBrain, PLAIN_KIT } from '../sim/testkit';
 import { CLEARANCE } from '../sim/nav/layer';
@@ -33,6 +34,7 @@ const TARGETS = [
 
 function baseWorld(): World {
   const w = newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
+  spawnQueueNow(w);
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   return w;
@@ -75,6 +77,7 @@ describe.each(TARGETS)('$look in $territory', ({ territory, look, near }) => {
     while (goal.targetId !== stock.id) goal = spotGoal(w, territory, []);
     npc.brain.goals = [goal];
     forceOption('salvageSeen', 'keep');
+    for (const other of w.salvage) if (other.id !== stock.id) npc.brain.noticed[`salvageSeen:${other.id}`] = w.turn;
 
     let d = buildDrive(w);
     let turns = 0;

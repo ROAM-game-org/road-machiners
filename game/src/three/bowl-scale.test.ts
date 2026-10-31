@@ -1,25 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
-import { startKit } from '../data/start';
 import { playerVehicle } from '../sim/damage';
 import { siteOf } from '../sim/market';
 import { chooseQuestOption, pickTownSection, QUESTS, questView, startQuest } from '../sim/quests';
-import { defaultSetup } from '../sim/settings';
 import { nearestPad } from '../sim/sites';
 import { addState } from '../sim/states';
 import { addVehicle, finishQuest } from '../sim/testkit';
 import type { World } from '../sim/types';
-import { endTurn, newWorld } from '../sim/world';
+import { endTurn } from '../sim/world';
 import { TEST_MAP } from '../test/map';
 import { loadWorld, writeSave } from './save';
+import { standardWorld } from '../test/world-cache';
 import { memoryBackend, SaveSlots } from './save-db';
 
 const SCALE = 'bowl_scale';
 const QUIET_ROAD = 1_000_000;
 
 function quietWorld(): World {
-  const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+  const w = standardWorld(1337);
   w.vehicles = w.vehicles.filter((v) => v.id === playerVehicle(w).id);
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = QUIET_ROAD;
   w.events = [];

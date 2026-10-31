@@ -15,6 +15,8 @@ export type PartKind =
   | "store"
   | "utility";
 
+type PartBulk = { w: number; h: number };
+
 type PartBase = {
   id: string;
   hp: number;
@@ -23,6 +25,7 @@ type PartBase = {
   tier: Tier;
   w: number;
   h: number;
+  bulk: PartBulk;
   mass: number;
   armor: number;
   tall: boolean;
@@ -162,6 +165,7 @@ export type PartDef =
   | UtilityDef;
 
 export type Unpriced<T> = T extends unknown ? Omit<T, 'value'> : never;
+type Unbulked<T> = T extends unknown ? Omit<T, 'value' | 'bulk'> : never;
 
 export const PART_PRICE_MODIFIERS = {
   weapon: { perDamagePerTurn: 0.6667, perRange: 0.6667 },
@@ -199,7 +203,7 @@ const MODIFIERS: { [K in PartKind]: (def: UnpricedByKind[K]) => number } = {
 };
 
 function shieldModifier(d: Unpriced<ShieldDef>): number {
-  return m.armor.perArmorCell * (d.armor + d.blastArmor) * d.w * d.h;
+  return m.armor.perArmorCell * (d.armor + d.blastArmor) * d.bulk.w * d.bulk.h;
 }
 
 function effectTurns(e: UtilityEffect): number {
@@ -233,7 +237,84 @@ function pricePart(def: Unpriced<PartDef>): PartDef {
 
 const RAM_MOUNTS: EdgeLetter[] = ["F", "B"];
 
-const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
+const PART_BULK: Record<string, PartBulk> = {
+  mg: { w: 1, h: 2 },
+  shotgun: { w: 1, h: 2 },
+  longRifle: { w: 1, h: 2 },
+  flamer: { w: 1, h: 2 },
+  pneumobolter: { w: 2, h: 2 },
+  slugCannon: { w: 1, h: 2 },
+  heavyMg: { w: 1, h: 2 },
+  cannon: { w: 2, h: 2 },
+  amRifle: { w: 1, h: 3 },
+  autocannon: { w: 2, h: 2 },
+  recoilless: { w: 1, h: 3 },
+  battleRifle: { w: 1, h: 3 },
+  gatling: { w: 2, h: 2 },
+  rocketRack: { w: 2, h: 2 },
+  sniperCannon: { w: 2, h: 3 },
+  grenadeLauncher: { w: 2, h: 2 },
+  tankGun: { w: 2, h: 3 },
+  flechette: { w: 2, h: 2 },
+  harpoon: { w: 1, h: 2 },
+  sprout: { w: 1, h: 1 },
+  caltrops: { w: 1, h: 1 },
+  oilSpiller: { w: 1, h: 1 },
+  patcherCrane: { w: 1, h: 2 },
+  smokeMortar: { w: 1, h: 2 },
+  flareCannon: { w: 1, h: 1 },
+  scrapersKnife: { w: 1, h: 2 },
+  emitter: { w: 2, h: 2 },
+  stockEngine: { w: 2, h: 2 },
+  tunedEngine: { w: 2, h: 2 },
+  flatFour: { w: 2, h: 2 },
+  workhorseDiesel: { w: 2, h: 2 },
+  racingV6: { w: 2, h: 2 },
+  heavyDiesel: { w: 2, h: 2 },
+  turbine: { w: 2, h: 2 },
+  plates: { w: 1, h: 2 },
+  cage: { w: 1, h: 2 },
+  ram: { w: 3, h: 1 },
+  scrapPanels: { w: 1, h: 2 },
+  ceramicPlates: { w: 1, h: 2 },
+  spacedArmor: { w: 1, h: 2 },
+  reinforcedCage: { w: 1, h: 2 },
+  plowRam: { w: 3, h: 1 },
+  claymoreRam: { w: 3, h: 1 },
+  steelPlate: { w: 1, h: 1 },
+  scrapSheet: { w: 1, h: 1 },
+  ceramicTile: { w: 1, h: 1 },
+  spacedTile: { w: 1, h: 1 },
+  cageSection: { w: 1, h: 1 },
+  reinforcedSection: { w: 1, h: 1 },
+  spikeCluster: { w: 1, h: 1 },
+  spikeStrip: { w: 1, h: 2 },
+  rack: { w: 2, h: 1 },
+  trailerBox: { w: 2, h: 2 },
+  panniers: { w: 1, h: 1 },
+  flatbed: { w: 2, h: 1 },
+  lightFrame: { w: 2, h: 2 },
+  enclosedFrame: { w: 2, h: 2 },
+  heavyFrame: { w: 2, h: 2 },
+  jerrycans: { w: 1, h: 1 },
+  supplyLocker: { w: 1, h: 1 },
+  cab: { w: 1, h: 2 },
+  cabPickup: { w: 3, h: 2 },
+  cabHardtop: { w: 3, h: 2 },
+  transmission: { w: 2, h: 2 },
+  transmissionMid: { w: 2, h: 2 },
+  transmissionHeavy: { w: 2, h: 2 },
+  wheel: { w: 1, h: 2 },
+  wheelMid: { w: 1, h: 2 },
+  wheelHeavy: { w: 1, h: 2 },
+  tank: { w: 1, h: 2 },
+  tankLong: { w: 1, h: 2 },
+  tankMid: { w: 1, h: 2 },
+  tankHeavy: { w: 1, h: 2 },
+  scanner: { w: 1, h: 1 },
+};
+
+const UNPRICED_PARTS: Record<string, Unbulked<PartDef>> = {
   ...UNPRICED_WEAPONS,
   ...UNPRICED_UTILITIES,
   stockEngine: {
@@ -243,7 +324,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     base: 50,
     tier: 1,
     w: 2,
-    h: 2,
+    h: 3,
     mass: 360,
     armor: 4,
     tall: false,
@@ -261,7 +342,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     base: 76.67,
     tier: 2,
     w: 2,
-    h: 2,
+    h: 3,
     mass: 300,
     armor: 4,
     tall: false,
@@ -279,7 +360,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     base: 60,
     tier: 1,
     w: 2,
-    h: 2,
+    h: 3,
     mass: 224,
     armor: 2,
     tall: false,
@@ -297,7 +378,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     base: 90,
     tier: 2,
     w: 2,
-    h: 2,
+    h: 3,
     mass: 320,
     armor: 6,
     tall: false,
@@ -315,7 +396,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     base: 93.33,
     tier: 2,
     w: 2,
-    h: 2,
+    h: 3,
     mass: 240,
     armor: 2,
     tall: false,
@@ -333,7 +414,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     base: 156.67,
     tier: 3,
     w: 2,
-    h: 2,
+    h: 3,
     mass: 280,
     armor: 8,
     tall: false,
@@ -351,7 +432,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     base: 170,
     tier: 3,
     w: 2,
-    h: 2,
+    h: 3,
     mass: 220,
     armor: 3,
     tall: false,
@@ -369,7 +450,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     base: 35.55,
     tier: 2,
     w: 1,
-    h: 2,
+    h: 3,
     mass: 75,
     armor: 12,
     tall: false,
@@ -385,7 +466,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     base: 43.33,
     tier: 1,
     w: 1,
-    h: 2,
+    h: 3,
     mass: 55,
     armor: 2,
     tall: false,
@@ -418,7 +499,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     base: 36.67,
     tier: 1,
     w: 1,
-    h: 2,
+    h: 3,
     mass: 80,
     armor: 5,
     tall: false,
@@ -434,7 +515,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     base: 110,
     tier: 2,
     w: 1,
-    h: 2,
+    h: 3,
     mass: 50,
     armor: 14,
     tall: false,
@@ -450,7 +531,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     base: 20,
     tier: 2,
     w: 1,
-    h: 2,
+    h: 3,
     mass: 65,
     armor: 10,
     tall: false,
@@ -466,7 +547,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     base: 37.78,
     tier: 2,
     w: 1,
-    h: 2,
+    h: 3,
     mass: 60,
     armor: 4,
     tall: false,
@@ -630,7 +711,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     base: 45,
     tier: 1,
     w: 1,
-    h: 2,
+    h: 3,
     mass: 60,
     armor: 3,
     tall: false,
@@ -661,7 +742,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     base: 36.67,
     tier: 2,
     w: 2,
-    h: 2,
+    h: 3,
     mass: 135,
     armor: 1,
     tall: true,
@@ -703,7 +784,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     base: 43.33,
     tier: 2,
     w: 2,
-    h: 2,
+    h: 3,
     mass: 90,
     armor: 1,
     tall: false,
@@ -717,7 +798,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     base: 50,
     tier: 2,
     w: 2,
-    h: 2,
+    h: 3,
     mass: 165,
     armor: 8,
     tall: true,
@@ -731,7 +812,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     base: 60,
     tier: 3,
     w: 2,
-    h: 2,
+    h: 3,
     mass: 150,
     armor: 3,
     tall: true,
@@ -770,40 +851,40 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     id: "cab", kind: "core", hp: 120, base: 26.67, tier: 1, w: 1, h: 2, mass: 80, armor: 3, tall: true, role: "cab",
   },
   cabPickup: {
-    id: "cabPickup", kind: "core", hp: 120, base: 26.67, tier: 1, w: 3, h: 2, mass: 80, armor: 3, tall: true, role: "cab",
+    id: "cabPickup", kind: "core", hp: 120, base: 26.67, tier: 1, w: 3, h: 3, mass: 80, armor: 3, tall: true, role: "cab",
   },
   cabHardtop: {
-    id: "cabHardtop", kind: "core", hp: 120, base: 26.67, tier: 1, w: 3, h: 2, mass: 80, armor: 3, tall: true, role: "cab",
+    id: "cabHardtop", kind: "core", hp: 120, base: 26.67, tier: 1, w: 3, h: 3, mass: 80, armor: 3, tall: true, role: "cab",
   },
   transmission: {
     id: "transmission", kind: "core", hp: 40, base: 36.67, tier: 1, w: 2, h: 2, mass: 60, armor: 3, tall: false, role: "transmission",
   },
   transmissionMid: {
-    id: "transmissionMid", kind: "core", hp: 60, base: 36.67, tier: 1, w: 2, h: 2, mass: 60, armor: 4, tall: false, role: "transmission",
+    id: "transmissionMid", kind: "core", hp: 60, base: 36.67, tier: 1, w: 2, h: 3, mass: 60, armor: 4, tall: false, role: "transmission",
   },
   transmissionHeavy: {
-    id: "transmissionHeavy", kind: "core", hp: 90, base: 36.67, tier: 1, w: 2, h: 2, mass: 60, armor: 6, tall: false, role: "transmission",
+    id: "transmissionHeavy", kind: "core", hp: 90, base: 36.67, tier: 1, w: 2, h: 3, mass: 60, armor: 6, tall: false, role: "transmission",
   },
   wheel: {
     id: "wheel", kind: "core", hp: 30, base: 3.33, tier: 1, w: 1, h: 2, mass: 25, armor: 2, tall: false, role: "wheel",
   },
   wheelMid: {
-    id: "wheelMid", kind: "core", hp: 50, base: 3.33, tier: 1, w: 1, h: 2, mass: 25, armor: 3, tall: false, role: "wheel",
+    id: "wheelMid", kind: "core", hp: 50, base: 3.33, tier: 1, w: 1, h: 3, mass: 25, armor: 3, tall: false, role: "wheel",
   },
   wheelHeavy: {
-    id: "wheelHeavy", kind: "core", hp: 80, base: 3.33, tier: 1, w: 1, h: 2, mass: 25, armor: 5, tall: false, role: "wheel",
+    id: "wheelHeavy", kind: "core", hp: 80, base: 3.33, tier: 1, w: 1, h: 3, mass: 25, armor: 5, tall: false, role: "wheel",
   },
   tank: {
     id: "tank", kind: "core", hp: 30, base: 10, tier: 1, w: 1, h: 2, mass: 30, armor: 1, tall: false, role: "tank",
   },
   tankLong: {
-    id: "tankLong", kind: "core", hp: 30, base: 10, tier: 1, w: 1, h: 2, mass: 30, armor: 1, tall: false, role: "tank",
+    id: "tankLong", kind: "core", hp: 30, base: 10, tier: 1, w: 1, h: 3, mass: 30, armor: 1, tall: false, role: "tank",
   },
   tankMid: {
-    id: "tankMid", kind: "core", hp: 50, base: 10, tier: 1, w: 1, h: 2, mass: 30, armor: 3, tall: false, role: "tank",
+    id: "tankMid", kind: "core", hp: 50, base: 10, tier: 1, w: 1, h: 3, mass: 30, armor: 3, tall: false, role: "tank",
   },
   tankHeavy: {
-    id: "tankHeavy", kind: "core", hp: 80, base: 10, tier: 1, w: 1, h: 2, mass: 30, armor: 6, tall: false, role: "tank",
+    id: "tankHeavy", kind: "core", hp: 80, base: 10, tier: 1, w: 1, h: 3, mass: 30, armor: 6, tall: false, role: "tank",
   },
   scanner: {
     id: "scanner",
@@ -821,10 +902,16 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
 };
 
 export const PARTS: Record<string, PartDef> = Object.fromEntries(
-  Object.entries(UNPRICED_PARTS).map(([id, def]) => [id, pricePart(scaleMass(def))]),
+  Object.entries(UNPRICED_PARTS).map(([id, def]) => [id, pricePart(withBulk(scaleMass(def)))]),
 );
 
-function scaleMass(def: Unpriced<PartDef>): Unpriced<PartDef> {
+function withBulk(def: Unbulked<PartDef>): Unpriced<PartDef> {
+  const bulk = PART_BULK[def.id];
+  if (!bulk) throw new Error(`Part ${def.id} has no bulk. Add it to PART_BULK.`);
+  return { ...def, bulk };
+}
+
+function scaleMass(def: Unbulked<PartDef>): Unbulked<PartDef> {
   if (def.kind === "armor" || def.kind === "accessory") return { ...def, mass: def.mass * MASS_SCALE.armor };
   if (def.kind === "weapon") return { ...def, mass: def.mass * MASS_SCALE.weapon };
   return def;

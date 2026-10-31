@@ -1,7 +1,7 @@
 import type { TruckPaint } from "../data/chassis";
 import { isShield, partDef } from "../data/parts";
 import { PX_PER_METER } from "../three/render/portraitPixels";
-import { bodyRows, cellSteps } from "../sim/body";
+import { spanOf } from "../sim/body";
 import type { Vehicle } from "../sim/types";
 import { chassisSize, type Glow, type Portrait, type TruckPortraits } from "../three/render/truckPortrait";
 import { bindAttr, unbindAttr } from "../text/language";
@@ -14,6 +14,7 @@ import { registerTipSource } from "./touch-tip";
 import "./truck-condition.css";
 
 const CELL = 30;
+const METERS_PER_CELL = 0.65;
 const FLASH_MS = 300;
 const FLASH_TURNS = 2;
 const FLASH_HOLD = 0.65;
@@ -146,7 +147,7 @@ export class TruckConditionView {
   private pointerType = "mouse";
   private pressedId: string | null = null;
 
-  constructor(private readonly portraits: TruckPortraits, private readonly maxRows: number | null) {
+  constructor(private readonly portraits: TruckPortraits, private readonly maxLength: number | null) {
     this.stage.append(this.layers, this.outline, this.marks, this.flashes, this.hit, this.tip);
     this.root.append(this.stage);
     this.hit.addEventListener("pointerdown", (e) => this.pressed(e));
@@ -186,9 +187,9 @@ export class TruckConditionView {
     this.aim = aim;
     this.parts = this.readout.update(vehicle);
     const drawn = portrait ? this.parts.filter((part) => portrait.has(part.id)) : [];
-    const rows = bodyRows(vehicle.chassisId);
-    this.scale = CELL / (PX_PER_METER * cellSteps(vehicle.chassisId).row);
-    if (this.maxRows !== null) this.root.style.zoom = String(Math.min(1, this.maxRows / rows));
+    const length = 2 * spanOf(vehicle.chassisId).half.x;
+    this.scale = CELL / (PX_PER_METER * METERS_PER_CELL);
+    if (this.maxLength !== null) this.root.style.zoom = String(Math.min(1, this.maxLength / length));
     this.size = portrait ?? chassisSize(vehicle.chassisId);
     this.stage.style.width = `${this.size.width * this.scale}px`;
     this.stage.style.height = `${this.size.height * this.scale}px`;

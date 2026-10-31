@@ -1,6 +1,6 @@
 import { partDef } from '../data/parts';
 import { describe, expect, it } from 'vitest';
-import { corePart, itemCells, mountedItems, mountedParts } from './grid';
+import { baseGrid, corePart, mountedItems, mountedParts } from './grid';
 import { applyContactCrash, estimateCrashGeometry, forecastRam, ramHitChance, ramImpact, ramValue } from './crash-contact';
 import { RULES } from '../data/rules';
 import { fileReports } from './crime';
@@ -26,13 +26,13 @@ function crashOf(w: World): Extract<GameEvent, { t: 'collision' }> {
 }
 
 const total = (hits: { damage: number }[]) => hits.reduce((a, h) => a + h.damage, 0);
-const partAt = (v: Vehicle, x: number, y: number) => mountedItems(v).find((it) => itemCells(it).some((c) => c.x === x && c.y === y))!.part;
+const leftWheels = (v: Vehicle) => mountedItems(v).filter((it) => it.part.defId === 'wheel' && it.x === 1).sort((a, b) => a.y - b.y);
 const partOf = (v: Vehicle, defId: string) => mountedParts(v).find((p) => p.defId === defId)!;
 
 function ramToRear(v: Vehicle): void {
   const item = mountedItems(v).find((it) => it.part.defId === 'ram')!;
   const owner = v.items.find((it) => it.id === item.id)!;
-  owner.y = 9;
+  owner.y = baseGrid(v.chassisId).h - 1;
   expect(mountedItems(v).some((it) => it.part.defId === 'ram')).toBe(true);
 }
 
@@ -89,9 +89,9 @@ describe('rams', () => {
       return { v, part: crashOf(w).hitsB[0].part };
     };
     const rear = firstHit(38.5);
-    expect(rear.part).toBe(partAt(rear.v, 1, 7).id);
+    expect(rear.part).toBe(leftWheels(rear.v).at(-1)!.part.id);
     const front = firstHit(41.5);
-    expect(front.part).toBe(partAt(front.v, 1, 2).id);
+    expect(front.part).toBe(leftWheels(front.v)[0].part.id);
   });
 
   it('an obstacle hit lands on the side facing it at full share', () => {

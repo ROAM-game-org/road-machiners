@@ -193,16 +193,22 @@ export function cellRect(chassisId: string, cells: readonly { x: number; y: numb
   };
 }
 
+export function ringMiddles(chassisId: string, y: number): { z0: number; z1: number } {
+  const [left, right] = [0, baseGrid(chassisId).w - 1].map((x) => cellRect(chassisId, [{ x, y }]));
+  return { z0: (left.z0 + left.z1) / 2, z1: (right.z0 + right.z1) / 2 };
+}
+
 export function cellCenter(chassisId: string, x: number, y: number): { x: number; z: number; unit: number } {
   const unit = unitOfRow(chassisId, y);
   const r = singleCellRect(chassisId, x, y, unit);
   return { x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2, unit: unit.index };
 }
 
+export const GRID_CELL = 0.45;
+
 export function cellSteps(chassisId: string): { row: number; col: number } {
-  const { w, h } = baseGrid(chassisId);
-  const { half } = spanOf(chassisId);
-  return { row: (2 * half.x) / (h - 2), col: (2 * half.z) / (w - 2) };
+  chassisDef(chassisId);
+  return { row: GRID_CELL, col: GRID_CELL };
 }
 
 export function bodyRows(chassisId: string): number {
@@ -213,9 +219,10 @@ function singleCellRect(chassisId: string, x: number, y: number, unit: Unit): Om
   const { w, h } = gridContaining(chassisId, x, y);
   const { center, half } = spanOf(chassisId);
   const shift = center - unit.offset;
-  const { row: rowStep, col: colStep } = cellSteps(chassisId);
-  const along = { x0: shift + half.x - y * rowStep, x1: shift + half.x - (y - 1) * rowStep };
-  const across = { z0: -half.z + (x - 1) * colStep, z1: -half.z + x * colStep };
+  const front = shift + ((h - 2) * GRID_CELL) / 2;
+  const left = -((w - 2) * GRID_CELL) / 2;
+  const along = { x0: front - y * GRID_CELL, x1: front - (y - 1) * GRID_CELL };
+  const across = { z0: left + (x - 1) * GRID_CELL, z1: left + x * GRID_CELL };
   const side = ringSign(x, w, -1);
   const end = ringSign(y, h, 1);
   if (side !== 0) return { ...along, z0: side * half.z, z1: side * half.z };
@@ -331,6 +338,23 @@ export function restOn(chassisId: string, rect: CellRect): Rest {
   const samples = rect.x1 > rect.x0 && rect.z1 > rect.z0 ? samplesUnder(map, rect) : [];
   if (samples.length === 0) return restOnEdge(chassisId, rect);
   return cleanSlope(map, samples, rect) ?? restFlat(map, samples, rect) ?? perch(chassisId, map, samples, rect);
+}
+
+export function engineRest(chassisId: string, rect: CellRect): Rest | null {
+  const map = unitShape(chassisId, rect.unit).heights;
+  const samples = samplesUnder(map, rect);
+  if (samples.length === 0) return null;
+  const y = engineAnchor(chassisId).y;
+  const box = clearBox(samples, y - CLIP_TOLERANCE, y + CLIP_TOLERANCE);
+  if (box.empty) return null;
+  const kept = Math.min((box.i1 - box.i0) / sampleSpan(samples, 'i'), (box.j1 - box.j0) / sampleSpan(samples, 'j'));
+  if (kept < MIN_KEEP) return null;
+  const flat = rectOfBox(map, box, rect);
+  const { x, z } = engineAnchor(chassisId);
+  const reachX = Math.min(x - flat.x0, flat.x1 - x);
+  const reachZ = Math.min(z - flat.z0, flat.z1 - z);
+  if (reachX <= 0 || reachZ <= 0) return null;
+  return { y, rect: { unit: rect.unit, x0: x - reachX, x1: x + reachX, z0: z - reachZ, z1: z + reachZ }, perched: false, slope: FLAT };
 }
 
 function restOnEdge(chassisId: string, rect: CellRect): Rest {
@@ -474,9 +498,12 @@ export function lanesAt(chassisId: string, axis: 'column' | 'row', a: number, b:
   const u = unitsOf(chassisId)[unit];
   if (!u) throw new Error(`Chassis ${chassisId} has no unit ${unit}`);
   const shift = center - u.offset;
+  const across = ((w - 2) * GRID_CELL) / 2;
+  const along = ((h - 2) * GRID_CELL) / 2;
+  const inner = (offset: number, count: number) => 1 + Math.min(count - 1, Math.max(0, Math.floor(offset / GRID_CELL)));
   const lane = axis === 'column'
-    ? (z: number) => (z < -half.z ? 0 : z >= half.z ? w - 1 : 1 + Math.floor(((z + half.z) * (w - 2)) / (2 * half.z)))
-    : (x: number) => Math.min(u.rows[1] - 1, Math.max(u.rows[0], x > shift + half.x ? 0 : x <= shift - half.x ? h - 1 : 1 + Math.floor(((shift + half.x - x) * (h - 2)) / (2 * half.x))));
+    ? (z: number) => (z < -half.z ? 0 : z >= half.z ? w - 1 : inner(z + across, w - 2))
+    : (x: number) => Math.min(u.rows[1] - 1, Math.max(u.rows[0], x > shift + half.x ? 0 : x <= shift - half.x ? h - 1 : inner(shift + along - x, h - 2)));
   const first = Math.min(lane(a), lane(b));
   const last = Math.max(lane(a), lane(b));
   return Array.from({ length: last - first + 1 }, (_, i) => first + i);

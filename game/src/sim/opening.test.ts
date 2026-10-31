@@ -45,6 +45,7 @@ const turns = (w: World, n: number): World => {
 function withoutTraffic(w: World): World {
   const next = structuredClone(w);
   next.vehicles = next.vehicles.filter((v) => v.faction === 'player');
+  next.spawnQueue = [];
   return next;
 }
 
