@@ -4,8 +4,9 @@ import { BROKEN_WING, BROKEN_WING_POINT, REGION } from '../data/region';
 import { FALLEN_SUN_DECKS, TERRITORIES } from '../data/territory';
 import { START_KITS } from '../data/start';
 import { PHYSICS } from '../data/physics';
+import { ROCK_LOOKS } from '../data/terrain';
 import { deckAt, deckById, underDeck } from './bridge';
-import { blockingBoxes, boxDistance, boxSegmentDistance, isBakedObstacle, isBreakable, isDriveObstacle, mapObstacles, propBoxes, propKey, propPose, propReach, propShape, segmentCrossesBox, touchesObstacle } from './mapgen';
+import { blockingBoxes, boxDistance, boxSegmentDistance, isBakedObstacle, isBreakable, isDriveObstacle, mapObstacles, propBoxes, propKey, propPose, propReach, propShape, rockModel, segmentCrossesBox, touchesObstacle } from './mapgen';
 import { hulkBoxes } from './body';
 import { ROAD_INDEX } from './road-index';
 import { isFortress } from './sites';
@@ -81,7 +82,7 @@ describe('baked map obstacles', () => {
 });
 
 describe('breakable props', () => {
-  it('only fences, junk piles and dead trees break', () => {
+  it('only fences, junk piles, dead trees, signs and barrels break', () => {
     const landmarks = mapObstacles(mapWith(PROP_KINDS.filter((k) => k !== 'rock').map((kind, i) => prop(kind, 10 + i * 10))));
     const others: Obstacle[] = [
       { id: 'rock0', pos: { x: 10, y: 50 }, r: 1, kind: 'rock' },
@@ -91,7 +92,7 @@ describe('breakable props', () => {
       { id: 'site-a', pos: { x: 10, y: 50 }, r: 1, kind: 'site' },
     ];
 
-    expect(landmarks.filter(isBreakable).map((o) => (o as Landmark).look).sort()).toEqual(['deadTree', 'fence', 'junk']);
+    expect(landmarks.filter(isBreakable).map((o) => (o as Landmark).look).sort()).toEqual(['barrel', 'deadTree', 'fence', 'junk', 'roadSign', 'routeSign']);
     expect(others.filter(isBreakable)).toEqual([]);
   });
 });
@@ -108,7 +109,7 @@ describe('world from the baked map', () => {
   });
 
   it('places the same baked props for every world seed', () => {
-    const bakedOf = (seed: number) => newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming')).obstacles.filter(isBakedObstacle);
+    const bakedOf = (seed: number) => standardWorld(seed).obstacles.filter(isBakedObstacle);
     expect(bakedOf(7)).toEqual(bakedOf(1337));
   });
 
@@ -173,6 +174,37 @@ describe('world from the baked map', () => {
   });
 });
 
+describe('rock shapes', () => {
+  const ids = Array.from({ length: 600 }, (_, k) => `rock${k}`);
+  const rockAt = (id: string, r = 1.5): Obstacle => ({ id, pos: { x: 12, y: 34 }, r, kind: 'rock' });
+
+  it('picks the shape from the id alone', () => {
+    expect(ids.map(rockModel)).toEqual(ids.map(rockModel));
+    expect(propPose(rockAt('rock41', 1)).model).toBe(propPose(rockAt('rock41', 2.5)).model);
+  });
+
+  it('draws all three shapes in shares near their weights', () => {
+    const shares = new Map<string, number>();
+    for (const id of ids) shares.set(rockModel(id), (shares.get(rockModel(id)) ?? 0) + 1 / ids.length);
+
+    for (const look of ROCK_LOOKS) expect(shares.get(look.model) ?? 0).toBeCloseTo(look.weight, 0);
+    expect(shares.size).toBe(ROCK_LOOKS.length);
+  });
+
+  it('keeps every shape inside the rock circle', () => {
+    for (const look of ROCK_LOOKS) {
+      const id = ids.find((k) => rockModel(k) === look.model);
+      if (id === undefined) throw new Error(`No id picks ${look.model}`);
+      const o = rockAt(id);
+      for (const b of propBoxes(o)) {
+        const corners = [-1, 1].flatMap((sx) => [-1, 1].map((sy) => ({ x: b.center.x + sx * b.half.x * b.axis.x - sy * b.half.y * b.axis.y, y: b.center.y + sx * b.half.x * b.axis.y + sy * b.half.y * b.axis.x })));
+        const reach = Math.max(...corners.map((c) => dist(c, o.pos)));
+        expect(reach).toBeLessThanOrEqual(o.r * 1.1);
+      }
+    }
+  });
+});
+
 describe('prop poses', () => {
   const S = PHYSICS.metersPerTile;
   const even = (s: number) => ({ x: s, y: s, z: s });
@@ -181,7 +213,7 @@ describe('prop poses', () => {
   it('turns and sizes a rock by its id and radius', () => {
     const pose = propPose({ id: 'rock7', pos: { x: 12, y: 34 }, r: 1.5, kind: 'rock' });
 
-    expect(pose.model).toBe('rock');
+    expect(pose.model).toBe(rockModel('rock7'));
     expect(pose.pos).toEqual({ x: 12, y: 34 });
     expect(pose.yaw).toBeCloseTo(-0.8441973181907088 * Math.PI * 2, 12);
     expect(pose.scale).toEqual(even(1.5 * S));
@@ -201,7 +233,7 @@ describe('prop poses', () => {
     const turned = propBoxes(hulk('bus', Math.PI / 2));
 
     expect(propPose(hulk('bus', 0.4))).toEqual({ model: 'hulk', chassisId: 'bus', pos: { x: 12, y: 34 }, yaw: 0.4, scale: even(1) });
-    expect(flat.map((b) => b.z0)).toEqual(hulkBoxes('bus').map((b) => b.z0));
+    expect(flat.map((b) => b.z0)).toEqual(hulkBoxes('bus', undefined).map((b) => b.box.z0));
     flat.forEach((b, i) => {
       expect(turned[i].center.x - 12).toBeCloseTo(-(b.center.y - 34), 9);
       expect(turned[i].center.y - 34).toBeCloseTo(b.center.x - 12, 9);

@@ -7,7 +7,7 @@ import { aimFor, isSoftTarget } from './aim';
 
 function duel(foeParts: string[]) {
   const w = emptyWorld({ x: 30, y: 30 });
-  const foe = addVehicle(w, 'raiders', 'buggy', foeParts, { x: 50, y: 30 });
+  const foe = addVehicle(w, 'scrapjaw', 'buggy', foeParts, { x: 50, y: 30 });
   foe.heading = Math.PI;
   return { w, foe, weapon: vehicleStats(w, playerVehicle(w)).weapons[0] };
 }
@@ -33,7 +33,7 @@ describe('aimFor', () => {
 describe('isSoftTarget', () => {
   it('takes an unarmored foe and leaves one that stops most of the round', () => {
     const bare = duel(['mg', 'stockEngine']);
-    const plated = duel(['mg', 'stockEngine', 'plates', 'plates', 'plates', 'plates']);
+    const plated = duel(['mg', 'stockEngine', ...Array.from({ length: 10 }, () => 'plates')]);
 
     expect(isSoftTarget(bare.w, bare.foe)).toBe(true);
     expect(isSoftTarget(plated.w, plated.foe)).toBe(false);

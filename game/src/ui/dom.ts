@@ -1,4 +1,4 @@
-import { bindAttr, boundMsg, TEXT_ATTRS, textNode, type TextAttr } from '../text/language';
+import { bindAttr, boundMsg, TEXT_ATTRS, textNode, unbindAttr, type TextAttr } from '../text/language';
 import { Msg, VERBATIM, type DevLocale } from '../text/msg';
 
 type TextAttrs = { [K in TextAttr]?: Msg };
@@ -64,12 +64,21 @@ export function topRight(): HTMLElement {
   return row;
 }
 
-export function rightDock(): HTMLElement {
+export function rightColumn(): HTMLElement {
   const root = uiRoot();
-  const found = root.querySelector<HTMLElement>(':scope > .right-dock');
+  const found = root.querySelector<HTMLElement>(':scope > .right-column');
   if (found) return found;
-  const dock = el('div', { class: 'right-dock' });
-  root.append(dock);
+  const column = el('div', { class: 'right-column' });
+  root.append(column);
+  return column;
+}
+
+export function rightDock(): HTMLElement {
+  const column = rightColumn();
+  const found = column.querySelector<HTMLElement>(':scope > .right-dock');
+  if (found) return found;
+  const dock = el('div', { class: 'right-dock', 'data-drawer-frame': 'radio' });
+  column.append(dock);
   return dock;
 }
 
@@ -108,13 +117,23 @@ export function disabledWith(reason: Msg | null, onclick: () => void): ClickAttr
   return { onclick: () => {}, 'aria-disabled': 'true', 'data-reason': reason };
 }
 
+export function markDisabled(node: HTMLElement, reason: Msg | null): void {
+  if (reason === null) {
+    node.removeAttribute('aria-disabled');
+    unbindAttr(node, 'data-reason');
+    return;
+  }
+  node.setAttribute('aria-disabled', 'true');
+  bindAttr(node, 'data-reason', reason);
+}
+
 function bindText(node: HTMLElement, k: string, msg: Msg): void {
   const attr = TEXT_ATTRS.find((a) => a === k);
   if (!attr) throw new Error(`Attribute "${k}" does not take text`);
   bindAttr(node, attr, msg);
 }
 
-export type LayoutFaultKind = "page-overflow" | "clipped-text" | "text-escapes" | "control-overlap" | "unreachable-control" | "missing-glyphs" | "leak";
+export type LayoutFaultKind = "page-overflow" | "clipped-text" | "text-escapes" | "control-overlap" | "unreachable-control" | "missing-glyphs" | "leak" | "sideways-overflow" | "covered-control" | "small-target" | "key-cap";
 export type LayoutFault = { kind: LayoutFaultKind; path: string; text: string; sizes: string };
 export type LayoutOptions = { locale: DevLocale; allow: readonly string[]; glyphs: { font: string; letter: string } };
 
@@ -126,6 +145,24 @@ export function clipped(box: { clientWidth: number; clientHeight: number; scroll
   const wide = clips.x && box.scrollWidth > box.clientWidth + SLACK_PX;
   const tall = clips.y && box.scrollHeight > box.clientHeight + SLACK_PX;
   return wide || tall;
+}
+
+export function sidewaysOverflow(box: { scrollWidth: number; clientWidth: number }): boolean {
+  return box.scrollWidth > box.clientWidth + SLACK_PX;
+}
+
+export function coveredControl(hit: Element | null, control: Element): boolean {
+  return hit === null || !(hit === control || control.contains(hit));
+}
+
+export function smallTarget(box: Box, min: number): boolean {
+  if (box.right <= box.left || box.bottom <= box.top) return false;
+  return box.right - box.left < min - SLACK_PX || box.bottom - box.top < min - SLACK_PX;
+}
+
+export function outsideViewport(box: Box, viewport: { width: number }): boolean {
+  if (box.right <= box.left) return false;
+  return box.left < -SLACK_PX || box.right > viewport.width + SLACK_PX;
 }
 
 export function escapes(text: Box, clip: Box): boolean {
@@ -235,7 +272,8 @@ function escapeFaults(root: Element): LayoutFault[] {
 
 function controls(root: Element): HTMLElement[] {
   const modal = [...root.querySelectorAll(".modal")].find(isShown);
-  return [...(modal ?? root).querySelectorAll<HTMLElement>(CONTROLS)].filter(isShown);
+  const menu = modal ? [...root.querySelectorAll<HTMLElement>(".game-menu .menu-button")] : [];
+  return [...(modal ?? root).querySelectorAll<HTMLElement>(CONTROLS), ...menu].filter(isShown);
 }
 
 function scrolledBox(el: Element): Box {
@@ -297,4 +335,77 @@ export function findLayoutFaults(root: Element, opts: LayoutOptions): LayoutFaul
     ...reachFaults(root),
     ...(opts.locale === "ru" ? leakFaults(root, opts.allow) : []),
   ];
+}
+
+export type MobileOptions = { viewportWidth: number; primary: readonly string[]; minTarget: number; sidewaysOk: readonly string[]; smallOk: readonly string[] };
+
+function hasClippingAncestor(el: Element): boolean {
+  for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) {
+    if (getComputedStyle(node).overflowX !== "visible") return true;
+  }
+  return false;
+}
+
+function scrollerFaults(root: Element, okSelectors: readonly string[]): LayoutFault[] {
+  return [...root.querySelectorAll("*")].flatMap((el) => {
+    if (!scrolls(getComputedStyle(el).overflowX) || !isShown(el) || !sidewaysOverflow(el)) return [];
+    if (okSelectors.some((selector) => el.matches(selector))) return [];
+    return [{ kind: "sideways-overflow", path: cssPath(el), text: "", sizes: `client ${el.clientWidth}, scroll ${el.scrollWidth}` }];
+  });
+}
+
+function offscreenFaults(root: Element, viewportWidth: number, okSelectors: readonly string[]): LayoutFault[] {
+  const viewport = { width: viewportWidth };
+  return [...root.querySelectorAll("*")].flatMap((el) => {
+    if (!isShown(el) || hasClippingAncestor(el) || okSelectors.some((selector) => el.matches(selector))) return [];
+    const box = el.getBoundingClientRect();
+    if (!outsideViewport(box, viewport)) return [];
+    return [{ kind: "sideways-overflow", path: cssPath(el), text: "", sizes: `${sizeOf(box)}, window ${viewport.width}` }];
+  });
+}
+
+function sidewaysFaults(root: Element, viewportWidth: number, okSelectors: readonly string[]): LayoutFault[] {
+  const page = document.documentElement;
+  const faults = sidewaysOverflow({ scrollWidth: page.scrollWidth, clientWidth: viewportWidth }) ? [{ kind: "sideways-overflow" as const, path: "html", text: "", sizes: `scroll ${page.scrollWidth}, device ${viewportWidth}` }] : [];
+  return [...faults, ...scrollerFaults(root, okSelectors), ...offscreenFaults(root, viewportWidth, okSelectors)];
+}
+
+function coveredFaults(root: Element, primary: readonly string[]): LayoutFault[] {
+  return primary.flatMap((selector) =>
+    [...root.querySelectorAll<HTMLElement>(selector)].filter(isShown).flatMap((el) => {
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2);
+      if (!coveredControl(hit, el)) return [];
+      return [{ kind: "covered-control" as const, path: cssPath(el), text: el.innerText.trim(), sizes: `${sizeOf(r)}, hit ${hit ? cssPath(hit) : "nothing"}` }];
+    }),
+  );
+}
+
+function smallFaults(root: Element, min: number, okSelectors: readonly string[]): LayoutFault[] {
+  return controls(root)
+    .filter((el) => !(el as HTMLButtonElement).disabled && !okSelectors.some((selector) => el.matches(selector)))
+    .flatMap((el) => {
+      const box = el.getBoundingClientRect();
+      if (!smallTarget(box, min)) return [];
+      return [{ kind: "small-target" as const, path: cssPath(el), text: el.innerText.trim(), sizes: sizeOf(box) }];
+    });
+}
+
+const KEY_CAP = /\[(?:[A-Z0-9]|Esc)\]|\([A-Z]\)/;
+
+export function namesKey(text: string): boolean {
+  return KEY_CAP.test(text);
+}
+
+export function keyCapFaults(root: Element): LayoutFault[] {
+  const shownText = textNodes(root).filter((node) => namesKey(node.textContent!)).map((node) => ({ el: node.parentElement!, text: node.textContent!.trim() }));
+  const shownAttrs = [...root.querySelectorAll<HTMLElement>("[title], [data-reason]")]
+    .filter(isShown)
+    .map((el) => ({ el, text: `${el.getAttribute("title") ?? ""} ${el.getAttribute("data-reason") ?? ""}` }))
+    .filter((hit) => namesKey(hit.text));
+  return [...shownText, ...shownAttrs].map((hit) => ({ kind: "key-cap" as const, path: cssPath(hit.el), text: hit.text.trim(), sizes: "" }));
+}
+
+export function findMobileFaults(root: Element, opts: MobileOptions): LayoutFault[] {
+  return [...sidewaysFaults(root, opts.viewportWidth, opts.sidewaysOk), ...coveredFaults(root, opts.primary), ...smallFaults(root, opts.minTarget, opts.smallOk), ...keyCapFaults(root)];
 }

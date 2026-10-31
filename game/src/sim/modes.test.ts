@@ -4,9 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { GAME_MODES } from '../data/modes';
 import { startKit } from '../data/start';
 import { TEST_MAP } from '../test/map';
+import { standardWorld } from '../test/world-cache';
 import { defaultSetup, modeKit, modeMap, modeRules, modeRulesOf } from './settings';
 import { highwayMap } from './highway';
-import { furyRoadWorld } from './testkit';
+import { chaosHighwayWorld } from './testkit';
 import { newWorld } from './world';
 import type { World } from './types';
 
@@ -22,15 +23,15 @@ function fingerprint(w: World): object {
 
 describe('game mode rules', () => {
   it('keeps every Roaming rule on and plays no run', () => {
-    const world = newWorld(7, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    const world = standardWorld(7);
     const { run, ...open } = modeRules(world);
 
     expect(run).toBe(false);
     expect(Object.values(open).every((on) => on)).toBe(true);
   });
 
-  it('turns every open-world rule but NPC knockouts off in a Fury Road world and plays a run', () => {
-    const world = furyRoadWorld(7);
+  it('turns every open-world rule but NPC knockouts off in a Chaos Highway world and plays a run', () => {
+    const world = chaosHighwayWorld(7);
     const { run, npcKnockouts, ...open } = modeRules(world);
 
     expect(run).toBe(true);
@@ -40,68 +41,70 @@ describe('game mode rules', () => {
 
   it('names each mode difference in its row', () => {
     expect(GAME_MODES.roaming).toEqual({
-      rules: { traffic: true, looting: true, npcKnockouts: true, playerKnockouts: true, yielding: true, radio: true, rescue: true, roadWrecks: true, run: false },
+      rules: { traffic: true, looting: true, npcKnockouts: true, playerKnockouts: true, yielding: true, radio: true, rescue: true, roadWrecks: true, run: false, standing: true, bounties: true },
       kit: null,
       map: 'icarus',
+      opening: null,
     });
-    expect(GAME_MODES.furyRoad).toEqual({
-      rules: { traffic: false, looting: false, npcKnockouts: true, playerKnockouts: false, yielding: false, radio: false, rescue: false, roadWrecks: false, run: true },
-      kit: 'furyRoad',
+    expect(GAME_MODES.chaosHighway).toEqual({
+      rules: { traffic: false, looting: false, npcKnockouts: true, playerKnockouts: false, yielding: false, radio: false, rescue: false, roadWrecks: false, run: true, standing: false, bounties: false },
+      kit: 'chaosHighway',
       map: 'highway',
+      opening: 'chaos_highway_intro',
     });
   });
 
   it('reads a mode row before a world exists', () => {
     expect(modeMap('roaming')).toBe('icarus');
-    expect(modeMap('furyRoad')).toBe('highway');
-    expect(modeRulesOf('furyRoad')).toBe(GAME_MODES.furyRoad.rules);
-    expect(() => modeMap('fury' as never)).toThrow(/Unknown game mode fury/);
+    expect(modeMap('chaosHighway')).toBe('highway');
+    expect(modeRulesOf('chaosHighway')).toBe(GAME_MODES.chaosHighway.rules);
+    expect(() => modeMap('chaos' as never)).toThrow(/Unknown game mode chaos/);
   });
 
   it('throws on a mode that is not a game mode', () => {
-    const world = newWorld(7, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
-    world.setup = { ...world.setup, mode: 'fury' as never };
+    const world = standardWorld(7);
+    world.setup = { ...world.setup, mode: 'chaos' as never };
 
-    expect(() => modeRules(world)).toThrow(/Unknown game mode fury/);
+    expect(() => modeRules(world)).toThrow(/Unknown game mode chaos/);
   });
 
-  it('gives Roaming the configured kit and Fury Road its own', () => {
+  it('gives Roaming the configured kit and Chaos Highway its own', () => {
     expect(modeKit('roaming', 'standard')).toBe('standard');
-    expect(modeKit('furyRoad', 'standard')).toBe('furyRoad');
-    expect(GAME_MODES.furyRoad.kit).toBe('furyRoad');
+    expect(modeKit('chaosHighway', 'standard')).toBe('chaosHighway');
+    expect(GAME_MODES.chaosHighway.kit).toBe('chaosHighway');
   });
 });
 
 describe('a new world by mode', () => {
-  it('builds a Roaming world exactly as before the Fury Road mode', () => {
-    const world = newWorld(7, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+  it('builds a Roaming world as before the Chaos Highway mode, with the Hollow filled at the start', () => {
+    const world = standardWorld(7);
 
-    expect(world.furyRoad).toBeNull();
+    expect(world.chaosHighway).toBeNull();
     expect(fingerprint(world)).toEqual({
-      streams: [37812132, -1753180504, 1468231572, 1936023925],
-      nextId: 1136,
-      counts: [22, 3780, 111, 7],
-      npcs: [['buggy', 119.94, 84.79], ['buggy', 320.72, 387.67], ['buggy', 322.57, 387.83]],
-      bowlStock: ['harpoon', 'scrapPanels', 'smokeMortar', 'ceramicPlates', 'autocannon', 'smokeMortar', 'tankGun', 'ceramicPlates', 'stockEngine'],
+      streams: [-1746535844, -1038920240, -1818829172, 1936023925],
+      nextId: 2076,
+      counts: [23, 6048, 128, 7],
+      npcs: [['trader', 118.5, 573.27], ['trader', 116.61, 583.5], ['buggy', 150.57, 103.44]],
+      bowlStock: ['harpoon', 'caltrops', 'scrapersKnife', 'heavyMg', 'jerrycans', 'rack', 'lightFrame', 'lightFrame', 'spikeStrip', 'stockEngine'],
     });
   });
 
-  it('starts a Fury Road world with no traffic, salvage, shops or road wrecks', () => {
-    const world = furyRoadWorld(7);
+  it('starts a Chaos Highway world with no traffic, salvage, shops or road wrecks', () => {
+    const world = chaosHighwayWorld(7);
 
     expect(world.vehicles.map((v) => v.faction)).toEqual(['player', 'player']);
     expect(world.salvage).toEqual([]);
     expect(world.shops).toEqual({});
     expect(world.obstacles.some((o) => /^wreck\d+$/.test(o.id))).toBe(false);
-    expect(world.furyRoad?.window).toBe(0);
+    expect(world.chaosHighway?.window).toBe(0);
   });
 
-  it('gives the Fury Road player the Fury Road kit with no opening', () => {
-    const world = furyRoadWorld(7);
+  it('gives the Chaos Highway player the Chaos Highway kit with no opening', () => {
+    const world = chaosHighwayWorld(7);
 
-    expect(world.player.money).toBe(20000);
+    expect(world.player.money).toBe(80);
     expect(world.player.autoRepair).toBe(true);
-    expect(world.vehicles[0].items.filter((it) => it.kind === 'good' && it.good === 'parts')).toHaveLength(4);
+    expect(world.vehicles[0].items.filter((it) => it.kind === 'good' && it.good === 'parts')).toHaveLength(1);
   });
 });
 
@@ -110,14 +113,14 @@ describe('a world and its map', () => {
     expect(() => newWorld(7, startKit('standard'), highwayMap(7, 0), defaultSetup('roaming'))).toThrow(/needs towns/);
   });
 
-  it('refuses a Fury Road world on Icarus', () => {
-    expect(() => newWorld(7, startKit('furyRoad'), TEST_MAP, defaultSetup('furyRoad'))).toThrow(/highway window 0/);
+  it('refuses a Chaos Highway world on Icarus', () => {
+    expect(() => newWorld(7, startKit('chaosHighway'), TEST_MAP, defaultSetup('chaosHighway'))).toThrow(/starts on a highway/);
   });
 });
 
 const SOURCE = new URL('..', import.meta.url).pathname;
 const MODE_LISTS = ['data/modes.ts', 'ui/new-game.ts', 'three/save-migrations.ts'];
-const MODE_ID_CHECK = /[!=]==?\s*'(furyRoad|roaming)'|'(furyRoad|roaming)'\s*[!=]==?/;
+const MODE_ID_CHECK = /[!=]==?\s*'(chaosHighway|roaming)'|'(chaosHighway|roaming)'\s*[!=]==?/;
 
 function sourceFiles(): string[] {
   return readdirSync(SOURCE, { recursive: true, encoding: 'utf8' })

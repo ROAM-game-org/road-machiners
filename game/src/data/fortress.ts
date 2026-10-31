@@ -1,11 +1,11 @@
 
 export type FortressShape = 'circle' | 'square' | 'bastioned';
-export type FortressStyle = 'pumpworks' | 'cistern' | 'shipMetal' | 'scrap' | 'patchwork' | 'compound' | 'ring' | 'yard';
+export type FortressStyle = 'pumpworks' | 'cistern' | 'shipMetal' | 'scrap' | 'patchwork' | 'compound' | 'ring' | 'yard' | 'outpost';
 export type FortressKind = 'wall' | 'tower' | 'gate' | 'inner';
 export type FortressBastions = { capitals: readonly number[]; curtain: number; salient: number; gorge: number; flank: number };
 export type FortressPit = { margin: number; terraceWidth: number; stepHeight: number; terraces: number };
 export type FortressRock = { from: number; to: number };
-export type FortressSite = { shape: FortressShape; turn: number; style: FortressStyle; bastions?: FortressBastions; towers?: boolean; towerEvery?: number; pit?: FortressPit; rock?: readonly FortressRock[] };
+export type FortressSite = { shape: FortressShape; turn: number; style: FortressStyle; bastions?: FortressBastions; roadFort?: boolean; towers?: boolean; towerEvery?: number; pit?: FortressPit; rock?: readonly FortressRock[] };
 
 export type FortressGate = { width: number; depth: number; height: number };
 export type FortressStyleDef = { flush: boolean; gate: FortressGate; gateFlare: number; pieces: readonly FortressKind[] };
@@ -24,9 +24,14 @@ export const FORTRESS_SITES: Record<string, FortressSite> = {
   'pump-station': { shape: 'square', turn: 0, style: 'pumpworks' },
   granary: { shape: 'circle', turn: 36, style: 'ring', towers: false },
   'salvage-yard': { shape: 'square', turn: 45, style: 'yard' },
+  outpost: { shape: 'square', turn: 0, style: 'outpost', roadFort: true },
   scrapjaw: { shape: 'circle', turn: -10, style: 'scrap' },
   kiln: { shape: 'square', turn: 93, style: 'scrap' },
+  'marshal-post': { shape: 'square', turn: 77, style: 'compound' },
+  'sunward-hollow': { shape: 'circle', turn: 0, style: 'scrap' },
 };
+
+export const NOSE_FRONT = 82.85;
 
 export const NOSE_APRON = { height: 1.25, run: 10, clear: 4, ramp: 4 };
 
@@ -55,4 +60,20 @@ export const FORTRESS_STYLES: Record<FortressStyle, FortressStyleDef> = {
   ring: { flush: true, gate: { width: 2, depth: 1, height: 3 }, gateFlare: 0, pieces: ['wall', 'gate'] },
   yard: { flush: true, gate: { width: 2.5, depth: 1, height: 3 }, gateFlare: 0, pieces: ['wall', 'tower', 'gate'] },
   shipMetal: { flush: true, gate: { width: 6, depth: 1.5, height: 4.5 }, gateFlare: 0, pieces: ['wall', 'tower', 'gate'] },
+  outpost: { flush: true, gate: { width: 6, depth: 0.75, height: 4 }, gateFlare: 0, pieces: ['wall', 'tower', 'gate'] },
+};
+
+export type FortressLampPiece = 'wall' | 'tower' | 'gate';
+export type FortressLampMount = { face: number; height: number };
+
+export const FORTRESS_LAMPS: Record<FortressStyle, Partial<Record<FortressLampPiece, FortressLampMount>>> = {
+  pumpworks: { wall: { face: 0.24, height: 2.3 }, tower: { face: 0.63, height: 2.3 }, gate: { face: 0.23, height: 1.6 } },
+  cistern: { wall: { face: 0.16, height: 2.3 }, tower: { face: 0.65, height: 2.9 }, gate: { face: 0.09, height: 1 } },
+  shipMetal: { wall: { face: 0.32, height: 2.3 }, tower: { face: 0.65, height: 2.3 }, gate: { face: 0.08, height: 1.6 } },
+  scrap: { wall: { face: 0.34, height: 2.3 }, tower: { face: 0.61, height: 2.3 }, gate: { face: 0.35, height: 1.6 } },
+  patchwork: { wall: { face: 0.35, height: 2.3 }, tower: { face: 0.71, height: 2.3 }, gate: { face: 0.15, height: 1.6 } },
+  compound: { wall: { face: 0.34, height: 2.3 }, tower: { face: 0.65, height: 2.3 }, gate: { face: 0.13, height: 2.4 } },
+  ring: { wall: { face: 0.34, height: 2.3 }, gate: { face: 0.02, height: 2 } },
+  yard: { wall: { face: 0.27, height: 2.3 }, tower: { face: 0.65, height: 2.3 }, gate: { face: 0.18, height: 1.6 } },
+  outpost: { wall: { face: 0.26, height: 2.3 }, tower: { face: 0.62, height: 2.3 }, gate: { face: 0, height: 3.2 } },
 };

@@ -1,7 +1,11 @@
 
-import type { Faction, StateKindId } from '../sim/types';
+import type { NpcFactionId, StateKindId } from '../sim/types';
+import { CREW, HIRE } from './npc-behavior';
 import { RULES } from './rules';
 import { START_KITS } from './start';
+import { SUNWARD } from './sunward';
+import { BOUNTY } from './market';
+import { CRATE_MASS } from './goods';
 
 export const NPC_RESOURCES = {
   money: START_KITS.standard.money,
@@ -9,7 +13,7 @@ export const NPC_RESOURCES = {
   supplies: START_KITS.standard.supplies,
 };
 
-export type TraitId = 'trader' | 'scavenger' | 'raider' | 'scumbag' | 'coward' | 'lawman' | 'courier' | 'roamer' | 'vulture' | 'supplier' | 'guard' | 'merc' | 'brave';
+export type TraitId = 'trader' | 'scavenger' | 'raider' | 'scumbag' | 'coward' | 'lawman' | 'courier' | 'roamer' | 'vulture' | 'supplier' | 'guard' | 'merc' | 'brave' | 'cultist' | 'marshal';
 
 export type Weighted<T> = { value: T; weight: number };
 export type Load = { kg: number; cells: number };
@@ -18,6 +22,7 @@ export type SpareTable = { pool: Weighted<string | null>[]; count: Weighted<numb
 export type GearLevel = 'poor' | 'light' | 'standard' | 'heavy' | 'loaded';
 export const GEAR_LEVEL_IDS: readonly GearLevel[] = ['poor', 'light', 'standard', 'heavy', 'loaded'];
 export type NpcLoadoutTable = {
+  armed: boolean;
   levels: Weighted<GearLevel>[];
   chassis: Weighted<string>[];
   priorities: LoadoutPriorities;
@@ -25,6 +30,7 @@ export type NpcLoadoutTable = {
   goods: Weighted<CargoRoll | null>[];
   spares: SpareTable | null;
   haul: Load;
+  minSpeed: number;
 };
 
 export type LoadoutPriorities = { speed: number; firepower: number; armor: number; cargo: number };
@@ -32,20 +38,21 @@ export const PRIORITY_TOP = 3;
 export const SPEED_SHARE = { low: 0.4, high: 0.6 };
 
 export const MIN_NPC_SPEED = RULES.limpSpeed * 2;
+export const RAIDER_CHASE_SPEED = 3.9;
 
 export const GEAR_DRAWS = 3;
 export const GEAR_WHIM = 0.1;
 
-export const GEAR_SCORE = { armorQualityScale: 28, armorCurvePower: 2, gunSaturation: 2, gunCurvePower: 0.5, speedWeight: 0.75, cargoCurvePower: 2 };
+export const GEAR_SCORE = { armorQualityScale: 28, armorCurvePower: 2, gunSaturation: 2, gunCurvePower: 0.5, speedWeight: 0.75, cargoCurvePower: 2, minOpenArcShare: 0.5 };
 
 const GOOD_WEAR: Weighted<number>[] = [{ value: 2, weight: 1 }, { value: 3, weight: 3 }, { value: 4, weight: 12 }];
 
 export const GEAR_LEVELS: Record<GearLevel, { money: number; wear: Weighted<number>[]; cargo: number }> = {
-  poor: { money: 125000, wear: [{ value: 3, weight: 1 }, { value: 4, weight: 15 }], cargo: 0.5 },
-  light: { money: 146000, wear: GOOD_WEAR, cargo: 0.75 },
-  standard: { money: 171000, wear: GOOD_WEAR, cargo: 1 },
-  heavy: { money: 208000, wear: GOOD_WEAR, cargo: 1 },
-  loaded: { money: 275000, wear: GOOD_WEAR, cargo: 1.5 },
+  poor: { money: 1250, wear: [{ value: 3, weight: 1 }, { value: 4, weight: 15 }], cargo: 0.5 },
+  light: { money: 1460, wear: GOOD_WEAR, cargo: 0.75 },
+  standard: { money: 1710, wear: GOOD_WEAR, cargo: 1 },
+  heavy: { money: 2080, wear: GOOD_WEAR, cargo: 1 },
+  loaded: { money: 2750, wear: GOOD_WEAR, cargo: 1.5 },
 };
 
 const TRADER_SPARES: SpareTable = {
@@ -66,11 +73,17 @@ const TRADER_SPARES: SpareTable = {
   ],
 };
 
-export type SpawnPlace = { kind: 'camp' } | { kind: 'town' } | { kind: 'sites'; ids: string[] } | { kind: 'escort'; of: string };
+export type SpawnPlace = { kind: 'camp' } | { kind: 'town' } | { kind: 'sites'; ids: string[] } | { kind: 'escort'; of: string } | { kind: 'hollow' };
+
+export type Allegiance =
+  | { kind: 'site'; fallback: NpcFactionId }
+  | { kind: 'leader'; fallback: NpcFactionId }
+  | { kind: 'fixed'; faction: NpcFactionId }
+  | { kind: 'town' };
 
 export type NpcTemplate = {
   id: string;
-  faction: Faction;
+  allegiance: Allegiance;
   traits: TraitId[];
   extraTraits: { trait: TraitId; chance: number }[];
   loadout: NpcLoadoutTable;
@@ -78,6 +91,7 @@ export type NpcTemplate = {
   fightStyle: 'hold' | 'circle';
   money: number;
   cap: number;
+  pairs: boolean;
   interval: number;
   spawn: SpawnPlace;
 };
@@ -90,6 +104,7 @@ const MOSTLY_NO_CARGO_PART: Weighted<string | null>[] = [
 
 const LOADOUTS: Record<string, NpcLoadoutTable> = {
   outrider: {
+    armed: true,
     levels: [{ value: "standard", weight: 4 }, { value: "heavy", weight: 2 }, { value: "loaded", weight: 0.5 }],
     chassis: [
       { value: "buggy", weight: 6 },
@@ -111,9 +126,11 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: { good: "electronics", count: 1 }, weight: 1 },
     ],
     haul: { kg: 200, cells: 3 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   gunwagon: {
+    armed: true,
     levels: [{ value: "standard", weight: 4 }, { value: "heavy", weight: 2 }, { value: "loaded", weight: 0.5 }],
     chassis: [
       { value: "wagon", weight: 6 },
@@ -135,9 +152,11 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: { good: "electronics", count: 2 }, weight: 1 },
     ],
     haul: { kg: 400, cells: 5 },
+    minSpeed: RAIDER_CHASE_SPEED,
     spares: null,
   },
   trader: {
+    armed: false,
     levels: [{ value: "poor", weight: 1 }, { value: "light", weight: 3 }, { value: "standard", weight: 3 }, { value: "heavy", weight: 1 }],
     chassis: [
       { value: "hauler", weight: 6 },
@@ -146,6 +165,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: "tractor", weight: 1 },
       { value: "scout", weight: 2 },
       { value: "bus", weight: 2 }, { value: "bukhanka", weight: 2 },
+      { value: "sorokonoga", weight: 1 },
     ],
     priorities: { speed: 1, firepower: 1, armor: 3, cargo: 3 },
     cargoPart: [
@@ -156,20 +176,13 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: "enclosedFrame", weight: 2 },
       { value: "heavyFrame", weight: 1 },
     ],
-    goods: [
-      { value: null, weight: 1 },
-      { value: { good: "grain", count: 10 }, weight: 5 },
-      { value: { good: "salt", count: 10 }, weight: 4 },
-      { value: { good: "textiles", count: 8 }, weight: 4 },
-      { value: { good: "tools", count: 6 }, weight: 2 },
-      { value: { good: "batteries", count: 6 }, weight: 2 },
-      { value: { good: "meds", count: 4 }, weight: 2 },
-      { value: { good: "electronics", count: 4 }, weight: 1 },
-    ],
-    haul: { kg: 0, cells: 0 },
+    goods: NO_GOODS,
+    haul: { kg: CRATE_MASS, cells: 1 },
+    minSpeed: MIN_NPC_SPEED,
     spares: TRADER_SPARES,
   },
   scavenger: {
+    armed: false,
     levels: [{ value: "poor", weight: 2 }, { value: "light", weight: 4 }, { value: "standard", weight: 2 }, { value: "heavy", weight: 1 }],
     chassis: [
       { value: "scout", weight: 6 },
@@ -195,9 +208,11 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: { good: "electronics", count: 1 }, weight: 1 },
     ],
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   bowlPatrol: {
+    armed: true,
     levels: [{ value: "standard", weight: 3 }, { value: "heavy", weight: 4 }, { value: "loaded", weight: 1 }],
     chassis: [
       { value: "tractor", weight: 5 },
@@ -208,9 +223,11 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     cargoPart: MOSTLY_NO_CARGO_PART,
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   nosePatrol: {
+    armed: true,
     levels: [{ value: "standard", weight: 3 }, { value: "heavy", weight: 4 }, { value: "loaded", weight: 1 }],
     chassis: [
       { value: "wagon", weight: 5 },
@@ -220,9 +237,25 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     cargoPart: MOSTLY_NO_CARGO_PART,
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
+    spares: null,
+  },
+  marshal: {
+    armed: true,
+    levels: [{ value: "loaded", weight: 1 }],
+    chassis: [
+      { value: "lincoln", weight: 3 },
+      { value: "jeep", weight: 1 },
+    ],
+    priorities: { speed: 3, firepower: 2, armor: 3, cargo: 0 },
+    cargoPart: [{ value: null, weight: 1 }],
+    goods: NO_GOODS,
+    haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   courier: {
+    armed: false,
     levels: [{ value: "poor", weight: 3 }, { value: "light", weight: 4 }, { value: "standard", weight: 2 }],
     chassis: [
       { value: "courier", weight: 5 },
@@ -242,9 +275,11 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: { good: "meds", count: 2 }, weight: 2 },
     ],
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   roamer: {
+    armed: false,
     levels: [{ value: "poor", weight: 2 }, { value: "light", weight: 3 }, { value: "standard", weight: 3 }, { value: "heavy", weight: 1 }, { value: "loaded", weight: 0.5 }],
     chassis: [
       { value: "scout", weight: 5 },
@@ -268,9 +303,11 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: { good: "tools", count: 1 }, weight: 1 },
     ],
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   vulture: {
+    armed: true,
     levels: [{ value: "poor", weight: 1 }, { value: "light", weight: 3 }, { value: "standard", weight: 3 }, { value: "heavy", weight: 1 }],
     chassis: [
       { value: "scout", weight: 4 },
@@ -295,14 +332,17 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: { good: "batteries", count: 1 }, weight: 2 },
     ],
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   convoy: {
+    armed: false,
     levels: [{ value: "light", weight: 2 }, { value: "standard", weight: 4 }, { value: "heavy", weight: 2 }],
     chassis: [
       { value: "hauler", weight: 6 },
       { value: "longbed", weight: 3 },
       { value: "bus", weight: 2 },
+      { value: "sorokonoga", weight: 1 },
     ],
     priorities: { speed: 1, firepower: 1, armor: 3, cargo: 3 },
     cargoPart: [
@@ -311,15 +351,13 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: "enclosedFrame", weight: 2 },
       { value: "heavyFrame", weight: 1 },
     ],
-    goods: [
-      { value: null, weight: 3 },
-      { value: { good: "fuelDrums", count: 6 }, weight: 1 },
-      { value: { good: "water", count: 6 }, weight: 1 },
-    ],
+    goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   convoyGuard: {
+    armed: true,
     levels: [{ value: "standard", weight: 3 }, { value: "heavy", weight: 3 }, { value: "loaded", weight: 1 }],
     chassis: [
       { value: "scout", weight: 4 },
@@ -331,9 +369,40 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     cargoPart: MOSTLY_NO_CARGO_PART,
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
+    spares: null,
+  },
+  cavalcade: {
+    armed: true,
+    levels: [{ value: "light", weight: 2 }, { value: "standard", weight: 5 }, { value: "heavy", weight: 1 }],
+    chassis: [
+      { value: "buggy", weight: 5 },
+      { value: "jeep", weight: 3 },
+      { value: "scout", weight: 3 },
+    ],
+    priorities: { speed: 2, firepower: 3, armor: 2, cargo: 0 },
+    cargoPart: [{ value: null, weight: 1 }],
+    goods: NO_GOODS,
+    haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
+    spares: null,
+  },
+  hunter: {
+    armed: true,
+    levels: [{ value: "standard", weight: 4 }, { value: "heavy", weight: 1 }],
+    chassis: [
+      { value: "buggy", weight: 6 },
+      { value: "courier", weight: 3 },
+    ],
+    priorities: { speed: 3, firepower: 2, armor: 1, cargo: 0 },
+    cargoPart: [{ value: null, weight: 1 }],
+    goods: NO_GOODS,
+    haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
   merc: {
+    armed: true,
     levels: [{ value: "standard", weight: 3 }, { value: "heavy", weight: 4 }, { value: "loaded", weight: 2 }],
     chassis: [
       { value: "wagon", weight: 4 },
@@ -345,6 +414,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     cargoPart: MOSTLY_NO_CARGO_PART,
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
+    minSpeed: MIN_NPC_SPEED,
     spares: null,
   },
 };
@@ -353,134 +423,180 @@ const NEUTRAL_EXTRAS: NpcTemplate['extraTraits'] = [{ trait: 'scumbag', chance: 
 const VULTURE_EXTRAS: NpcTemplate['extraTraits'] = [{ trait: 'coward', chance: 0.6 }, { trait: 'scumbag', chance: 0.35 }, { trait: 'brave', chance: 0.1 }];
 const RAIDER_EXTRAS: NpcTemplate['extraTraits'] = [{ trait: 'brave', chance: 0.15 }];
 const GUARD_EXTRAS: NpcTemplate['extraTraits'] = [{ trait: 'scumbag', chance: 0.25 }];
+const CULT_EXTRAS: NpcTemplate['extraTraits'] = [{ trait: 'brave', chance: 0.2 }, { trait: 'coward', chance: 0.15 }];
 
 export const OPPOSED_TRAITS: readonly [TraitId, TraitId][] = [['coward', 'brave']];
 
 export const NPCS: Record<string, NpcTemplate> = {
   buggy: {
-    id: 'buggy', faction: 'raiders', traits: ['raider'], extraTraits: RAIDER_EXTRAS,
+    id: 'buggy', allegiance: { kind: 'site', fallback: 'scrapjaw' }, traits: ['raider'], extraTraits: RAIDER_EXTRAS,
     loadout: LOADOUTS.outrider,
     aggroRange: 11,
     fightStyle: 'circle',
     money: NPC_RESOURCES.money,
     cap: 6,
+    pairs: false,
     interval: 50,
     spawn: { kind: "camp" },
   },
   gunwagon: {
-    id: 'gunwagon', faction: 'raiders', traits: ['raider'], extraTraits: RAIDER_EXTRAS,
+    id: 'gunwagon', allegiance: { kind: 'site', fallback: 'scrapjaw' }, traits: ['raider'], extraTraits: RAIDER_EXTRAS,
     loadout: LOADOUTS.gunwagon,
     aggroRange: 12,
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
     cap: 2,
+    pairs: false,
     interval: 150,
     spawn: { kind: "camp" },
   },
   trader: {
-    id: 'trader', faction: 'traders', traits: ['trader'],
+    id: 'trader', allegiance: { kind: 'town' }, traits: ['trader'],
     extraTraits: NEUTRAL_EXTRAS,
     loadout: LOADOUTS.trader,
     aggroRange: 0,
     fightStyle: 'hold',
-    money: 133300,
+    money: 1333,
     cap: 8,
+    pairs: false,
     interval: 12,
     spawn: { kind: "town" },
   },
   scavenger: {
-    id: 'scavenger', faction: 'scavengers', traits: ['scavenger'],
+    id: 'scavenger', allegiance: { kind: 'fixed', faction: 'independent' }, traits: ['scavenger'],
     extraTraits: NEUTRAL_EXTRAS,
     loadout: LOADOUTS.scavenger,
     aggroRange: 0,
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
     cap: 4,
+    pairs: false,
     interval: 12,
     spawn: { kind: "town" },
   },
   bowlFarmer: {
-    id: 'bowlFarmer', faction: 'bowl', traits: ['lawman', 'brave'], extraTraits: [],
+    id: 'bowlFarmer', allegiance: { kind: 'site', fallback: 'bowl' }, traits: ['lawman', 'brave'], extraTraits: [],
     loadout: LOADOUTS.bowlPatrol,
     aggroRange: 0,
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
     cap: 3,
+    pairs: false,
     interval: 70,
     spawn: { kind: "sites", ids: ["bowl"] },
   },
   noseArmy: {
-    id: 'noseArmy', faction: 'nose', traits: ['lawman', 'brave'], extraTraits: [],
+    id: 'noseArmy', allegiance: { kind: 'site', fallback: 'nose' }, traits: ['lawman', 'brave'], extraTraits: [],
     loadout: LOADOUTS.nosePatrol,
     aggroRange: 0,
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
     cap: 3,
+    pairs: false,
     interval: 70,
     spawn: { kind: "sites", ids: ["nose"] },
   },
+  marshal: {
+    id: 'marshal', allegiance: { kind: 'fixed', faction: 'marshals' }, traits: ['marshal', 'brave'], extraTraits: [],
+    loadout: LOADOUTS.marshal,
+    aggroRange: 0,
+    fightStyle: 'circle',
+    money: NPC_RESOURCES.money,
+    cap: 2,
+    pairs: true,
+    interval: 90,
+    spawn: { kind: "sites", ids: ["marshal-post"] },
+  },
   courier: {
-    id: 'courier', faction: 'couriers', traits: ['courier'],
+    id: 'courier', allegiance: { kind: 'fixed', faction: 'guidestar' }, traits: ['courier'],
     extraTraits: NEUTRAL_EXTRAS,
     loadout: LOADOUTS.courier,
     aggroRange: 0,
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
-    cap: 3,
+    cap: 4,
+    pairs: true,
     interval: 30,
     spawn: { kind: "town" },
   },
   roamer: {
-    id: 'roamer', faction: 'roamers', traits: ['roamer'],
+    id: 'roamer', allegiance: { kind: 'fixed', faction: 'independent' }, traits: ['roamer'],
     extraTraits: NEUTRAL_EXTRAS,
     loadout: LOADOUTS.roamer,
     aggroRange: 0,
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
     cap: 3,
+    pairs: false,
     interval: 30,
     spawn: { kind: "town" },
   },
   vulture: {
-    id: 'vulture', faction: 'vultures', traits: ['vulture'],
+    id: 'vulture', allegiance: { kind: 'fixed', faction: 'independent' }, traits: ['vulture'],
     extraTraits: VULTURE_EXTRAS,
     loadout: LOADOUTS.vulture,
     aggroRange: 0,
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
     cap: 3,
+    pairs: false,
     interval: 30,
     spawn: { kind: "town" },
   },
   convoy: {
-    id: 'convoy', faction: 'convoys', traits: ['supplier'], extraTraits: NEUTRAL_EXTRAS,
+    id: 'convoy', allegiance: { kind: 'site', fallback: 'bowl' }, traits: ['supplier'], extraTraits: NEUTRAL_EXTRAS,
     loadout: LOADOUTS.convoy,
     aggroRange: 0,
     fightStyle: 'hold',
-    money: 133300,
+    money: 1333,
     cap: 2,
+    pairs: false,
     interval: 100,
     spawn: { kind: "sites", ids: ["bowl", "nose"] },
   },
   convoyGuard: {
-    id: 'convoyGuard', faction: 'convoys', traits: ['guard', 'brave'], extraTraits: GUARD_EXTRAS,
+    id: 'convoyGuard', allegiance: { kind: 'leader', fallback: 'bowl' }, traits: ['guard', 'brave'], extraTraits: GUARD_EXTRAS,
     loadout: LOADOUTS.convoyGuard,
     aggroRange: 0,
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
     cap: 2,
+    pairs: false,
     interval: 100,
     spawn: { kind: "escort", of: "convoy" },
   },
   merc: {
-    id: 'merc', faction: 'mercs', traits: ['merc'], extraTraits: NEUTRAL_EXTRAS,
+    id: 'merc', allegiance: { kind: 'fixed', faction: 'independent' }, traits: ['merc'], extraTraits: NEUTRAL_EXTRAS,
     loadout: LOADOUTS.merc,
     aggroRange: 0,
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
     cap: 3,
+    pairs: false,
     interval: 70,
     spawn: { kind: "sites", ids: ["bowl", "nose"] },
+  },
+  cavalcade: {
+    id: 'cavalcade', allegiance: { kind: 'fixed', faction: 'sunward' }, traits: ['cultist'], extraTraits: CULT_EXTRAS,
+    loadout: LOADOUTS.cavalcade,
+    aggroRange: 11,
+    fightStyle: 'circle',
+    money: NPC_RESOURCES.money,
+    cap: SUNWARD.cavalcade,
+    pairs: false,
+    interval: 20,
+    spawn: { kind: 'hollow' },
+  },
+  hunter: {
+    id: 'hunter', allegiance: { kind: 'fixed', faction: 'sunward' }, traits: ['cultist'], extraTraits: CULT_EXTRAS,
+    loadout: LOADOUTS.hunter,
+    aggroRange: 13,
+    fightStyle: 'circle',
+    money: NPC_RESOURCES.money,
+    cap: SUNWARD.hunters,
+    pairs: false,
+    interval: 40,
+    spawn: { kind: 'hollow' },
   },
 };
 
@@ -507,6 +623,7 @@ export const SPAWN = {
   ],
   startTraffic: { town: "bowl", templates: ["trader", "trader"] },
   minPlayerDist: 16,
+  crowd: { reach: 12, most: 4 },
   gateSpread: 12,
   gateAngle: 0.3,
   tries: 40,
@@ -519,6 +636,8 @@ export type DecisionOptions = {
   contactHeard: 'keep' | 'investigate' | 'flee';
   attacked: 'keep' | 'flee' | 'fightBack';
   preySeen: 'keep' | 'rob';
+  sizedUp: 'keep' | 'rob';
+  lookedOver: 'keep' | 'keepAway' | 'warn';
   strandedSeen: 'keep' | 'tow';
   salvageSeen: 'keep' | 'loot';
   patchDeal: 'paid' | 'ownParts' | 'free';
@@ -536,11 +655,19 @@ export type DecisionOptions = {
   warnRefused: 'leave' | 'fight';
   mugging: 'demand' | 'attack';
   resume: 'resume' | 'new';
-  idle: 'trade' | 'scavenge' | 'raid' | 'prowl' | 'wait' | 'patrol' | 'travel' | 'explore' | 'haul' | 'escort';
+  bountyDemanded: 'pay' | 'fight' | 'flee';
+  spotWork: 'work' | 'moveOn';
+  idle: 'trade' | 'scavenge' | 'raid' | 'prowl' | 'wait' | 'patrol' | 'travel' | 'explore' | 'haul' | 'escort' | 'muster' | 'linger';
+  crewAsked: 'join' | 'decline';
+  crewCalled: 'fight' | 'flee' | 'keep';
   escortSeen: 'keep' | 'hire';
   hireOffered: 'take' | 'decline';
   aidAsked: 'give' | 'refuse';
+  escortWanted: 'go' | 'post';
   needySeen: 'keep' | 'aid';
+  strangerSeen: 'keep' | 'tale' | 'tip' | 'challenge' | 'courier';
+  vigilCalled: 'accept' | 'refuse' | 'flee';
+  helpCalled: 'help' | 'refuse';
 };
 export type DecisionId = keyof DecisionOptions;
 
@@ -554,6 +681,8 @@ export const DECISIONS: { [D in DecisionId]: Record<DecisionOptions[D], number> 
   contactHeard: { keep: 1, investigate: 0, flee: 3 },
   attacked: { keep: 0.5, flee: 1, fightBack: 2 },
   preySeen: { keep: 1, rob: 0 },
+  sizedUp: { keep: 1, rob: 2 },
+  lookedOver: { keep: 4, keepAway: 0.25, warn: 0 },
   strandedSeen: { keep: 1, tow: 0 },
   salvageSeen: { keep: 1, loot: 0 },
   patchDeal: { paid: 6, ownParts: 3, free: 1 },
@@ -570,11 +699,19 @@ export const DECISIONS: { [D in DecisionId]: Record<DecisionOptions[D], number> 
   warnRefused: { leave: 3, fight: 1 },
   mugging: { demand: 3, attack: 2 },
   resume: { resume: 9, new: 1 },
-  idle: { trade: 0, scavenge: 1, raid: 0, prowl: 0, wait: 0.1, patrol: 0, travel: 0, explore: 0, haul: 0, escort: 0 },
+  bountyDemanded: { pay: 3, fight: 1, flee: 1 },
+  spotWork: { work: 0, moveOn: 1 },
+  idle: { trade: 0, scavenge: 1, raid: 0, prowl: 0, wait: 0.1, patrol: 0, travel: 0, explore: 0, haul: 0, escort: 0, muster: 0, linger: 0 },
+  crewAsked: { join: 2, decline: 1 },
+  crewCalled: { fight: 3, flee: 0.5, keep: 1 },
   escortSeen: { keep: 1, hire: 0 },
   hireOffered: { take: 3, decline: 1 },
   aidAsked: { give: 1, refuse: 9 },
+  escortWanted: { go: 3, post: 1 },
   needySeen: { keep: 1, aid: 0 },
+  strangerSeen: { keep: 1, tale: 0, tip: 0, challenge: 0, courier: 0 },
+  vigilCalled: { accept: 0.3, refuse: 1, flee: 3 },
+  helpCalled: { help: 0.11, refuse: 1 },
 };
 
 export type WeightChange = { add?: number; mul?: number };
@@ -583,15 +720,19 @@ export type TraitWeights = { [D in DecisionId]?: Partial<Record<DecisionOptions[
 export const STATE_WEIGHTS: Record<StateKindId, TraitWeights> = {
   feud: { hostileSeen: { fight: { add: 4 } } },
   backedOff: { preySeen: { rob: { mul: 0.005 } } },
-  tow: {}, patch: {}, trade: {}, aid: {}, combat: {}, lootWarning: {},
+  tow: {}, patch: {}, trade: {}, handover: {}, aid: {}, combat: {}, lootWarning: {}, lookOver: {}, sizedUp: {},
   truce: {},
   grievance: {},
   strayFire: {},
   plea: { parley: { truce: { mul: 0.01 }, beg: { mul: 0.01 } } },
+  helpRefused: {},
   turnedDown: { strandedSeen: { tow: { mul: 0.001 } } },
   towPromise: { strandedSeen: { tow: { add: 20 } } },
   answering: {},
   escort: { strandedSeen: { tow: { add: 99 } } },
+  crew: { strandedSeen: { tow: { add: 99 } } },
+  hire: { strandedSeen: { tow: { add: 99 } } },
+  cavalcade: {}, offering: {}, drag: {}, bountyStop: {},
   revenge: {
     hostileSeen: { fight: { add: 4 } },
     contactHeard: { investigate: { add: 2 } },
@@ -613,20 +754,32 @@ export const STATE_TURNS: Record<StateKindId, number | null> = {
   tow: null,
   patch: 40,
   trade: 20,
+  handover: 20,
   aid: 20,
   truce: 60,
   grievance: 5,
   strayFire: 60,
   plea: 20,
+  helpRefused: 20,
   turnedDown: null,
   towPromise: null,
   revenge: 2000,
   answering: 20,
   escort: null,
+  crew: CREW.huntTurns,
+  hire: HIRE.turns,
   combat: 10,
   lootWarning: 30,
+  lookOver: null,
+  sizedUp: null,
+  cavalcade: null,
+  offering: null,
+  drag: SUNWARD.dragTurns,
+  bountyStop: BOUNTY.stopTurns,
 };
 
 
-export { FEMALE_NAMES, FIRST_NAMES, HUNT, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, SURNAMES, TRADE_TIP } from './npc-behavior';
+export { CREW, FEMALE_NAMES, FIRST_NAMES, HELP_CALL, HIRE, HUNT, LOOK_OVER, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, SURNAMES, TRADE_TIP } from './npc-behavior';
 export { TRAITS, type Trait } from './npc-traits';
+
+export const EXPLORE = { range: 120, minHop: 30, gapCap: 20, lookTurns: 19 };

@@ -1,0 +1,21 @@
+{
+  "turn": 2704,
+  "player": {
+    "money": 1200,
+    "rumored": ["wreck6802"],
+    "call": {
+      "with": "v40",
+      "topic": "rumor",
+      "node": "wreck",
+      "vars": {
+        "way": { "kind": "directions", "steps": [{ "do": "straight", "octant": "east", "span": "near" }] }
+      },
+      "line": {
+        "line": "wreckWay",
+        "vars": {
+          "way": { "kind": "directions", "steps": [{ "do": "straight", "octant": "east", "span": "near" }] }
+        }
+      }
+    }
+  }
+}

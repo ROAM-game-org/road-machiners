@@ -1,21 +1,21 @@
 import { startKit } from '../data/start';
 
 import { RULES } from '../data/rules';
-import { makeVehicle } from './factory';
+export { addVehicle, npcBrain } from '../test/sample-vehicles';
 import { nextRandom } from './rng';
-import { mountedParts } from './grid';
+import { gridOf, MOUNT_CELLS, mountedParts, mountSpots, type Spot } from './grid';
 import { burnFuel } from './resources';
 import { vehicleStats } from './stats';
 import type { Terrain } from './terrain';
-import { inject, onTestFinished } from 'vitest';
+import type { TerrainTypeId } from '../data/terrain';
 import { emptyWorldFrom, flatTerrain, PLAIN_KIT } from '../test/empty-world';
-import { DECISIONS, NPC_UPKEEP, STATE_WEIGHTS, TRAITS, type DecisionId, type DecisionOptions, type TraitId } from '../data/npcs';
-import type { PersonalityId } from '../data/personalities';
+import { DECISIONS, NPC_UPKEEP, STATE_WEIGHTS, TRAITS, type DecisionId, type DecisionOptions } from '../data/npcs';
 import { addState } from './states';
 import { advanceJobs } from './jobs';
 import { resolveNpcActivities } from './npc-activities';
-import type { Faction, GameEvent, NpcBrain, Obstacle, PartInstance, SalvageStock, Vehicle, World, XpSource } from './types';
-import { highwayMap } from './highway';
+import type { GameEvent, Obstacle, PartInstance, SalvageStock, Vehicle, World, XpSource } from './types';
+import { alongOf, highwayMap, milestoneAt, roadHeading, roadPoint, toRoad } from './highway';
+import { CHAOS_HIGHWAY, HIGHWAY } from '../data/modes';
 import { dist, type Vec } from './vec';
 import { REGION } from '../data/region';
 import { propReach } from './mapgen';
@@ -26,39 +26,64 @@ import { openingStockOf } from './opening';
 import { haulerOf, playerVehicle } from './damage';
 import { stormDepth } from './weather';
 import { cloneWorld, endTurn, newWorld } from './world';
-import { outpostPad } from './fury-road';
+import { driveOn } from './chaos-highway';
+import { yardSpots } from './outpost-gates';
 import { addGoods } from './inventory';
+import { stockTarget } from './market';
+import { PRODUCTION } from '../data/market';
 import { partDef, type PartKind } from '../data/parts';
 import { defaultSetup } from './settings';
 import { chooseQuestOption, leaveQuest, QUESTS, questView } from './quests';
 
-export function furyRoadWorld(seed = 3): World {
-  return newWorld(seed, startKit('furyRoad'), highwayMap(seed, 0), defaultSetup('furyRoad'));
+export function chaosHighwayStart(seed = 3): World {
+  return newWorld(seed, startKit('chaosHighway'), highwayMap(seed, 0), defaultSetup('chaosHighway'));
 }
 
-export function parkOnPad(w: World, milestone: number): void {
-  const pad = outpostPad(w, milestone);
-  const me = playerVehicle(w);
+const OPEN_ROAD = 24;
+
+export function chaosHighwayWorld(seed = 3): World {
+  const w = driveOn(chaosHighwayStart(seed));
+  const n = milestoneAt(seed, 0) + OPEN_ROAD;
+  const gap = vehicleStats(w, haulerOf(w)).radius + vehicleStats(w, playerVehicle(w)).radius + RULES.yieldDistance;
+  for (const [truck, lane, ahead] of [[playerVehicle(w), 2, 0], [haulerOf(w), 1, gap]] as const) {
+    truck.pos = roadPoint(seed, 0, n + ahead, HIGHWAY.road.lanes[lane]);
+    truck.heading = roadHeading(seed, n + ahead);
+    truck.speed = 0;
+    truck.order = null;
+  }
+  refreshVision(w);
+  w.events = [];
+  return w;
+}
+
+export function sendGunTruckAway(w: World): void {
   const hauler = haulerOf(w);
-  me.pos = { ...pad };
+  const window = w.chaosHighway!.window;
+  const along = alongOf(w.seed, toRoad(w.seed, window, hauler.pos)) - CHAOS_HIGHWAY.hauler.apartGap - 5;
+  const me = playerVehicle(w);
+  me.pos = roadPoint(w.seed, window, along, HIGHWAY.road.lanes[1]);
+  me.heading = roadHeading(w.seed, along);
   me.speed = 0;
   me.order = null;
-  hauler.pos = { x: pad.x + 2, y: pad.y };
+}
+
+export function parkInYard(w: World, milestone: number): void {
+  const spots = yardSpots(w, milestone);
+  const me = playerVehicle(w);
+  const hauler = haulerOf(w);
+  me.pos = { ...spots.truck };
+  me.speed = 0;
+  me.order = null;
+  hauler.pos = { ...spots.hauler };
   hauler.speed = 0;
   hauler.order = null;
 }
 
 export function parkedAtOutpost(seed = 3): World {
-  const w = furyRoadWorld(seed);
-  const me = playerVehicle(w);
-  const hauler = haulerOf(w);
-  const pad = outpostPad(w, 1);
-  me.pos = pad;
-  me.speed = 0;
-  hauler.pos = { x: pad.x + 2, y: pad.y };
-  hauler.speed = 0;
+  const w = chaosHighwayWorld(seed);
+  parkInYard(w, 1);
   const parked = endTurn(w, () => {});
-  parked.player.money = 10_000_000;
+  parked.player.money = 100_000;
   return parked;
 }
 
@@ -66,8 +91,15 @@ export function fillCargo(w: World): void {
   addGoods(w, playerVehicle(w), 'parts', 1000);
 }
 
+export function armorSpot(w: World, part: PartInstance): Spot {
+  const me = playerVehicle(w);
+  const spot = mountSpots(gridOf(me), me.items, { id: 'i-probe', x: 0, y: 0, rot: 0, kind: 'part', part }, MOUNT_CELLS.armor)[0];
+  if (!spot) throw new Error(`The player truck has no armor spot for ${part.defId}`);
+  return spot;
+}
+
 export function stockOfKind(w: World, kind: PartKind): PartInstance {
-  const part = w.furyRoad!.outposts[0].stock.find((p) => partDef(p.defId).kind === kind);
+  const part = w.chaosHighway!.outposts[1].stock.find((p) => partDef(p.defId).kind === kind);
   if (!part) throw new Error(`Outpost 1 stocks no ${kind}`);
   return part;
 }
@@ -77,17 +109,45 @@ export function editableTerrain(w: World): Terrain {
   return w.terrain;
 }
 
+const uniformTerrains = new WeakMap<Terrain, Map<TerrainTypeId, Terrain>>();
+
+export function uniformGround(w: World, type: TerrainTypeId): void {
+  const base = w.terrain;
+  let byType = uniformTerrains.get(base);
+  if (!byType) {
+    byType = new Map();
+    uniformTerrains.set(base, byType);
+  }
+  const shared = byType.get(type);
+  if (shared) {
+    w.terrain = shared;
+    return;
+  }
+  editableTerrain(w).types.fill(type);
+  byType.set(type, w.terrain);
+}
+
 export { PLAIN_KIT, flatTerrain };
+
+const runner = (globalThis as { __vitest_worker__?: unknown }).__vitest_worker__ ? await import('vitest') : null;
+
+function testRunner(): NonNullable<typeof runner> {
+  if (runner === null) throw new Error('The test kit needs a Vitest worker');
+  return runner;
+}
 
 let emptyTemplate: World | undefined;
 
 function templateFromSetup(): World {
-  const provided = inject('emptyTemplate');
+  const provided = testRunner().inject('emptyTemplate');
   if (provided === undefined) throw new Error('The empty world template was not provided. List src/test/empty-template-setup.ts under globalSetup in the vitest config');
   return emptyWorldFrom(provided);
 }
 
-export function emptyWorld(pos: Vec = { x: 30, y: 30 }): World {
+const DEFAULT_EMPTY_POS: Vec = { x: 30, y: 30 };
+let seenFromDefault: World | undefined;
+
+function emptyWorldAt(pos: Vec): World {
   emptyTemplate ??= templateFromSetup();
   const w = cloneWorld(emptyTemplate);
   const p = w.vehicles[0];
@@ -97,11 +157,17 @@ export function emptyWorld(pos: Vec = { x: 30, y: 30 }): World {
   return w;
 }
 
+export function emptyWorld(pos: Vec = DEFAULT_EMPTY_POS): World {
+  if (pos.x !== DEFAULT_EMPTY_POS.x || pos.y !== DEFAULT_EMPTY_POS.y) return emptyWorldAt(pos);
+  seenFromDefault ??= emptyWorldAt(pos);
+  return cloneWorld(seenFromDefault);
+}
+
 export function addLootSpot(w: World): { spot: Obstacle; stock: SalvageStock } {
   const orchard = REGION.locations.find((site) => site.id === 'orchard')!;
   const spot: Obstacle = { id: 'farmhouse-1', kind: 'landmark', look: 'farmhouse', pos: { ...orchard.pos }, r: 1.5, yaw: 0 };
   const stock = rollStock(w, spotTable(spot), spot.id, spot.pos, propReach(spot));
-  w.obstacles.push(spot);
+  w.obstacles = [...w.obstacles, spot];
   w.salvage.push(stock);
   return { spot, stock };
 }
@@ -115,18 +181,8 @@ export function spotWorld(): { w: World; spot: Obstacle; stock: SalvageStock } {
   return { w, spot, stock };
 }
 
-export function addVehicle(w: World, faction: Faction, chassisId: string, parts: string[], pos: Vec, heading = 0): Vehicle {
-  const v = makeVehicle(w, { faction, chassisId, parts: parts.map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {}, pos, heading, brain: null });
-  w.vehicles.push(v);
-  return v;
-}
-
 export function practiceOf(w: World, source: XpSource): Extract<GameEvent, { t: 'practice' }>[] {
   return w.events.filter((e): e is Extract<GameEvent, { t: 'practice' }> => e.t === 'practice' && e.source === source);
-}
-
-export function npcBrain(templateId: string, home: Vec, traits: TraitId[], personality: PersonalityId = 'talkative'): NpcBrain {
-  return { templateId, driver: 'Jed Cobb', traits, personality, goals: [], noticed: {}, tracks: {}, hurt: 0, attackers: {}, goal: null, home: { ...home }, stepIndex: 0, memories: [] };
 }
 
 export function forceOption<D extends DecisionId>(decision: D, option: DecisionOptions[D]): void {
@@ -140,7 +196,7 @@ export function forceOption<D extends DecisionId>(decision: D, option: DecisionO
     if (!entry) continue;
     table[decision] = option in entry ? { [option]: entry[option] } : {};
   }
-  onTestFinished(() => {
+  testRunner().onTestFinished(() => {
     Object.assign(base, savedBase);
     tables.forEach((table, i) => {
       if (saved[i] === undefined) delete table[decision];
@@ -233,6 +289,10 @@ function driveOne(world: World, v: Vehicle): void {
   burnFuel(world, v, speed);
 }
 
+export function sizedUp(w: World, looker: Vehicle, target: Vehicle): void {
+  addState(w, 'sizedUp', looker.id, target.id, { kind: 'none' });
+}
+
 export function startCombat(w: World, aggressor: Vehicle, target: Vehicle): void {
   addState(w, 'combat', aggressor.id, target.id, { kind: 'none' });
 }
@@ -254,4 +314,8 @@ export function openingStopPoint(w: World): Vec {
   const from = playerVehicle(w).pos;
   const d = dist(from, stock.pos);
   return { x: stock.pos.x + ((from.x - stock.pos.x) / d) * 2.2, y: stock.pos.y + ((from.y - stock.pos.y) / d) * 2.2 };
+}
+
+export function setShopPressure(w: World, shopId: string, good: string, pressure: number): void {
+  w.shops[shopId].goods[good] = Math.max(0, Math.round(stockTarget(shopId, good) * (1 - pressure / PRODUCTION.elasticity)));
 }

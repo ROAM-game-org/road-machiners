@@ -57,38 +57,29 @@ describe('parseSetup', () => {
 });
 
 describe('repairSetup', () => {
-  it('keeps a valid setup and resets nothing', () => {
-    expect(repairSetup(roaming({ damage: 2 }))).toEqual({ setup: parseSetup(roaming({ damage: 2 })), reset: [] });
+  it('keeps a valid setup', () => {
+    expect(repairSetup(roaming({ damage: 2 }))).toEqual(parseSetup(roaming({ damage: 2 })));
   });
 
   it('puts the default in place of each bad setting and keeps the good ones', () => {
-    const { setup, reset } = repairSetup(roaming({ damage: NaN, fuelUse: 1.75, supplyUse: 10 }));
+    const setup = repairSetup(roaming({ damage: NaN, fuelUse: 1.75, supplyUse: 10 }));
 
     expect(setup.settings).toEqual({ damage: 1, fuelUse: 1.75, supplyUse: 1, enemyGearGrowth: 1 });
-    expect(reset).toEqual(['damage', 'supplyUse']);
   });
 
   it('resets a missing setting and drops an unknown key', () => {
-    const { setup, reset } = repairSetup({ mode: 'roaming', settings: { damage: 1.5, fuelUse: 1, enemyGearGrowth: 1, speed: 3 } });
+    const setup = repairSetup({ mode: 'roaming', settings: { damage: 1.5, fuelUse: 1, enemyGearGrowth: 1, speed: 3 } });
 
     expect(setup.settings).toEqual({ damage: 1.5, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 });
-    expect(reset).toEqual(['supplyUse']);
   });
 
-  it('repairs a setting the mode does not use without reporting it', () => {
-    const { setup, reset } = repairSetup(roaming({ enemyGearGrowth: 9 }));
-
-    expect(setup.settings.enemyGearGrowth).toBe(1);
-    expect(reset).toEqual([]);
-    expect(repairSetup({ ...roaming({ enemyGearGrowth: 9 }), mode: 'furyRoad' }).reset).toEqual(['enemyGearGrowth']);
+  it('resets a bad setting the mode does not use', () => {
+    expect(repairSetup(roaming({ enemyGearGrowth: 9 })).settings.enemyGearGrowth).toBe(1);
   });
 
-  it('uses default Roaming and resets every setting when the mode is unknown or the setup is missing', () => {
+  it('uses default Roaming when the mode is unknown or the setup is missing', () => {
     for (const raw of [{ ...roaming({ damage: 2 }), mode: 'campaign' }, undefined, 'roaming', { mode: 'roaming' }]) {
-      const { setup, reset } = repairSetup(raw);
-
-      expect(setup).toEqual(defaultSetup('roaming'));
-      expect(reset).toEqual(['damage', 'fuelUse', 'supplyUse']);
+      expect(repairSetup(raw)).toEqual(defaultSetup('roaming'));
     }
   });
 });
@@ -111,6 +102,6 @@ describe('scale queries', () => {
 describe('setupText', () => {
   it('names the mode and every setting it uses as a percentage', () => {
     expect(resolve(setupText(parseSetup(roaming({ damage: 1.5 }))), 'en')).toBe('Roaming, Damage 150%, Fuel use 100%, Supply use 100%');
-    expect(resolve(setupText(parseSetup({ ...roaming({ enemyGearGrowth: 0.5 }), mode: 'furyRoad' })), 'en')).toBe('Chaos Highway, Damage 100%, Fuel use 100%, Supply use 100%, Enemy growth 50%');
+    expect(resolve(setupText(parseSetup({ ...roaming({ enemyGearGrowth: 0.5 }), mode: 'chaosHighway' })), 'en')).toBe('Chaos Highway, Damage 100%, Fuel use 100%, Supply use 100%, Enemy growth 50%');
   });
 });

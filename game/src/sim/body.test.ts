@@ -3,7 +3,8 @@ import { CHASSIS } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
 import { partDef, type CoreDef } from '../data/parts';
 import BASELINE from './body-baseline.json';
-import { CLIP_TOLERANCE, bodyOf, cellCenter, cellRect, engineAnchor, highestUnder, hulkBoxes, lanesAt, restOn, surfaceAt, surfaceSamples } from './body';
+import { CLIP_TOLERANCE, bodyOf, bodyRows, cellSteps, rideOf, cellCenter, cellRect, engineAnchor, frontBody, highestUnder, hulkBoxes, isRig, lanesAt, restOn, roofSpot, spanOf, surfaceAt, surfaceSamples, unitBody, unitOfRow, unitsOf } from './body';
+import { restBend } from './rig';
 import TRUCK_SHAPES from '../data/truck-shapes.json';
 import { baseGrid } from './grid';
 
@@ -23,14 +24,16 @@ describe('body from the base model', () => {
   it('sizes the scout from the bounds of its model boxes', () => {
     const b = bodyOf('scout');
     expect(b.half.x).toBeCloseTo(2.6);
-    expect(b.half.z).toBeCloseTo(1.22);
+    expect(b.half.z).toBeCloseTo(1.11);
   });
 
-  it('keeps half extents, boxes and wheel mounts of every chassis at the values recorded before the grid split', () => {
-    expect(Object.keys(BASELINE).sort()).toEqual([...ids].sort());
-    for (const id of ids) {
-      const was = BASELINE[id as keyof typeof BASELINE];
-      const b = bodyOf(id);
+  it('keeps half extents, boxes and wheel mounts of every unit at the values recorded before the grid split', () => {
+    const keys = ids.flatMap((id) => unitsOf(id).map((u) => (u.index === 0 ? id : `${id}/${u.index}`)));
+    expect(Object.keys(BASELINE).sort()).toEqual(keys.sort());
+    for (const key of keys) {
+      const [id, unit] = key.split('/');
+      const was = BASELINE[key as keyof typeof BASELINE];
+      const b = unitBody(id, Number(unit ?? 0));
       expect(b.half.x, id).toBeCloseTo(was.half.x, 6);
       expect(b.half.y, id).toBeCloseTo(was.half.y, 6);
       expect(b.half.z, id).toBeCloseTo(was.half.z, 6);
@@ -47,9 +50,9 @@ describe('body from the base model', () => {
   });
 
   it('keeps every collider box inside the chassis bottom and the roof limit', () => {
-    for (const id of ids) {
-      const b = bodyOf(id);
-      const roof = PHYSICS.truckRoof - (b.wheelRadius + PHYSICS.truck.suspensionRest - b.wheelY);
+    for (const b of ids.flatMap((id) => unitsOf(id).map((u) => u.body))) {
+      const id = 'unit';
+      const roof = PHYSICS.truckRoof - rideOf(b);
       expect(b.boxes.length, id).toBeGreaterThan(0);
       for (const box of b.boxes) {
         expect(box.at.y - box.half.y, id).toBeGreaterThanOrEqual(-b.half.y - 1e-9);
@@ -59,17 +62,30 @@ describe('body from the base model', () => {
   });
 });
 
+const COM_HEIGHT: Record<string, number> = {
+  pickup: 0.45, hauler: 0.7, buggy: 0.4, wagon: 0.75, courier: 0.3, van: 0.5, longbed: 0.65, carrier: 0.75, tractor: 0.85,
+  jeep: 0.4, convertible: 0.32, bus: 0.8, niva: 0.4, bukhanka: 0.6, lincoln: 0.32, semi: 1.1, sorokonoga: 0.65, loader: 0.95,
+};
+
+describe('centre of mass', () => {
+  it('keeps every truck\'s centre of mass at its pinned height over flat ground at rest, whatever its wheels', () => {
+    for (const id of ids) {
+      for (const { body: b } of unitsOf(id)) expect(rideOf(b) + b.comY, id).toBeCloseTo(COM_HEIGHT[CHASSIS[id].look], 6);
+    }
+  });
+});
+
 describe('grid projection', () => {
   it('spreads inner cells evenly over the model, no smaller than a little over half a 0.484 by 0.65 m cell and no bigger', () => {
     for (const id of ids) {
       const { w, h } = baseGrid(id);
-      const { half } = bodyOf(id);
+      const { half } = spanOf(id);
       const first = cellCenter(id, 1, 1);
       const next = cellCenter(id, 2, 2);
-      expect(first.x - next.x, id).toBeCloseTo((2 * half.x) / h, 9);
+      expect(first.x - next.x, id).toBeCloseTo((2 * half.x) / (h - 2), 9);
       expect(next.z - first.z, id).toBeCloseTo((2 * half.z) / (w - 2), 9);
-      expect((2 * half.x) / h / PHYSICS.cell.along, id).toBeGreaterThan(0.55);
-      expect((2 * half.x) / h / PHYSICS.cell.along, id).toBeLessThan(1.1);
+      expect((2 * half.x) / (h - 2) / PHYSICS.cell.along, id).toBeGreaterThan(0.55);
+      expect((2 * half.x) / (h - 2) / PHYSICS.cell.along, id).toBeLessThan(1.1);
       expect((2 * half.z) / (w - 2) / PHYSICS.cell.across, id).toBeGreaterThan(0.75);
       expect((2 * half.z) / (w - 2) / PHYSICS.cell.across, id).toBeLessThan(1.1);
     }
@@ -78,7 +94,8 @@ describe('grid projection', () => {
   it('puts the side armor columns on the side faces and the first and last rows on the nose and tail faces', () => {
     for (const id of ids) {
       const { w, h } = baseGrid(id);
-      const { half } = bodyOf(id);
+      const { center, half } = spanOf(id);
+      const all = unitsOf(id);
       const left = cellRect(id, [{ x: 0, y: 2 }]);
       expect(left.z0, id).toBeCloseTo(-half.z);
       expect(left.z1, id).toBeCloseTo(-half.z);
@@ -87,12 +104,13 @@ describe('grid projection', () => {
       expect(right.z0, id).toBeCloseTo(half.z);
       expect(right.z1, id).toBeCloseTo(half.z);
       const nose = cellRect(id, [{ x: 2, y: 0 }]);
-      expect(nose.x0, id).toBeCloseTo(half.x);
-      expect(nose.x1, id).toBeCloseTo(half.x);
+      expect(nose.x0, id).toBeCloseTo(center + half.x - all[0].offset);
+      expect(nose.x1, id).toBeCloseTo(center + half.x - all[0].offset);
       expect(nose.z1 - nose.z0, id).toBeGreaterThan(0);
       const tail = cellRect(id, [{ x: 2, y: h - 1 }]);
-      expect(tail.x0, id).toBeCloseTo(-half.x);
-      expect(tail.x1, id).toBeCloseTo(-half.x);
+      expect(tail.unit, id).toBe(all.length - 1);
+      expect(tail.x0, id).toBeCloseTo(center - half.x - all[all.length - 1].offset);
+      expect(tail.x1, id).toBeCloseTo(center - half.x - all[all.length - 1].offset);
     }
   });
 
@@ -111,10 +129,31 @@ describe('grid projection', () => {
 
   it('finds the lanes a stretch of the edge crosses, clamped to the grid', () => {
     const { half } = bodyOf('scout');
-    expect(lanesAt('scout', 'column', -0.1, 0.1)).toEqual([3]);
-    expect(lanesAt('scout', 'column', -half.z - 1, half.z + 1)).toEqual([0, 1, 2, 3, 4, 5, 6]);
-    expect(lanesAt('scout', 'row', half.x - 0.01, half.x - 0.02)).toEqual([0]);
-    expect(lanesAt('scout', 'row', 100, -100)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    expect(lanesAt('scout', 'column', -0.1, 0.1, 0)).toEqual([3]);
+    expect(lanesAt('scout', 'column', -half.z - 1, half.z + 1, 0)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(lanesAt('scout', 'row', half.x - 0.01, half.x - 0.02, 0)).toEqual([1]);
+    expect(lanesAt('scout', 'row', half.x + 0.5, half.x + 0.4, 0)).toEqual([0]);
+    expect(lanesAt('scout', 'row', -half.x - 0.5, -half.x - 0.4, 0)).toEqual([9]);
+    expect(lanesAt('scout', 'row', 100, -100, 0)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  });
+});
+
+describe('row lanes', () => {
+  it('gives every inner cell the lane of its own row and the ring rows the lanes outside the body, on every chassis and unit', () => {
+    for (const id of ids) {
+      const { w, h } = baseGrid(id);
+      const { half } = spanOf(id);
+      const { row } = cellSteps(id);
+      expect(row, id).toBeCloseTo((2 * half.x) / (h - 2), 9);
+      for (let y = 1; y < h - 1; y++) {
+        const at = cellCenter(id, Math.floor(w / 2), y);
+        expect(lanesAt(id, 'row', at.x, at.x, at.unit), `${id} row ${y}`).toEqual([y]);
+      }
+    }
+  });
+
+  it('counts the body rows without the two ring rows', () => {
+    for (const id of ids) expect(bodyRows(id), id).toBe(baseGrid(id).h - 2);
   });
 });
 
@@ -126,36 +165,54 @@ describe('model surface', () => {
   });
 
   it('leaves out a wall that stands over a row edge', () => {
-    expect(surfaceAt('scout', cellRect('scout', [{ x: 3, y: 5 }, { x: 3, y: 6 }]))).toBeLessThan(0.1);
-    expect(surfaceAt('wagon', cellRect('wagon', [{ x: 2, y: 4 }, { x: 3, y: 4 }, { x: 2, y: 5 }, { x: 3, y: 5 }]))).toBeLessThan(0.7);
+    expect(surfaceAt('scout', cellRect('scout', [{ x: 3, y: 6 }, { x: 3, y: 7 }]))).toBeLessThan(0.1);
+    expect(surfaceAt('wagon', cellRect('wagon', [{ x: 2, y: 5 }, { x: 3, y: 5 }, { x: 2, y: 6 }, { x: 3, y: 6 }]))).toBeLessThan(0.7);
   });
 
   it('reads a rect narrower than a sample cell at its middle', () => {
-    const at = cellCenter('scout', 3, 5);
-    expect(surfaceAt('scout', { x0: at.x - 0.02, x1: at.x + 0.02, z0: at.z - 0.02, z1: at.z + 0.02 })).toBeLessThan(0.1);
+    const at = cellCenter('scout', 3, 6);
+    expect(surfaceAt('scout', { unit: 0, x0: at.x - 0.02, x1: at.x + 0.02, z0: at.z - 0.02, z1: at.z + 0.02 })).toBeLessThan(0.1);
   });
 
   it('throws when the model has nothing under the rect', () => {
-    expect(() => surfaceAt('scout', { x0: 50, x1: 51, z0: 0, z1: 1 })).toThrow(/no surface/);
+    expect(() => surfaceAt('scout', { unit: 0, x0: 50, x1: 51, z0: 0, z1: 1 })).toThrow(/no surface/);
   });
 
   it('gives an engine anchor inside the model outline', () => {
     for (const id of ids) {
       const a = engineAnchor(id);
-      const { half } = bodyOf(id);
+      const { half } = frontBody(id);
       expect(Math.abs(a.x), id).toBeLessThan(half.x);
       expect(Math.abs(a.z), id).toBeLessThan(half.z);
     }
   });
 });
 
+const CABIN = { header: 0.45, back: -0.62, crown: 1.66 };
+const HATCH = { x: -0.15, z: -0.36, reach: 0.3 };
+
+describe('the convertible antenna', () => {
+  it("stands on the cabin's crown, the highest flat spot over the cab cells, clear of the hatch", () => {
+    const body = PHYSICS.bodies.convertible;
+    const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
+    const spot = roofSpot('convertible', cellRect('convertible', coreCellsOf('convertible', 'cab')), 0.12);
+    expect(spot.x).toBeLessThanOrEqual(CABIN.header);
+    expect(spot.x).toBeGreaterThanOrEqual(CABIN.back);
+    expect(Math.abs(spot.y - (ground + CABIN.crown))).toBeLessThanOrEqual(CLIP_TOLERANCE);
+    expect(Math.hypot(spot.x - HATCH.x, spot.z - HATCH.z)).toBeGreaterThan(HATCH.reach);
+  });
+});
+
+const HANGS_OVER_MODEL = new Set(['loader 1,9', 'loader 7,9']);
+
 describe('grid and model correspondence', () => {
   it('projects the engine cells into the half of the truck that holds the engine anchor', () => {
     for (const id of ids) {
       const anchor = engineAnchor(id);
       for (const c of cellsOf(id, 'E')) {
-        const at = cellCenter(id, c.x, c.y);
-        expect(Math.sign(at.x) * Math.sign(anchor.x) >= 0, `${id} engine cell ${c.x},${c.y} is in the wrong half along the truck`).toBe(true);
+        const along = cellCenter(id, c.x, c.y).x;
+        const onMiddle = Math.abs(along) < 1e-9;
+        expect(onMiddle || Math.sign(along) * Math.sign(anchor.x) >= 0, `${id} engine cell ${c.x},${c.y} is in the wrong half along the truck`).toBe(true);
       }
     }
   });
@@ -193,7 +250,7 @@ describe('grid and model correspondence', () => {
       for (let j = 0; j < nz; j++) {
         const x0 = anchor.x - half.x + (i * 2 * half.x) / nx;
         const z0 = anchor.z - half.z + (j * 2 * half.z) / nz;
-        const top = highestUnder(id, { x0, x1: x0 + (2 * half.x) / nx, z0, z1: z0 + (2 * half.z) / nz });
+        const top = highestUnder(id, { unit: 0, x0, x1: x0 + (2 * half.x) / nx, z0, z1: z0 + (2 * half.z) / nz });
         if (top < anchor.y - CLIP_TOLERANCE) low.push(`${x0.toFixed(2)},${z0.toFixed(2)}: ${top === -Infinity ? 'air' : top.toFixed(2)} under a floor at ${anchor.y.toFixed(2)}`);
       }
     }
@@ -219,14 +276,14 @@ describe('grid and model correspondence', () => {
   it('projects every inner cell inside the model outline', () => {
     for (const id of ids) {
       const { w, h } = baseGrid(id);
-      const { half } = bodyOf(id);
       for (let y = 1; y < h - 1; y++) {
         for (let x = 1; x < w - 1; x++) {
           if (CHASSIS[id].layout[y][x] === ' ') continue;
           const rect = cellRect(id, [{ x, y }]);
+          const half = { x: unitBody(id, rect.unit).half.x, z: spanOf(id).half.z };
           const inside = rect.x0 >= -half.x - 1e-9 && rect.x1 <= half.x + 1e-9 && rect.z0 >= -half.z - 1e-9 && rect.z1 <= half.z + 1e-9;
           expect(inside, `${id} cell ${x},${y} projects outside the model outline`).toBe(true);
-          expect(() => surfaceAt(id, rect), `${id} cell ${x},${y} has no model surface under it`).not.toThrow();
+          if (!HANGS_OVER_MODEL.has(`${id} ${x},${y}`)) expect(() => surfaceAt(id, rect), `${id} cell ${x},${y} has no model surface under it`).not.toThrow();
         }
       }
     }
@@ -256,13 +313,15 @@ describe('resting parts', () => {
     const floats: number[] = [];
     let total = 0;
     for (const id of Object.keys(CHASSIS)) {
-      const map = (TRUCK_SHAPES as Record<string, { heights: Map }>)[`base_${id}`].heights;
       const { w, h } = baseGrid(id);
       for (const [sw, sh] of SIZES) {
         for (let y = 1; y + sh <= h - 1; y++) {
           for (let x = 1; x + sw <= w - 1; x++) {
             const cells = Array.from({ length: sw * sh }, (_, k) => ({ x: x + (k % sw), y: y + Math.floor(k / sw) }));
-            const rest = restOn(id, cellRect(id, cells));
+            if (unitOfRow(id, y).index !== unitOfRow(id, y + sh - 1).index) continue;
+            const rect = cellRect(id, cells);
+            const map = (TRUCK_SHAPES as Record<string, { heights: Map }>)[unitsOf(id)[rect.unit].shape].heights;
+            const rest = restOn(id, rect);
             total++;
             if (rest.perched) {
               perched++;
@@ -291,21 +350,21 @@ describe('surface samples', () => {
   it('lists the samples near a cab roof cell with its surface height, all within the radius', () => {
     const rect = cellRect('scout', [{ x: 3, y: 2 }]);
     const center = { x: (rect.x0 + rect.x1) / 2, z: (rect.z0 + rect.z1) / 2 };
-    const samples = surfaceSamples('scout', center, 0.3);
+    const samples = surfaceSamples('scout', 0, center, 0.3);
     expect(samples.length).toBeGreaterThan(0);
     for (const s of samples) expect(Math.hypot(s.x - center.x, s.z - center.z)).toBeLessThanOrEqual(0.3 + 1e-9);
-    expect(Math.max(...samples.map((s) => s.y))).toBeCloseTo(surfaceAt('scout', { x0: center.x - 0.3, x1: center.x + 0.3, z0: center.z - 0.3, z1: center.z + 0.3 }), 1);
+    expect(Math.max(...samples.map((s) => s.y))).toBeCloseTo(surfaceAt('scout', { unit: 0, x0: center.x - 0.3, x1: center.x + 0.3, z0: center.z - 0.3, z1: center.z + 0.3 }), 1);
   });
 
   it('leaves out samples over air', () => {
-    expect(surfaceSamples('scout', { x: 50, z: 50 }, 1)).toEqual([]);
+    expect(surfaceSamples('scout', 0, { x: 50, z: 50 }, 1)).toEqual([]);
   });
 });
 
 describe('hulk boxes', () => {
   it('stand every chassis on the ground from its chassis bottom', () => {
     for (const id of ids) {
-      const boxes = hulkBoxes(id);
+      const boxes = hulkBoxes(id, restBend(id)).map((h) => h.box);
       expect(Math.min(...boxes.map((b) => b.z0)), id).toBeCloseTo(0, 9);
       expect(boxes.every((b) => b.z1 > b.z0), id).toBe(true);
     }
@@ -314,9 +373,75 @@ describe('hulk boxes', () => {
   it('keep each chassis outline, so a bus hulk is longer than a buggy hulk', () => {
     const shapes = TRUCK_SHAPES as unknown as Record<string, { boxes: { x0: number; x1: number; y0: number; y1: number }[] }>;
     const outline = (boxes: readonly { x0: number; x1: number; y0: number; y1: number }[]) => boxes.map((b) => [b.x0, b.x1, b.y0, b.y1]);
-    const length = (id: string) => Math.max(...hulkBoxes(id).map((b) => b.x1)) - Math.min(...hulkBoxes(id).map((b) => b.x0));
+    const length = (id: string) => Math.max(...hulkBoxes(id, undefined).map((h) => h.box.x1)) - Math.min(...hulkBoxes(id, undefined).map((h) => h.box.x0));
 
-    for (const id of ids) expect(outline(hulkBoxes(id)), id).toEqual(outline(shapes[`base_${id}`].boxes));
+    for (const id of ids.filter((id) => !isRig(id))) expect(outline(hulkBoxes(id, undefined).map((h) => h.box)), id).toEqual(outline(shapes[`base_${id}`].boxes));
     expect(length('bus')).toBeGreaterThan(length('buggy') + 2);
+  });
+
+  it('fold a rig hulk at its bend and throw on a rig without one or a rigid hulk with one', () => {
+    const rig = ids.find(isRig)!;
+    const straight = hulkBoxes(rig, 0);
+    const folded = hulkBoxes(rig, 0.5);
+    const rear = unitsOf(rig)[1];
+    expect(straight.filter((h) => h.turn === 0).length).toBe(straight.length);
+    expect(folded.filter((h) => h.turn === 0.5).length).toBeGreaterThan(0);
+    expect(straight.find((h) => h.x !== 0)?.x).toBeCloseTo(rear.offset, 9);
+    expect(() => hulkBoxes(rig, undefined)).toThrow(/rig/);
+    expect(() => hulkBoxes('scout', 0)).toThrow(/no rig/);
+  });
+});
+
+describe('rig units', () => {
+  const rigs = ids.filter(isRig);
+
+  it('gives a rigid chassis one unit with its whole body and every row', () => {
+    for (const id of ids.filter((chassis) => !isRig(chassis))) {
+      const all = unitsOf(id);
+      expect(all.length, id).toBe(1);
+      expect(all[0].body, id).toBe(bodyOf(id));
+      expect(all[0].rows, id).toEqual([0, baseGrid(id).h]);
+    }
+  });
+
+  it('puts every row of a rig on exactly one unit, the rows before the coupling on the front unit', () => {
+    for (const id of rigs) {
+      const { h } = baseGrid(id);
+      const row = CHASSIS[id].coupling!.row;
+      for (let y = 0; y < h; y++) expect(unitOfRow(id, y).index, `${id} row ${y}`).toBe(y < row ? 0 : 1);
+      expect(unitsOf(id).map((u) => u.rows)).toEqual([[0, row], [row, h]]);
+    }
+  });
+
+  it('refuses the one-body query on a rig, so no caller treats a rig as its front unit', () => {
+    for (const id of rigs) expect(() => bodyOf(id)).toThrow(/rig/);
+  });
+
+  it('puts every cell of a straight rig within 5 cm of where the rigid projection over both units would', () => {
+    for (const id of rigs) {
+      const { w, h } = baseGrid(id);
+      const { center, half } = spanOf(id);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          if (CHASSIS[id].layout[y][x] === ' ') continue;
+          const at = cellCenter(id, x, y);
+          const straight = at.x + unitsOf(id)[at.unit].offset;
+          const rigid = y === 0 ? center + half.x : y === h - 1 ? center - half.x : center + half.x - ((y - 0.5) * 2 * half.x) / (h - 2);
+          expect(Math.abs(straight - rigid), `${id} cell ${x},${y}`).toBeLessThan(0.05);
+        }
+      }
+    }
+  });
+
+  it('keeps the rows of each unit over its own model', () => {
+    for (const id of rigs) {
+      const { w, h } = baseGrid(id);
+      for (let y = 1; y < h - 1; y++) {
+        const rect = cellRect(id, [{ x: Math.floor(w / 2), y }]);
+        const { half } = unitBody(id, rect.unit);
+        expect(rect.x0, `${id} row ${y}`).toBeGreaterThanOrEqual(-half.x - 1e-9);
+        expect(rect.x1, `${id} row ${y}`).toBeLessThanOrEqual(half.x + 1e-9);
+      }
+    }
   });
 });

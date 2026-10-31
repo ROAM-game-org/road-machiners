@@ -1,28 +1,37 @@
 
+import { demandLapsed } from './marshals';
 import { STATE_TURNS } from '../data/npcs';
 import { aidWork, checkAid, refreshAid, settleAid } from './aid';
 import { vehicleById } from './damage';
 import { newId } from './factory';
 import { lootRobbed } from './defeat';
+import { endStoryAid } from './encounters';
 import { checkPatch, isPatching, breakPatch, lapsePatch, patchWork, settlePatch } from './patch';
 import { practice } from './progress';
 import { checkLootWarning, defendWarned, lapseLootWarning } from './loot-warning';
-import { checkEscort, checkPlayerTow, checkTowPromise, lapseClaim, payEscort } from './tow';
+import { checkCrew, endCrewState } from './crews';
+import { checkHire, endHireState } from './hire';
+import { checkEscort, checkPlayerTow, strandingOver, claimantSees, lapseClaim, payEscort, releaseDragged } from './tow';
+import { breakWord, checkOffering, checkSunwardDrag, dropAtLight } from './sunward-crater';
 import { checkTrade, isMeeting } from './economy';
+import { checkHandover } from './parcel';
+import { checkLookOver, checkSizedUp, lookOverWork, onLookedOver } from './look-over';
 import { inCombat, isHostile } from './combat';
 import { getResources } from './resources';
 import type { Job, NpcState, StateData, StateEnding, StateKindId, Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
 import { modeRules } from './settings';
+import { noteDeed } from './relations';
+import { requireWholeM } from './money';
 
 export type WorkLeft = { turnsLeft: number; total: number };
-export type Work = WorkLeft & ({ from: 'job'; job: Job } | { from: 'state'; state: NpcState });
+export type Work = WorkLeft & { queued: number } & ({ from: 'job'; job: Job } | { from: 'state'; state: NpcState });
 
 export type StateKind = {
   refresh(w: World, s: NpcState): boolean;
   check(w: World, s: NpcState): StateEnding | null;
   hooks: Partial<Record<StateEnding, (w: World, s: NpcState) => void>>;
-  work(w: World, s: NpcState): WorkLeft | null;
+  work(w: World, s: NpcState, v: Vehicle): WorkLeft | null;
   binds: boolean;
 };
 
@@ -56,8 +65,8 @@ export const STATE_KINDS: Record<StateKindId, StateKind> = {
     work: noWork,
     binds: true,
   },
-  turnedDown: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
-  towPromise: { refresh: never, check: checkTowPromise, hooks: {}, work: noWork, binds: false },
+  turnedDown: { refresh: never, check: strandingOver, hooks: {}, work: noWork, binds: false },
+  towPromise: { refresh: never, check: strandingOver, hooks: {}, work: noWork, binds: false },
   answering: {
     refresh: answerWaits,
     check: (w, s) => (answerDropped(w, s) ? 'broken' : null),
@@ -68,6 +77,7 @@ export const STATE_KINDS: Record<StateKindId, StateKind> = {
   truce: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
   grievance: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
   plea: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
+  helpRefused: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
   patch: {
     refresh: isPatching,
     check: checkPatch,
@@ -76,13 +86,39 @@ export const STATE_KINDS: Record<StateKindId, StateKind> = {
     binds: true,
   },
   trade: { refresh: isMeeting, check: checkTrade, hooks: {}, work: noWork, binds: true },
+  handover: { refresh: isMeeting, check: checkHandover, hooks: {}, work: noWork, binds: true },
   revenge: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
   escort: { refresh: never, check: checkEscort, hooks: { fulfilled: payEscort }, work: noWork, binds: true },
   strayFire: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
-  aid: { refresh: refreshAid, check: checkAid, hooks: { fulfilled: settleAid }, work: aidWork, binds: true },
+  aid: { refresh: refreshAid, check: checkAid, hooks: { fulfilled: settleAndEndAid, expired: endAid, broken: endAid }, work: aidWork, binds: true },
   combat: { refresh: never, check: checkCombat, hooks: {}, work: noWork, binds: false },
   lootWarning: { refresh: never, check: checkLootWarning, hooks: { expired: lapseLootWarning, broken: defendWarned }, work: noWork, binds: false },
+  crew: { refresh: never, check: checkCrew, hooks: endingHooks(endCrewState), work: noWork, binds: true },
+  hire: { refresh: never, check: checkHire, hooks: endingHooks(endHireState), work: noWork, binds: true },
+  lookOver: { refresh: never, check: checkLookOver, hooks: { fulfilled: onLookedOver }, work: lookOverWork, binds: false },
+  sizedUp: { refresh: never, check: checkSizedUp, hooks: {}, work: noWork, binds: false },
+  cavalcade: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: true },
+  offering: { refresh: never, check: checkOffering, hooks: { broken: breakWord }, work: noWork, binds: true },
+  bountyStop: { refresh: never, check: noCheck, hooks: { expired: demandLapsed }, work: noWork, binds: false },
+  drag: { refresh: never, check: checkSunwardDrag, hooks: { fulfilled: dropAtLight, broken: releaseDragged, expired: releaseDragged }, work: noWork, binds: false },
 };
+
+function endingHooks(end: (w: World, s: NpcState, ending: StateEnding) => void): StateKind['hooks'] {
+  return {
+    expired: (w, s) => end(w, s, 'expired'),
+    fulfilled: (w, s) => end(w, s, 'fulfilled'),
+    broken: (w, s) => end(w, s, 'broken'),
+  };
+}
+
+function settleAndEndAid(w: World, s: NpcState): void {
+  settleAid(w, s);
+  endStoryAid(w, s, 'fulfilled');
+}
+
+function endAid(w: World, s: NpcState): void {
+  endStoryAid(w, s, 'broken');
+}
 
 function checkCombat(w: World, s: NpcState): StateEnding | null {
   const holder = w.vehicles.find((v) => v.id === s.holder);
@@ -92,9 +128,7 @@ function checkCombat(w: World, s: NpcState): StateEnding | null {
 }
 
 function answerWaits(w: World, s: NpcState): boolean {
-  const holder = vehicleById(w, s.holder);
-  const other = vehicleById(w, s.other);
-  return !canVehicleSee(w, holder, other.pos) || inCombat(w, other);
+  return !claimantSees(w, s) || inCombat(w, vehicleById(w, s.other));
 }
 
 function answerDropped(w: World, s: NpcState): boolean {
@@ -112,14 +146,13 @@ function turnsOf(kind: StateKindId): number | null {
   return STATE_TURNS[kind];
 }
 
-const DATA_KIND: Record<StateKindId, StateData['kind']> = { feud: 'feud', backedOff: 'none', tow: 'tow', turnedDown: 'none', towPromise: 'towPromise', answering: 'none', patch: 'patch', truce: 'none', grievance: 'none', plea: 'plea', trade: 'none', revenge: 'none', escort: 'escort', strayFire: 'strayFire', aid: 'aid', combat: 'none', lootWarning: 'lootWarning' };
+const DATA_KIND: Record<StateKindId, StateData['kind']> = { feud: 'feud', backedOff: 'none', tow: 'tow', turnedDown: 'none', towPromise: 'towPromise', answering: 'none', patch: 'patch', truce: 'none', grievance: 'none', plea: 'plea', helpRefused: 'none', trade: 'none', handover: 'none', revenge: 'none', escort: 'escort', strayFire: 'strayFire', aid: 'aid', combat: 'none', lootWarning: 'lootWarning', crew: 'crew', hire: 'hire', cavalcade: 'none', offering: 'offering', drag: 'drag', lookOver: 'none', sizedUp: 'none', bountyStop: 'bountyStop' };
 
 export function addState(w: World, kind: StateKindId, holder: string, other: string, data: StateData): NpcState {
   kindOf(kind);
   if (data.kind !== DATA_KIND[kind]) throw new Error(`A ${kind} state needs ${DATA_KIND[kind]} data, got ${data.kind}`);
   const s: NpcState = { id: newId(w, 'state'), kind, holder, other, turnsLeft: turnsOf(kind), born: w.turn, data };
-  w.states = w.states.filter((x) => !(x.kind === kind && x.holder === holder && x.other === other));
-  w.states.push(s);
+  w.states = [...w.states.filter((x) => !(x.kind === kind && x.holder === holder && x.other === other)), s];
   return s;
 }
 
@@ -151,14 +184,18 @@ export function boundTo(w: World, a: string, b: string): boolean {
   return w.states.some((s) => kindOf(s.kind).binds && ((s.holder === a && s.other === b) || (s.holder === b && s.other === a)));
 }
 
+export function bindingStatesHeld(w: World, holder: string): NpcState[] {
+  return w.states.filter((s) => s.holder === holder && kindOf(s.kind).binds);
+}
+
 export function givesWord(w: World, holder: string): boolean {
-  return w.states.some((s) => s.holder === holder && kindOf(s.kind).binds);
+  return bindingStatesHeld(w, holder).length > 0;
 }
 
 export function endState(w: World, s: NpcState, ending: StateEnding): void {
-  const i = w.states.findIndex((x) => x.id === s.id);
-  if (i < 0) throw new Error(`State ${s.id} has already ended`);
-  const [ended] = w.states.splice(i, 1);
+  const ended = w.states.find((x) => x.id === s.id);
+  if (!ended) throw new Error(`State ${s.id} has already ended`);
+  w.states = w.states.filter((x) => x !== ended);
   w.events.push({ t: 'stateEnded', state: ended, ending });
   if (kindOf(ended.kind).binds && ending !== 'broken' && modeRules(w).yielding) backOffAfterDeal(w, ended);
   kindOf(ended.kind).hooks[ending]?.(w, ended);
@@ -250,6 +287,7 @@ function payTow(w: World, s: NpcState): void {
   const tow = towData(s);
   const towed = vehicleById(w, s.other);
   const tower = vehicleById(w, s.holder);
+  requireWholeM(tow.fee, 'tow fee');
   getResources(w, towed).money -= tow.fee;
   getResources(w, tower).money += tow.fee;
   if (towed.brain) forgetClient(tower, s.other);
@@ -258,6 +296,7 @@ function payTow(w: World, s: NpcState): void {
   if (s.holder === w.player.vehicleId) w.events.push({ t: 'money', amount: tow.fee, reason: { kind: 'towing', vehicle: towed.id } });
   if (s.holder === w.player.vehicleId && tow.waived > 0) practice(w, 'freeTow', tow.waived, null, s.other);
   else w.events.push({ t: 'towDone', by: s.holder, client: s.other, fee: tow.fee });
+  noteDeed(w, tower, towed, 'towed', true);
 }
 
 function releaseTow(w: World, s: NpcState): void {
@@ -273,12 +312,16 @@ function forgetClient(tower: Vehicle, clientId: string): void {
   if (tower.brain) delete tower.brain.noticed[`strandedSeen:${clientId}`];
 }
 
+function jobWork(job: Job): Work {
+  return { from: 'job', job, turnsLeft: job.turnsLeft, total: job.total, queued: job.kind === 'refit' ? job.queue.length : 0 };
+}
+
 export function workOf(w: World, v: Vehicle): Work | null {
-  if (v.job) return { from: 'job', job: v.job, turnsLeft: v.job.turnsLeft, total: v.job.total };
+  if (v.job) return jobWork(v.job);
   for (const state of w.states) {
     if (state.holder !== v.id && state.other !== v.id) continue;
-    const left = kindOf(state.kind).work(w, state);
-    if (left) return { from: 'state', state, ...left };
+    const left = kindOf(state.kind).work(w, state, v);
+    if (left) return { from: 'state', state, queued: 0, ...left };
   }
   return null;
 }

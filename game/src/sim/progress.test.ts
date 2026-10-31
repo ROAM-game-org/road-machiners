@@ -1,12 +1,36 @@
 import { describe, expect, it } from 'vitest';
 import { TIME } from '../data/time';
-import { MAX_RANK, type PerkId, RANK_COSTS, XP_RULES, XP_SOURCES } from '../data/skills';
+import { BASIC_IDS, BASICS, MAX_RANK, type PerkId, RANK_COSTS, XP_RULES, XP_SOURCES } from '../data/skills';
 import {
-  affordableRanks, buyCheapestRanks, buyRank, canBuyRank, choosePerk, cumulativeCost, hasPerk, pendingPerkPairs, practice, rankCost, ranksCoveredBy, skillEffect,
+  affordableRanks, basicRefusal, basicSkill, buyCheapestRanks, buyRank, canBuyRank, choosePerk, cumulativeCost, hasBasic, hasPerk, pendingPerkPairs, practice, rankCost, skillEffect,
   skillLevel, vehicleHasPerk, xpFor, xpTodayOf,
 } from './progress';
 import { vehicleStats } from './stats';
 import { addVehicle, emptyWorld } from './testkit';
+
+describe('rank 1 basics', () => {
+  it('maps each skill to its own basic', () => {
+    expect(new Set(BASIC_IDS).size).toBe(5);
+    for (const [skill, basic] of Object.entries(BASICS)) expect(basicSkill(basic)).toBe(skill);
+  });
+
+  it('puts the water douse under Overdrive and First aid under Toughness', () => {
+    expect(basicSkill('overdrive')).toBe('driving');
+    expect(basicSkill('firstAid')).toBe('toughness');
+    expect(BASIC_IDS).not.toContain('douse');
+  });
+
+  it('are closed at rank 0 with the rank they need, and open at once when rank 1 is bought', () => {
+    let w = emptyWorld();
+    expect(BASIC_IDS.filter((basic) => hasBasic(w, basic))).toEqual([]);
+    expect(basicRefusal(w, 'lookOver')).toEqual({ id: 'needsBasic', skill: 'perception' });
+    w.player.xp = 10_000;
+    w = buyRank(w, 'perception');
+    expect(hasBasic(w, 'lookOver')).toBe(true);
+    expect(basicRefusal(w, 'lookOver')).toBeNull();
+    expect(BASIC_IDS.filter((basic) => hasBasic(w, basic))).toEqual(['lookOver']);
+  });
+});
 
 describe('rank costs', () => {
   it('price each rank from the table', () => {
@@ -19,12 +43,6 @@ describe('rank costs', () => {
   it('add up to the cumulative cost of a rank', () => {
     expect(cumulativeCost(0)).toBe(0);
     expect(cumulativeCost(2)).toBe(RANK_COSTS[0] + RANK_COSTS[1]);
-  });
-
-  it('cover the ranks an XP total pays for, up to the top rank', () => {
-    expect(ranksCoveredBy(cumulativeCost(2) - 1)).toBe(1);
-    expect(ranksCoveredBy(cumulativeCost(2))).toBe(2);
-    expect(ranksCoveredBy(cumulativeCost(MAX_RANK) * 10)).toBe(MAX_RANK);
   });
 });
 
@@ -107,7 +125,7 @@ describe('xpFor', () => {
   const fresh = { xp: 0, xpToday: { driving: 0, perception: 0, machining: 0, toughness: 0, social: 0 }, xpDay: 1, repeats: {} };
 
   it('pays an unscaled source its weight per unit', () => {
-    expect(xpFor(fresh, 'profit', 100, null, 'bowl:salt', 1)).toBeCloseTo(XP_SOURCES.profit.weight * 100);
+    expect(xpFor(fresh, 'profit', 10, null, 'bowl:salt', 1)).toBeCloseTo(XP_SOURCES.profit.weight * 10);
   });
 
   it('rejects a difficulty on an unscaled source', () => {
@@ -127,7 +145,7 @@ describe('xpFor', () => {
 
   it('forgets the cap on a new day', () => {
     const capped = { ...fresh, xpToday: { ...fresh.xpToday, social: XP_RULES.dailyCap } };
-    expect(xpFor(capped, 'profit', 100, null, 'bowl:salt', 1 + TIME.turnsPerDay)).toBeCloseTo(XP_SOURCES.profit.weight * 100);
+    expect(xpFor(capped, 'profit', 10, null, 'bowl:salt', 1 + TIME.turnsPerDay)).toBeCloseTo(XP_SOURCES.profit.weight * 10);
   });
 
   it('rejects negative amounts', () => {
@@ -138,7 +156,7 @@ describe('xpFor', () => {
 describe('repeats on one target', () => {
   it('each earlier event on a target multiplies the pay by its repeat factor', () => {
     const w = emptyWorld();
-    for (let i = 0; i < 3; i++) practice(w, 'profit', 10, null, 'bowl:salt');
+    for (let i = 0; i < 3; i++) practice(w, 'profit', 5, null, 'bowl:salt');
     const pay = w.events.flatMap((e) => (e.t === 'practice' ? [e.xp] : []));
     const r = XP_SOURCES.profit.repeat;
     expect(pay[1] / pay[0]).toBeCloseTo(r);
@@ -243,7 +261,7 @@ describe('skillEffect', () => {
   it('is zero for other trucks', () => {
     const w = emptyWorld();
     w.player.ranks.driving = 3;
-    const npc = addVehicle(w, 'traders', 'hauler', [], { x: 40, y: 40 });
+    const npc = addVehicle(w, 'independent', 'hauler', [], { x: 40, y: 40 });
     expect(skillEffect(w, npc, 'driving', 'turnRate')).toBe(0);
   });
 });
@@ -304,7 +322,7 @@ describe('open perk pairs', () => {
     w.player.ranks.social = 4;
     expect(pendingPerkPairs(w)).toEqual([
       { skill: 'social', level: 2, perks: ['marketEars', 'rumorMill'] },
-      { skill: 'social', level: 4, perks: ['paidTruce', 'bountyTalk'] },
+      { skill: 'social', level: 4, perks: ['paidTruce', 'bountyHunter'] },
     ]);
     const next = choosePerk(w, 'paidTruce');
     expect(pendingPerkPairs(next)).toEqual([{ skill: 'social', level: 2, perks: ['marketEars', 'rumorMill'] }]);
@@ -315,7 +333,7 @@ describe('perks on vehicles', () => {
   it('apply to the player truck only', () => {
     const w = emptyWorld();
     w.player.perks.push('rammer');
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     expect(vehicleHasPerk(w, w.vehicles[0], 'rammer')).toBe(true);
     expect(vehicleHasPerk(w, npc, 'rammer')).toBe(false);
   });

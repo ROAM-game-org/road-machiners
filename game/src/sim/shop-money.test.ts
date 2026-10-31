@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { NPCS } from '../data/npcs';
 import { REGION } from '../data/region';
 import { ECONOMY } from '../data/goods';
-import { getUpkeepReserve, sellAtCamp, serviceVehicle, transfer } from './economy';
+import { getUpkeepReserve, sellAtCamp, serviceVehicle, supplyCharge, transfer } from './economy';
+import { affordableUnits } from './money';
 import { makePart } from './factory';
 import { mountedParts } from './grid';
 import { fuelCap, suppliesCap } from './stats';
@@ -30,7 +31,7 @@ function totalsByKind(events: readonly ShopMoneyEvent[]): Partial<Record<ShopMon
 
 function traderInBowl(parts: string[] = ['stockEngine']): { w: World; npc: Vehicle } {
   const w = emptyWorld({ x: 30, y: 30 });
-  const npc = addVehicle(w, 'traders', 'hauler', parts, { ...sitePads(bowl)[0] });
+  const npc = addVehicle(w, 'independent', 'hauler', parts, { ...sitePads(bowl)[0] });
   npc.brain = npcBrain('trader', npc.pos, NPCS.trader.traits);
   w.events = [];
   return { w, npc };
@@ -63,7 +64,7 @@ describe('shop money', () => {
 
   it('names a raider camp sale', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { ...siteGates(kiln)[0] });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { ...sitePads(kiln)[0] });
     raider.brain = npcBrain('buggy', raider.pos, NPCS.buggy.traits);
     addGoods(w, raider, 'salt', 2);
     const before = getResources(w, raider).money;
@@ -77,12 +78,12 @@ describe('shop money', () => {
 
   it('names a payment between two trucks', () => {
     const { w, npc } = traderInBowl();
-    const other = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { ...sitePads(bowl)[1] });
+    const other = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { ...sitePads(bowl)[1] });
     other.brain = npcBrain('trader', other.pos, NPCS.trader.traits);
 
-    transfer(w, npc, other, 1234);
+    transfer(w, npc, other, 12);
 
-    expect(w.events).toContainEqual({ t: 'transfer', from: npc.id, to: other.id, amount: 1234 });
+    expect(w.events).toContainEqual({ t: 'transfer', from: npc.id, to: other.id, amount: 12 });
   });
 });
 
@@ -100,15 +101,15 @@ describe('NPC service spending', () => {
   it('buys supplies before fuel when the money cannot fill both', () => {
     const { w, npc } = traderInBowl();
     const resources = getResources(w, npc);
-    resources.money = 2000;
+    resources.money = 20;
     resources.supplies = 0;
     resources.fuel = 1;
-    const supplies = Math.min(Math.floor(suppliesCap(npc)), Math.floor(2000 / ECONOMY.supplyPrice.supplies));
+    const supplies = Math.min(Math.floor(suppliesCap(npc)), affordableUnits(20, ECONOMY.supplyPrice.supplies));
 
     serviceVehicle(w, npc, 'bowl', 0);
 
     expect(resources.supplies).toBe(supplies);
-    expect(resources.fuel).toBe(1 + Math.floor((2000 - supplies * ECONOMY.supplyPrice.supplies) / ECONOMY.supplyPrice.fuel));
+    expect(resources.fuel).toBe(1 + Math.floor((20 - supplyCharge('supplies', supplies)) / ECONOMY.supplyPrice.fuel));
     expect(shopMoneyOf(w, npc).map((e) => e.kind)).toEqual(['supplies', 'fuel']);
   });
 

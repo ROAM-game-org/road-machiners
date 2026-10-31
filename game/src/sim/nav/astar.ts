@@ -2,7 +2,7 @@
 import { REGION } from '../../data/region';
 import { count } from '../../perf';
 import type { Blocker } from './buckets';
-import { CELL, COARSE, componentOf, stampBlockers, tasted, type NavLayer, type Taste } from './layer';
+import { CELL, COARSE, componentOf, stampBlockers, tasted, tastedCoarse, type NavLayer, type Taste } from './layer';
 
 export type Overlay = { stamp: Uint32Array; gen: number };
 
@@ -250,7 +250,7 @@ function markCorridor(layer: NavLayer, start: number, goal: number, taste: Taste
       const next = edges[e];
       if (coarseClosed[next] === g) continue;
       const step = Math.hypot(rx[next] - rx[cur], ry[next] - ry[cur]) * ((slow[cur] + slow[next]) / 2);
-      const c = base + tasted(taste, step, ((rx[cur] + rx[next]) / 2) * CELL, ((ry[cur] + ry[next]) / 2) * CELL);
+      const c = base + tastedCoarse(taste, step, ((rx[cur] + rx[next]) / 2) * CELL, ((ry[cur] + ry[next]) / 2) * CELL, block[cur], block[next]);
       if (coarseSeen[next] === g && c >= coarseCost[next]) continue;
       coarseSeen[next] = g;
       coarseCost[next] = c;

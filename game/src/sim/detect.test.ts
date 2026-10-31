@@ -26,7 +26,7 @@ function raiseHill(w: ReturnType<typeof emptyWorld>): void {
 describe('soundRange and dustRange', () => {
   it('a parked truck is silent and dustless', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     v.speed = 0;
     expect(soundRange(w, v)).toBe(0);
     expect(dustRange(w, v)).toBe(0);
@@ -34,7 +34,7 @@ describe('soundRange and dustRange', () => {
 
   it('a limping truck raises no dust and is heard only a little past sight', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     v.speed = RULES.limpSpeed;
     expect(dustRange(w, v)).toBe(0);
     const crawl = soundRange(w, v);
@@ -44,7 +44,7 @@ describe('soundRange and dustRange', () => {
 
   it('a road raises less dust than sand', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     v.speed = 4;
     editableTerrain(w);
     const idx = Math.floor(v.pos.y) * w.terrain.size + Math.floor(v.pos.x);
@@ -59,7 +59,7 @@ describe('soundRange and dustRange', () => {
     const w = emptyWorld({ x: 2, y: 30 });
     w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => !sunAt(t))!;
     const observer = w.vehicles[0];
-    const target = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 2, y: 30 });
+    const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 2, y: 30 });
     target.speed = 2;
     observer.speed = 2;
     target.pos = { x: 2 + soundRange(w, target) - DETECT.sound.ownPenalty, y: 30 };
@@ -73,7 +73,7 @@ describe('soundRange and dustRange', () => {
 
   it('night hides dust', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     v.speed = 4;
     w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => !sunAt(t))!;
     expect(dustRange(w, v)).toBe(0);
@@ -86,7 +86,7 @@ describe('hills and the scanner', () => {
     raiseHill(w);
     refreshVision(w);
     const observer = w.vehicles[0];
-    const target = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     target.speed = 4;
     const contacts = contactsOf(w, observer, Infinity);
     const contact = contacts.find((c) => c.vehicleId === target.id);
@@ -99,8 +99,8 @@ describe('hills and the scanner', () => {
     raiseHill(w);
     refreshVision(w);
     const observer = w.vehicles[0];
-    observer.items = observer.items.filter((it) => it.kind === 'good' || it.part.defId !== 'mg');
-    const target = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    observer.items = observer.items.filter((it) => it.kind !== 'part' || it.part.defId !== 'mg');
+    const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     target.speed = 0.2;
     expect(scannerRange(w, observer)).toBe(0);
     const before = contactsOf(w, observer, Infinity);
@@ -117,7 +117,7 @@ describe('a worn scanner', () => {
   it('reaches less far', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const observer = w.vehicles[0];
-    observer.items = observer.items.filter((it) => it.kind === 'good' || it.part.defId !== 'mg');
+    observer.items = observer.items.filter((it) => it.kind !== 'part' || it.part.defId !== 'mg');
     const scanner = makePart(w, 'scanner', 0);
     if (!mountPart(w, observer, scanner)) throw new Error('No free mount for the test scanner');
     const fresh = scannerRange(w, observer);
@@ -130,7 +130,7 @@ describe('contact fuzz', () => {
   it('the circle always holds the true position', () => {
     const w = emptyWorld({ x: 20, y: 30 });
     const observer = w.vehicles[0];
-    const target = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 31, y: 30 });
+    const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 31, y: 30 });
     target.speed = 3;
     for (let seed = 1; seed <= 50; seed++) {
       for (let turn = 1; turn <= 5; turn++) {
@@ -149,7 +149,7 @@ describe('dust clouds', () => {
   function dustyWorld() {
     const w = emptyWorld({ x: 10, y: 30 });
     w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => sunAt(t))!;
-    const v = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     v.speed = 4;
     v.heading = 0;
     v.trail = [0, 1, 2, 3, 4].map((i) => ({ x: 36 + i, y: 30, heading: 0 }));
@@ -207,7 +207,7 @@ describe('the emergency beacon', () => {
     const me = w.vehicles[0];
     me.speed = 0;
     w.player.beacon = true;
-    const observer = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: observerX, y: 30 });
+    const observer = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: observerX, y: 30 });
     observer.speed = 0;
     return { w, me, observer };
   }
@@ -256,7 +256,7 @@ describe('perception hearing and contact fix', () => {
   function pastHearing(listenerPos = { x: 2, y: 30 }) {
     const w = emptyWorld(listenerPos);
     w.turn = night();
-    const target = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], listenerPos);
+    const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], listenerPos);
     target.speed = 2;
     target.pos = { x: listenerPos.x + soundRange(w, target) * 1.2, y: listenerPos.y };
     return { w, target };
@@ -272,7 +272,7 @@ describe('perception hearing and contact fix', () => {
 
   it('an NPC listener does not hear farther from the player skill', () => {
     const { w, target } = pastHearing({ x: 2, y: 60 });
-    const listener = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 2, y: 60 });
+    const listener = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 2, y: 60 });
     listener.speed = 0;
     w.player.ranks.perception = 5;
     expect(contactsOf(w, listener, Infinity).find((c) => c.vehicleId === target.id)).toBeUndefined();
@@ -280,7 +280,7 @@ describe('perception hearing and contact fix', () => {
 
   it('the player gets a tighter contact circle at rank 5', () => {
     const w = emptyWorld({ x: 20, y: 30 });
-    const target = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
+    const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
     target.speed = 3;
     const radius = () => contactsOf(w, w.vehicles[0], Infinity).find((c) => c.vehicleId === target.id)!.radius;
     const base = radius();
@@ -290,8 +290,8 @@ describe('perception hearing and contact fix', () => {
 
   it('an NPC observer keeps its contact circle', () => {
     const w = emptyWorld({ x: 200, y: 200 });
-    const observer = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 20, y: 30 });
-    const target = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
+    const observer = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 20, y: 30 });
+    const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
     target.speed = 3;
     const radius = () => contactsOf(w, observer, Infinity).find((c) => c.vehicleId === target.id)!.radius;
     const base = radius();
@@ -305,7 +305,7 @@ describe('perception hearing and contact fix', () => {
 describe('a stalled engine', () => {
   it('is silent while stalled and heard again after', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     v.speed = 4;
     v.stalledUntil = w.turn;
     expect(soundRange(w, v)).toBe(0);
@@ -322,7 +322,7 @@ describe('the cold running perk', () => {
     w.turn = night();
     const me = playerVehicle(w);
     me.speed = vehicleStats(w, me).maxSpeed * share;
-    const listener = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 10, y: 30 });
+    const listener = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 10, y: 30 });
     listener.speed = 0;
     const sight = sightRadius(w, listener);
     expect(soundRange(w, me)).toBeGreaterThan(sight + 2);
@@ -352,7 +352,7 @@ describe('the cold running perk', () => {
     w.player.perks.push('coldRunning');
     const me = playerVehicle(w);
     me.speed = 0;
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 10, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 10, y: 30 });
     npc.speed = vehicleStats(w, npc).maxSpeed * 0.4;
     npc.pos = { x: 10 + sightRadius(w, me) + 1, y: 30 };
     expect(soundRange(w, npc)).toBeGreaterThan(sightRadius(w, me) + 2);
@@ -365,7 +365,7 @@ describe('the dust screen perk', () => {
     const w = emptyWorld({ x: 40, y: 30 });
     w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => sunAt(t))!;
     editableTerrain(w).types.fill('sand');
-    const v = npc ? addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 60 }) : playerVehicle(w);
+    const v = npc ? addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 60 }) : playerVehicle(w);
     v.speed = vehicleStats(w, v).maxSpeed * share;
     v.trail = [0, 1, 2, 3, 4].map((i) => ({ x: v.pos.x - 4 + i, y: v.pos.y, heading: 0 }));
     return { w, v };
@@ -404,7 +404,7 @@ describe('the dust screen perk', () => {
 describe('the spotter perk', () => {
   function spotterWorld() {
     const w = emptyWorld({ x: 30, y: 30 });
-    const target = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 35, y: 30 });
+    const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 35, y: 30 });
     target.speed = 0;
     refreshVision(w);
     expect(scannerRange(w, playerVehicle(w))).toBe(0);
@@ -493,7 +493,7 @@ describe('the spotter perk', () => {
     const { w, target } = spotterWorld();
     w.player.perks.push('spotter');
     const marked = markVehicle(w, target.id);
-    const npc = addVehicle(marked, 'traders', 'scout', ['stockEngine'], { x: 30, y: 30 });
+    const npc = addVehicle(marked, 'independent', 'scout', ['stockEngine'], { x: 30, y: 30 });
     driveOff(marked, target.id);
     expect(contactsOf(marked, npc, Infinity).find((c) => c.vehicleId === target.id)).toBeUndefined();
   });
@@ -508,7 +508,7 @@ describe('a stranded truck', () => {
     editableTerrain(w).types.fill('sand');
     const me = w.vehicles[0];
     me.speed = 0;
-    const v = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     v.speed = RULES.limpSpeed;
     v.heading = 0;
     v.trail = [0, 1, 2, 3, 4].map((i) => ({ x: 36 + i, y: 30, heading: 0 }));
@@ -553,7 +553,7 @@ describe('a stranded truck', () => {
   it('drops its sound contact and stops raising dust once it strands, and is heard again once refuelled', () => {
     const { w, me, v } = crawling();
     v.speed = 4;
-    const listener = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 75, y: 30 });
+    const listener = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 75, y: 30 });
     listener.speed = 0;
     refreshVision(w);
     expect(w.player.contacts.find((c) => c.vehicleId === v.id)?.sources).toContain('sound');
@@ -578,7 +578,7 @@ describe('a stranded truck', () => {
     w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => !sunAt(t))!;
     const me = w.vehicles[0];
     me.speed = 4;
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     npc.speed = 4;
     const heard = (from: typeof me, of: typeof me) => contactsOf(w, from, Infinity).find((c) => c.vehicleId === of.id)?.sources ?? [];
     me.speed = 0;
@@ -602,14 +602,14 @@ describe('a stranded truck', () => {
     me.speed = RULES.limpSpeed;
     w.player.fuel = 0;
     w.player.beacon = true;
-    const observer = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const observer = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     observer.speed = 0;
     expect(contactsOf(w, observer, Infinity).find((c) => c.vehicleId === me.id)?.sources).toEqual(['beacon']);
     observer.resources!.fuel = 0;
     observer.speed = 4;
     me.speed = 0;
     w.player.fuel = 10;
-    me.items = me.items.filter((it) => it.kind === 'good' || it.part.defId !== 'mg');
+    me.items = me.items.filter((it) => it.kind !== 'part' || it.part.defId !== 'mg');
     if (!mountPart(w, me, makePart(w, 'scanner', 0))) throw new Error('No free mount for the test scanner');
     expect(contactsOf(w, me, Infinity).find((c) => c.vehicleId === observer.id)?.sources).toEqual(['radio']);
   });

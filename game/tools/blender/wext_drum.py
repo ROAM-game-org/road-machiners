@@ -20,7 +20,7 @@ DRUM = (-0.12, -0.21, -0.08)  # Drum center.
 
 def build(kit: Kit) -> None:
     kit.box("bracket", (0.04, 0.22, 0.025), (-0.1, -0.11, 0.0125), "metal")
-    kit.box("hanger", (0.04, 0.025, 0.08), (-0.1, -0.21, -0.02), "metal")
+    kit.box("hanger", (0.03, 0.025, 0.08), (-0.1, -0.21, -0.02), "metal")
     kit.cylinder("drum", 0.1, 0.08, DRUM, "rust", rot=(math.radians(90), 0, 0), vertices=8, dent_by=0.004)
     kit.cylinder("drum_cap", 0.05, 0.1, DRUM, "dark", rot=(math.radians(90), 0, 0), vertices=6)
     kit.box("drum_band", (0.03, 0.085, 0.205), DRUM, "metal_light")

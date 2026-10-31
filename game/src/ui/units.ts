@@ -1,10 +1,14 @@
 import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
+import { TIME } from '../data/time';
 import { UNITS } from '../data/units';
+import { compassOctant } from '../text/compass';
 import { concat, MINUS_SIGN, num, SPACE, t, type Msg } from '../text/msg';
+import type { Vec } from '../sim/vec';
 import { el } from './dom';
 
 const MS_TO_KPH = 3.6;
+const HOURS_PER_DAY = 24;
 
 export function kph(tilesPerTurn: number): number {
   return Math.round((tilesPerTurn * PHYSICS.metersPerTile) / PHYSICS.turnSeconds * MS_TO_KPH);
@@ -12,6 +16,11 @@ export function kph(tilesPerTurn: number): number {
 
 export function mps2(tilesPerTurn2: number): number {
   return Math.round((tilesPerTurn2 * PHYSICS.metersPerTile) / PHYSICS.turnSeconds ** 2 * 10) / 10;
+}
+
+export function agoText(turns: number): Msg {
+  const hours = Math.floor(turns / (TIME.turnsPerDay / HOURS_PER_DAY));
+  return hours < 1 ? t('ago.underHour') : t('ago.hours', { n: hours });
 }
 
 export function meters(tiles: number): number {
@@ -23,6 +32,14 @@ const METERS_PER_KM = 1000;
 export function distanceText(tiles: number): Msg {
   const m = meters(tiles);
   return m >= METERS_PER_KM ? t('units.km', { n: m / METERS_PER_KM }) : t('units.m', { n: m });
+}
+
+export function compassText(rad: number): Msg {
+  return t(`compass.${compassOctant(rad)}`);
+}
+
+export function bearingText(from: Vec, to: Vec): Msg {
+  return compassText(Math.atan2(to.y - from.y, to.x - from.x));
 }
 
 export function liters(cells: number): number {
@@ -57,27 +74,26 @@ const WHOLE_M = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 
 export const MINUS = '\u2212';
 
-export function moneyM(cents: number): number {
-  const whole = Math.round(cents);
-  if (whole === 0) return 0;
-  return Math.sign(whole) * Math.ceil(Math.abs(whole) / UNITS.centsPerM);
+export function moneyM(amount: number): number {
+  if (amount === 0) return 0;
+  return Math.sign(amount) * Math.ceil(Math.abs(amount) - 1e-9);
 }
 
-export function moneyAmount(cents: number): string {
-  const m = moneyM(cents);
+export function moneyAmount(amount: number): string {
+  const m = moneyM(amount);
   if (m === 0) return '0';
   const text = WHOLE_M.format(Math.abs(m));
   return m < 0 ? `${MINUS}${text}` : text;
 }
 
-export function moneyText(cents: number): string {
-  const amount = moneyAmount(cents);
-  return `${amount} ${amount === '1' || amount === `${MINUS}1` ? UNITS.currency.one : UNITS.currency.many}`;
+export function moneyText(amount: number): string {
+  const shown = moneyAmount(amount);
+  return `${shown} ${shown === '1' || shown === `${MINUS}1` ? UNITS.currency.one : UNITS.currency.many}`;
 }
 
-export function moneyNumber(cents: number): string {
-  if (!Number.isFinite(cents)) throw new Error(`Not a currency amount: ${cents}`);
-  return moneyAmount(cents);
+export function moneyNumber(amount: number): string {
+  if (!Number.isFinite(amount)) throw new Error(`Not a currency amount: ${amount}`);
+  return moneyAmount(amount);
 }
 
 const COIN_SVG =
@@ -89,30 +105,30 @@ export function coinEl(): HTMLElement {
   return coin;
 }
 
-export function moneyEl(cents: number): HTMLElement {
-  const text = moneyMsg(cents);
-  return el('span', { class: `amount${cents < 0 ? ' bad' : ''}`, title: text, 'aria-label': text }, coinEl(), moneyNum(cents));
+export function moneyEl(amount: number): HTMLElement {
+  const text = moneyMsg(amount);
+  return el('span', { class: `amount${amount < 0 ? ' bad' : ''}`, title: text, 'aria-label': text }, coinEl(), moneyNum(amount));
 }
 
-export function pricedEl(action: Msg, cents: number): HTMLElement {
-  return el('span', { class: 'priced' }, action, SPACE, moneyEl(cents));
+export function pricedEl(action: Msg, amount: number): HTMLElement {
+  return el('span', { class: 'priced' }, action, SPACE, moneyEl(amount));
 }
 
-export function moneyDelta(cents: number): string {
-  const text = moneyText(cents);
-  return Math.round(cents) > 0 ? `+${text}` : text;
+export function moneyDelta(amount: number): string {
+  const text = moneyText(amount);
+  return amount > 0 ? `+${text}` : text;
 }
 
 export function turnsText(turns: number): string {
   return `${turns} ${turns === 1 ? 'turn' : 'turns'}`;
 }
 
-export function moneyNum(cents: number): Msg {
-  const m = moneyM(cents);
+export function moneyNum(amount: number): Msg {
+  const m = moneyM(amount);
   return m < 0 ? concat([MINUS_SIGN, num(-m, 'int')]) : num(m, 'int');
 }
 
-export function moneyMsg(cents: number): Msg {
-  const m = moneyM(cents);
+export function moneyMsg(amount: number): Msg {
+  const m = moneyM(amount);
   return m < 0 ? t('money.minus', { n: -m }) : t('money.m', { n: m });
 }

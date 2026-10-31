@@ -1,18 +1,25 @@
 import { t, type Msg } from '../text/msg';
+import { isNoteId } from '../data/locals';
 import type { BakedMap } from '../sim/terrain';
 import { isBakedObstacle, isBreakable, mapObstacles } from '../sim/mapgen';
 import { townAt } from '../sim/sites';
-import { reachedOutpostAt } from '../sim/fury-road';
+import { reachedOutpostAt } from '../sim/chaos-highway';
 import { highwayMap } from '../sim/highway';
+import { fitBake, repairMap, settleOffHollow, settleTrucks, type SavedBroken, type SavedMapWorld } from '../sim/map-repair';
+import { repairContent } from '../sim/save-repair';
 export { newMapFor } from '../sim/highway';
-import type { BrokenProp, Obstacle, Player, QuestState, Vehicle, World, WorldSetup } from '../sim/types';
-import { QUESTS, questProblems, restoreQuest } from '../sim/quests';
+import type { BrokenProp, Obstacle, QuestState, World, WorldSetup } from '../sim/types';
+import { QUESTS, restoreQuest } from '../sim/quests';
+import { newerQuests, questRevisions, repairQuests, type QuestRepair, type SavedRevisions } from '../sim/quest-repair';
 import { refreshVision } from '../sim/vision';
-import { modeMap, parseSetup } from '../sim/settings';
+import { hollowObstaclesFor, isHollowObstacle } from '../sim/hollow-layout';
+import { isMode, modeMap, repairSetup } from '../sim/settings';
 import { clearTips } from '../ui/tips';
 import type { NewGameActions } from '../ui/new-game';
 import { settleAims } from '../sim/combat';
 import { stockOldSpots } from '../sim/salvage';
+import { checkCompanies } from '../sim/companies';
+import { checkRigs } from '../sim/rig';
 import { clockOf } from '../sim/sun';
 import { allSlots, listSaves, manualSlots, requestBoot, slotLabel, type BootRequest, type SlotId } from './save-slots';
 import type { SaveSlots } from './save-db';
@@ -20,9 +27,72 @@ import { reportError } from './crash';
 import { CONFIG, GAME_VERSION } from '../config';
 import { download } from '../ui/dom';
 import type { RunLog } from './run-log';
-import { MIGRATIONS, SAVE_FORMAT, SAVE_MAJOR, type SavedJson } from './save-migrations';
+import { checkSavedWorld, dropUnknownKeys, type SavedWorld } from './save-fit';
+import { RELEASE_STEPS, SAVE_MAJOR, TINY_FROM, TINY_STEPS, type NamedStep, type ReleaseStep, type SavedJson } from './save-migrations';
 
 declare const __SAVE_SCOPE__: string;
+
+type Step = ReleaseStep['step'];
+
+type ChainStep = Pick<ReleaseStep, 'from' | 'to' | 'step'>;
+
+export type SavedSteps = { from: number; names: readonly string[] };
+
+export const SAVE_FORMAT = { major: SAVE_MAJOR, minor: TINY_FROM + TINY_STEPS.length } as const;
+
+function checkedChain(releases: readonly ChainStep[], tinyFrom: number): void {
+  releases.forEach((release, i) => {
+    if (release.to <= release.from) throw new Error(`Release step ${release.from} does not move forward`);
+    const next = i + 1 < releases.length ? releases[i + 1].from : tinyFrom;
+    if (release.to !== next) throw new Error(`Release step ${release.from} to ${release.to} does not meet ${next}`);
+  });
+}
+
+export function stepsOf(releases: readonly ChainStep[], tinyFrom: number, tiny: readonly Step[], minor: number): readonly Step[] | null {
+  checkedChain(releases, tinyFrom);
+  if (minor >= tinyFrom && minor <= tinyFrom + tiny.length) return tiny.slice(minor - tinyFrom);
+  const anchor = releases.findIndex((release) => release.from === minor);
+  if (anchor < 0) return null;
+  return [...releases.slice(anchor).map((release) => release.step), ...tiny];
+}
+
+export function stepsFrom(minor: number): readonly Step[] | null {
+  return stepsOf(RELEASE_STEPS, TINY_FROM, TINY_STEPS.map((named) => named.step), minor);
+}
+
+function unknownStepError(steps: SavedSteps, why: string): SaveError {
+  return new SaveError('unknownStep', null, `${why}, in a save listing ${JSON.stringify(steps)}`);
+}
+
+function lackedTiny(tiny: readonly NamedStep[], steps: SavedSteps): readonly Step[] {
+  const known = new Set(tiny.map((named) => named.name));
+  const lost = steps.names.find((name) => !known.has(name));
+  if (lost !== undefined) throw unknownStepError(steps, `This build has no step ${lost}`);
+  const held = new Set(steps.names);
+  return tiny.filter((named) => !held.has(named.name)).map((named) => named.step);
+}
+
+function startsWithNames(steps: SavedSteps, names: readonly string[]): boolean {
+  return names.every((name, i) => steps.names[i] === name);
+}
+
+export function namedSteps(releases: readonly ReleaseStep[], tinyFrom: number, tiny: readonly NamedStep[], steps: SavedSteps): readonly Step[] {
+  checkedChain(releases, tinyFrom);
+  if (steps.from === tinyFrom) return lackedTiny(tiny, steps);
+  const release = releases.find((r) => r.from === steps.from);
+  if (release && steps.names.length === 0) return stepsOf(releases, tinyFrom, tiny.map((named) => named.step), steps.from)!;
+  return namedSteps(releases, tinyFrom, tiny, afterRelease(release, steps));
+}
+
+function afterRelease(release: ReleaseStep | undefined, steps: SavedSteps): SavedSteps {
+  if (!release?.names) throw unknownStepError(steps, `No release step with names starts at ${steps.from}`);
+  if (!startsWithNames(steps, release.names)) throw unknownStepError(steps, `The names do not begin with those of release step ${release.from} to ${release.to}`);
+  return { from: release.to, names: steps.names.slice(release.names.length) };
+}
+
+export function anchorMinors(): number[] {
+  return [...RELEASE_STEPS.map((release) => release.from), TINY_FROM];
+}
 
 export function saveKey(scope: string): string {
   return scope === '' ? 'roam.save' : `roam.save.${scope}`;
@@ -31,8 +101,8 @@ export function saveKey(scope: string): string {
 export const SAVE_KEY = saveKey(__SAVE_SCOPE__);
 
 export type SaveErrorCode =
-  | 'unreadable' | 'otherMap' | 'bakedProps' | 'brokenProp' | 'invalidWorld' | 'invalidSave' | 'badSetup'
-  | 'incompatible' | 'newer' | 'notMigrated' | 'noFormat' | 'badExplored' | 'badOldSpots' | 'badQuests';
+  | 'unreadable' | 'otherMap' | 'bakedProps' | 'invalidWorld' | 'invalidSave' | 'badSetup'
+  | 'incompatible' | 'newer' | 'notMigrated' | 'noFormat' | 'badExplored' | 'badQuests' | 'newerQuests' | 'outOfReach' | 'mapChanged' | 'unknownStep';
 
 export class SaveError extends Error {
   constructor(readonly code: SaveErrorCode, readonly format: { major: number; minor: number } | null = null, detail = '') {
@@ -40,7 +110,11 @@ export class SaveError extends Error {
   }
 }
 
-export type SaveEnvelope = { format: typeof SAVE_FORMAT; savedAt: number; runId: string; world: object };
+export function carriesOnLoad(error: SaveError): boolean {
+  return error.code === 'outOfReach' || error.code === 'mapChanged' || error.code === 'unknownStep';
+}
+
+export type SaveEnvelope = { format: typeof SAVE_FORMAT; steps: SavedSteps; quests: SavedRevisions; savedAt: number; runId: string; world: SavedWorld };
 
 export function clearSlot(slots: SaveSlots, slot: SlotId): void {
   slots.remove(slot);
@@ -67,62 +141,120 @@ export function savedRunId(envelope: unknown): string | null {
   return null;
 }
 
-type SavedBroken = { id: string; turn: number };
-
-type SavedWorld = Omit<World, 'terrain' | 'events' | 'removed' | 'broken' | 'vehicles' | 'player'> & {
-  broken: SavedBroken[];
-  vehicles: Omit<Vehicle, 'trail'>[];
-  player: Omit<Player, ViewField>;
-};
-
-type ViewField = 'visible' | 'contacts' | 'clouds';
-
-export function mapFor(saved: Pick<World, 'mapHash' | 'seed' | 'setup' | 'furyRoad'>, icarus: BakedMap): BakedMap {
+export function mapFor(saved: Pick<World, 'mapHash' | 'seed' | 'setup' | 'chaosHighway'>, icarus: BakedMap): BakedMap {
   const highway = saved.mapHash.startsWith('highway:');
   if (modeMap(saved.setup.mode) !== 'highway') {
     if (highway) throw new SaveError('otherMap', null, `A ${saved.setup.mode} save names highway map ${saved.mapHash}`);
     return icarus;
   }
-  if (!saved.furyRoad) throw new SaveError('otherMap', null, 'This Fury Road run is from older rules: it was laid on Icarus roads or has no hauler, and the highway has replaced them');
-  if (!highway) throw new SaveError('otherMap', null, `A Fury Road save names map ${saved.mapHash}, which is no highway`);
-  const map = highwayMap(saved.seed, saved.furyRoad.window);
-  if (map.hash !== saved.mapHash) throw new SaveError('otherMap', null, `map ${saved.mapHash}, not the current highway ${map.hash}`);
+  if (!saved.chaosHighway) throw new SaveError('mapChanged', null, 'This Chaos Highway run is from older rules: it was laid on Icarus roads or has no hauler, and the highway has replaced them');
+  if (!highway) throw new SaveError('otherMap', null, `A Chaos Highway save names map ${saved.mapHash}, which is no highway`);
+  const map = highwayMap(saved.seed, saved.chaosHighway.window);
+  if (map.hash !== saved.mapHash) throw new SaveError('mapChanged', null, `map ${saved.mapHash}, not the current highway ${map.hash}`);
   return map;
 }
 
 export function loadWorld(slots: SaveSlots, slot: SlotId, icarus: BakedMap): World | null {
   const envelope = slots.get(slot);
   if (envelope === null) return null;
-  const world = savedWorld(envelope);
-  const map = mapFor(world, icarus);
-  if (world.mapHash !== map.hash) throw new SaveError('otherMap', null, `map ${world.mapHash}, not ${map.hash}`);
-  const explored = unpackExplored(world.player.explored, world.size * world.size);
-  if (world.obstacles.some(isBakedObstacle)) throw new SaveError('bakedProps');
-  const baked = mapObstacles(map);
-  const broken = brokenProps(baked, world.broken);
-  const gone = new Set(world.broken.map((b) => b.id));
-  const loaded: World = {
-    ...world,
-    player: { ...world.player, explored, visible: [], contacts: [], clouds: [], quests: savedQuests(world.player.quests) },
-    vehicles: world.vehicles.map((v) => ({ ...v, trail: [] })),
-    obstacles: [...baked.filter((o) => !gone.has(o.id)), ...world.obstacles],
-    broken,
-    events: [],
-    removed: [],
-    terrain: map.terrain,
-  };
-  stockedOldSpots(loaded, map);
-  refreshVision(loaded);
-  settleAims(loaded);
-  restoreQuest(loaded, QUESTS);
-  return loaded;
+  try {
+    return loadedWorld(envelope, icarus);
+  } catch (error) {
+    if (error instanceof SaveError) throw error;
+    throw new SaveError('invalidWorld', null, `Loading failed: ${(error as Error).message}`);
+  }
 }
 
-function savedQuests(value: unknown): QuestState {
+function loadedWorld(envelope: unknown, icarus: BakedMap): World {
+  const world = savedWorld(envelope);
+  const revisions = savedRevisionsOf(envelope);
+  const repaired = savedQuests(world.player.quests, world.player.notes, revisions);
+  const map = mapFor(world, icarus);
+  const staged = stagedWorld(world, repaired);
+  const rebaked = world.mapHash !== map.hash;
+  const loaded = rebaked ? repairMap(staged, map) : onSameMap(staged, map);
+  if (!rebaked) fitBake(loaded, map);
+  repairContent(loaded);
+  if (rebaked) settleTrucks(loaded);
+  else settleOffHollow(loaded);
+  restoredQuests(loaded, world, revisions, repaired);
+  stockOldSpots(loaded, map);
+  checkCompanies(loaded);
+  checkSavedRigs(loaded);
+  refreshVision(loaded);
+  settleAims(loaded);
+  const result = { ...loaded, events: [] };
+  const misfit = savedMisfit(saveOf(result).world);
+  if (misfit) throw misfit;
+  return result;
+}
+
+export function savedMisfit(saved: SavedWorld): SaveError | null {
+  try {
+    checkSavedWorld(saved);
+    return null;
+  } catch (error) {
+    return new SaveError('invalidWorld', null, (error as Error).message);
+  }
+}
+
+function stagedWorld(world: SavedWorld, quests: QuestRepair): SavedMapWorld {
+  const explored = unpackExplored(world.player.explored, world.size * world.size);
+  return {
+    ...world,
+    player: { ...world.player, explored, visible: [], contacts: [], clouds: [], notes: quests.notes, quests: { ...quests.quests, live: null } },
+    vehicles: world.vehicles.map((v) => ({ ...v, trail: [] })),
+    sheltered: world.sheltered.map((s) => ({ ...s, vehicle: { ...s.vehicle, trail: [] } })),
+    events: [],
+    removed: [],
+  };
+}
+
+function restoredQuests(loaded: World, saved: SavedWorld, revisions: SavedRevisions, repair: QuestRepair): void {
+  const session = repair.quests.session;
+  try {
+    restoreQuest(loaded, QUESTS);
+  } catch (error) {
+    if (!session) throw error;
+    const redone = savedQuests(saved.player.quests, saved.player.notes, revisions, [session.quest]);
+    loaded.player.quests = { ...redone.quests, live: null };
+    loaded.player.notes = redone.notes.filter((n) => isNoteId(n.id));
+  }
+}
+
+function onSameMap(staged: SavedMapWorld, map: BakedMap): World {
+  if (staged.obstacles.some((o) => isBakedObstacle(o) || isHollowObstacle(o))) throw new SaveError('bakedProps');
+  const baked = mapObstacles(map);
+  const broken = brokenProps(baked, staged.broken);
+  const gone = new Set(broken.map((b) => b.obstacle.id));
+  return {
+    ...staged,
+    obstacles: [...baked.filter((o) => !gone.has(o.id)), ...hollowObstaclesFor(staged), ...staged.obstacles],
+    broken,
+    terrain: map.terrain,
+  };
+}
+
+function checkSavedRigs(world: World): void {
+  try {
+    checkRigs(world);
+  } catch (error) {
+    throw new SaveError('invalidWorld', null, (error as Error).message);
+  }
+}
+
+function savedQuests(value: unknown, notes: unknown, revisions: SavedRevisions, unrestorable: readonly string[] = []): QuestRepair {
   if (!isQuestState(value)) throw new SaveError('badQuests');
-  const problems = questProblems(value, QUESTS);
-  if (problems.length > 0) throw new SaveError('badQuests', null, problems.map((p) => p.message).join('. '));
-  return { ...value, live: null };
+  if (!Array.isArray(notes) || !notes.every((note) => isJsonObject(note) && typeof note.id === 'string')) throw new SaveError('invalidWorld', null, 'player notes are no list of notes');
+  const newer = newerQuests(revisions, QUESTS);
+  if (newer.length > 0) throw new SaveError('newerQuests', null, newer.join(', '));
+  return repairQuests(value, notes, revisions, QUESTS, unrestorable);
+}
+
+export function savedRevisionsOf(envelope: unknown): SavedRevisions {
+  const quests = isJsonObject(envelope) ? envelope.quests : undefined;
+  if (!isJsonObject(quests)) return {};
+  return Object.fromEntries(Object.entries(quests).filter((entry): entry is [string, number] => Number.isInteger(entry[1])));
 }
 
 function isQuestState(value: unknown): value is QuestState {
@@ -134,48 +266,52 @@ function isQuestSession(value: unknown): boolean {
   return isJsonObject(value) && typeof value.quest === 'string' && typeof value.checkpoint === 'string' && Number.isInteger(value.seed);
 }
 
-function stockedOldSpots(world: World, map: BakedMap): void {
-  try {
-    stockOldSpots(world, map);
-  } catch (error) {
-    throw new SaveError('badOldSpots', null, (error as Error).message);
-  }
-}
 
 function brokenProps(baked: readonly Obstacle[], broken: readonly SavedBroken[]): BrokenProp[] {
   const byId = new Map(baked.map((o) => [o.id, o]));
-  return broken.map(({ id, turn }) => {
+  return broken.flatMap(({ id, turn }) => {
     const obstacle = byId.get(id);
-    if (!obstacle || !isBreakable(obstacle)) throw new SaveError('brokenProp', null, id);
-    return { obstacle, turn };
+    return obstacle && isBreakable(obstacle) ? [{ obstacle, turn }] : [];
   });
 }
 
 function savedWorld(save: unknown): SavedWorld {
   const world = migratedWorld(save);
+  dropUnknownKeys(world);
   if (!isWorld(world)) throw new SaveError('invalidWorld');
   return { ...world, setup: savedSetup(world.setup) };
 }
 
 function savedSetup(setup: unknown): WorldSetup {
-  try {
-    return parseSetup(setup);
-  } catch (err) {
-    throw new SaveError('badSetup', null, err instanceof Error ? err.message : String(err));
-  }
+  if (!isJsonObject(setup) || !isMode(setup.mode)) throw new SaveError('badSetup', null, `Unknown game mode in ${JSON.stringify(setup) ?? 'no setup'}`);
+  return repairSetup(setup);
 }
 
 function migratedWorld(stored: unknown): unknown {
   const save = envelopeOf(stored);
   const { major, minor } = formatOf(save);
   if (major !== SAVE_MAJOR) throw new SaveError('incompatible', { major, minor });
-  if (minor > MIGRATIONS.length) throw new SaveError('newer', { major, minor });
+  const steps = stepsToRun(save, { major, minor });
   if (!isJsonObject(save.world)) throw new SaveError('invalidWorld');
   try {
-    return MIGRATIONS.slice(minor).reduce((world, step) => step(world), save.world);
+    return steps.reduce((world, step) => step(world), save.world);
   } catch (err) {
     throw new SaveError('notMigrated', { major, minor }, String(err));
   }
+}
+
+function stepsToRun(save: SavedJson, format: { major: number; minor: number }): readonly Step[] {
+  if (save.steps !== undefined) return namedSteps(RELEASE_STEPS, TINY_FROM, TINY_STEPS, savedStepsOf(save.steps, format));
+  if (format.minor > SAVE_FORMAT.minor) throw new SaveError('newer', format);
+  const steps = stepsFrom(format.minor);
+  if (!steps) throw new SaveError('outOfReach', format);
+  return steps;
+}
+
+function savedStepsOf(value: unknown, format: { major: number; minor: number }): SavedSteps {
+  if (!isJsonObject(value) || !isCount(value.from) || !Array.isArray(value.names) || !value.names.every((name) => typeof name === 'string')) throw new SaveError('noFormat');
+  if (format.minor !== value.from + value.names.length) throw new SaveError('noFormat', format, `The steps list from ${value.from} with ${value.names.length} names does not match minor ${format.minor}`);
+  return { from: value.from, names: value.names };
 }
 
 function envelopeOf(stored: unknown): SavedJson {
@@ -199,7 +335,7 @@ function isCount(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0;
 }
 
-const WORLD_LISTS = ['vehicles', 'obstacles', 'broken', 'salvage', 'weather', 'dustClouds', 'states', 'craters'] as const;
+const WORLD_LISTS = ['vehicles', 'sheltered', 'obstacles', 'broken', 'salvage', 'weather', 'dustClouds', 'states', 'craters'] as const;
 
 function isWorld(value: unknown): value is SavedWorld {
   if (!value || typeof value !== 'object') return false;
@@ -233,19 +369,26 @@ export function saveOnArrival(slots: SaveSlots, world: World, runId: string, sav
   if (world.player.state === 'active' && world.events.some((e) => e.t === 'outpostReached')) writeSave(slots, 'auto', world, runId, savedAt);
 }
 
-export function writeSave(slots: SaveSlots, slot: SlotId, world: World, runId: string, savedAt: number): void {
+export function writeSave(slots: SaveSlots, slot: SlotId, world: World, runId: string, savedAt: number): boolean {
   if (world.player.state === 'dead') throw new Error('Cannot save a world whose player is dead');
   const envelope: SaveEnvelope = { ...saveOf(world), savedAt, runId };
+  const misfit = savedMisfit(envelope.world);
+  if (misfit) {
+    slots.onError(misfit);
+    return false;
+  }
   slots.put(slot, envelope);
+  return true;
 }
 
-export function saveOf(world: World): { format: typeof SAVE_FORMAT; world: object } {
+export function saveOf(world: World): { format: typeof SAVE_FORMAT; steps: SavedSteps; quests: SavedRevisions; world: SavedWorld } {
   const { terrain: _terrain, events: _events, removed: _removed, ...saved } = world;
   const { visible: _visible, contacts: _contacts, clouds: _clouds, quests: { live: _live, ...quests }, ...player } = saved.player;
   const vehicles = saved.vehicles.map(({ trail: _trail, ...vehicle }) => vehicle);
-  const obstacles = saved.obstacles.filter((o) => !isBakedObstacle(o));
+  const sheltered = saved.sheltered.map(({ vehicle: { trail: _trail, ...vehicle }, site }) => ({ vehicle, site }));
+  const obstacles = saved.obstacles.filter((o) => !isBakedObstacle(o) && !isHollowObstacle(o));
   const broken = saved.broken.map(({ obstacle, turn }) => ({ id: obstacle.id, turn }));
-  return { format: SAVE_FORMAT, world: { ...saved, player: { ...player, quests, explored: packExplored(player.explored) }, vehicles, obstacles, broken } };
+  return { format: SAVE_FORMAT, steps: { from: TINY_FROM, names: TINY_STEPS.map((named) => named.name) }, quests: questRevisions(QUESTS), world: { ...saved, player: { ...player, quests, explored: packExplored(player.explored) }, vehicles, sheltered, obstacles, broken } };
 }
 
 export function packExplored(explored: Uint8Array): string {
@@ -326,7 +469,8 @@ export function changeMapIfMoved(run: Run, world: World, hold: SaveHold, session
   if (world.mapHash === run.mapHash) return false;
   if (hold.held) throw new Error(`The map moved to ${world.mapHash} while saves are held, so a reboot would lose the turn`);
   if (!world.events.some((e) => e.t === 'roadOpened')) throw new Error(`The map moved to ${world.mapHash} with no road opened`);
-  writeSave(run.slots, 'auto', world, run.runId, Date.now());
+  run.log.note(world);
+  if (!writeSave(run.slots, 'auto', world, run.runId, Date.now())) throw new Error(`The map moved to ${world.mapHash} but the world failed the save check, so a reboot would lose the turn`);
   run.mapHash = world.mapHash;
   requestBoot(session, SAVE_KEY, { slot: 'auto', reason: 'road' });
   Promise.all([run.slots.flush(), run.log.flush()]).then(reload, reportError);
@@ -351,10 +495,9 @@ export class GameSaves {
     };
   }
 
-  private saveManual(slot: SlotId, save: (slot: SlotId) => void): void {
+  private saveManual(slot: SlotId, save: (slot: SlotId) => boolean): void {
     if (this.hold.held) return this.note(SAVE_HELD_NOTE);
-    save(slot);
-    this.record(t('save.savedTo', { slot: slotLabel(slot) }));
+    if (save(slot)) this.record(t('save.savedTo', { slot: slotLabel(slot) }));
   }
 
   logWorld(world: World): void {

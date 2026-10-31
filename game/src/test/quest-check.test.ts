@@ -50,6 +50,26 @@ describe('checkQuests', () => {
     });
   });
 
+  describe('the cap on choices shown at once', () => {
+    const hub = (questions: number, back = '') =>
+      `=== start ===\n# checkpoint: start\n-> hub\n= hub\n# checkpoint: start.hub\n${Array.from({ length: questions }, (_, i) => `+ [Question ${i}?]\n  Answer ${i}.\n  -> hub\n`).join('')}${back}+ [Leave.]\n  -> END\n`;
+
+    it('passes a hub of four questions and a way out', () => {
+      expect(check(hub(4))).toEqual([]);
+    });
+
+    it('fails a hub of five questions and a way out, and names the choices', () => {
+      const problems = check(hub(5)).join('\n');
+      expect(problems).toContain('shows 6 choices at once, over the cap of 5');
+      expect(problems).toContain('Question 4? | Leave.');
+    });
+
+    it('leaves out a choice while its guard is shut', () => {
+      const guarded = hub(4).replace('+ [Leave.]', '+ {heard} [Extra?]\n  -> hub\n+ [Leave.]');
+      expect(check(guarded, WORLD)).toEqual([]);
+    });
+  });
+
   it('walks a branch on a game query both ways across the scenes', () => {
     const sources = readQuestSources('src/data/quests');
     const kovac = { 'world.ink': sources['world.ink'], 'nose_kovac.ink': sources['nose_kovac.ink'], 'ru/nose_kovac.ink': sources['ru/nose_kovac.ink'] };
@@ -106,6 +126,11 @@ describe('checkQuests', () => {
 
   it('fails a section no checkpoint ever reaches', () => {
     expect(check('=== start ===\n# checkpoint: start\nHi.\n-> END\n=== attic ===\nDust.\n-> END\n')).toContain('q: section attic is never reached');
+  });
+
+  it('counts an entry knot as reached when it shares its hub with another entry', () => {
+    const hub = '=== start ===\n# checkpoint: start\n-> hub\n= hub\n+ [Ask.]\n  -> END\n=== again ===\n# checkpoint: again\n-> start.hub\n';
+    expect(check(hub)).toEqual([]);
   });
 
   it('fails an effect that throws on the way and names the picks', () => {

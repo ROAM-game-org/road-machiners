@@ -1,3 +1,4 @@
+import subprocess
 import sys
 from pathlib import Path
 
@@ -47,6 +48,7 @@ def main():
     dst = OUT_DIR / f'{key}.webp'
     process(src).save(dst, quality=WEBP_QUALITY)
     print(dst)
+    subprocess.run([sys.executable, '-I', str(Path(__file__).with_name('crops.py')), key], check=True)
 
 
 main()

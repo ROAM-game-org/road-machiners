@@ -7,55 +7,78 @@ Sound tells the player what happens without making them read the log: where a sh
 - `src/data/sounds.ts` holds the cue catalog, the prompt styles and every mix number in `MIX`. Tune there.
 - `public/sfx/` holds the files, one `<cue>-<n>.ogg` per variant. A test fails when a file has no cue or a cue claims a missing file.
 - `public/sfx-m4a/` holds an AAC twin of each file for browsers whose Web Audio refuses Ogg Opus, and `src/data/sound-twins.json` holds the SHA-256 of the `.ogg` each twin came from. `npm run sfx:twins` writes both, and `sfx:import`, `sfx:gen` and `sfx:reimport` run it at their end. A test fails on a missing, stale or orphan twin.
-- `src/audio/` is the engine: `mixer.ts` builds the buses, `bank.ts` decodes every file at boot, a few at a time. A file tries each format in turn, and the second try of a format fetches with `cache: 'reload'`, so a bad cached copy cannot defeat it. A file that will not decode as `.ogg` is decoded from its twin, and the first such file makes the bank fetch twins first from then on, with no browser sniffing. A beat cue's buffer is fitted to exactly one loop in either format. A file that fails in every format gets a sibling or silent stand-in instead of stopping the boot. A file the network never delivered only gets a console warning. Each reported failure has a class: `fetch` (an HTTP error status), `bytes` (wrong size or no format signature), `codec` (intact bytes, no support for the format) or `decoder` (intact bytes, decode rejected). Once the page is visible, `recoverBank` decodes each `bytes` and `decoder` failure once more and swaps the real buffer in. Then one error report per class goes out, with the response facts, the browser state, how many recovered, the support answer and the full browser error text per format, `player.ts` plays cues, `pick.ts` holds pure choices, and `designer.ts` times the combat accents.
-- `src/three/sound.ts` turns game events into sound: `SoundDirector` for one-shots, `SoundLoops` for engine, wind and music, and `CombatScore` for the combat music.
-- `scripts/sfx-*.mjs` generate and import files. `scripts/sfx-phase.py` measures beat loops.
+- `loopFaults()` in `src/audio/loop-check.ts` is the loop check. `sfx:twins`, which every sound tool ends with, runs it on each changed free sfx loop file and writes the hashes of the files that passed to `src/data/loop-checks.json`. A test fails on a free sfx loop file with no current entry.
+- `src/audio/` is the engine: `mixer.ts` builds the buses, `bank.ts` decodes every file, a few at a time, after the game starts: `startBank()` fills a `SoundBank` as each file lands, and `get()` gives `undefined` for a file not here yet. `player.ts` skips a one-shot whose file is pending, and starts a pending loop at its latest rate and gain when the file lands. Combat music starts when its song kit lands, if the fight is still on. A file tries each format in turn, and the second try of a format fetches with `cache: 'reload'`, so a bad cached copy cannot defeat it. A file that will not decode as `.ogg` is decoded from its twin, and the first such file makes the bank fetch twins first from then on, with no browser sniffing. A beat cue's buffer is fitted to exactly one loop in either format. A file that fails in every format gets a sibling or silent stand-in instead of stopping the boot. A file the network never delivered only gets a console warning. Each reported failure has a class: `fetch` (an HTTP error status), `bytes` (wrong size or no format signature), `codec` (intact bytes, no support for the format) or `decoder` (intact bytes, decode rejected). Once the page is visible, `recoverBank` decodes each `bytes` and `decoder` failure once more and swaps the real buffer in. Then one error report per class goes out, with the response facts, the browser state, how many recovered, the support answer and the full browser error text per format, `player.ts` plays cues, `pick.ts` holds pure choices, and `designer.ts` picks the combat song's next section.
+- `src/three/sound.ts` turns game events into sound: `SoundDirector` for one-shots and score events, and `SoundLoops` for engine, wind and music. `src/three/combat-music.ts` plays the combat songs, `block-session.ts` decides what plays and `block-voices.ts` plays it.
+- `scripts/sfx-*.mjs` generate and import files. `scripts/score-blocks-prep.py` turns the combat songs into game files.
 
 ## The mix
 
 Four buses feed the master: `ui`, `sfx`, `ambient` and `music`. Each has a player-set volume and a low-pass filter. The `sfx` bus also runs through a compressor and a short open-air reverb, so sounds from different sources sit in one place.
 
-- World sounds, like guns, hits and crashes, play where they happen. Pan follows the screen position, and level halves at `MIX.halfGainMeters` from the camera focus. They use the same points as the visual effects, so fog of war silences what the player cannot see.
-- Each turn plays at most one result sting, the most important one: level-up, discovery or money. A knockout is an attention alert and has no sting.
-- The engine is one recorded loop per chassis. Its pitch and level follow speed over the turn, so speeding up revs and braking drops. Continuous sounds are always bent loops like this, never short clips per state. While heat damages the engine, the loop crossfades to a strained loop, one for light trucks and one for heavy ones, started with it and bent the same way, and falls back to the healthy note over two turns once the damage stops.
+- World sounds, like guns, hits and crashes, play where they happen. Pan follows the screen position, and level halves at `MIX.halfGainMeters` from the camera focus. They use the same points as the visual effects, so fog of war silences what the player cannot see. A crash plays louder the harder the hit: from `MIX.crash.quietGain` at the impact where crashes stop doing damage up to the cue's full level at the hard crash speed, and never above it. The impact comes from the `collision` event.
+- A round that lands on a truck plays one impact cue. If its damage stayed in armor plates or accessories, it is the `hit-metal` clang. If it reached any other part, struck or in a blast, it is the duller `hit-part` crunch. The harpoon keeps `harpoon-hook` either way, and a miss is `miss`. `part-broken` still plays on top when a part dies.
+- UI sounds play from what changed in the game, like a panel opening or a turn result. They never play from the input event. A key and a click that do the same action sound the same.
+- Each turn plays at most one result sting, the most important one: heatwave warning, level-up, discovery or money. A knockout is an attention alert and has no sting.
+- The engine is one recorded loop per chassis. Its pitch and level follow speed over the turn, so speeding up revs and braking drops. `SoundLoops.engineAt()` sets them every frame from the turn's progress on the world clock, so they hold while the world is stopped or paused. The loop fades out only over a turn that ends at a stop or a turn the truck stays parked, never at a pause. Continuous sounds are always bent loops like this, never short clips per state. While heat damages the engine, the loop crossfades to a strained loop, one for light trucks and one for heavy ones, started with it and bent the same way, and falls back to the healthy note over two turns once the damage stops. The strained loop plays a few dB under the healthy one, so overheating tells by its rougher tone, not by getting louder.
 - A hard slowdown adds the air brake where the truck is. Passing or reaching an order point makes no sound of its own.
 - Wind rises near dust storms.
+- A heatwave starting plays one soft low swell on the `ui` bus, the only weather cue besides the wind. It outranks the other result stings, since it is rare. A storm stays wind.
 - Calm music plays out of combat, from a playlist shuffled once per session. After each fight it comes back as the next track, so every track plays before any repeats.
-- Town music replaces calm music while the player is within guard range of a town gate. Outpost music does the same near the gates of outposts, the trading stalls that are not towns. Abandoned music plays inside territories, the abandoned places like Fallen Sun and Old Orchard. Each entry starts the next track of a playlist shuffled once per session. Combat music plays over all of them.
-- Quest music plays over all music, combat included, while the quest screen is open. Each quest starts the next track of a playlist shuffled once per session. It is never muffled in a pause, since the player reads while no turn plays.
-- Between turns, once no turn has played for `MIX.music.pauseDelayMs`, the music bus is muffled a little. The delay keeps the gaps between automatic turns clear.
-
-The volume knobs and the mute switch sit on the radio panel above the log. The whole column under a knob is its handle. Drag it up or right to raise the volume and down or left to lower it, 160px for the whole range. The label shows the level while you use the knob. The wheel and the focused arrow keys turn it in 5% steps. A next key above the radio's screen crossfades to another calm track. The knob and mute settings are stored in local storage. A knob the player never turned follows `MIX.busVolume`, so a new default reaches everyone who kept the old one.
+- Town music replaces calm music while the player is within guard range of a town gate. Outpost music does the same near the gates of the smaller sites, the places of a few hundred people that are not Bowl or Nose. Abandoned music plays inside territories, the abandoned places like Fallen Sun and Old Orchard. Each entry starts the next track of a playlist shuffled once per session. Combat music plays over all of them.
+- Quest music plays over all music, combat included, while the quest screen is open. Each quest starts the next track of a playlist shuffled once per session.
+The volume knobs are in Options, in a Sound section after Language and UI size, on the start menu, the boot save screens, the in-game Menu and the phone Menu alike. The Sound section also holds the one mute switch, which has no key. `SoundSettings` in `src/ui/sound.ts` is built before the start menu and owns the mute and the levels. The whole column under a knob is its handle. Drag it up or right to raise the volume and down or left to lower it, 160px for the whole range. The label shows the level while you use the knob. The wheel and the focused arrow keys turn it in 5% steps. The radio's next key above its screen changes the music that plays. It crossfades the calm, quest or ruin playlist to its next track. In a fight it ends the song on the next beat and starts the next combat song's intro on that beat. Town and outpost music have one track each, so the key moves the calm playlist on for later. The knob and mute settings are stored in local storage. A knob the player never turned follows `MIX.busVolume`, so a new default reaches everyone who kept the old one.
 
 ## Combat score
 
-Combat music is built live from a base loop and short accents, so each fight sounds like one song that reacts to the fight. It keeps a fixed structure with a little variety inside, few sounds, and each sound tied to its event:
+Each fight plays one whole generated song, cut into 2 bar blocks. The fight steers the song between its sections, and two overlay lanes answer surprises at once. A song is a kit: the full mix, its guitar stem and its cymbals.
 
-- No per-event dice, like chance rolls, recalled accents or random mode changes. They make it sound random.
-- No phrases queued to start on bar lines. They sound late and detached from their events.
-- No tempo change with the fight's intensity. It feels chaotic.
+Rules the design keeps:
+
+- A block always plays to its end. The fight's pull changes only where a phrase ends, every 8 bars, or at the end of a section.
+- The score jumps only where the cut cannot be heard: the beat before the cut sounds like the beat before the target, and the 4 bars before both share their chords. Between jumps the recording plays on, so every change of section is one the band played.
+- One tempo and one key per fight, since every block comes from one recording.
+- No per-event sound in the music. Guns and crashes have their own world sounds.
+- Events matter by how new they are, not by a fixed list of heavy and light events.
 
 How it plays:
 
-1. The player entering combat, as the HUD combat readout shows it, starts a battle. A hostile that only sits or drives by in sight does not. One random base loop plays, drums, bass, horns or trombone, from its first beat. It stops when that combat ends.
-2. Heat is a fading sum of event weights. It sets the base's level and muffle once per bar, so a quiet fight sounds low and dull and a hot one sounds full and open.
-3. Each event plays a stab: its accent, started early by the take's measured peak, so the loudest moment lands exactly when the shot lands or the crash happens.
-4. A short tail of the same accent may follow on the beat grid, from the half-beat nearest the event. Calm tails are the stab alone. Hot tails add one hit.
-5. Heavy events, like a crash, a crit, a sighting or being hit, go to the lead line, centered, and always sound. Light events, your hits and misses, go to the secondary line: quieter, to one side, and only by chance.
-6. A stab too soon after another on its line is dropped, so a burst makes one sound, not a pile.
-7. In a turn pause, the last lead phrase repeats once from a bar line, then only the base plays.
-8. Outside a battle, accents are ignored, so a crash in peacetime makes only its normal crash sound.
+1. The player entering combat, as the HUD combat readout shows it, starts the song. A hostile that only sits, drives by or trails in sight does not. The song was picked at random when the last fight ended, and it stays for the whole fight. Its intro hits at once, since it is the combat cue.
+2. Score events are your hits, misses and crits, hits on you, your crashes, your knockouts and an enemy coming into sight. Each adds its weight to heat, a fading sum. At each phrase end the hottest heat since the last one sets where the song should go: walls and solos when hot, verses when calm, anywhere in between.
+3. At each block end the score either plays the next bar of the recording or takes a clean jump. It picks whichever reaches a wanted section in the fewest bars, and plays on whenever that is as close. Among equally close jumps it takes the copy of the riff heard longest ago, so repeats move between the song's copies. A cut in near silence, at the end of a stop, may land on any section's start, since the band comes back in there.
+4. Each event also adds surprise, its weight divided by how often that kind came lately. When surprise crosses its line, the guitar lane leans on the section's own guitars from the next bar, and the cymbal lane opens from the next beat. Both fade out over the last bar of the phrase, or over the beat before a jump, since after a jump they would play another bar's part. A lane plays only what its section already has: no guitars where the section's own sit more than `guitarAbsentDb` under it or in a solo, and cymbals only in walls.
+5. Crashes and sightings pull the next phrase toward a wall, and knockouts toward a stop.
+6. Combat ending plays the song's last hit on the next beat.
+7. A jump fades over 10 ms like any block join. When the target bar starts with a rest, the old block rings on until the new one sounds.
 
-Randomness only changes how a sound plays: which take, which rhythm variant, a rare fill, a few milliseconds of timing and a little level. It never changes when the structure moves.
+Score events wait on the turn's play clock and go to the music just before their event, at the current playback speed, so hold-to-fast and slow frames keep them on their shots. A volley's event sits on the round that earns it: the first crit, the first round that strikes, or the first round for a miss. Crash events sit on the physics step of the crash. Knockouts land when the turn's shots land.
 
-Volley accents are timed from the volley's own plan, when the first round lands. Crash accents are known at turn start, so their peak lands on the physics step of the crash. Crash sparks and sound play when playback reaches that step. A collision with no physics step, like a far truck breaking a fence, plays when movement ends.
+To hear a fight without looking for one, open the console with the backquote key and type `battle`. It spawns a random hostile raider near the truck. The score starts once the raider closes in or fires. `__ROAM__.sound.log` in dev lists recent cues and each score event with its heat and surprise, like `score hit heat1.2 surprise0.4`.
 
-To hear a fight without looking for one, open the console with the backquote key and type `battle`. It spawns a random hostile raider near the truck. The score starts once the raider closes in or fires. `__ROAM__.sound.log` in dev lists recent cues and what the score did with each accent, like `accent-hit skipped heat1.2`.
+To try the score without a game, open `/music-lab.html` on the dev server. It runs the game's combat music on one continuous clock. Event buttons fire one event now, Dense turn fires a full turn of them in one second, and Auto fight plays dense turns with or without pauses. The page shows the song in play, the blocks with their joins, both lanes, the events and the heat, and a ledger lists every block with the ways it could have gone.
+
+To test the score without ears, run `npm run blocks:sim -- --song dusk hit@8 dense@12`. It drives the same session on a simulated clock and prints the blocks, lanes, answers and a summary. `--help` lists the options.
+
+### Combat songs
+
+The songs are generated whole in the ElevenLabs music UI and split locally with Demucs. `scripts/score-songs.json` holds each song's map: its source file, tempo, bar count, the guitar stem that feeds the guitar lane, its sections by bar and its last hit. Map every bar the band plays between the intro and the last hit, since unmapped bars cut the roads between sections. When prep's beat tracking misreads a take, with many beats off the grid, set `firstBeat` in the map to the first beat's time in seconds, and prep uses that grid at the map's tempo. To add or change a song, put the source wav in `tmp/score-songs/`, edit the map and run:
+
+```bash
+uv run --with librosa --with soundfile --with demucs --with torchcodec python -I scripts/score-blocks-prep.py scripts/score-songs.json tmp/score-songs public/sfx src/data/combat-songs.json
+uv run --with librosa --with soundfile python -I scripts/score-seams.py src/data/combat-songs.json public/sfx
+npm run sfx:twins
+```
+
+`score-seams.py` scores every jump from a block end to a block start from the shipped song file and marks the block ends that fall in near silence. It works without the source wav, so a map change alone needs only this step. A test fails when a song cannot reach a verse and a wall from anywhere.
+
+Prep splits a song only when its stems are missing. It writes `song-<name>-1.ogg`, its guitars and its cymbals as `song-*` cues, and `src/data/combat-songs.json` with the bar times, bar levels, cymbal level and where each bar's sound starts. Each song also needs its three cues in `DEFS`. It refuses a map whose intro bars or last hit start quiet, and a section with more than 8 silent beats in a row. Song cues load one kit per fight, not at boot with the other sounds.
+
+The heat lines, weights, wanted sections and clean-jump lines are in `SCORE_BLOCKS` in `src/data/sounds.ts`. The lines come from real fights: in `npm run combat` arena fights the player sees 1 to 3 score events per turn.
 
 ## Adding a sound
 
 1. Add a cue to `DEFS` in `src/data/sounds.ts`: its bus, volume, voices and loop flag, and for generation a `setup` and prompts.
-2. Import files with `npm run sfx:import -- <cue> <file...>`, or generate them. Import makes every file one format and loudness per bus. It trims one-shots, keeps loops seamless, and matches each variant's tone to the cue's first file.
+2. Import files with `npm run sfx:import -- <cue> <file...>`, or generate them. Import makes every file one format and loudness per bus. It trims one-shots, keeps loops seamless, and matches each variant's tone to the cue's first file. A free music loop keeps its loud span with a 2 s crossfade. Every other free loop, like the engines, must just repeat with no audible change of state. Import evens out its slow level swings, keeps its steadiest stretch of at least 1.5 s in level and brightness, so no rev-up or quiet hole is left in it, moves the end by up to 60 ms to where it matches the start in phase, and joins the ends with a 0.1 s crossfade. A source whose name has `.seamless.` in it is kept whole. Every free sfx loop file, a `.seamless.` one too, must pass the loop check: no 200 ms stretch more than `LOOP_CHECK.holeDb` under the loop's median level, and no 250 ms stretch whose firing rhythm drops more than `LOOP_CHECK.pulseDrop` under the loop's median. A file that fails stops the tool and the message names the file, the fault, where it sits and by how much. Generated free loops get that name, since the sound API makes them in its loop mode, and so does a loop cut by hand.
 3. Play it from `src/three/sound.ts`. A world sound goes through `SoundDirector.at()` with its position.
 4. Listen with `npm run sfx:board`, which plays every cue through the game's mixer, beside a reference cue for buses that have one in `MIX.anchors`.
 
@@ -68,13 +91,13 @@ World one-shots, the `sfx` cues with the `field` setup that do not loop, get two
 - A gentle cut above 8 kHz puts every take at the 10 m the prompt asks for. Generated takes come out close and bright.
 - Bass and treble move back to within `MIX.tone.spread` of the anchor's tone in `MIX.tone`. A cut may go up to 12 dB and a boost up to 6 dB, since a boost also raises noise.
 
-`npm run sfx:report` lists every world one-shot's loudness and tone beside the anchor. It flags the takes that import could not bring into range. Fix those by hand, as [Fixing a take](#fixing-a-take) shows.
+`npm run sfx:report` lists every world one-shot and every `sfx` loop, like the engine loops, with its loudness and tone beside the anchor. Tone is three bands against the 250 Hz to 4 kHz mids: low below 250 Hz, presence from 1 to 4 kHz and high above 4 kHz, each held to `MIX.tone` within its spread. Presence is what shows a dull loop, since a buried bark leaves low and high in range. The report flags the takes that import could not bring into range. Fix those by hand, as [Fixing a take](#fixing-a-take) shows.
 
 ## Generating with ElevenLabs
 
 `npm run sfx:gen -- <cue> <count>` generates variants and imports them. It costs credits, so ask before running it. `SFX_MAX_GENERATIONS` in `.env` caps one run.
 
-- Every prompt starts with the `SOUND_STYLE` of the cue's setup, so a set of sounds shares one microphone and place. Combat accents use the `stinger` style, and base loops use `score`.
+- Every prompt starts with the `SOUND_STYLE` of the cue's setup, so a set of sounds shares one microphone and place.
 - Prompt style plus subject must stay under 450 characters, or the API refuses it.
 - Generated heavy sounds come out thin. Check the spectrogram and fix the take as [Fixing a take](#fixing-a-take) shows, rather than generating again.
 - Raw takes stay in `tmp/sfx-raw/`, and each file's tag names its source. After an import change, `npm run sfx:reimport` rebuilds every file from those sources. `npm run sfx:reimport -- field` rebuilds only the world one-shots, and cue names rebuild those cues.
@@ -84,6 +107,7 @@ World one-shots, the `sfx` cues with the `field` setup that do not loop, get two
 A near-miss take is cheaper to fix with ffmpeg or Demucs than to generate again. Write the fixed file next to the raw take in `tmp/sfx-raw/` and import that file, so reimport rebuilds from it.
 
 - A thin heavy sound, like a horn or a harpoon, gets pitched down with `asetrate=44100*0.85,aresample=44100` and a bass boost like `bass=g=6:f=120`. Pitch down more for a bigger sound.
+- A dull loop whose raw take is gone gets lifted from the shipped file. Decode it three times back to back, apply a bass cut, a presence bell near 1.5 kHz and a treble shelf from 4 kHz, and keep the middle copy so the filters are warm at the seam. Start the copy at a quiet zero crossing, since import filters it cold. Name it `.seamless.` so import keeps it whole, remove the old file and import it. Import refuses it if it fails the loop check. Lift until `sfx:report` shows the loop in range, and stop raising treble when hiss shows above 8 kHz. Range in the report is a floor, not the goal: the light engine and its strained twin sit halfway back from their full lift toward the old tone, by ear, so do not lift them again to chase the report.
 - A bright hiss gets two low-passes, like `lowpass=f=3000,lowpass=f=3000`.
 - A music take that is too loud or bright gets a high-shelf cut like `treble=g=-3:f=4000` and glue compression.
 - A slowdown over about 6% sounds artificial. Generate again for a bigger tempo change.
@@ -95,14 +119,4 @@ uvx --python 3.11 --from demucs --with "torch<2.6" --with "torchaudio<2.6" --wit
 
 ## Beat loops
 
-A cue with a `beat` is a bar-exact loop. It is generated at exactly its bar length with the sound API's loop mode, and import stretches it by under 1% so its sample count is exact. That keeps its beat grid true over any number of repeats.
-
-A new beat loop needs its first-beat offset before the game will play it:
-
-```bash
-uv run --with librosa python scripts/sfx-phase.py 32 public/sfx/score-bass-1.ogg
-```
-
-The first argument is the loop's beats, bars times 4. Put the printed phase in `SCORE_PHASES`. On-grid strength well above the mean shows the loop holds its tempo. A combat base needs exactly one file.
-
-Accents are cut to 1.5 s at import, with soft edges and a warmer top end, so they sit inside the music instead of cutting in.
+A cue with a `beat` is a bar-exact loop. It is generated at exactly its bar length with the sound API's loop mode, and import stretches it by under 1% so its sample count is exact. That keeps its beat grid true over any number of repeats. No cue uses it now.

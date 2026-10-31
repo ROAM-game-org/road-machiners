@@ -6,9 +6,11 @@ import { clockOf, sunAt } from "../../sim/sun";
 import { hashStr } from "../../render/noise";
 import type { V3, VehicleFrame } from "../../phys/frames";
 import { PAL } from "../../render/palette";
-import { bodyOf } from "../../sim/body";
+import { frontBody } from "../../sim/body";
+import { callTrucks, radioSpeakers } from "../../sim/dialogue";
 import type { Vehicle, World } from "../../sim/types";
 import { DEG, type Vec } from "../../sim/vec";
+import { MODEL_FILL } from "./modelFill";
 export { enableSunShadows } from "./shadowFilter";
 
 const MIN_LIGHT_ELEVATION = 6;
@@ -29,29 +31,32 @@ type Key = {
   glassI: number;
   glassWhite: number;
   beamI: number;
+  fillI: number;
 };
 const KEYS: Key[] = [
   {
     h: 45,
     sun: 0xfff0d8,
     sunI: 2.3,
-    sky: 0x9cbff0,
+    sky: 0xd8b08c,
     ground: 0xc08a52,
     skyI: 0.9,
     glassI: 0,
     glassWhite: 0,
     beamI: 0.3,
+    fillI: 2.5,
   },
   {
     h: 20,
     sun: 0xffe4c0,
     sunI: 2.35,
-    sky: 0xa4b8e8,
+    sky: 0xd8b08c,
     ground: 0xc08a52,
     skyI: 0.88,
     glassI: 0,
     glassWhite: 0,
     beamI: 0.45,
+    fillI: 2.5,
   },
   {
     h: 8,
@@ -63,6 +68,7 @@ const KEYS: Key[] = [
     glassI: 0.1,
     glassWhite: 0,
     beamI: 0.75,
+    fillI: 3,
   },
   {
     h: 1,
@@ -74,6 +80,7 @@ const KEYS: Key[] = [
     glassI: 0.4,
     glassWhite: 0,
     beamI: 1,
+    fillI: 2.5,
   },
   {
     h: -4,
@@ -85,6 +92,7 @@ const KEYS: Key[] = [
     glassI: 0.35,
     glassWhite: 0.5,
     beamI: 1,
+    fillI: 0.6,
   },
   {
     h: -TWILIGHT,
@@ -96,6 +104,7 @@ const KEYS: Key[] = [
     glassI: 0.2,
     glassWhite: 0.8,
     beamI: 1,
+    fillI: 0.2,
   },
 ];
 
@@ -107,6 +116,7 @@ export type Daylight = {
   sky: THREE.Color;
   ground: THREE.Color;
   skyIntensity: number;
+  fillIntensity: number;
   glass: THREE.Color;
   beam: number;
 };
@@ -143,6 +153,7 @@ function colorsAt(h: number): Omit<Daylight, "dir" | "elevation"> {
     sky: mix(a.sky, b.sky),
     ground: mix(a.ground, b.ground),
     skyIntensity: a.skyI + (b.skyI - a.skyI) * s,
+    fillIntensity: a.fillI + (b.fillI - a.fillI) * s,
     beam: a.beamI + (b.beamI - a.beamI) * s,
     glass: desaturate(mix(a.sun, b.sun).lerp(WHITE, a.glassWhite + (b.glassWhite - a.glassWhite) * s))
       .multiplyScalar(a.glassI + (b.glassI - a.glassI) * s),
@@ -212,6 +223,7 @@ export function lightScene(sun: THREE.DirectionalLight, sky: THREE.HemisphereLig
   sky.color.copy(light.sky);
   sky.groundColor.copy(light.ground);
   sky.intensity = light.skyIntensity;
+  MODEL_FILL.sync(light);
 }
 
 export function sunLight(): THREE.DirectionalLight {
@@ -238,7 +250,8 @@ const BEAM_RANGE = 70;
 const BEAM_ANGLE = 42 * DEG;
 const BEAM_PENUMBRA = 0.6;
 const BEAM_HEIGHT = 4;
-const SHADOW_BEAMS = 4;
+const SHADOW_BEAMS = 3;
+const PLAIN_BEAMS = 9;
 const BEAM_SHADOW_MAP = 1024;
 const BEAM_SHADOW_BIAS = 0.3;
 const BEAM_AIM = { ahead: 30, down: 6 };
@@ -295,13 +308,14 @@ export class VehicleLights {
 
   update(night: boolean, beam: number, truck: V3, lit: LitVehicle[]): void {
     const order = beamOrder(lit, truck);
+    const plainBeams = order.slice(SHADOW_BEAMS, SHADOW_BEAMS + PLAIN_BEAMS);
     if (!night) {
       this.removeGlow();
       this.trim(this.shadowed, Math.min(order.length, SHADOW_BEAMS));
-      this.trim(this.plain, Math.max(0, order.length - SHADOW_BEAMS));
+      this.trim(this.plain, plainBeams.length);
     }
     this.aim(this.shadowed, order.slice(0, SHADOW_BEAMS), true, beam);
-    this.aim(this.plain, order.slice(SHADOW_BEAMS), false, beam);
+    this.aim(this.plain, plainBeams, false, beam);
     if (!night) return;
     if (!this.glow) {
       this.glow = new THREE.PointLight(PAL.truckGlow, GLOW_INTENSITY, GLOW_RANGE, GLOW_DECAY);
@@ -349,8 +363,118 @@ export class VehicleLights {
     const f = v.frame;
     const rot = scratchRot.set(f.rot.x, f.rot.y, f.rot.z, f.rot.w);
     const at = scratchAt.set(f.pos.x, f.pos.y, f.pos.z);
-    const nose = bodyOf(v.chassisId).half.x;
+    const nose = frontBody(v.chassisId).half.x;
     beam.position.set(nose, BEAM_HEIGHT, 0).applyQuaternion(rot).add(at);
     beam.target.position.set(nose + BEAM_AIM.ahead, -BEAM_AIM.down, 0).applyQuaternion(rot).add(at);
+  }
+}
+
+export const RADIO_LIGHT = {
+  flashMs: 200,
+  talkMs: 1200,
+};
+
+export type RadioCue = { start: number; end: number | null };
+
+function closeStart(cue: RadioCue): number {
+  return cue.end === null ? Infinity : Math.max(cue.end, cue.start + 4 * RADIO_LIGHT.flashMs);
+}
+
+function cueEnd(cue: RadioCue): number {
+  return closeStart(cue) + 2 * RADIO_LIGHT.flashMs;
+}
+
+export function radioLit(cue: RadioCue, now: number): boolean {
+  const f = RADIO_LIGHT.flashMs;
+  if (now < cue.start) return false;
+  const open = now - cue.start;
+  if (open < 4 * f) return Math.floor(open / f) % 2 === 0;
+  const close = now - closeStart(cue);
+  if (close < 0) return true;
+  return close >= f && close < 2 * f;
+}
+
+export class RadioLights {
+  private readonly cues = new Map<string, RadioCue[]>();
+  private noted: World | null = null;
+  private notedShown = true;
+  private calling = new Set<string>();
+  private beacon = false;
+
+  note(world: World, now: number, callShown = true): void {
+    this.prune(now);
+    if (world === this.noted && callShown === this.notedShown) return;
+    const first = this.noted === null;
+    const fresh = world !== this.noted;
+    this.noted = world;
+    this.notedShown = callShown;
+    const onCall = new Set(callTrucks(world));
+    const call = callShown ? onCall : new Set<string>();
+    this.noteCall(call, now);
+    if (!first && fresh) this.noteTalk(world, onCall, now);
+    this.calling = call;
+    this.beacon = world.player.beacon;
+  }
+
+  private noteCall(call: Set<string>, now: number): void {
+    for (const id of call) if (!this.calling.has(id)) this.open(id, now);
+    for (const id of this.calling) if (!call.has(id)) this.close(id, now);
+  }
+
+  private noteTalk(world: World, call: Set<string>, now: number): void {
+    for (const id of radioSpeakers(world.events, world.player.vehicleId)) {
+      if (!this.calling.has(id) && !call.has(id)) this.talk(id, now);
+    }
+    this.noteBeacon(world, call, now);
+  }
+
+  private noteBeacon(world: World, call: Set<string>, now: number): void {
+    const switchedOn = world.player.beacon && !this.beacon;
+    if (switchedOn && call.size === 0) this.talk(world.player.vehicleId, now);
+  }
+
+  lit(id: string, now: number): boolean {
+    const list = this.cues.get(id);
+    if (!list) return false;
+    for (const cue of list) if (radioLit(cue, now)) return true;
+    return false;
+  }
+
+  private open(id: string, now: number): void {
+    const joined = this.joinable(id, now);
+    if (joined) joined.end = null;
+    else this.push(id, now, null);
+  }
+
+  private close(id: string, now: number): void {
+    const last = this.cues.get(id)?.at(-1);
+    if (last && last.end === null) last.end = now;
+  }
+
+  private talk(id: string, now: number): void {
+    const joined = this.joinable(id, now);
+    if (joined) {
+      if (joined.end !== null) joined.end = Math.max(joined.end, now + RADIO_LIGHT.talkMs);
+    } else this.push(id, now, now + RADIO_LIGHT.talkMs);
+  }
+
+  private joinable(id: string, now: number): RadioCue | null {
+    const last = this.cues.get(id)?.at(-1);
+    return last && now < closeStart(last) ? last : null;
+  }
+
+  private push(id: string, now: number, end: number | null): void {
+    const list = this.cues.get(id) ?? [];
+    const last = list.at(-1);
+    const start = last ? Math.max(now, cueEnd(last) + RADIO_LIGHT.flashMs) : now;
+    list.push({ start, end: end === null ? null : start + (end - now) });
+    this.cues.set(id, list);
+  }
+
+  private prune(now: number): void {
+    for (const [id, list] of this.cues) {
+      while (list.length > 0 && cueEnd(list[0]) <= now) list.shift();
+      if (list.length === 0) this.cues.delete(id);
+    }
   }
 }

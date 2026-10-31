@@ -1,13 +1,16 @@
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
+import { DEFAULT_ZOOM, VIEW } from '../../data/view';
 import type { V3 } from '../../phys/frames';
 import type { Vec } from '../../sim/vec';
 
 const S = PHYSICS.metersPerTile;
-const VIEW_METERS = 72;
-const OFFSET = new THREE.Vector3(1, 0.816, 1).normalize().multiplyScalar(300);
-const ZOOM = { min: 0.35, max: 4 };
+export const VIEW_METERS = 72;
+export const CAMERA_DIR = new THREE.Vector3(-VIEW.screenUp.x, VIEW.rise, -VIEW.screenUp.y).normalize();
+const OFFSET = CAMERA_DIR.clone().multiplyScalar(300);
+export const TOWARD_CAMERA: Vec = { x: OFFSET.x / Math.hypot(OFFSET.x, OFFSET.z), y: OFFSET.z / Math.hypot(OFFSET.x, OFFSET.z) };
+export const ZOOM = { min: 0.35, max: 4 };
 const FOLLOW_TAU_MS = 250;
 const LEAD = 0.5;
 const LEAD_TAU_MS = 3000;
@@ -27,18 +30,18 @@ export class CameraRig {
   private pointInView = false;
   private viewMoved = false;
   private tether: { at: V3; radius: number } | null = null;
-  private zoom = 1;
+  private zoom = DEFAULT_ZOOM;
   private ray = new THREE.Raycaster();
 
-  constructor(private container: HTMLElement) {
+  constructor(private view: HTMLElement) {
     this.camera.position.copy(this.center).add(OFFSET);
     this.camera.lookAt(this.center);
     this.resize();
   }
 
   resize(): void {
-    const w = this.container.clientWidth;
-    const h = this.container.clientHeight;
+    const w = this.view.clientWidth;
+    const h = this.view.clientHeight;
     if (!(w > 0 && h > 0)) return;
     const half = VIEW_METERS / 2 / this.zoom;
     const aspect = w / h;
@@ -86,7 +89,7 @@ export class CameraRig {
     this.target = null;
     this.heading = null;
     this.viewMoved = true;
-    const metersPerPixel = (this.camera.right - this.camera.left) / this.container.clientWidth;
+    const metersPerPixel = (this.camera.right - this.camera.left) / this.view.clientWidth;
     const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0);
     const up = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1);
     right.y = 0;
@@ -109,8 +112,12 @@ export class CameraRig {
   }
 
   zoomBy(wheelDeltaY: number): void {
+    this.zoomByFactor(Math.exp(-wheelDeltaY * 0.001));
+  }
+
+  zoomByFactor(factor: number): void {
     this.viewMoved = true;
-    this.zoom = Math.min(ZOOM.max, Math.max(ZOOM.min, this.zoom * Math.exp(-wheelDeltaY * 0.001)));
+    this.zoom = Math.min(ZOOM.max, Math.max(ZOOM.min, this.zoom * factor));
     this.resize();
   }
 
@@ -121,7 +128,7 @@ export class CameraRig {
   }
 
   private aimRay(clientX: number, clientY: number): void {
-    const rect = this.container.getBoundingClientRect();
+    const rect = this.view.getBoundingClientRect();
     const ndc = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     this.ray.setFromCamera(ndc, this.camera);
   }
@@ -144,8 +151,12 @@ export class CameraRig {
 
   screenOf(p: V3): { x: number; y: number } {
     const v = new THREE.Vector3(p.x, p.y, p.z).project(this.camera);
-    const rect = this.container.getBoundingClientRect();
+    const rect = this.view.getBoundingClientRect();
     return { x: rect.left + (v.x * 0.5 + 0.5) * rect.width, y: rect.top + (1 - (v.y * 0.5 + 0.5)) * rect.height };
+  }
+
+  dropLead(): void {
+    this.lead.set(0, 0, 0);
   }
 
   tick(dtMs: number): void {
@@ -179,11 +190,15 @@ export class TruckFollow {
     });
     window.addEventListener("pointermove", (e) => {
       if (!from) return;
-      this.rig.panBy(e.clientX - from.x, e.clientY - from.y);
+      this.pan(e.clientX - from.x, e.clientY - from.y);
       from = { x: e.clientX, y: e.clientY };
-      this.following = false;
     });
     window.addEventListener("pointerup", () => (from = null));
+  }
+
+  pan(dxPx: number, dyPx: number): void {
+    this.rig.panBy(dxPx, dyPx);
+    this.following = false;
   }
 
   isFollowing(): boolean {
@@ -191,6 +206,11 @@ export class TruckFollow {
   }
 
   recenter(): void {
+    this.resume();
+    this.rig.dropLead();
+  }
+
+  private resume(): void {
     this.following = true;
     this.recentering = true;
   }
@@ -200,21 +220,22 @@ export class TruckFollow {
   }
 
   noteDanger(danger: boolean): void {
-    if (danger && !this.dangerSeen) this.recenter();
+    if (danger && !this.dangerSeen) this.resume();
     this.dangerSeen = danger;
   }
 
-  update(truck: V3, dest: V3 | null, playing: boolean, dtMs: number): void {
+  update(truck: V3, dest: V3 | null, dtMs: number, worldMs: number): void {
+    const playing = worldMs > 0;
     if (this.keyPan.pan(this.rig, dtMs)) this.following = false;
     if (playing) this.recentering = false;
     if (this.following) this.aim(truck, dest, playing);
-    this.rig.tick(dtMs);
-    if (this.rig.pointLeftView(truck)) this.recenter();
+    this.rig.tick(this.recentering ? dtMs : worldMs);
+    if (this.rig.pointLeftView(truck)) this.resume();
   }
 
   private aim(truck: V3, dest: V3 | null, playing: boolean): void {
     const heading = dest ? Math.atan2(dest.z - truck.z, dest.x - truck.x) : null;
-    this.rig.follow(playing || this.recentering ? truck : null, heading, playing);
+    this.rig.follow(truck, heading, playing);
   }
 }
 

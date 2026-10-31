@@ -1,10 +1,12 @@
 
+import { optionShort } from './dialogue-rules';
 import { BUSY_LINE, END, handoffQuest, HANG_UP_LINE, HONK_RANGE, HUB, REFUSED, TOLL, TOPICS, TRAIT_TALK, type DialogueOption, type LineId, type Topic, type TopicId, type Voice } from '../data/dialogue';
-import { PERSONALITIES, TALK_PRICE, type Gate, type Personality } from '../data/personalities';
+import { BACK_LINE, isGroup, PERSONALITIES, TALK_PRICE, TOPIC_GROUPS, TOPIC_ROOT, type Gate, type GroupId, type Personality, type TopicChild } from '../data/personalities';
 import { inCombat, inCombatWithOther, inFeud, isHostile } from './combat';
 import { playerVehicle, vehicleById } from './damage';
 import { isKnockedOut } from './defeat';
-import { CONDITIONS, EFFECTS, helpedByPlayer, PREPARES } from './dialogue-rules';
+import { raiseEncounter } from './encounters';
+import { coldLine, CONDITIONS, EFFECTS, gateOpen, opensHelp, PREPARES } from './dialogue-rules';
 import type { Call, CallVars, GameEvent, Vehicle, World } from './types';
 import { dist } from './vec';
 import { npcTraits } from './npc-decisions';
@@ -14,13 +16,21 @@ import { openQuest, QUESTS } from './quests';
 import { canVehicleSee } from './vision';
 import { playerCommand, requireActivePlayer, update } from './world';
 
-export type OfferedOption = { line: LineId; topic: TopicId | null; option: DialogueOption | null };
+export type OfferedOption = { line: LineId; topic: TopicId | null; option: DialogueOption | null; short?: number; group?: GroupId; back?: true; seen?: boolean };
+
+const PAGE_FLAT_LIMIT = 4;
 
 export function talkOf(npc: Vehicle): Voice & { topics: TopicId[]; personality: Personality } {
-  const talks = npcTraits(npc).map((id) => TRAIT_TALK[id]);
+  const all = npcTraits(npc).map((id) => TRAIT_TALK[id]);
+  const talks = all.some((t) => t.only) ? all.filter((t) => t.only) : all;
   const voice = talks.find((t) => t.voice)?.voice;
   if (!voice) throw new Error(`${npc.id} has no trait with a voice`);
   return { ...voice, topics: [...new Set(talks.flatMap((t) => t.topics))], personality: personalityOf(npc) };
+}
+
+function greetingOf(world: World, npc: Vehicle): LineId {
+  const voice = talkOf(npc);
+  return coldLine(world, npc, voice.topics) ?? voice.greeting;
 }
 
 function personalityOf(npc: Vehicle): Personality {
@@ -53,7 +63,47 @@ function openCall(world: World): Call {
 
 function askable(world: World, npc: Vehicle): Topic[] {
   const feud = inFeud(world, npc, playerVehicle(world));
-  return talkOf(npc).topics.map((id) => TOPICS[id]).filter((t) => t.ask && (!feud || t.ask.duringFeud) && gateOf(npc, t) !== 'closed' && holds(world, npc, t.ask.when, {}));
+  return talkOf(npc).topics.map((id) => TOPICS[id]).filter((t) => t.ask && (!feud || t.ask.duringFeud) && gateOf(npc, t) !== 'closed' && gateOpen(world, npc, t.id) && holds(world, npc, t.ask.when, {}));
+}
+
+function topicsUnder(children: readonly TopicChild[]): TopicId[] {
+  return children.flatMap((child) => (isGroup(child) ? topicsUnder(TOPIC_GROUPS[child].children) : [child]));
+}
+
+function pageEntries(children: readonly TopicChild[], open: ReadonlySet<TopicId>): TopicChild[] {
+  const topics = topicsUnder(children).filter((id) => open.has(id));
+  if (topics.length <= PAGE_FLAT_LIMIT) return topics;
+  return children.flatMap((child): TopicChild[] => {
+    if (!isGroup(child)) return open.has(child) ? [child] : [];
+    const inside = topicsUnder([child]).filter((id) => open.has(id));
+    return inside.length > 1 ? [child] : inside;
+  });
+}
+
+function parentGroup(group: GroupId): GroupId | null {
+  return (Object.keys(TOPIC_GROUPS) as GroupId[]).find((id) => TOPIC_GROUPS[id].children.includes(group)) ?? null;
+}
+
+function openPage(call: Call, open: ReadonlySet<TopicId>): GroupId | null {
+  let page = call.group;
+  while (page && topicsUnder(TOPIC_GROUPS[page].children).every((id) => !open.has(id))) page = parentGroup(page);
+  return page;
+}
+
+function isSeen(world: World, npc: Vehicle, call: Call, child: TopicChild, open: ReadonlySet<TopicId>): boolean {
+  const topics = topicsUnder([child]).filter((id) => open.has(id));
+  return topics.length > 0 && topics.every((id) => call.asked.includes(id) || isSettled(world, npc, TOPICS[id]));
+}
+
+function hubOptions(world: World, npc: Vehicle, call: Call): OfferedOption[] {
+  const open = new Set(askable(world, npc).map((t) => t.id));
+  const page = openPage(call, open);
+  const children = page ? TOPIC_GROUPS[page].children : TOPIC_ROOT;
+  const entries = pageEntries(children, open).map((child): OfferedOption => {
+    const seen = isSeen(world, npc, call, child, open);
+    return isGroup(child) ? { line: TOPIC_GROUPS[child].say, topic: null, option: null, group: child, seen } : { line: TOPICS[child].ask!.say, topic: child, option: null, seen };
+  });
+  return [...entries, page ? { line: BACK_LINE, topic: null, option: null, back: true } : { line: HANG_UP_LINE, topic: null, option: null }];
 }
 
 export function currentOptions(world: World): OfferedOption[] {
@@ -61,21 +111,21 @@ export function currentOptions(world: World): OfferedOption[] {
   const npc = vehicleById(world, call.with);
   const hangUp: OfferedOption = { line: HANG_UP_LINE, topic: null, option: null };
   if (isRefused(call)) return [hangUp];
-  if (!call.topic) return [...askable(world, npc).map((t) => ({ line: t.ask!.say, topic: t.id, option: null })), hangUp];
+  if (!call.topic) return hubOptions(world, npc, call);
   const node = TOPICS[call.topic].nodes[call.node];
-  const options = node.options.filter((o) => holds(world, npc, o.when, call.vars)).map((o) => ({ line: o.say, topic: call.topic, option: o }));
+  const options = node.options.filter((o) => holds(world, npc, o.when, call.vars)).map((o) => ({ line: o.say, topic: call.topic, option: o, short: optionShort(world, o) }));
   return [...options, hangUp];
 }
 
 export function currentLine(world: World): LineId {
   const call = openCall(world);
   if (isRefused(call)) return call.line.line;
-  if (!call.topic) return talkOf(vehicleById(world, call.with)).greeting;
+  if (!call.topic) return greetingOf(world, vehicleById(world, call.with));
   return TOPICS[call.topic].nodes[call.node].line;
 }
 
-function say(world: World, speaker: string, line: LineId, vars: CallVars): void {
-  world.events.push({ t: 'say', speaker, line, vars });
+function say(world: World, speaker: string, to: string, line: LineId, vars: CallVars): void {
+  world.events.push({ t: 'say', speaker, to, line, vars });
   if (world.player.call?.with === speaker) world.player.call.line = { line, vars };
 }
 
@@ -83,7 +133,7 @@ function enter(world: World, call: Call, topic: TopicId | null, node: string): v
   call.topic = topic;
   call.node = node;
   if (!topic) call.vars = {};
-  say(world, call.with, currentLine(world), call.vars);
+  say(world, call.with, world.player.vehicleId, currentLine(world), call.vars);
 }
 
 function enterTopic(world: World, npc: Vehicle, call: Call, topic: Topic, node: string = topic.start): void {
@@ -100,7 +150,7 @@ function endCall(world: World, call: Call): void {
 
 function begin(world: World, npc: Vehicle, line: LineId): Call {
   if (world.player.call) throw new Error('A call is already open');
-  const call: Call = { with: npc.id, topic: null, node: HUB, vars: {}, line: { line, vars: {} } };
+  const call: Call = { with: npc.id, topic: null, node: HUB, vars: {}, line: { line, vars: {} }, group: null, asked: [] };
   world.player.call = call;
   world.events.push({ t: 'call', with: npc.id, outcome: 'opened' });
   return call;
@@ -124,7 +174,7 @@ function requireRadio(world: World): void {
 }
 
 function answer(world: World, npc: Vehicle, refusal: LineId | null): void {
-  if (!refusal) return enter(world, begin(world, npc, talkOf(npc).greeting), null, HUB);
+  if (!refusal) return enter(world, begin(world, npc, greetingOf(world, npc)), null, HUB);
   const call = begin(world, npc, refusal);
   call.node = REFUSED;
 }
@@ -140,26 +190,58 @@ function busyElsewhere(world: World, npc: Vehicle, me: Vehicle): boolean {
 }
 
 function reply(world: World, call: Call, line: LineId): void {
-  if (!isRefused(call)) say(world, world.player.vehicleId, line, call.vars);
+  if (!isRefused(call)) say(world, world.player.vehicleId, call.with, line, call.vars);
+}
+
+function navigate(call: Call, offered: OfferedOption): boolean {
+  if (offered.group) call.group = offered.group;
+  else if (offered.back) call.group = call.group ? parentGroup(call.group) : null;
+  return offered.group !== undefined || offered.back === true;
+}
+
+function pick(world: World, index: number): void {
+  const offered = currentOptions(world)[index];
+  if (!offered) throw new Error(`No option ${index} on offer`);
+  const call = openCall(world);
+  const npc = vehicleById(world, call.with);
+  if (navigate(call, offered)) return;
+  reply(world, call, offered.line);
+  if (offered.option) return follow(world, npc, call, offered.option);
+  if (offered.topic) return ask(world, npc, call, TOPICS[offered.topic]);
+  hangUpCall(world, npc, call);
 }
 
 export function chooseOption(world: World, index: number): World {
+  return update(world, (w) => pick(w, index));
+}
+
+export function canAskTopic(world: World, topicId: TopicId): boolean {
+  const call = openCall(world);
+  return !call.topic && !isRefused(call) && askable(world, vehicleById(world, call.with)).some((t) => t.id === topicId);
+}
+
+export function askTopic(world: World, topicId: TopicId): World {
   return update(world, (w) => {
-    const offered = currentOptions(w)[index];
-    if (!offered) throw new Error(`No option ${index} on offer`);
     const call = openCall(w);
-    const npc = vehicleById(w, call.with);
-    reply(w, call, offered.line);
-    if (offered.option) return follow(w, npc, call, offered.option);
-    if (offered.topic) return askTopic(w, npc, call, TOPICS[offered.topic]);
-    hangUpCall(w, npc, call);
+    if (call.topic || isRefused(call)) throw new Error(`Call with ${call.with} is not at its topics`);
+    call.group = null;
+    for (let step = 0; step < 4; step += 1) {
+      const offered = currentOptions(w);
+      const direct = offered.findIndex((o) => o.topic === topicId && !o.option);
+      if (direct >= 0) return pick(w, direct);
+      const into = offered.findIndex((o) => o.group && topicsUnder([o.group]).includes(topicId));
+      if (into < 0) break;
+      pick(w, into);
+    }
+    throw new Error(`${call.with} offers no way to ask ${topicId}`);
   });
 }
 
-function askTopic(world: World, npc: Vehicle, call: Call, topic: Topic): void {
-  if (isSettled(world, npc, topic)) return say(world, npc.id, talkOf(npc).repeatLine, {});
+function ask(world: World, npc: Vehicle, call: Call, topic: Topic): void {
+  if (!call.asked.includes(topic.id)) call.asked.push(topic.id);
+  if (isSettled(world, npc, topic)) return say(world, npc.id, world.player.vehicleId, talkOf(npc).repeatLine, {});
   const gate = gateOf(npc, topic);
-  if (gate === 'help' && !helpedByPlayer(world, npc)) return say(world, npc.id, 'helpMeFirst', {});
+  if (gate === 'help' && !opensHelp(world, npc)) return say(world, npc.id, world.player.vehicleId, 'helpMeFirst', {});
   enterTopic(world, npc, call, topic, gate === 'price' ? TOLL : topic.start);
 }
 
@@ -210,6 +292,7 @@ const RADIO_TALK: Talk = {
   escortRefused: pair,
   towHitched: pair,
   towOffer: (e) => [e.by],
+  asked: (e) => [e.by, e.of],
 };
 
 export function radioSpeakers(events: readonly GameEvent[], playerId: string): string[] {
@@ -236,6 +319,7 @@ export function raiseCalls(world: World): void {
     const topic = raisedTopic(world, npc, me);
     if (!topic) continue;
     enterTopic(world, npc, begin(world, npc, topic.nodes[topic.start].line), topic);
+    raiseEncounter(world, npc, topic.id);
     return;
   }
 }
@@ -250,7 +334,7 @@ function raisedTopic(world: World, npc: Vehicle, me: Vehicle): Topic | null {
   const combat = inCombat(world, me);
   const wanted = talkOf(npc).topics
     .map((id) => TOPICS[id])
-    .filter((t) => t.raise && allowedNow(t.raise, feud, combat) && !isSettled(world, npc, t) && holds(world, npc, t.raise.when, {}))
+    .filter((t) => t.raise && allowedNow(t.raise, feud, combat) && !isSettled(world, npc, t) && gateOpen(world, npc, t.id) && holds(world, npc, t.raise.when, {}))
     .sort((a, b) => b.raise!.priority - a.raise!.priority);
   return wanted[0] ?? null;
 }

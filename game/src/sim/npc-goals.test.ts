@@ -9,7 +9,7 @@ import type { NpcActivity, World, GoalReason } from './types';
 
 function scavengerWorld() {
   const w = emptyWorld({ x: 80, y: 80 });
-  const npc = addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], { x: 10, y: 10 });
+  const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 10, y: 10 });
   npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
   return { w, npc };
 }
@@ -65,11 +65,11 @@ describe('goal stack', () => {
     const { spot } = addLootSpot(w);
     const site = { id: spot.id, pos: spot.pos };
     pushGoal(w, npc, { kind: 'scavenge', targetId: site.id, destination: { ...site.pos }, phase: 'travel', reason: 'searchSite' });
-    addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 14, y: 10 });
+    addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: 14, y: 10 });
     corePart(npc, 'cab').hp = 1;
     thinkNpc(w, npc);
     expect(npc.brain!.goals.map((g) => g.kind)).toEqual(['scavenge', 'resupply', 'flee']);
-    w.obstacles.push({ id: 'cover', kind: 'rock', pos: { x: 12, y: 10 }, r: 1 });
+    w.obstacles = [...w.obstacles, { id: 'cover', kind: 'rock', pos: { x: 12, y: 10 }, r: 1 }];
     w.turn += NPC_BEHAVIOR.fleeCalmTurns + 1;
     expect(thinkNpc(w, npc).kind).toBe('resupply');
     const stop = [...REGION.towns, ...REGION.locations].find((s) => s.id === topGoal(npc)!.targetId)!;
@@ -86,7 +86,7 @@ describe('goal stack', () => {
     forceOption('hostileSeen', 'flee');
     forceOption('resume', 'new');
     pushGoal(w, npc, goal('raid', null));
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 14, y: 10 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: 14, y: 10 });
     thinkNpc(w, npc);
     expect(npc.brain!.goals.map((g) => g.kind)).toEqual(['raid', 'flee']);
     raider.pos = { x: 70, y: 10 };
@@ -101,14 +101,14 @@ describe('goal stack', () => {
 describe('damage taken', () => {
   it('sums part damage from shots and collisions this turn', () => {
     const { w, npc } = scavengerWorld();
-    const other = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 14, y: 10 });
+    const other = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: 14, y: 10 });
     const round = (damage: number[]) => ({ hit: true, crit: false, offset: 0, struck: npc.id, hits: damage.map((d) => ({ part: 'x', damage: d })), blast: [], burst: null });
     npc.brain!.hurt = 7;
     w.events = [
       { t: 'shot', shooter: other.id, weapon: 'w', target: npc.id, aim: 'body', chance: 1, damageChance: 1, side: 'front', rounds: [round([3, 2]), round([])] },
       { t: 'shot', shooter: other.id, weapon: 'w2', target: npc.id, aim: 'body', chance: 1, damageChance: 1, side: 'left', rounds: [round([4])] },
-      { t: 'collision', a: npc.id, b: 'rock-1', hitsA: [{ part: 'x', damage: 1 }], hitsB: [] },
-      { t: 'collision', a: other.id, b: npc.id, hitsA: [{ part: 'y', damage: 9 }], hitsB: [{ part: 'x', damage: 5 }] },
+      { t: 'collision', a: npc.id, b: 'rock-1', impact: 3, hitsA: [{ part: 'x', damage: 1 }], hitsB: [] },
+      { t: 'collision', a: other.id, b: npc.id, impact: 3, hitsA: [{ part: 'y', damage: 9 }], hitsB: [{ part: 'x', damage: 5 }] },
     ];
     noteHurt(w);
     expect(npc.brain!.hurt).toBe(15);
