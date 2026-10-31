@@ -13,6 +13,34 @@ export function median(values: number[]): number {
   return sorted[Math.floor(sorted.length / 2)];
 }
 
+export const SPEED_WORKLOAD_ROUNDS = 80;
+const SPEED_WORKLOAD_ITEMS = 20_000;
+
+type WorkloadItem = { id: number; x: number; y: number; weight: number };
+
+function nextRandom(state: number): number {
+  return (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+}
+
+export function speedWorkload(rounds = SPEED_WORKLOAD_ROUNDS): number {
+  let seed = 1;
+  let checksum = 0;
+  for (let round = 0; round < rounds; round++) {
+    const items: WorkloadItem[] = [];
+    const byId = new Map<number, WorkloadItem>();
+    for (let i = 0; i < SPEED_WORKLOAD_ITEMS; i++) {
+      seed = nextRandom(seed);
+      const item = { id: seed % 50_000, x: (seed & 0xffff) / 0xffff, y: (seed >>> 16) / 0xffff, weight: 0 };
+      item.weight = Math.sqrt(item.x * item.x + item.y * item.y) + Math.sin(item.x * 7) * Math.cos(item.y * 3);
+      items.push(item);
+      byId.set(item.id, item);
+    }
+    items.sort((a, b) => a.weight - b.weight || a.id - b.id);
+    for (let i = 0; i < items.length; i += 7) checksum = (checksum + (byId.get(items[i].id)?.id ?? 0) + Math.floor(items[i].weight * 1000)) % 1_000_000_007;
+  }
+  return checksum;
+}
+
 export function measureWorkloadMs<T>(work: () => T): { ms: number; result: T } {
   const timings: number[] = [];
   let result: T | undefined;
