@@ -1,3 +1,4 @@
+import { addGoods } from '../inventory';
 import { describe, expect, it } from 'vitest';
 import { haulerOf, playerVehicle } from '../damage';
 import { corePart, goodsCount, mountedParts } from '../grid';
@@ -11,7 +12,7 @@ import { maxHp } from '../wear';
 import { vehicleStats } from '../stats';
 import { CHAOS_HIGHWAY } from '../../data/modes';
 import { chassisDef } from '../../data/chassis';
-import { outpostTrucks, reachedOutpostAt } from '../chaos-highway';
+import { nextOutpost, outpostTrucks, reachedOutpostAt } from '../chaos-highway';
 import { outpostBuyChassis } from '../outposts';
 import { refreshVision } from '../vision';
 import { endTurn } from '../world';
@@ -190,15 +191,39 @@ describe('the Chaos Highway escort bot', () => {
 });
 
 describe('the Chaos Highway sprinter bot', () => {
-  it('turns auto fire off and drives ahead for the next pad, whatever follows it', () => {
+  it('turns auto fire off and drives through its hops toward the next pad without braking, whatever follows it', () => {
     const w = chaosHighwayWorld();
     w.player.autoFire = true;
 
     const turn = botOrders(w, 'sprinter');
 
     expect(turn.world.player.autoFire).toBe(false);
-    expect(playerVehicle(turn.world).order).toMatchObject({ kind: 'stopAt' });
+    expect(playerVehicle(turn.world).order).toMatchObject({ kind: 'through' });
     expect(Object.keys(playerVehicle(turn.world).weaponOrders)).toEqual([]);
+  });
+
+  it('stops at the next pad once the pad is within a hop', () => {
+    const w = chaosHighwayWorld();
+    const pad = nextOutpost(w)!.spots.truck;
+    playerVehicle(w).pos = { x: pad.x, y: pad.y + 8 };
+
+    const turn = botOrders(w, 'sprinter');
+
+    expect(playerVehicle(turn.world).order).toEqual({ kind: 'stopAt', dest: pad });
+  });
+
+  it('refits its own truck only so far that it stays faster than the hauler, however much money it has', () => {
+    const yard = atFirstOutpost();
+    yard.player.money = 2_000_000;
+    const w = outpostBuyChassis(yard, 'niva');
+    addGoods(w, playerVehicle(w), 'scrap', 15);
+    const post = reachedOutpostAt(w)!;
+    post.trucksSold.push(...outpostTrucks(w, post));
+
+    const turn = botOrders(w, 'sprinter');
+
+    expect(turn.world.player.money).toBeLessThan(w.player.money);
+    expect(vehicleStats(turn.world, playerVehicle(turn.world)).maxSpeed).toBeGreaterThan(CHAOS_HIGHWAY.hauler.hurry);
   });
 
   it('buys only a truck that stays faster than the hauler, so it keeps driving ahead', () => {

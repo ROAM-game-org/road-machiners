@@ -179,8 +179,10 @@ function haulerAtPad(world: World, hauler: Vehicle): boolean {
 
 function hopToward(o: Orders, pad: Vec): void {
   const now = o.me.order;
-  if (now?.kind === 'stopAt' && dist(now.dest, o.me.pos) <= HOP && dist(now.dest, o.me.pos) > HOP * RECLICK_SHARE) return;
-  driveTo(o, nextHop(o.world, o.me, pad));
+  if ((now?.kind === 'stopAt' || now?.kind === 'through') && dist(now.dest, o.me.pos) <= HOP && dist(now.dest, o.me.pos) > HOP * RECLICK_SHARE) return;
+  const hop = nextHop(o.world, o.me, pad);
+  if (hop === pad) return driveTo(o, pad);
+  o.run((w) => setMoveOrder(w, { kind: 'through', dest: hop }));
 }
 
 function nextHop(world: World, me: Vehicle, pad: Vec): Vec {
@@ -211,7 +213,7 @@ function restock(o: Orders, post: Outpost, style: RoadStyle): void {
 
 function restockGear(o: Orders, post: Outpost, style: RoadStyle, haulerShare: number): void {
   if (style === 'sprinter') {
-    refitGear(o);
+    refitGear(o, (v) => outpacesHauler(o.world, v));
     return buyTruck(o, post, (id) => outrunsHauler(o, id));
   }
   restockEscort(o, post, haulerShare);
@@ -233,12 +235,12 @@ function restockEscort(o: Orders, post: Outpost, haulerShare: number): void {
   buyTruck(o, post);
 }
 
-function refitGear(o: Orders): void {
+function refitGear(o: Orders, fits: (v: Vehicle) => boolean = () => true): void {
   const forSale = reachedOutpostAt(o.world)!.stock.filter((part) => !isJunk(part));
   const money = runBudget(o.world);
   const owned = new Set(o.me.items.map((it) => it.id));
   const added = (v: Vehicle) => v.items.flatMap((it) => (it.kind === 'part' && !owned.has(it.id) ? [it] : []));
-  const allowed = (v: Vehicle) => added(v).every(sturdy) && buysFor(added(v), forSale) !== null && cost(o, buysFor(added(v), forSale)!) <= money;
+  const allowed = (v: Vehicle) => added(v).every(sturdy) && buysFor(added(v), forSale) !== null && cost(o, buysFor(added(v), forSale)!) <= money && fits(v);
   const target = refitLoadout(o.world, { rngState: o.world.rngState }, o.me, { priorities: NPCS[FIGHTER].loadout.priorities, money, allowed, paysFuel: false });
   const kept = new Set(target.items.map((it) => it.id));
   for (const it of o.me.items.filter((it) => it.kind === 'part' && !kept.has(it.id))) o.run((w) => storePart(w, it.id), 'gear');
@@ -286,7 +288,11 @@ function keepsKit(o: Orders, chassisId: string): boolean {
 
 function outrunsHauler(o: Orders, chassisId: string): boolean {
   const after = outpostBuyChassis(o.world, chassisId);
-  return vehicleStats(after, playerVehicle(after)).maxSpeed > CHAOS_HIGHWAY.hauler.hurry;
+  return outpacesHauler(after, playerVehicle(after));
+}
+
+function outpacesHauler(world: World, v: Vehicle): boolean {
+  return vehicleStats(world, v).maxSpeed > CHAOS_HIGHWAY.hauler.hurry;
 }
 
 function repair(o: Orders, truck: Vehicle): void {
