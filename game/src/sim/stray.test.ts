@@ -4,8 +4,10 @@ import { laneCount, lanePoint, planBlast } from './armor';
 import { fireWeapons, inFeud, shotDamage } from './combat';
 import { reportIncident } from './relations';
 import { gunFor } from './factory';
-import { mountedParts } from './grid';
+import { mountedItems, mountedParts } from './grid';
 import { addState, stateOf, strayData } from './states';
+import { vehicleStats } from './stats';
+import { bearing, DEG } from './vec';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import type { Vehicle, World } from './types';
 
@@ -99,6 +101,7 @@ describe('stray fire', () => {
   it('the player keeps no stray fire state', () => {
     const { w, me, target } = range();
     const gun = mountedParts(target, 'weapon')[0];
+    target.heading = -mountedItems(target, 'weapon')[0].rot * (Math.PI / 2);
     me.pos = { x: 42, y: 30.2 };
     const aimed = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 41, y: 30 }, Math.PI / 2);
     target.weaponOrders = { [gun.id]: { targetId: aimed.id, aim: 'body' } };
@@ -137,6 +140,7 @@ describe('blasts', () => {
     const far = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 36, y: 34 }, Math.PI / 2);
     const gun = mountedParts(me, 'weapon')[0];
     me.weaponOrders[gun.id] = { targetId: target.id, aim: 'body' };
+    me.heading = bearing(me.pos, target.pos) - vehicleStats(w, me).weapons[0].facing * DEG;
     const dealt = fire(w, me, 12);
     expect(dealt.get(beside.id) ?? 0).toBeGreaterThan(0);
     expect(dealt.has(far.id)).toBe(false);

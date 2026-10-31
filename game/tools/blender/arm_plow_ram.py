@@ -46,8 +46,7 @@ def build(kit: Kit) -> None:
         kit.box(f"rib_base{i}", (EDGE_X - back_x, 0.05, 0.06), ((EDGE_X + back_x) / 2 - 0.03, y, 0.08), "metal")
         for j, (jx, jz) in enumerate(joints[1:]):
             strut(kit, f"rib{i}_{j}", (jx - 0.04, y, jz), (back_x, y, min(jz, MOUNT_H - 0.05)), 0.05 - PROUD * (j % 3), "metal")
-    kit.box("mount", (0.1, width - 0.1, MOUNT_H), (OUTER_X - 0.08, 0, MOUNT_H / 2), "metal", dent_by=0.005)
-    kit.box("mount_foot", (0.32, width - 0.1, 0.05), (OUTER_X - 0.2, 0, 0.025), "dark")
+        kit.box(f"bracket{i}", (0.1, 0.12, MOUNT_H), (OUTER_X - 0.08, y, MOUNT_H / 2), "metal", dent_by=0.005)
 
 
 if __name__ == "__main__":

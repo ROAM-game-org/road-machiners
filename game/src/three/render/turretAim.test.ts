@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { PAINT } from '../../data/chassis';
 import { restFrame } from '../../phys/drive';
 import { aimWithin, gunSpans } from '../../sim/armor';
-import { facingOf, mountedItems } from '../../sim/grid';
-import type { Rot } from '../../sim/types';
+import { makePart, newId } from '../../sim/factory';
+import { facingOf } from '../../sim/grid';
+import type { GridItem, Rot, Vehicle, World } from '../../sim/types';
+import { freeMounts } from '../../test/layout-spots';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import { angleDiff, DEG } from '../../sim/vec';
 import { loadModels } from './models';
@@ -18,23 +20,30 @@ await loadModels(async (name) => {
   return Uint8Array.from(atob(url.slice(url.indexOf(',') + 1)), (c) => c.charCodeAt(0)).buffer;
 });
 
-function drawn(gun: string, headingDeg: number, aimDeg: number | null, rot: Rot = 0, spot?: { chassis: string; x: number; y: number }): number {
+type PartItem = Extract<GridItem, { kind: 'part' }>;
+type Mounted = { w: World; v: Vehicle; item: PartItem };
+
+function mountGun(gun: string, chassis: string, rot: Rot, headingDeg = 0): Mounted {
   const w = emptyWorld();
-  const v = addVehicle(w, 'scrapjaw', spot?.chassis ?? 'scout', [gun, 'stockEngine'], { x: 40, y: 40 }, headingDeg * DEG);
-  const item = mountedItems(v, 'weapon')[0];
-  item.rot = rot;
-  if (spot) Object.assign(item, { x: spot.x, y: spot.y });
-  const id = item.part.id;
+  const v = addVehicle(w, 'scrapjaw', chassis, ['stockEngine'], { x: 40, y: 40 }, headingDeg * DEG);
+  const spot = freeMounts(w, v, gun, rot)[0];
+  if (!spot) throw new Error(`${chassis} has no deck spot for ${gun} at rot ${rot}`);
+  const item: PartItem = { id: newId(w, 'i'), kind: 'part', part: makePart(w, gun, 0), ...spot };
+  v.items.push(item);
+  return { w, v, item };
+}
+
+function drawn({ w, v, item }: Mounted, headingDeg: number, aimDeg: number | null): number {
   const view = new VehicleView(v, true, PAINT.standard, 'world');
   view.pose(restFrame(w, v), 0.016);
   view.aim(() => (aimDeg === null ? null : aimDeg * DEG));
-  const { dir } = view.muzzle(id);
+  const { dir } = view.muzzle(item.part.id);
   return angleDiff(headingDeg * DEG, Math.atan2(dir.z, dir.x)) / DEG;
 }
 
 describe('turret aim', () => {
   it.each([0, 90, -135])('a 60 degree gun at heading %i keeps in-arc aim and stops at the arc edge', (heading) => {
-    const rel = (deg: number) => drawn('longRifle', heading, heading + deg);
+    const rel = (deg: number) => drawn(mountGun('longRifle', 'scout', 0, heading), heading, heading + deg);
     expect(rel(10)).toBeCloseTo(10, 1);
     expect(rel(-30)).toBeCloseTo(-30, 1);
     expect(rel(31)).toBeCloseTo(30, 1);
@@ -42,43 +51,33 @@ describe('turret aim', () => {
   });
 
   it.each([0, 90, -135])('a machine gun at heading %i points at any bearing its spans allow', (heading) => {
-    const w = emptyWorld();
-    const v = addVehicle(w, 'scrapjaw', 'scout', ['mg', 'stockEngine'], { x: 40, y: 40 });
-    const spans = gunSpans(v, mountedItems(v, 'weapon')[0]);
+    const gun = mountGun('mg', 'scout', 1, heading);
+    const spans = gunSpans(gun.v, gun.item);
     expect(spans.length).toBeGreaterThan(0);
     for (const deg of [-170, -90, 0, 60, 135, 180]) {
-      expect(drawn('mg', heading, heading + deg)).toBeCloseTo(aimWithin(spans, deg), 1);
+      expect(drawn(gun, heading, heading + deg)).toBeCloseTo(aimWithin(spans, deg), 1);
     }
   });
 
   it.each([1, 2, 3] as const)('a turret at rot %i rests at the allowed bearing nearest its facing', (rot) => {
-    const spot = { chassis: 'longbed', x: 2, y: 9 };
-    const w = emptyWorld();
-    const v = addVehicle(w, 'scrapjaw', spot.chassis, ['mg', 'stockEngine'], { x: 40, y: 40 });
-    const item = mountedItems(v, 'weapon')[0];
-    Object.assign(item, { rot, x: spot.x, y: spot.y });
-    const spans = gunSpans(v, item);
-    const facing = facingOf(item) > 180 ? facingOf(item) - 360 : facingOf(item);
-    expect(drawn('mg', 0, null, rot, spot)).toBeCloseTo(aimWithin(spans, facing), 1);
+    const gun = mountGun('mg', 'longbed', rot);
+    const spans = gunSpans(gun.v, gun.item);
+    const facing = facingOf(gun.item) > 180 ? facingOf(gun.item) - 360 : facingOf(gun.item);
+    expect(drawn(gun, 0, null)).toBeCloseTo(aimWithin(spans, facing), 1);
   });
 
   it('keeps a rear-facing machine gun aim inside its rotated arc', () => {
-    const w = emptyWorld();
-    const v = addVehicle(w, 'scrapjaw', 'scout', ['mg', 'stockEngine'], { x: 40, y: 40 });
-    const item = mountedItems(v, 'weapon')[0];
-    item.rot = 2;
-    const spans = gunSpans(v, item);
+    const gun = mountGun('mg', 'scout', 2);
+    const spans = gunSpans(gun.v, gun.item);
     for (const deg of [-170, 100, 180]) {
-      expect(Math.abs(drawn('mg', 0, deg, 2))).toBeCloseTo(Math.abs(aimWithin(spans, deg)), 1);
+      expect(Math.abs(drawn(gun, 0, deg))).toBeCloseTo(Math.abs(aimWithin(spans, deg)), 1);
     }
   });
 
   it('rests inside its spans with no target', () => {
-    const w = emptyWorld();
-    const v = addVehicle(w, 'scrapjaw', 'scout', ['longRifle', 'stockEngine'], { x: 40, y: 40 });
-    const item = mountedItems(v, 'weapon')[0];
-    const spans = gunSpans(v, item);
-    expect(drawn('longRifle', 0, null)).toBeCloseTo(aimWithin(spans, 0), 1);
+    const gun = mountGun('longRifle', 'scout', 0);
+    const spans = gunSpans(gun.v, gun.item);
+    expect(drawn(gun, 0, null)).toBeCloseTo(aimWithin(spans, 0), 1);
   });
 });
 

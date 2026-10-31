@@ -1,5 +1,6 @@
 
 import { chassisDef } from '../../data/chassis';
+import type { LineId } from '../../data/dialogue';
 import { startKit } from '../../data/start';
 import { isLineGun, partDef, PARTS, type PartKind } from '../../data/parts';
 import { playerVehicle, truckFor } from '../damage';
@@ -155,4 +156,11 @@ export function driveTo(o: Orders, dest: Vec): void {
   const order = o.me.order;
   if (order?.kind === 'stopAt' && order.dest.x === dest.x && order.dest.y === dest.y) return;
   o.run((w) => setMoveOrder(w, { kind: 'stopAt', dest }));
+}
+
+const FINISH_INSTEAD: Partial<Record<LineId, LineId>> = { standDownAndLet: 'noMercy' };
+
+export function replyPick(lines: readonly LineId[], wanted: LineId | undefined): number {
+  if (!wanted) return 0;
+  return Math.max(0, lines.indexOf(lines.includes(wanted) ? wanted : FINISH_INSTEAD[wanted] ?? wanted));
 }

@@ -71,6 +71,12 @@ export function itemSize(item: Pick<GridItem, 'rot'> & ({ kind: 'part'; part: Pa
   return item.rot % 2 === 1 ? { w: d.h, h: d.w } : { w: d.w, h: d.h };
 }
 
+export function itemBulk(item: Pick<GridItem, 'rot'> & ({ kind: 'part'; part: PartInstance } | { kind: 'good' } | { kind: 'parcel' })): { w: number; h: number } {
+  if (item.kind !== 'part') return { w: 1, h: 1 };
+  const d = partDef(item.part.defId).bulk;
+  return item.rot % 2 === 1 ? { w: d.h, h: d.w } : { w: d.w, h: d.h };
+}
+
 export function facingOf(item: GridItem): number {
   return item.rot * 90;
 }
@@ -148,7 +154,7 @@ export function bareGrid(chassisId: string): Grid {
   const cached = bareGridCache.get(chassisId);
   if (cached) return cached;
   const base = baseGrid(chassisId);
-  const rows = bedRows(chassisId);
+  const rows = rowsAtWidth(chassisId, bedRows(chassisId)) + (chassisDef(chassisId).spareRows ?? 0);
   const bed = Array.from({ length: rows }, () => Object.freeze(Array.from({ length: base.w }, () => '.' as Cell | null)));
   const grid = Object.freeze({
     chassisId,
@@ -200,7 +206,26 @@ export function cargoCellsGained(chassisId: string, defId: string): number {
 export function cargoRowsOn(chassisId: string, defId: string): number {
   const def = partDef(defId);
   if (def.kind !== 'cargo') throw new Error(`${defId} is not a cargo part`);
-  return Math.floor(def.extraRows * cargoRowFactor(chassisId));
+  return rowsAtWidth(chassisId, Math.floor(def.extraRows * cargoRowFactor(chassisId)));
+}
+
+const hitGridCache = new Map<Grid, Grid>();
+
+export function hitGridOf(v: Vehicle): Grid {
+  const g = gridOf(v);
+  const spare = chassisDef(v.chassisId).spareRows ?? 0;
+  if (spare === 0) return g;
+  const cached = hitGridCache.get(g);
+  if (cached) return cached;
+  const from = g.chassisH + rowsAtWidth(v.chassisId, bedRows(v.chassisId));
+  const cells = [...g.cells.slice(0, from), ...g.cells.slice(from + spare)];
+  const hit = Object.freeze({ ...g, h: g.h - spare, deadFrom: g.deadFrom - spare, cells: Object.freeze(cells) as (Cell | null)[][] });
+  hitGridCache.set(g, hit);
+  return hit;
+}
+
+function rowsAtWidth(chassisId: string, oldRows: number): number {
+  return Math.round((oldRows * chassisDef(chassisId).oldGrid.width) / baseGrid(chassisId).w);
 }
 
 export function onDeadRow(g: Grid, item: GridItem): boolean {

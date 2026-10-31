@@ -81,7 +81,7 @@ describe('fight driving', () => {
   it('keeps out of the target\'s forward cannon arc', () => {
     const w = emptyWorld({ x: 40, y: 30 });
     const me = w.vehicles[0];
-    const gun = addVehicle(w, 'player', 'hauler', ['stockEngine', 'cannon'], me.pos, 0);
+    const gun = addVehicle(w, 'player', 'longbed', ['stockEngine', 'cannon'], me.pos, 0);
     gun.id = me.id;
     w.vehicles = [gun, ...w.vehicles.slice(1, -1)];
     const v = fighter(w, 'gunwagon', ['stockEngine', 'mg'], { x: 45, y: 30 });
@@ -206,7 +206,7 @@ describe('reaction delay', () => {
 describe('exposure', () => {
   function faceOff(keep: SideLetter | null) {
     const w = emptyWorld({ x: 40, y: 30 });
-    const gun = addVehicle(w, 'player', 'hauler', ['stockEngine', 'cannon'], { x: 40, y: 30 }, 0);
+    const gun = addVehicle(w, 'player', 'longbed', ['stockEngine', 'cannon'], { x: 40, y: 30 }, 0);
     gun.id = w.vehicles[0].id;
     w.vehicles = [gun, ...w.vehicles.slice(1, -1)];
     const plates = Array.from({ length: 20 }, () => 'steelPlate');
@@ -222,7 +222,7 @@ describe('exposure', () => {
 
   function bareAt(gap: number) {
     const w = emptyWorld({ x: 40, y: 30 });
-    const gun = addVehicle(w, 'player', 'hauler', ['stockEngine', 'cannon'], { x: 40, y: 30 }, 0);
+    const gun = addVehicle(w, 'player', 'longbed', ['stockEngine', 'cannon'], { x: 40, y: 30 }, 0);
     const v = fighter(w, 'gunwagon', ['stockEngine', 'mg'], { x: 40 + gap, y: 30 });
     v.heading = Math.PI;
     return { exposure: exposure(w, gun, gun, v), chance: bodyHitChance(w, gun, vehicleStats(w, gun).weapons[0], v) };

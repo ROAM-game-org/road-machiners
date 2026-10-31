@@ -510,7 +510,7 @@ export type IconEntry = {
   section: IconSection;
   label: string;
   models: ModelName[];
-  footprint: { w: number; h: number };
+  bulk: { w: number; h: number };
   rank: number;
   weapon: WeaponLook | null;
 };
@@ -580,27 +580,27 @@ function iconModel(defId: string): ModelName {
 }
 
 function partDraft(def: PartDef, picks: Record<string, WeaponLook>): IconDraft {
-  const base = { id: def.id, section: PART_SECTION[def.kind], label: enName(partName(def.id)), footprint: { w: def.w, h: def.h } };
+  const base = { id: def.id, section: PART_SECTION[def.kind], label: enName(partName(def.id)), bulk: def.bulk };
   if (def.kind !== 'weapon') return { entry: { ...base, models: [iconModel(def.id)], weapon: null }, hp: def.hp };
   const weapon = picks[def.id] ?? weaponLook(`icon:${def.id}`, def.id);
   return { entry: { ...base, models: weaponModels(weapon), weapon }, hp: def.hp };
 }
 
 function goodDraft(def: GoodDef): IconDraft {
-  return { entry: { id: def.id, section: 'good', label: enName(goodName(def.id)), models: [partModel(def.id)], footprint: { w: 1, h: 1 }, weapon: null }, hp: 0 };
+  return { entry: { id: def.id, section: 'good', label: enName(goodName(def.id)), models: [partModel(def.id)], bulk: { w: 1, h: 1 }, weapon: null }, hp: 0 };
 }
 
 function parcelDraft(): IconDraft {
-  return { entry: { id: PARCEL.id, section: 'good', label: enName(t('item.parcel')), models: [partModel(PARCEL.id)], footprint: { w: 1, h: 1 }, weapon: null }, hp: 0 };
+  return { entry: { id: PARCEL.id, section: 'good', label: enName(t('item.parcel')), models: [partModel(PARCEL.id)], bulk: { w: 1, h: 1 }, weapon: null }, hp: 0 };
 }
 
 const PORTRAIT_MODELS: readonly ModelName[] = ['coilover', 'axle', 'antenna', 'tow_chain'];
 
 function chassisDraft(def: ChassisDef): IconDraft {
-  const footprint = { w: def.layout[0].length, h: def.layout.length };
+  const bulk = { w: def.layout[0].length, h: def.layout.length };
   const cores = def.core.filter((c) => !BODY_PARTS.has(c.defId)).map((c) => partModel(c.defId));
   const models = [...new Set([...baseModels(def.id), ...cores, ...PORTRAIT_MODELS])];
-  return { entry: { id: def.id, section: 'chassis', label: enName(chassisName(def.id)), models, footprint, weapon: null }, hp: 0 };
+  return { entry: { id: def.id, section: 'chassis', label: enName(chassisName(def.id)), models, bulk, weapon: null }, hp: 0 };
 }
 
 function checkUniqueIds(drafts: readonly IconDraft[]): void {
@@ -630,6 +630,6 @@ function withRanks(drafts: readonly IconDraft[]): IconEntry[] {
 }
 
 export function renderKey(e: IconEntry): string {
-  const footprint = e.weapon ? `@${e.footprint.w}x${e.footprint.h}` : '';
-  return `${e.models.join('+')}${footprint}#${e.rank}`;
+  const bulk = e.weapon ? `@${e.bulk.w}x${e.bulk.h}` : '';
+  return `${e.models.join('+')}${bulk}#${e.rank}`;
 }

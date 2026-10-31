@@ -11,7 +11,7 @@ import { addGoods } from './inventory';
 import { thinkNpc, topGoal } from './npc-activities';
 import { getResources } from './resources';
 import { canUseSite, siteGates, sitePads } from './sites';
-import { spawnInitial } from './spawn';
+import { spawnInitial, spawnQueueNow } from './spawn';
 import { addVehicle, emptyWorld, finishBusiness, npcBrain, partHp, testDrive } from './testkit';
 import type { Faction, World } from './types';
 import { dist, type Vec } from './vec';
@@ -39,6 +39,7 @@ describe('raider camps', () => {
   it('spawn raiders just outside a camp gate', () => {
     const w = emptyWorld({ x: 300, y: 300 });
     spawnInitial(w);
+    spawnQueueNow(w);
     const raiders = w.vehicles.filter((v) => v.brain?.traits.includes('raider'));
     expect(raiders).toHaveLength(SPAWN.initial.filter((id) => NPCS[id].traits.includes('raider')).length);
     for (const r of raiders) {

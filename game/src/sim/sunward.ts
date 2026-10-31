@@ -10,15 +10,15 @@ import { placeBase, topGoal } from './npc-activities';
 import { getResources } from './resources';
 import { isFree } from './spawn';
 import { endState } from './states';
-import { canDrag, dragHeldBy, inTowReach, isOnRope, startDrag } from './tow';
+import { canDrag, dragHeldBy, inTowReach, startDrag } from './tow';
 import { boundToOrder, callStrangers, dropSpot, lightZone, nearTheLight, offeringOf, seize } from './sunward-crater';
 import { inTruce } from './relations';
 import { canVehicleSee, grayRadius, tileCenter } from './vision';
-import { fuelCap, suppliesCap } from './stats';
+import { fuelCap, suppliesCap, vehicleStats } from './stats';
 import { clockOf } from './sun';
 import { canEnter, canUseSite, enterSite, isTerritory, leaveSite, shelteredAt, siteGap } from './sites';
 import { territoryGrounds } from './territory';
-import type { NpcActivity, NpcState, Obstacle, SunwardFacts, SunwardHunt, SunwardNight, Vehicle, World } from './types';
+import type { NpcActivity, NpcState, SunwardFacts, SunwardHunt, SunwardNight, Vehicle, World } from './types';
 import { hashRandom } from './rng';
 import { watchPost } from './watch-posts';
 import type { NightZone } from './nav/layer';
@@ -422,10 +422,16 @@ function holdStation(world: World, v: Vehicle, phase: NightPhase): NpcActivity {
 }
 
 function carAhead(world: World, v: Vehicle, phase: NightPhase): Vehicle | null {
-  const column = gateOrder(world, sunwardFacts(world).night!).flatMap((id) => world.vehicles.filter((x) => x.id === id && !isDefeated(x) && inColumn(x, phase)));
+  const rides = (x: Vehicle) => x.id === v.id || (!isDefeated(x) && !limps(world, x));
+  const column = gateOrder(world, sunwardFacts(world).night!).flatMap((id) => world.vehicles.filter((x) => x.id === id && rides(x) && inColumn(x, phase)));
   const at = column.findIndex((x) => x.id === v.id);
   if (at < 0) throw new Error(`${v.id} rides tonight but is not in the Cavalcade's column`);
   return at === 0 ? null : column[at - 1];
+}
+
+function limps(world: World, v: Vehicle): boolean {
+  const stats = vehicleStats(world, v);
+  return stats.maxSpeed <= stats.limpSpeed;
 }
 
 function inColumn(v: Vehicle, phase: NightPhase): boolean {
@@ -459,6 +465,11 @@ const HELD_POSTS: readonly NpcActivity['reason'][] = ['keepVigil', 'huntRoad'];
 export function holdsPost(v: Vehicle): boolean {
   const top = topGoal(v);
   return isSunwardMember(v) && top?.kind === 'wait' && HELD_POSTS.includes(top.reason) && top.destination !== null && dist(v.pos, top.destination) <= RULES.arriveRadius * 2;
+}
+
+export function ridesOnSchedule(v: Vehicle): boolean {
+  const reason = topGoal(v)?.reason;
+  return isSunwardMember(v) && (reason === 'rideVigil' || reason === 'keepVigil' || reason === 'rideHome');
 }
 
 function postOf(world: World, v: Vehicle): Vec {

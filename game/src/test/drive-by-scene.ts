@@ -6,6 +6,7 @@ import { START_KITS } from '../data/start';
 import { TEST_MAP } from './map';
 import { reusedWorld } from './world-cache';
 import { goodsCount, isLoot } from '../sim/grid';
+import { mountAwayFromFront, mountFacingFront } from './layout-spots';
 import { addGoods } from '../sim/inventory';
 import { isTransientWreck } from '../sim/nav/layer';
 import { huntingGrounds } from '../sim/npc-decisions';
@@ -88,7 +89,8 @@ function scene(seed: number, kind: Prey, night: boolean): Scene {
   w.vehicles = w.vehicles.filter((v) => v.id === me.id);
   w.removed.push(...others);
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-  const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { ...post });
+  const raider = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { ...post });
+  mountFacingFront(w, raider, 'mg');
   raider.brain = npcBrain('buggy', sitePads(camp)[0], ['raider']);
   raider.brain.goals = [{ kind: 'raid', targetId: null, destination: null, phase: 'act', reason: 'watchedRoad', watchUntil: w.turn + HUNT.watchTurns }];
   const end = kind === 'playerEmpty' ? { x: post.x, y: post.y - 6 } : at(60);
@@ -100,7 +102,8 @@ function scene(seed: number, kind: Prey, night: boolean): Scene {
   } else {
     me.items = me.items.filter((item) => !isLoot(me.chassisId, item));
     me.pos = { x: post.x + 3, y: post.y + 3 };
-    prey = addVehicle(w, 'independent', kind === 'brute' ? 'hauler' : 'scout', kind === 'brute' ? ['mg', 'mg', 'mg', 'mg', 'stockEngine'] : ['mg', 'stockEngine'], { ...start });
+    prey = addVehicle(w, 'independent', kind === 'brute' ? 'hauler' : 'scout', kind === 'brute' ? ['mg', 'mg', 'mg', 'mg', 'stockEngine'] : ['stockEngine'], { ...start });
+    if (kind !== 'brute') mountAwayFromFront(w, prey, 'mg');
     prey.brain = npcBrain('trader', prey.pos, ['trader']);
     prey.brain.goals = [];
     if (kind === 'empty') prey.items = prey.items.filter((item) => !isLoot(prey.chassisId, item));

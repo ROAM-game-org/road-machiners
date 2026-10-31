@@ -22,12 +22,21 @@ import { lineKey } from '../text/names';
 
 type Fight = { w: World; foe: Vehicle; helper: Vehicle };
 
+function faceGunForward(v: Vehicle, like: Vehicle): void {
+  const kit = like.items.find((it) => it.kind === 'part' && it.part.defId === 'mg');
+  const gun = v.items.find((it) => it.kind === 'part' && it.part.defId === 'mg');
+  if (!kit || !gun) throw new Error('Both trucks need a gun');
+  Object.assign(gun, { x: kit.x, y: kit.y, rot: kit.rot });
+}
+
 function fight(faction: Faction, traits: TraitId[], standing = 0, foeFaction: Faction = 'scrapjaw'): Fight {
   const w = emptyWorld({ x: 30, y: 30 });
   const foe = addVehicle(w, foeFaction, 'scout', ['mg', 'stockEngine'], { x: 26, y: 34 });
   foe.brain = npcBrain('buggy', foe.pos, ['raider']);
   const helper = addVehicle(w, faction, 'scout', ['mg', 'stockEngine'], { x: 34, y: 30 });
   helper.brain = npcBrain('trader', helper.pos, traits);
+  faceGunForward(foe, w.vehicles[0]);
+  faceGunForward(helper, w.vehicles[0]);
   if (faction === 'bowl') w.player.standing.bowl = standing;
   startCombat(w, foe, playerVehicle(w));
   refreshVision(w);

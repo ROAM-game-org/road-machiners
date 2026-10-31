@@ -353,18 +353,32 @@ export function trafficStops(world: World, v: Vehicle, dest: Vec): boolean {
   const open = route(world, v.pos, dest, radius, parked, v);
   const around = route(world, v.pos, dest, radius, [...parked, ...moving.flatMap((x) => sweptPath(world, v, x))], v);
   if (dist(open.at(-1)!, around.at(-1)!) > 0) return true;
+  if (detourTooHard(world, v, open, around, moving)) return true;
+  return moving.some((x) => !passesClear(world, v, x, around));
+}
+
+function detourTooHard(world: World, v: Vehicle, open: Vec[], around: Vec[], moving: Vehicle[]): boolean {
   const { vs, t } = horizon(world, v);
   if (routeLength(v.pos, around) - routeLength(v.pos, open) > vs * t) return true;
-  return moving.some((x) => !passesClear(world, v, x, around));
+  const turnsAway = [around[0], alongRoute(v.pos, around, vs)].some((p) => p && dist(v.pos, p) > 0 && Math.abs(angleDiff(v.heading, bearing(v.pos, p))) > RULES.traffic.crossCone);
+  return turnsAway && moving.some((x) => reachesWithinTurn(world, v, x, vs));
+}
+
+function reachesWithinTurn(world: World, v: Vehicle, x: Vehicle, vs: number): boolean {
+  const sx = vehicleStats(world, x);
+  return dist(v.pos, x.pos) - vehicleStats(world, v).radius - sx.radius <= vs + Math.min(sx.maxSpeed, x.speed + sx.accel);
 }
 
 function passesClear(world: World, v: Vehicle, x: Vehicle, around: Vec[]): boolean {
   const radii = vehicleStats(world, v).radius + vehicleStats(world, x).radius + PHYSICS.driver.clearMargin;
   const { vs, t } = horizon(world, v);
   const at = (d: number): Vec => alongRoute(v.pos, around, d);
+  const headings = lines(x, x.speed * t, radii);
   for (let s = 0; s <= t; s += RULES.traffic.passStep) {
-    const there = { x: x.pos.x + Math.cos(x.heading) * x.speed * s, y: x.pos.y + Math.sin(x.heading) * x.speed * s };
-    if (dist(at(vs * s), there) < radii + PHYSICS.driver.moverSpread * s) return false;
+    for (const heading of headings) {
+      const there = { x: x.pos.x + Math.cos(heading) * x.speed * s, y: x.pos.y + Math.sin(heading) * x.speed * s };
+      if (dist(at(vs * s), there) < radii + PHYSICS.driver.moverSpread * s) return false;
+    }
   }
   return true;
 }
@@ -503,21 +517,33 @@ function sweptReach(x: Vehicle, travel: number): number {
 
 function sweptPath(world: World, v: Vehicle, x: Vehicle): Blocker[] {
   const sx = vehicleStats(world, x);
+  const reach = sweptReach(x, Math.min(sx.maxSpeed, x.speed + sx.accel) * horizon(world, v).t);
+  const steps = Math.max(1, Math.ceil(reach / sx.radius));
+  return lines(x, reach, sx.radius).flatMap((heading, n) => sweptLine(world, v, x, heading, reach, n === 0 ? 0 : 1, steps));
+}
+
+function sweptLine(world: World, v: Vehicle, x: Vehicle, heading: number, reach: number, from: number, steps: number): Blocker[] {
+  const sx = vehicleStats(world, x);
   const r = sx.radius;
   const radii = vehicleStats(world, v).radius + r;
-  const { vs, t } = horizon(world, v);
+  const { vs } = horizon(world, v);
   const xs = Math.min(sx.maxSpeed, x.speed + sx.accel);
-  const reach = sweptReach(x, xs * t);
-  const steps = Math.max(1, Math.ceil(reach / r));
-  const tail = Math.cos(angleDiff(x.heading, bearing(v.pos, x.pos))) > 0 ? radii : 0;
+  const tail = Math.cos(angleDiff(heading, bearing(v.pos, x.pos))) > 0 ? radii : 0;
   const circles: Blocker[] = [];
-  for (let i = 0; i <= steps; i++) {
+  for (let i = from; i <= steps; i++) {
     const d = (reach * i) / steps;
     const margin = PHYSICS.driver.clearMargin + (PHYSICS.driver.moverSpread * d) / xs;
-    const pos = { x: x.pos.x + Math.cos(x.heading) * d, y: x.pos.y + Math.sin(x.heading) * d };
+    const pos = { x: x.pos.x + Math.cos(heading) * d, y: x.pos.y + Math.sin(heading) * d };
     if (i === 0 || dist(v.pos, pos) - radii <= (vs * (d + tail)) / xs) circles.push({ pos, r: r + margin });
   }
   return circles;
+}
+
+function lines(x: Vehicle, reach: number, width: number): number[] {
+  if (!x.order || x.order.kind === "brake") return [x.heading];
+  const turn = angleDiff(x.heading, bearing(x.pos, x.order.dest));
+  const count = Math.ceil((Math.abs(turn) * reach) / width);
+  return Array.from({ length: count + 1 }, (_, i) => x.heading + (turn * i) / Math.max(1, count));
 }
 
 function pathsMeet(world: World, v: Vehicle, x: Vehicle): boolean {

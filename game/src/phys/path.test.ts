@@ -1,16 +1,14 @@
 
 import { beforeAll, expect, it } from 'vitest';
-import { START_KITS } from '../data/start';
 import { REGION, scalePoint } from '../data/region';
 import { dist, polylineDist, type Vec } from '../sim/vec';
 import { editableTerrain, emptyWorld } from '../sim/testkit';
 import type { World } from '../sim/types';
-import { endTurn, newWorld, setMoveOrder } from '../sim/world';
+import { endTurn, setMoveOrder } from '../sim/world';
 import { buildDrive, freeDrive, GROUND, initPhysics, type Drive } from './drive';
 import { physicsMove } from './turn';
-import { TEST_MAP } from '../test/map';
 import { budget } from '../test/budget';
-import { defaultSetup } from '../sim/settings';
+import { standardWorld } from '../test/world-cache';
 
 beforeAll(async () => {
   await initPhysics();
@@ -31,7 +29,7 @@ function play(w: World, max: number, afterTurn: (w: World) => boolean = () => fa
 
 it('the player drives from Bowl to Nose without a serious hit on a static obstacle', () => {
   const nose = REGION.towns.find((t) => t.id === 'nose')!;
-  let w = setMoveOrder(newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming')), { kind: 'stopAt', dest: nose.pos });
+  let w = setMoveOrder(standardWorld(1337), { kind: 'stopAt', dest: nose.pos });
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   w.player.fuel = 100;
   const me = w.player.vehicleId;

@@ -12,7 +12,8 @@ import { generateNpcLoadout, openGear } from './npc-loadout';
 import { allegianceFor, fallbackFaction, spawnAt } from './spawn';
 import { refitAtHome } from './defeat';
 import { makeVehicle } from './factory';
-import { gunDrag, massRoomAbove, npcMassRoom, vehicleStats } from './stats';
+import { gunCapacity, gunDrag, massRoomAbove, npcMassRoom, vehicleStats } from './stats';
+import { topSpeedFactor } from './chassis-features';
 import { wornDef } from './wear';
 import { addGoods } from './inventory';
 import { CRATE_MASS } from '../data/goods';
@@ -29,7 +30,7 @@ describe('NPC speed floor and wear odds', () => {
       for (let seed = 1; seed <= 3; seed++) {
         const v = rolled(template, level, seed);
         const engine = wornDef<EngineDef>(mountedParts(v, 'engine')[0]);
-        const speed = (CHASSIS[v.chassisId].maxSpeed + engine.speedBonus) * loadFactor(v) * gunDrag(v, engine.capacity);
+        const speed = (CHASSIS[v.chassisId].maxSpeed + engine.speedBonus) * topSpeedFactor(v.chassisId) * loadFactor(v) * gunDrag(v, gunCapacity(v)!);
         expect(speed, `${level} ${describeLoadout(v)}`).toBeGreaterThanOrEqual(template.loadout.minSpeed - 1e-9);
       }
     }
@@ -78,7 +79,7 @@ describe('NPC speed floor and wear odds', () => {
   });
 
   it('rolls every other template as it did before the floor moved to the table', () => {
-    const hashes = {"buggy":"27bfa16d5758","trader":"2a3176fe05ba","scavenger":"da41adfa5807","bowlFarmer":"3ca10b886c6a","noseArmy":"8c9a36b8c859","marshal":"c803abf1254f","courier":"5bc8a8a33f70","roamer":"900cfa9a2fa5","vulture":"39daf2525d1c","convoy":"3615fc6ca249","convoyGuard":"76134e581e6b","merc":"dac2b1eaedec","cavalcade":"231aa1127024","hunter":"71b9cd7e694a"};
+    const hashes = {"buggy":"8d84dfe41bcf","trader":"bc3eb9b22d43","scavenger":"de63018223e6","bowlFarmer":"0b25d33bafc9","noseArmy":"29ef4c927d10","marshal":"be2aa1a7f91f","courier":"27348576f7d6","roamer":"f3e877f2be43","vulture":"a0170b437042","convoy":"17212fc8ebb8","convoyGuard":"e98258377863","merc":"86e0462acf12","cavalcade":"1396fa92da24","hunter":"c2c291dc88bc"};
     for (const [id, hash] of Object.entries(hashes)) {
       const rolls = [1, 2, 3].map((seed) => describeLoadout(rolled(NPCS[id], 'standard', seed)));
       expect(createHash('sha1').update(rolls.join('|')).digest('hex').slice(0, 12), id).toBe(hash);

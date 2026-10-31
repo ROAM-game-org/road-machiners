@@ -22,7 +22,7 @@ function duel(gap = 5): { w: World; me: Vehicle; part: PartInstance; trader: Veh
   const me = w.vehicles[0];
   me.heading = Math.PI;
   const part = makePart(w, 'harpoon', 0);
-  if (!mountPart(w, me, part)) throw new Error('No deck room for the harpoon');
+  me.items.push({ id: 'i-harpoon', kind: 'part', part, x: 1, y: 9, rot: 1 });
   const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: me.pos.x + gap, y: me.pos.y }, Math.PI / 2);
   return { w, me, part, trader };
 }
@@ -70,7 +70,7 @@ describe('firing the harpoon', () => {
   });
 
   it('attaches the line to the first part the round touches in its lane', () => {
-    const { w, me, part, trader } = hit();
+    const { w, me, part, trader } = firstFire((s) => s.w.lines.length === 1 && shotOf(s.w).rounds[0].hits.length > 0);
     const round = shotOf(w).rounds[0];
 
     expect(round.struck).toBe(trader.id);

@@ -30,6 +30,7 @@ import { toMap } from './frames';
 import { physicsMove } from './turn';
 import { budget } from '../test/budget';
 import { defaultSetup } from '../sim/settings';
+import { standardWorld } from '../test/world-cache';
 import { ICARUS_DECKS } from '../sim/bridge';
 
 beforeAll(async () => {
@@ -344,7 +345,7 @@ describe('a Fallen Sun flap', () => {
   type JumpTurn = { landing: Landing | null; upright: boolean; air: number };
 
   function jump(turns: number): { w: World; hp: Map<string, number>; after: JumpTurn[]; hits: string[]; lipSpeed: number } {
-    let w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    let w = standardWorld(1337);
     const [start, end] = [on(-12), on(flap.length + 36)];
     const onRun = (p: Vec, margin: number) => segmentDist(p, start, end) < flap.width / 2 + margin;
     const level = groundAt(w.terrain, flap.from.x, flap.from.y);

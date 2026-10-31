@@ -138,7 +138,7 @@ describe('field refits', () => {
     const w = emptyWorld();
     const engine = w.vehicles[0].items.find((item) => item.kind === 'part' && item.part.defId === 'stockEngine');
     if (!engine) throw new Error('Expected engine');
-    expect(() => moveItem(w, engine.id, { x: 4, y: 1, rot: 0 })).toThrow('Refused: twoInTheWay');
+    expect(() => moveItem(w, engine.id, { x: 1, y: 0, rot: 0 })).toThrow('Refused: twoInTheWay');
   });
 
   it('cancels when a required item has changed position', () => {
@@ -156,11 +156,11 @@ describe('field refits', () => {
     first.x = 0;
     first.y = CHASSIS.scout.layout.length;
     first.rot = 1;
-    const second = { ...first, id: 'second-spare', part: { ...first.part, id: 'second-part' }, x: 2 };
+    const second = { ...first, id: 'second-spare', part: { ...first.part, id: 'second-part' }, x: 3 };
     w.vehicles[0].items.push(second);
     const next = moveItem(w, first.id, { x: second.x, y: second.y, rot: 1 });
     expect(next.vehicles[0].job).toBeNull();
-    expect(next.vehicles[0].items.find((item) => item.id === first.id)?.x).toBe(2);
+    expect(next.vehicles[0].items.find((item) => item.id === first.id)?.x).toBe(3);
     expect(next.vehicles[0].items.find((item) => item.id === second.id)?.x).toBe(0);
   });
 

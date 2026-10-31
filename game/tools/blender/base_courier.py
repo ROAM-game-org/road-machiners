@@ -5,7 +5,7 @@ detail and the Type 1's published figures at the scout's 1.077 scale set the siz
 tall on its tires, on a 2.6 m wheelbase. The ground is 1.0 m below the center. The side and top views are inferred from the Type 1.
 Levels: roof crest 0.75, beltline and door tops 0.15, lid cut 0.04, fender crowns 0.04, running boards -0.34, body bottom -0.4.
 One roof line runs from the cowl (x 0.66) up a flat, upright windshield to x 0.38, over a long dome with its crest by the B-pillar,
-and from x -0.64 down one clean back slope (rise 0.66 per meter) past an oval rear window and a lid vent to the Baja lid cut at
+and from x -0.64 down one clean back slope (rise 0.66 per meter) past an oval rear window to the Baja lid cut at
 x -1.67. Below the cut the engine block, fan shroud and exhaust stand bare inside a low tube bumper at hub height.
 The tub is wide, its doors 0.15 m inside the fenders, over thin dark running boards. The greenhouse leans in above the belt, with a
 door window and a quarter window per side and a louver behind it, under a trim roof panel that follows the dome.
@@ -18,7 +18,7 @@ Round lamps, tubes and fender arcs take their sides from round_sides().
 Deviations from the photos: 1.86 m wide instead of 1.66, since the track and tires set it; the engine shows in the front lid, where
 the grid's engine cells lie, and the tail shows a decor engine; the back slope is one clean plane so the deck cells lie on it like on
 a raked hood, where the car's lid curves; the roof panel takes the cab paint where the car is one color; the tire gap stays
-ARCH_CLEARANCE; the wheels are the game's own; and the antenna whip, mud flaps and plates are left out.
+ARCH_CLEARANCE; the wheels are the game's own; and the antenna whip, mud flaps, plates and lid vent are left out, the vent since deck cells lie over it.
 Grid: 4 columns by 7 rows, stretched over the model by the projection. Half height 0.3 m, from PHYSICS.bodies.courier.
 Wheels sit at x +-1.3, radius 0.4 m, half width 0.16 m, mount 0.2 m below the center, 0.726 m off the center line.
 Sockets arch_front, arch_rear and arch_front_top (the inner arch crown) mark the arches for wheelArches.test.ts.
@@ -100,10 +100,10 @@ ALONG_X = (0, math.pi / 2, 0)
 
 ENGINE_X = 1.24  # PHYSICS.bodies.courier.engine.x
 ENGINE_Y = 0.0  # -PHYSICS.bodies.courier.engine.z
-ENGINE_HALF = (0.314, 0.372)  # the drawn engine: restOn() of the engine cells on the roof crest, measured with the model built
-HOLE_MARGIN = 0.02
+ENGINE_HALF = (0.34, 0.40)  # the drawn engine: the whole 0.1 m height map cells of the bay floor inside the hole, about the anchor
+HOLE_MARGIN = 0.03
 HOLE = ((ENGINE_X - ENGINE_HALF[0] - HOLE_MARGIN, ENGINE_Y - ENGINE_HALF[1] - HOLE_MARGIN), (ENGINE_X + ENGINE_HALF[0] + HOLE_MARGIN, ENGINE_Y + ENGINE_HALF[1] + HOLE_MARGIN))
-LID = [(COWL_X, 0.17, 0.62), (0.8, 0.175, 0.585), (1.0, 0.165, 0.54), (1.2, 0.14, 0.525), (1.4, 0.1, 0.49), (HOLE[1][0], 0.04, 0.45), (1.72, -0.04, 0.41), (1.84, -0.14, 0.37), (1.92, -0.26, 0.33), (1.96, -0.38, 0.3)]
+LID = [(COWL_X, 0.17, 0.62), (0.8, 0.175, 0.585), (1.0, 0.165, 0.54), (1.2, 0.14, 0.525), (1.4, 0.1, 0.5), (HOLE[1][0], 0.04, 0.5), (1.72, -0.04, 0.43), (1.84, -0.14, 0.37), (1.92, -0.26, 0.33), (1.96, -0.38, 0.3)]
 SIDE_STEPS = (8, 3)
 DETAIL_TWIST = 20.0  # a window or vent folds more than paint may, since dark glass shows no shard
 DETAIL_LIFT = 0.008  # laid-on details stand this far off the surface they lie on, clear of the 4 mm coplanar band
@@ -113,7 +113,7 @@ SILL_BACK_X = -0.83
 LID_COLUMNS = [0.09, 0.065, 0.03, 0.012, 0.0]  # how far the lid's top columns hang below its crest, from the side edge to the center
 SHELL = [
     "lid", "ridge", "handle", "greenhouse", "doors", "roof", "windshield", "door_glass_l", "door_glass_r",
-    "quarter_glass_l", "quarter_glass_r", "louver_l", "louver_r", "rear_glass", "lid_vent",
+    "quarter_glass_l", "quarter_glass_r", "louver_l", "louver_r", "rear_glass",
 ]
 BODY = ["lid", "greenhouse", "doors"]
 
@@ -472,7 +472,7 @@ def greenhouse(kit: Kit) -> None:
 
 
 def windows(kit: Kit) -> None:
-    """The flat windshield, a door window and a quarter window on each side, the oval rear window, the louvers and the lid vent."""
+    """The flat windshield, a door window and a quarter window on each side, the oval rear window and the louvers."""
     rows = [COWL_X, 0.55, WINDSHIELD_TOP]
     lay_on_grid(kit, "windshield", [[(x, f * windshield_half(x)) for f in (-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1)] for x in rows], PANEL, "glass")
     door = rounded([(0.53, 0.25), (-0.14, 0.25), (-0.14, 0.58), (0.26, 0.6), (0.4, 0.54)], 0.07)
@@ -490,8 +490,6 @@ def windows(kit: Kit) -> None:
         fold_y = kink if kink < 0.99 * reach else 0.6 * reach
         oval.append([(x, y) for y in (-reach, -fold_y, 0.0, fold_y, reach)])
     lay_on_grid(kit, "rear_glass", oval, PANEL, "glass")
-    vent = [(-1.04, 0.24), (-1.04, -0.24), (-1.16, -0.24), (-1.16, 0.24)]
-    lay_on_plane(kit, "lid_vent", vent, PANEL, "under")
 
 
 def fender_ring(wx: float, r_out: float, a0: float, a1: float, n: int) -> list[tuple[float, float]]:

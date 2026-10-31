@@ -42,6 +42,7 @@ export function buildEmptyTemplate(): EmptyTemplate {
     if (shop.contracts.length === 0) shop.contracts = unclaimed.shops[id].contracts;
   }
   template.vehicles = template.vehicles.filter((v) => v.faction === 'player');
+  template.spawnQueue = [];
   if (template.moments) template.moments = freshMoments();
   template.states = [];
   template.rngState = -1655809527;

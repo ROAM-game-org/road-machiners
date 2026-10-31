@@ -1,7 +1,7 @@
 import { FARM_TOWER_ID } from '../data/arrival';
 import { AMBUSH, WAKE_TOWN } from '../data/intro';
 import { chassisDef } from '../data/chassis';
-import { START_KITS } from '../data/start';
+import { kitPartIds, START_KITS } from '../data/start';
 import { atlasOf } from './atlas';
 import { makePart } from './factory';
 import { addStockPart, shopAt, shopState } from './market';
@@ -95,7 +95,7 @@ function stockLostKitParts(w: World): void {
   const kit = START_KITS.arrival;
   const shop = shopState(w, WAKE_TOWN);
   const held = new Set([...playerVehicle(w).items.flatMap((item) => (item.kind === 'part' ? [item.part.defId] : [])), ...shop.stock.map((part) => part.defId)]);
-  for (const defId of kit.parts.filter((id) => !held.has(id))) addStockPart(shop, makePart(w, defId, kit.wear));
+  for (const defId of kitPartIds(kit).filter((id) => !held.has(id))) addStockPart(shop, makePart(w, defId, kit.wear));
 }
 
 function settleBeforePatch(w: World, step: IntroStep): void {

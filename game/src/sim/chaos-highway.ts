@@ -403,6 +403,7 @@ export const WINDOW_MOVE = {
   events: 'keep',
   removed: 'keep',
   spawnTimer: 'keep',
+  spawnQueue: 'keep',
   shops: 'keep',
   roadNews: 'keep',
   salvage: 'keep',

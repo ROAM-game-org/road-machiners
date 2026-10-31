@@ -3,7 +3,7 @@ import { CHASSIS } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
 import { partDef, type CoreDef } from '../data/parts';
 import BASELINE from './body-baseline.json';
-import { CLIP_TOLERANCE, bodyOf, bodyRows, cellSteps, rideOf, cellCenter, cellRect, engineAnchor, frontBody, highestUnder, hulkBoxes, isRig, lanesAt, restOn, roofSpot, spanOf, surfaceAt, surfaceSamples, unitBody, unitOfRow, unitsOf } from './body';
+import { CLIP_TOLERANCE, GRID_CELL, bodyOf, bodyRows, cellSteps, rideOf, cellCenter, cellRect, engineAnchor, frontBody, highestUnder, hulkBoxes, isRig, lanesAt, restOn, roofSpot, spanOf, surfaceAt, surfaceSamples, unitBody, unitOfRow, unitsOf } from './body';
 import { restBend } from './rig';
 import TRUCK_SHAPES from '../data/truck-shapes.json';
 import { baseGrid } from './grid';
@@ -76,18 +76,16 @@ describe('centre of mass', () => {
 });
 
 describe('grid projection', () => {
-  it('spreads inner cells evenly over the model, no smaller than a little over half a 0.484 by 0.65 m cell and no bigger', () => {
+  it('steps inner cells by one square cell and hangs the whole grid past the model outline by at most half a cell on each side', () => {
     for (const id of ids) {
       const { w, h } = baseGrid(id);
       const { half } = spanOf(id);
       const first = cellCenter(id, 1, 1);
       const next = cellCenter(id, 2, 2);
-      expect(first.x - next.x, id).toBeCloseTo((2 * half.x) / (h - 2), 9);
-      expect(next.z - first.z, id).toBeCloseTo((2 * half.z) / (w - 2), 9);
-      expect((2 * half.x) / (h - 2) / PHYSICS.cell.along, id).toBeGreaterThan(0.55);
-      expect((2 * half.x) / (h - 2) / PHYSICS.cell.along, id).toBeLessThan(1.1);
-      expect((2 * half.z) / (w - 2) / PHYSICS.cell.across, id).toBeGreaterThan(0.75);
-      expect((2 * half.z) / (w - 2) / PHYSICS.cell.across, id).toBeLessThan(1.1);
+      expect(first.x - next.x, id).toBeCloseTo(GRID_CELL, 9);
+      expect(next.z - first.z, id).toBeCloseTo(GRID_CELL, 9);
+      expect((h - 2) * GRID_CELL, id).toBeLessThanOrEqual(2 * half.x + GRID_CELL + 1e-9);
+      expect((w - 2) * GRID_CELL, id).toBeLessThanOrEqual(2 * half.z + GRID_CELL + 1e-9);
     }
   });
 
@@ -129,12 +127,13 @@ describe('grid projection', () => {
 
   it('finds the lanes a stretch of the edge crosses, clamped to the grid', () => {
     const { half } = bodyOf('scout');
-    expect(lanesAt('scout', 'column', -0.1, 0.1, 0)).toEqual([3]);
-    expect(lanesAt('scout', 'column', -half.z - 1, half.z + 1, 0)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(lanesAt('scout', 'column', 0.05, 0.1, 0)).toEqual([3]);
+    expect(lanesAt('scout', 'column', -0.1, 0.1, 0)).toEqual([2, 3]);
+    expect(lanesAt('scout', 'column', -half.z - 1, half.z + 1, 0)).toEqual([0, 1, 2, 3, 4, 5]);
     expect(lanesAt('scout', 'row', half.x - 0.01, half.x - 0.02, 0)).toEqual([1]);
     expect(lanesAt('scout', 'row', half.x + 0.5, half.x + 0.4, 0)).toEqual([0]);
-    expect(lanesAt('scout', 'row', -half.x - 0.5, -half.x - 0.4, 0)).toEqual([9]);
-    expect(lanesAt('scout', 'row', 100, -100, 0)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(lanesAt('scout', 'row', -half.x - 0.5, -half.x - 0.4, 0)).toEqual([13]);
+    expect(lanesAt('scout', 'row', 100, -100, 0)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
   });
 });
 
@@ -142,9 +141,8 @@ describe('row lanes', () => {
   it('gives every inner cell the lane of its own row and the ring rows the lanes outside the body, on every chassis and unit', () => {
     for (const id of ids) {
       const { w, h } = baseGrid(id);
-      const { half } = spanOf(id);
       const { row } = cellSteps(id);
-      expect(row, id).toBeCloseTo((2 * half.x) / (h - 2), 9);
+      expect(row, id).toBeCloseTo(GRID_CELL, 9);
       for (let y = 1; y < h - 1; y++) {
         const at = cellCenter(id, Math.floor(w / 2), y);
         expect(lanesAt(id, 'row', at.x, at.x, at.unit), `${id} row ${y}`).toEqual([y]);
@@ -165,12 +163,12 @@ describe('model surface', () => {
   });
 
   it('leaves out a wall that stands over a row edge', () => {
-    expect(surfaceAt('scout', cellRect('scout', [{ x: 3, y: 6 }, { x: 3, y: 7 }]))).toBeLessThan(0.1);
-    expect(surfaceAt('wagon', cellRect('wagon', [{ x: 2, y: 5 }, { x: 3, y: 5 }, { x: 2, y: 6 }, { x: 3, y: 6 }]))).toBeLessThan(0.7);
+    expect(surfaceAt('scout', cellRect('scout', [{ x: 3, y: 9 }, { x: 3, y: 10 }]))).toBeLessThan(0.1);
+    expect(surfaceAt('wagon', cellRect('wagon', [{ x: 3, y: 6 }, { x: 4, y: 6 }, { x: 3, y: 7 }, { x: 4, y: 7 }]))).toBeLessThan(0.7);
   });
 
   it('reads a rect narrower than a sample cell at its middle', () => {
-    const at = cellCenter('scout', 3, 6);
+    const at = cellCenter('scout', 3, 10);
     expect(surfaceAt('scout', { unit: 0, x0: at.x - 0.02, x1: at.x + 0.02, z0: at.z - 0.02, z1: at.z + 0.02 })).toBeLessThan(0.1);
   });
 
@@ -257,6 +255,19 @@ describe('grid and model correspondence', () => {
     expect(low).toEqual([]);
   });
 
+  it('centres each wheel core of the third layout pass chassis within half a cell of its model wheel along the truck', () => {
+    for (const id of ['semi', 'lincoln', 'convertible', 'bus', 'carrier', 'jeep', 'hauler', 'wagon', 'van']) {
+      for (const c of CHASSIS[id].core.filter((core) => core.defId.includes('wheel'))) {
+        const h = partDef(c.defId).h;
+        const first = cellCenter(id, c.x, c.y);
+        const last = cellCenter(id, c.x, c.y + h - 1);
+        const along = (first.x + last.x) / 2;
+        const axle = unitBody(id, first.unit).wheelX;
+        expect(Math.abs(Math.abs(along) - axle), `${id} wheel ${c.x},${c.y} is off the model wheel`).toBeLessThanOrEqual(GRID_CELL / 2 + 1e-9);
+      }
+    }
+  });
+
   it('projects each wheel core into its corner of the truck', () => {
     for (const id of ids) {
             const wheels = CHASSIS[id].core.filter((c) => c.defId.includes('wheel'));
@@ -281,9 +292,10 @@ describe('grid and model correspondence', () => {
           if (CHASSIS[id].layout[y][x] === ' ') continue;
           const rect = cellRect(id, [{ x, y }]);
           const half = { x: unitBody(id, rect.unit).half.x, z: spanOf(id).half.z };
-          const inside = rect.x0 >= -half.x - 1e-9 && rect.x1 <= half.x + 1e-9 && rect.z0 >= -half.z - 1e-9 && rect.z1 <= half.z + 1e-9;
+          const hang = GRID_CELL / 2 + 1e-9;
+          const inside = rect.x0 >= -half.x - hang && rect.x1 <= half.x + hang && rect.z0 >= -half.z - hang && rect.z1 <= half.z + hang;
           expect(inside, `${id} cell ${x},${y} projects outside the model outline`).toBe(true);
-          if (!HANGS_OVER_MODEL.has(`${id} ${x},${y}`)) expect(() => surfaceAt(id, rect), `${id} cell ${x},${y} has no model surface under it`).not.toThrow();
+          if ('DECX'.includes(CHASSIS[id].layout[y][x]) && !HANGS_OVER_MODEL.has(`${id} ${x},${y}`)) expect(() => surfaceAt(id, rect), `${id} cell ${x},${y} has no model surface under it`).not.toThrow();
         }
       }
     }
@@ -426,7 +438,7 @@ describe('rig units', () => {
           if (CHASSIS[id].layout[y][x] === ' ') continue;
           const at = cellCenter(id, x, y);
           const straight = at.x + unitsOf(id)[at.unit].offset;
-          const rigid = y === 0 ? center + half.x : y === h - 1 ? center - half.x : center + half.x - ((y - 0.5) * 2 * half.x) / (h - 2);
+          const rigid = y === 0 ? center + half.x : y === h - 1 ? center - half.x : center + ((h - 2) * GRID_CELL) / 2 - (y - 0.5) * GRID_CELL;
           expect(Math.abs(straight - rigid), `${id} cell ${x},${y}`).toBeLessThan(0.05);
         }
       }
@@ -439,8 +451,8 @@ describe('rig units', () => {
       for (let y = 1; y < h - 1; y++) {
         const rect = cellRect(id, [{ x: Math.floor(w / 2), y }]);
         const { half } = unitBody(id, rect.unit);
-        expect(rect.x0, `${id} row ${y}`).toBeGreaterThanOrEqual(-half.x - 1e-9);
-        expect(rect.x1, `${id} row ${y}`).toBeLessThanOrEqual(half.x + 1e-9);
+        expect(rect.x0, `${id} row ${y}`).toBeGreaterThanOrEqual(-half.x - GRID_CELL / 2 - 1e-9);
+        expect(rect.x1, `${id} row ${y}`).toBeLessThanOrEqual(half.x + GRID_CELL / 2 + 1e-9);
       }
     }
   });

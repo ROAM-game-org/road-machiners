@@ -162,6 +162,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     events: [],
     removed: [],
     spawnTimer: {},
+    spawnQueue: [],
     weather: [],
     dustClouds: [],
     states: [],
@@ -647,7 +648,7 @@ function carryRun(world: World, carried: CarriedRun): void {
 function carriedKit(carried: Carried, kit: StartKit): StartKit {
   const saved = carried.truck;
   if (!saved || !(saved.chassisId in CHASSIS)) return kit;
-  return { ...kit, chassis: saved.chassisId, parts: [], storage: [], cargo: {}, costBasis: {} };
+  return { ...kit, chassis: saved.chassisId, parts: [], placed: [], storage: [], cargo: {}, costBasis: {} };
 }
 
 function pick<T>(value: T | null | undefined, fallback: T): T {

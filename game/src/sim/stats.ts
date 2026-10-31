@@ -21,7 +21,7 @@ import { DEG } from './vec';
 import { weatherOn } from './weather';
 import { fuelUseScale } from './settings';
 
-export type MountedWeapon = { part: PartInstance; def: WeaponDef; spans: FireSpan[]; facing: number; unit: number };
+export type MountedWeapon = { part: PartInstance; def: WeaponDef; spans: readonly FireSpan[]; facing: number; unit: number };
 
 export type VehicleStats = {
   maxSpeed: number;

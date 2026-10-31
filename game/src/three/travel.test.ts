@@ -5,23 +5,20 @@ import { PHYSICS } from "../data/physics";
 import { physicsMove, type PreparedTurn, type Tail } from "../phys/turn";
 import { addVehicle, emptyWorld, npcBrain } from "../sim/testkit";
 import { dist } from "../sim/vec";
-import { startKit } from "../data/start";
 import { playerVehicle } from "../sim/damage";
 import type { GameEvent, Vehicle, World } from "../sim/types";
-import { endTurn, newWorld, setMoveOrder } from "../sim/world";
+import { endTurn, setMoveOrder } from "../sim/world";
 import { addRopeFrames, canTravel, Creep, nextSightSample, overshoots, threatsIn, Travel, type Playback } from "./travel";
 import { headingQuat, type VehicleFrame } from "../phys/frames";
 import { addState, declareFeud } from "../sim/states";
-import { TEST_MAP } from "../test/map";
-import { reusedWorld } from "../test/world-cache";
-import { defaultSetup } from "../sim/settings";
+import { standardWorld } from "../test/world-cache";
 import { leaveQuest, QUESTS, startQuest } from "../sim/quests";
 import { GAME_OPENED_QUESTS } from "../data/quests";
 
 const TAIL = 11;
 
 function makeSafeWorld() {
-  const world = reusedWorld("travel", () => newWorld(1337, startKit("standard"), TEST_MAP, defaultSetup('roaming')));
+  const world = standardWorld(1337);
   world.vehicles = [playerVehicle(world)];
   world.events = [];
   return world;

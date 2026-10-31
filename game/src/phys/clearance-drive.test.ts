@@ -1,15 +1,14 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { chassisDef } from '../data/chassis';
-import { START_KITS } from '../data/start';
 import { isFree } from '../sim/spawn';
 import { RULES } from '../data/rules';
 import { addVehicle, emptyWorld } from '../sim/testkit';
-import { defaultSetup } from '../sim/settings';
 import type { MoveOrder, World } from '../sim/types';
 import { bearing, dist, type Vec } from '../sim/vec';
-import { endTurn, newWorld, setMoveOrder } from '../sim/world';
+import { endTurn, setMoveOrder } from '../sim/world';
 import { TEST_MAP } from '../test/map';
 import { buildDrive, freeDrive, GROUND, initPhysics, type Drive, type TurnResult } from './drive';
+import { standardWorld } from '../test/world-cache';
 import { physicsMove } from './turn';
 
 beforeAll(async () => {
@@ -90,7 +89,7 @@ const CLEAR_TURNS = 8;
 
 describe('reproduced TEST_MAP trips', () => {
   const base = () => {
-    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const w = standardWorld(1337);
     w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
     w.player.fuel = 100;
     return w;

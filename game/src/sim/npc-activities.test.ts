@@ -1,7 +1,7 @@
 import { TERRAIN } from '../data/terrain';
 import { describe, expect, it } from 'vitest';
 import { contactsOf } from './detect';
-import { addLootSpot, addVehicle, editableTerrain, emptyWorld, finishBusiness, forceOption, npcBrain, rngStateForForcedRolls, setShopPressure, sizedUp, startCombat, testDrive } from './testkit';
+import { addLootSpot, addVehicle, editableTerrain, gunAcrossMiddle, emptyWorld, finishBusiness, forceOption, npcBrain, rngStateForForcedRolls, setShopPressure, sizedUp, startCombat, testDrive } from './testkit';
 import { standingPressures } from './market';
 import { propReach } from './mapgen';
 import { planNpcOrders } from './ai';
@@ -935,6 +935,7 @@ describe('NPC activities', () => {
       const trader = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 60, y: 60 });
       trader.brain = npcBrain('trader', trader.pos, ['trader']);
       const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 60 + reach, y: 60 });
+      gunAcrossMiddle(raider);
       raider.speed = 4;
       forceOption('contactHeard', 'flee');
       planNpcOrders(w);

@@ -157,6 +157,7 @@ describe('a rig drives as two bodies on a pivot', () => {
   it('drives a trader in a sorokonoga onto a town pad, parks it there and drives it off again with no stall', () => {
     let w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
     w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
+    w.spawnQueue = [];
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     const [bowl] = REGION.towns;
     w.vehicles[0].pos = { x: bowl.pos.x + bowl.radius + 3, y: bowl.pos.y + 8 };

@@ -11,7 +11,7 @@ import { goodsCount } from './grid';
 import { topGoal } from './npc-activities';
 import { nearestRoadPoint, oldSpotOf, oldSpotPicks, oldStockId, type OldSpotPick, canReachSalvage, isRoadWreck } from './salvage';
 import { beginSearch } from './search';
-import { isFree } from './spawn';
+import { isFree, spawnQueueNow } from './spawn';
 import { vehicleStats } from './stats';
 import { addVehicle, emptyWorld, forceOption, npcBrain } from './testkit';
 import type { SalvageStock, Vehicle, World } from './types';
@@ -34,6 +34,7 @@ function setShare(share: number): void {
 
 function roadWorld(pick: OldSpotPick): { w: World; npc: Vehicle; stock: SalvageStock } {
   const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+  spawnQueueNow(w);
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], freeNear(w, nearestRoadPoint(pick.pos)));

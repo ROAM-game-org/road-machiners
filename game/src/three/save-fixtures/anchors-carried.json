@@ -167,7 +167,7 @@
         "items": [
           {
             "x": 3,
-            "y": 6,
+            "y": 7,
             "rot": 0,
             "kind": "part",
             "part": {
@@ -179,7 +179,7 @@
           },
           {
             "x": 3,
-            "y": 10,
+            "y": 12,
             "rot": 0,
             "kind": "part",
             "part": {
@@ -191,7 +191,7 @@
           },
           {
             "x": 5,
-            "y": 10,
+            "y": 12,
             "rot": 0,
             "kind": "part",
             "part": {
@@ -227,7 +227,7 @@
           },
           {
             "x": 1,
-            "y": 27,
+            "y": 42,
             "rot": 0,
             "kind": "part",
             "part": {
@@ -239,7 +239,7 @@
           },
           {
             "x": 7,
-            "y": 27,
+            "y": 42,
             "rot": 0,
             "kind": "part",
             "part": {
@@ -251,8 +251,8 @@
           },
           {
             "x": 3,
-            "y": 3,
-            "rot": 0,
+            "y": 4,
+            "rot": 1,
             "kind": "part",
             "part": {
               "defId": "workhorseDiesel",
@@ -275,19 +275,19 @@
           },
           {
             "x": 2,
-            "y": 30,
+            "y": 47,
             "rot": 1,
             "kind": "part",
             "part": {
               "defId": "spacedArmor",
               "wear": 3,
-              "hp": 81,
+              "hp": 41,
               "rebuilt": false
             }
           },
           {
-            "x": 0,
-            "y": 5,
+            "x": 1,
+            "y": 8,
             "rot": 1,
             "kind": "part",
             "part": {
@@ -388,7 +388,7 @@
         "items": [
           {
             "x": 3,
-            "y": 6,
+            "y": 7,
             "rot": 0,
             "kind": "part",
             "part": {
@@ -400,7 +400,7 @@
           },
           {
             "x": 3,
-            "y": 10,
+            "y": 12,
             "rot": 0,
             "kind": "part",
             "part": {
@@ -412,7 +412,7 @@
           },
           {
             "x": 5,
-            "y": 10,
+            "y": 12,
             "rot": 0,
             "kind": "part",
             "part": {
@@ -448,7 +448,7 @@
           },
           {
             "x": 1,
-            "y": 27,
+            "y": 42,
             "rot": 0,
             "kind": "part",
             "part": {
@@ -460,7 +460,7 @@
           },
           {
             "x": 7,
-            "y": 27,
+            "y": 42,
             "rot": 0,
             "kind": "part",
             "part": {
@@ -472,8 +472,8 @@
           },
           {
             "x": 3,
-            "y": 3,
-            "rot": 0,
+            "y": 4,
+            "rot": 1,
             "kind": "part",
             "part": {
               "defId": "workhorseDiesel",
@@ -496,19 +496,19 @@
           },
           {
             "x": 2,
-            "y": 30,
+            "y": 47,
             "rot": 1,
             "kind": "part",
             "part": {
               "defId": "spacedArmor",
               "wear": 3,
-              "hp": 81,
+              "hp": 41,
               "rebuilt": false
             }
           },
           {
-            "x": 0,
-            "y": 5,
+            "x": 1,
+            "y": 8,
             "rot": 1,
             "kind": "part",
             "part": {
@@ -609,7 +609,7 @@
         "items": [
           {
             "x": 3,
-            "y": 6,
+            "y": 7,
             "rot": 0,
             "kind": "part",
             "part": {
@@ -621,7 +621,7 @@
           },
           {
             "x": 3,
-            "y": 10,
+            "y": 12,
             "rot": 0,
             "kind": "part",
             "part": {
@@ -633,7 +633,7 @@
           },
           {
             "x": 5,
-            "y": 10,
+            "y": 12,
             "rot": 0,
             "kind": "part",
             "part": {
@@ -669,7 +669,7 @@
           },
           {
             "x": 1,
-            "y": 27,
+            "y": 42,
             "rot": 0,
             "kind": "part",
             "part": {
@@ -681,7 +681,7 @@
           },
           {
             "x": 7,
-            "y": 27,
+            "y": 42,
             "rot": 0,
             "kind": "part",
             "part": {
@@ -693,8 +693,8 @@
           },
           {
             "x": 3,
-            "y": 3,
-            "rot": 0,
+            "y": 4,
+            "rot": 1,
             "kind": "part",
             "part": {
               "defId": "workhorseDiesel",
@@ -717,19 +717,19 @@
           },
           {
             "x": 2,
-            "y": 30,
+            "y": 47,
             "rot": 1,
             "kind": "part",
             "part": {
               "defId": "spacedArmor",
               "wear": 3,
-              "hp": 81,
+              "hp": 41,
               "rebuilt": false
             }
           },
           {
-            "x": 0,
-            "y": 5,
+            "x": 1,
+            "y": 8,
             "rot": 1,
             "kind": "part",
             "part": {

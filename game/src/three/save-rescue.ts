@@ -6,7 +6,10 @@ import { mapAt } from '../sim/highway';
 import type { World } from '../sim/types';
 import type { SlotId } from './save-slots';
 import { savedMisfit, savedRevisionsOf, savedRunId, saveOf, storedSave, writeSave } from './save';
-import { armorRowOfItem_127_128, chaosHighwayMode_113_114, mutedColor_96_97, paintOfPreset_95_96 } from './save-steps-late';
+import { LAYOUTS_2_34 } from './save-layouts-2-34';
+import { relaidTrucks_1_2, withWideMg_42_43 } from './save-migrations';
+import { withSquareGrid_128_129 } from './save-step-square-grid';
+import { armorRowOfItem_127_128, chaosHighwayMode_113_114, mutedColor_96_97, paintOfPreset_95_96, withOddFronts_102_103 } from './save-steps-late';
 import type { SaveSlots } from './save-db';
 
 type Json = Record<string, unknown>;
@@ -129,20 +132,83 @@ function vehicleOf(world: Json, id: unknown): Json | null {
   return listOf(world.vehicles).map(objectOf).find((v) => v !== null && v.id === id) ?? null;
 }
 
+const RELAID_BEFORE = 2;
+const WIDE_MG_BEFORE = 43;
+const ODD_FRONTS_BEFORE = 103;
 const ARMOR_ROWS_OUTSIDE_BEFORE = 128;
+const SQUARE_GRID_BEFORE = 129;
+const OFF_GRID = -1;
+const RESCUED_ID = 'rescued';
+const NO_PLAYER_VEHICLE = 'none';
 
-function itemsOf(vehicle: Json, format: number): CarriedItem[] {
-  const read = listOf(vehicle.items).map(itemOf).filter((it): it is CarriedItem => it !== null);
-  const chassisId = idOf(vehicle.chassisId);
-  if (!formatBefore(format, ARMOR_ROWS_OUTSIDE_BEFORE) || chassisId === null) return read;
-  return read.map((it) => (it.y < 0 ? it : { ...it, y: armorRowOfItem_127_128(chassisId, it.y, it.kind === 'part' ? it.part.defId : null) }));
+type Placed = { items: CarriedItem[]; storage: CarriedPart[]; money: number };
+type WorldStep = { before: number; known: (chassisId: string) => boolean; step: (world: Json) => Json };
+
+const WORLD_STEPS: readonly WorldStep[] = [
+  { before: RELAID_BEFORE, known: () => true, step: relaidTrucks_1_2 },
+  { before: WIDE_MG_BEFORE, known: (chassisId) => Object.hasOwn(LAYOUTS_2_34, chassisId), step: withWideMg_42_43 },
+  { before: ODD_FRONTS_BEFORE, known: () => true, step: withOddFronts_102_103 },
+];
+
+function savedPartOf(part: CarriedPart, id: string): Json {
+  return { id, defId: part.defId, hp: part.hp, wear: part.wear, rebuilt: part.rebuilt };
 }
 
-function truckOf(world: Json, player: Json, format: number): Carried['truck'] {
+function savedItemOf(item: CarriedItem, i: number): Json {
+  const spot = { id: `item${i}`, x: item.x, y: item.y, rot: item.rot };
+  if (item.kind === 'good') return { ...spot, kind: 'good', good: item.good };
+  return { ...spot, kind: 'part', part: savedPartOf(item.part, `part${i}`) };
+}
+
+function savedVehicleOf(chassisId: string, items: CarriedItem[]): Json {
+  return { id: RESCUED_ID, faction: 'player', chassisId, items: items.map(savedItemOf) };
+}
+
+function throughStep({ known, step }: WorldStep, chassisId: string | null, placed: Placed, player: boolean): Placed {
+  if (chassisId !== null && !known(chassisId)) return placed;
+  if (!player) return { ...placed, items: itemsAfter(step(miniWorld(chassisId, placed.items, NO_PLAYER_VEHICLE, [])), chassisId, placed.items) };
+  const moved = step(miniWorld(chassisId, placed.items, RESCUED_ID, placed.storage));
+  return { items: itemsAfter(moved, chassisId, placed.items), ...garageAndMoney(moved.player as Json, placed.money) };
+}
+
+function miniWorld(chassisId: string | null, items: CarriedItem[], vehicleId: string, stored: CarriedPart[]): Json {
+  return {
+    player: { vehicleId, storage: stored.map((part, i) => savedPartOf(part, `stored${i}`)), money: 0 },
+    vehicles: chassisId === null ? [] : [savedVehicleOf(chassisId, items)],
+  };
+}
+
+function itemsAfter(moved: Json, chassisId: string | null, before: CarriedItem[]): CarriedItem[] {
+  return chassisId === null ? before : ((moved.vehicles as Json[])[0].items as Json[]).flatMap((it) => itemOf(it) ?? []);
+}
+
+function garageAndMoney(player: Json, money: number): Pick<Placed, 'storage' | 'money'> {
+  return { storage: (player.storage as Json[]).flatMap((p) => partOf(p) ?? []), money: money + (player.money as number) };
+}
+
+function onSquareGrid(chassisId: string, items: CarriedItem[]): CarriedItem[] {
+  const moved = withSquareGrid_128_129({ player: { vehicleId: RESCUED_ID, storage: [] }, vehicles: [savedVehicleOf(chassisId, items)] });
+  const spots = new Map(((moved.vehicles as Json[])[0].items as Json[]).map((it) => [it.id, it]));
+  return items.map((item, i) => {
+    const spot = spots.get(`item${i}`);
+    return spot ? { ...item, x: spot.x as number, y: spot.y as number, rot: spot.rot as CarriedItem['rot'] } : { ...item, x: OFF_GRID, y: OFF_GRID };
+  });
+}
+
+function placedOn(vehicle: Json | null, format: number, player: boolean, storage: CarriedPart[]): Placed {
+  const read = listOf(vehicle?.items).map(itemOf).filter((it): it is CarriedItem => it !== null);
+  const chassisId = idOf(vehicle?.chassisId);
+  const early = WORLD_STEPS.filter((s) => formatBefore(format, s.before)).reduce((placed, s) => throughStep(s, chassisId, placed, player), { items: read, storage, money: 0 });
+  if (chassisId === null) return early;
+  const outside = formatBefore(format, ARMOR_ROWS_OUTSIDE_BEFORE) ? early.items.map((it) => (it.y < 0 ? it : { ...it, y: armorRowOfItem_127_128(chassisId, it.y, it.kind === 'part' ? it.part.defId : null) })) : early.items;
+  return { ...early, items: formatBefore(format, SQUARE_GRID_BEFORE) ? onSquareGrid(chassisId, outside) : outside };
+}
+
+function truckOf(world: Json, player: Json, format: number): { truck: Carried['truck']; storage: CarriedPart[]; money: number } {
   const vehicle = vehicleOf(world, player.vehicleId);
   const chassisId = idOf(vehicle?.chassisId);
-  if (!vehicle || chassisId === null) return null;
-  return { chassisId, items: itemsOf(vehicle, format) };
+  const placed = placedOn(vehicle, format, true, listOf(player.storage).flatMap((p) => partOf(p) ?? []));
+  return { truck: chassisId === null ? null : { chassisId, items: placed.items }, storage: placed.storage, money: placed.money };
 }
 
 const HAULER_FORMAT_2_60 = 2060;
@@ -180,7 +246,7 @@ function waitsAtNext(run: Json, window: number): boolean {
 
 function haulerTruckOf(hauler: Json, format: number): CarriedRun['hauler'] {
   const stores = objectOf(hauler.resources);
-  return { items: itemsOf(hauler, format), fuel: countOf(stores?.fuel), supplies: countOf(stores?.supplies) };
+  return { items: placedOn(hauler, format, false, []).items, fuel: countOf(stores?.fuel), supplies: countOf(stores?.supplies) };
 }
 
 function soldAt(run: Json, milestone: number): string[] {
@@ -203,9 +269,10 @@ export function readCarried(raw: unknown, prices: Readonly<Record<string, number
 function readFormatted(raw: unknown, world: Json, player: Json): Carried {
   const format = formatNumber(raw);
   const money = moneyReader(format);
+  const mounted = truckOf(world, player, format);
   return {
     seed: isGridInt(world.seed) ? world.seed : null,
-    money: money.amount(player.money),
+    money: money.amount(typeof player.money === 'number' ? player.money + mounted.money : player.money),
     ...pooledOf(player),
     xpBySource: countsOf(player.xpBySource),
     perks: listOf(player.perks).flatMap((id) => idOf(id) ?? []).map((id) => renamedIn(RENAMED_PERKS_RESCUE, id)),
@@ -217,8 +284,8 @@ function readFormatted(raw: unknown, world: Json, player: Json): Carried {
     fuel: countOf(player.fuel),
     supplies: countOf(player.supplies),
     costBasis: Object.fromEntries(Object.entries(countsOf(player.costBasis)).map(([good, basis]) => [good, money.rate(basis)])),
-    truck: truckOf(world, player, format),
-    storage: listOf(player.storage).flatMap((p) => partOf(p) ?? []),
+    truck: mounted.truck,
+    storage: mounted.storage,
     setup: setupOf(world.setup, format),
     quests: questVarsOf(player.quests, format),
     run: runOf(world, format, money),
