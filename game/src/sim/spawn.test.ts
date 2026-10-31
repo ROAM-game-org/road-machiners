@@ -9,6 +9,7 @@ import { territoryPieces } from './territory';
 import { addVehicle, emptyWorld, testDrive } from './testkit';
 import { dist } from './vec';
 import { endTurn, newWorld } from './world';
+import type { QueuedSpawn } from './types';
 import { TEST_MAP } from '../test/map';
 import { budget } from '../test/budget';
 import { reusedWorld } from '../test/world-cache';
@@ -294,5 +295,49 @@ describe('NPC allegiance', () => {
     const w = emptyWorld();
     const atNose = new Set(Array.from({ length: 600 }, () => allegianceFor(w, NPCS.trader, site('nose'), null)));
     expect([...atNose].sort()).toEqual(['independent', 'nose']);
+  });
+});
+
+describe('a blocked start spawn', () => {
+  const SMALL_MAP = 500;
+  const siteOf = (id: string) => [...REGION.towns, ...REGION.locations].find((s) => s.id === id)!;
+  const blocked: QueuedSpawn = { templateId: 'bowlFarmer', siteId: 'bowl' };
+  const free: QueuedSpawn = { templateId: 'buggy', siteId: 'kiln' };
+  const smallWorld = () => {
+    const w = emptyWorld({ x: 5, y: 5 });
+    w.size = SMALL_MAP;
+    w.spawnQueue = [{ ...blocked }, { ...free }, { ...free }];
+    return w;
+  };
+  const roster = (w: ReturnType<typeof emptyWorld>) => w.vehicles.filter((v) => v.brain).map((v) => v.brain!.templateId);
+
+  it('has a blocked entry and a free one to test with', () => {
+    expect(siteOf(blocked.siteId).pos.y).toBeGreaterThan(SMALL_MAP);
+    expect(siteOf(free.siteId).pos.x).toBeLessThan(SMALL_MAP);
+    expect(siteOf(free.siteId).pos.y).toBeLessThan(SMALL_MAP);
+  });
+
+  it('waits in the queue while the entry behind it spawns that turn', () => {
+    const w = smallWorld();
+    spawnNpcs(w);
+    expect(w.spawnQueue).toEqual([blocked, free]);
+    expect(roster(w)).toEqual([free.templateId]);
+  });
+
+  it('spawns no more than the start rate when several entries are free', () => {
+    const w = smallWorld();
+    w.spawnQueue = [{ ...free }, { ...free }, { ...free }];
+    spawnNpcs(w);
+    expect(w.spawnQueue).toHaveLength(3 - SPAWN.startPerTurn);
+    expect(roster(w)).toHaveLength(SPAWN.startPerTurn);
+  });
+
+  it('gives the same world when run twice', () => {
+    const run = () => {
+      const w = smallWorld();
+      spawnNpcs(w);
+      return w;
+    };
+    expect(run()).toEqual(run());
   });
 });

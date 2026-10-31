@@ -32,11 +32,13 @@ export function spawnNpcs(world: World): void {
 }
 
 function spawnQueued(world: World): void {
-  for (const entry of world.spawnQueue.slice(0, SPAWN.startPerTurn)) {
+  const spawned = new Set<QueuedSpawn>();
+  for (const entry of world.spawnQueue) {
+    if (spawned.size >= SPAWN.startPerTurn) break;
     const { tpl, places } = queuedPlaces(entry);
-    if (!spawnListed(world, tpl, places)) continue;
-    world.spawnQueue = world.spawnQueue.filter((e) => e !== entry);
+    if (spawnListed(world, tpl, places)) spawned.add(entry);
   }
+  if (spawned.size > 0) world.spawnQueue = world.spawnQueue.filter((e) => !spawned.has(e));
 }
 
 export function spawnQueueNow(world: World): void {
