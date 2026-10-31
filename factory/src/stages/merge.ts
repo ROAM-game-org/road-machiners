@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import { deployDev } from '../deploy';
 import { withoutFailuresOf } from '../fail';
 import { must } from '../exec';
+import { JOB_ID_ENV } from '../jobs';
 import { addSpend, closeLanding, landingSession, markMerged, openLanding, type LandingPlan } from '../landing-work';
 import { readState, updateState } from '../state';
 import { BRANCH, GAME_DIR, RELEASE_CANDIDATE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, type Card, type Ctx, type FactoryState, type IssueMerge, type LandingStage, type LandingWork } from '../types';
@@ -37,9 +38,9 @@ async function commentBaseline(ctx: Ctx, cards: Card[], error: BaselineFailureEr
 async function mergeBatch(ctx: Ctx, base: string, cards: Card[]): Promise<void> {
   const dir = join(ctx.cfg.home, 'work', 'merge-queue');
   await ctx.repo.fetch();
-  const { work, resumed } = openLanding(ctx, 'merge', dir, await batchPlan(ctx, base, cards));
+  const { work, resumed } = openLanding(ctx, 'merge', dir, await batchPlan(ctx, base, cards), runningJobId());
   const clock = newClock();
-  const land: Landing = { stage: 'merge', dir, into: base, guardAgainst: [base], agent: landingAgent(ctx, 'merge', dir, work, resumed), clock };
+  const land: Landing = { stage: 'merge', dir, into: base, guardAgainst: [base], agent: landingAgent(ctx, 'merge', dir, work, resumed), clock, staleBase: resumed };
   let merged = { merges: work.merges, conflicts: 0 };
   try {
     if (!resumed) merged = await mergeCards(ctx, land, cards);
@@ -52,6 +53,8 @@ async function mergeBatch(ctx: Ctx, base: string, cards: Card[]): Promise<void> 
   recordMerges(ctx, base, merged.merges);
   await settle(ctx, base, cards, merged.merges);
 }
+
+export const runningJobId = (): string | null => process.env[JOB_ID_ENV] ?? null;
 
 async function batchPlan(ctx: Ctx, base: string, cards: Card[]): Promise<LandingPlan> {
   const sources = await Promise.all(cards.map(async (card) => ({ branch: BRANCH(card.issue), sha: await ctx.repo.headHash(BRANCH(card.issue)) })));
@@ -80,7 +83,7 @@ function recordMerges(ctx: Ctx, base: string, merges: IssueMerge[]): void {
   });
 }
 
-export type Landing = { stage: LandingStage; dir: string; into: string; guardAgainst: string[]; agent: (prompt: string) => Promise<string>; clock?: Clock };
+export type Landing = { stage: LandingStage; dir: string; into: string; guardAgainst: string[]; agent: (prompt: string) => Promise<string>; clock?: Clock; staleBase?: boolean };
 
 type Phase = 'merges' | 'checks' | 'fixes' | 'remerges' | 'pushes';
 type Clock = Record<Phase, { ms: number; count: number }>;
@@ -118,7 +121,10 @@ export async function checkAndPush(ctx: Ctx, land: Landing, conflictUsd: number,
 }
 
 async function fixUntilPasses(ctx: Ctx, land: Landing, fixes: number, conflicts: number, fixPrompt: (failure: string) => string): Promise<number> {
-  const check = checksOnceEachHead(ctx, land, () => timed(land.clock, 'checks', () => mergedChecks(ctx, land)));
+  const check = checksOnceEachHead(ctx, land, () => timed(land.clock, 'checks', async () => {
+    await refreshKeptBase(ctx, land);
+    return mergedChecks(ctx, land);
+  }));
   try {
     return await untilPasses(ctx.cfg.mergingBudgetUsd, fixes, check, (failure) => timed(land.clock, 'fixes', () => keptFix(ctx, land, fixPrompt(failure))));
   } catch (error) {
@@ -183,6 +189,12 @@ function keptSpend(ctx: Ctx, stage: LandingStage): number {
   const work = readState(ctx.statePath).landings[stage];
   if (work === undefined) throw new Error(`The ${stage} job checks work that has no landing record`);
   return work.spentUsd;
+}
+
+async function refreshKeptBase(ctx: Ctx, land: Landing): Promise<void> {
+  if (land.staleBase !== true || (await uncommitted(ctx, land.dir)) !== '') return;
+  land.staleBase = false;
+  await mergeIn(ctx, land, { branch: land.into, message: undefined, reason: `${land.into} may have moved while this work was kept` });
 }
 
 async function keptFix(ctx: Ctx, land: Landing, prompt: string): Promise<string> {

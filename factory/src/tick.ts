@@ -9,6 +9,7 @@ import { intake } from './intake';
 import { publicFilterWith } from './public/filter';
 import { publicTick } from './public/tick-steps';
 import { reviveVotes } from './public/votes';
+import { chargeJobSpend } from './landing-work';
 import { recordJob } from './ledger';
 import { reportAttempt, reportScheduler } from './observability';
 import { pruneCaptions } from './post-status';
@@ -315,7 +316,7 @@ function retriesOrder(ctx: Ctx, job: Job): boolean {
 async function stopJob(ctx: Ctx, job: Job, alive: boolean, deps: TickDeps): Promise<void> {
   if (alive) await deps.kill(ctx.run, job.pid, job.id);
   else await deps.removeContainers(ctx.run, job.id);
-  recordJob(ctx.cfg.home, ctx.cfg.tokenPrices, ctx.now(), job, alive ? 'timeout' : 'died');
+  chargeJobSpend(ctx.statePath, job, recordJob(ctx.cfg.home, ctx.cfg.tokenPrices, ctx.now(), job, alive ? 'timeout' : 'died'));
 }
 
 async function failJob(ctx: Ctx, job: Job, alive: boolean, deps: TickDeps): Promise<void> {

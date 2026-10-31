@@ -38,7 +38,7 @@ describe('sweepWork', () => {
   });
 
   it('keeps the merge and ship clones while a landing record names them, and removes them without one', () => {
-    const work0 = { into: 'dev', sources: [], cards: [5], session: 's', spentUsd: 0, merged: true, merges: [], since: '' };
+    const work0 = { into: 'dev', sources: [], cards: [5], session: 's', spentUsd: 0, job: null, jobUsd: 0, merged: true, merges: [], since: '' };
     const kept = work('merge-queue', 'ship-main');
     expect(sweepWork(kept, `${kept}-locks`, state({ landings: { merge: work0, ship: { ...work0, into: 'main' } } }), []).removed).toEqual([]);
     expect([has(kept, 'merge-queue/game/.factory-tasks/task.md'), has(kept, 'ship-main/game/.factory-tasks/task.md')]).toEqual([true, true]);

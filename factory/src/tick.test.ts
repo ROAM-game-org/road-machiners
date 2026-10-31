@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseStage } from './jobs';
 import { solidPng } from './media-fixtures';
-import { readLedger } from './ledger';
+import { appendUsage, readLedger } from './ledger';
 import { readObservation, type SchedulerData } from './observability';
 import { resumedStage, timedOutMinutes } from './sessions';
 import { checkJobs, chooseJobs, evaluateSchedule, tick, timeoutOf, type TickDeps } from './tick';
@@ -940,6 +940,17 @@ describe('tick', () => {
       const bare = harness(job(late, 'merge', null), true);
       await checkJobs(bare.ctx, bare.deps);
       expect(readState(bare.ctx.statePath)).toMatchObject({ interrupted: [], jobs: [], failures: [{ stage: 'merge', error: 'timed out after 30 minutes' }] });
+    });
+
+    it('charges the kept merge work with what a timed-out merge job spent beyond its finished fix rounds', async () => {
+      const late = '2026-01-10T11:00:00Z';
+      const h = harness(job(late, 'merge', null), true);
+      const kept = { into: 'dev', sources: [], cards: [5], session: 's', spentUsd: 3, job: 'merge-job', jobUsd: 1, merged: true, merges: [], since: late };
+      updateState(h.ctx.statePath, (s) => ({ ...s, landings: { merge: kept } }));
+      appendUsage(h.ctx.cfg.home, 'merge-job', { model: 'sonnet', costUsd: 1, minutes: 5 });
+      appendUsage(h.ctx.cfg.home, 'merge-job', { model: 'sonnet', costUsd: 2.5, minutes: 90, fromTranscript: true });
+      await checkJobs(h.ctx, h.deps);
+      expect(readState(h.ctx.statePath).landings.merge).toMatchObject({ spentUsd: 5.5, jobUsd: 3.5 });
     });
 
     it('resumes a dead card job found past the timeout once, and removes its containers', async () => {

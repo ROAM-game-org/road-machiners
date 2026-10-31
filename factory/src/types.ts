@@ -168,7 +168,7 @@ export type IssueMerge = { issue: number; title: string; sha: string; into: stri
 
 export type LandingStage = 'merge' | 'ship';
 export type LandingSource = { branch: string; sha: string };
-export type LandingWork = { into: string; sources: LandingSource[]; cards: number[]; session: string; spentUsd: number; merged: boolean; merges: IssueMerge[]; since: string };
+export type LandingWork = { into: string; sources: LandingSource[]; cards: number[]; session: string; spentUsd: number; job: string | null; jobUsd: number; merged: boolean; merges: IssueMerge[]; since: string };
 
 export type ReleaseState = {
   issue: number;

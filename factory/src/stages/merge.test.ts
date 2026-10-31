@@ -710,12 +710,23 @@ describe('kept merge work', () => {
     shellFailures = ['FAIL a.test.ts'];
     costs = [1];
     await merge(fakeCtx(5));
-    expect(calls.filter((call) => /^(clone|merge |agent|checks|push)/.test(call))).toEqual(['checks', 'agent', 'checks', 'push head1 dev']);
+    expect(calls.filter((call) => /^(clone|merge |agent|checks|push)/.test(call))).toEqual(['merge dev', 'checks', 'agent', 'checks', 'push head1 dev']);
     expect(runs[0]!.session).toMatchObject({ id: session, resume: true });
     expect(runs[0]!.prompt).toMatch(/^An earlier job on this same work stopped before it pushed/);
     expect(comments.filter((text) => text.includes('merged into dev')).map((text) => text.split(' ')[0])).toEqual(['5', '6']);
     expect(landing()).toBeUndefined();
     expect(existsSync(clone())).toBe(false);
+  });
+
+  it('merges the base into a resumed clone only once it holds no uncommitted change, before its first checks', async () => {
+    await failOnce();
+    updateState(`${home}/state.json`, (state) => ({ ...state, landings: { merge: { ...state.landings.merge!, spentUsd: 0 } } }));
+    changed = ['game/src/sim/world.ts'];
+    dirty = [' M game/src/fix.ts', '', ''];
+    costs = [1];
+    await merge(fakeCtx(5));
+    expect(calls.filter((call) => /^(merge |agent|checks|push)/.test(call))).toEqual(['agent', 'merge dev', 'checks', 'push head1 dev']);
+    expect(runs[0]!.prompt).toContain('changes that are not committed');
   });
 
   it('counts the fix rounds of earlier jobs against the budget of the batch', async () => {

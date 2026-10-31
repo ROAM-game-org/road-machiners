@@ -23,6 +23,7 @@ import { runStage as verify } from './stages/verify';
 import { runStage as harden } from './stages/harden';
 import { runStage as waste } from './stages/waste';
 import { runStage as triage } from './stages/triage';
+import { chargeJobSpend } from './landing-work';
 import { recordJob, type JobOutcome } from './ledger';
 import { clearSessions, markResumed, resumedStage } from './sessions';
 import { clearQueued, readState, updateState } from './state';
@@ -90,7 +91,7 @@ async function runLockedJob(ctx: Ctx, stage: JobStage, issue: number | null): Pr
   } catch (error) {
     retry = await failed(ctx, stage, issue, job, error);
   } finally {
-    recordJob(ctx.cfg.home, ctx.cfg.tokenPrices, ctx.now(), withBatch(ctx, entry, job), outcome);
+    chargeJobSpend(ctx.statePath, entry, recordJob(ctx.cfg.home, ctx.cfg.tokenPrices, ctx.now(), withBatch(ctx, entry, job), outcome));
     clearJob(ctx, stage, issue, retry);
     if (!retry && !keepsSessions(stage, outcome)) clearSessionsOf(ctx, stage, issue);
   }

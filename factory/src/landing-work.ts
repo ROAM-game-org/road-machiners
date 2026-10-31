@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, renameSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import type { AgentUsage } from './ledger';
 import { backupRoot } from './repair-clone';
 import { readState, updateState } from './state';
 import { archiveTranscripts } from './transcript-archive';
-import type { AgentSession, Ctx, IssueMerge, LandingSource, LandingStage, LandingWork } from './types';
+import type { AgentSession, Ctx, IssueMerge, JobStage, LandingSource, LandingStage, LandingWork } from './types';
 
 export type LandingPlan = { into: string; sources: LandingSource[]; cards: number[] };
 export type OpenedLanding = { work: LandingWork; resumed: boolean };
@@ -17,15 +18,17 @@ export function matchesPlan(work: LandingWork, plan: LandingPlan): boolean {
   return work.into === plan.into && sameSources(work.sources, plan.sources);
 }
 
-export function openLanding(ctx: Ctx, stage: LandingStage, dir: string, plan: LandingPlan): OpenedLanding {
+export function openLanding(ctx: Ctx, stage: LandingStage, dir: string, plan: LandingPlan, job: string | null): OpenedLanding {
   const kept = readState(ctx.statePath).landings[stage];
   if (kept !== undefined && kept.merged && matchesPlan(kept, plan) && existsSync(dir)) {
     ctx.log(stage, null, `resuming the kept ${stage} work of ${cardList(kept.cards)} into ${kept.into}, session ${kept.session}, $${kept.spentUsd.toFixed(2)} of fix rounds spent`);
-    return { work: kept, resumed: true };
+    const work = { ...kept, job, jobUsd: 0 };
+    writeLanding(ctx, stage, work);
+    return { work, resumed: true };
   }
   if (kept !== undefined) ctx.log(stage, null, `the kept ${stage} work of ${cardList(kept.cards)} no longer matches the batch, so it moves to the clone backups`);
   setAside(ctx, stage, dir);
-  const work: LandingWork = { ...plan, session: randomUUID(), spentUsd: 0, merged: false, merges: [], since: ctx.now().toISOString() };
+  const work: LandingWork = { ...plan, session: randomUUID(), spentUsd: 0, job, jobUsd: 0, merged: false, merges: [], since: ctx.now().toISOString() };
   writeLanding(ctx, stage, work);
   return { work, resumed: false };
 }
@@ -69,7 +72,20 @@ function changeLanding(ctx: Ctx, stage: LandingStage, change: (work: LandingWork
 }
 
 export function addSpend(ctx: Ctx, stage: LandingStage, usd: number): void {
-  changeLanding(ctx, stage, (work) => ({ ...work, spentUsd: work.spentUsd + usd }));
+  changeLanding(ctx, stage, (work) => ({ ...work, spentUsd: work.spentUsd + usd, jobUsd: work.jobUsd + usd }));
+}
+
+export function chargeJobSpend(statePath: string, job: { id: string | null; stage: JobStage }, agents: AgentUsage[]): void {
+  if (job.id !== null && (job.stage === 'merge' || job.stage === 'ship')) chargeEndedJob(statePath, job.stage, job.id, agents);
+}
+
+function chargeEndedJob(statePath: string, stage: LandingStage, job: string, agents: AgentUsage[]): void {
+  const total = agents.reduce((sum, agent) => sum + agent.costUsd, 0);
+  updateState(statePath, (state) => {
+    const work = state.landings[stage];
+    if (work === undefined || work.job !== job || total <= work.jobUsd) return state;
+    return { ...state, landings: { ...state.landings, [stage]: { ...work, spentUsd: work.spentUsd + total - work.jobUsd, jobUsd: total } } };
+  });
 }
 
 export function markMerged(ctx: Ctx, stage: LandingStage, merges: IssueMerge[]): void {

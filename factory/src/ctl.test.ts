@@ -287,7 +287,7 @@ describe('immediate commands', () => {
 
   it('retry starts a new fix budget for the kept merge work that holds the card, and leaves other kept work alone', async () => {
     const f = fake();
-    const kept = { into: 'dev', sources: [], cards: [5, 6], session: 's', spentUsd: 6, merged: true, merges: [], since: '2026-09-29T09:00:00Z' };
+    const kept = { into: 'dev', sources: [], cards: [5, 6], session: 's', spentUsd: 6, job: null, jobUsd: 0, merged: true, merges: [], since: '2026-09-29T09:00:00Z' };
     writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), landings: { merge: kept, ship: { ...kept, into: 'main', cards: [20] } } });
     await run(f, 'retry', '5');
     expect(readState(f.ctx.statePath).landings).toEqual({ merge: { ...kept, spentUsd: 0 }, ship: { ...kept, into: 'main', cards: [20] } });

@@ -13,7 +13,7 @@ import { BUG_LABEL, GAME_DIR, RELEASE_CANDIDATE_LABEL, type Ctx, type ReleasePos
 import { withWorkFolder } from '../work-lock';
 import { closeBundle } from './bundle';
 import { agentLog, fillPrompt, resetOutputs } from './common';
-import { checkAndPush, landingAgent, mergeIn, type Landing } from './merge';
+import { checkAndPush, landingAgent, mergeIn, runningJobId, type Landing } from './merge';
 import { queueIncidents } from './incident';
 import { mergeResolving } from './merge-resolve';
 import { candidateDir, changelogText, openReleaseTasks, readChanges, releaseFeatures, releaseLog, requireRelease, type Feature } from './release-common';
@@ -48,8 +48,8 @@ function landRelease(ctx: Ctx, release: ReleaseState): Promise<void> {
 async function mergeRelease(ctx: Ctx, release: ReleaseState): Promise<void> {
   const dir = join(ctx.cfg.home, 'work', 'ship-main');
   const plan = { into: 'main', sources: [{ branch: release.branch, sha: await ctx.repo.headHash(release.branch) }], cards: [release.issue] };
-  const { work, resumed } = openLanding(ctx, 'ship', dir, plan);
-  const land: Landing = { stage: 'ship', dir, into: 'main', guardAgainst: ['main', release.branch], agent: landingAgent(ctx, 'ship', dir, work, resumed) };
+  const { work, resumed } = openLanding(ctx, 'ship', dir, plan, runningJobId());
+  const land: Landing = { stage: 'ship', dir, into: 'main', guardAgainst: ['main', release.branch], agent: landingAgent(ctx, 'ship', dir, work, resumed), staleBase: resumed };
   const conflicts = resumed ? 0 : await mergeReleaseIn(ctx, land, release);
   await checkAndPush(ctx, land, conflicts, (failure) => fillPrompt('ship-fix', { release: release.branch, failure }));
   closeLanding(ctx, 'ship', dir);
