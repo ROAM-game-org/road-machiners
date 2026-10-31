@@ -75,18 +75,18 @@ export function heldGoal(world: World, v: Vehicle, goal: Vec | null): Vec | null
   const along = alongOf(world.seed, at);
   const held = holdAlong(world, radius, along);
   if (held === along) return goal;
-  const across = outsideGate(world, held < along ? 'south' : 'north', radius, acrossOf(world.seed, at));
+  const own = acrossOf(world.seed, toRoad(world.seed, run.window, v.pos));
+  const across = outsideGate(world, held < along ? 'south' : 'north', radius, acrossOf(world.seed, at), own);
   return roadPoint(world.seed, run.window, held, across);
 }
 
-function outsideGate(world: World, side: GateSide, radius: number, across: number): number {
+function outsideGate(world: World, side: GateSide, radius: number, across: number, own: number): number {
   const run = world.chaosHighway!;
   const gate = outpostGateSpots(world.seed, run.window, side === 'south' ? run.window + 1 : run.window)[side];
   const centre = acrossOf(world.seed, toRoad(world.seed, run.window, gate.center));
   const lane = gate.width / 2 + radius + CHAOS_HIGHWAY.spawnClear;
-  const offset = across - centre;
-  if (Math.abs(offset) >= lane) return across;
-  return centre + (offset > 0 ? lane : -lane);
+  if (Math.abs(across - centre) >= lane) return across;
+  return centre + (own > centre ? lane : -lane);
 }
 
 export function holdOnStretch(world: World, v: Vehicle, order: MoveOrder): MoveOrder {
