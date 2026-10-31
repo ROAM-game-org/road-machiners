@@ -58,7 +58,7 @@ export const CHAOS_HIGHWAY = {
     { level: 'loaded', gear: LATE_GEAR },
   ] as WavePlan[],
   director: {
-    budget: { first: 2, step: 2 } as Line,
+    budget: { first: 1, step: 3 } as Line,
     truckShare: 16,
     gearShare: 0.25,
     elite: { from: 3, cost: 2, money: 2, every: 4 },
@@ -84,7 +84,7 @@ export const CHAOS_HIGHWAY = {
   chaseSpeed: 5.5,
   nerve: 0.15,
   playerMargin: 8,
-  sprintLead: 8,
+  sprintLead: 5,
   sides: { ahead: 45, flank: { along: 36, across: 22, step: 3 } },
   pacing: { near: 30 },
   rolling: { near: 6, ramp: 40, close: 0.4, lead: 12 },

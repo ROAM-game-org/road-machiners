@@ -332,7 +332,7 @@ describe('the pace of encounters', () => {
   });
 
   it('spawns the groups in order, one per turn, even with the hauler past them all', () => {
-    const w = startWorld();
+    const w = driveOn(arrive(startWorld()));
     const run = runOf(w);
     expect(run.groups.length).toBeGreaterThan(1);
     moveTo(w, run.groups[run.groups.length - 1].at + 1);
