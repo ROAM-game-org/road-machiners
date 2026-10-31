@@ -3,7 +3,7 @@ import { deployDev } from '../deploy';
 import { withoutFailuresOf } from '../fail';
 import { must } from '../exec';
 import { JOB_ID_ENV } from '../jobs';
-import { addSpend, closeLanding, landingSession, markMerged, openLanding, type LandingPlan } from '../landing-work';
+import { addConflictSpend, addSpend, closeLanding, landingSession, markMerged, openLanding, type LandingPlan } from '../landing-work';
 import { readState, updateState } from '../state';
 import { BRANCH, GAME_DIR, RELEASE_CANDIDATE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, type Card, type Ctx, type FactoryState, type IssueMerge, type LandingStage, type LandingWork } from '../types';
 import { withWorkFolder } from '../work-lock';
@@ -121,10 +121,11 @@ export async function checkAndPush(ctx: Ctx, land: Landing, conflictUsd: number,
 }
 
 async function fixUntilPasses(ctx: Ctx, land: Landing, fixes: number, conflicts: number, fixPrompt: (failure: string) => string): Promise<number> {
-  const check = checksOnceEachHead(ctx, land, () => timed(land.clock, 'checks', async () => {
+  const checkHead = checksOnceEachHead(ctx, land, () => timed(land.clock, 'checks', () => mergedChecks(ctx, land)));
+  const check = async (): Promise<string | null> => {
     await refreshKeptBase(ctx, land);
-    return mergedChecks(ctx, land);
-  }));
+    return checkHead();
+  };
   try {
     return await untilPasses(ctx.cfg.mergingBudgetUsd, fixes, check, (failure) => timed(land.clock, 'fixes', () => keptFix(ctx, land, fixPrompt(failure))));
   } catch (error) {
@@ -225,6 +226,7 @@ export async function mergeIn(ctx: Ctx, land: Landing, { branch, message, reason
   if (commit === null || conflicts.length === 0) return 0;
   ctx.log(land.stage, null, `${branch} conflicts with ${land.into} in ${conflicts.join(', ')}, an agent resolves it`);
   const cost = runCost(await land.agent(fillPrompt('merge-branches', { into: land.into, branch, reason, files: conflicts.map((file) => `- ${file}`).join('\n') })));
+  addConflictSpend(ctx, land.stage, cost);
   if ((await ctx.repo.mergeBranchIntoWork(land.dir, branch)).commit !== null) throw new Error(`The ${land.stage} agent left the merge of ${branch} into ${land.into} unfinished.`);
   return cost;
 }

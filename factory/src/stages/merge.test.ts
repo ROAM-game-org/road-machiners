@@ -722,11 +722,52 @@ describe('kept merge work', () => {
     await failOnce();
     updateState(`${home}/state.json`, (state) => ({ ...state, landings: { merge: { ...state.landings.merge!, spentUsd: 0 } } }));
     changed = ['game/src/sim/world.ts'];
-    dirty = [' M game/src/fix.ts', '', ''];
+    dirty = [' M game/src/fix.ts', ' M game/src/fix.ts', '', ''];
     costs = [1];
     await merge(fakeCtx(5));
     expect(calls.filter((call) => /^(merge |agent|checks|push)/.test(call))).toEqual(['agent', 'merge dev', 'checks', 'push head1 dev']);
     expect(runs[0]!.prompt).toContain('changes that are not committed');
+  });
+
+  it('keeps conflict spend out of the batch budget when a failed job is charged', async () => {
+    merges = { 'factory/issue-5': [{ commit: 'c5', conflicts: ['game/src/a.ts'] }] };
+    costs = [30, 2];
+    shellFailures = ['FAIL a.test.ts'];
+    const ctx = fakeCtx(5);
+    ctx.repo.push = async () => { throw new Error('GitHub is down'); };
+    ctx.repo.isMerged = async () => true;
+    await expect(merge(ctx)).rejects.toThrow('GitHub is down');
+    updateState(`${home}/state.json`, (state) => ({ ...state, landings: { merge: { ...state.landings.merge!, job: 'merge-job' } } }));
+    const { chargeJobSpend } = await import('../landing-work');
+    chargeJobSpend(`${home}/state.json`, { id: 'merge-job', stage: 'merge' }, [{ model: 'sonnet', costUsd: 30, minutes: 1 }, { model: 'sonnet', costUsd: 2, minutes: 1 }]);
+    expect(landing()).toMatchObject({ spentUsd: 2, jobUsd: 32 });
+  });
+
+  it('does not run the suite again on a head a fix round left unchanged after the base merged into a resumed clone', async () => {
+    await failOnce();
+    updateState(`${home}/state.json`, (state) => ({ ...state, landings: { merge: { ...state.landings.merge!, spentUsd: 0 } } }));
+    changed = ['game/src/sim/world.ts'];
+    merges = { dev: [{ commit: 'd1', conflicts: [] }] };
+    failingSuites = 1;
+    costs = [1, 1];
+    const ctx = fakeCtx(5);
+    let head = 'kept';
+    const merging = ctx.repo.mergeBranchIntoWork;
+    ctx.repo.mergeBranchIntoWork = async (dir, branch, message) => {
+      const merged = await merging(dir, branch, message);
+      if (merged.commit !== null) head = 'base-merged';
+      return merged;
+    };
+    const agent = ctx.container.agent;
+    let rounds = 0;
+    ctx.container.agent = async (run) => {
+      if (++rounds === 2) head = 'fixed';
+      return agent(run);
+    };
+    ctx.repo.workHead = async () => head;
+    await merge(ctx);
+    expect(calls.filter((call) => call.startsWith('suite'))).toHaveLength(2);
+    expect(calls.filter((call) => call === 'agent')).toHaveLength(2);
   });
 
   it('counts the fix rounds of earlier jobs against the budget of the batch', async () => {

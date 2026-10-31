@@ -75,6 +75,10 @@ export function addSpend(ctx: Ctx, stage: LandingStage, usd: number): void {
   changeLanding(ctx, stage, (work) => ({ ...work, spentUsd: work.spentUsd + usd, jobUsd: work.jobUsd + usd }));
 }
 
+export function addConflictSpend(ctx: Ctx, stage: LandingStage, usd: number): void {
+  changeLanding(ctx, stage, (work) => ({ ...work, jobUsd: work.jobUsd + usd }));
+}
+
 export function chargeJobSpend(statePath: string, job: { id: string | null; stage: JobStage }, agents: AgentUsage[]): void {
   if (job.id !== null && (job.stage === 'merge' || job.stage === 'ship')) chargeEndedJob(statePath, job.stage, job.id, agents);
 }

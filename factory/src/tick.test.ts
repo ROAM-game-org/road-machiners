@@ -595,6 +595,11 @@ describe('tick', () => {
       expect(chooseJobs(state(), [card(5, 'Merging')], NOW, CFG, HEADS)).toEqual([{ stage: 'merge', issue: null }]);
     });
 
+    it('never catches up a card of the kept merge work, so its branch head keeps matching the kept clone', () => {
+      const kept = { into: 'dev', sources: [], cards: [8, 9], session: 's', spentUsd: 0, job: null, jobUsd: 0, merged: true, merges: [], since: '' };
+      expect(chooseJobs(state({ jobs: [merging([5, 6, 7])], landings: { merge: kept } }), queue, NOW, CFG, HEADS)).toEqual([{ stage: 'catch-up', issue: 10 }]);
+    });
+
     it('starts no catch-up for a card that holds its base head already', () => {
       expect(chooseJobs(state({ jobs: [merging([5, 6, 7])], caughtUpTo: caughtUp([8, 9, 10, 11, 12, 13]) }), queue, NOW, CFG, HEADS)).toEqual([]);
       expect(chooseJobs(state({ jobs: [merging([5, 6, 7])], caughtUpTo: caughtUp([8, 9, 10, 11, 12, 13], 'dev0000') }), queue, NOW, CFG, HEADS)).toEqual([{ stage: 'catch-up', issue: 8 }]);
