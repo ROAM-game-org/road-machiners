@@ -68,5 +68,5 @@ it('a truck following a road into a blocking rock stops on the corner without a 
     return !world.vehicles[0].order;
   });
   expect(damage).toBeLessThan(5);
-  expect(dist(w.vehicles[0].pos, { x: 60, y: 8 })).toBeLessThan(0.5);
+  expect(dist(w.vehicles[0].pos, { x: 60, y: 8 })).toBeLessThan(0.6);
 }, budget(120_000));

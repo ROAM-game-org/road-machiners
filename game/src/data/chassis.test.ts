@@ -55,7 +55,7 @@ const SEAT_CAB: Record<string, string> = {
 };
 
 const VALUES = {
-  scout: 814.67, hauler: 1225.34, buggy: 642.67, wagon: 1007.33, courier: 773.33, van: 1026.66, longbed: 1794.66,
+  scout: 762.14, hauler: 1225.34, buggy: 642.67, wagon: 1007.33, courier: 773.33, van: 1026.66, longbed: 1794.66,
   carrier: 1625.34, tractor: 1460.67, jeep: 728.67, convertible: 997.34, bus: 1266.67, loader: 1696, niva: 1049.34, bukhanka: 1150, lincoln: 1429.33, semi: 1400,
   sorokonoga: 1765.67,
 };

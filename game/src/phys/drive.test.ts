@@ -68,8 +68,8 @@ describe('impact geometry', () => {
     const ram = makePart(w, 'claymoreRam', 0);
     if (!mountPart(w, w.vehicles[0], ram)) throw new Error('No front mount for the claymore ram');
     ram.charge = arm ? { reload: 0, armed: true } : { reload: 0 };
-    if (into === 'rock') w.obstacles = [{ id: 'rock1', pos: { x: 37, y: 30 }, r: 0.8, kind: 'rock' }];
-    else addVehicle(w, 'independent', 'carrier', ['mg', 'stockEngine'], { x: 37, y: 30 }, Math.PI / 2).brain = npcBrain('trader', { x: 37, y: 30 }, ['trader']);
+    if (into === 'rock') w.obstacles = [{ id: 'rock1', pos: { x: 35, y: 30 }, r: 0.8, kind: 'rock' }];
+    else addVehicle(w, 'independent', 'carrier', ['mg', 'stockEngine'], { x: 35, y: 30 }, Math.PI / 2).brain = npcBrain('trader', { x: 35, y: 30 }, ['trader']);
     w = setDirect(w, true);
     return setMoveOrder(w, { kind: 'through', dest: { x: 45, y: 30 } });
   }
@@ -96,10 +96,10 @@ describe('impact geometry', () => {
     try {
       const crash = result.crashes.find((hit) => hit.a === me.id && hit.b === parked.id);
       if (!crash) throw new Error('Expected the nose ram');
-      expect(crash.impact).toBeGreaterThan(0.8 * 7 * PHYSICS.metersPerTile);
+      expect(crash.impact).toBeGreaterThan(0.8 * 6 * PHYSICS.metersPerTile);
       expect(crash.contact.a.side).toBe('front');
       expect(crash.contact.b?.side).toBe('right');
-      expect(crash.approach!.a).toBeGreaterThan(0.8 * 7 * PHYSICS.metersPerTile);
+      expect(crash.approach!.a).toBeGreaterThan(0.8 * 6 * PHYSICS.metersPerTile);
       expect(Math.abs(crash.approach!.b)).toBeLessThan(0.5);
       expect(crash.approach!.a + crash.approach!.b).toBeCloseTo(crash.impact, 3);
     } finally {

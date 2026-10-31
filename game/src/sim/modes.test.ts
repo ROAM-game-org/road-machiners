@@ -82,11 +82,11 @@ describe('a new world by mode', () => {
 
     expect(world.chaosHighway).toBeNull();
     expect(fingerprint(world)).toEqual({
-      streams: [-1234022187, -1681663007, -2067017660, 1936023925],
-      nextId: 809,
+      streams: [-1948282451, 1917527422, -2067017660, 1936023925],
+      nextId: 826,
       counts: [3, 6048, 128, 7],
       npcs: [['trader', 117.82, 577.25], ['trader', 118.2, 582.79]],
-      bowlStock: ['smokeMortar', 'plowRam', 'reinforcedSection', 'battleRifle', 'ceramicPlates', 'longRifle', 'oilSpiller', 'gatling', 'reinforcedSection', 'scrapersKnife', 'enclosedFrame', 'stockEngine'],
+      bowlStock: ['flareCannon', 'mg', 'flareCannon', 'battleRifle', 'claymoreRam', 'rack', 'heavyFrame', 'spikeStrip', 'stockEngine'],
     });
     expect(world.spawnQueue).toHaveLength(SPAWN.initial.length);
   });

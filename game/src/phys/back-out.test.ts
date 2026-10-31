@@ -27,14 +27,14 @@ function turns(w: World, count: number, seen: (w: World, d: Drive) => void): Wor
 describe('backing out', () => {
   it('a truck coming the other way is a speed cap, never solid clearance or a back-out', () => {
     const w = ordered({ kind: 'through', dest: { x: 90, y: 30 } }, 5);
-    const trader = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 46, y: 30.2 }, Math.PI);
+    const trader = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 38, y: 30.2 }, Math.PI);
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
     trader.speed = 5;
     trader.brain.goals.push({ kind: 'explore', targetId: null, destination: { x: 10, y: 30.2 }, phase: 'travel', reason: 'tripToSite' });
     const solid: number[] = [];
     const moving: number[] = [];
     const backed: boolean[] = [];
-    turns(w, 4, (next, d) => {
+    turns(w, 6, (next, d) => {
       const mem = d.memory[me(next).id];
       solid.push(mem.clearAhead);
       moving.push(mem.clearMoving);
