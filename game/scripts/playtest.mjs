@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { launchChromium } from './gpu.mjs';
 import { emulateWebGL2Floor } from './gpu-floor.mjs';
-import { checkHighwayNightInSoftware, checkNightGround, NIGHT_TURNS } from './night-ground.mjs';
+import { checkHighwayNightInSoftware, checkNightGround, collectGarbage, NIGHT_TURNS } from './night-ground.mjs';
 import { playUrl } from './game-url.mjs';
 import { watchStalls } from './stall-watch.mjs';
 
@@ -46,6 +46,7 @@ const retryAfterBrowserCrash = async () => {
 };
 let crashed = false;
 page.on('crash', () => { crashed = true; });
+const afterCrashRetry = async (step) => step().catch(async (cause) => { if (crashed) await retryAfterBrowserCrash(); throw cause; });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
@@ -208,19 +209,20 @@ const blank = await page.evaluate(() => {
   return !c || c.width === 0;
 });
 
-const nightProblems = await checkNightGround(page, {
+const nightProblems = await afterCrashRetry(() => checkNightGround(page, {
   mode: 'roaming',
   shot: '.playtest/night-roaming.png',
   bootLimitMs: BOOT_LIMIT_MS,
   turnLimitMs: TURN_LIMIT_MS,
   nightTurns: software ? 0 : NIGHT_TURNS,
-});
+}));
 
-const reload = async () => {
+const reload = () => afterCrashRetry(async () => {
+  await collectGarbage(page);
   await page.reload();
   await page.waitForFunction(() => window.__ROAM__, null, { timeout: BOOT_LIMIT_MS });
   return languageReadout();
-};
+});
 if ((await reload()).lang !== 'ru' || (await pressedLanguage()) !== 'ru') languageProblems.push('Russian did not survive a reload');
 await pickLanguageByMouse('en');
 const english = await reload();
