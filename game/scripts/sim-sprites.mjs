@@ -2,12 +2,11 @@ import { mkdirSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } f
 import { dirname } from 'node:path';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
-import { gpuArgs } from './gpu.mjs';
+import { launchChromium } from './gpu.mjs';
 
 const BUILD_LIMIT_MS = 600000;
 const SPRITES = 'public/sim-sprites';
 const MANIFEST = `${SPRITES}/manifest.json`;
-const cpu = process.argv.includes('--cpu');
 
 function writeAtomic(path, data) {
   mkdirSync(dirname(path), { recursive: true });
@@ -21,7 +20,7 @@ function bytesOf(url) {
 
 const server = await createServer({ server: { port: 5193, strictPort: false }, logLevel: 'error' });
 await server.listen();
-const browser = await chromium.launch({ args: cpu ? [] : gpuArgs() });
+const { browser } = await launchChromium(chromium);
 try {
   const page = await browser.newPage();
   const errors = [];

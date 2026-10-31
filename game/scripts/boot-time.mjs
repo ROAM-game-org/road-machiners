@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { gpuArgs, isSoftware, rendererOf } from './gpu.mjs';
+import { launchChromium } from './gpu.mjs';
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -58,7 +58,13 @@ async function readRun(page) {
   return { ...read, sounds };
 }
 
-const browser = await chromium.launch({ args: gpuArgs() });
+const { browser, software, renderer } = await launchChromium(chromium);
+if (software) {
+  await browser.close();
+  console.error(`FAIL\nGot the software renderer ${renderer}. It needs a GPU.`);
+  process.exit(1);
+}
+console.log(`viewport ${viewport.width}x${viewport.height}, net ${net}, runs ${runs}`);
 const results = { cold: [], warm: [] };
 const errors = [];
 let crashed = false;
@@ -68,15 +74,6 @@ for (let i = 0; i < runs; i++) {
   page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
   await page.addInitScript(watchBoot);
   await page.addInitScript(askNewGameOnce, { key: BOOT_KEY, request: NEW_GAME });
-  if (i === 0) {
-    const renderer = await rendererOf(page);
-    console.log(`renderer ${renderer}, viewport ${viewport.width}x${viewport.height}, net ${net}, runs ${runs}`);
-    if (isSoftware(renderer)) {
-      await browser.close();
-      console.error(`FAIL\nGot the software renderer ${renderer}. It needs a GPU.`);
-      process.exit(1);
-    }
-  }
   if (net === '4g') await (await context.newCDPSession(page)).send('Network.emulateNetworkConditions', FAST_4G);
   await page.goto(url);
   results.cold.push(await readRun(page));
