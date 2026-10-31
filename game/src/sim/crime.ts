@@ -258,10 +258,11 @@ function payIssuer(world: World, payer: Vehicle, c: CrimeCase, amount: number): 
 }
 
 function payRestitution(world: World, payer: Vehicle, c: CrimeCase): void {
-  if (c.restitution === 0) return;
+  const amount = fairM(c.restitution);
+  if (amount === 0) return;
   const victim = world.vehicles.find((v) => v.id === c.victim);
-  if (victim && victim.id !== payer.id) transfer(world, payer, victim, c.restitution);
-  else shopMoney(world, payer, -c.restitution, c.issuer.kind === 'faction' ? 'bountyCoffers' : 'bountyOffice');
+  if (victim && victim.id !== payer.id) transfer(world, payer, victim, amount);
+  else shopMoney(world, payer, -amount, c.issuer.kind === 'faction' ? 'bountyCoffers' : 'bountyOffice');
 }
 
 function returnEscrow(world: World, c: CrimeCase): void {
@@ -417,7 +418,7 @@ function settleable(world: World): StandingFactionId[] {
 
 export function settlePrice(standing: number): number {
   const days = (BANDS.hostile + 1 - standing) / STANDING.dailyDrift;
-  return fairM(days * TIME.turnsPerDay * CRIME.wage * CRIME.settleWage);
+  return fairM(days * TIME.workDayTurns * CRIME.wage * CRIME.settleWage);
 }
 
 export function settlementQuote(world: World, faction: StandingFactionId): SettlementQuote | null {

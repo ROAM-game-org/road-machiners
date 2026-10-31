@@ -33,7 +33,7 @@ export function reportLostTruck(world: World, vehicle: Vehicle, kind: Exclude<Ro
   reportShipmentLoss(world, vehicle, kind, goodsCount(vehicle)[shipment.good] ?? 0);
 }
 
-const NEWS_TURNS = Math.round(ROAD_NEWS.days * TIME.turnsPerDay);
+const NEWS_TURNS = Math.round(ROAD_NEWS.days * TIME.workDayTurns);
 
 export function liveRoadNews(world: World): RoadNews[] {
   return world.roadNews.filter((n) => world.turn - n.turn < NEWS_TURNS);

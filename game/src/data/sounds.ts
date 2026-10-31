@@ -197,6 +197,8 @@ export const LOOP_CHECK = {
   pulseDrop: 0.2,
   seamSearchSeconds: 0.06,
   crossfadeSeconds: 0.1,
+  usualStepShare: 0.999,
+  seamStepRatio: 1,
 } as const;
 
 export type SoundFormat = { ext: string; dir: string; mime: string; signature: { at: number; text: string } };

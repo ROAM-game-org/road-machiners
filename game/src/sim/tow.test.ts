@@ -747,15 +747,14 @@ describe('tow deals', () => {
 });
 
 describe('free tow for a broke player', () => {
-  const broke = (money: number): Setup => {
-    const s = stranded();
+  const broke = (money: number, s: Setup = stranded()): Setup => {
     s.w.player.money = money;
     forceOption('strandedSeen', 'tow');
     return s;
   };
 
   it('offers a free tow to a player with no money, and arrival takes nothing', () => {
-    const s = broke(0);
+    const s = broke(0, stranded(MID_NEAR, { x: MID_NEAR.x + 10, y: MID_NEAR.y }));
     let w = offered(s, 'towFree');
     expect(feeOf(w)).toBe(0);
     expect(w.events).toContainEqual(expect.objectContaining({ t: 'towOffer', fee: 0 }));

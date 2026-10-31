@@ -138,7 +138,7 @@ export const PERK_NUMBERS = {
     topShare: 0.9,
     radius: 2,
   },
-  spotter: { turns: TIME.turnsPerDay },
+  spotter: { turns: TIME.workDayTurns },
   welder: {
     scrap: 3,
     turns: 3,

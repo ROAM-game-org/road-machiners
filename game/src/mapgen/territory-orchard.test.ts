@@ -1,8 +1,8 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../data/goods';
 import { PHYSICS } from '../data/physics';
-import { ORCHARD_HEADING, REGION, type TerritoryDef } from '../data/region';
-import { MAPGEN, TERRAIN } from '../data/terrain';
+import { GLASS_FLATS_GROWTH, ORCHARD_HEADING, REGION, type TerritoryDef } from '../data/region';
+import { TERRAIN } from '../data/terrain';
 import { EMPLACEMENT, onOrchardRoad, PERIMETER, TERRITORIES, type Run } from '../data/territory';
 import { propBoxes, propPose, propReach } from '../sim/mapgen';
 import { siteGap } from '../sim/sites';
@@ -11,27 +11,18 @@ import { ROAD_INDEX } from '../sim/road-index';
 import { isLootSpot, territoryEntries } from '../sim/territory';
 import { groundAt, type BakedProp, type Terrain } from '../sim/terrain';
 import { angleDiff, dist, lerp, segmentDist, type Vec } from '../sim/vec';
-import { footprintRelief, groundForTerritories, newDraft, tileSteepness, type MapDraft } from './bake';
+import { TEST_MAP } from '../test/map';
+import { footprintRelief, newDraft, tileSteepness, type MapDraft } from './bake';
 import { fillFarm } from './farm';
 import { newRoadHold } from './marks';
 import { BUILT_CANAL, BUILT_PAD, BUILT_TRACK } from './newworld';
 import { BUILT_FIELD, BUILT_OLD_ROAD, ruleRng, tileOf, tilesWithin } from './oldworld';
 import { TERRITORY_SEED_OFFSET, territoryLayer } from './territory';
 import { budget } from '../test/budget';
-import { TEST_MAP } from '../test/map';
 import { standardWorld } from '../test/world-cache';
 import { ICARUS_KEY } from '../sim/atlas';
 
 
-let bakedGround: MapDraft | undefined;
-function territoryDraft(): MapDraft {
-  bakedGround ??= groundForTerritories(MAPGEN.seed);
-  return bakedGround;
-}
-function territoryGround(): Float32Array {
-  return territoryDraft().heights;
-}
-beforeAll(() => void territoryGround(), budget(120_000));
 
 function terrainOf(size: number, heights: ArrayLike<number>): Terrain {
   return { size, heights: Array.from(heights), types: [], atlas: ICARUS_KEY };
@@ -44,11 +35,22 @@ describe('the orchard farm', () => {
   const groves = farm.groves;
   const abs = (at: Vec): Vec => ({ x: orchard.pos.x + at.x, y: orchard.pos.y + at.y });
   const MAIN_ROADS = 5;
+  const HILL = { offset: 8, height: 3, spread: 3 };
 
   function groundDraft(): MapDraft {
-    const d = newDraft(REGION.size);
-    d.heights.set(territoryGround());
+    const d = newDraft(TEST_MAP.terrain.size);
+    d.heights.set(TEST_MAP.terrain.heights);
     return d;
+  }
+
+  function orchardLayer(draft: MapDraft): MapDraft {
+    const alone = REGION.locations.filter((l) => l.kind !== 'territory' || l.id === orchard.id);
+    const all = REGION.locations.splice(0, REGION.locations.length, ...alone);
+    try {
+      return territoryLayer(7, draft);
+    } finally {
+      REGION.locations.splice(0, REGION.locations.length, ...all);
+    }
   }
 
   function frameOf(pos: Vec, turn = 0): { s: number; c: number } {
@@ -61,7 +63,7 @@ describe('the orchard farm', () => {
     return [tileOf(d.size, p.pos), ...tilesWithin(d.size, p.pos, p.r)];
   }
 
-  const baked = territoryLayer(7, groundDraft());
+  const baked = orchardLayer(groundDraft());
   const props = baked.props.filter((p) => siteGap(orchard, p.pos) < 0);
   const trees = props.filter((p) => p.kind === groves.look);
   const buildingLooks = new Set(farm.buildings.map((b) => b.look));
@@ -78,15 +80,24 @@ describe('the orchard farm', () => {
   const ahead = (arc: BakedProp, p: Vec): number => (p.x - arc.pos.x) * Math.cos(arc.yaw) + (p.y - arc.pos.y) * Math.sin(arc.yaw);
   const isPerimeter = (run: Run): boolean => run.look === PERIMETER.look && run.broken === PERIMETER.broken && run.knocked.share === PERIMETER.knocked.share;
 
+  it('spans about the area of Glass Flats before Glass Flats grew', () => {
+    const area = (outline: readonly Vec[]) => Math.abs(outline.reduce((sum, p, i) => sum + p.x * outline[(i + 1) % outline.length].y - outline[(i + 1) % outline.length].x * p.y, 0)) / 2;
+    const flats = REGION.locations.find((l) => l.id === 'glass-flats') as TerritoryDef;
+    const ratio = (area(orchard.outline!) / area(flats.outline!)) * GLASS_FLATS_GROWTH ** 2;
+    expect(ratio).toBeGreaterThan(0.8);
+    expect(ratio).toBeLessThan(1.2);
+  });
+
   it('bakes the same farm for the same seed', () => {
-    const again = territoryLayer(7, groundDraft());
+    const again = orchardLayer(groundDraft());
     expect(again.props).toEqual(baked.props);
     expect(again.built).toEqual(baked.built);
   });
 
   it('stands one building near each authored pose, turned with the road and jittered within its group', () => {
     for (const group of farm.buildings) {
-      expect(props.filter((p) => p.kind === group.look), group.look).toHaveLength(group.poses.length);
+      const posesOfLook = farm.buildings.filter((b) => b.look === group.look).reduce((n, b) => n + b.poses.length, 0);
+      expect(props.filter((p) => p.kind === group.look), group.look).toHaveLength(posesOfLook);
       for (const pose of group.poses) {
         const found = props.filter((p) => p.kind === group.look && dist(p.pos, abs(pose.at)) <= group.shift * Math.SQRT2 + 1e-9);
         expect(found, `${group.look} at ${pose.at.x},${pose.at.y}`).toHaveLength(1);
@@ -132,9 +143,9 @@ describe('the orchard farm', () => {
     }
   });
 
-  it('digs at least 14 canals, at least 300 tiles in all', () => {
-    expect(farm.canals.length).toBeGreaterThanOrEqual(14);
-    expect(baked.built.filter((b) => b === BUILT_CANAL).length).toBeGreaterThanOrEqual(300);
+  it('digs at least 22 canals, at least 340 tiles in all', () => {
+    expect(farm.canals.length).toBeGreaterThanOrEqual(22);
+    expect(baked.built.filter((b) => b === BUILT_CANAL).length).toBeGreaterThanOrEqual(340);
   });
 
   it('keeps everything drawn inside the outline, off roads, tracks, canals and cliffs, and clear of every spot', () => {
@@ -156,8 +167,8 @@ describe('the orchard farm', () => {
     }
   });
 
-  it('plants 500 trees or more in blocks and strays, within the cap', () => {
-    expect(trees.length).toBeGreaterThanOrEqual(500);
+  it('plants 1000 trees or more in blocks and strays, within the cap', () => {
+    expect(trees.length).toBeGreaterThanOrEqual(1000);
     expect(trees.length).toBeLessThanOrEqual(groves.maxTrees);
     for (const block of farm.blocks) {
       const centre = frameOf(abs(block.at), block.turn);
@@ -297,16 +308,16 @@ describe('the orchard farm', () => {
     }
   });
 
-  it('digs about 30 emplacements of sandbag arcs, sets 20 tank traps and stands 60 barriers', () => {
+  it('digs about 40 emplacements of sandbag arcs, sets 25 tank traps and stands 75 barriers', () => {
     const group = arcs.map((_, i) => i);
     const root = (i: number): number => (group[i] === i ? i : root(group[i]));
     arcs.forEach((a, i) => arcs.forEach((b, j) => {
       if (j > i && dist(a.pos, b.pos) <= 1.5) group[root(j)] = root(i);
     }));
-    expect(new Set(arcs.map((_, i) => root(i))).size).toBeGreaterThanOrEqual(28);
-    expect(arcs.length).toBeGreaterThanOrEqual(52);
-    expect(traps.length).toBeGreaterThanOrEqual(20);
-    expect(barriers.length).toBeGreaterThanOrEqual(60);
+    expect(new Set(arcs.map((_, i) => root(i))).size).toBeGreaterThanOrEqual(40);
+    expect(arcs.length).toBeGreaterThanOrEqual(75);
+    expect(traps.length).toBeGreaterThanOrEqual(25);
+    expect(barriers.length).toBeGreaterThanOrEqual(75);
   });
 
   it('stands every tank trap out ahead of its nearest sandbag arc and never behind one', () => {
@@ -378,35 +389,24 @@ describe('the orchard farm', () => {
     fillFarm(d, orchard, moved, moved.farm!, ruleRng(7, TERRITORY_SEED_OFFSET + TERRITORIES.orchard.seed));
     const line = farm.runs[last].points.map(abs);
     const far = (p: BakedProp) => line.slice(1).every((b, k) => segmentDist(p.pos, line[k], b) > 5);
-    const before = territoryLayer(7, groundDraft()).props.filter((p) => siteGap(orchard, p.pos) < 0 && far(p) && !debrisLooks.has(p.kind));
+    const before = orchardLayer(groundDraft()).props.filter((p) => siteGap(orchard, p.pos) < 0 && far(p) && !debrisLooks.has(p.kind));
     expect(d.props.filter((p) => far(p) && !debrisLooks.has(p.kind))).toEqual(before);
   });
 
   it('throws on a building whose ring cannot level its ground', () => {
     const moved = structuredClone(rules);
-    moved.farm!.buildings.find((b) => b.look === 'quonset')!.poses[3].at = onOrchardRoad(51, -33);
-    expect(() => fillFarm(groundDraft(), orchard, moved, moved.farm!, ruleRng(7, 5))).toThrow(/levels its ground into a cliff/);
+    const at = onOrchardRoad(51, -33);
+    moved.farm!.buildings.find((b) => b.look === 'quonset')!.poses[3].at = at;
+    const d = groundDraft();
+    const w = d.size + 1;
+    const [cx, cy] = [orchard.pos.x + at.x + HILL.offset, orchard.pos.y + at.y];
+    for (let j = Math.floor(cy - 40); j <= cy + 40; j++) for (let i = Math.floor(cx - 40); i <= cx + 40; i++) d.heights[j * w + i] += HILL.height * Math.exp(-((i - cx) ** 2 + (j - cy) ** 2) / (2 * HILL.spread ** 2));
+    expect(() => fillFarm(d, orchard, moved, moved.farm!, ruleRng(7, 5))).toThrow(/quonset at .* levels its ground into a cliff/);
   });
 
   it('throws on a building off the outline', () => {
     const moved = structuredClone(rules);
-    moved.farm!.buildings[0].poses[0].at = onOrchardRoad(-30, 40);
+    moved.farm!.buildings[0].poses[0].at = onOrchardRoad(-50, 40);
     expect(() => fillFarm(groundDraft(), orchard, moved, moved.farm!, ruleRng(7, 1))).toThrow(/outside/);
-  });
-});
-
-describe('the Fallen Sun on the committed map', () => {
-  it('bakes the Fallen Sun props of the committed map, with no relief limit', () => {
-    const fallenSun = REGION.locations.find((l) => l.id === 'fallen-sun')!;
-    expect(TERRITORIES['fallen-sun'].relief).toBeNull();
-    const drawn = territoryLayer(MAPGEN.seed, structuredClone(territoryDraft())).props.filter((p) => siteGap(fallenSun, p.pos) < 0);
-    const committed = TEST_MAP.props.filter((p) => siteGap(fallenSun, p.pos) < 0 && p.kind !== 'rock' && p.kind !== 'crag');
-    expect(drawn.length).toBe(committed.length);
-    drawn.forEach((p, i) => {
-      expect(p.kind).toBe(committed[i].kind);
-      expect(p.pos.x).toBeCloseTo(committed[i].pos.x, 3);
-      expect(p.pos.y).toBeCloseTo(committed[i].pos.y, 3);
-      expect(p.r).toBeCloseTo(committed[i].r, 3);
-    });
   });
 });

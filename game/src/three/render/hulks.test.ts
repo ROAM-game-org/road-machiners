@@ -8,7 +8,7 @@ import { propPose } from '../../sim/mapgen';
 import { flatTerrain } from '../../sim/testkit';
 import type { Obstacle } from '../../sim/types';
 import { buildHulk, type HulkPose } from './obstacles';
-import { loadModels } from './models';
+import { loadModels, model, outlineProps } from './models';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
 await loadModels(async (name) => {
@@ -65,4 +65,35 @@ describe('hulks', () => {
     expect(positions(hulk(kill('buggy')))).toEqual(positions(hulk(kill('buggy'))));
     expect(positions(hulk(kill('buggy', 'wreck-npc8')))).not.toEqual(positions(hulk(kill('buggy'))));
   });
+
+  it('outlines the dented shape, not the plain model it was copied from', () => {
+    const g = hulk(kill('buggy'));
+    outlineProps(g);
+    const bodies = meshes(g).filter((m) => !m.userData.outline);
+    expect(bodies.length).toBeGreaterThan(0);
+    for (const body of bodies) {
+      const outline = body.children.find((c): c is THREE.Mesh => c instanceof THREE.Mesh && c.userData.outline === true);
+      if (!outline) throw new Error(`Hulk mesh ${body.name} has no outline`);
+      expect(cornerSet(outline.geometry)).toEqual(cornerSet(body.geometry));
+    }
+  });
 });
+
+describe('prop outlines', () => {
+  it('weld once per model, so two plain copies share one outline shape', () => {
+    const [a, b] = [model('crates'), model('crates')];
+    outlineProps(a);
+    outlineProps(b);
+    const outlines = (root: THREE.Object3D) => meshes(root).filter((m) => m.userData.outline).map((m) => m.geometry);
+    expect(outlines(a).length).toBeGreaterThan(0);
+    expect(outlines(a)).toEqual(outlines(b));
+    outlines(a).forEach((geo, i) => expect(geo).toBe(outlines(b)[i]));
+  });
+});
+
+function cornerSet(geo: THREE.BufferGeometry): string[] {
+  const pos = geo.getAttribute('position');
+  const keys = new Set<string>();
+  for (let i = 0; i < pos.count; i++) keys.add([pos.getX(i), pos.getY(i), pos.getZ(i)].map((v) => Math.round(v * 1e3)).join(','));
+  return [...keys].sort();
+}

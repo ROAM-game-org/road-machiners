@@ -318,15 +318,15 @@ function printRoleSolvency(role, lines, snaps, roles) {
 }
 
 function dayEndSnaps(snaps) {
-  return snaps.filter((snap, i) => i === snaps.length - 1 || snap.t % TIME.turnsPerDay === 0);
+  return snaps.filter((snap, i) => i === snaps.length - 1 || snap.t % TIME.workDayTurns === 0);
 }
 
 function roleFlows(role, lines, roles) {
-  const inWindow = lines.filter((l) => l.t <= SOLVENCY_DAYS * TIME.turnsPerDay);
+  const inWindow = lines.filter((l) => l.t <= SOLVENCY_DAYS * TIME.workDayTurns);
   const { presence, starts } = rolePresence(role, inWindow, snapStep(lines));
   const { byKind, byTruck } = roleMoney(role, inWindow, roles, presence);
-  for (const [id, total] of byTruck) byTruck.set(id, total / Math.max(1, presence.get(id) / TIME.turnsPerDay));
-  const days = Math.max(1e-9, sum([...presence.values()]) / TIME.turnsPerDay);
+  for (const [id, total] of byTruck) byTruck.set(id, total / Math.max(1, presence.get(id) / TIME.workDayTurns));
+  const days = Math.max(1e-9, sum([...presence.values()]) / TIME.workDayTurns);
   const start = starts.size > 0 ? sum([...starts.values()]) / starts.size : 0;
   return { byKind, byTruck, days, start };
 }

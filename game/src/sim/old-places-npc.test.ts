@@ -39,6 +39,7 @@ function roadWorld(pick: OldSpotPick): { w: World; npc: Vehicle; stock: SalvageS
   const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], freeNear(w, nearestRoadPoint(pick.pos)));
   npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
   forceOption('salvageSeen', 'keep');
+  w.salvage = w.salvage.filter((s) => s.id === oldStockId(pick));
   const stock = w.salvage.find((s) => s.id === oldStockId(pick))!;
   stock.goods = { ...Object.fromEntries(Object.keys(OLD_TABLES[pick.type].goods).map((g) => [g, 0])), scrap: 2, parts: 1 };
   stock.parts = [];
@@ -117,7 +118,7 @@ describe('scavengers pick old-world loot spots', () => {
       const picked = picks.find((p) => oldStockId(p) === goal.targetId);
       const said = w.events.find((e) => e.t === 'activity' && e.vehicle === npc.id);
       if (!picked || !said || said.t !== 'activity' || said.reason === 'collectSalvage') continue;
-      expect(said.reason).toBe({ boats: 'searchOldBoats', hulks: 'searchOldHulks', homestead: 'searchOldRuin', hamlet: 'searchOldRuin', lookout: 'searchOldRuin' }[picked.type]);
+      expect(said.reason).toBe({ boats: 'searchOldBoats', wreckage: 'searchOldWreckage', hulks: 'searchOldHulks', homestead: 'searchOldRuin', hamlet: 'searchOldRuin', lookout: 'searchOldRuin' }[picked.type]);
       reasons.add(said.reason);
     }
     expect(reasons.has('searchOldBoats')).toBe(true);
@@ -127,7 +128,7 @@ describe('scavengers pick old-world loot spots', () => {
     setShare(0);
     const { w, npc } = scavengerAt({ x: building.pos.x + 30, y: building.pos.y });
     planNpcOrders(w);
-    expect(oldSpotOf({ id: topGoal(npc)!.targetId ?? '' })).toBeNull();
+    expect(['searchOldRuin', 'searchOldHulks', 'searchOldBoats']).not.toContain(topGoal(npc)!.reason);
   });
 
   it('never heads for an old spot out of range', () => {

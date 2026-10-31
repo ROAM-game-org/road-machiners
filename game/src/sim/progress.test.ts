@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { TIME } from '../data/time';
+import { TIME, workDayOf } from '../data/time';
 import { BASIC_IDS, BASICS, MAX_RANK, type PerkId, RANK_COSTS, XP_RULES, XP_SOURCES } from '../data/skills';
 import {
   affordableRanks, basicRefusal, basicSkill, buyCheapestRanks, buyRank, canBuyRank, choosePerk, cumulativeCost, hasBasic, hasPerk, pendingPerkPairs, practice, rankCost, skillEffect,
-  skillLevel, vehicleHasPerk, xpFor, xpTodayOf,
+  skillLevel, vehicleHasPerk, xpFor, xpTodayOf, xpWindowStart,
 } from './progress';
 import { vehicleStats } from './stats';
 import { addVehicle, emptyWorld } from './testkit';
@@ -122,7 +122,7 @@ describe('buying a rank', () => {
 });
 
 describe('xpFor', () => {
-  const fresh = { xp: 0, xpToday: { driving: 0, perception: 0, machining: 0, toughness: 0, social: 0 }, xpDay: 1, repeats: {} };
+  const fresh = { xp: 0, xpToday: { driving: 0, perception: 0, machining: 0, toughness: 0, social: 0 }, xpWindow: 0, repeats: {} };
 
   it('pays an unscaled source its weight per unit', () => {
     expect(xpFor(fresh, 'profit', 10, null, 'bowl:salt', 1)).toBeCloseTo(XP_SOURCES.profit.weight * 10);
@@ -145,7 +145,7 @@ describe('xpFor', () => {
 
   it('forgets the cap on a new day', () => {
     const capped = { ...fresh, xpToday: { ...fresh.xpToday, social: XP_RULES.dailyCap } };
-    expect(xpFor(capped, 'profit', 10, null, 'bowl:salt', 1 + TIME.turnsPerDay)).toBeCloseTo(XP_SOURCES.profit.weight * 10);
+    expect(xpFor(capped, 'profit', 10, null, 'bowl:salt', 1 + TIME.workDayTurns)).toBeCloseTo(XP_SOURCES.profit.weight * 10);
   });
 
   it('rejects negative amounts', () => {
@@ -196,7 +196,7 @@ describe('repeats on one target', () => {
   it('a once-only target never pays again, even days later', () => {
     const w = emptyWorld();
     practice(w, 'call', 1, null, 'v2:directions');
-    w.turn += 30 * TIME.turnsPerDay;
+    w.turn += 30 * TIME.workDayTurns;
     practice(w, 'call', 1, null, 'v2:directions');
     expect(w.player.xp).toBeCloseTo(XP_SOURCES.call.weight);
   });
@@ -205,7 +205,7 @@ describe('repeats on one target', () => {
     const w = emptyWorld();
     practice(w, 'profit', 10, null, 'bowl:salt');
     practice(w, 'call', 1, null, 'v2:directions');
-    w.turn += 30 * TIME.turnsPerDay;
+    w.turn += 30 * TIME.workDayTurns;
     practice(w, 'heat', 1, 0.5, '1,1');
     expect(Object.keys(w.player.repeats).sort()).toEqual(['call:v2:directions', 'heat:1,1']);
   });
@@ -245,7 +245,7 @@ describe('practice', () => {
   it('resets the daily count on a new day', () => {
     const w = emptyWorld();
     w.player.xpToday.social = XP_RULES.dailyCap;
-    w.turn += TIME.turnsPerDay;
+    w.turn += TIME.workDayTurns;
     practice(w, 'profit', 10, null, 'bowl:salt');
     expect(w.player.xpToday.social).toBeCloseTo(XP_SOURCES.profit.weight * 10);
   });
@@ -339,12 +339,34 @@ describe('perks on vehicles', () => {
   });
 });
 
+describe('the XP window', () => {
+  const FULL = XP_SOURCES.profit.weight * 10;
+
+  it('holds the cap through a whole work day of turns and opens a new window on its next turn', () => {
+    const w = emptyWorld();
+    w.player.xpToday.social = XP_RULES.dailyCap;
+    w.player.xpWindow = workDayOf(1);
+    w.turn = TIME.workDayTurns;
+    practice(w, 'profit', 10, null, 'bowl:salt');
+    expect(w.player.xpToday.social).toBeCloseTo(XP_RULES.dailyCap + FULL * XP_RULES.overCap);
+    w.turn = TIME.workDayTurns + 1;
+    practice(w, 'profit', 10, null, 'bowl:salt2');
+    expect(w.player.xpToday.social).toBeCloseTo(FULL);
+  });
+
+  it('starts at the first turn of the work day the turn is in', () => {
+    const w = emptyWorld();
+    w.turn = TIME.workDayTurns + 40;
+    expect(xpWindowStart(w)).toBe(TIME.workDayTurns + 1);
+  });
+});
+
 describe('xpTodayOf', () => {
   it('counts only XP earned on the current day', () => {
     const w = emptyWorld();
     practice(w, 'discover', 1, null, 'bowl');
     expect(xpTodayOf(w, 'perception')).toBeCloseTo(XP_SOURCES.discover.weight);
-    w.turn += TIME.turnsPerDay;
+    w.turn += TIME.workDayTurns;
     expect(xpTodayOf(w, 'perception')).toBe(0);
   });
 });

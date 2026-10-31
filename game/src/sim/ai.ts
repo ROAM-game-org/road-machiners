@@ -2,16 +2,18 @@ import { NPC_BEHAVIOR, NPCS, SPAWN } from "../data/npcs";
 import { sustainedDamage } from "../data/parts";
 import { RULES } from "../data/rules";
 import { PHYSICS } from "../data/physics";
+import { REGION } from "../data/region";
 import { isKnockedOut } from "./defeat";
 import { isNear } from "./far";
+import { thinksThisTurn } from "./fidelity";
 import { getActivityDestination, thinkNpc, topGoal, turnCornered } from "./npc-activities";
 import { ObstacleBuckets } from "./nav/buckets";
-import { clearLines, route, routeLength, type Blocker } from "./path";
+import { aheadGoal, clearLines, route, routeLength, type Blocker } from "./path";
 import { randRange } from "./rng";
 import { isFree } from "./spawn";
 import { parkedVehicles } from "./steering";
 import { fieldBlockers } from "./hazards";
-import { vehicleStats, type MountedWeapon } from "./stats";
+import { driveStats, isStranded, vehicleRadius, vehicleStats, type MountedWeapon } from "./stats";
 import { waitsForFollowers } from "./company-wait";
 import { followPace, getHitchedTowIds, isOnRope, ropeClientOf } from "./tow";
 import { ramImpact, ramValue } from "./crash-contact";
@@ -27,7 +29,7 @@ import { heldGoal, holdOnStretch, rollingOrder, runsDown } from "./hunters";
 import { dragsStraight } from "./sunward";
 
 function planners(world: World): Vehicle[] {
-  return world.vehicles.filter((v) => v.brain && !isOnRope(world, v.id) && !isKnockedOut(v));
+  return world.vehicles.filter((v) => v.brain && !isOnRope(world, v.id) && !isKnockedOut(v) && thinksThisTurn(world, v));
 }
 
 type Plan = { v: Vehicle; activity: NpcActivity; goal: Vec | null };
@@ -81,7 +83,7 @@ function heldAway(v: Vehicle, goal: Vec | null): boolean {
 }
 
 function freeSpotNear(world: World, v: Vehicle): Vec | null {
-  const radius = vehicleStats(world, v).radius;
+  const radius = vehicleRadius(v);
   for (let i = 0; i < SPAWN.tries; i++) {
     const angle = randRange(world, 0, Math.PI * 2);
     const d = randRange(world, radius * 2, RULES.unstick.reach);
@@ -161,7 +163,7 @@ function computeFightGoal(world: World, v: Vehicle, target: Vehicle, seen: Vehic
   }
   if (haltsOnWhim(world, v)) return null;
   const lead = leadOf(seen);
-  const clearance = vehicleStats(world, v).radius + vehicleStats(world, target).radius + RULES.yieldDistance;
+  const clearance = vehicleRadius(v) + vehicleRadius(target) + RULES.yieldDistance;
   if (b.whim?.kind === "veer") {
     const range = Math.max(shortestRange(world, v) - RULES.arriveRadius, clearance);
     return { x: lead.x + Math.cos(b.whim.angle) * range, y: lead.y + Math.sin(b.whim.angle) * range };
@@ -171,7 +173,7 @@ function computeFightGoal(world: World, v: Vehicle, target: Vehicle, seen: Vehic
 }
 
 export function interceptOf(world: World, v: Vehicle, seen: Vehicle): Vec {
-  const maxSpeed = vehicleStats(world, v).maxSpeed;
+  const maxSpeed = driveStats(world, v).maxSpeed;
   if (maxSpeed <= 0) return { ...seen.pos };
   const turns = dist(v.pos, seen.pos) / maxSpeed;
   const ahead = Math.min(seen.speed * turns, maxSpeed);
@@ -226,7 +228,7 @@ export function fightPoint(world: World, v: Vehicle, target: Vehicle, clearance:
   const lead = leadOf(target);
   const turn = circleTurn(world, v);
   const reach = longestRange(world, v) - RULES.arriveRadius;
-  const clear = clearLines(world, vehicleStats(world, v).radius, []);
+  const clear = clearLines(world, vehicleRadius(v), []);
   let best: Candidate | null = null;
   for (const share of F.rings) {
     const r = Math.max(clearance, share * reach);
@@ -261,7 +263,7 @@ function circleTurn(world: World, v: Vehicle): number {
 }
 
 export function scorePoint(world: World, v: Vehicle, target: Vehicle, lead: Vec, p: Vec, turn: number): number {
-  const sv = vehicleStats(world, v);
+  const sv = driveStats(world, v);
   const me = afterTurn(world, v, p);
   const there = { ...target, pos: lead };
   const mine = exposure(world, v, me, there);
@@ -276,7 +278,7 @@ export function scorePoint(world: World, v: Vehicle, target: Vehicle, lead: Vec,
 export function afterTurn(world: World, v: Vehicle, p: Vec): Vehicle {
   const d = dist(v.pos, p);
   if (d <= RULES.arriveRadius) return v;
-  const sv = vehicleStats(world, v);
+  const sv = driveStats(world, v);
   const heading = bearing(v.pos, p);
   const step = Math.min(d, sv.maxSpeed, v.speed + sv.accel);
   return { ...v, pos: { x: v.pos.x + Math.cos(heading) * step, y: v.pos.y + Math.sin(heading) * step }, heading };
@@ -349,9 +351,10 @@ export function trafficStops(world: World, v: Vehicle, dest: Vec): boolean {
   const moving = meeting(world, v);
   if (moving.length === 0) return false;
   const parked = parkedVehicles(world, v.id, getHitchedTowIds(world));
-  const radius = vehicleStats(world, v).radius;
-  const open = route(world, v.pos, dest, radius, parked, v);
-  const around = route(world, v.pos, dest, radius, [...parked, ...moving.flatMap((x) => sweptPath(world, v, x))], v);
+  const radius = vehicleRadius(v);
+  const goal = aheadGoal(world, v.pos, dest, radius, parked, v, REGION.navigation.farWindow);
+  const open = route(world, v.pos, goal, radius, parked, v);
+  const around = route(world, v.pos, goal, radius, [...parked, ...moving.flatMap((x) => sweptPath(world, v, x))], v);
   if (dist(open.at(-1)!, around.at(-1)!) > 0) return true;
   const { vs, t } = horizon(world, v);
   if (routeLength(v.pos, around) - routeLength(v.pos, open) > vs * t) return true;
@@ -359,7 +362,7 @@ export function trafficStops(world: World, v: Vehicle, dest: Vec): boolean {
 }
 
 function passesClear(world: World, v: Vehicle, x: Vehicle, around: Vec[]): boolean {
-  const radii = vehicleStats(world, v).radius + vehicleStats(world, x).radius + PHYSICS.driver.clearMargin;
+  const radii = vehicleRadius(v) + vehicleRadius(x) + PHYSICS.driver.clearMargin;
   const { vs, t } = horizon(world, v);
   const at = (d: number): Vec => alongRoute(v.pos, around, d);
   for (let s = 0; s <= t; s += RULES.traffic.passStep) {
@@ -416,7 +419,7 @@ export function settleMeetings(world: World): void {
   const live = world.vehicles.filter((v) => isNear(world, v) && followsTraffic(world, v));
   const byId = new Map(live.map((v) => [v.id, v]));
   for (const giver of live) endMeetings(world, giver, byId);
-  const index = new ObstacleBuckets(live.map((v) => ({ pos: v.pos, r: vehicleStats(world, v).radius })), world.terrain.size);
+  const index = new ObstacleBuckets(live.map((v) => ({ pos: v.pos, r: driveStats(world, v).radius })), world.terrain.size);
   const bySpot = new Map(live.map((v) => [v.pos, v]));
   const widest = Math.max(0, ...live.map((v) => ownReach(world, v)));
   for (const a of live) {
@@ -492,7 +495,7 @@ function ropeAllowance(world: World, tower: Vehicle): number {
 }
 
 function horizon(world: World, v: Vehicle): { vs: number; t: number } {
-  const sv = vehicleStats(world, v);
+  const sv = driveStats(world, v);
   const vs = Math.min(sv.maxSpeed, v.speed + sv.accel);
   return { vs, t: 1 + vs / sv.brake };
 }
@@ -502,9 +505,9 @@ function sweptReach(x: Vehicle, travel: number): number {
 }
 
 function sweptPath(world: World, v: Vehicle, x: Vehicle): Blocker[] {
-  const sx = vehicleStats(world, x);
+  const sx = driveStats(world, x);
   const r = sx.radius;
-  const radii = vehicleStats(world, v).radius + r;
+  const radii = vehicleRadius(v) + r;
   const { vs, t } = horizon(world, v);
   const xs = Math.min(sx.maxSpeed, x.speed + sx.accel);
   const reach = sweptReach(x, xs * t);
@@ -521,8 +524,8 @@ function sweptPath(world: World, v: Vehicle, x: Vehicle): Blocker[] {
 }
 
 function pathsMeet(world: World, v: Vehicle, x: Vehicle): boolean {
-  const sv = vehicleStats(world, v);
-  const sx = vehicleStats(world, x);
+  const sv = driveStats(world, v);
+  const sx = driveStats(world, x);
   const { vs, t: h } = horizon(world, v);
   const px = x.pos.x - v.pos.x;
   const py = x.pos.y - v.pos.y;
@@ -539,12 +542,12 @@ function onOwnRope(world: World, tower: Vehicle, x: Vehicle): boolean {
 
 function gapAhead(world: World, v: Vehicle, x: Vehicle, cone: number = RULES.traffic.parkedCone): number | null {
   if (Math.abs(angleDiff(v.heading, bearing(v.pos, x.pos))) >= cone) return null;
-  return dist(v.pos, x.pos) - vehicleStats(world, v).radius - vehicleStats(world, x).radius;
+  return dist(v.pos, x.pos) - vehicleRadius(v) - vehicleRadius(x);
 }
 
 function brakingReach(world: World, v: Vehicle, x: Vehicle): number {
-  const sv = vehicleStats(world, v);
-  const sx = vehicleStats(world, x);
+  const sv = driveStats(world, v);
+  const sx = driveStats(world, x);
   const vs = Math.min(sv.maxSpeed, v.speed + sv.accel);
   const toward = Math.cos(angleDiff(x.heading, bearing(x.pos, v.pos)));
   const xs = toward > 0 ? Math.min(sx.maxSpeed, x.speed + sx.accel) * toward : x.speed * toward;
@@ -554,7 +557,7 @@ function brakingReach(world: World, v: Vehicle, x: Vehicle): number {
 
 function facesOff(world: World, v: Vehicle, x: Vehicle, gap: number): boolean {
   if (!givesWay(world, x) || !wantsToDrive(x) || gapAhead(world, x, v) === null) return false;
-  return gap < RULES.yieldDistance + vehicleStats(world, v).accel + vehicleStats(world, x).accel;
+  return gap < RULES.yieldDistance + driveStats(world, v).accel + driveStats(world, x).accel;
 }
 
 function wantsToDrive(x: Vehicle): boolean {

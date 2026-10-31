@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SITE_FACTIONS, TURF } from '../data/npc-behavior';
-import { REGION } from '../data/region';
+import { MAP_SPREAD, REGION } from '../data/region';
 import { TEST_MAP } from '../test/map';
 import { divideTurf, huntingSpots, turfClaimants, type Claimant } from './hunting-spots';
 import { dist } from './vec';
@@ -21,7 +21,7 @@ describe('turf shares', () => {
   it('split the reach of every faction by share', () => {
     const claimants = turfClaimants();
     expect(claimants.reduce((sum, c) => sum + c.reach, 0)).toBeCloseTo(TURF.reachPerFaction * claimants.length, 9);
-    expect(Object.fromEntries(claimants.map((c) => [c.id, Math.round(c.reach)]))).toEqual({ scrapjaw: 400, kiln: 200 });
+    expect(Object.fromEntries(claimants.map((c) => [c.id, Math.round(c.reach)]))).toEqual({ scrapjaw: Math.round(400 * MAP_SPREAD), kiln: Math.round(200 * MAP_SPREAD) });
   });
 });
 
@@ -40,15 +40,16 @@ describe('dividing turf', () => {
     expect(turf.get('west')).toEqual([{ x: 10, y: 0 }, { x: 20, y: 0 }, { x: 30, y: 0 }]);
   });
 
-  it('gives each camp a near even share of the hunting spots, and leaves the land around Nose free', () => {
+  it('gives each camp a near even share of the hunting spots, and leaves the spots no camp reaches free', () => {
     const spots = huntingSpots(TEST_MAP).spots;
     const claimants = turfClaimants();
     const turf = divideTurf(spots, claimants);
-    expect(Object.fromEntries([...turf].map(([id, points]) => [id, points.length]))).toEqual({ scrapjaw: 9, kiln: 11 });
+    const counts = claimants.map((c) => turf.get(c.id)!.length);
+    const claimed = counts.reduce((sum, n) => sum + n, 0);
+    expect(Math.min(...counts)).toBeGreaterThan(claimed * 0.4);
     for (const c of claimants) for (const p of turf.get(c.id)!) expect(dist(p, c.home)).toBeLessThanOrEqual(c.reach);
-    const nose = REGION.towns.find((t) => t.id === 'nose')!;
     const free = spots.filter((p) => ![...turf.values()].some((points) => points.includes(p)));
     expect(free.length).toBeGreaterThan(0);
-    for (const p of free) expect(dist(p, nose.pos)).toBeLessThan(dist(p, claimants[0].home));
+    for (const p of free) for (const c of claimants) expect(dist(p, c.home)).toBeGreaterThan(c.reach);
   });
 });

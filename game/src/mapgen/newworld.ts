@@ -14,19 +14,17 @@ import {
 } from '../data/terrain';
 import { chance, randInt, randRange, type Rng } from '../sim/rng';
 import { isTerritory, territoryRoads } from '../sim/territory';
-import type { BakedProp, PropKind } from '../sim/terrain';
+import { BUILT_DIRTY_WATER, BUILT_FIELD, BUILT_NONE, BUILT_OLD_ROAD, BUILT_SCRUB, BUILT_TOXIC, type BakedProp, type PropKind } from '../sim/terrain';
 import { DEG, dist, polylineDist, type Vec } from '../sim/vec';
 import { tileSteepness, type MapDraft } from './bake';
 import { pondDepths } from './geology';
 import {
-  BUILT_FIELD,
-  BUILT_NONE,
-  BUILT_OLD_ROAD,
   builtGround,
   clearGround,
   facing,
   isCutTile,
   offset,
+  onReservedTrack,
   place,
   prop,
   range,
@@ -36,17 +34,12 @@ import {
   sideOf,
   stations,
   tileCenter,
+  tileFlow,
   tileOf,
   tilesWithin,
 } from './oldworld';
 
-export const BUILT_SCRUB = 3;
-export const BUILT_DIRTY_WATER = 4;
-export const BUILT_TOXIC = 5;
-export const BUILT_TRACK = 6;
-export const BUILT_CANAL = 7;
-export const BUILT_PAD = 8;
-export const BUILT_GLASS = 9;
+export { BUILT_BLACK_MUD, BUILT_CANAL, BUILT_DIRTY_WATER, BUILT_DITCH, BUILT_GLASS, BUILT_PAD, BUILT_SCRUB, BUILT_TOXIC, BUILT_TRACK } from '../sim/terrain';
 
 export type Camp = { pos: Vec; radius: number };
 
@@ -86,12 +79,16 @@ function settle(d: MapDraft, p: BakedProp, roadGap: number): boolean {
   return place(d, p, roadGap);
 }
 
-function settleFence(d: MapDraft, p: BakedProp, roadGap: number): boolean {
-  if (!clearGround(d.size, p.pos, p.r, roadGap) || isPool(d.built[tileOf(d.size, p.pos)]) || inHollow(p)) return false;
+export function settleFence(d: MapDraft, p: BakedProp, roadGap: number): boolean {
+  if (!clearGround(d.size, p.pos, p.r, roadGap) || !fenceGround(d, p)) return false;
   if (tileSteepness(d.heights, d.size, tileOf(d.size, p.pos)) > TERRAIN.drive.maxSlope) return false;
   if (d.props.some((o) => !sameLine(o, p) && dist(o.pos, p.pos) < o.r + p.r + O.gap)) return false;
   d.props.push(p);
   return true;
+}
+
+function fenceGround(d: MapDraft, p: BakedProp): boolean {
+  return !isPool(d.built[tileOf(d.size, p.pos)]) && !inHollow(p) && !onReservedTrack(d, p);
 }
 
 function sameLine(a: BakedProp, b: BakedProp): boolean {
@@ -207,7 +204,7 @@ function growChance(d: MapDraft, rules: ScrubRules, tile: number): number {
 }
 
 function wetness(d: MapDraft, rules: ScrubRules, tile: number): number {
-  return cornerMax(d.flow, d.size, tile) / (GEOLOGY.ground.washFlow * rules.seedFlow);
+  return tileFlow(d, tile) / (GEOLOGY.ground.washFlow * rules.seedFlow);
 }
 
 function scrubSeeds(d: MapDraft, rng: Rng, rules: ScrubRules, grow: Float32Array): number[] {
@@ -233,15 +230,17 @@ function moistNearWater(d: MapDraft, rules: ScrubRules): Uint8Array {
 
 function spreadScrub(d: MapDraft, rng: Rng, grow: Float32Array, scrub: number[]): void {
   const taken: number[] = [];
-  for (const tile of scrub) {
-    for (const next of edgeNeighbors(d.size, tile)) {
-      if (d.built[next] === BUILT_NONE && grow[next] > 0 && chance(rng, grow[next])) {
-        d.built[next] = BUILT_SCRUB;
-        taken.push(next);
-      }
+  for (const tile of scrub) takeScrubAround(d, rng, grow, tile, taken);
+  for (const tile of taken) scrub.push(tile);
+}
+
+function takeScrubAround(d: MapDraft, rng: Rng, grow: Float32Array, tile: number, taken: number[]): void {
+  for (const next of edgeNeighbors(d.size, tile)) {
+    if (d.built[next] === BUILT_NONE && grow[next] > 0 && chance(rng, grow[next])) {
+      d.built[next] = BUILT_SCRUB;
+      taken.push(next);
     }
   }
-  scrub.push(...taken);
 }
 
 export function camps(seed: number, d: MapDraft, rules: CampRules): Camp[] {

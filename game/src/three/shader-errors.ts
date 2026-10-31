@@ -125,6 +125,23 @@ export class ShaderWarmup {
     return ready;
   }
 
+  prepare(root: THREE.Object3D): void {
+    const fresh: [THREE.Material, string][] = [];
+    root.traverse((o) => {
+      if (!isDrawn(o)) return;
+      const variant = variantOf(o);
+      for (const m of materialsOf(o)) if (!this.isCompiled(m, variant) && !this.compiling.has(m, variant)) fresh.push([m, variant]);
+    });
+    if (fresh.length === 0) return;
+    for (const [m, variant] of fresh) this.compiling.add(m, variant);
+    this.renderer.compileAsync(root, this.camera, this.scene).then(() => {
+      for (const [m, variant] of fresh) {
+        this.compiling.delete(m, variant);
+        this.compiled.add(m, variant);
+      }
+    }, this.onError);
+  }
+
   private holdUncompiled(): void {
     this.scene.traverseVisible((o) => {
       if (!isDrawn(o)) return;

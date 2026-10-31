@@ -1,0 +1,71 @@
+import type * as THREE from 'three';
+import type { World } from '../sim/types';
+import { PERF } from '../data/perf';
+import { playerVehicle } from '../sim/damage';
+import { PHYSICS } from '../data/physics';
+import type { V3 } from '../phys/frames';
+import { grayRadius, grayReach, playerSeenPropTiles } from '../sim/vision';
+import type { PlayClock } from './play-clock';
+import { CraterViews } from './render/craters';
+import { FogView } from './render/fog';
+import { ObstacleViews } from './render/obstacles';
+import { addScatter } from './render/scatter';
+import { RenderScope, SightLimit } from './render/scope';
+import { ShadeView } from './render/shade';
+import { addShipDecks } from './render/ship-decks';
+import { SiteLights } from './render/siteLights';
+import { addSites, HollowLamps } from './render/sites';
+import { CellStreamer } from './render/streamer';
+import { groundMaterial, terrainMesh } from './render/terrain';
+
+export type WorldViewHost = {
+  scene: THREE.Scene;
+  ground: THREE.Group;
+  props: THREE.Group;
+  play: PlayClock;
+  maxTextureSize: number;
+  prepare: (root: THREE.Object3D) => void;
+  pinOutpost: () => void;
+};
+
+export type WorldViews = {
+  sightLimit: SightLimit;
+  scopes: RenderScope[];
+  craters: CraterViews;
+  siteLights: SiteLights;
+  obstacles: ObstacleViews;
+  fog: FogView;
+  shade: ShadeView;
+  streamer: CellStreamer;
+};
+
+export function sightAround(limit: SightLimit, streamer: CellStreamer, world: World, truck: V3): number {
+  const meters = grayRadius(world) * PHYSICS.metersPerTile;
+  limit.set(truck, meters);
+  const reach = grayReach(world, playerVehicle(world));
+  streamer.frame({ x: truck.x / PHYSICS.metersPerTile, y: truck.z / PHYSICS.metersPerTile }, reach, reach + PERF.stream.leadTiles);
+  return meters;
+}
+
+export function buildWorldViews(world: World, host: WorldViewHost): WorldViews {
+  const sightLimit = new SightLimit(world.size);
+  const groundScope = new RenderScope(host.ground, world.size, sightLimit, false, false);
+  const propScope = new RenderScope(host.props, world.size, sightLimit, true, true);
+  const craters = new CraterViews(world, sightLimit, host.scene);
+  const scopes = [groundScope, propScope, craters.scope];
+  const ground = groundMaterial(world);
+  const fog = new FogView(world, ground, sightLimit, playerSeenPropTiles(world));
+  terrainMesh(world, ground, groundScope, (chunk) => fog.attach(chunk));
+  const hollow = world.terrain.atlas.kind === 'icarus' ? new HollowLamps(world.terrain, propScope) : null;
+  const siteLights = new SiteLights(host.scene, hollow, { worldSize: world.size, maxTextureSize: host.maxTextureSize });
+  addSites(world.terrain, propScope, host.play, siteLights);
+  addShipDecks(world.terrain, propScope);
+  const obstacles = new ObstacleViews(propScope, world.terrain, host.pinOutpost);
+  obstacles.sync(world.obstacles, world.salvage, world.broken);
+  addScatter(world.terrain, world.obstacles, propScope);
+  const shade = new ShadeView(world, ground, host.play);
+  const streamer = new CellStreamer(scopes, host.prepare, () => performance.now(), PERF.stream.budgetMs);
+  const reach = grayReach(world, playerVehicle(world));
+  streamer.boot(playerVehicle(world).pos, reach, reach + PERF.stream.leadTiles);
+  return { sightLimit, scopes, craters, siteLights, obstacles, fog, shade, streamer };
+}

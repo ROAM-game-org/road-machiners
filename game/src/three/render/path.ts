@@ -7,10 +7,10 @@ import type { VehicleFrame } from '../../phys/frames';
 import { PHYSICS } from '../../data/physics';
 import { PAL } from '../../render/palette';
 import { heightAt, type Terrain } from '../../sim/terrain';
-import type { MoveOrder, World } from '../../sim/types';
+import type { World } from '../../sim/types';
 import { bearing, type Vec } from '../../sim/vec';
 import { playerVehicle } from '../../sim/damage';
-import { playerCanAct } from '../../sim/world';
+import { waypointOf } from '../../sim/world';
 
 const S = PHYSICS.metersPerTile;
 
@@ -42,12 +42,6 @@ function flatIcon(geometry: THREE.BufferGeometry, color: number): THREE.Mesh {
   );
   mesh.renderOrder = 821;
   return mesh;
-}
-
-function waypointOf(world: World): Exclude<MoveOrder, { kind: 'brake' }> | null {
-  const me = playerVehicle(world);
-  if (me.direct || !playerCanAct(world) || !me.order || me.order.kind === 'brake') return null;
-  return me.order;
 }
 
 export class PathView {

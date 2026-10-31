@@ -1,42 +1,69 @@
 
-import { REGION } from '../data/region';
-import { GEOLOGY, MAPGEN, TERRAIN, type TerrainTypeId } from '../data/terrain';
+import { MAP_DRAFT, REGION } from '../data/region';
+import { DESERT, GEOLOGY, MAPGEN, TERRAIN, type TerrainTypeId } from '../data/terrain';
+import { ZONE_KINDS, zoneWeight } from '../sim/zones';
 import { bridgeCut, deckAt, ICARUS_DECKS } from '../sim/bridge';
 import { ICARUS_KEY, icarusAtlas } from '../sim/atlas';
-import { broadAt, flattenFactor, reliefAt } from '../sim/elevation';
+import { bakedHeight, broadAt, flattenFactor, reliefAt } from '../sim/elevation';
 import { gradeRoads } from '../sim/road-grade';
 import { ROAD_INDEX } from '../sim/road-index';
 import { chance, randRange, type Rng } from '../sim/rng';
-import { groundAt, heightFromElevation, TYPE_IDS, type BakedProp } from '../sim/terrain';
+import { BUILT_BLACK_MUD, BUILT_DITCH, BUILT_CANAL, BUILT_FIELD, BUILT_GLASS, BUILT_OLD_ROAD, BUILT_PAD, BUILT_DIRTY_WATER, BUILT_SCRUB, BUILT_TOXIC, BUILT_TRACK, groundAt, TYPE_IDS, type BakedProp } from '../sim/terrain';
 import { clearOfSites, onDeck } from '../sim/mapgen';
 import { siteGap } from '../sim/sites';
 import { dist, polylineDist, type Vec } from '../sim/vec';
-import { BUILT_CANAL, BUILT_GLASS, BUILT_PAD, BUILT_DIRTY_WATER, BUILT_SCRUB, BUILT_TOXIC, BUILT_TRACK, newWorldLayer } from './newworld';
-import { BUILT_FIELD, BUILT_OLD_ROAD, oldWorldLayer, tilesWithin } from './oldworld';
+import { newWorldLayer } from './newworld';
+import { apronLayer } from './apron';
+import { desertLayer } from './desert';
+import { exitLayer } from './exits';
+import { farmBeltLayer } from './farmbelt';
+import { zoneReport } from './report';
+import { fillGlassTrail } from './glass';
+import { swampLayer } from './swamp';
+import { trailLayer } from './trails';
+import { oldWorldLayer, tilesWithin, washTile } from './oldworld';
 import { fortressLayer } from './fortress';
 import { stampTerritoryGround } from './ground-stamps';
 import { keepStartClear } from './start-ground';
 import { boatLayer } from './boats';
 import { roadsideLayer } from './roadside';
-import { territoryLayer } from './territory';
+import { reserveSpurs, territoryLayer } from './territory';
 import { cornerNeighbors, geologyLayer, pondDepths, type Neighbors } from './geology';
 
 export function bakeMap(seed: number): MapDraft {
   let d = groundForTerritories(seed);
   d = timed('territories', () => territoryLayer(seed, d));
+  d = timed('glass trail', () => fillGlassTrail(seed, d));
   d = timed('ground', () => groundLayer(seed, d));
-  d = timed('rocks', () => rockLayer(seed, d));
+  d = detailed('rocks', d, () => rockLayer(seed, d));
+  d = timed('apron', () => apronLayer(seed, d));
   d = timed('fortresses', () => fortressLayer(d));
   d = timed('start', () => keepStartClear(d));
-  d = timed('roadside', () => roadsideLayer(seed, d));
-  return timed('boats', () => boatLayer(seed, d));
+  d = detailed('roadside', d, () => roadsideLayer(seed, d));
+  d = detailed('boats', d, () => boatLayer(seed, d));
+  d = timed('exits around props', () => exitLayer(d));
+  const misses = zoneReport(seed, d);
+  if (misses.length > 0) throw new Error(`The bake misses its zone checks:\n${misses.join('\n')}`);
+  return d;
+}
+
+function detailed(layer: string, d: MapDraft, run: () => MapDraft): MapDraft {
+  if (MAP_DRAFT === null) return timed(layer, run);
+  console.log(`${layer}: left out of the draft`);
+  return d;
 }
 
 export function groundForTerritories(seed: number): MapDraft {
   let d = timed('base', () => baseLayer(seed, REGION.size));
-  d = timed('geology', () => geologyLayer(seed, d));
+  d = detailed('geology', d, () => geologyLayer(seed, d));
   d = timed('territory ground', () => stampTerritoryGround(d));
   d = timed('finish', () => finishLayer(seed, d));
+  d = timed('desert', () => desertLayer(seed, d));
+  d = timed('swamp', () => swampLayer(seed, d));
+  d = timed('spurs', () => reserveSpurs(d));
+  d = timed('farm belt', () => farmBeltLayer(seed, d));
+  d = timed('trails', () => trailLayer(seed, d));
+  d = timed('exits', () => exitLayer(d));
   d = timed('old world', () => oldWorldLayer(seed, d));
   return timed('new world', () => newWorldLayer(seed, d));
 }
@@ -100,7 +127,7 @@ export function footprintRelief(heights: ArrayLike<number>, size: number, p: Bak
 
 export function baseLayer(seed: number, size: number): MapDraft {
   const d = newDraft(size);
-  for (let j = 0; j <= size; j++) for (let i = 0; i <= size; i++) d.heights[j * (size + 1) + i] = heightFromElevation(reliefAt(seed, i, j) + broadAt(seed, i, j));
+  for (let j = 0; j <= size; j++) for (let i = 0; i <= size; i++) d.heights[j * (size + 1) + i] = bakedHeight(seed, reliefAt(seed, i, j) + broadAt(seed, i, j), i, j);
   return d;
 }
 
@@ -110,7 +137,7 @@ export function finishLayer(seed: number, d: MapDraft): MapDraft {
     const flatten = flattenFactor(i, j) * (1 - bridgeCut(ICARUS_DECKS, i, j));
     if (flatten === 0) continue;
     const k = j * w + i;
-    d.heights[k] += (heightFromElevation(broadAt(seed, i, j)) - d.heights[k]) * flatten;
+    d.heights[k] += (bakedHeight(seed, broadAt(seed, i, j), i, j) - d.heights[k]) * flatten;
   }
   d.heights.set(gradeRoads({ size: d.size, heights: Array.from(d.heights), types: [], atlas: ICARUS_KEY }));
   return d;
@@ -140,6 +167,8 @@ const MARKED_TYPES: Record<number, TerrainTypeId> = {
   [BUILT_CANAL]: 'canal',
   [BUILT_PAD]: 'concrete',
   [BUILT_GLASS]: 'glass',
+  [BUILT_BLACK_MUD]: 'blackMud',
+  [BUILT_DITCH]: 'sand',
 };
 
 function pickType(g: GroundInput, x: number, y: number): TerrainTypeId {
@@ -180,13 +209,15 @@ function screeType(g: GroundInput, tile: number, k: number): TerrainTypeId | nul
 }
 
 function pondType(g: GroundInput, _tile: number, k: number): TerrainTypeId | null {
+  const n = g.d.size + 1;
+  if (zoneWeight('desert', k % n, Math.floor(k / n)) > DESERT.pondless) return null;
   const depth = cornerMax(g.pond, g.d.size, k);
   if (depth >= G.mudDepth) return 'mud';
   return depth >= G.saltDepth ? 'saltCrust' : null;
 }
 
-function washType(g: GroundInput, tile: number, k: number): TerrainTypeId | null {
-  if (cornerMax(g.d.flow, g.d.size, k) < G.washFlow) return null;
+function washType(g: GroundInput, tile: number): TerrainTypeId | null {
+  if (!washTile(g.d, tile)) return null;
   return tileSteepness(g.d.heights, g.d.size, tile) >= G.gravelSlope ? 'gravel' : 'sand';
 }
 
@@ -218,6 +249,7 @@ function cornerMean(a: ArrayLike<number>, size: number, k: number): number {
 
 const O = REGION.obstacles;
 const B = GEOLOGY.boulders;
+const BOULDER_FREE = new Set([BUILT_TRACK, BUILT_GLASS, BUILT_CANAL, BUILT_DITCH]);
 const BOULDER_SLOPE_LIMIT = TERRAIN.drive.maxSlope - Math.SQRT2 / MAPGEN.heightScale;
 
 export function rockLayer(seed: number, d: MapDraft): MapDraft {
@@ -235,9 +267,22 @@ export function rockLayer(seed: number, d: MapDraft): MapDraft {
 type BoulderSpot = { odds: number; kind: 'rock' | 'crag' };
 
 function boulderSpot(h: ArrayLike<number>, nb: Neighbors, n: number, k: number): BoulderSpot | null {
-  if (isCliffBase(h, nb, k)) return { odds: B.cliffBase, kind: 'rock' };
+  if (isCliffBase(h, nb, k)) return { odds: B.cliffBase * zoneBoulderOdds(n, k), kind: 'rock' };
   if (!isRidgeTop(h, n, k)) return null;
-  return { odds: B.ridgeTop, kind: h[k] >= B.crag.above ? 'crag' : 'rock' };
+  return { odds: B.ridgeTop * zoneBoulderOdds(n, k), kind: h[k] >= B.crag.above ? 'crag' : 'rock' };
+}
+
+export function zoneBoulderOdds(n: number, k: number): number {
+  const x = k % n;
+  const y = Math.floor(k / n);
+  let owned = 0;
+  let odds = 0;
+  for (const kind of ZONE_KINDS) {
+    const w = zoneWeight(kind, x, y);
+    owned += w;
+    odds += w * B.zoneOdds[kind];
+  }
+  return odds + Math.max(0, 1 - owned) * B.zoneOdds.plain;
 }
 
 function isCliffBase(h: ArrayLike<number>, nb: Neighbors, k: number): boolean {
@@ -259,9 +304,9 @@ function bulges(h: ArrayLike<number>, k: number, o: number, spanSq: number): boo
 }
 
 function placeBoulder(d: MapDraft, rng: Rng, i: number, j: number, kind: 'rock' | 'crag'): void {
-  const pos = { x: i + randRange(rng, -0.5, 0.5), y: j + randRange(rng, -0.5, 0.5) };
+  const pos = { x: Math.fround(i + randRange(rng, -0.5, 0.5)), y: Math.fround(j + randRange(rng, -0.5, 0.5)) };
   const [low, high] = kind === 'crag' ? B.crag.radius : B.radius;
-  const r = randRange(rng, low, high);
+  const r = Math.fround(randRange(rng, low, high));
   const yaw = kind === 'crag' ? randRange(rng, 0, Math.PI * 2) : 0;
   if (fitsOffRoad(d.size, d.heights, d.built, d.props, pos, r)) d.props.push({ kind, pos, r, yaw, group: 0, step: 0 });
 }
@@ -275,6 +320,6 @@ function fitsOffRoad(size: number, heights: ArrayLike<number>, built: Uint8Array
 
 function fitsGround(size: number, heights: ArrayLike<number>, built: Uint8Array, pos: Vec, r: number): boolean {
   const tile = Math.floor(pos.y) * size + Math.floor(pos.x);
-  if ([tile, ...tilesWithin(size, pos, r)].some((k) => built[k] === BUILT_TRACK || built[k] === BUILT_GLASS)) return false;
+  if ([tile, ...tilesWithin(size, pos, r)].some((k) => BOULDER_FREE.has(built[k]))) return false;
   return tileSteepness(heights, size, tile) <= BOULDER_SLOPE_LIMIT;
 }

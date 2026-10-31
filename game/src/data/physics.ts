@@ -97,6 +97,7 @@ export const PHYSICS = {
   truckRoof: 2.3,
   truckClearance: 2.8,
   propLiveMargin: 20,
+  groundPatchSlack: 40,
   bridge: { deckThickness: 0.6, railHeight: 1.6, railThickness: 0.3 },
   wallHeight: 200,
 } as const;

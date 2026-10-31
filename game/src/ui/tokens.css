@@ -175,6 +175,7 @@
   --lcd-ink: #1d2318;
   --lcd-ink-faint: #1d231812;
   --lcd-rule: #1d231840;
+  --lcd-ink-dim: #1d231880;
   --coin-face: #4a4338;
   --coin-rim: #a08a55;
   --coin-mark: #c5b981;
@@ -301,6 +302,7 @@
   --phone-strip-h: var(--touch-target);
   --phone-bar-h: calc(var(--phone-readouts-h) + var(--hud-gap) + var(--btn-h-l) + var(--hud-gap) + var(--phone-strip-h));
   --phone-end-w: 96px;
+  --phone-speed-w: 128px;
   --phone-tab-w: 56px;
 
   /* Layers, bottom to top */

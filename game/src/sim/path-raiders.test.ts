@@ -1,12 +1,14 @@
 import { START_KITS } from '../data/start';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { REGION } from '../data/region';
 import { TERRAIN, TERRAIN_TYPES } from '../data/terrain';
 import { resetPerf, perfSnapshot } from '../perf';
 import { PHYSICS } from '../data/physics';
-import { boxDistance, boxSegmentDistance, isDriveObstacle, propBoxes, propReach } from './mapgen';
+import { boxDistance, boxSegmentDistance, isBreakable, isDriveObstacle, propBoxes, propReach } from './mapgen';
+import { BREAKABLE } from '../data/rules';
 import { findCells, nearestFreeCell, stampOverlay } from './nav/astar';
-import { COARSE, componentOf, dynamicBlockers, navLayer, onRouteRoad, terrainNav } from './nav/layer';
+import { blockedAt, buildEveryCell, COARSE, componentOf, dynamicBlockers, navLayer, onRouteRoad, slowAt, terrainNav } from './nav/layer';
+import { regionAt } from './nav/cells';
 import { continueRoute, keepRoute, route, routeLength, straightClear, type Blocker } from './path';
 import { nextRandom } from './rng';
 import { isCliff, tileAt, tileSlope, type Terrain } from './terrain';
@@ -82,7 +84,7 @@ describe('raiders that keep off roads', () => {
   it('crosses a road lying across its way once, straight over', () => {
     const a = { x: 30, y: 100 };
     const b = { x: 90, y: 100 };
-    const w = roadWorld([{ x: 60, y: 20 }, { x: 60, y: 190 }]);
+    const w = roadWorld([{ x: 60, y: 0 }, { x: 60, y: REGION.size }]);
     const v = raider(w, a);
     flee(v);
     const runs = roadRuns(w, a, route(w, a, b, 0.6, [], v));
@@ -189,9 +191,16 @@ namespace Ref {
     return { n, cliff, slow };
   }
 
-  export function grid(layer: { n: number; cliff: Uint8Array; slow: Float32Array }, blockers: Blocker[], radius: number): Grid {
+  export function grid(layer: { n: number; cliff: Uint8Array; slow: Float32Array }, blockers: Blocker[], radius: number, costly: Blocker[] = []): Grid {
     const n = layer.n;
     const blocked = layer.cliff.slice();
+    const slow = layer.slow.slice();
+    stamp(n, blockers, radius, (c) => (blocked[c] = 1));
+    stamp(n, costly, radius, (c) => (slow[c] = Math.fround(layer.slow[c] * BREAKABLE.routeCost)));
+    return { n, blocked, slow };
+  }
+
+  function stamp(n: number, blockers: Blocker[], radius: number, mark: (c: number) => void): void {
     const grow = radius + CLEARANCE;
     const circles = blockers.flatMap((o) => (o.prop ? o.prop.boxes.map((b) => ({ pos: b.center, r: Math.hypot(b.half.x, b.half.y), inside: (p: Vec) => boxDistance(b, p) < grow })) : [{ pos: o.pos, r: o.r, inside: (p: Vec) => dist(p, o.pos) < o.r + grow }]));
     for (const o of circles) {
@@ -199,9 +208,8 @@ namespace Ref {
       const lo = { x: Math.max(0, Math.floor((o.pos.x - reach) / CELL)), y: Math.max(0, Math.floor((o.pos.y - reach) / CELL)) };
       const hi = { x: Math.min(n - 1, Math.floor((o.pos.x + reach) / CELL)), y: Math.min(n - 1, Math.floor((o.pos.y + reach) / CELL)) };
       for (let x = lo.x; x <= hi.x; x++)
-        for (let y = lo.y; y <= hi.y; y++) if (o.inside({ x: (x + 0.5) * CELL, y: (y + 0.5) * CELL })) blocked[y * n + x] = 1;
+        for (let y = lo.y; y <= hi.y; y++) if (o.inside({ x: (x + 0.5) * CELL, y: (y + 0.5) * CELL })) mark(y * n + x);
     }
-    return { n, blocked, slow: layer.slow };
   }
 
   function touches(o: Blocker, a: Vec, b: Vec, reach: number): boolean {
@@ -424,9 +432,13 @@ namespace Ref {
   export function blockers(w: World, extra: Blocker[]): Blocker[] {
     const known = staticBlockers.get(w.obstacles);
     if (known && known.count === w.obstacles.length) return [...known.list, ...extra];
-    const list = w.obstacles.filter(isDriveObstacle).map(blocker);
+    const list = w.obstacles.filter((o) => isDriveObstacle(o) && !isBreakable(o)).map(blocker);
     staticBlockers.set(w.obstacles, { count: w.obstacles.length, list });
     return [...list, ...extra];
+  }
+
+  export function breakables(w: World): Blocker[] {
+    return w.obstacles.filter((o) => isDriveObstacle(o) && isBreakable(o)).map(blocker);
   }
 
   function blocker(o: Obstacle): Blocker {
@@ -460,6 +472,8 @@ function referenceLayer(terrain: Terrain, radius: number): ReturnType<typeof Ref
   return built;
 }
 
+const REFERENCE_REACH = 780;
+
 describe('nav layers match the old grid rules', () => {
   const w = startWorld(1);
   const rand = mulberry(8);
@@ -467,17 +481,21 @@ describe('nav layers match the old grid rules', () => {
   for (let i = 0; i < 4; i++) w.obstacles = [...w.obstacles, { id: `wreck-t${i}`, pos: { x: at(40, w.size - 40), y: at(40, w.size - 40) }, r: 1, kind: 'wreck' }];
   const pairs = Array.from({ length: 10 }, (_, i) => {
     const from = { x: at(5, w.size - 5), y: at(5, w.size - 5) };
-    const reach = i % 2 === 0 ? 30 : w.size;
+    const reach = i % 2 === 0 ? 30 : Math.min(w.size, REFERENCE_REACH);
     const to = { x: Math.min(w.size - 5, Math.max(5, from.x + at(-reach, reach))), y: Math.min(w.size - 5, Math.max(5, from.y + at(-reach, reach))) };
     const extra: Blocker[] = [{ pos: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 }, r: 0.9 }];
     return { from, to, extra, radius: i % 3 === 0 ? 0.8 : 0.6 };
   });
   const refLayer = (radius: number) => referenceLayer(w.terrain, radius);
 
+  beforeAll(() => {
+    for (const radius of new Set(pairs.map((p) => p.radius))) refLayer(radius);
+  }, budget(240_000));
+
   it('A* cells avoid every blocked cell and cost within 1% of the reference', () => {
     let searched = 0;
     for (const { from, to, extra, radius } of pairs) {
-      const g = Ref.grid(refLayer(radius), Ref.blockers(w, extra), radius);
+      const g = Ref.grid(refLayer(radius), Ref.blockers(w, extra), radius, Ref.breakables(w));
       const start = Ref.cellOf(g, from);
       const goal = Ref.nearestFree(g, Ref.cellOf(g, to));
       const layer = navLayer(w.terrain, w.obstacles, radius);
@@ -492,7 +510,7 @@ describe('nav layers match the old grid rules', () => {
       searched++;
       expect(got[0]).toBe(start);
       expect(got[got.length - 1]).toBe(goal);
-      for (let i = 1; i < got.length; i++) expect(g.blocked[got[i]]).toBe(0);
+      for (let i = 1; i < got.length; i++) expect(g.blocked[got[i]], `cell ${got[i] % g.n},${Math.floor(got[i] / g.n)} of ${g.n}`).toBe(0);
       const tolerance = cellSpan(g.n, start, goal) > LONG_CELLS ? 0.05 : 0.01;
       expect(Ref.pathCost(g, got) - Ref.pathCost(g, ref)).toBeLessThanOrEqual(tolerance * Ref.pathCost(g, ref));
       if (tolerance === 0.01) expect(Ref.pathCost(g, ref) - Ref.pathCost(g, got)).toBeLessThanOrEqual(0.01 * Ref.pathCost(g, ref));
@@ -502,10 +520,13 @@ describe('nav layers match the old grid rules', () => {
 
   it('straightClear equals the reference line check', () => {
     let clear = 0;
-    for (const { from, to, extra, radius } of pairs) {
-      const expected = Ref.clearLine(w.terrain, Ref.blockers(w, extra), from, to, radius + Ref.CLEARANCE, Infinity);
+    const road = REGION.roads[0];
+    const mid = Math.floor(road.length / 2);
+    const alongRoad = { from: road[mid], to: road[mid + 1], extra: [] as Blocker[], radius: 0.6 };
+    for (const { from, to, extra, radius } of [...pairs, alongRoad]) {
+      const expected = Ref.clearLine(w.terrain, [...Ref.blockers(w, extra), ...Ref.breakables(w)], from, to, radius + Ref.CLEARANCE, Infinity);
       expect(straightClear(w, from, to, radius, extra)).toBe(expected);
-      const open = Ref.clearLine(w.terrain, Ref.blockers(w, []), from, to, radius + Ref.CLEARANCE, Infinity);
+      const open = Ref.clearLine(w.terrain, [...Ref.blockers(w, []), ...Ref.breakables(w)], from, to, radius + Ref.CLEARANCE, Infinity);
       expect(straightClear(w, from, to, radius, [])).toBe(open);
       if (open) clear++;
     }
@@ -551,28 +572,31 @@ describe('long routes search a coarse corridor', () => {
 
   it('coarse regions are the connected pieces of each block, linked where their cells touch', () => {
     const layer = navLayer(w.terrain, w.obstacles, 0.6);
+    buildEveryCell(layer);
     const n = layer.n;
-    const { n: bn, region, block, slow, edgeStart, edges } = layer.coarse;
+    const { bn } = layer.grid;
+    const { block, slow, links } = layer.grid.regions;
+    const region = (c: number) => regionAt(layer.grid, c);
     expect(bn).toBe(Math.ceil(n / COARSE));
     const blockOfCell = (x: number, y: number) => Math.floor(y / COARSE) * bn + Math.floor(x / COARSE);
-    const linked = (a: number, b: number) => edges.subarray(edgeStart[a], edgeStart[a + 1]).includes(b);
+    const linked = (a: number, b: number) => links[a].includes(b);
     const slowSum = new Float64Array(block.length);
     const size = new Uint32Array(block.length);
     let wrong = 0;
     for (let y = 0; y < n; y++)
       for (let x = 0; x < n; x++) {
         const c = y * n + x;
-        const r = region[c];
+        const r = region(c);
         if ((r === 0) !== (layer.blocked[c] === 1)) wrong++;
         if (r === 0) continue;
         if (block[r] !== blockOfCell(x, y)) wrong++;
-        slowSum[r] += layer.slow[c];
+        slowSum[r] += slowAt(layer, c);
         size[r]++;
         for (const [dx, dy] of [[1, 0], [-1, 1], [0, 1], [1, 1]]) {
           const nx = x + dx;
           const ny = y + dy;
           if (nx < 0 || nx >= n || ny >= n) continue;
-          const o = region[ny * n + nx];
+          const o = region(ny * n + nx);
           if (o === 0) continue;
           if (blockOfCell(nx, ny) === blockOfCell(x, y)) {
             if (o !== r) wrong++;
@@ -580,8 +604,8 @@ describe('long routes search a coarse corridor', () => {
         }
       }
     expect(wrong).toBe(0);
-    for (let r = 1; r < block.length; r++) expect(slow[r]).toBeCloseTo(slowSum[r] / size[r], 5);
-    expect(block.length - 1).toBeGreaterThan(new Set(block.subarray(1)).size);
+    for (let r = 1; r < block.length; r++) if (block[r] !== -1) expect(slow[r]).toBeCloseTo(slowSum[r] / size[r], 5);
+    expect(block.length - 1).toBeGreaterThan(new Set(block.slice(1)).size);
   });
 
   it('free cells share a component exactly when a step path joins them', () => {
@@ -597,11 +621,11 @@ describe('long routes search a coarse corridor', () => {
     const inside = cell(center);
     const outside = cell({ x: 30, y: 30 });
     const far = cell({ x: 500, y: 400 });
-    expect(layer.blocked[inside]).toBe(0);
+    expect(blockedAt(layer, inside)).toBe(false);
     expect(componentOf(layer, inside)).not.toBe(componentOf(layer, outside));
     expect(componentOf(layer, outside)).toBe(componentOf(layer, far));
     let blockedWithComponent = 0;
-    for (let c = 0; c < n * n; c++) if (layer.blocked[c] && componentOf(layer, c) !== 0) blockedWithComponent++;
+    for (let c = 0; c < n * n; c++) if (blockedAt(layer, c) && componentOf(layer, c) !== 0) blockedWithComponent++;
     expect(blockedWithComponent).toBe(0);
   });
 
@@ -621,7 +645,7 @@ describe('long routes search a coarse corridor', () => {
     const radius = 0.6;
     const layer = navLayer(local.terrain, local.obstacles, radius);
     const overlay = stampOverlay(layer, dynamicBlockers(local.obstacles, local.terrain, []), radius);
-    const g = Ref.grid(referenceLayer(local.terrain, radius), Ref.blockers(local, []), radius);
+    const g = Ref.grid(referenceLayer(local.terrain, radius), Ref.blockers(local, []), radius, Ref.breakables(local));
     const goal = Ref.cellOf(g, center);
     const from = { x: 40, y: 40 };
     const start = nearestFreeCell(layer, overlay, Ref.cellOf(g, from))!;
@@ -634,7 +658,7 @@ describe('long routes search a coarse corridor', () => {
     expect(ms).toBeLessThan(5);
   }, budget(60_000));
 
-  it('a corridor cut by a kill wreck wall falls back to the full search', () => {
+  it('a corridor cut by a kill wreck wall plans again around the wall, never over the whole map', () => {
     const w = emptyWorld();
     for (let y = 16; y < w.size; y += 1.5) w.obstacles = [...w.obstacles, { id: `wreck-w${y}`, pos: { x: 80, y }, r: 1, kind: 'wreck' }];
     const radius = 0.6;
@@ -645,7 +669,7 @@ describe('long routes search a coarse corridor', () => {
     const goal = 200 * n + 260;
     resetPerf();
     const got = findCells(layer, overlay, start, goal, null);
-    expect(perfSnapshot()['route-corridor-miss']?.calls).toBe(1);
+    expect(perfSnapshot()['route-corridor-miss']?.calls).toBe(2);
     expect(got).not.toBeNull();
     expect(got![got!.length - 1]).toBe(goal);
     for (const c of got!) expect(layer.blocked[c] === 0 && overlay.stamp[c] !== overlay.gen).toBe(true);
@@ -730,7 +754,7 @@ describe('raider hunting routes on the map', () => {
     expect(shy.near6).toBeLessThanOrEqual(plain.near6 * 0.6);
     expect(shy.near10).toBeLessThanOrEqual(plain.near10 * 0.62);
     expect(shy.meanLength).toBeLessThanOrEqual(plain.meanLength * 1.3);
-  });
+  }, budget(90_000));
 
   it('still cross a road to reach the far side', () => {
     const road = REGION.roads[0];

@@ -4,7 +4,8 @@ import { WORLD_SETTINGS } from '../data/modes';
 import type { LineId } from '../data/dialogue';
 import type { LocalId, NoteId, TermId } from '../data/locals';
 import { FEMALE_NAMES, FIRST_NAMES, SURNAMES, type TraitId } from '../data/npcs';
-import { BASIC_RANK, type BasicId, type PerkId } from '../data/skills';
+import { BASIC_RANK, type BasicId, PERK_NUMBERS, type PerkId } from '../data/skills';
+import { gameHours } from '../data/time';
 import type { DeedId, StandingCause, Octant, Faction, GameModeId, GoalReason, MoneyReason, Refusal, SimNote, SkillId, UnitId, Vehicle, World, WorldSetup, WorldSettings } from '../sim/types';
 import { namedTruck } from '../sim/sites';
 import { byId, list, t, type Msg } from './msg';
@@ -69,7 +70,8 @@ export const skillGrows = (id: SkillId): Msg => t(`skill.${id}.grows`);
 export const basicName = (id: BasicId): Msg => t(`basic.${id}`);
 export const basicRule = (id: BasicId): Msg => t(`basic.${id}.rule`);
 export const perkName = (id: PerkId): Msg => t(`perk.${id}`);
-export const perkRule = (id: PerkId): Msg => t(`perk.${id}.rule`);
+export const hoursSpan = (turns: number): Msg => t('span.hours', { n: gameHours(turns) });
+export const perkRule = (id: PerkId): Msg => (id === 'spotter' ? t('perk.spotter.rule', { span: hoursSpan(PERK_NUMBERS.spotter.turns) }) : t(`perk.${id}.rule`));
 export const goalText = (reason: GoalReason): Msg => t(`goal.${reason}`);
 export const lineKey = (id: LineId): `line.${LineId}` => `line.${id}`;
 export const unitCount = (unit: UnitId, n: number): Msg => t(`unit.${unit}`, { n });
@@ -122,14 +124,18 @@ export function fullName(driver: string): Msg {
 type NoteWords = { [K in SimNote['id']]: (note: Extract<SimNote, { id: K }>) => Msg };
 const NOTES: NoteWords = {
   engineHot: () => t('note.engineHot'),
-  engineOverheat: (n) => t('note.engineOverheat', { hp: n.hp }),
+  engineOverheat: () => t('note.engineOverheat'),
   overdriveCutOut: () => t('note.overdriveCutOut'),
   engineDoused: (n) => t('note.engineDoused', { supplies: n.supplies }),
-  outOfSupplies: (n) => t('note.outOfSupplies', { health: n.health }),
+  outOfSupplies: () => t('note.outOfSupplies'),
   noRoomFuel: (n) => t('note.noRoomFuel', { fuel: n.fuel }),
   noRoomSupplies: (n) => t('note.noRoomSupplies', { supplies: n.supplies }),
   tankLeak: (n) => t('note.tankLeak', { fuel: n.fuel }),
   filledSupplies: (n) => t('note.filledSupplies', { site: siteName(n.site) }),
+  fuelLow: () => t('note.fuelLow'),
+  stranded: () => t('note.stranded'),
+  setDown: () => t('note.setDown'),
+  stormEntered: () => t('note.stormEntered'),
   hazard: () => t('note.hazard'),
   core: () => t('note.core'),
   spawnBlocked: (n) => t('note.spawnBlocked', { template: templateName(n.template) }),

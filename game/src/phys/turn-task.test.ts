@@ -14,8 +14,7 @@ import {
   type Drive,
   type TurnResult,
 } from "./drive";
-import { computeTurn, isCleanTail, liveSightOf, physicsMove, SentObstacles, withTail } from "./turn";
-import { toMap, type VehicleFrame } from "./frames";
+import { computeTurn, isCleanTail, physicsMove, SentObstacles, sightAlong, withTail } from "./turn";
 import { PHYSICS } from "../data/physics";
 import { seenPropTiles, visibleTiles } from "../sim/vision";
 
@@ -29,7 +28,7 @@ it("restores frozen terrain after worker transfer so turn clones retain the rout
   const { terrain, ...state } = structuredClone(world);
   expect(Object.isFrozen(terrain)).toBe(false);
   try {
-    computeTurn({ world: state, drive: captureDrive(drive), questLanguage: 'en', tailSteps: TAIL }, terrain);
+    computeTurn({ world: state, drive: captureDrive(drive), questLanguage: 'en', tailSteps: TAIL, fastTravel: false }, terrain);
     expect(Object.isFrozen(terrain)).toBe(true);
     expect(Object.isFrozen(terrain.heights)).toBe(true);
     expect(Object.isFrozen(terrain.types)).toBe(true);
@@ -50,7 +49,7 @@ it("computes the same world and physics as a foreground turn without advancing t
   try {
     const { terrain, ...state } = world;
     const prepared = computeTurn(
-      { world: state, drive: captureDrive(drive), questLanguage: 'en', tailSteps: TAIL },
+      { world: state, drive: captureDrive(drive), questLanguage: 'en', tailSteps: TAIL, fastTravel: false },
       terrain,
     );
     const expected = endTurn(
@@ -63,7 +62,7 @@ it("computes the same world and physics as a foreground turn without advancing t
     expect(world).toEqual(original);
     restored = restoreDrive(prepared.result.next);
     const nextPrepared = computeTurn(
-      { world: prepared.world, drive: captureDrive(restored), questLanguage: 'en', tailSteps: TAIL },
+      { world: prepared.world, drive: captureDrive(restored), questLanguage: 'en', tailSteps: TAIL, fastTravel: false },
       terrain,
     );
     const nextExpected = endTurn(
@@ -83,7 +82,7 @@ it("continues a driving truck past the turn end in a clean tail, and the next tu
   const drive = buildDrive(world);
   const { terrain, ...state } = world;
   try {
-    const turn = computeTurn({ world: state, drive: captureDrive(drive), questLanguage: 'en', tailSteps: TAIL }, terrain);
+    const turn = computeTurn({ world: state, drive: captureDrive(drive), questLanguage: 'en', tailSteps: TAIL, fastTravel: false }, terrain);
     const id = turn.world.player.vehicleId;
     const tail = turn.tail!;
     expect(tail.frames[id]).toHaveLength(TAIL);
@@ -94,7 +93,7 @@ it("continues a driving truck past the turn end in a clean tail, and the next tu
     const after = withTail(turn.world, tail.poses);
     expect(after.vehicles.find((v) => v.id === id)!.pos).toEqual(tail.poses[id].pos);
     expect(after.events).toBe(turn.world.events);
-    const next = computeTurn({ world: after, drive: tail.next, questLanguage: 'en', tailSteps: TAIL }, terrain);
+    const next = computeTurn({ world: after, drive: tail.next, questLanguage: 'en', tailSteps: TAIL, fastTravel: false }, terrain);
     const first = next.result.frames[id][0];
     const step = last.pos.x - tail.frames[id].at(-2)!.pos.x;
     expect(first.pos.x - last.pos.x).toBeGreaterThan(0);
@@ -107,10 +106,10 @@ it("continues a driving truck past the turn end in a clean tail, and the next tu
 it("rejects a tail with a crash, a passed order point or a rope", () => {
   const world = emptyWorld();
   const id = playerVehicle(world).id;
-  const clean = { next: null, frames: {}, crashes: [], breaks: [], landings: [], tears: [], results: { [id]: { passed: false, arrived: true, pushedSteps: 0 } } } as unknown as TurnResult;
+  const clean = { next: null, frames: {}, crashes: [], breaks: [], landings: [], tears: [], results: { [id]: { passed: false, arrived: true, pushedSteps: 0, grounded: true } } } as unknown as TurnResult;
   expect(isCleanTail(world, clean)).toBe(true);
   expect(isCleanTail(world, { ...clean, crashes: [{ a: id, b: "ground", impact: 1, step: 2 }] } as unknown as TurnResult)).toBe(false);
-  expect(isCleanTail(world, { ...clean, results: { [id]: { passed: true, arrived: false, pushedSteps: 0 } } })).toBe(false);
+  expect(isCleanTail(world, { ...clean, results: { [id]: { passed: true, arrived: false, pushedSteps: 0, grounded: true } } })).toBe(false);
 });
 
 function fallingWorld() {
@@ -127,7 +126,7 @@ function openedIn(questLanguage: "en" | "ru") {
   const drive = buildDrive({ ...state, terrain });
   try {
     setQuestLanguage(questLanguage === "ru" ? "en" : "ru");
-    const prepared = computeTurn({ world: state, drive: captureDrive(drive), questLanguage, tailSteps: TAIL }, terrain);
+    const prepared = computeTurn({ world: state, drive: captureDrive(drive), questLanguage, tailSteps: TAIL, fastTravel: false }, terrain);
     return prepared.world.player.quests.live;
   } finally {
     freeDrive(drive);
@@ -148,7 +147,7 @@ it("refuses a task with an unknown quest language", () => {
   const { terrain, ...state } = fallingWorld();
   const drive = buildDrive({ ...state, terrain });
   try {
-    expect(() => computeTurn({ world: state, drive: captureDrive(drive), questLanguage: "de" as "en", tailSteps: TAIL }, terrain)).toThrow("Turn task has no quest language de");
+    expect(() => computeTurn({ world: state, drive: captureDrive(drive), questLanguage: "de" as "en", tailSteps: TAIL, fastTravel: false }, terrain)).toThrow("Turn task has no quest language de");
   } finally {
     freeDrive(drive);
   }
@@ -160,20 +159,18 @@ it("restores the quest language when the run throws", () => {
   expect(currentQuestLanguage()).toBe("en");
 });
 
-it("samples live sight along the player's frames every sight step, with the tiles vision gives there", () => {
+it("samples sight along the player's drive every sight step and at its end, with the tiles vision gives there", () => {
   const world = standardWorld(7);
   const me = playerVehicle(world);
-  const S = PHYSICS.metersPerTile;
-  const frames = Array.from({ length: 12 }, (_, i) => ({ pos: { x: (me.pos.x + i * 0.1) * S, y: 0, z: me.pos.y * S } }) as VehicleFrame);
-  const sight = liveSightOf(world, frames);
-  expect(sight.steps).toEqual([0, 4, 8]);
+  const points = Array.from({ length: 12 }, (_, i) => ({ x: me.pos.x + i * 0.1, y: me.pos.y }));
+  const sight = sightAlong(world, points);
+  expect(sight.steps).toEqual([0, 4, 8, 11]);
   sight.steps.forEach((step, k) => {
-    const at = toMap(frames[step].pos);
-    const visible = visibleTiles(world, at);
+    const visible = visibleTiles(world, points[step]);
     expect(sight.tiles[k]).toEqual([...visible].sort((a, b) => a - b));
-    expect(sight.props[k]).toEqual(seenPropTiles(world, at, visible));
+    expect(sight.props[k]).toEqual(seenPropTiles(world, points[step], visible));
   });
-  expect(liveSightOf(world, undefined)).toEqual({ steps: [], tiles: [], props: [] });
+  expect(sightAlong(world, [])).toEqual({ steps: [], tiles: [], props: [] });
 });
 
 it("sends the obstacles to a worker only when their content changed since the last send", () => {

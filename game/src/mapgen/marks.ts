@@ -101,7 +101,7 @@ function landBlocker(d: MapDraft, t: TerritoryDef, tile: number, c: Vec): string
 
 function builtBlocker(d: MapDraft, tile: number, c: Vec): string | null {
   const under = d.props.find((p) => dist(p.pos, c) < p.r);
-  if (under) return `runs under a ${under.kind} at ${at(under.pos)}`;
+  if (under) return `runs under a ${under.kind} at ${at(under.pos)} on ground marked ${d.built[tile]}`;
   return [BUILT_NONE, BUILT_SCRUB, BUILT_TRACK].includes(d.built[tile]) ? null : `runs over ground marked ${d.built[tile]}`;
 }
 

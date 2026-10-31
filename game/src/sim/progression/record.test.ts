@@ -103,23 +103,23 @@ describe('StallWatch', () => {
 
   it('throws once the truck stays within a tile for a whole day', () => {
     const watch = new StallWatch('seed 7 trader', 1, start);
-    for (let turn = 2; turn < 1 + TIME.turnsPerDay; turn++) watch.note(turn, { x: 10.5, y: 10 }, false);
+    for (let turn = 2; turn < 1 + TIME.workDayTurns; turn++) watch.note(turn, { x: 10.5, y: 10 }, false);
 
-    expect(() => watch.note(1 + TIME.turnsPerDay, { x: 10.5, y: 10 }, false)).toThrow(new RegExp(`seed 7 trader.*turn ${1 + TIME.turnsPerDay}.*10\\.5, 10`));
+    expect(() => watch.note(1 + TIME.workDayTurns, { x: 10.5, y: 10 }, false)).toThrow(new RegExp(`seed 7 trader.*turn ${1 + TIME.workDayTurns}.*10\\.5, 10`));
   });
 
   it('starts the day over when the truck moves a tile', () => {
     const watch = new StallWatch('seed 7 trader', 1, start);
     watch.note(100, { x: 11, y: 10 }, false);
 
-    expect(() => watch.note(1 + TIME.turnsPerDay, { x: 11, y: 10 }, false)).not.toThrow();
+    expect(() => watch.note(1 + TIME.workDayTurns, { x: 11, y: 10 }, false)).not.toThrow();
   });
 
   it('does not count turns parked on purpose', () => {
     const watch = new StallWatch('seed 7 trader', 1, start);
     watch.note(150, start, true);
 
-    expect(() => watch.note(1 + TIME.turnsPerDay, start, false)).not.toThrow();
+    expect(() => watch.note(1 + TIME.workDayTurns, start, false)).not.toThrow();
   });
 });
 

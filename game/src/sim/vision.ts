@@ -3,7 +3,7 @@ import { PHYSICS } from '../data/physics';
 import { TERRAIN } from '../data/terrain';
 import { TIME } from '../data/time';
 import type { Contact, Obstacle, Vehicle, World } from './types';
-import { heightAt, type Terrain } from './terrain';
+import { heightAt, heightNear, type Terrain } from './terrain';
 import { boxDistance, propReach, reachableBoxes, stretchCrossesBox } from './mapgen';
 import { isCheapMeeting, isHeadless } from './fidelity';
 import { propsAlong, propsAround } from './prop-index';
@@ -26,8 +26,20 @@ type Screen = { pos: Vec; r: number };
 export function sightRadius(world: World, viewer: Vehicle, lit = false): number {
   const night = nightFactor(world, viewer, lit);
   const weather = vehicleHasPerk(world, viewer, 'stormRider') ? 1 : weatherOn(world, viewer).sight;
+  return clearDaySight(world, viewer) * weather * night;
+}
+
+function clearDaySight(world: World, viewer: Vehicle): number {
   const skill = 1 + skillEffect(world, viewer, 'perception', 'sight');
-  return TERRAIN.vision.radius * weather * night * skill * sightFactor(viewer.chassisId);
+  return TERRAIN.vision.radius * skill * sightFactor(viewer.chassisId);
+}
+
+export function grayReach(world: World, viewer: Vehicle): number {
+  return clearDaySight(world, viewer) * TERRAIN.vision.grayFactor;
+}
+
+export function farSightRadius(world: World, viewer: Vehicle): number {
+  return sightRadius(world, viewer) * TERRAIN.vision.farFactor;
 }
 
 function nightFactor(world: World, viewer: Vehicle, lit: boolean): number {
@@ -40,26 +52,25 @@ export function grayRadius(world: World): number {
 
 export function visibleTiles(world: World, from: Vec): Set<number> {
   const out = new Set<number>();
-  forSeenTiles(world, from, () => true, (idx) => out.add(idx));
+  const disks = sightDisks(world, from);
+  const look = isHeadless() ? () => true : tileLook(world, from, Math.max(...disks.map((d) => d.reach)));
+  for (const disk of disks) forDiskTiles(world, from, disk, (idx, tile) => { if (look(tile)) out.add(idx); });
   return out;
 }
 
-export function exploreFrom(world: World, from: Vec): void {
-  const explored = world.player.explored;
-  forSeenTiles(world, from, (idx) => explored[idx] === 0, (idx) => { explored[idx] = 1; });
-}
+type Disk = { pos: Vec; r: number };
+type SightDisk = Disk & { reach: number };
 
-function forSeenTiles(world: World, from: Vec, test: (idx: number) => boolean, seen: (idx: number) => void): void {
-  for (const { reach, disk } of sightDisks(world, from)) forTilesIn(world, from, reach, disk, test, seen);
-}
-
-function sightDisks(world: World, from: Vec): { reach: number; disk: Disk }[] {
+function sightDisks(world: World, from: Vec): SightDisk[] {
   const me = playerVehicle(world);
   const r = sightRadius(world, me);
-  const out = [{ reach: r, disk: { pos: from, r } }];
   const lit = sightRadius(world, me, true);
-  if (lit > r) for (const f of litFlares(world)) if (dist(from, f.pos) - f.r < lit) out.push({ reach: lit, disk: f });
-  return out;
+  const flares = lit > r ? litFlares(world).filter((f) => dist(from, f.pos) - f.r < lit) : [];
+  return [{ pos: from, r, reach: r }, ...flares.map((f) => ({ pos: f.pos, r: f.r, reach: lit }))];
+}
+
+export function playerSeenPropTiles(world: World): number[] {
+  return seenPropTiles(world, playerVehicle(world).pos, new Set(world.player.visible));
 }
 
 export function seenPropTiles(world: World, from: Vec, visible: ReadonlySet<number>): number[] {
@@ -74,9 +85,9 @@ export function seenPropTiles(world: World, from: Vec, visible: ReadonlySet<numb
   return [...out].sort((a, b) => a - b);
 }
 
-function propIsSeen(world: World, from: Vec, o: Obstacle, tiles: readonly number[], disks: { reach: number; disk: Disk }[], visible: ReadonlySet<number>): boolean {
+function propIsSeen(world: World, from: Vec, o: Obstacle, tiles: readonly number[], disks: readonly SightDisk[], visible: ReadonlySet<number>): boolean {
   if (tiles.some((idx) => visible.has(idx))) return true;
-  if (!disks.some((d) => inDisks(o.pos, { pos: from, r: d.reach }, d.disk))) return false;
+  if (!disks.some((d) => dist(from, o.pos) <= d.reach && dist(d.pos, o.pos) <= d.r)) return false;
   if (isHeadless()) return true;
   return inPlainView(world, from, o.pos, propsNear(world, from, o.pos).filter((c) => c !== o), []);
 }
@@ -93,31 +104,104 @@ function footprintTiles(world: World, o: Obstacle): number[] {
   return out;
 }
 
-type Disk = { pos: Vec; r: number };
-
-function forTilesIn(world: World, from: Vec, reach: number, disk: Disk, test: (idx: number) => boolean, seen: (idx: number) => void): void {
+function forDiskTiles(world: World, from: Vec, disk: SightDisk, seen: (idx: number, tile: Vec) => void): void {
   const size = world.size;
-  const inView = plainViewFrom(world, from, reach);
   const lo = { x: Math.max(0, Math.floor(disk.pos.x - disk.r)), y: Math.max(0, Math.floor(disk.pos.y - disk.r)) };
   const hi = { x: Math.min(size - 1, Math.ceil(disk.pos.x + disk.r)), y: Math.min(size - 1, Math.ceil(disk.pos.y + disk.r)) };
   for (let x = lo.x; x <= hi.x; x++) {
     for (let y = lo.y; y <= hi.y; y++) {
-      const idx = y * size + x;
       const tile = { x: x + 0.5, y: y + 0.5 };
-      if (!test(idx) || !inDisks(tile, { pos: from, r: reach }, disk)) continue;
-      if (inView(tile)) seen(idx);
+      if (dist(from, tile) <= disk.reach && dist(disk.pos, tile) <= disk.r) seen(y * size + x, tile);
     }
   }
 }
 
-function inDisks(p: Vec, a: Disk, b: Disk): boolean {
-  return dist(a.pos, p) <= a.r && dist(b.pos, p) <= b.r;
+type Eye = { at: Vec; z: number };
+type Horizons = { rays: number; steps: number; slopes: Float64Array };
+type NearProp = { o: Obstacle; near: number };
+
+type Height = (x: number, y: number) => number;
+type Look = { terrain: Terrain; eye: Eye; height: Height; horizons: Horizons; props: readonly NearProp[][] };
+
+function tileLook(world: World, from: Vec, reach: number): (tile: Vec) => boolean {
+  const height = heightNear(world.terrain, from, reach);
+  const eye = { at: from, z: height(from.x, from.y) + TERRAIN.vision.eyeHeight };
+  const horizons = horizonRays(height, eye, reach);
+  const look = { terrain: world.terrain, eye, height, horizons, props: propBuckets(world, from, reach, horizons.rays) };
+  return (tile) => tileSeen(look, tile);
 }
 
-function plainViewFrom(world: World, from: Vec, r: number): (tile: Vec) => boolean {
-  if (isHeadless()) return () => true;
-  const props = propsAround(world, 'sight', from, r);
-  return (tile) => inPlainView(world, from, tile, props, []);
+function horizonRays(height: Height, eye: Eye, reach: number): Horizons {
+  const rays = Math.ceil(2 * Math.PI * reach * TERRAIN.vision.raysPerRimTile);
+  const steps = Math.ceil(reach * TERRAIN.vision.samplesPerTile);
+  const slopes = new Float64Array(rays * (steps + 1));
+  for (let k = 0; k < rays; k++) walkRay(height, eye, (2 * Math.PI * k) / rays, slopes.subarray(k * (steps + 1), (k + 1) * (steps + 1)));
+  return { rays, steps, slopes };
+}
+
+function walkRay(height: Height, eye: Eye, angle: number, slopes: Float64Array): void {
+  const dx = Math.cos(angle);
+  const dy = Math.sin(angle);
+  let top = -Infinity;
+  slopes[0] = top;
+  for (let j = 1; j < slopes.length; j++) {
+    const d = j / TERRAIN.vision.samplesPerTile;
+    top = Math.max(top, (height(eye.at.x + dx * d, eye.at.y + dy * d) - eye.z) / d);
+    slopes[j] = top;
+  }
+}
+
+function rayPosition(rays: number, from: Vec, p: Vec): number {
+  return (Math.atan2(p.y - from.y, p.x - from.x) * rays) / (2 * Math.PI);
+}
+
+function wrapRay(rays: number, k: number): number {
+  return ((k % rays) + rays) % rays;
+}
+
+function rayOf(rays: number, from: Vec, p: Vec): number {
+  return wrapRay(rays, Math.round(rayPosition(rays, from, p)));
+}
+
+function horizonSlope(horizons: Horizons, from: Vec, p: Vec, before: number): number {
+  const at = rayPosition(horizons.rays, from, p);
+  const low = Math.floor(at);
+  const share = at - low;
+  const row = horizons.steps + 1;
+  const a = horizons.slopes[wrapRay(horizons.rays, low) * row + before];
+  const b = horizons.slopes[wrapRay(horizons.rays, low + 1) * row + before];
+  return a * (1 - share) + b * share;
+}
+
+function propBuckets(world: World, from: Vec, reach: number, rays: number): NearProp[][] {
+  const buckets: NearProp[][] = Array.from({ length: rays }, () => []);
+  for (const o of propsAround(world, 'sight', from, reach)) for (const k of propRays(from, o, rays)) buckets[k].push({ o, near: dist(from, o.pos) - propReach(o) });
+  return buckets;
+}
+
+function propRays(from: Vec, o: Obstacle, rays: number): number[] {
+  const d = dist(from, o.pos);
+  const reach = propReach(o);
+  const all = Array.from({ length: rays }, (_, k) => k);
+  if (reach >= d) return all;
+  const half = ((Math.asin(reach / d) + Math.PI / rays) * rays) / (2 * Math.PI);
+  const mid = (Math.atan2(o.pos.y - from.y, o.pos.x - from.x) * rays) / (2 * Math.PI);
+  const lo = Math.floor(mid - half);
+  const hi = Math.ceil(mid + half);
+  if (hi - lo + 1 >= rays) return all;
+  return Array.from({ length: hi - lo + 1 }, (_, i) => (((lo + i) % rays) + rays) % rays);
+}
+
+function tileSeen(look: Look, tile: Vec): boolean {
+  const { eye, horizons } = look;
+  const d = dist(eye.at, tile);
+  if (d <= TERRAIN.vision.closeRadius) return true;
+  const to = look.height(tile.x, tile.y) + TERRAIN.vision.eyeHeight;
+  const k = rayOf(horizons.rays, eye.at, tile);
+  const before = Math.min(Math.ceil(d * TERRAIN.vision.samplesPerTile) - 1, horizons.steps);
+  if (horizonSlope(horizons, eye.at, tile, before) > (to - eye.z) / d) return false;
+  const line = { a: eye.at, b: tile, from: eye.z, to };
+  return look.props[k].every((p) => p.near >= d || !propHides(look.terrain, p.o, line));
 }
 
 export function canVehicleSee(world: World, observer: Vehicle, position: Vec): boolean {

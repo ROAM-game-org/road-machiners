@@ -43,6 +43,7 @@ import type { Contact, GoalReason, Job, NpcActivity, NpcBrain, NpcState, RefitJo
 import { canUseSite, GOAL_REACH, isTerritory, nearestPad, parkedOn, type Site } from './sites';
 import { territoryOfStock, tripGoal } from './territory';
 import { clamp, dist, leadsAwayBy, pointsAway, type Vec } from './vec';
+import { roadNetworkOf, roadPointAt } from './road-network';
 import { canVehicleSee } from './vision';
 import { chaseStalled, startChase } from './chase';
 import { isWatching, startWatch, watchOver } from './watch-posts';
@@ -221,7 +222,7 @@ export function exploreGoal(world: World, vehicle: Vehicle): NpcActivity {
   const radius = vehicleStats(world, vehicle).radius;
   const gates = beatGates(vehicle);
   for (let i = 0; i < SPAWN.tries; i++) {
-    const point = gates ? beatPoint(world, gates, radius) : { x: randRange(world, radius, world.size - radius), y: randRange(world, radius, world.size - radius) };
+    const point = gates ? beatPoint(world, gates, radius) : roadPointAt(roadNetworkOf(world), randRange(world, 0, 1));
     if (onBeat(vehicle, point) && isFree(world, point, radius, vehicle.id)) return createActivity('explore', null, point, 'explore');
   }
   return createActivity('wait', null, null, 'noExplorePoint');
@@ -726,11 +727,15 @@ function onStrandedSeen(world: World, vehicle: Vehicle): void {
 
 function onSalvageSeen(world: World, vehicle: Vehicle): void {
   const top = topGoal(vehicle);
-  if (inCombat(world, vehicle) || !top || top.phase !== 'travel' || INTERRUPTIONS.includes(top.kind) || getActivityDestination(world, vehicle, top) === null) return;
+  if (!top || !looksForSalvage(world, vehicle, top)) return;
   const stocks = visibleSalvage(world, vehicle);
   const passed = [...stocks, ...visibleDowned(world, vehicle)].filter((s) => s.id !== top.targetId).sort((a, b) => dist(vehicle.pos, a.pos) - dist(vehicle.pos, b.pos));
   const loot = passed.find((s) => react(world, vehicle, 'salvageSeen', s.id) === 'loot');
   if (loot) pushGoal(world, vehicle, createActivity('loot', loot.id, { ...loot.pos }, 'lootOnTheWay'));
+}
+
+function looksForSalvage(world: World, vehicle: Vehicle, top: NpcActivity): boolean {
+  return !isSunwardMember(vehicle) && !inCombat(world, vehicle) && top.phase === 'travel' && !INTERRUPTIONS.includes(top.kind) && getActivityDestination(world, vehicle, top) !== null;
 }
 
 function onEscortSeen(world: World, vehicle: Vehicle): void {

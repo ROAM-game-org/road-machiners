@@ -2,6 +2,7 @@ import { DIRECTIONS } from '../data/directions';
 import { atlasKeyString, atlasOf, atlasSites, type Atlas } from './atlas';
 import { ObstacleBuckets, type Blocker } from './nav/buckets';
 import { isTerritory, siteEdgeCrossings, siteGap, siteGates, type Site } from './sites';
+import type { Terrain } from './terrain';
 import type { World } from './types';
 import { dist, type Vec } from './vec';
 
@@ -21,10 +22,14 @@ const NETWORKS_KEPT = 4;
 const networks = new Map<string, RoadNetwork>();
 
 export function roadNetworkOf(world: World): RoadNetwork {
-  const name = atlasKeyString(world.terrain.atlas);
+  return roadNetworkOfTerrain(world.terrain, world.size);
+}
+
+export function roadNetworkOfTerrain(terrain: Terrain, size: number): RoadNetwork {
+  const name = atlasKeyString(terrain.atlas);
   let net = networks.get(name);
   if (!net) {
-    net = buildRoadNetwork(atlasOf(world.terrain), world.size);
+    net = buildRoadNetwork(atlasOf(terrain), size);
     networks.set(name, net);
     while (networks.size > NETWORKS_KEPT) networks.delete(networks.keys().next().value as string);
   }
@@ -211,6 +216,7 @@ function graphOf(nodes: RoadNode[], edges: RoadEdge[]): RoadGraph {
 
 function requireReachable(graph: RoadGraph, sites: readonly Site[]): void {
   for (const site of sites) {
+    if (isTerritory(site) && site.offRoad) continue;
     const found = graph.nodes.some((n) => (isTerritory(site) ? n.entry === site.id : n.site === site.id) && graph.incident[n.id].length > 0);
     if (!found) throw new Error(`Site ${site.id} has no road node`);
   }
@@ -240,6 +246,24 @@ export function nearestRoadPoints(net: RoadNetwork, pos: Vec, reach: number, cou
     if (!known || hit.gap < known.gap) best.set(edge.id, { edge: edge.id, along: alongOf(edge, slot.seg, hit.t), pos: hit.pos, gap: hit.gap });
   }
   return [...best.values()].sort((a, b) => a.gap - b.gap || a.edge - b.edge).slice(0, count).map(({ edge, along, pos: p }) => ({ edge, along, pos: p }));
+}
+
+export function edgesOnSiteRoads(graph: RoadGraph): Set<number> {
+  const seen = new Set<number>();
+  const nodes = graph.nodes.filter((n) => n.site !== null).map((n) => n.id);
+  const visited = new Set<number>(nodes);
+  while (nodes.length > 0) {
+    const at = nodes.pop() as number;
+    for (const id of graph.incident[at]) {
+      seen.add(id);
+      const next = otherEnd(graph.edges[id], at);
+      if (!visited.has(next)) {
+        visited.add(next);
+        nodes.push(next);
+      }
+    }
+  }
+  return seen;
 }
 
 export function exitsAt(graph: RoadGraph, node: number): RoadExit[] {
@@ -354,5 +378,14 @@ export function splitAt(net: RoadGraph, points: readonly RoadPoint[]): { graph: 
 
 export function isJunction(graph: RoadGraph, node: number): boolean {
   return graph.incident[node].length >= 3;
+}
+
+export function roadPointAt(graph: RoadGraph, share: number): Vec {
+  let left = share * graph.edges.reduce((sum, e) => sum + e.length, 0);
+  for (const edge of graph.edges) {
+    if (left <= edge.length) return { ...pointAlong(edge, left) };
+    left -= edge.length;
+  }
+  return { ...graph.edges[graph.edges.length - 1].points.at(-1)! };
 }
 

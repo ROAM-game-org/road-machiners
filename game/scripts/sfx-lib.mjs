@@ -2,7 +2,7 @@ import { execFile, execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, renameSync, unlinkSync, mkdirSync, writeFileSync } from 'node:fs';
 import { promisify } from 'node:util';
-import { alignedLoopEnd, describeFaults, isFreeSfxLoop, loopFaults } from '../src/audio/loop-check.ts';
+import { alignedLoopEnd, describeFaults, isFreeLoop, isFreeSfxLoop, loopFaults, seamFaults } from '../src/audio/loop-check.ts';
 import { BANK, beatLoopSeconds, LOOP_CHECK, MIX, SOUNDS } from '../src/data/sounds.ts';
 
 export const SFX_DIR = 'public/sfx';
@@ -55,7 +55,9 @@ export function importFile(source, id, cue, level) {
   const { loudness, peak } = measure(src, shaped);
   const gain = Math.min(level - loudness, PEAK_DB + MAX_LIMIT_DB - peak);
   const limiter = `alimiter=limit=${dbToLinear(PEAK_DB)}:attack=1:release=50:level=false:latency=true`;
-  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', src, '-af', `${shaped},volume=${gain.toFixed(2)}dB,${limiter}`, '-ar', '48000', '-c:a', 'libopus', '-b:a', `${OPUS_KBPS}k`, '-map_metadata', '-1', '-metadata', `comment=${source}`, out]);
+  const filters = `${shaped},volume=${gain.toFixed(2)}dB,${limiter}`;
+  const graph = isFreeLoop(cue) ? ['-filter_complex', wrapped(src, filters)] : ['-af', filters];
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', src, ...graph, '-ar', '48000', '-c:a', 'libopus', '-b:a', `${OPUS_KBPS}k`, '-map_metadata', '-1', '-metadata', `comment=${source}`, out]);
   const short = level - loudness - gain > 0.05 ? `, ${(level - loudness - gain).toFixed(1)} dB under target` : '';
   console.log(`${source} -> ${out}  ${loudness.toFixed(1)} LUFS, gain ${gain.toFixed(1)} dB${short}`);
   return name;
@@ -89,14 +91,27 @@ function playable(source, name, cue) {
 
 function encodeLoop(looped, out, gain, tag) {
   const limiter = `alimiter=limit=${dbToLinear(PEAK_DB)}:attack=1:release=50:level=false:latency=true`;
-  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', looped, '-af', `volume=${gain.toFixed(2)}dB,${limiter}`, '-ar', '48000', '-c:a', 'libopus', '-b:a', `${OPUS_KBPS}k`, '-map_metadata', '-1', ...(tag ? ['-metadata', `comment=${tag}`] : []), out]);
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', looped, '-filter_complex', wrapped(looped, `volume=${gain.toFixed(2)}dB,${limiter}`), '-ar', '48000', '-c:a', 'libopus', '-b:a', `${OPUS_KBPS}k`, '-map_metadata', '-1', ...(tag ? ['-metadata', `comment=${tag}`] : []), out]);
 }
 
-export function reloopShipped(file) {
+function wrapped(loop, filters) {
+  const n = execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', loop, '-ac', '1', '-f', 's16le', '-'], { maxBuffer: 1 << 30 }).length / 2;
+  return `[0]asplit[a][b];[a][b]concat=n=2:v=0:a=1,${filters},atrim=start_sample=${n}:end_sample=${2 * n},asetpts=N/SR/TB`;
+}
+
+function wholeLoop(src, out) {
+  crossfadeLoop(src, { start: 0, end: durationOf(src), seconds: MUSIC_XFADE_S, curve: 'tri' }, out);
+  const faults = seamFaults(pcmOf(out), SAMPLE_RATE);
+  if (faults.length) throw new Error(`${out} does not join its ends:\n${describeFaults(src, faults)}`);
+  return out;
+}
+
+export function reloopShipped(file, cue) {
   const path = `${SFX_DIR}/${file}`;
   const tag = execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'stream_tags=comment', '-of', 'default=nw=1:nk=1', path], { encoding: 'utf8' }).trim();
   mkdirSync('tmp/sfx-raw', { recursive: true });
-  const looped = steadyLoop(path, `tmp/sfx-raw/${file.replace('.ogg', '')}.reloop.wav`);
+  const out = `tmp/sfx-raw/${file.replace('.ogg', '')}.reloop.wav`;
+  const looped = isFreeSfxLoop(cue) ? steadyLoop(path, out) : wholeLoop(path, out);
   const want = integratedLoudness(path);
   const trial = `${path}.new.ogg`;
   const first = want - integratedLoudness(looped);

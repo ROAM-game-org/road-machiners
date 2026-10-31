@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import CLAIM_CLUES_FILE from '../data/claim-clues.json';
 import { CONTRACTS, SHOPS } from '../data/market';
 import { START_KITS } from '../data/start';
 import { TEST_MAP } from '../test/map';
@@ -14,7 +15,7 @@ const world = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming')
 for (const shop of Object.values(world.shops)) shop.contracts = shop.contracts.filter((c) => c.kind !== 'claim');
 const wrecks = claimWrecks(world);
 const places = cluePlaces(world);
-const REPORTED = 'hullCache-2599';
+const inSmallShell = (w: ClaimWreck): boolean => places.some((p) => p.piece === 'smallShell' && relationTo(p, w.pos) === 'in');
 
 function contractFor(wreck: ClaimWreck, shop: string): ClaimContract {
   return { id: `ct-${wreck.id}`, shop, kind: 'claim', stockId: wreck.id, at: { ...wreck.pos }, partId: 'p', defId: 'mg', reward: 1, deadline: 1, window: 1, tier: 1, rivalAt: 1, rival: null, leads: [] };
@@ -54,12 +55,13 @@ describe('the baked claim clues', () => {
 });
 
 describe('the reported claim', () => {
-  const wreck = wrecks.find((w) => w.id === REPORTED)!;
+  const wreck = wrecks.find(inSmallShell)!;
 
   it('names the small arch shell from Nose and leaves one candidate', () => {
+    expect(wrecks.filter(inSmallShell)).toEqual([wreck]);
     const clue = claimClue(contractFor(wreck, 'nose'));
     expect(clue.where).toMatchObject({ tier: 'piece', piece: 'smallShell', relation: 'in' });
-    expect(claimCandidates(world, contractFor(wreck, 'nose'))).toEqual([REPORTED]);
+    expect(claimCandidates(world, contractFor(wreck, 'nose'))).toEqual([wreck.id]);
   });
 
   it('is not fair by the shop words alone, which fit more of the Fallen Sun', () => {
@@ -92,10 +94,18 @@ describe('the fit', () => {
   });
 
   it('shows an old held claim with no fair tier its most specific words and keeps its wreck among the candidates', () => {
-    const unfair = wrecks.flatMap((w) => Object.keys(SHOPS).filter((shop) => bakedTier(w.id, shop) === null).map((shop) => ({ w, shop })))[0];
-    const c = contractFor(unfair.w, unfair.shop);
-    expect(claimClue(c).where).not.toBeNull();
-    expect(claimCandidates(world, c)).toContain(unfair.w.id);
+    const held = wrecks.find((w) => CLAIM_CLUES_FILE.wrecks[w.id as keyof typeof CLAIM_CLUES_FILE.wrecks].offset !== null)!;
+    const entry = CLAIM_CLUES_FILE.wrecks[held.id as keyof typeof CLAIM_CLUES_FILE.wrecks] as { offset: unknown; tiers: Record<string, string> };
+    const fairTierOfNose = entry.tiers.nose;
+    delete entry.tiers.nose;
+    try {
+      expect(bakedTier(held.id, 'nose')).toBeNull();
+      const c = contractFor(held, 'nose');
+      expect(claimClue(c).where).toEqual(entry.offset);
+      expect(claimCandidates(world, c)).toContain(held.id);
+    } finally {
+      entry.tiers.nose = fairTierOfNose;
+    }
   });
 
   it('shows the shop words for a claim whose wreck is not in the bake', () => {

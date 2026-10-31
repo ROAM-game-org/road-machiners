@@ -479,7 +479,7 @@ describe('repairContent', () => {
     repairContent(w);
     expect(w.player.xpBySource).not.toHaveProperty('ghostSource');
     expect(w.player.repeats).toEqual(Object.fromEntries(Object.entries(kept).filter(([key]) => !key.startsWith('ghostSource'))));
-    w.turn += TIME.turnsPerDay;
+    w.turn += TIME.workDayTurns;
     expect(() => practice(w, 'contract', 10, null, 'bowl')).not.toThrow();
   });
 

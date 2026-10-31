@@ -5,7 +5,7 @@ import { START_KITS } from '../data/start';
 import { atlasOf } from './atlas';
 import { makePart } from './factory';
 import { addStockPart, shopAt, shopState } from './market';
-import { AMBUSH_RAIDER, GAME_OPENED_QUESTS, HATTIE_MET, TOWED_TO_BOWL, type IntroStep } from '../data/quests';
+import { AMBUSH_RAIDER, HATTIE_MET, TOWED_TO_BOWL, type IntroStep } from '../data/quests';
 import { NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { playerVehicle } from './damage';
@@ -16,7 +16,7 @@ import { fightCornered } from './npc-activities';
 import { addState } from './states';
 import { generateNpcLoadout } from './npc-loadout';
 import { getKnownSite } from './npc-decisions';
-import { introStep, openQuest, freeToTalk, openWellScene, QUESTS, setIntroStep, setWorldVar, worldVar } from './quests';
+import { introStep, freeToTalk, openWellScene, setIntroStep, setWorldVar, worldVar } from './quests';
 import { engineNeedsPatch } from './repair';
 import { drivable } from './path';
 import { nearestPad, siteUnder } from './sites';
@@ -42,7 +42,6 @@ function settleAfterPatch(w: World, step: IntroStep): void {
 
 function endAmbush(w: World): void {
   setIntroStep(w, 'done');
-  openQuest(w, QUESTS, GAME_OPENED_QUESTS.introRoad, 'start');
 }
 
 function keepHunting(w: World): void {

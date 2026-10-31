@@ -103,6 +103,8 @@ export class SimRun {
   private playing = false;
   private over = false;
   private gapMs = 0;
+  private timer: ReturnType<typeof setTimeout> | null = null;
+  private lastTurnStart = 0;
   private world: World;
   private readonly ledger: Ledger;
   private readonly history: Sample[];
@@ -124,14 +126,14 @@ export class SimRun {
   }
 
   handle(message: ToSim): void {
-    if (message.kind === 'speed') this.gapMs = message.gapMs;
+    if (message.kind === 'speed') this.setGap(message.gapMs);
     else if (message.kind === 'watch') this.watch(message.id);
     else this.command(message.kind);
   }
 
   private command(kind: ToSim['kind']): void {
     if (kind === 'play') this.play();
-    else if (kind === 'pause') this.playing = false;
+    else if (kind === 'pause') this.pause();
     else if (kind === 'step') this.stepOnce();
     else if (kind === 'economy') this.postEconomy();
     else throw new Error(`The sim run does not handle ${kind}`);
@@ -143,11 +145,32 @@ export class SimRun {
     this.tick();
   }
 
+  private pause(): void {
+    this.playing = false;
+    this.cancelTimer();
+  }
+
+  private setGap(gapMs: number): void {
+    this.gapMs = gapMs;
+    if (this.playing && this.timer !== null) this.schedule();
+  }
+
+  private cancelTimer(): void {
+    if (this.timer !== null) clearTimeout(this.timer);
+    this.timer = null;
+  }
+
+  private schedule(): void {
+    this.cancelTimer();
+    this.timer = setTimeout(() => this.tick(), Math.max(0, this.gapMs - (performance.now() - this.lastTurnStart)));
+  }
+
   private tick(): void {
+    this.timer = null;
     if (!this.playing) return;
-    const began = performance.now();
+    this.lastTurnStart = performance.now();
     this.stepOnce();
-    setTimeout(() => this.tick(), Math.max(0, this.gapMs - (performance.now() - began)));
+    if (this.playing) this.schedule();
   }
 
   private watch(id: string | null): void {

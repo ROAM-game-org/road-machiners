@@ -6,11 +6,10 @@ import { ROAD_INDEX } from '../sim/road-index';
 import type { BakedProp } from '../sim/terrain';
 import { siteGap } from '../sim/sites';
 import { territoryRoads } from '../sim/territory';
-import { padReach } from '../test/sites';
+import { onSiteOrPad } from '../test/sites';
 import { dist, polylineDist, segmentDist, type Vec } from '../sim/vec';
-import { baseLayer, finishLayer, newDraft, tileSteepness, type MapDraft } from './bake';
-import { dunes, rain, slump, wind } from './geology';
-import { BUILT_FIELD, BUILT_NONE, BUILT_OLD_ROAD, oldWorldLayer, roadJunctions } from './oldworld';
+import { newDraft, tileSteepness, type MapDraft } from './bake';
+import { BUILT_FIELD, BUILT_NONE, BUILT_OLD_ROAD, BUILT_TRACK, oldWorldLayer, prop, roadJunctions } from './oldworld';
 import {
   BUILT_DIRTY_WATER,
   BUILT_SCRUB,
@@ -21,9 +20,10 @@ import {
   newWorldLayer,
   pools,
   scrubGrowth,
+  settleFence,
   type Camp,
 } from './newworld';
-import { budget } from '../test/budget';
+import { TEST_MAP } from '../test/map';
 import { ICARUS_DECKS } from '../sim/bridge';
 
 const SIZE = REGION.size;
@@ -33,6 +33,7 @@ const SITES = [...REGION.towns, ...REGION.locations];
 const WASH = GEOLOGY.ground.washFlow;
 const FENCE = NEW_WORLD.fenceLength;
 const SEED = 1337;
+const WINDOW = 700;
 
 function expectOffBuilt(p: BakedProp): void {
   const bridge = deckById('canyon-bridge');
@@ -43,7 +44,7 @@ function expectOffBuilt(p: BakedProp): void {
 
 function onBuilt(c: Vec): boolean {
   if (ROAD_INDEX.nearestWithin(c.x, c.y, HALF) < HALF || deckAt(ICARUS_DECKS, c.x, c.y) !== null) return true;
-  return SITES.some((site) => siteGap(site, c) <= padReach(site));
+  return SITES.some((site) => onSiteOrPad(site, c));
 }
 
 function setCorners(d: MapDraft, what: 'heights' | 'flow' | 'sand', value: (i: number, j: number) => number): void {
@@ -188,14 +189,20 @@ describe('scrub growth', () => {
 
   it('grows around an oasis, off its site and pads', () => {
     const d = newDraft(SIZE);
+    const oases = REGION.locations.filter((l) => l.kind === 'oasis');
+    const reachOf = (oasis: (typeof oases)[number]) => oasis.radius + O.siteClearance + rules.oasisReach + rules.steps + 1;
+    d.built.fill(BUILT_OLD_ROAD);
+    for (const oasis of oases) {
+      const margin = reachOf(oasis) + 10;
+      for (let y = Math.max(0, Math.floor(oasis.pos.y - margin)); y < Math.min(SIZE, Math.ceil(oasis.pos.y + margin)); y++) {
+        d.built.fill(BUILT_NONE, y * SIZE + Math.max(0, Math.floor(oasis.pos.x - margin)), y * SIZE + Math.min(SIZE, Math.ceil(oasis.pos.x + margin)));
+      }
+    }
 
     scrubGrowth(SEED, d, rules);
 
     const scrub = tilesMarked(d, BUILT_SCRUB);
-    for (const oasis of REGION.locations.filter((l) => l.kind === 'oasis')) {
-      const reach = oasis.radius + O.siteClearance + rules.oasisReach + rules.steps + 1;
-      expect(scrub.filter((t) => dist(t, oasis.pos) <= reach).length).toBeGreaterThan(20);
-    }
+    for (const oasis of oases) expect(scrub.filter((t) => dist(t, oasis.pos) <= reachOf(oasis)).length).toBeGreaterThan(20);
     expect(scrub.filter(onBuilt)).toEqual([]);
   });
 });
@@ -384,7 +391,17 @@ describe('territory spurs', () => {
 
   it('keep car wrecks off every territory spur, even in a wash bed under one', () => {
     const d = newDraft(SIZE);
-    setCorners(d, 'flow', (i, j) => (nearSpur({ x: i, y: j }, 6) ? WASH * 2 : 0));
+    const w = SIZE + 1;
+    for (const spur of spurs) {
+      const margin = spur.width / 2 + 6 + 1;
+      const xs = spur.points.map((p) => p.x);
+      const ys = spur.points.map((p) => p.y);
+      for (let j = Math.max(0, Math.floor(Math.min(...ys) - margin)); j <= Math.min(SIZE, Math.ceil(Math.max(...ys) + margin)); j++) {
+        for (let i = Math.max(0, Math.floor(Math.min(...xs) - margin)); i <= Math.min(SIZE, Math.ceil(Math.max(...xs) + margin)); i++) {
+          if (nearSpur({ x: i, y: j }, 6)) d.flow[j * w + i] = WASH * 2;
+        }
+      }
+    }
 
     carWrecks(SEED, d, [], { ...NEW_WORLD.carWrecks, roadChance: 0, oldRoadChance: 0, campChance: 0, washChance: 1 });
 
@@ -392,25 +409,38 @@ describe('territory spurs', () => {
     expect(besideSpurs.length).toBeGreaterThan(20);
     for (const p of besideSpurs) expect(nearSpur(p.pos, p.r + O.gap), `${p.kind} at ${p.pos.x},${p.pos.y}`).toBe(false);
   });
+
+  it('keep a fence off every tile a spur reserved as track', () => {
+    const d = newDraft(SIZE);
+    const at = { x: 700.5, y: 700.5 };
+    const fence = prop('fence', at, 1, 0, 1, 0);
+    expect(settleFence(d, fence, 0)).toBe(true);
+    d.props.length = 0;
+    d.built[700 * SIZE + 700] = BUILT_TRACK;
+    expect(settleFence(d, fence, 0)).toBe(false);
+    expect(d.props).toEqual([]);
+  });
 });
 
 describe('new-world layer on a baked draft', () => {
   let d: MapDraft;
   beforeAll(() => {
-    const base = baseLayer(SEED, SIZE);
-    rain(base, { ...GEOLOGY.rain, steps: GEOLOGY.rain.steps / 4, rainPerStep: GEOLOGY.rain.rainPerStep * 4 });
-    slump(base, GEOLOGY.slump);
-    wind(base, GEOLOGY.wind, { rngState: SEED });
-    dunes(base, GEOLOGY.dunes, GEOLOGY.wind.direction, SEED);
-    d = oldWorldLayer(SEED, finishLayer(SEED, base));
-  }, budget(120_000));
+    const base = newDraft(WINDOW);
+    const full = TEST_MAP.terrain;
+    const w = WINDOW + 1;
+    for (let j = 0; j < w; j++) for (let i = 0; i < w; i++) base.heights[j * w + i] = full.heights[j * (full.size + 1) + i];
+    d = oldWorldLayer(SEED, base);
+  });
 
   function clone(from: MapDraft): MapDraft {
     return { ...from, heights: from.heights.slice(), types: from.types.slice(), props: from.props.map((p) => ({ ...p, pos: { ...p.pos } })), sand: from.sand.slice(), flow: from.flow.slice(), slumped: from.slumped.slice(), built: from.built.slice() };
   }
 
-  let layered: MapDraft | undefined;
-  const layer = (): MapDraft => (layered ??= newWorldLayer(SEED, clone(d)));
+  let laid: MapDraft | null = null;
+  function layer(): MapDraft {
+    laid ??= newWorldLayer(SEED, clone(d));
+    return laid;
+  }
 
   it('places every kind off roads, sites and the deck, apart from each other and off cliffs', () => {
     const before = d.props.length;

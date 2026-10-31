@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PERK_NUMBERS, XP_SOURCES } from '../data/skills';
 import { CONTRACTS, SHOPS } from '../data/market';
 import { buyPrice, sellPrice } from './economy';
-import { goodBasePrice, goodValue, standingPressures, vehicleValue, type Contract } from './market';
+import { goodBasePrice, goodValue, siteOf, standingPressures, vehicleValue, type Contract } from './market';
 import { makePart } from './factory';
 import { PERSONALITIES, type PersonalityId } from '../data/personalities';
 import { BUSY_LINE, TRAIT_TALK, END, handoffQuest, HONK_RANGE, HUB, REFUSED, TOLL, TOPICS, type LineId, type Topic, type TopicId } from '../data/dialogue';
@@ -190,8 +190,9 @@ describe('directions', () => {
   it('names the known town nearest the player and marks it discovered', () => {
     const { w, npc } = withNpc('trader', 'independent');
     w.player.discovered = [];
-    playerVehicle(w).pos = { x: 100, y: 450 };
-    npc.pos = { x: 106, y: 450 };
+    const gate = siteOf('nose').pos;
+    playerVehicle(w).pos = { x: gate.x - 100, y: gate.y };
+    npc.pos = { x: gate.x - 94, y: gate.y };
     refreshVision(w);
     const me = playerVehicle(w).pos;
     const nearest = REGION.towns.filter((t) => ['bowl', 'nose'].includes(t.id)).sort((a, b) => dist(me, a.pos) - dist(me, b.pos))[0];

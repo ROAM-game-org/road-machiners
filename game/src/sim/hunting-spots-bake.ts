@@ -14,32 +14,42 @@ import { isTerritory, nearestPad, siteGap, type Site } from './sites';
 import { territoryEntries, territoryOfStock, territorySpots } from './territory';
 import type { SalvageStock, World } from './types';
 import { dist, type Vec } from './vec';
-import { isHideSpot } from './watch-posts';
+import { isHideSpot, seesGround } from './watch-posts';
 
 export type HuntingSpotsBake = { spots: Vec[]; samples: Vec[] };
 
-type Trip = { from: Vec; to: Vec; share: number; target: SalvageStock | null };
-type Family = { label: string; drivers: number; trips: Trip[] };
-type Leg = { trip: Trip; path: Vec[]; length: number; stops: SalvageStock[] };
+export type Trip = { from: Vec; to: Vec; share: number; target: SalvageStock | null };
+export type Family = { label: string; drivers: number; trips: Trip[] };
+export type Leg = { trip: Trip; path: Vec[]; length: number; stops: SalvageStock[] };
 
 const SEARCH_CUT = 1;
 
 export function makeHuntingSpots(world: World, traffic: Float64Array): HuntingSpotsBake {
-  return { spots: pickSpots(world, traffic), samples: trafficSamples(world.size, traffic) };
+  const samples = trafficSamples(world.size, traffic);
+  return { spots: pickSpots(world, traffic, samples), samples };
 }
 
 export function preyTraffic(world: World, log: (line: string) => void): Float64Array {
-  const speed = preyCruise();
+  const families = preyFamilies(world);
+  return trafficOf(world.size, families, families.map((family) => traceTrips(world, family.trips)), log);
+}
+
+export function traceTrips(world: World, trips: Trip[]): Leg[] {
   const radius = preyRadius();
   const fixed = fixedStocks(world);
-  const traffic = new Float64Array(world.size * world.size);
-  for (const family of preyFamilies(world)) {
-    const legs = family.trips.map((trip) => traceLeg(world, trip, radius, fixed));
+  return trips.map((trip) => traceLeg(world, trip, radius, fixed));
+}
+
+export function trafficOf(size: number, families: Family[], legsOf: Leg[][], log: (line: string) => void): Float64Array {
+  const speed = preyCruise();
+  const traffic = new Float64Array(size * size);
+  families.forEach((family, i) => {
+    const legs = legsOf[i];
     const meanTurns = legs.reduce((sum, leg) => sum + leg.trip.share * legTurns(leg, speed), 0);
-    for (const leg of legs) addLeg(traffic, world.size, leg, (family.drivers * leg.trip.share) / meanTurns, speed);
+    for (const leg of legs) addLeg(traffic, size, leg, (family.drivers * leg.trip.share) / meanTurns, speed);
     log(`${family.label}: ${family.drivers} drivers, ${legs.length} trips, mean round trip ${Math.round(meanTurns)} turns`);
-  }
-  log(`Each trip of a kind is equally likely. Prey cruise ${speed.toFixed(2)} tiles a turn, route radius ${radius}.`);
+  });
+  log(`Each trip of a kind is equally likely. Prey cruise ${speed.toFixed(2)} tiles a turn, route radius ${preyRadius()}.`);
   return traffic;
 }
 
@@ -71,7 +81,7 @@ function preyRadius(): number {
   return chassisDef(common).radius;
 }
 
-function preyFamilies(world: World): Family[] {
+export function preyFamilies(world: World): Family[] {
   const shops = Object.keys(SHOPS).map(getKnownSite);
   return [
     { label: 'traders', drivers: driversOf('trader') + driversOf('supplier'), trips: pairTrips(shops) },
@@ -175,12 +185,16 @@ function keepsSiteGap(p: Vec): boolean {
 
 type Scored = { p: Vec; score: number };
 
-function pickSpots(world: World, traffic: Float64Array): Vec[] {
-  const usable = scoreCandidates(world.size, traffic).filter(({ p }) => keepsSiteGap(p) && isHideSpot(world, p));
+function pickSpots(world: World, traffic: Float64Array, samples: readonly Vec[]): Vec[] {
+  const usable = scoreCandidates(world.size, traffic).filter(({ p }) => keepsSiteGap(p) && isHideSpot(world, p) && seesTraffic(world, p, samples));
   const spacing = 2 * TERRAIN.vision.radius;
   const spots: Vec[] = [];
   for (const candidate of usable) if (isPeak(candidate, usable, spacing) && spots.every((s) => dist(s, candidate.p) >= spacing)) spots.push(candidate.p);
   return spots;
+}
+
+function seesTraffic(world: World, p: Vec, samples: readonly Vec[]): boolean {
+  return samples.some((s) => dist(s, p) <= TERRAIN.vision.radius && seesGround(world, p, s));
 }
 
 function isPeak(candidate: Scored, all: Scored[], spacing: number): boolean {

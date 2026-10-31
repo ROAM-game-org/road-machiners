@@ -8,12 +8,12 @@ function shiftOf(pos: Vec, from: Vec): Vec {
   return { x: pos.x - from.x, y: pos.y - from.y };
 }
 
-function territorySites(): StampSite[] {
+function coreSites(): StampSite[] {
   return REGION.locations.flatMap((t) => {
-    if (t.kind !== 'territory') return [];
-    if (!t.groundFrom || !t.outline) throw new Error(`Territory ${t.id} has no place its ground was made at`);
+    if (t.kind !== 'territory' || !t.reliefFrom || !t.outline) return [];
     const outline = t.outline.map((p) => ({ x: t.pos.x + p.x, y: t.pos.y + p.y }));
-    return [{ id: t.id, pos: t.pos, reach: t.radius, shift: shiftOf(t.pos, t.groundFrom), edge: (p: Vec) => (pointInPolygon(p, outline) ? 0 : polygonEdgeDist(p, outline)) }];
+    const reach = Math.max(...t.outline.map((p) => Math.hypot(p.x, p.y)));
+    return [{ id: t.id, pos: t.pos, reach, shift: shiftOf(t.pos, t.reliefFrom), edge: (p: Vec) => (pointInPolygon(p, outline) ? 0 : polygonEdgeDist(p, outline)) }];
   });
 }
 
@@ -22,9 +22,10 @@ function bridgeSite(): StampSite {
   return { id, pos, reach: radius, shift: shiftOf(pos, from), edge: (p) => Math.max(0, dist(p, pos) - radius) };
 }
 
-export const STAMP_SITES: readonly StampSite[] = [...territorySites(), bridgeSite()];
+export const STAMP_SITES: readonly StampSite[] = [bridgeSite()];
+export const RELIEF_SITES: readonly StampSite[] = [...coreSites(), ...STAMP_SITES];
 
-for (const site of STAMP_SITES) if (!Number.isInteger(site.shift.x) || !Number.isInteger(site.shift.y)) throw new Error(`${site.id} stands off the tile grid of its ground`);
+for (const site of RELIEF_SITES) if (!Number.isInteger(site.shift.x) || !Number.isInteger(site.shift.y)) throw new Error(`${site.id} stands off the tile grid of its ground`);
 
 function smooth(t: number): number {
   return t * t * (3 - 2 * t);
@@ -38,7 +39,7 @@ export function stampShare(site: StampSite, p: Vec): number {
 
 export function strongestStamp(p: Vec): { site: StampSite; share: number } | null {
   let best: { site: StampSite; share: number } | null = null;
-  for (const site of STAMP_SITES) {
+  for (const site of RELIEF_SITES) {
     const share = stampShare(site, p);
     if (share > (best?.share ?? 0)) best = { site, share };
   }

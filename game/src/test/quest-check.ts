@@ -135,7 +135,7 @@ function veteran(fresh: World): World {
 
 function withSearch(base: World): World {
   const w = cloneWorld(base);
-  const search: SearchContract = { id: 'check-search', shop: 'bowl', kind: 'search', target: STAND_IN, driver: 'Mack Holt', template: 'trader', lead: { at: { ...FAR }, turn: 0 }, reward: 0, deadline: w.turn + TIME.turnsPerDay, window: TIME.turnsPerDay, tier: 1, delivered: false };
+  const search: SearchContract = { id: 'check-search', shop: 'bowl', kind: 'search', target: STAND_IN, driver: 'Mack Holt', template: 'trader', lead: { at: { ...FAR }, turn: 0 }, reward: 0, deadline: w.turn + TIME.workDayTurns, window: TIME.workDayTurns, tier: 1, delivered: false };
   w.player.contracts = [...w.player.contracts, search];
   return w;
 }
@@ -159,7 +159,7 @@ function starveParkedShop(w: World): void {
   const state = w.shops[shopId];
   for (const good of Object.keys(state.goods)) state.goods[good] = 0;
   const breakdown = SITE_EVENTS.find((e) => e.site === shopId && e.kind === 'breakdown');
-  if (breakdown) state.event = { kind: 'breakdown', recipe: breakdown.recipe, until: w.turn + TIME.turnsPerDay };
+  if (breakdown) state.event = { kind: 'breakdown', recipe: breakdown.recipe, until: w.turn + TIME.workDayTurns };
 }
 
 function hookProblems(bundle: QuestBundle): string[] {

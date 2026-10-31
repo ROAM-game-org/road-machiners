@@ -1,14 +1,14 @@
 import { START_KITS } from '../data/start';
 import { describe, expect, it } from 'vitest';
-import { REGION } from '../data/region';
+import { MAP_SPREAD, REGION } from '../data/region';
 import { TERRAIN_TYPES } from '../data/terrain';
 import { FALLEN_SUN_DECKS } from '../data/territory';
 import { deckById } from './bridge';
 import { boxSegmentDistance, propBoxes } from './mapgen';
 import { berthsOf, chooseOn } from './tracks';
 import { berthTaste, offRoadTaste, tasteKey, tasteOf, terrainNav, tileIndex } from './nav/layer';
-import { continueRoute, keepRoute, reachesFrom, route, routeLength, straightClear, type Blocker } from './path';
-import { tileAt } from './terrain';
+import { continueRoute, followRoute, keepRoute, reachesFrom, route, routeLength, straightClear, type Blocker } from './path';
+import { isCliff, tileAt } from './terrain';
 import type { NpcActivity, Vehicle, World } from './types';
 import type { TraitId } from '../data/npcs';
 import { siteGates } from './sites';
@@ -122,13 +122,18 @@ describe("route", () => {
   });
 
 
-  it('player routes on the real map stay direct', () => {
+  it('player routes on the real map stay direct where no cliff lies across the straight line', () => {
     const w = w1337;
     const size = w.terrain.size;
     let seed = 1337;
     const next = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
     const clamp = (v: number) => Math.min(size - 20, Math.max(20, v));
+    const crossesCliff = (a: Vec, b: Vec): boolean => {
+      const steps = Math.ceil(dist(a, b) * 2);
+      return Array.from({ length: steps + 1 }, (_, k) => ({ x: a.x + ((b.x - a.x) * k) / steps, y: a.y + ((b.y - a.y) * k) / steps })).some((p) => isCliff(w.terrain, tileAt(w.terrain, p)));
+    };
     let waypoints = 0;
+    let clear = 0;
     let length = 0;
     let straight = 0;
     for (let k = 0; k < 150; k++) {
@@ -143,10 +148,13 @@ describe("route", () => {
         continue;
       }
       waypoints += pts.length;
+      if (crossesCliff(from, to)) continue;
+      clear++;
       length += routeLength(from, pts);
       straight += dist(from, to);
     }
     expect(waypoints).toBeLessThanOrEqual(2000);
+    expect(clear).toBeGreaterThanOrEqual(50);
     expect(length).toBeLessThanOrEqual(1.28 * straight);
   });
 });
@@ -209,15 +217,15 @@ describe('driver taste', () => {
     return found;
   };
   const from = siteGates(site('nose'))[0];
-  const to = siteGates(site('dustwell'))[0];
+  const to = siteGates(site('pump-station'))[0];
   const w = w1337;
   const me = w.vehicles.find((v) => v.id === w.player.vehicleId)!;
   const trader = (id: string): Vehicle => ({ ...me, id, faction: 'independent', brain });
   const apart = (p: Vec[], q: Vec[]) => Math.max(...p.map((x) => polylineDist(x, q)), ...q.map((x) => polylineDist(x, p)));
 
-  it('sends drivers between the same towns along different ways', () => {
+  it('sends drivers between the same places along different ways', () => {
     const routes = Array.from({ length: 10 }, (_, i) => [from, ...route(w, from, to, 0.8, [], trader(`v${100 + i}`))]);
-    const ways = routes.filter((r, i) => routes.slice(0, i).every((q) => apart(r, q) > 10));
+    const ways = routes.filter((r, i) => routes.slice(0, i).every((q) => apart(r, q) > 10 * MAP_SPREAD));
     expect(ways.length).toBeGreaterThanOrEqual(2);
   });
 
@@ -227,7 +235,7 @@ describe('driver taste', () => {
   });
 
   it('plans the plain route for the player', () => {
-    expect(route(w, from, to, 0.8, [], me)).toEqual(route(w, from, to, 0.8, []));
+    expect(route(w, from, to, 0.8, [], me)).toEqual(route(w, from, to, 0.8, [], { ...me, id: 'another' }));
   });
 });
 
@@ -293,7 +301,7 @@ describe('kept routes', () => {
   it('continues from a later position, dropping the corners driven past', () => {
     const { w, from, to, points } = bent();
     expect(points.length).toBeGreaterThan(2);
-    const kept = keepRoute(w, to, points, []);
+    const kept = keepRoute(w, to, points, [], undefined, false);
     const again = continueRoute(w, from, kept, to, 0.6, [])!;
     expect(again[0]).toEqual(points[0]);
     for (const p of again) expect(points).toContainEqual(p);
@@ -308,21 +316,43 @@ describe('kept routes', () => {
     const w = emptyWorld();
     const points = Array.from({ length: 40 }, (_, i) => ({ x: 32 + i * 4, y: i % 2 === 0 ? 30 : 32 }));
     const from = { x: 30, y: 30 };
-    const again = continueRoute(w, from, keepRoute(w, points.at(-1)!, points, []), points.at(-1)!, 0.6, [])!;
+    const again = continueRoute(w, from, keepRoute(w, points.at(-1)!, points, [], undefined, false), points.at(-1)!, 0.6, [])!;
     const far = points.filter((p) => routeLength(from, points.slice(0, points.indexOf(p) + 1)) > REGION.navigation.lookahead + 8);
     expect(far.length).toBeGreaterThan(10);
     expect(again.slice(-far.length)).toEqual(far);
     expect(again.length).toBeLessThan(points.length);
   });
 
+  it('follows a window of a longer trip to its own end, and plans the next window within the lookahead of that end', () => {
+    const w = emptyWorld();
+    const window = [{ x: 30 + REGION.navigation.lookahead * 2, y: 30 }];
+    const dest = { x: 30 + REGION.navigation.lookahead * 5, y: 30 };
+    const kept = keepRoute(w, dest, window, [], undefined, true);
+    expect(continueRoute(w, { x: 30, y: 30 }, kept, dest, 0.6, [])!.at(-1)).toEqual(window[0]);
+    expect(continueRoute(w, { x: window[0].x - REGION.navigation.lookahead / 2, y: 30 }, kept, dest, 0.6, [])).toBeNull();
+  });
+
+  it('keeps the end of a window when a new blocker forces a fresh route within it', () => {
+    const w = emptyWorld();
+    const driver = w.vehicles[0];
+    const dest = { x: 30 + REGION.navigation.farWindow * 3, y: 30 };
+    const first = followRoute(w, driver, dest, 0.6, [], null);
+    expect(first.partial).toBe(true);
+    driver.pos = { x: 40, y: 30 };
+    const rock: Blocker = { pos: { x: 60, y: 30 }, r: 1.5 };
+    const again = followRoute(w, driver, dest, 0.6, [rock], first);
+    expect(again.points.at(-1)).toEqual(first.points.at(-1));
+    expect(again.points.every((p, i) => segmentDist(rock.pos, i === 0 ? driver.pos : again.points[i - 1], p) > rock.r)).toBe(true);
+  });
+
   it('ends on a destination that moved, and drops the route for a vehicle parked on a later leg', () => {
     const { w, from, to, points } = bent();
-    const kept = keepRoute(w, to, points, []);
+    const kept = keepRoute(w, to, points, [], undefined, false);
     const near = { x: to.x, y: to.y + 0.3 };
     expect(continueRoute(w, from, kept, near, 0.6, [])!.at(-1)).toEqual(near);
     const onLeg = { x: (points[1].x + points[2].x) / 2, y: (points[1].y + points[2].y) / 2 };
     expect(continueRoute(w, from, kept, to, 0.6, [{ pos: onLeg, r: 0.8 }])).toBeNull();
-    expect(continueRoute(w, from, keepRoute(w, to, points, [{ pos: onLeg, r: 0.8 }]), to, 0.6, [{ pos: onLeg, r: 0.8 }])).not.toBeNull();
+    expect(continueRoute(w, from, keepRoute(w, to, points, [{ pos: onLeg, r: 0.8 }], undefined, false), to, 0.6, [{ pos: onLeg, r: 0.8 }])).not.toBeNull();
   });
 });
 

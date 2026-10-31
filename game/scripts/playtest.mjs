@@ -79,11 +79,13 @@ const findDeadCorners = () => {
   };
   const panels = [...document.querySelectorAll('#ui .panel')].filter((p) => isShown(p, p.getBoundingClientRect()));
   const single = panels.map((p) => [p, [...p.querySelectorAll('button, summary, a[href], input, select')].filter((c) => c.checkVisibility())]).filter(([p, c]) => isOneControl(p, c));
-  return { failures: single.flatMap(([p, c]) => cornerFailures(p, c[0])), found: single.length };
+  const turn = document.querySelector('#ui .turn-control .end-turn');
+  const turnFailures = turn ? cornerFailures(turn, turn) : ['no turn button'];
+  return { failures: [...single.flatMap(([p, c]) => cornerFailures(p, c[0])), ...turnFailures], found: single.length };
 };
 const hit = await page.evaluate(findDeadCorners);
 hitProblems.push(...hit.failures);
-if (hit.found < 3) hitProblems.push(`found ${hit.found} one-control panels, expected at least 3`);
+if (hit.found < 2) hitProblems.push(`found ${hit.found} one-control panels, expected at least 2`);
 const menuBox = await page.locator('#ui .game-menu').boundingBox();
 await page.mouse.click(menuBox.x + 2, menuBox.y + 2);
 if (!(await page.locator('.game-menu [role=menu]').isVisible())) hitProblems.push('menu did not open from a click in its corner');
@@ -198,6 +200,12 @@ const fps = await page.evaluate(() => new Promise((done) => {
   requestAnimationFrame(f);
 }));
 const state = await page.evaluate(() => ({ turn: window.__ROAM__.state.turn, crashed: document.querySelector('.crash-screen') !== null }));
+const allCellsMs = await page.evaluate(() => {
+  const start = performance.now();
+  window.__ROAM__.buildAllCells();
+  return performance.now() - start;
+});
+console.log(`built every map cell in ${(allCellsMs / 1000).toFixed(1)} s`);
 const blank = await page.evaluate(() => {
   const c = document.querySelector('#game canvas');
   return !c || c.width === 0;

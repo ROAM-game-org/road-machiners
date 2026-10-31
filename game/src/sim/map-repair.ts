@@ -153,7 +153,7 @@ const PLAYER_MOVE = {
   xp: 'keep',
   ranks: 'keep',
   xpToday: 'keep',
-  xpDay: 'keep',
+  xpWindow: 'keep',
   repeats: 'keep',
   xpBySource: 'keep',
   perks: 'keep',
@@ -422,6 +422,7 @@ export function fitBake(world: World, map: BakedMap): void {
   const dropped = new Set(world.salvage.filter((s) => oldSpotOf(s) && sameProp(s, s.pos, picks.get(s.id)) === null).map((s) => s.id));
   world.salvage = world.salvage.filter((s) => !dropped.has(s.id));
   purgeDropped(world, dropped, map);
+  snapSunwardHomes(world);
 }
 
 type Fate = Map<string, Obstacle | null>;

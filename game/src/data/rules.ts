@@ -1,5 +1,6 @@
 import type { Tier } from './market';
 import type { LandmarkLook } from '../sim/types';
+import { MAP_SPREAD } from './region';
 
 export const RULES = {
   substeps: 26,
@@ -7,7 +8,7 @@ export const RULES = {
   setSpeedStep: 20 / 14.4,
   lowFuelThreshold: 0.2,
   lowFuelSpeedFactor: 0.5,
-  fuelUseFactor: 0.045,
+  fuelUseFactor: 0.045 / MAP_SPREAD,
   npcStuckTurns: 2,
   npcRecoveryTurns: 2,
   unstick: { turns: 20, reach: 6, driveTurns: 3 },
@@ -70,7 +71,7 @@ export const RULES = {
   wreckRadiusScale: 1,
   maxKillWrecks: 12,
 
-  suppliesPerTurn: 0.009,
+  suppliesPerTurn: 0.009 / MAP_SPREAD,
   baseSupplies: 20,
   suppliesLow: 4,
   starveDamage: 5,

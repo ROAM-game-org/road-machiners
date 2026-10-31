@@ -1,11 +1,13 @@
 import { CONTRACTS, EFFORT, type Threat } from '../data/market';
 import { ECONOMY } from '../data/goods';
 import { RULES } from '../data/rules';
-import { REGION } from '../data/region';
+import { DRAFT, REGION } from '../data/region';
 import type { OldPlaceType } from '../data/salvage';
 import SURVEY_SITES_FILE from '../data/survey-sites.json';
 import { atlasOf, type AtlasKey } from './atlas';
+import { DIRECTIONS } from '../data/directions';
 import { directionsFromSite } from './directions';
+import { edgesOnSiteRoads, nearestRoadPoints, roadNetworkOfTerrain } from './road-network';
 import { estimateTurns, haulWindow, siteOf, type Contract } from './market';
 import { playerVehicle } from './damage';
 import { startJob } from './jobs';
@@ -28,7 +30,7 @@ export type SurveyLay = 'rise' | 'hollow' | 'flat';
 export type SurveyClueSource = { landmark: string; tiles: number };
 export type SurveySite = { id: string; type: OldPlaceType; pos: Vec; props: SurveyProp[]; lay: SurveyLay; clues: SurveyClueSource[] };
 
-const SURVEY_SITES = SURVEY_SITES_FILE as { mapHash: string; sites: SurveySite[] };
+const SURVEY_SITES = (DRAFT?.surveySites ?? SURVEY_SITES_FILE) as { mapHash: string; sites: SurveySite[] };
 const COMPASS_SECTORS = 8;
 
 export function surveySites(map: { hash: string; terrain: { atlas: AtlasKey } }): SurveySite[] {
@@ -96,11 +98,17 @@ export function makeSurveySites(map: BakedMap): SurveySite[] {
   const baked = mapObstacles(map);
   const layer = navLayer(map.terrain, baked, MAX_RADIUS);
   const places = oldPlaces(baked);
+  const net = roadNetworkOfTerrain(map.terrain, map.terrain.size);
+  const siteRoads = edgesOnSiteRoads(net);
+  const told = (p: Vec) => {
+    const near = nearestRoadPoints(net, p, DIRECTIONS.leaveReach, DIRECTIONS.joinCandidates);
+    return near.length > 0 && near.every((r) => siteRoads.has(r.edge));
+  };
   const remote = (p: Vec) => dist(p, nearestRoadPoint(p)) >= CONTRACTS.survey.roadGap && landmarks().every((s) => siteGap(s, p) >= CONTRACTS.survey.siteGap);
   return places.flatMap((place) => {
     if (!remote(place.centroid)) return [];
     const order = [...place.props].sort((a, b) => propHash(map, a) - propHash(map, b));
-    const spot = order.find((o) => remote(o.pos) && offRoad(o) && reachable(layer, o, REGION.navigation.reachClimb));
+    const spot = order.find((o) => remote(o.pos) && told(o.pos) && offRoad(o) && reachable(layer, o, REGION.navigation.reachClimb));
     if (!spot) return [];
     const clues = fairClues({ type: place.type, pos: spot.pos }, places);
     if (clues.length === 0) return [];

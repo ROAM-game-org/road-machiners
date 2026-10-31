@@ -1,6 +1,9 @@
 import type { Topic, TraitTalk } from './dialogue';
+import { DRAFT } from './region';
+import { TERRAIN } from './terrain';
 
 const CAVALCADE_CARS = 8;
+const HOLLOW_POS = DRAFT?.hollow?.pos ?? { x: 1352, y: 1580 };
 
 export const SUNWARD = {
   cavalcade: CAVALCADE_CARS,
@@ -16,9 +19,11 @@ export const SUNWARD = {
   huntCooldownNights: 1,
   huntReach: 70,
   huntBreaks: 2,
+  huntRoadStep: 6,
+  huntGroundGap: 2 * TERRAIN.vision.radius,
   huntSalt: 0x68756e74,
-  rideLeadTurns: 150,
-  driveTurns: 189,
+  rideLeadTurns: 360,
+  driveTurns: 399,
   returnMarginTurns: 19,
   avoidMargin: 12,
   avoidCost: 6,
@@ -43,9 +48,8 @@ export const SUNWARD = {
 export type HollowPiece = { look: 'shack' | 'hullChunk' | 'drums' | 'woodpile'; at: { x: number; y: number }; r: number; yaw: number };
 export type HollowSpot = { x: number; y: number };
 
-const HOLLOW_POS = { x: 304, y: 520 };
 const HOLLOW_RADIUS = 5;
-const GATE_BEARING = -0.97;
+const GATE_BEARING = DRAFT?.hollow?.gateBearing ?? -1.98;
 const GATE_BETWEEN_TOWERS = 20;
 
 export function hollowTurn(gateBearing: number): number {

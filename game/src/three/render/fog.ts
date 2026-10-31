@@ -28,30 +28,41 @@ export class FogView {
   private shown: readonly number[] = [];
   private readonly lookOf: Look[] = [{ grey: 0, bright: 1 }, TERRAIN.fog.seen, TERRAIN.fog.unseen];
 
-  constructor(world: World, ground: TerrainChunk[], private readonly limit: SightLimit, props: readonly number[]) {
+  private explored: World['player']['explored'];
+  private readonly size: number;
+
+  constructor(world: World, ground: THREE.MeshLambertMaterial, private readonly limit: SightLimit, props: readonly number[]) {
     const n = world.size;
+    this.size = n;
     this.perSide = Math.ceil(n / TERRAIN_CHUNK);
     this.state = new Uint8Array(n * n).fill(UNSET);
     this.visible = new Uint8Array(n * n);
     this.dirty = new Uint8Array(this.perSide * this.perSide);
-    const materials = new Set<THREE.MeshLambertMaterial>();
-    for (const g of ground) {
-      const look = new THREE.BufferAttribute(new Float32Array((g.width + 1) * (g.depth + 1) * 2), 2);
-      g.mesh.geometry.setAttribute('fogLook', look);
-      materials.add(g.mesh.material as THREE.MeshLambertMaterial);
-      this.chunks[(g.y / TERRAIN_CHUNK) * this.perSide + g.x / TERRAIN_CHUNK] = { x: g.x, y: g.y, width: g.width, depth: g.depth, look };
-    }
-    for (const mat of materials) greyOut(mat);
+    greyOut(ground);
     this.show(world.player.visible, props);
-    for (let t = 0; t < n * n; t++) this.restate(t, n, world.player.explored);
+    this.explored = world.player.explored;
     this.known = world.player.explored.slice();
-    this.writeDirty(n);
+  }
+
+  attach(g: TerrainChunk): void {
+    const n = this.size;
+    const k = (g.y / TERRAIN_CHUNK) * this.perSide + g.x / TERRAIN_CHUNK;
+    if (this.chunks[k]) throw new Error(`Fog already holds the ground chunk at ${g.x},${g.y}`);
+    const look = new THREE.BufferAttribute(new Float32Array((g.width + 1) * (g.depth + 1) * 2), 2);
+    g.mesh.geometry.setAttribute('fogLook', look);
+    const chunk = { x: g.x, y: g.y, width: g.width, depth: g.depth, look };
+    this.chunks[k] = chunk;
+    for (let y = Math.max(0, g.y - 1); y < Math.min(n, g.y + g.depth + 1); y++)
+      for (let x = Math.max(0, g.x - 1); x < Math.min(n, g.x + g.width + 1); x++) this.restate(y * n + x, n, this.explored);
+    this.writeChunk(chunk, n);
+    this.dirty[k] = 0;
   }
 
   update(world: World, props: readonly number[]): void {
     const n = world.size;
     const before = this.shown;
     const explored = world.player.explored;
+    this.explored = explored;
     this.show(world.player.visible, props);
     for (const t of before) this.restate(t, n, explored);
     for (const t of this.shown) this.restate(t, n, explored);
@@ -71,6 +82,7 @@ export class FogView {
   updateSight(world: World, props: readonly number[]): void {
     const n = world.size;
     const before = this.shown;
+    this.explored = world.player.explored;
     this.show(world.player.visible, props);
     for (const t of before) this.restate(t, n, world.player.explored);
     for (const t of this.shown) this.restate(t, n, world.player.explored);
@@ -104,7 +116,8 @@ export class FogView {
     for (let k = 0; k < this.chunks.length; k++) {
       if (!this.dirty[k]) continue;
       this.dirty[k] = 0;
-      this.writeChunk(this.chunks[k], n);
+      const chunk = this.chunks[k];
+      if (chunk) this.writeChunk(chunk, n);
     }
   }
 

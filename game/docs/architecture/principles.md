@@ -79,3 +79,18 @@ A change to content a save holds keeps that progress, or resets the least of it.
 Why: players keep their saves across updates. A rescue rebuilds the world from a new game, so one bad quest variable used to cost the player their NPCs, shops, contracts and place on the map.
 
 Plan check: name each saved fact the change invalidates, and whether a migration step keeps it, a raised quest revision resets it, or the rescue carries it.
+
+## 10. Work that grows with the map picks a home
+
+Work whose cost grows with map area picks one of four homes, by who reads it and when its input changes.
+
+- Bake it offline when the baked map fixes its input and the result is small.
+- Build it per 32-tile cell on first use when readers ask about one place. The 3D views stream this way through `src/three/render/streamer.ts`.
+- Keep a small whole-map summary when readers ask about the whole map, like connected areas or the road to a town.
+- Touch only the changed cells when game state changes in a few places each turn, like explored tiles.
+
+Work that grows with the count of trucks or shops is not area work and falls under principle 3.
+
+Why: the 7.5 km map made boot build every prop, scatter cell and route grid for the whole map, though the player sees a small disc. Boot took 20 s.
+
+Plan check: for each new piece of work that grows with map area, name its home. For a whole-map summary, give its size in the download or in memory.

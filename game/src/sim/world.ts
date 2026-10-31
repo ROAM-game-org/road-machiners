@@ -72,6 +72,7 @@ import { activateUtilities, advanceLines, advanceUtilityEffects, settleShutdowns
 import { caltropHits } from './hazards';
 import { advanceJobs, startAutoRepair } from './jobs';
 import { advanceEngineHeat } from './engine-heat';
+import { noteTrouble, troubleOf } from './trouble';
 import { nearestPad } from './sites';
 import { openingObstacles, setUpOpening } from './opening';
 import { startPose } from './start-pose';
@@ -113,7 +114,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       xp: 0,
       ranks: { driving: kit.ranks, perception: kit.ranks, machining: kit.ranks, toughness: kit.ranks, social: kit.ranks },
       xpToday: { driving: 0, perception: 0, machining: 0, toughness: 0, social: 0 },
-      xpDay: 1,
+      xpWindow: 0,
       repeats: {},
       xpBySource: {
         roughTiles: 0, ram: 0, escape: 0,
@@ -291,6 +292,12 @@ export function playerCanAct(world: World): boolean {
   return actBlock(world) === null;
 }
 
+export function waypointOf(world: World): Exclude<MoveOrder, { kind: 'brake' }> | null {
+  const me = playerVehicle(world);
+  if (me.direct || !playerCanAct(world) || !me.order || me.order.kind === 'brake') return null;
+  return me.order;
+}
+
 export function requireActivePlayer(world: World): void {
   if (world.player.state !== 'active') throw new Error(`Player is ${world.player.state}`);
   if (isTowed(world)) throw new Error('Player is towed');
@@ -366,6 +373,7 @@ export function endTurn(
   if (world.player.state === 'dead') throw new Error('The player is dead; no more turns run');
   if (world.player.call) throw new Error('A radio call is open; no turn runs until it ends');
   return timed('turn', () => update(world, (w) => {
+    const troubleBefore = troubleOf(w);
     w.turn++;
     advanceWeather(w);
     settleMeetings(w);
@@ -440,6 +448,7 @@ export function endTurn(
     advanceProduction(w);
     practiceContacts(w, refreshVision(w));
     noteEscape(w);
+    noteTrouble(w, troubleBefore);
     noteHurt(w);
     settleShutdowns(w);
     settleClaymores(w);

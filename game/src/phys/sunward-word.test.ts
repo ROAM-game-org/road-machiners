@@ -17,7 +17,7 @@ beforeAll(async () => {
   await initPhysics();
 });
 
-const REPORT_SPOT = { x: 436, y: 352 };
+const REPORT_SPOT = { x: lightZone().pos.x + 0.6, y: lightZone().pos.y + 26.3 };
 const TURNS = 40;
 
 function nightWorld(at: Vec): { w: World; me: Vehicle } {
@@ -66,8 +66,9 @@ describe('the word given at the Fallen Sun, driven with physics', () => {
   });
 
   it('breaks within six turns from a standstill once the truck drives back toward the rim', () => {
-    const { w, me } = nightWorld({ x: lightZone().pos.x, y: lightZone().pos.y + 40 });
-    me.order = { kind: 'stopAt', dest: { x: lightZone().pos.x, y: lightZone().pos.y + 140 } };
+    const { at, away } = clearSpotOut();
+    const { w, me } = nightWorld(at);
+    me.order = { kind: 'stopAt', dest: away };
 
     const run = drive(w, 6, () => false);
 
@@ -80,6 +81,20 @@ describe('the word given at the Fallen Sun, driven with physics', () => {
     expect(checkOffering(w, s)).toBeNull();
   });
 });
+
+const CLEAR_RADIUS = 5;
+
+function clearSpotOut(): { at: Vec; away: Vec } {
+  const light = lightZone().pos;
+  const probe = standardWorld(5);
+  for (let step = 0; step < 16; step++) {
+    const angle = (step * Math.PI) / 8;
+    const at = { x: light.x + Math.cos(angle) * 40, y: light.y + Math.sin(angle) * 40 };
+    const blocked = probe.obstacles.some((o) => dist2(o.pos, at) < CLEAR_RADIUS + o.r);
+    if (!blocked) return { at, away: { x: light.x + Math.cos(angle) * 140, y: light.y + Math.sin(angle) * 140 } };
+  }
+  throw new Error('no clear ground 40 tiles from the light');
+}
 
 function dist2(a: Vec, b: Vec): number {
   return Math.hypot(a.x - b.x, a.y - b.y);

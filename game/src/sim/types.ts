@@ -154,7 +154,7 @@ export type Contact = {
   vehicleId: string;
   center: Vec;
   radius: number;
-  sources: ("sound" | "dust" | "radio" | "beacon" | "mark" | "flare")[];
+  sources: ("sound" | "dust" | "radio" | "beacon" | "mark" | "flare" | "far")[];
   loudness: number | null;
 };
 
@@ -204,7 +204,7 @@ export type GoalReason =
   | 'waitTow' | 'waitTowAnswer' | 'warnedOff' | 'answeredCall'
   | 'avoidRanFrom' | 'breakOffFight' | 'cannotWearDown' | 'holdFull' | 'leftPost' | 'lootWontFit' | 'ranFromIt' | 'salvageOutOfReach'
   | 'takeSpilledCargo' | 'watchedRoad' | 'cornered' | 'defeated'
-  | 'awaitEscort' | 'escortHired' | 'fightOverLoot' | 'looterWontLeave' | 'warningUnanswered' | 'defendPromisedLoot' | 'keepLoot' | 'searchOldHulks' | 'searchOldBoats' | 'searchOldRuin' | 'springOnPrey'
+  | 'awaitEscort' | 'escortHired' | 'fightOverLoot' | 'looterWontLeave' | 'warningUnanswered' | 'defendPromisedLoot' | 'keepLoot' | 'searchOldHulks' | 'searchOldBoats' | 'searchOldWreckage' | 'searchOldRuin' | 'springOnPrey'
   | 'musterCrew' | 'crewLeader' | 'hiredGuard'
   | 'restHollow' | 'rideVigil' | 'keepVigil' | 'rideHome' | 'huntRoad' | 'dragToLight' | 'leaveCrater' | 'orderFell' | 'meetStranger'
   | 'sizingUp' | 'poorLoad' | 'sizedUpBy'
@@ -221,6 +221,10 @@ export type SimNote =
   | { id: 'noRoomSupplies'; supplies: number }
   | { id: 'tankLeak'; fuel: number }
   | { id: 'filledSupplies'; site: string }
+  | { id: 'fuelLow' }
+  | { id: 'stranded' }
+  | { id: 'setDown' }
+  | { id: 'stormEntered' }
   | { id: 'hazard' }
   | { id: 'core' }
   | { id: 'spawnBlocked'; template: string };
@@ -350,7 +354,7 @@ export type NpcBrain = {
     fightTurn?: 1 | -1;
     targetSeen?: { id: string; turn: number; pos: Vec; heading: number; speed: number };
     whim?: { kind: 'keep' | 'rush' | 'halt' | 'veer'; until: number; angle: number };
-    farRoute?: { dest: Vec; points: Vec[]; style: RouteStyle; night?: true };
+    farRoute?: { dest: Vec; points: Vec[]; style: RouteStyle; night?: true; partial?: true };
     musteredAt?: number;
     memories: Memory[];
 };
@@ -511,7 +515,7 @@ export type Player = {
   xp: number;
   ranks: Record<SkillId, number>;
   xpToday: Record<SkillId, number>;
-  xpDay: number;
+  xpWindow: number;
   repeats: Record<string, Repeat>;
   xpBySource: Record<XpSource, number>;
   perks: PerkId[];

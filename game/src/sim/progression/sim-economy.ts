@@ -41,11 +41,11 @@ export class StockFlows {
     const last = this.buckets[this.buckets.length - 1];
     if (last && last.turn === turn) last.moves.push({ shop, good, cause, delta });
     else this.buckets.push({ turn, moves: [{ shop, good, cause, delta }] });
-    while (turn - this.buckets[0].turn >= TIME.turnsPerDay) this.buckets.shift();
+    while (turn - this.buckets[0].turn >= TIME.workDayTurns) this.buckets.shift();
   }
 
   hours(turn: number): number {
-    return Math.min(TIME.turnsPerDay, turn - this.startTurn) / TURNS_PER_HOUR;
+    return Math.min(TIME.workDayTurns, turn - this.startTurn) / TURNS_PER_HOUR;
   }
 
   totals(shop: string): { good: string; cause: StockCause; units: number }[] {

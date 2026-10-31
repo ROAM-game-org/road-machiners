@@ -39,7 +39,7 @@ export type ActivityOptions = { seed: number; archetype: Archetype; turns: numbe
 
 const round = (n: number): number => Math.round(n * 10) / 10;
 
-export const PLAYTHROUGH_OPTIONS: BotOptions = { markovTurns: TIME.turnsPerDay };
+export const PLAYTHROUGH_OPTIONS: BotOptions = { markovTurns: TIME.workDayTurns };
 
 export function playthroughWorld(map: BakedMap, seed: number, archetype: Archetype): World {
   return archetypeWorldOn(map, seed, archetype, PLAYTHROUGH_OPTIONS);

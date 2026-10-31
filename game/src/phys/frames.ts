@@ -1,9 +1,16 @@
 
+import RAPIER from "@dimforge/rapier3d-compat";
 import { PHYSICS } from "../data/physics";
+import { CRATER } from "../data/rules";
+import { craterRimPoints } from "../sim/craters";
+import { playerVehicle } from "../sim/damage";
+import { LIVE_REACH } from "../sim/fidelity";
 import { rideOf, unitBody, unitsOf } from "../sim/body";
 import { unitPoses, type UnitPose } from "../sim/rig";
-import { heightAt, type Terrain } from "../sim/terrain";
-import type { Pose, Vehicle, World } from "../sim/types";
+import { propBase } from "../sim/bridge";
+import { propPose, RAMP_MODELS, rampSpan } from "../sim/mapgen";
+import { groundAt, heightAt, type Terrain } from "../sim/terrain";
+import type { Crater, Obstacle, Pose, Vehicle, World } from "../sim/types";
 import { angleDiff, type Vec } from "../sim/vec";
 import { wheelMounts } from "./body";
 
@@ -247,4 +254,111 @@ function mountPoint(p: UnitPose, m: { x: number; z: number }): Vec {
 export function rideHeightAt(w: World, v: Pick<Vehicle, 'chassisId'>, pose: UnitPose): number {
   const b = unitBody(v.chassisId, pose.unit);
   return heightAt(w.terrain, pose.pos.x, pose.pos.y) * S + rideOf(b);
+}
+
+export type GroundPatch = { handle: number; x0: number; z0: number };
+
+export const LIVE_RANGE = LIVE_REACH + PHYSICS.propLiveMargin;
+
+const PATCH_HALF = Math.ceil(LIVE_RANGE + PHYSICS.groundPatchSlack);
+const PATCH_SHIFT = PHYSICS.groundPatchSlack / 2;
+
+function patchOrigin(n: number, center: Vec): { x0: number; z0: number } {
+  const side = Math.min(n, 2 * PATCH_HALF);
+  const at = (c: number) => Math.min(Math.max(0, Math.round(c) - PATCH_HALF), n - side);
+  return { x0: at(center.x), z0: at(center.y) };
+}
+
+export function addGround(world: RAPIER.World, t: Terrain, center: Vec): GroundPatch {
+  const n = t.size;
+  const m = Math.min(n, 2 * PATCH_HALF);
+  const { x0, z0 } = patchOrigin(n, center);
+  const heights = new Float32Array((m + 1) * (m + 1));
+  for (let i = 0; i <= m; i++) {
+    for (let j = 0; j <= m; j++) heights[i * (m + 1) + j] = t.heights[(z0 + j) * (n + 1) + x0 + i];
+  }
+  const size = m * S;
+  const field = RAPIER.ColliderDesc.heightfield(m, m, heights, { x: size, y: S, z: size }).setTranslation((x0 + m / 2) * S, 0, (z0 + m / 2) * S);
+  return { handle: world.createCollider(field).handle, x0, z0 };
+}
+
+export function movedGround(world: RAPIER.World, patch: GroundPatch, w: World): GroundPatch {
+  const center = playerVehicle(w).pos;
+  const want = patchOrigin(w.terrain.size, center);
+  if (Math.abs(want.x0 - patch.x0) <= PATCH_SHIFT && Math.abs(want.z0 - patch.z0) <= PATCH_SHIFT) return patch;
+  world.removeCollider(world.getCollider(patch.handle), true);
+  return addGround(world, w.terrain, center);
+}
+
+export function craterColliders(t: Terrain, c: Crater): RAPIER.ColliderDesc[] {
+  const rim = craterRimPoints(c).map((p) => toPhys(p, groundAt(t, p.x, p.y)));
+  const radius = (CRATER.rimWidthRatio * c.radius) / 2;
+  const lift = CRATER.rimRatio * c.radius - radius;
+  return rim.map((a, k) => capsuleBetween(a, rim[(k + 1) % rim.length], radius, lift));
+}
+
+function capsuleBetween(a: V3, b: V3, radius: number, lift: number): RAPIER.ColliderDesc {
+  const u = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z };
+  const len = Math.hypot(u.x, u.y, u.z);
+  if (!(len > 0)) throw new Error("Capsule between one point");
+  const desc = RAPIER.ColliderDesc.capsule(len / 2, radius).setTranslation((a.x + b.x) / 2, (a.y + b.y) / 2 + lift, (a.z + b.z) / 2);
+  return desc.setRotation(upOnto({ x: u.x / len, y: u.y / len, z: u.z / len }));
+}
+
+function upOnto(u: V3): Quat {
+  const w = 1 + u.y;
+  const n = Math.hypot(u.z, u.x, w);
+  return { x: u.z / n, y: 0, z: -u.x / n, w: w / n };
+}
+
+const BRIDGE = PHYSICS.bridge;
+const EDGE_DROP = 0.1;
+const SKIRT_SAMPLES_PER_TILE = 1;
+
+export type RampParts = { plates: RAPIER.ColliderDesc[]; walls: RAPIER.ColliderDesc[] };
+
+type RampFrame = { origin: V3; cos: number; sin: number };
+type Section = { x: number; z: number };
+
+export function rampParts(t: Terrain, o: Obstacle): RampParts | null {
+  if (o.kind !== "landmark") return null;
+  const pose = propPose(o);
+  const model = RAMP_MODELS[pose.model];
+  if (model === undefined) return null;
+  const scale = pose.scale.x;
+  const base = propBase(t, o) * S;
+  const frame: RampFrame = { origin: { x: pose.pos.x * S, y: base, z: pose.pos.y * S }, cos: Math.cos(pose.yaw), sin: Math.sin(pose.yaw) };
+  const { toe, tip, slope, half, underside, closedTo } = rampSpan(model, scale);
+  const surface = (x: number) => tip.z + (x - tip.x) * slope;
+  const down = (s: Section): Section => ({ x: s.x + Math.sin(model.pitch) * BRIDGE.deckThickness, z: s.z - Math.cos(model.pitch) * BRIDGE.deckThickness });
+  const deepest = lowestGround(t, frame, toe.x, closedTo, half, base);
+  const edgeTop = (x: number) => surface(x) - EDGE_DROP;
+  const skirts = [-1, 1].map((side) => rampPrism(frame, [{ x: toe.x, z: deepest }, { x: closedTo, z: deepest }, { x: closedTo, z: edgeTop(closedTo) }, { x: toe.x, z: edgeTop(toe.x) }], side > 0 ? half - BRIDGE.railThickness : -half, side > 0 ? half : -half + BRIDGE.railThickness));
+  const wallTop = surface(closedTo) - underside;
+  const wall = rampPrism(frame, [{ x: closedTo - BRIDGE.railThickness, z: deepest }, { x: closedTo, z: deepest }, { x: closedTo, z: wallTop }, { x: closedTo - BRIDGE.railThickness, z: wallTop }], -half, half);
+  return { plates: [rampPrism(frame, [toe, tip, down(tip), down(toe)], -half, half)], walls: [...skirts, wall] };
+}
+
+function lowestGround(t: Terrain, frame: RampFrame, from: number, to: number, half: number, base: number): number {
+  const steps = Math.max(1, Math.ceil(((to - from) / S) * SKIRT_SAMPLES_PER_TILE));
+  let low = 0;
+  for (let k = 0; k <= steps; k++) {
+    for (const side of [-1, 1]) {
+      const x = from + ((to - from) * k) / steps;
+      const p = { x: (frame.origin.x + x * frame.cos + side * half * frame.sin) / S, y: (frame.origin.z + x * frame.sin - side * half * frame.cos) / S };
+      low = Math.min(low, groundAt(t, p.x, p.y) * S - base);
+    }
+  }
+  return low - PHYSICS.rockSink;
+}
+
+function rampPrism(frame: RampFrame, section: Section[], across0: number, across1: number): RAPIER.ColliderDesc {
+  const points = section.flatMap((s) => [across0, across1].flatMap((y) => [
+    frame.origin.x + s.x * frame.cos + y * frame.sin,
+    frame.origin.y + s.z,
+    frame.origin.z + s.x * frame.sin - y * frame.cos,
+  ]));
+  const desc = RAPIER.ColliderDesc.convexHull(new Float32Array(points));
+  if (desc === null) throw new Error("A ramp prop piece has no volume");
+  return desc;
 }

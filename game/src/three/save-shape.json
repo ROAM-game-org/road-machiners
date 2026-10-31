@@ -1,5 +1,5 @@
 {
- "format": "2.128",
+ "format": "2.132",
  "shape": {
   "broken": [],
   "chaosHighway": "null",
@@ -151,18 +151,146 @@
     "roughTiles": "number",
     "search": "number"
    },
-   "xpDay": "number",
    "xpToday": {
     "driving": "number",
     "machining": "number",
     "perception": "number",
     "social": "number",
     "toughness": "number"
-   }
+   },
+   "xpWindow": "number"
   },
   "rngState": "number",
   "roadNews": [],
   "salvage": [
+   {
+    "fuel": "number",
+    "goods": {
+     "batteries": "number",
+     "parts": "number",
+     "relics": "number",
+     "scrap": "number"
+    },
+    "hidden": {
+     "fuel": "number",
+     "goods": {
+      "batteries": "number",
+      "parts": "number",
+      "relics": "number",
+      "scrap": "number"
+     },
+     "parts": [],
+     "supplies": "number"
+    },
+    "id": "string",
+    "parts": [],
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "radius": "number",
+    "supplies": "number"
+   },
+   {
+    "fuel": "number",
+    "goods": {
+     "batteries": "number",
+     "parts": "number",
+     "relics": "number",
+     "scrap": "number"
+    },
+    "hidden": {
+     "fuel": "number",
+     "goods": {
+      "batteries": "number",
+      "parts": "number",
+      "relics": "number",
+      "scrap": "number"
+     },
+     "parts": [
+      {
+       "charge": {
+        "reload": "number"
+       },
+       "defId": "string",
+       "hp": "number",
+       "id": "string",
+       "wear": "number"
+      }
+     ],
+     "supplies": "number"
+    },
+    "id": "string",
+    "parts": [
+     {
+      "charge": {
+       "reload": "number"
+      },
+      "defId": "string",
+      "hp": "number",
+      "id": "string",
+      "wear": "number"
+     }
+    ],
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "radius": "number",
+    "supplies": "number"
+   },
+   {
+    "fuel": "number",
+    "goods": {
+     "batteries": "number",
+     "parts": "number",
+     "relics": "number",
+     "scrap": "number"
+    },
+    "hidden": {
+     "fuel": "number",
+     "goods": {
+      "batteries": "number",
+      "parts": "number",
+      "relics": "number",
+      "scrap": "number"
+     },
+     "parts": [
+      {
+       "defId": "string",
+       "gun": {
+        "ammo": "number",
+        "cooldown": "number",
+        "reloadWork": "number"
+       },
+       "hp": "number",
+       "id": "string",
+       "wear": "number"
+      }
+     ],
+     "supplies": "number"
+    },
+    "id": "string",
+    "parts": [
+     {
+      "defId": "string",
+      "gun": {
+       "ammo": "number",
+       "cooldown": "number",
+       "reloadWork": "number"
+      },
+      "hp": "number",
+      "id": "string",
+      "wear": "number"
+     }
+    ],
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "radius": "number",
+    "supplies": "number"
+   },
    {
     "fuel": "number",
     "goods": {
@@ -2785,7 +2913,6 @@
     "asked_where": "boolean",
     "asked_yard": "boolean"
    },
-   "intro_road": {},
    "nose_counter": {
     "asked_shelf": "boolean",
     "read_stamp": "boolean"
@@ -2967,9 +3094,6 @@
     "start.ask",
     "meet",
     "again"
-   ],
-   "intro_road": [
-    "start"
    ],
    "nose_counter": [
     "start",
@@ -3180,16 +3304,6 @@
     "reads": [
      "towed_to_bowl"
     ],
-    "readsNotes": [],
-    "writes": {},
-    "notes": [],
-    "begins": []
-   }
-  },
-  "intro_road": {
-   "revision": 1,
-   "links": {
-    "reads": [],
     "readsNotes": [],
     "writes": {},
     "notes": [],

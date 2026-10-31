@@ -14,7 +14,6 @@ export const STORY = {
   'quest.granary_odile.title': 'Talks with Odile Marsh',
   'quest.intro_arrival.title': 'Down from the rim',
   'quest.intro_bowl.title': 'Waking in Bowl',
-  'quest.intro_road.title': 'The road on',
   'quest.nose_counter.title': 'At the parts counter',
   'town.place.bowl': 'Six arrowhead bastions of colored salvage panels ring the crater rim, with a watch hut on a pillar at every point. Down inside, the terraces drop toward the canals, greener than anything else in the basin. The gate yard smells of diesel and wet clay.',
   'town.place.nose': 'The ship\'s hull leans over the town like a cliff that learned to rust. Sheds and workshops crowd into its shade, and somewhere inside the wreck a press thumps on, steady as a pulse.',
