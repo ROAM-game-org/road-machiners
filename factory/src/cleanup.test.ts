@@ -37,6 +37,15 @@ describe('sweepWork', () => {
     expect(swept.removed.sort()).toEqual(['adhoc-4', 'change-1790000000000', 'check-issue-3', 'dev-build', 'incident-6', 'issue-1', 'issue-2', 'release-candidate', 'release-main', 'waste']);
   });
 
+  it('keeps the merge and ship clones while a landing record names them, and removes them without one', () => {
+    const work0 = { into: 'dev', sources: [], cards: [5], session: 's', spentUsd: 0, merged: true, merges: [], since: '' };
+    const kept = work('merge-queue', 'ship-main');
+    expect(sweepWork(kept, `${kept}-locks`, state({ landings: { merge: work0, ship: { ...work0, into: 'main' } } }), []).removed).toEqual([]);
+    expect([has(kept, 'merge-queue/game/.factory-tasks/task.md'), has(kept, 'ship-main/game/.factory-tasks/task.md')]).toEqual([true, true]);
+    const done = work('merge-queue', 'ship-main');
+    expect(sweepWork(done, `${done}-locks`, state(), []).removed.sort()).toEqual(['merge-queue', 'ship-main']);
+  });
+
   it('keeps every clone a running or interrupted job works in, packages included', () => {
     const root = work('issue-5', 'check-issue-5', 'issue-7', 'dev-build', 'release-candidate', 'waste');
     const swept = sweepWork(root, `${root}-locks`,state({ jobs: [running('verify', 5), running('ship', 20), running('waste', null)], interrupted: [7] }), [card(5, 'Done'), card(7, 'Done')]);

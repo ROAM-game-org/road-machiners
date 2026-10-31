@@ -166,6 +166,10 @@ export type PlaytestState = {
 
 export type IssueMerge = { issue: number; title: string; sha: string; into: string; reverted: string[] };
 
+export type LandingStage = 'merge' | 'ship';
+export type LandingSource = { branch: string; sha: string };
+export type LandingWork = { into: string; sources: LandingSource[]; cards: number[]; session: string; spentUsd: number; merged: boolean; merges: IssueMerge[]; since: string };
+
 export type ReleaseState = {
   issue: number;
   branch: string;
@@ -226,6 +230,7 @@ export type FactoryState = {
   questionPosts: Record<string, number>;
   pendingFeedback: Record<string, PendingFeedback>;
   routed: number[];
+  landings: Partial<Record<LandingStage, LandingWork>>;
 };
 
 export type FeedbackSource = 'committee' | 'player';

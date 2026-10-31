@@ -887,7 +887,7 @@ describe('tick', () => {
       expect(readState(h.ctx.statePath).interrupted).toEqual([5]);
     });
 
-    it('fails a second death, clears the mark and the sessions, and reports', async () => {
+    it('fails a second death, clears the mark, keeps the sessions for the next start of the stage, and reports', async () => {
       const h = harness(job(IN_TIME), false);
       writeState(h.ctx.statePath, state({ jobs: [job(IN_TIME)], interrupted: [5, 6] }));
       mkdirSync(sessions(h), { recursive: true });
@@ -898,7 +898,8 @@ describe('tick', () => {
       expect(after.failures).toMatchObject([{ stage: 'design', issue: 5, error: 'job process died without finishing' }]);
       expect(after.interrupted).toEqual([6]);
       expect(after.jobs).toEqual([]);
-      expect(existsSync(sessions(h))).toBe(false);
+      expect(existsSync(sessions(h))).toBe(true);
+      expect(resumedStage(h.ctx.cfg.home, 5)).toBe('design');
     });
 
     it('kills a card job past the timeout and resumes it once, with a timeout ledger line', async () => {
@@ -949,13 +950,14 @@ describe('tick', () => {
       expect(timedOutMinutes(dead.ctx.cfg.home, 5)).toBe(null);
     });
 
-    it('clears a lingering mark and the sessions of a timed out job', async () => {
+    it('clears a lingering mark of a timed out job and keeps its sessions for the next start of the stage', async () => {
       const h = harness(job('2026-01-10T11:00:00Z'), true);
       writeState(h.ctx.statePath, state({ jobs: [job('2026-01-10T11:00:00Z')], interrupted: [5] }));
       mkdirSync(sessions(h), { recursive: true });
       await tick(h.ctx, '/code', h.deps);
       expect(readState(h.ctx.statePath).interrupted).toEqual([]);
-      expect(existsSync(sessions(h))).toBe(false);
+      expect(existsSync(sessions(h))).toBe(true);
+      expect(resumedStage(h.ctx.cfg.home, 5)).toBe('design');
     });
 
     it('fails a dead branch job that already ran its order twice, and touches no mark or sessions of its issue', async () => {

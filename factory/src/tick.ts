@@ -23,6 +23,7 @@ import { labelStuckBatch, sweepStuck, type Repair } from './stuck';
 import { clearQueued, isQueued, orderKey, readState, updateState } from './state';
 import { sweepTranscripts } from './transcript-archive';
 import { askedAt, clearAsked, isAnswered, recordAsked } from './questions';
+import { CARD_JOBS } from './position';
 import { ADHOC_LABEL, AGENT_QUEUES, HOTFIX_LABEL, NEEDS_INFO_LABEL, QUEUE_OF, RELEASE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, VOTING_LABEL } from './types';
 import type { Card, Column, Ctx, FactoryConfig, FactoryState, Job, JobStage, PlaytestState, Queue, Run } from './types';
 
@@ -356,7 +357,8 @@ function forgetResume(ctx: Ctx, job: Job): void {
     ...state,
     interrupted: state.interrupted.filter((issue) => issue !== job.issue),
   }));
-  clearSessions(ctx.cfg.home, job.issue);
+  if (CARD_JOBS.includes(job.stage)) markResumed(ctx.cfg.home, job.issue, job.stage);
+  else clearSessions(ctx.cfg.home, job.issue);
 }
 
 async function resumeJob(ctx: Ctx, job: Job & { issue: number }, deps: TickDeps, outcome: 'died' | 'timeout'): Promise<void> {

@@ -1,11 +1,10 @@
-import { randomUUID } from 'node:crypto';
-import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { deployDev } from '../deploy';
 import { withoutFailuresOf } from '../fail';
 import { must } from '../exec';
+import { addSpend, closeLanding, landingSession, markMerged, openLanding, type LandingPlan } from '../landing-work';
 import { readState, updateState } from '../state';
-import { BRANCH, GAME_DIR, RELEASE_CANDIDATE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, type AgentSession, type Card, type Ctx, type FactoryState, type IssueMerge } from '../types';
+import { BRANCH, GAME_DIR, RELEASE_CANDIDATE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, type Card, type Ctx, type FactoryState, type IssueMerge, type LandingStage, type LandingWork } from '../types';
 import { withWorkFolder } from '../work-lock';
 import { closeMerged } from './approval';
 import { BaselineFailureError, BudgetError, runCost, untilPasses } from './checkpoint';
@@ -37,27 +36,40 @@ async function commentBaseline(ctx: Ctx, cards: Card[], error: BaselineFailureEr
 
 async function mergeBatch(ctx: Ctx, base: string, cards: Card[]): Promise<void> {
   const dir = join(ctx.cfg.home, 'work', 'merge-queue');
-  rmSync(dir, { recursive: true, force: true });
   await ctx.repo.fetch();
-  await ctx.repo.prepareWorkClone(base, base, dir);
-  resetOutputs(join(dir, GAME_DIR));
+  const { work, resumed } = openLanding(ctx, 'merge', dir, await batchPlan(ctx, base, cards));
   const clock = newClock();
-  const land: Landing = { stage: 'merge', dir, into: base, guardAgainst: [base], agent: landingAgent(ctx, 'merge', dir, base), clock };
-  const merges: IssueMerge[] = [];
+  const land: Landing = { stage: 'merge', dir, into: base, guardAgainst: [base], agent: landingAgent(ctx, 'merge', dir, work, resumed), clock };
+  let merged = { merges: work.merges, conflicts: 0 };
   try {
-    let conflicts = 0;
-    for (const card of cards) {
-      const title = (await ctx.github.issue(card.issue)).title;
-      conflicts += await timed(clock, 'merges', () => mergeIn(ctx, land, { branch: BRANCH(card.issue), message: `Merge issue #${card.issue}: ${title}`, reason: `issue #${card.issue} was approved` }));
-      merges.push({ issue: card.issue, title, sha: await ctx.repo.workHead(dir), into: base, reverted: [] });
-    }
+    if (!resumed) merged = await mergeCards(ctx, land, cards);
     const fixList = cards.map((card) => `- #${card.issue} on ${BRANCH(card.issue)}`).join('\n');
-    await checkAndPush(ctx, land, conflicts, (failure) => fillPrompt('merge-fix', { into: base, cards: fixList, failure }));
+    await checkAndPush(ctx, land, merged.conflicts, (failure) => fillPrompt('merge-fix', { into: base, cards: fixList, failure }));
   } finally {
     ctx.log('merge', null, `batch ${cards.map((card) => `#${card.issue}`).join(' ')} took ${clockLine(clock)}`);
   }
-  recordMerges(ctx, base, merges);
-  await settle(ctx, base, cards, merges);
+  closeLanding(ctx, 'merge', dir);
+  recordMerges(ctx, base, merged.merges);
+  await settle(ctx, base, cards, merged.merges);
+}
+
+async function batchPlan(ctx: Ctx, base: string, cards: Card[]): Promise<LandingPlan> {
+  const sources = await Promise.all(cards.map(async (card) => ({ branch: BRANCH(card.issue), sha: await ctx.repo.headHash(BRANCH(card.issue)) })));
+  return { into: base, sources, cards: cards.map((card) => card.issue) };
+}
+
+async function mergeCards(ctx: Ctx, land: Landing, cards: Card[]): Promise<{ merges: IssueMerge[]; conflicts: number }> {
+  await ctx.repo.prepareWorkClone(land.into, land.into, land.dir);
+  resetOutputs(join(land.dir, GAME_DIR));
+  const merges: IssueMerge[] = [];
+  let conflicts = 0;
+  for (const card of cards) {
+    const title = (await ctx.github.issue(card.issue)).title;
+    conflicts += await timed(land.clock, 'merges', () => mergeIn(ctx, land, { branch: BRANCH(card.issue), message: `Merge issue #${card.issue}: ${title}`, reason: `issue #${card.issue} was approved` }));
+    merges.push({ issue: card.issue, title, sha: await ctx.repo.workHead(land.dir), into: land.into, reverted: [] });
+  }
+  markMerged(ctx, 'merge', merges);
+  return { merges, conflicts };
 }
 
 function recordMerges(ctx: Ctx, base: string, merges: IssueMerge[]): void {
@@ -68,7 +80,7 @@ function recordMerges(ctx: Ctx, base: string, merges: IssueMerge[]): void {
   });
 }
 
-export type Landing = { stage: 'merge' | 'ship'; dir: string; into: string; guardAgainst: string[]; agent: (prompt: string) => Promise<string>; clock?: Clock };
+export type Landing = { stage: LandingStage; dir: string; into: string; guardAgainst: string[]; agent: (prompt: string) => Promise<string>; clock?: Clock };
 
 type Phase = 'merges' | 'checks' | 'fixes' | 'remerges' | 'pushes';
 type Clock = Record<Phase, { ms: number; count: number }>;
@@ -93,7 +105,7 @@ function clockLine(clock: Clock): string {
 
 export async function checkAndPush(ctx: Ctx, land: Landing, conflictUsd: number, fixPrompt: (failure: string) => string): Promise<void> {
   let conflicts = conflictUsd;
-  let fixes = 0;
+  let fixes = keptSpend(ctx, land.stage);
   let recheck = true;
   for (;;) {
     if (recheck) fixes = await fixUntilPasses(ctx, land, fixes, conflicts, fixPrompt);
@@ -108,7 +120,7 @@ export async function checkAndPush(ctx: Ctx, land: Landing, conflictUsd: number,
 async function fixUntilPasses(ctx: Ctx, land: Landing, fixes: number, conflicts: number, fixPrompt: (failure: string) => string): Promise<number> {
   const check = checksOnceEachHead(ctx, land, () => timed(land.clock, 'checks', () => mergedChecks(ctx, land)));
   try {
-    return await untilPasses(ctx.cfg.mergingBudgetUsd, fixes, check, (failure) => timed(land.clock, 'fixes', () => land.agent(fixPrompt(failure))));
+    return await untilPasses(ctx.cfg.mergingBudgetUsd, fixes, check, (failure) => timed(land.clock, 'fixes', () => keptFix(ctx, land, fixPrompt(failure))));
   } catch (error) {
     if (error instanceof BudgetError) throw new BudgetError(`${error.message}\nThe budget counts only fix rounds. The job also spent $${conflicts.toFixed(2)} on conflicts.`);
     throw error;
@@ -147,8 +159,17 @@ async function nextBatch(ctx: Ctx): Promise<{ base: string; cards: Card[] } | nu
 export function nextBatchCards(state: FactoryState, cards: Card[], baseOf: (card: Card) => string): Card[] {
   const waiting = waitingMerges(state, cards).filter((card) => !state.jobs.some((job) => job.issue === card.issue));
   if (waiting.length === 0) return [];
+  const kept = keptBatch(state, waiting);
+  if (kept !== null) return kept;
   const base = baseOf(waiting[0]!);
   return waiting.filter((card) => baseOf(card) === base).slice(0, MERGE_BATCH_CARDS);
+}
+
+function keptBatch(state: FactoryState, waiting: Card[]): Card[] | null {
+  const kept = state.landings.merge?.cards;
+  if (kept === undefined) return null;
+  const batch = kept.map((issue) => waiting.find((card) => card.issue === issue));
+  return batch.every((card) => card !== undefined) ? batch : null;
 }
 
 export function waitingMerges(state: FactoryState, cards: Card[]): Card[] {
@@ -158,21 +179,31 @@ export function waitingMerges(state: FactoryState, cards: Card[]): Card[] {
     card.column === 'Merging' && !card.labels.includes(STUCK_LABEL) && !(String(card.issue) in state.held) && !(shipping && card.labels.includes(RELEASE_TASK_LABEL)) && !merging.includes(card.issue));
 }
 
-export function landingAgent(ctx: Ctx, stage: Landing['stage'], dir: string, into: string): (prompt: string) => Promise<string> {
-  const session = newSession(ctx, stage);
-  const log = releaseLog(ctx, `${stage}-${into.replaceAll('/', '-')}`);
-  return (prompt) => {
-    const run = { dir: session.dir, id: session.id, resume: session.resume };
-    session.resume = true;
-    return ctx.container.agent({ clone: dir, dir: GAME_DIR, model: ctx.cfg.buildModel, prompt, log, session: run });
-  };
+function keptSpend(ctx: Ctx, stage: LandingStage): number {
+  const work = readState(ctx.statePath).landings[stage];
+  if (work === undefined) throw new Error(`The ${stage} job checks work that has no landing record`);
+  return work.spentUsd;
 }
 
-function newSession(ctx: Ctx, stage: Landing['stage']): AgentSession {
-  const dir = join(ctx.cfg.home, 'sessions', stage);
-  rmSync(dir, { recursive: true, force: true });
-  mkdirSync(dir, { recursive: true });
-  return { dir, id: randomUUID(), resume: false };
+async function keptFix(ctx: Ctx, land: Landing, prompt: string): Promise<string> {
+  const output = await land.agent(prompt);
+  addSpend(ctx, land.stage, runCost(output));
+  return output;
+}
+
+export const LANDING_RESUME_NOTE = 'An earlier job on this same work stopped before it pushed, and this job continues it. The clone keeps your commits and your uncommitted changes, so read git log and git status first and carry on from there. Do not redo work that is already in the clone.';
+
+export function landingAgent(ctx: Ctx, stage: LandingStage, dir: string, work: LandingWork, resumed: boolean): (prompt: string) => Promise<string> {
+  const session = landingSession(ctx, stage, work);
+  const log = releaseLog(ctx, `${stage}-${work.into.replaceAll('/', '-')}`);
+  let note = resumed;
+  return (prompt) => {
+    const run = { dir: session.dir, id: session.id, resume: session.resume };
+    const full = note ? `${LANDING_RESUME_NOTE}\n\n${prompt}` : prompt;
+    session.resume = true;
+    note = false;
+    return ctx.container.agent({ clone: dir, dir: GAME_DIR, model: ctx.cfg.buildModel, prompt: full, log, session: run });
+  };
 }
 
 type Incoming = { branch: string; message: string | undefined; reason: string };
