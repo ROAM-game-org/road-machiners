@@ -2,9 +2,9 @@
 import { CHASSIS } from '../data/chassis';
 import { PARTS } from '../data/parts';
 import { startKit } from '../data/start';
-import { makePart } from '../sim/factory';
+import { chargeFor, makePart } from '../sim/factory';
 import type { Contract } from '../sim/market';
-import type { SalvageStock } from '../sim/types';
+import type { SalvageStock, Vehicle } from '../sim/types';
 import { isRig } from '../sim/body';
 import { addVehicle, npcBrain } from './sample-vehicles';
 import { newWorld } from '../sim/world';
@@ -23,10 +23,11 @@ const CONTRACT_KINDS: Contract[] = [
 
 const WEAPON_ID = Object.keys(PARTS).find((id) => PARTS[id].kind === 'weapon');
 const PLAIN_ID = Object.keys(PARTS).find((id) => PARTS[id].kind !== 'weapon');
+const BARE_ID = Object.keys(PARTS).find((id) => PARTS[id].kind !== 'weapon' && !chargeFor(id).charge);
 
 export function newGameShape(): Shape {
   const world = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
-  if (!WEAPON_ID || !PLAIN_ID) throw new Error('The part data has no weapon or no other part');
+  if (!WEAPON_ID || !PLAIN_ID || !BARE_ID) throw new Error('The part data has no weapon, no plain part or no part without a charge');
   for (const shop of Object.values(world.shops)) {
     shop.contracts = CONTRACT_KINDS;
     shop.stock = [makePart(world, WEAPON_ID, 0), makePart(world, PLAIN_ID, 0)];
@@ -44,13 +45,16 @@ export function newGameShape(): Shape {
     const home = world.vehicles[0].pos;
     addVehicle(world, 'independent', rig, ['stockEngine'], home).brain = npcBrain('trader', home, ['trader']);
   }
-  for (const v of world.vehicles.filter((truck) => truck.brain)) {
-    v.items = [
-      { id: 'i-goods', x: 0, y: 0, rot: 0, kind: 'good', good: 'g' },
-      { id: 'i-gun', x: 0, y: 0, rot: 0, kind: 'part', part: makePart(world, WEAPON_ID, 0) },
-      { id: 'i-plain', x: 0, y: 0, rot: 0, kind: 'part', part: makePart(world, PLAIN_ID, 0) },
-    ];
-  }
+  const npcItems = (): Vehicle['items'] => [
+    { id: 'i-goods', x: 0, y: 0, rot: 0, kind: 'good', good: 'g' },
+    { id: 'i-gun', x: 0, y: 0, rot: 0, kind: 'part', part: makePart(world, WEAPON_ID, 0) },
+    { id: 'i-plain', x: 0, y: 0, rot: 0, kind: 'part', part: makePart(world, PLAIN_ID, 0) },
+  ];
+  const bareItem = (): Vehicle['items'][number] => ({ id: 'i-bare', x: 0, y: 0, rot: 0, kind: 'part', part: makePart(world, BARE_ID, 0) });
+  for (const v of world.vehicles.filter((truck) => truck.brain)) v.items = npcItems();
+  if (world.sheltered.length === 0) throw new Error('The new world shelters no truck');
+  const [first] = world.sheltered;
+  world.sheltered = [{ ...first, vehicle: { ...first.vehicle, items: [...npcItems(), bareItem()] } }, { ...first, vehicle: { ...first.vehicle, items: [...npcItems().slice(0, 2), bareItem()] } }];
   if (!world.moments) throw new Error('The new world keeps no moments');
   for (const moment of Object.values(world.moments)) moment.driver = world.vehicles[0].id;
   world.player.quests.session ={ quest: 'q', checkpoint: 'c', seed: 1 };
