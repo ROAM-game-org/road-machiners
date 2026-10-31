@@ -8,6 +8,11 @@ import type { Vehicle, World } from '../types';
 import { followSpot } from '../tow';
 import { dist, type Vec } from '../vec';
 import { maxHp } from '../wear';
+import { vehicleStats } from '../stats';
+import { CHAOS_HIGHWAY } from '../../data/modes';
+import { chassisDef } from '../../data/chassis';
+import { outpostTrucks, reachedOutpostAt } from '../chaos-highway';
+import { outpostBuyChassis } from '../outposts';
 import { refreshVision } from '../vision';
 import { endTurn } from '../world';
 import { botOrders } from './bot';
@@ -194,5 +199,22 @@ describe('the Chaos Highway sprinter bot', () => {
     expect(turn.world.player.autoFire).toBe(false);
     expect(playerVehicle(turn.world).order).toMatchObject({ kind: 'stopAt' });
     expect(Object.keys(playerVehicle(turn.world).weaponOrders)).toEqual([]);
+  });
+
+  it('buys only a truck that stays faster than the hauler, so it keeps driving ahead', () => {
+    const w = atFirstOutpost();
+    w.player.money = 2_000_000;
+    const post = reachedOutpostAt(w)!;
+    const speedIn = (id: string) => { const after = outpostBuyChassis(w, id); return vehicleStats(after, playerVehicle(after)).maxSpeed; };
+    const byValue = (ids: string[]) => [...ids].sort((a, b) => chassisDef(b).value - chassisDef(a).value);
+    const fast = byValue(outpostTrucks(w, post)).filter((id) => speedIn(id) > CHAOS_HIGHWAY.hauler.hurry);
+    const slow = byValue(outpostTrucks(w, post)).filter((id) => speedIn(id) <= CHAOS_HIGHWAY.hauler.hurry);
+    post.trucksSold.push(...fast.filter((id) => chassisDef(id).value > chassisDef(slow[0]).value));
+    expect(chassisDef(slow[0]).value).toBeGreaterThan(chassisDef(playerVehicle(w).chassisId).value);
+    expect(outpostTrucks(w, post).some((id) => speedIn(id) > CHAOS_HIGHWAY.hauler.hurry)).toBe(true);
+
+    const turn = botOrders(w, 'sprinter');
+
+    expect(vehicleStats(turn.world, playerVehicle(turn.world)).maxSpeed).toBeGreaterThan(CHAOS_HIGHWAY.hauler.hurry);
   });
 });

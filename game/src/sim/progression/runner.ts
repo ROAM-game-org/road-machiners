@@ -212,7 +212,7 @@ function restock(o: Orders, post: Outpost, style: RoadStyle): void {
 function restockGear(o: Orders, post: Outpost, style: RoadStyle, haulerShare: number): void {
   if (style === 'sprinter') {
     refitGear(o);
-    return buyTruck(o, post);
+    return buyTruck(o, post, (id) => outrunsHauler(o, id));
   }
   restockEscort(o, post, haulerShare);
 }
@@ -269,10 +269,10 @@ function cost(o: Orders, parts: PartInstance[]): number {
   return parts.reduce((sum, p) => sum + outpostPartPrice(o.world, p), 0);
 }
 
-function buyTruck(o: Orders, post: Outpost): void {
+function buyTruck(o: Orders, post: Outpost, suits: (chassisId: string) => boolean = () => true): void {
   const budget = runBudget(o.world);
   const current = chassisDef(o.me.chassisId).value;
-  const offers = outpostTrucks(o.world, post).filter((id) => chassisDef(id).value > current && chassisSwapRefusal(o.world, id) === null && keepsKit(o, id)).map((id) => ({ id, value: chassisDef(id).value, price: chassisPrice(o.world, id) }));
+  const offers = outpostTrucks(o.world, post).filter((id) => chassisDef(id).value > current && chassisSwapRefusal(o.world, id) === null && keepsKit(o, id) && suits(id)).map((id) => ({ id, value: chassisDef(id).value, price: chassisPrice(o.world, id) }));
   const best = bestTruck(offers, current, budget);
   if (best) o.run((w) => outpostBuyChassis(w, best), 'gear');
 }
@@ -284,6 +284,10 @@ function keepsKit(o: Orders, chassisId: string): boolean {
   return !isStranded(after, me) && mountedCount(me) === mountedCount(o.me);
 }
 
+function outrunsHauler(o: Orders, chassisId: string): boolean {
+  const after = outpostBuyChassis(o.world, chassisId);
+  return vehicleStats(after, playerVehicle(after)).maxSpeed > CHAOS_HIGHWAY.hauler.hurry;
+}
 
 function repair(o: Orders, truck: Vehicle): void {
   const all = repairCost(o.world, truck);
