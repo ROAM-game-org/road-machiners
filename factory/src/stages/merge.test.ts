@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readLedger } from '../ledger';
@@ -672,5 +672,128 @@ describe('merge queue', () => {
     cards = [];
     await merge(fakeCtx());
     expect(calls).toEqual([]);
+  });
+});
+
+describe('kept merge work', () => {
+  const clone = () => join(home, 'work', 'merge-queue');
+  const landing = () => readState(`${home}/state.json`).landings.merge;
+  const saveTranscript = (id: string) => {
+    mkdirSync(join(home, 'sessions', 'merge', 'project'), { recursive: true });
+    appendFileSync(join(home, 'sessions', 'merge', 'project', `${id}.jsonl`), '{}\n');
+  };
+
+  async function failOnce(): Promise<string> {
+    shellFailures = Array(9).fill('FAIL a.test.ts');
+    costs = [3, 3];
+    await expect(merge(fakeCtx(5))).rejects.toThrow(BudgetError);
+    appendFileSync(join(clone(), 'uncommitted-fix.ts'), 'fix');
+    const session = landing()!.session;
+    saveTranscript(session);
+    calls = [];
+    runs = [];
+    shellFailures = [];
+    costs = [];
+    return session;
+  }
+
+  it('keeps the clone, the session and the spend of a batch whose job failed', async () => {
+    await failOnce();
+    expect(landing()).toMatchObject({ into: 'dev', cards: [5, 6], spentUsd: 6, merged: true, sources: [{ branch: 'factory/issue-5', sha: 'factory/issue-5-tip' }, { branch: 'factory/issue-6', sha: 'factory/issue-6-tip' }] });
+    expect(landing()!.merges.map((row) => row.issue)).toEqual([5, 6]);
+    expect(existsSync(clone())).toBe(true);
+  });
+
+  it('resumes the kept batch in its clone and session, with no new clone or merge, and closes it once pushed', async () => {
+    const session = await failOnce();
+    updateState(`${home}/state.json`, (state) => ({ ...state, landings: { merge: { ...state.landings.merge!, spentUsd: 0 } } }));
+    shellFailures = ['FAIL a.test.ts'];
+    costs = [1];
+    await merge(fakeCtx(5));
+    expect(calls.filter((call) => /^(clone|merge |agent|checks|push)/.test(call))).toEqual(['merge dev', 'checks', 'agent', 'checks', 'push head1 dev']);
+    expect(runs[0]!.session).toMatchObject({ id: session, resume: true });
+    expect(runs[0]!.prompt).toMatch(/^An earlier job on this same work stopped before it pushed/);
+    expect(comments.filter((text) => text.includes('merged into dev')).map((text) => text.split(' ')[0])).toEqual(['5', '6']);
+    expect(landing()).toBeUndefined();
+    expect(existsSync(clone())).toBe(false);
+  });
+
+  it('merges the base into a resumed clone only once it holds no uncommitted change, before its first checks', async () => {
+    await failOnce();
+    updateState(`${home}/state.json`, (state) => ({ ...state, landings: { merge: { ...state.landings.merge!, spentUsd: 0 } } }));
+    changed = ['game/src/sim/world.ts'];
+    dirty = [' M game/src/fix.ts', ' M game/src/fix.ts', '', ''];
+    costs = [1];
+    await merge(fakeCtx(5));
+    expect(calls.filter((call) => /^(merge |agent|checks|push)/.test(call))).toEqual(['agent', 'merge dev', 'checks', 'push head1 dev']);
+    expect(runs[0]!.prompt).toContain('changes that are not committed');
+  });
+
+  it('keeps conflict spend out of the batch budget when a failed job is charged', async () => {
+    merges = { 'factory/issue-5': [{ commit: 'c5', conflicts: ['game/src/a.ts'] }] };
+    costs = [30, 2];
+    shellFailures = ['FAIL a.test.ts'];
+    const ctx = fakeCtx(5);
+    ctx.repo.push = async () => { throw new Error('GitHub is down'); };
+    ctx.repo.isMerged = async () => true;
+    await expect(merge(ctx)).rejects.toThrow('GitHub is down');
+    updateState(`${home}/state.json`, (state) => ({ ...state, landings: { merge: { ...state.landings.merge!, job: 'merge-job' } } }));
+    const { chargeJobSpend } = await import('../landing-work');
+    chargeJobSpend(`${home}/state.json`, { id: 'merge-job', stage: 'merge' }, [{ model: 'sonnet', costUsd: 30, minutes: 1 }, { model: 'sonnet', costUsd: 2, minutes: 1 }]);
+    expect(landing()).toMatchObject({ spentUsd: 2, jobUsd: 32 });
+  });
+
+  it('does not run the suite again on a head a fix round left unchanged after the base merged into a resumed clone', async () => {
+    await failOnce();
+    updateState(`${home}/state.json`, (state) => ({ ...state, landings: { merge: { ...state.landings.merge!, spentUsd: 0 } } }));
+    changed = ['game/src/sim/world.ts'];
+    merges = { dev: [{ commit: 'd1', conflicts: [] }] };
+    failingSuites = 1;
+    costs = [1, 1];
+    const ctx = fakeCtx(5);
+    let head = 'kept';
+    const merging = ctx.repo.mergeBranchIntoWork;
+    ctx.repo.mergeBranchIntoWork = async (dir, branch, message) => {
+      const merged = await merging(dir, branch, message);
+      if (merged.commit !== null) head = 'base-merged';
+      return merged;
+    };
+    const agent = ctx.container.agent;
+    let rounds = 0;
+    ctx.container.agent = async (run) => {
+      if (++rounds === 2) head = 'fixed';
+      return agent(run);
+    };
+    ctx.repo.workHead = async () => head;
+    await merge(ctx);
+    expect(calls.filter((call) => call.startsWith('suite'))).toHaveLength(2);
+    expect(calls.filter((call) => call === 'agent')).toHaveLength(2);
+  });
+
+  it('counts the fix rounds of earlier jobs against the budget of the batch', async () => {
+    await failOnce();
+    shellFailures = Array(9).fill('FAIL a.test.ts');
+    await expect(merge(fakeCtx(5))).rejects.toThrow(/\$6\.00 of its \$5 budget/);
+    expect(runs).toEqual([]);
+    expect(existsSync(join(clone(), 'uncommitted-fix.ts'))).toBe(true);
+  });
+
+  it('moves the kept clone to the backups and starts fresh when a card branch moved', async () => {
+    const session = await failOnce();
+    updateState(`${home}/state.json`, (state) => ({ ...state, landings: { merge: { ...state.landings.merge!, sources: [{ branch: 'factory/issue-5', sha: 'older' }, state.landings.merge!.sources[1]!] } } }));
+    await merge(fakeCtx(5));
+    expect(calls.filter((call) => /^(clone|merge )/.test(call))).toEqual(['clone dev dev', 'merge factory/issue-5', 'merge factory/issue-6']);
+    const backups = readdirSync(join(home, 'clone-backups'));
+    expect(backups).toEqual(['merge-2026-09-30T10-00-00.000Z']);
+    expect(existsSync(join(home, 'clone-backups', backups[0]!, 'uncommitted-fix.ts'))).toBe(true);
+    expect(existsSync(join(home, 'transcripts', session))).toBe(true);
+  });
+
+  it('offers the kept batch first while all its cards wait, even when older cards wait too', async () => {
+    await failOnce();
+    updateState(`${home}/state.json`, (state) => ({ ...state, landings: { merge: { ...state.landings.merge!, cards: [6], sources: [state.landings.merge!.sources[1]!] } } }));
+    cards = [card(5), card(6)];
+    await merge(fakeCtx(5));
+    expect(comments.filter((text) => text.includes('merged into dev')).map((text) => text.split(' ')[0])).toEqual(['6']);
   });
 });

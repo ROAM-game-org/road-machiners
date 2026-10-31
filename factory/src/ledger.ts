@@ -136,11 +136,12 @@ export function takeUsage(home: string, jobId: string): AgentUsage[] {
   return runs;
 }
 
-export function recordJob(home: string, prices: Record<string, TokenPrice>, endedAt: Date, job: { id: string | null; stage: JobStage; issue: number | null; startedAt: string; log?: string; batch?: number[] }, outcome: JobOutcome): void {
+export function recordJob(home: string, prices: Record<string, TokenPrice>, endedAt: Date, job: { id: string | null; stage: JobStage; issue: number | null; startedAt: string; log?: string; batch?: number[] }, outcome: JobOutcome): AgentUsage[] {
   const records = job.id === null ? { agents: [] } : takeJobRecords(home, prices, endedAt, { ...job, id: job.id }, outcome);
   const log = job.log === undefined ? {} : { log: job.log };
   const batch = job.batch === undefined ? {} : { batch: job.batch };
   appendLedger(home, { kind: 'job', id: job.id ?? 'hand-run', stage: job.stage, issue: job.issue, startedAt: job.startedAt, endedAt: endedAt.toISOString(), outcome, ...log, ...batch, ...records });
+  return records.agents;
 }
 
 function takeJobRecords(home: string, prices: Record<string, TokenPrice>, endedAt: Date, job: { id: string; stage: JobStage; issue: number | null; startedAt: string }, outcome: JobOutcome): { agents: AgentUsage[]; parts: JobPart[]; peakGb?: number; retryOf?: string | null } {

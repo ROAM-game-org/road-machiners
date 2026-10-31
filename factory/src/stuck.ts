@@ -147,7 +147,9 @@ async function releaseMergeGroups(ctx: Ctx, state: FactoryState, cards: Card[], 
   const released: number[] = [];
   for (const [base, group] of bases) {
     if (cards.some((card) => readyToMerge(state, card) && baseOf(ctx, card) === base)) continue;
-    released.push(...(await releaseHalf(ctx, group.map((card) => [card.issue, records[String(card.issue)]!] as const))));
+    const rows = group.map((card) => [card.issue, records[String(card.issue)]!] as const);
+    const kept = keptRows(state, rows);
+    released.push(...(kept === null ? await releaseHalf(ctx, rows) : await releaseKept(ctx, kept)));
   }
   return released;
 }
@@ -172,6 +174,22 @@ function basesOf(ctx: Ctx, cards: Card[]): Map<string, Card[]> {
     else bases.set(base, [...(bases.get(base) ?? []), card]);
   }
   return bases;
+}
+
+function keptRows(state: FactoryState, rows: (readonly [number, StuckRecord])[]): (readonly [number, StuckRecord])[] | null {
+  const kept = state.landings.merge?.cards;
+  if (kept === undefined) return null;
+  const found = kept.map((issue) => rows.find(([row]) => row === issue));
+  return found.every((row) => row !== undefined) ? found : null;
+}
+
+async function releaseKept(ctx: Ctx, rows: (readonly [number, StuckRecord])[]): Promise<number[]> {
+  const released: number[] = [];
+  for (const [issue, record] of rows) {
+    if (await releaseOne(ctx, issue, record.batch)) released.push(issue);
+  }
+  if (released.length > 0) ctx.log('tick', null, `stuck sweep: released the whole batch ${released.map((issue) => `#${issue}`).join(' ')}, since its merge work is kept and the next job resumes it`);
+  return released;
 }
 
 async function releaseHalf(ctx: Ctx, group: (readonly [number, StuckRecord])[]): Promise<number[]> {
