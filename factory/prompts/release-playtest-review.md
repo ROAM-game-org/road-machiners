@@ -23,5 +23,5 @@ An old finding never blocks the release, and you do not fix it. The factory open
 }
 - clean: no open important `release` finding, and you committed nothing in this round.
 - fixed: you committed fixes for the important `release` findings. The factory replays the seed on them.
-- blocked: a finding that needs a design or taste decision, a fix you cannot make safe, or a gate you cannot judge. Say in `blocker` what a member must decide.
+- blocked: a finding that needs a design or taste decision, a fix you cannot make safe, or a gate you cannot judge. Say in `blocker` what a member must decide. Committed fixes are never a reason to block: write fixed, and the factory blocks the release itself when no play is left to check them.
 `findings` lists what this log shows, also what you fixed in this round. `fixed` is true only for a finding that a commit of an earlier round of this job fixed and that this log shows no longer happens. Every other finding, also one you fixed in this round, has `fixed` false.

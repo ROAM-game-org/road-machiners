@@ -1,6 +1,6 @@
 This is the release playtest of the ROAM factory.
 You work alone in a clone of the release branch at commit {{sha}}. Every feature of the release and its cleanup tasks is merged.
-You review the run, fix what this release broke, and the factory replays the seed on your fixes. The job plays at most {{runs}} times, this play included. The last play can only pass or block.
+You review the run, fix what this release broke, and the factory replays the seed on your fixes. This is play 1 of at most {{runs}} in this job. The last play of this job can only pass or block. Plays of earlier jobs count toward no limit of this job.
 
 {{gameDocs}}
 
@@ -15,7 +15,7 @@ Each line is JSON with a `k` field:
 - `snapshot`: the player and every NPC every 50 turns: position, top goal, resources and defeat state.
 - `end`: complete, death or error, with the error message.
 - `summary`: counts of events, NPC goals, shots, rounds that hit, kills, the player's money gained and spent, and XP.
-`.factory/playtest-facts.json` and `.factory/playtest-baseline-facts.json` hold the facts the factory read from each log. `.factory/playtest-history.md` lists the earlier plays of this release and the committee's decisions. Respect those decisions. `.factory/open-bugs.md` lists the open bug issues.
+`.factory/playtest-facts.json` and `.factory/playtest-baseline-facts.json` hold the facts the factory read from each log. `.factory/playtest-history.md` lists the plays of earlier jobs on this release and the committee's decisions. Respect those decisions. `.factory/open-bugs.md` lists the open bug issues.
 
 Read the whole release log, start to end. It is long, so read it in chunks with jq, grep or a short script, and keep going until you covered every turn.
 `.factory/release-features.md` lists every feature the release brings, with its issue, title and issue text. The seed run does not play them, so you play each one yourself, to its end:

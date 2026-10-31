@@ -377,6 +377,17 @@ describe('playtest', () => {
     expect(release(agent.f).playtest).toMatchObject({ runs: 1, passed: null });
   });
 
+  it('counts plays per job, so plays of earlier jobs never read as spent plays of this one', async () => {
+    const run = setup({ playtest: { ...RELEASE.playtest, runs: 3 } });
+    run.turns = [fixed('fix0001'), clean];
+    await playtest(run.f.ctx, 11);
+    expect(run.prompts[0]).toContain('This is play 1 of at most 3 in this job.');
+    expect(run.prompts[1]).toContain('This is play 2 of at most 3 in this job.');
+    const history = readFileSync(join(HOME, 'playtest-history.md'), 'utf8');
+    expect(history).toContain('# Plays of earlier jobs on this release\nTheir run numbers count across the release. They count toward no play limit of this job.\n- run 1: no record');
+    expect(release(run.f).playtest).toMatchObject({ runs: 5, passed: 'fix0001' });
+  });
+
   it('writes the review rules with the baseline for the agent to read again before it writes the review', async () => {
     const run = setup();
     run.turns = [clean];
