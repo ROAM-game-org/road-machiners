@@ -226,6 +226,16 @@ describe('the Chaos Highway sprinter bot', () => {
     expect(vehicleStats(turn.world, playerVehicle(turn.world)).maxSpeed).toBeGreaterThan(CHAOS_HIGHWAY.hauler.hurry);
   });
 
+  it('buys no gun when it refits, since it never fires', () => {
+    const w = atFirstOutpost();
+    w.player.money = 2_000_000;
+    const guns = mountedParts(playerVehicle(w), 'weapon').length;
+
+    const turn = botOrders(w, 'sprinter');
+
+    expect(mountedParts(playerVehicle(turn.world), 'weapon').length).toBeLessThanOrEqual(guns);
+  });
+
   it('never trades its truck for a slower one, so wear does not drop it behind the hauler', () => {
     const w = atFirstOutpost();
     w.player.money = 2_000_000;

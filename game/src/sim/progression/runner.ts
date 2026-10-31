@@ -213,7 +213,7 @@ function restock(o: Orders, post: Outpost, style: RoadStyle): void {
 
 function restockGear(o: Orders, post: Outpost, style: RoadStyle, haulerShare: number): void {
   if (style === 'sprinter') {
-    refitGear(o, (v) => outpacesHauler(o.world, v));
+    refitGear(o, (v) => outpacesHauler(o.world, v) && addsNoGun(o.me, v));
     return buyTruck(o, post, (id) => keepsItsPace(o, id));
   }
   restockEscort(o, post, haulerShare);
@@ -290,6 +290,10 @@ function keepsItsPace(o: Orders, chassisId: string): boolean {
   const after = outpostBuyChassis(o.world, chassisId);
   const speedAfter = vehicleStats(after, playerVehicle(after)).maxSpeed;
   return outpacesHauler(after, playerVehicle(after)) && speedAfter >= vehicleStats(o.world, o.me).maxSpeed;
+}
+
+function addsNoGun(before: Vehicle, after: Vehicle): boolean {
+  return mountedParts(after, 'weapon').length <= mountedParts(before, 'weapon').length;
 }
 
 function outpacesHauler(world: World, v: Vehicle): boolean {
