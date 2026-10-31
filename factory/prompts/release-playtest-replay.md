@@ -1,4 +1,4 @@
-The factory replayed the same seed on your fixes, at commit {{sha}}. This is play {{play}} of at most {{runs}}. The last play can only pass or block.
+The factory replayed the same seed on your fixes, at commit {{sha}}. This is play {{play}} of at most {{runs}} in this job. The last play of this job can only pass or block.
 
 `.factory/playtest/log.jsonl` and `.factory/playtest-facts.json` now hold the new run. The baseline log is the same as before.
 
