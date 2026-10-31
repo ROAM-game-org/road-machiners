@@ -6,25 +6,25 @@ import { BREAKABLE, RULES } from '../data/rules';
 import { WRECK_LOOKS } from '../data/territory';
 import { TIME } from '../data/time';
 import { CHASSIS, chassisDef } from '../data/chassis';
-import { partDef } from '../data/parts';
+import { partDef, type PartDef } from '../data/parts';
 import { makePart, newId, partWithId } from './factory';
 import { atlasOf, icarusAtlas, type AtlasKey } from './atlas';
 import { clearOfSites, findRoadWreckSpot, isBreakable, mapObstacles, propReach } from './mapgen';
 import { startComponent } from './nav/astar';
-import { CELL, CLEARANCE, componentOf, navLayer, type NavLayer } from './nav/layer';
+import { CELL, CLEARANCE, climbNeed, componentOf, navLayer, type NavLayer } from './nav/layer';
 import { ROAD_INDEX } from './road-index';
 import { playerVehicle, vehicleById } from './damage';
 import { isKnockedOut } from './defeat';
 import { grayRadius } from './vision';
-import { findSpot, goodsCount, gridOf, isMounted, mountedParts, MOUNT_CELLS, type Spot } from './grid';
-import { addGoods, cargoMassRoom, getLayoutError, lootRefitTurns, requireIdleRefit, stowPart } from './inventory';
+import { findSpot, goodsCount, gridOf, isMounted, mountedParts, mountCellsOf, type Spot } from './grid';
+import { addGoods, cargoMassRoom, getLayoutError, refitTurns, queueRefit, requireIdleRefit, stowPart } from './inventory';
 import { chance, hashRandom, randInt } from './rng';
 import { sampleWeighted } from './npc-loadout';
 import { itemMass } from './mass';
 import { getResources } from './resources';
 import { fuelCap, suppliesCap, vehicleStats } from './stats';
 import { inCombat } from './combat';
-import { cancelJob, startJob } from './jobs';
+import { cancelJob } from './jobs';
 import type { GoalReason, GridItem, HiddenLoot, Refusal, NpcActivity, Obstacle, PartInstance, Pile, RefitPickup, SalvageStock, Vehicle, World } from './types';
 import { estimateCrashGeometry } from './crash-contact';
 import { walkLane } from './armor';
@@ -33,6 +33,7 @@ import { isLootSpot, spotLookOf, spotTable, territoryAt, territoryOfStock } from
 import type { BakedMap, PropKind } from './terrain';
 import { inTowReach } from './tow';
 import { breakLootWarning, warnedOffTarget } from './loot-warning';
+import type { Contract } from './market';
 import { playerCommand, Refused } from './world';
 import { clamp, dist, type Vec } from './vec';
 import { OPENING_WRECK_ID } from './opening';
@@ -95,6 +96,7 @@ export function rollStock(world: World, table: LootTable, id: string, pos: Vec, 
   goods.parts = randInt(world, table.parts[0], table.parts[1]);
   const parts: PartInstance[] = [];
   if (chance(world, table.sparePartChance)) parts.push(fieldSpare(world, table));
+  if (table.relicChance > 0 && chance(world, table.relicChance)) goods.relics = 1;
   const hidden = { goods, parts, fuel: randInt(world, ...table.fuel), supplies: randInt(world, ...table.supplies) };
   return { id, pos: { ...pos }, radius, goods: {}, parts: [], fuel: 0, supplies: 0, hidden };
 }
@@ -105,10 +107,8 @@ export function stockOldSpots(world: World, map: BakedMap): void {
   const ids = new Set(picks.map(oldStockId));
   const stray = world.salvage.find((stock) => oldSpotOf(stock) && !ids.has(stock.id));
   if (stray) throw new Error(`Old spot stock ${stray.id} is no old spot of map ${map.hash}`);
-  const held = world.salvage.filter((stock) => ids.has(stock.id)).length;
-  if (held === picks.length) return;
-  if (held > 0) throw new Error(`Old spot stocks are partial: ${held} of ${picks.length}`);
-  for (const p of picks) world.salvage.push(rollStock(world, OLD_TABLES[p.type], oldStockId(p), p.pos, p.reach));
+  const held = new Set(world.salvage.filter((stock) => ids.has(stock.id)).map((stock) => stock.id));
+  for (const p of picks.filter((pick) => !held.has(oldStockId(pick)))) world.salvage.push(rollStock(world, OLD_TABLES[p.type], oldStockId(p), p.pos, p.reach));
 }
 
 export function emptyHidden(): HiddenLoot {
@@ -126,6 +126,17 @@ export function hasRevealed(stock: SalvageStock): boolean {
 export function hiddenUnits(stock: SalvageStock): number {
   const { goods, parts, fuel, supplies } = stock.hidden;
   return parts.length + Object.values(goods).reduce((sum, count) => sum + count, 0) + Number(fuel > 0) + Number(supplies > 0);
+}
+
+export function stockProp(stock: SalvageStock): string {
+  if (stock.pile) throw new Error(`Pile ${stock.id} has no prop`);
+  return oldSpotOf(stock)?.propId ?? stock.id;
+}
+
+export function lootableProps(salvage: readonly SalvageStock[]): Set<string> {
+  const props = new Set<string>();
+  for (const stock of salvage) if (!stock.pile && hasSalvage(stock)) props.add(stockProp(stock));
+  return props;
 }
 
 export type Found = { goods: Record<string, number>; parts: string[]; fuel: number; supplies: number };
@@ -160,21 +171,73 @@ function revealGoods(world: World, stock: SalvageStock, p: number): Record<strin
   return found;
 }
 
-export function canTakeAny(world: World, vehicle: Vehicle, stock: SalvageStock): boolean {
-  return hiddenUnits(stock) > 0 || canTakeRevealed(world, vehicle, stock);
+export type ClaimContract = Extract<Contract, { kind: 'claim' }>;
+
+export function liveClaims(world: World): ClaimContract[] {
+  const contracts = [...Object.values(world.shops).flatMap((shop) => shop.contracts), ...world.player.contracts];
+  return contracts.filter((c): c is ClaimContract => c.kind === 'claim');
 }
 
-function canTakeRevealed(world: World, vehicle: Vehicle, stock: SalvageStock): boolean {
+export function claimOn(world: World, stock: SalvageStock): ClaimContract | null {
+  const named = liveClaims(world).filter((c) => c.stockId === stock.id);
+  if (named.length > 1) throw new Error(`Stock ${stock.id} is named by ${named.length} claims`);
+  return named[0] ?? null;
+}
+
+export function claimedPartIn(world: World, stock: SalvageStock): string | null {
+  const partId = claimOn(world, stock)?.partId;
+  if (partId === undefined) return null;
+  return [...stock.parts, ...stock.hidden.parts].some((part) => part.id === partId) ? partId : null;
+}
+
+export function revealClaimed(world: World, stock: SalvageStock): void {
+  const partId = claimedPartIn(world, stock);
+  const hidden = stock.hidden.parts.find((p) => p.id === partId);
+  if (!hidden) return;
+  stock.hidden.parts = stock.hidden.parts.filter((p) => p !== hidden);
+  stock.parts.push(hidden);
+}
+
+export function mayTakeClaimed(world: World, vehicle: Vehicle, claim: ClaimContract): boolean {
+  return vehicle.id === world.player.vehicleId || vehicle.id === claim.rival;
+}
+
+function reservedFrom(world: World, vehicle: Vehicle, stock: SalvageStock): string | null {
+  const claim = claimOn(world, stock);
+  return claim && !mayTakeClaimed(world, vehicle, claim) ? claimedPartIn(world, stock) : null;
+}
+
+export function claimOnly(world: World, vehicle: Vehicle, stock: SalvageStock): boolean {
+  const reserved = reservedFrom(world, vehicle, stock);
+  if (reserved === null || !hasSalvage(stock)) return false;
+  return hasOnly(stock, reserved);
+}
+
+function hasOnly(stock: SalvageStock, partId: string): boolean {
+  const others = stock.parts.some((p) => p.id !== partId) || stock.hidden.parts.some((p) => p.id !== partId);
+  const plain = Object.values(stock.goods).some((n) => n > 0) || Object.values(stock.hidden.goods).some((n) => n > 0);
+  return !others && !plain && !hasStores(stock) && stock.hidden.fuel <= 0 && stock.hidden.supplies <= 0;
+}
+
+export function canTakeAny(world: World, vehicle: Vehicle, stock: SalvageStock): boolean {
+  const reserved = reservedFrom(world, vehicle, stock);
+  if (reserved === null) return hiddenUnits(stock) > 0 || canTakeRevealed(world, vehicle, stock, stock.parts);
+  const hidden = hiddenUnits(stock) - (stock.hidden.parts.some((p) => p.id === reserved) ? 1 : 0);
+  return hidden > 0 || canTakeRevealed(world, vehicle, stock, stock.parts.filter((p) => p.id !== reserved));
+}
+
+function canTakeRevealed(world: World, vehicle: Vehicle, stock: SalvageStock, parts: PartInstance[]): boolean {
   const room = storesRoom(world, vehicle);
   if ((['fuel', 'supplies'] as const).some((kind) => (stock[kind] ?? 0) > 0 && room[kind] >= 1)) return true;
   const grid = gridOf(vehicle);
   const good: GridItem = { id: 'fit-check', x: 0, y: 0, rot: 0, kind: 'good', good: 'scrap' };
-  const massRoom = cargoMassRoom(vehicle);
-  if (Object.values(stock.goods).some((count) => count > 0 && CRATE_MASS <= massRoom) && findSpot(grid, vehicle.items, good, null, null)) return true;
-  return stock.parts.some((part) => {
-    const item: GridItem = { id: 'fit-check', x: 0, y: 0, rot: 0, kind: 'part', part };
-    return itemMass(item) <= massRoom && findSpot(grid, vehicle.items, item, null, MOUNT_CELLS[partDef(part.defId).kind]) !== null;
-  });
+  if (Object.values(stock.goods).some((count) => count > 0 && CRATE_MASS <= cargoMassRoom(vehicle)) && findSpot(grid, vehicle.items, good, null, null)) return true;
+  return parts.some((part) => canStowPart(vehicle, part));
+}
+
+export function canStowPart(vehicle: Vehicle, part: PartInstance): boolean {
+  const item: GridItem = { id: 'fit-check', x: 0, y: 0, rot: 0, kind: 'part', part };
+  return itemMass(item) <= cargoMassRoom(vehicle) && findSpot(gridOf(vehicle), vehicle.items, item, null, mountCellsOf(part.defId)) !== null;
 }
 
 export function hasStores(stock: SalvageStock): boolean {
@@ -196,8 +259,12 @@ export function searchTarget(world: World, vehicle: Vehicle, stockId: string | n
   return arrived && !salvageInRange(vehicle, stock) ? { ended: 'salvageOutOfReach' } : { stock };
 }
 
+export function salvageReach(radius: number): number {
+  return (radius + ECONOMY.useRange) * ECONOMY.interactionScale;
+}
+
 export function salvageInRange(vehicle: Vehicle, stock: SalvageStock): boolean {
-  return dist(vehicle.pos, stock.pos) <= (stock.radius + ECONOMY.useRange) * ECONOMY.interactionScale;
+  return dist(vehicle.pos, stock.pos) <= salvageReach(stock.radius);
 }
 
 export function collectSalvage(world: World, vehicle: Vehicle, stockId: string, units: number): number {
@@ -205,9 +272,11 @@ export function collectSalvage(world: World, vehicle: Vehicle, stockId: string, 
   if (!stock) throw new Error(`Unknown salvage ${stockId}`);
   if (!canReachSalvage(vehicle, stock)) throw new Error('Stop within salvage reach');
   pourStores(world, vehicle, stock);
+  const reserved = reservedFrom(world, vehicle, stock);
+  const mine = reserved === null ? claimedPartIn(world, stock) : null;
   let moved = 0;
-  stock.parts = stock.parts.filter((part) => {
-    if (moved >= units || !stowPart(world, vehicle, part)) return true;
+  stock.parts = [...stock.parts.filter((p) => p.id === mine), ...stock.parts.filter((p) => p.id !== mine)].filter((part) => {
+    if (part.id === reserved || moved >= units || !stowPart(world, vehicle, part)) return true;
     moved++;
     return false;
   });
@@ -280,10 +349,17 @@ export function carriedPart(world: World, vehicleId: string, partId: string): Pa
   return (v && mountedParts(v).find((x) => x.id === partId)) ?? wreck?.parts.find((x) => x.id === partId);
 }
 
+export function carriedPartDef(world: World, vehicleId: string, partId: string): PartDef {
+  const p = carriedPart(world, vehicleId, partId);
+  if (!p) throw new Error(`Round hit part ${partId}, which ${vehicleId} does not carry`);
+  return partDef(p.defId);
+}
+
 export function createWreckSalvage(world: World, vehicle: Vehicle): void {
   const goods = goodsCount(vehicle);
   const parts: PartInstance[] = [];
   const core: PartInstance[] = [];
+  requireNoParcel(vehicle);
   for (const item of vehicle.items) {
     if (item.kind !== 'part') continue;
     if (partDef(item.part.defId).kind === 'core') core.push(item.part);
@@ -295,6 +371,11 @@ export function createWreckSalvage(world: World, vehicle: Vehicle): void {
   vehicle.items = vehicle.items.filter((item) => item.kind === 'part' && partDef(item.part.defId).kind === 'core');
 }
 
+function requireNoParcel(vehicle: Vehicle): void {
+  const parcel = vehicle.items.find((item) => item.kind === 'parcel');
+  if (parcel) throw new Error(`${vehicle.id} was wrecked holding parcel ${parcel.id}`);
+}
+
 function coreWreckScrap(vehicle: Vehicle, core: PartInstance[]): number {
   if (core.length === 0) return 0;
   const hpShare = core.reduce((sum, part) => sum + part.hp / maxHp(part), 0) / core.length;
@@ -303,11 +384,17 @@ function coreWreckScrap(vehicle: Vehicle, core: PartInstance[]): number {
 }
 
 export function dropHaul(world: World, vehicle: Vehicle, items: GridItem[]): SalvageStock {
-  const id = `cargo-${vehicle.id}-${world.turn}`;
+  const id = freeStockId(world, `cargo-${vehicle.id}-${world.turn}`);
   for (const item of items) if (!vehicle.items.includes(item)) throw new Error(`${vehicle.id} does not hold haul item ${item.id}`);
   const pile = addVehicleStock(world, vehicle, id, {}, []);
   fillPile(world, vehicle, pile, items);
   return pile;
+}
+
+function freeStockId(world: World, base: string): string {
+  let id = base;
+  for (let n = 2; world.salvage.some((stock) => stock.id === id); n++) id = `${base}-${n}`;
+  return id;
 }
 
 export function dumpOnPile(world: World, vehicle: Vehicle, item: GridItem): SalvageStock {
@@ -319,11 +406,16 @@ export function spillOnPile(world: World, vehicle: Vehicle, items: GridItem[]): 
 }
 
 export function looseCargo(vehicle: Vehicle): GridItem[] {
-  return vehicle.items.filter((item) => item.kind === 'good' || !isMounted(vehicle.chassisId, item));
+  return vehicle.items.filter((item) => isLooseCargo(vehicle, item));
 }
 
 export function hasCargo(vehicle: Vehicle): boolean {
-  return vehicle.items.some((item) => item.kind === 'good' || !isMounted(vehicle.chassisId, item));
+  return vehicle.items.some((item) => isLooseCargo(vehicle, item));
+}
+
+function isLooseCargo(vehicle: Vehicle, item: GridItem): boolean {
+  if (item.kind === 'parcel') return false;
+  return item.kind === 'good' || !isMounted(vehicle.chassisId, item);
 }
 
 function addVehicleStock(world: World, vehicle: Vehicle, id: string, goods: Record<string, number>, parts: PartInstance[]): SalvageStock {
@@ -344,6 +436,7 @@ function dropOnPile(world: World, vehicle: Vehicle, items: GridItem[], id: strin
 function fillPile(world: World, vehicle: Vehicle, pile: SalvageStock, items: GridItem[]): void {
   const held = stampPile(world, vehicle.id === world.player.vehicleId, pile);
   for (const item of items) {
+    if (item.kind === 'parcel') throw new Error(`Parcel ${item.id} never goes on a pile`);
     if (item.kind === 'good') dropGood(world, held, item.good);
     else pile.parts.push(item.part);
   }
@@ -435,8 +528,22 @@ function spotStock(world: World, id: string): SalvageStock {
 function restockSite(world: World, stock: SalvageStock, table: LootTable): void {
   for (const [good, range] of Object.entries({ ...table.goods, parts: table.parts })) refillGood(world, stock, good, range);
   for (const kind of ['fuel', 'supplies'] as const) stock.hidden[kind] += refill(world, (stock[kind] ?? 0) + stock.hidden[kind], table[kind]);
+  restockSpare(world, stock, table);
+  restockRelic(world, stock, table);
+}
+
+function restockSpare(world: World, stock: SalvageStock, table: LootTable): void {
   if (stock.parts.length + stock.hidden.parts.length > 0 || !chance(world, table.sparePartChance * SALVAGE.restockShare)) return;
   stock.hidden.parts.push(fieldSpare(world, table));
+}
+
+function restockRelic(world: World, stock: SalvageStock, table: LootTable): void {
+  if (table.relicChance === 0 || relicsIn(stock) > 0 || !chance(world, table.relicChance * SALVAGE.restockShare)) return;
+  stock.hidden.goods.relics = 1;
+}
+
+function relicsIn(stock: SalvageStock): number {
+  return (stock.goods.relics ?? 0) + (stock.hidden.goods.relics ?? 0);
 }
 
 function refillGood(world: World, stock: SalvageStock, good: string, range: LootRange): void {
@@ -465,11 +572,12 @@ function replaceRoadWreck(world: World, old: SalvageStock): void {
   const spot = findRoadWreckSpot(world, world.obstacles, (pos, r) => !inPlayerView(world, pos) && clearOfVehicles(world, pos, r));
   const id = newId(world, 'wreck');
   if (world.obstacles.some((o) => o.id === id)) throw new Error(`Duplicate road wreck ${id}`);
-  world.obstacles.push({ id, ...spot, kind: 'wreck' });
+  world.obstacles = [...world.obstacles, { id, ...spot, kind: 'wreck' }];
   world.salvage.push(rollStock(world, SALVAGE.roadWreck, id, spot.pos, spot.r * RULES.wreckRadiusScale));
 }
 
-export function breakProp(world: World, id: string, vehicleId: string): void {
+export function breakProp(world: World, id: string, vehicleId: string, impact: number): void {
+  if (!Number.isFinite(impact) || impact < 0) throw new Error(`Bad smash impact ${impact}`);
   const prop = world.obstacles.find((o) => o.id === id);
   if (!prop || !isBreakable(prop)) throw new Error(`No standing breakable prop ${id}`);
   const vehicle = vehicleById(world, vehicleId);
@@ -479,7 +587,7 @@ export function breakProp(world: World, id: string, vehicleId: string): void {
   const contact = estimateCrashGeometry(vehicle, null, prop.pos).a;
   const lane = contact.lanes[Math.floor(contact.lanes.length / 2)];
   const hitsA = walkLane(world, vehicle, contact.side, lane, { damage: BREAKABLE.damage, pen: RULES.crashPen, blast: false, armorShare: 1 });
-  world.events.push({ t: 'collision', a: vehicle.id, b: id, hitsA, hitsB: [] });
+  world.events.push({ t: 'collision', a: vehicle.id, b: id, impact, hitsA, hitsB: [] });
 }
 
 function regrowBroken(world: World): void {
@@ -487,7 +595,7 @@ function regrowBroken(world: World): void {
   const back = due.filter(({ obstacle }) => canRegrow(world, obstacle));
   if (back.length === 0) return;
   world.broken = world.broken.filter((b) => !back.includes(b));
-  world.obstacles.push(...back.map((b) => b.obstacle));
+  world.obstacles = [...world.obstacles, ...back.map((b) => b.obstacle)];
 }
 
 function canRegrow(world: World, o: Obstacle): boolean {
@@ -513,26 +621,39 @@ export function canLootTruck(world: World, looter: Vehicle, target: Vehicle): bo
 }
 
 export function takeError(target: Vehicle, item: GridItem): Refusal | null {
+  if (item.kind === 'parcel') return { id: 'parcelKept' };
   if (item.kind === 'part' && partDef(item.part.defId).kind === 'core' && isMounted(target.chassisId, item)) return { id: 'builtInStays' };
   const left = getLayoutError(target, target.items.filter((it) => it.id !== item.id));
   return left ? { id: 'emptyRackFirst' } : null;
 }
 
-function takeTurns(world: World, looter: Vehicle, target: Vehicle, item: GridItem, placed: GridItem): number {
-  const planned = RULES.refitTurnsPerPart * (Number(isMounted(target.chassisId, item)) + Number(isMounted(looter.chassisId, placed)));
+export function lootWork(world: World, looter: Vehicle, fromMount: boolean, placed: GridItem): number {
+  const planned = RULES.refitTurnsPerPart * (Number(fromMount) + Number(isMounted(looter.chassisId, placed)));
   const garage = looter.id === world.player.vehicleId && atGarage(world);
-  return planned > 0 && !garage ? lootRefitTurns(world, looter, planned) : 0;
+  return planned > 0 && !garage ? refitTurns(world, looter, planned) : 0;
+}
+
+export function pickupWork(world: World, looter: Vehicle, pickup: RefitPickup, placed: GridItem): number {
+  if (pickup.from === 'stock') return lootWork(world, looter, false, placed);
+  const target = vehicleById(world, pickup.vehicleId);
+  const item = partItemOn(target, pickup.partId);
+  if (!item) throw new Error(`No part ${pickup.partId} on ${target.id} to price`);
+  return lootWork(world, looter, isMounted(target.chassisId, item), placed);
 }
 
 export function takeItem(world: World, looter: Vehicle, target: Vehicle, item: GridItem, to: Spot): void {
   const placed: GridItem = { ...item, id: newId(world, 'i'), ...to };
+  const work = lootWork(world, looter, isMounted(target.chassisId, item), placed);
+  if (work > 0) return queuePickup(world, looter, target, item, placed.id, to);
+  requireIdleRefit(looter);
   const error = takeError(target, item) ?? getLayoutError(looter, [...looter.items, placed]);
   if (error) throw new Refused(error);
-  const work = takeTurns(world, looter, target, item, placed);
-  if (work === 0) return moveNow(world, looter, target, item, placed);
+  moveNow(world, looter, target, item, placed);
+}
+
+function queuePickup(world: World, looter: Vehicle, target: Vehicle, item: GridItem, itemId: string, to: Spot): void {
   if (item.kind !== 'part') throw new Error('Only parts take a refit');
-  const pickup: TruckPickup = { from: 'truck', vehicleId: target.id, partId: item.part.id, itemId: placed.id, to };
-  startJob(world, looter, { kind: 'refit', moves: [], pickup, turnsLeft: work, total: work });
+  queueRefit(world, looter, { moves: [], pickup: { from: 'truck', vehicleId: target.id, partId: item.part.id, itemId, to } });
 }
 
 function moveNow(world: World, looter: Vehicle, target: Vehicle, item: GridItem, placed: GridItem): void {
@@ -545,7 +666,6 @@ export function takeFromTruck(world: World, targetId: string, itemId: string, to
   return playerCommand(world, (w) => {
     const me = playerVehicle(w);
     const target = vehicleById(w, targetId);
-    requireIdleRefit(me);
     if (!canLootTruck(w, me, target)) throw new Error('Park beside a knocked-out truck to loot it');
     requireLootFree(w, me, targetId);
     breakLootWarning(w, me, targetId);
@@ -555,12 +675,22 @@ export function takeFromTruck(world: World, targetId: string, itemId: string, to
   });
 }
 
-export function truckPickupItem(world: World, looter: Vehicle, pickup: TruckPickup): GridItem | Refusal {
+export function truckPickupItem(world: World, looter: Vehicle, pickup: TruckPickup, taken: ReadonlySet<string>): GridItem | Refusal {
   const target = world.vehicles.find((v) => v.id === pickup.vehicleId);
   if (!target || !canLootTruck(world, looter, target)) return { id: 'truckOutOfReach' };
-  const item = target.items.find((it) => it.kind === 'part' && it.part.id === pickup.partId);
-  if (item?.kind !== 'part') return { id: 'truckPartGone' };
-  return { kind: 'part', id: pickup.itemId, part: item.part, ...pickup.to };
+  if (taken.has(pickup.partId)) return { id: 'partQueued' };
+  const item = partItemOn(target, pickup.partId);
+  if (!item) return { id: 'truckPartGone' };
+  return takeError(withoutTaken(target, taken), item) ?? { kind: 'part', id: pickup.itemId, part: item.part, ...pickup.to };
+}
+
+function partItemOn(v: Vehicle, partId: string): Extract<GridItem, { kind: 'part' }> | null {
+  const item = v.items.find((it) => it.kind === 'part' && it.part.id === partId);
+  return item?.kind === 'part' ? item : null;
+}
+
+function withoutTaken(target: Vehicle, taken: ReadonlySet<string>): Vehicle {
+  return { ...target, items: target.items.filter((it) => it.kind !== 'part' || !taken.has(it.part.id)) };
 }
 
 export function finishTruckPickup(world: World, looter: Vehicle, pickup: TruckPickup): void {
@@ -623,8 +753,9 @@ function pickupSource(pickup: RefitPickup): string {
   return pickup.from === 'stock' ? pickup.stockId : pickup.vehicleId;
 }
 
-function worksOn(v: Vehicle, targetId: string): boolean {
-  return jobTarget(v) === targetId;
+export function worksOn(v: Vehicle, targetId: string): boolean {
+  if (jobTarget(v) === targetId) return true;
+  return v.job?.kind === 'refit' && v.job.queue.some((step) => step.pickup !== null && pickupSource(step.pickup) === targetId);
 }
 
 function actsOn(world: World, v: Vehicle, targetId: string): boolean {
@@ -633,7 +764,7 @@ function actsOn(world: World, v: Vehicle, targetId: string): boolean {
 }
 
 function isLootActOn(goal: NpcActivity, targetId: string): boolean {
-  return (goal.kind === 'loot' || goal.kind === 'scavenge') && goal.targetId === targetId && goal.phase === 'act';
+  return isStockGoal(goal) && goal.targetId === targetId && goal.phase === 'act';
 }
 
 export function inLootReach(world: World, v: Vehicle, targetId: string): boolean {
@@ -641,9 +772,17 @@ export function inLootReach(world: World, v: Vehicle, targetId: string): boolean
   return stock ? canReachSalvage(v, stock) : canLootTruck(world, v, vehicleById(world, targetId));
 }
 
+const STOCK_GOALS: readonly NpcActivity['kind'][] = ['loot', 'scavenge', 'claim'];
+
+export function isStockGoal(goal: NpcActivity | null | undefined): goal is NpcActivity {
+  return !!goal && STOCK_GOALS.includes(goal.kind);
+}
+
 export const CANNOT_HOLD: GoalReason = 'cargoFullLoot';
 
 export const STRIPPED: GoalReason = 'salvageExhausted';
+
+export const CLAIMED: GoalReason = 'claimedWreck';
 
 export function lootTruckTurn(world: World, looter: Vehicle, target: Vehicle): GoalReason | null {
   if (looter.job?.kind === 'refit') return null;
@@ -656,7 +795,7 @@ export function lootTruckTurn(world: World, looter: Vehicle, target: Vehicle): G
 }
 
 function takeLooseItems(world: World, looter: Vehicle, target: Vehicle): void {
-  for (const item of target.items.filter((it) => !isMounted(target.chassisId, it))) {
+  for (const item of target.items.filter((it) => it.kind !== 'parcel' && !isMounted(target.chassisId, it))) {
     const spot = spareSpot(looter, item);
     if (spot) takeItem(world, looter, target, item, spot);
   }
@@ -677,7 +816,7 @@ function nextInstalled(looter: Vehicle, target: Vehicle): { item: GridItem; spot
 
 function spareSpot(looter: Vehicle, item: GridItem): Spot | null {
   if (itemMass(item) > cargoMassRoom(looter)) return null;
-  const avoid = item.kind === 'part' ? MOUNT_CELLS[partDef(item.part.defId).kind] : null;
+  const avoid = item.kind === 'part' ? mountCellsOf(item.part.defId) : null;
   return findSpot(gridOf(looter), looter.items, { ...item, id: 'probe' }, null, avoid);
 }
 
@@ -686,6 +825,7 @@ export type OldSpotPick = { propId: string; type: OldPlaceType; pos: Vec; reach:
 
 const BUILDINGS: readonly PropKind[] = ['house', 'ruin', 'silo', 'waterTower', 'gasStation'];
 const TOWERS: readonly PropKind[] = ['silo', 'waterTower'];
+const BOAT_LOOKS: readonly PropKind[] = ['fishingBoat', 'riverBarge', 'skiff'];
 const RING_DIRECTIONS = 24;
 const RING_PAST = 2;
 
@@ -696,7 +836,8 @@ export function oldPlaces(baked: readonly Obstacle[]): OldPlace[] {
   const candidates = baked.filter((o) => o.kind === 'landmark' && territoryAt(o.pos) === null && clearOfSites(icarusAtlas(), o.pos, o.r));
   const buildings = linked(candidates.filter((o) => o.kind === 'landmark' && BUILDINGS.includes(o.look)), OLD_PLACES.buildingGap);
   const tanks = linked(candidates.filter((o) => o.kind === 'landmark' && o.look === 'tank'), OLD_PLACES.tankGap);
-  return [...buildings.map((props) => place(buildingType(props), props)), ...tanks.map((props) => place('hulks', props))];
+  const boats = linked(candidates.filter((o) => o.kind === 'landmark' && BOAT_LOOKS.includes(o.look)), OLD_PLACES.boatGap);
+  return [...buildings.map((props) => place(buildingType(props), props)), ...tanks.map((props) => place('hulks', props)), ...boats.map((props) => place('boats', props))];
 }
 
 function buildingType(props: Obstacle[]): OldPlaceType {
@@ -738,10 +879,10 @@ export function makeOldSpotPicks(map: BakedMap): OldSpotPick[] {
 
 export function placeSpot(map: BakedMap, layer: NavLayer, p: OldPlace): Obstacle | null {
   const order = [...p.props].sort((a, b) => propHash(map, a) - propHash(map, b));
-  return order.find((o) => offRoad(o) && reachable(layer, o)) ?? null;
+  return order.find((o) => offRoad(o) && reachable(layer, o, REGION.navigation.reachClimb)) ?? null;
 }
 
-function propHash(map: BakedMap, o: Obstacle): number {
+export function propHash(map: BakedMap, o: Obstacle): number {
   return hashRandom(map.seed, OLD_PLACES.seedOffset, Math.round(o.pos.x * 16), Math.round(o.pos.y * 16), 1);
 }
 
@@ -749,9 +890,15 @@ export function offRoad(o: Obstacle): boolean {
   return ROAD_INDEX.nearestWithin(o.pos.x, o.pos.y, REGION.roadWidth / 2 + OLD_PLACES.roadGap + propReach(o)) === Infinity;
 }
 
-export function reachable(layer: NavLayer, o: Obstacle): boolean {
-  const road = componentAt(layer, nearestRoadPoint(o.pos));
-  if (road === 0) return false;
+export function reachable(layer: NavLayer, o: Obstacle, climb: number): boolean {
+  return standPoint(layer, o, climb) !== null;
+}
+
+export function standPoint(layer: NavLayer, o: Obstacle, climb: number): Vec | null {
+  const road = startComponent(layer, cellAt(layer, nearestRoadPoint(o.pos)));
+  if (road === 0) return null;
+  const need = climbNeed(layer);
+  const steps = Math.floor(climb / REGION.navigation.climbStep + 1e-9);
   const ring = propReach(o) + layer.radius + CLEARANCE;
   const inReach = (propReach(o) + ECONOMY.useRange) * ECONOMY.interactionScale;
   for (let k = 0; k < RING_DIRECTIONS; k++) {
@@ -759,14 +906,10 @@ export function reachable(layer: NavLayer, o: Obstacle): boolean {
     for (let past = 0; past <= RING_PAST; past++) {
       const at = { x: o.pos.x + Math.cos(angle) * (ring + past), y: o.pos.y + Math.sin(angle) * (ring + past) };
       const cell = cellAt(layer, at);
-      if (dist(centreOf(layer, cell), o.pos) <= inReach && componentOf(layer, cell) === road) return true;
+      if (dist(centreOf(layer, cell), o.pos) <= inReach && componentOf(layer, cell) === road && need[cell] <= steps) return centreOf(layer, cell);
     }
   }
-  return false;
-}
-
-function componentAt(layer: NavLayer, p: Vec): number {
-  return startComponent(layer, cellAt(layer, p));
+  return null;
 }
 
 function cellAt(layer: NavLayer, p: Vec): number {
@@ -811,4 +954,12 @@ export function oldSpotOf(stock: { id: string }): { type: OldPlaceType; propId: 
 
 export function oldSpotsNear(world: World, pos: Vec, range: number): OldSpotPick[] {
   return oldSpotPicks({ hash: world.mapHash, terrain: world.terrain }).filter((p) => dist(p.pos, pos) <= range);
+}
+
+const meanOf = ([lo, hi]: LootRange): number => (lo + hi) / 2;
+
+export function meanLootValue(table: LootTable): number {
+  const goods = Object.entries(table.goods).reduce((sum, [good, range]) => sum + meanOf(range) * GOODS[good].value, 0);
+  const parts = meanOf(table.parts) * GOODS.parts.value;
+  return goods + parts + table.relicChance * GOODS.relics.value + meanOf(table.fuel) * ECONOMY.supplyPrice.fuel + meanOf(table.supplies) * ECONOMY.supplyPrice.supplies;
 }

@@ -28,7 +28,7 @@ def build(kit: Kit) -> None:
         kit.box(f"shroud_side{y:.2f}", (0.44, 0.02, 0.18), (0.14, y, 0.22), "paint", dent_by=0.004)
     kit.box("mantlet", (0.06, 0.24, 0.24), (0.4, 0, MUZZLE[2]), "metal_light", dent_by=0.004)
     kit.box("breech_block", (0.08, 0.22, 0.2), (-0.44, 0, 0.18), "dark")
-    kit.box("handle", (0.04, 0.03, 0.12), (-0.47, 0.08, 0.22), "metal_light")
+    kit.box("handle", (0.04, 0.03, 0.14), (-0.47, 0.08, 0.23), "metal_light")
     for y in (-0.235, 0.235):
         tube(kit, f"recoil{y:.2f}", 0.04, -0.2, 0.32, "metal_light", y=y, z=0.28, sides=6)
     kit.socket("muzzle", MUZZLE)

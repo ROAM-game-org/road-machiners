@@ -8,9 +8,11 @@ const patchAt = argv.indexOf('--patch');
 if (patchAt >= 0) await import(pathToFileURL(resolve(argv[patchAt + 1])).href);
 const { TIME } = await import('../src/data/time.ts');
 const { isArchetype } = await import('../src/sim/progression/bot.ts');
-const { recordTurns, FAR_MOVER } = await import('../src/sim/progression/record.ts');
+const { FAR_MOVER } = await import('../src/sim/progression/record.ts');
+const { recordTurns } = await import('../src/sim/progression/record-node.ts');
 const { RunLog } = await import('../src/sim/progression/run-log.ts');
 const { turnLine, worldLine } = await import('../src/sim/progression/turn-log.ts');
+const { RunStream } = await import('../src/sim/run-stream.ts');
 const { JobTally } = await import('../src/sim/progression/job-checks.ts');
 
 const USAGE = 'Usage: npm run progression:record -- --archetypes <a,b> --seeds <1,2> --turns <n> [--markov-turns <k>] [--tolerate-stalls true] [--kit <id>] [--settings <id=value,...>] [--physics true] [--out <dir>] [--patch <file>]';
@@ -147,13 +149,15 @@ async function recordOne({ archetype, seed }, turns, options, place) {
   const worldFd = openSync(`${worldPath}.part`, 'w');
   const runPath = `${place.out}/${name}.run.jsonl`;
   const runFd = openSync(`${runPath}.part`, 'w');
+  const streamPath = `${place.out}/${name}.stream.jsonl`;
+  const streamFd = openSync(`${streamPath}.part`, 'w');
   const started = Date.now();
   writeSync(fd, `${JSON.stringify({ archetype, seed, turns, ...options, patch: place.patch })}\n`);
   const progress = { count: 0, end: null, lastTurn: 1 };
   const { physics, ...botOptions } = options;
   const mover = await moverFor(physics);
   try {
-    writeSteps({ fd, turnsFd, worldFd, runFd }, name, archetype, recordTurns(seed, archetype, turns, botOptions, mover), progress);
+    writeSteps({ fd, turnsFd, worldFd, runFd, streamFd }, name, archetype, recordTurns(seed, archetype, turns, botOptions, mover), progress);
   } catch (error) {
     console.error(error);
     progress.end = { end: 'error', turn: progress.lastTurn, message: error instanceof Error ? error.message : String(error) };
@@ -165,27 +169,37 @@ async function recordOne({ archetype, seed }, turns, options, place) {
   closeSync(turnsFd);
   closeSync(worldFd);
   closeSync(runFd);
+  closeSync(streamFd);
   renameSync(`${path}.part`, path);
   renameSync(`${turnsPath}.part`, turnsPath);
   renameSync(`${worldPath}.part`, worldPath);
   renameSync(`${runPath}.part`, runPath);
+  renameSync(`${streamPath}.part`, streamPath);
   const ending = end ? `${end.end === 'death' ? 'died' : 'failed'} on turn ${end.turn}` : `${turns} turns`;
   console.log(`${name}: ${ending}, ${count} events in ${((Date.now() - started) / 1000).toFixed(0)} s`);
 }
 
 function writeRunLines(runFd, runLog, before, step) {
-  if (before === null) return;
-  const lines = runLog.note(before, step.world, step.events);
+  const lines = runLog.note(before ?? step.world, step.world, step.events);
   if (lines.length > 0) writeSync(runFd, lines.map((line) => `${JSON.stringify(line)}\n`).join(''));
 }
 
-function writeSteps({ fd, turnsFd, worldFd, runFd }, name, archetype, steps, progress) {
+function writeStream(streamFd, stream, step) {
+  const opening = stream.started ? [] : stream.writer.begin(step.world, 'record');
+  stream.started = true;
+  const lines = [...opening, ...stream.writer.step(step.world, step.events)];
+  if (lines.length > 0) writeSync(streamFd, lines.map((line) => `${JSON.stringify(line)}\n`).join(''));
+}
+
+function writeSteps({ fd, turnsFd, worldFd, runFd, streamFd }, name, archetype, steps, progress) {
   const job = new JobTally();
+  const stream = { started: false, writer: new RunStream({ runId: name, version: 'recorder', sessionId: name }) };
   const runLog = new RunLog();
   let before = null;
   for (const step of steps) {
     const { world, lines, rows } = step;
     writeRunLines(runFd, runLog, before, step);
+    writeStream(streamFd, stream, step);
     before = world;
     const written = [...lines, ...rows];
     if (written.length > 0) writeSync(fd, written.map((line) => `${JSON.stringify(line)}\n`).join(''));

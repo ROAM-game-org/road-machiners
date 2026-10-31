@@ -1,6 +1,3 @@
-// Fog of war: which tiles the player vehicle can see, blocked by props and hills. A prop blocks sight with the boxes of its
-// shape that the line from the viewer's eye to the target's top passes through, so low fences and junk leave it open
-// and a viewer up on a deck sees over them. Boxes out of reach under a deck block nothing. Water does not block sight.
 
 import { PHYSICS } from '../data/physics';
 import { TERRAIN } from '../data/terrain';
@@ -17,6 +14,7 @@ import { playerVehicle } from './damage';
 import { cloudsSeenBy, contactDifficulty, contactsOf } from './detect';
 import { litAt, litFlares } from './hazards';
 import { practice, skillEffect, vehicleHasPerk } from './progress';
+import { sightFactor } from './chassis-features';
 import { PERK_NUMBERS } from '../data/skills';
 
 function propsNear(world: World, a: Vec, b: Vec): Obstacle[] {
@@ -29,7 +27,7 @@ export function sightRadius(world: World, viewer: Vehicle, lit = false): number 
   const night = nightFactor(world, viewer, lit);
   const weather = vehicleHasPerk(world, viewer, 'stormRider') ? 1 : weatherOn(world, viewer).sight;
   const skill = 1 + skillEffect(world, viewer, 'perception', 'sight');
-  return TERRAIN.vision.radius * weather * night * skill;
+  return TERRAIN.vision.radius * weather * night * skill * sightFactor(viewer.chassisId);
 }
 
 function nightFactor(world: World, viewer: Vehicle, lit: boolean): number {
@@ -52,11 +50,47 @@ export function exploreFrom(world: World, from: Vec): void {
 }
 
 function forSeenTiles(world: World, from: Vec, test: (idx: number) => boolean, seen: (idx: number) => void): void {
+  for (const { reach, disk } of sightDisks(world, from)) forTilesIn(world, from, reach, disk, test, seen);
+}
+
+function sightDisks(world: World, from: Vec): { reach: number; disk: Disk }[] {
   const me = playerVehicle(world);
   const r = sightRadius(world, me);
-  forTilesIn(world, from, r, { pos: from, r }, test, seen);
+  const out = [{ reach: r, disk: { pos: from, r } }];
   const lit = sightRadius(world, me, true);
-  if (lit > r) for (const f of litFlares(world)) if (dist(from, f.pos) - f.r < lit) forTilesIn(world, from, lit, f, test, seen);
+  if (lit > r) for (const f of litFlares(world)) if (dist(from, f.pos) - f.r < lit) out.push({ reach: lit, disk: f });
+  return out;
+}
+
+export function seenPropTiles(world: World, from: Vec, visible: ReadonlySet<number>): number[] {
+  const disks = sightDisks(world, from);
+  const reach = Math.max(...disks.map((d) => d.reach));
+  const out = new Set<number>();
+  for (const o of propsAround(world, 'sight', from, reach)) {
+    const tiles = footprintTiles(world, o);
+    if (!propIsSeen(world, from, o, tiles, disks, visible)) continue;
+    for (const idx of tiles) out.add(idx);
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
+function propIsSeen(world: World, from: Vec, o: Obstacle, tiles: readonly number[], disks: { reach: number; disk: Disk }[], visible: ReadonlySet<number>): boolean {
+  if (tiles.some((idx) => visible.has(idx))) return true;
+  if (!disks.some((d) => inDisks(o.pos, { pos: from, r: d.reach }, d.disk))) return false;
+  if (isHeadless()) return true;
+  return inPlainView(world, from, o.pos, propsNear(world, from, o.pos).filter((c) => c !== o), []);
+}
+
+function footprintTiles(world: World, o: Obstacle): number[] {
+  const size = world.size;
+  const reach = propReach(o);
+  const lo = { x: Math.max(0, Math.floor(o.pos.x - reach)), y: Math.max(0, Math.floor(o.pos.y - reach)) };
+  const hi = { x: Math.min(size - 1, Math.ceil(o.pos.x + reach)), y: Math.min(size - 1, Math.ceil(o.pos.y + reach)) };
+  const out: number[] = [];
+  for (let x = lo.x; x <= hi.x; x++) {
+    for (let y = lo.y; y <= hi.y; y++) if (dist(o.pos, { x: x + 0.5, y: y + 0.5 }) <= reach) out.push(y * size + x);
+  }
+  return out;
 }
 
 type Disk = { pos: Vec; r: number };

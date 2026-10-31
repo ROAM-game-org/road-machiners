@@ -20,7 +20,7 @@ Plan check: list each rule the change reads outside `src/sim/`, and name the sim
 
 ## 3. Hot code uses an index
 
-Code that runs per turn, per frame, per truck or per pair never scans a whole world list. It queries an index. `ObstacleBuckets` in `src/sim/nav/buckets.ts` answers questions about obstacles near a point or along a segment. `RoadIndex` answers questions about roads. Cached nav layers in `src/sim/nav/layer.ts` hold route data.
+Code that runs per turn, per frame, per truck or per pair never scans a whole world list. It queries an index. `ObstacleBuckets` in `src/sim/nav/buckets.ts` answers questions about obstacles near a point or along a segment. `RoadIndex` answers questions about roads. Cached nav layers in `src/sim/nav/layer.ts` hold route data. `src/sim/loadout-memo.ts` holds the facts derived from one truck's items, like its mounted parts per kind and role, its mass, worn engine, gun draw and weapon spans. `mountedItems()`, `mountedParts()`, `coreParts()` and `vehicleStats()` read it, and a new loadout fact is a new slot there, never a cache in the caller.
 
 A filter over `world.obstacles`, `world.roads` or `world.vehicles` inside a function that runs per point, per segment or per check is a violation. So is a filter that only narrows the list after a full pass over it.
 
@@ -42,7 +42,7 @@ Plan check: list every source or sink of value the change adds or changes, with 
 
 ## 5. Save facts, derive the rest
 
-`World` holds facts only. Derived data and caches live outside it and are rebuilt from the facts. A cache key compares ids, not object identity, because the world is cloned every turn. Any change to a type reachable from `World` needs a save migration, as [Saves](saves.md) and `CLAUDE.md` describe.
+`World` holds facts only. Derived data and caches live outside it and are rebuilt from the facts. A cache key compares ids, not object identity, because the world is cloned every turn. The loadout memo is the one exception: it is keyed by a truck's items array, so it never outlives its world copy, and it checks a fingerprint of the items on every read, so no writer of items has to tell it. Any change to a type reachable from `World` needs a save migration, as [Saves](saves.md) and `CLAUDE.md` describe.
 
 Why: a stored derived value drifts away from the facts it came from. Players keep their saves across updates.
 
@@ -71,3 +71,11 @@ A feature shows state with what the player already sees: the grid, the 3D view, 
 Why: agents keep adding text that explains what the screen shows. Example of what not to do: a gun's tooltip read "arc 270°, facing rear" while the inventory grid already drew its arc fan and a triangle on the side it faces. Both the number and the words were noise.
 
 Plan check: list each new word of UI text, and name the visual that already shows it or say why none can.
+
+## 9. Player progress survives updates
+
+A change to content a save holds keeps that progress, or resets the least of it. It never throws away the whole world for one part that no longer fits. Load repairs what it can in place and tells the player what it reset. The rescue screen is only for what no repair can fix, like another map or another major format.
+
+Why: players keep their saves across updates. A rescue rebuilds the world from a new game, so one bad quest variable used to cost the player their NPCs, shops, contracts and place on the map.
+
+Plan check: name each saved fact the change invalidates, and whether a migration step keeps it, a raised quest revision resets it, or the rescue carries it.

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { PHYSICS } from '../../data/physics';
 import { CameraRig } from './camera';
+import type { Vec } from '../../sim/vec';
 import { RenderScope, SightLimit } from './scope';
 
 const S = PHYSICS.metersPerTile;
@@ -132,6 +133,43 @@ describe('render scope', () => {
     expect(far.length).toBeGreaterThan(0);
     for (const o of near) expect(attached(o, root)).toBe(true);
     for (const o of far) expect(attached(o, root)).toBe(false);
+  });
+});
+
+describe('render scope bounds', () => {
+  function staticTree(at: Vec, refreshInner: boolean): THREE.Group {
+    const root = new THREE.Group();
+    root.position.set(at.x * S, 0, at.y * S);
+    const inner = new THREE.Mesh(new THREE.BoxGeometry(S, S, S), new THREE.MeshBasicMaterial());
+    inner.position.set(S, 0, 0);
+    inner.matrixAutoUpdate = false;
+    if (refreshInner) inner.updateMatrix();
+    root.add(inner);
+    return root;
+  }
+
+  function detachesFromOrigin(tree: THREE.Group, at: Vec): boolean {
+    const root = new THREE.Group();
+    const limit = new SightLimit(SIZE);
+    const scope = new RenderScope(root, SIZE, limit, true, false);
+    scope.add(tree, at, 2);
+    limit.set({ x: 0, y: 0, z: 0 }, 5 * S);
+    scope.update(rigAt(0, 0, 0.35).camera);
+    return !attached(tree, root);
+  }
+
+  it('measures a static child whose world matrix was never computed from where its parent stands', () => {
+    const at = { x: 500, y: 500 };
+    const tree = staticTree(at, false);
+    expect(detachesFromOrigin(tree, at)).toBe(true);
+  });
+
+  it('names an object whose stale local matrix puts its bounds at the origin', () => {
+    const tree = staticTree({ x: 500, y: 500 }, false);
+    tree.name = 'stale-pile';
+    tree.matrixAutoUpdate = false;
+    const scope = new RenderScope(new THREE.Group(), SIZE, new SightLimit(SIZE), true, false);
+    expect(() => scope.add(tree, { x: 500, y: 500 }, 2)).toThrow(/stale-pile/);
   });
 });
 

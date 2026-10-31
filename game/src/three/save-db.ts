@@ -3,7 +3,7 @@ import { reportError } from './crash';
 import { slotKey, type SlotId } from './save-slots';
 import { Stalled, withinMs } from '../stall';
 
-export type LogEntry = { kind: string; turn: number; day: number } & Record<string, unknown>;
+export type LogEntry = { kind: string; turn: number } & Record<string, unknown>;
 
 export type LogRecord = LogEntry & { runId: string; seq: number };
 
@@ -18,30 +18,41 @@ export type SaveBackend = {
 const SAVES = 'saves';
 const LOG = 'log';
 
+export class DatabaseLost extends Error {
+  constructor(name: string, cause: unknown) {
+    super(`The browser lost the save database ${name}: ${messageOf(cause)}`, { cause });
+    this.name = 'DatabaseLost';
+  }
+}
+
 export async function idbBackend(name: string): Promise<SaveBackend> {
   const connection = new Connection(name);
   await connection.current();
   return {
-    readAll: async () => {
-      const tx = await connection.transaction(SAVES, 'readonly');
-      const [keys, values] = await Promise.all([request(tx.objectStore(SAVES).getAllKeys()), request(tx.objectStore(SAVES).getAll())]);
-      return new Map(keys.map((key, i) => [key as SlotId, values[i]]));
-    },
-    put: (slot, envelope) => written(connection, SAVES, (store) => store.put(envelope, slot)),
-    remove: (slot) => written(connection, SAVES, (store) => store.delete(slot)),
-    appendLog: (runId, entries) => written(connection, LOG, (store) => {
+    readAll: () => connection.run(SAVES, 'readonly', (store, finish, guard) => {
+      const keys = store.getAllKeys();
+      const values = store.getAll();
+      values.onsuccess = guard(() => finish(new Map(keys.result.map((key, i) => [key as SlotId, values.result[i]]))));
+    }),
+    put: (slot, envelope) => connection.run(SAVES, 'readwrite', (store) => { store.put(envelope, slot); }),
+    remove: (slot) => connection.run(SAVES, 'readwrite', (store) => { store.delete(slot); }),
+    appendLog: (runId, entries) => connection.run(LOG, 'readwrite', (store, _finish, guard) => {
       const last = store.openCursor(runRange(runId), 'prev');
-      last.onsuccess = () => {
+      last.onsuccess = guard(() => {
         const next = last.result ? (last.result.value as LogRecord).seq + 1 : 0;
         entries.forEach((entry, i) => store.add({ ...entry, runId, seq: next + i }));
-      };
+      });
     }),
-    readLog: async (runId) => {
-      const tx = await connection.transaction(LOG, 'readonly');
-      return request(tx.objectStore(LOG).getAll(runRange(runId)));
-    },
+    readLog: (runId) => connection.run(LOG, 'readonly', (store, finish, guard) => {
+      const records = store.getAll(runRange(runId));
+      records.onsuccess = guard(() => finish(records.result as LogRecord[]));
+    }),
   };
 }
+
+type Guard = (handler: () => void) => () => void;
+
+type Unit<T> = (store: IDBObjectStore, finish: (value: T) => void, guard: Guard) => void;
 
 class Connection {
   private held: Promise<IDBDatabase> | null = null;
@@ -63,28 +74,84 @@ class Connection {
     return opening;
   }
 
-  async transaction(stores: string, mode: IDBTransactionMode): Promise<IDBTransaction> {
+  async run<T>(store: string, mode: IDBTransactionMode, unit: Unit<T>): Promise<T> {
     const held = this.current();
     try {
-      return (await held).transaction(stores, mode);
+      return await transacted(await held, store, mode, unit);
     } catch (err) {
-      if (!isClosing(err)) throw err;
+      if (!isConnectionFailure(err)) throw err;
       this.drop(held);
-      return (await this.current()).transaction(stores, mode);
+    }
+    const fresh = this.current();
+    try {
+      return await transacted(await fresh, store, mode, unit);
+    } catch (err) {
+      if (!isConnectionFailure(err)) throw err;
+      this.drop(fresh);
+      throw new DatabaseLost(this.name, err);
     }
   }
 
   private drop(connection: Promise<IDBDatabase>): void {
-    if (this.held === connection) this.held = null;
+    if (this.held !== connection) return;
+    this.held = null;
+    connection.then((db) => db.close(), () => {});
   }
 }
 
-function isClosing(err: unknown): boolean {
-  return (err as { name?: unknown } | null)?.name === 'InvalidStateError';
+const CONNECTION_FAILURES = new Set(['InvalidStateError', 'UnknownError', 'AbortError']);
+
+function isConnectionFailure(err: unknown): boolean {
+  return err instanceof OpenRefused || (err instanceof DOMException && CONNECTION_FAILURES.has(err.name));
+}
+
+function transacted<T>(db: IDBDatabase, storeName: string, mode: IDBTransactionMode, unit: Unit<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    let value: T;
+    let failure: unknown = null;
+    let tx: IDBTransaction | null = null;
+    const fail = (err: unknown) => {
+      failure ??= err;
+      reject(failure);
+      abortQuietly(tx);
+    };
+    const guard: Guard = (handler) => () => {
+      try {
+        handler();
+      } catch (err) {
+        fail(err);
+      }
+    };
+    try {
+      tx = db.transaction(storeName, mode);
+      const started = tx;
+      started.oncomplete = () => resolve(value);
+      started.onerror = (event) => { failure ??= (event.target as IDBRequest | null)?.error ?? null; };
+      started.onabort = () => reject(started.error ?? failure ?? new DOMException(`The ${storeName} transaction was aborted`, 'AbortError'));
+      unit(started.objectStore(storeName), (result) => { value = result; }, guard);
+    } catch (err) {
+      fail(err);
+    }
+  });
+}
+
+function abortQuietly(tx: IDBTransaction | null): void {
+  try {
+    tx?.abort();
+  } catch {
+    return;
+  }
 }
 
 function runRange(runId: string): IDBKeyRange {
   return IDBKeyRange.bound([runId, -Infinity], [runId, Infinity]);
+}
+
+class OpenRefused extends Error {
+  constructor(cause: unknown) {
+    super(`The game keeps saves in IndexedDB, and this browser refused it: ${messageOf(cause)}`, { cause });
+    this.name = 'OpenRefused';
+  }
 }
 
 async function opened(name: string): Promise<IDBDatabase> {
@@ -97,7 +164,7 @@ async function opened(name: string): Promise<IDBDatabase> {
     return await withinMs(request(open), IDB_OPEN_MS, `indexedDB.open(${name})`);
   } catch (err) {
     if (err instanceof Stalled) open.onsuccess = () => open.result.close();
-    throw new Error(`The game keeps saves in IndexedDB, and this browser refused it: ${err instanceof Error ? err.message : String(err)}`);
+    throw new OpenRefused(err);
   }
 }
 
@@ -108,24 +175,24 @@ function request<T>(req: IDBRequest<T>): Promise<T> {
   });
 }
 
-async function written(connection: Connection, store: string, write: (store: IDBObjectStore) => void): Promise<void> {
-  const tx = await connection.transaction(store, 'readwrite');
-  const done = new Promise<void>((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error ?? new Error(`The ${store} write was aborted`));
-  });
-  write(tx.objectStore(store));
-  return done;
+function messageOf(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 export const IDB_OPEN_MS = 5000;
 const IDB_RETRY_MS = 200;
 
 export async function openSaves(name: string, storage: Storage, slots: readonly SlotId[]): Promise<SaveSlots> {
+  const local = () => storageBackend(storage, name, slots);
   const idb = await idbBackendWithRetry(name);
-  if (idb) return SaveSlots.open(idb, storage, name, slots);
-  return SaveSlots.open(storageBackend(storage, name, slots), null, name, slots);
+  if (!idb) return SaveSlots.open(local(), null, name, slots);
+  try {
+    return await SaveSlots.open(idb, storage, name, slots, local());
+  } catch (err) {
+    if (!(err instanceof DatabaseLost)) throw err;
+    warnLocalStorage(err);
+    return SaveSlots.open(local(), null, name, slots);
+  }
 }
 
 async function idbBackendWithRetry(name: string): Promise<SaveBackend | null> {
@@ -137,9 +204,13 @@ async function idbBackendWithRetry(name: string): Promise<SaveBackend | null> {
   try {
     return await idbBackend(name);
   } catch (err) {
-    console.warn(`${err instanceof Error ? err.message : String(err)}. Saves go to local storage for this session.`);
+    warnLocalStorage(err);
     return null;
   }
+}
+
+function warnLocalStorage(err: unknown): void {
+  console.warn(`${messageOf(err)}. Saves go to local storage for this session.`);
 }
 
 export function storageBackend(storage: Storage, base: string, slots: readonly SlotId[]): SaveBackend {
@@ -175,24 +246,18 @@ export function memoryBackend(): SaveBackend {
   };
 }
 
+type Fallback = { backend: SaveBackend; slots: readonly SlotId[] };
+
 export class SaveSlots {
   onError: (err: unknown) => void = reportError;
   private pending = new Set<Promise<void>>();
+  private lostDatabase = false;
 
-  constructor(readonly backend: SaveBackend, private envelopes: Map<SlotId, unknown>) {}
+  constructor(private backend: SaveBackend, private envelopes: Map<SlotId, unknown>, private fallback: Fallback | null = null) {}
 
-  static async open(backend: SaveBackend, legacy: Storage | null, base: string, slots: readonly SlotId[]): Promise<SaveSlots> {
-    if (!legacy) return new SaveSlots(backend, await backend.readAll());
-    const stored = await backend.readAll();
-    for (const slot of slots) {
-      const key = slotKey(base, slot);
-      const raw = legacy.getItem(key);
-      if (raw === null) continue;
-      const envelope = parsedOrRaw(raw);
-      if (!stored.has(slot) || savedAtOf(envelope) > savedAtOf(stored.get(slot))) await backend.put(slot, envelope);
-      legacy.removeItem(key);
-    }
-    return new SaveSlots(backend, await backend.readAll());
+  static async open(backend: SaveBackend, legacy: Storage | null, base: string, slots: readonly SlotId[], fallback: SaveBackend | null = null): Promise<SaveSlots> {
+    if (legacy) await moveLegacySaves(backend, legacy, base, slots);
+    return new SaveSlots(backend, await backend.readAll(), fallback ? { backend: fallback, slots } : null);
   }
 
   get(slot: SlotId): unknown {
@@ -215,13 +280,65 @@ export class SaveSlots {
     this.track(() => this.backend.remove(slot));
   }
 
+  async appendLog(runId: string, entries: readonly LogEntry[]): Promise<void> {
+    try {
+      await this.backend.appendLog(runId, entries);
+    } catch (err) {
+      if (err instanceof DatabaseLost) this.lose(err);
+      throw err;
+    }
+  }
+
+  async readLog(runId: string): Promise<LogRecord[]> {
+    try {
+      return await this.backend.readLog(runId);
+    } catch (err) {
+      if (err instanceof DatabaseLost) this.lose(err);
+      throw err;
+    }
+  }
+
   async flush(): Promise<void> {
-    await Promise.all(this.pending);
+    while (this.pending.size > 0) await Promise.all(this.pending);
   }
 
   private track(write: () => Promise<void>): void {
-    const done = Promise.resolve().then(write).catch((err) => this.onError(err)).finally(() => this.pending.delete(done));
+    const done = Promise.resolve().then(write).catch((err) => this.failed(err)).finally(() => this.pending.delete(done));
     this.pending.add(done);
+  }
+
+  private failed(err: unknown): void {
+    if (err instanceof DatabaseLost) this.lose(err);
+    else this.onError(err);
+  }
+
+  private lose(err: DatabaseLost): void {
+    if (this.lostDatabase) return;
+    if (!this.fallback) {
+      this.onError(err);
+      return;
+    }
+    const { backend, slots } = this.fallback;
+    this.lostDatabase = true;
+    this.fallback = null;
+    this.backend = backend;
+    warnLocalStorage(err);
+    for (const slot of slots) {
+      const envelope = this.envelopes.get(slot);
+      this.track(() => (envelope === undefined ? backend.remove(slot) : backend.put(slot, envelope)));
+    }
+  }
+}
+
+async function moveLegacySaves(backend: SaveBackend, legacy: Storage, base: string, slots: readonly SlotId[]): Promise<void> {
+  const stored = await backend.readAll();
+  for (const slot of slots) {
+    const key = slotKey(base, slot);
+    const raw = legacy.getItem(key);
+    if (raw === null) continue;
+    const envelope = parsedOrRaw(raw);
+    if (!stored.has(slot) || savedAtOf(envelope) > savedAtOf(stored.get(slot))) await backend.put(slot, envelope);
+    legacy.removeItem(key);
   }
 }
 

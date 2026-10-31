@@ -1,0 +1,93 @@
+{
+  "shops": {
+    "granary": {
+      "contracts": [],
+      "goods": {
+        "salt": 40
+      }
+    }
+  },
+  "player": {
+    "money": 61100,
+    "contracts": [
+      {
+        "id": "ct-late-haul",
+        "shop": "granary",
+        "kind": "haul",
+        "good": "salt",
+        "units": 3,
+        "to": "nose",
+        "reward": 3000,
+        "deadline": 900,
+        "window": 500,
+        "rush": false,
+        "tier": 1
+      }
+    ],
+    "pastContracts": [
+      {
+        "contract": {
+          "id": "ct-past-haul",
+          "shop": "bowl",
+          "kind": "haul",
+          "good": "grain",
+          "units": 4,
+          "to": "granary",
+          "reward": 3000,
+          "deadline": 400,
+          "window": 500,
+          "rush": true,
+          "tier": 1
+        },
+        "outcome": "late",
+        "turn": 450,
+        "amount": 0
+      }
+    ],
+    "deeds": [
+      {
+        "subject": "ct-past-haul",
+        "faction": "bowl",
+        "deed": "failedContract",
+        "delta": -5,
+        "turn": 450
+      }
+    ]
+  },
+  "crimes": [
+    {
+      "id": "case1",
+      "crime": "1400:p1:granary:embezzled",
+      "offense": "embezzled",
+      "target": "p1",
+      "victim": "granary",
+      "issuer": {
+        "kind": "shop",
+        "shop": "granary"
+      },
+      "reporters": [],
+      "site": "granary",
+      "at": {
+        "x": 10,
+        "y": 12
+      },
+      "turn": 1400,
+      "filed": 1400,
+      "owed": 2600,
+      "escrow": 0,
+      "status": "open",
+      "closed": null,
+      "hunter": null,
+      "retryAt": null,
+      "offered": null,
+      "lead": {
+        "at": {
+          "x": 10,
+          "y": 12
+        },
+        "turn": 1400,
+        "heading": null
+      }
+    }
+  ]
+}

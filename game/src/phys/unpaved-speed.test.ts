@@ -3,7 +3,7 @@ import { TERRAIN, TERRAIN_TYPES } from '../data/terrain';
 import { playerVehicle } from '../sim/damage';
 import { alongOf, roadHeading, roadPoint, toRoad } from '../sim/highway';
 import { tileAt } from '../sim/terrain';
-import { furyRoadWorld } from '../sim/testkit';
+import { chaosHighwayWorld } from '../sim/testkit';
 import { endTurn, setMoveOrder } from '../sim/world';
 import { budget } from '../test/budget';
 import { buildDrive, freeDrive, initPhysics, type Drive } from './drive';
@@ -18,15 +18,17 @@ const START = 120;
 const TURNS = 14;
 
 function topSpeedAlong(offset: number): { speed: number; paved: boolean } {
-  let w = furyRoadWorld(SEED);
-  w.furyRoad!.groups = [];
+  let w = chaosHighwayWorld(SEED);
+  w.chaosHighway!.groups = [];
+  w.obstacles = [];
   const me = playerVehicle(w);
   me.pos = roadPoint(SEED, 0, START, offset);
   me.heading = roadHeading(SEED, START);
+  me.direct = true;
   let drive: Drive = buildDrive(w);
   let speed = 0;
   for (let turn = 0; turn < TURNS; turn++) {
-    const along = alongOf(SEED, toRoad(0, playerVehicle(w).pos));
+    const along = alongOf(SEED, toRoad(SEED, 0, playerVehicle(w).pos));
     w = setMoveOrder(w, { kind: 'through', dest: roadPoint(SEED, 0, along + 30, offset) });
     let next: Drive | null = null;
     w = endTurn(w, physicsMove(drive, (r) => (next = r.next)));

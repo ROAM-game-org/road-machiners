@@ -72,7 +72,7 @@ export function scatterPlacements(t: Terrain, obstacles: Obstacle[]): ScatterChu
 function chunkScatter(t: Terrain, look: readonly LookType[], blocked: Uint8Array, rocky: Uint8Array, cx: number, cy: number): ScatterChunk {
   const atlas = atlasOf(t);
   const highway = highwaySeed(t);
-  const chunk: ScatterChunk = { center: { x: cx + TERRAIN_CHUNK / 2, y: cy + TERRAIN_CHUNK / 2 }, pebbles: [], scrub: [], desert_stones: [], desert_scrub: [], cactus: [] };
+  const chunk: ScatterChunk = { center: { x: cx + Math.min(TERRAIN_CHUNK, t.size - cx) / 2, y: cy + Math.min(TERRAIN_CHUNK, t.size - cy) / 2 }, pebbles: [], scrub: [], desert_stones: [], desert_scrub: [], cactus: [] };
   for (let y = cy; y < Math.min(cy + TERRAIN_CHUNK, t.size); y++) for (let x = cx; x < Math.min(cx + TERRAIN_CHUNK, t.size); x++) {
     const i = y * t.size + x;
     const model = blocked[i] ? null : tileModel(atlas, highway, look[i], x, y, rocky[i] === 1);

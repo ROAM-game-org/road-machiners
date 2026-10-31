@@ -1,17 +1,22 @@
 
-import { DIRECTIONS, RADIO, RADIO_HOURS, RADIO_VARIANTS, type Direction, type RadioTopic } from '../data/radio';
+import { RADIO, RADIO_HOURS, RADIO_VARIANTS, type RadioTopic } from '../data/radio';
 import { atlasOf, atlasSites } from '../sim/atlas';
 import { TIME } from '../data/time';
 import type { Contract } from '../sim/market';
 import { siteOf } from '../sim/market';
+import { claimClue } from '../sim/claims';
+import { claimLookText } from './format';
 import { robbing } from '../sim/states';
 import { clockOf } from '../sim/sun';
-import type { GameEvent, Vehicle, WeatherEvent, World } from '../sim/types';
+import type { GameEvent, Octant, Vehicle, WeatherEvent, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
+import { compassOctant } from '../text/compass';
 import { say } from '../text/language';
 import { byId, t, type Msg } from '../text/msg';
-import { goodLower, partName, siteName, templateName } from '../text/names';
+import { fullName, goodLower, partName, siteName } from '../text/names';
 import { el, panel, rightDock } from './dom';
+import { nextTrackKey } from './sound';
+import { isRaider } from '../sim/relations';
 
 export type Broadcast = { topic: RadioTopic; variant: number; text: Msg; turn: number; rank: 'news' | 'time' | 'filler' };
 type Slots = Record<string, Msg>;
@@ -135,9 +140,9 @@ export class RadioStation {
     }
     if (fresh.length === 0) return;
     const found = (id: string) => world.player.discovered.includes(id);
-    const known = fresh.filter((c) => found(c.shop) && (c.kind !== 'haul' || found(c.to)));
+    const known = fresh.filter((c): c is BoardContract => c.kind !== 'escort' && found(c.shop) && (c.kind !== 'haul' || found(c.to)));
     const best = known.sort((a, b) => b.reward - a.reward)[0];
-    if (best) this.push(best.kind, contractVars(best), 'news');
+    if (best) this.push(best.kind, contractVars(world, best), 'news');
   }
 
   private timeCall(prevTurn: number, turn: number): void {
@@ -181,7 +186,8 @@ function stormSlots(world: World, storm: Extract<WeatherEvent, { kind: 'storm' }
 function raidPlace(world: World, attackerId: string, victimId: string): Place | null {
   if ([attackerId, victimId].includes(world.player.vehicleId)) return null;
   const victim = vehicleIn(world, victimId);
-  if (!victim || vehicleIn(world, attackerId)?.faction !== 'raiders') return null;
+  const attacker = vehicleIn(world, attackerId);
+  if (!victim || !attacker || !isRaider(attacker)) return null;
   return placeOf(world, victim.pos);
 }
 
@@ -197,11 +203,16 @@ function boardIds(world: World): Set<string> {
   return new Set(Object.values(world.shops).flatMap((s) => s.contracts.map((c) => c.id)));
 }
 
-function contractVars(c: Contract): Slots {
+type BoardContract = Exclude<Contract, { kind: 'escort' }>;
+
+function contractVars(world: World, c: BoardContract): Slots {
   const shop = siteName(siteOf(c.shop).id);
+  if (c.kind === 'rescue') return { shop, place: t(`radio.basin.${basinOf(world, c.area)}`) };
   if (c.kind === 'haul') return { shop, good: goodLower(c.good), to: siteName(siteOf(c.to).id) };
-  if (c.kind === 'fetch') return { shop, part: partName(c.defId) };
-  return { shop, target: templateName(c.template) };
+  if (c.kind === 'claim') return { shop, part: partName(c.defId), wreck: claimLookText(claimClue(c).look) };
+  if (c.kind === 'procure') return { shop, good: goodLower(c.good) };
+  if (c.kind === 'search') return { shop, target: fullName(c.driver) };
+  return { shop };
 }
 
 function vehicleIn(world: World, id: string): Vehicle | undefined {
@@ -218,14 +229,17 @@ function placeOf(world: World, pos: Vec): Place {
   if (dist(nearest.pos, pos) <= RADIO.nearTiles && world.player.discovered.includes(nearest.id)) {
     return { key: nearest.id, words: t('radio.near', { site: siteName(nearest.id) }) };
   }
-  const center = world.size / 2;
-  const basin = compass({ x: pos.x - center, y: pos.y - center });
+  const basin = basinOf(world, pos);
   return { key: basin, words: t(`radio.basin.${basin}`) };
 }
 
-function compass(v: Vec): Direction {
-  const turns = Math.atan2(v.y, v.x) / (2 * Math.PI);
-  return DIRECTIONS[(Math.round(turns * 8) + 8) % 8];
+function basinOf(world: World, pos: Vec): Octant {
+  const center = world.size / 2;
+  return compass({ x: pos.x - center, y: pos.y - center });
+}
+
+function compass(v: Vec): Octant {
+  return compassOctant(Math.atan2(v.y, v.x));
 }
 
 export function revealed(text: string, elapsedMs: number, charsPerSecond: number): string {
@@ -234,18 +248,18 @@ export function revealed(text: string, elapsedMs: number, charsPerSecond: number
 
 export class RadioPanel {
   readonly root = panel('radio dock-panel', rightDock());
-  readonly faceplate = el('div', { class: 'radio-faceplate' });
-  readonly keys = el('div', { class: 'radio-keys' });
+  private readonly keys = el('div', { class: 'radio-keys' });
   private text = el('div', { class: 'radio-text', 'aria-live': 'polite', 'aria-busy': 'false' });
   private lcd: HTMLElement;
   private streaming: { text: string; start: number } | null = null;
   private shown: Msg | null = null;
 
-  constructor(private station: RadioStation) {
+  constructor(private station: RadioStation, nextTrack: () => void) {
     const band = el('div', { class: 'radio-band' }, el('span', {}, t('radio.band')), el('span', {}, t('radio.frequency')));
     const ghost = el('div', { class: 'radio-ghost', 'aria-hidden': 'true' }, t('radio.ghost', { blocks: '\u2588'.repeat(3 * 30) }));
     this.lcd = el('div', { class: 'radio-lcd' }, ghost, this.text);
-    this.root.append(this.keys, el('div', { class: 'radio-screen' }, band, this.lcd), this.faceplate);
+    this.keys.append(nextTrackKey(nextTrack));
+    this.root.append(this.keys, el('div', { class: 'radio-screen' }, band, this.lcd));
   }
 
   private write(text: string): void {

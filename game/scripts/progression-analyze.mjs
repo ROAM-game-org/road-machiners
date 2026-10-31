@@ -18,6 +18,7 @@ const FLAP_KINDS = new Set(['towDropped', 'towOffer', 'towHitched', 'stateEnded'
 
 const HUNT_ROAD_TARGET = 0.25;
 const HUNT_GOALS = new Set(HUNT.offRoadGoals);
+const GANGS = new Set(['scrapjaw', 'kiln']);
 
 const BROKE_BELOW = Math.min(ECONOMY.supplyPrice.fuel, ECONOMY.supplyPrice.supplies);
 const SOLVENCY_DAYS = 5;
@@ -189,6 +190,7 @@ async function analyzeWorld(name, path) {
   if (flaps.length > 0) console.log(`flapping: ${flaps.slice(0, 12).join('; ')}`);
   printPopulation(lines);
   printOffRoad(lines);
+  printRouteStyles(lines);
   printAmbushes(lines);
   printNpcDeaths(lines);
   printSolvency(lines);
@@ -228,12 +230,12 @@ function printPopulation(lines) {
 }
 
 function printOffRoad(lines) {
-  const moving = lines.flatMap((l) => l.trucks ?? []).filter((v) => v.faction === 'raiders' && v.speed > 0);
+  const moving = lines.flatMap((l) => l.trucks ?? []).filter((v) => GANGS.has(v.faction) && v.speed > 0);
   if (moving.length === 0) return;
   const share = (vs) => `${vs.filter((v) => v.onRoad).length}/${vs.length} on road`;
-  const by = Map.groupBy(moving.filter((v) => v.offRoad), offRoadReason);
+  const by = Map.groupBy(moving.filter((v) => v.style === 'hidden'), offRoadReason);
   const off = [...by.entries()].map(([why, vs]) => `${why} ${share(vs)}`).join(', ') || 'none';
-  console.log(`raiders keeping off roads: ${off}; healthy raiders ${share(moving.filter((v) => !v.offRoad))}`);
+  console.log(`raiders keeping off roads: ${off}; healthy raiders ${share(moving.filter((v) => v.style !== 'hidden'))}`);
   const hunting = by.get('hunting') ?? [];
   const onRoad = hunting.filter((v) => v.onRoad).length;
   if (hunting.length > 0) {
@@ -243,13 +245,23 @@ function printOffRoad(lines) {
   if (hunting.length > 0 && onRoad / hunting.length > HUNT_ROAD_TARGET) console.log(`MISS: hunting raiders on road above ${100 * HUNT_ROAD_TARGET}%`);
 }
 
+function printRouteStyles(lines) {
+  const moving = lines.flatMap((l) => l.trucks ?? []).filter((v) => v.speed > 0 && v.who !== 'player');
+  if (moving.length === 0) return;
+  const text = (vs) => `${vs.filter((v) => v.onRoad).length}/${vs.length} on road, mean road gap ${(vs.reduce((s, v) => s + v.roadGap, 0) / vs.length).toFixed(1)}`;
+  const byWho = Map.groupBy(moving, (v) => v.who);
+  console.log(`route styles: ${[...byWho.entries()].map(([who, vs]) => `${who} ${text(vs)}`).join('; ')}`);
+  const byStyle = Map.groupBy(moving, (v) => v.style);
+  console.log(`by style: ${[...byStyle.entries()].map(([style, vs]) => `${style} ${text(vs)}`).join('; ')}`);
+}
+
 function printAmbushes(lines) {
   const events = lines.flatMap((l) => l.events ?? []);
   const passes = Map.groupBy(events.filter((e) => e.t === 'preyPassed'), (e) => e.reason);
   const passText = [...passes.entries()].map(([reason, es]) => `${reason} ${es.length}`).join(', ') || 'none';
   const trucks = new Map(lines.flatMap((l) => l.trucks ?? []).map((v) => [v.id, v]));
   const hunting = new Set(['raid', 'patrol', 'investigate']);
-  const started = events.filter((e) => e.t === 'activity' && e.activity === 'fight' && trucks.get(e.vehicle)?.faction === 'raiders' && hunting.has(e.previous));
+  const started = events.filter((e) => e.t === 'activity' && e.activity === 'fight' && GANGS.has(trucks.get(e.vehicle)?.faction) && hunting.has(e.previous));
   const byPrevious = Map.groupBy(started, (e) => e.previous);
   const fightText = [...byPrevious.entries()].map(([previous, es]) => `${previous} ${es.length}`).join(', ') || 'none';
   console.log(`raider passes on visible prey: ${passText}; raider fights begun from a hunt: ${fightText}`);

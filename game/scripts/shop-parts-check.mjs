@@ -5,6 +5,11 @@ import { playUrl } from './game-url.mjs';
 
 const url = process.argv[2];
 if (!url) throw new Error('Usage: node scripts/shop-parts-check.mjs <dev-server-url>');
+const garage = async (page, tab) => {
+  if (await page.locator('.town-page [data-town-go=back]').count()) await page.locator('.town-page [data-town-go=back]').click();
+  await page.locator('.town-page [data-town-go=garage]').click();
+  await page.locator(`.town-page [data-garage-tab="${tab}"]`).click();
+};
 const browser = await chromium.launch();
 await mkdir('.playtest', { recursive: true });
 
@@ -31,12 +36,12 @@ async function setup(page) {
     for (let i = 0; i < 16; i++) stock.push(f.makePart(w, defs[i % defs.length].id, i % 3));
     stock[3].hp = 0;
     w.shops.nose.stock = stock;
-    w = c.setMoney(w, 400);
+    w = c.setMoney(w, 4);
     g.apply(w);
     g.town.open();
   });
-  await page.waitForSelector('.town-shop .tabs button', { timeout: 90000 });
-  await page.locator('.town-screen .tabs button', { hasText: 'Buy Parts' }).click();
+  await page.waitForSelector('.town-page [data-town-go]', { timeout: 90000 });
+  await garage(page, 'buyParts');
 }
 
 try {
@@ -114,10 +119,10 @@ try {
   assert.equal(await page.evaluate(() => document.querySelector('.town-shop').scrollTop), 0);
   await page.locator('.tabs.sub button').nth(0).click();
 
-  await page.locator('.town-screen .tabs button', { hasText: 'Sell Parts' }).click();
+  await garage(page, 'sellParts');
   await page.screenshot({ path: '.playtest/shop-sell-1280.png' });
 
-  await page.locator('.town-screen .tabs button', { hasText: 'Buy Parts' }).click();
+  await garage(page, 'buyParts');
   for (const [width, height] of [[800, 730], [600, 900]]) {
     await page.setViewportSize({ width, height });
     await page.waitForTimeout(300);

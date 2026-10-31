@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { MEMORY } from '../data/npcs';
-import { forgetOld, recall, remember, subjectOf } from './memory';
+import { forgetOld, recall, remember, rememberSightings, sightingOf, subjectOf } from './memory';
+import { noteAttack } from './combat';
+import { yieldTo } from './parley';
 import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
 import type { MemoryFact, Vehicle, World } from './types';
 import { endTurn } from './world';
@@ -8,7 +10,7 @@ import { endTurn } from './world';
 const SOURCES = import.meta.glob<string>('../**/*.ts', { query: '?raw', import: 'default', eager: true });
 
 function driver(w: World): Vehicle {
-  const v = addVehicle(w, 'traders', 'hauler', [], { x: 60, y: 60 });
+  const v = addVehicle(w, 'independent', 'hauler', [], { x: 60, y: 60 });
   v.brain = npcBrain('trader', v.pos, ['trader']);
   return v;
 }
@@ -79,7 +81,7 @@ describe('driver memory', () => {
 
   it('refuses a vehicle without a brain', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'traders', 'hauler', [], { x: 60, y: 60 });
+    const v = addVehicle(w, 'independent', 'hauler', [], { x: 60, y: 60 });
     expect(() => remember(w, v, prices('bowl'))).toThrow();
     expect(() => recall(v, 'prices')).toThrow();
   });
@@ -94,10 +96,88 @@ describe('driver memory', () => {
     expect(w.vehicles.find((x) => x.id === v.id)!.brain!.memories.map((m) => subjectOf(m.fact))).toEqual(['prices:nose']);
   });
 
+  it('records where and when a driver saw another driver', () => {
+    const w = emptyWorld();
+    const watcher = driver(w);
+    const other = addVehicle(w, 'independent', 'hauler', [], { x: 64, y: 60 });
+    other.brain = npcBrain('trader', other.pos, ['trader']);
+    other.heading = 1.5;
+    w.turn = 9;
+    rememberSightings(w, watcher, [other]);
+    expect(sightingOf(watcher, other.id)).toEqual({ turn: 9, fact: { kind: 'sighting', vehicle: other.id, at: { x: 64, y: 60 }, heading: 1.5 } });
+  });
+
+  it('skips a truck with no driver', () => {
+    const w = emptyWorld();
+    const watcher = driver(w);
+    const wreck = addVehicle(w, 'independent', 'hauler', [], { x: 64, y: 60 });
+    rememberSightings(w, watcher, [wreck]);
+    expect(watcher.brain!.memories).toEqual([]);
+  });
+
+  it('replaces an older sighting of the same truck with the newer one', () => {
+    const w = emptyWorld();
+    const watcher = driver(w);
+    const other = addVehicle(w, 'independent', 'hauler', [], { x: 64, y: 60 });
+    other.brain = npcBrain('trader', other.pos, ['trader']);
+    rememberSightings(w, watcher, [other]);
+    w.turn = 4;
+    other.pos = { x: 70, y: 61 };
+    rememberSightings(w, watcher, [other]);
+    expect(recall(watcher, 'sighting')).toHaveLength(1);
+    expect(sightingOf(watcher, other.id)).toMatchObject({ turn: 4, fact: { at: { x: 70, y: 61 } } });
+  });
+
+  it('forgets a sighting after a day', () => {
+    const w = emptyWorld();
+    const watcher = driver(w);
+    const other = addVehicle(w, 'independent', 'hauler', [], { x: 64, y: 60 });
+    other.brain = npcBrain('trader', other.pos, ['trader']);
+    rememberSightings(w, watcher, [other]);
+    w.turn += MEMORY.turns.sighting;
+    forgetOld(w);
+    expect(sightingOf(watcher, other.id)).toBeNull();
+  });
+
+  it('answers null for a truck never seen', () => {
+    const w = emptyWorld();
+    expect(sightingOf(driver(w), 'ghost')).toBeNull();
+  });
+
+  it('remembers the truck that attacked it', () => {
+    const w = emptyWorld();
+    const victim = driver(w);
+    const shooter = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 64, y: 60 });
+    noteAttack(w, shooter, victim, true);
+    expect(recall(victim, 'wronged').map((m) => m.fact.by)).toEqual([shooter.id]);
+  });
+
+  it('remembers the truck that took its cargo', () => {
+    const w = emptyWorld();
+    const loser = driver(w);
+    const robber = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 64, y: 60 });
+    robber.brain = npcBrain('raider', robber.pos, ['raider']);
+    yieldTo(w, loser, robber, []);
+    expect(recall(loser, 'wronged').map((m) => m.fact.by)).toEqual([robber.id]);
+  });
+
+  it('forgets a wrong after its lifetime', () => {
+    const w = emptyWorld();
+    const victim = driver(w);
+    const shooter = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 64, y: 60 });
+    noteAttack(w, shooter, victim, true);
+    w.turn += MEMORY.turns.wronged - 1;
+    forgetOld(w);
+    expect(recall(victim, 'wronged')).toHaveLength(1);
+    w.turn += 1;
+    forgetOld(w);
+    expect(recall(victim, 'wronged')).toEqual([]);
+  });
+
   it('lets no file but memory.ts write driver memories', () => {
     const write = /\.memories\s*(?:=(?!=)|\.(?:push|splice|unshift|pop|shift|sort|reverse)\()/;
     const writers = Object.entries(SOURCES)
-      .filter(([path]) => !path.endsWith('.test.ts') && path !== './memory.ts' && path !== '../three/save-migrations.ts')
+      .filter(([path]) => !path.endsWith('.test.ts') && path !== './memory.ts' && path !== '../three/save-migrations.ts' && !path.startsWith('../test/'))
       .filter(([, source]) => write.test(source))
       .map(([path]) => path);
     expect(Object.keys(SOURCES).length).toBeGreaterThan(50);

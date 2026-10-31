@@ -1,6 +1,6 @@
-"""Old water pump station for the 'Pump Station' landmark.
+"""Old fuel pump station for the 'Pump Station' landmark.
 
-A pumpjack on a concrete pad, a corrugated shed, and a ground pipe from the well into a water tank.
+A pumpjack on a concrete pad over an oil well, a corrugated shed, a ground pipe into a dark crude tank, and a pallet of red fuel drums by a filling hose stand.
 Fits a 6 m radius around the origin and stands about 6 m tall. The game scales it to the landmark radius.
 Run: blender --background --python tools/blender/pump_station.py -- public/models/pump_station.glb [tmp/pump_station.png]
 """
@@ -27,6 +27,7 @@ COLORS = {
     "wall_side": 0x8E7454,  # PAL.wall.side
     "wall_dark": 0x6A5840,  # PAL.wall.dark
     "soot": 0x1E1A18,
+    "red": 0xA23A2A,  # the red of good_fuel_drums.py
 }
 SEED = 11
 ALONG_Y: Vec3 = (math.radians(90), 0, 0)
@@ -110,7 +111,7 @@ def shed(kit: Kit, x: float, y: float) -> None:
 
 
 def tank(kit: Kit, x: float, y: float) -> Vector:
-    """A riveted water tank on a low plinth. Returns the pipe inlet point at its base."""
+    """A riveted crude tank on a low plinth. Returns the pipe inlet point at its base."""
     kit.cylinder("tank_plinth", 1.45, 0.3, (x, y, 0.15), "wall_side", vertices=10, dent_by=0.03)
     kit.cylinder("tank", 1.2, 3.2, (x, y, 1.9), "metal", vertices=10, dent_by=0.03)
     kit.cylinder("tank_band", 1.25, 0.14, (x, y, 1.2), "rust_side", vertices=10)
@@ -137,6 +138,30 @@ def pipe(kit: Kit, well: Vector, inlet: Vector, height: float) -> None:
         kit.box("pipe_rest", (0.3, 0.5, height), (rest.x, rest.y, height / 2), "wall_dark")
 
 
+def fuel_drums(kit: Kit, x: float, y: float) -> None:
+    """A wooden pallet with two rows of red drums, one drum knocked on its side beside it."""
+    kit.box("pallet", (1.5, 1.0, 0.12), (x, y, 0.06), "wall_dark")
+    for i, dx in enumerate((-0.4, 0.4)):
+        for j, dy in enumerate((-0.25, 0.25)):
+            at = (x + dx, y + dy)
+            kit.cylinder("fuel_drum", 0.28, 0.85, (at[0], at[1], 0.12 + 0.425), "red", vertices=8, dent_by=0.02)
+            for k, z in enumerate((0.12 + 0.28, 0.12 + 0.57)):
+                kit.cylinder("fuel_drum_rim", 0.3, 0.05, (at[0], at[1], z), "rust_dark", vertices=8)
+            kit.cylinder("fuel_drum_bung", 0.06, 0.05, (at[0] + 0.12, at[1], 0.12 + 0.87), "metal", vertices=6)
+    kit.cylinder("fuel_drum_down", 0.28, 0.85, (x + 1.35, y + 0.2, 0.28), "red", rot=(math.radians(90), 0, math.radians(25)), vertices=8, dent_by=0.02)
+
+
+def hose_stand(kit: Kit, x: float, y: float, drum_end: Vector) -> None:
+    """A filling stand beside the tank: a post, a pump head and a hose that droops to the drums."""
+    kit.box("stand_post", (0.25, 0.25, 1.3), (x, y, 0.65), "metal", dent_by=0.02)
+    kit.box("stand_head", (0.5, 0.4, 0.45), (x, y, 1.45), "rust", dent_by=0.02)
+    kit.box("stand_nozzle", (0.3, 0.1, 0.1), (x + 0.3, y, 1.4), "metal_light")
+    start = Vector((x + 0.45, y, 1.35))
+    mid = (start + drum_end) / 2 - Vector((0, 0, 0.5))
+    strut(kit, "hose_a", start, mid, 0.09, "soot")
+    strut(kit, "hose_b", mid, drum_end, 0.09, "soot")
+
+
 def build(kit: Kit) -> None:
     well = pumpjack(kit)
     shed(kit, -2.6, -3.0)
@@ -150,8 +175,8 @@ def build(kit: Kit) -> None:
         size = (kit.rng.uniform(0.4, 0.8), kit.rng.uniform(0.25, 0.45), 0.05)
         tilt = (kit.rng.uniform(-0.2, 0.2), kit.rng.uniform(-0.2, 0.2), a)
         kit.box(f"scrap{i}", size, (math.cos(a) * d, math.sin(a) * d, 0.03), "rust_dark", rot=tilt, dent_by=0.02)
-    kit.cylinder("barrel", 0.3, 0.9, (-0.6, 2.2, 0.45), "rust", vertices=8, dent_by=0.02)
-    kit.cylinder("barrel_down", 0.3, 0.9, (0.2, 2.8, 0.3), "metal", rot=(math.radians(90), 0, math.radians(30)), vertices=8, dent_by=0.02)
+    fuel_drums(kit, 1.6, -3.0)
+    hose_stand(kit, 3.3, -2.0, Vector((2.5, -2.9, 1.0)))
 
 
 def main() -> None:

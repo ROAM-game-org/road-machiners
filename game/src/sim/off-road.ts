@@ -1,15 +1,24 @@
-// The one owner of which drivers keep off roads. A raider that retreats, flees or is stranded hides beside the
-// roads and only crosses them, and a raider out hunting travels unseen by road traffic. route() asks this for
-// every plan, so ambush tactics can extend it here.
-
 import { huntsOffRoad } from './hunt-style';
 import { topGoal } from './npc-activities';
 import { isStranded } from './stats';
+import { keepsToItself } from './sunward';
 import type { Vehicle, World } from './types';
+import { isRaider } from './relations';
 
-export function keepsOffRoads(world: World, v: Vehicle): boolean {
-  if (!v.brain || v.faction !== 'raiders') return false;
-  return hides(world, v) || huntsOffRoad(v.brain);
+export type RouteStyle = 'road' | 'cut' | 'hidden';
+
+export const ROUTE_STYLES: readonly RouteStyle[] = ['road', 'cut', 'hidden'];
+
+const CUT_TRAITS = ['scavenger', 'roamer'] as const;
+
+export function routeStyle(world: World, v: Vehicle): RouteStyle {
+  if (!v.brain) return 'road';
+  if (isHidden(world, v, v.brain)) return 'hidden';
+  return CUT_TRAITS.some((trait) => v.brain!.traits.includes(trait)) ? 'cut' : 'road';
+}
+
+function isHidden(world: World, v: Vehicle, brain: NonNullable<Vehicle['brain']>): boolean {
+  return keepsToItself(world, v) || (isRaider(v) && (hides(world, v) || huntsOffRoad(brain)));
 }
 
 function hides(world: World, v: Vehicle): boolean {
