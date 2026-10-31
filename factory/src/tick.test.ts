@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseStage } from './jobs';
 import { solidPng } from './media-fixtures';
-import { readLedger } from './ledger';
+import { appendUsage, readLedger } from './ledger';
 import { readObservation, type SchedulerData } from './observability';
 import { resumedStage, timedOutMinutes } from './sessions';
 import { checkJobs, chooseJobs, evaluateSchedule, tick, timeoutOf, type TickDeps } from './tick';
@@ -595,6 +595,11 @@ describe('tick', () => {
       expect(chooseJobs(state(), [card(5, 'Merging')], NOW, CFG, HEADS)).toEqual([{ stage: 'merge', issue: null }]);
     });
 
+    it('never catches up a card of the kept merge work, so its branch head keeps matching the kept clone', () => {
+      const kept = { into: 'dev', sources: [], cards: [8, 9], session: 's', spentUsd: 0, job: null, jobUsd: 0, merged: true, merges: [], since: '' };
+      expect(chooseJobs(state({ jobs: [merging([5, 6, 7])], landings: { merge: kept } }), queue, NOW, CFG, HEADS)).toEqual([{ stage: 'catch-up', issue: 10 }]);
+    });
+
     it('starts no catch-up for a card that holds its base head already', () => {
       expect(chooseJobs(state({ jobs: [merging([5, 6, 7])], caughtUpTo: caughtUp([8, 9, 10, 11, 12, 13]) }), queue, NOW, CFG, HEADS)).toEqual([]);
       expect(chooseJobs(state({ jobs: [merging([5, 6, 7])], caughtUpTo: caughtUp([8, 9, 10, 11, 12, 13], 'dev0000') }), queue, NOW, CFG, HEADS)).toEqual([{ stage: 'catch-up', issue: 8 }]);
@@ -887,7 +892,7 @@ describe('tick', () => {
       expect(readState(h.ctx.statePath).interrupted).toEqual([5]);
     });
 
-    it('fails a second death, clears the mark and the sessions, and reports', async () => {
+    it('fails a second death, clears the mark, keeps the sessions for the next start of the stage, and reports', async () => {
       const h = harness(job(IN_TIME), false);
       writeState(h.ctx.statePath, state({ jobs: [job(IN_TIME)], interrupted: [5, 6] }));
       mkdirSync(sessions(h), { recursive: true });
@@ -898,7 +903,8 @@ describe('tick', () => {
       expect(after.failures).toMatchObject([{ stage: 'design', issue: 5, error: 'job process died without finishing' }]);
       expect(after.interrupted).toEqual([6]);
       expect(after.jobs).toEqual([]);
-      expect(existsSync(sessions(h))).toBe(false);
+      expect(existsSync(sessions(h))).toBe(true);
+      expect(resumedStage(h.ctx.cfg.home, 5)).toBe('design');
     });
 
     it('kills a card job past the timeout and resumes it once, with a timeout ledger line', async () => {
@@ -941,6 +947,17 @@ describe('tick', () => {
       expect(readState(bare.ctx.statePath)).toMatchObject({ interrupted: [], jobs: [], failures: [{ stage: 'merge', error: 'timed out after 30 minutes' }] });
     });
 
+    it('charges the kept merge work with what a timed-out merge job spent beyond its finished fix rounds', async () => {
+      const late = '2026-01-10T11:00:00Z';
+      const h = harness(job(late, 'merge', null), true);
+      const kept = { into: 'dev', sources: [], cards: [5], session: 's', spentUsd: 3, job: 'merge-job', jobUsd: 1, merged: true, merges: [], since: late };
+      updateState(h.ctx.statePath, (s) => ({ ...s, landings: { merge: kept } }));
+      appendUsage(h.ctx.cfg.home, 'merge-job', { model: 'sonnet', costUsd: 1, minutes: 5 });
+      appendUsage(h.ctx.cfg.home, 'merge-job', { model: 'sonnet', costUsd: 2.5, minutes: 90, fromTranscript: true });
+      await checkJobs(h.ctx, h.deps);
+      expect(readState(h.ctx.statePath).landings.merge).toMatchObject({ spentUsd: 5.5, jobUsd: 3.5 });
+    });
+
     it('resumes a dead card job found past the timeout once, and removes its containers', async () => {
       const dead = harness(job('2026-01-10T11:00:00Z'), false);
       await checkJobs(dead.ctx, dead.deps);
@@ -949,13 +966,14 @@ describe('tick', () => {
       expect(timedOutMinutes(dead.ctx.cfg.home, 5)).toBe(null);
     });
 
-    it('clears a lingering mark and the sessions of a timed out job', async () => {
+    it('clears a lingering mark of a timed out job and keeps its sessions for the next start of the stage', async () => {
       const h = harness(job('2026-01-10T11:00:00Z'), true);
       writeState(h.ctx.statePath, state({ jobs: [job('2026-01-10T11:00:00Z')], interrupted: [5] }));
       mkdirSync(sessions(h), { recursive: true });
       await tick(h.ctx, '/code', h.deps);
       expect(readState(h.ctx.statePath).interrupted).toEqual([]);
-      expect(existsSync(sessions(h))).toBe(false);
+      expect(existsSync(sessions(h))).toBe(true);
+      expect(resumedStage(h.ctx.cfg.home, 5)).toBe('design');
     });
 
     it('fails a dead branch job that already ran its order twice, and touches no mark or sessions of its issue', async () => {

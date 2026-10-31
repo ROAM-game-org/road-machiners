@@ -23,6 +23,7 @@ import { runStage as verify } from './stages/verify';
 import { runStage as harden } from './stages/harden';
 import { runStage as waste } from './stages/waste';
 import { runStage as triage } from './stages/triage';
+import { chargeJobSpend } from './landing-work';
 import { recordJob, type JobOutcome } from './ledger';
 import { clearSessions, markResumed, resumedStage } from './sessions';
 import { clearQueued, readState, updateState } from './state';
@@ -63,6 +64,12 @@ function resumeOnce(ctx: Ctx, stage: JobStage, issue: number, error: unknown): v
   ctx.log(stage, issue, `stopped on an error, it resumes once: ${message}`);
 }
 
+function keepFailedSessions(ctx: Ctx, stage: JobStage, issue: number, error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error);
+  markResumed(ctx.cfg.home, issue, stage, summarizeError(message));
+  ctx.log(stage, issue, 'failed, its agent sessions stay for the next start of this stage');
+}
+
 function ownJob(ctx: Ctx, stage: JobStage, issue: number | null): Job | null {
   return readState(ctx.statePath).jobs.find((job) => job.stage === stage && job.issue === issue) ?? null;
 }
@@ -84,11 +91,13 @@ async function runLockedJob(ctx: Ctx, stage: JobStage, issue: number | null): Pr
   } catch (error) {
     retry = await failed(ctx, stage, issue, job, error);
   } finally {
-    recordJob(ctx.cfg.home, ctx.cfg.tokenPrices, ctx.now(), withBatch(ctx, entry, job), outcome);
+    chargeJobSpend(ctx.statePath, entry, recordJob(ctx.cfg.home, ctx.cfg.tokenPrices, ctx.now(), withBatch(ctx, entry, job), outcome));
     clearJob(ctx, stage, issue, retry);
-    if (!retry) clearSessionsOf(ctx, stage, issue);
+    if (!retry && !keepsSessions(stage, outcome)) clearSessionsOf(ctx, stage, issue);
   }
 }
+
+const keepsSessions = (stage: JobStage, outcome: JobOutcome): boolean => outcome !== 'done' && CARD_JOBS.includes(stage);
 
 async function failed(ctx: Ctx, stage: JobStage, issue: number | null, job: Job | null, error: unknown): Promise<boolean> {
   const retry = retriesItself(ctx, stage, issue, error);
@@ -96,6 +105,7 @@ async function failed(ctx: Ctx, stage: JobStage, issue: number | null, job: Job 
     resumeOnce(ctx, stage, issue, error);
     return true;
   }
+  if (issue !== null && CARD_JOBS.includes(stage)) keepFailedSessions(ctx, stage, issue, error);
   await reportFailure(ctx, stage, failureIssue(stage, issue, readState(ctx.statePath)), error, job?.log ?? null, batchOf(ctx, job));
   await noteFailure(ctx, stage, issue, job);
   return false;
@@ -128,7 +138,7 @@ function ledgerEntry(
 }
 
 function resuming(ctx: Ctx, stage: JobStage, issue: number | null): boolean {
-  return issue !== null && readState(ctx.statePath).interrupted.includes(issue) && resumedStage(ctx.cfg.home, issue) === stage;
+  return issue !== null && resumedStage(ctx.cfg.home, issue) === stage;
 }
 
 function clearSessionsOf(ctx: Ctx, stage: JobStage, issue: number | null): void {

@@ -210,6 +210,27 @@ describe('ship', () => {
     expect(readState(f.ctx.statePath).release).not.toBeNull();
   });
 
+  it('keeps the ship clone and session of a failed ship, and the next ship resumes them with no new clone or merge', async () => {
+    const f = shippable();
+    f.ctx.cfg.mergingBudgetUsd = 1;
+    let failing = true;
+    f.ctx.container.shell = async (_kind, clone) => {
+      f.calls.push(`shell ${clone}`);
+      if (clone.endsWith('ship-main') && failing) throw new Error('tests failed');
+    };
+    await expect(ship(f.ctx, 11, 'Ann')).rejects.toThrow('budget');
+    const kept = readState(f.ctx.statePath).landings.ship!;
+    expect(kept).toMatchObject({ into: 'main', cards: [11], merged: true, sources: [{ branch: RELEASE.branch }] });
+    f.calls.length = 0;
+    failing = false;
+    f.ctx.cfg.mergingBudgetUsd = 100;
+    await ship(f.ctx, 11, 'Ann');
+    expect(f.calls.filter((call) => call === 'prepare main')).toHaveLength(1);
+    expect(f.calls.indexOf('prepare main')).toBeGreaterThan(f.calls.indexOf('push work-head main'));
+    expect(f.calls.some((call) => call.startsWith('push work-head main'))).toBe(true);
+    expect(readState(f.ctx.statePath).landings.ship).toBeUndefined();
+  });
+
   it('stops before it merges anything when the changelog does not match the release', async () => {
     const f = shippable();
     writeFileSync(join(ROOT, 'work', 'release-candidate', 'game', '.factory', 'release.json'), '"Trucks are faster."');
