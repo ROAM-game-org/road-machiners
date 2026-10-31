@@ -1,5 +1,6 @@
 
 import { REGION } from '../data/region';
+import { RULES } from '../data/rules';
 import { crossesRail } from './bridge';
 import { count, timed } from '../perf';
 import { canStepOut, connected, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
@@ -154,10 +155,16 @@ export function continueRoute(world: World, from: Vec, kept: KeptRoute, to: Vec,
 
 function continueKept(world: World, from: Vec, kept: KeptRoute, to: Vec, radius: number, extra: Blocker[], driver: Vehicle | undefined): Vec[] | null {
   if (kept.style !== plannedStyle(world, driver) || kept.night !== plansNight(world, driver)) return null;
+  if (stoppedShort(kept, from)) return null;
   const c = legCheck(world, kept, radius, extra);
   const { rest, moved } = remainingPoints(from, kept, to);
   if (lastBrokenLeg(c, from, rest, moved) >= 0) return null;
   return straightenAhead(c.nav, c.statics, c.dynamic, from, rest, c.reach, routeTaste(world, c.nav, driver));
+}
+
+function stoppedShort(kept: KeptRoute, from: Vec): boolean {
+  const last = kept.points[kept.points.length - 1];
+  return (last.x !== kept.dest.x || last.y !== kept.dest.y) && dist(from, last) < RULES.arriveRadius;
 }
 
 type LegCheck = { nav: TerrainNav; statics: StaticSet; dynamic: Blocker[]; fresh: Blocker[]; radius: number; reach: number };
