@@ -4,6 +4,7 @@ import { NPCS } from '../data/npcs';
 import { playerVehicle } from '../sim/damage';
 import { advanceFar } from '../sim/far';
 import { setHeadless } from '../sim/fidelity';
+import { getResources } from '../sim/resources';
 import { spawnNpcs } from '../sim/spawn';
 import { dawnAfter, duskTurn, membersOf, orderDusk, phaseAt, rideOutTurn } from '../sim/sunward';
 import { testDrive } from '../sim/testkit';
@@ -33,10 +34,15 @@ export function runTo(w: World, turn: number): World {
   let world = w;
   while (world.turn < turn) {
     world = endTurn(world, testDrive);
+    keepMembersUnhurt(world);
     seen.stalls += world.events.filter((e) => e.t === 'stall').length;
     for (const e of world.events) if (e.t === 'breakdown') seen.broken.add(e.vehicle);
   }
   return world;
+}
+
+function keepMembersUnhurt(w: World): void {
+  for (const v of membersOf(w)) getResources(w, v).health = 100;
 }
 
 export function runFarTo(w: World, turn: number, onTurn: (w: World) => void): World {

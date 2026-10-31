@@ -237,8 +237,9 @@ describe('the Chaos Highway sprinter bot', () => {
   });
 
   it('never trades its truck for a slower one, so wear does not drop it behind the hauler', () => {
-    const w = atFirstOutpost();
-    w.player.money = 2_000_000;
+    const start = atFirstOutpost();
+    start.player.money = 2_000_000;
+    const w = outpostBuyChassis(start, 'convertible');
     const post = reachedOutpostAt(w)!;
     const speed = vehicleStats(w, playerVehicle(w)).maxSpeed;
     const speedIn = (id: string) => { const after = outpostBuyChassis(w, id); return vehicleStats(after, playerVehicle(after)).maxSpeed; };
