@@ -1,5 +1,3 @@
-// A hold stops one card without a failure. `factory pause-card` stops the card's job and keeps its work clone and sessions,
-// and the tick starts no job on the issue until `resume-card` lifts the hold. The stopped stage then continues in its sessions.
 import { killJob } from './jobs';
 import { recordJob } from './ledger';
 import { CARD_JOBS, inMergeBatch } from './position';

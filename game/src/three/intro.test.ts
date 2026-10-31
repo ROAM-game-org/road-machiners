@@ -10,7 +10,6 @@ import { takeAllLoot } from '../sim/locations';
 import { newGame } from '../sim/new-game';
 import { openingStockOf, OPENING_WRECK_ID } from '../sim/opening';
 import { chooseQuestOption, QUESTS, questView, setQuestLanguage } from '../sim/quests';
-import { UNITS } from '../data/units';
 import { engineNeedsPatch, repairPlan } from '../sim/repair';
 import { defaultSetup } from '../sim/settings';
 import { startSearch } from '../sim/search';
@@ -20,16 +19,19 @@ import type { World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
 import { playerSees } from '../sim/vision';
 import { maxHp } from '../sim/wear';
-import { cloneWorld, endTurn, startPose } from '../sim/world';
-import { openingStep } from '../ui/tips';
+import { cloneWorld, endTurn } from '../sim/world';
+import { startPose } from '../sim/start-pose';
+import { openingStep } from '../sim/opening';
 import { TEST_MAP } from '../test/map';
 import { readQuestSources } from '../test/quest-compile';
+import { reusedWorld } from '../test/world-cache';
 import { loadWorld, saveOf, writeSave } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
 
 const SEED = 1337;
 const setup = defaultSetup('roaming');
-const arrival = (): World => newGame(SEED, 'arrival', true, TEST_MAP, setup);
+const arrival = (): World => reusedWorld('intro arrival', () => newGame(SEED, 'arrival', true, TEST_MAP, setup));
+const skippedIntro = (): World => reusedWorld('intro skipped', () => newGame(SEED, 'arrival', false, TEST_MAP, setup));
 const ROPE = 'Drop the rope down the well.';
 const HOUSE = 'Go into the house.';
 const SHED = 'Go to the shed.';
@@ -115,7 +117,7 @@ describe('the arrival at the farm', () => {
     const looked = pick(arrival(), HOUSE, LOOK, LINK);
     const left = pick(arrival(), HOUSE, LEAVE_HOUSE, LINK);
     const straight = pick(arrival(), SHED, LINK);
-    expect(looked.player.money - start).toBe(50 * UNITS.centsPerM);
+    expect(looked.player.money - start).toBe(50);
     expect(left.player.money).toBe(start);
     expect(straight.player.money).toBe(start);
     for (const w of [looked, left, straight]) {
@@ -129,7 +131,7 @@ describe('the arrival at the farm', () => {
     expect(questView(atFarm, QUESTS).choices).toEqual([HOUSE, SHED]);
     const inHouse = sameAfterRoundTrip(pick(atFarm, HOUSE));
     expect(questView(inHouse, QUESTS).choices).toEqual([LOOK, LEAVE_HOUSE]);
-    expect(pick(inHouse, LOOK).player.money - startKit('standard').money).toBe(50 * UNITS.centsPerM);
+    expect(pick(inHouse, LOOK).player.money - startKit('standard').money).toBe(50);
   });
 
   it('shows the farm page before its choices after a load', () => {
@@ -159,7 +161,7 @@ describe('the arrival at the farm', () => {
     const view = questView(loaded, QUESTS);
     expect(view.choices).toEqual([LINK]);
     expect(view.lines[0].text.startsWith('Under the fallen roof sheet')).toBe(true);
-    expect(loaded.player.money - startKit('standard').money).toBe(50 * UNITS.centsPerM);
+    expect(loaded.player.money - startKit('standard').money).toBe(50);
   });
 
   it('runs a turn after a load while the truck still rolls with no order', () => {
@@ -242,16 +244,16 @@ describe('the arrival at the farm', () => {
 
 describe('a skipped intro', () => {
   it('builds the same world as the intro, with the arrival scene the only thing missing', () => {
-    const skipped = newGame(SEED, 'arrival', false, TEST_MAP, setup);
-    const played = newGame(SEED, 'arrival', true, TEST_MAP, setup);
+    const skipped = skippedIntro();
+    const played = arrival();
     expect(skipped.player.quests.session).toBeNull();
     expect(played.player.quests.session?.quest).toBe('intro_arrival');
-    const withoutQuests = (w: World) => JSON.stringify({ ...saveOf(w).world, player: { ...(saveOf(w).world as World).player, quests: null } });
-    expect(withoutQuests(skipped)).toBe(withoutQuests(played));
+    const withoutQuests = (w: World) => ({ ...saveOf(w).world, player: { ...saveOf(w).world.player, quests: null } });
+    expect(withoutQuests(skipped)).toEqual(withoutQuests(played));
   });
 
   it('runs the rest of the intro the same way when the scene is skipped', () => {
-    expect(introStep(turns(newGame(SEED, 'arrival', false, TEST_MAP, setup), 1))).toBe('drive');
+    expect(introStep(turns(skippedIntro(), 1))).toBe('drive');
   });
 });
 

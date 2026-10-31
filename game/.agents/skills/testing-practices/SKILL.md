@@ -33,6 +33,8 @@ Turn demonstrated bug probes, including reviewer probes, into regression tests b
 
 ## TypeScript and game checks
 
+- Follow [Testing](../../../docs/testing.md) for every game test: the smallest world that shows the rule, the cost budget, no time limits, no cut samples and no re-pins of incidental values.
+
 - Put simulation tests beside their owner as `*.test.ts` and use Vitest. Every changed simulation rule needs a test.
 - Use `npm test -- src/sim/<owner>.test.ts` for a focused simulation check, `npm run typecheck` for TypeScript, and `npm run quality` for new lint and architecture debt.
 - Test Node-only tooling with the existing runner. `npm run test:quality` exercises the Git hook in disposable repositories.

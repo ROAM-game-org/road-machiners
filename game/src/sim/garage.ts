@@ -1,5 +1,5 @@
 import { truckFor } from './damage';
-import { reachedOutpostAt } from './fury-road';
+import { reachedOutpostAt } from './chaos-highway';
 import { shopAt } from './market';
 import type { World } from './types';
 

@@ -1,6 +1,3 @@
-// Distance culling for static objects. Objects are bucketed into terrain chunks. Each frame the chunks
-// whose bounds meet both the camera view and gray vision stay attached to the root. The rest are
-// detached, so scene traversal, matrix updates and the renderer skip them. Every object is also clipped
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
@@ -9,12 +6,19 @@ import type { Vec } from '../../sim/vec';
 import type { V3 } from '../../phys/frames';
 import { TERRAIN_CHUNK } from './terrain';
 import { outlineProps } from './models';
+import { CLOUD_SHADOWS } from './cloudShadows';
+import { MODEL_FILL } from './modelFill';
 
 const S = PHYSICS.metersPerTile;
 const MARGIN = 8 * S;
 const IDENTITY = new THREE.Matrix4();
 
 type Chunk = { group: THREE.Group; box: THREE.Box3; shown: boolean };
+
+function prepareModel(obj: THREE.Object3D): void {
+  outlineProps(obj);
+  MODEL_FILL.shadeTree(obj);
+}
 
 export class RenderScope {
   private readonly perSide: number;
@@ -26,10 +30,14 @@ export class RenderScope {
   private readonly prepare: (obj: THREE.Object3D) => void;
   private readonly frameHooks: (() => void)[] = [];
 
-  constructor(private readonly root: THREE.Object3D, private readonly mapSize: number, private readonly limit: SightLimit, private readonly grey: boolean, outlined: boolean) {
-    this.prepare = outlined ? outlineProps : () => {};
+  constructor(private readonly root: THREE.Object3D, private readonly mapSize: number, private readonly limit: SightLimit, private readonly grey: boolean, models: boolean) {
+    this.prepare = models ? prepareModel : () => {};
     this.perSide = Math.ceil(mapSize / TERRAIN_CHUNK);
     this.chunks = new Array<Chunk | null>(this.perSide * this.perSide).fill(null);
+  }
+
+  pin(...objs: THREE.Object3D[]): void {
+    this.root.add(...objs);
   }
 
   add(obj: THREE.Object3D, pos: Vec, radius: number): void {
@@ -37,7 +45,9 @@ export class RenderScope {
     if (!(pos.x >= 0 && pos.y >= 0 && pos.x <= this.mapSize && pos.y <= this.mapSize)) throw new Error(`Render scope object at ${pos.x},${pos.y} is outside the ${this.mapSize}-tile map`);
     if (!(radius >= 0 && Number.isFinite(radius))) throw new Error(`Render scope radius must be a finite non-negative number, got ${radius}`);
     const chunk = this.chunkAt(pos);
+    obj.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(obj);
+    this.checkClaim(obj, bounds, pos, radius);
     const low = bounds.isEmpty() ? obj.position.y : bounds.min.y;
     const high = bounds.isEmpty() ? obj.position.y : bounds.max.y;
     bounds.expandByPoint(new THREE.Vector3((pos.x - radius) * S, low, (pos.y - radius) * S));
@@ -47,6 +57,17 @@ export class RenderScope {
     chunk.group.add(obj);
     this.owner.set(obj, chunk);
     this.limit.patch(obj, this.grey);
+    CLOUD_SHADOWS.shadeTree(obj);
+  }
+
+  private checkClaim(obj: THREE.Object3D, bounds: THREE.Box3, pos: Vec, radius: number): void {
+    if (bounds.isEmpty()) return;
+    const low = (pos.x - radius) * S - MARGIN;
+    const high = (pos.x + radius) * S + MARGIN;
+    const near = (pos.y - radius) * S - MARGIN;
+    const far = (pos.y + radius) * S + MARGIN;
+    if (bounds.min.x >= low && bounds.max.x <= high && bounds.min.z >= near && bounds.max.z <= far) return;
+    throw new Error(`Render scope object ${obj.name || obj.id} reaches x ${bounds.min.x}..${bounds.max.x} m, z ${bounds.min.z}..${bounds.max.z} m, outside its ${radius}-tile circle at ${pos.x},${pos.y}`);
   }
 
   remove(obj: THREE.Object3D): void {

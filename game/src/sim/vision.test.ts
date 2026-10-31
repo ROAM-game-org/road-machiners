@@ -8,7 +8,7 @@ import { addVehicle, emptyWorld, practiceOf, settleStorms } from './testkit';
 import { contactsOf, soundRange } from './detect';
 import { TIME } from '../data/time';
 import { sunAt } from './sun';
-import { canVehicleSee, exploreFrom, grayRadius, hasLineOfFire, playerVisible, practiceContacts, refreshVision, sightRadius, visibleTiles } from './vision';
+import { canVehicleSee, exploreFrom, grayRadius, hasLineOfFire, playerVisible, practiceContacts, refreshVision, seenPropTiles, sightRadius, visibleTiles } from './vision';
 import { TEST_MAP } from '../test/map';
 import { START_KITS } from '../data/start';
 import { DECKS, deckAt } from './bridge';
@@ -36,7 +36,7 @@ describe('vision', () => {
 
   it('sees behind a rock within the close radius', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    w.obstacles = [{ id: 'r', pos: { x: 31.2, y: 30.5 }, r: 0.6, kind: 'rock' }];
+    w.obstacles = [{ id: 'r', pos: { x: 31.2, y: 30.5 }, r: 1.2, kind: 'rock' }];
     const vis = visibleTiles(w, { x: 30, y: 30.5 });
     expect(vis.has(30 * w.size + 32)).toBe(true);
     expect(vis.has(30 * w.size + 35)).toBe(false);
@@ -44,7 +44,7 @@ describe('vision', () => {
 
   it('lets an NPC see a vehicle behind a rock within the close radius', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    w.obstacles = [{ id: 'r', pos: { x: 31.2, y: 30 }, r: 0.6, kind: 'rock' }];
+    w.obstacles = [{ id: 'r', pos: { x: 31.2, y: 30 }, r: 1.2, kind: 'rock' }];
     const npc = { ...w.vehicles[0], id: 'npc', pos: { x: 30, y: 30 } };
     expect(canVehicleSee(w, npc, { x: 32.5, y: 30 })).toBe(true);
     expect(canVehicleSee(w, npc, { x: 35.5, y: 30 })).toBe(false);
@@ -85,11 +85,11 @@ describe('vision', () => {
       w.obstacles = [{ id: 'wreck-npc7', pos: { x: 33, y: 30 }, r: 0.9, kind: 'wreck', hulk: { chassisId, yaw: Math.PI / 2 } }];
       return hasLineOfFire(w, { x: 30, y: 30 }, { x: 36.5, y: 30 });
     };
-    const reachesEye = (chassisId: string) => hulkBoxes(chassisId).some((b) => b.z0 <= eye && b.z1 >= eye && b.x0 <= 0 && b.x1 >= 0);
+    const reachesEye = (chassisId: string) => hulkBoxes(chassisId, undefined).some(({ box: b }) => b.z0 <= eye && b.z1 >= eye && b.x0 <= 0 && b.x1 >= 0);
 
-    expect(reachesEye('tractor')).toBe(true);
+    expect(reachesEye('loader')).toBe(true);
     expect(reachesEye('buggy')).toBe(false);
-    expect(line('tractor')).toBe(false);
+    expect(line('loader')).toBe(false);
     expect(line('buggy')).toBe(true);
   });
 
@@ -189,7 +189,7 @@ describe('contact practice', () => {
   function heardBuggy() {
     const w = emptyWorld({ x: 30, y: 30 });
     w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => !sunAt(t))!;
-    const buggy = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
+    const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
     buggy.speed = 6;
     return { w, buggy };
   }
@@ -220,7 +220,7 @@ describe('contact practice', () => {
 
   it('pays nothing when an NPC hears a truck', () => {
     const { w, buggy } = heardBuggy();
-    const trader = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 60, y: 30 });
+    const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 60, y: 30 });
     expect(contactsOf(w, trader, Infinity).map((c) => c.vehicleId)).toContain(buggy.id);
     expect(practiceOf(w, 'contact')).toEqual([]);
   });
@@ -244,7 +244,7 @@ describe('perception sight', () => {
 
   it('leaves NPC sight alone', () => {
     const w = emptyWorld({ x: 60, y: 60 });
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
     const base = sightRadius(w, npc);
     w.player.ranks.perception = 5;
     expect(sightRadius(w, npc)).toBe(base);
@@ -268,7 +268,7 @@ describe('the night eyes perk', () => {
     const w = emptyWorld({ x: 60, y: 60 });
     w.turn = night();
     w.player.perks.push('nightEyes');
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
     expect(sightRadius(w, npc)).toBeCloseTo(TERRAIN.vision.radius * TIME.nightSight);
   });
 });
@@ -280,7 +280,7 @@ describe('the storm rider perk', () => {
     const w = emptyWorld({ x: 60, y: 60 });
     w.turn = day();
     w.weather = [{ id: 'w1', kind: 'storm', pos: { x: 60, y: 60 }, radius: 60, vel: { x: 0, y: 0 }, turnsLeft: 100, born: w.turn - 100 }];
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 62, y: 60 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 62, y: 60 });
     settleStorms(w);
     return { w, me: w.vehicles[0], npc };
   }
@@ -302,7 +302,7 @@ describe('the storm rider perk', () => {
 describe('a dust screen', () => {
   function screenWorld(pos: { x: number; y: number }, screen: boolean) {
     const w = emptyWorld({ x: 30, y: 30 });
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 20, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 20, y: 30 });
     const me = w.vehicles[0];
     w.dustClouds = [{ id: 'dust', source: me.id, pos, vel: { x: 0, y: 0 }, age: 0, range: 50, ...(screen ? { screen: true as const } : {}) }];
     refreshVision(w);
@@ -353,7 +353,7 @@ describe('sight from the wing', () => {
     w.vehicles[0].pos = at(mid, 0, -5);
     return w;
   }
-  const viewer = (w: World, pos: Vec) => addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], pos);
+  const viewer = (w: World, pos: Vec) => addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], pos);
 
   it('sees a truck 15 tiles out on the furrow bank over a hull plate that hides it from the ground', () => {
     const w = wingWorld();
@@ -364,7 +364,7 @@ describe('sight from the wing', () => {
     expect(deckAt(ICARUS_DECKS, onGround.pos.x, onGround.pos.y)).toBeNull();
     expect(canVehicleSee(w, onGround, target)).toBe(true);
 
-    w.obstacles.push({ id: 'plate', pos: at(mid, 0, 11), r: 1.3, kind: 'landmark', look: 'hullChunk', yaw: 0 });
+    w.obstacles = [...w.obstacles, { id: 'plate', pos: at(mid, 0, 11), r: 1.3, kind: 'landmark', look: 'hullChunk', yaw: 0 }];
 
     expect(canVehicleSee(w, onGround, target)).toBe(false);
     expect(canVehicleSee(w, onSpan, target)).toBe(true);
@@ -380,5 +380,88 @@ describe('sight from the wing', () => {
 
     expect(canVehicleSee(w, viewer(w, from), to)).toBe(true);
     expect(hasLineOfFire(w, from, to)).toBe(true);
+  });
+});
+
+describe('props the player sees', () => {
+  const from = { x: 30, y: 30 };
+  const landmark = (look: 'deadTree' | 'farmhouse' | 'shack', pos: Vec, yaw: number): World => {
+    const w = emptyWorld(from);
+    w.obstacles = [{ id: `${look}-0`, pos, r: 1.2, kind: 'landmark', look, yaw }];
+    return w;
+  };
+  const hiddenOwnTiles = (w: World) => {
+    const visible = visibleTiles(w, from);
+    return { visible, seen: seenPropTiles(w, from, visible) };
+  };
+
+  it.each([
+    ['deadTree', { x: 35.4, y: 30.3 }, 0.7],
+    ['farmhouse', { x: 35.4, y: 30 }, 0.7],
+    ['shack', { x: 35.4, y: 30 }, 0],
+  ] as const)('counts a %s as seen where its own boxes hide a tile under it', (look, pos, yaw) => {
+    const { visible, seen } = hiddenOwnTiles(landmark(look, pos, yaw));
+
+    expect(seen.some((idx) => !visible.has(idx))).toBe(true);
+    expect(seen.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('counts a rock beside its own hidden tiles as seen', () => {
+    const w = emptyWorld(from);
+    w.obstacles = [{ id: 'r', pos: { x: 35.4, y: 30.3 }, r: 1.6, kind: 'rock' }];
+    const { visible, seen } = hiddenOwnTiles(w);
+
+    expect(seen.some((idx) => !visible.has(idx))).toBe(true);
+  });
+
+  it('leaves the rule sight of the same scene unchanged', () => {
+    const w = landmark('shack', { x: 35.4, y: 30 }, 0);
+    const before = [...visibleTiles(w, from)];
+    seenPropTiles(w, from, new Set(before));
+
+    expect([...visibleTiles(w, from)]).toEqual(before);
+  });
+
+  it('keeps a prop behind a shack unseen', () => {
+    const w = emptyWorld(from);
+    w.obstacles = [
+      { id: 'shack-0', pos: { x: 33, y: 30 }, r: 1.2, kind: 'landmark', look: 'shack', yaw: 0 },
+      { id: 'r', pos: { x: 39.5, y: 30.5 }, r: 1.2, kind: 'rock' },
+    ];
+    const { visible, seen } = hiddenOwnTiles(w);
+    const rockTile = 30 * w.size + 39;
+
+    expect(visible.has(rockTile)).toBe(false);
+    expect(seen).not.toContain(rockTile);
+  });
+
+  it('keeps a prop behind a hill unseen', async () => {
+    const { heightAt } = await import('./terrain');
+    const w = emptyWorld(from);
+    w.terrain = TEST_MAP.terrain;
+    let found: { a: Vec; b: Vec } | null = null;
+    for (let x = 6; x < w.size - 6 && !found; x++) {
+      for (let y = 2; y < w.size - 2 && !found; y++) {
+        const a = { x: x - 4, y }, b = { x: x + 4, y };
+        if (heightAt(w.terrain, x, y) - Math.max(heightAt(w.terrain, a.x, a.y), heightAt(w.terrain, b.x, b.y)) > TERRAIN.vision.eyeHeight) found = { a, b };
+      }
+    }
+    expect(found, 'no hill found for this seed').not.toBeNull();
+    const visible = visibleTiles(w, found!.a);
+    const behindHill = [3, 4, 5, 6, 7, 8]
+      .map((d) => ({ x: Math.floor(found!.b.x) + d - 3.5, y: Math.floor(found!.b.y) + 0.5 }))
+      .find((pos) => [-1, 0, 1].every((dx) => [-1, 0, 1].every((dy) => !visible.has(Math.floor(pos.y + dy) * w.size + Math.floor(pos.x + dx)))));
+    expect(behindHill, 'no tile fully behind the hill').toBeDefined();
+    w.obstacles = [{ id: 'r', pos: behindHill!, r: 1.2, kind: 'rock' }];
+
+    expect(seenPropTiles(w, found!.a, visible)).toEqual([]);
+  });
+
+  it('counts a prop beside the viewer as seen', () => {
+    const w = emptyWorld(from);
+    w.obstacles = [{ id: 'r', pos: { x: 31.2, y: 30.5 }, r: 1.2, kind: 'rock' }];
+    const { seen } = hiddenOwnTiles(w);
+
+    expect(seen).toContain(30 * w.size + 31);
   });
 });

@@ -1,4 +1,4 @@
-#ui .feedback-form {
+:is(#ui, #report) .feedback-form {
   position: fixed;
   left: 50%;
   top: 50%;
@@ -9,7 +9,7 @@
   flex-direction: column;
   gap: var(--space-4);
   width: var(--panel-xl);
-  max-width: calc(100vw - 2 * var(--hud-inset));
+  max-width: calc(var(--layer-w) - 2 * var(--hud-inset));
   font-size: var(--text-body);
 }
 .feedback-text {

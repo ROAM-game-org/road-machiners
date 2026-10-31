@@ -62,7 +62,7 @@ describe('lineStyle', () => {
   });
 
   it('takes art only from the art list', () => {
-    QUEST_ART.test_gate = { file: 'gate.webp', focusX: 50 };
+    QUEST_ART.test_gate = { file: 'gate.webp', focusX: 50, focusY: 50 };
     try {
       expect(lineStyle(['img: test_gate']).img).toBe('test_gate');
       expect(() => lineStyle(['img: test_wall'])).toThrow(/Line tag # img: test_wall needs one of .*test_gate/);

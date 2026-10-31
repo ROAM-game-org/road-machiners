@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
-import { gpuArgs } from './gpu.mjs';
+import { launchChromium } from './gpu.mjs';
 import { playUrl } from './game-url.mjs';
+import { checkHudOutlineFixed } from './hud-outline.mjs';
 
 const url = process.argv[2];
 if (!url) throw new Error('Usage: node scripts/ui-playtest.mjs <dev-server-url>');
-const browser = await chromium.launch({ args: process.env.CPU ? [] : gpuArgs() });
+const { browser, software } = await launchChromium(chromium);
 
 function doRectsOverlap(a, b) {
   return a.x < b.right && a.right > b.x && a.y < b.bottom && a.bottom > b.y;
@@ -48,7 +49,7 @@ async function checkCoins(page, where) {
       return [ratio >= 0.25 && ratio <= 0.32 ? '' : `${text}: M is ${ratio.toFixed(2)} of the coin`];
     };
     const hsl = hex => {
-      const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+      const [r, g, b] = hex.match(/\d+/g).slice(0, 3).map(part => Number(part) / 255);
       const max = Math.max(r, g, b), min = Math.min(r, g, b);
       const l = (max + min) / 2;
       const s = max === min ? 0 : (max - min) / (1 - Math.abs(2 * l - 1));
@@ -57,7 +58,7 @@ async function checkCoins(page, where) {
     const colourProblems = (text, coin) => {
       if (!coin) return [];
       return ['circle', 'path'].map(tag => {
-        const colour = coin.querySelector(tag).getAttribute('stroke');
+        const colour = getComputedStyle(coin.querySelector(tag)).stroke;
         const { s, l } = hsl(colour);
         return s <= 0.45 && l <= 0.7 ? '' : `${text}: ${tag} colour ${colour} is too vivid`;
       });
@@ -85,12 +86,15 @@ async function checkCoins(page, where) {
 }
 
 async function checkCoinSizes(page, where) {
-  const heights = await page.evaluate(() => {
-    const height = selector => document.querySelector(selector)?.getBoundingClientRect().height;
-    return { hud: height('.resource .amount > .coin'), market: height('.town-shop .trade .amount > .coin') };
+  const ratios = await page.evaluate(() => {
+    const ratio = selector => {
+      const coin = document.querySelector(selector);
+      return coin && coin.getBoundingClientRect().height / parseFloat(getComputedStyle(coin.parentElement).fontSize);
+    };
+    return { hud: ratio('.resource .amount > .coin'), market: ratio('.modal .amount > .coin') };
   });
-  assert(heights.hud && heights.market, `Coin sizes (${where}) need a HUD and a market coin`);
-  assert(Math.abs(heights.hud - heights.market) <= 2, `HUD coin ${heights.hud}px and market coin ${heights.market}px differ (${where})`);
+  assert(ratios.hud && ratios.market, `Coin sizes (${where}) need a HUD and a market coin`);
+  assert(Math.abs(ratios.hud - ratios.market) <= 0.05, `HUD coin ${ratios.hud}em and market coin ${ratios.market}em differ (${where})`);
 }
 
 async function checkSpeedTip(page, width) {
@@ -99,16 +103,16 @@ async function checkSpeedTip(page, width) {
   const tip = await page.evaluate(() => {
     const node = document.querySelector('.speed-tip');
     return {
-      lines: [...node.querySelectorAll('.speed-line')].map(line => line.textContent),
-      nested: node.querySelectorAll('span, .speed-row, .total').length,
+      lines: [...node.querySelectorAll('.speed-line')].map(line => ({ label: line.children[0].textContent, value: line.children[1].textContent })),
+      nested: node.querySelectorAll('table, td, .speed-row, .total').length,
       text: node.innerText,
       rect: node.getBoundingClientRect().toJSON(),
       view: { w: window.innerWidth, h: window.innerHeight },
     };
   });
   assert(tip.lines.length >= 1, 'The tooltip must show a line');
-  const short = /^[^:%\u00b7|]+: ([+\u2212]\d+ km\/h|crawl( \d+ km\/h)?|max \d+ km\/h)$/;
-  for (const line of tip.lines) assert(line === 'No speed penalties' || short.test(line), `Tooltip line must be short: ${line}`);
+  const value = /^([+\u2212]?\d+ km\/h|crawl( \d+ km\/h)?|max \d+ km\/h)$/;
+  for (const line of tip.lines) assert(value.test(line.value) && !/[:%\u00b7|]/.test(line.label), `Tooltip line must be short: ${JSON.stringify(line)}`);
   assert.equal(tip.nested, 0, 'The tooltip must hold no table cells');
   assert(!/%|Guns draw/.test(tip.text), `The tooltip must hold no percent or paragraph: ${tip.text}`);
   assert(tip.rect.x >= 0 && tip.rect.y >= 0 && tip.rect.right <= tip.view.w && tip.rect.bottom <= tip.view.h, `The tooltip must lie on screen: ${JSON.stringify(tip.rect)}`);
@@ -117,9 +121,32 @@ async function checkSpeedTip(page, width) {
 }
 
 function checkClockSpan(m) {
-  const span = `${m.clock.x}-${m.clock.right} vs ${m.dial.x}-${m.money.right}`;
-  assert(Math.abs(m.clock.x - m.dial.x) <= 1, `Clock must start at the dial: ${span}`);
-  assert(Math.abs(m.clock.right - m.money.right) <= 1, `Clock must end at the money readout: ${span}`);
+  const span = `clock ${m.clock.x}-${m.clock.right} vs cells ${m.clockCells.x}-${m.clockCells.right}`;
+  assert(Math.abs(m.clock.x - m.clockCells.x) <= 1 && Math.abs(m.clock.right - m.clockCells.right) <= 1, `Clock must span the two right cells of row 1: ${span}`);
+}
+
+async function moneyCellWidth(page, whole) {
+  await page.evaluate(async whole => {
+    const game = window.__ROAM__;
+    const world = structuredClone(game.state);
+    world.player.money = whole;
+    game.apply(world);
+  }, whole);
+  await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
+  return page.evaluate(() => document.querySelector('.resource[data-resource="money"]').getBoundingClientRect().width);
+}
+
+async function checkMoneyCellFixed(page) {
+  const original = await page.evaluate(() => window.__ROAM__.state.player.money);
+  const poor = await moneyCellWidth(page, 0);
+  const rich = await moneyCellWidth(page, 9999);
+  await page.evaluate(async original => {
+    const game = window.__ROAM__;
+    const world = structuredClone(game.state);
+    world.player.money = original;
+    game.apply(world);
+  }, original);
+  assert(Math.abs(poor - rich) <= 1, `The money cell must not depend on the money: ${poor} vs ${rich}`);
 }
 
 async function checkInstruments(page) {
@@ -138,25 +165,39 @@ async function checkInstruments(page) {
       panelText: document.querySelector('.instruments').innerText,
       actionsText: document.querySelector('.instrument-actions').innerText,
       speedoText: document.querySelector('.speedometer').innerText,
-      heights: [...document.querySelectorAll('.instrument-actions > button')].map(node => node.getBoundingClientRect().height),
+      heights: [...document.querySelectorAll('.instrument-actions > button, .weapon-head > .switch')].filter(node => node.offsetParent !== null).map(node => node.getBoundingClientRect().height),
+      lines: [...document.querySelectorAll('.instrument-actions > button, .weapon-head > .switch')].filter(node => node.offsetParent !== null).every(node => node.scrollHeight <= node.clientHeight + 1),
+      horn: [...document.querySelectorAll('.instrument-actions > button')].some(node => node.textContent.trim() === 'Horn' && node.offsetParent !== null),
+      buttonHeight: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--btn-h-s')),
+      clockCells: (() => {
+        const cells = [...document.querySelectorAll('.instruments .resource')].map(node => node.getBoundingClientRect().toJSON());
+        const lower = cells.filter(cell => cell.y > document.querySelector('.instrument-clock').getBoundingClientRect().bottom - 1).sort((a, b) => a.x - b.x);
+        return { x: lower[2].x, right: Math.max(...cells.map(cell => cell.right)) };
+      })(),
+      dayGap: (() => { const day = document.querySelector('.clock-day').getBoundingClientRect(); const time = document.querySelector('.clock-time').getBoundingClientRect(); return time.x - day.right; })(),
+      lcdGap: parseFloat(getComputedStyle(document.querySelector('.instrument-clock')).columnGap),
     };
   });
   const { panel } = m;
   assert(m.clock.x >= panel.x && m.clock.right <= panel.right && m.clock.y >= panel.y && m.clock.bottom <= panel.bottom, 'Clock must lie inside the instruments');
-  assert(m.clock.bottom <= m.dial.y && m.clock.bottom <= m.readouts.y, 'Clock must sit above the dial and readouts');
   checkClockSpan(m);
-  assert(/Day\s*\d+\s*\d+:\d\d/i.test(m.clockText), `Clock must show day and time, got ${m.clockText}`);
-  assert.equal(m.panelText.match(/Day\s*\d+\s*\d+:\d\d/gi).length, 1, 'Time must show once');
+  assert(/D\s*\d+\s*\d+:\d\d/.test(m.clockText), `Clock must show day and time, got ${m.clockText}`);
+  assert(m.dayGap <= m.lcdGap + 4, `Day and time must sit together: ${m.dayGap}px apart`);
+  assert.equal(m.panelText.match(/D\s*\d+\s*\d+:\d\d/g).length, 1, 'Time must show once');
   assert(!m.actionsText.includes('broken'), 'No broken badge in the action row');
   assert(!/km\/h|\u00b7/.test(m.speedoText), 'No unit text under the dial');
-  assert(m.heights.every(h => Math.abs(h - m.heights[0]) <= 1), `Action buttons must share one height: ${m.heights}`);
+  assert(m.heights.every(h => Math.abs(h - m.buttonHeight) <= 1), `Instrument buttons must be ${m.buttonHeight}px high: ${m.heights}`);
+  assert(m.lines, 'Instrument button contents must sit on one line');
+  assert(!m.horn, 'Horn is for touch only');
+  await checkMoneyCellFixed(page);
+  await checkHudOutlineFixed(page, 'in English at the instruments check');
   for (const other of [m.log, m.weapons].filter(Boolean)) {
-    assert(!doRectsOverlap(panel, other), 'Instruments must not overlap the log or weapons');
+    assert(!doRectsOverlap(panel, other), `Instruments must not overlap the log or weapons: ${JSON.stringify([panel, other])}`);
   }
   await checkSpeedTip(page, page.viewportSize().width);
 }
 
-const DOCK_VIEWPORTS = [[1920, 1080], [1280, 720], [1280, 656], [1024, 656], [900, 656], [800, 656], [700, 800]];
+const DOCK_VIEWPORTS = [[1920, 1080], [1280, 720], [1100, 700], [1280, 656], [1024, 656], [900, 656], [800, 656], [700, 800]];
 const DOCK_PANELS = ['.instruments', '.weapons', '.truck-condition', '.log', '.turn-control', '.recenter', '.info'];
 
 async function loadHeavyHud(page) {
@@ -214,8 +255,23 @@ function assertNoOverlaps(rects, width, height) {
 
 const inside = (r, box, tol = 1) => r.x >= box.x - tol && r.right <= box.right + tol && r.y >= box.y - tol && r.bottom <= box.bottom + tol;
 
+function assertStack(rects, at) {
+  const log = rects['.log'], turn = rects['.turn-control'];
+  if (!log || !turn) return;
+  assert(near(turn.y - log.bottom, 8), `The log must sit one HUD gap above End turn ${at}, got ${turn.y - log.bottom}`);
+  assert(near(log.right, turn.right), `The log and End turn must share a right edge ${at}, got ${log.right} and ${turn.right}`);
+}
+
+async function settleLayers(page, width) {
+  await page.waitForFunction(width => {
+    const ui = document.querySelector('#ui').classList;
+    return ui.contains('narrow') === (width <= 720) && ui.contains('compact') === (width <= 1100);
+  }, width);
+}
+
 async function checkDockLayout(page, [width, height]) {
   await page.setViewportSize({ width, height });
+  await settleLayers(page, width);
   const m = await page.evaluate(([selectors, narrow]) => {
     if (narrow) document.querySelector('.info').style.visibility = 'hidden';
     const shown = node => node && node.offsetParent !== null && getComputedStyle(node).visibility !== 'hidden';
@@ -230,7 +286,7 @@ async function checkDockLayout(page, [width, height]) {
     const fits = node => node.scrollWidth <= node.clientWidth + 1 && node.scrollHeight <= node.clientHeight + 1;
     return {
       rects, controls, viewport: { width: innerWidth, height: innerHeight },
-      slots: [...document.querySelectorAll('.weapon-slot')].map(box),
+      slots: [...document.querySelectorAll('.weapons .weapon-slots .weapon-slot')].map(box),
       fits: { panel: fits(document.querySelector('.weapons')), grid: fits(grid) },
       text: document.querySelector('.weapons').innerText,
       icons: document.querySelectorAll('.weapon-pick .item-icon').length,
@@ -244,6 +300,7 @@ async function checkDockLayout(page, [width, height]) {
   await page.screenshot({ path: `.playtest/dock-${guns}g-${width}x${height}.png`, timeout: 180000 });
   assert(m.rects['.weapons'], `Weapons panel must show ${at}`);
   assertNoOverlaps(m.rects, width, height);
+  assertStack(m.rects, at);
   const stacked = assertDockPlace(m, at);
   assertDockFits(m, at);
   assertDockRows(m.slots, at);
@@ -319,6 +376,7 @@ async function checkWeaponDock(page) {
     if (guns !== most) await trimGuns(page, guns);
     if (guns !== 1) await checkWeaponIcons(page, guns, guns === most);
     for (const viewport of DOCK_VIEWPORTS) await checkDockLayout(page, viewport);
+    if (guns === most) await checkHudOutlineFixed(page, `with ${guns} guns at ${page.viewportSize().width}x${page.viewportSize().height}`);
   }
 }
 
@@ -399,7 +457,7 @@ async function checkLogScroll(page) {
   });
   assert(await page.evaluate(() => document.querySelector('.log-lines').scrollTop) > 0, 'Log must have history to scroll back through');
   const before = await topRow();
-  await page.evaluate(() => { const g = window.__ROAM__; g.hud.note(g.world, 'A new line arrives', 'dim'); });
+  await page.evaluate(async () => { const { verbatim } = await import('/src/text/msg.ts'); const g = window.__ROAM__; g.hud.note(g.world, verbatim('A new line arrives'), 'dim'); });
   assert.equal(await topRow(), before, 'A scrolled-back log must keep its top row when a line arrives');
   const scrolled = () => page.evaluate(() => document.querySelector('.log-lines').scrollTop > 0);
   await page.locator('.log-expand').click({ force: true });
@@ -412,7 +470,7 @@ async function shotLog(page, name) {
   await page.screenshot({ path: `.playtest/${name}.png`, clip: await page.locator('.log').boundingBox(), animations: 'allow' });
 }
 
-const dockGap = page => (page.viewportSize().width <= 720 ? 8 : 12);
+const dockGap = () => 8;
 
 const near = (a, b) => Math.abs(a - b) <= 1;
 
@@ -454,7 +512,8 @@ async function checkRadio(page) {
     await holdContracts(page, count);
     const m = await boxes(page);
     assert(m.radio, 'Radio must be visible');
-    assert.equal(m.knobs, 4, 'Radio must carry four volume knobs');
+    assert.equal(await page.locator('.radio button.switch').count(), 0, 'The radio must carry no mute switch, it lives in Options');
+    assert.equal(m.knobs, 0, 'The radio must carry no volume knobs, they live in Options');
     assert.equal(m.oldSound, 0, 'The top-right Sound panel must be gone');
     const below = count ? m.contracts : m.log;
     const gap = count ? 8 : dockGap(page);
@@ -492,18 +551,24 @@ async function checkKnobs(url, viewport) {
     await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: 90000 });
     await page.waitForFunction(() => document.querySelector('.radio-text')?.textContent.trim(), null, { timeout: 90000 });
     const at = `At ${viewport.width}x${viewport.height}`;
-    const values = () => page.evaluate(() => [...document.querySelectorAll('.radio .knob')].map(k => k.getAttribute('aria-valuenow')));
-    const muted = () => page.evaluate(() => document.querySelector('.radio-mute button').getAttribute('aria-pressed') ?? document.querySelector('.radio-mute').innerHTML);
+    const openOptions = async () => {
+      await page.locator('.menu-button').click();
+      await page.locator('[data-entry=options]').click();
+      await page.waitForFunction(() => document.querySelectorAll('.options .knob').length === 4);
+    };
+    await openOptions();
+    const values = () => page.evaluate(() => [...document.querySelectorAll('.options .knob')].map(k => k.getAttribute('aria-valuenow')));
+    const muted = () => page.evaluate(() => document.querySelector('.options .sound-mute button').getAttribute('aria-pressed') ?? document.querySelector('.options .sound-mute').innerHTML);
     const game = () => page.evaluate(() => {
       const g = window.__ROAM__;
       return JSON.stringify([g.state === window.__knobState, g.rig.camera.position.toArray()]);
     });
     await page.evaluate(() => { window.__knobState = window.__ROAM__.state; });
     const box = selector => page.evaluate(selector => { const r = document.querySelector(selector).getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; }, selector);
-    const cells = page.locator('.radio .knob-cell');
+    const cells = page.locator('.options .knob-cell');
     const rects = await cells.evaluateAll(nodes => nodes.map(n => ({ cell: n.getBoundingClientRect().toJSON(), knob: n.querySelector('.knob').getBoundingClientRect().toJSON() })));
-    const mute = await box('.radio-mute');
-    assert.equal(rects.length, 4, `${at} the radio must carry four knob columns`);
+    const mute = await box('.options .sound-mute');
+    assert.equal(rects.length, 4, `${at} Options must carry four knob columns`);
     rects.forEach((r, i) => {
       assert(r.cell.width >= 24 && r.cell.height >= 40, `${at} ${KNOB_BUSES[i]} column must be at least 24x40, got ${r.cell.width}x${r.cell.height}`);
       assert(!doRectsOverlap(r.cell, { x: mute.x, y: mute.y, right: mute.x + mute.width, bottom: mute.y + mute.height }), `${at} the columns must clear the mute switch`);
@@ -524,16 +589,16 @@ async function checkKnobs(url, viewport) {
       await page.mouse.down();
       await page.mouse.move(x, y - 80, { steps: 10 });
       const mid = await page.evaluate(i => {
-        const cell = document.querySelectorAll('.radio .knob-cell')[i];
+        const cell = document.querySelectorAll('.options .knob-cell')[i];
         const readout = cell.querySelector('.knob-readout');
-        const hidden = [...document.querySelectorAll('.radio .knob-readout')].filter(r => getComputedStyle(r).visibility !== 'hidden');
+        const hidden = [...document.querySelectorAll('.options .knob-readout')].filter(r => getComputedStyle(r).visibility !== 'hidden');
         return { now: Number(cell.querySelector('.knob').getAttribute('aria-valuenow')), turning: cell.classList.contains('turning'), text: readout.textContent, valuetext: cell.querySelector('.knob').getAttribute('aria-valuetext'), shown: hidden.length === 1 && hidden[0] === readout };
       }, i);
       assert(Math.abs(mid.now - 50) <= 1, `${at} 80px up must give about 50, got ${mid.now}`);
       assert(mid.turning && mid.shown, `${at} only the turned column must show its level`);
       assert.equal(mid.text, mid.valuetext, `${at} the readout must match aria-valuetext`);
       assert.equal(mid.text, `${mid.now}%`);
-      if (i === 0) await page.screenshot({ path: `.playtest/knobs-${viewport.width}.png`, clip: await box('.radio'), timeout: 120000 });
+      if (i === 0) await page.screenshot({ path: `.playtest/knobs-${viewport.width}.png`, clip: await box('.options'), timeout: 120000 });
       await page.mouse.move(x, y - 200, { steps: 10 });
       await page.mouse.up();
       const after = await values();
@@ -551,30 +616,32 @@ async function checkKnobs(url, viewport) {
       await page.mouse.up();
       await page.mouse.move(x, y);
       await page.mouse.wheel(0, -100);
-      await page.waitForFunction(i => document.querySelectorAll('.radio .knob')[i].getAttribute('aria-valuenow') === '5', i, { timeout: 60000 });
+      await page.waitForFunction(i => document.querySelectorAll('.options .knob')[i].getAttribute('aria-valuenow') === '5', i, { timeout: 60000 });
     }
     const cameraBefore = await game();
-    const knobs = page.locator('.radio .knob');
+    const knobs = page.locator('.options .knob');
     await knobs.first().focus();
     const base = Number((await values())[0]);
     await page.keyboard.press('ArrowUp');
     assert.equal(Number((await values())[0]), base + 5, `${at} ArrowUp on a focused knob must raise it 5`);
-    assert(await page.locator('.radio .knob-readout').first().isVisible(), `${at} a focused knob must show its level`);
+    assert(await page.locator('.options .knob-readout').first().isVisible(), `${at} a focused knob must show its level`);
     await knobs.first().blur();
     await page.keyboard.press('ArrowUp');
     assert.equal(Number((await values())[0]), base + 5, `${at} ArrowUp must not turn a blurred knob`);
     const held = await values();
     const muteBefore = await muted();
     await page.keyboard.press('m');
-    assert.notEqual(await muted(), muteBefore, `${at} M must flip the mute switch`);
+    assert.equal(await muted(), muteBefore, `${at} M must not flip the mute switch`);
     assert.deepEqual(await values(), held, `${at} M must not change a level`);
+    if (await page.locator('.character-screen:visible').count()) await page.keyboard.press('m');
     assert.equal(await game(), cameraBefore, `${at} the knob checks must leave the camera alone`);
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('roam-sound')).volume);
     assert.deepEqual(['music', 'sfx', 'ambient', 'ui'].map(b => String(Math.round(stored[b] * 100))), held, `${at} the stored levels must match the knobs`);
     await page.mouse.move(0, 0);
-    await page.screenshot({ path: `.playtest/knobs-rest-${viewport.width}.png`, clip: await box('.radio'), timeout: 120000 });
+    await page.screenshot({ path: `.playtest/knobs-rest-${viewport.width}.png`, clip: await box('.options'), timeout: 120000 });
     await page.reload();
-    await page.waitForFunction(() => document.querySelectorAll('.radio .knob').length === 4);
+    await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: 90000 });
+    await openOptions();
     assert.deepEqual(await values(), held, `${at} the levels must survive a reload`);
     assert.equal(await page.locator('.speedometer [role=slider], .speedometer .knob').count(), 0, `${at} the speedometer must hold no knob`);
     assert.deepEqual(errors, [], `${at} no uncaught page errors`);
@@ -585,7 +652,7 @@ async function checkKnobs(url, viewport) {
 
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-  page.setDefaultTimeout(process.env.CPU ? 180000 : 30000);
+  page.setDefaultTimeout(software ? 180000 : 30000);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(playUrl(url));
@@ -628,6 +695,12 @@ try {
   await checkVisibleReadouts(page);
   assert.deepEqual(await page.locator('.modal:visible').boundingBox(), inventoryFrame, 'Character and inventory must share one frame');
   await page.keyboard.press('Escape');
+  await page.keyboard.press('m');
+  assert(await page.locator('.character-screen [data-tab=map].on').count(), 'M must open the character screen on its Map tab');
+  await page.keyboard.press('m');
+  assert.equal(await page.locator('.modal:visible').count(), 0, 'M must close the Map tab again');
+  await page.keyboard.press('k');
+  assert.equal(await page.locator('.modal:visible').count(), 0, 'K must do nothing');
   await page.keyboard.press('e');
   await checkCoins(page, 'HUD');
   if (await page.locator('.modal:visible').count()) {
@@ -642,9 +715,10 @@ try {
     const g = window.__ROAM__;
     const c = await import('/src/sim/cheats.ts');
     g.apply(c.teleport(g.state, c.placeSpot(g.state, 'bowl')));
-    g.town.open();
+    g.screens.town.open();
   });
-  await page.waitForSelector('.town-shop .tabs button', { timeout: 90000 });
+  await page.waitForSelector('.town-page [data-town-go]', { timeout: 90000 });
+  await page.locator('.town-page [data-town-go=market]').click();
   assert((await checkCoins(page, 'town market')) > 1, 'The town market must show amounts');
   await checkCoinSizes(page, 'market 1600');
   const before = page.viewportSize();
@@ -653,9 +727,11 @@ try {
   await checkCoinSizes(page, 'market 1024');
   await page.setViewportSize(before);
   await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
   await page.keyboard.press('i');
   for (const width of [1024, 800, 700]) {
     await page.setViewportSize({ width, height: 800 });
+    await settleLayers(page, width);
     await checkVisibleReadouts(page);
     await checkInstruments(page);
     await checkLog(page, `compact ${width}`);
@@ -667,10 +743,12 @@ try {
   await page.keyboard.press('Escape');
   for (const [width, height] of [[1280, 768], [700, 800]]) {
     await page.setViewportSize({ width, height });
+    await settleLayers(page, width);
     await checkRadio(page);
   }
-  for (const [width, height, radioStays] of [[1280, 720, false], [1366, 768, false], [1280, 800, false], [1440, 860, null], [1440, 900, true], [700, 800, false], [700, 940, false], [700, 1060, true]]) {
+  for (const [width, height, radioStays] of [[1280, 720, true], [1366, 768, true], [1280, 800, true], [1440, 860, true], [1440, 900, true], [700, 800, true], [700, 940, true], [700, 1060, true]]) {
     await page.setViewportSize({ width, height });
+    await settleLayers(page, width);
     await checkRightColumn(page, radioStays);
   }
   await page.keyboard.press('Escape');

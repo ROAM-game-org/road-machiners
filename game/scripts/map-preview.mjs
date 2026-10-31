@@ -49,6 +49,10 @@ const PROP_LOOKS = {
   fortYardWall: { color: 0xd8d0b8, shape: 'rail' },
   fortYardTower: { color: 0xb8a888, shape: 'disc' },
   fortYardGate: { color: 0xe05030, shape: 'long' },
+  fortOutpostWall: { color: 0xd8d0b8, shape: 'rail' },
+  fortOutpostTower: { color: 0xb8a888, shape: 'disc' },
+  fortOutpostGate: { color: 0xe05030, shape: 'long' },
+  fortOutpostShut: { color: 0xe05030, shape: 'long' },
   shipWing: { color: 0xd0d0d0, shape: 'box' },
   hullChunk: { color: 0x909090, shape: 'long' },
   shipCache: { color: 0x40d040, shape: 'disc' },
@@ -75,6 +79,12 @@ const PROP_LOOKS = {
   guardPost: { color: 0xd8d8c8, shape: 'box' },
   barrier: { color: 0x8aa0b0, shape: 'rail' },
   drums: { color: 0xc04820, shape: 'disc' },
+  roadSign: { color: 0xb89a74, shape: 'disc' },
+  routeSign: { color: 0x5e6a5a, shape: 'board' },
+  barrel: { color: 0x8a4a2a, shape: 'disc' },
+  fishingBoat: { color: 0x3a8a88, shape: 'long' },
+  riverBarge: { color: 0x7a7468, shape: 'long' },
+  skiff: { color: 0xd8c8a0, shape: 'long' },
   woodpile: { color: 0xa07040, shape: 'box' },
   engineNozzle: { color: 0x8a4a2a, shape: 'long' },
   engineFrame: { color: 0xb0603a, shape: 'long' },
@@ -142,7 +152,7 @@ function groundColor(d, x, y) {
   return shade(COLORS[d.types[j * d.size + i]], light);
 }
 
-function paintDisc(pic, area, pxPerTile, center, radius, color, inner) {
+export function paintDisc(pic, area, pxPerTile, center, radius, color, inner) {
   const x0 = Math.max(0, Math.floor((center.x - radius - area.x) * pxPerTile));
   const x1 = Math.min(pic.width - 1, Math.ceil((center.x + radius - area.x) * pxPerTile));
   const y0 = Math.max(0, Math.floor((center.y - radius - area.y) * pxPerTile));
@@ -185,7 +195,7 @@ function shade(color, k) {
   return (ch(16) << 16) | (ch(8) << 8) | ch(0);
 }
 
-function put(pic, px, py, color) {
+export function put(pic, px, py, color) {
   const at = (py * pic.width + px) * 4;
   pic.rgba[at] = (color >> 16) & 0xff;
   pic.rgba[at + 1] = (color >> 8) & 0xff;

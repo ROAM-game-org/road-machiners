@@ -12,10 +12,11 @@ export type SiteLocationDef = {
   turn?: number;
   gates?: readonly Vec[];
 };
-export type TerritoryDef = { id: string; kind: "territory"; pos: Vec; radius: number; outline: Vec[] | null };
+export type TerritoryDef = { id: string; kind: "territory"; pos: Vec; radius: number; outline: Vec[] | null; groundFrom?: Vec };
 export type LocationDef = SiteLocationDef | TerritoryDef;
 export type SiteEdge = "fence" | "wrecks";
-export const MAP_SCALE = 5;
+export const MAP_SCALE = 6.5;
+export const MAP_GRID = { squares: 8 };
 
 export function scalePoint(p: Vec): Vec {
   return { x: p.x * MAP_SCALE, y: p.y * MAP_SCALE };
@@ -28,8 +29,21 @@ const BEND = {
   wavelength: 45,
 };
 
+const OLD_ORCHARD_AT: Vec = { x: 114, y: 284 };
+
+function besideOrchard(x: number, y: number): Vec {
+  return { x: ORCHARD_POS.x + x * 5 - OLD_ORCHARD_AT.x + 0.4, y: ORCHARD_POS.y + y * 5 - OLD_ORCHARD_AT.y };
+}
+
+const PINNED = new WeakMap<Vec, Vec>();
+
+function pinnedTo(layout: Vec, at: Vec): Vec {
+  PINNED.set(layout, at);
+  return layout;
+}
+
 function scaleRoad(points: Vec[], straight: number[] = []): Vec[] {
-  const scaled = points.map(scalePoint);
+  const scaled = points.map((p) => PINNED.get(p) ?? scalePoint(p));
   const out: Vec[] = [scaled[0]];
   for (let i = 1; i < scaled.length; i++) out.push(...(straight.includes(i - 1) ? [scaled[i]] : bend(scaled[i - 1], scaled[i])));
   return out;
@@ -85,7 +99,11 @@ const FALLEN_SUN_OUTLINE: Vec[] = [
   { x: -37.7, y: 26.4 },
   { x: -43.5, y: 11.6 },
 ];
-const ORCHARD_POS = { x: 114, y: 284 };
+const ORCHARD_POS = onTile(scalePoint({ x: 22.8, y: 56.8 }));
+
+function onTile(p: Vec): Vec {
+  return { x: Math.round(p.x), y: Math.round(p.y) };
+}
 const ORCHARD_SCREEN_ANGLE = (25 * Math.PI) / 180;
 const ORCHARD_SIN_ELEVATION = 0.5;
 export const ORCHARD_HEADING = Math.atan2(
@@ -145,7 +163,7 @@ function edgePoint(from: Vec, to: Vec, centre: Vec, outline: readonly Vec[]): Ve
   return { x: from.x + d.x * t, y: from.y + d.y * t };
 }
 
-export const GLASS_FLATS_POS = scalePoint({ x: 81, y: 75.6 });
+export const GLASS_FLATS_POS = onTile(scalePoint({ x: 81, y: 75.6 }));
 const GLASS_FLATS_OUTLINE: Vec[] = [
   [0, 71],
   [11.25, 61],
@@ -189,6 +207,8 @@ function fromFallenSun(x: number, y: number): Vec {
   return { x: FALLEN_SUN_POS.x + x, y: FALLEN_SUN_POS.y + y };
 }
 
+const MARSHAL_POST_AT = scalePoint({ x: 105.5, y: 14 });
+
 export const BROKEN_WING = {
   road: scalePoint({ x: 70, y: 33 }),
   yaw: 0,
@@ -204,6 +224,8 @@ export function BROKEN_WING_POINT(along: number, across: number): Vec {
   return { x: BROKEN_WING.road.x + c * along - s * across, y: BROKEN_WING.road.y + s * along + c * across };
 }
 
+export const RETIRED_SITES: readonly string[] = ['burnt-convoy', 'podfield', 'ridge-wrecks', 'canyon-bridge', 'south-lock', 'broken-wing'];
+
 export const REGION = {
   name: "Icarus",
   size: 120 * MAP_SCALE,
@@ -211,19 +233,23 @@ export const REGION = {
   navigation: {
     heuristicWeight: 1.2,
     offRoadCost: 1.75,
+    shortcutCost: 1.2,
     taste: { scale: 40, strength: 0.6 },
     lookahead: 48,
     slopeCost: 1,
     straighten: 0.05,
     roadShyCost: 6,
     roadShyBand: 10,
+    overClimbCost: 40,
+    climbStep: 0.05,
+    reachClimb: 0.2,
   },
   towns: [
     { id: "bowl", pos: scalePoint({ x: 16, y: 94 }), radius: 28 },
     { id: "nose", pos: scalePoint({ x: 102, y: 35 }), radius: 32 },
   ] as TownDef[],
   locations: [
-    { id: "orchard", kind: "territory", pos: ORCHARD_POS, radius: boundingRadius(ORCHARD_OUTLINE), outline: ORCHARD_OUTLINE },
+    { id: "orchard", kind: "territory", pos: ORCHARD_POS, radius: boundingRadius(ORCHARD_OUTLINE), outline: ORCHARD_OUTLINE, groundFrom: { x: 114, y: 284 } },
     {
       id: "dustwell",
       kind: "oasis",
@@ -242,6 +268,7 @@ export const REGION = {
       pos: GLASS_FLATS_POS,
       radius: boundingRadius(GLASS_FLATS_OUTLINE),
       outline: GLASS_FLATS_OUTLINE,
+      groundFrom: { x: 405, y: 378 },
     },
     {
       id: "green-pit",
@@ -261,6 +288,7 @@ export const REGION = {
       pos: FALLEN_SUN_POS,
       radius: boundingRadius(FALLEN_SUN_OUTLINE),
       outline: FALLEN_SUN_OUTLINE,
+      groundFrom: { x: 320, y: 270 },
     },
     {
       id: "salvage-yard",
@@ -280,14 +308,20 @@ export const REGION = {
       pos: scalePoint({ x: 66, y: 76 }),
       radius: 6,
     },
+    {
+      id: "marshal-post",
+      kind: "landmark",
+      pos: MARSHAL_POST_AT,
+      radius: 6,
+    },
   ] as LocationDef[],
   roads: [
     scaleRoad([
       { x: 16, y: 94 },
-      { x: 21, y: 85 },
+      { x: 20.36277, y: 84.67443 },
       { x: 25, y: 73 },
-      { x: 28, y: 64 },
-      { x: 31, y: 54 },
+      pinnedTo({ x: 28, y: 64 }, besideOrchard(28, 64)),
+      pinnedTo({ x: 31, y: 54 }, besideOrchard(31, 54)),
       { x: 37, y: 32 },
       { x: 43, y: 30 },
       { x: 50, y: 36 },
@@ -296,12 +330,14 @@ export const REGION = {
       { x: 70, y: 18 },
       { x: 77, y: 24 },
       { x: 89, y: 26 },
-      { x: 96, y: 31 },
+      { x: 96.04384, y: 30.93501 },
+      { x: 94.7, y: 35.7 },
+      { x: 97.81, y: 40.36 },
       { x: 102, y: 35 },
-    ]),
+    ], [0, 15]),
     scaleRoad([
       { x: 16, y: 94 },
-      { x: 24, y: 91 },
+      { x: 23.79885, y: 90.5103 },
       { x: 41, y: 87 },
       { x: 50, y: 91 },
       { x: 58, y: 91 },
@@ -311,11 +347,12 @@ export const REGION = {
       { x: 88, y: 84 },
       { x: 95, y: 78 },
       { x: 103, y: 70 },
-      { x: 105, y: 58 },
+      { x: 104.88672, y: 58.01449 },
+      { x: 105.18, y: 40.98 },
       { x: 102, y: 35 },
-    ], [9]),
+    ], [0, 9, 12]),
     scaleRoad([
-      { x: 28, y: 64 },
+      pinnedTo({ x: 28, y: 64 }, besideOrchard(28, 64)),
       { x: 36, y: 61 },
       { x: 43, y: 54 },
       { x: 50, y: 49 },
@@ -350,7 +387,7 @@ export const REGION = {
       { x: 97, y: 62 },
       { x: 103, y: 70 },
     ]),
-    [scalePoint({ x: 28, y: 64 }), edgePoint(scalePoint({ x: 28, y: 64 }), { x: ORCHARD_POS.x + ORCHARD_SOUTH.x, y: ORCHARD_POS.y + ORCHARD_SOUTH.y }, ORCHARD_POS, ORCHARD_OUTLINE)],
+    [besideOrchard(28, 64), edgePoint(besideOrchard(28, 64), { x: ORCHARD_POS.x + ORCHARD_SOUTH.x, y: ORCHARD_POS.y + ORCHARD_SOUTH.y }, ORCHARD_POS, ORCHARD_OUTLINE)],
     scaleRoad([{ x: 37, y: 32 }, { x: 33.8, y: 32 }], [0]),
     scaleRoad([{ x: 50, y: 36 }, { x: 50, y: 32.8 }], [0]),
     scaleRoad([{ x: 73, y: 92 }, { x: 71.8, y: 89 }], [0]),
@@ -359,14 +396,14 @@ export const REGION = {
     ...GLASS_FLATS_APPROACHES,
     scaleRoad([
       { x: 37, y: 32 },
-      { x: 30, y: 22 },
+      { x: 29.27781, y: 22.66219 },
       { x: 22, y: 14 },
-    ]),
+    ], [1]),
     scaleRoad([
       { x: 55, y: 80 },
-      { x: 61, y: 79 },
+      { x: 61.70017, y: 79.93846 },
       { x: 66, y: 76 },
-    ]),
+    ], [1]),
     [
       ...scaleRoad([
         { x: 43, y: 54 },
@@ -389,10 +426,15 @@ export const REGION = {
       ]),
       fromFallenSun(37.75, 28.44),
     ],
+    scaleRoad([
+      { x: 96.04384, y: 30.93501 },
+      { x: 100.5, y: 22.5 },
+      { x: 105.5, y: 14 },
+    ]),
   ] as Vec[][],
   roadWidth: 6,
   obstacles: {
-    roadWrecks: 30,
+    roadWrecks: 39,
     roadWreckShoulder: [0.5, 0.85] as [number, number],
     roadClearance: 1.6,
     siteClearance: 8,
@@ -421,7 +463,6 @@ export const REGION = {
     wreckThickness: 1,
     wreckSegment: 1.1,
     gatePoleHeight: 5.5,
-    lampHeight: 1.6,
   },
-  playerStart: { road: 0, distance: 125, offset: 45, wreck: { ahead: 6, side: 5 } },
+  playerStart: { road: 0, distance: 22 * MAP_SCALE, offset: 45, wreck: { ahead: 6, side: 5 } },
 };

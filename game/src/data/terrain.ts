@@ -1,6 +1,6 @@
 
 import { PHYSICS } from "./physics";
-import { BROKEN_WING, BROKEN_WING_POINT, FALLEN_SUN_POS, MAP_SCALE, REGION, scalePoint } from "./region";
+import { BROKEN_WING, BROKEN_WING_POINT, FALLEN_SUN_POS, REGION, scalePoint } from "./region";
 import { FALLEN_SUN_DECKS } from "./territory";
 import type { PropKind } from "../sim/terrain";
 import type { Vec } from "../sim/vec";
@@ -70,11 +70,23 @@ export type DeckSpec = {
 
 export type DeckLook = 'ship_flap' | 'ship_wing_deck';
 
+const CANYON_BRIDGE_CENTER = onTileMiddle(scalePoint({ x: 99.7, y: 73.3 }));
+
+function onTileMiddle(p: Vec): Vec {
+  return { x: Math.floor(p.x) + 0.5, y: Math.floor(p.y) + 0.5 };
+}
+
+function offsetFrom(origin: Vec, dx: number, dy: number): Vec {
+  return { x: origin.x + dx, y: origin.y + dy };
+}
+
+export const CANYON_BRIDGE_GROUND = { id: 'canyon-bridge', pos: CANYON_BRIDGE_CENTER, from: { x: 498.5, y: 366.5 } as Vec, radius: 45 };
+
 const CANYON_BRIDGE: DeckSpec = {
   id: "canyon-bridge",
   line: [
-    { at: scalePoint({ x: 97.9, y: 75.1 }), rise: 0 },
-    { at: scalePoint({ x: 101.5, y: 71.5 }), rise: 0 },
+    { at: offsetFrom(CANYON_BRIDGE_CENTER, -1.8 * 5, 1.8 * 5), rise: 0 },
+    { at: offsetFrom(CANYON_BRIDGE_CENTER, 1.8 * 5, -1.8 * 5), rise: 0 },
   ],
   width: 8,
   cut: { abutment: 1, ramp: 1.5 },
@@ -110,6 +122,7 @@ export type Basin = {
   rim: number[];
   depth: number;
   floorRelief: { frequency: number; amplitude: number };
+  reliefFrom: Vec;
 };
 
 const FALLEN_SUN_BASIN: Basin = {
@@ -142,6 +155,7 @@ const FALLEN_SUN_BASIN: Basin = {
   rim: [1.0, 1.5, 5.0, 5.5, 5.5, 0, 0, 5.5, 5.5, 5.0, 4.5, 0, 2.0, 2.0, 0.5, 0, 0, 0, 0, 0, 0.5, 0],
   depth: -1.06,
   floorRelief: { frequency: 1 / 16, amplitude: 0.45 },
+  reliefFrom: { x: 320, y: 270 },
 };
 
 function fromFallenSun(p: Vec): Vec {
@@ -150,9 +164,9 @@ function fromFallenSun(p: Vec): Vec {
 
 export const TERRAIN = {
   octaves: [
-    { freq: 1 / (32 * MAP_SCALE), amp: 1.0, seedOffset: 0 },
-    { freq: 1 / (14 * MAP_SCALE), amp: 0.7, seedOffset: 1000 },
-    { freq: 1 / (5 * MAP_SCALE), amp: 0.38, seedOffset: 2000 },
+    { freq: 1 / (32 * 5), amp: 1.0, seedOffset: 0 },
+    { freq: 1 / (14 * 5), amp: 0.7, seedOffset: 1000 },
+    { freq: 1 / (5 * 5), amp: 0.38, seedOffset: 2000 },
     { freq: 1 / 7, amp: 0.14, seedOffset: 3000 },
   ],
   flattenMargin: 15,
@@ -525,7 +539,7 @@ export const OLD_WORLD: {
   settlements: {
     seedOffset: 7001,
     candidateStep: 4,
-    count: 14,
+    count: 24,
     spacing: 45,
     anchorGap: [12, 80],
     jitter: 0.5,
@@ -548,7 +562,7 @@ export const OLD_WORLD: {
     rise: 0.5,
     directions: 3,
     flatSlope: 0.15,
-    count: 10,
+    count: 17,
     spacing: 60,
     roadGap: 3,
     radius: [1, 1.4],
@@ -586,7 +600,7 @@ export const OLD_WORLD: {
     bankBack: 3,
   },
   highway: {
-    count: 4,
+    count: 5,
     spacing: 80,
     maxLength: 400,
     bridgeCost: 1.2,
@@ -666,6 +680,8 @@ const SITE_SURROUND = 20;
 
 export const MAPGEN = {
   seed: 1337,
+  groundHold: 40,
+  groundFeather: 40,
   file: 'maps/icarus.bin',
   heightScale: 1000,
   overviewPxPerTile: 2,
@@ -675,8 +691,8 @@ export const MAPGEN = {
     { name: 'bridge', center: { x: (CANYON_BRIDGE.line[0].at.x + CANYON_BRIDGE.line[1].at.x) / 2, y: (CANYON_BRIDGE.line[0].at.y + CANYON_BRIDGE.line[1].at.y) / 2 }, side: 60 },
     { name: 'wing', center: BROKEN_WING_POINT(0, -2), side: 120 },
     { name: 'dry-river', center: scalePoint({ x: 48, y: 87 }), side: 120 },
-    { name: 'canyon', center: { x: 470, y: 240 }, side: 100 },
-    { name: 'sand', center: { x: 390, y: 350 }, side: 100 },
+    { name: 'canyon', center: scalePoint({ x: 94, y: 48 }), side: 100 },
+    { name: 'sand', center: scalePoint({ x: 78, y: 70 }), side: 100 },
   ] as MapSpot[],
 };
 
@@ -759,7 +775,7 @@ export const NEW_WORLD: {
   pools: {
     minDepth: 0.05,
     maxTiles: 40,
-    toxicReach: 12,
+    toxicReach: 20,
   },
   scrub: {
     seedOffset: 8002,
@@ -818,4 +834,96 @@ export const NEW_WORLD: {
     washChance: 0.003,
     placeTries: 8,
   },
+};
+
+export const ROCK_LOOKS = [
+  { model: 'rock', weight: 0.5 },
+  { model: 'rock_slab', weight: 0.3 },
+  { model: 'rock_split', weight: 0.2 },
+] as const;
+
+export type RoadsideBand = readonly [number, number];
+
+export const ROADSIDE = {
+  seedOffset: 7401,
+  slopeShare: 0.6,
+  edgeGap: 0.6,
+  propGapSlack: 0.0001,
+  rowGuard: { turn: 0.05, line: 0.15 },
+  groundTypes: ['hardpan', 'sand', 'scrub', 'gravel', 'ash', 'saltCrust'] as readonly TerrainTypeId[],
+  signs: {
+    radius: 0.25,
+    step: 10,
+    chance: 0.75,
+    spacing: 16,
+    gap: 0.5,
+    spread: 1.2,
+    yawJitter: 0.5,
+    oldRoadChance: 0.02,
+    oldRoadSpacing: 22,
+    band: [104, 208] as RoadsideBand,
+  },
+  boards: {
+    radius: 0.55,
+    along: [11, 22] as readonly [number, number],
+    chance: 0.5,
+    step: 40,
+    stepChance: 0.6,
+    gap: 1.2,
+    spread: 0.8,
+    yawJitter: 0.2,
+    band: [20, 52] as RoadsideBand,
+  },
+  barrels: {
+    radius: 0.15,
+    wreckChance: 0.3,
+    houseChance: 0.4,
+    houseLooks: ['ruin', 'shack', 'house'] as readonly string[],
+    reach: [0.4, 1.4] as readonly [number, number],
+    band: [104, 208] as RoadsideBand,
+  },
+  heaps: {
+    radius: 0.44,
+    tries: 4,
+    campChance: 0.6,
+    tankChance: 0.5,
+    junkChance: 0.5,
+    reach: [0.6, 1.6] as readonly [number, number],
+    band: [20, 52] as RoadsideBand,
+  },
+  trees: {
+    radius: 0.3,
+    washBank: 0.5,
+    washChance: 0.004,
+    yardChance: 0.5,
+    yardLooks: ['ruin', 'house'] as readonly string[],
+    yardReach: [1, 2.2] as readonly [number, number],
+    fieldChance: 0.006,
+    group: [1, 3] as readonly [number, number],
+    groupSpread: 1.4,
+    band: [253, 507] as RoadsideBand,
+  },
+};
+
+export type BoatKind = { kind: 'fishingBoat' | 'riverBarge' | 'skiff'; radius: number; weight: number };
+
+export const BOATS = {
+  seedOffset: 7601,
+  kinds: [
+    { kind: 'fishingBoat', radius: 1.4, weight: 3 },
+    { kind: 'riverBarge', radius: 1.9, weight: 1 },
+    { kind: 'skiff', radius: 0.7, weight: 4 },
+  ] as readonly BoatKind[],
+  group: [1, 3] as readonly [number, number],
+  maxBarges: 1,
+  groupReach: 4,
+  groupGap: 30,
+  passLane: 3,
+  roadGap: 4,
+  relief: 0.9,
+  placeTries: 14,
+  groundTypes: ['hardpan', 'sand', 'scrub', 'gravel', 'ash', 'saltCrust'] as readonly TerrainTypeId[],
+  river: { step: 70, jitter: 15, chance: 0.7, bankShare: [0.55, 0.85] as readonly [number, number], band: [4, 7] as RoadsideBand },
+  wash: { reach: 70, minFlow: 0.5, groups: 2, band: [1, 2] as RoadsideBand },
+  boatBand: [8, 20] as RoadsideBand,
 };

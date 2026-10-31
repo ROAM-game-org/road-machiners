@@ -14,6 +14,7 @@ import { addVehicle, emptyWorld, finishBusiness, npcBrain } from './testkit';
 import { escortFee, startEscort } from './tow';
 import type { GameEvent, NpcActivity, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
+import { fallbackFaction } from './spawn';
 
 const BOWL = REGION.towns.find((t) => t.id === 'bowl')!;
 const NOSE = REGION.towns.find((t) => t.id === 'nose')!;
@@ -23,7 +24,7 @@ const LEG_TURNS = 300;
 const LEG_START = { x: 40, y: 40 };
 
 function createNpc(w: World, templateId: string, traits: TraitId[], parts: string[], pos: Vec, chassis = 'scout'): Vehicle {
-  const npc = addVehicle(w, NPCS[templateId].faction, chassis, parts, pos);
+  const npc = addVehicle(w, fallbackFaction(NPCS[templateId]), chassis, parts, pos);
   npc.brain = npcBrain(templateId, pos, traits);
   return npc;
 }
@@ -95,6 +96,46 @@ describe('duty pay', () => {
     onLeg(away, roamer, { kind: 'travel', targetId: TERRITORY.id, destination: { ...edge }, phase: 'travel', reason: 'tripToSite' });
     payDuty(away, roamer, roamer.brain!.goals[0], []);
     expect(shopPay(away, roamer)).toEqual([]);
+  });
+
+  it('pays a courier partner for the same leg from the same shop', () => {
+    const w = legWorld();
+    const pad = { ...sitePads(NOSE)[0] };
+    const leader = createNpc(w, 'courier', ['courier'], ['stockEngine'], pad);
+    const partner = createNpc(w, 'courier', ['courier'], ['stockEngine'], { ...sitePads(NOSE)[1] });
+    startEscort(w, partner, leader, null, 0);
+    const goal = onLeg(w, leader, { kind: 'travel', targetId: 'nose', destination: { ...pad }, phase: 'travel', reason: 'tripToSite' });
+    const money = getResources(w, partner).money;
+
+    resolveNpcActivities(w);
+
+    const pay = dutyPay(w, partner, goal.leg!, leader.pos);
+    expect(shopPay(w, partner).map((e) => [e.kind, e.amount])).toEqual([['dispatchPay', pay]]);
+    expect(getResources(w, partner).money).toBe(money + pay);
+    expect(shopPay(w, leader)).toHaveLength(1);
+  });
+
+  it('pays neither courier of a pair for a leg to a territory', () => {
+    const w = legWorld();
+    const edge = { ...TERRITORY.pos };
+    const leader = createNpc(w, 'courier', ['courier'], ['stockEngine'], edge);
+    const partner = createNpc(w, 'courier', ['courier'], ['stockEngine'], { x: edge.x + 4, y: edge.y });
+    startEscort(w, partner, leader, null, 0);
+    onLeg(w, leader, { kind: 'travel', targetId: TERRITORY.id, destination: { ...edge }, phase: 'travel', reason: 'tripToSite' });
+    payDuty(w, leader, leader.brain!.goals[0], [partner]);
+    expect(shopPay(w, partner)).toEqual([]);
+    expect(shopPay(w, leader)).toEqual([]);
+  });
+
+  it('gives a merc escort of a courier no dispatch pay', () => {
+    const w = legWorld();
+    const pad = { ...sitePads(NOSE)[0] };
+    const leader = createNpc(w, 'courier', ['courier'], ['stockEngine'], pad);
+    const merc = createNpc(w, 'merc', ['merc'], ['mg', 'stockEngine'], { ...sitePads(NOSE)[1] });
+    startEscort(w, merc, leader, 'nose', 10);
+    onLeg(w, leader, { kind: 'travel', targetId: 'nose', destination: { ...pad }, phase: 'travel', reason: 'tripToSite' });
+    payDuty(w, leader, leader.brain!.goals[0], [merc]);
+    expect(shopPay(w, merc)).toEqual([]);
   });
 
   it('has a convoy pay each guard when it sells, never more than it holds', () => {

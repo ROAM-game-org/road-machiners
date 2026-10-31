@@ -1,10 +1,11 @@
 import { chassisDef } from '../data/chassis';
-import { FURY_ROAD, HAZARDS, HIGHWAY, type Range, type SceneKind } from '../data/modes';
+import { FORTRESS } from '../data/fortress';
+import { CHAOS_HIGHWAY, HAZARDS, HIGHWAY, type Range, type SceneKind } from '../data/modes';
 import { NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
-import { START_KITS } from '../data/start';
+import { HAULER_KIT, START_KITS } from '../data/start';
 import { hulkBoxes } from './body';
-import { fromRoad, milestoneAt, roadAt, roadHeading, roadPiece, stretchOf, stretchStream, type RoadPiece, type RoadPos } from './highway';
+import { fromRoad, milestoneAt, outpostYardHalf, roadAt, roadHeading, roadPiece, stretchOf, stretchStream, type RoadPiece, type RoadPos } from './highway';
 import { boxDistance, propBoxes, propObstacle, type PosedBox } from './mapgen';
 import { hashRandom, nextRandom, randInt, randRange, type Rng } from './rng';
 import type { DeckSpec } from '../data/terrain';
@@ -53,12 +54,9 @@ export function lanesCoveredOf(j: number): number {
 
 function layStretch(seed: number, j: number): StretchLayout {
   const rng = stretchStream(seed, j, 'scenes');
-  const from = milestoneAt(j - 1) + H.clearAfterOutpost;
-  const to = milestoneAt(j) - H.clearBeforeOutpost;
-  const drafts = Array.from({ length: scenesOf(j) }, (_, i) => draftScene(rng, j, i));
-  const extents = drafts.map(draftSpan);
-  const spare = to - from - extents.reduce((sum, e) => sum + (e.to - e.from), 0) - (drafts.length + 1) * H.arenaMin;
-  if (spare < 0) throw new Error(`Stretch ${j} has no room for ${drafts.length} scenes between arenas of ${H.arenaMin} tiles`);
+  const from = milestoneAt(seed, j - 1) + H.clearAfterOutpost;
+  const to = milestoneAt(seed, j) - H.clearBeforeOutpost;
+  const { drafts, extents, spare } = draftFitting(rng, j, to - from);
   const shares = Array.from({ length: drafts.length + 1 }, () => nextRandom(rng) + 0.25);
   const total = shares.reduce((a, b) => a + b, 0);
   const arenas: Span[] = [];
@@ -73,6 +71,30 @@ function layStretch(seed: number, j: number): StretchLayout {
   });
   arenas.push({ from: n, to });
   return { stretch: j, arenas, scenes };
+}
+
+type Fitted = { drafts: Draft[]; extents: Span[]; spare: number };
+
+function draftFitting(rng: Rng, j: number, space: number): Fitted {
+  const fitted: Fitted = { drafts: [], extents: [], spare: space - H.arenaMin };
+  if (fitted.spare < 0) throw new Error(`Stretch ${j} has no room for one arena of ${H.arenaMin} tiles`);
+  for (let i = 0; i < scenesOf(j); i++) {
+    const next = draftWithin(rng, j, i, fitted.spare - H.arenaMin);
+    if (!next) break;
+    fitted.drafts.push(next.draft);
+    fitted.extents.push(next.extent);
+    fitted.spare -= H.arenaMin + next.extent.to - next.extent.from;
+  }
+  return fitted;
+}
+
+function draftWithin(rng: Rng, j: number, i: number, room: number): { draft: Draft; extent: Span } | null {
+  for (let tries = 0; tries < H.maxTries && room >= 0; tries++) {
+    const draft = draftScene(rng, j, i);
+    const extent = draftSpan(draft);
+    if (extent.to - extent.from <= room) return { draft, extent };
+  }
+  return null;
 }
 
 function weightsOf(j: number): Record<SceneKind, number> {
@@ -108,6 +130,7 @@ const DRAFTS: Record<SceneKind, (rng: Rng, cap: number) => Draft | null> = {
   rockfall: draftRockfall,
   craters: draftCraters,
   ramp: draftRamp,
+  roadblock: draftRoadblock,
 };
 
 function pick<T>(rng: Rng, list: readonly T[]): T {
@@ -247,7 +270,7 @@ function draftRockfall(rng: Rng): Draft | null {
       return { kind: 'rock', a: randRange(rng, -R.fan, R.fan) * (0.4 + t), o, r, rel: 0 };
     }, R.gap);
   }
-  return out.length >= R.rocks[0] ? { kind: 'rockfall', rows: [out], craters: [], ramps: [] } : null;
+  return out.length > R.rocks[0] ? { kind: 'rockfall', rows: [out], craters: [], ramps: [] } : null;
 }
 
 function draftCraters(rng: Rng): Draft | null {
@@ -276,6 +299,26 @@ function draftRamp(rng: Rng): Draft | null {
   return { kind: 'ramp', rows: [[]], craters, ramps: [{ a: 0, o: lane }] };
 }
 
+function draftRoadblock(rng: Rng): Draft | null {
+  const R = H.roadblock;
+  const side = sign(rng);
+  const reach = ROAD.asphalt + randRange(rng, ...R.openReach);
+  const from = side > 0 ? -reach : -ROAD.verge;
+  const to = side > 0 ? ROAD.verge : reach;
+  const row: Local[] = [];
+  let cursor = from;
+  while (cursor < to) {
+    const kind = pick(rng, R.line);
+    const rel = Math.PI / 2 + randRange(rng, -R.yaw, R.yaw) * DEG;
+    const bare = piece(kind, randRange(rng, -R.jitter, R.jitter), 0, rel);
+    const [lo, hi] = rowSpan([bare], ACROSS);
+    const o = cursor - lo + H.pieceGap;
+    row.push({ ...bare, o });
+    cursor = o + hi;
+  }
+  return { kind: 'roadblock', rows: [row], craters: [], ramps: [] };
+}
+
 function proxyProp(p: Local) {
   return { kind: p.kind, pos: { x: p.o, y: -p.a }, r: p.r, yaw: p.rel - Math.PI / 2, group: 0, step: 0, hulk: p.hulk };
 }
@@ -285,7 +328,7 @@ const SHAPES = new WeakMap<Local, Shape[]>();
 function shapesOf(p: Local): Shape[] {
   let shapes = SHAPES.get(p);
   if (!shapes) {
-    if (p.hulk) hulkBoxes(p.hulk);
+    if (p.hulk) hulkBoxes(p.hulk, undefined);
     shapes = p.kind === 'rock' || p.kind === 'crag' ? [{ circle: { c: { x: p.o, y: -p.a }, r: p.r } }] : propBoxes(propObstacle(proxyProp(p), 0)).map((box) => ({ box }));
     SHAPES.set(p, shapes);
   }
@@ -341,8 +384,9 @@ let widest: number | null = null;
 
 export function passageInflate(): number {
   widest ??= Math.max(
-    chassisDef(START_KITS.furyRoad.chassis).radius,
-    ...FURY_ROAD.pool.flatMap((tier) => Object.keys(tier.weights)).flatMap((id) => NPCS[id].loadout.chassis.map((c) => chassisDef(c.value).radius)),
+    chassisDef(START_KITS.chaosHighway.chassis).radius,
+    chassisDef(HAULER_KIT.chassis).radius,
+    ...Object.keys(CHAOS_HIGHWAY.cards).flatMap((id) => NPCS[id].loadout.chassis.map((c) => chassisDef(c.value).radius)),
   );
   return widest + H.inflate;
 }
@@ -364,9 +408,21 @@ export function leavesPassage(blocked: [number, number][]): boolean {
   return freeAcross(blocked).some(([lo, hi]) => hi - lo >= H.passage && Math.min(hi, ROAD.asphalt) - Math.max(lo, -ROAD.asphalt) >= H.onAsphalt);
 }
 
+export function leavesVergeGap(blocked: [number, number][]): boolean {
+  const free = freeAcross(blocked);
+  const onAsphalt = free.some(([lo, hi]) => Math.min(hi, ROAD.asphalt) > Math.max(lo, -ROAD.asphalt));
+  const offAsphalt = free.some(([lo, hi]) => hi - lo >= H.roadblock.room && (lo >= ROAD.asphalt || hi <= -ROAD.asphalt));
+  return !onAsphalt && offAsphalt;
+}
+
+function rowPasses(kind: SceneKind, row: Local[]): boolean {
+  const blocked = row.flatMap((p) => shapesOf(p).map((s) => shapeSpan(s, ACROSS)));
+  return kind === 'roadblock' ? leavesVergeGap(blocked) : leavesPassage(blocked);
+}
+
 function draftPasses(draft: Draft): boolean {
   const rows = draft.rows.filter((row) => row.length > 0);
-  if (!rows.every((row) => leavesPassage(row.flatMap((p) => shapesOf(p).map((s) => shapeSpan(s, ACROSS)))))) return false;
+  if (!rows.every((row) => rowPasses(draft.kind, row))) return false;
   const along = rows.map((row) => rowSpan(row, ALONG)).sort((x, y) => x[0] - y[0]);
   return along.every((span, i) => i === 0 || span[0] - along[i - 1][1] >= H.passage + 2 * passageInflate());
 }
@@ -403,7 +459,7 @@ export function scenePieces(scene: Scene): RoadPiece[] {
 }
 
 export function sceneAt(seed: number, n: number, margin: number): Scene | null {
-  const j = stretchOf(n);
+  const j = stretchOf(seed, n);
   if (j < 1) return null;
   return stretchLayout(seed, j).scenes.find((s) => n >= s.from - margin && n <= s.to + margin) ?? null;
 }
@@ -437,7 +493,7 @@ function closureRoll(seed: number, window: number, k: number): number {
   return hashRandom(seed, CLOSURE_SALT, window, k);
 }
 
-function lineRow(seed: number, n: number, offset: number, kinds: (k: number) => Local, reach: number): RoadPiece[] {
+function lineRow(seed: number, n: number, offset: number, kinds: (k: number) => Local, reach: number, hole = 0): RoadPiece[] {
   const out: RoadPiece[] = [];
   let cursor = -reach + offset;
   for (let k = 0; cursor < reach; k++) {
@@ -445,39 +501,37 @@ function lineRow(seed: number, n: number, offset: number, kinds: (k: number) => 
     const [lo, hi] = rowSpan([{ ...p, a: 0, o: 0 }], ACROSS);
     const o = cursor - lo + H.pieceGap;
     cursor = o + hi;
+    if (o + hi > -hole && o + lo < hole) continue;
     out.push({ kind: p.kind, at: roadAt(seed, n, o), r: p.r, yaw: roadHeading(seed, n) + p.rel, group: 0, step: k, ...(p.hulk ? { hulk: p.hulk } : {}) });
   }
   return out;
 }
 
-export function northClosureAt(window: number): number {
-  return milestoneAt(window + 1) + H.closures.north.gap;
+export function southClosureAt(seed: number, window: number): number {
+  return milestoneAt(seed, window) - H.closures.south.behind;
 }
 
-export function southClosureAt(window: number): number {
-  return milestoneAt(window) - H.closures.south.behind;
+export function fortLineHole(): number {
+  return outpostYardHalf() + FORTRESS.wallDepth / 2 + H.closures.line.gap;
 }
 
-function northClosure(seed: number, window: number): RoadPiece[] {
-  const N = H.closures.north;
-  const n = northClosureAt(window);
+export function fortLine(seed: number, j: number): RoadPiece[] {
+  if (!Number.isInteger(j) || j < 1) throw new Error(`Milestone ${j} has no fort line`);
+  const L = H.closures.line;
+  const n = milestoneAt(seed, j);
+  const hole = fortLineHole();
   const barrier = (): Local => piece('barrier', 0, 0, Math.PI / 2);
-  const rows = Array.from({ length: N.rows }, (_, i) => lineRow(seed, n + i * N.rowGap, (i % 2) * 0.5, barrier, N.reach));
-  const ahead = n - N.trapsAhead;
-  const nests = Array.from({ length: N.sandbags }, (_, k) => {
-    const o = ((k + 0.5) / N.sandbags - 0.5) * 2 * ROAD.verge;
-    return roadPiece('sandbags', roadAt(seed, n - 1, o), radiusOf('sandbags'), roadHeading(seed, n));
+  const rows = Array.from({ length: L.rows }, (_, i) => lineRow(seed, n + i * L.rowGap, (i % 2) * 0.5, barrier, L.reach, hole));
+  const nests = Array.from({ length: L.sandbags }, (_, k) => {
+    const o = (k % 2 === 0 ? 1 : -1) * (hole + L.nestGap + Math.floor(k / 2) * L.nestStep);
+    return roadPiece('sandbags', roadAt(seed, n - 1, o), radiusOf('sandbags'), roadHeading(seed, n) + closureRoll(seed, j, k) * 0.2);
   });
-  const traps = Array.from({ length: N.traps }, (_, k) => {
-    const o = ((k + 0.5) / N.traps - 0.5) * 2 * ROAD.asphalt * 1.6;
-    return roadPiece('tankTrap', roadAt(seed, ahead, o), radiusOf('tankTrap'), closureRoll(seed, window, k) * Math.PI);
-  });
-  return [...rows.flat(), ...nests, ...traps];
+  return [...rows.flat(), ...nests];
 }
 
 function southClosure(seed: number, window: number): RoadPiece[] {
   const S = H.closures.south;
-  const n = southClosureAt(window);
+  const n = southClosureAt(seed, window);
   const wreck = (row: number) => (k: number): Local => {
     const key = 3 * (1000 * (row + 1) + k);
     const rel = Math.PI / 2 + (closureRoll(seed, window, key) < 0.5 ? -1 : 1) * S.yaw * DEG;
@@ -489,15 +543,15 @@ function southClosure(seed: number, window: number): RoadPiece[] {
 }
 
 export function closurePieces(seed: number, window: number): RoadPiece[] {
-  return [...northClosure(seed, window), ...southClosure(seed, window)];
+  return [...fortLine(seed, window + 1), ...(window >= 1 ? fortLine(seed, window) : southClosure(seed, window))];
 }
 
 export function highwayDecks(seed: number, window: number): DeckSpec[] {
   const size = HIGHWAY.size;
   const inside = (p: Vec) => p.x >= 0 && p.y >= 0 && p.x <= size && p.y <= size;
   return windowStretches(window).flatMap((j) => stretchLayout(seed, j).scenes.flatMap((s) => s.ramps)).flatMap((ramp) => {
-    const from = fromRoad(window, ramp.from.n, ramp.from.u);
-    const to = fromRoad(window, ramp.to.n, ramp.to.u);
+    const from = fromRoad(seed, window, ramp.from.n, ramp.from.u);
+    const to = fromRoad(seed, window, ramp.to.n, ramp.to.u);
     if (!inside(from) || !inside(to)) return [];
     return [{ id: ramp.id, line: [{ at: from, rise: 0 }, { at: to, rise: ramp.rise }], width: ramp.width, cut: null, skirt: true, look: 'ship_flap' as const }];
   });

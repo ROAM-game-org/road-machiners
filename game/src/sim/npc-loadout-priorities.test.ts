@@ -6,6 +6,7 @@ import { makeVehicle } from './factory';
 import { baseGrid, facingOf, itemCells, mountedItems, mountedParts } from './grid';
 import { vehicleStats } from './stats';
 import { wornDef } from './wear';
+import { fallbackFaction } from './spawn';
 import type { Vehicle } from './types';
 import { budget } from '../test/budget';
 import { fixture, gearCost, loadoutOf, rolled, useLoadoutFixture } from './npc-loadout-kit';
@@ -57,7 +58,7 @@ describe('NPC equipment priorities', () => {
     const covered = choices.filter(({ template, chassisId }, i) => {
       const world = { ...fixture, rngState: i + 1, marketRng: { rngState: (i + 1) * 104729 + 1 } };
       const loadout = loadoutOf(world, template, chassisId, 'loaded');
-      return coverage(makeVehicle(world, { ...loadout, faction: template.faction, brain: null, pos: { x: 50, y: 50 }, heading: 0 })) >= 0.8;
+      return coverage(makeVehicle(world, { ...loadout, faction: fallbackFaction(template), brain: null, pos: { x: 50, y: 50 }, heading: 0 })) >= 0.8;
     });
     expect(covered.length / choices.length).toBeGreaterThan(0.6);
   }, budget(120_000));

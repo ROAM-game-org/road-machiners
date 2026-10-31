@@ -23,7 +23,7 @@ function gunnery(gun: string, range: number): { w: World; me: Vehicle; target: V
   const me = addVehicle(w, 'player', 'hauler', ['stockEngine', gun], old.pos, old.heading);
   me.id = old.id;
   w.vehicles = [me, ...w.vehicles.slice(1, -1)];
-  const target = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: old.pos.x + range, y: old.pos.y }, Math.PI / 2);
+  const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: old.pos.x + range, y: old.pos.y }, Math.PI / 2);
   target.brain = npcBrain('buggy', target.pos, ['raider']);
   const part = mountedParts(me, 'weapon')[0];
   me.weaponOrders[part.id] = { targetId: target.id, aim: 'body' };
@@ -206,7 +206,7 @@ describe('fadeCraters', () => {
     const { w, at } = dug();
     w.turn = days;
     w.vehicles[0].pos = { x: 90, y: 90 };
-    addVehicle(w, 'traders', 'hauler', ['stockEngine'], at);
+    addVehicle(w, 'independent', 'hauler', ['stockEngine'], at);
     fadeCraters(w);
     expect(w.craters).toHaveLength(1);
   });

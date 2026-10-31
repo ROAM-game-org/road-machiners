@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { PHYSICS } from '../../data/physics';
 import type { TerrainTypeId } from '../../data/terrain';
 import { wheelMounts } from '../../phys/body';
+import { drawnWheelPoints } from '../../render/partLooks';
 import { groundPoint, headingQuat, type VehicleFrame } from '../../phys/frames';
 import { bodyOf } from '../../sim/body';
 import { DECKS } from '../../sim/bridge';
@@ -28,7 +29,7 @@ function truckOf(w: World): Vehicle {
 }
 
 function frameAt(v: Vehicle, x: number, ground = true, y = Y * S): VehicleFrame {
-  const wheels = wheelMounts(bodyOf(v.chassisId)).map(() => ({ steer: 0, spin: 0, suspension: 0, ground }));
+  const wheels = wheelMounts(bodyOf(v.chassisId), 0).map(() => ({ steer: 0, spin: 0, suspension: 0, ground }));
   return { pos: { x, y: 1, z: y }, rot: headingQuat(0), acc: { x: 0, y: 0, z: 0 }, wheels };
 }
 
@@ -217,13 +218,13 @@ describe('Ruts', () => {
 });
 
 describe('tirePoints', () => {
-  it('gives each tire’s ground point under the pose, in wheelMounts order, as wheel dust used', () => {
+  it('gives each tire’s ground point under the pose, in drawn wheel order', () => {
     const w = worldOn('sand');
     const t = editableTerrain(w);
     t.heights.forEach((_, k) => (t.heights[k] = (k % (t.size + 1)) * 0.05));
     const v = truckOf(w);
     const f: VehicleFrame = { ...frameAt(v, 100), rot: headingQuat(Math.PI / 2) };
-    const mounts = wheelMounts(bodyOf(v.chassisId));
+    const mounts = drawnWheelPoints(bodyOf(v.chassisId), 0);
 
     const points = tirePoints(t, v.chassisId, f);
 

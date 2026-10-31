@@ -1,0 +1,14 @@
+{
+  "turn": 2704,
+  "player": {
+    "money": 12,
+    "quests": {
+      "world": { "hattie_met": true },
+      "local": {
+        "nose_lena": { "heard_sun": true, "asked_sun": true }
+      },
+      "session": { "quest": "nose_lena", "checkpoint": "start.hub", "seed": 7 },
+      "seen": {}
+    }
+  }
+}

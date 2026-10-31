@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { goodsCount } from './grid';
-import { cargoHaul, surrenderHaul } from './haul';
+import { cargoHaul, strippable } from './haul';
 import { addGoods, cargoRoom } from './inventory';
 import { thinkNpc } from './npc-activities';
-import { answersHoldUp, hasStrippable, surrenderTo } from './parley';
-import { RULES } from '../data/rules';
+import { answersHoldUp, hasStrippable, standDownTo } from './parley';
 import { hasCargo } from './salvage';
-import { addVehicle, emptyWorld, forceOption, npcBrain, testDrive } from './testkit';
+import { addVehicle, emptyWorld, forceOption, npcBrain, sizedUp, testDrive } from './testkit';
 import type { Vehicle, World } from './types';
 import { endTurn } from './world';
 
@@ -15,12 +14,14 @@ function scene(preyGoods: Record<string, number>, fillRobber = 0) {
   forceOption('mugging', 'demand');
   forceOption('threatened', 'comply');
   const w = emptyWorld({ x: 200, y: 200 });
-  const robber = addVehicle(w, 'scavengers', 'wagon', ['heavyMg', 'mg', 'stockEngine'], { x: 10, y: 10 });
+  const robber = addVehicle(w, 'independent', 'wagon', ['heavyMg', 'mg', 'stockEngine'], { x: 10, y: 10 });
   robber.brain = npcBrain('scavenger', robber.pos, ['scavenger', 'scumbag']);
   if (fillRobber > 0) addGoods(w, robber, 'scrap', fillRobber);
-  const prey = addVehicle(w, 'traders', 'scout', ['mg', 'stockEngine'], { x: 15, y: 10 });
+  const prey = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 15, y: 10 });
   prey.brain = npcBrain('trader', prey.pos, ['trader']);
+  prey.resources!.money = 0;
   for (const [good, n] of Object.entries(preyGoods)) addGoods(w, prey, good, n);
+  sizedUp(w, robber, prey);
   return { w, robber, prey };
 }
 
@@ -73,18 +74,14 @@ describe('a robbery from compliance to pickup', () => {
     expect(hasStrippable(w, robber, prey)).toBe(true);
     while (cargoRoom(robber) > 0) addGoods(w, robber, 'electronics', 1);
     const bare = hasStrippable(w, robber, prey);
-    expect(surrenderHaul(robber, prey).length > 0).toBe(bare);
+    expect(strippable(robber, prey)).toBe(bare);
     expect(cargoHaul(robber, prey)).toEqual([]);
   });
 
-  it('a surrendering truck hands over cargo and mounted parts the robber can load, and no more', () => {
+  it('a surrendering truck lies down with its goods aboard and no pile is dropped', () => {
     const { w, robber, prey } = scene({ scrap: 1 });
-    const haul = surrenderHaul(robber, prey);
-    const parts = haul.filter((item) => item.kind === 'part');
-    expect(parts.length).toBeLessThanOrEqual(RULES.surrenderParts);
-    surrenderTo(w, prey, robber);
-    expect(total(prey)).toBe(0);
-    const done = playUntilPicked(w, robber);
-    expect(done.salvage.some((s) => s.id.startsWith('cargo-'))).toBe(false);
+    standDownTo(w, prey, robber);
+    expect(total(prey)).toBe(1);
+    expect(w.salvage.some((s) => s.id.startsWith('cargo-'))).toBe(false);
   });
 });

@@ -86,8 +86,12 @@ export function sprintVerdict(runs: readonly SeedRun[]): Verdict {
   return { name: 'Not sprintable', pass: runs.length >= SPRINT_SEEDS && lost === runs.length, detail: `${fraction(lost, runs.length)} sprinter seeds lost the run before stretch ${TARGET_STRETCH} (need ${SPRINT_SEEDS} of ${SPRINT_SEEDS})` };
 }
 
-export function verdicts(escort: readonly SeedRun[], sprinter: readonly SeedRun[]): Verdict[] {
-  return [fightVerdict(escort), damageVerdict(escort), reactVerdict(escort), varietyVerdict(escort), choiceVerdict(escort), riseVerdict(escort), beatableVerdict(escort), sprintVerdict(sprinter)];
+export function playVerdicts(escort: readonly SeedRun[]): Verdict[] {
+  return [fightVerdict(escort)];
+}
+
+export function balanceVerdicts(escort: readonly SeedRun[], sprinter: readonly SeedRun[]): Verdict[] {
+  return [damageVerdict(escort), reactVerdict(escort), varietyVerdict(escort), choiceVerdict(escort), riseVerdict(escort), beatableVerdict(escort), sprintVerdict(sprinter)];
 }
 
 export function table(runs: readonly SeedRun[], cell: (row: StretchRow) => string): string[][] {
@@ -97,9 +101,9 @@ export function table(runs: readonly SeedRun[], cell: (row: StretchRow) => strin
 }
 
 export function startGearM(): number {
-  const kit = startKit('furyRoad');
+  const kit = startKit('chaosHighway');
   const parts = [...kit.parts, ...(kit.placed ?? []).map((p) => p.defId), ...HAULER_KIT.parts];
-  return Math.round(parts.reduce((sum, id) => sum + PARTS[id].value, 0) / 100);
+  return Math.round(parts.reduce((sum, id) => sum + PARTS[id].value, 0));
 }
 
 export function gearShares(lines: readonly RunLine[]): number[] {

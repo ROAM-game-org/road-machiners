@@ -1,24 +1,22 @@
-// Travel for vehicles far from the player. They have no physics body: each turn they follow their
-// stored route at the speed the physics driver would plan and burn fuel for the distance, like the physics turn. They never
-// crash, but they cannot drive into another vehicle: a truck in the way holds them just short of it at its speed, and
-// the next route goes around it. A breakable prop on the way breaks.
 
 import { chassisDef } from '../data/chassis';
 import { RULES } from '../data/rules';
 import { inLiveRange, isHeadless } from './fidelity';
 import { boxSegmentDistance, propBoxes, propReach } from './mapgen';
-import { keepsOffRoads } from './off-road';
+import { ROUTE_STYLES, routeStyle, type RouteStyle } from './off-road';
 import { route } from './path';
 import { propSlotsAlong } from './prop-index';
 import { breakProp } from './salvage';
 import { burnFuel, getResources } from './resources';
-import { fuelCap, vehicleStats, type VehicleStats } from './stats';
-import { parkedVehicles, throughSpeed } from './steering';
+import { fuelCap, plainFuelPerTile, plainMaxSpeed, vehicleStats, type VehicleStats } from './stats';
+import { driveMode, orderSpeed, parkedVehicles, setSpeedTarget, settleSetSpeed } from './steering';
 import { fieldBlockers } from './hazards';
 import { getHitchedTowIds, isOnRope, ropeClientOf } from './tow';
 import type { Blocker } from './nav/buckets';
 import type { MoveOrder, Obstacle, Pose, Vehicle, World } from './types';
+import { avoidsCrater } from './sunward';
 import { bearing, dist, segmentDist, type Vec } from './vec';
+import { bendField, followPose, poseOf, rigDiscs } from './rig';
 
 export function isNear(w: World, v: Vehicle): boolean {
   if (isOnRope(w, v.id)) return false;
@@ -35,32 +33,43 @@ export function fuelLimit(w: World, v: Vehicle, burnsFuel: boolean): 'low' | 'em
 export function lowFuelSpeed(maxSpeed: number): number {
   return maxSpeed * RULES.lowFuelSpeedFactor;
 }
+export function plainFuelSpeed(w: World, v: Vehicle): number {
+  const top = plainMaxSpeed(w, v);
+  return fuelLimit(w, v, plainFuelPerTile(w, v) > 0) === 'low' ? lowFuelSpeed(top) : top;
+}
+
 export function fuelLimited(w: World, v: Vehicle, s: VehicleStats, speed: number, order: MoveOrder | null): VehicleStats {
   const fuel = getResources(w, v).fuel;
   const low = fuelLimit(w, v, s.fuelPerTile > 0) === 'low';
   const limit = low ? Math.max(lowFuelSpeed(s.maxSpeed), speed - s.brake) : s.maxSpeed;
   const capped = low ? { ...s, maxSpeed: limit } : s;
-  const wanted = order?.kind === 'through' ? throughSpeed(capped, speed, dist(v.pos, order.dest), order.pace) : Math.min(capped.maxSpeed, speed + capped.accel);
+  const wanted = order && order.kind !== 'brake' ? wantedSpeed(capped, v, speed, order) : Math.min(capped.maxSpeed, speed + capped.accel);
   if (wanted * s.fuelPerTile <= fuel) return capped;
   const cap = Math.max(s.limpSpeed, speed - s.brake);
   return { ...s, maxSpeed: cap, accel: Math.min(s.accel, s.limpAccel) };
 }
 
+function wantedSpeed(s: VehicleStats, v: Vehicle, speed: number, order: Exclude<MoveOrder, { kind: 'brake' }>): number {
+  return setSpeedTarget(v, s, order) ?? orderSpeed(s, speed, v.pos, order, driveMode(v));
+}
+
 export function advanceFar(w: World, v: Vehicle): void {
   const full = vehicleStats(w, v);
-  const start: Pose = { x: v.pos.x, y: v.pos.y, heading: v.heading };
+  const start = poseOf(v);
   const order = v.order;
   if (!order || order.kind === 'brake') {
     v.speed = Math.max(0, v.speed - full.brake);
+    delete v.setSpeed;
     v.trail = Array.from({ length: RULES.substeps + 1 }, () => ({ ...start }));
     if (order && v.speed === 0) v.order = null;
     return;
   }
 
   const s = fuelLimited(w, v, full, v.speed, order);
-  const next = order.kind === 'through' ? throughSpeed(s, v.speed, dist(v.pos, order.dest), order.pace) : Math.min(s.maxSpeed, v.speed + s.accel);
-  const offRoad = keepsOffRoads(w, v);
-  const points = farPoints(w, v, order.dest, offRoad, full, s);
+  const next = wantedSpeed(s, v, v.speed, order);
+  const startSpeed = v.speed;
+  const style = { route: routeStyle(w, v), night: avoidsCrater(w, v) };
+  const points = farPoints(w, v, order.dest, style, full, s);
 
   const planned = follow(v.pos, points, (v.speed + next) / 2);
   const block = firstContact(w, v, planned.path, full.radius);
@@ -69,23 +78,24 @@ export function advanceFar(w: World, v: Vehicle): void {
   const reach = order.kind === 'stopAt' ? RULES.arriveRadius : RULES.passRadius;
   const routeEnd = walk.ahead.length === 0;
   const done = dist(end, order.dest) < reach || routeEnd || (block !== null && dist(block.other.pos, order.dest) < block.contact + reach);
-  v.trail = sample(start, walk.path, walk.moved);
-  v.pos = { x: end.x, y: end.y };
-  v.heading = v.trail[v.trail.length - 1].heading;
+  v.trail = sample(v.chassisId, start, walk.path, walk.moved);
+  const last = v.trail[v.trail.length - 1];
+  Object.assign(v, { pos: { x: end.x, y: end.y }, heading: last.heading }, bendField(last.bend));
   v.speed = done && order.kind === 'stopAt' ? 0 : block ? Math.min(next, block.other.speed) : next;
+  settleSetSpeed(v, startSpeed);
   burnFuel(w, v, walk.moved);
   breakCrossed(w, v, walk.path, full.radius);
-  keepFarRoute(v, done || block ? undefined : { dest: { ...order.dest }, points: walk.ahead, offRoad });
+  keepFarRoute(v, done || block ? undefined : farRouteOf(order.dest, walk.ahead, style));
   if (done) {
     w.events.push({ t: 'arrived', vehicle: v.id });
     v.order = null;
   }
 }
 
-function farPoints(w: World, v: Vehicle, dest: Vec, offRoad: boolean, full: VehicleStats, s: VehicleStats): Vec[] {
+function farPoints(w: World, v: Vehicle, dest: Vec, style: FarStyle, full: VehicleStats, s: VehicleStats): Vec[] {
   const onRope = getHitchedTowIds(w);
   const stored = keptFarRoute(v);
-  if (stored && stored.dest.x === dest.x && stored.dest.y === dest.y && keptOffRoad(stored) === offRoad) return stored.points;
+  if (stored && dist(stored.dest, dest) < RULES.arriveRadius && sameStyle(stored, style)) return stored.points;
   return route(w, v.pos, dest, full.radius, [...farBlockers(w, v, s, onRope), ...fieldBlockers(w, v)], v);
 }
 
@@ -93,23 +103,34 @@ function farBlockers(w: World, v: Vehicle, s: VehicleStats, onRope: ReadonlySet<
   const target = v.brain?.ramTarget;
   const reach = s.maxSpeed + radiusOf(v);
   const slower = w.vehicles.filter((o) => o.id !== v.id && o.id !== target && !onRope.has(o.id) && o.speed >= RULES.parkedSpeed && o.speed < s.maxSpeed && dist(o.pos, v.pos) <= reach + radiusOf(o));
-  return [...parkedVehicles(w, v.id, onRope), ...slower.map((o) => ({ pos: o.pos, r: radiusOf(o) }))];
+  return [...parkedVehicles(w, v.id, onRope), ...slower.flatMap(rigDiscs)];
 }
 
 function radiusOf(v: Vehicle): number {
   return chassisDef(v.chassisId).radius;
 }
 
-type FarRoute = { dest: Vec; points: Vec[]; offRoad: boolean };
+type FarRoute = { dest: Vec; points: Vec[]; style: RouteStyle; night?: true };
+type FarStyle = { route: RouteStyle; night: boolean };
+
+function farRouteOf(dest: Vec, points: Vec[], style: FarStyle): FarRoute {
+  const route: FarRoute = { dest: { ...dest }, points, style: style.route };
+  if (style.night) route.night = true;
+  return route;
+}
+
+function sameStyle(stored: FarRoute, style: FarStyle): boolean {
+  return keptStyle(stored) === style.route && (stored.night === true) === style.night;
+}
 const playerRoutes = new Map<string, { route: FarRoute; at: Vec }>();
 
 export function clearFarRoutes(): void {
   playerRoutes.clear();
 }
 
-function keptOffRoad(stored: FarRoute): boolean {
-  if (typeof stored.offRoad !== 'boolean') throw new Error('A far route has no offRoad flag');
-  return stored.offRoad;
+function keptStyle(stored: FarRoute): RouteStyle {
+  if (!ROUTE_STYLES.includes(stored.style)) throw new Error(`A far route has an unknown style: ${String(stored.style)}`);
+  return stored.style;
 }
 
 function keptFarRoute(v: Vehicle): FarRoute | undefined {
@@ -129,7 +150,7 @@ const CONTACT_STEP = 0.25;
 
 function firstContact(w: World, v: Vehicle, path: Vec[], radius: number): { other: Vehicle; clear: number; contact: number } | null {
   const client = ropeClientOf(w, v.id);
-  const others = w.vehicles.filter((o) => o.id !== v.id && o.id !== client).map((o) => ({ o, contact: radius + chassisDef(o.chassisId).radius }));
+  const others = w.vehicles.filter((o) => o.id !== v.id && o.id !== client).flatMap((o) => rigDiscs(o).map((d) => ({ o, at: d.pos, contact: radius + d.r })));
   let walked = 0;
   for (let seg = 1; seg < path.length; seg++) {
     const a = path[seg - 1];
@@ -138,9 +159,9 @@ function firstContact(w: World, v: Vehicle, path: Vec[], radius: number): { othe
     for (let d = Math.min(CONTACT_STEP, len); d <= len; d += CONTACT_STEP) {
       const t = len > 0 ? d / len : 0;
       const p = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-      for (const { o, contact } of others) {
-        const gap = dist(p, o.pos);
-        if (gap < contact && gap < dist(path[0], o.pos)) return { other: o, clear: Math.max(0, walked + d - CONTACT_STEP), contact };
+      for (const { o, at, contact } of others) {
+        const gap = dist(p, at);
+        if (gap < contact && gap < dist(path[0], at)) return { other: o, clear: Math.max(0, walked + d - CONTACT_STEP), contact };
       }
       if (d < len && d + CONTACT_STEP > len) d = len - CONTACT_STEP;
     }
@@ -157,7 +178,7 @@ function breakCrossed(w: World, v: Vehicle, path: Vec[], radius: number): void {
     }
   }
   const ids = [...crossed].sort((a, b) => a - b).map((at) => w.obstacles[at].id);
-  for (const id of ids) breakProp(w, id, v.id);
+  for (const id of ids) breakProp(w, id, v.id, v.speed);
 }
 
 function touches(o: Obstacle, a: Vec, b: Vec, radius: number): boolean {
@@ -185,7 +206,7 @@ function follow(from: Vec, points: Vec[], budget: number): { path: Vec[]; moved:
   return { path, moved: budget - left, ahead: points.slice(i) };
 }
 
-function sample(start: Pose, path: Vec[], moved: number): Pose[] {
+function sample(chassisId: string, start: Pose, path: Vec[], moved: number): Pose[] {
   const trail: Pose[] = [start];
   let seg = 1;
   let walked = 0;
@@ -201,7 +222,7 @@ function sample(start: Pose, path: Vec[], moved: number): Pose[] {
     const len = dist(a, b);
     if (len > 0) heading = bearing(a, b);
     const t = len > 0 ? Math.min(1, (at - walked) / len) : 0;
-    trail.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, heading });
+    trail.push(followPose(chassisId, trail[trail.length - 1], { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, heading }));
   }
   return trail;
 }
