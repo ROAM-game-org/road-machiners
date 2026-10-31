@@ -9,12 +9,13 @@ import { intake } from './intake';
 import { publicFilterWith } from './public/filter';
 import { publicTick } from './public/tick-steps';
 import { reviveVotes } from './public/votes';
+import { chargeJobSpend } from './landing-work';
 import { recordJob } from './ledger';
 import { reportAttempt, reportScheduler } from './observability';
 import { pruneCaptions } from './post-status';
 import { isAlive, killJob, removeJobContainers, spawnJob } from './jobs';
 import { repairClone } from './repair-clone';
-import { clearSessions, markResumed } from './sessions';
+import { clearSessions, markResumed, markTimedOut } from './sessions';
 import { requeueKept } from './stages/kept-approval';
 import { adoptQuestionMedia } from './stages/common';
 import { nextBatchCards, waitingMerges } from './stages/merge';
@@ -23,6 +24,7 @@ import { labelStuckBatch, sweepStuck, type Repair } from './stuck';
 import { clearQueued, isQueued, orderKey, readState, updateState } from './state';
 import { sweepTranscripts } from './transcript-archive';
 import { askedAt, clearAsked, isAnswered, recordAsked } from './questions';
+import { CARD_JOBS } from './position';
 import { ADHOC_LABEL, AGENT_QUEUES, HOTFIX_LABEL, NEEDS_INFO_LABEL, QUEUE_OF, RELEASE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, VOTING_LABEL } from './types';
 import type { Card, Column, Ctx, FactoryConfig, FactoryState, Job, JobStage, PlaytestState, Queue, Run } from './types';
 
@@ -89,7 +91,7 @@ function catchUpJobs(state: FactoryState, cards: Card[], heads: Heads): JobPick[
     return head !== null && state.caughtUpTo[String(card.issue)] !== head;
   };
   const merging = state.jobs.some((job) => job.stage === 'merge' && job.batch !== undefined);
-  const taken = merging ? [] : nextBatchCards(state, cards, baseOf).map((card) => card.issue);
+  const taken = [...(merging ? [] : nextBatchCards(state, cards, baseOf).map((card) => card.issue)), ...(state.landings.merge?.cards ?? [])];
   return openCards(state, waitingMerges(state, cards)).filter((card) => behind(card) && !failed(card) && !taken.includes(card.issue)).map((card) => ({ stage: 'catch-up' as const, issue: card.issue }));
 }
 
@@ -314,7 +316,7 @@ function retriesOrder(ctx: Ctx, job: Job): boolean {
 async function stopJob(ctx: Ctx, job: Job, alive: boolean, deps: TickDeps): Promise<void> {
   if (alive) await deps.kill(ctx.run, job.pid, job.id);
   else await deps.removeContainers(ctx.run, job.id);
-  recordJob(ctx.cfg.home, ctx.cfg.tokenPrices, ctx.now(), job, alive ? 'timeout' : 'died');
+  chargeJobSpend(ctx.statePath, job, recordJob(ctx.cfg.home, ctx.cfg.tokenPrices, ctx.now(), job, alive ? 'timeout' : 'died'));
 }
 
 async function failJob(ctx: Ctx, job: Job, alive: boolean, deps: TickDeps): Promise<void> {
@@ -356,7 +358,8 @@ function forgetResume(ctx: Ctx, job: Job): void {
     ...state,
     interrupted: state.interrupted.filter((issue) => issue !== job.issue),
   }));
-  clearSessions(ctx.cfg.home, job.issue);
+  if (CARD_JOBS.includes(job.stage)) markResumed(ctx.cfg.home, job.issue, job.stage);
+  else clearSessions(ctx.cfg.home, job.issue);
 }
 
 async function resumeJob(ctx: Ctx, job: Job & { issue: number }, deps: TickDeps, outcome: 'died' | 'timeout'): Promise<void> {
@@ -364,6 +367,7 @@ async function resumeJob(ctx: Ctx, job: Job & { issue: number }, deps: TickDeps,
   else await deps.removeContainers(ctx.run, job.id);
   recordJob(ctx.cfg.home, ctx.cfg.tokenPrices, ctx.now(), job, outcome);
   markResumed(ctx.cfg.home, job.issue, job.stage);
+  if (outcome === 'timeout') markTimedOut(ctx.cfg.home, job.issue, timeoutOf(ctx.cfg, job.stage));
   updateState(ctx.statePath, (state) => interruptJob(state, job));
   const cause = outcome === 'timeout' ? `timed out after ${timeoutOf(ctx.cfg, job.stage)} minutes` : 'process died';
   ctx.log('tick', job.issue, `${job.stage} ${cause}, it resumes once on the next start`);

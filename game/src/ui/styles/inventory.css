@@ -122,6 +122,12 @@
 .truck-shell {
   padding: var(--space-9) 0;
 }
+.truck-shell:has(> .inv-grid.drawn) {
+  padding: var(--space-9) var(--space-9) var(--space-9) var(--space-7);
+}
+:where(#ui:not(.narrow)) .inv-truck:has(.inv-grid.drawn) {
+  margin-right: calc(var(--space-9) * -1);
+}
 .inv-grid {
   position: relative;
   background: var(--cell-none);
@@ -193,29 +199,46 @@
   z-index: var(--z-grid-lines);
   pointer-events: none;
   background: none;
-  border-color: var(--cell-grid-line);
+  border-color: transparent;
   color: transparent;
 }
-.inv-grid.drawn .inv-cell.c-D:not(.spare) {
-  background: var(--garage-cell-deck);
+.inv-grid.drawn .inv-cell:not(.spare):not(.c-dead) {
+  opacity: var(--near, 0);
 }
-.inv-grid.drawn .inv-cell.c-C:not(.spare) {
-  background: var(--garage-cell-bay);
+.inv-grid.drawn .inv-cell:is(.c-D, .c-C, .c-E, .c-plain) {
+  border-color: var(--cell-grid-line);
 }
-.inv-grid.drawn .inv-cell.c-E {
-  background: var(--garage-cell-engine);
+.inv-grid.drawn .inv-cell.c-F::after,
+.inv-grid.drawn .inv-cell.c-B::after,
+.inv-grid.drawn .inv-cell.c-L::after,
+.inv-grid.drawn .inv-cell.c-R::after {
+  content: "";
+  position: absolute;
+  background: var(--cell-grid-line-drag);
 }
-.inv-grid.drawn .inv-cell.c-F,
-.inv-grid.drawn .inv-cell.c-B,
-.inv-grid.drawn .inv-cell.c-L,
-.inv-grid.drawn .inv-cell.c-R {
-  background: var(--garage-cell-armor);
+.inv-grid.drawn .inv-cell.c-L::after {
+  right: calc(var(--space-1) * -1);
+  top: var(--space-2);
+  bottom: var(--space-2);
+  width: var(--space-2);
 }
-.inv-grid.drawn .inv-cell.c-X {
-  background: var(--garage-cell-built-in);
+.inv-grid.drawn .inv-cell.c-R::after {
+  left: calc(var(--space-1) * -1);
+  top: var(--space-2);
+  bottom: var(--space-2);
+  width: var(--space-2);
 }
-.inv-grid.drawn .inv-cell.taken {
-  background: var(--garage-cell-taken);
+.inv-grid.drawn .inv-cell.c-F::after {
+  top: 0;
+  left: var(--space-2);
+  right: var(--space-2);
+  height: var(--space-2);
+}
+.inv-grid.drawn .inv-cell.c-B::after {
+  bottom: 0;
+  left: var(--space-2);
+  right: var(--space-2);
+  height: var(--space-2);
 }
 .inv-grid.drawn .inv-cell.spare.c-plain {
   z-index: auto;
@@ -225,19 +248,45 @@
 .inv-grid.drawn .inv-cell.c-dead {
   z-index: auto;
 }
-.inv-truck:has(.inv-ghost) .inv-grid.drawn .inv-cell,
-.inv-grid.drawn:has(.inv-ghost) .inv-cell {
+:where(#ui:has(> .inv-ghost)) .inv-grid.drawn .inv-cell:not(.spare):not(.c-dead),
+.inv-grid.drawn:where(:has(.holding), :has(.inv-ghost)) .inv-cell:not(.spare):not(.c-dead) {
+  opacity: 1;
+}
+:where(#ui:has(> .inv-ghost)) .inv-grid.drawn .inv-cell:where(.c-D, .c-C, .c-E, .c-plain):not(.spare),
+.inv-grid.drawn:where(:has(.holding), :has(.inv-ghost)) .inv-cell:where(.c-D, .c-C, .c-E, .c-plain):not(.spare) {
   border-color: var(--cell-grid-line-drag);
 }
 .inv-grid.drawn[data-mounts~="D"] .c-D:not(.spare),
 .inv-grid.drawn[data-mounts~="C"] .c-C:not(.spare),
-.inv-grid.drawn[data-mounts~="E"] .c-E,
-.inv-grid.drawn[data-mounts~="F"] .c-F,
-.inv-grid.drawn[data-mounts~="B"] .c-B,
-.inv-grid.drawn[data-mounts~="L"] .c-L,
-.inv-grid.drawn[data-mounts~="R"] .c-R {
+.inv-grid.drawn[data-mounts~="E"] .c-E:not(.spare),
+.inv-grid.drawn[data-mounts~="F"] .c-F:not(.spare),
+.inv-grid.drawn[data-mounts~="B"] .c-B:not(.spare),
+.inv-grid.drawn[data-mounts~="L"] .c-L:not(.spare),
+.inv-grid.drawn[data-mounts~="R"] .c-R:not(.spare),
+.inv-grid.drawn[data-hint~="D"] .c-D:not(.spare),
+.inv-grid.drawn[data-hint~="C"] .c-C:not(.spare),
+.inv-grid.drawn[data-hint~="E"] .c-E:not(.spare),
+.inv-grid.drawn[data-hint~="F"] .c-F:not(.spare),
+.inv-grid.drawn[data-hint~="B"] .c-B:not(.spare),
+.inv-grid.drawn[data-hint~="L"] .c-L:not(.spare),
+.inv-grid.drawn[data-hint~="R"] .c-R:not(.spare) {
+  opacity: 1;
   background: var(--garage-mount-wash);
   border-color: var(--garage-mount-line);
+  box-shadow: none;
+}
+.inv-grid.drawn[data-mounts~="F"] .c-F::after,
+.inv-grid.drawn[data-hint~="F"] .c-F::after,
+.inv-grid.drawn[data-mounts~="B"] .c-B::after,
+.inv-grid.drawn[data-hint~="B"] .c-B::after,
+.inv-grid.drawn[data-mounts~="L"] .c-L::after,
+.inv-grid.drawn[data-hint~="L"] .c-L::after,
+.inv-grid.drawn[data-mounts~="R"] .c-R::after,
+.inv-grid.drawn[data-hint~="R"] .c-R::after {
+  background: var(--garage-mount-edge);
+}
+.inv-grid.drawn[data-hint] .inv-item {
+  opacity: 1;
 }
 .inv-backdrop {
   position: absolute;
@@ -269,14 +318,25 @@
   display: none;
   background: var(--cond-hatch);
 }
-.inv-item.drawn[data-tier="hurt"] .art-img {
-  filter: var(--cond-halo-hurt);
+.inv-item.drawn {
+  --edge: var(--garage-no-filter);
+  --halo: var(--garage-no-filter);
+  --lift: var(--garage-no-filter);
 }
-.inv-item.drawn[data-tier="crit"] .art-img {
-  filter: var(--cond-halo-crit);
+.inv-item.drawn.mounted {
+  --lift: var(--garage-part-lift);
 }
-.inv-item.drawn[data-tier="broken"] .art-img {
-  filter: var(--cond-halo-broken);
+.inv-item.drawn .art-img {
+  filter: var(--edge) var(--halo) var(--lift);
+}
+.inv-item.drawn[data-tier="hurt"] {
+  --halo: var(--cond-halo-hurt);
+}
+.inv-item.drawn[data-tier="crit"] {
+  --halo: var(--cond-halo-crit);
+}
+.inv-item.drawn[data-tier="broken"] {
+  --halo: var(--cond-halo-broken);
 }
 .inv-item.drawn[data-tier="hurt"] .art-tint {
   background: var(--garage-tint-hurt);
@@ -290,7 +350,7 @@
 .inv-item.drawn[data-tier="broken"] .art-hatch {
   display: block;
 }
-.inv-item.drawn[data-tier="ok"]:not(:hover):not(.selected):not(.holding) .inv-art.core {
+.inv-item.drawn[data-tier="ok"]:not(:hover):not(.selected):not(.holding):not(.blocking) .inv-art.core {
   display: none;
 }
 .inv-grid .inv-item.drawn:hover,
@@ -299,12 +359,43 @@
   background-image: none;
   box-shadow: none;
 }
-.inv-grid .inv-item.drawn:hover .art-img {
-  filter: var(--garage-edge-hover);
+.inv-grid .inv-item.drawn:hover {
+  --edge: var(--garage-edge-hover);
 }
-.inv-grid .inv-item.drawn.selected .art-img,
-.inv-grid .inv-item.drawn.holding .art-img {
-  filter: var(--garage-edge-pick);
+.inv-grid .inv-item.drawn.selected,
+.inv-grid .inv-item.drawn.holding {
+  --edge: var(--garage-edge-pick);
+}
+.inv-grid .inv-item.drawn.blocking {
+  --edge: var(--garage-edge-danger);
+}
+.inv-item.drawn .inv-art.hidden-part {
+  --glow: var(--garage-hidden-halo);
+  filter: var(--edge) var(--glow);
+}
+.inv-item.drawn:is([data-tier="hurt"], [data-tier="crit"], [data-tier="broken"]) .inv-art.hidden-part {
+  --glow: var(--halo);
+}
+.inv-item.drawn .inv-art.hidden-part.packed {
+  inset: 3px;
+}
+.inv-art.hidden-part .art-glow {
+  background: var(--garage-hidden-wash);
+}
+.inv-art.hidden-part.packed .art-glow {
+  border-radius: var(--radius-m);
+}
+.inv-grid .inv-item.drawn:hover .inv-art.hidden-part .art-glow {
+  background: var(--garage-hidden-hover);
+}
+.inv-item.drawn[data-tier="hurt"] .inv-art.hidden-part .art-glow {
+  background: var(--garage-tint-hurt);
+}
+.inv-item.drawn[data-tier="crit"] .inv-art.hidden-part .art-glow {
+  background: var(--garage-tint-crit);
+}
+.inv-item.drawn[data-tier="broken"] .inv-art.hidden-part .art-glow {
+  background: var(--garage-tint-broken);
 }
 .inv-ghost.drawn {
   background: none;
@@ -375,15 +466,19 @@
   stroke: var(--accent);
   stroke-width: 2;
 }
-.inv-item.blocking {
-  outline: 2px solid var(--danger);
-  outline-offset: -2px;
+.inv-item.blocking:not(.drawn) {
+  border-color: var(--danger);
 }
 .inv-item.selected,
 .inv-item.holding,
 .inv-chip.selected {
   border-color: var(--accent);
   background-image: linear-gradient(var(--accent-wash), var(--accent-wash));
+}
+.inv-grid.drawn .inv-item.selected:not(.drawn),
+.inv-grid.drawn .inv-item.holding:not(.drawn) {
+  border-color: var(--ink-bright);
+  background-image: none;
 }
 /* Item boxes, chips and standalone item icons sit on their category tone, set inline as --tone by toneStyle() in
    cards.ts from ITEM_TONES in src/render/palette.ts. A grid icon inherits its box's tone, so nothing doubles.

@@ -5,6 +5,7 @@ import { copyFileSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { deployDev } from '../deploy';
 import { must } from '../exec';
+import { closeLanding, markMerged, openLanding } from '../landing-work';
 import { releasePostDir } from '../release-post';
 import { reportEnv, takeMaps } from '../sourcemaps';
 import { updateState } from '../state';
@@ -12,7 +13,7 @@ import { BUG_LABEL, GAME_DIR, RELEASE_CANDIDATE_LABEL, type Ctx, type ReleasePos
 import { withWorkFolder } from '../work-lock';
 import { closeBundle } from './bundle';
 import { agentLog, fillPrompt, resetOutputs } from './common';
-import { checkAndPush, landingAgent, mergeIn, type Landing } from './merge';
+import { checkAndPush, landingAgent, mergeIn, runningJobId, type Landing } from './merge';
 import { queueIncidents } from './incident';
 import { mergeResolving } from './merge-resolve';
 import { candidateDir, changelogText, openReleaseTasks, readChanges, releaseFeatures, releaseLog, requireRelease, type Feature } from './release-common';
@@ -46,12 +47,20 @@ function landRelease(ctx: Ctx, release: ReleaseState): Promise<void> {
 
 async function mergeRelease(ctx: Ctx, release: ReleaseState): Promise<void> {
   const dir = join(ctx.cfg.home, 'work', 'ship-main');
-  rmSync(dir, { recursive: true, force: true });
-  await ctx.repo.prepareWorkClone('main', 'main', dir);
-  resetOutputs(join(dir, GAME_DIR));
-  const land: Landing = { stage: 'ship', dir, into: 'main', guardAgainst: ['main', release.branch], agent: landingAgent(ctx, 'ship', dir, 'main') };
-  const conflicts = await mergeIn(ctx, land, { branch: release.branch, message: `Release ${release.day}`, reason: `release ${release.day} ships` });
+  const plan = { into: 'main', sources: [{ branch: release.branch, sha: await ctx.repo.headHash(release.branch) }], cards: [release.issue] };
+  const { work, resumed } = openLanding(ctx, 'ship', dir, plan, runningJobId());
+  const land: Landing = { stage: 'ship', dir, into: 'main', guardAgainst: ['main', release.branch], agent: landingAgent(ctx, 'ship', dir, work, resumed), staleBase: resumed };
+  const conflicts = resumed ? 0 : await mergeReleaseIn(ctx, land, release);
   await checkAndPush(ctx, land, conflicts, (failure) => fillPrompt('ship-fix', { release: release.branch, failure }));
+  closeLanding(ctx, 'ship', dir);
+}
+
+async function mergeReleaseIn(ctx: Ctx, land: Landing, release: ReleaseState): Promise<number> {
+  await ctx.repo.prepareWorkClone('main', 'main', land.dir);
+  resetOutputs(join(land.dir, GAME_DIR));
+  const conflicts = await mergeIn(ctx, land, { branch: release.branch, message: `Release ${release.day}`, reason: `release ${release.day} ships` });
+  markMerged(ctx, 'ship', []);
+  return conflicts;
 }
 
 export function publish(ctx: Ctx, keys: ItchKeys, logName: string): Promise<void> {

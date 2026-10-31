@@ -104,6 +104,7 @@ export function fake(): Fake {
       hasNewCommits: async () => true,
       isMerged: async () => true,
       headHash: async () => 'abc1234',
+      fullHash: async (commit: string) => commit,
       forkPoint: async () => 'f0a1b2c',
       createBranch: async (name: string, from: string) => note(`branch ${name} ${from}`),
       revertMerge: async (merge: Pick<IssueMerge, 'issue' | 'sha'>, branch: string, resolutions: Resolution[] = []) => {

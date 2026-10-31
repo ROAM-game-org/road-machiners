@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { GAME_MODES } from '../data/modes';
+import { SPAWN } from '../data/npcs';
 import { startKit } from '../data/start';
 import { TEST_MAP } from '../test/map';
 import { standardWorld } from '../test/world-cache';
@@ -77,16 +78,17 @@ describe('game mode rules', () => {
 
 describe('a new world by mode', () => {
   it('builds a Roaming world as before the Chaos Highway mode, with the Hollow filled at the start', () => {
-    const world = standardWorld(7);
+    const world = newWorld(7, startKit("standard"), TEST_MAP, defaultSetup("roaming"));
 
     expect(world.chaosHighway).toBeNull();
     expect(fingerprint(world)).toEqual({
-      streams: [-1746535844, -1038920240, -1818829172, 1936023925],
-      nextId: 2076,
-      counts: [23, 6048, 128, 7],
-      npcs: [['trader', 118.5, 573.27], ['trader', 116.61, 583.5], ['buggy', 150.57, 103.44]],
-      bowlStock: ['harpoon', 'caltrops', 'scrapersKnife', 'heavyMg', 'jerrycans', 'rack', 'lightFrame', 'lightFrame', 'spikeStrip', 'stockEngine'],
+      streams: [-1234022187, -1681663007, -2067017660, 1936023925],
+      nextId: 809,
+      counts: [3, 6048, 128, 7],
+      npcs: [['trader', 117.82, 577.25], ['trader', 118.2, 582.79]],
+      bowlStock: ['smokeMortar', 'plowRam', 'reinforcedSection', 'battleRifle', 'ceramicPlates', 'longRifle', 'oilSpiller', 'gatling', 'reinforcedSection', 'scrapersKnife', 'enclosedFrame', 'stockEngine'],
     });
+    expect(world.spawnQueue).toHaveLength(SPAWN.initial.length);
   });
 
   it('starts a Chaos Highway world with no traffic, salvage, shops or road wrecks', () => {

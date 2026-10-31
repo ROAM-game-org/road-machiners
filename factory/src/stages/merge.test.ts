@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readLedger } from '../ledger';
@@ -121,6 +121,7 @@ function fakeCtx(budget = 5): Ctx {
       },
       fetchFromWork: async () => 'head1',
       headHash: async (branch: string) => `${branch}-tip`,
+      fullHash: async (commit: string) => commit,
       changedInWork: async (_dir: string, from: string) => (from === 'head1' ? movedBy : changed),
       workHead: async () => `merged${++heads}`,
       diff: async () => diff,
@@ -198,10 +199,47 @@ describe('merge queue', () => {
     expect(calls.filter((call) => /^(suite|checks|agent|push)/.test(call))).toEqual(['suite head1', 'checks', 'agent', 'suite head1', 'checks', 'push head1 dev']);
   });
 
+  it('runs no checks after a fix round that made no commit, and gives the session the same failure back', async () => {
+    changed = ['game/src/sim/fuel.ts'];
+    failingSuites = 1;
+    const ctx = fakeCtx();
+    const commits = ['card5', 'card6', 'merged1', 'merged1', 'merged2'];
+    ctx.repo.workHead = async () => commits.shift() ?? 'merged2';
+    await merge(ctx);
+    expect(calls.filter((call) => /^(suite|checks|agent|push)/.test(call))).toEqual(['suite head1', 'checks', 'agent', 'agent', 'suite head1', 'checks', 'push head1 dev']);
+    expect(runs[1]!.prompt).toContain('FAIL src/sim/raid.test.ts in run 1');
+    expect(runs[1]!.prompt).toContain('made no commit, so the head is still merged1');
+    expect(logs).toContain('the fix round made no commit, so merged1 keeps its failure and the checks do not run again');
+  });
+
+  it('ends at the budget when every fix round commits nothing, with one run of the checks', async () => {
+    changed = ['game/src/sim/fuel.ts'];
+    failingSuites = 9;
+    costs = [3, 3];
+    const ctx = fakeCtx(5);
+    ctx.repo.workHead = async () => 'merged1';
+    await expect(merge(ctx)).rejects.toBeInstanceOf(BudgetError);
+    expect(calls.filter((call) => /^(suite|checks|agent)/.test(call))).toEqual(['suite head1', 'checks', 'agent', 'agent']);
+  });
+
+  it('sends a fix left uncommitted back first, and then the unchanged head keeps its suite failure', async () => {
+    changed = ['game/src/sim/fuel.ts'];
+    dirty = ['', ' M game/src/sim/fuel.ts\n', '', ''];
+    failingSuites = 1;
+    const ctx = fakeCtx();
+    const commits = ['card5', 'card6', 'merged1', 'merged1', 'merged2'];
+    ctx.repo.workHead = async () => commits.shift() ?? 'merged2';
+    await merge(ctx);
+    expect(runs[1]!.prompt).toContain('changes that are not committed');
+    expect(runs[2]!.prompt).toContain('FAIL src/sim/raid.test.ts in run 1');
+    expect(runs[2]!.prompt).toContain('made no commit');
+    expect(calls.filter((call) => /^(suite|checks|agent|push)/.test(call))).toEqual(['suite head1', 'checks', 'agent', 'agent', 'agent', 'suite head1', 'checks', 'push head1 dev']);
+  });
+
   describe('failures the base also has (#1103)', () => {
     const RAID = { file: 'src/sim/raid.test.ts', test: 'raids > reach 5' };
     const FUEL = { file: 'src/sim/fuel.test.ts', test: 'burns fuel' };
-    const failing = (...failed: FailedTest[]) => ({ passed: false, record: { failed, unhandledErrors: 0 } });
+    const failing = (...failed: FailedTest[]) => ({ passed: false, record: { failed, unfinished: [], unhandledErrors: 0 } });
     const ledgerBaselines = () => readLedger(home, new Date(0)).filter((line) => line.kind === 'baseline');
 
     it('fails with the baseline cause and no fix round when every failed test fails on the base too', async () => {
@@ -255,7 +293,7 @@ describe('merge queue', () => {
 
     it('keeps the whole failure when the base passes the failed tests', async () => {
       changed = ['game/src/sim/fuel.ts'];
-      suitePlan = [failing(RAID), { passed: true, record: { failed: [], unhandledErrors: 0 } }, { passed: true, record: null }];
+      suitePlan = [failing(RAID), { passed: true, record: { failed: [], unfinished: [], unhandledErrors: 0 } }, { passed: true, record: null }];
       await merge(fakeCtx());
       expect(runs).toHaveLength(1);
       expect(runs[0]!.prompt).not.toContain('Leave them alone');
@@ -265,9 +303,18 @@ describe('merge queue', () => {
 
     it('keeps the whole failure, with no rerun, when the run left no record or unhandled errors', async () => {
       changed = ['game/src/sim/fuel.ts'];
-      suitePlan = [{ passed: false, record: null }, { passed: false, record: { failed: [RAID], unhandledErrors: 1 } }, { passed: true, record: null }];
+      suitePlan = [{ passed: false, record: null }, { passed: false, record: { failed: [RAID], unfinished: [], unhandledErrors: 1 } }, { passed: true, record: null }];
       await merge(fakeCtx());
       expect(runs).toHaveLength(2);
+      expect(calls.some((call) => call.startsWith('rerun'))).toBe(false);
+    });
+
+    it('keeps the whole failure, with no rerun, when a test file never finished, since its failures are unknown', async () => {
+      changed = ['game/src/sim/fuel.ts'];
+      suitePlan = [{ passed: false, record: { failed: [RAID], unfinished: ['src/sim/slow.test.ts'], unhandledErrors: 0 } }, { passed: true, record: null }];
+      await merge(fakeCtx());
+      expect(runs).toHaveLength(1);
+      expect(runs[0]!.prompt).toContain('Test files that never finished, 1:\n- src/sim/slow.test.ts');
       expect(calls.some((call) => call.startsWith('rerun'))).toBe(false);
     });
 
@@ -625,5 +672,128 @@ describe('merge queue', () => {
     cards = [];
     await merge(fakeCtx());
     expect(calls).toEqual([]);
+  });
+});
+
+describe('kept merge work', () => {
+  const clone = () => join(home, 'work', 'merge-queue');
+  const landing = () => readState(`${home}/state.json`).landings.merge;
+  const saveTranscript = (id: string) => {
+    mkdirSync(join(home, 'sessions', 'merge', 'project'), { recursive: true });
+    appendFileSync(join(home, 'sessions', 'merge', 'project', `${id}.jsonl`), '{}\n');
+  };
+
+  async function failOnce(): Promise<string> {
+    shellFailures = Array(9).fill('FAIL a.test.ts');
+    costs = [3, 3];
+    await expect(merge(fakeCtx(5))).rejects.toThrow(BudgetError);
+    appendFileSync(join(clone(), 'uncommitted-fix.ts'), 'fix');
+    const session = landing()!.session;
+    saveTranscript(session);
+    calls = [];
+    runs = [];
+    shellFailures = [];
+    costs = [];
+    return session;
+  }
+
+  it('keeps the clone, the session and the spend of a batch whose job failed', async () => {
+    await failOnce();
+    expect(landing()).toMatchObject({ into: 'dev', cards: [5, 6], spentUsd: 6, merged: true, sources: [{ branch: 'factory/issue-5', sha: 'factory/issue-5-tip' }, { branch: 'factory/issue-6', sha: 'factory/issue-6-tip' }] });
+    expect(landing()!.merges.map((row) => row.issue)).toEqual([5, 6]);
+    expect(existsSync(clone())).toBe(true);
+  });
+
+  it('resumes the kept batch in its clone and session, with no new clone or merge, and closes it once pushed', async () => {
+    const session = await failOnce();
+    updateState(`${home}/state.json`, (state) => ({ ...state, landings: { merge: { ...state.landings.merge!, spentUsd: 0 } } }));
+    shellFailures = ['FAIL a.test.ts'];
+    costs = [1];
+    await merge(fakeCtx(5));
+    expect(calls.filter((call) => /^(clone|merge |agent|checks|push)/.test(call))).toEqual(['merge dev', 'checks', 'agent', 'checks', 'push head1 dev']);
+    expect(runs[0]!.session).toMatchObject({ id: session, resume: true });
+    expect(runs[0]!.prompt).toMatch(/^An earlier job on this same work stopped before it pushed/);
+    expect(comments.filter((text) => text.includes('merged into dev')).map((text) => text.split(' ')[0])).toEqual(['5', '6']);
+    expect(landing()).toBeUndefined();
+    expect(existsSync(clone())).toBe(false);
+  });
+
+  it('merges the base into a resumed clone only once it holds no uncommitted change, before its first checks', async () => {
+    await failOnce();
+    updateState(`${home}/state.json`, (state) => ({ ...state, landings: { merge: { ...state.landings.merge!, spentUsd: 0 } } }));
+    changed = ['game/src/sim/world.ts'];
+    dirty = [' M game/src/fix.ts', ' M game/src/fix.ts', '', ''];
+    costs = [1];
+    await merge(fakeCtx(5));
+    expect(calls.filter((call) => /^(merge |agent|checks|push)/.test(call))).toEqual(['agent', 'merge dev', 'checks', 'push head1 dev']);
+    expect(runs[0]!.prompt).toContain('changes that are not committed');
+  });
+
+  it('keeps conflict spend out of the batch budget when a failed job is charged', async () => {
+    merges = { 'factory/issue-5': [{ commit: 'c5', conflicts: ['game/src/a.ts'] }] };
+    costs = [30, 2];
+    shellFailures = ['FAIL a.test.ts'];
+    const ctx = fakeCtx(5);
+    ctx.repo.push = async () => { throw new Error('GitHub is down'); };
+    ctx.repo.isMerged = async () => true;
+    await expect(merge(ctx)).rejects.toThrow('GitHub is down');
+    updateState(`${home}/state.json`, (state) => ({ ...state, landings: { merge: { ...state.landings.merge!, job: 'merge-job' } } }));
+    const { chargeJobSpend } = await import('../landing-work');
+    chargeJobSpend(`${home}/state.json`, { id: 'merge-job', stage: 'merge' }, [{ model: 'sonnet', costUsd: 30, minutes: 1 }, { model: 'sonnet', costUsd: 2, minutes: 1 }]);
+    expect(landing()).toMatchObject({ spentUsd: 2, jobUsd: 32 });
+  });
+
+  it('does not run the suite again on a head a fix round left unchanged after the base merged into a resumed clone', async () => {
+    await failOnce();
+    updateState(`${home}/state.json`, (state) => ({ ...state, landings: { merge: { ...state.landings.merge!, spentUsd: 0 } } }));
+    changed = ['game/src/sim/world.ts'];
+    merges = { dev: [{ commit: 'd1', conflicts: [] }] };
+    failingSuites = 1;
+    costs = [1, 1];
+    const ctx = fakeCtx(5);
+    let head = 'kept';
+    const merging = ctx.repo.mergeBranchIntoWork;
+    ctx.repo.mergeBranchIntoWork = async (dir, branch, message) => {
+      const merged = await merging(dir, branch, message);
+      if (merged.commit !== null) head = 'base-merged';
+      return merged;
+    };
+    const agent = ctx.container.agent;
+    let rounds = 0;
+    ctx.container.agent = async (run) => {
+      if (++rounds === 2) head = 'fixed';
+      return agent(run);
+    };
+    ctx.repo.workHead = async () => head;
+    await merge(ctx);
+    expect(calls.filter((call) => call.startsWith('suite'))).toHaveLength(2);
+    expect(calls.filter((call) => call === 'agent')).toHaveLength(2);
+  });
+
+  it('counts the fix rounds of earlier jobs against the budget of the batch', async () => {
+    await failOnce();
+    shellFailures = Array(9).fill('FAIL a.test.ts');
+    await expect(merge(fakeCtx(5))).rejects.toThrow(/\$6\.00 of its \$5 budget/);
+    expect(runs).toEqual([]);
+    expect(existsSync(join(clone(), 'uncommitted-fix.ts'))).toBe(true);
+  });
+
+  it('moves the kept clone to the backups and starts fresh when a card branch moved', async () => {
+    const session = await failOnce();
+    updateState(`${home}/state.json`, (state) => ({ ...state, landings: { merge: { ...state.landings.merge!, sources: [{ branch: 'factory/issue-5', sha: 'older' }, state.landings.merge!.sources[1]!] } } }));
+    await merge(fakeCtx(5));
+    expect(calls.filter((call) => /^(clone|merge )/.test(call))).toEqual(['clone dev dev', 'merge factory/issue-5', 'merge factory/issue-6']);
+    const backups = readdirSync(join(home, 'clone-backups'));
+    expect(backups).toEqual(['merge-2026-09-30T10-00-00.000Z']);
+    expect(existsSync(join(home, 'clone-backups', backups[0]!, 'uncommitted-fix.ts'))).toBe(true);
+    expect(existsSync(join(home, 'transcripts', session))).toBe(true);
+  });
+
+  it('offers the kept batch first while all its cards wait, even when older cards wait too', async () => {
+    await failOnce();
+    updateState(`${home}/state.json`, (state) => ({ ...state, landings: { merge: { ...state.landings.merge!, cards: [6], sources: [state.landings.merge!.sources[1]!] } } }));
+    cards = [card(5), card(6)];
+    await merge(fakeCtx(5));
+    expect(comments.filter((text) => text.includes('merged into dev')).map((text) => text.split(' ')[0])).toEqual(['6']);
   });
 });

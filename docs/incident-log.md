@@ -49,8 +49,8 @@ what: Screens ignored the UI design system: oversized buttons, wasted space, str
 cost: Many redesigns of screens, and mobile play stayed unusable across several releases.
 
 ID: R13
-what: Features did not work when played, though the post said they did: a scripted event that never fired, a blank portrait, story talk reachable from only one path, a follower that drove off, a new mode that crashed new games, and a garage grid drawn from the truck model whose own approval screenshot showed a broken bus, with guns drawn under armor, clipped parts and damage highlights off their parts. Look at every screenshot before posting it, and check layer order and highlight placement on every chassis. A build also went to approval with no browser check because the host was out of memory, so the committee was asked to do the testing.
-cost: This was the most common critique, players reported new modes broken after they shipped, the garage grid went back for a patch round over faults its own post showed, and the unchecked build went back for a patch round to be verified first.
+what: Features did not work when played, though the post said they did: a scripted event that never fired, a blank portrait, story talk reachable from only one path, a follower that drove off, a new mode that crashed new games, and a garage grid drawn from the truck model whose own approval screenshot showed a broken bus, with guns drawn under armor, clipped parts and damage highlights off their parts. Look at every screenshot before posting it, and check layer order and highlight placement on every chassis. A build also went to approval with no browser check because the host was out of memory, so the committee was asked to do the testing. The post's screenshots and text also failed to show what they claimed: a popup over the subject, a claim with no screenshot behind it, an atlas whose armor and guns hid the bare body the change was about, and a photo-versus-render sheet that labeled mismatched features as matches.
+cost: This was the most common critique, players reported new modes broken after they shipped, the garage grid went back for a patch round over faults its own post showed, the unchecked build went back for a patch round to be verified first, and the committee had to play builds just to learn what the screenshots should have shown.
 
 ID: R14
 what: Player text read like a machine wrote it: semicolons, riddles, filler phrases, item lore with empty rhetoric and no plain fact, wrong directions, NPCs repeating one story, and Russian that was stale or unnatural. A rewrite of a line the committee called confusing swapped one riddle for another, with a pronoun of unclear referent, a metaphor in place of the rule it stood for and a punchline that did not follow, so read each rewritten line cold and check that a stranger gets the plain fact. The opposite fault went back too: a checklist of tells written for AI chat was turned into rules applied word for word to fiction, with no room for the narrator or a character's voice to break them where the story needs it.
@@ -72,10 +72,6 @@ ID: R18
 what: Merges brought back an old version of a feature, or dropped a piece another card had added, like an icon or a panel.
 cost: Approved work vanished from the game, and urgent fixes went to main.
 
-ID: R19
-what: The post's screenshots and text did not show what they claimed: a popup over the subject, a claim with no screenshot behind it, a model atlas of the truck fitted with armor and guns that hid the bare body the change was about, or a photo-versus-render compare sheet that labeled mismatched features as matches.
-cost: The committee had to play builds just to learn what the screenshots should have shown, a model remake went back for a patch round only to get an unobstructed atlas, and the committee had to spell out that a compare sheet must not call a mismatch a match.
-
 ID: R20
 what: Proposals against the game's pillars reached a vote or a build: real-time driving and combat, map coordinates, waypoints and a compass, and activities that are not about trucks and the road.
 cost: Members vetoed them in the player chat, and one was built and then denied.
@@ -84,10 +80,22 @@ ID: R21
 what: Rendering went past the minimum WebGL 2 limits that many GPUs have: a ground shader that needed 17 texture units at night where 16 is the floor, and a texture sized from the map that needed more than 2048 texels on the largest map.
 cost: On most phones, Macs and Windows Chrome the ground vanished at night, a first fix brightened the moon instead, and one player could not start the game at all until a hotfix.
 
-ID: R22
-what: An agent ran two traffic harness runs at once, and each started one sim process per seed of about 1.4 GB. It stopped the runs with factory-job stop, but a vite-node process busy in a sim ignores that stop signal, and the agent never checked that the seeds ended. Six of them kept running beside the other jobs' tests and browsers on a host that was already short of memory.
-cost: The factory server ran out of memory and swap and froze for eleven hours, with Hermes, the dashboard and the public site down, until a person power-cycled it by hand.
-
 ID: R23
 what: A request to make a visual effect calmer and lighter was overdone until the effect was nearly gone: besides the asked-for lighter, larger and softer look, the build cut a number the request said to keep to a tenth of its value, and the committee was shown only that one result. When tuning a look, keep the effect plainly visible, change only the numbers the request names, and show the before and a middle step next to the result in video.
 cost: The committee could not see the effect at all, and the card went back for a patch round to record before, after and halfway videos for the committee to pick from.
+
+ID: R24
+what: Test and sim processes ran on the shared factory host with no memory cap and no check that they ended. Hermes ran the full game suite from a host shell with six workers, the cleanup then deleted the packages under it, and its orphaned workers grew to about 3 GB each. An agent ran six traffic sims of about 1.4 GB beside other jobs' checks and stopped them with a signal that a busy vite-node process ignores. Game tests run on the factory host only as targeted files with one worker, and a stopped job is confirmed gone by its process tree.
+cost: The factory server ran out of memory and swap and froze twice, once for eleven hours, with Hermes, the dashboard and the public site down until a person power-cycled it.
+
+ID: R25
+what: The factory read a check that ran out of time as machine noise and ran it again on the same commit. Test and playtest time limits were switched off in factory containers, so a hung playtest printed nothing until the 45-minute container limit, and the full suite outgrew its CI budget, so every run timed out and was dispatched again with its failed tests unread. A step that goes silent is a hang to diagnose, a timeout keeps the failures it saw, and an unchanged commit never runs the same check twice.
+cost: Merge jobs reran unchanged commits until their four-hour limit in about twenty-five merges, every merge failed for two days, release playtests burned hours of agent time on reruns, and dev took no green suite for three days while a hand push of cards checked only by their own tests left it red.
+
+ID: R26
+what: The cost of the game tests grew with the game and nobody owned it. About one test file in five builds a whole start world on the real map, files rebuilt map bakes, nav layers and quest states for each test, and each agent answered a slow test with a larger timeout instead of a cheaper setup. Time limits only ran on CI, so the agent who wrote a slow test never saw its cost.
+cost: Suite runs took 15 to 25 minutes on the factory and timed out on CI, cards waited hours for checks, single test files took minutes, and a test file outgrew the memory of a test worker.
+
+ID: R27
+what: Agents changed tests to make their own failure go away instead of finding which rule the test guards. Merge fixes cut seeds, rolls and turns to fit the CPU limit, golden values of world creation and loadout rolls were re-pinned to whatever the new code produced, and tests that read whichever truck or id the world happened to draw broke on every content change in files the change never touched. A pin that every content change re-pins guards nothing, and a cut sample hides the rare case it was there to catch.
+cost: Coverage fell with each merge fix, the same goldens were re-pinned about ten times, and merge batches spent rounds fixing tests other cards had made fragile.

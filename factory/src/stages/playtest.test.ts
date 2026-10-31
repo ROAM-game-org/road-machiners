@@ -43,7 +43,7 @@ const POOLS = { cpuLight: 0.125, cpuImplement: 0.375, cpuTest: 0.5, vitestWorker
 
 function setup(state: Partial<ReleaseState> = {}, start = 'abc1234'): Run {
   const f = fake();
-  f.ctx.cfg = { ...f.ctx.cfg, designModel: 'opus', playtestTurns: 100, playtestRuns: 3, gpu: true, suiteStartMinutes: 15, suitePollSeconds: 0, ...POOLS };
+  f.ctx.cfg = { ...f.ctx.cfg, designModel: 'opus', playtestTurns: 100, playtestRuns: 3, playtestReviewRepairs: 2, gpu: true, suiteStartMinutes: 15, suitePollSeconds: 0, ...POOLS };
   writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, ...state, playtest: { ...RELEASE.playtest, ...state.playtest } } });
   const run: Run = {
     f, shells: [], prompts: [], sessions: [], releaseHead: start, cloneHead: start, turns: [], checkFailures: 0, dirty: '', pushFails: false, mainMerged: true, passedAncestor: true,
@@ -154,6 +154,15 @@ describe('playtest', () => {
     expect(harnessRuns(run).map((shell) => shell.pin)).toEqual([undefined, undefined]);
   });
 
+  it('dispatches the full sha of the release head, though the release tracks it abbreviated', async () => {
+    const run = setup();
+    run.turns = [clean];
+    run.f.ctx.repo.fullHash = async (commit: string) => commit.padEnd(40, 'f');
+    await playtest(run.f.ctx, 11);
+    expect(run.suites).toEqual(['abc1234'.padEnd(40, 'f')]);
+    expect(run.suites[0]).toMatch(/^abc1234[0-9a-f]{33}$/);
+  });
+
   it('gives a failed release suite to the agent after the first play, then checks its fix on GitHub Actions', async () => {
     const run = setup();
     run.failingSuites = ['abc1234'];
@@ -190,6 +199,7 @@ describe('playtest', () => {
     await playtest(run.f.ctx, 11);
     expect(harnessRuns(run).map((shell) => /--sha (\S+)/.exec(shell.script)?.[1])).toEqual(['abc1234', 'main001', 'fix0001']);
     expect(run.prompts[1]).toContain('commit fix0001');
+    expect(run.prompts[1]).toContain('`.factory/playtest.json` has exactly this shape.');
     expect(run.sessions[0]).toMatchObject({ resume: false });
     expect(run.sessions[1]).toEqual({ ...run.sessions[0], resume: true });
     expect(checkRuns(run)).toHaveLength(1);
@@ -332,6 +342,28 @@ describe('playtest', () => {
     expect(comments(run.f)[0]).toContain('The release is blocked');
   });
 
+  it('logs the minutes of the release and the baseline seed runs, so a slow run shows in the playtest log', async () => {
+    const run = setup();
+    let clock = Date.parse('2026-10-30T18:48:00Z');
+    run.f.ctx.now = () => new Date(clock);
+    const shell = run.f.ctx.container.shell;
+    run.f.ctx.container.shell = async (kind: ShellKind, clone: string, script: string, log: string) => {
+      await shell(kind, clone, script, log);
+      if (script.includes('Playing the release seed')) clock += 56 * 60_000;
+    };
+    run.turns = [clean];
+    await playtest(run.f.ctx, 11);
+    expect(run.f.logs).toContain('playtest 11 Playing the release seed at abc1234 took 56 minutes with npm ci');
+    expect(run.f.logs.some((line) => /^playtest 11 Playing the baseline seed at main001 took \d+ minutes with npm ci$/.test(line))).toBe(true);
+  });
+
+  it('logs the minutes of a seed run that failed, since the slowest runs are the ones that hit a limit', async () => {
+    const run = setup();
+    run.f.ctx.container.shell = async () => { throw new Error('the checks timed out'); };
+    await expect(playtest(run.f.ctx, 11)).rejects.toThrow('the checks timed out');
+    expect(run.f.logs).toContain('playtest 11 Playing the release seed at abc1234 failed 0 minutes with npm ci');
+  });
+
   it('blocks a clean verdict of a run that ended in an error', async () => {
     const run = setup();
     const shell = run.f.ctx.container.shell;
@@ -362,8 +394,61 @@ describe('playtest', () => {
     await expect(playtest(harness.f.ctx, 11)).rejects.toThrow('wrote no playtest log at');
     expect(release(harness.f).playtest.runs).toBe(1);
     const agent = setup();
-    await expect(playtest(agent.f.ctx, 11)).rejects.toThrow('wrote no .factory/playtest.json');
+    await expect(playtest(agent.f.ctx, 11)).rejects.toThrow('still breaks its rules after 2 repairs:\nThe playtest agent wrote no .factory/playtest.json');
+    expect(agent.prompts).toHaveLength(3);
     expect(release(agent.f).playtest).toMatchObject({ runs: 1, passed: null });
+  });
+
+  it('counts plays per job, so plays of earlier jobs never read as spent plays of this one', async () => {
+    const run = setup({ playtest: { ...RELEASE.playtest, runs: 3 } });
+    run.turns = [fixed('fix0001'), clean];
+    await playtest(run.f.ctx, 11);
+    expect(run.prompts[0]).toContain('This is play 1 of at most 3 in this job.');
+    expect(run.prompts[1]).toContain('This is play 2 of at most 3 in this job.');
+    const history = readFileSync(join(HOME, 'playtest-history.md'), 'utf8');
+    expect(history).toContain('# Plays of earlier jobs on this release\nTheir run numbers count across the release. They count toward no play limit of this job.\n- run 1: no record');
+    expect(release(run.f).playtest).toMatchObject({ runs: 5, passed: 'fix0001' });
+  });
+
+  it('writes the review rules with the baseline for the agent to read again before it writes the review', async () => {
+    const run = setup();
+    run.turns = [clean];
+    await playtest(run.f.ctx, 11);
+    const rules = readFileSync(join(HOME, 'playtest-review.md'), 'utf8');
+    expect(rules).toContain('`git diff main001...HEAD`');
+    expect(rules).toContain('"severity": "important" | "minor"');
+    expect(run.prompts[0]).toContain(rules.trim());
+    expect(run.prompts[0]).toContain('Read `.factory/playtest-review.md` again right before you write `.factory/playtest.json`');
+  });
+
+  it('sends a review that breaks its rules back to the same session with every error and the rules, and plays nothing again', async () => {
+    const run = setup();
+    const broken = review({ findings: [{ ...releaseBug, severity: 'medium' as 'minor', fixed: 'abc' as unknown as boolean }], fixes: [{ commit: 'x' } as unknown as string] });
+    run.turns = [{ review: broken }, clean];
+    const onDisk: string[] = [];
+    const agent = run.f.ctx.container.agent;
+    run.f.ctx.container.agent = async (agentRun: AgentRun) => {
+      if (agentRun.prompt.includes('could not read')) onDisk.push(readFileSync(join(HOME, 'playtest.json'), 'utf8'));
+      return agent(agentRun);
+    };
+    await playtest(run.f.ctx, 11);
+    expect(run.prompts).toHaveLength(2);
+    expect(run.prompts[1]).toContain('- The fixes list holds an item that is not a string\n- Finding F1 has severity medium, not important or minor\n- Finding F1 has fixed abc, not true or false');
+    expect(run.prompts[1]).toContain('Never pick `minor` or `old` only to make the file read.');
+    expect(run.prompts[1]).toContain(readFileSync(join(HOME, 'playtest-review.md'), 'utf8').trim());
+    expect(onDisk).toEqual([broken]);
+    expect(run.sessions[1]).toEqual({ ...run.sessions[0], resume: true });
+    expect(harnessRuns(run)).toHaveLength(2);
+    expect(release(run.f).playtest).toMatchObject({ runs: 1, passed: 'abc1234', blocked: null });
+  });
+
+  it('fails with every error left when the review still breaks its rules after the repairs, and spends no other play', async () => {
+    const run = setup();
+    run.turns = [{ review: review({ findings: [{ ...releaseBug, severity: 'medium' as 'minor', cause: 'both' as 'old' }] }) }, {}, {}];
+    await expect(playtest(run.f.ctx, 11)).rejects.toThrow('The playtest review still breaks its rules after 2 repairs:\nFinding F1 has severity medium, not important or minor\nFinding F1 has cause both, not release or old');
+    expect(run.prompts).toHaveLength(3);
+    expect(harnessRuns(run)).toHaveLength(2);
+    expect(release(run.f).playtest).toMatchObject({ runs: 1, passed: null });
   });
 
   it('plays nothing and spends no play when the clone is not at the release head it read, so the audit never names the wrong commit', async () => {

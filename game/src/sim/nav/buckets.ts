@@ -1,4 +1,3 @@
-// A uniform grid over blockers by their circles, so a line check reads only the blockers near its segment.
 
 import { boxSegmentDistance, type PosedBox } from '../mapgen';
 import { segmentDist, type Vec } from '../vec';
@@ -29,7 +28,8 @@ export class ObstacleBuckets<B extends Blocker = Blocker> {
   }
 
   alongSegment(a: Vec, b: Vec, reach: number): B[] {
-    const out = this.outside.slice();
+    const out: B[] = [];
+    for (const o of this.outside) if (mayTouch(o, a, b, reach)) out.push(o);
     const pad = reach + this.maxR;
     const lim = pad + HALF_DIAG;
     const x0 = Math.max(0, Math.floor((Math.min(a.x, b.x) - pad) / BUCKET));
@@ -41,9 +41,9 @@ export class ObstacleBuckets<B extends Blocker = Blocker> {
         const cell = this.cells[by * this.cols + bx];
         if (cell.length === 0) continue;
         if (segmentDist({ x: (bx + 0.5) * BUCKET, y: (by + 0.5) * BUCKET }, a, b) > lim) continue;
-        for (const o of cell) out.push(o);
+        for (const o of cell) if (mayTouch(o, a, b, reach)) out.push(o);
       }
-    return out.filter((o) => mayTouch(o, a, b, reach));
+    return out;
   }
 }
 

@@ -3,12 +3,12 @@ import type { TruckPaint } from '../../data/chassis';
 import { partDef } from '../../data/parts';
 import { paintOf } from '../../render/palette';
 import { wearLookStep } from '../../render/partLooks';
-import { cellSteps, spanOf } from '../../sim/body';
+import { cellRect, cellSteps, spanOf, unitsOf } from '../../sim/body';
 import { baseGrid, itemCells, layerOf, mountCellsOf, mountSpots, type Spot } from '../../sim/grid';
 import type { GridItem, PartInstance, Vehicle } from '../../sim/types';
 import { OPAQUE_ALPHA, flipRows, linearToSrgb, unpremultiply } from './portraitPixels';
 import { canvasOf, captureColor, glassMeshes, hideOutlines, litScene, neutralizeReds, poseAtRest, sheenGlass, withRendererState, type PortraitWait } from './truckPortrait';
-import { VehicleView, type RebuildBudget } from './vehicle';
+import { hidesInside, VehicleView, type RebuildBudget, type ViewScene } from './vehicle';
 
 export const GARAGE_PX_PER_METER = 128;
 export const GARAGE_MAX_SIDE = 2048;
@@ -19,7 +19,8 @@ const SPRITE_PAD_M = 0.06;
 const CAMERA_HEIGHT = 40;
 const KEEP_SPRITES = 4000;
 
-export type GarageSprite = { url: string; left: number; top: number; width: number; height: number };
+export type GaragePivot = { x: number; y: number };
+export type GarageSprite = { url: string; left: number; top: number; width: number; height: number; pivot?: GaragePivot };
 
 const NOTHING_DRAWN: GarageSprite = { url: '', left: 0, top: 0, width: 0, height: 0 };
 export type GarageBody = { image: GarageSprite; cores: ReadonlyMap<string, GarageSprite> };
@@ -39,11 +40,6 @@ export function isCore(part: PartInstance): boolean {
   return partDef(part.defId).kind === 'core';
 }
 
-function isCab(part: PartInstance): boolean {
-  const def = partDef(part.defId);
-  return def.kind === 'core' && def.role === 'cab';
-}
-
 function paintKey(truck: Vehicle, paint: TruckPaint): string {
   const colors = paintOf(truck, paint);
   return `${colors.body}|${colors.cab}|${colors.gear}`;
@@ -51,6 +47,30 @@ function paintKey(truck: Vehicle, paint: TruckPaint): string {
 
 function partLook(part: PartInstance): string {
   return `${part.defId}#${part.id}:${wearLookStep(part)}`;
+}
+
+function isCab(part: PartInstance): boolean {
+  const def = partDef(part.defId);
+  return def.kind === 'core' && def.role === 'cab';
+}
+
+export type AlongTruck = { min: number; max: number };
+
+export function cabWindow(truck: Vehicle, item: PartItem, glass: readonly Drawn[]): AlongTruck {
+  const rect = cellRect(truck.chassisId, itemCells(item));
+  const offset = unitsOf(truck.chassisId)[rect.unit].offset;
+  const window = { min: rect.x0 + offset, max: rect.x1 + offset };
+  for (const mesh of glass) {
+    if (mesh.userData.partId !== item.part.id) continue;
+    const box = new THREE.Box3().setFromObject(mesh);
+    window.min = Math.min(window.min, box.min.x);
+    window.max = Math.max(window.max, box.max.x);
+  }
+  return window;
+}
+
+export function narrowedTo(frame: Frame, along: AlongTruck): Frame {
+  return { ...frame, top: Math.min(frame.top, along.max), bottom: Math.max(frame.bottom, along.min) };
 }
 
 export function coreItems(truck: Vehicle): PartItem[] {
@@ -99,9 +119,10 @@ export function packPlacements(chassisId: string, placements: readonly Placement
 }
 
 export function gridOrigin(chassisId: string): { x: number; z: number } {
-  const { center, half } = spanOf(chassisId);
+  const { center } = spanOf(chassisId);
+  const { w, h } = baseGrid(chassisId);
   const step = cellSteps(chassisId);
-  return { x: center + half.x + step.row, z: -half.z - step.col };
+  return { x: center + ((h - 2) * step.row) / 2 + step.row, z: -((w - 2) * step.col) / 2 - step.col };
 }
 
 function drawnMeshes(root: THREE.Object3D): Drawn[] {
@@ -192,16 +213,25 @@ function* shoot(pass: Pass, root: THREE.Object3D, frame: Frame, origin: { x: num
   }
 }
 
-function* alone(pass: Pass, view: VehicleView, meshes: readonly Drawn[], partId: string, origin: { x: number; z: number }, mates: ReadonlySet<string> = new Set()): Generator<PortraitWait, GarageSprite | null, void> {
-  const own = meshes.filter((m) => m.userData.partId === partId);
-  const frame = frameOf(own, SPRITE_PAD_M);
-  if (!frame) return null;
-  const originals = meshes.map((m) => [m, m.material, m.visible] as const);
+function spriteFrame(meshes: readonly Drawn[], partId: string, along: AlongTruck | null): Frame | null {
+  const whole = frameOf(meshes.filter((m) => m.userData.partId === partId), SPRITE_PAD_M);
+  const frame = whole && along ? narrowedTo(whole, along) : whole;
+  return frame && frame.top > frame.bottom ? frame : null;
+}
+
+function clearAround(pass: Pass, meshes: readonly Drawn[], partId: string, hidden: boolean, mates: ReadonlySet<string>): void {
   for (const mesh of meshes) {
     if (mesh.userData.partId === partId) continue;
-    if (mesh.material.transparent || mates.has(mesh.userData.partId)) mesh.visible = false;
+    if (hidden || mesh.material.transparent || mates.has(mesh.userData.partId)) mesh.visible = false;
     else mesh.material = pass.occluder;
   }
+}
+
+function* alone(pass: Pass, view: VehicleView, meshes: readonly Drawn[], partId: string, origin: { x: number; z: number }, along: AlongTruck | null, hidden = false, mates: ReadonlySet<string> = new Set()): Generator<PortraitWait, GarageSprite | null, void> {
+  const frame = spriteFrame(meshes, partId, along);
+  if (!frame) return null;
+  const originals = meshes.map((m) => [m, m.material, m.visible] as const);
+  clearAround(pass, meshes, partId, hidden, mates);
   try {
     return yield* shoot(pass, view.root, snapped(frame, origin), origin);
   } finally {
@@ -217,8 +247,8 @@ const ONE_STEP = (): RebuildBudget => {
   return { take: () => !spent && (spent = true), ready: () => true };
 };
 
-function* builtView(truck: Vehicle, paint: TruckPaint, trash: { dispose(): void }[]): Generator<PortraitWait, { view: VehicleView; meshes: Drawn[] }, void> {
-  const view = new VehicleView(null, false, paint, 'portrait');
+function* builtView(truck: Vehicle, paint: TruckPaint, trash: { dispose(): void }[], scene: ViewScene = 'portrait'): Generator<PortraitWait, { view: VehicleView; meshes: Drawn[] }, void> {
+  const view = new VehicleView(null, false, paint, scene);
   trash.push(view);
   while (!view.built) {
     view.update(truck, false, paint, ONE_STEP());
@@ -247,27 +277,56 @@ function* bodySteps(pass: Pass, job: BodyJob, store: GarageStore, trash: { dispo
   if (!frame) throw new Error(`The bare ${job.chassisId} drew no meshes`);
   const image = yield* shoot(pass, view.root, snapped(frame, origin), origin);
   const cores = yield* coreSprites(pass, view, meshes, bare, origin);
+  const hidden = bare.items.filter((item): item is PartItem => item.kind === 'part' && hidesInside(bare, item));
+  if (hidden.length) {
+    const xray = yield* builtView(bare, job.paint, trash, 'xray');
+    for (const item of hidden) {
+      const sprite = yield* alone(pass, xray.view, xray.meshes, item.part.id, origin, null, true);
+      if (!sprite?.url) throw new Error(`The hidden ${item.part.defId} of the ${bare.chassisId} drew no pixels`);
+      cores.set(item.part.id, sprite);
+    }
+  }
   store.putBody(job.key, job.chassisId, { image, cores });
 }
 
 function* coreSprites(pass: Pass, view: VehicleView, meshes: readonly Drawn[], bare: Vehicle, origin: { x: number; z: number }): Generator<PortraitWait, Map<string, GarageSprite>, void> {
   const cores = new Map<string, GarageSprite>();
   for (const item of bare.items) {
-    if (item.kind !== 'part' || isCab(item.part)) continue;
-    const sprite = yield* alone(pass, view, meshes, item.part.id, origin);
+    if (item.kind !== 'part') continue;
+    const sprite = yield* coreSprite(pass, view, meshes, bare, item, origin);
     if (sprite?.url) cores.set(item.part.id, sprite);
   }
   return cores;
 }
 
+function* coreSprite(pass: Pass, view: VehicleView, meshes: readonly Drawn[], bare: Vehicle, item: PartItem, origin: { x: number; z: number }): Generator<PortraitWait, GarageSprite | null, void> {
+  if (!isCab(item.part)) return yield* alone(pass, view, meshes, item.part.id, origin, null);
+  const sprite = yield* alone(pass, view, meshes, item.part.id, origin, cabWindow(bare, item, glassMeshes([...meshes])));
+  if (!sprite?.url) throw new Error(`The ${bare.chassisId} cab drew no pixels of its own`);
+  return sprite;
+}
+
+export function pivotOf(point: { x: number; z: number }, origin: { x: number; z: number }): GaragePivot {
+  return { x: point.z - origin.z, y: origin.x - point.x };
+}
+
+function pivoted(sprite: GarageSprite, view: VehicleView, item: PartItem, origin: { x: number; z: number }): GarageSprite {
+  if (!sprite.url || partDef(item.part.defId).kind !== 'weapon') return sprite;
+  return { ...sprite, pivot: pivotOf(view.partPoint(item.part.id), origin) };
+}
+
 function* batchSteps(pass: Pass, job: BatchJob, store: GarageStore, trash: { dispose(): void }[]): Generator<PortraitWait, void, void> {
   const truck: Vehicle = { ...job.truck, items: [...coreItems(job.truck), ...job.placements.map((p) => p.item)] };
-  const { view, meshes } = yield* builtView(truck, job.paint, trash);
   const origin = gridOrigin(job.chassisId);
   const mates = new Set(job.placements.map((p) => p.item.part.id));
-  for (const placement of job.placements) {
-    const sprite = yield* alone(pass, view, meshes, placement.item.part.id, origin, mates);
-    store.putSprite(placement.key, placement.loose, sprite ?? NOTHING_DRAWN);
+  for (const hidden of [false, true]) {
+    const placements = job.placements.filter((p) => hidesInside(truck, p.item) === hidden);
+    if (!placements.length) continue;
+    const { view, meshes } = yield* builtView(truck, job.paint, trash, hidden ? 'xray' : 'portrait');
+    for (const placement of placements) {
+      const sprite = yield* alone(pass, view, meshes, placement.item.part.id, origin, null, hidden, mates);
+      store.putSprite(placement.key, placement.loose, sprite ? pivoted(sprite, view, placement.item, origin) : NOTHING_DRAWN);
+    }
   }
 }
 

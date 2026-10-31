@@ -1,11 +1,11 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { AgentRun, Ctx } from '../types';
-import { markResumed } from '../sessions';
+import type { AgentRun, Ctx, FactoryConfig } from '../types';
+import { markResumed, markTimedOut } from '../sessions';
 import { EMPTY_STATE, writeState } from '../state';
 import { solidPng } from '../media-fixtures';
 import { factoryPaths } from '../diff-guard';
-import { RESUME_NOTE, agentHome, baseBranchFor, baseBranchOf, fillPrompt, modelFor, prepareOutputs, runAgent } from './common';
+import { RESUME_NOTE, agentHome, baseBranchFor, browserRule, baseBranchOf, fillPrompt, modelFor, playtestCommand, prepareOutputs, runAgent } from './common';
 
 function agentCtx(labels: string[], body = '', comments: { login: string; body: string }[] = [], fetchFn?: typeof fetch): { ctx: Ctx; runs: AgentRun[]; logs: string[] } {
   const runs: AgentRun[] = [];
@@ -68,6 +68,30 @@ describe('runAgent sessions', () => {
     expect(marked.runs[0].session).toEqual({ dir: `${HOME}/sessions/issue-7`, id: runs[0].session?.id, resume: true });
     expect(marked.logs).toContain(`resuming round implement, session ${runs[0].session?.id}`);
     expect(logs).toHaveLength(2);
+  });
+
+  it('tells a session resumed after a timeout the time limit, when this run stops and that a second timeout fails', async () => {
+    const { ctx, runs } = markedCtx([]);
+    await runAgent(ctx, 7, 'implement', 'implement', 'p');
+    saved(runs[0]);
+    const marked = markedCtx([7]);
+    markTimedOut(HOME, 7, 200);
+    marked.ctx.statePath = `${HOME}/state.json`;
+    writeState(marked.ctx.statePath, { ...EMPTY_STATE, jobs: [{ id: 'implement-7', stage: 'implement', issue: 7, pid: 1, startedAt: '2026-10-30T16:11:26.000Z', log: '/l.log' }] });
+    await runAgent(marked.ctx, 7, 'implement', 'implement', 'p');
+    expect(marked.runs[0].prompt).toMatch(new RegExp(`^${RESUME_NOTE.replace(/[.]/g, '\\.')}\n\n`));
+    expect(marked.runs[0].prompt).toContain('the last run passed 200 minutes. This run has the same 200 minutes and stops at 2026-10-30T19:31:26.000Z. A second timeout fails the job');
+  });
+
+  it('refuses a timeout note when no card job of the issue runs, instead of guessing when the run stops', async () => {
+    const { ctx, runs } = markedCtx([]);
+    await runAgent(ctx, 7, 'implement', 'implement', 'p');
+    saved(runs[0]);
+    const marked = markedCtx([7]);
+    markTimedOut(HOME, 7, 200);
+    marked.ctx.statePath = `${HOME}/state.json`;
+    writeState(marked.ctx.statePath, EMPTY_STATE);
+    await expect(runAgent(marked.ctx, 7, 'implement', 'implement', 'p')).rejects.toThrow('no card job of it runs now');
   });
 
   it('gives a round with no stored session the full prompt, so a later round of a resumed job starts fresh', async () => {
@@ -229,7 +253,7 @@ describe('runAgent reference images', () => {
 });
 
 describe('stage prompts for reference images', () => {
-  const vars = { issue: '7', taskFile: 'f', branch: 'b', baseNote: 'n', task: 'Play it.', playtest: 'npm run playtest', bugExpansion: '', kind: '' };
+  const vars = { issue: '7', taskFile: 'f', branch: 'b', baseNote: 'n', task: 'Play it.', playtest: 'npm run playtest', browser: 'Draw on the GPU.', bugExpansion: '', kind: '' };
 
   it('tell every stage to read the images and what a missing one means', () => {
     for (const name of ['triage', 'design', 'implement', 'test']) {
@@ -286,6 +310,32 @@ describe('fillPrompt', () => {
 
   it('throws on an unfilled variable', () => {
     expect(() => fillPrompt('design', { issue: '7' })).toThrow('unfilled {{');
+  });
+});
+
+describe('browserRule', () => {
+  it('sends every browser run to the GPU when the host has one, since software drawing starved the release playtest', () => {
+    const rule = browserRule({ gpu: true } as FactoryConfig);
+    expect(rule).toContain('When you run the playtest, run it as `npm run playtest -- --no-fps-gate`.');
+    expect(rule).toContain('`launchChromium()` from `scripts/gpu.mjs`, never with SwiftShader flags or with no flags');
+    expect(rule).toContain('A NO GPU warning means Chromium fell back to software here. Stop that run');
+    expect(rule).not.toContain('--cpu');
+  });
+
+  it('tells an agent on a host with no GPU that its browser runs draw in software, and still names the launcher', () => {
+    const rule = browserRule({ gpu: false } as FactoryConfig);
+    expect(rule).toContain('every browser run draws in software and prints a NO GPU warning');
+    expect(rule).toContain('`npm run playtest -- --no-fps-gate`');
+    expect(rule).toContain('`launchChromium()`');
+    expect(rule).not.toContain('--cpu');
+  });
+});
+
+describe('playtestCommand', () => {
+  it('keeps the frame rate gate only where a GPU can measure it, since the playtest fails the gate in software', () => {
+    expect(playtestCommand({ gpu: true } as FactoryConfig, true)).toBe('npm run playtest');
+    expect(playtestCommand({ gpu: true } as FactoryConfig, false)).toBe('npm run playtest -- --no-fps-gate');
+    expect(playtestCommand({ gpu: false } as FactoryConfig, true)).toBe('npm run playtest -- --no-fps-gate');
   });
 });
 

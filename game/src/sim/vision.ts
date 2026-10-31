@@ -3,7 +3,8 @@ import { PHYSICS } from '../data/physics';
 import { TERRAIN } from '../data/terrain';
 import { TIME } from '../data/time';
 import type { Contact, Obstacle, Vehicle, World } from './types';
-import { heightAt, type Terrain } from './terrain';
+import { groundAt, heightAt, type Terrain } from './terrain';
+import { anyDeckBox, decksOf } from './bridge';
 import { boxDistance, propReach, reachableBoxes, stretchCrossesBox } from './mapgen';
 import { isCheapMeeting, isHeadless } from './fidelity';
 import { propsAlong, propsAround } from './prop-index';
@@ -180,9 +181,12 @@ function leaveHeights(line: SightLine, lo: number, hi: number): number {
 export function clearOverTerrain(terrain: Terrain, line: SightLine): boolean {
   const { a, b, from, to } = line;
   const n = Math.ceil(dist(a, b) * TERRAIN.vision.samplesPerTile);
+  const overDeck = anyDeckBox(decksOf(terrain.atlas), Math.min(a.x, b.x), Math.min(a.y, b.y), Math.max(a.x, b.x), Math.max(a.y, b.y));
   for (let i = 1; i < n; i++) {
     const t = i / n;
-    const ground = heightAt(terrain, a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
+    const x = a.x + (b.x - a.x) * t;
+    const y = a.y + (b.y - a.y) * t;
+    const ground = overDeck ? heightAt(terrain, x, y) : groundAt(terrain, x, y);
     if (ground > from + (to - from) * t) return false;
   }
   return true;

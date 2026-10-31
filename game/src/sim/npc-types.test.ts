@@ -12,7 +12,7 @@ import { addGoods } from './inventory';
 import { huntingGrounds, optionChances, optionWeights, raiderGrounds, raiderPatrolPosts } from './npc-decisions';
 import { resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
 import { siteGates, sitePads } from './sites';
-import { fallbackFaction, spawnInitial, spawnNpcs } from './spawn';
+import { fallbackFaction, spawnInitial, spawnNpcs, spawnQueueNow } from './spawn';
 import { addVehicle, emptyWorld, finishBusiness, forceOption, npcBrain } from './testkit';
 import { TEST_MAP } from '../test/map';
 import { tileAt } from './terrain';
@@ -266,6 +266,7 @@ describe('spawns of the new templates', () => {
   it('put patrols at their own town and mercs at a town', () => {
     const w = emptyWorld({ x: 300, y: 300 });
     spawnInitial(w);
+    spawnQueueNow(w);
     const gateNear = (v: Vehicle, id: string) => siteGates(siteById(id)).some((g) => dist(g, v.pos) <= SPAWN.gateSpread + 3);
     const of = (id: string) => w.vehicles.filter((v) => v.brain?.templateId === id);
     expect(of('bowlFarmer').length).toBeGreaterThan(0);
@@ -279,6 +280,7 @@ describe('spawns of the new templates', () => {
   it('spawns a guard beside each new convoy', () => {
     const w = emptyWorld({ x: 300, y: 300 });
     spawnInitial(w);
+    spawnQueueNow(w);
     const convoys = w.vehicles.filter((v) => v.brain?.templateId === 'convoy');
     const guards = w.vehicles.filter((v) => v.brain?.templateId === 'convoyGuard');
     expect(convoys.length).toBeGreaterThan(0);

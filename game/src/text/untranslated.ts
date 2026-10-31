@@ -13,9 +13,17 @@ const SVG = 'Static SVG markup of an icon, with no words in it.';
 const MIGRATION_LABEL = 'A label inside a save migration error, which only the console and a bug report show.';
 const MONEY_LABEL = 'A label inside a whole-M money error, which only the console and a bug report show.';
 const SETTING_LABEL = 'A label inside a setup parse error, which only the console and a bug report show.';
+const SAVE_STEP_LOG = 'A part of a console warning the square grid save step logs for each part it moves, which only a bug report shows.';
+const SAVE_STEP_FILE = 'src/three/save-step-square-grid.ts';
 const SAVE_DB_ERROR = 'An error message of the save database, which only the console and a bug report show.';
 
 export const UNTRANSLATED: readonly Untranslated[] = [
+  { file: SAVE_STEP_FILE, text: 'its nearest spot is taken', reason: SAVE_STEP_LOG },
+  { file: SAVE_STEP_FILE, text: 'its nearest spot is not legal for it', reason: SAVE_STEP_LOG },
+  { file: SAVE_STEP_FILE, text: 'turned from rotation   to   and moved to  , , since it fits nowhere in its own rotation', reason: SAVE_STEP_LOG },
+  { file: SAVE_STEP_FILE, text: 'moved from nearest spot  ,  to  , :  ', reason: SAVE_STEP_LOG },
+  { file: SAVE_STEP_FILE, text: 'fits nowhere on the square grid and went to player storage', reason: SAVE_STEP_LOG },
+  { file: SAVE_STEP_FILE, text: 'fits nowhere on the square grid and was dropped', reason: SAVE_STEP_LOG },
   { file: 'src/sim/progression/sim-cards.ts', text: '*', reason: DEV_SIM },
   { file: 'src/sim/progression/sim-mode.ts', text: '*', reason: DEV_SIM },
   { file: 'src/three/sim-worker.ts', text: '*', reason: DEV_SIM },

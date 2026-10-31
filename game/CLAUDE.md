@@ -52,6 +52,7 @@ Art and sound, in `docs/art/`:
 Reference:
 
 - [Tools](docs/tools.md): command flags, config, browser checks, debug console and perf timers.
+- [Testing](docs/testing.md): the rules every test follows.
 - [Publishing](docs/publishing.md), [Wiki](docs/wiki/README.md).
 
 ## Commands
@@ -60,7 +61,7 @@ Run these from `game/`. The repo-wide quality gate and pre-commit hook run from 
 
 - `npm run dev` starts the game at <http://localhost:5173>.
 - `npm test` runs every Vitest test in `src/`. `npm run typecheck` runs tsc.
-- `npm run test:cached -- --cache <dir> [test files] [--related <files>]`, with `--related` last, skips every test file whose imports, disk reads and global inputs already passed there, and prints `[test-cache] ran N, skipped M, uncacheable K`. It records each file's pass as the file finishes, so a killed run keeps them. With `TEST_STALL_MINUTES` set, it stops a run in which no test finished for that many minutes and names the tests still running. `--related` runs only the test files that are among those files or import one of them, directly or through other modules, so a test that only reads a file from disk is not selected. The factory checks run it with `--related` and the game files a change touches, and no `--cache`, and the full suite on GitHub Actions runs it with neither. A corrupt or old-format entry counts as no pass, so its test file runs. A run in which every test passed and the only unhandled errors are Vitest's worker RPC timeouts on `onTaskUpdate` passes with one line saying so. Any other unhandled error fails it.
+- `npm run test:cached -- --cache <dir> [test files] [--related <files>]`, with `--related` last, skips every test file whose imports, disk reads and global inputs already passed there, and prints `[test-cache] ran N, skipped M, uncacheable K`. It records each pass as the file finishes, so a killed run keeps them. With `TEST_STALL_MINUTES` set, it stops a run in which no test finished for that many minutes and names the tests still running. `--related` runs only the test files among those files or importing one, directly or through other modules, so a test that only reads a file from disk is not selected. The factory checks run it with `--related` and the changed game files, and the full suite on GitHub Actions runs it with neither. A corrupt or old-format entry counts as no pass. A run where every test passed passes despite Vitest worker RPC timeouts on `onTaskUpdate`, and fails on any other unhandled error.
 - `npm run playtest` plays turns in headless Chromium and fails on errors or low FPS. It needs the dev server. Without a GPU it warns and plays in software, which needs `--no-fps-gate`. The factory uses it everywhere but the release candidate, since its host runs many jobs at once.
 - `npm run stuck` records a trader bot for 2 seeds of 500 turns and fails on any stall from any truck. Run it after changes to NPC goals, services or tows.
 - `npm run progression:record`, `progression:report`, `progression:analyze` and `progression:watch` are the playtest harness. Bots play the real turn pipeline headless with every NPC alive, and each run writes logs of every turn. It covers economy, progression, NPC behavior and fights at the macro level. `progression:playthrough` writes the full activity log of one markov bot run, which the factory's release playtest reads. `npm run sim` opens simulation mode, which plays that run in the browser and shows every truck on the 2D map, the full event log and any truck's card.
@@ -137,6 +138,7 @@ Read the project-local skills before related work:
 - Find the existing code that does the same kind of thing, and match everything it handles. A new way to end a deal must settle money, states and goals like the old ways.
 - Tests check the side effects of a change, not only the behavior you asked for.
 - Every sim rule change gets a Vitest test.
+- Read [Testing](docs/testing.md) before you write, speed up or fix a test. Many older tests break its rules, so never copy their setup.
 - After render or game changes, run `npm run playtest`.
 - Playtest game behavior with the progression recorder, not by hand or in the browser. Record the bots that meet the change, then read the report and the analyzer before you draw a conclusion. A 3-seed 5-day batch takes about 10 minutes per bot, so run it in the background with a log. [Tools](docs/tools.md) has the flags.
 - Use a Playwright script in `tmp/` on the real GPU only for what the screen shows: UI, rendering and screenshots. [Tools](docs/tools.md#browser-checks) describes it. The game is on `window.__ROAM__` in dev.

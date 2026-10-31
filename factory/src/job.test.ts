@@ -103,7 +103,7 @@ describe('runJob', () => {
       expect(state.interrupted).toEqual([]);
       expect(state.failures).toMatchObject([{ stage: 'verify', issue: 4 }]);
       expect(labels).toEqual(['factory-stuck']);
-      expect(existsSync(join(ROOT, 'sessions', 'issue-4'))).toBe(false);
+      expect(resumedStage(ROOT, 4)).toBe('verify');
     });
 
     it('goes to Hermes at once on an empty budget or a question for the committee', async () => {
@@ -270,10 +270,20 @@ describe('runJob', () => {
       expect(existsSync(sessions(9))).toBe(true);
     });
 
-    it('keeps the sessions of a marked issue for the stage that died, and clears them with the mark at the end', async () => {
+    it('keeps the sessions of a marked issue for the stage that died, and keeps them again when the resumed stage fails', async () => {
       expect(await run('design', 7, [7], 'design')).toEqual([true]);
-      expect(existsSync(sessions(7))).toBe(false);
+      expect(existsSync(sessions(7))).toBe(true);
+      expect(resumedStage(ROOT, 7)).toBe('design');
       expect(readState(join(ROOT, 'state.json')).interrupted).toEqual([]);
+    });
+
+    it('resumes the sessions a failed stage kept on its next start, with no mark in interrupted', async () => {
+      expect(await run('design', 7, [], 'design')).toEqual([true]);
+    });
+
+    it('keeps the sessions of a stage that failed after a fresh start, for its next start', async () => {
+      expect(await run('design', 7, [])).toEqual([false]);
+      expect(resumedStage(ROOT, 7)).toBe('design');
     });
 
     it('starts new when the card moved on to another stage after the death', async () => {

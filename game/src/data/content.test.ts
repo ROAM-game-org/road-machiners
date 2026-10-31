@@ -341,14 +341,16 @@ describe("armor in 1 and 2 cells", () => {
     const one = PARTS[id];
     const two = PARTS[ARMOR_LINES[id]];
     if (one.kind !== "armor" || two.kind !== "armor") throw new Error(`${id} and its line must be armor`);
+    expect([one.bulk.w, one.bulk.h]).toEqual([1, 1]);
+    expect([two.bulk.w, two.bulk.h]).toEqual([1, 2]);
     expect([one.w, one.h]).toEqual([1, 1]);
-    expect([two.w, two.h]).toEqual([1, 2]);
+    expect([two.w, two.h]).toEqual([1, 3]);
     expect([one.armor, one.look]).toEqual([two.armor, two.look]);
   });
 
   it("makes every armor part 1 or 2 cells and gives every armor line both sizes", () => {
     const armor = Object.values(PARTS).filter((p) => p.kind === "armor");
-    expect(armor.filter((p) => p.w * p.h > 2).map((p) => p.id)).toEqual([]);
+    expect(armor.filter((p) => p.bulk.w * p.bulk.h > 2).map((p) => p.id)).toEqual([]);
     const lines = new Set([...Object.keys(ARMOR_LINES), ...Object.values(ARMOR_LINES)]);
     expect(armor.map((p) => p.id).filter((id) => !lines.has(id))).toEqual([]);
   });
@@ -364,7 +366,7 @@ describe("ceramic armor", () => {
   });
 
   it("is the lightest per cell of the tier 2 armor", () => {
-    const perCell = (p: { mass: number; w: number; h: number }) => p.mass / (p.w * p.h);
+    const perCell = (p: { mass: number; bulk: { w: number; h: number } }) => p.mass / (p.bulk.w * p.bulk.h);
     const lightestOther = Math.min(...armorParts().filter((p) => p.tier === 2 && !p.id.startsWith("ceramic")).map(perCell));
     for (const p of ceramic()) expect(perCell(p)).toBeLessThan(lightestOther);
   });
@@ -378,7 +380,7 @@ describe("ceramic armor", () => {
 });
 
 function partAxes(def: PartDef): number[] {
-  const cells = def.w * def.h;
+  const cells = def.bulk.w * def.bulk.h;
   const tall = def.tall ? -1 : 0;
   switch (def.kind) {
     case "weapon": {
@@ -410,7 +412,7 @@ function dominates(a: PartDef, b: PartDef): boolean {
 }
 
 describe("part weight by tier", () => {
-  const perUnit = (def: PartDef): number => (def.kind === "cargo" ? def.mass / def.extraRows : def.mass / (def.w * def.h));
+  const perUnit = (def: PartDef): number => (def.kind === "cargo" ? def.mass / def.extraRows : def.mass / (def.bulk.w * def.bulk.h));
   const mean = (xs: number[]): number => xs.reduce((a, b) => a + b, 0) / xs.length;
 
   const isRam = (p: PartDef): boolean => p.kind === "accessory" && p.look === "ram";
@@ -450,12 +452,12 @@ describe("part weight by tier", () => {
 
 describe("cargo tier curve", () => {
   const cargo = Object.values(PARTS).filter((p): p is Extract<PartDef, { kind: "cargo" }> => p.kind === "cargo");
-  const perCell = (p: { extraRows: number; w: number; h: number }): number => p.extraRows / (p.w * p.h);
-  const frames = cargo.filter((p) => p.w === 2 && p.h === 2);
+  const perCell = (p: { extraRows: number; bulk: { w: number; h: number } }): number => p.extraRows / (p.bulk.w * p.bulk.h);
+  const frames = cargo.filter((p) => p.bulk.w === 2 && p.bulk.h === 2);
 
   it.each(frames.map((p) => p.id))("%s beats any stack of lower-tier carriers on the same cells", (id) => {
     const frame = PARTS[id] as (typeof cargo)[number];
-    const small = cargo.filter((p) => p.tier < frame.tier && p.w * p.h < 4);
+    const small = cargo.filter((p) => p.tier < frame.tier && p.bulk.w * p.bulk.h < 4);
     const best = small.reduce((a, p) => (perCell(p) > perCell(a) ? p : a));
     const stack = 4 * perCell(best);
     expect(frame.extraRows, `${id} gives ${frame.extraRows} rows, a stack of ${best.id} gives ${stack} on the same cells`).toBeGreaterThan(stack);
@@ -487,7 +489,7 @@ describe("cargo tier curve", () => {
     expect(cargo.map((p) => p.id).sort()).toEqual(Object.keys(DEV_CARGO).sort());
     for (const p of cargo) {
       const old = DEV_CARGO[p.id];
-      expect([p.w, p.h, p.hp]).toEqual([old.w, old.h, old.hp]);
+      expect([p.bulk.w, p.bulk.h, p.hp]).toEqual([old.w, old.h, old.hp]);
       expect(p.extraRows).toBeGreaterThanOrEqual(old.extraRows);
     }
   });

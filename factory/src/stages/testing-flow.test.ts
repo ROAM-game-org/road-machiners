@@ -131,6 +131,7 @@ function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: s
       push: async (commit: string, branch: string) => { calls.push(`push ${commit} ${branch}`); },
       diff: async () => '',
       headHash: async () => 'abc123',
+      fullHash: async (commit: string) => commit,
       fetch: async () => undefined,
       catchUpBase: async (_dir: string, base: string) => { bases.push(`merge ${base}`); return kept === null ? { commit: 'base0001', conflicts, kept } : { commit: null, conflicts: [], kept }; },
       mergeBranchIntoWork: async () => ({ commit: null, conflicts: [] }),
@@ -270,7 +271,7 @@ describe('testing in one job', () => {
     expect(runs[1]!.prompt).toContain('Read `../docs/incident-log.md`');
     expect(runs[1]!.session).toEqual({ ...runs[0]!.session, resume: true });
     expect(shellScripts[0]).not.toContain('test:cached');
-    expect(shellScripts[0]).toContain('npm run playtest -- --cpu');
+    expect(shellScripts[0]).toContain('npm run playtest -- --no-fps-gate');
     expect(suites).toEqual(['abc123']);
     expect(shellPins).toEqual([testPoolPin(POOLS)]);
     expect(photoButtons).toEqual([[{ text: 'Approve and ship to players', data: 'factory:approve:7' }, { text: 'Deny', data: 'factory:deny:7' }]]);

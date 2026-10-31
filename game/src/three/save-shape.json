@@ -1,5 +1,5 @@
 {
- "format": "2.128",
+ "format": "2.130",
  "shape": {
   "broken": [],
   "chaosHighway": "null",
@@ -1469,110 +1469,6 @@
        "id": "string",
        "kind": "string",
        "part": {
-        "charge": {
-         "reload": "number"
-        },
-        "defId": "string",
-        "hp": "number",
-        "id": "string",
-        "wear": "number"
-       },
-       "rot": "number",
-       "x": "number",
-       "y": "number"
-      },
-      {
-       "id": "string",
-       "kind": "string",
-       "part": {
-        "defId": "string",
-        "gun": {
-         "ammo": "number",
-         "cooldown": "number",
-         "reloadWork": "number"
-        },
-        "hp": "number",
-        "id": "string",
-        "wear": "number"
-       },
-       "rot": "number",
-       "x": "number",
-       "y": "number"
-      },
-      {
-       "id": "string",
-       "kind": "string",
-       "part": {
-        "defId": "string",
-        "hp": "number",
-        "id": "string",
-        "wear": "number"
-       },
-       "rot": "number",
-       "x": "number",
-       "y": "number"
-      }
-     ],
-     "job": "null",
-     "lastHitBy": "null",
-     "order": "null",
-     "pos": {
-      "x": "number",
-      "y": "number"
-     },
-     "resources": {
-      "fuel": "number",
-      "health": "number",
-      "money": "number",
-      "supplies": "number"
-     },
-     "speed": "number",
-     "stormExposure": {},
-     "utilityOrders": {},
-     "weaponOrders": {}
-    }
-   },
-   {
-    "site": "string",
-    "vehicle": {
-     "brain": {
-      "attackers": {},
-      "driver": "string",
-      "goal": "null",
-      "goals": [],
-      "home": {
-       "x": "number",
-       "y": "number"
-      },
-      "hurt": "number",
-      "memories": [],
-      "noticed": {},
-      "personality": "string",
-      "stepIndex": "number",
-      "templateId": "string",
-      "tracks": {},
-      "traits": [
-       "string"
-      ]
-     },
-     "chassisId": "string",
-     "direct": "boolean",
-     "faction": "string",
-     "heading": "number",
-     "id": "string",
-     "items": [
-      {
-       "good": "string",
-       "id": "string",
-       "kind": "string",
-       "rot": "number",
-       "x": "number",
-       "y": "number"
-      },
-      {
-       "id": "string",
-       "kind": "string",
-       "part": {
         "defId": "string",
         "gun": {
          "ammo": "number",
@@ -2333,22 +2229,14 @@
   },
   "size": "number",
   "smoke": [],
-  "spawnTimer": {},
-  "states": [
+  "spawnQueue": [
    {
-    "born": "number",
-    "data": {
-     "fee": "number",
-     "kind": "string",
-     "site": "null"
-    },
-    "holder": "string",
-    "id": "string",
-    "kind": "string",
-    "other": "string",
-    "turnsLeft": "null"
+    "siteId": "string",
+    "templateId": "string"
    }
   ],
+  "spawnTimer": {},
+  "states": [],
   "sunward": {
    "collapsed": "null",
    "lastHunt": "null",
@@ -2520,105 +2408,6 @@
      "driver": "string",
      "goal": "null",
      "goals": [],
-     "home": {
-      "x": "number",
-      "y": "number"
-     },
-     "hurt": "number",
-     "memories": [],
-     "noticed": {},
-     "personality": "string",
-     "stepIndex": "number",
-     "templateId": "string",
-     "tracks": {},
-     "traits": [
-      "string"
-     ]
-    },
-    "chassisId": "string",
-    "direct": "boolean",
-    "faction": "string",
-    "heading": "number",
-    "id": "string",
-    "items": [
-     {
-      "good": "string",
-      "id": "string",
-      "kind": "string",
-      "rot": "number",
-      "x": "number",
-      "y": "number"
-     },
-     {
-      "id": "string",
-      "kind": "string",
-      "part": {
-       "charge": {
-        "reload": "number"
-       },
-       "defId": "string",
-       "hp": "number",
-       "id": "string",
-       "wear": "number"
-      },
-      "rot": "number",
-      "x": "number",
-      "y": "number"
-     },
-     {
-      "id": "string",
-      "kind": "string",
-      "part": {
-       "defId": "string",
-       "gun": {
-        "ammo": "number",
-        "cooldown": "number",
-        "reloadWork": "number"
-       },
-       "hp": "number",
-       "id": "string",
-       "wear": "number"
-      },
-      "rot": "number",
-      "x": "number",
-      "y": "number"
-     }
-    ],
-    "job": "null",
-    "lastHitBy": "null",
-    "order": "null",
-    "pos": {
-     "x": "number",
-     "y": "number"
-    },
-    "resources": {
-     "fuel": "number",
-     "health": "number",
-     "money": "number",
-     "supplies": "number"
-    },
-    "speed": "number",
-    "stormExposure": {},
-    "utilityOrders": {},
-    "weaponOrders": {}
-   },
-   {
-    "brain": {
-     "attackers": {},
-     "driver": "string",
-     "goal": "null",
-     "goals": [
-      {
-       "destination": {
-        "x": "number",
-        "y": "number"
-       },
-       "kind": "string",
-       "phase": "string",
-       "reason": "string",
-       "targetId": "string"
-      }
-     ],
      "home": {
       "x": "number",
       "y": "number"

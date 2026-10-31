@@ -53,7 +53,7 @@ import { musterGoal, onCrewCall, steerMuster } from './crews';
 import { isDefeated, isKnockedOut } from './defeat';
 import { payDuty, stampLeg } from './duty';
 import { beginRearm, fuelReserveFor, liesUp, rearmInvalid, resolveRearm, resolveResupply, serveStranded, serviceGoal } from './npc-service';
-import { isSunwardMember, nightSafe, planSunward, shunsAtNight, sunwardNext, sunwardRetreat } from './sunward';
+import { isSunwardMember, nightSafe, planSunward, ridesOnSchedule, shunsAtNight, sunwardNext, sunwardRetreat } from './sunward';
 import { meetingLapsed } from './sunward-crater';
 
 export const INTERRUPTIONS: readonly NpcActivity['kind'][] = ['fight', 'flee', 'investigate', 'sizeUp', 'resupply', 'tow', 'loot', 'repair', 'patch', 'meet', 'retreat', 'rearm', 'follow'];
@@ -867,7 +867,7 @@ export function thinkNpc(world: World, vehicle: Vehicle): NpcActivity {
   onStrandedSeen(world, vehicle);
   onNeedySeen(world, vehicle);
   onStrangerSeen(world, vehicle);
-  onSalvageSeen(world, vehicle);
+  if (!ridesOnSchedule(vehicle)) onSalvageSeen(world, vehicle);
   onEscortSeen(world, vehicle);
   onRamChance(world, vehicle);
   onFightWhim(world, vehicle);

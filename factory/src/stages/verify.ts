@@ -7,7 +7,7 @@ import { containsApproved, invalidateApproval, keptApprovalOf, requeueApproved, 
 import { runCost, untilPasses } from './checkpoint';
 import { postCheckpoint, publishAndPost } from './checks';
 import { hardenPrompt } from './harden';
-import { HOTFIX_BASE, agentHome, baseBranchFor, docsOnly, fillPrompt, guardAndPush, mergeBase, playtestCommand, prepareOutputs, readOutput, runAgent, throwIfNeedsCommittee, unfinishedBaseMerge, workDir, writeIssueInput } from './common';
+import { HOTFIX_BASE, agentHome, baseBranchFor, browserRule, docsOnly, fillPrompt, guardAndPush, mergeBase, playtestCommand, prepareOutputs, readOutput, runAgent, throwIfNeedsCommittee, unfinishedBaseMerge, workDir, writeIssueInput } from './common';
 
 const ROUND = 'test';
 
@@ -61,7 +61,7 @@ async function integrateRound(ctx: Ctx, issue: number, approval: KeptApproval, b
 async function firstRounds(ctx: Ctx, issue: number, base: string, hotfix: boolean, baseNote: string): Promise<number> {
   let spent = 0;
   if (hotfix) spent += runCost(await runAgent(ctx, issue, 'verify', ROUND, await hardenPrompt(ctx, issue, base, baseNote)));
-  const vars = { issue: String(issue), taskFile: TASK_FILE(issue), branch: BRANCH(issue), baseNote, playtest: playtestCommand(ctx.cfg, false), task: taskText(pendingFeedback(ctx.statePath, issue)) };
+  const vars = { issue: String(issue), taskFile: TASK_FILE(issue), branch: BRANCH(issue), baseNote, playtest: playtestCommand(ctx.cfg, false), browser: browserRule(ctx.cfg), task: taskText(pendingFeedback(ctx.statePath, issue)) };
   spent += runCost(await runAgent(ctx, issue, 'verify', ROUND, fillPrompt('test', vars), { continue: hotfix }));
   return spent;
 }
@@ -97,10 +97,12 @@ async function checkpoint(ctx: Ctx, issue: number, base: string, build: string, 
   return postCheckpoint(ctx, issue, base, build, kind);
 }
 
+const FIX_ALL = 'Fix every failure it lists in this round, not only the first or the last one, since each one you leave costs another full run of the checks. Run every failed test file together before and after the fix.';
+
 const KEEP_APPROVED = 'Keep the behavior the committee approved. If the fix cannot pass without changing it, write why to `.factory/intent-changed.md` as well.';
 
 async function fixRound(ctx: Ctx, issue: number, home: string, failure: string, approved: boolean): Promise<string> {
-  const prompt = `The factory's checks of your pushed branch failed. Fix the cause, commit, and end again.${approved ? ` ${KEEP_APPROVED}` : ''} The end of the log:\n\n${failure}`;
+  const prompt = `The factory's checks of your pushed branch failed. ${FIX_ALL} Commit, and end again.${approved ? ` ${KEEP_APPROVED}` : ''} The failure:\n\n${failure}`;
   const stream = await runAgent(ctx, issue, 'verify', ROUND, prompt, { continue: true });
   throwIfNeedsCommittee(home);
   return stream;

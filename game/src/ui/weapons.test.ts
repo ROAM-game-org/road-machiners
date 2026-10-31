@@ -833,7 +833,7 @@ function harpoonDuel(gap = 5) {
   const w = emptyWorld();
   const me = w.vehicles[0];
   const harpoon = makePart(w, "harpoon", 0);
-  if (!mountPart(w, me, harpoon)) throw new Error("No deck room for the harpoon");
+  me.items.push({ id: "i-harpoon", kind: "part", part: harpoon, x: 1, y: 9, rot: 1 });
   const target = addVehicle(w, "independent", "hauler", ["stockEngine"], { x: me.pos.x - gap, y: me.pos.y }, Math.PI / 2);
   refreshVision(w);
   return { w, me, harpoon, target };

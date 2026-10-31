@@ -42,6 +42,7 @@ export const RAIDER_CHASE_SPEED = 3.9;
 
 export const GEAR_DRAWS = 3;
 export const GEAR_WHIM = 0.1;
+export const GUN_SPOT_PICKS = 3;
 
 export const GEAR_SCORE = { armorQualityScale: 28, armorCurvePower: 2, gunSaturation: 2, gunCurvePower: 0.5, speedWeight: 0.75, cargoCurvePower: 2, minOpenArcShare: 0.5 };
 
@@ -622,6 +623,7 @@ export const SPAWN = {
     "merc",
   ],
   startTraffic: { town: "bowl", templates: ["trader", "trader"] },
+  startPerTurn: 1,
   minPlayerDist: 16,
   crowd: { reach: 12, most: 4 },
   gateSpread: 12,

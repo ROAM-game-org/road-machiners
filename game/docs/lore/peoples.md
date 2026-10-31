@@ -1,6 +1,6 @@
 # Peoples
 
-The groups of Icarus and what they believe. Each one copes with the world in one of the five ways from [Theme](../theme.md). A group leans one way, but its people vary. No group is right, and each one pays for its way.
+The groups of Icarus and what they believe. Each one copes with the world in one of the five ways from [Theme](../theme.md). A group leans one way, but its people vary. No group is right, and each one pays for its way. [Societies and craft](societies.md) says how they live, dress and make things.
 
 ## Green Pit
 

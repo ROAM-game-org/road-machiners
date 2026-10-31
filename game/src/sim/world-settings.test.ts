@@ -7,6 +7,7 @@ import { corePart, mountedParts } from './grid';
 import { burnFuel, consumeVehicleSupplies, getResources } from './resources';
 import { parseSetup } from './settings';
 import { vehicleStats } from './stats';
+import { bearing, DEG } from './vec';
 import { addVehicle, emptyWorld } from './testkit';
 import type { PartHit } from './armor';
 import type { Vehicle, World, WorldSettings } from './types';
@@ -20,6 +21,10 @@ function withSettings(w: World, settings: Partial<WorldSettings>): World {
 function sturdy(v: Vehicle): Vehicle {
   for (const p of mountedParts(v)) p.hp = 1e9;
   return v;
+}
+
+function turnGunTo(w: World, shooter: Vehicle, target: Vehicle): void {
+  shooter.heading = bearing(shooter.pos, target.pos) - vehicleStats(w, shooter).weapons[0].facing * DEG;
 }
 
 function expectScaled(scaled: number[], base: number[], k: number, lanes = 1): void {
@@ -42,6 +47,8 @@ describe('Damage setting', () => {
     const npc = sturdy(addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine', 'cannon'], { x: 64, y: 60 }, Math.PI));
     me.weaponOrders[vehicleStats(w, me).weapons[0].part.id] = { targetId: npc.id, aim: 'body' };
     npc.weaponOrders[vehicleStats(w, npc).weapons[0].part.id] = { targetId: me.id, aim: 'body' };
+    turnGunTo(w, me, npc);
+    turnGunTo(w, npc, me);
     fireWeapons(w);
     const dealtBy = (id: string) => w.events.flatMap((e) => (e.t === 'shot' && e.shooter === id ? e.rounds : [])).flatMap((r) => hitsOf(r.hits));
     return { byPlayer: dealtBy(me.id), byNpc: dealtBy(npc.id) };
@@ -69,7 +76,7 @@ describe('Damage setting', () => {
       return [...hitsOf(e.hitsA), ...hitsOf(e.hitsB)];
     };
 
-    expectScaled(crash(2), crash(1), 2);
+    expectScaled(crash(2), crash(1), 2, 3);
   });
 
   it('doubles a ground crash and a landing', () => {

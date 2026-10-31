@@ -29,7 +29,7 @@ import { fuelCap, vehicleStats } from './stats';
 import { addState, stateOf } from './states';
 import { isRoadTile } from './terrain';
 import { hazardZones } from './territory';
-import { addVehicle, emptyWorld, forceOption, npcBrain, sizedUp, testDrive } from './testkit';
+import { addVehicle, emptyWorld, forceOption, gunAcrossMiddle, npcBrain, sizedUp, testDrive } from './testkit';
 import type { NpcActivity, Vehicle, World } from './types';
 import { lineKey } from '../text/names';
 import { entryText } from '../text/resolve';
@@ -166,6 +166,7 @@ function raiderNearPost() {
   const w = emptyWorld({ x: 30, y: 30 });
   const post = raiderGrounds(w, scrapjaw)[0];
   const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: post.x - 10, y: post.y });
+  gunAcrossMiddle(raider);
   raider.brain = npcBrain('buggy', sitePads(scrapjaw)[0], ['raider']);
   raider.brain.goals = [raidGoal(post)];
   return { w, post, raiderId: raider.id };

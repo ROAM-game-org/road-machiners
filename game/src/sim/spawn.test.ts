@@ -4,17 +4,24 @@ import { REGION } from '../data/region';
 import { START_KITS } from '../data/start';
 import { playerVehicle } from './damage';
 import { everyTruck, siteGap, siteGates, sitePads } from './sites';
-import { allegianceFor, isFree, spawnNpcs } from './spawn';
+import { allegianceFor, isFree, spawnNpcs, spawnQueueNow } from './spawn';
 import { territoryPieces } from './territory';
 import { addVehicle, emptyWorld, testDrive } from './testkit';
 import { dist } from './vec';
 import { endTurn, newWorld } from './world';
+import type { QueuedSpawn } from './types';
 import { TEST_MAP } from '../test/map';
 import { budget } from '../test/budget';
 import { reusedWorld } from '../test/world-cache';
 import { defaultSetup } from './settings';
 
-const startWorld = (seed: number) => reusedWorld(`start ${seed}`, () => newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming')));
+const queuedWorld = (seed: number) => reusedWorld(`queued ${seed}`, () => newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming')));
+const startWorld = (seed: number) =>
+  reusedWorld(`start ${seed}`, () => {
+    const w = newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    spawnQueueNow(w);
+    return w;
+  });
 
 const NEUTRAL_SITES = [...REGION.towns, ...REGION.locations.filter((l) => l.kind !== 'camp')];
 const nearestSite = (pos: { x: number; y: number }) =>
@@ -39,6 +46,45 @@ describe('NPC spawns', () => {
     expect(spots(1337)).toEqual(spots(1337));
     expect(spots(1337)).not.toEqual(spots(42));
   }, budget(15_000));
+
+  it('holds the start roster in the queue with a dealt site each, and spawns only the start traffic and the Hollow cars', () => {
+    const w = queuedWorld(1337);
+    expect(w.spawnQueue.map((e) => e.templateId).sort()).toEqual([...SPAWN.initial].sort());
+    for (const entry of w.spawnQueue) expect([...REGION.towns, ...REGION.locations].some((s) => s.id === entry.siteId)).toBe(true);
+    const onMap = w.vehicles.filter((v) => v.brain).map((v) => NPCS[v.brain!.templateId]);
+    const traffic = onMap.filter((tpl) => tpl.spawn.kind !== 'hollow');
+    expect(traffic.map((tpl) => tpl.id)).toEqual(SPAWN.startTraffic.templates);
+  }, budget(15_000));
+
+  it('spawns one queued entry each turn until the queue is empty', () => {
+    const w = queuedWorld(1337);
+    const total = w.spawnQueue.length;
+    expect(total).toBeGreaterThan(SPAWN.startPerTurn);
+    for (let turn = 1; turn <= total; turn++) {
+      const entry = w.spawnQueue[0];
+      const before = w.vehicles.filter((v) => v.brain?.templateId === entry.templateId).length;
+      spawnNpcs(w);
+      expect(w.spawnQueue).toHaveLength(total - turn * SPAWN.startPerTurn);
+      expect(w.vehicles.filter((v) => v.brain?.templateId === entry.templateId).length).toBeGreaterThan(before);
+    }
+  }, budget(30_000));
+
+  it('makes a timed spawn of a template wait while the queue still holds it', () => {
+    const w = emptyWorld({ x: 5, y: 5 });
+    const site = queuedWorld(1337).spawnQueue.find((e) => e.templateId === 'trader')!.siteId;
+    w.spawnQueue = [{ templateId: 'trader', siteId: site }, { templateId: 'trader', siteId: site }];
+    w.spawnTimer.trader = 1;
+    const traders = () => w.vehicles.filter((v) => v.brain?.templateId === 'trader').length;
+    spawnNpcs(w);
+    expect(w.spawnQueue).toHaveLength(1);
+    expect(traders()).toBe(1);
+    spawnNpcs(w);
+    expect(w.spawnQueue).toHaveLength(0);
+    expect(traders()).toBe(2);
+    w.spawnTimer.trader = 1;
+    spawnNpcs(w);
+    expect(traders()).toBe(3);
+  });
 
   it('starts traders at the gate of the town the start road leaves', () => {
     const w = startWorld(2);
@@ -69,31 +115,6 @@ describe('NPC spawns', () => {
       expect(states.map((s) => [s.holder, s.other])).toEqual([[couriers[1].id, couriers[0].id]]);
     }
   }, budget(30_000));
-
-  it('starts the whole roster on every seed, with the dealt neutral drivers spread evenly over the sites', () => {
-    const guards = SPAWN.initial.filter((id) => id === 'convoy').map(() => 'convoyGuard');
-    const partners = SPAWN.initial.filter((id) => NPCS[id].pairs);
-    const order = Object.values(NPCS).filter((tpl) => tpl.spawn.kind === 'hollow').flatMap((tpl) => Array<string>(tpl.cap).fill(tpl.id));
-    const roster = [...SPAWN.initial, ...SPAWN.startTraffic.templates, ...guards, ...partners, ...order].sort();
-    const neutralSites = REGION.towns.length + REGION.locations.filter((l) => l.kind !== 'camp' && l.kind !== 'territory').length;
-    for (const seed of [1, 2, 42, 1337, 7919, 15838, 23757, 31676]) {
-      const world = startWorld(seed);
-      const npcs = everyTruck(world).filter((v) => v.brain);
-      const followers = new Set(world.states.filter((s) => s.kind === 'escort').map((s) => s.holder));
-      expect(npcs.map((v) => v.brain!.templateId).sort()).toEqual(roster);
-      const perSite = new Map<string, number>();
-      for (const v of npcs.filter((v) => NPCS[v.brain!.templateId].spawn.kind === 'town' && !followers.has(v.id))) {
-        const id = nearestSite(v.pos).id;
-        perSite.set(id, (perSite.get(id) ?? 0) + 1);
-      }
-      const dealt = [...perSite.values()].reduce((sum, n) => sum + n, 0) - SPAWN.startTraffic.templates.length;
-      const share = Math.ceil(dealt / neutralSites);
-      for (const [id, count] of perSite) {
-        const traffic = id === SPAWN.startTraffic.town ? SPAWN.startTraffic.templates.length : 0;
-        expect(count).toBeLessThanOrEqual(share + traffic);
-      }
-    }
-  }, budget(60_000));
 
   describe('courier respawns', () => {
     const couriersOf = (w: ReturnType<typeof emptyWorld>) => w.vehicles.filter((v) => v.brain?.templateId === 'courier');
@@ -274,5 +295,49 @@ describe('NPC allegiance', () => {
     const w = emptyWorld();
     const atNose = new Set(Array.from({ length: 600 }, () => allegianceFor(w, NPCS.trader, site('nose'), null)));
     expect([...atNose].sort()).toEqual(['independent', 'nose']);
+  });
+});
+
+describe('a blocked start spawn', () => {
+  const SMALL_MAP = 500;
+  const siteOf = (id: string) => [...REGION.towns, ...REGION.locations].find((s) => s.id === id)!;
+  const blocked: QueuedSpawn = { templateId: 'bowlFarmer', siteId: 'bowl' };
+  const free: QueuedSpawn = { templateId: 'buggy', siteId: 'kiln' };
+  const smallWorld = () => {
+    const w = emptyWorld({ x: 5, y: 5 });
+    w.size = SMALL_MAP;
+    w.spawnQueue = [{ ...blocked }, { ...free }, { ...free }];
+    return w;
+  };
+  const roster = (w: ReturnType<typeof emptyWorld>) => w.vehicles.filter((v) => v.brain).map((v) => v.brain!.templateId);
+
+  it('has a blocked entry and a free one to test with', () => {
+    expect(siteOf(blocked.siteId).pos.y).toBeGreaterThan(SMALL_MAP);
+    expect(siteOf(free.siteId).pos.x).toBeLessThan(SMALL_MAP);
+    expect(siteOf(free.siteId).pos.y).toBeLessThan(SMALL_MAP);
+  });
+
+  it('waits in the queue while the entry behind it spawns that turn', () => {
+    const w = smallWorld();
+    spawnNpcs(w);
+    expect(w.spawnQueue).toEqual([blocked, free]);
+    expect(roster(w)).toEqual([free.templateId]);
+  });
+
+  it('spawns no more than the start rate when several entries are free', () => {
+    const w = smallWorld();
+    w.spawnQueue = [{ ...free }, { ...free }, { ...free }];
+    spawnNpcs(w);
+    expect(w.spawnQueue).toHaveLength(3 - SPAWN.startPerTurn);
+    expect(roster(w)).toHaveLength(SPAWN.startPerTurn);
+  });
+
+  it('gives the same world when run twice', () => {
+    const run = () => {
+      const w = smallWorld();
+      spawnNpcs(w);
+      return w;
+    };
+    expect(run()).toEqual(run());
   });
 });

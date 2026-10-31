@@ -131,7 +131,7 @@ function applyContactDamage(world: World, vehicle: Vehicle, contact: CrashContac
 }
 
 function strikeLane(world: World, vehicle: Vehicle, side: Side, lane: number, round: Round, hits: Map<string, number>, ground: boolean): void {
-  const copy = structuredClone(vehicle);
+  const copy = scratchCopy(vehicle);
   const draft = { ...world, player: scratchPlayer(world, vehicle), events: [] };
   for (const hit of planCrashLane(copy, side, lane, round, ground ? 1 : undefined)) {
     hits.set(hit.part.id, (hits.get(hit.part.id) ?? 0) + damagePart(draft, copy, hit.part, hit.amount));
@@ -173,10 +173,10 @@ export type PartLoss = { defId: string; lost: number };
 export type RamForecast = { dealt: PartLoss[]; cost: PartLoss[]; fit: boolean };
 
 export function forecastRam(world: World, attacker: Vehicle, target: Vehicle, impact: number): RamForecast {
-  const own = structuredClone(attacker);
-  const other = structuredClone(target);
+  const own = scratchCopy(attacker);
+  const other = scratchCopy(target);
   for (const part of mountedParts(other)) if (!isJunk(part)) restorePart(part, maxHp(part));
-  const intact = structuredClone(other);
+  const intact = scratchCopy(other);
   const draft = { ...world, player: scratchPlayer(world, attacker, target), events: [] };
   own.heading = bearing(attacker.pos, target.pos);
   damageVehicleCrash(draft, own, other, impact, estimateCrashGeometry(own, other, other.pos));
@@ -297,6 +297,10 @@ export function computeClosingSpeed(relative: Vec, normal: Vec): number {
   const length = Math.hypot(normal.x, normal.y);
   if (!(length > 0)) throw new Error('Crash normal has no horizontal direction');
   return Math.max(0, (relative.x * normal.x + relative.y * normal.y) / length);
+}
+
+function scratchCopy(vehicle: Vehicle): Vehicle {
+  return { ...vehicle, items: structuredClone(vehicle.items), resources: vehicle.resources && structuredClone(vehicle.resources) };
 }
 
 function scratchPlayer(world: World, ...hurt: Vehicle[]): World['player'] {

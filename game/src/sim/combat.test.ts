@@ -13,7 +13,7 @@ import { corePart, mountedItems, mountedParts } from './grid';
 import { addState, stateOf } from './states';
 import { refreshVision } from './vision';
 import { vehicleStats } from './stats';
-import { addVehicle, emptyWorld, forceOption, npcBrain, partHp, practiceOf, rngStateWhere, settleStorms, testDrive } from './testkit';
+import { addVehicle, emptyWorld as emptyKitWorld, forceOption, npcBrain, partHp, practiceOf, rngStateWhere, settleStorms, testDrive } from './testkit';
 import type { GameEvent, Vehicle, World } from './types';
 import { dist } from './vec';
 import { PHYSICS } from '../data/physics';
@@ -24,6 +24,18 @@ import { entryText } from '../text/resolve';
 
 const en = (line: Parameters<typeof lineKey>[0]): string => entryText('en', lineKey(line));
 
+function faceKitGunForward(v: Vehicle): void {
+  const gun = v.items.find((it) => it.kind === 'part' && it.part.defId === 'mg');
+  if (!gun) throw new Error('The start kit has no gun');
+  if (gun.rot !== 0) throw new Error('The start kit gun does not face forward');
+}
+
+function emptyWorld(...args: Parameters<typeof emptyKitWorld>): World {
+  const w = emptyKitWorld(...args);
+  faceKitGunForward(w.vehicles[0]);
+  return w;
+}
+
 function duel(targetPos = { x: 33, y: 30 }) {
   const w = emptyWorld();
   const me = w.vehicles[0];
@@ -33,9 +45,9 @@ function duel(targetPos = { x: 33, y: 30 }) {
   return { w, me, buggy, mg };
 }
 
-function cannonHauler(w: World): Vehicle {
+function cannonTruck(w: World): Vehicle {
   const old = w.vehicles[0];
-  const v = addVehicle(w, 'player', 'hauler', ['stockEngine', 'cannon'], old.pos, old.heading);
+  const v = addVehicle(w, 'player', 'longbed', ['stockEngine', 'cannon'], old.pos, old.heading);
   v.id = old.id;
   w.vehicles = [v, ...w.vehicles.slice(1, -1)];
   return v;
@@ -77,7 +89,7 @@ describe('combat', () => {
 
   it('a gun cooling down holds fire until its cooldown runs out', () => {
     const w = emptyWorld();
-    const me = cannonHauler(w);
+    const me = cannonTruck(w);
     const t = addVehicle(w, 'scrapjaw', 'hauler', ['cannon', 'stockEngine', 'plates'], { x: 35, y: 30 }, Math.PI);
     const gun = vehicleStats(w, me).weapons[0];
     order(me, gun.part.id, t.id);
@@ -428,7 +440,7 @@ describe('rounds', () => {
   it('an aimed miss that lands on the truck hits the lane where it landed', () => {
     const { w, me, buggy, mg } = range(4, Math.PI);
     for (const p of mountedParts(buggy)) p.hp = 1e9;
-    const wheel = mountedItems(buggy).find((it) => it.x === 1 && it.y === 2)!.part;
+    const wheel = mountedItems(buggy).find((it) => it.part.defId === 'wheel')!.part;
     order(me, mg.part.id, buggy.id, wheel.id);
     const odds = hitOdds(w, me, mg, buggy, wheel.id);
     expect(odds.bodyChance).toBeGreaterThan(odds.chance);
@@ -497,7 +509,7 @@ describe('rounds', () => {
 
   it('a cannon miss within splash radius damages a part', () => {
     const w = emptyWorld();
-    const me = cannonHauler(w);
+    const me = cannonTruck(w);
     const t = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 }, Math.PI / 2);
     for (const p of mountedParts(t)) p.hp = 1e9;
     t.speed = 3;
@@ -822,7 +834,7 @@ describe('weapon damage multiplier', () => {
     try {
       const w = emptyWorld();
       w.rngState = rngState;
-      const me = cannonHauler(w);
+      const me = cannonTruck(w);
       const t = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: me.pos.x + 4, y: me.pos.y }, Math.PI / 2);
       for (const p of mountedParts(t)) p.hp = 1e9;
       order(me, vehicleStats(w, me).weapons[0].part.id, t.id);

@@ -5,6 +5,9 @@ import { launchChromium } from './gpu.mjs';
 import { emulateWebGL2Floor } from './gpu-floor.mjs';
 import { checkHighwayNightInSoftware, checkNightGround, NIGHT_TURNS } from './night-ground.mjs';
 import { playUrl } from './game-url.mjs';
+import { watchStalls } from './stall-watch.mjs';
+
+const stallWatch = watchStalls('The playtest', process.env);
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -21,6 +24,7 @@ const HIGHWAY_BOOT_LIMIT_MS = 300000;
 
 mkdirSync('.playtest', { recursive: true });
 const { browser, software } = await launchChromium(chromium);
+stallWatch.closeOnStall(() => browser.close());
 if (software && fpsGate) {
   await browser.close();
   console.error(`FAIL\nThe frame rate check needs the GPU, and this run draws in software. Pass --no-fps-gate to play in software without it.`);

@@ -5,7 +5,7 @@ import { BREAKABLE } from '../../data/rules';
 import { TERRAIN, TERRAIN_TYPES, type TerrainTypeId } from '../../data/terrain';
 import { timed } from '../../perf';
 import { atlasOf, atlasSites } from '../atlas';
-import { nearRail, type DeckSet } from '../bridge';
+import { nearRailBox, type DeckSet } from '../bridge';
 import { blockingBoxes, boxDistance, isBreakable, isDriveObstacle, propKey, propReach, type PosedBox } from '../mapgen';
 import { isCliff, tileSlope, type Terrain } from '../terrain';
 import { hashRandom } from '../rng';
@@ -260,9 +260,16 @@ function markCliffCells(nav: TerrainNav, reach: number): Uint8Array {
   const n = nav.n;
   const cliff = new Uint8Array(n * n);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-    const cx = (x + 0.5) * CELL;
-    const cy = (y + 0.5) * CELL;
-    if (nearCliff(nav, cx, cy, reach) || nearRail(nav.decks, cx, cy, reach)) cliff[y * n + x] = 1;
+    if (nearCliff(nav, (x + 0.5) * CELL, (y + 0.5) * CELL, reach)) cliff[y * n + x] = 1;
+  }
+  for (const box of nav.decks.boxes) {
+    const x0 = Math.max(0, Math.floor((box.minX - reach) / CELL) - 1);
+    const x1 = Math.min(n - 1, Math.ceil((box.maxX + reach) / CELL) + 1);
+    const y0 = Math.max(0, Math.floor((box.minY - reach) / CELL) - 1);
+    const y1 = Math.min(n - 1, Math.ceil((box.maxY + reach) / CELL) + 1);
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      if (cliff[y * n + x] === 0 && nearRailBox(box, (x + 0.5) * CELL, (y + 0.5) * CELL, reach)) cliff[y * n + x] = 1;
+    }
   }
   return cliff;
 }

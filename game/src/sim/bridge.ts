@@ -132,6 +132,11 @@ function acrossOf(deck: Deck, x: number, y: number): number {
   return (y - deck.from.y) * deck.axis.x - (x - deck.from.x) * deck.axis.y;
 }
 
+export function anyDeckBox(set: DeckSet, x0: number, y0: number, x1: number, y1: number): boolean {
+  for (const box of set.boxes) if (x1 >= box.minX - BOX_SLACK && x0 <= box.maxX + BOX_SLACK && y1 >= box.minY - BOX_SLACK && y0 <= box.maxY + BOX_SLACK) return true;
+  return false;
+}
+
 export function deckAt(set: DeckSet, x: number, y: number): DeckPoint | null {
   for (const box of set.boxes) if (inBox(box, x, y, BOX_SLACK) && inOutline(box.deck, x, y)) return { deck: box.deck, along: alongOf(box.deck, x, y) };
   return null;
@@ -209,11 +214,15 @@ const BOX_SLACK = 1e-9;
 
 
 export function nearRail(set: DeckSet, x: number, y: number, reach: number): boolean {
+  for (const box of set.boxes) if (nearRailBox(box, x, y, reach)) return true;
+  return false;
+}
+
+export function nearRailBox(box: RailBox, x: number, y: number, reach: number): boolean {
+  if (x <= box.minX - reach || x >= box.maxX + reach || y <= box.minY - reach || y >= box.maxY + reach) return false;
   const p = { x, y };
-  return set.boxes.some((box) => {
-    if (x <= box.minX - reach || x >= box.maxX + reach || y <= box.minY - reach || y >= box.maxY + reach) return false;
-    return box.walls.some(([a, b]) => segmentDist(p, a, b) < reach);
-  });
+  for (const [a, b] of box.walls) if (segmentDist(p, a, b) < reach) return true;
+  return false;
 }
 
 export function crossesRail(set: DeckSet, a: Vec, b: Vec, reach: number): boolean {

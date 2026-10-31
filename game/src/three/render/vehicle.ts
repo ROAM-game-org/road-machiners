@@ -7,11 +7,11 @@ import { isShield, partDef, type PartDef, type PartKind } from '../../data/parts
 import { PHYSICS } from '../../data/physics';
 import { wheelMounts } from '../../phys/body';
 import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
-import { cellCenter, cellRect, engineAnchor, highestUnder, restOn, roofSpot, spanOf, surfaceSamples, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
+import { cellCenter, cellRect, engineAnchor, ringMiddles, engineRest, highestUnder, restOn, roofSpot, spanOf, surfaceSamples, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL, paintOf, type TruckColors } from '../../render/palette';
 import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOffset, dentsOf, type PartBox, grayShare, grayed, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
-import { baseGrid, facingOf, isMounted, itemCells, itemSize } from '../../sim/grid';
+import { baseGrid, facingOf, isMounted, itemBulk, itemCells } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gunClearance';
@@ -60,12 +60,12 @@ const RADIO_TIP = 1.6;
 const RADIO_HALO = 0.6;
 const CHAIN_SIDE = 0.4;
 
-type Turret = { head: THREE.Group; tip: THREE.Vector3; spans: FireSpan[]; facing: number; unit: number };
+type Turret = { head: THREE.Group; tip: THREE.Vector3; spans: readonly FireSpan[]; facing: number; unit: number };
 
 type Look = { tone: number; step: number; partId: string | null; dents: boolean };
 const PRISTINE: Look = { tone: 1, step: 0, partId: null, dents: false };
 
-export type ViewScene = 'world' | 'portrait';
+export type ViewScene = 'world' | 'portrait' | 'xray';
 
 type Anchor = { local: THREE.Vector3; parent: THREE.Object3D };
 
@@ -368,7 +368,8 @@ export class VehicleView {
     const wheelItems: PartItem[] = [];
     const guns: PartItem[] = [];
     this.spots.clear();
-    for (const item of onBody.filter((it) => !hidesInside(v, it) && !wouldFloat(v, it) && this.standsUp(v, it))) {
+    const drawn = (it: GridItem) => (hidesInside(v, it) ? this.scene === 'xray' && this.standsUp(v, it, true) : !wouldFloat(v, it) && this.standsUp(v, it));
+    for (const item of onBody.filter(drawn)) {
       this.drawItem(v, item, paint, wheelItems, guns);
       yield;
     }
@@ -378,7 +379,7 @@ export class VehicleView {
   private *mergeUnits(v: Vehicle, merged: THREE.Group[]): Generator<void, void> {
     const armorIds = armorIdsOf(v);
     for (const unit of this.units) {
-      const group = mergeParts(unit.still, armorIds, this.scene === 'portrait' ? 'parts' : 'armor');
+      const group = mergeParts(unit.still, armorIds, this.scene === 'world' ? 'armor' : 'parts');
       unit.body.add(group);
       merged.push(group);
       yield;
@@ -389,7 +390,7 @@ export class VehicleView {
     if (this.scene === 'world') for (const shade of [CLOUD_SHADOWS, MODEL_FILL]) shade.shadeTree(this.root);
     const plain = [...this.silhouettes];
     this.units.forEach((unit, i) => this.cutArmor(unit, merged[i], plain));
-    if (this.scene === 'portrait') {
+    if (this.scene !== 'world') {
       this.dropContactShadow();
       dropShadows(this.root);
     }
@@ -552,9 +553,9 @@ export class VehicleView {
     return drawn;
   }
 
-  private standsUp(v: Vehicle, item: GridItem): boolean {
+  private standsUp(v: Vehicle, item: GridItem, level = false): boolean {
     if (!standsFlat(v, item)) return true;
-    const spot = itemSpotOf(v, item, this.unitOf(v, item).base);
+    const spot = itemSpotOf(v, item, this.unitOf(v, item).base) ?? (level ? { dx: 0, dz: 0, y: standingY(v, item), slope: { x: 0, z: 0 }, legs: false } : null);
     if (spot) this.spots.set(item, spot);
     return spot !== null;
   }
@@ -574,7 +575,7 @@ export class VehicleView {
 
   private placeEngine(v: Vehicle, item: PartItem, paint: number): THREE.Object3D {
     const obj = model(itemModel(item));
-    const at = footprint(v, item, 0);
+    const at = footprint(v, item, 0, (engineRest(v.chassisId, rectOf(v, item)) ?? restOf(v, item)).rect);
     const anchor = engineAnchor(v.chassisId);
     place(obj, { ...at, pos: new THREE.Vector3(anchor.x, anchor.y, anchor.z) });
     tint(obj, paint, lookOf(item));
@@ -967,7 +968,7 @@ export function wouldFloat(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boole
 
 export function itemSpotOf(v: Pick<Vehicle, 'chassisId'>, item: GridItem, base: THREE.Object3D): ItemSpot | null {
   const rest = restOf(v, item);
-  return itemSpot(base, bottomOf(itemModel(item), rest.rect.unit, footprint(v, item, rest.y)), rest, rectOf(v, item), item.kind === 'part');
+  return itemSpot(base, bottomOf(itemModel(item), rest.rect.unit, footprint(v, item, rest.y)), rest, rectOf(v, item), ringMiddles(v.chassisId, item.y), item.kind === 'part');
 }
 
 function standsFlat(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
@@ -1016,12 +1017,11 @@ function lookOf(item: GridItem): Look {
   return { tone: item.part.hp > 0 ? 1 : BROKEN_TONE[kind], step, partId: item.part.id, dents: kind !== 'weapon' };
 }
 
-export function footprint(v: Pick<Vehicle, 'chassisId'>, item: GridItem, y: number): Placement {
-  const rect = restOf(v, item).rect;
-  const size = itemSize(item);
+export function footprint(v: Pick<Vehicle, 'chassisId'>, item: GridItem, y: number, rect: CellRect = restOf(v, item).rect): Placement {
+  const size = itemBulk(item);
   const dx = rect.x1 - rect.x0 > 0 ? rect.x1 - rect.x0 : size.h * CELL.along;
   const dz = rect.z1 - rect.z0 > 0 ? rect.z1 - rect.z0 : size.w * CELL.across;
-  const own = item.kind === 'part' ? partDef(item.part.defId) : { w: 1, h: 1 };
+  const own = item.kind === 'part' ? partDef(item.part.defId).bulk : { w: 1, h: 1 };
   const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, y, (rect.z0 + rect.z1) / 2);
   if (item.rot % 2 === 0) return { pos, yaw: 0, scale: new THREE.Vector3(dx / (own.h * CELL.along), 1, dz / (own.w * CELL.across)) };
   return { pos, yaw: ROT_YAW, scale: new THREE.Vector3(dz / (own.h * CELL.along), 1, dx / (own.w * CELL.across)) };

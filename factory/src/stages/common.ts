@@ -6,7 +6,8 @@ import { fetchMedia, mediaSection, type MediaEntry } from '../media';
 import { CommitteeDecisionError, guardDiff } from '../diff-guard';
 import { askedAt, isAnswered, questionPostsOf, recordAsked, recordQuestionPost } from '../questions';
 import { MESSAGE_LIMIT } from '../telegram-limits';
-import { resumeError, resumedStage, roundSession } from '../sessions';
+import { resumeError, resumedStage, roundSession, timedOutMinutes } from '../sessions';
+import { CARD_JOBS } from '../position';
 import { adoptReplyMedia, readCommitteeMedia } from '../reply-media';
 import { issueReports } from '../error-reports/service';
 import { readState } from '../state';
@@ -78,8 +79,20 @@ export async function issueText(ctx: Ctx, issue: number, heading: string): Promi
 }
 
 export function playtestCommand(cfg: FactoryConfig, fpsGate: boolean): string {
-  if (!cfg.gpu) return 'npm run playtest -- --cpu';
-  return fpsGate ? 'npm run playtest' : 'npm run playtest -- --no-fps-gate';
+  return fpsGate && cfg.gpu ? 'npm run playtest' : 'npm run playtest -- --no-fps-gate';
+}
+
+const LAUNCHER = 'Launch a Playwright script with `launchChromium()` from `scripts/gpu.mjs`, never with SwiftShader flags or with no flags, since those draw in software many times slower and starve the jobs that share the CPUs.';
+
+export function browserRule(cfg: FactoryConfig): string {
+  const playtest = `When you run the playtest, run it as \`${playtestCommand(cfg, false)}\`.`;
+  if (!cfg.gpu) return `This machine has no GPU, so every browser run draws in software and prints a NO GPU warning. ${playtest} ${LAUNCHER}`;
+  return [
+    'This machine has the server\'s GPU, and the game\'s browser checks draw on it by themselves.',
+    playtest,
+    LAUNCHER,
+    'A NO GPU warning means Chromium fell back to software here. Stop that run and report it as a limitation, since it shows nothing about the game on a GPU.',
+  ].join(' ');
 }
 
 export function promptFile(name: string): string {
@@ -141,9 +154,20 @@ export async function acquireMedia(ctx: Ctx, issue: number, stage: CardStage): P
 
 export const RESUME_NOTE = 'A stop cut this job off. The work clone keeps your commits and changed files. Read them with git log and git status, then continue from there. If your task is already done, say so and stop.';
 
-function resumeNote(ctx: Ctx, issue: number): string {
+export function resumeNote(ctx: Ctx, issue: number): string {
   const error = resumeError(ctx.cfg.home, issue);
-  return error === null ? RESUME_NOTE : `${RESUME_NOTE}\n\nThe job stopped on this error. Fix its cause if it is in your work:\n\n${error}`;
+  const parts = [RESUME_NOTE, ...timeoutNote(ctx, issue)];
+  if (error !== null) parts.push(`The job stopped on this error. Fix its cause if it is in your work:\n\n${error}`);
+  return parts.join('\n\n');
+}
+
+function timeoutNote(ctx: Ctx, issue: number): string[] {
+  const minutes = timedOutMinutes(ctx.cfg.home, issue);
+  if (minutes === null) return [];
+  const job = readState(ctx.statePath).jobs.find((row) => row.issue === issue && CARD_JOBS.includes(row.stage));
+  if (job === undefined) throw new Error(`Issue #${issue} timed out before, but no card job of it runs now`);
+  const deadline = new Date(new Date(job.startedAt).getTime() + minutes * 60_000).toISOString();
+  return [`The stop was the time limit of this stage: the last run passed ${minutes} minutes. This run has the same ${minutes} minutes and stops at ${deadline}. A second timeout fails the job and leaves the card stuck. Plan the rest of the work to finish before then.`];
 }
 
 export function isResuming(ctx: Ctx, issue: number): boolean {

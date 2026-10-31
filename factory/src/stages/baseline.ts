@@ -1,7 +1,7 @@
 import { appendLedger } from '../ledger';
 import type { Ctx, FailedTest, Stage, SuiteFailures } from '../types';
 import { BaselineFailureError } from './checkpoint';
-import { remoteSuiteResult, type SuiteResult } from './remote-suite';
+import { remoteSuiteResult, testName, type SuiteResult } from './remote-suite';
 
 export type BaselineCheck = { stage: Stage; into: string; base: string; head: string };
 
@@ -11,10 +11,8 @@ const BASELINE_WORKERS = 1;
 
 const sameTest = (a: FailedTest, b: FailedTest): boolean => a.file === b.file && a.test === b.test;
 
-export const testName = (test: FailedTest): string => (test.test === null ? `${test.file} (the file itself)` : `${test.file} > ${test.test}`);
-
 function comparable(record: SuiteFailures | null): record is SuiteFailures {
-  return record !== null && record.failed.length > 0 && record.unhandledErrors === 0;
+  return record !== null && record.failed.length > 0 && record.unfinished.length === 0 && record.unhandledErrors === 0;
 }
 
 export async function withoutBaseline(ctx: Ctx, check: BaselineCheck, result: FailedSuite): Promise<string> {
@@ -35,7 +33,7 @@ async function baseRecord(ctx: Ctx, check: BaselineCheck, record: SuiteFailures)
   const files = [...new Set(record.failed.map((test) => test.file))].sort();
   try {
     const result = await remoteSuiteResult(ctx, { stage: check.stage, issue: null }, check.base, { files, workers: BASELINE_WORKERS });
-    if (result.failure === null) return { failed: [], unhandledErrors: 0 };
+    if (result.failure === null) return { failed: [], unfinished: [], unhandledErrors: 0 };
     return result.record;
   } catch (error) {
     ctx.log(check.stage, null, `the rerun of the failed tests on ${check.into} at ${check.base} could not run, so every failure counts: ${error instanceof Error ? error.message : String(error)}`);

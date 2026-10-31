@@ -14,13 +14,14 @@ The fixed facts of ROAM's world. Lore, art, sound and content all keep to them.
 
 - The Old World's history is our own until about the time LCD screens came in. After that it branches off.
 - The old nations are gone. Their cultures survive only in glimpses: a name, a truck, a building, a word.
-- No single old culture leads. Names, trucks and buildings mix many of them.
+- No single old culture leads across the basin. Names, trucks and buildings mix many of them. Inside one society one borrowed look leads, as [Societies and craft](societies.md) records.
 - No real nation exists today, and nobody speaks of one as alive.
 - The Old World built more than anyone can build now. Its roads, canals and ruins are the giants' shoulders from [Theme](../theme.md).
 
 ## Technology
 
 - Daily life runs at about the level of the mid-1900s: diesel engines, radios, generators, electric light in towns and hand-built guns.
+- Society runs older than its machines. Towns are ruled like 18th and 19th century powers and make most things by hand, as [Societies and craft](societies.md) records.
 - Computers are rare relics. Nobody makes them.
 - Every settlement has workshops that weld, patch and rebore guns.
 - Real industry exists only in pockets. Nose runs the basin's one workshop line that builds whole engines and guns. Other complex goods come from outside regions with long-haul convoys.

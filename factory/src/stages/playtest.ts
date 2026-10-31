@@ -11,9 +11,9 @@ import { BUG_LABEL, GAME_DIR, OUT_DIR, type AgentSession, type Ctx, type Playtes
 import { type CheckOutcome, checkScript, checkUntilReal, runChecks } from './checks';
 import { remoteSuite } from './remote-suite';
 import { guardDiff } from '../diff-guard';
-import { agentHome, fillPrompt, issueText, playtestCommand, readOutput, resetOutputs } from './common';
+import { agentHome, browserRule, fillPrompt, issueText, playtestCommand, readOutput, resetOutputs } from './common';
 import { mergeResolving } from './merge-resolve';
-import { judge, logFacts, readReview, type Finding, type LogFacts, type Outcome, type Review } from './playtest-review';
+import { judge, logFacts, parseReview, type Finding, type LogFacts, type Outcome, type Review } from './playtest-review';
 import { featureLine, openReleaseTasks, releaseFeatures, releaseLog, requireRelease } from './release-common';
 
 const LOG = `${OUT_DIR}/playtest/log.jsonl`;
@@ -28,7 +28,7 @@ export type RunMeta = {
 type Baseline = { branch: string; sha: string; kind: string };
 type Session = {
   release: ReleaseState; dir: string; home: string; start: string; baseline: Baseline; log: string; bugs: Map<string, number>; agent: (prompt: string) => Promise<void>;
-  startSuite: Promise<string | null> | null;
+  startSuite: Promise<string | null> | null; rules: string;
 };
 
 export const SUITE_BRANCH = 'factory/suite-playtest';
@@ -81,13 +81,15 @@ async function openSession(ctx: Ctx, release: ReleaseState, dir: string, start: 
   writeFileSync(join(home, OUT_DIR, 'playtest-history.md'), history(ctx, release));
   writeFileSync(join(home, OUT_DIR, 'open-bugs.md'), await openBugs(ctx));
   writeFileSync(join(home, OUT_DIR, 'release-features.md'), await featuresText(ctx, release));
+  const rules = fillPrompt('release-playtest-review', { baseline: baseline.sha });
+  writeFileSync(join(home, OUT_DIR, 'playtest-review.md'), rules);
   let agentSession: AgentSession = roundSession(ctx.cfg.home, release.issue, `playtest-${release.playtest.runs + 1}`, false);
   const log = releaseLog(ctx, 'playtest');
   const agent = async (prompt: string): Promise<void> => {
     await ctx.container.agent({ clone: dir, dir: GAME_DIR, model: ctx.cfg.designModel, prompt, log, session: agentSession });
     agentSession = { ...agentSession, resume: true };
   };
-  return { release, dir, home, start, baseline, log, bugs: new Map(), agent, startSuite: suiteOn(ctx, release, start) };
+  return { release, dir, home, start, baseline, log, bugs: new Map(), agent, startSuite: suiteOn(ctx, release, start), rules };
 }
 
 async function featuresText(ctx: Ctx, release: ReleaseState): Promise<string> {
@@ -122,7 +124,7 @@ async function playRound(ctx: Ctx, session: Session, next: Next, play: number): 
   const facts = play === 1 ? await firstPlay(ctx, session) : await playRelease(ctx, session, next.sha);
   for (const name of ['playtest.json', 'playtest.md']) rmSync(join(session.home, OUT_DIR, name), { force: true });
   await session.agent(next.prompt);
-  const review = readReview(readOutput(session.home, 'playtest.json'));
+  const review = await reviewOf(ctx, session);
   const head = await cloneHead(ctx, session);
   const outcome = judge(facts, review, { moved: head !== next.sha, last, fixedEarlier: next.sha !== session.start });
   const bugs = await openOldBugs(ctx, session, next.sha, review);
@@ -130,6 +132,17 @@ async function playRound(ctx: Ctx, session: Session, next: Next, play: number): 
   const meta: RunMeta = { day: release.day, run, seed: release.playtest.seed, turns: ctx.cfg.playtestTurns, sha: next.sha, baseline: session.baseline.sha, startedAt, finishedAt: ctx.now().toISOString(), outcome: outcome.outcome, reason: outcome.reason, verdict: review.verdict, fixes: review.fixes, bugs, ending: facts.ending };
   keepAudit(ctx, release, session.home, meta);
   return { meta, outcome, sha: next.sha, head, play };
+}
+
+async function reviewOf(ctx: Ctx, session: Session): Promise<Review> {
+  let read = parseReview(readOutput(session.home, 'playtest.json'));
+  for (let repair = 1; 'errors' in read && repair <= ctx.cfg.playtestReviewRepairs; repair++) {
+    ctx.log('playtest', session.release.issue, `the review breaks its rules, repair ${repair} of ${ctx.cfg.playtestReviewRepairs}:\n${read.errors.join('\n')}`);
+    await session.agent(fillPrompt('release-playtest-review-fix', { errors: read.errors.map((error) => `- ${error}`).join('\n'), review: session.rules }));
+    read = parseReview(readOutput(session.home, 'playtest.json'));
+  }
+  if ('errors' in read) throw new Error(`The playtest review still breaks its rules after ${ctx.cfg.playtestReviewRepairs} repairs:\n${read.errors.join('\n')}`);
+  return read.review;
 }
 
 async function afterRound(ctx: Ctx, session: Session, round: Round): Promise<Step> {
@@ -194,7 +207,15 @@ async function playBaseline(ctx: Ctx, session: Session): Promise<void> {
 async function harness(ctx: Ctx, session: Session, dir: string, sha: string, phase: string): Promise<void> {
   const { seed } = session.release.playtest;
   const play = `npm run progression:playthrough -- --seed ${seed} --turns ${ctx.cfg.playtestTurns} --sha ${sha} --out ${LOG}`;
-  await ctx.container.shell('checks', dir, stepScript(phase, [['npm ci', 'npm ci'], ['playtest', play]]), session.log);
+  const startedAt = ctx.now().getTime();
+  let ended = 'failed';
+  try {
+    await ctx.container.shell('checks', dir, stepScript(phase, [['npm ci', 'npm ci'], ['playtest', play]]), session.log);
+    ended = 'took';
+  } finally {
+    const minutes = Math.round((ctx.now().getTime() - startedAt) / 60_000);
+    ctx.log('playtest', session.release.issue, `${phase} at ${sha} ${ended} ${minutes} minutes with npm ci`);
+  }
 }
 
 function readFacts(ctx: Ctx, release: ReleaseState, path: string, sha: string): LogFacts {
@@ -297,23 +318,23 @@ function firstPrompt(ctx: Ctx, session: Session): string {
   const { release, start, baseline } = session;
   return fillPrompt('release-playtest', {
     sha: start, seed: String(release.playtest.seed), turns: String(ctx.cfg.playtestTurns), runs: String(ctx.cfg.playtestRuns),
-    baseline: baseline.sha, baselineKind: baseline.kind,
+    baseline: baseline.sha, baselineKind: baseline.kind, review: session.rules, browser: browserRule(ctx.cfg),
   });
 }
 
 function replayPrompt(ctx: Ctx, session: Session, sha: string, play: number): string {
-  return fillPrompt('release-playtest-replay', { sha, start: session.start, play: String(play), runs: String(ctx.cfg.playtestRuns) });
+  return fillPrompt('release-playtest-replay', { sha, start: session.start, play: String(play), runs: String(ctx.cfg.playtestRuns), review: session.rules });
 }
 
 function history(ctx: Ctx, release: ReleaseState): string {
   const runs = Array.from({ length: release.playtest.runs }, (_, i) => i + 1).flatMap((run) => {
     const path = join(auditDir(ctx, release, run), 'meta.json');
-    if (!existsSync(path)) return [`- play ${run}: no record, it did not finish`];
+    if (!existsSync(path)) return [`- run ${run}: no record, it did not finish`];
     const meta = JSON.parse(readFileSync(path, 'utf8')) as RunMeta;
-    return [`- play ${run} at ${meta.sha}: ${meta.outcome}, ${meta.reason}`];
+    return [`- run ${run} at ${meta.sha}: ${meta.outcome}, ${meta.reason}`];
   });
   const notes = release.playtest.notes.map((note) => `- ${note}`);
-  return ['# Earlier plays of this release', ...(runs.length ? runs : ['- none']), '', '# Decisions of the committee', ...(notes.length ? notes : ['- none']), ''].join('\n');
+  return ['# Plays of earlier jobs on this release', 'Their run numbers count across the release. They count toward no play limit of this job.', ...(runs.length ? runs : ['- none']), '', '# Decisions of the committee', ...(notes.length ? notes : ['- none']), ''].join('\n');
 }
 
 export function auditDir(ctx: Ctx, release: ReleaseState, run: number): string {

@@ -2,20 +2,24 @@ import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { fillPrompt, promptFile } from './common';
+import type { FactoryConfig } from '../types';
+import { browserRule, fillPrompt, promptFile } from './common';
 
 const PROMPTS = fileURLToPath(new URL('../../prompts/', import.meta.url));
 const GAME_STAGES = ['triage', 'groom', 'design', 'implement', 'test', 'integrate', 'harden', 'merge-fix', 'merge-branches', 'branch-merge', 'revert-merge', 'ship-fix', 'release-playtest', 'incident', 'adhoc', 'release', 'answer'];
 const FACTORY_STAGES = ['waste'];
 const FIX_STAGES = ['test', 'integrate', 'harden', 'merge-fix', 'ship-fix', 'release-playtest'];
 const WRITING_STAGES = ['groom', 'design', 'implement', 'release', 'answer'];
-const NO_DOCS_STEP = [...FACTORY_STAGES, 'game-docs', 'fix-docs', 'writing', 'humanizer', 'design-bug', 'filter-game', 'release-janitor', 'release-optimize', 'release-playtest-replay', 'release-playtest-checks'];
+const NO_DOCS_STEP = [...FACTORY_STAGES, 'game-docs', 'fix-docs', 'writing', 'humanizer', 'design-bug', 'filter-game', 'release-janitor', 'release-optimize', 'release-playtest-replay', 'release-playtest-checks', 'release-playtest-review', 'release-playtest-review-fix'];
 const STEP_LINE = /^(- )?(Read|Run|Install|Find|Score|Fix|Write|Check|Open|Create|Resolve|Play|Look|Build|Take|Use|Start|Compare)\b/m;
 
-function filled(name: string): string {
+function placeholders(name: string): Record<string, string> {
   const raw = readFileSync(`${PROMPTS}${name}.md`, 'utf8');
-  const vars = Object.fromEntries([...raw.matchAll(/\{\{(\w+)\}\}/g)].map(([, key]) => [key, `<${key}>`]));
-  return fillPrompt(name, vars);
+  return Object.fromEntries([...raw.matchAll(/\{\{(\w+)\}\}/g)].map(([, key]) => [key, `<${key}>`]));
+}
+
+function filled(name: string): string {
+  return fillPrompt(name, placeholders(name));
 }
 
 describe('the game docs step', () => {
@@ -93,5 +97,19 @@ describe('the testing prompt', () => {
     expect(prompt).not.toContain('approval notes');
     expect(prompt).toContain('note what it left unverified for the description in `.factory/approval.json`');
     expect(prompt).toContain('It also names what a stopped probe left unverified');
+  });
+});
+
+describe('the browser rule', () => {
+  const rule = browserRule({ gpu: true } as FactoryConfig);
+
+  it.each(['implement', 'test', 'release-playtest'])('reaches the %s prompt in place of any software drawing rule', (name) => {
+    const prompt = fillPrompt(name, { ...placeholders(name), browser: rule });
+    expect(prompt).toContain(rule);
+    expect(prompt).not.toContain('without GPU flags');
+  });
+
+  it('keeps the release playtest off the full suite, which the factory runs on GitHub Actions', () => {
+    expect(filled('release-playtest')).toContain('Never run the whole suite here');
   });
 });

@@ -55,10 +55,13 @@ export const HAULER_KIT: HaulerKit = {
   supplies: RULES.baseSupplies,
 };
 
+const SCOUT_GUN: NonNullable<StartKit['placed']> = [{ defId: 'mg', x: 4, y: 5, rot: 0 }];
+
 export const START_KITS: Record<string, StartKit> = {
   arrival: {
     chassis: 'scout',
-    parts: ['panniers', 'mg', 'stockEngine'],
+    parts: ['panniers', 'stockEngine'],
+    placed: SCOUT_GUN,
     storage: [],
     wear: 2,
     money: 333,
@@ -73,7 +76,8 @@ export const START_KITS: Record<string, StartKit> = {
   },
   standard: {
     chassis: 'scout',
-    parts: ['panniers', 'mg', 'stockEngine'],
+    parts: ['panniers', 'stockEngine'],
+    placed: SCOUT_GUN,
     storage: [],
     wear: 2,
     money: 333,
@@ -103,7 +107,8 @@ export const START_KITS: Record<string, StartKit> = {
   },
   chaosHighway: {
     chassis: 'scout',
-    parts: ['mg', 'stockEngine'],
+    parts: ['stockEngine'],
+    placed: SCOUT_GUN,
     storage: [],
     wear: 0,
     money: 80,
@@ -152,4 +157,8 @@ export function startKit(id: string): StartKit {
   const kit = START_KITS[id];
   if (!kit) throw new Error(`Unknown start kit "${id}". Known: ${Object.keys(START_KITS).join(', ')}`);
   return kit;
+}
+
+export function kitPartIds(kit: StartKit): string[] {
+  return [...(kit.placed ?? []).map((p) => p.defId), ...kit.parts];
 }

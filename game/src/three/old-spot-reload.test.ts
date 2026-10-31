@@ -7,7 +7,7 @@ import { advanceFar } from '../sim/far';
 import { goodsCount } from '../sim/grid';
 import { topGoal } from '../sim/npc-activities';
 import { nearestRoadPoint, oldSpotOf, oldSpotPicks, oldStockId } from '../sim/salvage';
-import { isFree } from '../sim/spawn';
+import { isFree, spawnQueueNow } from '../sim/spawn';
 import { addVehicle, forceOption, npcBrain } from '../sim/testkit';
 import type { Vec } from '../sim/vec';
 import type { World } from '../sim/types';
@@ -44,6 +44,7 @@ function slotsWith(save: object): SaveSlots {
 describe('a scavenger bound for an old-world loot spot', () => {
   it('keeps its goal and the loot whole across a save and reload on the way', () => {
     const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    spawnQueueNow(w);
     w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     forceOption('salvageSeen', 'keep');

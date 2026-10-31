@@ -241,7 +241,7 @@ describe('gun power draw', () => {
 
   it('a gun draws 1 plus half per extra cell, times 1 plus a quarter per tier above 1', () => {
     for (const def of Object.values(PARTS)) {
-      if (def.kind === 'weapon') expect(def.draw, def.id).toBeCloseTo((1 + 0.5 * (def.w * def.h - 1)) * (1 + 0.25 * (def.tier - 1)));
+      if (def.kind === 'weapon') expect(def.draw, def.id).toBeCloseTo((1 + 0.5 * (def.bulk.w * def.bulk.h - 1)) * (1 + 0.25 * (def.tier - 1)));
     }
   });
 
@@ -291,6 +291,19 @@ describe('gun power draw', () => {
   });
 });
 
+const HAULER_TEN_GUNS: { x: number; y: number; rot: 0 | 1 }[] = [
+  { x: 2, y: 1, rot: 0 },
+  { x: 2, y: 4, rot: 0 },
+  { x: 5, y: 4, rot: 0 },
+  { x: 1, y: 6, rot: 0 },
+  { x: 6, y: 6, rot: 0 },
+  { x: 2, y: 7, rot: 0 },
+  { x: 3, y: 7, rot: 1 },
+  { x: 2, y: 10, rot: 0 },
+  { x: 3, y: 12, rot: 1 },
+  { x: 1, y: 13, rot: 1 },
+];
+
 describe('max speed steps', () => {
   type Scenario = { build: () => { w: World; v: Vehicle }; kinds: string[] };
   const base = (parts: string[], chassis = 'scout') => {
@@ -312,7 +325,9 @@ describe('max speed steps', () => {
     overload: {
       build: () => {
         const s = base(['stockEngine'], 'hauler');
-        for (let i = 0; i < 16; i++) mountPart(s.w, s.v, makePart(s.w, 'mg', 0));
+        HAULER_TEN_GUNS.forEach((at, i) => {
+          s.v.items.push({ id: `mg${i}`, ...at, kind: 'part', part: makePart(s.w, 'mg', 0) });
+        });
         return s;
       },
       kinds: ['chassis', 'engine', 'load', 'guns'],
