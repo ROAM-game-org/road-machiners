@@ -353,8 +353,15 @@ describe('playtest', () => {
     };
     run.turns = [clean];
     await playtest(run.f.ctx, 11);
-    expect(run.f.logs).toContain('playtest 11 Playing the release seed at abc1234 took 56 minutes');
-    expect(run.f.logs.some((line) => /^playtest 11 Playing the baseline seed at main001 took \d+ minutes$/.test(line))).toBe(true);
+    expect(run.f.logs).toContain('playtest 11 Playing the release seed at abc1234 took 56 minutes with npm ci');
+    expect(run.f.logs.some((line) => /^playtest 11 Playing the baseline seed at main001 took \d+ minutes with npm ci$/.test(line))).toBe(true);
+  });
+
+  it('logs the minutes of a seed run that failed, since the slowest runs are the ones that hit a limit', async () => {
+    const run = setup();
+    run.f.ctx.container.shell = async () => { throw new Error('the checks timed out'); };
+    await expect(playtest(run.f.ctx, 11)).rejects.toThrow('the checks timed out');
+    expect(run.f.logs).toContain('playtest 11 Playing the release seed at abc1234 failed 0 minutes with npm ci');
   });
 
   it('blocks a clean verdict of a run that ended in an error', async () => {

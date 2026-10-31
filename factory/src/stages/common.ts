@@ -85,10 +85,11 @@ export function playtestCommand(cfg: FactoryConfig, fpsGate: boolean): string {
 
 export function browserRule(cfg: FactoryConfig): string {
   const playtest = playtestCommand(cfg, false);
-  if (!cfg.gpu) return `This machine has no GPU. The playtest runs here as \`${playtest}\`, and the game's other browser checks run with \`--cpu\`. Launch a Playwright script without GPU flags.`;
+  if (!cfg.gpu) return `This machine has no GPU. When you run the playtest, run it as \`${playtest}\`. Run the game's other browser checks with \`--cpu\`. Launch a Playwright script without GPU flags.`;
   return [
-    `This machine has the server's GPU, so every browser run draws on it. The playtest runs here as \`${playtest}\`, and the game's other browser checks run without \`--cpu\`.`,
+    `This machine has the server's GPU, so every browser run draws on it. When you run the playtest, run it as \`${playtest}\`. Run the game's other browser checks without \`--cpu\`.`,
     'Launch a Playwright script with `gpuArgs()` from `scripts/gpu.mjs`, since Chromium with no flags draws in software.',
+    'Stop the script when `isSoftware(await rendererOf(page))` from the same file is true, since then the GPU is missing and the run says nothing.',
     'Never use `--cpu` or SwiftShader. They draw on the CPU many times slower and starve the jobs that share it.',
   ].join(' ');
 }

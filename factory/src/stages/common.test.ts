@@ -319,6 +319,8 @@ describe('browserRule', () => {
     expect(rule).toContain('`npm run playtest -- --no-fps-gate`');
     expect(rule).toContain('`gpuArgs()` from `scripts/gpu.mjs`');
     expect(rule).toContain('Never use `--cpu` or SwiftShader.');
+    expect(rule).toContain('Stop the script when `isSoftware(await rendererOf(page))`');
+    expect(rule).toContain('When you run the playtest, run it as');
     expect(rule).not.toContain('without GPU flags');
   });
 

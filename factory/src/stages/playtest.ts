@@ -208,9 +208,14 @@ async function harness(ctx: Ctx, session: Session, dir: string, sha: string, pha
   const { seed } = session.release.playtest;
   const play = `npm run progression:playthrough -- --seed ${seed} --turns ${ctx.cfg.playtestTurns} --sha ${sha} --out ${LOG}`;
   const startedAt = ctx.now().getTime();
-  await ctx.container.shell('checks', dir, stepScript(phase, [['npm ci', 'npm ci'], ['playtest', play]]), session.log);
-  const minutes = Math.round((ctx.now().getTime() - startedAt) / 60_000);
-  ctx.log('playtest', session.release.issue, `${phase} at ${sha} took ${minutes} minutes`);
+  let ended = 'failed';
+  try {
+    await ctx.container.shell('checks', dir, stepScript(phase, [['npm ci', 'npm ci'], ['playtest', play]]), session.log);
+    ended = 'took';
+  } finally {
+    const minutes = Math.round((ctx.now().getTime() - startedAt) / 60_000);
+    ctx.log('playtest', session.release.issue, `${phase} at ${sha} ${ended} ${minutes} minutes with npm ci`);
+  }
 }
 
 function readFacts(ctx: Ctx, release: ReleaseState, path: string, sha: string): LogFacts {
