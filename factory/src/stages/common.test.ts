@@ -5,7 +5,7 @@ import { markResumed, markTimedOut } from '../sessions';
 import { EMPTY_STATE, writeState } from '../state';
 import { solidPng } from '../media-fixtures';
 import { factoryPaths } from '../diff-guard';
-import { RESUME_NOTE, agentHome, baseBranchFor, browserRule, baseBranchOf, fillPrompt, modelFor, prepareOutputs, runAgent } from './common';
+import { RESUME_NOTE, agentHome, baseBranchFor, browserRule, baseBranchOf, fillPrompt, modelFor, playtestCommand, prepareOutputs, runAgent } from './common';
 
 function agentCtx(labels: string[], body = '', comments: { login: string; body: string }[] = [], fetchFn?: typeof fetch): { ctx: Ctx; runs: AgentRun[]; logs: string[] } {
   const runs: AgentRun[] = [];
@@ -316,19 +316,26 @@ describe('fillPrompt', () => {
 describe('browserRule', () => {
   it('sends every browser run to the GPU when the host has one, since software drawing starved the release playtest', () => {
     const rule = browserRule({ gpu: true } as FactoryConfig);
-    expect(rule).toContain('`npm run playtest -- --no-fps-gate`');
-    expect(rule).toContain('`gpuArgs()` from `scripts/gpu.mjs`');
-    expect(rule).toContain('Never use `--cpu` or SwiftShader.');
-    expect(rule).toContain('Stop the script when `isSoftware(await rendererOf(page))`');
-    expect(rule).toContain('When you run the playtest, run it as');
-    expect(rule).not.toContain('without GPU flags');
+    expect(rule).toContain('When you run the playtest, run it as `npm run playtest -- --no-fps-gate`.');
+    expect(rule).toContain('`launchChromium()` from `scripts/gpu.mjs`, never with SwiftShader flags or with no flags');
+    expect(rule).toContain('A NO GPU warning means Chromium fell back to software here. Stop that run');
+    expect(rule).not.toContain('--cpu');
   });
 
-  it('draws in software on a host with no GPU', () => {
+  it('tells an agent on a host with no GPU that its browser runs draw in software, and still names the launcher', () => {
     const rule = browserRule({ gpu: false } as FactoryConfig);
-    expect(rule).toContain('`npm run playtest -- --cpu`');
-    expect(rule).toContain('without GPU flags');
-    expect(rule).not.toContain('gpuArgs');
+    expect(rule).toContain('every browser run draws in software and prints a NO GPU warning');
+    expect(rule).toContain('`npm run playtest -- --no-fps-gate`');
+    expect(rule).toContain('`launchChromium()`');
+    expect(rule).not.toContain('--cpu');
+  });
+});
+
+describe('playtestCommand', () => {
+  it('keeps the frame rate gate only where a GPU can measure it, since the playtest fails the gate in software', () => {
+    expect(playtestCommand({ gpu: true } as FactoryConfig, true)).toBe('npm run playtest');
+    expect(playtestCommand({ gpu: true } as FactoryConfig, false)).toBe('npm run playtest -- --no-fps-gate');
+    expect(playtestCommand({ gpu: false } as FactoryConfig, true)).toBe('npm run playtest -- --no-fps-gate');
   });
 });
 

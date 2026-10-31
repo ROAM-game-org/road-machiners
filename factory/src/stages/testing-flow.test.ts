@@ -271,7 +271,7 @@ describe('testing in one job', () => {
     expect(runs[1]!.prompt).toContain('Read `../docs/incident-log.md`');
     expect(runs[1]!.session).toEqual({ ...runs[0]!.session, resume: true });
     expect(shellScripts[0]).not.toContain('test:cached');
-    expect(shellScripts[0]).toContain('npm run playtest -- --cpu');
+    expect(shellScripts[0]).toContain('npm run playtest -- --no-fps-gate');
     expect(suites).toEqual(['abc123']);
     expect(shellPins).toEqual([testPoolPin(POOLS)]);
     expect(photoButtons).toEqual([[{ text: 'Approve and ship to players', data: 'factory:approve:7' }, { text: 'Deny', data: 'factory:deny:7' }]]);

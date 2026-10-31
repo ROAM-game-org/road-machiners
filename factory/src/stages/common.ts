@@ -79,18 +79,19 @@ export async function issueText(ctx: Ctx, issue: number, heading: string): Promi
 }
 
 export function playtestCommand(cfg: FactoryConfig, fpsGate: boolean): string {
-  if (!cfg.gpu) return 'npm run playtest -- --cpu';
-  return fpsGate ? 'npm run playtest' : 'npm run playtest -- --no-fps-gate';
+  return fpsGate && cfg.gpu ? 'npm run playtest' : 'npm run playtest -- --no-fps-gate';
 }
 
+const LAUNCHER = 'Launch a Playwright script with `launchChromium()` from `scripts/gpu.mjs`, never with SwiftShader flags or with no flags, since those draw in software many times slower and starve the jobs that share the CPUs.';
+
 export function browserRule(cfg: FactoryConfig): string {
-  const playtest = playtestCommand(cfg, false);
-  if (!cfg.gpu) return `This machine has no GPU. When you run the playtest, run it as \`${playtest}\`. Run the game's other browser checks with \`--cpu\`. Launch a Playwright script without GPU flags.`;
+  const playtest = `When you run the playtest, run it as \`${playtestCommand(cfg, false)}\`.`;
+  if (!cfg.gpu) return `This machine has no GPU, so every browser run draws in software and prints a NO GPU warning. ${playtest} ${LAUNCHER}`;
   return [
-    `This machine has the server's GPU, so every browser run draws on it. When you run the playtest, run it as \`${playtest}\`. Run the game's other browser checks without \`--cpu\`.`,
-    'Launch a Playwright script with `gpuArgs()` from `scripts/gpu.mjs`, since Chromium with no flags draws in software.',
-    'Stop the script when `isSoftware(await rendererOf(page))` from the same file is true, since then the GPU is missing and the run says nothing.',
-    'Never use `--cpu` or SwiftShader. They draw on the CPU many times slower and starve the jobs that share it.',
+    'This machine has the server\'s GPU, and the game\'s browser checks draw on it by themselves.',
+    playtest,
+    LAUNCHER,
+    'A NO GPU warning means Chromium fell back to software here. Stop that run and report it as a limitation, since it shows nothing about the game on a GPU.',
   ].join(' ');
 }
 

@@ -48,7 +48,7 @@ When a `factory-job` command ends, is stopped or hits its limit, every process l
 
 The host runs a software watchdog. When systemd stops answering it for 10 minutes, the kernel reboots the host, and the boot check brings the factory back.
 
-`FACTORY_GPU=on` gives every container the host's NVIDIA GPU, and the playtest checks the frame rate. `off` runs the playtest with `--cpu`, with fewer turns and no frame rate check. The implement, testing and release playtest prompts tell their agent which one the host has, so a browser run draws on the GPU when there is one.
+`FACTORY_GPU=on` gives every container the host's NVIDIA GPU, and the playtest checks the frame rate. `off` runs the playtest with `--no-fps-gate`. The game's browser scripts draw on the GPU by themselves, and without one they warn loudly and draw in software with fewer turns. The implement, testing and release playtest prompts tell their agent which one the host has and to launch Chromium through the game's `launchChromium()`.
 
 Every container sets `TEST_TIMEOUTS=off`, but the playtest in the check and candidate scripts runs without it, so its own boot and turn limits apply. A turn that never finishes then fails the playtest in seconds. With the limits off, one stuck night turn held the check for its whole 45 minutes, again on each rerun.
 
