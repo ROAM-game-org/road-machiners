@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { TIME } from '../../data/time';
 import { sunAt } from '../../sim/sun';
 import { groundHits, SITE_LIGHT_FADE_S, SITE_LIGHT_POOL, SITE_SHADOW_SLOTS, siteLightOrder, SiteLights, LOOKS, type SiteLight } from './siteLights';
 
@@ -8,7 +9,7 @@ const all = () => true;
 const FOCUS = { x: 0, y: 0, z: 0 };
 
 function turnWhere(night: boolean, from = 1): number {
-  for (let t = from; t < from + 500; t++) if (!sunAt(t) === night) return t;
+  for (let t = from; t < from + TIME.turnsPerDay; t++) if (!sunAt(t) === night) return t;
   throw new Error('no such turn');
 }
 const NIGHT = turnWhere(true);
