@@ -4,7 +4,7 @@ import { playerVehicle, vehicleById } from './damage';
 import { addGoods } from './inventory';
 import { canLookOver, knowsCargo, lookOver, lookOverError, perceivedLoad, startLookOver } from './look-over';
 import { cargoValue } from './market';
-import { stateOf, workOf } from './states';
+import { settleStates, stateOf, workOf } from './states';
 import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
 import type { Vehicle, World } from './types';
 import { endTurn, Refused } from './world';
@@ -111,6 +111,17 @@ describe('a look-over', () => {
     const gone = endTurn(done, moveAway(target.id));
     expect(stateOf(gone, 'sizedUp', gone.player.vehicleId, target.id)).toBeNull();
     expect(knowsCargo(gone, playerVehicle(gone), vehicleById(gone, target.id))).toBe(false);
+  });
+
+  it('ends the look-over and the sized-up load as broken when a truck leaves the world', () => {
+    const { w, target } = lookerWorld(5);
+    const looking = lookOver(w, target.id);
+    const done = endTurn(looking, testDrive);
+    for (const world of [looking, done]) {
+      world.vehicles = world.vehicles.filter((v) => v.id !== target.id);
+      expect(() => settleStates(world)).not.toThrow();
+      expect(world.states.filter((s) => s.other === target.id)).toEqual([]);
+    }
   });
 
   it('shows a progress bar on the looker only', () => {
