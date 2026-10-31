@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { NPCS } from '../data/npcs';
 import { budget } from '../test/budget';
 import { describeLoadout, rolled } from './npc-loadout-kit';
-import { EVEN_ARMED, checkArmedTemplates } from './npc-loadout-armed-kit';
+import { EVEN_ARMED, checkArmedTemplates } from '../test/npc-loadout-armed-kit';
 import UNARMED_PINS from './npc-loadout-unarmed.json';
 
 checkArmedTemplates(EVEN_ARMED);

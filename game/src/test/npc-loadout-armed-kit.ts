@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GEAR_LEVEL_IDS } from '../data/npcs';
-import { armedTemplates, realGuns, rolled, useLoadoutFixture } from './npc-loadout-kit';
+import { armedTemplates, realGuns, rolled, useLoadoutFixture } from '../sim/npc-loadout-kit';
 
 export const EVEN_ARMED = armedTemplates.filter((_, i) => i % 2 === 0);
 export const ODD_ARMED = armedTemplates.filter((_, i) => i % 2 === 1);
