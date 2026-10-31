@@ -226,6 +226,20 @@ describe('the Chaos Highway sprinter bot', () => {
     expect(vehicleStats(turn.world, playerVehicle(turn.world)).maxSpeed).toBeGreaterThan(CHAOS_HIGHWAY.hauler.hurry);
   });
 
+  it('never trades its truck for a slower one, so wear does not drop it behind the hauler', () => {
+    const w = atFirstOutpost();
+    w.player.money = 2_000_000;
+    const post = reachedOutpostAt(w)!;
+    const speed = vehicleStats(w, playerVehicle(w)).maxSpeed;
+    const speedIn = (id: string) => { const after = outpostBuyChassis(w, id); return vehicleStats(after, playerVehicle(after)).maxSpeed; };
+    post.trucksSold.push(...outpostTrucks(w, post).filter((id) => speedIn(id) >= speed));
+    expect(outpostTrucks(w, post).some((id) => speedIn(id) > CHAOS_HIGHWAY.hauler.hurry && chassisDef(id).value > chassisDef(playerVehicle(w).chassisId).value)).toBe(true);
+
+    const turn = botOrders(w, 'sprinter');
+
+    expect(playerVehicle(turn.world).chassisId).toBe(playerVehicle(w).chassisId);
+  });
+
   it('buys only a truck that stays faster than the hauler, so it keeps driving ahead', () => {
     const w = atFirstOutpost();
     w.player.money = 2_000_000;

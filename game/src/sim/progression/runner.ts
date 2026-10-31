@@ -214,7 +214,7 @@ function restock(o: Orders, post: Outpost, style: RoadStyle): void {
 function restockGear(o: Orders, post: Outpost, style: RoadStyle, haulerShare: number): void {
   if (style === 'sprinter') {
     refitGear(o, (v) => outpacesHauler(o.world, v));
-    return buyTruck(o, post, (id) => outrunsHauler(o, id));
+    return buyTruck(o, post, (id) => keepsItsPace(o, id));
   }
   restockEscort(o, post, haulerShare);
 }
@@ -286,9 +286,10 @@ function keepsKit(o: Orders, chassisId: string): boolean {
   return !isStranded(after, me) && mountedCount(me) === mountedCount(o.me);
 }
 
-function outrunsHauler(o: Orders, chassisId: string): boolean {
+function keepsItsPace(o: Orders, chassisId: string): boolean {
   const after = outpostBuyChassis(o.world, chassisId);
-  return outpacesHauler(after, playerVehicle(after));
+  const speedAfter = vehicleStats(after, playerVehicle(after)).maxSpeed;
+  return outpacesHauler(after, playerVehicle(after)) && speedAfter >= vehicleStats(o.world, o.me).maxSpeed;
 }
 
 function outpacesHauler(world: World, v: Vehicle): boolean {
