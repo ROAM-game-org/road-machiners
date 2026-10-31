@@ -84,7 +84,7 @@ export const CHAOS_HIGHWAY = {
   chaseSpeed: 5.5,
   nerve: 0.15,
   playerMargin: 8,
-  sprintLead: 5,
+  sprintLead: 8,
   sides: { ahead: 45, flank: { along: 36, across: 22, step: 3 } },
   pacing: { near: 30 },
   rolling: { near: 6, ramp: 40, close: 0.4, lead: 12 },
