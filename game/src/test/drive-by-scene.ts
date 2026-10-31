@@ -29,6 +29,8 @@ const camp = REGION.locations.find((l) => l.id === 'scrapjaw')!;
 export const TURNS = 40;
 export const SLOW_PASS_TURNS = 55;
 
+const PREY_CHASSIS: Record<string, string> = { trader: 'jeep', brute: 'hauler', empty: 'scout', parked: 'scout' };
+
 type Prey = 'trader' | 'player' | 'playerEmpty' | 'empty' | 'parked' | 'brute';
 
 function nightTurn(): number {
@@ -100,7 +102,7 @@ function scene(seed: number, kind: Prey, night: boolean): Scene {
   } else {
     me.items = me.items.filter((item) => !isLoot(me.chassisId, item));
     me.pos = { x: post.x + 3, y: post.y + 3 };
-    prey = addVehicle(w, 'independent', kind === 'brute' ? 'hauler' : 'scout', kind === 'brute' ? ['mg', 'mg', 'mg', 'mg', 'stockEngine'] : ['mg', 'stockEngine'], { ...start });
+    prey = addVehicle(w, 'independent', PREY_CHASSIS[kind], kind === 'brute' ? ['mg', 'mg', 'mg', 'mg', 'stockEngine'] : ['mg', 'stockEngine'], { ...start });
     prey.brain = npcBrain('trader', prey.pos, ['trader']);
     prey.brain.goals = [];
     if (kind === 'empty') prey.items = prey.items.filter((item) => !isLoot(prey.chassisId, item));
