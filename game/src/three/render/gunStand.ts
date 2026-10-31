@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CLIP_TOLERANCE, highestUnder, MAX_SLOPE, MIN_SUPPORT, surfaceSamples, unitBody, type CellRect } from '../../sim/body';
 import { GLASS, LAMP, model, RADIO, socket, type ModelName } from './models';
+import { bodyRays, type BodyRays } from './bodyRays';
 
 export type PlateSpot = { dx: number; dz: number; shrink: number };
 
@@ -8,11 +9,13 @@ const RISER_TOP_SIDE = 0.3;
 const UP = new THREE.Vector3(0, 1, 0);
 const DOWN = new THREE.Vector3(0, -1, 0);
 const BRACE_ANGLES = [15, 30, 45, 60, 75];
+const BRACE_SIDES = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, -1)];
 const SEE_THROUGH = new Set([GLASS, LAMP, RADIO]);
 const IDENTITY = new THREE.Matrix4();
 const FOOTING_GRID = CLIP_TOLERANCE / 2;
 const FACE_COLUMN = 0.1;
 const GLASS_SKIN = 2 * CLIP_TOLERANCE;
+const THROUGH_STEP = CLIP_TOLERANCE / 100;
 
 export function postBottom(foot: number, top: number): number {
   return foot !== -Infinity && top - foot > CLIP_TOLERANCE ? foot : top;
@@ -73,17 +76,6 @@ export function bottomSamples(obj: THREE.Object3D): THREE.Vector3[] {
   return faceSamples(level).map((p) => p.applyMatrix4(fromLevel));
 }
 
-export function underSpots(obj: THREE.Object3D): (x: number, z: number) => [number, number] {
-  const faces = bottomFaces(obj);
-  const corners = faces.flat();
-  const reach = 2 * legPad();
-  return (x, z) => {
-    if (faces.some((face) => coversXZ(face, x, z))) return [x, z];
-    const near = corners.filter((p) => Math.hypot(p.x - x, p.z - z) <= reach).sort((p, q) => Math.hypot(p.x - x, p.z - z) - Math.hypot(q.x - x, q.z - z))[0];
-    return near ? [near.x, near.z] : [x, z];
-  };
-}
-
 function faceSamples(faces: THREE.Vector3[][]): THREE.Vector3[] {
   const box = new THREE.Box3().setFromPoints(faces.flat());
   const inside = gridIn({ unit: 0, x0: box.min.x, x1: box.max.x, z0: box.min.z, z1: box.max.z }).flatMap(([x, z]) => {
@@ -101,11 +93,6 @@ function overOwnFace(faces: THREE.Vector3[][], p: THREE.Vector3): boolean {
 function heightOn([a, b, c]: THREE.Vector3[], x: number, z: number): number {
   const normal = new THREE.Triangle(a, b, c).getNormal(new THREE.Vector3());
   return a.y - (normal.x * (x - a.x) + normal.z * (z - a.z)) / normal.y;
-}
-
-export function bottomRect(obj: THREE.Object3D, unit: number): CellRect {
-  const box = new THREE.Box3().setFromPoints(bottomFaces(obj).flat());
-  return { unit, x0: box.min.x, x1: box.max.x, z0: box.min.z, z1: box.max.z };
 }
 
 function coversXZ([a, b, c]: THREE.Vector3[], x: number, z: number): boolean {
@@ -146,25 +133,41 @@ export function plateSpot(body: THREE.Object3D, chassisId: string, plate: CellRe
   const shifts = shiftsWithin({ x0: cells.x0 - center.x, x1: cells.x1 - center.x, z0: cells.z0 - center.z, z1: cells.z1 - center.z }, step);
   const feet = footings(body);
   const fits = (dx: number, dz: number, shrink: number) => nearCells(cells, center.x + dx, center.z + dz, (size.x * shrink) / 2, (size.z * shrink) / 2);
-  for (let shrink = 1; shrink >= smallest; shrink -= step / Math.max(size.x, size.z)) {
+  const shrinks: number[] = [];
+  for (let shrink = 1; shrink >= smallest; shrink -= step / Math.max(size.x, size.z)) shrinks.push(shrink);
+  for (const shrink of shrinks) {
     const found = spotAt(plate, shifts.filter(([dx, dz]) => fits(dx, dz, shrink)), shrink, feet);
     if (found) return found;
   }
-  const braced = bracedSpot(body, plate, topOf, feet, shifts, fits, smallest, step);
+  const home = { dx: 0, dz: 0, shrink: smallest };
+  const spots = shrinks.flatMap((shrink) => shifts.filter(([dx, dz]) => fits(dx, dz, shrink)).map(([dx, dz]) => ({ dx, dz, shrink })));
+  const braced = bracedSpot(body, plate, topOf, feet, [home, ...spots]);
   if (braced) return braced;
   throw new Error(`The gun plate on ${chassisId} over cells ${cells.x0.toFixed(2)},${cells.z0.toFixed(2)} to ${cells.x1.toFixed(2)},${cells.z1.toFixed(2)} has no spot its legs and braces reach`);
 }
 
-function bracedSpot(body: THREE.Object3D, plate: CellRect, topOf: (plate: CellRect) => number, feet: Footing, shifts: [number, number][], fits: (dx: number, dz: number, shrink: number) => boolean, smallest: number, step: number): PlateSpot | null {
-  const size = Math.max(plate.x1 - plate.x0, plate.z1 - plate.z0);
-  const reaches = (spot: PlateSpot) => {
+function bracedSpot(body: THREE.Object3D, plate: CellRect, topOf: (plate: CellRect) => number, feet: Footing, spots: PlateSpot[]): PlateSpot | undefined {
+  const holds = new Map<number, (x: number, z: number) => boolean>();
+  return spots.find((spot) => {
     const moved = movedPlate(plate, spot);
-    return legsReach(body, moved, topOf(moved), feet, farBraceHit);
+    const top = topOf(moved);
+    const held = holds.get(top) ?? cornerHolds(body, top, feet, moved);
+    holds.set(top, held);
+    return legSpots(moved).every(([x, z]) => held(x, z));
+  });
+}
+
+function cornerHolds(body: THREE.Object3D, top: number, feet: Footing, plate: CellRect): (x: number, z: number) => boolean {
+  const center = new THREE.Vector3((plate.x0 + plate.x1) / 2, top, (plate.z0 + plate.z1) / 2);
+  const seen = new Map<string, boolean>();
+  return (x, z) => {
+    const key = `${Math.round(x / FOOTING_GRID)},${Math.round(z / FOOTING_GRID)}`;
+    const known = seen.get(key);
+    if (known !== undefined) return known;
+    const held = feet(x, z) !== null || farBraceHit(body, new THREE.Vector3(x, top, z), center) !== undefined;
+    seen.set(key, held);
+    return held;
   };
-  const home = { dx: 0, dz: 0, shrink: smallest };
-  const spots: PlateSpot[] = [home];
-  for (let shrink = 1; shrink >= smallest; shrink -= step / size) spots.push(...shifts.filter(([dx, dz]) => fits(dx, dz, shrink)).map(([dx, dz]) => ({ dx, dz, shrink })));
-  return spots.find(reaches) ?? null;
 }
 
 function spotAt(plate: CellRect, shifts: [number, number][], shrink: number, feet: (x: number, z: number) => THREE.Vector3 | null): PlateSpot | null {
@@ -212,14 +215,18 @@ function searchItemSpot(body: THREE.Object3D, { rect, points }: Footprint, rest:
   if (onLegSpots) return onLegSpots;
   if (heldOn(points, planeAt(rect, rest), exact, tops)) return { dx: 0, dz: 0, y: rest.y, slope: rest.slope, legs: false };
   const shifts = shiftsWithin(shiftRange(rect, room.cells, room.sides), FACE_COLUMN);
-  for (const support of [SHIFT_SUPPORT, MIN_SUPPORT]) {
+  for (const support of flatSupports(stilts)) {
     for (const [dx, dz] of shifts) {
       const moved = shifted(points, dx, dz);
       const y = highestTop(moved, tops);
       if (heldOn(moved, () => y, exact, tops, support)) return { dx, dz, y, slope: FLAT, legs: false };
     }
   }
-  return stilts ? stiltSpot(body, { rect, points }, shifts, feet, tops) : null;
+  return stilts ? stiltSpot(body, { rect, points }, shifts, tops) : null;
+}
+
+function flatSupports(stilts: boolean): number[] {
+  return stilts ? [SHIFT_SUPPORT] : [SHIFT_SUPPORT, MIN_SUPPORT];
 }
 
 type Rest = { y: number; slope: { x: number; z: number } };
@@ -239,15 +246,29 @@ function fittedSpot(rect: CellRect, points: Sample[], rest: Rest, feet: Footing,
   return heldOn(points, planeAt(rect, fitted), exact, tops) ? { dx: 0, dz: 0, ...fitted, legs: false } : null;
 }
 
-function stiltSpot(body: THREE.Object3D, { rect, points }: Footprint, shifts: [number, number][], feet: Footing, tops: Footing): ItemSpot | null {
-  let best: ItemSpot | null = null;
+type Stilts = { spot: ItemSpot; braces: number };
+
+function stiltSpot(body: THREE.Object3D, { rect, points }: Footprint, shifts: [number, number][], tops: Footing): ItemSpot | null {
+  let best: Stilts | null = null;
   for (const [dx, dz] of shifts) {
     const moved = movedPlate(rect, { dx, dz, shrink: 1 });
     if (!tops((moved.x0 + moved.x1) / 2, (moved.z0 + moved.z1) / 2)) continue;
-    const y = highestTop(shifted(points, dx, dz), tops);
-    if ((!best || y < best.y - CLIP_TOLERANCE) && legsReach(body, moved, y, feet)) best = { dx, dz, y, slope: FLAT, legs: true };
+    const over = shifted(points, dx, dz);
+    const y = highestTop(over, tops);
+    const braces = bracesAt(body, over, y);
+    if (braces !== null && stiltsBeat(braces, y, best)) best = { spot: { dx, dz, y, slope: FLAT, legs: true }, braces };
   }
-  return best;
+  return best && best.spot;
+}
+
+function stiltsBeat(braces: number, y: number, best: Stilts | null): boolean {
+  if (!best) return true;
+  return braces < best.braces || (braces === best.braces && y < best.spot.y - CLIP_TOLERANCE);
+}
+
+function bracesAt(body: THREE.Object3D, points: Sample[], top: number): number | null {
+  const supports = itemSupports(body, points.map(([x, z]): [number, number] => [x, z]), top);
+  return supports && supports.filter((s) => s.role === 'brace').length;
 }
 
 function shifted(points: Sample[], dx: number, dz: number): Sample[] {
@@ -318,6 +339,25 @@ const LOOKS = {
 
 const INDEXES = new Map<string, FaceIndex>();
 const FOOTINGS = new Map<string, Footings>();
+const WALLS = new Map<string, BodyRays>();
+const PLACED_WALLS = new WeakMap<THREE.Object3D, { at: THREE.Matrix4; walls: BodyRays }>();
+
+function wallsOf(body: THREE.Object3D): BodyRays {
+  if (sharedModel(body)) return sharedWalls(body);
+  const kept = PLACED_WALLS.get(body);
+  if (kept && kept.at.equals(body.matrixWorld)) return kept.walls;
+  const walls = bodyRays(body, seeThrough);
+  PLACED_WALLS.set(body, { at: body.matrixWorld.clone(), walls });
+  return walls;
+}
+
+function sharedWalls(body: THREE.Object3D): BodyRays {
+  const cached = WALLS.get(body.userData.model);
+  if (cached) return cached;
+  const walls = bodyRays(body, seeThrough);
+  WALLS.set(body.userData.model, walls);
+  return walls;
+}
 
 function faceIndex(body: THREE.Object3D, name: keyof typeof LOOKS): FaceIndex {
   const key = `${body.userData.model}:${name}`;
@@ -483,32 +523,69 @@ function braceFoot(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Ve
 }
 
 function braceHit(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 | undefined {
-  return nearestWall(body, corner, inwardOf(corner, center), 0);
+  return nearestWall(body, corner, [inwardOf(corner, center)], 0) ?? nearestWall(body, corner, BRACE_SIDES, 0);
 }
 
 function farBraceHit(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 | undefined {
-  const toBody = inwardOf(corner, new THREE.Vector3(0, corner.y, 0));
+  const toBody = [inwardOf(corner, new THREE.Vector3(0, corner.y, 0))];
   return braceHit(body, corner, center) ?? braceBehindGlass(body, corner, center) ?? nearestWall(body, corner, toBody, 0) ?? wallHit(body, corner, DOWN, 0) ?? nearestWall(body, corner, toBody, Infinity) ?? undefined;
 }
 
 function braceBehindGlass(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 | undefined {
   const inward = inwardOf(corner, center);
-  return nearestWall(body, corner, inward, GLASS_SKIN) ?? nearestWall(body, corner, inward.negate(), GLASS_SKIN);
+  return nearestWall(body, corner, [inward], GLASS_SKIN) ?? nearestWall(body, corner, [inward.clone().negate()], GLASS_SKIN);
 }
 
 function inwardOf(corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 {
   return center.clone().sub(corner).setY(0).normalize();
 }
 
-function nearestWall(body: THREE.Object3D, corner: THREE.Vector3, along: THREE.Vector3, skin: number): THREE.Vector3 | undefined {
-  return BRACE_ANGLES.map((deg) => wallHit(body, corner, along.clone().multiplyScalar(Math.cos(deg * THREE.MathUtils.DEG2RAD)).setY(-Math.sin(deg * THREE.MathUtils.DEG2RAD)), skin))
+function nearestWall(body: THREE.Object3D, corner: THREE.Vector3, ways: THREE.Vector3[], skin: number): THREE.Vector3 | undefined {
+  return ways
+    .flatMap((way) => BRACE_ANGLES.map((deg) => wallHit(body, corner, way.clone().multiplyScalar(Math.cos(deg * THREE.MathUtils.DEG2RAD)).setY(-Math.sin(deg * THREE.MathUtils.DEG2RAD)), skin)))
     .filter((p): p is THREE.Vector3 => p !== null)
     .sort((a, b) => a.distanceTo(corner) - b.distanceTo(corner))[0];
 }
 
-function legsReach(body: THREE.Object3D, plate: CellRect, top: number, feet: Footing, brace = braceHit): boolean {
-  const center = new THREE.Vector3((plate.x0 + plate.x1) / 2, top, (plate.z0 + plate.z1) / 2);
-  return legSpots(plate).every(([x, z]) => feet(x, z) !== null || brace(body, new THREE.Vector3(x, top, z), center) !== undefined);
+type Support = { role: 'leg' | 'brace'; foot: THREE.Vector3; head: THREE.Vector3; needed: boolean };
+
+export function itemLegs(body: THREE.Object3D, obj: THREE.Object3D, top: number, makeLeg: (role: 'leg' | 'brace') => THREE.Object3D): THREE.Object3D[] {
+  const supports = itemSupports(body, bottomSamples(obj).map((p): [number, number] => [p.x, p.z]), top);
+  if (!supports) throw new Error(`Item ${obj.name} has no legs or braces that hold its bottom at ${top.toFixed(2)}`);
+  return supports.map((s) => strut(makeLeg(s.role), s.foot, s.head));
+}
+
+function itemSupports(body: THREE.Object3D, points: [number, number][], top: number): Support[] | null {
+  const feet = footings(body);
+  const heads = cornerHeads(points, CLIP_TOLERANCE / 4);
+  const looks = cornerHeads(points, legPad() - CLIP_TOLERANCE / 2);
+  const center = new THREE.Vector3(heads.reduce((sum, [x]) => sum + x, 0) / 4, top, heads.reduce((sum, [, z]) => sum + z, 0) / 4);
+  const supports = heads.map(([x, z], i) => supportAt(body, feet(...looks[i]), new THREE.Vector3(x, top, z), center));
+  if (supports.includes(null)) return null;
+  const needed = (supports as Support[]).filter((s) => s.needed);
+  return needed.length > 0 ? needed : null;
+}
+
+function supportAt(body: THREE.Object3D, foot: THREE.Vector3 | null, head: THREE.Vector3, center: THREE.Vector3): Support | null {
+  const below = foot ? wallHit(body, head, DOWN, 0) : null;
+  if (foot && below && Math.abs(below.y - foot.y) <= CLIP_TOLERANCE) return { role: 'leg', foot, head, needed: head.y - foot.y > CLIP_TOLERANCE / 2 };
+  const hit = braceHit(body, head, center);
+  return hit ? { role: 'brace', foot: hit, head, needed: hit.distanceTo(head) > CLIP_TOLERANCE / 2 } : null;
+}
+
+function cornerHeads(points: [number, number][], inset: number): [number, number][] {
+  const xs = points.map(([x]) => x);
+  const zs = points.map(([, z]) => z);
+  const [x0, x1, z0, z1] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];
+  const middle: [number, number] = [(x0 + x1) / 2, (z0 + z1) / 2];
+  return [[x0, z0], [x0, z1], [x1, z0], [x1, z1]].map((corner) => headNear(points, corner as [number, number], middle, inset));
+}
+
+function headNear(points: [number, number][], corner: [number, number], middle: [number, number], inset: number): [number, number] {
+  const [x, z] = points.reduce((a, b) => (Math.hypot(a[0] - corner[0], a[1] - corner[1]) <= Math.hypot(b[0] - corner[0], b[1] - corner[1]) ? a : b));
+  const run = Math.hypot(middle[0] - x, middle[1] - z);
+  const step = run === 0 ? 0 : Math.min(inset, run) / run;
+  return [x + (middle[0] - x) * step, z + (middle[1] - z) * step];
 }
 
 const FACES = new Map<string, number | null>();
@@ -550,9 +627,16 @@ export function rearHang(body: THREE.Object3D, z: number): THREE.Vector3 {
 
 function wallHit(body: THREE.Object3D, from: THREE.Vector3, dir: THREE.Vector3, skin: number): THREE.Vector3 | null {
   const start = from.clone().addScaledVector(dir, -CLIP_TOLERANCE);
-  const hits = new THREE.Raycaster(start, dir).intersectObject(body, true);
-  const solid = hits.find((h) => !seeThrough(h.object));
-  return solid && solid.distance - hits[0].distance <= skin ? solid.point : null;
+  const walls = wallsOf(body);
+  const first = walls(start, dir);
+  if (!first) return null;
+  let hit = first;
+  while (hit.seeThrough) {
+    const next = walls(hit.point.clone().addScaledVector(dir, THROUGH_STEP), dir);
+    if (!next || next.point.distanceTo(first.point) > skin) return null;
+    hit = next;
+  }
+  return hit.point;
 }
 
 function seeThrough(obj: THREE.Object3D): boolean {

@@ -100,6 +100,18 @@ describe('deeds toward a faction', () => {
     expect(later.player.standing.bowl).toBe(10);
   });
 
+  it('opens the help gain cap again on the first turn of the next work day', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const me = playerVehicle(w);
+    const helped = Array.from({ length: 5 }, (_, i) => trader(w, 'guidestar', { x: 34 + 2 * i, y: 30 }));
+    for (const v of helped.slice(0, 3)) noteDeed(w, me, v, 'towed', true);
+    const capped = w.player.standing.guidestar;
+    expect(capped).toBe(10 + STANDING.dailyGainCap);
+    w.turn = TIME.workDayTurns + 1;
+    noteDeed(w, me, helped[3], 'towed', true);
+    expect(w.player.standing.guidestar).toBeGreaterThan(capped);
+  });
+
   it('pushes a standing event when a deed crosses a band', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = playerVehicle(w);
@@ -111,7 +123,7 @@ describe('deeds toward a faction', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.player.standing.kiln = -100;
     w.player.standing.bowl = -100;
-    for (let turn = 1; turn <= 6 * TIME.turnsPerDay; turn++) {
+    for (let turn = 1; turn <= 6 * TIME.workDayTurns; turn++) {
       w.turn = turn;
       driftStanding(w);
     }
@@ -124,7 +136,7 @@ describe('deeds toward a faction', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.player.standing.scrapjaw = -55;
     w.player.standing.bowl = 20;
-    for (let turn = 1; turn <= TIME.turnsPerDay; turn++) {
+    for (let turn = 1; turn <= TIME.workDayTurns; turn++) {
       w.turn = turn;
       driftStanding(w);
     }

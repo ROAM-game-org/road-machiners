@@ -7,7 +7,8 @@ import { TEST_MAP } from '../test/map';
 import { FORT_MODELS, FORT_PROPS, fortressCore, fortressGates, fortressOutline, fortressPieces, pitDepth } from './fortress';
 import { PROP_KINDS } from './terrain';
 import type { Obstacle } from './types';
-import { boxDistance, isDriveObstacle, isBakedObstacle, mapObstacles, propBoxes, propPose } from './mapgen';
+import { boxDistance, isDriveObstacle, isBakedObstacle, mapObstacles, propBoxes, propObstacle, propPose } from './mapgen';
+import { noseRocks } from './nose';
 import { isFree } from './spawn';
 import { canUseSite, isFortress, sitePads } from './sites';
 import { discoverSites } from './locations';
@@ -144,10 +145,10 @@ describe('fortress ground', () => {
 
   it('leaves the roads out of Nose clear of its rock', () => {
     const nose = FORT_SITES.find((s) => s.id === 'nose')!;
-    const rock = mapObstacles(TEST_MAP).filter((o) => o.kind === 'landmark' && (o.look === 'noseRise' || o.look === 'noseCrag'));
-    expect(rock).toHaveLength(2);
-    const boxes = rock.flatMap((o) => propBoxes(o));
-    const reach = Math.max(...rock.map((o) => o.r));
+    expect(mapObstacles(TEST_MAP).filter((o) => o.kind === 'landmark' && (o.look === 'noseRise' || o.look === 'noseCrag'))).toEqual([]);
+    const rock = noseRocks(nose);
+    const boxes = rock.flatMap((p, k) => propBoxes(propObstacle(p, k)));
+    const reach = Math.max(...rock.map((p) => p.r));
     let checked = 0;
     for (const road of REGION.roads) {
       for (let i = 1; i < road.length; i++) {

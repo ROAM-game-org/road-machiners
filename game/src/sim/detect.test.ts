@@ -5,13 +5,13 @@ import { sunAt } from './sun';
 import { TIME } from '../data/time';
 import { describe, expect, it } from 'vitest';
 import { addVehicle, editableTerrain, emptyWorld } from './testkit';
-import { advanceDust, cloudsSeenBy, contactsOf, dustRange, markVehicle, scannerRange, soundRange } from './detect';
+import { advanceDust, cloudsSeenBy, contactsOf, dustRange, markVehicle, scannerRange, sensesOf, sharpSensesOf, soundRange } from './detect';
 import { makePart } from './factory';
 import { mountPart } from './inventory';
 import { TERRAIN } from '../data/terrain';
 import { PERK_NUMBERS, SKILL_EFFECTS } from '../data/skills';
 import { dist } from './vec';
-import { refreshVision, sightRadius } from './vision';
+import { farSightRadius, refreshVision, sightRadius } from './vision';
 import { vehicleStats } from './stats';
 import { corePart, mountedParts } from './grid';
 import { playerVehicle } from './damage';
@@ -100,7 +100,7 @@ describe('hills and the scanner', () => {
     refreshVision(w);
     const observer = w.vehicles[0];
     observer.items = observer.items.filter((it) => it.kind !== 'part' || it.part.defId !== 'mg');
-    const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + farSightRadius(w, observer) + 5, y: 30 });
     target.speed = 0.2;
     expect(scannerRange(w, observer)).toBe(0);
     const before = contactsOf(w, observer, Infinity);
@@ -157,6 +157,24 @@ describe('dust clouds', () => {
     expect(dustRange(w, v)).toBeGreaterThan(40);
     return { w, v, observer: w.vehicles[0] };
   }
+
+  it('sharp senses keep exactly the sharp contacts the whole map gives, a far dusty truck included', () => {
+    const { w, v, observer } = dustyWorld();
+    v.pos = { x: 70, y: 30 };
+    v.trail = [0, 1, 2, 3, 4].map((i) => ({ x: 66 + i, y: 30, heading: 0 }));
+    for (const x of [14, 30, 45, 90, 150]) {
+      const other = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x, y: 31 });
+      other.speed = 3;
+      other.trail = [0, 1, 2].map((i) => ({ x: x - 2 + i, y: 31, heading: 0 }));
+    }
+    advanceDust(w);
+    for (const blur of [6, 12, 20]) {
+      const all = sensesOf(w, observer, Infinity);
+      const sharp = sharpSensesOf(w, observer, blur);
+      expect(sharp.seen.map((x) => x.id)).toEqual(all.seen.map((x) => x.id));
+      expect(sharp.contacts.filter((c) => c.radius <= blur)).toEqual(all.contacts.filter((c) => c.radius <= blur));
+    }
+  });
 
   it('a moving dusty truck raises a cloud behind it, and a parked one does not', () => {
     const { w, v } = dustyWorld();
@@ -215,7 +233,7 @@ describe('the emergency beacon', () => {
   it('gives any vehicle in range a tight contact through hills', () => {
     const { w, me, observer } = beaconing(40);
     const contact = contactsOf(w, observer, Infinity).find((c) => c.vehicleId === me.id);
-    expect(contact?.sources).toEqual(['beacon']);
+    expect(contact?.sources).toEqual(['far', 'beacon']);
     expect(contact!.radius).toBe(BEACON.radius);
     expect(dist(contact!.center, me.pos)).toBeLessThan(BEACON.radius);
     expect(contact!.loudness).toBeNull();
@@ -231,7 +249,7 @@ describe('the emergency beacon', () => {
   it('gives nothing while off', () => {
     const { w, me, observer } = beaconing(40);
     w.player.beacon = false;
-    expect(contactsOf(w, observer, Infinity).some((c) => c.vehicleId === me.id)).toBe(false);
+    expect(contactsOf(w, observer, Infinity).find((c) => c.vehicleId === me.id)?.sources).toEqual(['far']);
   });
 
   it('merges with sound into one tight contact', () => {
@@ -240,7 +258,7 @@ describe('the emergency beacon', () => {
     me.speed = 4;
     const contacts = contactsOf(w, observer, Infinity).filter((c) => c.vehicleId === me.id);
     expect(contacts).toHaveLength(1);
-    expect(contacts[0].sources).toEqual(['sound', 'beacon']);
+    expect(contacts[0].sources).toEqual(['sound', 'far', 'beacon']);
     expect(contacts[0].radius).toBe(BEACON.radius);
   });
 
@@ -291,7 +309,7 @@ describe('perception hearing and contact fix', () => {
   it('an NPC observer keeps its contact circle', () => {
     const w = emptyWorld({ x: 200, y: 200 });
     const observer = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 20, y: 30 });
-    const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
+    const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 55, y: 30 });
     target.speed = 3;
     const radius = () => contactsOf(w, observer, Infinity).find((c) => c.vehicleId === target.id)!.radius;
     const base = radius();
@@ -476,7 +494,7 @@ describe('the spotter perk', () => {
     v.pos = { x: 30 + sightRadius(marked, playerVehicle(marked)) + 2, y: 30 };
     v.speed = 4;
     refreshVision(marked);
-    expect(marked.player.contacts.find((c) => c.vehicleId === target.id)?.sources).toEqual(['sound', 'mark']);
+    expect(marked.player.contacts.find((c) => c.vehicleId === target.id)?.sources).toEqual(['sound', 'far', 'mark']);
   });
 
   it('drops the mark after its last turn', () => {
@@ -604,13 +622,13 @@ describe('a stranded truck', () => {
     w.player.beacon = true;
     const observer = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     observer.speed = 0;
-    expect(contactsOf(w, observer, Infinity).find((c) => c.vehicleId === me.id)?.sources).toEqual(['beacon']);
+    expect(contactsOf(w, observer, Infinity).find((c) => c.vehicleId === me.id)?.sources).toEqual(['far', 'beacon']);
     observer.resources!.fuel = 0;
     observer.speed = 4;
     me.speed = 0;
     w.player.fuel = 10;
     me.items = me.items.filter((it) => it.kind !== 'part' || it.part.defId !== 'mg');
     if (!mountPart(w, me, makePart(w, 'scanner', 0))) throw new Error('No free mount for the test scanner');
-    expect(contactsOf(w, me, Infinity).find((c) => c.vehicleId === observer.id)?.sources).toEqual(['radio']);
+    expect(contactsOf(w, me, Infinity).find((c) => c.vehicleId === observer.id)?.sources).toEqual(['radio', 'far']);
   });
 });

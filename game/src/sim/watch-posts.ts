@@ -4,9 +4,10 @@ import { HUNT, NPCS } from '../data/npcs';
 import { REGION } from '../data/region';
 import { TERRAIN } from '../data/terrain';
 import { isBakedObstacle, propReach } from './mapgen';
-import { CELL, CLEARANCE, nearCliff, staticSet, terrainNav, tileIndex, type StaticSet, type TerrainNav } from './nav/layer';
+import { CELL, CLEARANCE, NO_CLIMB, nearCliff, staticSet, terrainNav, tileIndex, type StaticSet, type TerrainNav } from './nav/layer';
 import type { Blocker } from './nav/buckets';
 import { lawmanTowns } from './npc-decisions';
+import { reachesFrom } from './path';
 import { propsAlong } from './prop-index';
 import { INDEX_CELL, ROAD_INDEX } from './road-index';
 import { siteGates, siteUnder } from './sites';
@@ -18,14 +19,23 @@ import { dist, segmentDist, type Vec } from './vec';
 import { icarusAtlas } from './atlas';
 import { clearOverTerrain, hasLineOfSight, sightLine } from './vision';
 
-function postReach(): number {
+function raiderRadius(): number {
   const radii = Object.values(NPCS).filter((t) => t.traits.includes('raider')).flatMap((t) => t.loadout.chassis.map((c) => chassisDef(c.value).radius));
-  return Math.max(...radii) + CLEARANCE + CELL;
+  return Math.max(...radii);
+}
+
+function postReach(): number {
+  return raiderRadius() + CLEARANCE + CELL;
+}
+
+function roadReach(world: World): (p: Vec) => boolean {
+  const road = REGION.roads[0];
+  return reachesFrom(world, road[Math.floor(road.length / 2)], raiderRadius(), NO_CLIMB - 1);
 }
 
 type TrafficSamples = Map<number, Vec[]>;
 
-type PostMap = { reach: number; traffic: TrafficSamples | null; nav: TerrainNav; statics: StaticSet; gates: Vec[]; hazards: HazardZone[]; posts: Map<string, Vec | null>; lists: Map<string, readonly Vec[]> };
+type PostMap = { reach: number; reachesRoad: (p: Vec) => boolean; traffic: TrafficSamples | null; nav: TerrainNav; statics: StaticSet; gates: Vec[]; hazards: HazardZone[]; posts: Map<string, Vec | null>; lists: Map<string, readonly Vec[]> };
 
 const maps = new WeakMap<Terrain, PostMap>();
 
@@ -34,6 +44,7 @@ function postMap(world: World): PostMap {
   if (hit) return hit;
   const map: PostMap = {
     reach: postReach(),
+    reachesRoad: roadReach(world),
     traffic: null,
     nav: terrainNav(world.terrain),
     statics: staticSet(fixedProps(world), world.terrain),
@@ -153,7 +164,7 @@ export function isHideSpot(world: World, p: Vec): boolean {
 }
 
 function qualifiesAsHide(world: World, map: PostMap, p: Vec): boolean {
-  return onMap(world, map, p) && clearOfRoads(p) && clearOfPlaces(map, p) && drivable(map, p);
+  return onMap(world, map, p) && clearOfRoads(p) && clearOfPlaces(map, p) && drivable(map, p) && map.reachesRoad(p);
 }
 
 function onMap(world: World, map: PostMap, p: Vec): boolean {

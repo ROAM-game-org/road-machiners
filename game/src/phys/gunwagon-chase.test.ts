@@ -7,6 +7,7 @@ import { addGoods, cargoRoom } from '../sim/inventory';
 import { generateNpcLoadout } from '../sim/npc-loadout';
 import { emptyWorld } from '../sim/testkit';
 import type { Vehicle, World } from '../sim/types';
+import type { TerrainTypeId } from '../data/terrain';
 import { endTurn } from '../sim/world';
 import { KPH } from '../test/traffic-speed';
 import { budget } from '../test/budget';
@@ -17,7 +18,7 @@ beforeAll(async () => {
   await initPhysics();
 });
 
-const OPEN_GROUND = 'hardpan';
+const OPEN_GROUND: TerrainTypeId = 'hardpan';
 const ROAD_Y = 30;
 const HEAD_START = 30;
 const FAR = { x: 480, y: ROAD_Y };

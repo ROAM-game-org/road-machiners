@@ -1,6 +1,46 @@
 
 import type { Vec } from "../sim/vec";
 
+declare const __MAP_DRAFT__: string;
+
+export type DraftData = {
+  mapHash: string;
+  oldSpots: { mapHash: string; picks: unknown[] };
+  surveySites: { mapHash: string; sites: unknown[] };
+  claimClues: { mapHash: string; wrecks: Record<string, unknown> };
+  huntingSpots: { mapHash: string; spots: unknown[]; samples: unknown[] };
+  hollow: { pos: Vec; gateBearing: number } | null;
+  startDistance: number | null;
+};
+
+function draftScale(raw: string): number | null {
+  if (raw === '') return null;
+  const scale = Number(raw);
+  if (!Number.isFinite(scale) || scale <= 0) throw new Error(`MAP_DRAFT must be a map scale above 0, got ${raw}`);
+  return scale;
+}
+
+function draftSetting(): string {
+  if (typeof __MAP_DRAFT__ === 'string') return __MAP_DRAFT__;
+  return (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.MAP_DRAFT ?? '';
+}
+
+export const MAP_DRAFT = draftScale(draftSetting());
+
+const DRAFT_FILES = import.meta.glob<DraftData>('./drafts/*.json', { eager: true, import: 'default' });
+
+export function draftName(scale: number): string {
+  return `draft-${scale}`;
+}
+
+function draftFile(scale: number): DraftData {
+  const data = DRAFT_FILES[`./drafts/${draftName(scale)}.json`];
+  if (!data) throw new Error(`Draft map ${scale} has no data file. Run MAP_DRAFT=${scale} npm run map:draft.`);
+  return data;
+}
+
+export const DRAFT: DraftData | null = MAP_DRAFT === null ? null : draftFile(MAP_DRAFT);
+
 export type TownDef = { id: string; pos: Vec; radius: number };
 export type SiteLocationDef = {
   id: string;
@@ -12,10 +52,13 @@ export type SiteLocationDef = {
   turn?: number;
   gates?: readonly Vec[];
 };
-export type TerritoryDef = { id: string; kind: "territory"; pos: Vec; radius: number; outline: Vec[] | null; groundFrom?: Vec };
+export type TerritoryDef = { id: string; kind: "territory"; pos: Vec; radius: number; outline: Vec[] | null; reliefFrom?: Vec; offRoad?: true };
 export type LocationDef = SiteLocationDef | TerritoryDef;
 export type SiteEdge = "fence" | "wrecks";
-export const MAP_SCALE = 6.5;
+export const MAP_SCALE = MAP_DRAFT ?? 15.6;
+const BASE_MAP_SCALE = 6.5;
+export const MAP_SPREAD = MAP_SCALE / BASE_MAP_SCALE;
+export const MAP_AREA_SPREAD = MAP_SPREAD * MAP_SPREAD;
 export const MAP_GRID = { squares: 8 };
 
 export function scalePoint(p: Vec): Vec {
@@ -33,6 +76,13 @@ const OLD_ORCHARD_AT: Vec = { x: 114, y: 284 };
 
 function besideOrchard(x: number, y: number): Vec {
   return { x: ORCHARD_POS.x + x * 5 - OLD_ORCHARD_AT.x + 0.4, y: ORCHARD_POS.y + y * 5 - OLD_ORCHARD_AT.y };
+}
+
+const NOSE_LAYOUT: Vec = { x: 102, y: 35 };
+
+function besideNose(x: number, y: number): Vec {
+  const nose = scalePoint(NOSE_LAYOUT);
+  return { x: nose.x + (x - NOSE_LAYOUT.x) * BASE_MAP_SCALE, y: nose.y + (y - NOSE_LAYOUT.y) * BASE_MAP_SCALE };
 }
 
 const PINNED = new WeakMap<Vec, Vec>();
@@ -66,7 +116,49 @@ function bend(a: Vec, b: Vec): Vec[] {
   return points;
 }
 
-export const FALLEN_SUN_POS = scalePoint({ x: 64, y: 54 });
+const TOWNS: TownDef[] = [
+  { id: "bowl", pos: scalePoint({ x: 16, y: 94 }), radius: 28 },
+  { id: "nose", pos: scalePoint({ x: 102, y: 35 }), radius: 32 },
+];
+
+const TOWN_RING = { margin: 9, step: 4 };
+
+function circleCrossings(road: Vec[], center: Vec, radius: number): Vec[] {
+  const out: Vec[] = [];
+  for (let i = 1; i < road.length; i++) {
+    const a = road[i - 1];
+    const d = { x: road[i].x - a.x, y: road[i].y - a.y };
+    const f = { x: a.x - center.x, y: a.y - center.y };
+    const qa = d.x * d.x + d.y * d.y;
+    const qb = 2 * (f.x * d.x + f.y * d.y);
+    const disc = qb * qb - 4 * qa * (f.x * f.x + f.y * f.y - radius * radius);
+    if (disc < 0) continue;
+    for (const t of [(-qb - Math.sqrt(disc)) / (2 * qa), (-qb + Math.sqrt(disc)) / (2 * qa)]) {
+      if (t >= 0 && t < 1) out.push({ x: a.x + d.x * t, y: a.y + d.y * t });
+    }
+  }
+  return out;
+}
+
+function townRing(town: TownDef, roads: Vec[][]): Vec[] {
+  const radius = town.radius + TOWN_RING.margin;
+  const ends = roads.flatMap((road) => circleCrossings(road, town.pos, radius));
+  if (ends.length !== 2) throw new Error(`Town ${town.id} has ${ends.length} road crossings at its ring radius, and its ring joins exactly two`);
+  const angle = (p: Vec): number => Math.atan2(p.y - town.pos.y, p.x - town.pos.x);
+  const swing = Math.atan2(Math.sin(angle(ends[1]) - angle(ends[0])), Math.cos(angle(ends[1]) - angle(ends[0])));
+  const count = Math.ceil((radius * Math.abs(swing)) / TOWN_RING.step);
+  const between = Array.from({ length: count - 1 }, (_, k) => {
+    const a = angle(ends[0]) + (swing * (k + 1)) / count;
+    return { x: town.pos.x + Math.cos(a) * radius, y: town.pos.y + Math.sin(a) * radius };
+  });
+  return [ends[0], ...between, ends[1]];
+}
+
+function withTownRings(roads: Vec[][]): Vec[][] {
+  return [...roads, ...TOWNS.map((town) => townRing(town, roads))];
+}
+
+export const FALLEN_SUN_POS = onTile(scalePoint({ x: 64, y: 54 }));
 const FALLEN_SUN_OUTLINE: Vec[] = [
   { x: -45.0, y: 0.0 },
   { x: -41.3, y: -15.0 },
@@ -116,7 +208,7 @@ export function onOrchardRoad(s: number, c: number): Vec {
   return { x: s * cos + c * sin, y: s * sin - c * cos };
 }
 
-const ORCHARD_OUTLINE: Vec[] = [
+const ORCHARD_SOUTH_EDGE: [number, number][] = [
   [-35, 22],
   [-36, 2],
   [-28, -3],
@@ -131,12 +223,25 @@ const ORCHARD_OUTLINE: Vec[] = [
   [58, -12],
   [59, 3],
   [72, 6],
-  [72, 42],
-  [54, 40],
-  [46, 37],
-  [40, 34],
+];
+const ORCHARD_NORTH_EDGE: [number, number][] = [
+  [86, 10],
+  [104, 26],
+  [122, 38],
+  [130, 58],
+  [128, 84],
+  [114, 102],
+  [88, 108],
+  [62, 100],
+  [46, 76],
+  [30, 68],
+  [8, 66],
+  [-14, 64],
+  [-30, 58],
   [-30, 34],
-].map(([s, c]) => onOrchardRoad(s, c));
+];
+export const ORCHARD_FRAME_OUTLINE: Vec[] = [...ORCHARD_SOUTH_EDGE, ...ORCHARD_NORTH_EDGE].map(([s, c]) => ({ x: s, y: c }));
+const ORCHARD_OUTLINE: Vec[] = ORCHARD_FRAME_OUTLINE.map(({ x, y }) => onOrchardRoad(x, y));
 
 function boundingRadius(outline: readonly Vec[]): number {
   return Math.max(...outline.map((p) => Math.hypot(p.x, p.y)));
@@ -163,7 +268,8 @@ function edgePoint(from: Vec, to: Vec, centre: Vec, outline: readonly Vec[]): Ve
   return { x: from.x + d.x * t, y: from.y + d.y * t };
 }
 
-export const GLASS_FLATS_POS = onTile(scalePoint({ x: 81, y: 75.6 }));
+export const GLASS_FLATS_POS = onTile(scalePoint({ x: 101.5, y: 101.5 }));
+export const GLASS_FLATS_GROWTH = 1.7;
 const GLASS_FLATS_OUTLINE: Vec[] = [
   [0, 71],
   [11.25, 61],
@@ -197,20 +303,30 @@ const GLASS_FLATS_OUTLINE: Vec[] = [
   [-33.75, 95],
   [-22.5, 95],
   [-11.25, 83],
-].map(([deg, r]) => ({ x: r * Math.cos((deg * Math.PI) / 180), y: r * Math.sin((deg * Math.PI) / 180) }));
-const GLASS_FLATS_S1 = scalePoint({ x: 88, y: 84 });
-const GLASS_FLATS_S2 = scalePoint({ x: 97, y: 62 });
-const GLASS_FLATS_APPROACHES: Vec[][] = [GLASS_FLATS_S1, GLASS_FLATS_S2].map((from) => [from, edgePoint(from, GLASS_FLATS_POS, GLASS_FLATS_POS, GLASS_FLATS_OUTLINE)]);
-export const GLASS_FLATS_ENDS: Vec[] = GLASS_FLATS_APPROACHES.map(([, end]) => ({ x: end.x - GLASS_FLATS_POS.x, y: end.y - GLASS_FLATS_POS.y }));
+].map(([deg, r]) => ({ x: r * GLASS_FLATS_GROWTH * Math.cos((deg * Math.PI) / 180), y: r * GLASS_FLATS_GROWTH * Math.sin((deg * Math.PI) / 180) }));
+const GLASS_FLATS_LANE_BEARINGS: Vec[] = [{ x: 7, y: 8.4 }, { x: 16, y: -13.6 }];
+export const GLASS_FLATS_ENDS: Vec[] = GLASS_FLATS_LANE_BEARINGS.map((b) => {
+  const far = { x: GLASS_FLATS_POS.x + b.x * MAP_SCALE * 4, y: GLASS_FLATS_POS.y + b.y * MAP_SCALE * 4 };
+  const end = edgePoint(far, GLASS_FLATS_POS, GLASS_FLATS_POS, GLASS_FLATS_OUTLINE);
+  return { x: end.x - GLASS_FLATS_POS.x, y: end.y - GLASS_FLATS_POS.y };
+});
 
 function fromFallenSun(x: number, y: number): Vec {
   return { x: FALLEN_SUN_POS.x + x, y: FALLEN_SUN_POS.y + y };
 }
 
-const MARSHAL_POST_AT = scalePoint({ x: 105.5, y: 14 });
+const ROADHOUSE_JUNCTION = scalePoint({ x: 82, y: 33 });
+const ROADHOUSE_FROM_JUNCTION = { x: 16, y: 0 };
+const MARSHAL_POST_AT = { x: ROADHOUSE_JUNCTION.x + ROADHOUSE_FROM_JUNCTION.x, y: ROADHOUSE_JUNCTION.y + ROADHOUSE_FROM_JUNCTION.y };
+
+const BROKEN_WING_LAYOUT = { x: 70, y: 33 };
+
+function onHalfTile(p: Vec): Vec {
+  return { x: Math.round(p.x * 2) / 2, y: Math.round(p.y * 2) / 2 };
+}
 
 export const BROKEN_WING = {
-  road: scalePoint({ x: 70, y: 33 }),
+  road: onHalfTile(scalePoint(BROKEN_WING_LAYOUT)),
   yaw: 0,
   deckHalf: 19.5,
   mound: { gap: 4.5, flat: 2, bank: 14, height: 1.8 },
@@ -232,10 +348,15 @@ export const REGION = {
   danger: 1,
   navigation: {
     heuristicWeight: 1.2,
+    cellTiles: 32,
+    cellRing: 1,
+    avoidCellRing: 4,
     offRoadCost: 1.75,
     shortcutCost: 1.2,
-    taste: { scale: 40, strength: 0.6 },
+    taste: { scale: 40 * MAP_SPREAD, strength: 0.6 },
     lookahead: 48,
+    farWindow: 240,
+    nearSlack: 32,
     slopeCost: 1,
     straighten: 0.05,
     roadShyCost: 6,
@@ -244,12 +365,9 @@ export const REGION = {
     climbStep: 0.05,
     reachClimb: 0.2,
   },
-  towns: [
-    { id: "bowl", pos: scalePoint({ x: 16, y: 94 }), radius: 28 },
-    { id: "nose", pos: scalePoint({ x: 102, y: 35 }), radius: 32 },
-  ] as TownDef[],
+  towns: TOWNS,
   locations: [
-    { id: "orchard", kind: "territory", pos: ORCHARD_POS, radius: boundingRadius(ORCHARD_OUTLINE), outline: ORCHARD_OUTLINE, groundFrom: { x: 114, y: 284 } },
+    { id: "orchard", kind: "territory", pos: ORCHARD_POS, radius: boundingRadius(ORCHARD_OUTLINE), outline: ORCHARD_OUTLINE },
     {
       id: "dustwell",
       kind: "oasis",
@@ -268,7 +386,7 @@ export const REGION = {
       pos: GLASS_FLATS_POS,
       radius: boundingRadius(GLASS_FLATS_OUTLINE),
       outline: GLASS_FLATS_OUTLINE,
-      groundFrom: { x: 405, y: 378 },
+      offRoad: true,
     },
     {
       id: "green-pit",
@@ -288,7 +406,7 @@ export const REGION = {
       pos: FALLEN_SUN_POS,
       radius: boundingRadius(FALLEN_SUN_OUTLINE),
       outline: FALLEN_SUN_OUTLINE,
-      groundFrom: { x: 320, y: 270 },
+      reliefFrom: { x: 320, y: 270 },
     },
     {
       id: "salvage-yard",
@@ -315,13 +433,13 @@ export const REGION = {
       radius: 6,
     },
   ] as LocationDef[],
-  roads: [
+  roads: withTownRings([
     scaleRoad([
       { x: 16, y: 94 },
       { x: 20.36277, y: 84.67443 },
       { x: 25, y: 73 },
       pinnedTo({ x: 28, y: 64 }, besideOrchard(28, 64)),
-      pinnedTo({ x: 31, y: 54 }, besideOrchard(31, 54)),
+      pinnedTo({ x: 31, y: 54 }, besideOrchard(31.8, 54)),
       { x: 37, y: 32 },
       { x: 43, y: 30 },
       { x: 50, y: 36 },
@@ -331,10 +449,10 @@ export const REGION = {
       { x: 77, y: 24 },
       { x: 89, y: 26 },
       { x: 96.04384, y: 30.93501 },
-      { x: 94.7, y: 35.7 },
-      { x: 97.81, y: 40.36 },
+      pinnedTo({ x: 94.7, y: 35.7 }, besideNose(94.7, 35.7)),
+      pinnedTo({ x: 97.81, y: 40.36 }, besideNose(97.81, 40.36)),
       { x: 102, y: 35 },
-    ], [0, 15]),
+    ], [0, 3, 15]),
     scaleRoad([
       { x: 16, y: 94 },
       { x: 23.79885, y: 90.5103 },
@@ -348,7 +466,7 @@ export const REGION = {
       { x: 95, y: 78 },
       { x: 103, y: 70 },
       { x: 104.88672, y: 58.01449 },
-      { x: 105.18, y: 40.98 },
+      pinnedTo({ x: 105.18, y: 40.98 }, besideNose(105.18, 40.98)),
       { x: 102, y: 35 },
     ], [0, 9, 12]),
     scaleRoad([
@@ -358,7 +476,7 @@ export const REGION = {
       { x: 50, y: 49 },
       { x: 51, y: 38 },
       { x: 60, y: 33 },
-      { x: 70, y: 33 },
+      pinnedTo({ ...BROKEN_WING_LAYOUT }, BROKEN_WING.road),
       { x: 82, y: 33 },
     ], [5, 6]),
     scaleRoad([
@@ -393,7 +511,6 @@ export const REGION = {
     scaleRoad([{ x: 73, y: 92 }, { x: 71.8, y: 89 }], [0]),
     scaleRoad([{ x: 43, y: 54 }, { x: 40.7, y: 51.7 }], [0]),
     scaleRoad([{ x: 82, y: 49 }, { x: 82, y: 52.2 }], [0]),
-    ...GLASS_FLATS_APPROACHES,
     scaleRoad([
       { x: 37, y: 32 },
       { x: 29.27781, y: 22.66219 },
@@ -426,12 +543,8 @@ export const REGION = {
       ]),
       fromFallenSun(37.75, 28.44),
     ],
-    scaleRoad([
-      { x: 96.04384, y: 30.93501 },
-      { x: 100.5, y: 22.5 },
-      { x: 105.5, y: 14 },
-    ]),
-  ] as Vec[][],
+    [ROADHOUSE_JUNCTION, MARSHAL_POST_AT],
+  ]),
   roadWidth: 6,
   obstacles: {
     roadWrecks: 39,
@@ -464,5 +577,5 @@ export const REGION = {
     wreckSegment: 1.1,
     gatePoleHeight: 5.5,
   },
-  playerStart: { road: 0, distance: 22 * MAP_SCALE, offset: 45, wreck: { ahead: 6, side: 5 } },
+  playerStart: { road: 0, distance: DRAFT?.startDistance ?? 24 * MAP_SCALE, sightMargin: 5, wreck: { ahead: 6, side: 5 } },
 };

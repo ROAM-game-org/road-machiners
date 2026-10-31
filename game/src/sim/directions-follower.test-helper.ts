@@ -77,7 +77,8 @@ function onwardOf(graph: RoadGraph, node: number, into: number): number | null {
 }
 
 function firstExits(graph: RoadGraph, node: number, first: Follow): RoadExit[] {
-  return exitsAt(graph, node).filter((e) => sameName(roadName(graph, e.edge, node), first.road) && [DIRECTIONS.headingReach, DIRECTIONS.headingReach / 2].some((reach) => lookDown(graph, node, e, reach) === first.heading));
+  const named = exitsAt(graph, node).filter((e) => sameName(roadName(graph, e.edge, node), first.road));
+  return named.length === 1 ? named : named.filter((e) => [DIRECTIONS.headingReach, DIRECTIONS.headingReach / 2].some((reach) => lookDown(graph, node, e, reach) === first.heading));
 }
 
 function onlyRoadExit(graph: RoadGraph, node: number, first: Follow): RoadExit[] {

@@ -1,5 +1,6 @@
 
 import type { LineId } from '../data/dialogue';
+import { HIRE } from '../data/npc-behavior';
 import { paintOf } from '../render/palette';
 import { playerVehicle, vehicleById } from '../sim/damage';
 import { isKnockedOut } from '../sim/defeat';
@@ -9,7 +10,7 @@ import { playerSees } from '../sim/vision';
 import { playerCanAct } from '../sim/world';
 import { language, say } from '../text/language';
 import { byId, list, t, type Msg } from '../text/msg';
-import { fullName, goodLower, lineKey, partName, refusalText, siteName, unitCount, vehicleTitle } from '../text/names';
+import { fullName, goodLower, hoursSpan, lineKey, partName, refusalText, siteName, unitCount, vehicleTitle } from '../text/names';
 import { schemaOf } from '../text/resolve';
 import { modeRules } from '../sim/settings';
 import { el, isBrowserChord, panel, topCenter } from './dom';
@@ -86,9 +87,13 @@ function formatVar<K extends CallVar['kind']>(v: Extract<CallVar, { kind: K }>):
   return (VAR_TEXT[v.kind as K] as (x: typeof v) => Msg)(v);
 }
 
+export const DERIVED_VARS: Record<string, () => Msg> = { span: () => hoursSpan(HIRE.turns) };
+
 export function lineText(id: LineId, vars: CallVars): Msg {
   const key = lineKey(id);
   const params = Object.keys(schemaOf(key)).map((name) => {
+    const derived = DERIVED_VARS[name];
+    if (derived) return [name, derived()] as const;
     const v = vars[name];
     if (!v) throw new Error(`Line ${id} needs the call value ${name}`);
     return [name, formatVar(v)] as const;

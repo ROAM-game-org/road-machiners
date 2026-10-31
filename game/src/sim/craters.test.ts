@@ -11,6 +11,7 @@ import { gunFor } from './factory';
 import { mountedParts } from './grid';
 import { addVehicle, editableTerrain, emptyWorld, npcBrain } from './testkit';
 import { tileAt } from './terrain';
+import { grayRadius } from './vision';
 import type { ShotRound, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 
@@ -177,7 +178,7 @@ describe('digCrater', () => {
 });
 
 describe('fadeCraters', () => {
-  const days = CRATER.days * TIME.turnsPerDay;
+  const days = CRATER.days * TIME.workDayTurns;
 
   function dug(): { w: World; at: Vec } {
     const w = emptyWorld({ x: 30, y: 30 });
@@ -187,10 +188,14 @@ describe('fadeCraters', () => {
     return { w, at };
   }
 
+  function leaveView(w: World, at: Vec): void {
+    w.vehicles[0].pos = { x: at.x, y: at.y + grayRadius(w) + 10 };
+  }
+
   it('keeps a crater before its days have passed, even out of view', () => {
-    const { w } = dug();
+    const { w, at } = dug();
     w.turn = days - 1;
-    w.vehicles[0].pos = { x: 90, y: 90 };
+    leaveView(w, at);
     fadeCraters(w);
     expect(w.craters).toHaveLength(1);
   });
@@ -205,16 +210,16 @@ describe('fadeCraters', () => {
   it('keeps an old crater under a truck', () => {
     const { w, at } = dug();
     w.turn = days;
-    w.vehicles[0].pos = { x: 90, y: 90 };
+    leaveView(w, at);
     addVehicle(w, 'independent', 'hauler', ['stockEngine'], at);
     fadeCraters(w);
     expect(w.craters).toHaveLength(1);
   });
 
   it('removes an old crater once out of view and clear of trucks', () => {
-    const { w } = dug();
+    const { w, at } = dug();
     w.turn = days;
-    w.vehicles[0].pos = { x: 90, y: 90 };
+    leaveView(w, at);
     fadeCraters(w);
     expect(w.craters).toEqual([]);
   });

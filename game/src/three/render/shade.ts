@@ -7,7 +7,7 @@ import { PAL } from '../../render/palette';
 import { playerVehicle } from '../../sim/damage';
 import { inShade, shadeCasters, sunAt, sunHeatAt, type Sun } from '../../sim/sun';
 import type { PlayClock } from '../play-clock';
-import { groundUvPerMeter, type TerrainChunk } from './terrain';
+import { groundUvPerMeter } from './terrain';
 import { heightAt } from '../../sim/terrain';
 import type { Obstacle, World } from '../../sim/types';
 
@@ -44,7 +44,7 @@ export class ShadeView {
     hazeUvPerMeter: { value: 0 },
   };
 
-  constructor(world: World, ground: TerrainChunk[], play: PlayClock) {
+  constructor(world: World, ground: THREE.MeshLambertMaterial, play: PlayClock) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(SIDE * SIDE * 3), 3));
     geo.setAttribute('alpha', new THREE.BufferAttribute(new Float32Array(SIDE * SIDE), 1));
@@ -74,7 +74,7 @@ export class ShadeView {
     this.mesh = new THREE.Mesh(geo, mat);
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = 901;
-    this.hazeGround(ground[0].mesh.material as THREE.MeshLambertMaterial, groundUvPerMeter(world.size));
+    this.hazeGround(ground, groundUvPerMeter(world.size));
     this.mesh.onBeforeRender = () => {
       this.haze.hazeTime.value = play.nowMs() / 1000;
     };

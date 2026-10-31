@@ -4,7 +4,7 @@ import { REGION } from '../../data/region';
 import { fortressFootprint, fortressOutline, fortressPieces } from '../../sim/fortress';
 import { isFortress, type Site } from '../../sim/sites';
 import { pointInPolygon, type Vec } from '../../sim/vec';
-import { POOLS, bakePools, poolGrid, poolSide, samplePools, type PoolLamp } from './lightPools';
+import { POOLS, PoolMap, bakePools, poolGrid, poolSide, samplePools, type PoolLamp } from './lightPools';
 
 const SITES: Site[] = [...REGION.towns, ...REGION.locations].filter(isFortress);
 const GRID = poolGrid(REGION.size, POOLS.maxSide);
@@ -31,6 +31,20 @@ const open = (f: Face) => poolSide(f.site, solidsOf(f.site), pushed(f)) !== 'sol
 const FACES = SITES.flatMap(wallFaces).filter(open);
 const lampAt = (f: Face): PoolLamp => ({ site: f.site, x: f.face.x + f.n.x * HANG, z: f.face.y + f.n.y * HANG, inside: f.inside });
 const seen = (data: Uint8Array, f: Face) => samplePools(data, GRID, pushed(f));
+
+describe('night light pools added site by site', () => {
+  it('gives the same pool map in any order as one bake of every lamp', () => {
+    const lamps = FACES.map(lampAt);
+    const forward = new PoolMap(GRID);
+    const backward = new PoolMap(GRID);
+    for (const site of SITES) forward.add(lamps.filter((l) => l.site === site));
+    for (const site of [...SITES].reverse()) backward.add(lamps.filter((l) => l.site === site));
+    const whole = bakePools(lamps, GRID);
+    expect(whole.some((v) => v > 0)).toBe(true);
+    expect(Buffer.from(forward.bytes).equals(Buffer.from(whole))).toBe(true);
+    expect(Buffer.from(backward.bytes).equals(Buffer.from(whole))).toBe(true);
+  });
+});
 
 describe('night light pools (IV1, IV4)', () => {
   it('finds wall faces on both sides of every fortress curtain', () => {

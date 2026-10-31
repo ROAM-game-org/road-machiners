@@ -93,7 +93,7 @@ The cost is that the Yard lives by selling guns to everyone, and everyone wants 
 
 Way: control.
 
-The Marshalls keep the road book at the Roadhouse, a walled settlement of a few hundred people grown up round a Guild relay mast and an Old World yard on the open plain north of the Nose. The Marshalls themselves are few: a handful of drivers in fast plated cars, most of them old Lincolns. Their first two cars were Commander Lind's staff cars from the Old Orchard motor pool.
+The Marshalls keep the road book at the Roadhouse, a walled settlement of a few hundred people grown up round a Guild relay mast and an Old World yard at the crossroads east of the Granary, halfway to the Nose. The Marshalls themselves are few: a handful of drivers in fast plated cars, most of them old Lincolns. Their first two cars were Commander Lind's staff cars from the Old Orchard motor pool.
 
 A lawful driver who was attacked or robbed on the open road, or whose kin was killed there, brings the wrong to the Roadhouse, or a driver who saw it does. The book writes the claim, the answer, the witnesses and the price. A Marshall rides out, asks the drivers on the road where they last saw the culprit, and asks him to pay. Only a driver who refuses gets a fight. The Roadhouse takes a cut of every closed case. It answers to no town, and it can buy a driver off a town's post by paying the town its price.
 

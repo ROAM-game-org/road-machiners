@@ -2,7 +2,7 @@
 import { RULES } from "../data/rules";
 import { PHYSICS } from "../data/physics";
 import { restBend, rigDiscs, straighten } from "./rig";
-import { climbGrade, maxTurn, vehicleStats, type VehicleStats } from "./stats";
+import { climbGrade, maxTurn, vehicleStats, type DriveStats, type VehicleStats } from "./stats";
 import { REGION } from "../data/region";
 import type { Blocker } from "./path";
 import { hasPads, nearestPad, nearestSitePad, siteUnder } from "./sites";
@@ -59,19 +59,19 @@ export function throttleFor(d: number, speed: number, mode: DriveMode): Throttle
   return "accelerate";
 }
 
-export function orderSpeed(s: VehicleStats, speed: number, pos: Vec, order: MoveOrder, mode: DriveMode): number {
+export function orderSpeed(s: DriveStats, speed: number, pos: Vec, order: MoveOrder, mode: DriveMode): number {
   if (order.kind === "brake") throw new Error("A brake order has no target speed");
   if (order.pace !== undefined) return clamp(order.pace, Math.max(0, speed - s.brake), Math.min(s.maxSpeed, speed + s.accel));
   if (order.kind === "stopAt") return Math.min(s.maxSpeed, speed + s.accel);
   return throughSpeed(s, speed, dist(pos, order.dest), undefined, mode);
 }
 
-export function throughSpeed(s: VehicleStats, speed: number, d: number, pace: number | undefined, mode: DriveMode): number {
+export function throughSpeed(s: DriveStats, speed: number, d: number, pace: number | undefined, mode: DriveMode): number {
   if (pace !== undefined) return clamp(pace, Math.max(0, speed - s.brake), Math.min(s.maxSpeed, speed + s.accel));
   return mode === "direct" ? zoneSpeed(s, speed, d) : routeSpeed(s, speed, d);
 }
 
-function routeSpeed(s: VehicleStats, speed: number, d: number): number {
+function routeSpeed(s: DriveStats, speed: number, d: number): number {
   if (!Number.isFinite(d) || !Number.isFinite(speed)) throw new Error(`Route speed needs finite distance and speed, got ${d} and ${speed}`);
   return clamp(2 * d - speed, Math.min(speed, s.maxSpeed), Math.min(s.maxSpeed, speed + s.accel));
 }
@@ -90,13 +90,13 @@ export function stopDistance(s: Pick<VehicleStats, "brake">, speed: number): num
   return (speed * speed) / (2 * s.brake);
 }
 
-export function setSpeedTarget(v: Pick<Vehicle, "direct" | "setSpeed">, s: VehicleStats, order: MoveOrder | null): number | undefined {
+export function setSpeedTarget(v: Pick<Vehicle, "direct" | "setSpeed">, s: DriveStats, order: MoveOrder | null): number | undefined {
   if (!v.direct || v.setSpeed === undefined) return undefined;
   if (order && (order.kind !== "through" || order.pace !== undefined)) return undefined;
   return Math.min(v.setSpeed, s.maxSpeed);
 }
 
-export function clickSetSpeed(s: VehicleStats, me: Pick<Vehicle, "pos" | "speed" | "setSpeed">, p: Vec): number {
+export function clickSetSpeed(s: DriveStats, me: Pick<Vehicle, "pos" | "speed" | "setSpeed">, p: Vec): number {
   const base = me.setSpeed ?? me.speed;
   if (!Number.isFinite(base)) throw new Error(`Set speed needs a finite speed, got ${base}`);
   const zone = throttleFor(dist(me.pos, p), base, "direct");
@@ -118,7 +118,7 @@ export function switchSetSpeed(v: Vehicle, direct: boolean): void {
   else delete v.setSpeed;
 }
 
-export function zoneSpeed(s: VehicleStats, speed: number, d: number): number {
+export function zoneSpeed(s: DriveStats, speed: number, d: number): number {
   const z = zoneEdges();
   const creep = Math.min(s.maxSpeed, s.accel * Math.min(1, d / z.reach));
   if (speed === 0) return creep;

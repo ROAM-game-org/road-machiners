@@ -17,7 +17,7 @@ import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import type { Vehicle, World } from './types';
 
 const CYCLE = PRODUCTION.cycleTurns;
-const CYCLES_PER_DAY = Math.floor(TIME.turnsPerDay / CYCLE);
+const CYCLES_PER_DAY = Math.floor(TIME.workDayTurns / CYCLE);
 const site = (id: string) => [...REGION.towns, ...REGION.locations].find((s) => s.id === id)!;
 
 function quiet<T>(run: () => T): T {
@@ -153,7 +153,7 @@ describe('a Pump Station surge', () => {
       w.shops.nose.goods.fuelDrums = 0;
       w.shops.nose.goods.tools = 0;
       w.shops['pump-station'].goods.fuelDrums = 0;
-      if (surge) w.shops['pump-station'].event = { kind: 'surge', recipe: 'pump', until: w.turn + TIME.turnsPerDay };
+      if (surge) w.shops['pump-station'].event = { kind: 'surge', recipe: 'pump', until: w.turn + TIME.workDayTurns };
       for (let i = 0; i < CYCLES_PER_DAY; i++) cycle(w);
       const price = buyAt(w, 'pump-station', 'fuelDrums');
       load(w, convoy, 'fuelDrums', 'pump-station', 'nose');

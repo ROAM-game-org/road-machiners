@@ -21,7 +21,7 @@ import { TEST_MAP } from '../test/map';
 import { dist } from './vec';
 import type { DirectionStep, Job, SalvageStock, World } from './types';
 import { distinctCardinals } from './direction-cues';
-import { roadNetworkOf } from './road-network';
+import { edgesOnSiteRoads, nearestRoadPoints, roadNetworkOf } from './road-network';
 import type { Vec } from './vec';
 
 const rules = CONTRACTS.survey;
@@ -500,6 +500,18 @@ describe('survey way', () => {
   const w = standardWorld(1);
   const pairs = surveyPairs(w);
 
+  it('keeps every survey site within radio reach of a road that joins a site', () => {
+    const net = roadNetworkOf(w);
+    const siteRoads = edgesOnSiteRoads(net);
+    expect(siteRoads.size).toBeGreaterThan(0);
+    expect(siteRoads.size).toBeLessThan(net.edges.length);
+    for (const s of surveySites({ hash: w.mapHash, terrain: w.terrain })) {
+      const near = nearestRoadPoints(net, s.pos, DIRECTIONS.leaveReach, DIRECTIONS.joinCandidates);
+      expect(near.length, s.id).toBeGreaterThan(0);
+      expect(near.every((r) => siteRoads.has(r.edge)), s.id).toBe(true);
+    }
+  });
+
   it('tells a full way to every survey site from every shop in range', () => {
     const untold = pairs.filter((p) => surveyWay(w, fakeSurvey(p.shop, p.site), { site: p.site, found: false, done: false }) === null);
     expect(untold).toEqual([]);
@@ -517,7 +529,8 @@ describe('survey way', () => {
       if (!leave) continue;
       const gate = directionsFromSite(w, shop, { kind: 'spot', pos: place.pos, clue: 'place' });
       expect(gate).toEqual(way);
-      const gates = roadNetworkOf(w).nodes.filter((n) => n.site === shop && roadNetworkOf(w).incident[n.id].length > 0);
+      const net = roadNetworkOf(w);
+      const gates = net.nodes.filter((n) => n.site === shop && net.incident[n.id].length > 0);
       const from = gates.map((g) => g.pos).sort((a, b) => dist(a, place.pos) - dist(b, place.pos))[0];
       const sides = way[0].do === 'gate' ? way[0].side : null;
       const gateSides = distinctCardinals(gates.map((g) => ({ x: g.pos.x - siteOf(shop).pos.x, y: g.pos.y - siteOf(shop).pos.y })));
@@ -577,13 +590,19 @@ describe('survey danger', () => {
     expect(steps.some((step) => step >= 2)).toBe(true);
   });
 
+  const siteAt = (step: number): string => {
+    const id = SURVEY_SITES_FILE.sites.map((site) => site.id).find((site) => surveyPlaceThreat(w, site) === step);
+    if (id === undefined) throw new Error(`No baked survey site has danger step ${step}`);
+    return id;
+  };
+
   it('reads the worst place, as in the reported survey', () => {
-    expect(surveyThreat(w, contract(['survey-house-52', 'survey-house-82']))).toBe(3);
-    expect(surveyThreat(w, contract(['survey-ruin-45']))).toBe(1);
+    expect(surveyThreat(w, contract([siteAt(3), siteAt(2)]))).toBe(3);
+    expect(surveyThreat(w, contract([siteAt(1)]))).toBe(1);
   });
 
   it('does not change when places are found or done', () => {
-    const c = contract(['survey-house-52', 'survey-house-82']);
+    const c = contract([siteAt(3), siteAt(2)]);
     const before = surveyThreat(w, c);
     for (const p of c.points) {
       p.found = true;

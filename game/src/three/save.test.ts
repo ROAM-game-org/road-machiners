@@ -37,7 +37,7 @@ import { fillHollow, isFree } from '../sim/spawn';
 import { reusedWorld } from '../test/world-cache';
 import { isBakedObstacle, isBreakable, mapObstacles } from '../sim/mapgen';
 import { breakProp, oldSpotOf, oldSpotPicks, oldStockId } from '../sim/salvage';
-import { sunAt } from '../sim/sun';
+import { clockOf, sunAt } from '../sim/sun';
 import { playerSees, practiceContacts, refreshVision } from '../sim/vision';
 import { surveySites } from '../sim/survey';
 import { TIME } from '../data/time';
@@ -241,8 +241,10 @@ describe('game save', () => {
 
   it('keeps an open directions call and its words through a reload, and load awards nothing', () => {
     const slots = makeSlots();
-    const world = emptyWorld({ x: 100, y: 450 });
-    const npc = addVehicle(world, 'independent', 'scout', ['stockEngine'], { x: 106, y: 450 });
+    const road = REGION.roads[0];
+    const onRoad = road[Math.floor(road.length / 2)];
+    const world = emptyWorld({ x: onRoad.x, y: onRoad.y });
+    const npc = addVehicle(world, 'independent', 'scout', ['stockEngine'], { x: onRoad.x + 6, y: onRoad.y });
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
     refreshVision(world);
     let opened = callVehicle(world, npc.id);
@@ -1001,12 +1003,19 @@ describe('game save', () => {
   it('writes the day start autosave on the first turn of a day only', () => {
     const slots = makeSlots();
     const world = standardWorld();
-    expect([319, 320, 321, 770].map(isDayStart)).toEqual([false, true, false, true]);
-    saveWorld(slots, { ...world, turn: 319 }, RUN, 20, 1000);
-    saveWorld(slots, { ...world, turn: 321 }, RUN, 20, 1000);
+    const firstTurnOf = (day: number) => {
+      let turn = 1;
+      while (clockOf(turn).day < day) turn++;
+      return turn;
+    };
+    const day2 = firstTurnOf(2);
+    const day3 = firstTurnOf(3);
+    expect([day2 - 1, day2, day2 + 1, day3].map(isDayStart)).toEqual([false, true, false, true]);
+    saveWorld(slots, { ...world, turn: day2 - 1 }, RUN, 20, 1000);
+    saveWorld(slots, { ...world, turn: day2 + 1 }, RUN, 20, 1000);
     expect(slots.has('day')).toBe(false);
-    saveWorld(slots, { ...world, turn: 320 }, RUN, 20, 1000);
-    expect(loadWorld(slots, 'day', TEST_MAP)?.turn).toBe(320);
+    saveWorld(slots, { ...world, turn: day2 }, RUN, 20, 1000);
+    expect(loadWorld(slots, 'day', TEST_MAP)?.turn).toBe(day2);
   });
 
   it('writes only the autosave on the interval and in town, and never a manual slot', () => {

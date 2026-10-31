@@ -18,6 +18,7 @@ import { playerVehicle } from './damage';
 import { followingOf, joinCompany } from './companies';
 import { noteDefeat } from './relations';
 import { route, routeLength } from './path';
+import { ROAD_INDEX } from './road-index';
 import { lightZone } from './sunward-crater';
 import { makeTaste, nightTaste, tasted, terrainNav } from './nav/layer';
 import { thinkNpc, topGoal } from './npc-activities';
@@ -32,7 +33,6 @@ import { optionWeights } from './npc-decisions';
 import { watchPost } from './watch-posts';
 import { makePart } from './factory';
 import { emptyHidden } from './salvage';
-import { ROAD_INDEX } from './road-index';
 import { callVehicle, currentLine, currentOptions } from './dialogue';
 import { hollowDiscs, hollowObstacles, hollowPad, hollowReach, hollowSitesFor, isHollowObstacle } from './hollow-layout';
 import {
@@ -40,6 +40,7 @@ import {
 } from './sunward';
 import type { Obstacle, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
+import { maxHp } from './wear';
 
 function segmentGap(p: Vec, a: Vec, b: Vec): number {
   const dx = b.x - a.x;
@@ -97,8 +98,9 @@ describe('the Sunward clock', () => {
 
   it('counts a night from the dusk before it, also past midnight', () => {
     const dusk = duskTurn(2);
-    expect(lastDusk(dusk + 100)).toBe(dusk);
-    expect(clockOf(dusk + 100).day).toBe(3);
+    const pastMidnight = dusk + Math.round((TIME.turnsPerDay * 5) / 24);
+    expect(lastDusk(pastMidnight)).toBe(dusk);
+    expect(clockOf(pastMidnight).day).toBe(3);
   });
 
   it('has no order on Chaos Highway', () => {
@@ -266,16 +268,33 @@ describe('the vigil posts', () => {
     }
   });
 
-  it('lies a long ride across open ground from the gate, and every post can be reached', () => {
+  it('lies a long ride across open ground from the gate, out of sight of every town and raider camp, and every post can be reached', () => {
     const w = standardWorld(5);
     const gate = HOLLOW.site.gates[0];
+    const car = membersOf(w).find((v) => v.brain!.templateId === 'cavalcade')!;
+    const inhabited = [...REGION.towns, ...REGION.locations.filter((s) => s.kind === 'camp')];
+    const gray = TERRAIN.vision.radius * TERRAIN.vision.grayFactor;
     const rides = vigilPosts(w).map((post) => {
-      const path = route(w, gate, post, 0.9, []);
+      const rider = { ...car, pos: gate, brain: { ...car.brain!, goals: [{ kind: 'explore' as const, targetId: null, destination: post, phase: 'travel' as const, reason: 'rideVigil' as const }] } };
+      const path = route(w, gate, post, 0.9, [], rider);
       expect(dist(path[path.length - 1], post)).toBeLessThan(2);
-      return routeLength(gate, path);
+      const points = [gate, ...path];
+      let onRoad = 0;
+      for (let i = 1; i < points.length; i++) {
+        const [a, b] = [points[i - 1], points[i]];
+        const n = Math.max(1, Math.ceil(dist(a, b)));
+        for (let k = 0; k < n; k++) {
+          const p = { x: a.x + ((b.x - a.x) * k) / n, y: a.y + ((b.y - a.y) * k) / n };
+          if (ROAD_INDEX.nearestWithin(p.x, p.y, REGION.roadWidth) <= REGION.roadWidth) onRoad += dist(a, b) / n;
+          for (const s of inhabited) expect(siteGap(s, p), `${s.id} at ${p.x.toFixed(0)}, ${p.y.toFixed(0)}`).toBeGreaterThan(gray);
+        }
+      }
+      const length = routeLength(gate, path);
+      expect(onRoad / length).toBeLessThan(0.1);
+      return length;
     });
-    expect(Math.min(...rides)).toBeGreaterThan(200);
-    expect(Math.max(...rides)).toBeLessThan(340);
+    expect(Math.min(...rides)).toBeGreaterThan(700);
+    expect(Math.max(...rides)).toBeLessThan(1000);
   });
 });
 
@@ -399,7 +418,7 @@ describe('the hunting parties', () => {
     const hunt = sunwardFacts(w0).night!.hunt!;
     const hide = watchPost(w0, hunt.grounds[0])!;
     hunt.party.forEach((id, k) => {
-      const v = riderAt(w0, id);
+      const v = letOut(w0, id);
       v.pos = { x: hide.x + k * 2, y: hide.y };
       v.trail = [];
     });
@@ -465,6 +484,40 @@ describe('the hunting parties', () => {
     const other = letOut(w, hunt.party[2]);
     planSunward(w, other);
     expect(other.brain!.goals[0].reason).not.toBe('huntRoad');
+  });
+
+  it('goes home when a hunter has only the fuel for the ride home', () => {
+    const w = orderWorld(5);
+    const day = Array.from({ length: 200 }, (_, i) => i + 1).find((d) => huntTonight(w, d))!;
+    w.turn = duskTurn(day) + 1;
+    advanceSunward(w);
+    const hunt = sunwardFacts(w).night!.hunt!;
+    const party = hunt.party.map((id) => {
+      const v = w.vehicles.some((x) => x.id === id) ? riderAt(w, id) : letOut(w, id);
+      v.pos = { ...fallenSun().pos };
+      return v;
+    });
+    advanceSunward(w);
+    expect(hunt.over).toBe(false);
+
+    party[0].resources!.fuel = 1;
+    advanceSunward(w);
+
+    expect(hunt.over).toBe(true);
+  });
+});
+
+describe('the Hollow by day', () => {
+  it('tends every resting car back to full HP in its bay', () => {
+    const w = orderWorld(5);
+    w.turn = dawnAfter(duskTurn(1)) + 1;
+    const car = membersOf(w).find(isCavalcadeCar)!;
+    const parts = car.items.flatMap((i) => (i.kind === 'part' ? [i.part] : []));
+    for (const p of parts) p.hp = Math.max(1, Math.round(p.hp / 2));
+
+    advanceSunward(w);
+
+    expect(parts.every((p) => p.hp === maxHp(p))).toBe(true);
   });
 });
 

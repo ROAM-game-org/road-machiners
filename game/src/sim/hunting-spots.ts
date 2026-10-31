@@ -1,12 +1,12 @@
 import HUNTING_SPOTS_FILE from '../data/hunting-spots.json';
 import { SITE_FACTIONS, TURF } from '../data/npc-behavior';
-import { REGION } from '../data/region';
+import { DRAFT, REGION } from '../data/region';
 import { atlasOf, type AtlasKey } from './atlas';
 import type { HuntingSpotsBake } from './hunting-spots-bake';
 import type { NpcFactionId, World } from './types';
 import { dist, type Vec } from './vec';
 
-const HUNTING_SPOTS = HUNTING_SPOTS_FILE as { mapHash: string } & HuntingSpotsBake;
+const HUNTING_SPOTS = (DRAFT?.huntingSpots ?? HUNTING_SPOTS_FILE) as { mapHash: string } & HuntingSpotsBake;
 const NONE: HuntingSpotsBake = { spots: [], samples: [] };
 
 export function huntingSpots(map: { hash: string; terrain: { atlas: AtlasKey } }): HuntingSpotsBake {

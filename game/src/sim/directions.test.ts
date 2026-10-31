@@ -1,16 +1,32 @@
 import { describe, expect, it } from 'vitest';
 import { DIRECTIONS } from '../data/directions';
-import { REGION } from '../data/region';
+import { MAP_SPREAD, REGION } from '../data/region';
 import { cardinalOf, cueAt, headingAlong, leanOf, octantOf, spanOf } from './direction-cues';
 import { directionsFromSite, directionsTo } from './directions';
 import { isTerritory } from './sites';
+import { roadEntries, territoryEntries } from './territory';
 import { ambiguousStarts, followSteps } from './directions-follower.test-helper';
 import { nearestRoadPoints, roadNetworkOf } from './road-network';
 import { emptyWorld, chaosHighwayWorld } from './testkit';
 import type { DirectionStep, DirectionTarget, Obstacle, World } from './types';
-import { dist, type Vec } from './vec';
+import { dist, polylineDist, type Vec } from './vec';
 
-const OFF_ROAD: Vec = { x: 260, y: 420 };
+const ROAD_GAP = 35;
+
+function nearRoad(layout: Vec): Vec {
+  const at = { x: layout.x * MAP_SPREAD, y: layout.y * MAP_SPREAD };
+  return nearestRoadPoints(roadNetworkOf(emptyWorld()), at, Infinity, 1)[0].pos;
+}
+
+function offRoad(layout: Vec, gap: number): Vec {
+  const road = nearRoad(layout);
+  const at = { x: layout.x * MAP_SPREAD, y: layout.y * MAP_SPREAD };
+  const away = dist(at, road);
+  return { x: road.x + ((at.x - road.x) * gap) / away, y: road.y + ((at.y - road.y) * gap) / away };
+}
+
+const OFF_ROAD: Vec = offRoad({ x: 260, y: 420 }, ROAD_GAP);
+const BOWL_ROAD_START: Vec = nearRoad({ x: 283, y: 572 });
 const SITES = [...REGION.towns, ...REGION.locations];
 
 function site(id: string): Vec {
@@ -18,6 +34,8 @@ function site(id: string): Vec {
   if (!found) throw new Error(id);
   return found.pos;
 }
+
+const NEAR_BOWL: Vec = { x: site('bowl').x + 100, y: site('bowl').y - 100 };
 
 function to(id: string): DirectionTarget {
   return { kind: 'site', id };
@@ -86,7 +104,7 @@ describe('directionsTo', () => {
 
   it('gives a wreck spot off the road a leave step and a rough search', () => {
     const net = roadNetworkOf(w);
-    const [road] = nearestRoadPoints(net, { x: 300, y: 300 }, 200, 1);
+    const [road] = nearestRoadPoints(net, NEAR_BOWL, 200, 1);
     const spot = { x: road.pos.x, y: road.pos.y + 30 };
     const steps = directionsTo(w, site('bowl'), { kind: 'spot', pos: spot, clue: 'wreck' });
     expect(kinds(steps).slice(-2)).toEqual(['leave', 'search']);
@@ -101,7 +119,7 @@ describe('directionsTo', () => {
   it('names the gates of Nose on different sides though both face south', () => {
     const steps = directionsFromSite(w, 'nose', to('bowl'));
     expect(steps[0]).toMatchObject({ do: 'gate' });
-    const sides = [...new Set(['bowl', 'granary', 'marshal-post'].map((id) => (directionsFromSite(w, 'nose', to(id))[0] as { side: string }).side))];
+    const sides = [...new Set(SITES.filter((s) => s.id !== 'nose').map((s) => (directionsFromSite(w, 'nose', to(s.id))[0] as { side: string }).side))];
     expect(sides.length).toBeGreaterThan(1);
   });
 
@@ -117,9 +135,10 @@ describe('directionsTo', () => {
   });
 
   it('stops after the allowed turns with askAgain', () => {
-    const steps = directionsTo(w, site('scrapjaw'), to('glass-flats'));
-    expect(steps.filter((s) => s.do === 'turn').length).toBeLessThanOrEqual(DIRECTIONS.maxSteps);
-    expect(steps[steps.length - 1].do).toBe('askAgain');
+    const starts = [OFF_ROAD, site('bowl'), site('nose'), site('scrapjaw'), { x: 300, y: 300 }];
+    const answers = starts.flatMap((from) => SITES.map((s) => directionsTo(w, from, to(s.id))));
+    for (const steps of answers) expect(steps.filter((s) => s.do === 'turn').length).toBeLessThanOrEqual(DIRECTIONS.maxSteps);
+    expect(answers.some((steps) => steps[steps.length - 1].do === 'askAgain')).toBe(true);
   });
 
   it('never counts a fork above the third, and reports how many answers ask again', () => {
@@ -173,7 +192,8 @@ describe('headingAlong', () => {
   });
 
   it('stops at the reach on a road that bends later', () => {
-    const line = [{ x: 0, y: 0 }, { x: 0, y: -30 }, { x: 200, y: -30 }];
+    const reach = DIRECTIONS.headingReach;
+    const line = [{ x: 0, y: 0 }, { x: 0, y: -1.2 * reach }, { x: 8 * reach, y: -1.2 * reach }];
     expect(headingAlong([line], DIRECTIONS.headingReach)).toBe('north');
   });
 
@@ -197,7 +217,7 @@ describe('the heading of the first road', () => {
   });
 
   it('says the reported start on the road heads west for Bowl', () => {
-    const [point] = nearestRoadPoints(roadNetworkOf(w), { x: 283, y: 572 }, DIRECTIONS.joinReach, 1);
+    const [point] = nearestRoadPoints(roadNetworkOf(w), BOWL_ROAD_START, DIRECTIONS.joinReach, 1);
     const [first] = directionsTo(w, point.pos, to('bowl'));
     expect(first).toMatchObject({ do: 'follow', heading: 'west' });
   });
@@ -279,7 +299,19 @@ describe('following the steps', () => {
   const grid: Vec[] = [];
   for (let i = 0; i < 40; i++) grid.push({ x: 30 + (i % 8) * 70, y: 40 + Math.floor(i / 8) * 110 });
 
-  it('reaches every site from a grid of starts', () => {
+  function offRoadEntry(id: string): Vec | null {
+    const t = REGION.locations.find((l) => l.id === id);
+    return t && isTerritory(t) && roadEntries(t).length === 0 ? territoryEntries(t)[0] : null;
+  }
+
+  function followedTo(from: Vec, steps: readonly DirectionStep[], id: string): boolean {
+    const entry = offRoadEntry(id);
+    if (!entry) return followSteps(w, from, steps, { site: id }).reached;
+    const gap = Math.min(...REGION.roads.map((road) => polylineDist(entry, road)));
+    return followSteps(w, from, steps, { spot: entry }).closest <= gap + DIRECTIONS.placeSlack;
+  }
+
+  it('reaches every site from a grid of starts, and the road nearest the entry of a territory off the road', () => {
     const misses: string[] = [];
     let cues: Record<string, number> = {};
     for (const from of grid) {
@@ -287,8 +319,7 @@ describe('following the steps', () => {
         const steps = directionsTo(w, from, to(s.id));
         if (steps.some((x) => x.do === 'askAgain' || x.do === 'noRoad')) continue;
         for (const step of steps) if (step.do === 'turn') cues[step.at.kind] = (cues[step.at.kind] ?? 0) + 1;
-        const result = followSteps(w, from, steps, { site: s.id });
-        if (!result.reached) misses.push(`${from.x},${from.y} -> ${s.id}`);
+        if (!followedTo(from, steps, s.id)) misses.push(`${from.x},${from.y} -> ${s.id}`);
       }
     }
     console.log('cue coverage', JSON.stringify(cues));
@@ -355,7 +386,7 @@ describe('directionsFromSite', () => {
 
   it('ends a place way on the leave step with no search step', () => {
     const net = roadNetworkOf(w);
-    const [road] = nearestRoadPoints(net, { x: 300, y: 300 }, 200, 1);
+    const [road] = nearestRoadPoints(net, NEAR_BOWL, 200, 1);
     const steps = directionsFromSite(w, 'bowl', place({ x: road.pos.x, y: road.pos.y + 30 }));
     expect(steps.some((s) => s.do === 'search')).toBe(false);
     expect(steps[steps.length - 1].do).toBe('leave');

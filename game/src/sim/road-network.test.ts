@@ -3,6 +3,7 @@ import { REGION } from '../data/region';
 import { atlasOf, icarusAtlas, type Atlas } from './atlas';
 import { buildRoadNetwork, exitsAt, nearestRoadPoints, roadNetworkOf, shortestPath, splitAt } from './road-network';
 import { isFortress, isTerritory, siteGap } from './sites';
+import { roadEntries } from './territory';
 import { emptyWorld } from "./testkit";
 
 const SIZE = REGION.size;
@@ -14,13 +15,16 @@ function nodesOf(net: ReturnType<typeof buildRoadNetwork>, id: string): number[]
 describe('road network', () => {
   const net = buildRoadNetwork(icarusAtlas(), SIZE);
 
-  it('has a node for every site gate and territory entry', () => {
-    for (const site of [...REGION.towns, ...REGION.locations]) expect(nodesOf(net, site.id).length, site.id).toBeGreaterThan(0);
+  const onRoad = [...REGION.towns, ...REGION.locations].filter((s) => !isTerritory(s) || roadEntries(s).length > 0);
+
+  it('has a node for every site gate and territory entry a road crosses, and none for Glass Flats off the road', () => {
+    for (const site of onRoad) expect(nodesOf(net, site.id).length, site.id).toBeGreaterThan(0);
+    expect(nodesOf(net, 'glass-flats')).toEqual([]);
   });
 
-  it('reaches every site from Bowl', () => {
+  it('reaches every site on the road from Bowl', () => {
     const bowl = nodesOf(net, 'bowl');
-    for (const site of [...REGION.towns, ...REGION.locations]) {
+    for (const site of onRoad) {
       const path = shortestPath(net, bowl[0], nodesOf(net, site.id));
       expect(path, site.id).not.toBeNull();
     }

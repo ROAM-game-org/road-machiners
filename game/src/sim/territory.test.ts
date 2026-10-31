@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GLASS_FLATS_POS, onOrchardRoad, REGION } from '../data/region';
+import { GLASS_FLATS_GROWTH, GLASS_FLATS_POS, onOrchardRoad, REGION } from '../data/region';
 import { ECONOMY, GOODS } from '../data/goods';
 import { SALVAGE, type LootTable } from '../data/salvage';
 import { FALLEN_SUN_DECKS, inFurrow, TERRITORIES, type FarmRoad } from '../data/territory';
@@ -19,6 +19,12 @@ const fallenSun = REGION.locations.find((l) => l.id === 'fallen-sun')!;
 const orchard = REGION.locations.find((l) => l.id === 'orchard')!;
 
 describe('territory queries', () => {
+  it('throws for a road territory with no road across its outline, and for an off-road one with a road across it', () => {
+    const flats = REGION.locations.find((l) => l.id === 'glass-flats')!;
+    expect(() => territoryEntries({ ...flats, offRoad: undefined } as never)).toThrow('glass-flats has no road crossing its outline');
+    expect(() => territoryEntries({ ...orchard, offRoad: true } as never)).toThrow('Off-road territory orchard has a road crossing its outline');
+  });
+
   it('finds the territory under a point, and none outside', () => {
     expect(territoryAt(fallenSun.pos)?.id).toBe('fallen-sun');
     expect(territoryAt({ x: fallenSun.pos.x + fallenSun.radius + 1, y: fallenSun.pos.y })).toBeNull();
@@ -132,8 +138,9 @@ describe('the Old Orchard', () => {
   });
 
   it('rolls each farm building look from one table', () => {
-    const looks = farm.buildings.map((b) => b.look);
-    expect(new Set(looks).size).toBe(looks.length);
+    const tables = new Map<string, Set<string>>();
+    for (const b of farm.buildings) tables.set(b.look, (tables.get(b.look) ?? new Set()).add(b.table));
+    for (const [look, rolled] of tables) expect(rolled.size, look).toBe(1);
     for (const b of farm.buildings) {
       expect(spotTable(landmarkAt(b.look, orchard.pos)), b.look).toBe(SALVAGE[b.table]);
     }
@@ -189,7 +196,9 @@ describe("the Old Orchard's outline", () => {
     expect(area).toBeGreaterThanOrEqual(5000);
     let best = 0;
     for (let y = orchard.pos.y - orchard.radius; y <= orchard.pos.y + orchard.radius; y += 2) for (let x = orchard.pos.x - orchard.radius; x <= orchard.pos.x + orchard.radius; x += 2) {
-      best = Math.max(best, inside.filter((p) => Math.hypot(p.x - x, p.y - y) < 32).length);
+      let held = 0;
+      for (const p of inside) if ((p.x - x) ** 2 + (p.y - y) ** 2 < 32 ** 2) held++;
+      best = Math.max(best, held);
     }
     expect(best / area).toBeLessThanOrEqual(0.6);
   });
@@ -197,7 +206,7 @@ describe("the Old Orchard's outline", () => {
   it('holds the north-west pocket, and not ground inside its bounding radius past the outline', () => {
     const pocket = at(60, 30);
     expect(territoryAt(pocket)?.id).toBe('orchard');
-    const beyond = at(-30, 44);
+    const beyond = at(-50, 40);
     expect(dist(beyond, orchard.pos)).toBeLessThan(orchard.radius);
     expect(territoryAt(beyond)).toBeNull();
   });
@@ -218,10 +227,8 @@ describe('the Fallen Sun layout', () => {
   const rules = TERRITORIES['fallen-sun'].wreck!;
   const zone = hazardZones().find((z) => z.id === 'fallen-sun')!;
   const pieces = territoryPieces(t);
-  const lowBoxes = (k: number): PosedBox[] => {
-    const p = pieces[k];
-    return propBoxes({ id: `piece-${k}`, pos: p.pos, r: p.r, kind: 'landmark', look: p.look, yaw: p.yaw }).filter((b) => b.z0 < PHYSICS.truckClearance);
-  };
+  const lows = pieces.map((p, k) => propBoxes({ id: `piece-${k}`, pos: p.pos, r: p.r, kind: 'landmark', look: p.look, yaw: p.yaw }).filter((b) => b.z0 < PHYSICS.truckClearance));
+  const lowBoxes = (k: number): PosedBox[] => lows[k];
   const housing = pieces.findIndex((p) => p.look === 'shipBow');
   const { roads, spurs } = territoryRoads(t);
   const roadSegments = [...roads, ...spurs].flatMap((road) => road.points.slice(1).map((b, i) => [road.points[i], b] as const));
@@ -305,10 +312,8 @@ describe("the Fallen Sun's dirt roads, wing and flaps", () => {
   const rules = TERRITORIES['fallen-sun'].wreck!;
   const zone = hazardZones().find((z) => z.id === 'fallen-sun')!;
   const pieces = territoryPieces(t);
-  const lowBoxes = (k: number): PosedBox[] => {
-    const p = pieces[k];
-    return propBoxes({ id: `piece-${k}`, pos: p.pos, r: p.r, kind: 'landmark', look: p.look, yaw: p.yaw }).filter((b) => b.z0 < PHYSICS.truckClearance);
-  };
+  const lows = pieces.map((p, k) => propBoxes({ id: `piece-${k}`, pos: p.pos, r: p.r, kind: 'landmark', look: p.look, yaw: p.yaw }).filter((b) => b.z0 < PHYSICS.truckClearance));
+  const lowBoxes = (k: number): PosedBox[] => lows[k];
   const { roads, spurs } = territoryRoads(t);
   const decks = FALLEN_SUN_DECKS.map((d) => deckById(d.id));
   const wing = decks.filter((d) => d.lips.length === 0);
@@ -465,10 +470,8 @@ describe('Glass Flats', () => {
   const rules = TERRITORIES['glass-flats'];
   const wreck = rules.wreck!;
   const pieces = territoryPieces(t);
-  const lowBoxes = (k: number): PosedBox[] => {
-    const p = pieces[k];
-    return propBoxes({ id: `piece-${k}`, pos: p.pos, r: p.r, kind: 'landmark', look: p.look, yaw: p.yaw }).filter((b) => b.z0 < PHYSICS.truckClearance);
-  };
+  const lows = pieces.map((p, k) => propBoxes({ id: `piece-${k}`, pos: p.pos, r: p.r, kind: 'landmark', look: p.look, yaw: p.yaw }).filter((b) => b.z0 < PHYSICS.truckClearance));
+  const lowBoxes = (k: number): PosedBox[] => lows[k];
   const { roads, spurs } = territoryRoads(t);
   const onMap = (p: Vec) => ({ x: flats.pos.x + p.x, y: flats.pos.y + p.y });
   const nearestRoad = (p: Vec) => Math.min(...[...roads, ...spurs].map((road) => toRoad(p, road)));
@@ -483,27 +486,21 @@ describe('Glass Flats', () => {
     expect(hazardZones().filter((z) => z.id === 'glass-flats')).toEqual([]);
   });
 
-  it('has an outline 47 to 95 tiles out, five times the area of the 34-tile circle it grew from, whose radius is its bounding radius, and outside every other site', () => {
+  it('has its authored outline 47 to 95 tiles out grown by its growth, five times the area of the grown 34-tile circle, whose radius is its bounding radius, and outside every other site', () => {
     if (flats.kind !== 'territory' || !flats.outline) throw new Error('Glass Flats has no outline');
     const reach = flats.outline.map((p) => Math.hypot(p.x, p.y));
     expect(flats.radius).toBeCloseTo(Math.max(...reach), 9);
     for (const r of reach) {
-      expect(r).toBeGreaterThanOrEqual(47);
-      expect(r).toBeLessThanOrEqual(95);
+      expect(r).toBeGreaterThanOrEqual(47 * GLASS_FLATS_GROWTH - 1e-9);
+      expect(r).toBeLessThanOrEqual(95 * GLASS_FLATS_GROWTH + 1e-9);
     }
     const o = flats.outline;
     const area = Math.abs(o.reduce((s, p, i) => s + p.x * o[(i + 1) % o.length].y - o[(i + 1) % o.length].x * p.y, 0)) / 2;
-    expect(area / (Math.PI * 34 ** 2)).toBeCloseTo(5, 0);
+    expect(area / (Math.PI * (34 * GLASS_FLATS_GROWTH) ** 2)).toBeCloseTo(5, 0);
     const poly = flats.outline.map(onMap);
     const rim = poly.flatMap((a, i) => along([a, poly[(i + 1) % poly.length]]));
     const others = [...REGION.towns, ...REGION.locations].filter((s) => s.id !== 'glass-flats');
     for (const p of rim) for (const site of others) expect(siteGap(site, p), site.id).toBeGreaterThan(0);
-  });
-
-  it('puts both entries on its edge', () => {
-    const entries = territoryEntries(t);
-    expect(entries).toHaveLength(2);
-    for (const e of entries) expect(Math.abs(siteGap(flats, e))).toBeLessThan(1e-6);
   });
 
   it('rolls a compound from the city stores table, and knows it as a spot only inside Glass Flats', () => {
@@ -547,7 +544,7 @@ describe('Glass Flats', () => {
     pieces.forEach((p, k) => {
       for (const b of lowBoxes(k)) {
         expect(ROAD_INDEX.nearestWithin(b.center.x, b.center.y, Math.hypot(b.half.x, b.half.y) + REGION.roadWidth / 2), p.look).toBe(Infinity);
-        for (const road of [...roads, ...spurs]) for (const q of along(road.points)) expect(boxDistance(b, q), `${p.look} at ${q.x},${q.y}`).toBeGreaterThan(road.width / 2);
+        for (const road of [...roads, ...spurs]) expect(along(road.points).filter((q) => !(boxDistance(b, q) > road.width / 2)), `${p.look} has a dirt road under its low box`).toEqual([]);
         pieces.forEach((_, other) => {
           if (other <= k) return;
           for (const ob of lowBoxes(other)) expect(boxesOverlap(b, ob), `${p.look} and ${pieces[other].look}`).toBe(false);
@@ -565,7 +562,7 @@ describe('Glass Flats', () => {
     }
   });
 
-  it('joins the dirt roads into one web, and both approaches to it', () => {
+  it('joins the dirt roads into one web', () => {
     const touches = (a: FarmRoad, b: FarmRoad) => [a.points[0], a.points.at(-1)!].some((p) => polylineDist(p, b.points) < 0.05);
     const reached = new Set([0]);
     for (let grew = true; grew; ) {
@@ -577,9 +574,6 @@ describe('Glass Flats', () => {
       });
     }
     expect(reached.size).toBe(roads.length);
-    const ends = REGION.roads.map((road) => road.at(-1)!).filter((p) => siteGap(flats, p) < 0);
-    expect(ends).toHaveLength(2);
-    for (const end of ends) expect(Math.min(...roads.map((road) => polylineDist(end, road.points))), `${end.x},${end.y}`).toBeLessThan(0.05);
   });
 
   it('meets at a crossroads in front of the engine mouth, where four web roads end', () => {
@@ -605,5 +599,24 @@ describe('Glass Flats', () => {
         for (const site of others) expect(siteGap(site, q), site.id).toBeGreaterThan(clearance + spur.width / 2);
       }
     }
+  });
+});
+
+describe('Glass Flats off the road in the SE corner', () => {
+  const flats = REGION.locations.find((l) => l.id === 'glass-flats');
+  if (!flats || flats.kind !== 'territory' || !flats.outline) throw new Error('Glass Flats has no outline');
+  const edge = flats.outline.map((p) => ({ x: flats.pos.x + p.x, y: flats.pos.y + p.y }));
+  const roadGap = (p: Vec): number => Math.min(...REGION.roads.map((road) => polylineDist(p, road)));
+
+  it('stands in the SE quarter of the map with no region road touching its outline (IV4)', () => {
+    expect(flats.pos.x).toBeGreaterThan(REGION.size / 2);
+    expect(flats.pos.y).toBeGreaterThan(REGION.size / 2);
+    expect(Math.min(...edge.map(roadGap))).toBeGreaterThan(REGION.roadWidth);
+  });
+
+  it('is entered at the one outline point nearest the road network (IV7)', () => {
+    const entries = territoryEntries(flats);
+    expect(entries).toHaveLength(1);
+    expect(roadGap(entries[0])).toBeCloseTo(Math.min(...edge.map(roadGap)), 6);
   });
 });

@@ -506,7 +506,7 @@ describe('finite hidden salvage', () => {
     full.parts = [];
     full.fuel = 0;
     full.supplies = 0;
-    w.turn = TIME.turnsPerDay;
+    w.turn = TIME.workDayTurns;
     renewSalvage(w);
     expect(hiddenUnits(full) > 0).toBe(true);
     expect(full.goods).toEqual({});
@@ -514,7 +514,7 @@ describe('finite hidden salvage', () => {
     const table = spotTable(spot);
     full.hidden = emptyHidden();
     full.goods = { parts: table.parts[1] };
-    w.turn = TIME.turnsPerDay * 2;
+    w.turn = TIME.workDayTurns * 2;
     renewSalvage(w);
     expect(full.hidden.goods.parts ?? 0).toBe(0);
   });
@@ -523,7 +523,7 @@ describe('finite hidden salvage', () => {
     const w = emptyWorld();
     const wreck = hiddenStock('wreck950', { x: 80, y: 80 }, { goods: { scrap: 2 } });
     w.salvage.push(wreck);
-    w.turn = TIME.turnsPerDay;
+    w.turn = TIME.workDayTurns;
     renewSalvage(w);
     expect(wreck.emptySince).toBeUndefined();
   });

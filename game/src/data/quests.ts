@@ -23,7 +23,6 @@ export const GAME_OPENED_QUESTS = {
   firstFall: 'first_fall',
   arrival: 'intro_arrival',
   introWake: 'intro_bowl',
-  introRoad: 'intro_road',
   wagonSeven: 'wagon_seven',
   scale: 'bowl_scale',
   counter: 'nose_counter',

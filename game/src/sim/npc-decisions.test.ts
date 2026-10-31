@@ -555,7 +555,7 @@ describe('decision points', () => {
     trader.brain!.goals = [{ kind: 'wait', targetId: null, destination: null, phase: 'act', reason: 'idle' }];
     thinkNpc(w, trader);
     expect(trackOf(trader, me.id)).toMatchObject({ sighted: true, choice: null, at: me.pos });
-    me.pos = { x: 34 + TERRAIN.vision.radius + 5, y: 30 };
+    me.pos = { x: 34 + TERRAIN.vision.radius + 2, y: 30 };
     me.speed = 4;
     w.turn += NPC_BEHAVIOR.noticeMemory + 2;
     thinkNpc(w, trader);

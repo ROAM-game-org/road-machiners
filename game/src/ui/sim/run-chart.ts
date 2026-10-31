@@ -12,7 +12,7 @@ type Panel = { top: number; height: number; max: number; lines: { look: string; 
 type Plot = { width: number; first: number; span: number };
 
 function dayText(turn: number): string {
-  return `D${Math.floor(turn / TIME.turnsPerDay) + 1}`;
+  return `D${Math.floor(turn / TIME.workDayTurns) + 1}`;
 }
 
 export class RunChart {
@@ -77,14 +77,14 @@ export class RunChart {
   private drawDays(ctx: CanvasRenderingContext2D, plot: Plot, height: number): void {
     ctx.font = `${token("--text-caption")} ${token("--font-mono")}`;
     ctx.textBaseline = "bottom";
-    const firstDay = Math.ceil(plot.first / TIME.turnsPerDay);
-    const lastDay = Math.floor((plot.first + plot.span) / TIME.turnsPerDay);
+    const firstDay = Math.ceil(plot.first / TIME.workDayTurns);
+    const lastDay = Math.floor((plot.first + plot.span) / TIME.workDayTurns);
     for (let day = firstDay; day <= lastDay; day++) {
-      const x = Math.round(this.xOf(plot, day * TIME.turnsPerDay)) + 0.5;
+      const x = Math.round(this.xOf(plot, day * TIME.workDayTurns)) + 0.5;
       ctx.fillStyle = token("--line-soft");
       ctx.fillRect(x, 0, 1, height - SIZE.axis);
       ctx.fillStyle = token("--ink-muted");
-      ctx.fillText(dayText(day * TIME.turnsPerDay), x + SIZE.pad, height);
+      ctx.fillText(dayText(day * TIME.workDayTurns), x + SIZE.pad, height);
     }
   }
 

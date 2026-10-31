@@ -1,22 +1,26 @@
 
+import { CHASSIS } from '../../data/chassis';
 import { REGION } from '../../data/region';
 import { NPC_BEHAVIOR } from '../../data/npcs';
+import { timed } from '../../perf';
 import { BREAKABLE } from '../../data/rules';
 import { TERRAIN, TERRAIN_TYPES, type TerrainTypeId } from '../../data/terrain';
-import { timed } from '../../perf';
 import { atlasOf, atlasSites } from '../atlas';
-import { nearRailBox, type DeckSet } from '../bridge';
+import { nearRail, type DeckSet } from '../bridge';
 import { blockingBoxes, boxDistance, isBreakable, isDriveObstacle, propKey, propReach, type PosedBox } from '../mapgen';
-import { isCliff, tileSlope, type Terrain } from '../terrain';
-import { hashRandom } from '../rng';
+import { isCliff, tileSlope, TYPE_IDS, type BakedMap, type Terrain } from '../terrain';
+import { hashId, hashRandom } from '../rng';
 import type { Obstacle, Vehicle, World } from '../types';
 import { isTerritory, siteGap, type Site } from '../sites';
-import { dist, type Vec } from '../vec';
+import type { Vec } from '../vec';
 import { ObstacleBuckets, type Blocker } from './buckets';
+import { buildPieces, cellOfFine, cellWindow, ensureAll, ensureCell, ensureFine, loadPieces, newGrid, pieceTable, regionAt, type CellGrid, type CellSource, type PieceTable, type Window } from './cells';
 import { ObstacleCache } from './obstacle-cache';
 
 export const CELL = 0.5;
 export const CLEARANCE = 0.4;
+const SIDE = REGION.navigation.cellTiles / CELL;
+const MAX_GROW = Math.max(...Object.values(CHASSIS).map((c) => c.radius)) + CLEARANCE;
 
 export type TerrainNav = {
   size: number;
@@ -35,37 +39,24 @@ export type TerrainNav = {
 
 export const COARSE = 8;
 
-export type CoarseGrid = {
-  n: number;
-  region: Int32Array;
-  block: Int32Array;
-  x: Float32Array;
-  y: Float32Array;
-  slow: Float32Array;
-  comp: Int32Array;
-  edgeStart: Int32Array;
-  edges: Int32Array;
-};
-
 export type NavLayer = TerrainNav & {
   id: number;
   radius: number;
+  marks: Uint8Array;
   blocked: Uint8Array;
-  coarse: CoarseGrid;
+  grid: CellGrid;
+  cells: CellSource;
+  statics: StaticSet;
 };
 
-export type StaticSet = { key: string; solidKey: string; solid: Blocker[]; costly: Blocker[]; buckets: ObstacleBuckets; solidBuckets: ObstacleBuckets };
+export type StaticSet = { id: number; solidId: number; solid: Blocker[]; costly: Blocker[]; costlyKeys: Set<string>; buckets: ObstacleBuckets; solidBuckets: ObstacleBuckets; costlyBuckets: ObstacleBuckets; solidBins: Blocker[][]; costlyBins: Blocker[][]; solidKeys: Uint32Array };
 
 export function isTransientWreck(o: Obstacle): boolean {
   return o.kind === 'wreck' && o.id.startsWith('wreck');
 }
 
-type SolidGrid = { blocked: Uint8Array; coarse: CoarseGrid };
-type LayerBase = { layer: NavLayer; solidKey: string; costly: Map<string, Blocker[]>; cover: Uint16Array };
-type TerrainEntry = { nav: TerrainNav; cellCliff: Map<number, Uint8Array>; solidGrids: Map<string, SolidGrid>; layers: Map<string, NavLayer>; bases: Map<number, LayerBase> };
+type TerrainEntry = { nav: TerrainNav; layers: Map<string, NavLayer>; tileKeys: Uint32Array | null; summary: RouteSummary | null };
 const terrains = new WeakMap<Terrain, TerrainEntry>();
-const LAYERS_MAX = 16;
-const COVER_MAX = 0xffff;
 let nextLayerId = 1;
 
 function terrainEntry(t: Terrain) {
@@ -75,7 +66,7 @@ function terrainEntry(t: Terrain) {
     const tiles = tileLayers(t);
     const slow = new Float32Array(n * n);
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) slow[y * n + x] = tiles.tileCost[tileIndex(t.size, (x + 0.5) * CELL, (y + 0.5) * CELL)];
-    e = { nav: { size: t.size, n, ...tiles, slow, decks: atlasOf(t).decks, climbShares: new Map() }, cellCliff: new Map(), solidGrids: new Map(), layers: new Map(), bases: new Map() };
+    e = { nav: { size: t.size, n, ...tiles, slow, decks: atlasOf(t).decks, climbShares: new Map() }, layers: new Map(), tileKeys: null, summary: t.routes ? readSummary(t, t.routes) : null };
     terrains.set(t, e);
   }
   return e;
@@ -88,16 +79,16 @@ function tileLayers(t: Terrain): Pick<TerrainNav, 'cliffTile' | 'tileCost' | 'fl
   const roadTile = new Uint8Array(t.size * t.size);
   const openTile = new Uint8Array(t.size * t.size);
   const steep = new Float32Array(t.size * t.size);
-  const sites = atlasSites(atlasOf(t)).filter((s) => !isTerritory(s));
+  const bySite = bySiteTiles(t.size, atlasSites(atlasOf(t)).filter((s) => !isTerritory(s)));
   for (let i = 0; i < t.size * t.size; i++) {
     cliffTile[i] = isCliff(t, i) ? 1 : 0;
     const slope = tileSlope(t, i);
-    steep[i] = Math.hypot(slope.x, slope.y);
-    const bySite = nearSite(sites, (i % t.size) + 0.5, Math.floor(i / t.size) + 0.5);
-    flatCost[i] = routeCost(t.types[i], bySite);
-    tileCost[i] = flatCost[i] * slopeCost(t, i);
-    roadTile[i] = t.types[i] === 'road' && !bySite ? 1 : 0;
-    openTile[i] = t.types[i] !== 'road' && !bySite ? 1 : 0;
+    const grade = Math.hypot(slope.x, slope.y);
+    steep[i] = grade;
+    flatCost[i] = routeCost(t.types[i], bySite[i] === 1);
+    tileCost[i] = flatCost[i] * slopeCost(grade);
+    roadTile[i] = t.types[i] === 'road' && bySite[i] === 0 ? 1 : 0;
+    openTile[i] = t.types[i] !== 'road' && bySite[i] === 0 ? 1 : 0;
   }
   return { cliffTile, tileCost, flatCost, roadTile, openTile, steep, roadShy: roadShyField(t.size, roadTile) };
 }
@@ -139,13 +130,30 @@ function routeCost(type: TerrainTypeId, bySite: boolean): number {
   return (type === 'road' || bySite ? 1 : REGION.navigation.offRoadCost) / TERRAIN_TYPES[type].speed;
 }
 
-function slopeCost(t: Terrain, tile: number): number {
-  const s = tileSlope(t, tile);
-  return 1 + REGION.navigation.slopeCost * (Math.hypot(s.x, s.y) / TERRAIN.drive.maxSlope) ** 2;
+function slopeCost(grade: number): number {
+  return 1 + REGION.navigation.slopeCost * (grade / TERRAIN.drive.maxSlope) ** 2;
 }
 
-function nearSite(sites: readonly Site[], x: number, y: number): boolean {
-  return sites.some((s) => siteGap(s, { x, y }) < REGION.roadWidth);
+function bySiteTiles(size: number, sites: readonly Site[]): Uint8Array {
+  const near = new Uint8Array(size * size);
+  const p = { x: 0, y: 0 };
+  for (const s of sites) {
+    const box = siteBox(s, REGION.roadWidth + 1);
+    for (let y = Math.max(0, box.y0); y <= Math.min(size - 1, box.y1); y++)
+      for (let x = Math.max(0, box.x0); x <= Math.min(size - 1, box.x1); x++) {
+        p.x = x + 0.5;
+        p.y = y + 0.5;
+        if (siteGap(s, p) < REGION.roadWidth) near[y * size + x] = 1;
+      }
+  }
+  return near;
+}
+
+function siteBox(s: Site, grow: number): { x0: number; y0: number; x1: number; y1: number } {
+  const points = 'outline' in s && s.outline ? s.outline : [{ x: -s.radius, y: -s.radius }, { x: s.radius, y: s.radius }];
+  const xs = points.map((q) => s.pos.x + q.x);
+  const ys = points.map((q) => s.pos.y + q.y);
+  return { x0: Math.floor(Math.min(...xs) - grow), y0: Math.floor(Math.min(...ys) - grow), x1: Math.ceil(Math.max(...xs) + grow), y1: Math.ceil(Math.max(...ys) + grow) };
 }
 
 export function terrainNav(t: Terrain): TerrainNav {
@@ -179,18 +187,86 @@ function buildStaticSet(obstacles: Obstacle[], terrain: Terrain): StaticSet {
   const all = [...statics.map((o) => driveBlocker(o, terrain)), ...atlasOf(terrain).hazards.map((z) => ({ pos: z.pos, r: z.radius }))];
   const breakable = statics.map(isBreakable);
   const solid = all.filter((_, i) => !breakable[i]);
+  const costly = all.filter((_, i) => breakable[i]);
+  const m = cellsPerSide(terrain.size);
+  const solidBins = binned(solid, m);
   return {
-    key: blockerKey(all),
-    solidKey: blockerKey(solid),
+    id: keyId(blockerKey(all)),
+    solidId: keyId(blockerKey(solid)),
     solid,
-    costly: all.filter((_, i) => breakable[i]),
+    costly,
+    costlyKeys: new Set(costly.map(blockerKey1)),
     buckets: new ObstacleBuckets(all, terrain.size),
     solidBuckets: new ObstacleBuckets(solid, terrain.size),
+    costlyBuckets: new ObstacleBuckets(costly, terrain.size),
+    solidBins,
+    costlyBins: binned(costly, m),
+    solidKeys: Uint32Array.from(solidBins, (bin) => bin.reduce((sum, o) => (sum + hash32(blockerKey1(o))) >>> 0, 0)),
   };
 }
 
+function cellsPerSide(size: number): number {
+  return Math.ceil(Math.ceil(size / CELL) / SIDE);
+}
+
+function binned(blockers: Blocker[], m: number): Blocker[][] {
+  const bins: Blocker[][] = Array.from({ length: m * m }, () => []);
+  const span = SIDE * CELL;
+  const at = (v: number) => Math.min(m - 1, Math.max(0, Math.floor(v / span)));
+  for (const o of blockers) {
+    const box = reachBox(o);
+    for (let y = at(box.y0); y <= at(box.y1); y++) for (let x = at(box.x0); x <= at(box.x1); x++) bins[y * m + x].push(o);
+  }
+  return bins;
+}
+
+function reachBox(o: Blocker): Window {
+  if (!o.prop) return { x0: o.pos.x - o.r - MAX_GROW, y0: o.pos.y - o.r - MAX_GROW, x1: o.pos.x + o.r + MAX_GROW, y1: o.pos.y + o.r + MAX_GROW };
+  const box = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  for (const b of o.prop.boxes) {
+    const [ex, ey] = boxExtent(b, MAX_GROW);
+    box.x0 = Math.min(box.x0, b.center.x - ex);
+    box.y0 = Math.min(box.y0, b.center.y - ey);
+    box.x1 = Math.max(box.x1, b.center.x + ex);
+    box.y1 = Math.max(box.y1, b.center.y + ey);
+  }
+  return box;
+}
+
+function hash32(text: string): number {
+  return Math.floor(hashId(text) * 0x100000000) >>> 0;
+}
+
+const KEY_IDS_KEPT = 16;
+const keyIds = new Map<string, number>();
+let nextKeyId = 1;
+
+function keyId(key: string): number {
+  const hit = keyIds.get(key);
+  if (hit !== undefined) {
+    keyIds.delete(key);
+    keyIds.set(key, hit);
+    return hit;
+  }
+  if (keyIds.size >= KEY_IDS_KEPT) keyIds.delete(keyIds.keys().next().value!);
+  const id = nextKeyId++;
+  keyIds.set(key, id);
+  return id;
+}
+
+function blockerKey1(o: Blocker): string {
+  return o.prop ? o.prop.key : `${o.pos.x},${o.pos.y},${o.r}`;
+}
+
+const transientWrecks = new WeakMap<Obstacle[], { length: number; terrain: Terrain; blockers: Blocker[] }>();
+
 export function dynamicBlockers(obstacles: Obstacle[], terrain: Terrain, extra: Blocker[]): Blocker[] {
-  return [...obstacles.filter((o) => isDriveObstacle(o) && isTransientWreck(o)).map((o) => driveBlocker(o, terrain)), ...extra];
+  let kept = transientWrecks.get(obstacles);
+  if (!kept || kept.length !== obstacles.length || kept.terrain !== terrain) {
+    kept = { length: obstacles.length, terrain, blockers: obstacles.filter((o) => isDriveObstacle(o) && isTransientWreck(o)).map((o) => driveBlocker(o, terrain)) };
+    transientWrecks.set(obstacles, kept);
+  }
+  return [...kept.blockers, ...extra];
 }
 
 function driveBlocker(o: Obstacle, terrain: Terrain): Blocker {
@@ -199,204 +275,266 @@ function driveBlocker(o: Obstacle, terrain: Terrain): Blocker {
 }
 
 export function blockerKey(blockers: Blocker[]): string {
-  return blockers.map((o) => (o.prop ? o.prop.key : `${o.pos.x},${o.pos.y},${o.r}`)).join('|');
+  return blockers.map(blockerKey1).join('|');
 }
 
 export function navLayer(terrain: Terrain, obstacles: Obstacle[], radius: number): NavLayer {
   const e = terrainEntry(terrain);
   const statics = staticSet(obstacles, terrain);
-  const key = `${radius}:${statics.key}`;
+  const key = `${statics.solidId}:${radius}`;
   const hit = e.layers.get(key);
-  if (hit) return hit;
-  if (e.layers.size >= LAYERS_MAX) e.layers.clear();
-  const made = madeLayer(e, statics, radius);
-  if (statics.costly.length > 0) e.bases.set(radius, made);
-  e.layers.set(key, made.layer);
-  return made.layer;
-}
-
-function madeLayer(e: TerrainEntry, statics: StaticSet, radius: number): LayerBase {
-  const base = e.bases.get(radius);
-  if (base && base.solidKey === statics.solidKey && base.costly.size > 0 && statics.costly.length > 0) return timed('nav-layer-patch', () => patchedLayer(e, base, statics, radius));
-  return timed('nav-layer-build', () => builtLayer(e, statics, radius));
-}
-
-function builtLayer(e: TerrainEntry, statics: StaticSet, radius: number): LayerBase {
-  const nav = e.nav;
-  const solid = solidGrid(e, cliffCells(e, radius), statics, radius);
-  const cover = costlyCover(nav.n, statics.costly, radius);
-  const slow = statics.costly.length === 0 ? nav.slow : slowFromCover(nav, cover);
-  const coarse = statics.costly.length === 0 ? solid.coarse : withRegionSlow(solid.coarse, slow);
-  const layer: NavLayer = { ...nav, slow, id: nextLayerId++, radius, blocked: solid.blocked, coarse };
-  return { layer, solidKey: statics.solidKey, costly: costlyOf(statics), cover };
-}
-
-function patchedLayer(e: TerrainEntry, base: LayerBase, statics: StaticSet, radius: number): LayerBase {
-  const nav = e.nav;
-  const solid = solidGrid(e, cliffCells(e, radius), statics, radius);
-  const costly = costlyOf(statics);
-  const { removed, added } = costlyDiff(base.costly, costly);
-  const slow = base.layer.slow.slice();
-  const cover = base.cover.slice();
-  const touched = new Set<number>();
-  recover(nav, slow, cover, removed, -1, radius, touched);
-  recover(nav, slow, cover, added, 1, radius, touched);
-  const mean = base.layer.coarse.slow.slice();
-  regionSlowIn(solid.coarse, slow, mean, touched, nav.n);
-  const layer: NavLayer = { ...nav, slow, id: nextLayerId++, radius, blocked: solid.blocked, coarse: { ...solid.coarse, slow: mean } };
-  return { layer, solidKey: statics.solidKey, costly, cover };
-}
-
-function cliffCells(e: TerrainEntry, radius: number): Uint8Array {
-  const cached = e.cellCliff.get(radius);
-  if (cached) return cached;
-  if (e.cellCliff.size >= LAYERS_MAX) e.cellCliff.clear();
-  const cliff = markCliffCells(e.nav, radius + CLEARANCE);
-  e.cellCliff.set(radius, cliff);
-  return cliff;
-}
-
-function markCliffCells(nav: TerrainNav, reach: number): Uint8Array {
-  const n = nav.n;
-  const cliff = new Uint8Array(n * n);
-  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-    if (nearCliff(nav, (x + 0.5) * CELL, (y + 0.5) * CELL, reach)) cliff[y * n + x] = 1;
+  if (hit) {
+    e.layers.delete(key);
+    e.layers.set(key, hit);
+    if (hit.statics !== statics) timed('nav-sync', () => restampCostly(hit, statics));
+    return hit;
   }
-  for (const box of nav.decks.boxes) {
-    const x0 = Math.max(0, Math.floor((box.minX - reach) / CELL) - 1);
-    const x1 = Math.min(n - 1, Math.ceil((box.maxX + reach) / CELL) + 1);
-    const y0 = Math.max(0, Math.floor((box.minY - reach) / CELL) - 1);
-    const y1 = Math.min(n - 1, Math.ceil((box.maxY + reach) / CELL) + 1);
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-      if (cliff[y * n + x] === 0 && nearRailBox(box, (x + 0.5) * CELL, (y + 0.5) * CELL, reach)) cliff[y * n + x] = 1;
+  const layer = timed('nav-layer', () => newLayer(e, terrain, statics, radius));
+  e.layers.set(key, layer);
+  if (e.layers.size > LAYERS_KEPT) e.layers.delete(e.layers.keys().next().value!);
+  return layer;
+}
+
+const LAYERS_KEPT = 16;
+
+function newLayer(e: TerrainEntry, terrain: Terrain, statics: StaticSet, radius: number): NavLayer {
+  if (radius + CLEARANCE > MAX_GROW) throw new Error(`Radius ${radius} is wider than the widest chassis the route cells hold`);
+  const nav = e.nav;
+  const grid = newGrid(nav.n, SIDE, COARSE);
+  const blocked = new Uint8Array(nav.n * nav.n);
+  const layer: NavLayer = { ...nav, id: nextLayerId++, radius, blocked, marks: new Uint8Array(nav.n * nav.n), grid, statics, cells: { grid, blocked, slowOf: () => 0, fill: () => {} } };
+  layer.cells = { grid, blocked, slowOf: (c) => markedSlow(layer, c), fill: (cell) => fillCell(layer, cell) };
+  const baked = e.summary?.pieces.get(radius);
+  if (!baked) {
+    buildPieces(layer.cells, Array.from({ length: grid.m * grid.m }, (_, cell) => cell));
+    return layer;
+  }
+  loadPieces(grid, baked);
+  const dirty = changedCells(cellKeys(e, terrain, statics), e.summary!.keys);
+  if (dirty.length > 0) buildPieces(layer.cells, dirty);
+  return layer;
+}
+
+function changedCells(now: Uint32Array, then: Uint32Array): number[] {
+  if (now.length !== then.length) throw new Error(`Route cell keys cover ${now.length} cells, the summary covers ${then.length}`);
+  const out: number[] = [];
+  for (let i = 0; i < now.length; i++) if (now[i] !== then[i]) out.push(i);
+  return out;
+}
+
+function fillCell(layer: NavLayer, cell: number): void {
+  const w = cellWindow(layer.grid, cell);
+  const n = layer.n;
+  for (let y = w.y0; y <= w.y1; y++) {
+    layer.blocked.fill(0, y * n + w.x0, y * n + w.x1 + 1);
+    layer.marks.fill(0, y * n + w.x0, y * n + w.x1 + 1);
+  }
+  const reach = layer.radius + CLEARANCE;
+  markCliffCells(layer, reach, w);
+  for (const box of layer.decks.boxes) markRailCells(layer, box, reach, w);
+  stampBlockers(n, layer.statics.solidBins[cell], layer.radius, (c) => (layer.blocked[c] = 1), w);
+  stampBlockers(n, layer.statics.costlyBins[cell], layer.radius, (c) => (layer.marks[c] = 1), w);
+}
+
+function restampCostly(layer: NavLayer, statics: StaticSet): void {
+  const was = layer.statics;
+  layer.statics = statics;
+  layer.id = nextLayerId++;
+  const changed = [...was.costly.filter((o) => !statics.costlyKeys.has(blockerKey1(o))), ...statics.costly.filter((o) => !was.costlyKeys.has(blockerKey1(o)))];
+  if (changed.length === 0) return;
+  const touched = remark(layer, statics, changed);
+  const regions = new Set([...touched].map((c) => regionAt(layer.grid, c)).filter((r) => r !== 0));
+  for (const r of regions) layer.grid.regions.slow[r] = regionMean(layer, r);
+}
+
+function remark(layer: NavLayer, statics: StaticSet, changed: Blocker[]): Set<number> {
+  const g = layer.grid;
+  const touched = new Set<number>();
+  stampBlockers(layer.n, changed, layer.radius, (c) => g.built[cellOfFine(g, c)] === 1 && touched.add(c));
+  const grow = layer.radius + CLEARANCE;
+  for (const c of touched) layer.marks[c] = 0;
+  for (const o of changed) {
+    const near = statics.costlyBuckets.alongSegment(o.pos, o.pos, o.r + 2 * grow + CELL);
+    stampBlockers(layer.n, near, layer.radius, (c) => touched.has(c) && (layer.marks[c] = 1));
+  }
+  return touched;
+}
+
+function regionMean(layer: NavLayer, r: number): number {
+  const g = layer.grid;
+  const block = g.regions.block[r];
+  const x0 = (block % g.bn) * COARSE;
+  const y0 = Math.floor(block / g.bn) * COARSE;
+  let sum = 0;
+  let count = 0;
+  for (let y = y0; y < Math.min(layer.n, y0 + COARSE); y++)
+    for (let x = x0; x < Math.min(layer.n, x0 + COARSE); x++) {
+      const c = y * layer.n + x;
+      if (regionAt(g, c) !== r) continue;
+      sum += markedSlow(layer, c);
+      count++;
+    }
+  return sum / count;
+}
+
+function markCliffCells(layer: NavLayer, reach: number, w: Window): void {
+  const s = layer.size;
+  const tiles = layer.cliffTile;
+  const tile = (i: number, shift: number) => Math.min(s - 1, Math.max(0, Math.floor((i + 0.5) * CELL + shift)));
+  for (let y = w.y0; y <= w.y1; y++) {
+    const row = tile(y, 0) * s;
+    const rowAhead = tile(y, reach) * s;
+    const rowBehind = tile(y, -reach) * s;
+    for (let x = w.x0; x <= w.x1; x++) {
+      const col = tile(x, 0);
+      layer.blocked[y * layer.n + x] = tiles[row + col] | tiles[row + tile(x, reach)] | tiles[row + tile(x, -reach)] | tiles[rowAhead + col] | tiles[rowBehind + col];
     }
   }
-  return cliff;
 }
 
-function solidGrid(e: TerrainEntry, cliff: Uint8Array, statics: StaticSet, radius: number): SolidGrid {
-  const key = `${radius}:${statics.solidKey}`;
-  let grid = e.solidGrids.get(key);
-  if (!grid) {
-    if (e.solidGrids.size >= LAYERS_MAX) e.solidGrids.clear();
-    const blocked = cliff.slice();
-    stampBlockers(e.nav.n, statics.solid, radius, (c) => (blocked[c] = 1));
-    grid = { blocked, coarse: coarseGrid(e.nav.n, blocked, e.nav.slow) };
-    e.solidGrids.set(key, grid);
+function markRailCells(layer: NavLayer, box: { minX: number; maxX: number; minY: number; maxY: number }, reach: number, w: Window): void {
+  const x0 = Math.max(w.x0, Math.floor((box.minX - reach) / CELL));
+  const x1 = Math.min(w.x1, Math.ceil((box.maxX + reach) / CELL));
+  const y0 = Math.max(w.y0, Math.floor((box.minY - reach) / CELL));
+  const y1 = Math.min(w.y1, Math.ceil((box.maxY + reach) / CELL));
+  for (let y = y0; y <= y1; y++)
+    for (let x = x0; x <= x1; x++) if (nearRail(layer.decks, (x + 0.5) * CELL, (y + 0.5) * CELL, reach)) layer.blocked[y * layer.n + x] = 1;
+}
+
+const KEY_MARGIN = Math.ceil(MAX_GROW) + 1;
+
+function cellKeys(e: TerrainEntry, terrain: Terrain, statics: StaticSet): Uint32Array {
+  const tiles = tileKeys(e, terrain);
+  return tiles.map((k, i) => (Math.imul(k, 31) + statics.solidKeys[i]) >>> 0);
+}
+
+function tileKeys(e: TerrainEntry, t: Terrain): Uint32Array {
+  if (e.tileKeys) return e.tileKeys;
+  const m = cellsPerSide(t.size);
+  const span = SIDE * CELL;
+  const code = new Map(TYPE_IDS.map((id, i) => [id, i]));
+  const types = Uint8Array.from(t.types, (id) => code.get(id)!);
+  const corners = t.size + 1;
+  const keys = new Uint32Array(m * m);
+  for (let cy = 0; cy < m; cy++)
+    for (let cx = 0; cx < m; cx++) {
+      const x0 = Math.max(0, cx * span - KEY_MARGIN);
+      const x1 = Math.min(t.size - 1, (cx + 1) * span - 1 + KEY_MARGIN);
+      let h = 2166136261;
+      for (let y = Math.max(0, cy * span - KEY_MARGIN); y <= Math.min(t.size - 1, (cy + 1) * span - 1 + KEY_MARGIN); y++)
+        for (let x = x0; x <= x1; x++) {
+          h = Math.imul(h ^ types[y * t.size + x], 16777619);
+          h = Math.imul(h ^ Math.round(t.heights[y * corners + x] * 1024), 16777619);
+        }
+      keys[cy * m + cx] = h >>> 0;
+    }
+  e.tileKeys = keys;
+  return keys;
+}
+
+type RouteSummary = { keys: Uint32Array; pieces: Map<number, PieceTable> };
+type SummaryHeader = { version: number; map: string; size: number; atlas: string; rules: number; radii: number[]; cells: number };
+const SUMMARY_VERSION = 2;
+
+function rulesKey(t: Terrain): number {
+  const atlas = atlasOf(t);
+  const nav = REGION.navigation;
+  const sites = atlasSites(atlas).map((s) => [s.id, s.pos.x, s.pos.y, s.radius]);
+  return hash32(JSON.stringify({ CELL, CLEARANCE, COARSE, SIDE, MAX_GROW, nav: [nav.offRoadCost, nav.slopeCost], road: REGION.roadWidth, terrain: TERRAIN, types: TERRAIN_TYPES, cost: BREAKABLE.routeCost, sites, decks: atlas.decks.boxes }));
+}
+
+function summaryHeader(t: Terrain, map: string, radii: number[]): SummaryHeader {
+  return { version: SUMMARY_VERSION, map, size: t.size, atlas: JSON.stringify(t.atlas), rules: rulesKey(t), radii, cells: cellsPerSide(t.size) ** 2 };
+}
+
+function headerOf(bytes: Uint8Array): { header: SummaryHeader; headerBytes: number } {
+  const headerBytes = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(0, true);
+  return { header: JSON.parse(new TextDecoder().decode(bytes.subarray(4, 4 + headerBytes))) as SummaryHeader, headerBytes };
+}
+
+export function withRoutes(map: BakedMap, bytes: Uint8Array): BakedMap {
+  const { header } = headerOf(bytes);
+  if (header.map !== map.hash) throw new Error(`The route summary was baked for map ${header.map}, this map is ${map.hash}. Run npm run routes:bake.`);
+  return { ...map, terrain: Object.freeze({ ...map.terrain, routes: bytes }) };
+}
+
+function readSummary(t: Terrain, bytes: Uint8Array): RouteSummary {
+  const buffer = bytes.slice().buffer;
+  const view = new DataView(buffer);
+  const { header, headerBytes } = headerOf(bytes);
+  const want = summaryHeader(t, header.map, header.radii);
+  for (const key of ['version', 'size', 'atlas', 'rules', 'cells'] as const) if (header[key] !== want[key]) throw new Error(`The route summary was baked for another ${key}. Run npm run routes:bake.`);
+  let at = aligned(4 + headerBytes);
+  const take = <T extends Uint8Array | Uint16Array | Uint32Array | Int32Array | Float32Array>(Kind: { new (b: ArrayBuffer, o: number, l: number): T; BYTES_PER_ELEMENT: number }, length: number): T => {
+    const out = new Kind(buffer, at, length);
+    at = aligned(at + length * Kind.BYTES_PER_ELEMENT);
+    return out;
+  };
+  const keys = take(Uint32Array, header.cells);
+  const pieces = new Map<number, PieceTable>();
+  for (const radius of header.radii) {
+    const [portals, tri] = [view.getUint32(at, true), view.getUint32(at + 4, true)];
+    at += 8;
+    pieces.set(radius, { counts: take(Uint16Array, header.cells), a: take(Int32Array, portals), b: take(Int32Array, portals), ra: take(Uint16Array, portals), rb: take(Uint16Array, portals), x: take(Float32Array, portals), y: take(Float32Array, portals), tri: take(Float32Array, tri) });
   }
-  return grid;
+  if (at !== buffer.byteLength) throw new Error(`The route summary has ${buffer.byteLength - at} bytes left over`);
+  return { keys, pieces };
 }
 
-function withRegionSlow(coarse: CoarseGrid, slow: Float32Array): CoarseGrid {
-  const sum = new Float64Array(coarse.slow.length);
-  const count = new Uint32Array(coarse.slow.length);
-  for (let c = 0; c < coarse.region.length; c++) {
-    const r = coarse.region[c];
-    sum[r] += slow[c];
-    count[r]++;
+function aligned(at: number): number {
+  return Math.ceil(at / 4) * 4;
+}
+
+export function bakeRouteSummary(map: BakedMap, obstacles: Obstacle[], radii: number[]): Uint8Array {
+  const plain: Terrain = { ...map.terrain, routes: undefined };
+  const e = terrainEntry(plain);
+  const parts: ArrayBufferView[] = [cellKeys(e, plain, staticSet(obstacles, plain))];
+  for (const radius of radii) {
+    const table = pieceTable(navLayer(plain, obstacles, radius).grid);
+    e.layers.clear();
+    parts.push(Uint32Array.of(table.a.length, table.tri.length), table.counts, table.a, table.b, table.ra, table.rb, table.x, table.y, table.tri);
   }
-  const mean = new Float32Array(coarse.slow.length);
-  for (let r = 1; r < mean.length; r++) mean[r] = sum[r] / count[r];
-  return { ...coarse, slow: mean };
+  const header = new TextEncoder().encode(JSON.stringify(summaryHeader(plain, map.hash, radii)));
+  const sizes = parts.map((p) => aligned(p.byteLength));
+  const out = new Uint8Array(aligned(4 + header.length) + sizes.reduce((a, b) => a + b, 0));
+  new DataView(out.buffer).setUint32(0, header.length, true);
+  out.set(header, 4);
+  let at = aligned(4 + header.length);
+  parts.forEach((p, i) => {
+    out.set(new Uint8Array(p.buffer, p.byteOffset, p.byteLength), at);
+    at += sizes[i];
+  });
+  return out;
 }
 
-function costlyCover(n: number, costly: Blocker[], radius: number): Uint16Array {
-  const cover = new Uint16Array(n * n);
-  stampBlockers(n, costly, radius, (c) => raiseCover(cover, c));
-  return cover;
+export function slowAt(layer: NavLayer, c: number): number {
+  ensureFine(layer.cells, c);
+  return markedSlow(layer, c);
 }
 
-function raiseCover(cover: Uint16Array, c: number): void {
-  if (cover[c] === COVER_MAX) throw new Error(`costly cover of cell ${c} passed ${COVER_MAX}`);
-  cover[c]++;
+function markedSlow(layer: NavLayer, c: number): number {
+  return layer.marks[c] === 1 ? Math.fround(layer.slow[c] * BREAKABLE.routeCost) : layer.slow[c];
 }
 
-function lowerCover(cover: Uint16Array, c: number, blocker: Blocker): void {
-  if (cover[c] === 0) throw new Error(`costly cover of cell ${c} fell below 0 removing ${blocker.prop?.key}`);
-  cover[c]--;
-}
-
-function slowFromCover(nav: TerrainNav, cover: Uint16Array): Float32Array {
-  const slow = nav.slow.slice();
-  for (let c = 0; c < slow.length; c++) if (cover[c] > 0) slow[c] *= BREAKABLE.routeCost;
-  return slow;
-}
-
-const costlyMaps = new WeakMap<StaticSet, Map<string, Blocker[]>>();
-
-function costlyOf(statics: StaticSet): Map<string, Blocker[]> {
-  let map = costlyMaps.get(statics);
-  if (!map) {
-    map = costlyByKey(statics.costly);
-    costlyMaps.set(statics, map);
-  }
-  return map;
-}
-
-function costlyByKey(costly: Blocker[]): Map<string, Blocker[]> {
-  const byKey = new Map<string, Blocker[]>();
-  for (const b of costly) {
-    if (!b.prop) throw new Error('a costly blocker has no prop');
-    const same = byKey.get(b.prop.key);
-    if (same) same.push(b);
-    else byKey.set(b.prop.key, [b]);
-  }
-  return byKey;
-}
-
-function costlyDiff(base: Map<string, Blocker[]>, next: Map<string, Blocker[]>): { removed: Blocker[]; added: Blocker[] } {
-  return { removed: surplus(base, next), added: surplus(next, base) };
-}
-
-function surplus(from: Map<string, Blocker[]>, other: Map<string, Blocker[]>): Blocker[] {
-  const extra: Blocker[] = [];
-  for (const [key, blockers] of from) extra.push(...blockers.slice(other.get(key)?.length ?? 0));
-  return extra;
-}
-
-function recover(nav: TerrainNav, slow: Float32Array, cover: Uint16Array, blockers: Blocker[], step: 1 | -1, radius: number, touched: Set<number>): void {
-  const bn = Math.ceil(nav.n / COARSE);
-  for (const blocker of blockers) {
-    stampBlockers(nav.n, [blocker], radius, (c) => {
-      if (step === 1) raiseCover(cover, c);
-      else lowerCover(cover, c, blocker);
-      if (cover[c] !== (step === 1 ? 1 : 0)) return;
-      slow[c] = step === 1 ? nav.slow[c] * BREAKABLE.routeCost : nav.slow[c];
-      touched.add(Math.floor(Math.floor(c / nav.n) / COARSE) * bn + Math.floor((c % nav.n) / COARSE));
-    });
-  }
-}
-
-function regionSlowIn(coarse: CoarseGrid, slow: Float32Array, mean: Float32Array, blocks: Set<number>, n: number): void {
-  for (const block of blocks) {
-    const x0 = (block % coarse.n) * COARSE;
-    const y0 = Math.floor(block / coarse.n) * COARSE;
-    const sums = new Map<number, { sum: number; count: number }>();
-    for (let y = y0; y < Math.min(n, y0 + COARSE); y++) sumRow(coarse.region, slow, sums, y * n + x0, Math.min(n - x0, COARSE));
-    for (const [r, acc] of sums) mean[r] = acc.sum / acc.count;
-  }
-}
-
-function sumRow(region: Int32Array, slow: Float32Array, sums: Map<number, { sum: number; count: number }>, start: number, width: number): void {
-  for (let c = start; c < start + width; c++) {
-    const r = region[c];
-    if (r === 0) continue;
-    const acc = sums.get(r) ?? { sum: 0, count: 0 };
-    acc.sum += slow[c];
-    acc.count++;
-    sums.set(r, acc);
-  }
-}
-
-export function stampBlockers(n: number, blockers: Blocker[], radius: number, mark: (cell: number) => void): void {
+export function stampBlockers(n: number, blockers: Blocker[], radius: number, mark: (cell: number) => void, w: Window = { x0: 0, y0: 0, x1: n - 1, y1: n - 1 }): void {
   const grow = radius + CLEARANCE;
   for (const o of blockers) {
     if (!o.prop) {
-      const reach = o.r + grow;
-      stampWithin(n, o.pos, reach, reach, (p) => dist(p, o.pos) < reach, mark);
+      stampCircle(w, n, o.pos, o.r + grow, mark);
       continue;
     }
-    for (const box of o.prop.boxes) stampWithin(n, box.center, ...boxExtent(box, grow), (p) => boxDistance(box, p) < grow, mark);
+    for (const box of o.prop.boxes) stampWithin(w, n, box.center, ...boxExtent(box, grow), (p) => boxDistance(box, p) < grow, mark);
+  }
+}
+
+function stampCircle(w: Window, n: number, center: Vec, reach: number, mark: (cell: number) => void): void {
+  const x0 = Math.max(w.x0, Math.floor((center.x - reach) / CELL));
+  const y0 = Math.max(w.y0, Math.floor((center.y - reach) / CELL));
+  const x1 = Math.min(w.x1, Math.floor((center.x + reach) / CELL));
+  const y1 = Math.min(w.y1, Math.floor((center.y + reach) / CELL));
+  for (let x = x0; x <= x1; x++) {
+    const dx = center.x - (x + 0.5) * CELL;
+    for (let y = y0; y <= y1; y++) if (Math.hypot(dx, center.y - (y + 0.5) * CELL) < reach) mark(y * n + x);
   }
 }
 
@@ -406,11 +544,11 @@ function boxExtent(box: PosedBox, grow: number): [number, number] {
   return [ax * box.half.x + ay * box.half.y + grow, ay * box.half.x + ax * box.half.y + grow];
 }
 
-function stampWithin(n: number, center: Vec, ex: number, ey: number, inside: (p: Vec) => boolean, mark: (cell: number) => void): void {
-  const x0 = Math.max(0, Math.floor((center.x - ex) / CELL));
-  const y0 = Math.max(0, Math.floor((center.y - ey) / CELL));
-  const x1 = Math.min(n - 1, Math.floor((center.x + ex) / CELL));
-  const y1 = Math.min(n - 1, Math.floor((center.y + ey) / CELL));
+function stampWithin(w: Window, n: number, center: Vec, ex: number, ey: number, inside: (p: Vec) => boolean, mark: (cell: number) => void): void {
+  const x0 = Math.max(w.x0, Math.floor((center.x - ex) / CELL));
+  const y0 = Math.max(w.y0, Math.floor((center.y - ey) / CELL));
+  const x1 = Math.min(w.x1, Math.floor((center.x + ex) / CELL));
+  const y1 = Math.min(w.y1, Math.floor((center.y + ey) / CELL));
   const p = { x: 0, y: 0 };
   for (let x = x0; x <= x1; x++) {
     p.x = (x + 0.5) * CELL;
@@ -422,8 +560,50 @@ function stampWithin(n: number, center: Vec, ex: number, ey: number, inside: (p:
 }
 
 export function componentOf(layer: NavLayer, cell: number): number {
-  const r = layer.coarse.region[cell];
-  return r === 0 ? 0 : layer.coarse.comp[r];
+  ensureFine(layer.cells, cell);
+  const r = regionAt(layer.grid, cell);
+  return r === 0 ? 0 : layer.grid.pieces.comp[layer.grid.regions.piece[r]];
+}
+
+export function blockedAt(layer: NavLayer, cell: number): boolean {
+  ensureFine(layer.cells, cell);
+  return layer.blocked[cell] === 1;
+}
+
+export function prepareRouteTerrain(terrain: Terrain): void {
+  tileKeys(terrainEntry(terrain), terrain);
+}
+
+export function buildEveryCell(layer: NavLayer): void {
+  ensureAll(layer.cells);
+}
+
+export function buildCellsAround(terrain: Terrain, center: Vec, until: number): boolean {
+  const layers = terrains.get(terrain)?.layers;
+  if (!layers) return false;
+  for (const layer of layers.values()) if (!buildNearest(layer, center, until)) return true;
+  return false;
+}
+
+function buildNearest(layer: NavLayer, center: Vec, until: number): boolean {
+  const g = layer.grid;
+  const span = SIDE * CELL;
+  const cx = Math.min(g.m - 1, Math.max(0, Math.floor(center.x / span)));
+  const cy = Math.min(g.m - 1, Math.max(0, Math.floor(center.y / span)));
+  for (let ring = 0; ring < g.m; ring++)
+    for (const cell of ringCells(g.m, cx, cy, ring)) {
+      if (g.built[cell] === 1) continue;
+      if (performance.now() >= until) return false;
+      ensureCell(layer.cells, cell);
+    }
+  return true;
+}
+
+function ringCells(m: number, cx: number, cy: number, ring: number): number[] {
+  const out: number[] = [];
+  for (let y = Math.max(0, cy - ring); y <= Math.min(m - 1, cy + ring); y++)
+    for (let x = Math.max(0, cx - ring); x <= Math.min(m - 1, cx + ring); x++) if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) === ring) out.push(y * m + x);
+  return out;
 }
 
 export const NO_CLIMB = 255;
@@ -440,6 +620,7 @@ export function climbNeed(layer: NavLayer): Uint8Array {
 export function climbNeedOnRoads(layer: NavLayer): Uint8Array | null {
   const hit = climbNeeds.get(layer);
   if (hit !== undefined) return hit;
+  ensureAll(layer.cells);
   const need = floodClimb(layer);
   climbNeeds.set(layer, need);
   return need;
@@ -488,145 +669,6 @@ function floodClimb(layer: NavLayer): Uint8Array | null {
     }
   }
   return need;
-}
-
-function coarseGrid(n: number, blocked: Uint8Array, slow: Float32Array): CoarseGrid {
-  const bn = Math.ceil(n / COARSE);
-  const region = new Int32Array(n * n);
-  const queue = new Int32Array(COARSE * COARSE);
-  const blockOf: number[] = [0];
-  const sumX: number[] = [0];
-  const sumY: number[] = [0];
-  const sumSlow: number[] = [0];
-  const size: number[] = [0];
-  for (let by = 0; by < bn; by++)
-    for (let bx = 0; bx < bn; bx++) {
-      const x0 = bx * COARSE;
-      const y0 = by * COARSE;
-      const w = Math.min(n, x0 + COARSE) - x0;
-      const h = Math.min(n, y0 + COARSE) - y0;
-      if (allFree(blocked, n, x0, y0, w, h)) {
-        const id = blockOf.length;
-        blockOf.push(by * bn + bx);
-        let ts = 0;
-        for (let ly = 0; ly < h; ly++)
-          for (let lx = 0; lx < w; lx++) {
-            const c = (y0 + ly) * n + x0 + lx;
-            region[c] = id;
-            ts += slow[c];
-          }
-        sumX.push((x0 + (w - 1) / 2) * w * h);
-        sumY.push((y0 + (h - 1) / 2) * w * h);
-        sumSlow.push(ts);
-        size.push(w * h);
-        continue;
-      }
-      for (let sy = 0; sy < h; sy++)
-        for (let sx = 0; sx < w; sx++) {
-          const seed = (y0 + sy) * n + x0 + sx;
-          if (blocked[seed] || region[seed]) continue;
-          const id = blockOf.length;
-          blockOf.push(by * bn + bx);
-          let tx = 0;
-          let ty = 0;
-          let ts = 0;
-          region[seed] = id;
-          let tail = 0;
-          queue[tail++] = sy * COARSE + sx;
-          for (let i = 0; i < tail; i++) {
-            const lx = queue[i] % COARSE;
-            const ly = (queue[i] - lx) / COARSE;
-            tx += x0 + lx;
-            ty += y0 + ly;
-            ts += slow[(y0 + ly) * n + x0 + lx];
-            const ya = ly > 0 ? ly - 1 : 0;
-            const yb = ly < h - 1 ? ly + 1 : ly;
-            const xa = lx > 0 ? lx - 1 : 0;
-            const xb = lx < w - 1 ? lx + 1 : lx;
-            for (let ny = ya; ny <= yb; ny++)
-              for (let nx = xa; nx <= xb; nx++) {
-                const c = (y0 + ny) * n + x0 + nx;
-                if (blocked[c] || region[c]) continue;
-                region[c] = id;
-                queue[tail++] = ny * COARSE + nx;
-              }
-          }
-          sumX.push(tx);
-          sumY.push(ty);
-          sumSlow.push(ts);
-          size.push(tail);
-        }
-    }
-  const count = blockOf.length;
-  const links: number[][] = Array.from({ length: count }, () => []);
-  let lastA = 0;
-  let lastB = 0;
-  const link = (a: number, b: number) => {
-    if (a === 0 || b === 0 || a === b || (a === lastA && b === lastB)) return;
-    lastA = a;
-    lastB = b;
-    if (links[a].includes(b)) return;
-    links[a].push(b);
-    links[b].push(a);
-  };
-  for (let k = COARSE; k < n; k += COARSE) {
-    for (let i = 0; i < n; i++) {
-      const left = region[i * n + k - 1];
-      if (left === 0) continue;
-      if (i > 0) link(left, region[(i - 1) * n + k]);
-      link(left, region[i * n + k]);
-      if (i < n - 1) link(left, region[(i + 1) * n + k]);
-    }
-    for (let i = 0; i < n; i++) {
-      const top = region[(k - 1) * n + i];
-      if (top === 0) continue;
-      if (i > 0) link(top, region[k * n + i - 1]);
-      link(top, region[k * n + i]);
-      if (i < n - 1) link(top, region[k * n + i + 1]);
-    }
-  }
-  const edgeStart = new Int32Array(count + 1);
-  for (let r = 0; r < count; r++) edgeStart[r + 1] = edgeStart[r] + links[r].length;
-  const edges = new Int32Array(edgeStart[count]);
-  for (let r = 0; r < count; r++) edges.set(links[r], edgeStart[r]);
-  const cx = new Float32Array(count);
-  const cy = new Float32Array(count);
-  const mean = new Float32Array(count);
-  for (let r = 1; r < count; r++) {
-    cx[r] = sumX[r] / size[r];
-    cy[r] = sumY[r] / size[r];
-    mean[r] = sumSlow[r] / size[r];
-  }
-  return { n: bn, region, block: Int32Array.from(blockOf), x: cx, y: cy, slow: mean, comp: components(count, edgeStart, edges), edgeStart, edges };
-}
-
-function allFree(blocked: Uint8Array, n: number, x0: number, y0: number, w: number, h: number): boolean {
-  for (let ly = 0; ly < h; ly++)
-    for (let lx = 0; lx < w; lx++) if (blocked[(y0 + ly) * n + x0 + lx]) return false;
-  return true;
-}
-
-function components(count: number, edgeStart: Int32Array, edges: Int32Array): Int32Array {
-  const comp = new Int32Array(count);
-  const queue = new Int32Array(count);
-  let next = 0;
-  for (let seed = 1; seed < count; seed++) {
-    if (comp[seed]) continue;
-    const id = ++next;
-    comp[seed] = id;
-    let tail = 0;
-    queue[tail++] = seed;
-    for (let i = 0; i < tail; i++) {
-      const cur = queue[i];
-      for (let e = edgeStart[cur]; e < edgeStart[cur + 1]; e++) {
-        const r = edges[e];
-        if (comp[r]) continue;
-        comp[r] = id;
-        queue[tail++] = r;
-      }
-    }
-  }
-  return comp;
 }
 
 export type Berth = { x: number; y: number; r: number };
@@ -711,10 +753,12 @@ export function climbTaste(taste: Taste | null, nav: TerrainNav, climb: number):
   return { ...base, climb, steep: nav.steep, shares: blockOverClimb(nav, climb) };
 }
 
+const CLIMB_SHARES_KEPT = 16;
+
 function blockOverClimb(nav: TerrainNav, climb: number): Float32Array {
   const cached = nav.climbShares.get(climb);
   if (cached) return cached;
-  if (nav.climbShares.size >= LAYERS_MAX) nav.climbShares.clear();
+  if (nav.climbShares.size >= CLIMB_SHARES_KEPT) nav.climbShares.clear();
   const span = COARSE * CELL;
   const side = Math.ceil(nav.size / span);
   const shares = new Float32Array(side * side);
@@ -749,15 +793,6 @@ function noisy(t: Taste, cost: number, x: number, y: number): number {
   return t.shy ? c * t.shy[tileIndex(t.size, x, y)] : c;
 }
 
-function inBerth(berths: Berth[], x: number, y: number): boolean {
-  for (const b of berths) if ((x - b.x) ** 2 + (y - b.y) ** 2 <= b.r * b.r) return true;
-  return false;
-}
-
-function berthKey(berths: Berth[]): string {
-  return berths.map((b) => `${Math.round(b.x)},${Math.round(b.y)},${Math.round(b.r)}`).join(';');
-}
-
 export function tasted(t: Taste | null, cost: number, x: number, y: number): number {
   if (!t) return cost;
   const c = noisy(t, cost, x, y);
@@ -766,9 +801,24 @@ export function tasted(t: Taste | null, cost: number, x: number, y: number): num
 
 export function tastedCoarse(t: Taste | null, cost: number, x: number, y: number, blockA: number, blockB: number): number {
   if (!t) return cost;
-  const c = noisy(t, cost, x, y);
+  const c = noisy(t, cost, x, y) * coarseShy(t, x, y);
   if (!t.shares) return c;
   return c * (1 + Math.max(t.shares[blockA], t.shares[blockB]) * (REGION.navigation.overClimbCost - 1));
+}
+
+function coarseShy(t: Taste, x: number, y: number): number {
+  if (!t.shy) return 1;
+  const shy = t.shy[tileIndex(t.size, x, y)];
+  return shy >= REGION.navigation.roadShyCost ? shy : 1;
+}
+
+function inBerth(berths: Berth[], x: number, y: number): boolean {
+  for (const b of berths) if ((x - b.x) ** 2 + (y - b.y) ** 2 <= b.r * b.r) return true;
+  return false;
+}
+
+function berthKey(berths: Berth[]): string {
+  return berths.map((b) => `${Math.round(b.x)},${Math.round(b.y)},${Math.round(b.r)}`).join(';');
 }
 
 function noiseKey(t: Taste): string {

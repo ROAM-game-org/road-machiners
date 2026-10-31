@@ -225,6 +225,9 @@ const gaps = await page.evaluate(async ({ turn, turns }) => {
 const turnFrame = await page.evaluate(() => window.__ROAM_PERF__.snapshot()['turn-frame']);
 if (!turnFrame) throw new Error('No turn-frame timer recorded during travel');
 results.travelFrameMs = turnFrame.max;
+const stream = await page.evaluate(() => window.__ROAM_PERF__.snapshot());
+if (stream['stream-block']) errors.push(`auto travel waited on ${stream['stream-block'].calls} map cells that were not built in time`);
+console.log(`stream build ms per frame during travel: max ${(stream['stream-build']?.max ?? 0).toFixed(1)}, calls ${stream['stream-build']?.calls ?? 0}`);
 const sortedGaps = [...gaps].sort((a, b) => a - b);
 
 const towns = await page.evaluate(async () => {

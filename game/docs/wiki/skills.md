@@ -62,7 +62,7 @@ Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `sr
 | steadyAim | Steady aim | driving | 4 | Your own speed adds no scatter to your shots. |
 | dustScreen | Dust screen | driving | 4 | At top speed on dusty ground, your dust blocks sight like a hill. |
 | readDriver | Read the driver | perception | 2 | You see the traits of other drivers. |
-| spotter | Spotter | perception | 2 | Mark a seen truck, and it stays tracked for a day. |
+| spotter | Spotter | perception | 2 | Mark a seen truck, and it stays tracked for 2 hours. |
 | cargoEye | Cargo eye | perception | 4 | You see the goods and spare parts in any seen truck. |
 | nightEyes | Night eyes | perception | 4 | Night does not halve your sight. |
 | welder | Welder | machining | 2 | A field job turns 3 scrap metal into a scrap armor sheet. |

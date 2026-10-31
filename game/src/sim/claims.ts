@@ -39,6 +39,11 @@ function isReachable(world: World, layer: NavLayer, stock: SalvageStock): boolea
 }
 
 export function claimSpots(world: World): SalvageStock[] {
+  const baked = claimClueBake({ hash: world.mapHash }).wrecks;
+  return world.salvage.filter((stock) => isWreckSpot(stock) && isRemote(stock) && baked[stock.id] !== undefined);
+}
+
+function reachableSpots(world: World): SalvageStock[] {
   const candidates = world.salvage.filter((stock) => isWreckSpot(stock) && isRemote(stock));
   if (candidates.length === 0) return [];
   const layer = navLayer(world.terrain, world.obstacles, MAX_RADIUS);
@@ -198,7 +203,7 @@ export function claimCandidates(world: World, c: ClaimContract): string[] {
 
 export function bakeClaimClues(world: World): ClaimClueBake {
   const shops = Object.fromEntries(Object.keys(SHOPS).map((id) => [id, shopSite(id).pos]));
-  return { mapHash: world.mapHash, wrecks: makeClaimClues(cluePlaces(world), claimWrecks(world), shops) };
+  return { mapHash: world.mapHash, wrecks: makeClaimClues(cluePlaces(world), reachableSpots(world).map(wreckOf), shops) };
 }
 
 export function leadOf(stockPos: Vec, from: Vec): { angle: number; distance: number } {

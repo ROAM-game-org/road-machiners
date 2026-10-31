@@ -260,8 +260,9 @@ describe('a helper in the fight', () => {
 describe('a merc hired in the fight', () => {
   it('is offered the hire topic and not the help topic', () => {
     const c = fight('independent', ['merc']);
-    const offered = asksOf(callVehicle(c.w, c.helper.id));
-    expect(offered).toContain('Ride guard for me for a day?');
+    const called = callVehicle(c.w, c.helper.id);
+    const offered = asksOf(called);
+    expect(offersLine(called, 'rideGuardForMe')).toBe(true);
     expect(offered).not.toContain("Need a hand here, I'm under fire!");
   });
 });

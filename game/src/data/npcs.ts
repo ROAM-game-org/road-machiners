@@ -6,6 +6,29 @@ import { START_KITS } from './start';
 import { SUNWARD } from './sunward';
 import { BOUNTY } from './market';
 import { CRATE_MASS } from './goods';
+import { MAP_SPREAD } from './region';
+
+declare const __TRAFFIC__: string;
+
+function trafficSetting(): string {
+  if (typeof __TRAFFIC__ === 'string') return __TRAFFIC__;
+  return (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.TRAFFIC ?? '';
+}
+
+const DEFAULT_TRAFFIC = 0.4;
+
+function trafficDensity(raw: string): number {
+  if (raw === '') return DEFAULT_TRAFFIC;
+  const density = Number(raw);
+  if (!Number.isFinite(density) || density <= 0) throw new Error(`TRAFFIC must be a road traffic density above 0, got ${raw}`);
+  return density;
+}
+
+export const TRAFFIC_DENSITY = trafficDensity(trafficSetting());
+
+function roadCap(cap: number): number {
+  return Math.max(1, Math.round(cap * MAP_SPREAD * TRAFFIC_DENSITY));
+}
 
 export const NPC_RESOURCES = {
   money: START_KITS.standard.money,
@@ -435,7 +458,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     aggroRange: 11,
     fightStyle: 'circle',
     money: NPC_RESOURCES.money,
-    cap: 6,
+    cap: roadCap(6),
     pairs: false,
     interval: 50,
     spawn: { kind: "camp" },
@@ -446,7 +469,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     aggroRange: 12,
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
-    cap: 2,
+    cap: roadCap(2),
     pairs: false,
     interval: 150,
     spawn: { kind: "camp" },
@@ -458,7 +481,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     aggroRange: 0,
     fightStyle: 'hold',
     money: 1333,
-    cap: 8,
+    cap: roadCap(8),
     pairs: false,
     interval: 12,
     spawn: { kind: "town" },
@@ -470,7 +493,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     aggroRange: 0,
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
-    cap: 4,
+    cap: roadCap(4),
     pairs: false,
     interval: 12,
     spawn: { kind: "town" },
@@ -515,7 +538,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     aggroRange: 0,
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
-    cap: 4,
+    cap: roadCap(4),
     pairs: true,
     interval: 30,
     spawn: { kind: "town" },
@@ -527,7 +550,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     aggroRange: 0,
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
-    cap: 3,
+    cap: roadCap(3),
     pairs: false,
     interval: 30,
     spawn: { kind: "town" },
@@ -539,7 +562,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     aggroRange: 0,
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
-    cap: 3,
+    cap: roadCap(3),
     pairs: false,
     interval: 30,
     spawn: { kind: "town" },

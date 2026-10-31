@@ -15,6 +15,7 @@ import { meters } from "./units";
 import type { UiHost } from "./host";
 import { createIcon, createItemIcon } from './cards';
 import { createSwitch } from "./switch";
+import { TravelSpeed } from "./travel-speed";
 import { canCall } from "./dialogue";
 import { workLabel, workProgress } from "./format";
 import { num, t, type Msg, type PlainKey } from "../text/msg";
@@ -389,8 +390,10 @@ export class WeaponPanel {
   private turn = panel('turn-control', rightColumn());
   private expanded = true;
   readonly utilities: UtilityRow;
+  private readonly travelSpeed: TravelSpeed;
 
   constructor(private host: UiHost) {
+    this.travelSpeed = new TravelSpeed({ index: () => host.travelSpeedIndex(), playing: () => host.travelPlaySpeed(), step: (delta) => host.stepTravelSpeed(delta) });
     this.utilities = new UtilityRow(host);
     this.root.setAttribute('data-drawer-frame', 'guns');
   }
@@ -407,7 +410,12 @@ export class WeaponPanel {
       createSwitch({ on: t("weapon.switchShow"), off: t("weapon.switchHide"), checked: this.expanded, key: "X", title: t("weapon.toggleTitle"), onclick: () => this.host.runKey("KeyX") }),
     );
     this.root.replaceChildren(head, ...(this.expanded ? [this.renderControls(w, locked)] : []));
-    this.turn.replaceChildren(this.renderTurnButton(phase));
+    this.travelSpeed.sync();
+    this.turn.replaceChildren(this.travelSpeed.root, this.renderTurnButton(phase));
+  }
+
+  stepTravelSpeed(delta: 1 | -1): void {
+    this.travelSpeed.step(delta);
   }
 
   private renderTurnButton(phase: ReturnType<UiHost["getTurnPhase"]>): HTMLElement {

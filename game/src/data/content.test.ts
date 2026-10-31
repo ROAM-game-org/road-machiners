@@ -293,7 +293,7 @@ describe("utilities", () => {
   ];
 
   const wreckTableIds = (): Set<string> => {
-    const ids = new Set<string>(["roadWreck", "hulks", "boats"]);
+    const ids = new Set<string>(["roadWreck", "hulks", "boats", "wreckage"]);
     for (const { wreck, farm } of Object.values(TERRITORIES)) {
       if (wreck && WRECK_LOOKS.includes(wreck.cacheLook)) ids.add(wreck.cacheTable);
       if (wreck && WRECK_LOOKS.includes(wreck.spotLook)) ids.add(wreck.spotTable);

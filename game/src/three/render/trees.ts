@@ -18,36 +18,44 @@ type Slot = { meshes: THREE.InstancedMesh[]; standing: Float32Array[]; index: nu
 
 export class TreeInstances {
   private readonly slots = new Map<string, Slot>();
+  private readonly ids = new Set<string>();
   private readonly hidden = new Set<string>();
 
   constructor(scope: RenderScope, terrain: Terrain, trees: readonly Landmark[]) {
-    for (const list of byChunk(trees).values()) this.addChunk(scope, terrain, list);
+    for (const list of byChunk(trees).values()) this.placeChunk(scope, terrain, list);
   }
 
   has(id: string): boolean {
-    return this.slots.has(id);
+    return this.ids.has(id);
   }
 
   hide(id: string): void {
-    const slot = this.slotOf(id);
+    this.checkTree(id);
     if (this.hidden.has(id)) return;
     this.hidden.add(id);
-    for (const mesh of slot.meshes) setInstance(mesh, slot.index, ZERO);
+    const slot = this.slots.get(id);
+    if (slot) for (const mesh of slot.meshes) setInstance(mesh, slot.index, ZERO);
   }
 
   show(id: string): void {
-    const slot = this.slotOf(id);
+    this.checkTree(id);
     if (!this.hidden.delete(id)) return;
-    slot.meshes.forEach((mesh, i) => setInstance(mesh, slot.index, slot.standing[i].subarray(slot.index * 16, slot.index * 16 + 16)));
-  }
-
-  private slotOf(id: string): Slot {
     const slot = this.slots.get(id);
-    if (!slot) throw new Error(`Dead tree ${id} is not a baked tree; trees are drawn as fixed instances`);
-    return slot;
+    slot?.meshes.forEach((mesh, i) => setInstance(mesh, slot.index, slot.standing[i].subarray(slot.index * 16, slot.index * 16 + 16)));
   }
 
-  private addChunk(scope: RenderScope, terrain: Terrain, list: readonly Landmark[]): void {
+  private checkTree(id: string): void {
+    if (!this.ids.has(id)) throw new Error(`Dead tree ${id} is not a baked tree; trees are drawn as fixed instances`);
+  }
+
+  private placeChunk(scope: RenderScope, terrain: Terrain, list: readonly Landmark[]): void {
+    for (const o of list) this.ids.add(o.id);
+    const center = list.reduce((c, o) => ({ x: c.x + o.pos.x / list.length, y: c.y + o.pos.y / list.length }), { x: 0, y: 0 });
+    const reach = Math.max(...list.map((o) => dist(center, o.pos) + propReach(o)));
+    scope.place(center, reach, () => this.buildChunk(terrain, list));
+  }
+
+  private buildChunk(terrain: Terrain, list: readonly Landmark[]): THREE.Group {
     const placements = list.map((o) => {
       const g = posed(propBase(terrain, o), propPose(o));
       g.updateMatrix();
@@ -59,10 +67,11 @@ export class TreeInstances {
       return m;
     });
     const standing = meshes.map((m) => Float32Array.from(m.instanceMatrix.array));
-    list.forEach((o, index) => this.slots.set(o.id, { meshes, standing, index }));
-    const center = list.reduce((c, o) => ({ x: c.x + o.pos.x / list.length, y: c.y + o.pos.y / list.length }), { x: 0, y: 0 });
-    const reach = Math.max(...list.map((o) => dist(center, o.pos) + propReach(o)));
-    scope.add(group, center, reach);
+    list.forEach((o, index) => {
+      this.slots.set(o.id, { meshes, standing, index });
+      if (this.hidden.has(o.id)) for (const mesh of meshes) setInstance(mesh, index, ZERO);
+    });
+    return group;
   }
 }
 

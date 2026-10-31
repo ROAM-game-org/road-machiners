@@ -1,12 +1,11 @@
 import { GEOLOGY, ROADSIDE, TERRAIN, type RoadsideBand } from '../data/terrain';
 import { REGION } from '../data/region';
 import { chance, hashRandom, randInt, randRange, type Rng } from '../sim/rng';
-import { TYPE_IDS, type BakedProp } from '../sim/terrain';
-import { dist, type Vec } from '../sim/vec';
+import { BUILT_BLACK_MUD, BUILT_FIELD, BUILT_NONE, BUILT_OLD_ROAD, BUILT_SCRUB, TYPE_IDS, type BakedProp } from '../sim/terrain';
+import { dist, polylineDist, type Vec } from '../sim/vec';
 import { tileSteepness, type MapDraft } from './bake';
-import { BUILT_SCRUB } from './newworld';
 import { onReservedGround } from './start-ground';
-import { BUILT_FIELD, BUILT_NONE, BUILT_OLD_ROAD, RoadLine, clearGround, facing, offset, prop, roadJunctions, ruleRng, sideOf, stations, tileCenter, tileOf, tilesWithin } from './oldworld';
+import { RoadLine, clearGround, facing, offset, prop, roadJunctions, ruleRng, sideOf, stations, tileCenter, tileFlow, tileOf, tilesWithin } from './oldworld';
 
 const R = ROADSIDE;
 const HALF = REGION.roadWidth / 2;
@@ -16,7 +15,7 @@ const GAP = REGION.obstacles.gap;
 const S_REACH = 8;
 const WASH = GEOLOGY.ground.washFlow;
 const SLOPE_LIMIT = TERRAIN.drive.maxSlope * R.slopeShare;
-const OPEN_BUILT = [BUILT_NONE, BUILT_SCRUB];
+const OPEN_BUILT = [BUILT_NONE, BUILT_SCRUB, BUILT_BLACK_MUD];
 const NEIGHBORS: readonly Vec[] = [
   { x: 1, y: 0 },
   { x: -1, y: 0 },
@@ -117,12 +116,6 @@ export function lineGap(a: Vec, b: Vec, c: Vec): number {
 
 function key(x: number, y: number): number {
   return y * 4096 + x;
-}
-
-export function tileFlow(d: MapDraft, tile: number): number {
-  const w = d.size + 1;
-  const k = Math.floor(tile / d.size) * w + (tile % d.size);
-  return Math.max(d.flow[k], d.flow[k + 1], d.flow[k + w], d.flow[k + w + 1]);
 }
 
 export function roadsideLayer(seed: number, d: MapDraft): MapDraft {
@@ -280,7 +273,11 @@ function openTrees(seed: number, p: Placer, yards: BakedProp[]): void {
 
 function isBank(d: MapDraft, tile: number): boolean {
   const flow = tileFlow(d, tile);
-  return flow >= WASH * R.trees.washBank && flow < WASH && d.types[tile] !== TYPE_IDS.indexOf('sand');
+  return flow >= WASH * R.trees.washBank && flow < WASH && d.types[tile] !== TYPE_IDS.indexOf('sand') && !onRiverFloor(tileCenter(d.size, tile));
+}
+
+function onRiverFloor(p: Vec): boolean {
+  return polylineDist(p, TERRAIN.features.dryRiver.path) <= TERRAIN.features.dryRiver.width;
 }
 
 function builtAt(d: MapDraft, tile: number, step: Vec): number {

@@ -74,17 +74,19 @@ export class SiteLights {
   private slots: Slot[] = [];
   private lastMs: number | null = null;
   private level = 0;
-  private readonly lights: SiteLight[];
-  private readonly hollow: HollowLamps | null;
+  private readonly lights: SiteLight[] = [];
 
   constructor(
     private readonly scene: THREE.Scene,
-    sites: { lights: SiteLight[]; lamps: PoolLamp[]; hollow?: HollowLamps | null },
+    private readonly hollow: HollowLamps | null,
     pools: { worldSize: number; maxTextureSize: number },
   ) {
-    this.lights = sites.lights;
-    this.hollow = sites.hollow ?? null;
-    NIGHT_POOLS.bake(sites.lamps, pools.worldSize, pools.maxTextureSize);
+    NIGHT_POOLS.start(pools.worldSize, pools.maxTextureSize);
+  }
+
+  add(lights: readonly SiteLight[], lamps: readonly PoolLamp[]): void {
+    this.lights.push(...lights);
+    NIGHT_POOLS.addLamps(lamps);
   }
 
   get pooled(): number {

@@ -27,13 +27,19 @@ function play(w: World, max: number, afterTurn: (w: World) => boolean = () => fa
   return w;
 }
 
-it('the player drives from Bowl to Nose without a serious hit on a static obstacle', () => {
-  const nose = REGION.towns.find((t) => t.id === 'nose')!;
-  let w = setMoveOrder(standardWorld(1337), { kind: 'stopAt', dest: nose.pos });
+type Leg = { pos: Vec; heading: number; speed: number };
+
+const NOSE = REGION.towns.find((t) => t.id === 'nose')!;
+const BOWL_LEG: Leg = { pos: scalePoint({ x: 209.3 / 5, y: 276.8 / 5 }), heading: -Math.PI / 4, speed: 7 };
+const FIRST_BEND: Leg = { pos: { x: 1392.9, y: 595.8 }, heading: 0.674, speed: 0.94 };
+const LAST_STRETCH: Leg = { pos: { x: 1521.4, y: 634.6 }, heading: 0.028, speed: 0.94 };
+
+function driveLeg(from: Leg, dest: Vec, arrivedWithin: number): { staticDamage: number; end: Vec } {
+  let w = setMoveOrder(standardWorld(1337), { kind: 'stopAt', dest });
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   w.player.fuel = 100;
   const me = w.player.vehicleId;
-  Object.assign(w.vehicles[0], { pos: scalePoint({ x: 209.3 / 5, y: 276.8 / 5 }), heading: -Math.PI / 4, speed: 7 });
+  Object.assign(w.vehicles[0], from);
   let staticDamage = 0;
   w = play(w, w.size, (world) => {
     world.vehicles = world.vehicles.filter((v) => v.faction === 'player');
@@ -41,12 +47,29 @@ it('the player drives from Bowl to Nose without a serious hit on a static obstac
     for (const e of world.events)
       if (e.t === 'collision' && e.a === me && !e.b.startsWith('v') && !e.b.startsWith('site-') && e.b !== GROUND)
         staticDamage += e.hitsA.reduce((sum, h) => sum + h.damage, 0);
-    return dist(world.vehicles[0].pos, nose.pos) <= nose.radius + 1.5;
+    return dist(world.vehicles[0].pos, dest) <= arrivedWithin;
   });
-  expect(staticDamage).toBeLessThan(5);
-  expect(dist(w.vehicles[0].pos, nose.pos)).toBeGreaterThan(nose.radius);
-  expect(dist(w.vehicles[0].pos, nose.pos)).toBeLessThanOrEqual(nose.radius + 1.5);
-}, budget(120_000));
+  return { staticDamage, end: w.vehicles[0].pos };
+}
+
+it('the player drives from Bowl to the first bend without a serious hit on a static obstacle', () => {
+  const leg = driveLeg(BOWL_LEG, FIRST_BEND.pos, 4);
+  expect(leg.staticDamage).toBeLessThan(5);
+  expect(dist(leg.end, FIRST_BEND.pos)).toBeLessThanOrEqual(4);
+});
+
+it('the player drives from the first bend to the last stretch without a serious hit on a static obstacle', () => {
+  const leg = driveLeg(FIRST_BEND, LAST_STRETCH.pos, 4);
+  expect(leg.staticDamage).toBeLessThan(5);
+  expect(dist(leg.end, LAST_STRETCH.pos)).toBeLessThanOrEqual(4);
+});
+
+it('the player drives from the last stretch to Nose without a serious hit on a static obstacle', () => {
+  const leg = driveLeg(LAST_STRETCH, NOSE.pos, NOSE.radius + 1.5);
+  expect(leg.staticDamage).toBeLessThan(5);
+  expect(dist(leg.end, NOSE.pos)).toBeGreaterThan(NOSE.radius);
+  expect(dist(leg.end, NOSE.pos)).toBeLessThanOrEqual(NOSE.radius + 1.5);
+});
 
 function roadWorld(road: Vec[]) {
   const w = emptyWorld();

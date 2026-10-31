@@ -221,7 +221,7 @@ export function withMovedHollow_107_108(world: SavedJson): SavedJson {
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(rehome), player: { ...player, discovered } };
 }
 
-const LAAGER_BAYS_109 = [
+export const LAAGER_BAYS_109 = [
   { x: 311.635, y: 504.26 }, { x: 310.391, y: 506.074 }, { x: 314.681, y: 509.014 }, { x: 309.148, y: 507.889 }, { x: 313.437, y: 510.829 }, { x: 307.904, y: 509.704 },
   { x: 312.193, y: 512.644 }, { x: 306.66, y: 511.519 }, { x: 310.95, y: 514.458 }, { x: 305.417, y: 513.333 }, { x: 309.706, y: 516.273 },
 ];
@@ -665,6 +665,13 @@ export function withoutLenaGlare_117_118(world: SavedJson): SavedJson {
   return ['heard_glare', 'asked_glare'].reduce((w, name) => dropQuestVar(w, 'nose_lena', name), world);
 }
 
+export function withoutRoadScene_122_123(world: SavedJson): SavedJson {
+  const dropped = dropQuest(world, 'intro_road');
+  const player = dropped.player as { quests: { live: { quest: string } | null } };
+  if (player.quests.live?.quest !== 'intro_road') return dropped;
+  return { ...dropped, player: { ...player, quests: { ...player.quests, live: null } } };
+}
+
 function chaseSpot_120_121(goal: SavedJson): SavedJson | null {
   if (goal.kind === 'sizeUp') return goal.destination as SavedJson;
   if (goal.kind === 'investigate') return (goal.heard ?? goal.destination) as SavedJson;
@@ -902,4 +909,19 @@ export function withArmorRowsOutside_127_128(world: SavedJson): SavedJson {
     return rows === undefined ? v : armorRowsOutside_127_128(v, defs, rows);
   });
   return { ...world, vehicles };
+}
+
+const OLD_TURNS_PER_DAY_XP = 5760;
+const OLD_START_HOUR_XP = 7;
+const WORK_DAY_TURNS_XP = 450;
+
+function oldClockDay_XP(turn: number): number {
+  return Math.floor((OLD_START_HOUR_XP + ((turn - 1) * 24) / OLD_TURNS_PER_DAY_XP) / 24) + 1;
+}
+
+export function withXpWorkWindow(world: SavedJson): SavedJson {
+  const { xpDay, ...player } = world.player as SavedJson;
+  const turn = world.turn as number;
+  const xpWindow = xpDay === oldClockDay_XP(turn) ? Math.floor((turn - 1) / WORK_DAY_TURNS_XP) : -1;
+  return { ...world, player: { ...player, xpWindow } };
 }

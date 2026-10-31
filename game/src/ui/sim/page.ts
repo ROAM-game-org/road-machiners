@@ -13,22 +13,18 @@ import { MapView, openScene } from "../map-view";
 import { token } from "../tokens";
 import { TruckIcons, type IconLook, type SpriteSet } from "./truck-icons";
 import { HEAT_LAYERS, HeatMap, type HeatLayer } from "./heat-map";
-import { CardView, PlayerPanel } from "./panels";
+import { CardView, PlayerPanel, SimSpeed } from "./panels";
 import { drawEconomy, RoadPaths, shopAt } from "./economy-draw";
 import { EconomyView } from "./economy-view";
 import { TIME } from "../../data/time";
+import { TravelSpeed, TRAVEL_SPEED_CODES } from "../travel-speed";
 
 const MARKER = { ring: 4, halo: 2, hit: 8, line: 2, shortestPx: 24 };
 const LABEL = { gap: 6, padX: 5, padY: 3, stripe: 3 };
 const CLICK_SLOP = 4;
 const LOG_WINDOW = 2000;
 const GLIDE_MS = { least: 60, most: 1200 };
-const SPEEDS: { label: string; title: string; gap: number }[] = [
-  { label: "Slow", title: "1 turn a second", gap: 1000 },
-  { label: "Normal", title: "3 turns a second", gap: 333 },
-  { label: "Fast", title: "As fast as it runs", gap: 0 },
-];
-const START_SPEED = 1;
+const GLIDE_SMOOTHING = 0.25;
 const SIDE_TABS = [{ label: "Trucks", economy: false }, { label: "Economy", economy: true }];
 const SHOP_HIT = 12;
 const PAN = { pxPerSecond: 600, longestFrameMs: 100 };
@@ -76,14 +72,21 @@ class Glide {
   private from = new Map<string, Vec>();
   private arrived = 0;
   private span: number = GLIDE_MS.least;
+  private interval: number | null = null;
   markers: Marker[] = [];
 
   take(markers: Marker[], now: number): void {
     const t = this.progress(now);
     this.from = new Map(this.markers.map((m) => [m.id, this.placeAt(m, t)]));
-    this.span = Math.min(GLIDE_MS.most, Math.max(GLIDE_MS.least, now - this.arrived));
+    this.span = this.spanFor(now - this.arrived);
     this.arrived = now;
     this.markers = markers;
+  }
+
+  private spanFor(gap: number): number {
+    if (gap >= GLIDE_MS.most) this.interval = null;
+    else this.interval = this.interval === null ? gap : this.interval + GLIDE_SMOOTHING * (gap - this.interval);
+    return Math.min(GLIDE_MS.most, Math.max(GLIDE_MS.least, this.interval ?? gap));
   }
 
   progress(now: number): number {
@@ -145,12 +148,12 @@ class SimPage {
   private readonly failure = el("pre", { class: "sim-failure" });
   private readonly playButton = el("button", { class: "sim-play", title: "Space", onclick: () => this.togglePlay() }, "Play");
   private readonly stepButton = el("button", { class: "btn-s", title: "Period key", onclick: () => this.step() }, "Step");
-  private readonly speedButtons = SPEEDS.map((s, i) => el("button", { class: "btn-s", title: s.title, "aria-pressed": String(i === START_SPEED), onclick: () => this.setSpeed(i) }, s.label));
-  private speedIndex = START_SPEED;
+  private readonly speed = new SimSpeed((gapMs) => this.send({ kind: "speed", gapMs }));
+  private readonly speedKeys = new TravelSpeed(this.speed);
   private readonly follow = new Toggle("Follow", "F key. Keeps the selected truck in the middle", () => this.view.redraw());
   private readonly seedBox = el("input", { type: "number", class: "sim-seed", step: "1", title: "Seed" }) as HTMLInputElement;
-  private readonly saveButton = el("button", { class: "btn-s", title: "The run also saves every game hour and on Pause, and opening the page resumes it", onclick: () => this.send({ kind: "save" }) }, "Save");
-  private readonly downloadButton = el("button", { class: "btn-s", title: "Download the run as a game save file", onclick: () => this.send({ kind: "download" }) }, "Download");
+  private readonly saveButton = el("button", { class: "btn-s", type: "button", title: "The run also saves every game hour and on Pause, and opening the page resumes it", onclick: () => this.send({ kind: "save" }) }, "Save");
+  private readonly downloadButton = el("button", { class: "btn-s", type: "button", title: "Download the run as a game save file", onclick: () => this.send({ kind: "download" }) }, "Download");
   private readonly saveNote = el("span", { class: "sim-note" }, "Not saved yet");
   private readonly quiet = new Toggle("All events", "Also show routine events: jobs, trades, shots and sightings", () => this.renderLog());
   private readonly onlySelected = new Toggle("Selected", "Show only the events of the selected truck", () => this.renderLog());
@@ -168,7 +171,7 @@ class SimPage {
   constructor(private readonly worker: Worker) {
     worker.onmessage = (event: MessageEvent<FromSim>) => this.receive(event.data);
     worker.onerror = (event) => this.fail(0, `The sim worker failed: ${event.message}`);
-    const toolbar = el("div", { class: "sim-toolbar panel" }, this.playButton, this.stepButton, el("div", { class: "option-switch sim-speed" }, ...this.speedButtons), this.follow.button);
+    const toolbar = el("div", { class: "sim-toolbar panel" }, this.playButton, this.stepButton, this.speedKeys.root, this.follow.button);
     const runForm = el("form", { class: "sim-run", onsubmit: (e: Event) => this.newRun(e) }, this.seedBox, el("button", { class: "btn-s", type: "submit" }, "New run"), this.saveButton, this.downloadButton, this.saveNote);
     const filters = el("div", { class: "sim-filters" }, this.find, this.quiet.button, this.onlySelected.button);
     const logHead = el("div", { class: "sim-head" }, el("span", { class: "panel-title" }, "Log"), this.logCount, filters);
@@ -213,16 +216,6 @@ class SimPage {
     this.worker.postMessage(message);
   }
 
-  private setSpeed(index: number): void {
-    this.speedIndex = index;
-    this.speedButtons.forEach((button, i) => button.setAttribute("aria-pressed", String(i === index)));
-    this.sendSpeed();
-  }
-
-  private sendSpeed(): void {
-    this.send({ kind: "speed", gapMs: SPEEDS[this.speedIndex]!.gap });
-  }
-
   private receive(message: FromSim): void {
     const handlers: { [K in FromSim["kind"]]: (m: Extract<FromSim, { kind: K }>) => void } = {
       started: (m) => this.showStarted(m),
@@ -247,6 +240,8 @@ class SimPage {
 
   private showFrame(f: Frame): void {
     if (!this.started) this.begin(f);
+    this.speed.frame(f.turn, performance.now());
+    this.speedKeys.sync();
     for (const m of f.markers) this.setOf(m);
     this.glide.take(f.markers, performance.now());
     this.status.textContent = `${f.markers.length} trucks`;
@@ -307,7 +302,7 @@ class SimPage {
   private begin(first: Frame): void {
     this.started = true;
     this.setReady(true);
-    this.sendSpeed();
+    this.speed.announce();
     this.playerId = first.markers.find((m) => m.player)?.id ?? null;
     this.select(this.playerId);
   }
@@ -351,6 +346,8 @@ class SimPage {
 
   private showPlaying(playing: boolean): void {
     this.playing = playing;
+    this.speed.run(playing);
+    this.speedKeys.sync();
     this.playButton.textContent = playing ? "Pause" : "Play";
     this.playButton.classList.toggle("on", playing);
   }
@@ -561,7 +558,12 @@ class SimPage {
     if (e.code === "Space") {
       e.preventDefault();
       this.togglePlay();
-    } else if (e.key === ".") this.step();
+    } else this.onCommandKey(e);
+  }
+
+  private onCommandKey(e: KeyboardEvent): void {
+    if (e.code in TRAVEL_SPEED_CODES) this.speedKeys.step(TRAVEL_SPEED_CODES[e.code]!);
+    else if (e.key === ".") this.step();
     else if (e.key === "f") this.follow.flip();
   }
 

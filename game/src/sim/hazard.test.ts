@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { REGION } from '../data/region';
+import { FALLEN_SUN_POS, REGION } from '../data/region';
 import { TERRAIN } from '../data/terrain';
 import { TERRITORIES } from '../data/territory';
 import { applyHazards, inCore } from './hazard';
@@ -101,7 +101,7 @@ describe('the reactor hazard', () => {
 
   describe('the breach light', () => {
     const light = hazardZones().find((z) => z.id === 'fallen-sun')!.core!.light;
-    const reported = { x: 440.55, y: 326.79 };
+    const reported = { x: FALLEN_SUN_POS.x + 24.55, y: FALLEN_SUN_POS.y - 24.21 };
 
     function burnAt(pos: { x: number; y: number }): World {
       const w = worldAt(pos);

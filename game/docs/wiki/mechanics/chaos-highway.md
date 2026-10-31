@@ -121,7 +121,7 @@ A group of chasers comes from ahead, the left or the right, never from the side 
 - ahead: 45 tiles ahead of the hauler, on the hauler's line across the road.
 - left or right: 36 tiles ahead and 22 tiles across, in the badlands, with more trucks 3 tiles apart along the road.
 
-Both are past the sight radius of 20 tiles from the hauler. A spot must also lie more than the gun truck's sight radius, without the night factor, plus 6 tiles from the gun truck, so a group never appears in sight and shows first as a dust or engine contact. A group whose free spots are all in sight waits for the next turn with no failure clock.
+Both are past the sight radius of 25 tiles from the hauler. A spot must also lie more than the gun truck's sight radius, without the night factor, plus 6 tiles from the gun truck, so a group never appears in sight and shows first as a dust or engine contact. A group whose free spots are all in sight waits for the next turn with no failure clock.
 
 Spawn spots and the encounter test measure from the hauler and never from behind it, so a player who drives ahead leaves the hauler alone with the groups. Every spot is inside the window and between its two milestones. No more than 8 group trucks are on the road at once, and a group waits until it fits. A group with no free spot tries again each turn and fails loudly after 20 turns.
 

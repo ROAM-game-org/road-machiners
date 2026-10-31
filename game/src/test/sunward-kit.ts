@@ -64,13 +64,20 @@ export function fillHollowByDay(w: World): void {
   }
 }
 
+function filledHollow(seed: number): World {
+  return reusedWorld(`sunward filled hollow ${seed}`, () => {
+    const w = quietWorld(seed);
+    fillHollowByDay(w);
+    return w;
+  });
+}
+
 export function orderWorld(seed: number): World {
   return reusedWorld(`order ${seed}`, () => builtOrderWorld(seed));
 }
 
 function builtOrderWorld(seed: number): World {
-  const w = quietWorld(seed);
-  fillHollowByDay(w);
+  const w = filledHollow(seed);
   w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || membersOf(w).includes(v));
   for (const tpl of Object.values(NPCS)) if (tpl.spawn.kind !== 'hollow') w.spawnTimer[tpl.id] = Number.MAX_SAFE_INTEGER;
   w.turn = rideOutTurn(duskTurn(1)) - 3;

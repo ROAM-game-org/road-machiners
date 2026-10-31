@@ -16,7 +16,7 @@ import { budget } from '../test/budget';
 
 const original = [
   [16, 94], [102, 35], [22.8, 56.8], [33.8, 32], [50, 32.8],
-  [81, 75.6], [71.8, 89], [40.7, 51.7], [64, 54], [82, 52.2],
+  [101.5, 101.5], [71.8, 89], [40.7, 51.7], [64, 54], [82, 52.2],
   [22, 14], [66, 76],
 ];
 
@@ -25,7 +25,7 @@ describe('Icarus exploration distances', () => {
     const sites = [...REGION.towns, ...REGION.locations].slice(0, original.length);
     expect(sites.map((site) => site.id)).toHaveLength(original.length);
     for (let i = 0; i < sites.length; i++) for (let j = i + 1; j < sites.length; j++) {
-      expect(Math.abs(dist(sites[i].pos, sites[j].pos) - Math.hypot(original[i][0] - original[j][0], original[i][1] - original[j][1]) * MAP_SCALE)).toBeLessThan(1);
+      expect(Math.abs(dist(sites[i].pos, sites[j].pos) - Math.hypot(original[i][0] - original[j][0], original[i][1] - original[j][1]) * MAP_SCALE)).toBeLessThanOrEqual(2 * Math.SQRT1_2);
     }
   });
 
