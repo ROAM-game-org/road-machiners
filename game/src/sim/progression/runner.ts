@@ -18,7 +18,7 @@ import { inYard, yardSpots } from '../outpost-gates';
 import { RULES } from '../../data/rules';
 import { startRepair } from '../jobs';
 import { corePart, goodsCount, mountedParts } from '../grid';
-import { storePart } from '../inventory';
+import { storePart, type RefitLayout } from '../inventory';
 import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from '../outposts';
 import type { MoveOrder, PartInstance, Vehicle, WeaponOrder, World } from '../types';
 import { dist, type Vec } from '../vec';
@@ -28,7 +28,7 @@ import { escortFoe, escortMove, gunTarget, hostilesSeen, unlessStuck, type Stall
 import { aimFor } from './aim';
 import { armorHauler } from './escort-gear';
 import { bestTruck } from './escort-tactics';
-import { mountBought, Orders, type BotTurn } from './orders';
+import { mountBought, Orders, relayout, type BotTurn } from './orders';
 
 export type RoadStyle = 'escort' | 'sprinter';
 
@@ -244,8 +244,12 @@ function refitGear(o: Orders, fits: (v: Vehicle) => boolean = () => true): void 
   const target = refitLoadout(o.world, { rngState: o.world.rngState }, o.me, { priorities: NPCS[FIGHTER].loadout.priorities, money, allowed, paysFuel: false });
   const kept = new Set(target.items.map((it) => it.id));
   for (const it of o.me.items.filter((it) => it.kind === 'part' && !kept.has(it.id))) o.run((w) => storePart(w, it.id), 'gear');
-  const buys = buysFor(added(target), forSale)!;
-  added(target).forEach((it, i) => {
+  const bought = added(target);
+  const buys = buysFor(bought, forSale)!;
+  const layout: RefitLayout = {};
+  for (const it of target.items) if (owned.has(it.id)) layout[it.id] = { x: it.x, y: it.y, rot: it.rot };
+  relayout(o, layout);
+  bought.forEach((it, i) => {
     o.run((w) => outpostBuyPart(w, buys[i].id), 'gear');
     mountBought(o, buys[i].id, { x: it.x, y: it.y, rot: it.rot });
   });

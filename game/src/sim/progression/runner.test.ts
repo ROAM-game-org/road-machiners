@@ -1,4 +1,4 @@
-import { addGoods } from '../inventory';
+import { addGoods, getLayoutError } from '../inventory';
 import { describe, expect, it } from 'vitest';
 import { haulerOf, playerVehicle } from '../damage';
 import { corePart, goodsCount, mountedParts } from '../grid';
@@ -127,6 +127,17 @@ describe('the Chaos Highway escort bot', () => {
     expect(mountedParts(playerVehicle(turn.world)).some((p) => !mine.includes(p.id))).toBe(true);
     expect(mountedParts(hauler, 'armor').length).toBeGreaterThan(armor);
     expect(mountedParts(hauler, 'weapon')).toEqual([]);
+  });
+
+  it('refits at every outpost in turn, moving the guns it keeps to where the new loadout puts them, with a legal layout after each stop', () => {
+    let w = chaosHighwayWorld();
+    for (let milestone = 1; milestone <= 6; milestone++) {
+      parkInYard(w, milestone);
+      w = endTurn(w, () => {});
+      w.player.money = 2_000_000;
+      w = botOrders(w, 'escort').world;
+      expect(getLayoutError(playerVehicle(w), playerVehicle(w).items)).toBeNull();
+    }
   });
 
   it('buys no hauler armor when only its own truck took damage', () => {

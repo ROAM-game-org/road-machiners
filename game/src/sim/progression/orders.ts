@@ -7,7 +7,7 @@ import { playerVehicle, truckFor } from '../damage';
 import { chassisTopSpeed } from '../chassis-features';
 import { buyChassis, buyStockPart, chassisTradeIn, garageChassis, partTradePrice, sellPart } from '../economy';
 import { type Spot, goodsCount, mountedItems } from '../grid';
-import { installSpot, moveItem, spareParts, storePart, takeFromStorage } from '../inventory';
+import { installSpot, moveItem, spareParts, startRefit, storePart, takeFromStorage, type RefitLayout } from '../inventory';
 import { shopAt, shopState } from '../market';
 import { canUseSite, nearestPad, townAt, type Site } from '../sites';
 import type { Vec } from '../vec';
@@ -139,6 +139,21 @@ function mount(o: Orders, c: Candidate, replaced: PartItem | null): void {
 export function mountBought(o: Orders, partId: string, spot: Spot, truckId?: string): void {
   if (o.world.player.storage.some((p) => p.id === partId)) o.run((w) => takeFromStorage(w, partId, spot, truckId));
   else o.run((w) => moveItem(w, itemOf(w, partId, truckId), spot, truckId));
+}
+
+export function relayout(o: Orders, layout: RefitLayout): void {
+  const moving = Object.entries(layout).filter(([id, spot]) => !sameSpot(heldItem(o.me, id), spot));
+  if (moving.length > 0) o.run((w) => startRefit(w, Object.fromEntries(moving)));
+}
+
+function heldItem(v: Vehicle, itemId: string): GridItem {
+  const item = v.items.find((it) => it.id === itemId);
+  if (!item) throw new Error(`Item ${itemId} is not on the truck`);
+  return item;
+}
+
+function sameSpot(item: GridItem, spot: Spot): boolean {
+  return item.x === spot.x && item.y === spot.y && item.rot === spot.rot;
 }
 
 function itemOf(world: World, partId: string, truckId?: string): string {
