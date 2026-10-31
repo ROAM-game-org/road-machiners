@@ -83,15 +83,27 @@ describe('escortMove', () => {
     expect(playerVehicle(w).brain).toBeNull();
   });
 
-  it('drives back to the hauler once it falls behind it by more than its gun reach, even with a foe in sight', () => {
+  it('drives back to the hauler once it falls behind it by more than its gun reach, even with a foe in sight beyond that reach', () => {
     const w = started();
     const me = playerVehicle(w);
     const hauler = haulerOf(w);
     me.pos = { x: hauler.pos.x, y: hauler.pos.y + leash(w, me) + 5 };
-    foeAt(w, 6, 0, me);
+    foeAt(w, leash(w, me) + 4, 0, me);
     refreshVision(w);
+    expect(hostilesSeen(w)).toHaveLength(1);
     expect(lagBehind(w, me, hauler)).toBeGreaterThan(leash(w, me));
     expect(dist(destOf(escortMove(w, me)), followSpot(w, me, hauler, 0))).toBe(0);
+  });
+
+  it('fights a foe within its gun reach even while it lags behind the hauler, so a foe on its tail cannot shoot it unanswered', () => {
+    const w = started();
+    const me = playerVehicle(w);
+    const hauler = haulerOf(w);
+    me.pos = { x: hauler.pos.x, y: hauler.pos.y + leash(w, me) + 5 };
+    const foe = foeAt(w, 6, 0, me);
+    refreshVision(w);
+    expect(lagBehind(w, me, hauler)).toBeGreaterThan(leash(w, me));
+    expect(escortFoe(w, me)?.id).toBe(foe.id);
   });
 
   it('keeps fighting a foe off to the side of the hauler, since only falling behind pulls it back', () => {

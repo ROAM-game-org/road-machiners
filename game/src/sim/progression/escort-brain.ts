@@ -84,8 +84,10 @@ export function lagBehind(world: World, me: Vehicle, hauler: Vehicle): number {
 }
 
 export function escortFoe(world: World, me: Vehicle): Vehicle | null {
-  if (lagBehind(world, me, haulerOf(world)) > leash(world, me)) return null;
-  return deadliest(world, me, hostilesSeen(world));
+  const reach = leash(world, me);
+  const foes = hostilesSeen(world);
+  if (lagBehind(world, me, haulerOf(world)) <= reach) return deadliest(world, me, foes);
+  return deadliest(world, me, foes.filter((v) => dist(v.pos, me.pos) <= reach));
 }
 
 export function deadliest(world: World, me: Vehicle, foes: readonly Vehicle[]): Vehicle | null {

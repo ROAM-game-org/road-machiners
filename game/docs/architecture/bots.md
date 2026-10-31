@@ -55,7 +55,7 @@ The escort plays as an NPC guard would.
 - With a hostile in sight, it fights the deadliest one with the NPC merc fight code. `fightPoint()` and `fightOrder()` in `src/sim/ai.ts` hold that code. The deadliest is the one with the most working gun damage per cab HP, weighed down when it is out of its own range of the escort and the hauler, and doubled when it shot the hauler last turn. It keeps its target until another is half again as deadly.
 - It focuses fire: every gun that reaches the target shoots it, and the others shoot the nearest hostile they reach.
 - It stands just outside the range of the foe's deadliest gun when its own guns reach further, and at 60% of its own range when they do not. It never drives into the foe.
-- It drives back to the escort spot when it falls behind the hauler along the road by more than its longest gun range.
+- It drives back to the escort spot when it falls behind the hauler along the road by more than its longest gun range. While it lags, it still fights a hostile within that range of itself, so a foe on its tail does not shoot it unanswered.
 - It douses a hot engine at the heat warning.
 - It turns auto repair off while the tank is holed. It parks and patches the tank first, since auto repair ranks the tank last.
 - It parks out of combat to patch any broken core part.
