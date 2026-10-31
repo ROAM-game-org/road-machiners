@@ -264,6 +264,22 @@ describe('Chaos Highway prey', () => {
       CHAOS_HIGHWAY.playerMargin = margin;
     }
   });
+  it('goes for the hauler while the gun truck sprints ahead of it, even when the gun truck hit it', () => {
+    const w = startWorld(2);
+    const [truck] = spawned(w, ['buggy'], 1);
+    const me = playerVehicle(w);
+    const hauler = haulerOf(w);
+    const haulerAlong = alongOf(w.seed, toRoad(w.seed, w.chaosHighway!.window, hauler.pos));
+    const sprintTo = (lead: number) => {
+      me.pos = roadPoint(w.seed, w.chaosHighway!.window, haulerAlong + lead, 0);
+      truck.pos = { x: me.pos.x + 3, y: me.pos.y };
+    };
+    truck.brain!.attackers[me.id] = true;
+    sprintTo(CHAOS_HIGHWAY.sprintLead + 5);
+    expect(groupPrey(w, truck).id).toBe(hauler.id);
+    sprintTo(CHAOS_HIGHWAY.sprintLead - 5);
+    expect(groupPrey(w, truck).id).toBe(me.id);
+  });
 });
 
 describe('Chaos Highway nerve', () => {
