@@ -383,7 +383,7 @@
   background: var(--garage-hidden-wash);
 }
 .inv-art.hidden-part.packed .art-glow {
-  border-radius: 4px;
+  border-radius: var(--radius-m);
 }
 .inv-grid .inv-item.drawn:hover .inv-art.hidden-part .art-glow {
   background: var(--garage-hidden-hover);

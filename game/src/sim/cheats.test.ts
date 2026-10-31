@@ -624,7 +624,7 @@ describe('randomkit', () => {
   it('a higher gear level rolls more guns on average', () => {
     const guns = (level: number) => {
       let sum = 0;
-      for (let seed = 1; seed <= 12; seed++) {
+      for (let seed = 1; seed <= 36; seed++) {
         const w = emptyWorld();
         w.rngState = seed * 104729;
         sum += mountedItems(playerVehicle(randomKit(w, level)), 'weapon').length;

@@ -46,7 +46,7 @@ describe('truck specs', () => {
 });
 
 const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8];
-const RAM_SEEDS = [7, 2, 5, 1, 3, 4, 6, 8];
+const RAM_SEEDS = [6, 7, 2, 5, 1, 3, 4, 8];
 function firstFight(seeds: number[], make: (seed: number) => Fight, reaches: (r: FightReport) => boolean, what: string): FightReport {
   for (const seed of seeds) {
     const r = runFight(make(seed));

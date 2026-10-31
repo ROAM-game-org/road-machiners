@@ -13,7 +13,7 @@ import { vehicleMass } from './mass';
 import { armorQuality, gearScorer } from './npc-gear-score';
 import { massRoomAbove, meetsSpeedFloor, npcMassRoom, vehicleMaxSpeed, speedShare } from './stats';
 import { nextRandom, type Rng } from './rng';
-import { repackWith, type RepackMemo } from './repack';
+import { REPACK_MEMO, repackWith, type RepackMemo } from './repack';
 import type { GridItem, Vehicle, World } from './types';
 
 export type NpcLoadout = {
@@ -389,7 +389,7 @@ function chooseVehicle(probe: World, rng: Rng, wearRng: Rng, template: NpcTempla
   const chassis = chassisId ?? sampleWeighted(rng, fastEnough(template, rules.chassisFloor));
   const bare = makeVehicle(probe, { faction: 'independent', chassisId: chassis, parts: [], spares: [], cargo: {}, pos: { x: 0, y: 0 }, heading: 0, brain: null });
   const keepShare = speedShare(table.priorities);
-  const open: Build = { world: probe, rng, budget: chassisDef(chassis).value + (rules.money ?? level.money), engineWear: wearOf(wearRng, level), keep: NO_RESERVE, keepShare, rules, front: false, repacks: new Map() };
+  const open: Build = { world: probe, rng, budget: chassisDef(chassis).value + (rules.money ?? level.money), engineWear: wearOf(wearRng, level), keep: NO_RESERVE, keepShare, rules, front: false, repacks: REPACK_MEMO };
   const powered = chooseEngine(open, rng, table.priorities, bare);
   const front = table.armed && armsFront(open, powered);
   const b: Build = { ...open, keep: keepsHaul({ ...open, keep: table.haul }, powered) ? table.haul : NO_RESERVE, front };
@@ -479,7 +479,7 @@ export type Refit = { priorities: LoadoutPriorities; money: number; allowed: (v:
 
 export function refitLoadout(world: World, rng: Rng, truck: Vehicle, refit: Refit): Vehicle {
   const probe = { ...world };
-  const b: Build = { world: probe, rng, budget: equipmentCost(truck) + refit.money, engineWear: 0, keep: NO_RESERVE, keepShare: speedShare(refit.priorities), rules: { ...baseGear(MIN_NPC_SPEED), paysFuel: refit.paysFuel }, front: false, repacks: new Map() };
+  const b: Build = { world: probe, rng, budget: equipmentCost(truck) + refit.money, engineWear: 0, keep: NO_RESERVE, keepShare: speedShare(refit.priorities), rules: { ...baseGear(MIN_NPC_SPEED), paysFuel: refit.paysFuel }, front: false, repacks: REPACK_MEMO };
   const powered = { ...truck, items: truck.items.filter((it) => it.kind === 'part' && ['core', 'engine'].includes(partDef(it.part.defId).kind)) };
   const score = gearScorer(probe, refit.priorities, powered, refit.paysFuel);
   const moves = gearMoves(b).map((move): GearMove => (v) => {

@@ -226,6 +226,7 @@ function baseWorld(kit: string, arena: number | null, road: number | null): Worl
   w.terrain = Object.freeze(terrain);
   w.obstacles = arena === null ? [] : arenaRing(arena);
   w.states = [];
+  w.spawnQueue = [];
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   const me = w.vehicles[0];
   me.pos = { ...CENTER };

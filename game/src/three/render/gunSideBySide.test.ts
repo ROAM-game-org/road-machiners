@@ -1,81 +1,34 @@
 import { describe, expect, it } from 'vitest';
-import { NPCS } from '../../data/npcs';
-import { generateNpcLoadout } from '../../sim/npc-loadout';
-import { makeVehicle } from '../../sim/factory';
-import { emptyWorld, npcBrain } from '../../sim/testkit';
-import { fallbackFaction } from '../../sim/spawn';
 import type { Vehicle } from '../../sim/types';
 import { PAINT } from '../../data/chassis';
-import { SLOW, bare, gunContacts, gunOverlaps, headCount, headPlan, loneHeadY, headY, mountedGuns } from '../../test/gun-clearance-kit';
+import { SLOW, bare, gunContacts, gunOverlaps, headPlan, loneHeadY, headY, mountedGuns } from '../../test/gun-clearance-kit';
 import { UNPRICED_WEAPONS } from '../../data/weapons';
 import { MOUNT_CELLS, baseGrid, itemCells, mountSpots, type Cell } from '../../sim/grid';
 import { cellRect } from '../../sim/body';
 import { makePart } from '../../sim/factory';
+import { FIRST_HALF, checkGunsOnTemplates } from '../../test/gun-side-samples';
 import { LANE_GAP, VehicleView } from './vehicle';
 
-function rolled(templateId: string, seed: number): Vehicle {
-  const t = NPCS[templateId];
-  const world = { ...emptyWorld(), rngState: seed * 7 + 3 };
-  const l = generateNpcLoadout(world, t, null, 'loaded');
-  return makeVehicle(world, { ...l, faction: fallbackFaction(t), brain: npcBrain(t.id, { x: 50, y: 50 }, t.traits), pos: { x: 50, y: 50 }, heading: 0 });
-}
-
-type Sampled = { label: string; v: Vehicle };
-
-const sampled = new Map<string, Sampled[]>();
-
-function sampleOf(id: string): Sampled[] {
-  const known = sampled.get(id);
-  if (known) return known;
-  const out: Sampled[] = [];
-  for (let seed = 1; seed <= 6; seed++) {
-    try {
-      out.push({ label: `${id}#${seed}`, v: rolled(id, seed) });
-    } catch {
-      continue;
-    }
+function sideBySidePair(chassisId: string): Vehicle {
+  const { world, v } = bare(chassisId);
+  const gun = (defId: string, id: string) => ({ id, kind: 'part' as const, x: 0, y: 0, rot: 0 as const, part: makePart(world, defId, 0) });
+  const first = gun('shotgun', 'pair-a');
+  for (const a of mountSpots(baseGrid(chassisId), v.items, first, MOUNT_CELLS.weapon as Cell[])) {
+    const left = { ...first, ...a };
+    const second = gun('slugCannon', 'pair-b');
+    const b = mountSpots(baseGrid(chassisId), [left], second, MOUNT_CELLS.weapon as Cell[]).find((t) => t.rot === a.rot && t.y === a.y && Math.abs(t.x - a.x) === 1);
+    if (!b) continue;
+    v.items.push(left, { ...second, ...b });
+    return v;
   }
-  sampled.set(id, out);
-  return out;
+  throw new Error(`No side-by-side pair on ${chassisId}`);
 }
 
-function sample(): Sampled[] {
-  return Object.keys(NPCS).flatMap(sampleOf);
-}
+checkGunsOnTemplates(FIRST_HALF);
 
 describe('guns on one truck at rest', () => {
-  it.each(['world', 'portrait'] as const)('never meet on NPC loadouts of every template in the %s view', (mode) => {
-    const problems: string[] = [];
-    for (const { label, v } of sample()) {
-      problems.push(...gunContacts(v, mode).map((p) => `${label} ${mode} ${p}`));
-      problems.push(...gunOverlaps(v, mode).map((p) => `${label} ${mode} ${p}`));
-    }
-    expect(problems).toEqual([]);
-  }, SLOW);
-
-  it('keep every mounted gun drawn', () => {
-    const problems: string[] = [];
-    for (const { label, v } of sample()) {
-      const heads = headCount(new VehicleView(v, true, PAINT.standard, 'world'));
-      if (heads !== mountedGuns(v).length) problems.push(`${label}: ${heads} heads for ${mountedGuns(v).length} guns`);
-    }
-    expect(problems).toEqual([]);
-  }, SLOW);
-
-  it.each(Object.keys(NPCS))('stand at the height each has alone on the %s loadouts', (templateId) => {
-    const problems: string[] = [];
-    for (const { label, v } of sampleOf(templateId)) {
-      for (const g of mountedGuns(v)) {
-        const full = headY(v, g.id, 'world');
-        const alone = loneHeadY(v, g.id, 'world');
-        if (Math.abs(full - alone) > 0.001) problems.push(`${label} ${g.part.defId}@${g.x},${g.y}: ${full.toFixed(3)} vs ${alone.toFixed(3)}`);
-      }
-    }
-    expect(problems).toEqual([]);
-  }, SLOW);
-
   it('keep the reported pair, apart and at their lone heights', () => {
-    const v = rolled('vulture', 2);
+    const v = sideBySidePair('hauler');
     expect(mountedGuns(v).map((g) => g.part.defId)).toEqual(expect.arrayContaining(['shotgun', 'slugCannon']));
     expect(gunContacts(v, 'world')).toEqual([]);
     expect(gunOverlaps(v, 'world')).toEqual([]);

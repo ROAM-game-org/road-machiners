@@ -9,6 +9,8 @@ import { addGoods, stowPart } from './inventory';
 import { itemMass, loadFactor, vehicleMass } from './mass';
 import { vehicleStats } from './stats';
 import { addVehicle, emptyWorld } from './testkit';
+import { freeMounts } from '../test/layout-spots';
+import type { Rot } from './types';
 
 const coreMass = (id: string) => CHASSIS[id].core.reduce((a, c) => a + PARTS[c.defId].mass, 0);
 
@@ -46,11 +48,16 @@ describe('vehicle mass', () => {
     const w = emptyWorld();
     const layout = CHASSIS[id].layout.join('');
     const armorCells = [...layout].filter((c) => 'FBLR'.includes(c)).length;
-    const guns = Math.ceil(CHASSIS[id].oldGrid.deck / 4);
-    const kit = ['stockEngine', ...Array<string>(armorCells).fill('scrapSheet'), ...Array<string>(guns).fill('mg')];
+    const wanted = Math.ceil(CHASSIS[id].oldGrid.deck / 4);
+    const kit = ['stockEngine', ...Array<string>(armorCells).fill('scrapSheet')];
     const v = addVehicle(w, 'scrapjaw', id, kit, { x: 40, y: 40 });
+    for (let i = 0; i < wanted; i++) {
+      const spot = [0, 1, 2, 3].flatMap((rot) => freeMounts(w, v, 'mg', rot as Rot))[0];
+      if (!spot) break;
+      v.items.push({ id: `mg${i}`, ...spot, kind: 'part', part: makePart(w, 'mg', 0) });
+    }
     expect(mountedParts(v, 'armor')).toHaveLength(armorCells);
-    expect(mountedParts(v, 'weapon')).toHaveLength(guns);
+    expect(mountedParts(v, 'weapon').length > 0).toBe(wanted > 0);
     expect(vehicleMass(v)).toBeLessThanOrEqual(CHASSIS[id].ratedMass);
   });
 

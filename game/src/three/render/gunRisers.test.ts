@@ -206,6 +206,7 @@ describe('gun plate legs and braces', () => {
 });
 
 const UNRESTABLE: Record<string, string[]> = {
+  buggy: ['mg', 'shotgun', 'longRifle', 'flamer', 'slugCannon', 'heavyMg', 'harpoon'].map((id) => `${id} rot 1 at 2,9`),
   convertible: [
     'mg rot 0 at 1,5',
     'mg rot 0 at 2,5',

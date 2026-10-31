@@ -164,7 +164,7 @@ describe('model surface', () => {
 
   it('leaves out a wall that stands over a row edge', () => {
     expect(surfaceAt('scout', cellRect('scout', [{ x: 3, y: 9 }, { x: 3, y: 10 }]))).toBeLessThan(0.1);
-    expect(surfaceAt('wagon', cellRect('wagon', [{ x: 2, y: 6 }, { x: 3, y: 6 }, { x: 2, y: 7 }, { x: 3, y: 7 }]))).toBeLessThan(0.7);
+    expect(surfaceAt('wagon', cellRect('wagon', [{ x: 3, y: 6 }, { x: 4, y: 6 }, { x: 3, y: 7 }, { x: 4, y: 7 }]))).toBeLessThan(0.7);
   });
 
   it('reads a rect narrower than a sample cell at its middle', () => {

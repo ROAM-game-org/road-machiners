@@ -1,6 +1,7 @@
 import { partDef } from '../data/parts';
 import type { FireSpan } from '../sim/armor';
 import { makePart } from '../sim/factory';
+import { gunsBySide } from '../sim/fight-odds';
 import { gridOf, itemSize, mountCellsOf, mountSpots, type Spot } from '../sim/grid';
 import type { GridItem, Rot, Vehicle, World } from '../sim/types';
 
@@ -59,3 +60,24 @@ export const SCOUT_THREE_GUNS: readonly { defId: 'heavyMg'; wear: 0; at: { x: nu
   { defId: 'heavyMg', wear: 0, at: { x: 2, y: 2, rot: 1 } },
   { defId: 'heavyMg', wear: 0, at: { x: 1, y: 9, rot: 3 } },
 ];
+
+export function mountFacingFront(w: World, v: Vehicle, defId: string): void {
+  mountWhere(w, v, defId, (guns) => guns.front.length > 0, 'bears to the front');
+}
+
+export function mountAwayFromFront(w: World, v: Vehicle, defId: string): void {
+  mountWhere(w, v, defId, (guns) => guns.front.length === 0, 'covers only its flanks and rear');
+}
+
+function mountWhere(w: World, v: Vehicle, defId: string, wanted: (guns: ReturnType<typeof gunsBySide>) => boolean, what: string): void {
+  const spots = ([0, 1, 2, 3] as Rot[]).flatMap((rot) => freeMounts(w, v, defId, rot));
+  const part = makePart(w, defId, 0);
+  for (const spot of spots) {
+    const item: GridItem = { id: `placed-${defId}`, ...spot, kind: 'part', part };
+    if (wanted(gunsBySide({ ...v, items: [...v.items, item] }))) {
+      v.items.push(item);
+      return;
+    }
+  }
+  throw new Error(`No ${defId} on ${v.chassisId} ${what}`);
+}

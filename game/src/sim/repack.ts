@@ -5,8 +5,11 @@ import type { GridItem, Vehicle } from './types';
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;
 type Place = { spot: Spot; cells: number[]; lane: number[] };
-type Piece = { item: PartItem; shape: string; spots: Place[]; area: number; reach: Set<number> };
+type Piece = { item: PartItem; shape: string; spots: Place[]; area: number; reach: number[] };
 export type RepackMemo = Map<string, Set<string> | false>;
+
+export const REPACK_MEMO: RepackMemo = new Map();
+const MEMO_LIMIT = 4000;
 
 const DECK: readonly Cell[] = ['D', 'C'];
 const REPACK_STEPS = 20000;
@@ -25,6 +28,7 @@ export function repackWith(v: Vehicle, item: PartItem, accept: (next: Vehicle) =
   if (known === undefined) {
     const packs = search(canonical(pieces), sameShape, (placed) => placed.map(placeKey), false);
     known = packs ? new Set(packs) : false;
+    if (memo.size >= MEMO_LIMIT) memo.clear();
     memo.set(key, known);
   }
   if (known === false) return null;
@@ -37,10 +41,11 @@ export function repackWith(v: Vehicle, item: PartItem, accept: (next: Vehicle) =
 const sameShape = (a: Piece, b: Piece) => a.shape === b.shape;
 const samePart = (a: Piece, b: Piece) => a.item.part.defId === b.item.part.defId;
 
-type Run<T> = { pieces: Piece[]; same: (a: Piece, b: Piece) => boolean; leaf: (placed: PartItem[]) => T | null; taken: Set<number>; placed: PartItem[]; lanes: Set<number> | null; steps: number; leaves: number };
+type Run<T> = { pieces: Piece[]; same: (a: Piece, b: Piece) => boolean; leaf: (placed: PartItem[]) => T | null; taken: Uint8Array; seen: Int32Array; stamp: number; chosen: Spot[]; lanes: Uint8Array | null; steps: number; leaves: number };
 
 function search<T>(pieces: Piece[], same: (a: Piece, b: Piece) => boolean, leaf: (placed: PartItem[]) => T | null, laned: boolean): T | null {
-  const run: Run<T> = { pieces, same, leaf, taken: new Set(), placed: [], lanes: laned ? new Set() : null, steps: 0, leaves: 0 };
+  const size = 1 + Math.max(0, ...pieces.flatMap((p) => [...p.reach, ...p.spots.flatMap((s) => s.lane)]));
+  const run: Run<T> = { pieces, same, leaf, taken: new Uint8Array(size), seen: new Int32Array(size), stamp: 0, chosen: [], lanes: laned ? new Uint8Array(size) : null, steps: 0, leaves: 0 };
   return fill(run, 0, 0);
 }
 
@@ -53,9 +58,9 @@ function fill<T>(run: Run<T>, i: number, from: number): T | null {
   if (spent(run)) return null;
   if (i === run.pieces.length) {
     run.leaves++;
-    return run.leaf(run.placed);
+    return run.leaf(run.pieces.map((piece, k) => ({ ...piece.item, ...run.chosen[k] })));
   }
-  if (!roomFor(run.pieces, i, run.taken)) return null;
+  if (!roomFor(run, i)) return null;
   for (let s = firstSpot(run, i, from); s < run.pieces[i].spots.length; s++) {
     const done = place(run, i, s);
     if (done) return done;
@@ -67,18 +72,26 @@ function firstSpot<T>(run: Run<T>, i: number, from: number): number {
   return i > 0 && run.same(run.pieces[i - 1], run.pieces[i]) ? from : 0;
 }
 
+function blocked<T>(run: Run<T>, place: Place): boolean {
+  const { taken, lanes } = run;
+  const { cells, lane } = place;
+  for (let k = 0; k < cells.length; k++) if (taken[cells[k]] === 1 || (lanes !== null && lanes[cells[k]] === 1)) return true;
+  if (lanes === null) return false;
+  for (let k = 0; k < lane.length; k++) if (taken[lane[k]] === 1 || lanes[lane[k]] === 1) return true;
+  return false;
+}
+
 function place<T>(run: Run<T>, i: number, s: number): T | null {
-  const piece = run.pieces[i];
-  const { spot, cells, lane } = piece.spots[s];
-  if (cells.some((c) => run.taken.has(c))) return null;
-  if (run.lanes && (lane.some((c) => run.taken.has(c) || run.lanes!.has(c)) || cells.some((c) => run.lanes!.has(c)))) return null;
-  for (const c of cells) run.taken.add(c);
-  for (const c of lane) run.lanes?.add(c);
-  run.placed.push({ ...piece.item, ...spot });
+  const at = run.pieces[i].spots[s];
+  if (blocked(run, at)) return null;
+  const { cells, lane } = at;
+  for (const c of cells) run.taken[c] = 1;
+  if (run.lanes) for (const c of lane) run.lanes[c] = 1;
+  run.chosen.push(at.spot);
   const done = fill(run, i + 1, s + 1);
-  run.placed.pop();
-  for (const c of cells) run.taken.delete(c);
-  for (const c of lane) run.lanes?.delete(c);
+  run.chosen.pop();
+  for (const c of cells) run.taken[c] = 0;
+  if (run.lanes) for (const c of lane) run.lanes[c] = 0;
   return done;
 }
 
@@ -87,7 +100,7 @@ function pieceOf(g: Grid, fixed: GridItem[], item: PartItem, movable: PartItem[]
   const isHeld = (s: Spot) => held.some((it) => it.x === s.x && it.y === s.y && it.rot === s.rot);
   const all = mountSpots(g, fixed, item, mountCellsOf(item.part.defId));
   const spots = [...all.filter(isHeld), ...all.filter((s) => !isHeld(s))].map((spot) => placeOf(g, item, spot));
-  return { item, shape: shapeOf(item), spots, area: spots[0]?.cells.length ?? Infinity, reach: new Set(spots.flatMap((s) => s.cells)) };
+  return { item, shape: shapeOf(item), spots, area: spots[0]?.cells.length ?? Infinity, reach: [...new Set(spots.flatMap((s) => s.cells))] };
 }
 
 function placeOf(g: Grid, item: PartItem, spot: Spot): Place {
@@ -125,21 +138,32 @@ function distinctCells(spots: Place[]): Place[] {
 }
 
 function memoKey(v: Vehicle, fixed: GridItem[], pieces: Piece[]): string {
-  const onDeck = fixed.filter((it) => it.kind !== 'part' || !isMounted(v.chassisId, it)).map((it) => `${it.x},${it.y},${it.rot},${itemSize(it).w}x${itemSize(it).h}`);
-  return `${v.chassisId}|${onDeck.sort().join(';')}|${pieces.map((p) => p.shape).sort().join(';')}`;
+  const held = fixed.map((it) => `${itemId(it)}@${it.x},${it.y},${it.rot}`).sort().join(';');
+  return `${v.chassisId}|${held}|${pieces.map((p) => `${p.shape}${partDef(p.item.part.defId).kind === 'weapon' ? 'w' : ''}`).sort().join(';')}`;
+}
+
+function itemId(it: GridItem): string {
+  if (it.kind === 'part') return it.part.defId;
+  return it.kind === 'good' ? it.good : it.contract;
 }
 
 function byPackOrder(a: Piece, b: Piece): number {
   return b.area - a.area || a.shape.localeCompare(b.shape) || a.spots.length - b.spots.length || a.item.part.defId.localeCompare(b.item.part.defId);
 }
 
-function roomFor(pieces: Piece[], from: number, taken: Set<number>): boolean {
-  const reach = new Set<number>();
+function roomFor<T>(run: Run<T>, from: number): boolean {
+  const stamp = ++run.stamp;
+  let reached = 0;
   let need = 0;
-  for (let i = from; i < pieces.length; i++) {
-    if (!pieces[i].spots.some((s) => s.cells.every((c) => !taken.has(c)))) return false;
-    need += pieces[i].area;
-    for (const c of pieces[i].reach) if (!taken.has(c)) reach.add(c);
+  for (let i = from; i < run.pieces.length; i++) {
+    const piece = run.pieces[i];
+    if (!piece.spots.some((s) => s.cells.every((c) => run.taken[c] !== 1))) return false;
+    need += piece.area;
+    for (const c of piece.reach) {
+      if (run.taken[c] === 1 || run.seen[c] === stamp) continue;
+      run.seen[c] = stamp;
+      reached++;
+    }
   }
-  return reach.size >= need;
+  return reached >= need;
 }

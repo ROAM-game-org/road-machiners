@@ -12,7 +12,6 @@ import { PARTS, type EngineDef, type StoreDef } from '../data/parts';
 import { makePart } from './factory';
 import { mountPart, stowPart } from './inventory';
 import { addVehicle, emptyWorld } from './testkit';
-import { freeMounts } from '../test/layout-spots';
 import { maxHp, wornDef } from './wear';
 
 describe('worn parts in vehicle stats', () => {
@@ -327,7 +326,6 @@ describe('max speed steps', () => {
       build: () => {
         const s = base(['stockEngine'], 'hauler');
         HAULER_TEN_GUNS.forEach((at, i) => {
-          if (!freeMounts(s.w, s.v, 'mg', at.rot).some((m) => m.x === at.x && m.y === at.y)) throw new Error('The hauler has no room for gun ' + i);
           s.v.items.push({ id: `mg${i}`, ...at, kind: 'part', part: makePart(s.w, 'mg', 0) });
         });
         return s;

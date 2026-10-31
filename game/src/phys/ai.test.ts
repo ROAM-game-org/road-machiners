@@ -168,6 +168,7 @@ describe('NPC driving', () => {
   it('travels between towns without entering either site', () => {
     let w = standardWorld();
     w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
+    w.spawnQueue = [];
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     const bowl = REGION.towns[0];
     const nose = REGION.towns[1];
@@ -192,6 +193,7 @@ describe('NPC driving', () => {
   it('passes the oncoming player without stopping or touching it', () => {
     let w = standardWorld();
     w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
+    w.spawnQueue = [];
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     w.player.encounters.next = Number.MAX_SAFE_INTEGER;
     const bowl = REGION.towns[0];
@@ -230,6 +232,7 @@ describe('NPC driving', () => {
     (dx, dy) => {
       let w = standardWorld();
       w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
+      w.spawnQueue = [];
       for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
       w.vehicles[0].pos = at(300, 200);
       w.obstacles = w.obstacles.filter((o) => dist(o.pos, at(290, 134)) > HEAD_ON_CLEAR);
@@ -260,6 +263,7 @@ describe('NPC driving', () => {
   it.each([false, true])('a wagon and a van meeting head-on at road speed never touch: ids swapped %s', (swapped) => {
     let w = standardWorld();
     w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
+    w.spawnQueue = [];
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     w.vehicles[0].pos = at(300, 200);
     w.obstacles = w.obstacles.filter((o) => dist(o.pos, at(290, 134)) > HEAD_ON_CLEAR);

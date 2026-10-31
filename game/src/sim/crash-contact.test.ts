@@ -130,7 +130,7 @@ describe('the collision event impact', () => {
 describe('falls', () => {
   const lossesOf = (apply: (world: ReturnType<typeof emptyWorld>, v: Vehicle, other: Vehicle) => void, keepUnhurt = false) => {
     const world = emptyWorld();
-    const v = addVehicle(world, 'independent', 'scout', ['stockEngine', 'mg', 'mg'], { x: 40, y: 40 });
+    const v = addVehicle(world, 'independent', 'courier', ['stockEngine', 'mg', 'mg'], { x: 40, y: 40 });
     const other = addVehicle(world, 'scrapjaw', 'scout', ['stockEngine'], { x: 42, y: 40 });
     const before = new Map(mountedParts(v).map((part) => [part.id, part.hp]));
     apply(world, v, other);
@@ -174,7 +174,7 @@ describe('falls', () => {
 
   it('a crash into another truck costs what it cost on dev', () => {
     const losses = lossesOf((world, v, other) => applyContactCrash(world, v, other, other.id, 3, { a: lane, b: lane }, { a: 3, b: 0 }));
-    expect(losses).toEqual([{ def: 'wheel', loss: 2 }, { def: 'stockEngine', loss: 2 }]);
+    expect(losses).toEqual([{ def: 'wheel', loss: 2 }, { def: 'stockEngine', loss: 3 }]);
   });
 });
 

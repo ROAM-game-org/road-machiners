@@ -19,6 +19,11 @@ describe.each([['by day', false], ['at night', true]])('drive-by %s on the real 
     if (night) expect(count(results, (r) => r.engaged), summary(results)).toBeGreaterThanOrEqual(1);
   });
 
+  it.each(BRUTE_SEEDS)('plays the outgunned brute on seed %i to its end', (seed) => {
+    const [result] = runs('brute', night, TURNS, [seed]);
+    expect(result.frames.length).toBeGreaterThan(0);
+  });
+
   it('flees or passes with outgunned from prey that outguns it', () => {
     const results = runs('brute', night, TURNS, BRUTE_SEEDS);
     const wary = count(results, (r) => r.fled || r.passed.includes('outgunned'));
