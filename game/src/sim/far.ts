@@ -90,7 +90,7 @@ export function advanceFar(w: World, v: Vehicle): void {
 function walkFar(w: World, v: Vehicle, order: DrivenOrder, points: Vec[], planned: FarStep, radius: number): { block: Contact | null; walk: FarStep } {
   const counts = contactsOf(v, order, radius);
   const block = firstContact(w, v, planned.path, radius, counts);
-  const budget = block ? block.clear : drivesCoarse(v) ? clearEnd(w, v, planned, radius, (o) => !counts(o)) : planned.moved;
+  const budget = block ? block.clear : drivesCoarse(v) ? clearEnd(w, v, planned, points, radius, (o) => !counts(o)) : planned.moved;
   return { block, walk: budget === planned.moved ? planned : follow(v.pos, points, budget) };
 }
 
@@ -280,18 +280,19 @@ function truckDiscs(w: World, v: Vehicle, radius: number, counts: (o: Vehicle) =
   return w.vehicles.filter((o) => o.id !== v.id && o.id !== client && counts(o)).flatMap((o) => rigDiscs(o).map((d) => ({ o, at: d.pos, contact: radius + d.r })));
 }
 
-function clearEnd(w: World, v: Vehicle, planned: FarStep, radius: number, ghosted: (o: Vehicle) => boolean): number {
-  const { path } = planned;
-  const discs = truckDiscs(w, v, radius, ghosted).filter((d) => dist(path[0], d.at) >= d.contact);
+function clearEnd(w: World, v: Vehicle, planned: FarStep, points: Vec[], radius: number, ghosted: (o: Vehicle) => boolean): number {
+  const discs = truckDiscs(w, v, radius, ghosted).filter((d) => dist(v.pos, d.at) >= d.contact);
   const inside = (p: Vec) => discs.some((d) => dist(p, d.at) < d.contact);
+  const endAt = (moved: number) => follow(v.pos, points, moved).path.at(-1)!;
   let clear = planned.moved;
-  while (clear > 0 && inside(pointAlong(path, clear))) clear = Math.max(0, clear - CONTACT_STEP);
-  return clear;
+  while (clear > 0 && inside(endAt(clear))) clear = Math.max(0, clear - CONTACT_STEP);
+  return clear > 0 || planned.moved === 0 ? clear : hopPast(planned.moved, discs, endAt, inside);
 }
 
-function pointAlong(path: Vec[], moved: number): Vec {
-  const walked = follow(path[0], path.slice(1), moved).path;
-  return walked[walked.length - 1];
+function hopPast(moved: number, discs: TruckDisc[], endAt: (moved: number) => Vec, inside: (p: Vec) => boolean): number {
+  const reach = moved + 2 * Math.max(0, ...discs.map((d) => d.contact));
+  for (let hop = moved + CONTACT_STEP; hop <= reach; hop += CONTACT_STEP) if (!inside(endAt(hop))) return hop;
+  return 0;
 }
 
 function firstContact(w: World, v: Vehicle, path: Vec[], radius: number, counts: (o: Vehicle) => boolean): Contact | null {

@@ -466,6 +466,19 @@ describe('far travel contact', () => {
     expect(mover.pos.x).toBeGreaterThan(parked.pos.x);
   });
 
+  it('a slow far NPC whose step is shorter than a parked truck is wide still drives past it', () => {
+    const { w, mover } = far();
+    mover.brain = npcBrain('trader', mover.pos, ['trader']);
+    mover.order = { kind: 'through', dest: { x: 200, y: 120 } };
+    const reach = vehicleStats(w, mover).radius * 2;
+    const parked = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: mover.pos.x + reach + 0.5, y: mover.pos.y });
+    for (let i = 0; i < 40; i++) {
+      mover.speed = 0.3;
+      advanceFar(w, mover);
+    }
+    expect(mover.pos.x).toBeGreaterThan(parked.pos.x + reach);
+  });
+
   it('lets two trucks on the same point drive apart', () => {
     const { w, mover } = far();
     addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 120, y: 120 });
