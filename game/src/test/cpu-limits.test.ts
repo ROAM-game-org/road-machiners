@@ -1,5 +1,6 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { cpuMs, FILE_CPU_LIMIT_MS, measureWorkloadMs, median, overCpuLimit, REFERENCE_WORKLOAD_MS, scaledLimitMs, speedFactor, TEST_CPU_LIMIT_MS, WORKLOAD_RUNS } from './cpu-limits';
+import { cpuMs, FILE_CPU_LIMIT_MS, measureWorkloadMs, median, overCpuLimit, REFERENCE_WORKLOAD_MS, scaledLimitMs, speedFactor, speedWorkload, TEST_CPU_LIMIT_MS, WORKLOAD_RUNS } from './cpu-limits';
 
 describe('CPU time limits', () => {
   it('passes work at or under the limit', () => {
@@ -59,6 +60,15 @@ describe('runner speed scaling', () => {
     expect(median([5, 1, 9])).toBe(5);
     expect(median([4, 2, 3, 1, 5])).toBe(3);
     expect(() => median([])).toThrow();
+  });
+
+  it('times a fixed loop that gives the same checksum on every run', () => {
+    expect(speedWorkload(2)).toBe(speedWorkload(2));
+    expect(speedWorkload(2)).not.toBe(speedWorkload(1));
+  });
+
+  it('keeps the speed loop free of game code, so a game speedup cannot move the limits', () => {
+    expect(readFileSync(new URL('./cpu-limits.ts', import.meta.url), 'utf8')).not.toMatch(/^import /m);
   });
 
   it('runs the workload the fixed number of times and returns its result', () => {
