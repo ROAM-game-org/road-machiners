@@ -75,7 +75,7 @@ describe('guns on one truck at rest', () => {
   }, SLOW);
 
   it('keep the reported pair, apart and at their lone heights', () => {
-    const v = rolled('vulture', 2);
+    const v = rolled('vulture', 28);
     expect(mountedGuns(v).map((g) => g.part.defId)).toEqual(expect.arrayContaining(['shotgun', 'slugCannon']));
     expect(gunContacts(v, 'world')).toEqual([]);
     expect(gunOverlaps(v, 'world')).toEqual([]);
