@@ -7,7 +7,7 @@ import { containsApproved, invalidateApproval, keptApprovalOf, requeueApproved, 
 import { runCost, untilPasses } from './checkpoint';
 import { postCheckpoint, publishAndPost } from './checks';
 import { hardenPrompt } from './harden';
-import { HOTFIX_BASE, agentHome, baseBranchFor, docsOnly, fillPrompt, guardAndPush, mergeBase, playtestCommand, prepareOutputs, readOutput, runAgent, throwIfNeedsCommittee, unfinishedBaseMerge, workDir, writeIssueInput } from './common';
+import { HOTFIX_BASE, agentHome, baseBranchFor, browserRule, docsOnly, fillPrompt, guardAndPush, mergeBase, playtestCommand, prepareOutputs, readOutput, runAgent, throwIfNeedsCommittee, unfinishedBaseMerge, workDir, writeIssueInput } from './common';
 
 const ROUND = 'test';
 
@@ -61,7 +61,7 @@ async function integrateRound(ctx: Ctx, issue: number, approval: KeptApproval, b
 async function firstRounds(ctx: Ctx, issue: number, base: string, hotfix: boolean, baseNote: string): Promise<number> {
   let spent = 0;
   if (hotfix) spent += runCost(await runAgent(ctx, issue, 'verify', ROUND, await hardenPrompt(ctx, issue, base, baseNote)));
-  const vars = { issue: String(issue), taskFile: TASK_FILE(issue), branch: BRANCH(issue), baseNote, playtest: playtestCommand(ctx.cfg, false), task: taskText(pendingFeedback(ctx.statePath, issue)) };
+  const vars = { issue: String(issue), taskFile: TASK_FILE(issue), branch: BRANCH(issue), baseNote, playtest: playtestCommand(ctx.cfg, false), browser: browserRule(ctx.cfg), task: taskText(pendingFeedback(ctx.statePath, issue)) };
   spent += runCost(await runAgent(ctx, issue, 'verify', ROUND, fillPrompt('test', vars), { continue: hotfix }));
   return spent;
 }
