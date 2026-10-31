@@ -11,7 +11,7 @@ import { BUG_LABEL, GAME_DIR, OUT_DIR, type AgentSession, type Ctx, type Playtes
 import { type CheckOutcome, checkScript, checkUntilReal, runChecks } from './checks';
 import { remoteSuite } from './remote-suite';
 import { guardDiff } from '../diff-guard';
-import { agentHome, fillPrompt, issueText, playtestCommand, readOutput, resetOutputs } from './common';
+import { agentHome, browserRule, fillPrompt, issueText, playtestCommand, readOutput, resetOutputs } from './common';
 import { mergeResolving } from './merge-resolve';
 import { judge, logFacts, parseReview, type Finding, type LogFacts, type Outcome, type Review } from './playtest-review';
 import { featureLine, openReleaseTasks, releaseFeatures, releaseLog, requireRelease } from './release-common';
@@ -207,7 +207,15 @@ async function playBaseline(ctx: Ctx, session: Session): Promise<void> {
 async function harness(ctx: Ctx, session: Session, dir: string, sha: string, phase: string): Promise<void> {
   const { seed } = session.release.playtest;
   const play = `npm run progression:playthrough -- --seed ${seed} --turns ${ctx.cfg.playtestTurns} --sha ${sha} --out ${LOG}`;
-  await ctx.container.shell('checks', dir, stepScript(phase, [['npm ci', 'npm ci'], ['playtest', play]]), session.log);
+  const startedAt = ctx.now().getTime();
+  let ended = 'failed';
+  try {
+    await ctx.container.shell('checks', dir, stepScript(phase, [['npm ci', 'npm ci'], ['playtest', play]]), session.log);
+    ended = 'took';
+  } finally {
+    const minutes = Math.round((ctx.now().getTime() - startedAt) / 60_000);
+    ctx.log('playtest', session.release.issue, `${phase} at ${sha} ${ended} ${minutes} minutes with npm ci`);
+  }
 }
 
 function readFacts(ctx: Ctx, release: ReleaseState, path: string, sha: string): LogFacts {
@@ -310,7 +318,7 @@ function firstPrompt(ctx: Ctx, session: Session): string {
   const { release, start, baseline } = session;
   return fillPrompt('release-playtest', {
     sha: start, seed: String(release.playtest.seed), turns: String(ctx.cfg.playtestTurns), runs: String(ctx.cfg.playtestRuns),
-    baseline: baseline.sha, baselineKind: baseline.kind, review: session.rules,
+    baseline: baseline.sha, baselineKind: baseline.kind, review: session.rules, browser: browserRule(ctx.cfg),
   });
 }
 

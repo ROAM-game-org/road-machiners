@@ -342,6 +342,28 @@ describe('playtest', () => {
     expect(comments(run.f)[0]).toContain('The release is blocked');
   });
 
+  it('logs the minutes of the release and the baseline seed runs, so a slow run shows in the playtest log', async () => {
+    const run = setup();
+    let clock = Date.parse('2026-10-30T18:48:00Z');
+    run.f.ctx.now = () => new Date(clock);
+    const shell = run.f.ctx.container.shell;
+    run.f.ctx.container.shell = async (kind: ShellKind, clone: string, script: string, log: string) => {
+      await shell(kind, clone, script, log);
+      if (script.includes('Playing the release seed')) clock += 56 * 60_000;
+    };
+    run.turns = [clean];
+    await playtest(run.f.ctx, 11);
+    expect(run.f.logs).toContain('playtest 11 Playing the release seed at abc1234 took 56 minutes with npm ci');
+    expect(run.f.logs.some((line) => /^playtest 11 Playing the baseline seed at main001 took \d+ minutes with npm ci$/.test(line))).toBe(true);
+  });
+
+  it('logs the minutes of a seed run that failed, since the slowest runs are the ones that hit a limit', async () => {
+    const run = setup();
+    run.f.ctx.container.shell = async () => { throw new Error('the checks timed out'); };
+    await expect(playtest(run.f.ctx, 11)).rejects.toThrow('the checks timed out');
+    expect(run.f.logs).toContain('playtest 11 Playing the release seed at abc1234 failed 0 minutes with npm ci');
+  });
+
   it('blocks a clean verdict of a run that ended in an error', async () => {
     const run = setup();
     const shell = run.f.ctx.container.shell;
