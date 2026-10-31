@@ -533,6 +533,11 @@ function spareAllowed(defId: string | null, left: Left, rules: GearRules): defId
   return def.mass <= left.mass() && def.w * def.h <= left.cells();
 }
 
+function stowedAt(load: Vehicle): PartSpec['at'] {
+  const { x, y, rot } = load.items[load.items.length - 1];
+  return { x, y, rot };
+}
+
 function addSpareParts(world: World, rng: Rng, table: NpcLoadoutTable, level: Level, load: Vehicle, left: Left, rules: GearRules): PartSpec[] {
   if (!table.spares) return [];
   const added: PartSpec[] = [];
@@ -541,7 +546,7 @@ function addSpareParts(world: World, rng: Rng, table: NpcLoadoutTable, level: Le
     const defId = sampleWeighted(rng, table.spares.pool);
     if (!spareAllowed(defId, left, rules)) continue;
     const part = makePart(world, defId, wearOf(rng, level));
-    if (stowPart(world, load, part)) added.push({ defId, wear: part.wear });
+    if (stowPart(world, load, part)) added.push({ defId, wear: part.wear, at: stowedAt(load) });
   }
   return added;
 }

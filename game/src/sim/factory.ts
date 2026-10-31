@@ -117,7 +117,9 @@ function loadCargo(world: World, v: Vehicle, spec: VehicleSpec): void {
   for (const [good, n] of Object.entries(spec.cargo)) {
     if (addGoods(world, v, good, n) < n) throw new Error(`No room for ${n} ${good} on ${spec.chassisId}`);
   }
-  for (const { defId, wear } of spec.spares) {
-    if (!stowPart(world, v, makePart(world, defId, wear))) throw new Error(`No room for spare ${defId} on ${spec.chassisId}`);
+  for (const { defId, wear, at } of spec.spares) {
+    const part = makePart(world, defId, wear);
+    if (at) placeAt(world, v, part, at);
+    else if (!stowPart(world, v, part)) throw new Error(`No room for spare ${defId} on ${spec.chassisId}`);
   }
 }
