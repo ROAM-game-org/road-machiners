@@ -224,6 +224,7 @@ describe('the ambush', () => {
 
   it('drives to the player and shoots by the normal combat rules', () => {
     let w = ambushed();
+    playerVehicle(w).order = null;
     const shots = () => w.events.some((e) => e.t === 'shot' && e.target === w.player.vehicleId);
     let fired = false;
     for (let i = 0; i < 60 && !fired && w.player.state === 'active'; i++) {
