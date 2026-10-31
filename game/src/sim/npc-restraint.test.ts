@@ -78,7 +78,7 @@ describe('NPC restraint', () => {
     const { world, npc } = createNpc('buggy');
     sizedUp(world, npc, loadedTrader(world, { x: 33, y: 30 }));
     const alone = shareOfSeeds(world, npc.id, (x, me) => thinkNpc(x, me).kind === 'flee');
-    sizedUp(world, npc, loadedTrader(world, { x: 33, y: 32 }, ['mg', 'mg', 'mg', 'stockEngine']));
+    sizedUp(world, npc, loadedTrader(world, { x: 35, y: 32 }, ['mg', 'mg', 'mg', 'stockEngine']));
     const grouped = shareOfSeeds(world, npc.id, (x, me) => thinkNpc(x, me).kind === 'flee');
     expect(grouped).toBeGreaterThan(0.25);
     expect(grouped).toBeGreaterThan(alone + 0.2);

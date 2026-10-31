@@ -207,7 +207,7 @@ describe('NPC gameplay recovery', () => {
 
   it('mostly withdraws from a locally stronger enemy group', () => {
     const { world, npc } = createScenario('buggy');
-    for (const pos of [{ x: 33, y: 30 }, { x: 34, y: 32 }]) {
+    for (const pos of [{ x: 35, y: 30 }, { x: 36, y: 32 }]) {
       const mate = addVehicle(world, 'independent', 'scout', ['mg', 'mg', 'mg', 'stockEngine'], pos);
       mate.brain = npcBrain('scavenger', mate.pos, ['scavenger']);
       addGoods(world, mate, 'scrap', 2);
