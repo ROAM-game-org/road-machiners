@@ -1,11 +1,11 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { AgentRun, Ctx } from '../types';
+import type { AgentRun, Ctx, FactoryConfig } from '../types';
 import { markResumed, markTimedOut } from '../sessions';
 import { EMPTY_STATE, writeState } from '../state';
 import { solidPng } from '../media-fixtures';
 import { factoryPaths } from '../diff-guard';
-import { RESUME_NOTE, agentHome, baseBranchFor, baseBranchOf, fillPrompt, modelFor, prepareOutputs, runAgent } from './common';
+import { RESUME_NOTE, agentHome, baseBranchFor, browserRule, baseBranchOf, fillPrompt, modelFor, prepareOutputs, runAgent } from './common';
 
 function agentCtx(labels: string[], body = '', comments: { login: string; body: string }[] = [], fetchFn?: typeof fetch): { ctx: Ctx; runs: AgentRun[]; logs: string[] } {
   const runs: AgentRun[] = [];
@@ -253,7 +253,7 @@ describe('runAgent reference images', () => {
 });
 
 describe('stage prompts for reference images', () => {
-  const vars = { issue: '7', taskFile: 'f', branch: 'b', baseNote: 'n', task: 'Play it.', playtest: 'npm run playtest', bugExpansion: '', kind: '' };
+  const vars = { issue: '7', taskFile: 'f', branch: 'b', baseNote: 'n', task: 'Play it.', playtest: 'npm run playtest', browser: 'Draw on the GPU.', bugExpansion: '', kind: '' };
 
   it('tell every stage to read the images and what a missing one means', () => {
     for (const name of ['triage', 'design', 'implement', 'test']) {
@@ -310,6 +310,23 @@ describe('fillPrompt', () => {
 
   it('throws on an unfilled variable', () => {
     expect(() => fillPrompt('design', { issue: '7' })).toThrow('unfilled {{');
+  });
+});
+
+describe('browserRule', () => {
+  it('sends every browser run to the GPU when the host has one, since software drawing starved the release playtest', () => {
+    const rule = browserRule({ gpu: true } as FactoryConfig);
+    expect(rule).toContain('`npm run playtest -- --no-fps-gate`');
+    expect(rule).toContain('`gpuArgs()` from `scripts/gpu.mjs`');
+    expect(rule).toContain('Never use `--cpu` or SwiftShader.');
+    expect(rule).not.toContain('without GPU flags');
+  });
+
+  it('draws in software on a host with no GPU', () => {
+    const rule = browserRule({ gpu: false } as FactoryConfig);
+    expect(rule).toContain('`npm run playtest -- --cpu`');
+    expect(rule).toContain('without GPU flags');
+    expect(rule).not.toContain('gpuArgs');
   });
 });
 

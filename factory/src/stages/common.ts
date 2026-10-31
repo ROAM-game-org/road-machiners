@@ -83,6 +83,16 @@ export function playtestCommand(cfg: FactoryConfig, fpsGate: boolean): string {
   return fpsGate ? 'npm run playtest' : 'npm run playtest -- --no-fps-gate';
 }
 
+export function browserRule(cfg: FactoryConfig): string {
+  const playtest = playtestCommand(cfg, false);
+  if (!cfg.gpu) return `This machine has no GPU. Run \`${playtest}\`, and run the game's other browser checks with \`--cpu\`. Launch a Playwright script without GPU flags.`;
+  return [
+    `This machine has the server's GPU, so draw every browser run on it. Run \`${playtest}\`, and run the game's other browser checks without \`--cpu\`.`,
+    'Launch a Playwright script with `gpuArgs()` from `scripts/gpu.mjs`, since Chromium with no flags draws in software.',
+    'Never use `--cpu` or SwiftShader. They draw on the CPU many times slower and starve the jobs that share it.',
+  ].join(' ');
+}
+
 export function promptFile(name: string): string {
   return readFileSync(fileURLToPath(new URL(`../../prompts/${name}.md`, import.meta.url)), 'utf8').trim();
 }
