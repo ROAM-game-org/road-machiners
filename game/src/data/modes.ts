@@ -82,7 +82,7 @@ export const CHAOS_HIGHWAY = {
     convoy: { weight: 1, from: 6, floor: 300, chase: false },
   } as Record<string, EnemyCard>,
   chaseSpeed: 5.5,
-  nerve: 0.2,
+  nerve: 0.15,
   playerMargin: 8,
   sides: { ahead: 45, flank: { along: 36, across: 22, step: 3 } },
   pacing: { near: 30 },
