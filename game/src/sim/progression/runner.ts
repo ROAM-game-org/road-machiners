@@ -4,7 +4,7 @@ import { NPCS } from '../../data/npcs';
 import { partDef } from '../../data/parts';
 import { haulerOf, playerTrucks, playerVehicle } from '../damage';
 import { TERRAIN } from '../../data/terrain';
-import { alongOf, roadPoint, toRoad } from '../highway';
+import { acrossOf, alongOf, roadPoint, toRoad } from '../highway';
 import { ENGINE_HEAT } from '../../data/wear';
 import { canDouse, douseEngine } from '../engine-heat';
 import { inCombat } from '../combat';
@@ -24,7 +24,7 @@ import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, ou
 import type { MoveOrder, PartInstance, Vehicle, WeaponOrder, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { isJunk } from '../wear';
-import { CHAOS_HIGHWAY } from '../../data/modes';
+import { CHAOS_HIGHWAY, HIGHWAY } from '../../data/modes';
 import { escortFoe, escortMove, gunTarget, hostilesSeen, unlessStuck, type Stall } from './escort-brain';
 import { aimFor } from './aim';
 import { armorHauler } from './escort-gear';
@@ -201,7 +201,12 @@ function hopToward(o: Orders, pad: Vec): void {
 function nextHop(world: World, me: Vehicle, pad: Vec): Vec {
   const window = world.chaosHighway?.window ?? 0;
   const along = alongOf(world.seed, toRoad(world.seed, window, me.pos)) + HOP;
-  return along >= alongOf(world.seed, toRoad(world.seed, window, pad)) ? pad : roadPoint(world.seed, window, along, 0);
+  return along >= alongOf(world.seed, toRoad(world.seed, window, pad)) ? pad : roadPoint(world.seed, window, along, laneAwayFromHauler(world, window));
+}
+
+export function laneAwayFromHauler(world: World, window: number): number {
+  const hauler = acrossOf(world.seed, toRoad(world.seed, window, haulerOf(world).pos));
+  return HIGHWAY.road.lanes.reduce((far, lane) => (Math.abs(lane - hauler) > Math.abs(far - hauler) ? lane : far));
 }
 
 function canPatchOn(world: World, me: Vehicle): boolean {
