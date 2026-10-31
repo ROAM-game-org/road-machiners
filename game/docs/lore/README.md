@@ -5,6 +5,7 @@ The world of ROAM. Everything here answers to [Theme](../theme.md).
 - [World facts](world.md): the timeline, technology, population and what lies beyond the basin.
 - [The end of the Old World](old-world-end.md): the Spiral, the Cry, the Race, the Exodus, the Chaos and the Forsaken, as they happened and as people tell them, and their signs.
 - [Peoples](peoples.md): towns, groups and faiths, and how each copes with the world.
+- [Societies and craft](societies.md): how the towns live, dress and make things, and the basin's artisans.
 - [The Sunward](sunward.md): the night order's internal history, from the story game.
 - [Characters](characters.md): named people.
 - [Rumors](rumors.md): what people say.
