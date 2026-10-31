@@ -102,6 +102,13 @@ describe('the stuck sweep', () => {
     expect(b.removed).toEqual([12, 10, 11]);
   });
 
+  it('releases a timed-out batch whole when its merge work is kept, so the next job resumes it', async () => {
+    const kept = { into: 'dev', sources: [], cards: [10, 11, 12], session: 's', spentUsd: 2, job: null, jobUsd: 0, merged: true, merges: [], since: minutesAgo(300) };
+    const b = board([10, 11, 12].map((issue) => stuck(issue, 'Merging')), { failures: [mergeDown([10, 11, 12], minutesAgo(30))], landings: { merge: kept } });
+    await sweep(b);
+    expect(b.removed).toEqual([10, 11, 12]);
+  });
+
   it('releases a batch that died the same way as one that timed out', async () => {
     const b = board([10, 11].map((issue) => stuck(issue, 'Merging')), { failures: [mergeDown([10, 11], minutesAgo(30), { error: 'job process died without finishing', cause: 'died' })] });
     await sweep(b);

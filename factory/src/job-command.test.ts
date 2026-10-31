@@ -26,7 +26,9 @@ function job(env: NodeJS.ProcessEnv, ...args: string[]) {
   return spawnSync('sh', ['docker/factory-job', ...args], { encoding: 'utf8', env });
 }
 
-it('waits until a job ends and prints its check', () => {
+const linuxJobTools = spawnSync('sh', ['-c', 'command -v setsid && command -v timeout']).status === 0;
+
+it.skipIf(!linuxJobTools)('waits until a job ends and prints its check', () => {
   const env = jobEnv('60');
   const name = `wait-ends-${process.pid}`;
   expect(job(env, 'start', name, 'tests', '5', 'sleep 1; echo done-line').status).toBe(0);
@@ -39,7 +41,7 @@ it('waits until a job ends and prints its check', () => {
   expect(waited.stdout).toBe(job(env, 'check', name).stdout);
 });
 
-it('returns at the wait limit while the job still runs', () => {
+it.skipIf(!linuxJobTools)('returns at the wait limit while the job still runs', () => {
   const env = jobEnv('1');
   const name = `wait-limit-${process.pid}`;
   expect(job(env, 'start', name, 'tests', '5', 'sleep 60').status).toBe(0);
@@ -86,7 +88,7 @@ function pidFileIn(name: string): string {
   return join(mkdtempSync(join(tmpdir(), `${name}-`)), 'pid');
 }
 
-it('stops a job whose processes ignore TERM, and returns once none is left', () => {
+it.skipIf(!linuxJobTools)('stops a job whose processes ignore TERM, and returns once none is left', () => {
   const env = jobEnv('1');
   const name = `stop-deaf-${process.pid}`;
   const pidFile = pidFileIn(name);
@@ -99,7 +101,7 @@ it('stops a job whose processes ignore TERM, and returns once none is left', () 
   expect(running(pidFile)).toBe(false);
 });
 
-it('kills a process the command left behind when the command ends', () => {
+it.skipIf(!linuxJobTools)('kills a process the command left behind when the command ends', () => {
   const env = jobEnv('60');
   const name = `leftover-${process.pid}`;
   const pidFile = pidFileIn(name);
