@@ -9,11 +9,12 @@ import { ENGINE_HEAT } from '../../data/wear';
 import { canDouse, douseEngine } from '../engine-heat';
 import { inCombat } from '../combat';
 import { refitLoadout } from '../npc-loadout';
-import { isStranded, vehicleStats, type MountedWeapon } from '../stats';
+import { isStranded, vehicleMaxSpeed, vehicleStats, type MountedWeapon } from '../stats';
+import { getResources } from '../resources';
 import { tankLeaks } from '../supplies';
 import { playerCanAct, setAutoFire, setAutoRepair, setMoveOrder, setWeaponOrder } from '../world';
 import { basicsRepairCost, chassisPrice, chassisSwapRefusal, repairCost, supplyRoom, type Supply } from '../economy';
-import { abandonRun, canAbandonRun, canDriveOn, driveOn, nextOutpost, outpostTrucks, reachedOutpostAt, type Outpost } from '../chaos-highway';
+import { abandonRun, canAbandonRun, canDriveOn, driveOn, haulerWedged, nextOutpost, outpostTrucks, reachedOutpostAt, type Outpost } from '../chaos-highway';
 import { inYard, yardSpots } from '../outpost-gates';
 import { RULES } from '../../data/rules';
 import { startRepair } from '../jobs';
@@ -62,11 +63,23 @@ function givesUpOnRun(o: Orders): boolean {
     WEDGED.delete(key);
     return false;
   }
-  if (playerTrucks(o.world).some((truck) => isStranded(o.world, truck))) return true;
+  if (playerTrucks(o.world).some((truck) => isStranded(o.world, truck) && !crawlsOnToTheYard(o.world, truck))) return true;
+  return wedgedLongEnough(o, key);
+}
+
+function wedgedLongEnough(o: Orders, key: string): boolean {
+  if (!haulerWedged(o.world)) {
+    WEDGED.delete(key);
+    return false;
+  }
   const known = WEDGED.get(key);
   const since = known !== undefined && known <= o.world.turn ? known : o.world.turn;
   WEDGED.set(key, since);
   return o.world.turn - since >= CHAOS_HIGHWAY.hauler.stallTurns;
+}
+
+function crawlsOnToTheYard(world: World, truck: Vehicle): boolean {
+  return truck.id === haulerOf(world).id && getResources(world, truck).fuel > 0 && vehicleMaxSpeed(world, truck) > RULES.parkedSpeed;
 }
 
 function handleStranded(o: Orders): boolean {

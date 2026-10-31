@@ -114,6 +114,28 @@ describe('the Chaos Highway escort bot', () => {
     expect(turn.events).toContainEqual({ t: 'runLost', stretch: 1, cause: 'abandoned' });
   });
 
+  it('keeps escorting a hauler whose engine is shot dead, since it still crawls on, even with no patch part left', () => {
+    const w = chaosHighwayWorld();
+    playerVehicle(w).items = playerVehicle(w).items.filter((it) => !(it.kind === 'good' && it.good === 'parts'));
+    mountedParts(haulerOf(w), 'engine')[0].hp = 0;
+
+    const turn = botOrders(w, 'escort');
+
+    expect(turn.world.player.state).toBe('active');
+    expect(turn.events).not.toContainEqual({ t: 'runLost', stretch: 1, cause: 'abandoned' });
+  });
+
+  it('ends the run when the hauler cannot crawl on because its tank is empty', () => {
+    const w = chaosHighwayWorld();
+    playerVehicle(w).items = playerVehicle(w).items.filter((it) => !(it.kind === 'good' && it.good === 'parts'));
+    mountedParts(haulerOf(w), 'engine')[0].hp = 0;
+    haulerOf(w).resources!.fuel = 0;
+
+    const turn = botOrders(w, 'escort');
+
+    expect(turn.events).toContainEqual({ t: 'runLost', stretch: 1, cause: 'abandoned' });
+  });
+
   it('refits its own truck by the merc loadout, then armors the hauler when the hauler took the damage, and never gives it a gun', () => {
     const w = atFirstOutpost();
     w.player.money = 2_000_000;
