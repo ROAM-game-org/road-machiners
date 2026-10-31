@@ -67,7 +67,7 @@ Use it when the change is a Blender model.
 
 Take screenshots of the finished game that together show every visible change.
 Write a Playwright script in `tmp/`.
-Launch Chromium without GPU flags.
+{{browser}}
 Every image must be a real screenshot of the game, or a labeled contact sheet built from real screenshots. Never draw or invent art.
 Read each image with the Read tool, and fix what looks wrong before you post it.
 Save the primary view as `.factory/screenshot.png`. Save the others next to it in `.factory/`.
