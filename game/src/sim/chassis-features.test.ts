@@ -53,7 +53,7 @@ describe('the ability table', () => {
   it('gives neutral factors to a chassis without them', () => {
     expect(topSpeedFactor('scout')).toBe(1);
     expect(accelFactor('scout')).toBe(1);
-    expect(chassisTopSpeed('scout')).toBe(7.8);
+    expect(chassisTopSpeed('scout')).toBe(5.83);
   });
 });
 

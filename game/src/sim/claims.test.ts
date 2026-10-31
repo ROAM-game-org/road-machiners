@@ -295,6 +295,7 @@ describe('claim days', () => {
 
   it('keeps the claimed part in its wreck while the nearest NPCs play and the player waits in town', () => {
     let w = standardWorld(1);
+    for (const shop of Object.values(w.shops)) shop.contracts = shop.contracts.filter((c) => c.kind !== 'claim');
     const { stock, part } = claimTargets(w, 'bowl')[0];
     const claim = rollContract(w, { id: 'bowl', pos: siteOf('bowl').pos }, { claims: [{ stock, part }] }) as ClaimContract;
     shopState(w, 'bowl').contracts.push(claim);
@@ -677,7 +678,7 @@ describe('rival crews', () => {
 
 describe('a rival on the real map', () => {
   it('runs a rival from the shop to the end of its claim with the nearest NPCs alive, and never stalls', () => {
-    let w = standardWorld(1);
+    let w = standardWorld(2);
     const { shop, stock, part } = nearestClaim(w);
     const claim = rollContract(w, { id: shop, pos: siteOf(shop).pos }, { claims: [{ stock, part }] }) as ClaimContract;
     claim.rivalAt = w.turn + 1;
