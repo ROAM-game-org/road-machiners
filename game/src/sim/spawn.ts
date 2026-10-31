@@ -34,7 +34,7 @@ export function spawnNpcs(world: World): void {
 function spawnQueued(world: World): void {
   for (const entry of world.spawnQueue.slice(0, SPAWN.startPerTurn)) {
     const { tpl, places } = queuedPlaces(entry);
-    if (!spawnListed(world, tpl, places)) return;
+    if (!spawnListed(world, tpl, places)) continue;
     world.spawnQueue = world.spawnQueue.filter((e) => e !== entry);
   }
 }
