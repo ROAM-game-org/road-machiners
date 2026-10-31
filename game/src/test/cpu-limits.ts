@@ -1,6 +1,6 @@
 export const TEST_CPU_LIMIT_MS = 30_000;
 export const FILE_CPU_LIMIT_MS = 90_000;
-export const REFERENCE_WORKLOAD_MS = 1470;
+export const REFERENCE_WORKLOAD_MS = 755;
 export const WORKLOAD_RUNS = 3;
 
 export function cpuMs(usage: NodeJS.CpuUsage): number {
@@ -22,15 +22,15 @@ function nextRandom(state: number): number {
   return (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
 }
 
-export function speedWorkload(rounds = SPEED_WORKLOAD_ROUNDS, itemCount = SPEED_WORKLOAD_ITEMS): number {
+export function speedWorkload(rounds = SPEED_WORKLOAD_ROUNDS): number {
   let seed = 1;
   let checksum = 0;
   for (let round = 0; round < rounds; round++) {
     const items: WorkloadItem[] = [];
     const byId = new Map<number, WorkloadItem>();
-    for (let i = 0; i < itemCount; i++) {
+    for (let i = 0; i < SPEED_WORKLOAD_ITEMS; i++) {
       seed = nextRandom(seed);
-      const item = { id: seed % (itemCount * 2.5), x: (seed & 0xffff) / 0xffff, y: (seed >>> 16) / 0xffff, weight: 0 };
+      const item = { id: seed % 50_000, x: (seed & 0xffff) / 0xffff, y: (seed >>> 16) / 0xffff, weight: 0 };
       item.weight = Math.sqrt(item.x * item.x + item.y * item.y) + Math.sin(item.x * 7) * Math.cos(item.y * 3);
       items.push(item);
       byId.set(item.id, item);
