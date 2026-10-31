@@ -95,6 +95,7 @@ export const CHAOS_HIGHWAY = {
   pay: { base: { first: 250, step: 100 } as Line },
   hauler: { kinds: ['armor', 'engine', 'cargo'] as PartKind[], lookahead: 12, sideReach: 6, cruise: 4.5, hurry: 4.5, crawl: 1.5, alarmTurns: 4, approach: 25, stallTurns: 12, craterDip: 0.1, laneLook: 32, waitGap: Math.max(...Object.values(UNPRICED_WEAPONS).map((w) => w.range)), resumeGap: NPC_BEHAVIOR.escortWaitGap, apartGap: NPC_BEHAVIOR.escortCatchUpGap },
   stockPerKind: { weapon: 5, engine: 3, armor: 6, accessory: 2, cargo: 3, scanner: 1, store: 2, utility: 3 } as Partial<Record<PartKind, number>>,
+  stockGrowthStretches: 4,
   trucks: { offers: 3, pool: ['hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon', 'sorokonoga'] },
   goodsMarkup: 1.5,
   maxTries: 400,
