@@ -7,9 +7,10 @@ import { openStore } from './public/store';
 import { repairClone } from './repair-clone';
 import { clearStuck } from './stuck';
 import { MOVE_TARGETS, causeText, cardDrift, cardPosition, holdDrift, releaseDrift, runningJobs, stuckText, type MoveTarget } from './position';
+import { resetSpend } from './landing-work';
 import { readState, updateState } from './state';
 import { editState } from './state-edit';
-import { STUCK_LABEL, type Card, type Ctx, type FactoryState, type Hold, type IssueMerge, type KeptApproval, type PlaytestState, type ReleasePost, type ReleaseState } from './types';
+import { STUCK_LABEL, type Card, type Ctx, type FactoryState, type Hold, type IssueMerge, type KeptApproval, type LandingWork, type PlaytestState, type ReleasePost, type ReleaseState } from './types';
 
 const SNAPSHOT_AGENT = 'curl/8.0';
 const LOG_TAIL_LINES = 50;
@@ -33,7 +34,7 @@ const READ: Record<string, { usage: string; help: string; run: Handler }> = {
 };
 
 const IMMEDIATE: Record<string, { usage: string; help: string; run: Handler }> = {
-  retry: { usage: 'retry N [decision]', help: 'remove the stuck label and the failures of a card. On the release tracking card it also lifts a playtest block, so a new playtest job runs, and keeps the decision for its next review', run: retry },
+  retry: { usage: 'retry N [decision]', help: 'remove the stuck label and the failures of a card. A kept merge or ship work that holds the card starts a new fix budget. On the release tracking card it also lifts a playtest block, so a new playtest job runs, and keeps the decision for its next review', run: retry },
   pause: { usage: 'pause <reason> [--pid N] [--by who]', help: 'pause the factory. --pid ties the pause to a process, and the tick lifts it when that process ends. --by or --pid makes a member pause, which resume refuses', run: pause },
   resume: { usage: 'resume', help: 'remove the pause', run: resume },
   'set-state': { usage: 'set-state <path> <json>|--delete --by <who> --reason <why>', help: 'set or delete one value of the state file under its lock, like release.postId null, while every job keeps running. Prints the old and the new value', run: setStateCommand },
@@ -222,6 +223,11 @@ function queues(ctx: Ctx): void {
   console.log(`incident: ${listOrNone(state.pendingIncidents.map((issue) => `#${issue}`))}`);
   console.log(`caught up: ${listOrNone(Object.entries(state.caughtUpTo).map(([issue, head]) => `#${issue} at ${head}`))}`);
   console.log(`answer: ${listOrNone(state.pendingAnswers.map((id) => `player comment ${id}`))}`);
+  console.log(`kept landing: ${listOrNone(Object.entries(state.landings).map(([stage, work]) => keptLanding(stage, work)))}`);
+}
+
+function keptLanding(stage: string, work: LandingWork): string {
+  return `${stage} of ${work.cards.map((issue) => `#${issue}`).join(' ')} into ${work.into} since ${work.since}, session ${work.session}, $${work.spentUsd.toFixed(2)} of fix rounds spent${work.merged ? '' : ', merge unfinished'}`;
 }
 
 function listOrNone(rows: string[]): string {
@@ -312,6 +318,7 @@ async function retry(ctx: Ctx, args: string[]): Promise<void> {
   const decision = args.slice(1).join(' ').trim();
   await clearStuck(ctx, issue);
   console.log(`Removed ${STUCK_LABEL} and the failures of #${issue}. The next tick continues the card.`);
+  for (const stage of resetSpend(ctx, issue)) console.log(`The kept ${stage} work of #${issue} starts a new fix budget.`);
   if (readState(ctx.statePath).release?.issue === issue) console.log(retryPlaytest(ctx, decision));
 }
 

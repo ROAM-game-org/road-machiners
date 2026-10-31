@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
+import { launchChromium } from './gpu.mjs';
 import { playUrl } from './game-url.mjs';
 
 const url = process.argv[2];
@@ -10,7 +11,7 @@ const garage = async (page, tab) => {
   await page.locator('.town-page [data-town-go=garage]').click();
   await page.locator(`.town-page [data-garage-tab="${tab}"]`).click();
 };
-const browser = await chromium.launch();
+const { browser } = await launchChromium(chromium);
 await mkdir('.playtest', { recursive: true });
 
 const visibleRows = (page) => page.evaluate(() => {

@@ -1,11 +1,9 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
-import { gpuArgs, isSoftware, rendererOf } from './gpu.mjs';
+import { launchChromium } from './gpu.mjs';
 import { playUrl } from './game-url.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:5173';
-const cpu = process.argv.includes('--cpu');
-const BOOT_LIMIT_MS = process.env.TEST_TIMEOUTS === 'off' ? 0 : cpu ? 240000 : 30000;
 const SEED = 4242;
 const LOCALES = process.env.LAYOUT_LOCALES?.split(',').filter(Boolean) ?? ['en', 'ru', 'pseudo'];
 const VIEWPORTS = [[1280, 720], [700, 800]];
@@ -198,16 +196,15 @@ async function probe(page, locale) {
 }
 
 async function boot() {
-  const browser = await chromium.launch({ args: cpu ? ['--disable-dev-shm-usage'] : gpuArgs() });
+  const { browser, software } = await launchChromium(chromium);
+  const bootLimitMs = process.env.TEST_TIMEOUTS === 'off' ? 0 : software ? 240000 : 30000;
   const context = await browser.newContext({ viewport: { width: VIEWPORTS[0][0], height: VIEWPORTS[0][1] } });
   const page = await context.newPage();
-  page.setDefaultTimeout(BOOT_LIMIT_MS);
-  const renderer = await rendererOf(page);
-  if (!cpu && isSoftware(renderer)) throw new Error(`The layout check got the software renderer ${renderer}. Run with --cpu on a machine without a GPU.`);
+  page.setDefaultTimeout(bootLimitMs);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(playUrl(`${url}/?seed=${SEED}`));
-  await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: BOOT_LIMIT_MS });
+  await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: bootLimitMs });
   await page.addStyleTag({ content: '#game { display: none !important }' });
   return { browser, page, errors };
 }

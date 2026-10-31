@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
-import { gpuArgs, isSoftware, rendererOf } from './gpu.mjs';
+import { launchChromium } from './gpu.mjs';
 import { playUrl } from './game-url.mjs';
 
 const arg = (name) => {
@@ -25,16 +25,14 @@ const SEAM_ORDER_TILES = 30;
 const SEAM_SETTLE_MS = 600;
 const PREVIEW_WAIT_MS = 30000;
 
-const browser = await chromium.launch({ args: gpuArgs() });
-const errors = [];
-const page = await openPage(browser);
-const renderer = await rendererOf(page);
-console.log(`renderer ${renderer} on ${process.platform}`);
-if (isSoftware(renderer)) {
+const { browser, software, renderer } = await launchChromium(chromium);
+if (software) {
   await browser.close();
   console.error(`FAIL\nPerf got the software renderer ${renderer}. It needs a GPU.`);
   process.exit(1);
 }
+const errors = [];
+const page = await openPage(browser);
 
 async function openPage(owner) {
   const opened = await owner.newPage({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 2 });
