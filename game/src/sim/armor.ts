@@ -302,7 +302,7 @@ export function sidePlanner(v: Vehicle): (side: Side, round: Round) => { part: P
   return (side, round) => {
     const share = laneCellShare(v.chassisId, side);
     let lanes = sides.get(side);
-    if (!lanes) sides.set(side, (lanes = filledLanes(v, side).map((lane) => laneOwners(g, owner, side, lane))));
+    if (!lanes) sides.set(side, (lanes = Array.from({ length: laneCount(v, side) }, (_, lane) => laneOwners(g, owner, side, lane))));
     return lanes.map((cells) => walkCells(cells, round, 1, share, spend));
   };
 }
@@ -420,7 +420,7 @@ function shareOf(def: PartDef, round: Round): number {
 export function passShare(v: Vehicle, side: Side, round: { pen: number; blast: boolean }): number {
   const g = hitGridOf(v);
   const owner = cellOwners(v);
-  const lanes = filledLanes(v, side).map((lane) => firstParts(g, owner, side, lane));
+  const lanes = Array.from({ length: laneCount(v, side) }, (_, lane) => firstParts(g, owner, side, lane));
   const pass = (part: PartInstance) => {
     const def = wornDef(part);
     if (!isShield(def)) return 1;
