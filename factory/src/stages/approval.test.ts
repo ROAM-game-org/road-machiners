@@ -14,8 +14,10 @@ let calls: string[] = [];
 let column: Column = 'Approval';
 let openPr: string | null = null;
 let labels: string[] = [];
+let foreign = 0;
 
 beforeEach(() => {
+  foreign = 0;
   mkdirSync('tmp', { recursive: true });
   home = mkdtempSync('tmp/factory-approval-');
   calls = [];
@@ -59,6 +61,7 @@ function fakeCtx(): Ctx {
     container: { shell: record('shell') },
     repo: {
       fetch: record('fetch'), headHash: async () => 'abc1234',
+      foreignCommits: async (head: string, base: string, other: string) => { calls.push(`foreign ${head} ${base} ${other}`); return foreign; },
       prepareWorkClone: async (...args: unknown[]) => {
         calls.push(`prepare ${args.join(' ')}`);
         mkdirSync(`${String(args[2])}/game/dist`, { recursive: true });
@@ -86,11 +89,12 @@ describe('approve', () => {
 
   it('ships a hotfix from main to itch.io, brings main into dev, leaves the open release and its candidate alone, closes the issue and tells only the committee', async () => {
     labels = ['bug', 'hotfix'];
-    writeState(`${home}/state.json`, { ...EMPTY_STATE, release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 300, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, pendingShip: 'ann', pendingApprovals: { 7: 'bob' }, builds: { 7: 'aaa1111' } });
+    writeState(`${home}/state.json`, { ...EMPTY_STATE, release: { issue: 20, day: '2026-09-29', postId: 300, removed: [], candidate: null, playtest: { seed: 1, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null } }, pendingShip: 'ann', pendingApprovals: { 7: 'bob' }, builds: { 7: 'aaa1111' } });
     await approve(fakeCtx(), 7, 'bob');
     const changelog = 'ROAM hotfix 2026-09-30\n\nFixed: #7 Big horn';
     expect(calls.filter((call) => !call.startsWith('prepare') && !call.startsWith('shell'))).toEqual([
       'fetch ',
+      'foreign aaa1111 main dev',
       'checked factory/issue-7 aaa1111 main',
       'merge factory/issue-7 main Hotfix #7: Big horn',
       'merge main dev Merge main into dev after hotfix #7',
@@ -116,7 +120,7 @@ describe('approve', () => {
     const ctx = fakeCtx();
     ctx.repo.merge = async () => { throw new BaseMovedError('factory/issue-7', 'aaa1111', 'main moved to ccc3333 after the checks ran on aaa1111, so they no longer count.'); };
     await approve(ctx, 7, 'bob');
-    expect(calls.filter((call) => !call.startsWith('fetch'))).toEqual([
+    expect(calls.filter((call) => !call.startsWith('fetch') && !call.startsWith('foreign'))).toEqual([
       'comment 7 The approval by bob of build aaa1111 still holds. main moved to ccc3333 after the checks ran on aaa1111, so they no longer count. Testing merges main, keeps both sides and runs the full checks on the result. It ships with no new post, unless the merge changes what was approved.',
       'move 7 Testing',
     ]);
@@ -172,6 +176,14 @@ describe('approve', () => {
     expect(readState(`${home}/state.json`).keptApprovals[7]).toEqual({ by: 'bob', at: '2026-09-30T10:00:00.000Z', build: 'eee5555', checked: ['eee5555'], reason: 'main moved.' });
   });
 
+  it('refuses to ship a hotfix build that holds dev commits, with no merge, no release and no itch.io push', async () => {
+    labels = ['bug', 'hotfix'];
+    foreign = 3932;
+    await expect(approve(fakeCtx(), 7, 'bob')).rejects.toMatchObject({ base: 'main', other: 'dev', count: 3932 });
+    expect(calls.filter((call) => /^(merge|push|checked|release|close|move|run butler)/.test(call))).toEqual([]);
+    expect(readState(`${home}/state.json`).keptApprovals[7]?.checked).toEqual(['aaa1111']);
+  });
+
   it('refuses a hotfix with no published build before any git call', async () => {
     labels = ['hotfix'];
     writeState(`${home}/state.json`, { ...EMPTY_STATE, pendingApprovals: { 7: 'bob' } });
@@ -192,12 +204,6 @@ describe('approve', () => {
     const ctx = fakeCtx();
     ctx.cfg.butlerKey = null;
     await expect(approve(ctx, 7, 'bob')).rejects.toThrow('BUTLER_API_KEY');
-    expect(calls).toEqual([]);
-  });
-
-  it('throws for a release task when no release is open, before any git call', async () => {
-    labels = ['release-task'];
-    await expect(approve(fakeCtx(), 7, 'bob')).rejects.toThrow('needs an open release');
     expect(calls).toEqual([]);
   });
 

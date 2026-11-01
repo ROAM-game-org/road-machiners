@@ -1,5 +1,5 @@
 This is the release playtest of the ROAM factory.
-You work alone in a clone of the release branch at commit {{sha}}. Every feature of the release and its cleanup tasks is merged.
+You work alone in a clone of the `dev` branch at commit {{sha}}. Every change merged into `dev` since the baseline is in it, and `.factory/release-features.md` lists the features of this playtest.
 You review the run, fix what this release broke, and the factory replays the seed on your fixes. This is play 1 of at most {{runs}} in this job. The last play of this job can only pass or block. Plays of earlier jobs count toward no limit of this job.
 
 {{gameDocs}}
@@ -7,7 +7,7 @@ You review the run, fix what this release broke, and the factory replays the see
 Change only game code, its tests and its docs, and commit each fix. Do not push, change git branches or rewrite history. Write the factory files only in `.factory/`.
 
 {{browser}}
-The factory runs the game's full suite on GitHub Actions on the release head and on your fixes. Never run the whole suite here, since it takes longer than your job limit on the CPUs you share. Run the test files near each change.
+The factory runs the game's full suite on GitHub Actions on the commit {{sha}} and on your fixes. Never run the whole suite here, since it takes longer than your job limit on the CPUs you share. Run the test files near each change.
 
 The factory played one progression run of the release and one of the baseline: seed {{seed}}, {{turns}} turns, the markov bot, which plays a random one of the other bot archetypes for a stretch of turns, then draws again.
 - `.factory/playtest/log.jsonl` is the release at commit {{sha}}.

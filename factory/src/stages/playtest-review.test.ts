@@ -7,7 +7,8 @@ const review = (over: Partial<Review> = {}): Review => ({
   verdict: 'clean', summary: 's', drama: 'd', observations: [], suspected: [], limitations: ['far mode'], findings: [], fixes: [],
   explanations: { death: null, quiet: null }, blocker: null, ...over,
 });
-const important = { id: 'F1', severity: 'important' as const, title: 'Raiders never stop', evidence: 'turn 40', cause: 'release' as const, why: 'the raid goal of #12 never ends', known: null, fixed: false };
+const important = { id: 'F1', severity: 'important' as const, title: 'Raiders never stop', evidence: 'turn 40', cause: 'release' as const, why: 'the raid goal of #12 never ends', known: null, fixed: false, numbers: null };
+const balance = { ...important, id: 'F3', severity: 'balance' as const, title: 'Raid survival fell', cause: 'old' as const, numbers: { head: 'survived 31 of 50 raids', baseline: 'survived 44 of 50 raids' } };
 const old = { ...important, id: 'F2', cause: 'old' as const, why: 'the baseline log shows the same loop at turn 300' };
 const facts = (over: Partial<LogFacts> = {}): LogFacts => ({ ...logFacts(logText(), WANT), ...over });
 const play = { moved: false, last: false, fixedEarlier: false };
@@ -48,7 +49,7 @@ describe('readReview', () => {
     expect(parseReview(JSON.stringify(broken))).toEqual({ errors: [
       'The playtest verdict done is not clean, fixed or blocked',
       'The fixes list holds an item that is not a string',
-      'Finding F1 has severity medium, not important or minor',
+      'Finding F1 has severity medium, not important, minor or balance',
       'Finding F2 has known false, not an issue number or null',
       'Finding F2 has fixed abc, not true or false',
     ] });
@@ -71,6 +72,13 @@ describe('readReview', () => {
     expect(readReview(JSON.stringify(review({ findings: [unmarked as typeof important] }))).findings[0].fixed).toBe(false);
   });
 
+  it('reads a balance finding with its numbers, and fails one with no numbers or marked fixed', () => {
+    expect(readReview(JSON.stringify(review({ findings: [balance] }))).findings[0].numbers).toEqual(balance.numbers);
+    expect(() => readReview(JSON.stringify(review({ findings: [{ ...balance, numbers: null }] })))).toThrow('Finding F3 is balance and needs numbers');
+    expect(() => readReview(JSON.stringify(review({ findings: [{ ...balance, numbers: { head: 'worse', baseline: 'better' } }] })))).toThrow('Finding F3 is balance and needs numbers');
+    expect(() => readReview(JSON.stringify(review({ findings: [{ ...balance, fixed: true }] })))).toThrow('Finding F3 is balance, which is never fixed');
+  });
+
   it('fills missing explanations, blocker and known with null', () => {
     const { explanations: _e, blocker: _b, ...rest } = review();
     expect(readReview(JSON.stringify(rest))).toMatchObject({ explanations: { death: null, quiet: null }, blocker: null });
@@ -86,6 +94,14 @@ describe('judge', () => {
 
   it('blocks a clean review of a run that ended in an error', () => {
     expect(judge(facts({ ending: 'error', message: 'stalled' }), review(), play).reason).toContain('ended in an error at turn 101');
+  });
+
+  it('passes a clean review whose only findings are balance, also with cause release', () => {
+    expect(judge(facts(), review({ findings: [balance, { ...balance, id: 'F4', cause: 'release' }] }), play)).toEqual({ outcome: 'clean', reason: 'clean' });
+  });
+
+  it('still blocks a run that ended in an error, whatever the findings call it', () => {
+    expect(judge(facts({ ending: 'error', endTurn: 7, message: 'boom' }), review({ findings: [{ ...balance, title: 'crash at turn 7' }] }), play).outcome).toBe('blocked');
   });
 
   it('blocks a clean review that still lists an important release finding', () => {

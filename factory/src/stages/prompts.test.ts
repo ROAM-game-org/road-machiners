@@ -10,7 +10,7 @@ const GAME_STAGES = ['triage', 'groom', 'design', 'implement', 'test', 'integrat
 const FACTORY_STAGES = ['waste'];
 const FIX_STAGES = ['test', 'integrate', 'harden', 'merge-fix', 'ship-fix', 'release-playtest'];
 const WRITING_STAGES = ['groom', 'design', 'implement', 'release', 'answer'];
-const NO_DOCS_STEP = [...FACTORY_STAGES, 'game-docs', 'fix-docs', 'writing', 'humanizer', 'design-bug', 'filter-game', 'release-janitor', 'release-optimize', 'release-playtest-replay', 'release-playtest-checks', 'release-playtest-review', 'release-playtest-review-fix'];
+const NO_DOCS_STEP = [...FACTORY_STAGES, 'game-docs', 'fix-docs', 'writing', 'humanizer', 'design-bug', 'filter-game', 'release-janitor', 'release-optimize', 'release-playtest-replay', 'release-playtest-resume', 'release-playtest-checks', 'release-playtest-review', 'release-playtest-review-fix'];
 const STEP_LINE = /^(- )?(Read|Run|Install|Find|Score|Fix|Write|Check|Open|Create|Resolve|Play|Look|Build|Take|Use|Start|Compare)\b/m;
 
 function placeholders(name: string): Record<string, string> {

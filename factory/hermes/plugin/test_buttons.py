@@ -83,7 +83,7 @@ def test_member_deny(tmp_path):
 
 
 def release_state(post_id):
-    return {"approvalPosts": {}, "release": {"issue": 40, "branch": "release/d", "day": "d", "postId": post_id, "removed": []}}
+    return {"approvalPosts": {}, "release": {"issue": 40, "day": "d", "postId": post_id, "removed": []}}
 
 
 def test_ship_on_current_post_queues(tmp_path):

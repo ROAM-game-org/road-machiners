@@ -2,27 +2,26 @@ import { addCard } from './card-events';
 import { mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { readCommittee, telegramIds } from './committee';
-import { applyControl, openRelease, parseControl, queueRemoval, queueShip } from './control';
+import { applyControl, parseControl, queueRemoval, queueShip } from './control';
 import { reportFailure, withoutRejectionsOf } from './fail';
 import { markPost } from './post-status';
 import { postDraft, publishPost } from './release-post';
 import { deny, routeFeedback } from './stages/approval';
 import { adoptQuestionMedia } from './stages/common';
 import { replyMediaLines } from './reply-media';
-import { recordReleaseTask } from './stages/release-common';
 import { clearAsked, questionPostIssue } from './questions';
 import { readState, updateState } from './state';
-import { ADHOC_LABEL, NEEDS_INFO_LABEL, RELEASE_TASK_LABEL, type Ctx, type RejectedControl, type Route } from './types';
+import { ADHOC_LABEL, NEEDS_INFO_LABEL, type Ctx, type RejectedControl, type Route } from './types';
 
 const TITLE_LIMIT = 80;
-const KINDS = ['approve', 'deny', 'reply', 'answer', 'answer-questions', 'patch', 'redesign', 'adhoc', 'ship', 'remove', 'release-task', 'release-draft', 'publish'];
+const KINDS = ['approve', 'deny', 'reply', 'answer', 'answer-questions', 'patch', 'redesign', 'adhoc', 'ship', 'remove', 'candidate-reply', 'release-draft', 'publish'];
 const ROUTES: Route[] = ['answer', 'patch', 'redesign'];
 const SILENT_KINDS: InboxCommand['kind'][] = ['adhoc', 'reply', 'answer', 'release-draft'];
 const HERMES = 'hermes';
 const HERMES_KINDS: InboxCommand['kind'][] = ['adhoc', 'answer', 'patch', 'redesign', 'release-draft'];
 
 export type InboxCommand = {
-  kind: 'approve' | 'deny' | 'reply' | Route | 'answer-questions' | 'adhoc' | 'ship' | 'remove' | 'release-task' | 'release-draft' | 'publish';
+  kind: 'approve' | 'deny' | 'reply' | Route | 'answer-questions' | 'adhoc' | 'ship' | 'remove' | 'candidate-reply' | 'release-draft' | 'publish';
   issue: number | null;
   text: string | null;
   by: string;
@@ -146,7 +145,7 @@ function senderName(command: InboxCommand): string {
 async function handle(ctx: Ctx, command: InboxCommand): Promise<string> {
   const by = resolveSender(ctx, command);
   if (command.kind === 'adhoc') return queueAdhoc(ctx, command, by);
-  if (command.kind === 'release-task') return openReleaseTask(ctx, command, by);
+  if (command.kind === 'candidate-reply') return openCandidateTask(ctx, command, by);
   if (command.kind === 'release-draft') return postDraft(ctx, requireText(command), command.image);
   if (command.kind === 'publish') return publishPost(ctx, requirePost(command));
   return handleIssueCommand(ctx, command, requireIssue(command), by);
@@ -155,7 +154,7 @@ async function handle(ctx: Ctx, command: InboxCommand): Promise<string> {
 type IssueHandler = (ctx: Ctx, command: InboxCommand, issue: number, by: string) => string | Promise<string>;
 
 const ISSUE_HANDLERS: Partial<Record<InboxCommand['kind'], IssueHandler>> = {
-  ship: (ctx, _command, issue, by) => queueShip(ctx, issue, by),
+  ship: (ctx, command, issue, by) => queueShip(ctx, issue, by, command.postId),
   remove: (ctx, command, issue, by) => queueRemoval(ctx, issue, by, requireText(command)),
   reply: (ctx, command, issue) => awaitRoute(ctx, command, issue),
   'answer-questions': answerQuestions,
@@ -230,15 +229,12 @@ async function queueAdhoc(ctx: Ctx, command: InboxCommand, by: string): Promise<
   return `Queued as #${n}. The report comes as a reply here.`;
 }
 
-async function openReleaseTask(ctx: Ctx, command: InboxCommand, by: string): Promise<string> {
-  const release = openRelease(ctx);
+async function openCandidateTask(ctx: Ctx, command: InboxCommand, by: string): Promise<string> {
   const text = requireText(command).trim();
   const title = text.split('\n')[0].trim().slice(0, TITLE_LIMIT);
-  const n = await ctx.github.createIssue(title, `${text}\n\nRequested by ${by} in the committee chat as a task of release ${release.day}.`, [RELEASE_TASK_LABEL]);
-  recordReleaseTask(ctx, n);
-  await addCard(ctx, n, 'Design', ctx.now().toISOString(), 'release-task');
-  updateState(ctx.statePath, (state) => ({ ...state, pendingShip: null, release: state.release && { ...state.release, postId: null } }));
-  return `Opened #${n} as a task of release ${release.day}. A new candidate follows when it is done.`;
+  const n = await ctx.github.createIssue(title, `${text}\n\nRequested by ${by} in the committee chat, as a reply on a release candidate post.`, []);
+  await addCard(ctx, n, 'Design', ctx.now().toISOString());
+  return `Opened #${n} as a normal issue for dev. It starts in Design like any committee request, and the candidate stays as it is.`;
 }
 
 function requireIssue(command: InboxCommand): number {

@@ -3,7 +3,7 @@ import { buildBadge } from './badges';
 import type { Snapshot } from './snapshot';
 
 function card(issue: number, column: string) {
-  return { issue, title: `Card ${issue}`, column, blocked: false, releaseTask: false };
+  return { issue, title: `Card ${issue}`, column, blocked: false };
 }
 type Options = { github?: boolean; features?: boolean };
 function snapshotWith(options: Options = {}): Snapshot {

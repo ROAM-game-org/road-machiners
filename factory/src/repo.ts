@@ -320,14 +320,13 @@ export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | n
       return (await git(['rev-parse', '--short', (await git(['merge-base', await ref(a), await ref(b)])).trim()])).trim();
     },
     diff: async (base, branch) => git(['diff', '--no-renames', `${await ref(base)}...${await ref(branch)}`]),
-    async readFile(branch, path) {
-      return git(['show', `${await ref(branch)}:${path}`]);
-    },
+    readFile: async (branch, path) => git(['show', `${await ref(branch)}:${path}`]),
     ownHeads: async (base, branch) => ownHeadsIn(run, path, await ref(base), await ref(branch)),
     async changedFiles(base, branch) {
       return nulSeparated(await git(['diff', '--name-only', '--no-renames', '-z', `${await ref(base)}...${await ref(branch)}`]));
     },
     changedInWork: async (dir, from) => nulSeparated(await gitIn(dir, ['diff', '--name-only', '--no-renames', '-z', `${from}...HEAD`])),
+    foreignCommits: async (head, base, other) => foreignCommitsIn(run, path, await ref(head), await ref(base), await ref(other)),
     async hasNewCommits(base, branch) {
       return Number((await git(['rev-list', '--count', `${await ref(base)}..${await ref(branch)}`])).trim()) > 0;
     },
@@ -350,6 +349,13 @@ async function ownHeadsIn(run: Run, path: string, baseTip: string, branchTip: st
     if (mergedIn === undefined || !(await containsIn(run, path, baseTip, mergedIn, baseTip))) return heads;
   }
   return heads;
+}
+
+async function foreignCommitsIn(run: Run, path: string, head: string, base: string, other: string): Promise<number> {
+  const shared = await run('git', [...NO_HOOKS, 'merge-base', '--all', head, other], { activity: 'git', cwd: path });
+  if (shared.code === 1 && shared.stdout.trim() === '') return 0;
+  const ancestors = lines(must(shared, `git merge-base --all ${head} ${other}`));
+  return Number(must(await run('git', [...NO_HOOKS, 'rev-list', '--count', ...ancestors, `^${base}`], { activity: 'git', cwd: path }), `git rev-list ${head}`).trim());
 }
 
 async function containsIn(run: Run, path: string, branch: string, sha: string, tip: string): Promise<boolean> {

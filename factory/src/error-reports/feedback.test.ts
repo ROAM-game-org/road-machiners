@@ -24,7 +24,7 @@ async function start(over: { failIssues?: boolean; failReads?: boolean; ipPerHou
   writeFileSync(join(home, 'state', 'state.json'), JSON.stringify({
     approvalPosts: { '900': 12 },
     builds: { '12': 'hash12', '13': 'hash13', '40': 'rc' },
-    release: { issue: 40, branch: 'release/x', day: '2026-10-07', postId: null, removed: [] },
+    release: { issue: 40, day: '2026-10-07', postId: null, removed: [] },
   }));
   const store = openStore(home);
   const created: string[] = [];

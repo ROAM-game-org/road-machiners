@@ -90,7 +90,7 @@ describe('reportFailure', () => {
 });
 
 describe('failureIssue', () => {
-  const open: FactoryState = { ...structuredClone(EMPTY_STATE), release: { issue: 20, branch: 'release/x', day: 'd', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } };
+  const open: FactoryState = { ...structuredClone(EMPTY_STATE), release: { issue: 20, day: 'd', postId: null, removed: [], candidate: null, playtest: { seed: 1, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null } } };
   const none = structuredClone(EMPTY_STATE);
 
   it('names the issue of a card stage, approve, candidate, ship and remove', () => {

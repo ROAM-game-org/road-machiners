@@ -66,7 +66,7 @@ beforeEach(() => {
   labels = [];
   bases = [];
   runs = [];
-  writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } });
+  writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), release: { issue: 20, day: '2026-09-29', postId: null, removed: [], candidate: null, playtest: { seed: 1, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null } } });
 });
 afterEach(() => rmSync(home, { recursive: true, force: true }));
 
@@ -147,6 +147,7 @@ function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: s
       catchUpBase: async (_dir: string, base: string) => { bases.push(`merge ${base}`); return kept === null ? { commit: 'base0001', conflicts, kept } : { commit: null, conflicts: [], kept }; },
       mergeBranchIntoWork: async () => ({ commit: null, conflicts: [] }),
       isMerged: async (older: string) => (older === 'aaa1111' ? approvedKept : merged),
+      foreignCommits: async () => 0,
       changedFiles: async () => changed,
       ownHeads: async () => ['abc123', 'aaa1111'],
     },
@@ -306,11 +307,11 @@ describe('testing in one job', () => {
     expect(runs[0]!.prompt).toContain('uncommitted changes in f.txt');
   });
 
-  it('works on the release branch for a release task', async () => {
-    labels = ['release-task'];
+  it('works on dev for a maintenance card, with a release open', async () => {
+    labels = ['maintenance'];
     await runVerify(fakeCtx(posts), 7);
-    expect(bases).toContain('merge release/2026-09-29');
-    expect(calls.find((call) => call.startsWith('openPullRequest'))).toContain('release/2026-09-29');
+    expect(bases).toContain('merge dev');
+    expect(bases.some((base) => base.includes('release/'))).toBe(false);
   });
 
   it('hardens a hotfix and then tests it in one session, with the full suite and the ship button', async () => {

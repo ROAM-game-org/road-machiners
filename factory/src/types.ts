@@ -59,6 +59,7 @@ export type FactoryConfig = {
   playtestRuns: number;
   playtestReviewRepairs: number;
   playtestTimeoutMinutes: number;
+  playtestHours: number;
   mergeTimeoutMinutes: number;
   checksTimeoutMinutes: number;
   testStallMinutes: number;
@@ -156,15 +157,20 @@ export type Failure = { stage: Stage; issue: number | null; error: string; cause
 export type ChatReply = { chat: string; messageId: number | null };
 export type Removal = { issue: number; by: string; text: string };
 
+export type IssueMerge = { issue: number; title: string; sha: string; into: string; reverted: string[] };
+
+export type PlaytestWork = { start: string; baseline: string; features: IssueMerge[]; session: string; plays: number };
+export type PlaytestDecision = { by: string; at: string; text: string };
 export type PlaytestState = {
   seed: number;
   runs: number;
-  passed: string | null;
+  lastStart: { sha: string; at: string } | null;
+  passed: { sha: string; features: IssueMerge[] } | null;
+  fixes: string | null;
   blocked: { sha: string; reason: string } | null;
-  notes: string[];
+  decision: PlaytestDecision | null;
+  work: PlaytestWork | null;
 };
-
-export type IssueMerge = { issue: number; title: string; sha: string; into: string; reverted: string[] };
 
 export type LandingStage = 'merge' | 'ship';
 export type LandingSource = { branch: string; sha: string };
@@ -172,13 +178,10 @@ export type LandingWork = { into: string; sources: LandingSource[]; cards: numbe
 
 export type ReleaseState = {
   issue: number;
-  branch: string;
   day: string;
   postId: number | null;
-  candidateSha: string | null;
+  candidate: { sha: string; features: IssueMerge[] } | null;
   removed: number[];
-  tasks: number[];
-  merges: IssueMerge[];
   playtest: PlaytestState;
   shipping?: { sha: string; features: { issue: number; title: string }[] };
 };
@@ -196,11 +199,12 @@ export type FactoryState = {
   jobs: Job[];
   approvalPosts: Record<string, number>;
   lastRelease: string | null;
-  pendingCut: string | null;
+  pendingPlaytest: string | null;
   devMerges: IssueMerge[];
   release: ReleaseState | null;
   releasePost: ReleasePost | null;
   pendingShip: string | null;
+  pendingCleanup: string | null;
   pendingRemovals: Removal[];
   pendingApprovals: Record<string, string>;
   approvedResolving: Record<string, string>;
@@ -341,6 +345,7 @@ export interface HostRepo {
   changedInWork(dir: string, from: string): Promise<string[]>;
   readFile(branch: string, path: string): Promise<string>;
   hasNewCommits(base: string, branch: string): Promise<boolean>;
+  foreignCommits(head: string, base: string, other: string): Promise<number>;
   merge(steps: MergeStep[], resolutions?: Resolution[], checked?: CheckedBuild): Promise<void>;}
 
 export type Resolution = { base: string; source: string; head: string };
@@ -403,8 +408,9 @@ export const OPEN_MARKS = ['MERGE_HEAD', 'REVERT_HEAD', 'CHERRY_PICK_HEAD', 'reb
 export const WONT_DO_LABEL = 'wont-do';
 export const MAINTENANCE_LABEL = 'maintenance';
 export const RELEASE_LABEL = 'release';
-export const RELEASE_TASK_LABEL = 'release-task';
-export const isCleanupTask = (labels: string[]): boolean => labels.includes(RELEASE_TASK_LABEL) && labels.includes(MAINTENANCE_LABEL);
+export const isCleanupTask = (labels: string[]): boolean => labels.includes(MAINTENANCE_LABEL);
+export const PLAYTEST_FIXES_BRANCH = 'factory/playtest-fixes';
+export const CANDIDATE_BRANCH = 'factory/candidate';
 export const RELEASE_CANDIDATE_LABEL = 'release-candidate';
 export const HOTFIX_LABEL = 'hotfix';
 export const ADHOC_LABEL = 'adhoc';

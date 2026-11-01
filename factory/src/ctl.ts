@@ -34,7 +34,7 @@ const READ: Record<string, { usage: string; help: string; run: Handler }> = {
 };
 
 const IMMEDIATE: Record<string, { usage: string; help: string; run: Handler }> = {
-  retry: { usage: 'retry N [decision]', help: 'remove the stuck label and the failures of a card. A kept merge or ship work that holds the card starts a new fix budget. On the release tracking card it also lifts a playtest block, so a new playtest job runs, and keeps the decision for its next review', run: retry },
+  retry: { usage: 'retry N --by <who> ["decision"]', help: 'remove the stuck label and the failures of a card. A kept merge or ship work that holds the card starts a new fix budget. On the release tracking card it also lifts a playtest block, so a new playtest job runs, and records the decision, which only the next playtest job reads', run: retry },
   pause: { usage: 'pause <reason> [--pid N] [--by who]', help: 'pause the factory. --pid ties the pause to a process, and the tick lifts it when that process ends. --by or --pid makes a member pause, which resume refuses', run: pause },
   resume: { usage: 'resume', help: 'remove the pause', run: resume },
   'set-state': { usage: 'set-state <path> <json>|--delete --by <who> --reason <why>', help: 'set or delete one value of the state file under its lock, like release.postId null, while every job keeps running. Prints the old and the new value', run: setStateCommand },
@@ -45,10 +45,11 @@ const WRITE: Record<string, { usage: string; help: string; build: Builder }> = {
   move: { usage: 'move N <to>', help: `put a card in one of ${MOVE_TARGETS.join(', ')}`, build: ([n, to]) => ({ action: 'move', issue: number(n), to: target(to) }) },
   merge: { usage: 'merge N', help: 'put a card in the merge queue, past its post and hardening', build: ([n]) => ({ action: 'merge', issue: number(n) }) },
   ship: { usage: 'ship', help: 'ship the open release now', build: () => ({ action: 'ship' }) },
-  cut: { usage: 'cut', help: 'cut a release now', build: () => ({ action: 'cut' }) },
-  remove: { usage: 'remove N', help: 'take a feature out of the release', build: ([n]) => ({ action: 'remove', issue: number(n) }) },
+  playtest: { usage: 'playtest', help: 'order a release playtest on the dev tip now, also when dev has not moved or the last playtest started recently', build: () => ({ action: 'playtest' }) },
+  remove: { usage: 'remove N', help: 'take a feature out of dev and the release: its merge on dev is reverted, the candidate is dropped and the card returns to design', build: ([n]) => ({ action: 'remove', issue: number(n) }) },
   drop: { usage: `drop <${DROP_QUEUES.join('|')}> <id>`, help: 'drop one queued entry', build: ([queue, id]) => dropAction(queue, id) },
   'pause-card': { usage: 'pause-card N', help: "hold a card: stop its job, keep its work clone and agent sessions, and start no job on it until resume-card", build: ([n]) => ({ action: 'hold', issue: number(n) }) },
+  adopt: { usage: 'adopt <branch> <title>', help: 'bring a branch that is on GitHub in as a new card in Hardening: open an issue with the reason as its body, push the branch as its factory branch and set its board status. Needs a member in --by. Hardening then runs the full suite and merges the card', build: ([branch, ...title]) => adoptAction(branch, title) },
   'resume-card': { usage: 'resume-card N', help: 'lift the hold of a card, so its stage continues in the stopped sessions', build: ([n]) => ({ action: 'unhold', issue: number(n) }) },
 };
 
@@ -83,6 +84,12 @@ function target(value: string | undefined): MoveTarget {
 function dropAction(queue: string | undefined, id: string | undefined): ControlAction {
   if (!DROP_QUEUES.includes(queue as DropQueue)) throw new Error(`Unknown queue "${queue}". Use one of ${DROP_QUEUES.join(', ')}.`);
   return { action: 'drop', queue: queue as DropQueue, id: queue === 'ship' && id === undefined ? null : number(id) };
+}
+
+function adoptAction(branch: string | undefined, title: string[]): ControlAction {
+  const text = title.join(' ').trim();
+  if (branch === undefined || text === '') throw new Error(`adopt needs a branch and a title. Usage: ${WRITE.adopt.usage}`);
+  return { action: 'adopt', branch, title: text };
 }
 
 function takeFlag(args: string[], name: string): { value: string; rest: string[] } {
@@ -221,7 +228,7 @@ function queues(ctx: Ctx): void {
   console.log(`approval: ${listOrNone(approvals)}`);
   console.log(`removal: ${listOrNone(removals)}`);
   console.log(`ship: ${state.pendingShip ?? 'none'}`);
-  console.log(`cut: ${state.pendingCut ?? 'none'}`);
+  console.log(`playtest: ${state.pendingPlaytest ?? 'none'}`);
   console.log(`incident: ${listOrNone(state.pendingIncidents.map((issue) => `#${issue}`))}`);
   console.log(`caught up: ${listOrNone(Object.entries(state.caughtUpTo).map(([issue, head]) => `#${issue} at ${head}`))}`);
   console.log(`answer: ${listOrNone(state.pendingAnswers.map((id) => `player comment ${id}`))}`);
@@ -242,17 +249,23 @@ function formatMerges(merges: IssueMerge[]): string {
 
 function release(ctx: Ctx): void {
   const state = readState(ctx.statePath);
-  console.log(`last release: ${state.lastRelease ?? 'none'}`);
-  console.log(`cut ordered: ${state.pendingCut ?? 'none'}`);
-  console.log(`public post: ${publicPost(state.releasePost)}`);
-  console.log(`merged into dev since the cut: ${formatMerges(state.devMerges)}`);
+  for (const line of releaseQueueLines(state)) console.log(line);
   if (state.release === null) return console.log('open release: none');
-  console.log(`open release: #${state.release.issue} branch ${state.release.branch} cut ${state.release.day}`);
-  console.log(`release merges: ${formatMerges(state.release.merges)}`);
+  console.log(`open release: #${state.release.issue} opened ${state.release.day}`);
   console.log(`candidate post: ${candidatePost(state.release)}`);
   console.log(`removed: ${state.release.removed.map((issue) => `#${issue}`).join(', ') || 'none'}`);
-  console.log(`recorded tasks: ${state.release.tasks.map((issue) => `#${issue}`).join(', ') || 'none'}`);
+  console.log(`playtest fixes to land on dev: ${state.release.playtest.fixes ?? 'none'}`);
   for (const line of playtestLines(state.release.playtest, ctx.cfg.playtestRuns)) console.log(line);
+}
+
+function releaseQueueLines(state: FactoryState): string[] {
+  return [
+    `last release: ${state.lastRelease ?? 'none'}`,
+    `playtest ordered: ${state.pendingPlaytest ?? 'none'}`,
+    `cleanup cards due after release: ${state.pendingCleanup ?? 'none'}`,
+    `public post: ${publicPost(state.releasePost)}`,
+    `merged into dev, not yet shipped: ${formatMerges(state.devMerges)}`,
+  ];
 }
 
 function publicPost(post: ReleasePost | null): string {
@@ -263,13 +276,26 @@ function publicPost(post: ReleasePost | null): string {
 
 function candidatePost(release: ReleaseState): string {
   if (release.postId === null) return 'none';
-  return `${release.postId} of ${release.candidateSha ?? 'no commit'}`;
+  return `${release.postId} of ${release.candidate?.sha ?? 'no commit'} with ${formatMerges(release.candidate?.features ?? [])}`;
 }
 
 function playtestLines(playtest: PlaytestState, runs: number): string[] {
-  const lines = [`playtest: seed ${playtest.seed}, ${playtest.runs} plays, at most ${runs} per job, passed ${playtest.passed ?? 'none'}`];
+  const lines = [`playtest: seed ${playtest.seed}, ${playtest.runs} plays, at most ${runs} per job, passed ${passedText(playtest)}, last start ${playtest.lastStart?.sha ?? 'none'}`];
+  return [...lines, ...keptPlaytestLines(playtest)];
+}
+
+function passedText(playtest: PlaytestState): string {
+  if (playtest.passed === null) return 'none';
+  return `${playtest.passed.sha} with ${formatMerges(playtest.passed.features)}`;
+}
+
+function keptPlaytestLines(playtest: PlaytestState): string[] {
+  const lines: string[] = [];
   if (playtest.blocked) lines.push(`playtest blocked at ${playtest.blocked.sha}: ${playtest.blocked.reason}`);
-  return [...lines, ...playtest.notes.map((note) => `playtest decision: ${note}`)];
+  if (playtest.work) lines.push(`playtest work kept from ${playtest.work.start}: ${playtest.work.plays} plays spent, ${playtest.work.features.length} features`);
+  if (playtest.fixes) lines.push(`playtest fixes ${playtest.fixes} wait on factory/playtest-fixes for the merge job`);
+  if (playtest.decision) lines.push(`playtest decision from ${playtest.decision.by} at ${playtest.decision.at}: ${playtest.decision.text}`);
+  return lines;
 }
 
 function failures(ctx: Ctx): void {
@@ -317,22 +343,33 @@ async function audit(ctx: Ctx): Promise<void> {
 }
 
 async function retry(ctx: Ctx, args: string[]): Promise<void> {
-  const issue = number(args[0]);
-  const decision = args.slice(1).join(' ').trim();
+  const by = takeFlag(args, '--by');
+  const [first, ...given] = by.rest;
+  const issue = number(first);
+  const text = retryDecision(given);
+  const actor = resolveActor(ctx, by.value, false);
   await clearStuck(ctx, issue);
   console.log(`Removed ${STUCK_LABEL} and the failures of #${issue}. The next tick continues the card.`);
   for (const stage of resetSpend(ctx, issue)) console.log(`The kept ${stage} work of #${issue} starts a new fix budget.`);
-  if (readState(ctx.statePath).release?.issue === issue) console.log(retryPlaytest(ctx, decision));
+  if (readState(ctx.statePath).release?.issue === issue) console.log(await retryPlaytest(ctx, issue, { by: actor, text }));
 }
 
-function retryPlaytest(ctx: Ctx, decision: string): string {
+function retryDecision(given: string[]): string {
+  if (given.length > 1) throw new Error(`Give the decision as one quoted argument, after the flags. Usage: ${IMMEDIATE.retry.usage}`);
+  const text = (given[0] ?? '').trim();
+  if (/(^|\s)--[a-z]/i.test(text)) throw new Error(`The decision "${text}" holds a command flag. Put every flag before the decision. Usage: ${IMMEDIATE.retry.usage}`);
+  return text;
+}
+
+async function retryPlaytest(ctx: Ctx, issue: number, decision: { by: string; text: string }): Promise<string> {
+  const recorded = decision.text === '' ? null : { by: decision.by, at: ctx.now().toISOString(), text: decision.text };
   updateState(ctx.statePath, (state: FactoryState) => {
     if (state.release === null) return state;
     const playtest = state.release.playtest;
-    const notes = decision === '' ? playtest.notes : [...playtest.notes, decision];
-    return { ...state, release: { ...state.release, playtest: { ...playtest, blocked: null, notes } } };
+    return { ...state, pendingPlaytest: decision.by, release: { ...state.release, playtest: { ...playtest, blocked: null, decision: recorded ?? playtest.decision } } };
   });
-  return `Lifted the playtest block of the release. A new playtest job plays up to ${ctx.cfg.playtestRuns} times${decision === '' ? '' : ' and reads the decision'}.`;
+  if (recorded !== null) await ctx.github.comment(issue, `Playtest decision from ${recorded.by}: ${recorded.text}`);
+  return `Lifted the playtest block of the release. A new playtest job plays up to ${ctx.cfg.playtestRuns} times${recorded === null ? '' : ' and reads the decision'}.`;
 }
 
 function takeOptionalFlag(args: string[], name: string): { value: string | null; rest: string[] } {

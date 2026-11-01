@@ -1,12 +1,12 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import type * as Os from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { stepScript } from '../activity';
-import { EMPTY_STATE, newPlaytest, readState, writeState } from '../state';
+import { EMPTY_STATE, readState, writeState } from '../state';
 import { testPoolPin } from '../cpus';
-import type { AgentRun, Issue, Pin, ReleaseState, ShellKind } from '../types';
-import { SUITE_BRANCH, auditDir, playtest } from './playtest';
+import type { AgentRun, Issue, IssueMerge, Pin, PlaytestState, ReleaseState, ShellKind } from '../types';
+import { FIXES_BRANCH, SUITE_BRANCH, auditDir, playtest } from './playtest';
 import { SUITE_DOWN_MARK } from './remote-suite';
 import { logText } from './playtest-fixtures';
 import type { Finding, Review } from './playtest-review';
@@ -16,13 +16,13 @@ vi.mock('node:os', async (original) => ({ ...(await original<typeof Os>()), avai
 
 const DAY = '2026-10-07';
 const SEED = 20261007;
-const BRANCH = `release/${DAY}`;
-const RELEASE: ReleaseState = { issue: 11, branch: BRANCH, day: DAY, postId: null, candidateSha: null, removed: [], tasks: [], merges: [], playtest: newPlaytest(DAY) };
+const PLAYTEST: PlaytestState = { seed: SEED, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null };
+const RELEASE: ReleaseState = { issue: 11, day: DAY, postId: null, candidate: null, removed: [], playtest: PLAYTEST };
 const CLONE = join(ROOT, 'work', 'release-playtest');
 const HOME = join(CLONE, 'game', '.factory');
 
-const releaseBug: Finding = { id: 'F1', severity: 'important', title: 'Raiders chase forever', evidence: 'turns 300 to 900, v12', cause: 'release', why: 'the raid goal of #12 never ends', known: null, fixed: false };
-const oldBug: Finding = { id: 'F2', severity: 'important', title: 'Escorts to a territory never end', evidence: 'v722 from 1259', cause: 'old', why: 'the baseline log has the same unpaid escort at 1300', known: null, fixed: false };
+const releaseBug: Finding = { id: 'F1', severity: 'important', title: 'Raiders chase forever', evidence: 'turns 300 to 900, v12', cause: 'release', why: 'the raid goal of #12 never ends', known: null, fixed: false, numbers: null };
+const oldBug: Finding = { id: 'F2', severity: 'important', title: 'Escorts to a territory never end', evidence: 'v722 from 1259', cause: 'old', why: 'the baseline log has the same unpaid escort at 1300', known: null, fixed: false, numbers: null };
 const review = (over: Partial<Review> = {}): string => JSON.stringify({
   verdict: 'clean', summary: 'A full run.', drama: 'A raid at turn 300.', observations: ['trade at turn 20'], suspected: [], limitations: ['far mode'],
   findings: [], fixes: [], explanations: { death: null, quiet: null }, blocker: null, ...over,
@@ -30,23 +30,22 @@ const review = (over: Partial<Review> = {}): string => JSON.stringify({
 const fixed = (commit: string): Turn => ({ review: review({ verdict: 'fixed', findings: [releaseBug], fixes: ['end the raid goal after a lost target'] }), commit });
 const clean: Turn = { review: review(), report: '## Run\nAll good.' };
 
-type Turn = { review?: string; report?: string; commit?: string };
+type Turn = { review?: string; report?: string; commit?: string; tidy?: boolean };
 type Run = {
   f: Fake; shells: { clone: string; script: string; env: Record<string, string>; mounts: Record<string, string>; pin?: Pin }[]; prompts: string[]; sessions: AgentRun['session'][];
-  releaseHead: string; cloneHead: string; turns: Turn[]; checkFailures: number; dirty: string; pushFails: boolean; mainMerged: boolean;
-  passedAncestor: boolean; changed: string[]; suites: string[]; failingSuites: string[]; replaced: string[];
+  devTip: string; cloneHead: string; turns: Turn[]; checkFailures: number; dirty: string; passedAncestor: boolean; onMain: string[]; changed: string[]; suites: string[]; failingSuites: string[]; replaced: string[];
 };
 
 const harnessRuns = (run: Run) => run.shells.filter((shell) => shell.script.includes('progression:playthrough'));
 const checkRuns = (run: Run) => run.shells.filter((shell) => shell.script.includes('mkdir -p tmp'));
 const POOLS = { cpuLight: 0.125, cpuImplement: 0.375, cpuTest: 0.5, vitestWorkersImplement: 2, vitestWorkersTest: 4 };
 
-function setup(state: Partial<ReleaseState> = {}, start = 'abc1234'): Run {
+function setup(state: Partial<ReleaseState> = {}, start = 'abc1234', merges: IssueMerge[] = []): Run {
   const f = fake();
   f.ctx.cfg = { ...f.ctx.cfg, designModel: 'opus', playtestTurns: 100, playtestRuns: 3, playtestReviewRepairs: 2, gpu: true, suiteStartMinutes: 15, suitePollSeconds: 0, ...POOLS };
-  writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, ...state, playtest: { ...RELEASE.playtest, ...state.playtest } } });
+  writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), pendingPlaytest: 'now', devMerges: merges, release: { ...RELEASE, ...state, playtest: { ...RELEASE.playtest, ...state.playtest } } });
   const run: Run = {
-    f, shells: [], prompts: [], sessions: [], releaseHead: start, cloneHead: start, turns: [], checkFailures: 0, dirty: '', pushFails: false, mainMerged: true, passedAncestor: true,
+    f, shells: [], prompts: [], sessions: [], devTip: start, cloneHead: start, turns: [], checkFailures: 0, dirty: '', passedAncestor: true, onMain: [],
     changed: ['game/src/sim/raid.ts'], suites: [], failingSuites: [], replaced: [],
   };
   f.ctx.github.comments = async () => [];
@@ -62,20 +61,12 @@ function setup(state: Partial<ReleaseState> = {}, start = 'abc1234'): Run {
     if (args.includes('rev-parse')) return { code: 0, stdout: `${start}0123456789abcdef\n`, stderr: '' };
     return { code: 0, stdout: args.includes('status') ? run.dirty : '', stderr: '' };
   };
-  f.ctx.repo.headHash = async (name: string) => (name === BRANCH ? run.releaseHead : name);
+  f.ctx.repo.headHash = async (name: string) => (name === 'dev' ? run.devTip : name);
   f.ctx.repo.forkPoint = async () => 'main001';
   f.ctx.repo.fetchFromWork = async () => run.cloneHead;
-  f.ctx.repo.isMerged = async (base: string) => (base === 'main' ? run.mainMerged : run.passedAncestor);
+  f.ctx.repo.isMerged = async (commit: string, into: string) => (into === 'main' ? run.onMain.includes(commit) : run.passedAncestor);
   f.ctx.repo.changedFiles = async () => run.changed;
   f.ctx.repo.changedInWork = async () => run.changed;
-  f.ctx.repo.push = async (commit: string, branch: string) => {
-    f.calls.push(`push ${commit} ${branch}`);
-    if (run.pushFails) {
-      run.releaseHead = 'moved01';
-      throw new Error('rejected');
-    }
-    run.releaseHead = commit;
-  };
   f.ctx.github.candidates = async () => [{ number: 40, title: 'Old raider loop' } as Issue];
   f.ctx.container.shell = async (kind: ShellKind, clone: string, script: string, _log: string, env: Record<string, string> = {}, mounts: Record<string, string> = {}, _limit?: number, pin?: Pin) => {
     if (kind !== 'checks') throw new Error(`playtest shells are checks, not ${kind}`);
@@ -97,6 +88,7 @@ function setup(state: Partial<ReleaseState> = {}, start = 'abc1234'): Run {
     if (turn.review) writeFileSync(join(HOME, 'playtest.json'), turn.review);
     if (turn.report) writeFileSync(join(HOME, 'playtest.md'), turn.report);
     if (turn.commit) run.cloneHead = turn.commit;
+    if (turn.tidy) run.dirty = '';
     return '';
   };
   return run;
@@ -109,6 +101,7 @@ const release = (f: Fake): ReleaseState => {
 };
 const comments = (f: Fake): string[] => f.calls.filter((call) => call.startsWith('comment'));
 const pushes = (f: Fake): string[] => f.calls.filter((call) => call.startsWith('push'));
+const keptClone = (): string => join(ROOT, 'clone-backups', readdirSync(join(ROOT, 'clone-backups')).find((name) => name.startsWith('playtest-'))!);
 
 beforeEach(reset);
 
@@ -122,7 +115,7 @@ describe('playtest', () => {
       [CLONE, stepScript('Playing the release seed', [['npm ci', 'npm ci'], ['playtest', `npm run progression:playthrough -- --seed ${SEED} --turns 100 --sha abc1234 --out .factory/playtest/log.jsonl`]])],
       [join(ROOT, 'work', 'release-baseline'), stepScript('Playing the baseline seed', [['npm ci', 'npm ci'], ['playtest', `npm run progression:playthrough -- --seed ${SEED} --turns 100 --sha main001 --out .factory/playtest/log.jsonl`]])],
     ]);
-    expect(run.f.calls).toContain(`prepare ${BRANCH}`);
+    expect(run.f.calls).toContain(`prepare dev`);
     expect(readFileSync(join(HOME, 'playtest', 'baseline.jsonl'), 'utf8')).toContain('"sha":"main001"');
     expect(run.prompts[0]).toContain(`seed ${SEED}, 100 turns`);
     expect(run.prompts[0]).toContain('commit abc1234');
@@ -130,18 +123,27 @@ describe('playtest', () => {
     expect(readFileSync(join(HOME, 'open-bugs.md'), 'utf8')).toContain('- #40 Old raider loop');
     expect(checkRuns(run)).toEqual([]);
     expect(pushes(run.f)).toEqual([]);
-    expect(release(run.f).playtest).toMatchObject({ runs: 1, passed: 'abc1234', blocked: null });
+    expect(release(run.f).playtest).toMatchObject({ runs: 1, passed: { sha: 'abc1234', features: [] }, blocked: null });
     expect(comments(run.f)).toEqual([expect.stringContaining('Release playtest: clean after 1 plays. Seed 20261007, 100 turns, from commit abc1234 to abc1234.\nThe candidate builds from abc1234.')]);
     expect(comments(run.f)[0]).toContain('All good.');
   });
 
   it('writes the features of the release with their issue text for the agent', async () => {
-    const run = setup({ merges: [issueMerge(5, 'Salvage chain'), issueMerge(6, 'Hauler chassis')] });
+    const run = setup({}, 'abc1234', [issueMerge(5, 'Salvage chain'), issueMerge(6, 'Hauler chassis')]);
     run.turns = [{ review: review() }];
     await playtest(run.f.ctx, 11);
     const text = readFileSync(join(HOME, 'release-features.md'), 'utf8');
     expect(text).toContain('#5 Salvage chain');
     expect(text).toContain('#6 Hauler chassis');
+  });
+
+  it('leaves out a dev merge that main already holds, so a change shipped by hand is never listed again', async () => {
+    const shipped = issueMerge(5, 'Salvage chain');
+    const run = setup({}, 'abc1234', [shipped, issueMerge(6, 'Hauler chassis')]);
+    run.onMain = [shipped.sha];
+    run.turns = [clean];
+    await playtest(run.f.ctx, 11);
+    expect(release(run.f).playtest.passed?.features.map((merge) => merge.issue)).toEqual([6]);
   });
 
   it('runs the full suite of the release head on GitHub Actions and none on the laptop', async () => {
@@ -171,9 +173,10 @@ describe('playtest', () => {
     expect(run.prompts[1]).toContain('The factory checks failed on abc1234');
     expect(readFileSync(join(HOME, 'check-failure.md'), 'utf8')).toContain('FAIL src/sim/raid.test.ts at abc1234');
     expect(run.suites).toEqual(['abc1234', 'fix0001']);
-    expect(run.replaced).toEqual([`fix0001 ${SUITE_BRANCH}`]);
-    expect(pushes(run.f)).toEqual([`push fix0001 ${BRANCH}`]);
-    expect(release(run.f).playtest).toMatchObject({ runs: 2, passed: 'fix0001' });
+    expect(run.replaced).toEqual([`fix0001 ${SUITE_BRANCH}`, `fix0001 ${FIXES_BRANCH}`]);
+    expect(run.replaced.filter((entry) => entry.endsWith(FIXES_BRANCH))).toEqual([`fix0001 ${FIXES_BRANCH}`]);
+    expect(release(run.f).playtest.fixes).toBe('fix0001');
+    expect(release(run.f).playtest).toMatchObject({ runs: 2, passed: { sha: 'fix0001', features: [] } });
   });
 
   it('fails as a machine failure when the suite cannot run on GitHub Actions', async () => {
@@ -185,12 +188,12 @@ describe('playtest', () => {
   });
 
   it('plays the last commit the release passed as the baseline once it has one', async () => {
-    const run = setup({ playtest: { ...RELEASE.playtest, runs: 3, passed: 'old0001' } });
+    const run = setup({ playtest: { ...RELEASE.playtest, runs: 3, passed: { sha: 'old0001', features: [] } } });
     run.turns = [clean];
     await playtest(run.f.ctx, 11);
     expect(harnessRuns(run)[1].script).toContain('--sha old0001');
     expect(run.f.calls).toContain(`run -C ${join(ROOT, 'work', 'release-baseline')} checkout --quiet --detach old0001`);
-    expect(run.prompts[0]).toContain('old0001, the last commit this release passed');
+    expect(run.prompts[0]).toContain('old0001, the last commit a playtest passed');
   });
 
   it('replays the seed on the fixes in the same session, checks them, pushes the reviewed commit and passes it', async () => {
@@ -207,20 +210,21 @@ describe('playtest', () => {
     expect(checkRuns(run)[0].script).toContain('npm run playtest -- --no-fps-gate');
     expect(checkRuns(run)[0].script).not.toContain('test:cached');
     expect(run.suites).toEqual(['abc1234', 'fix0001']);
-    expect(run.replaced).toEqual([`fix0001 ${SUITE_BRANCH}`]);
-    expect(pushes(run.f)).toEqual([`push fix0001 ${BRANCH}`]);
+    expect(run.replaced).toEqual([`fix0001 ${SUITE_BRANCH}`, `fix0001 ${FIXES_BRANCH}`]);
+    expect(run.replaced.filter((entry) => entry.endsWith(FIXES_BRANCH))).toEqual([`fix0001 ${FIXES_BRANCH}`]);
+    expect(release(run.f).playtest.fixes).toBe('fix0001');
     expect(run.f.created).toEqual([]);
-    expect(release(run.f).playtest).toMatchObject({ runs: 2, passed: 'fix0001', blocked: null });
+    expect(release(run.f).playtest).toMatchObject({ runs: 2, passed: { sha: 'fix0001', features: [] }, blocked: null });
     expect(comments(run.f)[0]).toContain('- play 1 at abc1234: 1 fixes to replay. Fixes: end the raid goal after a lost target');
     expect(comments(run.f)[0]).toContain('- play 2 at fix0001: clean');
-    expect(comments(run.f)[0]).toContain('The factory checks passed on the fixes, and they are on the release. The candidate builds from fix0001.');
+    expect(comments(run.f)[0]).toContain('The factory checks passed on the fixes. They are on ' + FIXES_BRANCH + ', and the merge job lands them on dev. The candidate builds from fix0001.');
   });
 
   it('passes a replay whose review keeps the fixed release finding marked fixed, and blocks a first play that marks one fixed', async () => {
     const run = setup();
     run.turns = [fixed('fix0001'), { review: review({ findings: [{ ...releaseBug, fixed: true }] }) }];
     await playtest(run.f.ctx, 11);
-    expect(release(run.f).playtest).toMatchObject({ runs: 2, passed: 'fix0001', blocked: null });
+    expect(release(run.f).playtest).toMatchObject({ runs: 2, passed: { sha: 'fix0001', features: [] }, blocked: null });
     const first = setup();
     first.turns = [{ review: review({ findings: [{ ...releaseBug, fixed: true }] }) }];
     await expect(playtest(first.f.ctx, 11)).rejects.toThrow('The review marks findings fixed, but no earlier round of this job committed a fix.');
@@ -256,8 +260,18 @@ describe('playtest', () => {
     expect(run.f.created).toEqual([{ title: 'Escorts to a territory never end', body: expect.stringContaining('The baseline at main001 has it too'), labels: ['bug'] }]);
     expect(run.f.created[0].body).toContain('the baseline log has the same unpaid escort at 1300');
     expect(readFileSync(join(HOME, 'open-bugs.md'), 'utf8')).toContain('- #11 Escorts to a territory never end');
-    expect(release(run.f).playtest.passed).toBe('abc1234');
+    expect(release(run.f).playtest.passed?.sha).toBe('abc1234');
     expect(comments(run.f)[0]).toContain('Old bugs opened: #11');
+  });
+
+  it('opens a dev bug with the numbers for a balance finding of either cause, passes the release and lists the numbers in the report', async () => {
+    const run = setup();
+    const shift: Finding = { id: 'F5', severity: 'balance', title: 'Raid survival fell', evidence: 'raids at turns 300 to 900', cause: 'release', why: 'the raid goal of #12 changed', known: null, fixed: false, numbers: { head: 'survived 31 of 50 raids', baseline: 'survived 44 of 50 raids' } };
+    run.turns = [{ review: review({ findings: [shift, { ...shift, id: 'F6', title: 'Known shift', known: 41 }] }) }];
+    await playtest(run.f.ctx, 11);
+    expect(run.f.created).toEqual([{ title: 'Raid survival fell', body: expect.stringContaining('On the head abc1234: survived 31 of 50 raids\nOn the baseline main001: survived 44 of 50 raids'), labels: ['bug'] }]);
+    expect(release(run.f).playtest.passed?.sha).toBe('abc1234');
+    expect(comments(run.f)[0]).toContain('Raid survival fell: head survived 31 of 50 raids. Baseline survived 44 of 50 raids.');
   });
 
   it('opens an old bug once, also when a replay lists it again without its new number', async () => {
@@ -276,8 +290,9 @@ describe('playtest', () => {
     expect(existsSync(join(HOME, 'check-failure.md'))).toBe(true);
     expect(harnessRuns(run).map((shell) => /--sha (\S+)/.exec(shell.script)?.[1])).toEqual(['abc1234', 'main001', 'fix0001', 'fix0002']);
     expect(checkRuns(run)).toHaveLength(2);
-    expect(pushes(run.f)).toEqual([`push fix0002 ${BRANCH}`]);
-    expect(release(run.f).playtest).toMatchObject({ runs: 3, passed: 'fix0002' });
+    expect(run.replaced.filter((entry) => entry.endsWith(FIXES_BRANCH))).toEqual([`fix0002 ${FIXES_BRANCH}`]);
+    expect(release(run.f).playtest.fixes).toBe('fix0002');
+    expect(release(run.f).playtest).toMatchObject({ runs: 3, passed: { sha: 'fix0002', features: [] } });
   });
 
   it('sends uncommitted changes back to the agent instead of checking them', async () => {
@@ -285,7 +300,7 @@ describe('playtest', () => {
     run.dirty = ' M game/src/a.ts';
     run.turns = [fixed('fix0001'), clean, { commit: 'fix0001' }];
     await expect(playtest(run.f.ctx, 11)).rejects.toThrow('the agent committed no fix for them');
-    expect(readFileSync(join(HOME, 'check-failure.md'), 'utf8')).toContain('not committed');
+    expect(readFileSync(join(keptClone(), 'game', '.factory', 'check-failure.md'), 'utf8')).toContain('not committed');
     expect(checkRuns(run)).toEqual([]);
     expect(pushes(run.f)).toEqual([]);
   });
@@ -301,36 +316,12 @@ describe('playtest', () => {
     expect(run.suites).toEqual(['abc1234']);
   });
 
-  it('merges the fixes into a release that moved during the job and passes nothing, so the new head plays next', async () => {
-    const run = setup();
-    run.pushFails = true;
-    run.turns = [fixed('fix0001'), clean];
-    await playtest(run.f.ctx, 11);
-    expect(run.f.calls).toContain(`merge fix0001 ${BRANCH}`);
-    expect(release(run.f).playtest).toMatchObject({ passed: null, blocked: null });
-    expect(comments(run.f)[0]).toContain('The release moved during the playtest');
-  });
-
-  it('never merges main into the release, so main waits for the ship', async () => {
-    const run = setup();
-    run.mainMerged = false;
-    run.turns = [clean];
-    await playtest(run.f.ctx, 11);
-    expect(run.f.calls.some((call) => call.startsWith('merge main'))).toBe(false);
-    expect(release(run.f).playtest).toMatchObject({ passed: 'abc1234' });
-  });
-
-  it('passes nothing when the release moved during a clean play, so the tick plays the new head', async () => {
+  it('never merges main into dev, so main waits for the ship', async () => {
     const run = setup();
     run.turns = [clean];
-    const agent = run.f.ctx.container.agent;
-    run.f.ctx.container.agent = async (agentRun: AgentRun) => {
-      run.releaseHead = 'def5678';
-      return agent(agentRun);
-    };
     await playtest(run.f.ctx, 11);
-    expect(release(run.f).playtest).toMatchObject({ runs: 1, passed: null, blocked: null });
-    expect(comments(run.f)[0]).toContain('The release moved to def5678 during the playtest');
+    expect(run.f.calls.some((call) => call.startsWith('merge'))).toBe(false);
+    expect(release(run.f).playtest).toMatchObject({ passed: { sha: 'abc1234', features: [] } });
   });
 
   it('blocks the release and fails on a blocked verdict, with the report on the tracking issue', async () => {
@@ -377,15 +368,13 @@ describe('playtest', () => {
     expect(release(run.f).playtest.passed).toBeNull();
   });
 
-  it('refuses while a release task is open, a recorded one included, or the playtest is blocked, and plays nothing', async () => {
-    const open = setup();
-    open.f.cards = [{ itemId: 'i', issue: 30, column: 'Testing', labels: ['release-task'] }];
-    await expect(playtest(open.f.ctx, 11)).rejects.toThrow('Release tasks are still open: #30');
-    const recorded = setup({ tasks: [31] });
-    await expect(playtest(recorded.f.ctx, 11)).rejects.toThrow('Release tasks are still open: #31');
+  it('refuses a blocked playtest, and fixes that dev does not hold yet, and plays nothing', async () => {
     const blocked = setup({ playtest: { ...RELEASE.playtest, blocked: { sha: 'abc1234', reason: 'r' } } });
     await expect(playtest(blocked.f.ctx, 11)).rejects.toThrow('blocked at abc1234');
-    expect([...open.shells, ...recorded.shells, ...blocked.shells]).toEqual([]);
+    const waiting = setup({ playtest: { ...RELEASE.playtest, fixes: 'fix0009' } });
+    waiting.passedAncestor = false;
+    await expect(playtest(waiting.f.ctx, 11)).rejects.toThrow('The playtest fixes at fix0009 are not on dev yet');
+    expect([...blocked.shells, ...waiting.shells]).toEqual([]);
   });
 
   it('spends the play and fails when the harness or the agent wrote nothing', async () => {
@@ -407,7 +396,7 @@ describe('playtest', () => {
     expect(run.prompts[1]).toContain('This is play 2 of at most 3 in this job.');
     const history = readFileSync(join(HOME, 'playtest-history.md'), 'utf8');
     expect(history).toContain('# Plays of earlier jobs on this release\nTheir run numbers count across the release. They count toward no play limit of this job.\n- run 1: no record');
-    expect(release(run.f).playtest).toMatchObject({ runs: 5, passed: 'fix0001' });
+    expect(release(run.f).playtest).toMatchObject({ runs: 5, passed: { sha: 'fix0001', features: [] } });
   });
 
   it('writes the review rules with the baseline for the agent to read again before it writes the review', async () => {
@@ -433,30 +422,22 @@ describe('playtest', () => {
     };
     await playtest(run.f.ctx, 11);
     expect(run.prompts).toHaveLength(2);
-    expect(run.prompts[1]).toContain('- The fixes list holds an item that is not a string\n- Finding F1 has severity medium, not important or minor\n- Finding F1 has fixed abc, not true or false');
-    expect(run.prompts[1]).toContain('Never pick `minor` or `old` only to make the file read.');
+    expect(run.prompts[1]).toContain('- The fixes list holds an item that is not a string\n- Finding F1 has severity medium, not important, minor or balance\n- Finding F1 has fixed abc, not true or false');
+    expect(run.prompts[1]).toContain('Never pick `minor`, `balance` or `old` only to make the file read.');
     expect(run.prompts[1]).toContain(readFileSync(join(HOME, 'playtest-review.md'), 'utf8').trim());
     expect(onDisk).toEqual([broken]);
     expect(run.sessions[1]).toEqual({ ...run.sessions[0], resume: true });
     expect(harnessRuns(run)).toHaveLength(2);
-    expect(release(run.f).playtest).toMatchObject({ runs: 1, passed: 'abc1234', blocked: null });
+    expect(release(run.f).playtest).toMatchObject({ runs: 1, passed: { sha: 'abc1234', features: [] }, blocked: null });
   });
 
   it('fails with every error left when the review still breaks its rules after the repairs, and spends no other play', async () => {
     const run = setup();
     run.turns = [{ review: review({ findings: [{ ...releaseBug, severity: 'medium' as 'minor', cause: 'both' as 'old' }] }) }, {}, {}];
-    await expect(playtest(run.f.ctx, 11)).rejects.toThrow('The playtest review still breaks its rules after 2 repairs:\nFinding F1 has severity medium, not important or minor\nFinding F1 has cause both, not release or old');
+    await expect(playtest(run.f.ctx, 11)).rejects.toThrow('The playtest review still breaks its rules after 2 repairs:\nFinding F1 has severity medium, not important, minor or balance\nFinding F1 has cause both, not release or old');
     expect(run.prompts).toHaveLength(3);
     expect(harnessRuns(run)).toHaveLength(2);
     expect(release(run.f).playtest).toMatchObject({ runs: 1, passed: null });
-  });
-
-  it('plays nothing and spends no play when the clone is not at the release head it read, so the audit never names the wrong commit', async () => {
-    const run = setup();
-    run.releaseHead = 'def5678';
-    await playtest(run.f.ctx, 11);
-    expect(run.shells).toEqual([]);
-    expect(release(run.f).playtest).toMatchObject({ runs: 0, passed: null, blocked: null });
   });
 
   it('refuses an issue that is not the tracking issue', async () => {
@@ -464,11 +445,158 @@ describe('playtest', () => {
     await expect(playtest(run.f.ctx, 12)).rejects.toThrow('not the tracking issue');
   });
   it('plays a new head after a pass in full', async () => {
-    const run = setup({ playtest: { ...RELEASE.playtest, runs: 6, passed: 'old0001' } });
+    const run = setup({ playtest: { ...RELEASE.playtest, runs: 6, passed: { sha: 'old0001', features: [] } } });
     run.turns = [clean];
     await playtest(run.f.ctx, 11);
     expect(run.suites).toEqual(['abc1234']);
     expect(harnessRuns(run)).toHaveLength(2);
-    expect(release(run.f).playtest).toMatchObject({ runs: 7, passed: 'abc1234' });
+    expect(release(run.f).playtest).toMatchObject({ runs: 7, passed: { sha: 'abc1234', features: [] } });
+  });
+});
+
+const WORK = { start: 'abc1234', baseline: 'main001', features: [issueMerge(5, 'Salvage chain')], session: 'sess-1', plays: 1 };
+const keptPlaytest = { ...PLAYTEST, runs: 2, lastStart: { sha: 'abc1234', at: '2026-10-06T10:00:00.000Z' }, work: WORK };
+
+function keepClone(run: Run, transcript = true): void {
+  mkdirSync(join(HOME, 'playtest'), { recursive: true });
+  writeFileSync(join(HOME, 'playtest', 'baseline.jsonl'), 'baseline from the first play');
+  if (!transcript) return;
+  mkdirSync(join(ROOT, 'sessions', 'playtest', 'project'), { recursive: true });
+  writeFileSync(join(ROOT, 'sessions', 'playtest', 'project', 'sess-1.jsonl'), '{}');
+  run.f.calls.length = 0;
+}
+
+describe('playtest on the dev tip with kept work', () => {
+  it('starts on the dev tip, stores the start, the baseline and the features it contains, and clears the order', async () => {
+    const merges = [issueMerge(5, 'Salvage chain'), issueMerge(6, 'Hauler chassis', { reverted: ['rev1'] })];
+    const run = setup({ removed: [7] }, 'abc1234', [...merges, issueMerge(7, 'Removed card')]);
+    run.turns = [clean];
+    await playtest(run.f.ctx, 11);
+    const state = readState(run.f.ctx.statePath);
+    expect(state.pendingPlaytest).toBeNull();
+    expect(state.release?.playtest).toMatchObject({ lastStart: { sha: 'abc1234', at: run.f.ctx.now().toISOString() }, passed: { sha: 'abc1234', features: [merges[0]] }, fixes: null, work: null, decision: null });
+    expect(run.f.calls).toContain('run -C ' + CLONE + ' checkout --quiet -B ' + FIXES_BRANCH + ' abc1234');
+    expect(run.replaced).toEqual([]);
+  });
+
+  it('keeps the features out of a start that does not contain them', async () => {
+    const run = setup({}, 'abc1234', [issueMerge(5, 'Salvage chain')]);
+    run.passedAncestor = false;
+    run.turns = [clean];
+    await playtest(run.f.ctx, 11);
+    expect(release(run.f).playtest.passed).toEqual({ sha: 'abc1234', features: [] });
+  });
+
+  it('keeps the clone and the record when the job dies, and the next job resumes both without a new play of the first kind', async () => {
+    const first = setup({}, 'abc1234', [WORK.features[0]]);
+    first.f.ctx.container.shell = async (_kind: ShellKind, clone: string, script: string) => {
+      if (script.includes('progression:playthrough')) {
+        const log = join(clone, 'game', '.factory', 'playtest', 'log.jsonl');
+        mkdirSync(join(log, '..'), { recursive: true });
+        writeFileSync(log, logText({}, { seed: SEED, turns: 100, sha: /--sha (\S+)/.exec(script)?.[1] ?? '' }));
+      }
+    };
+    first.f.ctx.container.agent = async () => { throw new Error('the container died'); };
+    await expect(playtest(first.f.ctx, 11)).rejects.toThrow('the container died');
+    const died = release(first.f).playtest;
+    expect(died.work).toMatchObject({ start: 'abc1234', baseline: 'main001', plays: 1, features: [WORK.features[0]] });
+    expect(existsSync(CLONE)).toBe(true);
+    const sessionId = died.work!.session;
+
+    const second = setup({ playtest: died }, 'def5678', [WORK.features[0]]);
+    second.f.ctx.container.shell = first.f.ctx.container.shell;
+    second.cloneHead = 'abc1234';
+    second.f.calls.length = 0;
+    second.turns = [{}, clean];
+    await playtest(second.f.ctx, 11);
+    expect(second.f.calls.some((call) => call.startsWith('prepare'))).toBe(false);
+    expect(second.sessions.map((session) => session?.id)).toEqual([sessionId, sessionId]);
+    expect(second.prompts[0]).toContain('You are back in your own session');
+    expect(second.prompts[1]).toContain('This is play 2 of at most 3 in this job.');
+    expect(release(second.f).playtest).toMatchObject({ runs: 2, passed: { sha: 'abc1234', features: [WORK.features[0]] }, work: null });
+  });
+
+  it('resumes the clone, its outputs and its session, and plays the head only', async () => {
+    const run = setup({ playtest: keptPlaytest }, 'abc1234');
+    run.devTip = 'def5678';
+    keepClone(run);
+    run.turns = [{}, clean];
+    await playtest(run.f.ctx, 11);
+    expect(run.f.calls.some((call) => call.startsWith('prepare'))).toBe(false);
+    expect(run.sessions[0]).toMatchObject({ id: 'sess-1', resume: true });
+    expect(run.prompts[0]).toContain('1 of at most 3 plays are spent');
+    expect(run.prompts[0]).toContain('This job plays 2 more.');
+    expect(harnessRuns(run).map((shell) => /--sha (\S+)/.exec(shell.script)?.[1])).toEqual(['abc1234']);
+    expect(readFileSync(join(HOME, 'playtest', 'baseline.jsonl'), 'utf8')).toBe('baseline from the first play');
+    expect(readFileSync(join(HOME, 'release-features.md'), 'utf8')).toContain('#5 Salvage chain');
+    expect(release(run.f).playtest).toMatchObject({ lastStart: keptPlaytest.lastStart, passed: { sha: 'abc1234', features: WORK.features }, work: null });
+    expect(existsSync(join(ROOT, 'sessions', 'playtest'))).toBe(false);
+  });
+
+  it('counts plays across the resumed jobs, so the last play of the record can only pass or block', async () => {
+    const run = setup({ playtest: { ...keptPlaytest, work: { ...WORK, plays: 2 } } }, 'abc1234');
+    keepClone(run);
+    run.turns = [{}, fixed('fix0001')];
+    await expect(playtest(run.f.ctx, 11)).rejects.toThrow('The last play left fixes that no play checked');
+    expect(harnessRuns(run)).toHaveLength(1);
+    expect(run.prompts[1]).toContain('This is play 3 of at most 3 in this job.');
+    expect(run.replaced).toEqual([]);
+  });
+
+  it('blocks at once when the earlier jobs spent every play, and plays nothing', async () => {
+    const run = setup({ playtest: { ...keptPlaytest, work: { ...WORK, plays: 3 } } }, 'abc1234');
+    keepClone(run);
+    await expect(playtest(run.f.ctx, 11)).rejects.toThrow('spent all 3 plays and died before the end');
+    expect(run.shells).toEqual([]);
+    expect(run.prompts).toEqual([]);
+    expect(release(run.f).playtest).toMatchObject({ blocked: { sha: 'abc1234' }, work: null });
+  });
+
+  it('hands the dirty clone to the agent first and refuses to play a tree that is still dirty', async () => {
+    const run = setup({ playtest: keptPlaytest }, 'abc1234');
+    keepClone(run);
+    run.dirty = ' M game/src/half.ts';
+    run.turns = [{ tidy: true }, clean];
+    await playtest(run.f.ctx, 11);
+    expect(run.prompts[0]).toContain(' M game/src/half.ts');
+    const stuck = setup({ playtest: keptPlaytest }, 'abc1234');
+    keepClone(stuck);
+    stuck.dirty = ' M game/src/half.ts';
+    stuck.turns = [{}];
+    await expect(playtest(stuck.f.ctx, 11)).rejects.toThrow('left uncommitted changes in the resumed playtest clone');
+    expect(harnessRuns(stuck)).toEqual([]);
+    expect(release(stuck.f).playtest.work).toEqual(WORK);
+  });
+
+  it('moves a kept clone of another baseline to the clone backups and starts a fresh record and session', async () => {
+    const run = setup({ playtest: { ...keptPlaytest, work: { ...WORK, baseline: 'older00' } } }, 'abc1234');
+    keepClone(run);
+    run.turns = [clean];
+    await playtest(run.f.ctx, 11);
+    expect(readdirSync(join(ROOT, 'clone-backups')).some((name) => name.startsWith('playtest-'))).toBe(true);
+    expect(run.f.calls.some((call) => call.startsWith('prepare'))).toBe(true);
+    expect(run.sessions[0]).toMatchObject({ resume: false });
+    expect(run.sessions[0]!.id).not.toBe('sess-1');
+    expect(harnessRuns(run)).toHaveLength(2);
+  });
+
+  it('sets a blocked clone aside with its commits and drops the record and the session', async () => {
+    const run = setup();
+    run.turns = [{ review: review({ verdict: 'blocked', blocker: 'a design call' }) }];
+    await expect(playtest(run.f.ctx, 11)).rejects.toThrow('Release playtest blocked');
+    expect(release(run.f).playtest.work).toBeNull();
+    expect(existsSync(CLONE)).toBe(false);
+    expect(readdirSync(join(ROOT, 'clone-backups')).some((name) => name.startsWith('playtest-'))).toBe(true);
+  });
+
+  it('shows the agent only the newest decision with its author', async () => {
+    const decision = { by: 'Boris', at: '2026-10-07T09:00:00.000Z', text: 'Raiders may chase at night.' };
+    const run = setup({ playtest: { ...PLAYTEST, decision } });
+    run.turns = [clean];
+    await playtest(run.f.ctx, 11);
+    const history = readFileSync(join(HOME, 'playtest-history.md'), 'utf8');
+    expect(history).toContain('# Decision for this playtest\nWritten by Boris at 2026-10-07T09:00:00.000Z:\nRaiders may chase at night.');
+    expect(history).not.toContain('Decisions of the committee');
+    expect(release(run.f).playtest.decision).toBeNull();
   });
 });
