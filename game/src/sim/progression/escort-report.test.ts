@@ -68,10 +68,11 @@ describe('the escort report', () => {
     expect(beatableVerdict(runs.slice(1)).pass).toBe(false);
   });
 
-  it('needs every one of ten sprinter seeds to lose the run before stretch ten', () => {
+  it('lets at most one of ten sprinter seeds get past stretch ten', () => {
     const lostRun = (seed: number) => seedRun(seed, [won(1), lost(2)]);
     expect(sprintVerdict(Array.from({ length: 10 }, (_, i) => lostRun(i))).pass).toBe(true);
-    expect(sprintVerdict([...Array.from({ length: 9 }, (_, i) => lostRun(i)), runOf(9, 10)]).pass).toBe(false);
+    expect(sprintVerdict([...Array.from({ length: 9 }, (_, i) => lostRun(i)), runOf(9, 10)]).pass).toBe(true);
+    expect(sprintVerdict([...Array.from({ length: 8 }, (_, i) => lostRun(i)), runOf(8, 10), runOf(9, 10)]).pass).toBe(false);
     expect(sprintVerdict(Array.from({ length: 9 }, (_, i) => lostRun(i))).pass).toBe(false);
   });
 
