@@ -3,7 +3,6 @@ import { sustainedDamage } from "../data/parts";
 import { RULES } from "../data/rules";
 import { PHYSICS } from "../data/physics";
 import { REGION } from "../data/region";
-import { CELL } from "./nav/layer";
 import { isKnockedOut } from "./defeat";
 import { isNear } from "./far";
 import { thinksThisTurn } from "./fidelity";
@@ -545,25 +544,21 @@ function sweptLine(world: World, v: Vehicle, x: Vehicle, heading: number, reach:
 
 function lines(world: World, x: Vehicle, reach: number, width: number): number[] {
   if (!x.order || x.order.kind === "brake") return [x.heading];
-  const turn = angleDiff(x.heading, bearing(x.pos, aimOf(world, x, x.order.dest, Math.max(reach, CELL))));
+  const turn = angleDiff(x.heading, bearing(x.pos, aimOf(world, x, x.order.dest)));
   const count = Math.ceil((Math.abs(turn) * reach) / width);
   return Array.from({ length: count + 1 }, (_, i) => x.heading + (turn * i) / Math.max(1, count));
 }
 
-type Aim = { world: World; turn: number; from: Vec; dest: Vec; window: number; at: Vec };
+type Aim = { world: World; turn: number; from: Vec; dest: Vec; at: Vec };
 
 const AIMS = new WeakMap<Vehicle, Aim>();
 
-function aimOf(world: World, x: Vehicle, dest: Vec, window: number): Vec {
+function aimOf(world: World, x: Vehicle, dest: Vec): Vec {
   const kept = AIMS.get(x);
-  if (kept && sameAim(kept, world, x, dest, window)) return kept.at;
-  const at = aheadGoal(world, x.pos, dest, vehicleRadius(x), [], x, window);
-  AIMS.set(x, { world, turn: world.turn, from: { ...x.pos }, dest: { ...dest }, window, at });
+  if (kept && kept.world === world && kept.turn === world.turn && samePoint(kept.from, x.pos) && samePoint(kept.dest, dest)) return kept.at;
+  const at = aheadGoal(world, x.pos, dest, vehicleRadius(x), [], x, REGION.navigation.farWindow);
+  AIMS.set(x, { world, turn: world.turn, from: { ...x.pos }, dest: { ...dest }, at });
   return at;
-}
-
-function sameAim(kept: Aim, world: World, x: Vehicle, dest: Vec, window: number): boolean {
-  return kept.world === world && kept.turn === world.turn && kept.window === window && samePoint(kept.from, x.pos) && samePoint(kept.dest, dest);
 }
 
 function samePoint(a: Vec, b: Vec): boolean {
