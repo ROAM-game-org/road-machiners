@@ -34,6 +34,7 @@ digraph hardening {
   HM -> MM [label="docs only:\nno session"];
   XO -> MM [label="green suite on\nthe card's own work"];
   XO -> HM [label="no green suite"];
+  MM -> HM [label="a waiting card with no\ngreen suite on its own work"];
   MC -> XS [label="fix budget spent, timeout,\nsuite machine failure,\nonly tests the base fails too\nor job death"];
   MP -> XN;
   HH -> CU [label="waits in Merging"];
