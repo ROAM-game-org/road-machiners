@@ -1,6 +1,8 @@
 import { cardFlow, moveCard } from '../card-events';
 import { readState, updateState } from '../state';
 import { BRANCH, STUCK_LABEL, type Card, type Ctx, type FactoryState, type KeptApproval } from '../types';
+import { requireSettledSuite } from './card-suite';
+import { baseBranchOf } from './common';
 
 export function keptApprovalOf(ctx: Ctx, issue: number): KeptApproval | null {
   return readState(ctx.statePath).keptApprovals[String(issue)] ?? null;
@@ -41,6 +43,7 @@ export async function stillApproved(ctx: Ctx, issue: number): Promise<KeptApprov
 }
 
 export async function requeueApproved(ctx: Ctx, issue: number, approval: KeptApproval, build: string): Promise<void> {
+  await requireSettledSuite(ctx, issue, await baseBranchOf(ctx, issue), build);
   const key = String(issue);
   updateState(ctx.statePath, (state) => {
     const kept = state.keptApprovals[key] ?? approval;

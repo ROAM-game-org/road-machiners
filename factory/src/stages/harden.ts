@@ -1,5 +1,7 @@
 import { cardFlow, moveCard } from '../card-events';
 import { BRANCH, GAME_DIR, TASK_FILE, type Ctx } from '../types';
+import { cardSuiteFailure } from './card-suite';
+import { untilPasses } from './checkpoint';
 import { BASE_BRANCH, agentHome, baseBranchFor, docsOnly, fillPrompt, guardAndPush, mergeBase, prepareOutputs, readOutput, runAgent, throwIfNeedsCommittee, unfinishedBaseMerge, workDir, writeIssueInput } from './common';
 
 const PRINCIPLES = `${GAME_DIR}/docs/architecture/principles.md`;
@@ -24,7 +26,21 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
     const still = await unfinishedBaseMerge(ctx, issue, base, merged);
     if (still !== null) throw new Error(still);
   }
+  await untilPasses(ctx.cfg.hardeningBudgetUsd, 0, () => suiteCheckpoint(ctx, issue, base), (failure) => fixRound(ctx, issue, home, failure));
   await moveCard(ctx, issue, 'Merging', 'hardened', cardFlow(item.labels));
+}
+
+async function suiteCheckpoint(ctx: Ctx, issue: number, base: string): Promise<string | null> {
+  await guardAndPush(ctx, issue, base, 'harden');
+  return cardSuiteFailure(ctx, 'harden', issue, base, await ctx.repo.headHash(BRANCH(issue)));
+}
+
+const FIX_ALL = 'Fix every failure it lists in this round, not only the first or the last one, since each one you leave costs another full run of the suite. Run every failed test file together before and after the fix.';
+
+async function fixRound(ctx: Ctx, issue: number, home: string, failure: string): Promise<string> {
+  const stream = await runAgent(ctx, issue, 'harden', 'harden', `The full suite of your pushed branch failed. ${FIX_ALL} Commit, and end again. The failure:\n\n${failure}`, { continue: true });
+  throwIfNeedsCommittee(home);
+  return stream;
 }
 
 export async function hardenPrompt(ctx: Ctx, issue: number, base: string, baseNote: string): Promise<string> {

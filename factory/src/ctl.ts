@@ -179,6 +179,7 @@ function cardFacts(found: Card, state: FactoryState): string[] {
     `kept approval: ${keptText(state.keptApprovals[key])}`,
     `open posts: ${shown(posts.join(', '))}`,
     `build: ${shown(state.builds[key])}`,
+    `suite passed on base failures only: ${shown(state.suiteCleared[key])}`,
     `running job: ${shown(running.join(', '))}`,
     `failures: ${shown(own.join(' | '))}`,
     `held: ${holdText(state.held[key])}`,
