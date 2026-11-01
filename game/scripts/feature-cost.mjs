@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 import { launchChromium } from './gpu.mjs';
 import { playUrl } from './game-url.mjs';
 
-const USAGE = 'Usage: node scripts/feature-cost.mjs --url <dev server> [--base-url <dev server of the baseline build>] [--zoom 1.15,0.35] [--hour 10,23] [--toggles <name,name>] [--rounds 2] [--sample-ms 2500] [--settle-ms 1500] [--out <file.json>]';
+const USAGE = 'Usage: node scripts/feature-cost.mjs --url <dev server> [--base-url <dev server of the baseline build>] [--zoom 1.15,0.35] [--hour 10,23] [--toggles <name,name>] [--patch file|from|to;file|from|to] [--rounds 2] [--sample-ms 2500] [--settle-ms 1500] [--out <file.json>]';
 const SEED = 1337;
 const GAME_VIEWPORT = { width: 1600, height: 1000 };
 const PIXEL_DENSITY = 2;
@@ -113,8 +113,20 @@ function positiveInteger(text, name) {
 function parseToggles(flags) {
   const toggles = flags.toggles === undefined ? [] : flags.toggles.split(',');
   for (const t of toggles) if (!TOGGLES[t]) throw new Error(`Unknown toggle ${t}. Known: ${Object.keys(TOGGLES).join(', ')}`);
-  if (toggles.length === 0 && !flags['base-url']) throw new Error(`Give --toggles or --base-url, or there is nothing to compare. ${USAGE}`);
   return toggles;
+}
+
+function requireComparison(flags, toggles) {
+  if (toggles.length === 0 && !flags['base-url'] && !flags.patch) throw new Error(`Give --toggles, --patch or --base-url, or there is nothing to compare. ${USAGE}`);
+}
+
+function parsePatches(text) {
+  if (text === undefined) return [];
+  return text.split(';').map((entry) => {
+    const [file, from, to] = entry.split('|');
+    if (!file || !from || to === undefined) throw new Error(`--patch takes file|from|to entries, got ${entry}. ${USAGE}`);
+    return { file, from, to };
+  });
 }
 
 const DEFAULT_FLAGS = { zoom: '1.15,0.35', hour: '10,23', rounds: '2', 'sample-ms': '2500', 'settle-ms': '1500' };
@@ -122,12 +134,14 @@ const DEFAULT_FLAGS = { zoom: '1.15,0.35', hour: '10,23', rounds: '2', 'sample-m
 function parseArgs(argv) {
   const flags = { ...DEFAULT_FLAGS, ...readFlags(argv) };
   if (!flags.url) throw new Error(`--url is required. ${USAGE}`);
+  requireComparison(flags, parseToggles(flags));
   return {
     url: flags.url,
     baseUrl: flags['base-url'],
     zooms: numberList(flags.zoom, 'zoom'),
     hours: numberList(flags.hour, 'hour'),
     toggles: parseToggles(flags),
+    patches: parsePatches(flags.patch),
     rounds: positiveInteger(flags.rounds, 'rounds'),
     sampleMs: positiveInteger(flags['sample-ms'], 'sample-ms'),
     settleMs: positiveInteger(flags['settle-ms'], 'settle-ms'),
@@ -135,8 +149,18 @@ function parseArgs(argv) {
   };
 }
 
-async function openGame(browser, base) {
+async function patchModule(page, patch) {
+  await page.route(`**/${patch.file}*`, async (route) => {
+    const response = await route.fetch();
+    const body = await response.text();
+    if (!body.includes(patch.from)) throw new Error(`Patch for ${patch.file} did not find ${patch.from}`);
+    await route.fulfill({ response, body: body.replace(patch.from, () => patch.to) });
+  });
+}
+
+async function openGame(browser, base, patches = []) {
   const page = await browser.newPage({ viewport: GAME_VIEWPORT, deviceScaleFactor: PIXEL_DENSITY });
+  for (const patch of patches) await patchModule(page, patch);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   const seeded = new URL(base);
@@ -346,8 +370,9 @@ async function sweepScene(args, sides, scene) {
 }
 
 async function openSides(browser, args) {
-  const variant = await openGame(browser, args.url);
-  const baseline = args.baseUrl ? await openGame(browser, args.baseUrl) : variant;
+  const variant = await openGame(browser, args.url, args.patches);
+  const separate = args.baseUrl || args.patches.length > 0;
+  const baseline = separate ? await openGame(browser, args.baseUrl ?? args.url) : variant;
   return { a: baseline, b: variant };
 }
 
