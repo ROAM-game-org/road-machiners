@@ -322,7 +322,7 @@ export class Game {
     new ResizeObserver(() => this.fitView()).observe(container);
     this.fitView();
     this.refreshUi();
-    void this.renderer.compileAsync(this.scene, this.rig.camera).then(() => requestAnimationFrame((t) => this.tick(t)), reportError);
+    void this.renderer.compileAsync(this.scene, this.rig.camera).then(() => requestAnimationFrame((t) => this.tick((this.last = t))), reportError);
   }
 
   private uiHost(): UiHost {
