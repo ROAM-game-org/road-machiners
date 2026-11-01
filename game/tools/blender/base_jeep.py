@@ -13,8 +13,8 @@ The front wings swell forward ahead of the tires and fall behind them to a dark 
 with round domed lamps under slit covers set into their crowns. Rows 0 and 1 are the hood, a trapezoid narrowing from the slab at the
 cowl to the nose, with the spare lying in it and a plain steep apron under its front edge.
 Rows 2 and 3 are the cab behind an upright framed windshield, under a soft top in trim with a flat crown, rounded edges,
-side curtain windows and a rear window. The four flat doors carry dark seams and a handle, over a plain sill band. Rows 4 and 5 are the open rear deck with a cutout over the engine cells,
-and row 6 a louvered lid sloping to a short rear face with round taillights and a round silencer under it.
+side curtain windows and a rear window. The four flat doors carry dark seams and a handle, over a plain sill band. The rear deck is open round a cutout that is the engine bay of the chassis.ts layout,
+rows 7 to 9 and columns 2 and 3, 1.35 m long and 0.9 m wide, and behind it a louvered lid sloping to a short rear face with round taillights and a round silencer under it.
 Inferred, since neither photo shows them: the rear wings, long and flat-crowned over the rear wheels, the rear corners
 that carry the lid slope out over them to the tail, the lid, taillights and silencer, the plan view, the left side
 (mirrored) and the slab width (the photos put it at 0.74 to 0.85 of the span).
@@ -80,9 +80,10 @@ TAIL_Z = -0.25  # the lid slope ends at the rear face's top edge
 TAIL_LOW = -0.55
 
 COWL = G.row_x(1.5)  # the windshield base, behind the hood rows
-TOP_BACK = G.row_x(3.5)  # the soft top ends at the rear deck
+GAME = Grid(rows=10, cols=4, half_height=0.4, length=4.5, width=1.8)  # chassis.ts layout inside its border cells
 FIREWALL = 0.03  # half the wall between the cab and the engine bay
-BAY_BACK = G.row_x(5.5)  # the engine cells run from row 4 to row 5, and the lid slope starts here
+TOP_BACK = GAME.row_x(5.5) + FIREWALL  # the soft top ends at the engine bay
+BAY_BACK = GAME.row_x(8.5)  # the engine bay is layout rows 7 to 9, and the lid slope starts at its back
 DOOR_LOW = -0.33  # the doors end on the sill band, which runs down to the body bottom
 RIB_OUT = 0.015  # seams and handles stand this far proud of the slab, well inside the wings
 STEP_BACK = 0.76  # the step plate runs from under the front wing's tail back to here, ahead of the front door

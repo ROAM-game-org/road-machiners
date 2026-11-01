@@ -13,14 +13,14 @@ The raked windshield in a thin chrome frame runs from the cowl at x 0.95 to the 
 frame at the front of each door. Behind it the closed cabin keeps the photo's raised top: one loft from the windshield
 over a low crown 1.66 m up, flat back to x -0.55, with sides that lean in from a foot 0.79 m off the center line on the
 belt to a rain rail 0.73 m off it and round over in two facets, then a long fall that flares onto the rear lid at
-x -1.36. A dark side opening a side runs from the vent post to x -0.62 with a thin seam between the door and quarter
+x -1.10. A dark side opening a side runs from the vent post to x -0.62 with a thin seam between the door and quarter
 glass and no B-pillar, a wide blind quarter runs down into the fall, and a small dark rear window sits in the fall. The
 cabin is riveted steel in the faction's second color: two seam ribs cross the crown, one crosses the fall, welded bars
 lie level across the side glass and upright over the rear window, a bare patch plate is riveted to the left rear
 quarter, and a chrome strip runs along the cabin's foot. A round lookout hatch stands on the crown over the driver's
 cab cells, its lid lying open on the crown behind it, clear of the antenna's spot. The door tops are flat shoulders at
-lid level. The flat rear lid carries two louver banks: the left one is the engine hole, fitted to the drawn engine plus HOLE_MARGIN over a shallow slatted floor
-0.06 m under the lid, and the right one is slats on the lid.
+lid level. The flat rear lid carries two louver banks: the left one is the engine hole, cut to the engine bay of the chassis.ts layout, rows 10 to 12 and columns 2 and 3, 1.35 m long and 0.9 m wide, over a slatted floor
+0.12 m under the lid, and the right one is slats on the lid.
 The tail holds two round taillights a side in chrome rings, a dark plate panel in a chrome frame, a chrome wrap bumper
 and a dark mesh outlet in two halves under it. One long door a side keeps DOOR_GAP from the arches. Round arches
 of 32 edges with chrome lips are cut under the lip, and a chrome strip runs along the rocker.
@@ -28,7 +28,7 @@ Deviations from the photos: the top is riveted steel in the faction's second col
 window bars and a lookout hatch, not black fabric; the wheels stay symmetric on the tire rule's tire at the game's
 ride; the door tops are thick so the outer deck columns rest flat; the left louver bank is the engine hole over the
 grid's engine cells, so a fitted engine stands out of the lid; no mirror, script badges or plate numbers; the fall's
-foot is at x -1.36, about 0.15 m ahead of the photo's, so the engine hole keeps the lid behind it; the lid's two small
+foot is at x -1.10, about 0.26 m ahead of the photo's, so the engine hole keeps the lid behind it; the lid's two small
 vents are left off; the
 windshield header narrows to 0.74 m a side to meet the cabin's rain rail.
 Grid: 5 columns by 9 rows, stretched over the model by the projection. Rows 0 to 2 and 6 to 8 rest on the lids,
@@ -136,15 +136,15 @@ CABIN_STATIONS = [  # (x, crown over the ground) from the header back down the f
     (-0.30, 1.66),
     (-0.55, 1.655),  # brief C3: the flat crown's back end
     (-0.62, 1.635),  # brief C3, C7: the crown's rear corner over the side opening's back end
-    (-0.70, 1.60),
-    (-0.80, 1.55),  # brief C7: the fall, steep at first
-    (-0.89, 1.48),
-    (-0.98, 1.40),
-    (-1.06, 1.32),
-    (-1.14, 1.24),  # brief C7: flaring toward its foot
-    (-1.22, 1.18),
-    (-1.29, 1.145),
-    (-1.36, 1.125),  # brief C7, DV6: the foot on the rear lid, just ahead of the engine hole
+    (-0.672, 1.60),
+    (-0.737, 1.55),  # brief C7: the fall, steep at first
+    (-0.795, 1.48),
+    (-0.854, 1.40),
+    (-0.905, 1.32),
+    (-0.957, 1.24),  # brief C7: flaring toward its foot
+    (-1.009, 1.18),
+    (-1.055, 1.145),
+    (-1.10, 1.125),  # brief C7, DV6: the foot on the rear lid, just ahead of the engine hole
 ]
 FOOT_X = CABIN_STATIONS[-1][0]
 SIDE_OPENING = [(0.49, 0.04), (0.49, 1.52), (-0.40, 1.52), (-0.50, 1.48), (-0.58, 1.38), (-0.62, 0.04)]  # brief C5:
@@ -181,15 +181,12 @@ BUMPER_FRONT = 2.92  # the bumpers' middles stand 2 cm proud of the lip, as in b
 BUMPER_WRAP = 0.035  # how far the wrapped ends stand off the sides
 MESH = (up(0.36), up(0.45), 0.62)  # the mesh outlet's bottom, top and half width under the rear bumper
 
-ENGINE_X = -1.8356  # PHYSICS.bodies.convertible.engine.x
-ENGINE_Y = 0.2  # -PHYSICS.bodies.convertible.engine.z
-ENGINE_HALF = (0.4356, 0.3)  # the drawn engine: restOn() of the engine cells, over the bay floor
-HOLE_MARGIN = 0.02
-HOLE = ((ENGINE_X - ENGINE_HALF[0] - HOLE_MARGIN, ENGINE_Y - ENGINE_HALF[1] - HOLE_MARGIN), (ENGINE_X + ENGINE_HALF[0] + HOLE_MARGIN, ENGINE_Y + ENGINE_HALF[1] + HOLE_MARGIN))
-FLOOR = LID - 0.06  # PHYSICS.bodies.convertible.engine.y: the slat tops of the shallow bay
+GAME = Grid(rows=13, cols=5, half_height=0.35, length=5.85, width=2.25)  # chassis.ts layout inside its border cells
+HOLE = ((GAME.row_x(11.5), min(GAME.col_y(0.5), GAME.col_y(2.5))), (GAME.row_x(8.5), max(GAME.col_y(0.5), GAME.col_y(2.5))))  # the engine bay: layout rows 10 to 12, columns 2 and 3
+FLOOR = LID - 0.12  # PHYSICS.bodies.convertible.engine.y: the slat tops of the bay, under the lid's roll at the tail
 MAX_BAY_DEPTH = 0.2
 SLAT_PITCH = 0.11
-RIGHT_BANK = (-0.20, -0.84)
+RIGHT_BANK = (-0.30, -0.84)
 
 
 def layer(height: float) -> tuple[float, float]:
@@ -700,13 +697,11 @@ def hatch(kit: Kit) -> list[str]:
 
 
 def check_hole() -> None:
-    """Raises when the engine hole does not hold the drawn engine with its margin, sits too deep, or leaves the rear lid."""
+    """Raises when the engine hole is not the engine bay's 3 cells by 2, sits too deep, or leaves the rear lid."""
     (x0, y0), (x1, y1) = HOLE
-    ex0, ex1 = ENGINE_X - ENGINE_HALF[0], ENGINE_X + ENGINE_HALF[0]
-    ey0, ey1 = ENGINE_Y - ENGINE_HALF[1], ENGINE_Y + ENGINE_HALF[1]
-    if min(ex0 - x0, x1 - ex1, ey0 - y0, y1 - ey1) < HOLE_MARGIN - 1e-6 or max(ex0 - x0, x1 - ex1, ey0 - y0, y1 - ey1) > HOLE_MARGIN + 1e-6:
-        raise RuntimeError(f"engine hole x {x0:.3f}..{x1:.3f} y {y0:.3f}..{y1:.3f} is not the engine x {ex0:.3f}..{ex1:.3f} y {ey0:.3f}..{ey1:.3f} plus {HOLE_MARGIN}")
-    if x1 >= FOOT_X - 0.01 or x0 <= -END_ROLL[0] or max(abs(y0), abs(y1)) >= side_y(1.12) - 0.2:
+    if abs((x1 - x0) - 3 * GAME.along) > 1e-6 or abs((y1 - y0) - 2 * GAME.across) > 1e-6:
+        raise RuntimeError(f"engine hole x {x0:.3f}..{x1:.3f} y {y0:.3f}..{y1:.3f} is not 3 cells long and 2 across")
+    if x1 >= FOOT_X - 0.01 or x0 - 0.2 <= -NOSE_X or max(abs(y0), abs(y1)) >= side_y(1.12) - 0.2:
         raise RuntimeError(f"engine hole x {x0:.3f}..{x1:.3f} y {y0:.3f}..{y1:.3f} leaves the rear lid")
     if LID - FLOOR > MAX_BAY_DEPTH + 1e-6:
         raise RuntimeError(f"engine bay floor {LID - FLOOR:.3f} m under the lid, deeper than {MAX_BAY_DEPTH}")

@@ -39,6 +39,7 @@ export const RULES = {
   groundCrash: 1.5,
   landingDamage: 0.125,
   wheelLoss: 0.15,
+  wheelLossWheels: 4,
   tankLeak: 1,
 
   weaponDamage: 1.60875,
