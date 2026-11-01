@@ -45,7 +45,8 @@ describe('built-in parts', () => {
       const want = ch.core.map((c) => c.defId).sort();
       const roles = want.map(roleOf);
       expect(roles.filter((r) => r === 'cab')).toHaveLength(1);
-      expect(roles.filter((r) => r === 'wheel')).toHaveLength(4);
+      const wheels = roles.filter((r) => r === 'wheel').length;
+      expect(wheels >= 4 && wheels % 2 === 0, `${ch.id} has ${wheels} wheels`).toBe(true);
       expect(roles.filter((r) => r === 'transmission')).toHaveLength(1);
       expect(roles.filter((r) => r === 'tank')).toHaveLength(1);
       expect(coreIds(v)).toEqual(want);

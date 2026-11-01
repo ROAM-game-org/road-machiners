@@ -7,7 +7,7 @@ import { isDefeated, isKnockedOut, knockOutNpc } from './defeat';
 import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
-import { heldPart, laneCount, lanePoint, partLane, planBlast, planLane, sideToward, spansHold, walkLane, type FireSpan, type PartHit, type Round, type Side } from './armor';
+import { filledLanes, heldPart, lanePoint, partLane, planBlast, planLane, sideToward, spansHold, walkLane, type FireSpan, type PartHit, type Round, type Side } from './armor';
 import { damagePart, haulerOf, playerVehicle, wholeDamage } from './damage';
 import { presentedSpan, reachMeters, unitPose } from './rig';
 import { rollCabKnock } from "./cab-knock";
@@ -236,6 +236,7 @@ function laneCenter(
 
 type Aiming = {
   side: Side;
+  filled: number[];
   lanes: number;
   body: number;
   width: number;
@@ -243,19 +244,29 @@ type Aiming = {
   lane: number | null;
 };
 
+function bodyLanes(target: Vehicle, side: Side, aimed: number | null): number[] {
+  const filled = filledLanes(target, side);
+  return aimed === null || filled.includes(aimed) ? filled : [...filled, aimed].sort((a, b) => a - b);
+}
+
 function aiming(shooter: Vehicle, target: Vehicle, aim: Aim): Aiming {
   const side = sideToward(target, shooter.pos);
-  const lanes = laneCount(target, side);
   const body = presentedWidth(shooter, target);
-  if (aim === "body")
-    return { side, lanes, body, width: body, center: 0, lane: null };
+  if (aim === "body") {
+    const filled = bodyLanes(target, side, null);
+    return { side, filled, lanes: filled.length, body, width: body, center: 0, lane: null };
+  }
   const item = mountedItems(target).find((it) => it.part.id === aim);
   if (!item) throw new Error(`${target.id} has no mounted part ${aim}`);
   const size = itemBulk(item);
   const cells = side === "front" || side === "rear" ? size.w : size.h;
-  const lane = partLane(target, aim, side);
+  const aimed = partLane(target, aim, side);
+  const filled = bodyLanes(target, side, aimed);
+  const lanes = filled.length;
+  const lane = filled.indexOf(aimed);
   return {
     side,
+    filled,
     lanes,
     body,
     width: cells * RULES.cellMeters,
@@ -387,7 +398,7 @@ type Reach = {
 type Spread = Omit<HitOdds, "damageChance">;
 
 function damageChanceOf(c: Reach, o: Spread): number {
-  const onTruck = laneEntries(o, c.a).reduce((sum, p, lane) => sum + p * laneReach(c, lane), 0);
+  const onTruck = laneEntries(o, c.a).reduce((sum, p, i) => sum + p * laneReach(c, c.a.filled[i]), 0);
   return onTruck + offTruckReach(c, o);
 }
 
@@ -476,9 +487,9 @@ function strayReach(c: Reach, candidates: { value: Vehicle; weight: number }[]):
   const total = candidates.reduce((sum, x) => sum + x.weight, 0);
   return candidates.reduce((sum, { value: victim, weight }) => {
     const side = sideToward(victim, c.shooter.pos);
-    const n = laneCount(victim, side);
-    const lanes = Array.from({ length: n }, (_, lane) => Number(splashReaches(c, lanePoint(victim, side, lane), null)));
-    return sum + (weight / total) * (lanes.reduce((a, b) => a + b, 0) / n);
+    const filled = filledLanes(victim, side);
+    const lanes = filled.map((lane) => Number(splashReaches(c, lanePoint(victim, side, lane), null)));
+    return sum + (weight / total) * (lanes.reduce((a, b) => a + b, 0) / filled.length);
   }, 0);
 }
 
@@ -720,7 +731,7 @@ function landRound(world: World, s: Shot, roll: Roll, offset: number): Landing {
 
 function enteredLane(a: Aiming, roll: Roll, offset: number): number | null {
   if (!roll.hit && Math.abs(offset) >= a.body / 2) return null;
-  return roll.hit && a.lane !== null ? a.lane : laneOfOffset(a.side, a.body, a.lanes, offset);
+  return a.filled[roll.hit && a.lane !== null ? a.lane : laneOfOffset(a.side, a.body, a.lanes, offset)];
 }
 
 function directRound(world: World, r: WeaponDef["round"], crit: boolean): Round {
@@ -740,7 +751,8 @@ function strayRound(world: World, s: Shot, miss: Vec): Landing {
   const victim = strayVictim(world, s, miss);
   if (!victim) return { struck: null, lane: null, hits: [], point: miss };
   const side = sideToward(victim, s.shooter.pos);
-  const lane = randInt(world, 0, laneCount(victim, side) - 1);
+  const filled = filledLanes(victim, side);
+  const lane = filled[randInt(world, 0, filled.length - 1)];
   const r = s.mw.def.round;
   const hits = walkLane(world, victim, side, lane, directRound(world, r, false));
   return { struck: victim, lane, hits, point: lanePoint(victim, side, lane) };

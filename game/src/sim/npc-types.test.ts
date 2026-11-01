@@ -242,14 +242,14 @@ describe('supply convoys', () => {
     expect(chances.haul).toBeGreaterThan(0.6);
   });
 
-  it('neither trade nor haul with no money to buy a load', () => {
+  it('still haul with no money, on faction money, but trade for profit only with their own', () => {
     const w = emptyWorld({ x: 300, y: 300 });
     const npc = createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], sitePads(siteById('bowl'))[0]);
     npc.resources!.money = 0;
     w.shops.granary.goods.grain = 0;
     const weights = optionWeights(w, npc, 'idle', null, null);
     expect(weights).not.toHaveProperty('trade');
-    expect(weights).not.toHaveProperty('haul');
+    expect(weights).toHaveProperty('haul');
   });
 
   it('cannot haul with a full grid', () => {

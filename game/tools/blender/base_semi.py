@@ -2,9 +2,9 @@
 
 semi_common.py lays out the rig and its photo proportions. The tractor is 9.025 m long, from x 10.25 to 1.225 of the straight
 rig frame, and its origin is its center there, 5.7375 m ahead of the rig's center, halfway between the steer axle and the
-rear drive axle. So the physics wheels sit 3.2125 m either way of it, PHYSICS.bodies.semi.wheelX, and the engine hole at
-PHYSICS.bodies.semi.engine. The game draws the steer pair and the rear drive axle's outer duals; the model draws the
-other 6 wheels of the drive tandem. The pivot socket marks the fifth wheel's king pin, 2.7375 m behind the origin, where
+rear drive axle. So the physics wheels sit 3.2125 m either way of it, PHYSICS.bodies.semi.wheelX. The engine hole is the engine
+bay of the chassis.ts layout, rows 3 to 5 and columns 3 and 4, at the floor PHYSICS.bodies.semi.engineY. The game draws the steer pair and the outer duals of both drive axles; the model draws
+the 4 inner duals of the drive tandem. The pivot socket marks the fifth wheel's king pin, 2.7375 m behind the origin, where
 the trailer swivels. The arch sockets let wheelArches.test.ts check the wheels against physics.
 Run: blender --background --python tools/blender/base_semi.py -- public/models/base_semi.glb [tmp/base_semi.png]
 """

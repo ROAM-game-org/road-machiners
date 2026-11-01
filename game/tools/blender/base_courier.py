@@ -4,7 +4,7 @@ Photos: a front 3/4 from the front left and a rear 3/4 from the back right, both
 detail and the Type 1's published figures at the scout's 1.077 scale set the size: 4.1 m long, 1.86 m across the fenders and 1.75 m
 tall on its tires, on a 2.6 m wheelbase. The ground is 1.0 m below the center. The side and top views are inferred from the Type 1.
 Levels: roof crest 0.75, beltline and door tops 0.15, lid cut 0.04, fender crowns 0.04, running boards -0.34, body bottom -0.4.
-One roof line runs from the cowl (x 0.66) up a flat, upright windshield to x 0.38, over a long dome with its crest by the B-pillar,
+One roof line runs from the cowl (x 0.15) up a flat, upright windshield to x -0.08, over a short dome with its crest by the B-pillar,
 and from x -0.64 down one clean back slope (rise 0.66 per meter) past an oval rear window to the Baja lid cut at
 x -1.67. Below the cut the engine block, fan shroud and exhaust stand bare inside a low tube bumper at hub height.
 The tub is wide, its doors 0.15 m inside the fenders, over thin dark running boards. The greenhouse leans in above the belt, with a
@@ -13,7 +13,7 @@ Four bulbous painted fenders crown 0.24 m over the tires. The front ones are cut
 stands upright in a painted bucket on the fender front, behind a chrome ring, with an amber lamp on the fender side. The rear ones
 wrap behind the tire to hub height and carry upright amber over red taillights on their tops. Two spot lamps stand on a low front
 tube bumper under the domed front lid, which falls to a rounded nose with a center ridge and frames the engine hole.
-The engine hole is the drawn engine plus HOLE_MARGIN, over a dark bay floor at 0.0, centered on PHYSICS.bodies.courier.engine.
+The engine hole is the engine bay of the chassis.ts layout, rows 2 to 4 and columns 2 and 3, 1.35 m long and 0.9 m wide, over a dark bay floor at 0.0.
 Round lamps, tubes and fender arcs take their sides from round_sides().
 Deviations from the photos: 1.86 m wide instead of 1.66, since the track and tires set it; the engine shows in the front lid, where
 the grid's engine cells lie, and the tail shows a decor engine; the back slope is one clean plane so the deck cells lie on it like on
@@ -66,9 +66,9 @@ DOOR = 0.78  # photo 1: the fenders stand 0.15 m proud of the doors
 GLASS_BASE = 0.70  # photo 1: the greenhouse leans in from the belt
 CREST_HALF = 0.47
 BACK_HALF = 0.62  # the back slope stays flat across the deck cells, Blender y -0.19..0.56
-COWL_X = 0.66
-SCREEN_TOP = 0.43  # photo 1: a flat windshield about 64 degrees from level
-ROOF_LINE = [(COWL_X, 0.17), (0.55, 0.42), (SCREEN_TOP, 0.65), (0.33, 0.712), (0.15, 0.74), (-0.1, 0.75), (-0.3, 0.747), (-0.48, 0.735)]
+COWL_X = 0.15
+SCREEN_TOP = -0.08  # photo 1: a flat windshield about 64 degrees from level
+ROOF_LINE = [(COWL_X, 0.17), (0.04, 0.42), (SCREEN_TOP, 0.65), (-0.17, 0.712), (-0.3, 0.747), (-0.48, 0.735)]
 SLOPE = 0.55  # photo 2: one long back line, under the 0.7 rise a resting part may lean on
 SLOPE_X = -0.48  # the rear window lies ahead of the deck cells, x -0.683, since glass holds nothing up
 DECK_BACK = -1.594  # the back edge of the deck cells, the end of the clean slope
@@ -98,12 +98,9 @@ TUBE = 0.07
 BUMPER_Z = HUB_Z + 0.02
 ALONG_X = (0, math.pi / 2, 0)
 
-ENGINE_X = 1.24  # PHYSICS.bodies.courier.engine.x
-ENGINE_Y = 0.0  # -PHYSICS.bodies.courier.engine.z
-ENGINE_HALF = (0.34, 0.40)  # the drawn engine: the whole 0.1 m height map cells of the bay floor inside the hole, about the anchor
-HOLE_MARGIN = 0.03
-HOLE = ((ENGINE_X - ENGINE_HALF[0] - HOLE_MARGIN, ENGINE_Y - ENGINE_HALF[1] - HOLE_MARGIN), (ENGINE_X + ENGINE_HALF[0] + HOLE_MARGIN, ENGINE_Y + ENGINE_HALF[1] + HOLE_MARGIN))
-LID = [(COWL_X, 0.17, 0.62), (0.8, 0.175, 0.585), (1.0, 0.165, 0.54), (1.2, 0.14, 0.525), (1.4, 0.1, 0.5), (HOLE[1][0], 0.04, 0.5), (1.72, -0.04, 0.43), (1.84, -0.14, 0.37), (1.92, -0.26, 0.33), (1.96, -0.38, 0.3)]
+GAME = Grid(rows=9, cols=4, half_height=0.3, length=4.05, width=1.8)  # chassis.ts layout inside its border cells
+HOLE = ((GAME.row_x(3.5), GAME.col_y(2.5)), (GAME.row_x(0.5), GAME.col_y(0.5)))  # the engine bay: layout rows 2 to 4, columns 2 and 3
+LID = [(COWL_X, 0.17, 0.62), (0.8, 0.175, 0.585), (1.0, 0.165, 0.54), (1.2, 0.14, 0.535), (1.4, 0.12, 0.53), (HOLE[1][0], 0.115, 0.52), (1.72, 0.1, 0.43), (1.84, -0.02, 0.37), (1.92, -0.22, 0.33), (1.96, -0.38, 0.3)]
 SIDE_STEPS = (8, 3)
 DETAIL_TWIST = 20.0  # a window or vent folds more than paint may, since dark glass shows no shard
 DETAIL_LIFT = 0.008  # laid-on details stand this far off the surface they lie on, clear of the 4 mm coplanar band
@@ -291,8 +288,8 @@ def refined(stations: list[float], ring_of) -> list[float]:
 
 def tub(kit: Kit) -> None:
     """The dark core from the nose to the tail and the wide painted doors between the fenders, rolled in at the belt and the sill."""
-    prism(kit, "core_front", [(0.86, PAN), (1.9, PAN), (1.9, SHELF), (0.86, SHELF)], -0.34, 0.34, "under")
-    prism(kit, "core_mid", [(-0.86, PAN), (0.86, PAN), (0.86, BELT), (-0.86, BELT)], -0.54, 0.54, "under")
+    prism(kit, "core_front", [(COWL_X, PAN), (1.9, PAN), (1.9, SHELF), (COWL_X, SHELF)], -0.34, 0.34, "under")
+    prism(kit, "core_mid", [(-0.86, PAN), (COWL_X, PAN), (COWL_X, BELT), (-0.86, BELT)], -0.54, 0.54, "under")
     prism(kit, "core_back", [(-1.66, PAN + 0.05), (-0.86, PAN), (-0.86, SHELF), (-1.66, SHELF)], -0.54, 0.54, "under")
 
     def door(half: float) -> list[tuple[float, float]]:
@@ -401,7 +398,7 @@ def windshield_half(x: float) -> float:
 
 
 WINDSHIELD_TOP = COWL_X - (COWL_X - SCREEN_TOP) * 0.92
-ROOF_FRONT_X = 0.39
+ROOF_FRONT_X = -0.13
 REAR_GLASS_ROWS = [-0.449, SLOPE_X, -0.51, REAR_GLASS_X, -0.6, -0.62, -0.661]
 CLOSE = 0.012  # stations nearer than this merge, so no strip of the shell is a sliver
 
@@ -429,7 +426,7 @@ def crossings(level: float) -> list[float]:
 
 
 def shell_kinks() -> list[float]:
-    required = [COWL_X, 0.55, WINDSHIELD_TOP, SCREEN_TOP, ROOF_FRONT_X, 0.33, 0.15, -0.1, -0.3, ROOF_BACK, SLOPE_X, -0.62, SILL_X, SILL_BACK_X, DECK_BACK, -1.64, LID_CUT_X]
+    required = [COWL_X, 0.04, WINDSHIELD_TOP, SCREEN_TOP, ROOF_FRONT_X, -0.17, -0.3, ROOF_BACK, SLOPE_X, -0.62, SILL_X, SILL_BACK_X, DECK_BACK, -1.64, LID_CUT_X]
     return required + [x for level in (0.08, 0.3) for x in crossings(level)]
 
 
@@ -473,9 +470,9 @@ def greenhouse(kit: Kit) -> None:
 
 def windows(kit: Kit) -> None:
     """The flat windshield, a door window and a quarter window on each side, the oval rear window and the louvers."""
-    rows = [COWL_X, 0.55, WINDSHIELD_TOP]
+    rows = [COWL_X, 0.04, WINDSHIELD_TOP]
     lay_on_grid(kit, "windshield", [[(x, f * windshield_half(x)) for f in (-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1)] for x in rows], PANEL, "glass")
-    door = rounded([(0.53, 0.25), (-0.14, 0.25), (-0.14, 0.58), (0.26, 0.6), (0.4, 0.54)], 0.07)
+    door = rounded([(0.08, 0.2), (-0.14, 0.2), (-0.14, 0.58), (-0.04, 0.46), (0.05, 0.3)], 0.03)
     quarter = rounded([(-0.22, 0.25), (-0.44, 0.25), (-0.56, 0.36), (-0.5, 0.56), (-0.22, 0.6)], 0.07)
     for name, outline in (("door_glass", door), ("quarter_glass", quarter)):
         for s, sy in (("l", 1), ("r", -1)):
@@ -568,13 +565,10 @@ def arch_sockets(kit: Kit) -> None:
 
 
 def check_hood() -> None:
-    """Raises when the lid hole does not hold the drawn engine with its margin, or leaves the lid."""
+    """Raises when the lid hole is not the 2 by 3 cell engine bay, or leaves the lid."""
     (x0, y0), (x1, y1) = HOLE
-    ex0, ex1 = ENGINE_X - ENGINE_HALF[0], ENGINE_X + ENGINE_HALF[0]
-    ey0, ey1 = ENGINE_Y - ENGINE_HALF[1], ENGINE_Y + ENGINE_HALF[1]
-    margins = (ex0 - x0, x1 - ex1, ey0 - y0, y1 - ey1)
-    if min(margins) < HOLE_MARGIN - 1e-6 or max(margins) > HOLE_MARGIN + 1e-6:
-        raise RuntimeError(f"lid hole x {x0:.3f}..{x1:.3f} y {y0:.3f}..{y1:.3f} is not the engine x {ex0:.3f}..{ex1:.3f} y {ey0:.3f}..{ey1:.3f} plus {HOLE_MARGIN}")
+    if abs((x1 - x0) - 3 * GAME.along) > 1e-6 or abs((y1 - y0) - 2 * GAME.across) > 1e-6:
+        raise RuntimeError(f"lid hole x {x0:.3f}..{x1:.3f} y {y0:.3f}..{y1:.3f} is not 3 cells long and 2 across")
     if x0 <= COWL_X or x1 >= LID[-1][0] or max(abs(y0), abs(y1)) >= min(lid_half(x0), lid_half(x1)) - 0.05:
         raise RuntimeError(f"lid hole x {x0:.3f}..{x1:.3f} y {y0:.3f}..{y1:.3f} leaves the lid")
 

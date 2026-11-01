@@ -26,7 +26,7 @@ export const TRAITS: Record<TraitId, Trait> = {
   trader: {
     towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: [], travelSites: [], contactReactRadius: 12, boldness: 1, fuelMargin: 0.75, robs: 'offDuty', tradeStake: 833,
     weights: {
-      idle: { trade: { add: 30 }, haul: { add: 1 }, explore: { add: 0.3 }, linger: { add: 1 } }, strandedSeen: { tow: { add: 9 } },
+      idle: { trade: { add: 30 }, explore: { add: 0.3 }, linger: { add: 1 } }, strandedSeen: { tow: { add: 9 } },
       hostileSeen: { fight: { mul: 0.002 } }, attacked: { fightBack: { mul: 0.1 } }, ramChance: { ram: { mul: 0.001 } },
       crashed: { retaliate: { mul: 0.2 } }, parley: { truce: { add: 2 } }, truceOffered: { accept: { add: 4 } },
       mercyBegged: { spare: { add: 3 } }, threatened: { comply: { add: 1 }, fightBack: { mul: 0.1 } }, warnedOff: { comply: { add: 1 }, fightBack: { mul: 0.1 } },

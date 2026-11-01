@@ -283,10 +283,10 @@ export function isHostileContact(world: World, vehicle: Vehicle, contact: Contac
 
 export type TradePlan = { source: string; good: string; sellShop: string };
 
-export function tradeSpend(world: World, vehicle: Vehicle): number {
+export function tradeSpend(world: World, vehicle: Vehicle, purse: 'own' | 'faction' = 'own'): number {
   const stake = npcProfile(vehicle).tradeStake;
   if (!(stake > 0)) throw new Error(`${vehicle.id} weighs a trade with a trade stake of ${stake}`);
-  return Math.min(getResources(world, vehicle).money - getUpkeepReserve(vehicle), stake);
+  return purse === 'faction' ? stake : Math.min(getResources(world, vehicle).money - getUpkeepReserve(vehicle), stake);
 }
 
 export const tradeOffers = (world: World, vehicle: Vehicle): Weighted<TradePlan>[] => tradePlans().filter((plan) => planOnBeat(vehicle, plan)).flatMap(tradeOfferer(world, vehicle) ?? (() => []));
@@ -332,7 +332,7 @@ function runOffer(world: World, vehicle: Vehicle, plan: TradePlan, spend: number
 
 export function supplyOffers(world: World, vehicle: Vehicle): Weighted<TradePlan>[] {
   if (!modeRules(world).traffic) return [];
-  const [spend, rig] = [tradeSpend(world, vehicle), tradeRig(world, vehicle)];
+  const [spend, rig] = [tradeSpend(world, vehicle, 'faction'), tradeRig(world, vehicle)];
   return graphEdges().flatMap((edge) => {
     if (!planOnBeat(vehicle, { source: edge.from, good: edge.good, sellShop: edge.to })) return [];
     const short = stockTarget(edge.to, edge.good) - goodStock(shopState(world, edge.to), edge.good);
@@ -685,7 +685,7 @@ function canTravel(_world: World, vehicle: Vehicle): boolean {
 }
 
 function canHaul(world: World, vehicle: Vehicle): boolean {
-  return hasCargoRoom(vehicle) && supplyOffers(world, vehicle).length > 0;
+  return hasTrait(vehicle, 'supplier') && hasCargoRoom(vehicle) && supplyOffers(world, vehicle).length > 0;
 }
 
 function canEscort(world: World, vehicle: Vehicle): boolean {

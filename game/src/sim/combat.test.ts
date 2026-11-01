@@ -896,8 +896,8 @@ describe('who beat a truck', () => {
     w.rngState = seed;
     const ally = addVehicle(w, 'bowl', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 33 }, -Math.PI / 2);
     ally.brain = npcBrain('bowlFarmer', { x: 33, y: 33 }, ['lawman']);
-    for (const it of mountedItems(buggy)) if (it.part.id !== corePart(buggy, 'cab').id && it.part.defId !== 'stockEngine') it.part.hp = 0;
-    corePart(buggy, 'cab').hp = 1;
+    for (const it of mountedItems(buggy)) if (it.part.id !== corePart(buggy, 'cab').id) it.part.hp = 0;
+    corePart(buggy, 'cab').hp = 10;
     order(me, mg.part.id, buggy.id, corePart(buggy, 'cab').id);
     order(ally, vehicleStats(w, ally).weapons[0].part.id, buggy.id);
     return { w, me, buggy, ally };
