@@ -178,7 +178,7 @@ function installProbe() {
     probe.pending = still;
   };
   r.render = (scene, camera) => {
-    if (probe.idle) return;
+    if (probe.idle && scene === g.scene) return;
     const query = begin();
     const t0 = performance.now();
     render(scene, camera);
@@ -253,6 +253,7 @@ function readSample(ms) {
 }
 
 async function sample(page, args) {
+  await page.bringToFront();
   await setIdle(page, false);
   await page.waitForTimeout(args.settleMs);
   const raw = await page.evaluate(readSample, args.sampleMs);
@@ -330,7 +331,10 @@ async function sweepAll(args, sides) {
   const rows = [];
   for (const hour of args.hours) {
     for (const zoom of args.zooms) {
-      for (const side of new Set([sides.a, sides.b])) await goTown(side.page, town, hour, zoom);
+      for (const side of new Set([sides.a, sides.b])) {
+        await goTown(side.page, town, hour, zoom);
+        await sample(side.page, args);
+      }
       rows.push(...(await sweepScene(args, sides, `town ${String(hour).padStart(2, '0')}:00 zoom ${zoom}`)));
     }
   }
