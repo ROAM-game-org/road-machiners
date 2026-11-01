@@ -13,9 +13,9 @@ import type { Ctx, FactoryConfig, FactoryState, ReleaseState } from './types';
 const ROOT = resolve('tmp/factory-board-read-test');
 const statePath = join(ROOT, 'state.json');
 const NOW = new Date('2026-10-22T19:05:00Z');
-const SCHEDULE = { wasteReviewDays: 7, maxJobsPerCard: 2, triageWorkers: 3, designWorkers: 11, implementWorkers: 3, verifyWorkers: 1, testWorkers: 1 };
+const SCHEDULE = { playtestHours: 12, wasteReviewDays: 7, maxJobsPerCard: 2, triageWorkers: 3, designWorkers: 11, implementWorkers: 3, verifyWorkers: 1, testWorkers: 1 };
 const CHASSIS = Array.from({ length: 11 }, (_, i) => 892 + i);
-const RELEASE: ReleaseState = { issue: 843, branch: 'release/2026-10-20', day: '2026-10-20', postId: null, removed: [], tasks: [844, 845], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
+const RELEASE: ReleaseState = { issue: 843, day: '2026-10-20', postId: null, removed: [], candidate: null, playtest: { seed: 1, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null } };
 
 function bigBoard(): BoardItem[] {
   const filler = Array.from({ length: 172 }, (_, i) => boardItem(100 + i, 'Done'));

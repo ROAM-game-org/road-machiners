@@ -12,17 +12,13 @@ import { adoptReplyMedia, readCommitteeMedia } from '../reply-media';
 import { issueReports } from '../error-reports/service';
 import { readState } from '../state';
 import { bundleOf } from './bundle';
-import { BRANCH, DESIGN_SONNET_LABEL, GAME_DIR, HOTFIX_LABEL, IMPLEMENTATION_OPUS_LABEL, NEEDS_INFO_LABEL, OPEN_NETWORK_LABEL, OUT_DIR, QUESTIONS_HEADING, RELEASE_TASK_LABEL, WORK_DIR, type AgentSession, type CardStage, type Ctx, type FactoryConfig, type Stage } from '../types';
+import { BRANCH, DESIGN_SONNET_LABEL, GAME_DIR, HOTFIX_LABEL, IMPLEMENTATION_OPUS_LABEL, NEEDS_INFO_LABEL, OPEN_NETWORK_LABEL, OUT_DIR, QUESTIONS_HEADING, WORK_DIR, type AgentSession, type CardStage, type Ctx, type FactoryConfig, type Stage } from '../types';
 
 export const BASE_BRANCH = 'dev';
 export const HOTFIX_BASE = 'main';
 
 export function baseBranchFor(ctx: Ctx, labels: string[]): string {
-  if (labels.includes(HOTFIX_LABEL)) return HOTFIX_BASE;
-  if (!labels.includes(RELEASE_TASK_LABEL)) return BASE_BRANCH;
-  const release = readState(ctx.statePath).release;
-  if (release === null) throw new Error(`A ${RELEASE_TASK_LABEL} issue needs an open release, and none is open`);
-  return release.branch;
+  return labels.includes(HOTFIX_LABEL) ? HOTFIX_BASE : BASE_BRANCH;
 }
 
 const TESTED_DOCS = `${GAME_DIR}/docs/wiki/`;

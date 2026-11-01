@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { readState, updateState } from './state';
+import { newPlaytest, readState, updateState } from './state';
 
 describe('state', () => {
   it('reads an old state file without adhocReplies', () => {
@@ -43,17 +43,30 @@ describe('state', () => {
     expect([state.release, state.pendingShip, state.pendingRemovals]).toEqual([null, null, []]);
   });
 
-  it('gives a release cut before the playtest its playtest, seeded by its day, no candidate commit and no recorded tasks', () => {
+  it('reads a saved release of the dev flow as it is', () => {
     const path = join(mkdtempSync(join(tmpdir(), 'factory-state-')), 'state.json');
-    writeFileSync(path, JSON.stringify({ release: { issue: 3, branch: 'release/2026-10-07', day: '2026-10-07', postId: 9, removed: [], merges: [] } }));
-    expect(readState(path).release).toEqual({ issue: 3, branch: 'release/2026-10-07', day: '2026-10-07', postId: 9, removed: [], tasks: [], candidateSha: null, merges: [], playtest: { seed: 20261007, runs: 0, passed: null, blocked: null, notes: [] } });
+    const release = { issue: 3, day: '2026-10-07', postId: 9, candidate: { sha: 'abc1234', features: [] }, removed: [], playtest: newPlaytest('2026-10-07') };
+    writeFileSync(path, JSON.stringify({ release, pendingPlaytest: 'Ann' }));
+    expect(readState(path).release).toEqual(release);
+    expect(readState(path).pendingPlaytest).toBe('Ann');
   });
 
-  it('drops the run streak of a playtest saved before one job did all its plays', () => {
+  it('seeds a new playtest by its day, with no start, pass, fixes, block, decision or kept work', () => {
+    expect(newPlaytest('2026-10-07')).toEqual({ seed: 20261007, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null });
+  });
+
+  it('fails loud on a state with a release branch, so an old release is never read as a new one', () => {
     const path = join(mkdtempSync(join(tmpdir(), 'factory-state-')), 'state.json');
-    const playtest = { seed: 20261007, runs: 6, streak: 3, passed: '367351f', blocked: null, notes: [] };
-    writeFileSync(path, JSON.stringify({ release: { issue: 3, branch: 'release/2026-10-07', day: '2026-10-07', postId: null, removed: [], candidateSha: null, playtest } }));
-    expect(readState(path).release?.playtest).toEqual({ seed: 20261007, runs: 6, passed: '367351f', blocked: null, notes: [] });
+    writeFileSync(path, JSON.stringify({ release: { issue: 3, branch: 'release/2026-10-07', day: '2026-10-07', postId: 9, removed: [], merges: [] } }));
+    expect(() => readState(path)).toThrow('holds a release with a release branch');
+  });
+
+  it('drops the cut order of an old state file without a trace', () => {
+    const path = join(mkdtempSync(join(tmpdir(), 'factory-state-')), 'state.json');
+    writeFileSync(path, JSON.stringify({ pendingCut: 'Ann', release: null }));
+    const state = readState(path);
+    expect('pendingCut' in state).toBe(false);
+    expect(state.pendingPlaytest).toBeNull();
   });
 
   it('turns the single job of an old state file into the job list', () => {

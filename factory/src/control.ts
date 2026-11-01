@@ -13,11 +13,12 @@ import { readState, updateState } from './state';
 import { ownWorkSettled } from './stages/card-suite';
 import { agentHome, baseBranchFor, workDir } from './stages/common';
 import { closeCard } from './stages/approval';
+import { mergeOf, requireRelease } from './stages/release-common';
 import { invalidateApproval } from './stages/kept-approval';
 import { moveCard, type CardStep } from './card-events';
 import { openStore } from './public/store';
 import { closeByHand } from './public/votes';
-import { BRANCH, GAME_DIR, NEEDS_INFO_LABEL, RELEASE_LABEL, STUCK_LABEL, TASK_FILE, VOTING_LABEL, isCleanupTask, type Card, type Column, type Ctx, type FactoryState, type ReleaseState } from './types';
+import { BRANCH, GAME_DIR, NEEDS_INFO_LABEL, RELEASE_LABEL, STUCK_LABEL, TASK_FILE, VOTING_LABEL, isCleanupTask, type Card, type Column, type Ctx, type FactoryState } from './types';
 
 export const DROP_QUEUES = ['approval', 'removal', 'ship', 'incident'] as const;
 export type DropQueue = (typeof DROP_QUEUES)[number];
@@ -26,7 +27,7 @@ export type ControlAction =
   | { action: 'move'; issue: number; to: MoveTarget }
   | { action: 'merge'; issue: number }
   | { action: 'ship' }
-  | { action: 'cut' }
+  | { action: 'playtest' }
   | { action: 'remove'; issue: number }
   | { action: 'drop'; queue: DropQueue; id: number | null }
   | { action: 'hold'; issue: number }
@@ -73,7 +74,7 @@ const SHAPES: { [A in ControlAction['action']]: (data: Data) => Extract<ControlA
   move: (data) => ({ action: 'move', issue: requireNumber(data, 'issue'), to: requireOneOf(data, 'to', MOVE_TARGETS) }),
   merge: (data) => ({ action: 'merge', issue: requireNumber(data, 'issue') }),
   ship: () => ({ action: 'ship' }),
-  cut: () => ({ action: 'cut' }),
+  playtest: () => ({ action: 'playtest' }),
   remove: (data) => ({ action: 'remove', issue: requireNumber(data, 'issue') }),
   drop: (data) => ({ action: 'drop', queue: requireOneOf(data, 'queue', DROP_QUEUES), id: requireDropId(data) }),
   hold: (data) => ({ action: 'hold', issue: requireNumber(data, 'issue') }),
@@ -115,7 +116,7 @@ function approves(command: ControlCommand): command is Extract<ControlCommand, {
 type Handlers = { [A in ControlAction['action']]: (ctx: Ctx, command: Extract<ControlCommand, { action: A }>, by: string) => Promise<Outcome> };
 
 const HANDLERS: Handlers = {
-  move, merge, ship, cut, remove, drop,
+  move, merge, ship, playtest, remove, drop,
   hold: async (ctx, command, by) => ({ issue: command.issue, text: await holdCard(ctx, command.issue, by, command.reason) }),
   unhold: async (ctx, command) => ({ issue: command.issue, text: releaseHold(ctx, command.issue) }),
 };
@@ -318,31 +319,26 @@ async function merge(ctx: Ctx, command: Extract<ControlCommand, { action: 'merge
   return { issue, text: 'The card joins the merge queue.' };
 }
 
-export function openRelease(ctx: Ctx): ReleaseState {
-  const release = readState(ctx.statePath).release;
-  if (release === null) throw new Error('No release is open.');
-  return release;
-}
-
-export function queueShip(ctx: Ctx, issue: number, by: string): string {
-  const release = openRelease(ctx);
+export function queueShip(ctx: Ctx, issue: number, by: string, postId: number | null = null): string {
+  const release = requireRelease(ctx);
   if (release.issue !== issue) throw new Error(`Issue #${issue} is not the open release, #${release.issue} is.`);
   if (release.postId === null) throw new Error('The release has no current candidate post yet. Wait for the next one.');
+  if (postId !== null && postId !== release.postId) throw new Error(`That candidate post is no longer current, since a newer candidate replaced it. Only the newest post, ${release.postId}, can ship.`);
   updateState(ctx.statePath, (state) => ({ ...state, pendingShip: by }));
   return `Ship of release ${release.day} is queued. The merge into main starts on a coming tick.`;
 }
 
 export function queueRemoval(ctx: Ctx, issue: number, by: string, text: string, finishRemoved = false): string {
-  const release = openRelease(ctx);
+  const release = requireRelease(ctx);
   if (release.removed.includes(issue) && !finishRemoved) throw new Error(`Issue #${issue} is already removed from release ${release.day}.`);
-  if (!release.merges.some((merge) => merge.issue === issue)) throw new Error(`Issue #${issue} is not in release ${release.day}.`);
+  if (mergeOf(readState(ctx.statePath).devMerges, issue) === undefined) throw new Error(`Issue #${issue} has no merge on dev, so no release holds it.`);
   if (readState(ctx.statePath).pendingRemovals.some((item) => item.issue === issue)) throw new Error(`A removal of #${issue} is already queued.`);
   updateState(ctx.statePath, (state) => ({ ...state, pendingRemovals: [...state.pendingRemovals, { issue, by, text }] }));
-  return `Removal of #${issue} from release ${release.day} is queued. The revert starts on a coming tick.`;
+  return `Removal of #${issue} from dev is queued. The revert starts on a coming tick.`;
 }
 
 async function ship(ctx: Ctx, _command: Extract<ControlCommand, { action: 'ship' }>, by: string): Promise<Outcome> {
-  const { issue } = openRelease(ctx);
+  const { issue } = requireRelease(ctx);
   return { issue, text: queueShip(ctx, issue, by) };
 }
 
@@ -350,11 +346,10 @@ async function remove(ctx: Ctx, command: Extract<ControlCommand, { action: 'remo
   return { issue: command.issue, text: queueRemoval(ctx, command.issue, by, command.reason, true) };
 }
 
-async function cut(ctx: Ctx, _command: Extract<ControlCommand, { action: 'cut' }>, by: string): Promise<Outcome> {
-  const release = readState(ctx.statePath).release;
-  if (release !== null) throw new Error(`Release ${release.day} is open on #${release.issue}. Ship it before a new cut.`);
-  updateState(ctx.statePath, (state) => ({ ...state, pendingCut: by }));
-  return { issue: null, text: 'A release cut is ordered. It starts on a coming tick.' };
+async function playtest(ctx: Ctx, _command: Extract<ControlCommand, { action: 'playtest' }>, by: string): Promise<Outcome> {
+  const release = requireRelease(ctx);
+  updateState(ctx.statePath, (state) => ({ ...state, pendingPlaytest: by }));
+  return { issue: release.issue, text: 'A release playtest on the dev tip is ordered. It starts on a coming tick.' };
 }
 
 type Drop = { has: (state: FactoryState, id: number) => boolean; without: (state: FactoryState, id: number) => FactoryState };

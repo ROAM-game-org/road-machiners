@@ -11,7 +11,6 @@ let prompt = '';
 let effort: string | undefined;
 let related = '';
 let inWork = '';
-let releaseInput = '';
 let cards: Card[] = [];
 
 beforeEach(() => {
@@ -71,7 +70,6 @@ function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[
         effort = run.effort;
         related = readFileSync(`${run.clone}/${run.dir}/.factory/related.md`, 'utf8');
         inWork = readFileSync(`${run.clone}/${run.dir}/.factory/in-work.md`, 'utf8');
-        releaseInput = readFileSync(`${run.clone}/${run.dir}/.factory/release.md`, 'utf8');
         prompt = run.prompt;
         if (verdict !== null) writeFileSync(`${run.clone}/${run.dir}/.factory/triage.json`, verdict);
       },
@@ -84,7 +82,7 @@ function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[
   return fake as unknown as Ctx;
 }
 
-const verdict = (over: Record<string, unknown>): string => JSON.stringify({ verdict: 'ready', reason: 'Clear goal', hotfix: false, releaseFix: false, complexity: 'intermediate', complexityReason: 'Touches the horn code and the audio module.', bundle: [], ...over });
+const verdict = (over: Record<string, unknown>): string => JSON.stringify({ verdict: 'ready', reason: 'Clear goal', hotfix: false, complexity: 'intermediate', complexityReason: 'Touches the horn code and the audio module.', bundle: [], ...over });
 const unclear = (questions: string[], earlier: string[] = []): Ctx => fakeCtx(verdict({}), [], earlier, { verdict: 'unclear', reason: 'It asks for a horn, but not which one.', questions });
 const card = (issue: number, column: Card['column'], labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
 
@@ -254,15 +252,13 @@ describe('triage stage', () => {
     [verdict({ reason: '' }), 'reason'],
     [JSON.stringify({ verdict: 'ready', reason: 'x' }), 'hotfix as true or false'],
     [verdict({ hotfix: 'yes' }), 'hotfix as true or false'],
-    [JSON.stringify({ verdict: 'ready', reason: 'x', hotfix: false, releaseFix: false, complexity: 'intermediate', complexityReason: 'y' }), 'bundle as a list of issue numbers'],
+    [JSON.stringify({ verdict: 'ready', reason: 'x', hotfix: false, complexity: 'intermediate', complexityReason: 'y' }), 'bundle as a list of issue numbers'],
     [verdict({ bundle: ['9'] }), 'bundle as a list of issue numbers'],
     [verdict({ bundle: [11] }), 'bundles #11, which is not an offered Triage card'],
     [verdict({ bundle: [9, 9] }), 'bundles an issue twice'],
     [JSON.stringify({ verdict: 'duplicate', reason: 'Same failure.' }), 'duplicateOf as an issue number'],
     [JSON.stringify({ verdict: 'duplicate', reason: 'Same failure.', duplicateOf: 9 }), "names #9 as the duplicate's card, which is not an offered card in work"],
     [JSON.stringify({ verdict: 'duplicate', reason: '', duplicateOf: 20 }), 'reason'],
-    [verdict({ releaseFix: 'yes' }), 'releaseFix as true or false'],
-    [verdict({ releaseFix: true }), 'no release takes fixes now'],
   ])('throws on a bad triage.json of a bug %#', async (text, message) => {
     cards = [card(7, 'Triage'), card(9, 'Triage'), card(20, 'Testing')];
     await expect(runStage(fakeCtx(text, ['bug']), 7)).rejects.toThrow(message);
@@ -271,7 +267,7 @@ describe('triage stage', () => {
   });
 
   it('passes a non-bug to grooming on the verdict and reason alone', async () => {
-    await runStage(fakeCtx(JSON.stringify({ verdict: 'ready', reason: 'Asks for a horn.' }), [], [], { complexity: 'intermediate', complexityReason: 'Horn code.', bundle: [], releaseFix: false }), 7);
+    await runStage(fakeCtx(JSON.stringify({ verdict: 'ready', reason: 'Asks for a horn.' }), [], [], { complexity: 'intermediate', complexityReason: 'Horn code.', bundle: [] }), 7);
     expect(calls).toContain('agent opus');
     expect(calls.at(-1)).toBe('move 7 Design');
   });
@@ -284,54 +280,25 @@ describe('triage stage', () => {
   });
 });
 
-describe('triage release fixes', () => {
-  const release = { issue: 40, branch: 'release/2026-09-29', day: '2026-09-29', postId: null, removed: [], tasks: [], merges: [{ issue: 5, title: 'Night driving', sha: 'a'.repeat(40), into: 'dev', reverted: [] }], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
-  const openRelease = (postId: number | null) => writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), release: { ...release, postId } });
+describe('triage with an open release', () => {
+  const release = { issue: 40, day: '2026-09-29', postId: null, removed: [], candidate: null, playtest: { seed: 1, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null } };
 
-  it('tells the agent that no release takes fixes when none is open', async () => {
+  it('passes every non-hotfix card as a plain dev card, whatever the release holds', async () => {
+    writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), release });
     await runStage(fakeCtx(verdict({})), 7);
-    expect(releaseInput).toContain('No release takes fixes now.');
-  });
-
-  it('lists the features of a release that has no candidate post yet', async () => {
-    openRelease(null);
-    await runStage(fakeCtx(verdict({})), 7);
-    expect(releaseInput).toContain('Release 2026-09-29 takes fixes.');
-    expect(releaseInput).toContain('- #5 Night driving');
-    expect(releaseInput).not.toContain('Merge main');
-  });
-
-  it('takes no fixes once the candidate is posted', async () => {
-    openRelease(123);
-    await expect(runStage(fakeCtx(verdict({ releaseFix: true })), 7)).rejects.toThrow('no release takes fixes now');
-    expect(releaseInput).toContain('No release takes fixes now.');
-  });
-
-  it('labels a release fix as a release task, names the release and drops the dev clone', async () => {
-    openRelease(null);
-    await runStage(fakeCtx(verdict({ releaseFix: true, reason: 'Fixes the headlights of #5.' })), 7);
-    expect(calls).toContain('addLabel 7 release-task');
-    expect(readState(`${home}/state.json`).release?.tasks).toEqual([7]);
-    expect(calls.find((call) => call.startsWith('comment 7 Triage passed as a fix for release 2026-09-29: Fixes the headlights of #5.'))).toContain('It branches from release/2026-09-29');
+    expect(calls.some((call) => call.startsWith('addLabel'))).toBe(false);
     expect(calls.at(-1)).toBe('move 7 Design');
-    expect(existsSync(`${home}/work/issue-7`)).toBe(false);
+    expect(existsSync(`${home}/work/issue-7`)).toBe(true);
   });
 
-  it('keeps the dev clone of a normal card for Design', async () => {
-    openRelease(null);
+  it('writes no release input for the agent, since no release takes fixes', async () => {
     await runStage(fakeCtx(verdict({})), 7);
-    expect(calls).not.toContain('addLabel 7 release-task');
-    expect(existsSync(`${home}/work/issue-7`)).toBe(true);
+    expect(existsSync(`${home}/work/issue-7/game/.factory/release.md`)).toBe(false);
   });
 
   it('drops the dev clone of a hotfix, so Design branches it from main', async () => {
     await runStage(fakeCtx(verdict({ hotfix: true }), ['bug']), 7);
     expect(existsSync(`${home}/work/issue-7`)).toBe(false);
-  });
-
-  it('refuses a hotfix that is also a release fix', async () => {
-    openRelease(null);
-    await expect(runStage(fakeCtx(verdict({ hotfix: true, releaseFix: true }), ['bug']), 7)).rejects.toThrow('marks a hotfix as a release fix');
   });
 });
 
@@ -404,9 +371,7 @@ describe('triage vote', () => {
   it.each([
     [{ bundle: [11] }, 'bundles #11, which is not an offered Triage card'],
     [{ bundle: undefined }, 'bundle as a list of issue numbers'],
-    [{ releaseFix: undefined }, 'releaseFix as true or false'],
-    [{ releaseFix: true }, 'no release takes fixes now'],
-  ])('refuses a bad groom.json bundle or release fix %#', async (over, message) => {
+  ])('refuses a bad groom.json bundle %#', async (over, message) => {
     await expect(runStage(vote(over), 7)).rejects.toThrow(message);
   });
 
@@ -500,11 +465,6 @@ describe('triage grooming', () => {
     expect(existsSync(`${home}/groomed/issue-7.md`)).toBe(false);
   });
 
-  it('keeps a release fix out of a vote', async () => {
-    writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), release: { issue: 40, branch: 'release/x', day: 'x', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } });
-    await expect(runStage(fakeCtx(verdict({ releaseFix: true }), [], [], { verdict: 'vote' }), 7)).rejects.toThrow('puts a release fix to a vote');
-  });
-
   it('throws when groom.json is missing', async () => {
     await expect(runStage(fakeCtx(verdict({}), [], [], null), 7)).rejects.toThrow('no .factory/groom.json');
   });
@@ -513,7 +473,7 @@ describe('triage grooming', () => {
     await runStage(fakeCtx(verdict({})), 7);
     expect(prompt).toContain('Never refuse a request that is not a bug because it does not fit the game as written.');
     expect(prompt).toContain('You never ask the author questions.');
-    expect(groomPrompt).toContain('You decide everything else: the verdict, the bundle, the release fix and the complexity.');
+    expect(groomPrompt).toContain('You decide everything else: the verdict, the bundle and the complexity.');
     expect(groomPrompt).toContain('Put every open question in this one set');
   });
 

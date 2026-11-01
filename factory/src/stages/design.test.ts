@@ -21,7 +21,7 @@ beforeEach(() => {
   bases = [];
   caughtUp = { commit: null, conflicts: [], kept: null };
   merged = true;
-  writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } });
+  writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), release: { issue: 20, day: '2026-09-29', postId: null, removed: [], candidate: null, playtest: { seed: 1, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null } } });
 });
 afterEach(() => rmSync(home, { recursive: true, force: true }));
 
@@ -247,17 +247,6 @@ describe('design stage', () => {
     expect(calls.filter((call) => call.startsWith('move'))).toEqual([]);
   });
 
-  it('plans a release task against the release branch, fetched first', async () => {
-    labels = ['release-task'];
-    const ctx = fakeCtx((run) => {
-      mkdirSync(`${run.clone}/${run.dir}/.factory-tasks`, { recursive: true });
-      writeFileSync(`${run.clone}/${run.dir}/.factory-tasks/issue-7.md`, PLAN);
-    });
-    await runStage(ctx, 7);
-    expect(calls[0]).toBe('fetch ');
-    expect(bases).toEqual(['prepare release/2026-09-29', 'diff release/2026-09-29']);
-  });
-
   it('plans an ordinary card against dev', async () => {
     const ctx = fakeCtx((run) => {
       mkdirSync(`${run.clone}/${run.dir}/.factory-tasks`, { recursive: true });
@@ -267,8 +256,8 @@ describe('design stage', () => {
     expect(bases).toEqual(['prepare dev', 'diff dev']);
   });
 
-  it('closes a cleanup task on won\'t do, so the candidate is not held', async () => {
-    labels = ['release-task', 'maintenance'];
+  it('closes a cleanup task on won\'t do, so it never blocks the queue', async () => {
+    labels = ['maintenance'];
     await runStage(fakeCtx((run) => writeFileSync(`${run.clone}/${run.dir}/.factory/wont-do.md`, 'Nothing worth doing.\n')), 7);
     expect(calls).toContain('close 7 not planned');
     expect(calls.at(-1)).toBe('move 7 Done');

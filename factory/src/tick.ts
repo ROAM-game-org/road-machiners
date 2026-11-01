@@ -18,21 +18,22 @@ import { repairClone } from './repair-clone';
 import { clearSessions, markResumed, markTimedOut } from './sessions';
 import { requeueKept } from './stages/kept-approval';
 import { adoptQuestionMedia } from './stages/common';
+import { candidateWanted } from './stages/release-common';
 import { nextBatchCards, waitingMerges } from './stages/merge';
-import { openTasks } from './stages/release-common';
 import { labelStuckBatch, sweepStuck, type Repair } from './stuck';
 import { clearQueued, isQueued, orderKey, readState, updateState } from './state';
 import { sweepTranscripts } from './transcript-archive';
 import { askedAt, clearAsked, isAnswered, recordAsked } from './questions';
 import { CARD_JOBS } from './position';
-import { ADHOC_LABEL, AGENT_QUEUES, HOTFIX_LABEL, NEEDS_INFO_LABEL, QUEUE_OF, RELEASE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, VOTING_LABEL } from './types';
-import type { Card, Column, Ctx, FactoryConfig, FactoryState, Job, JobStage, PlaytestState, Queue, Run } from './types';
+import { ADHOC_LABEL, AGENT_QUEUES, HOTFIX_LABEL, NEEDS_INFO_LABEL, QUEUE_OF, RELEASE_LABEL, STUCK_LABEL, VOTING_LABEL } from './types';
+import type { Card, Column, Ctx, FactoryConfig, FactoryState, Job, JobStage, Queue, ReleaseState, Run } from './types';
 
 export type JobPick = { stage: JobStage; issue: number | null };
 type Candidate = JobPick & { pastCardLimit: boolean };
-type Due = Pick<FactoryConfig, 'wasteReviewDays' | 'maxJobsPerCard' | 'triageWorkers' | 'designWorkers' | 'implementWorkers' | 'verifyWorkers' | 'testWorkers'>;
+type Due = Pick<FactoryConfig, 'wasteReviewDays' | 'playtestHours' | 'maxJobsPerCard' | 'triageWorkers' | 'designWorkers' | 'implementWorkers' | 'verifyWorkers' | 'testWorkers'>;
 
-const DAY_MS = 24 * 3_600_000;
+const HOUR_MS = 3_600_000;
+const DAY_MS = 24 * HOUR_MS;
 const MINUTE_MS = 60_000;
 const NOT_CARD_LIMITED_STAGES: JobStage[] = ['approve', 'merge', 'catch-up', 'remove', 'ship', 'adhoc', 'incident', 'answer', 'dev', 'waste', 'checks'];
 const CARD_ORDER: Card['column'][] = ['Hardening', 'Testing', 'Implementation', 'Design', 'Triage'];
@@ -81,7 +82,8 @@ function cardStage(state: FactoryState, card: Card): JobStage {
 
 function mergeJob(state: FactoryState, cards: Card[]): JobPick | null {
   const ready = waitingMerges(state, openCards(state, cards)).filter((card) => !state.jobs.some((job) => job.issue === card.issue));
-  return ready.length > 0 ? { stage: 'merge', issue: null } : null;
+  const fixesWait = state.release?.playtest.fixes != null && !state.failures.some((failure) => failure.stage === 'merge');
+  return ready.length > 0 || fixesWait ? { stage: 'merge', issue: null } : null;
 }
 
 function catchUpJobs(state: FactoryState, cards: Card[], heads: Heads): JobPick[] {
@@ -102,9 +104,7 @@ function forgetCaughtUp(ctx: Ctx, cards: Card[]): void {
 }
 
 function baseOf(card: Card): keyof Heads {
-  if (card.labels.includes(HOTFIX_LABEL)) return 'main';
-  if (card.labels.includes(RELEASE_TASK_LABEL)) return 'release';
-  return 'dev';
+  return card.labels.includes(HOTFIX_LABEL) ? 'main' : 'dev';
 }
 
 const has =
@@ -125,30 +125,57 @@ function cardCandidates(state: FactoryState, cards: Card[]): Candidate[] {
     .sort((a, b) => a.issue - b.issue)
     .map((card) => ({ stage: 'adhoc' as const, issue: card.issue }));
   const work = rest.filter(lacks(ADHOC_LABEL));
-  const normal = [...adhoc, ...byProgress(state, work.filter(has(RELEASE_TASK_LABEL))), ...byProgress(state, work.filter(lacks(RELEASE_TASK_LABEL)))];
+  const normal = [...adhoc, ...byProgress(state, work)];
   return [...hotfix, ...normal.map((pick) => ({ ...pick, pastCardLimit: false }))];
 }
 
-export type ReleaseGate = { reason: 'uncut' | 'tracking-missing' | 'failed' | 'release-tasks' | 'playtest' | 'playtest-blocked' | 'candidate' | 'ship-approval'; issues: number[] };
-export function readReleaseGate(state: FactoryState, cards: Card[], releaseHead: string | null = null): ReleaseGate {
+export type ReleaseGate = { reason: 'unopened' | 'tracking-missing' | 'failed' | 'playtest-blocked' | 'playtest' | 'candidate' | 'ship-approval'; issues: number[] };
+export function readReleaseGate(state: FactoryState, cards: Card[]): ReleaseGate {
   const release = state.release;
-  if (release === null) return { reason: 'uncut', issues: [] };
-  if (release.postId !== null) return { reason: 'ship-approval', issues: [] };
+  if (release === null) return { reason: 'unopened', issues: [] };
+  return trackingGate(release, cards) ?? workGate(state, release);
+}
+
+function trackingGate(release: ReleaseState, cards: Card[]): ReleaseGate | null {
   const tracking = cards.find((card) => card.issue === release.issue);
   if (!tracking) return { reason: 'tracking-missing', issues: [] };
-  if (tracking.labels.includes(STUCK_LABEL)) return { reason: 'failed', issues: [release.issue] };
-  return playtestGate(openTasks(cards, release.tasks), release.playtest, releaseHead);
+  return tracking.labels.includes(STUCK_LABEL) ? { reason: 'failed', issues: [release.issue] } : null;
 }
-function playtestGate(issues: number[], playtest: PlaytestState, releaseHead: string | null): ReleaseGate {
-  if (issues.length) return { reason: 'release-tasks', issues };
-  if (playtest.blocked !== null) return { reason: 'playtest-blocked', issues: [] };
-  return releaseHead !== null && playtest.passed === releaseHead ? { reason: 'candidate', issues: [] } : { reason: 'playtest', issues: [] };
+
+function workGate(state: FactoryState, release: ReleaseState): ReleaseGate {
+  if (release.playtest.blocked !== null && state.pendingPlaytest === null) return { reason: 'playtest-blocked', issues: [] };
+  if (candidateWanted(release)) return { reason: 'candidate', issues: [] };
+  return { reason: release.postId !== null ? 'ship-approval' : 'playtest', issues: [] };
 }
-function releaseJob(state: FactoryState, cards: Card[], releaseHead: string | null): JobPick | null {
-  if (state.release === null || releaseHead === null) return null;
-  const reason = readReleaseGate(state, cards, releaseHead).reason;
-  if (reason !== 'playtest' && reason !== 'candidate') return null;
-  return { stage: reason, issue: state.release.issue };
+
+const sameCommit = (a: string, b: string): boolean => a.startsWith(b) || b.startsWith(a);
+
+export function playtestDue(state: FactoryState, devTip: string | null, now: Date, hours: number): boolean {
+  const release = state.release;
+  if (release === null || release.playtest.fixes !== null) return false;
+  if (state.pendingPlaytest !== null) return true;
+  return release.playtest.blocked === null && devMovedPastStart(release, devTip, now, hours);
+}
+
+function devMovedPastStart(release: ReleaseState, devTip: string | null, now: Date, hours: number): boolean {
+  const last = release.playtest.lastStart;
+  if (devTip === null) return false;
+  if (last === null) return true;
+  return !sameCommit(devTip, last.sha) && isDue(last.at, now, hours * HOUR_MS);
+}
+
+function openReleaseJob(state: FactoryState): JobPick | null {
+  return state.failures.some((failure) => failure.stage === 'release') ? null : { stage: 'release', issue: null };
+}
+
+const PLAYTEST_WAITS: ReleaseGate['reason'][] = ['playtest', 'ship-approval'];
+
+function releaseJob(state: FactoryState, cards: Card[], now: Date, cfg: Due, devTip: string | null): JobPick | null {
+  const release = state.release;
+  if (release === null) return openReleaseJob(state);
+  const reason = readReleaseGate(state, cards).reason;
+  if (reason === 'candidate') return state.pendingShip === null ? { stage: 'candidate', issue: release.issue } : null;
+  return PLAYTEST_WAITS.includes(reason) && playtestDue(state, devTip, now, cfg.playtestHours) ? { stage: 'playtest', issue: release.issue } : null;
 }
 
 function wasteReview(state: FactoryState, now: Date, cfg: Due): Candidate[] {
@@ -157,17 +184,13 @@ function wasteReview(state: FactoryState, now: Date, cfg: Due): Candidate[] {
   return [{ stage: 'waste', issue: null, pastCardLimit: false }];
 }
 
-function releaseCut(state: FactoryState): JobPick | null {
-  return state.release === null && state.pendingCut !== null ? { stage: 'release', issue: null } : null;
-}
-
 function devJob(state: FactoryState, devHead: string | null): JobPick | null {
   if (devHead === null || devHead === state.devBuild || devHead === state.devFailed) return null;
   return { stage: 'dev', issue: null };
 }
 
 function branchCandidates(state: FactoryState, cards: Card[], now: Date, cfg: Due, heads: Heads): Candidate[] {
-  const picks = [...queued(state), mergeJob(state, cards), ...catchUpJobs(state, cards, heads),devJob(state, heads.dev), releaseCut(state), releaseJob(state, cards, heads.release)];
+  const picks = [...queued(state), mergeJob(state, cards), ...catchUpJobs(state, cards, heads),devJob(state, heads.dev), releaseJob(state, cards, now, cfg, heads.dev)];
   return picks.filter((pick) => pick !== null).map((pick) => ({ ...pick, pastCardLimit: false }));
 }
 
@@ -211,7 +234,7 @@ function readHotfixVerifyReasons(pick: JobPick, running: JobPick[], hotfixes: Se
   const inVerify = (job: JobPick): boolean => QUEUE_OF[job.stage] === 'verify' && job.issue !== null && hotfixes.has(job.issue);
   return inVerify(pick) && running.some(inVerify) ? ['hotfix-verify'] : [];
 }
-const ONE_AT_A_TIME: JobStage[][] = [['ship', 'remove'], ['incident'], ['catch-up']];
+const ONE_AT_A_TIME: JobStage[][] = [['ship', 'remove', 'release', 'candidate'], ['incident'], ['catch-up']];
 const LABEL_WAITS: [string, WaitReason][] = [[STUCK_LABEL, 'failed'], [NEEDS_INFO_LABEL, 'needs-info'], [VOTING_LABEL, 'voting']];
 function readCardWait(state: FactoryState, card: Card): ScheduleDecision[] {
   const reasons: WaitReason[] = LABEL_WAITS.filter(([label]) => card.labels.includes(label)).map(([, reason]) => reason);
@@ -233,8 +256,8 @@ function countCardPick(picked: Map<number, number>, limited: boolean, issue: num
   if (limited && issue !== null) picked.set(issue, (picked.get(issue) ?? 0) + 1);
 }
 
-export type Heads = { dev: string | null; release: string | null; main: string | null };
-const NO_HEADS: Heads = { dev: null, release: null, main: null };
+export type Heads = { dev: string | null; main: string | null };
+const NO_HEADS: Heads = { dev: null, main: null };
 
 export function evaluateSchedule(state: FactoryState, cards: Card[], now: Date, cfg: Due, heads: Heads = NO_HEADS): ScheduleReport {
   const picks: JobPick[] = [];
@@ -252,7 +275,7 @@ export function evaluateSchedule(state: FactoryState, cards: Card[], now: Date, 
     countCardPick(pickedForCard, limited, pick.issue);
     picks.push(pick);
   }
-  return { picks, decisions, release: readReleaseGate(state, cards, heads.release) };
+  return { picks, decisions, release: readReleaseGate(state, cards) };
 }
 export function chooseJobs(state: FactoryState, cards: Card[], now: Date, cfg: Due, heads: Heads = NO_HEADS): JobPick[] {
   return evaluateSchedule(state, cards, now, cfg, heads).picks;
@@ -433,7 +456,7 @@ const AWAITING_RELEASE: Column[] = ['Approval', 'Hardening', 'Merging'];
 
 function unreleasedIssues(state: FactoryState, cards: Card[]): number[] {
   const onBoard = cards.filter((card) => AWAITING_RELEASE.includes(card.column)).map((card) => card.issue);
-  const merged = [...state.devMerges, ...(state.release?.merges ?? [])].map((merge) => merge.issue);
+  const merged = state.devMerges.map((merge) => merge.issue);
   return [...onBoard, ...merged];
 }
 
@@ -506,23 +529,6 @@ export async function tick(ctx: Ctx, codeDir: string, deps: TickDeps = REAL_DEPS
   await intake(ctx);
 }
 
-async function releaseHead(ctx: Ctx): Promise<string | null> {
-  const release = readState(ctx.statePath).release;
-  return release === null ? null : ctx.repo.headHash(release.branch);
-}
-
-export function dropStaleCandidate(ctx: Ctx, head: string | null): void {
-  const state = readState(ctx.statePath);
-  const release = state.release;
-  if (release === null || release.postId === null || !movedPast(state, release.candidateSha, head)) return;
-  updateState(ctx.statePath, (state) => ({ ...state, pendingShip: null, release: state.release && { ...state.release, postId: null } }));
-  ctx.log('tick', release.issue, `release moved from ${release.candidateSha ?? 'an unknown commit'} to ${head}, dropped candidate post ${release.postId}`);
-}
-
-function movedPast(state: FactoryState, posted: string | null, head: string | null): boolean {
-  return head !== null && posted !== head && !state.jobs.some((job) => job.stage === 'ship');
-}
-
 async function revive(ctx: Ctx, cards: Card[]): Promise<void> {
   try {
     await reviveVotes(ctx, cards);
@@ -554,9 +560,8 @@ async function startJobs(ctx: Ctx, codeDir: string, deps: TickDeps): Promise<voi
   requireAgyLogin(ctx.cfg.home);
   requireCappedSlice(ctx.cfg.jobsSlice);
   await ctx.repo.fetch();
-  const heads = { dev: await ctx.repo.headHash('dev'), release: await releaseHead(ctx), main: await ctx.repo.headHash('main') };
+  const heads = { dev: await ctx.repo.headHash('dev'), main: await ctx.repo.headHash('main') };
   forgetCaughtUp(ctx, cards);
-  dropStaleCandidate(ctx, heads.release);
   const report = evaluateSchedule(readState(ctx.statePath), cards, ctx.now(), ctx.cfg, heads);
   reportScheduler(ctx.cfg.home, 'ready', ctx.now(), report, cards);
   if (report.picks.length === 0) return ctx.log('tick', null, 'nothing to start');

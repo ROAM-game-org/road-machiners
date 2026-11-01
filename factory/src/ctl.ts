@@ -45,8 +45,8 @@ const WRITE: Record<string, { usage: string; help: string; build: Builder }> = {
   move: { usage: 'move N <to>', help: `put a card in one of ${MOVE_TARGETS.join(', ')}`, build: ([n, to]) => ({ action: 'move', issue: number(n), to: target(to) }) },
   merge: { usage: 'merge N', help: 'put a card in the merge queue, past its post and hardening', build: ([n]) => ({ action: 'merge', issue: number(n) }) },
   ship: { usage: 'ship', help: 'ship the open release now', build: () => ({ action: 'ship' }) },
-  cut: { usage: 'cut', help: 'cut a release now', build: () => ({ action: 'cut' }) },
-  remove: { usage: 'remove N', help: 'take a feature out of the release', build: ([n]) => ({ action: 'remove', issue: number(n) }) },
+  playtest: { usage: 'playtest', help: 'order a release playtest on the dev tip now, also when dev has not moved or the last playtest started recently', build: () => ({ action: 'playtest' }) },
+  remove: { usage: 'remove N', help: 'take a feature out of dev and the release: its merge on dev is reverted, the candidate is dropped and the card returns to design', build: ([n]) => ({ action: 'remove', issue: number(n) }) },
   drop: { usage: `drop <${DROP_QUEUES.join('|')}> <id>`, help: 'drop one queued entry', build: ([queue, id]) => dropAction(queue, id) },
   'pause-card': { usage: 'pause-card N', help: "hold a card: stop its job, keep its work clone and agent sessions, and start no job on it until resume-card", build: ([n]) => ({ action: 'hold', issue: number(n) }) },
   'resume-card': { usage: 'resume-card N', help: 'lift the hold of a card, so its stage continues in the stopped sessions', build: ([n]) => ({ action: 'unhold', issue: number(n) }) },
@@ -221,7 +221,7 @@ function queues(ctx: Ctx): void {
   console.log(`approval: ${listOrNone(approvals)}`);
   console.log(`removal: ${listOrNone(removals)}`);
   console.log(`ship: ${state.pendingShip ?? 'none'}`);
-  console.log(`cut: ${state.pendingCut ?? 'none'}`);
+  console.log(`playtest: ${state.pendingPlaytest ?? 'none'}`);
   console.log(`incident: ${listOrNone(state.pendingIncidents.map((issue) => `#${issue}`))}`);
   console.log(`caught up: ${listOrNone(Object.entries(state.caughtUpTo).map(([issue, head]) => `#${issue} at ${head}`))}`);
   console.log(`answer: ${listOrNone(state.pendingAnswers.map((id) => `player comment ${id}`))}`);
@@ -243,15 +243,14 @@ function formatMerges(merges: IssueMerge[]): string {
 function release(ctx: Ctx): void {
   const state = readState(ctx.statePath);
   console.log(`last release: ${state.lastRelease ?? 'none'}`);
-  console.log(`cut ordered: ${state.pendingCut ?? 'none'}`);
+  console.log(`playtest ordered: ${state.pendingPlaytest ?? 'none'}`);
   console.log(`public post: ${publicPost(state.releasePost)}`);
-  console.log(`merged into dev since the cut: ${formatMerges(state.devMerges)}`);
+  console.log(`merged into dev, not yet shipped: ${formatMerges(state.devMerges)}`);
   if (state.release === null) return console.log('open release: none');
-  console.log(`open release: #${state.release.issue} branch ${state.release.branch} cut ${state.release.day}`);
-  console.log(`release merges: ${formatMerges(state.release.merges)}`);
+  console.log(`open release: #${state.release.issue} opened ${state.release.day}`);
   console.log(`candidate post: ${candidatePost(state.release)}`);
   console.log(`removed: ${state.release.removed.map((issue) => `#${issue}`).join(', ') || 'none'}`);
-  console.log(`recorded tasks: ${state.release.tasks.map((issue) => `#${issue}`).join(', ') || 'none'}`);
+  console.log(`playtest fixes to land on dev: ${state.release.playtest.fixes ?? 'none'}`);
   for (const line of playtestLines(state.release.playtest, ctx.cfg.playtestRuns)) console.log(line);
 }
 
@@ -263,13 +262,19 @@ function publicPost(post: ReleasePost | null): string {
 
 function candidatePost(release: ReleaseState): string {
   if (release.postId === null) return 'none';
-  return `${release.postId} of ${release.candidateSha ?? 'no commit'}`;
+  return `${release.postId} of ${release.candidate?.sha ?? 'no commit'} with ${formatMerges(release.candidate?.features ?? [])}`;
 }
 
 function playtestLines(playtest: PlaytestState, runs: number): string[] {
-  const lines = [`playtest: seed ${playtest.seed}, ${playtest.runs} plays, at most ${runs} per job, passed ${playtest.passed ?? 'none'}`];
-  if (playtest.blocked) lines.push(`playtest blocked at ${playtest.blocked.sha}: ${playtest.blocked.reason}`);
-  return [...lines, ...playtest.notes.map((note) => `playtest decision: ${note}`)];
+  const passed = playtest.passed ? ` with ${formatMerges(playtest.passed.features)}` : '';
+  const lines = [`playtest: seed ${playtest.seed}, ${playtest.runs} plays, at most ${runs} per job, passed ${playtest.passed?.sha ?? 'none'}${passed}, last start ${playtest.lastStart?.sha ?? 'none'}`];
+  return [...lines, ...blockLines(playtest)];
+}
+
+function blockLines(playtest: PlaytestState): string[] {
+  const block = playtest.blocked ? [`playtest blocked at ${playtest.blocked.sha}: ${playtest.blocked.reason}`] : [];
+  const decision = playtest.decision ? [`playtest decision by ${playtest.decision.by} at ${playtest.decision.at}: ${playtest.decision.text}`] : [];
+  return [...block, ...decision];
 }
 
 function failures(ctx: Ctx): void {
@@ -329,8 +334,7 @@ function retryPlaytest(ctx: Ctx, decision: string): string {
   updateState(ctx.statePath, (state: FactoryState) => {
     if (state.release === null) return state;
     const playtest = state.release.playtest;
-    const notes = decision === '' ? playtest.notes : [...playtest.notes, decision];
-    return { ...state, release: { ...state.release, playtest: { ...playtest, blocked: null, notes } } };
+    return { ...state, release: { ...state.release, playtest: { ...playtest, blocked: null } } };
   });
   return `Lifted the playtest block of the release. A new playtest job plays up to ${ctx.cfg.playtestRuns} times${decision === '' ? '' : ' and reads the decision'}.`;
 }

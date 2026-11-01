@@ -102,7 +102,7 @@ export function releaseDrift(state: FactoryState, cards: Card[]): string[] {
   const release = state.release;
   const lines = release === null ? [] : openReleaseDrift(release, cards);
   if (state.pendingShip !== null && (release === null || release.postId === null)) lines.push('pending ship but no current candidate post');
-  if (state.pendingCut !== null && release !== null) lines.push('cut ordered but a release is open');
+  if (state.pendingPlaytest !== null && release === null) lines.push('playtest ordered but no release is open');
   return [...lines, ...releasePostDrift(state.releasePost)];
 }
 
@@ -114,12 +114,8 @@ function releasePostDrift(post: ReleasePost | null): string[] {
 function openReleaseDrift(release: ReleaseState, cards: Card[]): string[] {
   const lines: string[] = [];
   if (!cards.some((card) => card.issue === release.issue)) lines.push(`release tracking card #${release.issue} missing`);
-  if (release.postId !== null && release.candidateSha !== release.playtest.passed) lines.push(`candidate post of ${release.candidateSha ?? 'no commit'} that the playtest did not pass`);
-  return [...lines, ...missingTasks(release, cards)];
-}
-
-function missingTasks(release: ReleaseState, cards: Card[]): string[] {
-  return release.tasks.filter((issue) => !cards.some((card) => card.issue === issue)).map((issue) => `release task #${issue} missing from the board`);
+  if (release.postId !== null && release.candidate === null) lines.push('candidate post but no candidate commit');
+  return lines;
 }
 
 export function stuckText(record: StuckRecord | undefined): string {

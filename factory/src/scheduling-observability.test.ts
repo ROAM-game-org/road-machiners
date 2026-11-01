@@ -1,12 +1,12 @@
 import { expect, it } from 'vitest';
 import * as scheduling from './tick';
-import { EMPTY_STATE } from './state';
-import { STUCK_LABEL, NEEDS_INFO_LABEL, type Card, type Job } from './types';
+import { EMPTY_STATE, newPlaytest } from './state';
+import { STUCK_LABEL, NEEDS_INFO_LABEL, type Card, type FactoryState, type Job } from './types';
 
 const now = new Date('2026-10-04T12:00:00Z');
-const config = { wasteReviewDays: 7, maxJobsPerCard: 30, triageWorkers: 1, designWorkers: 1, implementWorkers: 1, verifyWorkers: 1, testWorkers: 1 };
+const config = { playtestHours: 12, wasteReviewDays: 7, maxJobsPerCard: 30, triageWorkers: 1, designWorkers: 1, implementWorkers: 1, verifyWorkers: 1, testWorkers: 1 };
 function createCard(issue: number, column: Card['column'], labels: string[] = []): Card { return { issue, column, labels, itemId: String(issue) }; }
-function createState() { return { ...structuredClone(EMPTY_STATE), lastRelease: now.toISOString() }; }
+function createState(): FactoryState { return { ...structuredClone(EMPTY_STATE), lastRelease: now.toISOString(), release: { issue: 90, day: '2026-10-04', postId: null, candidate: null, removed: [], playtest: newPlaytest('2026-10-04') } }; }
 
 it('explains both slot contention and an already running issue without changing selections', () => {
   expect(scheduling).toHaveProperty('evaluateSchedule');
@@ -32,24 +32,22 @@ it('explains author waits, failed work, approval waits and the card job limit', 
 it('reports the same candidate gate used by selection', () => {
   expect(scheduling).toHaveProperty('readReleaseGate');
   const state = createState();
-  state.release = { issue: 10, branch: 'release/2026-10-04', day: '2026-10-04', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
-  const cards = [createCard(10, 'Approval', ['release']), createCard(11, 'Testing', ['release-task'])];
-  expect(scheduling.readReleaseGate(state, cards)).toEqual({ reason: 'release-tasks', issues: [11] });
-  cards[1].column = 'Done';
-  expect(scheduling.readReleaseGate(state, cards, 'rel0001')).toEqual({ reason: 'playtest', issues: [] });
-  expect(scheduling.chooseJobs(state, cards, now, config, { dev: null, release: 'rel0001', main: null })).toEqual([{ stage: 'playtest', issue: 10 }]);
-  state.release.playtest.passed = 'rel0001';
-  expect(scheduling.readReleaseGate(state, cards, 'rel0001')).toEqual({ reason: 'candidate', issues: [] });
-  expect(scheduling.chooseJobs(state, cards, now, config, { dev: null, release: 'rel0001', main: null })).toEqual([{ stage: 'candidate', issue: 10 }]);
+  state.release = { issue: 10, day: '2026-10-04', postId: null, removed: [], candidate: null, playtest: { seed: 1, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null } };
+  state.devBuild = 'dev0001';
+  const cards = [createCard(10, 'Approval', ['release']), createCard(11, 'Testing')];
+  expect(scheduling.readReleaseGate(state, cards)).toEqual({ reason: 'playtest', issues: [] });
+  expect(scheduling.chooseJobs(state, cards, now, config, { dev: 'dev0001', main: null })).toEqual([{ stage: 'playtest', issue: 10 }]);
+  state.release!.playtest.passed = { sha: 'rel0001', features: [] };
+  expect(scheduling.readReleaseGate(state, cards)).toEqual({ reason: 'candidate', issues: [] });
+  expect(scheduling.chooseJobs(state, cards, now, config, { dev: 'dev0001', main: null })).toContainEqual({ stage: 'candidate', issue: 10 });
+  state.release!.candidate = { sha: 'rel0001', features: [] };
+  state.release!.postId = 5;
+  expect(scheduling.readReleaseGate(state, cards)).toEqual({ reason: 'ship-approval', issues: [] });
 });
-it('holds the playtest for a recorded release task the board does not list yet, until the board shows it in Done', () => {
-  const state = createState();
-  state.release = { issue: 10, branch: 'release/2026-10-04', day: '2026-10-04', postId: null, removed: [], tasks: [12], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
-  const cards = [createCard(10, 'Approval', ['release'])];
-  expect(scheduling.readReleaseGate(state, cards, 'rel0001')).toEqual({ reason: 'release-tasks', issues: [12] });
-  expect(scheduling.chooseJobs(state, cards, now, config, { dev: null, release: 'rel0001', main: null })).toEqual([]);
-  cards.push(createCard(12, 'Design'));
-  expect(scheduling.readReleaseGate(state, cards, 'rel0001')).toEqual({ reason: 'release-tasks', issues: [12] });
-  cards[1].column = 'Done';
-  expect(scheduling.readReleaseGate(state, cards, 'rel0001')).toEqual({ reason: 'playtest', issues: [] });
+it('reports no release gate work while the release is unopened, missing its card or blocked', () => {
+  const state: FactoryState = { ...createState(), release: null };
+  expect(scheduling.readReleaseGate(state, [])).toEqual({ reason: 'unopened', issues: [] });
+  state.release = { issue: 10, day: '2026-10-04', postId: null, removed: [], candidate: null, playtest: { seed: 1, runs: 0, lastStart: null, passed: null, fixes: null, blocked: { sha: 'x', reason: 'r' }, decision: null, work: null } };
+  expect(scheduling.readReleaseGate(state, [])).toEqual({ reason: 'tracking-missing', issues: [] });
+  expect(scheduling.readReleaseGate(state, [createCard(10, 'Approval', ['release'])])).toEqual({ reason: 'playtest-blocked', issues: [] });
 });

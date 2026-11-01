@@ -86,7 +86,7 @@ describe('approve', () => {
 
   it('ships a hotfix from main to itch.io, brings main into dev, leaves the open release and its candidate alone, closes the issue and tells only the committee', async () => {
     labels = ['bug', 'hotfix'];
-    writeState(`${home}/state.json`, { ...EMPTY_STATE, release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 300, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, pendingShip: 'ann', pendingApprovals: { 7: 'bob' }, builds: { 7: 'aaa1111' } });
+    writeState(`${home}/state.json`, { ...EMPTY_STATE, release: { issue: 20, day: '2026-09-29', postId: 300, removed: [], candidate: null, playtest: { seed: 1, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null } }, pendingShip: 'ann', pendingApprovals: { 7: 'bob' }, builds: { 7: 'aaa1111' } });
     await approve(fakeCtx(), 7, 'bob');
     const changelog = 'ROAM hotfix 2026-09-30\n\nFixed: #7 Big horn';
     expect(calls.filter((call) => !call.startsWith('prepare') && !call.startsWith('shell'))).toEqual([
@@ -192,12 +192,6 @@ describe('approve', () => {
     const ctx = fakeCtx();
     ctx.cfg.butlerKey = null;
     await expect(approve(ctx, 7, 'bob')).rejects.toThrow('BUTLER_API_KEY');
-    expect(calls).toEqual([]);
-  });
-
-  it('throws for a release task when no release is open, before any git call', async () => {
-    labels = ['release-task'];
-    await expect(approve(fakeCtx(), 7, 'bob')).rejects.toThrow('needs an open release');
     expect(calls).toEqual([]);
   });
 

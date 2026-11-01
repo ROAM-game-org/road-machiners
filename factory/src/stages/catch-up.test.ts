@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { EMPTY_STATE, readState, writeState } from '../state';
-import { MergeConflictError, RELEASE_TASK_LABEL, STUCK_LABEL, type AgentRun, type Card, type Ctx, type Failure, type Job, type MergeStep, type Resolution } from '../types';
+import { MergeConflictError, STUCK_LABEL, type AgentRun, type Card, type Ctx, type Failure, type Job, type MergeStep, type Resolution } from '../types';
 import { catchUp } from './catch-up';
 
 let home = '';
@@ -16,7 +16,7 @@ let logs: string[] = [];
 
 const card = (issue: number, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column: 'Merging', labels });
 const mergeJob = (batch: number[] | undefined): Job => ({ id: 'merge-x', stage: 'merge', issue: null, pid: 1, startedAt: '', log: '', batch });
-const RELEASE = { issue: 20, branch: 'release/2026-10-09', day: '2026-10-09', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
+const RELEASE = { issue: 20, day: '2026-10-09', postId: null, removed: [], candidate: null, playtest: { seed: 1, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null } };
 
 beforeEach(() => {
   mkdirSync('tmp', { recursive: true });
@@ -100,10 +100,10 @@ describe('catchUp', () => {
     expect(caughtUp()).toEqual({});
   });
 
-  it('takes the release branch for a release task', async () => {
-    cards = [card(8, [RELEASE_TASK_LABEL])];
+  it('takes dev for a maintenance card', async () => {
+    cards = [card(8, ['maintenance'])];
     await catchUp(fakeCtx(), 8);
-    expect(calls).toContain('merge release/2026-10-09 into factory/issue-8 with 0 resolutions');
+    expect(calls).toContain('merge dev into factory/issue-8 with 0 resolutions');
   });
 
   it('does nothing for a card of the running batch or a stuck card', async () => {

@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readLedger } from './ledger';
 import { resumedStage, sessionsDir } from './sessions';
-import { EMPTY_STATE, readState, writeState } from './state';
+import { EMPTY_STATE, newPlaytest, readState, writeState } from './state';
 import { chooseJobs } from './tick';
 import type { Card, Column, Ctx, FactoryConfig, FactoryState, Job } from './types';
 
@@ -16,7 +16,7 @@ const ROOT = resolve('tmp/factory-hold-test');
 const statePath = join(ROOT, 'state.json');
 const NOW = new Date('2026-10-07T10:00:00Z');
 const STARTED = '2026-10-07T09:00:00.000Z';
-const CFG = { wasteReviewDays: 7, maxJobsPerCard: 1, triageWorkers: 1, designWorkers: 1, implementWorkers: 1, verifyWorkers: 1, testWorkers: 1 };
+const CFG = { playtestHours: 12, wasteReviewDays: 7, maxJobsPerCard: 1, triageWorkers: 1, designWorkers: 1, implementWorkers: 1, verifyWorkers: 1, testWorkers: 1 };
 const JOB: Job = { id: 'implement-4-x', stage: 'implement', issue: 4, pid: 77, startedAt: STARTED, log: 'l' };
 
 let cards: Card[] = [];
@@ -36,13 +36,14 @@ function fakeCtx(): Ctx {
   } as unknown as Ctx;
 }
 
-const seed = (patch: Partial<FactoryState>): void => writeState(statePath, { ...structuredClone(EMPTY_STATE), lastRelease: NOW.toISOString(), ...patch });
+const OPEN_RELEASE = { issue: 90, day: '2026-01-10', postId: null, candidate: null, removed: [], playtest: newPlaytest('2026-01-10') };
+const seed = (patch: Partial<FactoryState>): void => writeState(statePath, { ...structuredClone(EMPTY_STATE), lastRelease: NOW.toISOString(), release: OPEN_RELEASE, ...patch });
 const order = (action: 'hold' | 'unhold', issue = 4, by = 'Ann') => applyControl(fakeCtx(), { action, issue, by, reason: 'release tasks first' });
 const jobLines = () => readLedger(ROOT, new Date(0)).filter((line) => line.kind === 'job');
 const controlLines = () => readLedger(ROOT, new Date(0)).filter((line) => line.kind === 'control');
 
 function runningCard(): void {
-  cards = [card(4, 'Implementation'), card(6, 'Implementation', ['release-task'])];
+  cards = [card(4, 'Implementation'), card(6, 'Implementation')];
   seed({ jobs: [JOB, { ...JOB, id: 'verify-5-x', stage: 'verify', issue: 5, pid: 78 }], cardStarts: { 4: [STARTED] } });
   mkdirSync(join(sessionsDir(ROOT, 4), 'work'), { recursive: true });
   writeFileSync(join(sessionsDir(ROOT, 4), 'implement.id'), 'sess-1');
@@ -85,7 +86,7 @@ describe('pause-card on a running card', () => {
     expect(comments[0]).toContain('Ordered by Ann. Reason: release tasks first');
   });
 
-  it('gives the freed worker to the release task on the same tick', async () => {
+  it('gives the freed worker to the next card on the same tick', async () => {
     runningCard();
     await order('hold');
     expect(chooseJobs(readState(statePath), cards, NOW, CFG)).toEqual([{ stage: 'implement', issue: 6 }]);

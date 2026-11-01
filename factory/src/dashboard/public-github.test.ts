@@ -54,7 +54,6 @@ it('orders the merge queue by state and hides private cards', async () => {
     { number: 22, title: 'In the batch', column: 'Merging' },
     { number: 23, title: 'Held merge', column: 'Merging' },
     { number: 24, title: 'PRIVATE merge', column: 'Merging', labels: ['adhoc'] },
-    { number: 25, title: 'Release task', column: 'Merging', labels: ['release-task'] },
     { number: 26, title: 'Still testing', column: 'Testing' },
   ];
   const state: FactoryState = {
@@ -68,6 +67,5 @@ it('orders the merge queue by state and hides private cards', async () => {
     { issue: 20, title: 'Waits first', state: 'next' },
     { issue: 21, title: 'Stuck merge', state: 'stuck' },
     { issue: 23, title: 'Held merge', state: 'held' },
-    { issue: 25, title: 'Release task', state: 'after-ship' },
   ]);
 });

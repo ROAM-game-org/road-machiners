@@ -299,7 +299,7 @@ describe('drainInbox', () => {
   });
 });
 
-const RELEASE: ReleaseState = { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 42, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
+const RELEASE: ReleaseState = { issue: 20, day: '2026-09-29', postId: 42, removed: [], candidate: null, playtest: { seed: 1, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null } };
 const openRelease = (over: Partial<ReleaseState> = {}) => writeState(statePath, withPost({ ...structuredClone(EMPTY_STATE), release: { ...RELEASE, ...over } }));
 
 describe('release commands', () => {
@@ -316,6 +316,15 @@ describe('release commands', () => {
     await drainInbox(fakeCtx([], sent, []));
     expect(readState(statePath).pendingShip).toBe('Ann');
     expect(sent).toEqual([]);
+  });
+
+  it('refuses a ship pressed on a candidate post a newer candidate replaced', async () => {
+    const sent: string[] = [];
+    openRelease({ postId: 77 });
+    put('1.json', { kind: 'ship', issue: 20 });
+    await drainInbox(fakeCtx([], sent, []));
+    expect(sent[0]).toContain('no longer current');
+    expect(readState(statePath).pendingShip).toBeNull();
   });
 
   it('refuses a ship without an open release, without a post, or for another issue', async () => {
@@ -345,7 +354,7 @@ describe('release commands', () => {
 
   it('queues a removal with the whole reply', async () => {
     const sent: string[] = [];
-    openRelease({ merges: [{ issue: 5, title: 'horn', sha: 'a'.repeat(40), into: 'dev', reverted: [] }] });
+    writeState(statePath, withPost({ ...structuredClone(EMPTY_STATE), release: RELEASE, devMerges: [{ issue: 5, title: 'horn', sha: 'a'.repeat(40), into: 'dev', reverted: [] }] }));
     put('1.json', { kind: 'remove', issue: 5, text: 'remove #5 too loud' });
     await drainInbox(fakeCtx([], sent, []));
     expect(readState(statePath).pendingRemovals).toEqual([{ issue: 5, by: 'Ann', text: 'remove #5 too loud' }]);
@@ -364,30 +373,26 @@ describe('release commands', () => {
     expect(readState(statePath).pendingRemovals).toEqual([]);
   });
 
-  it('opens a release task as an issue and a Design card, and drops the current post', async () => {
+  it('opens a reply on the candidate as a normal issue in Triage and keeps the post and a queued ship', async () => {
     const sent: string[] = [];
     const calls: string[] = [];
     writeState(statePath, withPost({ ...structuredClone(EMPTY_STATE), release: RELEASE, pendingShip: 'Bob' }));
-    put('1.json', { kind: 'release-task', text: 'The horn is too quiet\nMake it louder' });
+    put('1.json', { kind: 'candidate-reply', text: 'The horn is too quiet\nMake it louder' });
     await drainInbox(fakeCtx([], sent, calls));
-    expect(calls[0]).toBe('create The horn is too quiet|The horn is too quiet\nMake it louder\n\nRequested by Ann in the committee chat as a task of release 2026-09-29.|release-task');
-    expect(calls[1]).toBe('addCard 9 Design');
-    expect(readState(statePath).release?.tasks).toEqual([9]);
-    expect(readState(statePath).release?.postId).toBeNull();
-    expect(readState(statePath).pendingShip).toBeNull();
+    expect(calls[0]).toBe('create The horn is too quiet|The horn is too quiet\nMake it louder\n\nRequested by Ann in the committee chat, as a reply on a release candidate post.|');
+    expect(calls[1]).toBe('addCard 9 Triage');
+    expect(readState(statePath).release?.postId).toBe(42);
+    expect(readState(statePath).pendingShip).toBe('Bob');
     expect(sent).toEqual([]);
   });
 
-  it('refuses a release task without an open release or without text', async () => {
+  it('refuses a candidate reply without text', async () => {
     const sent: string[] = [];
     const calls: string[] = [];
-    put('1.json', { kind: 'release-task', text: 'x' });
-    await drainInbox(fakeCtx([], sent, calls));
-    expect(sent[0]).toContain('No release is open');
     openRelease();
-    put('2.json', { kind: 'release-task' });
+    put('1.json', { kind: 'candidate-reply' });
     await drainInbox(fakeCtx([], sent, calls));
-    expect(sent[1]).toContain('needs text');
+    expect(sent[0]).toContain('needs text');
     expect(calls).toEqual([]);
     expect(readState(statePath).release?.postId).toBe(42);
   });
@@ -395,7 +400,7 @@ describe('release commands', () => {
 
 describe('parseCommand', () => {
   it('accepts the release kinds', () => {
-    for (const kind of ['ship', 'remove', 'release-task']) expect(parseCommand(`{"kind":"${kind}","by":"1","chat":"c","messageId":1,"postId":2}`).kind).toBe(kind);
+    for (const kind of ['ship', 'remove', 'candidate-reply']) expect(parseCommand(`{"kind":"${kind}","by":"1","chat":"c","messageId":1,"postId":2}`).kind).toBe(kind);
   });
   it('rejects a command without postId', () => {
     expect(() => parseCommand('{"kind":"approve","by":"1","chat":"c","messageId":1}')).toThrow('lacks postId');
@@ -453,7 +458,7 @@ describe('control files', () => {
   it('fails a bad shape and an unknown actor as control failures', async () => {
     const sent: string[] = [];
     putControl('1-control.json', { action: 'explode' });
-    putControl('2-control.json', { action: 'cut', by: 'mallory' });
+    putControl('2-control.json', { action: 'playtest', by: 'mallory' });
     await drainInbox(fakeCtx([], sent, []));
     const errors = readState(statePath).failures.map((failure) => failure.error);
     expect(errors[0]).toContain('Unknown control action explode');
