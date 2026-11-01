@@ -26,7 +26,7 @@ import { addVehicle, emptyWorld, npcBrain, practiceOf } from './testkit';
 import { standardWorld } from '../test/world-cache';
 import type { PartInstance, SalvageStock, Vehicle, World } from './types';
 import { dumpItem } from './inventory';
-import { cloneWorld, endTurn, newWorld, update } from './world';
+import { cloneWorld, endTurnInPlace, newWorld, update } from './world';
 import { advanceFar } from './far';
 import { mapObstacles } from './mapgen';
 import { navLayer } from './nav/layer';
@@ -307,9 +307,10 @@ describe('claim days', () => {
       npc.pos = { x: stock.pos.x + stock.radius + 4, y: stock.pos.y };
       pushGoal(d, npc, { kind: 'scavenge', targetId: stock.id, destination: { ...stock.pos }, phase: 'act', reason: 'searchSite' });
     });
+    w = cloneWorld(w);
     const visited = new Set<string>();
     for (let turn = 0; turn < CLAIM_DAY_TURNS; turn++) {
-      w = endTurn(w, waitInTown);
+      endTurnInPlace(w, waitInTown);
       if (w.player.call) w = update(w, (d) => { d.player.call = null; });
       for (const e of w.events) if (e.t === 'activity' && e.reason === 'claimedWreck') visited.add(e.vehicle);
       if (!w.shops.bowl.contracts.some((c) => c.id === claim.id)) break;
@@ -690,10 +691,11 @@ describe('a rival on the real map', () => {
       v.pos = { x: pad.x + Math.floor(i / pads.length) * 6, y: pad.y };
     });
     const move = (d: World): void => { for (const v of d.vehicles) if (v.id !== d.player.vehicleId) advanceFar(d, v); };
+    w = cloneWorld(w);
     let rival: string | null = null;
     let ended = false;
     for (let turn = 0; turn < 1500 && !ended; turn++) {
-      w = endTurn(w, move);
+      endTurnInPlace(w, move);
       expect(w.events.filter((e) => e.t === 'stall'), `turn ${w.turn}`).toEqual([]);
       const live = w.shops[shop].contracts.find((c) => c.id === claim.id) as ClaimContract | undefined;
       rival = live?.rival ?? rival;
