@@ -41,7 +41,8 @@ export const POLICIES: Policy[] = ['stand', 'orbit', 'charge', 'kite'];
 
 export type Outfit = { gun: string; guns: number; armor: string | null; ram?: string; chassis: string };
 
-export type Gear = { kind: 'kit'; id: string } | { kind: 'npc'; template: string; level: GearLevel | null } | { kind: 'outfit'; outfit: Outfit };
+export type PinnedRoll = { chassis: string; roll: number };
+export type Gear = { kind: 'kit'; id: string } | { kind: 'npc'; template: string; level: GearLevel | null; pinned?: PinnedRoll } | { kind: 'outfit'; outfit: Outfit };
 
 export type Truck = { driver: string; gear: Gear; wear: number | null; label: string };
 
@@ -113,12 +114,20 @@ function defaultGear(driver: string, scripted: boolean): Gear {
 
 function parseGear(text: string): Gear {
   if (text.includes('/')) return { kind: 'outfit', outfit: parseOutfit(text) };
-  const [template, level] = text.split('@');
+  const [template, level, pinText] = text.split('@');
   if (START_KITS[template] && NPCS[template]) throw new Error(`Gear "${template}" names both a start kit and an NPC template`);
   if (START_KITS[template] && level === undefined) return { kind: 'kit', id: template };
   if (!NPCS[template]) throw new Error(`Unknown gear "${text}". Gear is a start kit, an NPC template or gun/armor`);
   if (level !== undefined && !(GEAR_LEVEL_IDS as string[]).includes(level)) throw new Error(`Unknown gear level "${level}". Known: ${GEAR_LEVEL_IDS.join(', ')}`);
-  return { kind: 'npc', template, level: (level as GearLevel | undefined) ?? null };
+  const gear: Gear = { kind: 'npc', template, level: (level as GearLevel | undefined) ?? null };
+  return pinText === undefined ? gear : { ...gear, pinned: parsePinned(pinText, text) };
+}
+
+function parsePinned(text: string, gear: string): PinnedRoll {
+  const [chassis, rollText] = text.split('#');
+  const roll = Number(rollText);
+  if (!CHASSIS[chassis] || !Number.isInteger(roll) || roll < 1) throw new Error(`A pinned roll is template@level@chassis#roll with a roll from 1, got "${gear}"`);
+  return { chassis, roll };
 }
 
 const OUTFIT_CHASSIS = 'hauler';
@@ -358,7 +367,7 @@ function sideLoadout(w: World, gear: Gear): NpcLoadout {
 
 function loadoutOf(w: World, gear: Gear): NpcLoadout {
   if (gear.kind === 'outfit') return bareLoadout(gear.outfit.chassis);
-  if (gear.kind === 'npc') return generateNpcLoadout(w, NPCS[gear.template], null, gear.level);
+  if (gear.kind === 'npc') return gear.pinned ? pinnedLoadout(w, gear.template, gear.level, gear.pinned) : generateNpcLoadout(w, NPCS[gear.template], null, gear.level);
   const kit = START_KITS[gear.id];
   const placed = (kit.placed ?? []).map(({ defId, ...at }) => ({ defId, wear: 0, at }));
   return { chassisId: kit.chassis, level: 'standard', parts: [...placed, ...kit.parts.map((defId) => ({ defId, wear: 0 }))], spares: [], cargo: {} };
@@ -392,6 +401,12 @@ function rechassis(w: World, v: Vehicle, chassisId: string): void {
 }
 
 const bareLoadout = (chassisId: string): NpcLoadout => ({ chassisId, level: 'standard', parts: [], spares: [], cargo: {} });
+
+export function pinnedLoadout(w: World, template: string, level: GearLevel | null, pinned: PinnedRoll): NpcLoadout {
+  if (level === null) throw new Error(`A pinned roll of ${template} needs a gear level`);
+  const rolled = generateNpcLoadout({ ...w, ...seedStreams(pinned.roll) }, NPCS[template], pinned.chassis, level);
+  return { ...rolled, spares: [], cargo: {} };
+}
 
 const KITE_HOLD = 0.8;
 
