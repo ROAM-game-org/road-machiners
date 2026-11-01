@@ -1,7 +1,7 @@
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../../data/physics';
-import { FACTION_COLORS, mix, PAL } from '../../../render/palette';
+import { mix, PAL, TEMPLATE_PAINT } from '../../../render/palette';
 import { fortressCore, pitDepth } from '../../../sim/fortress';
 import type { Site } from '../../../sim/sites';
 import { segmentDist, type Vec } from '../../../sim/vec';
@@ -36,7 +36,7 @@ const SHED_OUT = 1.2;
 const LAMPS = { rings: [4.8, 5.4, 6.9, 8.4, 9.9, 12.4], step: 36, count: 14, gap: 2.5, keepOut: 0.2, span: 0.4 };
 const FENCE = { r: POND.r + 0.5, posts: 14, height: 0.28 };
 
-const CROP = mix(FACTION_COLORS.bowl.top, PAL.palm, 0.3);
+const CROP = mix(TEMPLATE_PAINT.bowlFarmer.top, PAL.palm, 0.3);
 const STAIR_COLOR = PAL.wall.side;
 
 type Side = { a: Vec; b: Vec; length: number; along: Vec; inward: Vec };

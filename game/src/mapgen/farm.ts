@@ -1,26 +1,21 @@
 
 import { PHYSICS } from '../data/physics';
 import { REGION, type TerritoryDef } from '../data/region';
-import { EMPLACEMENT, type BuildingGroup, type ClutterRule, type Emplacement, type FarmRoad, type FarmRules, type GroveBlock, type GroveRule, type Pad, type Run, type TerritoryRules } from '../data/territory';
+import { EMPLACEMENT, OPENING, PERIMETER, type BuildingGroup, type ClutterRule, type Emplacement, type FarmRoad, type FarmRules, type GroveBlock, type GroveRule, type Pad, type Run, type TerritoryRules } from '../data/territory';
 import { TERRAIN } from '../data/terrain';
-import { flattenFalloff } from '../sim/elevation';
-import { ICARUS_KEY } from '../sim/atlas';
 import { boxDistance, propBoxes, type PosedBox } from '../sim/mapgen';
-import { gradePaths, type GradedPad } from '../sim/road-grade';
-import { ROAD_INDEX } from '../sim/road-index';
+import type { GradedPad } from '../sim/road-grade';
 import { chance, randInt, randRange, type Rng } from '../sim/rng';
 import { siteGap } from '../sim/sites';
 import { groundAt, type BakedProp } from '../sim/terrain';
 import { angleDiff, bearing, dist, segmentDist, type Vec } from '../sim/vec';
 import { footprintRelief, tileSteepness, type MapDraft } from './bake';
-import { at, mark, markLine, markRoads, onNewRoad, steep, type Touch } from './marks';
+import { at, gradeTerritoryRoads, mark, markLine, markRoads, onNewRoad, steep, throwOnRoadCliffs, type Touch } from './marks';
 import { BUILT_CANAL, BUILT_PAD, BUILT_TRACK } from './newworld';
 import { BUILT_FIELD, BUILT_OLD_ROAD, facing, prop, RoadLine, tileCenter, tileOf, tilesWithin } from './oldworld';
 
 const LENGTH_SLACK = 1e-6;
 const LINE_SAMPLE = 0.25;
-const NEW_ROAD_SURFACE = REGION.roadWidth / 2 + 1;
-const ROAD_END_SLACK = 1;
 const TRIES = 40;
 const STRAY_FRAY = 4;
 const ROW_LINE = 0.1;
@@ -49,15 +44,19 @@ export function fillFarm(d: MapDraft, t: TerritoryDef, rules: TerritoryRules, fa
   const offField: Touch = (pos, r) => !marked(pos, r) && !touchedTiles(d.size, pos, r + fieldClear).some((tile) => d.built[tile] === BUILT_FIELD);
   const clutter = placeClutter(d, t, spots, rules.debrisGap, farm.clutter, offField, rules.relief, rng);
   d.props.push(...clutter);
-  const keep = (pos: Vec, r: number): boolean =>
-    standsOnFarm(d, t, prop(farm.groves.look, pos, r, 0), false, null) &&
-    !marked(pos, r) &&
+  const gaps = perimeterGaps(t, farm.runs);
+  const built = (pos: Vec, r: number): boolean =>
     clearOf(spots, pos, r, rules.debrisGap) &&
     clearOf(clutter, pos, r, 0) &&
     clearOf(works, pos, r, 0) &&
     runs.every((seg) => clearOfSegment(seg, pos, r));
+  const keep = (pos: Vec, r: number): boolean =>
+    standsOnFarm(d, t, prop(farm.groves.look, pos, r, 0), false, null) &&
+    !marked(pos, r) &&
+    built(pos, r);
+  const keepOpen = (pos: Vec, r: number): boolean => keep(pos, r) && gaps.every(([a, b]) => segmentDist(pos, a, b) >= r + OPENING.clear);
   const trees = plantBlocks(t, farm.groves, blocks, rng, keep);
-  trees.push(...plantStrays(t, frame, farm.groves, farm.blocks, trees, rng, keep));
+  trees.push(...plantStrays(t, frame, farm.groves, farm.blocks, trees, rng, keepOpen));
   d.props.push(...trees);
   return spots;
 }
@@ -167,25 +166,13 @@ function padCorners(d: MapDraft, p: BakedProp): number[] {
 function gradeFarmRoads(d: MapDraft, t: TerritoryDef, roads: readonly FarmRoad[], buildings: readonly BakedProp[]): void {
   const pads = levelPads(d, buildings);
   const before = Float32Array.from(d.heights);
-  const paths = roads.map((road) => ({ points: road.points.map((p) => shift(t, p)), width: road.width, grade: road.grade ?? TERRAIN.roadGrade }));
-  const graded = gradePaths({ size: d.size, heights: Array.from(d.heights), types: [], atlas: ICARUS_KEY }, paths, TERRAIN.farmGradeMargin, pads);
-  const reach = Math.max(ROAD_END_SLACK + Math.max(...roads.map((road) => road.width / 2)) + TERRAIN.farmGradeMargin, Math.SQRT2 + TERRAIN.levelMargin);
-  graded.forEach((h, k) => {
-    if (h === d.heights[k]) return;
-    const corner = { x: k % (d.size + 1), y: Math.floor(k / (d.size + 1)) };
-    if (siteGap(t, corner) > reach) throw new Error(`${t.id} road grading moves the ground at ${at(corner)}, outside the territory`);
-    const onPad = pads.some((pad) => dist(pad.pos, corner) <= pad.r);
-    d.heights[k] += (h - d.heights[k]) * (onPad ? 1 : 1 - newRoadHold(corner));
-  });
+  const onMap = roads.map((road) => ({ ...road, points: road.points.map((p) => shift(t, p)) }));
+  gradeTerritoryRoads(d, t, onMap, pads);
   for (const p of buildings) {
     const cliff = tilesWithin(d.size, p.pos, padRadius(p) + TERRAIN.levelMargin + 1).find((tile) => steep(d, tile) && tileSteepness(before, d.size, tile) <= TERRAIN.drive.maxSlope);
     if (cliff !== undefined) throw new Error(`${t.id} ${p.kind} at ${at(p.pos)} levels its ground into a cliff at ${at(tileCenter(d.size, cliff))}`);
   }
-}
-
-export function newRoadHold(p: Vec): number {
-  const d = ROAD_INDEX.nearestWithin(p.x, p.y, NEW_ROAD_SURFACE + TERRAIN.farmGradeMargin);
-  return d === Infinity ? 0 : flattenFalloff(d - NEW_ROAD_SURFACE, TERRAIN.farmGradeMargin);
+  throwOnRoadCliffs(d, t, onMap);
 }
 
 function placeRuns(d: MapDraft, t: TerritoryDef, runs: readonly Run[], spots: readonly BakedProp[], marked: Touch, relief: number | null, debrisGap: number, rng: Rng): BakedProp[] {
@@ -242,6 +229,13 @@ function rowLineGap(a: Vec, b: Vec, c: Vec): number {
 function lineGap(a: Vec, b: Vec, c: Vec): number {
   const length = dist(a, b);
   return length === 0 ? dist(a, c) : Math.abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) / length;
+}
+
+function perimeterGaps(t: TerritoryDef, runs: readonly Run[]): [Vec, Vec][] {
+  const isPerimeter = (run: Run): boolean => run.look === PERIMETER.look && run.broken === PERIMETER.broken && run.knocked.share === PERIMETER.knocked.share;
+  const walls = runs.filter(isPerimeter).map((run) => run.points.map((p) => shift(t, p)));
+  const gaps = walls.slice(1).map((wall, k): [Vec, Vec] => [walls[k].at(-1)!, wall[0]]);
+  return gaps.filter(([a, b]) => dist(a, b) <= OPENING.gap);
 }
 
 function runSegments(t: TerritoryDef, run: Run, rng: Rng): BakedProp[] {
@@ -418,7 +412,7 @@ function standsOnFarm(d: MapDraft, t: TerritoryDef, p: BakedProp, segment: boole
   return relief === null || (footprintRelief(d.heights, d.size, p, segment) <= relief && cornerRelief(d, p) <= relief);
 }
 
-function cornerRelief(d: MapDraft, p: BakedProp): number {
+export function cornerRelief(d: MapDraft, p: BakedProp): number {
   const ground = { size: d.size, heights: d.heights };
   const seat = groundAt(ground, p.pos.x, p.pos.y);
   const look = p.kind;

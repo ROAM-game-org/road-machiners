@@ -39,4 +39,10 @@ export function describeQuestWalks(title: string, wanted: (questId: string) => b
   });
 }
 
-export const inFirstNoseFile = (questId: string): boolean => /^nose_(depot_leak|edda|ibo)$/.test(questId);
+export const inFirstNoseFile = (questId: string): boolean => /^nose_(edda|ibo)$/.test(questId);
+
+export const inDepotLeakFile = (questId: string): boolean => questId === 'nose_depot_leak';
+
+export const inPumpAgnesFile = (questId: string): boolean => questId === 'pump_agnes';
+
+export const inPumpPipeFile = (questId: string): boolean => questId.startsWith('pump_') && !inPumpAgnesFile(questId);

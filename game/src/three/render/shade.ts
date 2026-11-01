@@ -7,7 +7,7 @@ import { PAL } from '../../render/palette';
 import { playerVehicle } from '../../sim/damage';
 import { inShade, shadeCasters, sunAt, sunHeatAt, type Sun } from '../../sim/sun';
 import type { PlayClock } from '../play-clock';
-import { groundUvPerMeter, type TerrainChunk } from './terrain';
+import { groundUvPerMeter } from './terrain';
 import { heightAt } from '../../sim/terrain';
 import type { Obstacle, World } from '../../sim/types';
 
@@ -44,7 +44,7 @@ export class ShadeView {
     hazeUvPerMeter: { value: 0 },
   };
 
-  constructor(world: World, ground: TerrainChunk[], play: PlayClock) {
+  constructor(world: World, ground: THREE.MeshLambertMaterial, play: PlayClock) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(SIDE * SIDE * 3), 3));
     geo.setAttribute('alpha', new THREE.BufferAttribute(new Float32Array(SIDE * SIDE), 1));
@@ -74,7 +74,7 @@ export class ShadeView {
     this.mesh = new THREE.Mesh(geo, mat);
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = 901;
-    this.hazeGround(ground[0].mesh.material as THREE.MeshLambertMaterial, groundUvPerMeter(world.size));
+    this.hazeGround(ground, groundUvPerMeter(world.size));
     this.mesh.onBeforeRender = () => {
       this.haze.hazeTime.value = play.nowMs() / 1000;
     };
@@ -186,12 +186,13 @@ uniform float hazeUvPerMeter;`;
 const HAZE_SHIFT = `
   vec2 hazeCell = (vHazeXZ - hazeOrigin) / ${S.toFixed(4)} + 0.5;
   float hazeOn = texture2D(hazeMask, hazeCell / ${SIDE.toFixed(1)}).r;
+  vec2 hazeShift = vec2(0.0);
+  if (hazeOn > 0.0) {
   vec2 hazeP = vHazeXZ;
   float hazeT = hazeTime;
   vec2 hazeWarp = ${glslFloat(HAZE.warp.depth)} * vec2(
     sin(hazeP.y * ${glslFloat(TAU / HAZE.warp.wave)} + hazeT * ${glslFloat(HAZE.warp.speed)}),
     sin(hazeP.x * ${glslFloat(TAU / HAZE.warp.wave * 0.83)} - hazeT * ${glslFloat(HAZE.warp.speed * 1.37)}));
-  vec2 hazeShift = vec2(0.0);
 ${HAZE.waves.map(waveGlsl).join('\n')}
   float hazeGust = smoothstep(0.35, 0.95, 0.5 + 0.5 * sin(hazeP.x * ${glslFloat(TAU / HAZE.gust)} + hazeT * ${glslFloat(HAZE.gustSpeed)}
     + 1.7 * sin(hazeP.y * ${glslFloat(TAU / HAZE.gust * 0.71)} - hazeT * ${glslFloat(HAZE.gustSpeed * 0.63)}))
@@ -204,6 +205,7 @@ ${HAZE.waves.map(waveGlsl).join('\n')}
       directionalLightShadows[0].shadowBias, directionalLightShadows[0].shadowRadius, vDirectionalShadowCoord[0]);
   #endif
   hazeShift *= hazeOn * hazeLit * hazeGust * ${glslFloat(HAZE.shift / HAZE.waves.reduce((sum, w) => sum + w.weight, 0))};
+  }
   #define vMapUv (vMapUv + hazeShift * hazeUvPerMeter)
   #define vRoadXZ (vRoadXZ + hazeShift)`;
 

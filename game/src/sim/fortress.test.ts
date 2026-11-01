@@ -1,4 +1,5 @@
 
+import { HOLLOW } from '../data/sunward';
 import { describe, expect, it } from 'vitest';
 import { FORTRESS, FORTRESS_SITES, FORTRESS_STYLES } from '../data/fortress';
 import { REGION } from '../data/region';
@@ -6,7 +7,8 @@ import { TEST_MAP } from '../test/map';
 import { FORT_MODELS, FORT_PROPS, fortressCore, fortressGates, fortressOutline, fortressPieces, pitDepth } from './fortress';
 import { PROP_KINDS } from './terrain';
 import type { Obstacle } from './types';
-import { boxDistance, isDriveObstacle, isBakedObstacle, mapObstacles, propBoxes, propPose } from './mapgen';
+import { boxDistance, isDriveObstacle, isBakedObstacle, mapObstacles, propBoxes, propObstacle, propPose } from './mapgen';
+import { noseRocks } from './nose';
 import { isFree } from './spawn';
 import { canUseSite, isFortress, sitePads } from './sites';
 import { discoverSites } from './locations';
@@ -40,9 +42,9 @@ function sag(site: (typeof SITES)[number], o: object): number {
 describe('fort prop kinds', () => {
   it('names one model per kind, and every kind is a map prop kind (IV14)', () => {
     const kinds = Object.values(FORT_PROPS).flatMap((styles) => Object.values(styles));
-    expect(new Set(kinds).size).toBe(26);
+    expect(new Set(kinds).size).toBe(29);
     for (const kind of kinds) expect(PROP_KINDS).toContain(kind);
-    expect(new Set([...FORT_MODELS.values()].map((m) => m.model)).size).toBe(26);
+    expect(new Set([...FORT_MODELS.values()].map((m) => m.model)).size).toBe(29);
   });
 
   it('drops the ship barbican kinds (IV23)', () => {
@@ -68,9 +70,9 @@ describe('fort prop kinds', () => {
 });
 
 describe('fortress obstacles', () => {
-  it('has the nine inhabited sites as fortresses', () => {
-    expect(FORT_SITES.map((s) => s.id).sort()).toEqual(Object.keys(FORTRESS_SITES).sort());
-    expect(FORT_SITES).toHaveLength(9);
+  it('has the ten inhabited sites as fortresses', () => {
+    expect(FORT_SITES.map((s) => s.id).sort()).toEqual(Object.keys(FORTRESS_SITES).filter((id) => id !== 'outpost' && id !== HOLLOW.id).sort());
+    expect(FORT_SITES).toHaveLength(10);
   });
 
   it('keeps no site circle and no town building ring for a fortress site (IV2)', () => {
@@ -143,10 +145,10 @@ describe('fortress ground', () => {
 
   it('leaves the roads out of Nose clear of its rock', () => {
     const nose = FORT_SITES.find((s) => s.id === 'nose')!;
-    const rock = mapObstacles(TEST_MAP).filter((o) => o.kind === 'landmark' && (o.look === 'noseRise' || o.look === 'noseCrag'));
-    expect(rock).toHaveLength(2);
-    const boxes = rock.flatMap((o) => propBoxes(o));
-    const reach = Math.max(...rock.map((o) => o.r));
+    expect(mapObstacles(TEST_MAP).filter((o) => o.kind === 'landmark' && (o.look === 'noseRise' || o.look === 'noseCrag'))).toEqual([]);
+    const rock = noseRocks(nose);
+    const boxes = rock.flatMap((p, k) => propBoxes(propObstacle(p, k)));
+    const reach = Math.max(...rock.map((p) => p.r));
     let checked = 0;
     for (const road of REGION.roads) {
       for (let i = 1; i < road.length; i++) {
@@ -161,6 +163,21 @@ describe('fortress ground', () => {
       }
     }
     expect(checked).toBeGreaterThan(20);
+  });
+
+  it('keeps the new legs into Nose 40 tiles out until their radial leg, clear of every other site (IV6)', () => {
+    const nose = FORT_SITES.find((s) => s.id === 'nose')!;
+    const others = SITES.filter((s) => s.id !== 'nose');
+    let checked = 0;
+    for (const road of REGION.roads.slice(0, 2)) {
+      const approach = road.slice(0, -1).filter((p) => dist(p, nose.pos) < 80);
+      for (const p of approach) {
+        expect(dist(p, nose.pos), `road at ${p.x.toFixed(1)}, ${p.y.toFixed(1)}`).toBeGreaterThanOrEqual(40);
+        for (const other of others) expect(dist(p, other.pos), `${other.id} at ${p.x.toFixed(1)}, ${p.y.toFixed(1)}`).toBeGreaterThan(other.radius);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(10);
   });
 
   it('leaves every pad clear of the pieces and the rock (IV6)', () => {

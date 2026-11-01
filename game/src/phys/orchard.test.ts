@@ -38,6 +38,7 @@ const SHELF_LEG_TURNS = 15;
 function orchardWorld(): World {
   const w = reusedWorld('orchard', () => newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming')));
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
+  w.spawnQueue = [];
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   return w;
 }
@@ -93,10 +94,10 @@ describe('driving through Old Orchard', () => {
     me.pos = parking;
     me.speed = 0;
     me.order = null;
-    const npc = addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], { ...south }, UP_ROAD);
+    const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { ...south }, UP_ROAD);
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
-    let goal = spotGoal(w, 'orchard');
-    while (goal.targetId !== barn.id) goal = spotGoal(w, 'orchard');
+    let goal = spotGoal(w, 'orchard', []);
+    while (goal.targetId !== barn.id) goal = spotGoal(w, 'orchard', []);
     npc.brain.goals = [goal];
     forceOption('salvageSeen', 'keep');
 
@@ -119,17 +120,28 @@ describe('driving through Old Orchard', () => {
     expect(maxStuck).toBeLessThan(RULES.unstick.turns);
   }, 180_000);
 
-  it('the player drives up the old highway to the north pocket barn and back', async () => {
+  const BARN_YARD = at(60, 32);
+  const BARN_UP = [at(0, 0), at(30, 0), at(46, 0), at(52, 6), at(60, 6.6), at(61, 22)];
+
+  it('the player drives up the old highway to the north pocket barn', async () => {
     const w = orchardWorld();
     const me = player(w);
     me.pos = at(-12, 0);
     me.heading = UP_ROAD;
-    const yard = at(60, 32);
-    const up = [at(0, 0), at(30, 0), at(46, 0), at(52, 6), at(60, 6.6), at(61, 22)];
-    const legs = [...up, yard, ...up.slice().reverse(), at(-12, 0)].map(stopAt);
+    const legs = [...BARN_UP, BARN_YARD].map(stopAt);
     await driveLegs(w, legs, BARN_LEG_TURNS, (x, leg) => {
-      if (leg === up.length) expect(dist(player(x).pos, yard)).toBeLessThan(RULES.arriveRadius + 1);
+      if (leg === BARN_UP.length) expect(dist(player(x).pos, BARN_YARD)).toBeLessThan(RULES.arriveRadius + 1);
     });
+  }, 180_000);
+
+  it('the player drives back down the old highway from the north pocket barn', async () => {
+    const w = orchardWorld();
+    const me = player(w);
+    const last = BARN_UP[BARN_UP.length - 1];
+    me.pos = BARN_YARD;
+    me.heading = Math.atan2(BARN_YARD.y - last.y, BARN_YARD.x - last.x);
+    const legs = [...BARN_UP.slice().reverse(), at(-12, 0)].map(stopAt);
+    await driveLegs(w, legs, BARN_LEG_TURNS, () => {});
   }, 180_000);
 
   it('the player drives up the dozer track to the ridge shelf crate stack and back', async () => {

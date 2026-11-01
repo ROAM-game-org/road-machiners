@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DOWNLOAD } from '../config';
 import { BANK, beatLoopSeconds, type Cue } from '../data/sounds';
-import { BeatLengthMismatch, loadBank, recoverBank, reportFailures, type BankOptions } from './bank';
+import { ASSET_RETRY_DELAYS_MS } from '../fetch-asset';
+import { BeatLengthMismatch, loadBank, recoverBank, reportFailures, SoundBank, startBank, type BankOptions } from './bank';
 
 const SOUNDS = { a: { files: ['a.ogg'] }, b: { files: ['b.ogg'] } } as unknown as Record<string, Cue>;
 const PAIR = { hit: { files: ['hit-1.ogg', 'hit-2.ogg'] } } as unknown as Record<string, Cue>;
@@ -154,7 +154,7 @@ describe('loadBank', () => {
 });
 
 async function afterRetries<T>(run: Promise<T>): Promise<T> {
-  await vi.advanceTimersByTimeAsync(DOWNLOAD.waitMs.reduce((a, b) => a + b) * 4);
+  await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAYS_MS.reduce((a, b) => a + b) * 4);
   return run;
 }
 
@@ -244,10 +244,10 @@ describe('recoverBank', () => {
   });
 
   it('leaves fetch and codec failures alone', async () => {
-    vi.stubGlobal('fetch', async (url: string) => (url.includes('hit-2.') ? reply({ ok: false, status: 503 }) : ok));
+    vi.stubGlobal('fetch', async (url: string) => (url.includes('hit-2.') ? reply({ ok: false, status: 404 }) : ok));
     vi.useFakeTimers();
     const run = loadBank(rejecting, PAIR, options({ support: { ogg: '', m4a: '' } }));
-    await vi.advanceTimersByTimeAsync(DOWNLOAD.waitMs.reduce((a, b) => a + b) * 4);
+    await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAYS_MS.reduce((a, b) => a + b) * 2);
     const loaded = await run;
     const fetch = vi.fn(async () => ok);
     vi.stubGlobal('fetch', fetch);
@@ -283,12 +283,12 @@ describe('loadBank with the network down', () => {
     const fetch = vi.fn(async () => { throw down; });
     vi.stubGlobal('fetch', fetch);
     const run = loadBank(ctx, { a: SOUNDS.a }, options());
-    await vi.advanceTimersByTimeAsync(DOWNLOAD.waitMs.reduce((a, b) => a + b));
+    await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAYS_MS.reduce((a, b) => a + b));
     const { bank, failures, unreachable } = await run;
     expect(failures).toEqual([]);
     expect(unreachable.map((f) => f.file)).toEqual(['a.ogg']);
     expect(bank.get('a.ogg')!.duration).toBeCloseTo(BANK.silentSeconds, 1);
-    expect(fetch).toHaveBeenCalledTimes(DOWNLOAD.tries);
+    expect(fetch).toHaveBeenCalledTimes(ASSET_RETRY_DELAYS_MS.length + 1);
   });
 
   it('recovers when a later try gets through', async () => {
@@ -298,7 +298,7 @@ describe('loadBank with the network down', () => {
       return ok;
     });
     const run = loadBank(ctx, { a: SOUNDS.a }, options());
-    await vi.advanceTimersByTimeAsync(DOWNLOAD.waitMs[0]);
+    await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAYS_MS[0]);
     const { failures, unreachable } = await run;
     expect(failures).toEqual([]);
     expect(unreachable).toEqual([]);
@@ -310,7 +310,7 @@ describe('loadBank with the network down', () => {
       return ok;
     });
     const run = loadBank(ctx, PAIR, options());
-    await vi.advanceTimersByTimeAsync(DOWNLOAD.waitMs.reduce((a, b) => a + b));
+    await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAYS_MS.reduce((a, b) => a + b));
     const { bank, failures, unreachable } = await run;
     expect(bank.get('hit-2.ogg')).toBe(bank.get('hit-1.ogg'));
     expect(failures).toEqual([]);
@@ -320,16 +320,16 @@ describe('loadBank with the network down', () => {
 
 describe('reportFailures', () => {
   it('sends one report per class with the evidence, the counts and the browser text', async () => {
-    vi.stubGlobal('fetch', async (url: string) => (url.includes('hit-2.') ? reply({ ok: false, status: 503 }) : ok));
+    vi.stubGlobal('fetch', async (url: string) => (url.includes('hit-2.') ? reply({ ok: false, status: 404 }) : ok));
     const named = ctxOf(async () => { throw Object.assign(new Error('The buffer is bad'), { name: 'EncodingError' }); });
     vi.useFakeTimers();
     const run = loadBank(named, PAIR, options());
-    await vi.advanceTimersByTimeAsync(DOWNLOAD.waitMs.reduce((a, b) => a + b) * 4);
+    await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAYS_MS.reduce((a, b) => a + b) * 2);
     const loaded = await run;
     const reports = reportFailures(loaded.failures, 104, new Set(['hit-1.ogg']), SUPPORT);
     expect(reports.map((r) => r.message)).toEqual([
       'Sound decode failed (decoder): 1 of 104, got 24 of 24 bytes, signature yes, HTTP 200 audio/ogg, context suspended, page visible, 0 MB decoded, device memory unknown, recovered later 1: ogg "probably" EncodingError: The buffer is bad; m4a "maybe" EncodingError: The buffer is bad',
-      'Sound decode failed (fetch): 1 of 104, got no of 24 bytes, signature no, HTTP 503 no content type, context suspended, page visible, 0 MB decoded, device memory unknown, recovered later 0: ogg "probably" Error: File /sfx/hit-2.ogg failed to load: HTTP 503; m4a "maybe" Error: File /sfx-m4a/hit-2.m4a failed to load: HTTP 503',
+      'Sound decode failed (fetch): 1 of 104, got no of 24 bytes, signature no, HTTP 404 no content type, context suspended, page visible, 0 MB decoded, device memory unknown, recovered later 0: ogg "probably" AssetStatusError: Sound /sfx/hit-2.ogg failed to load: HTTP 404 undefined; m4a "maybe" AssetStatusError: Sound /sfx-m4a/hit-2.m4a failed to load: HTTP 404 undefined',
     ]);
     expect(reports[0].files).toEqual(['hit-1.ogg']);
   });
@@ -350,7 +350,7 @@ describe('reportFailures', () => {
     });
     const calls: [number, number][] = [];
     const run = loadBank(ctx, SOUNDS, options({ progress: (done, total) => calls.push([done, total]) }));
-    await vi.advanceTimersByTimeAsync(DOWNLOAD.waitMs[0] * 10);
+    await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAYS_MS[0] * 10);
     const { failures } = await run;
     expect(calls).toEqual([[0, 2], [1, 2], [2, 2]]);
     expect(failures).toEqual([]);
@@ -407,7 +407,7 @@ describe('loadBank with a browser that refuses Ogg Opus', () => {
     vi.stubGlobal('fetch', fetch);
     vi.useFakeTimers();
     const run = loadBank(ctxOf(async () => good), PAIR, options());
-    await vi.advanceTimersByTimeAsync(DOWNLOAD.waitMs.reduce((a, b) => a + b));
+    await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAYS_MS.reduce((a, b) => a + b));
     const { unreachable, failures, format } = await run;
     expect(unreachable.map((f) => f.file)).toEqual(['hit-2.ogg']);
     expect(failures).toEqual([]);
@@ -469,5 +469,42 @@ describe('loadBank with beat cues', () => {
     const { failures } = await loadBank(sized(loop + 20), BEAT, options());
     expect(failures[0].errors.every((e) => e instanceof BeatLengthMismatch)).toBe(true);
     expect(failures[0].errors).toHaveLength(BANK.formats.length);
+  });
+});
+
+describe('SoundBank', () => {
+  it('gives undefined for a pending file and throws for one outside its set', () => {
+    const bank = new SoundBank(['a.ogg']);
+    expect(bank.get('a.ogg')).toBeUndefined();
+    expect(() => bank.get('z.ogg')).toThrow();
+    expect(() => bank.set('z.ogg', real)).toThrow();
+    expect(() => bank.onArrive('z.ogg', () => {})).toThrow();
+  });
+
+  it('runs an arrival hook once, and not after it is cancelled', () => {
+    const bank = new SoundBank(['a.ogg', 'b.ogg']);
+    const first = vi.fn();
+    const cancelled = vi.fn();
+    bank.onArrive('a.ogg', first);
+    bank.onArrive('b.ogg', cancelled)();
+    bank.set('a.ogg', real);
+    bank.set('a.ogg', real);
+    bank.set('b.ogg', real);
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(first).toHaveBeenCalledWith(real);
+    expect(cancelled).not.toHaveBeenCalled();
+  });
+});
+
+describe('startBank', () => {
+  it('fills the bank before loaded resolves, and stand-ins come last', async () => {
+    vi.stubGlobal('fetch', async (url: string) => reply({ ok: !url.includes('hit-2.'), status: 404 }));
+    vi.useFakeTimers();
+    const started = startBank(ctx, PAIR, options());
+    expect(started.bank.get('hit-1.ogg')).toBeUndefined();
+    const loaded = await afterRetries(started.loaded);
+    expect(loaded.bank).toBe(started.bank);
+    expect(started.bank.get('hit-1.ogg')).toBe(real);
+    expect(started.bank.get('hit-2.ogg')).toBe(real);
   });
 });

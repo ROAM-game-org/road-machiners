@@ -2,26 +2,34 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { PHYSICS } from '../data/physics';
 import { beforeAll, expect, it } from 'vitest';
 import { randRange } from '../sim/rng';
-import { deckAt } from '../sim/bridge';
-import { heightAt } from '../sim/terrain';
+import { deckAt, deckById } from '../sim/bridge';
+import { REGION, scalePoint } from '../data/region';
+import { heightAt, type Terrain } from '../sim/terrain';
+import { playerVehicle } from '../sim/damage';
 import { dist, type Vec } from '../sim/vec';
 import { endTurn, newWorld, setMoveOrder } from '../sim/world';
-import { buildDrive, freeDrive, initPhysics, type Drive, type TurnResult } from './drive';
+import { buildDrive, freeDrive, initPhysics, syncDrive, type Drive, type TurnResult } from './drive';
 import { toMap } from './frames';
 import { physicsMove } from './turn';
 import { TEST_MAP } from '../test/map';
 import { budget } from '../test/budget';
-import { furyRoadWorld, PLAIN_KIT } from '../sim/testkit';
+import { chaosHighwayWorld, PLAIN_KIT } from '../sim/testkit';
 import { defaultSetup } from '../sim/settings';
 import { ICARUS_DECKS } from '../sim/bridge';
 import { atlasOf } from '../sim/atlas';
+import { reusedWorld } from '../test/world-cache';
+import type { World } from '../sim/types';
 
 beforeAll(async () => {
   await initPhysics();
 });
 
+function plainWorld(): World {
+  return reusedWorld('hills plain', () => newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming')));
+}
+
 function driveRoute(start: Vec, target: Vec): { maxTilt: number; remaining: number; minDeckRise: number } {
-  let w = newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
+  let w = plainWorld();
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   w.vehicles[0].pos = { ...start };
   w.player.fuel = 999;
@@ -46,10 +54,13 @@ function driveRoute(start: Vec, target: Vec): { maxTilt: number; remaining: numb
   return { maxTilt: maxTilt * 180 / Math.PI, remaining: dist(w.vehicles[0].pos, target), minDeckRise };
 }
 
+const B = deckById('canyon-bridge');
+const alongBridge = (along: number): Vec => ({ x: B.from.x + B.axis.x * along, y: B.from.y + B.axis.y * along });
+
 it('a truck stays under 20 degrees of tilt at both canyon road crossings', () => {
   for (const [start, target] of [
-    [{ x: 417, y: 125.33 }, { x: 443, y: 129.67 }],
-    [{ x: 490, y: 375 }, { x: 507, y: 358 }],
+    [scalePoint({ x: 83.4, y: 25.066 }), scalePoint({ x: 88.6, y: 25.934 })],
+    [alongBridge(-0.5), alongBridge(B.length + 0.5)],
   ] as [Vec, Vec][]) {
     const result = driveRoute(start, target);
     expect(result.remaining).toBeLessThan(3);
@@ -58,32 +69,33 @@ it('a truck stays under 20 degrees of tilt at both canyon road crossings', () =>
 }, budget(60_000));
 
 it('a truck crosses Canyon Bridge on the deck, above the canyon', () => {
-  const result = driveRoute({ x: 486, y: 379 }, { x: 509, y: 356 });
+  const result = driveRoute(alongBridge(-4.95), alongBridge(B.length + 2.12));
   expect(result.remaining).toBeLessThan(3);
   expect(result.minDeckRise).toBeGreaterThan(0);
   expect(result.minDeckRise).toBeLessThan(2);
 }, budget(60_000));
 
 it('the Bowl crater exit leans the truck without rolling it onto its side', () => {
-  const start = newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming')).vehicles[0].pos;
-  const result = driveRoute(start, { x: 101, y: 432 });
+  const bowl = REGION.towns.find((t) => t.id === 'bowl')!.pos;
+  const start = REGION.roads[0].find((p) => dist(p, bowl) > 100)!;
+  const result = driveRoute(start, { x: bowl.x + 21, y: bowl.y - 38 });
   expect(result.remaining).toBeLessThan(3);
   expect(result.maxTilt).toBeLessThan(45);
 }, budget(60_000));
 
-it('the terrain collider is a heightfield whose surface matches the corner grid', () => {
+const GROUND_SAMPLE = 100;
+
+function expectGroundUnder(drive: Drive, t: Terrain, around: Vec): number {
   const S = PHYSICS.metersPerTile;
-  const w = newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
-  const t = w.terrain;
-  const drive = buildDrive(w);
-  const ground = drive.world.getCollider(drive.terrain);
+  const ground = drive.world.getCollider(drive.terrain.handle);
   expect(ground.shapeType()).toBe(RAPIER.ShapeType.HeightField);
   const corner = (i: number, j: number) => t.heights[j * (t.size + 1) + i] * S;
   const rng = { rngState: 7 };
+  const near = (c: number) => randRange(rng, Math.max(0, c - GROUND_SAMPLE), Math.min(t.size, c + GROUND_SAMPLE));
   let flat = 0;
   for (let k = 0; k < 200; k++) {
-    const x = randRange(rng, 0, t.size);
-    const y = randRange(rng, 0, t.size);
+    const x = near(around.x);
+    const y = near(around.y);
     const top = 1000;
     const toi = ground.castRay(new RAPIER.Ray({ x: x * S, y: top, z: y * S }, { x: 0, y: -1, z: 0 }), 2 * top, true);
     expect(toi).toBeGreaterThanOrEqual(0);
@@ -102,14 +114,25 @@ it('the terrain collider is a heightfield whose surface matches the corner grid'
       expect(Math.abs(hit - heightAt(t, x, y) * S)).toBeLessThan(0.05);
     }
   }
-  expect(flat).toBeGreaterThan(0);
+  return flat;
+}
+
+it('the terrain collider is a heightfield around the player whose surface matches the corner grid, and it follows the player', () => {
+  const w = newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
+  const drive = buildDrive(w);
+  const me = playerVehicle(w);
+  const flatAtStart = expectGroundUnder(drive, w.terrain, me.pos);
+  me.pos = { ...REGION.towns[0].pos };
+  syncDrive(drive, w);
+  const flatInMiddle = expectGroundUnder(drive, w.terrain, me.pos);
+  expect(flatAtStart + flatInMiddle).toBeGreaterThan(0);
   freeDrive(drive);
 });
 
-it('builds only the ramp decks on the Fury Road highway, and every Icarus deck on Icarus', () => {
-  const road = furyRoadWorld(5);
+it('builds only the ramp decks on the Chaos Highway highway, and every Icarus deck on Icarus', () => {
+  const road = chaosHighwayWorld(5);
   const highway = buildDrive(road);
-  const icarus = buildDrive(newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming')));
+  const icarus = buildDrive(plainWorld());
   const ramps = atlasOf(road.terrain).decks.decks;
 
   expect(ramps.every((d) => d.id.startsWith('ramp-'))).toBe(true);

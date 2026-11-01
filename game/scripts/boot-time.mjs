@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { gpuArgs, isSoftware, rendererOf } from './gpu.mjs';
+import { launchChromium } from './gpu.mjs';
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -43,7 +43,8 @@ function watchBoot() {
 
 async function readRun(page) {
   await page.waitForFunction(() => performance.getEntriesByName('roam:ready').length > 0 && window.__BOOT_TIME__.cleared !== null, null, { timeout: 300000 });
-  return page.evaluate((fetches) => {
+  const sounds = await page.waitForFunction(() => performance.getEntriesByName('roam:sounds')[0]?.startTime, null, { timeout: 120000 }).then((h) => h.jsonValue(), () => null);
+  const read = await page.evaluate((fetches) => {
     const log = window.__BOOT_TIME__;
     const spans = {};
     for (const [name, part] of Object.entries(fetches)) {
@@ -54,9 +55,16 @@ async function readRun(page) {
     for (const [step, t] of Object.entries(log.steps)) steps[step] = t.running !== undefined && (t.done ?? t.failed) !== undefined ? (t.done ?? t.failed) - t.running : null;
     return { ready: performance.getEntriesByName('roam:ready')[0].startTime, cleared: log.cleared, steps, spans, crashed: document.body.innerText.includes('The game crashed') };
   }, FETCHES);
+  return { ...read, sounds };
 }
 
-const browser = await chromium.launch({ args: gpuArgs() });
+const { browser, software, renderer } = await launchChromium(chromium);
+if (software) {
+  await browser.close();
+  console.error(`FAIL\nGot the software renderer ${renderer}. It needs a GPU.`);
+  process.exit(1);
+}
+console.log(`viewport ${viewport.width}x${viewport.height}, net ${net}, runs ${runs}`);
 const results = { cold: [], warm: [] };
 const errors = [];
 let crashed = false;
@@ -66,15 +74,6 @@ for (let i = 0; i < runs; i++) {
   page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
   await page.addInitScript(watchBoot);
   await page.addInitScript(askNewGameOnce, { key: BOOT_KEY, request: NEW_GAME });
-  if (i === 0) {
-    const renderer = await rendererOf(page);
-    console.log(`renderer ${renderer}, viewport ${viewport.width}x${viewport.height}, net ${net}, runs ${runs}`);
-    if (isSoftware(renderer)) {
-      await browser.close();
-      console.error(`FAIL\nGot the software renderer ${renderer}. It needs a GPU.`);
-      process.exit(1);
-    }
-  }
   if (net === '4g') await (await context.newCDPSession(page)).send('Network.emulateNetworkConditions', FAST_4G);
   await page.goto(url);
   results.cold.push(await readRun(page));
@@ -97,6 +96,7 @@ for (const [path, label] of [['cold', 'Fresh game, cold cache'], ['warm', 'Saved
   console.log(`\n${label}`);
   row('ready', list.map((r) => r.ready));
   row('cleared', list.map((r) => r.cleared));
+  row('sounds', list.map((r) => r.sounds));
   console.log(' steps');
   for (const step of Object.keys(list[0].steps)) row(step, list.map((r) => r.steps[step]));
   console.log(' fetches');

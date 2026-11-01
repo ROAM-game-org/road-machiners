@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TIME } from "../data/time";
 import { t, verbatim, type Msg } from "../text/msg";
 import { resolve } from "../text/resolve";
 import { clock } from "./format";
-import { LOG_HISTORY, LogBook } from "./log";
+import { LOG_HISTORY, LogBook, LogStrip } from "./log";
 
 const en = (msg: Msg): string => resolve(msg, "en");
 const ru = (msg: Msg): string => resolve(msg, "ru");
@@ -39,5 +39,60 @@ describe("LogBook", () => {
     const line = new LogBook().add(1, { text: t("log.death"), cls: "bad" });
     expect(en(line.text)).toBe("Day 1 7:00 You died.");
     expect(ru(line.text)).toBe("День 1, 7:00 Вы погибли.");
+  });
+});
+
+class FakeNode {
+  className = "";
+  attrs = new Map<string, string>();
+  children: (FakeNode | string)[] = [];
+  textContent = "";
+  constructor(readonly tag: string) {}
+  append(...c: (FakeNode | string)[]) { this.children.push(...c); }
+  replaceChildren(...c: FakeNode[]) { this.children = c; }
+  setAttribute(k: string, v: string) { this.attrs.set(k, v); }
+  addEventListener() {}
+}
+
+describe("LogStrip", () => {
+  beforeEach(() => {
+    vi.stubGlobal("document", { createElement: (tag: string) => new FakeNode(tag), createTextNode: () => new FakeNode("#text"), getElementById: () => new FakeNode("div") });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("shows the newest line and names the whole line in its title", () => {
+    const strip = new LogStrip();
+    const book = new LogBook();
+    book.add(1, { text: verbatim("First"), cls: "" });
+    const newest = book.add(2, { text: verbatim("Second"), cls: "good" });
+    strip.show(newest);
+    const root = strip.root as unknown as FakeNode;
+    expect(root.attrs.get("title")).toBe(`${en(clock(2).full)} Second`);
+    expect(root.children).toHaveLength(1);
+    expect((root.children[0] as FakeNode).className).toBe("good");
+  });
+
+  it("puts one space between the time and the line, so a copied row keeps it", () => {
+    vi.stubGlobal("document", {
+      createElement: (tag: string) => new FakeNode(tag),
+      createTextNode: (data: string) => Object.assign(new FakeNode("#text"), { textContent: data }),
+      getElementById: () => new FakeNode("div"),
+    });
+    const strip = new LogStrip();
+    strip.show(new LogBook().add(1, { text: verbatim("Second"), cls: "good" }));
+    const row = (strip.root as unknown as FakeNode).children[0] as FakeNode;
+    const kids = row.children as FakeNode[];
+    expect(kids.map((k) => k.tag)).toEqual(["span", "#text", "span"]);
+    expect(kids[1].textContent).toBe(" ");
+    expect(kids[0].className).toBe("log-time");
+  });
+
+  it("replaces the line it showed", () => {
+    const strip = new LogStrip();
+    const book = new LogBook();
+    strip.show(book.add(1, { text: verbatim("A"), cls: "" }));
+    strip.show(book.add(2, { text: verbatim("B"), cls: "" }));
+    expect((strip.root as unknown as FakeNode).children).toHaveLength(1);
+    expect((strip.root as unknown as FakeNode).attrs.get("title")).toContain("B");
   });
 });

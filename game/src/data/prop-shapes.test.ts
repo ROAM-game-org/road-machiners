@@ -35,6 +35,12 @@ const GLASS_FLATS_SIZES = [
   { model: 'scrap_wall', meters: 7.6, tall: 3.6 },
 ] as const;
 
+const BOAT_SIZES = [
+  { model: 'boat_fishing', meters: 10, tall: 3.3 },
+  { model: 'boat_barge', meters: 14, tall: 3.2 },
+  { model: 'boat_skiff', meters: 5, tall: 1.2 },
+] as const;
+
 function shapeBoxes(model: string): readonly Box[] {
   const shape = (SHAPES as Record<string, { boxes: Box[] } | undefined>)[model];
   if (shape === undefined) throw new Error(`Model ${model} has no shape in prop-shapes.json. Run npm run models:shapes.`);
@@ -81,6 +87,14 @@ describe('orchard model sizes (IV11)', () => {
   });
 });
 
+describe('riverbed boat sizes', () => {
+  it.each(BOAT_SIZES)('$model is $meters m long and $tall m tall, within 15%', ({ model, meters, tall }) => {
+    const boxes = shapeBoxes(model);
+    expect(Math.abs(lengthOf(boxes) - meters)).toBeLessThanOrEqual(meters * 0.15);
+    expect(Math.abs(Math.max(...boxes.map((b) => b.z1)) - tall)).toBeLessThanOrEqual(tall * 0.15);
+  });
+});
+
 describe('Glass Flats model sizes', () => {
   it.each(GLASS_FLATS_SIZES)('$model is $meters m long and $tall m tall, within 15%', ({ model, meters, tall }) => {
     const boxes = shapeBoxes(model);
@@ -95,6 +109,27 @@ describe('Glass Flats model sizes', () => {
   });
 });
 
+const ROADSIDE_SIZES = [
+  { model: 'road_sign', long: 1.6, tall: 2.6 },
+  { model: 'route_sign', long: 4, tall: 3.5 },
+  { model: 'barrel', long: 0.9, tall: 0.6 },
+] as const;
+
+describe('roadside model sizes', () => {
+  it.each(ROADSIDE_SIZES)('$model is about $long m long and $tall m tall', ({ model, long, tall }) => {
+    const boxes = shapeBoxes(model);
+    expect(Math.abs(lengthOf(boxes) - long)).toBeLessThanOrEqual(0.6);
+    expect(Math.abs(Math.max(...boxes.map((b) => b.z1)) - tall)).toBeLessThanOrEqual(0.5);
+  });
+
+  it.each(['rock', 'rock_slab', 'rock_split'])('keeps %s inside its unit circle', (model) => {
+    for (const b of shapeBoxes(model)) {
+      const reach = Math.max(...[b.x0, b.x1].flatMap((x) => [b.y0, b.y1].map((y) => Math.hypot(x, y))));
+      expect(reach, JSON.stringify(b)).toBeLessThanOrEqual(1.1);
+    }
+  });
+});
+
 const GATE_TILES: Record<string, number> = {
   fort_pumpworks_gate: FORTRESS.gate.height,
   fort_cistern_gate: FORTRESS.gate.height,
@@ -104,6 +139,7 @@ const GATE_TILES: Record<string, number> = {
   fort_compound_gate: 3,
   fort_ring_gate: 3,
   fort_yard_gate: 3,
+  fort_outpost_gate: 4,
 };
 
 const FORT_SIZES = [
@@ -118,6 +154,9 @@ const FORT_SIZES = [
   { model: 'fort_yard_wall', along: 8, across: 2.9, limit: 1.5 },
   { model: 'fort_yard_tower', along: 5.9, across: 5.9, limit: 3 },
   { model: 'fort_yard_gate', along: 4, across: 10, limit: 5 },
+  { model: 'fort_outpost_wall', along: 8, across: 2.9, limit: 1.5 },
+  { model: 'fort_outpost_tower', along: 5.9, across: 5.9, limit: 3 },
+  { model: 'fort_outpost_gate', along: 3, across: 24, limit: 12 },
   { model: 'fort_scrap_wall', along: 8.2, across: 2.9, limit: 1.6 },
   { model: 'fort_scrap_tower', along: 5.5, across: 5.5, limit: 3 },
   { model: 'fort_scrap_gate', along: 9.5, across: 20, limit: 10.1 },
@@ -234,7 +273,7 @@ describe('prop shapes', () => {
   it('stands every fortress piece at least 3x the tallest truck (IV4)', () => {
     const tallest = Math.max(...Object.values(TRUCKS).flatMap((t) => t.boxes.map((b) => b.z1)));
     const forts = names.filter((n) => n.startsWith('fort_'));
-    expect(forts).toHaveLength(26);
+    expect(forts).toHaveLength(30);
     for (const name of forts) {
       expect(Math.max(...SHAPES[name].boxes.map((b) => b.z1)), name).toBeGreaterThanOrEqual(tallest * 3);
     }

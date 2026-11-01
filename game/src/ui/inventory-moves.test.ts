@@ -2,17 +2,22 @@ import { describe, expect, it } from "vitest";
 import { REGION } from "../data/region";
 import { partDef } from "../data/parts";
 import { makePart } from "../sim/factory";
-import { isMounted, mountedParts } from "../sim/grid";
-import { mountPart, plannedRefitTurns, removeAllGoods, spareParts, startRefit, stowPart, stowSpot } from "../sim/inventory";
+import { gridOf, isMounted, itemCells, mountedParts, placementError } from "../sim/grid";
+import { fieldMoveIsInstant, moveItem, mountPart, plannedRefitTurns, plannedVehicle, removeAllGoods, spareParts, startRefit, stowPart, stowSpot } from "../sim/inventory";
 import { sitePads } from "../sim/sites";
 import { emptyWorld } from "../sim/testkit";
 import { update } from "../sim/world";
 import type { GridItem, Rot, World } from "../sim/types";
-import { DOUBLE_CLICK_MS, doubleClickCommand, isDoubleClick, needsHold, canFieldPatch, planAfterMove, plannedVehicle, selectionAfterClick, type ClickedItem } from "./inventory-moves";
+import { DOUBLE_CLICK_MS, dragStartOf, doubleClickCommand, isDoubleClick, isRotateKey, needsHold, canFieldPatch, pickupTruck, planAfterMove, selectionAfterClick, touchGridTap, type ClickedItem } from "./inventory-moves";
 import { emptyHidden } from "../sim/salvage";
 
 const bowl = REGION.towns.find((t) => t.id === "bowl")!;
 const gridClick = (item: GridItem): ClickedItem => ({ source: "grid", item, id: item.id, stockId: null, truckId: null });
+const freeCargoSpots = (w: World, avoid: GridItem[] = []): { x: number; y: number; rot: Rot }[] => {
+  const me = w.vehicles[0];
+  const taken = new Set([...me.items, ...avoid].flatMap(itemCells).map((c) => `${c.x},${c.y}`));
+  return gridOf(me).cells.flatMap((row, y) => row.flatMap((cell, x) => (cell === "." && !taken.has(`${x},${y}`) ? [{ x, y, rot: 0 as Rot }] : [])));
+};
 const partOf = (w: World, defId: string) => w.vehicles[0].items.find((it) => it.kind === "part" && it.part.defId === defId)!;
 
 describe("click selection", () => {
@@ -183,7 +188,7 @@ describe("field refit plan", () => {
   it("turns a gun round in place and starts one job from the plan", () => {
     const w = emptyWorld();
     const mg = partOf(w, "mg");
-    const plan = planAfterMove(w.vehicles[0], {}, mg.id, { x: mg.x, y: mg.y, rot: 2 });
+    const plan = planAfterMove(w.vehicles[0], {}, mg.id, { x: mg.x, y: mg.y, rot: ((mg.rot + 2) % 4) as Rot });
     expect(plannedRefitTurns(w, w.vehicles[0], plan)).toBeGreaterThan(0);
     expect(startRefit(w, plan).vehicles[0].job).toMatchObject({ kind: "refit" });
   });
@@ -191,6 +196,108 @@ describe("field refit plan", () => {
   it("refuses a move the sim refuses", () => {
     const w = emptyWorld();
     expect(() => planAfterMove(w.vehicles[0], {}, partOf(w, "mg").id, { x: 9, y: 0, rot: 0 })).toThrow();
+  });
+});
+
+describe("instant field moves", () => {
+  const crateOf = (w: World, nth: number) => {
+    const crate = w.vehicles[0].items.filter((it) => it.kind === "good")[nth];
+    if (!crate) throw new Error(`The scout holds no crate number ${nth}`);
+    return crate;
+  };
+
+  it("moves a crate at once and starts no job", () => {
+    const w = emptyWorld();
+    const freeCargo = freeCargoSpots(w)[0];
+    const crate = crateOf(w, 1);
+    expect(fieldMoveIsInstant(w.vehicles[0], {}, crate.id, freeCargo)).toBe(true);
+    const next = moveItem(w, crate.id, freeCargo);
+    expect(next.vehicles[0].items.find((it) => it.id === crate.id)).toMatchObject(freeCargo);
+    expect(next.vehicles[0].job).toBeNull();
+  });
+
+  it("swaps two crates at once", () => {
+    const w = emptyWorld();
+    const a = crateOf(w, 0);
+    const b = crateOf(w, 1);
+    expect(fieldMoveIsInstant(w.vehicles[0], {}, a.id, { x: b.x, y: b.y, rot: 0 })).toBe(true);
+  });
+
+  it("keeps a mounted gun move as a plan", () => {
+    const w = emptyWorld();
+    const mg = partOf(w, "mg");
+    const away = stowSpot(w.vehicles[0], mg)!;
+    expect(fieldMoveIsInstant(w.vehicles[0], {}, mg.id, away)).toBe(false);
+  });
+
+  it("keeps a crate move onto a mount a planned gun leaves as a plan edit", () => {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    const mg = partOf(w, "mg");
+    const plan = planAfterMove(me, {}, mg.id, stowSpot(me, mg)!);
+    const crate = crateOf(w, 1);
+    expect(fieldMoveIsInstant(me, plan, crate.id, { x: mg.x, y: mg.y, rot: 0 })).toBe(false);
+  });
+
+  it("keeps the plan valid after an instant crate move", () => {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    const mg = partOf(w, "mg");
+    const away = stowSpot(me, mg)!;
+    const plan = planAfterMove(me, {}, mg.id, away);
+    const crate = crateOf(w, 1);
+    const spot = freeCargoSpots(w, [{ ...mg, ...away }])[0];
+    expect(fieldMoveIsInstant(me, plan, crate.id, spot)).toBe(true);
+    const next = moveItem(w, crate.id, spot).vehicles[0];
+    expect(plannedVehicle(next, plan).items.find((it) => it.id === mg.id)).toMatchObject(away);
+    expect(next.job).toBeNull();
+  });
+});
+
+describe("pickups with a plan pending", () => {
+  const scrap = (id: string, x: number, y: number): GridItem => ({ id, x, y, rot: 0, kind: "good", good: "scrap" });
+  const problemAt = (truck: ReturnType<typeof pickupTruck>, item: GridItem) =>
+    placementError(gridOf({ ...truck, items: [...truck.items, item] }), truck.items, item, null);
+
+  it("returns the real truck with an empty plan", () => {
+    const w = emptyWorld();
+    expect(pickupTruck(w.vehicles[0], {})).toBe(w.vehicles[0]);
+  });
+
+  it("refuses cells taken in the drawn layout or still held in the real one", () => {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    const mg = partOf(w, "mg");
+    const away = stowSpot(me, mg)!;
+    const plan = planAfterMove(me, {}, mg.id, away);
+    const truck = pickupTruck(me, plan);
+    expect(problemAt(truck, scrap("n1", away.x, away.y))).not.toBeNull();
+    expect(problemAt(truck, scrap("n2", mg.x, mg.y))).not.toBeNull();
+    const open = freeCargoSpots(w, [{ ...mg, ...away }])[0];
+    expect(problemAt(truck, scrap("n3", open.x, open.y))).toBeNull();
+    expect(me.items.some((it) => it.id.startsWith("planned:"))).toBe(false);
+  });
+
+  it("picks a stow spot free in both layouts for a double click", () => {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    const mg = partOf(w, "mg");
+    const plan = planAfterMove(me, {}, mg.id, stowSpot(me, mg)!);
+    const truck = pickupTruck(me, plan);
+    const spot = stowSpot(truck, scrap("n4", 0, 0))!;
+    expect(problemAt(truck, { ...scrap("n4", 0, 0), ...spot })).toBeNull();
+  });
+});
+
+describe("dragStartOf", () => {
+  it("holds a touch on any item", () => {
+    expect(dragStartOf("touch", false)).toBe("hold");
+    expect(dragStartOf("touch", true)).toBe("hold");
+  });
+
+  it("holds a mouse only on a mounted part", () => {
+    expect(dragStartOf("mouse", false)).toBe("now");
+    expect(dragStartOf("mouse", true)).toBe("hold");
   });
 });
 
@@ -205,5 +312,46 @@ describe("field patch gate", () => {
     if (mg.kind !== "part") throw new Error("mg is not a part");
     expect(canFieldPatch(me, true, mg.part.id)).toBe(true);
     expect(canFieldPatch(me, false, mg.part.id)).toBe(false);
+  });
+});
+
+describe("touch tap on the grid", () => {
+  const two = { w: 2, h: 1 };
+
+  it("previews the selected item centered on the tapped cell", () => {
+    expect(touchGridTap(null, { x: 3, y: 4 }, { w: 3, h: 3 })).toEqual({ kind: "preview", at: { x: 2, y: 3 } });
+  });
+
+  it("previews with the footprint's first cell on the tap for an item two cells wide", () => {
+    expect(touchGridTap(null, { x: 3, y: 4 }, two)).toEqual({ kind: "preview", at: { x: 3, y: 4 } });
+  });
+
+  it("places on a tap inside the preview, also on its far cell", () => {
+    expect(touchGridTap({ x: 2, y: 2 }, { x: 2, y: 2 }, two)).toEqual({ kind: "place" });
+    expect(touchGridTap({ x: 2, y: 2 }, { x: 3, y: 2 }, two)).toEqual({ kind: "place" });
+  });
+
+  it("moves the preview on a tap outside it", () => {
+    expect(touchGridTap({ x: 2, y: 2 }, { x: 4, y: 2 }, two)).toEqual({ kind: "preview", at: { x: 4, y: 2 } });
+  });
+
+  it("follows a turned footprint", () => {
+    const turned = { w: 1, h: 2 };
+    expect(touchGridTap({ x: 2, y: 2 }, { x: 3, y: 2 }, turned)).toEqual({ kind: "preview", at: { x: 3, y: 2 } });
+    expect(touchGridTap({ x: 2, y: 2 }, { x: 2, y: 3 }, turned)).toEqual({ kind: "place" });
+  });
+});
+
+describe("isRotateKey", () => {
+  const press = (over: Partial<KeyboardEvent>) => ({ code: "KeyR", repeat: false, ctrlKey: false, metaKey: false, altKey: false, ...over });
+
+  it("accepts the physical R key whatever character it types", () => {
+    expect(isRotateKey(press({}))).toBe(true);
+  });
+
+  it("ignores other physical keys, repeats and chords", () => {
+    expect(isRotateKey(press({ code: "KeyT" }))).toBe(false);
+    expect(isRotateKey(press({ repeat: true }))).toBe(false);
+    expect(isRotateKey(press({ ctrlKey: true }))).toBe(false);
   });
 });

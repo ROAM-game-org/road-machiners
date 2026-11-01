@@ -1,7 +1,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { CHASSIS } from '../data/chassis';
-import { GOODS } from '../data/goods';
+import { GOODS, PARCEL } from '../data/goods';
 import { PARTS, type PartDef } from '../data/parts';
 import { BODY_PARTS, iconCatalog, ICON_WEAPON_PICKS, renderKey, WEAPON_POOLS, weaponLook } from './partLooks';
 
@@ -13,8 +13,8 @@ const entry = (id: string) => {
 };
 
 describe('icon catalog', () => {
-  it('has one entry per part, good and chassis, and nothing else', () => {
-    const expected = [...Object.keys(PARTS), ...Object.keys(GOODS), ...Object.keys(CHASSIS)];
+  it('has one entry per part, good and chassis, plus the parcel, and nothing else', () => {
+    const expected = [...Object.keys(PARTS), ...Object.keys(GOODS), PARCEL.id, ...Object.keys(CHASSIS)];
     expect(catalog.map((e) => e.id).sort()).toEqual(expected.sort());
   });
 
@@ -70,17 +70,17 @@ describe('icon catalog', () => {
     expect(entry('scout').rank).toBe(0);
   });
 
-  it('tells apart weapons of one look by rank and by their footprint, which the stretched mount draws', () => {
+  it('tells apart weapons of one look by rank and by their bulk, which the stretched mount draws', () => {
     expect(entry('amRifle').models).toEqual(entry('sniperCannon').models);
     expect([entry('amRifle').rank, entry('sniperCannon').rank]).toEqual([1, 2]);
     expect(renderKey(entry('amRifle'))).toContain('@1x3');
     expect(renderKey(entry('sniperCannon'))).toContain('@2x3');
   });
 
-  it('takes its footprint from the def, one cell for a good and the layout for a chassis', () => {
-    expect(entry('sniperCannon').footprint).toEqual({ w: PARTS.sniperCannon.w, h: PARTS.sniperCannon.h });
-    expect(entry('salt').footprint).toEqual({ w: 1, h: 1 });
-    expect(entry('scout').footprint).toEqual({ w: CHASSIS.scout.layout[0].length, h: CHASSIS.scout.layout.length });
+  it('takes its bulk from the def, one cell for a good and the layout for a chassis', () => {
+    expect(entry('sniperCannon').bulk).toEqual(PARTS.sniperCannon.bulk);
+    expect(entry('salt').bulk).toEqual({ w: 1, h: 1 });
+    expect(entry('scout').bulk).toEqual({ w: CHASSIS.scout.layout[0].length, h: CHASSIS.scout.layout.length });
   });
 
   it('fails naming a part that has no model', () => {

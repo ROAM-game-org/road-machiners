@@ -38,18 +38,18 @@ describe('story wrecks', () => {
     }
   });
 
-  it('leaves the random streams and ids of world creation as they were', () => {
-    const before = [
-      { seed: 1, rng: -1688600193, market: -1945004097, nextId: 1147, wreck0: { x: 219.61, y: 262.481 } },
-      { seed: 1337, rng: -725235399, market: -745272698, nextId: 1162, wreck0: { x: 405.805, y: 156.146 } },
-    ];
-    for (const b of before) {
-      const w = newWorld(b.seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
-      const wreck0 = w.obstacles.find((o) => o.id === 'wreck0')!;
-
-      expect({ rng: w.rngState, market: w.marketRng.rngState, nextId: w.nextId }).toEqual({ rng: b.rng, market: b.market, nextId: b.nextId });
-      expect(wreck0.pos.x).toBeCloseTo(b.wreck0.x, 3);
-      expect(wreck0.pos.y).toBeCloseTo(b.wreck0.y, 3);
+  it('takes no draw and no id from world creation', () => {
+    const streams = (w: World) => ({ rng: w.rngState, market: w.marketRng.rngState, nextId: w.nextId });
+    for (const seed of [1, 1337]) {
+      const withWagon = newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+      const kept = STORY_WRECKS.splice(0, STORY_WRECKS.length);
+      try {
+        const without = newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+        expect(without.obstacles.some((o) => o.id === WAGON.id)).toBe(false);
+        expect(streams(withWagon)).toEqual(streams(without));
+      } finally {
+        STORY_WRECKS.push(...kept);
+      }
     }
   });
 
@@ -69,10 +69,10 @@ describe('story wrecks', () => {
     stock.parts = [];
     stock.fuel = 0;
     stock.supplies = 0;
-    w.obstacles.push({ id: WAGON.id, pos: WAGON.pos, r: WAGON.r, kind: 'wreck', hulk: { chassisId: 'wagon', yaw: WAGON.yaw } });
+    w.obstacles = [...w.obstacles, { id: WAGON.id, pos: WAGON.pos, r: WAGON.r, kind: 'wreck', hulk: { chassisId: 'wagon', yaw: WAGON.yaw } }];
 
     for (let day = 1; day <= 10; day++) {
-      w.turn = day * TIME.turnsPerDay;
+      w.turn = day * TIME.workDayTurns;
       renewSalvage(w);
     }
 
@@ -82,8 +82,8 @@ describe('story wrecks', () => {
 
   it('is never cleared by many kill wrecks', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    w.obstacles.push({ id: WAGON.id, pos: WAGON.pos, r: WAGON.r, kind: 'wreck', hulk: { chassisId: 'wagon', yaw: WAGON.yaw } });
-    for (let k = 0; k < RULES.maxKillWrecks + 3; k++) wreckVehicle(w, addVehicle(w, 'raiders', 'scout', [], { x: 60 + k * 3, y: 60 }));
+    w.obstacles = [...w.obstacles, { id: WAGON.id, pos: WAGON.pos, r: WAGON.r, kind: 'wreck', hulk: { chassisId: 'wagon', yaw: WAGON.yaw } }];
+    for (let k = 0; k < RULES.maxKillWrecks + 3; k++) wreckVehicle(w, addVehicle(w, 'scrapjaw', 'scout', [], { x: 60 + k * 3, y: 60 }));
 
     resolveDestroyed(w);
 

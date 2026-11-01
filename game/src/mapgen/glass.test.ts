@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import { CHASSIS } from '../data/chassis';
 import { REGION, type TerritoryDef } from '../data/region';
-import type { BuildingGroup, GlassRules, TerritoryRules, WreckRules } from '../data/territory';
+import { TERRITORIES, type BuildingGroup, type GlassRules, type TerritoryRules, type WreckRules } from '../data/territory';
 import { dist } from '../sim/vec';
 import { newDraft, type MapDraft } from './bake';
 import { touchedTiles } from './farm';
-import { fillGlass, markGlass } from './glass';
+import { fillGlass, glassFade, markGlass, SPIRE_LANE } from './glass';
 import { BUILT_GLASS, BUILT_SCRUB, BUILT_TRACK } from './newworld';
 import { prop, ruleRng, tileCenter, tilesWithin } from './oldworld';
 
 const T: TerritoryDef = { id: 'test-glass', kind: 'territory', pos: { x: 405, y: 378 }, radius: 24, outline: null };
-const GLASS: GlassRules = { cell: 6, cover: [0.25, 0.55], clear: 1.5, spires: { look: 'hullShard', count: 6, radius: [0.8, 1.1] } };
+const GLASS: GlassRules = { cell: 6, cover: [0.25, 0.55], clear: 1.5, fade: { band: 6, warp: 2, cell: 8 }, spires: { look: 'hullShard', count: 6, radius: [0.8, 1.1] } };
 const RULES: TerritoryRules = { seed: 2, wreck: null, farm: null, glass: GLASS, spotGap: 6, debrisGap: 1.5, reactor: null, relief: null };
 
 function wreckOf(buildings: BuildingGroup[]): WreckRules {
@@ -25,6 +26,7 @@ function wreckOf(buildings: BuildingGroup[]): WreckRules {
     spotTable: 'hullScrap',
     spotRadius: [0.6, 0.8],
     seatEase: 3,
+    gradeRoads: false,
     rimRocks: null,
     scree: null,
     roads: [],
@@ -92,6 +94,43 @@ describe('fused glass', () => {
     expect(spires).toHaveLength(GLASS.spires.count);
     for (const s of spires) expect(touchedTiles(d.size, s.pos, s.r).every((tile) => d.built[tile] === BUILT_GLASS)).toBe(true);
     for (const [a, b] of pairs(spires)) expect(dist(a.pos, b.pos)).toBeGreaterThanOrEqual(a.r + b.r + REGION.obstacles.gap);
+  });
+
+  it('leaves a gap between spires the width of the largest truck, with the Glass Flats rules', () => {
+    const flats = REGION.locations.find((l) => l.id === 'glass-flats');
+    if (!flats || flats.kind !== 'territory') throw new Error('The map has no Glass Flats');
+    const rules = TERRITORIES['glass-flats'];
+    const d = newDraft(REGION.size);
+
+    fillGlass(d, flats, rules, rules.glass!, ruleRng(7, 9102));
+
+    const spires = d.props.filter((p) => p.kind === rules.glass!.spires.look);
+    expect(spires).toHaveLength(rules.glass!.spires.count);
+    const widest = Math.max(...Object.values(CHASSIS).map((c) => c.radius)) * 2;
+    expect(SPIRE_LANE).toBe(widest);
+    for (const [a, b] of pairs(spires)) expect(dist(a.pos, b.pos) - a.r - b.r).toBeGreaterThanOrEqual(widest);
+  });
+
+  it('fades glass in from the outline, with none at the edge and full cover deep inside', () => {
+    const d = newDraft(REGION.size);
+    const glass: GlassRules = { ...GLASS, cover: [1, 1], fade: { band: 10, warp: 0, cell: 8 } };
+
+    markGlass(d, T, glass, [], 11);
+
+    const at = (depth: number): number => glassFade(T, glass, 11, { x: T.pos.x + T.radius - depth, y: T.pos.y });
+    expect(at(0)).toBe(0);
+    expect(at(5)).toBeGreaterThan(0);
+    expect(at(5)).toBeLessThan(1);
+    expect(at(12)).toBe(1);
+    const share = (lo: number, hi: number): number => {
+      const ring = insideTiles(d).filter((tile) => {
+        const depth = T.radius - dist(tileCenter(d.size, tile), T.pos);
+        return depth >= lo && depth < hi;
+      });
+      return ring.filter((tile) => d.built[tile] === BUILT_GLASS).length / ring.length;
+    };
+    expect(share(0, 2)).toBeLessThan(share(4, 6));
+    expect(share(4, 6)).toBeLessThan(share(12, 24));
   });
 
   it('keeps every spire the debris gap from each loot spot of the territory', () => {

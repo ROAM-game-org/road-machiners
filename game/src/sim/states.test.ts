@@ -11,8 +11,8 @@ const FEUD = { kind: 'feud', robbery: false } as const;
 
 function apart(): { w: World; a: string; b: string } {
   const w = emptyWorld({ x: 30, y: 30 });
-  const a = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 100, y: 100 });
-  const b = addVehicle(w, 'raiders', 'buggy', ['stockEngine'], { x: 400, y: 400 });
+  const a = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 100, y: 100 });
+  const b = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: 400, y: 400 });
   a.brain = npcBrain('trader', a.pos, ['trader']);
   b.brain = npcBrain('buggy', b.pos, ['raider']);
   expect(canVehicleSee(w, a, b.pos) || canVehicleSee(w, b, a.pos)).toBe(false);
@@ -141,8 +141,8 @@ describe('states', () => {
 
   it('a feud refreshed by sight does not expire', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const a = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 100, y: 100 });
-    const b = addVehicle(w, 'raiders', 'buggy', ['stockEngine'], { x: 104, y: 100 });
+    const a = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 100, y: 100 });
+    const b = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: 104, y: 100 });
     expect(canVehicleSee(w, a, b.pos)).toBe(true);
     addState(w, 'feud', a.id, b.id, FEUD);
     for (let i = 0; i < feudTurns() * 2; i++) turn(w);
@@ -174,7 +174,7 @@ const PATCH_DATA = { kind: 'patch', deal: 'free', parts: 1, partIds: [] as strin
 function parkedPair(gap: number) {
   const world = emptyWorld({ x: 30, y: 30 });
   const me = world.vehicles[0];
-  const npc = addVehicle(world, 'traders', 'buggy', ['stockEngine'], { x: 30 + gap, y: 30 });
+  const npc = addVehicle(world, 'independent', 'buggy', ['stockEngine'], { x: 30 + gap, y: 30 });
   me.speed = 0;
   npc.speed = 0;
   return { world, me, npc };
@@ -190,8 +190,8 @@ describe('work of a truck', () => {
   it('counts a patch under way for both the patcher and the client', () => {
     const { world, me, npc } = parkedPair(1);
     const state = addState(world, 'patch', npc.id, me.id, { ...PATCH_DATA });
-    expect(workOf(world, npc)).toEqual({ from: 'state', state, turnsLeft: 3, total: 4 });
-    expect(workOf(world, me)).toEqual({ from: 'state', state, turnsLeft: 3, total: 4 });
+    expect(workOf(world, npc)).toEqual({ from: 'state', state, turnsLeft: 3, total: 4, queued: 0 });
+    expect(workOf(world, me)).toEqual({ from: 'state', state, turnsLeft: 3, total: 4, queued: 0 });
   });
 
   it('counts no patch while the trucks are out of reach', () => {

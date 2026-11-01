@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { chassisDef } from '../data/chassis';
-import { HUNT, NPC_BEHAVIOR, NPCS } from '../data/npcs';
+import { HUNT, LOOK_OVER, NPC_BEHAVIOR, NPCS } from '../data/npcs';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { START_KITS } from '../data/start';
@@ -18,17 +18,18 @@ import { corePart, goodsCount, isLoot } from './grid';
 import { addGoods, spareParts } from './inventory';
 import { CLEARANCE, isTransientWreck, nearCliff, terrainNav } from './nav/layer';
 import { decide, fightOddsAgainst, huntingGrounds, judgeDanger, lawmanTowns, passReason, raiderGrounds, raiderPatrolPosts, usefulContacts } from './npc-decisions';
-import { finishGoal, resolveNpcActivities, topGoal } from './npc-activities';
+import { finishGoal, ledPoint, resolveNpcActivities, topGoal } from './npc-activities';
+import { onSizingUp, sizeUpGoal } from './look-over';
 import { yieldTo } from './parley';
 import { route } from './path';
 import { getResources } from './resources';
 import { siteGates, sitePads, siteUnder, type Site } from './sites';
 import { isFree } from './spawn';
-import { fuelCap } from './stats';
+import { fuelCap, vehicleStats } from './stats';
 import { addState, stateOf } from './states';
 import { isRoadTile } from './terrain';
 import { hazardZones } from './territory';
-import { addVehicle, emptyWorld, forceOption, npcBrain, testDrive } from './testkit';
+import { addVehicle, emptyWorld, forceOption, gunAcrossMiddle, npcBrain, sizedUp, testDrive } from './testkit';
 import type { NpcActivity, Vehicle, World } from './types';
 import { lineKey } from '../text/names';
 import { entryText } from '../text/resolve';
@@ -83,7 +84,7 @@ describe('watch posts on the map', () => {
 
   it('have the least road exposure among the hides of their ground', () => {
     let posts = 0;
-    for (const ground of huntingGrounds()) {
+    for (const ground of huntingGrounds(w)) {
       const post = watchPost(w, ground);
       if (!post) continue;
       posts++;
@@ -93,17 +94,16 @@ describe('watch posts on the map', () => {
     expect(posts).toBeGreaterThan(0);
   });
 
-  it('hide at least 11 of the 20 road grounds from road traffic', () => {
-    const roadGrounds = huntingGrounds().filter((g) => REGION.roads.some((road) => polylineDist(g, road) <= REGION.roadWidth));
-    expect(roadGrounds.length).toBe(20);
-    const hidden = roadGrounds.filter((g) => watchPost(w, g) !== null && exposureAt(w, watchPost(w, g)!) === 0);
-    expect(hidden.length).toBeGreaterThanOrEqual(11);
+  it('hide the posts of most hunting spots from prey traffic', () => {
+    const spots = huntingGrounds(w);
+    const hidden = spots.filter((g) => watchPost(w, g) !== null && exposureAt(w, watchPost(w, g)!) === 0);
+    expect(hidden.length).toBeGreaterThan(spots.length / 2);
   });
 
   it('build for every camp on a fresh terrain within the time budget', () => {
     const fresh = { ...mapWorld(), terrain: { ...TEST_MAP.terrain } };
     terrainNav(fresh.terrain);
-    watchPost(fresh, huntingGrounds()[0]);
+    watchPost(fresh, huntingGrounds(fresh)[0]);
     const start = performance.now();
     for (const camp of CAMPS) {
       raiderGrounds(fresh, camp);
@@ -114,10 +114,12 @@ describe('watch posts on the map', () => {
     expect(ms).toBeLessThan(4000);
   });
 
-  it('take a ground far from roads as its own post', () => {
-    const own = huntingGrounds().filter((g) => REGION.roads.every((road) => polylineDist(g, road) > 20) && watchPost(w, g) !== null);
-    expect(own.length).toBeGreaterThan(0);
-    expect(own.filter((g) => dist(watchPost(w, g)!, g) === 0).length).toBeGreaterThan(0);
+  it('watch each hunting spot from a post that prey traffic sees less than the spot itself', () => {
+    for (const g of huntingGrounds(w)) {
+      const post = watchPost(w, g);
+      expect(post, `${g.x},${g.y}`).not.toBeNull();
+      expect(exposureAt(w, post!), `${g.x},${g.y}`).toBeLessThan(exposureAt(w, g));
+    }
   });
 
   it('are the same for the same terrain, built again', () => {
@@ -147,7 +149,7 @@ function nearestOf(points: readonly Vec[], to: Vec): Vec {
 }
 
 function raidingDriver(w: World, home: Vec, post: Vec): Vehicle {
-  const v = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], home);
+  const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], home);
   v.id = 'raider-route';
   v.brain = npcBrain('buggy', home, ['raider']);
   v.brain.goals = [raidGoal(post)];
@@ -163,7 +165,8 @@ const scrapjaw = CAMPS.find((c) => c.id === 'scrapjaw') as Site;
 function raiderNearPost() {
   const w = emptyWorld({ x: 30, y: 30 });
   const post = raiderGrounds(w, scrapjaw)[0];
-  const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: post.x - 10, y: post.y });
+  const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: post.x - 10, y: post.y });
+  gunAcrossMiddle(raider);
   raider.brain = npcBrain('buggy', sitePads(scrapjaw)[0], ['raider']);
   raider.brain.goals = [raidGoal(post)];
   return { w, post, raiderId: raider.id };
@@ -180,13 +183,13 @@ function watchingRaider(traderGap: number) {
   const raider = vehicle(w, raiderId);
   raider.pos = { ...post };
   raider.brain!.goals = [{ ...raidGoal(post), destination: null, phase: 'act', watchUntil: w.turn + HUNT.watchTurns }];
-  const trader = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], { x: post.x + traderGap, y: post.y });
+  const trader = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: post.x + traderGap, y: post.y });
   trader.brain = npcBrain('trader', trader.pos, ['trader']);
   if (addGoods(w, trader, 'electronics', 6) < 6) throw new Error('No room for the trader cargo');
   return { w, raider, trader };
 }
 
-function drawShare(w: World, raider: Vehicle, decision: 'hostileSeen' | 'contactHeard', subject: string, danger: number | null, option: string): number {
+function drawShare(w: World, raider: Vehicle, decision: 'hostileSeen' | 'contactHeard' | 'sizedUp', subject: string, danger: number | null, option: string): number {
   const draws = 400;
   let hits = 0;
   for (let i = 0; i < draws; i++) if (decide(w, raider, decision, subject, danger) === option) hits++;
@@ -247,24 +250,27 @@ describe('the watch', () => {
     expect(drawShare(w, raider, 'contactHeard', trader.id, null, 'investigate')).toBeGreaterThanOrEqual(0.8);
   });
 
-  it('attacks the start-kit player about half the time and rarely flees', () => {
+  it('sizes up the start-kit player nearly always, rarely flees, and robs it about half the time once it has looked', () => {
     const { w, raider, player } = watchingRaiderSeeing();
     const danger = judgeDanger(w, raider, player);
-    const fight = drawShare(w, raider, 'hostileSeen', player.id, danger, 'fight');
-    expect(fight).toBeGreaterThanOrEqual(0.35);
-    expect(fight).toBeLessThanOrEqual(0.6);
+    expect(drawShare(w, raider, 'hostileSeen', player.id, danger, 'fight')).toBeGreaterThanOrEqual(0.8);
     expect(drawShare(w, raider, 'hostileSeen', player.id, danger, 'flee')).toBeLessThanOrEqual(0.1);
+    sizedUp(w, raider, player);
+    const rob = drawShare(w, raider, 'sizedUp', player.id, danger, 'rob');
+    expect(rob).toBeGreaterThanOrEqual(0.35);
+    expect(rob).toBeLessThanOrEqual(0.7);
   });
 
   it('almost always attacks a player carrying six electronics', () => {
     const { w, raider, player } = watchingRaiderSeeing();
     if (addGoods(w, player, 'electronics', 6) < 6) throw new Error('No room for the cargo');
-    expect(drawShare(w, raider, 'hostileSeen', player.id, judgeDanger(w, raider, player), 'fight')).toBeGreaterThanOrEqual(0.9);
+    sizedUp(w, raider, player);
+    expect(drawShare(w, raider, 'sizedUp', player.id, judgeDanger(w, raider, player), 'rob')).toBeGreaterThanOrEqual(0.9);
   });
 
   it('flees prey that outguns it, when it has a getaway', () => {
     const { w, raider } = watchingRaider(200);
-    const brute = addVehicle(w, 'traders', 'hauler', ['mg', 'mg', 'mg', 'mg', 'stockEngine'], { x: raider.pos.x + 8, y: raider.pos.y });
+    const brute = addVehicle(w, 'independent', 'hauler', ['heavyMg', 'heavyMg', 'mg', 'mg', 'mg', 'stockEngine'], { x: raider.pos.x + 8, y: raider.pos.y });
     brute.brain = npcBrain('trader', brute.pos, ['trader']);
     if (addGoods(w, brute, 'electronics', 6) < 6) throw new Error('No room for the cargo');
     const danger = judgeDanger(w, raider, brute);
@@ -318,7 +324,8 @@ describe('the watch', () => {
     planNpcOrders(w);
     const goal = topGoal(raider)!;
     expect(goal.kind).toBe('investigate');
-    expect(goal.destination).toEqual(newest.center);
+    expect(goal.destination).toEqual(ledPoint(newest.center, first, newest.radius, vehicleStats(w, raider).maxSpeed));
+    expect(goal.heard).toEqual(newest.center);
     expect(goal.destination).not.toEqual(first);
     expect(goal.destination).not.toEqual(trader.pos);
   });
@@ -350,7 +357,7 @@ describe('the watch', () => {
     w.turn++;
     planNpcOrders(w);
     expect(w.events).toContainEqual(expect.objectContaining({ t: 'activity', vehicle: raider.id, previous: 'investigate', reason: 'spottedHeard' }));
-    expect(w.events).toContainEqual(expect.objectContaining({ t: 'activity', vehicle: raider.id, activity: 'fight', reason: 'fightHostile' }));
+    expect(w.events).toContainEqual(expect.objectContaining({ t: 'activity', vehicle: raider.id, activity: 'sizeUp', reason: 'sizingUp' }));
     expect(raider.brain!.goals.some((g) => g.kind === 'investigate')).toBe(false);
   });
 
@@ -375,9 +382,22 @@ describe('the watch', () => {
     expect(w.events.some((e) => e.t === 'preyPassed')).toBe(false);
   });
 
+  it('records the pass reason when a watching raider looks the prey over and keeps', () => {
+    const { w, raider, player } = watchingRaiderSeeing();
+    addGoods(w, player, 'scrap', 2);
+    raider.brain!.goals.push(sizeUpGoal(w, raider, player));
+    sizedUp(w, raider, player);
+    forceOption('sizedUp', 'keep');
+    w.events = [];
+    onSizingUp(w, raider);
+    const passed = w.events.filter((e) => e.t === 'preyPassed');
+    expect(passed).toEqual([{ t: 'preyPassed', vehicle: raider.id, prey: player.id, reason: expect.stringMatching(/^(poorLoad|chance)$/) }]);
+  });
+
   describe('pass reasons', () => {
     function staged() {
       const s = watchingRaiderSeeing();
+      sizedUp(s.w, s.raider, s.player);
       return { ...s, danger: () => judgeDanger(s.w, s.raider, s.player) };
     }
 
@@ -390,7 +410,7 @@ describe('the watch', () => {
     it('is busy when the raider fights another truck', () => {
       const { w, raider, player, danger } = staged();
       addGoods(w, player, 'electronics', 6);
-      const other = addVehicle(w, 'traders', 'hauler', ['mg'], { x: raider.pos.x - 8, y: raider.pos.y });
+      const other = addVehicle(w, 'independent', 'hauler', ['mg'], { x: raider.pos.x - 8, y: raider.pos.y });
       addState(w, 'combat', raider.id, other.id, { kind: 'none' });
       expect(passReason(w, raider, player, danger())).toBe('busy');
     });
@@ -411,27 +431,29 @@ describe('the watch', () => {
 
     it('throws for a subject that is not a raider', () => {
       const { w, player, danger } = staged();
-      const trader = addVehicle(w, 'traders', 'hauler', ['mg'], { x: 5, y: 5 });
+      const trader = addVehicle(w, 'independent', 'hauler', ['mg'], { x: 5, y: 5 });
       expect(() => passReason(w, trader, player, danger())).toThrow(/not a raider/);
     });
   });
 
   it('springs on prey that drives into sight, and the fight follows', () => {
-    const { w, raider, trader } = watchingRaider(TERRAIN.vision.radius - 6);
+    const { w, raider, trader } = watchingRaider(TERRAIN.vision.radius - 11);
     trader.speed = 4;
     forceOption('hostileSeen', 'fight');
+    forceOption('sizedUp', 'rob');
     planNpcOrders(w);
-    expect(topGoal(raider)).toMatchObject({ kind: 'fight', targetId: trader.id });
+    expect(topGoal(raider)).toMatchObject({ kind: 'sizeUp', targetId: trader.id });
     expect(raider.brain!.goals[0].kind).toBe('raid');
-    const next = endTurn(w, testDrive);
-    expect(inCombat(next, vehicle(next, raider.id))).toBe(true);
+    const fights = (x: World) => vehicle(x, raider.id).brain!.goals.some((g) => g.kind === 'fight' && g.targetId === trader.id);
+    const next = playUntil(w, 6, fights);
+    expect(fights(next)).toBe(true);
   });
 
   it('ends the watch when a fight pops back onto it, instead of parking away from the post', () => {
     const { w, raider, trader } = watchingRaider(TERRAIN.vision.radius - 6);
     forceOption('hostileSeen', 'fight');
     planNpcOrders(w);
-    expect(topGoal(raider)?.kind).toBe('fight');
+    expect(topGoal(raider)?.kind).toBe('sizeUp');
     finishGoal(w, raider, 'lostTarget');
     expect(raider.brain!.goals.some((g) => g.kind === 'raid' && g.phase === 'act')).toBe(false);
     expect(isWatching(raider)).toBe(false);
@@ -442,17 +464,18 @@ describe('the watch', () => {
     const { w, raider, trader } = watchingRaider(TERRAIN.vision.radius - 6);
     forceOption('hostileSeen', 'fight');
     planNpcOrders(w);
-    expect(topGoal(raider)?.kind).toBe('fight');
+    expect(topGoal(raider)?.kind).toBe('sizeUp');
     trader.pos = { x: raider.pos.x + TERRAIN.vision.radius + 10, y: raider.pos.y };
     trader.speed = 0;
     for (let i = 0; i < NPC_BEHAVIOR.fightSearchTurns; i++) {
       w.turn++;
       planNpcOrders(w);
-      expect(topGoal(raider)?.kind).toBe('fight');
+      expect(topGoal(raider)?.kind).toBe('sizeUp');
     }
     w.turn++;
     planNpcOrders(w);
-    expect(topGoal(raider)?.kind).not.toBe('fight');
+    expect(topGoal(raider)?.kind).not.toBe('sizeUp');
+    expect(stateOf(w, 'backedOff', raider.id, trader.id)).not.toBeNull();
   });
 
   it('ignores a truck it neither sees nor hears', () => {
@@ -463,7 +486,7 @@ describe('the watch', () => {
       planNpcOrders(w);
       resolveNpcActivities(w);
     }
-    expect(contactsOf(w, raider, Infinity).some((c) => c.vehicleId === trader.id)).toBe(false);
+    expect(contactsOf(w, raider, Infinity).filter((c) => c.vehicleId === trader.id).map((c) => c.sources)).toEqual([['far']]);
     expect(topGoal(raider)).toMatchObject({ kind: 'raid', phase: 'act' });
     expect(Object.keys(raider.brain!.noticed).some((key) => key.endsWith(trader.id))).toBe(false);
     expect(raider.order?.kind ?? 'brake').toBe('brake');
@@ -494,7 +517,7 @@ function soldCargo(w: World, id: string): boolean {
 }
 
 function holdings(w: World, ids: string[]): string[] {
-  return ids.flatMap((id) => vehicle(w, id).items.map((item) => (item.kind === 'good' ? `good:${item.good}` : `part:${item.part.id}`))).sort();
+  return ids.flatMap((id) => vehicle(w, id).items.map((item) => (item.kind === 'part' ? `part:${item.part.id}` : `${item.kind}:${item.kind === 'good' ? item.good : item.contract}`))).sort();
 }
 
 function goodsOn(w: World, id: string, good: string): number {
@@ -506,7 +529,7 @@ function pileGoods(w: World, good: string): number {
 }
 
 function campValue(raider: Vehicle): number {
-  const goods = Object.entries(goodsCount(raider)).reduce((sum, [good, count]) => sum + count * campGoodPrice(good), 0);
+  const goods = Object.entries(goodsCount(raider)).reduce((sum, [good, count]) => sum + campGoodPrice(good, count), 0);
   return goods + spareParts(raider).reduce((sum, part) => sum + campPartPrice(part), 0);
 }
 
@@ -579,7 +602,7 @@ describe('going home with loot', () => {
     const { goals, value, looted } = sale!;
     expect(goals).toEqual([expect.objectContaining({ kind: 'sell', targetId: scrapjaw.id })]);
     expect(looted).toBe(carried);
-    expect(value).toBe(carried * campGoodPrice('electronics'));
+    expect(value).toBe(campGoodPrice("electronics", carried));
     const after = getResources(end, vehicle(end, raider.id)).money;
     expect(after).toBeLessThanOrEqual(money + value);
     expect(after).toBeGreaterThan(money + value - fuelBill(end, raider.id));
@@ -590,11 +613,13 @@ describe('going home with loot', () => {
     const start = emptyWorld({ x: 30, y: 30 });
     for (const id of Object.keys(NPCS)) start.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     if (addGoods(start, playerVehicle(start), 'electronics', 6) < 6) throw new Error('No room for the player cargo');
-    const raider = addVehicle(start, 'raiders', 'buggy', ['stockEngine', 'mg'], { x: 42, y: 30 }, Math.PI);
+    const raider = addVehicle(start, 'scrapjaw', 'jeep', ['stockEngine', 'mg'], { x: 30 + LOOK_OVER.reach + 2, y: 30 }, Math.PI);
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     raider.brain.goals = [raidGoal(raider.pos)];
     forceOption('hostileSeen', 'fight');
-    const demanded = playUntil(start, 4, (x) => x.player.call?.topic === 'demand');
+    forceOption('sizedUp', 'rob');
+    forceOption('resume', 'new');
+    const demanded = playUntil(start, 8, (x) => x.player.call?.topic === 'demand');
     expect(inCombat(demanded, vehicle(demanded, raider.id))).toBe(true);
     const handed = chooseOption(demanded, currentOptions(demanded).findIndex((o) => en(o.line) === 'Fine. Take it.'));
     expect(inCombat(handed, vehicle(handed, raider.id))).toBe(false);

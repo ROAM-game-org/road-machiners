@@ -1,12 +1,16 @@
 
 import { REGION } from '../data/region';
-import { crossesRail } from './bridge';
+import { RULES } from '../data/rules';
+import { crossesRail, onWalledDeck } from './bridge';
 import { count, timed } from '../perf';
-import { canStepOut, connected, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
+import { canStepOut, coarseCells, coarseWaypoint, connected, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
 import type { Blocker } from './nav/buckets';
-import { CELL, CLEARANCE, blockerKey, componentOf, dynamicBlockers, navLayer, nearCliff, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
-import { keepsOffRoads } from './off-road';
+import { CELL, CLEARANCE, berthTaste, blockerKey, climbNeedOnRoads, climbTaste, componentOf, cutTaste, dynamicBlockers, navLayer, NO_CLIMB, nearCliff, nightTaste, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type Berth, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
+import { routeStyle, type RouteStyle } from './off-road';
+import { climbGrade } from './stats';
 import type { Vehicle, World } from './types';
+import { avoidsCrater, CRATER_NIGHT } from './sunward';
+import { berthsOf } from './tracks';
 import { dist, segmentDist, type Vec } from './vec';
 
 export type { Blocker };
@@ -22,11 +26,11 @@ export function route(world: World, from: Vec, dest: Vec, radius: number, extra:
     const statics = staticSet(world.obstacles, world.terrain);
     const dynamic = dynamicBlockers(world.obstacles, world.terrain, extra);
     const reach = radius + CLEARANCE;
-    if (!taste?.shy && lineCost(nav, statics, dynamic, from, to, reach, 1, nav.tileCost, null) < Infinity) return [to];
+    if (!taste?.shy && !crossesBerth(taste?.berths, from, to) && lineCost(nav, statics, dynamic, from, to, reach, 1, nav.tileCost, null) < Infinity) return [to];
     const layer = navLayer(world.terrain, world.obstacles, radius);
     const start = cellOf(layer, from);
     const target = cellOf(layer, to);
-    const { goal, cells } = search(layer, dynamic, radius, start, target, taste);
+    const { goal, cells } = search(layer, dynamic, radius, start, target, taste, from);
     const end = goal === target ? to : centerOf(layer, goal);
     const points: Vec[] = [];
     for (let i = 1; i < cells.length - 1; i++) points.push(centerOf(layer, cells[i]));
@@ -35,9 +39,87 @@ export function route(world: World, from: Vec, dest: Vec, radius: number, extra:
   });
 }
 
+export function routeAhead(world: World, from: Vec, dest: Vec, radius: number, extra: Blocker[], driver: Vehicle | undefined, window: number): { points: Vec[]; partial: boolean } {
+  const way = aheadGoal(world, from, dest, radius, extra, driver, window);
+  return { points: route(world, from, way, radius, extra, driver), partial: way !== dest };
+}
+
+export function aheadGoal(world: World, from: Vec, dest: Vec, radius: number, extra: Blocker[], driver: Vehicle | undefined, window: number): Vec {
+  if (dist(from, dest) <= window) return dest;
+  return timed('route-ahead', () => aheadPoint(world, from, dest, radius, extra, driver, window)) ?? dest;
+}
+
+function aheadPoint(world: World, from: Vec, dest: Vec, radius: number, extra: Blocker[], driver: Vehicle | undefined, window: number): Vec | null {
+  const layer = navLayer(world.terrain, world.obstacles, radius);
+  const ov = stampOverlay(layer, dynamicBlockers(world.obstacles, world.terrain, extra), radius);
+  const start = cellOf(layer, from);
+  const exit = canStepOut(layer, ov, start) ? start : nearestFreeCell(layer, ov, start);
+  const target = cellOf(layer, insideMap(world, dest, radius));
+  const near = exit === null ? null : nearestFreeCell(layer, ov, target, startComponent(layer, exit), nearRing(layer, exit, target));
+  if (exit === null || near === null) return null;
+  const cell = coarseWaypoint(layer, exit, near, routeTaste(world, terrainNav(world.terrain), driver), window / CELL);
+  return cell === null ? null : centerOf(layer, cell);
+}
+
+export function coarseTrip(world: World, from: Vec, dest: Vec, radius: number, driver: Vehicle): Vec[] {
+  return timed('coarse-trip', () => {
+    const layer = navLayer(world.terrain, world.obstacles, radius);
+    const to = insideMap(world, dest, radius);
+    const { exit, near } = tripEnds(layer, stampOverlay(layer, [], radius), from, to);
+    const cells = coarseCells(layer, exit, near, routeTaste(world, terrainNav(world.terrain), driver));
+    if (cells === null) throw new Error(`Cells ${exit} and ${near} share a component but have no coarse route`);
+    return [...cells.slice(0, -1).map((c) => centerOf(layer, c)), tripEnd(layer, near, to)];
+  });
+}
+
+function tripEnds(layer: NavLayer, ov: Overlay, from: Vec, to: Vec): { exit: number; near: number } {
+  const start = cellOf(layer, from);
+  const exit = canStepOut(layer, ov, start) ? start : nearestFreeCell(layer, ov, start);
+  if (exit === null) throw new Error(`Coarse trip from (${from.x}, ${from.y}) starts on a map with no free cell`);
+  const target = cellOf(layer, to);
+  const escape = pocketEscape(layer, ov, start, exit, target);
+  if (escape) return escape;
+  const near = nearestFreeCell(layer, ov, target, startComponent(layer, exit), nearRing(layer, exit, target));
+  if (near === null) throw new Error(`Coarse trip from (${from.x}, ${from.y}) has no free cell near (${to.x}, ${to.y})`);
+  return { exit, near };
+}
+
+function tripEnd(layer: NavLayer, near: number, to: Vec): Vec {
+  const reached = centerOf(layer, near);
+  return dist(reached, to) <= REGION.navigation.nearSlack ? to : reached;
+}
+
+function pocketEscape(layer: NavLayer, ov: Overlay, start: number, exit: number, target: number): { exit: number; near: number } | null {
+  const goalSide = nearestFreeCell(layer, ov, target);
+  if (goalSide === null || connected(layer, exit, goalSide)) return null;
+  const out = nearestFreeCell(layer, ov, start, componentOf(layer, goalSide), REGION.navigation.nearSlack / CELL);
+  return out === null ? null : { exit: out, near: goalSide };
+}
+
 function routeTaste(world: World, nav: TerrainNav, driver: Vehicle | undefined): Taste | null {
   const taste = tasteOf(world, driver);
-  return taste && driver && keepsOffRoads(world, driver) ? offRoadTaste(taste, nav) : taste;
+  if (!taste || !driver) return driver ? climbTaste(taste, nav, climbLimit(world, driver)) : taste;
+  return climbTaste(styledTaste(world, nav, driver, taste), nav, climbLimit(world, driver));
+}
+
+function styledTaste(world: World, nav: TerrainNav, driver: Vehicle, taste: Taste): Taste {
+  const keeping = styledByRoute(routeStyle(world, driver), taste, nav);
+  const styled = avoidsCrater(world, driver) ? nightTaste(keeping, nav, CRATER_NIGHT) : keeping;
+  return berthTaste(styled, berthsOf(world, driver));
+}
+
+function crossesBerth(berths: Berth[] | null | undefined, from: Vec, to: Vec): boolean {
+  return berths?.some((b) => segmentDist(b, from, to) <= b.r) ?? false;
+}
+
+function styledByRoute(style: RouteStyle, taste: Taste, nav: TerrainNav): Taste {
+  if (style === 'hidden') return offRoadTaste(taste, nav);
+  return style === 'cut' ? cutTaste(taste, nav) : taste;
+}
+
+function climbLimit(world: World, driver: Vehicle): number {
+  const step = REGION.navigation.climbStep;
+  return Math.floor(climbGrade(world, driver) / step + 1e-9) * step;
 }
 
 function insideMap(world: World, p: Vec, radius: number): Vec {
@@ -50,14 +132,36 @@ export function drivable(world: World, from: Vec, to: Vec, radius: number): bool
   return connected(layer, cellOf(layer, from), cellOf(layer, to));
 }
 
+export function reachesFrom(world: World, anchor: Vec, radius: number, climbSteps: number): (p: Vec) => boolean {
+  const layer = navLayer(world.terrain, world.obstacles, radius);
+  const target = startComponent(layer, cellOf(layer, anchor));
+  if (target === 0) throw new Error(`No nav component at anchor (${anchor.x}, ${anchor.y}) for radius ${radius}`);
+  const size = world.terrain.size;
+  const anyClimb = climbSteps >= NO_CLIMB - 1;
+  let need: Uint8Array | null | undefined;
+  const climbable = (cell: number) => {
+    if (need === undefined) need = climbNeedOnRoads(layer);
+    return need === null || need[cell] <= climbSteps;
+  };
+  return (p) => {
+    if (!withinMap(p, size)) return false;
+    const cell = cellOf(layer, p);
+    return startComponent(layer, cell) === target && (anyClimb || climbable(cell));
+  };
+}
+
+function withinMap(p: Vec, size: number): boolean {
+  return p.x >= 0 && p.y >= 0 && p.x < size && p.y < size;
+}
+
 export function warmRoutes(world: World, radii: number[]): void {
   timed('warm-routes', () => {
-    for (const r of radii) navLayer(world.terrain, world.obstacles, r);
+    for (const radius of radii) navLayer(world.terrain, world.obstacles, radius);
   });
 }
 
-function search(layer: NavLayer, dynamic: Blocker[], radius: number, start: number, target: number, taste: Taste | null): { goal: number; cells: Int32Array } {
-  const key = `${layer.id}:${radius}:${start}:${target}:${tasteKey(taste)}:${blockerKey(dynamic)}`;
+function search(layer: NavLayer, dynamic: Blocker[], radius: number, start: number, target: number, taste: Taste | null, from: Vec): { goal: number; cells: Int32Array } {
+  const key = `${layer.id}:${radius}:${start}:${target}:${tasteKey(taste)}:${blockerKey(dynamic)}${wallKey(layer, from)}`;
   const hit = routeCache.get(key);
   if (hit) {
     count('route-cache-hit');
@@ -66,9 +170,8 @@ function search(layer: NavLayer, dynamic: Blocker[], radius: number, start: numb
     return hit;
   }
   const overlay = stampOverlay(layer, dynamic, radius);
-  const exit = canStepOut(layer, overlay, start) ? start : exitCell(layer, overlay, start, target, radius);
-  const near = nearestFreeCell(layer, overlay, target, startComponent(layer, exit));
-  if (near === null) throw new Error(`No free cell joined to cell ${exit} for a route to cell ${target}`);
+  const exit = startsOut(layer, overlay, start, from) ? start : exitCell(layer, overlay, start, target, radius, from);
+  const near = nearestFreeCell(layer, overlay, target, startComponent(layer, exit), nearRing(layer, exit, target)) ?? exit;
   const found = findCellsToward(layer, overlay, exit, near, taste);
   if (!found) throw new Error(`Cells ${exit} and ${near} share a component but have no route`);
   const result = { goal: found[found.length - 1], cells: exit !== start ? Int32Array.of(start, ...found) : found };
@@ -77,11 +180,25 @@ function search(layer: NavLayer, dynamic: Blocker[], radius: number, start: numb
   return result;
 }
 
-function exitCell(layer: NavLayer, overlay: Overlay, start: number, target: number, radius: number): number {
+function nearRing(layer: NavLayer, a: number, b: number): number {
+  const n = layer.n;
+  return Math.max(Math.abs((a % n) - (b % n)), Math.abs(Math.floor(a / n) - Math.floor(b / n))) + REGION.navigation.nearSlack / CELL;
+}
+
+function wallKey(layer: NavLayer, from: Vec): string {
+  return onWalledDeck(layer.decks, from) ? `:${from.x},${from.y}` : '';
+}
+
+function startsOut(layer: NavLayer, overlay: Overlay, start: number, from: Vec): boolean {
+  return !onWalledDeck(layer.decks, from) && canStepOut(layer, overlay, start);
+}
+
+function exitCell(layer: NavLayer, overlay: Overlay, start: number, target: number, radius: number, from: Vec): number {
   const ring = Math.ceil((radius + CLEARANCE) / CELL) + 1;
+  const outside = (cell: number) => !onWalledDeck(layer.decks, centerOf(layer, cell)) && !crossesRail(layer.decks, from, centerOf(layer, cell), 0);
   const targetSide = nearestFreeCell(layer, overlay, target);
-  const toward = targetSide === null ? null : nearestFreeCell(layer, overlay, start, componentOf(layer, targetSide), ring);
-  const exit = toward ?? nearestFreeCell(layer, overlay, start);
+  const toward = targetSide === null ? null : nearestFreeCell(layer, overlay, start, componentOf(layer, targetSide), ring, outside);
+  const exit = toward ?? nearestFreeCell(layer, overlay, start, null, Infinity, outside);
   if (exit === null) throw new Error(`Route starts at cell ${start} on a map with no free cell`);
   return exit;
 }
@@ -97,14 +214,42 @@ export function clearLines(world: World, radius: number, extra: Blocker[]): (a: 
   return (a, b) => lineCost(nav, statics, blockers, a, b, radius + CLEARANCE, Infinity, nav.tileCost, null) < Infinity;
 }
 
-export type KeptRoute = { dest: Vec; points: Vec[]; blockers: string[]; offRoad: boolean };
+export type KeptRoute = { dest: Vec; points: Vec[]; blockers: string[]; style: RouteStyle; night: boolean; partial: boolean };
 
-export function keepRoute(world: World, dest: Vec, points: Vec[], extra: Blocker[], driver?: Vehicle): KeptRoute {
-  return { dest: { ...dest }, points, blockers: dynamicBlockers(world.obstacles, world.terrain, extra).map((o) => blockerKey([o])), offRoad: plansOffRoad(world, driver) };
+export function keepRoute(world: World, dest: Vec, points: Vec[], extra: Blocker[], driver?: Vehicle, partial = false): KeptRoute {
+  return { dest: { ...dest }, points, blockers: dynamicBlockers(world.obstacles, world.terrain, extra).map((o) => blockerKey([o])), style: plannedStyle(world, driver), night: plansNight(world, driver), partial };
 }
 
-function plansOffRoad(world: World, driver: Vehicle | undefined): boolean {
-  return driver !== undefined && keepsOffRoads(world, driver);
+function plannedStyle(world: World, driver: Vehicle | undefined): RouteStyle {
+  return driver ? routeStyle(world, driver) : 'road';
+}
+
+function plansNight(world: World, driver: Vehicle | undefined): boolean {
+  return driver !== undefined && avoidsCrater(world, driver);
+}
+
+export type SizedRoute = KeptRoute & { radius: number };
+
+export function followRoute(world: World, driver: Vehicle, dest: Vec, radius: number, extra: Blocker[], kept: SizedRoute | null): SizedRoute {
+  const same = sameRoute(kept, dest, radius);
+  const stored = same ? continueRoute(world, driver.pos, same, dest, radius, extra, driver) : null;
+  if (same && stored) return { ...keepRoute(world, dest, stored, extra, driver, same.partial), radius };
+  const way = same ? keptWay(world, driver, same) : null;
+  const { points, partial } = way ? { points: route(world, driver.pos, way, radius, extra, driver), partial: true } : routeAhead(world, driver.pos, dest, radius, extra, driver, REGION.navigation.farWindow);
+  return { ...keepRoute(world, dest, points, extra, driver, partial), radius };
+}
+
+function keptWay(world: World, driver: Vehicle, kept: KeptRoute): Vec | null {
+  if (!kept.partial || windowEnds(driver.pos, kept) || !sameStyle(world, driver, kept)) return null;
+  return kept.points[kept.points.length - 1];
+}
+
+function sameStyle(world: World, driver: Vehicle | undefined, kept: KeptRoute): boolean {
+  return kept.style === plannedStyle(world, driver) && kept.night === plansNight(world, driver);
+}
+
+function sameRoute(kept: SizedRoute | null, dest: Vec, radius: number): SizedRoute | null {
+  return kept && dist(kept.dest, dest) < RULES.arriveRadius && kept.radius === radius ? kept : null;
 }
 
 export function continueRoute(world: World, from: Vec, kept: KeptRoute, to: Vec, radius: number, extra: Blocker[], driver?: Vehicle): Vec[] | null {
@@ -112,11 +257,24 @@ export function continueRoute(world: World, from: Vec, kept: KeptRoute, to: Vec,
 }
 
 function continueKept(world: World, from: Vec, kept: KeptRoute, to: Vec, radius: number, extra: Blocker[], driver: Vehicle | undefined): Vec[] | null {
-  if (kept.offRoad !== plansOffRoad(world, driver)) return null;
+  if (!sameStyle(world, driver, kept) || windowEnds(from, kept) || stoppedShort(kept, from)) return null;
   const c = legCheck(world, kept, radius, extra);
-  const { rest, moved } = remainingPoints(from, kept, to);
+  const { rest, moved } = remainingPoints(from, kept, followedEnd(kept, to));
   if (lastBrokenLeg(c, from, rest, moved) >= 0) return null;
   return straightenAhead(c.nav, c.statics, c.dynamic, from, rest, c.reach, routeTaste(world, c.nav, driver));
+}
+
+function windowEnds(from: Vec, kept: KeptRoute): boolean {
+  return kept.partial && dist(from, kept.points[kept.points.length - 1]) < REGION.navigation.lookahead;
+}
+
+function followedEnd(kept: KeptRoute, to: Vec): Vec {
+  return kept.partial ? kept.points[kept.points.length - 1] : to;
+}
+
+function stoppedShort(kept: KeptRoute, from: Vec): boolean {
+  const last = kept.points[kept.points.length - 1];
+  return (last.x !== kept.dest.x || last.y !== kept.dest.y) && dist(from, last) < RULES.arriveRadius;
 }
 
 type LegCheck = { nav: TerrainNav; statics: StaticSet; dynamic: Blocker[]; fresh: Blocker[]; radius: number; reach: number };

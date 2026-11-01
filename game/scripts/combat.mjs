@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { formatReport, parseLineup, parseRoad, runFight, setNumber, turnLine } from '../src/test/combat-harness.ts';
+import { formatReport, parseGroupFlags, parseLineup, parseRoad, runFight, setNumber, turnLine } from '../src/test/combat-harness.ts';
 import { initPhysics } from '../src/phys/drive.ts';
 
 function argOf(name, fallback) {
@@ -33,7 +33,8 @@ const seeds = parseSeeds(argOf('seeds', '1-5'));
 const arena = argOf('arena', null);
 const road = parseRoad(argOf('map', null));
 if (road !== null && arena !== null) throw new Error('--map and --arena do not mix: the road has its own ground');
-const base = { gap: positiveInt('gap', '8'), orbit: positiveInt('orbit', '6'), maxTurns: positiveInt('turns', arena === null ? '40' : '400'), arena: arena === null ? null : positiveInt('arena'), road };
+const groupFlags = parseGroupFlags({ crew: argOf('crew', null), guard: process.argv.includes('--guard'), late: argOf('late', null), bystander: argOf('bystander', null) });
+const base = { gap: positiveInt('gap', '8'), orbit: positiveInt('orbit', '6'), maxTurns: positiveInt('turns', arena === null ? '40' : '400'), arena: arena === null ? null : positiveInt('arena'), road, ...groupFlags };
 
 await initPhysics();
 console.log(`Running ${sideA.length} x ${sideB.length} lineups x ${seeds.length} seeds...`);

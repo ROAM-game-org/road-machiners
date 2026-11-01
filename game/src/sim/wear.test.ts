@@ -123,7 +123,7 @@ describe('wear', () => {
     const me = w.vehicles[0];
     const wearBefore = new Map([mountedParts(me, 'engine')[0], corePart(me, 'transmission')].map((p) => [p.id, p.wear]));
     const chance = WEAR.failureChancePerTile;
-    (WEAR as { failureChancePerTile: number }).failureChancePerTile = 1;
+    (WEAR as { failureChancePerTile: number }).failureChancePerTile = 1 / WEAR.freshStrain;
     try {
       drive(me, 5);
       applyWear(w);
@@ -138,38 +138,67 @@ describe('wear', () => {
     expect(w.events).toContainEqual({ t: 'breakdown', vehicle: me.id, part: failed[0].id });
   });
 
-  it('fails a truck about once in two hours of off-road driving', () => {
-    let failures = 0;
-    const hours = 10;
-    for (let seed = 1; seed <= hours; seed++) {
-      const w = emptyWorld();
-      w.rngState = seed;
-      const me = w.vehicles[0];
-      const tiles = 7.8;
-      setTerrainUnder(w, me, tiles, 'hardpan');
-      const driveParts = [mountedParts(me, 'engine')[0], corePart(me, 'transmission')];
-      for (let turn = 0; turn < 2900; turn++) {
-        drive(me, tiles);
+  it('fails a beaten truck about once in three hours of off-road driving, and a kept one rarely', () => {
+    const beaten = failuresOver(10, 0.25);
+    const kept = failuresOver(10, 1);
+    expect(beaten).toBeGreaterThanOrEqual(1);
+    expect(beaten).toBeLessThanOrEqual(8);
+    expect(kept).toBeLessThanOrEqual(1);
+  });
+
+  it('breaks the most worn part far more often than the fresh ones', () => {
+    let wornBreaks = 0;
+    let freshBreaks = 0;
+    const chance = WEAR.breakdownChancePerTile;
+    (WEAR as { breakdownChancePerTile: number }).breakdownChancePerTile = 1 / WEAR.freshStrain;
+    try {
+      for (let seed = 1; seed <= 40; seed++) {
+        const w = emptyWorld();
+        w.rngState = seed;
+        const me = w.vehicles[0];
+        const worn = mountedParts(me, 'engine')[0];
+        worn.hp = Math.round(maxHp(worn) * 0.2);
+        drive(me, 1);
         applyWear(w);
-        const failed = driveParts.find((p) => p.hp === 0);
-        if (!failed) continue;
-        failures++;
-        restorePart(failed, maxHp(failed));
+        const broke = w.events.find((e) => e.t === 'breakdown');
+        if (broke?.t !== 'breakdown') continue;
+        if (broke.part === worn.id) wornBreaks++;
+        else freshBreaks++;
       }
+    } finally {
+      (WEAR as { breakdownChancePerTile: number }).breakdownChancePerTile = chance;
     }
-    expect(failures).toBeGreaterThanOrEqual(2);
-    expect(failures).toBeLessThanOrEqual(10);
+    expect(wornBreaks).toBeGreaterThan(freshBreaks);
   });
 
   it('wears NPCs too', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 50, y: 50 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 50, y: 50 });
     drive(npc, 1000);
     const before = totalHp(npc);
     applyWear(w);
     expect(totalHp(npc)).toBeLessThan(before);
   });
 });
+
+function failuresOver(hours: number, hpShare: number): number {
+  let failures = 0;
+  for (let seed = 1; seed <= hours; seed++) {
+    const w = emptyWorld();
+    w.rngState = seed;
+    const me = w.vehicles[0];
+    const tiles = 7.8;
+    setTerrainUnder(w, me, tiles, 'hardpan');
+    const driveParts = [mountedParts(me, 'engine')[0], corePart(me, 'transmission')];
+    for (let turn = 0; turn < 2900; turn++) {
+      for (const p of mountedParts(me)) p.hp = Math.max(1, Math.round(maxHp(p) * hpShare));
+      drive(me, tiles);
+      applyWear(w);
+      if (driveParts.some((p) => p.hp === 0)) failures++;
+    }
+  }
+  return failures;
+}
 
 function part(defId: string, wear: number, hp = partDef(defId).hp): PartInstance {
   return { id: 'p1', defId, hp, wear };
@@ -359,7 +388,7 @@ describe('rough ground practice', () => {
   it('pays nothing while the player is towed', () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const tower = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 50, y: 50 });
+    const tower = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 50, y: 50 });
     addState(w, 'tow', tower.id, me.id, { kind: 'tow', site: REGION.towns[0].id, fee: 10, waived: 0, hitched: true });
     setTerrainUnder(w, me, 6, 'hardpan');
     drive(me, 6);
@@ -369,7 +398,7 @@ describe('rough ground practice', () => {
 
   it('pays nothing for an NPC driving rough ground', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 50, y: 50 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 50, y: 50 });
     setTerrainUnder(w, npc, 6, 'scree');
     drive(npc, 6);
     applyWear(w);

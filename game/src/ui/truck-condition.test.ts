@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import { corePart, coreParts, mountedParts, mountedItems, itemSize } from "../sim/grid";
 import { emptyWorld } from "../sim/testkit";
 import { addVehicle } from "../sim/testkit";
-import { conditionLabel, TruckConditionReadout } from "./hud-readout";
+import { conditionLabel, CRITICAL_BELOW, HURT_BELOW, tierOf, TruckConditionReadout } from "./hud-readout";
 import { partName } from "../text/names";
-import { partDef } from "../data/parts";
+import { PARTS, partDef } from "../data/parts";
+import { edgedWhenHealthy } from "./truck-condition-view";
 import type { Msg } from "../text/msg";
 import { resolve } from "../text/resolve";
 
@@ -38,10 +39,10 @@ describe("truck condition", () => {
     const readout = new TruckConditionReadout();
     expect(readout.update(vehicle).find((part) => part.id === engine.id)).toMatchObject({ percent: 40, hit: false });
     engine.hp = 10;
-    expect(readout.update(vehicle).find((part) => part.id === engine.id)).toMatchObject({ percent: 20, state: "critical", hit: true });
+    expect(readout.update(vehicle).find((part) => part.id === engine.id)).toMatchObject({ percent: 20, tier: "crit", hit: true });
     expect(readout.update(vehicle).some((part) => part.hit)).toBe(false);
     engine.hp = 30;
-    expect(readout.update(vehicle).find((part) => part.id === engine.id)).toMatchObject({ percent: 60, state: "damaged", hit: false });
+    expect(readout.update(vehicle).find((part) => part.id === engine.id)).toMatchObject({ percent: 60, tier: "hurt", hit: false });
   });
 
   it("shows each broken wheel separately and never rounds a working part to zero", () => {
@@ -50,7 +51,7 @@ describe("truck condition", () => {
     wheels[0].hp = 0;
     corePart(vehicle, "cab").hp = 0.01;
     const parts = new TruckConditionReadout().update(vehicle);
-    expect(parts.find((part) => part.id === wheels[0].id)).toMatchObject({ percent: 0, state: "critical" });
+    expect(parts.find((part) => part.id === wheels[0].id)).toMatchObject({ percent: 0, tier: "broken" });
     expect(parts.filter((part) => role(part) === "wheel" && part.percent === 100)).toHaveLength(3);
     expect(parts.find((part) => role(part) === "cab")?.percent).toBe(1);
   });
@@ -86,7 +87,7 @@ describe("condition tooltip", () => {
 describe("armor on the condition panel", () => {
   function armoredTruck(armor: string[]) {
     const world = emptyWorld();
-    return addVehicle(world, "raiders", "buggy", ["mg", "stockEngine", ...armor], { x: 33, y: 30 });
+    return addVehicle(world, "scrapjaw", "buggy", ["mg", "stockEngine", ...armor], { x: 33, y: 30 });
   }
 
   it("lists a mounted armor plate with its condition", () => {
@@ -94,7 +95,7 @@ describe("armor on the condition panel", () => {
     const plate = mountedParts(truck, "armor")[0];
     plate.hp = plate.hp / 2;
     const tile = new TruckConditionReadout().update(truck).find((part) => part.id === plate.id);
-    expect(tile).toMatchObject({ percent: 50, state: "damaged", broken: false });
+    expect(tile).toMatchObject({ percent: 50, tier: "hurt", broken: false });
   });
 
   it("marks a destroyed plate as broken", () => {
@@ -107,11 +108,49 @@ describe("armor on the condition panel", () => {
 });
 
 describe("condition fill", () => {
-  it("gives a tile the share of its HP as its fill percent", () => {
+  it("gives a tile the share of its HP as its percent", () => {
     const vehicle = emptyWorld().vehicles[0];
     const engine = mountedParts(vehicle, "engine")[0];
     engine.hp = engine.hp * 0.95;
     const tile = new TruckConditionReadout().update(vehicle).find((part) => part.id === engine.id);
-    expect(tile).toMatchObject({ percent: 95, state: "damaged" });
+    expect(tile).toMatchObject({ percent: 95, tier: "ok" });
+  });
+});
+
+describe("condition tiers", () => {
+  it("names the thresholds", () => {
+    expect([HURT_BELOW, CRITICAL_BELOW]).toEqual([70, 40]);
+  });
+
+  it.each([
+    [100, "ok"],
+    [70, "ok"],
+    [69, "hurt"],
+    [40, "hurt"],
+    [39, "crit"],
+    [1, "crit"],
+    [0, "broken"],
+  ] as const)("puts %i percent in %s", (percent, tier) => {
+    expect(tierOf(percent)).toBe(tier);
+  });
+
+  it("gives every readout part a tier that follows its percent", () => {
+    const vehicle = emptyWorld().vehicles[0];
+    mountedParts(vehicle, "engine")[0].hp = 1;
+    for (const part of new TruckConditionReadout().update(vehicle)) expect(part.tier).toBe(tierOf(part.percent));
+  });
+});
+
+describe("healthy edge", () => {
+  it("edges guns, armor, accessories and tires", () => {
+    for (const id of ["mg", "shotgun", "slugCannon", "steelPlate", "plowRam", "wheel"]) expect(edgedWhenHealthy(id), id).toBe(true);
+  });
+
+  it("leaves engines and other cores bare", () => {
+    for (const id of ["stockEngine", "transmission", "tank", "cabPickup"]) expect(edgedWhenHealthy(id), id).toBe(false);
+  });
+
+  it("edges every weapon", () => {
+    for (const def of Object.values(PARTS)) if (def.kind === "weapon") expect(edgedWhenHealthy(def.id), def.id).toBe(true);
   });
 });

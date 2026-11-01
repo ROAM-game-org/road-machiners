@@ -7,7 +7,7 @@ import { pointInPolygon, type Vec } from '../../sim/vec';
 
 const S = PHYSICS.metersPerTile;
 
-export const POOLS = { texelsPerTile: 4, maxSide: 2048, radius: 1.8, gain: 0.5, push: 0.5, margin: 2 };
+export const POOLS = { texelsPerTile: 4, maxSide: 2048, radius: 1.8, gain: 0.5, push: 0.7, margin: 2 };
 const HALO = { size: 1.6, texels: 64 };
 
 export type PoolLamp = { site: Site; x: number; z: number; inside: boolean };
@@ -63,15 +63,38 @@ function addLamp(light: Float32Array, grid: PoolGrid, region: Region, lamp: Pool
     }
 }
 
-export function bakePools(lamps: PoolLamp[], grid: PoolGrid): Uint8Array {
-  const light = new Float32Array(grid.side * grid.side);
-  const regions = new Map<Site, Region>();
-  for (const lamp of lamps) {
-    let region = regions.get(lamp.site);
-    if (!region) regions.set(lamp.site, (region = siteRegion(lamp.site, grid)));
-    addLamp(light, grid, region, lamp);
+export class PoolMap {
+  readonly bytes: Uint8Array;
+  private readonly light: Float32Array;
+
+  constructor(readonly grid: PoolGrid) {
+    this.light = new Float32Array(grid.side * grid.side);
+    this.bytes = new Uint8Array(grid.side * grid.side);
   }
-  return Uint8Array.from(light, (v) => Math.round(Math.min(1, v) * 255));
+
+  add(lamps: readonly PoolLamp[]): void {
+    const regions = new Map<Site, Region>();
+    for (const lamp of lamps) {
+      let region = regions.get(lamp.site);
+      if (!region) regions.set(lamp.site, (region = siteRegion(lamp.site, this.grid)));
+      addLamp(this.light, this.grid, region, lamp);
+    }
+    for (const region of regions.values()) this.write(region);
+  }
+
+  private write(region: Region): void {
+    for (let j = region.j0; j <= region.j1; j++)
+      for (let i = region.i0; i <= region.i1; i++) {
+        const k = j * this.grid.side + i;
+        this.bytes[k] = Math.round(Math.min(1, this.light[k]) * 255);
+      }
+  }
+}
+
+export function bakePools(lamps: PoolLamp[], grid: PoolGrid): Uint8Array {
+  const map = new PoolMap(grid);
+  map.add(lamps);
+  return map.bytes;
 }
 
 export function samplePools(data: Uint8Array, grid: PoolGrid, p: Vec): number {
@@ -92,9 +115,11 @@ poolWorld = instanceMatrix * poolWorld;
 #endif
 vPoolXZ = (modelMatrix * poolWorld).xz;`;
 
-const POOL_FRAGMENT = `vec3 poolNormal = inverseTransformDirection(normal, viewMatrix);
-vec2 poolAt = (vPoolXZ + poolNormal.xz * poolPush) / poolSpan;
-gl_FragColor.rgb += diffuseColor.rgb * poolColor * (texture2D(poolMap, poolAt).r * poolGain * poolLevel);
+const POOL_FRAGMENT = `if (poolLevel > 0.0) {
+  vec3 poolNormal = inverseTransformDirection(normal, viewMatrix);
+  vec2 poolAt = (vPoolXZ + poolNormal.xz * poolPush) / poolSpan;
+  gl_FragColor.rgb += diffuseColor.rgb * poolColor * (texture2D(poolMap, poolAt).r * poolGain * poolLevel);
+}
 #include <tonemapping_fragment>`;
 
 const POOL_UNIFORMS = 'uniform sampler2D poolMap;\nuniform float poolSpan;\nuniform float poolPush;\nuniform float poolGain;\nuniform float poolLevel;\nuniform vec3 poolColor;\nvarying vec2 vPoolXZ;';
@@ -128,14 +153,25 @@ export class NightPools {
   private readonly lit = new WeakSet<THREE.Material>();
   readonly haloMaterial = new THREE.SpriteMaterial({ map: haloTexture(), color: PAL.lamp.amber, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 });
 
-  bake(lamps: PoolLamp[], worldSize: number, maxTextureSize: number): void {
-    const grid = poolGrid(worldSize, maxTextureSize);
-    const texture = new THREE.DataTexture(bakePools(lamps, grid), grid.side, grid.side, THREE.RedFormat, THREE.UnsignedByteType);
+  private map: PoolMap | null = null;
+
+  start(worldSize: number, maxTextureSize: number): void {
+    const map = new PoolMap(poolGrid(worldSize, maxTextureSize));
+    const texture = new THREE.DataTexture(map.bytes, map.grid.side, map.grid.side, THREE.RedFormat, THREE.UnsignedByteType);
     texture.magFilter = THREE.LinearFilter;
     texture.minFilter = THREE.LinearFilter;
     texture.needsUpdate = true;
+    this.map = map;
     this.uniforms.poolMap.value = texture;
     this.uniforms.poolSpan.value = worldSize * S;
+  }
+
+  addLamps(lamps: readonly PoolLamp[]): void {
+    const texture = this.uniforms.poolMap.value;
+    if (!this.map || !texture) throw new Error('Night pools were never started');
+    if (lamps.length === 0) return;
+    this.map.add(lamps);
+    texture.needsUpdate = true;
   }
 
   setLevel(level: number): void {

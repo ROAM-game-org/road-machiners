@@ -19,6 +19,9 @@ import {
   setMoney,
   setSupplies,
   skipToHour,
+  sunwardDusk,
+  sunwardHunt,
+  sunwardLedger,
   spawnNear,
   startBattle,
   startWeather,
@@ -37,10 +40,10 @@ import type { World, XpSource } from "../sim/types";
 import { devEl, el, panel } from "./dom";
 import { partName, perkName } from "../text/names";
 import { resolve } from "../text/resolve";
-import { UNITS } from "../data/units";
 import { moneyText } from "./units";
+import { toggleSeeAll } from "./see-all";
 
-export type CommandResult = { world: World | null; lines: string[]; toggleFps?: true; noclip?: true; fullShop?: true };
+export type CommandResult = { world: World | null; lines: string[]; toggleFps?: true; noclip?: true; fullShop?: true; seeAll?: true };
 
 export type Command = {
   name: string;
@@ -94,10 +97,9 @@ function setter(name: string, help: string, set: (world: World, n: number) => Wo
 
 function moneySetter(): Command {
   return command("money <n>", "Set money in M.", { min: 1, max: 1 }, (world, [text], usage) => {
-    const cents = parseNumber(text, usage) * UNITS.centsPerM;
-    const whole = Math.round(cents);
-    if (Math.abs(cents - whole) > 1e-6) throw new CheatError(`Money takes at most two decimals, got ${text}`);
-    return changed(setMoney(world, whole), `money set to ${moneyText(whole)}`);
+    const amount = parseNumber(text, usage);
+    if (!Number.isInteger(amount)) throw new CheatError(`Money takes whole M, got ${text}`);
+    return changed(setMoney(world, amount), `money set to ${moneyText(amount)}`);
   });
 }
 
@@ -146,6 +148,7 @@ export const COMMANDS: readonly Command[] = [
   }),
 
   command("fps", "Toggle the frame rate panel.", { min: 0, max: 0 }, () => ({ world: null, lines: [], toggleFps: true })),
+  command("seeall", "Toggle showing hidden things: site production, and NPC traits and cargo on the hover card.", { min: 0, max: 0 }, () => ({ world: null, lines: [], seeAll: true })),
   command("fullshop", "Open a shop of every part, free, where parts fit at once, anywhere and in combat.", { min: 0, max: 0 }, () => ({ world: null, lines: [], fullShop: true })),
 
   command("tp <location id> | tp <x> <y>", "Move the truck to a location or map point.", { min: 1, max: 2 }, (world, args, usage) => {
@@ -156,6 +159,12 @@ export const COMMANDS: readonly Command[] = [
   command("hour <h>", "Advance to the next turn at that hour.", { min: 1, max: 1 }, (world, [text], usage) => {
     const hour = parseNumber(text, usage);
     return changed(skipToHour(world, hour), `skipped to hour ${hour}`);
+  }),
+  command("sunward <dusk|hunt|roster>", "Fill the Sunward Hollow and skip to the next dusk, send tonight's hunters out, or print the night ledger.", { min: 1, max: 1 }, (world, [what], usage) => {
+    if (what === "dusk") return changed(sunwardDusk(world), "skipped to dusk with a full Hollow");
+    if (what === "hunt") return changed(sunwardHunt(world), "the hunters ride out tonight");
+    if (what === "roster") return { world: null, lines: sunwardLedger(world) };
+    throw new CheatError(`"${what}" is not a sunward option. Usage: ${usage}`);
   }),
   command("weather <storm|heatwave|overcast> [turns] [offset]", "Start that weather, for that many turns if given. A storm with an offset starts that many tiles east of the truck, still and at full strength.", { min: 1, max: 3 }, (world, [kind, turns, offset], usage) =>
     changed(startWeather(world, kind, turns === undefined ? null : parseNumber(turns, usage), offset === undefined ? 0 : parseNumber(offset, usage)), `${kind} started`),
@@ -359,12 +368,19 @@ export class DebugConsole {
 
   private show(result: CommandResult): void {
     if (result.world !== null) this.game.apply(result.world);
-    if (result.toggleFps) this.print(`fps panel ${this.fps.toggle() ? "on" : "off"}`);
+    this.runToggles(result);
     for (const text of result.lines) this.print(text);
     if (result.fullShop) {
       this.close();
       this.game.openFullShop();
     }
+  }
+
+  private runToggles(result: CommandResult): void {
+    if (result.toggleFps) this.print(`fps panel ${this.fps.toggle() ? "on" : "off"}`);
+    if (!result.seeAll) return;
+    this.print(`see all ${toggleSeeAll() ? "on" : "off"}`);
+    this.game.apply(this.game.state);
   }
 
   private run(line: string): CommandResult | null {
