@@ -9,7 +9,7 @@ import { CELL, CLEARANCE, berthTaste, blockerKey, climbNeedOnRoads, climbTaste, 
 import { routeStyle, type RouteStyle } from './off-road';
 import { climbGrade } from './stats';
 import type { Vehicle, World } from './types';
-import { avoidsCrater, CRATER_NIGHT } from './sunward';
+import { avoidsCrater, CRATER_NIGHT, unseenRideBerths } from './sunward';
 import { berthsOf } from './tracks';
 import { dist, segmentDist, type Vec } from './vec';
 
@@ -105,7 +105,7 @@ function routeTaste(world: World, nav: TerrainNav, driver: Vehicle | undefined):
 function styledTaste(world: World, nav: TerrainNav, driver: Vehicle, taste: Taste): Taste {
   const keeping = styledByRoute(routeStyle(world, driver), taste, nav);
   const styled = avoidsCrater(world, driver) ? nightTaste(keeping, nav, CRATER_NIGHT) : keeping;
-  return berthTaste(styled, berthsOf(world, driver));
+  return berthTaste(styled, [...berthsOf(world, driver), ...unseenRideBerths(driver)]);
 }
 
 function crossesBerth(berths: Berth[] | null | undefined, from: Vec, to: Vec): boolean {
