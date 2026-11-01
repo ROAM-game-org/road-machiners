@@ -17,11 +17,12 @@ export const WEAR = {
   breakdownChancePerTile: 0.0001,
   breakdownHpShare: 0.15,
   failureChancePerTile: 0.000017,
+  freshStrain: 0.05,
 };
 
 export const PATCH = {
   share: 0.25,
-  laborPerTurn: 266.67,
+  laborPerTurn: 2.6667,
 };
 
 export const REPAIR = {

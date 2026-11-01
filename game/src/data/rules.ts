@@ -1,20 +1,22 @@
 import type { Tier } from './market';
 import type { LandmarkLook } from '../sim/types';
+import { MAP_SPREAD } from './region';
 
 export const RULES = {
   substeps: 26,
   crawlSpeed: 1,
+  setSpeedStep: 20 / 14.4,
   lowFuelThreshold: 0.2,
   lowFuelSpeedFactor: 0.5,
-  fuelUseFactor: 0.045,
+  fuelUseFactor: 0.045 / MAP_SPREAD,
   npcStuckTurns: 2,
   npcRecoveryTurns: 2,
   unstick: { turns: 20, reach: 6, driveTurns: 3 },
-  stranded: { turns: 3, step: 0.25 },
-  reverse: { cone: 20, distance: 1 },
+  stranded: { turns: 3, step: 0.25, reach: 0.75, fortAnchorOut: 3 },
+  reverse: { cone: 20, distance: 1, maxDistance: 6 },
   meetStep: 0.3,
   arriveRadius: 0.5,
-  throttleZones: { reach: 10, brake: 0.25, hold: 0.5, accelerate: 0.25 },
+  throttleZones: { reach: 10, brake: 0.25, hold: 0.5, accelerate: 0.25, minHalfAngle: Math.PI / 12 },
   reclickRadius: 0.75,
   passRadius: 1,
   minAimDistance: 1.5,
@@ -22,19 +24,21 @@ export const RULES = {
   refitTurnsPerPart: 2.5,
   parkedSpeed: 0.5,
   yieldDistance: 1.5,
+  traffic: { crossCone: Math.PI / 2, parkedCone: Math.PI / 4, passStep: 0.25 },
   maxBulge: 0.25,
   limpSpeed: 1.04,
   gunDragMax: 0.48,
   gunDragCurve: 1.5,
   minSpeedCap: 1,
   collisionMinImpact: 1.5,
+  crashFault: { still: 1, share: 0.4 },
   ramDamage: 2.5,
   hardCrashSpeed: 4,
   cellPen: 0.5,
   crashPen: 4,
   crashFalloff: 0.6,
-  groundCrash: 3,
-  landingDamage: 0.25,
+  groundCrash: 1.5,
+  landingDamage: 0.125,
   wheelLoss: 0.15,
   tankLeak: 1,
 
@@ -67,7 +71,7 @@ export const RULES = {
   wreckRadiusScale: 1,
   maxKillWrecks: 12,
 
-  suppliesPerTurn: 0.009,
+  suppliesPerTurn: 0.009 / MAP_SPREAD,
   baseSupplies: 20,
   suppliesLow: 4,
   starveDamage: 5,
@@ -81,7 +85,6 @@ export const RULES = {
   scrapPatch: 0.4,
   townPatch: 0.15,
   knockoutMaxTurns: 30,
-  surrenderParts: 2,
   npcDeathChance: 0.05,
   cabKnock: {
     below: 0.5,
@@ -89,9 +92,14 @@ export const RULES = {
     playerHealth: 75,
   },
   retreatTeleportTurns: 50,
+  holdUp: {
+    cutShare: 0.5,
+    cutCap: 88,
+  },
 };
 
 export const CHEATS = {
+  armedKitTries: 50,
   spawnDistance: 10,
   spawnAngles: 12,
   searchStep: 1,
@@ -99,7 +107,7 @@ export const CHEATS = {
 };
 
 export const BREAKABLE = {
-  kinds: ['fence', 'junk', 'deadTree'] as readonly LandmarkLook[],
+  kinds: ['fence', 'junk', 'deadTree', 'roadSign', 'routeSign', 'barrel'] as readonly LandmarkLook[],
   breakSpeed: 3,
   slowdown: 0.3,
   damage: 2,

@@ -23,12 +23,13 @@ RAIL_Z = 0.78
 STANDOFF = 0.125
 GRILLE_X = OUTER_X + STANDOFF
 BRACKET_X = OUTER_X - 0.15
-BARS = 7
+BARS_PER_CELL = 3
 
 
-def build(kit: Kit) -> None:
-    edge = half_span(N) - 0.03
-    for i, y in enumerate(spread(BARS, edge)):
+def build_row(kit: Kit, n: int) -> None:
+    """A rebar grille of n cells. arm_cage_section.py builds the one-cell cut."""
+    edge = half_span(n) - 0.03
+    for i, y in enumerate(spread(BARS_PER_CELL * n + 1, edge)):
         top = HEIGHT - kit.rng.uniform(0.0, 0.08)
         lean = kit.rng.uniform(-0.015, 0.015)
         strut(kit, f"bar{i}", (GRILLE_X + 0.02, y, 0.02), (GRILLE_X + 0.02, y + lean, top), 0.025, "rust", dent_by=0.003)
@@ -39,6 +40,10 @@ def build(kit: Kit) -> None:
             kit.box(f"bracket{y:.2f}_{z:.2f}", (GRILLE_X - BRACKET_X, 0.04, 0.04), ((GRILLE_X + BRACKET_X) / 2, y, z), "metal")
         kit.box(f"clamp{y:.2f}", (0.04, 0.08, RAIL_Z - 0.1 + 0.08), (BRACKET_X, y, (RAIL_Z + 0.1) / 2), "metal_light")
     kit.box("back_rail", (0.04, edge * 2, 0.04), (BRACKET_X, 0, RAIL_Z), "metal", dent_by=0.003)
+
+
+def build(kit: Kit) -> None:
+    build_row(kit, N)
 
 
 if __name__ == "__main__":

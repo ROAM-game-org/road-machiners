@@ -25,7 +25,7 @@ def build(kit: Kit) -> None:
     kit.box("feed_cover", (0.22, 0.13, 0.03), (0.07, 0, 0.185), "paint", dent_by=0.003)
     kit.box("front_collar", (0.04, 0.11, 0.11), (0.22, 0, MUZZLE[2]), "metal_light")
     kit.box("backplate", (0.03, 0.13, 0.12), (-0.155, 0, 0.1), "dark")
-    for y in (-0.05, 0.05):
+    for y in (-0.04, 0.04):
         kit.box(f"grip{y:.2f}", (0.04, 0.025, 0.08), (-0.19, y, 0.1), "dark")
     kit.box("trigger_bar", (0.02, 0.12, 0.02), (-0.21, 0, 0.1), "metal_light")
     kit.box("ammo_box", (0.14, 0.08, 0.1), (0.04, 0.12, 0.08), "rust", dent_by=0.004)

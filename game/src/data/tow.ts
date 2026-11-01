@@ -2,6 +2,7 @@
 
 import { DETECT } from './detect';
 import { EFFORT } from './market';
+import { MAP_SCALE } from './region';
 
 const WAGES = 2;
 const APPROACH_TURNS = 25;
@@ -24,6 +25,6 @@ export const TOW = {
 };
 
 export const BEACON = {
-  range: 250,
+  range: 50 * MAP_SCALE,
   radius: DETECT.fuzz.base,
 };

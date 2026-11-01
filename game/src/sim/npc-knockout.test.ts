@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { cabKnockChance } from './cab-knock';
 import { maxHp } from './wear';
 import { RULES } from '../data/rules';
-import { autoOrders, isFoe, resolveDestroyed } from './combat';
-import { advanceNpcKnockouts, checkKnockout, knockOutNpc, refitAtHome } from './defeat';
+import { autoOrders, isHostile, resolveDestroyed } from './combat';
+import { advanceNpcKnockouts, checkKnockout, knockOutNpc, refitAtHome, standDown } from './defeat';
 import { corePart, coreParts } from './grid';
 import { addVehicle, emptyWorld, npcBrain, rngStateWhere } from './testkit';
 import type { Vehicle, World } from './types';
@@ -24,7 +24,7 @@ import { TEST_MAP } from '../test/map';
 function beside(): { w: World; me: Vehicle; buggy: Vehicle } {
   const w = emptyWorld();
   const me = w.vehicles[0];
-  const buggy = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 }, Math.PI);
+  const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 }, Math.PI);
   buggy.brain = npcBrain('buggy', buggy.pos, ['raider']);
   buggy.lastHitBy = me.id;
   buggy.brain.attackers[me.id] = true;
@@ -71,7 +71,7 @@ describe('NPC knockout', () => {
     expect(me.weaponOrders).toEqual({});
     autoOrders(w, me);
     expect(me.weaponOrders).toEqual({});
-    expect(isFoe(w, me, buggy)).toBe(false);
+    expect(isHostile(w, me, buggy)).toBe(false);
   });
 
   it('lets the player aim at it by hand', () => {
@@ -120,6 +120,15 @@ describe('towing a knocked-out truck', () => {
 });
 
 describe('NPC waking', () => {
+  it('wakes with gaveUp set when it gave up', () => {
+    const { w, me, buggy } = beside();
+    standDown(w, buggy, me.id);
+    me.pos = { x: 200, y: 200 };
+    refreshVision(w);
+    advanceNpcKnockouts(w);
+    expect(w.events).toContainEqual({ t: 'npcWake', vehicle: buggy.id, gaveUp: true });
+  });
+
   it('stays out while the truck that beat it sees it', () => {
     const { w, buggy } = beside();
     breakCab(w, buggy, false);
@@ -137,7 +146,7 @@ describe('NPC waking', () => {
     expect(buggy.defeat?.phase).toBe('retreat');
     expect(corePart(buggy, 'cab').hp).toBeGreaterThan(0);
     expect(coreParts(buggy, 'wheel')[0].hp).toBeGreaterThan(0);
-    expect(w.events).toContainEqual({ t: 'npcWake', vehicle: buggy.id });
+    expect(w.events).toContainEqual({ t: 'npcWake', vehicle: buggy.id, gaveUp: false });
   });
 
   it('wakes at the turn limit with its attacker still watching', () => {
@@ -150,10 +159,52 @@ describe('NPC waking', () => {
   });
 });
 
+describe('Teardown', () => {
+  function stripping(perk: boolean, job: boolean): { w: World; me: Vehicle; buggy: Vehicle } {
+    const { w, me, buggy } = beside();
+    breakCab(w, buggy, false);
+    if (perk) w.player.perks = ['teardown'];
+    if (job) {
+      const pickup = { from: 'truck' as const, vehicleId: buggy.id, partId: gunOf(buggy), itemId: 'i-take', to: { x: 0, y: 0, rot: 0 as const } };
+      me.job = { kind: 'refit', moves: [], pickup, queue: [], turnsLeft: 5, total: 5 };
+    }
+    return { w, me, buggy };
+  }
+
+  it('keeps a truck down past the turn limit while the player takes a part off it', () => {
+    const { w, buggy } = stripping(true, true);
+    for (let turn = 0; turn <= RULES.knockoutMaxTurns + 5; turn++) advanceNpcKnockouts(w);
+    expect(buggy.defeat).toMatchObject({ phase: 'out', turns: 0 });
+  });
+
+  it('keeps a truck down after its attackers lose sight of it', () => {
+    const { w, me, buggy } = stripping(true, true);
+    me.pos = { x: 200, y: 200 };
+    refreshVision(w);
+    advanceNpcKnockouts(w);
+    expect(buggy.defeat?.phase).toBe('out');
+  });
+
+  it('lets the truck wake on the first turn the player is not working on it', () => {
+    const { w, me, buggy } = stripping(true, false);
+    me.pos = { x: 200, y: 200 };
+    refreshVision(w);
+    advanceNpcKnockouts(w);
+    expect(buggy.defeat?.phase).toBe('retreat');
+  });
+
+  it('holds nothing without the perk', () => {
+    const { w, buggy } = stripping(false, true);
+    for (let turn = 1; turn < RULES.knockoutMaxTurns; turn++) advanceNpcKnockouts(w);
+    advanceNpcKnockouts(w);
+    expect(buggy.defeat?.phase).toBe('retreat');
+  });
+});
+
 describe('the retreat home', () => {
   function retreating(): { w: World; buggy: Vehicle } {
     const w = emptyWorld();
-    const buggy = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 150, y: 150 });
+    const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 150, y: 150 });
     buggy.brain = npcBrain('buggy', buggy.pos, ['raider']);
     buggy.items = buggy.items.filter((it) => !(it.kind === 'part' && it.part.defId === 'mg'));
     buggy.defeat = { phase: 'retreat', turns: 3, unseen: 0, foes: [], gaveUp: true };
@@ -206,7 +257,7 @@ describe('the retreat home', () => {
 
   it('stays on a tow rope instead of appearing at home', () => {
     const { w, buggy } = retreating();
-    const tower = addVehicle(w, 'raiders', 'buggy', ['stockEngine'], { x: 152, y: 150 });
+    const tower = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: 152, y: 150 });
     addState(w, 'tow', tower.id, buggy.id, { kind: 'tow', site: npcHomeSite(TEST_MAP, buggy)!.id, fee: 0, hitched: true, waived: 0 });
     for (let turn = 0; turn < RULES.retreatTeleportTurns; turn++) advanceNpcKnockouts(w);
     expect(buggy.defeat?.phase).toBe('retreat');
@@ -253,7 +304,7 @@ describe('revenge', () => {
 
   it('raises a trader\'s chance to rob the player', () => {
     const { w, me } = beside();
-    const trader = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], { x: 30, y: 34 });
+    const trader = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 30, y: 34 });
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
     refreshVision(w);
     const before = optionWeights(w, trader, 'preySeen', me.id, null).rob!;
@@ -318,9 +369,9 @@ describe('cab knock', () => {
 describe('winners strip the trucks they knock out', () => {
   function duel(): { w: World; winner: Vehicle; loser: Vehicle } {
     const w = emptyWorld({ x: 200, y: 200 });
-    const winner = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
+    const winner = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
     winner.brain = npcBrain('buggy', winner.pos, ['raider']);
-    const loser = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 32, y: 30 });
+    const loser = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 32, y: 30 });
     loser.brain = npcBrain('trader', loser.pos, ['trader']);
     loser.lastHitBy = winner.id;
     loser.brain.attackers[winner.id] = true;

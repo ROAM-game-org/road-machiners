@@ -1,7 +1,7 @@
 
 
 import { GAME_VERSION } from '../config';
-import { DownloadFailed } from '../download';
+import { AssetUnreachable, DownloadFailed } from '../fetch-asset';
 import { noWebGLText, WebGLUnavailable } from './webgl';
 
 import { setText } from '../text/language';
@@ -102,24 +102,38 @@ function ignoreForeign(facts: ErrorFacts): void {
   report(FOREIGN_NOTE);
 }
 
-export function screenFor(err: unknown): 'webgl' | 'download' | 'crash' {
+function onError(err: unknown, facts: ErrorFacts | null = null): void {
+  const kind = faultKind(err);
+  if (kind === 'webgl') showNoWebGL(err as WebGLUnavailable);
+  else if (kind === 'lost') showLostFiles(err as DownloadFailed);
+  else if (kind === 'unreachable') warnUnreachable(err as AssetUnreachable);
+  else onFault(err, facts);
+}
+
+export function faultKind(err: unknown): 'webgl' | 'lost' | 'unreachable' | 'fault' {
   if (err instanceof WebGLUnavailable) return 'webgl';
-  if (err instanceof DownloadFailed) return 'download';
-  return 'crash';
+  if (err instanceof DownloadFailed) return 'lost';
+  if (err instanceof AssetUnreachable) return 'unreachable';
+  return 'fault';
 }
 
 export function downloadFailedText(err: DownloadFailed): { title: Msg; lines: Msg[]; detail: string; action: Msg } {
   const cause = err.cause instanceof Error ? err.cause.message : String(err.cause);
-  return { title: t('download.title'), lines: [t('download.reload'), t('download.saves')], detail: `${err.url}\n${cause}`, action: t('download.action') };
+  return {
+    title: t('download.title'),
+    lines: [t('download.reload'), t('download.saves')],
+    detail: `${err.url}\n${cause}`,
+    action: t('download.action'),
+  };
 }
 
-function onError(err: unknown, facts: ErrorFacts | null = null): void {
-  const screen = screenFor(err);
-  if (screen === 'webgl') showNotice(noWebGLText(err as WebGLUnavailable, navigator.userAgent));
-  else if (screen === 'download') {
-    console.warn(err);
-    showNotice(downloadFailedText(err as DownloadFailed));
-  } else onFault(err, facts);
+function showLostFiles(err: DownloadFailed): void {
+  console.warn(err);
+  showNotice(downloadFailedText(err));
+}
+
+function warnUnreachable(err: AssetUnreachable): void {
+  console.warn(`${err.label} ${err.url} did not arrive after ${err.attempts} attempts`);
 }
 
 function onFault(err: unknown, facts: ErrorFacts | null): void {
@@ -150,6 +164,10 @@ function showCrash(err: unknown, facts: ErrorFacts | null): void {
   document.body.appendChild(box);
 }
 
+function showNoWebGL(err: WebGLUnavailable): void {
+  showNotice(noWebGLText(err, navigator.userAgent));
+}
+
 function showNotice(text: { title: Msg; lines: Msg[]; detail: string | null; action?: Msg }): void {
   if (shown) return;
   shown = true;
@@ -164,19 +182,18 @@ function showNotice(text: { title: Msg; lines: Msg[]; detail: string | null; act
     setText(row, line);
     box.append(row);
   }
-  let reload: HTMLButtonElement | null = null;
-  if (text.action) {
-    reload = document.createElement('button');
-    reload.className = 'crash-reload';
-    setText(reload, text.action);
-    reload.addEventListener('click', () => location.reload());
-    box.append(reload);
-  }
   if (text.detail) {
     const detail = document.createElement('div');
     detail.className = 'crash-hint';
     detail.textContent = text.detail;
     box.append(detail);
+  }
+  const reload = text.action ? document.createElement('button') : null;
+  if (reload && text.action) {
+    reload.className = 'crash-reload';
+    setText(reload, text.action);
+    reload.addEventListener('click', () => location.reload());
+    box.append(reload);
   }
   document.body.appendChild(box);
   reload?.focus();

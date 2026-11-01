@@ -36,7 +36,7 @@ describe('cabKnockChance', () => {
 function hit(w: World, damage: number, part: string, kind: 'shot' | 'collision' | 'blast'): void {
   const target = w.vehicles[0].id;
   const hits = [{ part, damage }];
-  if (kind === 'collision') w.events.push({ t: 'collision', a: target, b: 'other', hitsA: hits, hitsB: [] });
+  if (kind === 'collision') w.events.push({ t: 'collision', a: target, b: 'other', impact: 3, hitsA: hits, hitsB: [] });
   else {
     const round = { struck: kind === 'shot' ? target : null, hits: kind === 'shot' ? hits : [], blast: kind === 'blast' ? [{ vehicle: target, hits }] : [] };
     w.events.push({ t: 'shot', shooter: 'x', weapon: 'w', target, aim: 'body', chance: 1, damageChance: 1, side: 'front', rounds: [round] } as never);

@@ -8,7 +8,7 @@ import { isHostile } from '../combat';
 import { playerVehicle } from '../damage';
 import { chassisTradeIn, repairCost } from '../economy';
 import { advanceFar, clearFarRoutes } from '../far';
-import { setHeadless } from '../fidelity';
+import { setHeadless, setThinning } from '../fidelity';
 import { freeCells, goodsCount, mountedParts } from '../grid';
 import { goodValue } from '../market';
 import { getResources } from '../resources';
@@ -24,8 +24,8 @@ import { endTurn, newWorld, update } from '../world';
 import { botOrders, parkedOnPurpose, type Archetype, type BotOptions, type Policy } from './bot';
 import { emptyLedger, LEDGER_KEYS, type BotTurn, type Ledger } from './orders';
 import { npcLedger, type NpcLedger } from './npc-ledger';
-import { TEST_MAP } from '../../test/map';
 import { newMapFor } from '../highway';
+import type { BakedMap } from '../terrain';
 import { defaultSetup, modeRules, parseSetup } from '../settings';
 
 export type TraceLine = { turn: number; source: XpSource; amount: number; difficulty: number | null; target: string };
@@ -39,10 +39,6 @@ const STALL_TILES = 1;
 export type Mover = { headless: boolean; step: (world: World) => (draft: World) => void; free: () => void };
 export const FAR_MOVER: Mover = { headless: true, step: () => moveAllFar, free: () => {} };
 
-export function record(seed: number, archetype: Archetype, turns: number, options: BotOptions = {}): Recording {
-  return recordFrom(startWorld(seed, kitOf(archetype, options), 0, options.settings, modeOf(archetype)), `seed ${seed} ${archetype}`, archetype, turns, options);
-}
-
 export function recordFrom(start: World, label: string, archetype: Archetype, turns: number, options: BotOptions = {}): Recording {
   const recording: Recording = { lines: [], rows: [], death: null };
   for (const step of stepsFrom(start, label, archetype, turns, options, FAR_MOVER)) {
@@ -51,10 +47,6 @@ export function recordFrom(start: World, label: string, archetype: Archetype, tu
     recording.death = step.death;
   }
   return recording;
-}
-
-export function recordTurns(seed: number, archetype: Archetype, turns: number, options: BotOptions = {}, mover: Mover = FAR_MOVER): Generator<RecordStep> {
-  return stepsFrom(startWorld(seed, kitOf(archetype, options), 0, options.settings, modeOf(archetype)), `seed ${seed} ${archetype}`, archetype, turns, options, mover);
 }
 
 export function* stepsFrom(start: World, label: string, archetype: Policy, turns: number, options: BotOptions, mover: Mover): Generator<RecordStep> {
@@ -75,6 +67,7 @@ export function* stepsFrom(start: World, label: string, archetype: Policy, turns
 export function* playTurns(start: World, label: string, policy: Policy, turns: number, options: BotOptions, mover: Mover): Generator<PlayedTurn> {
   if (!Number.isInteger(turns) || turns <= 0) throw new Error(`A recording needs a positive whole number of turns, got ${turns}`);
   setHeadless(mover.headless);
+  setThinning(true);
   clearFarRoutes();
   try {
     let world = start;
@@ -93,6 +86,7 @@ export function* playTurns(start: World, label: string, policy: Policy, turns: n
   } finally {
     mover.free();
     setHeadless(false);
+    setThinning(false);
     clearFarRoutes();
   }
 }
@@ -105,8 +99,8 @@ function dayEnds(before: World, after: World, last: boolean): boolean {
   return last || clockOf(after.turn).day > clockOf(before.turn).day;
 }
 
-const ARCHETYPE_KITS: Partial<Record<Archetype, string>> = { hunter: 'snowball', escort: 'furyRoad', sprinter: 'furyRoad' };
-const ARCHETYPE_MODES: Partial<Record<Archetype, GameModeId>> = { escort: 'furyRoad', sprinter: 'furyRoad' };
+const ARCHETYPE_KITS: Partial<Record<Archetype, string>> = { hunter: 'snowball', escort: 'chaosHighway', sprinter: 'chaosHighway' };
+const ARCHETYPE_MODES: Partial<Record<Archetype, GameModeId>> = { escort: 'chaosHighway', sprinter: 'chaosHighway' };
 
 function modeOf(archetype: Archetype): GameModeId {
   return ARCHETYPE_MODES[archetype] ?? 'roaming';
@@ -121,18 +115,23 @@ function modeSetup(picked: GameModeId | undefined, settings: Record<string, numb
   return parseSetup({ mode, settings: { ...defaultSetup(mode).settings, ...settings } });
 }
 
-export function startWorld(seed: number, kit = 'standard', rank = 0, settings?: Record<string, number>, mode?: GameModeId): World {
+export function archetypeWorldOn(map: BakedMap, seed: number, archetype: Archetype, options: BotOptions): World {
+  return startWorldOn(map, seed, kitOf(archetype, options), 0, options.settings, modeOf(archetype));
+}
+
+export function startWorldOn(map: BakedMap, seed: number, kit = 'standard', rank = 0, settings?: Record<string, number>, mode?: GameModeId): World {
   if (!Number.isInteger(rank) || rank < 0 || rank > MAX_RANK) throw new Error(`No skill rank ${rank}; ranks run 0 to ${MAX_RANK}`);
   const setup = modeSetup(mode, settings);
-  return update(newWorld(seed, startKit(kit), newMapFor(setup, seed, TEST_MAP), setup), (w) => {
+  const startedKit = startKit(kit);
+  return update(newWorld(seed, startedKit, newMapFor(setup, seed, map), setup), (w) => {
     const p = w.player;
     p.xp = 0;
     for (const skill of Object.keys(p.ranks) as (keyof typeof p.ranks)[]) {
-      p.ranks[skill] = rank;
+      p.ranks[skill] = Math.max(rank, startedKit.ranks);
       p.xpToday[skill] = 0;
     }
     for (const source of Object.keys(p.xpBySource) as XpSource[]) p.xpBySource[source] = 0;
-    p.xpDay = 1;
+    p.xpWindow = 0;
   });
 }
 
@@ -181,7 +180,7 @@ function moneyEventKey(reason: MoneyReason): Move['key'] {
 function playTurn(world: World, archetype: Policy, options: BotOptions, mover: Mover): PlayedTurn {
   const orders = botOrders(buyCheapestRanks(world), archetype, options);
   const goals = topGoals(orders.world);
-  const next = orders.world.player.state === 'dead' ? orders.world : endTurn(orders.world, mover.step(orders.world));
+  const next = orders.world.player.state === 'dead' ? { ...orders.world, events: [] } : endTurn(orders.world, mover.step(orders.world));
   failOnStall(next, goals, options.tolerateStalls === true);
   failOnDryMajority(next);
   const events = [...orders.events, ...next.events];
@@ -220,7 +219,7 @@ export class StallWatch {
       this.anchor = { turn, pos: { ...pos } };
       return;
     }
-    if (turn - this.anchor.turn < TIME.turnsPerDay) return;
+    if (turn - this.anchor.turn < TIME.workDayTurns) return;
     const at = `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`;
     throw new Error(`${this.label}: the player truck stalled at turn ${turn} at ${at}; it moved under ${STALL_TILES} tile since turn ${this.anchor.turn}`);
   }
@@ -235,7 +234,7 @@ function topGoals(w: World): Map<string, NpcActivity> {
   return tops;
 }
 
-function failOnStall(w: World, goals: Map<string, NpcActivity>, tolerate: boolean): void {
+export function failOnStall(w: World, goals: Map<string, NpcActivity>, tolerate: boolean): void {
   const stalls = w.events.flatMap((e) => (e.t === 'stall' ? [describeStall(w, e, goals.get(e.vehicle))] : []));
   if (stalls.length > 0 && !tolerate) throw new Error(`${stalls.length} stall${stalls.length > 1 ? 's' : ''}:\n${stalls.join('\n')}`);
 }
@@ -263,13 +262,18 @@ function surroundings(w: World, v: Vehicle): string {
 }
 
 function vehicleLine(w: World, v: Vehicle): string {
-  if (!v.brain) throw new Error(`${v.id} stalled without a driver`);
+  if (!v.brain) return brainlessLine(w, v);
   const r = getResources(w, v);
   const goals = v.brain.goals.map((g) => `${g.kind}:${g.reason}`).join(' > ') || 'none';
   const states = w.states.filter((s) => s.holder === v.id || s.other === v.id).map((s) => `${s.kind}${s.holder === v.id ? '>' : '<'}`).join(',') || 'none';
   return `${v.brain.templateId} ${v.chassisId} at ${Math.round(v.pos.x)},${Math.round(v.pos.y)} speed ${v.speed.toFixed(2)} stranded ${isStranded(w, v)} `
     + `money ${r.money} fuel ${r.fuel.toFixed(0)} engines ${mountedParts(v, 'engine').length} job ${v.job?.kind ?? '-'} `
     + `goals now ${goals} states ${states} goods ${JSON.stringify(goodsCount(v))}`;
+}
+
+function brainlessLine(w: World, v: Vehicle): string {
+  const role = v.id === w.chaosHighway?.hauler.id ? 'run hauler' : 'player truck';
+  return `${role} ${v.chassisId} at ${Math.round(v.pos.x)},${Math.round(v.pos.y)} speed ${v.speed.toFixed(2)} stranded ${isStranded(w, v)} order ${JSON.stringify(v.order)}`;
 }
 
 function nonCoreTruckValue(v: Vehicle): number {

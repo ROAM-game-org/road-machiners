@@ -5,8 +5,11 @@ import { POLICIES, type Policy } from './bot';
 import { INCOME_KIT, INCOME_SKILL_RANK, largestTraderLoad, playIncome, SAMPLE_TURNS, sampleWorld, type IncomeRun } from './income';
 import { addVehicle, emptyWorld, npcBrain } from '../testkit';
 import { addGoods } from '../inventory';
-import { startWorld } from './record';
+import { startWorld } from './record-node';
 import { TRAITS } from '../../data/npcs';
+import { SHOPS } from '../../data/market';
+import { playerVehicle } from '../damage';
+import { getTradePrice } from '../economy';
 import { formatIncomeReport, gateReport, pairedDifference } from './income-report';
 
 const SHORT_TURNS = 30;
@@ -15,7 +18,7 @@ const LABEL = { candidate: 'test', commit: 'abc' };
 
 describe('playIncome', () => {
   it('reconciles its ledger and gives a finite rate on a short run', () => {
-    const run = playIncome(1337, 'robber', SHORT_TURNS / TIME.turnsPerDay, LABEL);
+    const run = playIncome(1337, 'robber', SHORT_TURNS / TIME.workDayTurns, LABEL);
 
     const net = run.endWorth - run.startWorth;
     expect(run.hours).toBeCloseTo((SHORT_TURNS * 24) / TIME.turnsPerDay);
@@ -38,7 +41,7 @@ describe('playIncome', () => {
 describe('sampleWorld', () => {
   it('counts the goods a trader carries while it delivers a load it bought', () => {
     const w = emptyWorld({ x: 60, y: 60 });
-    const trader = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 160, y: 60 });
+    const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 160, y: 60 });
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
     trader.brain.goals = [{ kind: 'sell', targetId: 'nose', destination: { x: 0, y: 0 }, phase: 'travel', reason: 'deliverCargo' }];
     addGoods(w, trader, 'electronics', 4);
@@ -50,9 +53,22 @@ describe('sampleWorld', () => {
 
 describe('largestTraderLoad', () => {
   it('is the trader stake at the best ratio of the player sell price to the trader buy price', () => {
-    const load = largestTraderLoad(startWorld(1, INCOME_KIT, INCOME_SKILL_RANK));
+    const world = startWorld(1, INCOME_KIT, INCOME_SKILL_RANK);
+    const trader = world.vehicles.find((v) => v.brain?.templateId === 'trader')!;
+    const me = playerVehicle(world);
+    let best = 0;
+    for (const source of Object.values(SHOPS)) {
+      for (const buyer of Object.values(SHOPS)) {
+        if (buyer.id === source.id) continue;
+        for (const good of source.goods) {
+          if (!buyer.goods.includes(good)) continue;
+          best = Math.max(best, getTradePrice(world, me, buyer.id, good, 'sell') / getTradePrice(world, trader, source.id, good, 'buy'));
+        }
+      }
+    }
+    const load = largestTraderLoad(world);
     expect(load).toBeGreaterThan(TRAITS.trader.tradeStake);
-    expect(load).toBeCloseTo(143424.3, 1);
+    expect(load).toBeCloseTo(TRAITS.trader.tradeStake * best, 6);
   }, RUN_TIMEOUT);
 });
 

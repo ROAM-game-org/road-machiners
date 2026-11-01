@@ -1,0 +1,6 @@
+{
+  "turn": 1800,
+  "setup": { "mode": "roaming" },
+  "chaosHighway": null,
+  "player": { "money": 900 }
+}

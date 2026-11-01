@@ -1,39 +1,60 @@
+import { spawnSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
-import { gpuArgs, isSoftware, rendererOf } from './gpu.mjs';
+import { launchChromium } from './gpu.mjs';
+import { emulateWebGL2Floor } from './gpu-floor.mjs';
+import { checkHighwayNightInSoftware, checkNightGround, collectGarbage, NIGHT_TURNS } from './night-ground.mjs';
 import { playUrl } from './game-url.mjs';
+import { watchStalls } from './stall-watch.mjs';
+
+const stallWatch = watchStalls('The playtest', process.env);
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : fallback;
 };
 const url = arg('url', 'http://localhost:5173');
-const cpu = process.argv.includes('--cpu');
-const fpsGate = !cpu && !process.argv.includes('--no-fps-gate');
-const turns = Number(arg('turns', cpu ? '4' : '12'));
+const fpsGate = !process.argv.includes('--no-fps-gate');
 const MIN_FPS = 50;
 const timeoutsOff = process.env.TEST_TIMEOUTS === 'off';
-const TURN_LIMIT_MS = timeoutsOff ? 0 : cpu ? 60000 : 10000;
+const CRASH_ATTEMPTS = 3;
+const attempt = Number(process.env.PLAYTEST_ATTEMPT ?? '1');
 const BOOT_LIMIT_MS = timeoutsOff ? 0 : 30000;
+const HIGHWAY_BOOT_LIMIT_MS = 300000;
 
 mkdirSync('.playtest', { recursive: true });
-const browser = await chromium.launch({ args: cpu ? [] : gpuArgs() });
-const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-if (timeoutsOff) page.setDefaultTimeout(0);
-const renderer = await rendererOf(page);
-console.log(`renderer ${renderer}`);
-if (!cpu && isSoftware(renderer)) {
+const { browser, software } = await launchChromium(chromium);
+stallWatch.closeOnStall(() => browser.close());
+if (software && fpsGate) {
   await browser.close();
-  console.error(`FAIL\nThe GPU playtest got the software renderer ${renderer}. Run with --cpu on a machine without a GPU.`);
+  console.error(`FAIL\nThe frame rate check needs the GPU, and this run draws in software. Pass --no-fps-gate to play in software without it.`);
   process.exit(1);
 }
+const turns = Number(arg('turns', software ? '4' : '12'));
+const TURN_LIMIT_MS = timeoutsOff ? 0 : software ? 60000 : 10000;
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+if (timeoutsOff) page.setDefaultTimeout(0);
+const retryAfterBrowserCrash = async () => {
+  await browser.close().catch(() => {});
+  if (attempt >= CRASH_ATTEMPTS) {
+    console.error(`FAIL\nThe browser process crashed in all ${CRASH_ATTEMPTS} attempts.`);
+    process.exit(1);
+  }
+  console.log(`The browser process crashed on attempt ${attempt}. Starting attempt ${attempt + 1}.`);
+  const rerun = spawnSync(process.execPath, process.argv.slice(1), { stdio: 'inherit', env: { ...process.env, PLAYTEST_ATTEMPT: String(attempt + 1) } });
+  process.exit(rerun.status ?? 1);
+};
+let crashed = false;
+page.on('crash', () => { crashed = true; });
+const afterCrashRetry = async (step) => step().catch(async (cause) => { if (crashed) await retryAfterBrowserCrash(); throw cause; });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+await emulateWebGL2Floor(page);
 await page.goto(playUrl(url));
 await page.waitForFunction(() => window.__ROAM__, null, { timeout: BOOT_LIMIT_MS });
 await page.waitForTimeout(1000);
-const bootGone = await page.waitForSelector('#boot', { state: 'detached', timeout: timeoutsOff ? 0 : 10000 }).then(() => true, () => false);
+const bootGone = await page.waitForSelector('#boot', { state: 'detached', timeout: timeoutsOff ? 0 : software ? 60000 : 10000 }).then(() => true, () => false);
 if (!bootGone) {
   await browser.close();
   console.error('FAIL\nThe boot screen is still on the page after the game started.');
@@ -56,11 +77,13 @@ const findDeadCorners = () => {
   };
   const panels = [...document.querySelectorAll('#ui .panel')].filter((p) => isShown(p, p.getBoundingClientRect()));
   const single = panels.map((p) => [p, [...p.querySelectorAll('button, summary, a[href], input, select')].filter((c) => c.checkVisibility())]).filter(([p, c]) => isOneControl(p, c));
-  return { failures: single.flatMap(([p, c]) => cornerFailures(p, c[0])), found: single.length };
+  const turn = document.querySelector('#ui .turn-control .end-turn');
+  const turnFailures = turn ? cornerFailures(turn, turn) : ['no turn button'];
+  return { failures: [...single.flatMap(([p, c]) => cornerFailures(p, c[0])), ...turnFailures], found: single.length };
 };
 const hit = await page.evaluate(findDeadCorners);
 hitProblems.push(...hit.failures);
-if (hit.found < 3) hitProblems.push(`found ${hit.found} one-control panels, expected at least 3`);
+if (hit.found < 2) hitProblems.push(`found ${hit.found} one-control panels, expected at least 2`);
 const menuBox = await page.locator('#ui .game-menu').boundingBox();
 await page.mouse.click(menuBox.x + 2, menuBox.y + 2);
 if (!(await page.locator('.game-menu [role=menu]').isVisible())) hitProblems.push('menu did not open from a click in its corner');
@@ -156,7 +179,7 @@ for (let i = 0; i < turns; i++) {
   await page.waitForFunction((turn) => {
     const g = window.__ROAM__;
     return g.state.turn === turn && !g.travel.isPlaying(g.anim);
-  }, i + 2, { timeout: TURN_LIMIT_MS, polling: 50 }).catch((cause) => { throw new Error(`Turn ${i + 1} did not finish playing within ${TURN_LIMIT_MS} ms`, { cause }); });
+  }, i + 2, { timeout: TURN_LIMIT_MS, polling: 50 }).catch(async (cause) => { if (crashed) await retryAfterBrowserCrash(); throw new Error(`Turn ${i + 1} did not finish playing within ${TURN_LIMIT_MS} ms`, { cause }); });
 }
 await page.screenshot({ path: '.playtest/end.png' });
 
@@ -175,24 +198,40 @@ const fps = await page.evaluate(() => new Promise((done) => {
   requestAnimationFrame(f);
 }));
 const state = await page.evaluate(() => ({ turn: window.__ROAM__.state.turn, crashed: document.querySelector('.crash-screen') !== null }));
+const allCellsMs = await page.evaluate(() => {
+  const start = performance.now();
+  window.__ROAM__.buildAllCells();
+  return performance.now() - start;
+});
+console.log(`built every map cell in ${(allCellsMs / 1000).toFixed(1)} s`);
 const blank = await page.evaluate(() => {
   const c = document.querySelector('#game canvas');
   return !c || c.width === 0;
 });
 
-const reload = async () => {
+const nightProblems = await afterCrashRetry(() => checkNightGround(page, {
+  mode: 'roaming',
+  shot: '.playtest/night-roaming.png',
+  bootLimitMs: BOOT_LIMIT_MS,
+  turnLimitMs: TURN_LIMIT_MS,
+  nightTurns: software ? 0 : NIGHT_TURNS,
+}));
+
+const reload = () => afterCrashRetry(async () => {
+  await collectGarbage(page);
   await page.reload();
   await page.waitForFunction(() => window.__ROAM__, null, { timeout: BOOT_LIMIT_MS });
   return languageReadout();
-};
+});
 if ((await reload()).lang !== 'ru' || (await pressedLanguage()) !== 'ru') languageProblems.push('Russian did not survive a reload');
 await pickLanguageByMouse('en');
 const english = await reload();
 if (english.lang !== 'en' || CYRILLIC.test(english.menu) || english.hud.some((label) => CYRILLIC.test(label)) || (await pressedLanguage()) !== 'en') languageProblems.push(`English did not stay after a reload: ${JSON.stringify(english)}`);
 await checkNoStrayControl('after the reload');
 await browser.close();
+nightProblems.push(...(await checkHighwayNightInSoftware(url, { shot: '.playtest/night-highway.png', bootLimitMs: timeoutsOff ? 0 : HIGHWAY_BOOT_LIMIT_MS })));
 
-const problems = [...errors, ...hitProblems, ...languageProblems];
+const problems = [...errors, ...hitProblems, ...languageProblems, ...nightProblems];
 if (state.crashed) problems.push('crash screen shown');
 if (state.turn !== turns + 1) problems.push(`expected turn ${turns + 1}, got ${state.turn}`);
 if (blank) problems.push('no WebGL canvas');

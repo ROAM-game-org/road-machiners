@@ -1,11 +1,17 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
+import { launchChromium } from './gpu.mjs';
 import { playUrl } from './game-url.mjs';
 
 const url = process.argv[2];
 if (!url) throw new Error('Usage: node scripts/garage-ui-check.mjs <dev-server-url>');
-const browser = await chromium.launch();
+const garage = async (page, tab) => {
+  if (await page.locator('.town-page [data-town-go=back]').count()) await page.locator('.town-page [data-town-go=back]').click();
+  await page.locator('.town-page [data-town-go=garage]').click();
+  await page.locator(`.town-page [data-garage-tab="${tab}"]`).click();
+};
+const { browser } = await launchChromium(chromium);
 
 const read = (page) => page.evaluate(() => ({
   selected: [...document.querySelectorAll('.inv-item.selected')].map(n => n.title.split('\n')[0]),
@@ -13,7 +19,7 @@ const read = (page) => page.evaluate(() => ({
   cards: document.querySelectorAll('.town-shop .part-row').length,
   compares: [...document.querySelectorAll('.town-shop .card-compare')].map(n => n.innerText),
   deltas: document.querySelectorAll('.town-shop .part-row .delta').length,
-  chips: [...document.querySelectorAll('.town-screen h3 .chip')].map(n => n.title || n.innerText),
+  chips: [...document.querySelectorAll('.town-page .ink-chips .chip')].map(n => n.title || n.innerText),
   repair: document.querySelector('.town-repair')?.innerText ?? '',
 }));
 
@@ -65,7 +71,7 @@ async function enter(page, spot) {
     g.apply(w);
     g.screens.town.open();
   }, spot);
-  await page.waitForSelector('.town-shop .tabs button', { timeout: 90000 });
+  await page.waitForSelector('.town-page [data-town-go]', { timeout: 90000 });
 }
 
 try {
@@ -77,7 +83,7 @@ try {
   await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: 120000 });
   for (const spot of ['nose', 'bowl']) {
     await enter(page, spot);
-    await page.locator('.town-screen [data-tab="buyParts"]').click();
+    await garage(page, 'buyParts');
     const gun = () => page.locator('.inv-item.mounted', { hasText: /turret|rifle|cannon|shotgun|MG/i }).first();
     await gun().click();
     await page.waitForTimeout(500);
@@ -93,17 +99,18 @@ try {
     await page.waitForTimeout(500);
     r = await read(page);
     assert.equal(r.compares.length, 0, `${spot}: clearing the selection must clear the comparison`);
-    assert.equal(r.inspect, 'Equipment', `${spot}: clearing must reset the inspection`);
+    assert.equal(r.inspect, '', `${spot}: clearing must reset the inspection`);
     await gun().focus();
     r = await read(page);
-    assert.equal(r.inspect, 'Equipment', `${spot}: focus alone must not change the inspection`);
+    assert.equal(r.inspect, '', `${spot}: focus alone must not change the inspection`);
     assert.equal(r.compares.length, 0, `${spot}: focus alone must not compare`);
     await page.keyboard.press('Enter');
     await page.waitForTimeout(500);
     r = await read(page);
     assert(r.deltas > 0, `${spot}: Enter must select and compare`);
     assert(!r.chips.includes('Free cargo cells'), `${spot}: garage header must not show free cells`);
-    for (const t of ["M's", 'Mass against rated load']) assert(r.chips.includes(t), `${spot}: header must keep the ${t} chip`);
+    assert(r.chips.includes('Mass against rated load'), `${spot}: header must keep the mass chip`);
+    assert(r.chips.some(c => /^[\d,]+$/.test(c)), `${spot}: header must keep the money chip`);
     assert(!r.repair.includes('Nothing broken'), `${spot}: no idle Nothing broken label`);
     await page.evaluate(async () => {
       const g = window.__ROAM__;
@@ -115,8 +122,20 @@ try {
     });
     await page.waitForTimeout(300);
     r = await read(page);
-    assert(/\d+ broken/.test(r.repair), `${spot}: repair bar must show the broken count, got ${r.repair}`);
+    assert(/Repair basics\s+\d+\s+Repair all\s+\d+/.test(r.repair), `${spot}: repair bar must show both prices, got ${r.repair}`);
     await page.locator('.town-repair [data-key="repairAll"]').waitFor();
+    const placed = await page.evaluate(() => {
+      const truck = document.querySelector('.town-truck').getBoundingClientRect();
+      const first = document.querySelector('.town-truck > .town-repair button').getBoundingClientRect();
+      return { inside: !!document.querySelector('.town-truck > .town-repair'), shopHas: !!document.querySelector('.town-shop .town-repair'), left: first.left < truck.left + truck.width / 2 };
+    });
+    assert(placed.inside && !placed.shopHas && placed.left, `${spot}: the repair bar must sit at the left of the truck column, got ${JSON.stringify(placed)}`);
+    const chipLook = await page.evaluate(() => [...document.querySelectorAll('.town-page .ink-chips .chip')].map(n => {
+      const cs = getComputedStyle(n);
+      const glyph = n.querySelector('.icon, .coin')?.getBoundingClientRect().width ?? 16;
+      return { pad: cs.paddingLeft === cs.paddingRight, glyph: Math.round(glyph) === 16 };
+    }));
+    assert(chipLook.every(c => c.pad && c.glyph), `${spot}: chips need even padding and one glyph size, got ${JSON.stringify(chipLook)}`);
     await page.evaluate(() => window.__ROAM__.screens.town.close());
   }
   await enter(page, 'salvage-yard');
@@ -126,47 +145,48 @@ try {
   assert((await read(page).then(() => page.locator('.modal:visible h3 .chip[title="Free cargo cells"]').count())) === 1, 'inventory header must keep free cells');
   await page.keyboard.press('Escape');
   await enter(page, 'nose');
-  await page.locator('.town-screen [data-tab="buyParts"]').click();
+  await garage(page, 'buyParts');
   await mkdir('.playtest', { recursive: true });
   const sizes = [[1920, 1080], [1600, 900], [1280, 730], [1024, 730], [800, 730]];
   for (const [width, height] of sizes) {
     await page.setViewportSize({ width, height });
     await page.waitForTimeout(300);
     const out = await page.evaluate(() => {
-      const box = document.querySelector('.town-screen').getBoundingClientRect();
-      return [...document.querySelectorAll('.town-screen h3 .chip, .town-repair button')].filter(n => {
+      const box = document.querySelector('.town-page').getBoundingClientRect();
+      return [...document.querySelectorAll('.town-page .ink-chips .chip, .town-repair button')].filter(n => {
         const b = n.getBoundingClientRect();
         return b.x < box.x || b.right > box.right || b.bottom > box.bottom;
       }).length;
     });
     assert.equal(out, 0, `${width}: header chips and repair buttons must lie inside the town screen`);
     await page.screenshot({ path: `.playtest/garage-${width}.png` });
-    for (const tab of ['Buy Parts', 'Sell Parts']) {
-      await page.locator('.town-screen .tabs button', { hasText: tab }).click();
+    for (const tab of ['Buy parts', 'Sell parts']) {
+      await garage(page, tab === 'Buy parts' ? 'buyParts' : 'sellParts');
       await page.waitForTimeout(200);
       assertNoScroll(await trucksLayout(page), `${width}x${height} ${tab}`);
     }
-    await page.locator('.town-screen .tabs button', { hasText: 'Trucks' }).click();
+    await garage(page, 'trucks');
     await page.waitForTimeout(300);
     await checkTrucks(page, `${width}x${height}`);
     await page.screenshot({ path: `.playtest/garage-trucks-${width}.png` });
-    await page.locator('.town-screen .tabs button', { hasText: 'Buy Parts' }).click();
+    await garage(page, 'buyParts');
   }
   await page.evaluate(async () => {
     const g = window.__ROAM__;
     const { setMoney } = await import('/src/sim/cheats.ts');
-    const { buyChassis } = await import('/src/sim/economy.ts');
-    const { PLAYER_CHASSIS, chassisDef } = await import('/src/data/chassis.ts');
-    const ids = PLAYER_CHASSIS.map(c => c.id ?? c);
+    const { buyChassis, garageChassis } = await import('/src/sim/economy.ts');
+    const { townNear } = await import('/src/sim/sites.ts');
+    const { chassisDef } = await import('/src/data/chassis.ts');
+    const ids = garageChassis(townNear(g.state).id);
     const top = ids.reduce((a, b) => (chassisDef(b).value > chassisDef(a).value ? b : a));
-    g.apply(buyChassis(setMoney(g.state, 1e7), top));
+    g.apply(buyChassis(setMoney(g.state, 1e5), top));
   });
   await page.waitForTimeout(500);
-  await page.locator('.town-screen .tabs button', { hasText: 'Trucks' }).click();
+  await garage(page, 'trucks');
   await page.waitForTimeout(300);
   const swapped = await page.evaluate(() => ({
     own: document.querySelector('.truck-card.own .card-name')?.innerText,
-    chip: [...document.querySelectorAll('.town-screen h3 .chip')].map(n => n.title || n.innerText).join('|'),
+    chip: [...document.querySelectorAll('.town-page .ink-chips .chip')].map(n => n.title || n.innerText).join('|'),
     back: [...document.querySelectorAll('.truck-card .card-foot button')].filter(b => b.innerText.includes('Swap, get')).length,
   }));
   assert(swapped.back > 0, `a Swap, get n back button must show after buying the top truck, got ${JSON.stringify(swapped)}`);

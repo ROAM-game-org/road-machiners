@@ -17,6 +17,7 @@ import math
 import bmesh
 import bpy
 from mathutils import Vector
+from mathutils.bvhtree import BVHTree
 
 from kit import CELL_ACROSS, CELL_ALONG, Kit, Vec3
 from parts_common_core import COLORS, FIT_SLACK
@@ -34,54 +35,122 @@ SKIRT = 0.22  # the body hangs this far below the collider bottom, so the wheels
 INSET = 0.04  # body sides stand this far inside the footprint, so mounted plates and flares cover them
 ARCH_CLEARANCE = 0.06  # between a wheel and its arch
 ARCH_SEGMENTS = 8  # straight edges around each arch, for the low-poly look
+ROUND_ARCH_SEGMENTS = 16  # straight edges around an arch that should read round over a round wheel
 FLARE = 0.09  # radial width of the dark fender flare around an arch
+DOOR_GAP = 0.25
 SUSPENSION_REST = 0.4  # PHYSICS.truck.suspensionRest: the wheel hub hangs this far below the wheel mount
 
 
 class Grid:
-    """A chassis grid in base space. Rows run from the nose, columns from the left side."""
+    """A chassis grid in base space. Rows run from the nose, columns from the left side.
 
-    def __init__(self, rows: int, cols: int, half_height: float) -> None:
+    length and width stretch the grid over a model of that size, as body.ts projects it. Without them a cell is CELL_ALONG by CELL_ACROSS.
+    """
+
+    def __init__(self, rows: int, cols: int, half_height: float, length: float | None = None, width: float | None = None) -> None:
         self.rows = rows
         self.cols = cols
-        self.half_x = rows * CELL_ALONG / 2
-        self.half_y = cols * CELL_ACROSS / 2
+        self.along = CELL_ALONG if length is None else length / rows
+        self.across = CELL_ACROSS if width is None else width / cols
+        self.half_x = rows * self.along / 2
+        self.half_y = cols * self.across / 2
         self.top = half_height
         self.bottom = -half_height - SKIRT
 
     def row_x(self, y: float) -> float:
         """Blender X of row y's center. Fractions give row edges: row_x(y - 0.5) is its front edge."""
-        return self.half_x - CELL_ALONG * (y + 0.5)
+        return self.half_x - self.along * (y + 0.5)
+
+    def clamp_x(self, x: float) -> float:
+        """x held inside the footprint's ends."""
+        return min(self.half_x, max(-self.half_x, x))
 
     def col_y(self, x: float) -> float:
         """Blender Y of column x's center. Fractions give column edges."""
-        return self.half_y - CELL_ACROSS * (x + 0.5)
+        return self.half_y - self.across * (x + 0.5)
 
 
-def arch_profile(g: Grid, wheels_x: list[float], hub_z: float, radius: float, top: float) -> list[tuple[float, float]]:
-    """A side panel's XZ outline from the body bottom to top, with a low-poly arch cut up around each wheel."""
+def squared_arch(wx: float, hub_z: float, r: float, crown: float, chamfer: float, low: float) -> list[tuple[float, float]]:
+    """An arch outline from back to front: straight sides at wx -+ r up to a flat top crown over the hub, its corners cut by chamfer."""
+    top = hub_z + crown
+    return [(wx - r, low), (wx - r, top - chamfer), (wx - r + chamfer, top), (wx + r - chamfer, top), (wx + r, top - chamfer), (wx + r, low)]
+
+
+def round_arch(wx: float, hub_z: float, r: float, low: float, segments: int = ARCH_SEGMENTS) -> list[tuple[float, float]]:
+    """A half circle of radius r and segments edges round the hub, from back to front, held at or above low."""
+    return [(wx + r * math.cos(math.pi * (1 - k / segments)), max(low, hub_z + r * math.sin(math.pi * (1 - k / segments)))) for k in range(segments + 1)]
+
+
+def arch_profile(
+    g: Grid,
+    wheels_x: list[float],
+    hub_z: float,
+    radius: float,
+    top: float,
+    bottom: float | None = None,
+    nose_top: float | None = None,
+    cowl_x: float | None = None,
+    crown: float | None = None,
+    chamfer: float = 0.0,
+    segments: int = ARCH_SEGMENTS,
+) -> list[tuple[float, float]]:
+    """A side panel's XZ outline from the body bottom (or bottom) to top, with a low-poly arch cut up around each wheel.
+
+    nose_top and cowl_x make the top fall from top at cowl_x to nose_top at the nose, like a sloped hood.
+    crown squares the arches: straight sides up to a flat top crown above the hub, with chamfered corners.
+    segments is the edge count of a round arch.
+    """
+    low = g.bottom if bottom is None else bottom
     r = radius + ARCH_CLEARANCE
-    pts = [(-g.half_x + INSET, g.bottom)]
+    pts = [(-g.half_x + INSET, low)]
     for wx in sorted(wheels_x):
-        for k in range(ARCH_SEGMENTS + 1):
-            a = math.pi * (1 - k / ARCH_SEGMENTS)
-            z = max(g.bottom, hub_z + r * math.sin(a))
-            pts.append((wx + r * math.cos(a), z))
-    pts += [(g.half_x - INSET, g.bottom), (g.half_x - INSET, top), (-g.half_x + INSET, top)]
+        pts += round_arch(wx, hub_z, r, low, segments) if crown is None else squared_arch(wx, hub_z, r, crown, chamfer, low)
+    nose = [(g.half_x - INSET, top)] if nose_top is None or cowl_x is None else [(g.half_x - INSET, nose_top), (cowl_x, top)]
+    pts += [(g.half_x - INSET, low), *nose, (-g.half_x + INSET, top)]
     return pts
 
 
-def flare(kit: Kit, name: str, g: Grid, wx: float, hub_z: float, radius: float, y0: float, y1: float, bottom: float | None = None) -> None:
-    """A dark low-poly ring over the top of one arch, from the body bottom (or bottom) on both sides."""
-    low = g.bottom if bottom is None else bottom
+def flare_profile(wx: float, hub_z: float, radius: float, low: float, x_min: float, x_max: float, segments: int = ARCH_SEGMENTS) -> list[tuple[float, float]]:
+    """The XZ outline of a dark low-poly ring over the top of one arch, down to low on both sides, cut off at x_min and x_max."""
     r0 = radius + ARCH_CLEARANCE
     r1 = r0 + FLARE
     inner, outer = [], []
-    for k in range(ARCH_SEGMENTS + 1):
-        a = math.pi * k / ARCH_SEGMENTS
-        inner.append((wx + r0 * math.cos(a), max(low, hub_z + r0 * math.sin(a))))
-        outer.append((wx + r1 * math.cos(a), max(low, hub_z + r1 * math.sin(a))))
-    prism(kit, name, outer + list(reversed(inner)), y0, y1, "under")
+    for k in range(segments + 1):
+        a = math.pi * k / segments
+        inner.append((min(x_max, max(x_min, wx + r0 * math.cos(a))), max(low, hub_z + r0 * math.sin(a))))
+        outer.append((min(x_max, max(x_min, wx + r1 * math.cos(a))), max(low, hub_z + r1 * math.sin(a))))
+    return outer + list(reversed(inner))
+
+
+def flare(
+    kit: Kit,
+    name: str,
+    g: Grid,
+    wx: float,
+    hub_z: float,
+    radius: float,
+    y0: float,
+    y1: float,
+    bottom: float | None = None,
+    crown: float | None = None,
+    chamfer: float = 0.0,
+    segments: int = ARCH_SEGMENTS,
+) -> None:
+    """A dark low-poly band over the top of one arch, from the body bottom (or bottom) on both sides, cut off at the footprint ends.
+
+    crown squares it to match a squared arch_profile: the band keeps FLARE across its sides, top and chamfers.
+    segments sets the edges of a round band; ROUND_ARCH_SEGMENTS makes it read round, and a remade base may pass half of round_sides() of its arch.
+    """
+    low = g.bottom if bottom is None else bottom
+    r0 = radius + ARCH_CLEARANCE
+    r1 = r0 + FLARE
+    if crown is None:
+        inner, outer = round_arch(wx, hub_z, r0, low, segments), round_arch(wx, hub_z, r1, low, segments)
+    else:
+        inner = squared_arch(wx, hub_z, r0, crown, chamfer, low)
+        outer = squared_arch(wx, hub_z, r1, crown + FLARE, chamfer + FLARE * (2 - math.sqrt(2)), low)
+    clamped = [(g.clamp_x(x), z) for x, z in reversed(outer)] + [(g.clamp_x(x), z) for x, z in inner]
+    prism(kit, name, clamped, y0, y1, "under")
 
 
 def level_sockets(
@@ -118,6 +187,31 @@ def surface_z(g: Grid, x: int, y: int) -> float:
     return round(loc.z, 3)
 
 
+def door_gap(x0: float, x1: float, z0: float, wx: float, hub_z: float, arch_r: float) -> float:
+    lo, hi = min(x0, x1), max(x0, x1)
+    dx = max(lo - wx, wx - hi, 0.0)
+    dz = max(z0 - hub_z, 0.0)
+    return math.hypot(dx, dz) - arch_r - FLARE
+
+
+def door_sill(x0: float, x1: float, floor: float, wheels_x: list[float], hub_z: float, arch_r: float) -> float:
+    lo, hi = min(x0, x1), max(x0, x1)
+    reach = arch_r + FLARE + DOOR_GAP
+    sill = floor
+    for wx in wheels_x:
+        dx = max(lo - wx, wx - hi, 0.0)
+        if dx < reach:
+            sill = max(sill, hub_z + math.sqrt(reach**2 - dx**2))
+    return sill
+
+
+def check_door_gap(name: str, x0: float, x1: float, z0: float, wheels_x: list[float], hub_z: float, arch_r: float) -> None:
+    for wx in wheels_x:
+        gap = door_gap(x0, x1, z0, wx, hub_z, arch_r)
+        if gap < DOOR_GAP - 1e-6:
+            raise RuntimeError(f"{name} at x {min(x0, x1):.3f}..{max(x0, x1):.3f} from z {z0:.3f} keeps {gap:.3f} m from the flare of the wheel at x {wx:.3f}, under DOOR_GAP {DOOR_GAP}")
+
+
 def check_base(kit: Kit, name: str, g: Grid) -> None:
     """Raises if any vertex leaves the chassis footprint in X or Y."""
     bpy.context.view_layer.update()
@@ -139,7 +233,7 @@ def hull_mesh(name: str, points: list[Vec3]) -> bpy.types.Object:
     bm = bmesh.new()
     verts = [bm.verts.new(p) for p in points]
     result = bmesh.ops.convex_hull(bm, input=verts)
-    bmesh.ops.delete(bm, geom=result["geom_interior"] + result["geom_unused"], context="VERTS")
+    bmesh.ops.delete(bm, geom=list(dict.fromkeys(result["geom_interior"] + result["geom_unused"])), context="VERTS")
     bmesh.ops.dissolve_limit(bm, angle_limit=0.01, verts=bm.verts, edges=bm.edges)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(mesh)
@@ -160,13 +254,13 @@ def hull_layers(name: str, layers: list[tuple[float, float, float, float, float]
     return hull_mesh(name, pts)
 
 
-def arch_cut(obj: bpy.types.Object, wheels_x: list[float], hub_z: float, radius: float, wall_y: float, bottom: float) -> None:
-    """Cuts a low-poly arch around each wheel through both side walls, outside wall_y, from the body bottom up."""
+def arch_cut(obj: bpy.types.Object, wheels_x: list[float], hub_z: float, radius: float, wall_y: float, bottom: float, segments: int = ARCH_SEGMENTS) -> None:
+    """Cuts an arch of segments edges around each wheel through both side walls, outside wall_y, from the body bottom up."""
     r = radius + ARCH_CLEARANCE
     cutters = []
     for wx in wheels_x:
         for sign in (1, -1):
-            ring = [(wx + r * math.cos(math.pi * k / ARCH_SEGMENTS), hub_z + r * math.sin(math.pi * k / ARCH_SEGMENTS)) for k in range(ARCH_SEGMENTS + 1)]
+            ring = [(wx + r * math.cos(math.pi * k / segments), hub_z + r * math.sin(math.pi * k / segments)) for k in range(segments + 1)]
             ring += [(wx + r, bottom - 0.1), (wx - r, bottom - 0.1)]
             ys = (sign * wall_y, sign * (wall_y + 2.0))
             cutters.append([(x, y, z) for x, z in ring for y in ys])
@@ -191,3 +285,90 @@ def cut_hulls(obj: bpy.types.Object, cutters: list[list[Vec3]]) -> None:
 def cut_boxes(obj: bpy.types.Object, boxes: list[tuple[Vec3, Vec3]]) -> None:
     """Subtracts axis-aligned boxes, each given as (min corner, max corner), from obj."""
     cut_hulls(obj, [[(x, y, z) for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])] for lo, hi in boxes])
+
+
+MAX_TWIST = 10.0
+SMALL_QUAD = 0.0016
+SMALL_TWIST = 30.0
+COPLANAR_GAP = 0.004
+SLIVER_EDGE = 0.03
+SLIVER_RATIO = 0.02
+SHRINK = 0.85
+
+
+def _world_triangles(obj: bpy.types.Object) -> bmesh.types.BMesh:
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bm.transform(obj.matrix_world)
+    bmesh.ops.triangulate(bm, faces=bm.faces[:])
+    bm.faces.ensure_lookup_table()
+    return bm
+
+
+def _shrunk(bm: bmesh.types.BMesh) -> BVHTree:
+    verts = []
+    tris = []
+    for face in bm.faces:
+        center = face.calc_center_median()
+        base = len(verts)
+        verts += [center + (v.co - center) * SHRINK for v in face.verts]
+        tris.append((base, base + 1, base + 2))
+    return BVHTree.FromPolygons(verts, tris)
+
+
+def _at(point: Vector) -> str:
+    return f"({point.x:.3f}, {point.y:.3f}, {point.z:.3f})"
+
+
+def check_no_stacking(name: str, parts: list[bpy.types.Object]) -> None:
+    """Raises when two parts have triangles that intersect, or lie within COPLANAR_GAP on parallel faces.
+
+    Panels may touch on shared edges. They may not overlap, so no dark crack or flicker shows between them.
+    """
+    data = [(obj.name, _world_triangles(obj)) for obj in parts]
+    shrunk = [_shrunk(bm) for _, bm in data]
+    full = [BVHTree.FromBMesh(bm) for _, bm in data]
+    for i, (a_name, a_bm) in enumerate(data):
+        for j in range(i + 1, len(data)):
+            b_name, b_bm = data[j]
+            pairs = shrunk[i].overlap(shrunk[j])
+            if pairs:
+                where = a_bm.faces[pairs[0][0]].calc_center_median()
+                raise RuntimeError(f"{name}: {a_name} and {b_name} intersect at {_at(where)}, {len(pairs)} triangle pairs")
+            for first, second, tree, other in ((a_bm, b_bm, full[j], b_name), (b_bm, a_bm, full[i], a_name)):
+                owner = a_name if first is a_bm else b_name
+                for face in first.faces:
+                    center = face.calc_center_median()
+                    hit = tree.find_nearest(center, COPLANAR_GAP)
+                    if hit[0] is None:
+                        continue
+                    offset = hit[0] - center
+                    straight_on = offset.length < 1e-6 or abs(offset.normalized().dot(second.faces[hit[2]].normal)) > 0.9
+                    if straight_on and abs(second.faces[hit[2]].normal.dot(face.normal)) > 0.98 and face.calc_area() > 1e-5:
+                        raise RuntimeError(f"{name}: {owner} lies within {COPLANAR_GAP * 1000:.0f} mm of {other} on a parallel face at {_at(center)}")
+
+
+def check_clean_shell(name: str, parts: list[bpy.types.Object], slivers: bool = True, max_twist: float = MAX_TWIST) -> None:
+    """Raises when a quad folds more than MAX_TWIST degrees across its diagonal, or a triangle is a long thin sliver.
+
+    A quad under SMALL_QUAD (4 cm across) may fold up to SMALL_TWIST, since it shows under a pixel at game size.
+
+    Pass slivers=False and a wider max_twist for thin dark slabs, whose walls are as thin as the slab by design.
+    """
+    for obj in parts:
+        for poly in obj.data.polygons:
+            if len(poly.vertices) == 4:
+                co = [obj.matrix_world @ obj.data.vertices[k].co for k in poly.vertices]
+                n1 = (co[1] - co[0]).cross(co[2] - co[0])
+                n2 = (co[2] - co[0]).cross(co[3] - co[0])
+                if n1.length > 1e-12 and n2.length > 1e-12:
+                    fold = math.degrees(n1.angle(n2))
+                    if fold > (max_twist if poly.area >= SMALL_QUAD else max(SMALL_TWIST, max_twist)):
+                        raise RuntimeError(f"{name}: {obj.name} has a quad folding {fold:.0f} degrees across its diagonal at {_at(sum(co, Vector()) / 4)}")
+        bm = _world_triangles(obj)
+        for face in bm.faces if slivers else []:
+            verts = [v.co for v in face.verts]
+            longest = max((verts[k] - verts[k - 1]).length for k in range(3))
+            if longest > SLIVER_EDGE and face.calc_area() < SLIVER_RATIO * longest**2:
+                raise RuntimeError(f"{name}: {obj.name} has a sliver triangle, longest edge {longest:.3f} m, at {_at(face.calc_center_median())}")
+        bm.free()

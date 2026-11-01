@@ -1,6 +1,3 @@
-// Distance culling for static objects. Objects are bucketed into terrain chunks. Each frame the chunks
-// whose bounds meet both the camera view and gray vision stay attached to the root. The rest are
-// detached, so scene traversal, matrix updates and the renderer skip them. Every object is also clipped
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
@@ -9,12 +6,23 @@ import type { Vec } from '../../sim/vec';
 import type { V3 } from '../../phys/frames';
 import { TERRAIN_CHUNK } from './terrain';
 import { outlineProps } from './models';
+import { CLOUD_SHADOWS } from './cloudShadows';
+import { MODEL_FILL } from './modelFill';
+import { PAL } from '../../render/palette';
 
 const S = PHYSICS.metersPerTile;
 const MARGIN = 8 * S;
 const IDENTITY = new THREE.Matrix4();
 
-type Chunk = { group: THREE.Group; box: THREE.Box3; shown: boolean };
+export type Rect = { x0: number; y0: number; x1: number; y1: number };
+export type Placement = { readonly pos: Vec; readonly radius: number; readonly cell: number; built: THREE.Object3D | null };
+type Pending = { placement: Placement; build: () => THREE.Object3D };
+type Chunk = { group: THREE.Group; box: THREE.Box3; shown: boolean; pending: Pending[]; claim: Rect | null };
+
+function prepareModel(obj: THREE.Object3D): void {
+  outlineProps(obj);
+  MODEL_FILL.shadeTree(obj);
+}
 
 export class RenderScope {
   private readonly perSide: number;
@@ -25,19 +33,76 @@ export class RenderScope {
   private readonly test = new THREE.Box3();
   private readonly prepare: (obj: THREE.Object3D) => void;
   private readonly frameHooks: (() => void)[] = [];
+  private readonly waiting = new Set<number>();
+  private readonly placed = new WeakSet<Placement>();
+  private pendingTotal = 0;
 
-  constructor(private readonly root: THREE.Object3D, private readonly mapSize: number, private readonly limit: SightLimit, private readonly grey: boolean, outlined: boolean) {
-    this.prepare = outlined ? outlineProps : () => {};
+  constructor(private readonly root: THREE.Object3D, private readonly mapSize: number, private readonly limit: SightLimit, private readonly grey: boolean, models: boolean) {
+    this.prepare = models ? prepareModel : () => {};
     this.perSide = Math.ceil(mapSize / TERRAIN_CHUNK);
     this.chunks = new Array<Chunk | null>(this.perSide * this.perSide).fill(null);
   }
 
+  pin(...objs: THREE.Object3D[]): void {
+    this.root.add(...objs);
+  }
+
+  get cellsPerSide(): number {
+    return this.perSide;
+  }
+
+  get pendingCount(): number {
+    return this.pendingTotal;
+  }
+
+  waitingCells(): ReadonlySet<number> {
+    return this.waiting;
+  }
+
+  claimOf(cell: number): Rect {
+    const claim = this.chunks[cell]?.claim;
+    if (!claim) throw new Error(`Render scope cell ${cell} has no placements`);
+    const margin = MARGIN / S;
+    return { x0: claim.x0 - margin, y0: claim.y0 - margin, x1: claim.x1 + margin, y1: claim.y1 + margin };
+  }
+
+  place(pos: Vec, radius: number, build: () => THREE.Object3D): Placement {
+    this.checkAnchor(pos, radius);
+    const cell = this.cellAt(pos);
+    const chunk = this.chunkAt(pos);
+    const placement: Placement = { pos, radius, cell, built: null };
+    chunk.pending.push({ placement, build });
+    chunk.claim = widen(chunk.claim, pos, radius);
+    this.placed.add(placement);
+    this.waiting.add(cell);
+    this.pendingTotal++;
+    return placement;
+  }
+
+  groupOf(cell: number): THREE.Group {
+    const chunk = this.chunks[cell];
+    if (!chunk) throw new Error(`Render scope cell ${cell} holds nothing`);
+    return chunk.group;
+  }
+
+  buildNext(cell: number): THREE.Object3D | null {
+    const chunk = this.chunks[cell];
+    const next = chunk?.pending.shift();
+    if (!chunk || !next) return null;
+    this.settle(chunk, cell);
+    const obj = next.build();
+    this.add(obj, next.placement.pos, next.placement.radius);
+    next.placement.built = obj;
+    return obj;
+  }
+
   add(obj: THREE.Object3D, pos: Vec, radius: number): void {
     if (this.owner.has(obj)) throw new Error(`Object ${obj.name || obj.id} is already in the render scope`);
-    if (!(pos.x >= 0 && pos.y >= 0 && pos.x <= this.mapSize && pos.y <= this.mapSize)) throw new Error(`Render scope object at ${pos.x},${pos.y} is outside the ${this.mapSize}-tile map`);
-    if (!(radius >= 0 && Number.isFinite(radius))) throw new Error(`Render scope radius must be a finite non-negative number, got ${radius}`);
+    this.checkAnchor(pos, radius);
     const chunk = this.chunkAt(pos);
+    obj.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(obj);
+    this.checkClaim(obj, bounds, pos, radius);
     const low = bounds.isEmpty() ? obj.position.y : bounds.min.y;
     const high = bounds.isEmpty() ? obj.position.y : bounds.max.y;
     bounds.expandByPoint(new THREE.Vector3((pos.x - radius) * S, low, (pos.y - radius) * S));
@@ -47,9 +112,44 @@ export class RenderScope {
     chunk.group.add(obj);
     this.owner.set(obj, chunk);
     this.limit.patch(obj, this.grey);
+    CLOUD_SHADOWS.shadeTree(obj);
   }
 
-  remove(obj: THREE.Object3D): void {
+  private checkClaim(obj: THREE.Object3D, bounds: THREE.Box3, pos: Vec, radius: number): void {
+    if (bounds.isEmpty()) return;
+    const low = (pos.x - radius) * S - MARGIN;
+    const high = (pos.x + radius) * S + MARGIN;
+    const near = (pos.y - radius) * S - MARGIN;
+    const far = (pos.y + radius) * S + MARGIN;
+    if (bounds.min.x >= low && bounds.max.x <= high && bounds.min.z >= near && bounds.max.z <= far) return;
+    throw new Error(`Render scope object ${obj.name || obj.id} reaches x ${bounds.min.x}..${bounds.max.x} m, z ${bounds.min.z}..${bounds.max.z} m, outside its ${radius}-tile circle at ${pos.x},${pos.y}`);
+  }
+
+  remove(target: THREE.Object3D | Placement): void {
+    if (target instanceof THREE.Object3D) return this.removeObject(target);
+    if (!this.placed.has(target)) throw new Error(`Placement at ${target.pos.x},${target.pos.y} is not in the render scope`);
+    this.placed.delete(target);
+    if (target.built) return this.removeObject(target.built);
+    const chunk = this.chunks[target.cell]!;
+    chunk.pending.splice(chunk.pending.findIndex((p) => p.placement === target), 1);
+    this.settle(chunk, target.cell);
+  }
+
+  private settle(chunk: Chunk, cell: number): void {
+    this.pendingTotal--;
+    if (chunk.pending.length === 0) this.waiting.delete(cell);
+  }
+
+  private checkAnchor(pos: Vec, radius: number): void {
+    if (!this.onMap(pos)) throw new Error(`Render scope object at ${pos.x},${pos.y} is outside the ${this.mapSize}-tile map`);
+    if (!(radius >= 0 && Number.isFinite(radius))) throw new Error(`Render scope radius must be a finite non-negative number, got ${radius}`);
+  }
+
+  private onMap(pos: Vec): boolean {
+    return pos.x >= 0 && pos.y >= 0 && pos.x <= this.mapSize && pos.y <= this.mapSize;
+  }
+
+  private removeObject(obj: THREE.Object3D): void {
     const chunk = this.owner.get(obj);
     if (!chunk) throw new Error(`Object ${obj.name || obj.id} is not in the render scope`);
     chunk.group.remove(obj);
@@ -81,21 +181,31 @@ export class RenderScope {
     return this.limit.meets(chunk.box, MARGIN) && this.frustum.intersectsBox(this.test.copy(chunk.box).expandByScalar(MARGIN));
   }
 
-  private chunkAt(pos: Vec): Chunk {
+  private cellAt(pos: Vec): number {
     const cx = Math.min(Math.floor(pos.x / TERRAIN_CHUNK), this.perSide - 1);
     const cy = Math.min(Math.floor(pos.y / TERRAIN_CHUNK), this.perSide - 1);
-    const index = cy * this.perSide + cx;
+    return cy * this.perSide + cx;
+  }
+
+  private chunkAt(pos: Vec): Chunk {
+    const index = this.cellAt(pos);
     let chunk = this.chunks[index];
     if (!chunk) {
       const group = new THREE.Group();
-      group.name = `scope-chunk-${cx}-${cy}`;
+      group.name = `scope-chunk-${index % this.perSide}-${Math.floor(index / this.perSide)}`;
       group.matrixAutoUpdate = false;
-      chunk = { group, box: new THREE.Box3(), shown: true };
+      chunk = { group, box: new THREE.Box3(), shown: true, pending: [], claim: null };
       this.chunks[index] = chunk;
       this.root.add(group);
     }
     return chunk;
   }
+}
+
+function widen(claim: Rect | null, pos: Vec, radius: number): Rect {
+  const r = { x0: pos.x - radius, y0: pos.y - radius, x1: pos.x + radius, y1: pos.y + radius };
+  if (!claim) return r;
+  return { x0: Math.min(claim.x0, r.x0), y0: Math.min(claim.y0, r.y0), x1: Math.max(claim.x1, r.x1), y1: Math.max(claim.y1, r.y1) };
 }
 
 type Clipped = THREE.Material & { onBeforeCompile: THREE.Material['onBeforeCompile'] };
@@ -116,6 +226,8 @@ export class SightLimit {
       sightVisible: { value: this.visible },
       sightMapMeters: { value: mapSize * S },
       sightGrey: { value: new THREE.Vector2(TERRAIN.fog.seen.grey, TERRAIN.fog.seen.bright) },
+      sightFog: { value: new THREE.Color(PAL.bg) },
+      sightFogBand: { value: TERRAIN.vision.edgeFog },
     };
   }
 
@@ -123,6 +235,10 @@ export class SightLimit {
     if (!(radius > 0 && Number.isFinite(radius))) throw new Error(`Sight limit radius must be a finite positive number, got ${radius}`);
     this.uniforms.sightCenter.value.set(center.x, center.z);
     this.uniforms.sightRadius.value = radius;
+  }
+
+  fadeTo(backdrop: THREE.Color): THREE.Color {
+    return this.uniforms.sightFog.value.copy(backdrop);
   }
 
   reaches(at: V3): boolean {
@@ -192,7 +308,7 @@ export class SightLimit {
       shader.fragmentShader = inject(
         shader.fragmentShader,
         '#include <common>',
-        'varying vec2 vSightXZ;\nuniform vec2 sightCenter;\nuniform float sightRadius;\nuniform sampler2D sightVisible;\nuniform float sightMapMeters;\nuniform vec2 sightGrey;',
+        'varying vec2 vSightXZ;\nuniform vec2 sightCenter;\nuniform float sightRadius;\nuniform sampler2D sightVisible;\nuniform float sightMapMeters;\nuniform vec2 sightGrey;\nuniform vec3 sightFog;\nuniform float sightFogBand;',
       );
       shader.fragmentShader = inject(shader.fragmentShader, '#include <clipping_planes_fragment>', 'if (distance(vSightXZ, sightCenter) > sightRadius) discard;');
       if (grey) shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `float sightSeen = texture2D(sightVisible, ${greyAt} / sightMapMeters).r;
@@ -200,6 +316,7 @@ export class SightLimit {
         outgoingLight = mix(mix(outgoingLight, vec3(sightLuma), sightGrey.x) * sightGrey.y, outgoingLight, sightSeen);
         #include <opaque_fragment>`);
       if (grey && !shader.fragmentShader.includes('sightSeen')) throw new Error('Sight limit cannot grey a shader without #include <opaque_fragment>');
+      shader.fragmentShader = inject(shader.fragmentShader, '#include <colorspace_fragment>', 'gl_FragColor.rgb = mix(gl_FragColor.rgb, linearToOutputTexel(vec4(sightFog, 1.0)).rgb, smoothstep(sightRadius * (1.0 - sightFogBand), sightRadius, distance(vSightXZ, sightCenter)));');
     };
     mat.customProgramCacheKey = () => `${key()}|sight${grey ? '-grey' : ''}${sampled ? '-at' : ''}`;
     mat.needsUpdate = true;

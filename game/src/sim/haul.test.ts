@@ -1,21 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { RULES } from '../data/rules';
-import { cargoHaul, haulVar, showsHaul, surrenderHaul } from './haul';
+import { cargoHaul, haulVar, showsHaul, strippable } from './haul';
 import { CRATE_MASS } from '../data/goods';
-import { addGoods, cargoMassRoom, cargoRoom, stowPart } from './inventory';
-import { goodsCount } from './grid';
+import { budget } from '../test/budget';
+import HOLD_UP from './haul-fixtures/hold-up-bus.json';
+import HOLD_UP_HAUL from './haul-fixtures/hold-up-bus-haul.json';
+import { addGoods, cargoMassRoom, cargoRoom, stowPart, stowPlace } from './inventory';
+import { looseCargo } from './salvage';
+import { partSellPrice } from './economy';
+import { GOODS } from '../data/goods';
+import { findSpot, freeCells, goodsCount, gridOf } from './grid';
 import { collectSalvage, dropHaul } from './salvage';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
-import type { Vehicle, World } from './types';
+import type { GridItem, Vehicle, World } from './types';
 
 function robber(w: World, parts = ['mg', 'stockEngine']): Vehicle {
-  const v = addVehicle(w, 'raiders', 'scout', parts, { x: 10, y: 10 });
+  const v = addVehicle(w, 'scrapjaw', 'scout', parts, { x: 10, y: 10 });
   v.brain = npcBrain('buggy', v.pos, ['scumbag']);
   return v;
 }
 
 function victim(w: World, goods: Record<string, number>, spares: string[] = []): Vehicle {
-  const v = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 14, y: 10 });
+  const v = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 14, y: 10 });
   for (const [good, n] of Object.entries(goods)) addGoods(w, v, good, n);
   for (const defId of spares) stowPart(w, v, { id: `${defId}-spare`, defId, hp: 10, wear: 0 } as never);
   return v;
@@ -63,7 +68,7 @@ describe('the haul', () => {
     const rng = w.rngState;
     const items = structuredClone([r.items, v.items]);
     cargoHaul(r, v);
-    surrenderHaul(r, v);
+    strippable(r, v);
     expect(w.rngState).toBe(rng);
     expect([r.items, v.items]).toEqual(items);
   });
@@ -100,13 +105,83 @@ describe('the haul', () => {
     expect(showsHaul(undefined, haul)).toBe(false);
   });
 
-  it('adds at most the surrender parts after the cargo', () => {
+  it('is strippable when the victim carries a part the robber has room for', () => {
     const w = emptyWorld({ x: 200, y: 200 });
     const r = robber(w);
-    const v = addVehicle(w, 'traders', 'wagon', ['mg', 'stockEngine', 'heavyMg', 'mg'], { x: 14, y: 10 });
-    const cargo = cargoHaul(r, v);
-    const strip = surrenderHaul(r, v);
-    const mounted = strip.filter((item) => !cargo.includes(item));
-    expect(mounted.length).toBeLessThanOrEqual(RULES.surrenderParts);
+    const v = addVehicle(w, 'independent', 'wagon', ['mg', 'stockEngine', 'heavyMg', 'mg'], { x: 14, y: 10 });
+    expect(strippable(r, v)).toBe(true);
+  });
+});
+
+
+function oracleHaul(winner: Vehicle, loser: Vehicle) {
+  const value = (item: GridItem) => (item.kind === 'part' ? partSellPrice(item.part) : GOODS[(item as Extract<GridItem, { kind: 'good' }>).good].value);
+  const sorted = looseCargo(loser).map((item, i) => ({ item, i })).sort((a, b) => value(b.item) - value(a.item) || a.i - b.i).map((e) => e.item);
+  const order = (items: GridItem[]) => {
+    const parts = items.filter((item) => item.kind === 'part');
+    const goods = items.filter((item): item is Extract<GridItem, { kind: 'good' }> => item.kind === 'good');
+    const kinds = [...new Set(goods.map((item) => item.good))];
+    return [...parts, ...kinds.flatMap((kind) => goods.filter((item) => item.good === kind))];
+  };
+  const fits = (items: GridItem[]) => {
+    const probe: Vehicle = { ...winner, items: [...winner.items] };
+    for (const item of order(items)) {
+      if (item.kind !== 'part' && cargoRoom(probe) < 1) return false;
+      const spot = item.kind === 'part' ? stowPlace(probe, item) : findSpot(gridOf(probe), probe.items, item, null, null);
+      if (!spot) return false;
+      probe.items.push({ ...item, ...spot });
+    }
+    return true;
+  };
+  const picked: GridItem[] = [];
+  const cells = freeCells(winner);
+  for (const item of sorted) {
+    if (picked.length >= cells) break;
+    if (fits([...picked, item])) picked.push(item);
+  }
+  return order(picked);
+}
+
+describe('the haul search keeps its placements', () => {
+  it('hauls the report pair as the old search did, quickly', () => {
+    const haul = cargoHaul(HOLD_UP.robber as unknown as Vehicle, HOLD_UP.bus as unknown as Vehicle);
+    expect(haul.length).toBeGreaterThan(0);
+    expect(haul.map((item) => item.id)).toEqual(HOLD_UP_HAUL);
+    expect(haul.map((item) => item.id)).toEqual(oracleHaul(HOLD_UP.robber as unknown as Vehicle, HOLD_UP.bus as unknown as Vehicle).map((item) => item.id));
+  }, budget(5000));
+
+  it('leaves the winner untouched', () => {
+    const robberVehicle = HOLD_UP.robber as unknown as Vehicle;
+    const before = JSON.stringify(robberVehicle.items);
+    cargoHaul(robberVehicle, HOLD_UP.bus as unknown as Vehicle);
+    expect(JSON.stringify(robberVehicle.items)).toBe(before);
+  });
+
+  it('matches the from-scratch search on mixed piles', () => {
+    const cases: [string[], Record<string, number>, string[]][] = [
+      [['mg', 'stockEngine'], { scrap: 3, electronics: 5, fuel: 4 }, ['mg', 'stockEngine']],
+      [['stockEngine'], { electronics: 30, scrap: 2 }, []],
+      [['mg', 'stockEngine'], { scrap: 40 }, ['stockEngine', 'mg']],
+      [['stockEngine'], {}, ['mg', 'stockEngine']],
+    ];
+    for (const [robberParts, goods, spares] of cases) {
+      const w = emptyWorld({ x: 200, y: 200 });
+      const r = robber(w, robberParts);
+      const v = victim(w, Object.fromEntries(Object.entries(goods).filter(([g]) => g in GOODS)), spares);
+      expect(cargoHaul(r, v).map((item) => item.id)).toEqual(oracleHaul(r, v).map((item) => item.id));
+    }
+  });
+
+  it('matches the from-scratch search on the report pair with the winner nearly full', () => {
+    const r = HOLD_UP.robber as unknown as Vehicle;
+    const bus = HOLD_UP.bus as unknown as Vehicle;
+    const crowded = { ...r, items: [...r.items] };
+    for (let i = 0; i < 20; i++) {
+      const crate = bus.items.find((item) => item.kind === 'good' && !crowded.items.some((o) => o.id === `${item.id}-x${i}`));
+      const spot = crate && findSpot(gridOf(crowded), crowded.items, crate, null, null);
+      if (crate && spot) crowded.items.push({ ...crate, id: `${crate.id}-x${i}`, ...spot });
+    }
+    const small = { ...bus, items: bus.items.slice(0, 30) };
+    expect(cargoHaul(crowded, small).map((item) => item.id)).toEqual(oracleHaul(crowded, small).map((item) => item.id));
   });
 });

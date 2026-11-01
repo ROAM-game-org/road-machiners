@@ -18,6 +18,9 @@ import { endTurn } from './world';
 import type { PartInstance, Vehicle, World } from './types';
 
 const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
+const siteNamed = (id: string) => REGION.locations.find((l) => l.id === id)!;
+const stallPad = (id: string) => sitePads(siteNamed(id))[0];
+const engineStock = (w: World, shopId: string) => shopState(w, shopId).stock.filter((p) => partDef(p.defId).kind === 'engine');
 const engineOf = (v: Vehicle) => mountedParts(v, 'engine')[0];
 const share = (p: PartInstance) => p.hp / maxHp(p);
 
@@ -32,8 +35,8 @@ function strandedBroke(pos = sitePads(bowl)[0]): World {
   return w;
 }
 
-function noEngine(): World {
-  const w = strandedBroke();
+function noEngine(pos = sitePads(bowl)[0]): World {
+  const w = strandedBroke(pos);
   const me = w.vehicles[0];
   corePart(me, 'transmission').hp = maxHp(corePart(me, 'transmission'));
   me.items = me.items.filter((it) => !(it.kind === 'part' && it.part === engineOf(me)));
@@ -176,7 +179,7 @@ describe('scrap patch', () => {
     const me = w.vehicles[0];
     const grid = gridOf(me);
     grid.cells.forEach((row, y) => row.forEach((letter, x) => {
-      if (letter === 'E') me.items.push({ id: `blocker${x}-${y}`, x, y, rot: 0, kind: 'good', good: 'scrap' });
+      if (letter === 'E') me.items.push({ id: `blocker${x}-${y}`, x, y, rot: 0, kind: 'good', good: 'relics' });
     }));
 
     scrapPatch(w);
@@ -213,11 +216,15 @@ describe('scrap patch', () => {
 
   it('patches a player whose goods to sell are worth less than the repair', () => {
     const w = strandedBroke();
-    expect(addGoods(w, w.vehicles[0], 'scrap', 1)).toBe(1);
+    const me = w.vehicles[0];
+    coreParts(me, 'wheel')[0].hp = 0;
+    expect(addGoods(w, me, 'scrap', 1)).toBe(1);
+    const repairs = [corePart(me, 'transmission'), coreParts(me, 'wheel')[0]].reduce((sum, p) => sum + partRepairCost(w, p), 0);
+    expect(getLotTradePrice(w, me, 'bowl', 'scrap', 1, 'sell')).toBeLessThan(repairs);
 
     scrapPatch(w);
 
-    expect(isStranded(w, w.vehicles[0])).toBe(false);
+    expect(isStranded(w, me)).toBe(false);
   });
 
   it('leaves a player whose goods to sell pay for the repair to sell them first', () => {
@@ -254,7 +261,68 @@ describe('scrap patch', () => {
     expect(corePart(me, 'transmission').hp).toBe(0);
   });
 
-  it('does nothing away from a town', () => {
+  it('patches a junk engine at a stall', () => {
+    const w = strandedBroke(stallPad('green-pit'));
+    const engine = engineOf(w.vehicles[0]);
+    engine.hp = 0;
+    engine.wear = CONDITION.maxWear + 1;
+    w.player.money = 4326;
+
+    scrapPatch(w);
+
+    expect(engine.wear).toBe(CONDITION.maxWear);
+    expect(share(engine)).toBeGreaterThanOrEqual(RULES.scrapPatch);
+    expect(w.events.some((e) => e.t === 'scrapPatch')).toBe(true);
+  });
+
+  it("fits the cheapest engine of the stall's own shelf on credit", () => {
+    const w = noEngine(stallPad('pump-station'));
+    const me = w.vehicles[0];
+    shopState(w, 'pump-station').stock.push(makePart(w, 'stockEngine', 0));
+    const bowlShelf = [...shopState(w, 'bowl').stock];
+    const cheapest = engineStock(w, 'pump-station').sort((a, b) => partTradePrice(w, me, a, 'buy') - partTradePrice(w, me, b, 'buy'))[0];
+    const price = partTradePrice(w, me, cheapest, 'buy');
+
+    scrapPatch(w);
+
+    expect(mountedParts(me, 'engine')).toEqual([cheapest]);
+    expect(shopState(w, 'bowl').stock).toEqual(bowlShelf);
+    expect(w.player.money).toBe(-price);
+    expect(w.events).toContainEqual({ t: 'engineCredit', part: cheapest.defId });
+    expect(w.events).toContainEqual({ t: 'shopMoney', vehicle: me.id, amount: -price, kind: 'partCredit' });
+  });
+
+  it('fits nothing at a stall with no engine on its shelf', () => {
+    const w = noEngine(stallPad('green-pit'));
+    const shelf = shopState(w, 'green-pit');
+    shelf.stock = shelf.stock.filter((p) => partDef(p.defId).kind !== 'engine');
+
+    scrapPatch(w);
+
+    expect(mountedParts(w.vehicles[0], 'engine')).toHaveLength(0);
+    expect(w.events).toHaveLength(0);
+    expect(w.player.money).toBe(0);
+  });
+
+  it('gives nothing at a stall to a player who can pay', () => {
+    const w = strandedBroke(stallPad('salvage-yard'));
+    w.player.money = 3333333;
+
+    scrapPatch(w);
+
+    expect(corePart(w.vehicles[0], 'transmission').hp).toBe(0);
+  });
+
+  it('does nothing on a raider camp pad', () => {
+    const w = strandedBroke(stallPad('scrapjaw'));
+
+    scrapPatch(w);
+
+    expect(corePart(w.vehicles[0], 'transmission').hp).toBe(0);
+    expect(w.events).toHaveLength(0);
+  });
+
+  it('does nothing away from every shop', () => {
     const w = strandedBroke({ x: 30, y: 30 });
 
     scrapPatch(w);
@@ -325,11 +393,23 @@ describe('scrap fuel for a low tank', () => {
     expect(w.player.fuel).toBeCloseTo(fuelCap(w.vehicles[0]) * 0.1);
   });
 
-  it('gives nothing on a stall pad', () => {
-    const stall = REGION.locations.find((l) => l.id === 'salvage-yard')!;
-    const w = lowFuel(0.1, sitePads(stall)[0]);
+  it('gives scrap fuel on a stall pad', () => {
+    const w = lowFuel(0.1, stallPad('salvage-yard'));
     scrapPatch(w);
-    expect(w.player.fuel).toBeCloseTo(fuelCap(w.vehicles[0]) * 0.1);
+    expect(w.player.fuel).toBeCloseTo(fuelCap(w.vehicles[0]) * RULES.scrapPatch);
+  });
+
+  it('lets a stranded player at Green Pit with a junk engine drive on after one turn', () => {
+    const w = strandedBroke(stallPad('green-pit'));
+    const engine = engineOf(w.vehicles[0]);
+    engine.hp = 0;
+    engine.wear = CONDITION.maxWear + 1;
+    w.player.money = 4326;
+    w.player.fuel = fuelCap(w.vehicles[0]);
+
+    const next = endTurn(w, () => undefined);
+
+    expect(isStranded(next, next.vehicles[0])).toBe(false);
   });
 
   it('leaves a player with no money, no fuel and a broken engine able to drive and take a haul', () => {

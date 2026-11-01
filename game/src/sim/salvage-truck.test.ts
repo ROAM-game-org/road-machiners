@@ -2,10 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { chassisDef } from '../data/chassis';
 import { partDef } from '../data/parts';
 import { RULES } from '../data/rules';
-import { PERK_NUMBERS } from '../data/skills';
 import { knockOutNpc } from './defeat';
 import { corePart, findSpot, goodsCount, gridOf, isMounted, MOUNT_CELLS, type Spot } from './grid';
-import { addGoods } from './inventory';
+import { addGoods, stowParcel } from './inventory';
 import { advanceJobs } from './jobs';
 import { optionWeights } from './npc-decisions';
 import { thinkNpc, topGoal } from './npc-activities';
@@ -22,7 +21,7 @@ function downed(): { w: World; me: Vehicle; buggy: Vehicle } {
   const w = emptyWorld();
   const me = w.vehicles[0];
   const gap = chassisDef('scout').radius + chassisDef('buggy').radius + 0.2;
-  const buggy = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 30 + gap, y: 30 });
+  const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + gap, y: 30 });
   buggy.brain = npcBrain('buggy', buggy.pos, ['raider']);
   addGoods(w, buggy, 'scrap', 2);
   corePart(buggy, 'cab').hp = 0;
@@ -73,15 +72,6 @@ describe('the player looting a knocked-out truck', () => {
     expect(next.vehicles[0].job).toBeNull();
   });
 
-  it('removes an installed gun in one job with the Cannibal perk', () => {
-    const { w, me, buggy } = downed();
-    w.player.perks = ['cannibal'];
-    const gun = gunOn(buggy);
-    const next = takeFromTruck(w, buggy.id, gun.id, spareSpot(me, gun));
-    const turns = PERK_NUMBERS.cannibal.turns;
-    expect(next.vehicles[0].job).toMatchObject({ kind: 'refit', turnsLeft: turns, total: turns });
-  });
-
   it('cancels the removal when the truck wakes, and the gun stays on it', () => {
     const { w, me, buggy } = downed();
     const gun = gunOn(buggy);
@@ -109,7 +99,7 @@ describe('the player looting a knocked-out truck', () => {
 
 function looterBeside(w: World, buggy: Vehicle): Vehicle {
   const gap = chassisDef('hauler').radius + chassisDef('buggy').radius + 0.2;
-  const looter = addVehicle(w, 'scavengers', 'hauler', ['stockEngine'], { x: buggy.pos.x, y: buggy.pos.y + gap });
+  const looter = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: buggy.pos.x, y: buggy.pos.y + gap });
   looter.brain = npcBrain('scavenger', looter.pos, ['scavenger']);
   return looter;
 }
@@ -154,9 +144,20 @@ describe('an NPC looting a knocked-out truck', () => {
     expect(lootTruckTurn(w, looter, buggy)).toBe('nothingToLoot');
   });
 
-  it('takes the full refit turns while the player holds the Cannibal perk', () => {
+  it('leaves a search parcel on the truck it strips, since a parcel is nobody\'s loot', () => {
     const { w, me, buggy } = downed();
-    w.player.perks = ['cannibal'];
+    me.pos = { x: 200, y: 200 };
+    expect(stowParcel(buggy, { id: 'i-parcel', x: 0, y: 0, rot: 0, kind: 'parcel', contract: 'ct1' })).toBe(true);
+    const looter = looterBeside(w, buggy);
+    expect(lootTruckTurn(w, looter, buggy)).toBeNull();
+    expect(goodsCount(looter).scrap).toBe(2);
+    expect(buggy.items.some((it) => it.kind === 'parcel')).toBe(true);
+    expect(looter.items.some((it) => it.kind === 'parcel')).toBe(false);
+  });
+
+  it('takes the full refit turns while the player holds the Teardown perk', () => {
+    const { w, me, buggy } = downed();
+    w.player.perks = ['teardown'];
     me.pos = { x: 200, y: 200 };
     const looter = looterBeside(w, buggy);
     lootTruckTurn(w, looter, buggy);

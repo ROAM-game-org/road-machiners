@@ -19,6 +19,8 @@ vi.stubGlobal('window', { innerWidth: 1280, innerHeight: 720, devicePixelRatio: 
 
 type Watched = { reporter: ErrorReporter; context: GameContext };
 
+const failures = vi.fn();
+
 function reporter(status = 200): Watched & { sent: Sent[] } {
   const sent: Sent[] = [];
   const post = async (url: string, init: RequestInit): Promise<Response> => {
@@ -26,12 +28,13 @@ function reporter(status = 200): Watched & { sent: Sent[] } {
     sent.push({ url, report: JSON.parse(gunzipSync(bytes).toString('utf8')) as ErrorReport });
     return new Response(null, { status });
   };
-  const context = new GameContext('dev', '3.4.5+abc1234');
+  const context = new GameContext('dev', '3.4.5+abc1234', failures);
   return { reporter: new ErrorReporter('https://factory.test/errors', context, post), context, sent };
 }
 
 function watching(r: Watched, world: World, slots = makeSlots()): void {
-  r.context.watch({ world: () => world, log: () => ['Day 2 08:00 Sold scrap', 'Day 2 07:30 Arrived'], slots });
+  r.context.watchSaves(slots);
+  r.context.watch({ world: () => world, log: () => ['Day 2 08:00 Sold scrap', 'Day 2 07:30 Arrived'] });
 }
 
 describe('error reports', () => {
@@ -47,7 +50,7 @@ describe('error reports', () => {
     const { url, report } = sent[0];
     expect(url).toBe('https://factory.test/errors');
     expect(report).toMatchObject({ build: 'dev', version: '3.4.5+abc1234', language: 'ru', turn: 44, autosaveIsWorld: false, drive: null });
-    expect(report.screen).toEqual({ width: 1280, height: 720, pixelRatio: 2 });
+    expect(report.screen).toEqual({ width: 1280, height: 720, pixelRatio: 2, uiSize: 1 });
     expect(report.error).toMatchObject({ name: 'RangeError', message: 'wheel 7 has no axle' });
     expect(report.error.stack).toContain('wheel 7 has no axle');
     expect(report.log).toEqual(['Day 2 08:00 Sold scrap', 'Day 2 07:30 Arrived']);
@@ -75,6 +78,48 @@ describe('error reports', () => {
     expect(sent[0].report.error).toEqual({ name: 'NonError', message: 'map fetch failed', stack: '' });
   });
 
+  it('holds the autosave once the slots are watched, before any world exists', async () => {
+    const slots = makeSlots();
+    writeSave(slots, 'auto', { ...emptyWorld(), turn: 12 }, 'run-1', 1);
+    const { sent, ...r } = reporter();
+    r.context.watchSaves(slots);
+
+    await r.reporter.report('load hung');
+
+    expect(sent[0].report).toMatchObject({ turn: null, world: null, log: [], autosaveIsWorld: false });
+    expect((JSON.parse(sent[0].report.autosave ?? '') as { world: { turn: number } }).world.turn).toBe(12);
+  });
+
+  it('sends world null with the autosave when the world source throws', async () => {
+    const slots = makeSlots();
+    writeSave(slots, 'auto', { ...emptyWorld(), turn: 12 }, 'run-1', 1);
+    const { sent, ...r } = reporter();
+    const broken = new Error('world gone');
+    r.context.watchSaves(slots);
+    r.context.watch({ world: () => { throw broken; }, log: () => ['line'] });
+    failures.mockClear();
+
+    await r.reporter.report(new Error('boom'));
+
+    expect(sent[0].report).toMatchObject({ turn: null, world: null, log: [], autosaveIsWorld: false });
+    expect(sent[0].report.autosave).not.toBeNull();
+    expect(failures).toHaveBeenCalledTimes(1);
+    expect(failures).toHaveBeenCalledWith(broken);
+  });
+
+  it('sends world null when the world cannot be written into the report', async () => {
+    const { sent, ...r } = reporter();
+    const base = emptyWorld();
+    const unwritable: World = { ...base, turn: 5, player: { ...base.player, explored: new Uint8Array([7]) } };
+    watching(r, unwritable);
+    failures.mockClear();
+
+    await r.reporter.report(new Error('boom'));
+
+    expect(sent[0].report).toMatchObject({ turn: null, world: null, log: [] });
+    expect(failures).toHaveBeenCalledTimes(1);
+  });
+
   it('sends a repeated error once per session', async () => {
     const { sent, ...r } = reporter();
 
@@ -88,14 +133,14 @@ describe('error reports', () => {
   it('carries a failed turn with the worker stack and its start drive', async () => {
     const { sent, ...r } = reporter();
     watching(r, { ...emptyWorld(), turn: 9 });
-    const drive = { bodies: { player: 3 }, obstacles: {}, craters: {}, memory: {}, terrain: 1, decks: [], snapshot: new Uint8Array([0, 1, 254, 255]) } satisfies DriveSnapshot;
+    const drive = { bodies: { player: 3 }, rears: {}, couplings: {}, shapes: { player: 'scout' }, obstacles: {}, craters: {}, ramps: {}, memory: {}, terrain: { handle: 1, x0: 0, z0: 0 }, decks: [], snapshot: new Uint8Array([0, 1, 254, 255]) } satisfies DriveSnapshot;
     const workerStack = 'TypeError: no route\n    at planRoute (turn-abc.js:1:200)';
 
     await r.reporter.report(new TurnFailure(workerStack, drive));
 
     const report = sent[0].report;
     expect(report.error).toEqual({ name: 'TypeError', message: 'no route', stack: workerStack });
-    expect(report.drive).toEqual({ bodies: { player: 3 }, obstacles: {}, craters: {}, memory: {}, terrain: 1, decks: [], snapshot: 'AAH+/w==' });
+    expect(report.drive).toEqual({ bodies: { player: 3 }, rears: {}, couplings: {}, shapes: { player: 'scout' }, obstacles: {}, craters: {}, ramps: {}, memory: {}, terrain: { handle: 1, x0: 0, z0: 0 }, decks: [], snapshot: 'AAH+/w==' });
   });
 
   it('only warns when the endpoint refuses, so the game goes on', async () => {

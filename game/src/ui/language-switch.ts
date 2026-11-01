@@ -1,28 +1,24 @@
-
 import { type Language } from "../text/language";
-import { LOCALES, t, type Locale } from "../text/msg";
-import { el } from "./dom";
+import { LOCALES, t } from "../text/msg";
+import { OptionSwitch } from "./option-switch";
 
 export class LanguageSwitch {
   readonly root: HTMLElement;
-  private readonly buttons: Map<Locale, HTMLElement>;
   readonly dispose: () => void;
 
-  constructor(parent: HTMLElement, private readonly language: Language) {
-    this.buttons = new Map(LOCALES.map((locale) => [locale, this.button(locale)]));
-    this.root = el("div", { class: "language-switch", role: "group", "aria-label": t("language.label") },
-      ...this.buttons.values(),
-    );
-    parent.append(this.root);
-    this.mark();
-    this.dispose = language.subscribe(() => this.mark());
-  }
-
-  private button(locale: Locale): HTMLElement {
-    return el("button", { class: "language-option", lang: locale, "data-lang": locale, onclick: () => this.language.set(locale) }, t(`language.${locale}`));
-  }
-
-  private mark(): void {
-    for (const [locale, button] of this.buttons) button.setAttribute("aria-pressed", String(locale === this.language.current()));
+  constructor(parent: HTMLElement, language: Language) {
+    const switcher = new OptionSwitch(parent, {
+      label: t("language.label"),
+      choices: LOCALES.map((locale) => ({ value: locale, label: t(`language.${locale}`), lang: locale, hook: locale })),
+      current: () => language.current(),
+      pick: (locale) => language.set(locale),
+      off: () => null,
+      subscribe: (fn) => language.subscribe(fn),
+      rootClass: "language-switch",
+      buttonClass: "language-option",
+      dataKey: "lang",
+    });
+    this.root = switcher.root;
+    this.dispose = switcher.dispose;
   }
 }

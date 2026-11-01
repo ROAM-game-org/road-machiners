@@ -48,9 +48,9 @@
 #ui .modal.quest-screen {
   z-index: var(--z-log-open);
   top: 64px;
-  width: min(var(--talk-width), calc(100vw - var(--space-10)));
+  width: min(var(--talk-width), calc(var(--layer-w) - var(--space-10)));
   height: auto;
-  max-height: calc(100dvh - var(--modal-reserve));
+  max-height: calc(var(--layer-h) - var(--modal-reserve));
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
@@ -71,37 +71,38 @@
   scrollbar-width: thin;
 }
 .quest-screen :is(.quest-talk, .quest-text) {
+  overflow-anchor: none;
   font-size: var(--text-lead);
   line-height: 1.55;
 }
-.quest-screen .qt-line {
+:is(.quest-screen, .ink-page) .qt-line {
   margin-bottom: var(--space-6);
 }
-.quest-screen .qt-speaker {
+:is(.quest-screen, .ink-page) .qt-speaker {
   color: var(--ink-muted);
   font-weight: 600;
 }
-.quest-screen .talk-ask {
+:is(.quest-screen, .ink-page) .talk-ask {
   color: var(--ink-muted);
   margin-bottom: var(--space-4);
 }
-#ui .quest-screen .quest-next {
+#ui :is(.quest-screen, .ink-page) .quest-next {
   align-self: flex-start;
 }
-.quest-screen .talk-ask::before {
+:is(.quest-screen, .ink-page) .talk-ask::before {
   content: "> ";
 }
-.quest-screen .talk-offer {
+:is(.quest-screen, .ink-page) .talk-offer {
   margin: var(--space-2) 0 var(--space-4);
   padding: var(--space-3) var(--space-5);
   background: var(--surface-raised);
 }
-.quest-screen .quest-choices {
+:is(.quest-screen, .ink-page) .quest-choices {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
 }
-#ui .quest-screen .quest-choice {
+#ui :is(.quest-screen, .ink-page) .quest-choice {
   display: block;
   height: auto;
   min-height: var(--btn-h-m);
@@ -111,39 +112,39 @@
   line-height: 1.35;
   white-space: normal;
 }
-.quest-screen .error:empty {
+:is(.quest-screen, .ink-page) .error:empty {
   display: none;
 }
-#ui .quest-screen .quest-choice:disabled {
+#ui :is(.quest-screen, .ink-page) .quest-choice:is(:disabled, [aria-disabled="true"]) {
   color: var(--ink-muted);
   opacity: 0.6;
   cursor: default;
 }
-.quest-screen .quest-held {
+:is(.quest-screen, .ink-page) .quest-held {
   float: right;
 }
-.quest-screen .quest-check {
+:is(.quest-screen, .ink-page) .quest-check {
   float: right;
   margin-left: var(--space-3);
   color: var(--ink-muted);
 }
-.quest-screen .qt-table {
+:is(.quest-screen, .ink-page) .qt-table {
   border-collapse: collapse;
   font-family: var(--font-mono);
   font-size: var(--text-dense);
   margin: var(--space-1) 0 var(--space-5);
 }
-.quest-screen .qt-table th,
-.quest-screen .qt-table td {
+:is(.quest-screen, .ink-page) .qt-table th,
+:is(.quest-screen, .ink-page) .qt-table td {
   padding: var(--space-1) var(--space-8) var(--space-1) 0;
   text-align: left;
   font-weight: 400;
 }
-.quest-screen .qt-table th {
+:is(.quest-screen, .ink-page) .qt-table th {
   color: var(--ink-muted);
   border-bottom: 1px solid var(--line);
 }
-.quest-screen .qt-img {
+:is(.quest-screen, .ink-page) .qt-img {
   display: block;
   max-width: var(--panel-s);
   margin: var(--space-2) 0 var(--space-4);
@@ -152,31 +153,35 @@
 
 /* Page view: art, one page of text with its choices, and the quest's numbers and facts. */
 #ui .modal.quest-screen.quest-page {
-  top: 40px;
-  width: min(var(--quest-page-width), calc(100vw - var(--space-10) * 2));
-  height: min(var(--quest-page-height), calc(100dvh - var(--quest-page-clearance)));
+  top: var(--modal-top);
+  width: min(var(--quest-page-width), calc(var(--layer-w) - var(--space-10) * 2));
+  height: var(--page-height);
   max-height: none;
   display: grid;
   grid-template-columns:
-    min(calc(min(var(--quest-page-height), 100dvh - var(--quest-page-clearance)) * 0.95), calc(100% - var(--quest-side-width) - var(--quest-text-min)))
+    min(calc(var(--page-height) * 0.95), calc(100% - var(--quest-side-width) - var(--quest-text-min)))
     minmax(0, 1fr)
     var(--quest-side-width);
+  grid-template-rows: minmax(0, 1fr);
   gap: 0;
   padding: 0;
   border-left: 2px solid var(--line);
-  box-shadow: 0 0 0 100vmax var(--scrim);
+  box-shadow: 0 0 0 max(var(--layer-w), var(--layer-h)) var(--scrim);
 }
 .quest-page .quest-art {
   padding: var(--space-7);
   border-right: 1px solid var(--surface-raised);
 }
-.quest-page .quest-frame {
-  height: 100%;
+:is(.quest-page, .ink-page) .quest-frame {
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  aspect-ratio: var(--quest-frame-column);
   overflow: hidden;
   border: 1px solid var(--surface-raised);
   background: repeating-linear-gradient(135deg, var(--surface-raised) 0 var(--space-5), var(--surface-highlight) var(--space-5) var(--space-8));
 }
-.quest-page .quest-frame img {
+:is(.quest-page, .ink-page) .quest-frame img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -185,7 +190,7 @@
 }
 @keyframes quest-art-zoom {
   from { transform: scale(1); }
-  to { transform: scale(1.08); }
+  to { transform: scale(var(--quest-art-zoom)); }
 }
 .quest-page .quest-text {
   width: 100%;
@@ -198,22 +203,22 @@
   overflow: auto;
   scrollbar-width: thin;
 }
-.quest-page .quest-place {
+:is(.quest-page, .ink-page) .quest-place {
   margin: 0 0 var(--space-6);
   font-size: var(--text-heading);
   font-weight: 600;
 }
-.quest-page .qt-line {
+:is(.quest-page, .ink-page) .qt-line {
   margin-bottom: var(--space-7);
 }
-.quest-page .quest-choices {
+:is(.quest-page, .ink-page) .quest-choices {
   margin-top: auto;
   padding-top: var(--space-6);
 }
-#ui .quest-page .quest-choice {
+#ui :is(.quest-page, .ink-page) .quest-choice {
   padding: var(--space-3) var(--space-6);
 }
-#ui .quest-page .quest-next {
+#ui :is(.quest-page, .ink-page) .quest-next {
   margin-top: auto;
   align-self: flex-start;
   padding: var(--space-3) var(--space-9);
@@ -231,7 +236,7 @@
   position: static;
   align-self: flex-end;
 }
-.quest-page .quest-stat {
+:is(.quest-page, .ink-page) .quest-stat {
   display: flex;
   justify-content: space-between;
   font-family: var(--font-mono);
@@ -239,33 +244,33 @@
   padding: var(--space-2) 0;
   border-bottom: 1px solid var(--surface-raised);
 }
-.quest-page .quest-stat b {
+:is(.quest-page, .ink-page) .quest-stat b {
   font-weight: 400;
   color: var(--ink-label);
 }
-.quest-page .quest-stat.new b {
+:is(.quest-page, .ink-page) .quest-stat.new b {
   color: var(--ink);
 }
-.quest-page .quest-delta {
+:is(.quest-page, .ink-page) .quest-delta {
   margin-right: var(--space-3);
 }
-.quest-page .quest-delta.good {
+:is(.quest-page, .ink-page) .quest-delta.good {
   color: var(--good);
 }
-.quest-page .quest-delta.bad {
+:is(.quest-page, .ink-page) .quest-delta.bad {
   color: var(--danger-ink);
 }
-.quest-page .quest-fact {
+:is(.quest-page, .ink-page) .quest-fact {
   font-size: var(--text-dense);
   color: var(--ink-muted);
   padding: var(--space-2) 0 var(--space-2) var(--space-5);
   margin-bottom: var(--space-4);
   border-left: 2px solid var(--line);
 }
-.quest-page .quest-fact .qt-line {
+:is(.quest-page, .ink-page) .quest-fact .qt-line {
   margin: 0;
 }
-.quest-page .quest-fact.new {
+:is(.quest-page, .ink-page) .quest-fact.new {
   color: var(--ink);
   border-left-color: var(--ink-label);
 }
@@ -342,22 +347,48 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .qt-unit,
-  .quest-page .quest-frame img {
+  :is(.quest-page, .ink-page) .quest-frame img,
+  .art-band img {
     animation: none;
     opacity: 1;
     visibility: visible;
   }
 }
 
-/* Journal: one card per note, newest first. */
+/* Journal: held work, then notes newest first, then past work newest first. */
 #ui .modal.journal-screen {
   max-width: var(--talk-width);
 }
 .journal {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: var(--space-9);
   margin-top: var(--space-4);
+}
+.journal-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.journal-group > h4 {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-dense);
+  font-weight: normal;
+}
+.journal .jobs {
+  grid-template-columns: var(--icon-xl) 1fr auto auto;
+}
+.journal-past .job > :last-child {
+  justify-self: end;
+}
+.journal-work .job:has(+ .journal-detail) {
+  border-bottom: 0;
+}
+.journal-detail {
+  grid-column: 2 / -1;
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--line-faint);
 }
 .journal-note {
   padding: var(--space-4) var(--space-6);
@@ -365,7 +396,34 @@
   border-left: 4px solid var(--line);
   line-height: 1.4;
 }
-.journal-note .journal-head {
+.journal-place {
+  margin-top: var(--space-4);
+}
+.journal-place.survey {
+  display: grid;
+  grid-template-columns: var(--survey-picture-w) 1fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+.survey-picture {
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid var(--surface-raised);
+  background: repeating-linear-gradient(135deg, var(--surface-raised) 0 var(--space-5), var(--surface-highlight) var(--space-5) var(--space-8));
+}
+.survey-picture img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+#ui.slim .journal-place.survey {
+  grid-template-columns: 1fr;
+}
+#ui.slim .survey-picture {
+  max-width: calc(var(--survey-picture-w) * 1.5);
+}
+.journal .journal-head {
   display: flex;
   justify-content: space-between;
   gap: var(--space-6);
@@ -504,7 +562,8 @@
   justify-content: flex-end;
   white-space: nowrap;
 }
-.part-line > button {
+.part-line > button,
+.part-line > .tag {
   justify-self: end;
 }
 #ui button.part-sum {
@@ -596,7 +655,8 @@
   .part-line > .price {
     grid-area: price;
   }
-  .part-line > button:not(.part-sum) {
+  .part-line > button:not(.part-sum),
+  .part-line > .tag {
     grid-area: action;
   }
   #ui button.part-sum {
@@ -614,13 +674,13 @@
   overflow: hidden;
 }
 .skill-table {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
   overflow: auto;
   scrollbar-width: thin;
   align-content: start;
   display: grid;
-  grid-template-columns: max-content max-content repeat(2, minmax(var(--panel-s), 1fr)) minmax(var(--panel-s), 1fr) max-content;
+  grid-template-columns: max-content max-content max-content repeat(2, minmax(var(--panel-s), 1fr)) minmax(var(--panel-s), 1fr) max-content;
   gap: var(--space-2) var(--space-7);
   align-items: center;
   margin-top: var(--space-4);
@@ -684,6 +744,10 @@
   flex-direction: column;
   gap: var(--space-1);
 }
+.perk-rank {
+  display: none;
+  font-size: var(--text-caption);
+}
 .perk-cell.picked {
   color: var(--ink-bright);
 }
@@ -699,6 +763,50 @@
   gap: var(--space-1);
   font-size: var(--text-dense);
   text-align: left;
+}
+
+.standing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content max-content;
+  gap: 0 var(--space-7);
+  width: var(--panel-m);
+  margin-top: var(--space-6);
+  font-size: var(--text-dense);
+}
+.standing-head,
+.standing-row {
+  position: relative;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+}
+.standing-head {
+  color: var(--ink-label);
+  font-size: var(--text-caption);
+}
+.standing-row > .tag {
+  justify-self: end;
+}
+.standing-score {
+  justify-self: end;
+  text-align: right;
+  text-decoration: underline dotted;
+  cursor: help;
+}
+.standing-tip {
+  display: none;
+  position: absolute;
+  left: calc(100% + var(--hud-gap));
+  top: 0;
+  z-index: var(--z-popup);
+  width: max-content;
+  cursor: default;
+}
+.standing-score:hover > .standing-tip,
+.standing-score:focus > .standing-tip,
+.standing-score:focus-visible > .standing-tip {
+  display: block;
 }
 #ui button.perk {
   padding: var(--space-2) var(--space-4);
@@ -765,6 +873,7 @@
 
 /* Market: one row per good, buy and sell each beside their price. The line under each row comes from .row. */
 .goods {
+  --col-profit: 108px;
   display: flex;
   flex-direction: column;
 }
@@ -781,13 +890,70 @@
     minmax(calc(var(--col-name) - var(--space-8)), 1fr) calc(var(--icon-3xl) + var(--space-2)) var(--col-trade) var(--col-trade)
     var(--icon-3xl) var(--col-profit);
 }
-.goods-head {
+.goods.stocked .goods-head,
+.goods.stocked .good-row {
+  grid-template-columns:
+    minmax(calc(var(--col-name) - var(--space-8)), 1fr) var(--col-trade) var(--col-trade) var(--icon-3xl) var(--icon-3xl)
+    var(--col-profit);
+}
+.good-name .tag {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* The site's recipes over the goods: inputs, a gap, then outputs. A stopped recipe is dim. */
+.recipes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-8);
+  padding: var(--space-2) var(--space-3) var(--space-4);
+}
+.recipe {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.recipe.dim {
+  opacity: 0.45;
+}
+.recipe-gap {
+  width: var(--space-6);
+  border-top: 1px solid var(--line-strong);
+}
+.recipe-good {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font: var(--text-dense) var(--font-mono);
+}
+.recipe-good .icon {
+  width: var(--icon-xl);
+  height: var(--icon-xl);
+}
+
+/* Road news: one row per lost shipment, under the goods. */
+.road-news {
+  margin-top: var(--space-6);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-sunk);
+  border-left: 2px solid var(--danger);
+}
+.news-head {
   font-size: var(--text-dense);
 }
-.goods-note {
+.news-row {
+  display: grid;
+  grid-template-columns: calc(var(--icon-xl) + var(--space-8)) var(--col-trade) 1fr auto;
+  gap: var(--space-4);
+  align-items: center;
   font-size: var(--text-dense);
-  padding: var(--space-1) var(--space-3) var(--space-2);
-  border-bottom: 1px solid var(--line-faint);
+}
+.news-row .icon {
+  width: var(--icon-xl);
+  height: var(--icon-xl);
+}
+.goods-head {
+  font-size: var(--text-dense);
 }
 .goods-head span {
   display: inline-flex;
@@ -873,7 +1039,8 @@
       "buy buy sell";
     row-gap: var(--space-3);
   }
-  .goods.truck .good-row {
+  .goods.truck .good-row,
+  .goods.stocked .good-row {
     grid-template-columns: 1fr auto auto auto;
     grid-template-areas:
       "name theirs held profit"
@@ -887,6 +1054,9 @@
   }
   .good-row .count.held {
     grid-area: held;
+  }
+  .good-row .count.stock {
+    grid-area: theirs;
   }
   .good-row .profit {
     grid-area: profit;
@@ -908,15 +1078,9 @@
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  padding: var(--space-3) 0 var(--space-5);
-  border-bottom: 1px solid var(--line-faint);
-  font: var(--text-dense) var(--font-mono);
-}
-.town-repair > button:first-of-type {
-  margin-left: auto;
-}
-.town-repair .bad {
-  flex: 1;
+  padding: 0 0 var(--space-5);
+  position: relative;
+  z-index: var(--z-hud);
 }
 .service-meter {
   display: flex;
@@ -926,6 +1090,81 @@
 }
 .service-meter .meter {
   height: var(--meter-l);
+}
+
+/* Paint: the chassis in the planned paint on the left, one palette row per surface on the right, Buy under the rows. */
+.paint-tab {
+  display: grid;
+  grid-template-columns: calc(var(--portrait-w) * 1.5) 1fr;
+  gap: var(--space-7);
+  align-items: start;
+}
+.paint-preview .chassis-portrait {
+  width: calc(var(--portrait-w) * 1.5);
+  height: calc(var(--portrait-h) * 1.5);
+}
+.paint-slots {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.paint-slot {
+  display: grid;
+  grid-template-columns: var(--icon-3xl) 1fr;
+  align-items: center;
+  gap: var(--space-4);
+}
+.paint-switch {
+  gap: var(--space-2);
+}
+.paint-slot-name {
+  font-size: var(--text-caption);
+  color: var(--ink-label);
+}
+.paint-switch > button {
+  flex: 1;
+}
+#ui .paint-switch > button.planned {
+  outline: 1px dashed var(--accent);
+  outline-offset: 1px;
+}
+.paint-swatch {
+  display: block;
+  width: var(--icon-m);
+  height: var(--icon-xs);
+  margin: 0 auto;
+  border: 1px solid var(--line-soft);
+  background: var(--paint);
+}
+.paint-scheme {
+  display: grid;
+  grid-template-columns: 1fr var(--icon-xs);
+  grid-template-rows: var(--space-1) 1fr var(--space-2);
+  width: var(--icon-2xl);
+  height: var(--icon-s);
+  margin: 0 auto;
+}
+.paint-scheme > span {
+  border: 1px solid var(--line-soft);
+}
+.paint-scheme-body {
+  grid-area: 2 / 1;
+  border-right: 0;
+  background: var(--paint-body);
+}
+.paint-scheme-cab {
+  grid-area: 1 / 2 / 3;
+  background: var(--paint-cab);
+}
+.paint-scheme-gear {
+  grid-area: 3 / 1 / 4 / 3;
+  border-top: 0;
+  background: var(--paint-gear);
+}
+.paint-buy {
+  display: flex;
+  justify-content: flex-end;
+  min-height: var(--btn-h-m);
 }
 
 /* Trucks: the layout map beside the stats. */
@@ -1042,9 +1281,29 @@
   width: var(--icon-l);
   height: var(--icon-l);
 }
+.job .claim-rival {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.job .claim-rival > .icon {
+  width: var(--icon-m);
+  height: var(--icon-m);
+}
 /* A note in place of an action wraps, so it never squeezes the contract summary. */
 .job > .dim {
   max-width: 11em;
+}
+.job-what {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.job-detail {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: var(--text-dense);
 }
 
 /* A hovered shop card lights its mount cells on the truck grid and dims the items over them. */
