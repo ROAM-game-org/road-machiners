@@ -17,7 +17,7 @@ import { settleAims } from './combat';
 import { everyTruck } from './sites';
 import { newId, chargeFor, gunFor, makePart } from './factory';
 import { installSpot, stowSpot } from './inventory';
-import { findSpot, gridOf, mountedItems, onDeadRow, placementError, type Grid } from './grid';
+import { baseGrid, findSpot, gridOf, mountedItems, onDeadRow, placementError, type Grid } from './grid';
 import { settleEscortJob } from './escort-job';
 import { addShop, contractTruck, finishContract, isMet, parcelOf, removeParcel, type Contract, type ShopState } from './market';
 import { reviseMemories } from './memory';
@@ -304,11 +304,11 @@ function repairOwnTruck(world: World, v: Vehicle): void {
 }
 
 function repairNpc(world: World, v: Vehicle, doomed: Set<string>): void {
-  if (!npcKnown(v) || !coresSeated(v)) {
+  if (!npcKnown(v) || !(coresSeated(v) || coresOnChassis(v))) {
     doomed.add(v.id);
     return;
   }
-  if (!coresGraded(v)) reseatCores(world, v);
+  if (!coresSeated(v) || !coresGraded(v)) reseatCores(world, v);
   fitItems(v);
 }
 
@@ -335,6 +335,13 @@ function roleCounts(defIds: string[]): string {
 function coresSeated(v: Vehicle): boolean {
   const wanted = chassisDef(v.chassisId).core.map((c) => c.defId);
   return roleCounts(wanted) === roleCounts(mountedItems(v, 'core').map((it) => it.part.defId));
+}
+
+function coresOnChassis(v: Vehicle): boolean {
+  const { w, chassisH } = baseGrid(v.chassisId);
+  const onChassis = v.items.filter(isPartItem).filter((it) => isCoreItem(it) && it.x >= 0 && it.y >= 0 && it.x < w && it.y < chassisH);
+  const wanted = chassisDef(v.chassisId).core.map((c) => c.defId);
+  return roleCounts(wanted) === roleCounts(onChassis.map((it) => it.part.defId));
 }
 
 function coresGraded(v: Vehicle): boolean {

@@ -9,8 +9,8 @@ at 0.08, and a dark flare band over them to 0.17. A trim body line runs along ea
 The nose is a dark grille band between square lamps over a dark bumper. Tall taillights stand at the bed corners over a step bumper.
 Deviations from the sheet: the wheels stay symmetric, the cowl sits 0.05 of the length back so the engine bay fits under the hood,
 and the tires keep the tire rule's 0.46 m radius.
-The engine shows through a hole in the hood, x 1.0 to 1.95, over a dark bay floor at 0.05: the part of the engine cells that
-restOn() rests on the floor, centered on PHYSICS.bodies.pickup.engine.
+The engine shows through a hole in the hood, x 0.9 to 2.25 and 0.9 m wide, over a dark bay floor at 0.05: the engine bay of the
+chassis.ts layout, rows 2 to 4 and columns 2 and 3, 3 cells long and 2 across.
 Grid: 5 columns by 8 rows, stretched over the model by the projection. Half height 0.45 m, from PHYSICS.bodies.pickup.
 Wheels sit on rows 1 and 6, radius 0.46 m, half width 0.185 m, mount 0.3 m below the center, 1.0 m off the center line.
 Sockets arch_front, arch_rear and arch_front_top (the painted crown) mark the arches for wheelArches.test.ts.
@@ -72,7 +72,7 @@ SIDE = WIDTH / 2 - FLARE_OUT
 FRONT = LENGTH / 2 - 0.05
 BACK = -FRONT
 NOSE_TOP = 0.21
-COWL_X = 0.96
+COWL_X = 0.84
 COWL_TOP = 0.39
 ROOF_FRONT = 0.36
 CAB_BACK = -0.45
@@ -82,11 +82,8 @@ LAMP_Y = 0.62
 STRIPE_Z = -0.09
 STRIPE_H = 0.1
 
-ENGINE_X = 1.475  # PHYSICS.bodies.pickup.engine.x
-ENGINE_Y = 0.242  # -PHYSICS.bodies.pickup.engine.z
-ENGINE_HALF = (0.475, 0.396)  # the drawn engine: restOn() of the engine cells, over the bay floor
-HOLE_MARGIN = 0.02
-HOLE = ((ENGINE_X - ENGINE_HALF[0] - HOLE_MARGIN, ENGINE_Y - ENGINE_HALF[1] - HOLE_MARGIN), (ENGINE_X + ENGINE_HALF[0] + HOLE_MARGIN, ENGINE_Y + ENGINE_HALF[1] + HOLE_MARGIN))
+GAME = Grid(rows=12, cols=4, half_height=0.45, length=5.4, width=1.8)  # chassis.ts layout inside its border cells
+HOLE = ((GAME.row_x(3.5), GAME.col_y(2.5)), (GAME.row_x(0.5), GAME.col_y(0.5)))  # the engine bay: layout rows 2 to 4, columns 2 and 3
 
 
 def hood_top(x: float) -> float:
@@ -223,12 +220,10 @@ def check_size(kit: Kit) -> None:
 
 
 def check_hood() -> None:
-    """Raises when the hood hole does not hold the drawn engine with its margin, or leaves the hood."""
+    """Raises when the hood hole is not the 2 by 3 cell engine bay, or leaves the hood."""
     (x0, y0), (x1, y1) = HOLE
-    ex0, ex1 = ENGINE_X - ENGINE_HALF[0], ENGINE_X + ENGINE_HALF[0]
-    ey0, ey1 = ENGINE_Y - ENGINE_HALF[1], ENGINE_Y + ENGINE_HALF[1]
-    if min(ex0 - x0, x1 - ex1, ey0 - y0, y1 - ey1) < HOLE_MARGIN - 1e-6 or max(ex0 - x0, x1 - ex1, ey0 - y0, y1 - ey1) > HOLE_MARGIN + 1e-6:
-        raise RuntimeError(f"hood hole x {x0:.3f}..{x1:.3f} y {y0:.3f}..{y1:.3f} is not the engine x {ex0:.3f}..{ex1:.3f} y {ey0:.3f}..{ey1:.3f} plus {HOLE_MARGIN}")
+    if abs((x1 - x0) - 3 * GAME.along) > 1e-6 or abs((y1 - y0) - 2 * GAME.across) > 1e-6:
+        raise RuntimeError(f"hood hole x {x0:.3f}..{x1:.3f} y {y0:.3f}..{y1:.3f} is not 3 cells long and 2 across")
     if x0 <= COWL_X or x1 >= FRONT or abs(y0) >= SIDE or abs(y1) >= SIDE:
         raise RuntimeError(f"hood hole x {x0:.3f}..{x1:.3f} y {y0:.3f}..{y1:.3f} leaves the hood")
 

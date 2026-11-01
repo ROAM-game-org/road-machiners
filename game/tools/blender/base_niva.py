@@ -2,7 +2,7 @@
 
 Grid: 4 columns by 7 rows, 1.94 m across by 4.55 m along. Half height 0.4 m, from PHYSICS.bodies.niva.
 The ground is 1.10 m below the center, so the flat roof at 0.89 m stands 2.0 m tall and the hood at 0.09 m is 60 % of that.
-A short flat hood, a quarter of the length, with a cutout over the engine cells. Behind it a tall upright cabin with a steeply raked windshield,
+A flat hood 1.8 m long, with a cutout that is the engine bay of the chassis.ts layout, rows 2 to 4 and columns 2 and 3, 1.35 m long and 0.9 m wide. Behind it a tall upright cabin with a steeply raked windshield,
 a long door window, a quarter window and a near-vertical tail under a flat roof that runs back from the windshield top.
 The nose is a wide dark grille panel with round headlamps inset at each end, lamp blocks at the hood corners and a thick dark bumper.
 Wheels sit on rows 1 and 5 in the outer columns, radius 0.45 m, half width 0.18 m, mount 0.25 m below the center. Arches are cut on them.
@@ -52,12 +52,13 @@ BACK = -G.half_x + INSET  # tail face
 SILL = -0.83  # skin only, below the collider bottom
 HOOD = 0.09  # the flat hood top and the beltline
 ROOF = 0.89  # the flat roof: every cabin row's surface
-COWL = 1.13  # the windshield base
-ROOF_FRONT = 0.68  # the windshield top, raked back from the cowl
-BAY_FRONT = 1.82  # the engine cutout covers the cells under the hood, columns 1 and 2
-BAY_BACK = 1.15
-BAY_LEFT = G.col_y(0.5)
-BAY_RIGHT = G.col_y(2.5)
+COWL = 0.4  # the windshield base
+ROOF_FRONT = -0.05  # the windshield top, raked back from the cowl
+GAME = Grid(rows=10, cols=4, half_height=0.4, length=4.5, width=1.8)  # chassis.ts layout inside its border cells
+BAY_FRONT = GAME.row_x(0.5)  # the engine bay is layout rows 2 to 4, columns 2 and 3
+BAY_BACK = GAME.row_x(3.5)
+BAY_LEFT = GAME.col_y(0.5)
+BAY_RIGHT = GAME.col_y(2.5)
 BAY_FLOOR = -0.3  # a 0.5 m engine pokes 0.2 m out of the cutout
 
 
@@ -100,9 +101,9 @@ def cabin(kit: Kit) -> None:
     )
     lo, hi = HOOD + 0.12, ROOF - 0.13
     side_y = SIDE - 0.1
-    door = [(0.5, lo), (-0.45, lo), (-0.45, hi), (0.5 - 0.15, hi)]
+    door = [(0.25, lo), (-0.45, lo), (-0.45, hi), (0.25 - 0.15, hi)]
     quarter = [(-0.62, lo + 0.05), (-1.55, lo + 0.05), (-1.55, hi), (-0.62, hi)]
-    check_door_gap("door_glass", 0.5, -0.45, lo, WHEELS_X, HUB_Z, WHEEL_R + ARCH_CLEARANCE)
+    check_door_gap("door_glass", 0.25,-0.45, lo, WHEELS_X, HUB_Z, WHEEL_R + ARCH_CLEARANCE)
     for name, prof in (("door_glass", door), ("quarter_glass", quarter)):
         prism(kit, f"{name}_l", prof, side_y + 0.015, side_y + 0.045, "glass")
         prism(kit, f"{name}_r", prof, -side_y - 0.045, -side_y - 0.015, "glass")

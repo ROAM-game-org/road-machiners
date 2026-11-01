@@ -12,8 +12,9 @@ into it, a dark grille with chrome bars between the bezels, amber lamps under th
 front door window and two cargo door windows, the left side the front door window only. The rear has two doors with large windows,
 tall red over white tail lamps at the outer lower corners and a chrome bumper. One trim band runs along the waist and across the doors.
 Deviations from the photos: the wheels stay symmetric at 1.87 m off the center, the body is widened like the scout's, the tires are
-the tire rule's 0.51 m, the mirrors, badges and roof rack are left out, one trim band stands for the pinstripes, and the engine sits
-hidden under the hood and the doghouse at PHYSICS.bodies.van.engine, on a dark floor 0.66 m under the center.
+the tire rule's 0.51 m, the mirrors, badges and roof rack are left out, one trim band stands for the pinstripes, and the engine shows
+in a roof hatch cut over the engine bay of the chassis.ts layout, rows 4 to 6 and columns 3 and 4, 1.35 m long and 0.9 m wide, on a
+dark floor 0.45 m under the center, PHYSICS.bodies.van.engineY.
 Grid: 5 columns by 9 rows, 2.42 m across by 5.85 m along. Half height 0.5 m, from PHYSICS.bodies.van.
 Wheels sit at X +-1.87, radius 0.51 m, half width 0.2 m, mount 0.35 m below the center, 0.968 m off the center line.
 Sockets arch_front, arch_rear and arch_front_top mark the arches for wheelArches.test.ts.
@@ -42,6 +43,7 @@ from parts_common_base import (  # noqa: E402
     arch_cut,
     check_base,
     check_door_gap,
+    cut_boxes,
     door_sill,
     flare,
     hull_mesh,
@@ -83,10 +85,14 @@ NOSE_TOP = up(1.17)
 ROCKER = up(0.54)
 BAND = (up(1.27), up(1.37))
 BUMPER = (-0.7, -0.5)
-ENGINE_Y = -0.66
-ENGINE_BLOCK = 1.05
-ENGINE_STACKS = 1.6
-ENGINE_FOOTPRINT = ((0.975, 2.275), (-0.242, 0.726))
+ENGINE_Y = -0.45
+GAME = Grid(rows=13, cols=5, half_height=0.5, length=5.85, width=2.25)  # chassis.ts layout inside its border cells
+HATCH_FRONT = GAME.row_x(2.5)  # the roof hatch is the engine bay: layout rows 4 to 6, columns 3 and 4
+HATCH_BACK = GAME.row_x(5.5)
+HATCH_LEFT = GAME.col_y(1.5)
+HATCH_RIGHT = GAME.col_y(3.5)
+COAMING = 0.04
+COAMING_RIM = 0.06
 
 FRONT = G.half_x - INSET
 BACK = -G.half_x + INSET
@@ -200,12 +206,26 @@ def hull(kit: Kit, name: str, mat: str, points: list[tuple[float, float, float]]
     kit._add(hull_mesh(name, points), name, mat, 0.0)
 
 
+def cut_hatch(body: bpy.types.Object) -> None:
+    """Opens the engine bay through a body, from the engine floor up past the roof."""
+    cut_boxes(body, [((HATCH_BACK, HATCH_RIGHT, ENGINE_Y - 0.02), (HATCH_FRONT, HATCH_LEFT, ROOF + 0.1))])
+
+
+def coaming(kit: Kit) -> None:
+    """A low rim round the roof hatch."""
+    slab(kit, "coaming_front", (HATCH_FRONT, HATCH_FRONT + COAMING_RIM), (HATCH_RIGHT - COAMING_RIM, HATCH_LEFT + COAMING_RIM), (ROOF - 0.01, ROOF + COAMING), "under")
+    slab(kit, "coaming_back", (HATCH_BACK - COAMING_RIM, HATCH_BACK), (HATCH_RIGHT - COAMING_RIM, HATCH_LEFT + COAMING_RIM), (ROOF - 0.01, ROOF + COAMING), "under")
+    slab(kit, "coaming_l", (HATCH_BACK, HATCH_FRONT), (HATCH_LEFT, HATCH_LEFT + COAMING_RIM), (ROOF - 0.01, ROOF + COAMING), "under")
+    slab(kit, "coaming_r", (HATCH_BACK, HATCH_FRONT), (HATCH_RIGHT - COAMING_RIM, HATCH_RIGHT), (ROOF - 0.01, ROOF + COAMING), "under")
+
+
 def lower_body(kit: Kit) -> None:
     """The body below the beltline from the tail to the rounded nose, with the closed hood and round arches cut over the wheels."""
     sections = [(x, lower_profile(BELT, half)) for x, half in tail_sections()]
     sections += [(COWL_X, lower_profile(BELT, SIDE)), ((COWL_X + HOOD_END) / 2, lower_profile(hood_z((COWL_X + HOOD_END) / 2), SIDE))]
     sections += [(HOOD_END, lower_profile(HOOD_NOSE, SIDE - 0.01)), (FRONT - 0.035, lower_profile(HOOD_NOSE - 0.035, SIDE - 0.035)), (FRONT, lower_profile(NOSE_TOP, SIDE - 0.1))]
     body = loft_x(kit, "lower_body", sections, "paint")
+    cut_hatch(body)
     arch_cut(body, WHEELS_X, HUB_Z, WHEEL_R, WELL_Y, G.bottom, segments=ROUND_ARCH_SEGMENTS)
     for i, wx in enumerate(WHEELS_X):
         flare(kit, f"flare{i}_l", G, wx, HUB_Z, WHEEL_R, SIDE, G.half_y, bottom=ROCKER, segments=ROUND_ARCH_SEGMENTS)
@@ -222,7 +242,8 @@ def upper_body(kit: Kit) -> None:
     sections = [(x + PROUD * (k == 0), upper_profile(ROOF, half)) for k, (x, half) in enumerate(tail_sections())]
     sections += [(x, upper_profile(rake_z(x), SIDE)) for x in (RAKE_TOP + (COWL_X - RAKE_TOP) * s for s in (0.0, 0.25, 0.5, 0.75))]
     sections += [(COWL_X, upper_profile(BELT, SIDE))]
-    loft_x(kit, "upper_body", sections, "paint")
+    cut_hatch(loft_x(kit, "upper_body", sections, "paint"))
+    coaming(kit)
     normal = Vector((ROOF - BELT, 0.0, COWL_X - RAKE_TOP)).normalized()
     shield = []
     for z, half in ((BELT + 0.025, 1.0), (ROOF - 0.07, 0.86)):
@@ -341,24 +362,10 @@ def check_wheels() -> None:
         raise RuntimeError(f"the tire reaches {WHEEL_Z + WHEEL_HALF_W:.3f} m, past the body side at {SIDE:.3f}")
 
 
-def top_at(x: float, y: float) -> float:
-    bpy.context.view_layer.update()
-    depsgraph = bpy.context.evaluated_depsgraph_get()
-    hit, loc, *_ = bpy.context.scene.ray_cast(depsgraph, Vector((x, y, 10.0)), Vector((0, 0, -1)))
-    return loc.z if hit else -math.inf
-
-
-def check_engine_hidden() -> None:
-    """Raises when the tallest engine block, or the stacks at the back of the footprint, would show through the hood or the roof."""
-    (x0, x1), (y0, y1) = ENGINE_FOOTPRINT
-    for i in range(7):
-        x = x0 + (x1 - x0) * i / 6
-        need = ENGINE_Y + (ENGINE_STACKS if i <= 1 else ENGINE_BLOCK) + 0.02
-        for j in range(5):
-            y = y0 + (y1 - y0) * j / 4
-            top = top_at(x, y)
-            if top < need:
-                raise RuntimeError(f"the engine shows at x {x:.3f}, y {y:.3f}: the body top {top:.3f} is under {need:.3f}")
+def check_hatch() -> None:
+    """Raises when the roof hatch and its rim leave the flat roof."""
+    if HATCH_FRONT + COAMING_RIM > RAKE_TOP:
+        raise RuntimeError(f"the hatch rim reaches x {HATCH_FRONT + COAMING_RIM:.3f}, past the flat roof's front at {RAKE_TOP:.3f}")
 
 
 def main() -> None:
@@ -376,7 +383,7 @@ def main() -> None:
     level_sockets(kit, G, "row", [round(hood_z(G.row_x(0)), 3), round(rake_z(G.row_x(1)), 3)] + [ROOF] * 7)
     level_sockets(kit, G, "floor", [ENGINE_Y] * G.rows)
     check_size(kit)
-    check_engine_hidden()
+    check_hatch()
     check_base(kit, "base_van", G)
     kit.export("base_van", args, view_size=7.2)
 

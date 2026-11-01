@@ -157,8 +157,8 @@ describe('row lanes', () => {
 
 describe('model surface', () => {
   it('takes the highest point under the whole rect', () => {
-    const rect = cellRect('scout', [{ x: 3, y: 1 }, { x: 3, y: 4 }]);
-    const parts = [1, 2, 3, 4].map((y) => surfaceAt('scout', cellRect('scout', [{ x: 3, y }])));
+    const rect = cellRect('scout', [{ x: 3, y: 5 }, { x: 3, y: 8 }]);
+    const parts = [5, 6, 7, 8].map((y) => surfaceAt('scout', cellRect('scout', [{ x: 3, y }])));
     expect(surfaceAt('scout', rect)).toBeCloseTo(Math.max(...parts));
   });
 
@@ -211,15 +211,20 @@ describe('shown engines', () => {
   });
 });
 
+const OFF_CENTRE_TRANSMISSION = new Set(['van']);
+
 describe('transmissions', () => {
-  it.each(ids)('%s: centres the transmission across the truck, between its front and rear axles', (id) => {
+  it('leaves only the van off centre, whose 2 cell tier 1 transmission cannot centre on its 5 cell interior', () => {
+    expect(OFF_CENTRE_TRANSMISSION).toEqual(new Set(ids.filter((id) => coreCellsOf(id, 'transmission').length === 4 && (CHASSIS[id].layout[0].length - 2) % 2 === 1)));
+  });
+
+  it.each(ids.filter((id) => !OFF_CENTRE_TRANSMISSION.has(id)))('%s: centres the transmission across the truck, between its front and rear axles', (id) => {
     const cells = coreCellsOf(id, 'transmission');
     const width = CHASSIS[id].layout[0].length;
     const left = Math.min(...cells.map((c) => c.x)) - 1;
     const right = width - 2 - Math.max(...cells.map((c) => c.x));
-    const unit = unitOfRow(id, cells[0].y).index;
     const middle = (rows: number[]) => (Math.min(...rows) + Math.max(...rows)) / 2;
-    const axles = CHASSIS[id].core.filter((c) => (partDef(c.defId) as CoreDef).role === 'wheel' && unitOfRow(id, c.y).index === unit).map((c) => {
+    const axles = CHASSIS[id].core.filter((c) => (partDef(c.defId) as CoreDef).role === 'wheel').map((c) => {
       const def = partDef(c.defId);
       return c.y + ((c.rot === 1 ? def.w : def.h) - 1) / 2;
     });

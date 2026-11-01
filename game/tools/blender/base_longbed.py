@@ -14,7 +14,8 @@ and louvers by the cowl. The cab has rounded roof edges, a visor lip, a two-pane
 panes, three amber roof markers and mirrors on wire arms. The bed has grey ribbed steel sides and tailgate under a wooden board.
 Deviations from the photos: the wheels stay symmetric at 2.05 m off the center, the cowl sits 0.3 m back so the front wheel stays
 under the rear of the hood, the bed is a 3.95 m flatbed with low sides instead of the photo's tall grain body, the yellow corner
-marks are left out, and the tires are the tire rule's 0.61 m. The base draws the inner rear duals under a closed hood.
+marks are left out, and the tires are the tire rule's 0.61 m. The base draws the inner rear duals. The hood is cut open over the engine bay
+of the chassis.ts layout, rows 2 to 4 and columns 3 and 4, 1.35 m long and 0.9 m wide, with the cowl on its rear edge.
 Grid: 7 columns by 11 rows, stretched over the model by the projection. Half height 0.55 m, from PHYSICS.bodies.longbed.
 Wheels sit on rows 1 and 9, radius 0.61 m, half width 0.255 m, mount 0.35 m below the center, 1.08 m off the center line.
 Sockets arch_front, arch_rear and arch_front_top mark the arches for wheelArches.test.ts.
@@ -40,6 +41,7 @@ from parts_common_base import (  # noqa: E402
     Grid,
     check_base,
     check_door_gap,
+    cut_boxes,
     door_sill,
     flare,
     hull_layers,
@@ -109,7 +111,9 @@ POST_SINK = 0.02
 WING_FRONT = FRONT - 0.105
 GRILLE_X = WING_FRONT - 0.03
 FACE_X = GRILLE_X - 0.05
-COWL_X = 1.85
+GAME = Grid(rows=16, cols=6, half_height=0.55, length=7.2, width=2.7)  # chassis.ts layout inside its border cells
+COWL_X = GAME.row_x(3.5)  # the hood is the engine bay's rear end: layout rows 2 to 4, columns 3 and 4
+HOLE = ((GAME.row_x(3.5), GAME.col_y(3.5)), (GAME.row_x(0.5), GAME.col_y(1.5)))
 CAB_BACK = 0.55
 BED_FRONT = 0.45
 WALL = 0.06
@@ -227,7 +231,7 @@ def hood_profile(top: float, panel: float, low: float) -> list[tuple[float, floa
 
 
 def hood(kit: Kit) -> None:
-    """A broad hood from the beltline at the cowl to the nose, closed over the engine cells, with a raised centre panel narrowing forward,
+    """A broad hood from the beltline at the cowl to the nose, open over the engine bay, with a raised centre panel narrowing forward,
     an overhanging nose lip over the top slot, four louver slots on each side by the cowl and the dark bay block under it.
     The hood and its rounded nose are one loft: the hood floor steps up to the lip in a single ring pair at X = FACE_X - 0.08."""
     stations = [COWL_X, 2.2, 2.6, 3.0]
@@ -238,7 +242,9 @@ def hood(kit: Kit) -> None:
     sections = [(x, hood_profile(hood_top(x), p, HOOD_LOW)) for x, p in zip(stations, panel)]
     sections.append((joint, hood_profile(HOOD_NOSE, HOOD_NOSE_PANEL, HOOD_LOW)))
     sections += [(x, hood_profile(top, HOOD_NOSE_PANEL, LIP_BOTTOM)) for x, top in lip]
-    loft_x(kit, "hood", sections, "paint")
+    hood_shell = loft_x(kit, "hood", sections, "paint")
+    (x0, y0), (x1, y1) = HOLE
+    cut_boxes(hood_shell, [((x0, y0, FLOOR - 0.01), (x1, y1, HOOD_COWL + HOOD_RAISE + 0.1))])
     for i in range(4):
         z = hood_top(2.1) - 0.13 - 0.045 * i
         mirrored(kit, f"hood_louver{i}", (0.3, 0.01, 0.018), 2.12, HOOD_HALF, z, "under")

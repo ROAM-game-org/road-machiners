@@ -23,7 +23,7 @@ tire at the steepest drivable grade, TERRAIN.drive.maxSlope 0.6 (31 degrees), pl
 and check_prow() throws unless the hull's forwardmost and rearmost points lie on the chine.
 Deviations from the real car: the wheels stay symmetric about the center, the engine shows mid-roof through a cutout over the
 engine cells (the real engine is in the rear), the turret is left to the gun parts on the roof, and the hull is widened.
-The engine cutout and its dark bay floor lie over the engine cells (columns 2 and 3, rows 3 and 4) at PHYSICS.bodies.carrier.engine.
+The engine cutout and its dark bay floor are the engine bay of the chassis.ts layout (columns 2 and 3, rows 6 to 8, 1.35 m long and 0.9 m wide) at PHYSICS.bodies.carrier.engineY.
 Grid: 7 inner columns by 9 rows with the armor rows, stretched over the model by the projection. Half height 0.6 m.
 Wheels: radius 0.65 m, half width 0.28 m, mount 0.4 m below the center, 1.37 m along and 1.21 m off the center line.
 Sockets arch_front, arch_rear and arch_front_top (the arch crown) mark the arches for wheelArches.test.ts.
@@ -98,7 +98,8 @@ HULLS = ("hull", "hull_upper", "hull_super")
 MAX_GRADE = 0.6  # TERRAIN.drive.maxSlope
 CLIMB = math.atan(MAX_GRADE) + math.radians(5)
 
-ENGINE = ((G.row_x(4.5), G.col_y(2.5)), (G.row_x(2.5), G.col_y(0.5)))  # the engine cells (columns 2 and 3, rows 3 and 4) in plan
+GAME = Grid(rows=13, cols=6, half_height=0.6, length=LENGTH, width=2.7)  # chassis.ts layout inside its border cells
+ENGINE = ((GAME.row_x(7.5), GAME.col_y(2.5)), (GAME.row_x(4.5), GAME.col_y(0.5)))  # the engine bay (layout rows 6 to 8, columns 2 and 3) in plan
 BAY_FLOOR = 0.3  # PHYSICS.bodies.carrier.engine.y: a 0.45 m engine stands 0.15 m out of the cutout
 BAY_T = 0.05
 
@@ -375,7 +376,7 @@ def stern(kit: Kit) -> None:
 
 def roof(kit: Kit) -> None:
     """The round hatch over the rear rows, dark louvers on the engine deck beside the cutout and the welded seams between the roof plates."""
-    for i, x in enumerate((ROOF_FRONT - ROOF_CHEEK - 0.3, G.row_x(5))):
+    for i, x in enumerate((ROOF_FRONT - ROOF_CHEEK - 0.3, ENGINE[0][0] - 0.2)):
         kit.box(f"roof_seam{i}", (0.03, 2 * ROOF_HALF - 0.1, 0.01), (x, 0, ROOF + 0.004), "under")
     kit.cylinder("hatch", 0.32, 0.03, (G.row_x(6), 0, ROOF + 0.015), "trim", vertices=round_sides(0.32))
     (x0, _), (x1, _) = ENGINE
@@ -455,9 +456,9 @@ def main() -> None:
     kit.socket("arch_front", (WHEEL_X, WHEEL_Z, HUB_Z))
     kit.socket("arch_rear", (-WHEEL_X, WHEEL_Z, HUB_Z))
     kit.socket("arch_front_top", (WHEEL_X, WHEEL_Z, HUB_Z + ARCH_R))
-    engine = {(x, y): BAY_FLOOR for x in (1, 2) for y in (3, 4)}
+    engine = {(x, y): BAY_FLOOR for x in (1, 2) for y in (3, 4, 5)}
     level_sockets(kit, G, "row", [ROOF] * G.rows, cells=engine)
-    level_sockets(kit, G, "floor", [ROOF] * 3 + [BAY_FLOOR] * 2 + [ROOF] * 4)
+    level_sockets(kit, G, "floor", [ROOF] * 3 + [BAY_FLOOR] * 3 + [ROOF] * 3)
     check_size(kit)
     check_overhangs(kit)
     check_prow(kit)

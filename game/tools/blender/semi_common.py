@@ -81,12 +81,13 @@ CAB_ROOF = up(3.55)
 TRAILER_FLOOR = up(1.6)
 TRAILER_ROOF = up(5.2)
 STACK_TOP = up(4.55)
-BAY_FRONT = ENGINE[0] + 0.55
-BAY_BACK = ENGINE[0] - 0.55
-BAY_HALF = HOOD_HALF - 0.12
 LEGS_X = DRIVE_AXLES[1] - WHEEL_R - 0.75
 TRACTOR_REAR = 1.225
 TRACTOR_ORIGIN = (FRONT + TRACTOR_REAR) / 2
+BAY_FRONT = TRACTOR_ORIGIN + 3.711  # the engine bay of the chassis.ts layout: rows 3 to 5, columns 3 and 4, 1.35 m long and 0.9 m wide
+BAY_BACK = BAY_FRONT - 1.35
+BAY_LEFT = 0.675
+BAY_RIGHT = -0.225
 TRAILER_ORIGIN = (TRAILER_FRONT + BACK) / 2
 COLORS = {
     **BASE_COLORS,
@@ -172,10 +173,10 @@ def hood(kit: Kit) -> None:
     shoulder += [(CAB_FRONT, y, HOOD_BACK_TOP - 0.12) for y in (HOOD_HALF, -HOOD_HALF)]
     base = [(x, y, HOOD_SHELF - 0.05) for x in (GRILLE_X - 0.05, CAB_FRONT) for y in (HOOD_HALF, -HOOD_HALF)]
     body = hull_mesh("hood", top + shoulder + base)
-    cut_boxes(body, [((BAY_BACK, -BAY_HALF, ENGINE[1] - PROUD), (BAY_FRONT, BAY_HALF, HOOD_BACK_TOP + 0.2))])
+    cut_boxes(body, [((BAY_BACK, BAY_RIGHT, ENGINE[1] - PROUD), (BAY_FRONT, BAY_LEFT, HOOD_BACK_TOP + 0.2))])
     body.data.materials.clear()
     kit._add(body, "hood", "orange", 0.0)
-    kit.box("bay_floor", (BAY_FRONT - BAY_BACK, 2 * BAY_HALF, 0.04), ((BAY_FRONT + BAY_BACK) / 2, 0, ENGINE[1] - 0.02), "under")
+    kit.box("bay_floor", (BAY_FRONT - BAY_BACK, BAY_LEFT - BAY_RIGHT, 0.04), ((BAY_FRONT + BAY_BACK) / 2, (BAY_LEFT + BAY_RIGHT) / 2, ENGINE[1] - 0.02), "under")
     for s, name in ((1, "l"), (-1, "r")):
         stripe = [(GRILLE_X - 0.1, HOOD_SHELF + 0.02), (CAB_FRONT, HOOD_SHELF + 0.16), (CAB_FRONT, HOOD_SHELF + 0.28), (GRILLE_X - 0.1, HOOD_SHELF + 0.1)]
         y0, y1 = sorted((s * (HOOD_HALF - 0.01), s * (HOOD_HALF + 0.02)))

@@ -21,8 +21,8 @@ Deviations from the photos, forced by the game: it stays a 4x2, since a tandem w
 0.77 m, not 0.52 m, so the fenders and the deck at 1.74 m rise to clear them; the wheels stay symmetric at 2.10 m from the
 center, a 4.20 m wheelbase; the track is 1.94 m so the tire stays under the fender; the hood stays wide enough to hold the
 engine hole; the roofs keep the trim faction color; no trailer, roof wing, raised roof or bent stack tops.
-The engine shows through a hole in the hood over the engine cells, on a dark bay floor at 1.70 m: restOn() of the engine
-cells, centered on PHYSICS.bodies.tractor.engine.
+The engine shows through a hole in the hood cut to the engine bay of the chassis.ts layout, rows 2 to 4 and columns 3 and 4,
+1.35 m long and 0.9 m wide and centered across, on a dark bay floor at 1.70 m.
 Grid: 7 columns by 9 rows, stretched over the model by the projection. Rows 0 to 2 stand on the hood, rows 3 and 4 on the
 cab roof, row 5 on the sleeper roof and rows 6 to 8 on the deck. Half height 0.65 m, from PHYSICS.bodies.tractor.
 Wheels sit on rows 1 and 6, radius 0.77 m, half width 0.325 m, mount 0.45 m below the center, 0.97 m off the center line.
@@ -120,12 +120,9 @@ MIRROR_X = COWL_X - 0.12  # photo 1 and 2: tall West Coast mirrors at the door f
 MIRROR_Y = 1.20
 FIFTH_WHEEL_R = 0.45
 
-ENGINE_X = 1.783  # PHYSICS.bodies.tractor.engine.x
-ENGINE_Y = 0.189  # -PHYSICS.bodies.tractor.engine.z
-ENGINE_HALF = (0.714, 0.378)  # the drawn engine: restOn() of the engine cells, over the bay floor
+GAME = Grid(rows=14, cols=6, half_height=0.65, length=6.3, width=2.7)  # chassis.ts layout inside its border cells
 BAY_FLOOR = up(1.70)  # PHYSICS.bodies.tractor.engine.y
-HOLE_MARGIN = 0.02
-HOLE = ((ENGINE_X - ENGINE_HALF[0] - HOLE_MARGIN, ENGINE_Y - ENGINE_HALF[1] - HOLE_MARGIN), (ENGINE_X + ENGINE_HALF[0] + HOLE_MARGIN, ENGINE_Y + ENGINE_HALF[1] + HOLE_MARGIN))
+HOLE = ((GAME.row_x(3.5), min(GAME.col_y(1.5), GAME.col_y(3.5))), (GAME.row_x(0.5), max(GAME.col_y(1.5), GAME.col_y(3.5))))  # the engine bay: layout rows 2 to 4, columns 3 and 4
 SLEEPER_ARCH_GAP = 0.15
 TANK_TIRE_GAP = 0.2
 
@@ -486,7 +483,7 @@ def main() -> None:
     kit.socket("arch_rear", (-WHEEL_X, WHEEL_Z, HUB_Z))
     kit.socket("arch_front_top", (WHEEL_X, WHEEL_Z, HUB_Z + ARCH_R))
     fender_cells = {(x, y): FENDER_CROWN for x in (0, 6) for y in (0, 1, 2)}
-    bay = {(x, y): BAY_FLOOR for x in (2, 3) for y in (1, 2)}
+    bay = {(x, y): BAY_FLOOR for x in (2, 3, 4) for y in (1, 2)}
     level_sockets(kit, G, "row", [HOOD_TOP] * 3 + [ROOF] * 3 + [DECK] * 3, fronts={3: ROOF_FRONT}, cells=fender_cells | bay)
     level_sockets(kit, G, "floor", [HOOD_TOP] + [BAY_FLOOR] * 2 + [BELT] * 3 + [DECK] * 3)
     check_size(kit)

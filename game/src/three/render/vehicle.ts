@@ -19,6 +19,7 @@ import { bottomOf, bottomRect, highestAhead, itemSpot, moveBySpot, plateLegs, pl
 import { GLASS, LAMP, model, RADIO, socket, TRUCK_BIT, type ModelName } from './models';
 import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic } from './truckMesh';
 import { armorPlacement, cutSpec, lampIslands, withCut, type CutSpec } from './armorCut';
+import { fitInto } from './engineFit';
 import { hashStr } from '../../render/noise';
 import { TruckMotion, WHIPS } from './truckMotion';
 import { weaponHead } from './weaponHead';
@@ -575,8 +576,7 @@ export class VehicleView {
   }
 
   private placeEngine(v: Vehicle, item: PartItem, paint: number): THREE.Object3D {
-    const obj = model(itemModel(item));
-    place(obj, footprint(v, item, engineFloor(v.chassisId), rectOf(v, item)));
+    const obj = fitInto(model(itemModel(item)), rectOf(v, item), engineFloor(v.chassisId), item.rot % 2 === 0 ? 0 : ROT_YAW);
     tint(obj, paint, lookOf(item));
     return obj;
   }
