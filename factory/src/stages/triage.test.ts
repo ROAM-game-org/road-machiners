@@ -78,7 +78,7 @@ function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[
     },
     repo: {
       fetch: record('fetch'), push: record('push'), fetchFromWork: record('fetchFromWork'),
-      prepareWorkClone: async (_b: string, _base: string, dir: string) => { mkdirSync(dir, { recursive: true }); },
+      prepareWorkClone: async (_b: string, base: string, dir: string) => { calls.push(`clone from ${base}`); mkdirSync(dir, { recursive: true }); },
     },
   };
   return fake as unknown as Ctx;
@@ -327,6 +327,16 @@ describe('triage release fixes', () => {
   it('drops the dev clone of a hotfix, so Design branches it from main', async () => {
     await runStage(fakeCtx(verdict({ hotfix: true }), ['bug']), 7);
     expect(existsSync(`${home}/work/issue-7`)).toBe(false);
+  });
+
+  it('makes the first clone of a card filed with the hotfix label from main', async () => {
+    await runStage(fakeCtx(verdict({}), ['hotfix']), 7);
+    expect(calls.filter((call) => call.startsWith('clone from'))).toEqual(['clone from main']);
+  });
+
+  it('makes the first clone of a card without the hotfix label from dev', async () => {
+    await runStage(fakeCtx(verdict({}), ['bug']), 7);
+    expect(calls.filter((call) => call.startsWith('clone from'))).toEqual(['clone from dev']);
   });
 
   it('refuses a hotfix that is also a release fix', async () => {

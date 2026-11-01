@@ -83,6 +83,7 @@ The factory's job is to need people as little as it can. A member approves a hot
 - Only a member's press creates a kept approval. So an unapproved hotfix never ships.
 - Approve and Deny work only from the card's current post. An older post gets an error reply.
 - The hotfix still pushes `main` and `dev` in one atomic push.
+- A hotfix branch never carries a commit that is on `dev` and not on `main`. Every card branch push on a `main` base, and the approve job on the build, run this check. A hit rebuilds the card: the factory deletes the branch and the work clone, comments the commit count on the issue and moves the card to Design, which starts a clean branch from `main`. A card filed with the `hotfix` label gets its first clone from `main` in Triage.
 
 ![Hotfix approval](diagrams/hotfix.svg)
 

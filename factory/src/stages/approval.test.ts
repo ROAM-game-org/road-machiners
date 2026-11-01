@@ -14,8 +14,10 @@ let calls: string[] = [];
 let column: Column = 'Approval';
 let openPr: string | null = null;
 let labels: string[] = [];
+let foreign = 0;
 
 beforeEach(() => {
+  foreign = 0;
   mkdirSync('tmp', { recursive: true });
   home = mkdtempSync('tmp/factory-approval-');
   calls = [];
@@ -59,6 +61,7 @@ function fakeCtx(): Ctx {
     container: { shell: record('shell') },
     repo: {
       fetch: record('fetch'), headHash: async () => 'abc1234',
+      foreignCommits: async (head: string, base: string, other: string) => { calls.push(`foreign ${head} ${base} ${other}`); return foreign; },
       prepareWorkClone: async (...args: unknown[]) => {
         calls.push(`prepare ${args.join(' ')}`);
         mkdirSync(`${String(args[2])}/game/dist`, { recursive: true });
@@ -91,6 +94,7 @@ describe('approve', () => {
     const changelog = 'ROAM hotfix 2026-09-30\n\nFixed: #7 Big horn';
     expect(calls.filter((call) => !call.startsWith('prepare') && !call.startsWith('shell'))).toEqual([
       'fetch ',
+      'foreign aaa1111 main dev',
       'checked factory/issue-7 aaa1111 main',
       'merge factory/issue-7 main Hotfix #7: Big horn',
       'merge main dev Merge main into dev after hotfix #7',
@@ -116,7 +120,7 @@ describe('approve', () => {
     const ctx = fakeCtx();
     ctx.repo.merge = async () => { throw new BaseMovedError('factory/issue-7', 'aaa1111', 'main moved to ccc3333 after the checks ran on aaa1111, so they no longer count.'); };
     await approve(ctx, 7, 'bob');
-    expect(calls.filter((call) => !call.startsWith('fetch'))).toEqual([
+    expect(calls.filter((call) => !call.startsWith('fetch') && !call.startsWith('foreign'))).toEqual([
       'comment 7 The approval by bob of build aaa1111 still holds. main moved to ccc3333 after the checks ran on aaa1111, so they no longer count. Testing merges main, keeps both sides and runs the full checks on the result. It ships with no new post, unless the merge changes what was approved.',
       'move 7 Testing',
     ]);
@@ -170,6 +174,14 @@ describe('approve', () => {
     ctx.repo.merge = async () => { throw new BaseMovedError('factory/issue-7', 'eee5555', 'main moved.'); };
     await approve(ctx, 7, 'bob');
     expect(readState(`${home}/state.json`).keptApprovals[7]).toEqual({ by: 'bob', at: '2026-09-30T10:00:00.000Z', build: 'eee5555', checked: ['eee5555'], reason: 'main moved.' });
+  });
+
+  it('refuses to ship a hotfix build that holds dev commits, with no merge, no release and no itch.io push', async () => {
+    labels = ['bug', 'hotfix'];
+    foreign = 3932;
+    await expect(approve(fakeCtx(), 7, 'bob')).rejects.toMatchObject({ base: 'main', other: 'dev', count: 3932 });
+    expect(calls.filter((call) => /^(merge|push|checked|release|close|move|run butler)/.test(call))).toEqual([]);
+    expect(readState(`${home}/state.json`).keptApprovals[7]?.checked).toEqual(['aaa1111']);
   });
 
   it('refuses a hotfix with no published build before any git call', async () => {

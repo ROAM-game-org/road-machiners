@@ -7,7 +7,7 @@ import { isLocked } from './lock';
 import { appendUsage, readLedger } from './ledger';
 import { markResumed, resumeError, resumedStage } from './sessions';
 import { BudgetError } from './stages/checkpoint';
-import { CommitteeDecisionError } from './diff-guard';
+import { CommitteeDecisionError, ForeignBaseError } from './diff-guard';
 import { EMPTY_STATE, readState, writeState } from './state';
 import type { Ctx, FactoryConfig, FactoryState, JobStage } from './types';
 
@@ -114,6 +114,48 @@ describe('runJob', () => {
         expect(readState(statePath).interrupted).toEqual([]);
         expect(labels).toEqual(['factory-stuck']);
       }
+    });
+  });
+
+  describe('a card stage that finds dev commits on a main-based branch', () => {
+    const setup = () => {
+      rmSync(ROOT, { recursive: true, force: true });
+      mkdirSync(join(ROOT, 'sessions', 'issue-4'), { recursive: true });
+      mkdirSync(join(ROOT, 'work', 'issue-4'), { recursive: true });
+      const statePath = join(ROOT, 'state.json');
+      writeState(statePath, { ...structuredClone(EMPTY_STATE), jobs: [{ id: 'v', stage: 'verify', issue: 4, pid: 1, startedAt: '', log: 'l' }], builds: { 4: 'abc' }, caughtUpTo: { 4: 'old', 5: 'keep' }, interrupted: [4] });
+      const calls: string[] = [];
+      let asked = 0;
+      const ctx = {
+        cfg: { home: ROOT, repo: 'o/r', committeeChat: 'c' } as FactoryConfig, statePath, now: () => new Date(), log: () => undefined,
+        repo: { deleteBranch: async (branch: string) => { calls.push(`delete ${branch}`); } },
+        github: {
+          issue: async () => {
+            if (asked++ === 0) throw new ForeignBaseError('main', 'dev', 3932);
+            return { labels: ['hotfix'] };
+          },
+          comment: async (_n: number, body: string) => { calls.push(`comment ${body}`); },
+          move: async (_n: number, column: string) => { calls.push(`move ${column}`); },
+          addLabel: async (_n: number, label: string) => { calls.push(`label ${label}`); },
+        },
+      } as unknown as Ctx;
+      return { ctx, statePath, calls };
+    };
+
+    it('deletes the branch and the clone, comments the count and moves the card to Design, with no failure and no stuck label', async () => {
+      const { ctx, statePath, calls } = setup();
+      await runJob(ctx, 'verify', 4);
+      expect(calls[0]).toBe('delete factory/issue-4');
+      expect(calls[1]).toContain('3932 commits that dev has and main lacks');
+      expect(calls.slice(2)).toEqual(['move Design']);
+      expect(existsSync(join(ROOT, 'work', 'issue-4'))).toBe(false);
+      expect(existsSync(join(ROOT, 'sessions', 'issue-4'))).toBe(false);
+      const state = readState(statePath);
+      expect(state.failures).toEqual([]);
+      expect(state.interrupted).toEqual([]);
+      expect(state.builds).toEqual({});
+      expect(state.caughtUpTo).toEqual({ 5: 'keep' });
+      expect(readLedger(ROOT, new Date(0)).filter((line) => line.kind === 'card')).toMatchObject([{ issue: 4, step: 'rebuild', to: 'Design', flow: 'hotfix' }]);
     });
   });
 

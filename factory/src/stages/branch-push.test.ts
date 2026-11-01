@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { AgentRun } from '../types';
+import { ForeignBaseError } from '../diff-guard';
 import { guardAndPush } from './common';
 import { fake, reset, type Fake } from './test-fakes';
 
@@ -56,5 +57,27 @@ describe('pushing an issue branch that moved on GitHub', () => {
     Object.assign(f.ctx.repo, { isMerged: async () => false });
     await expect(guardAndPush(f.ctx, 7, 'dev', 'verify')).rejects.toThrow('left the merge of member1 into factory/issue-7 unfinished');
     expect(f.calls).not.toContain('push work-head factory/issue-7');
+  });
+
+  it('refuses a main-based push that holds dev commits, and pushes nothing', async () => {
+    const { f } = moving([], 0);
+    f.foreign = 3;
+    const error = await guardAndPush(f.ctx, 7, 'main', 'verify').catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(ForeignBaseError);
+    expect(error).toMatchObject({ base: 'main', other: 'dev', count: 3 });
+    expect(f.calls.some((call) => call.startsWith('push'))).toBe(false);
+  });
+
+  it('pushes a main-based branch with no dev commits', async () => {
+    const { f } = moving([], 0);
+    await guardAndPush(f.ctx, 7, 'main', 'verify');
+    expect(f.calls).toContain('push work-head factory/issue-7');
+  });
+
+  it('does not look for dev commits on a dev-based push', async () => {
+    const { f } = moving([], 0);
+    f.foreign = 9;
+    await guardAndPush(f.ctx, 7, 'dev', 'verify');
+    expect(f.calls).toContain('push work-head factory/issue-7');
   });
 });
