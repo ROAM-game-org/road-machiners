@@ -299,13 +299,17 @@ function repairTrucks(world: World, doomed: Set<string>): void {
 function repairOwnTruck(world: World, v: Vehicle): void {
   const gone = !isChassis(v.chassisId);
   if (gone) v.chassisId = startChassis(world, v);
-  if (gone || !coresSeated(v)) reseatCores(world, v);
+  if (gone || !coresSeated(v) || !coresGraded(v)) reseatCores(world, v);
   for (const item of fitItems(v)) displaced(world, item);
 }
 
 function repairNpc(world: World, v: Vehicle, doomed: Set<string>): void {
-  if (npcKnown(v) && coresSeated(v)) fitItems(v);
-  else doomed.add(v.id);
+  if (!npcKnown(v) || !coresSeated(v)) {
+    doomed.add(v.id);
+    return;
+  }
+  if (!coresGraded(v)) reseatCores(world, v);
+  fitItems(v);
 }
 
 function npcKnown(v: Vehicle): boolean {
@@ -331,6 +335,12 @@ function roleCounts(defIds: string[]): string {
 function coresSeated(v: Vehicle): boolean {
   const wanted = chassisDef(v.chassisId).core.map((c) => c.defId);
   return roleCounts(wanted) === roleCounts(mountedItems(v, 'core').map((it) => it.part.defId));
+}
+
+function coresGraded(v: Vehicle): boolean {
+  const wanted = chassisDef(v.chassisId).core.map((c) => c.defId).sort();
+  const held = mountedItems(v, 'core').map((it) => it.part.defId).sort();
+  return JSON.stringify(wanted) === JSON.stringify(held);
 }
 
 function reseatCores(world: World, v: Vehicle): void {

@@ -75,8 +75,10 @@ const CRATE_ROOM_BEFORE_SQUARE_GRID: Record<string, number> = {
   jeep: 25, convertible: 21, bus: 60, loader: 39, niva: 30, lincoln: 31, semi: 177, sorokonoga: 88,
 };
 
+const ROOM_TAKEN_BY_TIER_GRADE_CORES: Record<string, number> = { niva: 1, convertible: 3, lincoln: 2 };
+
 const CRATE_ROOM_EXCESS: Record<string, number> = {
-  hauler: 7, buggy: 2, courier: 5, longbed: 3, tractor: 7, jeep: 5, convertible: 3, bus: 1, loader: 6, semi: 3, sorokonoga: 4, lincoln: 3, van: 5,
+  hauler: 7, buggy: 2, courier: 5, longbed: 3, tractor: 7, jeep: 5, bus: 1, loader: 6, semi: 3, sorokonoga: 4, van: 5,
 };
 
 const RING_CELLS_ADDED = 4;
@@ -159,8 +161,9 @@ describe('chassis grids', () => {
       return plain + (bareGrid(id).h - baseGrid(id).h) * c.layout[0].length;
     };
     const now = Object.fromEntries(Object.keys(CHASSIS).filter((id) => id !== 'bukhanka').map((id) => [id, room(id)]));
-    const excess = Object.fromEntries(Object.entries(now).map(([id, n]) => [id, n - CRATE_ROOM_BEFORE_SQUARE_GRID[id]]).filter(([, n]) => n !== 0));
-    expect(Object.entries(now).filter(([id, n]) => n < CRATE_ROOM_BEFORE_SQUARE_GRID[id]).map(([id]) => id)).toEqual([]);
+    const floor = (id: string) => CRATE_ROOM_BEFORE_SQUARE_GRID[id] - (ROOM_TAKEN_BY_TIER_GRADE_CORES[id] ?? 0);
+    const excess = Object.fromEntries(Object.entries(now).map(([id, n]) => [id, n - floor(id)]).filter(([, n]) => n !== 0));
+    expect(Object.entries(now).filter(([id, n]) => n < floor(id)).map(([id]) => id)).toEqual([]);
     expect(excess).toEqual(CRATE_ROOM_EXCESS);
   });
 
