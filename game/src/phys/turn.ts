@@ -48,6 +48,12 @@ export function sightAlong(world: World, points: readonly Vec[]): LiveSight {
   let from: Vec | null = null;
   points.forEach((at, k) => {
     if (from && dist(from, at) < LIVE_SIGHT_STEP && k < points.length - 1) return;
+    if (from && dist(from, at) === 0) {
+      sight.steps.push(k);
+      sight.tiles.push(sight.tiles[sight.tiles.length - 1]);
+      sight.props.push(sight.props[sight.props.length - 1]);
+      return;
+    }
     from = at;
     sight.steps.push(k);
     const visible = visibleTiles(world, at);

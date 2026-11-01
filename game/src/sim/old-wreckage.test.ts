@@ -7,15 +7,24 @@ import { goodsCount } from './grid';
 import { topGoal } from './npc-activities';
 import { isRoadWreck, oldPlaces, oldSpotOf, oldSpotPicks, oldStockId, rollStock } from './salvage';
 import { startSearch } from './search';
+import { TEST_MAP } from '../test/map';
 import { addVehicle, emptyWorld, forceOption, npcBrain } from './testkit';
 import { territoryAt } from './territory';
 import type { Obstacle } from './types';
 import { endTurn } from './world';
 
-vi.mock('../data/old-spots.json', async () => {
-  const { TEST_MAP } = await import('../test/map');
-  return { default: { mapHash: TEST_MAP.hash, picks: [{ propId: 'shipCache-91001', type: 'wreckage', pos: { x: 50.5, y: 50 }, reach: 0.7 }] } };
-});
+const pickedFor = vi.hoisted(() => ({ hash: '' }));
+
+vi.mock('../data/old-spots.json', () => ({
+  default: {
+    get mapHash() {
+      return pickedFor.hash;
+    },
+    picks: [{ propId: 'shipCache-91001', type: 'wreckage', pos: { x: 50.5, y: 50 }, reach: 0.7 }],
+  },
+}));
+
+pickedFor.hash = TEST_MAP.hash;
 
 const POD = { propId: 'shipCache-91001', type: 'wreckage' as const };
 

@@ -122,12 +122,31 @@ type Horizons = { rays: number; steps: number; slopes: Float64Array };
 type NearProp = { o: Obstacle; near: number };
 
 type Height = (x: number, y: number) => number;
-type Look = { terrain: Terrain; eye: Eye; height: Height; horizons: Horizons; props: readonly NearProp[][] };
+type Props = { byRay: readonly (NearProp[] | undefined)[]; everywhere: readonly NearProp[] };
+type Look = { terrain: Terrain; eye: Eye; height: Height; horizons: Horizons; props: Props };
+
+type KeptHorizons = { terrain: Terrain; from: Vec; reach: number; horizons: Horizons };
+
+let keptHorizons: KeptHorizons | null = null;
+
+function keptFor(terrain: Terrain, from: Vec, reach: number): Horizons | null {
+  const kept = keptHorizons;
+  const same = kept !== null && kept.terrain === terrain && kept.from.x === from.x && kept.from.y === from.y && kept.reach === reach;
+  return same ? kept.horizons : null;
+}
+
+function horizonsFrom(terrain: Terrain, from: Vec, reach: number, height: Height, eye: Eye): Horizons {
+  const kept = keptFor(terrain, from, reach);
+  if (kept) return kept;
+  const horizons = horizonRays(height, eye, reach);
+  if (Object.isFrozen(terrain)) keptHorizons = { terrain, from: { ...from }, reach, horizons };
+  return horizons;
+}
 
 function tileLook(world: World, from: Vec, reach: number): (tile: Vec) => boolean {
   const height = heightNear(world.terrain, from, reach);
   const eye = { at: from, z: height(from.x, from.y) + TERRAIN.vision.eyeHeight };
-  const horizons = horizonRays(height, eye, reach);
+  const horizons = horizonsFrom(world.terrain, from, reach, height, eye);
   const look = { terrain: world.terrain, eye, height, horizons, props: propBuckets(world, from, reach, horizons.rays) };
   return (tile) => tileSeen(look, tile);
 }
@@ -174,22 +193,27 @@ function horizonSlope(horizons: Horizons, from: Vec, p: Vec, before: number): nu
   return a * (1 - share) + b * share;
 }
 
-function propBuckets(world: World, from: Vec, reach: number, rays: number): NearProp[][] {
-  const buckets: NearProp[][] = Array.from({ length: rays }, () => []);
-  for (const o of propsAround(world, 'sight', from, reach)) for (const k of propRays(from, o, rays)) buckets[k].push({ o, near: dist(from, o.pos) - propReach(o) });
-  return buckets;
+function propBuckets(world: World, from: Vec, reach: number, rays: number): Props {
+  const byRay: (NearProp[] | undefined)[] = new Array(rays);
+  const everywhere: NearProp[] = [];
+  for (const o of propsAround(world, 'sight', from, reach)) {
+    const near = { o, near: dist(from, o.pos) - propReach(o) };
+    const span = propRays(from, o, rays);
+    if (span === null) everywhere.push(near);
+    else for (const k of span) (byRay[k] ??= []).push(near);
+  }
+  return { byRay, everywhere };
 }
 
-function propRays(from: Vec, o: Obstacle, rays: number): number[] {
+function propRays(from: Vec, o: Obstacle, rays: number): number[] | null {
   const d = dist(from, o.pos);
   const reach = propReach(o);
-  const all = Array.from({ length: rays }, (_, k) => k);
-  if (reach >= d) return all;
+  if (reach >= d) return null;
   const half = ((Math.asin(reach / d) + Math.PI / rays) * rays) / (2 * Math.PI);
   const mid = (Math.atan2(o.pos.y - from.y, o.pos.x - from.x) * rays) / (2 * Math.PI);
   const lo = Math.floor(mid - half);
   const hi = Math.ceil(mid + half);
-  if (hi - lo + 1 >= rays) return all;
+  if (hi - lo + 1 >= rays) return null;
   return Array.from({ length: hi - lo + 1 }, (_, i) => (((lo + i) % rays) + rays) % rays);
 }
 
@@ -202,7 +226,8 @@ function tileSeen(look: Look, tile: Vec): boolean {
   const before = Math.min(Math.ceil(d * TERRAIN.vision.samplesPerTile) - 1, horizons.steps);
   if (horizonSlope(horizons, eye.at, tile, before) > (to - eye.z) / d) return false;
   const line = { a: eye.at, b: tile, from: eye.z, to };
-  return look.props[k].every((p) => p.near >= d || !propHides(look.terrain, p.o, line));
+  const hides = (p: NearProp) => p.near < d && propHides(look.terrain, p.o, line);
+  return !look.props.everywhere.some(hides) && !(look.props.byRay[k]?.some(hides) ?? false);
 }
 
 export function canVehicleSee(world: World, observer: Vehicle, position: Vec): boolean {

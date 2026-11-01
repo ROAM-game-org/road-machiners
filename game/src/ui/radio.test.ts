@@ -286,9 +286,9 @@ describe('RadioStation', () => {
     const before = Math.round(1 + (24 - TIME.startHour + TIME.sunrise - 0.5) * perHour);
     const w = world(before);
     const s = tuned(w);
-    s.hear(later(w, Math.ceil(perHour)));
+    s.hear(later(w, Math.floor(perHour / 4)));
     expect(s.next()).toBeNull();
-    s.hear(later(w, RADIO.minGapTurns));
+    s.hear(later(w, Math.ceil(perHour)));
     expect(s.next()).toMatchObject({ topic: 'dawn', rank: 'time' });
   });
 });

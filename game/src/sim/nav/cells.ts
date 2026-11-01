@@ -134,30 +134,34 @@ type Flood = { x: number; y: number; slow: number; size: number };
 function floodBlock(src: CellSource, area: BlockArea, start: number, l: number, queue: Int32Array): Flood {
   const g = src.grid;
   const C = g.coarse;
-  const sum = { x: 0, y: 0, slow: 0, size: 0 };
+  let x = 0;
+  let y = 0;
+  let slow = 0;
   g.local[(area.y0 + Math.floor(start / C)) * g.n + area.x0 + (start % C)] = l;
   queue[0] = start;
   let tail = 1;
   for (let i = 0; i < tail; i++) {
-    const lx = queue[i] % C;
-    const ly = (queue[i] - lx) / C;
-    sum.x += area.x0 + lx;
-    sum.y += area.y0 + ly;
-    sum.slow += src.slowOf((area.y0 + ly) * g.n + area.x0 + lx);
+    const ly = (queue[i] / C) | 0;
+    const lx = queue[i] - ly * C;
+    x += area.x0 + lx;
+    y += area.y0 + ly;
+    slow += src.slowOf((area.y0 + ly) * g.n + area.x0 + lx);
     tail = spread(src, area, lx, ly, l, queue, tail);
   }
-  sum.size = tail;
-  return sum;
+  return { x, y, slow, size: tail };
 }
 
 function spread(src: CellSource, area: BlockArea, lx: number, ly: number, l: number, queue: Int32Array, tail: number): number {
-  const g = src.grid;
-  for (let ny = Math.max(0, ly - 1); ny <= Math.min(area.h - 1, ly + 1); ny++)
-    for (let nx = Math.max(0, lx - 1); nx <= Math.min(area.w - 1, lx + 1); nx++) {
-      const c = (area.y0 + ny) * g.n + area.x0 + nx;
-      if (!isOpen(src, c)) continue;
-      g.local[c] = l;
-      queue[tail++] = ny * g.coarse + nx;
+  const { n, local, coarse } = src.grid;
+  const { blocked } = src;
+  const yHigh = Math.min(area.h - 1, ly + 1);
+  const xHigh = Math.min(area.w - 1, lx + 1);
+  for (let ny = Math.max(0, ly - 1); ny <= yHigh; ny++)
+    for (let nx = Math.max(0, lx - 1); nx <= xHigh; nx++) {
+      const c = (area.y0 + ny) * n + area.x0 + nx;
+      if (blocked[c] !== 0 || local[c] !== 0) continue;
+      local[c] = l;
+      queue[tail++] = ny * coarse + nx;
     }
   return tail;
 }
@@ -185,20 +189,47 @@ function linkCell(g: CellGrid, w: Window): void {
 }
 
 function linkColumn(g: CellGrid, w: Window, last: LastLink, k: number): void {
-  for (let y = Math.max(0, w.y0 - 1); y <= Math.min(g.n - 1, w.y1 + 1); y++)
-    for (let yy = Math.max(0, y - 1); yy <= Math.min(g.n - 1, y + 1); yy++) linkPair(g, w, last, [k - 1, y], [k, yy]);
+  const lo = Math.max(0, w.y0 - 1);
+  const hi = Math.min(g.n - 1, w.y1 + 1);
+  const left = regionsAlong(g, lo, hi, (y) => y * g.n + k - 1);
+  const right = regionsAlong(g, lo, hi, (y) => y * g.n + k);
+  linkSides(g, last, left, right, lo, (y) => inWindow(w, k - 1, y), (y) => inWindow(w, k, y));
 }
 
 function linkRow(g: CellGrid, w: Window, last: LastLink, k: number): void {
-  for (let x = Math.max(0, w.x0 - 1); x <= Math.min(g.n - 1, w.x1 + 1); x++)
-    for (let xx = Math.max(0, x - 1); xx <= Math.min(g.n - 1, x + 1); xx++) linkPair(g, w, last, [x, k - 1], [xx, k]);
+  const lo = Math.max(0, w.x0 - 1);
+  const hi = Math.min(g.n - 1, w.x1 + 1);
+  const above = regionsAlong(g, lo, hi, (x) => (k - 1) * g.n + x);
+  const below = regionsAlong(g, lo, hi, (x) => k * g.n + x);
+  linkSides(g, last, above, below, lo, (x) => inWindow(w, x, k - 1), (x) => inWindow(w, x, k));
 }
 
-function linkPair(g: CellGrid, w: Window, last: LastLink, [ax, ay]: [number, number], [bx, by]: [number, number]): void {
-  if (!inWindow(w, ax, ay) && !inWindow(w, bx, by)) return;
-  const a = regionAt(g, ay * g.n + ax);
-  const b = a === 0 ? 0 : regionAt(g, by * g.n + bx);
-  if (b !== 0) linkOnce(g.regions, last, a, b);
+function linkSides(
+  g: CellGrid,
+  last: LastLink,
+  from: Int32Array,
+  to: Int32Array,
+  lo: number,
+  fromIn: (i: number) => boolean,
+  toIn: (i: number) => boolean,
+): void {
+  const hi = lo + from.length - 1;
+  for (let i = lo; i <= hi; i++) {
+    const a = from[i - lo];
+    if (a === 0) continue;
+    const aIn = fromIn(i);
+    for (let j = Math.max(lo, i - 1); j <= Math.min(hi, i + 1); j++) linkPair(g, last, a, to[j - lo], aIn || toIn(j));
+  }
+}
+
+function linkPair(g: CellGrid, last: LastLink, a: number, b: number, inside: boolean): void {
+  if (b !== 0 && inside) linkOnce(g.regions, last, a, b);
+}
+
+function regionsAlong(g: CellGrid, lo: number, hi: number, cellAt: (i: number) => number): Int32Array {
+  const out = new Int32Array(hi - lo + 1);
+  for (let i = lo; i <= hi; i++) out[i - lo] = regionAt(g, cellAt(i));
+  return out;
 }
 
 function inWindow(w: Window, x: number, y: number): boolean {

@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { ECONOMY } from '../../data/goods';
+import { TIME } from '../../data/time';
 import { siteRecipes } from '../../data/market';
 import { goodPrice, goodStock, moveStock, shopState } from '../../sim/market';
 import { recipeRunning } from '../../sim/production';
@@ -66,7 +67,7 @@ describe('simulation mode economy', () => {
       }
     }
     expect(moved).toBeGreaterThan(0);
-    expect(economy.flowHours).toBe(TURNS / (450 / 24));
+    expect(economy.flowHours).toBe(TURNS / (TIME.turnsPerDay / 24));
   });
 
   it('reports the prices and recipe states the game computes', () => {

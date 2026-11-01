@@ -22,7 +22,7 @@ import { drivable } from './path';
 import { nearestPad, siteUnder } from './sites';
 import { allegianceFor, isFree, spawnAt } from './spawn';
 import { chooseOn } from './tracks';
-import type { Vehicle, World } from './types';
+import type { Obstacle, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 import { playerSees, sightRadius } from './vision';
 
@@ -97,8 +97,18 @@ function stockLostKitParts(w: World): void {
   for (const defId of kitPartIds(kit).filter((id) => !held.has(id))) addStockPart(shop, makePart(w, defId, kit.wear));
 }
 
+const farmTowerStands = new WeakMap<readonly Obstacle[], boolean>();
+
+function hasFarmTower(obstacles: readonly Obstacle[]): boolean {
+  const known = farmTowerStands.get(obstacles);
+  if (known !== undefined) return known;
+  const stands = obstacles.some((o) => o.id === FARM_TOWER_ID);
+  if (Object.isFrozen(obstacles)) farmTowerStands.set(obstacles, stands);
+  return stands;
+}
+
 function settleBeforePatch(w: World, step: IntroStep): void {
-  if (!w.obstacles.some((o) => o.id === FARM_TOWER_ID)) return;
+  if (!hasFarmTower(w.obstacles)) return;
   if (step !== 'drive') setIntroStep(w, 'drive');
   if (enginePatched(w)) setIntroStep(w, 'patched');
 }

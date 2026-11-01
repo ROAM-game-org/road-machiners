@@ -71,7 +71,7 @@ describe("survey ground tag", () => {
   const cases: [string[], string, string][] = [
     [siteOfStep(1), "Safe ground", "tag dim"],
     [siteOfStep(2), "Risky ground", "tag"],
-    [["survey-house-52", "survey-house-82"], "Dangerous ground", "tag bad"],
+    [siteOfStep(3), "Dangerous ground", "tag bad"],
   ];
   for (const [sites, word, cls] of cases) {
     it(`shows ${word} on the board, the held row and the journal row`, () => {

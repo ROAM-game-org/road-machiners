@@ -19,7 +19,7 @@ import { advanceEngineHeat } from './engine-heat';
 import { mountedParts } from './grid';
 import { canOverdrive, vehicleStats } from './stats';
 import { sunAt } from './sun';
-import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
+import { addVehicle, comparableWorld, emptyWorld, npcBrain, testDrive } from './testkit';
 import type { World } from './types';
 import { defaultSetup } from './settings';
 
@@ -233,7 +233,12 @@ describe('the headlight switch', () => {
     const lit = play(setHeadlights(night, true));
 
     expect(dark.at(-1)!.player.contacts.length).toBeGreaterThan(0);
-    expect(lit.map((w) => ({ ...w, player: { ...w.player, headlights: false } }))).toEqual(dark);
+    lit.forEach((w, k) => {
+      expect(w.terrain).toBe(dark[k].terrain);
+      expect(w.obstacles).toBe(dark[k].obstacles);
+    });
+    const unlit = (w: World) => comparableWorld({ ...w, player: { ...w.player, headlights: false } });
+    expect(lit.map(unlit)).toEqual(dark.map(unlit));
   });
 });
 

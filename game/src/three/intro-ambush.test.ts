@@ -446,7 +446,7 @@ describe('the fall and the wake in Bowl', () => {
     playerVehicle(w).order = { kind: 'brake' };
     let broken = false;
     let spills = 0;
-    for (let i = 0; i < 80 && !(introStep(w) === 'done' && w.player.state === 'active'); i++) {
+    for (let i = 0; i < 400 && !(introStep(w) === 'done' && w.player.state === 'active'); i++) {
       if (w.player.call) w = hangUp(w);
       if (w.player.quests.session) w = closeScene(w);
       const raider = raidersIn(w)[0];

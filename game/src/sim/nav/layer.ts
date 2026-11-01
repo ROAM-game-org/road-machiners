@@ -8,7 +8,7 @@ import { TERRAIN, TERRAIN_TYPES, type TerrainTypeId } from '../../data/terrain';
 import { atlasOf, atlasSites } from '../atlas';
 import { nearRail, type DeckSet } from '../bridge';
 import { blockingBoxes, boxDistance, isBreakable, isDriveObstacle, propKey, propReach, type PosedBox } from '../mapgen';
-import { isCliff, tileSlope, TYPE_IDS, type BakedMap, type Terrain } from '../terrain';
+import { tileSlope, TYPE_IDS, type BakedMap, type Terrain } from '../terrain';
 import { hashId, hashRandom } from '../rng';
 import type { Obstacle, Vehicle, World } from '../types';
 import { isTerritory, siteGap, type Site } from '../sites';
@@ -81,9 +81,9 @@ function tileLayers(t: Terrain): Pick<TerrainNav, 'cliffTile' | 'tileCost' | 'fl
   const steep = new Float32Array(t.size * t.size);
   const bySite = bySiteTiles(t.size, atlasSites(atlasOf(t)).filter((s) => !isTerritory(s)));
   for (let i = 0; i < t.size * t.size; i++) {
-    cliffTile[i] = isCliff(t, i) ? 1 : 0;
     const slope = tileSlope(t, i);
     const grade = Math.hypot(slope.x, slope.y);
+    cliffTile[i] = grade > TERRAIN.drive.maxSlope ? 1 : 0;
     steep[i] = grade;
     flatCost[i] = routeCost(t.types[i], bySite[i] === 1);
     tileCost[i] = flatCost[i] * slopeCost(grade);
@@ -381,14 +381,21 @@ function markCliffCells(layer: NavLayer, reach: number, w: Window): void {
   const s = layer.size;
   const tiles = layer.cliffTile;
   const tile = (i: number, shift: number) => Math.min(s - 1, Math.max(0, Math.floor((i + 0.5) * CELL + shift)));
+  const width = w.x1 - w.x0 + 1;
+  const cols = new Int32Array(width);
+  const colsAhead = new Int32Array(width);
+  const colsBehind = new Int32Array(width);
+  for (let i = 0; i < width; i++) {
+    cols[i] = tile(w.x0 + i, 0);
+    colsAhead[i] = tile(w.x0 + i, reach);
+    colsBehind[i] = tile(w.x0 + i, -reach);
+  }
   for (let y = w.y0; y <= w.y1; y++) {
     const row = tile(y, 0) * s;
     const rowAhead = tile(y, reach) * s;
     const rowBehind = tile(y, -reach) * s;
-    for (let x = w.x0; x <= w.x1; x++) {
-      const col = tile(x, 0);
-      layer.blocked[y * layer.n + x] = tiles[row + col] | tiles[row + tile(x, reach)] | tiles[row + tile(x, -reach)] | tiles[rowAhead + col] | tiles[rowBehind + col];
-    }
+    const out = y * layer.n + w.x0;
+    for (let i = 0; i < width; i++) layer.blocked[out + i] = tiles[row + cols[i]] | tiles[row + colsAhead[i]] | tiles[row + colsBehind[i]] | tiles[rowAhead + cols[i]] | tiles[rowBehind + cols[i]];
   }
 }
 
@@ -635,40 +642,59 @@ function stepOf(layer: NavLayer, cell: number): number {
 }
 
 function floodClimb(layer: NavLayer): Uint8Array | null {
-  const n = layer.n;
-  const need = new Uint8Array(n * n).fill(NO_CLIMB);
+  const need = new Uint8Array(layer.n * layer.n).fill(NO_CLIMB);
+  const steps = stepsOf(layer);
   const buckets: number[][] = Array.from({ length: NO_CLIMB }, () => []);
-  for (let c = 0; c < need.length; c++) {
-    if (layer.blocked[c] === 1) continue;
-    const x = ((c % n) + 0.5) * CELL;
-    const y = (Math.floor(c / n) + 0.5) * CELL;
-    if (layer.roadTile[tileIndex(layer.size, x, y)] !== 1) continue;
-    const step = stepOf(layer, c);
-    need[c] = step;
-    buckets[step].push(c);
-  }
+  seedRoadCells(layer, steps, need, buckets);
   if (!buckets.some((b) => b.length > 0)) return null;
-  for (let level = 0; level < NO_CLIMB; level++) {
-    const queue = buckets[level];
-    while (queue.length > 0) {
-      const c = queue.pop() as number;
-      if (need[c] !== level) continue;
-      const cx = c % n;
-      const cy = (c - cx) / n;
-      for (const [dx, dy] of CLIMB_NEIGHBOURS) {
-        const nx = cx + dx;
-        const ny = cy + dy;
-        if (nx < 0 || ny < 0 || nx >= n || ny >= n) continue;
-        const next = ny * n + nx;
-        if (layer.blocked[next] === 1) continue;
-        const through = Math.max(level, stepOf(layer, next));
-        if (through >= need[next]) continue;
-        need[next] = through;
-        buckets[through].push(next);
-      }
-    }
-  }
+  for (let level = 0; level < NO_CLIMB; level++) floodLevel(layer, steps, need, buckets, level);
   return need;
+}
+
+function stepsOf(layer: NavLayer): Uint8Array {
+  const steps = new Uint8Array(layer.n * layer.n);
+  for (let c = 0; c < steps.length; c++) steps[c] = stepOf(layer, c);
+  return steps;
+}
+
+function onRoad(layer: NavLayer, c: number): boolean {
+  const x = ((c % layer.n) + 0.5) * CELL;
+  const y = (Math.floor(c / layer.n) + 0.5) * CELL;
+  return layer.roadTile[tileIndex(layer.size, x, y)] === 1;
+}
+
+function seedRoadCells(layer: NavLayer, steps: Uint8Array, need: Uint8Array, buckets: number[][]): void {
+  for (let c = 0; c < need.length; c++) {
+    if (layer.blocked[c] === 1 || !onRoad(layer, c)) continue;
+    need[c] = steps[c];
+    buckets[steps[c]].push(c);
+  }
+}
+
+function floodLevel(layer: NavLayer, steps: Uint8Array, need: Uint8Array, buckets: number[][], level: number): void {
+  const queue = buckets[level];
+  while (queue.length > 0) {
+    const c = queue.pop() as number;
+    if (need[c] === level) relaxAround(layer, steps, need, buckets, c, level);
+  }
+}
+
+function relaxAround(layer: NavLayer, steps: Uint8Array, need: Uint8Array, buckets: number[][], c: number, level: number): void {
+  const n = layer.n;
+  const cx = c % n;
+  const cy = (c - cx) / n;
+  for (const [dx, dy] of CLIMB_NEIGHBOURS) {
+    const next = neighbourCell(n, cx + dx, cy + dy);
+    if (next < 0 || layer.blocked[next] === 1) continue;
+    const through = Math.max(level, steps[next]);
+    if (through >= need[next]) continue;
+    need[next] = through;
+    buckets[through].push(next);
+  }
+}
+
+function neighbourCell(n: number, x: number, y: number): number {
+  return x < 0 || y < 0 || x >= n || y >= n ? -1 : y * n + x;
 }
 
 export type Berth = { x: number; y: number; r: number };

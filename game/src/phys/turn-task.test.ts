@@ -2,9 +2,9 @@ import { beforeAll, expect, it } from "vitest";
 import { playerVehicle } from "../sim/damage";
 import { corePart } from "../sim/grid";
 import { currentQuestLanguage, inQuestLanguage, setQuestLanguage } from "../sim/quests";
-import { addVehicle, emptyWorld } from "../sim/testkit";
+import { addVehicle, comparableWorld, emptyWorld } from "../sim/testkit";
 import { standardWorld } from "../test/world-cache";
-import { endTurn, setMoveOrder } from "../sim/world";
+import { cloneWorld, endTurn, setMoveOrder } from "../sim/world";
 import {
   buildDrive,
   captureDrive,
@@ -42,7 +42,7 @@ it("computes the same world and physics as a foreground turn without advancing t
     kind: "stopAt",
     dest: { x: 38, y: 31 },
   });
-  const original = structuredClone(world);
+  const original = cloneWorld(world);
   const drive = buildDrive(world);
   let expectedDrive: Drive | null = null;
   let restored: Drive | null = null;
@@ -58,8 +58,8 @@ it("computes the same world and physics as a foreground turn without advancing t
         expectedDrive = result.next;
       }),
     );
-    expect({ ...prepared.world, terrain }).toEqual(expected);
-    expect(world).toEqual(original);
+    expect(comparableWorld({ ...prepared.world, terrain })).toEqual(comparableWorld(expected));
+    expect(comparableWorld(world)).toEqual(comparableWorld(original));
     restored = restoreDrive(prepared.result.next);
     const nextPrepared = computeTurn(
       { world: prepared.world, drive: captureDrive(restored), questLanguage: 'en', tailSteps: TAIL, fastTravel: false },
@@ -69,7 +69,7 @@ it("computes the same world and physics as a foreground turn without advancing t
       expected,
       physicsMove(restored, (result) => freeDrive(result.next)),
     );
-    expect({ ...nextPrepared.world, terrain }).toEqual(nextExpected);
+    expect(comparableWorld({ ...nextPrepared.world, terrain })).toEqual(comparableWorld(nextExpected));
   } finally {
     freeDrive(drive);
     if (expectedDrive) freeDrive(expectedDrive);

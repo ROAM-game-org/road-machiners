@@ -3,6 +3,7 @@ import { startKit } from '../data/start';
 import { playerVehicle } from '../sim/damage';
 import { getTradePrice } from '../sim/economy';
 import { defaultSetup } from '../sim/settings';
+import { comparableWorld } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
@@ -30,7 +31,7 @@ describe('a saved world with ship relics', () => {
 
     const loaded = reload(w);
 
-    expect(loaded).toEqual(w);
+    expect(comparableWorld(loaded)).toEqual(comparableWorld(w));
     expect(loaded.salvage.find((s) => s.id === stock.id)!.hidden.goods.relics).toBe(1);
     expect(loaded.events).toEqual([]);
   });

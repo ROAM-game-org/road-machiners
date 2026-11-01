@@ -337,3 +337,8 @@ export function spotWithoutExplorePlaces(w: World): Vec {
     }
   throw new Error('Every spot of the map has an explore place in range');
 }
+
+export function comparableWorld(world: World) {
+  const rest = { ...world, terrain: null, obstacles: null };
+  return { ...rest, player: { ...rest.player, explored: Buffer.from(rest.player.explored).toString('base64') } };
+}

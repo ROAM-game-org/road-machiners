@@ -1572,7 +1572,8 @@ describe('a refused tow counts for every driver', () => {
 
   it('a blocked world keeps its block through save and load', () => {
     const { w, second } = afterRefusal();
-    const loaded: World = JSON.parse(JSON.stringify(w));
+    const { terrain, obstacles, ...state } = w;
+    const loaded: World = { ...JSON.parse(JSON.stringify(state)), terrain, obstacles };
     expect(loaded.states).toEqual(w.states);
     const r = runUntil(loaded, 30, (x) => towsPlayer(x, second.id));
     expect(towsPlayer(r.w, second.id)).toBe(false);

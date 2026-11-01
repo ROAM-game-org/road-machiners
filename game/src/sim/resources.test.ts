@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RULES } from '../data/rules';
+import { MAP_SPREAD } from '../data/region';
 import { CONDITION } from '../data/wear';
 import { SKILL_EFFECTS } from '../data/skills';
 import { TIME } from '../data/time';
@@ -118,7 +119,7 @@ describe('base drain rates', () => {
       const resources = getResources(w, v);
       const before = resources.fuel;
       burnFuel(w, v, 100);
-      expect(before - resources.fuel).toBeCloseTo(0.6 * 1.875 * heatAt(w, v.pos) * (1 + CONDITION.stepLoss * mountedParts(v, 'engine')[0].wear), 9);
+      expect(before - resources.fuel).toBeCloseTo((0.6 * 1.875 / MAP_SPREAD) * heatAt(w, v.pos) * (1 + CONDITION.stepLoss * mountedParts(v, 'engine')[0].wear), 9);
     }
   });
 
@@ -128,7 +129,7 @@ describe('base drain rates', () => {
       const resources = getResources(w, v);
       const before = resources.supplies;
       for (let i = 0; i < 10; i++) consumeVehicleSupplies(w, v);
-      expect(before - resources.supplies).toBeCloseTo(0.6 * 10 * 0.015 * heatAt(w, v.pos), 9);
+      expect(before - resources.supplies).toBeCloseTo((0.6 * 10 * 0.015 / MAP_SPREAD) * heatAt(w, v.pos), 9);
     }
   });
 });

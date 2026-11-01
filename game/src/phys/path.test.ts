@@ -8,10 +8,19 @@ import { endTurn, setMoveOrder } from '../sim/world';
 import { buildDrive, freeDrive, GROUND, initPhysics, type Drive } from './drive';
 import { physicsMove } from './turn';
 import { budget } from '../test/budget';
-import { standardWorld } from '../test/world-cache';
+import { climbNeedOnRoads, navLayer } from '../sim/nav/layer';
+import { vehicleStats } from '../sim/stats';
+import { reusedWorld } from '../test/world-cache';
+import { START_KITS } from '../data/start';
+import { defaultSetup } from '../sim/settings';
+import { newWorld } from '../sim/world';
+import { TEST_MAP } from '../test/map';
 
 beforeAll(async () => {
   await initPhysics();
+  const world = playerOnlyWorld(1337);
+  const player = world.vehicles.find((v) => v.id === world.player.vehicleId)!;
+  climbNeedOnRoads(navLayer(world.terrain, world.obstacles, vehicleStats(world, player).radius));
 });
 
 function play(w: World, max: number, afterTurn: (w: World) => boolean = () => false): World {
@@ -27,6 +36,14 @@ function play(w: World, max: number, afterTurn: (w: World) => boolean = () => fa
   return w;
 }
 
+function playerOnlyWorld(seed: number): World {
+  return reusedWorld(`player only ${seed}`, () => {
+    const world = newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    world.spawnQueue = [];
+    return world;
+  });
+}
+
 type Leg = { pos: Vec; heading: number; speed: number };
 
 const NOSE = REGION.towns.find((t) => t.id === 'nose')!;
@@ -35,7 +52,7 @@ const FIRST_BEND: Leg = { pos: { x: 1392.9, y: 595.8 }, heading: 0.674, speed: 0
 const LAST_STRETCH: Leg = { pos: { x: 1521.4, y: 634.6 }, heading: 0.028, speed: 0.94 };
 
 function driveLeg(from: Leg, dest: Vec, arrivedWithin: number): { staticDamage: number; end: Vec } {
-  let w = setMoveOrder(standardWorld(1337), { kind: 'stopAt', dest });
+  let w = setMoveOrder(playerOnlyWorld(1337), { kind: 'stopAt', dest });
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   w.player.fuel = 100;
   const me = w.player.vehicleId;

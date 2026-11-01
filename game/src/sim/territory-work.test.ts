@@ -142,12 +142,13 @@ describe('spot picks from outside a territory', () => {
     const stripped = old.filter((_, i) => i % 2 === 0);
     for (const stock of stripped) strip(w, npc, stock);
     const strippedIds = new Set(stripped.map((s) => s.id));
+    const kept = old.filter((s) => !strippedIds.has(s.id));
     let picked = 0;
     for (let k = 0; k < 40; k++) {
       const trial = cloneWorld(w);
       trial.rngState = k + 1;
       const me = trial.vehicles.find((v) => v.id === npc.id)!;
-      me.pos = { ...old[(2 * k + 1) % old.length].pos };
+      me.pos = { ...kept[k % kept.length].pos };
       const goal = thinkNpc(trial, me);
       if (!oldSpotOf({ id: goal.targetId ?? '' })) continue;
       picked++;

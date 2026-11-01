@@ -10,22 +10,26 @@ const HALF_DIAG = (BUCKET * Math.SQRT2) / 2;
 
 export class ObstacleBuckets<B extends Blocker = Blocker> {
   private readonly cols: number;
-  private readonly cells: B[][];
+  private readonly cells: (B[] | undefined)[];
   private readonly outside: B[] = [];
   private readonly maxR: number;
 
   constructor(blockers: readonly B[], size: number) {
     this.cols = Math.ceil(size / BUCKET);
-    this.cells = Array.from({ length: this.cols * this.cols }, () => []);
+    this.cells = new Array<B[] | undefined>(this.cols * this.cols);
     let maxR = 0;
     for (const o of blockers) {
       maxR = Math.max(maxR, o.r);
-      const bx = Math.floor(o.pos.x / BUCKET);
-      const by = Math.floor(o.pos.y / BUCKET);
-      if (bx < 0 || by < 0 || bx >= this.cols || by >= this.cols) this.outside.push(o);
-      else this.cells[by * this.cols + bx].push(o);
+      this.place(o);
     }
     this.maxR = maxR;
+  }
+
+  private place(o: B): void {
+    const bx = Math.floor(o.pos.x / BUCKET);
+    const by = Math.floor(o.pos.y / BUCKET);
+    if (bx < 0 || by < 0 || bx >= this.cols || by >= this.cols) this.outside.push(o);
+    else (this.cells[by * this.cols + bx] ??= []).push(o);
   }
 
   alongSegment(a: Vec, b: Vec, reach: number): B[] {
@@ -40,7 +44,7 @@ export class ObstacleBuckets<B extends Blocker = Blocker> {
     for (let by = y0; by <= y1; by++)
       for (let bx = x0; bx <= x1; bx++) {
         const cell = this.cells[by * this.cols + bx];
-        if (cell.length === 0) continue;
+        if (cell === undefined) continue;
         if (segmentDist({ x: (bx + 0.5) * BUCKET, y: (by + 0.5) * BUCKET }, a, b) > lim) continue;
         for (const o of cell) if (mayTouch(o, a, b, reach)) out.push(o);
       }

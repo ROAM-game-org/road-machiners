@@ -38,6 +38,7 @@ function nightTurn(): number {
 }
 
 const PASS_SHARE = 0.6;
+const PLAYER_PACE = 0.6;
 
 function passPoint(post: Vec, ground: Vec, night: boolean): Vec {
   const reach = TERRAIN.vision.radius * (night ? TIME.nightSight : 1) * PASS_SHARE;
@@ -73,7 +74,7 @@ function nearestStretch(post: Vec): { ground: Vec; dir: Vec } {
   return best;
 }
 
-type Scene = { w: World; raider: Vehicle; prey: Vehicle; ground: Vec; end: Vec; moves: boolean; parkedAt: Vec };
+type Scene = { w: World; raider: Vehicle; prey: Vehicle; ground: Vec; end: Vec; moves: boolean; paced: boolean; parkedAt: Vec };
 
 function scene(seed: number, kind: Prey, night: boolean): Scene {
   const w = reusedWorld(`seed ${seed}`, () => newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false));
@@ -111,11 +112,18 @@ function scene(seed: number, kind: Prey, night: boolean): Scene {
   }
   if (kind === 'parked') prey.pos = { ...start };
   w.rngState = seed * 7919 + 1;
-  return { w, raider, prey, ground, end, moves: kind !== 'parked', parkedAt: { ...prey.pos } };
+  return { w, raider, prey, ground, end, moves: kind !== 'parked', paced: kind === 'player', parkedAt: { ...prey.pos } };
 }
 
 type Frame = { turn: number; raider: Vec; prey: Vec; sees: boolean; heard: string; goals: string[]; changes: string[]; cargo: number };
 export type Result = { hover: string[]; engaged: boolean; passed: string[]; frames: Frame[]; goalsChanged: boolean; feud: boolean; fled: boolean };
+
+function drivePaced(world: World, mover: Vehicle): void {
+  const from = { ...mover.pos };
+  testDrive(world);
+  mover.pos = { x: from.x + (mover.pos.x - from.x) * PLAYER_PACE, y: from.y + (mover.pos.y - from.y) * PLAYER_PACE };
+  mover.speed *= PLAYER_PACE;
+}
 
 function play(s: Scene, turns = TURNS): Result {
   let w = s.w;
@@ -136,7 +144,8 @@ function play(s: Scene, turns = TURNS): Result {
         mover.order = null;
         mover.speed = 0;
       }
-      testDrive(world);
+      if (s.paced) drivePaced(world, mover);
+      else testDrive(world);
     });
     const raider = w.vehicles.find((v) => v.id === s.raider.id)!;
     const prey = w.vehicles.find((v) => v.id === s.prey.id)!;

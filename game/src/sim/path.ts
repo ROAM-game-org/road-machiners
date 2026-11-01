@@ -5,7 +5,7 @@ import { crossesRail } from './bridge';
 import { count, timed } from '../perf';
 import { canStepOut, coarseCells, coarseWaypoint, connected, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
 import type { Blocker } from './nav/buckets';
-import { CELL, CLEARANCE, berthTaste, blockerKey, climbNeedOnRoads, climbTaste, componentOf, cutTaste, dynamicBlockers, navLayer, nearCliff, nightTaste, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type Berth, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
+import { CELL, CLEARANCE, berthTaste, blockerKey, climbNeedOnRoads, climbTaste, componentOf, cutTaste, dynamicBlockers, navLayer, NO_CLIMB, nearCliff, nightTaste, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type Berth, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
 import { routeStyle, type RouteStyle } from './off-road';
 import { climbGrade } from './stats';
 import type { Vehicle, World } from './types';
@@ -137,12 +137,21 @@ export function reachesFrom(world: World, anchor: Vec, radius: number, climbStep
   const target = startComponent(layer, cellOf(layer, anchor));
   if (target === 0) throw new Error(`No nav component at anchor (${anchor.x}, ${anchor.y}) for radius ${radius}`);
   const size = world.terrain.size;
-  const need = climbNeedOnRoads(layer);
-  return (p) => {
-    if (p.x < 0 || p.y < 0 || p.x >= size || p.y >= size) return false;
-    const cell = cellOf(layer, p);
-    return startComponent(layer, cell) === target && (need === null || need[cell] <= climbSteps);
+  const anyClimb = climbSteps >= NO_CLIMB - 1;
+  let need: Uint8Array | null | undefined;
+  const climbable = (cell: number) => {
+    if (need === undefined) need = climbNeedOnRoads(layer);
+    return need === null || need[cell] <= climbSteps;
   };
+  return (p) => {
+    if (!withinMap(p, size)) return false;
+    const cell = cellOf(layer, p);
+    return startComponent(layer, cell) === target && (anyClimb || climbable(cell));
+  };
+}
+
+function withinMap(p: Vec, size: number): boolean {
+  return p.x >= 0 && p.y >= 0 && p.x < size && p.y < size;
 }
 
 export function warmRoutes(world: World, radii: number[]): void {

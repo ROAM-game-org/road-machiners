@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { TIME } from '../data/time';
 import { resolve } from '../text/resolve';
 import { agoText, moneyAmount, moneyDelta, moneyNumber, moneyText, turnsText } from './units';
 
@@ -70,9 +71,10 @@ describe('money display', () => {
 
 describe('ago text', () => {
   it('says under an hour, then whole hours', () => {
+    const hour = TIME.turnsPerDay / 24;
     expect(resolve(agoText(0), 'en')).toBe('under an hour ago');
-    expect(resolve(agoText(18), 'en')).toBe('under an hour ago');
-    expect(resolve(agoText(19), 'en')).toBe('about 1 hour ago');
-    expect(resolve(agoText(60), 'en')).toBe('about 3 hours ago');
+    expect(resolve(agoText(hour - 1), 'en')).toBe('under an hour ago');
+    expect(resolve(agoText(hour), 'en')).toBe('about 1 hour ago');
+    expect(resolve(agoText(3 * hour), 'en')).toBe('about 3 hours ago');
   });
 });
