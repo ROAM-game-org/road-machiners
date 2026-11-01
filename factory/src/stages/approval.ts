@@ -23,12 +23,14 @@ function forgetPosts(ctx: Ctx, issue: number, keepBuild = false): void {
     const pendingApprovals = { ...state.pendingApprovals };
     delete pendingApprovals[String(issue)];
     const builds = { ...state.builds };
+    const suiteCleared = { ...state.suiteCleared };
     if (!keepBuild) delete builds[String(issue)];
+    if (!keepBuild) delete suiteCleared[String(issue)];
     const approvedResolving = { ...state.approvedResolving };
     delete approvedResolving[String(issue)];
     const postOnly = state.postOnly.filter((n) => n !== issue);
     const unroutedReplies = Object.fromEntries(Object.entries(state.unroutedReplies).filter(([, reply]) => reply.issue !== issue));
-    return { ...state, approvalPosts, pendingApprovals, builds, approvedResolving, postOnly, unroutedReplies };
+    return { ...state, approvalPosts, pendingApprovals, builds, suiteCleared, approvedResolving, postOnly, unroutedReplies };
   });
   dropReplyMedia(ctx.cfg.home, closed);
 }

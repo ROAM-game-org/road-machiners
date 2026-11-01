@@ -10,7 +10,8 @@ import { withStatus } from './post-status';
 import { dropReplyMedia } from './reply-media';
 import { clearSessions } from './sessions';
 import { readState, updateState } from './state';
-import { agentHome, workDir } from './stages/common';
+import { ownWorkSettled } from './stages/card-suite';
+import { agentHome, baseBranchFor, workDir } from './stages/common';
 import { closeCard } from './stages/approval';
 import { invalidateApproval } from './stages/kept-approval';
 import { moveCard, type CardStep } from './card-events';
@@ -257,14 +258,30 @@ async function relocate(ctx: Ctx, card: Card, needs: Need[], plan: Relocation): 
   await clearFlags(ctx, card);
 }
 
+async function hardenFirst(ctx: Ctx, card: Card): Promise<boolean> {
+  await requireBranch(ctx, card.issue);
+  return !(await ownWorkSettled(ctx, card.issue, baseBranchFor(ctx, card.labels)));
+}
+
+const HARDEN_FIRST = 'Its head has no green full suite, so it goes to Hardening first. Hardening runs the suite and then moves it to Merging.';
+
 async function move(ctx: Ctx, command: Extract<ControlCommand, { action: 'move' }>, by: string): Promise<Outcome> {
-  const { issue, to } = command;
+  const { issue } = command;
   const card = await requireWorkCard(ctx, issue);
+  if (command.to === 'merging' && await hardenFirst(ctx, card)) {
+    const moved = await moveTo(ctx, card, 'harden', command.reason, by);
+    return { ...moved, text: `Moved to harden. ${HARDEN_FIRST}` };
+  }
+  return moveTo(ctx, card, command.to, command.reason, by);
+}
+
+async function moveTo(ctx: Ctx, card: Card, to: MoveTarget, reason: string, by: string): Promise<Outcome> {
+  const { issue } = card;
   const key = String(issue);
   await relocate(ctx, card, NEEDS[to] ?? [], {
     column: COLUMN[to],
     step: to === 'done' ? 'dropped' : 'moved',
-    status: `↪️ Moved to ${to} by ${by}: ${command.reason}`,
+    status: `↪️ Moved to ${to} by ${by}: ${reason}`,
     dropsApproval: DROPS_APPROVAL.includes(to),
     enter: (state) => {
       const posted = to === 'approval' ? { ...state, postOnly: [...state.postOnly, issue] } : state;
@@ -272,8 +289,8 @@ async function move(ctx: Ctx, command: Extract<ControlCommand, { action: 'move' 
       return APPROVES.includes(to) && !isApproved(kept, card) ? { ...kept, approvedResolving: { ...kept.approvedResolving, [key]: by } } : kept;
     },
   });
-  if (to === 'done') await closeCard(ctx, issue, `Dropped by ${by}: ${command.reason}`, 'dropped');
-  else if (to !== 'verify') await invalidateApproval(ctx, issue, `${by} moved the card to ${to}: ${command.reason}`);
+  if (to === 'done') await closeCard(ctx, issue, `Dropped by ${by}: ${reason}`, 'dropped');
+  else if (to !== 'verify') await invalidateApproval(ctx, issue, `${by} moved the card to ${to}: ${reason}`);
   return { issue, text: `Moved to ${to}.` };
 }
 
@@ -285,6 +302,10 @@ function keptHold(held: FactoryState['held'], key: string, to: MoveTarget): Fact
 async function merge(ctx: Ctx, command: Extract<ControlCommand, { action: 'merge' }>, by: string): Promise<Outcome> {
   const { issue } = command;
   const card = await requireWorkCard(ctx, issue);
+  if (await hardenFirst(ctx, card)) {
+    const moved = await moveTo(ctx, card, 'harden', command.reason, by);
+    return { ...moved, text: `Moved to harden. ${HARDEN_FIRST}` };
+  }
   const key = String(issue);
   await relocate(ctx, card, [requireBranch], {
     column: 'Merging',

@@ -65,6 +65,7 @@ export type FactoryConfig = {
   suiteStartMinutes: number;
   suitePollSeconds: number;
   testingBudgetUsd: number;
+  hardeningBudgetUsd: number;
   mergingBudgetUsd: number;
   wasteReviewDays: number;
   itchTarget: string | null;
@@ -212,6 +213,7 @@ export type FactoryState = {
   failures: Failure[];
   adhocReplies: Record<string, ChatReply>;
   builds: Record<string, string>;
+  suiteCleared: Record<string, string>;
   cardStarts: Record<string, string[]>;
   postCaptions: Record<string, string>;
   devBuild: string | null;
@@ -271,6 +273,8 @@ export interface GitHub {
   suiteRun(id: number): Promise<SuiteRun>;
   suiteLog(id: number): Promise<string>;
   suiteFailures(id: number): Promise<SuiteFailures | null>;
+  suitePassed(sha: string): Promise<boolean>;
+  suitesRunning(): Promise<number>;
 }
 
 export type SuiteRun = { done: boolean; started: boolean; passed: boolean; testsFailed: boolean; conclusion: string | null; url: string };
@@ -333,6 +337,7 @@ export interface HostRepo {
   forkPoint(a: string, b: string): Promise<string>;
   diff(base: string, branch: string): Promise<string>;
   changedFiles(base: string, branch: string): Promise<string[]>;
+  ownHeads(base: string, branch: string): Promise<string[]>;
   changedInWork(dir: string, from: string): Promise<string[]>;
   readFile(branch: string, path: string): Promise<string>;
   hasNewCommits(base: string, branch: string): Promise<boolean>;

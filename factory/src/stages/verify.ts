@@ -4,6 +4,7 @@ import { readApproval } from '../clone-checks';
 import { pendingFeedback } from '../pending-feedback';
 import { BRANCH, FEEDBACK_HEADING, GAME_DIR, OUT_DIR, TASK_FILE, type Ctx, type KeptApproval, type PendingFeedback } from '../types';
 import { containsApproved, invalidateApproval, keptApprovalOf, requeueApproved, stillApproved } from './kept-approval';
+import { SUITE_FIX_RULES } from './card-suite';
 import { runCost, untilPasses } from './checkpoint';
 import { postCheckpoint, publishAndPost } from './checks';
 import { hardenPrompt } from './harden';
@@ -97,7 +98,7 @@ async function checkpoint(ctx: Ctx, issue: number, base: string, build: string, 
   return postCheckpoint(ctx, issue, base, build, kind);
 }
 
-const FIX_ALL = 'Fix every failure it lists in this round, not only the first or the last one, since each one you leave costs another full run of the checks. Run every failed test file together before and after the fix.';
+const FIX_ALL = SUITE_FIX_RULES;
 
 const KEEP_APPROVED = 'Keep the behavior the committee approved. If the fix cannot pass without changing it, write why to `.factory/intent-changed.md` as well.';
 
