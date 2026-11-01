@@ -33,7 +33,7 @@ export const EFFORT = {
       scanner: [250, 700],
       store: [250, 700],
       utility: [250, 700],
-      chassis: [5000, 10000],
+      chassis: [5000, 7500],
       good: [40, 100],
     },
     2: {
@@ -45,7 +45,7 @@ export const EFFORT = {
       scanner: [180, 480],
       store: [180, 480],
       utility: [180, 480],
-      chassis: [2800, 5600],
+      chassis: [2800, 4200],
       good: [50, 100],
     },
     3: {
