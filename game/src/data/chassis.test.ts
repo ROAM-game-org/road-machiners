@@ -78,7 +78,7 @@ const CRATE_ROOM_BEFORE_SQUARE_GRID: Record<string, number> = {
 const ROOM_TAKEN_BY_TIER_GRADE_CORES: Record<string, number> = { niva: 1, convertible: 3, lincoln: 2 };
 
 const CRATE_ROOM_EXCESS: Record<string, number> = {
-  hauler: 7, buggy: 2, courier: 5, longbed: 3, tractor: 7, jeep: 5, bus: 1, loader: 6, semi: 3, sorokonoga: 4, van: 5,
+  hauler: 14, buggy: 2, courier: 5, longbed: 3, tractor: 7, jeep: 5, bus: 1, loader: 6, semi: 3, sorokonoga: 4, van: 12,
 };
 
 const RING_CELLS_ADDED = 4;

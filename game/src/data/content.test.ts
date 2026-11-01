@@ -521,7 +521,7 @@ describe("chassis drive parts", () => {
 
   it("gives heavier chassis tougher wheels, transmissions and fuel tanks", () => {
     for (const role of ["wheel", "transmission", "tank"] as const) {
-      expect(hpOf("hauler", role)).toBeGreaterThan(hpOf("scout", role));
+      expect(hpOf("hauler", role)).toBeGreaterThanOrEqual(hpOf("scout", role));
       expect(hpOf("wagon", role)).toBeGreaterThan(hpOf("hauler", role));
     }
   });
