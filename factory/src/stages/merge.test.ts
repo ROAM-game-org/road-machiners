@@ -10,7 +10,7 @@ import { BaselineFailureError, BudgetError } from './checkpoint';
 
 const deployed: string[] = [];
 vi.mock('../deploy', () => ({ deployDev: async () => { deployed.push('dev'); return 'https://play.test/dev/'; } }));
-const { merge } = await import('./merge');
+const { merge, uncheckedMerges } = await import('./merge');
 
 let home = '';
 let calls: string[] = [];
@@ -37,6 +37,7 @@ let baselineDown = false;
 let suiteDown = false;
 let replaced: string[] = [];
 let dirty: string[] = [];
+let unchecked: number[] = [];
 const PASS = 'pass';
 const HUNG = 'the checks ran past their 45 minute limit, and the factory removed their container.';
 
@@ -70,6 +71,7 @@ beforeEach(() => {
   suiteDown = false;
   replaced = [];
   dirty = [];
+  unchecked = [];
   deployed.length = 0;
   writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), approvedResolving: { 5: 'Ann', 6: 'Bob' }, release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 300, removed: [9], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, pendingShip: 'ann' });
 });
@@ -99,6 +101,7 @@ function fakeCtx(budget = 5): Ctx {
       },
       suiteLog: async (id: number) => `FAIL src/sim/raid.test.ts in run ${id}`,
       suiteFailures: async (id: number) => suitePlan[id - 1]?.record ?? null,
+      suitePassed: async (sha: string) => !unchecked.some((issue) => sha === `factory/issue-${issue}-own`),
     },
     telegram: { sendMessage: async (_chat: string, text: string) => { calls.push(`message ${text}`); return 1; } },
     container: {
@@ -126,6 +129,7 @@ function fakeCtx(budget = 5): Ctx {
       workHead: async () => `merged${++heads}`,
       diff: async () => diff,
       changedFiles: async () => files,
+      ownHeads: async (_base: string, branch: string) => [`${branch}-own`],
       push: async (commit: string, branch: string) => {
         calls.push(`push ${commit} ${branch}`);
         if (pushFailures-- > 0) throw new Error('rejected: non-fast-forward');
@@ -155,6 +159,24 @@ describe('merge queue', () => {
     expect(deployed).toEqual(['dev']);
     expect(calls.filter((call) => call.startsWith('message'))).toEqual([]);
     expect(readState(`${home}/state.json`).approvedResolving).toEqual({});
+  });
+
+  it('sends a card whose own work has no green suite to Hardening, and merges the rest', async () => {
+    files = ['game/src/sim/world.ts'];
+    unchecked = [5];
+    await merge(fakeCtx());
+    expect(calls).toContain('move 5 Hardening');
+    expect(comments[0]).toBe('5 This card reached Merging with no green full suite on its own work, so it goes to Hardening, which runs the suite and then moves it back to Merging.');
+    expect(calls).not.toContain('merge factory/issue-5');
+    expect(calls).toContain('merge factory/issue-6');
+    expect(calls).toContain('move 6 Done');
+  });
+
+  it('keeps a card of the kept landing batch in Merging even with no green suite, so its kept work resumes', async () => {
+    files = ['game/src/sim/world.ts'];
+    unchecked = [5];
+    writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), landings: { merge: { cards: [5] } as never } });
+    expect(await uncheckedMerges(fakeCtx())).toEqual([]);
   });
 
   it('clears the earlier failures of each merged card, and keeps a batch row for a member that did not merge', async () => {
