@@ -118,3 +118,65 @@ The round has six changes, designed here one by one and built in parallel. Code 
 
 ### Invariants
 - IV6.1 — One `adopt` order puts the card in Hardening with its branch on GitHub, with no other step.
+
+## Plan
+
+Approach: three implementers on Sonnet, each in its own worktree branched from `release-round`, then merged back one by one with conflicts resolved by the controller. The changes share files like `ctl.ts`, `types.ts` and the process docs, so path-disjoint phases are not possible. Each phase owns its own symbols in those files. PH2 and PH3 code against IF1 and IF2, defined below.
+
+### PH1 — Hotfix base guard and adopt
+Worktree `.worktrees/rr-guard`, branch `rr-guard`. Covers changes 1 and 6.
+- `factory/src/repo.ts` (modify): add `foreignCommits(head: string, base: string, other: string): Promise<number>`, the count of commits in `head` that are in `other` and not in `base`. Add it to the `Repo` type in `factory/src/types.ts:315` area.
+- `factory/src/stages/common.ts:258-264` `guardedHead`: for a `main` base, throw `ForeignBaseError` when `foreignCommits(head, 'main', 'dev') > 0`.
+- `factory/src/diff-guard.ts` or `factory/src/stages/common.ts` (modify): `class ForeignBaseError extends Error { base; other; count }`.
+- `factory/src/stages/approval.ts:36-50` `approve`: run the same check on the build before `shipHotfix`.
+- `factory/src/job.ts` or the stage failure path (modify): a `ForeignBaseError` rebuilds the card as `factory/src/stages/remove.ts:33-34` does: delete the branch and the work clone, comment the count, move the card to Design. Respects IV1.1.
+- `factory/src/stages/triage.ts:27`: clone from `baseBranchFor(ctx, issue labels)` instead of `BASE_BRANCH`. Respects IV1.2.
+- `factory/src/ctl.ts`, `factory/src/control.ts` (modify): write command `adopt <branch> <title>`. It refuses a branch missing on GitHub, creates the issue with the reason as body, pushes the branch head as `factory/issue-N`, and calls `addCard(ctx, n, 'Hardening', at)`. Respects IV6.1.
+- Docs: `factory/docs/process.md` hotfix lines, `factory/docs/state.md` write command list, `factory/docs/hermes.md` commands, and the memory-free recipe in `factory/docs/operations.md` if it lists the five steps.
+- Tests: `common.test.ts` or `branch-push.test.ts` for the push refusal, `approval.test.ts` for the ship refusal and the rebuild, `triage.test.ts` for the hotfix clone base, `control.test.ts` for adopt.
+- Commits: "A hotfix branch never carries unreleased dev", "factory adopt brings a laptop branch in as a Hardening card".
+
+### PH2 — Release from dev
+Worktree `.worktrees/rr-release`, branch `rr-release`. Covers change 2 outside `playtest.ts`. Produces IF1 and IF2.
+- `factory/src/types.ts:159-201`: replace `ReleaseState` and `PlaytestState` with IF1. Drop `pendingCut`, `lastRelease` stays as the last ship time.
+- `factory/src/state.ts`: new defaults for IF1. Old state with `release.branch` set fails loud on load, since #1280 ships before the deploy.
+- `factory/src/stages/release.ts`: becomes `openRelease`, which opens the tracking issue labeled `release`, sets `release` with a seed from the day, and adds the tracking card in Approval. No branch, no cleanup tasks.
+- `factory/src/tick.ts:106-161,434-437,509-520,557-559`: release gate reasons become `unopened`, `tracking-missing`, `failed`, `playtest-blocked`, `playtest`, `candidate`, `ship-approval`. Playtest is due per IF2. Remove `dropStaleCandidate`, the release-task queue order and the cut pick. `factory playtest` sets `pendingPlaytest`.
+- `factory/src/stages/common.ts:20-26` `baseBranchFor`: only `hotfix` maps to `main`, all else to `dev`.
+- `factory/src/stages/merge.ts:98-99,203,305-314`: merges record only `devMerges`. The merge job also lands `release.playtest.fixes`, a pushed fix commit, as a source of its own before cards, then clears it.
+- `factory/src/stages/candidate.ts:47-94`: builds `release.playtest.passed.sha` and its stored features, opens the PR from a branch `factory/candidate` pushed at that commit, sets `release.candidate`. A newer pass replaces the post.
+- `factory/src/stages/ship.ts:29-135`: merges `release.candidate.sha` into `main`, closes the candidate features minus `removed`, drops them from `devMerges`, then calls `openRelease` work and opens the two cleanup tasks as plain `dev` cards with label `maintenance`.
+- `factory/src/stages/remove.ts:11-42`, `factory/src/control.ts:338-357`: revert on `dev` only, look up `devMerges`, drop the candidate. Remove `cut`.
+- `factory/src/stages/triage.ts:36,95-121`, `factory/src/stages/groom.ts:108-110`, `prompts/triage.md`, `prompts/groom.md`: drop the release fix field and `.factory/release.md`.
+- `factory/src/inbox.ts:18-25,149,233-242`: an other reply on the candidate opens a plain `dev` issue.
+- `factory/src/position.ts:101-122`, `factory/src/ctl.ts:243-256`, `factory/src/dashboard/snapshot.ts:50-53,109,124`, `factory/src/dashboard/badges.ts`, `factory/src/dashboard/labels.ts`, `factory/src/observability.ts:75`, `factory/src/cleanup.ts:20-23`, `factory/src/stuck.ts:170-181`, `factory/src/card-events.ts:13-14`, `factory/src/post-status.ts:18`: follow IF1, drop `release-task`.
+- `factory/hermes/plugin/__init__.py:89-188,287`, `hermes/SOUL.md`, `hermes/factory-incidents.sh`, `hermes/config.yaml`: follow IF1, drop release tasks and cut.
+- Docs and diagrams: `factory/docs/process.md`, `state.md`, `stages.md`, `operations.md`, `hermes.md`, then `npm run diagrams`.
+- Respects IV2.1 to IV2.4.
+- Commits: one per stage group, ending with docs and diagrams.
+
+### PH3 — Playtest on dev, kept work, decisions, balance
+Worktree `.worktrees/rr-playtest`, branch `rr-playtest`. Covers changes 3, 4, 5 and `playtest.ts` for change 2. Consumes IF1 and IF2.
+- `factory/src/stages/playtest.ts:40-288`: start on the `dev` tip, store `start`, `baseline` and features per IF1. Pass writes `release.playtest.passed`. Fixes push to `factory/playtest-fixes` and set `release.playtest.fixes` instead of pushing to a release branch. No "release moved" check.
+- Same file: kept work per change 3, a `release.playtest.work` record, resume when start and baseline match, set aside otherwise. Plays count across resumed jobs. `factory/src/cleanup.ts:22-23` keeps `release-playtest` while the record exists. Respects IV3.1, IV3.2.
+- `playtest.ts:336-337` `history`: show only `release.playtest.decision` with its author. `factory/src/ctl.ts:319-336` `retry` takes `--by`, writes the decision record and comments it on the tracking issue. Respects IV4.1, IV4.2.
+- `factory/prompts/release-playtest-review.md`, `factory/src/stages/playtest-review.ts`: add severity `balance` with head and baseline numbers. Balance never blocks, is never fixed, and opens or names a `dev` bug like an important old finding. Respects IV5.1, IV5.2.
+- Docs: `factory/docs/stages.md` Release playtest section.
+- Tests: `playtest.test.ts`, `playtest-review.test.ts`, `ctl.test.ts` for retry.
+- Commits: one per change.
+
+### Interfaces
+- IF1 — state shape. `ReleaseState = { issue: number; day: string; postId: number | null; candidate: { sha: string; features: IssueMerge[] } | null; removed: number[]; playtest: PlaytestState; shipping?: { sha: string; features: { issue: number; title: string }[] } }`. `PlaytestState = { seed: number; runs: number; lastStart: { sha: string; at: string } | null; passed: { sha: string; features: IssueMerge[] } | null; fixes: string | null; blocked: { sha: string; reason: string } | null; decision: { by: string; at: string; text: string } | null; work: { start: string; baseline: string; features: IssueMerge[]; session: string; plays: number } | null }`. `FactoryState.pendingPlaytest: string | null`. PH2 writes types and defaults, PH3 writes the playtest fields.
+- IF2 — playtest due rule. `playtestDue(state, devTip, now, hours): boolean` in `factory/src/tick.ts`: true when no block, `pendingPlaytest` is set, or `devTip !== lastStart.sha` and `lastStart.at` is older than `FACTORY_PLAYTEST_HOURS`. The setting goes in `factory/settings.env` and `config.ts`. Owned by PH2.
+
+### Test strategy
+- Each phase runs only the test files it touched, plus `npm run typecheck`. The controller runs the union after the merges.
+
+### Order & dependencies
+- PH1, PH2 and PH3 run at once. Merge order: PH2, then PH3, then PH1.
+- The deploy to `main` waits until #1280 ships on the old code.
+
+### Risks / rollback
+- RK1 — PH2 and PH3 drift on IF1. The controller checks typecheck after the PH3 merge and fixes the drift.
+- RK2 — `playtest.ts` fix landing through the merge job conflicts on `dev`. The merge session resolves it as for cards.
+- RK3 — The deploy lands while a release is still open. State load fails loud by design, and rollback is a revert of the merge on `main`.
