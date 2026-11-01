@@ -316,7 +316,7 @@ describe('Broken Wing', () => {
 
   it('a truck drives the road under the hoop, up the root ramp, along the deck and down the tip ramp', () => {
     const end = BROKEN_WING_POINT(50, 0);
-    const { w, hits, frames } = drive(onMap(BROKEN_WING_POINT(BROKEN_WING.hoopAt - 8, 0), 0, end), 17);
+    const { w, hits, frames } = drive(onMap(BROKEN_WING_POINT(BROKEN_WING.hoopAt - 8, 0), 0, end), 20);
     expect(hits).toEqual([]);
     expect(me(w).pos.x).toBeGreaterThan(end.x - 2);
     const b = bodyOf(me(w).chassisId);
@@ -352,7 +352,7 @@ describe('a Fallen Sun flap', () => {
     w.terrain = { ...w.terrain, heights: w.terrain.heights.map((h, k) => (onRun({ x: k % row, y: Math.floor(k / row) }, 6) ? level : h)) };
     w.obstacles = w.obstacles.filter((o) => o.kind === 'site' || !onRun(o.pos, 10));
     w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
-    me(w).pos = on(-6);
+    me(w).pos = on(-5);
     me(w).heading = Math.atan2(flap.axis.y, flap.axis.x);
     me(w).speed = vehicleStats(w, me(w)).maxSpeed;
     me(w).direct = true;
@@ -383,6 +383,7 @@ describe('a Fallen Sun flap', () => {
       if (wasPast || alongOf(me(w).pos) > flap.length) after.push({ landing: r!.landings.find((l) => l.vehicle === id) ?? null, upright: bodyState(d, id).upright, air });
     }
     freeDrive(d);
+
     return { w, hp, after, hits, lipSpeed };
   }
 

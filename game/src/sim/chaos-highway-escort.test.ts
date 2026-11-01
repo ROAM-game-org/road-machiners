@@ -278,6 +278,7 @@ describe('where the trouble spawns', () => {
     const w = chaosHighwayWorld();
     const run = w.chaosHighway!;
     const size = CHAOS_HIGHWAY.maxAlive;
+    run.groups.push({ ...run.groups[0], templates: ['buggy'], vehicles: [] });
     run.groups[0].templates = Array.from({ length: size }, () => 'buggy');
     run.groups[0].at = 0;
     run.groups[1].at = 0;

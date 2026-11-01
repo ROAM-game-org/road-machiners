@@ -24,7 +24,7 @@ export const SUNWARD = {
   huntSalt: 0x68756e74,
   rideLeadTurns: 370,
   driveTurns: 409,
-  returnMarginTurns: 19,
+  returnMarginTurns: 35,
   avoidMargin: 12,
   avoidCost: 6,
   dropGap: 1.5,

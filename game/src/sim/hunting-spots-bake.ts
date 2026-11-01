@@ -179,8 +179,10 @@ function addAt(traffic: Float64Array, size: number, p: Vec, amount: number): voi
   traffic[y * size + x] += amount;
 }
 
+const PLACES = [...REGION.towns, ...REGION.locations];
+
 function keepsSiteGap(p: Vec): boolean {
-  return [...REGION.towns, ...REGION.locations].every((s) => isTerritory(s) || siteGap(s, p) >= HUNT.siteDistance);
+  return PLACES.every((s) => isTerritory(s) || siteGap(s, p) >= HUNT.siteDistance);
 }
 
 type Scored = { p: Vec; score: number };
@@ -198,7 +200,11 @@ function seesTraffic(world: World, p: Vec, samples: readonly Vec[]): boolean {
 }
 
 function isPeak(candidate: Scored, all: Scored[], spacing: number): boolean {
-  return !all.some((o) => o.score > candidate.score && dist(o.p, candidate.p) < spacing);
+  for (const o of all) {
+    if (o.score <= candidate.score) return true;
+    if (dist(o.p, candidate.p) < spacing) return false;
+  }
+  return true;
 }
 
 function scoreCandidates(size: number, traffic: Float64Array): Scored[] {
@@ -213,19 +219,23 @@ function scoreCandidates(size: number, traffic: Float64Array): Scored[] {
   return scored.sort((a, b) => b.score - a.score || a.p.y - b.p.y || a.p.x - b.p.x);
 }
 
-function sightDisc(): [number, number][] {
+type DiscRow = { dy: number; half: number };
+
+function sightDisc(): DiscRow[] {
   const reach = TERRAIN.vision.radius;
-  const disc: [number, number][] = [];
-  for (let dy = -reach; dy <= reach; dy++) for (let dx = -reach; dx <= reach; dx++) if (dx * dx + dy * dy <= reach * reach) disc.push([dx, dy]);
-  return disc;
+  const rows: DiscRow[] = [];
+  for (let dy = -reach; dy <= reach; dy++) rows.push({ dy, half: Math.floor(Math.sqrt(reach * reach - dy * dy)) });
+  return rows;
 }
 
-function preyInSight(traffic: Float64Array, size: number, disc: [number, number][], cx: number, cy: number): number {
+function preyInSight(traffic: Float64Array, size: number, disc: DiscRow[], cx: number, cy: number): number {
   let score = 0;
-  for (const [dx, dy] of disc) {
-    const x = cx + dx;
+  for (const { dy, half } of disc) {
     const y = cy + dy;
-    if (x >= 0 && y >= 0 && x < size && y < size) score += traffic[y * size + x];
+    if (y < 0 || y >= size) continue;
+    const from = Math.max(0, cx - half);
+    const to = Math.min(size - 1, cx + half);
+    for (let x = from; x <= to; x++) score += traffic[y * size + x];
   }
   return score;
 }

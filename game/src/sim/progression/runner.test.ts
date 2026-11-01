@@ -1,3 +1,4 @@
+import { addGoods, getLayoutError } from '../inventory';
 import { describe, expect, it } from 'vitest';
 import { haulerOf, playerVehicle } from '../damage';
 import { corePart, goodsCount, mountedParts } from '../grid';
@@ -8,6 +9,11 @@ import type { Vehicle, World } from '../types';
 import { followSpot } from '../tow';
 import { dist, type Vec } from '../vec';
 import { maxHp } from '../wear';
+import { vehicleStats } from '../stats';
+import { CHAOS_HIGHWAY } from '../../data/modes';
+import { chassisDef } from '../../data/chassis';
+import { nextOutpost, outpostTrucks, reachedOutpostAt } from '../chaos-highway';
+import { outpostBuyChassis } from '../outposts';
 import { refreshVision } from '../vision';
 import { endTurn } from '../world';
 import { botOrders } from './bot';
@@ -108,6 +114,28 @@ describe('the Chaos Highway escort bot', () => {
     expect(turn.events).toContainEqual({ t: 'runLost', stretch: 1, cause: 'abandoned' });
   });
 
+  it('keeps escorting a hauler whose engine is shot dead, since it still crawls on, even with no patch part left', () => {
+    const w = chaosHighwayWorld();
+    playerVehicle(w).items = playerVehicle(w).items.filter((it) => !(it.kind === 'good' && it.good === 'parts'));
+    mountedParts(haulerOf(w), 'engine')[0].hp = 0;
+
+    const turn = botOrders(w, 'escort');
+
+    expect(turn.world.player.state).toBe('active');
+    expect(turn.events).not.toContainEqual({ t: 'runLost', stretch: 1, cause: 'abandoned' });
+  });
+
+  it('ends the run when the hauler cannot crawl on because its tank is empty', () => {
+    const w = chaosHighwayWorld();
+    playerVehicle(w).items = playerVehicle(w).items.filter((it) => !(it.kind === 'good' && it.good === 'parts'));
+    mountedParts(haulerOf(w), 'engine')[0].hp = 0;
+    haulerOf(w).resources!.fuel = 0;
+
+    const turn = botOrders(w, 'escort');
+
+    expect(turn.events).toContainEqual({ t: 'runLost', stretch: 1, cause: 'abandoned' });
+  });
+
   it('refits its own truck by the merc loadout, then armors the hauler when the hauler took the damage, and never gives it a gun', () => {
     const w = atFirstOutpost();
     w.player.money = 2_000_000;
@@ -121,6 +149,17 @@ describe('the Chaos Highway escort bot', () => {
     expect(mountedParts(playerVehicle(turn.world)).some((p) => !mine.includes(p.id))).toBe(true);
     expect(mountedParts(hauler, 'armor').length).toBeGreaterThan(armor);
     expect(mountedParts(hauler, 'weapon')).toEqual([]);
+  });
+
+  it('refits at every outpost in turn, moving the guns it keeps to where the new loadout puts them, with a legal layout after each stop', () => {
+    let w = chaosHighwayWorld();
+    for (let milestone = 1; milestone <= 6; milestone++) {
+      parkInYard(w, milestone);
+      w = endTurn(w, () => {});
+      w.player.money = 2_000_000;
+      w = botOrders(w, 'escort').world;
+      expect(getLayoutError(playerVehicle(w), playerVehicle(w).items)).toBeNull();
+    }
   });
 
   it('buys no hauler armor when only its own truck took damage', () => {
@@ -185,14 +224,80 @@ describe('the Chaos Highway escort bot', () => {
 });
 
 describe('the Chaos Highway sprinter bot', () => {
-  it('turns auto fire off and drives ahead for the next pad, whatever follows it', () => {
+  it('turns auto fire off and drives through its hops toward the next pad without braking, whatever follows it', () => {
     const w = chaosHighwayWorld();
     w.player.autoFire = true;
 
     const turn = botOrders(w, 'sprinter');
 
     expect(turn.world.player.autoFire).toBe(false);
-    expect(playerVehicle(turn.world).order).toMatchObject({ kind: 'stopAt' });
+    expect(playerVehicle(turn.world).order).toMatchObject({ kind: 'through' });
     expect(Object.keys(playerVehicle(turn.world).weaponOrders)).toEqual([]);
+  });
+
+  it('stops at the next pad once the pad is within a hop', () => {
+    const w = chaosHighwayWorld();
+    const pad = nextOutpost(w)!.spots.truck;
+    playerVehicle(w).pos = { x: pad.x, y: pad.y + 8 };
+
+    const turn = botOrders(w, 'sprinter');
+
+    expect(playerVehicle(turn.world).order).toEqual({ kind: 'stopAt', dest: pad });
+  });
+
+  it('refits its own truck only so far that it stays faster than the hauler, however much money it has', () => {
+    const yard = atFirstOutpost();
+    yard.player.money = 2_000_000;
+    const w = outpostBuyChassis(yard, 'niva');
+    addGoods(w, playerVehicle(w), 'scrap', 15);
+    const post = reachedOutpostAt(w)!;
+    post.trucksSold.push(...outpostTrucks(w, post));
+
+    const turn = botOrders(w, 'sprinter');
+
+    expect(turn.world.player.money).toBeLessThan(w.player.money);
+    expect(vehicleStats(turn.world, playerVehicle(turn.world)).maxSpeed).toBeGreaterThan(CHAOS_HIGHWAY.hauler.hurry);
+  });
+
+  it('buys no gun when it refits, since it never fires', () => {
+    const w = atFirstOutpost();
+    w.player.money = 2_000_000;
+    const guns = mountedParts(playerVehicle(w), 'weapon').length;
+
+    const turn = botOrders(w, 'sprinter');
+
+    expect(mountedParts(playerVehicle(turn.world), 'weapon').length).toBeLessThanOrEqual(guns);
+  });
+
+  it('never trades its truck for a slower one, so wear does not drop it behind the hauler', () => {
+    const start = atFirstOutpost();
+    start.player.money = 2_000_000;
+    const w = outpostBuyChassis(start, 'convertible');
+    const post = reachedOutpostAt(w)!;
+    const speed = vehicleStats(w, playerVehicle(w)).maxSpeed;
+    const speedIn = (id: string) => { const after = outpostBuyChassis(w, id); return vehicleStats(after, playerVehicle(after)).maxSpeed; };
+    post.trucksSold.push(...outpostTrucks(w, post).filter((id) => speedIn(id) >= speed));
+    expect(outpostTrucks(w, post).some((id) => speedIn(id) > CHAOS_HIGHWAY.hauler.hurry && chassisDef(id).value > chassisDef(playerVehicle(w).chassisId).value)).toBe(true);
+
+    const turn = botOrders(w, 'sprinter');
+
+    expect(playerVehicle(turn.world).chassisId).toBe(playerVehicle(w).chassisId);
+  });
+
+  it('buys only a truck that stays faster than the hauler, so it keeps driving ahead', () => {
+    const w = atFirstOutpost();
+    w.player.money = 2_000_000;
+    const post = reachedOutpostAt(w)!;
+    const speedIn = (id: string) => { const after = outpostBuyChassis(w, id); return vehicleStats(after, playerVehicle(after)).maxSpeed; };
+    const byValue = (ids: string[]) => [...ids].sort((a, b) => chassisDef(b).value - chassisDef(a).value);
+    const fast = byValue(outpostTrucks(w, post)).filter((id) => speedIn(id) > CHAOS_HIGHWAY.hauler.hurry);
+    const slow = byValue(outpostTrucks(w, post)).filter((id) => speedIn(id) <= CHAOS_HIGHWAY.hauler.hurry);
+    post.trucksSold.push(...fast.filter((id) => chassisDef(id).value > chassisDef(slow[0]).value));
+    expect(chassisDef(slow[0]).value).toBeGreaterThan(chassisDef(playerVehicle(w).chassisId).value);
+    expect(outpostTrucks(w, post).some((id) => speedIn(id) > CHAOS_HIGHWAY.hauler.hurry)).toBe(true);
+
+    const turn = botOrders(w, 'sprinter');
+
+    expect(vehicleStats(turn.world, playerVehicle(turn.world)).maxSpeed).toBeGreaterThan(CHAOS_HIGHWAY.hauler.hurry);
   });
 });

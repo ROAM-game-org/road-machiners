@@ -1,5 +1,6 @@
 import { PHYSICS } from '../data/physics';
 import { unitBody, unitsOf } from './body';
+import { railDepth } from './bridge';
 import { followPose, trailUnits } from './rig';
 import { boxDistance } from './mapgen';
 import { nearCliff, dynamicBlockers, staticSet, terrainNav } from './nav/layer';
@@ -57,6 +58,7 @@ export function clearanceFor(world: World, v: Vehicle, extra: Blocker[]): Cleara
       const reach = r + PHYSICS.driver.clearMargin;
       for (const b of solid.alongSegment(c, c, reach)) deepest = Math.max(deepest, overlap(b, c, reach));
       for (const b of moving) deepest = Math.max(deepest, overlap(b, c, reach));
+      deepest = Math.max(deepest, railDepth(nav.decks, c, reach));
     }
     return deepest;
   }

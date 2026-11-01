@@ -197,7 +197,7 @@ type CrimeKey = { crime: string; offense: CrimeOffense };
 export function noteHandover(world: World, robber: Vehicle, victim: Vehicle, value: number): void {
   if (!Number.isFinite(value) || value < 0) throw new Error(`${victim.id} handed ${robber.id} a value of ${value}`);
   const robbery = robberyToRepay(world, robber.id, victim.id);
-  if (robbery && value > 0) addRestitution(world, robbery, value);
+  if (robbery && value > 0) addRestitution(world, robbery, fairM(value));
 }
 
 function robberyToRepay(world: World, culpritId: string, victimId: string): string | null {

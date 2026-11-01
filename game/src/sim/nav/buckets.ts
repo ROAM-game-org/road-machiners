@@ -1,4 +1,3 @@
-// A uniform grid over blockers by their circles, so a line check reads only the blockers near its segment.
 
 import { boxSegmentDistance, type PosedBox } from '../mapgen';
 import { segmentDist, type Vec } from '../vec';

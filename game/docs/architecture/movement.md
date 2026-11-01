@@ -127,6 +127,7 @@ Every taste is a cost and never a block, so components and reachability do not c
 - Climb. Every driver, the player included, plans with a climb limit. `climbGrade()` in `src/sim/stats.ts` is the steepest grade the truck climbs with its current load. It uses the same constants as `climbForce()` in `src/phys/drive.ts`, times `PHYSICS.truck.climbPlanShare`. `route()` rounds it down to `REGION.navigation.climbStep`.
 - `climbTaste()` in `src/sim/nav/layer.ts` multiplies the cost of every tile steeper than the limit by `REGION.navigation.overClimbCost`. `TerrainNav.steep` holds the steepness. The coarse corridor search scales each step by the share of such tiles in its blocks.
 - A kept route is planned again at the next stop, when the load can change. A truck in a true pit takes the cheapest wall.
+- A kept route that trucks cut short of its goal is planned again once the driver reaches its short end, so a driver whose stop was crowded drives on to it after the crowd leaves.
 - `climbNeed()` in `src/sim/nav/layer.ts` is the grade reach field. It gives the least climb step that joins each cell to a road over free cells, from the same `steep` data. Survey and old spot picks read it.
 - Each NPC keeps its own spot on the pad it uses, so drivers do not stack.
 

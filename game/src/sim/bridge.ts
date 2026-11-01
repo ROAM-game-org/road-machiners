@@ -186,6 +186,11 @@ function inOutline(deck: Deck, x: number, y: number): boolean {
   return along >= 0 && along <= deck.length && Math.abs(acrossOf(deck, x, y)) <= deck.width / 2;
 }
 
+export function onWalledDeck(set: DeckSet, p: Vec): boolean {
+  const on = deckAt(set, p.x, p.y);
+  return on !== null && on.deck.lips.length > 0;
+}
+
 export function underDeck(box: PosedBox, base: number, t: Terrain): boolean {
   const on = deckAt(decksOf(t.atlas), box.center.x, box.center.y);
   if (on === null) return false;
@@ -258,6 +263,11 @@ export function nearRailBox(box: RailBox, x: number, y: number, reach: number): 
   const p = { x, y };
   for (const [a, b] of box.walls) if (segmentDist(p, a, b) < reach) return true;
   return false;
+}
+
+export function railDepth(set: DeckSet, p: Vec, reach: number): number {
+  const depths = set.boxes.filter((box) => nearRailBox(box, p.x, p.y, reach)).flatMap((box) => box.walls.map(([a, b]) => reach - segmentDist(p, a, b)));
+  return Math.max(0, ...depths);
 }
 
 export function crossesRail(set: DeckSet, a: Vec, b: Vec, reach: number): boolean {

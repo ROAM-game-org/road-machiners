@@ -1042,6 +1042,7 @@ function isGroupTruck(world: World, v: Vehicle): boolean {
 export function groupPrey(world: World, v: Vehicle): Vehicle {
   const me = playerVehicle(world);
   const hauler = haulerOf(world);
+  if (dist(v.pos, hauler.pos) > CHAOS_HIGHWAY.haulerNear) return hauler;
   if (inDangerFrom(world, v, me)) return me;
   return dist(v.pos, hauler.pos) + CHAOS_HIGHWAY.playerMargin < dist(v.pos, me.pos) ? hauler : me;
 }

@@ -40,7 +40,7 @@ function begin(size: number): number {
   return ++gen;
 }
 
-export function nearestFreeCell(layer: NavLayer, ov: Overlay, c: number, component: number | null = null, maxRing = Infinity): number | null {
+export function nearestFreeCell(layer: NavLayer, ov: Overlay, c: number, component: number | null = null, maxRing = Infinity, accepts: (cell: number) => boolean = () => true): number | null {
   const n = layer.n;
   const g = begin(n * n);
   const holds = component === null ? null : cellsHolding(layer, component);
@@ -49,7 +49,7 @@ export function nearestFreeCell(layer: NavLayer, ov: Overlay, c: number, compone
   seen[c] = g;
   for (let i = 0; i < tail; i++) {
     const cur = queue[i];
-    if (freeIn(layer, ov, cur, component, holds)) return cur;
+    if (freeIn(layer, ov, cur, component, holds) && accepts(cur)) return cur;
     tail = ringOut(n, cur, c, g, maxRing, tail);
   }
   return null;

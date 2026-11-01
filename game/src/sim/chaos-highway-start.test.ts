@@ -14,11 +14,12 @@ import { mountedParts } from './grid';
 import { NPCS } from '../data/npcs';
 import { betweenLevels, canDriveOn, chaosHighwayReadout, outpostFactsAt, reachedOutpostAt, spawnGroup, driveOn, waveGear, waveOf } from './chaos-highway';
 import { planHaulerOrder } from './hauler';
-import { endTurn } from './world';
+import { endTurn, newWorld } from './world';
 import { cardsOf } from './chaos-highway-director';
 import { generateNpcLoadout } from './npc-loadout';
 import { rollPartStockPerKind } from './market';
-import { alongOf, toRoad } from './highway';
+import { alongOf, highwayMap, toRoad } from './highway';
+import { defaultSetup } from './settings';
 import { chaosHighwayStart, chaosHighwayWorld } from './testkit';
 import { RULES } from '../data/rules';
 import { sideReach } from './rig';
@@ -151,6 +152,17 @@ describe('Chaos Highway outpost stock', () => {
       for (const kind of kinds) expect(stock.filter((p) => partDef(p.defId).kind === kind), `seed ${seed} ${kind}`).toHaveLength(wanted[kind]);
       expect(new Set(stock.map((p) => p.defId)).size).toBe(stock.length);
     }
+  });
+
+  it('grows with the run, so a later outpost stocks more of each type up to every part the type has', () => {
+    const late = newWorld(3, startKit('chaosHighway'), highwayMap(3, 8), defaultSetup('chaosHighway'));
+    const stock = outpostFactsAt(late, 9).stock;
+    const early = outpostFactsAt(startWorld(3), 1).stock;
+    const ofKind = (parts: typeof stock, kind: string) => parts.filter((p) => partDef(p.defId).kind === kind).length;
+    expect(ofKind(stock, 'weapon')).toBeGreaterThan(ofKind(early, 'weapon'));
+    for (const kind of kinds) expect(ofKind(stock, kind), kind).toBeLessThanOrEqual(GARAGE_STOCK.parts.filter((p) => PARTS[p.value].kind === kind).length);
+    expect(ofKind(stock, 'scanner')).toBe(1);
+    expect(new Set(stock.map((p) => p.defId)).size).toBe(stock.length);
   });
 
   it('refuses a count above the different parts a type has', () => {

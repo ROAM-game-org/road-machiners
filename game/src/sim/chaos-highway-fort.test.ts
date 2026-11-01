@@ -3,6 +3,7 @@ import { CHAOS_HIGHWAY } from '../data/modes';
 import { planNpcOrders } from './ai';
 import { haulerOf, playerVehicle } from './damage';
 import { advanceChaosHighway, spawnGroup, waveOf } from './chaos-highway';
+import { groupPrey } from './combat';
 import { acrossOf, alongOf, milestoneAt, outpostGateSpots, outpostYardHalf, roadHeading, roadPoint, toRoad } from './highway';
 import { heldGoal, holdAlong, holdOnStretch, rollingOrder, stretchSpan } from './hunters';
 import { yardSpots } from './outpost-gates';
@@ -80,7 +81,8 @@ describe('hostiles stay out of the fort', () => {
     const { w, truck, me, fort } = fortScene();
     me.pos = { ...yardSpots(w, 1).truck };
     me.speed = 3;
-    truck.pos = roadPoint(w.seed, 0, fort - 20, 0);
+    truck.pos = roadPoint(w.seed, 0, fort - 15, 0);
+    expect(groupPrey(w, truck).id).toBe(me.id);
     planNpcOrders(w);
     expectHeld(w, truck);
   });
@@ -117,6 +119,19 @@ describe('hostiles stay out of the fort', () => {
     const lane = gate.width / 2 + radius + CHAOS_HIGHWAY.spawnClear;
     const centre = acrossOf(w.seed, toRoad(w.seed, 0, gate.center));
     expect(Math.abs(acrossOf(w.seed, toRoad(w.seed, 0, held)) - centre)).toBeGreaterThanOrEqual(lane - 1e-6);
+  });
+
+  it('holds a goal in the gate lane on the side of the lane the truck is on, so a goal that crosses the lane centre does not swing it from side to side', () => {
+    const { w, truck, fort } = fortScene();
+    const radius = vehicleStats(w, truck).radius;
+    const gate = outpostGateSpots(w.seed, 0, 1).south;
+    const centre = acrossOf(w.seed, toRoad(w.seed, 0, gate.center));
+    const lane = gate.width / 2 + radius + CHAOS_HIGHWAY.spawnClear;
+    truck.pos = roadPoint(w.seed, 0, fort - 6 - outpostYardHalf(), centre + 0.5);
+    const heldAcross = (offset: number) => acrossOf(w.seed, toRoad(w.seed, 0, heldGoal(w, truck, roadPoint(w.seed, 0, fort, centre + offset))!));
+
+    expect(heldAcross(-0.5)).toBeCloseTo(centre + lane, 1);
+    expect(heldAcross(0.5)).toBeCloseTo(centre + lane, 1);
   });
 
   it('leaves goals on the open stretch, the gun truck and the hauler untouched', () => {

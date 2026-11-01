@@ -59,7 +59,7 @@ The escort plays as an NPC guard would.
 - It douses a hot engine at the heat warning.
 - It turns auto repair off while the tank is holed. It parks and patches the tank first, since auto repair ranks the tank last.
 - It parks out of combat to patch any broken core part.
-- It ends the run when a truck is stranded and it cannot patch. A wedged hauler gets 12 turns, the hauler stall window, to back itself out first.
+- It ends the run when a truck is stranded and it cannot patch. A hauler with a dead engine or drive and fuel still crawls on, and the bot keeps escorting it, since only the gun truck can be patched on the road. A wedged hauler gets 12 turns, the hauler stall window, to back itself out first.
 - It backs out like an NPC. After `RULES.npcStuckTurns` turns held in place away from its order point, it reverses behind itself for `RULES.npcRecoveryTurns` turns.
 - Once the hauler heads in to the yard, it parks at its own spot in the yard, across the road from the hauler. It keeps fighting while a foe is on it, and backs out of a stall on the way in as on the road.
 
@@ -70,7 +70,7 @@ At each outpost the escort does this in order.
 - It spends a share of the money left on hauler armor. The share is the hauler's part of the two trucks' repair bills on arrival, so it armors the truck that took the fire.
 - It buys the most valuable truck on offer that it can afford and that keeps its parts count. Money it cannot spend on gear builds up toward that truck.
 
-The sprinter turns auto fire off, drives ahead to the next yard and never fires. At an outpost it repairs, refits for any speed and buys a truck. It measures whether the run can be sprinted. The hauler must lose it, since it waits only for a gun truck behind it.
+The sprinter turns auto fire off, drives ahead to the next yard through road points a sight radius apart without braking at them, and never fires. At an outpost it repairs, refits without adding a gun and buys a truck, but only so far that its top speed stays above the hauler's, and never trades its truck for a slower one, so it keeps driving ahead. It measures whether the run can be sprinted. The hauler must lose it, since it waits only for a gun truck behind it.
 
 ## Reading a run
 
@@ -78,4 +78,4 @@ The sprinter turns auto fire off, drives ahead to the next yard and never fires.
 - A Chaos Highway run drives on after its outpost services, so it plays on the generated highway, through its hazard scenes, whose windows move at each outpost.
 - A Chaos Highway run also writes `<name>.run.jsonl`. It holds each group as it spawns, each outpost reached with its pay and the truck condition, the player kit as it leaves each outpost, every beaten group truck, and the trucks ranked by damage dealt at a lost run.
 - `npm run escort:report` judges the run logs against the checks in `src/sim/progression/escort-report.ts`. The play check fails the whole report as VOID when the escort did not fight, since a bot that does not play measures nothing.
-- The balance checks are hauler damage on most stretches, no fresh hauler lost in under 10 turns, a changing enemy mix, a real choice at the outposts, damage that rises, 6 of 10 escort seeds beating stretch 10 and every sprinter seed losing the run before it.
+- The balance checks are hauler damage on most stretches, no fresh hauler lost in under 10 turns, a changing enemy mix, a real choice at the outposts, damage that rises, 6 of 10 escort seeds beating stretch 10 and at most 1 of 10 sprinter seeds getting past it.

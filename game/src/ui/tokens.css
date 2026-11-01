@@ -299,7 +299,7 @@
   --safe-bottom: max(var(--hud-inset), calc(env(safe-area-inset-bottom) / var(--ui-scale)));
   --safe-left: max(var(--hud-inset), calc(env(safe-area-inset-left) / var(--ui-scale)));
   --touch-target: max(32px, calc(32px / var(--ui-scale)));
-  --phone-readouts-h: 100px;
+  --phone-readouts-h: calc(90px + var(--touch-target));
   --phone-strip-h: var(--touch-target);
   --phone-bar-h: calc(var(--phone-readouts-h) + var(--hud-gap) + var(--btn-h-l) + var(--hud-gap) + var(--phone-strip-h));
   --phone-end-w: 96px;

@@ -44,7 +44,7 @@ function brakeDistance(chassisId: string, speed: number): { meters: number; turn
 describe('braking at the constant rate of the brake stat', () => {
   it.each(['scout', 'semi'])('a %s stops in the distance its brake stat gives, not at once', (chassisId) => {
     const top = vehicleStats(rolling(chassisId, 0), rolling(chassisId, 0).vehicles[0]).maxSpeed;
-    const run = brakeDistance(chassisId, top * 0.75);
+    const run = brakeDistance(chassisId, top);
     expect(run.meters).toBeGreaterThan(run.predicted * 0.9);
     expect(run.meters).toBeLessThan(run.predicted * 1.15);
     expect(run.turns).toBeGreaterThan(1);

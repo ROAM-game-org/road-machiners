@@ -80,9 +80,16 @@ export function lookOver(world: World, targetId: string): World {
   return playerCommand(world, (w) => startLookOver(w, playerVehicle(w), vehicleById(w, targetId)));
 }
 
+function partiesOf(world: World, s: NpcState): [Vehicle, Vehicle] | null {
+  const looker = world.vehicles.find((v) => v.id === s.holder);
+  const target = world.vehicles.find((v) => v.id === s.other);
+  return looker && target ? [looker, target] : null;
+}
+
 export function checkLookOver(world: World, s: NpcState): StateEnding | null {
-  const looker = vehicleById(world, s.holder);
-  const target = vehicleById(world, s.other);
+  const parties = partiesOf(world, s);
+  if (!parties) return 'broken';
+  const [looker, target] = parties;
   if (!awake(world, looker) || !awake(world, target) || !inReach(world, looker, target)) return 'broken';
   return world.turn >= s.born + LOOK_OVER.turns ? 'fulfilled' : null;
 }
@@ -98,8 +105,9 @@ export function onLookedOver(world: World, s: NpcState): void {
 }
 
 export function checkSizedUp(world: World, s: NpcState): StateEnding | null {
-  const looker = vehicleById(world, s.holder);
-  const target = vehicleById(world, s.other);
+  const parties = partiesOf(world, s);
+  if (!parties) return 'broken';
+  const [looker, target] = parties;
   return canVehicleSee(world, looker, target.pos) ? null : 'broken';
 }
 

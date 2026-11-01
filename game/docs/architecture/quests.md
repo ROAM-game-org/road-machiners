@@ -150,7 +150,7 @@ The world variable `intro_step` runs the second half of the arrival. Its values 
 `bowl_scale.ink` is a page scene the game opens by itself. It shows a new driver that the Bowl gate yard buys scrap and parts: the player watches a scavenger sell crates on the yard's beam scale, then the weigher Mags Corrin looks into the player's bed. The scene names no price and sells nothing. The sale goes through the town's Market like every sale.
 
 - `bowl_scale` is a row of `TOWN_SCENES` in `src/data/quests.ts`: enter Market at Bowl, with the condition `newSeller`. It opens through `pickTownSection()` in `src/sim/quests.ts`, which the town page calls, so it opens when the player is free to talk (`freeToTalk()`), holds a crate of a good in `SALVAGE_GOODS` (scrap or parts) and `xpBySource.profit` is 0, so the player has never sold at a profit. No turn step opens it.
-- `openScaleScene()` sets the world variable `scale_seen` as it opens the scene, so it plays once per game. A player woken on the Bowl bench with an empty bed meets it on a later visit with salvage. A player who first sold at a profit elsewhere never meets it.
+- `openTownScene()` sets the scene's gate, the world variable `scale_seen`, as it opens the scene, so it plays once per game. A player woken on the Bowl bench with an empty bed meets it on a later visit with salvage. A player who first sold at a profit elsewhere never meets it.
 - Asking where scavengers find iron writes the note `orchardIron`: dead trucks by the roads, and the barns and Army sheds at Old Orchard.
 
 ## The Archon's truck

@@ -153,7 +153,7 @@ export class SiteBuilder {
       const pos = new THREE.Vector3(wx * S, (heightAt(this.terrain, wx, wz) + lift) * S, wz * S);
       return new THREE.Matrix4().compose(pos, new THREE.Quaternion().setFromAxisAngle(UP, yaw), new THREE.Vector3(scale, scale, scale));
     });
-    const group = instancedModel(name, placements, placements.map(() => 1));
+    const group = instancedModel(name, placements, placements.map(() => 1), (m) => m);
     this.root.add(group);
     return group;
   }

@@ -230,9 +230,14 @@ function heldInPlace(hauler: Vehicle): boolean {
   return hauler.trail.length > 1 && movedLastTurn(hauler) < RULES.arriveRadius / 2;
 }
 
+function closedOnLastTurn(hauler: Vehicle, dest: Vec): boolean {
+  const start = hauler.trail[0];
+  return start !== undefined && dist(start, dest) - dist(hauler.pos, dest) >= RULES.arriveRadius / 2;
+}
+
 function backingOut(world: World, hauler: Vehicle): boolean {
   const order = hauler.order;
-  return order?.kind === 'stopAt' && dist(order.dest, parkSpot(world)) > 0 && !heldInPlace(hauler);
+  return order?.kind === 'stopAt' && dist(order.dest, parkSpot(world)) > 0 && closedOnLastTurn(hauler, order.dest);
 }
 
 function parkedOrOnPad(world: World, hauler: Vehicle): boolean {

@@ -3,6 +3,7 @@ import { GARAGE_STOCK } from '../data/market';
 import { MIN_NPC_SPEED, NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
+import { partDef, type PartKind } from '../data/parts';
 import { HAULER_KIT } from '../data/start';
 import { footprint } from './rig';
 import { makeVehicle } from './factory';
@@ -81,8 +82,18 @@ function drawSide(rng: Rng, last: GroupSide | null): GroupSide {
 }
 
 function outpostFacts(world: World, j: number): OutpostFacts {
-  const stock: PartInstance[] = rollPartStockPerKind(world, stretchStream(world.seed, j, 'stock'), GARAGE_STOCK, CHAOS_HIGHWAY.stockPerKind, outpostId(j));
+  const stock: PartInstance[] = rollPartStockPerKind(world, stretchStream(world.seed, j, 'stock'), GARAGE_STOCK, stockPerKindAt(j), outpostId(j));
   return { milestone: j, stock, paid: false, trucksSold: [] };
+}
+
+function stockPerKindAt(j: number): Partial<Record<PartKind, number>> {
+  const growth = 1 + Math.max(0, j - 1) / CHAOS_HIGHWAY.stockGrowthStretches;
+  const kinds = Object.entries(CHAOS_HIGHWAY.stockPerKind) as [PartKind, number][];
+  return Object.fromEntries(kinds.map(([kind, base]) => [kind, Math.min(Math.round(base * growth), garageKindCount(kind))]));
+}
+
+function garageKindCount(kind: PartKind): number {
+  return GARAGE_STOCK.parts.filter((p) => partDef(p.value).kind === kind).length;
 }
 
 export function truckOffers(seed: number, j: number): string[] {

@@ -626,7 +626,9 @@ describe('repairContent', () => {
 
   it('drops wave templates that left the data, and an emptied wave never spawns', () => {
     const w = chaosHighwayStart();
-    const [first, second] = w.chaosHighway!.groups.filter((g) => !g.spawned);
+    const [first] = w.chaosHighway!.groups.filter((g) => !g.spawned);
+    const second = { ...first, templates: [...first.templates], vehicles: [] };
+    w.chaosHighway!.groups.push(second);
     const kept = first.templates[0];
     first.templates = [kept, 'ghostRaider'];
     second.templates = ['ghostRaider'];

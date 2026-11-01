@@ -411,9 +411,9 @@ describe('max speed steps', () => {
   };
 
   const FROZEN: Record<string, number> = {
-    bare: 1.04, stock: 9.875716226804332, manyGuns: 4.906412009420447, brokenGun: 8.703054785359077, overload: 3.0835660446258495,
-    heavy: 1, worn: 9.217335145017376, wheels: 7.135204973866129, overdrive: 13.134702581649762, transmission: 1.04,
-    brokenEngine: 1.04, stalled: 1.04, storm: 5.925429736082600, towing: 5.9254297360826,
+    bare: 1.04, stock: 7.381464820803751, manyGuns: 4.906412009420447, brokenGun: 6.504975563928644, overload: 3.0835660446258495,
+    heavy: 1, worn: 6.723083739016797, wheels: 5.33310833303071, overdrive: 9.81734821166899, transmission: 1.04,
+    brokenEngine: 1.04, stalled: 1.04, storm: 4.428878892482251, towing: 4.428878892482251,
   };
 
   it('keeps every max speed bit for bit and ends the steps on it', () => {

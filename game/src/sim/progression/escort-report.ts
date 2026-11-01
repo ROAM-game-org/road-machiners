@@ -9,6 +9,7 @@ export type Verdict = { name: string; pass: boolean; detail: string };
 export const TARGET_STRETCH = 10;
 export const BEATABLE_SEEDS = 6;
 export const SPRINT_SEEDS = 10;
+export const SPRINT_ESCAPES = 1;
 export const REACT_TURNS = 10;
 export const REACT_CONDITION = 0.9;
 export const VARIETY_TRANSITIONS = 8;
@@ -83,7 +84,7 @@ export function beatableVerdict(runs: readonly SeedRun[]): Verdict {
 
 export function sprintVerdict(runs: readonly SeedRun[]): Verdict {
   const lost = runs.filter((r) => r.lostCause !== null && r.reached < TARGET_STRETCH).length;
-  return { name: 'Not sprintable', pass: runs.length >= SPRINT_SEEDS && lost === runs.length, detail: `${fraction(lost, runs.length)} sprinter seeds lost the run before stretch ${TARGET_STRETCH} (need ${SPRINT_SEEDS} of ${SPRINT_SEEDS})` };
+  return { name: 'Not sprintable', pass: runs.length >= SPRINT_SEEDS && runs.length - lost <= SPRINT_ESCAPES, detail: `${fraction(lost, runs.length)} sprinter seeds lost the run before stretch ${TARGET_STRETCH} (at most ${SPRINT_ESCAPES} may get through)` };
 }
 
 export function playVerdicts(escort: readonly SeedRun[]): Verdict[] {

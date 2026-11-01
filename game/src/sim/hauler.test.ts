@@ -181,7 +181,7 @@ describe('the hauler driver', () => {
     expect(hauler.order).toEqual({ kind: 'stopAt', dest: pad });
   });
 
-  it('backs out when a drive order left it in place, keeps backing while it moves, then drives on', () => {
+  it('backs out when a drive order left it in place, keeps backing while it closes on the spot, then drives on', () => {
     const { w, hauler } = openRoad();
     planHaulerOrder(w);
     const drive = hauler.order;
@@ -192,13 +192,32 @@ describe('the hauler driver', () => {
     expect(dist(spot, hauler.pos)).toBeCloseTo(RULES.reverse.distance + RULES.minAimDistance, 5);
     expect(alongOf(w.seed, toRoad(w.seed, 0, spot))).toBeLessThan(alongOf(w.seed, toRoad(w.seed, 0, hauler.pos)));
 
-    hauler.trail = [{ ...hauler.pos, heading: hauler.heading }, { x: hauler.pos.x, y: hauler.pos.y + 1, heading: hauler.heading }];
+    const start = { ...hauler.pos };
+    hauler.pos = { x: (start.x + spot.x) / 2, y: (start.y + spot.y) / 2 };
+    hauler.trail = [{ ...start, heading: hauler.heading }, { ...hauler.pos, heading: hauler.heading }];
     planHaulerOrder(w);
     expect(hauler.order).toEqual({ kind: 'stopAt', dest: spot });
 
     hauler.order = null;
+    hauler.pos = start;
     planHaulerOrder(w);
     expect(hauler.order).toEqual(drive);
+  });
+
+  it('drops a back-out that rocks in place without closing on the spot, and drives on', () => {
+    const { w, hauler } = openRoad();
+    planHaulerOrder(w);
+    const drive = hauler.order;
+    hauler.trail = [{ ...hauler.pos, heading: hauler.heading }, { ...hauler.pos, heading: hauler.heading }];
+    planHaulerOrder(w);
+    const spot = (hauler.order as { dest: { x: number; y: number } }).dest;
+    const away = { x: hauler.pos.x - (spot.x - hauler.pos.x) * 0.4, y: hauler.pos.y - (spot.y - hauler.pos.y) * 0.4 };
+
+    hauler.trail = [{ ...away, heading: hauler.heading }, { ...hauler.pos, heading: hauler.heading }, { ...away, heading: hauler.heading }];
+    hauler.pos = { ...away };
+    planHaulerOrder(w);
+
+    expect(hauler.order?.kind).toBe(drive?.kind);
   });
 
   it('backs out when it is held short of the yard on its way in, and not once it is parked on its spot', () => {

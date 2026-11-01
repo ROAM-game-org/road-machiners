@@ -15,7 +15,7 @@ beforeAll(async () => {
 
 const SEED = 3;
 const START = 120;
-const TURNS = 14;
+const TURNS = 20;
 
 function topSpeedAlong(offset: number): { speed: number; paved: boolean } {
   let w = chaosHighwayWorld(SEED);

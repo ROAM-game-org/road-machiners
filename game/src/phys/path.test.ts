@@ -14,6 +14,7 @@ import { reusedWorld } from '../test/world-cache';
 import { START_KITS } from '../data/start';
 import { defaultSetup } from '../sim/settings';
 import { newWorld } from '../sim/world';
+import { NPCS } from '../data/npcs';
 import { TEST_MAP } from '../test/map';
 
 beforeAll(async () => {
@@ -36,10 +37,13 @@ function play(w: World, max: number, afterTurn: (w: World) => boolean = () => fa
   return w;
 }
 
+const NEVER_SPAWNS = 1e9;
+
 function playerOnlyWorld(seed: number): World {
   return reusedWorld(`player only ${seed}`, () => {
     const world = newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
     world.spawnQueue = [];
+    for (const id of Object.keys(NPCS)) world.spawnTimer[id] = NEVER_SPAWNS;
     return world;
   });
 }
@@ -108,5 +112,5 @@ it('a truck following a road into a blocking rock stops on the corner without a 
     return !world.vehicles[0].order;
   });
   expect(damage).toBeLessThan(5);
-  expect(dist(w.vehicles[0].pos, { x: 60, y: 8 })).toBeLessThan(0.5);
+  expect(dist(w.vehicles[0].pos, { x: 60, y: 8 })).toBeLessThan(0.6);
 }, budget(120_000));

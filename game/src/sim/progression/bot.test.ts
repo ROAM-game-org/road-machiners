@@ -693,7 +693,7 @@ describe('the hunter', () => {
     const me = playerVehicle(w);
     me.speed = 0;
     const raiders = [24, 36].map((x) => {
-      const raider = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine'], { x, y: 30 });
+      const raider = addVehicle(w, 'scrapjaw', 'wagon', ['stockEngine'], { x, y: 30 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       return raider;
     });
@@ -778,7 +778,7 @@ describe('the hunter', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = playerVehicle(w);
     me.order = { kind: 'stopAt', dest: { x: me.pos.x + 60, y: me.pos.y } };
-    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['flamer', 'mg', 'heavyDiesel'], { x: me.pos.x + 14, y: me.pos.y });
+    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['mg', 'heavyDiesel'], { x: me.pos.x + 14, y: me.pos.y });
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
     expect(Math.abs(judgeDanger(w, me, raider) - 1)).toBeLessThan(NPC_BEHAVIOR.dangerSpread / 2);
     const orders = Array.from({ length: 12 }, (_, i) => {
@@ -1111,7 +1111,7 @@ describe('the hunter', () => {
     const me = playerVehicle(w);
     addGoods(w, me, 'salt', 2);
     w.player.fuel = 0;
-    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['autocannon', 'ram', 'stockEngine'], { x: 36, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['autocannon', 'ram', 'stockEngine'], { x: 36, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     expect(vehicleStats(w, me).maxSpeed).toBeGreaterThan(vehicleStats(w, raider).maxSpeed);
     startCombat(w, raider, me);

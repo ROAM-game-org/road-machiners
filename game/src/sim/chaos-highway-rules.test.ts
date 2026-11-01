@@ -3,7 +3,7 @@ import { CHAOS_HIGHWAY } from '../data/modes';
 import { MIN_NPC_SPEED, NPCS, RAIDER_CHASE_SPEED } from '../data/npcs';
 import { TERRAIN } from '../data/terrain';
 import { autoOrders, groupPrey, isHostile, targetBlock } from './combat';
-import { type Vec, dist } from './vec';
+import { type Vec, DEG, bearing, dist } from './vec';
 import { refreshVision } from './vision';
 import { topGoal } from './npc-activities';
 import { haulerOf, playerVehicle } from './damage';
@@ -109,8 +109,9 @@ describe('Chaos Highway fire', () => {
     const hauler = haulerOf(w);
     const me = playerVehicle(w);
     truck.pos = { x: hauler.pos.x + 4, y: hauler.pos.y };
-    truck.heading = Math.PI;
     me.pos = { x: hauler.pos.x + 1, y: hauler.pos.y + 4 };
+    const gun = vehicleStats(w, truck).weapons[0];
+    truck.heading = bearing(truck.pos, me.pos) - gun.facing * DEG;
     refreshVision(w);
     autoOrders(w, truck);
     const targets = Object.values(truck.weaponOrders).map((o) => o.targetId);
@@ -124,8 +125,9 @@ describe('Chaos Highway rolling start', () => {
   it('waits far ahead of its moving prey, rolls north faster as the prey closes but slower than the prey, and leaves the fight AI in charge in gun reach', () => {
     const w = startWorld(2);
     const [truck] = spawned(w, ['buggy'], 1);
-    const prey = groupPrey(w, truck);
+    const prey = haulerOf(w);
     const window = w.chaosHighway!.window;
+    playerVehicle(w).pos = roadPoint(w.seed, window, alongOf(w.seed, toRoad(w.seed, window, prey.pos)) - 60, 0);
     const reach = Math.max(...vehicleStats(w, truck).weapons.map((mw) => mw.def.range));
     const at = (gap: number) => {
       truck.pos = roadPoint(w.seed, window, alongOf(w.seed, toRoad(w.seed, window, prey.pos)) + gap, 0);
@@ -263,6 +265,17 @@ describe('Chaos Highway prey', () => {
     } finally {
       CHAOS_HIGHWAY.playerMargin = margin;
     }
+  });
+  it('goes for the hauler while it is far from the hauler, even when the gun truck hit it', () => {
+    const w = startWorld(2);
+    const [truck] = spawned(w, ['buggy'], 1);
+    const me = playerVehicle(w);
+    const hauler = haulerOf(w);
+    truck.brain!.attackers[me.id] = true;
+    apart(w, truck, CHAOS_HIGHWAY.haulerNear + 5, 3);
+    expect(groupPrey(w, truck).id).toBe(hauler.id);
+    apart(w, truck, CHAOS_HIGHWAY.haulerNear - 5, 3);
+    expect(groupPrey(w, truck).id).toBe(me.id);
   });
 });
 

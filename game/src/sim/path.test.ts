@@ -1,3 +1,4 @@
+import { RULES } from '../data/rules';
 import { START_KITS } from '../data/start';
 import { describe, expect, it } from 'vitest';
 import { MAP_SPREAD, REGION } from '../data/region';
@@ -349,6 +350,20 @@ describe('kept routes', () => {
     const onLeg = { x: (points[1].x + points[2].x) / 2, y: (points[1].y + points[2].y) / 2 };
     expect(continueRoute(w, from, kept, to, 0.6, [{ pos: onLeg, r: 0.8 }])).toBeNull();
     expect(continueRoute(w, from, keepRoute(w, to, points, [{ pos: onLeg, r: 0.8 }], undefined, false), to, 0.6, [{ pos: onLeg, r: 0.8 }])).not.toBeNull();
+  });
+
+  it('plans again once a truck reaches the end of a route cut short by trucks that have since moved off its goal', () => {
+    const w = emptyWorld();
+    const from = { x: 30, y: 30 };
+    const to = { x: 50, y: 30 };
+    const crowd: Blocker[] = [-3, 0, 3].flatMap((dy) => [-3, 0, 3].map((dx) => ({ pos: { x: to.x + dx, y: to.y + dy }, r: 1.5 })));
+    const short = route(w, from, to, 0.6, crowd);
+    const end = short.at(-1)!;
+    expect(dist(end, to)).toBeGreaterThan(RULES.arriveRadius);
+    const kept = keepRoute(w, to, short, crowd);
+    expect(continueRoute(w, from, kept, to, 0.6, [])).not.toBeNull();
+    expect(continueRoute(w, end, kept, to, 0.6, [])).toBeNull();
+    expect(route(w, end, to, 0.6, []).at(-1)).toEqual(to);
   });
 });
 

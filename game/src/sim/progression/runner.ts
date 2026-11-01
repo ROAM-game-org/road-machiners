@@ -4,31 +4,32 @@ import { NPCS } from '../../data/npcs';
 import { partDef } from '../../data/parts';
 import { haulerOf, playerTrucks, playerVehicle } from '../damage';
 import { TERRAIN } from '../../data/terrain';
-import { alongOf, roadPoint, toRoad } from '../highway';
+import { acrossOf, alongOf, roadPoint, toRoad } from '../highway';
 import { ENGINE_HEAT } from '../../data/wear';
 import { canDouse, douseEngine } from '../engine-heat';
 import { inCombat } from '../combat';
 import { refitLoadout } from '../npc-loadout';
-import { isStranded, vehicleStats, type MountedWeapon } from '../stats';
+import { isStranded, vehicleMaxSpeed, vehicleStats, type MountedWeapon } from '../stats';
+import { getResources } from '../resources';
 import { tankLeaks } from '../supplies';
 import { playerCanAct, setAutoFire, setAutoRepair, setMoveOrder, setWeaponOrder } from '../world';
 import { basicsRepairCost, chassisPrice, chassisSwapRefusal, repairCost, supplyRoom, type Supply } from '../economy';
-import { abandonRun, canAbandonRun, canDriveOn, driveOn, nextOutpost, outpostTrucks, reachedOutpostAt, type Outpost } from '../chaos-highway';
+import { abandonRun, canAbandonRun, canDriveOn, driveOn, haulerWedged, nextOutpost, outpostTrucks, reachedOutpostAt, type Outpost } from '../chaos-highway';
 import { inYard, yardSpots } from '../outpost-gates';
 import { RULES } from '../../data/rules';
 import { startRepair } from '../jobs';
 import { corePart, goodsCount, mountedParts } from '../grid';
-import { storePart } from '../inventory';
+import { storePart, type RefitLayout } from '../inventory';
 import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from '../outposts';
 import type { MoveOrder, PartInstance, Vehicle, WeaponOrder, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { isJunk } from '../wear';
-import { CHAOS_HIGHWAY } from '../../data/modes';
+import { CHAOS_HIGHWAY, HIGHWAY } from '../../data/modes';
 import { escortFoe, escortMove, gunTarget, hostilesSeen, unlessStuck, type Stall } from './escort-brain';
 import { aimFor } from './aim';
 import { armorHauler } from './escort-gear';
 import { bestTruck } from './escort-tactics';
-import { mountBought, Orders, type BotTurn } from './orders';
+import { mountBought, Orders, relayout, type BotTurn } from './orders';
 
 export type RoadStyle = 'escort' | 'sprinter';
 
@@ -62,11 +63,23 @@ function givesUpOnRun(o: Orders): boolean {
     WEDGED.delete(key);
     return false;
   }
-  if (playerTrucks(o.world).some((truck) => isStranded(o.world, truck))) return true;
+  if (playerTrucks(o.world).some((truck) => isStranded(o.world, truck) && !crawlsOnToTheYard(o.world, truck))) return true;
+  return wedgedLongEnough(o, key);
+}
+
+function wedgedLongEnough(o: Orders, key: string): boolean {
+  if (!haulerWedged(o.world)) {
+    WEDGED.delete(key);
+    return false;
+  }
   const known = WEDGED.get(key);
   const since = known !== undefined && known <= o.world.turn ? known : o.world.turn;
   WEDGED.set(key, since);
   return o.world.turn - since >= CHAOS_HIGHWAY.hauler.stallTurns;
+}
+
+function crawlsOnToTheYard(world: World, truck: Vehicle): boolean {
+  return truck.id === haulerOf(world).id && getResources(world, truck).fuel > 0 && vehicleMaxSpeed(world, truck) > RULES.parkedSpeed;
 }
 
 function handleStranded(o: Orders): boolean {
@@ -179,14 +192,21 @@ function haulerAtPad(world: World, hauler: Vehicle): boolean {
 
 function hopToward(o: Orders, pad: Vec): void {
   const now = o.me.order;
-  if (now?.kind === 'stopAt' && dist(now.dest, o.me.pos) <= HOP && dist(now.dest, o.me.pos) > HOP * RECLICK_SHARE) return;
-  driveTo(o, nextHop(o.world, o.me, pad));
+  if ((now?.kind === 'stopAt' || now?.kind === 'through') && dist(now.dest, o.me.pos) <= HOP && dist(now.dest, o.me.pos) > HOP * RECLICK_SHARE) return;
+  const hop = nextHop(o.world, o.me, pad);
+  if (hop === pad) return driveTo(o, pad);
+  o.run((w) => setMoveOrder(w, { kind: 'through', dest: hop }));
 }
 
 function nextHop(world: World, me: Vehicle, pad: Vec): Vec {
   const window = world.chaosHighway?.window ?? 0;
   const along = alongOf(world.seed, toRoad(world.seed, window, me.pos)) + HOP;
-  return along >= alongOf(world.seed, toRoad(world.seed, window, pad)) ? pad : roadPoint(world.seed, window, along, 0);
+  return along >= alongOf(world.seed, toRoad(world.seed, window, pad)) ? pad : roadPoint(world.seed, window, along, laneAwayFromHauler(world, window));
+}
+
+export function laneAwayFromHauler(world: World, window: number): number {
+  const hauler = acrossOf(world.seed, toRoad(world.seed, window, haulerOf(world).pos));
+  return HIGHWAY.road.lanes.reduce((far, lane) => (Math.abs(lane - hauler) > Math.abs(far - hauler) ? lane : far));
 }
 
 function canPatchOn(world: World, me: Vehicle): boolean {
@@ -211,8 +231,8 @@ function restock(o: Orders, post: Outpost, style: RoadStyle): void {
 
 function restockGear(o: Orders, post: Outpost, style: RoadStyle, haulerShare: number): void {
   if (style === 'sprinter') {
-    refitGear(o);
-    return buyTruck(o, post);
+    refitGear(o, (v) => outpacesHauler(o.world, v) && addsNoGun(o.me, v));
+    return buyTruck(o, post, (id) => keepsItsPace(o, id));
   }
   restockEscort(o, post, haulerShare);
 }
@@ -233,17 +253,21 @@ function restockEscort(o: Orders, post: Outpost, haulerShare: number): void {
   buyTruck(o, post);
 }
 
-function refitGear(o: Orders): void {
+function refitGear(o: Orders, fits: (v: Vehicle) => boolean = () => true): void {
   const forSale = reachedOutpostAt(o.world)!.stock.filter((part) => !isJunk(part));
   const money = runBudget(o.world);
   const owned = new Set(o.me.items.map((it) => it.id));
   const added = (v: Vehicle) => v.items.flatMap((it) => (it.kind === 'part' && !owned.has(it.id) ? [it] : []));
-  const allowed = (v: Vehicle) => added(v).every(sturdy) && buysFor(added(v), forSale) !== null && cost(o, buysFor(added(v), forSale)!) <= money;
+  const allowed = (v: Vehicle) => added(v).every(sturdy) && buysFor(added(v), forSale) !== null && cost(o, buysFor(added(v), forSale)!) <= money && fits(v);
   const target = refitLoadout(o.world, { rngState: o.world.rngState }, o.me, { priorities: NPCS[FIGHTER].loadout.priorities, money, allowed, paysFuel: false });
   const kept = new Set(target.items.map((it) => it.id));
   for (const it of o.me.items.filter((it) => it.kind === 'part' && !kept.has(it.id))) o.run((w) => storePart(w, it.id), 'gear');
-  const buys = buysFor(added(target), forSale)!;
-  added(target).forEach((it, i) => {
+  const bought = added(target);
+  const buys = buysFor(bought, forSale)!;
+  const layout: RefitLayout = {};
+  for (const it of target.items) if (owned.has(it.id)) layout[it.id] = { x: it.x, y: it.y, rot: it.rot };
+  relayout(o, layout);
+  bought.forEach((it, i) => {
     o.run((w) => outpostBuyPart(w, buys[i].id), 'gear');
     mountBought(o, buys[i].id, { x: it.x, y: it.y, rot: it.rot });
   });
@@ -269,10 +293,10 @@ function cost(o: Orders, parts: PartInstance[]): number {
   return parts.reduce((sum, p) => sum + outpostPartPrice(o.world, p), 0);
 }
 
-function buyTruck(o: Orders, post: Outpost): void {
+function buyTruck(o: Orders, post: Outpost, suits: (chassisId: string) => boolean = () => true): void {
   const budget = runBudget(o.world);
   const current = chassisDef(o.me.chassisId).value;
-  const offers = outpostTrucks(o.world, post).filter((id) => chassisDef(id).value > current && chassisSwapRefusal(o.world, id) === null && keepsKit(o, id)).map((id) => ({ id, value: chassisDef(id).value, price: chassisPrice(o.world, id) }));
+  const offers = outpostTrucks(o.world, post).filter((id) => chassisDef(id).value > current && chassisSwapRefusal(o.world, id) === null && keepsKit(o, id) && suits(id)).map((id) => ({ id, value: chassisDef(id).value, price: chassisPrice(o.world, id) }));
   const best = bestTruck(offers, current, budget);
   if (best) o.run((w) => outpostBuyChassis(w, best), 'gear');
 }
@@ -284,6 +308,19 @@ function keepsKit(o: Orders, chassisId: string): boolean {
   return !isStranded(after, me) && mountedCount(me) === mountedCount(o.me);
 }
 
+function keepsItsPace(o: Orders, chassisId: string): boolean {
+  const after = outpostBuyChassis(o.world, chassisId);
+  const speedAfter = vehicleStats(after, playerVehicle(after)).maxSpeed;
+  return outpacesHauler(after, playerVehicle(after)) && speedAfter >= vehicleStats(o.world, o.me).maxSpeed;
+}
+
+function addsNoGun(before: Vehicle, after: Vehicle): boolean {
+  return mountedParts(after, 'weapon').length <= mountedParts(before, 'weapon').length;
+}
+
+function outpacesHauler(world: World, v: Vehicle): boolean {
+  return vehicleStats(world, v).maxSpeed > CHAOS_HIGHWAY.hauler.hurry;
+}
 
 function repair(o: Orders, truck: Vehicle): void {
   const all = repairCost(o.world, truck);

@@ -122,7 +122,7 @@ const OLD_CELL: Record<string, { row: number; col: number }> = {
 const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   scout: {
     id: 'scout',
-    maxSpeed: 7.8,
+    maxSpeed: 5.83,
     accel: 2,
     brake: 3,
     turnSlow: 110,
