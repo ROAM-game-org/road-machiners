@@ -41,9 +41,11 @@ export class RenderScope {
   private readonly attached = new Set<Chunk>();
   private readonly corner = new THREE.Vector3();
   private readonly forward = new THREE.Vector3();
+  private readonly size = new THREE.Vector3();
   private lowest = Number.POSITIVE_INFINITY;
   private highest = Number.NEGATIVE_INFINITY;
   private overhang = 0;
+  private span = 0;
   private claimOverhang = 0;
   private pendingTotal = 0;
 
@@ -223,6 +225,7 @@ export class RenderScope {
     this.highest = Math.max(this.highest, bounds.max.y);
     const over = Math.max(cx * CHUNK_METERS - bounds.min.x, bounds.max.x - (cx + 1) * CHUNK_METERS, cy * CHUNK_METERS - bounds.min.z, bounds.max.z - (cy + 1) * CHUNK_METERS);
     this.overhang = Math.max(this.overhang, over);
+    this.span = Math.max(this.span, chunk.box.getSize(this.size).length());
   }
 
   private forEachChunkIn(range: CellRange, visit: (chunk: Chunk) => void): void {
@@ -239,10 +242,13 @@ export class RenderScope {
     this.forward.set(0, 0, -1).transformDirection(camera.matrixWorld);
     if (this.forward.y > -LEVEL_EPSILON) return whole;
     const reach = MARGIN + this.overhang;
+    const slack = this.span + 2 * Math.sqrt(3) * MARGIN;
+    const wide = 1 + (slack * camera.zoom * 2) / (camera.right - camera.left);
+    const tall = 1 + (slack * camera.zoom * 2) / (camera.top - camera.bottom);
     const box = new THREE.Box2();
     for (const level of [this.lowest, this.highest])
       for (const [nx, ny] of CORNERS) {
-        this.corner.set(nx, ny, -1).unproject(camera);
+        this.corner.set(nx * wide, ny * tall, -1).unproject(camera);
         const along = (level - this.corner.y) / this.forward.y;
         box.expandByPoint(new THREE.Vector2(this.corner.x + this.forward.x * along, this.corner.z + this.forward.z * along));
       }

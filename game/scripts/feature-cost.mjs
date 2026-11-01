@@ -153,8 +153,28 @@ function installProbe() {
   const r = g.renderer;
   const gl = r.getContext();
   const ext = gl.getExtension('EXT_disjoint_timer_query_webgl2');
-  const probe = { cpu: [], gpu: [], pending: [], calls: 0, triangles: 0, idle: false };
+  const probe = { cpu: [], gpu: [], js: [], scan: 0, pending: [], calls: 0, triangles: 0, idle: false };
   window.__COST__ = probe;
+  const timeCalls = (owner, name) => {
+    const original = owner[name].bind(owner);
+    owner[name] = (...args) => {
+      const t0 = performance.now();
+      try {
+        return original(...args);
+      } finally {
+        probe.scan += performance.now() - t0;
+      }
+    };
+  };
+  g.scopes.forEach((scope) => timeCalls(scope, 'update'));
+  timeCalls(g.streamer, 'frame');
+  timeCalls(g.shaders, 'holdUncompiled');
+  const raf = window.requestAnimationFrame.bind(window);
+  window.requestAnimationFrame = (callback) => raf((t) => {
+    const t0 = performance.now();
+    callback(t);
+    probe.js.push(performance.now() - t0);
+  });
   const render = r.render.bind(r);
   const begin = () => {
     if (!ext || probe.pending.length >= 4) return null;
@@ -217,6 +237,8 @@ function readSample(ms) {
   const probe = window.__COST__;
   probe.cpu = [];
   probe.gpu = [];
+  probe.js = [];
+  probe.scan = 0;
   const frameTimes = () => new Promise((done) => {
     const out = [];
     const f = (t) => {
@@ -244,6 +266,8 @@ function readSample(ms) {
     gaps: ts.slice(1).map((t, i) => t - ts[i]),
     cpu: probe.cpu,
     gpu: probe.gpu,
+    js: probe.js,
+    scan: probe.scan,
     calls: probe.calls,
     triangles: probe.triangles,
     casters: casters(),
@@ -277,6 +301,8 @@ function summarize(runs) {
     frameP99: percentile(gaps, 0.99),
     renderCpu: mean(runs.flatMap((r) => r.cpu)),
     gpu: mean(runs.flatMap((r) => r.gpu)),
+    js: runs.flatMap((r) => r.js).reduce((a, b) => a + b, 0) / gaps.length,
+    scan: runs.reduce((a, r) => a + r.scan, 0) / gaps.length,
     calls: last.calls,
     triangles: last.triangles,
     casters: last.casters,
@@ -290,7 +316,7 @@ function fixed(value, width) {
 }
 
 function print(label, side, s) {
-  console.log(`${label.padEnd(44)} ${side.padEnd(8)} frame ${fixed(s.frameMean, 5)} p95 ${fixed(s.frameP95, 5)} p99 ${fixed(s.frameP99, 5)}  cpu ${fixed(s.renderCpu, 5)} gpu ${fixed(s.gpu, 5)}  calls ${String(s.calls).padStart(5)}  casters ${String(s.casters).padStart(6)}  shadow lights ${s.shadowLights}`);
+  console.log(`${label.padEnd(44)} ${side.padEnd(8)} frame ${fixed(s.frameMean, 5)} p95 ${fixed(s.frameP95, 5)} p99 ${fixed(s.frameP99, 5)}  cpu ${fixed(s.renderCpu, 5)} js ${fixed(s.js, 5)} scans ${fixed(s.scan, 4)} gpu ${fixed(s.gpu, 5)}  calls ${String(s.calls).padStart(5)}  casters ${String(s.casters).padStart(6)}  shadow lights ${s.shadowLights}`);
 }
 
 async function sampleVariant(page, name, args) {

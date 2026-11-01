@@ -317,16 +317,6 @@ describe('render scope chunk range', () => {
     return shown;
   }
 
-  function reachesScreen(box: THREE.Box3, camera: THREE.Camera): boolean {
-    const steps = 40;
-    const p = new THREE.Vector3();
-    for (let i = 0; i <= steps; i++) for (let j = 0; j <= steps; j++) for (let k = 0; k <= 4; k++) {
-      p.set(box.min.x + ((box.max.x - box.min.x) * i) / steps, box.min.y + ((box.max.y - box.min.y) * k) / 4, box.min.z + ((box.max.z - box.min.z) * j) / steps).project(camera);
-      if (Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1 && Math.abs(p.z) <= 1) return true;
-    }
-    return false;
-  }
-
   function attachedNames(root: THREE.Object3D): Set<string> {
     return new Set(root.children.map((c) => c.name).filter((n) => n.startsWith('scope-chunk-')));
   }
@@ -335,9 +325,7 @@ describe('render scope chunk range', () => {
     const rig = rigAt(view.x, view.y, view.zoom);
     scope.update(rig.camera);
     const scan = scanned(scope, limit, rig.camera);
-    const got = attachedNames(root);
-    for (const name of got) expect(scan.has(name), `${name} is attached but a scan hides it`).toBe(true);
-    for (const [name, box] of scan) if (reachesScreen(box, rig.camera)) expect(got.has(name), `${name} reaches the screen but is hidden`).toBe(true);
+    expect(attachedNames(root)).toEqual(new Set(scan.keys()));
     return scan.size;
   }
 
@@ -351,7 +339,7 @@ describe('render scope chunk range', () => {
     { x: 560, y: 560, zoom: 1 },
   ];
 
-  it('attaches every chunk a scan of all chunks attaches that reaches the screen, on every move of the camera', () => {
+  it('attaches exactly the chunks a scan of all chunks attaches, on every move of the camera', () => {
     const root = new THREE.Group();
     const limit = new SightLimit(SIZE);
     const scope = new RenderScope(root, SIZE, limit, true, false);
