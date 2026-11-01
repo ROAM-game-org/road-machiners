@@ -10,7 +10,7 @@ import { withStatus } from './post-status';
 import { dropReplyMedia } from './reply-media';
 import { clearSessions } from './sessions';
 import { readState, updateState } from './state';
-import { suiteSettled } from './stages/card-suite';
+import { ownWorkSettled } from './stages/card-suite';
 import { agentHome, baseBranchFor, workDir } from './stages/common';
 import { closeCard } from './stages/approval';
 import { invalidateApproval } from './stages/kept-approval';
@@ -260,8 +260,7 @@ async function relocate(ctx: Ctx, card: Card, needs: Need[], plan: Relocation): 
 
 async function hardenFirst(ctx: Ctx, card: Card): Promise<boolean> {
   await requireBranch(ctx, card.issue);
-  const head = await ctx.repo.headHash(BRANCH(card.issue));
-  return !(await suiteSettled(ctx, card.issue, baseBranchFor(ctx, card.labels), head));
+  return !(await ownWorkSettled(ctx, card.issue, baseBranchFor(ctx, card.labels)));
 }
 
 const HARDEN_FIRST = 'Its head has no green full suite, so it goes to Hardening first. Hardening runs the suite and then moves it to Merging.';

@@ -11,26 +11,27 @@ export class SuiteNotGreenError extends Error {
   }
 }
 
+export const SUITE_FIX_RULES = 'Fix every failure it lists in this round, not only the first or the last one, since each one you leave costs another full run of the suite. Run every failed test file together before and after the fix. A test over its CPU limit gets cheaper: find the work it repeats and make that cheaper, and build shared worlds once and clone them. Never cut its cases, seeds, turns or samples, and never raise a limit.';
+
 export async function suiteRequired(ctx: Ctx, issue: number, base: string): Promise<boolean> {
   return (await ctx.repo.changedFiles(base, BRANCH(issue))).some(isGameSource);
 }
 
-async function testedHeads(ctx: Ctx, issue: number, base: string, build: string): Promise<string[]> {
-  const sha = await ctx.repo.fullHash(build);
-  const heads = await ctx.repo.ownHeads(base, BRANCH(issue));
-  return heads[0] === sha ? heads : [sha];
+async function greenAt(ctx: Ctx, issue: number, sha: string): Promise<boolean> {
+  return readState(ctx.statePath).suiteCleared[String(issue)] === sha || ctx.github.suitePassed(sha);
 }
 
-async function suiteGreen(ctx: Ctx, issue: number, base: string, build: string): Promise<boolean> {
-  const cleared = readState(ctx.statePath).suiteCleared[String(issue)];
-  for (const sha of await testedHeads(ctx, issue, base, build)) {
-    if (cleared === sha || await ctx.github.suitePassed(sha)) return true;
-  }
+async function anyGreen(ctx: Ctx, issue: number, shas: string[]): Promise<boolean> {
+  for (const sha of shas) if (await greenAt(ctx, issue, sha)) return true;
   return false;
 }
 
 export async function suiteSettled(ctx: Ctx, issue: number, base: string, build: string): Promise<boolean> {
-  return !(await suiteRequired(ctx, issue, base)) || suiteGreen(ctx, issue, base, build);
+  return !(await suiteRequired(ctx, issue, base)) || greenAt(ctx, issue, await ctx.repo.fullHash(build));
+}
+
+export async function ownWorkSettled(ctx: Ctx, issue: number, base: string): Promise<boolean> {
+  return !(await suiteRequired(ctx, issue, base)) || anyGreen(ctx, issue, await ctx.repo.ownHeads(base, BRANCH(issue)));
 }
 
 export async function requireSettledSuite(ctx: Ctx, issue: number, base: string, build: string): Promise<void> {

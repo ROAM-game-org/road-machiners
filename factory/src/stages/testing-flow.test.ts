@@ -39,12 +39,14 @@ let runs: AgentRun[] = [];
 let suites: string[] = [];
 let failingSuites = 0;
 let green = new Set<string>();
+let head = 'abc123';
 let baseFailures: { failed: { file: string; test: string | null }[]; unfinished: string[]; unhandledErrors: number } | null = null;
 
 beforeEach(() => {
   suites = [];
   failingSuites = 0;
   green = new Set();
+  head = 'abc123';
   baseFailures = null;
   albums = [];
   albumFails = false;
@@ -139,14 +141,14 @@ function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: s
       untrackFactoryFiles: async () => [],
       push: async (commit: string, branch: string) => { calls.push(`push ${commit} ${branch}`); },
       diff: async () => '',
-      headHash: async () => 'abc123',
+      headHash: async () => head,
       fullHash: async (commit: string) => commit,
       fetch: async () => undefined,
       catchUpBase: async (_dir: string, base: string) => { bases.push(`merge ${base}`); return kept === null ? { commit: 'base0001', conflicts, kept } : { commit: null, conflicts: [], kept }; },
       mergeBranchIntoWork: async () => ({ commit: null, conflicts: [] }),
       isMerged: async (older: string) => (older === 'aaa1111' ? approvedKept : merged),
       changedFiles: async () => changed,
-      ownHeads: async () => ['abc123'],
+      ownHeads: async () => ['abc123', 'aaa1111'],
     },
   };
   return fake as unknown as Ctx;
@@ -364,6 +366,13 @@ describe('testing in one job', () => {
       expect(state.approvalPosts).toEqual({});
     });
 
+    it('runs the suite on the new head even when the approved build before the main merge was green', async () => {
+      green.add('aaa1111');
+      await runVerify(fakeCtx(posts), 7);
+      expect(suites).toEqual(['abc123']);
+      expect(calls.filter((call) => call.startsWith('move'))).toEqual(['move 7 Approval']);
+    });
+
     it('takes a failed check back into the same session and still ships nothing until the checks pass', async () => {
       await runVerify(fakeCtx(posts, ['typecheck failed']), 7);
       expect(runs).toHaveLength(2);
@@ -509,12 +518,20 @@ describe('hardening in one session', () => {
 
   it('resumes the harden session on a red suite, and moves to Merging after a green one', async () => {
     failingSuites = 1;
-    await runHarden(fakeCtx(() => undefined), 7);
+    await runHarden(fakeCtx((_run, index) => { if (index > 0) head = 'abc124'; }), 7);
     expect(runs).toHaveLength(2);
     expect(runs[1]!.session).toEqual({ ...runs[0]!.session, resume: true });
     expect(runs[1]!.prompt).toContain('FAIL src/sim/far.test.ts > drives far');
-    expect(suites).toEqual(['abc123', 'abc123']);
+    expect(runs[1]!.prompt).toContain('Never cut its cases, seeds, turns or samples');
+    expect(suites).toEqual(['abc123', 'abc124']);
     expect(calls.at(-1)).toBe('move 7 Merging');
+  });
+
+  it('runs no suite again after a fix round that made no commit, and hands the same failure back', async () => {
+    failingSuites = 99;
+    await expect(runHarden(fakeCtx(() => undefined, [], 3), 7)).rejects.toThrow(BudgetError);
+    expect(suites).toEqual(['abc123']);
+    expect(runs.at(-1)!.prompt).toContain('Your last round made no commit');
   });
 
   it('stops with a BudgetError when the suite stays red past the hardening budget, and does not move the card', async () => {
