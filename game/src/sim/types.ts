@@ -567,7 +567,7 @@ export type VehicleHits = { vehicle: string; hits: PartHit[] };
 
 export type PassReason = 'nothing' | 'busy' | 'outgunned' | 'poorLoad' | 'chance';
 
-export type ShopMoneyKind = 'fuel' | 'supplies' | 'repair' | 'cargoBuy' | 'cargoSale' | 'partSale' | 'partCredit' | 'campSale' | 'patrolPay' | 'dispatchPay' | 'claimReward' | BountyMoneyKind;
+export type ShopMoneyKind = 'fuel' | 'supplies' | 'repair' | 'cargoBuy' | 'cargoSale' | 'partSale' | 'partCredit' | 'campSale' | 'patrolPay' | 'dispatchPay' | 'haulPay' | 'supplyFund' | 'claimReward' | BountyMoneyKind;
 export type BountyMoneyKind = 'bountyFund' | 'bountyCoffers' | 'bountyOffice' | 'bountyEscrow';
 
 export type CrewAskCause = 'joined' | 'grudge' | 'weak' | 'busy' | 'declined';
