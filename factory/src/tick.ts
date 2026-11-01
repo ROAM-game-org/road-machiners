@@ -175,9 +175,14 @@ function openReleaseJob(state: FactoryState): JobPick | null {
 
 const PLAYTEST_WAITS: ReleaseGate['reason'][] = ['playtest', 'ship-approval'];
 
+const opensRelease = (state: FactoryState): boolean => state.release === null || state.pendingCleanup !== null;
+
 function releaseJob(state: FactoryState, cards: Card[], now: Date, cfg: Due, devTip: string | null): JobPick | null {
-  const release = state.release;
-  if (release === null) return openReleaseJob(state);
+  if (opensRelease(state)) return openReleaseJob(state);
+  return state.release === null ? null : openReleaseStep(state, state.release, cards, now, cfg, devTip);
+}
+
+function openReleaseStep(state: FactoryState, release: ReleaseState, cards: Card[], now: Date, cfg: Due, devTip: string | null): JobPick | null {
   const reason = readReleaseGate(state, cards).reason;
   if (reason === 'candidate') return state.pendingShip === null ? { stage: 'candidate', issue: release.issue } : null;
   return PLAYTEST_WAITS.includes(reason) && playtestDue(state, devTip, now, cfg.playtestHours) ? { stage: 'playtest', issue: release.issue } : null;

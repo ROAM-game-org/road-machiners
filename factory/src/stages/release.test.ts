@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { EMPTY_STATE, readState, writeState } from '../state';
 import { fake, reset } from './test-fakes';
-import { openRelease } from './release';
+import { openPendingRelease, openRelease } from './release';
 
 beforeEach(reset);
 
@@ -45,5 +45,31 @@ describe('open release', () => {
     f.ctx.github.addCard = async () => { throw new Error('board down'); };
     await expect(openRelease(f.ctx)).rejects.toThrow('board down');
     expect(readState(f.ctx.statePath).release?.issue).toBe(11);
+  });
+});
+
+describe('open pending release', () => {
+  it('opens the cleanup cards a failed Ship left due, on an open release, and clears them', async () => {
+    const f = fake();
+    await openRelease(f.ctx);
+    writeState(f.ctx.statePath, { ...readState(f.ctx.statePath), pendingCleanup: '2026-09-20' });
+    await openPendingRelease(f.ctx);
+    expect(f.created.map((issue) => issue.title)).toEqual(['Release 2026-09-29', 'Optimize against the speed budget (after release 2026-09-20)', 'Code janitor pass (after release 2026-09-20)']);
+    expect(readState(f.ctx.statePath).pendingCleanup).toBeNull();
+  });
+
+  it('keeps the cleanup due when a cleanup card cannot be opened', async () => {
+    const f = fake();
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), pendingCleanup: '2026-09-20' });
+    let made = 0;
+    const create = f.ctx.github.createIssue;
+    f.ctx.github.createIssue = async (...args) => {
+      if (made++ === 1) throw new Error('gh down');
+      return create(...args);
+    };
+    await expect(openPendingRelease(f.ctx)).rejects.toThrow('gh down');
+    const state = readState(f.ctx.statePath);
+    expect(state.release?.issue).toBe(11);
+    expect(state.pendingCleanup).toBe('2026-09-20');
   });
 });

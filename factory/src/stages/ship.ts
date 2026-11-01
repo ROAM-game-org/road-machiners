@@ -9,16 +9,15 @@ import { closeLanding, markMerged, openLanding } from '../landing-work';
 import { releasePostDir } from '../release-post';
 import { reportEnv, takeMaps } from '../sourcemaps';
 import { updateState } from '../state';
-import { BUG_LABEL, CANDIDATE_BRANCH, GAME_DIR, MAINTENANCE_LABEL, RELEASE_CANDIDATE_LABEL, type Ctx, type FactoryState, type IssueMerge, type ReleasePost, type ReleaseState, type RunResult } from '../types';
+import { BUG_LABEL, CANDIDATE_BRANCH, GAME_DIR, RELEASE_CANDIDATE_LABEL, type Ctx, type FactoryState, type IssueMerge, type ReleasePost, type ReleaseState, type RunResult } from '../types';
 import { withWorkFolder } from '../work-lock';
 import { closeBundle } from './bundle';
 import { agentLog, fillPrompt, resetOutputs } from './common';
 import { checkAndPush, landingAgent, mergeIn, runningJobId, type Landing } from './merge';
 import { queueIncidents } from './incident';
 import { mergeResolving } from './merge-resolve';
-import { openRelease } from './release';
+import { openPendingRelease } from './release';
 import { candidateDir, changelogText, readChanges, releaseLog, requireRelease, toFeatures, type Feature } from './release-common';
-import { addCard } from '../card-events';
 
 export type ItchKeys = { itchTarget: string; butlerKey: string };
 
@@ -111,8 +110,7 @@ export async function ship(ctx: Ctx, issue: number, by: string | null): Promise<
   await ctx.github.close(issue, 'completed');
   await moveCard(ctx, issue, 'Done', 'shipped', 'release');
   updateState(ctx.statePath, (state) => dropShipped(state, issue, candidate.features, post, ctx.now()));
-  await openRelease(ctx);
-  await openCleanupTasks(ctx, release.day);
+  await openPendingRelease(ctx);
   await ctx.telegram.sendMessage(ctx.cfg.committeeChat, `Release ${release.day} shipped with ${features.length} changes.`);
   ctx.log('ship', issue, `shipped ${features.length} changes`);
 }
@@ -134,19 +132,7 @@ function dropShipped(state: FactoryState, tracking: number, shipped: IssueMerge[
   const builds = { ...state.builds };
   for (const done of [tracking, ...shipped.map((merge) => merge.issue)]) delete builds[String(done)];
   const devMerges = state.devMerges.filter((merge) => !shipped.some((done) => done.issue === merge.issue && done.sha === merge.sha));
-  return { ...state, release: null, devMerges, pendingShip: null, releasePost: post, lastRelease: now.toISOString(), builds };
-}
-
-const CLEANUP_TASKS = [
-  { title: 'Optimize against the speed budget', prompt: 'release-optimize' },
-  { title: 'Code janitor pass', prompt: 'release-janitor' },
-] as const;
-
-async function openCleanupTasks(ctx: Ctx, day: string): Promise<void> {
-  for (const task of CLEANUP_TASKS) {
-    const n = await ctx.github.createIssue(`${task.title} (after release ${day})`, fillPrompt(task.prompt, {}), [MAINTENANCE_LABEL]);
-    await addCard(ctx, n, 'Design', ctx.now().toISOString());
-  }
+  return { ...state, release: null, devMerges, pendingShip: null, pendingCleanup: post.day, releasePost: post, lastRelease: now.toISOString(), builds };
 }
 
 async function anyBug(ctx: Ctx, issues: number[]): Promise<boolean> {

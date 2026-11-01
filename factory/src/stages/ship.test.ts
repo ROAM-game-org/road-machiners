@@ -137,6 +137,13 @@ describe('ship', () => {
     expect(state.release).toBeNull();
     expect(state.releasePost).not.toBeNull();
     expect(state.devMerges).toEqual([LATER]);
+    expect(state.pendingCleanup).toBe('2026-09-29');
+  });
+
+  it('clears the due cleanup once both cleanup cards are open', async () => {
+    const f = shippable();
+    await ship(f.ctx, 11, 'Ann');
+    expect(readState(f.ctx.statePath).pendingCleanup).toBeNull();
   });
 
   it('closes each shipped issue and drops its release-candidate label, after the itch push', async () => {

@@ -204,6 +204,7 @@ export type FactoryState = {
   release: ReleaseState | null;
   releasePost: ReleasePost | null;
   pendingShip: string | null;
+  pendingCleanup: string | null;
   pendingRemovals: Removal[];
   pendingApprovals: Record<string, string>;
   approvedResolving: Record<string, string>;

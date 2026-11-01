@@ -137,6 +137,10 @@ describe('chooseJobs during a release', () => {
     expect(chooseJobs(failed, [], NOW, CFG)).toEqual([]);
   });
 
+  it('runs the release job on an open release while cleanup cards of a shipped release are due', () => {
+    expect(chooseJobs({ ...open, pendingCleanup: '2026-09-20' }, [], NOW, CFG)).toEqual([{ stage: 'release', issue: null }]);
+  });
+
   it('starts the candidate when the playtest passed a commit the candidate lacks', () => {
     expect(chooseJobs(passed, [tracking()], NOW, CFG)).toEqual([{ stage: 'candidate', issue: 20 }]);
     const posted = state({ release: { ...passed.release!, postId: 7, candidate: PASS } });

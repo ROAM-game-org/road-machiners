@@ -249,16 +249,23 @@ function formatMerges(merges: IssueMerge[]): string {
 
 function release(ctx: Ctx): void {
   const state = readState(ctx.statePath);
-  console.log(`last release: ${state.lastRelease ?? 'none'}`);
-  console.log(`playtest ordered: ${state.pendingPlaytest ?? 'none'}`);
-  console.log(`public post: ${publicPost(state.releasePost)}`);
-  console.log(`merged into dev, not yet shipped: ${formatMerges(state.devMerges)}`);
+  for (const line of releaseQueueLines(state)) console.log(line);
   if (state.release === null) return console.log('open release: none');
   console.log(`open release: #${state.release.issue} opened ${state.release.day}`);
   console.log(`candidate post: ${candidatePost(state.release)}`);
   console.log(`removed: ${state.release.removed.map((issue) => `#${issue}`).join(', ') || 'none'}`);
   console.log(`playtest fixes to land on dev: ${state.release.playtest.fixes ?? 'none'}`);
   for (const line of playtestLines(state.release.playtest, ctx.cfg.playtestRuns)) console.log(line);
+}
+
+function releaseQueueLines(state: FactoryState): string[] {
+  return [
+    `last release: ${state.lastRelease ?? 'none'}`,
+    `playtest ordered: ${state.pendingPlaytest ?? 'none'}`,
+    `cleanup cards due after release: ${state.pendingCleanup ?? 'none'}`,
+    `public post: ${publicPost(state.releasePost)}`,
+    `merged into dev, not yet shipped: ${formatMerges(state.devMerges)}`,
+  ];
 }
 
 function publicPost(post: ReleasePost | null): string {

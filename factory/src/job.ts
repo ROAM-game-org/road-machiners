@@ -12,7 +12,7 @@ import { runStage as design } from './stages/design';
 import { runStage as implement } from './stages/implement';
 import { candidate } from './stages/candidate';
 import { playtest } from './stages/playtest';
-import { openRelease } from './stages/release';
+import { openPendingRelease } from './stages/release';
 import { runStage as incident } from './stages/incident';
 import { answer } from './stages/answer';
 import { remove } from './stages/remove';
@@ -159,7 +159,7 @@ function clearSessionsOf(ctx: Ctx, stage: JobStage, issue: number | null): void 
 }
 
 const ISSUELESS: Record<'release' | 'dev' | 'waste' | 'merge' | 'answer', (ctx: Ctx, job: Job | null) => Promise<unknown>> = {
-  release: (ctx) => openRelease(ctx),
+  release: (ctx) => openPendingRelease(ctx),
   waste: (ctx) => waste(ctx),
   answer: (ctx) => answer(ctx),
   merge: (ctx) => merge(ctx),
