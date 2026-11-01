@@ -18,7 +18,7 @@ const CONVOY_DUTY_KINDS: readonly NpcActivity['kind'][] = ['trade', 'sell'];
 const DUTIES: readonly { trait: TraitId; duty: Duty; pays: (goal: NpcActivity) => boolean }[] = [
   { trait: 'lawman', duty: 'patrol', pays: (goal) => goal.kind === 'patrol' && goal.reason === 'patrolTown' },
   { trait: 'courier', duty: 'dispatch', pays: (goal) => goal.kind === 'travel' && isShop(goal.targetId) },
-  { trait: 'supplier', duty: 'guard', pays: (goal) => CONVOY_DUTY_KINDS.includes(goal.kind) || (goal.kind === 'travel' && isShop(goal.targetId)) },
+  { trait: 'supplier', duty: 'guard', pays: (goal) => CONVOY_DUTY_KINDS.includes(goal.kind) },
 ];
 
 function isShop(siteId: string | null): boolean {
@@ -53,10 +53,8 @@ export function payDuty(world: World, v: Vehicle, goal: NpcActivity, escorts: re
   const duty = dutyOf(v, goal);
   if (!duty) return;
   if (!goal.leg) throw new Error(`${v.id} finished a ${goal.kind} duty leg with no start`);
-  if (duty === 'guard') {
-    shopMoney(world, v, dutyPay(world, v, goal.leg, v.pos), 'haulPay');
-    payGuards(world, v, goal.leg, escorts);
-  } else {
+  if (duty === 'guard') payGuards(world, v, goal.leg, escorts);
+  else {
     shopMoney(world, v, dutyPay(world, v, goal.leg, v.pos), duty === 'patrol' ? 'patrolPay' : 'dispatchPay');
     if (duty === 'dispatch') payPartners(world, v, goal.leg, escorts);
   }

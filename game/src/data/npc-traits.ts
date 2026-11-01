@@ -79,9 +79,9 @@ export const TRAITS: Record<TraitId, Trait> = {
     weights: { idle: { prowl: { add: 10 }, scavenge: { add: 2 } }, spotWork: { work: { add: 1 } }, salvageSeen: { loot: { add: 20 } }, crashed: { retaliate: { add: 0.5 } }, strangerSeen: { tip: { add: 0.08 } }, helpCalled: { help: { mul: 0.3 } } },
   },
   supplier: {
-    towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: [], travelSites: ['bowl', 'nose'], contactReactRadius: 12, boldness: 1, fuelMargin: 1, robs: 'never', tradeStake: 833,
+    towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: [], travelSites: [], contactReactRadius: 12, boldness: 1, fuelMargin: 1, robs: 'never', tradeStake: 833,
     weights: {
-      idle: { haul: { add: 30 }, trade: { add: 15 }, travel: { add: 0.3 }, scavenge: { mul: 0.001 } }, strandedSeen: { tow: { add: 9 } },
+      idle: { haul: { add: 30 }, trade: { add: 15 }, explore: { add: 0.3 }, scavenge: { mul: 0.001 } }, strandedSeen: { tow: { add: 9 } },
       hostileSeen: { fight: { mul: 0.002 } }, attacked: { fightBack: { mul: 0.1 } }, threatened: { comply: { add: 1 }, fightBack: { mul: 0.1 } }, warnedOff: { comply: { add: 1 }, fightBack: { mul: 0.1 } },
       strangerSeen: { tale: { add: 0.1 } },
     },

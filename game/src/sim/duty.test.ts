@@ -6,7 +6,7 @@ import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { dutyPay, payDuty } from './duty';
 import { addGoods } from './inventory';
-import { idleGoal, placeBase, resolveNpcActivities } from './npc-activities';
+import { placeBase, resolveNpcActivities } from './npc-activities';
 import { getResources } from './resources';
 import { siteGates, sitePads } from './sites';
 import { plainFuelPerTile, vehicleStats } from './stats';
@@ -153,47 +153,9 @@ describe('duty pay', () => {
 
     const fee = getResources(w, guard).money - guardMoney;
     expect(w.events.filter((e) => e.t === 'guardPaid')).toEqual([{ t: 'guardPaid', by: convoy.id, guard: guard.id, fee }]);
-    const order = w.events.filter((e) => e.t === 'guardPaid' || (e.t === 'shopMoney' && e.kind === 'haulPay')).map((e) => e.t);
-    expect(order).toEqual(['shopMoney', 'guardPaid']);
     expect(fee).toBeGreaterThan(0);
-    expect(fee).toBeLessThanOrEqual(dutyPay(w, guard, goal.leg!, pad));
-    expect(getResources(w, convoy).money).toBeGreaterThanOrEqual(0);
-  });
-
-  it('pays a convoy its own leg when it sells, before it pays its guards', () => {
-    const w = legWorld();
-    const pad = { ...sitePads(NOSE)[0] };
-    const convoy = createNpc(w, 'convoy', ['supplier'], ['mg', 'workhorseDiesel', 'trailerBox'], pad, 'hauler');
-    addGoods(w, convoy, 'scrap', 1);
-    const goal = onLeg(w, convoy, { kind: 'sell', targetId: 'nose', destination: { ...pad }, phase: 'travel', reason: 'sellCargo' });
-
-    finishBusiness(w, convoy);
-
-    const wage = dutyPay(w, convoy, goal.leg!, pad);
-    expect(w.events.filter((e) => e.t === 'shopMoney' && e.vehicle === convoy.id && e.kind === 'haulPay')).toEqual([{ t: 'shopMoney', vehicle: convoy.id, amount: wage, kind: 'haulPay' }]);
-  });
-
-  it('pays a broke convoy for a trip to a town, and then it picks haul or trade again', () => {
-    const w = legWorld();
-    w.salvage = [];
-    const pad = { ...sitePads(NOSE)[0] };
-    const convoy = createNpc(w, 'convoy', ['supplier'], ['mg', 'workhorseDiesel', 'trailerBox'], pad, 'hauler');
-    getResources(w, convoy).money = 0;
-    const brokeKinds = Array.from({ length: 40 }, () => idleGoal(w, convoy).kind);
-    expect(brokeKinds.filter((k) => k !== 'travel' && k !== 'wait')).toEqual([]);
-    expect(brokeKinds.filter((k) => k === 'travel').length).toBeGreaterThan(brokeKinds.length / 2);
-    const goal = onLeg(w, convoy, { kind: 'travel', targetId: 'nose', destination: { ...pad }, phase: 'travel', reason: 'tripToSite' });
-
-    resolveNpcActivities(w);
-
-    const wage = dutyPay(w, convoy, goal.leg!, pad);
-    expect(shopPay(w, convoy)).toEqual([{ t: 'shopMoney', vehicle: convoy.id, amount: wage, kind: 'haulPay' }]);
-    expect(getResources(w, convoy).money).toBe(wage);
-    expect(convoy.brain!.goals).toEqual([]);
-    getResources(w, convoy).money += 833;
-    const kinds = new Set(Array.from({ length: 20 }, () => idleGoal(w, convoy).kind));
-    expect([...kinds].filter((k) => k !== 'trade' && k !== 'travel' && k !== 'wait')).toEqual([]);
-    expect(kinds.has('trade')).toBe(true);
+    expect(fee).toBeLessThan(dutyPay(w, guard, goal.leg!, pad));
+    expect(getResources(w, convoy).money).toBe(0);
   });
 
   it('prices a merc escort at its plain running cost there and back plus the wage', () => {
