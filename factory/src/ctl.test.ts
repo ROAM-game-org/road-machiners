@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { appendLedger } from './ledger';
 import { openStore } from './public/store';
-import { EMPTY_STATE, newPlaytest, readState, writeState } from './state';
+import { EMPTY_STATE, readState, writeState } from './state';
 import { ROOT, fake, reset, type Fake } from './stages/test-fakes';
 
 vi.mock('./control', async (importOriginal) => ({
@@ -274,13 +274,14 @@ describe('read commands', () => {
 });
 
 const RELEASE = { issue: 20, day: '2026-09-29', postId: null, candidate: null, removed: [] };
+const PLAYTEST = { seed: 1, runs: 4, lastStart: null, passed: null, fixes: null, blocked: { sha: 'abc1234', reason: 'taste' }, decision: null, work: null };
 
 describe('immediate commands', () => {
   it('retry removes the stuck label and only that card failures', async () => {
     const f = fake();
     const failure = (issue: number) => ({ stage: 'checks' as const, issue, error: 'boom', cause: 'error' as const, log: null, at: '2026-09-29T09:00:00Z' });
     writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), failures: [failure(5), failure(6)] });
-    await run(f, 'retry', '5');
+    await run(f, 'retry', '5', '--by', 'hermes');
     expect(f.calls).toContain('removeLabel 5 factory-stuck');
     expect(readState(f.ctx.statePath).failures.map((row) => row.issue)).toEqual([6]);
   });
@@ -289,7 +290,7 @@ describe('immediate commands', () => {
     const f = fake();
     const kept = { into: 'dev', sources: [], cards: [5, 6], session: 's', spentUsd: 6, job: null, jobUsd: 0, merged: true, merges: [], since: '2026-09-29T09:00:00Z' };
     writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), landings: { merge: kept, ship: { ...kept, into: 'main', cards: [20] } } });
-    await run(f, 'retry', '5');
+    await run(f, 'retry', '5', '--by', 'hermes');
     expect(readState(f.ctx.statePath).landings).toEqual({ merge: { ...kept, spentUsd: 0 }, ship: { ...kept, into: 'main', cards: [20] } });
   });
 
@@ -297,28 +298,49 @@ describe('immediate commands', () => {
     const f = fake();
     const merge = { stage: 'merge' as const, issue: null, error: 'timed out', cause: 'timeout' as const, log: null, at: '2026-09-29T09:00:00Z', batch: [5, 6] };
     writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), failures: [merge] });
-    await run(f, 'retry', '5');
+    await run(f, 'retry', '5', '--by', 'hermes');
     expect(readState(f.ctx.statePath).failures).toEqual([{ ...merge, cleared: [5] }]);
-    await run(f, 'retry', '6');
+    await run(f, 'retry', '6', '--by', 'hermes');
     expect(readState(f.ctx.statePath).failures).toEqual([]);
   });
 
-  it('retry of the release tracking card lifts a playtest block and keeps the play count', async () => {
+  it('retry of the release tracking card lifts a playtest block, records the decision with its author, comments it and orders a playtest', async () => {
     const f = fake();
     f.ctx.cfg = { ...f.ctx.cfg, playtestRuns: 4 };
-    const playtest = { ...newPlaytest('2026-09-29'), runs: 4, blocked: { sha: 'abc1234', reason: 'taste' } };
-    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, playtest } });
-    await run(f, 'retry', String(RELEASE.issue), 'Raiders', 'may', 'chase', 'at', 'night.');
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, playtest: PLAYTEST } });
+    await run(f, 'retry', String(RELEASE.issue), '--by', 'hermes', 'Raiders may chase at night.');
     expect(f.calls).toContain(`removeLabel ${RELEASE.issue} factory-stuck`);
-    expect(readState(f.ctx.statePath).release?.playtest).toEqual({ ...playtest, blocked: null });
+    expect(readState(f.ctx.statePath).release?.playtest).toEqual({ ...PLAYTEST, blocked: null, decision: { by: 'hermes', at: f.ctx.now().toISOString(), text: 'Raiders may chase at night.' } });
+    expect(readState(f.ctx.statePath).pendingPlaytest).toBe('hermes');
+    expect(f.calls).toContain(`comment Playtest decision from hermes: Raiders may chase at night.`);
+  });
+
+  it('a newer decision replaces the older one, and a retry with no decision keeps it', async () => {
+    const f = fake();
+    const decision = { by: 'Hermes', at: '2026-09-28T10:00:00.000Z', text: 'Old.' };
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, playtest: { ...PLAYTEST, decision } } });
+    await run(f, 'retry', String(RELEASE.issue), '--by', 'hermes');
+    expect(readState(f.ctx.statePath).release?.playtest.decision).toEqual(decision);
+    await run(f, 'retry', String(RELEASE.issue), '--by', 'hermes', 'New.');
+    expect(readState(f.ctx.statePath).release?.playtest.decision).toMatchObject({ by: 'hermes', text: 'New.' });
+  });
+
+  it('retry refuses a missing --by, a decision that holds a flag or one split over arguments, and changes nothing', async () => {
+    const f = fake();
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, playtest: PLAYTEST } });
+    await expect(run(f, 'retry', String(RELEASE.issue), 'New.')).rejects.toThrow('Missing --by');
+    await expect(run(f, 'retry', String(RELEASE.issue), '--by', 'hermes', '--reason Restarted on purpose')).rejects.toThrow('holds a command flag');
+    await expect(run(f, 'retry', String(RELEASE.issue), '--by', 'hermes', 'Raiders', 'may', 'chase')).rejects.toThrow('one quoted argument');
+    expect(readState(f.ctx.statePath).release?.playtest).toEqual(PLAYTEST);
+    expect(f.calls.filter((call) => call.startsWith('removeLabel'))).toEqual([]);
   });
 
   it('retry of another card leaves the playtest alone', async () => {
     const f = fake();
-    const playtest = { ...newPlaytest('2026-09-29'), runs: 4, blocked: { sha: 'abc1234', reason: 'taste' } };
-    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, playtest } });
-    await run(f, 'retry', '5', 'note');
-    expect(readState(f.ctx.statePath).release?.playtest).toEqual(playtest);
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, playtest: PLAYTEST } });
+    await run(f, 'retry', '5', '--by', 'hermes', 'note');
+    expect(readState(f.ctx.statePath).release?.playtest).toEqual(PLAYTEST);
+    expect(readState(f.ctx.statePath).pendingPlaytest).toBeNull();
   });
 
   it('pause writes the pause file and resume removes it', async () => {

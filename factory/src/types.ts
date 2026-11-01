@@ -159,6 +159,8 @@ export type Removal = { issue: number; by: string; text: string };
 
 export type IssueMerge = { issue: number; title: string; sha: string; into: string; reverted: string[] };
 
+export type PlaytestWork = { start: string; baseline: string; features: IssueMerge[]; session: string; plays: number };
+export type PlaytestDecision = { by: string; at: string; text: string };
 export type PlaytestState = {
   seed: number;
   runs: number;
@@ -166,8 +168,8 @@ export type PlaytestState = {
   passed: { sha: string; features: IssueMerge[] } | null;
   fixes: string | null;
   blocked: { sha: string; reason: string } | null;
-  decision: { by: string; at: string; text: string } | null;
-  work: { start: string; baseline: string; features: IssueMerge[]; session: string; plays: number } | null;
+  decision: PlaytestDecision | null;
+  work: PlaytestWork | null;
 };
 
 export type LandingStage = 'merge' | 'ship';

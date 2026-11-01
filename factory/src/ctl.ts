@@ -34,7 +34,7 @@ const READ: Record<string, { usage: string; help: string; run: Handler }> = {
 };
 
 const IMMEDIATE: Record<string, { usage: string; help: string; run: Handler }> = {
-  retry: { usage: 'retry N [decision]', help: 'remove the stuck label and the failures of a card. A kept merge or ship work that holds the card starts a new fix budget. On the release tracking card it also lifts a playtest block, so a new playtest job runs, and keeps the decision for its next review', run: retry },
+  retry: { usage: 'retry N --by <who> ["decision"]', help: 'remove the stuck label and the failures of a card. A kept merge or ship work that holds the card starts a new fix budget. On the release tracking card it also lifts a playtest block, so a new playtest job runs, and records the decision, which only the next playtest job reads', run: retry },
   pause: { usage: 'pause <reason> [--pid N] [--by who]', help: 'pause the factory. --pid ties the pause to a process, and the tick lifts it when that process ends. --by or --pid makes a member pause, which resume refuses', run: pause },
   resume: { usage: 'resume', help: 'remove the pause', run: resume },
   'set-state': { usage: 'set-state <path> <json>|--delete --by <who> --reason <why>', help: 'set or delete one value of the state file under its lock, like release.postId null, while every job keeps running. Prints the old and the new value', run: setStateCommand },
@@ -266,15 +266,22 @@ function candidatePost(release: ReleaseState): string {
 }
 
 function playtestLines(playtest: PlaytestState, runs: number): string[] {
-  const passed = playtest.passed ? ` with ${formatMerges(playtest.passed.features)}` : '';
-  const lines = [`playtest: seed ${playtest.seed}, ${playtest.runs} plays, at most ${runs} per job, passed ${playtest.passed?.sha ?? 'none'}${passed}, last start ${playtest.lastStart?.sha ?? 'none'}`];
-  return [...lines, ...blockLines(playtest)];
+  const lines = [`playtest: seed ${playtest.seed}, ${playtest.runs} plays, at most ${runs} per job, passed ${passedText(playtest)}, last start ${playtest.lastStart?.sha ?? 'none'}`];
+  return [...lines, ...keptPlaytestLines(playtest)];
 }
 
-function blockLines(playtest: PlaytestState): string[] {
-  const block = playtest.blocked ? [`playtest blocked at ${playtest.blocked.sha}: ${playtest.blocked.reason}`] : [];
-  const decision = playtest.decision ? [`playtest decision by ${playtest.decision.by} at ${playtest.decision.at}: ${playtest.decision.text}`] : [];
-  return [...block, ...decision];
+function passedText(playtest: PlaytestState): string {
+  if (playtest.passed === null) return 'none';
+  return `${playtest.passed.sha} with ${formatMerges(playtest.passed.features)}`;
+}
+
+function keptPlaytestLines(playtest: PlaytestState): string[] {
+  const lines: string[] = [];
+  if (playtest.blocked) lines.push(`playtest blocked at ${playtest.blocked.sha}: ${playtest.blocked.reason}`);
+  if (playtest.work) lines.push(`playtest work kept from ${playtest.work.start}: ${playtest.work.plays} plays spent, ${playtest.work.features.length} features`);
+  if (playtest.fixes) lines.push(`playtest fixes ${playtest.fixes} wait on factory/playtest-fixes for the merge job`);
+  if (playtest.decision) lines.push(`playtest decision from ${playtest.decision.by} at ${playtest.decision.at}: ${playtest.decision.text}`);
+  return lines;
 }
 
 function failures(ctx: Ctx): void {
@@ -322,21 +329,33 @@ async function audit(ctx: Ctx): Promise<void> {
 }
 
 async function retry(ctx: Ctx, args: string[]): Promise<void> {
-  const issue = number(args[0]);
-  const decision = args.slice(1).join(' ').trim();
+  const by = takeFlag(args, '--by');
+  const [first, ...given] = by.rest;
+  const issue = number(first);
+  const text = retryDecision(given);
+  const actor = resolveActor(ctx, by.value, false);
   await clearStuck(ctx, issue);
   console.log(`Removed ${STUCK_LABEL} and the failures of #${issue}. The next tick continues the card.`);
   for (const stage of resetSpend(ctx, issue)) console.log(`The kept ${stage} work of #${issue} starts a new fix budget.`);
-  if (readState(ctx.statePath).release?.issue === issue) console.log(retryPlaytest(ctx, decision));
+  if (readState(ctx.statePath).release?.issue === issue) console.log(await retryPlaytest(ctx, issue, { by: actor, text }));
 }
 
-function retryPlaytest(ctx: Ctx, decision: string): string {
+function retryDecision(given: string[]): string {
+  if (given.length > 1) throw new Error(`Give the decision as one quoted argument, after the flags. Usage: ${IMMEDIATE.retry.usage}`);
+  const text = (given[0] ?? '').trim();
+  if (/(^|\s)--[a-z]/i.test(text)) throw new Error(`The decision "${text}" holds a command flag. Put every flag before the decision. Usage: ${IMMEDIATE.retry.usage}`);
+  return text;
+}
+
+async function retryPlaytest(ctx: Ctx, issue: number, decision: { by: string; text: string }): Promise<string> {
+  const recorded = decision.text === '' ? null : { by: decision.by, at: ctx.now().toISOString(), text: decision.text };
   updateState(ctx.statePath, (state: FactoryState) => {
     if (state.release === null) return state;
     const playtest = state.release.playtest;
-    return { ...state, release: { ...state.release, playtest: { ...playtest, blocked: null } } };
+    return { ...state, pendingPlaytest: decision.by, release: { ...state.release, playtest: { ...playtest, blocked: null, decision: recorded ?? playtest.decision } } };
   });
-  return `Lifted the playtest block of the release. A new playtest job plays up to ${ctx.cfg.playtestRuns} times${decision === '' ? '' : ' and reads the decision'}.`;
+  if (recorded !== null) await ctx.github.comment(issue, `Playtest decision from ${recorded.by}: ${recorded.text}`);
+  return `Lifted the playtest block of the release. A new playtest job plays up to ${ctx.cfg.playtestRuns} times${recorded === null ? '' : ' and reads the decision'}.`;
 }
 
 function takeOptionalFlag(args: string[], name: string): { value: string | null; rest: string[] } {

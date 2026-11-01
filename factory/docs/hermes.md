@@ -36,7 +36,7 @@ Write commands take `--by <member or hermes>` and `--reason "<text>"`. `--by <me
 
 These act at once, not on the next tick:
 
-- `factory retry N` removes the stuck label and clears the card's failure.
+- `factory retry N --by hermes ["decision"]` removes the stuck label and clears the card's failure.
 - `factory pause <reason> [--pid N] [--by who]` pauses the factory, and `factory resume` lifts a pause written without `--by`.
 - `factory repair-clone N --by <who> --reason <why>` replaces a broken work clone of a card and keeps the old one as a backup. [operations.md](operations.md) has the rules.
 - `factory set-state <path> <json> --by <who> --reason <why>` sets one value of the state file under its lock. `--delete` in place of the json removes it.
@@ -76,7 +76,7 @@ A reply you did not route within `FACTORY_REPLY_ROUTE_MINUTES` becomes a `feedba
 
 Common fixes:
 
-- Retry a step: `factory retry N`. The next tick runs the step again.
+- Retry a step: `factory retry N --by hermes`. The next tick runs the step again.
 - "The factory checks timed out 3 times, under load or in a hung step": no run showed an error other than a test timeout anywhere in its output, but the checks ran out of time. The failure's cause is `timeout`. The job's worker in `factory_status` shows its activity, milestone, `since` and `progressAt`. A `progressAt` that does not move across the whole limit points to a hang, not load. Read the load with `factory-host 'uptime; docker stats --no-stream'`. Retry the card once with `factory retry N`. When that retry times out too, move it on with `factory move N approval` and never retry it again. Each timed-out run holds a verify worker for up to `FACTORY_VERIFY_TIMEOUT_MINUTES`, and the same run on the same load times out the same way. Never pause the factory for this. A failed merge labels every card of its batch. When its checks failed, retry each as appropriate. When the job timed out or died, the stuck sweep releases its cards in bounded groups, so leave those labels alone.
 - "The checks fail only on tests that fail on <base> at <commit> too", cause `baseline`: the batch broke nothing new, but the base fails those tests, so nothing merges. Retrying the batch only repeats it. Fix the base: file a `bug` issue for the failing tests, or a hotfix when they block releases, and retry the batch once the base passes them. The `baseline` ledger line lists the tests.
 - Move a card by hand: `gh project item-edit` on Project 1 of owner `ROAM-game-org`, with ids from `gh project item-list` and `gh project field-list`. A hand move leaves the other stores stale, so hold the card with `factory pause-card N` and fix them too.
