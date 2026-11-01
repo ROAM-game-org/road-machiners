@@ -5,7 +5,7 @@ import { must } from '../exec';
 import { JOB_ID_ENV } from '../jobs';
 import { addConflictSpend, addSpend, closeLanding, landingSession, markMerged, openLanding, type LandingPlan } from '../landing-work';
 import { readState, updateState } from '../state';
-import { BRANCH, GAME_DIR, RELEASE_CANDIDATE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, type Card, type Ctx, type FactoryState, type IssueMerge, type LandingStage, type LandingWork } from '../types';
+import { BRANCH, GAME_DIR, PLAYTEST_FIXES_BRANCH, RELEASE_CANDIDATE_LABEL, STUCK_LABEL, type Card, type Ctx, type FactoryState, type IssueMerge, type LandingStage, type LandingWork } from '../types';
 import { withWorkFolder } from '../work-lock';
 import { closeMerged } from './approval';
 import { BaselineFailureError, BudgetError, runCost, untilPasses } from './checkpoint';
@@ -35,15 +35,27 @@ export async function merge(ctx: Ctx): Promise<void> {
     await ctx.github.comment(card.issue, UNCHECKED);
     await moveCard(ctx, card.issue, 'Hardening', 'moved', cardFlow(card.labels));
   }
-  const batch = await nextBatch(ctx, unchecked.map((card) => card.issue));
-  if (batch === null) return ctx.log('merge', null, 'no card waits in Merging');
+  const work = await nextWork(ctx, unchecked.map((card) => card.issue));
+  if (work === null) return ctx.log('merge', null, 'no card waits in Merging and no playtest fixes wait');
+  const { batch, fixes } = work;
   try {
-    await withWorkFolder(ctx, 'merge-queue', () => mergeBatch(ctx, batch.base, batch.cards));
+    await withWorkFolder(ctx, 'merge-queue', () => mergeBatch(ctx, batch.base, batch.cards, fixes));
   } catch (error) {
     await labelStuckBatch(ctx, batch.cards.map((card) => card.issue));
     if (error instanceof BaselineFailureError) await commentBaseline(ctx, batch.cards, error).catch((failed: unknown) => ctx.log('merge', null, `the baseline comment failed: ${failed instanceof Error ? failed.message : String(failed)}`));
     throw error;
   }
+}
+
+type Work = { batch: { base: string; cards: Card[] }; fixes: string | null };
+
+const recordedFixes = (ctx: Ctx): string | null => readState(ctx.statePath).release?.playtest.fixes ?? null;
+
+async function nextWork(ctx: Ctx, movedOut: number[]): Promise<Work | null> {
+  const taken = await nextBatch(ctx, movedOut);
+  if (taken !== null) return { batch: taken, fixes: taken.base === BASE_BRANCH ? recordedFixes(ctx) : null };
+  const fixes = recordedFixes(ctx);
+  return fixes === null ? null : { batch: { base: BASE_BRANCH, cards: [] }, fixes };
 }
 
 async function commentBaseline(ctx: Ctx, cards: Card[], error: BaselineFailureError): Promise<void> {
@@ -52,15 +64,15 @@ async function commentBaseline(ctx: Ctx, cards: Card[], error: BaselineFailureEr
   for (const card of cards) await ctx.github.comment(card.issue, `The merge checks of ${batch} fail only on tests that also fail on ${error.into} at ${error.base}, so no fix round ran and nothing merged. The card waits for ${error.into} to pass them:\n${tests}`);
 }
 
-async function mergeBatch(ctx: Ctx, base: string, cards: Card[]): Promise<void> {
+async function mergeBatch(ctx: Ctx, base: string, cards: Card[], fixes: string | null): Promise<void> {
   const dir = join(ctx.cfg.home, 'work', 'merge-queue');
   await ctx.repo.fetch();
-  const { work, resumed } = openLanding(ctx, 'merge', dir, await batchPlan(ctx, base, cards), runningJobId());
+  const { work, resumed } = openLanding(ctx, 'merge', dir, await batchPlan(ctx, base, cards, fixes), runningJobId());
   const clock = newClock();
   const land: Landing = { stage: 'merge', dir, into: base, guardAgainst: [base], agent: landingAgent(ctx, 'merge', dir, work, resumed), clock, staleBase: resumed };
   let merged = { merges: work.merges, conflicts: 0 };
   try {
-    if (!resumed) merged = await mergeCards(ctx, land, cards);
+    if (!resumed) merged = await mergeCards(ctx, land, cards, fixes);
     const fixList = cards.map((card) => `- #${card.issue} on ${BRANCH(card.issue)}`).join('\n');
     await checkAndPush(ctx, land, merged.conflicts, (failure) => fillPrompt('merge-fix', { into: base, cards: fixList, failure }));
   } finally {
@@ -68,21 +80,41 @@ async function mergeBatch(ctx: Ctx, base: string, cards: Card[]): Promise<void> 
   }
   closeLanding(ctx, 'merge', dir);
   recordMerges(ctx, base, merged.merges);
-  await settle(ctx, base, cards, merged.merges);
+  clearFixes(ctx, fixes);
+  await settle(ctx, cards, merged.merges);
 }
 
 export const runningJobId = (): string | null => process.env[JOB_ID_ENV] ?? null;
 
-async function batchPlan(ctx: Ctx, base: string, cards: Card[]): Promise<LandingPlan> {
-  const sources = await Promise.all(cards.map(async (card) => ({ branch: BRANCH(card.issue), sha: await ctx.repo.headHash(BRANCH(card.issue)) })));
+async function batchPlan(ctx: Ctx, base: string, cards: Card[], fixes: string | null): Promise<LandingPlan> {
+  const own = await Promise.all(cards.map(async (card) => ({ branch: BRANCH(card.issue), sha: await ctx.repo.headHash(BRANCH(card.issue)) })));
+  const sources = fixes === null ? own : [{ branch: PLAYTEST_FIXES_BRANCH, sha: fixes }, ...own];
   return { into: base, sources, cards: cards.map((card) => card.issue) };
 }
 
-async function mergeCards(ctx: Ctx, land: Landing, cards: Card[]): Promise<{ merges: IssueMerge[]; conflicts: number }> {
+async function requireFixesPushed(ctx: Ctx, fixes: string): Promise<void> {
+  const head = await ctx.repo.headHash(PLAYTEST_FIXES_BRANCH);
+  if (!head.startsWith(fixes) && !fixes.startsWith(head)) throw new Error(`The playtest fixes are recorded at ${fixes}, but ${PLAYTEST_FIXES_BRANCH} is at ${head} on GitHub.`);
+}
+
+async function mergeFixes(ctx: Ctx, land: Landing, fixes: string): Promise<number> {
+  await requireFixesPushed(ctx, fixes);
+  return timed(land.clock, 'merges', () => mergeIn(ctx, land, { branch: PLAYTEST_FIXES_BRANCH, message: `Merge the release playtest fixes into ${land.into}`, reason: `the release playtest passed on the fixes ${fixes}` }));
+}
+
+function clearFixes(ctx: Ctx, fixes: string | null): void {
+  if (fixes === null) return;
+  updateState(ctx.statePath, (state) => {
+    const release = state.release;
+    return release?.playtest.fixes === fixes ? { ...state, release: { ...release, playtest: { ...release.playtest, fixes: null } } } : state;
+  });
+}
+
+async function mergeCards(ctx: Ctx, land: Landing, cards: Card[], fixes: string | null): Promise<{ merges: IssueMerge[]; conflicts: number }> {
   await ctx.repo.prepareWorkClone(land.into, land.into, land.dir);
   resetOutputs(join(land.dir, GAME_DIR));
   const merges: IssueMerge[] = [];
-  let conflicts = 0;
+  let conflicts = fixes === null ? 0 : await mergeFixes(ctx, land, fixes);
   for (const card of cards) {
     const title = (await ctx.github.issue(card.issue)).title;
     conflicts += await timed(land.clock, 'merges', () => mergeIn(ctx, land, { branch: BRANCH(card.issue), message: `Merge issue #${card.issue}: ${title}`, reason: `issue #${card.issue} was approved` }));
@@ -93,11 +125,8 @@ async function mergeCards(ctx: Ctx, land: Landing, cards: Card[]): Promise<{ mer
 }
 
 function recordMerges(ctx: Ctx, base: string, merges: IssueMerge[]): void {
-  updateState(ctx.statePath, (state) => {
-    if (base === BASE_BRANCH) return { ...state, devMerges: [...state.devMerges, ...merges] };
-    if (state.release?.branch !== base) throw new Error(`Merged into ${base}, but the open release is on ${state.release?.branch ?? 'no branch'}`);
-    return { ...state, release: { ...state.release, merges: [...state.release.merges, ...merges] } };
-  });
+  if (base !== BASE_BRANCH) throw new Error(`Merged into ${base}, but only merges into ${BASE_BRANCH} are recorded`);
+  updateState(ctx.statePath, (state) => ({ ...state, devMerges: [...state.devMerges, ...merges] }));
 }
 
 export type Landing = { stage: LandingStage; dir: string; into: string; guardAgainst: string[]; agent: (prompt: string) => Promise<string>; clock?: Clock; staleBase?: boolean };
@@ -197,10 +226,9 @@ function keptBatch(state: FactoryState, waiting: Card[]): Card[] | null {
 }
 
 export function waitingMerges(state: FactoryState, cards: Card[]): Card[] {
-  const shipping = state.jobs.some((job) => job.stage === 'ship');
   const merging = state.jobs.filter((job) => job.stage === 'merge').flatMap((job) => job.batch ?? []);
   return cards.filter((card) =>
-    card.column === 'Merging' && !card.labels.includes(STUCK_LABEL) && !(String(card.issue) in state.held) && !(shipping && card.labels.includes(RELEASE_TASK_LABEL)) && !merging.includes(card.issue));
+    card.column === 'Merging' && !card.labels.includes(STUCK_LABEL) && !(String(card.issue) in state.held) && !merging.includes(card.issue));
 }
 
 function keptSpend(ctx: Ctx, stage: LandingStage): number {
@@ -299,18 +327,17 @@ async function pushed(ctx: Ctx, land: Landing): Promise<string | null> {
   }
 }
 
-async function settle(ctx: Ctx, base: string, cards: Card[], merges: IssueMerge[]): Promise<void> {
-  const where = base === BASE_BRANCH ? 'dev' : `the release branch ${base}`;
-  for (const [index, card] of cards.entries()) await settleCard(ctx, card, cards, merges[index]!, where);
-  if (base === BASE_BRANCH) await deployDev(ctx, releaseLog(ctx, 'merge-dev-build'));
-  else updateState(ctx.statePath, (next) => (next.release ? { ...next, pendingShip: null, release: { ...next.release, postId: null, removed: next.release.removed.filter((n) => !cards.some((card) => card.issue === n)) } } : next));
+async function settle(ctx: Ctx, cards: Card[], merges: IssueMerge[]): Promise<void> {
+  for (const [index, card] of cards.entries()) await settleCard(ctx, card, cards, merges[index]!);
+  updateState(ctx.statePath, (next) => (next.release ? { ...next, release: { ...next.release, removed: next.release.removed.filter((n) => !cards.some((card) => card.issue === n)) } } : next));
+  await deployDev(ctx, releaseLog(ctx, 'merge-dev-build'));
 }
 
-async function settleCard(ctx: Ctx, card: Card, cards: Card[], merge: IssueMerge, where: string): Promise<void> {
+async function settleCard(ctx: Ctx, card: Card, cards: Card[], merge: IssueMerge): Promise<void> {
   const by = readState(ctx.statePath).approvedResolving[String(card.issue)] ?? 'the factory';
   const others = cards.filter((other) => other.issue !== card.issue).map((other) => `#${other.issue}`);
   const batch = others.length > 0 ? ` It merged together with ${others.join(', ')}, and the checks passed on the result.` : '';
-  await ctx.github.comment(card.issue, `Approved by ${by} and merged into ${where}.${batch} It closes when its release ships.`);
+  await ctx.github.comment(card.issue, `Approved by ${by} and merged into dev.${batch} It closes when its release ships.`);
   await ctx.github.addLabel(card.issue, RELEASE_CANDIDATE_LABEL);
   updateState(ctx.statePath, (state) => ({ ...state, failures: withoutFailuresOf(state.failures, card.issue) }));
   await closeMerged(ctx, card.issue, card.labels, null, { into: merge.into, sha: merge.sha });

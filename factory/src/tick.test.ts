@@ -8,18 +8,20 @@ import { solidPng } from './media-fixtures';
 import { appendUsage, readLedger } from './ledger';
 import { readObservation, type SchedulerData } from './observability';
 import { resumedStage, timedOutMinutes } from './sessions';
-import { checkJobs, chooseJobs, evaluateSchedule, tick, timeoutOf, type TickDeps } from './tick';
-import { EMPTY_STATE, clearQueued, readState, updateState, writeState } from './state';
-import { HOTFIX_LABEL, NEEDS_INFO_LABEL, STUCK_LABEL, VOTING_LABEL, type Card, type ReleaseState, type Ctx, type IssueComment, type FactoryConfig, type FactoryState, type Job } from './types';
+import { checkJobs, chooseJobs, evaluateSchedule, playtestDue, tick, timeoutOf, type TickDeps } from './tick';
+import { EMPTY_STATE, clearQueued, newPlaytest, readState, updateState, writeState } from './state';
+import { HOTFIX_LABEL, NEEDS_INFO_LABEL, STUCK_LABEL, VOTING_LABEL, type Card, type IssueMerge, type ReleaseState, type Ctx, type IssueComment, type FactoryConfig, type FactoryState, type Job } from './types';
 
 const NOW = new Date('2026-01-10T12:00:00Z');
 const hoursAgo = (hours: number) => new Date(NOW.getTime() - hours * 3_600_000).toISOString();
-const CFG = { wasteReviewDays: 7, maxJobsPerCard: 2, triageWorkers: 3, designWorkers: 3, implementWorkers: 3, verifyWorkers: 1, testWorkers: 1 };
+const CFG = { playtestHours: 12, wasteReviewDays: 7, maxJobsPerCard: 2, triageWorkers: 3, designWorkers: 3, implementWorkers: 3, verifyWorkers: 1, testWorkers: 1 };
 const ONE = { ...CFG, triageWorkers: 1, designWorkers: 1, implementWorkers: 1 };
 const DEV = 'dev0001';
 const FRESH = { lastRelease: '2026-01-09T12:00:00Z', devBuild: DEV };
 
-const state = (over: Partial<FactoryState> = {}): FactoryState => ({ ...structuredClone(EMPTY_STATE), ...FRESH, ...over });
+const RELEASE: ReleaseState = { issue: 20, day: '2026-01-05', postId: null, candidate: null, removed: [], playtest: newPlaytest('2026-01-05') };
+const merged = (issue: number, sha = `m${issue}`): IssueMerge => ({ issue, title: `Card ${issue}`, sha, into: 'dev', reverted: [] });
+const state = (over: Partial<FactoryState> = {}): FactoryState => ({ ...structuredClone(EMPTY_STATE), ...FRESH, release: RELEASE, devMerges: [merged(3)], ...over });
 const card = (issue: number, column: Card['column'], labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
 const running = (stage: Job['stage'], issue: number | null): Job => ({ id: `${stage}-${issue}`, stage, issue, pid: 1, startedAt: '', log: '' });
 
@@ -45,11 +47,11 @@ describe('chooseJobs card budget', () => {
 });
 
 describe('chooseJobs with no daily cap', () => {
-  const busy = state({ cardStarts: { 1: starts(23, 5), 2: starts(23, 5), 3: starts(23, 5) }, pendingCut: 'ann' });
+  const busy = state({ cardStarts: { 1: starts(23, 5), 2: starts(23, 5), 3: starts(23, 5) } });
 
   it('fills every queue slot however many jobs started in the last day', () => {
     const cards = [card(4, 'Design'), card(5, 'Design'), card(6, 'Design'), card(7, 'Design')];
-    expect(chooseJobs(busy, cards, NOW, CFG)).toEqual([{ stage: 'release', issue: null }, { stage: 'design', issue: 4 }, { stage: 'design', issue: 5 }, { stage: 'design', issue: 6 }]);
+    expect(chooseJobs(busy, cards, NOW, CFG)).toEqual([{ stage: 'design', issue: 4 }, { stage: 'design', issue: 5 }, { stage: 'design', issue: 6 }]);
   });
 
   it('never reports a daily cap wait', () => {
@@ -59,92 +61,149 @@ describe('chooseJobs with no daily cap', () => {
   });
 
   it('still runs committee-driven jobs', () => {
-    expect(chooseJobs({ ...busy, pendingApprovals: { '4': 'u' } }, [], NOW, CFG)).toEqual([{ stage: 'approve', issue: 4 }, { stage: 'release', issue: null }]);
-    expect(chooseJobs(busy, [card(6, 'Implementation', ['adhoc'])], NOW, CFG)).toEqual([{ stage: 'release', issue: null }, { stage: 'adhoc', issue: 6 }]);
+    expect(chooseJobs({ ...busy, pendingApprovals: { '4': 'u' } }, [], NOW, CFG)).toEqual([{ stage: 'approve', issue: 4 }]);
+    expect(chooseJobs(busy, [card(6, 'Implementation', ['adhoc'])], NOW, CFG)).toEqual([{ stage: 'adhoc', issue: 6 }]);
   });
 
   it('queues one incident job for the whole batch, led by the oldest pending issue', () => {
-    const decisions = evaluateSchedule({ ...busy, pendingCut: null, pendingIncidents: [7, 8, 9] }, [], NOW, CFG).decisions;
+    const decisions = evaluateSchedule({ ...busy, pendingIncidents: [7, 8, 9] }, [], NOW, CFG).decisions;
     expect(decisions.filter((decision) => decision.stage === 'incident')).toEqual([{ stage: 'incident', issue: 7, reasons: [] }]);
   });
 
   it('runs one incident job at a time, since each appends to the same incident log, beside a queued ship', () => {
-    const capped = { ...busy, pendingCut: null };
-    const queuedIncident = { ...capped, pendingIncidents: [7, 8] };
+    const queuedIncident = { ...busy, pendingIncidents: [7, 8] };
     expect(chooseJobs(queuedIncident, [], NOW, CFG)).toEqual([{ stage: 'incident', issue: 7 }]);
-    expect(chooseJobs({ ...queuedIncident, pendingShip: 'u', release: { issue: 3, branch: 'release/x', day: 'x', postId: 1, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } }, [], NOW, CFG)).toEqual([{ stage: 'ship', issue: 3 }, { stage: 'incident', issue: 7 }]);
+    expect(chooseJobs({ ...queuedIncident, pendingShip: 'u', release: { ...RELEASE, issue: 3, postId: 1 } }, [], NOW, CFG)).toEqual([{ stage: 'ship', issue: 3 }, { stage: 'incident', issue: 7 }]);
   });
 
-  it('starts no merge for release task cards while a ship runs, and one for a dev card', () => {
-    const shipping = { ...busy, pendingCut: null, jobs: [{ id: 'ship-3-x', stage: 'ship' as const, issue: 3, pid: 1, startedAt: NOW.toISOString(), log: '' }] };
-    expect(chooseJobs(shipping, [card(7, 'Merging', ['release-task'])], NOW, CFG)).toEqual([]);
-    expect(chooseJobs(shipping, [card(7, 'Merging', ['release-task']), card(8, 'Merging')], NOW, CFG)).toEqual([{ stage: 'merge', issue: null }]);
+  it('starts a merge for a dev card while a ship runs', () => {
+    const shipping = { ...busy, jobs: [{ id: 'ship-3-x', stage: 'ship' as const, issue: 3, pid: 1, startedAt: NOW.toISOString(), log: '' }] };
+    expect(chooseJobs(shipping, [card(7, 'Merging')], NOW, CFG)).toEqual([{ stage: 'merge', issue: null }]);
   });
 });
 
-const RELEASE: ReleaseState = { issue: 20, branch: 'release/2026-01-05', day: '2026-01-05', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
 const tracking = (labels: string[] = ['release']): Card => card(20, 'Approval', labels);
 
-const AT_HEAD = { dev: null, release: 'rel0001', main: null };
+const MOVED = { dev: DEV, main: null };
+const PASS = { sha: 'rel0001', features: [merged(3)] };
+
+describe('playtestDue', () => {
+  const at = (over: Partial<ReleaseState['playtest']>, pending: string | null = null): FactoryState => state({ pendingPlaytest: pending, release: { ...RELEASE, playtest: { ...RELEASE.playtest, ...over } } });
+  const old = { sha: 'dev0001', at: hoursAgo(13) };
+
+  it('is due on a moved dev tip once the hours passed, or with no start yet', () => {
+    expect(playtestDue(at({ lastStart: old }), 'dev0002', NOW, 12)).toBe(true);
+    expect(playtestDue(at({}), 'dev0002', NOW, 12)).toBe(true);
+    expect(playtestDue(at({ lastStart: { sha: 'dev0001', at: hoursAgo(11) } }), 'dev0002', NOW, 12)).toBe(false);
+    expect(playtestDue(at({ lastStart: old }), 'dev0001', NOW, 12)).toBe(false);
+    expect(playtestDue(at({ lastStart: old }), 'dev0001abc', NOW, 12)).toBe(false);
+  });
+
+  it('is due again while kept work of a dead playtest waits, also on an unmoved dev tip', () => {
+    const work = { start: 'dev0001', baseline: 'main01', features: [], session: 's', plays: 1 };
+    expect(playtestDue(at({ lastStart: { sha: 'dev0002', at: hoursAgo(1) }, work }), 'dev0002', NOW, 12)).toBe(true);
+    expect(playtestDue(at({ work, blocked: { sha: 'x', reason: 'r' } }), 'dev0002', NOW, 12)).toBe(false);
+    expect(playtestDue(at({ work, fixes: 'fix0001' }), 'dev0002', NOW, 12)).toBe(false);
+  });
+
+  it('is not due automatically while dev holds no unshipped merge, but an order still starts it', () => {
+    const empty = (pending: string | null): FactoryState => ({ ...at({ lastStart: old }, pending), devMerges: [] });
+    expect(playtestDue(empty(null), 'dev0002', NOW, 12)).toBe(false);
+    expect(playtestDue(empty('Ann'), 'dev0002', NOW, 12)).toBe(true);
+  });
+
+  it('is not due while playtest fixes wait to land on dev, also on an order', () => {
+    expect(playtestDue(at({ lastStart: old, fixes: 'fix0001' }), 'dev0002', NOW, 12)).toBe(false);
+    expect(playtestDue(at({ lastStart: old, fixes: 'fix0001' }, 'Ann'), 'dev0002', NOW, 12)).toBe(false);
+  });
+
+  it('is never due with no dev tip, no release or a block, but an order overrides a block', () => {
+    expect(playtestDue(at({}), null, NOW, 12)).toBe(false);
+    expect(playtestDue(state({ release: null }), 'dev0002', NOW, 12)).toBe(false);
+    expect(playtestDue(at({ blocked: { sha: 'x', reason: 'r' } }), 'dev0002', NOW, 12)).toBe(false);
+    expect(playtestDue(at({ blocked: { sha: 'x', reason: 'r' }, lastStart: { sha: 'dev0002', at: hoursAgo(1) } }, 'Ann'), null, NOW, 12)).toBe(true);
+  });
+});
 
 describe('chooseJobs during a release', () => {
   const open = state({ release: RELEASE, lastRelease: null });
-  const passed = state({ release: { ...RELEASE, playtest: { ...RELEASE.playtest, passed: 'rel0001' } }, lastRelease: null });
+  const passed = state({ release: { ...RELEASE, playtest: { ...RELEASE.playtest, passed: PASS } }, lastRelease: null });
+  const started = (sha: string, ago: number): ReleaseState => ({ ...RELEASE, playtest: { ...RELEASE.playtest, lastStart: { sha, at: hoursAgo(ago) } } });
 
-  it('cuts a release only when none is open', () => {
-    expect(chooseJobs(state({ pendingCut: 'ann' }), [], NOW, CFG)).toEqual([{ stage: 'release', issue: null }]);
-    expect(chooseJobs({ ...open, pendingCut: 'ann' }, [], NOW, CFG)).toEqual([]);
+  it('opens a release only when none is open, and not again after a failed attempt', () => {
+    expect(chooseJobs(state({ release: null }), [], NOW, CFG)).toEqual([{ stage: 'release', issue: null }]);
     expect(chooseJobs(open, [], NOW, CFG)).toEqual([]);
+    const failed = state({ release: null, failures: [{ stage: 'release', issue: null, error: 'e', cause: null, log: null, at: hoursAgo(1) }] });
+    expect(chooseJobs(failed, [], NOW, CFG)).toEqual([]);
   });
 
-  it('starts the candidate once every release task is Done, the tracking issue is healthy and the playtest passed the head', () => {
-    const cards = [tracking(), card(21, 'Done', ['release-task', 'maintenance'])];
-    expect(chooseJobs(passed, cards, NOW, CFG, AT_HEAD)).toEqual([{ stage: 'candidate', issue: 20 }]);
+  it('starts the candidate when the playtest passed a commit the candidate lacks', () => {
+    expect(chooseJobs(passed, [tracking()], NOW, CFG)).toEqual([{ stage: 'candidate', issue: 20 }]);
+    const posted = state({ release: { ...passed.release!, postId: 7, candidate: PASS } });
+    expect(chooseJobs(posted, [tracking()], NOW, CFG)).toEqual([]);
+    expect(evaluateSchedule(posted, [tracking()], NOW, CFG).release.reason).toBe('ship-approval');
   });
 
-  it('runs the playtest after the release tasks and before the candidate', () => {
-    const cards = [tracking(), card(21, 'Done', ['release-task', 'maintenance'])];
-    expect(chooseJobs(open, cards, NOW, CFG, AT_HEAD)).toEqual([{ stage: 'playtest', issue: 20 }]);
-    expect(chooseJobs(open, [tracking(), card(21, 'Testing', ['release-task', 'maintenance'])], NOW, CFG, AT_HEAD)).toEqual([{ stage: 'verify', issue: 21 }]);
+  it('replaces a posted candidate when a newer commit passed, unless a ship is queued', () => {
+    const newer = state({ release: { ...passed.release!, postId: 7, candidate: { sha: 'rel0000', features: [] } } });
+    expect(chooseJobs(newer, [tracking()], NOW, CFG)).toEqual([{ stage: 'candidate', issue: 20 }]);
+    expect(chooseJobs({ ...newer, pendingShip: 'Ann' }, [tracking()], NOW, CFG)).toEqual([{ stage: 'ship', issue: 20 }]);
   });
 
-  it('plays again when the release moved past the passed commit', () => {
-    expect(chooseJobs(passed, [tracking()], NOW, CFG, { dev: null, release: 'rel0002', main: null })).toEqual([{ stage: 'playtest', issue: 20 }]);
+  it('builds no candidate from a pass that holds a removed feature', () => {
+    const removed = state({ release: { ...passed.release!, removed: [3] } });
+    expect(chooseJobs(removed, [tracking()], NOW, CFG)).toEqual([]);
   });
 
-  it('runs neither the playtest nor the candidate while the release head is unknown or the playtest is blocked', () => {
-    expect(chooseJobs(passed, [tracking()], NOW, CFG)).toEqual([]);
-    const blocked = { ...open, release: { ...RELEASE, playtest: { ...RELEASE.playtest, passed: 'rel0001', blocked: { sha: 'rel0002', reason: 'r' } } } };
-    expect(chooseJobs(blocked, [tracking()], NOW, CFG, AT_HEAD)).toEqual([]);
-    expect(evaluateSchedule(blocked, [tracking()], NOW, CFG, AT_HEAD).release.reason).toBe('playtest-blocked');
+  it('starts the playtest when dev moved past the last start and the hours passed', () => {
+    expect(chooseJobs(open, [tracking()], NOW, CFG, MOVED)).toEqual([{ stage: 'playtest', issue: 20 }]);
+    expect(chooseJobs(state({ release: started('dev0000', 13) }), [tracking()], NOW, CFG, MOVED)).toEqual([{ stage: 'playtest', issue: 20 }]);
+    expect(chooseJobs(state({ release: started('dev0000', 1) }), [tracking()], NOW, CFG, MOVED)).toEqual([]);
+    expect(chooseJobs(state({ release: started(DEV, 13) }), [tracking()], NOW, CFG, MOVED)).toEqual([]);
+    expect(chooseJobs(open, [tracking()], NOW, CFG)).toEqual([]);
+  });
+
+  it('starts the playtest beside a posted candidate, since the pass replaces it', () => {
+    const posted = state({ release: { ...started('dev0000', 13), postId: 7, candidate: PASS, playtest: { ...started('dev0000', 13).playtest, passed: PASS } } });
+    expect(chooseJobs(posted, [tracking()], NOW, CFG, MOVED)).toEqual([{ stage: 'playtest', issue: 20 }]);
+  });
+
+  it('runs a candidate before the next playtest', () => {
+    expect(chooseJobs(passed, [tracking()], NOW, CFG, MOVED)).toEqual([{ stage: 'candidate', issue: 20 }]);
+  });
+
+  it('runs no playtest while it is blocked, until an order lifts it', () => {
+    const blocked = state({ release: { ...RELEASE, playtest: { ...RELEASE.playtest, blocked: { sha: 'rel0002', reason: 'r' } } } });
+    expect(chooseJobs(blocked, [tracking()], NOW, CFG, MOVED)).toEqual([]);
+    expect(evaluateSchedule(blocked, [tracking()], NOW, CFG, MOVED).release.reason).toBe('playtest-blocked');
+    expect(chooseJobs({ ...blocked, pendingPlaytest: 'Ann' }, [tracking()], NOW, CFG, MOVED)).toEqual([{ stage: 'playtest', issue: 20 }]);
   });
 
   it('runs the playtest in the verify queue, beside a branch job', () => {
     const busy = { ...open, pendingApprovals: { '4': 'u' } };
-    expect(chooseJobs(busy, [tracking()], NOW, CFG, AT_HEAD)).toEqual([{ stage: 'approve', issue: 4 }, { stage: 'playtest', issue: 20 }]);
-    expect(chooseJobs({ ...open, jobs: [running('verify', 9)] }, [tracking()], NOW, CFG, AT_HEAD)).toEqual([]);
+    expect(chooseJobs(busy, [tracking()], NOW, CFG, MOVED)).toEqual([{ stage: 'approve', issue: 4 }, { stage: 'playtest', issue: 20 }]);
+    expect(chooseJobs({ ...open, jobs: [running('verify', 9)] }, [tracking()], NOW, CFG, MOVED)).toEqual([]);
   });
 
-  it('waits for a release task outside Done, also a stuck one', () => {
-    expect(chooseJobs(open, [tracking(), card(21, 'Approval', ['release-task'])], NOW, CFG)).toEqual([]);
-    expect(chooseJobs(open, [tracking(), card(21, 'Testing', ['release-task', STUCK_LABEL])], NOW, CFG)).toEqual([]);
+  it('does not wait for open work cards', () => {
+    expect(chooseJobs(open, [tracking(), card(21, 'Testing')], NOW, { ...CFG, verifyWorkers: 2 }, MOVED)).toEqual([{ stage: 'playtest', issue: 20 }, { stage: 'verify', issue: 21 }]);
+    expect(chooseJobs(passed, [tracking(), card(21, 'Approval')], NOW, CFG)).toEqual([{ stage: 'candidate', issue: 20 }]);
   });
 
-  it('waits when the tracking issue is stuck, missing, or already has a post', () => {
-    expect(chooseJobs(open, [tracking(['release', STUCK_LABEL])], NOW, CFG)).toEqual([]);
-    expect(chooseJobs(open, [], NOW, CFG)).toEqual([]);
-    expect(chooseJobs({ ...open, release: { ...RELEASE, postId: 5 } }, [tracking()], NOW, CFG)).toEqual([]);
+  it('waits when the tracking issue is stuck or missing', () => {
+    expect(chooseJobs(open, [tracking(['release', STUCK_LABEL])], NOW, CFG, MOVED)).toEqual([]);
+    expect(chooseJobs(open, [], NOW, CFG, MOVED)).toEqual([]);
   });
 
   it('counts the playtest and the candidate toward the limit of the tracking card', () => {
-    expect(chooseJobs({ ...open, cardStarts: { 20: starts(23, 5) } }, [tracking()], NOW, CFG, AT_HEAD)).toEqual([]);
-    expect(chooseJobs({ ...passed, cardStarts: { 20: starts(23, 5) } }, [tracking()], NOW, CFG, AT_HEAD)).toEqual([]);
+    expect(chooseJobs({ ...open, cardStarts: { 20: starts(23, 5) } }, [tracking()], NOW, CFG, MOVED)).toEqual([]);
+    expect(chooseJobs({ ...passed, cardStarts: { 20: starts(23, 5) } }, [tracking()], NOW, CFG)).toEqual([]);
   });
 
-  it('runs release tasks before other cards, furthest along first', () => {
-    const cards = [tracking(), card(30, 'Implementation'), card(21, 'Design', ['release-task']), card(22, 'Implementation', ['release-task'])];
+  it('runs cards furthest along first', () => {
+    const cards = [tracking(), card(30, 'Implementation'), card(21, 'Design'), card(22, 'Implementation')];
     expect(chooseJobs(open, cards, NOW, ONE)).toEqual([{ stage: 'implement', issue: 22 }, { stage: 'design', issue: 21 }]);
-    expect(chooseJobs(open, cards, NOW, CFG)).toEqual([{ stage: 'implement', issue: 22 }, { stage: 'design', issue: 21 }, { stage: 'implement', issue: 30 }]);
+    expect(chooseJobs(open, cards, NOW, CFG)).toEqual([{ stage: 'implement', issue: 22 }, { stage: 'implement', issue: 30 }, { stage: 'design', issue: 21 }]);
   });
 
   it('never gives the tracking issue card a card job', () => {
@@ -169,15 +228,15 @@ describe('chooseJobs during a release', () => {
   });
 
   it('ignores a queued ship when no release is open', () => {
-    expect(chooseJobs(state({ pendingShip: 'Ann' }), [], NOW, CFG)).toEqual([]);
+    expect(chooseJobs(state({ release: null, pendingShip: 'Ann' }), [], NOW, CFG)).toEqual([{ stage: 'release', issue: null }]);
   });
 });
 
-const HOLD = { by: 'Ann', reason: 'release tasks first', at: '2026-01-10T11:00:00Z', stage: 'implement' as const };
+const HOLD = { by: 'Ann', reason: 'hold for review', at: '2026-01-10T11:00:00Z', stage: 'implement' as const };
 
 describe('chooseJobs with held cards', () => {
-  it('starts no job on a held card, and gives the freed worker to a release task first', () => {
-    const cards = [card(5, 'Implementation'), card(6, 'Implementation', ['release-task']), card(7, 'Implementation')];
+  it('starts no job on a held card, and gives the freed worker to the next card', () => {
+    const cards = [card(5, 'Implementation'), card(6, 'Implementation'), card(7, 'Implementation')];
     expect(chooseJobs(state({ held: { 5: HOLD } }), cards, NOW, ONE)).toEqual([{ stage: 'implement', issue: 6 }]);
     expect(chooseJobs(state({ held: { 5: HOLD, 6: HOLD } }), cards, NOW, ONE)).toEqual([{ stage: 'implement', issue: 7 }]);
   });
@@ -211,7 +270,7 @@ describe('chooseJobs with held cards', () => {
 describe('chooseJobs', () => {
   it('picks the lowest ad hoc card before other agent work, beside a branch job', () => {
     const cards = [card(8, 'Implementation', ['adhoc']), card(6, 'Implementation', ['adhoc']), card(5, 'Implementation'), card(7, 'Implementation', ['adhoc', 'factory-stuck'])];
-    expect(chooseJobs(state({ pendingCut: 'ann' }), cards, NOW, ONE)).toEqual([{ stage: 'release', issue: null }, { stage: 'adhoc', issue: 6 }]);
+    expect(chooseJobs(state(), cards, NOW, ONE)).toEqual([{ stage: 'adhoc', issue: 6 }]);
     expect(chooseJobs(state(), cards, NOW, CFG)).toEqual([{ stage: 'adhoc', issue: 6 }, { stage: 'adhoc', issue: 8 }, { stage: 'implement', issue: 5 }]);
   });
 
@@ -238,25 +297,26 @@ describe('chooseJobs', () => {
     expect(chooseJobs(s, [], NOW, CFG)).toEqual([{ stage: 'approve', issue: 4 }, { stage: 'approve', issue: 9 }]);
   });
 
-  it('runs release only on a member-ordered cut', () => {
-    expect(chooseJobs(state({ pendingCut: 'ann' }), [], NOW, CFG)).toEqual([{ stage: 'release', issue: null }]);
+  it('starts a merge for playtest fixes with no card waiting, but not after a failed merge', () => {
+    const fixed = state({ release: { ...RELEASE, playtest: { ...RELEASE.playtest, fixes: 'fix0001' } } });
+    expect(chooseJobs(fixed, [], NOW, CFG)).toEqual([{ stage: 'merge', issue: null }]);
+    const failed = { ...fixed, failures: [{ stage: 'merge' as const, issue: null, error: 'e', cause: null, log: null, at: hoursAgo(1) }] };
+    expect(chooseJobs(failed, [], NOW, CFG)).toEqual([]);
+    const batchFailed = { ...fixed, failures: [{ ...failed.failures[0], batch: [8] }] };
+    expect(chooseJobs(batchFailed, [], NOW, CFG)).toEqual([{ stage: 'merge', issue: null }]);
   });
 
-  it('never cuts on a schedule, however long since the last release or with no release ever', () => {
-    for (const lastRelease of [null, '2026-01-03T11:00:00Z', '2025-01-01T00:00:00Z', '2026-01-09T11:59:00Z']) {
-      expect(chooseJobs(state({ lastRelease }), [], NOW, CFG)).toEqual([]);
-      expect(evaluateSchedule(state({ lastRelease }), [], NOW, CFG).picks).toEqual([]);
-    }
-  });
-
-  it('does not cut after a merge into dev, a ship or a new cycle with no order', () => {
-    const merged = state({ lastRelease: null, devMerges: [{ issue: 3, title: 'Trucks', sha: 'abc1234', into: 'dev', reverted: [] }] });
-    expect(chooseJobs(merged, [], NOW, CFG)).toEqual([]);
+  it('opens a release on the switch and after a ship, with no order', () => {
+    expect(chooseJobs(state({ release: null }), [], NOW, CFG)).toEqual([{ stage: 'release', issue: null }]);
     const shipped = state({ release: null, lastRelease: '2026-01-01T00:00:00Z', pendingShip: null });
-    expect(chooseJobs(shipped, [], NOW, CFG)).toEqual([]);
+    expect(chooseJobs(shipped, [], NOW, CFG)).toEqual([{ stage: 'release', issue: null }]);
   });
 
-  it('keeps the order until the cut job clears it, and a ship order is no cut order', () => {
+  it('opens no release beside a running ship or removal', () => {
+    expect(chooseJobs(state({ release: null, jobs: [running('ship', 20)] }), [], NOW, CFG)).toEqual([]);
+  });
+
+  it('a ship order opens no release', () => {
     expect(chooseJobs(state({ release: RELEASE, pendingShip: 'ann' }), [tracking()], NOW, CFG).map((job) => job.stage)).not.toContain('release');
   });
 
@@ -276,16 +336,16 @@ describe('chooseJobs', () => {
 
   it('rebuilds /dev/ when dev moved, after queued work, beside cards', () => {
     const cards = [card(6, 'Implementation', ['adhoc']), card(4, 'Design')];
-    expect(chooseJobs(state(), cards, NOW, CFG, { dev: 'dev0002', release: null, main: null })).toEqual([{ stage: 'dev', issue: null }, { stage: 'adhoc', issue: 6 }, { stage: 'design', issue: 4 }]);
-    expect(chooseJobs(state({ pendingApprovals: { '4': 'u' } }), [], NOW, CFG, { dev: 'dev0002', release: null, main: null })).toEqual([{ stage: 'approve', issue: 4 }, { stage: 'dev', issue: null }]);
-    expect(chooseJobs(state({ jobs: [running('approve', 4)] }), [], NOW, CFG, { dev: 'dev0002', release: null, main: null })).toEqual([{ stage: 'dev', issue: null }]);
-    expect(chooseJobs(state({ jobs: [running('dev', null)] }), [], NOW, CFG, { dev: 'dev0002', release: null, main: null })).toEqual([]);
+    expect(chooseJobs(state(), cards, NOW, CFG, { dev: 'dev0002', main: null })).toEqual([{ stage: 'dev', issue: null }, { stage: 'adhoc', issue: 6 }, { stage: 'design', issue: 4 }]);
+    expect(chooseJobs(state({ pendingApprovals: { '4': 'u' } }), [], NOW, CFG, { dev: 'dev0002', main: null })).toEqual([{ stage: 'approve', issue: 4 }, { stage: 'dev', issue: null }]);
+    expect(chooseJobs(state({ jobs: [running('approve', 4)] }), [], NOW, CFG, { dev: 'dev0002', main: null })).toEqual([{ stage: 'dev', issue: null }]);
+    expect(chooseJobs(state({ jobs: [running('dev', null)] }), [], NOW, CFG, { dev: 'dev0002', main: null })).toEqual([]);
   });
 
   it('leaves /dev/ alone when it serves dev or dev failed to build', () => {
-    expect(chooseJobs(state(), [], NOW, CFG, { dev: DEV, release: null, main: null })).toEqual([]);
-    expect(chooseJobs(state({ devFailed: 'dev0002' }), [], NOW, CFG, { dev: 'dev0002', release: null, main: null })).toEqual([]);
-    expect(chooseJobs(state({ devFailed: 'dev0002' }), [], NOW, CFG, { dev: 'dev0003', release: null, main: null })).toEqual([{ stage: 'dev', issue: null }]);
+    expect(chooseJobs(state(), [], NOW, CFG, { dev: DEV, main: null })).toEqual([]);
+    expect(chooseJobs(state({ devFailed: 'dev0002' }), [], NOW, CFG, { dev: 'dev0002', main: null })).toEqual([]);
+    expect(chooseJobs(state({ devFailed: 'dev0002' }), [], NOW, CFG, { dev: 'dev0003', main: null })).toEqual([{ stage: 'dev', issue: null }]);
   });
 
   it('skips stuck cards, Approval and Done', () => {
@@ -314,7 +374,7 @@ function harness(job: Job | null, alive: boolean, cards: Card[] = [], comments: 
   const github = { cards: async () => cards, card: async (n: number) => cards.find((row) => row.issue === n) ?? null, candidates: async () => [], addLabel: async (n: number, l: string) => { labels.push(`${n}:${l}`); }, comments: async () => comments, removeLabel: async (n: number, l: string) => { removed.push(`${n}:${l}`); } };
   const telegram = { sendMessage: async (_chat: string, text: string) => { sent.push(text); return 1; } };
   const cfg = { home: dir, webRoot: join(dir, 'web'), repo: 'o/r', committeeChat: 'c', triageTimeoutMinutes: 30, designTimeoutMinutes: 30, implementTimeoutMinutes: 120, verifyTimeoutMinutes: 30, testTimeoutMinutes: 30, branchTimeoutMinutes: 30, mergeTimeoutMinutes: 30, replyRouteMinutes: 15, needsInfoHours: 24, minFreeGb: 0.001, minAvailableGb: 1, logDays: 14, transcriptDays: 10,cpuLight: 0.25, cpuImplement: 0.25, cpuTest: 0.5, vitestWorkersImplement: 2, vitestWorkersTest: 4, jobsSlice: null, ...CFG };
-  const repo = { fetch: async () => {},headHash: async (branch: string) => { if (branch === RELEASE.branch) return 'rel0001'; if (branch === 'main') return 'main0001'; if (branch !== 'dev') throw new Error(`unexpected branch ${branch}`); return devHead; } };
+  const repo = { fetch: async () => {},headHash: async (branch: string) => { if (branch === 'main') return 'main0001'; if (branch !== 'dev') throw new Error(`unexpected branch ${branch}`); return devHead; } };
   const ctx = { cfg, github, telegram, repo, statePath, now: () => NOW, log: () => undefined } as unknown as Ctx;
   const deps: TickDeps = { isAlive: () => alive, kill: async (_run, pid, id) => { killed.push(`${pid} ${id}`); }, removeContainers: async (_run, id) => { killed.push(`containers ${id}`); }, spawn: (args, _cwd, _log, id, cpus, testWorkers) => { parseStage(args[0]); spawned.push([...args, id]); pinned.push(`${args[0]} ${cpus} ${testWorkers}`); return 77; }, cores: () => 4, availableGb: () => null, repair: async () => { throw new Error('no repair expected'); }, publicTick: async () => undefined };
   return { ctx, sent, labels, removed, deps, killed, spawned, pinned };
@@ -593,7 +653,7 @@ describe('tick', () => {
   describe('merge catch-up', () => {
     const merging = (batch: number[] | undefined): Job => ({ ...running('merge', null), batch });
     const queue = [5, 6, 7, 8, 9, 10, 11, 12, 13].map((issue) => card(issue, 'Merging'));
-    const HEADS = { dev: DEV, release: null, main: 'main0002' };
+    const HEADS = { dev: DEV, main: 'main0002' };
     const caughtUp = (issues: number[], head = DEV): Record<string, string> => Object.fromEntries(issues.map((issue) => [String(issue), head]));
 
     it('catches up every waiting card whose base moved, oldest first, one at a time, never a card of the running batch', () => {
@@ -803,7 +863,7 @@ describe('tick', () => {
     const names = ['dev', 'h8', 'm9', 'd10', 'r11', 'old12'];
     for (const name of names) mkdirSync(join(web, name), { recursive: true });
     const merge = (issue: number) => ({ issue, title: 't', sha: 'a'.repeat(40), into: 'dev', reverted: [] });
-    writeState(h.ctx.statePath, state({ devMerges: [merge(10)], release: { ...RELEASE, merges: [merge(11)] }, builds: { '8': 'h8', '9': 'm9', '10': 'd10', '11': 'r11', '12': 'old12' } }));
+    writeState(h.ctx.statePath, state({ devMerges: [merge(10), merge(11)], builds: { '8': 'h8', '9': 'm9', '10': 'd10', '11': 'r11', '12': 'old12' } }));
     await tick(h.ctx, '/code', h.deps);
     expect(names.filter((name) => existsSync(join(web, name)))).toEqual(['dev', 'h8', 'm9', 'd10', 'r11']);
   });
@@ -812,7 +872,7 @@ describe('tick', () => {
     const h = harness(null, false, [card(20, 'Approval', ['release']), card(9, 'Done')]);
     const web = h.ctx.cfg.webRoot;
     for (const name of ['dev', 'rc', 'bbb2222']) mkdirSync(join(web, name), { recursive: true });
-    writeState(h.ctx.statePath, state({ release: { ...RELEASE, postId: 7, candidateSha: 'rel0001' }, builds: { '20': 'rc', '9': 'bbb2222' } }));
+    writeState(h.ctx.statePath, state({ release: { ...RELEASE, postId: 7, candidate: { sha: 'rel0001', features: [] } }, builds: { '20': 'rc', '9': 'bbb2222' } }));
     await tick(h.ctx, '/code', h.deps);
     expect(['dev', 'rc', 'bbb2222'].filter((name) => existsSync(join(web, name)))).toEqual(['dev', 'rc']);
   });
@@ -831,12 +891,13 @@ describe('tick', () => {
     expect(h.labels).toEqual([`20:${STUCK_LABEL}`]);
   });
 
-  it('labels the tracking issue when a release cut dies after it opened one, and no issue before', async () => {
+  it('labels the tracking issue when the release job dies after it opened one, and no issue before', async () => {
     const after = harness(job('2026-01-10T11:50:00Z', 'release', null), false);
     writeState(after.ctx.statePath, state({ jobs: [job('2026-01-10T11:50:00Z', 'release', null)], release: RELEASE }));
     await tick(after.ctx, '/code', after.deps);
     expect(after.labels).toEqual([`20:${STUCK_LABEL}`]);
     const before = harness(job('2026-01-10T11:50:00Z', 'release', null), false);
+    writeState(before.ctx.statePath, state({ jobs: [job('2026-01-10T11:50:00Z', 'release', null)], release: null }));
     await tick(before.ctx, '/code', before.deps);
     expect(before.labels).toEqual([]);
   });
@@ -1003,7 +1064,7 @@ describe('tick', () => {
 
   it('starts a queued ship without counting it toward a card limit', async () => {
     const h = harness(null, false, []);
-    writeState(h.ctx.statePath, state({ release: { ...RELEASE, postId: 7, candidateSha: 'rel0001' }, pendingShip: 'Ann', cardStarts: { 20: starts(2) } }));
+    writeState(h.ctx.statePath, state({ release: { ...RELEASE, postId: 7, candidate: { sha: 'rel0001', features: [] } }, pendingShip: 'Ann', cardStarts: { 20: starts(2) } }));
     await tick(h.ctx, '/code', h.deps);
     expect(args(h)).toEqual([['ship', '20']]);
     expect(readState(h.ctx.statePath).cardStarts).toEqual({ 20: starts(2) });
@@ -1011,19 +1072,27 @@ describe('tick', () => {
 
   it('keeps the candidate post while a ship runs, since the ship moves the release itself', async () => {
     const h = harness(job('2026-01-10T11:50:00Z', 'ship', 20), true, [card(20, 'Approval', ['release'])]);
-    writeState(h.ctx.statePath, state({ jobs: [job('2026-01-10T11:50:00Z', 'ship', 20)], release: { ...RELEASE, postId: 7, candidateSha: 'rel0000' }, pendingShip: 'Ann' }));
+    writeState(h.ctx.statePath, state({ jobs: [job('2026-01-10T11:50:00Z', 'ship', 20)], release: { ...RELEASE, postId: 7, candidate: { sha: 'rel0000', features: [] } }, pendingShip: 'Ann' }));
     await tick(h.ctx, '/code', h.deps);
     expect(readState(h.ctx.statePath).release?.postId).toBe(7);
     expect(readState(h.ctx.statePath).pendingShip).toBe('Ann');
   });
 
-  it('drops the candidate post and a queued ship once the release moved past the posted commit, and plays the new head', async () => {
+  it('keeps the candidate post and a queued ship when dev moves past the posted commit, and ships the posted commit', async () => {
     const h = harness(null, false, [card(20, 'Approval', ['release'])]);
-    writeState(h.ctx.statePath, state({ release: { ...RELEASE, postId: 7, candidateSha: 'rel0000', playtest: { ...RELEASE.playtest, passed: 'rel0000' } }, pendingShip: 'Ann' }));
+    const passed = { sha: 'rel0000', features: [] };
+    writeState(h.ctx.statePath, state({ release: { ...RELEASE, postId: 7, candidate: passed, playtest: { ...RELEASE.playtest, passed } }, pendingShip: 'Ann' }));
     await tick(h.ctx, '/code', h.deps);
     const after = readState(h.ctx.statePath);
-    expect(after.release?.postId).toBeNull();
-    expect(after.pendingShip).toBeNull();
+    expect(after.release?.postId).toBe(7);
+    expect(after.pendingShip).toBe('Ann');
+    expect(args(h)).toEqual([['ship', '20']]);
+  });
+
+  it('starts a playtest when dev moved past the last start and the hours passed', async () => {
+    const h = harness(null, false, [card(20, 'Approval', ['release'])]);
+    writeState(h.ctx.statePath, state({ release: { ...RELEASE, playtest: { ...RELEASE.playtest, lastStart: { sha: 'dev0000', at: hoursAgo(13) } } } }));
+    await tick(h.ctx, '/code', h.deps);
     expect(args(h)).toEqual([['playtest', '20']]);
   });
 });

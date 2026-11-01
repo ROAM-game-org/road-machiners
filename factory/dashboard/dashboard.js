@@ -251,10 +251,9 @@ function getRelease() {
   return features ? { features } : null;
 }
 function formatReleaseGate(gate) {
-  if (readOperations()?.release === null) return 'Release not cut';
+  if (readOperations()?.release === null) return 'Release not opened';
   if (!gate) return 'Readiness not checked';
-  if (gate.reason === 'release-tasks') return `Open release tasks: ${gate.issues.map((issue) => `#${issue}`).join(', ')}`;
-  const labels = { uncut: 'Release not cut', 'tracking-missing': 'Tracking issue unavailable', failed: 'Release job failed', playtest: 'Release playtest pending', 'playtest-blocked': 'Release playtest blocked', candidate: 'Candidate build pending', 'ship-approval': 'Needs committee ship approval' };
+  const labels = { unopened: 'Release not opened', 'tracking-missing': 'Tracking issue unavailable', failed: 'Release job failed', playtest: 'Release playtest pending', 'playtest-blocked': 'Release playtest blocked', candidate: 'Candidate build pending', 'ship-approval': 'Needs committee ship approval' };
   return labels[gate.reason];
 }
 function renderRelease() {

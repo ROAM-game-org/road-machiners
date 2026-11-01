@@ -77,13 +77,13 @@ def test_release_remove_reply():
 
 
 def test_release_remove_needs_a_word_boundary_after_the_number():
-    assert rroute("remove 12abc") == ("release-task", "remove 12abc")
+    assert rroute("remove 12abc") == ("candidate-reply", "remove 12abc")
 
 
 def test_release_other_reply_opens_task():
-    assert rroute("add rain") == ("release-task", "add rain")
-    assert rroute("remove the fog") == ("release-task", "remove the fog")
-    assert rroute("ship it") == ("release-task", "ship it")
+    assert rroute("add rain") == ("candidate-reply", "add rain")
+    assert rroute("remove the fog") == ("candidate-reply", "remove the fog")
+    assert rroute("ship it") == ("candidate-reply", "ship it")
 
 
 def test_release_reply_to_old_or_null_post_is_normal_chat():
@@ -126,8 +126,8 @@ def test_inbox_command_release_shapes():
     assert plugin.inbox_command(("remove", 7, "remove #7"), 1, "Ann", -100, 81, 70) == {
         "kind": "remove", "issue": 7, "text": "remove #7", "by": "1", "byName": "Ann", "chat": "-100", "messageId": 81, "postId": 70,
     }
-    assert plugin.inbox_command(("release-task", "add rain"), 1, "Ann", -100, 82, 70) == {
-        "kind": "release-task", "issue": None, "text": "add rain", "by": "1", "byName": "Ann", "chat": "-100", "messageId": 82, "postId": 70,
+    assert plugin.inbox_command(("candidate-reply", "add rain"), 1, "Ann", -100, 82, 70) == {
+        "kind": "candidate-reply", "issue": None, "text": "add rain", "by": "1", "byName": "Ann", "chat": "-100", "messageId": 82, "postId": 70,
     }
 
 
@@ -140,7 +140,7 @@ def test_write_inbox_is_atomic(tmp_path, monkeypatch):
         real(src, dst)
 
     monkeypatch.setattr(plugin.os, "replace", spy)
-    command = plugin.inbox_command(("release-task", "z"), 1, "Ann", -100, 79, 70)
+    command = plugin.inbox_command(("candidate-reply", "z"), 1, "Ann", -100, 79, 70)
     path = plugin.write_inbox(str(tmp_path), command, now_ms=1700000000000)
     assert path.name == "1700000000000-79.json"
     assert json.loads(path.read_text()) == command
@@ -208,7 +208,7 @@ def test_read_state_release(tmp_path):
     assert plugin.read_state(str(tmp_path)) == ({}, None)
     state.write_text('{"approvalPosts": {}, "release": null}')
     assert plugin.read_state(str(tmp_path)) == ({}, None)
-    state.write_text('{"approvalPosts": {"7": 3}, "release": {"issue": 40, "branch": "release/x", "day": "x", "postId": 90, "removed": []}}')
+    state.write_text('{"approvalPosts": {"7": 3}, "release": {"issue": 40, "day": "x", "postId": 90, "removed": []}}')
     assert plugin.read_state(str(tmp_path)) == ({"7": 3}, plugin.Release(40, 90))
     state.write_text('{"approvalPosts": {}, "release": {"issue": 40, "postId": null}}')
     assert plugin.read_state(str(tmp_path))[1] == plugin.Release(40, None)

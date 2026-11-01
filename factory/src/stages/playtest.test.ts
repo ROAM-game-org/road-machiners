@@ -17,7 +17,7 @@ vi.mock('node:os', async (original) => ({ ...(await original<typeof Os>()), avai
 const DAY = '2026-10-07';
 const SEED = 20261007;
 const BRANCH = `release/${DAY}`;
-const RELEASE: ReleaseState = { issue: 11, branch: BRANCH, day: DAY, postId: null, candidateSha: null, removed: [], tasks: [], merges: [], playtest: newPlaytest(DAY) };
+const RELEASE: ReleaseState = { issue: 11, day: DAY, postId: null, candidate: null, removed: [], playtest: newPlaytest(DAY) };
 const CLONE = join(ROOT, 'work', 'release-playtest');
 const HOME = join(CLONE, 'game', '.factory');
 
@@ -136,7 +136,7 @@ describe('playtest', () => {
   });
 
   it('writes the features of the release with their issue text for the agent', async () => {
-    const run = setup({ merges: [issueMerge(5, 'Salvage chain'), issueMerge(6, 'Hauler chassis')] });
+    const run = setup({ playtest: { ...RELEASE.playtest, passed: { sha: 'abc1234', features: [issueMerge(5, 'Salvage chain'), issueMerge(6, 'Hauler chassis')] } } });
     run.turns = [{ review: review() }];
     await playtest(run.f.ctx, 11);
     const text = readFileSync(join(HOME, 'release-features.md'), 'utf8');
@@ -185,7 +185,7 @@ describe('playtest', () => {
   });
 
   it('plays the last commit the release passed as the baseline once it has one', async () => {
-    const run = setup({ playtest: { ...RELEASE.playtest, runs: 3, passed: 'old0001' } });
+    const run = setup({ playtest: { ...RELEASE.playtest, runs: 3, passed: { sha: 'old0001', features: [] } } });
     run.turns = [clean];
     await playtest(run.f.ctx, 11);
     expect(harnessRuns(run)[1].script).toContain('--sha old0001');
@@ -391,7 +391,7 @@ describe('playtest', () => {
     const open = setup();
     open.f.cards = [{ itemId: 'i', issue: 30, column: 'Testing', labels: ['release-task'] }];
     await expect(playtest(open.f.ctx, 11)).rejects.toThrow('Release tasks are still open: #30');
-    const recorded = setup({ tasks: [31] });
+    const recorded = setup({ removed: [31] });
     await expect(playtest(recorded.f.ctx, 11)).rejects.toThrow('Release tasks are still open: #31');
     const blocked = setup({ playtest: { ...RELEASE.playtest, blocked: { sha: 'abc1234', reason: 'r' } } });
     await expect(playtest(blocked.f.ctx, 11)).rejects.toThrow('blocked at abc1234');
@@ -474,7 +474,7 @@ describe('playtest', () => {
     await expect(playtest(run.f.ctx, 12)).rejects.toThrow('not the tracking issue');
   });
   it('plays a new head after a pass in full', async () => {
-    const run = setup({ playtest: { ...RELEASE.playtest, runs: 6, passed: 'old0001' } });
+    const run = setup({ playtest: { ...RELEASE.playtest, runs: 6, passed: { sha: 'old0001', features: [] } } });
     run.turns = [clean];
     await playtest(run.f.ctx, 11);
     expect(run.suites).toEqual(['abc1234']);

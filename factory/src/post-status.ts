@@ -15,7 +15,7 @@ const STATUS: Record<PostKind, (by: string, issue: number | null) => string> = {
   redesign: (by) => (by === PUBLIC_SENDER ? PLAYER_REDESIGN_STATUS : `💬 Feedback from ${by}. Back to design.`),
   ship: (by) => `🚀 Ship by ${by}`,
   remove: (by, issue) => `➖ #${issue} removed by ${by}`,
-  'release-task': (by) => `📝 Release task from ${by}`,
+  'candidate-reply': (by) => `📝 Task from ${by}`,
   publish: (by) => `📣 Published to the channel by ${by}`,
 };
 

@@ -1,5 +1,5 @@
 This is the release playtest of the ROAM factory.
-You work alone in a clone of the release branch at commit {{sha}}. Every feature of the release and its cleanup tasks is merged.
+You work alone in a clone of dev at commit {{sha}}. Every feature of the release is merged.
 You review the run, fix what this release broke, and the factory replays the seed on your fixes. This is play 1 of at most {{runs}} in this job. The last play of this job can only pass or block. Plays of earlier jobs count toward no limit of this job.
 
 {{gameDocs}}

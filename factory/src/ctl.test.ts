@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { appendLedger } from './ledger';
 import { openStore } from './public/store';
-import { EMPTY_STATE, readState, writeState } from './state';
+import { EMPTY_STATE, newPlaytest, readState, writeState } from './state';
 import { ROOT, fake, reset, type Fake } from './stages/test-fakes';
 
 vi.mock('./control', async (importOriginal) => ({
@@ -58,7 +58,7 @@ describe('argument errors', () => {
   });
 
   it('refuses an unknown actor and a gated order from hermes before writing', async () => {
-    await expect(run(fake(), 'cut', '--by', 'bob', '--reason', 'r')).rejects.toThrow('unknown actor');
+    await expect(run(fake(), 'playtest', '--by', 'bob', '--reason', 'r')).rejects.toThrow('unknown actor');
     await expect(run(fake(), 'ship', '--by', 'hermes', '--reason', 'r')).rejects.toThrow('cannot order');
     expect(inbox()).toEqual([]);
   });
@@ -74,7 +74,7 @@ describe('write commands', () => {
   it.each([
     [['merge', '5'], { action: 'merge', issue: 5 }],
     [['ship'], { action: 'ship' }],
-    [['cut'], { action: 'cut' }],
+    [['playtest'], { action: 'playtest' }],
     [['remove', '5'], { action: 'remove', issue: 5 }],
     [['drop', 'approval', '5'], { action: 'drop', queue: 'approval', id: 5 }],
     [['drop', 'ship'], { action: 'drop', queue: 'ship', id: null }],
@@ -90,8 +90,8 @@ describe('write commands while paused', () => {
   it('still writes the order and says it waits for the pause to lift', async () => {
     const f = fake();
     writeFileSync(join(ROOT, 'paused'), JSON.stringify({ kind: 'factory', note: 'fixing state', by: 'cli', at: '2026-01-01T00:00:00.000Z' }));
-    await run(f, 'cut', '--by', 'ann', '--reason', 'r');
-    expect(stored()).toMatchObject({ action: 'cut' });
+    await run(f, 'playtest', '--by', 'ann', '--reason', 'r');
+    expect(stored()).toMatchObject({ action: 'playtest' });
     expect(out.join('\n')).toContain('The factory is paused: fixing state.');
     expect(out.join('\n')).toContain('applies when the pause is lifted');
   });
@@ -162,19 +162,19 @@ describe('read commands', () => {
     const f = board();
     f.ctx.cfg.publicUrl = 'https://play.test';
     f.ctx.fetch = (async () => new Response('{"jobs":[]}')) as unknown as typeof fetch;
-    const hold = { by: 'Ann', reason: 'release tasks first', at: '2026-01-01T00:00:00Z', stage: 'design' as const };
+    const hold = { by: 'Ann', reason: 'the urgent card first', at: '2026-01-01T00:00:00Z', stage: 'design' as const };
     writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), approvalPosts: { '77': 6 }, held: { '5': hold, '9': hold } });
     await run(f, 'cards');
-    expect(out).toContain('#5 design Design [hotfix] held by Ann: release tasks first');
+    expect(out).toContain('#5 design Design [hotfix] held by Ann: the urgent card first');
     out.length = 0;
     await run(f, 'card', '5');
-    expect(out).toContain('held: by Ann since 2026-01-01T00:00:00Z, stopped design: release tasks first');
+    expect(out).toContain('held: by Ann since 2026-01-01T00:00:00Z, stopped design: the urgent card first');
     out.length = 0;
     await run(f, 'status');
     expect(JSON.parse(out.join('\n')).held).toEqual([{ issue: 5, ...hold }, { issue: 9, ...hold }]);
     out.length = 0;
     await run(f, 'audit');
-    expect(out).toEqual(['#9 held by Ann (release tasks first) but not on the board']);
+    expect(out).toEqual(['#9 held by Ann (the urgent card first) but not on the board']);
   });
 
   it('audit flags a job that runs on a held card, though it skips the card drift of a card with a job', async () => {
@@ -205,7 +205,7 @@ describe('read commands', () => {
 
   it('help lists every command', async () => {
     await run(fake(), 'help');
-    for (const name of ['status', 'cards', 'card N', 'jobs', 'queues', 'release', 'failures', 'stuck', 'log N', 'audit', 'public', 'move N', 'merge N', 'ship', 'cut', 'remove N', 'drop', 'pause-card N', 'resume-card N', 'retry N', 'pause', 'resume', 'repair-clone N']) {
+    for (const name of ['status', 'cards', 'card N', 'jobs', 'queues', 'release', 'failures', 'stuck', 'log N', 'audit', 'public', 'move N', 'merge N', 'ship', 'playtest', 'remove N', 'drop', 'pause-card N', 'resume-card N', 'retry N', 'pause', 'resume', 'repair-clone N']) {
       expect(out.some((line) => line.startsWith(name))).toBe(true);
     }
   });
@@ -273,7 +273,7 @@ describe('read commands', () => {
   });
 });
 
-const RELEASE = { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: null, candidateSha: null, removed: [], tasks: [], merges: [] };
+const RELEASE = { issue: 20, day: '2026-09-29', postId: null, candidate: null, removed: [] };
 
 describe('immediate commands', () => {
   it('retry removes the stuck label and only that card failures', async () => {
@@ -303,19 +303,19 @@ describe('immediate commands', () => {
     expect(readState(f.ctx.statePath).failures).toEqual([]);
   });
 
-  it('retry of the release tracking card lifts a playtest block and keeps the decision and the play count', async () => {
+  it('retry of the release tracking card lifts a playtest block and keeps the play count', async () => {
     const f = fake();
     f.ctx.cfg = { ...f.ctx.cfg, playtestRuns: 4 };
-    const playtest = { seed: 1, runs: 4, passed: null, blocked: { sha: 'abc1234', reason: 'taste' }, notes: [] };
+    const playtest = { ...newPlaytest('2026-09-29'), runs: 4, blocked: { sha: 'abc1234', reason: 'taste' } };
     writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, playtest } });
     await run(f, 'retry', String(RELEASE.issue), 'Raiders', 'may', 'chase', 'at', 'night.');
     expect(f.calls).toContain(`removeLabel ${RELEASE.issue} factory-stuck`);
-    expect(readState(f.ctx.statePath).release?.playtest).toEqual({ seed: 1, runs: 4, passed: null, blocked: null, notes: ['Raiders may chase at night.'] });
+    expect(readState(f.ctx.statePath).release?.playtest).toEqual({ ...playtest, blocked: null });
   });
 
   it('retry of another card leaves the playtest alone', async () => {
     const f = fake();
-    const playtest = { seed: 1, runs: 4, passed: null, blocked: { sha: 'abc1234', reason: 'taste' }, notes: [] };
+    const playtest = { ...newPlaytest('2026-09-29'), runs: 4, blocked: { sha: 'abc1234', reason: 'taste' } };
     writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, playtest } });
     await run(f, 'retry', '5', 'note');
     expect(readState(f.ctx.statePath).release?.playtest).toEqual(playtest);

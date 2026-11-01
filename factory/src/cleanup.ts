@@ -18,7 +18,7 @@ const KEEP_NUMBERED: Record<string, Keep> = {
 const NAMED: Record<string, { stages: string[]; keep: (state: FactoryState) => boolean }> = {
   'dev-build': { stages: ['dev'], keep: () => false },
   'release-main': { stages: ['ship'], keep: () => false },
-  'release-candidate': { stages: ['candidate', 'ship'], keep: (state) => state.release !== null },
+  'release-candidate': { stages: ['candidate', 'ship'], keep: (state) => state.release?.candidate != null },
   'release-playtest': { stages: ['playtest'], keep: () => false },
   'release-baseline': { stages: ['playtest'], keep: () => false },
   waste: { stages: ['waste'], keep: () => false },

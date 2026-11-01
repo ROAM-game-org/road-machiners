@@ -15,7 +15,7 @@ Read each available image with the Read tool.
 An image marked NOT AVAILABLE was not seen.
 
 A cheaper filter already passed this request as a change to the game.
-You decide everything else: the verdict, the bundle, the release fix and the complexity.
+You decide everything else: the verdict, the bundle and the complexity.
 
 You may read code to understand the request and the game.
 Never edit code.
@@ -107,13 +107,6 @@ A request that only shares a word, like "per location", is not bundled.
 When in doubt, leave it out.
 A bundled request leaves the board and closes when this card ships, so the version must serve its points as well.
 
-Release fix.
-`.factory/release.md` says whether a release takes fixes now, and lists its features.
-A release fix branches from the release and goes out with it.
-Mark `releaseFix` only for a `ready` version that corrects how one of those features looks or works.
-New work never counts, also when it builds on a listed feature.
-When in doubt, it is not a release fix.
-
 Rate the complexity of the chosen version with these checks.
 Read the code it touches to answer them.
 
@@ -126,7 +119,7 @@ Read the code it touches to answer them.
 Aim for 20% Opus and 80% Sonnet in measured factory-agent tokens. This is a rule of thumb, not a per-issue cap, so never change a rating to chase it.
 
 Write `.factory/groom.json` with this shape.
-`{"verdict": "ready" | "vote" | "wont-do" | "unclear", "questions": ["..."], "points": ["..."], "changed": ["..."], "need": "...", "existing": "...", "version": "...", "fit": "...", "reason": "...", "complexity": "trivial" | "intermediate" | "hard", "complexityReason": "...", "bundle": [12, 15], "releaseFix": true | false, "pitch": {"title": "...", "summary": "...", "how": "...", "when": "...", "changed": ["..."], "pros": ["..."], "cons": ["..."]}}`
+`{"verdict": "ready" | "vote" | "wont-do" | "unclear", "questions": ["..."], "points": ["..."], "changed": ["..."], "need": "...", "existing": "...", "version": "...", "fit": "...", "reason": "...", "complexity": "trivial" | "intermediate" | "hard", "complexityReason": "...", "bundle": [12, 15], "pitch": {"title": "...", "summary": "...", "how": "...", "when": "...", "changed": ["..."], "pros": ["..."], "cons": ["..."]}}`
 
 Every field but `pitch` is in English, plain and short.
 
@@ -138,9 +131,8 @@ Every field but `pitch` is in English, plain and short.
 - `fit` answers each of the five tests in one sentence.
 - `reason` is one or two sentences on why this version and this verdict.
 - `complexityReason` is one short sentence that names the files or systems you found. For `hard` it names the save-format change or the bug with no known cause.
-- `complexity`, `complexityReason`, `bundle` and `releaseFix` are required for `ready` and `vote`.
+- `complexity`, `complexityReason` and `bundle` are required for `ready` and `vote`.
 - `bundle` lists issue numbers from `.factory/related.md` only, and is empty when nothing fits.
-- `releaseFix` is false for `vote`.
 
 For `unclear`, write only `verdict`, `questions` and `reason`.
 The `reason` then says in one sentence what the request is about and what blocks the version.

@@ -4,18 +4,21 @@ import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readPublished } from '../sourcemaps';
 import { EMPTY_STATE, readState, writeState } from '../state';
-import type { Card, ReleaseState } from '../types';
+import type { Card, IssueMerge, ReleaseState } from '../types';
 import { CLONE_SHA, ROOT, fake, issueMerge, reset, type Fake } from './test-fakes';
 
 vi.mock('../deploy', () => ({ deployDev: async () => 'https://play.test/dev/' }));
 const { ship } = await import('./ship');
 
-const RELEASE: ReleaseState = { issue: 11, branch: 'release/2026-09-29', day: '2026-09-29', postId: 42, removed: [6], tasks: [], merges: [issueMerge(3, 'faster trucks'), issueMerge(6, 'gone')], candidateSha: 'abc1234', playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
+const TRUCKS = issueMerge(3, 'faster trucks');
+const LATER = issueMerge(7, 'later horn');
+const candidateOf = (features: IssueMerge[]): NonNullable<ReleaseState['candidate']> => ({ sha: 'abc1234', features });
+const RELEASE: ReleaseState = { issue: 11, day: '2026-09-29', postId: 42, removed: [], candidate: candidateOf([TRUCKS]), playtest: { seed: 1, runs: 0, lastStart: null, passed: candidateOf([TRUCKS]), fixes: null, blocked: null, decision: null, work: null } };
 const done = (issue: number, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column: 'Done', labels });
 
 beforeEach(() => {
   reset();
-  writeState(fake().ctx.statePath, { ...structuredClone(EMPTY_STATE), release: RELEASE, pendingShip: 'Ann', builds: { '11': 'rc', '3': 'aaa1111' } });
+  writeState(fake().ctx.statePath, { ...structuredClone(EMPTY_STATE), release: RELEASE, devMerges: [TRUCKS, LATER], pendingShip: 'Ann', builds: { '11': 'rc', '3': 'aaa1111' } });
   const out = join(ROOT, 'work', 'release-candidate', 'game', '.factory');
   mkdirSync(out, { recursive: true });
   writeFileSync(join(out, 'screenshot.png'), 'png');
@@ -25,7 +28,7 @@ beforeEach(() => {
 function shippable(): Fake {
   const f = fake();
   Object.assign(f.ctx.cfg, { itchTarget: 'u/g', butlerKey: 'secret' });
-  f.cards = [{ itemId: 'i11', issue: 11, column: 'Approval', labels: ['release'] }, done(12, ['release-task', 'maintenance'])];
+  f.cards = [{ itemId: 'i11', issue: 11, column: 'Approval', labels: ['release'] }, done(12, ['maintenance'])];
   return f;
 }
 
@@ -87,35 +90,78 @@ describe('ship', () => {
     expect(f.calls).toContain('move Done');
     expect(f.calls.at(-1)).toBe('message committee - Release 2026-09-29 shipped with 1 changes.');
     const state = readState(f.ctx.statePath);
-    expect(state.release).toBeNull();
+    expect(state.release).toMatchObject({ issue: 11, day: '2026-09-29', postId: null, candidate: null, removed: [] });
+    expect(state.release?.playtest).toMatchObject({ passed: null, lastStart: null, blocked: null });
+    expect(state.pendingShip).toBeNull();
     expect(state.lastRelease).toBe('2026-09-29T10:00:00.000Z');
     expect(state.builds).toEqual({});
   });
 
-  it('closes each shipped issue and drops its release-candidate label, after the itch push, but not a removed one', async () => {
+  it('drops exactly the shipped features from dev merges, and keeps a merge of the same issue that was not shipped', async () => {
+    const f = shippable();
+    const again = issueMerge(3, 'faster trucks', { sha: 'second3'.padEnd(40, '0') });
+    writeState(f.ctx.statePath, { ...readState(f.ctx.statePath), devMerges: [TRUCKS, LATER, again] });
+    await ship(f.ctx, 11, 'Ann');
+    expect(readState(f.ctx.statePath).devMerges).toEqual([LATER, again]);
+  });
+
+  it('closes only the features of the stored candidate, not other merges on dev', async () => {
+    const f = shippable();
+    await ship(f.ctx, 11, 'Ann');
+    expect(f.calls.filter((call) => call === 'close completed')).toHaveLength(2);
+    expect(f.calls.some((call) => call.startsWith('removeLabel 7'))).toBe(false);
+  });
+
+  it('merges the candidate commit from the candidate branch, never a release branch', async () => {
+    const f = shippable();
+    const merged: string[] = [];
+    f.ctx.repo.mergeBranchIntoWork = async (_dir, branch) => { merged.push(branch); return { commit: null, conflicts: [] }; };
+    await ship(f.ctx, 11, 'Ann');
+    expect(merged).toEqual(['factory/candidate']);
+    expect(readState(f.ctx.statePath).landings.ship).toBeUndefined();
+  });
+
+  it('opens the next release and the two cleanup tasks as plain dev cards labeled maintenance', async () => {
+    const f = shippable();
+    await ship(f.ctx, 11, 'Ann');
+    expect(f.created.map((issue) => issue.labels)).toEqual([['release'], ['maintenance'], ['maintenance']]);
+    expect(f.created.map((issue) => issue.title)).toEqual(['Release 2026-09-29', 'Optimize against the speed budget (after release 2026-09-29)', 'Code janitor pass (after release 2026-09-29)']);
+    expect(f.calls.filter((call) => call.startsWith('addCard'))).toEqual(['addCard Approval', 'addCard Design', 'addCard Design']);
+  });
+
+  it('leaves the release unopened for the next tick when the next release cannot be opened', async () => {
+    const f = shippable();
+    f.ctx.github.createIssue = async () => { throw new Error('gh down'); };
+    await expect(ship(f.ctx, 11, 'Ann')).rejects.toThrow('gh down');
+    const state = readState(f.ctx.statePath);
+    expect(state.release).toBeNull();
+    expect(state.releasePost).not.toBeNull();
+    expect(state.devMerges).toEqual([LATER]);
+  });
+
+  it('closes each shipped issue and drops its release-candidate label, after the itch push', async () => {
     const f = shippable();
     await ship(f.ctx, 11, 'Ann');
     const at = (name: string) => f.calls.findIndex((call) => call.startsWith(name));
     expect(at('run butler')).toBeLessThan(at('comment Shipped in release 2026-09-29'));
     expect(f.calls).toContain('removeLabel 3 release-candidate');
-    expect(f.calls.some((call) => call.startsWith('removeLabel 6'))).toBe(false);
     expect(f.calls.filter((call) => call === 'close completed')).toHaveLength(2);
   });
 
-  it('ships the features it found before the merge when it runs again after the release reached main', async () => {
+  it('ships the stored candidate features when it runs again after the candidate reached main', async () => {
     const f = shippable();
     f.ctx.github.createRelease = async () => { throw new Error('killed'); };
     await expect(ship(f.ctx, 11, 'Ann')).rejects.toThrow('killed');
-    expect(readState(f.ctx.statePath).release?.shipping?.features).toEqual([{ issue: 3, title: 'faster trucks' }]);
+    expect(readState(f.ctx.statePath).release?.candidate?.features).toEqual([TRUCKS]);
     const again = shippable();
     await ship(again.ctx, 11, 'Ann');
     expect(again.calls).toContain('removeLabel 3 release-candidate');
-    expect(readState(again.ctx.statePath).release).toBeNull();
+    expect(readState(again.ctx.statePath).release?.candidate).toBeNull();
   });
 
   it('queues an incident job for each shipped issue labeled bug, and for no other', async () => {
     const f = shippable();
-    writeState(f.ctx.statePath, { ...readState(f.ctx.statePath), release: { ...RELEASE, merges: [issueMerge(3, 'faster trucks'), issueMerge(4, 'new horn')], removed: [] } });
+    writeState(f.ctx.statePath, { ...readState(f.ctx.statePath), release: { ...RELEASE, candidate: candidateOf([TRUCKS, issueMerge(4, 'new horn')]) } });
     writeFileSync(join(ROOT, 'work', 'release-candidate', 'game', '.factory', 'release.json'), JSON.stringify([{ issue: 3, text: 'Trucks are faster.' }, { issue: 4, text: 'A horn.' }]));
     f.ctx.github.issue = async (n: number) => ({ number: n, title: 'T', body: '', labels: n === 3 ? ['bug'] : ['feature-request'], createdAt: '', state: 'OPEN', author: 'a' });
     await ship(f.ctx, 11, 'Ann');
@@ -142,13 +188,6 @@ describe('ship', () => {
     expect(f.calls).toContain('release release-2026-09-29 main ROAM release 2026-09-29\n- [#3] Trucks are faster.');
   });
 
-  it('never merges main into the release', async () => {
-    const f = shippable();
-    f.ctx.repo.isMerged = async () => false;
-    await ship(f.ctx, 11, 'Ann');
-    expect(f.calls.some((call) => call.startsWith('merge main release') || call.startsWith('mergeWork main'))).toBe(false);
-  });
-
   it('has the ship agent resolve a conflict of the release into main, then checks and ships', async () => {
     const f = shippable();
     let open = true;
@@ -159,8 +198,8 @@ describe('ship', () => {
       return result;
     };
     await ship(f.ctx, 11, 'Ann');
-    expect(f.calls.filter((call) => /^(mergeWork|agent|shell .*ship-main|push)/.test(call))).toEqual(['mergeWork release/2026-09-29', 'agent', 'mergeWork release/2026-09-29', 'push work-head main', 'push dev']);
-    expect(f.agentRuns[0].prompt).toContain('merges branch release/2026-09-29 into it');
+    expect(f.calls.filter((call) => /^(mergeWork|agent|shell .*ship-main|push)/.test(call))).toEqual(['mergeWork factory/candidate', 'agent', 'mergeWork factory/candidate', 'push work-head main', 'push dev']);
+    expect(f.agentRuns[0].prompt).toContain('merges branch factory/candidate into it');
     expect(readState(f.ctx.statePath).releasePost).not.toBeNull();
   });
 
@@ -220,7 +259,7 @@ describe('ship', () => {
     };
     await expect(ship(f.ctx, 11, 'Ann')).rejects.toThrow('budget');
     const kept = readState(f.ctx.statePath).landings.ship!;
-    expect(kept).toMatchObject({ into: 'main', cards: [11], merged: true, sources: [{ branch: RELEASE.branch }] });
+    expect(kept).toMatchObject({ into: 'main', cards: [11], merged: true, sources: [{ branch: 'factory/candidate', sha: 'abc1234' }] });
     f.calls.length = 0;
     failing = false;
     f.ctx.cfg.mergingBudgetUsd = 100;
@@ -258,18 +297,18 @@ describe('ship', () => {
     expect(f.calls.some((call) => call.startsWith('merge'))).toBe(false);
   });
 
-  it('refuses when the release moved after the candidate was posted, before it merges anything', async () => {
+  it('refuses when the candidate branch is not at the posted commit, before it merges anything', async () => {
     const f = shippable();
     f.ctx.repo.headHash = async () => 'def5678';
-    await expect(ship(f.ctx, 11, 'Ann')).rejects.toThrow('moved to def5678 after the candidate of abc1234');
+    await expect(ship(f.ctx, 11, 'Ann')).rejects.toThrow('factory/candidate is at def5678 on GitHub, not at the candidate abc1234');
     expect(f.calls.some((call) => call.startsWith('merge') || call.startsWith('run butler'))).toBe(false);
   });
 
-  it('refuses while a release task is outside Done (IV3)', async () => {
+  it('does not wait for open cards, since ordinary dev cards are no part of the candidate', async () => {
     const f = shippable();
-    f.cards.push({ itemId: 'i13', issue: 13, column: 'Testing', labels: ['release-task'] });
-    await expect(ship(f.ctx, 11, 'Ann')).rejects.toThrow('still open: #13');
-    expect(f.calls.some((call) => call.startsWith('merge'))).toBe(false);
+    f.cards.push({ itemId: 'i13', issue: 13, column: 'Testing', labels: [] });
+    await ship(f.ctx, 11, 'Ann');
+    expect(readState(f.ctx.statePath).releasePost).not.toBeNull();
   });
 
   it('refuses when no release is open or another issue is named', async () => {
@@ -291,7 +330,7 @@ describe('ship', () => {
     const f = shippable();
     f.ctx.run = async (cmd) => (cmd === 'butler' ? { code: 1, stdout: '', stderr: `itch.io API error (400): /wharf/builds: enforcing unique versions, 1 build(s) already exist with version abc1234` } : { code: 0, stdout: CLONE_SHA, stderr: '' });
     await ship(f.ctx, 11, 'Ann');
-    expect(readState(f.ctx.statePath).release).toBeNull();
+    expect(readState(f.ctx.statePath).releasePost).not.toBeNull();
   });
 
   it('still fails when itch.io has a different version', async () => {

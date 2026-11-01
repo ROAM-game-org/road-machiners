@@ -83,6 +83,7 @@ export function fake(): Fake {
       fetchFromWork: async () => { note('fetchFromWork'); return 'work-head'; },
       untrackFactoryFiles: async () => [],
       push: async (commit: string, branch: string) => note(`push ${commit} ${branch}`),
+      replaceBranch: async (commit: string, branch: string) => note(`replace ${commit} ${branch}`),
       mergeBranchIntoWork: async () => ({ commit: null, conflicts: [] }),
       catchUpBase: async () => ({ commit: null, conflicts: [], kept: null }),
       merge: async (steps: MergeStep[], resolutions: Resolution[] = []) => {
