@@ -186,6 +186,7 @@ export type ItemSpot = { dx: number; dz: number; y: number; slope: { x: number; 
 type Footing = (x: number, z: number) => THREE.Vector3 | null;
 
 const FLAT = { x: 0, z: 0 };
+const FLAT_SLOPE = 0.02;
 const SUPPORT_STEP = CLIP_TOLERANCE;
 
 const ITEM_SPOTS = new Map<string, ItemSpot | null>();
@@ -211,18 +212,32 @@ function searchItemSpot(body: THREE.Object3D, { rect, points }: Footprint, rest:
   const feet = footings(body);
   const exact = exactFootings(body);
   const tops = exactTops(body);
-  const onLegSpots = fittedSpot(rect, points, rest, feet, exact, tops);
-  if (onLegSpots) return onLegSpots;
-  if (heldOn(points, planeAt(rect, rest), exact, tops)) return { dx: 0, dz: 0, y: rest.y, slope: rest.slope, legs: false };
   const shifts = shiftsWithin(shiftRange(rect, room.cells, room.sides), FACE_COLUMN);
-  for (const support of flatSupports(stilts)) {
+  const flat = (): ItemSpot | null => flatSpot(points, shifts, flatSupports(stilts), exact, tops);
+  const onLegSpots = (): ItemSpot | null => fittedSpot(rect, points, rest, feet, exact, tops);
+  const resting = (): ItemSpot | null => (heldOn(points, planeAt(rect, rest), exact, tops) ? { dx: 0, dz: 0, y: rest.y, slope: rest.slope, legs: false } : null);
+  const order = Math.hypot(rest.slope.x, rest.slope.z) > FLAT_SLOPE ? [flat, onLegSpots, resting] : [onLegSpots, resting, flat];
+  const stilted = (): ItemSpot | null => (stilts ? stiltSpot(body, { rect, points }, shifts, tops) : null);
+  return firstSpot([...order, stilted]);
+}
+
+function firstSpot(tries: (() => ItemSpot | null)[]): ItemSpot | null {
+  for (const attempt of tries) {
+    const spot = attempt();
+    if (spot) return spot;
+  }
+  return null;
+}
+
+function flatSpot(points: Sample[], shifts: [number, number][], supports: number[], exact: Footing, tops: Footing): ItemSpot | null {
+  for (const support of supports) {
     for (const [dx, dz] of shifts) {
       const moved = shifted(points, dx, dz);
       const y = highestTop(moved, tops);
       if (heldOn(moved, () => y, exact, tops, support)) return { dx, dz, y, slope: FLAT, legs: false };
     }
   }
-  return stilts ? stiltSpot(body, { rect, points }, shifts, tops) : null;
+  return null;
 }
 
 function flatSupports(stilts: boolean): number[] {

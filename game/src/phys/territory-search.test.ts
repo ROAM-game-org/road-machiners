@@ -77,13 +77,17 @@ describe.each(TARGETS)('$look in $territory', ({ territory, look, near }) => {
     while (goal.targetId !== stock.id) goal = spotGoal(w, territory, []);
     npc.brain.goals = [goal];
     forceOption('salvageSeen', 'keep');
-    for (const other of w.salvage) if (other.id !== stock.id) npc.brain.noticed[`salvageSeen:${other.id}`] = w.turn;
+    const ignoreOtherStocks = () => {
+      const brain = w.vehicles.find((v) => v.id === npc.id)!.brain!;
+      for (const other of w.salvage) if (other.id !== stock.id) brain.noticed[`salvageSeen:${other.id}`] = w.turn;
+    };
 
     let d = buildDrive(w);
     let turns = 0;
     let searcher: Vehicle | null = null;
     let maxStuck = 0;
     while (!searcher && turns < SCAVENGE_TURNS) {
+      ignoreOtherStocks();
       ({ w, d } = turn(w, d));
       turns++;
       const scavenger = w.vehicles.find((v) => v.id === npc.id)!;
