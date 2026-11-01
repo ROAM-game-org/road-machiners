@@ -49,6 +49,7 @@ const WRITE: Record<string, { usage: string; help: string; build: Builder }> = {
   remove: { usage: 'remove N', help: 'take a feature out of the release', build: ([n]) => ({ action: 'remove', issue: number(n) }) },
   drop: { usage: `drop <${DROP_QUEUES.join('|')}> <id>`, help: 'drop one queued entry', build: ([queue, id]) => dropAction(queue, id) },
   'pause-card': { usage: 'pause-card N', help: "hold a card: stop its job, keep its work clone and agent sessions, and start no job on it until resume-card", build: ([n]) => ({ action: 'hold', issue: number(n) }) },
+  adopt: { usage: 'adopt <branch> <title>', help: 'bring a branch that is on GitHub in as a new card in Hardening: open an issue with the reason as its body, push the branch as its factory branch and set its board status. Needs a member in --by. Hardening then runs the full suite and merges the card', build: ([branch, ...title]) => adoptAction(branch, title) },
   'resume-card': { usage: 'resume-card N', help: 'lift the hold of a card, so its stage continues in the stopped sessions', build: ([n]) => ({ action: 'unhold', issue: number(n) }) },
 };
 
@@ -83,6 +84,12 @@ function target(value: string | undefined): MoveTarget {
 function dropAction(queue: string | undefined, id: string | undefined): ControlAction {
   if (!DROP_QUEUES.includes(queue as DropQueue)) throw new Error(`Unknown queue "${queue}". Use one of ${DROP_QUEUES.join(', ')}.`);
   return { action: 'drop', queue: queue as DropQueue, id: queue === 'ship' && id === undefined ? null : number(id) };
+}
+
+function adoptAction(branch: string | undefined, title: string[]): ControlAction {
+  const text = title.join(' ').trim();
+  if (branch === undefined || text === '') throw new Error(`adopt needs a branch and a title. Usage: ${WRITE.adopt.usage}`);
+  return { action: 'adopt', branch, title: text };
 }
 
 function takeFlag(args: string[], name: string): { value: string; rest: string[] } {

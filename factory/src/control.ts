@@ -11,10 +11,10 @@ import { dropReplyMedia } from './reply-media';
 import { clearSessions } from './sessions';
 import { readState, updateState } from './state';
 import { ownWorkSettled } from './stages/card-suite';
-import { agentHome, baseBranchFor, workDir } from './stages/common';
+import { BASE_BRANCH, HOTFIX_BASE, agentHome, baseBranchFor, workDir } from './stages/common';
 import { closeCard } from './stages/approval';
 import { invalidateApproval } from './stages/kept-approval';
-import { moveCard, type CardStep } from './card-events';
+import { addCard, moveCard, type CardStep } from './card-events';
 import { openStore } from './public/store';
 import { closeByHand } from './public/votes';
 import { BRANCH, GAME_DIR, NEEDS_INFO_LABEL, RELEASE_LABEL, STUCK_LABEL, TASK_FILE, VOTING_LABEL, isCleanupTask, type Card, type Column, type Ctx, type FactoryState, type ReleaseState } from './types';
@@ -30,7 +30,8 @@ export type ControlAction =
   | { action: 'remove'; issue: number }
   | { action: 'drop'; queue: DropQueue; id: number | null }
   | { action: 'hold'; issue: number }
-  | { action: 'unhold'; issue: number };
+  | { action: 'unhold'; issue: number }
+  | { action: 'adopt'; branch: string; title: string };
 export type ControlCommand = ControlAction & { by: string; reason: string };
 
 type Outcome = { issue: number | null; text: string };
@@ -77,7 +78,9 @@ const SHAPES: { [A in ControlAction['action']]: (data: Data) => Extract<ControlA
   remove: (data) => ({ action: 'remove', issue: requireNumber(data, 'issue') }),
   drop: (data) => ({ action: 'drop', queue: requireOneOf(data, 'queue', DROP_QUEUES), id: requireDropId(data) }),
   hold: (data) => ({ action: 'hold', issue: requireNumber(data, 'issue') }),
-  unhold: (data) => ({ action: 'unhold', issue: requireNumber(data, 'issue') }),};
+  unhold: (data) => ({ action: 'unhold', issue: requireNumber(data, 'issue') }),
+  adopt: (data) => ({ action: 'adopt', branch: requireText(data, 'branch'), title: requireText(data, 'title') }),
+};
 
 export function parseControl(raw: unknown): ControlCommand {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new Error('A control command must be a JSON object.');
@@ -101,7 +104,7 @@ export function resolveActor(ctx: Ctx, by: string, gated: boolean): string {
 }
 
 export function isGated(ctx: Ctx, command: ControlCommand): boolean {
-  if (command.action === 'ship' || command.action === 'remove') return true;
+  if (command.action === 'ship' || command.action === 'remove' || command.action === 'adopt') return true;
   if (!approves(command)) return false;
   const { approvedResolving, pendingApprovals } = readState(ctx.statePath);
   const key = String(command.issue);
@@ -118,6 +121,7 @@ const HANDLERS: Handlers = {
   move, merge, ship, cut, remove, drop,
   hold: async (ctx, command, by) => ({ issue: command.issue, text: await holdCard(ctx, command.issue, by, command.reason) }),
   unhold: async (ctx, command) => ({ issue: command.issue, text: releaseHold(ctx, command.issue) }),
+  adopt,
 };
 
 export async function applyControl(ctx: Ctx, command: ControlCommand): Promise<string> {
@@ -383,4 +387,28 @@ async function drop(ctx: Ctx, command: Extract<ControlCommand, { action: 'drop' 
   if (!DROPS[queue].has(readState(ctx.statePath), entry)) throw new Error(`The ${name} is not there.`);
   updateState(ctx.statePath, (state) => DROPS[queue].without(state, entry));
   return { issue: ISSUE_QUEUES.includes(queue) ? id : null, text: `Dropped the ${name}.` };
+}
+
+async function adoptedHead(ctx: Ctx, branch: string): Promise<string> {
+  if ([BASE_BRANCH, HOTFIX_BASE].includes(branch)) throw new Error(`${branch} is a base branch, so it cannot become a card.`);
+  await ctx.repo.fetch();
+  try {
+    return await ctx.repo.fullHash(`origin/${branch}`);
+  } catch (error) {
+    throw new Error(`Branch ${branch} is not on GitHub (${(error as Error).message}). Push it first.`);
+  }
+}
+
+async function adopt(ctx: Ctx, command: Extract<ControlCommand, { action: 'adopt' }>, by: string): Promise<Outcome> {
+  const head = await adoptedHead(ctx, command.branch);
+  const issue = await ctx.github.createIssue(command.title, command.reason, []);
+  try {
+    await ctx.repo.push(head, BRANCH(issue));
+  } catch (error) {
+    await ctx.github.close(issue, 'not planned');
+    throw error;
+  }
+  updateState(ctx.statePath, (state) => ({ ...state, approvedResolving: { ...state.approvedResolving, [String(issue)]: by } }));
+  await addCard(ctx, issue, 'Hardening', ctx.now().toISOString());
+  return { issue, text: `Adopted branch ${command.branch} as ${BRANCH(issue)}. The card is in Hardening, which runs the full suite and then merges it.` };
 }

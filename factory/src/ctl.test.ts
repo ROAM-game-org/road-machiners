@@ -13,7 +13,7 @@ vi.mock('./control', async (importOriginal) => ({
     if (by !== 'hermes' && by !== 'ann') throw new Error(`unknown actor ${by}`);
     return by;
   },
-  isGated: (_ctx: unknown, command: { action: string }) => command.action === 'ship',
+  isGated: (_ctx: unknown, command: { action: string }) => ['ship', 'adopt'].includes(command.action),
   writeControl: (home: string, command: unknown, now: Date) => {
     mkdirSync(join(home, 'inbox'), { recursive: true });
     const path = join(home, 'inbox', `${now.getTime()}-control.json`);
@@ -62,6 +62,13 @@ describe('argument errors', () => {
     await expect(run(fake(), 'ship', '--by', 'hermes', '--reason', 'r')).rejects.toThrow('cannot order');
     expect(inbox()).toEqual([]);
   });
+
+  it('needs a branch and a title for adopt, and a member for --by', async () => {
+    await expect(run(fake(), 'adopt', 'laptop/fix', '--by', 'ann', '--reason', 'r')).rejects.toThrow('adopt needs a branch and a title');
+    await expect(run(fake(), 'adopt', '--by', 'ann', '--reason', 'r')).rejects.toThrow('adopt needs a branch and a title');
+    await expect(run(fake(), 'adopt', 'laptop/fix', 'Title', '--by', 'hermes', '--reason', 'r')).rejects.toThrow('cannot order');
+    expect(inbox()).toEqual([]);
+  });
 });
 
 describe('write commands', () => {
@@ -80,6 +87,8 @@ describe('write commands', () => {
     [['drop', 'ship'], { action: 'drop', queue: 'ship', id: null }],
     [['pause-card', '5'], { action: 'hold', issue: 5 }],
     [['resume-card', '5'], { action: 'unhold', issue: 5 }],
+    [['adopt', 'laptop/fix', 'Fix', 'the', 'load'], { action: 'adopt', branch: 'laptop/fix', title: 'Fix the load' }],
+    [['adopt', 'laptop/fix', 'Fix the load'], { action: 'adopt', branch: 'laptop/fix', title: 'Fix the load' }],
   ])('%j writes %j', async (args, action) => {
     await run(fake(), ...args, '--by', 'ann', '--reason', 'because');
     expect(stored()).toEqual({ kind: 'control', ...action, by: 'ann', reason: 'because' });
@@ -205,7 +214,7 @@ describe('read commands', () => {
 
   it('help lists every command', async () => {
     await run(fake(), 'help');
-    for (const name of ['status', 'cards', 'card N', 'jobs', 'queues', 'release', 'failures', 'stuck', 'log N', 'audit', 'public', 'move N', 'merge N', 'ship', 'cut', 'remove N', 'drop', 'pause-card N', 'resume-card N', 'retry N', 'pause', 'resume', 'repair-clone N']) {
+    for (const name of ['status', 'cards', 'card N', 'jobs', 'queues', 'release', 'failures', 'stuck', 'log N', 'audit', 'public', 'move N', 'merge N', 'ship', 'cut', 'remove N', 'drop', 'pause-card N', 'resume-card N', 'adopt <branch> <title>', 'retry N', 'pause', 'resume', 'repair-clone N']) {
       expect(out.some((line) => line.startsWith(name))).toBe(true);
     }
   });
