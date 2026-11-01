@@ -1,5 +1,5 @@
 {
- "mapHash": "01d7c366",
+ "mapHash": "73534ed8",
  "picks": [
   {
    "propId": "ruin-4138",
@@ -65,7 +65,7 @@
    "reach": 1.214549813717
   },
   {
-   "propId": "skiff-26206",
+   "propId": "skiff-26209",
    "type": "boats",
    "pos": {
     "x": 385.6114807128906,

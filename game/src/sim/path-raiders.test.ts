@@ -165,7 +165,7 @@ describe('scavengers and roamers that cut across open ground', () => {
 
   it('keeps the road when the road way is only slightly longer', () => {
     const w = detour(5);
-    const drivers = Array.from({ length: 10 }, () => driverWith(w, ['scavenger']));
+    const drivers = Array.from({ length: 10 }, (_, i) => Object.assign(driverWith(w, ['scavenger']), { id: `scavenger-${i}` }));
     const keepers = drivers.filter((driver) => roadShare(w, route(w, a, b, 0.6, [], driver)) > 0.7);
     expect(keepers.length).toBeGreaterThan(drivers.length / 2);
     const road = route(w, a, b, 0.6, [], driverWith(w, ['trader']));
