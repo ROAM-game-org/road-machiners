@@ -341,22 +341,6 @@ export function restOn(chassisId: string, rect: CellRect): Rest {
   return cleanSlope(map, samples, rect) ?? restFlat(map, samples, rect) ?? perch(chassisId, map, samples, rect);
 }
 
-export function engineRest(chassisId: string, rect: CellRect): Rest | null {
-  const map = unitShape(chassisId, rect.unit).heights;
-  const samples = samplesUnder(map, rect);
-  if (samples.length === 0) return null;
-  const y = engineAnchor(chassisId).y;
-  const box = clearBox(samples, y - CLIP_TOLERANCE, y + CLIP_TOLERANCE);
-  if (box.empty) return null;
-  const kept = Math.min((box.i1 - box.i0) / sampleSpan(samples, 'i'), (box.j1 - box.j0) / sampleSpan(samples, 'j'));
-  if (kept < MIN_KEEP) return null;
-  const flat = rectOfBox(map, box, rect);
-  const { x, z } = engineAnchor(chassisId);
-  const reachX = Math.min(x - flat.x0, flat.x1 - x);
-  const reachZ = Math.min(z - flat.z0, flat.z1 - z);
-  if (reachX <= 0 || reachZ <= 0) return null;
-  return { y, rect: { unit: rect.unit, x0: x - reachX, x1: x + reachX, z0: z - reachZ, z1: z + reachZ }, perched: false, slope: FLAT };
-}
 
 function restOnEdge(chassisId: string, rect: CellRect): Rest {
   const y = highestUnder(chassisId, rect);
@@ -489,8 +473,14 @@ function rectOfBox(map: HeightMap, box: Box, rect: CellRect): CellRect {
   };
 }
 
-export function engineAnchor(chassisId: string): { x: number; y: number; z: number } {
-  return { ...PHYSICS.bodies[chassisDef(chassisId).look].engine };
+export function engineFloor(chassisId: string): number {
+  return PHYSICS.bodies[chassisDef(chassisId).look].engineY;
+}
+
+export function engineBay(chassisId: string): CellRect {
+  const cells = chassisDef(chassisId).layout.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'E' ? [{ x, y }] : [])));
+  if (cells.length === 0) throw new Error(`Chassis ${chassisId} has no engine cells`);
+  return cellRect(chassisId, cells);
 }
 
 export function lanesAt(chassisId: string, axis: 'column' | 'row', a: number, b: number, unit: number): number[] {

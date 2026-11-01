@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { CHASSIS } from './chassis';
 import { PHYSICS } from './physics';
 import SHAPES from './truck-shapes.json';
-import { cellRect, engineAnchor, restOn, rideOf, unitBody } from '../sim/body';
+import { engineBay, engineFloor, rideOf, unitBody } from '../sim/body';
 
 const FILES = import.meta.glob<string>('/public/models/base_*.glb', { query: '?url&inline', import: 'default' });
 const DATA_URL = 'data:model/gltf-binary;base64,';
@@ -317,12 +317,9 @@ describe('the scout pickup', () => {
   });
 
   it('closes the hood round the engine footprint', () => {
-    const engineCells = CHASSIS.scout.layout.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'E' ? [{ x, y }] : [])));
-    const rect = cellRect('scout', engineCells);
-    const anchor = engineAnchor('scout');
+    const rect = engineBay('scout');
     const margin = 0.05;
-    const half = { x: (rect.x1 - rect.x0) / 2 + margin, y: (rect.z1 - rect.z0) / 2 + margin };
-    const inHole = (c: { x: number; y: number }) => Math.abs(c.x - anchor.x) <= half.x && Math.abs(-c.y - anchor.z) <= half.y;
+    const inHole = (c: { x: number; y: number }) => c.x >= rect.x0 - margin && c.x <= rect.x1 + margin && -c.y >= rect.z0 - margin && -c.y <= rect.z1 + margin;
     const open = columns.filter((c) => c.x >= 0.9 && c.x <= 2.3 && Math.abs(c.y) <= 1.0 && !inHole(c) && c.top < 0.15);
     expect(open.map((c) => `${c.x.toFixed(2)},${c.y.toFixed(2)}: ${c.top.toFixed(2)}`)).toEqual([]);
   });
@@ -347,14 +344,12 @@ describe('the courier Baja Bug', () => {
 
   it('closes the domed front lid round the engine footprint', () => {
     const { heights } = SHAPES.base_courier;
-    const engineCells = CHASSIS.courier.layout.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'E' ? [{ x, y }] : [])));
-    const { rect } = restOn('courier', cellRect('courier', engineCells));
-    const anchor = engineAnchor('courier');
+    const rect = engineBay('courier');
+    const floor = engineFloor('courier');
     const margin = 0.05;
-    const half = { x: (rect.x1 - rect.x0) / 2 + margin, y: (rect.z1 - rect.z0) / 2 + margin };
     const columns = heights.top.flatMap((row, i) => row.flatMap((cm, j) => (cm === null ? [] : [{ x: (heights.i0 + i + 0.5) * heights.cell, y: (heights.j0 + j + 0.5) * heights.cell, top: cm / 100 }])));
-    const inHole = (c: { x: number; y: number }) => Math.abs(c.x - anchor.x) <= half.x && Math.abs(-c.y - anchor.z) <= half.y;
-    const open = columns.filter((c) => c.x >= 0.75 && c.x <= 1.5 && Math.abs(c.y) <= 0.3 && !inHole(c) && c.top < anchor.y + 0.03);
+    const inHole = (c: { x: number; y: number }) => c.x >= rect.x0 - margin && c.x <= rect.x1 + margin && -c.y >= rect.z0 - margin && -c.y <= rect.z1 + margin;
+    const open = columns.filter((c) => c.x >= 0.75 && c.x <= 1.5 && Math.abs(c.y) <= 0.3 && !inHole(c) && c.top < floor + 0.03);
     expect(open.map((c) => `${c.x.toFixed(2)},${c.y.toFixed(2)}: ${c.top.toFixed(2)}`)).toEqual([]);
   });
 });

@@ -7,7 +7,7 @@ import { isShield, partDef, type PartDef, type PartKind } from '../../data/parts
 import { PHYSICS } from '../../data/physics';
 import { wheelMounts } from '../../phys/body';
 import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
-import { cellRect, engineAnchor, ringMiddles, engineRest, highestUnder, restOn, roofSpot, spanOf, surfaceSamples, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
+import { cellRect, engineFloor, ringMiddles, highestUnder, restOn, roofSpot, spanOf, surfaceSamples, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL, paintOf, type TruckColors } from '../../render/palette';
 import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOffset, dentsOf, type PartBox, grayShare, grayed, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
@@ -576,9 +576,7 @@ export class VehicleView {
 
   private placeEngine(v: Vehicle, item: PartItem, paint: number): THREE.Object3D {
     const obj = model(itemModel(item));
-    const at = footprint(v, item, 0, (engineRest(v.chassisId, rectOf(v, item)) ?? restOf(v, item)).rect);
-    const anchor = engineAnchor(v.chassisId);
-    place(obj, { ...at, pos: new THREE.Vector3(anchor.x, anchor.y, anchor.z) });
+    place(obj, footprint(v, item, engineFloor(v.chassisId), rectOf(v, item)));
     tint(obj, paint, lookOf(item));
     return obj;
   }

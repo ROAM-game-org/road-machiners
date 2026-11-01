@@ -338,8 +338,8 @@ function coresSeated(v: Vehicle): boolean {
 }
 
 function coresGraded(v: Vehicle): boolean {
-  const wanted = chassisDef(v.chassisId).core.map((c) => c.defId).sort();
-  const held = mountedItems(v, 'core').map((it) => it.part.defId).sort();
+  const wanted = chassisDef(v.chassisId).core.map((c) => `${c.defId} ${c.x},${c.y},${c.rot ?? 0}`).sort();
+  const held = mountedItems(v, 'core').map((it) => `${it.part.defId} ${it.x},${it.y},${it.rot}`).sort();
   return JSON.stringify(wanted) === JSON.stringify(held);
 }
 

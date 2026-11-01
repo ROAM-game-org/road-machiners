@@ -3,7 +3,7 @@ import { CHASSIS } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
 import { partDef, type CoreDef } from '../data/parts';
 import BASELINE from './body-baseline.json';
-import { CLIP_TOLERANCE, GRID_CELL, bodyOf, bodyRows, cellSteps, rideOf, cellCenter, cellRect, engineAnchor, frontBody, highestUnder, hulkBoxes, isRig, lanesAt, restOn, roofSpot, spanOf, surfaceAt, surfaceSamples, unitBody, unitOfRow, unitsOf } from './body';
+import { CLIP_TOLERANCE, GRID_CELL, bodyOf, bodyRows, cellSteps, rideOf, cellCenter, cellRect, engineBay, engineFloor, highestUnder, hulkBoxes, isRig, lanesAt, restOn, roofSpot, spanOf, surfaceAt, surfaceSamples, unitBody, unitOfRow, unitsOf } from './body';
 import { restBend } from './rig';
 import TRUCK_SHAPES from '../data/truck-shapes.json';
 import { baseGrid } from './grid';
@@ -176,13 +176,56 @@ describe('model surface', () => {
     expect(() => surfaceAt('scout', { unit: 0, x0: 50, x1: 51, z0: 0, z1: 1 })).toThrow(/no surface/);
   });
 
-  it('gives an engine anchor inside the model outline', () => {
-    for (const id of ids) {
-      const a = engineAnchor(id);
-      const { half } = frontBody(id);
-      expect(Math.abs(a.x), id).toBeLessThan(half.x);
-      expect(Math.abs(a.z), id).toBeLessThan(half.z);
+});
+
+const ENGINE_FOOTPRINT = { across: 2, along: 3 };
+const RIM = { gap: 0.05, depth: 0.15, step: 0.05, rise: 0.05 };
+
+describe('shown engines', () => {
+  const shown = ids.filter((id) => CHASSIS[id].showsEngine);
+  const span = (cells: { x: number; y: number }[], axis: 'x' | 'y') => Math.max(...cells.map((c) => c[axis])) - Math.min(...cells.map((c) => c[axis])) + 1;
+
+  it.each(shown)('%s: lays its engine bay 2 cells across and 3 along, short side to the nose', (id) => {
+    const cells = cellsOf(id, 'E');
+    expect({ cells: cells.length, across: span(cells, 'x'), along: span(cells, 'y') }).toEqual({ cells: 6, ...ENGINE_FOOTPRINT });
+  });
+
+  it.each(shown)('%s: cuts the model hole to the engine bay, clear inside and closed round it', (id) => {
+    const bay = engineBay(id);
+    const floor = engineFloor(id);
+    const inside = highestUnder(id, { ...bay, x0: bay.x0 + RIM.gap, x1: bay.x1 - RIM.gap, z0: bay.z0 + RIM.gap, z1: bay.z1 - RIM.gap });
+    expect(inside, `${id} has model above the engine floor inside its bay`).toBeLessThanOrEqual(floor + CLIP_TOLERANCE);
+    const strip = (x0: number, x1: number, z0: number, z1: number) => highestUnder(id, { unit: bay.unit, x0, x1, z0, z1 });
+    const open: string[] = [];
+    for (let x = bay.x0; x < bay.x1 - 1e-9; x += RIM.step) {
+      for (const [z0, z1] of [[bay.z0 - RIM.gap - RIM.depth, bay.z0 - RIM.gap], [bay.z1 + RIM.gap, bay.z1 + RIM.gap + RIM.depth]]) {
+        if (strip(x, x + RIM.step, z0, z1) < floor + RIM.rise) open.push(`side at x ${x.toFixed(2)}`);
+      }
     }
+    for (let z = bay.z0; z < bay.z1 - 1e-9; z += RIM.step) {
+      for (const [x0, x1] of [[bay.x0 - RIM.gap - RIM.depth, bay.x0 - RIM.gap], [bay.x1 + RIM.gap, bay.x1 + RIM.gap + RIM.depth]]) {
+        if (strip(x0, x1, z, z + RIM.step) < floor + RIM.rise) open.push(`end at z ${z.toFixed(2)}`);
+      }
+    }
+    expect(open, `${id} hole runs past its engine bay`).toEqual([]);
+  });
+});
+
+describe('transmissions', () => {
+  it.each(ids)('%s: centres the transmission across the truck, between its front and rear axles', (id) => {
+    const cells = coreCellsOf(id, 'transmission');
+    const width = CHASSIS[id].layout[0].length;
+    const left = Math.min(...cells.map((c) => c.x)) - 1;
+    const right = width - 2 - Math.max(...cells.map((c) => c.x));
+    const unit = unitOfRow(id, cells[0].y).index;
+    const middle = (rows: number[]) => (Math.min(...rows) + Math.max(...rows)) / 2;
+    const axles = CHASSIS[id].core.filter((c) => (partDef(c.defId) as CoreDef).role === 'wheel' && unitOfRow(id, c.y).index === unit).map((c) => {
+      const def = partDef(c.defId);
+      return c.y + ((c.rot === 1 ? def.w : def.h) - 1) / 2;
+    });
+    const at = middle(cells.map((c) => c.y));
+    expect(left, `${id} transmission margins ${left} left and ${right} right`).toBe(right);
+    expect(at >= Math.min(...axles) && at <= Math.max(...axles), `${id} transmission middle on row ${at}, axles on rows ${Math.min(...axles)} and ${Math.max(...axles)}`).toBe(true);
   });
 });
 
@@ -205,17 +248,6 @@ const HANGS_OVER_MODEL = new Set(['loader 1,9', 'loader 7,9']);
 const AXLE_UNDER_COUPLING = new Set(['semi 1,12', 'semi 7,12', 'semi 1,15', 'semi 7,15']);
 
 describe('grid and model correspondence', () => {
-  it('projects the engine cells into the half of the truck that holds the engine anchor', () => {
-    for (const id of ids) {
-      const anchor = engineAnchor(id);
-      for (const c of cellsOf(id, 'E')) {
-        const along = cellCenter(id, c.x, c.y).x;
-        const onMiddle = Math.abs(along) < 1e-9;
-        expect(onMiddle || Math.sign(along) * Math.sign(anchor.x) >= 0, `${id} engine cell ${c.x},${c.y} is in the wrong half along the truck`).toBe(true);
-      }
-    }
-  });
-
   it('stands the transmission and the tank of a chassis that shows them below the cab roof and the model top', () => {
     for (const id of ids.filter((chassis) => CHASSIS[chassis].showsCores)) {
       const inner = CHASSIS[id].layout.flatMap((row, y) => [...row].flatMap((ch, x) => ('DEX'.includes(ch) ? [{ x, y }] : [])));
@@ -233,24 +265,23 @@ describe('grid and model correspondence', () => {
     for (const id of ids) {
       const inner = CHASSIS[id].layout.flatMap((row, y) => [...row].flatMap((ch, x) => ('DEX'.includes(ch) ? [{ x, y }] : [])));
       const top = Math.max(...inner.map((c) => surfaceAt(id, cellRect(id, [c]))));
-      expect(top - engineAnchor(id).y, id).toBeGreaterThanOrEqual(CLEAR);
+      expect(top - engineFloor(id), id).toBeGreaterThanOrEqual(CLEAR);
     }
   });
 
-  it.each(ids)('%s: seats the drawn engine footprint on its bay floor, with nothing lower and no air under it', (id) => {
-    const { rect } = restOn(id, cellRect(id, cellsOf(id, 'E')));
-    const anchor = engineAnchor(id);
-    const half = { x: (rect.x1 - rect.x0) / 2, z: (rect.z1 - rect.z0) / 2 };
+  it.each(ids.filter((id) => CHASSIS[id].showsEngine))('%s: seats the drawn engine on its bay floor, with nothing lower and no air under it', (id) => {
+    const bay = engineBay(id);
+    const floor = engineFloor(id);
     const step = 0.1;
-    const nx = Math.ceil((2 * half.x) / step);
-    const nz = Math.ceil((2 * half.z) / step);
+    const nx = Math.ceil((bay.x1 - bay.x0) / step);
+    const nz = Math.ceil((bay.z1 - bay.z0) / step);
     const low: string[] = [];
     for (let i = 0; i < nx; i++) {
       for (let j = 0; j < nz; j++) {
-        const x0 = anchor.x - half.x + (i * 2 * half.x) / nx;
-        const z0 = anchor.z - half.z + (j * 2 * half.z) / nz;
-        const top = highestUnder(id, { unit: 0, x0, x1: x0 + (2 * half.x) / nx, z0, z1: z0 + (2 * half.z) / nz });
-        if (top < anchor.y - CLIP_TOLERANCE) low.push(`${x0.toFixed(2)},${z0.toFixed(2)}: ${top === -Infinity ? 'air' : top.toFixed(2)} under a floor at ${anchor.y.toFixed(2)}`);
+        const x0 = bay.x0 + (i * (bay.x1 - bay.x0)) / nx;
+        const z0 = bay.z0 + (j * (bay.z1 - bay.z0)) / nz;
+        const top = highestUnder(id, { unit: bay.unit, x0, x1: x0 + (bay.x1 - bay.x0) / nx, z0, z1: z0 + (bay.z1 - bay.z0) / nz });
+        if (top < floor - CLIP_TOLERANCE) low.push(`${x0.toFixed(2)},${z0.toFixed(2)}: ${top === -Infinity ? 'air' : top.toFixed(2)} under a floor at ${floor.toFixed(2)}`);
       }
     }
     expect(low).toEqual([]);
