@@ -1,6 +1,6 @@
 # Release round
 
-**Status:** planning
+**Status:** executing
 **Branch:** release-round
 **Worktree:** .worktrees/release-round
 **Goal:** A member gets any card into the next release by landing it on `dev`, with no hand merge, cherry-pick or state edit. The factory playtests the `dev` tip on its own, ships the last commit that passed, and never ships a branch that holds another base's commits. Members use it to ship a release a day after its last wanted card lands, instead of cutting, dropping and recutting. Confirming it needs one real release shipped by the server from a `dev` commit the playtest passed. Useless if: a hotfix branch can still carry unreleased `dev`; the playtest passes by skipping plays, seeds or features; balance numbers stop being reported; a dead playtest still loses its fixes; hand-written decisions still pile up for the next job; a member still needs the five-step routine to bring a laptop branch in.
