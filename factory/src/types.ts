@@ -274,6 +274,7 @@ export interface GitHub {
   suiteLog(id: number): Promise<string>;
   suiteFailures(id: number): Promise<SuiteFailures | null>;
   suitePassed(sha: string): Promise<boolean>;
+  suitesRunning(): Promise<number>;
 }
 
 export type SuiteRun = { done: boolean; started: boolean; passed: boolean; testsFailed: boolean; conclusion: string | null; url: string };
@@ -336,6 +337,7 @@ export interface HostRepo {
   forkPoint(a: string, b: string): Promise<string>;
   diff(base: string, branch: string): Promise<string>;
   changedFiles(base: string, branch: string): Promise<string[]>;
+  ownHeads(base: string, branch: string): Promise<string[]>;
   changedInWork(dir: string, from: string): Promise<string[]>;
   readFile(branch: string, path: string): Promise<string>;
   hasNewCommits(base: string, branch: string): Promise<boolean>;

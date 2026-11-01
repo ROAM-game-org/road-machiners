@@ -102,7 +102,7 @@ const sleep: Wait = (ms) => new Promise((done) => setTimeout(done, ms));
 
 export const SUITE_WORKFLOW = 'game-suite.yml';
 export const SUITE_STATUS_CONTEXT = 'game suite';
-const FULL_SHA =/^[0-9a-f]{40}$/;
+const FULL_SHA = /^[0-9a-f]{40}$/;
 export const SUITE_TESTS_STEP = 'tests';
 export const SUITE_FAILURES_ARTIFACT = 'test-failures';
 const SUITE_FAILURES_FILE = 'test-failures.json';
@@ -409,6 +409,9 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
+    },
+    async suitesRunning() {
+      return (JSON.parse(await gh(['api', `repos/${repo}/actions/workflows/${SUITE_WORKFLOW}/runs?status=in_progress&per_page=1`])) as { total_count: number }).total_count;
     },
     async suitePassed(sha) {
       if (!FULL_SHA.test(sha)) throw new Error(`A suite status needs a full 40 character commit sha, not ${sha}`);

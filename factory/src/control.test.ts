@@ -27,6 +27,8 @@ let moveFails = false;
 let editFails = false;
 let contained: string[] = [];
 let green = true;
+let greenAt: string[] = [];
+let ownHeads: string[] = ['abc1234'];
 let changed: string[] = ['game/src/sim/far.ts'];
 
 const card = (issue: number, column: Column, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
@@ -47,7 +49,7 @@ function fakeCtx(): Ctx {
       close: async (n: number, reason: string) => { calls.push(`close ${n} ${reason}`); },
       addLabel: async (n: number, label: string) => { calls.push(`addLabel ${n} ${label}`); },
       removeLabel: async (n: number, label: string) => { calls.push(`removeLabel ${n} ${label}`); },
-      suitePassed: async () => green,
+      suitePassed: async (sha: string) => green || greenAt.includes(sha),
     },
     telegram: {
       editCaption: async (_chat: string, id: number, caption: string) => {
@@ -72,6 +74,7 @@ function fakeCtx(): Ctx {
       },
       fullHash: async (commit: string) => commit,
       changedFiles: async () => changed,
+      ownHeads: async () => ownHeads,
     },
   } as unknown as Ctx;
 }
@@ -111,6 +114,8 @@ beforeEach(() => {
   editFails = false;
   contained = ['abc1111'];
   green = true;
+  greenAt = [];
+  ownHeads = ['abc1234'];
   changed = ['game/src/sim/far.ts'];
   for (const issue of [4, 6]) stageArtifacts(issue, { task: true, approval: true });
   mkdirSync(join(ROOT, 'inbox'), { recursive: true });
@@ -436,6 +441,24 @@ describe('a move to Merging and the green suite', () => {
     seed({ ...readState(statePath), suiteCleared: { 4: 'abc1234' } });
     await applyControl(fakeCtx(), command({ action: 'move', issue: 4, to: 'merging' }));
     expect(calls).toContain('move 4 Merging');
+  });
+
+  it('moves a card to Merging when only base merges came after its green commit', async () => {
+    busyCard();
+    green = false;
+    ownHeads = ['abc1234', 'catch01', 'own0001'];
+    greenAt = ['own0001'];
+    await applyControl(fakeCtx(), command({ action: 'merge', issue: 4 }));
+    expect(calls).toContain('move 4 Merging');
+  });
+
+  it('sends a card to Hardening when its green commit is older than its own last commit', async () => {
+    busyCard();
+    green = false;
+    ownHeads = ['abc1234'];
+    greenAt = ['own0001'];
+    await applyControl(fakeCtx(), command({ action: 'merge', issue: 4 }));
+    expect(calls).toContain('move 4 Hardening');
   });
 });
 

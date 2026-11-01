@@ -146,6 +146,7 @@ function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: s
       mergeBranchIntoWork: async () => ({ commit: null, conflicts: [] }),
       isMerged: async (older: string) => (older === 'aaa1111' ? approvedKept : merged),
       changedFiles: async () => changed,
+      ownHeads: async () => ['abc123'],
     },
   };
   return fake as unknown as Ctx;

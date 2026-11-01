@@ -66,7 +66,7 @@ Hermes can put a card in any position with `factory move`. The board column is t
 
 Testing is one job. The testing session merges the base, plays the build, fixes what it finds and writes the post text and its screenshots. Then the factory pushes the branch and runs the post checkpoint in a fresh clone: `npm ci` and the build, which also typechecks. The session already ran the tests near its change and played the build. The post checkpoint also runs the full suite on GitHub Actions for every card, beside the build. A failure goes back into the same session. The tests that fail on the card's base too are not the card's to fix, and a run whose only failures are the base's passes the card. The factory records that pass in `suiteCleared`. A branch that changes no game file other than untested docs runs no suite. A passing build is published and posted to the committee.
 
-Nothing posts a build, and nothing queues a kept approval, unless the build's head has a green suite. The record is the `game suite` commit status on the head, or `suiteCleared`. A branch that changes no game file other than untested docs needs none. Otherwise the post fails with a typed error.
+Nothing posts a build, and nothing queues a kept approval, unless the build's head has a green suite. The record is the `game suite` commit status on the head, or `suiteCleared`. A merge of the base into the branch, like a catch-up, adds no work of the card's own, so the check walks back past such merges to the card's own last commit, and a green record on any commit of that walk counts. A branch that changes no game file other than untested docs needs none. Otherwise the post fails with a typed error.
 
 ![Testing column](diagrams/testing.svg)
 

@@ -15,14 +15,22 @@ export async function suiteRequired(ctx: Ctx, issue: number, base: string): Prom
   return (await ctx.repo.changedFiles(base, BRANCH(issue))).some(isGameSource);
 }
 
-async function suiteGreen(ctx: Ctx, issue: number, build: string): Promise<boolean> {
+async function testedHeads(ctx: Ctx, issue: number, base: string, build: string): Promise<string[]> {
   const sha = await ctx.repo.fullHash(build);
-  if (readState(ctx.statePath).suiteCleared[String(issue)] === sha) return true;
-  return ctx.github.suitePassed(sha);
+  const heads = await ctx.repo.ownHeads(base, BRANCH(issue));
+  return heads[0] === sha ? heads : [sha];
+}
+
+async function suiteGreen(ctx: Ctx, issue: number, base: string, build: string): Promise<boolean> {
+  const cleared = readState(ctx.statePath).suiteCleared[String(issue)];
+  for (const sha of await testedHeads(ctx, issue, base, build)) {
+    if (cleared === sha || await ctx.github.suitePassed(sha)) return true;
+  }
+  return false;
 }
 
 export async function suiteSettled(ctx: Ctx, issue: number, base: string, build: string): Promise<boolean> {
-  return !(await suiteRequired(ctx, issue, base)) || suiteGreen(ctx, issue, build);
+  return !(await suiteRequired(ctx, issue, base)) || suiteGreen(ctx, issue, base, build);
 }
 
 export async function requireSettledSuite(ctx: Ctx, issue: number, base: string, build: string): Promise<void> {

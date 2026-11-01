@@ -27,15 +27,23 @@ const suiteName = (scope: SuiteScope | undefined): string => (scope === undefine
 export async function remoteSuiteResult(ctx: Ctx, at: At, commit: string, scope?: SuiteScope): Promise<SuiteResult> {
   const sha = await ctx.repo.fullHash(commit);
   const id = await onActions(`the dispatch for ${sha} failed`, () => ctx.github.dispatchSuite(sha, scope));
-  const startBy = ctx.now().getTime() + ctx.cfg.suiteStartMinutes * 60_000;
+  let startBy = startDeadline(ctx);
   for (let read = 0; ; read++) {
     const run = await onActions(`reading run ${id} failed`, () => ctx.github.suiteRun(id));
     if (read === 0) ctx.log(at.stage, at.issue, `the ${suiteName(scope)} runs on GitHub Actions for ${sha}: ${run.url}`);
     if (run.done) return verdict(ctx, at, id, sha, run);
-    if (!run.started && ctx.now().getTime() > startBy) throw new SuiteMachineError(`run ${id} did not start within ${ctx.cfg.suiteStartMinutes} minutes: ${run.url}`);
+    if (!run.started) startBy = await stillWaiting(ctx, id, run, startBy);
     reportTests(ctx);
     await new Promise((done) => setTimeout(done, ctx.cfg.suitePollSeconds * 1000));
   }
+}
+
+const startDeadline = (ctx: Ctx): number => ctx.now().getTime() + ctx.cfg.suiteStartMinutes * 60_000;
+
+async function stillWaiting(ctx: Ctx, id: number, run: SuiteRun, startBy: number): Promise<number> {
+  if (await onActions('counting the running suites failed', () => ctx.github.suitesRunning()) > 0) return startDeadline(ctx);
+  if (ctx.now().getTime() > startBy) throw new SuiteMachineError(`run ${id} did not start within ${ctx.cfg.suiteStartMinutes} minutes while no other suite ran: ${run.url}`);
+  return startBy;
 }
 
 async function verdict(ctx: Ctx, at: At, id: number, sha: string, run: SuiteRun): Promise<SuiteResult> {
