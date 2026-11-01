@@ -245,7 +245,8 @@ function flatSpot(points: Sample[], shifts: [number, number][], supports: number
 
 function nudged(points: Sample[], spot: ItemSpot | null, range: { x0: number; x1: number; z0: number; z1: number }, exact: Footing, tops: Footing): ItemSpot | null {
   if (!spot || spot.slope.x !== 0 || spot.slope.z !== 0) return spot;
-  const found = flatSpot(points, shiftsWithin(range, NUDGE_STEP), [1, SHIFT_SUPPORT], exact, tops);
+  const near = { x0: Math.max(range.x0, spot.dx - FACE_COLUMN), x1: Math.min(range.x1, spot.dx + FACE_COLUMN), z0: Math.max(range.z0, spot.dz - FACE_COLUMN), z1: Math.min(range.z1, spot.dz + FACE_COLUMN) };
+  const found = flatSpot(points, shiftsWithin(near, NUDGE_STEP), [1, SHIFT_SUPPORT], exact, tops);
   return found ? { ...spot, dx: found.dx, dz: found.dz, y: found.y } : spot;
 }
 

@@ -544,10 +544,25 @@ function sweptLine(world: World, v: Vehicle, x: Vehicle, heading: number, reach:
 
 function lines(world: World, x: Vehicle, reach: number, width: number): number[] {
   if (!x.order || x.order.kind === "brake") return [x.heading];
-  const aim = aheadGoal(world, x.pos, x.order.dest, vehicleRadius(x), [], x, REGION.navigation.farWindow);
-  const turn = angleDiff(x.heading, bearing(x.pos, aim));
+  const turn = angleDiff(x.heading, bearing(x.pos, aimOf(world, x, x.order.dest)));
   const count = Math.ceil((Math.abs(turn) * reach) / width);
   return Array.from({ length: count + 1 }, (_, i) => x.heading + (turn * i) / Math.max(1, count));
+}
+
+type Aim = { world: World; turn: number; from: Vec; dest: Vec; at: Vec };
+
+const AIMS = new WeakMap<Vehicle, Aim>();
+
+function aimOf(world: World, x: Vehicle, dest: Vec): Vec {
+  const kept = AIMS.get(x);
+  if (kept && kept.world === world && kept.turn === world.turn && samePoint(kept.from, x.pos) && samePoint(kept.dest, dest)) return kept.at;
+  const at = aheadGoal(world, x.pos, dest, vehicleRadius(x), [], x, REGION.navigation.farWindow);
+  AIMS.set(x, { world, turn: world.turn, from: { ...x.pos }, dest: { ...dest }, at });
+  return at;
+}
+
+function samePoint(a: Vec, b: Vec): boolean {
+  return a.x === b.x && a.y === b.y;
 }
 
 function pathsMeet(world: World, v: Vehicle, x: Vehicle): boolean {
