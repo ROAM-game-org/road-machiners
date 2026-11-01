@@ -166,7 +166,7 @@ Members, other jobs and releases push all the time, so any branch may move while
 
 ![Branches](diagrams/branches.svg)
 
-- The release cut merges `main` into `dev` first when `dev` lacks any of it. It opens a tracking issue labeled `release` and two cleanup tasks. `lastRelease` changes only when the cut succeeds or finds nothing new, so a failed cut runs again on the next tick.
+- The factory never cuts a release by itself. No timer, merge into `dev`, Ship or new cycle starts a cut. A cut starts only on a `cut` order, which sets `pendingCut` to the member who ordered it, and only while no release is open. A Ship order is no order for the next cut, and the open release keeps its playtest, approval and Ship as before. The release cut merges `main` into `dev` first when `dev` lacks any of it. It opens a tracking issue labeled `release` and two cleanup tasks. The cut clears `pendingCut` and sets `lastRelease` only when it succeeds or finds nothing new, so a failed cut runs again on the next tick.
 - Ship merges the release into a work clone of `main` once, and the ship session resolves any conflict. The ship checkpoint runs the tests that match the release's change, the playtest and the build on the result. A suite failure is checked against `main` the same way as a merge's against its base. A failure goes back into the ship session, until the checks pass or its fix rounds spent `FACTORY_MERGING_BUDGET_USD`. Resolving the conflict spends none of that budget. A spent budget fails Ship, and Hermes asks a member. Then Ship pushes `main`, merges `main` into `dev`, builds `main` and pushes it to itch.io.
 - A hotfix merges its checked build into `main`, and `main` into `dev`, in one push. Then it ships like a release. The open release stays as it is and meets the fix at its Ship.
 - Remove reverts a feature's merge in both `dev` and the release, and sends its issue back to Design.
@@ -201,7 +201,7 @@ A timer runs one tick at a time. A tick never waits for a job. Before it picks j
 
 Jobs pick in this order. A job starts when its queue has a free worker and no other job works on its issue. While free disk or available memory is under its minimum, the tick starts no job, as [operations.md](operations.md#cleanup-and-health) says.
 
-1. Branch jobs: every queued approve, remove, ship and incident, the next player answer, then the merge queue, the catch-ups of the next waiting Merging cards, a stale `/dev/`, the release cut, and the release playtest or the candidate. The playtest runs in the verify queue.
+1. Branch jobs: every queued approve, remove, ship and incident, the next player answer, then the merge queue, the catch-ups of the next waiting Merging cards, a stale `/dev/`, the release cut when a member ordered one, and the release playtest or the candidate. The playtest runs in the verify queue.
 2. The waste review, when due.
 3. Card jobs: hotfixes, ad hoc tasks, release tasks, then other cards. Within each, the card furthest along goes first.
 

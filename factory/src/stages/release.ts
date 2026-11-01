@@ -18,7 +18,7 @@ export async function release(ctx: Ctx): Promise<void> {
   const features = toFeatures(merges);
   if (features.length === 0) {
     ctx.log('release', null, 'nothing new on dev, skipped');
-    updateState(ctx.statePath, (state) => ({ ...state, lastRelease: now.toISOString() }));
+    updateState(ctx.statePath, (state) => ({ ...state, lastRelease: now.toISOString(), pendingCut: null }));
     return;
   }
   const day = now.toISOString().slice(0, 10);
@@ -29,7 +29,7 @@ export async function release(ctx: Ctx): Promise<void> {
     await ctx.repo.deleteBranch(branch);
     throw error;
   });
-  updateState(ctx.statePath, (state) => ({ ...state, lastRelease: now.toISOString(), devMerges: state.devMerges.slice(merges.length), release: { issue: tracking, branch, day, postId: null, candidateSha: null, removed: [], tasks: [], merges, playtest: newPlaytest(day) } }));
+  updateState(ctx.statePath, (state) => ({ ...state, lastRelease: now.toISOString(), pendingCut: null, devMerges: state.devMerges.slice(merges.length), release: { issue: tracking, branch, day, postId: null, candidateSha: null, removed: [], tasks: [], merges, playtest: newPlaytest(day) } }));
   await addCard(ctx, tracking, 'Approval', now.toISOString(), 'release');
   for (const task of CLEANUP_TASKS) {
     const n = await ctx.github.createIssue(`${task.title} (release ${day})`, fillPrompt(task.prompt, {}), [RELEASE_TASK_LABEL, MAINTENANCE_LABEL]);

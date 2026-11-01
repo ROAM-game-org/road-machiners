@@ -78,6 +78,29 @@ describe('release cut', () => {
     expect(readState(f.ctx.statePath).lastRelease).toBe('2026-09-29T10:00:00.000Z');
   });
 
+  it('clears the cut order when it finds nothing new, and when it cuts', async () => {
+    const skipped = fake();
+    writeState(skipped.ctx.statePath, { ...structuredClone(EMPTY_STATE), pendingCut: 'Ann' });
+    await release(skipped.ctx);
+    expect(readState(skipped.ctx.statePath).pendingCut).toBeNull();
+    const cut = fake();
+    writeState(cut.ctx.statePath, { ...structuredClone(EMPTY_STATE), pendingCut: 'Ann' });
+    devHolds([TRUCKS]);
+    await release(cut.ctx);
+    expect(readState(cut.ctx.statePath).release).not.toBeNull();
+    expect(readState(cut.ctx.statePath).pendingCut).toBeNull();
+  });
+
+  it('keeps the cut order when the cut fails, so the next tick cuts again', async () => {
+    const f = fake();
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), pendingCut: 'Ann' });
+    devHolds([TRUCKS]);
+    f.ctx.repo.isMerged = async () => false;
+    f.ctx.repo.merge = async () => { throw new Error('push of dev failed'); };
+    await expect(release(f.ctx)).rejects.toThrow('push of dev failed');
+    expect(readState(f.ctx.statePath).pendingCut).toBe('Ann');
+  });
+
   it('leaves lastRelease alone when the cut fails, so the next tick cuts again', async () => {
     const f = fake();
     writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), lastRelease: '2026-09-01T00:00:00.000Z' });

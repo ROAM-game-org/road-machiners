@@ -117,7 +117,7 @@ A patch or a redesign goes on the issue under "## Committee feedback", closes th
 
 ## Release
 
-The release cut opens two cleanup issues, for optimization and code janitor work, labeled `release-task` and `maintenance`. Release tasks run the card stages against the release branch.
+The release cut runs only on a member's order. It opens two cleanup issues, for optimization and code janitor work, labeled `release-task` and `maintenance`. Release tasks run the card stages against the release branch.
 
 ## Release playtest
 
