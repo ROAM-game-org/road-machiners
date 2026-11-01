@@ -22,8 +22,9 @@ const COMMENT_LIMIT = 60_000;
 
 export type RunMeta = {
   day: string; run: number; seed: number; turns: number; sha: string; baseline: string; startedAt: string; finishedAt: string;
-  outcome: Outcome['outcome']; reason: string; verdict: Review['verdict']; fixes: string[]; bugs: number[]; ending: LogFacts['ending'];
+  outcome: Outcome['outcome']; reason: string; verdict: Review['verdict']; fixes: string[]; bugs: number[]; balance: BalanceReport[]; ending: LogFacts['ending'];
 };
+export type BalanceReport = { title: string; head: string; baseline: string };
 
 type Baseline = { branch: string; sha: string; kind: string };
 type Session = {
@@ -127,9 +128,9 @@ async function playRound(ctx: Ctx, session: Session, next: Next, play: number): 
   const review = await reviewOf(ctx, session);
   const head = await cloneHead(ctx, session);
   const outcome = judge(facts, review, { moved: head !== next.sha, last, fixedEarlier: next.sha !== session.start });
-  const bugs = await openOldBugs(ctx, session, next.sha, review);
+  const bugs = await openFindingBugs(ctx, session, next.sha, review);
   const { release } = session;
-  const meta: RunMeta = { day: release.day, run, seed: release.playtest.seed, turns: ctx.cfg.playtestTurns, sha: next.sha, baseline: session.baseline.sha, startedAt, finishedAt: ctx.now().toISOString(), outcome: outcome.outcome, reason: outcome.reason, verdict: review.verdict, fixes: review.fixes, bugs, ending: facts.ending };
+  const meta: RunMeta = { day: release.day, run, seed: release.playtest.seed, turns: ctx.cfg.playtestTurns, sha: next.sha, baseline: session.baseline.sha, startedAt, finishedAt: ctx.now().toISOString(), outcome: outcome.outcome, reason: outcome.reason, verdict: review.verdict, fixes: review.fixes, bugs, balance: balanceFindings(review), ending: facts.ending };
   keepAudit(ctx, release, session.home, meta);
   return { meta, outcome, sha: next.sha, head, play };
 }
@@ -287,11 +288,17 @@ function setPlaytest(ctx: Ctx, change: (playtest: PlaytestState) => PlaytestStat
   return next.release.playtest;
 }
 
-async function openOldBugs(ctx: Ctx, session: Session, sha: string, review: Review): Promise<number[]> {
-  const fresh = review.findings.filter((finding) => finding.cause === 'old' && finding.severity === 'important' && finding.known === null && !session.bugs.has(finding.title));
+const opensBug = (finding: Finding): boolean => finding.severity === 'balance' || (finding.cause === 'old' && finding.severity === 'important');
+
+export function balanceFindings(review: Review): BalanceReport[] {
+  return review.findings.filter((finding) => finding.severity === 'balance').map((finding) => ({ title: finding.title, head: finding.numbers!.head, baseline: finding.numbers!.baseline }));
+}
+
+async function openFindingBugs(ctx: Ctx, session: Session, sha: string, review: Review): Promise<number[]> {
+  const fresh = review.findings.filter((finding) => opensBug(finding) && finding.known === null && !session.bugs.has(finding.title));
   const opened: number[] = [];
   for (const finding of fresh) {
-    const n = await ctx.github.createIssue(finding.title, oldBugBody(session, sha, finding), [BUG_LABEL]);
+    const n = await ctx.github.createIssue(finding.title, finding.severity === 'balance' ? balanceBugBody(session, sha, finding) : oldBugBody(session, sha, finding), [BUG_LABEL]);
     appendFileSync(join(session.home, OUT_DIR, 'open-bugs.md'), `- #${n} ${finding.title}\n`);
     session.bugs.set(finding.title, n);
     opened.push(n);
@@ -306,6 +313,17 @@ export function oldBugBody(session: Pick<Session, 'release' | 'baseline'>, sha: 
     `The baseline at ${baseline.sha} has it too, so it is not the release's and does not block it.`,
     `## Evidence\n${finding.evidence}`,
     `## Why it is old\n${finding.why}`,
+  ].join('\n\n');
+}
+
+export function balanceBugBody(session: Pick<Session, 'release' | 'baseline'>, sha: string, finding: Finding): string {
+  const { release, baseline } = session;
+  const numbers = finding.numbers!;
+  return [
+    `The release playtest of release ${release.day} measured a balance shift at ${sha}, seed ${release.playtest.seed}. The report is on the tracking issue #${release.issue}. It never blocks the release.`,
+    `## Numbers\nOn the head ${sha}: ${numbers.head}\nOn the baseline ${baseline.sha}: ${numbers.baseline}`,
+    `## Evidence\n${finding.evidence}`,
+    `## Why the playtest sorted it as ${finding.cause}\n${finding.why}`,
   ].join('\n\n');
 }
 
@@ -355,10 +373,15 @@ function report(session: Session): string {
   return readOutput(session.home, 'playtest.md') ?? 'The agent wrote no report in its last round.';
 }
 
+function balanceSection(last: RunMeta | undefined): string {
+  const items = (last?.balance ?? []).map((item) => `- ${item.title}: head ${item.head}. Baseline ${item.baseline}.`);
+  return items.length ? `\n\nBalance findings of the last play. They never block, and each has a dev bug:\n${items.join('\n')}` : '';
+}
+
 export function comment(session: Pick<Session, 'release' | 'start'>, plays: RunMeta[], end: Ending, next: string, text: string): string {
   const { release } = session;
   const head = `Release playtest: ${end.outcome} after ${plays.length} plays. Seed ${release.playtest.seed}, ${plays[0]?.turns ?? 0} turns, from commit ${session.start} to ${end.head}.`;
   const lines = plays.map((play) => `- play ${play.run} at ${play.sha}: ${play.reason}${play.fixes.length ? `. Fixes: ${play.fixes.join('; ')}` : ''}${play.bugs.length ? `. Old bugs opened: ${play.bugs.map((n) => `#${n}`).join(', ')}` : ''}`);
-  const body = `${head}\n${next}\n\n${lines.join('\n')}\n\n${text}`;
+  const body = `${head}\n${next}\n\n${lines.join('\n')}${balanceSection(plays.at(-1))}\n\n${text}`;
   return body.length > COMMENT_LIMIT ? `${body.slice(0, COMMENT_LIMIT)}\n\n(cut, the full reports are in the factory's playtest audit)` : body;
 }

@@ -21,8 +21,8 @@ const RELEASE: ReleaseState = { issue: 11, branch: BRANCH, day: DAY, postId: nul
 const CLONE = join(ROOT, 'work', 'release-playtest');
 const HOME = join(CLONE, 'game', '.factory');
 
-const releaseBug: Finding = { id: 'F1', severity: 'important', title: 'Raiders chase forever', evidence: 'turns 300 to 900, v12', cause: 'release', why: 'the raid goal of #12 never ends', known: null, fixed: false };
-const oldBug: Finding = { id: 'F2', severity: 'important', title: 'Escorts to a territory never end', evidence: 'v722 from 1259', cause: 'old', why: 'the baseline log has the same unpaid escort at 1300', known: null, fixed: false };
+const releaseBug: Finding = { id: 'F1', severity: 'important', title: 'Raiders chase forever', evidence: 'turns 300 to 900, v12', cause: 'release', why: 'the raid goal of #12 never ends', known: null, fixed: false, numbers: null };
+const oldBug: Finding = { id: 'F2', severity: 'important', title: 'Escorts to a territory never end', evidence: 'v722 from 1259', cause: 'old', why: 'the baseline log has the same unpaid escort at 1300', known: null, fixed: false, numbers: null };
 const review = (over: Partial<Review> = {}): string => JSON.stringify({
   verdict: 'clean', summary: 'A full run.', drama: 'A raid at turn 300.', observations: ['trade at turn 20'], suspected: [], limitations: ['far mode'],
   findings: [], fixes: [], explanations: { death: null, quiet: null }, blocker: null, ...over,
@@ -260,6 +260,16 @@ describe('playtest', () => {
     expect(comments(run.f)[0]).toContain('Old bugs opened: #11');
   });
 
+  it('opens a dev bug with the numbers for a balance finding of either cause, passes the release and lists the numbers in the report', async () => {
+    const run = setup();
+    const shift: Finding = { id: 'F5', severity: 'balance', title: 'Raid survival fell', evidence: 'raids at turns 300 to 900', cause: 'release', why: 'the raid goal of #12 changed', known: null, fixed: false, numbers: { head: 'survived 31 of 50 raids', baseline: 'survived 44 of 50 raids' } };
+    run.turns = [{ review: review({ findings: [shift, { ...shift, id: 'F6', title: 'Known shift', known: 41 }] }) }];
+    await playtest(run.f.ctx, 11);
+    expect(run.f.created).toEqual([{ title: 'Raid survival fell', body: expect.stringContaining('On the head abc1234: survived 31 of 50 raids\nOn the baseline main001: survived 44 of 50 raids'), labels: ['bug'] }]);
+    expect(release(run.f).playtest.passed).toBe('abc1234');
+    expect(comments(run.f)[0]).toContain('Raid survival fell: head survived 31 of 50 raids. Baseline survived 44 of 50 raids.');
+  });
+
   it('opens an old bug once, also when a replay lists it again without its new number', async () => {
     const run = setup();
     run.turns = [{ ...fixed('fix0001'), review: review({ verdict: 'fixed', findings: [releaseBug, oldBug], fixes: ['a'] }) }, { review: review({ findings: [oldBug] }) }];
@@ -433,8 +443,8 @@ describe('playtest', () => {
     };
     await playtest(run.f.ctx, 11);
     expect(run.prompts).toHaveLength(2);
-    expect(run.prompts[1]).toContain('- The fixes list holds an item that is not a string\n- Finding F1 has severity medium, not important or minor\n- Finding F1 has fixed abc, not true or false');
-    expect(run.prompts[1]).toContain('Never pick `minor` or `old` only to make the file read.');
+    expect(run.prompts[1]).toContain('- The fixes list holds an item that is not a string\n- Finding F1 has severity medium, not important, minor or balance\n- Finding F1 has fixed abc, not true or false');
+    expect(run.prompts[1]).toContain('Never pick `minor`, `balance` or `old` only to make the file read.');
     expect(run.prompts[1]).toContain(readFileSync(join(HOME, 'playtest-review.md'), 'utf8').trim());
     expect(onDisk).toEqual([broken]);
     expect(run.sessions[1]).toEqual({ ...run.sessions[0], resume: true });
@@ -445,7 +455,7 @@ describe('playtest', () => {
   it('fails with every error left when the review still breaks its rules after the repairs, and spends no other play', async () => {
     const run = setup();
     run.turns = [{ review: review({ findings: [{ ...releaseBug, severity: 'medium' as 'minor', cause: 'both' as 'old' }] }) }, {}, {}];
-    await expect(playtest(run.f.ctx, 11)).rejects.toThrow('The playtest review still breaks its rules after 2 repairs:\nFinding F1 has severity medium, not important or minor\nFinding F1 has cause both, not release or old');
+    await expect(playtest(run.f.ctx, 11)).rejects.toThrow('The playtest review still breaks its rules after 2 repairs:\nFinding F1 has severity medium, not important, minor or balance\nFinding F1 has cause both, not release or old');
     expect(run.prompts).toHaveLength(3);
     expect(harnessRuns(run)).toHaveLength(2);
     expect(release(run.f).playtest).toMatchObject({ runs: 1, passed: null });
