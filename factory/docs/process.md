@@ -185,7 +185,7 @@ The public Telegram channel gets only the release post that a member publishes. 
 
 The committee chat gets only what a member acts on or must know: a post that asks for a product decision, with its play link, evidence and hotfix warning, a question on game design or taste, and a short outcome like a shipped hotfix or release, or one that cannot ship. It gets no repeated approval post, no merge into `dev`, no `/dev/` rebuild, and no job, incident or progress status. Those stay on GitHub and in the factory records.
 
-The release is a commit, not a branch. The playtest passes the start commit, or the reviewed fix commit when the play made fixes. The candidate builds only that commit, from the branch `factory/candidate`, and its post records it. A newer pass replaces the candidate and its post while no Ship runs, and a press of Ship on an older post is refused. Ship reads the stored candidate, never a branch head. A reply on the candidate post other than `ship` or `remove N` opens an ordinary `dev` issue in Triage, which joins the next pass.
+The release is a commit, not a branch. The playtest passes the start commit, or the reviewed fix commit when the play made fixes. The candidate builds only that commit, from the branch `factory/candidate`, and its post records it. A newer pass replaces the candidate and its post while no Ship runs, and a press of Ship on an older post is refused. Ship reads the stored candidate, never a branch head. A reply on the candidate post other than `ship` or `remove N` opens an ordinary `dev` issue in Design, which joins the next pass.
 
 ## Side jobs
 

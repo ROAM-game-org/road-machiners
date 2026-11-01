@@ -373,14 +373,14 @@ describe('release commands', () => {
     expect(readState(statePath).pendingRemovals).toEqual([]);
   });
 
-  it('opens a reply on the candidate as a normal issue in Triage and keeps the post and a queued ship', async () => {
+  it('opens a reply on the candidate as a normal issue in Design and keeps the post and a queued ship', async () => {
     const sent: string[] = [];
     const calls: string[] = [];
     writeState(statePath, withPost({ ...structuredClone(EMPTY_STATE), release: RELEASE, pendingShip: 'Bob' }));
     put('1.json', { kind: 'candidate-reply', text: 'The horn is too quiet\nMake it louder' });
     await drainInbox(fakeCtx([], sent, calls));
     expect(calls[0]).toBe('create The horn is too quiet|The horn is too quiet\nMake it louder\n\nRequested by Ann in the committee chat, as a reply on a release candidate post.|');
-    expect(calls[1]).toBe('addCard 9 Triage');
+    expect(calls[1]).toBe('addCard 9 Design');
     expect(readState(statePath).release?.postId).toBe(42);
     expect(readState(statePath).pendingShip).toBe('Bob');
     expect(sent).toEqual([]);

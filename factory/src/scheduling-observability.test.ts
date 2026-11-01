@@ -6,7 +6,7 @@ import { STUCK_LABEL, NEEDS_INFO_LABEL, type Card, type FactoryState, type Job }
 const now = new Date('2026-10-04T12:00:00Z');
 const config = { playtestHours: 12, wasteReviewDays: 7, maxJobsPerCard: 30, triageWorkers: 1, designWorkers: 1, implementWorkers: 1, verifyWorkers: 1, testWorkers: 1 };
 function createCard(issue: number, column: Card['column'], labels: string[] = []): Card { return { issue, column, labels, itemId: String(issue) }; }
-function createState(): FactoryState { return { ...structuredClone(EMPTY_STATE), lastRelease: now.toISOString(), release: { issue: 90, day: '2026-10-04', postId: null, candidate: null, removed: [], playtest: newPlaytest('2026-10-04') } }; }
+function createState(): FactoryState { return { ...structuredClone(EMPTY_STATE), lastRelease: now.toISOString(), devMerges: [{ issue: 3, title: 'T', sha: 'm3', into: 'dev', reverted: [] }], release: { issue: 90, day: '2026-10-04', postId: null, candidate: null, removed: [], playtest: newPlaytest('2026-10-04') } }; }
 
 it('explains both slot contention and an already running issue without changing selections', () => {
   expect(scheduling).toHaveProperty('evaluateSchedule');

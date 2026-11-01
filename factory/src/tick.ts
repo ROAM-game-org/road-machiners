@@ -82,7 +82,7 @@ function cardStage(state: FactoryState, card: Card): JobStage {
 
 function mergeJob(state: FactoryState, cards: Card[]): JobPick | null {
   const ready = waitingMerges(state, openCards(state, cards)).filter((card) => !state.jobs.some((job) => job.issue === card.issue));
-  const fixesWait = state.release?.playtest.fixes != null && !state.failures.some((failure) => failure.stage === 'merge');
+  const fixesWait = state.release?.playtest.fixes != null && !state.failures.some((failure) => failure.stage === 'merge' && (failure.batch ?? []).length === 0);
   return ready.length > 0 || fixesWait ? { stage: 'merge', issue: null } : null;
 }
 
@@ -154,7 +154,12 @@ export function playtestDue(state: FactoryState, devTip: string | null, now: Dat
   const release = state.release;
   if (release === null || release.playtest.fixes !== null) return false;
   if (state.pendingPlaytest !== null) return true;
-  return release.playtest.blocked === null && devMovedPastStart(release, devTip, now, hours);
+  return release.playtest.blocked === null && autoDue(state, release, devTip, now, hours);
+}
+
+function autoDue(state: FactoryState, release: ReleaseState, devTip: string | null, now: Date, hours: number): boolean {
+  if (release.playtest.work !== null) return true;
+  return state.devMerges.length > 0 && devMovedPastStart(release, devTip, now, hours);
 }
 
 function devMovedPastStart(release: ReleaseState, devTip: string | null, now: Date, hours: number): boolean {

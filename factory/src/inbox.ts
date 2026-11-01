@@ -233,8 +233,8 @@ async function openCandidateTask(ctx: Ctx, command: InboxCommand, by: string): P
   const text = requireText(command).trim();
   const title = text.split('\n')[0].trim().slice(0, TITLE_LIMIT);
   const n = await ctx.github.createIssue(title, `${text}\n\nRequested by ${by} in the committee chat, as a reply on a release candidate post.`, []);
-  await addCard(ctx, n, 'Triage', ctx.now().toISOString());
-  return `Opened #${n} as a normal issue for dev. It goes through triage like any other, and the candidate stays as it is.`;
+  await addCard(ctx, n, 'Design', ctx.now().toISOString());
+  return `Opened #${n} as a normal issue for dev. It starts in Design like any committee request, and the candidate stays as it is.`;
 }
 
 function requireIssue(command: InboxCommand): number {

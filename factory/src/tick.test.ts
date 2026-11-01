@@ -21,7 +21,7 @@ const FRESH = { lastRelease: '2026-01-09T12:00:00Z', devBuild: DEV };
 
 const RELEASE: ReleaseState = { issue: 20, day: '2026-01-05', postId: null, candidate: null, removed: [], playtest: newPlaytest('2026-01-05') };
 const merged = (issue: number, sha = `m${issue}`): IssueMerge => ({ issue, title: `Card ${issue}`, sha, into: 'dev', reverted: [] });
-const state = (over: Partial<FactoryState> = {}): FactoryState => ({ ...structuredClone(EMPTY_STATE), ...FRESH, release: RELEASE, ...over });
+const state = (over: Partial<FactoryState> = {}): FactoryState => ({ ...structuredClone(EMPTY_STATE), ...FRESH, release: RELEASE, devMerges: [merged(3)], ...over });
 const card = (issue: number, column: Card['column'], labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
 const running = (stage: Job['stage'], issue: number | null): Job => ({ id: `${stage}-${issue}`, stage, issue, pid: 1, startedAt: '', log: '' });
 
@@ -97,6 +97,19 @@ describe('playtestDue', () => {
     expect(playtestDue(at({ lastStart: { sha: 'dev0001', at: hoursAgo(11) } }), 'dev0002', NOW, 12)).toBe(false);
     expect(playtestDue(at({ lastStart: old }), 'dev0001', NOW, 12)).toBe(false);
     expect(playtestDue(at({ lastStart: old }), 'dev0001abc', NOW, 12)).toBe(false);
+  });
+
+  it('is due again while kept work of a dead playtest waits, also on an unmoved dev tip', () => {
+    const work = { start: 'dev0001', baseline: 'main01', features: [], session: 's', plays: 1 };
+    expect(playtestDue(at({ lastStart: { sha: 'dev0002', at: hoursAgo(1) }, work }), 'dev0002', NOW, 12)).toBe(true);
+    expect(playtestDue(at({ work, blocked: { sha: 'x', reason: 'r' } }), 'dev0002', NOW, 12)).toBe(false);
+    expect(playtestDue(at({ work, fixes: 'fix0001' }), 'dev0002', NOW, 12)).toBe(false);
+  });
+
+  it('is not due automatically while dev holds no unshipped merge, but an order still starts it', () => {
+    const empty = (pending: string | null): FactoryState => ({ ...at({ lastStart: old }, pending), devMerges: [] });
+    expect(playtestDue(empty(null), 'dev0002', NOW, 12)).toBe(false);
+    expect(playtestDue(empty('Ann'), 'dev0002', NOW, 12)).toBe(true);
   });
 
   it('is not due while playtest fixes wait to land on dev, also on an order', () => {
@@ -289,6 +302,8 @@ describe('chooseJobs', () => {
     expect(chooseJobs(fixed, [], NOW, CFG)).toEqual([{ stage: 'merge', issue: null }]);
     const failed = { ...fixed, failures: [{ stage: 'merge' as const, issue: null, error: 'e', cause: null, log: null, at: hoursAgo(1) }] };
     expect(chooseJobs(failed, [], NOW, CFG)).toEqual([]);
+    const batchFailed = { ...fixed, failures: [{ ...failed.failures[0], batch: [8] }] };
+    expect(chooseJobs(batchFailed, [], NOW, CFG)).toEqual([{ stage: 'merge', issue: null }]);
   });
 
   it('opens a release on the switch and after a ship, with no order', () => {
