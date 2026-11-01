@@ -376,7 +376,7 @@ function passesClear(world: World, v: Vehicle, x: Vehicle, around: Vec[]): boole
   const radii = vehicleRadius(v) + vehicleRadius(x) + PHYSICS.driver.clearMargin;
   const { vs, t } = horizon(world, v);
   const at = (d: number): Vec => alongRoute(v.pos, around, d);
-  const headings = lines(x, x.speed * t, radii);
+  const headings = lines(world, x, x.speed * t, radii);
   for (let s = 0; s <= t; s += RULES.traffic.passStep) {
     for (const heading of headings) {
       const there = { x: x.pos.x + Math.cos(heading) * x.speed * s, y: x.pos.y + Math.sin(heading) * x.speed * s };
@@ -522,7 +522,7 @@ function sweptPath(world: World, v: Vehicle, x: Vehicle): Blocker[] {
   const sx = driveStats(world, x);
   const reach = sweptReach(x, Math.min(sx.maxSpeed, x.speed + sx.accel) * horizon(world, v).t);
   const steps = Math.max(1, Math.ceil(reach / sx.radius));
-  return lines(x, reach, sx.radius).flatMap((heading, n) => sweptLine(world, v, x, heading, reach, n === 0 ? 0 : 1, steps));
+  return lines(world, x, reach, sx.radius).flatMap((heading, n) => sweptLine(world, v, x, heading, reach, n === 0 ? 0 : 1, steps));
 }
 
 function sweptLine(world: World, v: Vehicle, x: Vehicle, heading: number, reach: number, from: number, steps: number): Blocker[] {
@@ -542,9 +542,10 @@ function sweptLine(world: World, v: Vehicle, x: Vehicle, heading: number, reach:
   return circles;
 }
 
-function lines(x: Vehicle, reach: number, width: number): number[] {
+function lines(world: World, x: Vehicle, reach: number, width: number): number[] {
   if (!x.order || x.order.kind === "brake") return [x.heading];
-  const turn = angleDiff(x.heading, bearing(x.pos, x.order.dest));
+  const aim = aheadGoal(world, x.pos, x.order.dest, vehicleRadius(x), [], x, REGION.navigation.farWindow);
+  const turn = angleDiff(x.heading, bearing(x.pos, aim));
   const count = Math.ceil((Math.abs(turn) * reach) / width);
   return Array.from({ length: count + 1 }, (_, i) => x.heading + (turn * i) / Math.max(1, count));
 }

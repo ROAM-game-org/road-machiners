@@ -560,7 +560,7 @@ export function travelSitesAway(vehicle: Vehicle) {
 
 export function canRob(w: World, robber: Vehicle, target: Vehicle): boolean {
   if (robber.id === target.id || !canVehicleSee(w, robber, target.pos)) return false;
-  return isRobbable(w, robber, target) && !inCombatWithOther(w, target, robber.id) && isFairGame(w, robber, target);
+  return isFairGame(w, robber, target) && !inCombatWithOther(w, target, robber.id) && isRobbable(w, robber, target);
 }
 
 function isFairGame(w: World, robber: Vehicle, target: Vehicle): boolean {
