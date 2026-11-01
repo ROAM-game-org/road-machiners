@@ -1,6 +1,6 @@
 # Release round
 
-**Status:** executing
+**Status:** validating
 **Branch:** release-round
 **Worktree:** .worktrees/release-round
 **Goal:** A member gets any card into the next release by landing it on `dev`, with no hand merge, cherry-pick or state edit. The factory playtests the `dev` tip on its own, ships the last commit that passed, and never ships a branch that holds another base's commits. Members use it to ship a release a day after its last wanted card lands, instead of cutting, dropping and recutting. Confirming it needs one real release shipped by the server from a `dev` commit the playtest passed. Useless if: a hotfix branch can still carry unreleased `dev`; the playtest passes by skipping plays, seeds or features; balance numbers stop being reported; a dead playtest still loses its fixes; hand-written decisions still pile up for the next job; a member still needs the five-step routine to bring a laptop branch in.
@@ -203,3 +203,35 @@ Invariants / assumptions:
 Smoke: the new `readState` on a copy of the live server state refuses the open #1280 release with a message that says to ship it on the old code first. The same state with `release` set to null loads with 1 `dev` merge, no `pendingCut` and no playtest due.
 Goal: proxy only. All 114 factory test files pass outside `repo.test.ts`, whose two new lineage tests pass on their own, and 258 Hermes tests pass. Confirming the goal needs one real release on the server: #1280 ships on the old code, the round deploys to `main`, and the first playtest on the `dev` tip leads to a shipped candidate.
 Notes: a fix landing that the merge job cannot finish leaves `release.playtest.fixes` set, so no playtest starts until it lands. `factory release` shows that wait.
+
+## Conclusion
+
+Outcome: the six changes are built, verified and reviewed on `release-round`. The goal waits on a real release from `dev` after the deploy.
+
+Invariants:
+- IV1.1 — the push guard and the approve job both refuse dev commits on a hotfix, and the card is rebuilt, per `job.test.ts`, `branch-push` and the real-git `repo.test.ts` lineage tests.
+- IV1.2 — `triage.test.ts` shows a `hotfix` card cloned from `main`.
+- IV2.1 to IV2.4 — no branch-head read is left. The candidate and Ship use the stored pass, a `dev` merge never drops the post, and Ship drops exactly its features from `devMerges`.
+- IV3.1, IV3.2 — `playtest.test.ts` covers resume after a dead job and plays counted across jobs.
+- IV4.1, IV4.2 — `ctl.test.ts` covers the single decision, the required `--by` and the refused flags.
+- IV5.1, IV5.2 — `playtest-review.test.ts` covers a pass with only balance findings and a bug with numbers.
+- IV6.1 — `control.test.ts` covers one `adopt` order landing in Hardening.
+
+Plan adherence:
+- PH1's approve check sits in `shipHotfix`, after its fetch.
+- `adopt` is member-only, like `merge`.
+- PH2 added `release.playtest.work` to the playtest due rule, so a dead job restarts.
+- PH3 resumes a kept record on its own start even after `dev` moved.
+- The merge added the `main` filter on features, and review added `pendingCleanup`.
+
+Review findings:
+- Important: a Ship failure after the release closed lost the cleanup cards. Fixed with `pendingCleanup`, which Ship writes with the close and the `release` job clears.
+- Rejected: Ship and a playtest cannot overlap, since both run on the tracking issue and `findCapacityReasons` in `tick.ts` starts no second job on a running issue.
+
+Verified by: the live state copy loads only after #1280 ships. The full factory test run, outside `repo.test.ts`, passes.
+
+### Remaining validation
+1. #1280 ships on the old code.
+2. `release-round` merges into `main`, and the server deploys it.
+3. The release job opens the first release from `dev`, the playtest passes a `dev` commit, and a member ships its candidate.
+4. Hermes's leftover `hermes-cut-after-seven` files in the factory home on the server are removed.
