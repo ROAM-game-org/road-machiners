@@ -15,13 +15,8 @@ type SavedState = Partial<FactoryState> & OldFields;
 export function readState(path: string): FactoryState {
   if (!existsSync(path)) return structuredClone(EMPTY_STATE);
   const { job, testPhase, patching: _patching, visualSendBacks: _visualSendBacks, jobStarts: _jobStarts, pendingChanges: _pendingChanges, pendingCut: _pendingCut, ...saved } = JSON.parse(readFileSync(path, 'utf8')) as SavedState;
-  requireNoReleaseBranch(path, saved.release);
   const jobs = (saved.jobs ?? (job ? [{ ...job, id: basename(job.log, '.log') }] : [])).map(renameTesting);
   return { ...structuredClone(EMPTY_STATE), ...saved, jobs, ...fillHealth(saved), postOnly: saved.postOnly ?? postPhases(testPhase) };
-}
-
-function requireNoReleaseBranch(path: string, release: unknown): void {
-  if (typeof release === 'object' && release !== null && 'branch' in release) throw new Error(`${path} holds a release with a release branch. The factory releases from dev now, so ship or close that release on the old code before this one runs.`);
 }
 
 function fillHealth(saved: SavedState): Pick<FactoryState, 'failures' | 'stuck'> {

@@ -55,12 +55,6 @@ describe('state', () => {
     expect(newPlaytest('2026-10-07')).toEqual({ seed: 20261007, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null });
   });
 
-  it('fails loud on a state with a release branch, so an old release is never read as a new one', () => {
-    const path = join(mkdtempSync(join(tmpdir(), 'factory-state-')), 'state.json');
-    writeFileSync(path, JSON.stringify({ release: { issue: 3, branch: 'release/2026-10-07', day: '2026-10-07', postId: 9, removed: [], merges: [] } }));
-    expect(() => readState(path)).toThrow('holds a release with a release branch');
-  });
-
   it('drops the cut order of an old state file without a trace', () => {
     const path = join(mkdtempSync(join(tmpdir(), 'factory-state-')), 'state.json');
     writeFileSync(path, JSON.stringify({ pendingCut: 'Ann', release: null }));

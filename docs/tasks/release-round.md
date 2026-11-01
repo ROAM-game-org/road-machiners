@@ -139,7 +139,7 @@ Worktree `.worktrees/rr-guard`, branch `rr-guard`. Covers changes 1 and 6.
 ### PH2 — Release from dev
 Worktree `.worktrees/rr-release`, branch `rr-release`. Covers change 2 outside `playtest.ts`. Produces IF1 and IF2.
 - `factory/src/types.ts:159-201`: replace `ReleaseState` and `PlaytestState` with IF1. Drop `pendingCut`, `lastRelease` stays as the last ship time.
-- `factory/src/state.ts`: new defaults for IF1. Old state with `release.branch` set fails loud on load, since #1280 ships before the deploy.
+- `factory/src/state.ts`: new defaults for IF1.
 - `factory/src/stages/release.ts`: becomes `openRelease`, which opens the tracking issue labeled `release`, sets `release` with a seed from the day, and adds the tracking card in Approval. No branch, no cleanup tasks.
 - `factory/src/tick.ts:106-161,434-437,509-520,557-559`: release gate reasons become `unopened`, `tracking-missing`, `failed`, `playtest-blocked`, `playtest`, `candidate`, `ship-approval`. Playtest is due per IF2. Remove `dropStaleCandidate`, the release-task queue order and the cut pick. `factory playtest` sets `pendingPlaytest`.
 - `factory/src/stages/common.ts:20-26` `baseBranchFor`: only `hotfix` maps to `main`, all else to `dev`.
@@ -179,7 +179,7 @@ Worktree `.worktrees/rr-playtest`, branch `rr-playtest`. Covers changes 3, 4, 5 
 ### Risks / rollback
 - RK1 — PH2 and PH3 drift on IF1. The controller checks typecheck after the PH3 merge and fixes the drift.
 - RK2 — `playtest.ts` fix landing through the merge job conflicts on `dev`. The merge session resolves it as for cards.
-- RK3 — The deploy lands while a release is still open. State load fails loud by design, and rollback is a revert of the merge on `main`.
+- RK3 — The deploy lands while a release is still open. #1280 ships on the old code first, and rollback is a revert of the merge on `main`.
 
 ## Verify
 
@@ -200,7 +200,7 @@ Invariants / assumptions:
 - CK8 (IV4.2) — `retry` accepts a decision with no author, or stores flags in the decision — held after a fix: `--by` is required, flags and split decisions are refused, and the retry orders a new playtest.
 - CK9 — a new prompt breaks the prompt docs-step contract — broke, then fixed: `release-playtest-resume` was missing from `NO_DOCS_STEP` in `factory/src/stages/prompts.test.ts`.
 
-Smoke: the new `readState` on a copy of the live server state refuses the open #1280 release with a message that says to ship it on the old code first. The same state with `release` set to null loads with 1 `dev` merge, no `pendingCut` and no playtest due.
+Smoke: the new `readState` on a copy of the live server state with `release` set to null, as after #1280 ships, loads with 1 `dev` merge, no `pendingCut` and no playtest due.
 Goal: proxy only. All 114 factory test files pass outside `repo.test.ts`, whose two new lineage tests pass on their own, and 258 Hermes tests pass. Confirming the goal needs one real release on the server: #1280 ships on the old code, the round deploys to `main`, and the first playtest on the `dev` tip leads to a shipped candidate.
 Notes: a fix landing that the merge job cannot finish leaves `release.playtest.fixes` set, so no playtest starts until it lands. `factory release` shows that wait.
 
@@ -228,7 +228,7 @@ Review findings:
 - Important: a Ship failure after the release closed lost the cleanup cards. Fixed with `pendingCleanup`, which Ship writes with the close and the `release` job clears.
 - Rejected: Ship and a playtest cannot overlap, since both run on the tracking issue and `findCapacityReasons` in `tick.ts` starts no second job on a running issue.
 
-Verified by: the live state copy loads only after #1280 ships. The full factory test run, outside `repo.test.ts`, passes.
+Verified by: the live state copy loads as it will after #1280 ships. The full factory test run, outside `repo.test.ts`, passes.
 
 ### Remaining validation
 1. #1280 ships on the old code.
