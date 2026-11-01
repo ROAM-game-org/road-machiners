@@ -9,7 +9,7 @@ import { getUpkeepReserve } from './economy';
 import { goodsCount } from './grid';
 import { addGoods } from './inventory';
 import { chargeM } from './money';
-import { tradeSpend } from './npc-decisions';
+import { optionWeights, tradeSpend } from './npc-decisions';
 import { idleGoal, placeBase, resolveNpcActivities } from './npc-activities';
 import { getResources } from './resources';
 import { siteGates, sitePads } from './sites';
@@ -207,6 +207,17 @@ describe('duty pay', () => {
     fundSupplyRun(w, convoy, tradeSpend(w, convoy, 'faction'));
 
     expect(shopPay(w, convoy)).toEqual([]);
+  });
+
+  it('leaves supply runs to faction convoys, so a trader only trades', () => {
+    const w = legWorld();
+    w.shops.granary.goods.grain = 0;
+    const trader = createNpc(w, 'trader', ['trader'], ['mg', 'workhorseDiesel', 'trailerBox'], { ...sitePads(NOSE)[0] }, 'hauler');
+    const convoy = createNpc(w, 'convoy', ['supplier'], ['mg', 'workhorseDiesel', 'trailerBox'], { ...sitePads(NOSE)[1] }, 'hauler');
+
+    expect(optionWeights(w, trader, 'idle', null, null)).not.toHaveProperty('haul');
+    expect(optionWeights(w, trader, 'idle', null, null)).toHaveProperty('trade');
+    expect(optionWeights(w, convoy, 'idle', null, null)).toHaveProperty('haul');
   });
 
   it('prices a merc escort at its plain running cost there and back plus the wage', () => {

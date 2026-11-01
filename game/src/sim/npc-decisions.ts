@@ -685,7 +685,7 @@ function canTravel(_world: World, vehicle: Vehicle): boolean {
 }
 
 function canHaul(world: World, vehicle: Vehicle): boolean {
-  return hasCargoRoom(vehicle) && supplyOffers(world, vehicle).length > 0;
+  return hasTrait(vehicle, 'supplier') && hasCargoRoom(vehicle) && supplyOffers(world, vehicle).length > 0;
 }
 
 function canEscort(world: World, vehicle: Vehicle): boolean {
