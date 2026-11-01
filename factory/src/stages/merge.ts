@@ -11,14 +11,31 @@ import { closeMerged } from './approval';
 import { BaselineFailureError, BudgetError, runCost, untilPasses } from './checkpoint';
 import { checkScript, checkUntilReal, runChecks } from './checks';
 import { withoutBaseline } from './baseline';
+import { ownWorkSettled } from './card-suite';
+import { cardFlow, moveCard } from '../card-events';
 import { remoteSuiteResult } from './remote-suite';
 import { guardAgainstAll } from '../diff-guard';
 import { labelStuckBatch } from '../stuck';
 import { BASE_BRANCH, baseBranchFor, fillPrompt, isGameSource, playtestCommand, resetOutputs } from './common';
 import { releaseLog } from './release-common';
 
+const UNCHECKED = 'This card reached Merging with no green full suite on its own work, so it goes to Hardening, which runs the suite and then moves it back to Merging.';
+
+export async function uncheckedMerges(ctx: Ctx): Promise<Card[]> {
+  const state = readState(ctx.statePath);
+  const kept = state.landings.merge?.cards ?? [];
+  const waiting = waitingMerges(state, await ctx.github.cards()).filter((card) => !kept.includes(card.issue));
+  const settled = await Promise.all(waiting.map((card) => ownWorkSettled(ctx, card.issue, baseBranchFor(ctx, card.labels))));
+  return waiting.filter((_, index) => !settled[index]);
+}
+
 export async function merge(ctx: Ctx): Promise<void> {
-  const batch = await nextBatch(ctx);
+  const unchecked = await uncheckedMerges(ctx);
+  for (const card of unchecked) {
+    await ctx.github.comment(card.issue, UNCHECKED);
+    await moveCard(ctx, card.issue, 'Hardening', 'moved', cardFlow(card.labels));
+  }
+  const batch = await nextBatch(ctx, unchecked.map((card) => card.issue));
   if (batch === null) return ctx.log('merge', null, 'no card waits in Merging');
   try {
     await withWorkFolder(ctx, 'merge-queue', () => mergeBatch(ctx, batch.base, batch.cards));
@@ -151,8 +168,8 @@ function checksOnceEachHead(ctx: Ctx, land: Landing, checks: () => Promise<strin
 
 const MERGE_BATCH_CARDS = 3;
 
-async function nextBatch(ctx: Ctx): Promise<{ base: string; cards: Card[] } | null> {
-  const cards = await ctx.github.cards();
+async function nextBatch(ctx: Ctx, movedOut: number[]): Promise<{ base: string; cards: Card[] } | null> {
+  const cards = (await ctx.github.cards()).filter((card) => !movedOut.includes(card.issue));
   let taken: { base: string; cards: Card[] } | null = null;
   updateState(ctx.statePath, (state) => {
     const batchCards = nextBatchCards(state, cards, (card) => baseBranchFor(ctx, card.labels));
