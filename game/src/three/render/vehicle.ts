@@ -7,7 +7,7 @@ import { isShield, partDef, type PartDef, type PartKind } from '../../data/parts
 import { PHYSICS } from '../../data/physics';
 import { wheelMounts } from '../../phys/body';
 import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
-import { cellCenter, cellRect, engineAnchor, ringMiddles, engineRest, highestUnder, restOn, roofSpot, spanOf, surfaceSamples, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
+import { cellRect, engineAnchor, ringMiddles, engineRest, highestUnder, restOn, roofSpot, spanOf, surfaceSamples, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL, paintOf, type TruckColors } from '../../render/palette';
 import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOffset, dentsOf, type PartBox, grayShare, grayed, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
@@ -22,6 +22,7 @@ import { armorPlacement, cutSpec, lampIslands, withCut, type CutSpec } from './a
 import { hashStr } from '../../render/noise';
 import { TruckMotion, WHIPS } from './truckMotion';
 import { weaponHead } from './weaponHead';
+import { cornerWheels, nearestWheels } from './wheelItems';
 
 const T = PHYSICS.truck;
 const CELL = PHYSICS.cell;
@@ -47,7 +48,7 @@ const SILHOUETTE_OPACITY = 0.5;
 const SILHOUETTE_ORDER = 810;
 const TRUCK_STENCIL = TRUCK_BIT;
 
-type Wheel = { mount: THREE.Group; spin: THREE.Object3D; restY: number };
+type Wheel = { mount: THREE.Group; spin: THREE.Object3D; restY: number; follows: number };
 type Shock = { obj: THREE.Object3D; top: THREE.Vector3; wheel: number; z: number };
 type Axle = { obj: THREE.Object3D; a: number; b: number; inset: number };
 type ContactShadow = { unit: UnitView; mesh: THREE.Mesh };
@@ -191,9 +192,9 @@ export class VehicleView {
   }
 
   private poseWheels(unit: UnitView, frames: VehicleFrame['wheels']): void {
-    frames.forEach((w, i) => {
-      const wheel = unit.wheels[i];
-      if (!wheel) return;
+    unit.wheels.forEach((wheel) => {
+      const w = frames[wheel.follows];
+      if (!w) return;
       wheel.mount.position.y = wheel.restY - w.suspension;
       wheel.mount.rotation.y = w.steer;
       wheel.spin.rotation.z = -w.spin;
@@ -666,7 +667,7 @@ export class VehicleView {
 
   private buildWheels(v: Vehicle, items: PartItem[], paint: number): void {
     const mounts = this.units.flatMap((unit) => drawnWheelPoints(unit.b, unit.index).map((m) => ({ unit, m })));
-    const looks = this.units.length === 1 ? cornerWheels(v, mounts.map(({ m }) => m), items) : nearestWheels(v, mounts, items);
+    const looks = this.units.length === 1 ? cornerWheels(v, mounts.map(({ m }) => m), items) : nearestWheels(v, mounts.map(({ unit, m }) => ({ unit: unit.index, m })), items);
     mounts.forEach(({ unit, m }, i) => {
       const item = looks[i];
       const mount = new THREE.Group();
@@ -675,7 +676,7 @@ export class VehicleView {
       mount.add(spin);
       if (!this.anchors.has(item.part.id)) this.anchors.set(item.part.id, { local: new THREE.Vector3(), parent: mount });
       unit.root.add(mount);
-      unit.wheels.push({ mount, spin, restY: m.y });
+      unit.wheels.push({ mount, spin, restY: m.y, follows: m.follows });
     });
   }
 
@@ -754,34 +755,6 @@ function poseSuspension(unit: UnitView): void {
   };
   for (const s of unit.shocks) stretch(s.obj, hub(s.wheel, s.z), s.top.clone().applyMatrix4(unit.body.matrix), 0);
   for (const a of unit.axles) stretch(a.obj, hub(a.a, a.inset), hub(a.b, -a.inset), 0.5);
-}
-
-function cornerWheels(v: Vehicle, mounts: { x: number; z: number }[], items: PartItem[]): PartItem[] {
-  if (items.length !== mounts.length) throw new Error(`${v.id} has ${items.length} mounted wheels, expected ${mounts.length}`);
-  return mounts.map((m) => {
-    const inCorner = items.filter((it) => {
-      const c = cellCenter(v.chassisId, it.x, it.y);
-      return Math.sign(c.x) === Math.sign(m.x) && Math.sign(c.z) === Math.sign(m.z);
-    });
-    if (inCorner.length !== 1) throw new Error(`${v.id} has ${inCorner.length} wheel items in the corner of the wheel mount ${m.x},${m.z}, expected 1`);
-    return inCorner[0];
-  });
-}
-
-function nearestWheels(v: Vehicle, mounts: { unit: UnitView; m: { x: number; z: number } }[], items: PartItem[]): PartItem[] {
-  const straight = (unit: number, x: number) => x + unitsOf(v.chassisId)[unit].offset;
-  const picks = mounts.map(({ unit, m }) => {
-    const side = items.filter((it) => Math.sign(cellCenter(v.chassisId, it.x, it.y).z) === Math.sign(m.z));
-    if (side.length === 0) throw new Error(`${v.id} has no wheel item on the side of the wheel mount ${m.x},${m.z}`);
-    const along = (it: PartItem) => {
-      const c = cellCenter(v.chassisId, it.x, it.y);
-      return Math.abs(straight(c.unit, c.x) - straight(unit.index, m.x));
-    };
-    return side.reduce((best, it) => (along(it) < along(best) ? it : best));
-  });
-  const unused = items.filter((it) => !picks.includes(it));
-  if (unused.length > 0) throw new Error(`${v.id} draws no wheel for its wheel items ${unused.map((it) => it.part.id).join(', ')}`);
-  return picks;
 }
 
 type ArmorCut = { spec: CutSpec; depth: THREE.MeshDepthMaterial; dark: THREE.MeshBasicMaterial; silhouettes: Map<THREE.MeshBasicMaterial, THREE.MeshBasicMaterial> };

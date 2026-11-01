@@ -14,6 +14,7 @@ export type Body = {
   wheelY: number;
   wheelRadius: number;
   wheelHalfWidth: number;
+  tandem: number | null;
   comY: number;
 };
 
@@ -25,7 +26,7 @@ export type Span = { center: number; half: { x: number; z: number } };
 
 type HeightMap = { cell: number; i0: number; j0: number; top: (number | null)[][] };
 type TruckShape = { boxes: ShapeBox[]; heights: HeightMap };
-type WheelLook = { halfHeight: number; wheelY: number; wheelX: number; wheelZ: number; wheelRadius: number; wheelHalfWidth: number; comHeight: number };
+type WheelLook = { halfHeight: number; wheelY: number; wheelX: number; wheelZ: number; wheelRadius: number; wheelHalfWidth: number; comHeight: number; tandem?: number };
 type CouplingLook = (typeof PHYSICS.couplings)[keyof typeof PHYSICS.couplings];
 
 const units = new Map<string, readonly Unit[]>();
@@ -117,7 +118,7 @@ function buildBody(chassisId: string, shape: string, look: WheelLook): Body {
     z: Math.max(...boxes.map((b) => Math.abs(b.at.z) + b.half.z)),
   };
   const comY = look.comHeight - rideOf(look);
-  return { half, boxes, wheelX: look.wheelX, wheelZ: look.wheelZ, wheelY: look.wheelY, wheelRadius: look.wheelRadius, wheelHalfWidth: look.wheelHalfWidth, comY };
+  return { half, boxes, wheelX: look.wheelX, wheelZ: look.wheelZ, wheelY: look.wheelY, wheelRadius: look.wheelRadius, wheelHalfWidth: look.wheelHalfWidth, tandem: look.tandem ?? null, comY };
 }
 
 export function rideOf(body: Pick<Body, 'wheelRadius' | 'wheelY'>): number {

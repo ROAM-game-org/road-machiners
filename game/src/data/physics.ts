@@ -46,13 +46,13 @@ export const PHYSICS = {
     niva: { halfHeight: 0.4, wheelY: -0.25, wheelX: 1.3, wheelZ: 0.726, engine: { x: 1.485, y: -0.3, z: 0 }, wheelRadius: 0.45, wheelHalfWidth: 0.18, comHeight: 0.4 },
     bukhanka: { halfHeight: 0.5, wheelY: -0.35, wheelX: 1.45, wheelZ: 0.968, engine: { x: 0.52, y: 1, z: -0.242 }, wheelRadius: 0.55, wheelHalfWidth: 0.2, comHeight: 0.6 },
     lincoln: { halfHeight: 0.35, wheelY: -0.2, wheelX: 1.95, wheelZ: 0.968, engine: { x: 1.625, y: -0.25, z: -0.242 }, wheelRadius: 0.48, wheelHalfWidth: 0.19, comHeight: 0.32 },
-    semi: { halfHeight: 1.12, wheelY: -0.75, wheelX: 3.2125, wheelZ: 1.24, engine: { x: 2.6125, y: -0.15, z: 0 }, wheelRadius: 0.8, wheelHalfWidth: 0.21, comHeight: 1.1 },
+    semi: { halfHeight: 1.12, wheelY: -0.75, wheelX: 3.2125, wheelZ: 1.24, engine: { x: 2.6125, y: -0.15, z: 0 }, wheelRadius: 0.8, wheelHalfWidth: 0.21, comHeight: 1.1, tandem: 1.75 },
     sorokonoga: { halfHeight: 0.6, wheelY: -0.4, wheelX: 1.9, wheelZ: 1.15, engine: { x: -1.05, y: -0.4, z: -0.6214 }, wheelRadius: 0.55, wheelHalfWidth: 0.2, comHeight: 0.65 },
     loader: { halfHeight: 0.65, wheelY: -0.45, wheelX: 1.475, wheelZ: 1.06, engine: { x: -2.27, y: 0.5, z: 0 }, wheelRadius: 0.8, wheelHalfWidth: 0.32, comHeight: 0.95 },
   },
   couplings: {
     semi: {
-      rear: { model: 'semi_rear', halfHeight: 1.12, wheelY: -0.75, wheelX: 6.2, wheelZ: 1.24, wheelRadius: 0.8, wheelHalfWidth: 0.21, comHeight: 1.1 },
+      rear: { model: 'semi_rear', halfHeight: 1.12, wheelY: -0.75, wheelX: 6.2, wheelZ: 1.24, wheelRadius: 0.8, wheelHalfWidth: 0.21, comHeight: 1.1, tandem: 1.75 },
       pivotFront: -2.7375,
       pivotRear: 5.75,
       bendLimit: 0.8,

@@ -202,6 +202,7 @@ describe('the convertible antenna', () => {
 });
 
 const HANGS_OVER_MODEL = new Set(['loader 1,9', 'loader 7,9']);
+const AXLE_UNDER_COUPLING = new Set(['semi 1,12', 'semi 7,12', 'semi 1,15', 'semi 7,15']);
 
 describe('grid and model correspondence', () => {
   it('projects the engine cells into the half of the truck that holds the engine anchor', () => {
@@ -257,21 +258,32 @@ describe('grid and model correspondence', () => {
 
   it('centres each wheel core of the third layout pass chassis within half a cell of its model wheel along the truck', () => {
     for (const id of ['semi', 'lincoln', 'convertible', 'bus', 'carrier', 'jeep', 'hauler', 'wagon', 'van']) {
-      for (const c of CHASSIS[id].core.filter((core) => core.defId.includes('wheel'))) {
+      for (const c of CHASSIS[id].core.filter((core) => core.defId.includes('wheel') && !AXLE_UNDER_COUPLING.has(`${id} ${core.x},${core.y}`))) {
         const h = partDef(c.defId).h;
         const first = cellCenter(id, c.x, c.y);
         const last = cellCenter(id, c.x, c.y + h - 1);
         const along = (first.x + last.x) / 2;
-        const axle = unitBody(id, first.unit).wheelX;
-        expect(Math.abs(Math.abs(along) - axle), `${id} wheel ${c.x},${c.y} is off the model wheel`).toBeLessThanOrEqual(GRID_CELL / 2 + 1e-9);
+        const body = unitBody(id, first.unit);
+        const axles = body.tandem === null ? [body.wheelX] : [body.wheelX, body.wheelX - body.tandem];
+        const off = Math.min(...axles.map((axle) => Math.abs(Math.abs(along) - axle)));
+        expect(off, `${id} wheel ${c.x},${c.y} is off the model wheel`).toBeLessThanOrEqual(GRID_CELL / 2 + 1e-9);
       }
     }
+  });
+
+  it('fills the last tractor rows with the semi drive wheels, since its drive tandem reaches under the coupling past them', () => {
+    const coupling = CHASSIS.semi.coupling?.row;
+    if (coupling === undefined) throw new Error('semi has no coupling');
+    const h = partDef('wheelMid').h;
+    const rows = [...new Set([...AXLE_UNDER_COUPLING].map((key) => Number(key.split(',')[1])))].sort((a, b) => a - b);
+    expect(rows).toEqual([coupling - 2 * h, coupling - h]);
+    expect(unitBody('semi', 0).wheelX).toBeGreaterThan(Math.abs(cellCenter('semi', 1, coupling - 1).x) + GRID_CELL / 2);
   });
 
   it('projects each wheel core into its corner of the truck', () => {
     for (const id of ids) {
             const wheels = CHASSIS[id].core.filter((c) => c.defId.includes('wheel'));
-      expect(wheels.length, id).toBe(4);
+      expect(wheels.length, id).toBe(id === 'semi' ? 10 : 4);
       const corners = new Set<string>();
       for (const c of wheels) {
         const at = cellCenter(id, c.x, c.y);

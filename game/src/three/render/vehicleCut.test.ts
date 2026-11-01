@@ -81,7 +81,8 @@ describe('armor cut on a rig', () => {
     const { view } = armoredView(id, 'world');
     const counts = new Set(meshesOf(view).filter((m) => m.userData.armor && !m.userData.outline).map((m) => cutCounts(materialOf(m))?.wheels));
     expect(counts.has(undefined)).toBe(false);
-    expect([...counts].every((n) => n === 4 || n === 2)).toBe(true);
+    const drawn = new Set(unitsOf(id).map((u) => drawnWheelPoints(u.body, u.index).length));
+    expect([...counts].every((n) => n !== undefined && drawn.has(n))).toBe(true);
   });
 });
 

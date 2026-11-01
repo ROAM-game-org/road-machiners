@@ -49,7 +49,7 @@ DUAL_STEP = 2 * WHEEL_HALF_W + 0.02
 DRIVE_AXLES = (DRIVE_MID + TANDEM / 2, REAR_DRIVE_X)
 TRAILER_AXLES = (LAST_TRAILER_X + TANDEM, LAST_TRAILER_X)
 TANDEM_COVER = TANDEM + 1.3
-UNIT_MODEL_WHEELS = 6
+UNIT_MODEL_WHEELS = 4
 PIVOT_X = 3.0  # PHYSICS.couplings.semi pivotFront and pivotRear, in the straight rig frame
 
 FRONT = LENGTH / 2
@@ -141,12 +141,12 @@ def check_tandems() -> None:
 
 
 def tractor_gear(kit: Kit) -> int:
-    """The frame rails to the rear cross member, the front drive axle's duals and the rear drive axle's inner duals.
+    """The frame rails to the rear cross member and the inner duals of both drive axles.
 
-    The game draws the steer pair and the outer wheels of the rear drive axle. Returns the wheel count.
+    The game draws the steer pair and the outer wheels of both drive axles. Returns the wheel count.
     """
     check_tandems()
-    count = duals(kit, DRIVE_AXLES[0]) + duals(kit, DRIVE_AXLES[1], (1,))
+    count = duals(kit, DRIVE_AXLES[0], (1,)) + duals(kit, DRIVE_AXLES[1], (1,))
     rail_back = TRACTOR_REAR + PROUD
     mirrored(kit, "rail", (GRILLE_X - 0.1 - rail_back, 0.14, FRAME_TOP - FRAME_BOTTOM), (GRILLE_X - 0.1 + rail_back) / 2, 0.45, (FRAME_TOP + FRAME_BOTTOM) / 2, "under")
     kit.box("frame_end", (0.15, 1.2, FRAME_TOP - FRAME_BOTTOM + 2 * PROUD), (TRACTOR_REAR + 0.075, 0, (FRAME_TOP + FRAME_BOTTOM) / 2), "metal_dark")
@@ -156,8 +156,8 @@ def tractor_gear(kit: Kit) -> int:
 
 
 def trailer_gear(kit: Kit) -> int:
-    """The first trailer axle's duals and the last axle's inner duals. The game draws the last axle's outer wheels."""
-    count = duals(kit, TRAILER_AXLES[0]) + duals(kit, TRAILER_AXLES[1], (1,))
+    """The inner duals of both trailer axles. The game draws the outer wheels of both axles."""
+    count = duals(kit, TRAILER_AXLES[0], (1,)) + duals(kit, TRAILER_AXLES[1], (1,))
     for x in TRAILER_AXLES:
         axle(kit, x)
     return count
