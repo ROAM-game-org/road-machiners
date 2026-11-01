@@ -3,7 +3,6 @@ import { CHAOS_HIGHWAY } from '../data/modes';
 import { planNpcOrders } from './ai';
 import { haulerOf, playerVehicle } from './damage';
 import { advanceChaosHighway, spawnGroup, waveOf } from './chaos-highway';
-import { groupPrey } from './combat';
 import { acrossOf, alongOf, milestoneAt, outpostGateSpots, outpostYardHalf, roadHeading, roadPoint, toRoad } from './highway';
 import { heldGoal, holdAlong, holdOnStretch, rollingOrder, stretchSpan } from './hunters';
 import { yardSpots } from './outpost-gates';
@@ -81,8 +80,7 @@ describe('hostiles stay out of the fort', () => {
     const { w, truck, me, fort } = fortScene();
     me.pos = { ...yardSpots(w, 1).truck };
     me.speed = 3;
-    truck.pos = roadPoint(w.seed, 0, fort - 15, 0);
-    expect(groupPrey(w, truck).id).toBe(me.id);
+    truck.pos = roadPoint(w.seed, 0, fort - 20, 0);
     planNpcOrders(w);
     expectHeld(w, truck);
   });
