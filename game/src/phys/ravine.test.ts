@@ -6,7 +6,7 @@ import { addVehicle, editableTerrain, emptyWorld, npcBrain } from '../sim/testki
 import type { Vec } from '../sim/vec';
 import { dist } from '../sim/vec';
 import type { Vehicle, World } from '../sim/types';
-import { endTurn } from '../sim/world';
+import { cloneWorld, endTurnInPlace } from '../sim/world';
 import { buildDrive, freeDrive, initPhysics, type Drive } from './drive';
 import { physicsMove } from './turn';
 
@@ -54,13 +54,13 @@ type Run = { w: World; arrived: number | null; trail: Vec[]; stalls: number; jum
 
 function run(w: World, id: string, turns: number, untilStall = false): Run {
   let d: Drive = buildDrive(w);
-  const out: Run = { w, arrived: null, trail: [], stalls: 0, jumped: false, goalChanged: false, stallTurn: null, progressSince: null };
+  const out: Run = { w: cloneWorld(w), arrived: null, trail: [], stalls: 0, jumped: false, goalChanged: false, stallTurn: null, progressSince: null };
   const first = w.vehicles.find((v) => v.id === id)!.brain!.goals[0];
   for (let i = 0; i < turns && out.arrived === null && out.stallTurn === null; i++) {
     let next: Drive | null = null;
     const before = out.w.vehicles.find((v) => v.id === id)!.pos;
     const marked = out.w.vehicles.find((v) => v.id === id)!.brain!.progress?.since ?? null;
-    out.w = endTurn(out.w, physicsMove(d, (r) => (next = r.next)));
+    endTurnInPlace(out.w, physicsMove(d, (r) => (next = r.next)));
     freeDrive(d);
     d = next!;
     const npc = out.w.vehicles.find((v) => v.id === id)!;
