@@ -55,7 +55,6 @@ export type FactoryConfig = {
   agentJobMaxMinutes: number;
   agentCompactWindow: number;
   replyRouteMinutes: number;
-  releaseDays: number;
   playtestTurns: number;
   playtestRuns: number;
   playtestReviewRepairs: number;
@@ -196,6 +195,7 @@ export type FactoryState = {
   jobs: Job[];
   approvalPosts: Record<string, number>;
   lastRelease: string | null;
+  pendingCut: string | null;
   devMerges: IssueMerge[];
   release: ReleaseState | null;
   releasePost: ReleasePost | null;

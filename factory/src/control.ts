@@ -329,11 +329,11 @@ async function remove(ctx: Ctx, command: Extract<ControlCommand, { action: 'remo
   return { issue: command.issue, text: queueRemoval(ctx, command.issue, by, command.reason, true) };
 }
 
-async function cut(ctx: Ctx): Promise<Outcome> {
+async function cut(ctx: Ctx, _command: Extract<ControlCommand, { action: 'cut' }>, by: string): Promise<Outcome> {
   const release = readState(ctx.statePath).release;
   if (release !== null) throw new Error(`Release ${release.day} is open on #${release.issue}. Ship it before a new cut.`);
-  updateState(ctx.statePath, (state) => ({ ...state, lastRelease: null }));
-  return { issue: null, text: 'A release cut is due. It starts on a coming tick.' };
+  updateState(ctx.statePath, (state) => ({ ...state, pendingCut: by }));
+  return { issue: null, text: 'A release cut is ordered. It starts on a coming tick.' };
 }
 
 type Drop = { has: (state: FactoryState, id: number) => boolean; without: (state: FactoryState, id: number) => FactoryState };

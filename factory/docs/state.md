@@ -67,7 +67,7 @@ Flags hold on any position:
 
 `factory release` prints the release position.
 
-- None: `release` is null. `cut` makes one.
+- None: `release` is null. The factory cuts no release by itself, so the position lasts until a member orders `cut`.
 - Cut with open tasks: `release` is set, and release tasks are not all done. The playtest and the candidate wait. An open task is a `release-task` card outside Done, or an issue in `release.tasks` that the board does not show in Done.
 - Playtest: every release task is done, and `release.playtest.passed` is not the release head. The playtest runs.
 - Playtest blocked: `release.playtest.blocked` holds the commit and the reason. The tracking card has `factory-stuck`. `retry <tracking> [decision]` lifts it.
@@ -96,6 +96,7 @@ The release tracking card has the label `release`. It waits in Approval for the 
 
 - `pendingApprovals`: approvals the approve job runs. It moves the card to Hardening, or ships a hotfix. Fed by an Approve press on the card's current post, by a hotfix's Testing job whose checks passed under its kept approval, and by the tick for an Approval card whose kept approval waits with no job, failure, hold or stuck label. Drop with `drop approval <issue>`, which also drops the kept approval.
 - `pendingRemovals`: features to take out of the release. Fed by `remove N`. Drop with `drop removal <issue>`.
+- `pendingCut`: the member who ordered a release cut, or null. Fed by `cut`, which refuses while a release is open. The tick starts the cut job while it is set and no release is open. The cut clears it when it succeeds or finds nothing new, and a failed cut keeps it. `lastRelease` only records when the last cut finished. It starts nothing.
 - `pendingShip`: a Ship press the ship job runs. Fed by `ship`. Drop with `drop ship`.
 - `pendingIncidents`: issues the next incident job takes in one batch: committee patches, redesigns and denies, proposal vetoes, and shipped bug fixes and hotfixes. An issue rejected twice is listed twice. The job removes the entries it saw at its start, so a rejection queued during the run waits for the next job. A failed job drops only its first issue, as each job end does. Drop with `drop incident <issue>`.
 - `pendingAnswers`: public store comment ids of player questions the answer job answers, oldest first. Fed by the tick's chat replies, at most `FACTORY_ANSWERS_PER_DAY` a day. The answer job takes the first one off as it starts, so it never retries or answers twice. Remove one with `set-state`.
@@ -143,7 +144,7 @@ Write, each with `--by` and `--reason`:
 - `move` and `merge` refuse the release tracking card.
 - `merge N` puts a card in Merging. It skips the post and hardening, and the merge checkpoint still runs.
 - `ship` ships the open release.
-- `cut` cuts a release.
+- `cut` orders a release cut. It is the only way a cut starts.
 - `remove N` takes a feature out of the release.
 - `drop <approval|removal|ship|incident> <id>` drops one queued entry. `drop approval N` also revokes a hotfix's kept approval. A card it leaves in Approval with no post shows drift, and `move N verify` gives it a new post.
 - `pause-card N` holds a card. It stops the card's job, by its process group and the containers with its job id, and leaves every other job running. The job's work clone and agent sessions stay, the issue goes in `interrupted` with its stage marked to resume, and its card job limit slot frees. Its ledger line has the outcome `held`. A job that ended before the kill keeps its own line. It refuses a card off the board, in Done, already held, the release tracking card, and a card whose approve or remove job runs. It also refuses a Merging card in the `batch` of the running merge job. The merge job writes `batch`, the issue numbers it merges, on its own entry in `jobs` when it takes its cards, and an empty `batch` when no card waits. Its ledger line copies `batch` when the job ends. A Merging card outside the batch can be held and moved while the merge runs.

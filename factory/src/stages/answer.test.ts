@@ -287,7 +287,7 @@ describe('checkedAnswer', () => {
 });
 
 describe('answer scheduling', () => {
-  const cfg = { releaseDays: 7, wasteReviewDays: 1, maxJobsPerCard: 5, triageWorkers: 1, designWorkers: 1, implementWorkers: 1, verifyWorkers: 1, testWorkers: 1 };
+  const cfg = { wasteReviewDays: 1, maxJobsPerCard: 5, triageWorkers: 1, designWorkers: 1, implementWorkers: 1, verifyWorkers: 1, testWorkers: 1 };
   const now = new Date('2026-10-14T10:00:00Z');
 
   it('starts one issueless answer job for any number of waiting questions, and none while one runs', () => {

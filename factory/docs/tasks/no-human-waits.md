@@ -8,7 +8,7 @@ Goal: Every failure in the factory ends with Hermes or an agent fixing it and th
 - On 2026-10-07 a member told Hermes to prepare a release. The cut merges `main` into `dev` first, and the merge stopped on conflicts in 18 files. Hermes replied "Please authorize resolving the merge into dev so I can retry the cut." Nobody needed to decide anything. The merge was mechanical work.
 - Every failure goes through `reportFailure` in `src/fail.ts`. It adds `factory-stuck`, and only a person or Hermes removes it. Nothing retries.
 - An agent already resolves merge conflicts on an issue branch. `prompts/branch-merge.md` drives it, from `src/stages/common.ts` and `src/stages/harden.ts`. Merges between whole branches have no such step: the release cut, hotfix fan-out, Ship, and reverts for Remove. Each throws and stops.
-- A failed release cut sets `lastRelease` first, so the next automatic cut waits a full `FACTORY_RELEASE_DAYS`.
+- A failed release cut sets `lastRelease` first, so the next automatic cut waits a full release interval. (Superseded: the factory cuts no release by itself, see process.md.)
 - `hermes/SOUL.md` makes Hermes ask before it pushes to `dev`, stop after a second failed fix, and post about load, disk, memory and pauses instead of acting.
 - Agents stop a card by writing `.factory/needs-committee.md`. Some prompts use it for mechanical problems, like an image the agent cannot open.
 - `resolveActor` in `src/control.ts` matched the sender's Telegram display name against the committee and refused it. Hermes then acted as itself.

@@ -569,14 +569,16 @@ describe('ship, cut and remove', () => {
     await expect(applyControl(fakeCtx(), command({ action: 'ship', by: '11' }))).rejects.toThrow('no current candidate post');
   });
 
-  it('cuts by clearing lastRelease, and refuses an open release', async () => {
+  it('cuts by recording the order, and refuses an open release', async () => {
     seed({ lastRelease: '2026-09-28T00:00:00Z' });
     await applyControl(fakeCtx(), command({ action: 'cut' }));
-    expect(readState(statePath).lastRelease).toBeNull();
+    expect(readState(statePath).pendingCut).toBe('Ann');
+    expect(readState(statePath).lastRelease).toBe('2026-09-28T00:00:00Z');
     expect(ctrlLines()[0]).toMatchObject({ action: 'cut', issue: null });
     seed({ release: RELEASE, lastRelease: 'x' });
     await expect(applyControl(fakeCtx(), command({ action: 'cut' }))).rejects.toThrow('2026-09-29');
     expect(readState(statePath).lastRelease).toBe('x');
+    expect(readState(statePath).pendingCut).toBeNull();
   });
 
   it('queues a removal with the reason as its text', async () => {
