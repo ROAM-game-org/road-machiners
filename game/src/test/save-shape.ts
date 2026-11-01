@@ -54,7 +54,7 @@ export function newGameShape(): Shape {
   }
   for (const [i, shelter] of world.sheltered.entries()) {
     shelter.vehicle.items = [
-      ...(i === 0 ? [{ id: 'i-goods', x: 0, y: 0, rot: 0, kind: 'good' as const, good: 'g' }] : []),
+      ...(i === 0 ? [{ id: 'i-goods', x: 0, y: 0, rot: 0 as const, kind: 'good' as const, good: 'g' }] : []),
       { id: 'i-bare', x: 0, y: 0, rot: 0, kind: 'part', part: makePart(world, BARE_ID, 0) },
       { id: 'i-gun', x: 0, y: 0, rot: 0, kind: 'part', part: makePart(world, WEAPON_ID, 0) },
     ];

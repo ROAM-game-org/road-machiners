@@ -5,7 +5,7 @@ import { fetchMap } from './map-file';
 import { idbBackend, SaveSlots } from './save-db';
 import { resumedRun, SIM_SAVES, SIM_SLOT, simEnvelope, type Resumed } from './sim-save';
 
-const SAVE_EVERY = Math.round(TIME.turnsPerDay / 24);
+const SAVE_EVERY = Math.round(TIME.workDayTurns / 24);
 const RANDOM_SEEDS = 1_000_000;
 
 let run: SimRun | null = null;

@@ -1,12 +1,12 @@
 import { BASIC_RANK, BASICS, MAX_RANK, PERK_LEVELS, type PerkId, SKILL_IDS, XP_RULES } from '../data/skills';
 import { maxHealthOf } from '../sim/health';
-import { buyRank, canBuyRank, choosePerk, hasBasic, hasPerk, pendingPerkPairs, perkPair, type PerkPair, rankCost, xpTodayOf } from '../sim/progress';
+import { buyRank, canBuyRank, choosePerk, hasBasic, hasPerk, pendingPerkPairs, perkPair, type PerkPair, rankCost, xpTodayOf, xpWindowStart } from '../sim/progress';
 import type { SkillId, World } from '../sim/types';
 import { createIcon, type IconName } from './cards';
 import { chipEl } from './chip';
 import { disabledWith, el, panel } from './dom';
 import type { UiHost } from './host';
-import { standingNum, standingStep } from './format';
+import { clock, standingNum, standingStep } from './format';
 import { hp } from './units';
 import { num, t, type Msg } from '../text/msg';
 import { keyLabel } from './input-mode';
@@ -77,7 +77,7 @@ export class CharacterScreen {
   }
 
   private mapTab(): MapTab {
-    this.map ??= new MapTab();
+    this.map ??= new MapTab(this.host);
     return this.map;
   }
 
@@ -95,7 +95,7 @@ export class CharacterScreen {
           el('span', {}, t('character.colRank')),
           el('span', {}, t('character.colBasic', { rank: BASIC_RANK })),
           ...PERK_LEVELS.map((level) => el('span', {}, t('character.colPerk', { rank: level }))),
-          el('span', {}, t('character.colToday', { cap: XP_RULES.dailyCap })),
+          el('span', {}, t('character.colToday', { time: clock(xpWindowStart(world)).time, cap: XP_RULES.dailyCap })),
           el('span', {}),
         ),
         ...SKILL_IDS.map((id) => this.row(world, id)),

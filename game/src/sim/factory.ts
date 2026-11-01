@@ -10,6 +10,7 @@ import { addGoods, mountPart, stowPart } from './inventory';
 import type { Faction, GridItem, NpcBrain, PartInstance, Vehicle, World } from './types';
 import type { Vec } from './vec';
 import { straighten } from './rig';
+import { fuelCap } from './stats';
 
 export type PartSpec = { defId: string; wear: number; at?: Pick<GridItem, 'x' | 'y' | 'rot'> };
 
@@ -68,6 +69,7 @@ export function addCoreParts(world: IdSource, v: Vehicle): void {
 export function makeVehicle(world: World, spec: VehicleSpec): Vehicle {
   const v = bareVehicle(world, spec);
   loadVehicle(world, v, spec);
+  if (v.resources) v.resources.fuel = fuelCap(v);
   return v;
 }
 

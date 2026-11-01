@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { budget } from '../test/budget';
 import { startKit } from '../data/start';
-import { newWorld, update } from '../sim/world';
+import { cloneWorld, newWorld, update } from '../sim/world';
 import { playerVehicle } from '../sim/damage';
 import { gridOf, mountedParts, placementError } from '../sim/grid';
 import { inOverdrive } from '../sim/stats';
-import { addVehicle, emptyWorld, npcBrain } from '../sim/testkit';
+import { addVehicle, comparableWorld, emptyWorld, npcBrain } from '../sim/testkit';
 import { noteAttack } from '../sim/combat';
 import { noteDeed } from '../sim/relations';
 import { addState } from '../sim/states';
@@ -37,7 +37,7 @@ import { fillHollow, isFree } from '../sim/spawn';
 import { reusedWorld } from '../test/world-cache';
 import { isBakedObstacle, isBreakable, mapObstacles } from '../sim/mapgen';
 import { breakProp, oldSpotOf, oldSpotPicks, oldStockId } from '../sim/salvage';
-import { sunAt } from '../sim/sun';
+import { clockOf, sunAt } from '../sim/sun';
 import { playerSees, practiceContacts, refreshVision } from '../sim/vision';
 import { surveySites } from '../sim/survey';
 import { TIME } from '../data/time';
@@ -92,7 +92,7 @@ describe('game save', () => {
     const world = { ...standardWorld(), turn: 7 };
     writeSave(slots, 'auto', world, RUN, 1000);
     expect(hasSave(slots, SLOTS)).toBe(true);
-    expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual(world);
+    expect(comparableWorld(loadWorld(slots, 'auto', TEST_MAP)!)).toEqual(comparableWorld(world));
     clearSlot(slots, 'auto');
     expect(hasSave(slots, SLOTS)).toBe(false);
   });
@@ -241,8 +241,10 @@ describe('game save', () => {
 
   it('keeps an open directions call and its words through a reload, and load awards nothing', () => {
     const slots = makeSlots();
-    const world = emptyWorld({ x: 100, y: 450 });
-    const npc = addVehicle(world, 'independent', 'scout', ['stockEngine'], { x: 106, y: 450 });
+    const road = REGION.roads[0];
+    const onRoad = road[Math.floor(road.length / 2)];
+    const world = emptyWorld({ x: onRoad.x, y: onRoad.y });
+    const npc = addVehicle(world, 'independent', 'scout', ['stockEngine'], { x: onRoad.x + 6, y: onRoad.y });
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
     refreshVision(world);
     let opened = callVehicle(world, npc.id);
@@ -533,7 +535,7 @@ describe('game save', () => {
 
   it('keeps a longbed fitted on every free cell, each part on its cell, through a reload', () => {
     const slots = makeSlots();
-    const world = structuredClone(standardWorld());
+    const world = cloneWorld(standardWorld());
     const truck = addVehicle(world, 'scrapjaw', 'longbed', [], { x: 12, y: 12 });
     const grid = gridOf(truck);
     for (let y = 0; y < grid.h; y++) {
@@ -546,7 +548,7 @@ describe('game save', () => {
     saveWorld(slots, { ...world, turn: 9 }, RUN, 8, 1000);
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
     expect(loaded.vehicles.find((v) => v.id === truck.id)!.items).toEqual(truck.items);
-    expect(loaded).toEqual({ ...world, turn: 9 });
+    expect(comparableWorld(loaded)).toEqual(comparableWorld({ ...world, turn: 9 }));
   });
 
   it('returns null when there is no saved game', () => {
@@ -569,7 +571,7 @@ describe('game save', () => {
     const world = { ...standardWorld(), turn: 21 };
     const envelope = saveOf(world);
     slots.put('auto', { ...envelope, world: { ...envelope.world, futureFeature: { progress: 7 } }, savedAt: 1000, runId: RUN });
-    expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual(world);
+    expect(comparableWorld(loadWorld(slots, 'auto', TEST_MAP)!)).toEqual(comparableWorld(world));
   });
 
   it('sends a save at the current format with a missing list to the save screen', () => {
@@ -593,7 +595,7 @@ describe('game save', () => {
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
 
     expect(playerVehicle(loaded).chassisId).toBe('tractor');
-    expect(loaded).toEqual(world);
+    expect(comparableWorld(loaded)).toEqual(comparableWorld(world));
     expect(loaded.events).toEqual([]);
   });
 
@@ -635,7 +637,7 @@ describe('game save', () => {
     expect(oldIds(loaded)).toEqual(ids);
     expect(loaded.salvage).toHaveLength(world.salvage.length);
     writeSave(slots, 'auto', loaded, RUN, 1000);
-    expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual(loaded);
+    expect(comparableWorld(loadWorld(slots, 'auto', TEST_MAP)!)).toEqual(comparableWorld(loaded));
   });
 
   it('rolls the old-world loot spots a save lacks', () => {
@@ -773,7 +775,7 @@ describe('game save', () => {
     it('repeats the same repair on every load until the next save, which then loads the same world', () => {
       const slots = savedAt(hattieMid(), { bowl_hattie: 0 });
       const first = loadWorld(slots, 'auto', TEST_MAP)!;
-      expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual(first);
+      expect(comparableWorld(loadWorld(slots, 'auto', TEST_MAP)!)).toEqual(comparableWorld(first));
       writeSave(slots, 'auto', first, RUN, 2);
       expect(loadWorld(slots, 'auto', TEST_MAP)!.player.quests).toEqual(first.player.quests);
     });
@@ -994,19 +996,26 @@ describe('game save', () => {
     saveWorld(slots, { ...world, turn: 21 }, RUN, 20, 1000);
     expect(savedWorldOf(slots, 'auto')).not.toHaveProperty('terrain');
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
-    expect(loaded).toEqual({ ...world, turn: 21 });
+    expect(comparableWorld(loaded)).toEqual(comparableWorld({ ...world, turn: 21 }));
     expect(loaded.terrain).toBe(world.terrain);
   });
 
   it('writes the day start autosave on the first turn of a day only', () => {
     const slots = makeSlots();
     const world = standardWorld();
-    expect([319, 320, 321, 770].map(isDayStart)).toEqual([false, true, false, true]);
-    saveWorld(slots, { ...world, turn: 319 }, RUN, 20, 1000);
-    saveWorld(slots, { ...world, turn: 321 }, RUN, 20, 1000);
+    const firstTurnOf = (day: number) => {
+      let turn = 1;
+      while (clockOf(turn).day < day) turn++;
+      return turn;
+    };
+    const day2 = firstTurnOf(2);
+    const day3 = firstTurnOf(3);
+    expect([day2 - 1, day2, day2 + 1, day3].map(isDayStart)).toEqual([false, true, false, true]);
+    saveWorld(slots, { ...world, turn: day2 - 1 }, RUN, 20, 1000);
+    saveWorld(slots, { ...world, turn: day2 + 1 }, RUN, 20, 1000);
     expect(slots.has('day')).toBe(false);
-    saveWorld(slots, { ...world, turn: 320 }, RUN, 20, 1000);
-    expect(loadWorld(slots, 'day', TEST_MAP)?.turn).toBe(320);
+    saveWorld(slots, { ...world, turn: day2 }, RUN, 20, 1000);
+    expect(loadWorld(slots, 'day', TEST_MAP)?.turn).toBe(day2);
   });
 
   it('writes only the autosave on the interval and in town, and never a manual slot', () => {
@@ -1041,7 +1050,7 @@ describe('game save', () => {
     const slots = makeSlots();
     const world = standardWorld();
     slots.put('auto', saveOf(world));
-    expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual(world);
+    expect(comparableWorld(loadWorld(slots, 'auto', TEST_MAP)!)).toEqual(comparableWorld(world));
   });
 
   it('holds the run id, and gives a save from before run ids one from its seed', () => {

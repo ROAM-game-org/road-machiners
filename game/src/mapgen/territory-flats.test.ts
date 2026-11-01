@@ -20,11 +20,20 @@ import { standardWorld } from '../test/world-cache';
 
 const OLD_ORCHARD = { x: 114, y: 284 };
 const ORCHARD_NOW = REGION.locations.find((l) => l.id === 'orchard')!.pos;
+const ORCHARD_AT_SPREAD = { x: 148, y: 369 };
+const FALLEN_SUN_AT_SPREAD = { x: 416, y: 351 };
+const FALLEN_SUN_NOW = REGION.locations.find((l) => l.id === 'fallen-sun')!.pos;
+
 function rollingDraft(): MapDraft {
   const d = newDraft(REGION.size);
   const w = d.size + 1;
-  const [dx, dy] = [ORCHARD_NOW.x - OLD_ORCHARD.x, ORCHARD_NOW.y - OLD_ORCHARD.y];
-  for (let j = 0; j <= d.size; j++) for (let i = 0; i <= d.size; i++) d.heights[j * w + i] = 0.6 * Math.sin((i - dx) / 9) + 0.4 * Math.cos((j - dy) / 7);
+  const orchardShift = { x: ORCHARD_NOW.x - OLD_ORCHARD.x, y: ORCHARD_NOW.y - OLD_ORCHARD.y };
+  const crashShift = { x: FALLEN_SUN_NOW.x - FALLEN_SUN_AT_SPREAD.x + ORCHARD_AT_SPREAD.x - OLD_ORCHARD.x, y: FALLEN_SUN_NOW.y - FALLEN_SUN_AT_SPREAD.y + ORCHARD_AT_SPREAD.y - OLD_ORCHARD.y };
+  for (let j = 0; j <= d.size; j++)
+    for (let i = 0; i <= d.size; i++) {
+      const s = Math.hypot(i - FALLEN_SUN_NOW.x, j - FALLEN_SUN_NOW.y) < Math.hypot(i - ORCHARD_NOW.x, j - ORCHARD_NOW.y) ? crashShift : orchardShift;
+      d.heights[j * w + i] = 0.6 * Math.sin((i - s.x) / 9) + 0.4 * Math.cos((j - s.y) / 7);
+    }
   return d;
 }
 
@@ -59,7 +68,7 @@ describe('a third territory', () => {
         landing: 0,
       },
       farm: null,
-      glass: { cell: 6, cover: [0.25, 0.55], clear: 1.5, spires: { look: 'hullShard', count: 4, radius: [0.8, 1.1] } },
+      glass: { cell: 6, cover: [0.25, 0.55], clear: 1.5, fade: { band: 6, warp: 2, cell: 8 }, spires: { look: 'hullShard', count: 4, radius: [0.8, 1.1] } },
       spotGap: 6,
       debrisGap: 1.5,
       reactor: null,
@@ -80,18 +89,24 @@ describe('a third territory', () => {
 
   const outside = (p: Vec): boolean => siteGap(flats, p) >= 0;
 
+  let sharedWithIt: MapDraft | undefined;
+  function withIt(): MapDraft {
+    sharedWithIt ??= withFlats(flatsRules(), rollingDraft);
+    return sharedWithIt;
+  }
+
   it('bakes the Fallen Sun and the orchard as without it (IV1)', () => {
     const without = territoryLayer(7, rollingDraft());
 
-    const withIt = withFlats(flatsRules(), rollingDraft);
+    const full = withIt();
 
-    expect(withIt.props.filter((p) => outside(p.pos))).toEqual(without.props);
+    expect(full.props.filter((p) => outside(p.pos))).toEqual(without.props);
     const tilesOutside = (d: MapDraft) => Array.from(d.built).filter((_, tile) => outside(tileCenter(d.size, tile)));
-    expect(tilesOutside(withIt)).toEqual(tilesOutside(without));
+    expect(tilesOutside(full)).toEqual(tilesOutside(without));
   });
 
   it('bakes a wreck with no basin and no rim rocks, with its piece, building, cache, field spot and glass', () => {
-    const d = withFlats(flatsRules(), rollingDraft);
+    const d = withIt();
 
     const inside = d.props.filter((p) => !outside(p.pos));
     const kinds = new Set(inside.map((p) => p.kind));
@@ -102,7 +117,7 @@ describe('a third territory', () => {
 
   it('keeps the field spots the spot gap from the buildings', () => {
     const rules = flatsRules();
-    const d = withFlats(rules, rollingDraft);
+    const d = withIt();
 
     const [barn] = d.props.filter((p) => p.kind === 'barn' && !outside(p.pos));
     const spots = d.props.filter((p) => p.kind === 'shipCache' && !outside(p.pos));
@@ -165,9 +180,13 @@ describe('Glass Flats on the baked map', () => {
     expect(w.salvage.filter((s) => territoryOfStock(s)?.id === 'glass-flats')).toHaveLength(21);
   });
 
-  it('marks every dirt road and spur centreline tile as track, or road where a region road crosses it', () => {
+  it('marks every dirt road centreline tile inside the outline and every spur centreline tile as track, or road where a region road crosses it', () => {
     const { roads, spurs } = territoryRoads(gt);
-    for (const road of [...roads, ...spurs]) {
+    const tileCentre = (p: Vec): Vec => ({ x: Math.floor(p.x) + 0.5, y: Math.floor(p.y) + 0.5 });
+    for (const road of roads) {
+      for (const p of along(road.points, 0.5).filter((q) => siteGap(flats, tileCentre(q)) < 0)) expect(['track', 'road'], `${p.x.toFixed(1)},${p.y.toFixed(1)}`).toContain(typeAt(p));
+    }
+    for (const road of spurs) {
       for (const p of along(road.points, 0.5)) expect(['track', 'road'], `${p.x.toFixed(1)},${p.y.toFixed(1)}`).toContain(typeAt(p));
     }
   });
@@ -203,7 +222,7 @@ describe('Glass Flats on the baked map', () => {
     expect(share).toBeLessThanOrEqual(0.5);
   });
 
-  it('lets a truck drive from each road to the side of every loot spot, the cache in the nozzle mouth included (IV3)', () => {
+  it('lets a truck drive from its one entry off the road to the side of every loot spot, the cache in the nozzle mouth included (IV3)', () => {
     const w = standardWorld(1337);
     const spots = w.obstacles.filter((o) => isLootSpot(o) && siteGap(flats, o.pos) < 0);
     const nozzle = flatsPieces.find((p) => p.look === 'engineNozzle')!;
@@ -211,7 +230,7 @@ describe('Glass Flats on the baked map', () => {
     expect(mouth).toBeDefined();
     const reach = (o: (typeof spots)[number]) => (propReach(o) + ECONOMY.useRange) * ECONOMY.interactionScale;
     const entries = territoryEntries(gt);
-    expect(entries).toHaveLength(2);
+    expect(entries).toHaveLength(1);
     for (const entry of entries) {
       for (const spot of spots) {
         const end = route(w, entry, spot.pos, 0.6, []).at(-1)!;

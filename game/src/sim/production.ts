@@ -12,7 +12,7 @@ export function isProductionBoundary(turn: number): boolean {
 }
 
 function dayOf(turn: number): number {
-  return Math.floor(turn / TIME.turnsPerDay);
+  return Math.floor(turn / TIME.workDayTurns);
 }
 
 function cycleOf(turn: number): number {
@@ -127,7 +127,7 @@ function rollSiteEvent(world: World, shopId: string, state: ShopState): void {
 }
 
 function startSiteEvent(world: World, shopId: string, state: ShopState, def: SiteEventDef): void {
-  state.event = { kind: def.kind, recipe: def.recipe, until: world.turn + Math.round(def.days * TIME.turnsPerDay) };
+  state.event = { kind: def.kind, recipe: def.recipe, until: world.turn + Math.round(def.days * TIME.workDayTurns) };
   if (def.kind === 'breakdown') repairWithTools(world, shopId, state);
   if (shopAt(world) === shopId) world.events.push({ t: 'siteEvent', shop: shopId, kind: def.kind, recipe: def.recipe });
 }

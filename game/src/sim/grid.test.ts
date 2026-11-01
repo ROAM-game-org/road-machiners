@@ -220,6 +220,17 @@ describe('side armor mounts', () => {
     expect(sideOf(v, plate.part)).toBe('F');
   });
 
+  it('mounted items follow a part moved off its mount and give the current objects of a cloned truck', () => {
+    const w = emptyWorld();
+    const v = addVehicle(w, 'scrapjaw', 'wagon', ['plates'], { x: 40, y: 40 });
+    const [plate] = mountedItems(v, 'armor');
+    const clone = structuredClone(v);
+    expect(mountedItems(clone, 'armor')[0]).toBe(clone.items.find((it) => it.id === plate.id));
+    plate.y += 20;
+    expect(mountedItems(v, 'armor')).toEqual([]);
+    expect(mountedItems(clone, 'armor')).toHaveLength(1);
+  });
+
   it('every part states its armor', () => {
     for (const p of Object.values(PARTS)) expect(p.armor).toBeGreaterThan(0);
   });

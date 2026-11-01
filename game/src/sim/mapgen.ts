@@ -278,8 +278,45 @@ function wreckPose(o: Exclude<Obstacle, Landmark>, pos: Vec): PropPose {
   return { model: 'wreck', pos, yaw: hashId(o.id) * TURN, scale: even(o.r / WRECK_RADIUS) };
 }
 
+export type RampModel = { pitch: number; length: number; width: number; thickness: number; centerHeight: number };
+
+export const RAMP_MODELS: Record<string, RampModel> = {
+  wing_shard: { pitch: (17 * Math.PI) / 180, length: 13.5, width: 6, thickness: 0.4, centerHeight: 2.6 },
+};
+
+export type RampSpan = { toe: { x: number; z: number }; tip: { x: number; z: number }; slope: number; half: number; underside: number; closedTo: number };
+
+export function rampSpan(model: RampModel, scale: number): RampSpan {
+  const { pitch } = model;
+  const slope = Math.tan(pitch);
+  const tip = {
+    x: (model.length / 2) * Math.cos(pitch) * scale - (model.thickness / 2) * Math.sin(pitch) * scale,
+    z: (model.centerHeight + (model.length / 2) * Math.sin(pitch) + (model.thickness / 2) * Math.cos(pitch)) * scale,
+  };
+  const toe = { x: tip.x - tip.z / slope, z: 0 };
+  const underside = PHYSICS.bridge.deckThickness / Math.cos(pitch);
+  const clearFrom = tip.x + (PHYSICS.truckClearance + underside - tip.z) / slope;
+  return { toe, tip, slope, half: (model.width * scale) / 2, underside, closedTo: Math.min(tip.x, Math.max(toe.x, clearFrom)) };
+}
+
+const RAMP_SKIRT_PIECES = 4;
+
+function rampBoxes(model: RampModel): readonly ShapeBox[] {
+  const { toe, tip, slope, half } = rampSpan(model, 1);
+  const rail = PHYSICS.bridge.railThickness;
+  const pieces = Array.from({ length: RAMP_SKIRT_PIECES }, (_, k) => {
+    const x0 = toe.x + ((tip.x - toe.x) * k) / RAMP_SKIRT_PIECES;
+    const x1 = toe.x + ((tip.x - toe.x) * (k + 1)) / RAMP_SKIRT_PIECES;
+    const z1 = tip.z + (x1 - tip.x) * slope;
+    return [{ x0, x1, y0: -half - rail, y1: -half, z0: 0, z1 }, { x0, x1, y0: half, y1: half + rail, z0: 0, z1 }];
+  });
+  return [...pieces.flat(), { x0: tip.x - rail, x1: tip.x, y0: -half, y1: half, z0: 0, z1: tip.z }];
+}
+
+const RAMP_SHAPES = new Map<string, readonly ShapeBox[]>(Object.entries(RAMP_MODELS).map(([name, model]) => [name, rampBoxes(model)]));
+
 export function propShape(model: string): readonly ShapeBox[] {
-  const boxes = SHAPE_BOXES.get(model);
+  const boxes = RAMP_SHAPES.get(model) ?? SHAPE_BOXES.get(model);
   if (boxes === undefined) throw new Error(`Prop model ${model} has no shape in prop-shapes.json. Run npm run models:shapes.`);
   return boxes;
 }

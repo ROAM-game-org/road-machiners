@@ -1,6 +1,6 @@
 
 import type { Weighted } from './npcs';
-import { scalePoint } from './region';
+import { MAP_SPREAD, scalePoint } from './region';
 import type { Vec } from '../sim/vec';
 
 export type LootRange = [number, number];
@@ -35,16 +35,24 @@ export const FIELD_SPARE_WEAR: Weighted<number>[] = [
   { value: 4, weight: 2 },
 ];
 
-export type OldPlaceType = 'homestead' | 'hamlet' | 'lookout' | 'hulks' | 'boats';
-export const OLD_PLACE_TYPES: readonly OldPlaceType[] = ['homestead', 'hamlet', 'lookout', 'hulks', 'boats'];
+export type OldPlaceType = 'homestead' | 'hamlet' | 'lookout' | 'hulks' | 'boats' | 'wreckage';
+export const OLD_PLACE_TYPES: readonly OldPlaceType[] = ['homestead', 'hamlet', 'lookout', 'hulks', 'boats', 'wreckage'];
+const WRECKAGE_PICK_SHARE = 0.5 * MAP_SPREAD;
+
+function scaledChance(chance: Record<OldPlaceType, number>): Record<OldPlaceType, number> {
+  const scaled = { ...chance };
+  for (const type of OLD_PLACE_TYPES) scaled[type] = chance[type] / MAP_SPREAD;
+  return scaled;
+}
 
 export const OLD_PLACES = {
   seedOffset: 7351,
   buildingGap: 12,
   tankGap: 10,
   boatGap: 14,
+  wreckageGap: 20,
   roadGap: 5,
-  chance: { homestead: 0.5, hamlet: 0.35, lookout: 0.4, hulks: 0.25, boats: 0.2 } as Record<OldPlaceType, number>,
+  chance: scaledChance({ homestead: 0.2, hamlet: 0.15, lookout: 0.4, hulks: 0.15, boats: 0.2, wreckage: WRECKAGE_PICK_SHARE }),
   npcShare: 0.3,
   npcRange: 120,
 };
@@ -183,6 +191,7 @@ export const OLD_TABLES: Record<OldPlaceType, LootTable> = {
     fuel: [0, 1],
     supplies: [0, 1],
   },
+  wreckage: SALVAGE.hullScrap,
 };
 export const STRIP = {
   yieldShare: 0.5,

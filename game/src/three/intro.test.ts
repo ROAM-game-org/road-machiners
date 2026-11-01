@@ -202,8 +202,7 @@ describe('the arrival at the farm', () => {
     }
     expect(cliffsAlong(w, me.pos, wreck)).toBe(0);
     const greenPit = REGION.locations.find((l) => l.id === 'green-pit')!.pos;
-    const road = REGION.roads.find((r) => r.some((p) => dist(p, greenPit) < 20))!;
-    const out = nearestOnRoad(road, wreck);
+    const out = REGION.roads.map((road) => nearestOnRoad(road, wreck)).reduce((best, p) => (dist(p, wreck) < dist(best, wreck) ? p : best));
     expect(playerSees(w, out)).toBe(false);
     expect(playerSees(w, greenPit)).toBe(false);
     expect(cliffsAlong(w, wreck, out)).toBe(0);

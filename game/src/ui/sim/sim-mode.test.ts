@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { emptyWorld } from '../../sim/testkit';
 import { TEST_MAP } from '../../test/map';
 import type { World } from '../../sim/types';
 import { TIME } from '../../data/time';
@@ -23,7 +24,6 @@ function framesOf(messages: FromSim[]): Frame[] {
 
 describe('simulation mode', () => {
   const hour = TIME.turnsPerDay / 24;
-  const SAMPLE_TURNS = Math.ceil(hour) + 1;
   let start: World;
   let harnessStart: World;
   let startJson: string;
@@ -37,7 +37,7 @@ describe('simulation mode', () => {
     const atTurns: { worldJson: string; messageCount: number; history: unknown[] }[] = [];
     for (let i = 1; i <= SCAN_TURNS; i++) {
       run.handle({ kind: 'step' });
-      if (i === TURNS || i === SAMPLE_TURNS) atTurns[i] = { worldJson: JSON.stringify(run.current().world), messageCount: messages.length, history: [...run.current().history] };
+      if (i === TURNS) atTurns[i] = { worldJson: JSON.stringify(run.current().world), messageCount: messages.length, history: [...run.current().history] };
     }
     played = { messages, run, atTurns };
   }, 240000);
@@ -161,14 +161,17 @@ describe('simulation mode', () => {
   }, 240000);
 
   it('samples money, net worth and XP once per game hour and sends the history first', () => {
-    const at = played.atTurns[SAMPLE_TURNS];
-    const messages = played.messages.slice(0, at.messageCount);
-    expect(messages[0]).toEqual({ kind: 'history', samples: [{ turn: start.turn, money: start.player.money, worth: Math.round(netWorth(start)), xp: Math.floor(start.player.xp), market: marketSample(start), events: [] }] });
+    const nearHour = emptyWorld();
+    nearHour.turn = Math.ceil(hour) - 2;
+    const messages: FromSim[] = [];
+    const run = new SimRun(nearHour, SIM_TEXT, (m: FromSim) => messages.push(m));
+    for (let i = 0; i < 5; i++) run.handle({ kind: 'step' });
+    expect(messages[0]).toEqual({ kind: 'history', samples: [{ turn: nearHour.turn, money: nearHour.player.money, worth: Math.round(netWorth(nearHour)), xp: Math.floor(nearHour.player.xp), market: marketSample(nearHour), events: [] }] });
     const sampled = framesOf(messages).flatMap((f) => (f.sample ? [f.sample] : []));
     expect(sampled).toHaveLength(1);
-    expect(Math.floor(sampled[0].turn / hour)).toBe(Math.floor(start.turn / hour) + 1);
-    expect(at.history).toEqual([...(messages[0] as { samples: unknown[] }).samples, sampled[0]]);
-  }, 120000);
+    expect(Math.floor(sampled[0].turn / hour)).toBe(Math.floor(nearHour.turn / hour) + 1);
+    expect(run.current().history).toEqual([...(messages[0] as { samples: unknown[] }).samples, sampled[0]]);
+  });
 
   it('shows a card for a truck with no driver instead of stopping the run', () => {
     const world = start;

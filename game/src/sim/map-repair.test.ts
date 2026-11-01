@@ -33,13 +33,14 @@ function base(): World {
 }
 
 function savedOf(world: World, size = world.size): SavedMapWorld {
-  const { terrain: _terrain, ...rest } = structuredClone(world);
+  const { terrain: _terrain, obstacles, ...state } = world;
+  const rest = structuredClone(state);
   return {
     ...rest,
     size,
     player: { ...rest.player, explored: new Uint8Array(size * size) },
     broken: world.broken.map((b) => ({ id: b.obstacle.id, turn: b.turn })),
-    obstacles: rest.obstacles.filter((o) => !isBakedObstacle(o) && !isHollowObstacle(o)),
+    obstacles: structuredClone(obstacles.filter((o) => !isBakedObstacle(o) && !isHollowObstacle(o))),
   };
 }
 
@@ -47,6 +48,7 @@ function oldScaleBase(): World {
   const w = base();
   const me = playerVehicle(w);
   w.vehicles = [me];
+  w.obstacles = w.obstacles.filter((o) => isBakedObstacle(o) || isHollowObstacle(o) || o.kind === 'site');
   const spot = freeSpotNear(w, scaled({ x: 200, y: 200 }), chassisDef(me.chassisId).radius, me.id)!;
   me.pos = { x: spot.x / RATIO, y: spot.y / RATIO };
   return w;
@@ -76,7 +78,9 @@ describe('repairMap positions', () => {
     expect(world.mapHash).toBe(TEST_MAP.hash);
     expect(world.terrain).toBe(TEST_MAP.terrain);
     expect(world.player.explored).toHaveLength(size * size);
-    expect(world.player.explored[Math.floor(10 * RATIO) * size + Math.floor(20 * RATIO)]).toBe(1);
+    expect(world.player.explored[Math.ceil(10 * RATIO) * size + Math.ceil(20 * RATIO)]).toBe(1);
+    expect(world.player.explored[(Math.ceil(10 * RATIO) - 1) * size + Math.ceil(20 * RATIO)]).toBe(0);
+    expect(world.player.explored[Math.ceil(10 * RATIO) * size + Math.ceil(20 * RATIO) - 1]).toBe(0);
     expect(world.player.explored[(size - 1) * size + size - 1]).toBe(1);
   });
 
@@ -307,7 +311,7 @@ describe('repairMap stocks', () => {
     expect(world.salvage.filter((s) => oldSpotOf(s)).map((s) => s.id).sort()).toEqual(picks.map(oldStockId).sort());
     for (const o of world.obstacles.filter(isLootSpot)) expect(stockOf(world, o.id).pos).toEqual(o.pos);
     expect(new Set(world.salvage.map((s) => s.id)).size).toBe(world.salvage.length);
-    world.turn = TIME.turnsPerDay * 3;
+    world.turn = TIME.workDayTurns * 3;
     expect(() => renewSalvage(world)).not.toThrow();
   });
 
@@ -434,12 +438,13 @@ describe('repairMap moved town gates', () => {
     const money = w.player.money;
 
     const out = repairMap(savedOf(w), TEST_MAP);
+    settleTrucks(out);
 
     const moved = out.vehicles.find((v) => v.id === npc.id)!;
     const stop = getActivityDestination(out, moved, moved.brain!.goals[0])!;
     const pad = nearestPad(nose, stop);
     expect(dist(stop, pad)).toBeLessThan(REGION.sites.pad.length / 2);
-    expect(dist(playerVehicle(out).pos, OLD_NOSE_PAD) > 0 || isFree(out, playerVehicle(out).pos, 0.5, me.id)).toBe(true);
+    expect(isFree(out, playerVehicle(out).pos, chassisDef(playerVehicle(out).chassisId).radius, me.id)).toBe(true);
     expect(out.player.money).toBe(money);
     expect(out.events.filter((e) => ['stall', 'practice', 'money'].includes(e.t))).toEqual([]);
   });

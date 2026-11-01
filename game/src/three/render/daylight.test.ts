@@ -220,6 +220,23 @@ describe('lightScene shadow box', () => {
     expect(moved.length()).toBeLessThan(texel * Math.SQRT1_2 + 1e-6);
   });
 
+  it('grows the box to the view reach and keeps far view corners inside its depth', () => {
+    const sun = sunLight();
+    const reach = 264;
+    lightScene(sun, sky, { x: 0, y: 0, z: 0 }, daylightAt(turnAt(18.5)), reach);
+    sun.updateMatrixWorld();
+    sun.target.updateMatrixWorld();
+    sun.shadow.updateMatrices(sun);
+    expect(sun.shadow.camera.right).toBe(reach);
+    for (const [x, z] of [[reach, 0], [-reach, 0], [0, reach], [0, -reach]]) {
+      const c = new THREE.Vector3(x * Math.SQRT1_2, 0, z * Math.SQRT1_2).applyMatrix4(sun.shadow.matrix);
+      for (const v of [c.x, c.y, c.z]) {
+        expect(v).toBeGreaterThan(0);
+        expect(v).toBeLessThan(1);
+      }
+    }
+  });
+
   it('rejects a bad texel size', () => {
     expect(() => snapToShadowTexels({ x: 0, y: 0, z: 0 }, { x: 0, y: 1, z: 1 }, 0)).toThrow();
   });

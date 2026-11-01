@@ -1,13 +1,12 @@
 import { BOATS, GEOLOGY, ROADSIDE, TERRAIN, type BoatKind, type RoadsideBand } from '../data/terrain';
 import { REGION } from '../data/region';
 import { chance, randInt, randRange, type Rng } from '../sim/rng';
-import { TYPE_IDS, type BakedProp } from '../sim/terrain';
+import { BUILT_NONE, BUILT_SCRUB, TYPE_IDS, type BakedProp } from '../sim/terrain';
 import { territoryAt } from '../sim/territory';
 import { dist, polylineDist, type Vec } from '../sim/vec';
 import { footprintRelief, tileSteepness, type MapDraft } from './bake';
-import { BUILT_SCRUB } from './newworld';
-import { BUILT_NONE, RoadLine, clearGround, offset, prop, ruleRng, sideOf, stations, tileCenter, tileOf, tilesWithin } from './oldworld';
-import { lineGap, tileFlow, turnGap } from './roadside';
+import { RoadLine, clearGround, offset, prop, ruleRng, sideOf, stations, tileCenter, tileFlow, tileOf, tilesWithin } from './oldworld';
+import { lineGap, turnGap } from './roadside';
 import { onReservedGround } from './start-ground';
 
 type Rules = typeof BOATS;
@@ -76,7 +75,7 @@ function placeGroup(rng: Rng, d: MapDraft, rules: Rules, river: River, center: V
   for (let k = 0; k < count; k++) {
     const kind = pickKind(rng, rules, boats);
     for (let attempt = 0; attempt < rules.placeTries; attempt++) {
-      const boat = prop(kind.kind, aroundCenter(rng, center, rules.groupReach * (k === 0 ? 0.3 : 1)), kind.radius, randRange(rng, 0, TURN));
+      const boat = prop(kind.kind, aroundCenter(rng, center, rules.groupReach * (k === 0 ? Math.min(1, 0.3 + attempt / rules.placeTries) : 1)), kind.radius, randRange(rng, 0, TURN));
       if (!fits(d, boat, rules, river, onFloor, boats)) continue;
       d.props.push(boat);
       boats.push(boat);

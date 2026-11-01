@@ -345,7 +345,9 @@ describe('ship relics', () => {
     for (const table of [SALVAGE.hullCache, SALVAGE.hullScrap, SALVAGE.engineScrap])
       expect(relicsAfterRolls(table, 2000) / 2000).toBeCloseTo(table.relicChance, 1);
     expect(relicsAfterRolls(SALVAGE.roadWreck, 5000) / 5000).toBeCloseTo(SALVAGE.roadWreck.relicChance, 2);
-    for (const table of [SALVAGE.landmark, SALVAGE.farmStores, SALVAGE.armyStores, SALVAGE.cityStores])
+    expect(OLD_TABLES.wreckage).toBe(SALVAGE.hullScrap);
+    for (const table of [OLD_TABLES.hulks, OLD_TABLES.boats]) expect(relicsAfterRolls(table, 5000) / 5000).toBeCloseTo(table.relicChance, 2);
+    for (const table of [SALVAGE.landmark, SALVAGE.farmStores, SALVAGE.armyStores, SALVAGE.cityStores, OLD_TABLES.homestead, OLD_TABLES.hamlet, OLD_TABLES.lookout])
       expect(relicsAfterRolls(table, 500)).toBe(0);
   });
 
@@ -458,7 +460,7 @@ function worldWithLootedWreck(playerPos: Vec, pos: Vec): World {
 
 function runDays(w: World, days: number): void {
   for (let day = 0; day < days; day++) {
-    w.turn = (Math.floor(w.turn / TIME.turnsPerDay) + 1) * TIME.turnsPerDay;
+    w.turn = (Math.floor(w.turn / TIME.workDayTurns) + 1) * TIME.workDayTurns;
     renewSalvage(w);
   }
 }
@@ -491,7 +493,7 @@ describe('spot restock', () => {
   it('restocks only on the last turn of a day', () => {
     const { w, stock } = spotWorld();
     emptyStock(stock);
-    for (let turn = 1; turn < TIME.turnsPerDay; turn++) {
+    for (let turn = 1; turn < TIME.workDayTurns; turn++) {
       w.turn = turn;
       renewSalvage(w);
     }
@@ -605,7 +607,7 @@ describe('breakable props', () => {
 
   it('grows back beyond gray vision once its days have passed', () => {
     const w = worldWithFence(far);
-    w.turn = TIME.turnsPerDay;
+    w.turn = TIME.workDayTurns;
     breakProp(w, 'fence-7', w.vehicles[0].id, 3);
 
     runDays(w, BREAKABLE.regrowDays - 1);

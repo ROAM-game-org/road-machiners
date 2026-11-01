@@ -306,7 +306,7 @@ describe('physics turns', () => {
 
     it('only glass and the mud grounds have less than full grip', () => {
       const slippery = Object.values(TERRAIN_TYPES).filter((t) => t.grip !== 1 || t.sideGrip !== 1).map((t) => t.id);
-      expect(slippery).toEqual(['mud', 'dirtyWater', 'toxic', 'glass']);
+      expect(slippery).toEqual(['mud', 'dirtyWater', 'toxic', 'glass', 'blackMud']);
     });
 
     function meanSkid(type: 'sand' | 'glass'): number {

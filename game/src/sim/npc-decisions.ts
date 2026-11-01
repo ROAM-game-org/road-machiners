@@ -24,7 +24,7 @@ import { ramFactor, ramImpact } from './crash-contact';
 import { isDefeated, isKnockedOut } from './defeat';
 import { fightOdds, type FightOdds } from './fight-odds';
 import { vehicleById } from './damage';
-import { sensesOf } from './detect';
+import { sharpSensesOf } from './detect';
 import { affordableBuyCount, getTradeRate, getUpkeepReserve } from './economy';
 export { getUpkeepReserve } from './economy';
 import { cargoRoom, hasCargoRoom } from './inventory';
@@ -45,7 +45,7 @@ import { territoryAt } from './territory';
 import { seesDowned, seesStock, visibleDowned, visibleSalvage, workableSpots } from './loot-picks';
 import { divideTurf, turfClaimants, worldHuntingSpots } from './hunting-spots';
 import { addState, bindingStatesHeld, boundTo, endState, givesWord, isRobberyFeud, robbing, stateOf, statesHeld } from './states';
-import { isStranded, vehicleStats } from './stats';
+import { driveStats, isStranded, vehicleStats } from './stats';
 import { canHire, canTakeEscort, declineFactor, escortsOf, inTowReach, isOnRope, strandedAt, towSite } from './tow';
 import { leaderToJoin } from './pairs';
 import { ownSide, perceivedGroup } from './sides';
@@ -247,8 +247,8 @@ export function usefulContacts(world: World, vehicle: Vehicle): Contact[] {
 
 export function npcSenses(world: World, vehicle: Vehicle): { seen: Vehicle[]; contacts: Contact[] } {
   const radius = npcProfile(vehicle).contactReactRadius;
-  const { seen, contacts } = sensesOf(world, vehicle, Infinity);
-  const useful = contacts.filter((contact) => contact.radius <= radius);
+  const { seen, contacts } = sharpSensesOf(world, vehicle, radius);
+  const useful = contacts.filter((contact) => contact.radius <= radius && contact.sources.some((source) => source !== 'far'));
   return { seen, contacts: useful.sort((a, b) => dist(vehicle.pos, a.center) - dist(vehicle.pos, b.center)) };
 }
 
@@ -301,9 +301,9 @@ function tradeOfferer(world: World, vehicle: Vehicle): ((plan: TradePlan) => Wei
   return (plan) => runOffer(world, vehicle, plan, spend, 1, rig);
 }
 
-const tradeRig = (world: World, vehicle: Vehicle) => ({ fuelPerTile: vehicleStats(world, vehicle).fuelPerTile, room: cargoRoom(vehicle) });
+const tradeRig = (world: World, vehicle: Vehicle) => ({ fuelPerTile: driveStats(world, vehicle).fuelPerTile, room: cargoRoom(vehicle) });
 
-export function tripFuelCost(world: World, vehicle: Vehicle, tiles: number, fuelPerTile = vehicleStats(world, vehicle).fuelPerTile): number {
+export function tripFuelCost(world: World, vehicle: Vehicle, tiles: number, fuelPerTile = driveStats(world, vehicle).fuelPerTile): number {
   if (!Number.isFinite(tiles) || tiles < 0) throw new Error(`${vehicle.id} prices the fuel of a trip of ${tiles} tiles`);
   return tiles * fuelPerTile * ECONOMY.supplyPrice.fuel;
 }
@@ -559,8 +559,8 @@ export function travelSitesAway(vehicle: Vehicle) {
 }
 
 export function canRob(w: World, robber: Vehicle, target: Vehicle): boolean {
-  if (robber.id === target.id || !isRobbable(w, robber, target) || inCombatWithOther(w, target, robber.id)) return false;
-  return isFairGame(w, robber, target) && canVehicleSee(w, robber, target.pos);
+  if (robber.id === target.id || !canVehicleSee(w, robber, target.pos)) return false;
+  return isRobbable(w, robber, target) && !inCombatWithOther(w, target, robber.id) && isFairGame(w, robber, target);
 }
 
 function isFairGame(w: World, robber: Vehicle, target: Vehicle): boolean {

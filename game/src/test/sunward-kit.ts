@@ -14,7 +14,7 @@ import type { Vehicle, World } from '../sim/types';
 import type { Vec } from '../sim/vec';
 import { expect } from 'vitest';
 import { refreshVision } from '../sim/vision';
-import { endTurn } from '../sim/world';
+import { cloneWorld, endTurn } from '../sim/world';
 import { reusedWorld, standardWorld } from './world-cache';
 
 export function quietWorld(seed: number): World {
@@ -70,13 +70,20 @@ export function fillHollowByDay(w: World): void {
   }
 }
 
+function filledHollow(seed: number): World {
+  return reusedWorld(`sunward filled hollow ${seed}`, () => {
+    const w = quietWorld(seed);
+    fillHollowByDay(w);
+    return w;
+  });
+}
+
 export function orderWorld(seed: number): World {
   return reusedWorld(`order ${seed}`, () => builtOrderWorld(seed));
 }
 
 function builtOrderWorld(seed: number): World {
-  const w = quietWorld(seed);
-  fillHollowByDay(w);
+  const w = filledHollow(seed);
   w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || membersOf(w).includes(v));
   for (const tpl of Object.values(NPCS)) if (tpl.spawn.kind !== 'hollow') w.spawnTimer[tpl.id] = Number.MAX_SAFE_INTEGER;
   w.turn = rideOutTurn(duskTurn(1)) - 3;
@@ -109,4 +116,30 @@ export function letOut(w: World, id: string): Vehicle {
   w.events = [];
   expect(leaveSite(w, id)).toBe(true);
   return riderAt(w, id);
+}
+
+export type Leg<N> = { world: World; stalls: number; broken: string[]; notes: N };
+
+const finishedLegs = new Map<string, Leg<unknown>>();
+
+export function firstLeg<N>(world: World, notes: N): Leg<N> {
+  return { world, stalls: 0, broken: [], notes };
+}
+
+export function playLeg<N>(key: string, from: () => Leg<N>, advance: (w: World, notes: N) => World): Leg<N> {
+  let done = finishedLegs.get(key) as Leg<N> | undefined;
+  if (!done) {
+    const start = from();
+    seen.stalls = start.stalls;
+    seen.broken.clear();
+    for (const id of start.broken) seen.broken.add(id);
+    const world = advance(start.world, start.notes);
+    done = { world, stalls: seen.stalls, broken: [...seen.broken], notes: start.notes };
+    finishedLegs.set(key, { ...done, world: cloneWorld(done.world), notes: structuredClone(done.notes) });
+    return done;
+  }
+  seen.stalls = done.stalls;
+  seen.broken.clear();
+  for (const id of done.broken) seen.broken.add(id);
+  return { ...done, world: cloneWorld(done.world), notes: structuredClone(done.notes) };
 }

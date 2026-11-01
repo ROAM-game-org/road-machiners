@@ -3,6 +3,7 @@ import {
   STANDING_DELTA, STANDING_FACTION_IDS, startStanding, type Band, type FactionDef,
 } from '../data/npc-behavior';
 import { NPCS, type NpcTemplate } from '../data/npcs';
+import { workDayOf } from '../data/time';
 import { isDefeated } from './defeat';
 import { hasLoot } from './grid';
 import { chance } from './rng';
@@ -11,7 +12,6 @@ import { isStranded } from './stats';
 import { followersOf } from './companies';
 import { recall, remember } from './memory';
 import { modeRules } from './settings';
-import { clockOf } from './sun';
 import type { DeedId, Faction, StandingCause, HelpDeed, MemoryFact, NpcFactionId, StandingFactionId, Vehicle, World, WrongDeed } from './types';
 import { dist } from './vec';
 import { canVehicleSee } from './vision';
@@ -284,8 +284,8 @@ function repeats(world: World, subject: string, deed: DeedId): boolean {
 
 function allowedDelta(world: World, faction: StandingFactionId, delta: number): number {
   if (delta <= 0) return delta;
-  const day = clockOf(world.turn).day;
-  const gained = world.player.deeds.filter((d) => d.faction === faction && d.delta > 0 && clockOf(d.turn).day === day).reduce((sum, d) => sum + d.delta, 0);
+  const day = workDayOf(world.turn);
+  const gained = world.player.deeds.filter((d) => d.faction === faction && d.delta > 0 && workDayOf(d.turn) === day).reduce((sum, d) => sum + d.delta, 0);
   return Math.max(0, Math.min(delta, STANDING.dailyGainCap - gained));
 }
 
@@ -302,7 +302,7 @@ export function settleStanding(world: World, faction: StandingFactionId): void {
 }
 
 export function driftStanding(world: World): void {
-  if (clockOf(world.turn).day === clockOf(world.turn - 1).day) return;
+  if (workDayOf(world.turn) === workDayOf(world.turn - 1)) return;
   const start = startStanding();
   for (const id of STANDING_FACTION_IDS) {
     const now = world.player.standing[id];

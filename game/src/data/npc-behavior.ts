@@ -1,5 +1,6 @@
 
 import { ENCOUNTERS } from './encounters';
+import { MAP_SPREAD } from './region';
 import { RULES } from './rules';
 import { TERRAIN } from './terrain';
 import { TIME } from './time';
@@ -113,7 +114,7 @@ export const HUNT = {
   lawReach: NPC_BEHAVIOR.patrolRadius + TERRAIN.vision.radius,
   offRoadGoals: ['raid', 'patrol', 'investigate', 'sizeUp'] as const,
   postRoadGap: 6,
-  postRings: [7, 10, 14, 18, 22],
+  postRings: [0.35, 0.5, 0.7, 0.9, 1.1].map((share) => share * TERRAIN.vision.radius),
   roadSample: 4,
   postBearings: 12,
   patrolPostSpacing: 20,
@@ -133,11 +134,11 @@ export const CREW = {
 };
 
 export const HIRE = {
-  turns: TIME.turnsPerDay,
+  turns: TIME.workDayTurns,
 };
 
 export const MEMORY = {
-  turns: { prices: TIME.turnsPerDay, stripped: TIME.turnsPerDay, wronged: ENCOUNTERS.wrongedTurns, helped: 2 * TIME.turnsPerDay, sighting: TIME.turnsPerDay, witnessed: 3 * TIME.turnsPerDay } satisfies Record<MemoryFact['kind'], number>,
+  turns: { prices: TIME.workDayTurns, stripped: TIME.workDayTurns, wronged: ENCOUNTERS.wrongedTurns, helped: 2 * TIME.workDayTurns, sighting: TIME.workDayTurns, witnessed: 3 * TIME.workDayTurns } satisfies Record<MemoryFact['kind'], number>,
 };
 
 export const TRADE_TIP = { share: 0.2 };
@@ -210,7 +211,7 @@ export const STANDING_DELTA: Record<DeedId, number> = {
   aided: 5, towed: 5, patched: 5, defended: 8, contract: 3, failedContract: -5,
 };
 
-export const DEEDS = { repeatTurns: TIME.turnsPerDay };
+export const DEEDS = { repeatTurns: TIME.workDayTurns };
 
 export const STANDING = { dailyDrift: 10, dailyGainCap: 15 };
 
@@ -229,7 +230,7 @@ export const SITE_FACTIONS: Partial<Record<string, NpcFactionId>> = {
 };
 
 export const TURF = {
-  reachPerFaction: 300,
+  reachPerFaction: 300 * MAP_SPREAD,
   shares: { scrapjaw: 2 / 3, kiln: 1 / 3 } as Partial<Record<NpcFactionId, number>>,
 };
 

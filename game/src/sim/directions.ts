@@ -4,9 +4,10 @@ import { atlasOf, atlasSites } from './atlas';
 import { cueAt, distinctCardinals, headingAlong, leanOf, octantOf, roadName, spanOf, type CueSpot } from './direction-cues';
 import { exitsAt, isJunction, nearestRoadPoints, roadNetworkOf, shortestPath, splitAt, type RoadGraph, type RoadNetwork, type RoadNode, type RoadPath, type RoadPoint } from './road-network';
 import { isTerritory } from './sites';
+import { territoryEntries } from './territory';
 import { isCliff, tileAt } from './terrain';
 import type { Cue, DirectionStep, DirectionTarget, Octant, Span, TurnSide, World } from './types';
-import { angleDiff, dist, type Vec } from './vec';
+import { angleDiff, dist, polylineDist, type Vec } from './vec';
 
 type Spoken = { at: number; side: TurnSide; cue: Cue | null; out: number };
 
@@ -58,16 +59,21 @@ type Plan = { steps: DirectionStep[]; length: number };
 
 function planFrom(world: World, net: RoadNetwork, start: RoadPoint | number, target: DirectionTarget, rough: { octant: Octant; span: Span }): Plan {
   const noRoad: Plan = { steps: [{ do: 'noRoad', ...rough }], length: Infinity };
-  const aim = targetPos(target);
-  const leave = target.kind === 'spot' ? leavePoint(world, net, target) : null;
-  if (target.kind === 'spot' && !leave) return noRoad;
+  const leave = leaveFor(world, net, target);
+  if (leave === undefined) return noRoad;
   const points = [...(typeof start === 'number' ? [] : [start]), ...(leave ? [leave] : [])];
   const { graph, nodes } = splitAt(net, points);
   const startNode = typeof start === 'number' ? start : nodes[0];
   const goals = leave ? [nodes[nodes.length - 1]] : goalNodes(graph, target.kind === 'site' ? target.id : '');
   const path = shortestPath(graph, startNode, goals);
   if (!path) return noRoad;
-  return { steps: speakPath(world, graph, path, target, leave ? aim : null), length: path.length };
+  return { steps: speakPath(world, graph, path, target, leave ? targetPos(target) : null), length: path.length };
+}
+
+function leaveFor(world: World, net: RoadNetwork, target: DirectionTarget): RoadPoint | null | undefined {
+  const leaveTo = target.kind === 'spot' ? target : offRoadSpot(net, target.id);
+  if (!leaveTo) return null;
+  return leavePoint(world, net, leaveTo) ?? undefined;
 }
 
 function targetPos(target: DirectionTarget): Vec {
@@ -79,6 +85,13 @@ function targetPos(target: DirectionTarget): Vec {
 
 function onThisMap(world: World, target: DirectionTarget): boolean {
   return target.kind === 'spot' || atlasSites(atlasOf(world.terrain)).some((s) => s.id === target.id);
+}
+
+function offRoadSpot(net: RoadGraph, id: string): Extract<DirectionTarget, { kind: 'spot' }> | null {
+  if (goalNodes(net, id).length > 0) return null;
+  const territory = REGION.locations.find((l) => l.id === id);
+  if (!territory || !isTerritory(territory)) return null;
+  return { kind: 'spot', pos: territoryEntries(territory)[0], clue: 'place' };
 }
 
 function goalNodes(graph: RoadGraph, site: string): number[] {
@@ -96,9 +109,15 @@ function startPoint(world: World, from: Vec, net: ReturnType<typeof roadNetworkO
 }
 
 function leavePoint(world: World, net: RoadNetwork, target: Extract<DirectionTarget, { kind: 'spot' }>): RoadPoint | null {
-  const near = nearestRoadPoints(net, target.pos, DIRECTIONS.leaveReach, DIRECTIONS.joinCandidates);
+  const near = nearestRoadPoints(net, target.pos, leaveReach(target), DIRECTIONS.joinCandidates);
   const open = near.find((p) => clearLine(world, p.pos, target.clue === 'place' ? stopShort(p.pos, target.pos, DIRECTIONS.placeSlack) : target.pos));
   return open ?? (target.clue === 'place' ? near[0] ?? null : null);
+}
+
+function leaveReach(target: Extract<DirectionTarget, { kind: 'spot' }>): number {
+  if (target.clue !== 'place') return DIRECTIONS.leaveReach;
+  const gap = Math.min(...REGION.roads.map((road) => polylineDist(target.pos, road)));
+  return Math.max(DIRECTIONS.leaveReach, gap + DIRECTIONS.placeSlack);
 }
 
 function stopShort(from: Vec, to: Vec, gap: number): Vec {
@@ -204,14 +223,20 @@ function speakPath(world: World, graph: RoadGraph, path: RoadPath, target: Direc
 }
 
 function finish(world: World, target: DirectionTarget, tail: CueSpot, spot: Vec | null): DirectionStep[] {
-  if (target.kind === 'site') {
-    const site = atlasSites(atlasOf(world.terrain)).find((s) => s.id === target.id);
-    if (!site) throw new Error(`Directions to unknown site ${target.id}`);
-    return [{ do: 'arrive', site: site.id, area: isTerritory(site) }, { do: 'search', clue: { kind: 'site', id: site.id }, rough: false }];
-  }
+  if (target.kind === 'site') return [...(spot ? leaveSteps(world, tail, spot) : []), ...arriveAt(world, target.id)];
   if (!spot) throw new Error('A spot target needs its leave point');
+  return [...leaveSteps(world, tail, spot), ...searchFor(target)];
+}
+
+function arriveAt(world: World, id: string): DirectionStep[] {
+  const site = atlasSites(atlasOf(world.terrain)).find((s) => s.id === id);
+  if (!site) throw new Error(`Directions to unknown site ${id}`);
+  return [{ do: 'arrive', site: site.id, area: isTerritory(site) }, { do: 'search', clue: { kind: 'site', id: site.id }, rough: false }];
+}
+
+function leaveSteps(world: World, tail: CueSpot, spot: Vec): DirectionStep[] {
   const aim = { x: spot.x - tail.pos.x, y: spot.y - tail.pos.y };
   const at = cueAt(world, tail);
   if (!at) return [{ do: 'askAgain' }];
-  return [{ do: 'leave', at, octant: octantOf(aim), lean: leanOf(aim, octantOf(aim)), span: spanOf(Math.hypot(aim.x, aim.y)) }, ...searchFor(target)];
+  return [{ do: 'leave', at, octant: octantOf(aim), lean: leanOf(aim, octantOf(aim)), span: spanOf(Math.hypot(aim.x, aim.y)) }];
 }

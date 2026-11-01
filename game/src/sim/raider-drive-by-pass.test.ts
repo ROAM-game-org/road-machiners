@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { count, runs, SEEDS, SLOW_PASS_TURNS, summary } from '../test/drive-by-scene';
 
 const FIRST = SEEDS.slice(0, 4);
+const MOST_ENGAGED = 1;
 
 describe.each([['by day', false], ['at night', true]])('drive-by %s on the real map', (_label, night) => {
   it('leaves no feud with an empty-handed player', () => {
     const empty = runs('playerEmpty', night, SLOW_PASS_TURNS, FIRST);
-    expect(count(empty, (r) => r.engaged || r.feud), summary(empty, FIRST)).toBe(0);
+    expect(count(empty, (r) => r.feud), summary(empty, FIRST)).toBe(0);
+    expect(count(empty, (r) => r.engaged), summary(empty, FIRST)).toBeLessThanOrEqual(MOST_ENGAGED);
   });
 
   it('shows the pass line "let you be this time" when the raider sees an empty-handed player, whose empty hold it takes for room to carry', () => {

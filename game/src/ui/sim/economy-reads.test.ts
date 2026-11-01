@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { TIME } from '../../data/time';
 import { economyOf, StockFlows, type Economy } from '../../sim/progression/sim-economy';
 import { sampleOf, simWorld } from '../../sim/progression/sim-mode';
 import type { World } from '../../sim/types';
@@ -90,8 +91,9 @@ describe('economy reads', () => {
   });
 
   it('counts the hours a stock has held, and none when it has recovered', () => {
-    const series = { turns: [0, 19, 38, 57], stock: [5, 0, 0, 0], buy: [1, 1, 1, 1], events: [] };
-    expect(hoursSince(series, (s) => s <= 0)).toBe(Math.round(38 / (450 / 24)));
+    const hour = TIME.turnsPerDay / 24;
+    const series = { turns: [0, hour, 2 * hour, 3 * hour], stock: [5, 0, 0, 0], buy: [1, 1, 1, 1], events: [] };
+    expect(hoursSince(series, (s) => s <= 0)).toBe(2);
     expect(hoursSince({ ...series, stock: [0, 0, 0, 4] }, (s) => s <= 0)).toBe(0);
   });
 

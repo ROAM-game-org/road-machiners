@@ -19,53 +19,63 @@ export type MaterialOf = (model: ModelName, source: THREE.Material) => THREE.Mat
 
 export class PropInstances {
   private readonly slots = new Map<string, Slot>();
+  private readonly props = new Map<string, Landmark>();
   private readonly hidden = new Set<string>();
   private readonly withdrawn = new Set<string>();
 
   constructor(scope: RenderScope, terrain: Terrain, props: readonly Landmark[], materialOf: MaterialOf) {
-    for (const [model, list] of groupsOf(props).values()) this.addGroup(scope, terrain, model, list, materialOf);
+    for (const [model, list] of groupsOf(props).values()) this.placeGroup(scope, terrain, model, list, materialOf);
   }
 
   has(id: string): boolean {
-    return this.slots.has(id);
+    return this.props.has(id);
   }
 
   holds(id: string): boolean {
-    return this.slots.has(id) && !this.withdrawn.has(id);
+    return this.props.has(id) && !this.withdrawn.has(id);
   }
 
   ids(): IterableIterator<string> {
-    return this.slots.keys();
+    return this.props.keys();
   }
 
   hide(id: string): void {
-    const slot = this.slotOf(id);
+    this.known(id);
     if (this.hidden.has(id)) return;
     this.hidden.add(id);
-    for (const mesh of slot.meshes) setInstance(mesh, slot.index, ZERO);
+    const slot = this.slots.get(id);
+    if (slot) for (const mesh of slot.meshes) setInstance(mesh, slot.index, ZERO);
   }
 
   show(id: string): void {
-    const slot = this.slotOf(id);
+    this.known(id);
     if (this.withdrawn.has(id) || !this.hidden.delete(id)) return;
-    slot.meshes.forEach((mesh, i) => setInstance(mesh, slot.index, slot.standing[i].subarray(slot.index * 16, slot.index * 16 + 16)));
+    const slot = this.slots.get(id);
+    slot?.meshes.forEach((mesh, i) => setInstance(mesh, slot.index, slot.standing[i].subarray(slot.index * 16, slot.index * 16 + 16)));
   }
 
   withdraw(id: string): Landmark {
-    const slot = this.slotOf(id);
+    const obstacle = this.known(id);
     if (this.withdrawn.has(id) || this.hidden.has(id)) throw new Error(`Lootable prop ${id} has no view`);
     this.hide(id);
     this.withdrawn.add(id);
-    return slot.obstacle;
+    return obstacle;
   }
 
-  private slotOf(id: string): Slot {
-    const slot = this.slots.get(id);
-    if (!slot) throw new Error(`Prop ${id} is not a baked prop; plain props are drawn as fixed instances`);
-    return slot;
+  private known(id: string): Landmark {
+    const prop = this.props.get(id);
+    if (!prop) throw new Error(`Prop ${id} is not a baked prop; plain props are drawn as fixed instances`);
+    return prop;
   }
 
-  private addGroup(scope: RenderScope, terrain: Terrain, name: ModelName, list: readonly Landmark[], materialOf: MaterialOf): void {
+  private placeGroup(scope: RenderScope, terrain: Terrain, name: ModelName, list: readonly Landmark[], materialOf: MaterialOf): void {
+    for (const o of list) this.props.set(o.id, o);
+    const center = list.reduce((c, o) => ({ x: c.x + o.pos.x / list.length, y: c.y + o.pos.y / list.length }), { x: 0, y: 0 });
+    const reach = Math.max(...list.map((o) => dist(center, o.pos) + propReach(o)));
+    scope.place(center, reach, () => this.buildGroup(terrain, name, list, materialOf));
+  }
+
+  private buildGroup(terrain: Terrain, name: ModelName, list: readonly Landmark[], materialOf: MaterialOf): THREE.Group {
     const placements = list.map((o) => {
       const g = posed(propBase(terrain, o), propPose(o));
       g.updateMatrix();
@@ -77,10 +87,11 @@ export class PropInstances {
       return m;
     });
     const standing = meshes.map((m) => Float32Array.from(m.instanceMatrix.array));
-    list.forEach((obstacle, index) => this.slots.set(obstacle.id, { meshes, standing, index, obstacle }));
-    const center = list.reduce((c, o) => ({ x: c.x + o.pos.x / list.length, y: c.y + o.pos.y / list.length }), { x: 0, y: 0 });
-    const reach = Math.max(...list.map((o) => dist(center, o.pos) + propReach(o)));
-    scope.add(group, center, reach);
+    list.forEach((obstacle, index) => {
+      this.slots.set(obstacle.id, { meshes, standing, index, obstacle });
+      if (this.hidden.has(obstacle.id)) for (const mesh of meshes) setInstance(mesh, index, ZERO);
+    });
+    return group;
   }
 }
 

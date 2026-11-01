@@ -211,7 +211,7 @@ function writeSteps({ fd, turnsFd, worldFd, runFd, streamFd }, name, archetype, 
     progress.count += lines.length;
     progress.end = step.death;
     progress.lastTurn = world.turn;
-    if ((world.turn - 1) % TIME.turnsPerDay === 0) console.log(`${name}: day ${(world.turn - 1) / TIME.turnsPerDay} done, ${progress.count} events`);
+    if ((world.turn - 1) % TIME.workDayTurns === 0) console.log(`${name}: day ${(world.turn - 1) / TIME.workDayTurns} done, ${progress.count} events`);
     const failure = job.failure(archetype);
     if (failure) throw new Error(failure);
   }

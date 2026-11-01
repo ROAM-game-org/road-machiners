@@ -1,6 +1,7 @@
 
 import { CLOUD_SHADOWS } from './cloudShadows';
 import { MODEL_FILL } from './modelFill';
+import { radioColor, radioHalo } from './radioLight';
 import * as THREE from 'three';
 import { chassisDef, type TruckPaint } from '../../data/chassis';
 import { isShield, partDef, type PartDef, type PartKind } from '../../data/parts';
@@ -15,7 +16,7 @@ import { baseGrid, facingOf, isMounted, itemBulk, itemCells } from '../../sim/gr
 import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gunClearance';
-import { bottomOf, bottomRect, highestAhead, itemSpot, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang, underSpots, type ItemSpot } from './gunStand';
+import { bottomOf, highestAhead, itemLegs, itemSpot, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang, type ItemSpot } from './gunStand';
 import { GLASS, LAMP, model, RADIO, socket, TRUCK_BIT, type ModelName } from './models';
 import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic } from './truckMesh';
 import { armorPlacement, cutSpec, lampIslands, withCut, type CutSpec } from './armorCut';
@@ -58,8 +59,6 @@ type UnitView = { index: number; root: THREE.Object3D; body: THREE.Group; b: Bod
 const SHOCK_R = 0.2;
 const UP = new THREE.Vector3(0, 1, 0);
 const ANTENNA_INSET = 0.12;
-const RADIO_TIP = 1.6;
-const RADIO_HALO = 0.6;
 const CHAIN_SIDE = 0.4;
 
 type Turret = { head: THREE.Group; tip: THREE.Vector3; spans: readonly FireSpan[]; facing: number; unit: number };
@@ -90,9 +89,9 @@ const UNLIMITED: RebuildBudget = { take: () => true, ready: () => true };
 
 class PerAnimationFrame implements RebuildBudget {
   private frame: CSSNumberish | null | undefined = undefined;
-  private left = 0;
+  private started = 0;
 
-  constructor(private readonly perFrame: number) {}
+  constructor(private readonly ms: number) {}
 
   ready(): boolean {
     return true;
@@ -100,17 +99,16 @@ class PerAnimationFrame implements RebuildBudget {
 
   take(): boolean {
     const frame = document.timeline.currentTime;
-    if (frame !== this.frame) {
-      this.frame = frame;
-      this.left = this.perFrame;
-    }
-    if (this.left <= 0) return false;
-    this.left--;
+    const now = performance.now();
+    if (frame === this.frame) return now - this.started < this.ms;
+    this.frame = frame;
+    this.started = now;
     return true;
   }
 }
 
-export const FRAME_REBUILDS: RebuildBudget = new PerAnimationFrame(1);
+export const REBUILD_STEP_MS = 4;
+export const FRAME_REBUILDS: RebuildBudget = new PerAnimationFrame(REBUILD_STEP_MS);
 
 function advanceBuild(pending: { steps: Generator<void, void>; built: boolean }, budget: RebuildBudget): boolean {
   while (!pending.built && budget.take()) pending.built = Boolean(pending.steps.next().done);
@@ -460,7 +458,7 @@ export class VehicleView {
     const obj = this.placedPart(v, unit.b, item, def, paint);
     obj.name = item.id;
     const spot = this.spots.get(item);
-    if (spot?.legs) for (const leg of plateLegs(unit.base, bottomRect(obj, unit.index), spot.y, (role) => this.legModel(item, paint, role), underSpots(obj))) unit.still.add(leg);
+    if (spot?.legs) for (const leg of itemLegs(unit.base, obj, spot.y, (role) => this.legModel(item, paint, role))) unit.still.add(leg);
     unit.still.add(obj);
     this.anchors.set(item.part.id, { local: new THREE.Box3().setFromObject(obj).getCenter(new THREE.Vector3()), parent: unit.body });
     if (blocksGuns(v, item, def)) unit.obstacles.push(obstacleOf(obj));
@@ -556,10 +554,15 @@ export class VehicleView {
   }
 
   private standsUp(v: Vehicle, item: GridItem, level = false): boolean {
-    if (!standsFlat(v, item)) return true;
-    const spot = itemSpotOf(v, item, this.unitOf(v, item).base) ?? (level ? { dx: 0, dz: 0, y: standingY(v, item), slope: { x: 0, z: 0 }, legs: false } : null);
+    if (!needsSpot(v, item)) return true;
+    const spot = this.spotFor(v, item) ?? (level ? levelSpot(v, item) : null);
     if (spot) this.spots.set(item, spot);
     return spot !== null;
+  }
+
+  private spotFor(v: Vehicle, item: GridItem): ItemSpot | null {
+    const base = this.unitOf(v, item).base;
+    return itemSpotOf(v, item, base);
   }
 
   private placeItem(v: Vehicle, item: GridItem, paint: number): THREE.Object3D {
@@ -942,6 +945,14 @@ export function itemSpotOf(v: Pick<Vehicle, 'chassisId'>, item: GridItem, base: 
   return itemSpot(base, bottomOf(itemModel(item), rest.rect.unit, footprint(v, item, rest.y)), rest, rectOf(v, item), ringMiddles(v.chassisId, item.y), item.kind === 'part');
 }
 
+function needsSpot(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
+  return standsFlat(v, item);
+}
+
+function levelSpot(v: Pick<Vehicle, 'chassisId'>, item: GridItem): ItemSpot {
+  return { dx: 0, dz: 0, y: standingY(v, item), slope: { x: 0, z: 0 }, legs: false };
+}
+
 function standsFlat(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
   if (item.kind !== 'part') return true;
   const def = partDef(item.part.defId);
@@ -1120,32 +1131,6 @@ function overlapsXZ(tri: THREE.Vector3[], box: PartBox): boolean {
   return Math.max(...xs) >= box.min.x && Math.min(...xs) <= box.max.x && Math.max(...zs) >= box.min.z && Math.min(...zs) <= box.max.z;
 }
 
-function radioColor(lit: boolean): number {
-  return lit ? PAL.radioLight.on : PAL.radioLight.off;
-}
-
-function radioHalo(lit: boolean): THREE.Sprite {
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloMap(), color: PAL.radioLight.on, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }));
-  sprite.scale.setScalar(RADIO_HALO);
-  sprite.raycast = () => {};
-  sprite.position.set(0, RADIO_TIP, 0);
-  sprite.visible = lit;
-  return sprite;
-}
-
-let haloTexture: THREE.DataTexture | null = null;
-function haloMap(): THREE.DataTexture {
-  if (haloTexture) return haloTexture;
-  const size = 32;
-  const data = new Uint8Array(size * size * 4);
-  for (let i = 0; i < size * size; i++) {
-    const d = Math.hypot((i % size) - size / 2 + 0.5, Math.floor(i / size) - size / 2 + 0.5) / (size / 2);
-    data.set([255, 255, 255, Math.round(255 * Math.max(0, 1 - d) ** 2)], i * 4);
-  }
-  haloTexture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
-  haloTexture.needsUpdate = true;
-  return haloTexture;
-}
 
 function groundContactShadow({ unit, mesh }: ContactShadow): void {
   if (unit.wheels.length === 0) throw new Error(`Truck unit ${unit.index} has no wheels to rest its contact shadow on`);

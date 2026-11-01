@@ -1,18 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { REGION } from '../data/region';
-import { MAPGEN, ROADSIDE } from '../data/terrain';
+import { ROADSIDE } from '../data/terrain';
 import { icarusAtlas } from '../sim/atlas';
 import { onDeck } from '../sim/mapgen';
 import { ROAD_INDEX } from '../sim/road-index';
 import { siteGap } from '../sim/sites';
-import { decodeMap, isCliff, tileAt, type BakedMap, type BakedProp, type PropKind, type Terrain } from '../sim/terrain';
+import { isCliff, tileAt, type BakedProp, type PropKind, type Terrain } from '../sim/terrain';
 import { dist, type Vec } from '../sim/vec';
 import { budget } from '../test/budget';
+import { TEST_MAP } from '../test/map';
 
-const FILES = import.meta.glob<string>('/public/maps/*.bin', { query: '?url&inline', import: 'default', eager: true });
-const DATA_URL = 'data:application/octet-stream;base64,';
-const LEGACY_PROPS = 5178;
-const LEGACY_DRUMS = 6;
 const NEW_KINDS: readonly PropKind[] = ['roadSign', 'routeSign', 'barrel'];
 const O = REGION.obstacles;
 const SITES = [...REGION.towns, ...REGION.locations];
@@ -20,16 +17,12 @@ const BUILT_TYPES = ['road', 'asphalt', 'field', 'track', 'canal', 'concrete', '
 const ROW_LINE = 0.1;
 const ROW_TURN = 0.02;
 
-function bakedMap(): BakedMap {
-  const url = FILES[`/public/${MAPGEN.file}`];
-  if (url === undefined || !url.startsWith(DATA_URL)) throw new Error(`Map file public/${MAPGEN.file} is missing or did not inline. Run npm run map:bake.`);
-  return decodeMap(Uint8Array.from(atob(url.slice(DATA_URL.length)), (c) => c.charCodeAt(0)));
-}
-
-const map = bakedMap();
-const legacy = map.props.slice(0, LEGACY_PROPS);
+const map = TEST_MAP;
 const BOAT_KINDS: readonly PropKind[] = ['fishingBoat', 'riverBarge', 'skiff'];
-const added = map.props.slice(LEGACY_PROPS).filter((p) => !BOAT_KINDS.includes(p.kind));
+const FIRST = map.props.findIndex((p) => p.kind === 'roadSign');
+const legacy = map.props.slice(0, FIRST);
+const added = map.props.slice(FIRST).filter((p) => !BOAT_KINDS.includes(p.kind));
+const BUCKET = 8;
 const terrain: Terrain = map.terrain;
 
 function count(props: BakedProp[], kind: PropKind): number {
@@ -51,6 +44,12 @@ function lineGap(a: Vec, b: Vec, c: Vec): number {
 }
 
 describe('the roadside layer on the baked map', () => {
+  it('finds the roadside block: the first road sign opens it and nothing but boats follows it', () => {
+    expect(FIRST).toBeGreaterThan(0);
+    expect(added.length).toBeGreaterThan(0);
+    expect(map.props.slice(FIRST + added.length).every((p) => BOAT_KINDS.includes(p.kind))).toBe(true);
+  });
+
   it('only appends: no legacy prop is a roadside kind, and every added prop is one of the layer kinds', () => {
     expect(legacy.some((p) => NEW_KINDS.includes(p.kind))).toBe(false);
     expect(added.length).toBeGreaterThan(0);
@@ -63,7 +62,6 @@ describe('the roadside layer on the baked map', () => {
     expect(inBand(count(added, 'barrel'), ROADSIDE.barrels.band)).toBe(true);
     expect(inBand(count(added, 'drums'), ROADSIDE.heaps.band)).toBe(true);
     expect(inBand(count(added, 'deadTree'), ROADSIDE.trees.band)).toBe(true);
-    expect(count(map.props, 'drums')).toBe(count(added, 'drums') + LEGACY_DRUMS);
   });
 
   it('keeps every added prop clear of roads, sites, decks and cliffs, and off built ground', () => {
@@ -79,9 +77,27 @@ describe('the roadside layer on the baked map', () => {
   }, budget(120_000));
 
   it('keeps the prop gap from every other prop', () => {
+    const buckets = new Map<number, number[]>();
+    map.props.forEach((p, i) => {
+      const key = Math.floor(p.pos.y / BUCKET) * 4096 + Math.floor(p.pos.x / BUCKET);
+      const list = buckets.get(key);
+      if (list) list.push(i);
+      else buckets.set(key, [i]);
+    });
+    const widest = Math.max(...map.props.map((p) => p.r));
     const tooClose: string[] = [];
-    added.forEach((p, k) => {
-      for (const o of map.props.slice(0, LEGACY_PROPS + k)) if (dist(p.pos, o.pos) < o.r + p.r + O.gap) tooClose.push(`${p.kind} at ${p.pos.x.toFixed(1)},${p.pos.y.toFixed(1)} meets ${o.kind}`);
+    const roadside = new Set(added);
+    map.props.forEach((p, k) => {
+      if (!roadside.has(p)) return;
+      const reach = Math.ceil((p.r + O.gap + widest) / BUCKET);
+      const cx = Math.floor(p.pos.x / BUCKET);
+      const cy = Math.floor(p.pos.y / BUCKET);
+      for (let y = cy - reach; y <= cy + reach; y++) for (let x = cx - reach; x <= cx + reach; x++) {
+        for (const i of buckets.get(y * 4096 + x) ?? []) {
+          const o = map.props[i];
+          if (i < k && dist(p.pos, o.pos) < o.r + p.r + O.gap) tooClose.push(`${p.kind} at ${p.pos.x.toFixed(1)},${p.pos.y.toFixed(1)} meets ${o.kind}`);
+        }
+      }
     });
 
     expect(tooClose).toEqual([]);

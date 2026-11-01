@@ -3,12 +3,15 @@ import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
 import { CHASSIS } from '../data/chassis';
 import { warmRoutes } from '../sim/path';
+import { PERF } from '../data/perf';
+import { buildCellsAround, prepareRouteTerrain } from '../sim/nav/layer';
 import { endTurn } from '../sim/world';
 import { inQuestLanguage } from '../sim/quests';
 import { QUEST_LANGUAGES, type QuestLanguage } from '../data/quests';
 import { perfSnapshot, resetPerf, timed, type PerfStat } from '../perf';
 import { playerVehicle } from '../sim/damage';
-import { advanceFar } from '../sim/far';
+import { advanceFar, isNear, settleWoken } from '../sim/far';
+import { setThinning } from '../sim/fidelity';
 import { applyContactCrash, applyGroundCrash, applyLanding } from '../sim/crash-contact';
 import { tearLine } from '../sim/harpoon';
 import { breakProp } from '../sim/salvage';
@@ -18,7 +21,7 @@ import { setDown, settleSetSpeed } from '../sim/steering';
 import { clearanceFor } from '../sim/clearance';
 import type { MoveOrder, Obstacle, Pose, Vehicle, World } from '../sim/types';
 import { angleDiff, dist, lerp, type Vec } from '../sim/vec';
-import { exploreFrom, seenPropTiles, visibleTiles } from '../sim/vision';
+import { seenPropTiles, visibleTiles } from '../sim/vision';
 import { bodyState, buildDrive, GROUND, isLifted, captureDrive, freeDrive, initPhysics, restoreDrive, restWheels, simulateSteps, simulateTurn, syncDrive, toTilesPerTurn, trailFrames, TURN_STEPS, type Drive, type DriveSnapshot, type TurnResult, type VehicleResult } from './drive';
 import { frameBend, headingOf, toMap, type TurnFrames, type VehicleFrame, type WheelFrame } from './frames';
 import { bendField, checkBend, heldBend, poseOf } from '../sim/rig';
@@ -27,7 +30,7 @@ import { planTurns, type PlanFrames } from './plan';
 export type TurnState = Omit<World, 'terrain'>;
 export type WorldTask = { world: TurnState; drive: DriveSnapshot };
 type LanguageTask = WorldTask & { questLanguage: QuestLanguage };
-export type TurnTask = LanguageTask & { tailSteps: number };
+export type TurnTask = LanguageTask & { tailSteps: number; fastTravel: boolean };
 export type LiveSight = { steps: number[]; tiles: number[][]; props: number[][] };
 export type TailPose = { pos: Vec; heading: number; speed: number; bend?: number };
 export type Tail = { frames: TurnFrames; next: DriveSnapshot; poses: Record<string, TailPose> };
@@ -40,19 +43,28 @@ export type PreparedTurn = {
 
 export const LIVE_SIGHT_STEP = 0.35;
 
-export function liveSightOf(world: World, frames: readonly VehicleFrame[] | undefined): LiveSight {
+export function sightAlong(world: World, points: readonly Vec[]): LiveSight {
   const sight: LiveSight = { steps: [], tiles: [], props: [] };
   let from: Vec | null = null;
-  (frames ?? []).forEach((f, step) => {
-    const at = toMap(f.pos);
-    if (from && dist(from, at) < LIVE_SIGHT_STEP) return;
+  points.forEach((at, k) => {
+    if (from && dist(from, at) < LIVE_SIGHT_STEP && k < points.length - 1) return;
+    if (from && dist(from, at) === 0) {
+      sight.steps.push(k);
+      sight.tiles.push(sight.tiles[sight.tiles.length - 1]);
+      sight.props.push(sight.props[sight.props.length - 1]);
+      return;
+    }
     from = at;
-    sight.steps.push(step);
+    sight.steps.push(k);
     const visible = visibleTiles(world, at);
     sight.tiles.push([...visible].sort((a, b) => a - b));
     sight.props.push(seenPropTiles(world, at, visible));
   });
   return sight;
+}
+
+function exploreSight(w: World, sight: LiveSight): void {
+  for (const tiles of sight.tiles) for (const idx of tiles) w.player.explored[idx] = 1;
 }
 export type PreviewTask = LanguageTask & { meId: string };
 type Posted<T extends WorldTask> = Omit<T, 'world'> & { world: Omit<TurnState, 'obstacles'>; obstacles: Obstacle[] | null; terrain: World['terrain'] | null };
@@ -124,6 +136,7 @@ function previewIn(task: PreviewTask, terrain: World['terrain']): PlanFrames {
   const drive = restoreDrive(task.drive);
   const world = { ...task.world, terrain };
   try {
+    settleWoken(world, (id) => drive.bodies[id] !== undefined);
     syncDrive(drive, world);
     return timed('preview', () => planTurns(drive, world, task.meId));
   } finally {
@@ -142,19 +155,20 @@ export function computeTurn(task: TurnTask, terrain: World['terrain']): Prepared
 function computeTurnIn(task: TurnTask, terrain: World['terrain']): PreparedTurn {
   requireQuestLanguage(task.questLanguage);
   freezeTerrain(terrain);
+  const before = { ...task.world, terrain };
   const drive = restoreDrive(task.drive);
-  let result: TurnResult | null = null;
+  let result: PlayedTurn | null = null;
   try {
-    const world = endTurn({ ...task.world, terrain }, physicsMove(drive, (next) => { result = next; }));
+    const world = endTurn(before, physicsMove(drive, (next) => { result = next; }));
     if (!result) throw new Error('Turn ran without physics');
     const { terrain: _terrain, ...state } = world;
-    const { next, ...motion } = result as TurnResult;
-    const sight = timed('live-sight', () => liveSightOf(world, motion.frames[world.player.vehicleId]));
+    const { next, sight, ...motion } = result as PlayedTurn;
     const captured = captureDrive(next);
-    return { world: state, result: { ...motion, next: captured }, sight, tail: timed('tail', () => tailOf(next, world, task.tailSteps)) };
+    const tail = timed('tail', () => tailOf(next, world, task.tailSteps));
+    return { world: state, result: { ...motion, next: captured }, sight, tail };
   } finally {
     freeDrive(drive);
-    if (result) freeDrive((result as TurnResult).next);
+    if (result) freeDrive((result as PlayedTurn).next);
   }
 }
 
@@ -186,6 +200,7 @@ function bodyPose(d: Drive, v: Vehicle): TailPose {
 }
 
 export function startTurnWorker(): void {
+  setThinning(true);
   let terrain: World['terrain'] | null = null;
   let obstacles: Obstacle[] | null = null;
   const ready = initPhysics();
@@ -193,6 +208,7 @@ export function startTurnWorker(): void {
     const request = event.data;
     if (request.kind === 'terrain') {
       terrain = request.terrain;
+      timed('route-terrain', () => prepareRouteTerrain(request.terrain));
       return;
     }
     obstacles = request.obstacles ?? obstacles;
@@ -202,13 +218,26 @@ export function startTurnWorker(): void {
       const task = taskOf(request, obstacles, terrain);
       resetPerf();
       answer(task, task.terrain);
+      buildWhileIdle(task.terrain, task.world);
     } catch (error) {
       self.postMessage({ id: request.id, error: describeWorkerError(error) } satisfies WorkerFailure);
     }
   };
 }
 
-type Answerable = (TurnTask & { kind: 'turn'; id: number }) | (PreviewTask & { kind: 'preview'; id: number });
+let idleRun = 0;
+
+function buildWhileIdle(terrain: World['terrain'], world: TurnState): void {
+  const run = ++idleRun;
+  const center = world.vehicles.find((v) => v.id === world.player.vehicleId)?.pos;
+  if (!center) return;
+  const step = () => {
+    if (run === idleRun && buildCellsAround(terrain, center, performance.now() + PERF.routes.idleSliceMs)) setTimeout(step, 0);
+  };
+  setTimeout(step, 0);
+}
+
+type Answerable =(TurnTask & { kind: 'turn'; id: number }) | (PreviewTask & { kind: 'preview'; id: number });
 
 function taskOf(request: TurnRequest | PreviewRequest, obstacles: Obstacle[] | null, terrain: World['terrain'] | null): Answerable & { terrain: World['terrain'] } {
   if (!obstacles) throw new Error('Turn worker has no obstacles');
@@ -241,11 +270,13 @@ function describeWorkerError(error: unknown): string {
 }
 
 
-const EXPLORE_EVERY = 4;
 const STOPPED = 0.05;
 
-export function physicsMove(d: Drive, done: (r: TurnResult) => void): (w: World) => void {
+export type PlayedTurn = TurnResult & { sight: LiveSight };
+
+export function physicsMove(d: Drive, done: (r: PlayedTurn) => void): (w: World) => void {
   return (w) => {
+    settleWoken(w, (id) => d.bodies[id] !== undefined);
     syncDrive(d, w);
     const r = simulateTurn(d, w);
     const far = w.vehicles.filter((v) => !r.frames[v.id] && !isOnRope(w, v.id));
@@ -254,9 +285,24 @@ export function physicsMove(d: Drive, done: (r: TurnResult) => void): (w: World)
       advanceFar(w, v);
       r.frames[v.id] = trailFrames(w, v, restWheels(v.chassisId));
     }
-    exploreAlong(w);
-    done(r);
+    done({ ...r, sight: timed('live-sight', () => playerSight(w, r.frames[w.player.vehicleId])) });
   };
+}
+
+function playerSight(w: World, frames: readonly VehicleFrame[] | undefined): LiveSight {
+  if (!frames) {
+    exploreBodiless(w);
+    return { steps: [], tiles: [], props: [] };
+  }
+  const sight = sightAlong(w, frames.map((f) => toMap(f.pos)));
+  exploreSight(w, sight);
+  return sight;
+}
+
+function exploreBodiless(w: World): void {
+  const me = playerVehicle(w);
+  if (isNear(w, me)) throw new Error(`Player ${me.id} has a physics body but no frames this turn`);
+  exploreSight(w, sightAlong(w, me.trail));
 }
 
 export function applyTurn(w: World, r: TurnResult): void {
@@ -302,11 +348,17 @@ function applyDriven(w: World, r: TurnResult, v: Vehicle, frames: TurnResult['fr
   const held = heldTurn(w, r, v, s, frames);
   if (held) holdAt(v);
   else releaseHold(v);
-  if ((v.strandedTurns ?? 0) >= RULES.stranded.turns) setDown(w, v);
+  setDownIfStuck(w, v);
   v.trail = trailOf(start, frames);
   burnFuel(w, v, pathLength(v.trail));
   settleSetSpeed(v, startSpeed);
   settleOrder(w, v, r.results[v.id]);
+}
+
+function setDownIfStuck(w: World, v: Vehicle): void {
+  if ((v.strandedTurns ?? 0) < RULES.stranded.turns) return;
+  setDown(w, v);
+  if (v.id === w.player.vehicleId) w.events.push({ t: 'info', note: { id: 'setDown' } });
 }
 
 function holdAt(v: Vehicle): void {
@@ -325,9 +377,13 @@ function heldTurn(w: World, r: TurnResult, v: Vehicle, s: ReturnType<typeof body
   const started = (v.strandedTurns ?? 0) > 0;
   if (started !== (v.strandedAt !== undefined)) throw new Error(`Vehicle ${v.id} has a stranded count without an anchor, or an anchor without a count`);
   if (v.strandedAt && dist(v.pos, v.strandedAt) >= RULES.stranded.reach) return false;
-  if (!s.upright || isLifted(r.next, w, v)) return true;
+  if (!s.upright || hangsOffGround(w, r, v)) return true;
   if (!unmetOrder(v, r.results[v.id])) return false;
   return started || isHung(last) || isPinned(w, v, r.results[v.id]);
+}
+
+function hangsOffGround(w: World, r: TurnResult, v: Vehicle): boolean {
+  return isLifted(r.next, w, v) && !r.results[v.id].grounded;
 }
 
 function unmetOrder(v: Vehicle, res: VehicleResult): boolean {
@@ -361,13 +417,6 @@ function orderDone(order: MoveOrder, res: VehicleResult, stopped: boolean): bool
       return res.arrived && stopped;
     case 'brake':
       return stopped;
-  }
-}
-
-function exploreAlong(w: World): void {
-  const me = playerVehicle(w);
-  for (let i = 0; i < me.trail.length; i += EXPLORE_EVERY) {
-    exploreFrom(w, me.trail[i]);
   }
 }
 

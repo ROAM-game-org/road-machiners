@@ -137,7 +137,7 @@ The player's truck pays no upkeep. NPC drivers pay under `NPC_UPKEEP`.
 | `ECONOMY.spread` | 0.2 |
 | `ECONOMY.roadSpread` | 0.3 |
 | `PRICE_FACTOR.make` | 0.75 |
-| `DISTANCE_PREMIUM.perTile` | 0.0021 |
+| `DISTANCE_PREMIUM.perTile` | 0.0016 |
 | `CONDITION.valueFactor` | 1, 0.7, 0.55, 0.45, 0.35 |
 | `ECONOMY.scrapPerKg` | 0.0633 |
 | `EFFORT.wage` | {"1":0.1233,"2":0.3333,"3":0.7333} |
@@ -156,7 +156,7 @@ The player's truck pays no upkeep. NPC drivers pay under `NPC_UPKEEP`.
 | `REPAIR.turnsPerPart` | 2 |
 | `PATCH.share` | 0.25 |
 | `CONTRACTS.maxActive` | 3 |
-| `CONTRACTS.haul.durationFactor` | 2.5 |
+| `CONTRACTS.haul.durationFactor` | 3 |
 | `CONTRACTS.haul.rewardFactor` | 24 |
 | `CONTRACTS.haul.rush.chance` | 0.25 |
 | `CONTRACTS.haul.rush.durationFactor` | 1.5 |
@@ -167,9 +167,10 @@ The player's truck pays no upkeep. NPC drivers pay under `NPC_UPKEEP`.
 | `CONTRACTS.survey.surveyTurns` | 10 |
 | `CONTRACTS.survey.searchTurns` | 20 |
 | `CONTRACTS.survey.rewardFactor` | 15 |
-| `CONTRACTS.survey.range` | 234 |
+| `CONTRACTS.survey.range` | 561.6 |
 | `CONTRACTS.survey.clue.roundTiles` | 25 |
-| `CONTRACTS.survey.clue.range` | 234 |
+| `CONTRACTS.survey.clue.range` | 561.6 |
 | `CONTRACTS.survey.clue.nearby` | 40 |
 | `CONTRACTS.survey.clue.band` | 40 |
 <!-- /wiki:numbers -->
+ 

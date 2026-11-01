@@ -149,6 +149,10 @@ export class CameraRig {
     return { x: this.center.x, y: this.center.y, z: this.center.z };
   }
 
+  groundReach(): number {
+    return Math.hypot(this.camera.right, this.camera.top / SIN_ELEVATION);
+  }
+
   screenOf(p: V3): { x: number; y: number } {
     const v = new THREE.Vector3(p.x, p.y, p.z).project(this.camera);
     const rect = this.view.getBoundingClientRect();

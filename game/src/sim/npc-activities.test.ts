@@ -1,7 +1,7 @@
 import { TERRAIN } from '../data/terrain';
 import { describe, expect, it } from 'vitest';
 import { contactsOf } from './detect';
-import { addLootSpot, addVehicle, editableTerrain, gunAcrossMiddle, emptyWorld, finishBusiness, forceOption, npcBrain, rngStateForForcedRolls, setShopPressure, sizedUp, startCombat, testDrive } from './testkit';
+import { addLootSpot, addVehicle, editableTerrain, gunAcrossMiddle, emptyWorld, finishBusiness, forceOption, npcBrain, rngStateForForcedRolls, setShopPressure, sizedUp, spotWithoutExplorePlaces, startCombat, testDrive } from './testkit';
 import { standingPressures } from './market';
 import { propReach } from './mapgen';
 import { planNpcOrders } from './ai';
@@ -21,10 +21,14 @@ import { endTurn } from './world';
 import { corePart, freeCells, goodsCount, mountedParts } from './grid';
 import { makePart } from './factory';
 import { addGoods, hasCargoRoom } from './inventory';
-import { finishGoal, getActivityDestination, ledPoint, patchGoal, pushGoal, resolveNpcActivities, thinkNpc, topGoal, turnCornered } from './npc-activities';
+import { exploreGoal, finishGoal, getActivityDestination, ledPoint, patchGoal, pushGoal, resolveNpcActivities, thinkNpc, topGoal, turnCornered } from './npc-activities';
+import { roadNetworkOf } from './road-network';
 import { leaveLoot } from './loot-warning';
 import { chooseOn, trackOf } from './tracks';
 import { watchStalls } from './npc-watchdog';
+import { PERF } from '../data/perf';
+import { setThinning } from './fidelity';
+import { playerVehicle } from './damage';
 import { CANNOT_HOLD, canTakeAny, STRIPPED } from './salvage';
 import { beginSearch } from './search';
 import { hiddenUnits, salvageInRange, salvageReach, salvageUnits } from './salvage';
@@ -408,7 +412,7 @@ describe('NPC activities', () => {
           const sourcePos = getKnownSite(source.id).pos;
           const trip = dist(npc.pos, sourcePos) + dist(sourcePos, getKnownSite(buyer.id).pos);
           const loadProfit = affordableBuyCount(w, npc, source.id, good, cargoRoom(npc), spend) * profit;
-          return [{ source: source.id, good, sellShop: buyer.id, trip, loadProfit, fuel: tripFuelCost(w, npc, trip) }];
+          return [{ source: source.id, good, sellShop: buyer.id, buy, trip, loadProfit, fuel: tripFuelCost(w, npc, trip) }];
         })));
     }
 
@@ -440,7 +444,12 @@ describe('NPC activities', () => {
     });
 
     it('sends a driver with no paying run to other idle work without a stall', () => {
-      const { w, npc } = hauler(17);
+      const probe = hauler(TRAITS.trader.tradeStake);
+      const cheapestBuy = Math.min(...pairs(probe.w, probe.npc).map((p) => p.buy));
+      const { w, npc } = hauler(cheapestBuy);
+      const affordable = pairs(w, npc);
+      expect(affordable.length).toBeGreaterThan(0);
+      for (const p of affordable) expect(p.loadProfit).toBeLessThanOrEqual(p.fuel);
       expect(tradeOffers(w, npc)).toHaveLength(0);
       expect(optionChances(optionWeights(w, npc, 'idle', null, null)).trade).toBeUndefined();
       let world = w;
@@ -914,7 +923,7 @@ describe('NPC activities', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const trader = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 30, y: 30 });
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
-    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 5, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 2, y: 30 });
     raider.speed = 4;
     forceOption('contactHeard', 'flee');
     planNpcOrders(w);
@@ -964,7 +973,7 @@ describe('NPC activities', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const player = w.vehicles[0];
     player.speed = 4;
-    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 5, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 2, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     forceOption('contactHeard', 'investigate');
     planNpcOrders(w);
@@ -976,11 +985,11 @@ describe('NPC activities', () => {
     function investigating() {
       const w = emptyWorld({ x: 30, y: 30 });
       const player = w.vehicles[0];
-      const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 5, y: 30 });
+      const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 2, y: 30 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       raider.brain.goals = [
         { kind: 'raid', targetId: null, destination: { x: 100, y: 100 }, phase: 'travel', reason: 'tripToSite' },
-        { kind: 'investigate', targetId: player.id, destination: { x: 30, y: 30 }, phase: 'travel', reason: 'heardHostile', chase: { turn: w.turn, gap: TERRAIN.vision.radius + 5 } },
+        { kind: 'investigate', targetId: player.id, destination: { x: 30, y: 30 }, phase: 'travel', reason: 'heardHostile', chase: { turn: w.turn, gap: TERRAIN.vision.radius + 2 } },
       ];
       chooseOn(w, raider, player.id, { x: 30, y: 30 }, 'investigate', false);
       return { w, player, raider };
@@ -1108,7 +1117,7 @@ describe('NPC activities', () => {
     function ranFrom() {
       const w = emptyWorld({ x: 30, y: 30 });
       const player = w.vehicles[0];
-      const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 5, y: 30 });
+      const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 2, y: 30 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       raider.brain.goals = [{ kind: 'raid', targetId: null, destination: { x: 100, y: 100 }, phase: 'travel', reason: 'raid' }];
       chooseOn(w, raider, player.id, player.pos, 'flee', true);
@@ -1195,7 +1204,7 @@ describe('NPC activities', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const player = w.vehicles[0];
     player.speed = 4;
-    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 5, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 2, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     const trader = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: raider.pos.x + 5, y: 30 });
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
@@ -1222,7 +1231,7 @@ describe('NPC activities', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const trader = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 30, y: 30 });
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
-    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 5, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 2, y: 30 });
     raider.speed = 4;
     forceOption('contactHeard', 'flee');
     planNpcOrders(w);
@@ -1274,7 +1283,7 @@ describe('hunting a lost fight target', () => {
   function raiderLosesPlayer() {
     const w = emptyWorld({ x: 30, y: 30 });
     const player = w.vehicles[0];
-    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 50, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     sizedUp(w, raider, player);
     forceOption('hostileSeen', 'fight');
@@ -1455,6 +1464,24 @@ describe('point goals', () => {
     const after = w.vehicles.find((v) => v.id === npc.id)!;
     expect(topGoal(after)?.kind).not.toBe('explore');
     expect(dist(after.pos, { x: 170, y: 150 })).toBeGreaterThan(RULES.arriveRadius * 2);
+  });
+});
+
+describe('explore', () => {
+  it('drives to points along the roads, so every road gets traffic in proportion to its length', () => {
+    const w = emptyWorld({ x: 10, y: 10 });
+    const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], spotWithoutExplorePlaces(w));
+    npc.brain = npcBrain('roamer', npc.pos, ['roamer']);
+    const { edges } = roadNetworkOf(w);
+    const total = edges.reduce((sum, e) => sum + e.length, 0);
+    const hits = new Set<number>();
+    for (let i = 0; i < 2000; i++) {
+      const point = exploreGoal(w, npc).destination!;
+      const near = edges.findIndex((e) => polylineDist(point, e.points) < 0.01);
+      expect(near).toBeGreaterThanOrEqual(0);
+      hits.add(near);
+    }
+    expect(edges.every((e, k) => e.length < total / 100 || hits.has(k))).toBe(true);
   });
 });
 
@@ -1819,6 +1846,20 @@ describe('stall watchdog', () => {
       watchStalls(w);
     }
   }
+
+  it('gives a truck that thinks only every few turns, far from the player, as many thinking turns before it counts a stall', () => {
+    const { w, npc } = frozen();
+    npc.pos = { x: playerVehicle(w).pos.x + PERF.lone.playerReach * 2, y: playerVehicle(w).pos.y };
+    setThinning(true);
+    try {
+      run(w, NPC_BEHAVIOR.stallTurns * PERF.lone.every - 1);
+      expect(w.events.some((e) => e.t === 'stall')).toBe(false);
+      run(w, 2);
+      expect(w.events).toContainEqual({ t: 'stall', vehicle: npc.id, goal: 'travel', reason: 'tripToSite' });
+    } finally {
+      setThinning(false);
+    }
+  });
 
   it('after stallTurns turns without progress clears the goals, jumps the truck nearby and gives it a fresh goal', () => {
     const { w, npc } = frozen();

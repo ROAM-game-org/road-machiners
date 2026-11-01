@@ -77,14 +77,15 @@ describe('game mode rules', () => {
 });
 
 describe('a new world by mode', () => {
-  it('builds a Roaming world the same way twice, with the Hollow filled at the start', () => {
+  it('builds a Roaming world with traffic, salvage, shops and the Hollow filled at the start, the same from the same seed', () => {
     const world = newWorld(7, startKit("standard"), TEST_MAP, defaultSetup("roaming"));
     const again = newWorld(7, startKit("standard"), TEST_MAP, defaultSetup("roaming"));
+    const print = fingerprint(world) as { counts: number[]; bowlStock: string[] };
 
     expect(world.chaosHighway).toBeNull();
-    expect(fingerprint(again)).toEqual(fingerprint(world));
-    expect(world.shops.bowl.stock.length).toBeGreaterThan(0);
-    expect(world.vehicles.length).toBeGreaterThan(1);
+    expect(print.counts.every((n) => n > 0)).toBe(true);
+    expect(print.bowlStock.length).toBeGreaterThan(0);
+    expect(fingerprint(again)).toEqual(print);
     expect(world.spawnQueue).toHaveLength(SPAWN.initial.length);
   });
 

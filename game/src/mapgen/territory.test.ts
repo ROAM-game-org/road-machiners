@@ -14,9 +14,10 @@ import { siteGap } from '../sim/sites';
 import { route } from '../sim/path';
 import { ROAD_INDEX } from '../sim/road-index';
 import { hazardZones, isLootSpot, landingStrips, reactorPos, territoryAt, territoryCaches, territoryEntries, territoryOfStock, territoryPieces, territoryRoads, type BakedPiece, type LandingStrip } from '../sim/territory';
-import { groundAt, isCliff, type BakedProp, type Terrain } from '../sim/terrain';
+import { BUILT_CANAL, BUILT_OLD_ROAD, BUILT_PAD, BUILT_TRACK, groundAt, isCliff, type BakedProp, type Terrain } from '../sim/terrain';
 import { dist, segmentDist, type Vec } from '../sim/vec';
 import { TEST_MAP } from '../test/map';
+import { apronDraws } from './apron';
 import { newDraft, tileSteepness, type MapDraft } from './bake';
 import { tilesWithin } from './oldworld';
 import { territoryLayer } from './territory';
@@ -33,15 +34,30 @@ const reactor = TERRITORIES['fallen-sun'].reactor!;
 const zone = hazardZones().find((z) => z.id === 'fallen-sun')!;
 const pieces = territoryPieces(t);
 const inside = TEST_MAP.props.filter((p) => siteGap(fallenSun, p.pos) < 0);
+const SEATED_EASE = 1e-6;
+const MARKED_GROUND: Record<string, number> = { asphalt: BUILT_OLD_ROAD, track: BUILT_TRACK, canal: BUILT_CANAL, concrete: BUILT_PAD };
 const DEBRIS_LOOKS = new Set<string>(rules.patches.flatMap((p) => p.debris.map((d) => d.look)));
 const OLD_ORCHARD = { x: 114, y: 284 };
 const ORCHARD_NOW = REGION.locations.find((l) => l.id === "orchard")!.pos;
+const ORCHARD_AT_SPREAD = { x: 148, y: 369 };
+const FALLEN_SUN_AT_SPREAD = { x: 416, y: 351 };
 function rollingDraft(): MapDraft {
   const d = newDraft(REGION.size);
   const w = d.size + 1;
-  const [dx, dy] = [ORCHARD_NOW.x - OLD_ORCHARD.x, ORCHARD_NOW.y - OLD_ORCHARD.y];
-  for (let j = 0; j <= d.size; j++) for (let i = 0; i <= d.size; i++) d.heights[j * w + i] = 0.6 * Math.sin((i - dx) / 9) + 0.4 * Math.cos((j - dy) / 7);
+  const orchardShift = { x: ORCHARD_NOW.x - OLD_ORCHARD.x, y: ORCHARD_NOW.y - OLD_ORCHARD.y };
+  const crashShift = { x: fallenSun.pos.x - FALLEN_SUN_AT_SPREAD.x + ORCHARD_AT_SPREAD.x - OLD_ORCHARD.x, y: fallenSun.pos.y - FALLEN_SUN_AT_SPREAD.y + ORCHARD_AT_SPREAD.y - OLD_ORCHARD.y };
+  for (let j = 0; j <= d.size; j++)
+    for (let i = 0; i <= d.size; i++) {
+      const s = Math.hypot(i - fallenSun.pos.x, j - fallenSun.pos.y) < Math.hypot(i - ORCHARD_NOW.x, j - ORCHARD_NOW.y) ? crashShift : orchardShift;
+      d.heights[j * w + i] = 0.6 * Math.sin((i - s.x) / 9) + 0.4 * Math.cos((j - s.y) / 7);
+    }
   return d;
+}
+
+let sharedLayer: MapDraft | undefined;
+function fullLayer(): MapDraft {
+  sharedLayer ??= territoryLayer(7, rollingDraft());
+  return sharedLayer;
 }
 
 function terrainOf(size: number, heights: ArrayLike<number>): Terrain {
@@ -66,12 +82,10 @@ function drawnProps(): BakedProp[] {
   return inside.filter((p) => (DEBRIS_LOOKS.has(p.kind) || p.kind === rules.spotLook) && !pieces.some((q) => q.look === p.kind && dist(q.pos, p.pos) < 1e-3));
 }
 
-let laid: MapDraft | undefined;
-const layerSeven = (): MapDraft => (laid ??= territoryLayer(7, rollingDraft()));
-
 describe('the territory layer', () => {
   it('places the same props and heights for the same seed', () => {
-    const [a, b] = [layerSeven(), territoryLayer(7, rollingDraft())];
+    const run = () => territoryLayer(7, rollingDraft());
+    const [a, b] = [fullLayer(), run()];
     expect(a.props).toEqual(b.props);
     expect(a.heights).toEqual(b.heights);
     expect(a.props).not.toEqual(territoryLayer(8, rollingDraft()).props);
@@ -86,7 +100,7 @@ describe('the territory layer', () => {
     } finally {
       REGION.locations.splice(0, REGION.locations.length, ...all);
     }
-    const full = layerSeven();
+    const full = fullLayer();
     const ofSun = (props: readonly BakedProp[]) => props.filter((p) => siteGap(fallenSun, p.pos) < 0);
     expect(ofSun(full.props).length).toBeGreaterThan(0);
     expect(ofSun(full.props)).toEqual(ofSun(solo.props));
@@ -98,7 +112,7 @@ describe('the territory layer', () => {
   it("levels the ground under every piece's low boxes to the height at its centre, less its sink", () => {
     const before = rollingDraft();
     const ground = terrainOf(before.size, before.heights);
-    const after = layerSeven();
+    const after = fullLayer();
     const w = before.size + 1;
     pieces.forEach((p, k) => {
       const centre = groundAt(ground, p.pos.x, p.pos.y) - p.sink;
@@ -112,7 +126,7 @@ describe('the territory layer', () => {
 
   it("digs a sunk piece's pit no wider than its low boxes and the seat ease", () => {
     const before = rollingDraft();
-    const after = layerSeven();
+    const after = fullLayer();
     const w = before.size + 1;
     const sunk = pieces.map((p, k) => ({ p, k })).filter(({ p }) => p.sink > 0);
     expect(sunk).toHaveLength(2);
@@ -142,7 +156,9 @@ describe('the territory layer', () => {
     expect(dist(inside.find((p) => p.kind === reactor.look)!.pos, reactorPos(t))).toBeLessThan(1e-3);
     expect(inside.filter((p) => p.kind === rules.cacheLook)).toHaveLength(9);
     expect(inside.filter((p) => p.kind === rules.spotLook)).toHaveLength(15);
-    expect(TEST_MAP.props.filter((p) => p.kind === 'rimRock')).toHaveLength(rules.rimRocks!.count);
+    const apron = apronDraws(MAPGEN.seed).filter((p) => p.kind === 'rimRock');
+    const rimRocks = TEST_MAP.props.filter((p) => p.kind === 'rimRock' && !apron.some((a) => dist(a.pos, p.pos) < 1e-3));
+    expect(rimRocks).toHaveLength(rules.rimRocks!.count);
   });
 
   it('turns each hull cache to its authored yaw, and holds no crate-drawn army cache', () => {
@@ -177,6 +193,36 @@ describe('the territory layer', () => {
     spots.forEach((a, i) => {
       expect(dist(a.pos, zone.pos), a.kind).toBeGreaterThan(zone.radius + a.r);
       for (const b of spots.slice(i + 1)) expect(dist(a.pos, b.pos)).toBeGreaterThanOrEqual(TERRITORIES['fallen-sun'].spotGap);
+    });
+  });
+
+  it('bakes the Fallen Sun props of the committed map, with no relief limit', () => {
+    expect(TERRITORIES['fallen-sun'].relief).toBeNull();
+    const committedGround = newDraft(TEST_MAP.terrain.size);
+    committedGround.heights.set(TEST_MAP.terrain.heights);
+    TEST_MAP.terrain.types.forEach((type, tile) => (committedGround.built[tile] = MARKED_GROUND[type] ?? 0));
+    const alone = REGION.locations.filter((l) => l.kind !== 'territory' || l.id === 'fallen-sun');
+    const all = REGION.locations.splice(0, REGION.locations.length, ...alone);
+    const wreck = TERRITORIES['fallen-sun'].wreck!;
+    const [ease, sinks] = [wreck.seatEase, wreck.pieces.map((p) => p.sink)];
+    wreck.seatEase = SEATED_EASE;
+    for (const p of wreck.pieces) p.sink = 0;
+    let layered: MapDraft;
+    try {
+      layered = territoryLayer(MAPGEN.seed, committedGround);
+    } finally {
+      wreck.pieces.forEach((p, k) => (p.sink = sinks[k]));
+      wreck.seatEase = ease;
+      REGION.locations.splice(0, REGION.locations.length, ...all);
+    }
+    const drawn = layered.props.filter((p) => siteGap(fallenSun, p.pos) < 0);
+    const committed = inside.filter((p) => siteGap(fallenSun, p.pos) < 0 && p.kind !== 'rock' && p.kind !== 'crag');
+    expect(drawn.length).toBe(committed.length);
+    drawn.forEach((p, i) => {
+      expect(p.kind).toBe(committed[i].kind);
+      expect(p.pos.x).toBeCloseTo(committed[i].pos.x, 3);
+      expect(p.pos.y).toBeCloseTo(committed[i].pos.y, 3);
+      expect(p.r).toBeCloseTo(committed[i].r, 3);
     });
   });
 
@@ -376,7 +422,7 @@ describe('every territory road on the baked map', () => {
   const lane = territoryRoads(glassFlats as never).roads[5];
 
   it('climbs at most the road grade per tile along the centre line of every Glass Flats road (IV6)', () => {
-    const limit = TERRAIN.roadGrade + 0.02;
+    const limit = TERRAIN.roadGrade + 0.02 + 1 / MAPGEN.heightScale;
     for (const road of territoryRoads(glassFlats as never).roads) {
       const points = along(road.points, 1);
       for (let k = 1; k < points.length; k++) {

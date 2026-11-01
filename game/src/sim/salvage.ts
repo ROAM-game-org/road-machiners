@@ -1,5 +1,5 @@
 import { FIELD_SPARE_WEAR, OLD_PLACES, OLD_PLACE_TYPES, OLD_TABLES, SALVAGE, STORY_WRECKS, type LootRange, type LootTable, type OldPlaceType, type StoryWreck } from '../data/salvage';
-import { REGION } from '../data/region';
+import { DRAFT, REGION } from '../data/region';
 import OLD_SPOTS_FILE from '../data/old-spots.json';
 import { CRATE_MASS, ECONOMY, GOODS } from '../data/goods';
 import { BREAKABLE, RULES } from '../data/rules';
@@ -509,7 +509,7 @@ function requireNoOldSpots(gone: Set<string>): void {
 }
 
 export function renewSalvage(world: World): void {
-  if (!modeRules(world).looting || world.turn % TIME.turnsPerDay !== 0) return;
+  if (!modeRules(world).looting || world.turn % TIME.workDayTurns !== 0) return;
   for (const o of world.obstacles.filter(isLootSpot)) restockSite(world, spotStock(world, o.id), spotTable(o));
   for (const stock of world.salvage) {
     const old = oldSpotOf(stock);
@@ -561,7 +561,7 @@ function turnOverRoadWrecks(world: World): void {
   for (const stock of world.salvage.filter(isRoadWreck)) {
     if (hasSalvage(stock)) continue;
     stock.emptySince ??= world.turn;
-    if (world.turn - stock.emptySince < SALVAGE.wreckClearDays * TIME.turnsPerDay || inPlayerView(world, stock.pos)) continue;
+    if (world.turn - stock.emptySince < SALVAGE.wreckClearDays * TIME.workDayTurns || inPlayerView(world, stock.pos)) continue;
     replaceRoadWreck(world, stock);
   }
 }
@@ -591,7 +591,7 @@ export function breakProp(world: World, id: string, vehicleId: string, impact: n
 }
 
 function regrowBroken(world: World): void {
-  const due = world.broken.filter((b) => world.turn - b.turn >= BREAKABLE.regrowDays * TIME.turnsPerDay);
+  const due = world.broken.filter((b) => world.turn - b.turn >= BREAKABLE.regrowDays * TIME.workDayTurns);
   const back = due.filter(({ obstacle }) => canRegrow(world, obstacle));
   if (back.length === 0) return;
   world.broken = world.broken.filter((b) => !back.includes(b));
@@ -830,14 +830,15 @@ const RING_DIRECTIONS = 24;
 const RING_PAST = 2;
 
 export const MAX_RADIUS = Math.max(...Object.values(CHASSIS).map((c) => c.radius));
-const OLD_SPOTS = OLD_SPOTS_FILE as { mapHash: string; picks: OldSpotPick[] };
+const OLD_SPOTS = (DRAFT?.oldSpots ?? OLD_SPOTS_FILE) as { mapHash: string; picks: OldSpotPick[] };
 
 export function oldPlaces(baked: readonly Obstacle[]): OldPlace[] {
   const candidates = baked.filter((o) => o.kind === 'landmark' && territoryAt(o.pos) === null && clearOfSites(icarusAtlas(), o.pos, o.r));
   const buildings = linked(candidates.filter((o) => o.kind === 'landmark' && BUILDINGS.includes(o.look)), OLD_PLACES.buildingGap);
   const tanks = linked(candidates.filter((o) => o.kind === 'landmark' && o.look === 'tank'), OLD_PLACES.tankGap);
   const boats = linked(candidates.filter((o) => o.kind === 'landmark' && BOAT_LOOKS.includes(o.look)), OLD_PLACES.boatGap);
-  return [...buildings.map((props) => place(buildingType(props), props)), ...tanks.map((props) => place('hulks', props)), ...boats.map((props) => place('boats', props))];
+  const pods = linked(candidates.filter((o) => o.kind === 'landmark' && o.look === 'shipCache'), OLD_PLACES.wreckageGap);
+  return [...buildings.map((props) => place(buildingType(props), props)), ...tanks.map((props) => place('hulks', props)), ...boats.map((props) => place('boats', props)), ...pods.map((props) => place('wreckage', props))];
 }
 
 function buildingType(props: Obstacle[]): OldPlaceType {

@@ -12,6 +12,13 @@ function pairedWorld(): World {
   return w;
 }
 
+function frozenGround(w: World): World {
+  Object.freeze(w.terrain.heights);
+  Object.freeze(w.terrain.types);
+  Object.freeze(w.terrain);
+  return w;
+}
+
 function run(w: World, turns: number): World {
   let next = w;
   for (let i = 0; i < turns; i++) next = endTurn(next, testDrive);
@@ -32,11 +39,11 @@ describe('a courier pair in a save', () => {
   });
 
   it('runs the same from a loaded copy', () => {
-    const w = pairedWorld();
-    const loaded = JSON.parse(JSON.stringify(w)) as World;
+    const w = frozenGround(pairedWorld());
+    const loaded = frozenGround(JSON.parse(JSON.stringify(w)) as World);
     const a = run(w, 30);
     const b = run(loaded, 30);
     expect(b.states).toEqual(a.states);
     expect(couriers(b).map((v) => [v.pos, v.brain!.goals])).toEqual(couriers(a).map((v) => [v.pos, v.brain!.goals]));
-  }, 60_000);
+  });
 });

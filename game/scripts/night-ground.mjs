@@ -86,11 +86,11 @@ const settle = async (page) => {
   }), SETTLE_FRAMES);
 };
 
-const COLD_TURN_FACTOR = 3;
+const NIGHT_TURN_FACTOR = 3;
 
 const playNightTurns = async (page, turns, turnLimitMs) => {
   for (let i = 0; i < turns; i++) {
-    const limit = i === 0 ? turnLimitMs * COLD_TURN_FACTOR : turnLimitMs;
+    const limit = turnLimitMs * NIGHT_TURN_FACTOR;
     if (await page.evaluate(() => window.__ROAM__.state.call !== null)) await page.keyboard.press('Escape');
     const next = await page.evaluate(() => {
       const g = window.__ROAM__;
@@ -104,7 +104,16 @@ const playNightTurns = async (page, turns, turnLimitMs) => {
   }
 };
 
-const reloadPage = (page) => page.reload().catch((e) => (/ERR_ABORTED/.test(e.message) ? page.reload() : Promise.reject(e)));
+export const collectGarbage = async (page) => {
+  const session = await page.context().newCDPSession(page);
+  await session.send('HeapProfiler.collectGarbage').catch(() => {});
+  await session.detach().catch(() => {});
+};
+
+const reloadPage = async (page) => {
+  await collectGarbage(page);
+  return page.reload().catch((e) => (/ERR_ABORTED/.test(e.message) ? page.reload() : Promise.reject(e)));
+};
 
 const waitForGame = async (page, bootLimitMs) => {
   await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: bootLimitMs });

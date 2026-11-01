@@ -38,12 +38,19 @@ describe('story wrecks', () => {
     }
   });
 
-  it('builds the same streams, ids and wreck for the same seed, and a different world for another', () => {
-    const built = [1, 1337, 1].map((seed) => newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming')));
-    const stateOf = (w: (typeof built)[number]) => ({ rng: w.rngState, market: w.marketRng.rngState, nextId: w.nextId, wreck0: w.obstacles.find((o) => o.id === 'wreck0')!.pos });
-
-    expect(stateOf(built[2])).toEqual(stateOf(built[0]));
-    expect(stateOf(built[1])).not.toEqual(stateOf(built[0]));
+  it('takes no draw and no id from world creation', () => {
+    const streams = (w: World) => ({ rng: w.rngState, market: w.marketRng.rngState, nextId: w.nextId });
+    for (const seed of [1, 1337]) {
+      const withWagon = newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+      const kept = STORY_WRECKS.splice(0, STORY_WRECKS.length);
+      try {
+        const without = newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+        expect(without.obstacles.some((o) => o.id === WAGON.id)).toBe(false);
+        expect(streams(withWagon)).toEqual(streams(without));
+      } finally {
+        STORY_WRECKS.push(...kept);
+      }
+    }
   });
 
   it('is searched with wreck words and counts as neither a road wreck nor a kill wreck', () => {
@@ -65,7 +72,7 @@ describe('story wrecks', () => {
     w.obstacles = [...w.obstacles, { id: WAGON.id, pos: WAGON.pos, r: WAGON.r, kind: 'wreck', hulk: { chassisId: 'wagon', yaw: WAGON.yaw } }];
 
     for (let day = 1; day <= 10; day++) {
-      w.turn = day * TIME.turnsPerDay;
+      w.turn = day * TIME.workDayTurns;
       renewSalvage(w);
     }
 

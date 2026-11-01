@@ -216,11 +216,15 @@ describe('scrap patch', () => {
 
   it('patches a player whose goods to sell are worth less than the repair', () => {
     const w = strandedBroke();
-    expect(addGoods(w, w.vehicles[0], 'scrap', 1)).toBe(1);
+    const me = w.vehicles[0];
+    coreParts(me, 'wheel')[0].hp = 0;
+    expect(addGoods(w, me, 'scrap', 1)).toBe(1);
+    const repairs = [corePart(me, 'transmission'), coreParts(me, 'wheel')[0]].reduce((sum, p) => sum + partRepairCost(w, p), 0);
+    expect(getLotTradePrice(w, me, 'bowl', 'scrap', 1, 'sell')).toBeLessThan(repairs);
 
     scrapPatch(w);
 
-    expect(isStranded(w, w.vehicles[0])).toBe(false);
+    expect(isStranded(w, me)).toBe(false);
   });
 
   it('leaves a player whose goods to sell pay for the repair to sell them first', () => {

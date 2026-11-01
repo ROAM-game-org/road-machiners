@@ -77,6 +77,17 @@
   right: var(--safe-right);
   bottom: var(--safe-bottom);
 }
+#ui.phone .turn-control {
+  align-items: flex-end;
+}
+#ui.phone .speed-keys {
+  width: var(--phone-speed-w);
+  height: var(--touch-target);
+}
+#ui.phone .speed-keys > .speed-key {
+  flex-basis: var(--touch-target);
+  width: var(--touch-target);
+}
 #ui.phone .end-turn {
   width: var(--phone-end-w);
   min-height: var(--btn-h-l);
@@ -337,6 +348,9 @@
 }
 
 @media (orientation: portrait) {
+  #ui.phone .log-strip {
+    right: calc(var(--safe-right) + var(--phone-speed-w) + var(--hud-gap));
+  }
   #ui.phone .drawer-tabs {
     bottom: var(--safe-bottom);
     right: calc(var(--safe-right) + var(--phone-end-w) + var(--hud-gap));
@@ -351,7 +365,7 @@
 @media (orientation: landscape) {
   #ui.phone .bottom-left > .instruments {
     left: calc(var(--safe-left) + var(--phone-tabs-w) + var(--hud-gap));
-    right: calc(var(--safe-right) + var(--phone-end-w) + var(--hud-gap));
+    right: calc(var(--safe-right) + var(--phone-speed-w) + var(--hud-gap));
     bottom: var(--safe-bottom);
   }
   #ui.phone .log-strip {

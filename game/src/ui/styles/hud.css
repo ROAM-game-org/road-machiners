@@ -489,6 +489,21 @@
   background: none;
   padding: 0;
   box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--hud-gap);
+}
+#ui .speed-keys {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-1);
+  width: 100%;
+  height: var(--btn-h-s);
+}
+#ui .speed-keys > .speed-key {
+  flex: 0 0 var(--btn-h-s);
+  width: var(--btn-h-s);
+  height: 100%;
 }
 #ui .end-turn {
   width: calc(var(--icon-hero) + var(--space-10));

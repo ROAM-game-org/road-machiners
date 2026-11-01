@@ -60,22 +60,7 @@ function label(v: Vehicle, name: string): string {
 
 const FLOATING_BOX_CELLS: Record<string, string[]> = {
   wagon: ['wagon unit 0 caltrops  mounted @3,1 r1 stands on 89% with up to 5.0 cm of air at 2.97,0.31,-0.16'],
-  scout: [
-    'scout unit 0 caltrops  mounted @2,5 r0 stands on 50% with up to 8.6 cm of air at 0.97,0.38,-0.42',
-    'scout unit 0 caltrops  mounted @3,5 r0 stands on 50% with up to 8.6 cm of air at 0.97,0.38,0.37',
-  ],
-  courier: [
-    'courier unit 0 caltrops  mounted @2,5 r0 stands on 50% with up to 8.6 cm of air at 0.30,0.16,-0.42',
-    'courier unit 0 caltrops  mounted @3,5 r0 stands on 50% with up to 8.6 cm of air at 0.30,0.16,0.37',
-  ],
-  hauler: [
-    'hauler unit 0 caltrops  mounted @2,3 r1 stands on 80% with up to 9.5 cm of air at 2.01,1.28,-0.51',
-    'hauler unit 0 caltrops  mounted @2,5 r1 stands on 80% with up to 9.5 cm of air at 1.11,1.28,-0.51',
-  ],
-  niva: [
-    'niva unit 0 caltrops  mounted @2,5 r0 stands on 50% with up to 8.6 cm of air at 0.52,0.09,-0.08',
-    'niva unit 0 caltrops  mounted @3,5 r0 stands on 50% with up to 8.6 cm of air at 0.52,0.09,0.37',
-  ],
+  loader: ['loader unit 0 caltrops  mounted @6,14 r1 stands on 75% with up to Infinity cm of air at -3.12,-0.30,1.03'],
 };
 
 export function boxFaultsOnEveryDeckCell(chassisId: string): { faults: string[]; known: string[] } {

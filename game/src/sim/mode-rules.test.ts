@@ -148,7 +148,7 @@ describe('salvage', () => {
     const before = structuredClone(w.salvage);
 
     resolveDestroyed(w);
-    w.turn = TIME.turnsPerDay * 2;
+    w.turn = TIME.workDayTurns * 2;
     renewSalvage(w);
 
     expect(w.events).toContainEqual(expect.objectContaining({ t: 'destroyed', vehicle: v.id }));

@@ -55,6 +55,16 @@ describe('routeStyle', () => {
     }
   });
 
+  it('sends the Sunward column off the roads on its ride to the light and home, and nowhere else', () => {
+    const w = emptyWorld();
+    const ride = (reason: NpcActivity['reason']) => {
+      const v = driver(w, 'sunward', 'explore');
+      v.brain!.goals[0].reason = reason;
+      return routeStyle(w, v) === 'hidden';
+    };
+    expect([ride('rideVigil'), ride('rideHome'), ride('restHollow'), ride('keepVigil')]).toEqual([true, true, false, false]);
+  });
+
   it('leaves other factions and the player on the roads', () => {
     const w = emptyWorld();
     const trader = driver(w, 'independent', 'travel');

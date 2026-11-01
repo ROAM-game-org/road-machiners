@@ -27,7 +27,7 @@ import { nimbleSpread } from './chassis-features';
 import { gunReach, vehicleStats, weaponOn, type MountedWeapon } from './stats';
 import { NPC_BEHAVIOR } from '../data/npc-behavior';
 import type { WeaponDef } from '../data/parts';
-import type { Aim, GameEvent, GunState, NpcActivity, PartInstance, ShotRound, Vehicle, VehicleHits, World } from './types';
+import type { Aim, GameEvent, GunState, NpcActivity, Obstacle, PartInstance, ShotRound, Vehicle, VehicleHits, World } from './types';
 import { digCrater } from './craters';
 import { weatherOn } from './weather';
 import { smokeCrosses } from './hazards';
@@ -1020,13 +1020,19 @@ export function wreckVehicle(world: World, v: Vehicle): void {
   });
 }
 
+const wreckIdsByObstacles = new WeakMap<readonly Obstacle[], string[]>();
+
+function wreckIds(obstacles: readonly Obstacle[]): string[] {
+  const known = wreckIdsByObstacles.get(obstacles);
+  if (known) return known;
+  const ids = obstacles.filter((o) => o.id.startsWith("wreck-")).map((o) => o.id);
+  if (Object.isFrozen(obstacles)) wreckIdsByObstacles.set(obstacles, ids);
+  return ids;
+}
+
 function clearOldWrecks(world: World): void {
-  const kills = world.obstacles.filter((o) => o.id.startsWith("wreck-"));
-  const drop = new Set(
-    kills
-      .slice(0, Math.max(0, kills.length - RULES.maxKillWrecks))
-      .map((o) => o.id),
-  );
+  const kills = wreckIds(world.obstacles);
+  const drop = new Set(kills.slice(0, Math.max(0, kills.length - RULES.maxKillWrecks)));
   if (drop.size > 0) {
     world.obstacles = world.obstacles.filter((o) => !drop.has(o.id));
     removeStocks(world, drop);
@@ -1079,8 +1085,9 @@ export function autoOrders(world: World, v: Vehicle): void {
   const prey = preyOf(world, v);
   const rank = (x: Vehicle) => (x.id === prey ? 0 : 1);
   const hostiles = world.vehicles
-    .filter((x) => isHostile(world, v, x) && seen(x) && canNpcEngage(world, v, x))
+    .filter((x) => x.id !== v.id && seen(x) && isHostile(world, v, x) && canNpcEngage(world, v, x))
     .sort((a, b) => rank(a) - rank(b) || dist(v.pos, a.pos) - dist(v.pos, b.pos));
+  if (hostiles.length === 0) return;
   for (const mw of vehicleStats(world, v).weapons) {
     const target =
       hostiles.find(

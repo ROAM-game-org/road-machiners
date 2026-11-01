@@ -15,6 +15,7 @@ import { makeVehicle } from './factory';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import type { NpcActivity, Vehicle, World } from './types';
 import { cloneWorld } from './world';
+import { canVehicleSee, sightRadius } from './vision';
 import { addState, stateOf } from './states';
 import { fallbackFaction } from './spawn';
 
@@ -227,8 +228,9 @@ describe('NPC gameplay recovery', () => {
 
   it('follows the heard center of a useful contact, led along its drift, until it arrives there, never the truck itself', () => {
     const { world, npc } = createScenario('buggy');
-    const prey = addVehicle(world, 'independent', 'scout', ['stockEngine'], { x: 55, y: 30 });
+    const prey = addVehicle(world, 'independent', 'scout', ['stockEngine'], { x: npc.pos.x + sightRadius(world, npc) + 2, y: 30 });
     prey.speed = 4;
+    expect(canVehicleSee(world, npc, prey.pos)).toBe(false);
     expect(shareOfSeeds(world, npc.id, (x, me) => thinkNpc(x, me).kind === 'investigate')).toBeGreaterThan(0.6);
     const seed = Array.from({ length: 20 }, (_, i) => i).find((s) => {
       const x = cloneWorld(world);

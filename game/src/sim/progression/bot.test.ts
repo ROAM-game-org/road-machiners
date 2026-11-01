@@ -617,6 +617,7 @@ describe('botOrders', () => {
     const out = dist(pad, site.pos);
     const w = emptyWorld({ x: pad.x + ((pad.x - site.pos.x) / out) * 10, y: pad.y + ((pad.y - site.pos.y) / out) * 10 });
     w.player.discovered = [];
+    w.salvage = [];
     removeAllGoods(playerVehicle(w));
     addGoods(w, playerVehicle(w), 'parts', START_KITS.standard.cargo.parts! + 1);
 

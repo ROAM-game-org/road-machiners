@@ -2,7 +2,10 @@
 import { filesOf, formatSupport, recoverBank, reportFailures, SoundBank, startBank, type BankOptions, type LoadedBank } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
-import { CONFIG, ERROR_REPORT_URL, FEEDBACK_URL, GAME_VERSION, SFX_BYTES } from '../config';
+import { CONFIG, ERROR_REPORT_URL, FEEDBACK_URL, GAME_VERSION, PLAY_EASE, SFX_BYTES } from '../config';
+import { driveSnapshotOf } from '../phys/turn';
+import { easedStopSteps } from './play-clock';
+import { Travel } from './travel';
 import { BANK, BOOT_SOUNDS, MIX, SOUNDS } from '../data/sounds';
 import { bankKitLoader, CombatMusic } from './combat-music';
 import { startKit } from '../data/start';
@@ -221,6 +224,8 @@ const loading = Promise.all([
 ]);
 bootStep('loading the map');
 const [map, slots] = await Promise.all([boot.track('map', fetchMap()), openSaves(saveKey, window.localStorage, allSlots(CONFIG.saveSlots))]);
+const travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(PLAY_EASE, PHYSICS.stepsPerSecond));
+travel.sendTerrain(map.terrain);
 gameContext.watchSaves(slots);
 flushSaves = () => slots.flush();
 persistSaves().catch(reportError);
@@ -233,6 +238,7 @@ bootStep('loading the save');
 const { world, runId, loadedFrom, fresh } = await bootWorld();
 const log = new RunLog(slots, runId, GAME_VERSION, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
+const routesReady = initPhysics().then(() => travel.warm(world, driveSnapshotOf(world)));
 bootStep('building the ground');
 await boot.track('ground', () => groundTexture(world));
 bootStep('waiting for physics and models');
@@ -241,7 +247,11 @@ bootStep('starting the game');
 const radio = new RadioPanel(new RadioStation(Math.random), () => game.loops.nextTrack());
 radio.hear(world);
 const overlay = element('overlay');
-const game = await boot.track('scene', () => new Game(world, { slots, runId, log, mapHash: world.mapHash }, element('game'), overlay, new SoundPlayer(mixer, sounds, SOUNDS), music, soundSettings, radio, surface));
+const game = await boot.track('scene', async () => {
+  const built = new Game(world, { slots, runId, log, mapHash: world.mapHash }, element('game'), overlay, new SoundPlayer(mixer, sounds, SOUNDS), music, soundSettings, radio, surface, travel);
+  await routesReady;
+  return built;
+});
 if (questJump) game.screens.quest.jump(questJump.picks, questJump.page);
 relocalizeGame = () => {
   game.relanguageQuest();
@@ -264,7 +274,7 @@ performance.mark('roam:ready');
 startBank(mixer.ctx, BOOT_SOUNDS, soundOptions, sounds).loaded.then(soundsArrived).catch(reportError).finally(bankSettled);
 void boot.finish();
 if (import.meta.env.DEV) {
-  (window as any).__ROAM__ = Object.assign(game, { language });
+  (window as any).__ROAM__ = Object.assign(game, { language, buildAllCells: () => game.streamer.buildAll() });
   (window as any).__ROAM_PERF__ = { snapshot: perfSnapshot, reset: resetPerf };
 }
 

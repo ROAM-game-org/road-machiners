@@ -28,6 +28,9 @@ import { wreckVehicle } from "../sim/combat";
 import { partName, siteName, vehicleTitle } from "../text/names";
 import { t, type Msg } from "../text/msg";
 import { resolve } from "../text/resolve";
+import { TURN_CLOCK_SECONDS } from "../data/time";
+
+const turnsFor = (seconds: number) => Math.round(seconds / TURN_CLOCK_SECONDS);
 
 function en(msg: Msg): string;
 function en(msg: Msg | null | undefined): string | null;
@@ -136,7 +139,7 @@ describe("contract text", () => {
   const order: Contract = { id: "c1", shop: "bowl", kind: "procure", good: "salt", units: 5, cratePay: 9, reward: 1, deadline: 100, window: 100, tier: 1 };
 
   it("shows the deadline as the game time the contract fails", () => {
-    expect(en(contractDue(order))).toBe("by Day 1 12:19");
+    expect(en(contractDue({ ...order, deadline: turnsFor((5 * 60 + 19.5) * 60) }))).toBe("by Day 1 12:19");
   });
 
   it("names the good, the crate count and the shop that ordered it, and no source", () => {
@@ -229,9 +232,9 @@ describe("contract text", () => {
   it("names the wreck kind, a compass point and a rounded distance in the clue", () => {
     const shop = REGION.towns.find((l) => l.id === "bowl")!;
     const claim: Contract = { id: "c5", shop: "bowl", kind: "claim", stockId: "tank-3", at: { x: shop.pos.x + 300, y: shop.pos.y - 10 }, partId: "p1", defId: "mg", reward: 1, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
-    expect(gridSquareOf(claim.at)).toEqual({ column: 4, row: 6 });
-    expect(en(contractSummary(claim))).toBe("Recover MG turret from a dead tank in square E7, east of Bowl, about 1.3 km out");
-    expect(resolve(contractSummary(claim), "ru")).toContain("в квадрате Д7,");
+    expect(gridSquareOf(claim.at)).toEqual({ column: 2, row: 6 });
+    expect(en(contractSummary(claim))).toBe("Recover MG turret from a dead tank in square C7, east of Bowl, about 1.3 km out");
+    expect(resolve(contractSummary(claim), "ru")).toContain("в квадрате В7,");
   });
 
   it("names the piece a claimed wreck lies by, inside it, beside it or offset from it", () => {
@@ -241,7 +244,8 @@ describe("contract text", () => {
       const wreck = wrecks.find((w) => w.id === id)!;
       return { id: "cw", shop, kind: "claim", stockId: id, at: { ...wreck.pos }, partId: "p1", defId: "mg", reward: 1, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
     };
-    expect(en(contractSummary(claimAt("hullCache-2599", "nose")))).toMatch(/ in Fallen Sun, inside the small arch shell$/);
+    const inside = wrecks.find((w) => bakedTier(w.id, "nose") === "piece" && claimClue(claimAt(w.id, "nose")).where?.relation === "in")!;
+    expect(en(contractSummary(claimAt(inside.id, "nose")))).toMatch(/ in Fallen Sun, inside the [a-z ]+$/);
     const offset = wrecks.find((w) => bakedTier(w.id, "bowl") === "offset" && claimClue(claimAt(w.id, "bowl")).where?.piece === "farmhouse")!;
     expect(en(contractSummary(claimAt(offset.id, "bowl")))).toMatch(/ in Old Orchard, about \d+ m (north|south|east|west)[a-z-]* of the farmhouse$/);
     const beside = wrecks.find((w) => bakedTier(w.id, "bowl") === "piece" && claimClue(claimAt(w.id, "bowl")).where?.relation === "beside")!;
@@ -276,7 +280,7 @@ describe("contract text", () => {
   });
 
   it("shows the window in whole game hours, at least one", () => {
-    expect(en(contractWindow({ ...order, window: 525 }))).toBe("28 h");
+    expect(en(contractWindow({ ...order, window: turnsFor(28 * 3600) }))).toBe("28 h");
     expect(en(contractWindow({ ...order, window: 1 }))).toBe("1 h");
   });
 });
@@ -904,6 +908,11 @@ describe("standing numbers", () => {
 
 describe("survey contract text", () => {
   const [first, second] = surveySites(TEST_MAP);
+  const surveySiteAt = (prefix: string, at: { x: number; y: number }): string => {
+    const site = surveySites(TEST_MAP).find((s) => s.id.startsWith(prefix) && Math.hypot(s.pos.x - at.x, s.pos.y - at.y) < 1);
+    if (!site) throw new Error(`No ${prefix} survey site at ${at.x}, ${at.y}`);
+    return site.id;
+  };
   const survey = (done: boolean[]): Extract<Contract, { kind: "survey" }> => ({
     id: "c3", shop: "bowl", kind: "survey", reward: 30, deadline: 100, window: 100, tier: 1,
     points: [first, second].slice(0, done.length).map((site, i) => ({ site: site.id, found: done[i], done: done[i] })),
@@ -1004,21 +1013,21 @@ describe("survey contract text", () => {
   });
 
   it("tells the posting shop's way to a place, with the look and lay and the found tag last", () => {
-    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "bowl", points: [{ site: "survey-skiff-5985", found: true, done: false }] };
+    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "bowl", points: [{ site: surveySiteAt("survey-skiff-", { x: 665.5, y: 1323.5 }), found: true, done: false }] };
     vi.stubGlobal("document", {
       createElement: () => new TextNode(),
       createTextNode: (value: string) => Object.assign(new TextNode(), { children: [value] }),
     });
     const line = surveyWayLine(emptyWorld(), c, c.points[0]) as unknown as TextNode;
     expect(line.className).toBe("contract-clue");
-    expect(line.text()).toBe("Boat wrecks in square C6, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. Where the road runs closest, leave the road and head north-east and a touch north, a short way. Boat wrecks on flat ground. found");
+    expect(line.text()).toBe("Boat wrecks in square C6, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. It's a long haul. Where the road runs closest, leave the road and head north and a touch east, a short way. Boat wrecks on flat ground. found");
     vi.unstubAllGlobals();
     expect(line.all("tag").at(-1)?.text()).toBe("found");
-    expect(en(surveyWayText(emptyWorld(), c, c.points[0]))).toBe("From Bowl: Leave by the east gate. Take the road to Nose, heading north-east. Where the road runs closest, leave the road and head north-east and a touch north, a short way. It lies in square C6, on flat ground.");
+    expect(en(surveyWayText(emptyWorld(), c, c.points[0]))).toBe("From Bowl: Leave by the east gate. Take the road to Nose, heading north-east. It's a long haul. Where the road runs closest, leave the road and head north and a touch east, a short way. It lies in square C6, on flat ground.");
   });
 
   it("keeps the compass clue when no full way can be told", () => {
-    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "nose", points: [{ site: "survey-skiff-5982", found: false, done: false }] };
+    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "nose", points: [{ site: surveySiteAt("survey-tank-", { x: 307.6, y: 1516.6 }), found: false, done: false }] };
     const w = emptyWorld();
     expect(en(surveyWayText(w, c, c.points[0]))).toBe(en(surveyClueText(surveyClue(c, c.points[0]))));
     vi.stubGlobal("document", {

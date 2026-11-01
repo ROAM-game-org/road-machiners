@@ -32,6 +32,7 @@ function dropClaimRuns(w: World): void {
 
 beforeAll(async () => {
   await initPhysics();
+  standardWorld(1337);
 });
 
 function turn(w: World, d: Drive): { w: World; d: Drive } {

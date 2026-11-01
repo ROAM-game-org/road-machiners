@@ -704,5 +704,5 @@ describe('a rival on the real map', () => {
     expect(ended).toBe(true);
     const where = w.shops[shop].stock.some((p) => p.id === part.id) ? 'delivered' : 'over';
     console.log(`rival ${rival} ended its claim run at turn ${w.turn}: ${where}`);
-  }, 1_800_000);
+  });
 });

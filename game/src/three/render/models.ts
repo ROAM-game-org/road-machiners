@@ -382,12 +382,31 @@ function source(name: ModelName): THREE.Object3D {
   return src;
 }
 
+type CopiedGeometry = { source: THREE.BufferGeometry; position: THREE.BufferAttribute | THREE.InterleavedBufferAttribute; version: number };
+
+const copiedGeometry = new WeakMap<THREE.BufferGeometry, CopiedGeometry>();
+
+function copyGeometry(original: THREE.BufferGeometry): THREE.BufferGeometry {
+  const copy = original.clone();
+  const position = copy.getAttribute('position');
+  copiedGeometry.set(copy, { source: original, position, version: 'version' in position ? position.version : 0 });
+  return copy;
+}
+
+function unchangedSource(geo: THREE.BufferGeometry): THREE.BufferGeometry {
+  const copied = copiedGeometry.get(geo);
+  if (!copied) return geo;
+  const position = geo.getAttribute('position');
+  const version = 'version' in position ? position.version : 0;
+  return position === copied.position && version === copied.version ? copied.source : geo;
+}
+
 export function model(name: ModelName): THREE.Object3D {
   const copy = source(name).clone(true);
   copy.userData.model = name;
   copy.traverse((o) => {
     if (o instanceof THREE.Mesh) {
-      o.geometry = o.geometry.clone();
+      o.geometry = copyGeometry(o.geometry);
       o.material = (o.material as THREE.Material).clone();
     }
   });
@@ -567,10 +586,11 @@ export function outlineProps(obj: THREE.Object3D): void {
       m.stencilFunc = THREE.AlwaysStencilFunc;
       m.stencilZPass = THREE.ReplaceStencilOp;
     }
-    let geo = welded.get(mesh.geometry);
+    const origin = unchangedSource(mesh.geometry);
+    let geo = welded.get(origin);
     if (!geo) {
-      geo = weld([mesh.geometry]);
-      welded.set(mesh.geometry, geo);
+      geo = weld([origin]);
+      welded.set(origin, geo);
     }
     const outline = mesh instanceof THREE.InstancedMesh ? instancedOutline(mesh, geo) : new THREE.Mesh(geo, propOutline);
     outline.onBeforeRender = readViewport;

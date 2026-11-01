@@ -583,6 +583,16 @@ describe('paying restitution', () => {
     expect(() => npcLedger(before, w, w.events)).not.toThrow();
   });
 
+  it('pays a restitution that holds a fraction of an M as whole M', () => {
+    const { w, robber, victim, c } = robbedCase();
+    c.restitution = 876.55;
+    const before = cloneWorld(w);
+    w.events = [];
+    payBounty(w, robber, [c], null);
+    expect(moneyOf(w, victim) - moneyOf(before, before.vehicles.find((x) => x.id === victim.id)!)).toBe(877);
+    expect(() => npcLedger(before, w, w.events)).not.toThrow();
+  });
+
   it('sends it to the issuing faction\'s coffers when the victim is gone', () => {
     const { w, robber, victim, c } = robbedCase();
     w.vehicles = w.vehicles.filter((v) => v.id !== victim.id);

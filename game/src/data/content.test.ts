@@ -27,7 +27,7 @@ import { sitePads } from "../sim/sites";
 import { TRAITS } from "./npcs";
 import { START_KITS } from "./start";
 import { getUpkeepReserve } from "../sim/npc-decisions";
-import { newWorld } from "../sim/world";
+import { cloneWorld, newWorld } from "../sim/world";
 import { TEST_MAP } from "../test/map";
 import { budget } from '../test/budget';
 
@@ -126,7 +126,7 @@ describe("equipment variety", () => {
         const stocked = Object.values(SHOPS).some((shop) => shop.partStock.parts.some((entry) => entry.value === id));
         expect(stocked, `${id} is in no shop's stock table`).toBe(true);
         const fits = PLAYER_CHASSIS.some((chassisId) => {
-          const w = structuredClone(world);
+          const w = cloneWorld(world);
           const v = makeVehicle(w, {
             faction: "player",
             chassisId,
@@ -209,7 +209,7 @@ describe("equipment variety", () => {
       expect(sellPrice(world, dear.id, id)).toBeGreaterThan(
         buyPrice(world, cheap.id, id),
       );
-      const start = structuredClone(world);
+      const start = cloneWorld(world);
       start.vehicles[0].pos = { ...sitePads(cheap)[0] };
       let w = buyGood(start, id, 1);
       expect(goodsCount(w.vehicles[0])[id]).toBe(1);
@@ -293,7 +293,7 @@ describe("utilities", () => {
   ];
 
   const wreckTableIds = (): Set<string> => {
-    const ids = new Set<string>(["roadWreck", "hulks", "boats"]);
+    const ids = new Set<string>(["roadWreck", "hulks", "boats", "wreckage"]);
     for (const { wreck, farm } of Object.values(TERRITORIES)) {
       if (wreck && WRECK_LOOKS.includes(wreck.cacheLook)) ids.add(wreck.cacheTable);
       if (wreck && WRECK_LOOKS.includes(wreck.spotLook)) ids.add(wreck.spotTable);

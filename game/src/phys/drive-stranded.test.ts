@@ -102,7 +102,7 @@ describe('stranded trucks', () => {
     expect(dist(me.pos, hauler.pos)).toBeGreaterThan(chassisDef(me.chassisId).radius + chassisDef('hauler').radius);
   });
 
-  const hungRock: Obstacle = { id: 'rock2703', kind: 'rock', pos: { x: 280.3848, y: 22.1321 }, r: 1.2953 };
+  const hungRock: Obstacle = { id: 'rock2703', kind: 'rock', pos: { x: 403.3848, y: 24.1321 }, r: 1.2953 };
   const besideRock = (dx: number, dy: number): Vec => ({ x: hungRock.pos.x + dx, y: hungRock.pos.y + dy });
 
   function hungOnRock(order: MoveOrder | null): World {

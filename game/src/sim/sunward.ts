@@ -14,6 +14,7 @@ import { canDrag, dragHeldBy, inTowReach, startDrag } from './tow';
 import { boundToOrder, callStrangers, dropSpot, lightZone, nearTheLight, offeringOf, seize } from './sunward-crater';
 import { inTruce } from './relations';
 import { canVehicleSee, grayRadius, tileCenter } from './vision';
+import { NPC_UPKEEP } from '../data/npc-behavior';
 import { fuelCap, suppliesCap, vehicleStats } from './stats';
 import { clockOf } from './sun';
 import { canEnter, canUseSite, enterSite, isTerritory, leaveSite, shelteredAt, siteGap } from './sites';
@@ -23,6 +24,7 @@ import { hashRandom } from './rng';
 import { watchPost } from './watch-posts';
 import type { NightZone } from './nav/layer';
 import { dist, type Vec } from './vec';
+import { tendParts } from './wear';
 
 export type SunwardPhase = 'rest' | 'ride' | 'vigil' | 'home' | 'fallen';
 export type NightPhase = Exclude<SunwardPhase, 'fallen'>;
@@ -177,6 +179,7 @@ function openTonight(world: World): void {
 
 function restMembers(world: World): void {
   for (const v of outsideMembers(world)) if (restsAtHome(world, v)) restInside(world, v);
+  for (const v of shelteredAt(world, HOLLOW_ID)) tendParts(v);
 }
 
 function restsAtHome(world: World, v: Vehicle): boolean {
@@ -187,6 +190,7 @@ function restsAtHome(world: World, v: Vehicle): boolean {
 function restInside(world: World, v: Vehicle): void {
   if (!canEnter(world, v, HOLLOW.site)) return;
   if (isDefeated(v)) refitAtHome(world, v);
+  tendParts(v);
   const stores = getResources(world, v);
   stores.fuel = Math.max(stores.fuel, fuelCap(v));
   stores.supplies = Math.max(stores.supplies, suppliesCap(v));
@@ -246,16 +250,30 @@ function openHunt(world: World, day: number): SunwardHunt | null {
 let roadNearCrater: Vec[] | null = null;
 
 function huntRoads(): Vec[] {
-  roadNearCrater ??= REGION.roads.flat().filter((p) => dist(p, FALLEN_SUN.pos) <= SUNWARD.huntReach && siteGap(FALLEN_SUN, p) > 0);
+  const near = (points: Vec[]) => points.filter((p) => dist(p, FALLEN_SUN.pos) <= SUNWARD.huntReach && siteGap(FALLEN_SUN, p) > 0);
+  const corners = near(REGION.roads.flat());
+  roadNearCrater ??= corners.length >= 2 ? corners : near(REGION.roads.flatMap(alongRoad));
   if (roadNearCrater.length < 2) throw new Error('No road lies within the hunters\' reach of the Fallen Sun');
   return roadNearCrater;
 }
 
+function alongRoad(road: readonly Vec[]): Vec[] {
+  return road.flatMap((p, i) => {
+    if (i === 0) return [{ ...p }];
+    const from = road[i - 1];
+    const steps = Math.max(1, Math.ceil(dist(from, p) / SUNWARD.huntRoadStep));
+    return Array.from({ length: steps }, (_, k) => ({ x: from.x + ((p.x - from.x) * (k + 1)) / steps, y: from.y + ((p.y - from.y) * (k + 1)) / steps }));
+  });
+}
+
 function huntGrounds(world: World, day: number): Vec[] {
-  const roads = huntRoads();
-  const first = Math.floor(hashRandom(world.seed, day, SUNWARD.huntSalt, 1) * roads.length);
-  const second = (first + 1 + Math.floor(hashRandom(world.seed, day, SUNWARD.huntSalt, 2) * (roads.length - 1))) % roads.length;
-  return [{ ...roads[first] }, { ...roads[second] }];
+  const roads = huntRoads().filter((p) => watchPost(world, p) !== null);
+  if (roads.length < 2) throw new Error('Fewer than two hunt roads near the Fallen Sun have a hide that watches them');
+  const first = roads[Math.floor(hashRandom(world.seed, day, SUNWARD.huntSalt, 1) * roads.length)];
+  const apart = roads.filter((p) => dist(p, first) >= SUNWARD.huntGroundGap);
+  if (apart.length === 0) throw new Error(`No hunting road lies ${SUNWARD.huntGroundGap} tiles from ${first.x}, ${first.y}`);
+  const second = apart[Math.floor(hashRandom(world.seed, day, SUNWARD.huntSalt, 2) * apart.length)];
+  return [{ ...first }, { ...second }];
 }
 
 export function huntOf(world: World): SunwardHunt | null {
@@ -318,8 +336,14 @@ function huntDragEndings(world: World, hunt: SunwardHunt): string[] {
 }
 
 function huntSpent(world: World, hunt: SunwardHunt): boolean {
-  const fallen = hunt.party.some((id) => world.vehicles.some((v) => v.id === id && isDefeated(v)));
-  return fallen || hunt.breaks >= SUNWARD.huntBreaks || world.turn >= returnTurn(orderDusk(world.turn));
+  const party = world.vehicles.filter((v) => hunt.party.includes(v.id));
+  const fallen = party.some(isDefeated);
+  const dry = party.some((v) => getResources(world, v).fuel <= fuelHome(world, v));
+  return fallen || dry || hunt.breaks >= SUNWARD.huntBreaks || world.turn >= returnTurn(orderDusk(world.turn));
+}
+
+function fuelHome(world: World, v: Vehicle): number {
+  return dist(v.pos, v.brain!.home) * vehicleStats(world, v).fuelPerTile * NPC_UPKEEP.fuelReserve;
 }
 
 function noteHuntDrag(hunt: SunwardHunt, ending: string): void {

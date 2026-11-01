@@ -7,7 +7,7 @@ import { defaultSetup } from '../../sim/settings';
 import { newWorld } from '../../sim/world';
 import { dist } from '../../sim/vec';
 import { TEST_MAP } from '../../test/map';
-import { chooseGraffiti, GraffitiPlacer, fitSite, GRAFFITI, GRAFFITI_PROP_LOOKS, graffitiLift, graffitiSites, graffitiTarget, GRID, type GraffitiPlaced, type SignFit } from './graffiti';
+import { chooseRegionGraffiti, fitSite, GRAFFITI, GRAFFITI_PROP_LOOKS, GraffitiCandidates, graffitiLift, graffitiRegions, graffitiTarget, GRID, type GraffitiPlaced, type GraffitiRegion, type GraffitiSite, type SignFit } from './graffiti';
 import { loadModels } from './models';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
@@ -19,20 +19,44 @@ await loadModels(async (name) => {
 
 const world = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
 const t = world.terrain;
-const sites = graffitiSites(t, world.obstacles);
-const plan = (): GraffitiPlaced<SignFit>[] => chooseGraffiti(world.size, sites, (site) => fitSite(t, site));
+const candidates = new GraffitiCandidates(t, world.obstacles);
+const regions = graffitiRegions(world.size);
+const fitOn = (site: GraffitiSite) => fitSite(t, site);
+const plan = (): GraffitiPlaced<SignFit>[] => regions.flatMap((r) => chooseRegionGraffiti(r, candidates.sitesIn(r), fitOn));
 const placed = plan();
 const VIEW = new THREE.Vector3(1, 0.816, 1).normalize();
 
-describe('graffiti placement', () => {
-  it('places the same signs when stepped one fit at a time', () => {
-    const placer = new GraffitiPlacer(world.size, sites, (site) => fitSite(t, site));
-    let steps = 0;
-    while (!placer.step(0)) steps++;
-    expect(steps).toBeGreaterThan(1);
-    expect(placer.placed.map((p) => [p.site.id, p.fit.positions])).toEqual(placed.map((p) => [p.site.id, p.fit.positions]));
+describe('graffiti regions', () => {
+  it('cover the map once, and their targets add up to the map target', () => {
+    const area = regions.reduce((sum, r) => sum + (r.rect.x1 - r.rect.x0) * (r.rect.y1 - r.rect.y0), 0);
+    expect(area).toBe(world.size * world.size);
+    expect(regions.reduce((sum, r) => sum + r.target, 0)).toBe(graffitiTarget(world.size));
   });
 
+  it('choose a region the same alone as among all the others', () => {
+    const busy = regions.find((r) => placed.some((p) => inside(r, p.site.pos)))!;
+    const alone = chooseRegionGraffiti(busy, new GraffitiCandidates(t, world.obstacles).sitesIn(busy), fitOn);
+    expect(alone.map((p) => p.site.id)).toEqual(placed.filter((p) => inside(busy, p.site.pos)).map((p) => p.site.id));
+  });
+
+  it('keep every candidate half the gap inside its region edge', () => {
+    for (const r of regions) {
+      const { props, cliffs } = candidates.sitesIn(r);
+      for (const s of [...props, ...cliffs]) {
+        expect(s.pos.x - r.rect.x0).toBeGreaterThanOrEqual(GRAFFITI.minGapTiles / 2);
+        expect(r.rect.x1 - s.pos.x).toBeGreaterThanOrEqual(GRAFFITI.minGapTiles / 2);
+        expect(s.pos.y - r.rect.y0).toBeGreaterThanOrEqual(GRAFFITI.minGapTiles / 2);
+        expect(r.rect.y1 - s.pos.y).toBeGreaterThanOrEqual(GRAFFITI.minGapTiles / 2);
+      }
+    }
+  });
+});
+
+function inside(r: GraffitiRegion, p: { x: number; y: number }): boolean {
+  return p.x >= r.rect.x0 && p.x < r.rect.x1 && p.y >= r.rect.y0 && p.y < r.rect.y1;
+}
+
+describe('graffiti placement', () => {
   it('is the same on every run', () => {
     const again = plan();
     expect(again.map((p) => [p.site.id, p.site.paint, p.fit.positions])).toEqual(placed.map((p) => [p.site.id, p.site.paint, p.fit.positions]));

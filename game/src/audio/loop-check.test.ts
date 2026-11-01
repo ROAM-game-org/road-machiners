@@ -52,6 +52,18 @@ describe('loopFaults', () => {
     expect(faults.some((f) => f.kind === 'flam' && f.atSeconds > 2.6)).toBe(true);
   });
 
+  it('passes a loop whose end runs on into its start', () => {
+    expect(loopFaults(pulses(PERIOD * 69), RATE).filter((f) => f.kind === 'click')).toEqual([]);
+  });
+
+  it('flags a step where the loop wraps around', () => {
+    const out = pulses(PERIOD * 69);
+    for (let i = 0; i < out.length; i++) out[i] += (0.05 * i) / out.length;
+    const faults = loopFaults(out, RATE);
+    expect(faults.map((f) => f.kind)).toEqual(['click']);
+    expect(faults[0].amount).toBeGreaterThan(1);
+  });
+
   it('throws on a loop shorter than one window', () => {
     expect(() => loopFaults(new Float32Array(100), RATE)).toThrow();
     expect(() => loopFaults(new Float32Array(0), RATE)).toThrow();

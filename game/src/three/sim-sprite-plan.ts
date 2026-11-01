@@ -5,7 +5,7 @@ import { GANG_PAINT, TEMPLATE_PAINT, paintOf } from "../render/palette";
 import { bareVehicle } from "../sim/factory";
 import type { Faction, NpcBrain, NpcFactionId, Vehicle } from "../sim/types";
 
-export const SPRITES = { yaws: 16, pxPerMeter: 12, folder: "sim-sprites", manifest: "manifest.json", cellsAcross: 4 };
+export const SPRITES = { yaws: 16, pxPerMeter: 18, folder: "sim-sprites", manifest: "manifest.json", cellsAcross: 4 };
 
 export type SpritePaint = { faction: string; template: string | null; player: TruckPaint };
 export type SpriteWant = { chassisId: string; paint: SpritePaint; key: string };

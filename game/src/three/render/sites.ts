@@ -25,7 +25,7 @@ import { buildNose } from './interiors/nose';
 import { buildSalvageYard } from './interiors/salvage';
 import { NIGHT_POOLS, type PoolLamp } from './lightPools';
 import { HOLLOW } from '../../data/sunward';
-import { SITE_LIGHT_POOL, type SiteLight, type SiteLightKind } from './siteLights';
+import { SITE_LIGHT_POOL, type SiteLight, type SiteLightKind, type SiteLights } from './siteLights';
 
 const S = PHYSICS.metersPerTile;
 type Site = TownDef | SiteLocationDef;
@@ -550,18 +550,16 @@ export function buildSites(t: Terrain): BuiltSite {
   return { root, movers, lights, lamps };
 }
 
-export function addSites(t: Terrain, scope: RenderScope, play: PlayClock): { lights: SiteLight[]; lamps: PoolLamp[]; hollow: HollowLamps | null } {
+export function addSites(t: Terrain, scope: RenderScope, play: PlayClock, siteLights: SiteLights): void {
   const motion = new SiteMotion();
-  const lights: SiteLight[] = [];
-  const lamps: PoolLamp[] = [];
-  for (const site of sitesOf(t)) {
-    const built = buildSite(t, site);
-    scope.add(built.root, site.pos, site.radius + (MODEL_OVERHANG[site.id] ?? 0));
-    lights.push(...built.lights);
-    lamps.push(...built.lamps);
-    const phase = hash2(site.pos.x, site.pos.y) * MOTION_PHASE_SPAN;
-    for (const mover of built.movers) motion.add(mover.node, (seconds, node, rest) => mover.motion(seconds + phase, node, rest));
-  }
+  for (const site of sitesOf(t))
+    scope.place(site.pos, site.radius + (MODEL_OVERHANG[site.id] ?? 0), () => {
+      const built = buildSite(t, site);
+      siteLights.add(built.lights, built.lamps);
+      const phase = hash2(site.pos.x, site.pos.y) * MOTION_PHASE_SPAN;
+      for (const mover of built.movers) motion.add(mover.node, (seconds, node, rest) => mover.motion(seconds + phase, node, rest));
+      return built.root;
+    });
   let last = play.nowMs();
   scope.onFrame(() => {
     const now = play.nowMs();
@@ -570,9 +568,8 @@ export function addSites(t: Terrain, scope: RenderScope, play: PlayClock): { lig
   });
   for (const { id, build } of DECK_MODELS) {
     const deck = deckOf(t, id);
-    if (deck) scope.add(build(t), { x: deck.from.x + (deck.axis.x * deck.length) / 2, y: deck.from.y + (deck.axis.y * deck.length) / 2 }, deck.length / 2);
+    if (deck) scope.place({ x: deck.from.x + (deck.axis.x * deck.length) / 2, y: deck.from.y + (deck.axis.y * deck.length) / 2 }, deck.length / 2, () => build(t));
   }
-  return { lights, lamps, hollow: t.atlas.kind === 'icarus' ? new HollowLamps(t, scope) : null };
 }
 
 export function poseOnDeck(obj: THREE.Object3D, deck: Deck, seg: DeckSegment, top: number): void {
@@ -602,11 +599,13 @@ export class HollowLamps {
 
   constructor(terrain: Terrain, scope: RenderScope) {
     const site = HOLLOW.site;
-    const builder = new SiteBuilder(terrain, site);
-    const gateLamps = fortressGates(site).map((fort) => gateFaceLamp(builder, site, fort));
-    const lanterns = HOLLOW.lanterns.map((l) => builder.addLantern(l.x, l.y, Math.atan2(l.y, -l.x)));
-    for (const head of [...gateLamps, ...lanterns, builder.addFirePit(HOLLOW.fire.x, HOLLOW.fire.y)]) this.lightUp(head);
-    scope.add(builder.root, site.pos, site.radius);
+    scope.place(site.pos, site.radius, () => {
+      const builder = new SiteBuilder(terrain, site);
+      const gateLamps = fortressGates(site).map((fort) => gateFaceLamp(builder, site, fort));
+      const lanterns = HOLLOW.lanterns.map((l) => builder.addLantern(l.x, l.y, Math.atan2(l.y, -l.x)));
+      for (const head of [...gateLamps, ...lanterns, builder.addFirePit(HOLLOW.fire.x, HOLLOW.fire.y)]) this.lightUp(head);
+      return builder.root;
+    });
   }
 
   private lightUp(head: THREE.Mesh): void {

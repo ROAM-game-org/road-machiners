@@ -6,7 +6,7 @@ import { update } from '../world';
 import { npcLedger } from './npc-ledger';
 import { recordTurns } from './record-node';
 
-const RECONCILED_RUN = 16;
+const RECONCILED_RUN = 64;
 const RUN_TIMEOUT = 360_000;
 
 function worldWithTrader(): World {

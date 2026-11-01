@@ -22,7 +22,7 @@ import { NIGHT_POOLS } from './lightPools';
 import { FORT_MODELS } from '../../sim/fortress';
 import { OutpostGateViews } from './outpostGates';
 import { PartDebris } from './partDebris';
-import type { RenderScope } from './scope';
+import type { Placement, RenderScope } from './scope';
 import { TERRAIN_CHUNK } from './terrain';
 import { posed, PropInstances } from './propInstances';
 
@@ -34,7 +34,7 @@ const PILE_MIN_SIZE = 0.5;
 export type LootSwatch = { material: THREE.MeshLambertMaterial; plain: number; loot: number };
 
 export class ObstacleViews {
-  private readonly byId = new Map<string, THREE.Object3D>();
+  private readonly byId = new Map<string, Placement>();
   private fixed: Fixed | null = null;
   private readonly piles = new Map<string, { obj: THREE.Object3D; units: number }>();
   private readonly debris = new Map<string, THREE.Object3D>();
@@ -80,16 +80,22 @@ export class ObstacleViews {
     const views = obstacles.filter((o) => o.kind !== 'rock' && !this.fixed?.props.holds(o.id));
     for (const o of views) if (!this.byId.has(o.id)) this.addView(o);
     const seen = new Set(views.map((o) => o.id));
-    for (const [id, obj] of this.byId) {
+    for (const id of this.byId.keys()) {
       if (seen.has(id)) continue;
-      this.scope.remove(obj);
-      disposeTree(obj);
-      this.byId.delete(id);
+      this.dropView(id);
       this.glows.delete(id);
       this.bows.delete(id);
-      this.swatches.delete(id);
-      this.lit.delete(id);
     }
+  }
+
+  private dropView(id: string): void {
+    const placement = this.byId.get(id);
+    if (!placement) return;
+    this.scope.remove(placement);
+    if (placement.built) disposeTree(placement.built);
+    this.byId.delete(id);
+    this.swatches.delete(id);
+    this.lit.delete(id);
   }
 
   private syncLoot(salvage: SalvageStock[]): void {
@@ -97,9 +103,7 @@ export class ObstacleViews {
     for (const id of want) {
       if (this.lit.has(id)) continue;
       if (this.fixed?.props.holds(id)) this.addView(this.fixed.props.withdraw(id));
-      const swatches = this.swatches.get(id);
-      if (!swatches) throw new Error(`Lootable prop ${id} has no view`);
-      paintSwatches(swatches, 'loot');
+      this.paintLoot(id);
     }
     for (const id of this.lit) {
       if (want.has(id)) continue;
@@ -107,6 +111,12 @@ export class ObstacleViews {
       if (swatches) paintSwatches(swatches, 'plain');
     }
     this.lit = want;
+  }
+
+  private paintLoot(id: string): void {
+    if (!this.byId.has(id)) throw new Error(`Lootable prop ${id} has no view`);
+    const swatches = this.swatches.get(id);
+    if (swatches) paintSwatches(swatches, 'loot');
   }
 
   private addFixed(obstacles: Obstacle[], broken: readonly BrokenProp[], salvage: SalvageStock[]): Fixed {
@@ -133,16 +143,21 @@ export class ObstacleViews {
 
   private addView(o: Obstacle): void {
     if (this.fixed?.props.holds(o.id)) throw new Error(`Prop ${o.id} still has a visible instance slot`);
+    this.byId.set(o.id, this.scope.place(o.pos, viewReach(o), () => this.buildView(o)));
+  }
+
+  private buildView(o: Obstacle): THREE.Object3D {
     const obj = buildObstacle(this.terrain, o);
     obj.traverse((m) => {
       m.updateMatrix();
       m.matrixAutoUpdate = false;
     });
-    this.swatches.set(o.id, lootSwatchesOf(obj));
-    this.scope.add(obj, o.pos, viewReach(o));
-    this.byId.set(o.id, obj);
+    const swatches = lootSwatchesOf(obj);
+    this.swatches.set(o.id, swatches);
+    if (this.lit.has(o.id)) paintSwatches(swatches, 'loot');
     if (obj.userData.glow) this.glows.set(o.id, obj.userData.glow as Glow);
     if (obj.userData.breach) this.bows.set(o.id, obj);
+    return obj;
   }
 
   play(anim: { result: Pick<TurnResult, 'breaks' | 'frames'> } | null, step: number | null, world: World, frames: Record<string, VehicleFrame>, dt: number): void {
@@ -187,13 +202,7 @@ export class ObstacleViews {
       this.fixed.props.hide(id);
       return;
     }
-    const standing = this.byId.get(id);
-    if (!standing) return;
-    this.scope.remove(standing);
-    disposeTree(standing);
-    this.byId.delete(id);
-    this.swatches.delete(id);
-    this.lit.delete(id);
+    this.dropView(id);
   }
 
   private syncDebris(broken: readonly BrokenProp[]): void {
@@ -261,11 +270,12 @@ export class ObstacleViews {
       else byChunk.set(key, [o]);
     }
     for (const list of byChunk.values()) {
-      const placed = list.map((o) => rockPlacement(this.terrain, o));
-      const group = instancedModel(rockModel(list[0].id), placed.map((p) => p.matrix), placed.map((p) => p.tint), (m) => m);
       const center = list.reduce((c, o) => ({ x: c.x + o.pos.x / list.length, y: c.y + o.pos.y / list.length }), { x: 0, y: 0 });
       const reach = Math.max(...list.map((o) => dist(center, o.pos) + propReach(o)));
-      this.scope.add(group, center, reach);
+      this.scope.place(center, reach, () => {
+        const placed = list.map((o) => rockPlacement(this.terrain, o));
+        return instancedModel(rockModel(list[0].id), placed.map((p) => p.matrix), placed.map((p) => p.tint), (m) => m);
+      });
     }
     return new Set(rocks.map((o) => o.id));
   }
@@ -518,12 +528,15 @@ export function addPowerLines(t: Terrain, obstacles: Obstacle[], scope: RenderSc
   for (const a of poles.values()) {
     const b = poles.get(nextId(a.id));
     if (!b) continue;
-    const ends = [a, b].map((p) => buildProp(t, p));
-    for (const e of ends) e.updateMatrixWorld(true);
-    const spans = WIRES.map((w) => span(socket('power_pole', w).applyMatrix4(ends[0].matrixWorld), socket('power_pole', w).applyMatrix4(ends[1].matrixWorld)));
-    const mesh = new THREE.Mesh(mergeGeometries(spans), material);
-    scope.add(mesh, { x: (a.pos.x + b.pos.x) / 2, y: (a.pos.y + b.pos.y) / 2 }, dist(a.pos, b.pos) / 2 + 1);
+    scope.place({ x: (a.pos.x + b.pos.x) / 2, y: (a.pos.y + b.pos.y) / 2 }, dist(a.pos, b.pos) / 2 + 1, () => powerLine(t, a, b, material));
   }
+}
+
+function powerLine(t: Terrain, a: Landmark, b: Landmark, material: THREE.MeshLambertMaterial): THREE.Mesh {
+  const ends = [a, b].map((p) => buildProp(t, p));
+  for (const e of ends) e.updateMatrixWorld(true);
+  const spans = WIRES.map((w) => span(socket('power_pole', w).applyMatrix4(ends[0].matrixWorld), socket('power_pole', w).applyMatrix4(ends[1].matrixWorld)));
+  return new THREE.Mesh(mergeGeometries(spans), material);
 }
 
 function nextId(id: string): string {

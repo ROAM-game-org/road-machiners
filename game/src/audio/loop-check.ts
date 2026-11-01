@@ -1,10 +1,14 @@
 import { LOOP_CHECK, type CueDef } from "../data/sounds";
 
-export function isFreeSfxLoop(cue: CueDef): boolean {
-  return cue.loop && !cue.beat && cue.bus === "sfx";
+export function isFreeLoop(cue: CueDef): boolean {
+  return cue.loop && !cue.beat;
 }
 
-export type LoopFault = { kind: "hole" | "flam"; atSeconds: number; amount: number };
+export function isFreeSfxLoop(cue: CueDef): boolean {
+  return isFreeLoop(cue) && cue.bus === "sfx";
+}
+
+export type LoopFault = { kind: "hole" | "flam" | "click"; atSeconds: number; amount: number };
 
 const DB_FLOOR = 1e-9;
 
@@ -87,7 +91,15 @@ function flams(samples: Float32Array, sampleRate: number): LoopFault[] {
 
 export function loopFaults(samples: Float32Array, sampleRate: number): LoopFault[] {
   if (samples.length < LOOP_CHECK.pulseWindowSeconds * sampleRate) throw new Error(`A loop of ${samples.length} samples is shorter than one ${LOOP_CHECK.pulseWindowSeconds} s window`);
-  return [...holes(samples, sampleRate), ...flams(samples, sampleRate)];
+  return [...holes(samples, sampleRate), ...flams(samples, sampleRate), ...seamFaults(samples, sampleRate)];
+}
+
+export function seamFaults(samples: Float32Array, sampleRate: number): LoopFault[] {
+  const steps = new Float32Array(samples.length - 1);
+  for (let i = 0; i < steps.length; i++) steps[i] = Math.abs(samples[i + 1] - samples[i]);
+  const usual = steps.sort()[Math.floor(LOOP_CHECK.usualStepShare * (steps.length - 1))];
+  const ratio = Math.abs(samples[0] - samples[samples.length - 1]) / usual;
+  return ratio > LOOP_CHECK.seamStepRatio ? [{ kind: "click", atSeconds: samples.length / sampleRate, amount: ratio }] : [];
 }
 
 function correlation(samples: Float32Array, a: number, b: number, length: number): number {
@@ -124,6 +136,12 @@ export function alignedLoopEnd(samples: Float32Array, sampleRate: number, startS
 
 export function describeFaults(file: string, faults: LoopFault[]): string {
   return faults
-    .map((f) => `${file}: ${f.kind} ${f.kind === "hole" ? `${f.amount.toFixed(1)} dB` : `periodicity ${f.amount.toFixed(2)}`} at ${f.atSeconds.toFixed(2)} s`)
+    .map((f) => `${file}: ${f.kind} ${faultAmount(f)} at ${f.atSeconds.toFixed(2)} s`)
     .join("\n");
+}
+
+function faultAmount(f: LoopFault): string {
+  if (f.kind === "hole") return `${f.amount.toFixed(1)} dB`;
+  if (f.kind === "flam") return `periodicity ${f.amount.toFixed(2)}`;
+  return `seam step ${f.amount.toFixed(1)} times the loop's own steps`;
 }

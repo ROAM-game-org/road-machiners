@@ -12,6 +12,7 @@ import { aimedBreach, BOW_BREACH, buildProp, lootSwatchesOf, ObstacleViews, pain
 import { initPhysics } from '../../phys/drive';
 import { loadModels, model } from './models';
 import { RenderScope, SightLimit } from './scope';
+import { buildCells, buildingOnSync } from '../../test/cells';
 
 function groupOf(...names: string[]): THREE.Group {
   const g = new THREE.Group();
@@ -81,6 +82,11 @@ await loadModels(async (name) => {
   return Uint8Array.from(atob(url.slice(url.indexOf(',') + 1)), (c) => c.charCodeAt(0)).buffer;
 });
 
+function viewsOn(root: THREE.Group, size: number): ObstacleViews {
+  const scope = new RenderScope(root, size, new SightLimit(size), true, true);
+  return buildingOnSync(new ObstacleViews(scope, flatTerrain(size)), scope);
+}
+
 describe('loot colors on props', () => {
   const SIZE = 64;
   const S = PHYSICS.metersPerTile;
@@ -94,7 +100,7 @@ describe('loot colors on props', () => {
 
   function setup(): { root: THREE.Group; views: ObstacleViews } {
     const root = new THREE.Group();
-    const views = new ObstacleViews(new RenderScope(root, SIZE, new SightLimit(SIZE), true, true), flatTerrain(SIZE));
+    const views = viewsOn(root, SIZE);
     return { root, views };
   }
 
@@ -299,12 +305,35 @@ describe('loot colors on props', () => {
     const root = new THREE.Group();
     const limit = new SightLimit(SIZE);
     const scope = new RenderScope(root, SIZE, limit, true, true);
-    const views = new ObstacleViews(scope, flatTerrain(SIZE));
+    const views = buildingOnSync(new ObstacleViews(scope, flatTerrain(SIZE)), scope);
     views.sync([], [stock('pile-2', true, { pos: { x: 60, y: 60 }, pile: { until: 99, fromPlayer: true, basis: {} } })], []);
     limit.set({ x: 0, y: 0, z: 0 }, 3 * PHYSICS.metersPerTile);
     const camera = new THREE.OrthographicCamera(-2000, 2000, 2000, -2000, -5000, 5000);
     scope.update(camera);
     expect(root.children.filter((c) => c.name.startsWith('scope-chunk'))).toHaveLength(0);
+  });
+
+  it('lifts a prop that turned lootable before its cell was built', () => {
+    const root = new THREE.Group();
+    const lazy = new RenderScope(root, SIZE, new SightLimit(SIZE), true, true);
+    new ObstacleViews(lazy, flatTerrain(SIZE)).sync(obstacles, world(true, false, false), []);
+    buildCells(lazy);
+    const built = setup();
+    built.views.sync(obstacles, world(false, false, false), []);
+    built.views.sync(obstacles, world(true, false, false), []);
+    expect(colorsAt(built.root, 10).length).toBeGreaterThan(0);
+    expect(colorsAt(root, 10)).toEqual(colorsAt(built.root, 10));
+  });
+
+  it('never builds a prop that broke before its cell was built', () => {
+    const root = new THREE.Group();
+    const scope = new RenderScope(root, SIZE, new SightLimit(SIZE), true, true);
+    const views = new ObstacleViews(scope, flatTerrain(SIZE));
+    views.sync(obstacles, world(false, false, false), []);
+    views.sync(obstacles.filter((o) => o.id !== 'a'), world(false, false, false), []);
+    buildCells(scope);
+    expect(colorsAt(root, 10)).toEqual([]);
+    expect(colorsAt(root, 20).length).toBeGreaterThan(0);
   });
 
   it('throws when a lootable prop has no view', () => {
@@ -330,7 +359,7 @@ describe('roadside props broken at load', () => {
 
   it('topples a sign broken at load, then stands it again once it has grown back', () => {
     const root = new THREE.Group();
-    const views = new ObstacleViews(new RenderScope(root, SIZE, new SightLimit(SIZE), true, true), flatTerrain(SIZE));
+    const views = viewsOn(root, SIZE);
     views.sync([], [], [{ obstacle: sign, turn: 0 }]);
     const toppled = meshesAt(root);
     expect(toppled).toBeGreaterThan(0);
@@ -521,7 +550,7 @@ describe('reactor light', () => {
 
   it('keeps one breach light in the scene whether a bow is near or not, so the light count never changes', () => {
     const root = new THREE.Group();
-    const views = new ObstacleViews(new RenderScope(root, SIZE, new SightLimit(SIZE), true, true), flatTerrain(SIZE));
+    const views = viewsOn(root, SIZE);
     const spots = () => { let n = 0; root.traverse((o) => { if (o instanceof THREE.SpotLight) n++; }); return n; };
     expect(spots()).toBe(1);
     views.sync([bow, reactor], [], []);
@@ -531,7 +560,7 @@ describe('reactor light', () => {
 
   it('pulses the rod and the light together (IV5)', () => {
     const root = new THREE.Group();
-    const views = new ObstacleViews(new RenderScope(root, SIZE, new SightLimit(SIZE), true, true), flatTerrain(SIZE));
+    const views = viewsOn(root, SIZE);
     views.sync([bow, reactor], [], []);
     const world = emptyWorld();
     const near = { pos: { x: BOW_SITE.x * S, y: 0, z: BOW_SITE.y * S }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels: [] };

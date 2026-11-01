@@ -37,6 +37,7 @@ const DESERT_WEIGHT: Record<LookType, number> = {
   canal: 0,
   concrete: 0,
   glass: 0,
+  blackMud: 0,
 };
 
 export const ROAD_PLAIN = mix(TERRAIN_TYPES.hardpan.color, PAL.sand[3], 0.1);

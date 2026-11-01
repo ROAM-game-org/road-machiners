@@ -57,7 +57,7 @@ describe('road news', () => {
     w.turn = 5000;
     for (let i = 0; i < ROAD_NEWS.max + 4; i++) reportLoss(w, news(w.turn));
     expect(w.roadNews).toHaveLength(ROAD_NEWS.max);
-    w.turn += Math.round(ROAD_NEWS.days * TIME.turnsPerDay);
+    w.turn += Math.round(ROAD_NEWS.days * TIME.workDayTurns);
     expect(liveRoadNews(w)).toEqual([]);
     reportLoss(w, news(w.turn));
     expect(w.roadNews).toHaveLength(1);
@@ -71,7 +71,7 @@ describe('road news', () => {
     expect(legRisk(w, 'dustwell', 'bowl')).toBeCloseTo(2 * ROAD_NEWS.riskShare);
     expect(legRisk(w, 'bowl', 'dustwell')).toBeCloseTo(2 * ROAD_NEWS.riskShare);
     expect(legRisk(w, 'green-pit', 'bowl')).toBe(0);
-    w.turn += Math.round(ROAD_NEWS.days * TIME.turnsPerDay);
+    w.turn += Math.round(ROAD_NEWS.days * TIME.workDayTurns);
     expect(legRisk(w, 'dustwell', 'bowl')).toBe(0);
   });
 });
@@ -115,7 +115,7 @@ describe('route choice with road news', () => {
     for (let i = 0; i < 3; i++) reportLoss(w, news(w.turn, 'dustwell', 'bowl'));
     expect(waterWeight(w, trader, 'dustwell')).toBeLessThan(dustwell);
     expect(waterWeight(w, trader, 'green-pit')).toBeGreaterThan(waterWeight(w, trader, 'dustwell'));
-    w.turn += Math.round(ROAD_NEWS.days * TIME.turnsPerDay);
+    w.turn += Math.round(ROAD_NEWS.days * TIME.workDayTurns);
     expect(waterWeight(w, trader, 'dustwell')).toBeCloseTo(dustwell);
   });
 });

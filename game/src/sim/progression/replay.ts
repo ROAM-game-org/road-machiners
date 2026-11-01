@@ -24,7 +24,7 @@ export function replay(trace: readonly TraceLine[], turns: number): Curve {
     markReached(one, pooled, 1, line.turn);
     markReached(every, pooled, SKILL_IDS.length, line.turn);
   }
-  const days = turns / TIME.turnsPerDay;
+  const days = turns / TIME.workDayTurns;
   const families = Object.fromEntries(SKILL_IDS.map((id) => [id, { total: earned[id], perDay: earned[id] / days }])) as Record<SkillId, FamilyXp>;
   return { families, pooled: { total: pooled, perDay: pooled / days, one, every } };
 }
@@ -54,7 +54,7 @@ function zeroBySkill(): Record<SkillId, number> {
 }
 
 function freshProgress(): SkillProgress {
-  return { xp: 0, xpToday: zeroBySkill(), xpDay: 1, repeats: {} };
+  return { xp: 0, xpToday: zeroBySkill(), xpWindow: 0, repeats: {} };
 }
 
 export function parseTraceLine(value: unknown): TraceLine {
@@ -96,8 +96,8 @@ export function targetMisses(curve: Curve, archetype: Archetype, turns: number):
 }
 
 function levelMiss(kind: 'one' | 'every', level: number, day: number, reached: number | null, turns: number): string[] {
-  const at = reached === null ? 'never' : `day ${(reached / TIME.turnsPerDay).toFixed(1)}`;
-  const verdict = missVerdict(day * TIME.turnsPerDay, reached, turns);
+  const at = reached === null ? 'never' : `day ${(reached / TIME.workDayTurns).toFixed(1)}`;
+  const verdict = missVerdict(day * TIME.workDayTurns, reached, turns);
   return verdict ? [`${kind} skill rank ${level}: ${at}, target day ${day}, ${verdict}`] : [];
 }
 
