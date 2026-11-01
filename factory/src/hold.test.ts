@@ -38,7 +38,7 @@ function fakeCtx(): Ctx {
 
 const OPEN_RELEASE = { issue: 90, day: '2026-01-10', postId: null, candidate: null, removed: [], playtest: newPlaytest('2026-01-10') };
 const seed = (patch: Partial<FactoryState>): void => writeState(statePath, { ...structuredClone(EMPTY_STATE), lastRelease: NOW.toISOString(), release: OPEN_RELEASE, ...patch });
-const order = (action: 'hold' | 'unhold', issue = 4, by = 'Ann') => applyControl(fakeCtx(), { action, issue, by, reason: 'release tasks first' });
+const order = (action: 'hold' | 'unhold', issue = 4, by = 'Ann') => applyControl(fakeCtx(), { action, issue, by, reason: 'the urgent card first' });
 const jobLines = () => readLedger(ROOT, new Date(0)).filter((line) => line.kind === 'job');
 const controlLines = () => readLedger(ROOT, new Date(0)).filter((line) => line.kind === 'control');
 
@@ -67,7 +67,7 @@ describe('pause-card on a running card', () => {
     expect(killed).toEqual(['77 implement-4-x']);
     const state = readState(statePath);
     expect(state.jobs.map((job) => job.id)).toEqual(['verify-5-x']);
-    expect(state.held).toEqual({ 4: { by: 'Ann', reason: 'release tasks first', at: NOW.toISOString(), stage: 'implement' } });
+    expect(state.held).toEqual({ 4: { by: 'Ann', reason: 'the urgent card first', at: NOW.toISOString(), stage: 'implement' } });
     expect(state.interrupted).toEqual([4]);
     expect(state.failures).toEqual([]);
     expect(comments.some((line) => line.includes('factory-stuck'))).toBe(false);
@@ -82,8 +82,8 @@ describe('pause-card on a running card', () => {
     const state = readState(statePath);
     expect(state.cardStarts[4]).toEqual([]);
     expect(jobLines()).toMatchObject([{ id: 'implement-4-x', stage: 'implement', issue: 4, outcome: 'held' }]);
-    expect(controlLines()).toMatchObject([{ action: 'hold', issue: 4, by: 'Ann', reason: 'release tasks first' }]);
-    expect(comments[0]).toContain('Ordered by Ann. Reason: release tasks first');
+    expect(controlLines()).toMatchObject([{ action: 'hold', issue: 4, by: 'Ann', reason: 'the urgent card first' }]);
+    expect(comments[0]).toContain('Ordered by Ann. Reason: the urgent card first');
   });
 
   it('gives the freed worker to the next card on the same tick', async () => {

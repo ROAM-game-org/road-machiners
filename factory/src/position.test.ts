@@ -35,14 +35,14 @@ describe('cardDrift', () => {
   });
   it('flags a Merging card with no approval, unless it is a cleanup task', () => {
     expect(cardDrift(card('Merging'), EMPTY_STATE)).toEqual(['#157 column Merging but no approval']);
-    expect(cardDrift(card('Merging', 157, ['release-task', 'maintenance']), EMPTY_STATE)).toEqual([]);
+    expect(cardDrift(card('Merging', 157, ['maintenance']), EMPTY_STATE)).toEqual([]);
   });
   it('flags an approved card in Testing, which would merge with no hardening', () => {
     expect(cardDrift(card('Testing'), withState({ approvedResolving: { 157: 'bob' } }))).toEqual(['#157 approved but column Testing']);
   });
   it('flags a Hardening card with no approval, unless it is a cleanup task', () => {
     expect(cardDrift(card('Hardening'), EMPTY_STATE)).toEqual(['#157 column Hardening but no approval']);
-    expect(cardDrift(card('Hardening', 157, ['release-task', 'maintenance']), EMPTY_STATE)).toEqual([]);
+    expect(cardDrift(card('Hardening', 157, ['maintenance']), EMPTY_STATE)).toEqual([]);
   });
   it('flags an approval post outside Approval', () => {
     expect(cardDrift(card('Design'), withState({ approvalPosts: { 9: 157 } }))).toEqual(['#157 open approval post 9 but column Design']);

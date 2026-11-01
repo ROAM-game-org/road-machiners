@@ -19,7 +19,7 @@ const RELEASE: ReleaseState = { issue: 843, day: '2026-10-20', postId: null, rem
 
 function bigBoard(): BoardItem[] {
   const filler = Array.from({ length: 172 }, (_, i) => boardItem(100 + i, 'Done'));
-  return [...filler, boardItem(843, 'Approval', ['release']), boardItem(844, 'Done', ['release-task']), boardItem(845, 'Done', ['release-task']), ...CHASSIS.map((issue) => boardItem(issue, 'Design'))];
+  return [...filler, boardItem(843, 'Approval', ['release']), boardItem(844, 'Done', ['maintenance']), boardItem(845, 'Done', ['maintenance']), ...CHASSIS.map((issue) => boardItem(issue, 'Design'))];
 }
 
 const noWait = async () => {};
@@ -207,7 +207,7 @@ describe('readers of a flaky board', () => {
 
   it('a hold finds a card the board list hides', async () => {
     const fake = boardFake(bigBoard(), { faults: ['zero-first', 'zero-first', 'zero-first', 'zero-first'] });
-    await expect(holdCard(ctxFor(fake), 892, 'Ann', 'release tasks first')).resolves.toContain('Held.');
+    await expect(holdCard(ctxFor(fake), 892, 'Ann', 'the urgent card first')).resolves.toContain('Held.');
   });
 
   it('the scheduler starts design on every chassis Design card', async () => {

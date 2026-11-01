@@ -162,19 +162,19 @@ describe('read commands', () => {
     const f = board();
     f.ctx.cfg.publicUrl = 'https://play.test';
     f.ctx.fetch = (async () => new Response('{"jobs":[]}')) as unknown as typeof fetch;
-    const hold = { by: 'Ann', reason: 'release tasks first', at: '2026-01-01T00:00:00Z', stage: 'design' as const };
+    const hold = { by: 'Ann', reason: 'the urgent card first', at: '2026-01-01T00:00:00Z', stage: 'design' as const };
     writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), approvalPosts: { '77': 6 }, held: { '5': hold, '9': hold } });
     await run(f, 'cards');
-    expect(out).toContain('#5 design Design [hotfix] held by Ann: release tasks first');
+    expect(out).toContain('#5 design Design [hotfix] held by Ann: the urgent card first');
     out.length = 0;
     await run(f, 'card', '5');
-    expect(out).toContain('held: by Ann since 2026-01-01T00:00:00Z, stopped design: release tasks first');
+    expect(out).toContain('held: by Ann since 2026-01-01T00:00:00Z, stopped design: the urgent card first');
     out.length = 0;
     await run(f, 'status');
     expect(JSON.parse(out.join('\n')).held).toEqual([{ issue: 5, ...hold }, { issue: 9, ...hold }]);
     out.length = 0;
     await run(f, 'audit');
-    expect(out).toEqual(['#9 held by Ann (release tasks first) but not on the board']);
+    expect(out).toEqual(['#9 held by Ann (the urgent card first) but not on the board']);
   });
 
   it('audit flags a job that runs on a held card, though it skips the card drift of a card with a job', async () => {

@@ -876,7 +876,7 @@ describe('tick', () => {
     expect(h.labels).toEqual([`20:${STUCK_LABEL}`]);
   });
 
-  it('labels the tracking issue when a release cut dies after it opened one, and no issue before', async () => {
+  it('labels the tracking issue when the release job dies after it opened one, and no issue before', async () => {
     const after = harness(job('2026-01-10T11:50:00Z', 'release', null), false);
     writeState(after.ctx.statePath, state({ jobs: [job('2026-01-10T11:50:00Z', 'release', null)], release: RELEASE }));
     await tick(after.ctx, '/code', after.deps);
