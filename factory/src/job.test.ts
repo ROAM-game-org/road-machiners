@@ -8,8 +8,8 @@ import { appendUsage, readLedger } from './ledger';
 import { markResumed, resumeError, resumedStage } from './sessions';
 import { BudgetError } from './stages/checkpoint';
 import { CommitteeDecisionError, ForeignBaseError } from './diff-guard';
-import { EMPTY_STATE, readState, writeState } from './state';
-import type { Ctx, FactoryConfig, FactoryState, JobStage } from './types';
+import { EMPTY_STATE, readState, updateState, writeState } from './state';
+import type { Card, Ctx, FactoryConfig, FactoryState, JobStage } from './types';
 
 const ROOT = resolve('tmp/factory-job-test');
 
@@ -156,6 +156,18 @@ describe('runJob', () => {
       expect(state.builds).toEqual({});
       expect(state.caughtUpTo).toEqual({ 5: 'keep' });
       expect(readLedger(ROOT, new Date(0)).filter((line) => line.kind === 'card')).toMatchObject([{ issue: 4, step: 'rebuild', to: 'Design', flow: 'hotfix' }]);
+    });
+
+    it('rebuilds a hotfix whose approve job finds dev commits on its build, and drops its queued approval', async () => {
+      const { ctx, statePath, calls } = setup();
+      updateState(statePath, (state) => ({ ...state, jobs: [{ id: 'a', stage: 'approve', issue: 4, pid: 1, startedAt: '', log: 'l' }], pendingApprovals: { 4: 'Ann' } }));
+      ctx.github.cards = async () => [{ issue: 4, column: 'Approval' } as Card];
+      await runJob(ctx, 'approve', 4);
+      expect(calls[0]).toBe('delete factory/issue-4');
+      expect(calls.slice(2)).toEqual(['move Design']);
+      const state = readState(statePath);
+      expect(state.failures).toEqual([]);
+      expect(state.pendingApprovals).toEqual({});
     });
   });
 

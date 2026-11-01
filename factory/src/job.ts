@@ -100,8 +100,10 @@ async function runLockedJob(ctx: Ctx, stage: JobStage, issue: number | null): Pr
 
 const keepsSessions = (stage: JobStage, outcome: JobOutcome): boolean => outcome !== 'done' && CARD_JOBS.includes(stage);
 
+const REBUILT_JOBS: JobStage[] = [...CARD_JOBS, 'approve'];
+
 async function rebuilt(ctx: Ctx, stage: JobStage, issue: number | null, error: unknown): Promise<boolean> {
-  if (!(error instanceof ForeignBaseError) || issue === null || !CARD_JOBS.includes(stage)) return false;
+  if (!(error instanceof ForeignBaseError) || issue === null || !REBUILT_JOBS.includes(stage)) return false;
   await rebuildOnOwnBase(ctx, stage, issue, error);
   return true;
 }

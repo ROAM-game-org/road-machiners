@@ -180,3 +180,26 @@ Worktree `.worktrees/rr-playtest`, branch `rr-playtest`. Covers changes 3, 4, 5 
 - RK1 — PH2 and PH3 drift on IF1. The controller checks typecheck after the PH3 merge and fixes the drift.
 - RK2 — `playtest.ts` fix landing through the merge job conflicts on `dev`. The merge session resolves it as for cards.
 - RK3 — The deploy lands while a release is still open. State load fails loud by design, and rollback is a revert of the merge on `main`.
+
+## Verify
+
+Result: passed
+
+Happy-path:
+- CK1 — the release-from-dev code still reads a branch head as the release commit — held: no `release.branch`, `candidateSha`, `release.merges` or `dropStaleCandidate` left in `src` or the Hermes plugin.
+- CK2 — Ship leaves shipped features in `devMerges` or skips opening the next release — held: `dropShipped` in `factory/src/stages/ship.ts` filters by issue and sha, then `openRelease` and the cleanup cards follow.
+- CK3 — a card removed and merged again stays out of every later release — held: `settle` in `factory/src/stages/merge.ts:332` drops re-merged cards from `release.removed`.
+
+Negative:
+- CK4 — a playtest starts while unlanded fixes wait on `factory/playtest-fixes` — held: `playtestDue` returns false while `fixes` is set, and `factory/src/tick.test.ts` covers it.
+- CK5 — a hotfix approve job that finds dev commits marks the card stuck instead of rebuilding it — broke, then fixed: `rebuilt` in `factory/src/job.ts` took only card jobs. The approve job now rebuilds too and drops the queued approval, with a test in `factory/src/job.test.ts`.
+
+Invariants / assumptions:
+- CK6 (IV1.1) — `foreignCommits` counts a branch's own commits, or `main` commits that `dev` merged — held: both real-git tests in `factory/src/repo.test.ts` pass.
+- CK7 (IV2.4) — the first release after the switch lists #1276 and #1297 again — held after a fix: the playtest now skips any `dev` merge that `main` already holds, with a test in `factory/src/stages/playtest.test.ts`.
+- CK8 (IV4.2) — `retry` accepts a decision with no author, or stores flags in the decision — held after a fix: `--by` is required, flags and split decisions are refused, and the retry orders a new playtest.
+- CK9 — a new prompt breaks the prompt docs-step contract — broke, then fixed: `release-playtest-resume` was missing from `NO_DOCS_STEP` in `factory/src/stages/prompts.test.ts`.
+
+Smoke: the new `readState` on a copy of the live server state refuses the open #1280 release with a message that says to ship it on the old code first. The same state with `release` set to null loads with 1 `dev` merge, no `pendingCut` and no playtest due.
+Goal: proxy only. All 114 factory test files pass outside `repo.test.ts`, whose two new lineage tests pass on their own, and 258 Hermes tests pass. Confirming the goal needs one real release on the server: #1280 ships on the old code, the round deploys to `main`, and the first playtest on the `dev` tip leads to a shipped candidate.
+Notes: a fix landing that the merge job cannot finish leaves `release.playtest.fixes` set, so no playtest starts until it lands. `factory release` shows that wait.
