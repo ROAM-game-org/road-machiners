@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filledLanes, laneCount } from './armor';
+import { filledLanes, laneCount, sidePlanner } from './armor';
 import { fireWeapons } from './combat';
 import { gunFor } from './factory';
 import { mountedParts } from './grid';
@@ -20,6 +20,13 @@ describe('body shots land only on lanes that hold a part', () => {
     const filled = filledLanes(semi, 'left');
     expect(filled.length).toBeGreaterThan(0);
     expect(filled.length).toBeLessThan(laneCount(semi, 'left'));
+  });
+
+  it('plans fight odds on the same lanes a round can land on, so no planned lane is empty', () => {
+    const { semi } = semiBeside();
+    const lanes = sidePlanner(semi)('left', { damage: 10, pen: 5, blast: false, armorShare: 1 });
+    expect(lanes).toHaveLength(filledLanes(semi, 'left').length);
+    expect(lanes.every((hits) => hits.some((h) => h.amount > 0))).toBe(true);
   });
 
   it('damages a part with every round that strikes the side of a semi whose parts all work', () => {
