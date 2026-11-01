@@ -91,8 +91,9 @@ HATCH_FRONT = GAME.row_x(2.5)  # the roof hatch is the engine bay: layout rows 4
 HATCH_BACK = GAME.row_x(5.5)
 HATCH_LEFT = GAME.col_y(1.5)
 HATCH_RIGHT = GAME.col_y(3.5)
-COAMING = 0.04
+COAMING = 0.03
 COAMING_RIM = 0.06
+UPPER_MARGIN = 0.015
 
 FRONT = G.half_x - INSET
 BACK = -G.half_x + INSET
@@ -206,17 +207,17 @@ def hull(kit: Kit, name: str, mat: str, points: list[tuple[float, float, float]]
     kit._add(hull_mesh(name, points), name, mat, 0.0)
 
 
-def cut_hatch(body: bpy.types.Object) -> None:
-    """Opens the engine bay through a body, from the engine floor up past the roof."""
-    cut_boxes(body, [((HATCH_BACK, HATCH_RIGHT, ENGINE_Y - 0.02), (HATCH_FRONT, HATCH_LEFT, ROOF + 0.1))])
+def cut_hatch(body: bpy.types.Object, margin: float = 0.0) -> None:
+    """Opens the engine bay through a body, from the engine floor up past the roof, a margin wider on every side."""
+    cut_boxes(body, [((HATCH_BACK - margin, HATCH_RIGHT - margin, ENGINE_Y - 0.02), (HATCH_FRONT + margin, HATCH_LEFT + margin, ROOF + 0.1))])
 
 
 def coaming(kit: Kit) -> None:
     """A low rim round the roof hatch."""
-    slab(kit, "coaming_front", (HATCH_FRONT, HATCH_FRONT + COAMING_RIM), (HATCH_RIGHT - COAMING_RIM, HATCH_LEFT + COAMING_RIM), (ROOF - 0.01, ROOF + COAMING), "under")
-    slab(kit, "coaming_back", (HATCH_BACK - COAMING_RIM, HATCH_BACK), (HATCH_RIGHT - COAMING_RIM, HATCH_LEFT + COAMING_RIM), (ROOF - 0.01, ROOF + COAMING), "under")
-    slab(kit, "coaming_l", (HATCH_BACK, HATCH_FRONT), (HATCH_LEFT, HATCH_LEFT + COAMING_RIM), (ROOF - 0.01, ROOF + COAMING), "under")
-    slab(kit, "coaming_r", (HATCH_BACK, HATCH_FRONT), (HATCH_RIGHT - COAMING_RIM, HATCH_RIGHT), (ROOF - 0.01, ROOF + COAMING), "under")
+    slab(kit, "coaming_front", (HATCH_FRONT, HATCH_FRONT + COAMING_RIM), (HATCH_RIGHT - COAMING_RIM, HATCH_LEFT + COAMING_RIM), (ROOF, ROOF + COAMING), "under")
+    slab(kit, "coaming_back", (HATCH_BACK - COAMING_RIM, HATCH_BACK), (HATCH_RIGHT - COAMING_RIM, HATCH_LEFT + COAMING_RIM), (ROOF, ROOF + COAMING), "under")
+    slab(kit, "coaming_l", (HATCH_BACK, HATCH_FRONT), (HATCH_LEFT, HATCH_LEFT + COAMING_RIM), (ROOF, ROOF + COAMING), "under")
+    slab(kit, "coaming_r", (HATCH_BACK, HATCH_FRONT), (HATCH_RIGHT - COAMING_RIM, HATCH_RIGHT), (ROOF, ROOF + COAMING), "under")
 
 
 def lower_body(kit: Kit) -> None:
@@ -232,7 +233,7 @@ def lower_body(kit: Kit) -> None:
         flare(kit, f"flare{i}_r", G, wx, HUB_Z, WHEEL_R, -G.half_y, -SIDE, bottom=ROCKER, segments=ROUND_ARCH_SEGMENTS)
     step = WHEELS_X[0] - ARCH_R - 0.09
     both_sides(kit, "running_board", (-step, step), (SIDE - 0.12, G.half_y - 0.01), (BUMPER[0], ROCKER + 0.01), "under")
-    slab(kit, "engine_floor", (-2.6, 2.6), (-WELL_Y, WELL_Y), (G.bottom, ENGINE_Y), "under")
+    slab(kit, "engine_floor", (-2.6, 2.6), (-WELL_Y + 0.01, WELL_Y - 0.01), (G.bottom, ENGINE_Y), "under")
     vent = [(x, y, hood_z(x) + d) for x in (COWL_X + 0.03, COWL_X + 0.15) for y in (-0.9, 0.9) for d in (-0.01, 0.012)]
     hull(kit, "cowl_vent", "under", vent)
 
@@ -242,7 +243,7 @@ def upper_body(kit: Kit) -> None:
     sections = [(x + PROUD * (k == 0), upper_profile(ROOF, half)) for k, (x, half) in enumerate(tail_sections())]
     sections += [(x, upper_profile(rake_z(x), SIDE)) for x in (RAKE_TOP + (COWL_X - RAKE_TOP) * s for s in (0.0, 0.25, 0.5, 0.75))]
     sections += [(COWL_X, upper_profile(BELT, SIDE))]
-    cut_hatch(loft_x(kit, "upper_body", sections, "paint"))
+    cut_hatch(loft_x(kit, "upper_body", sections, "paint"), UPPER_MARGIN)
     coaming(kit)
     normal = Vector((ROOF - BELT, 0.0, COWL_X - RAKE_TOP)).normalized()
     shield = []

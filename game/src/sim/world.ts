@@ -14,7 +14,7 @@ import type { StartKit } from '../data/start';
 import { findPart, haulerOf, playerTrucks, playerVehicle } from './damage';
 import { makePart, makeVehicle, newId } from './factory';
 import { gridOf, placementError } from './grid';
-import { addGoods } from './inventory';
+import { addGoods, mountPart } from './inventory';
 import { basicRefusal, isPerkId, pickedFromPair, skillLevel } from './progress';
 import { fitStores, getResources } from './resources';
 import { isOutpostSite } from './highway';
@@ -762,7 +762,7 @@ function carryCore(world: World, into: TruckCarry, c: CarriedPart): void {
 
 function placePart(world: World, truck: Vehicle, item: CarriedItem & { kind: 'part' }): boolean {
   const placed: GridItem = { id: newId(world, 'i'), kind: 'part', part: carryPart(world, item.part), x: item.x, y: item.y, rot: item.rot };
-  if (placementError(gridOf(truck), truck.items, placed, placed.id)) return false;
+  if (placementError(gridOf(truck), truck.items, placed, placed.id)) return mountPart(world, truck, placed.part);
   truck.items.push(placed);
   return true;
 }

@@ -57,6 +57,7 @@ function endLieUp(w: World, npc: Vehicle): void {
 function runUntil(w: World, max: number, done: (w: World) => boolean): { w: World; turns: number; events: GameEvent[] } {
   const events: GameEvent[] = [];
   for (let i = 1; i <= max; i++) {
+    if (w.player.call?.topic === 'tale') w = hangUp(w);
     w = endTurn(w, testDrive);
     events.push(...w.events);
     if (done(w)) return { w, turns: i, events };

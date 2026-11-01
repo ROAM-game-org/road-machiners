@@ -140,7 +140,7 @@ const UNAVAILABLE: Record<string, Setup> = {
 const JUDGED: Record<string, Setup> = {
   strong: () => {
     const w = emptyWorld({ x: 200, y: 200 });
-    const target = withBrain(addVehicle(w, 'independent', 'carrier', ['sniperCannon', 'plates'], { x: 15, y: 10 }));
+    const target = withBrain(addVehicle(w, 'independent', 'hauler', ['sniperCannon', 'plates'], { x: 15, y: 10 }));
     return { w, robber: addScumbag(w, { x: 10, y: 10 }), target };
   },
   robberAtGate: () => {
@@ -218,14 +218,14 @@ describe('danger', () => {
 
   it('a tank is a bigger threat than a scout', () => {
     const { w, driver } = judge();
-    const tank = addVehicle(w, 'scrapjaw', 'carrier', ['cannon', 'mg', 'plates', 'stockEngine'], { x: 10, y: 10 });
+    const tank = addVehicle(w, 'scrapjaw', 'bus', ['cannon', 'mg', 'plates', 'stockEngine'], { x: 10, y: 10 });
     const scout = addVehicle(w, 'scrapjaw', 'scout', ['mg', 'stockEngine'], { x: 60, y: 10 });
     expect(judgeDanger(w, driver, tank)).toBeGreaterThan(judgeDanger(w, driver, scout) * 3);
   });
 
   it('a tank worn to half HP is less of a threat', () => {
     const { w, driver } = judge();
-    const tank = addVehicle(w, 'scrapjaw', 'carrier', ['sniperCannon', 'plates', 'stockEngine'], { x: 10, y: 10 });
+    const tank = addVehicle(w, 'scrapjaw', 'hauler', ['sniperCannon', 'plates', 'stockEngine'], { x: 10, y: 10 });
     const full = judgeDanger(w, driver, tank);
     for (const part of mountedParts(tank)) part.hp = Math.ceil(part.hp / 2);
     expect(judgeDanger(w, driver, tank)).toBeLessThan(full * 0.6);
@@ -257,7 +257,7 @@ describe('scumbag robbery', () => {
       return robs;
     };
     const equal = count((w) => addPrey(w, { x: 15, y: 10 }, ['mg', 'stockEngine']));
-    const strong = count((w) => withBrain(addVehicle(w, 'independent', 'carrier', ['sniperCannon', 'plates', 'stockEngine'], { x: 15, y: 10 })));
+    const strong = count((w) => withBrain(addVehicle(w, 'independent', 'hauler', ['sniperCannon', 'plates', 'stockEngine'], { x: 15, y: 10 })));
     expect(equal).toBeGreaterThan(0);
     expect(strong).toBeLessThan(20);
     expect(strong).toBeLessThan(equal);

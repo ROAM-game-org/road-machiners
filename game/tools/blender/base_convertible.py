@@ -187,6 +187,7 @@ FLOOR = LID - 0.12  # PHYSICS.bodies.convertible.engine.y: the slat tops of the 
 MAX_BAY_DEPTH = 0.2
 SLAT_PITCH = 0.11
 RIGHT_BANK = (-0.30, -0.84)
+LID_SLAT_SHIFT = 0.007
 
 
 def layer(height: float) -> tuple[float, float]:
@@ -673,7 +674,7 @@ def cabin_finish(kit: Kit) -> None:
         kit.box(f"patch_rivet{i}", (0.016, 0.016, 0.016), side_point(x, z, 0.012), "metal_light")
     for s, sy in (("l", 1), ("r", -1)):
         strut(kit, f"belt_strip_{s}", (VENT_POST_X, sy * (FOOT_HALF + 0.008), LID + 0.008), (FOOT_X, sy * (FOOT_HALF + 0.008), LID + 0.008), 0.016, "metal_light")
-    strut(kit, "belt_strip_back", (FOOT_X - 0.012, FOOT_HALF, LID + 0.008), (FOOT_X - 0.012, -FOOT_HALF, LID + 0.008), 0.016, "metal_light")
+    strut(kit, "belt_strip_back", (FOOT_X, FOOT_HALF, LID + 0.008), (FOOT_X, -FOOT_HALF, LID + 0.008), 0.016, "metal_light")
 
 
 def hatch(kit: Kit) -> list[str]:
@@ -751,7 +752,7 @@ def louvers(kit: Kit) -> None:
     for i in range(count):
         x = x1 - 0.01 - SLAT_PITCH * (i + 0.5)
         kit.box(f"bay_slat{i}", (SLAT_PITCH * 0.55, y1 - y0 - 0.004, 0.02), (x, (y0 + y1) / 2, FLOOR - 0.01), "paint")
-        kit.box(f"lid_slat{i}", (SLAT_PITCH * 0.5, RIGHT_BANK[0] - RIGHT_BANK[1], 0.014), (x, sum(RIGHT_BANK) / 2, LID + 0.007), "paint")
+        kit.box(f"lid_slat{i}", (SLAT_PITCH * 0.5, RIGHT_BANK[0] - RIGHT_BANK[1], 0.014), (x + LID_SLAT_SHIFT, sum(RIGHT_BANK) / 2, LID + 0.007), "paint")
 
 
 def main() -> None:

@@ -2,7 +2,7 @@
 import { CHASSIS } from '../data/chassis';
 import { PARTS } from '../data/parts';
 import { startKit } from '../data/start';
-import { makePart } from '../sim/factory';
+import { chargeFor, makePart } from '../sim/factory';
 import type { Contract } from '../sim/market';
 import type { SalvageStock } from '../sim/types';
 import { isRig } from '../sim/body';
@@ -23,10 +23,11 @@ const CONTRACT_KINDS: Contract[] = [
 
 const WEAPON_ID = Object.keys(PARTS).find((id) => PARTS[id].kind === 'weapon');
 const PLAIN_ID = Object.keys(PARTS).find((id) => PARTS[id].kind !== 'weapon');
+const BARE_ID = Object.keys(PARTS).find((id) => PARTS[id].kind !== 'weapon' && !chargeFor(id).charge);
 
 export function newGameShape(): Shape {
   const world = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
-  if (!WEAPON_ID || !PLAIN_ID) throw new Error('The part data has no weapon or no other part');
+  if (!WEAPON_ID || !PLAIN_ID || !BARE_ID) throw new Error('The part data has no weapon or no other part');
   for (const shop of Object.values(world.shops)) {
     shop.contracts = CONTRACT_KINDS;
     shop.stock = [makePart(world, WEAPON_ID, 0), makePart(world, PLAIN_ID, 0)];
@@ -49,6 +50,13 @@ export function newGameShape(): Shape {
       { id: 'i-goods', x: 0, y: 0, rot: 0, kind: 'good', good: 'g' },
       { id: 'i-gun', x: 0, y: 0, rot: 0, kind: 'part', part: makePart(world, WEAPON_ID, 0) },
       { id: 'i-plain', x: 0, y: 0, rot: 0, kind: 'part', part: makePart(world, PLAIN_ID, 0) },
+    ];
+  }
+  for (const [i, shelter] of world.sheltered.entries()) {
+    shelter.vehicle.items = [
+      ...(i === 0 ? [{ id: 'i-goods', x: 0, y: 0, rot: 0, kind: 'good' as const, good: 'g' }] : []),
+      { id: 'i-bare', x: 0, y: 0, rot: 0, kind: 'part', part: makePart(world, BARE_ID, 0) },
+      { id: 'i-gun', x: 0, y: 0, rot: 0, kind: 'part', part: makePart(world, WEAPON_ID, 0) },
     ];
   }
   if (!world.moments) throw new Error('The new world keeps no moments');

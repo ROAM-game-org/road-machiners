@@ -1,7 +1,7 @@
 import { startKit } from '../data/start';
 
 import { RULES } from '../data/rules';
-export { addVehicle, gunAcrossMiddle, npcBrain } from '../test/sample-vehicles';
+export { addVehicle, gunAcrossMiddle, gunAhead, npcBrain } from '../test/sample-vehicles';
 import { nextRandom } from './rng';
 import { gridOf, MOUNT_CELLS, mountedParts, mountSpots, type Spot } from './grid';
 import { burnFuel } from './resources';

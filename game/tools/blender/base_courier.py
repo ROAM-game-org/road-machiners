@@ -67,6 +67,7 @@ GLASS_BASE = 0.70  # photo 1: the greenhouse leans in from the belt
 CREST_HALF = 0.47
 BACK_HALF = 0.62  # the back slope stays flat across the deck cells, Blender y -0.19..0.56
 COWL_X = 0.15
+CORE_JOINT_X = COWL_X - 0.1
 SCREEN_TOP = -0.08  # photo 1: a flat windshield about 64 degrees from level
 ROOF_LINE = [(COWL_X, 0.17), (0.04, 0.42), (SCREEN_TOP, 0.65), (-0.17, 0.712), (-0.3, 0.747), (-0.48, 0.735)]
 SLOPE = 0.55  # photo 2: one long back line, under the 0.7 rise a resting part may lean on
@@ -288,8 +289,8 @@ def refined(stations: list[float], ring_of) -> list[float]:
 
 def tub(kit: Kit) -> None:
     """The dark core from the nose to the tail and the wide painted doors between the fenders, rolled in at the belt and the sill."""
-    prism(kit, "core_front", [(COWL_X, PAN), (1.9, PAN), (1.9, SHELF), (COWL_X, SHELF)], -0.34, 0.34, "under")
-    prism(kit, "core_mid", [(-0.86, PAN), (COWL_X, PAN), (COWL_X, BELT), (-0.86, BELT)], -0.54, 0.54, "under")
+    prism(kit, "core_front", [(CORE_JOINT_X, PAN), (1.9, PAN), (1.9, SHELF), (CORE_JOINT_X, SHELF)], -0.34, 0.34, "under")
+    prism(kit, "core_mid", [(-0.86, PAN), (CORE_JOINT_X, PAN), (CORE_JOINT_X, BELT), (-0.86, BELT)], -0.54, 0.54, "under")
     prism(kit, "core_back", [(-1.66, PAN + 0.05), (-0.86, PAN), (-0.86, SHELF), (-1.66, SHELF)], -0.54, 0.54, "under")
 
     def door(half: float) -> list[tuple[float, float]]:

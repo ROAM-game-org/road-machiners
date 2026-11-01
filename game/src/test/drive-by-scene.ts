@@ -102,7 +102,7 @@ function scene(seed: number, kind: Prey, night: boolean): Scene {
   } else {
     me.items = me.items.filter((item) => !isLoot(me.chassisId, item));
     me.pos = { x: post.x + 3, y: post.y + 3 };
-    prey = addVehicle(w, 'independent', kind === 'brute' ? 'hauler' : 'scout', kind === 'brute' ? ['mg', 'mg', 'mg', 'mg', 'stockEngine'] : ['stockEngine'], { ...start });
+    prey = addVehicle(w, 'independent', kind === 'brute' ? 'carrier' : 'scout', kind === 'brute' ? ['mg', 'mg', 'mg', 'mg', 'stockEngine'] : ['stockEngine'], { ...start });
     if (kind !== 'brute') mountAwayFromFront(w, prey, 'mg');
     prey.brain = npcBrain('trader', prey.pos, ['trader']);
     prey.brain.goals = [];

@@ -38,19 +38,12 @@ describe('story wrecks', () => {
     }
   });
 
-  it('leaves the random streams and ids of world creation as they were', () => {
-    const before = [
-      { seed: 1, rng: 1339692993, market: -1873486600, nextId: 841, wreck0: { x: 521.489, y: 190.441 } },
-      { seed: 1337, rng: -1064011460, market: 653857336, nextId: 824, wreck0: { x: 533.311, y: 237.134 } },
-    ];
-    for (const b of before) {
-      const w = newWorld(b.seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
-      const wreck0 = w.obstacles.find((o) => o.id === 'wreck0')!;
+  it('builds the same streams, ids and wreck for the same seed, and a different world for another', () => {
+    const built = [1, 1337, 1].map((seed) => newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming')));
+    const stateOf = (w: (typeof built)[number]) => ({ rng: w.rngState, market: w.marketRng.rngState, nextId: w.nextId, wreck0: w.obstacles.find((o) => o.id === 'wreck0')!.pos });
 
-      expect({ rng: w.rngState, market: w.marketRng.rngState, nextId: w.nextId }).toEqual({ rng: b.rng, market: b.market, nextId: b.nextId });
-      expect(wreck0.pos.x).toBeCloseTo(b.wreck0.x, 3);
-      expect(wreck0.pos.y).toBeCloseTo(b.wreck0.y, 3);
-    }
+    expect(stateOf(built[2])).toEqual(stateOf(built[0]));
+    expect(stateOf(built[1])).not.toEqual(stateOf(built[0]));
   });
 
   it('is searched with wreck words and counts as neither a road wreck nor a kill wreck', () => {

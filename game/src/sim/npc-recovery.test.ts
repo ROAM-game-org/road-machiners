@@ -147,7 +147,7 @@ describe('NPC gameplay recovery', () => {
 
   it('turns on an attacker it cannot get away from rather than run', () => {
     const { world, npc } = createScenario('scavenger');
-    const enemy = addVehicle(world, 'scrapjaw', 'buggy', ['mg'], { x: 33, y: 30 });
+    const enemy = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 });
     fireAt(world, enemy, npc);
     corePart(npc, 'cab').hp = 1;
     corePart(npc, 'transmission').hp = 1;
