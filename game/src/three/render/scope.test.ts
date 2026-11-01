@@ -301,3 +301,85 @@ describe('RenderScope frame hooks', () => {
     expect(calls).toBe(2);
   });
 });
+
+describe('render scope chunk range', () => {
+  type Inner = { chunks: ({ group: THREE.Group; box: THREE.Box3 } | null)[] };
+  const margin = 8 * S;
+
+  function scanned(scope: RenderScope, limit: SightLimit, camera: THREE.OrthographicCamera): Map<string, THREE.Box3> {
+    const frustum = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    const shown = new Map<string, THREE.Box3>();
+    for (const chunk of (scope as unknown as Inner).chunks) {
+      if (!chunk || chunk.box.isEmpty()) continue;
+      const box = chunk.box.clone().expandByScalar(margin);
+      if (limit.meets(chunk.box, margin) && frustum.intersectsBox(box)) shown.set(chunk.group.name, box);
+    }
+    return shown;
+  }
+
+  function reachesScreen(box: THREE.Box3, camera: THREE.Camera): boolean {
+    const steps = 40;
+    const p = new THREE.Vector3();
+    for (let i = 0; i <= steps; i++) for (let j = 0; j <= steps; j++) for (let k = 0; k <= 4; k++) {
+      p.set(box.min.x + ((box.max.x - box.min.x) * i) / steps, box.min.y + ((box.max.y - box.min.y) * k) / 4, box.min.z + ((box.max.z - box.min.z) * j) / steps).project(camera);
+      if (Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1 && Math.abs(p.z) <= 1) return true;
+    }
+    return false;
+  }
+
+  function attachedNames(root: THREE.Object3D): Set<string> {
+    return new Set(root.children.map((c) => c.name).filter((n) => n.startsWith('scope-chunk-')));
+  }
+
+  function checkAgainstScan(scope: RenderScope, limit: SightLimit, root: THREE.Object3D, view: { x: number; y: number; zoom: number }): number {
+    const rig = rigAt(view.x, view.y, view.zoom);
+    scope.update(rig.camera);
+    const scan = scanned(scope, limit, rig.camera);
+    const got = attachedNames(root);
+    for (const name of got) expect(scan.has(name), `${name} is attached but a scan hides it`).toBe(true);
+    for (const [name, box] of scan) if (reachesScreen(box, rig.camera)) expect(got.has(name), `${name} reaches the screen but is hidden`).toBe(true);
+    return scan.size;
+  }
+
+  const views = [
+    { x: 0, y: 0, zoom: 1 },
+    { x: 300, y: 300, zoom: 0.35 },
+    { x: 80, y: 470, zoom: 0.35 },
+    { x: 590, y: 20, zoom: 1.4 },
+    { x: 300, y: 300, zoom: 1 },
+    { x: 120, y: 120, zoom: 0.35 },
+    { x: 560, y: 560, zoom: 1 },
+  ];
+
+  it('attaches every chunk a scan of all chunks attaches that reaches the screen, on every move of the camera', () => {
+    const root = new THREE.Group();
+    const limit = new SightLimit(SIZE);
+    const scope = new RenderScope(root, SIZE, limit, true, false);
+    populate(scope);
+    const sizes = views.map((view) => checkAgainstScan(scope, limit, root, view));
+    expect(sizes.every((n) => n > 0)).toBe(true);
+  });
+
+  it('does the same under a sight limit', () => {
+    const root = new THREE.Group();
+    const limit = new SightLimit(SIZE);
+    const scope = new RenderScope(root, SIZE, limit, true, false);
+    populate(scope);
+    limit.set({ x: 300 * S, y: 0, z: 300 * S }, 90 * S);
+    const sizes = views.map((view) => checkAgainstScan(scope, limit, root, view));
+    expect(sizes.some((n) => n > 0)).toBe(true);
+  });
+
+  it('keeps a large object attached while only the edge of it is in view', () => {
+    const root = new THREE.Group();
+    const scope = new RenderScope(root, SIZE, new SightLimit(SIZE), true, false);
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+    slab.scale.set(120 * S, 4, 120 * S);
+    slab.position.set(300 * S, 10, 300 * S);
+    scope.add(slab, { x: 300, y: 300 }, 60);
+    const rig = rigAt(300 + 70, 300 + 70, 1);
+    scope.update(rig.camera);
+    expect(inView(slab, rig.camera)).toBe(true);
+    expect(attached(slab, root)).toBe(true);
+  });
+});

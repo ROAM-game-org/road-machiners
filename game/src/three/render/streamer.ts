@@ -6,7 +6,7 @@ import type { Rect, RenderScope } from './scope';
 export function wantedCells(scopes: readonly RenderScope[], center: Vec, radius: number): number[] {
   const near = new Map<number, number>();
   for (const scope of scopes)
-    for (const cell of scope.waitingCells()) {
+    for (const cell of scope.waitingNear(center, radius)) {
       const gap = rectGap(scope.claimOf(cell), center);
       if (gap > radius) continue;
       near.set(cell, Math.min(near.get(cell) ?? Infinity, gap));

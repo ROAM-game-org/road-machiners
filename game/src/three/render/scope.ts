@@ -17,7 +17,10 @@ const IDENTITY = new THREE.Matrix4();
 export type Rect = { x0: number; y0: number; x1: number; y1: number };
 export type Placement = { readonly pos: Vec; readonly radius: number; readonly cell: number; built: THREE.Object3D | null };
 type Pending = { placement: Placement; build: () => THREE.Object3D };
-type Chunk = { group: THREE.Group; box: THREE.Box3; shown: boolean; pending: Pending[]; claim: Rect | null };
+type Chunk = { group: THREE.Group; cell: number; box: THREE.Box3; shown: boolean; pending: Pending[]; claim: Rect | null };
+type CellRange = { x0: number; y0: number; x1: number; y1: number };
+const CHUNK_METERS = TERRAIN_CHUNK * S;
+const LEVEL_EPSILON = 1e-6;
 
 function prepareModel(obj: THREE.Object3D): void {
   outlineProps(obj);
@@ -35,6 +38,13 @@ export class RenderScope {
   private readonly frameHooks: (() => void)[] = [];
   private readonly waiting = new Set<number>();
   private readonly placed = new WeakSet<Placement>();
+  private readonly attached = new Set<Chunk>();
+  private readonly corner = new THREE.Vector3();
+  private readonly forward = new THREE.Vector3();
+  private lowest = Number.POSITIVE_INFINITY;
+  private highest = Number.NEGATIVE_INFINITY;
+  private overhang = 0;
+  private claimOverhang = 0;
   private pendingTotal = 0;
 
   constructor(private readonly root: THREE.Object3D, private readonly mapSize: number, private readonly limit: SightLimit, private readonly grey: boolean, models: boolean) {
@@ -59,6 +69,25 @@ export class RenderScope {
     return this.waiting;
   }
 
+  waitingNear(center: Vec, radius: number): number[] {
+    const reach = radius + this.claimOverhang + MARGIN / S;
+    const x0 = Math.max(Math.floor((center.x - reach) / TERRAIN_CHUNK), 0);
+    const y0 = Math.max(Math.floor((center.y - reach) / TERRAIN_CHUNK), 0);
+    const x1 = Math.min(Math.floor((center.x + reach) / TERRAIN_CHUNK), this.perSide - 1);
+    const y1 = Math.min(Math.floor((center.y + reach) / TERRAIN_CHUNK), this.perSide - 1);
+    if (Math.max(x1 - x0 + 1, 0) * Math.max(y1 - y0 + 1, 0) >= this.waiting.size) return [...this.waiting];
+    const near: number[] = [];
+    for (let cy = y0; cy <= y1; cy++)
+      for (let cx = x0; cx <= x1; cx++) if (this.waiting.has(cy * this.perSide + cx)) near.push(cy * this.perSide + cx);
+    return near;
+  }
+
+  private claimOverhangOf(cell: number, pos: Vec, radius: number): number {
+    const cx = cell % this.perSide;
+    const cy = Math.floor(cell / this.perSide);
+    return Math.max(cx * TERRAIN_CHUNK - (pos.x - radius), pos.x + radius - (cx + 1) * TERRAIN_CHUNK, cy * TERRAIN_CHUNK - (pos.y - radius), pos.y + radius - (cy + 1) * TERRAIN_CHUNK, 0);
+  }
+
   claimOf(cell: number): Rect {
     const claim = this.chunks[cell]?.claim;
     if (!claim) throw new Error(`Render scope cell ${cell} has no placements`);
@@ -73,6 +102,7 @@ export class RenderScope {
     const placement: Placement = { pos, radius, cell, built: null };
     chunk.pending.push({ placement, build });
     chunk.claim = widen(chunk.claim, pos, radius);
+    this.claimOverhang = Math.max(this.claimOverhang, this.claimOverhangOf(cell, pos, radius));
     this.placed.add(placement);
     this.waiting.add(cell);
     this.pendingTotal++;
@@ -108,6 +138,7 @@ export class RenderScope {
     bounds.expandByPoint(new THREE.Vector3((pos.x - radius) * S, low, (pos.y - radius) * S));
     bounds.expandByPoint(new THREE.Vector3((pos.x + radius) * S, high, (pos.y + radius) * S));
     chunk.box.union(bounds);
+    this.noteExtent(chunk, bounds);
     this.prepare(obj);
     chunk.group.add(obj);
     this.owner.set(obj, chunk);
@@ -166,15 +197,63 @@ export class RenderScope {
     camera.updateMatrixWorld();
     this.viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     this.frustum.setFromProjectionMatrix(this.viewProjection);
-    for (const chunk of this.chunks) {
-      if (!chunk) continue;
-      const show = this.shows(chunk);
-      if (show === chunk.shown) continue;
-      if (show) this.root.add(chunk.group);
-      else this.root.remove(chunk.group);
-      chunk.shown = show;
-    }
+    const range = this.cellRange(camera);
+    for (const chunk of [...this.attached]) if (!inRange(chunk.cell, range, this.perSide)) this.setShown(chunk, false);
+    this.forEachChunkIn(range, (chunk) => this.setShown(chunk, this.shows(chunk)));
     this.frameHooks.forEach((hook) => hook());
+  }
+
+  private setShown(chunk: Chunk, show: boolean): void {
+    if (show === chunk.shown) return;
+    if (show) {
+      this.root.add(chunk.group);
+      this.attached.add(chunk);
+    } else {
+      this.root.remove(chunk.group);
+      this.attached.delete(chunk);
+    }
+    chunk.shown = show;
+  }
+
+  private noteExtent(chunk: Chunk, bounds: THREE.Box3): void {
+    if (bounds.isEmpty()) return;
+    const cx = chunk.cell % this.perSide;
+    const cy = Math.floor(chunk.cell / this.perSide);
+    this.lowest = Math.min(this.lowest, bounds.min.y);
+    this.highest = Math.max(this.highest, bounds.max.y);
+    const over = Math.max(cx * CHUNK_METERS - bounds.min.x, bounds.max.x - (cx + 1) * CHUNK_METERS, cy * CHUNK_METERS - bounds.min.z, bounds.max.z - (cy + 1) * CHUNK_METERS);
+    this.overhang = Math.max(this.overhang, over);
+  }
+
+  private forEachChunkIn(range: CellRange, visit: (chunk: Chunk) => void): void {
+    for (let cy = range.y0; cy <= range.y1; cy++)
+      for (let cx = range.x0; cx <= range.x1; cx++) {
+        const chunk = this.chunks[cy * this.perSide + cx];
+        if (chunk) visit(chunk);
+      }
+  }
+
+  private cellRange(camera: THREE.OrthographicCamera): CellRange {
+    const whole = { x0: 0, y0: 0, x1: this.perSide - 1, y1: this.perSide - 1 };
+    if (this.highest < this.lowest) return { x0: 1, y0: 1, x1: 0, y1: 0 };
+    this.forward.set(0, 0, -1).transformDirection(camera.matrixWorld);
+    if (this.forward.y > -LEVEL_EPSILON) return whole;
+    const reach = MARGIN + this.overhang;
+    const box = new THREE.Box2();
+    for (const level of [this.lowest, this.highest])
+      for (const [nx, ny] of CORNERS) {
+        this.corner.set(nx, ny, -1).unproject(camera);
+        const along = (level - this.corner.y) / this.forward.y;
+        box.expandByPoint(new THREE.Vector2(this.corner.x + this.forward.x * along, this.corner.z + this.forward.z * along));
+      }
+    const last = this.perSide - 1;
+    const cell = (meters: number) => Math.floor(meters / CHUNK_METERS);
+    return {
+      x0: Math.max(cell(box.min.x - reach), 0),
+      y0: Math.max(cell(box.min.y - reach), 0),
+      x1: Math.min(cell(box.max.x + reach), last),
+      y1: Math.min(cell(box.max.y + reach), last),
+    };
   }
 
   private shows(chunk: Chunk): boolean {
@@ -194,12 +273,21 @@ export class RenderScope {
       const group = new THREE.Group();
       group.name = `scope-chunk-${index % this.perSide}-${Math.floor(index / this.perSide)}`;
       group.matrixAutoUpdate = false;
-      chunk = { group, box: new THREE.Box3(), shown: true, pending: [], claim: null };
+      chunk = { group, cell: index, box: new THREE.Box3(), shown: true, pending: [], claim: null };
       this.chunks[index] = chunk;
+      this.attached.add(chunk);
       this.root.add(group);
     }
     return chunk;
   }
+}
+
+const CORNERS = [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const;
+
+function inRange(cell: number, range: CellRange, perSide: number): boolean {
+  const cx = cell % perSide;
+  const cy = Math.floor(cell / perSide);
+  return cx >= range.x0 && cx <= range.x1 && cy >= range.y0 && cy <= range.y1;
 }
 
 function widen(claim: Rect | null, pos: Vec, radius: number): Rect {
