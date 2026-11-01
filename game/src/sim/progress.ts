@@ -1,14 +1,14 @@
 
 import {
-  MAX_RANK, PERK_IDS, PERK_LEVELS, PERKS, type PerkId, type PerkLevel, RANK_COSTS, SKILL_EFFECTS, SKILL_IDS,
+  BASIC_RANK, BASICS, type BasicId, MAX_RANK, PERK_IDS, PERK_LEVELS, PERKS, type PerkId, type PerkLevel, RANK_COSTS, SKILL_EFFECTS, SKILL_IDS,
   type SkillEffect, XP_RULES, XP_SOURCES,
 } from '../data/skills';
-import { clockOf } from './sun';
+import { workDayOf, workDayStart } from '../data/time';
 import type { Player, Refusal, Repeat, SkillId, Vehicle, World, XpSource } from './types';
 import type { Vec } from './vec';
 import { Refused, update } from './world';
 
-export type SkillProgress = Pick<Player, 'xp' | 'xpToday' | 'xpDay' | 'repeats'>;
+export type SkillProgress = Pick<Player, 'xp' | 'xpToday' | 'xpWindow' | 'repeats'>;
 
 export function rankCost(rank: number): number {
   if (!Number.isInteger(rank) || rank < 1 || rank > MAX_RANK) throw new Error(`No rank ${rank}; ranks run 1 to ${MAX_RANK}`);
@@ -21,12 +21,6 @@ export function cumulativeCost(rank: number): number {
   return total;
 }
 
-export function ranksCoveredBy(xp: number): number {
-  let rank = 0;
-  while (rank < MAX_RANK && xp >= cumulativeCost(rank + 1)) rank++;
-  return rank;
-}
-
 export function skillLevel(world: World, skill: SkillId): number {
   return world.player.ranks[skill];
 }
@@ -37,15 +31,19 @@ export function skillEffect<S extends SkillId>(world: World, v: Vehicle, skill: 
   return perLevel * skillLevel(world, skill);
 }
 
+export function xpWindowStart(world: World): number {
+  return workDayStart(world.turn);
+}
+
 export function xpTodayOf(world: World, skill: SkillId): number {
-  return world.player.xpDay === clockOf(world.turn).day ? world.player.xpToday[skill] : 0;
+  return world.player.xpWindow === workDayOf(world.turn) ? world.player.xpToday[skill] : 0;
 }
 
 export function xpFor(p: SkillProgress, source: XpSource, amount: number, difficulty: number | null, target: string, turn: number): number {
   const def = XP_SOURCES[source];
   if (!(amount >= 0)) throw new Error(`Practice amount ${amount} for ${source} is not a non-negative number`);
   const full = def.weight * amount * difficultyMult(source, def.scaled, difficulty) * def.repeat ** repeatsOf(p, source, target, turn);
-  const today = p.xpDay === clockOf(turn).day ? p.xpToday[def.skill] : 0;
+  const today = p.xpWindow === workDayOf(turn) ? p.xpToday[def.skill] : 0;
   const underCap = Math.min(full, Math.max(0, XP_RULES.dailyCap - today));
   return underCap + (full - underCap) * XP_RULES.overCap;
 }
@@ -88,16 +86,16 @@ export function practice(world: World, source: XpSource, amount: number, difficu
 export function accrueXp(p: SkillProgress, source: XpSource, amount: number, difficulty: number | null, target: string, turn: number): number {
   const family = XP_SOURCES[source].skill;
   const xp = xpFor(p, source, amount, difficulty, target, turn);
-  const day = clockOf(turn).day;
-  if (p.xpDay !== day) startDay(p, day, turn);
+  const window = workDayOf(turn);
+  if (p.xpWindow !== window) startWindow(p, window, turn);
   p.repeats[repeatKey(source, target)] = { count: repeatsOf(p, source, target, turn) + 1, turn };
   p.xpToday[family] += xp;
   p.xp += xp;
   return xp;
 }
 
-function startDay(p: SkillProgress, day: number, turn: number): void {
-  p.xpDay = day;
+function startWindow(p: SkillProgress, window: number, turn: number): void {
+  p.xpWindow = window;
   for (const id of Object.keys(p.xpToday) as SkillId[]) p.xpToday[id] = 0;
   p.repeats = Object.fromEntries(Object.entries(p.repeats).filter(([key, seen]) => {
     const source = key.slice(0, key.indexOf(':')) as XpSource;
@@ -142,6 +140,20 @@ export function buyCheapestRanks(world: World): World {
     const cheapest = affordable.reduce((best, skill) => (cost(skill) < cost(best) ? skill : best));
     world = buyRank(world, cheapest);
   }
+}
+
+export function basicSkill(basic: BasicId): SkillId {
+  const skill = SKILL_IDS.find((id) => BASICS[id] === basic);
+  if (!skill) throw new Error(`No skill opens the basic ${basic}`);
+  return skill;
+}
+
+export function hasBasic(world: World, basic: BasicId): boolean {
+  return skillLevel(world, basicSkill(basic)) >= BASIC_RANK;
+}
+
+export function basicRefusal(world: World, basic: BasicId): Refusal | null {
+  return hasBasic(world, basic) ? null : { id: 'needsBasic', skill: basicSkill(basic) };
 }
 
 export type PerkPair = { skill: SkillId; level: PerkLevel; perks: PerkId[] };

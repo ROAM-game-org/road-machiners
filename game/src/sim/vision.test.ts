@@ -4,19 +4,31 @@ import { PHYSICS } from '../data/physics';
 import { hulkBoxes } from './body';
 import { PERK_NUMBERS, SKILL_EFFECTS } from '../data/skills';
 import { WEATHER } from '../data/weather';
-import { addVehicle, emptyWorld, practiceOf, settleStorms } from './testkit';
+import { addVehicle, emptyWorld, PLAIN_KIT, practiceOf, settleStorms } from './testkit';
+import { playerVehicle } from './damage';
+import { propsAround } from './prop-index';
+import { litFlares } from './hazards';
+import { tileSteepness } from '../mapgen/bake';
+import { REGION } from '../data/region';
+import { dist } from './vec';
+import { heightAt } from './terrain';
+import type { Obstacle } from './types';
 import { contactsOf, soundRange } from './detect';
 import { TIME } from '../data/time';
 import { sunAt } from './sun';
-import { canVehicleSee, exploreFrom, grayRadius, hasLineOfFire, playerVisible, practiceContacts, refreshVision, sightRadius, visibleTiles } from './vision';
+import { canVehicleSee, clearOverTerrain, grayRadius, grayReach, hasLineOfFire, hasLineOfSight, playerVisible, practiceContacts, refreshVision, seenPropTiles, sightLine, sightRadius, visibleTiles } from './vision';
 import { TEST_MAP } from '../test/map';
-import { START_KITS } from '../data/start';
 import { DECKS, deckAt } from './bridge';
 import type { World } from './types';
 import type { Vec } from './vec';
 import { newWorld } from './world';
+import { reusedWorld } from '../test/world-cache';
 import { defaultSetup } from './settings';
 import { ICARUS_DECKS } from './bridge';
+
+function realMapWorld(): World {
+  return reusedWorld('real map without traffic', () => newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'), false));
+}
 
 describe('vision', () => {
   it('sees an unblocked tile within radius', () => {
@@ -36,7 +48,7 @@ describe('vision', () => {
 
   it('sees behind a rock within the close radius', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    w.obstacles = [{ id: 'r', pos: { x: 31.2, y: 30.5 }, r: 0.6, kind: 'rock' }];
+    w.obstacles = [{ id: 'r', pos: { x: 31.2, y: 30.5 }, r: 1.2, kind: 'rock' }];
     const vis = visibleTiles(w, { x: 30, y: 30.5 });
     expect(vis.has(30 * w.size + 32)).toBe(true);
     expect(vis.has(30 * w.size + 35)).toBe(false);
@@ -44,7 +56,7 @@ describe('vision', () => {
 
   it('lets an NPC see a vehicle behind a rock within the close radius', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    w.obstacles = [{ id: 'r', pos: { x: 31.2, y: 30 }, r: 0.6, kind: 'rock' }];
+    w.obstacles = [{ id: 'r', pos: { x: 31.2, y: 30 }, r: 1.2, kind: 'rock' }];
     const npc = { ...w.vehicles[0], id: 'npc', pos: { x: 30, y: 30 } };
     expect(canVehicleSee(w, npc, { x: 32.5, y: 30 })).toBe(true);
     expect(canVehicleSee(w, npc, { x: 35.5, y: 30 })).toBe(false);
@@ -85,11 +97,11 @@ describe('vision', () => {
       w.obstacles = [{ id: 'wreck-npc7', pos: { x: 33, y: 30 }, r: 0.9, kind: 'wreck', hulk: { chassisId, yaw: Math.PI / 2 } }];
       return hasLineOfFire(w, { x: 30, y: 30 }, { x: 36.5, y: 30 });
     };
-    const reachesEye = (chassisId: string) => hulkBoxes(chassisId).some((b) => b.z0 <= eye && b.z1 >= eye && b.x0 <= 0 && b.x1 >= 0);
+    const reachesEye = (chassisId: string) => hulkBoxes(chassisId, undefined).some(({ box: b }) => b.z0 <= eye && b.z1 >= eye && b.x0 <= 0 && b.x1 >= 0);
 
-    expect(reachesEye('tractor')).toBe(true);
+    expect(reachesEye('loader')).toBe(true);
     expect(reachesEye('buggy')).toBe(false);
-    expect(line('tractor')).toBe(false);
+    expect(line('loader')).toBe(false);
     expect(line('buggy')).toBe(true);
   });
 
@@ -117,19 +129,6 @@ describe('vision', () => {
 
     expect(hasLineOfFire(w, { x: 40, y: 30 }, eastWall)).toBe(true);
     expect(hasLineOfFire(w, { x: 26, y: 30 }, eastWall)).toBe(false);
-  });
-
-  it('explores from a point exactly the tiles seen from there, and keeps tiles explored before', () => {
-    const w = emptyWorld({ x: 30, y: 30 });
-    w.obstacles = [{ id: 'r', pos: { x: 33, y: 30 }, r: 1.2, kind: 'rock' }];
-    const from = { x: 30, y: 30 };
-    const before = 5 * w.size + 5;
-    w.player.explored.fill(0);
-    w.player.explored[before] = 1;
-    exploreFrom(w, from);
-    const expected = new Set([...visibleTiles(w, from), before]);
-    const marked = new Set([...w.player.explored.keys()].filter((i) => w.player.explored[i] === 1));
-    expect(marked).toEqual(expected);
   });
 
   it('respects the vision radius', () => {
@@ -177,6 +176,19 @@ describe('terrain line of sight', () => {
     expect(grayRadius(w)).toBe(TERRAIN.vision.radius * TERRAIN.vision.grayFactor);
   });
 
+  it('keeps the gray reach of a clear day at night and in a storm, and widens it with a tourer chassis', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const day = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => sunAt(t))!;
+    w.turn = day;
+    const clear = grayReach(w, w.vehicles[0]);
+    expect(clear).toBe(grayRadius(w));
+    w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => !sunAt(t))!;
+    w.weather = [{ id: 'w1', kind: 'storm', pos: { x: 30, y: 30 }, radius: 60, vel: { x: 0, y: 0 }, turnsLeft: 100, born: w.turn - 100 }];
+    expect(grayRadius(w)).toBeLessThan(clear);
+    expect(grayReach(w, w.vehicles[0])).toBe(clear);
+    expect(grayReach(w, { ...w.vehicles[0], chassisId: 'lincoln' })).toBeGreaterThan(clear);
+  });
+
   it('shrinks gray vision at night with sight', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => !sunAt(t))!;
@@ -189,7 +201,7 @@ describe('contact practice', () => {
   function heardBuggy() {
     const w = emptyWorld({ x: 30, y: 30 });
     w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => !sunAt(t))!;
-    const buggy = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
+    const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
     buggy.speed = 6;
     return { w, buggy };
   }
@@ -220,7 +232,7 @@ describe('contact practice', () => {
 
   it('pays nothing when an NPC hears a truck', () => {
     const { w, buggy } = heardBuggy();
-    const trader = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 60, y: 30 });
+    const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 60, y: 30 });
     expect(contactsOf(w, trader, Infinity).map((c) => c.vehicleId)).toContain(buggy.id);
     expect(practiceOf(w, 'contact')).toEqual([]);
   });
@@ -244,7 +256,7 @@ describe('perception sight', () => {
 
   it('leaves NPC sight alone', () => {
     const w = emptyWorld({ x: 60, y: 60 });
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
     const base = sightRadius(w, npc);
     w.player.ranks.perception = 5;
     expect(sightRadius(w, npc)).toBe(base);
@@ -268,7 +280,7 @@ describe('the night eyes perk', () => {
     const w = emptyWorld({ x: 60, y: 60 });
     w.turn = night();
     w.player.perks.push('nightEyes');
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
     expect(sightRadius(w, npc)).toBeCloseTo(TERRAIN.vision.radius * TIME.nightSight);
   });
 });
@@ -280,7 +292,7 @@ describe('the storm rider perk', () => {
     const w = emptyWorld({ x: 60, y: 60 });
     w.turn = day();
     w.weather = [{ id: 'w1', kind: 'storm', pos: { x: 60, y: 60 }, radius: 60, vel: { x: 0, y: 0 }, turnsLeft: 100, born: w.turn - 100 }];
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 62, y: 60 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 62, y: 60 });
     settleStorms(w);
     return { w, me: w.vehicles[0], npc };
   }
@@ -302,7 +314,7 @@ describe('the storm rider perk', () => {
 describe('a dust screen', () => {
   function screenWorld(pos: { x: number; y: number }, screen: boolean) {
     const w = emptyWorld({ x: 30, y: 30 });
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 20, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 20, y: 30 });
     const me = w.vehicles[0];
     w.dustClouds = [{ id: 'dust', source: me.id, pos, vel: { x: 0, y: 0 }, age: 0, range: 50, ...(screen ? { screen: true as const } : {}) }];
     refreshVision(w);
@@ -348,12 +360,11 @@ describe('sight from the wing', () => {
   const at = (p: Vec, along: number, side: number): Vec => ({ x: p.x + span.axis.x * along + across.x * side, y: p.y + span.axis.y * along + across.y * side });
 
   function wingWorld(): World {
-    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
-    w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
+    const w = realMapWorld();
     w.vehicles[0].pos = at(mid, 0, -5);
     return w;
   }
-  const viewer = (w: World, pos: Vec) => addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], pos);
+  const viewer = (w: World, pos: Vec) => addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], pos);
 
   it('sees a truck 15 tiles out on the furrow bank over a hull plate that hides it from the ground', () => {
     const w = wingWorld();
@@ -364,7 +375,7 @@ describe('sight from the wing', () => {
     expect(deckAt(ICARUS_DECKS, onGround.pos.x, onGround.pos.y)).toBeNull();
     expect(canVehicleSee(w, onGround, target)).toBe(true);
 
-    w.obstacles.push({ id: 'plate', pos: at(mid, 0, 11), r: 1.3, kind: 'landmark', look: 'hullChunk', yaw: 0 });
+    w.obstacles = [...w.obstacles, { id: 'plate', pos: at(mid, 0, 11), r: 1.3, kind: 'landmark', look: 'hullChunk', yaw: 0 }];
 
     expect(canVehicleSee(w, onGround, target)).toBe(false);
     expect(canVehicleSee(w, onSpan, target)).toBe(true);
@@ -380,5 +391,189 @@ describe('sight from the wing', () => {
 
     expect(canVehicleSee(w, viewer(w, from), to)).toBe(true);
     expect(hasLineOfFire(w, from, to)).toBe(true);
+  });
+});
+
+describe('the viewshed against the line to every tile', () => {
+  const world = realMapWorld();
+  const t = world.terrain;
+  const me = playerVehicle(world);
+
+  function lineSeen(w: World, from: Vec, tile: Vec, props: readonly Obstacle[]): boolean {
+    if (dist(from, tile) <= TERRAIN.vision.closeRadius) return true;
+    const line = sightLine(w.terrain, from, tile);
+    return hasLineOfSight(w.terrain, line, props, []) && clearOverTerrain(w.terrain, line);
+  }
+
+  function lineTilesIn(w: World, from: Vec, reach: number, disk: { pos: Vec; r: number }, out: Set<number>): void {
+    const props = propsAround(w, 'sight', from, reach);
+    for (let x = Math.max(0, Math.floor(disk.pos.x - disk.r)); x <= Math.min(w.size - 1, Math.ceil(disk.pos.x + disk.r)); x++) {
+      for (let y = Math.max(0, Math.floor(disk.pos.y - disk.r)); y <= Math.min(w.size - 1, Math.ceil(disk.pos.y + disk.r)); y++) {
+        const tile = { x: x + 0.5, y: y + 0.5 };
+        if (dist(from, tile) <= reach && dist(disk.pos, tile) <= disk.r && lineSeen(w, from, tile, props)) out.add(y * w.size + x);
+      }
+    }
+  }
+
+  function lineTiles(w: World, from: Vec): Set<number> {
+    const viewer = playerVehicle(w);
+    const r = sightRadius(w, viewer);
+    const out = new Set<number>();
+    lineTilesIn(w, from, r, { pos: from, r }, out);
+    const lit = sightRadius(w, viewer, true);
+    if (lit > r) for (const f of litFlares(w)) if (dist(from, f.pos) - f.r < lit) lineTilesIn(w, from, lit, f, out);
+    return out;
+  }
+
+  function steepSpots(count: number): Vec[] {
+    const spots: { p: Vec; s: number }[] = [];
+    for (let x = 40; x < t.size - 40; x += 37) for (let y = 40; y < t.size - 40; y += 37) spots.push({ p: { x: x + 0.5, y: y + 0.5 }, s: tileSteepness(t.heights, t.size, y * t.size + x) });
+    return spots.sort((a, b) => b.s - a.s).slice(0, count).map((s) => s.p);
+  }
+
+  function nightTurn(): number {
+    for (let turn = world.turn; ; turn++) if (!sunAt(turn)) return turn;
+  }
+
+  const roadSpots = REGION.roads.flat().filter((_, i) => i % 7 === 0);
+  const propSpots = world.obstacles.filter((o) => o.kind === 'rock' || o.kind === 'building' || o.kind === 'landmark').filter((_, i) => i % 40 === 0).slice(0, 60).map((o) => ({ x: o.pos.x + 3.2, y: o.pos.y + 1.7 }));
+  const deckSpots = DECKS.flatMap((d) => [d.from, d.to]);
+
+  const GRAZE = 0.25;
+
+  function grazes(w: World, from: Vec, tile: Vec): boolean {
+    const line = sightLine(w.terrain, from, tile);
+    let worst = -Infinity;
+    for (let i = 1; i < 400; i++) {
+      const f = i / 400;
+      worst = Math.max(worst, heightAt(w.terrain, from.x + (tile.x - from.x) * f, from.y + (tile.y - from.y) * f) - (line.from + (line.to - line.from) * f));
+    }
+    return Math.abs(worst) <= GRAZE;
+  }
+
+  function compare(w: World, spots: readonly Vec[]): { tiles: number; differ: number; inside: number } {
+    let tiles = 0, differ = 0, inside = 0;
+    for (const from of spots) {
+      const oracle = lineTiles(w, from);
+      const seen = visibleTiles(w, from);
+      const reach = Math.max(sightRadius(w, playerVehicle(w)), sightRadius(w, playerVehicle(w), true));
+      tiles += Math.PI * reach * reach;
+      for (const idx of new Set([...oracle, ...seen])) {
+        if (oracle.has(idx) === seen.has(idx)) continue;
+        differ++;
+        const x = idx % w.size, y = Math.floor(idx / w.size);
+        const edge = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => oracle.has((y + dy) * w.size + x + dx) !== oracle.has(idx));
+        if (!edge && !grazes(w, from, { x: x + 0.5, y: y + 0.5 })) inside++;
+      }
+    }
+    return { tiles, differ, inside };
+  }
+
+  function expectClose(result: { tiles: number; differ: number; inside: number }): void {
+    expect(result.differ / result.tiles).toBeLessThanOrEqual(0.005);
+    expect(result.inside).toBe(0);
+  }
+
+  it('agrees with a line to every tile on roads, ridges, beside props and at deck ends', () => {
+    const spots = [...roadSpots, ...steepSpots(60), ...propSpots, ...deckSpots];
+    expect(spots.length).toBeGreaterThanOrEqual(250);
+    expectClose(compare(world, spots));
+  }, 600_000);
+
+  it('agrees at night and under a lit flare', () => {
+    const night = { ...world, turn: nightTurn(), flares: [] as World['flares'] };
+    const spots = roadSpots.filter((_, i) => i % 3 === 0).slice(0, 30);
+    night.flares = spots.slice(0, 10).map((p, i) => ({ id: `fl${i}`, source: me.id, pos: { x: p.x + 20, y: p.y }, r: 6, turnsLeft: 3 }));
+    expectClose(compare(night, spots));
+  }, 600_000);
+
+  it('gives the same tiles for the same point whatever was computed before', () => {
+    const from = roadSpots[3];
+    const first = [...visibleTiles(world, from)].sort((a, b) => a - b);
+    for (const p of roadSpots.slice(10, 20)) visibleTiles(world, p);
+    expect([...visibleTiles(world, from)].sort((a, b) => a - b)).toEqual(first);
+  });
+});
+
+describe('props the player sees', () => {
+  const from = { x: 30, y: 30 };
+  const landmark = (look: 'deadTree' | 'farmhouse' | 'shack', pos: Vec, yaw: number): World => {
+    const w = emptyWorld(from);
+    w.obstacles = [{ id: `${look}-0`, pos, r: 1.2, kind: 'landmark', look, yaw }];
+    return w;
+  };
+  const hiddenOwnTiles = (w: World) => {
+    const visible = visibleTiles(w, from);
+    return { visible, seen: seenPropTiles(w, from, visible) };
+  };
+
+  it.each([
+    ['deadTree', { x: 35.4, y: 30.3 }, 0.7],
+    ['farmhouse', { x: 35.4, y: 30 }, 0.7],
+    ['shack', { x: 35.4, y: 30 }, 0],
+  ] as const)('counts a %s as seen where its own boxes hide a tile under it', (look, pos, yaw) => {
+    const { visible, seen } = hiddenOwnTiles(landmark(look, pos, yaw));
+
+    expect(seen.some((idx) => !visible.has(idx))).toBe(true);
+    expect(seen.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('counts a rock beside its own hidden tiles as seen', () => {
+    const w = emptyWorld(from);
+    w.obstacles = [{ id: 'r', pos: { x: 35.4, y: 30.3 }, r: 1.6, kind: 'rock' }];
+    const { visible, seen } = hiddenOwnTiles(w);
+
+    expect(seen.some((idx) => !visible.has(idx))).toBe(true);
+  });
+
+  it('leaves the rule sight of the same scene unchanged', () => {
+    const w = landmark('shack', { x: 35.4, y: 30 }, 0);
+    const before = [...visibleTiles(w, from)];
+    seenPropTiles(w, from, new Set(before));
+
+    expect([...visibleTiles(w, from)]).toEqual(before);
+  });
+
+  it('keeps a prop behind a shack unseen', () => {
+    const w = emptyWorld(from);
+    w.obstacles = [
+      { id: 'shack-0', pos: { x: 33, y: 30 }, r: 1.2, kind: 'landmark', look: 'shack', yaw: 0 },
+      { id: 'r', pos: { x: 39.5, y: 30.5 }, r: 1.2, kind: 'rock' },
+    ];
+    const { visible, seen } = hiddenOwnTiles(w);
+    const rockTile = 30 * w.size + 39;
+
+    expect(visible.has(rockTile)).toBe(false);
+    expect(seen).not.toContain(rockTile);
+  });
+
+  it('keeps a prop behind a hill unseen', async () => {
+    const { heightAt } = await import('./terrain');
+    const w = emptyWorld(from);
+    w.terrain = TEST_MAP.terrain;
+    let found: { a: Vec; b: Vec } | null = null;
+    for (let x = 6; x < w.size - 6 && !found; x++) {
+      for (let y = 2; y < w.size - 2 && !found; y++) {
+        const a = { x: x - 4, y }, b = { x: x + 4, y };
+        if (heightAt(w.terrain, x, y) - Math.max(heightAt(w.terrain, a.x, a.y), heightAt(w.terrain, b.x, b.y)) > TERRAIN.vision.eyeHeight) found = { a, b };
+      }
+    }
+    expect(found, 'no hill found for this seed').not.toBeNull();
+    const visible = visibleTiles(w, found!.a);
+    const behindHill = [3, 4, 5, 6, 7, 8]
+      .map((d) => ({ x: Math.floor(found!.b.x) + d - 3.5, y: Math.floor(found!.b.y) + 0.5 }))
+      .find((pos) => [-1, 0, 1].every((dx) => [-1, 0, 1].every((dy) => !visible.has(Math.floor(pos.y + dy) * w.size + Math.floor(pos.x + dx)))));
+    expect(behindHill, 'no tile fully behind the hill').toBeDefined();
+    w.obstacles = [{ id: 'r', pos: behindHill!, r: 1.2, kind: 'rock' }];
+
+    expect(seenPropTiles(w, found!.a, visible)).toEqual([]);
+  });
+
+  it('counts a prop beside the viewer as seen', () => {
+    const w = emptyWorld(from);
+    w.obstacles = [{ id: 'r', pos: { x: 31.2, y: 30.5 }, r: 1.2, kind: 'rock' }];
+    const { seen } = hiddenOwnTiles(w);
+
+    expect(seen).toContain(30 * w.size + 31);
   });
 });

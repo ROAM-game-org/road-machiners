@@ -82,3 +82,8 @@ function touches(o: Obstacle, pivot: Flat, shape: HeadShape, sweep: readonly Fir
   }
   return false;
 }
+
+export function signedDegrees(deg: number): number {
+  const turn = ((deg % 360) + 360) % 360;
+  return turn > 180 ? turn - 360 : turn;
+}

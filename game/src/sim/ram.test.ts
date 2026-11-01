@@ -1,8 +1,12 @@
 import { partDef } from '../data/parts';
 import { describe, expect, it } from 'vitest';
-import { corePart, itemCells, mountedItems, mountedParts } from './grid';
+import { baseGrid, corePart, mountedItems, mountedParts } from './grid';
 import { applyContactCrash, estimateCrashGeometry, forecastRam, ramHitChance, ramImpact, ramValue } from './crash-contact';
 import { RULES } from '../data/rules';
+import { fileReports } from './crime';
+import { recall } from './memory';
+import { getKnownSite } from './npc-decisions';
+import { nearestPad } from './sites';
 import { thinkNpc } from './npc-activities';
 import { addState, stateOf } from './states';
 import { addVehicle, emptyWorld, forceOption, npcBrain } from './testkit';
@@ -11,8 +15,8 @@ import type { Vec } from './vec';
 
 const FULL_SPEED = 6;
 
-function applyCrash(world: World, a: Vehicle, b: Vehicle | null, what: string, from: Vec, impact: number): void {
-  applyContactCrash(world, a, b, what, impact, estimateCrashGeometry(a, b, from));
+function applyCrash(world: World, a: Vehicle, b: Vehicle | null, what: string, from: Vec, impact: number, approach = { a: impact, b: 0 }): void {
+  applyContactCrash(world, a, b, what, impact, estimateCrashGeometry(a, b, from), b ? approach : null);
 }
 
 function crashOf(w: World): Extract<GameEvent, { t: 'collision' }> {
@@ -22,13 +26,13 @@ function crashOf(w: World): Extract<GameEvent, { t: 'collision' }> {
 }
 
 const total = (hits: { damage: number }[]) => hits.reduce((a, h) => a + h.damage, 0);
-const partAt = (v: Vehicle, x: number, y: number) => mountedItems(v).find((it) => itemCells(it).some((c) => c.x === x && c.y === y))!.part;
+const leftWheels = (v: Vehicle) => mountedItems(v).filter((it) => it.part.defId === 'wheel' && it.x === 1).sort((a, b) => a.y - b.y);
 const partOf = (v: Vehicle, defId: string) => mountedParts(v).find((p) => p.defId === defId)!;
 
 function ramToRear(v: Vehicle): void {
   const item = mountedItems(v).find((it) => it.part.defId === 'ram')!;
   const owner = v.items.find((it) => it.id === item.id)!;
-  owner.y = 7;
+  owner.y = baseGrid(v.chassisId).h - 1;
   expect(mountedItems(v).some((it) => it.part.defId === 'ram')).toBe(true);
 }
 
@@ -41,8 +45,8 @@ function plowToNose(v: Vehicle): void {
 describe('rams', () => {
   it('a light truck takes more damage than a heavy one in a head-on crash', () => {
     const w = emptyWorld();
-    const buggy = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 40 }, 0);
-    const hauler = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], { x: 41.5, y: 40 }, Math.PI);
+    const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 40 }, 0);
+    const hauler = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 41.5, y: 40 }, Math.PI);
     applyCrash(w, buggy, hauler, hauler.id, hauler.pos, FULL_SPEED);
     const e = crashOf(w);
     expect(total(e.hitsA)).toBeGreaterThan(total(e.hitsB));
@@ -51,14 +55,14 @@ describe('rams', () => {
 
   it('a front ram takes the hit before the cab', () => {
     const bare = emptyWorld();
-    const plain = addVehicle(bare, 'raiders', 'scout', [], { x: 40, y: 40 }, 0);
-    const h1 = addVehicle(bare, 'traders', 'hauler', [], { x: 41.5, y: 40 }, Math.PI);
+    const plain = addVehicle(bare, 'scrapjaw', 'scout', [], { x: 40, y: 40 }, 0);
+    const h1 = addVehicle(bare, 'independent', 'hauler', [], { x: 41.5, y: 40 }, Math.PI);
     applyCrash(bare, h1, plain, plain.id, plain.pos, FULL_SPEED);
     expect(corePart(plain, 'cab').hp).toBeLessThan(partDef('cab').hp);
 
     const w = emptyWorld();
-    const rammed = addVehicle(w, 'raiders', 'scout', ['ram'], { x: 40, y: 40 }, 0);
-    const h2 = addVehicle(w, 'traders', 'hauler', [], { x: 41.5, y: 40 }, Math.PI);
+    const rammed = addVehicle(w, 'scrapjaw', 'scout', ['ram'], { x: 40, y: 40 }, 0);
+    const h2 = addVehicle(w, 'independent', 'hauler', [], { x: 41.5, y: 40 }, Math.PI);
     applyCrash(w, h2, rammed, rammed.id, rammed.pos, FULL_SPEED);
     expect(corePart(rammed, 'cab').hp).toBe(partDef('cab').hp);
     expect(partOf(rammed, 'ram').hp).toBeLessThan(partDef('ram').hp);
@@ -67,9 +71,9 @@ describe('rams', () => {
   it('a ram on the striking side raises damage to the other truck', () => {
     const run = (rear: boolean) => {
       const w = emptyWorld();
-      const scout = addVehicle(w, 'raiders', 'scout', ['ram'], { x: 40, y: 40 }, 0);
+      const scout = addVehicle(w, 'scrapjaw', 'scout', ['ram'], { x: 40, y: 40 }, 0);
       if (rear) ramToRear(scout);
-      const buggy = addVehicle(w, 'traders', 'buggy', ['mg', 'stockEngine'], { x: 41.2, y: 40 }, Math.PI);
+      const buggy = addVehicle(w, 'independent', 'buggy', ['mg', 'stockEngine'], { x: 41.2, y: 40 }, Math.PI);
       applyCrash(w, scout, buggy, buggy.id, buggy.pos, FULL_SPEED);
       return total(crashOf(w).hitsB);
     };
@@ -79,20 +83,20 @@ describe('rams', () => {
   it('a rear hit lands on rear lanes', () => {
     const firstHit = (fromX: number) => {
       const w = emptyWorld();
-      const v = addVehicle(w, 'raiders', 'scout', ['stockEngine'], { x: 40, y: 40 }, 0);
-      const other = addVehicle(w, 'traders', 'hauler', [], { x: fromX, y: 40 }, 0);
+      const v = addVehicle(w, 'scrapjaw', 'scout', ['stockEngine'], { x: 40, y: 40 }, 0);
+      const other = addVehicle(w, 'independent', 'hauler', [], { x: fromX, y: 40 }, 0);
       applyCrash(w, other, v, v.id, v.pos, FULL_SPEED);
       return { v, part: crashOf(w).hitsB[0].part };
     };
     const rear = firstHit(38.5);
-    expect(rear.part).toBe(partAt(rear.v, 1, 6).id);
+    expect(rear.part).toBe(leftWheels(rear.v).at(-1)!.part.id);
     const front = firstHit(41.5);
-    expect(front.part).toBe(partAt(front.v, 1, 1).id);
+    expect(front.part).toBe(leftWheels(front.v)[0].part.id);
   });
 
   it('an obstacle hit lands on the side facing it at full share', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', ['stockEngine'], { x: 40, y: 40 }, 0);
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['stockEngine'], { x: 40, y: 40 }, 0);
     applyCrash(w, v, null, 'rock', { x: 41.5, y: 40 }, FULL_SPEED);
     const e = crashOf(w);
     expect(e.hitsB).toEqual([]);
@@ -113,11 +117,11 @@ describe('slow bumps', () => {
 describe('rams as attacks', () => {
   function ramSetup(): { w: World; trader: Vehicle; victim: Vehicle; mate: Vehicle } {
     const w = emptyWorld({ x: 80, y: 80 });
-    const trader = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 40, y: 40 }, 0);
+    const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 40, y: 40 }, 0);
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
-    const victim = addVehicle(w, 'scavengers', 'hauler', ['stockEngine'], { x: 41.6, y: 40 }, Math.PI / 2);
+    const victim = addVehicle(w, 'bowl', 'hauler', ['stockEngine'], { x: 41.6, y: 40 }, Math.PI / 2);
     victim.brain = npcBrain('scavenger', victim.pos, ['scavenger']);
-    const mate = addVehicle(w, 'scavengers', 'hauler', ['stockEngine'], { x: 44, y: 44 }, 0);
+    const mate = addVehicle(w, 'bowl', 'hauler', ['stockEngine'], { x: 44, y: 44 }, 0);
     mate.brain = npcBrain('scavenger', mate.pos, ['scavenger']);
     return { w, trader, victim, mate };
   }
@@ -131,7 +135,7 @@ describe('rams as attacks', () => {
     expect(victim.brain!.attackers).toEqual({});
   });
 
-  it('a victim that retaliates feuds with its mate against the rammer and decides on it as an attacker', () => {
+  it('a victim that retaliates feuds with its ally against the rammer and decides on it as an attacker', () => {
     forceOption('crashed', 'retaliate');
     const { w, trader, victim, mate } = ramSetup();
     applyCrash(w, trader, victim, victim.id, victim.pos, FULL_SPEED);
@@ -141,9 +145,52 @@ describe('rams as attacks', () => {
     expect(victim.brain!.attackers).toEqual({ [trader.id]: true });
   });
 
+  it('a moving NPC that hits a parked player earns no grievance, feud, memory or case', () => {
+    forceOption('crashed', 'retaliate');
+    const { w, trader, victim } = ramSetup();
+    const me = w.vehicles[0];
+    me.pos = { x: 41.6, y: 40 };
+    applyCrash(w, trader, me, me.id, me.pos, FULL_SPEED, { a: FULL_SPEED, b: 0 });
+    thinkNpc(w, trader);
+    thinkNpc(w, victim);
+    expect(w.states.filter((s) => s.kind === 'grievance' || s.kind === 'feud')).toEqual([]);
+    expect(w.vehicles.flatMap((v) => (v.brain ? recall(v, 'wronged') : []))).toEqual([]);
+    expect(w.crimes).toEqual([]);
+  });
+
+  it('a player that drives into a parked NPC that retaliates in sight of a witness gets a feud and a case', () => {
+    forceOption('crashed', 'retaliate');
+    const { w, victim } = ramSetup();
+    const me = w.vehicles[0];
+    me.pos = { x: 40, y: 40 };
+    const witness = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 38, y: 44 }, 0);
+    witness.brain = npcBrain('trader', witness.pos, ['trader']);
+    applyCrash(w, me, victim, victim.id, victim.pos, FULL_SPEED, { a: FULL_SPEED, b: 0 });
+    thinkNpc(w, victim);
+    expect(stateOf(w, 'feud', victim.id, me.id)).not.toBeNull();
+    witness.pos = { ...nearestPad(getKnownSite('nose'), witness.pos) };
+    witness.speed = 0;
+    fileReports(w, witness);
+    expect(w.crimes.map((c) => c.offense)).toEqual(['attacked']);
+  });
+
+  it('a head-on between two NPCs gives each a grievance', () => {
+    const { w, trader, victim } = ramSetup();
+    applyCrash(w, trader, victim, victim.id, victim.pos, FULL_SPEED, { a: FULL_SPEED / 2, b: FULL_SPEED / 2 });
+    expect(stateOf(w, 'grievance', victim.id, trader.id)).not.toBeNull();
+    expect(stateOf(w, 'grievance', trader.id, victim.id)).not.toBeNull();
+  });
+
+  it('a victim whose ram came from a parked truck holds no grievance', () => {
+    const { w, trader, victim } = ramSetup();
+    applyCrash(w, trader, victim, victim.id, victim.pos, FULL_SPEED, { a: 0, b: FULL_SPEED });
+    expect(stateOf(w, 'grievance', victim.id, trader.id)).toBeNull();
+    expect(victim.lastHitBy).toBe(trader.id);
+  });
+
   it('a crash with measured physics contact geometry gives a grievance too', () => {
     const { w, trader, victim } = ramSetup();
-    applyContactCrash(w, trader, victim, victim.id, FULL_SPEED, { a: { side: 'front', lanes: [1, 2] }, b: { side: 'left', lanes: [2, 3] } });
+    applyContactCrash(w, trader, victim, victim.id, FULL_SPEED, { a: { side: 'front', lanes: [1, 2] }, b: { side: 'left', lanes: [2, 3] } }, { a: FULL_SPEED, b: 0 });
     expect(total(crashOf(w).hitsB)).toBeGreaterThan(0);
     expect(stateOf(w, 'grievance', victim.id, trader.id)).not.toBeNull();
     expect(victim.lastHitBy).toBe(trader.id);
@@ -151,7 +198,7 @@ describe('rams as attacks', () => {
 
   it('a ram forecast damages nothing and attacks no one', () => {
     const { w, victim, mate } = ramSetup();
-    const raider = addVehicle(w, 'raiders', 'hauler', ['mg', 'stockEngine', 'plowRam'], { x: 38, y: 40 }, 0);
+    const raider = addVehicle(w, 'scrapjaw', 'hauler', ['mg', 'stockEngine', 'plowRam'], { x: 38, y: 40 }, 0);
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     raider.speed = 5;
     const before = JSON.stringify(w.vehicles);
@@ -192,8 +239,8 @@ describe('rams as attacks', () => {
 
 function duel(rammerParts: string[], targetParts: string[], gap = 6): { w: World; rammer: Vehicle; target: Vehicle } {
   const w = emptyWorld({ x: 1, y: 1 });
-  const rammer = addVehicle(w, 'raiders', 'hauler', rammerParts, { x: 30, y: 30 }, 0);
-  const target = addVehicle(w, 'traders', 'hauler', targetParts, { x: 30 + gap, y: 30 }, Math.PI);
+  const rammer = addVehicle(w, 'scrapjaw', 'hauler', rammerParts, { x: 30, y: 30 }, 0);
+  const target = addVehicle(w, 'independent', 'hauler', targetParts, { x: 30 + gap, y: 30 }, Math.PI);
   rammer.speed = 5;
   return { w, rammer, target };
 }
@@ -215,15 +262,15 @@ describe('ram value', () => {
   it('is not vetoed by a broken ram bar on a ram that hurts the target far more', () => {
     const { w, rammer, target } = duel(['cannon', 'stockEngine', 'plowRam'], ['cannon', 'stockEngine']);
     plowToNose(rammer);
-    const bar = mountedParts(rammer, 'armor')[0];
+    const bar = mountedParts(rammer, 'accessory')[0];
     bar.hp = 1;
     expect(ramValue(w, rammer, target)).toBeGreaterThan(0);
   });
 
   it('is 0 when the ram costs the rammer more than it deals', () => {
     const w = emptyWorld({ x: 1, y: 1 });
-    const buggy = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 }, 0);
-    const hauler = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine', 'plowRam'], { x: 36, y: 30 }, Math.PI);
+    const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 }, 0);
+    const hauler = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine', 'plowRam'], { x: 36, y: 30 }, Math.PI);
     buggy.speed = 5;
     expect(ramImpact(w, buggy, hauler)).not.toBeNull();
     expect(ramValue(w, buggy, hauler)).toBe(0);

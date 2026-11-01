@@ -1,6 +1,3 @@
-// Roadside patches between two trucks. A patch lifts the broken engine, transmission and tank that strand a truck, or
-// the badly worn ones of a truck that still drives, to PATCH.share of their max HP, with the repair math of
-// src/sim/repair.ts and the patcher's Machining. The agreement fixes which parts it covers. The terms are
 
 import { practice, skillEffect, vehicleHasPerk } from './progress';
 import { PERK_NUMBERS } from '../data/skills';
@@ -9,7 +6,8 @@ import { PATCH, REPAIR } from '../data/wear';
 import { isJunk, maxHp, restorePart } from './wear';
 import { playerVehicle, vehicleById } from './damage';
 import { getTradePrice } from './economy';
-import { corePart, goodsCount, mountedParts } from './grid';
+import { corePart, mountedParts } from './grid';
+import { spareGoods } from './market';
 import { removeGoods } from './inventory';
 import { isParkedForWork } from './jobs';
 import { decide, optionWeights } from './npc-decisions';
@@ -21,6 +19,8 @@ import { inTowReach } from './tow';
 import { workTimeMult } from './utility';
 import type { CallVar, NpcState, PartInstance, PatchDeal, StateData, Vehicle, World } from './types';
 import { dist } from './vec';
+import { noteDeed } from './relations';
+import { fairM, requireWholeM } from './money';
 
 export type PatchPlan = { parts: number; turns: number; priceTurns: number };
 type Roles = { patcher: Vehicle; client: Vehicle };
@@ -55,7 +55,7 @@ export function needsPatch(world: World, v: Vehicle): boolean {
 }
 
 export function canFixItself(world: World, v: Vehicle): boolean {
-  return partsHeld(v) >= patchPlan(world, { patcher: v, client: v }).parts;
+  return partsHeld(world, v) >= patchPlan(world, { patcher: v, client: v }).parts;
 }
 
 export function patchPlan(world: World, { patcher, client }: Roles): PatchPlan {
@@ -72,8 +72,8 @@ function rolesWith(world: World, npc: Vehicle): Roles {
   return npcIsClient ? { patcher: me, client: npc } : { patcher: npc, client: me };
 }
 
-function partsHeld(v: Vehicle): number {
-  return goodsCount(v).parts ?? 0;
+function partsHeld(world: World, v: Vehicle): number {
+  return spareGoods(world, v, 'parts');
 }
 
 function partsValue(world: World, client: Vehicle, parts: number): number {
@@ -86,7 +86,7 @@ function priceOf(world: World, deal: PatchDeal, roles: Roles, plan: PatchPlan): 
   if (deal === 'free') return 0;
   const full = deal === 'ownParts' ? labor : labor + partsValue(world, roles.client, plan.parts);
   const mechanic = vehicleHasPerk(world, roles.patcher, 'roadMechanic') ? PERK_NUMBERS.roadMechanic.price : 1;
-  return Math.round(full * mechanic * (1 - skillEffect(world, roles.client, 'social', 'patchPrice')));
+  return fairM(full * mechanic * (1 - skillEffect(world, roles.client, 'social', 'patchPrice')));
 }
 
 function partsPayer(deal: PatchDeal, roles: Roles): Vehicle {
@@ -113,7 +113,7 @@ export function dealAvailable(deal: PatchDeal): (world: World, npc: Vehicle) => 
     const roles = rolesWith(world, npc);
     const plan = patchPlan(world, roles);
     if (plan.parts === 0) return false;
-    return partsHeld(partsPayer(deal, roles)) >= plan.parts && canPay(world, roles.client, priceOf(world, deal, roles, plan));
+    return partsHeld(world, partsPayer(deal, roles)) >= plan.parts && canPay(world, roles.client, priceOf(world, deal, roles, plan));
   };
 }
 
@@ -178,7 +178,7 @@ export function checkPatch(world: World, s: NpcState): 'fulfilled' | 'broken' | 
 }
 
 function canStillPay(world: World, data: Extract<StateData, { kind: 'patch' }>, roles: Roles): boolean {
-  return partsHeld(partsPayer(data.deal, roles)) >= data.parts && canPay(world, roles.client, data.price);
+  return partsHeld(world, partsPayer(data.deal, roles)) >= data.parts && canPay(world, roles.client, data.price);
 }
 
 function liftAgreedParts(data: Extract<StateData, { kind: 'patch' }>, client: Vehicle): void {
@@ -192,6 +192,7 @@ export function settlePatch(world: World, s: NpcState): void {
   const data = patchData(s);
   const roles = { patcher: vehicleById(world, s.holder), client: vehicleById(world, s.other) };
   removeGoods(partsPayer(data.deal, roles), 'parts', data.parts);
+  requireWholeM(data.price, 'patch price');
   getResources(world, roles.client).money -= data.price;
   getResources(world, roles.patcher).money += data.price;
   liftAgreedParts(data, roles.client);
@@ -199,6 +200,7 @@ export function settlePatch(world: World, s: NpcState): void {
   if (s.holder === world.player.vehicleId) practice(world, 'patch', 1, null, s.other);
   if (s.holder === world.player.vehicleId) practice(world, 'deal', 1, null, s.other);
   if (s.other === world.player.vehicleId) practice(world, 'deal', 1, null, s.holder);
+  noteDeed(world, roles.patcher, roles.client, 'patched', true);
 }
 
 export function breakPatch(world: World, s: NpcState): void {

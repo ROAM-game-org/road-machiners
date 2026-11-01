@@ -1,6 +1,3 @@
-// Render-only motion of a truck body and its loose parts. Driving physics never reads it.
-// The body leans on a spring toward a tilt set by the truck's acceleration. It lifts its nose when the truck speeds up,
-// dips it on braking and leans out of turns. A running engine shakes it a little while a turn plays.
 
 import * as THREE from 'three';
 import type { VehicleFrame } from '../../phys/frames';
@@ -14,6 +11,7 @@ const SWAY = {
   maxPitch: 0.085,
   maxRoll: 0.1,
   maxLift: 0.06,
+  reachHalf: 4,
 };
 const MAX_ACCEL = 20;
 const IDLE = { liftHz: 11, lift: 0.012, rollHz: 7.3, roll: 0.005 };
@@ -44,6 +42,11 @@ class Spring {
     this.x = 0;
     this.v = 0;
   }
+
+  copy(from: Spring): void {
+    this.x = from.x;
+    this.v = from.v;
+  }
 }
 
 class Whip {
@@ -71,6 +74,12 @@ class Whip {
     this.pitch.reset();
     this.roll.reset();
   }
+
+  carryFrom(from: Whip): void {
+    if (from.kind !== this.kind) return;
+    this.pitch.copy(from.pitch);
+    this.roll.copy(from.roll);
+  }
 }
 
 export class TruckMotion {
@@ -78,6 +87,7 @@ export class TruckMotion {
   private readonly roll = new Spring(SWAY.hz, SWAY.damping);
   private readonly lift = new Spring(SWAY.hz, SWAY.damping);
   private readonly whips: Whip[] = [];
+  private readonly pitchShare: number;
   private time = 0;
   private last: VehicleFrame | null = null;
   private readonly local = new THREE.Vector3();
@@ -88,8 +98,13 @@ export class TruckMotion {
   constructor(
     private readonly body: THREE.Object3D,
     private readonly pivot: THREE.Vector3,
+    halfLength: number,
     phase: number,
   ) {
+    if (!Number.isFinite(halfLength) || !(halfLength > 0)) {
+      throw new Error(`Truck motion needs a positive half-length, got ${halfLength}`);
+    }
+    this.pitchShare = Math.min(1, SWAY.reachHalf / halfLength);
     this.time = phase * 100;
   }
 
@@ -101,19 +116,28 @@ export class TruckMotion {
     this.whips.length = 0;
   }
 
+  carryFrom(from: TruckMotion): void {
+    this.pitch.copy(from.pitch);
+    this.roll.copy(from.roll);
+    this.lift.copy(from.lift);
+    this.time = from.time;
+    this.last = from.last;
+    this.whips.forEach((whip, i) => from.whips[i] && whip.carryFrom(from.whips[i]));
+  }
+
   step(f: VehicleFrame, dt: number, running: boolean): void {
     if (!(dt >= 0)) throw new Error(`Truck motion step of ${dt} s`);
     this.time += dt;
     const paused = f === this.last;
     this.last = f;
-    if (paused) return this.apply(false);
+    if (paused) return this.apply(running);
     if (dt > MAX_GAP) this.reset();
     this.inverse.set(f.rot.x, f.rot.y, f.rot.z, f.rot.w).invert();
     this.local.set(f.acc.x, f.acc.y, f.acc.z).applyQuaternion(this.inverse);
     const along = clamp(this.local.x, MAX_ACCEL);
     const up = clamp(this.local.y, MAX_ACCEL);
     const across = clamp(this.local.z, MAX_ACCEL);
-    const pitch = clamp(along * SWAY.pitchPerAccel, SWAY.maxPitch);
+    const pitch = clamp(along * SWAY.pitchPerAccel * this.pitchShare, SWAY.maxPitch * this.pitchShare);
     const roll = clamp(-across * SWAY.rollPerAccel, SWAY.maxRoll);
     const lift = clamp(-up * SWAY.liftPerAccel, SWAY.maxLift);
     let left = Math.min(dt, MAX_GAP);

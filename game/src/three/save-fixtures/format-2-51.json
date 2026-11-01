@@ -1,9 +1,0 @@
-{
-  "turn": 1200,
-  "vehicles": [
-    { "id": "player", "brain": null },
-    { "id": "npc1", "brain": { "templateId": "trader", "traits": ["trader"], "driver": "Ada Voss", "goals": [] } },
-    { "id": "npc2", "brain": { "templateId": "buggy", "traits": ["raider"], "driver": "Tom Reck", "goals": [] } },
-    { "id": "npc3", "brain": { "templateId": "noseArmy", "traits": ["lawman", "brave"], "driver": "Ila Marsh", "goals": [] } }
-  ]
-}

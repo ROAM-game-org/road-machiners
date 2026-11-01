@@ -1,18 +1,22 @@
 
-import { chassisDef, PLAYER_CHASSIS } from '../../data/chassis';
+import { chassisDef } from '../../data/chassis';
+import type { LineId } from '../../data/dialogue';
 import { startKit } from '../../data/start';
-import { partDef, PARTS, type PartKind } from '../../data/parts';
+import { isLineGun, partDef, PARTS, type PartKind } from '../../data/parts';
 import { playerVehicle, truckFor } from '../damage';
-import { buyChassis, buyStockPart, chassisTradeIn, partTradePrice, sellPart } from '../economy';
+import { chassisTopSpeed } from '../chassis-features';
+import { buyChassis, buyStockPart, chassisTradeIn, garageChassis, partTradePrice, sellPart } from '../economy';
 import { type Spot, goodsCount, mountedItems } from '../grid';
-import { installSpot, moveItem, spareParts, storePart, takeFromStorage } from '../inventory';
+import { installSpot, moveItem, spareParts, startRefit, storePart, takeFromStorage, type RefitLayout } from '../inventory';
 import { shopAt, shopState } from '../market';
-import { townAt } from '../sites';
+import { canUseSite, nearestPad, townAt, type Site } from '../sites';
+import type { Vec } from '../vec';
 import { getUpkeepReserve } from '../npc-decisions';
-import { bestPlan, gearBudget, gearPlans, probe, type GearJob, type Offer } from './gear';
+import { bestPlan, gearBudget, gearPlans, npcScorer, probe, type Offer } from './gear';
 import type { ThreatAnswer } from '../parley';
 import type { GameEvent, GridItem, PartInstance, Vehicle, World } from '../types';
 import { isJunk } from '../wear';
+import { setMoveOrder } from '../world';
 
 export const LEDGER_KEYS = ['fuel', 'supplies', 'repairs', 'gear', 'goodsBought', 'goodsSold', 'lootSales', 'contracts', 'fees', 'payouts', 'other'] as const;
 export type LedgerKey = (typeof LEDGER_KEYS)[number];
@@ -57,7 +61,7 @@ export class Orders {
   }
 }
 
-export type UpgradeStyle = { skip: readonly PartKind[]; chassis: 'value' | 'speed' | 'keep'; job: GearJob; budgetJob?: GearJob; lootRoom?: number; minSpeed?: number };
+export type UpgradeStyle = { skip: readonly PartKind[]; chassis: 'value' | 'speed' | 'keep'; npc: string; keepsTradeCapital?: boolean; gunFirst?: boolean; lootRoom?: number };
 
 export const BIGGEST_PART_CELLS = Math.max(...Object.values(PARTS).map((p) => p.w * p.h));
 
@@ -73,24 +77,27 @@ export function upgradeGear(o: Orders, style: UpgradeStyle): void {
 function bestOption(o: Orders, style: UpgradeStyle): Option | null {
   const shop = shopAt(o.world);
   if (!shop) return null;
-  const budget = gearBudget(o.world, o.me, chooseBudgetJob(style));
+  const budget = gearBudget(o.world, o.me, style.keepsTradeCapital === true);
   const chassis = strongest(chassisOptions(o, style).filter((option) => option.cost <= budget));
   if (style.chassis === 'speed' && chassis) return chassis;
-  const buyer = { job: style.job, skip: style.skip, lootRoom: style.lootRoom, minSpeed: style.minSpeed, resale: (part: PartInstance) => partTradePrice(o.world, o.me, part, 'sell') };
-  const plan = bestPlan(gearPlans(o.world, o.me, candidates(o, shop), buyer), budget);
+  const buyer = { score: npcScorer(o.world, o.me, style.npc), skip: skippedKinds(o, style), lootRoom: style.lootRoom, resale: (part: PartInstance) => partTradePrice(o.world, o.me, part, 'sell') };
+  const plan = bestPlan(gearPlans(o.me, candidates(o, shop), buyer), budget);
   return plan ? { gain: plan.worthGain, cost: plan.cost, take: (orders) => mount(orders, plan.offer, plan.replaces) } : chassis;
 }
 
-function chooseBudgetJob(style: UpgradeStyle): GearJob {
-  return style.budgetJob ?? style.job;
+const PART_KINDS = [...new Set(Object.values(PARTS).map((def) => def.kind))];
+
+function skippedKinds(o: Orders, style: UpgradeStyle): readonly PartKind[] {
+  const gunless = !mountedItems(o.me, 'weapon').some((item) => !isLineGun(partDef(item.part.defId)));
+  return style.gunFirst === true && gunless ? PART_KINDS.filter((kind) => kind !== 'weapon') : style.skip;
 }
 
 export function rearm(o: Orders): void {
   if (!o.buysGear) return;
   const shop = shopAt(o.world);
-  if (mountedItems(o.me, 'weapon').length > 0 || !shop) return;
+  if (mountedItems(o.me, 'weapon').some((item) => !isLineGun(partDef(item.part.defId))) || !shop) return;
   const spend = o.world.player.money - getUpkeepReserve(o.me);
-  const guns = candidates(o, shop).filter((c) => partDef(c.part.defId).kind === 'weapon' && !isJunk(c.part) && c.price <= spend && installSpot(o.me, probe(c.part)));
+  const guns = candidates(o, shop).filter((c) => partDef(c.part.defId).kind === 'weapon' && !isLineGun(partDef(c.part.defId)) && !isJunk(c.part) && c.price <= spend && installSpot(o.me, probe(c.part)));
   const cheapest = guns.reduce<Candidate | null>((best, c) => (!best || c.price < best.price ? c : best), null);
   if (cheapest) mount(o, cheapest, null);
 }
@@ -101,11 +108,12 @@ function strongest(options: Option[]): Option | null {
 
 function chassisOptions(o: Orders, style: UpgradeStyle): Option[] {
   const load = Object.entries(goodsCount(o.me)).some(([good, n]) => good !== 'parts' || n > REPAIR_PARTS);
-  if (style.chassis === 'keep' || !townAt(o.world) || load) return [];
+  const town = townAt(o.world);
+  if (style.chassis === 'keep' || !town || load) return [];
   const current = chassisDef(o.me.chassisId);
-  return PLAYER_CHASSIS.filter((id) => id !== current.id).flatMap((id) => {
+  return garageChassis(town.id).filter((id) => id !== current.id).flatMap((id) => {
     const def = chassisDef(id);
-    const gain = style.chassis === 'speed' ? def.maxSpeed - current.maxSpeed : def.value - current.value;
+    const gain = style.chassis === 'speed' ? chassisTopSpeed(id) - chassisTopSpeed(current.id) : def.value - current.value;
     return gain > 0 ? [{ gain, cost: def.value - chassisTradeIn(o.world), take: (orders: Orders) => orders.run((w) => buyChassis(w, id), 'gear') }] : [];
   });
 }
@@ -133,8 +141,41 @@ export function mountBought(o: Orders, partId: string, spot: Spot, truckId?: str
   else o.run((w) => moveItem(w, itemOf(w, partId, truckId), spot, truckId));
 }
 
+export function relayout(o: Orders, layout: RefitLayout): void {
+  const moving = Object.entries(layout).filter(([id, spot]) => !sameSpot(heldItem(o.me, id), spot));
+  if (moving.length > 0) o.run((w) => startRefit(w, Object.fromEntries(moving)));
+}
+
+function heldItem(v: Vehicle, itemId: string): GridItem {
+  const item = v.items.find((it) => it.id === itemId);
+  if (!item) throw new Error(`Item ${itemId} is not on the truck`);
+  return item;
+}
+
+function sameSpot(item: GridItem, spot: Spot): boolean {
+  return item.x === spot.x && item.y === spot.y && item.rot === spot.rot;
+}
+
 function itemOf(world: World, partId: string, truckId?: string): string {
   const item = truckFor(world, truckId).items.find((it) => it.kind === 'part' && it.part.id === partId);
   if (!item) throw new Error(`Part ${partId} is not on the truck`);
   return item.id;
+}
+
+export function driveToSite(o: Orders, site: Site): void {
+  if (canUseSite(o.me.pos, site)) return;
+  driveTo(o, nearestPad(site, o.me.pos));
+}
+
+export function driveTo(o: Orders, dest: Vec): void {
+  const order = o.me.order;
+  if (order?.kind === 'stopAt' && order.dest.x === dest.x && order.dest.y === dest.y) return;
+  o.run((w) => setMoveOrder(w, { kind: 'stopAt', dest }));
+}
+
+const FINISH_INSTEAD: Partial<Record<LineId, LineId>> = { standDownAndLet: 'noMercy' };
+
+export function replyPick(lines: readonly LineId[], wanted: LineId | undefined): number {
+  if (!wanted) return 0;
+  return Math.max(0, lines.indexOf(lines.includes(wanted) ? wanted : FINISH_INSTEAD[wanted] ?? wanted));
 }

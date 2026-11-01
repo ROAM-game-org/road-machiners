@@ -7,7 +7,7 @@ import { addVehicle, emptyWorld, settleStorms } from './testkit';
 import { sightRadius } from './vision';
 import { vehicleStats } from './stats';
 import type { WeatherEvent, World } from './types';
-import { advanceExposure, advanceWeather, makeWeather, stormDepth, stormShare, stormStrength, weatherAt, weatherOn } from './weather';
+import { advanceExposure, advanceWeather, isOvercast, makeWeather, stormDepth, stormShare, stormStrength, weatherAt, weatherOn } from './weather';
 
 const FADE = WEATHER.sim.stormFadeTurns;
 type Storm = Extract<WeatherEvent, { kind: 'storm' }>;
@@ -55,6 +55,12 @@ describe('advanceWeather', () => {
       most = Math.max(most, w.weather.filter((e) => e.kind === 'storm').length);
     }
     expect(most).toBe(WEATHER.sim.maxActive.storm);
+  });
+
+  it('logs a started event when a heat wave arrives', () => {
+    const w = emptyWorld();
+    for (let i = 0; i < 20000 && !w.events.some((e) => e.t === 'weather' && e.event.kind === 'heatwave'); i++) advanceWeather(w);
+    expect(w.events.some((e) => e.t === 'weather' && e.outcome === 'started' && e.event.kind === 'heatwave')).toBe(true);
   });
 
   it('never has a heat wave and overcast at once', () => {
@@ -110,7 +116,7 @@ describe('weatherAt', () => {
     settleStorms(w);
     expect(sightRadius(w, w.vehicles[0])).toBeLessThan(before);
     const me = w.vehicles[0];
-    const buggy = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: me.pos.x + 3, y: me.pos.y }, Math.PI);
+    const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: me.pos.x + 3, y: me.pos.y }, Math.PI);
     const mg = vehicleStats(w, me).weapons[0];
     const odds = hitOdds(w, me, mg, buggy, 'body');
     expect(odds.causes.weather).toBeGreaterThan(0);
@@ -346,7 +352,7 @@ describe('storm exposure', () => {
   it('an NPC truck gets the same shares as the player truck in the same spot', () => {
     const w = emptyWorld({ x: 100, y: 100 });
     const me = w.vehicles[0];
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { ...me.pos });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { ...me.pos });
     fullStorm(w, 'w1', me.pos);
     for (let i = 0; i < 4; i++) turn(w);
     expect(npc.stormExposure).toEqual(me.stormExposure);
@@ -382,5 +388,16 @@ describe('heat and weather', () => {
     expect(heatAt(w, pos)).toBeGreaterThan(1);
     w.weather = [{ id: 'o1', kind: 'overcast', turnsLeft: 10 }];
     expect(heatAt(w, pos)).toBe(1);
+  });
+});
+
+describe('isOvercast', () => {
+  it('holds exactly while an overcast event is active', () => {
+    const w = emptyWorld();
+    expect(isOvercast(w)).toBe(false);
+    w.weather = [{ id: 'h', kind: 'heatwave', turnsLeft: 5 }];
+    expect(isOvercast(w)).toBe(false);
+    w.weather = [{ id: 'o', kind: 'overcast', turnsLeft: 5 }];
+    expect(isOvercast(w)).toBe(true);
   });
 });

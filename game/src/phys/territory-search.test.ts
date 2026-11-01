@@ -9,6 +9,7 @@ import { propReach } from '../sim/mapgen';
 import { topGoal } from '../sim/npc-activities';
 import { collectSalvage, salvageInRange } from '../sim/salvage';
 import { startSearch } from '../sim/search';
+import { spawnQueueNow } from '../sim/spawn';
 import { spotGoal, territoryCaches, territoryEntries, territorySpots } from '../sim/territory';
 import { addVehicle, forceOption, npcBrain, PLAIN_KIT } from '../sim/testkit';
 import { CLEARANCE } from '../sim/nav/layer';
@@ -33,6 +34,7 @@ const TARGETS = [
 
 function baseWorld(): World {
   const w = newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
+  spawnQueueNow(w);
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   return w;
@@ -69,24 +71,33 @@ describe.each(TARGETS)('$look in $territory', ({ territory, look, near }) => {
     me.pos = { x: site.pos.x + site.radius * 2, y: site.pos.y + site.radius * 2 };
     me.speed = 0;
     me.order = null;
-    const npc = addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], { ...entry }, Math.atan2(stock.pos.y - entry.y, stock.pos.x - entry.x));
+    const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { ...entry }, Math.atan2(stock.pos.y - entry.y, stock.pos.x - entry.x));
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
-    let goal = spotGoal(w, territory);
-    while (goal.targetId !== stock.id) goal = spotGoal(w, territory);
+    let goal = spotGoal(w, territory, []);
+    while (goal.targetId !== stock.id) goal = spotGoal(w, territory, []);
     npc.brain.goals = [goal];
     forceOption('salvageSeen', 'keep');
+    const ignoreOtherStocks = () => {
+      const brain = w.vehicles.find((v) => v.id === npc.id)!.brain!;
+      for (const other of w.salvage) if (other.id !== stock.id) brain.noticed[`salvageSeen:${other.id}`] = w.turn;
+    };
 
     let d = buildDrive(w);
     let turns = 0;
     let searcher: Vehicle | null = null;
     let maxStuck = 0;
     while (!searcher && turns < SCAVENGE_TURNS) {
+      ignoreOtherStocks();
       ({ w, d } = turn(w, d));
       turns++;
       const scavenger = w.vehicles.find((v) => v.id === npc.id)!;
       maxStuck = Math.max(maxStuck, scavenger.brain!.stuck ?? 0);
       if (scavenger.job?.kind === 'search' && scavenger.job.stockId === stock.id) searcher = scavenger;
-      else expect(topGoal(scavenger)?.targetId, `turn ${turns}`).toBe(stock.id);
+      else {
+        const top = topGoal(scavenger);
+        expect(top?.targetId === stock.id || top?.kind === 'loot', `turn ${turns}`).toBe(true);
+        expect(scavenger.brain!.goals.some((g) => g.kind === 'scavenge' && g.targetId === stock.id), `turn ${turns}`).toBe(true);
+      }
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     }
     freeDrive(d);

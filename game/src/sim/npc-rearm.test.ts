@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { NPC_BEHAVIOR, NPCS, NPC_UPKEEP } from '../data/npcs';
+import { partDef } from '../data/parts';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { advanceNpcKnockouts, isDefeated } from './defeat';
 import { corePart, mountedParts } from './grid';
+import { makePart } from './factory';
+import { mountPart } from './inventory';
 import { advanceJobs } from './jobs';
 import { fitToHunt } from './npc-decisions';
 import { resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
@@ -28,13 +31,13 @@ function outside(d: number): Vec {
 
 function raider(): { w: World; v: Vehicle } {
   const w = emptyWorld({ x: 30, y: 30 });
-  const v = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine', 'plates'], outside(20));
+  const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine', 'plates'], outside(20));
   v.brain = npcBrain('buggy', v.pos, NPCS.buggy.traits);
   return { w, v };
 }
 
-const gunsOf = (v: Vehicle): PartInstance[] => mountedParts(v, 'weapon');
-const armorOf = (v: Vehicle): PartInstance[] => mountedParts(v, 'armor');
+const gunsOf = (v: Vehicle): readonly PartInstance[] => mountedParts(v, 'weapon');
+const armorOf = (v: Vehicle): readonly PartInstance[] => mountedParts(v, 'armor');
 
 function crippleGear(v: Vehicle): void {
   for (const gun of gunsOf(v)) gun.hp = 0;
@@ -56,6 +59,16 @@ describe('a raider unfit to hunt', () => {
     expect(fitToHunt(w, v)).toBe(false);
     expect(thinkNpc(w, v)).toMatchObject({ kind: 'resupply', targetId: 'kiln', reason: 'unfitToHunt' });
     expect(v.brain!.goals.map((g) => g.kind)).toEqual(['resupply']);
+  });
+
+  it('lies up for a gun when only a harpoon is left, since a harpoon alone is not a gun', () => {
+    const { w, v } = raider();
+    v.items = v.items.filter((item) => !(item.kind === 'part' && partDef(item.part.defId).kind === 'weapon'));
+    expect(mountPart(w, v, makePart(w, 'harpoon', 0))).toBe(true);
+    getResources(w, v).money = 0;
+    forceOption('idle', 'raid');
+    expect(fitToHunt(w, v)).toBe(false);
+    expect(thinkNpc(w, v)).toMatchObject({ kind: 'resupply', targetId: 'kiln', reason: 'unfitToHunt' });
   });
 
   it('is repaired at camp, guns and armor included, when it can pay, and then may raid again', () => {
@@ -150,7 +163,7 @@ describe('the lie-up for fresh gear', () => {
     serveAtCamp(w, v);
     const first = topGoal(v)!.destination!;
     v.pos = { ...first };
-    const other = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine', 'plates'], outside(20));
+    const other = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine', 'plates'], outside(20));
     other.brain = npcBrain('buggy', other.pos, NPCS.buggy.traits);
     crippleGear(other);
     getResources(w, other).money = 0;
@@ -208,7 +221,7 @@ describe('the lie-up for fresh gear', () => {
   it('lies up a stranded-for-good trader at a town instead of refitting it at once', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const pad = sitePads(REGION.towns[0])[0];
-    const trader = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], pad);
+    const trader = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], pad);
     trader.brain = npcBrain('trader', pad, NPCS.trader.traits);
     for (const engine of mountedParts(trader, 'engine')) { engine.wear = 5; engine.hp = 0; }
     getResources(w, trader).money = 0;
@@ -226,7 +239,7 @@ describe('the lie-up for fresh gear', () => {
 describe('a defeated raider', () => {
   function retreating(): { w: World; v: Vehicle } {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 150, y: 150 });
+    const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 150, y: 150 });
     v.brain = npcBrain('buggy', v.pos, ['raider']);
     strip(v);
     return { w, v };

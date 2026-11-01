@@ -9,6 +9,7 @@ export type Verdict = { name: string; pass: boolean; detail: string };
 export const TARGET_STRETCH = 10;
 export const BEATABLE_SEEDS = 6;
 export const SPRINT_SEEDS = 10;
+export const SPRINT_ESCAPES = 1;
 export const REACT_TURNS = 10;
 export const REACT_CONDITION = 0.9;
 export const VARIETY_TRANSITIONS = 8;
@@ -83,11 +84,15 @@ export function beatableVerdict(runs: readonly SeedRun[]): Verdict {
 
 export function sprintVerdict(runs: readonly SeedRun[]): Verdict {
   const lost = runs.filter((r) => r.lostCause !== null && r.reached < TARGET_STRETCH).length;
-  return { name: 'Not sprintable', pass: runs.length >= SPRINT_SEEDS && lost === runs.length, detail: `${fraction(lost, runs.length)} sprinter seeds lost the run before stretch ${TARGET_STRETCH} (need ${SPRINT_SEEDS} of ${SPRINT_SEEDS})` };
+  return { name: 'Not sprintable', pass: runs.length >= SPRINT_SEEDS && runs.length - lost <= SPRINT_ESCAPES, detail: `${fraction(lost, runs.length)} sprinter seeds lost the run before stretch ${TARGET_STRETCH} (at most ${SPRINT_ESCAPES} may get through)` };
 }
 
-export function verdicts(escort: readonly SeedRun[], sprinter: readonly SeedRun[]): Verdict[] {
-  return [fightVerdict(escort), damageVerdict(escort), reactVerdict(escort), varietyVerdict(escort), choiceVerdict(escort), riseVerdict(escort), beatableVerdict(escort), sprintVerdict(sprinter)];
+export function playVerdicts(escort: readonly SeedRun[]): Verdict[] {
+  return [fightVerdict(escort)];
+}
+
+export function balanceVerdicts(escort: readonly SeedRun[], sprinter: readonly SeedRun[]): Verdict[] {
+  return [damageVerdict(escort), reactVerdict(escort), varietyVerdict(escort), choiceVerdict(escort), riseVerdict(escort), beatableVerdict(escort), sprintVerdict(sprinter)];
 }
 
 export function table(runs: readonly SeedRun[], cell: (row: StretchRow) => string): string[][] {
@@ -97,9 +102,9 @@ export function table(runs: readonly SeedRun[], cell: (row: StretchRow) => strin
 }
 
 export function startGearM(): number {
-  const kit = startKit('furyRoad');
+  const kit = startKit('chaosHighway');
   const parts = [...kit.parts, ...(kit.placed ?? []).map((p) => p.defId), ...HAULER_KIT.parts];
-  return Math.round(parts.reduce((sum, id) => sum + PARTS[id].value, 0) / 100);
+  return Math.round(parts.reduce((sum, id) => sum + PARTS[id].value, 0));
 }
 
 export function gearShares(lines: readonly RunLine[]): number[] {

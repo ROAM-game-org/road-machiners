@@ -9,7 +9,7 @@ const SHOT = 'shot v1:player/scout>v71:buggy/niva p18 hits 1/6';
 
 function play(tally: JobTally, archetype: Parameters<JobTally['failure']>[0], days: number, turn: () => TurnLine): string | null {
   let failure: string | null = null;
-  for (let i = 0; i < days * TIME.turnsPerDay; i++) {
+  for (let i = 0; i < days * TIME.workDayTurns; i++) {
     tally.note(turn());
     failure ??= tally.failure(archetype);
   }

@@ -4,9 +4,13 @@ import { EFFORT } from '../data/market';
 import { NPCS, type TraitId } from '../data/npcs';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
-import { dutyPay, payDuty } from './duty';
+import { dutyPay, fundSupplyRun, payDuty } from './duty';
+import { getUpkeepReserve } from './economy';
+import { goodsCount } from './grid';
 import { addGoods } from './inventory';
-import { placeBase, resolveNpcActivities } from './npc-activities';
+import { chargeM } from './money';
+import { optionWeights, tradeSpend } from './npc-decisions';
+import { idleGoal, placeBase, resolveNpcActivities } from './npc-activities';
 import { getResources } from './resources';
 import { siteGates, sitePads } from './sites';
 import { plainFuelPerTile, vehicleStats } from './stats';
@@ -14,6 +18,7 @@ import { addVehicle, emptyWorld, finishBusiness, npcBrain } from './testkit';
 import { escortFee, startEscort } from './tow';
 import type { GameEvent, NpcActivity, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
+import { fallbackFaction } from './spawn';
 
 const BOWL = REGION.towns.find((t) => t.id === 'bowl')!;
 const NOSE = REGION.towns.find((t) => t.id === 'nose')!;
@@ -23,7 +28,7 @@ const LEG_TURNS = 300;
 const LEG_START = { x: 40, y: 40 };
 
 function createNpc(w: World, templateId: string, traits: TraitId[], parts: string[], pos: Vec, chassis = 'scout'): Vehicle {
-  const npc = addVehicle(w, NPCS[templateId].faction, chassis, parts, pos);
+  const npc = addVehicle(w, fallbackFaction(NPCS[templateId]), chassis, parts, pos);
   npc.brain = npcBrain(templateId, pos, traits);
   return npc;
 }
@@ -97,6 +102,46 @@ describe('duty pay', () => {
     expect(shopPay(away, roamer)).toEqual([]);
   });
 
+  it('pays a courier partner for the same leg from the same shop', () => {
+    const w = legWorld();
+    const pad = { ...sitePads(NOSE)[0] };
+    const leader = createNpc(w, 'courier', ['courier'], ['stockEngine'], pad);
+    const partner = createNpc(w, 'courier', ['courier'], ['stockEngine'], { ...sitePads(NOSE)[1] });
+    startEscort(w, partner, leader, null, 0);
+    const goal = onLeg(w, leader, { kind: 'travel', targetId: 'nose', destination: { ...pad }, phase: 'travel', reason: 'tripToSite' });
+    const money = getResources(w, partner).money;
+
+    resolveNpcActivities(w);
+
+    const pay = dutyPay(w, partner, goal.leg!, leader.pos);
+    expect(shopPay(w, partner).map((e) => [e.kind, e.amount])).toEqual([['dispatchPay', pay]]);
+    expect(getResources(w, partner).money).toBe(money + pay);
+    expect(shopPay(w, leader)).toHaveLength(1);
+  });
+
+  it('pays neither courier of a pair for a leg to a territory', () => {
+    const w = legWorld();
+    const edge = { ...TERRITORY.pos };
+    const leader = createNpc(w, 'courier', ['courier'], ['stockEngine'], edge);
+    const partner = createNpc(w, 'courier', ['courier'], ['stockEngine'], { x: edge.x + 4, y: edge.y });
+    startEscort(w, partner, leader, null, 0);
+    onLeg(w, leader, { kind: 'travel', targetId: TERRITORY.id, destination: { ...edge }, phase: 'travel', reason: 'tripToSite' });
+    payDuty(w, leader, leader.brain!.goals[0], [partner]);
+    expect(shopPay(w, partner)).toEqual([]);
+    expect(shopPay(w, leader)).toEqual([]);
+  });
+
+  it('gives a merc escort of a courier no dispatch pay', () => {
+    const w = legWorld();
+    const pad = { ...sitePads(NOSE)[0] };
+    const leader = createNpc(w, 'courier', ['courier'], ['stockEngine'], pad);
+    const merc = createNpc(w, 'merc', ['merc'], ['mg', 'stockEngine'], { ...sitePads(NOSE)[1] });
+    startEscort(w, merc, leader, 'nose', 10);
+    onLeg(w, leader, { kind: 'travel', targetId: 'nose', destination: { ...pad }, phase: 'travel', reason: 'tripToSite' });
+    payDuty(w, leader, leader.brain!.goals[0], [merc]);
+    expect(shopPay(w, merc)).toEqual([]);
+  });
+
   it('has a convoy pay each guard when it sells, never more than it holds', () => {
     const w = legWorld();
     const pad = { ...sitePads(NOSE)[0] };
@@ -112,9 +157,67 @@ describe('duty pay', () => {
 
     const fee = getResources(w, guard).money - guardMoney;
     expect(w.events.filter((e) => e.t === 'guardPaid')).toEqual([{ t: 'guardPaid', by: convoy.id, guard: guard.id, fee }]);
+    const order = w.events.filter((e) => e.t === 'guardPaid' || (e.t === 'shopMoney' && e.kind === 'haulPay')).map((e) => e.t);
+    expect(order).toEqual(['shopMoney', 'guardPaid']);
     expect(fee).toBeGreaterThan(0);
-    expect(fee).toBeLessThan(dutyPay(w, guard, goal.leg!, pad));
-    expect(getResources(w, convoy).money).toBe(0);
+    expect(fee).toBeLessThanOrEqual(dutyPay(w, guard, goal.leg!, pad));
+    expect(getResources(w, convoy).money).toBeGreaterThanOrEqual(0);
+  });
+
+  it('pays a convoy its own leg when it sells, before it pays its guards', () => {
+    const w = legWorld();
+    const pad = { ...sitePads(NOSE)[0] };
+    const convoy = createNpc(w, 'convoy', ['supplier'], ['mg', 'workhorseDiesel', 'trailerBox'], pad, 'hauler');
+    addGoods(w, convoy, 'scrap', 1);
+    const goal = onLeg(w, convoy, { kind: 'sell', targetId: 'nose', destination: { ...pad }, phase: 'travel', reason: 'sellCargo' });
+
+    finishBusiness(w, convoy);
+
+    const wage = dutyPay(w, convoy, goal.leg!, pad);
+    expect(w.events.filter((e) => e.t === 'shopMoney' && e.vehicle === convoy.id && e.kind === 'haulPay')).toEqual([{ t: 'shopMoney', vehicle: convoy.id, amount: wage, kind: 'haulPay' }]);
+  });
+
+  it('has the faction fund a broke convoy at its supply source, so it buys a full load and sets out to deliver it', () => {
+    const w = legWorld();
+    w.salvage = [];
+    w.shops.granary.goods.grain = 0;
+    const convoy = createNpc(w, 'convoy', ['supplier'], ['mg', 'workhorseDiesel', 'trailerBox'], { ...sitePads(NOSE)[0] }, 'hauler');
+    getResources(w, convoy).money = 0;
+    const run = Array.from({ length: 40 }, () => idleGoal(w, convoy)).find((goal) => goal.reason === 'loadCargo');
+    if (!run?.purchase || !run.targetId) throw new Error('A broke convoy planned no supply run');
+    const source = REGION.towns.find((t) => t.id === run.targetId) ?? REGION.locations.find((l) => l.id === run.targetId)!;
+    const pad = { ...sitePads(source)[0] };
+    convoy.pos = { ...pad };
+    onLeg(w, convoy, { ...run, destination: { ...pad } });
+
+    finishBusiness(w, convoy);
+
+    const funds = shopPay(w, convoy).filter((e) => e.kind === 'supplyFund');
+    expect(funds).toHaveLength(1);
+    expect(funds[0].amount).toBe(chargeM(tradeSpend(w, convoy, 'faction') + getUpkeepReserve(convoy)));
+    expect(goodsCount(convoy)[run.purchase.good]).toBeGreaterThan(0);
+    expect(convoy.brain!.goals[0]).toMatchObject({ kind: 'sell', shipment: { good: run.purchase.good, from: run.targetId, to: run.purchase.sellShop } });
+  });
+
+  it('gives a convoy that holds enough for its load no supply money', () => {
+    const w = legWorld();
+    const convoy = createNpc(w, 'convoy', ['supplier'], ['mg', 'workhorseDiesel', 'trailerBox'], { ...sitePads(NOSE)[0] }, 'hauler');
+    getResources(w, convoy).money = tradeSpend(w, convoy, 'faction') + getUpkeepReserve(convoy) + 1;
+
+    fundSupplyRun(w, convoy, tradeSpend(w, convoy, 'faction'));
+
+    expect(shopPay(w, convoy)).toEqual([]);
+  });
+
+  it('leaves supply runs to faction convoys, so a trader only trades', () => {
+    const w = legWorld();
+    w.shops.granary.goods.grain = 0;
+    const trader = createNpc(w, 'trader', ['trader'], ['mg', 'workhorseDiesel', 'trailerBox'], { ...sitePads(NOSE)[0] }, 'hauler');
+    const convoy = createNpc(w, 'convoy', ['supplier'], ['mg', 'workhorseDiesel', 'trailerBox'], { ...sitePads(NOSE)[1] }, 'hauler');
+
+    expect(optionWeights(w, trader, 'idle', null, null)).not.toHaveProperty('haul');
+    expect(optionWeights(w, trader, 'idle', null, null)).toHaveProperty('trade');
+    expect(optionWeights(w, convoy, 'idle', null, null)).toHaveProperty('haul');
   });
 
   it('prices a merc escort at its plain running cost there and back plus the wage', () => {

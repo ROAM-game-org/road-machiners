@@ -1,20 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { DIRECTIONS, RADIO, RADIO_VARIANTS, type RadioTopic } from '../data/radio';
+import { OCTANT_ORDER as DIRECTIONS } from '../text/compass';
+import { RADIO, RADIO_VARIANTS, type RadioTopic } from '../data/radio';
 import { REGION } from '../data/region';
 import { GOODS } from '../data/goods';
 import { NPCS } from '../data/npcs';
 import { PARTS } from '../data/parts';
 import { TIME } from '../data/time';
 import type { Contract } from '../sim/market';
-import { startFeuds } from '../sim/combat';
+import { reportIncident } from '../sim/relations';
 import { addState } from '../sim/states';
-import { addVehicle, emptyWorld } from '../sim/testkit';
+import { addVehicle, emptyWorld, npcBrain } from '../sim/testkit';
 import type { GameEvent, World } from '../sim/types';
 import { cloneWorld } from '../sim/world';
 import { LOCALES, t, type Locale, type Msg } from '../text/msg';
 import { goodLower, partName, siteName, templateName } from '../text/names';
 import { resolve, schemaOf } from '../text/resolve';
 import { radioLine, RadioStation, revealed, type Broadcast } from './radio';
+import { claimLookText } from './format';
+import type { ClaimLook } from '../data/market';
 
 const en = (msg: Msg): string => resolve(msg, 'en');
 
@@ -88,7 +91,7 @@ describe('RadioStation', () => {
     const text = en(s2.next()!.text);
     expect(text).not.toContain('Granary');
     expect(DIRECTIONS.some((d) => text.includes(en(t(`radio.basin.${d}`))))).toBe(true);
-    expect(text).toContain('heading north');
+    expect(text).toContain('heading north.');
   });
 
   it('names the place where a storm ends', () => {
@@ -118,8 +121,35 @@ describe('RadioStation', () => {
     s.hear(w2);
     const b = s.next()!;
     expect(b.topic).toBe('haul');
-    expect(en(b.text)).toBe('New haul posted at Bowl: grain out to Nose.');
+    expect(en(b.text)).toBe('New haul posted at Bowl: sorgut out to Nose.');
     expect(drain(s, w2)).toBeNull();
+  });
+
+  it('announces a new search by the name of the person wanted', () => {
+    const w = world(10, ['bowl']);
+    const s = tuned(w);
+    const w2 = later(w, RADIO.minGapTurns);
+    w2.shops.bowl.contracts = [{
+      id: 's1', shop: 'bowl', kind: 'search', target: 'v1', driver: 'Jed Cobb', template: 'trader',
+      lead: { at: { x: 1, y: 1 }, turn: 0 }, reward: 37, deadline: 9999, window: 100, tier: 1, delivered: false,
+    }];
+    s.hear(w2);
+    const b = s.next()!;
+    expect(b.topic).toBe('search');
+    expect(en(b.text)).toContain('Jed Cobb');
+  });
+
+  it('announces a new rescue with the basin of its area', () => {
+    const w = world(10, ['bowl']);
+    const s = tuned(w);
+    const w2 = later(w, RADIO.minGapTurns);
+    const centre = w2.size / 2;
+    w2.shops.bowl.contracts = [{ id: 'c5', shop: 'bowl', kind: 'rescue', client: 'v1', driver: 'Jed Cobb', need: 'fuel', area: { x: centre + 50, y: centre - 50 }, reward: 2, deadline: 900, window: 400, tier: 1, fulfilled: false }];
+    s.hear(w2);
+    const b = s.next()!;
+    expect(b.topic).toBe('rescue');
+    expect(en(b.text)).toContain('in the northeast basin');
+    expect(en(b.text)).toContain('Bowl');
   });
 
   it('re-baselines when the turn goes backwards or the seed changes', () => {
@@ -142,8 +172,9 @@ describe('RadioStation', () => {
   it('reports a raider robbing an NPC, never one robbing the player', () => {
     const bowl = site('bowl');
     const w = world(10);
-    const raider = addVehicle(w, 'raiders', 'buggy', [], { x: bowl.pos.x + 3, y: bowl.pos.y });
-    const trader = addVehicle(w, 'traders', 'buggy', [], { x: bowl.pos.x + 4, y: bowl.pos.y });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', [], { x: bowl.pos.x + 3, y: bowl.pos.y });
+    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+    const trader = addVehicle(w, 'independent', 'buggy', [], { x: bowl.pos.x + 4, y: bowl.pos.y });
     addState(w, 'feud', raider.id, w.player.vehicleId, { kind: 'feud', robbery: true });
     addState(w, 'feud', raider.id, trader.id, { kind: 'feud', robbery: true });
     const s = tuned(w);
@@ -157,11 +188,12 @@ describe('RadioStation', () => {
   it('reports no robbery when a raider fights back, and keeps the place free for a real one', () => {
     const bowl = site('bowl');
     const w = world(10);
-    const raider = addVehicle(w, 'raiders', 'buggy', [], { x: bowl.pos.x + 3, y: bowl.pos.y });
-    const trader = addVehicle(w, 'traders', 'buggy', [], { x: bowl.pos.x + 4, y: bowl.pos.y });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', [], { x: bowl.pos.x + 3, y: bowl.pos.y });
+    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+    const trader = addVehicle(w, 'independent', 'buggy', [], { x: bowl.pos.x + 4, y: bowl.pos.y });
     const s = tuned(w);
     const shot = later(w, RADIO.minGapTurns);
-    startFeuds(shot, shot.vehicles.find((v) => v.id === trader.id)!, shot.vehicles.find((v) => v.id === raider.id)!);
+    reportIncident(shot, { aggressor: shot.vehicles.find((v) => v.id === trader.id)!, victim: shot.vehicles.find((v) => v.id === raider.id)!, deed: 'attacked', victimFights: true });
     expect(shot.events).toContainEqual({ t: 'hostile', vehicle: raider.id, against: trader.id });
     s.hear(shot);
     expect(s.next()).toBeNull();
@@ -175,8 +207,9 @@ describe('RadioStation', () => {
   it('reports a raider knockout once per place per cooldown', () => {
     const bowl = site('bowl');
     const w = world(10);
-    const raider = addVehicle(w, 'raiders', 'buggy', [], { x: bowl.pos.x + 3, y: bowl.pos.y });
-    const trader = addVehicle(w, 'traders', 'buggy', [], { x: bowl.pos.x + 4, y: bowl.pos.y });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', [], { x: bowl.pos.x + 3, y: bowl.pos.y });
+    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+    const trader = addVehicle(w, 'independent', 'buggy', [], { x: bowl.pos.x + 4, y: bowl.pos.y });
     const s = tuned(w);
     const ko: GameEvent = { t: 'npcKnockout', vehicle: trader.id, by: raider.id };
     s.hear(later(w, RADIO.minGapTurns, [ko]));
@@ -253,12 +286,14 @@ describe('RadioStation', () => {
     const before = Math.round(1 + (24 - TIME.startHour + TIME.sunrise - 0.5) * perHour);
     const w = world(before);
     const s = tuned(w);
-    s.hear(later(w, Math.ceil(perHour)));
+    s.hear(later(w, Math.floor(perHour / 4)));
     expect(s.next()).toBeNull();
-    s.hear(later(w, RADIO.minGapTurns));
+    s.hear(later(w, Math.ceil(perHour)));
     expect(s.next()).toMatchObject({ topic: 'dawn', rank: 'time' });
   });
 });
+
+const CLAIM_LOOK_IDS: ClaimLook[] = ['armyTruck', 'deadTruck', 'tank', 'hullCompartment', 'cargoPod', 'engineSection'];
 
 describe('radio lines', () => {
   const longest = (words: string[]) => words.reduce((x, y) => (y.length > x.length ? y : x));
@@ -275,6 +310,7 @@ describe('radio lines', () => {
     good: longestOf(locale, Object.keys(GOODS).map(goodLower)),
     part: longestOf(locale, Object.keys(PARTS).map(partName)),
     target: longestOf(locale, Object.keys(NPCS).map(templateName)),
+    wreck: longestOf(locale, CLAIM_LOOK_IDS.map(claimLookText)),
   });
   const lines = LOCALES.flatMap((locale) => {
     const all = slots(locale);

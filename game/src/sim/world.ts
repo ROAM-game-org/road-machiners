@@ -1,5 +1,9 @@
 
-import { CHASSIS } from '../data/chassis';
+import { assignMoments, freshMoments, passMoments } from './moments';
+import { advanceCrimes, learnCasesAtDesk } from './crime';
+import { switchSetSpeed, zeroSetSpeed } from './steering';
+import { settleCrews } from './crews';
+import { CHASSIS, isPaletteId, PAINT, PAINT_SLOTS } from '../data/chassis';
 import { GOODS } from '../data/goods';
 import { partDef } from '../data/parts';
 import { REGION } from '../data/region';
@@ -7,24 +11,26 @@ import { MAX_RANK, PERKS, SKILL_IDS, XP_SOURCES } from '../data/skills';
 import { CONDITION } from '../data/wear';
 import { RULES } from '../data/rules';
 import type { StartKit } from '../data/start';
-import { findPart, playerVehicle } from './damage';
+import { findPart, haulerOf, playerTrucks, playerVehicle } from './damage';
 import { makePart, makeVehicle, newId } from './factory';
 import { gridOf, placementError } from './grid';
-import { addGoods } from './inventory';
-import { isPerkId, pickedFromPair, skillLevel } from './progress';
-import { fitStores } from './resources';
+import { addGoods, mountPart } from './inventory';
+import { basicRefusal, isPerkId, pickedFromPair, skillLevel } from './progress';
+import { fitStores, getResources } from './resources';
+import { isOutpostSite } from './highway';
 import { generateObstacles, touchesObstacle } from './mapgen';
 import { atlasOf, icarusAtlas } from './atlas';
 import type { BakedMap } from './terrain';
-import { planNpcOrders } from './ai';
+import { planNpcOrders, settleMeetings } from './ai';
 import { assignUtilityOrders } from './npc-utility';
 import { applyGodMode, freezeDriving, freezeFire } from './cheats';
-import { assignAutoOrders, dropMagazine, fireWeapons, isHostile, noteEngagements, resolveDestroyed, settleAims } from './combat';
+import { assignAutoOrders, dropMagazine, fireWeapons, huntGaps, isHostile, noteEngagements, resolveDestroyed, settleAims } from './combat';
 import { cutLine } from './harpoon';
-import { advanceKnockout, advanceNpcKnockouts, checkDeath, checkKnockout } from './defeat';
-import { advanceIntro, wakeInTown } from './intro';
+import { advanceKnockout, advanceNpcKnockouts, checkDeath, checkKnockout, isKnockedOut } from './defeat';
+import { advanceIntro, greetAtWell, wakeInTown } from './intro';
 import { healPlayer } from './health';
 import { discoverSites } from './locations';
+import { findSurveySites } from './survey';
 import { applyHazards } from './hazard';
 import { consumeSupplies, fitAllStores, leakFuel } from './supplies';
 import { scrapPatch } from './economy';
@@ -37,32 +43,45 @@ import { noteHurt, resolveNpcActivities } from './npc-activities';
 import { watchStalls } from './npc-watchdog';
 import { advanceStates } from './states';
 import { forgetOld } from './memory';
+import { lapseEncounter } from './encounters';
 import { checkBeacon, dropStrandedTowers, followTower, isTowed, playerTow } from './tow';
 import { endCallIfOut, raiseCalls } from './dialogue';
 import { advancePatches } from './patch';
 import { advanceAid, readyAid } from './aid';
-import type { GridItem, MoveOrder, PartInstance, Refusal, Rot, UtilityOrder, Vehicle, WeaponOrder, World, WorldSettings, WorldSetup, XpSource } from './types';
+import { readyHandover } from './parcel';
+import type { GridItem, MoveOrder, Obstacle, PartInstance, Refusal, Rot, UtilityOrder, Vehicle, WeaponOrder, World, WorldSetup, XpSource } from './types';
 import { defaultSetup, modeMap, modeRules, modeRulesOf, parseSetup, repairSetup } from './settings';
-import { fittingQuestVars, QUESTS, type CarriedQuestVars } from './quests';
-import { highwayStart } from './highway';
-import { advanceFuryRoad, startRun } from './fury-road';
+import { QUESTS, openRoadScene, type CarriedQuestVars } from './quests';
+import { repairQuests, type SavedRevisions } from './quest-repair';
+import { isNoteId } from '../data/locals';
+import { advanceChaosHighway, outpostFactsAt, runStart, startRun } from './chaos-highway';
+import { gatesShut } from './outpost-gates';
 import { noteHaulerHits, planHaulerOrder, watchHaulerStall } from './hauler';
-import { canOverdrive, vehicleStats } from './stats';
+import { overdriveBlock, vehicleStats } from './stats';
 import { playerSees, practiceContacts, refreshVision } from './vision';
 import { noteEscape } from './escape';
 import { advanceWeather } from './weather';
+import { advanceRescues } from './rescue';
 import { advanceContracts, advanceShops, initializeShops, marketStream, shopNear } from './market';
+import { advanceProduction } from './production';
 import { applyWear, carryHp } from './wear';
 import { advanceDust } from './detect';
 import { searchStream } from './search';
 import { cookOffClaymores, settleClaymores } from './claymore';
-import { activateUtilities, advanceUtilityEffects, settleShutdowns, tickCharges, utilityOrderError } from './utility';
+import { activateUtilities, advanceLines, advanceUtilityEffects, settleShutdowns, tickCharges, utilityOrderError } from './utility';
 import { caltropHits } from './hazards';
 import { advanceJobs, startAutoRepair } from './jobs';
 import { advanceEngineHeat } from './engine-heat';
+import { noteTrouble, troubleOf } from './trouble';
 import { nearestPad } from './sites';
 import { openingObstacles, setUpOpening } from './opening';
+import { startPose } from './start-pose';
 import { clamp, dist, type Vec } from './vec';
+import { startStanding } from "../data/npc-behavior";
+import { driftStanding } from "./relations";
+import { advanceSunward, freshSunward, HOLLOW_ID } from "./sunward";
+import { hollowObstaclesFor } from "./hollow-layout";
+import { payoutM } from './money';
 
 export function seedStreams(seed: number): Pick<World, 'seed' | 'rngState' | 'marketRng' | 'nameRng' | 'searchRng'> {
   if (!Number.isInteger(seed)) throw new Error(`Seed must be an integer, got ${seed}`);
@@ -83,16 +102,19 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     craters: [],
     salvage: [],
     shops: {},
+    roadNews: [],
     terrain: map.terrain,
     mapHash: map.hash,
     setup: parseSetup(setup),
     player: {
       vehicleId: "",
       money: kit.money,
+      standing: startStanding(),
+      deeds: [],
       xp: 0,
-      ranks: { driving: 0, perception: 0, machining: 0, toughness: 0, social: 0 },
+      ranks: { driving: kit.ranks, perception: kit.ranks, machining: kit.ranks, toughness: kit.ranks, social: kit.ranks },
       xpToday: { driving: 0, perception: 0, machining: 0, toughness: 0, social: 0 },
-      xpDay: 1,
+      xpWindow: 0,
       repeats: {},
       xpBySource: {
         roughTiles: 0, ram: 0, escape: 0,
@@ -102,8 +124,10 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
         profit: 0, deal: 0, call: 0, honk: 0, contract: 0, freeTow: 0, aid: 0,
       },
       perks: [],
+      paint: { ...PAINT.standard },
       marked: [],
       rumored: [],
+      encounters: { next: 0, pending: null, story: null },
       notes: [],
       health: startHealth(kit),
       fuel: kit.fuel,
@@ -118,6 +142,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       scavenged: [],
       storage: [],
       contracts: [],
+      pastContracts: [],
       costBasis: { ...kit.costBasis },
       knockouts: 0,
       state: 'active',
@@ -125,7 +150,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       beacon: false,
       call: null,
       talked: {},
-      quests: { world: {}, local: {}, session: null, live: null },
+      quests: { world: {}, local: {}, session: null, live: null, seen: {} },
       god: false,
       fullLog: false,
       frozen: false,
@@ -138,6 +163,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     events: [],
     removed: [],
     spawnTimer: {},
+    spawnQueue: [],
     weather: [],
     dustClouds: [],
     states: [],
@@ -145,9 +171,13 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     fields: [],
     flares: [],
     lines: [],
-    furyRoad: null,
+    chaosHighway: null,
+    sunward: modeMap(setup.mode) === 'icarus' ? freshSunward() : null,
+    moments: modeMap(setup.mode) === 'icarus' ? freshMoments() : null,
+    crimes: [],
+    sheltered: [],
   };
-  world.obstacles = generateObstacles(world, map, openingObstacles(kit, start));
+  world.obstacles = generateObstacles(world, map, [...hollowObstaclesFor(world), ...openingObstacles(kit, start)]);
   const truck = makeVehicle(world, {
     faction: "player",
     chassisId: kit.chassis,
@@ -199,38 +229,17 @@ function setUpWorldStock(world: World, map: BakedMap, truck: Vehicle, kit: Start
   setUpOpening(world, truck, kit.opening);
   world.player.storage = kit.storage.map((defId) => makePart(world, defId, kit.wear));
   if (populate && rules.traffic) spawnInitial(world);
+  if (populate && rules.traffic) assignMoments(world);
   if (rules.traffic) initializeShops(world);
   stockOldSpots(world, map);
 }
 
 export function startOf(seed: number, setup: WorldSetup): { pos: Vec; heading: number } {
-  return modeMap(setup.mode) === 'highway' ? highwayStart(seed) : startPose();
+  return modeMap(setup.mode) === 'highway' ? runStart(seed, 0).player : startPose();
 }
 
 function wearCoreParts(world: World, truck: Vehicle, wear: number): void {
   for (const item of truck.items) if (item.kind === "part" && partDef(item.part.defId).kind === "core") item.part = makePart(world, item.part.defId, wear);
-}
-
-export function startPose(): { pos: Vec; heading: number } {
-  const { road, distance, offset } = REGION.playerStart;
-  const points = REGION.roads[road];
-  let left = distance;
-  for (let i = 1; i < points.length; i++) {
-    const a = points[i - 1];
-    const b = points[i];
-    const length = dist(a, b);
-    if (left > length) {
-      left -= length;
-      continue;
-    }
-    const along = Math.atan2(b.y - a.y, b.x - a.x);
-    const t = left / length;
-    return {
-      pos: { x: a.x + (b.x - a.x) * t - Math.sin(along) * offset, y: a.y + (b.y - a.y) * t + Math.cos(along) * offset },
-      heading: along - Math.PI / 2,
-    };
-  }
-  throw new Error(`Player start lies ${distance} tiles along road ${road}, past its end`);
 }
 
 export function townStart(): { pos: Vec; heading: number } {
@@ -241,9 +250,18 @@ export function townStart(): { pos: Vec; heading: number } {
 }
 
 export function cloneWorld(world: World): World {
-  if (!Object.isFrozen(world.terrain)) return structuredClone(world);
-  const { terrain, ...state } = world;
-  return { ...structuredClone(state), terrain };
+  const { terrain, obstacles, ...state } = world;
+  return { ...structuredClone(state), obstacles: frozenObstacles(obstacles), terrain: Object.isFrozen(terrain) ? terrain : structuredClone(terrain) };
+}
+
+function frozenObstacles(obstacles: Obstacle[]): Obstacle[] {
+  if (Object.isFrozen(obstacles)) return obstacles;
+  for (const o of obstacles) {
+    Object.freeze(o.pos);
+    if ('hulk' in o && o.hulk) Object.freeze(o.hulk);
+    Object.freeze(o);
+  }
+  return Object.freeze(obstacles) as Obstacle[];
 }
 
 export function update(world: World, fn: (draft: World) => void): World {
@@ -257,7 +275,7 @@ export function update(world: World, fn: (draft: World) => void): World {
 }
 
 function settleOverdrive(w: World): void {
-  if (!w.player.overdrive || canOverdrive(playerVehicle(w))) return;
+  if (!w.player.overdrive || overdriveBlock(w, playerVehicle(w)) === null) return;
   w.player.overdrive = false;
   w.events.push({ t: 'info', note: { id: 'overdriveCutOut' } });
 }
@@ -275,18 +293,33 @@ export function playerCanAct(world: World): boolean {
   return actBlock(world) === null;
 }
 
+export function waypointOf(world: World): Exclude<MoveOrder, { kind: 'brake' }> | null {
+  const me = playerVehicle(world);
+  if (me.direct || !playerCanAct(world) || !me.order || me.order.kind === 'brake') return null;
+  return me.order;
+}
+
 export function requireActivePlayer(world: World): void {
   if (world.player.state !== 'active') throw new Error(`Player is ${world.player.state}`);
   if (isTowed(world)) throw new Error('Player is towed');
   if (world.player.call) throw new Error('A radio call is open');
 }
 
+export function waitsOnPlayer(world: World): boolean {
+  return world.player.call !== null || world.player.quests.live !== null;
+}
+
 export function autoRuns(world: World): boolean {
   const p = world.player;
-  if (p.call || p.quests.live) return false;
+  if (waitsOnPlayer(world)) return false;
   if (p.state === 'knockedOut' || isTowed(world)) return true;
-  if (readyAid(world)) return false;
+  if (readyDeal(world)) return false;
+  if (playerVehicle(world).job?.kind === 'oddJobs') return true;
   return waitsOnBeacon(world);
+}
+
+function readyDeal(world: World): boolean {
+  return readyAid(world) !== null || readyHandover(world) !== null;
 }
 
 export function isAtRest(v: Vehicle): boolean {
@@ -312,6 +345,8 @@ export function playerCommand(world: World, fn: (draft: World) => void): World {
 
 export function setMoveOrder(world: World, order: MoveOrder | null): World {
   return playerCommand(world, (w) => {
+    if (gatesShut(w)) throw new Refused({ id: 'gatesShut' });
+    if (order?.kind === 'brake') zeroSetSpeed(playerVehicle(w));
     playerVehicle(w).order =
       order && order.kind !== "brake"
         ? {
@@ -320,9 +355,16 @@ export function setMoveOrder(world: World, order: MoveOrder | null): World {
               x: clamp(order.dest.x, 0, w.size),
               y: clamp(order.dest.y, 0, w.size),
             },
+            ...heldPace(order.pace),
           }
         : order;
   });
+}
+
+function heldPace(pace: number | undefined): { pace?: number } {
+  if (pace === undefined) return {};
+  if (!Number.isFinite(pace) || pace <= RULES.parkedSpeed) throw new Error(`A move order pace must be above ${RULES.parkedSpeed}, got ${pace}`);
+  return { pace };
 }
 
 export function endTurn(
@@ -332,11 +374,17 @@ export function endTurn(
   if (world.player.state === 'dead') throw new Error('The player is dead; no more turns run');
   if (world.player.call) throw new Error('A radio call is open; no turn runs until it ends');
   return timed('turn', () => update(world, (w) => {
+    const troubleBefore = troubleOf(w);
     w.turn++;
     advanceWeather(w);
+    settleMeetings(w);
     planNpcOrders(w);
     planHaulerOrder(w);
     freezeDriving(w);
+    advanceUtilityEffects(w);
+    assignUtilityOrders(w);
+    activateUtilities(w);
+    const gaps = huntGaps(w);
     move(w);
     if (!shopNear(w)) w.player.townPatched = false;
     followTower(w);
@@ -345,19 +393,18 @@ export function endTurn(
     spillDeadRows(w);
     advanceEngineHeat(w);
     advanceDust(w);
-    advanceUtilityEffects(w);
+    advanceLines(w);
     clearPiles(w);
     renewSalvage(w);
     fadeCraters(w);
     advanceJobs(w);
     startAutoRepair(w);
     practiceContacts(w, refreshVision(w));
+    findSurveySites(w);
     raiseCalls(w);
     assignAutoOrders(w);
-    assignUtilityOrders(w);
     freezeFire(w);
     settleAims(w);
-    activateUtilities(w);
     tickCharges(w);
     fireWeapons(w);
     cookOffClaymores(w);
@@ -370,30 +417,43 @@ export function endTurn(
     fitAllStores(w);
     applyGodMode(w);
     resolveDestroyed(w);
+    settleCrews(w);
     noteHaulerHits(w);
     dropStrandedTowers(w);
     advanceContracts(w);
     advancePatches(w);
     advanceAid(w);
     advanceStates(w);
+    advanceCrimes(w);
+    advanceRescues(w);
     checkBeacon(w);
     forgetOld(w);
+    driftStanding(w);
+    lapseEncounter(w);
     resolveNpcActivities(w);
-    noteEngagements(w);
+    learnCasesAtDesk(w);
+    noteEngagements(w, gaps);
     discoverSites(w);
     checkDeath(w);
     wakeInTown(w, advanceKnockout(w));
     checkKnockout(w);
     advanceNpcKnockouts(w);
-    advanceFuryRoad(w);
+    advanceChaosHighway(w);
+    openRoadScene(w);
     spawnNpcs(w);
+    passMoments(w);
+    advanceSunward(w);
     advanceIntro(w);
+    greetAtWell(w);
     advanceShops(w);
+    advanceProduction(w);
     practiceContacts(w, refreshVision(w));
     noteEscape(w);
+    noteTrouble(w, troubleBefore);
     noteHurt(w);
     settleShutdowns(w);
     settleClaymores(w);
+    settleMeetings(w);
     watchStalls(w);
     watchHaulerStall(w);
     endCallIfOut(w);
@@ -418,7 +478,7 @@ export function setWeaponOrder(
     if (!target || target.id === me.id)
       throw new Error(`Bad target ${order.targetId}`);
     if (!playerSees(w, target.pos))
-      throw new Error("You cannot see that target");
+      throw new Refused({ id: "unseen" });
     if (order.aim !== "body" && !findPart(target, order.aim))
       throw new Error(`Target has no part ${order.aim}`);
     me.weaponOrders[weaponId] = order;
@@ -454,7 +514,16 @@ export function cutPlayerLine(world: World, harpoonId: string): World {
 
 export function setDirect(world: World, on: boolean): World {
   return playerCommand(world, (w) => {
-    playerVehicle(w).direct = on;
+    const me = playerVehicle(w);
+    me.direct = on;
+    if (on && me.order && me.order.kind !== 'brake') delete me.order.pace;
+    switchSetSpeed(me, on);
+  });
+}
+
+export function setManualSpeed(world: World, speed: number): World {
+  return playerCommand(world, (w) => {
+    playerVehicle(w).setSpeed = speed;
   });
 }
 
@@ -466,7 +535,9 @@ export function setAutoRepair(world: World, on: boolean): World {
 
 export function setOverdrive(world: World, on: boolean): World {
   return update(world, (w) => {
-    if (on && !canOverdrive(playerVehicle(w))) {
+    const refusal = on ? basicRefusal(w, 'overdrive') : null;
+    if (refusal) throw new Refused(refusal);
+    if (on && overdriveBlock(w, playerVehicle(w)) !== null) {
       throw new Error(`Cannot overdrive: the engine is at or below ${RULES.overdriveMinEngineShare * 100}% of its max HP`);
     }
     w.player.overdrive = on;
@@ -487,8 +558,14 @@ export function hostileToPlayer(world: World, v: Vehicle): boolean {
   return isHostile(world, playerVehicle(world), v);
 }
 
+export function threatToPlayer(world: World, v: Vehicle): boolean {
+  return v.id !== world.player.vehicleId && v.brain !== null && !isKnockedOut(v) && hostileToPlayer(world, v);
+}
+
 export type CarriedPart = { defId: string; wear: number; hp: number; rebuilt: boolean };
 export type CarriedItem = ({ kind: 'part'; part: CarriedPart } | { kind: 'good'; good: string }) & { x: number; y: number; rot: Rot };
+
+export type CarriedPaint = Partial<Record<(typeof PAINT_SLOTS)[number], string>>;
 
 export type Carried = {
   seed: number | null;
@@ -497,6 +574,7 @@ export type Carried = {
   ranks: Partial<Record<string, number>>;
   xpBySource: Partial<Record<string, number>>;
   perks: string[];
+  paint: CarriedPaint | null;
   discovered: string[];
   knockouts: number | null;
   autoFire: boolean | null;
@@ -508,49 +586,78 @@ export type Carried = {
   storage: CarriedPart[];
   setup: unknown;
   quests: CarriedQuestVars;
+  notes: string[];
+  revisions: SavedRevisions;
+  run: CarriedRun | null;
+  refunded: number;
 };
 
-export type CarryReport = {
-  toGarage: string[];
-  sold: { good: string; units: number; money: number }[];
-  lost: string[];
-  settingsReset: (keyof WorldSettings)[];
+export type CarriedRun = {
+  from: number;
+  earned: number;
+  wrecks: number;
+  trucksSold: string[];
+  hauler: { items: CarriedItem[]; fuel: number | null; supplies: number | null };
 };
 
-const KNOWN_SITES = new Set([...REGION.towns, ...REGION.locations].map((s) => s.id));
+const KNOWN_SITES = new Set([...REGION.towns, ...REGION.locations].map((s) => s.id).concat(HOLLOW_ID));
 
-export function carriedWorld(carried: Carried, kit: StartKit, mapOf: (setup: WorldSetup, seed: number) => BakedMap, freshSeed: () => number): { world: World; report: CarryReport } {
-  const { setup, reset } = carriedSetup(carried.setup);
-  const report: CarryReport = { toGarage: [], sold: [], lost: [], settingsReset: reset };
-  const truckKit = carriedKit(carried, kit, report);
+export function carriedWorld(carried: Carried, kit: StartKit, mapOf: (setup: WorldSetup, seed: number, window: number) => BakedMap, freshSeed: () => number): World {
+  const setup = carried.setup === undefined ? defaultSetup('roaming') : repairSetup(carried.setup);
+  const truckKit = carriedKit(carried, kit);
   const seed = pick(carried.seed, freshSeed());
-  const world = newWorld(seed, { ...truckKit, opening: null, intro: null, autoRepair: true }, mapOf(setup, seed), setup, true, carriedStart(seed, setup));
+  const run = runIn(setup, carried.run);
+  const from = startOutpost(run);
+  const world = newWorld(seed, { ...truckKit, opening: null, intro: null, autoRepair: true }, mapOf(setup, seed, from), setup, true, carriedStart(seed, setup, from));
   carryPlayer(world, carried);
-  carryQuests(world, carried.quests, report);
-  carryTruck(world, carried, carried.truck !== null && truckKit !== kit, report);
-  world.player.costBasis = heldBasis(playerVehicle(world), carried.costBasis);
-  fitStores(world, playerVehicle(world));
+  world.player.money += carried.refunded;
+  carryPaint(world, carried.paint);
+  carryQuests(world, carried);
+  carryPlayerTruck(world, carried, carried.truck !== null && truckKit !== kit);
+  if (run) carryRun(world, run);
+  world.player.costBasis = heldBasis(world, carried.costBasis);
+  for (const truck of playerTrucks(world)) fitStores(world, truck);
   refreshVision(world);
   world.events = [];
-  return { world, report };
+  return world;
 }
 
-function carriedStart(seed: number, setup: WorldSetup): { pos: Vec; heading: number } {
-  return modeMap(setup.mode) === 'icarus' ? townStart() : startOf(seed, setup);
+function carriedStart(seed: number, setup: WorldSetup, from: number): { pos: Vec; heading: number } {
+  return modeMap(setup.mode) === 'icarus' ? townStart() : runStart(seed, from).player;
 }
 
-function carriedSetup(setup: unknown): ReturnType<typeof repairSetup> {
-  return setup === undefined ? { setup: defaultSetup('roaming'), reset: [] } : repairSetup(setup);
+function runIn(setup: WorldSetup, run: CarriedRun | null): CarriedRun | null {
+  if (run !== null && !modeRulesOf(setup.mode).run) throw new Error(`The save holds a Chaos Highway run, but its setup reads as ${setup.mode}, so the run cannot be rescued`);
+  return run;
 }
 
-function carriedKit(carried: Carried, kit: StartKit, report: CarryReport): StartKit {
+function startOutpost(run: CarriedRun | null): number {
+  return run === null ? 0 : run.from;
+}
+
+function carryPlayerTruck(world: World, carried: Carried, stay: boolean): void {
+  const garage = carryTruck(world, playerVehicle(world), carried.truck?.items ?? [], stay);
+  storeParts(world, [...carried.storage, ...garage]);
+}
+
+function carryRun(world: World, carried: CarriedRun): void {
+  const run = world.chaosHighway;
+  if (!run) throw new Error('A carried Chaos Highway run needs a world with a run');
+  run.earned = carried.earned;
+  run.wrecks = carried.wrecks;
+  outpostFactsAt(world, carried.from).trucksSold = [...carried.trucksSold];
+  const hauler = haulerOf(world);
+  hauler.items = hauler.items.filter((it) => it.kind === 'part' && isCore(it.part.defId));
+  storeParts(world, carryTruck(world, hauler, carried.hauler.items, true));
+  const stores = getResources(world, hauler);
+  stores.fuel = pick(carried.hauler.fuel, stores.fuel);
+  stores.supplies = pick(carried.hauler.supplies, stores.supplies);
+}
+
+function carriedKit(carried: Carried, kit: StartKit): StartKit {
   const saved = carried.truck;
-  if (!saved) return kit;
-  if (!(saved.chassisId in CHASSIS)) {
-    report.lost.push(saved.chassisId);
-    return kit;
-  }
-  return { ...kit, chassis: saved.chassisId, parts: [], storage: [], cargo: {}, costBasis: {} };
+  if (!saved || !(saved.chassisId in CHASSIS)) return kit;
+  return { ...kit, chassis: saved.chassisId, parts: [], placed: [], storage: [], cargo: {}, costBasis: {} };
 }
 
 function pick<T>(value: T | null | undefined, fallback: T): T {
@@ -566,7 +673,7 @@ function carryPlayer(world: World, c: Carried): void {
     autoRepair: pick(c.autoRepair, p.autoRepair),
     fuel: pick(c.fuel, p.fuel),
     supplies: pick(c.supplies, p.supplies),
-    discovered: c.discovered.filter((id) => KNOWN_SITES.has(id)),
+    discovered: [...new Set([...p.discovered, ...c.discovered.filter((id) => knownSite(world, id))])],
   });
   p.xp = Math.max(0, pick(c.xp, 0));
   for (const skill of SKILL_IDS) p.ranks[skill] = Math.min(MAX_RANK, Math.max(0, Math.floor(pick(c.ranks[skill], 0))));
@@ -574,10 +681,23 @@ function carryPlayer(world: World, c: Carried): void {
   carryPerks(world, c.perks);
 }
 
-function carryQuests(world: World, carried: CarriedQuestVars, report: CarryReport): void {
-  const { world: shared, local, lost } = fittingQuestVars(carried, QUESTS);
-  world.player.quests = { world: shared, local, session: null, live: null };
-  report.lost.push(...lost);
+function carryPaint(world: World, paint: CarriedPaint | null): void {
+  if (paint === null) return;
+  for (const slot of PAINT_SLOTS) {
+    const id = paint[slot];
+    if (isPaletteId(id)) world.player.paint[slot] = id;
+  }
+}
+
+function knownSite(world: World, id: string): boolean {
+  return KNOWN_SITES.has(id) || (world.chaosHighway !== null && isOutpostSite(id));
+}
+
+function carryQuests(world: World, carried: Carried): void {
+  const known = carried.notes.filter(isNoteId).map((id) => ({ id, turn: world.turn }));
+  const repair = repairQuests({ ...carried.quests, session: null }, known, carried.revisions, QUESTS);
+  world.player.quests = { ...repair.quests, live: null };
+  world.player.notes = repair.notes;
 }
 
 function carryPerks(world: World, perks: string[]): void {
@@ -587,35 +707,35 @@ function carryPerks(world: World, perks: string[]): void {
   }
 }
 
-function heldBasis(truck: Vehicle, basis: Record<string, number>): Record<string, number> {
-  return Object.fromEntries(Object.entries(basis).filter(([good]) => truck.items.some((it) => it.kind === 'good' && it.good === good)));
+function heldBasis(world: World, basis: Record<string, number>): Record<string, number> {
+  const held = (good: string) => playerTrucks(world).some((truck) => truck.items.some((it) => it.kind === 'good' && it.good === good));
+  return Object.fromEntries(Object.entries(basis).filter(([good]) => held(good)));
 }
 
-function carryTruck(world: World, c: Carried, stay: boolean, report: CarryReport): void {
-  const truck = playerVehicle(world);
+type TruckCarry = { truck: Vehicle; stay: boolean; coresDone: Set<string> };
+
+function carryTruck(world: World, truck: Vehicle, items: CarriedItem[], stay: boolean): CarriedPart[] {
+  const into: TruckCarry = { truck, stay, coresDone: new Set() };
   const goods: Record<string, number> = {};
-  const garage: CarriedPart[] = [...c.storage];
-  for (const item of c.truck?.items ?? []) {
+  const garage: CarriedPart[] = [];
+  for (const item of items) {
     if (item.kind === 'good') goods[item.good] = pick(goods[item.good], 0) + 1;
-    else if (!carryPartItem(world, truck, item, stay, report)) garage.push(item.part);
+    else if (!carryPartItem(world, into, item)) garage.push(item.part);
   }
-  storeParts(world, garage, report);
-  carryGoods(world, truck, goods, stay, report);
+  carryGoods(world, truck, goods, stay);
+  return garage;
 }
 
-function carryPartItem(world: World, truck: Vehicle, item: CarriedItem & { kind: 'part' }, stay: boolean, report: CarryReport): boolean {
+function carryPartItem(world: World, into: TruckCarry, item: CarriedItem & { kind: 'part' }): boolean {
   const { defId } = item.part;
-  if (!isKnownPart(defId)) report.lost.push(defId);
-  else if (isCore(defId)) carryCore(world, truck, item.part, stay);
-  else if (stay && placePart(world, truck, item)) return true;
-  else report.toGarage.push(defId);
-  return !isKnownPart(defId) || isCore(defId);
+  if (!isKnownPart(defId)) return true;
+  if (!isCore(defId)) return into.stay && placePart(world, into.truck, item);
+  carryCore(world, into, item.part);
+  return true;
 }
 
-function storeParts(world: World, parts: CarriedPart[], report: CarryReport): void {
-  const [known, unknown] = [parts.filter((p) => isKnownPart(p.defId)), parts.filter((p) => !isKnownPart(p.defId))];
-  report.lost.push(...unknown.map((p) => p.defId));
-  world.player.storage.push(...known.filter((p) => !isCore(p.defId)).map((p) => carryPart(world, p)));
+function storeParts(world: World, parts: CarriedPart[]): void {
+  world.player.storage.push(...parts.filter((p) => isKnownPart(p.defId) && !isCore(p.defId)).map((p) => carryPart(world, p)));
 }
 
 function isKnownPart(defId: string): boolean {
@@ -640,9 +760,10 @@ function carryPart(world: World, c: CarriedPart): PartInstance {
   return part;
 }
 
-function carryCore(world: World, truck: Vehicle, c: CarriedPart, stay: boolean): void {
-  const core = truck.items.find((it) => it.kind === 'part' && it.part.defId === c.defId);
-  if (!stay || core?.kind !== 'part') return;
+function carryCore(world: World, into: TruckCarry, c: CarriedPart): void {
+  const core = into.truck.items.find((it) => it.kind === 'part' && it.part.defId === c.defId && !into.coresDone.has(it.id));
+  if (!into.stay || core?.kind !== 'part') return;
+  into.coresDone.add(core.id);
   const carried = carryPart(world, c);
   core.part.wear = Math.min(carried.wear, CONDITION.maxWear);
   carryHp(core.part, carried.hp);
@@ -650,21 +771,13 @@ function carryCore(world: World, truck: Vehicle, c: CarriedPart, stay: boolean):
 
 function placePart(world: World, truck: Vehicle, item: CarriedItem & { kind: 'part' }): boolean {
   const placed: GridItem = { id: newId(world, 'i'), kind: 'part', part: carryPart(world, item.part), x: item.x, y: item.y, rot: item.rot };
-  if (placementError(gridOf(truck), truck.items, placed, placed.id)) return false;
+  if (placementError(gridOf(truck), truck.items, placed, placed.id)) return partDef(placed.part.defId).kind === 'engine' && mountPart(world, truck, placed.part);
   truck.items.push(placed);
   return true;
 }
 
-function carryGoods(world: World, truck: Vehicle, goods: Record<string, number>, stay: boolean, report: CarryReport): void {
+function carryGoods(world: World, truck: Vehicle, goods: Record<string, number>, stay: boolean): void {
   for (const [good, units] of Object.entries(goods)) {
-    if (!(good in GOODS)) report.lost.push(good);
-    else sellGoods(world, good, units - (stay ? addGoods(world, truck, good, units) : 0), report);
+    if (good in GOODS) world.player.money += payoutM((units - (stay ? addGoods(world, truck, good, units) : 0)) * GOODS[good].value);
   }
-}
-
-function sellGoods(world: World, good: string, units: number, report: CarryReport): void {
-  if (units <= 0) return;
-  const money = units * GOODS[good].value;
-  world.player.money += money;
-  report.sold.push({ good, units, money });
 }

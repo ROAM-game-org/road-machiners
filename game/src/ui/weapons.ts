@@ -1,3 +1,4 @@
+import { touchMode } from "./input-mode";
 import { partDef } from "../data/parts";
 import { fireBlock, gunOf, hitOdds, roundDamage, type FireBlock } from "../sim/combat";
 import { gaveUp, isKnockedOut } from "../sim/defeat";
@@ -9,11 +10,12 @@ import { workOf } from "../sim/states";
 import { actBlock, cutPlayerLine, reloadWeapon, setAutoFire, setUtilityOrder, setWeaponOrder } from "../sim/world";
 import { chargeOf, chargedParts, orderKindOf, utilityBlock, utilityOrderError, wornReload } from "../sim/utility";
 import { oilShort } from "../sim/hazards";
-import { bottomLeft, el, panel } from "./dom";
+import { bottomLeft, el, panel, rightColumn } from "./dom";
 import { meters } from "./units";
 import type { UiHost } from "./host";
 import { createIcon, createItemIcon } from './cards';
 import { createSwitch } from "./switch";
+import { TravelSpeed } from "./travel-speed";
 import { canCall } from "./dialogue";
 import { workLabel, workProgress } from "./format";
 import { num, t, type Msg, type PlainKey } from "../text/msg";
@@ -84,7 +86,7 @@ function seenNpcJob(w: World, v: Vehicle): JobMark | null {
   return work && { label: workLabel(w, v, work), progress: workProgress(work) };
 }
 
-export function aimsBody(w: World, weapons: MountedWeapon[], targetId: string): boolean {
+export function aimsBody(w: World, weapons: readonly MountedWeapon[], targetId: string): boolean {
   const orders = playerVehicle(w).weaponOrders;
   return weapons.length > 0 && weapons.every((mw) => orders[mw.part.id]?.targetId === targetId && orders[mw.part.id].aim === "body");
 }
@@ -102,17 +104,17 @@ export function aimStateOf(w: World, selected: string | null, locked: boolean, t
   return { guns: gunsLabel(w, selected), body: bodyMarks(w, targetId), bodyAimed: aimsBody(w, weapons, targetId), locked, hasGuns: weapons.length > 0 };
 }
 
-type AimHost = { world: () => World; selected: () => string | null; canAim: () => boolean; apply: (w: World) => void };
+type AimHost = { world: () => World; selected: () => string | null; canAim: () => boolean; apply: (next: () => World) => void };
 
 export function aimActions(h: AimHost) {
   const guns = () => weaponsForClick(h.world(), h.selected());
   return {
     aimState: (id: string) => aimStateOf(h.world(), h.selected(), !h.canAim(), id),
-    aimPart: (id: string, partId: string) => h.canAim() && h.apply(aimAtPart(h.world(), guns(), vehicleById(h.world(), id), partId)),
+    aimPart: (id: string, partId: string) => h.canAim() && h.apply(() => aimAtPart(h.world(), guns(), vehicleById(h.world(), id), partId)),
   };
 }
 
-export function toggleBodyAim(w: World, weapons: MountedWeapon[], target: Vehicle): World {
+export function toggleBodyAim(w: World, weapons: readonly MountedWeapon[], target: Vehicle): World {
   const aimed = aimsBody(w, weapons, target.id);
   if (w.player.autoFire) w = setAutoFire(w, false);
   for (const mw of weapons)
@@ -120,7 +122,7 @@ export function toggleBodyAim(w: World, weapons: MountedWeapon[], target: Vehicl
   return w;
 }
 
-export function aimAtPart(w: World, weapons: MountedWeapon[], target: Vehicle, partId: string): World {
+export function aimAtPart(w: World, weapons: readonly MountedWeapon[], target: Vehicle, partId: string): World {
   const orders = playerVehicle(w).weaponOrders;
   const aimed = weapons.length > 0 && weapons.every((mw) => orders[mw.part.id]?.targetId === target.id && orders[mw.part.id].aim === partId);
   if (w.player.autoFire) w = setAutoFire(w, false);
@@ -183,9 +185,14 @@ export function ammoLabel(mw: MountedWeapon): Msg {
 
 export const TURN_PLAYING: Msg = t("weapon.turnPlaying");
 
+export function orderLock(w: World, playing: boolean): Msg | null {
+  if (actBlock(w) === "knockedOut") return t("actBlock.knockedOut");
+  return playing ? TURN_PLAYING : null;
+}
+
 export function lockReason(w: World, phase: ReturnType<UiHost["getTurnPhase"]>): Msg | null {
   const block = actBlock(w);
-  return phase !== null ? TURN_PLAYING : block === null ? null : t(`actBlock.${block}`);
+  return orderLock(w, phase !== null) ?? (block === null ? null : t(`actBlock.${block}`));
 }
 
 export function reloadBlock(mw: MountedWeapon): Msg | null {
@@ -262,7 +269,7 @@ export function utilityStatus(w: World, part: PartInstance, selected: boolean): 
   const kind = orderKindOf(part);
   if (kind === null) throw new Error(`${part.defId} is passive and has no slot`);
   const order = playerVehicle(w).utilityOrders[part.id];
-  if (order) return { state: "set", text: t("utility.fires") };
+  if (order) return { state: "set", text: t(order.kind === "disarm" ? "utility.disarms" : "utility.fires") };
   if (chargeOf(part).armed) return { state: "armed", text: t("utility.armed") };
   return aimingStatus(w, part, kind, selected) ?? idleStatus(w, part);
 }
@@ -325,26 +332,26 @@ export class UtilityRow {
           class: `weapon-pick ${selected ? "on" : ""}`,
           "aria-pressed": String(selected),
           "aria-label": t("utility.slotLabel", { name, status: status.text }),
-          ...disabledAttrs(locked, key === null ? name : t("utility.keyTitle", { name, key })),
+          ...disabledAttrs(locked, key === null || touchMode() ? name : t("utility.keyTitle", { name, key })),
           onclick: () => locked === null && (key === null ? this.selectUtility(i) : this.host.runKey(`Digit${key}`)),
         },
         el("span", { class: "weapon-number" }, key === null ? null : num(key, "int")),
         el("span", { class: "weapon-name" }, name),
         createIcon("utility"),
         BADGE[status.state] ? el("span", { class: "slot-badge", "data-badge": BADGE[status.state], "aria-hidden": "true" }) : null,
-        el("span", { "data-status": "" }, status.text),
+        el("span", { "data-status": "", title: status.text }, status.text),
         status.reload ? rechargeBar(status.reload) : null,
       ),
     );
   }
 
   selectUtility(i: number): void {
-    if (this.host.getTurnPhase() !== null) return;
     const w = this.host.world();
+    if (orderLock(w, this.host.getTurnPhase() !== null) !== null) return;
     const part = utilitySlots(w)[i];
     if (!part) return;
     if (playerVehicle(w).utilityOrders[part.id]) return this.clearOrder(w, part);
-    if (orderKindOf(part) === "self") return this.useSelf(w, part);
+    if (orderKindOf(part) === "self") return chargeOf(part).armed ? this.disarm(w, part) : this.useSelf(w, part);
     this.togglePick(w, part);
   }
 
@@ -356,6 +363,11 @@ export class UtilityRow {
   private clearOrder(w: World, part: PartInstance): void {
     if (this.host.selectedUtility() === part.id) this.host.selectUtility(null);
     this.host.apply(setUtilityOrder(w, part.id, null));
+  }
+
+  private disarm(w: World, part: PartInstance): void {
+    if (utilityOrderError(w, playerVehicle(w), part.id, { kind: "disarm" }) === null)
+      this.host.apply(setUtilityOrder(w, part.id, { kind: "disarm" }));
   }
 
   private useSelf(w: World, part: PartInstance): void {
@@ -375,12 +387,15 @@ function canHold(w: World, mw: MountedWeapon): boolean {
 
 export class WeaponPanel {
   private root = panel("weapons", bottomLeft());
-  private turn = panel('turn-control');
+  private turn = panel('turn-control', rightColumn());
   private expanded = true;
   readonly utilities: UtilityRow;
+  private readonly travelSpeed: TravelSpeed;
 
   constructor(private host: UiHost) {
+    this.travelSpeed = new TravelSpeed({ index: () => host.travelSpeedIndex(), playing: () => host.travelPlaySpeed(), step: (delta) => host.stepTravelSpeed(delta) });
     this.utilities = new UtilityRow(host);
+    this.root.setAttribute('data-drawer-frame', 'guns');
   }
 
   render(): void {
@@ -395,19 +410,24 @@ export class WeaponPanel {
       createSwitch({ on: t("weapon.switchShow"), off: t("weapon.switchHide"), checked: this.expanded, key: "X", title: t("weapon.toggleTitle"), onclick: () => this.host.runKey("KeyX") }),
     );
     this.root.replaceChildren(head, ...(this.expanded ? [this.renderControls(w, locked)] : []));
-    this.turn.replaceChildren(this.renderTurnButton(phase));
+    this.travelSpeed.sync();
+    this.turn.replaceChildren(this.travelSpeed.root, this.renderTurnButton(phase));
+  }
+
+  stepTravelSpeed(delta: 1 | -1): void {
+    this.travelSpeed.step(delta);
   }
 
   private renderTurnButton(phase: ReturnType<UiHost["getTurnPhase"]>): HTMLElement {
     if (this.host.autoTravel())
       return el('button', {
-        class: 'end-turn auto', title: t('turn.autoTitle'),
+        class: 'end-turn auto', 'data-hold': '', title: t('turn.autoTitle'),
         'aria-label': t('turn.stopAuto'), onpointerdown: (e: Event) => this.pressTurn(e as PointerEvent),
       }, createIcon('turn'), el('span', {}, t('turn.auto')));
     return el('button', {
-      class: 'end-turn', disabled: phase !== null, title: t('turn.endTitle'),
+      class: 'end-turn', 'data-hold': '', disabled: phase !== null, title: t('turn.endTitle'),
       'aria-label': phase ? t('turn.inProgress', { phase: t(`phase.${phase}`) }) : t('turn.end'), onpointerdown: (e: Event) => this.pressTurn(e as PointerEvent),
-    }, createIcon('turn'), el('span', {}, phase ? t('turn.running', { phase: t(`phase.${phase}`) }) : t('turn.space')));
+    }, createIcon('turn'), el('span', {}, phase ? t('turn.running', { phase: t(`phase.${phase}`) }) : touchMode() ? t('turn.end') : t('turn.space')));
   }
 
   private pressTurn(e: PointerEvent): void {
@@ -547,25 +567,29 @@ export class WeaponPanel {
     );
   }
 
+  private ordersLocked(): boolean {
+    return orderLock(this.host.world(), this.host.getTurnPhase() !== null) !== null;
+  }
+
   private cut(weaponId: string): void {
-    if (this.host.getTurnPhase() !== null) return;
+    if (this.ordersLocked()) return;
     this.host.apply(cutPlayerLine(this.host.world(), weaponId));
   }
 
   private forceReload(weaponId: string): void {
-    if (this.host.getTurnPhase() !== null) return;
+    if (this.ordersLocked()) return;
     this.host.apply(reloadWeapon(this.host.world(), weaponId));
   }
 
   private holdWeapon(weaponId: string): void {
-    if (this.host.getTurnPhase() !== null) return;
+    if (this.ordersLocked()) return;
     this.host.apply(
       setWeaponOrder(setAutoFire(this.host.world(), false), weaponId, null),
     );
   }
 
   selectWeapon(id: string | null): void {
-    if (this.host.getTurnPhase() !== null) return;
+    if (this.ordersLocked()) return;
     this.host.selectWeapon(id);
   }
 
@@ -590,7 +614,7 @@ export class WeaponPanel {
   }
 
   toggleAuto(): void {
-    if (this.host.getTurnPhase() !== null) return;
+    if (this.ordersLocked()) return;
     const w = this.host.world();
     this.host.apply(setAutoFire(w, !w.player.autoFire));
   }
@@ -599,7 +623,7 @@ export class WeaponPanel {
 export function weaponsForClick(
   world: World,
   selected: string | null,
-): MountedWeapon[] {
+): readonly MountedWeapon[] {
   const all = vehicleStats(world, playerVehicle(world)).weapons;
   return selected ? all.filter((m) => m.part.id === selected) : all;
 }

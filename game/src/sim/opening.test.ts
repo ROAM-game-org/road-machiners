@@ -19,7 +19,8 @@ import type { GridItem, PartInstance, World } from './types';
 import { dist } from './vec';
 import { playerSees } from './vision';
 import { maxHp } from './wear';
-import { carriedWorld, endTurn, newWorld, startPose } from './world';
+import { carriedWorld, endTurn, newWorld } from './world';
+import { startPose } from './start-pose';
 
 const KIT = startKit('standard');
 
@@ -41,6 +42,13 @@ const turns = (w: World, n: number): World => {
   return next;
 };
 
+function withoutTraffic(w: World): World {
+  const next = structuredClone(w);
+  next.vehicles = next.vehicles.filter((v) => v.faction === 'player');
+  next.spawnQueue = [];
+  return next;
+}
+
 function parkedBy(w: World): World {
   const next = structuredClone(w);
   const me = playerVehicle(next);
@@ -59,7 +67,7 @@ function searched(w: World): World {
 describe('new-game opening', () => {
   it('places one fixed opening wreck with 3 parts and an unworn Rebar cage on every seed', () => {
     for (const seed of [1, 2, 3, 1337]) {
-      const w = newWorld(seed, KIT, TEST_MAP, defaultSetup('roaming'));
+      const w = seed === 1 ? openingWorld() : newWorld(seed, KIT, TEST_MAP, defaultSetup('roaming'));
       expect(w.obstacles.filter((o) => o.id === OPENING_WRECK_ID)).toHaveLength(1);
       const stocks = w.salvage.filter((s) => s.id === OPENING_WRECK_ID);
       expect(stocks).toHaveLength(1);
@@ -77,9 +85,9 @@ describe('new-game opening', () => {
 
   it('leaves a kit without an opening and a carried save with no opening wreck', () => {
     expect(openingStockOf(newWorld(1, startKit('combat'), TEST_MAP, defaultSetup('roaming'), false))).toBeNull();
-    const { world } = carriedWorld({
-      seed: 5, money: null, xp: null, ranks: {}, xpBySource: {}, perks: [], discovered: [], knockouts: null,
-      autoFire: null, autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: defaultSetup('roaming'), quests: { world: {}, local: {} },
+    const world = carriedWorld({
+      seed: 5, money: null, xp: null, ranks: {}, xpBySource: {}, perks: [], paint: null, discovered: [], knockouts: null,
+      autoFire: null, autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: defaultSetup('roaming'), quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, refunded: 0,
     }, KIT, () => TEST_MAP, () => 7);
     expect(openingStockOf(world)).toBeNull();
     expect(world.obstacles.some((o) => o.id === OPENING_WRECK_ID)).toBe(false);
@@ -111,7 +119,7 @@ describe('new-game opening', () => {
   });
 
   it('lets the player search the wreck, take its loot, patch the engine to the field cap with a part to spare and mount the cage', () => {
-    let w = searched(openingWorld());
+    let w = searched(withoutTraffic(openingWorld()));
     expect(w.player.scavenged).toContain(OPENING_WRECK_ID);
     expect(w.player.xpBySource.search).toBeGreaterThan(0);
     expect(goodsCount(playerVehicle(w)).parts).toBe(2);

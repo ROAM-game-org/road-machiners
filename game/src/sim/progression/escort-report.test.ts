@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { beatableVerdict, choiceVerdict, damageVerdict, fightVerdict, reactVerdict, riseVerdict, seedRun, sprintVerdict, table, varietyVerdict, type SeedRun } from './escort-report';
+import { balanceVerdicts, beatableVerdict, choiceVerdict, damageVerdict, fightVerdict, playVerdicts, reactVerdict, riseVerdict, seedRun, sprintVerdict, table, varietyVerdict, type SeedRun } from './escort-report';
 import type { RunLine, StretchStats } from './run-log';
 
 const stats = (over: Partial<StretchStats> = {}): StretchStats => ({ haulerDamage: 20, haulerStart: 1, haulerEnd: 0.8, firstHit: 10, turnsFromFirstHit: 30, playerShots: 3, fights: 1, enemies: [{ chassis: 'buggy', guns: ['mg'], armor: 0 }], ...over });
@@ -24,6 +24,13 @@ describe('the escort report', () => {
     expect(fightVerdict([runOf(1, 3, (j) => (j === 2 ? { fights: 0 } : {}))]).pass).toBe(false);
     expect(fightVerdict([runOf(1, 40, (j) => (j === 2 ? { playerShots: 0 } : {}))]).pass).toBe(true);
     expect(fightVerdict([seedRun(1, [won(1), lost(2, { playerShots: 0, fights: 0 })])]).pass).toBe(true);
+  });
+
+  it('judges whether the bot fought apart from the balance, so a quiet bot cannot pass on its win count', () => {
+    const quiet = [runOf(1, 12, () => ({ playerShots: 0 }))];
+    expect(playVerdicts(quiet).map((v) => [v.name, v.pass])).toEqual([['Fight', false]]);
+    expect(balanceVerdicts(quiet, []).map((v) => v.name)).not.toContain('Fight');
+    expect(balanceVerdicts(quiet, []).find((v) => v.name === 'Beatable')?.pass).toBe(false);
   });
 
   it('passes the damage check when most stretches hurt the hauler', () => {
@@ -61,10 +68,11 @@ describe('the escort report', () => {
     expect(beatableVerdict(runs.slice(1)).pass).toBe(false);
   });
 
-  it('needs every one of ten sprinter seeds to lose the run before stretch ten', () => {
+  it('lets at most one of ten sprinter seeds get past stretch ten', () => {
     const lostRun = (seed: number) => seedRun(seed, [won(1), lost(2)]);
     expect(sprintVerdict(Array.from({ length: 10 }, (_, i) => lostRun(i))).pass).toBe(true);
-    expect(sprintVerdict([...Array.from({ length: 9 }, (_, i) => lostRun(i)), runOf(9, 10)]).pass).toBe(false);
+    expect(sprintVerdict([...Array.from({ length: 9 }, (_, i) => lostRun(i)), runOf(9, 10)]).pass).toBe(true);
+    expect(sprintVerdict([...Array.from({ length: 8 }, (_, i) => lostRun(i)), runOf(8, 10), runOf(9, 10)]).pass).toBe(false);
     expect(sprintVerdict(Array.from({ length: 9 }, (_, i) => lostRun(i))).pass).toBe(false);
   });
 

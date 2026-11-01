@@ -1,18 +1,44 @@
 
 import type { PropKind } from '../sim/terrain';
 import type { LandmarkLook } from '../sim/types';
-import type { Vec } from '../sim/vec';
-import { GLASS_FLATS_ENDS, onOrchardRoad, REGION } from './region';
+import { pointInPolygon, polygonEdgeDist, type Vec } from '../sim/vec';
+import { GLASS_FLATS_ENDS, onOrchardRoad, ORCHARD_FRAME_OUTLINE, REGION } from './region';
 import type { DeckSpec, DeckStation } from './terrain';
 
 export { onOrchardRoad };
 
-export type SpotTable = 'landmark' | 'hullScrap' | 'roadWreck' | 'farmStores' | 'armyStores' | 'engineScrap' | 'cityStores';
-export const WRECK_LOOKS: readonly PropKind[] = ['armyTruck', 'shipCache', 'hullCache', 'engineCache', 'deadTruck', 'tank'];
+export type SpotTable = 'landmark' | 'hullCache' | 'hullScrap' | 'roadWreck' | 'farmStores' | 'armyStores' | 'engineScrap' | 'cityStores';
+export const WRECK_LOOKS: readonly PropKind[] = ['armyTruck', 'shipCache', 'hullCache', 'engineCache', 'deadTruck', 'tank', 'fishingBoat', 'riverBarge', 'skiff'];
+export type CluePiece =
+  | 'tube' | 'hub' | 'bow' | 'bigShell' | 'smallShell' | 'drum' | 'tower' | 'gantry' | 'furrow' | 'engine' | 'frame'
+  | 'watchtower' | 'compound' | 'farmhouse' | 'barn' | 'hangar' | 'blockhouse' | 'guardHut';
+export type CluePieceRule = { piece: CluePiece; open: boolean };
+export const CLUE_PIECES: Partial<Record<LandmarkLook, CluePieceRule>> = {
+  shipCage: { piece: 'tube', open: true },
+  shipHub: { piece: 'hub', open: false },
+  shipBow: { piece: 'bow', open: false },
+  hullShell: { piece: 'smallShell', open: true },
+  hullDrum: { piece: 'drum', open: false },
+  hullTower: { piece: 'tower', open: false },
+  hullGantry: { piece: 'gantry', open: false },
+  engineNozzle: { piece: 'engine', open: false },
+  engineFrame: { piece: 'frame', open: false },
+  watchtower: { piece: 'watchtower', open: false },
+  ruinCompound: { piece: 'compound', open: true },
+  farmhouse: { piece: 'farmhouse', open: false },
+  barn: { piece: 'barn', open: false },
+  quonset: { piece: 'hangar', open: false },
+  bunker: { piece: 'blockhouse', open: false },
+  guardPost: { piece: 'guardHut', open: false },
+};
+export const BIG_SHELL_RADIUS = 5;
+export type ClueSpot = { piece: CluePiece; at: Vec; r: number; open: boolean };
+export type Disc = { at: Vec; radius: number };
 export type Hazard = {
   radius: number;
   healthPerTurn: number;
   floor: number;
+  core: { radius: number; healthPerTurn: number; light: Disc } | null;
 };
 export type HullPiece = { look: LandmarkLook; at: Vec; yaw: number; r: number; sink?: number };
 export type Cache = { at: Vec; yaw: number };
@@ -79,6 +105,7 @@ export type WreckRules = {
   spotRadius: [number, number];
   buildings: BuildingGroup[];
   seatEase: number;
+  gradeRoads: boolean;
   rimRocks: RimRocks | null;
   scree: { from: number; to: number } | null;
   roads: FarmRoad[];
@@ -91,6 +118,7 @@ export type GlassRules = {
   cell: number;
   cover: [number, number];
   clear: number;
+  fade: { band: number; warp: number; cell: number };
   spires: DebrisRule;
 };
 export type TerritoryRules = {
@@ -124,6 +152,9 @@ const FURROW_AXIS: Vec = { x: (FURROW_TAIL.x - FURROW_HEAD.x) / FURROW_LENGTH, y
 export function inFurrow(s: number, lat: number): Vec {
   return { x: FURROW_HEAD.x + FURROW_AXIS.x * s - FURROW_AXIS.y * lat, y: FURROW_HEAD.y + FURROW_AXIS.y * s + FURROW_AXIS.x * lat };
 }
+export const CLUE_SPOTS: Record<string, ClueSpot[]> = {
+  'fallen-sun': [{ piece: 'furrow', at: inFurrow(8, 0), r: 10, open: true }],
+};
 const WING = { up: 15, span: 24, down: 46, ease: 49, end: 56, tail: 59 };
 const WING_EASE_RISE = 1.2;
 const PIER_SINK = 2.6;
@@ -136,6 +167,7 @@ const pose = (s: number, c: number, r: number, turn: number) => ({ at: onOrchard
 const FENCE = { look: 'fence' as const, segment: 1, broken: 0.3, jitter: { turn: 0.12, shift: 0.15 }, knocked: { share: 0.05, turn: 0.6, shift: 0.3 } };
 const BARRIER = { look: 'barrier' as const, segment: 1, broken: 0.35, jitter: { turn: 0.25, shift: 0.3 }, knocked: { share: 0.15, turn: 0.8, shift: 0.6 } };
 export const PERIMETER = { look: 'barrier' as const, segment: 1, broken: 0.45, jitter: { turn: 0.25, shift: 0.3 }, knocked: { share: 0.2, turn: 1.2, shift: 1.2 } };
+export const OPENING = { gap: 15, clear: 3 };
 export const EMPLACEMENT = {
   arcStep: 1,
   arcRadius: 0.5,
@@ -160,6 +192,182 @@ function dig(s: number, c: number, face: number, arcs: Emplacement['arcs'], trap
 function block(s0: number, s1: number, c0: number, c1: number, rows: GroveBlock['rows'], turn: number): GroveBlock {
   return { at: AT((s0 + s1) / 2, (c0 + c1) / 2), size: { x: s1 - s0, y: Math.abs(c1 - c0) }, rows, turn };
 }
+
+type Span = [number, number];
+type FieldCell = { s0: number; s1: number; c0: number; c1: number; n: number };
+type Poses = BuildingGroup['poses'];
+type YardLooks = 'barn' | 'armyTruck';
+
+const EDGE_ROOM = 2.5;
+const MIN_FIELD = 9;
+const MIN_ROW = 6;
+const MIN_CELL = 80;
+const FIELD_STEP = 0.5;
+const YARD_CELLS = [2, 6, 8];
+const TRUCK_CELLS = [1, 5];
+const BARN_R = 3.7;
+const ROOMY_CELL = 130;
+const WORKS_STRIP = 3.5;
+const FIELD_TURNS = [0.02, -0.03, 0.04, -0.02, 0.05, -0.04];
+const FACES = [NORTH, EAST, NORTH_EAST, WEST, SOUTH_WEST];
+const YARD_LOOKS: YardLooks[] = ['barn', 'armyTruck'];
+const YARD_GROUP: Record<YardLooks, Pick<BuildingGroup, 'table' | 'turnJitter' | 'shift'>> = {
+  barn: { table: 'farmStores', turnJitter: 0.06, shift: 0.3 },
+  armyTruck: { table: 'roadWreck', turnJitter: 0.45, shift: 0.5 },
+};
+const PLAIN_COLS: Span[] = [[80, 92], [96, 108], [112, 126]];
+const PLAIN_ROWS: Span[] = [[22, 38], [42, 56], [60, 76], [80, 92], [96, 106]];
+const WEST_COLS: Span[] = [[64, 75]];
+const NORTH_COLS: Span[] = [[50, 59]];
+const STRIP_COLS: Span[] = [[2, 15], [19, 33], [37, 46]];
+const STRIP_ROWS: Span[] = [[56, 64]];
+const PLAIN_TRACKS = {
+  downs: [77.5, 110],
+  acrosses: [{ c: 40, from: 74 }, { c: 58, from: 48 }, { c: 78, from: 48 }, { c: 94, from: 48 }],
+};
+
+function roomAt(s: number, c: number): boolean {
+  const p = { x: s, y: c };
+  return pointInPolygon(p, ORCHARD_FRAME_OUTLINE) && polygonEdgeDist(p, ORCHARD_FRAME_OUTLINE) >= EDGE_ROOM;
+}
+
+function roomAcross(s: number, row: Span): boolean {
+  return [row[0], (row[0] + row[1]) / 2, row[1]].every((c) => roomAt(s, c));
+}
+
+function settle(from: number, toward: number, row: Span): number {
+  const step = Math.sign(toward - from) * FIELD_STEP;
+  let s = from;
+  while (Math.abs(toward - s) >= MIN_FIELD && !roomAcross(s, row)) s += step;
+  return s;
+}
+
+function trimmed(col: Span, row: Span): Span | null {
+  const [a, b] = [settle(col[0], col[1], row), settle(col[1], col[0], row)];
+  return b - a >= MIN_FIELD ? [a, b] : null;
+}
+
+function shrunkRows(row: Span): Span[] {
+  const steps = Math.max(0, Math.floor(row[1] - row[0] - MIN_ROW));
+  return Array.from({ length: steps + 1 }, (_, k) => [[row[0] + k, row[1]], [row[0], row[1] - k]] as Span[]).flat();
+}
+
+function fitted(col: Span, row: Span): { s: Span; c: Span } | null {
+  for (const c of shrunkRows(row)) {
+    const s = trimmed(col, c);
+    if (s) return (s[1] - s[0]) * (c[1] - c[0]) >= MIN_CELL ? { s, c } : null;
+  }
+  return null;
+}
+
+function cellsOf(cols: Span[], rows: Span[], first: number): FieldCell[] {
+  const cells: FieldCell[] = [];
+  for (const row of rows) {
+    for (const col of cols) {
+      const fit = fitted(col, row);
+      if (fit) cells.push({ s0: fit.s[0], s1: fit.s[1], c0: fit.c[0], c1: fit.c[1], n: first + cells.length });
+    }
+  }
+  return cells;
+}
+
+function laneSpan(fixed: number, from: number, to: number, down: boolean): Span | null {
+  const ts: number[] = [];
+  for (let t = from; t <= to; t++) if (down ? roomAt(fixed, t) : roomAt(t, fixed)) ts.push(t);
+  return ts.length > 1 ? [ts[0], ts[ts.length - 1]] : null;
+}
+
+function lane(fixed: number, from: number, to: number, down: boolean): FarmRoad[] {
+  const span = laneSpan(fixed, from, to, down);
+  if (!span) return [];
+  const points = span.map((t) => (down ? AT(fixed, t) : AT(t, fixed)));
+  return [{ points, width: 2, surface: 'track' }];
+}
+
+function isYard(cell: FieldCell): boolean {
+  return YARD_CELLS.includes(cell.n);
+}
+
+function yardBarn(cell: FieldCell): Poses {
+  return [pose((cell.s0 + cell.s1) / 2, (cell.c0 + cell.c1) / 2, BARN_R, ACROSS)];
+}
+
+function fieldBlock(cell: FieldCell): GroveBlock {
+  const rows = Math.floor(cell.n / 2) % 2 === 0 ? 'along' : 'across';
+  const start = roomy(cell) ? WORKS_STRIP : 0.5;
+  return block(cell.s0 + 0.5, cell.s1 - 0.5, cell.c0 + start, cell.c1 - 0.5, rows, FIELD_TURNS[cell.n % FIELD_TURNS.length]);
+}
+
+function betweenRows(span: number): number {
+  return (Math.floor(span / 3) + 1) % 2 === 1 ? 1.5 : 0;
+}
+
+function fieldCanals(cell: FieldCell): Track[] {
+  if (cell.n % 3 === 0) return [];
+  const [s, c] = [(cell.s0 + cell.s1) / 2, (cell.c0 + cell.c1) / 2];
+  if (Math.floor(cell.n / 2) % 2 === 0) {
+    const y = c + betweenRows(cell.c1 - cell.c0 - 1);
+    return [{ points: [AT(cell.s0 + 3, y), AT(cell.s1 - 3, y)], width: 1 }];
+  }
+  const x = s + betweenRows(cell.s1 - cell.s0 - 1);
+  return [{ points: [AT(x, cell.c0 + 3), AT(x, cell.c1 - 3)], width: 1 }];
+}
+
+function fieldRuns(cell: FieldCell): Run[] {
+  const points = [AT(cell.s0 + 0.5, cell.c1 + 0.8), AT(cell.s1 - 0.5, cell.c1 + 0.8)];
+  if (cell.n % 3 === 0) return [{ ...FENCE, points }];
+  return cell.n % 3 === 1 ? [{ ...BARRIER, points: [AT(cell.s0 - 0.8, cell.c0 + 1), AT(cell.s0 - 0.8, cell.c1 - 1)] }] : [];
+}
+
+function roomy(cell: FieldCell): boolean {
+  return (cell.s1 - cell.s0) * (cell.c1 - cell.c0) >= ROOMY_CELL;
+}
+
+function fieldWorks(cell: FieldCell): Emplacement[] {
+  if (!roomy(cell)) return [];
+  const step = Math.floor(cell.n / 2);
+  const dig2 = (s: number, face: number, k: number) => dig(s, cell.c0 + 1.6, face, 1 + ((step + k) % 3) as Emplacement['arcs'], (step + k) % 3);
+  return [dig2(cell.s0 + 3.5, FACES[step % FACES.length], 0), dig2(cell.s1 - 3.5, FACES[(step + 2) % FACES.length], 1)];
+}
+
+function junctionTruck(cell: FieldCell): Poses {
+  return TRUCK_CELLS.includes(cell.n) ? [{ at: AT(cell.s0 - 2, cell.c0 - 2), r: 1.1, turn: ALONG, shoulder: true }] : [];
+}
+
+type OrchardGrowth = {
+  roads: FarmRoad[];
+  blocks: GroveBlock[];
+  canals: Track[];
+  runs: Run[];
+  emplacements: Emplacement[];
+  groups: BuildingGroup[];
+};
+
+function orchardGrowth(): OrchardGrowth {
+  const plain = cellsOf(PLAIN_COLS, PLAIN_ROWS, 0);
+  const west = cellsOf(WEST_COLS, PLAIN_ROWS.slice(1), plain.length);
+  const north = cellsOf(NORTH_COLS, PLAIN_ROWS.slice(2), plain.length + west.length);
+  const strip = cellsOf(STRIP_COLS, STRIP_ROWS, plain.length + west.length + north.length);
+  const cells = [...plain, ...west, ...north, ...strip];
+  const yards = cells.filter(isYard);
+  const fields = cells.filter((cell) => !isYard(cell));
+  const poses = (look: YardLooks): Poses => (look === 'barn' ? yards.flatMap(yardBarn) : cells.flatMap(junctionTruck));
+  const groups = YARD_LOOKS.map((look) => ({ look, ...YARD_GROUP[look], poses: poses(look) }));
+  return {
+    roads: [
+      ...PLAIN_TRACKS.downs.flatMap((s) => lane(s, 44, 104, true)),
+      ...PLAIN_TRACKS.acrosses.flatMap(({ c, from }) => lane(c, from, 130, false)),
+      ...lane(54, 2, 62, false),
+    ],
+    blocks: fields.map(fieldBlock),
+    canals: fields.flatMap(fieldCanals),
+    runs: [...fields.flatMap(fieldRuns), ...yards.map((y) => ({ ...FENCE, points: [AT(y.s0 + 0.5, y.c0 - 0.8), AT(y.s1 - 0.5, y.c0 - 0.8)] }))],
+    emplacements: cells.flatMap(fieldWorks),
+    groups,
+  };
+}
+
+const GROWTH = orchardGrowth();
 
 const NOZZLE_R = 3.25;
 const FRAME_R = 3.75;
@@ -225,7 +433,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         { at: { x: 10.2, y: 2.1 }, yaw: 1.37 },
       ],
       cacheLook: 'hullCache',
-      cacheTable: 'landmark',
+      cacheTable: 'hullCache',
       cacheRadius: 0.7,
       patches: [
         { at: { x: -6.5, y: 32.4 }, radius: 10, debris: DENSE, spots: 3 },
@@ -243,26 +451,19 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
       spotRadius: [0.6, 0.8],
       buildings: [],
       seatEase: 3,
+      gradeRoads: false,
       rimRocks: { from: 1, to: 10, out: [0.5, 6], count: 28, size: [2.5, 4] },
       scree: { from: 20, to: 2 },
       roads: [
-        dirt(RING, [[-40.7, 13.2], [-38.1, 19.5], [-35.8, 22.7], [-33.4, 27.4], [-30.3, 31], [-25.3, 35.8], [-19, 39.9], [-16.7, 42.7], [-15.6, 43.2], [-12.1, 43.6], [-10.2, 42.9], [-8.6, 42.9], [-3.8, 45.2]]),
-        dirt(RING, [[-3.8, 45.2], [-0.8, 40.1]]),
-        dirt(RING, [[-0.8, 40.1], [1.8, 39.1], [3.7, 38.9], [14.9, 39.6], [17.5, 39.3], [19.3, 38.6], [24.4, 35.5], [26.2, 35.6], [29.6, 36.4], [31.2, 36.2]]),
-        dirt(RING, [[31.2, 36.2], [32.5, 33.7], [32.4, 29.2], [32.9, 27.6], [39.1, 20.1], [40, 18.9], [47.3, 9.7], [48, 7.4], [48.2, 1.6]]),
-        dirt(RING, [[48.2, 1.6], [48.1, -4.1], [47.4, -6.3], [43.3, -11.8], [38.1, -16.4]]),
-        dirt(RING, [[38.1, -16.4], [40.8, -17.9], [45, -21.1]]),
-        dirt(RING, [[45, -21.1], [42, -25.9], [40.4, -29.4]]),
-        dirt(RING, [[40.4, -29.4], [30.9, -33.9], [26.1, -37.2], [25.2, -38.4], [23.8, -41.3], [22.7, -42], [18.9, -43]]),
-        dirt(RING, [[18.9, -43], [16, -41.9], [14.5, -40.7], [10.8, -33.6]]),
-        dirt(RING, [[10.8, -33.6], [5.5, -35.6], [1.6, -36.2], [-0.1, -35.7], [-0.8, -35], [-1.8, -33]]),
-        dirt(RING, [[-1.8, -33], [-2.3, -31.2], [-3, -30.1], [-4.2, -29.4], [-7.9, -28.5]]),
-        dirt(RING, [[-7.9, -28.5], [-10.8, -28.8], [-13, -30.8], [-13.5, -33.5]]),
-        dirt(RING, [[-13.5, -33.5], [-19.3, -29.3]]),
-        dirt(RING, [[-19.3, -29.3], [-23, -28.7], [-25.3, -27.5], [-26.5, -26.4], [-28.4, -23.8], [-31.4, -22.1], [-32.2, -20.7], [-32.5, -19.2]]),
-        dirt(RING, [[-32.5, -19.2], [-32.9, -17.3], [-34.3, -13.9], [-34.5, -11.9], [-34.3, -9.9], [-33, -6.2], [-35, 0.2]]),
-        dirt(RING, [[-35, 0.2], [-37.6, 1.5], [-41.3, 3.9], [-42, 4.9], [-42.1, 6.6]]),
-        dirt(RING, [[-42.1, 6.6], [-41.6, 10.2], [-40.7, 13.2]]),
+        dirt(LANE, [[-39.7, 9.9], [-35, 9.7], [-29.2, 9.5]]),
+        dirt(LANE, [[43, -21.9], [38.1, -16.4]]),
+        dirt(LANE, [[37.8, 28.4], [39.1, 20.1]]),
+        dirt(LANE, [[-0.8, 40.1], [1.8, 39.1], [3.7, 38.9], [14.9, 39.6]]),
+        dirt(LANE, [[-7.9, -28.5], [-10.8, -28.8], [-13, -30.8], [-13.5, -33.5]]),
+        dirt(LANE, [[-27.1, 21.1], [-29, 26], [-30.3, 31]]),
+        dirt(LANE, [[16.5, 30.5], [15.5, 35], [14.9, 39.6]]),
+        dirt(LANE, [[-0.8, 40.1], [-3.8, 45.2]]),
+        dirt(LANE, [[-11.3, 28.9], [-15, 34], [-19, 39.9]]),
         dirt(LANE, [[-33, -6.2], [-29.3, -5.6], [-26.5, -6.4], [-24, -8.8], [-22.5, -11.4]]),
         dirt(LANE, [[-32.5, -19.2], [-31.6, -16.9], [-29.9, -16], [-27.1, -15.4], [-22.5, -11.4]]),
         dirt(LANE, [[-22.5, -11.4], [-21.5, -12.7], [-20.1, -13.4], [-14.6, -13.5], [-9.3, -15.4], [-8.9, -15.1], [-7.7, -15.2]]),
@@ -283,7 +484,6 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         dirt(LANE, [[-27.1, 21.1], [-20.2, 25.7], [-11.3, 28.9], [-7.8, 31.1], [-4.7, 33.7], [-2.4, 36.8], [-0.8, 40.1]]),
         dirt(LANE, [[-35.8, 22.7], [-32.8, 22.4], [-27.1, 21.1]]),
         dirt(LANE, [[-27.1, 21.1], [-29, 15.5], [-29.2, 9.5], [-30.2, 4], [-35, 0.2]]),
-        dirt(LANE, [[-43.1, 0], [-42.1, 6.6]]),
         dirt(LANE, [[18.2, 9.2], [22.9, 11.9], [25.2, 13.7], [29.2, 14.5], [33.6, 16.2], [39.1, 20.1]]),
         dirt(LANE, [[18.2, 9.2], [20, 7], [21.2, 3.5], [20.5, -3.5]]),
         dirt(LANE, [[18.2, 9.2], [14, 13], [12.8, 20], [12.8, 27], [16.5, 30.5], [21, 31.3]]),
@@ -297,10 +497,10 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
       ],
       spurs: [
         dirt(LANE, [[-1.8, -33], [-1.5, -38.5], [-2.2, -45], [-4.3, -53.5]]),
-        dirt(LANE, [inFurrow(WING.end - 1, -6), [-13, 105], [-3, 102], [2, 100.5]]),
+        dirt(LANE, [inFurrow(WING.end - 1, -6), [-12.5, 106], [-12.5, 110.5]]),
         dirt(LANE, [[-30.3, 31], [-33, 37], [-33, 44], [-32.8, 52]]),
         dirt(LANE, [[14.9, 39.6], [19.5, 58]]),
-        dirt(LANE, [[40, 18.9], [45.5, 25], [51, 30.5], [54.5, 33.5]]),
+        dirt(LANE, [[39.1, 20.1], [47.4, 18], [54.8, 21.5]]),
       ],
       spurFade: 5,
       decks: [
@@ -336,11 +536,12 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         radius: 8,
         healthPerTurn: 5,
         floor: 30,
+        core: { radius: 3.5, healthPerTurn: 8, light: { at: { x: 24.4, y: -24.85 }, radius: 2.25 } },
       },
     },
   },
   orchard: {
-    seed: 1,
+    seed: 4,
     wreck: null,
     farm: {
       spine: { from: AT(-30, 0), to: AT(44, 0), band: 30 },
@@ -350,21 +551,22 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
       ],
       grounds: [0.3, 1],
       roads: [
-        { points: [AT(-32, 0), AT(46, 0), AT(52, 6), AT(58, 6.5), AT(72, 7.5)], width: 3, surface: 'oldRoad' },
+        { points: [AT(-32, 0), AT(46, 0), AT(52, 6), AT(58, 6.5), AT(72, 7.5), AT(80, 12), AT(88, 16.5), AT(94, 20), AT(94, 106)], width: 3, surface: 'oldRoad' },
         { points: [AT(6, 18), AT(4, 9), AT(1, -3), AT(-6, -6), AT(-8, -11), AT(-8, -15), AT(-3, -20), AT(4, -21), AT(4, -31.9)], width: 3, surface: 'track' },
         { points: [AT(-6, 1.5), AT(-10, 9), AT(-13, 21), AT(-22, 25), AT(-30, 22), AT(-35.4, 14)], width: 3, surface: 'track' },
         { points: [AT(20, -1.5), AT(19, -10), AT(21, -31), AT(40, -33), AT(31, -37)], width: 3, surface: 'track' },
-        { points: [AT(60, 6.6), AT(61, 22), AT(59, 40.6)], width: 2.5, surface: 'track' },
+        { points: [AT(60, 6.6), AT(61, 22), AT(59, 40.6), AT(60, 50), AT(62, 62), AT(62, 80), AT(62, 99.6)], width: 2.5, surface: 'track' },
         { points: [AT(6, 18), AT(10.75, 22), AT(10.75, 31)], width: 2, surface: 'track' },
         { points: [AT(40, -33), AT(45.5, -33)], width: 2, surface: 'track' },
         { points: [AT(42, 1), AT(39, 5.5), AT(36, 7), AT(33.5, 10)], width: 2, surface: 'track', grade: 0.25 },
+        ...GROWTH.roads,
       ],
       buildings: [
         { look: 'farmhouse', table: 'landmark', turnJitter: 0.06, shift: 0.3, poses: [pose(12, 14, 4, ACROSS)] },
-        { look: 'barn', table: 'farmStores', turnJitter: 0.06, shift: 0.3, poses: [pose(-12, 29.5, 3.7, ACROSS), pose(-6, 30.5, 2.2, ACROSS), pose(54.5, 32, 3.7, ALONG)] },
-        { look: 'quonset', table: 'armyStores', turnJitter: 0.06, shift: 0.3, poses: [pose(25, -13, 3.2, ACROSS), pose(30, -19, 3.2, ACROSS), pose(34, -26, 3.2, ACROSS), pose(51, -27, 3.2, ALONG)] },
+        { look: 'barn', table: 'farmStores', turnJitter: 0.06, shift: 0.3, poses: [pose(-12, 29.5, 3.7, ACROSS), pose(-2.5, 31, 2.2, ACROSS), pose(54.5, 32, 3.7, ALONG)] },
+        { look: 'quonset', table: 'armyStores', turnJitter: 0.06, shift: 0.3, poses: [pose(25, -13, 3.2, ACROSS), pose(30, -19, 3.2, ACROSS), pose(34, -26, 3.2, ACROSS), pose(50.8538, -26.5218, 3.2, ALONG)] },
         { look: 'bunker', table: 'armyStores', turnJitter: 0.06, shift: 0.3, poses: [pose(0, -10, 3.9, ALONG)] },
-        { look: 'guardPost', table: 'armyStores', turnJitter: 0.06, shift: 0.3, poses: [pose(-25.5, -6.5, 1.1, ALONG), pose(8, -28, 1.1, ACROSS), pose(13.5, -25, 1.1, ALONG), pose(68, 11.5, 1.1, ALONG), pose(-14.5, 12, 1.1, ALONG)] },
+        { look: 'guardPost', table: 'armyStores', turnJitter: 0.06, shift: 0.3, poses: [pose(-25.5, -6.5, 1.1, ALONG), pose(8, -28, 1.1, ACROSS), pose(13.5, -25, 1.1, ALONG), pose(68.2348, 11.9415, 1.1, ALONG), pose(-14.5, 12, 1.1, ALONG)] },
         {
           look: 'armyTruck',
           table: 'roadWreck',
@@ -373,7 +575,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
           poses: [
             ...[-27, -22, -17].map((s) => pose(s, 16, 1.1, ALONG)),
             { at: AT(8, 20.5), r: 1.1, turn: ALONG, shoulder: true },
-            { at: AT(60.5, 28), r: 1.1, turn: ALONG, shoulder: true },
+            { at: AT(60.5, 29), r: 1.1, turn: ALONG, shoulder: true },
             { at: AT(-7,-9.5), r: 1.1, turn: ALONG, shoulder: true },
             { at: AT(-20, -1.5), r: 1.1, turn: ALONG, shoulder: true },
             { at: AT(16, 1.5), r: 1.1, turn: Math.PI, shoulder: true },
@@ -381,7 +583,8 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
             { at: AT(-16,26), r: 1.1, turn: 0.6, shoulder: true },
           ],
         },
-        { look: 'armyCache', table: 'armyStores', turnJitter: 0.3, shift: 0.3, poses: [pose(32.5, 7.5, 0.9, ALONG), pose(24, -5.5, 0.9, ACROSS), pose(21, -34, 0.9, ALONG), pose(43, 5.5, 0.9, ALONG)] },
+        { look: 'armyCache', table: 'armyStores', turnJitter: 0.3, shift: 0.3, poses: [pose(32.8567, 7.4177, 0.9, ALONG), pose(24, -5.5, 0.9, ACROSS), pose(20.0256, -33.775, 0.9, ALONG), pose(43.0174, 5.0003, 0.9, ALONG)] },
+        ...GROWTH.groups,
       ],
       pads: [
         { at: AT(-22, 16), size: { x: 12, y: 10 }, turn: ALONG },
@@ -403,24 +606,26 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         { points: [AT(-24, -23.75), AT(-12.5, -23.75)], width: 1 },
         { points: [AT(40, 12.6), AT(50.5, 12.6)], width: 1 },
         { points: [AT(38.75, -10), AT(38.75, -28)], width: 1 },
+        ...GROWTH.canals,
       ],
-      groves: { look: 'deadTree', rowGap: 3, treeGap: 1.5, jitter: 0.3, missing: 0.12, radius: 0.35, maxTrees: 750, keep: 0.7, strays: 180 },
+      groves: { look: 'deadTree', rowGap: 3, treeGap: 1.5, jitter: 0.3, missing: 0.12, radius: 0.35, maxTrees: 1900, keep: 0.7, strays: 600 },
       blocks: [
         block(20.2, 26.2, 4.6, 16.5, 'across', 0.02),
         block(12.8, 21, 21, 32, 'along', -0.03),
-        block(-0.5, 8.2, 21, 31.5, 'along', 0.02),
-        block(-7.5, 1.5, 10, 19.5, 'across', -0.02),
+        block(-4.9077, 3.7923, 14.6760, 25.1760, 'along', 0.02),
+        block(-8.2945, 0.7055, 10.8194, 20.3194, 'across', -0.02),
         block(-33, -16.5, 4.6, 7.6, 'along', 0.01),
         block(-29, -19.5, 28.5, 32.5, 'along', -0.02),
         block(8, 16.4, -5, -20, 'across', 0.02),
         block(33, 45, -4.6, -9, 'along', -0.02),
         block(44, 55, -4.6, -13.5, 'across', 0.05),
-        block(41, 56, -16.5, -22, 'along', 0.04),
+        block(39.5374, 54.5374, -15.1360, -20.6360, 'along', 0.04),
         block(-23.5, -12.3, -6.6, -22.3, 'across', -0.02),
         block(-8, 1.5, -23.5, -29.3, 'along', 0.06),
         block(40, 50.5, 14.3, 33.5, 'along', 0.03),
         block(64.5, 70.6, 15.5, 39, 'across', -0.03),
         block(52.8, 57.8, 12.5, 23, 'along', 0.05),
+        ...GROWTH.blocks,
       ],
       runs: [
         { ...FENCE, points: [AT(-25, -9.5), AT(-25, -23)] },
@@ -447,25 +652,26 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         { ...PERIMETER, points: [AT(-33.8, 8.5), AT(-33.5, 11.5)] },
         { ...PERIMETER, points: [AT(69, 16), AT(69, 26)] },
         { ...PERIMETER, points: [AT(69, 30), AT(69, 39)] },
+        ...GROWTH.runs,
       ],
       emplacements: [
-        dig(-27, -14, NORTH, 2, 0),
-        dig(-19, -27, SOUTH_WEST, 1, 1),
+        dig(-27, -14, NORTH, 2, 1),
+        dig(-19, -27, SOUTH_WEST, 1, 2),
         dig(-13, -26.5, NORTH, 2, 3),
-        dig(-9, -5, NORTH, 3, 1),
-        dig(-12, 5, SOUTH, 2, 1),
+        dig(-9, -5, NORTH, 3, 2),
+        dig(-12, 5, SOUTH, 2, 2),
         dig(-4, 5, WEST, 3, 3),
         dig(6, 5, NORTH, 3, 3),
-        dig(1, 7, NORTH, 3, 0),
-        dig(3, -18, NORTH_WEST, 2, 1),
-        dig(-1, -18, NORTH, 1, 0),
-        dig(-9, -18, EAST, 1, 1),
-        dig(18, 8, NORTH, 2, 0),
-        dig(8, -23, WEST, 2, 1),
+        dig(1, 7, NORTH, 3, 2),
+        dig(3, -18, NORTH_WEST, 2, 2),
+        dig(-1, -18, NORTH, 1, 2),
+        dig(-9, -18, EAST, 1, 2),
+        dig(18, 8, NORTH, 2, 1),
+        dig(8, -23, WEST, 2, 2),
         dig(14, -28, NORTH_EAST, 3, 3),
         dig(15, -23, NORTH_EAST, 2, 2),
         dig(12, -33, EAST, 2, 0),
-        dig(31, -6, NORTH, 1, 0),
+        dig(31, -6, NORTH, 2, 0),
         dig(23, -24, NORTH_EAST, 2, 2),
         dig(41, -30, NORTH, 3, 2),
         dig(42, -25, SOUTH_WEST, 2, 0),
@@ -480,13 +686,19 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         dig(24, 21, EAST, 3, 1),
         dig(31, 23, NORTH, 3, 0),
         dig(38, 23, NORTH, 3, 0),
-        dig(70, 41, NORTH, 1, 0),
+        dig(70, 41, NORTH, 2, 0),
+        dig(-20, -8, NORTH, 2, 1),
+        dig(26, 2, NORTH, 2, 1),
+        dig(58, -12, NORTH_EAST, 2, 1),
+        dig(-26, 12, WEST, 2, 1),
+        dig(15, 28, EAST, 2, 1),
+        ...GROWTH.emplacements,
       ],
       clutter: [
-        { look: 'drums', count: 6, radius: [0.4, 0.48], near: ['armyTruck', 'quonset'], reach: 4 },
-        { look: 'woodpile', count: 8, radius: [0.6, 0.7], near: ['barn', 'farmhouse'], reach: 4 },
-        { look: 'junk', count: 10, radius: [0.8, 1.1], near: ['barn', 'armyTruck', 'farmhouse'], reach: 5 },
-        { look: 'barrier', count: 10, radius: [0.5, 0.5], near: ['quonset', 'guardPost', 'bunker'], reach: 4 },
+        { look: 'drums', count: 14, radius: [0.4, 0.48], near: ['armyTruck', 'quonset'], reach: 4 },
+        { look: 'woodpile', count: 18, radius: [0.6, 0.7], near: ['barn', 'farmhouse'], reach: 4 },
+        { look: 'junk', count: 22, radius: [0.8, 1.1], near: ['barn', 'armyTruck', 'farmhouse'], reach: 5 },
+        { look: 'barrier', count: 22, radius: [0.5, 0.5], near: ['quonset', 'guardPost', 'bunker'], reach: 4 },
       ],
     },
     glass: null,
@@ -553,6 +765,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         },
       ],
       seatEase: 3,
+      gradeRoads: true,
       rimRocks: null,
       scree: null,
       roads: [
@@ -565,13 +778,13 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         townRoad(LANE, [GLASS_FLATS_ENDS[0], [11, 14.5]]),
         townRoad(LANE, [GLASS_FLATS_ENDS[1], [13, -18.5]]),
       ],
-      spurs: [dirt(LANE, [wide(-13.5, 13), [-60, 40], [-82, 55]])],
+      spurs: [dirt(LANE, [wide(-13.5, 13), [-60, 40], [-110, 74], [-150, 101]])],
       spurFade: 5,
       decks: [],
       landing: 0,
     },
     farm: null,
-    glass: { cell: 6, cover: [0.55, 0.45], clear: 1, spires: { look: 'glassSpire', count: 425, radius: [0.6, 1.2] } },
+    glass: { cell: 6, cover: [0.8, 0.65], clear: 1, fade: { band: 40, warp: 25, cell: 35 }, spires: { look: 'glassSpire', count: 240, radius: [0.6, 1.2] } },
     spotGap: 6,
     debrisGap: 1.5,
     reactor: null,

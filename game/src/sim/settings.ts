@@ -2,7 +2,7 @@
 import { GAME_MODES, WORLD_SETTINGS } from '../data/modes';
 import type { GameModeId, MapKind, ModeRules, World, WorldSettings, WorldSetup } from './types';
 
-type SettingId = keyof WorldSettings;
+export type SettingId = keyof WorldSettings;
 const SETTING_IDS = Object.keys(WORLD_SETTINGS) as SettingId[];
 
 export function defaultSetup(mode: GameModeId): WorldSetup {
@@ -21,12 +21,11 @@ export function parseSetup(raw: unknown): WorldSetup {
   return { mode: setup.mode, settings: { ...defaultSetup(setup.mode).settings, ...pickSettings(settings) } };
 }
 
-export function repairSetup(raw: unknown): { setup: WorldSetup; reset: SettingId[] } {
+export function repairSetup(raw: unknown): WorldSetup {
   const { mode, settings } = knownParts(raw);
   const setup = defaultSetup(mode);
   const bad = SETTING_IDS.filter((id) => !validSetting(id, settings[id]));
-  const reset = bad.filter((id) => WORLD_SETTINGS[id].modes.includes(mode));
-  return { setup: { ...setup, settings: { ...setup.settings, ...pickSettings(settings, bad) } }, reset };
+  return { ...setup, settings: { ...setup.settings, ...pickSettings(settings, bad) } };
 }
 
 export function modeRules(world: World): ModeRules {
@@ -41,8 +40,16 @@ export function modeMap(mode: GameModeId): MapKind {
   return modeOf(mode).map;
 }
 
+export function hasExplorationMap(world: World): boolean {
+  return modeMap(world.setup.mode) === 'icarus';
+}
+
 export function modeKit(mode: GameModeId, fallback: string): string {
   return modeOf(mode).kit ?? fallback;
+}
+
+export function modeOpening(mode: GameModeId): string | null {
+  return modeOf(mode).opening;
 }
 
 function modeOf(mode: GameModeId): (typeof GAME_MODES)[GameModeId] {

@@ -15,7 +15,7 @@ export type ClaymoreCrash = { impact: number; own: CrashContact; theirs: CrashCo
 
 export function claymoreOf(part: PartInstance): ClaymoreDef {
   const def = partDef(part.defId);
-  if (def.kind !== 'armor' || !def.claymore) throw new Error(`${def.id} is not a claymore ram`);
+  if (def.kind !== 'accessory' || !def.claymore) throw new Error(`${def.id} is not a claymore ram`);
   return def.claymore;
 }
 
@@ -24,6 +24,12 @@ export function armClaymore(v: Vehicle, part: PartInstance): void {
   const charge = chargeOf(part);
   if (charge.armed || charge.reload > 0 || part.hp <= 0) throw new Error(`${v.id} cannot arm claymore ram ${part.id}`);
   charge.armed = true;
+}
+
+export function disarmClaymore(v: Vehicle, part: PartInstance): void {
+  claymoreOf(part);
+  if (!part.charge?.armed) throw new Error(`${v.id} cannot disarm claymore ram ${part.id}`);
+  delete part.charge.armed;
 }
 
 export function disarm(part: PartInstance): void {
@@ -48,7 +54,7 @@ export function detonateOnObstacle(world: World, user: Vehicle, obstacle: string
 }
 
 function armedOn(v: Vehicle, crash: ClaymoreCrash): PartInstance[] {
-  return mountedParts(v, 'armor').filter((p) => p.charge?.armed && p.hp > 0 && coversSide(v, p, crash.own.side));
+  return mountedParts(v, 'accessory').filter((p) => p.charge?.armed && p.hp > 0 && coversSide(v, p, crash.own.side));
 }
 
 function detonate(world: World, user: Vehicle, other: Vehicle, part: PartInstance, crash: ClaymoreCrash): void {
@@ -82,7 +88,7 @@ function contactPoint(v: Vehicle, contact: CrashContact): Vec {
 
 export function cookOffClaymores(world: World): void {
   for (const v of world.vehicles) {
-    for (const item of mountedItems(v, 'armor')) if (item.part.charge?.armed && item.part.hp <= 0) cookOff(world, v, item);
+    for (const item of mountedItems(v, 'accessory')) if (item.part.charge?.armed && item.part.hp <= 0) cookOff(world, v, item);
   }
 }
 
@@ -97,7 +103,7 @@ function cookOff(world: World, v: Vehicle, item: PartItem): void {
 }
 
 function ramPoint(v: Vehicle, part: PartInstance): Vec {
-  const item = mountedItems(v, 'armor').find((it) => it.part.id === part.id);
+  const item = mountedItems(v, 'accessory').find((it) => it.part.id === part.id);
   const letter = item && sideOf(v, part);
   if (!item || !letter) throw new Error(`Claymore ram ${part.id} on ${v.id} is not mounted on a side`);
   const side = SIDES[letter];

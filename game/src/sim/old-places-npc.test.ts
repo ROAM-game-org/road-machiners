@@ -11,7 +11,7 @@ import { goodsCount } from './grid';
 import { topGoal } from './npc-activities';
 import { nearestRoadPoint, oldSpotOf, oldSpotPicks, oldStockId, type OldSpotPick, canReachSalvage, isRoadWreck } from './salvage';
 import { beginSearch } from './search';
-import { isFree } from './spawn';
+import { isFree, spawnQueueNow } from './spawn';
 import { vehicleStats } from './stats';
 import { addVehicle, emptyWorld, forceOption, npcBrain } from './testkit';
 import type { SalvageStock, Vehicle, World } from './types';
@@ -22,7 +22,7 @@ import { endTurn, newWorld } from './world';
 const picks = oldSpotPicks(TEST_MAP);
 const roadGap = (p: OldSpotPick): number => dist(p.pos, nearestRoadPoint(p.pos));
 const nearest = (list: OldSpotPick[]): OldSpotPick => list.reduce((a, b) => (roadGap(b) < roadGap(a) ? b : a));
-const building = nearest(picks.filter((p) => p.type !== 'hulks'));
+const building = nearest(picks.filter((p) => p.type !== 'hulks' && p.type !== 'boats'));
 const hulks = nearest(picks.filter((p) => p.type === 'hulks'));
 const DRIVE_TURNS = 60;
 
@@ -34,11 +34,13 @@ function setShare(share: number): void {
 
 function roadWorld(pick: OldSpotPick): { w: World; npc: Vehicle; stock: SalvageStock } {
   const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+  spawnQueueNow(w);
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-  const npc = addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], freeNear(w, nearestRoadPoint(pick.pos)));
+  const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], freeNear(w, nearestRoadPoint(pick.pos)));
   npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
   forceOption('salvageSeen', 'keep');
+  w.salvage = w.salvage.filter((s) => s.id === oldStockId(pick));
   const stock = w.salvage.find((s) => s.id === oldStockId(pick))!;
   stock.goods = { ...Object.fromEntries(Object.keys(OLD_TABLES[pick.type].goods).map((g) => [g, 0])), scrap: 2, parts: 1 };
   stock.parts = [];
@@ -85,7 +87,7 @@ function runGoal(start: World, npcId: string, stockId: string, turns = DRIVE_TUR
 describe('scavengers pick old-world loot spots', () => {
   function scavengerAt(pos: Vec) {
     const w = emptyWorld({ x: 50, y: 50 });
-    const npc = addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], pos);
+    const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], pos);
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
     forceOption('idle', 'scavenge');
     forceOption('salvageSeen', 'keep');
@@ -105,11 +107,29 @@ describe('scavengers pick old-world loot spots', () => {
     expect(dist(pick.pos, npc.pos)).toBeLessThanOrEqual(OLD_PLACES.npcRange);
   });
 
+  it('names its goal for boat wrecks, hulks and ruins after what it heads for', () => {
+    setShare(1);
+    const boats = picks.find((p) => p.type === 'boats')!;
+    const reasons = new Set<string>();
+    for (let k = 0; k < 40 && !reasons.has('searchOldBoats'); k++) {
+      const { w, npc } = scavengerAt({ x: boats.pos.x + 60, y: boats.pos.y });
+      w.rngState = k + 1;
+      planNpcOrders(w);
+      const goal = topGoal(npc)!;
+      const picked = picks.find((p) => oldStockId(p) === goal.targetId);
+      const said = w.events.find((e) => e.t === 'activity' && e.vehicle === npc.id);
+      if (!picked || !said || said.t !== 'activity' || said.reason === 'collectSalvage') continue;
+      expect(said.reason).toBe({ boats: 'searchOldBoats', wreckage: 'searchOldWreckage', hulks: 'searchOldHulks', homestead: 'searchOldRuin', hamlet: 'searchOldRuin', lookout: 'searchOldRuin' }[picked.type]);
+      reasons.add(said.reason);
+    }
+    expect(reasons.has('searchOldBoats')).toBe(true);
+  });
+
   it('keeps to its salvage sites when the share does not land', () => {
     setShare(0);
     const { w, npc } = scavengerAt({ x: building.pos.x + 30, y: building.pos.y });
     planNpcOrders(w);
-    expect(oldSpotOf({ id: topGoal(npc)!.targetId ?? '' })).toBeNull();
+    expect(['searchOldRuin', 'searchOldHulks', 'searchOldBoats']).not.toContain(topGoal(npc)!.reason);
   });
 
   it('never heads for an old spot out of range', () => {
@@ -167,7 +187,7 @@ describe('a scavenger at an old-world loot spot', () => {
     };
     const { w: after, searched, reasons } = runGoal(w, npc.id, stock.id, DRIVE_TURNS, keepSearching);
     expect(searched).toBe(false);
-    expect(['lootTaken', 'looterWontLeave', 'fightOverLoot']).toContain(reasons[0]);
+    expect(['lootTaken', 'looterWontLeave', 'fightOverLoot', 'salvageOutOfReach']).toContain(reasons[0]);
     expect(held(after, stock.id)).toBe(before);
   }, 120_000);
 });

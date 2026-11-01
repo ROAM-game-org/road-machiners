@@ -18,6 +18,7 @@ export type StartKit = {
   cargo: Record<string, number>;
   costBasis: Record<string, number>;
   autoRepair: boolean;
+  ranks: number;
   opening: Opening | null;
   intro: Intro | null;
 };
@@ -44,6 +45,8 @@ const STANDARD_OPENING: Opening = {
   stock: { goods: { scrap: 0, parts: 3 }, parts: ['cage'] },
 };
 
+export const OPENING = { farewellDistance: 80 };
+
 export const HAULER_KIT: HaulerKit = {
   chassis: HAULER_CHASSIS,
   parts: ['workhorseDiesel'],
@@ -52,32 +55,45 @@ export const HAULER_KIT: HaulerKit = {
   supplies: RULES.baseSupplies,
 };
 
+const SCOUT_GUN: NonNullable<StartKit['placed']> = [{ defId: 'mg', x: 4, y: 5, rot: 0 }];
+
+const SNOWBALL_GUNS: NonNullable<StartKit['placed']> = [
+  { defId: 'mg', x: 1, y: 5, rot: 0 },
+  { defId: 'mg', x: 2, y: 6, rot: 0 },
+  { defId: 'slugCannon', x: 3, y: 9, rot: 1 },
+  { defId: 'shotgun', x: 4, y: 10, rot: 2 },
+];
+
 export const START_KITS: Record<string, StartKit> = {
   arrival: {
     chassis: 'scout',
-    parts: ['panniers', 'mg', 'stockEngine'],
+    parts: ['panniers', 'stockEngine'],
+    placed: SCOUT_GUN,
     storage: [],
     wear: 2,
-    money: 33300,
+    money: 333,
     fuel: ARRIVAL.fuelLiters / UNITS.fuelLiters,
     supplies: ARRIVAL.supplies,
     cargo: { scrap: 2, parts: 2 },
-    costBasis: { scrap: 333 },
+    costBasis: { scrap: 3.33 },
     autoRepair: false,
+    ranks: 0,
     opening: { ...STANDARD_OPENING, wreck: ARRIVAL.wreck },
     intro: { pose: ARRIVAL.pose, farm: ARRIVAL.farm, health: ARRIVAL.health },
   },
   standard: {
     chassis: 'scout',
-    parts: ['panniers', 'mg', 'stockEngine'],
+    parts: ['panniers', 'stockEngine'],
+    placed: SCOUT_GUN,
     storage: [],
     wear: 2,
-    money: 33300,
+    money: 333,
     fuel: CHASSIS.scout.fuelCap,
     supplies: RULES.baseSupplies,
     cargo: { scrap: 2, parts: 2 },
-    costBasis: { scrap: 333 },
+    costBasis: { scrap: 3.33 },
     autoRepair: false,
+    ranks: 0,
     opening: STANDARD_OPENING,
     intro: null,
   },
@@ -86,30 +102,29 @@ export const START_KITS: Record<string, StartKit> = {
     parts: ['cannon', 'mg', 'stockEngine', 'ram', 'plates', 'plates', 'rack'],
     storage: ['plates', 'cage', 'mg'],
     wear: 0,
-    money: 50000,
+    money: 500,
     fuel: 60,
     supplies: RULES.baseSupplies,
     cargo: { scrap: 2 },
-    costBasis: { scrap: 333 },
+    costBasis: { scrap: 3.33 },
     autoRepair: true,
+    ranks: 0,
     opening: null,
     intro: null,
   },
-  furyRoad: {
+  chaosHighway: {
     chassis: 'scout',
-    parts: ['mg', 'stockEngine'],
-    placed: [
-      { defId: 'cage', x: 2, y: 0, rot: 1 },
-      { defId: 'cage', x: 2, y: 7, rot: 1 },
-    ],
+    parts: ['stockEngine'],
+    placed: SCOUT_GUN,
     storage: [],
     wear: 0,
-    money: 20000,
+    money: 80,
     fuel: CHASSIS.scout.fuelCap,
     supplies: RULES.baseSupplies,
-    cargo: { parts: 4 },
+    cargo: { parts: 1 },
     costBasis: {},
     autoRepair: true,
+    ranks: 1,
     opening: null,
     intro: null,
   },
@@ -118,26 +133,29 @@ export const START_KITS: Record<string, StartKit> = {
     parts: ['trailerBox', 'autocannon', 'mg', 'workhorseDiesel', 'plates', 'plates'],
     storage: [],
     wear: 0,
-    money: 3000,
+    money: 30,
     fuel: CHASSIS.hauler.fuelCap,
     supplies: RULES.baseSupplies,
     cargo: { parts: 2 },
     costBasis: {},
     autoRepair: true,
+    ranks: 0,
     opening: null,
     intro: null,
   },
   snowball: {
     chassis: 'convertible',
-    parts: ['mg', 'mg', 'slugCannon', 'shotgun', 'plowRam', 'workhorseDiesel', 'plates', 'plates', 'cage'],
+    parts: ['plowRam', 'workhorseDiesel', 'plates', 'plates', 'cage'],
+    placed: SNOWBALL_GUNS,
     storage: [],
     wear: 0,
-    money: 83300,
+    money: 833,
     fuel: CHASSIS.convertible.fuelCap,
     supplies: RULES.baseSupplies,
     cargo: {},
     costBasis: {},
     autoRepair: true,
+    ranks: 0,
     opening: null,
     intro: null,
   },
@@ -147,4 +165,8 @@ export function startKit(id: string): StartKit {
   const kit = START_KITS[id];
   if (!kit) throw new Error(`Unknown start kit "${id}". Known: ${Object.keys(START_KITS).join(', ')}`);
   return kit;
+}
+
+export function kitPartIds(kit: StartKit): string[] {
+  return [...(kit.placed ?? []).map((p) => p.defId), ...kit.parts];
 }

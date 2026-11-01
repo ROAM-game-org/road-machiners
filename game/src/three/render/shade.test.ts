@@ -4,7 +4,6 @@ import { HAZE_FROM } from '../../data/wear';
 import { shadeCasters, sunAt, sunHeatAt } from '../../sim/sun';
 import { emptyWorld } from '../../sim/testkit';
 import * as THREE from 'three';
-import type { TerrainChunk } from './terrain';
 import { PlayClock } from '../play-clock';
 import { cornerLook, ShadeView } from './shade';
 
@@ -62,7 +61,7 @@ describe('heat haze', () => {
     const me = w.vehicles[0].pos;
     const corner = { x: Math.round(me.x + sun.dir.x * 19), y: Math.round(me.y + sun.dir.y * 19) };
     const rock = { x: corner.x + sun.dir.x * 1.5, y: corner.y + sun.dir.y * 1.5 };
-    w.obstacles.push({ id: 'rock-edge', kind: 'rock', pos: rock, r: 1 });
+    w.obstacles = [...w.obstacles, { id: 'rock-edge', kind: 'rock', pos: rock, r: 1 }];
     const casters = shadeCasters(w, me, 20);
     expect(casters.map((o) => o.id)).toContain('rock-edge');
     expect(cornerLook(w, corner.x, corner.y, sun, casters).haze).toBe(0);
@@ -78,8 +77,7 @@ describe('shade patch over frames', () => {
     return w;
   };
   const build = (w: ReturnType<typeof emptyWorld>) => {
-    const ground = [{ mesh: new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshLambertMaterial()) }] as unknown as TerrainChunk[];
-    return new ShadeView(w, ground, new PlayClock(1));
+    return new ShadeView(w, new THREE.MeshLambertMaterial(), new PlayClock({ stopMs: 1, startMs: 1, stopFolds: 1 }));
   };
   const dump = (v: ShadeView) => ({
     pos: Array.from(v.mesh.geometry.getAttribute('position').array),
