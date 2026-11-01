@@ -67,7 +67,7 @@ const NO_DECK_BLOCK: Record<string, string> = {
 
 const RATED_MASS_BEFORE_RING = {
   scout: 3840, hauler: 7590, buggy: 3280, wagon: 6990, courier: 3750, van: 4790, longbed: 8930, carrier: 7620, tractor: 8460,
-  jeep: 3920, convertible: 4440, bus: 9010, loader: 9060, niva: 4410, bukhanka: 5360, lincoln: 5540, semi: 16430, sorokonoga: 10800,
+  jeep: 3920, convertible: 4440, bus: 9010, loader: 9060, niva: 4410, bukhanka: 5360, lincoln: 5540, semi: 16580, sorokonoga: 10800,
 };
 
 const CRATE_ROOM_BEFORE_SQUARE_GRID: Record<string, number> = {
@@ -76,7 +76,7 @@ const CRATE_ROOM_BEFORE_SQUARE_GRID: Record<string, number> = {
 };
 
 const CRATE_ROOM_EXCESS: Record<string, number> = {
-  hauler: 7, buggy: 2, courier: 5, longbed: 3, tractor: 7, jeep: 5, convertible: 3, bus: 1, loader: 6, semi: 18, sorokonoga: 4, lincoln: 3, van: 5,
+  hauler: 7, buggy: 2, courier: 5, longbed: 3, tractor: 7, jeep: 5, convertible: 3, bus: 1, loader: 6, semi: 3, sorokonoga: 4, lincoln: 3, van: 5,
 };
 
 const RING_CELLS_ADDED = 4;
@@ -199,14 +199,18 @@ describe('chassis grids', () => {
     }
   });
 
-  it('puts one wheel in each corner, one column in from the side armor', () => {
+  it('puts one wheel in each corner, one column in from the side armor, and the semi a wheel pair on each of its five axles', () => {
+    const axles: Record<string, number> = { semi: 5 };
     for (const [id, c] of Object.entries(CHASSIS)) {
       const w = c.layout[0].length;
       const middle = c.layout.length / 2;
       const wheels = c.core.filter((part) => { const def = partDef(part.defId); return def.kind === 'core' && def.role === 'wheel'; });
-      const corner = (x: number, front: boolean) => wheels.filter((part) => part.x === x && (part.y + partDef(part.defId).h / 2 < middle) === front).length;
-      expect(wheels.length, id).toBe(4);
-      expect([corner(1, true), corner(1, false), corner(w - 2, true), corner(w - 2, false)], id).toEqual([1, 1, 1, 1]);
+      const side = (x: number, front: boolean) => wheels.filter((part) => part.x === x && (part.y + partDef(part.defId).h / 2 < middle) === front).length;
+      const pairs = axles[id] ?? 2;
+      expect(wheels.length, id).toBe(pairs * 2);
+      expect(side(1, true) + side(1, false), id).toBe(pairs);
+      expect([side(1, true), side(1, false)], id).toEqual([side(w - 2, true), side(w - 2, false)]);
+      expect(Math.min(side(1, true), side(1, false)), id).toBeGreaterThanOrEqual(1);
     }
   });
 

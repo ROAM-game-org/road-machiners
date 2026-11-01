@@ -25,7 +25,7 @@ Parts are defined in `src/data/parts.ts`, chassis in `src/data/chassis.ts` and g
 | niva | Niva | 2 | 1,050 | 7.6 | 2.2 | 3 | 520 | 4810 | 0.55 | 42 | 0.21 | 6 x 12 | cab, transmissionMid, tank, wheelMid, wheelMid, wheelMid, wheelMid | nose | offRoad |
 | bukhanka | Bukhanka | 2 | 1,150 | 6 | 1.4 | 2.5 | 1250 | 5760 | 0.65 | 78 | 0.3 | 7 x 14 | wheelMid, wheelMid, wheelMid, wheelMid, cabPickup, transmissionMid, tankMid | nose | armored |
 | lincoln | Lincoln | 3 | 1,430 | 8.6 | 2 | 2.2 | 900 | 5940 | 0.85 | 85 | 0.36 | 7 x 18 | wheel, wheel, wheel, wheel, cabHardtop, transmission, tankLong | nose | tourer |
-| semi | Semi | 3 | 1,400 | 6 | 0.8 | 1.5 | 9000 | 16830 | 1.2 | 160 | 0.5 | 9 x 48 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid |  |  |
+| semi | Semi | 3 | 1,400 | 6 | 0.8 | 1.5 | 9000 | 16980 | 1.2 | 160 | 0.5 | 9 x 48 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid, wheelMid, wheelMid, wheelMid, wheelMid, wheelMid, wheelMid |  |  |
 | sorokonoga | Sorokonoga | 3 | 1,766 | 3.4 | 0.7 | 1.6 | 4100 | 11200 | 1 | 140 | 0.55 | 7 x 27 | wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, cabPickup, tankHeavy, transmissionHeavy | bowl | trailer |
 <!-- /wiki:chassis -->
 
