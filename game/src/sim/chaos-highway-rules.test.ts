@@ -125,8 +125,9 @@ describe('Chaos Highway rolling start', () => {
   it('waits far ahead of its moving prey, rolls north faster as the prey closes but slower than the prey, and leaves the fight AI in charge in gun reach', () => {
     const w = startWorld(2);
     const [truck] = spawned(w, ['buggy'], 1);
-    const prey = groupPrey(w, truck);
+    const prey = haulerOf(w);
     const window = w.chaosHighway!.window;
+    playerVehicle(w).pos = roadPoint(w.seed, window, alongOf(w.seed, toRoad(w.seed, window, prey.pos)) - 60, 0);
     const reach = Math.max(...vehicleStats(w, truck).weapons.map((mw) => mw.def.range));
     const at = (gap: number) => {
       truck.pos = roadPoint(w.seed, window, alongOf(w.seed, toRoad(w.seed, window, prey.pos)) + gap, 0);
@@ -265,20 +266,15 @@ describe('Chaos Highway prey', () => {
       CHAOS_HIGHWAY.playerMargin = margin;
     }
   });
-  it('goes for the hauler while the gun truck sprints ahead of it, even when the gun truck hit it', () => {
+  it('goes for the hauler while it is far from the hauler, even when the gun truck hit it', () => {
     const w = startWorld(2);
     const [truck] = spawned(w, ['buggy'], 1);
     const me = playerVehicle(w);
     const hauler = haulerOf(w);
-    const haulerAlong = alongOf(w.seed, toRoad(w.seed, w.chaosHighway!.window, hauler.pos));
-    const sprintTo = (lead: number) => {
-      me.pos = roadPoint(w.seed, w.chaosHighway!.window, haulerAlong + lead, 0);
-      truck.pos = { x: me.pos.x + 3, y: me.pos.y };
-    };
     truck.brain!.attackers[me.id] = true;
-    sprintTo(CHAOS_HIGHWAY.sprintLead + 5);
+    apart(w, truck, CHAOS_HIGHWAY.haulerNear + 5, 3);
     expect(groupPrey(w, truck).id).toBe(hauler.id);
-    sprintTo(CHAOS_HIGHWAY.sprintLead - 5);
+    apart(w, truck, CHAOS_HIGHWAY.haulerNear - 5, 3);
     expect(groupPrey(w, truck).id).toBe(me.id);
   });
 });

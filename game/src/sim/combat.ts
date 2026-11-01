@@ -9,8 +9,7 @@ import { chassisDef } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
 import { heldPart, laneCount, lanePoint, partLane, planBlast, planLane, sideToward, spansHold, walkLane, type FireSpan, type PartHit, type Round, type Side } from './armor';
 import { damagePart, haulerOf, playerVehicle, wholeDamage } from './damage';
-import { presentedSpan, reachMeters, rigMiddle, unitPose } from './rig';
-import { alongOf, toRoad } from './highway';
+import { presentedSpan, reachMeters, unitPose } from './rig';
 import { rollCabKnock } from "./cab-knock";
 import { corePart, itemBulk, mountedItems, mountedParts } from './grid';
 import { practice, skillEffect, vehicleHasPerk } from './progress';
@@ -1037,16 +1036,9 @@ function isGroupTruck(world: World, v: Vehicle): boolean {
 export function groupPrey(world: World, v: Vehicle): Vehicle {
   const me = playerVehicle(world);
   const hauler = haulerOf(world);
-  if (sprintsAhead(world, me, hauler)) return hauler;
+  if (dist(v.pos, hauler.pos) > CHAOS_HIGHWAY.haulerNear) return hauler;
   if (inDangerFrom(world, v, me)) return me;
   return dist(v.pos, hauler.pos) + CHAOS_HIGHWAY.playerMargin < dist(v.pos, me.pos) ? hauler : me;
-}
-
-function sprintsAhead(world: World, me: Vehicle, hauler: Vehicle): boolean {
-  const run = world.chaosHighway;
-  if (run === null) return false;
-  const along = (truck: Vehicle) => alongOf(world.seed, toRoad(world.seed, run.window, rigMiddle(truck)));
-  return along(me) - along(hauler) > CHAOS_HIGHWAY.sprintLead;
 }
 
 function inDangerFrom(world: World, v: Vehicle, me: Vehicle): boolean {
