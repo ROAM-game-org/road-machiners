@@ -12,7 +12,7 @@ export const CLONE_SHA = 'abc1234'.padEnd(40, '0');
 export type Photo = { chat: string; path: string; caption: string; buttons?: InlineButton[][] };
 export type Album = { chat: string; paths: string[]; captions: string[]; replyTo?: number };
 export type Text = { chat: string; text: string; buttons: InlineButton[][] };
-export type Fake = { ctx: Ctx; texts: Text[]; calls: string[]; agentWrites: Record<string, string>; diff: string; files: string[]; cards: Card[]; photos: Photo[]; albums: Album[]; albumFails: boolean; logs: string[]; prBodies: string[]; created: { title: string; body: string; labels: string[] }[]; mergeConflicts: string[]; revertConflicts: string[]; agentRuns: AgentRun[] };
+export type Fake = { ctx: Ctx; texts: Text[]; calls: string[]; agentWrites: Record<string, string>; diff: string; files: string[]; cards: Card[]; photos: Photo[]; albums: Album[]; albumFails: boolean; logs: string[]; prBodies: string[]; created: { title: string; body: string; labels: string[] }[]; mergeConflicts: string[]; revertConflicts: string[]; foreign: number; agentRuns: AgentRun[] };
 
 export function issueMerge(issue: number, title: string, over: Partial<IssueMerge> = {}): IssueMerge {
   return { issue, title, sha: `merge${issue}`.padEnd(40, '0'), into: 'dev', reverted: [], ...over };
@@ -20,7 +20,7 @@ export function issueMerge(issue: number, title: string, over: Partial<IssueMerg
 
 export function fake(): Fake {
   let heads = 0;
-  const f: Fake = { texts: [], ctx: null as unknown as Ctx, calls: [], agentWrites: {}, diff: '', files: [], cards: [], photos: [], albums: [], albumFails: false, logs: [], prBodies: [], created: [], mergeConflicts: [], revertConflicts: [], agentRuns: [] };
+  const f: Fake = { texts: [], ctx: null as unknown as Ctx, calls: [], agentWrites: {}, diff: '', files: [], cards: [], photos: [], albums: [], albumFails: false, logs: [], prBodies: [], created: [], mergeConflicts: [], revertConflicts: [], foreign: 0, agentRuns: [] };
   const note = (text: string) => { f.calls.push(text); };
   f.ctx = {
     cfg,
@@ -103,6 +103,7 @@ export function fake(): Fake {
       changedInWork: async () => [],
       changedFiles: async () => f.files,
       hasNewCommits: async () => true,
+      foreignCommits: async () => f.foreign,
       isMerged: async () => true,
       headHash: async () => 'abc1234',
       fullHash: async (commit: string) => commit,

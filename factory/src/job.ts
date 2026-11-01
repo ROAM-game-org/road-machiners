@@ -4,7 +4,8 @@ import { failureIssue, reportFailure, summarizeError } from './fail';
 import { UsageLimitError } from './pause';
 import { CARD_JOBS } from './position';
 import { BudgetError } from './stages/checkpoint';
-import { CommitteeDecisionError } from './diff-guard';
+import { CommitteeDecisionError, ForeignBaseError } from './diff-guard';
+import { rebuildOnOwnBase } from './stages/rebuild';
 import { adhoc } from './stages/adhoc';
 import { approve } from './stages/approval';
 import { runStage as design } from './stages/design';
@@ -99,7 +100,17 @@ async function runLockedJob(ctx: Ctx, stage: JobStage, issue: number | null): Pr
 
 const keepsSessions = (stage: JobStage, outcome: JobOutcome): boolean => outcome !== 'done' && CARD_JOBS.includes(stage);
 
+async function rebuilt(ctx: Ctx, stage: JobStage, issue: number | null, error: unknown): Promise<boolean> {
+  if (!(error instanceof ForeignBaseError) || issue === null || !CARD_JOBS.includes(stage)) return false;
+  await rebuildOnOwnBase(ctx, stage, issue, error);
+  return true;
+}
+
 async function failed(ctx: Ctx, stage: JobStage, issue: number | null, job: Job | null, error: unknown): Promise<boolean> {
+  return !(await rebuilt(ctx, stage, issue, error)) && failedForGood(ctx, stage, issue, job, error);
+}
+
+async function failedForGood(ctx: Ctx, stage: JobStage, issue: number | null, job: Job | null, error: unknown): Promise<boolean> {
   const retry = retriesItself(ctx, stage, issue, error);
   if (retry) {
     resumeOnce(ctx, stage, issue, error);

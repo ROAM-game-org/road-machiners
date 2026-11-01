@@ -25,6 +25,8 @@ let calls: string[] = [];
 let cards: Card[] = [];
 let branches: string[] = [];
 let moveFails = false;
+let pushFails = false;
+let remote: string[] = ['laptop/fix'];
 let editFails = false;
 let contained: string[] = [];
 let green = true;
@@ -47,6 +49,8 @@ function fakeCtx(): Ctx {
         calls.push(`move ${n} ${column}`);
       },
       pullRequestFor: async () => null,
+      createIssue: async (title: string, body: string, labels: string[]) => { calls.push(`createIssue ${title} | ${body} | ${labels.join(',')}`); return 50; },
+      addCard: async (n: number, column: string) => { calls.push(`addCard ${n} ${column}`); },
       close: async (n: number, reason: string) => { calls.push(`close ${n} ${reason}`); },
       addLabel: async (n: number, label: string) => { calls.push(`addLabel ${n} ${label}`); },
       removeLabel: async (n: number, label: string) => { calls.push(`removeLabel ${n} ${label}`); },
@@ -73,7 +77,14 @@ function fakeCtx(): Ctx {
         if (!branches.includes(branch)) throw new Error(`unknown revision ${branch}`);
         return 'abc1234';
       },
-      fullHash: async (commit: string) => commit,
+      fullHash: async (commit: string) => {
+        if (commit.startsWith('origin/') && !remote.includes(commit.slice('origin/'.length))) throw new Error(`unknown revision ${commit}`);
+        return commit.startsWith('origin/') ? 'f'.repeat(40) : commit;
+      },
+      push: async (commit: string, branch: string) => {
+        if (pushFails) throw new Error('push rejected');
+        calls.push(`push ${commit} ${branch}`);
+      },
       changedFiles: async () => changed,
       ownHeads: async () => ownHeads,
     },
@@ -112,6 +123,8 @@ beforeEach(() => {
   rmSync(ROOT, { recursive: true, force: true });
   branches = ['factory/issue-4', 'factory/issue-6'];
   moveFails = false;
+  pushFails = false;
+  remote = ['laptop/fix'];
   editFails = false;
   contained = ['abc1111'];
   green = true;
@@ -139,7 +152,7 @@ describe('writeControl and parseControl', () => {
   });
 
   it('parses every action', () => {
-    for (const body of [{ action: 'merge', issue: 4 }, { action: 'ship' }, { action: 'playtest' }, { action: 'remove', issue: 4 }, { action: 'drop', queue: 'ship', id: null }, { action: 'drop', queue: 'approval', id: 4 },{ action: 'hold', issue: 4 }, { action: 'unhold', issue: 4 }]) {
+    for (const body of [{ action: 'merge', issue: 4 }, { action: 'ship' }, { action: 'playtest' }, { action: 'remove', issue: 4 }, { action: 'drop', queue: 'ship', id: null }, { action: 'drop', queue: 'approval', id: 4 },{ action: 'hold', issue: 4 }, { action: 'unhold', issue: 4 }, { action: 'adopt', branch: 'laptop/fix', title: 'Fix the load' }]) {
       expect(parseControl({ kind: 'control', by: 'Ann', reason: 'r', ...body })).toEqual({ by: 'Ann', reason: 'r', ...body });
     }
   });
@@ -750,5 +763,55 @@ describe('kept hotfix approvals', () => {
     seed({ keptApprovals: { 4: KEPT } });
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'approval', id: 4, by: 'hermes' }));
     expect(readState(statePath).keptApprovals).toEqual({});
+  });
+});
+
+describe('adopt', () => {
+  const adopt = (body: object = {}, by = '11') => command({ action: 'adopt', branch: 'laptop/fix', title: 'Fix the load', reason: 'Played on the laptop', by, ...body });
+
+  it('opens the issue with the reason as body, pushes the branch as the card branch and puts the card in Hardening, in one order', async () => {
+    await applyControl(fakeCtx(), adopt());
+    expect(calls.filter((call) => !call.startsWith('comment'))).toEqual([
+      'fetch',
+      'createIssue Fix the load | Played on the laptop | ',
+      `push ${'f'.repeat(40)} factory/issue-50`,
+      'addCard 50 Hardening',
+    ]);
+    expect(readState(statePath).approvedResolving).toEqual({ 50: 'Ann' });
+    cards = [card(50, 'Hardening')];
+    expect(cardDrift(cards[0], readState(statePath))).toEqual([]);
+    expect(readLedger(ROOT, new Date(0)).filter((line) => line.kind === 'card')).toMatchObject([{ issue: 50, step: 'entered', to: 'Hardening' }]);
+    expect(ctrlLines()).toMatchObject([{ action: 'adopt', issue: 50, by: 'Ann' }]);
+    expect(calls.find((call) => call.startsWith('comment 50'))).toContain('Ordered by Ann');
+  });
+
+  it('refuses a branch missing on GitHub and creates nothing', async () => {
+    remote = [];
+    await expect(applyControl(fakeCtx(), adopt())).rejects.toThrow('laptop/fix is not on GitHub');
+    expect(calls.some((call) => call.startsWith('createIssue') || call.startsWith('push') || call.startsWith('addCard'))).toBe(false);
+    expect(readState(statePath).approvedResolving).toEqual({});
+  });
+
+  it('refuses a base branch', async () => {
+    for (const branch of ['main', 'dev']) await expect(applyControl(fakeCtx(), adopt({ branch }))).rejects.toThrow('base branch');
+    expect(calls.some((call) => call.startsWith('createIssue'))).toBe(false);
+  });
+
+  it('closes the new issue and adds no card when the push fails', async () => {
+    pushFails = true;
+    await expect(applyControl(fakeCtx(), adopt())).rejects.toThrow('push rejected');
+    expect(calls).toContain('close 50 not planned');
+    expect(calls.some((call) => call.startsWith('addCard'))).toBe(false);
+    expect(readState(statePath).approvedResolving).toEqual({});
+  });
+
+  it('is a member order and refuses Hermes', async () => {
+    await expect(applyControl(fakeCtx(), adopt({}, 'hermes'))).rejects.toThrow('--by <member>');
+    expect(calls).toEqual([]);
+    expect(isGated(fakeCtx(), adopt())).toBe(true);
+  });
+
+  it('needs a branch and a title', () => {
+    for (const body of [{ branch: ' ' }, { title: '' }]) expect(() => parseControl({ kind: 'control', by: 'Ann', reason: 'r', action: 'adopt', branch: 'b', title: 't', ...body })).toThrow();
   });
 });

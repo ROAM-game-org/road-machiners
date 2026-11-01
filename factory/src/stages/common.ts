@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readAgentOutput } from '../agent-output';
 import { fetchMedia, mediaSection, type MediaEntry } from '../media';
-import { CommitteeDecisionError, guardDiff } from '../diff-guard';
+import { CommitteeDecisionError, ForeignBaseError, guardDiff } from '../diff-guard';
 import { askedAt, isAnswered, questionPostsOf, recordAsked, recordQuestionPost } from '../questions';
 import { MESSAGE_LIMIT } from '../telegram-limits';
 import { resumeError, resumedStage, roundSession, timedOutMinutes } from '../sessions';
@@ -255,8 +255,15 @@ async function guardedHead(ctx: Ctx, issue: number, base: string, stage: CardSta
   const untracked = await ctx.repo.untrackFactoryFiles(workDir(ctx, issue));
   if (untracked.length > 0) ctx.log(stage, issue, `took factory files out of the branch: ${untracked.join(', ')}`);
   const head = await ctx.repo.fetchFromWork(workDir(ctx, issue), BRANCH(issue));
+  await requireOwnBase(ctx, head, base);
   guardDiff({ files: await ctx.repo.changedFiles(base, head), diff: await ctx.repo.diff(base, head) });
   return head;
+}
+
+export async function requireOwnBase(ctx: Ctx, head: string, base: string): Promise<void> {
+  if (base !== HOTFIX_BASE) return;
+  const count = await ctx.repo.foreignCommits(head, HOTFIX_BASE, BASE_BRANCH);
+  if (count > 0) throw new ForeignBaseError(HOTFIX_BASE, BASE_BRANCH, count);
 }
 
 

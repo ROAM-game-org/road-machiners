@@ -44,6 +44,7 @@ function fakeCtx(agent: (run: AgentRun) => void): Ctx {
       mergeBranchIntoWork: async () => { calls.push('mergeBranchIntoWork'); return { commit: null, conflicts: [] }; },
       catchUpBase: async (_dir: string, base: string) => { calls.push(`catchUpBase ${base}`); return caughtUp; },
       isMerged: async () => merged,
+      foreignCommits: async () => 0,
       prepareWorkClone: async (_b: string, base: string, dir: string) => { bases.push(`prepare ${base}`); mkdirSync(dir, { recursive: true }); },
       diff: async (base: string) => { bases.push(`diff ${base}`); return diff; },
       changedFiles: async () => [],

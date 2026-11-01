@@ -344,6 +344,7 @@ export interface HostRepo {
   changedInWork(dir: string, from: string): Promise<string[]>;
   readFile(branch: string, path: string): Promise<string>;
   hasNewCommits(base: string, branch: string): Promise<boolean>;
+  foreignCommits(head: string, base: string, other: string): Promise<number>;
   merge(steps: MergeStep[], resolutions?: Resolution[], checked?: CheckedBuild): Promise<void>;}
 
 export type Resolution = { base: string; source: string; head: string };

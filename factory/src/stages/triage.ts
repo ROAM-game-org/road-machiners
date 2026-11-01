@@ -4,7 +4,7 @@ import { openStore } from '../public/store';
 import { readState, updateState } from '../state';
 import { BRANCH, BUG_LABEL, DESIGN_SONNET_LABEL, GAME_DIR, HOTFIX_LABEL, IMPLEMENTATION_OPUS_LABEL, OUT_DIR, ROUTING_MARK, VOTING_LABEL, WONT_DO_LABEL, type Ctx } from '../types';
 import { addToBundle, bundleCandidates, duplicateLeads } from './bundle';
-import { BASE_BRANCH, agentHome, askAuthor, fillPrompt, prepareOutputs, readOutput, runAgent, workDir, writeIssueInput } from './common';
+import { agentHome, baseBranchOf, askAuthor, fillPrompt, prepareOutputs, readOutput, runAgent, workDir, writeIssueInput } from './common';
 import { forgetGroomed, groom, readBundle, type Complexity, type Pitch, type Routing } from './groom';
 
 type Ready = { verdict: 'ready'; reason: string; hotfix: boolean; routing: Routing; bundle: number[] };
@@ -23,7 +23,7 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const clone = workDir(ctx, issue);
   forgetGroomed(ctx, issue);
   await ctx.repo.fetch();
-  await ctx.repo.prepareWorkClone(BRANCH(issue), BASE_BRANCH, clone);
+  await ctx.repo.prepareWorkClone(BRANCH(issue), await baseBranchOf(ctx, issue), clone);
   const home = agentHome(clone, GAME_DIR);
   prepareOutputs(ctx, issue, home);
   await writeIssueInput(ctx, issue, home);

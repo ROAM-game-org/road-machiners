@@ -32,6 +32,7 @@ Write commands take `--by <member or hermes>` and `--reason "<text>"`. `--by <me
 - `factory merge N` puts a card in the merge queue, past its post and hardening. The merge checks still run.
 - `factory ship` ships the open release now. `factory playtest` orders a release playtest on the `dev` tip now, also when `dev` has not moved or the last playtest started recently. The factory starts one by itself when `dev` moved and `FACTORY_PLAYTEST_HOURS` passed, so run `factory playtest` only when a member's message asks for one, with `--by` set to that member. `factory remove N` takes a feature out of `dev` and the release.
 - `factory drop <approval|removal|ship|incident> <id>` drops a queued action.
+- `factory adopt <branch> <title> --by <member> --reason <why>` brings a branch that a member pushed to GitHub in as a card in Hardening. Use it in place of opening the issue, pushing `factory/issue-N`, adding the board card and running `move N harden` by hand.
 - `factory pause-card N` holds one card: its job stops, its work stays, and no job starts on it. `factory resume-card N` lifts the hold, and its stage continues.
 
 These act at once, not on the next tick:
@@ -41,7 +42,7 @@ These act at once, not on the next tick:
 - `factory repair-clone N --by <who> --reason <why>` replaces a broken work clone of a card and keeps the old one as a backup. [operations.md](operations.md) has the rules.
 - `factory set-state <path> <json> --by <who> --reason <why>` sets one value of the state file under its lock. `--delete` in place of the json removes it.
 
-Four commands need `--by <member>` from that member's order: `merge` or `move N harden|merging` of a card the committee has not approved, `ship` and `remove`. "skip it" on a failed gate is `factory move N approval`. Read what blocked the release playtest before you `retry` its tracking card, and pass your decision as the retry's text.
+Five commands need `--by <member>` from that member's order: `merge` or `move N harden|merging` of a card the committee has not approved, `ship`, `remove` and `adopt`. "skip it" on a failed gate is `factory move N approval`. Read what blocked the release playtest before you `retry` its tracking card, and pass your decision as the retry's text.
 
 ## Facts that come up in incidents
 
