@@ -52,7 +52,7 @@ import { joinLeader, safeBesidePartner } from './pairs';
 import { musterGoal, onCrewCall, steerMuster } from './crews';
 import { isDefeated, isKnockedOut } from './defeat';
 import { payDuty, stampLeg } from './duty';
-import { beginRearm, fuelReserveFor, isBroke, liesUp, rearmInvalid, resolveRearm, resolveResupply, serveStranded, serviceGoal } from './npc-service';
+import { beginRearm, fuelReserveFor, liesUp, rearmInvalid, resolveRearm, resolveResupply, serveStranded, serviceGoal } from './npc-service';
 import { isSunwardMember, nightSafe, planSunward, ridesOnSchedule, shunsAtNight, sunwardNext, sunwardRetreat } from './sunward';
 import { meetingLapsed } from './sunward-crater';
 
@@ -252,8 +252,8 @@ export function idleGoal(world: World, vehicle: Vehicle): NpcActivity {
 }
 
 function idleOption(world: World, vehicle: Vehicle, option: Exclude<DecisionOptions['idle'], 'linger'> | 'linger'): NpcActivity {
-  if (option !== 'wait' && option !== 'linger') return IDLE_GOALS[option](world, vehicle);
-  return isBroke(world, vehicle) ? exploreGoal(world, vehicle) : createActivity('wait', null, null, 'nothingToDo');
+  if (option === 'wait' || option === 'linger') return createActivity('wait', null, null, 'nothingToDo');
+  return IDLE_GOALS[option](world, vehicle);
 }
 
 function noteLootEnd(world: World, vehicle: Vehicle, reason: GoalReason, targetId: string | null): void {
