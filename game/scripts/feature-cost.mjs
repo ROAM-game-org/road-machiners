@@ -38,6 +38,20 @@ const TOGGLES = {
     refresh();
     window.__UNDO__ = () => { changed.forEach((o) => { o.castShadow = true; }); refresh(); };
   },
+  siteShadowsOff: () => {
+    const g = window.__ROAM__;
+    const spots = g.siteLights.slots.map((slot) => slot.spot).filter((spot) => spot.castShadow);
+    spots.forEach((spot) => { spot.castShadow = false; });
+    g.scene.traverse((o) => { for (const m of [o.material].flat()) if (m) m.needsUpdate = true; });
+    window.__UNDO__ = () => spots.forEach((spot) => { spot.castShadow = true; });
+  },
+  beamShadowsOff: () => {
+    const g = window.__ROAM__;
+    const spots = g.vehicleLights.shadowed.filter((spot) => spot.castShadow);
+    spots.forEach((spot) => { spot.castShadow = false; });
+    g.scene.traverse((o) => { for (const m of [o.material].flat()) if (m) m.needsUpdate = true; });
+    window.__UNDO__ = () => spots.forEach((spot) => { spot.castShadow = true; });
+  },
   noLampLights: () => {
     const hidden = [];
     window.__ROAM__.scene.traverse((o) => { if ((o.isSpotLight || o.isPointLight) && o.visible) { o.visible = false; hidden.push(o); } });
