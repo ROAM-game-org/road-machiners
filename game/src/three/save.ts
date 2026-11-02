@@ -179,7 +179,7 @@ export function parseSaveFile(text: string): unknown {
 
 function checkImportable(envelope: unknown, icarus: BakedMap): void {
   try {
-    loadedOrSaveError(envelope, icarus);
+    loadedOrSaveError(structuredClone(envelope), icarus);
   } catch (error) {
     if (!(error instanceof SaveError) || !carriesOnLoad(error)) throw error;
   }

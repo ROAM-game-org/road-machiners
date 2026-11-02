@@ -9,6 +9,7 @@ import { t } from '../text/msg';
 import { loadWorld, saveImporter, saveOf } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
 import { manualSlots } from './save-slots';
+import OLD_EXPORT from './save-fixtures/anchors/2-61-roaming.json';
 
 const COUNT = 3;
 
@@ -96,5 +97,23 @@ describe('import save of a save made on another map', () => {
     const result = await saveImporter(slots, TEST_MAP, COUNT)(JSON.stringify(other));
 
     expect(result).toEqual({ slot: 'slot1' });
+  });
+});
+
+describe('import save of an older export', () => {
+  const OLD = JSON.stringify(OLD_EXPORT);
+
+  it('stores the file as it was and loads the same world as the browser', async () => {
+    const browser = new SaveSlots(memoryBackend(), new Map());
+    browser.put('auto', JSON.parse(OLD));
+    const slots = new SaveSlots(memoryBackend(), new Map());
+
+    const result = await saveImporter(slots, TEST_MAP, COUNT)(OLD);
+
+    expect(result).toEqual({ slot: 'slot1' });
+    expect(slots.get('slot1')).toEqual(JSON.parse(OLD));
+    const imported = loadWorld(slots, 'slot1', TEST_MAP)!;
+    expect(comparableWorld(imported)).toEqual(comparableWorld(loadWorld(browser, 'auto', TEST_MAP)!));
+    expect(imported.events).toEqual([]);
   });
 });
