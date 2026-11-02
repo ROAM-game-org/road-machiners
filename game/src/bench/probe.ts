@@ -275,8 +275,7 @@ class LongTasks {
 type LoopHooks = { closed: (realMs: number, tickMs: number, startMs: number) => void; callbackDone: () => void };
 
 class FrameLoop {
-  private readonly original = window.requestAnimationFrame;
-  private readonly native = this.original.bind(window);
+  private readonly native = window.requestAnimationFrame.bind(window);
   private clock: number | null = null;
   private round: number | null = null;
   private roundStart = 0;
@@ -286,10 +285,6 @@ class FrameLoop {
 
   install(): void {
     window.requestAnimationFrame = (callback) => this.native((stamp) => this.run(callback, stamp));
-  }
-
-  uninstall(): void {
-    window.requestAnimationFrame = this.original;
   }
 
   private run(callback: FrameRequestCallback, stamp: number): void {
@@ -363,7 +358,6 @@ export class Probe {
     if (this.originalBuild) (this.game.streamer as unknown as BuildingStreamer).buildOne = this.originalBuild;
     UPLOADS.uninstall();
     this.longTasks.stop();
-    this.loop.uninstall();
   }
 
   get chunkBuilds(): number {

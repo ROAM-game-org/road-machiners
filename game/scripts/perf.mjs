@@ -163,9 +163,12 @@ function benchUrl(base, budget, profile) {
 }
 
 async function benchState(page, errors) {
-  if (errors.length) throw new Error(`Page failed: ${errors[0]}`);
-  const state = await page.evaluate(() => window.__ROAM_BENCH__ ?? null);
-  if (state?.error) throw new Error(`Bench failed: ${state.error}`);
+  const state = await page.evaluate(() => window.__ROAM_BENCH__ ?? null).catch((error) => {
+    errors.push(`could not read the bench state: ${error.message}`);
+    return null;
+  });
+  const found = [...(state?.error ? [`Bench failed: ${state.error}`] : []), ...errors.map((error) => `Page failed: ${error}`)];
+  if (found.length) throw new Error(found.join('\n'));
   return state;
 }
 

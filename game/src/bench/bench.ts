@@ -355,10 +355,18 @@ function refreshMaterials(game: Game): void {
   });
 }
 
+function pinHidden(object: Object3D): () => void {
+  let wanted = object.visible;
+  Object.defineProperty(object, 'visible', { configurable: true, get: () => false, set: (value: boolean) => void (wanted = value) });
+  return () => {
+    Reflect.deleteProperty(object, 'visible');
+    object.visible = wanted;
+  };
+}
+
 function hidden(objects: readonly Object3D[]): () => void {
-  const before = objects.map((object) => object.visible);
-  objects.forEach((object) => (object.visible = false));
-  return () => objects.forEach((object, i) => (object.visible = before[i]));
+  const restores = objects.map(pinHidden);
+  return () => restores.forEach((restore) => restore());
 }
 
 function hideSystem(game: Game, system: BenchSystem): Toggle {
