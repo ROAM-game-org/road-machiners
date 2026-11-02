@@ -93,7 +93,17 @@ export function sweepWork(workRoot: string, lockRoot: string, state: FactoryStat
   return swept;
 }
 
-const KEEP_LOGS = new Set(['tick.log', 'update.log']);
+export function sweepCardSessions(root: string, state: FactoryState, cards: Card[], unconfirmed: ReadonlySet<number> = new Set()): string[] {
+  if (!existsSync(root)) return [];
+  const done = readdirSync(root, { withFileTypes: true })
+    .map((entry) => ({ name: entry.name, match: entry.isDirectory() ? /^issue-(\d+)$/.exec(entry.name) : null }))
+    .filter(({ match }) => match !== null && !unconfirmed.has(Number(match[1])) && !openCard(Number(match[1]), state, cards))
+    .map(({ name }) => name);
+  for (const name of done) rmSync(join(root, name), { recursive: true, force: true });
+  return done;
+}
+
+const KEEP_LOGS =new Set(['tick.log', 'update.log']);
 
 function oldFile(path: string, cutoff: number): boolean {
   const stat = statSync(path);

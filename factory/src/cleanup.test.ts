@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, utimesSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { removalCandidates, sweepLogs, sweepWork } from './cleanup';
+import { removalCandidates, sweepCardSessions, sweepLogs, sweepWork } from './cleanup';
 import { EMPTY_STATE } from './state';
 import type { Card, FactoryState, Job } from './types';
 
@@ -139,6 +139,20 @@ describe('sweepWork', () => {
     const swept = sweepWork(root, `${root}-locks`, state(), []);
     expect(swept.removed).toEqual(['release-main']);
     expect(has(root, 'dev-build/node_modules')).toBe(true);
+  });
+});
+
+describe('sweepCardSessions', () => {
+  it('removes the kept session of a Done or off-board card and keeps open and unconfirmed cards', () => {
+    const root = mkdtempSync(join(tmpdir(), 'card-sessions-'));
+    for (const name of ['issue-3', 'issue-4', 'issue-5', 'issue-6']) mkdirSync(join(root, name, '-work-game'), { recursive: true });
+    const removed = sweepCardSessions(root, state(), [card(3, 'Merging'), card(4, 'Done'), card(9, 'Design')], new Set([6]));
+    expect(removed).toEqual(['issue-4', 'issue-5']);
+    expect([has(root, 'issue-3'), has(root, 'issue-4'), has(root, 'issue-5'), has(root, 'issue-6')]).toEqual([true, false, false, true]);
+  });
+
+  it('has nothing to sweep before any card kept a session', () => {
+    expect(sweepCardSessions(join(tmpdir(), 'no-card-sessions-here'), state(), [])).toEqual([]);
   });
 });
 

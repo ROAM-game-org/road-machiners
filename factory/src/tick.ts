@@ -1,6 +1,7 @@
 import { availableParallelism } from 'node:os';
 import { join } from 'node:path';
-import { removalCandidates, sweepLogs, sweepWork } from './cleanup';
+import { removalCandidates, sweepCardSessions, sweepLogs, sweepWork } from './cleanup';
+import { cardSessionsRoot } from './card-session';
 import { cpuSets, poolOf, vitestWorkersOf } from './cpus';
 import { removeStaleBuilds } from './deploy';
 import { availableGb, freeGb, requireAgyLogin, requireCappedSlice, requireCodexLogin } from './health';
@@ -467,6 +468,7 @@ export async function cleanWork(ctx: Ctx, listed: Card[]): Promise<void> {
   for (const name of swept.removed) ctx.log('tick', null, `removed work clone ${name}`);
   if (swept.stripped.length > 0) ctx.log('tick', null, `removed packages of idle clones ${swept.stripped.join(', ')}`);
   if (swept.unknown.length > 0) ctx.log('tick', null, `left unknown work folders ${swept.unknown.join(', ')}`);
+  for (const name of sweepCardSessions(cardSessionsRoot(ctx.cfg.home), state, cards, unconfirmed)) ctx.log('tick', null, `removed the kept card session ${name}`);
   const logs = sweepLogs(join(ctx.cfg.home, 'logs'), state, ctx.now(), ctx.cfg.logDays);
   if (logs.length > 0) ctx.log('tick', null, `removed ${logs.length} job logs older than ${ctx.cfg.logDays} days`);
   cleanArchives(ctx);

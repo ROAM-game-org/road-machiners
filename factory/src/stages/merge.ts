@@ -18,6 +18,7 @@ import { guardAgainstAll } from '../diff-guard';
 import { labelStuckBatch } from '../stuck';
 import { BASE_BRANCH, baseBranchFor, fillPrompt, isGameSource, playtestCommand, resetOutputs } from './common';
 import { releaseLog } from './release-common';
+import { cardConflictRun, cardMergePrompt } from './merge-resolve';
 
 const UNCHECKED = 'This card reached Merging with no green full suite on its own work, so it goes to Hardening, which runs the suite and then moves it back to Merging.';
 
@@ -144,7 +145,10 @@ async function pickIn(ctx: Ctx, land: Landing, issue: number, sha: string): Prom
   const conflicts = await ctx.repo.pickIntoWork(land.dir, sha);
   if (conflicts.length === 0) return 0;
   ctx.log(land.stage, null, `the port of #${issue} onto ${land.into} conflicts in ${conflicts.join(', ')}, an agent resolves it`);
-  const cost = runCost(await land.agent(fillPrompt('port-release', { into: land.into, issue: String(issue), sha, files: conflicts.map((file) => `- ${file}`).join('\n') })));
+  const prompt = fillPrompt('port-release', { into: land.into, issue: String(issue), sha, files: conflicts.map((file) => `- ${file}`).join('\n') });
+  const log = releaseLog(ctx, `${land.stage}-${land.into.replaceAll('/', '-')}`);
+  const own = cardConflictRun(ctx, land.stage, { issue, clone: land.dir, what: `the port of #${issue} onto ${land.into}`, prompt, log });
+  const cost = runCost(await (own ?? land.agent(prompt)));
   addConflictSpend(ctx, land.stage, cost);
   if (await ctx.repo.unfinishedPick(land.dir)) throw new Error(`The ${land.stage} agent left the port of #${issue} onto ${land.into} unfinished.`);
   if ((await ctx.repo.workHead(land.dir)) === before) throw new Error(`The ${land.stage} agent ended the port of #${issue} onto ${land.into} with no commit, so the release would lack it.`);
@@ -214,7 +218,7 @@ async function mergeCards(ctx: Ctx, land: Landing, cards: Card[]): Promise<{ mer
   let conflicts = 0;
   for (const card of cards) {
     const title = (await ctx.github.issue(card.issue)).title;
-    conflicts += await timed(land.clock, 'merges', () => mergeIn(ctx, land, { branch: BRANCH(card.issue), message: `Merge issue #${card.issue}: ${title}`, reason: `issue #${card.issue} was approved` }));
+    conflicts += await timed(land.clock, 'merges', () => mergeIn(ctx, land, { branch: BRANCH(card.issue), message: `Merge issue #${card.issue}: ${title}`, reason: `issue #${card.issue} was approved`, card: card.issue }));
     merges.push({ issue: card.issue, title, sha: await ctx.repo.workHead(land.dir), into: land.into, reverted: [] });
   }
   markMerged(ctx, 'merge', merges);
@@ -371,13 +375,15 @@ export function landingAgent(ctx: Ctx, stage: LandingStage, dir: string, work: L
   };
 }
 
-type Incoming = { branch: string; message: string | undefined; reason: string };
+type Incoming = { branch: string; message: string | undefined; reason: string; card?: number };
 
-export async function mergeIn(ctx: Ctx, land: Landing, { branch, message, reason }: Incoming): Promise<number> {
+export async function mergeIn(ctx: Ctx, land: Landing, { branch, message, reason, card }: Incoming): Promise<number> {
   const { commit, conflicts } = await ctx.repo.mergeBranchIntoWork(land.dir, branch, message);
   if (commit === null || conflicts.length === 0) return 0;
   ctx.log(land.stage, null, `${branch} conflicts with ${land.into} in ${conflicts.join(', ')}, an agent resolves it`);
-  const cost = runCost(await land.agent(fillPrompt('merge-branches', { into: land.into, branch, reason, files: conflicts.map((file) => `- ${file}`).join('\n') })));
+  const log = releaseLog(ctx, `${land.stage}-${land.into.replaceAll('/', '-')}`);
+  const own = card === undefined ? null : cardConflictRun(ctx, land.stage, { issue: card, clone: land.dir, what: `${branch} into ${land.into}`, prompt: cardMergePrompt(card, branch, land.into, reason, conflicts), log });
+  const cost = runCost(await (own ?? land.agent(fillPrompt('merge-branches', { into: land.into, branch, reason, files: conflicts.map((file) => `- ${file}`).join('\n') }))));
   addConflictSpend(ctx, land.stage, cost);
   if ((await ctx.repo.mergeBranchIntoWork(land.dir, branch)).commit !== null) throw new Error(`The ${land.stage} agent left the merge of ${branch} into ${land.into} unfinished.`);
   return cost;
