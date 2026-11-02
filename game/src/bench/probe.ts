@@ -277,7 +277,7 @@ type LoopHooks = { closed: (realMs: number, tickMs: number, startMs: number) => 
 class FrameLoop {
   private readonly original = window.requestAnimationFrame;
   private readonly native = this.original.bind(window);
-  private clock = 0;
+  private clock: number | null = null;
   private round: number | null = null;
   private roundStart = 0;
   private tickMs = 0;
@@ -285,7 +285,6 @@ class FrameLoop {
   constructor(private readonly hooks: LoopHooks) {}
 
   install(): void {
-    this.clock = performance.now();
     window.requestAnimationFrame = (callback) => this.native((stamp) => this.run(callback, stamp));
   }
 
@@ -297,7 +296,7 @@ class FrameLoop {
     const arrived = performance.now();
     if (stamp !== this.round) this.open(stamp, arrived);
     const start = performance.now();
-    callback(this.clock);
+    callback(this.clock as number);
     this.tickMs += performance.now() - start;
     this.hooks.callbackDone();
   }
@@ -307,7 +306,7 @@ class FrameLoop {
     this.round = stamp;
     this.roundStart = arrived;
     this.tickMs = 0;
-    this.clock += FRAME_STEP_MS;
+    this.clock = (this.clock ?? stamp) + FRAME_STEP_MS;
   }
 }
 
