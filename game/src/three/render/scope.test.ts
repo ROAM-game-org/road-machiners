@@ -256,14 +256,14 @@ describe('sight limit', () => {
     const deckShader = shaders(deck);
     expect(deckShader.vertexShader).toContain('attribute vec2 sightAt;');
     expect(deckShader.vertexShader).toContain('vSightAt = sightAt;');
-    expect(deckShader.fragmentShader).toContain('texture2D(sightVisible, vSightAt / sightMapMeters)');
+    expect(deckShader.fragmentShader).toContain('texture2D(sightVisible, (vSightAt - sightWindow.xy) / sightWindow.z)');
     expect(deckShader.fragmentShader).toContain('if (distance(vSightXZ, sightCenter) > sightRadius) discard;');
     expect(deck.customProgramCacheKey()).not.toBe(prop.customProgramCacheKey());
 
     const propShader = shaders(prop);
     expect(propShader.vertexShader).not.toContain('sightAt');
     expect(propShader.fragmentShader).not.toContain('vSightAt');
-    expect(propShader.fragmentShader).toContain('texture2D(sightVisible, vSightXZ / sightMapMeters)');
+    expect(propShader.fragmentShader).toContain('texture2D(sightVisible, (vSightXZ - sightWindow.xy) / sightWindow.z)');
   });
 
   it('rejects one material on a mesh with sight sample points and on one without', () => {
@@ -281,6 +281,51 @@ describe('sight limit', () => {
   it('rejects a visible tile outside the map', () => {
     const limit = new SightLimit(SIZE);
     expect(() => limit.showVisible([SIZE * SIZE])).toThrow();
+  });
+
+  function sampler(limit: SightLimit, mapSize = SIZE): (tile: number) => number {
+    const material = new THREE.MeshLambertMaterial();
+    limit.patch(new THREE.Mesh(new THREE.BoxGeometry(), material), true);
+    const shader = { uniforms: {} as Record<string, { value: unknown }>, vertexShader: THREE.ShaderLib.lambert.vertexShader, fragmentShader: THREE.ShaderLib.lambert.fragmentShader };
+    material.onBeforeCompile(shader as unknown as THREE.WebGLProgramParametersWithUniforms, {} as THREE.WebGLRenderer);
+    return (tile) => {
+      const window = shader.uniforms.sightWindow.value as THREE.Vector3;
+      const texture = shader.uniforms.sightVisible.value as THREE.DataTexture;
+      const u = ((tile % mapSize + 0.5) * S - window.x) / window.z;
+      const v = ((Math.floor(tile / mapSize) + 0.5) * S - window.y) / window.z;
+      const side = texture.image.width;
+      const x = Math.min(side - 1, Math.max(0, Math.floor(u * side)));
+      const y = Math.min(side - 1, Math.max(0, Math.floor(v * side)));
+      return (texture.image.data as Uint8Array)[y * side + x];
+    };
+  }
+
+  it('samples the same seen tiles as the whole-map lookup for a window that moves, grows and sits on the map edge', () => {
+    const limit = new SightLimit(SIZE);
+    const seen = sampler(limit);
+    const rand = random(7);
+    const shown: number[][] = [
+      [],
+      [0, 1, SIZE, SIZE + 1],
+      [SIZE * SIZE - 1, SIZE * SIZE - 2],
+      Array.from({ length: 300 }, () => 40 * SIZE + 100 + Math.floor(rand() * 5) * SIZE + Math.floor(rand() * 90)),
+      Array.from({ length: 300 }, () => 300 * SIZE + 300 + Math.floor(rand() * 120) * SIZE + Math.floor(rand() * 120)),
+      [5 * SIZE + 5],
+    ];
+    for (const tiles of shown) {
+      limit.showVisible(tiles);
+      const set = new Set(tiles);
+      for (const t of [...tiles, ...Array.from({ length: 2000 }, () => Math.floor(rand() * SIZE * SIZE))]) expect(seen(t) === 255).toBe(set.has(t));
+    }
+  });
+
+  it('uploads a window far smaller than the map', () => {
+    const limit = new SightLimit(1872);
+    const seen = sampler(limit, 1872);
+    limit.showVisible([900 * 1872 + 900, 920 * 1872 + 930]);
+    const texture = (limit as unknown as { visible: { texture: THREE.DataTexture } }).visible.texture;
+    expect((texture.image.data as Uint8Array).length).toBeLessThan(100 * 100);
+    expect(seen(900 * 1872 + 900)).toBe(255);
   });
 
   it('rejects a radius that is not a finite positive number', () => {

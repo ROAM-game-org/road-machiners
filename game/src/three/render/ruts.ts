@@ -33,6 +33,7 @@ export class Ruts {
   private readonly darkness = new Float32Array(RUT.max);
   private next = 0;
   private drawnTurn = Number.NaN;
+  private wholeUpload = false;
   private readonly matrix = new THREE.Matrix4();
   private readonly quat = new THREE.Quaternion();
   private readonly euler = new THREE.Euler(0, 0, 0, 'YZX');
@@ -62,6 +63,7 @@ export class Ruts {
   }
 
   tick(turn: number): void {
+    this.wholeUpload = false;
     if (turn === this.drawnTurn) return;
     this.drawnTurn = turn;
     for (let k = 0; k < this.mesh.count; k++) {
@@ -69,8 +71,11 @@ export class Ruts {
       if (share === 0) this.mesh.setMatrixAt(k, HIDDEN);
       this.mesh.setColorAt(k, this.tint.lerpColors(WHITE, DARK, this.darkness[k] * share));
     }
+    this.mesh.instanceMatrix.clearUpdateRanges();
     this.mesh.instanceMatrix.needsUpdate = true;
     this.markColors();
+    this.mesh.instanceColor?.clearUpdateRanges();
+    this.wholeUpload = true;
   }
 
   dispose(): void {
@@ -117,8 +122,18 @@ export class Ruts {
     this.darkness[k] = rut;
     this.next = (k + 1) % RUT.max;
     this.mesh.count = Math.max(this.mesh.count, k + 1);
+    this.markLaid(k);
+  }
+
+  private markLaid(k: number): void {
+    const colors = this.mesh.instanceColor;
+    if (!colors) throw new Error('Ruts lost their instance colours');
+    if (!this.wholeUpload) {
+      this.mesh.instanceMatrix.addUpdateRange(k * 16, 16);
+      colors.addUpdateRange(k * 3, 3);
+    }
     this.mesh.instanceMatrix.needsUpdate = true;
-    this.markColors();
+    colors.needsUpdate = true;
   }
 
   private markColors(): void {

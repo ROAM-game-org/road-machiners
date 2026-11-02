@@ -304,21 +304,44 @@ function widen(claim: Rect | null, pos: Vec, radius: number): Rect {
 
 type Clipped = THREE.Material & { onBeforeCompile: THREE.Material['onBeforeCompile'] };
 
+const WINDOW_STEP = 32;
+
+type VisibleWindow = { texture: THREE.DataTexture; side: number; x: number; y: number };
+
+function visibleWindow(side: number, x: number, y: number): VisibleWindow {
+  const texture = new THREE.DataTexture(new Uint8Array(side * side), side, side, THREE.RedFormat, THREE.UnsignedByteType);
+  texture.magFilter = THREE.NearestFilter;
+  texture.minFilter = THREE.NearestFilter;
+  texture.needsUpdate = true;
+  return { texture, side, x, y };
+}
+
+function tileBounds(tiles: readonly number[], mapSize: number): { x0: number; y0: number; x1: number; y1: number } | null {
+  if (tiles.length === 0) return null;
+  const box = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  for (const t of tiles) {
+    if (!(t >= 0 && t < mapSize * mapSize)) throw new Error(`Visible tile ${t} is outside the ${mapSize}-tile map`);
+    const x = t % mapSize;
+    const y = (t - x) / mapSize;
+    box.x0 = Math.min(box.x0, x);
+    box.x1 = Math.max(box.x1, x);
+    box.y0 = Math.min(box.y0, y);
+    box.y1 = Math.max(box.y1, y);
+  }
+  return box;
+}
+
 export class SightLimit {
-  private readonly visible: THREE.DataTexture;
+  private visible = visibleWindow(WINDOW_STEP, 0, 0);
   private readonly uniforms;
   private readonly patched = new WeakMap<THREE.Material, boolean>();
 
   constructor(private readonly mapSize: number) {
-    this.visible = new THREE.DataTexture(new Uint8Array(mapSize * mapSize), mapSize, mapSize, THREE.RedFormat, THREE.UnsignedByteType);
-    this.visible.magFilter = THREE.NearestFilter;
-    this.visible.minFilter = THREE.NearestFilter;
-    this.visible.needsUpdate = true;
     this.uniforms = {
       sightCenter: { value: new THREE.Vector2() },
       sightRadius: { value: Number.POSITIVE_INFINITY },
-      sightVisible: { value: this.visible },
-      sightMapMeters: { value: mapSize * S },
+      sightVisible: { value: this.visible.texture },
+      sightWindow: { value: new THREE.Vector3(0, 0, WINDOW_STEP * S) },
       sightGrey: { value: new THREE.Vector2(TERRAIN.fog.seen.grey, TERRAIN.fog.seen.bright) },
       sightFog: { value: new THREE.Color(PAL.bg) },
       sightFogBand: { value: TERRAIN.vision.edgeFog },
@@ -341,13 +364,29 @@ export class SightLimit {
   }
 
   showVisible(tiles: Iterable<number>): void {
-    const data = this.visible.image.data as Uint8Array;
+    const list = [...tiles];
+    const box = tileBounds(list, this.mapSize);
+    if (box) this.fitWindow(Math.max(box.x1 - box.x0, box.y1 - box.y0) + 3, box.x0 - 1, box.y0 - 1);
+    const w = this.visible;
+    const data = w.texture.image.data as Uint8Array;
     data.fill(0);
-    for (const t of tiles) {
-      if (!(t >= 0 && t < data.length)) throw new Error(`Visible tile ${t} is outside the ${this.mapSize}-tile map`);
-      data[t] = 255;
+    for (const t of list) {
+      const x = t % this.mapSize;
+      data[((t - x) / this.mapSize - w.y) * w.side + x - w.x] = 255;
     }
-    this.visible.needsUpdate = true;
+    w.texture.needsUpdate = true;
+    this.uniforms.sightWindow.value.set(w.x * S, w.y * S, w.side * S);
+  }
+
+  private fitWindow(needed: number, x: number, y: number): void {
+    const side = Math.max(this.visible.side, Math.ceil(needed / WINDOW_STEP) * WINDOW_STEP);
+    if (side > this.visible.side) {
+      this.visible.texture.dispose();
+      this.visible = visibleWindow(side, x, y);
+      this.uniforms.sightVisible.value = this.visible.texture;
+    }
+    this.visible.x = x;
+    this.visible.y = y;
   }
 
   covers(p: V3): boolean {
@@ -402,10 +441,10 @@ export class SightLimit {
       shader.fragmentShader = inject(
         shader.fragmentShader,
         '#include <common>',
-        'varying vec2 vSightXZ;\nuniform vec2 sightCenter;\nuniform float sightRadius;\nuniform sampler2D sightVisible;\nuniform float sightMapMeters;\nuniform vec2 sightGrey;\nuniform vec3 sightFog;\nuniform float sightFogBand;',
+        'varying vec2 vSightXZ;\nuniform vec2 sightCenter;\nuniform float sightRadius;\nuniform sampler2D sightVisible;\nuniform vec3 sightWindow;\nuniform vec2 sightGrey;\nuniform vec3 sightFog;\nuniform float sightFogBand;',
       );
       shader.fragmentShader = inject(shader.fragmentShader, '#include <clipping_planes_fragment>', 'if (distance(vSightXZ, sightCenter) > sightRadius) discard;');
-      if (grey) shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `float sightSeen = texture2D(sightVisible, ${greyAt} / sightMapMeters).r;
+      if (grey) shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `float sightSeen = texture2D(sightVisible, (${greyAt} - sightWindow.xy) / sightWindow.z).r;
         float sightLuma = dot(outgoingLight, vec3(0.299, 0.587, 0.114));
         outgoingLight = mix(mix(outgoingLight, vec3(sightLuma), sightGrey.x) * sightGrey.y, outgoingLight, sightSeen);
         #include <opaque_fragment>`);
