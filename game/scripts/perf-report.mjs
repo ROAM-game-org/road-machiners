@@ -303,7 +303,7 @@ function savingRows(id, a, b) {
 function turnRows(a, b) {
   const stats = ['waitMs', 'workerTurnMs', 'previewMs'].flatMap((key) => ['median', 'p99', 'worst'].map((stat) => numRow(`turns ${key} ${stat}`, statOf(a[key], stat), statOf(b[key], stat))));
   const names = [...new Set([...Object.keys(a.steps), ...Object.keys(b.steps)])];
-  const steps = names.flatMap((name) => ['total', 'calls', 'max'].map((key) => numRow(`turn step ${name} ${key}`, a.steps[name]?.[key] ?? null, b.steps[name]?.[key] ?? null)));
+  const steps = names.flatMap((name) => ['total', 'calls'].map((key) => numRow(`turn step ${name} ${key}`, a.steps[name]?.[key] ?? null, b.steps[name]?.[key] ?? null)));
   return [...stats, ...steps];
 }
 

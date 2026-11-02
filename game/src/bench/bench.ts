@@ -3,7 +3,7 @@ import { GAME_VERSION } from '../config';
 import { REGION, type TownDef } from '../data/region';
 import { DEFAULT_ZOOM } from '../data/view';
 import { driveSnapshotOf } from '../phys/turn';
-import { perfSnapshot, resetPerf } from '../perf';
+import { perfSnapshot } from '../perf';
 import { skipToHour, spawnNear, teleport, toggleGod } from '../sim/cheats';
 import { sitePads } from '../sim/sites';
 import type { World } from '../sim/types';
@@ -458,19 +458,20 @@ async function timedPass(ctx: Ctx, spec: Spec): Promise<FrameRecord[]> {
   const { log } = ctx;
   log.passShots.push(0);
   log.recording = spec.turns;
-  if (spec.turns) resetPerf();
+  const before = perfSnapshot();
   try {
     return await spec.play(ctx.passFrames, WARMUP_FRAMES);
   } finally {
     log.recording = false;
-    if (spec.turns) addSteps(log.steps);
+    if (spec.turns) addSteps(log.steps, before);
   }
 }
 
-function addSteps(steps: Steps): void {
-  for (const [name, pass] of Object.entries(perfSnapshot())) {
-    const step = steps[name] ?? { total: 0, calls: 0, max: 0 };
-    steps[name] = { total: step.total + pass.total, calls: step.calls + pass.calls, max: Math.max(step.max, pass.max) };
+function addSteps(steps: Steps, before: ReturnType<typeof perfSnapshot>): void {
+  for (const [name, after] of Object.entries(perfSnapshot())) {
+    const step = steps[name] ?? { total: 0, calls: 0 };
+    const start = before[name] ?? { total: 0, calls: 0 };
+    steps[name] = { total: step.total + after.total - start.total, calls: step.calls + after.calls - start.calls };
   }
 }
 
