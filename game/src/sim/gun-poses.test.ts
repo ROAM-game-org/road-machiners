@@ -49,6 +49,8 @@ describe('gun poses', () => {
     expect(turnsOf(item)).toHaveLength(8);
     expect(nextTurn(crate(0))).toBe(1);
     expect(nextTurn(crate(1))).toBe(0);
+    expect(nextTurn(crate(2))).toBe(0);
+    expect(nextTurn(crate(3))).toBe(0);
     expect(turnsOf(crate(0))).toEqual([0, 1]);
   });
 
