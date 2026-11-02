@@ -201,6 +201,8 @@ describe('merging the static meshes of a site', () => {
     alone.push(odd);
     const shiny = put(root, new THREE.MeshStandardMaterial({ color: 0x884400 }), 30, 0);
     alone.push(shiny);
+    const tinted = look(0x884400, { vertexColors: true });
+    alone.push(put(root, tinted, 36, 0), put(root, tinted, 39, 0));
     const outline = put(root, paint, 33, 0);
     outline.userData.outline = true;
     alone.push(outline);
@@ -254,6 +256,16 @@ describe('merging the static meshes of a site', () => {
     expect(meshesOf(root)).toHaveLength(2);
     const [first, second] = meshesOf(root);
     expect(Object.keys(first.geometry.attributes).sort()).not.toEqual(Object.keys(second.geometry.attributes).sort());
+  });
+
+  it('keeps materials with other shader hooks apart from plain ones', () => {
+    const root = site();
+    const hooked = look(0x884400);
+    hooked.customProgramCacheKey = () => 'pools';
+    for (const material of [hooked, look(0x884400), hooked, look(0x884400)]) put(root, material, root.children.length * 3, 0);
+    merge(root);
+    expect(meshesOf(root)).toHaveLength(2);
+    expect(meshesOf(root).map((m) => (m.material as THREE.Material).customProgramCacheKey()).sort()).toEqual([look(0x884400).customProgramCacheKey(), 'pools'].sort());
   });
 
   it('shares one material for merged meshes and gives it the first copy', () => {

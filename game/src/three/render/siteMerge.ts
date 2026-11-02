@@ -15,7 +15,7 @@ const MERGE_RULES: readonly ((mesh: THREE.Mesh, context: Context) => boolean)[] 
   (mesh) => !mesh.userData.outline && mesh.children.length === 0,
   (mesh, { root }) => visibleUpTo(mesh, root) && mesh.matrixWorld.determinant() >= 0,
   (mesh, { looks }) => !Array.isArray(mesh.material) && lookKey(mesh.material, looks) !== null,
-  (mesh) => hasPlainGeometry(mesh.geometry),
+  (mesh) => hasPlainGeometry(mesh.geometry) && keptAttributes(mesh.material as THREE.Material).every((name) => mesh.geometry.hasAttribute(name)),
 ];
 
 export function mergeStaticMeshes(root: THREE.Group, kept: readonly THREE.Object3D[], pivot: THREE.Vector3): void {
@@ -57,7 +57,7 @@ function visibleUpTo(o: THREE.Object3D, root: THREE.Object3D): boolean {
 }
 
 function hasPlainGeometry(geometry: THREE.BufferGeometry): boolean {
-  return isDrawnWhole(geometry) && geometry.hasAttribute('position') && geometry.hasAttribute('normal') && Object.entries(geometry.attributes).every(isPlainAttribute);
+  return isDrawnWhole(geometry) && Object.entries(geometry.attributes).every(isPlainAttribute);
 }
 
 function isDrawnWhole(geometry: THREE.BufferGeometry): boolean {
@@ -77,7 +77,7 @@ function lookKey(material: THREE.Material, looks: Looks): string | null {
 function plainLook(material: THREE.Material): string | null {
   if (!(material instanceof THREE.MeshLambertMaterial) || material.transparent) return null;
   const text = JSON.stringify(material.toJSON(), (key, value) => (NOT_LOOK.has(key) ? undefined : value));
-  return text.includes('"textures"') || text.includes('"images"') ? null : text;
+  return text.includes('"textures"') || text.includes('"images"') ? null : `${text}|${material.customProgramCacheKey()}`;
 }
 
 function lookOf(material: THREE.MeshLambertMaterial, looks: Looks): Look {
