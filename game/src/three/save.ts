@@ -102,7 +102,7 @@ export const SAVE_KEY = saveKey(__SAVE_SCOPE__);
 
 export type SaveErrorCode =
   | 'unreadable' | 'otherMap' | 'bakedProps' | 'invalidWorld' | 'invalidSave' | 'badSetup'
-  | 'incompatible' | 'newer' | 'notMigrated' | 'noFormat' | 'badExplored' | 'badQuests' | 'newerQuests' | 'outOfReach' | 'mapChanged' | 'unknownStep';
+  | 'incompatible' | 'newer' | 'notMigrated' | 'noFormat' | 'badExplored' | 'badQuests' | 'newerQuests' | 'outOfReach' | 'mapChanged' | 'unknownStep' | 'noFreeSlot';
 
 export class SaveError extends Error {
   constructor(readonly code: SaveErrorCode, readonly format: { major: number; minor: number } | null = null, detail = '') {
@@ -157,12 +157,56 @@ export function mapFor(saved: Pick<World, 'mapHash' | 'seed' | 'setup' | 'chaosH
 export function loadWorld(slots: SaveSlots, slot: SlotId, icarus: BakedMap): World | null {
   const envelope = slots.get(slot);
   if (envelope === null) return null;
+  return loadedOrSaveError(envelope, icarus);
+}
+
+function loadedOrSaveError(envelope: unknown, icarus: BakedMap): World {
   try {
     return loadedWorld(envelope, icarus);
   } catch (error) {
     if (error instanceof SaveError) throw error;
     throw new SaveError('invalidWorld', null, `Loading failed: ${(error as Error).message}`);
   }
+}
+
+export function parseSaveFile(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new SaveError('unreadable', null, 'The file is not JSON');
+  }
+}
+
+function checkImportable(envelope: unknown, icarus: BakedMap): void {
+  try {
+    loadedOrSaveError(envelope, icarus);
+  } catch (error) {
+    if (!(error instanceof SaveError) || !carriesOnLoad(error)) throw error;
+  }
+}
+
+export async function importSave(envelope: unknown, slots: SaveSlots, icarus: BakedMap, manual: readonly SlotId[]): Promise<SlotId> {
+  const free = manual.find((slot) => !slots.has(slot));
+  if (free === undefined) throw new SaveError('noFreeSlot');
+  checkImportable(envelope, icarus);
+  slots.put(free, envelope);
+  await slots.flush();
+  return free;
+}
+
+export type ImportResult = { slot: SlotId } | { refusal: Msg };
+
+const IMPORT_REFUSALS: Partial<Record<SaveErrorCode, Msg>> = { unreadable: t('save.importUnreadable'), noFreeSlot: t('save.importNoSlot') };
+
+export function saveImporter(slots: SaveSlots, icarus: BakedMap, slotCount: number): (text: string) => Promise<ImportResult> {
+  return async (text) => {
+    try {
+      return { slot: await importSave(parseSaveFile(text), slots, icarus, manualSlots(slotCount)) };
+    } catch (error) {
+      if (!(error instanceof SaveError)) throw error;
+      return { refusal: IMPORT_REFUSALS[error.code] ?? t('save.doesNotFit') };
+    }
+  };
 }
 
 function loadedWorld(envelope: unknown, icarus: BakedMap): World {
@@ -463,7 +507,7 @@ export const SAVE_HELD_NOTE = t('save.held');
 export const SAVE_FAILED_NOTE = t('save.failed');
 export const TURN_FAILED_NOTE = t('save.turnFailed');
 
-export type Run = { slots: SaveSlots; runId: string; log: RunLog; mapHash: string };
+export type Run = { slots: SaveSlots; runId: string; log: RunLog; mapHash: string; importSave: (text: string) => Promise<ImportResult> };
 
 export function changeMapIfMoved(run: Run, world: World, hold: SaveHold, session: Storage, reload: () => void): boolean {
   if (world.mapHash === run.mapHash) return false;
@@ -491,6 +535,7 @@ export class GameSaves {
       ...saves,
       save: (slot: SlotId) => this.saveManual(slot, saves.save),
       exportSave: () => this.exportSave(world()),
+      importSave: this.run.importSave,
       exportLog: () => this.exportLog(world()).catch((err) => this.failed(err)),
     };
   }
