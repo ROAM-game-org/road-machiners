@@ -442,6 +442,25 @@ export function instancedModel(name: ModelName, placements: THREE.Matrix4[], tin
   return group;
 }
 
+export type SourcePart = { geometry: THREE.BufferGeometry; material: THREE.Material; matrix: THREE.Matrix4 };
+
+const sourcePartsOf = new WeakMap<THREE.Object3D, SourcePart[]>();
+
+export function sourceParts(name: ModelName): readonly SourcePart[] {
+  const src = source(name);
+  const known = sourcePartsOf.get(src);
+  if (known) return known;
+  src.updateMatrixWorld(true);
+  const toRoot = new THREE.Matrix4().copy(src.matrixWorld).invert();
+  const parts: SourcePart[] = [];
+  src.traverse((o) => {
+    if (o instanceof THREE.Mesh) parts.push({ geometry: o.geometry, material: o.material as THREE.Material, matrix: new THREE.Matrix4().multiplyMatrices(toRoot, o.matrixWorld) });
+  });
+  sourcePartsOf.set(src, parts);
+  return parts;
+}
+
+export const SHIP_GLOW_MATERIAL = 'ship_glow';
 const GLOW_MATERIAL = 'glow';
 const GLOW = { color: new THREE.Color(PAL.lamp.amber), strength: 0.4 };
 export const MODEL_GLOW = { color: GLOW.color.getHex(), emissive: GLOW.color.clone().multiplyScalar(GLOW.strength).getHex() };
