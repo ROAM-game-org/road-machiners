@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { FeedbackForm } from "./feedback-form";
 import { HelpPanel } from "./game-menu";
 import { defaultSetup } from "../sim/settings";
+import { openWebGL } from "../three/webgl";
 
 type Listener = { fn: (e: unknown) => void; capture: boolean };
 
@@ -60,6 +61,8 @@ describe("Escape in a Menu panel", () => {
 
   it("closes the help panel and stops before the game's Escape", () => {
     stubDom();
+    const context = { RENDERER: 3, getExtension: () => null, getParameter: () => "Test GPU" };
+    openWebGL({ getContext: () => context, addEventListener: () => {}, removeEventListener: () => {} } as unknown as HTMLCanvasElement, {});
     const help = new HelpPanel(() => defaultSetup("roaming"));
     help.open();
     listeners.push({ fn: () => {}, capture: false });
