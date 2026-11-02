@@ -5,7 +5,7 @@ import os from 'node:os';
 import { chromium } from 'playwright';
 import { launchChromium } from './gpu.mjs';
 import { profileReport } from './perf-profile.mjs';
-import { budgetsFor, bundleProblems, checkBudgets, compare, LOAD_SHARE_MAX, summary, trustProblems } from './perf-report.mjs';
+import { budgetsFor, bundleProblems, checkBudgets, compare, LOAD_SHARE_MAX, OTHERS_CPU_SHARE_MAX, summary, trustProblems } from './perf-report.mjs';
 
 const CHROMIUM_FLAGS = ['--disable-gpu-vsync', '--disable-frame-rate-limit', '--mute-audio'];
 const BUILD_TIMEOUT_MS = 300000;
@@ -125,18 +125,27 @@ async function machineLoad() {
   return process.platform === 'win32' ? windowsBusyCores() : os.loadavg()[0];
 }
 
-const IDLE_WAIT_MS = 180000;
+const IDLE_WAIT_MS = 600000;
 const IDLE_POLL_MS = 5000;
 
+async function busyCoresOver(ms) {
+  const before = busySeconds();
+  await sleep(ms);
+  return (busySeconds() - before) / (ms / 1000);
+}
+
+async function quiet() {
+  const cores = os.cpus().length;
+  const busy = process.platform === 'win32' ? null : await busyCoresOver(IDLE_POLL_MS);
+  const load = await machineLoad();
+  return { load, quiet: load <= cores * LOAD_SHARE_MAX && (busy === null || busy <= cores * OTHERS_CPU_SHARE_MAX) };
+}
+
 async function idleLoad() {
-  const limit = os.cpus().length * LOAD_SHARE_MAX;
   const since = Date.now();
-  let load = await machineLoad();
-  while (load > limit && Date.now() - since < IDLE_WAIT_MS) {
-    await new Promise((done) => setTimeout(done, IDLE_POLL_MS));
-    load = await machineLoad();
-  }
-  return { load, waitedMs: Date.now() - since };
+  let state = await quiet();
+  while (!state.quiet && Date.now() - since < IDLE_WAIT_MS) state = await quiet();
+  return { load: state.load, waitedMs: Date.now() - since };
 }
 
 function cpuSeconds(clock) {
