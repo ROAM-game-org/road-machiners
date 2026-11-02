@@ -63,7 +63,7 @@ import { PORTRAIT_STEP_MS, TruckPortraits, portraitFromPixels, startPortrait } f
 import { cachedPortraits } from "../three/render/portraitCache";
 import { GARAGE_STEP_MS, GarageRenders } from "../three/render/garageRender";
 import { PICTURE_DB, PictureStore, idbPictureBackend } from "../three/picture-store";
-import { backgroundNeeds } from "./garage-draw";
+import { backgroundNeeds, shownNeed } from "./garage-draw";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, verbatim, type Msg } from "../text/msg";
 import { isLate, isMet, type Contract } from "../sim/market";
@@ -736,6 +736,11 @@ export class Hud {
     const me = playerVehicle(w);
     const opened = focus && focus.id !== me.id ? [focus] : [];
     this.portraits.want([me], opened, focus?.id ?? null, w.player.paint);
+    this.wantGarage(w, opened);
+  }
+
+  private wantGarage(w: World, opened: readonly Vehicle[]): void {
+    if (opened.length > 0) this.garage.prefetch([shownNeed(opened[0], w.player.paint)]);
     if (this.garageWorld !== w) this.garage.want(backgroundNeeds(w));
     this.garageWorld = w;
   }

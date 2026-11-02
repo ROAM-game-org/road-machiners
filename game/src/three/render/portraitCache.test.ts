@@ -2,7 +2,7 @@ import type * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { PAINT } from '../../data/chassis';
 import { emptyWorld } from '../../sim/testkit';
-import { CorruptPicture, memoryPictureBackend, PictureStore, type PictureBackend } from '../picture-store';
+import { CorruptPictureError, memoryPictureBackend, PictureStore, type PictureBackend } from '../picture-store';
 import { cachedPortraits, packPixels, unpackPixels, type RestorePortrait, type StartPortrait } from './portraitCache';
 import { keyOf, pristineOf, TruckPortraits, type Portrait, type PortraitPixels, type PortraitWait } from './truckPortrait';
 
@@ -82,7 +82,7 @@ describe('stored portrait pixels', () => {
     ['a record with a bad size', { width: 0, height: 3, gzip: new ArrayBuffer(4) }],
     ['bytes that are no gzip', { width: 5, height: 3, gzip: new Uint8Array([1, 2, 3, 4, 5]).buffer }],
   ])('throw a corrupt picture for %s', async (_name, record) => {
-    await expect(unpackPixels('k', record)).rejects.toBeInstanceOf(CorruptPicture);
+    await expect(unpackPixels('k', record)).rejects.toBeInstanceOf(CorruptPictureError);
   });
 
   it('throw a corrupt picture when the bytes do not fit the size', async () => {
@@ -185,7 +185,7 @@ describe('portraits over the picture store', () => {
     await pictures.flush();
 
     expect(errors).toHaveLength(1);
-    expect(errors[0]).toBeInstanceOf(CorruptPicture);
+    expect(errors[0]).toBeInstanceOf(CorruptPictureError);
     expect(fake.started).toEqual([v.id]);
     expect(await pictures.readMany([{ kind: 'portrait', key }])).toEqual([undefined]);
   });

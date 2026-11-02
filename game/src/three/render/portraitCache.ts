@@ -2,7 +2,7 @@ import type * as THREE from 'three';
 import type { TruckPaint } from '../../data/chassis';
 import type { Vehicle } from '../../sim/types';
 import { messageOf } from '../idb-connection';
-import { CorruptPicture, type PictureStore } from '../picture-store';
+import { CorruptPictureError, type PictureStore } from '../picture-store';
 import { keyOf, type BuildPortrait, type KeepPixels, type Portrait, type PortraitBuild, type PortraitPixels, type PortraitWait } from './truckPortrait';
 
 export type StartPortrait = (renderer: THREE.WebGLRenderer, pristine: Vehicle, playerPaint: TruckPaint, keep: KeepPixels) => PortraitBuild;
@@ -43,14 +43,14 @@ function isCount(n: unknown): boolean {
 function recordOf(key: string, value: unknown): PortraitRecord {
   const record = value as Partial<PortraitRecord> | null;
   if (record && isCount(record.width) && isCount(record.height) && record.gzip instanceof ArrayBuffer) return record as PortraitRecord;
-  throw new CorruptPicture('portrait', key, 'it is not a portrait record');
+  throw new CorruptPictureError('portrait', key, 'it is not a portrait record');
 }
 
 async function unzipped(key: string, gzip: ArrayBuffer): Promise<Uint8Array<ArrayBuffer>> {
   try {
     return await through(new DecompressionStream('gzip'), new Uint8Array(gzip));
   } catch (cause) {
-    throw new CorruptPicture('portrait', key, `it does not unzip: ${messageOf(cause)}`);
+    throw new CorruptPictureError('portrait', key, `it does not unzip: ${messageOf(cause)}`);
   }
 }
 
@@ -58,7 +58,7 @@ export async function unpackPixels(key: string, value: unknown): Promise<Portrai
   const { width, height, gzip } = recordOf(key, value);
   const raw = await unzipped(key, gzip);
   const count = width * height;
-  if (raw.length !== count * PIXEL_BYTES) throw new CorruptPicture('portrait', key, `it holds ${raw.length} bytes, expected ${count * PIXEL_BYTES}`);
+  if (raw.length !== count * PIXEL_BYTES) throw new CorruptPictureError('portrait', key, `it holds ${raw.length} bytes, expected ${count * PIXEL_BYTES}`);
   const colorBytes = count * RGBA_BYTES;
   return {
     size: { width, height },
@@ -75,7 +75,7 @@ async function stored(pictures: PictureStore, key: string): Promise<PortraitPixe
   try {
     return await unpackPixels(key, record);
   } catch (error) {
-    if (!(error instanceof CorruptPicture)) throw error;
+    if (!(error instanceof CorruptPictureError)) throw error;
     pictures.discard('portrait', key);
     pictures.onError(error);
     return null;

@@ -14,10 +14,10 @@ export type PictureBackend = {
   dropOtherVersions(version: string): Promise<void>;
 };
 
-export class CorruptPicture extends Error {
+export class CorruptPictureError extends Error {
   constructor(kind: PictureKind, key: string, why: string) {
     super(`The stored ${kind} picture ${key} is corrupt: ${why}`);
-    this.name = 'CorruptPicture';
+    this.name = 'CorruptPictureError';
   }
 }
 

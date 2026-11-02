@@ -6,7 +6,7 @@ import { wearLookStep } from '../../render/partLooks';
 import { cellRect, cellSteps, spanOf, unitsOf } from '../../sim/body';
 import { baseGrid, itemCells, layerOf, mountCellsOf, mountSpots, type Spot } from '../../sim/grid';
 import type { GridItem, PartInstance, Vehicle } from '../../sim/types';
-import { CorruptPicture, type PictureKind, type PictureRef, type PictureStore } from '../picture-store';
+import { CorruptPictureError, type PictureKind, type PictureRef, type PictureStore } from '../picture-store';
 import { bodyEntry, restoredBody, restoredSprite, spriteEntry } from './garagePictures';
 import { OPAQUE_ALPHA, flipRows, linearToSrgb, unpremultiply } from './portraitPixels';
 import { canvasOf, captureColor, glassMeshes, hideOutlines, litScene, neutralizeReds, poseAtRest, sheenGlass, withRendererState, type PortraitWait } from './truckPortrait';
@@ -405,17 +405,27 @@ export class GarageRenders {
     const planned = new Set(this.running ? jobKeys(this.running.job) : []);
     const unread: PictureRef[] = [];
     const done = (key: string, kind: PictureKind): boolean => {
-      if (this.has(key) || this.reading.has(key) || planned.has(key)) return true;
-      if (this.mayBeStored(key)) {
-        this.reading.add(key);
-        unread.push({ kind, key });
-        return true;
-      }
+      if (planned.has(key) || this.heldOrRead(key, kind, unread)) return true;
       planned.add(key);
       return false;
     };
     this.queue = [...this.wanted, ...this.screenLater].flatMap((need) => planJobs(need, done));
     this.read(unread);
+  }
+
+  prefetch(needs: readonly GarageNeed[]): void {
+    if (!this.pictures) return;
+    const unread: PictureRef[] = [];
+    for (const need of needs) planJobs(need, (key, kind) => this.heldOrRead(key, kind, unread));
+    this.read(unread);
+  }
+
+  private heldOrRead(key: string, kind: PictureKind, unread: PictureRef[]): boolean {
+    if (this.has(key) || this.reading.has(key)) return true;
+    if (!this.mayBeStored(key)) return false;
+    this.reading.add(key);
+    unread.push({ kind, key });
+    return true;
   }
 
   pending(): number {
@@ -471,7 +481,7 @@ export class GarageRenders {
   }
 
   private corrupt(ref: PictureRef, error: unknown): false {
-    if (!(error instanceof CorruptPicture)) throw error;
+    if (!(error instanceof CorruptPictureError)) throw error;
     this.store().discard(ref.kind, ref.key);
     this.absent.add(ref.key);
     this.store().onError(error);

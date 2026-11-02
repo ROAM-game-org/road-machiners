@@ -6,7 +6,7 @@ import { makePart } from '../../sim/factory';
 import { baseGrid, itemCells, layerOf, mountCellsOf } from '../../sim/grid';
 import type { PartInstance, Vehicle } from '../../sim/types';
 import { bare } from '../../test/gun-clearance-kit';
-import { CorruptPicture, memoryPictureBackend, PictureStore, type PictureBackend } from '../picture-store';
+import { CorruptPictureError, memoryPictureBackend, PictureStore, type PictureBackend } from '../picture-store';
 import { BODY_PAD_M, GARAGE_MAX_SIDE, GARAGE_PX_PER_METER, GarageRenders, bodyKey, cabWindow, coreItems, mountSpotsOf, narrowedTo, pivotOf, planJobs, shotSize, spriteKey, type BuildGarageJob, type GarageJob, type GarageNeed, type GarageSprite } from './garageRender';
 import type { PortraitWait } from './truckPortrait';
 import { VehicleView } from './vehicle';
@@ -371,6 +371,25 @@ describe('garage renders over the picture store', () => {
     expect(second.renders.sprite(truck, PAINT.standard, gun, need.parts[0].spots[0])).toEqual(NOTHING);
   });
 
+  it('reads the stored pictures of a prefetched need without queueing a render for what the store lacks', async () => {
+    const backend = memoryPictureBackend();
+    const { truck, part } = scout();
+    const gun = part(firstOf('weapon', 2));
+    const stored = needFor(truck, [gun]);
+    const first = sessionOver(backend);
+    first.renders.ensureNow([stored]);
+    await first.pictures.flush();
+    const second = sessionOver(backend);
+    const lacking = needFor(truck, [part(firstOf('cargo', 1))]);
+
+    second.renders.prefetch([stored, lacking]);
+    await vi.waitFor(() => expect(drawn(second.renders, truck, gun, stored)).toBe(true));
+    for (let i = 0; i < 20; i++) second.renders.step(1e9);
+
+    expect(second.fake.started).toEqual([]);
+    expect(second.renders.pending()).toBe(0);
+  });
+
   it('writes nothing for a look it restored', async () => {
     const backend = memoryPictureBackend();
     const put = vi.spyOn(backend, 'put');
@@ -451,7 +470,7 @@ describe('garage renders over the picture store', () => {
     for (let i = 0; i < 20; i++) renders.step(1e9);
     await pictures.flush();
 
-    expect(errors[0]).toBeInstanceOf(CorruptPicture);
+    expect(errors[0]).toBeInstanceOf(CorruptPictureError);
     expect(fake.started.some((job) => job.kind === 'body')).toBe(true);
     expect(renders.body(truck, PAINT.standard)).not.toBeNull();
   });

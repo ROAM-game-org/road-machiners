@@ -1,4 +1,4 @@
-import { CorruptPicture, type PictureKind } from '../picture-store';
+import { CorruptPictureError, type PictureKind } from '../picture-store';
 import type { GarageBody, GaragePivot, GarageSprite } from './garageRender';
 
 type SpriteRecord = { left: number; top: number; width: number; height: number; pivot: GaragePivot | null; png: Blob | null };
@@ -44,7 +44,7 @@ function isPng(p: unknown): boolean {
 function checkedSprite(kind: PictureKind, key: string, value: unknown): SpriteRecord {
   const record = value as SpriteRecord | null;
   if (record && [record.left, record.top, record.width, record.height].every(isNumber) && isPivot(record.pivot) && isPng(record.png)) return record;
-  throw new CorruptPicture(kind, key, 'a sprite in it is malformed');
+  throw new CorruptPictureError(kind, key, 'a sprite in it is malformed');
 }
 
 function spriteOf(record: SpriteRecord): GarageSprite {
@@ -55,18 +55,18 @@ function spriteOf(record: SpriteRecord): GarageSprite {
 
 export function restoredSprite(key: string, value: unknown): RestoredSprite {
   const entry = value as Partial<SpriteEntry> | null;
-  if (!entry || typeof entry.loose !== 'string') throw new CorruptPicture('sprite', key, 'it is not a sprite record');
+  if (!entry || typeof entry.loose !== 'string') throw new CorruptPictureError('sprite', key, 'it is not a sprite record');
   return { loose: entry.loose, sprite: spriteOf(checkedSprite('sprite', key, entry.sprite)) };
 }
 
 function checkedCore(key: string, pair: unknown): [string, SpriteRecord] {
-  if (!Array.isArray(pair) || typeof pair[0] !== 'string') throw new CorruptPicture('body', key, 'a core in it is malformed');
+  if (!Array.isArray(pair) || typeof pair[0] !== 'string') throw new CorruptPictureError('body', key, 'a core in it is malformed');
   return [pair[0], checkedSprite('body', key, pair[1])];
 }
 
 export function restoredBody(key: string, value: unknown): RestoredBody {
   const entry = value as Partial<BodyEntry> | null;
-  if (!entry || typeof entry.chassisId !== 'string' || !Array.isArray(entry.cores)) throw new CorruptPicture('body', key, 'it is not a body record');
+  if (!entry || typeof entry.chassisId !== 'string' || !Array.isArray(entry.cores)) throw new CorruptPictureError('body', key, 'it is not a body record');
   const image = checkedSprite('body', key, entry.image);
   const cores = entry.cores.map((pair) => checkedCore(key, pair));
   return { chassisId: entry.chassisId, body: { image: spriteOf(image), cores: new Map(cores.map(([partId, record]) => [partId, spriteOf(record)])) } };
