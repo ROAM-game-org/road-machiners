@@ -12,7 +12,7 @@ import { bakedTier, shopClue } from './claim-clue';
 import { claimCandidates, claimClue, claimLook, claimPartHeld, claimReward, claimRivalAt, claimSpots, claimTargets, claimWindow, isFreeRival, sendRival } from './claims';
 import { leaveLoot } from './loot-warning';
 import { getResources } from './resources';
-import type { TraitId } from '../data/npcs';
+import { NPCS, type TraitId } from '../data/npcs';
 import { CONTRACTS, SHOPS } from '../data/market';
 import { SEARCH } from '../data/utilities';
 import { beginSearch, searchTurn } from './search';
@@ -278,6 +278,7 @@ function keepNearestDrivers(w: World, count: number, also: string[] = [], shopId
   const npcs = w.vehicles.filter((v) => v.id !== w.player.vehicleId && v.brain && !v.brain.goals.some((g) => g.kind === 'follow'));
   const near = new Set(npcs.sort((a, b) => dist(a.pos, shop) - dist(b.pos, shop)).slice(0, count).map((v) => v.id));
   w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || near.has(v.id) || also.includes(v.id));
+  for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
 }
 
 const CLAIM_DAY_TURNS = 60;
@@ -319,7 +320,7 @@ describe('claim days', () => {
     const left = w.salvage.find((s) => s.id === stock.id)!;
     expect([...left.parts, ...left.hidden.parts].map((p) => p.id)).toContain(part.id);
     expect(visited.size + (left.hidden.parts.length === 0 ? 1 : 0)).toBeGreaterThan(0);
-  }, 900_000);
+  });
 });
 
 describe('the clue', () => {
