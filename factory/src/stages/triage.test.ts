@@ -333,12 +333,58 @@ describe('triage release fixes', () => {
     openRelease(null);
     await expect(runStage(fakeCtx(verdict({ hotfix: true, releaseFix: true }), ['bug']), 7)).rejects.toThrow('marks a hotfix as a release fix');
   });
+
+  const reportedOnCandidate = (postId: number | null) => writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), release: { ...release, postId, tasks: [7] } });
+
+  it('runs a task filed from a candidate report as a release task after the candidate is posted, whatever releaseFix says', async () => {
+    reportedOnCandidate(123);
+    await runStage(fakeCtx(verdict({ releaseFix: false, reason: 'The wake-up message is broken.' }), ['bug', 'player-report']), 7);
+    expect(releaseInput).toContain('Release 2026-09-29 takes fixes.');
+    expect(releaseInput).toContain('This issue is a task of release 2026-09-29: a player reported it on the release candidate.');
+    expect(calls).toContain('addLabel 7 release-task');
+    expect(calls.find((call) => call.startsWith('comment 7 Triage passed as a fix for release 2026-09-29'))).toContain('its approval merges it into that release');
+    expect(readState(`${home}/state.json`).release?.tasks).toEqual([7]);
+    expect(existsSync(`${home}/work/issue-7`)).toBe(false);
+    expect(calls.at(-1)).toBe('move 7 Design');
+  });
+
+  it('refuses a task filed from a candidate report like any request, which ends the task', async () => {
+    reportedOnCandidate(123);
+    await runStage(fakeCtx(JSON.stringify({ verdict: 'wont-do', reason: 'Asks for no game change.' }), ['bug', 'player-report']), 7);
+    expect(calls).not.toContain('addLabel 7 release-task');
+    expect(calls).toContain('move 7 Done');
+  });
+
+  it('offers a task filed from a candidate report only release tasks to join or bundle, and keeps it out of dev bundles', async () => {
+    reportedOnCandidate(null);
+    writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), release: { ...readState(`${home}/state.json`).release!, tasks: [7, 8] } });
+    cards = [card(7, 'Triage'), card(8, 'Triage'), card(9, 'Triage'), card(20, 'Design', ['release-task']), card(21, 'Design')];
+    await runStage(fakeCtx(verdict({}), ['bug']), 7);
+    expect(related).toContain('#8 ');
+    expect(related).not.toContain('#9 ');
+    expect(inWork).toContain('#20 ');
+    expect(inWork).not.toContain('#21 ');
+    calls = [];
+    writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), release: { ...readState(`${home}/state.json`).release!, tasks: [8] } });
+    await runStage(fakeCtx(verdict({}), ['bug']), 7);
+    expect(related).not.toContain('#8 ');
+    expect(related).toContain('#9 ');
+    expect(inWork).toContain('#21 ');
+  });
 });
 
 const triageComments = (): string[] => calls.filter((call) => call.startsWith('comment 7') && !call.startsWith('comment 7 ## Groomed request'));
 
 describe('triage vote', () => {
   const vote = (over: Record<string, unknown> = {}): Ctx => fakeCtx(verdict({}), [], [], { verdict: 'vote', reason: 'A new system that players should choose.', ...over });
+
+  it('takes a feature filed from a candidate report out of the release tasks when it goes to a vote', async () => {
+    writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), release: { issue: 40, branch: 'release/2026-09-29', day: '2026-09-29', postId: 123, removed: [], tasks: [7, 8], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } });
+    await runStage(vote(), 7);
+    expect(readState(`${home}/state.json`).release?.tasks).toEqual([8]);
+    expect(triageComments().at(-1)).toContain('A vote is no fix of release 2026-09-29, so it is no longer a task of that release.');
+    expect(calls).not.toContain('addLabel 7 release-task');
+  });
 
   it('labels the card, stores the composed Russian pitch, comments once and leaves the card in Triage', async () => {
     await runStage(vote({ complexity: 'trivial', complexityReason: 'One constant.' }), 7);

@@ -9,5 +9,6 @@ digraph branches {
   task -> rel [label="merge queue"]; hotfix -> main [label="hotfix approve"];
   edge [color="#dc2626", fontcolor="#dc2626", style=dashed, penwidth=1.3];
   main -> dev [label="after ship or hotfix", constraint=false];
+  rel -> dev [label="same merge job,\nafter a release task", constraint=false];
   dev -> issue [label="before design, testing\nor hardening", constraint=false];
 }

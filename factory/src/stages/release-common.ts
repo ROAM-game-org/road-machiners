@@ -51,6 +51,10 @@ export function recordReleaseTask(ctx: Ctx, issue: number): void {
   });
 }
 
+export function forgetReleaseTask(ctx: Ctx, issue: number): void {
+  updateState(ctx.statePath, (state) => (state.release === null ? state : { ...state, release: { ...state.release, tasks: state.release.tasks.filter((task) => task !== issue) } }));
+}
+
 export function requireRelease(ctx: Ctx): ReleaseState {
   const release = readState(ctx.statePath).release;
   if (release === null) throw new Error('No release is open');
