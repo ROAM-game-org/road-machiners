@@ -67,8 +67,11 @@ export function pickTown(world: World): Town {
   return towns.reduce((best, town) => (props(town) > props(best) ? town : best));
 }
 
-function place(game: Game, world: World): void {
+async function place(ctx: Ctx, world: World): Promise<void> {
+  const { game } = ctx;
   if (!Reflect.has(game, 'drive')) throw new Error('Game has no drive field, so the bench cannot reset the physics snapshot');
+  game.apply(game.state);
+  await ctx.probe.until(() => !game.busy, TURN_MS, 'the last turn to finish playing before the bench places a new world');
   const placed = { ...world };
   game.apply(placed);
   Reflect.set(game, 'drive', driveSnapshotOf(placed));
@@ -100,7 +103,7 @@ function townSpec(ctx: Ctx, world: World, town: Town, id: Spec['id'], hour: numb
   const night = hour === NIGHT_HOUR;
   const aim = (progress: number) => game.debugView(town.pad.x + view.pan * Math.min(1, progress), town.pad.y, view.zoom);
   const setup = async () => {
-    place(game, skipToHour(world, hour));
+    await place(ctx, skipToHour(world, hour));
     aim(0);
     await settle(ctx, night);
   };
@@ -233,7 +236,7 @@ type TurnScene = { id: Spec['id']; warm: boolean; start: World; run: () => Promi
 function turnSpec(ctx: Ctx, scene: TurnScene): Spec {
   const { game, probe } = ctx;
   const setup = async () => {
-    place(game, scene.start);
+    await place(ctx, scene.start);
     game.rig.setZoom(DEFAULT_ZOOM);
     game.follow.recenter();
     await settle(ctx, false);
@@ -289,7 +292,7 @@ async function previewMs(ctx: Ctx, from: World, offset: readonly [number, number
 }
 
 async function measurePreviews(ctx: Ctx, world: World, log: TurnLog): Promise<void> {
-  place(ctx.game, world);
+  await place(ctx, world);
   await settle(ctx, false);
   for (const offset of PREVIEW_OFFSETS) log.previews.push(await previewMs(ctx, world, offset));
 }
@@ -402,7 +405,7 @@ async function runScene(ctx: Ctx, spec: Spec): Promise<SceneReport> {
   const draws = await spec.count();
   const check = spec.check({ draws, frames: pooled });
   if (!check.passed) throw new Error(`Scene ${spec.id} failed its content check "${check.name}": ${check.detail}`);
-  const wanted = spec.id !== 'drive' && ctx.options.savingsAbove !== null && frame.real.p99 > ctx.options.savingsAbove;
+  const wanted = ctx.options.savingsAbove !== null && frame.real.p99 > ctx.options.savingsAbove;
   const savings = wanted ? await measureSavings(ctx, spec, draws) : null;
   return { id: spec.id, passes: stats, frame, spread: spreadOf(stats), bound: boundOf(frame), longTasks, draws, slowFrames: slowFrameSums(pooled), savings, check };
 }
@@ -447,10 +450,17 @@ async function playAll(ctx: Ctx, specs: Spec[], preview: () => Promise<void>): P
     if (spec.id === 'fight') resetPerf();
     if (spec.id === 'drive') await preview();
     scenes.push(await runScene(ctx, spec).catch((error: Error) => {
-      throw new Error(`Scene ${spec.id}: ${error.message}`, { cause: error });
+      throw new Error(`Scene ${spec.id}: ${error.message} (${timeHolders(ctx.game)})`, { cause: error });
     }));
   }
   return scenes;
+}
+
+function timeHolders(game: Game): string {
+  const screens = Reflect.get(game, 'screens') as { inventory: { isOpen: () => boolean }; blockingOpen: () => boolean };
+  const menu = Reflect.get(game, 'menu') as { isOpen: () => boolean };
+  const editing = (Reflect.get(game, 'isEditingControl') as () => boolean).call(game);
+  return `inventory ${screens.inventory.isOpen()}, blocking screen ${screens.blockingOpen()}, menu ${menu.isOpen()}, editing control ${editing}, page hidden ${document.hidden}`;
 }
 
 export async function runBench(game: Game, options: BenchOptions): Promise<BenchReport> {

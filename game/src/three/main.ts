@@ -147,16 +147,31 @@ function positiveParam(params: URLSearchParams, name: string): number | null {
   return value;
 }
 
+function errorText(error: unknown): string {
+  return error instanceof Error ? (error.stack ?? error.message) : String(error);
+}
+
+function benchFailure(error: unknown, faults: readonly unknown[]): string | null {
+  const reported = faults.map((fault) => `The game reported an error during the bench: ${errorText(fault)}`);
+  const failed = error === null ? [] : [errorText(error)];
+  const lines = [...reported, ...failed];
+  return lines.length === 0 ? null : lines.join('\n');
+}
+
 async function runBenchMode(game: Game): Promise<void> {
   const state: BenchState = { done: false, report: null, error: null };
+  const faults: unknown[] = [];
+  onReport((fault) => faults.push(fault));
   Object.assign(window, { __ROAM_BENCH__: state });
+  let failure: unknown = null;
   try {
     const params = new URLSearchParams(window.location.search);
     const { runBench } = await import('../bench/bench');
     state.report = await runBench(game, { savingsAbove: positiveParam(params, 'savingsAbove'), passFrames: positiveParam(params, 'benchFrames') });
   } catch (error) {
-    state.error = error instanceof Error ? (error.stack ?? error.message) : String(error);
+    failure = error;
   } finally {
+    state.error = benchFailure(failure, faults);
     state.done = true;
   }
 }
