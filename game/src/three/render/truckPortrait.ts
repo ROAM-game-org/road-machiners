@@ -8,7 +8,6 @@ import {
   OPAQUE_ALPHA,
   PX_PER_METER,
   SUPERSAMPLE,
-  TINTS,
   boundsOf,
   centerOf,
   cropOf,
@@ -20,13 +19,12 @@ import {
   linearToSrgb,
   partMaskOf,
   solidMaskOf,
-  tintMask,
+  glowMaskOf,
   unpremultiply,
   type IdIndex,
   type PixelBox,
   type PixelSize,
   type Tier,
-  type TintName,
 } from './portraitPixels';
 import { cellRect, highestUnder, spanOf, unitBody, unitsOf } from '../../sim/body';
 import type { TruckPaint } from '../../data/chassis';
@@ -500,18 +498,6 @@ function isCab(def: PartDef): boolean {
   return def.kind === 'core' && def.role === 'cab';
 }
 
-function partKind(item: PartItem): 'wheel' | 'armor' | 'other' {
-  const def = partDef(item.part.defId);
-  if (isShield(def)) return 'armor';
-  return def.kind === 'core' && def.role === 'wheel' ? 'wheel' : 'other';
-}
-
-function tintOf(kind: ReturnType<typeof partKind>, tier: Tier): TintName | null {
-  if (tier !== 'ok') return tier;
-  if (kind === 'wheel') return 'tire';
-  return kind === 'armor' ? 'steel' : null;
-}
-
 function numbering(): Numbering {
   const numbers = new Map<string, number>();
   return (partId) => {
@@ -608,8 +594,7 @@ function portraitOver(v: Vehicle, items: PartItem[], maps: Maps, index: Indexes,
       const id = numberOf(known(partId).part.id);
       const box = entryOf(index.ids, id).box;
       const mask = partMaskOf(lit, ids, size, id, box);
-      const tint = tintOf(partKind(known(partId)), tier);
-      const glow = glowOf(tint ? tintMask(mask, TINTS[tint]) : mask, box);
+      const glow = glowOf(glowMaskOf(mask, tier), box);
       glows.set(partId, { tier, glow });
       return glow;
     },
@@ -694,7 +679,7 @@ function deckBoxesOf(v: Vehicle, solid: Drawn[]): (item: PartItem) => THREE.Box3
     const deck = highestUnder(v.chassisId, cellRect(v.chassisId, itemCells(item)));
     const floor = Number.isFinite(deck) ? deck : drawn.min;
     const box = cellBox(v, item, 0, { min: floor, max: Math.max(floor, drawn.max) });
-    const own = partKind(item) === 'armor' ? ownBox(solid, item.part.id) : null;
+    const own = isShield(partDef(item.part.defId)) ? ownBox(solid, item.part.id) : null;
     return own ? box.union(own) : box;
   };
 }
