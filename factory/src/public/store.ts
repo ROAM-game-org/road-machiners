@@ -11,7 +11,7 @@ export type PublicEvent = ReactionCountEvent | ReactionEvent | ForwardEvent | Co
 
 export type CommentKind = DecisionKind | 'rejected';
 export type PublicRoute = 'none' | 'patch' | 'redesign';
-const CLOSED_UNATTEMPTED = 'posted_at is null and attempted_at is null and closed_at is not null';
+const CLOSED_UNATTEMPTED = 'posted_at is null and attempted_at is null and gate_attempted_at is null and closed_at is not null';
 export type Proposal = { issue: number; pitch: string; chat: string | null; messageId: number | null; postedAt: string | null; closedAt: string | null };
 export type Tally = { up: number; down: number };
 export type BuildPost = { issue: number; build: string; chat: string; messageId: number; postedAt: string };
@@ -59,6 +59,9 @@ function migrateProposals(db: DatabaseSync): void {
   if (!columns.includes('shown_footer')) db.exec('alter table proposals add column shown_footer text');
   if (columns.includes('shown_votes')) db.exec('alter table proposals drop column shown_votes');
   if (!columns.includes('attempted_at')) db.exec('alter table proposals add column attempted_at text');
+  for (const column of ['gate_attempted_at text', 'gate_post_id integer', 'gate_permission text']) {
+    if (!columns.includes(column.split(' ')[0]!)) db.exec(`alter table proposals add column ${column}`);
+  }
 }
 
 function migrateReports(db: DatabaseSync): void {
@@ -114,7 +117,7 @@ export class PublicStore {
   addProposal(issue: number, pitch: string, now: Date): void {
     this.transaction(() => {
       this.db.prepare('delete from proposals where issue = ? and closed_at is not null').run(issue);
-      this.db.prepare('insert into proposals (issue, pitch, created_at) values (?, ?, ?) on conflict (issue) do update set pitch = excluded.pitch where posted_at is null').run(issue, pitch, now.toISOString());
+      this.db.prepare('insert into proposals (issue, pitch, created_at) values (?, ?, ?) on conflict (issue) do update set pitch = excluded.pitch where posted_at is null and gate_attempted_at is null').run(issue, pitch, now.toISOString());
     });
   }
 
@@ -124,7 +127,32 @@ export class PublicStore {
   }
 
   unpostedProposals(): Proposal[] {
+    return this.db.prepare("select * from proposals where posted_at is null and closed_at is null and gate_permission = 'yes' order by created_at, issue").all().map(toProposal);
+  }
+
+  pendingProposals(): Proposal[] {
     return this.db.prepare('select * from proposals where posted_at is null and closed_at is null order by created_at, issue').all().map(toProposal);
+  }
+
+  proposalsNeedingGate(): Proposal[] {
+    return this.db.prepare('select * from proposals where posted_at is null and closed_at is null and gate_attempted_at is null order by created_at, issue').all().map(toProposal);
+  }
+
+  beginGate(issue: number, now: Date): void {
+    this.db.prepare('update proposals set gate_attempted_at = ? where issue = ? and gate_attempted_at is null').run(now.toISOString(), issue);
+  }
+
+  markGatePosted(issue: number, postId: number): void {
+    this.db.prepare('update proposals set gate_post_id = ? where issue = ? and gate_attempted_at is not null').run(postId, issue);
+  }
+
+  gatePost(issue: number): number | null {
+    const row = this.db.prepare('select gate_post_id from proposals where issue = ? and closed_at is null and posted_at is null').get(issue);
+    return row?.gate_post_id === null || row === undefined ? null : Number(row.gate_post_id);
+  }
+
+  decideGate(issue: number, postId: number, permission: 'yes' | 'no', now: Date): boolean {
+    return this.db.prepare('update proposals set gate_permission = ?, closed_at = case when ? = \'no\' then ? else closed_at end where issue = ? and gate_post_id = ? and gate_permission is null and posted_at is null and closed_at is null').run(permission, permission, now.toISOString(), issue, postId).changes === 1;
   }
 
   proposalPostAttemptsSince(since: Date): number {

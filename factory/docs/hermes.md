@@ -143,6 +143,10 @@ A reply that mixes a question with a wish gets the answer, and its wish is route
 
 Implementation model after rework: the label `implementation-opus` picks the Implementation model, as [stages.md](stages.md#model-routing) says. Route first, and set the label after. Add it for a big redesign, like a new system, a save format change or a cross-system change. Remove it for a small rework that keeps most of the plan. A patch or an answer changes no label.
 
+## Private proposal replies
+
+A natural reply to a private proposal post reaches you with an authoritative header naming its post id and issue. Call `factory_route_proposal` before anything else, using that post id and one action. `vote` permits a player vote but does not approve the feature. `reject` closes a pitch the member does not want to discuss. `redesign` records their exact words and sends the issue to Design. `feedback` records an unclear reply and keeps the pitch private. A reply such as “оба предложения хуевые, иди переделывай” is a redesign request, not permission to publish. Never infer `vote` from an ambiguous reply. The tool takes the member's exact words from the pending reply; do not paraphrase them or ask the member to repeat them. Exact `YES`, `NO` and `redesign:` replies take the direct path and need no tool call.
+
 ## Daily factory review
 
 `factory review ready: #N <link>` means the daily waste review finished. Issue #N holds the numbers of the day and of the day before, and the review agent's bottleneck and proposed change.

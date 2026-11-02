@@ -478,11 +478,14 @@ function cleanArchives(ctx: Ctx): void {
 }
 
 async function expireReplies(ctx: Ctx): Promise<void> {
-  const late = Object.entries(readState(ctx.statePath).unroutedReplies).filter(([, reply]) => minutesSince(ctx, reply.at) > ctx.cfg.replyRouteMinutes);
+  const late = Object.entries(readState(ctx.statePath).unroutedReplies).filter(([, reply]) => !reply.reported && minutesSince(ctx, reply.at) > ctx.cfg.replyRouteMinutes);
   for (const [messageId, reply] of late) {
-    updateState(ctx.statePath, (state) => ({ ...state, unroutedReplies: Object.fromEntries(Object.entries(state.unroutedReplies).filter(([id]) => id !== messageId)) }));
+    updateState(ctx.statePath, (state) => ({ ...state, unroutedReplies: reply.proposal
+      ? { ...state.unroutedReplies, [messageId]: { ...reply, reported: true } }
+      : Object.fromEntries(Object.entries(state.unroutedReplies).filter(([id]) => id !== messageId)) }));
     const text = reply.text.replace(/\s+/g, ' ');
-    await reportFailure(ctx, 'feedback', null, `Route the reply ${messageId} to the approval post ${reply.postId} of issue #${reply.issue} on your best reading, unrouted for ${ctx.cfg.replyRouteMinutes} minutes: ${text}`, null, []);
+    const kind = reply.proposal ? 'private proposal' : 'approval';
+    await reportFailure(ctx, 'feedback', null, `Route the reply ${messageId} to the ${kind} post ${reply.postId} of issue #${reply.issue} on your best reading, unrouted for ${ctx.cfg.replyRouteMinutes} minutes: ${text}`, null, []);
   }
 }
 

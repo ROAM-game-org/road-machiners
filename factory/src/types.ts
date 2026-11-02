@@ -195,6 +195,7 @@ export type ReleasePost = {
 export type FactoryState = {
   jobs: Job[];
   approvalPosts: Record<string, number>;
+  proposalPosts: Record<string, number>;
   lastRelease: string | null;
   pendingCut: string | null;
   devMerges: IssueMerge[];
@@ -246,7 +247,7 @@ export type Hold = { by: string; reason: string; at: string; stage: JobStage | n
 
 export type KeptApproval = { by: string; at: string; build: string; checked: string[]; reason: string | null };
 
-export type UnroutedReply = { issue: number; postId: number; text: string; at: string };
+export type UnroutedReply = { issue: number; postId: number; text: string; at: string; proposal?: boolean; reported?: boolean };
 
 export interface GitHub {
   candidates(labels: string[]): Promise<Issue[]>;

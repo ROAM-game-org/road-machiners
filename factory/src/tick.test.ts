@@ -669,6 +669,16 @@ describe('tick', () => {
     expect(h.labels).toEqual([]);
   });
 
+  it('reports an unrouted private proposal reply once and preserves its exact words for a later route', async () => {
+    const h = harness(null, false);
+    const reply = { issue: 4, postId: 77, text: 'оба предложения хуевые, иди переделывай', at: hoursAgo(1), proposal: true };
+    writeState(h.ctx.statePath, state({ unroutedReplies: { 3: reply } }));
+    await tick(h.ctx, '/code', h.deps);
+    await tick(h.ctx, '/code', h.deps);
+    expect(readState(h.ctx.statePath).unroutedReplies['3']).toEqual({ ...reply, reported: true });
+    expect(readState(h.ctx.statePath).failures.filter((failure) => failure.error.includes('private proposal post 77'))).toHaveLength(1);
+  });
+
   it('starts the waste review when its period passed, before card work in the triage queue', () => {
     const due = state({ lastWasteReview: '2026-01-02T12:00:00Z' });
     expect(chooseJobs(due, [card(5, 'Triage')], NOW, { ...CFG, triageWorkers: 1 })).toEqual([{ stage: 'waste', issue: null }]);

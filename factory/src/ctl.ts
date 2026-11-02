@@ -174,6 +174,8 @@ function cardFacts(found: Card, state: FactoryState): string[] {
     `post only: ${state.postOnly.includes(found.issue) ? 'yes' : 'no'}`,
     `questions asked: ${shown(state.asked[key])}`,
     `questions posts: ${shown(Object.entries(state.questionPosts).filter(([, issue]) => issue === found.issue).map(([id]) => id).join(', '))}`,
+    `private proposal posts: ${shown(Object.entries(state.proposalPosts).filter(([, issue]) => issue === found.issue).map(([id]) => id).join(', '))}`,
+    `unrouted proposal replies: ${Object.values(state.unroutedReplies).filter((reply) => reply.issue === found.issue && reply.proposal).length}`,
     `pending feedback from: ${shown(state.pendingFeedback[key]?.source)}`,
     `approvedResolving: ${shown(state.approvedResolving[key])}`,
     `queued approval: ${shown(state.pendingApprovals[key])}`,
