@@ -1,7 +1,8 @@
 import { timed } from '../perf';
 import { RunStream, type StreamLine } from '../sim/run-stream';
 import type { GameEvent, World } from '../sim/types';
-import { DatabaseLost, type SaveBackend } from './save-db';
+import { DatabaseLost } from './idb-connection';
+import type { SaveBackend } from './save-db';
 import type { SlotId } from './save-slots';
 
 export class RunLog {

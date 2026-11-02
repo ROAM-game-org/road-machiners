@@ -1,7 +1,7 @@
 
 import { reportError } from './crash';
+import { Connection, DatabaseLost, messageOf } from './idb-connection';
 import { slotKey, type SlotId } from './save-slots';
-import { Stalled, withinMs } from '../stall';
 
 export type LogEntry = { kind: string; turn: number } & Record<string, unknown>;
 
@@ -18,15 +18,16 @@ export type SaveBackend = {
 const SAVES = 'saves';
 const LOG = 'log';
 
-export class DatabaseLost extends Error {
-  constructor(name: string, cause: unknown) {
-    super(`The browser lost the save database ${name}: ${messageOf(cause)}`, { cause });
-    this.name = 'DatabaseLost';
-  }
-}
+const SAVE_SCHEMA = {
+  version: 1,
+  upgrade(db: IDBDatabase): void {
+    db.createObjectStore(SAVES);
+    db.createObjectStore(LOG, { keyPath: ['runId', 'seq'] });
+  },
+};
 
 export async function idbBackend(name: string): Promise<SaveBackend> {
-  const connection = new Connection(name);
+  const connection = new Connection(name, SAVE_SCHEMA);
   await connection.current();
   return {
     readAll: () => connection.run(SAVES, 'readonly', (store, finish, guard) => {
@@ -50,136 +51,10 @@ export async function idbBackend(name: string): Promise<SaveBackend> {
   };
 }
 
-type Guard = (handler: () => void) => () => void;
-
-type Unit<T> = (store: IDBObjectStore, finish: (value: T) => void, guard: Guard) => void;
-
-class Connection {
-  private held: Promise<IDBDatabase> | null = null;
-
-  constructor(private readonly name: string) {}
-
-  current(): Promise<IDBDatabase> {
-    if (this.held) return this.held;
-    const opening = opened(this.name).then((db) => {
-      db.onclose = () => this.drop(opening);
-      db.onversionchange = () => {
-        db.close();
-        this.drop(opening);
-      };
-      return db;
-    });
-    this.held = opening;
-    opening.catch(() => this.drop(opening));
-    return opening;
-  }
-
-  async run<T>(store: string, mode: IDBTransactionMode, unit: Unit<T>): Promise<T> {
-    const held = this.current();
-    try {
-      return await transacted(await held, store, mode, unit);
-    } catch (err) {
-      if (!isConnectionFailure(err)) throw err;
-      this.drop(held);
-    }
-    const fresh = this.current();
-    try {
-      return await transacted(await fresh, store, mode, unit);
-    } catch (err) {
-      if (!isConnectionFailure(err)) throw err;
-      this.drop(fresh);
-      throw new DatabaseLost(this.name, err);
-    }
-  }
-
-  private drop(connection: Promise<IDBDatabase>): void {
-    if (this.held !== connection) return;
-    this.held = null;
-    connection.then((db) => db.close(), () => {});
-  }
-}
-
-const CONNECTION_FAILURES = new Set(['InvalidStateError', 'UnknownError', 'AbortError']);
-
-function isConnectionFailure(err: unknown): boolean {
-  return err instanceof OpenRefused || (err instanceof DOMException && CONNECTION_FAILURES.has(err.name));
-}
-
-function transacted<T>(db: IDBDatabase, storeName: string, mode: IDBTransactionMode, unit: Unit<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    let value: T;
-    let failure: unknown = null;
-    let tx: IDBTransaction | null = null;
-    const fail = (err: unknown) => {
-      failure ??= err;
-      reject(failure);
-      abortQuietly(tx);
-    };
-    const guard: Guard = (handler) => () => {
-      try {
-        handler();
-      } catch (err) {
-        fail(err);
-      }
-    };
-    try {
-      tx = db.transaction(storeName, mode);
-      const started = tx;
-      started.oncomplete = () => resolve(value);
-      started.onerror = (event) => { failure ??= (event.target as IDBRequest | null)?.error ?? null; };
-      started.onabort = () => reject(started.error ?? failure ?? new DOMException(`The ${storeName} transaction was aborted`, 'AbortError'));
-      unit(started.objectStore(storeName), (result) => { value = result; }, guard);
-    } catch (err) {
-      fail(err);
-    }
-  });
-}
-
-function abortQuietly(tx: IDBTransaction | null): void {
-  try {
-    tx?.abort();
-  } catch {
-    return;
-  }
-}
-
 function runRange(runId: string): IDBKeyRange {
   return IDBKeyRange.bound([runId, -Infinity], [runId, Infinity]);
 }
 
-class OpenRefused extends Error {
-  constructor(cause: unknown) {
-    super(`The game keeps saves in IndexedDB, and this browser refused it: ${messageOf(cause)}`, { cause });
-    this.name = 'OpenRefused';
-  }
-}
-
-async function opened(name: string): Promise<IDBDatabase> {
-  const open = indexedDB.open(name, 1);
-  open.onupgradeneeded = () => {
-    open.result.createObjectStore(SAVES);
-    open.result.createObjectStore(LOG, { keyPath: ['runId', 'seq'] });
-  };
-  try {
-    return await withinMs(request(open), IDB_OPEN_MS, `indexedDB.open(${name})`);
-  } catch (err) {
-    if (err instanceof Stalled) open.onsuccess = () => open.result.close();
-    throw new OpenRefused(err);
-  }
-}
-
-function request<T>(req: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function messageOf(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
-
-export const IDB_OPEN_MS = 5000;
 const IDB_RETRY_MS = 200;
 
 export async function openSaves(name: string, storage: Storage, slots: readonly SlotId[]): Promise<SaveSlots> {

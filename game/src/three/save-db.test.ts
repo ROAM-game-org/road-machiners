@@ -4,7 +4,8 @@ import { startKit } from '../data/start';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
 import { loadWorld, saveOf, writeSave } from './save';
-import { DatabaseLost, IDB_OPEN_MS, idbBackend, memoryBackend, openSaves, SaveSlots, storageBackend, type SaveBackend } from './save-db';
+import { DatabaseLost, IDB_OPEN_MS } from './idb-connection';
+import { idbBackend, memoryBackend, openSaves, SaveSlots, storageBackend, type SaveBackend } from './save-db';
 import { allSlots, slotKey, type SlotId } from './save-slots';
 
 const SLOTS = allSlots(3);

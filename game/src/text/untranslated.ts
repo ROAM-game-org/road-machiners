@@ -15,7 +15,7 @@ const MONEY_LABEL = 'A label inside a whole-M money error, which only the consol
 const SETTING_LABEL = 'A label inside a setup parse error, which only the console and a bug report show.';
 const SAVE_STEP_LOG = 'A part of a console warning the square grid save step logs for each part it moves, which only a bug report shows.';
 const SAVE_STEP_FILE = 'src/three/save-step-square-grid.ts';
-const SAVE_DB_ERROR = 'An error message of the save database, which only the console and a bug report show.';
+const SAVE_DB_ERROR = 'An error message of an IndexedDB connection, which only the console and a bug report show.';
 
 export const UNTRANSLATED: readonly Untranslated[] = [
   { file: SAVE_STEP_FILE, text: 'its nearest spot is taken', reason: SAVE_STEP_LOG },
@@ -36,13 +36,14 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/ui/sim/sim-text.ts', text: '*', reason: DEV_SIM },
   { file: 'src/ui/sim/truck-icons.ts', text: '*', reason: DEV_SIM },
   { file: 'src/ui/save-screen.ts', text: 'Road Machiners', reason: 'The game title stays as it is in every language, as on the boot screen.' },
+  { file: 'src/three/main.ts', text: 'The game reported an error during the bench:  ', reason: 'A line of the bench failure report, which only a developer reads in a terminal.' },
   { file: 'src/three/main.ts', text: 'confirm()', reason: 'The browser adapter shows text its caller already resolved with say().' },
   { file: 'src/three/save.ts', text: 'confirm()', reason: 'The browser adapter shows text its caller already resolved with say().' },
   { file: 'src/sim/hunting-spots-bake.ts', text: ' :   drivers,   trips, mean round trip   turns', reason: 'A log line of the offline hunting spots bake, which only a developer reads.' },
   { file: 'src/sim/hunting-spots-bake.ts', text: 'Each trip of a kind is equally likely. Prey cruise   tiles a turn, route radius  .', reason: 'A log line of the offline hunting spots bake, which only a developer reads.' },
   { file: 'src/three/render/interiors/bowl.ts', text: 'stilt tank', reason: 'A label inside a site build error, which only a bake or a test shows.' },
   { file: 'src/three/render/shadowFilter.ts', text: 'float getPointShadow', reason: 'A GLSL snippet patched into the shadow shader, with no words in it.' },
-  { file: 'src/three/save-db.ts', text: 'The   transaction was aborted', reason: SAVE_DB_ERROR },
+  { file: 'src/three/idb-connection.ts', text: 'The   transaction was aborted', reason: SAVE_DB_ERROR },
   { file: 'src/three/save-migrations.ts', text: 'contract   reward', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: 'call money', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: 'call deal price', reason: MIGRATION_LABEL },

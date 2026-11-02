@@ -5,7 +5,8 @@ import type { World } from '../sim/types';
 import { cloneWorld, newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
 import { RunLog } from './run-log';
-import { DatabaseLost, memoryBackend } from './save-db';
+import { DatabaseLost } from './idb-connection';
+import { memoryBackend } from './save-db';
 
 function start(): World {
   return { ...newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming')), turn: 400 };
