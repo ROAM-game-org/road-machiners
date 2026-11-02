@@ -15,7 +15,7 @@ import {
   type BenchReport, type BenchSystem, type FrameRecord, type SceneReport,
 } from './report';
 
-export type BenchOptions = { savingsAbove: number | null; passFrames: number | null };
+export type BenchOptions = { savingsAbove: number | null; passFrames: number | null; marks: boolean };
 
 const PASS_FRAMES = 600;
 const SAVINGS_FRAMES = 240;
@@ -44,7 +44,7 @@ const PREVIEW_OFFSETS: readonly (readonly [number, number])[] = [[12, 4], [40, 2
 type Ctx = { game: Game; probe: Probe; options: BenchOptions; passFrames: number };
 type Check = SceneReport['check'];
 type Evidence = { draws: DrawReport; frames: FrameRecord[] };
-type TurnLog = { waits: number[]; workers: number[]; previews: number[]; shots: number };
+type TurnLog = { waits: number[]; workers: number[]; previews: number[]; shots: number; spans: { scene: Spec['id']; start: number; end: number }[] };
 type Toggle = { name: string; apply: () => () => void };
 type Spec = {
   id: SceneReport['id'];
@@ -196,7 +196,7 @@ async function startTurn(ctx: Ctx, log: TurnLog, scene: Spec['id'], trigger: () 
     const dead = (Reflect.get(game, 'death') as { isShown: () => boolean }).isShown();
     throw new Error(`${error.message} (turn ${turn}, busy ${game.busy}, player ${player.state}, call ${JSON.stringify(player.call)}, quest ${player.quests.live?.quest ?? null}, order ${order}, travel ${travel}, ${asks}, death screen ${dead})`, { cause: error });
   });
-  performance.measure(`bench:turn:${scene}`, { start, end: started });
+  log.spans.push({ scene, start, end: started });
   log.waits.push(started - start);
   log.shots += shotsIn(game.state);
   log.workers.push(workerTurnMs());
@@ -393,7 +393,7 @@ async function measurePasses(ctx: Ctx, spec: Spec): Promise<{ passes: FrameRecor
     await spec.setup();
     const from = performance.now();
     const played = await spec.play(ctx.passFrames, WARMUP_FRAMES);
-    ctx.probe.markSlowFrames(spec.id, played);
+    if (ctx.options.marks) ctx.probe.markSlowFrames(spec.id, played);
     passes.push(played);
     longTasks += ctx.probe.longTasks.countBetween(from, performance.now());
   }
@@ -411,6 +411,10 @@ async function runScene(ctx: Ctx, spec: Spec): Promise<SceneReport> {
   const wanted = ctx.options.savingsAbove !== null && frame.real.p99 > ctx.options.savingsAbove;
   const savings = wanted ? await measureSavings(ctx, spec, draws) : null;
   return { id: spec.id, passes: stats, frame, spread: spreadOf(stats), bound: boundOf(frame), longTasks, draws, slowFrames: slowFrameSums(pooled), savings, check };
+}
+
+function markTurns(log: TurnLog): void {
+  for (const { scene, start, end } of log.spans) performance.measure(`bench:turn:${scene}`, { start, end });
 }
 
 function bootMs(): number {
@@ -473,11 +477,12 @@ export async function runBench(game: Game, options: BenchOptions): Promise<Bench
   const start = { pixelRatio: window.devicePixelRatio, scale: game.renderer.getPixelRatio() / window.devicePixelRatio };
   const base = game.state;
   const town = pickTown(base);
-  const log: TurnLog = { waits: [], workers: [], previews: [], shots: 0 };
+  const log: TurnLog = { waits: [], workers: [], previews: [], shots: 0, spans: [] };
   probe.install();
   try {
     const specs = specsFor(ctx, town, teleport(base, town.pad), log);
     const scenes = await playAll(ctx, specs, () => measurePreviews(ctx, outsideBase(teleport(base, town.pad), town), log));
+    if (options.marks) markTurns(log);
     return {
       schema: 1,
       version: GAME_VERSION,

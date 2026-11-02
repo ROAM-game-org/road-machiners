@@ -140,9 +140,10 @@ async function frameCapIsOff(page) {
   return median < CAP_PROBE_MAX_MEDIAN_MS;
 }
 
-function benchUrl(base, budget) {
+function benchUrl(base, budget, profile) {
   const url = new URL(base);
   url.searchParams.set('bench', '');
+  if (profile) url.searchParams.set('profile', '');
   url.searchParams.set('savingsAbove', String(budget.frameP99Ms));
   return url.href;
 }
@@ -176,7 +177,7 @@ async function playBench(base, budget, tracePath) {
     page.on('crash', () => errors.push('the page crashed'));
     const frameCapOff = await frameCapIsOff(page);
     if (tracePath) await browser.startTracing(page, { path: tracePath, screenshots: false, categories: PROFILE_CATEGORIES });
-    await page.goto(benchUrl(base, budget));
+    await page.goto(benchUrl(base, budget, Boolean(tracePath)));
     const report = await pollBench(page, errors);
     if (tracePath) await browser.stopTracing();
     return { report, frameCapOff };

@@ -165,7 +165,7 @@ export function profileReport(trace) {
   return { groups };
 }
 
-const TITLES = { slowFrames: 'Slow frames, main thread', workerTurns: 'Turns, worker thread', mainTurns: 'Turns, main thread after the reply' };
+const TITLES = { slowFrames: 'Slow frames, main thread', workerTurns: 'Turns, worker thread', mainTurns: 'Turns, main thread' };
 
 function groupLines(group) {
   const head = `${TITLES[group.kind]}, ${group.scene}: ${group.windows} windows, ${group.windowMs.toFixed(0)} ms, ${((group.busyMs / group.windowMs) * 100).toFixed(0)} percent busy`;
