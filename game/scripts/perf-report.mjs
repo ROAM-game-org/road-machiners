@@ -231,9 +231,14 @@ function textRow(label, a, b) {
   return row(label, a, b, '', false);
 }
 
-function statRows(prefix, a, b, spread) {
-  const stat = (key) => numRow(`${prefix} ${key}`, statOf(a, key), statOf(b, key), key === 'median' || key === 'p99' ? spread : null);
-  return ['median', 'p99', 'worst', 'over33', 'over100'].map(stat);
+function passSpread(scene, key) {
+  return changeOf(...scene.passes.map((pass) => pass.real[key]));
+}
+
+function realRows(a, b) {
+  const noise = (key) => Math.max(passSpread(a, key), passSpread(b, key));
+  const stat = (key) => numRow(`${a.id} real ms ${key}`, statOf(a.frame.real, key), statOf(b.frame.real, key), key === 'median' || key === 'p99' ? noise(key) : null);
+  return [...['median', 'p99', 'worst', 'over33', 'over100'].map(stat), textRow(`${a.id} p99 spread`, fmt(passSpread(a, 'p99'), 2), fmt(passSpread(b, 'p99'), 2))];
 }
 
 function drawCell(count) {
@@ -250,10 +255,9 @@ function drawRows(scene, a, b) {
 }
 
 function sceneRows(a, b) {
-  const spread = Math.max(a.spread, b.spread);
   const id = a.id;
   return [
-    ...statRows(`${id} real ms`, a.frame.real, b.frame.real, spread),
+    ...realRows(a, b),
     ...['tickCpu', 'renderCpu', 'gpu'].map((key) => numRow(`${id} ${key} median ms`, statOf(a.frame[key], 'median'), statOf(b.frame[key], 'median'))),
     textRow(`${id} spread`, fmt(a.spread, 2), fmt(b.spread, 2)),
     textRow(`${id} bound`, a.bound ?? 'n/a', b.bound ?? 'n/a'),

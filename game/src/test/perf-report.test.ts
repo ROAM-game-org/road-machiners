@@ -20,7 +20,7 @@ function scene(id: string, over: Record<string, unknown> = {}) {
   const real = stats(8, 12);
   return {
     id,
-    passes: [pass(real), pass(real)],
+    passes: [pass(real), pass(stats(8 * 1.02, 12 * 1.02))],
     frame: pass(real, stats(6, 9)),
     spread: 0.02,
     bound: 'cpu',
@@ -230,8 +230,15 @@ describe('compare', () => {
   });
 
   it('uses the larger spread of the two runs', () => {
-    const noisy = wrap(withScene('town-day', { frame: pass(stats(9, 12)), spread: 0.2 }));
+    const noisy = wrap(withScene('town-day', { frame: pass(stats(9, 12)), passes: [pass(stats(8, 12)), pass(stats(9.6, 14.4))], spread: 0.2 }));
     expect(changed(compare(wrap(), noisy)).join('')).not.toContain('town-day real ms median');
+  });
+
+  it('judges a p99 change against the p99 noise between passes, not the median noise', () => {
+    const tail = (p99: number, second: number) => wrap(withScene('town-day', { frame: pass(stats(8, p99)), passes: [pass(stats(8, p99)), pass(stats(8, second))] }));
+    const p99Of = (text: string) => text.split('\n').find((l) => l.startsWith('town-day real ms p99'))!;
+    expect(p99Of(compare(tail(30, 40), tail(36, 36)))).not.toContain('CHANGED');
+    expect(p99Of(compare(tail(30, 31), tail(40, 41)))).toContain('CHANGED');
   });
 
   it('flags every draw count change', () => {
