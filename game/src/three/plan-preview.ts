@@ -1,7 +1,7 @@
 import type { DriveSnapshot } from "../phys/drive";
 import type { PlanFrames } from "../phys/plan";
 import { SentObstacles, type PreviewRequest, type PreviewResponse, type TerrainRequest } from "../phys/turn";
-import { mergePerf } from "../perf";
+import { mergePerf, timed } from "../perf";
 import { PAL } from "../render/palette";
 import { orderThrottle, playerOrder } from "../sim/steering";
 import type { Vehicle, World } from "../sim/types";
@@ -64,18 +64,16 @@ export class PlanPreparation {
     const snapshot = wanted.drive.snapshot.slice();
     const id = ++this.serial;
     this.worker ??= this.createWorker();
-    this.worker.postMessage(
-      {
-        kind: "preview",
-        id,
-        ...this.obstacles.split(state),
-        drive: { ...wanted.drive, snapshot },
-        meId: wanted.meId,
-        questLanguage: currentQuestLanguage(),
-        terrain: this.terrain === terrain ? null : terrain,
-      } satisfies PreviewRequest,
-      [snapshot.buffer],
-    );
+    const request = timed("send-preview-split", () => ({
+      kind: "preview" as const,
+      id,
+      ...this.obstacles.split(state),
+      drive: { ...wanted.drive, snapshot },
+      meId: wanted.meId,
+      questLanguage: currentQuestLanguage(),
+      terrain: this.terrain === terrain ? null : terrain,
+    }));
+    timed("send-preview-post", () => this.worker?.postMessage(request satisfies PreviewRequest, [snapshot.buffer]));
     this.terrain = terrain;
     this.running = id;
     if (this.latest?.world === wanted.world) this.latest.id = id;
