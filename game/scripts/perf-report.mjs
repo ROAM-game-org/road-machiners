@@ -51,13 +51,16 @@ function sceneLines(scene, budget) {
   return lines;
 }
 
+const TURN_SCENES = ['fight', 'drive'];
+const ran = (report, id) => report.scenes.some((scene) => scene.id === id);
+
 function turnLines(report, budget) {
   const { turns } = report;
-  return [
-    lineOf('turns', 'turn wait p99', statOf(turns.waitMs, 'p99'), budget.turnWaitMs, 'ms'),
-    lineOf('turns', 'plan preview p99', statOf(turns.previewMs, 'p99'), budget.previewMs, 'ms'),
-    lineOf('boot', 'boot', report.bootMs, budget.bootMs, 'ms'),
-  ];
+  const lines = [];
+  if (TURN_SCENES.some((id) => ran(report, id))) lines.push(lineOf('turns', 'turn wait p99', statOf(turns.waitMs, 'p99'), budget.turnWaitMs, 'ms'));
+  if (ran(report, 'drive')) lines.push(lineOf('turns', 'plan preview p99', statOf(turns.previewMs, 'p99'), budget.previewMs, 'ms'));
+  lines.push(lineOf('boot', 'boot', report.bootMs, budget.bootMs, 'ms'));
+  return lines;
 }
 
 export function checkBudgets(report, budget) {
@@ -205,6 +208,7 @@ function headerLines(wrapped) {
     `machine ${run.machine}, ${run.cores} cores, commit ${run.commit}, started ${run.startedAt}`,
     `renderer ${bench.renderer}, viewport ${bench.viewport.width}x${bench.viewport.height}, pixel ratio ${bench.pixelRatio}, render scale ${bench.renderScale}, town ${bench.town}`,
     `load at start ${fmt(run.loadStart, 2)}, at end ${fmt(run.loadEnd, 2)}`,
+    bench.only ? `only scenes ${bench.only.join(', ')}` : 'all scenes',
   ];
 }
 

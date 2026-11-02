@@ -18,7 +18,7 @@ const CAP_PROBE_MAX_MEDIAN_MS = 3;
 const WINDOWS_LOAD_SAMPLE_MS = 1000;
 const PROFILE_CATEGORIES = ['disabled-by-default-v8.cpu_profiler', 'blink.user_timing'];
 const TRACE_MAX_BYTES = 400 * 1024 * 1024;
-const USAGE = 'Usage: npm run perf [-- --profile] [-- --url <served build>]\n       npm run perf -- --compare <a.json> <b.json>';
+const USAGE = 'Usage: npm run perf [-- --profile] [--scenes <id,id>] [--url <served build>]\n       npm run perf -- --compare <a.json> <b.json>';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
@@ -33,12 +33,20 @@ function parseArgs(argv) {
   return runArgs(argv);
 }
 
+function takeValue(argv, flag) {
+  const at = argv.indexOf(flag);
+  if (at === -1) return { value: null, rest: argv };
+  const value = argv[at + 1];
+  if (value === undefined || value.startsWith('--')) throw new Error(`${flag} needs a value\n${USAGE}`);
+  return { value, rest: [...argv.slice(0, at), ...argv.slice(at + 2)] };
+}
+
 function runArgs(argv) {
   const profile = argv.includes('--profile');
-  const [flag, url, ...extra] = argv.filter((arg) => arg !== '--profile');
-  const urlGiven = flag === '--url' && url !== undefined && extra.length === 0;
-  if (flag !== undefined && !urlGiven) throw new Error(`Unknown arguments ${argv.join(' ')}\n${USAGE}`);
-  return urlGiven ? { profile, url } : { profile };
+  const scenes = takeValue(argv.filter((arg) => arg !== '--profile'), '--scenes');
+  const url = takeValue(scenes.rest, '--url');
+  if (url.rest.length > 0) throw new Error(`Unknown arguments ${url.rest.join(' ')}\n${USAGE}`);
+  return { profile, scenes: scenes.value, url: url.value };
 }
 
 function commitName() {
@@ -154,10 +162,11 @@ async function frameCapIsOff(page) {
   return median < CAP_PROBE_MAX_MEDIAN_MS;
 }
 
-function benchUrl(base, budget, profile) {
+function benchUrl(base, budget, profile, scenes) {
   const url = new URL(base);
   url.searchParams.set('bench', '');
   if (profile) url.searchParams.set('profile', '');
+  if (scenes) url.searchParams.set('scenes', scenes);
   url.searchParams.set('savingsAbove', String(budget.frameP99Ms));
   return url.href;
 }
@@ -183,7 +192,7 @@ async function pollBench(page, errors) {
   throw new Error(`The bench did not finish in ${BENCH_TIMEOUT_MS / 1000} s`);
 }
 
-async function playBench(base, budget, tracePath) {
+async function playBench(base, budget, tracePath, scenes) {
   const { browser, software, renderer } = await launchChromium(chromium, { headless: true, args: CHROMIUM_FLAGS });
   try {
     if (software) throw new Error(`Perf got the software renderer ${renderer}. It needs a GPU.`);
@@ -194,7 +203,7 @@ async function playBench(base, budget, tracePath) {
     page.on('crash', () => errors.push('the page crashed'));
     const frameCapOff = await frameCapIsOff(page);
     if (tracePath) await browser.startTracing(page, { path: tracePath, screenshots: false, categories: PROFILE_CATEGORIES });
-    await page.goto(benchUrl(base, budget, Boolean(tracePath)));
+    await page.goto(benchUrl(base, budget, Boolean(tracePath), scenes));
     const report = await pollBench(page, errors);
     if (tracePath) await browser.stopTracing();
     return { report, frameCapOff };
@@ -214,12 +223,12 @@ function readTrace(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
 
-async function measure(base, budget, commit, profile) {
+async function measure(base, budget, commit, { profile, scenes }) {
   const idle = await idleLoad();
   const startedAt = new Date().toISOString();
   const path = reportBase(os.hostname(), commit, startedAt);
   const tracePath = profile ? `${path}.trace.json` : null;
-  const { report, frameCapOff } = await playBench(base, budget, tracePath);
+  const { report, frameCapOff } = await playBench(base, budget, tracePath, scenes);
   const loadEnd = await machineLoad();
   const run = { commit, machine: os.hostname(), cores: os.cpus().length, loadStart: idle.load, idleWaitMs: idle.waitedMs, loadEnd, startedAt, frameCapOff, untrusted: [] };
   const wrapped = { bench: report, run };
@@ -239,7 +248,7 @@ async function perf(args) {
   const budget = budgetsFor(readJson(new URL('./perf-budgets.json', import.meta.url)), os.hostname());
   const served = await servedBase(args, commit);
   try {
-    const { wrapped, path } = await measure(served.base, budget, commit, args.profile);
+    const { wrapped, path } = await measure(served.base, budget, commit, args);
     writeFileSync(path, `${JSON.stringify(wrapped, null, 2)}\n`);
     const lines = checkBudgets(wrapped.bench, budget);
     console.log(`\n${summary(wrapped, lines)}\n\nreport ${path}`);

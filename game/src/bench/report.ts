@@ -25,8 +25,9 @@ export type BenchReport = {
   renderScale: number;
   gpuTimer: boolean;
   town: string;
+  only: string[] | null;
   scenes: SceneReport[];
-  turns: { waitMs: FrameStats; workerTurnMs: FrameStats; previewMs: FrameStats; steps: Record<string, { total: number; calls: number; max: number }> };
+  turns: { waitMs: FrameStats | null; workerTurnMs: FrameStats | null; previewMs: FrameStats | null; steps: Record<string, { total: number; calls: number; max: number }> };
   bootMs: number;
 };
 
@@ -60,6 +61,14 @@ function medianOf(sorted: readonly number[]): number {
 
 function nearestRank(sorted: readonly number[], share: number): number {
   return sorted[Math.max(0, Math.ceil(sorted.length * share) - 1)];
+}
+
+type TurnSamples = { waits: number[]; workers: number[]; previews: number[]; steps: BenchReport['turns']['steps'] };
+
+export function turnStats(sceneIds: readonly string[], log: TurnSamples): BenchReport['turns'] {
+  const turned = sceneIds.includes('fight') || sceneIds.includes('drive');
+  const statsIf = (wanted: boolean, samples: number[]) => (wanted ? frameStats(samples) : null);
+  return { waitMs: statsIf(turned, log.waits), workerTurnMs: statsIf(turned, log.workers), previewMs: statsIf(sceneIds.includes('drive'), log.previews), steps: log.steps };
 }
 
 export function frameStats(samples: readonly number[]): FrameStats {
