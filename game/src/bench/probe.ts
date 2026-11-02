@@ -35,10 +35,22 @@ function isDomNode(value: object): boolean {
   return typeof Node !== 'undefined' && value instanceof Node;
 }
 
-function childrenOf(value: object): unknown[] {
-  if (value instanceof Map) return [...value.values()];
-  if (value instanceof Set || Array.isArray(value)) return [...value];
-  return Object.values(value);
+function walkChildren(value: object, depth: number, seen: Set<object>, found: Set<Object3D>): void {
+  if (value instanceof Map || value instanceof Set) walkValues(value.values(), depth, seen, found);
+  else if (Array.isArray(value)) walkList(value, depth, seen, found);
+  else walkFields(value as Record<string, unknown>, depth, seen, found);
+}
+
+function walkValues(values: Iterable<unknown>, depth: number, seen: Set<object>, found: Set<Object3D>): void {
+  for (const child of values) collectObjects(child, depth, seen, found);
+}
+
+function walkList(list: readonly unknown[], depth: number, seen: Set<object>, found: Set<Object3D>): void {
+  for (let i = 0; i < list.length; i++) collectObjects(list[i], depth, seen, found);
+}
+
+function walkFields(fields: Record<string, unknown>, depth: number, seen: Set<object>, found: Set<Object3D>): void {
+  for (const key in fields) if (Object.hasOwn(fields, key)) collectObjects(fields[key], depth, seen, found);
 }
 
 function isNewObject(value: unknown, seen: Set<object>): value is object {
@@ -53,7 +65,7 @@ function collectObjects(value: unknown, depth: number, seen: Set<object>, found:
   if (!isNewObject(value, seen)) return;
   seen.add(value);
   if (value instanceof Object3D) found.add(value);
-  else if (depth > 0 && holdsObjects(value)) for (const child of childrenOf(value)) collectObjects(child, depth - 1, seen, found);
+  else if (depth > 0 && holdsObjects(value)) walkChildren(value, depth - 1, seen, found);
 }
 
 export function reachableObjects(root: unknown, depth: number): Set<Object3D> {
