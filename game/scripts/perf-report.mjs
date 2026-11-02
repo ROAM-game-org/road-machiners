@@ -4,6 +4,7 @@ import { profileLines } from './perf-profile.mjs';
 export const LOAD_SHARE_MAX = 0.5;
 export const SPREAD_MAX = 0.1;
 export const OTHER_SHARE_MAX = 0.02;
+export const OTHERS_CPU_SHARE_MAX = 0.125;
 const SLOW_FRAME_MS = 33.3;
 const BUDGET_KEYS = ['frameP99Ms', 'over33Per1000', 'over100Max', 'chunkOver100Max', 'turnWaitMs', 'previewMs', 'bootMs'];
 
@@ -69,7 +70,10 @@ export function checkBudgets(report, budget) {
 
 function loadProblems(run) {
   const limit = run.cores * LOAD_SHARE_MAX;
-  return isMeasure(run.loadStart) && run.loadStart > limit ? [`machine load at start was ${fmt(run.loadStart, 2)}, over half of ${run.cores} cores`] : [];
+  const problems = isMeasure(run.loadStart) && run.loadStart > limit ? [`machine load at start was ${fmt(run.loadStart, 2)}, over half of ${run.cores} cores`] : [];
+  const othersLimit = run.cores * OTHERS_CPU_SHARE_MAX;
+  if (isMeasure(run.othersCores) && run.othersCores > othersLimit) problems.push(`other programs kept ${fmt(run.othersCores, 2)} cores busy during the run, over ${fmt(othersLimit, 2)}`);
+  return problems;
 }
 
 function spreadProblems(scenes) {
@@ -110,6 +114,7 @@ export function notes(wrapped) {
   const found = [];
   if (!bench.gpuTimer) found.push('GPU timer missing in this browser: GPU time and the gpu or cpu label are n/a');
   if (!isMeasure(run.loadStart) || !isMeasure(run.loadEnd)) found.push('machine load not measured');
+  if (!isMeasure(run.othersCores)) found.push('CPU use of other programs not measured');
   return found;
 }
 
@@ -207,7 +212,7 @@ function headerLines(wrapped) {
   return [
     `machine ${run.machine}, ${run.cores} cores, commit ${run.commit}, started ${run.startedAt}`,
     `renderer ${bench.renderer}, viewport ${bench.viewport.width}x${bench.viewport.height}, pixel ratio ${bench.pixelRatio}, render scale ${bench.renderScale}, town ${bench.town}`,
-    `load at start ${fmt(run.loadStart, 2)}, at end ${fmt(run.loadEnd, 2)}`,
+    `load at start ${fmt(run.loadStart, 2)}, at end ${fmt(run.loadEnd, 2)}, other programs ${fmt(run.othersCores, 2)} cores busy during the run`,
     bench.only ? `only scenes ${bench.only.join(', ')}` : 'all scenes',
   ];
 }

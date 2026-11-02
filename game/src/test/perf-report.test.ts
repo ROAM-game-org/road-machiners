@@ -54,7 +54,7 @@ function benchReport(over: Record<string, unknown> = {}) {
 }
 
 function wrap(bench = benchReport(), run: Record<string, unknown> = {}) {
-  return { bench, run: { commit: 'abc1234', machine: 'mac', cores: 12, loadStart: 1, loadEnd: 1.5, startedAt: '2026-11-02T10:00:00Z', frameCapOff: true, untrusted: [] as string[], ...run } };
+  return { bench, run: { commit: 'abc1234', machine: 'mac', cores: 12, loadStart: 1, loadEnd: 1.5, othersCores: 0.2, startedAt: '2026-11-02T10:00:00Z', frameCapOff: true, untrusted: [] as string[], ...run } };
 }
 
 const budget = budgetsFor(budgetFile, 'mac');
@@ -137,6 +137,12 @@ describe('trust', () => {
   it('rejects a machine busy at start, but not the load the bench itself left at the end', () => {
     expect(trustProblems(wrap(benchReport(), { loadStart: 6.5 }))).toHaveLength(1);
     expect(trustProblems(wrap(benchReport(), { loadEnd: 7 }))).toEqual([]);
+  });
+
+  it('rejects a run during which other programs kept more than an eighth of the cores busy', () => {
+    expect(trustProblems(wrap(benchReport(), { othersCores: 0.5 }))).toEqual([]);
+    expect(trustProblems(wrap(benchReport(), { othersCores: 2 })).join(' ')).toContain('other programs kept 2.00 cores busy');
+    expect(notes(wrap(benchReport(), { othersCores: null })).join(' ')).toContain('other programs not measured');
   });
 
   it('does not trust a load it could not read, and says so', () => {
