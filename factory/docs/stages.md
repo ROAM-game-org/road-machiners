@@ -143,7 +143,7 @@ The playtest checks that the merged features hold up together over a long run be
 
 ## Candidate
 
-When no release task is open and the playtest passed the release head, the candidate job builds that commit at `/rc/`. The release agent writes the changelog, one line `- [#N] what changed` per change, and the job fails when the lines do not name the release's changes exactly. The post has a screenshot, the play link, the pull request, the count of changes and a Ship button. The changelog follows in a message under it, since a caption holds only 1024 characters. Any reply other than `ship` or `remove #N` opens a new `release-task` issue with the reply as its body.
+When no release task is open and the playtest passed the release head, the candidate job builds that commit at `/rc/`. The release agent writes the changelog, one line `- [#N] what changed` per change, and the job fails when the lines do not name the release's changes exactly. The post has a screenshot, the play link, the pull request, the count of changes and a Ship button. The full changelog goes in a comment on the tracking issue, and the caption points to it. The chat gets no changelog message, since a caption holds only 1024 characters. Any reply other than `ship` or `remove #N` opens a new `release-task` issue with the reply as its body.
 
 The post records the commit it was built from. The candidate does not post when the release moved during its build. A release task merge, a playtest fix and Remove drop the post and a queued Ship when they move the release. Ship refuses a release whose head is not the commit of the post.
 
