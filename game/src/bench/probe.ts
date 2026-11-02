@@ -1,5 +1,5 @@
 import { Object3D, type Camera, type PointLight, type SpotLight, type WebGLRenderer } from 'three';
-import { perfSnapshot, type PerfStat } from '../perf';
+import { perfSnapshot, ranInWorker, type PerfStat } from '../perf';
 import type { Game } from '../three/game';
 import { drawTotals, emptyBySystem, SYSTEMS, type BenchSystem, type FrameRecord, type RenderPass, type SceneReport } from './report';
 
@@ -445,7 +445,7 @@ export class Probe {
     const delta: Record<string, number> = {};
     for (const [name, stat] of Object.entries(now)) {
       const ms = stat.total - (this.perfMark[name]?.total ?? 0);
-      if (ms > 0) delta[name] = ms;
+      if (ms > 0 && !ranInWorker(name)) delta[name] = ms;
     }
     this.perfMark = now;
     return delta;
