@@ -179,7 +179,16 @@ function entryText(group, report) {
   const scene = report.scenes.find((candidate) => candidate.id === group.scene);
   if (scene) return sceneText(scene, group.slow);
   if (group.scene === 'turns') return `${topStep(report.turns.steps)}.`;
-  return 'boot has no per system breakdown.';
+  return bootText(report.bootSteps);
+}
+
+function bootText(steps) {
+  const ranked = Object.entries(steps ?? {})
+    .map(([name, { startMs, endMs }]) => ({ name, took: endMs - startMs, endMs }))
+    .sort((a, b) => b.took - a.took);
+  if (ranked.length === 0) return 'boot has no per step timers.';
+  const listed = ranked.map((s) => `${s.name} ${s.took.toFixed(0)} ms, ending at ${s.endMs.toFixed(0)} ms`).join('; ');
+  return `boot steps, longest first: ${listed}.`;
 }
 
 export function fixNext(report, lines) {

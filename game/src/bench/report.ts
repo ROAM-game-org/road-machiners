@@ -29,6 +29,7 @@ export type BenchReport = {
   scenes: SceneReport[];
   turns: { waitMs: FrameStats | null; workerTurnMs: FrameStats | null; previewMs: FrameStats | null; steps: Record<string, { total: number; calls: number }> };
   bootMs: number;
+  bootSteps: Record<string, { startMs: number; endMs: number }>;
 };
 
 export type FrameRecord = {

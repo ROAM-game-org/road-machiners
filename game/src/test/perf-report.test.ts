@@ -49,6 +49,7 @@ function benchReport(over: Record<string, unknown> = {}) {
     scenes: IDS.map((id) => scene(id)),
     turns: { waitMs: stats(40, 60), workerTurnMs: stats(30, 50), previewMs: stats(20, 30), steps: { move: { total: 300, calls: 10, max: 40 }, fight: { total: 100, calls: 10, max: 15 } } },
     bootMs: 1500,
+    bootSteps: { models: { startMs: 200, endMs: 1200 }, physics: { startMs: 200, endMs: 500 } },
     ...over,
   };
 }
@@ -181,6 +182,7 @@ describe('fix next', () => {
   it('ranks by miss size and names the scene, bound, systems and slow frame cause', () => {
     const next = fixNext(bench, lines);
     expect(next.map((e) => e.scene)).toEqual(['town-night', 'boot', 'town-day']);
+    expect(next[1].text).toContain('boot steps, longest first: models 1000 ms, ending at 1200 ms; physics 300 ms, ending at 500 ms.');
     const text = next[0].text;
     expect(text).toContain('gpu bound');
     expect(text).toContain('shadowMaps saves 12.0 ms');

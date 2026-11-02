@@ -9,6 +9,7 @@ import { sitePads } from '../sim/sites';
 import type { World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
 import type { Game } from '../three/game';
+import { BOOT_MEASURE } from '../ui/boot-progress';
 import { lampsOf, OVERLAY_FIELDS, Probe, systemRootsOf, type DrawReport } from './probe';
 import {
   boundOf, passStats, poolFrames, savingOf, slowFrameSums, spreadOf, SYSTEMS, turnStats,
@@ -492,6 +493,14 @@ function markTurns(log: TurnLog): void {
   for (const { scene, start, end } of log.spans) performance.measure(`bench:turn:${scene}`, { start, end });
 }
 
+function bootSteps(): Record<string, { startMs: number; endMs: number }> {
+  const steps: Record<string, { startMs: number; endMs: number }> = {};
+  for (const entry of performance.getEntriesByType('measure')) {
+    if (entry.name.startsWith(BOOT_MEASURE)) steps[entry.name.slice(BOOT_MEASURE.length)] = { startMs: entry.startTime, endMs: entry.startTime + entry.duration };
+  }
+  return steps;
+}
+
 function bootMs(): number {
   const mark = performance.getEntriesByName('roam:ready')[0];
   if (!mark) throw new Error('No roam:ready performance mark');
@@ -581,6 +590,7 @@ export async function runBench(game: Game, options: BenchOptions): Promise<Bench
       scenes,
       turns: turnStats(specs.map((spec) => spec.id), log),
       bootMs: bootMs(),
+      bootSteps: bootSteps(),
     };
   } finally {
     probe.uninstall();
