@@ -446,16 +446,23 @@ function topFooting(index: FaceIndex, x: number, z: number): THREE.Vector3 | nul
   return best.point;
 }
 
+const downRay = new THREE.Ray();
+const hitScratch = new THREE.Vector3();
+
 function nearestFace(index: FaceIndex, u: number, v: number): { point: THREE.Vector3; face: Face } | null {
   const { look } = index;
-  const origin = look.normal.clone().multiplyScalar(index.start);
-  origin[look.u] = u;
-  origin[look.v] = v;
-  const ray = new THREE.Ray(origin, look.normal.clone().negate());
+  downRay.origin.copy(look.normal).multiplyScalar(index.start);
+  downRay.origin[look.u] = u;
+  downRay.origin[look.v] = v;
+  downRay.direction.copy(look.normal).negate();
   let best: { point: THREE.Vector3; face: Face } | null = null;
   for (const face of index.columns.get(`${Math.floor(u / FACE_COLUMN)},${Math.floor(v / FACE_COLUMN)}`) ?? []) {
-    const point = ray.intersectTriangle(face.a, face.b, face.c, false, new THREE.Vector3());
-    if (point && (!best || point.dot(look.normal) > best.point.dot(look.normal))) best = { point, face };
+    if (!downRay.intersectTriangle(face.a, face.b, face.c, false, hitScratch)) continue;
+    if (!best) best = { point: hitScratch.clone(), face };
+    else if (hitScratch.dot(look.normal) > best.point.dot(look.normal)) {
+      best.point.copy(hitScratch);
+      best.face = face;
+    }
   }
   return best;
 }
