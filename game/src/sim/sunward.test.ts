@@ -49,6 +49,16 @@ function segmentGap(p: Vec, a: Vec, b: Vec): number {
   return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
 }
 
+function closestGap(site: Parameters<typeof siteGap>[0], points: Vec[]): number {
+  let closest = Infinity;
+  for (let i = 1; i < points.length; i++) {
+    const [a, b] = [points[i - 1], points[i]];
+    const n = Math.max(1, Math.ceil(dist(a, b)));
+    for (let k = 0; k <= n; k++) closest = Math.min(closest, siteGap(site, { x: a.x + ((b.x - a.x) * k) / n, y: a.y + ((b.y - a.y) * k) / n }));
+  }
+  return closest;
+}
+
 describe('the Sunward clock', () => {
   it('rests by day, rides out before dusk, keeps the vigil and rides home before dawn', () => {
     const dusk = duskTurn(2);
@@ -295,6 +305,21 @@ describe('the vigil posts', () => {
     });
     expect(Math.min(...rides)).toBeGreaterThan(700);
     expect(Math.max(...rides)).toBeLessThan(1000);
+  });
+
+  it('keeps the ride of every car of the Cavalcade out of sight of every town and raider camp', () => {
+    const w = standardWorld(5);
+    const gate = HOLLOW.site.gates[0];
+    const post = vigilPosts(w)[0];
+    const inhabited = [...REGION.towns, ...REGION.locations.filter((s) => s.kind === 'camp')];
+    const gray = TERRAIN.vision.radius * TERRAIN.vision.grayFactor;
+    const cars = membersOf(w).filter((v) => v.brain!.templateId === 'cavalcade');
+    expect(new Set(cars.map((car) => car.chassisId)).size).toBeGreaterThan(1);
+    for (const car of cars) {
+      const rider = { ...car, pos: gate, brain: { ...car.brain!, goals: [{ kind: 'explore' as const, targetId: null, destination: post, phase: 'travel' as const, reason: 'rideVigil' as const }] } };
+      const closest = Math.min(...inhabited.map((s) => closestGap(s, [gate, ...route(w, gate, post, 0.9, [], rider)])));
+      expect(closest, `${car.id} ${car.chassisId}`).toBeGreaterThan(gray);
+    }
   });
 });
 

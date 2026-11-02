@@ -1,7 +1,8 @@
 import * as THREE from 'three';
-import { CLIP_TOLERANCE, highestUnder, MAX_SLOPE, MIN_SUPPORT, surfaceSamples, unitBody, type CellRect } from '../../sim/body';
+import { CLIP_TOLERANCE, engineBay, highestUnder, MAX_SLOPE, MIN_SUPPORT, surfaceSamples, unitBody, type CellRect } from '../../sim/body';
 import { GLASS, LAMP, model, RADIO, socket, type ModelName } from './models';
 import { bodyRays, type BodyRays } from './bodyRays';
+import { chassisDef } from '../../data/chassis';
 
 export type PlateSpot = { dx: number; dz: number; shrink: number };
 
@@ -193,12 +194,12 @@ const ITEM_SPOTS = new Map<string, ItemSpot | null>();
 
 export type Sides = { z0: number; z1: number };
 
-export function itemSpot(body: THREE.Object3D, foot: Footprint, rest: { y: number; slope: { x: number; z: number } }, cells: CellRect, sides: Sides, stilts: boolean): ItemSpot | null {
+export function itemSpot(body: THREE.Object3D, foot: Footprint, rest: { y: number; slope: { x: number; z: number } }, cells: CellRect, sides: Sides, stilts: boolean, bay: CellRect | null): ItemSpot | null {
   const { rect } = foot;
-  const key = `${body.userData.model}:${stilts}:${foot.points.length}:${[rect.x0, rect.x1, rect.z0, rect.z1, rest.y, rest.slope.x, rest.slope.z, cells.x0, cells.x1, cells.z0, cells.z1, sides.z0, sides.z1].map((n) => n.toFixed(3)).join(',')}`;
+  const key = `${body.userData.model}:${stilts}:${foot.points.length}:${[rect.x0, rect.x1, rect.z0, rect.z1, rest.y, rest.slope.x, rest.slope.z, cells.x0, cells.x1, cells.z0, cells.z1, sides.z0, sides.z1].map((n) => n.toFixed(3)).join(',')}:${bay ? [bay.unit, bay.x0, bay.x1, bay.z0, bay.z1].map((n) => n.toFixed(3)).join(',') : 'open'}`;
   const shared = sharedModel(body);
   if (shared && ITEM_SPOTS.has(key)) return ITEM_SPOTS.get(key) as ItemSpot | null;
-  const found = searchItemSpot(body, foot, rest, { cells, sides }, stilts);
+  const found = searchItemSpot(body, foot, rest, { cells, sides, bay }, stilts);
   if (shared) ITEM_SPOTS.set(key, found);
   return found;
 }
@@ -208,17 +209,26 @@ function sharedModel(body: THREE.Object3D): boolean {
   return typeof body.userData.model === 'string' && body.matrixWorld.equals(IDENTITY);
 }
 
-function searchItemSpot(body: THREE.Object3D, { rect, points }: Footprint, rest: { y: number; slope: { x: number; z: number } }, room: { cells: CellRect; sides: Sides }, stilts: boolean): ItemSpot | null {
+function searchItemSpot(body: THREE.Object3D, { rect, points }: Footprint, rest: { y: number; slope: { x: number; z: number } }, room: { cells: CellRect; sides: Sides; bay: CellRect | null }, stilts: boolean): ItemSpot | null {
   const feet = footings(body);
   const exact = exactFootings(body);
   const tops = exactTops(body);
-  const shifts = shiftsWithin(shiftRange(rect, room.cells, room.sides), FACE_COLUMN);
+  const shifts = shiftsWithin(shiftRange(rect, room.cells, room.sides), FACE_COLUMN).filter(([dx, dz]) => !overBay(rect, dx, dz, room.bay));
   const flat = (): ItemSpot | null => flatSpot(points, shifts, flatSupports(stilts), exact, tops);
   const onLegSpots = (): ItemSpot | null => fittedSpot(rect, points, rest, feet, exact, tops);
   const resting = (): ItemSpot | null => (heldOn(points, planeAt(rect, rest), exact, tops) ? { dx: 0, dz: 0, y: rest.y, slope: rest.slope, legs: false } : null);
   const order = Math.hypot(rest.slope.x, rest.slope.z) > FLAT_SLOPE ? [flat, onLegSpots, resting] : [onLegSpots, resting, flat];
   const stilted = (): ItemSpot | null => (stilts ? stiltSpot(body, { rect, points }, shifts, tops) : null);
   return firstSpot([...order, stilted]);
+}
+
+export function shownBay(chassisId: string): CellRect | null {
+  return chassisDef(chassisId).showsEngine ? engineBay(chassisId) : null;
+}
+
+function overBay(rect: CellRect, dx: number, dz: number, bay: CellRect | null): boolean {
+  if (!bay || bay.unit !== rect.unit) return false;
+  return rect.x0 + dx < bay.x1 && rect.x1 + dx > bay.x0 && rect.z0 + dz < bay.z1 && rect.z1 + dz > bay.z0;
 }
 
 function firstSpot(tries: (() => ItemSpot | null)[]): ItemSpot | null {

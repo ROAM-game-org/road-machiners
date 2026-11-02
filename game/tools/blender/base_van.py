@@ -91,7 +91,7 @@ HATCH_FRONT = GAME.row_x(2.5)  # the roof hatch is the engine bay: layout rows 4
 HATCH_BACK = GAME.row_x(5.5)
 HATCH_LEFT = GAME.col_y(1.5)
 HATCH_RIGHT = GAME.col_y(3.5)
-COAMING = 0.03
+COAMING = 0.04
 COAMING_RIM = 0.06
 UPPER_MARGIN = 0.015
 

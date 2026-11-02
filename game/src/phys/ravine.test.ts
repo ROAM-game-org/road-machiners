@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { NPC_BEHAVIOR } from '../data/npcs';
+import { NPC_BEHAVIOR, NPCS } from '../data/npcs';
 import { addGoods } from '../sim/inventory';
 import { climbGrade } from '../sim/stats';
 import { addVehicle, editableTerrain, emptyWorld, npcBrain } from '../sim/testkit';
@@ -109,6 +109,7 @@ describe('a truck in a ravine', () => {
 
   it('a loaded hauler in a closed pit raises a stall and changes its goal without being moved in sight', () => {
     const w = emptyWorld({ x: 40, y: 44 });
+    for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     raise(w, closedPit);
     const npc = trucker(w, 'hauler');
     const r = run(w, npc.id, NPC_BEHAVIOR.stallTurns + 20, true);

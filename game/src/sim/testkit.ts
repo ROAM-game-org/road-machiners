@@ -3,6 +3,7 @@ import { startKit } from '../data/start';
 import { RULES } from '../data/rules';
 export { addVehicle, gunAcrossMiddle, gunAhead, npcBrain } from '../test/sample-vehicles';
 import { nextRandom } from './rng';
+import { poseOf } from './rig';
 import { gridOf, MOUNT_CELLS, mountedParts, mountSpots, type Spot } from './grid';
 import { burnFuel } from './resources';
 import { vehicleStats } from './stats';
@@ -267,7 +268,7 @@ export function testDrive(world: World): void {
 }
 
 function standStill(v: Vehicle): void {
-  const pose = { ...v.pos, heading: v.heading };
+  const pose = poseOf(v);
   v.trail = [pose, { ...pose }];
 }
 
@@ -289,9 +290,9 @@ function driveOne(world: World, v: Vehicle): void {
   const target = Math.min(s.maxSpeed, remaining - RULES.arriveRadius / 2);
   const speed = target > v.speed ? Math.min(target, v.speed + s.accel) : Math.max(target, v.speed - s.brake);
   v.heading = Math.atan2(dest.y - v.pos.y, dest.x - v.pos.x);
-  const from = { ...v.pos, heading: v.heading };
+  const from = poseOf(v);
   v.pos = { x: v.pos.x + Math.cos(v.heading) * speed, y: v.pos.y + Math.sin(v.heading) * speed };
-  v.trail = [from, { ...v.pos, heading: v.heading }];
+  v.trail = [from, poseOf(v)];
   v.speed = speed;
   burnFuel(world, v, speed);
 }

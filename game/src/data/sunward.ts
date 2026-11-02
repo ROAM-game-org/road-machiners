@@ -36,6 +36,7 @@ export const SUNWARD = {
   padClear: 8,
   memberRadius: 0.8,
   sightMargin: 2,
+  rideBerthMargin: 4,
   meetTurns: 12,
   talkReach: 150,
   postGap: 3,

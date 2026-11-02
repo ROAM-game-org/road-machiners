@@ -6,7 +6,7 @@ import { count, timed } from '../perf';
 import { canStepOut, coarseCells, coarseWaypoint, connected, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
 import type { Blocker } from './nav/buckets';
 import { CELL, CLEARANCE, berthTaste, blockerKey, climbNeedOnRoads, climbTaste, componentOf, cutTaste, dynamicBlockers, navLayer, NO_CLIMB, nearCliff, nightTaste, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type Berth, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
-import { routeStyle, type RouteStyle } from './off-road';
+import { rideBerths, routeStyle, type RouteStyle } from './off-road';
 import { climbGrade } from './stats';
 import type { Vehicle, World } from './types';
 import { avoidsCrater, CRATER_NIGHT } from './sunward';
@@ -105,7 +105,7 @@ function routeTaste(world: World, nav: TerrainNav, driver: Vehicle | undefined):
 function styledTaste(world: World, nav: TerrainNav, driver: Vehicle, taste: Taste): Taste {
   const keeping = styledByRoute(routeStyle(world, driver), taste, nav);
   const styled = avoidsCrater(world, driver) ? nightTaste(keeping, nav, CRATER_NIGHT) : keeping;
-  return berthTaste(styled, berthsOf(world, driver));
+  return berthTaste(styled, [...berthsOf(world, driver), ...rideBerths(driver)]);
 }
 
 function crossesBerth(berths: Berth[] | null | undefined, from: Vec, to: Vec): boolean {

@@ -1,4 +1,8 @@
+import { REGION } from '../data/region';
+import { SUNWARD } from '../data/sunward';
+import { TERRAIN } from '../data/terrain';
 import { huntsOffRoad } from './hunt-style';
+import type { Berth } from './nav/layer';
 import { topGoal } from './npc-activities';
 import { isStranded } from './stats';
 import { keepsToItself } from './sunward';
@@ -19,6 +23,14 @@ export function routeStyle(world: World, v: Vehicle): RouteStyle {
 
 function isHidden(world: World, v: Vehicle, brain: NonNullable<Vehicle['brain']>): boolean {
   return keepsToItself(world, v) || ridesToTheLight(v) || (isRaider(v) && (hides(world, v) || huntsOffRoad(brain)));
+}
+
+const INHABITED = [...REGION.towns, ...REGION.locations.filter((site) => site.kind === 'camp')];
+
+const RIDE_BERTHS: Berth[] = INHABITED.map((site) => ({ x: site.pos.x, y: site.pos.y, r: site.radius + TERRAIN.vision.radius * TERRAIN.vision.grayFactor + SUNWARD.rideBerthMargin }));
+
+export function rideBerths(v: Vehicle): Berth[] {
+  return ridesToTheLight(v) ? RIDE_BERTHS : [];
 }
 
 function ridesToTheLight(v: Vehicle): boolean {

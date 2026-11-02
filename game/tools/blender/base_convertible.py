@@ -752,7 +752,8 @@ def louvers(kit: Kit) -> None:
     for i in range(count):
         x = x1 - 0.01 - SLAT_PITCH * (i + 0.5)
         kit.box(f"bay_slat{i}", (SLAT_PITCH * 0.55, y1 - y0 - 0.004, 0.02), (x, (y0 + y1) / 2, FLOOR - 0.01), "paint")
-        kit.box(f"lid_slat{i}", (SLAT_PITCH * 0.5, RIGHT_BANK[0] - RIGHT_BANK[1], 0.014), (x + LID_SLAT_SHIFT, sum(RIGHT_BANK) / 2, LID + 0.007), "paint")
+        if i < count - 1:
+            kit.box(f"lid_slat{i}", (SLAT_PITCH * 0.5, RIGHT_BANK[0] - RIGHT_BANK[1], 0.014), (x + LID_SLAT_SHIFT, sum(RIGHT_BANK) / 2, LID + 0.007), "paint")
 
 
 def main() -> None:

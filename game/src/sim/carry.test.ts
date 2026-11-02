@@ -72,11 +72,14 @@ describe('carriedWorld', () => {
     expect(() => discoverSite(world, other)).not.toThrow();
   });
 
-  it('sends a part with an invalid spot to the garage', () => {
+  it('mounts a part with an invalid spot on a free spot of the truck', () => {
     const items = kitItems().map((it) => (it.kind === 'part' && it.part.defId === 'mg' ? { ...it, x: 99, y: 99 } : it));
     const world = carriedWorld(carriedOf({ truck: { chassisId: 'scout', items } }), KIT, () => TEST_MAP, fresh);
-    expect(world.player.storage.map((p) => p.defId)).toEqual(['mg']);
-    expect(defIds(playerVehicle(world).items)).not.toContain('mg');
+    const truck = playerVehicle(world);
+    expect(world.player.storage).toEqual([]);
+    expect(defIds(truck.items)).toContain('mg');
+    expect(truck.items.some((it) => it.kind === 'part' && it.part.defId === 'mg' && it.x === 99)).toBe(false);
+    expect(getLayoutError(truck, truck.items)).toBeNull();
   });
 
   it('sells goods with no room at base value and keeps the money books', () => {

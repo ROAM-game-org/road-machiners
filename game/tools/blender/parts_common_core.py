@@ -95,7 +95,8 @@ def skid(kit: Kit, w: int, h: int) -> None:
 def radiator(kit: Kit, x: float, width: float, height: float, frame: str = "metal") -> None:
     """An upright radiator facing +X with its front face at x, standing on the deck, with horizontal core bars."""
     depth = 0.08
-    kit.box("radiator", (depth, width, height), (x - depth / 2, 0, height / 2 + 0.05), frame)
+    tall = height + 0.05
+    kit.box("radiator", (depth, width, tall), (x - depth / 2, 0, tall / 2), frame)
     bars = max(2, round(height / 0.12))
     for i in range(bars):
         z = 0.05 + height * (i + 0.5) / bars

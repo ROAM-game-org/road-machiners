@@ -20,6 +20,7 @@ const OVERTAKE_GAP = 6;
 const START_SEARCH = 40;
 const MIN_BACK = 6;
 const CLEAR_OF_TOWN = 30;
+const TRADER_ID = 'vtrader';
 
 function turn(w: World, d: Drive, bumps: Bump[]): { w: World; d: Drive } {
   let next: Drive | null = null;
@@ -38,6 +39,7 @@ function tradingWorld(): { w: World; traderId: string } {
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   const [bowl, nose] = REGION.towns;
   const trader = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: bowl.pos.x + bowl.radius + 2, y: bowl.pos.y });
+  trader.id = TRADER_ID;
   trader.brain = npcBrain('trader', trader.pos, ['trader']);
   addGoods(w, trader, 'scrap', 1);
   trader.brain.goals = [{ kind: 'sell', targetId: nose.id, destination: { ...nose.pos }, phase: 'travel', reason: 'deliverCargo' }];
