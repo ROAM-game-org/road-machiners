@@ -1,14 +1,16 @@
 import { ECONOMY, GOODS } from '../../data/goods';
+import { SHOPS } from '../../data/market';
+import { NPCS } from '../../data/npcs';
 import { partDef, type PartKind } from '../../data/parts';
-import { freeCells, mountedItems, mountedParts, type Spot } from '../grid';
+import { freeCells, mountedItems, mountedParts, shieldParts, type Spot } from '../grid';
 import { getLayoutError, installSpot } from '../inventory';
 import { firepower, getUpkeepReserve } from '../npc-decisions';
+import { gearScorer } from '../npc-gear-score';
 import { getResources } from '../resources';
-import { vehicleStats } from '../stats';
 import type { GridItem, PartInstance, Vehicle, World } from '../types';
 import { isJunk, maxHp, partValue } from '../wear';
 
-export type GearJob = 'fighter' | 'trader' | 'courier' | 'carrier' | 'hauler';
+export type GearJob = 'fighter' | 'hauler';
 
 export type PartItem = Extract<GridItem, { kind: 'part' }>;
 
@@ -23,7 +25,7 @@ export function goodsRoom(v: Vehicle): number {
 }
 
 function toughnessOf(v: Vehicle): number {
-  return [...mountedParts(v, 'core'), ...mountedParts(v, 'armor')].reduce((sum, part) => sum + part.hp, 0);
+  return [...mountedParts(v, 'core'), ...shieldParts(v)].reduce((sum, part) => sum + part.hp, 0);
 }
 
 function fighterStrength(world: World, v: Vehicle): number {
@@ -31,21 +33,32 @@ function fighterStrength(world: World, v: Vehicle): number {
 }
 
 export function jobScore(world: World, v: Vehicle, job: GearJob): number {
-  if (job === 'fighter') return fighterStrength(world, v);
-  if (job === 'hauler') return toughnessOf(v);
-  if (job === 'courier') return vehicleStats(world, v).maxSpeed;
-  return goodsRoom(v) * vehicleStats(world, v).maxSpeed;
+  return job === 'fighter' ? fighterStrength(world, v) : toughnessOf(v);
 }
 
+export function jobScorer(world: World, job: GearJob): (v: Vehicle) => number {
+  return (v) => jobScore(world, v, job);
+}
+
+export function npcScorer(world: World, v: Vehicle, templateId: string): (v: Vehicle) => number {
+  const template = NPCS[templateId];
+  if (!template) throw new Error(`No NPC template ${templateId} to judge gear by`);
+  const powered = { ...v, items: v.items.filter((it) => it.kind === 'part' && ['core', 'engine'].includes(partDef(it.part.defId).kind)) };
+  const score = gearScorer(world, template.loadout.priorities, powered, true);
+  return (truck) => score({ ...truck, items: truck.items.filter((it) => it.kind === 'part') });
+}
+
+const GARAGE_GOODS = Object.values(SHOPS).filter((shop) => shop.kind === 'garage').map((shop) => shop.goods).reduce((shared, goods) => shared.filter((good) => goods.includes(good)));
+
 function tradeCapital(v: Vehicle): number {
-  const values = Object.values(GOODS).map((g) => g.value);
+  const values = GARAGE_GOODS.map((good) => GOODS[good].value);
   const average = values.reduce((a, b) => a + b, 0) / values.length;
   return goodsRoom(v) * average * (1 + ECONOMY.spread);
 }
 
-export function gearBudget(world: World, v: Vehicle, job: GearJob): number {
+export function gearBudget(world: World, v: Vehicle, keepsTradeCapital: boolean): number {
   const spendable = getResources(world, v).money - getUpkeepReserve(v);
-  return job === 'trader' ? spendable - tradeCapital(v) : spendable;
+  return keepsTradeCapital ? spendable - tradeCapital(v) : spendable;
 }
 
 export function quality(part: PartInstance): number {
@@ -75,22 +88,20 @@ function placement(v: Vehicle, offer: Offer): { replaces: PartItem | null; spot:
   return spot && getLayoutError(v, rest.items) === null ? { replaces: weakest, spot } : null;
 }
 
-export type Buyer = { job: GearJob; skip: readonly PartKind[]; resale: (part: PartInstance) => number; lootRoom?: number; minSpeed?: number };
+export type Buyer = { score: (v: Vehicle) => number; skip: readonly PartKind[]; resale: (part: PartInstance) => number; lootRoom?: number };
 
-function keepsRoomAndSpeed(world: World, before: Vehicle, result: Vehicle, buyer: Buyer): boolean {
-  const room = buyer.lootRoom === undefined || freeCells(result) >= Math.min(buyer.lootRoom, freeCells(before));
-  const speed = buyer.minSpeed === undefined || vehicleStats(world, result).maxSpeed >= Math.min(buyer.minSpeed, vehicleStats(world, before).maxSpeed);
-  return room && speed;
+function keepsRoom(before: Vehicle, result: Vehicle, buyer: Buyer): boolean {
+  return buyer.lootRoom === undefined || freeCells(result) >= Math.min(buyer.lootRoom, freeCells(before));
 }
 
-export function gearPlans<O extends Offer>(world: World, v: Vehicle, offers: readonly O[], buyer: Buyer): Plan<O>[] {
-  const now = jobScore(world, v, buyer.job);
+export function gearPlans<O extends Offer>(v: Vehicle, offers: readonly O[], buyer: Buyer): Plan<O>[] {
+  const now = buyer.score(v);
   return offers.filter((o) => !isJunk(o.part) && ![...NEVER, ...buyer.skip].includes(partDef(o.part.defId).kind)).flatMap((offer) => {
     const place = placement(v, offer);
     if (!place) return [];
     const result = after(v, offer, place.replaces, place.spot);
-    if (!keepsRoomAndSpeed(world, v, result, buyer)) return [];
-    const jobGain = jobScore(world, result, buyer.job) - now;
+    if (!keepsRoom(v, result, buyer)) return [];
+    const jobGain = buyer.score(result) - now;
     if (jobGain < 0) return [];
     const resale = place.replaces ? buyer.resale(place.replaces.part) : 0;
     const given = place.replaces ? quality(place.replaces.part) : 0;

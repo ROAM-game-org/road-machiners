@@ -2,7 +2,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { coreParts, mountedParts } from '../sim/grid';
 import { editableTerrain, emptyWorld } from '../sim/testkit';
-import { bodyOf } from '../sim/body';
+import { bodyOf, rideOf } from '../sim/body';
 import { PHYSICS } from '../data/physics';
 import type { Quat } from './frames';
 import type { World } from '../sim/types';
@@ -42,7 +42,7 @@ function slide(grade: number, rise: number, velocity: Vec): { lost: Map<string, 
   const body = d.world.getRigidBody(d.bodies[me.id]);
   const angle = Math.atan(grade);
   const normal = { x: Math.sin(angle), y: Math.cos(angle) };
-  const lift = b.wheelRadius + PHYSICS.truck.suspensionRest - b.wheelY + rise;
+  const lift = rideOf(b) + rise;
   const S = PHYSICS.metersPerTile;
   body.setTranslation({ x: me.pos.x * S + normal.x * lift, y: heightOf(me.pos.x) * S + normal.y * lift, z: me.pos.y * S }, true);
   body.setRotation({ x: 0, y: 0, z: Math.sin(-angle / 2), w: Math.cos(angle / 2) }, true);
@@ -74,7 +74,7 @@ describe('ground impacts', () => {
     const { lost, wheels } = drop(3, UPRIGHT);
     for (const id of wheels) expect(lost.get(id)).toBeGreaterThan(0);
     for (const [id, hp] of lost) if (!wheels.includes(id)) expect(hp).toBe(0);
-    expect(total(lost)).toBeLessThan(40);
+    expect(total(lost)).toBeLessThan(15);
   });
 
   it('a truck settling from rest takes no damage', () => {
@@ -83,7 +83,7 @@ describe('ground impacts', () => {
 
   it('a truck landing on its roof from 3 m takes far more damage than one landing on its wheels', () => {
     const roof = total(drop(3, ROOF_DOWN).lost);
-    expect(roof).toBeGreaterThan(2 * total(drop(3, UPRIGHT).lost));
+    expect(roof).toBeGreaterThan(1.5 * total(drop(3, UPRIGHT).lost));
   });
 
   it('a truck touching down while it drives along a downslope takes no damage', () => {

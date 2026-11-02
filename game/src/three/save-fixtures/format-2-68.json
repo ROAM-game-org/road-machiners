@@ -1,0 +1,48 @@
+{
+  "turn": 600,
+  "player": {
+    "contracts": [
+      {
+        "id": "ct1",
+        "shop": "bowl",
+        "kind": "search",
+        "target": "v7",
+        "driver": "Jed Cobb",
+        "template": "trader",
+        "lead": {
+          "at": {
+            "x": 40,
+            "y": 52
+          },
+          "turn": 560
+        },
+        "reward": 3700,
+        "deadline": 900,
+        "window": 400,
+        "tier": 1,
+        "found": false
+      }
+    ]
+  },
+  "vehicles": [
+    {
+      "id": "v3",
+      "brain": {
+        "memories": [
+          {
+            "turn": 590,
+            "fact": {
+              "kind": "sighting",
+              "vehicle": "v7",
+              "at": {
+                "x": 41,
+                "y": 50
+              },
+              "heading": 1.2
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -33,6 +33,7 @@ describe('Bowl to Granary tools haul', () => {
     const haul = offer(rush);
     world = update(world, (d) => {
       d.vehicles = d.vehicles.filter((v) => v.id === playerVehicle(d).id);
+      d.spawnQueue = [];
       for (const id of Object.keys(NPCS)) d.spawnTimer[id] = QUIET_ROAD;
       playerVehicle(d).pos = { ...pad };
       shopState(d, 'bowl').contracts.push({ ...haul });

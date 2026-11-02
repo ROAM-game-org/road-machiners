@@ -26,7 +26,7 @@ describe("save slot row", () => {
   });
 
   it("names the game mode of the save", () => {
-    expect(en(slotMode({ slot: "slot1", savedAt: 0, turn: 0, mode: "furyRoad" })!)).toBe("Chaos Highway");
+    expect(en(slotMode({ slot: "slot1", savedAt: 0, turn: 0, mode: "chaosHighway" })!)).toBe("Chaos Highway");
     expect(en(slotMode({ slot: "slot1", savedAt: 0, turn: 0, mode: "roaming" })!)).toBe("Roaming");
     expect(slotMode({ slot: "auto", savedAt: 0, turn: null, mode: null })).toBeNull();
     expect(slotMode(null)).toBeNull();

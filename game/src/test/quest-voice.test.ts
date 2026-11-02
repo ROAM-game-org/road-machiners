@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { handoffQuest, TOPICS } from '../data/dialogue';
 import { LOCALS, NOTE_IDS, type NoteId } from '../data/locals';
 import { GAME_OPENED_QUESTS } from '../data/quests';
+import type { Locale } from '../text/msg';
 import { entryText } from '../text/resolve';
 import { QUESTS } from '../sim/quests';
 import { readQuestSources } from './quest-compile';
 import { OUT_OF_CHARACTER } from './out-of-character';
+import { PROSE_TELLS } from './prose-tells';
 
 const LOGIC = /^(INCLUDE|EXTERNAL|VAR|CONST|~|->|=|#|\{|\}|-\s)/;
 const CHOICE = /^[+*]+\s*(?:\{[^}]*\}\s*)?\[([^\]]*)\]/;
@@ -22,15 +24,15 @@ function spoken(line: string): string | null {
   return words.replace(/#.*$/, '').replace(/->.*$/, '').replace(/<[^>]*>/g, '').trim();
 }
 
-function lines(): { where: string; text: string }[] {
+function lines(): { where: string; text: string; lang: Locale }[] {
   return [
     ...SOURCES.flatMap(([file, source]) => source.split('\n').flatMap((line, k) => {
       const text = spoken(line);
-      return text ? [{ where: `${file}:${k + 1}`, text }] : [];
+      return text ? [{ where: `${file}:${k + 1}`, text, lang: file.startsWith('ru/') ? 'ru' as const : 'en' as const }] : [];
     })),
-    ...Object.entries(QUESTS.quests).flatMap(([id, q]) => [...q.text.en.facts.map((f) => f.text), ...q.text.en.stats.flatMap((s) => [s.label, ...(s.words ?? [])])].map((text) => ({ where: `${id} header`, text }))),
-    ...NOTE_IDS.flatMap((id) => ['title', 'from', 'text'].map((part) => ({ where: `note ${id}`, text: entryText('en', `journalNote.${id}.${part}`) }))),
-    ...Object.values(TOPICS.armyWagon.nodes).map((n) => ({ where: 'radio armyWagon', text: entryText('en', `line.${n.line}`) })),
+    ...Object.entries(QUESTS.quests).flatMap(([id, q]) => [...q.text.en.facts.map((f) => f.text), ...q.text.en.stats.flatMap((s) => [s.label, ...(s.words ?? [])])].map((text) => ({ where: `${id} header`, text, lang: 'en' as const }))),
+    ...NOTE_IDS.flatMap((id) => ['title', 'from', 'text'].map((part) => ({ where: `note ${id}`, text: entryText('en', `journalNote.${id}.${part}`), lang: 'en' as const }))),
+    ...Object.values(TOPICS.armyWagon.nodes).map((n) => ({ where: 'radio armyWagon', text: entryText('en', `line.${n.line}`), lang: 'en' as const })),
   ];
 }
 
@@ -39,6 +41,10 @@ describe('settlement talk content', () => {
     const found = lines();
     expect(found.length).toBeGreaterThan(50);
     for (const { where, text } of found) expect(text, where).not.toMatch(OUT_OF_CHARACTER.en);
+  });
+
+  it('keeps every line free of prose tells', () => {
+    for (const { where, text, lang } of lines()) expect(text, where).not.toMatch(PROSE_TELLS[lang]);
   });
 
   it('starts every quest from a local, a radio handoff or another quest', () => {

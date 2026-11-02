@@ -12,3 +12,8 @@ __pycache__/
 .factory-tasks/
 /game/docs/tasks/
 /factory/docs/tasks/
+/game/public/drafts/
+/game/src/data/drafts/
+
+/desktop/build/
+/desktop/release/

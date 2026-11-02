@@ -12,6 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit  # noqa: E402
+from parts_common_core import PROUD  # noqa: E402
 from parts_common_armor import OUTER_X, half_span, run  # noqa: E402
 from shapes import strut  # noqa: E402
 
@@ -31,8 +32,8 @@ def build_row(kit: Kit, n: int, tiles: tuple[str, str]) -> None:
     cols = COLS_PER_CELL * n
     kit.box("backing", (0.05, half * 2, HEIGHT), (BACK_X, 0, HEIGHT / 2), "metal")
     kit.box("cap", (0.12, half * 2, 0.05), (BACK_X + 0.03, 0, HEIGHT + 0.025), "paint")
-    kit.box("sill", (0.12, half * 2, 0.05), (BACK_X + 0.03, 0, 0.025), "metal")
-    kit.box("foot", (0.16, half * 2, 0.05), (BACK_X - 0.1, 0, 0.025), "metal")
+    kit.box("sill", (0.12, half * 2 - 2 * PROUD, 0.05), (BACK_X + 0.03, 0, 0.025), "metal")
+    kit.box("foot", (0.16, half * 2 - 4 * PROUD, 0.05), (BACK_X - 0.1, 0, 0.025), "metal")
     for y in (-half + 0.1, half - 0.1):
         strut(kit, f"gusset{y:.2f}", (BACK_X - 0.04, y, 0.3), (BACK_X - 0.13, y, 0.05), 0.05, "metal")
     tile_w = (half * 2 - GAP * (cols + 1)) / cols

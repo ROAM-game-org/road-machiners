@@ -1,0 +1,97 @@
+{
+  "arrival_dream": {
+    "file": "arrival_dream.webp",
+    "focusX": 50,
+    "focusY": 50
+  },
+  "arrival_rim": {
+    "file": "arrival_rim.webp",
+    "focusX": 30,
+    "focusY": 50
+  },
+  "arrival_house": {
+    "file": "arrival_house.webp",
+    "focusX": 50,
+    "focusY": 50
+  },
+  "arrival_pickup": {
+    "file": "arrival_pickup.webp",
+    "focusX": 35,
+    "focusY": 50
+  },
+  "cab_link": {
+    "file": "cab_link.webp",
+    "focusX": 62,
+    "focusY": 50
+  },
+  "fall_cab": {
+    "file": "fall_cab.webp",
+    "focusX": 60,
+    "focusY": 46
+  },
+  "road_bar": {
+    "file": "road_bar.webp",
+    "focusX": 55,
+    "focusY": 50
+  },
+  "road_table": {
+    "file": "road_table.webp",
+    "focusX": 54,
+    "focusY": 30
+  },
+  "road_ala": {
+    "file": "road_ala.webp",
+    "focusX": 55,
+    "focusY": 28
+  },
+  "road_geezer": {
+    "file": "road_geezer.webp",
+    "focusX": 46,
+    "focusY": 32
+  },
+  "road_hauler": {
+    "file": "road_hauler.webp",
+    "focusX": 30,
+    "focusY": 55
+  },
+  "bowl_scale": {
+    "file": "bowl_scale.webp",
+    "focusX": 45,
+    "focusY": 40
+  },
+  "town_bowl": {
+    "file": "town_bowl.webp",
+    "focusX": 50,
+    "focusY": 15
+  },
+  "town_nose": {
+    "file": "town_nose.webp",
+    "focusX": 50,
+    "focusY": 12
+  },
+  "town_salvage_yard": {
+    "file": "town_salvage_yard.webp",
+    "focusX": 55,
+    "focusY": 25
+  },
+  "town_granary": {
+    "file": "town_granary.webp",
+    "focusX": 55,
+    "focusY": 70
+  },
+  "town_pump_station": {
+    "file": "town_pump_station.webp",
+    "focusX": 50,
+    "focusY": 30
+  },
+  "town_dustwell": {
+    "file": "town_dustwell.webp",
+    "focusX": 50,
+    "focusY": 0
+  },
+  "town_green_pit": {
+    "file": "town_green_pit.webp",
+    "focusX": 50,
+    "focusY": 0
+  }
+}

@@ -3,6 +3,7 @@ import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSy
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SEPARATOR, checkComments, checkFragmentation, checkGuidance, checkSeparators, collectComponents, inspectSource, isGuidance, stripComments } from './quality-policy.mjs';
+import { checkTests } from './quality-tests.mjs';
 
 const root = process.cwd();
 const sourcePattern = /\.(?:[cm]?[jt]s|[jt]sx)$/;
@@ -141,6 +142,8 @@ function checkQuality(directory, baseline, files, parents, staged) {
   const findings = currentFindings.filter(finding => regressions.every(set => set.has(finding)));
   const fragmented = previous.map(parent => checkFragmentation(current, collectComponents(parent.sources), maxFilesPerKloc));
   const failures = fragmented[0].filter(failure => fragmented.every(list => list.some(other => componentOf(other) === componentOf(failure))));
+  const testFailures = previous.map(parent => checkTests(current, parent.sources));
+  failures.push(...testFailures[0].filter(failure => testFailures.every(list => list.includes(failure))));
   failures.push(...checkGuidance(readGuidance(directory, files), maxGuidanceWords));
   failures.push(...checkSeparators(readSeparatorFiles(directory, staged)));
   for (const finding of findings) console.error(`${finding.filename}: ${finding.code} ${finding.message}`);
@@ -206,7 +209,7 @@ function checkDashboardBrowser(directory) {
 
 function assertStagedTooling() {
   const changed = splitPaths(runGit('diff', '--name-only', '-z'));
-  const tooling = new Set(['.oxlintrc.json', '.quality.json', 'package.json', 'package-lock.json', 'quality/quality.mjs', 'quality/quality-policy.mjs']);
+  const tooling = new Set(['.oxlintrc.json', '.quality.json', 'package.json', 'package-lock.json', 'quality/quality.mjs', 'quality/quality-policy.mjs', 'quality/quality-tests.mjs']);
   const unstaged = changed.filter(file => tooling.has(file));
   if (unstaged.length) throw new Error(`Stage or restore quality tooling before committing: ${unstaged.join(', ')}`);
 }

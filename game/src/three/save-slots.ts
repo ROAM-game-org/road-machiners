@@ -1,4 +1,5 @@
 
+import { chaosHighwayMode_113_114 } from './save-steps-late';
 import type { SaveSlots } from './save-db';
 
 import { QUESTS, startQuest } from '../sim/quests';
@@ -41,17 +42,13 @@ function infoOf(slot: SlotId, envelope: unknown): SlotInfo {
 type SavedWorld = { turn?: unknown; setup?: { mode?: unknown } };
 
 function savedMode(world: SavedWorld | undefined): GameModeId | null {
-  const mode = world?.setup?.mode;
+  const mode = chaosHighwayMode_113_114(world?.setup?.mode);
   return isMode(mode) ? mode : null;
 }
 
 export function listSaves(slots: SaveSlots, count: number): SlotInfo[] {
   const infos = allSlots(count).flatMap((slot) => slots.has(slot) ? [infoOf(slot, slots.get(slot))] : []);
   return infos.sort((a, b) => b.savedAt - a.savedAt);
-}
-
-export function newestSlot(slots: SaveSlots, count: number): SlotId | null {
-  return listSaves(slots, count)[0]?.slot ?? null;
 }
 
 export type RoadBoot = { slot: SlotId; reason: 'road' };

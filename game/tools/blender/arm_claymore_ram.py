@@ -1,7 +1,7 @@
 """Claymore ram for the 'claymoreRam' armor: a ram plate with boxy charge packs bolted to its face.
 
-A front-edge row of 3 cells: 1.45 m across, 0.65 m deep, outer face at +X. Two push arms carry an upright ram plate
-in front of the row. Four charge packs sit on its face out to X = 0.86 m, wired together along the top. The plate
+A front-edge row of 3 cells: 1.45 m across, 0.65 m deep, outer face at +X. Two short push arms hold an upright ram plate
+close in front of the row. Four charge packs sit on its face out to X = 0.55 m, wired together along the top. The plate
 takes the faction paint. The packs are olive drab with mustard fuze caps, the utility hint.
 Run: blender --background --python tools/blender/arm_claymore_ram.py -- public/models/arm_claymore_ram.glb [tmp/arm_claymore_ram.png]
 """
@@ -18,11 +18,11 @@ from shapes import strut  # noqa: E402
 
 N = 3
 SEED = 39
-PLATE_X = 0.6
+PLATE_X = 0.37
 PLATE_Z = 0.36
 PLATE_H = 0.5
 PACK = (0.14, 0.24, 0.2)
-REACH = 0.88
+REACH = 0.6
 CLAYMORE_COLORS = {
     **COLORS,
     "mustard": 0xB39A3A,  # PAL.utility

@@ -21,9 +21,9 @@ Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `sr
 | --- | --- |
 | 1 | 200 |
 | 2 | 400 |
-| 3 | 600 |
-| 4 | 800 |
-| 5 | 1000 |
+| 3 | 1200 |
+| 4 | 2200 |
+| 5 | 3500 |
 <!-- /wiki:rank-costs -->
 
 ## XP sources
@@ -43,13 +43,13 @@ Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `sr
 | heat | toughness | 0.3 | true | 0.9 |
 | damage | toughness | 1.5 | false | 0.95 |
 | knockout | toughness | 100 | false | 0.5 |
-| profit | social | 0.024 | false | 0.8 |
+| profit | social | 2.4 | false | 0.8 |
 | deal | social | 30 | false | 0.5 |
 | call | social | 8 | false | 0 |
 | honk | social | 2 | false | 0 |
 | contract | social | 1 | false | 0.8 |
-| freeTow | social | 0.024 | false | 0.5 |
-| aid | social | 0.024 | false | 0.5 |
+| freeTow | social | 2.4 | false | 0.5 |
+| aid | social | 2.4 | false | 0.5 |
 <!-- /wiki:xp-sources -->
 
 ## Perks
@@ -58,25 +58,25 @@ Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `sr
 | id | name | skill | rank | rule |
 | --- | --- | --- | --- | --- |
 | rammer | Rammer | driving | 2 | A ram on a hostile truck stalls its engine for one turn. |
-| coldRunning | Cold running | driving | 2 | Below half speed, your engine is heard only inside sight. |
+| coldRunning | Cold running | driving | 2 | Below half speed, your engine is heard only by trucks that can see you. |
 | steadyAim | Steady aim | driving | 4 | Your own speed adds no scatter to your shots. |
 | dustScreen | Dust screen | driving | 4 | At top speed on dusty ground, your dust blocks sight like a hill. |
 | readDriver | Read the driver | perception | 2 | You see the traits of other drivers. |
-| spotter | Spotter | perception | 2 | Mark a seen truck, and it stays tracked for a day. |
+| spotter | Spotter | perception | 2 | Mark a seen truck, and it stays tracked for 2 hours. |
 | cargoEye | Cargo eye | perception | 4 | You see the goods and spare parts in any seen truck. |
 | nightEyes | Night eyes | perception | 4 | Night does not halve your sight. |
 | welder | Welder | machining | 2 | A field job turns 3 scrap metal into a scrap armor sheet. |
-| cannibal | Cannibal | machining | 2 | Taking a part from a wreck or a knocked-out truck takes one turn. |
+| teardown | Teardown | machining | 2 | A knocked-out truck does not come to while you are taking a part off it. |
 | rebuild | Rebuild | machining | 4 | A town garage can repair a junk part to its last wear step, once per part. |
 | roadMechanic | Road mechanic | machining | 4 | Drivers pay double for the patches you do. |
 | desertRat | Desert rat | toughness | 2 | Noon sun heats your engine like morning sun. |
 | stormRider | Storm rider | toughness | 2 | Dust storms do not cut your sight or aim. |
-| fightThrough | Fight through | toughness | 4 | A broken cab, or a hit on a cab below half, does not knock you out while health is above half. |
+| fightThrough | Fight through | toughness | 4 | A broken cab, or a hit on a cab below half its HP, does not knock you out while your health is above half. |
 | longHaul | Long haul | toughness | 4 | You heal while driving, not only while parked. |
 | marketEars | Market ears | social | 2 | A trader you call tells you the prices of the last town it left, as they were then. |
-| rumorMill | Rumor mill | social | 2 | A driver you call marks a wreck or site it passed. |
+| rumorMill | Rumor mill | social | 2 | A driver you call tells you of a wreck or site it passed. |
 | paidTruce | Paid truce | social | 4 | You can pay a hostile driver to end its feud with you. |
-| bountyTalk | Bounty talk | social | 4 | A raider that gives up to you counts for bounty contracts. |
+| bountyHunter | Bounty hunter | social | 4 | You see the bounty on a wanted truck and collect it when you knock the truck out. Fighting it is no crime for you. |
 <!-- /wiki:perks -->
 
 ## Numbers

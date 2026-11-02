@@ -41,8 +41,8 @@ function hurtDriver(world: World, v: Vehicle, dealt: number): void {
   if (driver.health < health && v.id === world.player.vehicleId) practice(world, "damage", health - driver.health, null, "driver");
 }
 
-function isOwnedTruck(world: World, v: Vehicle): boolean {
-  return v.id === world.player.vehicleId || v.id === world.furyRoad?.hauler.id;
+export function isOwnedTruck(world: World, v: Vehicle): boolean {
+  return v.id === world.player.vehicleId || v.id === world.chaosHighway?.hauler.id;
 }
 
 export function findPart(v: Vehicle, partId: string): PartInstance | null {
@@ -60,13 +60,13 @@ export function playerVehicle(world: World): Vehicle {
 }
 
 export function haulerOf(world: World): Vehicle {
-  if (!world.furyRoad) throw new Error("No Fury Road run, so no hauler");
-  return vehicleById(world, world.furyRoad.hauler.id);
+  if (!world.chaosHighway) throw new Error("No Chaos Highway run, so no hauler");
+  return vehicleById(world, world.chaosHighway.hauler.id);
 }
 
 export function playerTrucks(world: World): Vehicle[] {
   const me = playerVehicle(world);
-  return world.furyRoad ? [me, haulerOf(world)] : [me];
+  return world.chaosHighway ? [me, haulerOf(world)] : [me];
 }
 
 export function truckFor(world: World, truckId?: string): Vehicle {

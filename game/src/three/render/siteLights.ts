@@ -4,6 +4,9 @@ import { PAL } from '../../render/palette';
 import { DEG } from '../../sim/vec';
 import { lampsOn } from './daylight';
 import { NIGHT_POOLS, type PoolLamp } from './lightPools';
+import type { HollowLamps } from './sites';
+import { hollowLampsLit } from '../../sim/sunward';
+import type { World } from '../../sim/types';
 
 export type SiteLightKind = 'flood' | 'wash' | 'gate' | 'fire' | 'window' | 'fill';
 export type SiteLight = { id: string; siteId: string; kind: SiteLightKind; at: V3; aim: V3; ground: number; color?: number; range?: number; intensity?: number };
@@ -71,15 +74,19 @@ export class SiteLights {
   private slots: Slot[] = [];
   private lastMs: number | null = null;
   private level = 0;
-  private readonly lights: SiteLight[];
+  private readonly lights: SiteLight[] = [];
 
   constructor(
     private readonly scene: THREE.Scene,
-    sites: { lights: SiteLight[]; lamps: PoolLamp[] },
+    private readonly hollow: HollowLamps | null,
     pools: { worldSize: number; maxTextureSize: number },
   ) {
-    this.lights = sites.lights;
-    NIGHT_POOLS.bake(sites.lamps, pools.worldSize, pools.maxTextureSize);
+    NIGHT_POOLS.start(pools.worldSize, pools.maxTextureSize);
+  }
+
+  add(lights: readonly SiteLight[], lamps: readonly PoolLamp[]): void {
+    this.lights.push(...lights);
+    NIGHT_POOLS.addLamps(lamps);
   }
 
   get pooled(): number {
@@ -94,12 +101,13 @@ export class SiteLights {
     return this.level;
   }
 
-  sync(night: boolean, lightTurn: number, camera: THREE.Camera, reaches: (p: V3) => boolean, focus: V3, nowMs: number): void {
+  sync(night: boolean, lightTurn: number, camera: THREE.Camera, reaches: (p: V3) => boolean, focus: V3, nowMs: number, world?: World): void {
     const dt = this.lastMs === null ? 0 : Math.min(0.25, Math.max(0, (nowMs - this.lastMs) / 1000));
     this.lastMs = nowMs;
     const step = dt / SITE_LIGHT_FADE_S;
     this.level = night ? Math.min(1, this.level + step) : Math.max(0, this.level - step);
     NIGHT_POOLS.setLevel(this.level);
+    this.syncHollow(world);
     if (!night) {
       this.clear();
       return;
@@ -117,6 +125,10 @@ export class SiteLights {
       if (slot.spot.castShadow) slot.spot.shadow.autoUpdate = light !== undefined;
       this.drive(slot, light, lightTurn, dt);
     });
+  }
+
+  private syncHollow(world: World | undefined): void {
+    this.hollow?.sync(world && hollowLampsLit(world) ? this.level : 0);
   }
 
   private fill(): void {

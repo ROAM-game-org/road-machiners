@@ -3,10 +3,11 @@ import { SKILL_IDS } from '../../data/skills';
 import { TIME } from '../../data/time';
 import { playerVehicle } from '../damage';
 import { skillLevel } from '../progress';
+import type { BakedMap } from '../terrain';
 import type { DriverResources, GameEvent, NpcActivity, Vehicle, World } from '../types';
 import { dist, type Vec } from '../vec';
-import type { Archetype } from './bot';
-import { FAR_MOVER, playTurns, type PlayedTurn } from './record';
+import type { Archetype, BotOptions } from './bot';
+import { archetypeWorldOn, FAR_MOVER, playTurns, type PlayedTurn } from './record';
 
 export const ACTIVITY_LIMITS = [
   'every truck travels in far mode, so no physics, close driving or crash contact runs',
@@ -38,7 +39,11 @@ export type ActivityOptions = { seed: number; archetype: Archetype; turns: numbe
 
 const round = (n: number): number => Math.round(n * 10) / 10;
 
-const BOT_OPTIONS = { markovTurns: TIME.turnsPerDay };
+export const PLAYTHROUGH_OPTIONS: BotOptions = { markovTurns: TIME.workDayTurns };
+
+export function playthroughWorld(map: BakedMap, seed: number, archetype: Archetype): World {
+  return archetypeWorldOn(map, seed, archetype, PLAYTHROUGH_OPTIONS);
+}
 
 export function* activityFrom(start: World, options: ActivityOptions): Generator<ActivityLine> {
   if (!Number.isInteger(options.every) || options.every <= 0) throw new Error(`The snapshot interval must be a positive whole number, got ${options.every}`);
@@ -46,7 +51,7 @@ export function* activityFrom(start: World, options: ActivityOptions): Generator
   yield { k: 'run', ...options, limits: ACTIVITY_LIMITS };
   yield snapshot(start);
   try {
-    yield* play.turns(playTurns(start, `seed ${options.seed} ${options.archetype}`, options.archetype, options.turns, BOT_OPTIONS, FAR_MOVER));
+    yield* play.turns(playTurns(start, `seed ${options.seed} ${options.archetype}`, options.archetype, options.turns, PLAYTHROUGH_OPTIONS, FAR_MOVER));
   } catch (error) {
     play.fail(error);
   }

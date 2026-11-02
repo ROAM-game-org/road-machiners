@@ -83,7 +83,7 @@ describe('max speed tooltip', () => {
     });
     const tip = tipOf(w);
     expect(tip).toContainEqual({ label: '2 broken wheels', value: expect.stringMatching(/^−\d+ km\/h$/), tone: 'bad' });
-    expect(tip).toContainEqual({ label: 'Guns power', value: expect.stringMatching(/^−\d+ km\/h$/), tone: 'bad' });
+    expect(tip).toContainEqual({ label: 'Gun power', value: expect.stringMatching(/^−\d+ km\/h$/), tone: 'bad' });
     const stalled = playerWith(CASES.stalled);
     expect(tipOf(stalled.w)).toContainEqual({ label: 'Engine stalled', value: `crawl ${getHudReadout(stalled.w).maxSpeed} km/h`, tone: 'plain' });
   });
@@ -120,14 +120,16 @@ describe('max speed tooltip', () => {
 });
 
 describe('power chip', () => {
-  const words = (c: ReturnType<typeof powerChip>) => ({ ...c, text: en(c.text), detail: en(c.detail) });
+  const words = (c: ReturnType<typeof powerChip>) => ({ ...c, ratio: en(c.ratio), cost: c.cost ? en(c.cost) : null, detail: en(c.detail) });
   const chip = (tweak: (w: World, v: Vehicle) => void) => {
     const { w, v } = playerWith(tweak);
     return words(powerChip(maxSpeedSteps(w, v), v));
   };
 
   it('shows no speed cost without guns', () => {
-    expect(chip(CASES.plain).text).toMatch(/^0 \/ \d+(\.\d)? power, no speed cost$/);
+    const c = chip(CASES.plain);
+    expect(c.ratio).toMatch(/^0 \/ \d+(\.\d)?$/);
+    expect(c.cost).toBeNull();
   });
 
   it('shows draw, capacity and the speed cost with guns', () => {
@@ -135,36 +137,40 @@ describe('power chip', () => {
       mountPart(w, v, makePart(w, 'mg', 0));
       mountPart(w, v, makePart(w, 'mg', 0));
     });
-    expect(c.text).toMatch(/power, −\d+% speed$/);
+    expect(c.ratio).toMatch(/^[\d.]+ \/ [\d.]+$/);
+    expect(c.cost).toMatch(/^−\d+%$/);
     expect(c.over).toBe(false);
     expect(c.detail).toContain('Cost: −');
   });
 
   it('flags an overload with the excess', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'hauler', ['stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine'], { x: 40, y: 40 });
     for (let i = 0; i < 16; i++) mountPart(w, v, makePart(w, 'mg', 0));
     const c = words(powerChip(maxSpeedSteps(w, v), v));
     expect(gunDraw(v)).toBeGreaterThan(workingEngineCapacity(v)!);
     expect(c.over).toBe(true);
-    expect(c.text).toContain('over by');
+    expect(c.detail).toContain('over by');
   });
 
   it('counts no draw from a broken gun', () => {
     const { w, v } = playerWith((world, truck) => void mountPart(world, truck, makePart(world, 'mg', 0)));
-    const working = en(powerChip(maxSpeedSteps(w, v), v).text);
+    const working = en(powerChip(maxSpeedSteps(w, v), v).ratio);
     mountedParts(v, 'weapon')[0].hp = 0;
-    expect(en(powerChip(maxSpeedSteps(w, v), v).text)).not.toBe(working);
-    expect(en(powerChip(maxSpeedSteps(w, v), v).text)).toMatch(/^0 \//);
+    expect(en(powerChip(maxSpeedSteps(w, v), v).ratio)).not.toBe(working);
+    expect(en(powerChip(maxSpeedSteps(w, v), v).ratio)).toMatch(/^0 \//);
   });
 
   it('names a broken engine instead of showing power', () => {
     const c = chip(CASES.brokenEngine);
-    expect(c.text).toBe('No working engine');
+    expect(c.ratio).toBe('No working engine');
+    expect(c.words).toBe(true);
     expect(c.over).toBe(false);
   });
 
   it('says a stalled engine costs no speed yet', () => {
-    expect(chip(CASES.stalled).text).toContain('while stalled');
+    const c = chip(CASES.stalled);
+    expect(c.cost).toBeNull();
+    expect(c.detail).toContain('while stalled');
   });
 });

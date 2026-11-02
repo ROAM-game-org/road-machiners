@@ -1,18 +1,20 @@
-import { partDef, type PartKind } from "../data/parts";
 import { haulerOf, playerVehicle, truckFor } from "../sim/damage";
 import { chassisPrice, chassisSwapRefusal, type Supply } from "../sim/economy";
-import { canWaitForRoad, outpostTrucks, reachedOutpostAt, waitForRoad, type Outpost } from "../sim/fury-road";
-import { goodsCount, MOUNT_CELLS } from "../sim/grid";
+import { canDriveOn, driveOn, outpostTrucks, reachedOutpostAt, type Outpost } from "../sim/chaos-highway";
+import { goodsCount, mountCellsOf } from "../sim/grid";
+import { gatesShut } from "../sim/outpost-gates";
 import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, haulerTakes, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from "../sim/outposts";
 import type { PartInstance, World } from "../sim/types";
 import { num, SPACE, t, type Msg } from "../text/msg";
+import { ESCAPE, keyLabel } from "./input-mode";
 import { goodName, refusalText, siteName } from "../text/names";
-import { chassisPortrait, compareBase, createIcon, createItemIcon } from "./cards";
+import { chassisPortrait, compareBase, createIcon, createItemTipIcon, itemTip } from "./cards";
 import { el, panel } from "./dom";
 import { commandFailure, GOODS_COLUMNS } from "./format";
 import type { UiHost } from "./host";
 import { InventoryView, truckChips } from "./inventory";
 import { PartRows, type PartRow } from "./part-rows";
+import { RowSlots } from "./row-slots";
 import { TAB_ICON, type Tab } from "./town";
 import { caption, keepFocus, priceEl, priceHead, priceSpan, reasonButton, repairBar, shortBy, supplyRow, truckCards, type ShopCommand } from "./shop-rows";
 
@@ -26,12 +28,17 @@ function goodsHead(): HTMLElement {
   return el("div", { class: "goods-head row dim" }, el("span", {}, c.good), priceHead(c.buy), el("span", {}), el("span", { class: "end" }, c.held), el("span", {}));
 }
 
+export function outpostControls(w: World): { leave: boolean; driveOn: boolean } {
+  return { leave: !gatesShut(w), driveOn: canDriveOn(w) };
+}
+
 export class OutpostScreen {
   private root = panel("modal dialog");
   private error: Msg | null = null;
   private tab: OutpostTab = "market";
   private shown: "truck" | "hauler" = "truck";
-  private rows = new PartRows(() => this.render());
+  private slots = new RowSlots();
+  private rows = new PartRows(() => this.render(), this.slots);
   private inventory: InventoryView;
 
   constructor(private host: UiHost) {
@@ -45,14 +52,25 @@ export class OutpostScreen {
     return this.root.style.display !== "none";
   }
 
+  private fresh(): void {
+    this.rows.collapse();
+    this.slots.forget();
+  }
+
   open(): void {
     this.root.style.display = "";
     this.error = null;
-    this.rows.collapse();
+    this.fresh();
     this.render();
   }
 
   close(): void {
+    if (!outpostControls(this.host.world()).leave) return;
+    this.leave();
+  }
+
+  private leave(): void {
+    this.slots.forget();
     this.inventory.clearSelection();
     this.root.style.display = "none";
     this.root.replaceChildren();
@@ -75,7 +93,7 @@ export class OutpostScreen {
   private draw(): void {
     const w = this.host.world();
     const post = reachedOutpostAt(w);
-    if (!post) return this.close();
+    if (!post) return this.leave();
     if (this.shown === "hauler" && !this.haulerHere(w)) this.shown = "truck";
     const id = this.truckId(w);
     this.inventory.showTruck(id ?? null);
@@ -93,26 +111,28 @@ export class OutpostScreen {
       el("div", { class: "tabs" }, ...this.tabButtons()),
       this.error ? el("div", { class: "bad" }, this.error) : null,
       el("div", { class: "outpost-body" }, this.tabBody(w, post)),
-      this.roadButton(w),
+      this.driveOnButton(w),
     );
-    this.root.replaceChildren(
-      el("button", { class: "close", onclick: () => this.close() }, t("trade.leave")),
-      el("h3", {}, siteName(post.id), truckChips(w, { freeCells: true }, id)),
-      el("div", { class: "town-split" }, truck, shop),
-    );
+    this.root.replaceChildren(...this.leaveButton(w), el("h3", {}, siteName(post.id), truckChips(w, { freeCells: true }, id)), el("div", { class: "town-split" }, truck, shop));
     this.inventory.fitTo(truck);
   }
 
+  private leaveButton(w: World): HTMLElement[] {
+    const { leave } = outpostControls(w);
+    this.root.classList.toggle("pinned", !leave);
+    return leave ? [el("button", { class: "close", onclick: () => this.close() }, keyLabel(t("trade.leave"), ESCAPE.key))] : [];
+  }
+
   private haulerHere(w: World): boolean {
-    return w.furyRoad !== null && reachedOutpostAt(w, haulerOf(w)) !== null;
+    return w.chaosHighway !== null && reachedOutpostAt(w, haulerOf(w)) !== null;
   }
 
   private truckId(w: World): string | undefined {
-    return this.shown === "hauler" && w.furyRoad ? haulerOf(w).id : undefined;
+    return this.shown === "hauler" && w.chaosHighway ? haulerOf(w).id : undefined;
   }
 
   private truckSwitch(w: World): HTMLElement | null {
-    if (!w.furyRoad) return null;
+    if (!w.chaosHighway) return null;
     const away = !this.haulerHere(w);
     const choice = (which: "truck" | "hauler", chassisId: string, reason: Msg | null) =>
       el(
@@ -124,10 +144,11 @@ export class OutpostScreen {
           title: reason ?? undefined,
           onclick: () => {
             this.shown = which;
+            this.fresh();
             this.render();
           },
         },
-        chassisPortrait(chassisId),
+        chassisPortrait(chassisId, w.player.paint),
         t(`outpost.${which}`),
       );
     return el("div", { class: "tabs truck-switch" }, choice("truck", playerVehicle(w).chassisId, null), choice("hauler", haulerOf(w).chassisId, away ? t("outpost.haulerAway") : null));
@@ -142,7 +163,7 @@ export class OutpostScreen {
           "data-tab": tab,
           onclick: () => {
             this.tab = tab;
-            this.rows.collapse();
+            this.fresh();
             this.render();
             this.rows.toTop(this.root);
           },
@@ -164,8 +185,9 @@ export class OutpostScreen {
 
   private trucks(w: World, post: Outpost): HTMLElement {
     const offer = outpostTrucks(w, post);
-    if (offer.length === 0) return el("div", { class: "dim" }, t("outpost.soldOut"));
-    return truckCards(w, offer, (id) => ({ reason: this.swapReason(w, id), swap: () => this.run((x) => outpostBuyChassis(x, id)) }));
+    const list = `trucks:${this.shown}`;
+    if (offer.length === 0 && !this.slots.has(list)) return el("div", { class: "dim" }, t("outpost.soldOut"));
+    return truckCards(w, offer, (id) => ({ reason: this.swapReason(w, id), swap: () => this.run((x) => outpostBuyChassis(x, id)) }), this.slots, list);
   }
 
   private swapReason(w: World, id: string): Msg | null {
@@ -174,15 +196,15 @@ export class OutpostScreen {
     return refusal ? refusalText(w, refusal) : null;
   }
 
-  private roadButton(w: World): HTMLElement | null {
-    if (!canWaitForRoad(w)) return null;
-    return el("div", { class: "outpost-road" }, el("button", { class: "btn-l", onclick: () => this.waitForRoad() }, t("outpost.waitForRoad")));
+  private driveOnButton(w: World): HTMLElement | null {
+    if (!outpostControls(w).driveOn) return null;
+    return el("div", { class: "outpost-road" }, el("button", { class: "btn-l", onclick: () => this.driveOn() }, t("outpost.driveOn")));
   }
 
-  private waitForRoad(): void {
+  private driveOn(): void {
     const w = this.host.world();
-    this.close();
-    this.host.apply(waitForRoad(w));
+    this.leave();
+    this.host.apply(driveOn(w));
   }
 
   private run(cmd: ShopCommand): void {
@@ -207,7 +229,7 @@ export class OutpostScreen {
     return el(
       "div",
       { class: "good-row row" },
-      el("div", { class: "good-name" }, createItemIcon(REPAIR_GOOD), el("b", {}, goodName(REPAIR_GOOD))),
+      el("div", { class: "good-name" }, createItemTipIcon(REPAIR_GOOD), el("b", { title: itemTip(REPAIR_GOOD) }, goodName(REPAIR_GOOD))),
       el(
         "div",
         { class: "trade buy wide" },
@@ -221,8 +243,9 @@ export class OutpostScreen {
   }
 
   private stock(w: World, post: Outpost): HTMLElement {
-    if (post.stock.length === 0) return el("div", { class: "dim" }, t("outpost.soldOut"));
-    return this.rows.list(post.stock.map((p) => this.partRow(w, p)));
+    const list = `stock:${this.shown}`;
+    if (post.stock.length === 0 && !this.slots.has(list)) return el("div", { class: "dim" }, t("outpost.soldOut"));
+    return this.rows.list(list, post.stock.map((p) => this.partRow(w, p)));
   }
 
   private partRow(w: World, p: PartInstance): PartRow {
@@ -237,11 +260,12 @@ export class OutpostScreen {
       price,
       payable: short === null,
       action: this.button(t("goods.buy"), (x) => outpostBuyPart(x, p.id, id), refused ?? short),
-      onHover: this.hintMounts(partDef(p.defId).kind),
+      done: t("trade.done.bought"),
+      onHover: this.hintMounts(p.defId),
     };
   }
 
-  private hintMounts(kind: PartKind): (on: boolean) => void {
-    return (on) => this.inventory.hintMounts(on ? MOUNT_CELLS[kind] : null);
+  private hintMounts(defId: string): (on: boolean) => void {
+    return (on) => this.inventory.hintMounts(on ? mountCellsOf(defId) : null);
   }
 }

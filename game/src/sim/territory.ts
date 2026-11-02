@@ -8,13 +8,14 @@ import { isTerritory, siteEdgeCrossings, siteGap } from './sites';
 import { randInt } from './rng';
 import { PROP_KINDS, type PropKind } from './terrain';
 import type { LandmarkLook, NpcActivity, Obstacle, SalvageStock, Vehicle, World } from './types';
-import { dist, lerp, type Vec } from './vec';
+import { dist, lerp, polylineDist, type Vec } from './vec';
 
 export { isTerritory };
 
 const GROUND_POINTS = 8;
 
-export type HazardZone = Hazard & { id: string; pos: Vec };
+export type CoreZone = { radius: number; healthPerTurn: number; light: { pos: Vec; radius: number } };
+export type HazardZone = Omit<Hazard, 'core'> & { id: string; pos: Vec; core: CoreZone | null };
 export type BakedPiece = { look: LandmarkLook; pos: Vec; yaw: number; r: number; sink: number };
 
 export type LandingStrip = { a: Vec; b: Vec; width: number };
@@ -70,8 +71,25 @@ export function territorySpots(world: World, id: string): SalvageStock[] {
 }
 
 export function territoryEntries(t: TerritoryDef): Vec[] {
+  const crossings = roadEntries(t);
+  if (t.offRoad) {
+    if (crossings.length > 0) throw new Error(`Off-road territory ${t.id} has a road crossing its outline`);
+    return [edgeNearestRoad(t)];
+  }
+  if (crossings.length === 0) throw new Error(`Territory ${t.id} has no road crossing its outline`);
+  return crossings;
+}
+
+export function roadEntries(t: TerritoryDef): Vec[] {
   const crossings = REGION.roads.flatMap((road) => road.slice(1).flatMap((b, i) => siteEdgeCrossings(t, road[i], b)));
   return crossings.filter((p, i) => !crossings.slice(0, i).some((q) => dist(q, p) < REGION.sites.gateSpacing));
+}
+
+function edgeNearestRoad(t: TerritoryDef): Vec {
+  if (!t.outline) throw new Error(`Territory ${t.id} has no outline to enter by`);
+  const edge = t.outline.map((p) => ({ x: t.pos.x + p.x, y: t.pos.y + p.y }));
+  const gap = (p: Vec): number => Math.min(...REGION.roads.map((road) => polylineDist(p, road)));
+  return edge.reduce((best, p) => (gap(p) < gap(best) ? p : best));
 }
 
 export function territoryGrounds(t: TerritoryDef): Vec[] {
@@ -99,8 +117,16 @@ function spineGrounds(t: TerritoryDef, farm: FarmRules): Vec[] {
 export function hazardZones(): HazardZone[] {
   return TERRITORY_DEFS.flatMap((t) => {
     const reactor = TERRITORIES[t.id].reactor;
-    return reactor?.hazard ? [{ ...reactor.hazard, id: t.id, pos: reactorPos(t) }] : [];
+    return reactor?.hazard ? [hazardZoneOf(t, reactor.hazard, reactorPos(t))] : [];
   });
+}
+
+export function hazardZoneOf(t: TerritoryDef, hazard: Hazard, pos: Vec): HazardZone {
+  const { core, ...rest } = hazard;
+  if (!core) return { ...rest, id: t.id, pos, core: null };
+  const light = { pos: onMap(t, core.light.at), radius: core.light.radius };
+  if (dist(light.pos, pos) + light.radius >= hazard.radius) throw new Error(`The ${t.id} reactor light reaches past its drain`);
+  return { ...rest, id: t.id, pos, core: { ...core, light } };
 }
 
 function onMap(t: TerritoryDef, at: Vec): Vec {
@@ -148,8 +174,8 @@ export function reactorPos(t: TerritoryDef): Vec {
   return onMap(t, reactor.at);
 }
 
-export function spotGoal(world: World, territoryId: string): NpcActivity {
-  const spots = territorySpots(world, territoryId);
+export function spotGoal(world: World, territoryId: string, candidates: readonly SalvageStock[]): NpcActivity {
+  const spots = candidates.length > 0 ? candidates : territorySpots(world, territoryId);
   if (!spots.length) throw new Error(`Territory ${territoryId} has no baked loot spots`);
   const spot = spots[randInt(world, 0, spots.length - 1)];
   return { kind: 'scavenge', targetId: spot.id, destination: { ...spot.pos }, phase: 'travel', reason: 'searchSpot' };

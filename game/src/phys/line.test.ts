@@ -2,10 +2,10 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { PHYSICS } from '../data/physics';
 import { HARPOON } from '../data/utilities';
-import { mountedParts } from '../sim/grid';
+import { gridOf, itemCells, mountSpots, mountedItems, mountedParts } from '../sim/grid';
 import { lineAnchors, type LineAnchor } from '../sim/harpoon';
 import { addVehicle, emptyWorld, npcBrain } from '../sim/testkit';
-import type { Vehicle, World } from '../sim/types';
+import type { Rot, Vehicle, World } from '../sim/types';
 import { buildDrive, freeDrive, initPhysics, simulateTurn, syncDrive, type Drive, type TurnResult } from './drive';
 import { rotateBy, upOf } from './frames';
 import { applyTurn } from './turn';
@@ -17,12 +17,25 @@ beforeAll(async () => {
 const S = PHYSICS.metersPerTile;
 const HALF_THROTTLE = ((0.5 / PHYSICS.driver.throttleGain) * PHYSICS.turnSeconds) / S;
 
+function centerHarpoon(v: Vehicle): void {
+  const item = mountedItems(v, 'weapon').find((i) => i.part.defId === 'harpoon');
+  if (!item) throw new Error('The harpoon did not mount');
+  const g = gridOf(v);
+  const middle = (s: { x: number; y: number; rot: Rot }) => {
+    const rows = itemCells({ ...item, ...s }).map((c) => c.y);
+    return Math.abs((Math.min(...rows) + Math.max(...rows) + 1) / 2 - g.chassisH / 2);
+  };
+  const spot = mountSpots(g, v.items, item, ['D']).reduce((best, s) => (middle(s) < middle(best) ? s : best));
+  Object.assign(item, spot);
+}
+
 function tethered(opts: { pace?: number; from?: string; to?: string; speed?: number } = {}): { w: World; hauler: Vehicle; scout: Vehicle } {
   const w = emptyWorld();
-  const hauler = addVehicle(w, 'traders', opts.from ?? 'hauler', ['stockEngine', 'harpoon'], { x: 30, y: 30 });
-  const scout = addVehicle(w, 'traders', opts.to ?? 'scout', ['stockEngine'], { x: 33, y: 30 });
+  const hauler = addVehicle(w, 'independent', opts.from ?? 'hauler', ['stockEngine', 'harpoon'], { x: 30, y: 30 });
+  const scout = addVehicle(w, 'independent', opts.to ?? 'scout', ['stockEngine'], { x: 33, y: 30 });
   w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || v === hauler || v === scout);
   w.vehicles[0].pos = { x: 30, y: 26 };
+  centerHarpoon(hauler);
   const harpoon = mountedParts(hauler, 'weapon').find((p) => p.defId === 'harpoon');
   if (!harpoon) throw new Error('The harpoon did not mount');
   const held = mountedParts(scout, 'engine')[0];
@@ -130,19 +143,32 @@ describe('harpoon line physics', () => {
     expect(worst).toBeLessThanOrEqual(0.5);
   });
 
-  function across(from: string, to: string, mover: 'target' | 'shooter', slack: number): { w: World; shooter: Vehicle; target: Vehicle } {
+  function across(from: string, to: string, mover: 'target' | 'shooter', slack: number, hold: 'engine' | 'farFrontWheel' = 'engine'): { w: World; shooter: Vehicle; target: Vehicle } {
     const w = emptyWorld();
-    const shooter = addVehicle(w, 'traders', from, ['stockEngine', 'harpoon'], { x: 30, y: 30 }, Math.PI / 2);
-    const target = addVehicle(w, 'traders', to, ['stockEngine'], { x: 33, y: 30 });
+    const shooter = addVehicle(w, 'independent', from, ['stockEngine', 'harpoon'], { x: 30, y: 30 }, Math.PI / 2);
+    const target = addVehicle(w, 'independent', to, ['stockEngine'], { x: 33, y: 30 });
     w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || v === shooter || v === target);
     w.vehicles[0].pos = { x: 10, y: 10 };
+    centerHarpoon(shooter);
     const harpoon = mountedParts(shooter, 'weapon').find((p) => p.defId === 'harpoon');
     if (!harpoon) throw new Error('The harpoon did not mount');
     w.lines = [{ id: 'l1', from: shooter.id, fromPart: harpoon.id, to: target.id, toPart: mountedParts(target, 'engine')[0].id, length: 0, turnsLeft: 9 }];
+    if (hold === 'farFrontWheel') w.lines[0].toPart = farFrontWheel(w, shooter, target);
     w.lines[0].length = anchorGap(target, shooter, lineAnchors(w)[0]) + slack;
     shooter.order = mover === 'shooter' ? { kind: 'through', dest: { x: 30, y: 90 } } : { kind: 'brake' };
     target.order = mover === 'target' ? { kind: 'through', dest: { x: 90, y: 30 } } : { kind: 'brake' };
     return { w, shooter, target };
+  }
+
+  function farFrontWheel(w: World, shooter: Vehicle, target: Vehicle): string {
+    const gapTo = (partId: string): number => {
+      w.lines[0].toPart = partId;
+      return anchorGap(target, shooter, lineAnchors(w)[0]);
+    };
+    const wheelItems = mountedItems(target, 'core').filter((it) => it.part.defId === 'wheel');
+    const frontRow = Math.min(...wheelItems.map((it) => it.y));
+    const wheels = wheelItems.filter((it) => it.y === frontRow).map((it) => it.part);
+    return wheels.reduce((best, p) => (gapTo(p.id) > gapTo(best.id) ? p : best)).id;
   }
 
   function worstTilt(w: World, ids: string[], turns: number): Record<string, number> {
@@ -160,7 +186,7 @@ describe('harpoon line physics', () => {
   });
 
   it('tips a truck of like weight that the shooter pulls across', () => {
-    const { w, shooter, target } = across('scout', 'scout', 'shooter', 2);
+    const { w, shooter, target } = across('scout', 'scout', 'shooter', 2, 'farFrontWheel');
     const tilt = worstTilt(w, [shooter.id, target.id], 5);
 
     expect(tilt[shooter.id]).toBeLessThan(15);

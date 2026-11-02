@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
-import { buildDrive, freeDrive, initPhysics, type Drive } from "../phys/drive";
+import { initPhysics, type DriveSnapshot } from "../phys/drive";
+import { driveSnapshotOf } from "../phys/turn";
 import type { PlanFrames } from "../phys/plan";
 import type { PreviewRequest, PreviewResponse } from "../phys/turn";
 import { perfSnapshot, resetPerf } from "../perf";
@@ -7,7 +8,8 @@ import { emptyWorld } from "../sim/testkit";
 import type { World } from "../sim/types";
 import { setMoveOrder } from "../sim/world";
 import { reportError } from "./crash";
-import { PlanPreparation } from "./plan-preview";
+import { PAL } from "../render/palette";
+import { firstTurnColor, PlanPreparation, throttleColor } from "./plan-preview";
 
 vi.mock("./crash", () => ({ reportError: vi.fn() }));
 
@@ -40,7 +42,7 @@ class TestWorker {
 const plan = (waypoint: boolean): PlanFrames => ({ turns: [[]], course: null, waypoint });
 
 let world: World;
-let drive: Drive;
+let drive: DriveSnapshot;
 beforeAll(initPhysics);
 beforeEach(() => {
   vi.stubGlobal("Worker", TestWorker);
@@ -48,10 +50,9 @@ beforeEach(() => {
   resetPerf();
   TestWorker.created = 0;
   world = emptyWorld();
-  drive = buildDrive(world);
+  drive = driveSnapshotOf(world);
 });
 afterEach(() => {
-  freeDrive(drive);
   vi.unstubAllGlobals();
 });
 
@@ -139,13 +140,14 @@ it("reports a worker error event and still posts the next request", () => {
   expect(worker.requests).toHaveLength(2);
 });
 
-it("transfers a snapshot of the drive and leaves the main drive in place", () => {
+it("transfers a copy of the drive snapshot and leaves the main snapshot in place", () => {
   const plans = new PlanPreparation();
-  const before = drive.world.takeSnapshot();
+  const before = drive.snapshot.slice();
   plans.request(world, drive, world.player.vehicleId);
   const worker = TestWorker.latest;
   expect(worker.transfers[0]).toEqual([worker.requests[0].drive.snapshot.buffer]);
-  expect(drive.world.takeSnapshot()).toEqual(before);
+  expect(worker.requests[0].drive.snapshot.buffer).not.toBe(drive.snapshot.buffer);
+  expect(drive.snapshot).toEqual(before);
 });
 
 it("restarts a preview worker whose script did not load and posts the lost request again", () => {
@@ -182,4 +184,18 @@ it("gives up on a preview worker that never loads with one download failure", ()
   plans.request(world, drive, "me");
   expect(TestWorker.created).toBe(6);
   vi.useRealTimers();
+});
+
+it("colors the hover ring and the first turn by the pace the click would hold", () => {
+  const w = emptyWorld({ x: 200, y: 200 });
+  const me = w.vehicles.find((v) => v.id === w.player.vehicleId)!;
+  me.speed = 4;
+  const far = { x: me.pos.x + 80, y: me.pos.y };
+  const held = setMoveOrder(w, { kind: "through", dest: far });
+  const me2 = held.vehicles.find((v) => v.id === w.player.vehicleId)!;
+  expect(throttleColor(held, me2, { x: me2.pos.x + 1, y: me2.pos.y })).toBe(PAL.throttle.brake);
+  expect(firstTurnColor(held, me2)).toBe(PAL.throttle.accelerate);
+  const slow = setMoveOrder(held, { kind: "through", dest: far, pace: 1 });
+  const me3 = slow.vehicles.find((v) => v.id === w.player.vehicleId)!;
+  expect(firstTurnColor(slow, me3)).toBe(PAL.throttle.brake);
 });

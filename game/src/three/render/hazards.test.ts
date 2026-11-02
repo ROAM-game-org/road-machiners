@@ -1,8 +1,7 @@
 import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { OIL } from '../../data/utilities';
 import { PAL } from '../../render/palette';
-import { dropField, spillOil } from '../../sim/hazards';
+import { dropField } from '../../sim/hazards';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import type { Vehicle, World } from '../../sim/types';
 import { cloneWorld } from '../../sim/world';
@@ -21,7 +20,7 @@ vi.mock('./zones', async (load) => {
   return { ...zones, GroundBand: RecordedBand };
 });
 
-const { HazardViews, cutShare, fieldShown, volleyShown } = await import('./hazards');
+const { HazardViews, cutShare } = await import('./hazards');
 
 function stubCanvas(): void {
   const ctx = { createRadialGradient: () => ({ addColorStop: () => {} }), fillRect: () => {}, fillStyle: '' };
@@ -44,88 +43,6 @@ function droveEast(world: World): Vehicle {
 
 const clock = (before: World, progress: number, moved = false, hookedLines: ReadonlySet<string> = new Set()) => ({ before, progress, moved, hookedLines });
 
-describe('fieldShown', () => {
-  it('shows a caltrop field once the dropper has passed it by half its length and the field radius', () => {
-    const world = emptyWorld();
-    const me = droveEast(world);
-    const before = cloneWorld(world);
-    dropField(world, me, 'caltrops', { radius: 1.25, turns: 5, behind: 1 });
-    const field = world.fields[0];
-
-    expect(fieldShown(world, field, clock(before, 0))).toBe(false);
-    expect(fieldShown(world, field, clock(before, 0.88))).toBe(false);
-    expect(fieldShown(world, field, clock(before, 0.92))).toBe(true);
-    expect(fieldShown(world, field, clock(before, 1))).toBe(true);
-  });
-
-  it('shows an oil streak from its far end first, as the truck drives along it', () => {
-    const world = emptyWorld();
-    const me = droveEast(world);
-    const before = cloneWorld(world);
-    spillOil(world, me, { turns: 8, behind: 0.5, fuel: 2 });
-
-    const shownAt = (progress: number) => world.fields.filter((f) => fieldShown(world, f, clock(before, progress))).length;
-
-    expect(shownAt(0)).toBe(0);
-    expect(shownAt(0.75)).toBeGreaterThan(0);
-    expect(shownAt(0.75)).toBeLessThan(OIL.blobs);
-    const farFirst = world.fields.map((f) => fieldShown(world, f, clock(before, 0.75)));
-    expect(farFirst).toEqual([...farFirst].sort((a, b) => Number(a) - Number(b)));
-    expect(shownAt(1)).toBe(OIL.blobs);
-  });
-
-  it('shows every field once movement has played, and with no playback', () => {
-    const world = emptyWorld();
-    const me = droveEast(world);
-    const before = cloneWorld(world);
-    dropField(world, me, 'caltrops', { radius: 1.25, turns: 5, behind: 1 });
-
-    expect(fieldShown(world, world.fields[0], clock(before, 0, true))).toBe(true);
-    expect(fieldShown(world, world.fields[0], null)).toBe(true);
-  });
-
-  it('shows a field from an earlier turn at once', () => {
-    const world = emptyWorld();
-    const me = droveEast(world);
-    dropField(world, me, 'caltrops', { radius: 1.25, turns: 5, behind: 1 });
-    const before = cloneWorld(world);
-
-    expect(fieldShown(world, world.fields[0], clock(before, 0))).toBe(true);
-  });
-
-  it('waits for the end of movement when the dropper has left the world', () => {
-    const world = emptyWorld();
-    const npc = addVehicle(world, 'raiders', 'buggy', ['stockEngine'], { x: 30, y: 30 });
-    npc.trail = Array.from({ length: 11 }, (_, i) => ({ x: 20 + i, y: 30, heading: 0 }));
-    const before = cloneWorld(world);
-    dropField(world, npc, 'caltrops', { radius: 1.25, turns: 5, behind: 1 });
-    world.vehicles = world.vehicles.filter((v) => v !== npc);
-
-    expect(fieldShown(world, world.fields[0], clock(before, 1))).toBe(false);
-    expect(fieldShown(world, world.fields[0], clock(before, 1, true))).toBe(true);
-  });
-});
-
-describe('volleyShown', () => {
-  it('holds smoke made this turn until movement has played', () => {
-    const world = emptyWorld();
-    const before = cloneWorld(world);
-    world.smoke.push({ id: 's1', source: world.player.vehicleId, pos: { x: 30, y: 30 }, r: 4, turnsLeft: 5 });
-
-    expect(volleyShown(clock(before, 1), 'smoke', 's1')).toBe(false);
-    expect(volleyShown(clock(before, 1, true), 'smoke', 's1')).toBe(true);
-    expect(volleyShown(null, 'smoke', 's1')).toBe(true);
-  });
-
-  it('shows a flare from an earlier turn at once', () => {
-    const world = emptyWorld();
-    world.flares.push({ id: 'f1', source: world.player.vehicleId, pos: { x: 34, y: 30 }, r: 10, turnsLeft: 3 });
-    const before = cloneWorld(world);
-
-    expect(volleyShown(clock(before, 0), 'flares', 'f1')).toBe(true);
-  });
-});
-
 describe('cutShare', () => {
   const cut = { at: new THREE.Vector3(0, 0, 0), look: new THREE.Vector3(0, -1, 0) };
   const half = 6;
@@ -147,6 +64,24 @@ describe('HazardViews', () => {
     bands.clear();
   });
   afterEach(() => vi.unstubAllGlobals());
+
+  it('shows smoke and caltrops made this turn from the start of the move', () => {
+    const world = emptyWorld();
+    const me = droveEast(world);
+    const before = cloneWorld(world);
+    world.smoke.push({ id: 's1', source: me.id, pos: { x: 20, y: 30 }, r: 4, turnsLeft: 5 });
+    dropField(world, me, 'caltrops', { radius: 1.25, turns: 5, behind: 1 });
+    const views = new HazardViews();
+    const camera = new THREE.PerspectiveCamera();
+
+    views.update(world, world.terrain, new Map(), 1000, clock(before, 0), camera);
+    views.update(world, world.terrain, new Map(), 1300, clock(before, 0), camera);
+    const cards = recordedCards();
+    views.draw(cards.batches);
+
+    expect(cards.lit.length).toBeGreaterThan(0);
+    expect(spikesOf(views).some((s) => s.visible)).toBe(true);
+  });
 
   it('flies a flare made this turn when the playback ended in the volley frame', () => {
     const world = emptyWorld();
@@ -229,7 +164,7 @@ describe('HazardViews', () => {
     const camera = new THREE.PerspectiveCamera();
     const slickWidth = () => {
       let width = 0;
-      views.root.traverse((o) => {
+      views.root.traverseVisible((o) => {
         if (o instanceof THREE.Mesh && (o.material as THREE.MeshStandardMaterial).color?.getHex() === PAL.oil.slick) {
           o.geometry.computeBoundingBox();
           width = o.geometry.boundingBox!.max.x - o.geometry.boundingBox!.min.x;
@@ -279,7 +214,7 @@ describe('HazardViews', () => {
   it('draws smoke, oil, caltrops, flares and pulses without a ground band', () => {
     const world = emptyWorld();
     const me = world.vehicles[0];
-    const npc = addVehicle(world, 'raiders', 'buggy', ['stockEngine'], { x: 33, y: 30 });
+    const npc = addVehicle(world, 'scrapjaw', 'buggy', ['stockEngine'], { x: 33, y: 30 });
     world.smoke.push({ id: 's1', source: me.id, pos: { x: 30, y: 30 }, r: 4, turnsLeft: 5 });
     world.fields.push({ id: 'g1', kind: 'oil', source: me.id, pos: { x: 27, y: 30 }, r: 0.9, turnsLeft: 5, hit: [] });
     world.fields.push({ id: 'g2', kind: 'caltrops', source: me.id, pos: { x: 25, y: 32 }, r: 1.25, turnsLeft: 5, hit: [] });

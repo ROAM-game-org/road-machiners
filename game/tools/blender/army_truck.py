@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, Vec3, parse_args  # noqa: E402
+from parts_common_core import ALONG_X, TIRE_SHARE, drawn_wheel  # noqa: E402
 
 # Colors from src/render/palette.ts.
 COLORS = {
@@ -21,6 +22,7 @@ COLORS = {
     "canvas": 0x8E7454,  # PAL.wall.side, the concept's sun-faded tan canvas
     "canvas_dark": 0x6A5840,  # PAL.wall.dark
     "metal": 0x5A5A58,  # PAL.metal
+    "metal_light": 0x8A8A84,  # PAL.metalLight
     "rust": 0x5E3420,  # PAL.rust.side
     "wheel": 0x2A2420,  # PAL.wheel
     "glass": 0x2A1A10,  # PAL.shadow, empty window holes
@@ -34,8 +36,9 @@ HALF_W = 1.25  # m, half the body's width
 
 
 def wheel(kit: Kit, name: str, x: float, y: float) -> None:
-    kit.cylinder(name, WHEEL_R, 0.42, (x, y, WHEEL_R), "wheel", rot=AXLE, vertices=8, dent_by=0.02)
-    kit.cylinder(name + "_hub", WHEEL_R * 0.45, 0.46, (x, y, WHEEL_R), "metal", rot=AXLE, vertices=6)
+    """A round wheel in the look of the game's wheel model, its tire battered a little. The tire reaches WHEEL_R."""
+    tire = drawn_wheel(kit, name, (x, y, WHEEL_R), WHEEL_R / TIRE_SHARE, 0.42 / 0.94, AXLE)
+    kit.dent(tire, 0.02)
 
 
 def build(kit: Kit) -> None:
@@ -72,7 +75,7 @@ def build(kit: Kit) -> None:
     for s in (-1, 1):
         kit.box(f"rear_fender{s:+d}", (2.6, 0.5, 0.08), (-2.1, s * 1.0, 1.18), "rust")
     # Spare wheel and a fuel can behind the cab.
-    kit.cylinder("spare", WHEEL_R * 0.9, 0.35, (1.05, HALF_W - 0.35, 1.9), "wheel", rot=(0, math.radians(90), 0), vertices=8)
+    drawn_wheel(kit, "spare", (1.05, HALF_W - 0.35, 1.9), WHEEL_R * 0.9 / TIRE_SHARE, 0.35 / 0.94, ALONG_X)
     kit.box("jerrycan", (0.3, 0.18, 0.45), (1.1, -HALF_W + 0.2, 1.5), "canvas")
 
 

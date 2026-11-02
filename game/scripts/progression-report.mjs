@@ -1,20 +1,15 @@
-// Replays every trace in tmp/progression/ through the current XP rules and prints, per archetype, the in-game day
-// each activity family's earned XP covers the cumulative cost of each rank, its XP per day, and each miss against the
-// targets in src/data/skills.ts. It adds the wage per turn at each gear tier, the day each tier is first held, and the
-// fight and loss counts. Days show the median over seeds and the min-max range. A rank some seeds never reach shows how
-// many seeds reached it.
 import { createReadStream, readdirSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { MAX_RANK, SKILL_IDS } from '../src/data/skills.ts';
 import { TIME } from '../src/data/time.ts';
-import { UNITS } from '../src/data/units.ts';
 import { parseRun, replay, targetMisses, WORTH_KEYS } from '../src/sim/progression/replay.ts';
 import { LEDGER_KEYS } from '../src/sim/progression/orders.ts';
 import { fightTotals, ledgerTotals, TIERS, tierDays, wageByTier } from '../src/sim/progression/record.ts';
+import { measuredRewardTurns, searchEffort } from '../src/sim/progression/turn-log.ts';
 
 const dirs = process.argv.slice(2).filter((a) => a !== '--');
 if (dirs.length > 2) throw new Error('Pass one dir to report on, or two to compare');
-const inM = (digits) => (cents) => (cents / UNITS.centsPerM).toFixed(digits);
+const inM = (digits) => (amount) => amount.toFixed(digits);
 
 const sides = [];
 for (const dir of dirs.length > 0 ? dirs : ['tmp/progression']) sides.push(await readDir(dir));
@@ -22,11 +17,15 @@ if (sides.length === 1) printFull(sides[0]);
 else printCompare(sides, dirs);
 
 async function readDir(dir) {
-  const files = readdirSync(dir).filter((f) => f.endsWith('.jsonl') && !f.endsWith('.turns.jsonl') && !f.endsWith('.world.jsonl')).sort();
+  const files = readdirSync(dir).filter(isTrace).sort();
   if (files.length === 0) throw new Error(`No traces in ${dir}/. Run npm run progression:record first.`);
   const runs = [];
   for (const file of files) runs.push(await readRun(`${dir}/${file}`));
   return runs;
+}
+
+function isTrace(file) {
+  return /^[^.]+\.jsonl$/.test(file);
 }
 
 function namesOf(runs) {
@@ -79,7 +78,7 @@ function requireSameRuns(a, b) {
 
 function ledgerPerDay(runs) {
   const each = runs.map((r) => {
-    const days = r.rows.reduce((sum, row) => sum + row.turns, 0) / TIME.turnsPerDay;
+    const days = r.rows.reduce((sum, row) => sum + row.turns, 0) / TIME.workDayTurns;
     const totals = ledgerTotals(r.rows);
     return Object.fromEntries(LEDGER_KEYS.map((key) => [key, totals[key] / days]));
   });
@@ -122,7 +121,8 @@ function gainPerTurn(run) {
 async function readRun(path) {
   const run = parseRun(await readValues(path), path);
   const curve = replay(run.trace, run.turns);
-  return { ...run, curve, misses: targetMisses(curve, run.archetype, run.turns) };
+  const search = run.archetype === 'searcher' ? searchEffort(await readValues(path.replace(/\.jsonl$/, '.turns.jsonl'))) : null;
+  return { ...run, curve, search, misses: targetMisses(curve, run.archetype, run.turns) };
 }
 
 async function readValues(path) {
@@ -133,11 +133,26 @@ async function readValues(path) {
 
 function printArchetype(archetype, group) {
   const seeds = group.map((r) => r.seed).join(', ');
-  const days = group.map((r) => Number((r.turns / TIME.turnsPerDay).toFixed(1)));
+  const days = group.map((r) => Number((r.turns / TIME.workDayTurns).toFixed(1)));
   console.log(`\n${archetype}: ${group.length} seeds (${seeds}), ${Math.min(...days)} to ${Math.max(...days)} days`);
   printEndings(group);
   printSkills(group);
   printEconomy(group);
+  if (archetype === 'searcher') printSearchEffort(group);
+}
+
+function printSearchEffort(group) {
+  const all = group.map((r) => r.search);
+  const sum = (key) => all.reduce((n, s) => n + s[key], 0);
+  const efforts = all.flatMap((s) => s.efforts);
+  const effort = median(efforts);
+  const cost = all.reduce((n, s) => n + s.runningCost * s.turns, 0) / sum('turns');
+  console.log('\nSearch effort');
+  console.log(`searches ${sum('accepted')}: claimed ${sum('claimed')}, failed ${sum('failed')}, lapsed ${sum('lapsed')}, open at the end ${sum('open')}`);
+  console.log(`turns from accept to claim: median ${effort}, each ${efforts.join(', ')}`);
+  console.log(`turns searching per paid search, failures included: ${(sum('searchTurns') / Math.max(1, sum('claimed'))).toFixed(0)}`);
+  console.log(`running cost a turn: ${inM(3)(cost)} M`);
+  console.log(`rewardTurns from the median: ${efforts.length > 0 ? measuredRewardTurns(effort, cost) : 'no claimed search'}`);
 }
 
 function printEndings(group) {
@@ -148,13 +163,15 @@ function printEndings(group) {
 
 function printSkills(group) {
   const levels = Array.from({ length: MAX_RANK }, (_, i) => `R${i + 1}`);
-  const rows = [['skill', ...levels.map((l) => `${l} day`), 'XP/day']];
-  for (const skill of SKILL_IDS) {
-    const curves = group.map((r) => r.curve[skill]);
-    const cells = levels.map((_, i) => levelCell(curves.map((c) => c.levels[i]), group.length));
-    rows.push([skill, ...cells, spread(curves.map((c) => c.perDay), (n) => n.toFixed(0))]);
-  }
+  const rows = [['family', 'XP/day']];
+  for (const skill of SKILL_IDS) rows.push([skill, spread(group.map((r) => r.curve.families[skill].perDay), (n) => n.toFixed(0))]);
+  rows.push(['pooled', spread(group.map((r) => r.curve.pooled.perDay), (n) => n.toFixed(0))]);
   printTable(rows);
+  const ranks = [['rank', ...levels.map((l) => `${l} day`)]];
+  for (const [label, kind] of [['one skill', 'one'], ['every skill', 'every']]) {
+    ranks.push([label, ...levels.map((_, i) => levelCell(group.map((r) => r.curve.pooled[kind][i]), group.length))]);
+  }
+  printTable(ranks);
   for (const run of group) for (const miss of run.misses) console.log(`  seed ${run.seed}: ${miss}`);
   if (group.every((run) => run.misses.length === 0)) console.log('  all targets met');
 }
@@ -195,7 +212,7 @@ function printNetWorth(group) {
 }
 
 function printLedger(group) {
-  const totals = group.map((r) => ({ days: r.rows.reduce((sum, row) => sum + row.turns, 0) / TIME.turnsPerDay, ledger: ledgerTotals(r.rows) }));
+  const totals = group.map((r) => ({ days: r.rows.reduce((sum, row) => sum + row.turns, 0) / TIME.workDayTurns, ledger: ledgerTotals(r.rows) }));
   const rows = [['M per day', ...LEDGER_KEYS]];
   rows.push(['median', ...LEDGER_KEYS.map((key) => spread(totals.map((t) => t.ledger[key] / t.days), inM(2)))]);
   console.log('');
@@ -210,7 +227,7 @@ function spreadOrNone(values, format) {
 function levelCell(turns, seeds) {
   const reached = turns.filter((t) => t !== null);
   if (reached.length === 0) return 'never';
-  const cell = spread(reached, (t) => (t / TIME.turnsPerDay).toFixed(1));
+  const cell = spread(reached, (t) => (t / TIME.workDayTurns).toFixed(1));
   return reached.length === seeds ? cell : `${cell} [${reached.length}/${seeds}]`;
 }
 

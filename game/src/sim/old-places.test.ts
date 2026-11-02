@@ -2,19 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { ECONOMY, GOODS } from '../data/goods';
 import { partDef } from '../data/parts';
 import { REGION } from '../data/region';
+import { DIRECTIONS } from '../data/directions';
 import { OLD_PLACE_TYPES, OLD_TABLES, SALVAGE, type LootTable } from '../data/salvage';
+import { BOATS, TERRAIN } from '../data/terrain';
 import { START_KITS } from '../data/start';
 import { TEST_MAP } from '../test/map';
 import { clearOfSites, mapObstacles, propReach } from './mapgen';
 import { navLayer } from './nav/layer';
-import { makeOldSpotPicks, MAX_RADIUS, oldPlaces, oldSpotOf, oldSpotPicks, oldStockId, offRoad, placeSpot, reachable } from './salvage';
+import { makeOldSpotPicks, MAX_RADIUS, meanLootValue, oldPlaces, salvagePlace, oldSpotOf, oldSpotPicks, oldStockId, offRoad, placeSpot, reachable } from './salvage';
 import { isLootSpot, spotTable, territoryAt } from './territory';
 import type { PropKind } from './terrain';
 import type { Obstacle, SalvageStock } from './types';
 import { partValue } from './wear';
 import { defaultSetup } from './settings';
 import { newWorld } from './world';
-import type { Vec } from './vec';
+import { polylineDist, type Vec } from './vec';
 import { icarusAtlas } from './atlas';
 
 const baked = mapObstacles(TEST_MAP);
@@ -24,7 +26,7 @@ function openGround(): Vec {
   for (let y = 50; y < TEST_MAP.terrain.size - 50; y += 5)
     for (let x = 50; x < TEST_MAP.terrain.size - 50; x += 5) {
       const pos = { x, y };
-      if (territoryAt(pos) === null && clearOfSites(icarusAtlas(), pos, 30) && offRoad(landmark('ruin', pos, 0)) && reachable(layer, landmark('ruin', pos, 0)) && baked.every((o) => Math.hypot(o.pos.x - x, o.pos.y - y) > 20)) return pos;
+      if (territoryAt(pos) === null && clearOfSites(icarusAtlas(), pos, 30) && offRoad(landmark('ruin', pos, 0)) && reachable(layer, landmark('ruin', pos, 0), REGION.navigation.reachClimb) && baked.every((o) => Math.hypot(o.pos.x - x, o.pos.y - y) > 20)) return pos;
     }
   throw new Error('No open ground on the map');
 }
@@ -34,6 +36,18 @@ function landmark(look: Exclude<PropKind, 'rock'>, pos: Vec, k: number): Obstacl
 }
 
 const at = (o: Vec, dx: number, dy: number): Vec => ({ x: o.x + dx, y: o.y + dy });
+
+describe('roadside props', () => {
+  const roadside: readonly string[] = ['roadSign', 'routeSign', 'barrel', 'drums'];
+
+  it('make no old place and no direction cue', () => {
+    const looks = oldPlaces(baked).flatMap((p) => p.props.map((o) => (o.kind === 'landmark' ? o.look : o.kind)));
+
+    expect(looks.filter((look) => roadside.includes(look))).toEqual([]);
+    expect(DIRECTIONS.cueLooks.filter((look) => roadside.includes(look))).toEqual([]);
+    expect(baked.some((o) => o.kind === 'landmark' && o.look === 'roadSign')).toBe(true);
+  });
+});
 
 describe('old-world places', () => {
   it('types places by what stands in them, and keeps hulks apart from buildings', () => {
@@ -61,6 +75,32 @@ describe('old-world places', () => {
     ]);
   });
 
+  it('makes one boats place of a linked group of boats, apart from tanks', () => {
+    const o = openGround();
+    const props = [landmark('fishingBoat', o, 1), landmark('skiff', at(o, 6, 0), 2), landmark('riverBarge', at(o, 12, 0), 3), landmark('tank', at(o, 0, 30), 4)];
+    expect(props.every((p) => territoryAt(p.pos) === null && clearOfSites(icarusAtlas(), p.pos, p.r))).toBe(true);
+    const places = oldPlaces(props).map((p) => ({ type: p.type, ids: p.props.map((q) => q.id).sort() }));
+    expect(places).toEqual([
+      { type: 'hulks', ids: ['tank-90004'] },
+      { type: 'boats', ids: ['fishingBoat-90001', 'riverBarge-90003', 'skiff-90002'] },
+    ]);
+  });
+
+  it('reads a boat spot id back as a boats place, and prompts Search the wreck', () => {
+    for (const look of ['fishingBoat', 'riverBarge', 'skiff'] as const) {
+      const id = `${look}-1234`;
+      expect(oldSpotOf({ id: `old-boats-${id}` })).toEqual({ type: 'boats', propId: id });
+    }
+    const pick = oldSpotPicks(TEST_MAP).find((p) => p.type === 'boats')!;
+    const stock = { id: oldStockId(pick), pos: pick.pos } as SalvageStock;
+    expect(salvagePlace(stock)).toBe('wreck');
+  });
+
+  it('stocks boats about as richly as tank hulks, with the same Ship Metal chance', () => {
+    expect(Math.abs(meanLootValue(OLD_TABLES.boats) / meanLootValue(OLD_TABLES.hulks) - 1)).toBeLessThanOrEqual(0.1);
+    expect(OLD_TABLES.boats.relicChance).toBe(OLD_TABLES.hulks.relicChance);
+  });
+
   it('skips a building ringed by rocks, so a place with only it gets no spot', () => {
     const o = openGround();
     const house = landmark('house', o, 1);
@@ -70,8 +110,8 @@ describe('old-world places', () => {
     });
     const open = navLayer(TEST_MAP.terrain, [...baked, house], MAX_RADIUS);
     const ringed = navLayer(TEST_MAP.terrain, [...baked, house, ...rocks], MAX_RADIUS);
-    expect(reachable(open, house)).toBe(true);
-    expect(reachable(ringed, house)).toBe(false);
+    expect(reachable(open, house, REGION.navigation.reachClimb)).toBe(true);
+    expect(reachable(ringed, house, REGION.navigation.reachClimb)).toBe(false);
     const [lookout] = oldPlaces([house]);
     expect(placeSpot(TEST_MAP, ringed, lookout)).toBeNull();
     expect(placeSpot(TEST_MAP, open, lookout)?.id).toBe(house.id);
@@ -103,12 +143,12 @@ describe('old-world loot spot picks on the committed map', () => {
       expect(offRoad(o), p.propId).toBe(true);
       expect(territoryAt(o.pos), p.propId).toBeNull();
       expect(clearOfSites(icarusAtlas(), o.pos, o.r), p.propId).toBe(true);
-      expect(reachable(layer, o), p.propId).toBe(true);
+      expect(reachable(layer, o, REGION.navigation.reachClimb), p.propId).toBe(true);
       expect(p.reach).toBe(propReach(o));
     }
   });
 
-  it('is sparse: some places of every type hold a spot and some do not', () => {
+  it('is sparse: most types hold a spot and no type holds one in every place', () => {
     const places = oldPlaces(baked);
     const picked = new Set(picks.map((p) => p.propId));
     const counts = OLD_PLACE_TYPES.map((type) => {
@@ -118,10 +158,33 @@ describe('old-world loot spot picks on the committed map', () => {
     });
     expect(picks.length).toBeGreaterThanOrEqual(6);
     expect(picks.length).toBeLessThanOrEqual(20);
-    for (const c of counts) {
-      expect(c.withSpot, c.type).toBeGreaterThan(0);
-      expect(c.withSpot, c.type).toBeLessThan(c.places);
+    expect(counts.filter((c) => c.withSpot > 0).length).toBeGreaterThanOrEqual(3);
+    for (const c of counts) expect(c.withSpot, c.type).toBeLessThan(c.places);
+  });
+
+  it('holds boat groups of every kind, on open ground clear of roads and earlier props', () => {
+    const boats = baked.filter((o) => o.kind === 'landmark' && ['fishingBoat', 'riverBarge', 'skiff'].includes(o.look));
+    expect(boats.length).toBeGreaterThanOrEqual(BOATS.boatBand[0]);
+    expect(boats.length).toBeLessThanOrEqual(BOATS.boatBand[1]);
+    for (const b of boats) {
+      expect(territoryAt(b.pos), b.id).toBeNull();
+      expect(clearOfSites(icarusAtlas(), b.pos, b.r), b.id).toBe(true);
     }
+    expect(new Set(boats.map((b) => b.kind === 'landmark' && b.look)).size).toBeGreaterThanOrEqual(2);
+  });
+
+  it('keeps every river boat out of the middle lane of the dry river', () => {
+    const river = TERRAIN.features.dryRiver;
+    const boats = baked.filter((o) => o.kind === 'landmark' && ['fishingBoat', 'riverBarge', 'skiff'].includes(o.look));
+    const onFloor = boats.filter((b) => polylineDist(b.pos, river.path) <= river.width);
+    expect(onFloor.length).toBeGreaterThan(0);
+    for (const b of onFloor) expect(polylineDist(b.pos, river.path) - b.r, b.id).toBeGreaterThanOrEqual(BOATS.passLane / 2);
+  });
+
+  it('puts a loot spot on some boat places and not on others', () => {
+    const boatPlaces = oldPlaces(baked).filter((p) => p.type === 'boats');
+    expect(picks.some((p) => p.type === 'boats')).toBe(true);
+    expect(picks.filter((p) => p.type === 'boats').length).toBeLessThan(boatPlaces.length);
   });
 
   it('names the place type in the stock id', () => {
@@ -144,7 +207,7 @@ describe('old-world loot spot economy', () => {
       0,
     );
   const worlds = Array.from({ length: SEEDS }, (_, k) => newWorld(k + 1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false));
-  const isRare = (stock: SalvageStock) => stock.hidden.parts.some((p) => OLD_TABLES[oldSpotOf(stock)!.type].rare!.parts.includes(p.defId));
+  const isRare = (stock: SalvageStock) => stock.hidden.parts.some((p) => OLD_TABLES[oldSpotOf(stock)!.type].rare?.parts.includes(p.defId) === true);
   const olds = worlds.flatMap((w) => w.salvage.filter((s) => oldSpotOf(s)));
   const others = worlds.flatMap((w) => w.salvage.filter((s) => !oldSpotOf(s)));
 

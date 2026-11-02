@@ -11,7 +11,7 @@ import { addGoods } from './inventory';
 import { thinkNpc, topGoal } from './npc-activities';
 import { getResources } from './resources';
 import { canUseSite, siteGates, sitePads } from './sites';
-import { spawnInitial } from './spawn';
+import { spawnInitial, spawnQueueNow } from './spawn';
 import { addVehicle, emptyWorld, finishBusiness, npcBrain, partHp, testDrive } from './testkit';
 import type { Faction, World } from './types';
 import { dist, type Vec } from './vec';
@@ -39,9 +39,12 @@ describe('raider camps', () => {
   it('spawn raiders just outside a camp gate', () => {
     const w = emptyWorld({ x: 300, y: 300 });
     spawnInitial(w);
-    const raiders = w.vehicles.filter((v) => v.faction === 'raiders');
-    expect(raiders).toHaveLength(SPAWN.initial.filter((id) => NPCS[id].faction === 'raiders').length);
+    spawnQueueNow(w);
+    const raiders = w.vehicles.filter((v) => v.brain?.traits.includes('raider'));
+    expect(raiders).toHaveLength(SPAWN.initial.filter((id) => NPCS[id].traits.includes('raider')).length);
     for (const r of raiders) {
+      const home = [...camps].sort((a, b) => dist(a.pos, r.pos) - dist(b.pos, r.pos))[0];
+      expect(r.faction).toBe(home.id);
       const near = camps.flatMap((c) => siteGates(c)).some((g) => dist(g, r.pos) <= SPAWN.gateSpread + 2);
       expect(near, `raider at ${r.pos.x},${r.pos.y}`).toBe(true);
     }
@@ -57,7 +60,7 @@ describe('raider camps', () => {
 
   it('send a damaged raider to the nearest camp, and sell its cargo and repair it there', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const raider = addNpc(w, 'raiders', 'buggy', outside(20));
+    const raider = addNpc(w, 'scrapjaw', 'buggy', outside(20));
     corePart(raider, 'cab').hp = 1;
     addGoods(w, raider, 'scrap', 1);
     planNpcOrders(w);
@@ -72,7 +75,7 @@ describe('raider camps', () => {
 
   it('send a broke raider with cargo to sell at a camp or the Salvage Yard', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const raider = addNpc(w, 'raiders', 'buggy', outside(20));
+    const raider = addNpc(w, 'scrapjaw', 'buggy', outside(20));
     getResources(w, raider).fuel = 0;
     getResources(w, raider).money = 0;
     addGoods(w, raider, 'scrap', 1);
@@ -86,7 +89,7 @@ describe('raider camps', () => {
     const townPad = sitePads(town)[0];
     const strand = (pos: Vec, template: string) => {
       const w = emptyWorld({ x: 30, y: 30 });
-      const v = addNpc(w, template === 'trader' ? 'traders' : 'raiders', template, pos);
+      const v = addNpc(w, template === 'trader' ? 'independent' : 'scrapjaw', template, pos);
       getResources(w, v).fuel = 0;
       getResources(w, v).money = 16667;
       corePart(v, 'cab').hp = 1;
@@ -110,14 +113,14 @@ describe('raider camps', () => {
 
   it('buy any good at the road price and leave shops untouched', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const raider = addNpc(w, 'raiders', 'buggy', outside(1));
+    const raider = addNpc(w, 'scrapjaw', 'buggy', outside(1));
     addGoods(w, raider, 'salt', 2);
     const money = getResources(w, raider).money;
     const shops = structuredClone(w.shops);
     const rng = structuredClone(w.marketRng);
     sellAtCamp(w, raider, 'kiln', 0);
     expect(goodsCount(raider).salt).toBeUndefined();
-    expect(getResources(w, raider).money).toBe(money + 2 * campGoodPrice('salt'));
+    expect(getResources(w, raider).money).toBe(money + campGoodPrice('salt', 2));
     expect(campGoodPrice('salt')).toBeLessThan(GOODS.salt.value);
     expect(w.shops).toEqual(shops);
     expect(w.marketRng).toEqual(rng);
@@ -125,7 +128,7 @@ describe('raider camps', () => {
 
   it('keep the repair parts reserve when buying', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const raider = addNpc(w, 'raiders', 'buggy', outside(1));
+    const raider = addNpc(w, 'scrapjaw', 'buggy', outside(1));
     addGoods(w, raider, 'parts', 5);
     sellAtCamp(w, raider, 'kiln', 2);
     expect(goodsCount(raider).parts).toBe(2);
@@ -133,7 +136,7 @@ describe('raider camps', () => {
 
   it('send a raider holding only salt to a camp, and on to a camp after a Salvage Yard sale', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const raider = addNpc(w, 'raiders', 'buggy', outside(20));
+    const raider = addNpc(w, 'scrapjaw', 'buggy', outside(20));
     getResources(w, raider).fuel = 0;
     getResources(w, raider).money = 0;
     addGoods(w, raider, 'salt', 1);
@@ -144,7 +147,7 @@ describe('raider camps', () => {
   it('pick the Salvage Yard for scrap beside it, and then a camp for the salt left over', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const yard = REGION.locations.find((l) => l.id === 'salvage-yard')!;
-    const raider = addNpc(w, 'raiders', 'buggy', sitePads(yard)[0]);
+    const raider = addNpc(w, 'scrapjaw', 'buggy', sitePads(yard)[0]);
     getResources(w, raider).fuel = 0;
     getResources(w, raider).money = 0;
     addGoods(w, raider, 'scrap', 1);
@@ -167,10 +170,10 @@ describe('raider camps', () => {
 
   it('serve only raiders at a gate', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const trader = addNpc(w, 'traders', 'trader', outside(1));
+    const trader = addNpc(w, 'independent', 'trader', outside(1));
     expect(canUseSite(trader.pos, kiln)).toBe(true);
     expect(() => serviceAtCamp(w, trader, 'kiln', 0)).toThrow('Only raiders');
-    const raider = addNpc(w, 'raiders', 'buggy', outside(1));
+    const raider = addNpc(w, 'scrapjaw', 'buggy', outside(1));
     expect(() => serviceAtCamp(w, raider, 'bowl', 0)).toThrow('Not at a gate');
   });
 });

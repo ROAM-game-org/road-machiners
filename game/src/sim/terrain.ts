@@ -1,6 +1,6 @@
 
 import { MAPGEN, TERRAIN, TERRAIN_TYPES, type TerrainTypeId } from '../data/terrain';
-import { besideDeck, deckAt, decksOf, spanAt, type Deck } from './bridge';
+import { besideDeck, deckAt, decksOf, decksWithin, spanAt, type Deck } from './bridge';
 import { fnv1a } from '../file-hash';
 import { clamp, type Vec } from './vec';
 
@@ -12,6 +12,7 @@ export type Terrain = {
   heights: number[];
   types: TerrainTypeId[];
   atlas: AtlasKey;
+  routes?: Uint8Array;
 };
 
 const T = TERRAIN;
@@ -37,6 +38,10 @@ export function isRoadTile(t: Terrain, p: Vec): boolean {
 export function heightAt(t: Terrain, x: number, y: number): number {
   const on = deckAt(decksOf(t.atlas), x, y);
   return on === null ? groundAt(t, x, y) : deckHeight(t, on.deck, on.along);
+}
+
+export function heightNear(t: Terrain, at: Vec, reach: number): (x: number, y: number) => number {
+  return decksWithin(decksOf(t.atlas), at, reach) ? (x, y) => heightAt(t, x, y) : (x, y) => groundAt(t, x, y);
 }
 
 export function markHeightAt(t: Terrain, origin: Vec, x: number, y: number): number {
@@ -124,7 +129,7 @@ export function isCliff(t: Terrain, tile: number): boolean {
   return Math.hypot(s.x, s.y) > T.drive.maxSlope;
 }
 
-export const PROP_KINDS = ['rock', 'crag', 'ruin', 'house', 'silo', 'waterTower', 'gasStation', 'bridgeSpan', 'pole', 'billboard', 'tank', 'shack', 'fence', 'junk', 'carWreck', 'hullChunk', 'shipCache', 'reactor', 'deadTree', 'farmhouse', 'barn', 'armyCache', 'bunker', 'armyTruck', 'sandbags', 'quonset', 'guardPost', 'barrier', 'drums', 'woodpile', 'shipWing', 'hullCache', 'shipBow', 'shipCage', 'shipHub', 'hullShell', 'hullDrum', 'hullShard', 'hullTower', 'hullGantry', 'rimRock', 'tankTrap', 'fortPumpworksWall', 'fortPumpworksTower', 'fortPumpworksGate', 'fortPumpworksInner', 'fortCisternWall', 'fortCisternTower', 'fortCisternGate', 'fortCisternInner', 'fortShipWall', 'fortShipTower', 'fortShipGate', 'fortScrapWall', 'fortScrapTower', 'fortScrapGate', 'fortScrapInner', 'fortPatchworkWall', 'fortPatchworkTower', 'fortPatchworkGate', 'fortCompoundWall', 'fortCompoundTower', 'fortCompoundGate', 'fortRingWall', 'fortRingGate', 'fortYardWall', 'fortYardTower', 'fortYardGate', 'noseRise', 'noseCrag', 'engineNozzle', 'engineFrame', 'watchtower', 'ruinCompound', 'deadTruck', 'engineCache', 'glassSpire', 'scrapWall', 'escapePod', 'habitat', 'wingShard', 'powerCell'] as const;
+export const PROP_KINDS = ['rock', 'crag', 'ruin', 'house', 'silo', 'waterTower', 'gasStation', 'bridgeSpan', 'pole', 'billboard', 'tank', 'shack', 'fence', 'junk', 'carWreck', 'hullChunk', 'shipCache', 'reactor', 'deadTree', 'farmhouse', 'barn', 'armyCache', 'bunker', 'armyTruck', 'sandbags', 'quonset', 'guardPost', 'barrier', 'drums', 'woodpile', 'shipWing', 'hullCache', 'shipBow', 'shipCage', 'shipHub', 'hullShell', 'hullDrum', 'hullShard', 'hullTower', 'hullGantry', 'rimRock', 'tankTrap', 'fortPumpworksWall', 'fortPumpworksTower', 'fortPumpworksGate', 'fortPumpworksInner', 'fortCisternWall', 'fortCisternTower', 'fortCisternGate', 'fortCisternInner', 'fortShipWall', 'fortShipTower', 'fortShipGate', 'fortScrapWall', 'fortScrapTower', 'fortScrapGate', 'fortScrapInner', 'fortPatchworkWall', 'fortPatchworkTower', 'fortPatchworkGate', 'fortCompoundWall', 'fortCompoundTower', 'fortCompoundGate', 'fortRingWall', 'fortRingGate', 'fortYardWall', 'fortYardTower', 'fortYardGate', 'noseRise', 'noseCrag', 'engineNozzle', 'engineFrame', 'watchtower', 'ruinCompound', 'deadTruck', 'engineCache', 'glassSpire', 'scrapWall', 'escapePod', 'habitat', 'wingShard', 'powerCell', 'fortOutpostWall', 'fortOutpostTower', 'fortOutpostGate', 'fortOutpostShut', 'roadSign', 'routeSign', 'barrel', 'fishingBoat', 'riverBarge', 'skiff'] as const;
 export type PropKind = (typeof PROP_KINDS)[number];
 export type BakedProp = { kind: PropKind; pos: Vec; r: number; yaw: number; group: number; step: number; hulk?: string };
 export type BakedMap = { hash: string; seed: number; terrain: Terrain; props: BakedProp[] };
@@ -132,8 +137,25 @@ export type MapGrid = { size: number; heights: Float32Array; types: Uint8Array; 
 
 export const TYPE_IDS = Object.keys(TERRAIN_TYPES) as TerrainTypeId[];
 
+export function routesFile(mapFile: string): string {
+  return mapFile.replace(/\.bin$/, '.routes.bin');
+}
+
+export const BUILT_NONE = 0;
+export const BUILT_OLD_ROAD = 1;
+export const BUILT_FIELD = 2;
+export const BUILT_SCRUB = 3;
+export const BUILT_DIRTY_WATER = 4;
+export const BUILT_TOXIC = 5;
+export const BUILT_TRACK = 6;
+export const BUILT_CANAL = 7;
+export const BUILT_PAD = 8;
+export const BUILT_GLASS = 9;
+export const BUILT_BLACK_MUD = 10;
+export const BUILT_DITCH = 11;
+
 const MAGIC = 'KMAP';
-const VERSION = 4;
+const VERSION = 5;
 const HEADER = 20;
 const PROP_BYTES = 1 + 4 * 4 + 2 * 2;
 const INT16_MAX = 32767;

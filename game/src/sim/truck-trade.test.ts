@@ -21,7 +21,7 @@ import { endTurn, update } from './world';
 function withTrader(x: number): { w: World; npc: Vehicle } {
   const w = emptyWorld({ x: 30, y: 30 });
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-  const npc = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x, y: 30 }, Math.PI);
+  const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x, y: 30 }, Math.PI);
   npc.brain = npcBrain('trader', npc.pos, ['trader']);
   return { w, npc };
 }
@@ -101,21 +101,21 @@ describe('trades', () => {
   it('buying a good moves it to the player, pays the driver and keeps money whole', () => {
     const { w: start, npc } = meeting();
     const w0 = update(start, (w) => { addGoods(w, find(w, npc.id), 'salt', 3); });
-    const price = truckGoodPrice(w0, 'salt', 'buy');
+    const price = truckGoodPrice(w0, 'salt', 'buy', 2);
     const w = buyTruckGood(w0, npc.id, 'salt', 2);
-    expect(w.player.money).toBe(w0.player.money - 2 * price);
+    expect(w.player.money).toBe(w0.player.money - price);
     expect(wallets(w, npc.id)).toBe(wallets(w0, npc.id));
     expect(goodsCount(playerVehicle(w)).salt).toBe(2);
     expect(goodsCount(find(w, npc.id)).salt).toBe(1);
-    expect(w.player.costBasis.salt).toBe(price);
+    expect(w.player.costBasis.salt).toBe(price / 2);
   });
 
   it('selling a good pays the player from the driver wallet', () => {
     const { w: start, npc } = meeting();
     const w0 = update(start, (w) => { addGoods(w, playerVehicle(w), 'meds', 2); });
-    const price = truckGoodPrice(w0, 'meds', 'sell');
+    const price = truckGoodPrice(w0, 'meds', 'sell', 2);
     const w = sellTruckGood(w0, npc.id, 'meds', 2);
-    expect(w.player.money).toBe(w0.player.money + 2 * price);
+    expect(w.player.money).toBe(w0.player.money + price);
     expect(wallets(w, npc.id)).toBe(wallets(w0, npc.id));
     expect(goodsCount(find(w, npc.id)).meds).toBe(2);
   });
@@ -175,7 +175,7 @@ describe('trades', () => {
     expect(() => buyTruckSupply(w0, npc.id, 'fuel', 6)).toThrow('will not sell');
     const w = buyTruckSupply(w0, npc.id, 'fuel', 5);
     expect(w.player.fuel).toBe(5);
-    expect(w.player.money).toBe(w0.player.money - 5 * truckSupplyPrice(w0, 'fuel'));
+    expect(w.player.money).toBe(w0.player.money - truckSupplyPrice(w0, 'fuel', 5));
     expect(find(w, npc.id).resources!.fuel).toBe(cap * NPC_UPKEEP.tradeReserve);
   });
 
@@ -202,8 +202,8 @@ describe('trades', () => {
 describe('trade reach', () => {
   it('tells which driver the player can trade with and keeps reach apart from parking', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const far = addVehicle(w, 'traders', 'scout', [], { x: 90, y: 30 });
-    const near = addVehicle(w, 'traders', 'scout', [], { x: 34, y: 30 });
+    const far = addVehicle(w, 'independent', 'scout', [], { x: 90, y: 30 });
+    const near = addVehicle(w, 'independent', 'scout', [], { x: 34, y: 30 });
     const a = addState(w, 'trade', far.id, w.player.vehicleId, { kind: 'none' });
     const b = addState(w, 'trade', near.id, w.player.vehicleId, { kind: 'none' });
     expect(playerTrades(w)).toHaveLength(2);

@@ -1,3 +1,3 @@
-import { describeQuestWalks } from './quest-walk';
+import { describeQuestWalks, inPumpAgnesFile } from './quest-walk';
 
-describeQuestWalks('the pump quests', (id) => id.startsWith('pump_'));
+describeQuestWalks('the pump agnes quest', inPumpAgnesFile);

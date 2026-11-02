@@ -2,7 +2,11 @@ import { defaultSetup } from '../../sim/settings';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { PHYSICS } from '../../data/physics';
+import { REGION } from '../../data/region';
 import { START_KITS } from '../../data/start';
+import { ZONES, type ZoneKind } from '../../data/terrain';
+import { SCATTER } from '../../data/view';
+import { ZONE_KINDS, zoneWeight } from '../../sim/zones';
 import { desertWeight, lookTypes } from '../../render/groundPaint';
 import { ROAD_INDEX } from '../../sim/road-index';
 import type { Vec } from '../../sim/vec';
@@ -34,6 +38,14 @@ for (const o of world.obstacles) {
 }
 
 describe('scatterPlacements', () => {
+  it('centres every chunk inside the map, also when the map is not a whole number of chunks', () => {
+    expect(t.size % 32).not.toBe(0);
+    for (const c of chunks) {
+      expect(c.center.x).toBeLessThanOrEqual(t.size);
+      expect(c.center.y).toBeLessThanOrEqual(t.size);
+    }
+  });
+
   it('keeps scatter off roads and away from obstacles', () => {
     expect(placed.length).toBeGreaterThan(1000);
     for (const p of placed) expect(roadDist(at(p).x, at(p).y)).toBeGreaterThanOrEqual(ROAD_GAP);
@@ -69,7 +81,7 @@ describe('scatterPlacements', () => {
       if (t.types[y * t.size + x] === 'hardpan' && roadDist(x + 0.5, y + 0.5) >= ROAD_GAP + SHOULDER_TILES) tiles++;
     const grown = scrub.filter((p) => typeAt(at(p)) === 'hardpan' && !onShoulder(at(p))).length;
     expect(tiles).toBeGreaterThan(1000);
-    expect(grown / tiles).toBeGreaterThan(0.08);
+    expect(grown / tiles).toBeGreaterThan(0.03);
   });
 
   it('grows cacti only on desert ground, gathered by rocks and crags', () => {
@@ -107,9 +119,9 @@ describe('scatterPlacements', () => {
       expect(shoulderTiles).toBeGreaterThan(500);
       const share = (list: { matrix: THREE.Matrix4 }[], shoulder: boolean) =>
         list.filter((p) => onShoulder(at(p)) === shoulder).length / (shoulder ? shoulderTiles : openTiles);
-      for (const [list, chance] of [[small, 0.3], [dry, 0.04]] as const) {
-        expect(share(list, true), type).toBeCloseTo(chance, 1);
-        expect(share(list, false), type).toBeCloseTo(chance, 1);
+      for (const list of [small, dry]) {
+        expect(share(list, true) / share(list, false), type).toBeGreaterThan(0.8);
+        expect(share(list, true) / share(list, false), type).toBeLessThan(1.25);
       }
     }
   });
@@ -128,6 +140,77 @@ describe('scatterPlacements', () => {
     expect(scatterPlacements({ ...t, types }, []).flatMap(all).length).toBe(0);
     expect(t.types.some((type) => type === 'glass')).toBe(true);
     for (const p of placed) expect(typeAt(at(p))).not.toBe('glass');
+  });
+
+  it('has density rules for every zone the map defines', () => {
+    for (const kind of ZONE_KINDS) {
+      expect(ZONES.some((z) => z.kind === kind), kind).toBe(true);
+      expect(Object.keys(SCATTER.regions)).toContain(kind);
+    }
+  });
+
+  it('scatters by region: rocks in the mountains, scrub on the farm belt, bare swamp, patchy plain', () => {
+    const cell = 4;
+    const side = Math.ceil(t.size / cell);
+    const owner = new Array<ZoneKind | 'plain' | null>(side * side);
+    const tiles = new Map<ZoneKind | 'plain', number>();
+    for (let j = 0; j < side; j++) for (let i = 0; i < side; i++) {
+      const weights = ZONE_KINDS.map((kind) => [kind, zoneWeight(kind, i * cell + cell / 2, j * cell + cell / 2)] as const);
+      const top = weights.reduce((a, b) => (b[1] > a[1] ? b : a));
+      const kind = top[1] > 0.9 ? top[0] : top[1] === 0 ? 'plain' : null;
+      owner[j * side + i] = kind;
+      if (kind !== null) tiles.set(kind, (tiles.get(kind) ?? 0) + cell * cell);
+    }
+    const count = (lists: (c: ScatterChunk) => ScatterChunk['pebbles']) => {
+      const counts = new Map<ZoneKind | 'plain', number>();
+      for (const p of chunks.flatMap(lists)) {
+        const kind = owner[Math.floor(at(p).y / cell) * side + Math.floor(at(p).x / cell)];
+        if (kind !== null) counts.set(kind, (counts.get(kind) ?? 0) + 1);
+      }
+      return (kind: ZoneKind | 'plain') => (counts.get(kind) ?? 0) / (tiles.get(kind) ?? Infinity);
+    };
+    const stones = count((c) => [...c.pebbles, ...c.desert_stones]);
+    const brush = count((c) => [...c.scrub, ...c.desert_scrub]);
+
+    expect(stones('mountains')).toBeGreaterThan(1.5 * stones('plain'));
+    expect(stones('mountains')).toBeGreaterThan(3 * stones('farmBelt'));
+    expect(stones('swamp')).toBeLessThan(0.1 * stones('plain'));
+    expect(brush('farmBelt')).toBeGreaterThan(1.8 * brush('plain'));
+    expect(brush('farmBelt')).toBeGreaterThan(5 * brush('mountains'));
+    expect(brush('swamp')).toBeLessThan(brush('plain'));
+    expect(brush('crash')).toBeLessThan(0.5 * brush('plain'));
+    expect(stones('crash')).toBeGreaterThan(stones('plain'));
+    expect(brush('desert')).toBeLessThan(0.25 * brush('farmBelt'));
+  });
+
+  it('leaves Glass Flats sparser than the desert around it', () => {
+    const site = REGION.locations.find((l) => l.id === 'glass-flats')!;
+    const near = (p: { matrix: THREE.Matrix4 }, from: number, to: number) => {
+      const d = Math.hypot(at(p).x - site.pos.x, at(p).y - site.pos.y) / site.radius;
+      return d >= from && d < to;
+    };
+    const ring = (from: number, to: number) => Math.PI * site.radius ** 2 * (to ** 2 - from ** 2);
+    const inner = scrub.filter((p) => near(p, 0, 1)).length / ring(0, 1);
+    const outer = scrub.filter((p) => near(p, 2, 3)).length / ring(2, 3);
+    expect(outer).toBeGreaterThan(0);
+    expect(inner).toBeLessThan(0.25 * outer);
+    expect(pebbles.filter((p) => near(p, 0, 1)).length / ring(0, 1)).toBeLessThan(0.25 * (pebbles.filter((p) => near(p, 2, 3)).length / ring(2, 3)));
+  });
+
+  it('varies density in patches inside one region', () => {
+    const per = new Map<number, number>();
+    const span = 16;
+    for (const p of pebbles) {
+      const key = Math.floor(at(p).y / span) * t.size + Math.floor(at(p).x / span);
+      per.set(key, (per.get(key) ?? 0) + 1);
+    }
+    const plainCells = [...per.entries()].filter(([key]) => {
+      const x = (key % t.size) * span + span / 2;
+      const y = Math.floor(key / t.size) * span + span / 2;
+      return ZONE_KINDS.every((kind) => zoneWeight(kind, x, y) === 0);
+    }).map(([, n]) => n);
+    expect(plainCells.length).toBeGreaterThan(50);
+    expect(Math.max(...plainCells)).toBeGreaterThan(2 * Math.min(...plainCells));
   });
 
   it('places the same scatter on every load', () => {

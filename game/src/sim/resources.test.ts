@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RULES } from '../data/rules';
+import { MAP_SPREAD } from '../data/region';
 import { CONDITION } from '../data/wear';
 import { SKILL_EFFECTS } from '../data/skills';
 import { TIME } from '../data/time';
@@ -14,7 +15,7 @@ import { heatAt } from './sun';
 describe('NPC upkeep', () => {
   it('leaks NPC fuel from a destroyed tank without draining player fuel', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', [], { x: 10, y: 10 });
+    const npc = addVehicle(w, 'independent', 'scout', [], { x: 10, y: 10 });
     corePart(npc, 'tank').hp = 0;
     const fuel = npc.resources!.fuel;
     const playerFuel = w.player.fuel;
@@ -25,7 +26,7 @@ describe('NPC upkeep', () => {
 
   it('starves an NPC without supplies without changing player health', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', [], { x: 10, y: 10 });
+    const npc = addVehicle(w, 'independent', 'scout', [], { x: 10, y: 10 });
     npc.resources!.supplies = 0;
     const health = npc.resources!.health;
     consumeSupplies(w);
@@ -51,7 +52,7 @@ describe('NPC upkeep', () => {
 
   it('consumes supplies on NPCs as well as the player', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 10, y: 10 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 10, y: 10 });
     const resources = npc.resources!;
     const before = resources.supplies;
     const heat = heatAt(w, npc.pos);
@@ -80,7 +81,7 @@ describe('toughness on heat drain', () => {
   it('leaves NPC heat drain alone', () => {
     const w = emptyWorld();
     w.turn = NOON;
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 10, y: 10 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 10, y: 10 });
     w.player.ranks.toughness = 5;
     const before = npc.resources!.supplies;
     consumeVehicleSupplies(w, npc);
@@ -93,7 +94,7 @@ describe('toughness on heat drain', () => {
 describe('store overflow', () => {
   it('an NPC that loses a mounted store spills the fuel above its cap at the turn step', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', ['jerrycans'], { x: 10, y: 10 });
+    const npc = addVehicle(w, 'independent', 'scout', ['jerrycans'], { x: 10, y: 10 });
     npc.resources!.fuel = fuelCap(npc);
     npc.items = npc.items.filter((it) => it.kind !== 'part' || it.part.defId !== 'jerrycans');
     const playerFuel = w.player.fuel;
@@ -107,7 +108,7 @@ describe('store overflow', () => {
 describe('base drain rates', () => {
   function trucks() {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 10, y: 10 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 10, y: 10 });
     const player = w.vehicles.find((v) => v.id === w.player.vehicleId)!;
     return { w, trucks: [player, npc] };
   }
@@ -118,7 +119,7 @@ describe('base drain rates', () => {
       const resources = getResources(w, v);
       const before = resources.fuel;
       burnFuel(w, v, 100);
-      expect(before - resources.fuel).toBeCloseTo(0.6 * 1.875 * heatAt(w, v.pos) * (1 + CONDITION.stepLoss * mountedParts(v, 'engine')[0].wear), 9);
+      expect(before - resources.fuel).toBeCloseTo((0.6 * 1.875 / MAP_SPREAD) * heatAt(w, v.pos) * (1 + CONDITION.stepLoss * mountedParts(v, 'engine')[0].wear), 9);
     }
   });
 
@@ -128,7 +129,7 @@ describe('base drain rates', () => {
       const resources = getResources(w, v);
       const before = resources.supplies;
       for (let i = 0; i < 10; i++) consumeVehicleSupplies(w, v);
-      expect(before - resources.supplies).toBeCloseTo(0.6 * 10 * 0.015 * heatAt(w, v.pos), 9);
+      expect(before - resources.supplies).toBeCloseTo((0.6 * 10 * 0.015 / MAP_SPREAD) * heatAt(w, v.pos), 9);
     }
   });
 });

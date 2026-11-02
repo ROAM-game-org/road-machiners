@@ -97,7 +97,7 @@ describe('field repair cap', () => {
 
   it('keeps an NPC part at the base field cap', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     const engine = mountedParts(npc, 'engine')[0];
     engine.hp = Math.ceil(partDef(engine.defId).hp * REPAIR.fieldCapShare);
     w.player.ranks.machining = 5;
@@ -109,7 +109,7 @@ describe('field repair cap', () => {
 describe('field repair by armor type', () => {
   it('patches scrap panels to full HP', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', ['scrapPanels', 'stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['scrapPanels', 'stockEngine'], { x: 40, y: 40 });
     const panels = armorPart(v);
     panels.hp = 1;
     addGoods(w, v, 'parts', 10);
@@ -120,7 +120,7 @@ describe('field repair by armor type', () => {
 
   it('leaves ceramic plates for a town garage', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', ['ceramicPlates', 'stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['ceramicPlates', 'stockEngine'], { x: 40, y: 40 });
     const plates = armorPart(v);
     plates.hp = 1;
     addGoods(w, v, 'parts', 1);

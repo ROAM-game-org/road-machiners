@@ -1,6 +1,6 @@
 
 import { PHYSICS } from "./physics";
-import { BROKEN_WING, BROKEN_WING_POINT, FALLEN_SUN_POS, MAP_SCALE, REGION, scalePoint } from "./region";
+import { BROKEN_WING, BROKEN_WING_POINT, draftName, FALLEN_SUN_POS, GLASS_FLATS_POS, MAP_AREA_SPREAD, MAP_DRAFT, MAP_SCALE, MAP_SPREAD, REGION, scalePoint } from "./region";
 import { FALLEN_SUN_DECKS } from "./territory";
 import type { PropKind } from "../sim/terrain";
 import type { Vec } from "../sim/vec";
@@ -22,7 +22,8 @@ export type TerrainTypeId =
   | "track"
   | "canal"
   | "concrete"
-  | "glass";
+  | "glass"
+  | "blackMud";
 
 export type TerrainType = {
   id: TerrainTypeId;
@@ -55,6 +56,7 @@ export const TERRAIN_TYPES: Record<TerrainTypeId, TerrainType> = {
   canal: { id: "canal", speed: 0.45, wear: 1.5, dust: 0.1, grip: 1, sideGrip: 1, color: 0x5f6f7a, craters: false, rut: 0, paved: false },
   concrete: { id: "concrete", speed: 0.98, wear: 0.6, dust: 0.3, grip: 1, sideGrip: 1, color: 0xa39e94, craters: true, rut: 0, paved: true },
   glass: { id: "glass", speed: 0.95, wear: 0.8, dust: 0.3, grip: 0.2, sideGrip: 0.15, color: 0x86ada3, craters: true, rut: 0.1, paved: false },
+  blackMud: { id: "blackMud", speed: 0.4, wear: 1.6, dust: 0.05, grip: 1, sideGrip: 0.45, color: 0x2f2a25, craters: true, rut: 1, paved: false },
 };
 
 export type DeckStation = { at: Vec; rise: number };
@@ -70,11 +72,23 @@ export type DeckSpec = {
 
 export type DeckLook = 'ship_flap' | 'ship_wing_deck';
 
+const CANYON_BRIDGE_CENTER = onTileMiddle(scalePoint({ x: 99.7, y: 73.3 }));
+
+function onTileMiddle(p: Vec): Vec {
+  return { x: Math.floor(p.x) + 0.5, y: Math.floor(p.y) + 0.5 };
+}
+
+function offsetFrom(origin: Vec, dx: number, dy: number): Vec {
+  return { x: origin.x + dx, y: origin.y + dy };
+}
+
+export const CANYON_BRIDGE_GROUND = { id: 'canyon-bridge', pos: CANYON_BRIDGE_CENTER, from: { x: 498.5, y: 366.5 } as Vec, radius: 45 };
+
 const CANYON_BRIDGE: DeckSpec = {
   id: "canyon-bridge",
   line: [
-    { at: scalePoint({ x: 97.9, y: 75.1 }), rise: 0 },
-    { at: scalePoint({ x: 101.5, y: 71.5 }), rise: 0 },
+    { at: offsetFrom(CANYON_BRIDGE_CENTER, -1.8 * 5, 1.8 * 5), rise: 0 },
+    { at: offsetFrom(CANYON_BRIDGE_CENTER, 1.8 * 5, -1.8 * 5), rise: 0 },
   ],
   width: 8,
   cut: { abutment: 1, ramp: 1.5 },
@@ -110,6 +124,7 @@ export type Basin = {
   rim: number[];
   depth: number;
   floorRelief: { frequency: number; amplitude: number };
+  reliefFrom: Vec;
 };
 
 const FALLEN_SUN_BASIN: Basin = {
@@ -142,6 +157,7 @@ const FALLEN_SUN_BASIN: Basin = {
   rim: [1.0, 1.5, 5.0, 5.5, 5.5, 0, 0, 5.5, 5.5, 5.0, 4.5, 0, 2.0, 2.0, 0.5, 0, 0, 0, 0, 0, 0.5, 0],
   depth: -1.06,
   floorRelief: { frequency: 1 / 16, amplitude: 0.45 },
+  reliefFrom: { x: 320, y: 270 },
 };
 
 function fromFallenSun(p: Vec): Vec {
@@ -150,9 +166,9 @@ function fromFallenSun(p: Vec): Vec {
 
 export const TERRAIN = {
   octaves: [
-    { freq: 1 / (32 * MAP_SCALE), amp: 1.0, seedOffset: 0 },
-    { freq: 1 / (14 * MAP_SCALE), amp: 0.7, seedOffset: 1000 },
-    { freq: 1 / (5 * MAP_SCALE), amp: 0.38, seedOffset: 2000 },
+    { freq: 1 / (32 * 5), amp: 1.0, seedOffset: 0 },
+    { freq: 1 / (14 * 5), amp: 0.7, seedOffset: 1000 },
+    { freq: 1 / (5 * 5), amp: 0.38, seedOffset: 2000 },
     { freq: 1 / 7, amp: 0.14, seedOffset: 3000 },
   ],
   flattenMargin: 15,
@@ -169,7 +185,7 @@ export const TERRAIN = {
         scalePoint({ x: 86, y: 23 }),
         scalePoint({ x: 92, y: 49 }),
         scalePoint({ x: 99, y: 69 }),
-        scalePoint({ x: 103, y: 99 }),
+        scalePoint({ x: 101.5, y: 88 }),
       ] as Vec[],
       width: 7,
       bank: 18,
@@ -229,12 +245,14 @@ export const TERRAIN = {
   light: { x: -0.6, y: -0.8 },
   slopeShade: 0.9,
   vision: {
-    radius: 20,
+    radius: 25,
+    farFactor: 1.5,
     eyeHeight: 0.6,
     samplesPerTile: 3,
+    raysPerRimTile: 2,
     closeRadius: 3,
     lingerTurns: 2,
-    grayFactor: 4,
+    grayFactor: 4, edgeFog: 0.3,
   },
   fog: {
     seen: { grey: 0.85, bright: 0.9 },
@@ -307,6 +325,7 @@ export type BoulderRules = {
   ridgeCurvature: number;
   radius: [number, number];
   crag: { above: number; radius: [number, number] };
+  zoneOdds: Record<ZoneKind | 'plain', number>;
 };
 
 export const GEOLOGY: { rain: RainRules; slump: SlumpRules; wind: WindRules; dunes: DuneRules; sandStart: SandStart; ground: GroundRules; boulders: BoulderRules } = {
@@ -372,6 +391,7 @@ export const GEOLOGY: { rain: RainRules; slump: SlumpRules; wind: WindRules; dun
       above: 12.5,
       radius: [1.6, 2.6],
     },
+    zoneOdds: { plain: 1, mountains: 2, desert: 1, swamp: 0.1, farmBelt: 0.15, crash: 1.5 },
   },
 };
 
@@ -490,10 +510,13 @@ export type ShipDebrisRules = {
   trail: Vec[];
   clusterStep: number;
   sideSpread: number;
+  spreadFrom: number;
   clusterReach: number;
   pieces: [number, number];
   yawJitter: number;
+  uprangeLooks: DebrisLook[];
   trailLooks: DebrisLook[];
+  podField: { count: number; along: number; spread: number; look: DebrisLook };
   strays: { count: number; looks: DebrisLook[] };
   placeTries: number;
 };
@@ -505,10 +528,28 @@ export type FieldRules = {
   gap: number;
   reach: number;
   flatSlope: number;
-  lowRise: number;
+  lowRise: number; buriedAt: number;
   minShare: number;
   tries: number;
 };
+
+const layoutPoints = (points: [number, number][]): Vec[] => points.map(([x, y]) => scalePoint({ x, y }));
+
+const FURROW_TAIL = TERRAIN.features.furrow.path[TERRAIN.features.furrow.path.length - 1];
+
+export const DESCENT_PATH: Vec[] = [
+  GLASS_FLATS_POS,
+  ...layoutPoints([
+    [94, 107.5],
+    [80, 104],
+    [68, 96],
+    [61, 84],
+    [59.5, 72],
+  ]),
+  FURROW_TAIL,
+  ...[...TERRAIN.features.furrow.path].reverse().slice(1),
+  FALLEN_SUN_POS,
+];
 
 export const OLD_WORLD: {
   settlements: SettlementRules;
@@ -525,7 +566,7 @@ export const OLD_WORLD: {
   settlements: {
     seedOffset: 7001,
     candidateStep: 4,
-    count: 14,
+    count: Math.round(24 * MAP_AREA_SPREAD),
     spacing: 45,
     anchorGap: [12, 80],
     jitter: 0.5,
@@ -548,7 +589,7 @@ export const OLD_WORLD: {
     rise: 0.5,
     directions: 3,
     flatSlope: 0.15,
-    count: 10,
+    count: Math.round(17 * MAP_AREA_SPREAD),
     spacing: 60,
     roadGap: 3,
     radius: [1, 1.4],
@@ -573,7 +614,7 @@ export const OLD_WORLD: {
     washCost: 4,
     smoothEvery: 3,
     sample: 0.5,
-    width: 3,
+    width: 5,
     spanRadius: 1.5,
     spanRoadGap: 1,
     spanBack: 12,
@@ -586,7 +627,7 @@ export const OLD_WORLD: {
     bankBack: 3,
   },
   highway: {
-    count: 4,
+    count: Math.round(5 * MAP_AREA_SPREAD),
     spacing: 80,
     maxLength: 400,
     bridgeCost: 1.2,
@@ -624,19 +665,26 @@ export const OLD_WORLD: {
   },
   shipDebris: {
     seedOffset: 7009,
-    trail: [scalePoint({ x: 81, y: 12 }), scalePoint({ x: 82.5, y: 22 }), scalePoint({ x: 79, y: 30 }), scalePoint({ x: 72, y: 37 }), scalePoint({ x: 66, y: 44.5 })],
-    clusterStep: 22,
-    sideSpread: 6,
-    clusterReach: 5,
+    trail: DESCENT_PATH,
+    clusterStep: 28,
+    sideSpread: 33,
+    spreadFrom: 0.3,
+    clusterReach: 6,
     pieces: [4, 7],
     yawJitter: 0.5,
+    uprangeLooks: [
+      { look: 'escapePod', weight: 5, radius: [0.6, 0.6], aligned: false },
+      { look: 'wingShard', weight: 3, radius: [1.75, 1.75], aligned: true },
+      { look: 'hullChunk', weight: 2, radius: [0.8, 1.1], aligned: true },
+    ],
     trailLooks: [
       { look: 'hullChunk', weight: 4, radius: [0.8, 1.5], aligned: true },
-      { look: 'wingShard', weight: 2, radius: [1.75, 1.75], aligned: true },
-      { look: 'escapePod', weight: 2, radius: [0.6, 0.6], aligned: false },
+      { look: 'wingShard', weight: 1, radius: [1.75, 1.75], aligned: true },
+      { look: 'escapePod', weight: 1, radius: [0.6, 0.6], aligned: false },
       { look: 'habitat', weight: 1, radius: [2, 2], aligned: true },
-      { look: 'powerCell', weight: 1, radius: [0.4, 0.4], aligned: false },
+      { look: 'powerCell', weight: 2, radius: [0.4, 0.4], aligned: false },
     ],
+    podField: { count: 60, along: 0.3, spread: 105, look: { look: 'escapePod', weight: 1, radius: [0.6, 0.6], aligned: false } },
     strays: {
       count: 30,
       looks: [
@@ -654,7 +702,7 @@ export const OLD_WORLD: {
     gap: 2,
     reach: 12,
     flatSlope: 0.1,
-    lowRise: 0.5,
+    lowRise: 0.5, buriedAt: 0.5,
     minShare: 0.6,
     tries: 8,
   },
@@ -666,8 +714,10 @@ const SITE_SURROUND = 20;
 
 export const MAPGEN = {
   seed: 1337,
-  file: 'maps/icarus.bin',
-  heightScale: 1000,
+  groundHold: 40,
+  groundFeather: 40,
+  file: MAP_DRAFT === null ? 'maps/icarus.bin' : `drafts/${draftName(MAP_DRAFT)}.bin`,
+  heightScale: 300,
   overviewPxPerTile: 2,
   closeUpPxPerTile: 8,
   closeUps: [
@@ -675,8 +725,8 @@ export const MAPGEN = {
     { name: 'bridge', center: { x: (CANYON_BRIDGE.line[0].at.x + CANYON_BRIDGE.line[1].at.x) / 2, y: (CANYON_BRIDGE.line[0].at.y + CANYON_BRIDGE.line[1].at.y) / 2 }, side: 60 },
     { name: 'wing', center: BROKEN_WING_POINT(0, -2), side: 120 },
     { name: 'dry-river', center: scalePoint({ x: 48, y: 87 }), side: 120 },
-    { name: 'canyon', center: { x: 470, y: 240 }, side: 100 },
-    { name: 'sand', center: { x: 390, y: 350 }, side: 100 },
+    { name: 'canyon', center: scalePoint({ x: 94, y: 48 }), side: 100 },
+    { name: 'sand', center: scalePoint({ x: 78, y: 70 }), side: 100 },
   ] as MapSpot[],
 };
 
@@ -759,7 +809,7 @@ export const NEW_WORLD: {
   pools: {
     minDepth: 0.05,
     maxTiles: 40,
-    toxicReach: 12,
+    toxicReach: 20,
   },
   scrub: {
     seedOffset: 8002,
@@ -818,4 +868,203 @@ export const NEW_WORLD: {
     washChance: 0.003,
     placeTries: 8,
   },
+};
+
+export const ROCK_LOOKS = [
+  { model: 'rock', weight: 0.5 },
+  { model: 'rock_slab', weight: 0.3 },
+  { model: 'rock_split', weight: 0.2 },
+] as const;
+
+export type RoadsideBand = readonly [number, number];
+
+function spreadBand(band: RoadsideBand, factor: number): RoadsideBand {
+  return [Math.round(band[0] * factor), Math.round(band[1] * factor)];
+}
+
+export const ROADSIDE = {
+  seedOffset: 7401,
+  slopeShare: 0.6,
+  edgeGap: 0.6,
+  propGapSlack: 0.0001,
+  rowGuard: { turn: 0.05, line: 0.15 },
+  groundTypes: ['hardpan', 'sand', 'scrub', 'gravel', 'ash', 'saltCrust', 'blackMud'] as readonly TerrainTypeId[],
+  signs: {
+    radius: 0.25,
+    step: 10,
+    chance: 0.75,
+    spacing: 16,
+    gap: 0.5,
+    spread: 1.2,
+    yawJitter: 0.5,
+    oldRoadChance: 0.02,
+    oldRoadSpacing: 22,
+    band: spreadBand([104, 208], MAP_SPREAD),
+  },
+  boards: {
+    radius: 0.55,
+    along: [11, 22] as readonly [number, number],
+    chance: 0.5,
+    step: 40,
+    stepChance: 0.6,
+    gap: 1.2,
+    spread: 0.8,
+    yawJitter: 0.2,
+    band: spreadBand([20, 52], MAP_SPREAD),
+  },
+  barrels: {
+    radius: 0.15,
+    wreckChance: 0.3,
+    houseChance: 0.4,
+    houseLooks: ['ruin', 'shack', 'house'] as readonly string[],
+    reach: [0.4, 1.4] as readonly [number, number],
+    band: spreadBand([104, 260], MAP_AREA_SPREAD),
+  },
+  heaps: {
+    radius: 0.44,
+    tries: 4,
+    campChance: 0.6,
+    tankChance: 0.5,
+    junkChance: 0.5,
+    reach: [0.6, 1.6] as readonly [number, number],
+    band: spreadBand([20, 52], MAP_SPREAD),
+  },
+  trees: {
+    radius: 0.3,
+    washBank: 0.5,
+    washChance: 0.004,
+    yardChance: 0.5,
+    yardLooks: ['ruin', 'house'] as readonly string[],
+    yardReach: [1, 2.2] as readonly [number, number],
+    fieldChance: 0.006,
+    group: [1, 3] as readonly [number, number],
+    groupSpread: 1.4,
+    band: spreadBand([186, 374], MAP_AREA_SPREAD),
+  },
+};
+
+export type BoatKind = { kind: 'fishingBoat' | 'riverBarge' | 'skiff'; radius: number; weight: number };
+
+export const BOATS = {
+  seedOffset: 7601,
+  kinds: [
+    { kind: 'fishingBoat', radius: 1.4, weight: 3 },
+    { kind: 'riverBarge', radius: 1.9, weight: 1 },
+    { kind: 'skiff', radius: 0.7, weight: 4 },
+  ] as readonly BoatKind[],
+  group: [1, 3] as readonly [number, number],
+  maxBarges: 1,
+  groupReach: 4,
+  groupGap: 30,
+  passLane: 3,
+  roadGap: 4,
+  relief: 0.9,
+  placeTries: 14,
+  groundTypes: ['hardpan', 'sand', 'scrub', 'gravel', 'ash', 'saltCrust'] as readonly TerrainTypeId[],
+  river: { step: 70, jitter: 15, chance: 0.7, bankShare: [0.55, 0.85] as readonly [number, number], band: spreadBand([4, 7], MAP_SPREAD) },
+  wash: { reach: 70, minFlow: 0.5, groups: 2, band: [1, 2] as RoadsideBand },
+  boatBand: spreadBand([8, 20], MAP_SPREAD),
+};
+
+export type ZoneKind = 'mountains' | 'desert' | 'swamp' | 'farmBelt' | 'crash';
+export type ZoneShape = { polygon: Vec[] } | { path: Vec[]; width: number };
+export type Zone = { kind: ZoneKind; shape: ZoneShape };
+export type ZoneRules = { roughness: number; uplift: number };
+
+export const ZONES: readonly Zone[] = [
+  { kind: 'mountains', shape: { polygon: layoutPoints([[84, -4], [124, -4], [124, 74], [110, 70], [104, 52], [96, 46], [89, 32], [85, 14]]) } },
+  { kind: 'desert', shape: { polygon: layoutPoints([[76, 60], [98, 56], [124, 64], [124, 124], [66, 124], [62, 102], [70, 80]]) } },
+  { kind: 'swamp', shape: { polygon: layoutPoints([[-4, 16], [18, 15], [28, 25], [27, 40], [14, 46], [-4, 42]]) } },
+  { kind: 'farmBelt', shape: { polygon: layoutPoints([[-4, 48], [32, 46], [42, 62], [50, 80], [54, 97], [32, 106], [10, 124], [-4, 124]]) } },
+  { kind: 'crash', shape: { path: DESCENT_PATH, width: 5 * MAP_SCALE } },
+];
+
+export const ZONE_RULES: Record<ZoneKind, ZoneRules> = {
+  mountains: { roughness: 1, uplift: 1 },
+  desert: { roughness: 0.25, uplift: 0.15 },
+  swamp: { roughness: 0.3, uplift: 0 },
+  farmBelt: { roughness: 0.3, uplift: 0.1 },
+  crash: { roughness: 0.55, uplift: 0.3 },
+};
+
+export const ZONE_FIELD = {
+  cell: 8,
+  band: 9 * MAP_SCALE,
+  warp: { frequency: 1 / (14 * MAP_SCALE), reach: 4 * MAP_SCALE, seedOffset: 8800 },
+  plainRoughness: 0.4,
+};
+
+export const UPLIFT = {
+  floor: 0.12,
+  rim: { width: 16 * MAP_SCALE, rate: 0.05, flatUnder: { desert: 0.85, swamp: 0.95 }, gaps: [{ at: scalePoint({ x: -2, y: 75 }), width: 9 * MAP_SCALE }, { at: scalePoint({ x: 82, y: 122 }), width: 9 * MAP_SCALE }] },
+  range: { spine: layoutPoints([[94, -4], [101, 12], [108, 24], [110, 40], [116, 58]]), width: 18 * MAP_SCALE, spur: { line: layoutPoints([[102.3, 31.6], [104, 26], [106.5, 21]]), width: 4 * MAP_SCALE }, rate: 0.28, crestNoise: 0.45, crestFrequency: 1 / (9 * MAP_SCALE) },
+  seedOffset: 8900,
+};
+
+export const RELIEF_SOLVE = {
+  cell: 4,
+  steps: 300,
+  dt: 3,
+  jitter: 0.3,
+  jitterSeed: 8950,
+  erosion: 0.05,
+  areaExponent: 0.5,
+  diffusion: 0.04,
+  baseLevel: 0,
+  hold: { margin: 40 },
+  roadBed: { width: 70, mountainWidth: 18, passes: 3 },
+};
+
+export const TRAILS = { seedOffset: 9400, spacing: 70, jitter: 0.4, valleyReach: 15, minZone: 0.6, links: 2, maxLink: 150, roadLink: 120, cell: 4, keepEvery: 4, roundPasses: 3, slopeCost: 8, smooth: 7, gradeRounds: 4, targetReach: 3, climb: 0.6, width: 4, wall: 2, wallReach: 4 };
+
+export const EXITS = { closeRadius: 12, depth: 0.5, reach: 150, spacing: 40, mountainSpacing: 120, carveShare: 0.75, grade: 0.75, climb: 0.6, width: 4, wall: 2, minFloor: 9, tries: 40, propCut: 0.25, blockRadius: 2, fillMax: 1000, rimReach: 8, fillRounds: 3, passes: 3, clearKinds: ['rock', 'crag', 'deadTree', 'fence', 'junk', 'drums', 'barrel'] as readonly string[] };
+
+export const DESERT = {
+  seedOffset: 9400,
+  wavelength: 42,
+  height: [1.5, 3] as [number, number],
+  cover: [0.5, 0.85] as [number, number],
+  leeShare: 0.12,
+  warp: { frequency: 1 / 90, reach: 14 },
+  breaks: { length: 30, from: 0.3, to: 0.5 },
+  pondless: 0.1,
+  mantle: 0.35,
+  keepOff: 40,
+  star: { at: scalePoint({ x: 113, y: 84 }), radius: 48, height: 6, arms: 3 },
+};
+
+export const FARM_BELT = {
+  seedOffset: 9600,
+  headgates: [
+    { at: scalePoint({ x: 9, y: 72.5 }), bank: -1 },
+    { at: scalePoint({ x: 9, y: 77.5 }), bank: 1 },
+  ],
+  canal: { step: 4, fall: 0.0015, cutDepths: 3, turns: [-60, -30, -15, 0, 15, 30, 60], turnCost: 0.004, maxLength: 1500, width: 1.6, depth: 0.9, bank: 0.3, bankWidth: 3.5, wetReach: 380, lateralWidth: 1.1, lateralDepth: 0.6, lateralLength: 420 },
+  cell: 178,
+  plots: 3,
+  plotInset: 2,
+  command: 0.25,
+  weight: 0.35,
+  shares: { field: 0.55, grove: 0.14 },
+  grove: { row: 3.2, step: 2.6, missing: 0.4, radius: [0.55, 0.75] as [number, number] },
+  track: { width: 1.5, breakLength: 40, intactFrom: 0.75, intactTo: 0.3, reach: 2200 },
+  farmstead: { share: 0.5, spread: 9, houses: [1, 3] as [number, number], houseRadius: [0.9, 1.3] as [number, number], barnRadius: 3.7, siloRadius: 1.2, barnShare: 0.6, tries: 12 },
+  keepOff: 25,
+};
+
+export const CRASH = { seedOffset: 9500, scorch: 0.5, glassTrail: { share: 0.4, width: [142, 21] as [number, number], cover: 0.55, cell: 6, stretch: 5 }, apron: { reach: 370, density: 0.12, edge: 60, falloff: 1.8, taper: 0.25, downrange: 0.85, bareBelow: -0.35, bareEase: 0.5, clump: { broad: 60, fine: 18, fineShare: 0.35, from: 0.42, to: 0.62 }, radius: [0.7, 1.6] as [number, number], shards: 0.25, parts: { share: 0.3, looks: [{ look: 'hullChunk', weight: 4, radius: [0.8, 1.5], aligned: true }, { look: 'wingShard', weight: 2, radius: [1.75, 1.75], aligned: true }, { look: 'powerCell', weight: 2, radius: [0.4, 0.4], aligned: false }, { look: 'habitat', weight: 1, radius: [2, 2], aligned: true }] as DebrisLook[] }, caches: { count: 10, from: 60, clump: 0.85, apart: 50, radius: [0.6, 0.8] as [number, number], tries: 20000 } } };
+
+export const SWAMP = {
+  seedOffset: 9300,
+  outflow: Math.PI * 0.62,
+  table: { core: 0, edge: -1.2 },
+  water: 0.45,
+  mud: -0.25,
+  scrubShare: 0.55,
+  scrubGrain: 7,
+  slough: { width: 9, length: 80, depth: 0.55, from: 0.58 },
+  shore: { warp: 1.5, cell: 8, gain: 3 },
+  trees: { tries: 900, radius: [0.5, 0.8] as [number, number] },
+  wrecks: { tries: 40, radius: 0.6 },
+  channel: { path: layoutPoints([[9, 44], [10.5, 48], [8, 52], [7.5, 56], [9.5, 60], [6.5, 64], [5.5, 68], [8, 72], [7, 75]]), width: 2.5, depth: 0.5 },
 };

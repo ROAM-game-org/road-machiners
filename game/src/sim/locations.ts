@@ -1,25 +1,23 @@
 import { REGION } from '../data/region';
-import { RULES } from '../data/rules';
-import { atlasOf, atlasSites } from './atlas';
+import { atlasKeyString, atlasOf, atlasSites } from './atlas';
 import { playerVehicle } from './damage';
 import { isKnockedOut } from './defeat';
 import { inTowReach } from './tow';
 import { breakLootWarning } from './loot-warning';
-import { canLootTruck, canReachSalvage, collectSalvage, hasRevealed, hasSalvage, hiddenUnits, lootBlocker, pourStores, requireLootFree, salvageInRange, takeBasis } from './salvage';
+import { canLootTruck, canReachSalvage, collectSalvage, hasRevealed, hasSalvage, hiddenUnits, lootBlocker, lootWork, pourStores, requireLootFree, salvageInRange, takeBasis } from './salvage';
 import { takeClaimed } from './parley';
 import { newId } from './factory';
-import { goodsCount, isMounted, type Spot } from './grid';
-import { getLayoutError, lootRefitTurns, requireIdleRefit } from './inventory';
+import { goodsCount, type Spot } from './grid';
+import { getLayoutError, queueRefit, requireIdleRefit } from './inventory';
 import { inCombat } from './combat';
-import { startJob } from './jobs';
 import { beginSearch } from './search';
 import { practice } from './progress';
 import { isFortress, siteGap, type Site } from './sites';
-import { atGarage } from './garage';
 import { modeRules } from './settings';
 import type { GridItem, PartInstance, SalvageStock, Vehicle, World } from './types';
 import { tileCenter } from './vision';
 import { playerCommand, Refused } from './world';
+import { discoverHollow } from './sunward';
 
 export function discoverSites(world: World): void {
   for (const s of atlasSites(atlasOf(world.terrain))) {
@@ -30,18 +28,81 @@ export function discoverSites(world: World): void {
       continue;
     discoverSite(world, s);
   }
+  discoverHollow(world, discoverSite);
 }
 
-export function discoverSite(world: World, s: { id: string }): void {
+export function chartSite(world: World, s: { id: string }): void {
   if (world.player.discovered.includes(s.id)) throw new Error(`${s.id} is already discovered`);
   world.player.discovered.push(s.id);
   world.events.push({ t: "discover", location: s.id });
+}
+
+export function discoverSite(world: World, s: { id: string }): void {
+  chartSite(world, s);
   practice(world, 'discover', 1, null, s.id);
 }
 
+function siteReach(site: Site): number {
+  return isFortress(site) ? REGION.sites.pad.length : 0;
+}
+
+const AREAS_KEPT = 4;
+const AREAS = new Map<string, Map<string, ReadonlySet<number>>>();
+
+function areasOf(world: World): Map<string, ReadonlySet<number>> {
+  const key = `${atlasKeyString(world.terrain.atlas)}:${world.size}`;
+  let areas = AREAS.get(key);
+  if (!areas) {
+    if (AREAS.size >= AREAS_KEPT) AREAS.clear();
+    areas = new Map();
+    AREAS.set(key, areas);
+  }
+  return areas;
+}
+
+function tilesWithin(world: World, site: Site): Set<number> {
+  const reach = siteReach(site);
+  const span = site.radius + reach;
+  const x0 = Math.max(0, Math.floor(site.pos.x - span));
+  const x1 = Math.min(world.size - 1, Math.ceil(site.pos.x + span));
+  const y0 = Math.max(0, Math.floor(site.pos.y - span));
+  const y1 = Math.min(world.size - 1, Math.ceil(site.pos.y + span));
+  const tiles = new Set<number>();
+  for (let y = y0; y <= y1; y++)
+    for (let x = x0; x <= x1; x++) {
+      const idx = y * world.size + x;
+      if (siteGap(site, tileCenter(world, idx)) <= reach) tiles.add(idx);
+    }
+  return tiles;
+}
+
+export function siteArea(world: World, site: Site): ReadonlySet<number> {
+  const areas = areasOf(world);
+  let area = areas.get(site.id);
+  if (!area) {
+    area = tilesWithin(world, site);
+    if (area.size === 0) throw new Error(`Site ${site.id} has no map area`);
+    areas.set(site.id, area);
+  }
+  return area;
+}
+
 function seesArea(world: World, site: Site): boolean {
-  const reach = isFortress(site) ? REGION.sites.pad.length : 0;
-  return world.player.visible.some((idx) => siteGap(site, tileCenter(world, idx)) <= reach);
+  const area = siteArea(world, site);
+  return world.player.visible.some((idx) => area.has(idx));
+}
+
+export function mappedSites(world: World): Set<string> {
+  const mapped = new Set<string>();
+  for (const site of atlasSites(atlasOf(world.terrain))) {
+    for (const idx of siteArea(world, site)) {
+      if (world.player.explored[idx] === 1) {
+        mapped.add(site.id);
+        break;
+      }
+    }
+  }
+  return mapped;
 }
 
 export function salvageHere(world: World): SalvageStock | null {
@@ -121,34 +182,29 @@ export type LootPick = { kind: 'part'; partId: string } | { kind: 'good'; good: 
 export function takeLoot(world: World, stockId: string, pick: LootPick, to: Spot): World {
   return playerCommand(world, (w) => {
     const stock = requireLootable(w, stockId);
-    const me = playerVehicle(w);
-    requireIdleRefit(me);
     const item: GridItem = pick.kind === 'part'
       ? { id: newId(w, 'i'), kind: 'part', part: requireStockPart(stock, pick.partId), ...to }
       : { id: newId(w, 'i'), kind: 'good', good: pick.good, ...to };
     if (pick.kind === 'good' && (stock.goods[pick.good] ?? 0) <= 0) throw new Error(`No ${pick.good} left here`);
-    const err = getLayoutError(me, [...me.items, item]);
-    if (err) throw new Refused(err);
     transferLoot(w, stock, item, to);
   });
 }
 
 function transferLoot(world: World, stock: SalvageStock, item: GridItem, to: Spot): void {
   const me = playerVehicle(world);
-  if (item.kind === 'part' && isMounted(me.chassisId, item) && !atGarage(world)) {
-    const work = lootRefitTurns(world, me, RULES.refitTurnsPerPart);
-    startJob(world, me, {
-      kind: 'refit', moves: [],
-      pickup: { from: 'stock', stockId: stock.id, partId: item.part.id, itemId: item.id, to },
-      turnsLeft: work, total: work,
-    });
+  if (item.kind === 'part' && lootWork(world, me, false, item) > 0) {
+    queueRefit(world, me, { moves: [], pickup: { from: 'stock', stockId: stock.id, partId: item.part.id, itemId: item.id, to } });
     return;
   }
+  requireIdleRefit(me);
+  const err = getLayoutError(me, [...me.items, item]);
+  if (err) throw new Refused(err);
   placeLoot(world, stock, item);
 }
 
 function placeLoot(world: World, stock: SalvageStock, item: GridItem): void {
   const me = playerVehicle(world);
+  if (item.kind === 'parcel') throw new Error(`Parcel ${item.id} never lies in salvage`);
   if (item.kind === 'good') {
     takeBasis(world, stock, item.good, goodsCount(me)[item.good] ?? 0, 1);
     me.items.push(item);

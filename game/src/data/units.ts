@@ -1,6 +1,5 @@
 
 export const UNITS = {
-  centsPerM: 100,
   fuelLiters: 5,
   cellDepth: 0.5,
   shadeCelsius: 22,
@@ -9,3 +8,7 @@ export const UNITS = {
   engineHotCelsius: 120,
   currency: { one: 'M', many: "M's" },
 };
+
+export function itemValue(x: number): number {
+  return Math.round(x * 100) / 100;
+}

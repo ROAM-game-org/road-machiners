@@ -4,7 +4,7 @@ import { el } from "./dom";
 
 const REFRESH_MS = 500;
 const WINDOW_FRAMES = 120;
-const TIMERS = ["turn", "preview", "route", "fog"];
+const TIMERS = ["turn", "preview", "route", "fog", "stream-build"];
 
 export function mountPerfPanel(host: HTMLElement): { toggle(): boolean } {
   const box = el("div", { class: "perf-panel" });
@@ -44,11 +44,13 @@ function readout(frames: number[]): string[] {
     lines.push(`fps     ${(1000 / mean).toFixed(0).padStart(6)}`);
     lines.push(`p95 ms  ${ms(p95)}`);
   }
+  return [...lines, ...timerLines()];
+}
+
+function timerLines(): string[] {
   const snap = perfSnapshot();
-  for (const name of TIMERS) {
-    const s = snap[name];
-    lines.push(`${name.padEnd(8)}${s ? ms(s.last) : "     -"}`);
-  }
+  const lines = TIMERS.map((name) => `${name.padEnd(8)}${snap[name] ? ms(snap[name].last) : "     -"}`);
   lines.push(`routes  ${String(snap.route?.calls ?? 0).padStart(6)}`);
+  lines.push(`waited  ${String(snap["stream-block"]?.calls ?? 0).padStart(6)}`);
   return lines;
 }

@@ -53,7 +53,7 @@ function stranded(playerPos: Vec = { x: 30, y: 30 }, traderPos: Vec = { x: 40, y
   const w = emptyWorld(playerPos);
   w.player.fuel = 0;
   onlyCore(w.vehicles[0]);
-  const trader = withTower(w, 'trader', 'traders', 'hauler', traderPos);
+  const trader = withTower(w, 'trader', 'independent', 'hauler', traderPos);
   return { w, trader };
 }
 
@@ -92,7 +92,7 @@ describe('hitched tower traffic', () => {
 
   it('a hitched tower gets past a parked truck in its path without a collision', () => {
     const { w, tower, along } = underWay();
-    const parked = addVehicle(w, 'scavengers', 'hauler', ['stockEngine'], along(14, 0.5), 0);
+    const parked = addVehicle(w, 'independent', 'hauler', ['stockEngine'], along(14, 0.5), 0);
     const r = runUntil(w, 20, () => false);
     expect(crashes(r.events, tower.id)).toEqual([]);
     expect(dist(find(r.w, tower.id).pos, parked.pos)).toBeGreaterThan(10);
@@ -102,7 +102,7 @@ describe('hitched tower traffic', () => {
     const { w, tower, along, progress } = underWay();
     const start = along(25, 0);
     const behind = along(-30, 0);
-    const other = withTower(w, 'scavenger', 'scavengers', 'hauler', start);
+    const other = withTower(w, 'scavenger', 'independent', 'hauler', start);
     other.heading = Math.atan2(behind.y - start.y, behind.x - start.x);
     other.brain!.goals = [{ kind: 'raid', targetId: null, destination: behind, phase: 'travel', reason: 'tripToSite' }];
     const passed = (x: World) => progress(find(x, other.id).pos) < 0 && progress(find(x, tower.id).pos) > 10;
@@ -175,7 +175,7 @@ describe('emergency beacon', () => {
   it('a raider comes to a beaconing truck with cargo', () => {
     const w = emptyWorld(player);
     w.player.fuel = 0;
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 130, y: 30 }, Math.PI);
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 130, y: 30 }, Math.PI);
     raider.brain = npcBrain('buggy', raider.pos, NPCS.buggy.traits);
     forceOption('contactHeard', 'investigate');
     const r = runUntil(setBeacon(w, true), 60, (x) => dist(find(x, raider.id).pos, playerVehicle(x).pos) < 15);
@@ -212,8 +212,8 @@ describe('after a tow into town', () => {
 describe('a client that jumps home as its NPC tow ends', () => {
   it('still gets frames', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const tower = withTower(w, 'trader', 'traders', 'hauler', { x: 150, y: 150 });
-    const client = addVehicle(w, 'raiders', 'buggy', ['stockEngine'], { x: 147, y: 150 });
+    const tower = withTower(w, 'trader', 'independent', 'hauler', { x: 150, y: 150 });
+    const client = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: 147, y: 150 });
     client.brain = npcBrain('buggy', client.pos, ['raider']);
     client.defeat = { phase: 'retreat', turns: 3, unseen: RULES.retreatTeleportTurns, foes: [], gaveUp: true };
     tower.items = tower.items.filter((it) => !(it.kind === 'part' && partDef(it.part.defId).kind === 'engine'));

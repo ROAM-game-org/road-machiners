@@ -1,10 +1,8 @@
-// Plays one recorder run and prints the player truck turn by turn from --from to --to: money, net worth, fuel,
-// supplies, goods, free cells, contracts, order, mounted part HP and the events that touch the player. A line prints only when something
-// in it changed or an event happened. It writes no trace.
 import { playerVehicle } from '../src/sim/damage.ts';
 import { freeCells, goodsCount, mountedParts } from '../src/sim/grid.ts';
 import { isArchetype } from '../src/sim/progression/bot.ts';
-import { netWorth, recordTurns } from '../src/sim/progression/record.ts';
+import { netWorth } from '../src/sim/progression/record.ts';
+import { recordTurns } from '../src/sim/progression/record-node.ts';
 import { maxHp } from '../src/sim/wear.ts';
 import { moneyText } from '../src/ui/units.ts';
 

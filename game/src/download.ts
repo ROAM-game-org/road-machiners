@@ -12,14 +12,6 @@ export class DownloadFailed extends Error {
   }
 }
 
-export class HttpStatusError extends Error {
-  constructor(url: string, readonly status: number) {
-    super(`File ${url} failed to load: HTTP ${status}`);
-  }
-}
-
-export type Body = { response: Response; bytes: ArrayBuffer };
-
 export type DownloadDeps = {
   fetch?: (url: string, init?: RequestInit) => Promise<Response>;
   wait?: (ms: number) => Promise<void>;
@@ -37,7 +29,9 @@ function pause(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-type Outcome = { body: Body } | { status: number };
+export type Body = { response: Response; bytes: ArrayBuffer };
+
+type Outcome = { body: Body } | { status: number; statusText: string };
 
 function watchSilence(url: string, ms: number, timers: Timers): Watch {
   const controller = new AbortController();
@@ -80,11 +74,11 @@ async function readBody(url: string, response: Response, watch: Watch, ms: numbe
   return withinMs(response.arrayBuffer(), ms, `Body of ${url}`, timers);
 }
 
-async function attempt(url: string, init: RequestInit | undefined, get: NonNullable<DownloadDeps['fetch']>, ms: number, timers: Timers): Promise<Outcome> {
+export async function attemptWithin(url: string, init: RequestInit | undefined, get: NonNullable<DownloadDeps['fetch']>, ms: number, timers: Timers): Promise<Outcome> {
   const watch = watchSilence(url, ms, timers);
   try {
     const response = await Promise.race([get(url, { ...init, signal: watch.signal }), watch.silent]);
-    if (!response.ok) return { status: response.status };
+    if (!response.ok) return { status: response.status, statusText: response.statusText };
     watch.beat();
     return { body: { response, bytes: await readBody(url, response, watch, ms, timers) } };
   } finally {
@@ -93,10 +87,6 @@ async function attempt(url: string, init: RequestInit | undefined, get: NonNulla
 }
 
 export async function download(url: string, deps: DownloadDeps = {}): Promise<ArrayBuffer> {
-  return (await downloadBody(url, undefined, deps)).bytes;
-}
-
-export async function downloadBody(url: string, init?: RequestInit, deps: DownloadDeps = {}): Promise<Body> {
   const get = deps.fetch ?? ((u: string, i?: RequestInit) => (i ? globalThis.fetch(u, i) : globalThis.fetch(u)));
   const wait = deps.wait ?? pause;
   const timers = deps.timers ?? REAL_TIMERS;
@@ -106,8 +96,8 @@ export async function downloadBody(url: string, init?: RequestInit, deps: Downlo
   for (let i = 0; i < DOWNLOAD.tries; i++) {
     if (i > 0) await wait(DOWNLOAD.waitMs[i - 1]);
     try {
-      const outcome = await attempt(url, init, get, stallMs, timers);
-      if ('body' in outcome) return outcome.body;
+      const outcome = await attemptWithin(url, undefined, get, stallMs, timers);
+      if ('body' in outcome) return outcome.body.bytes;
       status = outcome.status;
     } catch (e) {
       dropped = e;
@@ -117,5 +107,5 @@ export async function downloadBody(url: string, init?: RequestInit, deps: Downlo
     if (!retryable(status)) break;
   }
   if (status === null) throw new DownloadFailed(url, DOWNLOAD.tries, dropped);
-  throw new HttpStatusError(url, status);
+  throw new Error(`File ${url} failed to load: HTTP ${status}`);
 }

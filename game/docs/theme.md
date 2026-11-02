@@ -25,7 +25,7 @@ They can take a role in society and help others. They can become a killer. They 
 ## How it shows
 
 - Never state the theme. No line, item or screen explains what the game is about.
-- Show life in small things. A farm grows inside an impact crater. A radio host reads crop reports with no crops left. Someone hangs a banner or parks to watch the sunset.
+- Show life in small things. A farm town of terraced fields grows inside an impact crater. A radio host reads crop reports with no crops left. Someone hangs a banner or parks to watch the sunset.
 - Every mystery has a true answer, written plainly in the lore docs. The game shows it only as evidence: a wreck's position, a log entry, a part that should not exist, two people who remember it differently. No single piece states the conclusion. A careful player can put the pieces together and make a good guess, but the last step is always theirs.
 - Show the Old World as giants' shoulders. Its canals still carry water, and nobody knows who dug them.
 - No faction is right. Each one is a way of coping, and each way costs something.

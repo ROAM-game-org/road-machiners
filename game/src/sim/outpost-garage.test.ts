@@ -6,19 +6,15 @@ import { mountedParts } from './grid';
 import { addGoods, canStowPart, moveItem, plannedRefitTurns, startRefit, storePart, stowSpot, takeFromStorage } from './inventory';
 import { outpostBuyChassis, outpostBuyPart, outpostPartPrice } from './outposts';
 import { chassisPrice, chassisSwapRefusal, swapChassis } from './economy';
-import { outpostTrucks, truckOffers } from './fury-road';
+import { outpostTrucks, truckOffers } from './chaos-highway';
 import { goodsCount } from './grid';
-import { FURY_ROAD } from '../data/modes';
+import { CHAOS_HIGHWAY } from '../data/modes';
 import { PLAYER_CHASSIS } from '../data/chassis';
-import { fillCargo, parkedAtOutpost, stockOfKind } from './testkit';
+import { armorSpot, fillCargo, parkedAtOutpost, stockOfKind } from './testkit';
 import type { GridItem, World } from './types';
 
 const atOutpost = () => parkedAtOutpost();
-function stockArmor(w: World) {
-  const fitted = mountedParts(playerVehicle(w), 'armor')[0];
-  const same = w.furyRoad!.outposts[0].stock.find((p) => partDef(p.defId).kind === 'armor' && partDef(p.defId).w === partDef(fitted.defId).w && partDef(p.defId).h === partDef(fitted.defId).h);
-  return same ?? stockOfKind(w, 'armor');
-}
+const stockArmor = (w: World) => stockOfKind(w, 'armor');
 
 function mountedGun(w: World): GridItem {
   const me = playerVehicle(w);
@@ -86,13 +82,10 @@ describe('buying at an outpost', () => {
     const bought = outpostBuyPart(w, armor.id);
 
     expect(bought.player.money).toBe(w.player.money - price);
-    expect(bought.furyRoad!.outposts[0].stock.map((p) => p.id)).not.toContain(armor.id);
+    expect(bought.chaosHighway!.outposts[1].stock.map((p) => p.id)).not.toContain(armor.id);
     expect(bought.player.storage.map((p) => p.id)).toEqual([armor.id]);
 
-    const gone = playerVehicle(bought).items.filter((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'armor');
-    const cleared = gone.reduce((x, it) => storePart(x, it.id), bought);
-    const slot = gone[0];
-    const fitted = takeFromStorage(cleared, armor.id, { x: slot.x, y: slot.y, rot: slot.rot });
+    const fitted = takeFromStorage(bought, armor.id, armorSpot(bought, armor));
 
     expect(playerVehicle(fitted).job).toBeNull();
     expect(mountedParts(playerVehicle(fitted), 'armor').map((p) => p.id)).toContain(armor.id);
@@ -100,7 +93,7 @@ describe('buying at an outpost', () => {
 
   it('puts a part that fits on the truck, not in storage', () => {
     const w = atOutpost();
-    const part = w.furyRoad!.outposts[0].stock.find((p) => canStowPart(playerVehicle(w), p));
+    const part = w.chaosHighway!.outposts[1].stock.find((p) => canStowPart(playerVehicle(w), p));
     if (!part) throw new Error('Nothing in stock fits');
 
     const bought = outpostBuyPart(w, part.id);
@@ -133,7 +126,7 @@ function tightSwap(): { w: World; tight: string } {
     const w = parkedAtOutpost(seed);
     swapChassis(w, 'longbed');
     addGoods(w, playerVehicle(w), 'parts', 1000);
-    const tight = outpostTrucks(w, w.furyRoad!.outposts[0]).find((id) => chassisSwapRefusal(w, id)?.id === 'noCargoRoom');
+    const tight = outpostTrucks(w, w.chaosHighway!.outposts[1]).find((id) => chassisSwapRefusal(w, id)?.id === 'noCargoRoom');
     if (tight) return { w, tight };
   }
   throw new Error('No outpost of seeds 1 to 20 offers a truck with less cargo room than the longbed');
@@ -144,21 +137,21 @@ describe('the trucks an outpost sells', () => {
     for (let seed = 1; seed <= 20; seed++) {
       for (let j = 1; j <= 10; j++) {
         const offer = truckOffers(seed, j);
-        expect(offer).toHaveLength(FURY_ROAD.trucks.offers);
+        expect(offer).toHaveLength(CHAOS_HIGHWAY.trucks.offers);
         expect(new Set(offer).size).toBe(offer.length);
-        expect(offer.every((id) => FURY_ROAD.trucks.pool.includes(id))).toBe(true);
+        expect(offer.every((id) => CHAOS_HIGHWAY.trucks.pool.includes(id))).toBe(true);
         expect(truckOffers(seed, j)).toEqual(offer);
       }
     }
   });
 
   it('draws from every player chassis but the scout the run starts on', () => {
-    expect([...FURY_ROAD.trucks.pool].sort()).toEqual(PLAYER_CHASSIS.filter((id) => id !== 'scout').sort());
+    expect([...CHAOS_HIGHWAY.trucks.pool].sort()).toEqual(PLAYER_CHASSIS.filter((id) => id !== 'scout').sort());
   });
 
   it('swaps for the town price, keeps every part and marks the truck sold', () => {
     const w = atOutpost();
-    const post = w.furyRoad!.outposts[0];
+    const post = w.chaosHighway!.outposts[1];
     const id = outpostTrucks(w, post)[0];
     const price = chassisPrice(w, id);
     const parts = nonBuiltIns(w);
@@ -171,14 +164,14 @@ describe('the trucks an outpost sells', () => {
     expect(nonBuiltIns(after)).toEqual(parts);
     expect(goodsCount(playerVehicle(after))).toEqual(goods);
     expect(playerVehicle(after).job).toBeNull();
-    expect(after.furyRoad!.outposts[0].trucksSold).toEqual([id]);
-    expect(outpostTrucks(after, after.furyRoad!.outposts[0])).toEqual(outpostTrucks(w, post).slice(1));
+    expect(after.chaosHighway!.outposts[1].trucksSold).toEqual([id]);
+    expect(outpostTrucks(after, after.chaosHighway!.outposts[1])).toEqual(outpostTrucks(w, post).slice(1));
     expect(() => outpostBuyChassis(after, id)).toThrow(/offers no/);
   });
 
   it('refuses a short purse before any change', () => {
     const w = atOutpost();
-    const id = outpostTrucks(w, w.furyRoad!.outposts[0]).find((c) => chassisPrice(w, c) > 0);
+    const id = outpostTrucks(w, w.chaosHighway!.outposts[1]).find((c) => chassisPrice(w, c) > 0);
     if (!id) throw new Error('Every offered truck costs less than the trade-in');
     w.player.money = chassisPrice(w, id) - 1;
 
@@ -196,14 +189,14 @@ describe('the trucks an outpost sells', () => {
 
   it('gives no refusal for an affordable swap that fits', () => {
     const w = atOutpost();
-    const id = outpostTrucks(w, w.furyRoad!.outposts[0])[0];
+    const id = outpostTrucks(w, w.chaosHighway!.outposts[1])[0];
 
     expect(chassisSwapRefusal(w, id)).toBeNull();
   });
 
   it('refuses a truck off the pad', () => {
     const w = atOutpost();
-    const id = outpostTrucks(w, w.furyRoad!.outposts[0])[0];
+    const id = outpostTrucks(w, w.chaosHighway!.outposts[1])[0];
     playerVehicle(w).pos = { x: 20, y: 20 };
 
     expect(() => outpostBuyChassis(w, id)).toThrow(/outpost/);

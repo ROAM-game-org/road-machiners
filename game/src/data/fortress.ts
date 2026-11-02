@@ -1,11 +1,11 @@
 
 export type FortressShape = 'circle' | 'square' | 'bastioned';
-export type FortressStyle = 'pumpworks' | 'cistern' | 'shipMetal' | 'scrap' | 'patchwork' | 'compound' | 'ring' | 'yard';
+export type FortressStyle = 'pumpworks' | 'cistern' | 'shipMetal' | 'scrap' | 'patchwork' | 'compound' | 'ring' | 'yard' | 'outpost';
 export type FortressKind = 'wall' | 'tower' | 'gate' | 'inner';
 export type FortressBastions = { capitals: readonly number[]; curtain: number; salient: number; gorge: number; flank: number };
 export type FortressPit = { margin: number; terraceWidth: number; stepHeight: number; terraces: number };
 export type FortressRock = { from: number; to: number };
-export type FortressSite = { shape: FortressShape; turn: number; style: FortressStyle; bastions?: FortressBastions; towers?: boolean; towerEvery?: number; pit?: FortressPit; rock?: readonly FortressRock[] };
+export type FortressSite = { shape: FortressShape; turn: number; style: FortressStyle; bastions?: FortressBastions; roadFort?: boolean; towers?: boolean; towerEvery?: number; pit?: FortressPit; rock?: readonly FortressRock[] };
 
 export type FortressGate = { width: number; depth: number; height: number };
 export type FortressStyleDef = { flush: boolean; gate: FortressGate; gateFlare: number; pieces: readonly FortressKind[] };
@@ -24,11 +24,53 @@ export const FORTRESS_SITES: Record<string, FortressSite> = {
   'pump-station': { shape: 'square', turn: 0, style: 'pumpworks' },
   granary: { shape: 'circle', turn: 36, style: 'ring', towers: false },
   'salvage-yard': { shape: 'square', turn: 45, style: 'yard' },
+  outpost: { shape: 'square', turn: 0, style: 'outpost', roadFort: true },
   scrapjaw: { shape: 'circle', turn: -10, style: 'scrap' },
   kiln: { shape: 'square', turn: 93, style: 'scrap' },
+  'marshal-post': { shape: 'square', turn: 45, style: 'compound' },
+  'sunward-hollow': { shape: 'circle', turn: 0, style: 'scrap' },
 };
 
-export const NOSE_APRON = { height: 1.25, run: 10, clear: 4, ramp: 4 };
+export const NOSE_FRONT = 82.85;
+
+export const NOSE_ROCK = { seed: 4111, jag: 2, jagCell: 4, run: 26, blend: 10, jitterCell: 2, footBlur: 4, clear: 4, ramp: 6 };
+
+export const NOSE_RISE = {
+  frontV: 4,
+  clip: 120,
+  arc: [60, 215] as [number, number],
+  reach: 220,
+  reachEnds: 160,
+  reachWobble: 12,
+  bendX: -105,
+  bend: 1.6,
+  gate: { x: 92, v: 80, r: 34 },
+  terraceZ: 6,
+  platformEnd: 19,
+  platform: [-44, 8] as [number, number],
+  platformFade: 14,
+  axisV: 40,
+  hullR: 18,
+  joint: { x: -45, z: 38 },
+  tipLength: 56,
+  fall: 30,
+  pitch: 9.5,
+  cradleHalf: 8,
+  cradleTop: 22,
+  cradleLift: 1.5,
+  back: { from: 60, run: 56, rise: 20, power: 1.3 },
+  slope: { run: 20, rise: 14 },
+  peak: 56,
+  endShare: 0.55,
+  mountStart: 80,
+  mountPower: 1.2,
+  ringShare: 0.55,
+  crest: 0.3,
+  footZ: 8,
+  footPower: 0.8,
+  jitter: { platform: 0.3, rubble: 1.6, foot: 1, footRise: 2.5 },
+  crag: { edgeX: -90, edgePad: 6, near: 60, far: 22, farRun: 37, nearRun: 10, base: 10, top: 44, climbRun: 12, climbPower: 0.8, outFall: 0.7, jitter: 5 },
+};
 
 export const FORTRESS = {
   inset: 1.25,
@@ -55,4 +97,20 @@ export const FORTRESS_STYLES: Record<FortressStyle, FortressStyleDef> = {
   ring: { flush: true, gate: { width: 2, depth: 1, height: 3 }, gateFlare: 0, pieces: ['wall', 'gate'] },
   yard: { flush: true, gate: { width: 2.5, depth: 1, height: 3 }, gateFlare: 0, pieces: ['wall', 'tower', 'gate'] },
   shipMetal: { flush: true, gate: { width: 6, depth: 1.5, height: 4.5 }, gateFlare: 0, pieces: ['wall', 'tower', 'gate'] },
+  outpost: { flush: true, gate: { width: 6, depth: 0.75, height: 4 }, gateFlare: 0, pieces: ['wall', 'tower', 'gate'] },
+};
+
+export type FortressLampPiece = 'wall' | 'tower' | 'gate';
+export type FortressLampMount = { face: number; height: number };
+
+export const FORTRESS_LAMPS: Record<FortressStyle, Partial<Record<FortressLampPiece, FortressLampMount>>> = {
+  pumpworks: { wall: { face: 0.24, height: 2.3 }, tower: { face: 0.63, height: 2.3 }, gate: { face: 0.23, height: 1.6 } },
+  cistern: { wall: { face: 0.16, height: 2.3 }, tower: { face: 0.65, height: 2.9 }, gate: { face: 0.09, height: 1 } },
+  shipMetal: { wall: { face: 0.32, height: 2.3 }, tower: { face: 0.65, height: 2.3 }, gate: { face: 0.08, height: 1.6 } },
+  scrap: { wall: { face: 0.34, height: 2.3 }, tower: { face: 0.61, height: 2.3 }, gate: { face: 0.35, height: 1.6 } },
+  patchwork: { wall: { face: 0.35, height: 2.3 }, tower: { face: 0.71, height: 2.3 }, gate: { face: 0.15, height: 1.6 } },
+  compound: { wall: { face: 0.34, height: 2.3 }, tower: { face: 0.65, height: 2.3 }, gate: { face: 0.13, height: 2.4 } },
+  ring: { wall: { face: 0.34, height: 2.3 }, gate: { face: 0.02, height: 2 } },
+  yard: { wall: { face: 0.27, height: 2.3 }, tower: { face: 0.65, height: 2.3 }, gate: { face: 0.18, height: 1.6 } },
+  outpost: { wall: { face: 0.26, height: 2.3 }, tower: { face: 0.62, height: 2.3 }, gate: { face: 0, height: 3.2 } },
 };

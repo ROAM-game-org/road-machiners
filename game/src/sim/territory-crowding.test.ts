@@ -17,7 +17,7 @@ const MAX_STOCKS_IN_REACH = 2;
 const MARGIN = 3;
 
 const radius = Math.min(...Object.values(CHASSIS).map((c) => c.radius));
-const world = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+const world = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false);
 const layer = navLayer(world.terrain, world.obstacles, radius);
 const overlay = stampOverlay(layer, [], radius);
 const player = playerVehicle(world);
@@ -31,10 +31,14 @@ function worstCrowd(t: TerritoryDef): { worst: number; at: Vec; ids: string[]; h
   const component = startComponent(layer, entry!);
   const histogram: number[] = [];
   let best = { worst: 0, at: t.pos, ids: [] as string[] };
-  for (let cell = 0; cell < layer.n * layer.n; cell++) {
+  const reach = t.radius + MARGIN;
+  const [x0, x1] = [Math.max(0, Math.floor((t.pos.x - reach) / CELL)), Math.min(layer.n - 1, Math.floor((t.pos.x + reach) / CELL))];
+  const [y0, y1] = [Math.max(0, Math.floor((t.pos.y - reach) / CELL)), Math.min(layer.n - 1, Math.floor((t.pos.y + reach) / CELL))];
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const cell = y * layer.n + x;
     if (componentOf(layer, cell) !== component) continue;
     const at = centreOf(cell);
-    if (dist(at, t.pos) > t.radius + MARGIN || siteGap(t, at) > MARGIN) continue;
+    if (dist(at, t.pos) > reach || siteGap(t, at) > MARGIN) continue;
     const truck = { ...player, pos: at };
     const ids = stocks.filter((s) => salvageInRange(truck, s)).map((s) => s.id);
     histogram[ids.length] = (histogram[ids.length] ?? 0) + 1;
@@ -55,8 +59,8 @@ describe('crowded loot spots', () => {
       for (const s of territorySpots(world, id)) counts[spotLookOf(s)!] = (counts[spotLookOf(s)!] ?? 0) + 1;
       return counts;
     };
-    expect(territorySpots(world, 'orchard')).toHaveLength(28);
-    expect(looks('orchard')).toEqual({ farmhouse: 1, barn: 3, quonset: 4, bunker: 1, guardPost: 5, armyTruck: 10, armyCache: 4 });
+    expect(territorySpots(world, 'orchard')).toHaveLength(33);
+    expect(looks('orchard')).toEqual({ farmhouse: 1, barn: 6, quonset: 4, bunker: 1, guardPost: 5, armyTruck: 12, armyCache: 4 });
     expect(territorySpots(world, 'fallen-sun')).toHaveLength(24);
     expect(territorySpots(world, 'glass-flats')).toHaveLength(21);
   });

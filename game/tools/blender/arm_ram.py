@@ -1,7 +1,7 @@
 """Ram bar with prongs for the 'ram' armor.
 
-A front-edge row of 3 cells: 1.45 m across, 0.65 m deep, outer face at +X. Two push arms carry a heavy bar in
-front of the row, and four spikes stick out to X = 0.95 m. The bar takes the faction paint.
+A front-edge row of 3 cells: 1.45 m across, 0.65 m deep, outer face at +X. Two short push arms hold a heavy bar
+close in front of the row, and four spikes stick out to X = 0.80 m. The bar takes the faction paint.
 Run: blender --background --python tools/blender/arm_ram.py -- public/models/arm_ram.glb [tmp/arm_ram.png]
 """
 
@@ -18,9 +18,9 @@ from shapes import strut, taper  # noqa: E402
 
 N = 3
 SEED = 33
-BAR_X = 0.55
+BAR_X = 0.40
 BAR_Z = 0.42
-TIP_X = 0.95
+TIP_X = 0.80
 
 
 def build(kit: Kit) -> None:

@@ -9,6 +9,8 @@ import { gridOf, isMounted, placementError } from './grid';
 import { addGoods, mountPart, stowPart } from './inventory';
 import type { Faction, GridItem, NpcBrain, PartInstance, Vehicle, World } from './types';
 import type { Vec } from './vec';
+import { straighten } from './rig';
+import { fuelCap } from './stats';
 
 export type PartSpec = { defId: string; wear: number; at?: Pick<GridItem, 'x' | 'y' | 'rot'> };
 
@@ -48,7 +50,7 @@ export function gunFor(defId: string): Pick<PartInstance, 'gun'> {
 
 export function chargeFor(defId: string): Pick<PartInstance, 'charge'> {
   const def = partDef(defId);
-  const active = (def.kind === 'utility' && def.reload !== null) || (def.kind === 'armor' && def.claymore !== undefined);
+  const active = (def.kind === 'utility' && def.reload !== null) || (def.kind === 'accessory' && def.claymore !== undefined);
   return active ? { charge: { reload: 0 } } : {};
 }
 
@@ -67,6 +69,7 @@ export function addCoreParts(world: IdSource, v: Vehicle): void {
 export function makeVehicle(world: World, spec: VehicleSpec): Vehicle {
   const v = bareVehicle(world, spec);
   loadVehicle(world, v, spec);
+  if (v.resources) v.resources.fuel = fuelCap(v);
   return v;
 }
 
@@ -91,6 +94,7 @@ export function bareVehicle(world: IdSource, spec: Omit<VehicleSpec, 'parts' | '
     lastHitBy: null,
     job: null,
   };
+  straighten(v);
   addCoreParts(world, v);
   return v;
 }
@@ -115,7 +119,9 @@ function loadCargo(world: World, v: Vehicle, spec: VehicleSpec): void {
   for (const [good, n] of Object.entries(spec.cargo)) {
     if (addGoods(world, v, good, n) < n) throw new Error(`No room for ${n} ${good} on ${spec.chassisId}`);
   }
-  for (const { defId, wear } of spec.spares) {
-    if (!stowPart(world, v, makePart(world, defId, wear))) throw new Error(`No room for spare ${defId} on ${spec.chassisId}`);
+  for (const { defId, wear, at } of spec.spares) {
+    const part = makePart(world, defId, wear);
+    if (at) placeAt(world, v, part, at);
+    else if (!stowPart(world, v, part)) throw new Error(`No room for spare ${defId} on ${spec.chassisId}`);
   }
 }

@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { HANG_UP_LINE, LINE_IDS, TOLL, TOPICS, TRAIT_TALK, type LineId, type PrepareId } from '../data/dialogue';
+import { TIME } from '../data/time';
 import type { CallVar, CallVars } from '../sim/types';
 import { LOCALES, type Msg } from '../text/msg';
 import { lineKey } from '../text/names';
 import { resolve, schemaOf } from '../text/resolve';
-import { aidWords, haulText, lineText, tipText } from './dialogue';
+import { emptyWorld, addVehicle, npcBrain } from '../sim/testkit';
+import { gridSquareText } from './format';
+import { aidWords, callError, DERIVED_VARS, haulText, lineText, sightingText, tipText } from './dialogue';
 
 const en = (msg: Msg): string => resolve(msg, 'en');
 
@@ -14,7 +17,7 @@ describe('trading tip text', () => {
   });
 
   it('names the site and the good of a cheap tip', () => {
-    expect(en(tipText({ kind: 'tip', tip: { shop: 'granary', good: 'grain', dear: false } }))).toBe('Last time I was at The Granary, grain was going cheap.');
+    expect(en(tipText({ kind: 'tip', tip: { shop: 'granary', good: 'grain', dear: false } }))).toBe('Last time I was at The Granary, sorgut was going cheap.');
   });
 
   it('fits the verb to a good with a plural name', () => {
@@ -41,32 +44,48 @@ describe('aid words', () => {
 });
 
 const PREPARE_VARS: Record<PrepareId, string[]> = {
-  nearestTown: ['town', 'bearing', 'distance'],
+  vigilCall: [],
+  craterNews: ['news'],
+  nearestTown: ['town', 'way'],
   towOffer: ['town', 'fee'],
   patchTerms: ['deal'],
-  truceAnswer: ['answer', 'haul'],
-  mercyAnswer: ['answer', 'haul'],
+  truceAnswer: ['answer', 'haul', 'price'],
+  mercyAnswer: ['answer', 'haul', 'price'],
   threatAnswer: ['answer'],
   warnAnswer: ['answer'],
   npcTowTerms: ['site', 'fee'],
   lastTownPrices: ['town', 'prices'],
-  nearestRumor: ['site', 'bearing', 'distance'],
+  nearestRumor: ['site', 'way', 'square'],
   tradeTip: ['tip'],
+  roadLesson: ['lesson'],
   trucePrice: ['price'],
+  bountyOwed: ['price', 'offense'],
+  guardOffer: ['price'],
+  helpAnswer: ['answer'],
   aidWanted: ['aid', 'price'],
   aidAnswer: ['aid'],
   aidOffered: ['aid'],
   yieldAnswer: ['answer'],
   lootWarningTerms: ['warnLine', 'answer'],
-  demandHaul: ['haul'],
-  surrenderHaul: ['haul'],
+  demandHaul: ['haul', 'price'],
+  demandCut: ['price'],
+  robCutAnswer: ['answer', 'price'],
+  lastSighting: ['sighting'],
+  claimWreckBearing: ['bearing', 'distance'],
+  courierNeed: ['aid', 'price'],
+  taleNews: ['site', 'way', 'tip', 'story'],
+  tipTerms: ['price', 'way', 'square'],
+  courierNews: ['site', 'way', 'square', 'tip'],
+  courierFavorTerms: ['price'],
 };
 
 const SAMPLE: Record<string, CallVar> = {
   town: { kind: 'town', id: 'bowl' },
   site: { kind: 'site', id: 'granary' },
   bearing: { kind: 'bearing', rad: 1 },
-  distance: { kind: 'distance', tiles: 300 },
+  distance: { kind: 'distance', tiles: 12 },
+  square: { kind: 'square', column: 2, row: 3 },
+  way: { kind: 'directions', steps: [{ do: 'follow', road: { kind: 'to', site: 'nose' }, heading: null, span: 'far' }, { do: 'arrive', site: 'nose', area: false }] },
   fee: { kind: 'money', amount: 1200 },
   price: { kind: 'money', amount: 45 },
   deal: { kind: 'deal', deal: 'paid', patcher: 'npc', price: 80, parts: 2, turns: 3 },
@@ -74,10 +93,15 @@ const SAMPLE: Record<string, CallVar> = {
   tip: { kind: 'tip', tip: { shop: 'nose', good: 'meds', dear: false } },
   aid: { kind: 'aid', fuel: 2, supplies: 3 },
   warnLine: { kind: 'line', line: 'thatsMyPick' },
+  lesson: { kind: 'line', line: 'lessonLawGates' },
+  story: { kind: 'line', line: 'storyHaulerGoats' },
+  news: { kind: 'line', line: 'carsDraggedIntoTheDark' },
+  offense: { kind: 'line', line: 'offenseRobbed' },
   haul: { kind: 'haul', goods: { scrap: 2 }, parts: ['mg'] },
+  sighting: { kind: 'sighting', driver: 'Jed Cobb', seen: { bearing: 0.8, tiles: 300, turns: 80, heading: 3.1 } },
 };
 
-const named = (line: LineId): string[] => Object.keys(schemaOf(lineKey(line)));
+const named = (line: LineId): string[] => Object.keys(schemaOf(lineKey(line))).filter((name) => !(name in DERIVED_VARS));
 
 describe('every radio line', () => {
   it('names only call values its topic prepares', () => {
@@ -108,8 +132,15 @@ describe('every radio line', () => {
     for (const line of [...voices, HANG_UP_LINE]) expect(named(line)).toEqual([]);
   });
 
+  it('names the square of a told wreck in both languages', () => {
+    const vars: CallVars = { way: SAMPLE.way, square: SAMPLE.square };
+    expect(resolve(lineText('wreckWay', vars), 'en')).toContain('square C4');
+    expect(resolve(lineText('wreckWay', vars), 'ru')).toContain(`квадрате ${resolve(gridSquareText({ column: 2, row: 3 }), 'ru')}`);
+    for (const locale of LOCALES) expect(resolve(lineText('wreckWay', vars), locale).toLowerCase()).not.toMatch(/map|карт/);
+  });
+
   it('throws for a line missing a value it names', () => {
-    expect(() => lineText('townBearing', {})).toThrow(/town/);
+    expect(() => lineText('townWay', {})).toThrow(/town/);
   });
 });
 
@@ -126,7 +157,7 @@ describe('haul text', () => {
 
 describe('currency in dialogue', () => {
   it("groups an amount and names the unit", () => {
-    const vars: CallVars = { town: { kind: 'town', id: 'bowl' }, fee: { kind: 'money', amount: 150000 } };
+    const vars: CallVars = { town: { kind: 'town', id: 'bowl' }, fee: { kind: 'money', amount: 1500 } };
     expect(en(lineText('pullPaid', vars))).toContain('1,500 M when we get there.');
   });
 });
@@ -136,5 +167,31 @@ describe('a driver\'s own line', () => {
     const warn = TOPICS.lootWarning.nodes.warn.line;
     const vars: CallVars = { warnLine: { kind: 'line', line: HANG_UP_LINE } };
     expect(en(lineText(warn, vars))).toBe(en(lineText(HANG_UP_LINE, {})));
+  });
+});
+
+describe('call error', () => {
+  it('is null for a driver in sight and says why otherwise', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const near = addVehicle(w, 'independent', 'scout', [], { x: 32, y: 30 });
+    near.brain = npcBrain('trader', { x: 32, y: 30 }, []);
+    const far = addVehicle(w, 'independent', 'scout', [], { x: 29, y: 29 });
+    far.brain = npcBrain('trader', { x: 29, y: 29 }, []);
+    far.pos = { x: 500, y: 500 };
+    expect(callError(w, near.id)).toBeNull();
+    expect(callError(w, far.id)).not.toBeNull();
+    expect(callError(w, 'nobody')).not.toBeNull();
+  });
+});
+
+describe('sighting words', () => {
+  it('tells the age, place and heading of what the driver saw', () => {
+    const seen = { bearing: 0, tiles: 300, turns: (3 * TIME.turnsPerDay) / 24, heading: Math.PI / 2 };
+    const words = en(sightingText({ kind: 'sighting', driver: 'Jed Cobb', seen }));
+    expect(words).toMatch(/^Jed Cobb\? Saw that truck about 3 hours ago, .* east of you, heading south\.$/);
+  });
+
+  it('says they never crossed paths when nothing was seen', () => {
+    expect(en(sightingText({ kind: 'sighting', driver: 'Jed Cobb', seen: null }))).toBe('Jed Cobb? Never crossed paths.');
   });
 });

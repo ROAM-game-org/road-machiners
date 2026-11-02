@@ -13,7 +13,9 @@ export const AMBUSH = {
   spotStep: 2,
   parkingRings: 6,
   parkingAngles: 8,
+  farmLeave: 30,
 };
 
 export const GREEN_PIT = 'green-pit';
 export const WAKE_TOWN = 'bowl';
+export const SALVAGE_GOODS: readonly string[] = ['scrap', 'parts'];

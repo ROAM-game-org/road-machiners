@@ -12,6 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit  # noqa: E402
+from parts_common_core import PROUD  # noqa: E402
 from parts_common_cargo import GOOD_MAX_H, run  # noqa: E402
 
 SEED = 210
@@ -20,7 +21,7 @@ WALL = 0.03
 
 
 def build(kit: Kit) -> None:
-    kit.box("floor", (L, W, WALL), (0, 0, WALL / 2), "crate")
+    kit.box("floor", (L - 2 * PROUD, W - 2 * PROUD, WALL), (0, 0, WALL / 2), "crate")
     for y in (-1, 1):
         kit.box("side", (L, WALL, H), (0, y * (W - WALL) / 2, H / 2), "crate", dent_by=0.004)
     for x in (-1, 1):
@@ -30,7 +31,7 @@ def build(kit: Kit) -> None:
     kit.cylinder("gear", 0.1, 0.05, (-0.1, 0.02, H + 0.0), "metal_light", vertices=8)
     for i in range(8):
         a = i * math.pi / 4
-        kit.box(f"tooth{i}", (0.04, 0.03, 0.05), (-0.1 + 0.11 * math.cos(a), 0.02 + 0.11 * math.sin(a), H), "metal_light", rot=(0, 0, a))
+        kit.box(f"tooth{i}", (0.04, 0.03, 0.04), (-0.1 + 0.11 * math.cos(a), 0.02 + 0.11 * math.sin(a), H), "metal_light", rot=(0, 0, a))
     kit.cylinder("hub", 0.03, 0.07, (-0.1, 0.02, H + 0.01), "metal")
     kit.cylinder("filter", 0.06, 0.16, (0.14, -0.07, H + 0.02), "red", vertices=8)
     kit.cylinder("spring", 0.04, 0.14, (0.13, 0.09, H + 0.03), "metal", vertices=6, rot=(1.5707963267948966, 0, 0))

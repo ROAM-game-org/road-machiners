@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { Mesh, type MeshLambertMaterial } from 'three';
 import { publicHashes } from '../../public-files';
-import { loadModels, model, MODEL_GLOW, NAMES, socket } from './models';
+import { EDGE_DISTANCE, loadModels, MASK_UV, model, MODEL_GLOW, NAMES, socket } from './models';
+import { SURFACE_MODELS } from '../../render/partLooks';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
 const progress: [number, number][] = [];
@@ -76,6 +77,24 @@ describe('loadModels failure', () => {
 
   it('reports no failures when every file loads', async () => {
     expect(await loadModels(readFile)).toEqual([]);
+  });
+
+  it('refuses a truck model that lost its surface bake (IV2)', async () => {
+    await expect(loadModels(async (name) => readFile(name === 'wheel' ? 'barrel' : name))).rejects.toThrow(/without a surface mask: wheel/);
+    await loadModels(readFile);
+  });
+});
+
+describe('truck surfaces', () => {
+  it('gives every truck model mesh atlas UVs and edge distances, one per vertex', () => {
+    for (const name of SURFACE_MODELS) {
+      model(name).traverse((o) => {
+        if (!(o instanceof Mesh)) return;
+        const count = o.geometry.getAttribute('position').count;
+        expect(o.geometry.getAttribute(MASK_UV)?.count, name).toBe(count);
+        expect(o.geometry.getAttribute(EDGE_DISTANCE)?.count, name).toBe(count);
+      });
+    }
   });
 });
 

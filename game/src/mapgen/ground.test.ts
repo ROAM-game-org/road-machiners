@@ -29,6 +29,20 @@ function tilt(d: MapDraft, slope: number): void {
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) d.heights[j * n + i] = i * slope;
 }
 
+let pits: MapDraft | null = null;
+
+function pitted(): MapDraft {
+  if (pits === null) {
+    const d = newDraft(REGION.size);
+    const n = REGION.size + 1;
+    for (const [at, reach] of [[TERRAIN.features.canyon.path[2], 3], [TERRAIN.features.trench.path[0], 2]] as const) {
+      for (let j = at.y - reach; j <= at.y + reach; j++) for (let i = at.x - reach; i <= at.x + reach; i++) d.heights[j * n + i] = -G.mudDepth * 2;
+    }
+    pits = groundLayer(SEED, d);
+  }
+  return pits;
+}
+
 describe('ground types from geology marks', () => {
   it('lays loose sand where sand lies deep and not where it lies thin', () => {
     const d = newDraft(SMALL);
@@ -102,12 +116,8 @@ describe('ground types from geology marks', () => {
   });
 
   it('lays no lake on the canyon floor, which drains', () => {
-    const d = newDraft(REGION.size);
-    const n = REGION.size + 1;
+    const d = pitted();
     const at = TERRAIN.features.canyon.path[2];
-    for (let j = at.y - 3; j <= at.y + 3; j++) for (let i = at.x - 3; i <= at.x + 3; i++) d.heights[j * n + i] = -G.mudDepth * 2;
-
-    groundLayer(SEED, d);
 
     expect(['mud', 'saltCrust']).not.toContain(typeAt(d, at.x, at.y));
   });
@@ -122,13 +132,9 @@ describe('ground types from geology marks', () => {
   });
 
   it('drifts sand over the Broken Wing ramps, the hoop feet and the trench floor, and drains the trench', () => {
-    const d = newDraft(REGION.size);
-    const n = REGION.size + 1;
+    const d = pitted();
     const F = TERRAIN.features;
     const mid = F.trench.path[0];
-    for (let j = mid.y - 2; j <= mid.y + 2; j++) for (let i = mid.x - 2; i <= mid.x + 2; i++) d.heights[j * n + i] = -G.mudDepth * 2;
-
-    groundLayer(SEED, d);
 
     expect(typeAt(d, Math.floor(F.mounds[0].center.x), Math.floor(F.mounds[0].center.y + F.mounds[0].radius + 1))).toBe('sand');
     expect(typeAt(d, Math.floor(F.wing.pos.x), Math.floor(F.wing.pos.y + 3))).toBe('sand');
@@ -146,8 +152,15 @@ describe('built ground', () => {
     return d;
   }
 
+  let grounded: MapDraft | null = null;
+
+  function builtGround(): MapDraft {
+    if (grounded === null) grounded = groundLayer(SEED, marked());
+    return grounded;
+  }
+
   it('keeps roads road under every geology mark', () => {
-    const d = groundLayer(SEED, marked());
+    const d = builtGround();
     const [x, y] = [Math.floor(REGION.roads[0][1].x), Math.floor(REGION.roads[0][1].y)];
 
     expect(typeAt(d, x, y)).toBe('road');
@@ -156,7 +169,7 @@ describe('built ground', () => {
   it('keeps the Canyon Bridge deck road under every geology mark', () => {
     const bridge = deckById('canyon-bridge');
     const mid = { x: Math.floor((bridge.from.x + bridge.to.x) / 2), y: Math.floor((bridge.from.y + bridge.to.y) / 2) };
-    const d = groundLayer(SEED, marked());
+    const d = builtGround();
 
     expect(typeAt(d, mid.x, mid.y)).toBe('road');
   });
@@ -166,7 +179,7 @@ describe('built ground', () => {
     const off = [-0.5, 0.5].flatMap((dx) => [-0.5, 0.5].map((dy) => ({ x: Math.floor(town.pos.x + dx * town.radius), y: Math.floor(town.pos.y + dy * town.radius) })));
     const tile = off.find((t) => ROAD_INDEX.nearestWithin(t.x + 0.5, t.y + 0.5, Infinity) > REGION.roadWidth);
     if (!tile) throw new Error('Every probe tile in the town lies on a road');
-    const d = groundLayer(SEED, marked());
+    const d = builtGround();
 
     expect(typeAt(d, tile.x, tile.y)).toBe('hardpan');
   });

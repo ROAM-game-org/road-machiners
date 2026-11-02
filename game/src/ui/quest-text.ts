@@ -5,6 +5,7 @@ import { TERM_IDS, type TermId } from '../data/locals';
 import { verbatim } from '../text/msg';
 import { termText } from '../text/names';
 import { el, uiRoot } from './dom';
+import { uiSize, type LayerRect } from './ui-size';
 
 export type Mark = { name: string; value: string | null };
 export type Span = { text: string; marks: Mark[]; pauses: number };
@@ -233,13 +234,14 @@ export class TermTip {
     if (id === undefined) throw new Error('A term element has no data-term');
     this.tip.replaceChildren(el('span', {}, termText(termId(id))));
     this.tip.style.display = '';
-    this.place(term.getBoundingClientRect());
+    this.place(uiSize().layerRect(term));
   }
 
-  private place(anchor: DOMRect): void {
+  private place(anchor: LayerRect): void {
     const width = this.tip.offsetWidth;
-    const left = Math.min(Math.max(anchor.left, 0), window.innerWidth - width);
-    const below = anchor.bottom + this.tip.offsetHeight <= window.innerHeight;
+    const layer = uiSize().layerSize();
+    const left = Math.min(Math.max(anchor.left, 0), layer.width - width);
+    const below = anchor.bottom + this.tip.offsetHeight <= layer.height;
     this.tip.style.left = `${left}px`;
     this.tip.style.top = below ? `${anchor.bottom}px` : `${anchor.top - this.tip.offsetHeight}px`;
   }

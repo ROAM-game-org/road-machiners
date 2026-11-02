@@ -73,10 +73,37 @@ function decksTouch(a: Deck, b: Deck): boolean {
 export const DECKS: readonly Deck[] = buildDecks(TERRAIN.features.decks);
 
 type RailBox = { deck: Deck; walls: [Vec, Vec][]; minX: number; maxX: number; minY: number; maxY: number };
-export type DeckSet = { decks: readonly Deck[]; boxes: readonly RailBox[] };
+export type DeckSet = { decks: readonly Deck[]; boxes: readonly RailBox[]; cells: ReadonlyMap<number, readonly RailBox[]> };
+
+const DECK_CELL = 16;
 
 export function deckSet(decks: readonly Deck[]): DeckSet {
-  return { decks, boxes: decks.map(railBox) };
+  const boxes = decks.map(railBox);
+  return { decks, boxes, cells: deckCells(boxes) };
+}
+
+function deckCellOf(v: number): number {
+  return Math.floor(v / DECK_CELL);
+}
+
+function deckCellKey(cx: number, cy: number): number {
+  return cx * 65536 + cy;
+}
+
+function deckCells(boxes: readonly RailBox[]): Map<number, RailBox[]> {
+  const cells = new Map<number, RailBox[]>();
+  for (const box of boxes) {
+    for (let cx = deckCellOf(box.minX - 1); cx <= deckCellOf(box.maxX + 1); cx++) {
+      for (let cy = deckCellOf(box.minY - 1); cy <= deckCellOf(box.maxY + 1); cy++) addToCell(cells, deckCellKey(cx, cy), box);
+    }
+  }
+  return cells;
+}
+
+function addToCell(cells: Map<number, RailBox[]>, key: number, box: RailBox): void {
+  const cell = cells.get(key) ?? [];
+  cell.push(box);
+  cells.set(key, cell);
 }
 
 function railBox(deck: Deck): RailBox {
@@ -132,8 +159,21 @@ function acrossOf(deck: Deck, x: number, y: number): number {
   return (y - deck.from.y) * deck.axis.x - (x - deck.from.x) * deck.axis.y;
 }
 
+export function anyDeckBox(set: DeckSet, x0: number, y0: number, x1: number, y1: number): boolean {
+  for (const box of set.boxes) if (x1 >= box.minX - BOX_SLACK && x0 <= box.maxX + BOX_SLACK && y1 >= box.minY - BOX_SLACK && y0 <= box.maxY + BOX_SLACK) return true;
+  return false;
+}
+
+export function decksWithin(set: DeckSet, at: Vec, reach: number): boolean {
+  return set.boxes.some((b) => squaresMeet(b, at, reach + BOX_SLACK));
+}
+
+function squaresMeet(box: { minX: number; maxX: number; minY: number; maxY: number }, at: Vec, reach: number): boolean {
+  return box.minX <= at.x + reach && box.maxX >= at.x - reach && box.minY <= at.y + reach && box.maxY >= at.y - reach;
+}
+
 export function deckAt(set: DeckSet, x: number, y: number): DeckPoint | null {
-  for (const box of set.boxes) if (inBox(box, x, y, BOX_SLACK) && inOutline(box.deck, x, y)) return { deck: box.deck, along: alongOf(box.deck, x, y) };
+  for (const box of set.cells.get(deckCellKey(deckCellOf(x), deckCellOf(y))) ?? []) if (inBox(box, x, y, BOX_SLACK) && inOutline(box.deck, x, y)) return { deck: box.deck, along: alongOf(box.deck, x, y) };
   return null;
 }
 
@@ -144,6 +184,11 @@ function inBox(box: { minX: number; maxX: number; minY: number; maxY: number }, 
 function inOutline(deck: Deck, x: number, y: number): boolean {
   const along = alongOf(deck, x, y);
   return along >= 0 && along <= deck.length && Math.abs(acrossOf(deck, x, y)) <= deck.width / 2;
+}
+
+export function onWalledDeck(set: DeckSet, p: Vec): boolean {
+  const on = deckAt(set, p.x, p.y);
+  return on !== null && on.deck.lips.length > 0;
 }
 
 export function underDeck(box: PosedBox, base: number, t: Terrain): boolean {
@@ -209,11 +254,20 @@ const BOX_SLACK = 1e-9;
 
 
 export function nearRail(set: DeckSet, x: number, y: number, reach: number): boolean {
+  for (const box of set.boxes) if (nearRailBox(box, x, y, reach)) return true;
+  return false;
+}
+
+export function nearRailBox(box: RailBox, x: number, y: number, reach: number): boolean {
+  if (x <= box.minX - reach || x >= box.maxX + reach || y <= box.minY - reach || y >= box.maxY + reach) return false;
   const p = { x, y };
-  return set.boxes.some((box) => {
-    if (x <= box.minX - reach || x >= box.maxX + reach || y <= box.minY - reach || y >= box.maxY + reach) return false;
-    return box.walls.some(([a, b]) => segmentDist(p, a, b) < reach);
-  });
+  for (const [a, b] of box.walls) if (segmentDist(p, a, b) < reach) return true;
+  return false;
+}
+
+export function railDepth(set: DeckSet, p: Vec, reach: number): number {
+  const depths = set.boxes.filter((box) => nearRailBox(box, p.x, p.y, reach)).flatMap((box) => box.walls.map(([a, b]) => reach - segmentDist(p, a, b)));
+  return Math.max(0, ...depths);
 }
 
 export function crossesRail(set: DeckSet, a: Vec, b: Vec, reach: number): boolean {

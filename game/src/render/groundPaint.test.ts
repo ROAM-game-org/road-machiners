@@ -9,7 +9,7 @@ import type { Terrain } from '../sim/terrain';
 import { pointInPolygon, polylineDist, type Vec } from '../sim/vec';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
-import { desertWeight, glassField, lookTypes, paintGroundCanvas, TERRAIN_MARGIN, type LookType, type PaintCanvas } from './groundPaint';
+import { desertWeight, glassField, lookTypes, paintGroundCanvas, TERRAIN_MARGIN, yardLook, type LookType, type PaintCanvas } from './groundPaint';
 import { ICARUS_KEY } from '../sim/atlas';
 
 const sun = REGION.locations.find((l) => l.id === 'fallen-sun')!;
@@ -289,5 +289,43 @@ describe('glassField', () => {
     expect(strip[10 * 20 + 10]).toBeGreaterThan(HALF);
     const lone = glassField(glassMap(20, (x, y) => x === 10 && y === 10));
     expect(lone[10 * 20 + 10]).toBeLessThan(HALF);
+  });
+});
+
+describe('yardLook', () => {
+  const nose = [...REGION.towns, ...REGION.locations].find((l) => l.id === 'nose')!;
+  const t = TEST_MAP.terrain;
+  const tileAt = (angle: number, gap: number): number => {
+    const r = nose.radius + gap;
+    return Math.floor(nose.pos.y + Math.sin(angle) * r) * t.size + Math.floor(nose.pos.x + Math.cos(angle) * r);
+  };
+
+  it('fades a town yard from full hardpan deep inside to the ground around at its edge, with no step', () => {
+    const { fade } = yardLook(t);
+    const west = Math.PI;
+    const steps = [-8, -7, -6, -5, -4, -3, -2, -1, 0, 1].map((gap) => fade[tileAt(west, gap)]);
+    expect(steps[0]).toBe(1);
+    expect(steps[9]).toBeLessThan(0.1);
+    for (let k = 1; k < steps.length; k++) {
+      expect(steps[k - 1] - steps[k], `step ${k}`).toBeGreaterThanOrEqual(0);
+      expect(steps[k - 1] - steps[k], `step ${k}`).toBeLessThan(0.35);
+    }
+  });
+
+  it('takes the look of the ground beside the yard, never hardpan from the yard itself', () => {
+    const { fade, natural } = yardLook(t);
+    const east = 0;
+    const inside = tileAt(east, -6);
+    expect(t.types[inside]).toBe('hardpan');
+    expect(fade[inside]).toBeGreaterThan(0);
+    expect(natural[inside]).not.toBe('hardpan');
+    expect(natural[inside]).toBe(natural[tileAt(east, 5)]);
+  });
+
+  it('leaves hardpan away from every site unfaded', () => {
+    const { fade } = yardLook(t);
+    const far = t.types.findIndex((type, i) => type === 'hardpan' && REGION.towns.every((s) => Math.hypot((i % t.size) - s.pos.x, Math.floor(i / t.size) - s.pos.y) > 120));
+    expect(far).toBeGreaterThanOrEqual(0);
+    expect(fade[far]).toBe(0);
   });
 });

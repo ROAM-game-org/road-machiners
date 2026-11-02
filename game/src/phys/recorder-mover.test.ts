@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { recordTurns, stepsFrom } from '../sim/progression/record';
-import { playerVehicle } from '../sim/damage';
-import { outpostPad } from '../sim/fury-road';
-import { furyRoadWorld, parkOnPad } from '../sim/testkit';
+import { stepsFrom } from '../sim/progression/record';
+import { recordTurns } from '../sim/progression/record-node';
+import { haulerOf, playerVehicle } from '../sim/damage';
+import { yardSpots } from '../sim/outpost-gates';
+import { chaosHighwayWorld, parkInYard } from '../sim/testkit';
 import { dist } from '../sim/vec';
 import { endTurn } from '../sim/world';
 import { physicsMover } from './recorder-mover';
+
+const MAX_TRUCK_GAP = 20;
 
 describe('the physics mover of the progression recorder', () => {
   it('moves the escort by physics, not by the cheap far rules', async () => {
@@ -20,15 +23,16 @@ describe('the physics mover of the progression recorder', () => {
   }, 120_000);
 
   it('rebuilds the physics world when the road window moves under the truck', async () => {
-    const w = furyRoadWorld();
-    parkOnPad(w, 1);
+    const w = chaosHighwayWorld();
+    parkInYard(w, 1);
     const start = endTurn(w, () => {});
     const mover = await physicsMover();
 
     const steps = [...stepsFrom(start, 'window', 'escort', 6, {}, mover)];
     const last = steps.at(-1)!.world;
 
-    expect(last.furyRoad?.window).toBe(1);
-    expect(dist(playerVehicle(last).pos, outpostPad(last, 2))).toBeLessThan(dist(playerVehicle(steps[0].world).pos, outpostPad(last, 2)));
+    expect(last.chaosHighway?.window).toBe(1);
+    expect(dist(playerVehicle(last).pos, haulerOf(last).pos)).toBeLessThan(MAX_TRUCK_GAP);
+    expect(dist(playerVehicle(last).pos, yardSpots(last, 2).truck)).toBeLessThan(dist(playerVehicle(steps[0].world).pos, yardSpots(last, 2).truck));
   }, 120_000);
 });
