@@ -208,7 +208,7 @@ describe('merge queue', () => {
     cards = [card(5, [RELEASE_TASK_LABEL])];
     changed = ['game/src/sim/fuel.ts'];
     await merge(fakeCtx());
-    expect(replaced).toEqual(['head1 factory/suite-merge-release-2026-09-29']);
+    expect(replaced).toEqual(['head1 factory/suite-merge-release-2026-09-29', 'head1 factory/suite-merge-dev']);
   });
 
   it('hands a failed suite to the merge session and runs the suite again on its fix', async () => {
@@ -413,6 +413,51 @@ describe('merge queue', () => {
     expect(readLedger(home, new Date(0))).toContainEqual(expect.objectContaining({ issue: 5, step: 'merged', into: 'release/2026-09-29', sha: 'merged1' }));
   });
 
+  it('lands an approved release task on the release, then carries the release into dev with the full suite before the card is done', async () => {
+    cards = [card(5, [RELEASE_TASK_LABEL])];
+    changed = ['game/src/sim/fuel.ts'];
+    await merge(fakeCtx());
+    expect(calls.filter((call) => /^(clone|merge |suite|checks|push|move)/.test(call))).toEqual([
+      'clone release/2026-09-29 release/2026-09-29', 'merge factory/issue-5', 'suite head1', 'checks', 'push head1 release/2026-09-29',
+      'clone dev dev', 'merge release/2026-09-29', 'suite head1', 'checks', 'push head1 dev',
+      'move 5 Done',
+    ]);
+    expect(messages).toEqual(['Merge issue #5: Card 5', 'Merge release/2026-09-29 into dev with #5']);
+    expect(comments).toEqual(['5 Approved by Ann and merged into the release branch release/2026-09-29 and into dev. It closes when its release ships.']);
+    const state = readState(`${home}/state.json`);
+    expect(state.release?.merges).toEqual([{ issue: 5, title: 'Card 5', sha: 'merged1', into: 'release/2026-09-29', reverted: [] }]);
+    expect(state.devMerges).toEqual([]);
+    expect(state.landings).toEqual({});
+  });
+
+  it('leaves a release task in Merging when its carry into dev fails, and the next job resumes the kept carry without merging the card into the release again', async () => {
+    cards = [card(5, [RELEASE_TASK_LABEL])];
+    const ctx = fakeCtx();
+    ctx.repo.push = async (commit: string, branch: string) => {
+      calls.push(`push ${commit} ${branch}`);
+      if (branch === 'dev') throw new Error('GitHub is down');
+    };
+    ctx.repo.isMerged = async (commit: string) => commit === 'dev';
+    await expect(merge(ctx)).rejects.toThrow('GitHub is down');
+    expect(calls).not.toContain('move 5 Done');
+    expect(calls).toContain(`label 5 ${STUCK_LABEL}`);
+    expect(readState(`${home}/state.json`).landings.merge).toMatchObject({ into: 'dev', cards: [5] });
+    calls = [];
+    comments = [];
+    await merge(fakeCtx());
+    expect(calls.filter((call) => /^(merge |push|move)/.test(call))).toEqual(['merge dev', 'push head1 dev', 'move 5 Done']);
+    expect(readState(`${home}/state.json`).release?.merges).toEqual([{ issue: 5, title: 'Card 5', sha: 'merged1', into: 'release/2026-09-29', reverted: [] }]);
+    expect(comments).toEqual(['5 Approved by Ann and merged into the release branch release/2026-09-29 and into dev. It closes when its release ships.']);
+  });
+
+  it('carries nothing when dev already holds the release head', async () => {
+    cards = [card(5, [RELEASE_TASK_LABEL])];
+    const ctx = fakeCtx();
+    ctx.repo.isMerged = async (commit: string, branch: string) => commit === 'release/2026-09-29' && branch === 'dev';
+    await merge(ctx);
+    expect(calls.filter((call) => /^(merge |push|move)/.test(call))).toEqual(['merge factory/issue-5', 'push head1 release/2026-09-29', 'move 5 Done']);
+  });
+
   it('records nothing when the batch fails', async () => {
     shellFailures = ['boom', 'boom', 'boom', 'boom', 'boom', 'boom'];
     await merge(fakeCtx(0.5)).catch(() => undefined);
@@ -441,7 +486,7 @@ describe('merge queue', () => {
     cards = cards.filter((c) => ![5, 7, 8].includes(c.issue));
     calls = [];
     await merge(fakeCtx());
-    expect(calls.filter((call) => call.startsWith('merge '))).toEqual(['merge factory/issue-6']);
+    expect(calls.filter((call) => call.startsWith('merge '))).toEqual(['merge factory/issue-6', 'merge release/2026-09-29']);
   });
 
   it('keeps an earlier batch pushed and settled when a later batch fails, and labels only the failed batch', async () => {

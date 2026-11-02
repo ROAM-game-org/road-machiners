@@ -53,6 +53,19 @@ async function commentBaseline(ctx: Ctx, cards: Card[], error: BaselineFailureEr
 }
 
 async function mergeBatch(ctx: Ctx, base: string, cards: Card[]): Promise<void> {
+  const landed = landedOn(readState(ctx.statePath), base);
+  const fresh = cards.filter((card) => !landed.includes(card.issue));
+  if (fresh.length > 0) await landBatch(ctx, base, fresh);
+  if (base !== BASE_BRANCH) await carryToDev(ctx, base, cards);
+  await settle(ctx, base, cards);
+}
+
+function landedOn(state: FactoryState, base: string): number[] {
+  if (base === BASE_BRANCH || state.release?.branch !== base) return [];
+  return state.release.merges.filter((merge) => merge.into === base && !merge.reverted.includes(base)).map((merge) => merge.issue);
+}
+
+async function landBatch(ctx: Ctx, base: string, cards: Card[]): Promise<void> {
   const dir = join(ctx.cfg.home, 'work', 'merge-queue');
   await ctx.repo.fetch();
   const { work, resumed } = openLanding(ctx, 'merge', dir, await batchPlan(ctx, base, cards), runningJobId());
@@ -68,7 +81,28 @@ async function mergeBatch(ctx: Ctx, base: string, cards: Card[]): Promise<void> 
   }
   closeLanding(ctx, 'merge', dir);
   recordMerges(ctx, base, merged.merges);
-  await settle(ctx, base, cards, merged.merges);
+}
+
+async function carryToDev(ctx: Ctx, release: string, cards: Card[]): Promise<void> {
+  const dir = join(ctx.cfg.home, 'work', 'merge-queue');
+  await ctx.repo.fetch();
+  if (await ctx.repo.isMerged(release, BASE_BRANCH)) return ctx.log('merge', null, `dev already holds ${release}`);
+  const plan = { into: BASE_BRANCH, sources: [{ branch: release, sha: await ctx.repo.headHash(release) }], cards: cards.map((card) => card.issue) };
+  const { work, resumed } = openLanding(ctx, 'merge', dir, plan, runningJobId());
+  const land: Landing = { stage: 'merge', dir, into: BASE_BRANCH, guardAgainst: [BASE_BRANCH, release], agent: landingAgent(ctx, 'merge', dir, work, resumed), staleBase: resumed };
+  const issues = cards.map((card) => `#${card.issue}`).join(', ');
+  const conflicts = resumed ? 0 : await mergeReleaseIn(ctx, land, release, issues);
+  const fixList = `- ${release}, which holds ${issues}`;
+  await checkAndPush(ctx, land, conflicts, (failure) => fillPrompt('merge-fix', { into: BASE_BRANCH, cards: fixList, failure }));
+  closeLanding(ctx, 'merge', dir);
+}
+
+async function mergeReleaseIn(ctx: Ctx, land: Landing, release: string, issues: string): Promise<number> {
+  await ctx.repo.prepareWorkClone(BASE_BRANCH, BASE_BRANCH, land.dir);
+  resetOutputs(join(land.dir, GAME_DIR));
+  const conflicts = await mergeIn(ctx, land, { branch: release, message: `Merge ${release} into dev with ${issues}`, reason: `${issues} merged into ${release}, and approved work goes to dev too` });
+  markMerged(ctx, 'merge', []);
+  return conflicts;
 }
 
 export const runningJobId = (): string | null => process.env[JOB_ID_ENV] ?? null;
@@ -299,11 +333,18 @@ async function pushed(ctx: Ctx, land: Landing): Promise<string | null> {
   }
 }
 
-async function settle(ctx: Ctx, base: string, cards: Card[], merges: IssueMerge[]): Promise<void> {
-  const where = base === BASE_BRANCH ? 'dev' : `the release branch ${base}`;
-  for (const [index, card] of cards.entries()) await settleCard(ctx, card, cards, merges[index]!, where);
+async function settle(ctx: Ctx, base: string, cards: Card[]): Promise<void> {
+  const where = base === BASE_BRANCH ? 'dev' : `the release branch ${base} and into dev`;
+  for (const card of cards) await settleCard(ctx, card, cards, mergeOf(readState(ctx.statePath), base, card.issue), where);
   if (base === BASE_BRANCH) await deployDev(ctx, releaseLog(ctx, 'merge-dev-build'));
   else updateState(ctx.statePath, (next) => (next.release ? { ...next, pendingShip: null, release: { ...next.release, postId: null, removed: next.release.removed.filter((n) => !cards.some((card) => card.issue === n)) } } : next));
+}
+
+function mergeOf(state: FactoryState, base: string, issue: number): IssueMerge {
+  const merges = base === BASE_BRANCH ? state.devMerges : state.release?.merges ?? [];
+  const merge = merges.filter((item) => item.issue === issue && item.into === base).at(-1);
+  if (merge === undefined) throw new Error(`No merge of #${issue} into ${base} is recorded`);
+  return merge;
 }
 
 async function settleCard(ctx: Ctx, card: Card, cards: Card[], merge: IssueMerge, where: string): Promise<void> {

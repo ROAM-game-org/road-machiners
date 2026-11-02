@@ -28,6 +28,7 @@ const COMMENT_COLUMNS = 'id integer primary key autoincrement, issue integer, so
 const HOUR_MS = 3_600_000;
 const FAILED_HIT = 'failed:';
 const ON_TOPIC = "(relevance is null or relevance = 'parent')";
+const CANDIDATE_REPORT = "build = 'rc' and verdict = 'accept' and issue = ? and created_issue is not null";
 
 export const textKey = (text: string): string => text.toLowerCase().replace(/@\w+/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 
@@ -37,7 +38,7 @@ create table if not exists proposals (issue integer primary key, pitch text not 
 create table if not exists reactions (chat text not null, message_id integer not null, user_id text not null, emoji text not null, primary key (chat, message_id, user_id));
 create table if not exists build_posts (chat text not null, message_id integer not null, issue integer not null, build text not null, discussion_chat text, discussion_id integer, posted_at text not null, open integer not null, primary key (chat, message_id));
 create table if not exists comments (${COMMENT_COLUMNS});
-create table if not exists reports (id integer primary key autoincrement, address text not null, build text not null, version text not null, kind text not null, text text not null, verdict text not null, intent text not null, sincere real not null, issue integer, created_issue integer, at text not null);
+create table if not exists reports (id integer primary key autoincrement, address text not null, build text not null, version text not null, kind text not null, text text not null, verdict text not null, intent text not null, sincere real not null, issue integer, created_issue integer, at text not null, tasked_at text);
 create table if not exists hits (address text not null, hour text not null, count integer not null, primary key (address, hour));
 create table if not exists digests (issue integer primary key, last_at text not null);
 create table if not exists post_attempts (id integer primary key autoincrement, issue integer not null, at text not null);
@@ -60,6 +61,10 @@ function migrateProposals(db: DatabaseSync): void {
   if (!columns.includes('attempted_at')) db.exec('alter table proposals add column attempted_at text');
 }
 
+function migrateReports(db: DatabaseSync): void {
+  if (!columnsOf(db, 'reports').includes('tasked_at')) db.exec('alter table reports add column tasked_at text');
+}
+
 function migrateComments(db: DatabaseSync): void {
   const columns = columnsOf(db, 'comments');
   if (!columns.includes('dropped_at')) db.exec('alter table comments add column dropped_at text');
@@ -76,6 +81,7 @@ export class PublicStore {
     const hadAttempts = db.prepare("select 1 from sqlite_master where type = 'table' and name = 'post_attempts'").get() !== undefined;
     db.exec(SCHEMA);
     migrateProposals(db);
+    migrateReports(db);
     migrateComments(db);
     if (!hadAttempts) db.exec('insert into post_attempts (issue, at) select issue, coalesce(posted_at, attempted_at) from proposals where coalesce(posted_at, attempted_at) is not null');
     this.allowCommentsWithoutIssue();
@@ -351,6 +357,21 @@ export class PublicStore {
   addReport(report: ReportRow): number {
     const { address, build, version, kind, text, verdict, intent, sincere, issue, createdIssue, at } = report;
     return Number(this.db.prepare('insert into reports (address, build, version, kind, text, verdict, intent, sincere, issue, created_issue, at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(address, build, version, kind, text, verdict, intent, sincere, issue, createdIssue, at).lastInsertRowid);
+  }
+
+  candidateReportIssue(release: number, text: string): number | null {
+    const key = textKey(text);
+    const filed = this.db.prepare(`select text, created_issue from reports where ${CANDIDATE_REPORT} order by id`).all(release);
+    const same = filed.find((row) => textKey(String(row.text)) === key);
+    return same === undefined ? null : Number(same.created_issue);
+  }
+
+  untaskedCandidateReports(release: number): number[] {
+    return this.db.prepare(`select distinct created_issue from reports where ${CANDIDATE_REPORT} and tasked_at is null order by created_issue`).all(release).map((row) => Number(row.created_issue));
+  }
+
+  markTasked(release: number, issue: number, at: Date): void {
+    this.db.prepare(`update reports set tasked_at = ? where ${CANDIDATE_REPORT} and created_issue = ? and tasked_at is null`).run(at.toISOString(), release, issue);
   }
 
   private apply(event: PublicEvent): void {
