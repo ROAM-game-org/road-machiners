@@ -89,15 +89,16 @@ Do not give it the issue, the task file, the diff, any other doc or your reasoni
 Tell it this:
 "You are a player of this game. These screenshots show moments of play, and theme.md describes the world. Open no other file. First, name each shot where you cannot tell what a player is looking at. Then judge every shot by these questions:
 1. World fit: does anything look or read like it does not belong in this world?
-2. Voice: does any character say game words, rules, numbers or UI terms they could not know?
+2. Voice: does any character, in talk, tips or the log, say game words, rules, numbers or UI terms they could not know? Button and panel labels are not a character's voice.
 3. Picture sense: does anything look wrong next to how the real thing works?
-4. Convenience showing: does anything exist only for the player's convenience and look like it?
+4. Convenience showing: does anything in the world, not the controls, exist only for the player's convenience and look like it?
 5. Confusion: would a player know what they are looking at and what to do next?
 6. Flow breaks: does a popup, a wall of text or a repeated message stop play for no good reason?
 7. Consistency: does any art, font, colour or scale differ from the rest of the game?
 8. Frustration: what on this screen would make a player groan or quit?
 Report each finding with the shot, the question number and what a player would hate about it."
 Retake each shot it could not read, and give the new shots to a fresh subagent with the same brief.
+The subagent judges whole screens, so act only on findings about what this change made or touched. Drop the rest.
 Fix each finding you agree with, even when the issue asked for that thing. Recapture the shots that changed and commit.
 Drop a finding only when the subagent misread the shot or a player would not mind. Dropped findings stay out of the post.
 Run the check once per round. A finding is never a reason for `.factory/needs-redesign.md`.
