@@ -782,7 +782,7 @@ export class Game {
   private tryBeginTurn(now: number, wasPlaying: boolean): "began" | "none" | "failed" {
     try {
       const held = this.holdsTime();
-      const prepared = this.anim ? null : this.travel.takeReady(this.world, this.drive, now, held);
+      const prepared = this.anim ? null : timed("take-ready", () => this.travel.takeReady(this.world, this.drive, now, held));
       if (prepared) this.beginTurn(prepared, now, this.travel.getRemainder(wasPlaying));
       return prepared ? "began" : "none";
     } catch (err) {
@@ -793,11 +793,11 @@ export class Game {
 
   private beginTurn(prepared: PreparedTurn, now: number, elapsed: number): void {
     if (this.world.player.quests.live) throw new Error("A turn began under an open scene");
-    const { world: played, playback, towed } = this.travel.beginPlayback(this.world, prepared, elapsed, this.frames);
-    const world = relanguageQuest(played, QUESTS);
+    const { world: played, playback, towed } = timed("begin-playback", () => this.travel.beginPlayback(this.world, prepared, elapsed, this.frames));
+    const world = timed("relanguage-quest", () => relanguageQuest(played, QUESTS));
     if (this.saves.changeMapIfMoved(world)) return;
     this.world = world;
-    this.saves.logWorld(world);
+    timed("log-world", () => this.saves.logWorld(world));
     this.updateLoops();
     this.anim = playback;
     this.turnStart = playback.before;
@@ -806,13 +806,13 @@ export class Game {
     const seen = (id: string) => this.eventPoint(id) !== null;
     playback.combat = gunfireSeen(this.world.events, seen);
     playback.volley = volleySeen(this.world.events, seen);
-    const timed = collisionSteps(world.events, playback.result);
-    this.crashCues = new CollisionCues(timed);
+    const collisions = collisionSteps(world.events, playback.result);
+    this.crashCues = new CollisionCues(collisions);
     playback.shotAims = shotAimsOf(world.events);
     this.breakCues = new BreakCues(world.events);
     playback.impactAtMs = Math.max(MOVE_MS, playShotFx(this.combatHost(playback.elapsed), this.breakCues));
     playUtilitySounds(this.combatHost(), "start");
-    this.sound.timeScoreEvents(world.events, world.player.vehicleId, (e) => scoreEventMs(e, timed, TURN_STEPS, playback.impactAtMs));
+    this.sound.timeScoreEvents(world.events, world.player.vehicleId, (e) => scoreEventMs(e, collisions, TURN_STEPS, playback.impactAtMs));
     if (!towed) this.playDriveSound(playback.result);
     this.phase = "moving";
     this.path.clear();
