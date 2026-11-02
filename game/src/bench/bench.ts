@@ -15,7 +15,7 @@ import {
   type BenchReport, type BenchSystem, type FrameRecord, type SceneReport,
 } from './report';
 
-export type BenchOptions = { savingsAbove: number | null; passFrames: number | null };
+export type BenchOptions = { savingsAbove: number | null; passFrames: number | null; marks: boolean };
 
 const PASS_FRAMES = 600;
 const SAVINGS_FRAMES = 240;
@@ -48,7 +48,7 @@ const GAME_FIELDS = [
 ];
 
 type Steps = BenchReport['turns']['steps'];
-type TurnLog = { waits: number[]; workers: number[]; previews: number[]; passShots: number[]; recording: boolean; steps: Steps };
+type TurnLog = { waits: number[]; workers: number[]; previews: number[]; passShots: number[]; recording: boolean; steps: Steps; spans: { scene: SceneReport['id']; start: number; end: number }[] };
 type Ctx = { game: Game; probe: Probe; options: BenchOptions; passFrames: number; log: TurnLog };
 type Check = SceneReport['check'];
 type Evidence = { draws: DrawReport; frames: FrameRecord[]; passes: FrameRecord[][]; shadowDraws: ReadonlyMap<Camera, number> };
@@ -208,7 +208,7 @@ function tapTurnKey(game: Game): void {
   keys.releaseTurn();
 }
 
-async function startTurn(ctx: Ctx, log: TurnLog, trigger: () => void): Promise<void> {
+async function startTurn(ctx: Ctx, log: TurnLog, scene: Spec['id'], trigger: () => void): Promise<void> {
   const { game, probe } = ctx;
   const turn = game.state.turn;
   const start = performance.now();
@@ -227,6 +227,7 @@ async function startTurn(ctx: Ctx, log: TurnLog, trigger: () => void): Promise<v
     throw new Error(`${error.message} (turn ${turn}, busy ${game.busy}, player ${player.state}, call ${JSON.stringify(player.call)}, quest ${player.quests.live?.quest ?? null}, order ${order}, travel ${travel}, ${asks}, death screen ${dead})`, { cause: error });
   });
   if (!log.recording) return;
+  log.spans.push({ scene, start, end: started });
   log.waits.push(started - start);
   log.passShots[log.passShots.length - 1] += shotsIn(game.state);
   log.workers.push(workerTurnMs());
@@ -238,14 +239,14 @@ async function finishPlayback(ctx: Ctx): Promise<void> {
 
 async function playFightTurns(ctx: Ctx, log: TurnLog): Promise<void> {
   for (let i = 0; i < FIGHT_TURNS; i++) {
-    await startTurn(ctx, log, () => ctx.game.endTurn());
+    await startTurn(ctx, log, 'fight', () => ctx.game.endTurn());
     await finishPlayback(ctx);
   }
 }
 
 async function playDrive(ctx: Ctx, log: TurnLog): Promise<void> {
   const target = ctx.game.state.turn + DRIVE_TURNS;
-  await startTurn(ctx, log, () => tapTurnKey(ctx.game));
+  await startTurn(ctx, log, 'drive', () => tapTurnKey(ctx.game));
   await ctx.probe.until(() => ctx.game.state.turn >= target && !ctx.game.busy, DRIVE_MS, `${DRIVE_TURNS} turns of automatic travel`).catch((error: Error) => {
     throw new Error(`${error.message} (turn ${ctx.game.state.turn} of ${target}, busy ${ctx.game.busy})`, { cause: error });
   });
@@ -437,7 +438,9 @@ async function measurePasses(ctx: Ctx, spec: Spec): Promise<{ passes: FrameRecor
   for (let i = 0; i < PASS_COUNT; i++) {
     await spec.setup(i);
     const from = performance.now();
-    passes.push(await timedPass(ctx, spec));
+    const played = await timedPass(ctx, spec);
+    if (ctx.options.marks) ctx.probe.markSlowFrames(spec.id, played);
+    passes.push(played);
     longTasks += ctx.probe.longTasks.countBetween(from, performance.now());
   }
   return { passes, longTasks };
@@ -474,6 +477,10 @@ async function runScene(ctx: Ctx, spec: Spec): Promise<SceneReport> {
   const wanted = ctx.options.savingsAbove !== null && frame.real.p99 > ctx.options.savingsAbove;
   const savings = wanted ? await measureSavings(ctx, spec, draws) : null;
   return { id: spec.id, passes: stats, frame, spread: spreadOf(stats), bound: boundOf(frame), longTasks, draws, slowFrames: slowFrameSums(pooled), savings, check };
+}
+
+function markTurns(log: TurnLog): void {
+  for (const { scene, start, end } of log.spans) performance.measure(`bench:turn:${scene}`, { start, end });
 }
 
 function bootMs(): number {
@@ -535,7 +542,7 @@ export async function runBench(game: Game, options: BenchOptions): Promise<Bench
   checkGameFields(game);
   const probe = new Probe(game);
   const passFrames = options.passFrames ?? PASS_FRAMES;
-  const log: TurnLog = { waits: [], workers: [], previews: [], passShots: [], recording: false, steps: {} };
+  const log: TurnLog = { waits: [], workers: [], previews: [], passShots: [], recording: false, steps: {}, spans: [] };
   const ctx: Ctx = { game, probe, options, passFrames, log };
   const start = { pixelRatio: window.devicePixelRatio, scale: game.renderer.getPixelRatio() / window.devicePixelRatio };
   const base = game.state;
@@ -544,6 +551,7 @@ export async function runBench(game: Game, options: BenchOptions): Promise<Bench
   try {
     const specs = specsFor(ctx, town, teleport(base, town.pad));
     const scenes = await playAll(ctx, specs, () => measurePreviews(ctx, outsideBase(teleport(base, town.pad), town), log));
+    if (options.marks) markTurns(log);
     return {
       schema: 1,
       version: GAME_VERSION,

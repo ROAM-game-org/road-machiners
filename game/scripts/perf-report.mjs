@@ -1,4 +1,5 @@
 import { isSoftware } from './gpu.mjs';
+import { profileLines } from './perf-profile.mjs';
 
 export const LOAD_SHARE_MAX = 0.5;
 export const SPREAD_MAX = 0.1;
@@ -216,6 +217,7 @@ export function summary(wrapped, lines) {
   const next = fixNext(wrapped.bench, lines);
   out.push(next.length ? 'Fix next, worst miss first. Savings overlap, so they rank and never add up:' : 'No budget missed.');
   out.push(...next.map((entry, i) => `${i + 1}. ${entry.text}`));
+  if (wrapped.profile) out.push('', 'Self time by function from the CPU profile, inside the slow frames and the turn waits:', ...profileLines(wrapped.profile));
   const failed = lines.filter((line) => !line.pass).length;
   out.push('', failed || untrusted.length ? `FAIL: ${failed} budget lines not met, ${untrusted.length} trust problems` : 'PASS');
   return out.join('\n');

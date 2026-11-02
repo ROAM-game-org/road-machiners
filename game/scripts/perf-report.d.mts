@@ -1,3 +1,5 @@
+import type { ProfileReport } from './perf-profile.mjs';
+
 export const LOAD_SHARE_MAX: number;
 export const SPREAD_MAX: number;
 
@@ -24,7 +26,7 @@ export type BudgetLine = {
   severity: number | null;
 };
 export type FixEntry = { scene: string; severity: number; text: string };
-export type Wrapped = { bench: unknown; run: unknown };
+export type Wrapped = { bench: unknown; run: unknown; profile?: ProfileReport };
 
 export function budgetsFor(budgets: { default: Partial<Budget>; machines: Record<string, Partial<Budget>> }, machine: string): Budget;
 export function fmt(value: number | null, digits?: number): string;
