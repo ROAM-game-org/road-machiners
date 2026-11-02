@@ -293,10 +293,16 @@ export class TownScreen {
       this.bandOf(w, this.artKey(shopId), shopDef(shopId).kind !== "garage"),
       this.bodyOf(
         el("div", { class: "ink-head" }, el("h2", { class: "quest-place" }, this.heading(shopId)), el("p", { class: "qt-line" }, proseOf(shopId, page))),
-        page === null ? null : this.sectionPanel(w, shopId, shopDef(shopId), page, truck),
+        page === null ? this.suppliesPanel(w, shopId) : this.sectionPanel(w, shopId, shopDef(shopId), page, truck),
       ),
     );
     if (truck) this.inventory.fitTo(truckBody);
+  }
+
+  private suppliesPanel(w: World, shopId: string): HTMLElement | null {
+    const supplies = shopDef(shopId).supplies;
+    if (supplies.length === 0) return null;
+    return el("div", { class: "ink-panel supplies" }, el("div", { class: "goods stocked" }, ...supplies.map((k) => this.shopSupplyRow(w, shopId, k))));
   }
 
   private artKey(shopId: string): string | null {
