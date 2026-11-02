@@ -30,6 +30,7 @@
     "combat": "vite-node scripts/combat.mjs",
     "error:replay": "vite-node scripts/error-replay.mjs --",
     "loadouts": "vite-node scripts/loadouts.mjs",
+    "stretch:atlas": "node scripts/stretch-atlas.mjs",
     "traffic": "vite-node scripts/traffic.mjs",
     "stuck": "vite-node scripts/progression-record.mjs -- --archetypes trader --seeds 1,2 --turns 500",
     "income": "ROAM_NO_WATCH=1 vite-node scripts/income.mjs",
