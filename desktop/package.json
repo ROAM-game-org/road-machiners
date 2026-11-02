@@ -10,7 +10,9 @@
     "test": "vitest run",
     "start": "npm run build && electron .",
     "smoke": "npm run build && node scripts/smoke.mjs",
-    "pack:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg --publish never"
+    "pack:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg --publish never",
+    "pack:win": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis --x64 --publish never",
+    "pack:linux": "npm run build && electron-builder --linux AppImage --x64 --publish never"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
