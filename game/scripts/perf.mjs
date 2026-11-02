@@ -291,7 +291,7 @@ function readTrace(path) {
 }
 
 async function measure(base, budget, commit, { profile, scenes }) {
-  const idle = await idleLoad();
+  const idle = profile ? { load: await machineLoad(), waitedMs: 0 } : await idleLoad();
   const startedAt = new Date().toISOString();
   const path = reportBase(os.hostname(), commit, startedAt);
   const tracePath = profile ? `${path}.trace.json` : null;

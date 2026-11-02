@@ -27,7 +27,7 @@ export type BenchReport = {
   town: string;
   only: string[] | null;
   scenes: SceneReport[];
-  turns: { waitMs: FrameStats | null; workerTurnMs: FrameStats | null; previewMs: FrameStats | null; steps: Record<string, { total: number; calls: number; max: number }> };
+  turns: { waitMs: FrameStats | null; workerTurnMs: FrameStats | null; previewMs: FrameStats | null; steps: Record<string, { total: number; calls: number }> };
   bootMs: number;
 };
 

@@ -6,6 +6,7 @@ import { warmRoutes } from '../sim/path';
 import { PERF } from '../data/perf';
 import { buildCellsAround, prepareRouteTerrain } from '../sim/nav/layer';
 import { endTurn } from '../sim/world';
+import { campWarmSteps } from '../sim/camp-warm';
 import { inQuestLanguage } from '../sim/quests';
 import { QUEST_LANGUAGES, type QuestLanguage } from '../data/quests';
 import { perfSnapshot, resetPerf, timed, type PerfStat } from '../perf';
@@ -233,8 +234,16 @@ function buildWhileIdle(terrain: World['terrain'], world: TurnState): void {
   if (!center) return;
   const step = () => {
     if (run === idleRun && buildCellsAround(terrain, center, performance.now() + PERF.routes.idleSliceMs)) setTimeout(step, 0);
+    else if (run === idleRun) warmCamps(run, campWarmSteps({ ...world, terrain }));
   };
   setTimeout(step, 0);
+}
+
+function warmCamps(run: number, steps: (() => void)[]): void {
+  const next = steps.shift();
+  if (!next || run !== idleRun) return;
+  timed('camp-warm', next);
+  setTimeout(() => warmCamps(run, steps), 0);
 }
 
 type Answerable =(TurnTask & { kind: 'turn'; id: number }) | (PreviewTask & { kind: 'preview'; id: number });
