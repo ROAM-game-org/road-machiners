@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { initPhysics } from '../../phys/drive';
 import type { Terrain } from '../../sim/terrain';
 import type { Obstacle } from '../../sim/types';
-import { instancedModel, loadModels, model, type ModelName } from './models';
+import { instancedModel, loadModels, model, outlineProps, type ModelName } from './models';
 import { buildProp, ObstacleViews } from './obstacles';
 import { RenderScope, SightLimit } from './scope';
 import { instancedProp, PropInstances } from './propInstances';
@@ -90,6 +90,28 @@ function pointsOf(meshes: THREE.InstancedMesh[]): { count: number; box: THREE.Bo
     }
   }
   return { count, box, sum };
+}
+
+function outlineSums(group: THREE.Group): { count: number; position: THREE.Vector3; normal: THREE.Vector3 } {
+  const position = new THREE.Vector3();
+  const normal = new THREE.Vector3();
+  const at = new THREE.Matrix4();
+  const plain = new THREE.Matrix3();
+  const point = new THREE.Vector3();
+  let count = 0;
+  for (const mesh of group.children as THREE.InstancedMesh[]) {
+    const outline = mesh.children.find((c): c is THREE.InstancedMesh => c.userData.outline === true);
+    if (!outline) throw new Error('A prop mesh has no outline');
+    mesh.getMatrixAt(0, at);
+    plain.setFromMatrix4(at);
+    const [p, n] = [outline.geometry.getAttribute('position'), outline.geometry.getAttribute('normal')];
+    for (let i = 0; i < p.count; i++) {
+      position.add(point.fromBufferAttribute(p, i).applyMatrix4(at));
+      normal.add(point.fromBufferAttribute(n, i).applyMatrix3(plain));
+    }
+    count += p.count;
+  }
+  return { count, position, normal };
 }
 
 describe('PropInstances', () => {
@@ -222,6 +244,23 @@ describe('PropInstances', () => {
 
     expect(wanted.size).toBeGreaterThan(1);
     expect(seen).toEqual(wanted);
+  });
+
+  it('gives the merged mesh the outline its separate parts had, each part welded alone', () => {
+    const placement = new THREE.Matrix4().makeTranslation(3, 1, 2).multiply(new THREE.Matrix4().makeRotationY(0.7).scale(new THREE.Vector3(1.3, 0.8, 1.1)));
+    const merged = instancedProp('fort_patchwork_wall', [placement], same);
+    const separate = instancedModel('fort_patchwork_wall', [placement], [1], (m) => m);
+    outlineProps(merged);
+    outlineProps(separate);
+
+    const together = outlineSums(merged);
+    const apart = outlineSums(separate);
+
+    expect(merged.children).toHaveLength(1);
+    expect(separate.children.length).toBeGreaterThan(1);
+    expect(together.count).toBe(apart.count);
+    expect(together.position.distanceTo(apart.position)).toBeLessThan(1e-2);
+    expect(together.normal.distanceTo(apart.normal)).toBeLessThan(1e-2);
   });
 
   it('merges the parts into the same shape the separate parts make', () => {

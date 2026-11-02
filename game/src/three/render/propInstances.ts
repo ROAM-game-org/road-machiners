@@ -7,7 +7,7 @@ import type { Terrain } from '../../sim/terrain';
 import type { Obstacle } from '../../sim/types';
 import { dist } from '../../sim/vec';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { SHIP_GLOW_MATERIAL, sourceParts, type ModelName, type SourcePart } from './models';
+import { registerMergedOutline, SHIP_GLOW_MATERIAL, sourceParts, type ModelName, type SourcePart } from './models';
 import type { RenderScope } from './scope';
 import { TERRAIN_CHUNK } from './terrain';
 
@@ -153,6 +153,7 @@ function mergePlain(name: ModelName, parts: readonly (SourcePart & { material: T
   const indexed = pieces.every((p) => p.index);
   const merged = mergeGeometries(indexed ? pieces : pieces.map((p) => (p.index ? p.toNonIndexed() : p)));
   if (!merged) throw new Error(`Merged ${name} has parts with different attributes`);
+  registerMergedOutline(merged, parts);
   return merged;
 }
 

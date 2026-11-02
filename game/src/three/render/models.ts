@@ -1,6 +1,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF, type GLTFLoaderPlugin, type GLTFParser } from 'three/addons/loaders/GLTFLoader.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fetchAsset } from '../../fetch-asset';
 import { publicUrl } from '../../public-url';
 import SHAPES from '../../data/prop-shapes.json';
@@ -617,6 +618,18 @@ export function outlineProps(obj: THREE.Object3D): void {
     outline.userData.outline = true;
     mesh.add(outline);
   }
+}
+
+export function registerMergedOutline(merged: THREE.BufferGeometry, parts: readonly Pick<SourcePart, 'geometry' | 'matrix'>[]): void {
+  const pieces = parts.map(({ geometry, matrix }) => {
+    const piece = weld([geometry]);
+    (piece.getAttribute('position') as THREE.BufferAttribute).applyMatrix4(matrix);
+    (piece.getAttribute('normal') as THREE.BufferAttribute).applyMatrix3(new THREE.Matrix3().setFromMatrix4(matrix));
+    return piece;
+  });
+  const outline = mergeGeometries(pieces);
+  if (!outline) throw new Error('A merged prop has parts whose outlines cannot merge');
+  welded.set(merged, outline);
 }
 
 function instancedOutline(mesh: THREE.InstancedMesh, geo: THREE.BufferGeometry): THREE.InstancedMesh {
