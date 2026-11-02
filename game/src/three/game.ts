@@ -90,7 +90,7 @@ import { MIX } from "../data/sounds";
 import type { CombatMusic } from "./combat-music";
 import { computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf } from "./sound";
 import type { SoundPlayer } from "../audio/player";
-import { cameraSetting } from "../ui/camera-setting";
+import { cameraSetting, followRenderScale } from "../ui/camera-setting";
 import { isBrowserChord, uiRoot } from "../ui/dom";
 import { subscribeInputMode, touchMode } from "../ui/input-mode";
 import { installTouchTips } from "../ui/touch-tip";
@@ -217,7 +217,7 @@ export class Game {
 
     subscribeInputMode(() => this.refreshUi());
     installTouchTips(uiRoot(), touchMode);
-    this.renderer.setPixelRatio(window.devicePixelRatio);
+    followRenderScale(this.renderer, () => window.devicePixelRatio, () => this.fitView());
     enableSunShadows(this.renderer);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;

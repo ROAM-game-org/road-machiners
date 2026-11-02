@@ -50,6 +50,7 @@ export const UI: Translation<typeof EN> = {
   'options.uiSize': 'Размер интерфейса',
   'options.minimap': 'Миникарта',
   'options.camera': 'Камера',
+  'options.renderScale': 'Разрешение',
   'setting.cameraAuto': 'Авто',
   'setting.cameraCentered': 'По центру',
   'setting.off': 'Выкл.',
