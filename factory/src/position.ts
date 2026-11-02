@@ -1,4 +1,4 @@
-import { NEEDS_INFO_LABEL, RELEASE_LABEL, isCleanupTask, type Card, type FactoryState, type FailureCause, type Hold, type Job, type JobStage, type ReleasePost, type ReleaseState, type StuckRecord } from './types';
+import { NEEDS_INFO_LABEL, RELEASE_CANDIDATE_LABEL, RELEASE_LABEL, isCleanupTask, type Card, type FactoryState, type FailureCause, type Hold, type Job, type JobStage, type ReleasePost, type ReleaseState, type StuckRecord } from './types';
 
 export type Position = 'triage' | 'design' | 'implement' | 'verify' | 'post' | 'approval' | 'harden' | 'merging' | 'done';
 export const MOVE_TARGETS = ['triage', 'design', 'implement', 'verify', 'approval', 'harden', 'merging', 'done'] as const;
@@ -115,7 +115,12 @@ function openReleaseDrift(release: ReleaseState, cards: Card[]): string[] {
   const lines: string[] = [];
   if (!cards.some((card) => card.issue === release.issue)) lines.push(`release tracking card #${release.issue} missing`);
   if (release.postId !== null && release.candidateSha !== release.playtest.passed) lines.push(`candidate post of ${release.candidateSha ?? 'no commit'} that the playtest did not pass`);
-  return [...lines, ...missingTasks(release, cards)];
+  return [...lines, ...missingTasks(release, cards), ...offReleaseTasks(release, cards)];
+}
+
+function offReleaseTasks(release: ReleaseState, cards: Card[]): string[] {
+  const merged = cards.filter((card) => release.tasks.includes(card.issue) && card.column === 'Done' && card.labels.includes(RELEASE_CANDIDATE_LABEL));
+  return merged.filter((card) => !release.merges.some((merge) => merge.issue === card.issue && merge.into === release.branch)).map((card) => `release task #${card.issue} merged but not into ${release.branch}`);
 }
 
 function missingTasks(release: ReleaseState, cards: Card[]): string[] {

@@ -164,7 +164,7 @@ export type PlaytestState = {
   notes: string[];
 };
 
-export type IssueMerge = { issue: number; title: string; sha: string; into: string; reverted: string[] };
+export type IssueMerge = { issue: number; title: string; sha: string; into: string; reverted: string[]; fromDev?: string };
 
 export type LandingStage = 'merge' | 'ship';
 export type LandingSource = { branch: string; sha: string };
@@ -331,6 +331,8 @@ export interface HostRepo {
   replaceBranch(commit: string, branch: string): Promise<void>;
   catchUpBase(dir: string, base: string): Promise<{ commit: string | null; conflicts: string[]; kept: string | null }>;
   mergeBranchIntoWork(dir: string, branch: string, message?: string): Promise<{ commit: string | null; conflicts: string[] }>;
+  pickIntoWork(dir: string, commit: string): Promise<string[]>;
+  unfinishedPick(dir: string): Promise<boolean>;
   isMerged(base: string, branch: string): Promise<boolean>;
   headHash(branch: string): Promise<string>;
   fullHash(commit: string): Promise<string>;

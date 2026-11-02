@@ -32,6 +32,7 @@ Write commands take `--by <member or hermes>` and `--reason "<text>"`. `--by <me
 - `factory merge N` puts a card in the merge queue, past its post and hardening. The merge checks still run.
 - `factory ship` ships the open release now. `factory cut` orders the one release cut now. Releases are never cut by a timer or a merge, so run `factory cut` only when a member's message orders a cut, with `--by` set to that member. A ship order is no order to cut the next release. `factory remove N` takes a feature out of the release.
 - `factory drop <approval|removal|ship|incident> <id>` drops a queued action.
+- `factory enroll N --by <who> --reason <why>` makes an issue already on the board, like one filed by hand from a player report on the candidate, a task of the open release without moving it or losing its work. Use it instead of `set-state` on `release.tasks` and a move back to Triage.
 - `factory pause-card N` holds one card: its job stops, its work stays, and no job starts on it. `factory resume-card N` lifts the hold, and its stage continues.
 
 These act at once, not on the next tick:

@@ -147,6 +147,12 @@ describe('chooseJobs during a release', () => {
     expect(chooseJobs(open, cards, NOW, CFG)).toEqual([{ stage: 'implement', issue: 22 }, { stage: 'design', issue: 21 }, { stage: 'implement', issue: 30 }]);
   });
 
+  it('runs an enrolled release task that works on dev before other cards too', () => {
+    const cards = [tracking(), card(30, 'Implementation'), card(31, 'Design')];
+    const enrolled = { ...open, release: { ...open.release!, tasks: [31] } };
+    expect(chooseJobs(enrolled, cards, NOW, ONE)).toEqual([{ stage: 'design', issue: 31 }, { stage: 'implement', issue: 30 }]);
+  });
+
   it('never gives the tracking issue card a card job', () => {
     expect(chooseJobs(state(), [card(20, 'Design', ['release'])], NOW, CFG)).toEqual([]);
   });
