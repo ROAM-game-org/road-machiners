@@ -35,8 +35,7 @@ function edgeOf(chassisId: string): Edge {
 
 function slid(edge: Edge, spot: Spot): Spot {
   const onEdge = spot.y === 0 || spot.y === edge.rows - 1;
-  if (spot.y < edge.rows && !onEdge) throw new Error(`The four-cell ram step found a ram off the front and back edges at row ${spot.y}`);
-  if (spot.y >= edge.rows) return spot;
+  if (!onEdge) return spot;
   return { ...spot, x: Math.max(1, Math.min(spot.x, edge.right - RAM_WIDTH + 1)) };
 }
 

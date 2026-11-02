@@ -47,9 +47,12 @@ describe('the four-cell ram step', () => {
     expect(v.job!.queue[0].moves[0].to.x).toBe(1);
   });
 
-  it('refuses a chassis it does not know and a ram off the front and back edges', () => {
+  it('refuses a chassis it does not know', () => {
     expect(() => run(truck('mystery', [ram('r', 1, 0)]))).toThrow(/mystery/);
-    expect(() => run(truck('scout', [ram('r', 1, 5)]))).toThrow(/row 5/);
+  });
+
+  it('leaves a loose ram inside the grid where it is', () => {
+    expect(at(run(truck('scout', [ram('r', 2, 5)])), 'r').x).toBe(2);
   });
 
   it('changes nothing but the ram spots, and awards nothing', () => {
