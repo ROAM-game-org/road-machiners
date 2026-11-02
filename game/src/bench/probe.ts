@@ -75,7 +75,7 @@ function rootOf(part: unknown, name: string): Object3D {
   return root;
 }
 
-const OVERLAY_FIELDS = ['shade', 'zones', 'path', 'rescueAreas', 'weaponRange', 'hoverArcs', 'contacts', 'utilityAim', 'soundRing', 'beaconPulse', 'pickRing'];
+export const OVERLAY_FIELDS = ['shade', 'zones', 'path', 'rescueAreas', 'weaponRange', 'hoverArcs', 'contacts', 'utilityAim', 'soundRing', 'beaconPulse', 'pickRing'];
 
 type BeamLights = { shadowed: SpotLight[]; plain: SpotLight[]; glow: PointLight | null };
 type SiteSlots = { slots: { spot: SpotLight }[] };
@@ -97,7 +97,7 @@ export function systemRootsOf(game: Game): SystemRoots {
   const trucks = field(game, 'trucks') as TruckViewMap;
   const sun = field(game, 'sun') as Object3D & { target: Object3D };
   return {
-    terrain: [rootOf(field(game, 'ground'), 'ground')],
+    terrain: [rootOf(field(game, 'ground'), 'ground'), rootOf(field(game, 'craters'), 'craters')],
     props: [rootOf(field(game, 'props'), 'props')],
     vehicles: [...trucks.views.values()].map((view) => view.root),
     lights: [...lampsOf(game), sun, sun.target, rootOf(field(game, 'sky'), 'sky')],
@@ -111,6 +111,7 @@ type CountedRenderer = Pick<WebGLRenderer, 'info' | 'renderBufferDirect'>;
 type DirectArgs = Parameters<WebGLRenderer['renderBufferDirect']>;
 
 export class DrawCounter {
+  readonly shadowCameras = new Map<Camera, number>();
   private bySystem = emptyBySystem();
   private other: Record<string, number> = {};
   private rendererCalls = 0;
@@ -143,11 +144,16 @@ export class DrawCounter {
   private add(map: ReadonlyMap<Object3D, BenchSystem>, args: DirectArgs, draws: number, triangles: number): void {
     if (draws === 0) return;
     const pass: RenderPass = args[0] === this.camera ? 'main' : 'shadow';
+    if (pass === 'shadow') this.addShadow(args[0], draws);
     const { system, other } = attribute(args[4], this.scene, map);
     const count = this.bySystem[system][pass];
     count.draws += draws;
     count.triangles += triangles;
     if (other !== null) this.other[other] = (this.other[other] ?? 0) + draws;
+  }
+
+  private addShadow(camera: Camera, draws: number): void {
+    this.shadowCameras.set(camera, (this.shadowCameras.get(camera) ?? 0) + draws);
   }
 
   afterRender(): void {
@@ -269,7 +275,8 @@ class LongTasks {
 type LoopHooks = { closed: (realMs: number, tickMs: number) => void; callbackDone: () => void };
 
 class FrameLoop {
-  private readonly native = window.requestAnimationFrame.bind(window);
+  private readonly original = window.requestAnimationFrame;
+  private readonly native = this.original.bind(window);
   private clock = 0;
   private round: number | null = null;
   private roundStart = 0;
@@ -280,6 +287,10 @@ class FrameLoop {
   install(): void {
     this.clock = performance.now();
     window.requestAnimationFrame = (callback) => this.native((stamp) => this.run(callback, stamp));
+  }
+
+  uninstall(): void {
+    window.requestAnimationFrame = this.original;
   }
 
   private run(callback: FrameRequestCallback, stamp: number): void {
@@ -310,6 +321,7 @@ export class Probe {
   readonly longTasks = new LongTasks();
   pace: (() => void) | null = null;
   rounds = 0;
+  shadowDraws: ReadonlyMap<Camera, number> = new Map();
   private readonly renderer: WebGLRenderer;
   private readonly loop = new FrameLoop({ closed: (real, tick) => this.onClosed(real, tick), callbackDone: () => this.onCallbackDone() });
   private failure: Error | null = null;
@@ -323,6 +335,7 @@ export class Probe {
   private counter: DrawCounter | null = null;
   private renderMs = 0;
   private renders = 0;
+  private calls = 0;
   private queries: WebGLQuery[] = [];
   private builds = 0;
   private uploadMark = 0;
@@ -350,6 +363,7 @@ export class Probe {
     if (this.originalBuild) (this.game.streamer as unknown as BuildingStreamer).buildOne = this.originalBuild;
     UPLOADS.uninstall();
     this.longTasks.stop();
+    this.loop.uninstall();
   }
 
   get chunkBuilds(): number {
@@ -396,6 +410,7 @@ export class Probe {
       counter.stop();
       this.counter = null;
     }
+    this.shadowDraws = counter.shadowCameras;
     return counter.report();
   }
 
@@ -416,6 +431,7 @@ export class Probe {
       gpu: null,
       uploadBytes: UPLOADS.bytes - this.uploadMark,
       chunkBuilds: this.builds - this.buildMark,
+      calls: this.calls,
       timers: this.timerDelta(),
     };
     this.drew.set(record, this.renders > 0);
@@ -435,6 +451,7 @@ export class Probe {
   private resetMarks(): void {
     this.renderMs = 0;
     this.renders = 0;
+    this.calls = 0;
     this.queries = [];
     this.uploadMark = UPLOADS.bytes;
     this.buildMark = this.builds;
@@ -486,9 +503,12 @@ export class Probe {
     this.originalRender = original;
     this.renderer.render = (scene, camera) => {
       const query = this.gpu.begin();
+      const { info } = this.renderer;
+      const before = info.autoReset ? 0 : info.render.calls;
       const start = performance.now();
       original.call(this.renderer, scene, camera);
       this.renderMs += performance.now() - start;
+      this.calls += info.render.calls - before;
       this.gpu.end();
       this.renders++;
       if (query) this.queries.push(query);

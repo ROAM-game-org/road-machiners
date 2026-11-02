@@ -9,10 +9,12 @@ const stats = (median: number, p99: number, over33 = 0, over100 = 0) => ({ media
 const emptyStats = { median: 0, p99: 0, worst: 0, over33: 0, over100: 0, frames: 0 };
 const pass = (real: ReturnType<typeof stats>, gpu: ReturnType<typeof stats> | null = null) => ({ real, tickCpu: stats(2, 4), renderCpu: stats(3, 6), gpu });
 
-function draws(propDraws: number) {
+function draws(propDraws: number, otherDraws = 0) {
   const count = (n: number) => ({ draws: n, triangles: n * 100 });
-  const bySystem = Object.fromEntries(SYSTEMS.map((s) => [s, { main: count(s === 'props' ? propDraws : 10), shadow: count(5) }]));
-  const total = SYSTEMS.reduce((sum, s) => sum + (s === 'props' ? propDraws : 10) + 5, 0);
+  const mainOf = (s: string) => (s === 'props' ? propDraws : s === 'other' ? otherDraws : 10);
+  const shadowOf = (s: string) => (s === 'other' ? 0 : 5);
+  const bySystem = Object.fromEntries(SYSTEMS.map((s) => [s, { main: count(mainOf(s)), shadow: count(shadowOf(s)) }]));
+  const total = SYSTEMS.reduce((sum, s) => sum + mainOf(s) + shadowOf(s), 0);
   return { total, rendererCalls: total, byPass: { main: count(1), shadow: count(1) }, bySystem, other: {} };
 }
 
@@ -115,6 +117,13 @@ describe('budgets', () => {
 describe('trust', () => {
   it('trusts a quiet run', () => {
     expect(trustProblems(wrap())).toEqual([]);
+  });
+
+  it('rejects a scene with more than 2 percent of draws in no system, and names them', () => {
+    const lost = { ...draws(100, 20), other: { 'Group:unnamed': 20 } };
+    const problems = trustProblems(wrap(withScene('fight', { draws: lost })));
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('Group:unnamed 20');
   });
 
   it('rejects a machine busy at start, but not the load the bench itself left at the end', () => {

@@ -321,7 +321,7 @@ gameContext.watch({ world: () => game.state, log: () => game.logTexts() });
 performance.mark('roam:ready');
 startBank(mixer.ctx, BOOT_SOUNDS, soundOptions, sounds).loaded.then(soundsArrived).catch(reportError).finally(bankSettled);
 void boot.finish();
-if (benchMode) void runBenchMode(game);
+if (benchMode) void afterBank.then(() => runBenchMode(game));
 if (import.meta.env.DEV) {
   (window as any).__ROAM__ = Object.assign(game, { language, buildAllCells: () => game.streamer.buildAll() });
   (window as any).__ROAM_PERF__ = { snapshot: perfSnapshot, reset: resetPerf };

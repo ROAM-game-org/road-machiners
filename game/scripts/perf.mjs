@@ -4,7 +4,7 @@ import net from 'node:net';
 import os from 'node:os';
 import { chromium } from 'playwright';
 import { launchChromium } from './gpu.mjs';
-import { budgetsFor, bundleProblems, checkBudgets, compare, summary, trustProblems } from './perf-report.mjs';
+import { budgetsFor, bundleProblems, checkBudgets, compare, LOAD_SHARE_MAX, summary, trustProblems } from './perf-report.mjs';
 
 const CHROMIUM_FLAGS = ['--disable-gpu-vsync', '--disable-frame-rate-limit', '--mute-audio'];
 const BUILD_TIMEOUT_MS = 300000;
@@ -106,6 +106,20 @@ async function machineLoad() {
   return process.platform === 'win32' ? windowsBusyCores() : os.loadavg()[0];
 }
 
+const IDLE_WAIT_MS = 180000;
+const IDLE_POLL_MS = 5000;
+
+async function idleLoad() {
+  const limit = os.cpus().length * LOAD_SHARE_MAX;
+  const since = Date.now();
+  let load = await machineLoad();
+  while (load > limit && Date.now() - since < IDLE_WAIT_MS) {
+    await new Promise((done) => setTimeout(done, IDLE_POLL_MS));
+    load = await machineLoad();
+  }
+  return { load, waitedMs: Date.now() - since };
+}
+
 async function frameCapIsOff(page) {
   const median = await page.evaluate((frames) => new Promise((done) => {
     const canvas = document.createElement('canvas');
@@ -172,17 +186,17 @@ async function playBench(base, budget) {
   }
 }
 
-function reportPath(machine, commit) {
+function reportPath(machine, commit, startedAt) {
   mkdirSync('perf-reports', { recursive: true });
-  return `perf-reports/${machine.replace(/[^\w.-]/g, '_')}-${commit}.json`;
+  return `perf-reports/${machine.replace(/[^\w.-]/g, '_')}-${commit}-${startedAt.replace(/[:.]/g, '-')}.json`;
 }
 
 async function measure(base, budget, commit) {
+  const idle = await idleLoad();
   const startedAt = new Date().toISOString();
-  const loadStart = await machineLoad();
   const { report, frameCapOff } = await playBench(base, budget);
   const loadEnd = await machineLoad();
-  const run = { commit, machine: os.hostname(), cores: os.cpus().length, loadStart, loadEnd, startedAt, frameCapOff, untrusted: [] };
+  const run = { commit, machine: os.hostname(), cores: os.cpus().length, loadStart: idle.load, idleWaitMs: idle.waitedMs, loadEnd, startedAt, frameCapOff, untrusted: [] };
   const wrapped = { bench: report, run };
   run.untrusted = trustProblems(wrapped);
   return wrapped;
@@ -200,7 +214,7 @@ async function perf(args) {
   const served = await servedBase(args, commit);
   try {
     const wrapped = await measure(served.base, budget, commit);
-    const path = reportPath(wrapped.run.machine, commit);
+    const path = reportPath(wrapped.run.machine, commit, wrapped.run.startedAt);
     writeFileSync(path, `${JSON.stringify(wrapped, null, 2)}\n`);
     const lines = checkBudgets(wrapped.bench, budget);
     console.log(`\n${summary(wrapped, lines)}\n\nreport ${path}`);

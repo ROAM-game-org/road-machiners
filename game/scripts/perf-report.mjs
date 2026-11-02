@@ -2,6 +2,7 @@ import { isSoftware } from './gpu.mjs';
 
 export const LOAD_SHARE_MAX = 0.5;
 export const SPREAD_MAX = 0.1;
+export const OTHER_SHARE_MAX = 0.02;
 const SLOW_FRAME_MS = 33.3;
 const BUDGET_KEYS = ['frameP99Ms', 'over33Per1000', 'over100Max', 'chunkOver100Max', 'turnWaitMs', 'previewMs', 'bootMs'];
 
@@ -76,7 +77,15 @@ function spreadProblems(scenes) {
 function contentProblems(scenes) {
   const failed = scenes.filter((scene) => !scene.check.passed).map((scene) => `${scene.id} content check ${scene.check.name} failed: ${scene.check.detail}`);
   const drawn = scenes.filter((scene) => scene.draws.total !== scene.draws.rendererCalls).map((scene) => `${scene.id} counted ${scene.draws.total} draws but the renderer made ${scene.draws.rendererCalls}`);
-  return [...failed, ...drawn];
+  return [...failed, ...drawn, ...scenes.flatMap(otherProblem)];
+}
+
+function otherProblem(scene) {
+  const { main, shadow } = scene.draws.bySystem.other;
+  const share = (main.draws + shadow.draws) / scene.draws.total;
+  if (share <= OTHER_SHARE_MAX) return [];
+  const names = Object.entries(scene.draws.other).map(([name, draws]) => `${name} ${draws}`).join(', ');
+  return [`${scene.id} has ${fmt(share * 100, 0)} percent of draws in no system, over ${OTHER_SHARE_MAX * 100}: ${names}`];
 }
 
 function setupProblems(report, run) {
@@ -130,7 +139,7 @@ function topSavings(scene) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 2);
   if (ranked.length === 0) return 'no toggle saved time';
-  return ranked.map(([name, saving]) => `${name} saves ${fmt(saving)} ms${isMeasure(drawShare(scene, name)) ? ` (${fmt(drawShare(scene, name), 0)} percent of draws)` : ''}`).join(', ');
+  return ranked.map(([name, saving]) => `hiding ${name} saves ${fmt(saving)} ms${isMeasure(drawShare(scene, name)) ? ` (${fmt(drawShare(scene, name), 0)} percent of draws)` : ''}`).join(', ');
 }
 
 function topTimer(timers) {
@@ -151,9 +160,15 @@ function topStep(steps) {
   return top ? `top turn step ${top[0]} ${fmt(top[1].total)} ms over ${top[1].calls} calls` : 'no turn steps recorded';
 }
 
+function sceneText(scene, slowFirst) {
+  const bound = `${scene.bound ?? 'bound unknown'} bound`;
+  if (slowFirst) return `${scene.id}, slow frames first: ${slowCause(scene)}. Steady cost, ${bound}: ${topSavings(scene)}.`;
+  return `${scene.id}, ${bound}. ${topSavings(scene)}. Slow frames: ${slowCause(scene)}.`;
+}
+
 function entryText(group, report) {
   const scene = report.scenes.find((candidate) => candidate.id === group.scene);
-  if (scene) return `${scene.id}, ${scene.bound ?? 'bound unknown'} bound. ${topSavings(scene)}. Slow frames: ${slowCause(scene)}.`;
+  if (scene) return sceneText(scene, group.slow);
   if (group.scene === 'turns') return `${topStep(report.turns.steps)}.`;
   return 'boot has no per system breakdown.';
 }
@@ -161,8 +176,9 @@ function entryText(group, report) {
 export function fixNext(report, lines) {
   const groups = new Map();
   for (const line of lines.filter((candidate) => !candidate.pass && !candidate.missing)) {
-    const group = groups.get(line.scene) ?? { scene: line.scene, severity: 0, misses: [] };
+    const group = groups.get(line.scene) ?? { scene: line.scene, severity: 0, misses: [], slow: false };
     group.severity = Math.max(group.severity, line.severity);
+    group.slow ||= line.label.startsWith('frames over');
     group.misses.push(`${line.label} ${fmt(line.value)} against ${fmt(line.limit)}`);
     groups.set(line.scene, group);
   }
