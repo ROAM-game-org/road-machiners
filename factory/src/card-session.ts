@@ -1,6 +1,7 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { sessionsDir } from './sessions';
+import { archiveTranscripts } from './transcript-archive';
 import type { AgentSession } from './types';
 
 export const CARD_SESSION_ROUND = 'test';
@@ -25,6 +26,7 @@ export function keepCardSession(home: string, issue: number): string | null {
     if (existsSync(join(from, folder, id))) cpSync(join(from, folder, id), join(temp, folder, id), { recursive: true });
   }
   writeFileSync(join(temp, ID_FILE), id);
+  archiveTranscripts(home, to);
   rmSync(to, { recursive: true, force: true });
   mkdirSync(cardSessionsRoot(home), { recursive: true });
   renameSync(temp, to);

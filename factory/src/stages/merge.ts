@@ -381,12 +381,27 @@ export async function mergeIn(ctx: Ctx, land: Landing, { branch, message, reason
   const { commit, conflicts } = await ctx.repo.mergeBranchIntoWork(land.dir, branch, message);
   if (commit === null || conflicts.length === 0) return 0;
   ctx.log(land.stage, null, `${branch} conflicts with ${land.into} in ${conflicts.join(', ')}, an agent resolves it`);
-  const log = releaseLog(ctx, `${land.stage}-${land.into.replaceAll('/', '-')}`);
-  const own = card === undefined ? null : cardConflictRun(ctx, land.stage, { issue: card, clone: land.dir, what: `${branch} into ${land.into}`, prompt: cardMergePrompt(card, branch, land.into, reason, conflicts), log });
-  const cost = runCost(await (own ?? land.agent(fillPrompt('merge-branches', { into: land.into, branch, reason, files: conflicts.map((file) => `- ${file}`).join('\n') }))));
+  const cost = runCost(await conflictRun(ctx, land, { branch, reason, card }, conflicts));
   addConflictSpend(ctx, land.stage, cost);
   if ((await ctx.repo.mergeBranchIntoWork(land.dir, branch)).commit !== null) throw new Error(`The ${land.stage} agent left the merge of ${branch} into ${land.into} unfinished.`);
   return cost;
+}
+
+async function conflictRun(ctx: Ctx, land: Landing, { branch, reason, card }: Omit<Incoming, 'message'>, conflicts: string[]): Promise<string> {
+  const owner = card ?? (branch === land.into ? await soleOwner(ctx, land, conflicts) : null);
+  const log = releaseLog(ctx, `${land.stage}-${land.into.replaceAll('/', '-')}`);
+  const own = owner === null ? null : cardConflictRun(ctx, land.stage, { issue: owner, clone: land.dir, what: `${branch} into ${land.into}`, prompt: cardMergePrompt(owner, branch, land.into, reason, conflicts), log });
+  return own ?? land.agent(fillPrompt('merge-branches', { into: land.into, branch, reason, files: conflicts.map((file) => `- ${file}`).join('\n') }));
+}
+
+async function soleOwner(ctx: Ctx, land: Landing, conflicts: string[]): Promise<number | null> {
+  const work = readState(ctx.statePath).landings[land.stage];
+  const cards = (work?.cards ?? []).filter((issue) => work?.sources.some((source) => source.branch === BRANCH(issue)));
+  const owned = await Promise.all(cards.map(async (issue) => ({ issue, files: await ctx.repo.changedFiles(land.into, BRANCH(issue)) })));
+  const owners = owned.filter(({ files }) => conflicts.some((file) => files.includes(file)));
+  if (owners.length === 1 && conflicts.every((file) => owners[0]!.files.includes(file))) return owners[0]!.issue;
+  ctx.log(land.stage, null, `the conflicted files of the moved ${land.into} belong to ${owners.length === 0 ? 'no batch card' : `cards ${owners.map(({ issue }) => `#${issue}`).join(', ')} together`}, so the merge session resolves them`);
+  return null;
 }
 
 async function testedInWork(ctx: Ctx, land: Landing): Promise<boolean> {

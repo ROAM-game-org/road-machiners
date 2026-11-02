@@ -35,10 +35,12 @@ describe('the kept card session', () => {
     testingSession(7, 'old', 'first build');
     keepCardSession(home, 7);
     clearSessions(home, 7);
+    writeFileSync(join(cardSessionDir(home, 7), '-work-game', 'old.jsonl'), 'first build, then a merge');
     testingSession(7, 'new', 'patched build');
     keepCardSession(home, 7);
     expect(cardSession(home, 7)?.id).toBe('new');
     expect(existsSync(join(cardSessionDir(home, 7), '-work-game', 'old.jsonl'))).toBe(false);
+    expect(readFileSync(join(home, 'transcripts', 'old', 'old.jsonl'), 'utf8')).toBe('first build, then a merge');
   });
 
   it('keeps nothing and says why when Testing left no session, like a docs-only card', () => {

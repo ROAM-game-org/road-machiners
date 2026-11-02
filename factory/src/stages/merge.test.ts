@@ -713,6 +713,33 @@ describe('merge queue', () => {
     expect(calls.filter((call) => /^(agent|checks|push|merge dev)/.test(call))).toEqual(['checks', 'agent', 'checks', 'push head1 dev', 'merge dev', 'agent', 'merge dev', 'checks', 'agent', 'checks']);
   });
 
+  describe('a base that moved during the checks', () => {
+    const owning = (owners: Record<string, string[]>): Ctx => {
+      const ctx = fakeCtx();
+      ctx.repo.changedFiles = async (_base: string, branch: string) => owners[branch] ?? [];
+      return ctx;
+    };
+
+    it('resumes the kept session of the one card whose change the conflict touches', async () => {
+      keptSession(6, 'card-6');
+      pushFailures = 1;
+      merges = { dev: [{ commit: 'd1', conflicts: ['game/src/a.ts'] }] };
+      await merge(owning({ 'factory/issue-6': ['game/src/a.ts', 'game/src/b.ts'], 'factory/issue-5': ['game/src/c.ts'] }));
+      expect(runs).toHaveLength(1);
+      expect(runs[0]!.session).toEqual({ dir: `${home}/card-sessions/issue-6`, id: 'card-6', resume: true });
+      expect(runs[0]!.prompt).toContain('dev moved on GitHub while the checks ran');
+    });
+
+    it('gives the conflict to the merge session when several cards share the conflicted files', async () => {
+      keptSession(6, 'card-6');
+      pushFailures = 1;
+      merges = { dev: [{ commit: 'd1', conflicts: ['game/src/a.ts'] }] };
+      await merge(owning({ 'factory/issue-6': ['game/src/a.ts'], 'factory/issue-5': ['game/src/a.ts'] }));
+      expect(runs[0]!.session?.dir).toBe(`${home}/sessions/merge`);
+      expect(logs).toContain('the conflicted files of the moved dev belong to cards #5, #6 together, so the merge session resolves them');
+    });
+  });
+
   it('runs each checks run with the time limit, and runs a timed-out run again before it pushes', async () => {
     shellFailures = [HUNG];
     await merge(fakeCtx());
