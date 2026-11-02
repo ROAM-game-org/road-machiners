@@ -36,8 +36,8 @@ jobs:
         working-directory: game
         run: |
           set -o pipefail
-          node --cpu-prof --cpu-prof-dir=prof node_modules/vite-node/vite-node.mjs scripts/turn-profile.mjs drive 8 > /dev/null
-          node scripts/cpuprof-top.mjs prof/*.cpuprofile 12 | tee ../drive-ranked.log
+          PROFILE_FROM=2 npx vite-node scripts/turn-profile.mjs drive 12 > /dev/null
+          node scripts/cpuprof-top.mjs prof/warm.cpuprofile 0 | tee ../drive-ranked.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:

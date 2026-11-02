@@ -6,6 +6,13 @@ import { standardWorld } from '../src/test/world-cache';
 import { buildDrive, captureDrive, freeDrive, initPhysics } from '../src/phys/drive';
 import { computeTurn } from '../src/phys/turn';
 import { perfSnapshot } from '../src/perf';
+import { Session } from 'node:inspector/promises';
+import { mkdirSync, writeFileSync } from 'node:fs';
+
+const profileFrom = process.env.PROFILE_FROM === undefined ? null : Number(process.env.PROFILE_FROM);
+const inspector = new Session();
+inspector.connect();
+await inspector.post('Profiler.enable');
 
 const mode = process.argv[2] ?? 'drive';
 const turns = Number(process.argv[3] ?? 8);
@@ -33,6 +40,7 @@ if (process.env.WARM) {
   });
 }
 for (let i = 0; i < turns; i++) {
+  if (i === profileFrom) await inspector.post('Profiler.start');
   const drive = buildDrive(world);
   const { terrain, ...state } = world;
   const before = perfSnapshot();
@@ -49,4 +57,9 @@ for (let i = 0; i < turns; i++) {
     .map(([k, v]) => `${k} ${v.toFixed(0)}`);
   console.log(`turn ${i} ${ms.toFixed(0)} ms (${steps.join(', ')})`);
   world = { ...prepared.world, terrain };
+}
+if (profileFrom !== null) {
+  const { profile } = await inspector.post('Profiler.stop');
+  mkdirSync('prof', { recursive: true });
+  writeFileSync('prof/warm.cpuprofile', JSON.stringify(profile));
 }
