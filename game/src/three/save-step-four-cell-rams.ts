@@ -28,9 +28,8 @@ const EDGES_FOUR_CELL: Readonly<Record<string, Edge>> = {
   sorokonoga: { rows: 27, right: 5 },
 };
 
-function edgeOf(chassisId: string): Edge {
-  if (!Object.hasOwn(EDGES_FOUR_CELL, chassisId)) throw new Error(`The four-cell ram step does not know chassis ${chassisId}`);
-  return EDGES_FOUR_CELL[chassisId];
+function edgeOf(chassisId: string): Edge | null {
+  return Object.hasOwn(EDGES_FOUR_CELL, chassisId) ? EDGES_FOUR_CELL[chassisId] : null;
 }
 
 function slid(edge: Edge, spot: Spot): Spot {
@@ -106,6 +105,7 @@ function mapJob(edge: Edge, defs: ReadonlyMap<string, string>, before: readonly 
 
 function slideVehicle(defs: ReadonlyMap<string, string>, v: SavedJson): SavedJson {
   const edge = edgeOf(v.chassisId as string);
+  if (edge === null) return v;
   const before = v.items as SavedJson[];
   const items = slidRams(edge, before);
   const job = v.job === null || v.job === undefined ? v.job : mapJob(edge, defs, before, items, v.job as SavedJson);
