@@ -254,6 +254,28 @@ describe('merging only a checked build', () => {
     expect(await repo.hasNewCommits('main', 'dev')).toBe(true);
   });
 
+  it('walks a branch head back past merges of its base to its own last commit', async () => {
+    const { repo, by, commit, head } = await setup();
+    await commit('factory/issue-7', 'f.txt', 'seven\n');
+    const own = await head('factory/issue-7');
+    const mergeDev = async () => {
+      await by('checkout', '-B', 'factory/issue-7', 'origin/factory/issue-7');
+      await by('merge', '--no-ff', '-m', 'catch up', 'origin/dev');
+      await by('push', 'origin', 'factory/issue-7');
+    };
+    await commit('dev', 'g.txt', 'dev one\n');
+    await mergeDev();
+    const first = await head('factory/issue-7');
+    await commit('dev', 'g.txt', 'dev two\n');
+    await mergeDev();
+    const second = await head('factory/issue-7');
+    await repo.fetch();
+    expect(await repo.ownHeads('dev', 'factory/issue-7')).toEqual([second, first, own]);
+    await commit('factory/issue-7', 'f.txt', 'seven again\n');
+    await repo.fetch();
+    expect(await repo.ownHeads('dev', 'factory/issue-7')).toEqual([await head('factory/issue-7')]);
+  });
+
   it('lists both paths of a moved file', async () => {
     const { repo, by } = await setup();
     await by('checkout', '-B', 'dev', 'origin/dev');

@@ -24,7 +24,7 @@ import { mountReportDesk } from '../ui/feedback-form';
 import { watchInputMode } from '../ui/input-mode';
 import { loadUiSize, windowExtent } from '../ui/ui-size';
 import { loadMinimapSetting } from '../ui/minimap-setting';
-import { loadCameraSetting } from '../ui/camera-setting';
+import { loadCameraSetting, loadRenderScaleSetting } from '../ui/camera-setting';
 import { loadLanguage, relocalize } from '../text/language';
 import type { DevLocale } from '../text/msg';
 import type { QuestLanguage } from '../data/quests';
@@ -161,6 +161,7 @@ const language = loadLanguage(window.localStorage, window.location.search, impor
 const sizeOfUi = loadUiSize(window.localStorage, window.location.search, import.meta.env.DEV, [uiRoot(), element('overlay')], document.documentElement, windowExtent());
 loadMinimapSetting(window.localStorage);
 loadCameraSetting(window.localStorage);
+loadRenderScaleSetting(window.localStorage);
 window.addEventListener('resize', () => sizeOfUi.refit(windowExtent()));
 watchInputMode([uiRoot(), element('report')], sizeOfUi);
 mountReportDesk(element('report'), gameContext, FEEDBACK_URL);

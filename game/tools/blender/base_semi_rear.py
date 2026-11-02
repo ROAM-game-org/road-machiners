@@ -2,8 +2,8 @@
 
 semi_common.py lays out the rig and its photo proportions. The trailer is 15.0 m long and 3.1 m wide, from x 4.75 to
 -10.25 of the straight rig frame, and its origin is its center there, 2.75 m behind the rig's center. The king pin, the
-pivot socket, is 5.75 m ahead of the origin, PHYSICS.couplings.semi.pivotRear. The game draws the outer wheels of the last
-axle, 6.2 m behind the origin at PHYSICS.couplings.semi.rear.wheelX; the model draws the other 6 wheels of the tandem.
+pivot socket, is 5.75 m ahead of the origin, PHYSICS.couplings.semi.pivotRear. The game draws the outer wheels of both axles,
+the last 6.2 m behind the origin at PHYSICS.couplings.semi.rear.wheelX; the model draws the 4 inner duals of the tandem.
 Cargo on the trailer's bay cells is inside the box, so the game does not draw it.
 Run: blender --background --python tools/blender/base_semi_rear.py -- public/models/base_semi_rear.glb [tmp/base_semi_rear.png]
 """

@@ -323,6 +323,7 @@ export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | n
     async readFile(branch, path) {
       return git(['show', `${await ref(branch)}:${path}`]);
     },
+    ownHeads: async (base, branch) => ownHeadsIn(run, path, await ref(base), await ref(branch)),
     async changedFiles(base, branch) {
       return nulSeparated(await git(['diff', '--name-only', '--no-renames', '-z', `${await ref(base)}...${await ref(branch)}`]));
     },
@@ -338,6 +339,17 @@ export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | n
       }
     },
   });
+}
+
+async function ownHeadsIn(run: Run, path: string, baseTip: string, branchTip: string): Promise<string[]> {
+  const lines = must(await run('git', [...NO_HOOKS, 'rev-list', '--first-parent', '--parents', branchTip, `^${baseTip}`], { activity: 'git', cwd: path }), `git rev-list ${branchTip}`).trim();
+  const heads: string[] = [];
+  for (const line of lines === '' ? [] : lines.split('\n')) {
+    const [sha, , mergedIn] = line.split(' ');
+    heads.push(sha!);
+    if (mergedIn === undefined || !(await containsIn(run, path, baseTip, mergedIn, baseTip))) return heads;
+  }
+  return heads;
 }
 
 async function containsIn(run: Run, path: string, branch: string, sha: string, tip: string): Promise<boolean> {

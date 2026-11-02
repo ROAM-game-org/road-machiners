@@ -26,6 +26,10 @@ let branches: string[] = [];
 let moveFails = false;
 let editFails = false;
 let contained: string[] = [];
+let green = true;
+let greenAt: string[] = [];
+let ownHeads: string[] = ['abc1234'];
+let changed: string[] = ['game/src/sim/far.ts'];
 
 const card = (issue: number, column: Column, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
 
@@ -45,6 +49,7 @@ function fakeCtx(): Ctx {
       close: async (n: number, reason: string) => { calls.push(`close ${n} ${reason}`); },
       addLabel: async (n: number, label: string) => { calls.push(`addLabel ${n} ${label}`); },
       removeLabel: async (n: number, label: string) => { calls.push(`removeLabel ${n} ${label}`); },
+      suitePassed: async (sha: string) => green || greenAt.includes(sha),
     },
     telegram: {
       editCaption: async (_chat: string, id: number, caption: string) => {
@@ -67,6 +72,9 @@ function fakeCtx(): Ctx {
         if (!branches.includes(branch)) throw new Error(`unknown revision ${branch}`);
         return 'abc1234';
       },
+      fullHash: async (commit: string) => commit,
+      changedFiles: async () => changed,
+      ownHeads: async () => ownHeads,
     },
   } as unknown as Ctx;
 }
@@ -105,6 +113,10 @@ beforeEach(() => {
   moveFails = false;
   editFails = false;
   contained = ['abc1111'];
+  green = true;
+  greenAt = [];
+  ownHeads = ['abc1234'];
+  changed = ['game/src/sim/far.ts'];
   for (const issue of [4, 6]) stageArtifacts(issue, { task: true, approval: true });
   mkdirSync(join(ROOT, 'inbox'), { recursive: true });
   calls = [];
@@ -389,6 +401,67 @@ describe('move', () => {
   });
 });
 
+describe('a move to Merging and the green suite', () => {
+  it('lands a card with no green suite on its head in Hardening, and keeps the approval for the hardening session', async () => {
+    busyCard();
+    green = false;
+    const text = await applyControl(fakeCtx(), command({ action: 'move', issue: 4, to: 'merging' }));
+    expect(calls).toContain('move 4 Hardening');
+    expect(calls).not.toContain('move 4 Merging');
+    expect(text).toContain('Hardening');
+    expect(readState(statePath).approvedResolving).toEqual({ 4: 'Bob' });
+  });
+
+  it('lands a merge order for a card with no green suite in Hardening', async () => {
+    busyCard();
+    green = false;
+    await applyControl(fakeCtx(), command({ action: 'merge', issue: 4 }));
+    expect(calls).toContain('move 4 Hardening');
+    expect(calls).not.toContain('move 4 Merging');
+    expect(readState(statePath).approvedResolving).toEqual({ 4: 'Bob' });
+  });
+
+  it('moves a card with a green suite to Merging', async () => {
+    busyCard();
+    await applyControl(fakeCtx(), command({ action: 'move', issue: 4, to: 'merging' }));
+    expect(calls).toContain('move 4 Merging');
+  });
+
+  it('moves a card that changes no game file to Merging with no suite', async () => {
+    busyCard();
+    green = false;
+    changed = ['docs/guide.md'];
+    await applyControl(fakeCtx(), command({ action: 'merge', issue: 4 }));
+    expect(calls).toContain('move 4 Merging');
+  });
+
+  it('accepts a head whose only failures are the base\'s', async () => {
+    busyCard();
+    green = false;
+    seed({ ...readState(statePath), suiteCleared: { 4: 'abc1234' } });
+    await applyControl(fakeCtx(), command({ action: 'move', issue: 4, to: 'merging' }));
+    expect(calls).toContain('move 4 Merging');
+  });
+
+  it('moves a card to Merging when only base merges came after its green commit', async () => {
+    busyCard();
+    green = false;
+    ownHeads = ['abc1234', 'catch01', 'own0001'];
+    greenAt = ['own0001'];
+    await applyControl(fakeCtx(), command({ action: 'merge', issue: 4 }));
+    expect(calls).toContain('move 4 Merging');
+  });
+
+  it('sends a card to Hardening when its green commit is older than its own last commit', async () => {
+    busyCard();
+    green = false;
+    ownHeads = ['abc1234'];
+    greenAt = ['own0001'];
+    await applyControl(fakeCtx(), command({ action: 'merge', issue: 4 }));
+    expect(calls).toContain('move 4 Hardening');
+  });
+});
+
 describe('merge', () => {
   it('moves a card to the merge queue under the actor', async () => {
     busyCard();
@@ -569,14 +642,16 @@ describe('ship, cut and remove', () => {
     await expect(applyControl(fakeCtx(), command({ action: 'ship', by: '11' }))).rejects.toThrow('no current candidate post');
   });
 
-  it('cuts by clearing lastRelease, and refuses an open release', async () => {
+  it('cuts by recording the order, and refuses an open release', async () => {
     seed({ lastRelease: '2026-09-28T00:00:00Z' });
     await applyControl(fakeCtx(), command({ action: 'cut' }));
-    expect(readState(statePath).lastRelease).toBeNull();
+    expect(readState(statePath).pendingCut).toBe('Ann');
+    expect(readState(statePath).lastRelease).toBe('2026-09-28T00:00:00Z');
     expect(ctrlLines()[0]).toMatchObject({ action: 'cut', issue: null });
     seed({ release: RELEASE, lastRelease: 'x' });
     await expect(applyControl(fakeCtx(), command({ action: 'cut' }))).rejects.toThrow('2026-09-29');
     expect(readState(statePath).lastRelease).toBe('x');
+    expect(readState(statePath).pendingCut).toBeNull();
   });
 
   it('queues a removal with the reason as its text', async () => {

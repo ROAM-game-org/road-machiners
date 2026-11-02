@@ -432,7 +432,7 @@ describe('shadows of tall parts', () => {
   });
 
   it('a driver seat blocks a gun behind it', () => {
-    const v = truckWith(emptyWorld(), 'niva', [{ defId: 'mg', x: 1, y: 5 }]);
+    const v = truckWith(emptyWorld(), 'bukhanka', [{ defId: 'mg', x: 4, y: 4 }]);
     const gun = itemOf(v, 'mg');
     expect(shadowHolds(cabShadow(v, gun), 0)).toBe(true);
     expect(spansHold(gunSpans(v, gun), 0)).toBe(false);

@@ -3,7 +3,7 @@ import type { GridItem, Vehicle } from './types';
 export type Loadout = Pick<Vehicle, 'chassisId' | 'items'>;
 export type LoadoutSlot<T> = { readonly build: (loadout: Loadout) => T };
 
-type MemoRecord = { fingerprint: unknown[]; facts: Map<LoadoutSlot<unknown>, unknown> };
+type MemoRecord = { fingerprint: unknown[]; facts: Map<LoadoutSlot<unknown>, unknown>; live: Set<object> | null };
 
 const STRIDE = 10;
 const records = new WeakMap<GridItem[], MemoRecord>();
@@ -22,7 +22,8 @@ export function loadoutFact<T>(loadout: Loadout, slot: LoadoutSlot<T>): T {
   const record = currentRecord(loadout);
   if (record.facts.has(slot)) return record.facts.get(slot) as T;
   const fact = slot.build(loadout);
-  freezeFact(fact, liveObjects(loadout));
+  record.live ??= liveObjects(loadout);
+  freezeFact(fact, record.live);
   record.facts.set(slot, fact);
   return fact;
 }
@@ -30,7 +31,7 @@ export function loadoutFact<T>(loadout: Loadout, slot: LoadoutSlot<T>): T {
 function currentRecord(loadout: Loadout): MemoRecord {
   const known = records.get(loadout.items);
   if (known && matches(known.fingerprint, loadout)) return known;
-  const fresh: MemoRecord = { fingerprint: fingerprintOf(loadout), facts: new Map() };
+  const fresh: MemoRecord = { fingerprint: fingerprintOf(loadout), facts: new Map(), live: null };
   records.set(loadout.items, fresh);
   return fresh;
 }

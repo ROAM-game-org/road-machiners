@@ -2,6 +2,7 @@ import { HOLLOW, SUNWARD } from '../data/sunward';
 import { hollowPad, hollowReach } from './hollow-layout';
 import { REGION, type TerritoryDef } from '../data/region';
 import { RULES } from '../data/rules';
+import { TERRAIN } from '../data/terrain';
 import { TIME } from '../data/time';
 import { inCompany, joinCompany, followingOf, sameCompany } from './companies';
 import { playerVehicle } from './damage';
@@ -22,7 +23,7 @@ import { territoryGrounds } from './territory';
 import type { NpcActivity, NpcState, SunwardFacts, SunwardHunt, SunwardNight, Vehicle, World } from './types';
 import { hashRandom } from './rng';
 import { watchPost } from './watch-posts';
-import type { NightZone } from './nav/layer';
+import type { Berth, NightZone } from './nav/layer';
 import { dist, type Vec } from './vec';
 import { tendParts } from './wear';
 
@@ -120,6 +121,16 @@ export function keepsToItself(world: World, v: Vehicle): boolean {
 
 export function isSunwardMember(v: Vehicle): boolean {
   return v.faction === 'sunward' && v.brain !== null && MEMBER_TEMPLATES.includes(v.brain.templateId);
+}
+
+const UNSEEN_GAP = TERRAIN.vision.radius * TERRAIN.vision.grayFactor;
+
+const INHABITED_BERTHS: readonly Berth[] = [...REGION.towns, ...REGION.locations.filter((site) => site.kind === 'camp')].map((site) => ({ x: site.pos.x, y: site.pos.y, r: site.radius + UNSEEN_GAP }));
+
+export function unseenRideBerths(v: Vehicle): readonly Berth[] {
+  if (!isSunwardMember(v)) return [];
+  const reason = topGoal(v)?.reason;
+  return reason === 'rideVigil' || reason === 'rideHome' ? INHABITED_BERTHS : [];
 }
 
 export function isCavalcadeCar(v: Vehicle): boolean {

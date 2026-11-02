@@ -55,7 +55,7 @@ const SEAT_CAB: Record<string, string> = {
 };
 
 const VALUES = {
-  scout: 762.14, hauler: 1225.34, buggy: 642.67, wagon: 1007.33, courier: 773.33, van: 1026.66, longbed: 1794.66,
+  scout: 762.14, hauler: 900.34, buggy: 642.67, wagon: 1007.33, courier: 773.33, van: 849.66, longbed: 1349.66,
   carrier: 1625.34, tractor: 1460.67, jeep: 728.67, convertible: 997.34, bus: 1266.67, loader: 1696, niva: 1049.34, bukhanka: 1150, lincoln: 1429.33, semi: 1400,
   sorokonoga: 1765.67,
 };
@@ -67,7 +67,7 @@ const NO_DECK_BLOCK: Record<string, string> = {
 
 const RATED_MASS_BEFORE_RING = {
   scout: 3840, hauler: 7590, buggy: 3280, wagon: 6990, courier: 3750, van: 4790, longbed: 8930, carrier: 7620, tractor: 8460,
-  jeep: 3920, convertible: 4440, bus: 9010, loader: 9060, niva: 4410, bukhanka: 5360, lincoln: 5540, semi: 16430, sorokonoga: 10800,
+  jeep: 3920, convertible: 4440, bus: 9010, loader: 9060, niva: 4410, bukhanka: 5360, lincoln: 5540, semi: 16580, sorokonoga: 10800,
 };
 
 const CRATE_ROOM_BEFORE_SQUARE_GRID: Record<string, number> = {
@@ -75,8 +75,10 @@ const CRATE_ROOM_BEFORE_SQUARE_GRID: Record<string, number> = {
   jeep: 25, convertible: 21, bus: 60, loader: 39, niva: 30, lincoln: 31, semi: 177, sorokonoga: 88,
 };
 
+const ROOM_TAKEN_BY_TIER_GRADE_CORES: Record<string, number> = { niva: 1, convertible: 3 };
+
 const CRATE_ROOM_EXCESS: Record<string, number> = {
-  hauler: 7, buggy: 2, courier: 5, longbed: 3, tractor: 7, jeep: 5, convertible: 3, bus: 1, loader: 6, semi: 18, sorokonoga: 4, lincoln: 3, van: 5,
+  hauler: 14, buggy: 2, courier: 5, longbed: 3, tractor: 7, jeep: 5, bus: 1, loader: 6, semi: 3, sorokonoga: 4, van: 12,
 };
 
 const RING_CELLS_ADDED = 4;
@@ -159,8 +161,9 @@ describe('chassis grids', () => {
       return plain + (bareGrid(id).h - baseGrid(id).h) * c.layout[0].length;
     };
     const now = Object.fromEntries(Object.keys(CHASSIS).filter((id) => id !== 'bukhanka').map((id) => [id, room(id)]));
-    const excess = Object.fromEntries(Object.entries(now).map(([id, n]) => [id, n - CRATE_ROOM_BEFORE_SQUARE_GRID[id]]).filter(([, n]) => n !== 0));
-    expect(Object.entries(now).filter(([id, n]) => n < CRATE_ROOM_BEFORE_SQUARE_GRID[id]).map(([id]) => id)).toEqual([]);
+    const floor = (id: string) => CRATE_ROOM_BEFORE_SQUARE_GRID[id] - (ROOM_TAKEN_BY_TIER_GRADE_CORES[id] ?? 0);
+    const excess = Object.fromEntries(Object.entries(now).map(([id, n]) => [id, n - floor(id)]).filter(([, n]) => n !== 0));
+    expect(Object.entries(now).filter(([id, n]) => n < floor(id)).map(([id]) => id)).toEqual([]);
     expect(excess).toEqual(CRATE_ROOM_EXCESS);
   });
 
@@ -199,14 +202,18 @@ describe('chassis grids', () => {
     }
   });
 
-  it('puts one wheel in each corner, one column in from the side armor', () => {
+  it('puts one wheel in each corner, one column in from the side armor, and the semi a wheel pair on each of its five axles', () => {
+    const axles: Record<string, number> = { semi: 5 };
     for (const [id, c] of Object.entries(CHASSIS)) {
       const w = c.layout[0].length;
       const middle = c.layout.length / 2;
       const wheels = c.core.filter((part) => { const def = partDef(part.defId); return def.kind === 'core' && def.role === 'wheel'; });
-      const corner = (x: number, front: boolean) => wheels.filter((part) => part.x === x && (part.y + partDef(part.defId).h / 2 < middle) === front).length;
-      expect(wheels.length, id).toBe(4);
-      expect([corner(1, true), corner(1, false), corner(w - 2, true), corner(w - 2, false)], id).toEqual([1, 1, 1, 1]);
+      const side = (x: number, front: boolean) => wheels.filter((part) => part.x === x && (part.y + partDef(part.defId).h / 2 < middle) === front).length;
+      const pairs = axles[id] ?? 2;
+      expect(wheels.length, id).toBe(pairs * 2);
+      expect(side(1, true) + side(1, false), id).toBe(pairs);
+      expect([side(1, true), side(1, false)], id).toEqual([side(w - 2, true), side(w - 2, false)]);
+      expect(Math.min(side(1, true), side(1, false)), id).toBeGreaterThanOrEqual(1);
     }
   });
 

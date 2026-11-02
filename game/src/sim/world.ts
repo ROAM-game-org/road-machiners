@@ -14,7 +14,7 @@ import type { StartKit } from '../data/start';
 import { findPart, haulerOf, playerTrucks, playerVehicle } from './damage';
 import { makePart, makeVehicle, newId } from './factory';
 import { gridOf, placementError } from './grid';
-import { addGoods } from './inventory';
+import { addGoods, mountPart } from './inventory';
 import { basicRefusal, isPerkId, pickedFromPair, skillLevel } from './progress';
 import { fitStores, getResources } from './resources';
 import { isOutpostSite } from './highway';
@@ -266,12 +266,16 @@ function frozenObstacles(obstacles: Obstacle[]): Obstacle[] {
 
 export function update(world: World, fn: (draft: World) => void): World {
   const draft = cloneWorld(world);
+  settleDraft(draft, fn);
+  return draft;
+}
+
+function settleDraft(draft: World, fn: (draft: World) => void): void {
   draft.events = [];
   draft.removed = [];
   fn(draft);
   settleAims(draft);
   settleOverdrive(draft);
-  return draft;
 }
 
 function settleOverdrive(w: World): void {
@@ -371,9 +375,18 @@ export function endTurn(
   world: World,
   move: (w: World) => void,
 ): World {
+  const draft = cloneWorld(world);
+  endTurnInPlace(draft, move);
+  return draft;
+}
+
+export function endTurnInPlace(
+  world: World,
+  move: (w: World) => void,
+): void {
   if (world.player.state === 'dead') throw new Error('The player is dead; no more turns run');
   if (world.player.call) throw new Error('A radio call is open; no turn runs until it ends');
-  return timed('turn', () => update(world, (w) => {
+  timed('turn', () => settleDraft(world, (w) => {
     const troubleBefore = troubleOf(w);
     w.turn++;
     advanceWeather(w);
@@ -771,7 +784,7 @@ function carryCore(world: World, into: TruckCarry, c: CarriedPart): void {
 
 function placePart(world: World, truck: Vehicle, item: CarriedItem & { kind: 'part' }): boolean {
   const placed: GridItem = { id: newId(world, 'i'), kind: 'part', part: carryPart(world, item.part), x: item.x, y: item.y, rot: item.rot };
-  if (placementError(gridOf(truck), truck.items, placed, placed.id)) return false;
+  if (placementError(gridOf(truck), truck.items, placed, placed.id)) return partDef(placed.part.defId).kind === 'engine' && mountPart(world, truck, placed.part);
   truck.items.push(placed);
   return true;
 }

@@ -84,6 +84,8 @@ export class ShaderWarmup {
   private readonly compiling = new Variants();
   private held: THREE.Object3D[] = [];
   private drawnView = '';
+  private readonly watched = new WeakSet<THREE.Object3D>();
+  private readonly sealed = new WeakSet<THREE.Object3D>();
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -126,31 +128,60 @@ export class ShaderWarmup {
   }
 
   prepare(root: THREE.Object3D): void {
+    this.watch(root);
+    this.sealed.delete(root);
     const fresh: [THREE.Material, string][] = [];
     root.traverse((o) => {
       if (!isDrawn(o)) return;
       const variant = variantOf(o);
       for (const m of materialsOf(o)) if (!this.isCompiled(m, variant) && !this.compiling.has(m, variant)) fresh.push([m, variant]);
     });
-    if (fresh.length === 0) return;
+    if (fresh.length === 0) return this.seal(root);
     for (const [m, variant] of fresh) this.compiling.add(m, variant);
     this.renderer.compileAsync(root, this.camera, this.scene).then(() => {
       for (const [m, variant] of fresh) {
         this.compiling.delete(m, variant);
         this.compiled.add(m, variant);
       }
+      this.seal(root);
     }, this.onError);
   }
 
-  private holdUncompiled(): void {
-    this.scene.traverseVisible((o) => {
-      if (!isDrawn(o)) return;
+  private watch(root: THREE.Object3D): void {
+    if (this.watched.has(root)) return;
+    this.watched.add(root);
+    const unseal = () => this.sealed.delete(root);
+    root.addEventListener('childadded', unseal);
+    root.addEventListener('childremoved', unseal);
+  }
+
+  private seal(root: THREE.Object3D): void {
+    let settled = true;
+    root.traverse((o) => {
+      if (!isDrawn(o) || !settled) return;
       const variant = variantOf(o);
-      if (materialsOf(o).every((m) => this.isCompiled(m, variant))) return;
-      this.compile(o, variant);
-      o.visible = false;
-      this.held.push(o);
+      settled = materialsOf(o).every((m) => this.isCompiled(m, variant));
     });
+    if (settled) this.sealed.add(root);
+  }
+
+  private holdUncompiled(): void {
+    this.holdIn(this.scene);
+  }
+
+  private holdIn(o: THREE.Object3D): void {
+    if (!o.visible || this.sealed.has(o)) return;
+    if (isDrawn(o)) this.holdIfUncompiled(o);
+    for (const child of o.children) this.holdIn(child);
+    if (this.watched.has(o)) this.prepare(o);
+  }
+
+  private holdIfUncompiled(o: Drawn): void {
+    const variant = variantOf(o);
+    if (materialsOf(o).every((m) => this.isCompiled(m, variant))) return;
+    this.compile(o, variant);
+    o.visible = false;
+    this.held.push(o);
   }
 
   private isCompiled(material: THREE.Material, variant: string): boolean {

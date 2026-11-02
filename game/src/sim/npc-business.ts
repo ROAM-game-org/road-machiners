@@ -7,6 +7,7 @@ import { affordableBuyCount, buyFuel, sellAtCamp, sellVehicleCargo, tradeGoods }
 import { cargoRoom } from './inventory';
 import { createSiteActivity, finishGoal, noteShop, payForLeg, reachSite, replaceBase } from './npc-activities';
 import { npcProfile, tradeSpend } from './npc-decisions';
+import { fundSupplyRun } from './duty';
 import { isBroke, pumpsOf } from './npc-service';
 import { onEscortWanted, onHaulDelivered } from './escort-job';
 
@@ -69,6 +70,7 @@ export function resolveTrade(world: World, vehicle: Vehicle, activity: NpcActivi
   if (!dealDue(world, vehicle, activity, site)) return;
   if (!activity.purchase) throw new Error('Trade activity missing purchase');
   noteShop(world, vehicle, site.id);
+  if (activity.reason === 'loadCargo') fundSupplyRun(world, vehicle, tradeSpend(world, vehicle, 'faction'));
   const count = affordableBuyCount(world, vehicle, site.id, activity.purchase.good, cargoRoom(vehicle), tradeSpend(world, vehicle));
   payForLeg(world, vehicle, activity);
   if (count > 0) {

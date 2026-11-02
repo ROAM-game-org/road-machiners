@@ -52,6 +52,7 @@ export const UI = {
   'options.uiSizeTooBig': 'Too big for this screen',
   'options.minimap': 'Minimap',
   'options.camera': 'Camera',
+  'options.renderScale': 'Resolution',
   'setting.cameraAuto': 'Auto',
   'setting.cameraCentered': 'Centered',
   'setting.off': 'Off',

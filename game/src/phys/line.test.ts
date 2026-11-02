@@ -143,7 +143,7 @@ describe('harpoon line physics', () => {
     expect(worst).toBeLessThanOrEqual(0.5);
   });
 
-  function across(from: string, to: string, mover: 'target' | 'shooter', slack: number): { w: World; shooter: Vehicle; target: Vehicle } {
+  function across(from: string, to: string, mover: 'target' | 'shooter', slack: number, hold: 'engine' | 'farFrontWheel' = 'engine'): { w: World; shooter: Vehicle; target: Vehicle } {
     const w = emptyWorld();
     const shooter = addVehicle(w, 'independent', from, ['stockEngine', 'harpoon'], { x: 30, y: 30 }, Math.PI / 2);
     const target = addVehicle(w, 'independent', to, ['stockEngine'], { x: 33, y: 30 });
@@ -153,10 +153,22 @@ describe('harpoon line physics', () => {
     const harpoon = mountedParts(shooter, 'weapon').find((p) => p.defId === 'harpoon');
     if (!harpoon) throw new Error('The harpoon did not mount');
     w.lines = [{ id: 'l1', from: shooter.id, fromPart: harpoon.id, to: target.id, toPart: mountedParts(target, 'engine')[0].id, length: 0, turnsLeft: 9 }];
+    if (hold === 'farFrontWheel') w.lines[0].toPart = farFrontWheel(w, shooter, target);
     w.lines[0].length = anchorGap(target, shooter, lineAnchors(w)[0]) + slack;
     shooter.order = mover === 'shooter' ? { kind: 'through', dest: { x: 30, y: 90 } } : { kind: 'brake' };
     target.order = mover === 'target' ? { kind: 'through', dest: { x: 90, y: 30 } } : { kind: 'brake' };
     return { w, shooter, target };
+  }
+
+  function farFrontWheel(w: World, shooter: Vehicle, target: Vehicle): string {
+    const gapTo = (partId: string): number => {
+      w.lines[0].toPart = partId;
+      return anchorGap(target, shooter, lineAnchors(w)[0]);
+    };
+    const wheelItems = mountedItems(target, 'core').filter((it) => it.part.defId === 'wheel');
+    const frontRow = Math.min(...wheelItems.map((it) => it.y));
+    const wheels = wheelItems.filter((it) => it.y === frontRow).map((it) => it.part);
+    return wheels.reduce((best, p) => (gapTo(p.id) > gapTo(best.id) ? p : best)).id;
   }
 
   function worstTilt(w: World, ids: string[], turns: number): Record<string, number> {
@@ -174,7 +186,7 @@ describe('harpoon line physics', () => {
   });
 
   it('tips a truck of like weight that the shooter pulls across', () => {
-    const { w, shooter, target } = across('scout', 'scout', 'shooter', 2);
+    const { w, shooter, target } = across('scout', 'scout', 'shooter', 2, 'farFrontWheel');
     const tilt = worstTilt(w, [shooter.id, target.id], 5);
 
     expect(tilt[shooter.id]).toBeLessThan(15);

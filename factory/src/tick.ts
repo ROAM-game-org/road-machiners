@@ -30,7 +30,7 @@ import type { Card, Column, Ctx, FactoryConfig, FactoryState, Job, JobStage, Pla
 
 export type JobPick = { stage: JobStage; issue: number | null };
 type Candidate = JobPick & { pastCardLimit: boolean };
-type Due = Pick<FactoryConfig, 'releaseDays' | 'wasteReviewDays' | 'maxJobsPerCard' | 'triageWorkers' | 'designWorkers' | 'implementWorkers' | 'verifyWorkers' | 'testWorkers'>;
+type Due = Pick<FactoryConfig, 'wasteReviewDays' | 'maxJobsPerCard' | 'triageWorkers' | 'designWorkers' | 'implementWorkers' | 'verifyWorkers' | 'testWorkers'>;
 
 const DAY_MS = 24 * 3_600_000;
 const MINUTE_MS = 60_000;
@@ -157,8 +157,8 @@ function wasteReview(state: FactoryState, now: Date, cfg: Due): Candidate[] {
   return [{ stage: 'waste', issue: null, pastCardLimit: false }];
 }
 
-function releaseCut(state: FactoryState, now: Date, cfg: Due): JobPick | null {
-  return state.release === null && isDue(state.lastRelease, now, cfg.releaseDays * DAY_MS) ? { stage: 'release', issue: null } : null;
+function releaseCut(state: FactoryState): JobPick | null {
+  return state.release === null && state.pendingCut !== null ? { stage: 'release', issue: null } : null;
 }
 
 function devJob(state: FactoryState, devHead: string | null): JobPick | null {
@@ -167,7 +167,7 @@ function devJob(state: FactoryState, devHead: string | null): JobPick | null {
 }
 
 function branchCandidates(state: FactoryState, cards: Card[], now: Date, cfg: Due, heads: Heads): Candidate[] {
-  const picks = [...queued(state), mergeJob(state, cards), ...catchUpJobs(state, cards, heads),devJob(state, heads.dev), releaseCut(state, now, cfg), releaseJob(state, cards, heads.release)];
+  const picks = [...queued(state), mergeJob(state, cards), ...catchUpJobs(state, cards, heads),devJob(state, heads.dev), releaseCut(state), releaseJob(state, cards, heads.release)];
   return picks.filter((pick) => pick !== null).map((pick) => ({ ...pick, pastCardLimit: false }));
 }
 

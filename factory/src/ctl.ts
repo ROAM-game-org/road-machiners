@@ -179,6 +179,7 @@ function cardFacts(found: Card, state: FactoryState): string[] {
     `kept approval: ${keptText(state.keptApprovals[key])}`,
     `open posts: ${shown(posts.join(', '))}`,
     `build: ${shown(state.builds[key])}`,
+    `suite passed on base failures only: ${shown(state.suiteCleared[key])}`,
     `running job: ${shown(running.join(', '))}`,
     `failures: ${shown(own.join(' | '))}`,
     `held: ${holdText(state.held[key])}`,
@@ -220,6 +221,7 @@ function queues(ctx: Ctx): void {
   console.log(`approval: ${listOrNone(approvals)}`);
   console.log(`removal: ${listOrNone(removals)}`);
   console.log(`ship: ${state.pendingShip ?? 'none'}`);
+  console.log(`cut: ${state.pendingCut ?? 'none'}`);
   console.log(`incident: ${listOrNone(state.pendingIncidents.map((issue) => `#${issue}`))}`);
   console.log(`caught up: ${listOrNone(Object.entries(state.caughtUpTo).map(([issue, head]) => `#${issue} at ${head}`))}`);
   console.log(`answer: ${listOrNone(state.pendingAnswers.map((id) => `player comment ${id}`))}`);
@@ -241,6 +243,7 @@ function formatMerges(merges: IssueMerge[]): string {
 function release(ctx: Ctx): void {
   const state = readState(ctx.statePath);
   console.log(`last release: ${state.lastRelease ?? 'none'}`);
+  console.log(`cut ordered: ${state.pendingCut ?? 'none'}`);
   console.log(`public post: ${publicPost(state.releasePost)}`);
   console.log(`merged into dev since the cut: ${formatMerges(state.devMerges)}`);
   if (state.release === null) return console.log('open release: none');

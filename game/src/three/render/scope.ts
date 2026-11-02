@@ -17,7 +17,10 @@ const IDENTITY = new THREE.Matrix4();
 export type Rect = { x0: number; y0: number; x1: number; y1: number };
 export type Placement = { readonly pos: Vec; readonly radius: number; readonly cell: number; built: THREE.Object3D | null };
 type Pending = { placement: Placement; build: () => THREE.Object3D };
-type Chunk = { group: THREE.Group; box: THREE.Box3; shown: boolean; pending: Pending[]; claim: Rect | null };
+type Chunk = { group: THREE.Group; cell: number; box: THREE.Box3; shown: boolean; pending: Pending[]; claim: Rect | null };
+type CellRange = { x0: number; y0: number; x1: number; y1: number };
+const CHUNK_METERS = TERRAIN_CHUNK * S;
+const LEVEL_EPSILON = 1e-6;
 
 function prepareModel(obj: THREE.Object3D): void {
   outlineProps(obj);
@@ -35,6 +38,15 @@ export class RenderScope {
   private readonly frameHooks: (() => void)[] = [];
   private readonly waiting = new Set<number>();
   private readonly placed = new WeakSet<Placement>();
+  private readonly attached = new Set<Chunk>();
+  private readonly corner = new THREE.Vector3();
+  private readonly forward = new THREE.Vector3();
+  private readonly size = new THREE.Vector3();
+  private lowest = Number.POSITIVE_INFINITY;
+  private highest = Number.NEGATIVE_INFINITY;
+  private overhang = 0;
+  private span = 0;
+  private claimOverhang = 0;
   private pendingTotal = 0;
 
   constructor(private readonly root: THREE.Object3D, private readonly mapSize: number, private readonly limit: SightLimit, private readonly grey: boolean, models: boolean) {
@@ -59,6 +71,25 @@ export class RenderScope {
     return this.waiting;
   }
 
+  waitingNear(center: Vec, radius: number): number[] {
+    const reach = radius + this.claimOverhang + MARGIN / S;
+    const x0 = Math.max(Math.floor((center.x - reach) / TERRAIN_CHUNK), 0);
+    const y0 = Math.max(Math.floor((center.y - reach) / TERRAIN_CHUNK), 0);
+    const x1 = Math.min(Math.floor((center.x + reach) / TERRAIN_CHUNK), this.perSide - 1);
+    const y1 = Math.min(Math.floor((center.y + reach) / TERRAIN_CHUNK), this.perSide - 1);
+    if (Math.max(x1 - x0 + 1, 0) * Math.max(y1 - y0 + 1, 0) >= this.waiting.size) return [...this.waiting];
+    const near: number[] = [];
+    for (let cy = y0; cy <= y1; cy++)
+      for (let cx = x0; cx <= x1; cx++) if (this.waiting.has(cy * this.perSide + cx)) near.push(cy * this.perSide + cx);
+    return near;
+  }
+
+  private claimOverhangOf(cell: number, pos: Vec, radius: number): number {
+    const cx = cell % this.perSide;
+    const cy = Math.floor(cell / this.perSide);
+    return Math.max(cx * TERRAIN_CHUNK - (pos.x - radius), pos.x + radius - (cx + 1) * TERRAIN_CHUNK, cy * TERRAIN_CHUNK - (pos.y - radius), pos.y + radius - (cy + 1) * TERRAIN_CHUNK, 0);
+  }
+
   claimOf(cell: number): Rect {
     const claim = this.chunks[cell]?.claim;
     if (!claim) throw new Error(`Render scope cell ${cell} has no placements`);
@@ -73,6 +104,7 @@ export class RenderScope {
     const placement: Placement = { pos, radius, cell, built: null };
     chunk.pending.push({ placement, build });
     chunk.claim = widen(chunk.claim, pos, radius);
+    this.claimOverhang = Math.max(this.claimOverhang, this.claimOverhangOf(cell, pos, radius));
     this.placed.add(placement);
     this.waiting.add(cell);
     this.pendingTotal++;
@@ -108,6 +140,7 @@ export class RenderScope {
     bounds.expandByPoint(new THREE.Vector3((pos.x - radius) * S, low, (pos.y - radius) * S));
     bounds.expandByPoint(new THREE.Vector3((pos.x + radius) * S, high, (pos.y + radius) * S));
     chunk.box.union(bounds);
+    this.noteExtent(chunk, bounds);
     this.prepare(obj);
     chunk.group.add(obj);
     this.owner.set(obj, chunk);
@@ -166,15 +199,67 @@ export class RenderScope {
     camera.updateMatrixWorld();
     this.viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     this.frustum.setFromProjectionMatrix(this.viewProjection);
-    for (const chunk of this.chunks) {
-      if (!chunk) continue;
-      const show = this.shows(chunk);
-      if (show === chunk.shown) continue;
-      if (show) this.root.add(chunk.group);
-      else this.root.remove(chunk.group);
-      chunk.shown = show;
-    }
+    const range = this.cellRange(camera);
+    for (const chunk of [...this.attached]) if (!inRange(chunk.cell, range, this.perSide)) this.setShown(chunk, false);
+    this.forEachChunkIn(range, (chunk) => this.setShown(chunk, this.shows(chunk)));
     this.frameHooks.forEach((hook) => hook());
+  }
+
+  private setShown(chunk: Chunk, show: boolean): void {
+    if (show === chunk.shown) return;
+    if (show) {
+      this.root.add(chunk.group);
+      this.attached.add(chunk);
+    } else {
+      this.root.remove(chunk.group);
+      this.attached.delete(chunk);
+    }
+    chunk.shown = show;
+  }
+
+  private noteExtent(chunk: Chunk, bounds: THREE.Box3): void {
+    if (bounds.isEmpty()) return;
+    const cx = chunk.cell % this.perSide;
+    const cy = Math.floor(chunk.cell / this.perSide);
+    this.lowest = Math.min(this.lowest, bounds.min.y);
+    this.highest = Math.max(this.highest, bounds.max.y);
+    const over = Math.max(cx * CHUNK_METERS - bounds.min.x, bounds.max.x - (cx + 1) * CHUNK_METERS, cy * CHUNK_METERS - bounds.min.z, bounds.max.z - (cy + 1) * CHUNK_METERS);
+    this.overhang = Math.max(this.overhang, over);
+    this.span = Math.max(this.span, chunk.box.getSize(this.size).length());
+  }
+
+  private forEachChunkIn(range: CellRange, visit: (chunk: Chunk) => void): void {
+    for (let cy = range.y0; cy <= range.y1; cy++)
+      for (let cx = range.x0; cx <= range.x1; cx++) {
+        const chunk = this.chunks[cy * this.perSide + cx];
+        if (chunk) visit(chunk);
+      }
+  }
+
+  private cellRange(camera: THREE.OrthographicCamera): CellRange {
+    const whole = { x0: 0, y0: 0, x1: this.perSide - 1, y1: this.perSide - 1 };
+    if (this.highest < this.lowest) return { x0: 1, y0: 1, x1: 0, y1: 0 };
+    this.forward.set(0, 0, -1).transformDirection(camera.matrixWorld);
+    if (this.forward.y > -LEVEL_EPSILON) return whole;
+    const reach = MARGIN + this.overhang;
+    const slack = this.span + 2 * Math.sqrt(3) * MARGIN;
+    const wide = 1 + (slack * camera.zoom * 2) / (camera.right - camera.left);
+    const tall = 1 + (slack * camera.zoom * 2) / (camera.top - camera.bottom);
+    const box = new THREE.Box2();
+    for (const level of [this.lowest, this.highest])
+      for (const [nx, ny] of CORNERS) {
+        this.corner.set(nx * wide, ny * tall, -1).unproject(camera);
+        const along = (level - this.corner.y) / this.forward.y;
+        box.expandByPoint(new THREE.Vector2(this.corner.x + this.forward.x * along, this.corner.z + this.forward.z * along));
+      }
+    const last = this.perSide - 1;
+    const cell = (meters: number) => Math.floor(meters / CHUNK_METERS);
+    return {
+      x0: Math.max(cell(box.min.x - reach), 0),
+      y0: Math.max(cell(box.min.y - reach), 0),
+      x1: Math.min(cell(box.max.x + reach), last),
+      y1: Math.min(cell(box.max.y + reach), last),
+    };
   }
 
   private shows(chunk: Chunk): boolean {
@@ -194,12 +279,21 @@ export class RenderScope {
       const group = new THREE.Group();
       group.name = `scope-chunk-${index % this.perSide}-${Math.floor(index / this.perSide)}`;
       group.matrixAutoUpdate = false;
-      chunk = { group, box: new THREE.Box3(), shown: true, pending: [], claim: null };
+      chunk = { group, cell: index, box: new THREE.Box3(), shown: true, pending: [], claim: null };
       this.chunks[index] = chunk;
+      this.attached.add(chunk);
       this.root.add(group);
     }
     return chunk;
   }
+}
+
+const CORNERS = [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const;
+
+function inRange(cell: number, range: CellRange, perSide: number): boolean {
+  const cx = cell % perSide;
+  const cy = Math.floor(cell / perSide);
+  return cx >= range.x0 && cx <= range.x1 && cy >= range.y0 && cy <= range.y1;
 }
 
 function widen(claim: Rect | null, pos: Vec, radius: number): Rect {
@@ -210,21 +304,44 @@ function widen(claim: Rect | null, pos: Vec, radius: number): Rect {
 
 type Clipped = THREE.Material & { onBeforeCompile: THREE.Material['onBeforeCompile'] };
 
+const WINDOW_STEP = 32;
+
+type VisibleWindow = { texture: THREE.DataTexture; side: number; x: number; y: number };
+
+function visibleWindow(side: number, x: number, y: number): VisibleWindow {
+  const texture = new THREE.DataTexture(new Uint8Array(side * side), side, side, THREE.RedFormat, THREE.UnsignedByteType);
+  texture.magFilter = THREE.NearestFilter;
+  texture.minFilter = THREE.NearestFilter;
+  texture.needsUpdate = true;
+  return { texture, side, x, y };
+}
+
+function tileBounds(tiles: readonly number[], mapSize: number): { x0: number; y0: number; x1: number; y1: number } | null {
+  if (tiles.length === 0) return null;
+  const box = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  for (const t of tiles) {
+    if (!(t >= 0 && t < mapSize * mapSize)) throw new Error(`Visible tile ${t} is outside the ${mapSize}-tile map`);
+    const x = t % mapSize;
+    const y = (t - x) / mapSize;
+    box.x0 = Math.min(box.x0, x);
+    box.x1 = Math.max(box.x1, x);
+    box.y0 = Math.min(box.y0, y);
+    box.y1 = Math.max(box.y1, y);
+  }
+  return box;
+}
+
 export class SightLimit {
-  private readonly visible: THREE.DataTexture;
+  private visible = visibleWindow(WINDOW_STEP, 0, 0);
   private readonly uniforms;
   private readonly patched = new WeakMap<THREE.Material, boolean>();
 
   constructor(private readonly mapSize: number) {
-    this.visible = new THREE.DataTexture(new Uint8Array(mapSize * mapSize), mapSize, mapSize, THREE.RedFormat, THREE.UnsignedByteType);
-    this.visible.magFilter = THREE.NearestFilter;
-    this.visible.minFilter = THREE.NearestFilter;
-    this.visible.needsUpdate = true;
     this.uniforms = {
       sightCenter: { value: new THREE.Vector2() },
       sightRadius: { value: Number.POSITIVE_INFINITY },
-      sightVisible: { value: this.visible },
-      sightMapMeters: { value: mapSize * S },
+      sightVisible: { value: this.visible.texture },
+      sightWindow: { value: new THREE.Vector3(0, 0, WINDOW_STEP * S) },
       sightGrey: { value: new THREE.Vector2(TERRAIN.fog.seen.grey, TERRAIN.fog.seen.bright) },
       sightFog: { value: new THREE.Color(PAL.bg) },
       sightFogBand: { value: TERRAIN.vision.edgeFog },
@@ -247,13 +364,29 @@ export class SightLimit {
   }
 
   showVisible(tiles: Iterable<number>): void {
-    const data = this.visible.image.data as Uint8Array;
+    const list = [...tiles];
+    const box = tileBounds(list, this.mapSize);
+    if (box) this.fitWindow(Math.max(box.x1 - box.x0, box.y1 - box.y0) + 3, box.x0 - 1, box.y0 - 1);
+    const w = this.visible;
+    const data = w.texture.image.data as Uint8Array;
     data.fill(0);
-    for (const t of tiles) {
-      if (!(t >= 0 && t < data.length)) throw new Error(`Visible tile ${t} is outside the ${this.mapSize}-tile map`);
-      data[t] = 255;
+    for (const t of list) {
+      const x = t % this.mapSize;
+      data[((t - x) / this.mapSize - w.y) * w.side + x - w.x] = 255;
     }
-    this.visible.needsUpdate = true;
+    w.texture.needsUpdate = true;
+    this.uniforms.sightWindow.value.set(w.x * S, w.y * S, w.side * S);
+  }
+
+  private fitWindow(needed: number, x: number, y: number): void {
+    const side = Math.max(this.visible.side, Math.ceil(needed / WINDOW_STEP) * WINDOW_STEP);
+    if (side > this.visible.side) {
+      this.visible.texture.dispose();
+      this.visible = visibleWindow(side, x, y);
+      this.uniforms.sightVisible.value = this.visible.texture;
+    }
+    this.visible.x = x;
+    this.visible.y = y;
   }
 
   covers(p: V3): boolean {
@@ -308,10 +441,10 @@ export class SightLimit {
       shader.fragmentShader = inject(
         shader.fragmentShader,
         '#include <common>',
-        'varying vec2 vSightXZ;\nuniform vec2 sightCenter;\nuniform float sightRadius;\nuniform sampler2D sightVisible;\nuniform float sightMapMeters;\nuniform vec2 sightGrey;\nuniform vec3 sightFog;\nuniform float sightFogBand;',
+        'varying vec2 vSightXZ;\nuniform vec2 sightCenter;\nuniform float sightRadius;\nuniform sampler2D sightVisible;\nuniform vec3 sightWindow;\nuniform vec2 sightGrey;\nuniform vec3 sightFog;\nuniform float sightFogBand;',
       );
       shader.fragmentShader = inject(shader.fragmentShader, '#include <clipping_planes_fragment>', 'if (distance(vSightXZ, sightCenter) > sightRadius) discard;');
-      if (grey) shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `float sightSeen = texture2D(sightVisible, ${greyAt} / sightMapMeters).r;
+      if (grey) shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `float sightSeen = texture2D(sightVisible, (${greyAt} - sightWindow.xy) / sightWindow.z).r;
         float sightLuma = dot(outgoingLight, vec3(0.299, 0.587, 0.114));
         outgoingLight = mix(mix(outgoingLight, vec3(sightLuma), sightGrey.x) * sightGrey.y, outgoingLight, sightSeen);
         #include <opaque_fragment>`);

@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { CHASSIS } from '../data/chassis';
 import { PARTS, partDef } from '../data/parts';
 import { SHOPS } from '../data/market';
 import { HAULER_KIT, START_KITS } from '../data/start';
@@ -244,6 +245,34 @@ describe('repairContent', () => {
 
     repairContent(w);
     expect(w.vehicles.includes(npc)).toBe(false);
+  });
+
+  it('regrades the core parts of a truck saved with the tier 1 grades before its chassis got its tier grades, and awards nothing', () => {
+    const w = fresh();
+    const oldCores = [
+      ['wheel', 1, 4], ['wheel', 5, 4], ['wheel', 1, 12], ['wheel', 5, 12], ['cabHardtop', 2, 6], ['transmission', 2, 14], ['tankLong', 2, 12],
+    ] as const;
+    const downgrade = (v: Vehicle) => {
+      v.chassisId = 'lincoln';
+      v.items = [...v.items.filter((it) => it.kind !== 'part' || partDef(it.part.defId).kind !== 'core'), ...oldCores.map(([defId, x, y], i) => partItem(`${v.id}-${i}`, defId, x, y))];
+    };
+    const me = playerVehicle(w);
+    const npc = npcs(w)[0];
+    downgrade(me);
+    downgrade(npc);
+    const money = w.player.money;
+    const events = w.events.length;
+
+    repairContent(w);
+
+    const grades = (v: Vehicle) => v.items.flatMap((it) => (it.kind === 'part' && partDef(it.part.defId).kind === 'core' ? [it.part.defId] : [])).sort();
+    const wanted = CHASSIS.lincoln.core.map((c) => c.defId).sort();
+    expect(grades(me)).toEqual(wanted);
+    expect(w.vehicles.includes(npc)).toBe(true);
+    expect(grades(npc)).toEqual(wanted);
+    expect(mountedParts(me, 'core').length).toBe(wanted.length);
+    expect(w.player.money).toBe(money);
+    expect(w.events.length).toBe(events);
   });
 
   it('clamps hp, wear, ammo and charge to the current maximum', () => {

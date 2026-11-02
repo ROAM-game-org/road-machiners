@@ -30,7 +30,7 @@ def check_unit(kit: Kit, name: str, front: float, back: float, width: float, gro
 
 def unit_wheels(name: str, wheels: int, expected: int, rig_total: int) -> None:
     if wheels != expected:
-        raise RuntimeError(f"{name} draws {wheels} wheels, not {expected}: with the game's 6 the rig must show {rig_total}")
+        raise RuntimeError(f"{name} draws {wheels} wheels, not {expected}: with the game's wheels the rig must show {rig_total}")
 
 
 def move_to_origin(kit: Kit, origin: float) -> None:

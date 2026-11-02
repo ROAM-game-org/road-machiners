@@ -53,13 +53,11 @@ MODULE_ORIGIN = (MODULE_FRONT + BACK) / 2
 MODULE_AXLES = (-0.4, -2.0)  # the last one is PHYSICS.couplings.sorokonoga.rear.wheelX behind the module's center
 UNIT_MODEL_WHEELS = (2, 2)
 
-ROW = 0.7
-COL = WIDTH / 7
-ENGINE = (FRONT - 5 * ROW, -0.4, 2 * COL - HALF_W)  # PHYSICS.bodies.sorokonoga.engine plus the tractor's center, as Blender x, z and -y
-BAY_FRONT = FRONT - 4 * ROW
-BAY_BACK = FRONT - 6 * ROW
-BAY_LEFT = HALF_W - COL
-BAY_RIGHT = HALF_W - 3 * COL
+BAY_FRONT = TRACTOR_ORIGIN + 0.225  # the engine bay of the chassis.ts layout: rows 6 to 8, columns 2 and 3, 1.35 m long and 0.9 m wide
+BAY_BACK = BAY_FRONT - 1.35
+BAY_LEFT = 0.675
+BAY_RIGHT = -0.225
+ENGINE = ((BAY_FRONT + BAY_BACK) / 2, -0.4, (BAY_LEFT + BAY_RIGHT) / 2)  # PHYSICS.bodies.sorokonoga.engineY as Blender z, over the bay's center
 
 COLORS = BASE_COLORS
 
