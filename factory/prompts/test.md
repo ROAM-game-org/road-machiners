@@ -30,6 +30,7 @@ Stop a screenshot or probe that has not finished in 10 minutes, note what it lef
 The whole stage should finish in 45 minutes.
 
 Fix every problem you find yourself, in this session: a bug, a blocker, or a look that does not match the issue, the task file, the reference images, `game/docs/DESIGN.md` or, for the UI and overlays, `game/docs/ui.md`.
+A player view finding, from the check before the post, outranks the issue's wording.
 Commit each fix on the current branch.
 {{fixDocs}}
 
@@ -65,19 +66,49 @@ A missing image never stops your work.
 The skill `blender-image-to-3d` has a compare sheet script, `compose_review.py`, for model renders.
 Use it when the change is a Blender model.
 
-Take screenshots of the finished game that together show every visible change.
+Take screenshots of the finished game that together show every visible change, the way a player meets it.
 Write a Playwright script in `tmp/`.
 {{browser}}
 Every image must be a real screenshot of the game, or a labeled contact sheet built from real screenshots. Never draw or invent art.
+Take each shot in the running game, at the place where a player meets the change. Model renders and separate test pages go in extra shots only, never as the primary view.
+Make the change fill a large part of the frame. Zoom or move the camera to it.
+Show changed player text in place, like a tip in its dialog.
+Close tips and popups that are not part of the change before the shot.
 Read each image with the Read tool, and fix what looks wrong before you post it.
 Save the primary view as `.factory/screenshot.png`. Save the others next to it in `.factory/`.
-List the others in order in `.factory/evidence.json`: `{"images": [{"file": "view-gate.png", "description": "Gate and approach"}]}`.
-Keep each description under 200 characters. At most 10 images in total, the primary included.
+List every image in order in `.factory/evidence.json`, the primary first: `{"images": [{"file": "screenshot.png", "description": "Driving into the gate at dusk"}]}`.
+Each description says what a player is doing at that moment, like "Opening the garage after a fight", and never names the change. Keep it under 200 characters. At most 10 images in total.
 Recapture after a code change that changes what they show.
+
+## Player view before the post
+
+Run this check when the change shows on screen or changes player text, after the screenshots are ready and before you write `.factory/approval.json`.
+Copy the screenshots and `game/docs/theme.md` into an empty `tmp/player-view/`.
+Start one fresh subagent with the Agent tool.
+Give it only the paths in `tmp/player-view/` and the shot descriptions from `.factory/evidence.json`.
+Do not give it the issue, the task file, the diff, any other doc or your reasoning. The request itself can carry what a player would hate.
+Tell it this:
+"You are a player of this game. These screenshots show moments of play, and theme.md describes the world. Open no other file. First, name each shot where you cannot tell what a player is looking at. Then judge every shot by these questions:
+1. World fit: does anything look or read like it does not belong in this world?
+2. Voice: does any character, in talk, tips or the log, say game words, rules, numbers or UI terms they could not know? Button and panel labels are not a character's voice.
+3. Picture sense: does anything look wrong next to how the real thing works?
+4. Convenience showing: does anything in the world, not the controls, exist only for the player's convenience and look like it?
+5. Confusion: would a player know what they are looking at and what to do next?
+6. Flow breaks: does a popup, a wall of text or a repeated message stop play for no good reason?
+7. Consistency: does any art, font, colour or scale differ from the rest of the game?
+8. Frustration: what on this screen would make a player groan or quit?
+Report each finding with the shot, the question number and what a player would hate about it."
+Retake each shot it could not read, once, and give the retaken shots to a second fresh subagent with the same brief. Never retake a third time.
+The subagent judges whole screens, so act only on findings about what this change made or touched.
+Fix each finding you agree with, even when the issue asked for that thing. Recapture the shots that changed and commit.
+Drop a finding only when it is not about this change, the subagent misread the shot, or a player would not mind. Dropped findings stay out of the post.
+Run at most 2 subagents for this check per round. A finding is never a reason for `.factory/needs-redesign.md`.
 
 Write `.factory/approval.json` with this shape.
 `{"description": "...", "howToTry": "..."}`
 The description is plain text about what changed, under 300 characters. It also names what a stopped probe left unverified, since the committee post shows only this file.
+When you keep on purpose something a player might hate, add one short line for the committee to judge, like "Kept: the ram hides the headlights, as real ram bars do." The reason is about the world or the player, never that the issue asked for it.
+When a player view fix departs from what the issue asked, add one short line so no later stage undoes it, like "Changed: drivers no longer quote truce lengths, since no driver would know them."
 The howToTry text is the steps a committee member follows in the browser, under 400 characters.
 They play the branch build from a link in the post, so start the steps from the loaded game, not from `npm run dev`.
 
