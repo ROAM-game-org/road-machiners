@@ -24,7 +24,7 @@ const STYLE = `
 body { margin: 0; padding: 16px; background: #1b1c1d; color: #ddd6c8; font: 600 16px system-ui, sans-serif; }
 .stretch { display: flex; align-items: flex-start; gap: 14px; margin: 0 0 16px; }
 .stretch h2 { flex: 0 0 110px; font-size: 18px; margin: 8px 0 0; }
-.groups { display: flex; flex-wrap: wrap; gap: 14px; }
+.groups { display: flex; flex-wrap: wrap; gap: 32px 64px; }
 .group { display: flex; gap: 6px; padding: 8px; background: #26272a; border-radius: 8px; border: 3px solid #3a3b3d; }
 .group.elite { border-color: #d4a82a; }
 .group img { display: block; }

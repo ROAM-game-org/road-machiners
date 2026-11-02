@@ -98,12 +98,12 @@ The run has no end. The HUD's run readout shows the stretch and the distance to 
 
 A director plans each stretch's groups when the road opens, in `src/sim/chaos-highway-director.ts`. Danger rises every stretch with no end, on five separate lines:
 
-- Groups: 2 on stretch 1, a quarter more each stretch, never more than one per 60 tiles of the stretch, so a short stretch holds fewer. A fraction rolls up or down, so stretches of one level differ.
+- Groups: 2 or 3 on stretch 1, a quarter more each stretch, never more than one per 60 tiles of the stretch, so a short stretch holds fewer. A fraction rolls up or down, so stretches of one level differ.
 - Group size: 1 truck on stretch 1, 0.2 more each stretch, from 1 to 5 trucks, rolled the same way.
-- Truck budget: 1 truck on stretch 1, 4 on stretch 2, 3 more each stretch after. An elite truck costs 2. When the groups ask for more trucks than the budget, the largest group loses a truck first. Budget left over turns groups elite.
-- Gear money: each truck's gear money is 16% of the expected player gear, or its card's floor if that is more. The expected player gear is the money and parts of both start kits plus 70% of all the pay earned before the stretch, the share a player in a recorded run kept as gear after repairs. The Enemy growth world setting scales how fast it grows, as [world-settings.md](world-settings.md) describes.
+- Truck budget: 3 trucks on stretch 1, 3 more each stretch after. An elite truck costs 2. When the groups ask for more trucks than the budget, the largest group loses a truck first. Budget left over turns groups elite.
+- Gear money: each truck's gear money is 25% of the expected player gear, or its card's floor if that is more. The expected player gear is the money and parts of both start kits plus 70% of all the pay earned before the stretch, the share a player in a recorded run kept as gear after repairs. The Enemy growth world setting scales how fast it grows, as [world-settings.md](world-settings.md) describes.
 
-Elite groups start on stretch 3. A stretch has at most one, and one more every 4 stretches. An elite truck has twice the gear money. A blocker is never elite.
+Elite groups start on stretch 2. A stretch has at most one, and one more every 4 stretches. An elite truck has twice the gear money. A blocker is never elite.
 
 The gear level sets only the wear of the parts and the amount of cargo: light on stretches 1 to 3, standard on 4 to 6, heavy on 7 and loaded from 8. Every group truck takes the shared NPC loadout with a gun picked first and no cargo part, since the highway has no trade. Guns follow the stretch: stretches 1 and 2 carry only tier 1 guns, stretches 3 to 7 up to tier 2, and from stretch 8 any gun.
 
