@@ -5,10 +5,8 @@ import { PAINT } from '../data/chassis';
 import { startKit } from '../data/start';
 import { highwayMap } from '../sim/highway';
 import { defaultSetup } from '../sim/settings';
-import { rollStretch, type RolledGroup, type RolledStretch, type RolledTruck } from '../sim/stretch-roll';
+import { rollStretch, type RolledGroup, type RolledStretch } from '../sim/stretch-roll';
 import { newWorld } from '../sim/world';
-import { chassisName, partName, templateName } from '../text/names';
-import { say } from '../text/language';
 import type { Vehicle, World } from '../sim/types';
 
 declare global {
@@ -20,33 +18,16 @@ declare global {
 
 type AtlasQuery = { seed: number; from: number; to: number; roll: number; growth: number | null };
 
-const GEAR_ROWS = [
-  ['weapon', 'Guns'],
-  ['armor', 'Armor'],
-  ['engine', 'Engine'],
-  ['utility', 'Utility'],
-  ['accessory', 'Extras'],
-  ['scanner', 'Scanner'],
-  ['store', 'Store'],
-  ['cargo', 'Cargo'],
-] as const satisfies readonly [keyof RolledTruck['gear'], string][];
+const PORTRAIT_SCALE = 0.42;
 
 const STYLE = `
-body { margin: 0; padding: 16px; background: #1b1c1d; color: #ddd6c8; font: 13px/1.35 system-ui, sans-serif; }
-h1 { font-size: 18px; margin: 0 0 12px; }
-.stretch { margin: 0 0 20px; padding: 10px; border: 1px solid #3a3b3d; border-radius: 6px; }
-.stretch h2 { font-size: 15px; margin: 0 0 8px; }
-.groups { display: flex; flex-wrap: wrap; gap: 10px; }
-.group { padding: 8px; background: #26272a; border-radius: 6px; border: 1px solid #3a3b3d; }
-.group.elite { border-color: #c9a227; }
-.group h3 { font-size: 13px; margin: 0 0 6px; }
-.trucks { display: flex; gap: 8px; }
-.truck { width: 190px; }
-.truck img { display: block; width: 190px; height: 140px; object-fit: contain; background: #313236; border-radius: 4px; }
-.truck .name { font-weight: 600; margin: 4px 0 2px; }
-.truck .row { color: #b9b2a5; }
-.truck .row b { color: #ddd6c8; font-weight: 600; }
-.bare { color: #e07a5f; }
+body { margin: 0; padding: 16px; background: #1b1c1d; color: #ddd6c8; font: 600 16px system-ui, sans-serif; }
+.stretch { display: flex; align-items: flex-start; gap: 14px; margin: 0 0 16px; }
+.stretch h2 { flex: 0 0 110px; font-size: 18px; margin: 8px 0 0; }
+.groups { display: flex; flex-wrap: wrap; gap: 14px; }
+.group { display: flex; gap: 6px; padding: 8px; background: #26272a; border-radius: 8px; border: 3px solid #3a3b3d; }
+.group.elite { border-color: #d4a82a; }
+.group img { display: block; }
 `;
 
 function queryOf(search: string): AtlasQuery {
@@ -69,7 +50,7 @@ function atlasWorld(q: AtlasQuery): World {
   return newWorld(q.seed, startKit('chaosHighway'), highwayMap(q.seed, 0), setup);
 }
 
-async function portraitUrl(renderer: THREE.WebGLRenderer, vehicle: Vehicle): Promise<string> {
+async function portraitImage(renderer: THREE.WebGLRenderer, vehicle: Vehicle): Promise<HTMLImageElement> {
   const build = startPortrait(renderer, pristineOf(vehicle), PAINT.standard);
   try {
     let step = build.steps.next();
@@ -86,7 +67,10 @@ async function portraitUrl(renderer: THREE.WebGLRenderer, vehicle: Vehicle): Pro
     ctx.drawImage(portrait.body, 0, 0);
     ctx.drawImage(portrait.parts, 0, 0);
     portrait.release();
-    return canvas.toDataURL('image/png');
+    const img = document.createElement('img');
+    img.src = canvas.toDataURL('image/png');
+    img.style.width = `${Math.round(canvas.width * PORTRAIT_SCALE)}px`;
+    return img;
   } finally {
     build.dispose();
   }
@@ -99,49 +83,19 @@ function element(tag: string, className: string, text = ''): HTMLElement {
   return node;
 }
 
-function counted(ids: readonly string[]): string {
-  const counts = new Map<string, number>();
-  for (const id of ids) counts.set(id, (counts.get(id) ?? 0) + 1);
-  return [...counts].map(([id, n]) => (n > 1 ? `${n} ${say(partName(id))}` : say(partName(id)))).join(', ');
-}
-
-async function truckCard(renderer: THREE.WebGLRenderer, truck: RolledTruck): Promise<HTMLElement> {
-  const card = element('div', 'truck');
-  const img = document.createElement('img');
-  img.src = await portraitUrl(renderer, truck.vehicle);
-  card.append(img, element('div', 'name', `${say(chassisName(truck.chassisId))}, gear ${truck.gearValue} M`));
-  for (const [kind, label] of GEAR_ROWS) {
-    const ids = truck.gear[kind];
-    if (ids.length > 0) card.append(gearRow(label, counted(ids), 'row'));
-    else if (kind === 'armor' || kind === 'weapon') card.append(gearRow(label, 'none', 'row bare'));
-  }
-  return card;
-}
-
-function gearRow(label: string, text: string, className: string): HTMLElement {
-  const row = element('div', className);
-  row.append(element('b', '', `${label}: `), document.createTextNode(text));
-  return row;
-}
-
 async function groupBox(renderer: THREE.WebGLRenderer, group: RolledGroup): Promise<HTMLElement> {
   const box = element('div', group.elite ? 'group elite' : 'group');
-  const side = group.from === 'ahead' ? 'from ahead' : `from the ${group.from}`;
-  box.append(element('h3', '', `${say(templateName(group.template))} x${group.trucks.length}${group.elite ? ', elite' : ''}, ${side}, at tile ${group.at}, ${group.money} M each`));
-  const trucks = element('div', 'trucks');
-  for (const truck of group.trucks) trucks.append(await truckCard(renderer, truck));
-  box.append(trucks);
+  for (const truck of group.trucks) box.append(await portraitImage(renderer, truck));
   return box;
 }
 
-async function stretchBox(renderer: THREE.WebGLRenderer, rolled: RolledStretch): Promise<HTMLElement> {
-  const box = element('section', 'stretch');
-  const trucks = rolled.groups.reduce((sum, g) => sum + g.trucks.length, 0);
-  box.append(element('h2', '', `Stretch ${rolled.stretch}: ${rolled.length} tiles, ${rolled.groups.length} groups, ${trucks} trucks, budget ${rolled.budget}`));
+async function stretchRow(renderer: THREE.WebGLRenderer, rolled: RolledStretch): Promise<HTMLElement> {
+  const row = element('section', 'stretch');
+  row.append(element('h2', '', `Stretch ${rolled.stretch}`));
   const groups = element('div', 'groups');
   for (const group of rolled.groups) groups.append(await groupBox(renderer, group));
-  box.append(groups);
-  return box;
+  row.append(groups);
+  return row;
 }
 
 async function buildAtlas(): Promise<{ stretches: number; trucks: number }> {
@@ -151,7 +105,6 @@ async function buildAtlas(): Promise<{ stretches: number; trucks: number }> {
   const style = document.createElement('style');
   style.textContent = STYLE;
   document.head.append(style);
-  document.body.append(element('h1', '', `Chaos Highway seed ${q.seed}, roll ${q.roll}${q.growth === null ? '' : `, enemy growth ${q.growth}`}`));
   const world = atlasWorld(q);
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   let trucks = 0;
@@ -159,7 +112,7 @@ async function buildAtlas(): Promise<{ stretches: number; trucks: number }> {
     for (let j = q.from; j <= q.to; j++) {
       const rolled = rollStretch(world, j, q.roll);
       trucks += rolled.groups.reduce((sum, g) => sum + g.trucks.length, 0);
-      document.body.append(await stretchBox(renderer, rolled));
+      document.body.append(await stretchRow(renderer, rolled));
     }
   } finally {
     renderer.dispose();
@@ -172,7 +125,7 @@ export function runStretchAtlas(): void {
     (done) => (window.__STRETCH_ATLAS__ = done),
     (error: unknown) => {
       window.__STRETCH_ATLAS_ERROR__ = error instanceof Error ? (error.stack ?? error.message) : String(error);
-      document.body.append(element('pre', 'bare', window.__STRETCH_ATLAS_ERROR__));
+      document.body.append(element('pre', '', window.__STRETCH_ATLAS_ERROR__));
     },
   );
 }

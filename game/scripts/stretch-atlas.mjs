@@ -21,7 +21,7 @@ const server = await createServer({ server: { port: 5194, strictPort: false }, l
 await server.listen();
 const { browser } = await launchChromium(chromium);
 try {
-  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const page = await browser.newPage({ viewport: { width: 2200, height: 1000 }, deviceScaleFactor: 2 });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
