@@ -92,6 +92,10 @@ Approach: prompt and doc text only, per IV4. `readShown` in `factory/src/evidenc
 - `npx vitest run src/container.test.ts` in `factory/`, since it reads `prompts/test.md`.
 - No new test: the change is prompt text.
 
+## Verify
+- `src/container.test.ts` passes. It reads `prompts/test.md`.
+- Trial: the brief ran on the three #1313 shots, with only the shots, their descriptions and `theme.md`. It flagged the lab render sheet as no play moment, so the retake step works. Findings on the change were real: the scout ram reads as a stock bumper, the garage ram differs from the in-game ram, and a stale tip covers the HUD in the garage. Two misfires were fixed in the brief. It read button labels as character voice, and it judged the whole HUD, not the change. The session now acts only on findings about what the change made or touched.
+
 ### Risks / rollback
 - RK1 — The agent can drop real slop to save work, and only the session log shows it. The first real cards' session logs get read to check this.
 - RK2 — The stage gets slower with a second subagent and retakes. The 45-minute budget stays the only bound.
