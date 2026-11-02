@@ -740,9 +740,9 @@ export class Hud {
     this.garageWorld = w;
   }
 
-  stepPortraits(playing: boolean): void {
+  stepPortraits(playing: boolean, garageShown: boolean): void {
     this.portraits.step(PORTRAIT_STEP_MS, playing);
-    if (!playing) this.garage.step(GARAGE_STEP_MS);
+    if (garageShown && !playing) this.garage.step(GARAGE_STEP_MS);
   }
 
   portraitSettled(vehicleId: string): boolean {
