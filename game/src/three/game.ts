@@ -1028,7 +1028,7 @@ export class Game {
     }
     this.settleLateStop(now);
     this.travel.prepareNext(this.world, this.anim, now, this.drive);
-    this.flushUi(began, phase);
+    timed("flush-ui", () => this.flushUi(began, phase));
     return { at, playMs };
   }
 
@@ -1129,11 +1129,11 @@ export class Game {
     this.sound.playDueScoreEvents(elapsed, speed);
     if (elapsed < MOVE_MS)
       return (elapsed / 1000) * PHYSICS.stepsPerSecond - 1;
-    if (!a.moved) this.finishMovement(a, now);
+    if (!a.moved) timed("finish-movement", () => this.finishMovement(a, now));
     if (elapsed < a.impactAtMs && this.play.isMoving()) return null;
-    if (!a.impacts) this.landImpacts(a);
+    if (!a.impacts) timed("land-impacts", () => this.landImpacts(a));
     this.travel.finishClock(elapsed, Math.min(elapsed, a.impactAtMs));
-    this.finishPlayback();
+    timed("finish-playback", () => this.finishPlayback());
     return null;
   }
 
