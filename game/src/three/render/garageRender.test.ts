@@ -1,12 +1,13 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { CHASSIS, PAINT } from '../../data/chassis';
 import { PARTS, partDef } from '../../data/parts';
 import { makePart } from '../../sim/factory';
 import { baseGrid, itemCells, layerOf, mountCellsOf } from '../../sim/grid';
 import type { PartInstance, Vehicle } from '../../sim/types';
 import { bare } from '../../test/gun-clearance-kit';
-import { BODY_PAD_M, GARAGE_MAX_SIDE, GARAGE_PX_PER_METER, GarageRenders, bodyKey, cabWindow, coreItems, mountSpotsOf, narrowedTo, pivotOf, planJobs, shotSize, spriteKey, type BuildGarageJob, type GarageJob, type GarageNeed } from './garageRender';
+import { CorruptPicture, memoryPictureBackend, PictureStore, type PictureBackend } from '../picture-store';
+import { BODY_PAD_M, GARAGE_MAX_SIDE, GARAGE_PX_PER_METER, GarageRenders, bodyKey, cabWindow, coreItems, mountSpotsOf, narrowedTo, pivotOf, planJobs, shotSize, spriteKey, type BuildGarageJob, type GarageJob, type GarageNeed, type GarageSprite } from './garageRender';
 import type { PortraitWait } from './truckPortrait';
 import { VehicleView } from './vehicle';
 
@@ -28,14 +29,14 @@ function needFor(truck: Vehicle, parts: PartInstance[]): GarageNeed {
   return { truck, paint: PAINT.standard, parts: parts.map((part) => ({ part, spots: mountSpotsOf(truck.chassisId, part, coreItems(truck)) })) };
 }
 
-function faking(stepsPerJob = 2): { build: BuildGarageJob; started: GarageJob[]; disposed: number } {
+function faking(stepsPerJob = 2, sprite: GarageSprite = SPRITE): { build: BuildGarageJob; started: GarageJob[]; disposed: number } {
   const fake = { started: [] as GarageJob[], disposed: 0, build: undefined as unknown as BuildGarageJob };
   fake.build = (_renderer, job, store) => {
     fake.started.push(job);
     function* steps(): Generator<PortraitWait, void, void> {
       for (let i = 0; i < stepsPerJob; i++) yield;
-      if (job.kind === 'body') store.putBody(job.key, job.chassisId, { image: SPRITE, cores: new Map() });
-      else for (const p of job.placements) store.putSprite(p.key, `${job.chassisId}|${p.item.part.id}`, SPRITE);
+      if (job.kind === 'body') store.putBody(job.key, job.chassisId, { image: sprite, cores: new Map([['core-1', sprite]]) });
+      else for (const p of job.placements) store.putSprite(p.key, `${job.chassisId}|${p.item.part.id}`, sprite);
     }
     return { steps: steps(), dispose: () => fake.disposed++ };
   };
@@ -303,5 +304,169 @@ describe('the marks a garage sprite carries', () => {
     const window = cabWindow(v, cab, []);
     expect(window.max).toBeGreaterThan(window.min);
     expect(window.max - window.min).toBeLessThan(2);
+  });
+});
+
+const PNG = (): GarageSprite => ({ url: 'blob:made', left: 0.25, top: 0.5, width: 1.5, height: 2, pivot: { x: 0.75, y: 1 }, png: new Blob(['png bytes'], { type: 'image/png' }) });
+const NOTHING: GarageSprite = { url: '', left: 0, top: 0, width: 0, height: 0 };
+
+function sessionOver(backend: PictureBackend, sprite: GarageSprite = PNG()) {
+  const pictures = new PictureStore(backend, 'v1');
+  const errors: unknown[] = [];
+  pictures.onError = (err) => errors.push(err);
+  const fake = faking(2, sprite);
+  const renders = new GarageRenders(RENDERER, fake.build, undefined, pictures);
+  return { pictures, errors, fake, renders };
+}
+
+function drawn(renders: GarageRenders, truck: Vehicle, gun: PartInstance, need: GarageNeed): boolean {
+  return renders.body(truck, PAINT.standard) !== null && need.parts[0].spots.every((spot) => renders.sprite(truck, PAINT.standard, gun, spot) !== null);
+}
+
+describe('garage renders over the picture store', () => {
+  it('starts no render job for a look the store holds and rebuilds the same sprites from the stored PNG', async () => {
+    const backend = memoryPictureBackend();
+    const { truck, part } = scout();
+    const gun = part(firstOf('weapon', 2));
+    const need = needFor(truck, [gun]);
+    const first = sessionOver(backend);
+    first.renders.ensureNow([need]);
+    await first.pictures.flush();
+    const second = sessionOver(backend);
+    let told = 0;
+    second.renders.onReady(() => told++);
+
+    second.renders.want([need]);
+    second.renders.step(1e9);
+    await vi.waitFor(() => expect(drawn(second.renders, truck, gun, need)).toBe(true));
+    for (let i = 0; i < 20; i++) second.renders.step(1e9);
+
+    expect(second.fake.started).toEqual([]);
+    expect(second.renders.pending()).toBe(0);
+    expect(told).toBeGreaterThan(0);
+    const spot = need.parts[0].spots[0];
+    const before = first.renders.sprite(truck, PAINT.standard, gun, spot)!;
+    const after = second.renders.sprite(truck, PAINT.standard, gun, spot)!;
+    expect(after).toMatchObject({ left: before.left, top: before.top, width: before.width, height: before.height, pivot: before.pivot });
+    expect(after.url).toMatch(/^blob:/);
+    expect(second.renders.body(truck, PAINT.standard)!.cores.get('core-1')).toMatchObject({ width: 1.5 });
+    expect([first.errors, second.errors]).toEqual([[], []]);
+  });
+
+  it('keeps a part that draws nothing, so it is not drawn again', async () => {
+    const backend = memoryPictureBackend();
+    const { truck, part } = scout();
+    const gun = part(firstOf('weapon', 2));
+    const need = needFor(truck, [gun]);
+    const first = sessionOver(backend, NOTHING);
+    first.renders.ensureNow([need]);
+    await first.pictures.flush();
+    const second = sessionOver(backend, NOTHING);
+
+    second.renders.want([need]);
+    await vi.waitFor(() => expect(drawn(second.renders, truck, gun, need)).toBe(true));
+    second.renders.step(1e9);
+
+    expect(second.fake.started).toEqual([]);
+    expect(second.renders.sprite(truck, PAINT.standard, gun, need.parts[0].spots[0])).toEqual(NOTHING);
+  });
+
+  it('writes nothing for a look it restored', async () => {
+    const backend = memoryPictureBackend();
+    const put = vi.spyOn(backend, 'put');
+    const { truck, part } = scout();
+    const gun = part(firstOf('weapon', 2));
+    const need = needFor(truck, [gun]);
+    const first = sessionOver(backend);
+    first.renders.ensureNow([need]);
+    await first.pictures.flush();
+    const written = put.mock.calls.length;
+    const second = sessionOver(backend);
+
+    second.renders.want([need]);
+    await vi.waitFor(() => expect(drawn(second.renders, truck, gun, need)).toBe(true));
+    await second.pictures.flush();
+
+    expect(written).toBe(1 + need.parts[0].spots.length);
+    expect(put.mock.calls.length).toBe(written);
+  });
+
+  it('treats a pending read as work in progress, so it starts no second read and no render', async () => {
+    let answer: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (answer = resolve));
+    const getMany = vi.fn((keys: readonly unknown[]) => gate.then(() => keys.map(() => undefined)));
+    const { truck, part } = scout();
+    const need = needFor(truck, [part(firstOf('weapon', 2))]);
+    const { fake, renders } = sessionOver({ ...memoryPictureBackend(), getMany });
+
+    for (let i = 0; i < 4; i++) {
+      renders.want([need]);
+      renders.step(1e9);
+      await Promise.resolve();
+    }
+    await vi.waitFor(() => expect(getMany).toHaveBeenCalledTimes(1));
+
+    expect(fake.started).toEqual([]);
+    expect(renders.pending()).toBeGreaterThan(0);
+    answer();
+    await vi.waitFor(() => {
+      renders.step(1e9);
+      expect(fake.started.length).toBeGreaterThan(0);
+    });
+    expect(getMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('draws at once what the screen needs even while a read is pending, and ignores the late answer', async () => {
+    let answer: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (answer = resolve));
+    const { truck, part } = scout();
+    const gun = part(firstOf('weapon', 2));
+    const need = needFor(truck, [gun]);
+    const { fake, renders } = sessionOver({ ...memoryPictureBackend(), getMany: (keys) => gate.then(() => keys.map(() => undefined)) });
+    renders.want([need]);
+
+    renders.ensureNow([need]);
+    const drawnAtOnce = fake.started.length;
+    answer();
+    await gate;
+    await Promise.resolve();
+    for (let i = 0; i < 20; i++) renders.step(1e9);
+
+    expect(drawnAtOnce).toBeGreaterThan(0);
+    expect(fake.started.length).toBe(drawnAtOnce);
+    expect(drawn(renders, truck, gun, need)).toBe(true);
+  });
+
+  it('reports a corrupt entry, deletes it and draws that look again', async () => {
+    const backend = memoryPictureBackend();
+    const { truck, part } = scout();
+    const gun = part(firstOf('weapon', 2));
+    const need = needFor(truck, [gun]);
+    const { pictures, errors, fake, renders } = sessionOver(backend);
+    pictures.save('body', bodyKey(truck, PAINT.standard), Promise.resolve({ chassisId: 'scout', image: { left: 'wide' }, cores: [] }));
+    await pictures.flush();
+
+    renders.want([need]);
+    await vi.waitFor(() => expect(errors).toHaveLength(1));
+    for (let i = 0; i < 20; i++) renders.step(1e9);
+    await pictures.flush();
+
+    expect(errors[0]).toBeInstanceOf(CorruptPicture);
+    expect(fake.started.some((job) => job.kind === 'body')).toBe(true);
+    expect(renders.body(truck, PAINT.standard)).not.toBeNull();
+  });
+
+  it('reports a failed read and does not draw the looks it could not read', async () => {
+    const refused = new Error('The read was refused');
+    const { truck, part } = scout();
+    const need = needFor(truck, [part(firstOf('weapon', 2))]);
+    const { errors, fake, renders } = sessionOver({ ...memoryPictureBackend(), getMany: () => Promise.reject(refused) });
+
+    renders.want([need]);
+    await vi.waitFor(() => expect(errors).toEqual([refused]));
+    for (let i = 0; i < 20; i++) renders.step(1e9);
+
+    expect(fake.started).toEqual([]);
+    expect(renders.body(truck, PAINT.standard)).toBeNull();
   });
 });

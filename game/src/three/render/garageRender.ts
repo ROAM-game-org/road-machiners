@@ -6,6 +6,8 @@ import { wearLookStep } from '../../render/partLooks';
 import { cellRect, cellSteps, spanOf, unitsOf } from '../../sim/body';
 import { baseGrid, itemCells, layerOf, mountCellsOf, mountSpots, type Spot } from '../../sim/grid';
 import type { GridItem, PartInstance, Vehicle } from '../../sim/types';
+import { CorruptPicture, type PictureKind, type PictureRef, type PictureStore } from '../picture-store';
+import { bodyEntry, restoredBody, restoredSprite, spriteEntry } from './garagePictures';
 import { OPAQUE_ALPHA, flipRows, linearToSrgb, unpremultiply } from './portraitPixels';
 import { canvasOf, captureColor, glassMeshes, hideOutlines, litScene, neutralizeReds, poseAtRest, sheenGlass, withRendererState, type PortraitWait } from './truckPortrait';
 import { hidesInside, VehicleView, type RebuildBudget, type ViewScene } from './vehicle';
@@ -20,7 +22,7 @@ const CAMERA_HEIGHT = 40;
 const KEEP_SPRITES = 4000;
 
 export type GaragePivot = { x: number; y: number };
-export type GarageSprite = { url: string; left: number; top: number; width: number; height: number; pivot?: GaragePivot };
+export type GarageSprite = { url: string; left: number; top: number; width: number; height: number; pivot?: GaragePivot; png?: Blob };
 
 const NOTHING_DRAWN: GarageSprite = { url: '', left: 0, top: 0, width: 0, height: 0 };
 export type GarageBody = { image: GarageSprite; cores: ReadonlyMap<string, GarageSprite> };
@@ -161,8 +163,8 @@ function topCamera(frame: Frame): THREE.OrthographicCamera {
   return camera;
 }
 
-function encoded(canvas: HTMLCanvasElement): Promise<string> {
-  return new Promise((resolve, reject) => canvas.toBlob((blob) => (blob ? resolve(URL.createObjectURL(blob)) : reject(new Error('A garage render could not be encoded')))));
+function encoded(canvas: HTMLCanvasElement): Promise<{ url: string; png: Blob }> {
+  return new Promise((resolve, reject) => canvas.toBlob((blob) => (blob ? resolve({ url: URL.createObjectURL(blob), png: blob }) : reject(new Error('A garage render could not be encoded')))));
 }
 
 type Pass = { renderer: THREE.WebGLRenderer; occluder: THREE.Material; now: boolean };
@@ -204,9 +206,9 @@ function* shoot(pass: Pass, root: THREE.Object3D, frame: Frame, origin: { x: num
     const px = pass.now ? readNow(pass.renderer, target, scene, topCamera(frame)) : yield* captureColor(pass.renderer, target, scene, topCamera(frame));
     if (!hasPixels(px)) return { url: '', ...box };
     if (pass.now) return { url: canvasOf(px, size).toDataURL(), ...box };
-    let url = '';
-    yield encoded(canvasOf(px, size)).then((made) => (url = made));
-    return { url, ...box };
+    const made: { url: string; png?: Blob } = { url: '' };
+    yield encoded(canvasOf(px, size)).then((png) => Object.assign(made, png));
+    return { ...made, ...box };
   } finally {
     scene.remove(root);
     target.dispose();
@@ -341,17 +343,17 @@ export const buildGarageJob: BuildGarageJob = (renderer, job, store, now) => {
   return { steps, dispose: () => trash.forEach((t) => t.dispose()) };
 };
 
-export function planJobs(need: GarageNeed, has: (key: string) => boolean): GarageJob[] {
+export function planJobs(need: GarageNeed, has: (key: string, kind: PictureKind) => boolean): GarageJob[] {
   const { truck, paint } = need;
   const chassisId = truck.chassisId;
   const jobs: GarageJob[] = [];
   const body = bodyKey(truck, paint);
-  if (!has(body)) jobs.push({ kind: 'body', key: body, chassisId, truck, paint });
+  if (!has(body, 'body')) jobs.push({ kind: 'body', key: body, chassisId, truck, paint });
   const missing: Placement[] = [];
   for (const { part, spots } of need.parts)
     for (const spot of spots) {
       const key = spriteKey(truck, paint, part, spot);
-      if (!has(key)) missing.push({ item: placedItem(part, spot), key, loose: looseKey(chassisId, part, spot) });
+      if (!has(key, 'sprite')) missing.push({ item: placedItem(part, spot), key, loose: looseKey(chassisId, part, spot) });
     }
   for (const placements of packPlacements(chassisId, missing)) jobs.push({ kind: 'batch', chassisId, truck, paint, placements });
   return jobs;
@@ -367,6 +369,8 @@ export class GarageRenders {
   private readonly sprites = new Map<string, GarageSprite>();
   private readonly latestSprite = new Map<string, GarageSprite>();
   private readonly failed = new Set<string>();
+  private readonly reading = new Set<string>();
+  private readonly absent = new Set<string>();
   private readonly listeners: (() => void)[] = [];
   private queue: GarageJob[] = [];
   private wanted: readonly GarageNeed[] = [];
@@ -377,6 +381,7 @@ export class GarageRenders {
     private readonly renderer: THREE.WebGLRenderer,
     private readonly build: BuildGarageJob = buildGarageJob,
     private readonly now: () => number = () => performance.now(),
+    private readonly pictures: PictureStore | null = null,
   ) {}
 
   onReady(listener: () => void): void {
@@ -398,16 +403,87 @@ export class GarageRenders {
 
   private replan(): void {
     const planned = new Set(this.running ? jobKeys(this.running.job) : []);
-    const done = (key: string): boolean => {
-      if (this.has(key) || planned.has(key)) return true;
+    const unread: PictureRef[] = [];
+    const done = (key: string, kind: PictureKind): boolean => {
+      if (this.has(key) || this.reading.has(key) || planned.has(key)) return true;
+      if (this.mayBeStored(key)) {
+        this.reading.add(key);
+        unread.push({ kind, key });
+        return true;
+      }
       planned.add(key);
       return false;
     };
     this.queue = [...this.wanted, ...this.screenLater].flatMap((need) => planJobs(need, done));
+    this.read(unread);
   }
 
   pending(): number {
-    return this.queue.length + (this.running ? 1 : 0);
+    return this.queue.length + (this.running ? 1 : 0) + (this.reading.size > 0 ? 1 : 0);
+  }
+
+  private mayBeStored(key: string): boolean {
+    return this.pictures !== null && !this.absent.has(key);
+  }
+
+  private read(wanted: PictureRef[]): void {
+    if (wanted.length === 0) return;
+    this.store().readMany(wanted).then(
+      (records) => this.arrived(wanted, records),
+      (error: unknown) => this.unreadable(wanted, error),
+    );
+  }
+
+  private store(): PictureStore {
+    if (!this.pictures) throw new Error('The garage has no picture store');
+    return this.pictures;
+  }
+
+  private arrived(wanted: PictureRef[], records: unknown[]): void {
+    const restored = wanted.map((ref, i) => this.restore(ref, records[i]));
+    for (const ref of wanted) this.reading.delete(ref.key);
+    this.replan();
+    if (restored.includes(true)) for (const listener of this.listeners) listener();
+  }
+
+  private restore(ref: PictureRef, record: unknown): boolean {
+    if (record === undefined) {
+      this.absent.add(ref.key);
+      return false;
+    }
+    if (this.has(ref.key)) return false;
+    try {
+      this.fill(ref, record);
+      return true;
+    } catch (error) {
+      return this.corrupt(ref, error);
+    }
+  }
+
+  private fill(ref: PictureRef, record: unknown): void {
+    if (ref.kind === 'body') {
+      const { chassisId, body } = restoredBody(ref.key, record);
+      this.holdBody(ref.key, chassisId, body);
+      return;
+    }
+    const { loose, sprite } = restoredSprite(ref.key, record);
+    this.holdSprite(ref.key, loose, sprite);
+  }
+
+  private corrupt(ref: PictureRef, error: unknown): false {
+    if (!(error instanceof CorruptPicture)) throw error;
+    this.store().discard(ref.kind, ref.key);
+    this.absent.add(ref.key);
+    this.store().onError(error);
+    return false;
+  }
+
+  private unreadable(wanted: PictureRef[], error: unknown): void {
+    for (const ref of wanted) {
+      this.reading.delete(ref.key);
+      this.failed.add(ref.key);
+    }
+    this.store().onError(error);
   }
 
   step(budgetMs: number): void {
@@ -507,14 +583,30 @@ export class GarageRenders {
   }
 
   putBody(key: string, chassisId: string, body: GarageBody): void {
+    this.holdBody(key, chassisId, body);
+    this.keep('body', key, () => bodyEntry(chassisId, body));
+  }
+
+  putSprite(key: string, loose: string, sprite: GarageSprite): void {
+    this.holdSprite(key, loose, sprite);
+    this.keep('sprite', key, () => spriteEntry(loose, sprite));
+  }
+
+  private holdBody(key: string, chassisId: string, body: GarageBody): void {
     this.bodies.set(key, body);
     this.latestBody.set(chassisId, body);
   }
 
-  putSprite(key: string, loose: string, sprite: GarageSprite): void {
+  private holdSprite(key: string, loose: string, sprite: GarageSprite): void {
     this.sprites.set(key, sprite);
     this.latestSprite.set(loose, sprite);
     this.forgetOldest();
+  }
+
+  private keep(kind: PictureKind, key: string, entry: () => Promise<unknown>): void {
+    if (!this.pictures) return;
+    this.absent.delete(key);
+    this.pictures.save(kind, key, entry());
   }
 
   private forgetOldest(): void {

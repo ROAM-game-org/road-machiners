@@ -36,7 +36,7 @@ import {
   stanceTag,
   caseVictimName,
 } from "./format";
-import { FEEDBACK_URL } from "../config";
+import { FEEDBACK_URL, GAME_VERSION } from "../config";
 import { gameContext } from "../three/error-report";
 import { feedbackCorner, FeedbackForm } from "./feedback-form";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
@@ -59,8 +59,10 @@ import type { RadioPanel } from "./radio";
 import { HaulerGauge } from "./hauler-gauge";
 import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
 import type * as THREE from "three";
-import { PORTRAIT_STEP_MS, TruckPortraits } from "../three/render/truckPortrait";
+import { PORTRAIT_STEP_MS, TruckPortraits, portraitFromPixels, startPortrait } from "../three/render/truckPortrait";
+import { cachedPortraits } from "../three/render/portraitCache";
 import { GARAGE_STEP_MS, GarageRenders } from "../three/render/garageRender";
+import { PICTURE_DB, PictureStore, idbPictureBackend } from "../three/picture-store";
 import { backgroundNeeds } from "./garage-draw";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, verbatim, type Msg } from "../text/msg";
@@ -285,8 +287,9 @@ export class Hud {
   }
 
   constructor(private actions: HudActions, private radio: RadioPanel, renderer: THREE.WebGLRenderer) {
-    this.portraits = new TruckPortraits(renderer);
-    this.garage = new GarageRenders(renderer);
+    const pictures = new PictureStore(idbPictureBackend(PICTURE_DB), GAME_VERSION);
+    this.portraits = new TruckPortraits(renderer, cachedPortraits(pictures, startPortrait, portraitFromPixels));
+    this.garage = new GarageRenders(renderer, undefined, undefined, pictures);
     this.condition = new TruckConditionView(this.portraits, CONDITION_LENGTH_M);
     this.inspected = new TruckConditionView(this.portraits, null);
     this.portraits.onReady((vehicleId) => {
