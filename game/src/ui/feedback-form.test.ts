@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { describe, expect, it, vi } from "vitest";
 import type { ReportContext } from "../three/error-report";
@@ -114,5 +115,19 @@ describe("feedbackBuild", () => {
 
   it("is empty with no folder", () => {
     expect(feedbackBuild("", "/")).toBe("");
+  });
+});
+
+describe("report form button sizes", () => {
+  const source = readFileSync(new URL("./feedback-form.ts", import.meta.url), "utf8");
+
+  it("gives no form button a size class, so Bug, Idea, Close and Send are all medium", () => {
+    expect(source).not.toMatch(/class: "[^"]*btn-[sl]\b[^"]*"[^)]*\)\s*,?\s*(?:closeLabel|t\("feedback)/);
+    expect(source).toMatch(/class: "close"/);
+  });
+
+  it("sets row mates to equal widths in the style sheet", () => {
+    const css = readFileSync(new URL("./styles/feedback-form.css", import.meta.url), "utf8");
+    expect(css).toMatch(/\.feedback-form \.tabs,\s*\.feedback-actions\s*{[^}]*grid-auto-columns: 1fr/);
   });
 });
