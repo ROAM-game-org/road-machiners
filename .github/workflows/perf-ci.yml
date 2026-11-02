@@ -14,6 +14,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -22,10 +24,14 @@ jobs:
         run: npm ci
       - name: drive turns
         working-directory: game
-        run: npx vite-node scripts/turn-profile.mjs drive 8 | tee ../drive-turns.log
+        run: |
+          set -o pipefail
+          npx vite-node scripts/turn-profile.mjs drive 8 | tee ../drive-turns.log
       - name: fight turns
         working-directory: game
-        run: npx vite-node scripts/turn-profile.mjs fight 8 | tee ../fight-turns.log
+        run: |
+          set -o pipefail
+          npx vite-node scripts/turn-profile.mjs fight 8 | tee ../fight-turns.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -37,13 +43,18 @@ jobs:
     timeout-minutes: 40
     container: mcr.microsoft.com/playwright:v1.63.0-noble
     steps:
+      - name: install git
+        run: apt-get update && apt-get install -y --no-install-recommends git
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: npm ci
         working-directory: game
         run: npm ci
       - name: perf report on the far town scenes
         working-directory: game
-        continue-on-error: true
         run: npm run perf -- --scenes town-day-far,town-night-far
       - uses: actions/upload-artifact@v4
         if: always()
