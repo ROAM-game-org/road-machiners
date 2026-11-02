@@ -129,7 +129,7 @@
 .resource[data-resource="weather"] {
   grid-area: weather;
   min-width: 0;
-  --value-w: 9ch;
+  --value-w: 10ch;
   grid-template-columns: var(--icon-s) minmax(0, var(--value-w));
 }
 .resource[data-resource="run"] {
