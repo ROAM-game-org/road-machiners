@@ -57,3 +57,31 @@ describe('card material', () => {
     expect(material.stencilWrite).toBe(false);
   });
 });
+
+describe('lit card order', () => {
+  const lookingDown = new THREE.OrthographicCamera(-5, 5, 5, -5, 1, 100);
+  lookingDown.updateProjectionMatrix();
+
+  function offsetsZ(batch: CardBatch): number[] {
+    const offsets = batch.mesh.geometry.getAttribute('offset');
+    return Array.from({ length: drawn(batch) }, (_, i) => offsets.getZ(i));
+  }
+
+  it('draws the farthest cards first, and keeps every card', () => {
+    const batch = new CardBatch(16, 'lit', new THREE.Texture(), 100);
+    for (const z of [-1, -5, -3, -4, -2]) put(batch, { ...card(0.5, 1), z });
+    batch.flush(lookingDown);
+    expect(offsetsZ(batch)).toEqual([-5, -4, -3, -2, -1]);
+  });
+
+  it('keeps the order of cards at one depth and draws a single card', () => {
+    const batch = new CardBatch(16, 'lit', new THREE.Texture(), 100);
+    for (const x of [3, 1, 2]) put(batch, { ...card(0.5, 1), x, z: -2 });
+    batch.flush(lookingDown);
+    const offsets = batch.mesh.geometry.getAttribute('offset');
+    expect([0, 1, 2].map((i) => offsets.getX(i))).toEqual([3, 1, 2]);
+    put(batch, { ...card(0.5, 1), z: -9 });
+    batch.flush(lookingDown);
+    expect(offsetsZ(batch)).toEqual([-9]);
+  });
+});
