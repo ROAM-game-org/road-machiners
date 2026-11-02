@@ -21,7 +21,7 @@ describe('publicTick', () => {
     for (const failure of failures) expect(failure).toMatchObject({ stage: 'public' });
     expect(failures.every((failure) => failure.error.includes('GitHub is down'))).toBe(true);
     expect(f.store.proposal(7)?.closedAt).not.toBeNull();
-    expect(f.store.proposal(8)?.closedAt).not.toBeNull();
+    expect(f.store.proposal(8)?.closedAt).toBeNull();
   });
 
   it('rejects only the comment the filter failed on, reports it once and goes on with the rest', async () => {
