@@ -11,7 +11,7 @@ import { dist, type Vec } from '../sim/vec';
 import type { Game } from '../three/game';
 import { lampsOf, OVERLAY_FIELDS, Probe, systemRootsOf, type DrawReport } from './probe';
 import {
-  boundOf, frameStats, passStats, poolFrames, savingOf, slowFrameSums, spreadOf, SYSTEMS,
+  boundOf, passStats, poolFrames, savingOf, slowFrameSums, spreadOf, SYSTEMS, turnStats,
   type BenchReport, type BenchSystem, type FrameRecord, type SceneReport,
 } from './report';
 
@@ -578,7 +578,7 @@ export async function runBench(game: Game, options: BenchOptions): Promise<Bench
       town: town.def.id,
       only: options.scenes,
       scenes,
-      turns: { waitMs: frameStats(log.waits), workerTurnMs: frameStats(log.workers), previewMs: frameStats(log.previews), steps: log.steps },
+      turns: turnStats(specs.map((spec) => spec.id), log),
       bootMs: bootMs(),
     };
   } finally {

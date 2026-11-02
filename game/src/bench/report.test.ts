@@ -1,7 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { boundOf, drawTotals, emptyBySystem, frameStats, passStats, poolFrames, savingOf, slowFrameSums, spreadOf, type FrameRecord, type PassStats } from './report';
+import { boundOf, drawTotals, emptyBySystem, frameStats, passStats, poolFrames, savingOf, slowFrameSums, spreadOf, turnStats, type FrameRecord, type PassStats } from './report';
 
 const frame = (real: number, extra: Partial<FrameRecord> = {}): FrameRecord => ({ real, tick: real / 2, render: real / 4, gpu: null, uploadBytes: 0, chunkBuilds: 0, calls: 0, timers: {}, ...extra });
+
+describe('turnStats', () => {
+  const log = { waits: [40, 60], workers: [30], previews: [], steps: {} };
+
+  it('gives no turn stats when no turn scene ran, and no preview stats without the drive', () => {
+    expect(turnStats(['town-day'], { ...log, waits: [], workers: [] })).toMatchObject({ waitMs: null, workerTurnMs: null, previewMs: null });
+    expect(turnStats(['fight'], log)).toMatchObject({ waitMs: { frames: 2 }, workerTurnMs: { frames: 1 }, previewMs: null });
+  });
+
+  it('fails when a scene that measures turns ran but nothing was measured', () => {
+    expect(() => turnStats(['drive'], log)).toThrow();
+  });
+});
 
 describe('frameStats', () => {
   it('takes the median of an odd list and the mean of the middle pair of an even list', () => {
