@@ -14,6 +14,7 @@ const SEE_THROUGH = new Set([GLASS, LAMP, RADIO]);
 const IDENTITY = new THREE.Matrix4();
 const FOOTING_GRID = CLIP_TOLERANCE / 2;
 const FACE_COLUMN = 0.1;
+const NUDGE_STEP = 0.025;
 const GLASS_SKIN = 2 * CLIP_TOLERANCE;
 const THROUGH_STEP = CLIP_TOLERANCE / 100;
 
@@ -186,6 +187,7 @@ export type ItemSpot = { dx: number; dz: number; y: number; slope: { x: number; 
 type Footing = (x: number, z: number) => THREE.Vector3 | null;
 
 const FLAT = { x: 0, z: 0 };
+const FLAT_SLOPE = 0.02;
 const SUPPORT_STEP = CLIP_TOLERANCE;
 
 const ITEM_SPOTS = new Map<string, ItemSpot | null>();
@@ -211,18 +213,41 @@ function searchItemSpot(body: THREE.Object3D, { rect, points }: Footprint, rest:
   const feet = footings(body);
   const exact = exactFootings(body);
   const tops = exactTops(body);
-  const onLegSpots = fittedSpot(rect, points, rest, feet, exact, tops);
-  if (onLegSpots) return onLegSpots;
-  if (heldOn(points, planeAt(rect, rest), exact, tops)) return { dx: 0, dz: 0, y: rest.y, slope: rest.slope, legs: false };
-  const shifts = shiftsWithin(shiftRange(rect, room.cells, room.sides), FACE_COLUMN);
-  for (const support of flatSupports(stilts)) {
+  const reach = shiftRange(rect, room.cells, room.sides);
+  const shifts = shiftsWithin(reach, FACE_COLUMN);
+  const flat = (): ItemSpot | null => nudged(points, flatSpot(points, shifts, flatSupports(stilts), exact, tops), reach, exact, tops);
+  const onLegSpots = (): ItemSpot | null => fittedSpot(rect, points, rest, feet, exact, tops);
+  const resting = (): ItemSpot | null => (heldOn(points, planeAt(rect, rest), exact, tops) ? { dx: 0, dz: 0, y: rest.y, slope: rest.slope, legs: false } : null);
+  const wellHeld = (): ItemSpot | null => nudged(points, flatSpot(points, shifts, [SHIFT_SUPPORT], exact, tops), reach, exact, tops);
+  const order = Math.hypot(rest.slope.x, rest.slope.z) > FLAT_SLOPE ? [flat, onLegSpots, resting] : [wellHeld, onLegSpots, resting, flat];
+  const stilted = (): ItemSpot | null => (stilts ? stiltSpot(body, { rect, points }, shifts, tops) : null);
+  return firstSpot([...order, stilted]);
+}
+
+function firstSpot(tries: (() => ItemSpot | null)[]): ItemSpot | null {
+  for (const attempt of tries) {
+    const spot = attempt();
+    if (spot) return spot;
+  }
+  return null;
+}
+
+function flatSpot(points: Sample[], shifts: [number, number][], supports: number[], exact: Footing, tops: Footing): ItemSpot | null {
+  for (const support of supports) {
     for (const [dx, dz] of shifts) {
       const moved = shifted(points, dx, dz);
       const y = highestTop(moved, tops);
       if (heldOn(moved, () => y, exact, tops, support)) return { dx, dz, y, slope: FLAT, legs: false };
     }
   }
-  return stilts ? stiltSpot(body, { rect, points }, shifts, tops) : null;
+  return null;
+}
+
+function nudged(points: Sample[], spot: ItemSpot | null, range: { x0: number; x1: number; z0: number; z1: number }, exact: Footing, tops: Footing): ItemSpot | null {
+  if (!spot || spot.slope.x !== 0 || spot.slope.z !== 0) return spot;
+  const near = { x0: Math.max(range.x0, spot.dx - FACE_COLUMN), x1: Math.min(range.x1, spot.dx + FACE_COLUMN), z0: Math.max(range.z0, spot.dz - FACE_COLUMN), z1: Math.min(range.z1, spot.dz + FACE_COLUMN) };
+  const found = flatSpot(points, shiftsWithin(near, NUDGE_STEP), [1, SHIFT_SUPPORT], exact, tops);
+  return found ? { ...spot, dx: found.dx, dz: found.dz, y: found.y } : spot;
 }
 
 function flatSupports(stilts: boolean): number[] {

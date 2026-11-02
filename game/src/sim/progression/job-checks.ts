@@ -1,6 +1,3 @@
-// What each bot exists to do, and the least it must do per in-game day. A bot below its floor is not playing its job,
-// so its run fails with the reason instead of reporting a balance number that the bot's idleness made. A floor is half
-// the lowest rate of the saved 5-day runs of the bot that played its job, so it catches a bot that does not work, and
 
 import { TIME } from '../../data/time';
 import type { Archetype } from './bot';

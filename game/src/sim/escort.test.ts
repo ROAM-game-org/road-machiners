@@ -12,7 +12,7 @@ import { territoryEntries, territoryGrounds } from './territory';
 import { fallbackFaction, spawnNpcs } from './spawn';
 import { addState, advanceStates, endState, settleStates, stateOf } from './states';
 import { vehicleStats } from './stats';
-import { addVehicle, emptyWorld, forceOption, npcBrain, testDrive, rngStateForForcedRolls , startCombat } from './testkit';
+import { addVehicle, emptyWorld, forceOption, gunAhead, npcBrain, testDrive, rngStateForForcedRolls , startCombat } from './testkit';
 import { escortFee, escortsOf, isOnRope, startEscort, towOf } from './tow';
 import { safeBesidePartner } from './pairs';
 import type { GameEvent, NpcActivity, NpcState, Vehicle, World } from './types';
@@ -135,6 +135,7 @@ describe('escort protection', () => {
     const convoy = convoyAt(w, { x: 60, y: 60 });
     const guard = guardAt(w, { x: 52, y: 60 });
     const shooter = createNpc(w, 'scavenger', ['scavenger', 'scumbag'], 'scout', ['mg', 'stockEngine'], { x: 66, y: 60 });
+    gunAhead(shooter);
     shooter.heading = Math.PI;
     startEscort(w, guard, convoy, null, 0);
     refreshVision(w);

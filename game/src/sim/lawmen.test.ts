@@ -9,7 +9,7 @@ import { REGION } from '../data/region';
 import { siteGates } from './sites';
 import { stateOf } from './states';
 import { vehicleStats } from './stats';
-import { addVehicle, emptyWorld, forceOption, npcBrain, sizedUp } from './testkit';
+import { addVehicle, emptyWorld, forceOption, gunAhead, npcBrain, sizedUp } from './testkit';
 import type { Faction, GameEvent, Vehicle, World } from './types';
 import type { Vec } from './vec';
 import { gunFor } from './factory';
@@ -17,6 +17,7 @@ import { gunFor } from './factory';
 function addNpc(w: World, faction: Faction, traits: TraitId[], pos: Vec, parts = ['mg', 'stockEngine']): Vehicle {
   const v = addVehicle(w, faction, 'scout', parts, pos);
   v.brain = npcBrain(traits[0], pos, traits);
+  if (parts.includes('mg')) gunAhead(v);
   return v;
 }
 

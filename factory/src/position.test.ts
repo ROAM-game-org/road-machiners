@@ -106,6 +106,10 @@ describe('releaseDrift', () => {
   it('flags a recorded release task that is not on the board', () => {
     expect(releaseDrift(withState({ release: { ...release, tasks: [301, 302] } }), [card('Approval', 300), card('Done', 302)])).toEqual(['release task #301 missing from the board']);
   });
+  it('flags a cut order that waits while a release is open', () => {
+    expect(releaseDrift(withState({ release, pendingCut: 'bob' }), [card('Approval', 300)])).toEqual(['cut ordered but a release is open']);
+    expect(releaseDrift(withState({ pendingCut: 'bob' }), [])).toEqual([]);
+  });
   it('flags a pending ship with no current candidate post', () => {
     expect(releaseDrift(withState({ release, pendingShip: 'bob' }), [card('Approval', 300)])).toEqual(['pending ship but no current candidate post']);
     expect(releaseDrift(withState({ pendingShip: 'bob' }), [])).toEqual(['pending ship but no current candidate post']);

@@ -2,13 +2,13 @@ import { ECONOMY } from '../data/goods';
 import { EFFORT, SHOPS } from '../data/market';
 import type { TraitId } from '../data/npcs';
 import { RULES } from '../data/rules';
-import { shopMoney } from './economy';
+import { getUpkeepReserve, shopMoney } from './economy';
 import { getResources } from './resources';
 import { supplyUseScale } from './settings';
 import { plainFuelPerTile } from './stats';
 import type { NpcActivity, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
-import { fairM, requireWholeM } from './money';
+import { chargeM, fairM, requireWholeM } from './money';
 
 export type DutyLeg = { from: Vec; turn: number };
 type Duty = 'patrol' | 'dispatch' | 'guard';
@@ -49,12 +49,21 @@ export function dutyPay(world: World, payee: Vehicle, leg: DutyLeg, to: Vec): nu
   return dutyPrice(world, payee, dist(leg.from, to) * EFFORT.routeFactor, turns);
 }
 
+export function fundSupplyRun(world: World, convoy: Vehicle, load: number): void {
+  if (!convoy.brain?.traits.includes('supplier')) throw new Error(`${convoy.id} drew supply money with no supplier trait`);
+  if (!(load > 0)) throw new Error(`${convoy.id} drew supply money for a load of ${load}`);
+  const due = chargeM(load + getUpkeepReserve(convoy) - getResources(world, convoy).money);
+  if (due > 0) shopMoney(world, convoy, due, 'supplyFund');
+}
+
 export function payDuty(world: World, v: Vehicle, goal: NpcActivity, escorts: readonly Vehicle[]): void {
   const duty = dutyOf(v, goal);
   if (!duty) return;
   if (!goal.leg) throw new Error(`${v.id} finished a ${goal.kind} duty leg with no start`);
-  if (duty === 'guard') payGuards(world, v, goal.leg, escorts);
-  else {
+  if (duty === 'guard') {
+    shopMoney(world, v, dutyPay(world, v, goal.leg, v.pos), 'haulPay');
+    payGuards(world, v, goal.leg, escorts);
+  } else {
     shopMoney(world, v, dutyPay(world, v, goal.leg, v.pos), duty === 'patrol' ? 'patrolPay' : 'dispatchPay');
     if (duty === 'dispatch') payPartners(world, v, goal.leg, escorts);
   }

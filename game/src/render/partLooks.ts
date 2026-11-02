@@ -26,8 +26,17 @@ export const TRUCK_LOOK = {
   lampReach: 0.6,
 };
 
-export function drawnWheelPoints(b: Body, unit: number): { x: number; y: number; z: number }[] {
+export type DrawnWheel = { x: number; y: number; z: number; follows: number };
+
+export function physicsWheelPoints(b: Body, unit: number): { x: number; y: number; z: number }[] {
   return wheelMounts(b, unit).map((m) => ({ x: m.x, y: m.y, z: m.z + Math.sign(m.z) * TRUCK_LOOK.wheelPush }));
+}
+
+export function drawnWheelPoints(b: Body, unit: number): DrawnWheel[] {
+  const own = physicsWheelPoints(b, unit).map((m, follows) => ({ ...m, follows }));
+  const tandem = b.tandem;
+  if (tandem === null) return own;
+  return [...own, ...own.filter((m) => m.x < 0).map((m) => ({ ...m, x: m.x + tandem }))];
 }
 
 const BASE_MODELS: Record<string, ModelName> = {

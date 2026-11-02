@@ -59,7 +59,6 @@ function label(v: Vehicle, name: string): string {
 }
 
 const FLOATING_BOX_CELLS: Record<string, string[]> = {
-  wagon: ['wagon unit 0 caltrops  mounted @3,1 r1 stands on 89% with up to 5.0 cm of air at 2.97,0.31,-0.16'],
   loader: ['loader unit 0 caltrops  mounted @6,14 r1 stands on 75% with up to Infinity cm of air at -3.12,-0.30,1.03'],
 };
 

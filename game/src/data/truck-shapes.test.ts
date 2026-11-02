@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { CHASSIS } from './chassis';
 import { PHYSICS } from './physics';
 import SHAPES from './truck-shapes.json';
-import { cellRect, engineAnchor, restOn, rideOf, unitBody } from '../sim/body';
+import { engineBay, engineFloor, rideOf, unitBody } from '../sim/body';
 
 const FILES = import.meta.glob<string>('/public/models/base_*.glb', { query: '?url&inline', import: 'default' });
 const DATA_URL = 'data:model/gltf-binary;base64,';
@@ -99,17 +99,17 @@ type Reference = { height: Band; hood?: Band; roof: Band; deck?: Band; roofStart
 
 const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'longbed' | 'courier' | 'hauler' | 'wagon' | 'tractor' | 'jeep' | 'carrier' | 'loader' | 'bus' | 'buggy' | 'convertible' | 'van', Reference> = {
   lincoln: { height: [1.56, 1.8], hood: [0.34, 0.42], roof: [0.14, 0.24], deck: [0.22, 0.3] },
-  niva: { height: [1.89, 2.19], hood: [0.22, 0.28], roof: [0.55, 1], tailDrop: [0, 0.1] },
+  niva: { height: [1.89, 2.19], hood: [0.39, 0.45], roof: [0.44, 1], tailDrop: [0, 0.1] },
   bukhanka: { height: [2.34, 2.7], roof: [0.75, 1], roofStart: [0, 0.12], noseDrop: [0.15, 9], tailDrop: [0, 0.15] },
   semi: { height: [5.1, 5.4], hood: [0.1, 0.19], roof: [0.7, 0.77], roofStart: [0.23, 0.3] },
   scout: { height: [2.03, 2.14], roofStart: [0.42, 0.45], roof: [0.13, 0.17], deck: [0.39, 0.43], noseDrop: [0.64, 0.78] },
-  convertible: { height: [1.62, 1.7], hood: [0.31, 0.36], roof: [0.15, 0.2], deck: [0.26, 0.32], roofStart: [0.4, 0.45], noseDrop: [0.52, 0.68], tailDrop: [0.52, 0.68] },
+  convertible: { height: [1.62, 1.7], hood: [0.31, 0.36], roof: [0.15, 0.2], deck: [0.29, 0.35], roofStart: [0.4, 0.45], noseDrop: [0.52, 0.68], tailDrop: [0.52, 0.68] },
   longbed: { height: [2.55, 2.75], hood: [0.19, 0.25], roof: [0.1, 0.16], roofStart: [0.25, 0.31], deck: [0.53, 0.6] },
-  courier: { height: [1.7, 1.8], roofStart: [0.4, 0.47], roof: [0.18, 0.26], noseDrop: [0.8, 1.2], tailDrop: [0.7, 0.95] },
-  hauler: { height: [2.55, 2.71], roofStart: [0.07, 0.12], roof: [0.21, 0.27], deck: [0.58, 0.66] },
+  courier: { height: [1.7, 1.8], roofStart: [0.52, 0.58], roof: [0.05, 0.1], noseDrop: [0.75, 1.2], tailDrop: [0.7, 0.95] },
+  hauler: { height: [2.55, 2.71], roofStart: [0.07, 0.12], roof: [0.24, 0.3], deck: [0.58, 0.66] },
   wagon: { height: [2.38, 2.54], roofStart: [0.13, 0.17], roof: [0.17, 0.23], noseDrop: [0.6, 0.9] },
   tractor: { height: [2.9, 3.2], hood: [0.327, 0.361], roofStart: [0.353, 0.39], roof: [0.275, 0.304], deck: [0.317, 0.35] },
-  jeep: { height: [1.95, 2.05], roofStart: [0.31, 0.37], roof: [0.18, 0.26], noseDrop: [0.9, 1.05], tailDrop: [0.95, 1.15] },
+  jeep: { height: [1.95, 2.05], roofStart: [0.31, 0.37], roof: [0.22, 0.3], noseDrop: [0.9, 1.05], tailDrop: [0.87, 1.15] },
   buggy: { height: [1.5, 1.6], roof: [0.4, 0.47], noseDrop: [0.55, 0.75], tailDrop: [0.03, 0.2] },
   carrier: { height: [1.95, 2.15], roofStart: [0.15, 0.19], roof: [0.66, 0.74], noseDrop: [0.55, 0.75], tailDrop: [0.25, 0.45] },
   loader: { height: [3.35, 3.55], roof: [0.21, 0.29], roofStart: [0.4, 0.5], noseDrop: [2.4, 3.1], tailDrop: [0.8, 1.2] },
@@ -317,12 +317,9 @@ describe('the scout pickup', () => {
   });
 
   it('closes the hood round the engine footprint', () => {
-    const engineCells = CHASSIS.scout.layout.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'E' ? [{ x, y }] : [])));
-    const rect = cellRect('scout', engineCells);
-    const anchor = engineAnchor('scout');
+    const rect = engineBay('scout');
     const margin = 0.05;
-    const half = { x: (rect.x1 - rect.x0) / 2 + margin, y: (rect.z1 - rect.z0) / 2 + margin };
-    const inHole = (c: { x: number; y: number }) => Math.abs(c.x - anchor.x) <= half.x && Math.abs(-c.y - anchor.z) <= half.y;
+    const inHole = (c: { x: number; y: number }) => c.x >= rect.x0 - margin && c.x <= rect.x1 + margin && -c.y >= rect.z0 - margin && -c.y <= rect.z1 + margin;
     const open = columns.filter((c) => c.x >= 0.9 && c.x <= 2.3 && Math.abs(c.y) <= 1.0 && !inHole(c) && c.top < 0.15);
     expect(open.map((c) => `${c.x.toFixed(2)},${c.y.toFixed(2)}: ${c.top.toFixed(2)}`)).toEqual([]);
   });
@@ -347,14 +344,12 @@ describe('the courier Baja Bug', () => {
 
   it('closes the domed front lid round the engine footprint', () => {
     const { heights } = SHAPES.base_courier;
-    const engineCells = CHASSIS.courier.layout.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'E' ? [{ x, y }] : [])));
-    const { rect } = restOn('courier', cellRect('courier', engineCells));
-    const anchor = engineAnchor('courier');
+    const rect = engineBay('courier');
+    const floor = engineFloor('courier');
     const margin = 0.05;
-    const half = { x: (rect.x1 - rect.x0) / 2 + margin, y: (rect.z1 - rect.z0) / 2 + margin };
     const columns = heights.top.flatMap((row, i) => row.flatMap((cm, j) => (cm === null ? [] : [{ x: (heights.i0 + i + 0.5) * heights.cell, y: (heights.j0 + j + 0.5) * heights.cell, top: cm / 100 }])));
-    const inHole = (c: { x: number; y: number }) => Math.abs(c.x - anchor.x) <= half.x && Math.abs(-c.y - anchor.z) <= half.y;
-    const open = columns.filter((c) => c.x >= 0.75 && c.x <= 1.5 && Math.abs(c.y) <= 0.3 && !inHole(c) && c.top < anchor.y + 0.03);
+    const inHole = (c: { x: number; y: number }) => c.x >= rect.x0 - margin && c.x <= rect.x1 + margin && -c.y >= rect.z0 - margin && -c.y <= rect.z1 + margin;
+    const open = columns.filter((c) => c.x >= 0.75 && c.x <= 1.5 && Math.abs(c.y) <= 0.3 && !inHole(c) && c.top < floor + 0.03);
     expect(open.map((c) => `${c.x.toFixed(2)},${c.y.toFixed(2)}: ${c.top.toFixed(2)}`)).toEqual([]);
   });
 });

@@ -22,7 +22,7 @@ BANK_TILT = math.radians(30)
 
 def build(kit: Kit) -> None:
     skid(kit, 2, 2)
-    kit.box("sump", (0.6, 0.3, 0.1), (-0.1, 0, 0.1), "metal_dark")
+    kit.box("sump", (0.6, 0.3, 0.15), (-0.1, 0, 0.075), "metal_dark")
     kit.box("block", (0.64, 0.34, 0.2), (-0.1, 0, 0.24), "metal_light", dent_by=0.005)
     for s, sign in (("l", 1), ("r", -1)):
         kit.box(f"head_{s}", (0.6, 0.14, 0.12), (-0.1, sign * 0.15, 0.36), "metal", rot=(sign * BANK_TILT, 0, 0))

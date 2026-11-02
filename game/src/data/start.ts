@@ -57,6 +57,13 @@ export const HAULER_KIT: HaulerKit = {
 
 const SCOUT_GUN: NonNullable<StartKit['placed']> = [{ defId: 'mg', x: 4, y: 5, rot: 0 }];
 
+const SNOWBALL_GUNS: NonNullable<StartKit['placed']> = [
+  { defId: 'mg', x: 1, y: 5, rot: 0 },
+  { defId: 'mg', x: 2, y: 6, rot: 0 },
+  { defId: 'slugCannon', x: 3, y: 9, rot: 1 },
+  { defId: 'shotgun', x: 4, y: 10, rot: 2 },
+];
+
 export const START_KITS: Record<string, StartKit> = {
   arrival: {
     chassis: 'scout',
@@ -138,7 +145,8 @@ export const START_KITS: Record<string, StartKit> = {
   },
   snowball: {
     chassis: 'convertible',
-    parts: ['mg', 'mg', 'slugCannon', 'shotgun', 'plowRam', 'workhorseDiesel', 'plates', 'plates', 'cage'],
+    parts: ['plowRam', 'workhorseDiesel', 'plates', 'plates', 'cage'],
+    placed: SNOWBALL_GUNS,
     storage: [],
     wear: 0,
     money: 833,
