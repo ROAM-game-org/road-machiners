@@ -24,6 +24,14 @@ const me = world.vehicles.find((v) => v.id === world.player.vehicleId);
 const dest = mode === 'fight' ? { x: clamp(me.pos.x + 10), y: clamp(me.pos.y + 6) } : { x: clamp(me.pos.x + 150), y: me.pos.y };
 world = { ...world, vehicles: world.vehicles.map((v) => (v.id === me.id ? { ...v, order: { kind: 'through', dest } } : v)) };
 console.log(mode, 'town', town.def.id, 'vehicles', world.vehicles.length);
+if (process.env.WARM) {
+  const { campWarmSteps } = await import('../src/sim/camp-warm');
+  campWarmSteps(world).forEach((step, i) => {
+    const started = performance.now();
+    step();
+    console.log(`warm step ${i} ${(performance.now() - started).toFixed(0)} ms`);
+  });
+}
 for (let i = 0; i < turns; i++) {
   const drive = buildDrive(world);
   const { terrain, ...state } = world;

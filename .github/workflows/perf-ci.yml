@@ -26,38 +26,20 @@ jobs:
         working-directory: game
         run: |
           set -o pipefail
-          npx vite-node scripts/turn-profile.mjs drive 8 | tee ../drive-turns.log
+          WARM=1 npx vite-node scripts/turn-profile.mjs drive 8 | tee ../drive-turns.log
       - name: fight turns
         working-directory: game
         run: |
           set -o pipefail
           npx vite-node scripts/turn-profile.mjs fight 8 | tee ../fight-turns.log
+      - name: ranked functions in drive turns
+        working-directory: game
+        run: |
+          set -o pipefail
+          node --cpu-prof --cpu-prof-dir=prof node_modules/vite-node/vite-node.mjs scripts/turn-profile.mjs drive 8 > /dev/null
+          node scripts/cpuprof-top.mjs prof/*.cpuprofile 12 | tee ../drive-ranked.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: turn-profiles
-          path: '*-turns.log'
-
-  draws:
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    container: mcr.microsoft.com/playwright:v1.64.1-noble
-    steps:
-      - name: install git
-        run: apt-get update && apt-get install -y --no-install-recommends git
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: trust the checkout
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - name: npm ci
-        working-directory: game
-        run: npm ci
-      - name: perf report on the far town scenes
-        working-directory: game
-        run: npm run perf -- --scenes town-day-far,town-night-far
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: perf-reports
-          path: game/perf-reports
+          path: '*.log'
