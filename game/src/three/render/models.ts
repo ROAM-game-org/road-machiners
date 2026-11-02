@@ -593,6 +593,16 @@ export function outlineOf(geos: readonly THREE.BufferGeometry[]): THREE.Mesh[] {
 
 const welded = new WeakMap<THREE.BufferGeometry, THREE.BufferGeometry>();
 
+function weldedOutlineOf(geometry: THREE.BufferGeometry): THREE.BufferGeometry {
+  const origin = unchangedSource(geometry);
+  let geo = welded.get(origin);
+  if (!geo) {
+    geo = weld([origin]);
+    welded.set(origin, geo);
+  }
+  return geo;
+}
+
 export function outlineProps(obj: THREE.Object3D): void {
   const meshes: THREE.Mesh[] = [];
   obj.traverse((o) => {
@@ -606,12 +616,7 @@ export function outlineProps(obj: THREE.Object3D): void {
       m.stencilFunc = THREE.AlwaysStencilFunc;
       m.stencilZPass = THREE.ReplaceStencilOp;
     }
-    const origin = unchangedSource(mesh.geometry);
-    let geo = welded.get(origin);
-    if (!geo) {
-      geo = weld([origin]);
-      welded.set(origin, geo);
-    }
+    const geo = weldedOutlineOf(mesh.geometry);
     const outline = mesh instanceof THREE.InstancedMesh ? instancedOutline(mesh, geo) : new THREE.Mesh(geo, propOutline);
     outline.onBeforeRender = readViewport;
     outline.renderOrder = OUTLINE_ORDER;
@@ -629,6 +634,13 @@ export function registerMergedOutline(merged: THREE.BufferGeometry, parts: reado
   });
   const outline = mergeGeometries(pieces);
   if (!outline) throw new Error('A merged prop has parts whose outlines cannot merge');
+  welded.set(merged, outline);
+}
+
+export function registerBakedOutline(merged: THREE.BufferGeometry, parts: readonly Pick<SourcePart, 'geometry' | 'matrix'>[]): void {
+  const pieces = parts.map(({ geometry, matrix }) => weldedOutlineOf(geometry).clone().applyMatrix4(matrix));
+  const outline = mergeGeometries(pieces);
+  if (!outline) throw new Error('A merged model has parts whose outlines cannot merge');
   welded.set(merged, outline);
 }
 
