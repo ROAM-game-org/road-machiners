@@ -1,7 +1,7 @@
 import { Object3D, type Camera, type PointLight, type SpotLight, type WebGLRenderer } from 'three';
 import { perfSnapshot, ranInWorker, type PerfStat } from '../perf';
 import type { Game } from '../three/game';
-import { drawTotals, emptyBySystem, SYSTEMS, type BenchSystem, type FrameRecord, type RenderPass, type SceneReport } from './report';
+import { drawTotals, emptyBySystem, SLOW_FRAME_MS, SYSTEMS, type BenchSystem, type FrameRecord, type RenderPass, type SceneReport } from './report';
 
 export const FRAME_STEP_MS = 16.67;
 const GPU_WAIT_MS = 5000;
@@ -266,7 +266,7 @@ class LongTasks {
   }
 }
 
-type LoopHooks = { closed: (realMs: number, tickMs: number) => void; callbackDone: () => void };
+type LoopHooks = { closed: (realMs: number, tickMs: number, startMs: number) => void; callbackDone: () => void };
 
 class FrameLoop {
   private readonly native = window.requestAnimationFrame.bind(window);
@@ -292,7 +292,7 @@ class FrameLoop {
   }
 
   private open(stamp: number, arrived: number): void {
-    if (this.round !== null) this.hooks.closed(arrived - this.roundStart, this.tickMs);
+    if (this.round !== null) this.hooks.closed(arrived - this.roundStart, this.tickMs, this.roundStart);
     this.round = stamp;
     this.roundStart = arrived;
     this.tickMs = 0;
@@ -311,13 +311,14 @@ export class Probe {
   pace: (() => void) | null = null;
   rounds = 0;
   private readonly renderer: WebGLRenderer;
-  private readonly loop = new FrameLoop({ closed: (real, tick) => this.onClosed(real, tick), callbackDone: () => this.onCallbackDone() });
+  private readonly loop = new FrameLoop({ closed: (real, tick, start) => this.onClosed(real, tick, start), callbackDone: () => this.onCallbackDone() });
   private failure: Error | null = null;
   private collecting: Collecting | null = null;
   private gated = false;
   private watchers: Watcher[] = [];
   private pending: Pending[] = [];
   private readonly drew = new WeakMap<FrameRecord, boolean>();
+  private readonly startedAt = new WeakMap<FrameRecord, number>();
   private originalRender: WebGLRenderer['render'] | null = null;
   private originalBuild: BuildingStreamer['buildOne'] | null = null;
   private counter: DrawCounter | null = null;
@@ -399,16 +400,24 @@ export class Probe {
     return counter.report();
   }
 
-  onClosed(realMs: number, tickMs: number): void {
+  markSlowFrames(scene: string, records: readonly FrameRecord[]): void {
+    for (const record of records) {
+      const start = this.startedAt.get(record);
+      if (start === undefined) throw new Error('A frame record has no start time, so its slow frame cannot be marked');
+      if (record.real > SLOW_FRAME_MS) performance.measure(`bench:slow-frame:${scene}`, { start, end: start + record.real });
+    }
+  }
+
+  onClosed(realMs: number, tickMs: number, startMs: number): void {
     try {
-      this.close(realMs, tickMs);
+      this.close(realMs, tickMs, startMs);
     } catch (error) {
       this.failure = error as Error;
       this.checkWatchers();
     }
   }
 
-  private close(realMs: number, tickMs: number): void {
+  private close(realMs: number, tickMs: number, startMs: number): void {
     const record: FrameRecord = {
       real: realMs,
       tick: tickMs,
@@ -419,6 +428,7 @@ export class Probe {
       timers: this.timerDelta(),
     };
     this.drew.set(record, this.renders > 0);
+    this.startedAt.set(record, startMs);
     if (this.queries.length > 0) this.pending.push({ record, queries: this.queries });
     this.resetMarks();
     this.rounds++;

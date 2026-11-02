@@ -178,7 +178,7 @@ function tapTurnKey(game: Game): void {
   keys.releaseTurn();
 }
 
-async function startTurn(ctx: Ctx, log: TurnLog, trigger: () => void): Promise<void> {
+async function startTurn(ctx: Ctx, log: TurnLog, scene: Spec['id'], trigger: () => void): Promise<void> {
   const { game, probe } = ctx;
   const turn = game.state.turn;
   const start = performance.now();
@@ -196,6 +196,7 @@ async function startTurn(ctx: Ctx, log: TurnLog, trigger: () => void): Promise<v
     const dead = (Reflect.get(game, 'death') as { isShown: () => boolean }).isShown();
     throw new Error(`${error.message} (turn ${turn}, busy ${game.busy}, player ${player.state}, call ${JSON.stringify(player.call)}, quest ${player.quests.live?.quest ?? null}, order ${order}, travel ${travel}, ${asks}, death screen ${dead})`, { cause: error });
   });
+  performance.measure(`bench:turn:${scene}`, { start, end: started });
   log.waits.push(started - start);
   log.shots += shotsIn(game.state);
   log.workers.push(workerTurnMs());
@@ -207,14 +208,14 @@ async function finishPlayback(ctx: Ctx): Promise<void> {
 
 async function playFightTurns(ctx: Ctx, log: TurnLog): Promise<void> {
   for (let i = 0; i < FIGHT_TURNS; i++) {
-    await startTurn(ctx, log, () => ctx.game.endTurn());
+    await startTurn(ctx, log, 'fight', () => ctx.game.endTurn());
     await finishPlayback(ctx);
   }
 }
 
 async function playDrive(ctx: Ctx, log: TurnLog): Promise<void> {
   const target = ctx.game.state.turn + DRIVE_TURNS;
-  await startTurn(ctx, log, () => tapTurnKey(ctx.game));
+  await startTurn(ctx, log, 'drive', () => tapTurnKey(ctx.game));
   await ctx.probe.until(() => ctx.game.state.turn >= target && !ctx.game.busy, DRIVE_MS, `${DRIVE_TURNS} turns of automatic travel`).catch((error: Error) => {
     throw new Error(`${error.message} (turn ${ctx.game.state.turn} of ${target}, busy ${ctx.game.busy})`, { cause: error });
   });
@@ -391,7 +392,9 @@ async function measurePasses(ctx: Ctx, spec: Spec): Promise<{ passes: FrameRecor
   for (let i = 0; i < PASS_COUNT; i++) {
     await spec.setup();
     const from = performance.now();
-    passes.push(await spec.play(ctx.passFrames, WARMUP_FRAMES));
+    const played = await spec.play(ctx.passFrames, WARMUP_FRAMES);
+    ctx.probe.markSlowFrames(spec.id, played);
+    passes.push(played);
     longTasks += ctx.probe.longTasks.countBetween(from, performance.now());
   }
   return { passes, longTasks };
