@@ -39,7 +39,7 @@ import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, noteEr
 import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
 import { carriesOnLoad, clearGame, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
-import { openSaves } from './save-db';
+import { desktopHost, openSaves } from './save-db';
 import { RunLog } from './run-log';
 import { allSlots, jumpToQuest, listSaves, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
 import { GAME_GL, openWebGL } from './webgl';
@@ -133,6 +133,7 @@ async function rescuedOrNew(error: SaveError, slot: SlotId, carries: boolean): P
 }
 
 async function persistSaves(): Promise<void> {
+  if (desktopHost()) return;
   if (!navigator.storage) return console.warn('The page is not secure, so it cannot ask the browser to keep saves under disk pressure');
   if (!(await navigator.storage.persist())) console.warn('The browser did not grant persistent storage, so it may evict saves under disk pressure');
 }
@@ -223,7 +224,7 @@ const loading = Promise.all([
   boot.track('models', loadModels(undefined, boot.count('models')).then(reportStandIns).then(paintSurfaceMasks)),
 ]);
 bootStep('loading the map');
-const [map, slots] = await Promise.all([boot.track('map', fetchMap()), openSaves(saveKey, window.localStorage, allSlots(CONFIG.saveSlots))]);
+const [map, slots] = await Promise.all([boot.track('map', fetchMap()), openSaves(saveKey, window.localStorage, allSlots(CONFIG.saveSlots), desktopHost())]);
 const travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(PLAY_EASE, PHYSICS.stepsPerSecond));
 travel.sendTerrain(map.terrain);
 gameContext.watchSaves(slots);
