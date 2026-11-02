@@ -80,14 +80,18 @@ function tileLayers(t: Terrain): Pick<TerrainNav, 'cliffTile' | 'tileCost' | 'fl
   const openTile = new Uint8Array(t.size * t.size);
   const steep = new Float32Array(t.size * t.size);
   const bySite = bySiteTiles(t.size, atlasSites(atlasOf(t)).filter((s) => !isTerritory(s)));
+  const costs = new Map(TYPE_IDS.map((id) => [id, [routeCost(id, false), routeCost(id, true)]]));
   for (let i = 0; i < t.size * t.size; i++) {
     const grade = tileGrade(t, i);
-    cliffTile[i] = grade > TERRAIN.drive.maxSlope ? 1 : 0;
+    const type = t.types[i];
+    const free = 1 - bySite[i];
+    const road = type === 'road' ? 1 : 0;
+    cliffTile[i] = Number(grade > TERRAIN.drive.maxSlope);
     steep[i] = grade;
-    flatCost[i] = routeCost(t.types[i], bySite[i] === 1);
+    flatCost[i] = costs.get(type)![bySite[i]];
     tileCost[i] = flatCost[i] * slopeCost(grade);
-    roadTile[i] = t.types[i] === 'road' && bySite[i] === 0 ? 1 : 0;
-    openTile[i] = t.types[i] !== 'road' && bySite[i] === 0 ? 1 : 0;
+    roadTile[i] = road * free;
+    openTile[i] = (1 - road) * free;
   }
   return { cliffTile, tileCost, flatCost, roadTile, openTile, steep, roadShy: roadShyField(t.size, roadTile) };
 }
