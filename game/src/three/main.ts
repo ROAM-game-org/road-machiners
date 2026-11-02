@@ -39,7 +39,7 @@ import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, noteEr
 import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
 import { carriesOnLoad, clearGame, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
-import { openSaves } from './save-db';
+import { memoryBackend, openSaves, SaveSlots } from './save-db';
 import { RunLog } from './run-log';
 import { allSlots, jumpToQuest, listSaves, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
 import { GAME_GL, openWebGL } from './webgl';
@@ -132,18 +132,50 @@ async function rescuedOrNew(error: SaveError, slot: SlotId, carries: boolean): P
   return { world: rescued.world, runId: rescued.runId, loadedFrom: null, fresh: false };
 }
 
+function openRunSaves(): Promise<SaveSlots> {
+  const slotIds = allSlots(CONFIG.saveSlots);
+  return benchMode ? SaveSlots.open(memoryBackend(), null, saveKey, slotIds) : openSaves(saveKey, window.localStorage, slotIds);
+}
+
+type BenchState = { done: boolean; report: unknown; error: string | null };
+
+function positiveParam(params: URLSearchParams, name: string): number | null {
+  const raw = params.get(name);
+  if (raw === null) return null;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) throw new Error(`?${name}=${raw} is no positive number`);
+  return value;
+}
+
+async function runBenchMode(game: Game): Promise<void> {
+  const state: BenchState = { done: false, report: null, error: null };
+  Object.assign(window, { __ROAM_BENCH__: state });
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const { runBench } = await import('../bench/bench');
+    state.report = await runBench(game, { savingsAbove: positiveParam(params, 'savingsAbove'), passFrames: positiveParam(params, 'benchFrames') });
+  } catch (error) {
+    state.error = error instanceof Error ? (error.stack ?? error.message) : String(error);
+  } finally {
+    state.done = true;
+  }
+}
+
 async function persistSaves(): Promise<void> {
   if (!navigator.storage) return console.warn('The page is not secure, so it cannot ask the browser to keep saves under disk pressure');
   if (!(await navigator.storage.persist())) console.warn('The browser did not grant persistent storage, so it may evict saves under disk pressure');
 }
 
 function newGameWorld(setup: WorldSetup, intro: boolean): World {
-  const seed = CONFIG.seed ?? urlSeed() ?? freshSeed();
+  const seed = benchMode ? BENCH_SEED : (CONFIG.seed ?? urlSeed() ?? freshSeed());
   return newGame(seed, modeKit(setup.mode, CONFIG.startKit), intro, newMapFor(setup, seed, map), setup);
 }
 
+const benchMode = new URLSearchParams(window.location.search).has('bench');
+const BENCH_SEED = 1337;
+
 function urlPlay(): boolean {
-  return import.meta.env.DEV && new URLSearchParams(window.location.search).has('play');
+  return benchMode || (import.meta.env.DEV && new URLSearchParams(window.location.search).has('play'));
 }
 
 function urlSeed(): number | null {
@@ -204,11 +236,11 @@ function soundsArrived(loaded: LoadedBank): void {
 }
 const boot = BootScreen.adopt(() => void flushSaves().then(() => window.location.reload(), reportError));
 const uiFonts = fontsReady(language.current() === 'ru' ? 'ru' : 'en');
-const reporter = ERROR_REPORT_URL ? new ErrorReporter(ERROR_REPORT_URL, gameContext) : null;
+const reporter = ERROR_REPORT_URL && !benchMode ? new ErrorReporter(ERROR_REPORT_URL, gameContext) : null;
 if (reporter) onReport((err) => void reporter.report(err));
 const surface = openWebGL(document.createElement('canvas'), GAME_GL);
 const mixer = new Mixer(MIX);
-mixer.unlockOn(window);
+if (!benchMode) mixer.unlockOn(window);
 const soundSettings = new SoundSettings(mixer, window.localStorage);
 bootStep('loading physics and models');
 const soundOptions: BankOptions = { expectedBytes: SFX_BYTES, support: formatSupport() };
@@ -224,12 +256,12 @@ const loading = Promise.all([
   boot.track('models', loadModels(undefined, boot.count('models')).then(reportStandIns).then(paintSurfaceMasks)),
 ]);
 bootStep('loading the map');
-const [map, slots] = await Promise.all([boot.track('map', fetchMap()), openSaves(saveKey, window.localStorage, allSlots(CONFIG.saveSlots))]);
+const [map, slots] = await Promise.all([boot.track('map', fetchMap()), openRunSaves()]);
 const travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(PLAY_EASE, PHYSICS.stepsPerSecond));
 travel.sendTerrain(map.terrain);
 gameContext.watchSaves(slots);
 flushSaves = () => slots.flush();
-persistSaves().catch(reportError);
+if (!benchMode) persistSaves().catch(reportError);
 const newGameActions: NewGameActions = {
   requestBoot: (request) => requestBoot(window.sessionStorage, saveKey, request),
   reload: () => void slots.flush().then(() => window.location.reload(), reportError),
@@ -274,6 +306,7 @@ gameContext.watch({ world: () => game.state, log: () => game.logTexts() });
 performance.mark('roam:ready');
 startBank(mixer.ctx, BOOT_SOUNDS, soundOptions, sounds).loaded.then(soundsArrived).catch(reportError).finally(bankSettled);
 void boot.finish();
+if (benchMode) void runBenchMode(game);
 if (import.meta.env.DEV) {
   (window as any).__ROAM__ = Object.assign(game, { language, buildAllCells: () => game.streamer.buildAll() });
   (window as any).__ROAM_PERF__ = { snapshot: perfSnapshot, reset: resetPerf };

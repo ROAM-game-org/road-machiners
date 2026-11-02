@@ -116,8 +116,8 @@ const GUN_HEIGHT = 1.6;
 export class Game {
   private world: World;
   private drive: DriveSnapshot;
-  private readonly renderer: THREE.WebGLRenderer;
-  private readonly scene = new THREE.Scene();
+  readonly renderer: THREE.WebGLRenderer;
+  readonly scene = new THREE.Scene();
   private readonly sun = sunLight();
   private readonly sky = new THREE.HemisphereLight();
   private readonly play = new PlayClock(PLAY_EASE);
