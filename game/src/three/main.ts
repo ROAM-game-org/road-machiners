@@ -167,7 +167,7 @@ async function runBenchMode(game: Game): Promise<void> {
   try {
     const params = new URLSearchParams(window.location.search);
     const { runBench } = await import('../bench/bench');
-    state.report = await runBench(game, { savingsAbove: positiveParam(params, 'savingsAbove'), passFrames: positiveParam(params, 'benchFrames') });
+    state.report = await runBench(game, { savingsAbove: positiveParam(params, 'savingsAbove'), passFrames: positiveParam(params, 'benchFrames'), marks: params.has('profile') });
   } catch (error) {
     failure = error;
   } finally {
@@ -321,7 +321,7 @@ gameContext.watch({ world: () => game.state, log: () => game.logTexts() });
 performance.mark('roam:ready');
 startBank(mixer.ctx, BOOT_SOUNDS, soundOptions, sounds).loaded.then(soundsArrived).catch(reportError).finally(bankSettled);
 void boot.finish();
-if (benchMode) void runBenchMode(game);
+if (benchMode) void afterBank.then(() => runBenchMode(game));
 if (import.meta.env.DEV) {
   (window as any).__ROAM__ = Object.assign(game, { language, buildAllCells: () => game.streamer.buildAll() });
   (window as any).__ROAM_PERF__ = { snapshot: perfSnapshot, reset: resetPerf };

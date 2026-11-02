@@ -37,6 +37,7 @@ export type FrameRecord = {
   gpu: number | null;
   uploadBytes: number;
   chunkBuilds: number;
+  calls: number;
   timers: Record<string, number>;
 };
 

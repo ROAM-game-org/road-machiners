@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { boundOf, drawTotals, emptyBySystem, frameStats, passStats, poolFrames, savingOf, slowFrameSums, spreadOf, type FrameRecord, type PassStats } from './report';
 
-const frame = (real: number, extra: Partial<FrameRecord> = {}): FrameRecord => ({ real, tick: real / 2, render: real / 4, gpu: null, uploadBytes: 0, chunkBuilds: 0, timers: {}, ...extra });
+const frame = (real: number, extra: Partial<FrameRecord> = {}): FrameRecord => ({ real, tick: real / 2, render: real / 4, gpu: null, uploadBytes: 0, chunkBuilds: 0, calls: 0, timers: {}, ...extra });
 
 describe('frameStats', () => {
   it('takes the median of an odd list and the mean of the middle pair of an even list', () => {

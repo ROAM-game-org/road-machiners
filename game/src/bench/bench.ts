@@ -1,4 +1,4 @@
-import type { Material, Object3D, SpotLight } from 'three';
+import type { Camera, Material, Object3D, SpotLight } from 'three';
 import { GAME_VERSION } from '../config';
 import { REGION, type TownDef } from '../data/region';
 import { DEFAULT_ZOOM } from '../data/view';
@@ -9,13 +9,13 @@ import { sitePads } from '../sim/sites';
 import type { World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
 import type { Game } from '../three/game';
-import { lampsOf, Probe, systemRootsOf, type DrawReport } from './probe';
+import { lampsOf, OVERLAY_FIELDS, Probe, systemRootsOf, type DrawReport } from './probe';
 import {
   boundOf, frameStats, passStats, poolFrames, savingOf, slowFrameSums, spreadOf, SYSTEMS,
   type BenchReport, type BenchSystem, type FrameRecord, type SceneReport,
 } from './report';
 
-export type BenchOptions = { savingsAbove: number | null; passFrames: number | null };
+export type BenchOptions = { savingsAbove: number | null; passFrames: number | null; marks: boolean };
 
 const PASS_FRAMES = 600;
 const SAVINGS_FRAMES = 240;
@@ -41,16 +41,24 @@ const DRIVE_TILES = 150;
 const DRIVE_TURNS = 6;
 const PREVIEW_OFFSETS: readonly (readonly [number, number])[] = [[12, 4], [40, 25], [-30, 60], [150, 150]];
 
-type Ctx = { game: Game; probe: Probe; options: BenchOptions; passFrames: number };
+const HELD_SHARE = 0.25;
+const GAME_FIELDS = [
+  'drive', 'siteLights', 'vehicleLights', 'travel', 'death', 'screens', 'menu', 'isEditingControl', 'modalOpen', 'timeHeld',
+  'pressTurn', 'releaseTurn', 'trucks', 'sun', 'sky', 'ground', 'props', 'fx', 'weather', 'clouds', 'craters', 'streamer', ...OVERLAY_FIELDS,
+];
+
+type Steps = BenchReport['turns']['steps'];
+type TurnLog = { waits: number[]; workers: number[]; previews: number[]; passShots: number[]; recording: boolean; steps: Steps; spans: { scene: SceneReport['id']; start: number; end: number }[] };
+type Ctx = { game: Game; probe: Probe; options: BenchOptions; passFrames: number; log: TurnLog };
 type Check = SceneReport['check'];
-type Evidence = { draws: DrawReport; frames: FrameRecord[] };
-type TurnLog = { waits: number[]; workers: number[]; previews: number[]; shots: number };
-type Toggle = { name: string; apply: () => () => void };
+type Evidence = { draws: DrawReport; frames: FrameRecord[]; passes: FrameRecord[][]; shadowDraws: ReadonlyMap<Camera, number> };
+type Toggle = { name: string; system: BenchSystem | null; apply: () => () => void };
 type Spec = {
   id: SceneReport['id'];
   night: boolean;
   warm: boolean;
-  setup: () => Promise<void>;
+  turns: boolean;
+  setup: (pass: number) => Promise<void>;
   play: (frames: number, drop: number) => Promise<FrameRecord[]>;
   count: () => Promise<DrawReport>;
   check: (evidence: Evidence) => Check;
@@ -127,36 +135,58 @@ function townSpec(ctx: Ctx, world: World, town: Town, id: Spec['id'], hour: numb
     }
   };
   const check = night ? nightCheck(game) : propsCheck;
-  return { id, night, warm: false, setup, play, count, check };
+  return { id, night, warm: false, turns: false, setup, play, count, check };
+}
+
+function medianCalls(frames: readonly FrameRecord[]): number {
+  const sorted = frames.map((f) => f.calls).sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)] ?? 0;
+}
+
+function held(evidence: Evidence): { passed: boolean; detail: string } {
+  const timed = medianCalls(evidence.frames);
+  const counted = evidence.draws.total;
+  const passed = counted > 0 && Math.abs(timed - counted) / counted <= HELD_SHARE;
+  return { passed, detail: `timed frames drew a median of ${timed} draws against ${counted} in the counted frame` };
+}
+
+function leadsMainPass(draws: DrawReport, system: BenchSystem): boolean {
+  const main = (s: BenchSystem) => draws.bySystem[s].main.draws;
+  return SYSTEMS.every((s) => s === system || main(s) <= main(system));
 }
 
 function propsCheck(evidence: Evidence): Check {
   const main = evidence.draws.bySystem.props.main.draws;
   const shadow = evidence.draws.bySystem.props.shadow.draws;
-  return { name: 'props are drawn', passed: main > 0, detail: `${main} prop draws in the main pass and ${shadow} in the shadow pass` };
+  const same = held(evidence);
+  const passed = main > 0 && leadsMainPass(evidence.draws, 'props') && same.passed;
+  return { name: 'props lead the draws in every timed frame', passed, detail: `${main} prop draws in the main pass and ${shadow} in the shadow pass, ${same.detail}` };
 }
 
 function isLitShadowSpot(spot: SpotLight, game: Game): boolean {
   return spot.castShadow && spot.visible && spot.intensity > 0 && spot.parent === game.scene;
 }
 
-function litBeams(game: Game): number {
-  const beams = (Reflect.get(game, 'vehicleLights') as { shadowed: SpotLight[] }).shadowed;
-  return beams.filter((beam) => isLitShadowSpot(beam, game)).length;
+function beamSpots(game: Game): SpotLight[] {
+  return (Reflect.get(game, 'vehicleLights') as { shadowed: SpotLight[] }).shadowed;
 }
 
-function litSites(game: Game): number {
-  const slots = (Reflect.get(game, 'siteLights') as { slots: { spot: SpotLight }[] }).slots;
-  return slots.filter(({ spot }) => isLitShadowSpot(spot, game)).length;
+function siteSpots(game: Game): SpotLight[] {
+  return (Reflect.get(game, 'siteLights') as { slots: { spot: SpotLight }[] }).slots.map((slot) => slot.spot);
+}
+
+function castingSpots(game: Game, spots: readonly SpotLight[], evidence: Evidence): number {
+  return spots.filter((spot) => isLitShadowSpot(spot, game) && (evidence.shadowDraws.get(spot.shadow.camera) ?? 0) > 0).length;
 }
 
 function nightCheck(game: Game): (evidence: Evidence) => Check {
   return (evidence) => {
-    const [beams, sites, shadowDraws] = [litBeams(game), litSites(game), evidence.draws.byPass.shadow.draws];
+    const [beams, sites] = [castingSpots(game, beamSpots(game), evidence), castingSpots(game, siteSpots(game), evidence)];
+    const same = held(evidence);
     return {
-      name: 'a shadowed beam and a site spot are lit',
-      passed: beams > 0 && sites > 0 && shadowDraws > 0,
-      detail: `${beams} shadowed beams and ${sites} shadowed site spots lit, ${shadowDraws} draws in the shadow pass`,
+      name: 'a beam and a site spot draw their shadow maps',
+      passed: beams > 0 && sites > 0 && same.passed,
+      detail: `${beams} beams and ${sites} site spots drew into their shadow maps, ${same.detail}`,
     };
   };
 }
@@ -178,7 +208,7 @@ function tapTurnKey(game: Game): void {
   keys.releaseTurn();
 }
 
-async function startTurn(ctx: Ctx, log: TurnLog, trigger: () => void): Promise<void> {
+async function startTurn(ctx: Ctx, log: TurnLog, scene: Spec['id'], trigger: () => void): Promise<void> {
   const { game, probe } = ctx;
   const turn = game.state.turn;
   const start = performance.now();
@@ -196,8 +226,10 @@ async function startTurn(ctx: Ctx, log: TurnLog, trigger: () => void): Promise<v
     const dead = (Reflect.get(game, 'death') as { isShown: () => boolean }).isShown();
     throw new Error(`${error.message} (turn ${turn}, busy ${game.busy}, player ${player.state}, call ${JSON.stringify(player.call)}, quest ${player.quests.live?.quest ?? null}, order ${order}, travel ${travel}, ${asks}, death screen ${dead})`, { cause: error });
   });
+  if (!log.recording) return;
+  log.spans.push({ scene, start, end: started });
   log.waits.push(started - start);
-  log.shots += shotsIn(game.state);
+  log.passShots[log.passShots.length - 1] += shotsIn(game.state);
   log.workers.push(workerTurnMs());
 }
 
@@ -207,14 +239,14 @@ async function finishPlayback(ctx: Ctx): Promise<void> {
 
 async function playFightTurns(ctx: Ctx, log: TurnLog): Promise<void> {
   for (let i = 0; i < FIGHT_TURNS; i++) {
-    await startTurn(ctx, log, () => ctx.game.endTurn());
+    await startTurn(ctx, log, 'fight', () => ctx.game.endTurn());
     await finishPlayback(ctx);
   }
 }
 
 async function playDrive(ctx: Ctx, log: TurnLog): Promise<void> {
   const target = ctx.game.state.turn + DRIVE_TURNS;
-  await startTurn(ctx, log, () => tapTurnKey(ctx.game));
+  await startTurn(ctx, log, 'drive', () => tapTurnKey(ctx.game));
   await ctx.probe.until(() => ctx.game.state.turn >= target && !ctx.game.busy, DRIVE_MS, `${DRIVE_TURNS} turns of automatic travel`).catch((error: Error) => {
     throw new Error(`${error.message} (turn ${ctx.game.state.turn} of ${target}, busy ${ctx.game.busy})`, { cause: error });
   });
@@ -231,12 +263,12 @@ async function countDuringTurns(ctx: Ctx, run: () => Promise<void>): Promise<Dra
   return draws;
 }
 
-type TurnScene = { id: Spec['id']; warm: boolean; start: World; run: () => Promise<void>; check: Spec['check'] };
+type TurnScene = { id: Spec['id']; warm: boolean; start: (pass: number) => World; run: () => Promise<void>; check: Spec['check'] };
 
 function turnSpec(ctx: Ctx, scene: TurnScene): Spec {
   const { game, probe } = ctx;
-  const setup = async () => {
-    await place(ctx, scene.start);
+  const setup = async (pass = 0) => {
+    await place(ctx, scene.start(pass));
     game.rig.setZoom(DEFAULT_ZOOM);
     game.follow.recenter();
     await settle(ctx, false);
@@ -254,12 +286,12 @@ function turnSpec(ctx: Ctx, scene: TurnScene): Spec {
     await setup();
     return countDuringTurns(ctx, scene.run);
   };
-  return { id: scene.id, night: false, warm: scene.warm, setup, play, count, check: scene.check };
+  return { id: scene.id, night: false, warm: scene.warm, turns: true, setup, play, count, check: scene.check };
 }
 
-function outsideBase(base: World, town: Town): World {
+function outsideBase(base: World, town: Town, side = 1): World {
   const clamp = (v: number) => Math.max(1, Math.min(base.size - 1, v));
-  const outside = { x: clamp(town.def.pos.x + town.def.radius + OUTSIDE_TILES), y: clamp(town.def.pos.y) };
+  const outside = { x: clamp(town.def.pos.x + side * (town.def.radius + OUTSIDE_TILES)), y: clamp(town.def.pos.y) };
   return teleport(skipToHour(base, DAY_HOUR), outside);
 }
 
@@ -268,12 +300,15 @@ function fightStart(base: World, town: Town): World {
   return FIGHT_TEMPLATES.reduce((world, template) => spawnNear(world, template, true), moved);
 }
 
-function driveStart(world: World): World {
+function driveSide(pass: number): number {
+  return pass % 2 === 0 ? 1 : -1;
+}
+
+function driveStart(world: World, side: number): World {
   const me = world.vehicles.find((v) => v.id === world.player.vehicleId);
   if (!me) throw new Error(`Player vehicle ${world.player.vehicleId} missing`);
   const clamp = (v: number) => Math.max(1, Math.min(world.size - 1, v));
-  const toward = me.pos.x < world.size / 2 ? 1 : -1;
-  const dest = { x: clamp(me.pos.x + toward * DRIVE_TILES), y: clamp(me.pos.y) };
+  const dest = { x: clamp(me.pos.x + side * DRIVE_TILES), y: clamp(me.pos.y) };
   const vehicles = world.vehicles.map((v) => (v === me ? { ...v, order: { kind: 'through' as const, dest } } : v));
   return { ...world, vehicles };
 }
@@ -298,12 +333,15 @@ async function measurePreviews(ctx: Ctx, world: World, log: TurnLog): Promise<vo
 }
 
 function fightCheck(log: TurnLog): Spec['check'] {
-  return () => ({ name: 'shots were fired', passed: log.shots > 0, detail: `${log.shots} shot events over the fight turns` });
+  return () => {
+    const shots = log.passShots.slice(-PASS_COUNT);
+    return { name: 'shots were fired in every timed pass', passed: shots.length === PASS_COUNT && shots.every((n) => n > 0), detail: `${shots.join(' and ')} shot events in the timed passes` };
+  };
 }
 
 function driveCheck(evidence: Evidence): Check {
-  const builds = evidence.frames.reduce((sum, f) => sum + f.chunkBuilds, 0);
-  return { name: 'new terrain chunks were built', passed: builds > 0, detail: `${builds} terrain chunks built during the timed drive frames` };
+  const builds = evidence.passes.map((frames) => frames.reduce((sum, f) => sum + f.chunkBuilds, 0));
+  return { name: 'every timed pass built new terrain chunks', passed: builds.every((n) => n > 0), detail: `${builds.join(' and ')} terrain chunks built in the timed passes` };
 }
 
 function materialsOf(object: Object3D): Material[] {
@@ -317,18 +355,27 @@ function refreshMaterials(game: Game): void {
   });
 }
 
+function pinHidden(object: Object3D): () => void {
+  let wanted = object.visible;
+  Object.defineProperty(object, 'visible', { configurable: true, get: () => false, set: (value: boolean) => void (wanted = value) });
+  return () => {
+    Reflect.deleteProperty(object, 'visible');
+    object.visible = wanted;
+  };
+}
+
 function hidden(objects: readonly Object3D[]): () => void {
-  const before = objects.map((object) => object.visible);
-  objects.forEach((object) => (object.visible = false));
-  return () => objects.forEach((object, i) => (object.visible = before[i]));
+  const restores = objects.map(pinHidden);
+  return () => restores.forEach((restore) => restore());
 }
 
 function hideSystem(game: Game, system: BenchSystem): Toggle {
-  return { name: system, apply: () => hidden(system === 'lights' ? lampsOf(game) : systemRootsOf(game)[system]) };
+  return { name: system, system, apply: () => hidden(system === 'lights' ? lampsOf(game) : systemRootsOf(game)[system]) };
 }
 
 const SHADOW_OFF: (game: Game) => Toggle = (game) => ({
   name: 'shadowMaps',
+  system: null,
   apply: () => {
     game.renderer.shadowMap.enabled = false;
     refreshMaterials(game);
@@ -341,6 +388,7 @@ const SHADOW_OFF: (game: Game) => Toggle = (game) => ({
 
 const PIXEL_RATIO_ONE: (game: Game) => Toggle = (game) => ({
   name: 'pixelRatio1',
+  system: null,
   apply: () => {
     const was = game.renderer.getPixelRatio();
     game.renderer.setPixelRatio(1);
@@ -355,15 +403,22 @@ function togglesFor(game: Game, draws: DrawReport): Toggle[] {
 }
 
 async function replayMedian(ctx: Ctx, spec: Spec, toggle: Toggle | null): Promise<number> {
-  await spec.setup();
+  await spec.setup(0);
   const undo = toggle ? toggle.apply() : () => undefined;
   try {
     if (toggle) await settle(ctx, spec.night);
+    if (toggle) await checkHidden(ctx, toggle);
     const frames = Math.min(SAVINGS_FRAMES, ctx.passFrames);
     return passStats(await spec.play(frames, WARMUP_FRAMES)).real.median;
   } finally {
     undo();
   }
+}
+
+async function checkHidden(ctx: Ctx, toggle: Toggle): Promise<void> {
+  if (toggle.system === null || toggle.system === 'lights') return;
+  const { main, shadow } = (await ctx.probe.countDraws()).bySystem[toggle.system];
+  if (main.draws + shadow.draws > 0) throw new Error(`hiding ${toggle.system} still left ${main.draws + shadow.draws} of its draws, so its saving would be wrong`);
 }
 
 async function measureSaving(ctx: Ctx, spec: Spec, baseline: number, toggle: Toggle): Promise<number> {
@@ -383,18 +438,40 @@ async function measureSavings(ctx: Ctx, spec: Spec, draws: DrawReport): Promise<
 
 async function measurePasses(ctx: Ctx, spec: Spec): Promise<{ passes: FrameRecord[][]; longTasks: number }> {
   if (spec.warm) {
-    await spec.setup();
+    await spec.setup(0);
     await spec.play(ctx.passFrames, WARMUP_FRAMES);
   }
   const passes: FrameRecord[][] = [];
   let longTasks = 0;
   for (let i = 0; i < PASS_COUNT; i++) {
-    await spec.setup();
+    await spec.setup(i);
     const from = performance.now();
-    passes.push(await spec.play(ctx.passFrames, WARMUP_FRAMES));
+    const played = await timedPass(ctx, spec);
+    if (ctx.options.marks) ctx.probe.markSlowFrames(spec.id, played);
+    passes.push(played);
     longTasks += ctx.probe.longTasks.countBetween(from, performance.now());
   }
   return { passes, longTasks };
+}
+
+async function timedPass(ctx: Ctx, spec: Spec): Promise<FrameRecord[]> {
+  const { log } = ctx;
+  log.passShots.push(0);
+  log.recording = spec.turns;
+  if (spec.turns) resetPerf();
+  try {
+    return await spec.play(ctx.passFrames, WARMUP_FRAMES);
+  } finally {
+    log.recording = false;
+    if (spec.turns) addSteps(log.steps);
+  }
+}
+
+function addSteps(steps: Steps): void {
+  for (const [name, pass] of Object.entries(perfSnapshot())) {
+    const step = steps[name] ?? { total: 0, calls: 0, max: 0 };
+    steps[name] = { total: step.total + pass.total, calls: step.calls + pass.calls, max: Math.max(step.max, pass.max) };
+  }
 }
 
 async function runScene(ctx: Ctx, spec: Spec): Promise<SceneReport> {
@@ -403,11 +480,15 @@ async function runScene(ctx: Ctx, spec: Spec): Promise<SceneReport> {
   const pooled = poolFrames(passes);
   const frame = passStats(pooled);
   const draws = await spec.count();
-  const check = spec.check({ draws, frames: pooled });
+  const check = spec.check({ draws, frames: pooled, passes, shadowDraws: ctx.probe.shadowDraws });
   if (!check.passed) throw new Error(`Scene ${spec.id} failed its content check "${check.name}": ${check.detail}`);
   const wanted = ctx.options.savingsAbove !== null && frame.real.p99 > ctx.options.savingsAbove;
   const savings = wanted ? await measureSavings(ctx, spec, draws) : null;
   return { id: spec.id, passes: stats, frame, spread: spreadOf(stats), bound: boundOf(frame), longTasks, draws, slowFrames: slowFrameSums(pooled), savings, check };
+}
+
+function markTurns(log: TurnLog): void {
+  for (const { scene, start, end } of log.spans) performance.measure(`bench:turn:${scene}`, { start, end });
 }
 
 function bootMs(): number {
@@ -422,18 +503,21 @@ function rendererName(game: Game): string {
   return String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER));
 }
 
-function stepsOf(): BenchReport['turns']['steps'] {
-  const entries = Object.entries(perfSnapshot()).map(([name, s]) => [name, { total: s.total, calls: s.calls, max: s.max }]);
-  return Object.fromEntries(entries);
+function checkGameFields(game: Game): void {
+  const missing = GAME_FIELDS.filter((name) => !Reflect.has(game, name) || Reflect.get(game, name) === undefined);
+  if (missing.length > 0) throw new Error(`Game has no ${missing.join(', ')}, which the bench reads. Update the bench to the renamed fields`);
 }
 
-function specsFor(ctx: Ctx, town: Town, base: World, log: TurnLog): Spec[] {
+function specsFor(ctx: Ctx, town: Town, base: World): Spec[] {
+  const { log } = ctx;
   const near = { zoom: NEAR_ZOOM, pan: NEAR_PAN_TILES };
   const far = { zoom: FAR_ZOOM, pan: FAR_PAN_TILES };
   const still = { zoom: NEAR_ZOOM, pan: 0 };
   const stillFar = { zoom: FAR_ZOOM, pan: 0 };
-  const fight: TurnScene = { id: 'fight', warm: true, start: fightStart(base, town), run: () => playFightTurns(ctx, log), check: fightCheck(log) };
-  const drive: TurnScene = { id: 'drive', warm: false, start: driveStart(outsideBase(base, town)), run: () => playDrive(ctx, log), check: driveCheck };
+  const fightWorld = fightStart(base, town);
+  const fight: TurnScene = { id: 'fight', warm: true, start: () => fightWorld, run: () => playFightTurns(ctx, log), check: fightCheck(log) };
+  const driveWorld = (pass: number) => driveStart(outsideBase(base, town, driveSide(pass)), driveSide(pass));
+  const drive: TurnScene = { id: 'drive', warm: false, start: driveWorld, run: () => playDrive(ctx, log), check: driveCheck };
   return [
     townSpec(ctx, base, town, 'town-day', DAY_HOUR, near),
     townSpec(ctx, base, town, 'town-day-far', DAY_HOUR, far),
@@ -447,7 +531,6 @@ function specsFor(ctx: Ctx, town: Town, base: World, log: TurnLog): Spec[] {
 async function playAll(ctx: Ctx, specs: Spec[], preview: () => Promise<void>): Promise<SceneReport[]> {
   const scenes: SceneReport[] = [];
   for (const spec of specs) {
-    if (spec.id === 'fight') resetPerf();
     if (spec.id === 'drive') await preview();
     scenes.push(await runScene(ctx, spec).catch((error: Error) => {
       throw new Error(`Scene ${spec.id}: ${error.message} (${timeHolders(ctx.game)})`, { cause: error });
@@ -464,17 +547,19 @@ function timeHolders(game: Game): string {
 }
 
 export async function runBench(game: Game, options: BenchOptions): Promise<BenchReport> {
+  checkGameFields(game);
   const probe = new Probe(game);
   const passFrames = options.passFrames ?? PASS_FRAMES;
-  const ctx: Ctx = { game, probe, options, passFrames };
+  const log: TurnLog = { waits: [], workers: [], previews: [], passShots: [], recording: false, steps: {}, spans: [] };
+  const ctx: Ctx = { game, probe, options, passFrames, log };
   const start = { pixelRatio: window.devicePixelRatio, scale: game.renderer.getPixelRatio() / window.devicePixelRatio };
   const base = game.state;
   const town = pickTown(base);
-  const log: TurnLog = { waits: [], workers: [], previews: [], shots: 0 };
   probe.install();
   try {
-    const specs = specsFor(ctx, town, teleport(base, town.pad), log);
+    const specs = specsFor(ctx, town, teleport(base, town.pad));
     const scenes = await playAll(ctx, specs, () => measurePreviews(ctx, outsideBase(teleport(base, town.pad), town), log));
+    if (options.marks) markTurns(log);
     return {
       schema: 1,
       version: GAME_VERSION,
@@ -485,7 +570,7 @@ export async function runBench(game: Game, options: BenchOptions): Promise<Bench
       gpuTimer: probe.gpu.available,
       town: town.def.id,
       scenes,
-      turns: { waitMs: frameStats(log.waits), workerTurnMs: frameStats(log.workers), previewMs: frameStats(log.previews), steps: stepsOf() },
+      turns: { waitMs: frameStats(log.waits), workerTurnMs: frameStats(log.workers), previewMs: frameStats(log.previews), steps: log.steps },
       bootMs: bootMs(),
     };
   } finally {

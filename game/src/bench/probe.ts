@@ -1,7 +1,7 @@
 import { Object3D, type Camera, type PointLight, type SpotLight, type WebGLRenderer } from 'three';
 import { perfSnapshot, ranInWorker, type PerfStat } from '../perf';
 import type { Game } from '../three/game';
-import { drawTotals, emptyBySystem, SYSTEMS, type BenchSystem, type FrameRecord, type RenderPass, type SceneReport } from './report';
+import { drawTotals, emptyBySystem, SLOW_FRAME_MS, SYSTEMS, type BenchSystem, type FrameRecord, type RenderPass, type SceneReport } from './report';
 
 export const FRAME_STEP_MS = 16.67;
 const GPU_WAIT_MS = 5000;
@@ -75,7 +75,7 @@ function rootOf(part: unknown, name: string): Object3D {
   return root;
 }
 
-const OVERLAY_FIELDS = ['shade', 'zones', 'path', 'rescueAreas', 'weaponRange', 'hoverArcs', 'contacts', 'utilityAim', 'soundRing', 'beaconPulse', 'pickRing'];
+export const OVERLAY_FIELDS = ['shade', 'zones', 'path', 'rescueAreas', 'weaponRange', 'hoverArcs', 'contacts', 'utilityAim', 'soundRing', 'beaconPulse', 'pickRing'];
 
 type BeamLights = { shadowed: SpotLight[]; plain: SpotLight[]; glow: PointLight | null };
 type SiteSlots = { slots: { spot: SpotLight }[] };
@@ -97,7 +97,7 @@ export function systemRootsOf(game: Game): SystemRoots {
   const trucks = field(game, 'trucks') as TruckViewMap;
   const sun = field(game, 'sun') as Object3D & { target: Object3D };
   return {
-    terrain: [rootOf(field(game, 'ground'), 'ground')],
+    terrain: [rootOf(field(game, 'ground'), 'ground'), rootOf(field(game, 'craters'), 'craters')],
     props: [rootOf(field(game, 'props'), 'props')],
     vehicles: [...trucks.views.values()].map((view) => view.root),
     lights: [...lampsOf(game), sun, sun.target, rootOf(field(game, 'sky'), 'sky')],
@@ -111,6 +111,7 @@ type CountedRenderer = Pick<WebGLRenderer, 'info' | 'renderBufferDirect'>;
 type DirectArgs = Parameters<WebGLRenderer['renderBufferDirect']>;
 
 export class DrawCounter {
+  readonly shadowCameras = new Map<Camera, number>();
   private bySystem = emptyBySystem();
   private other: Record<string, number> = {};
   private rendererCalls = 0;
@@ -143,11 +144,16 @@ export class DrawCounter {
   private add(map: ReadonlyMap<Object3D, BenchSystem>, args: DirectArgs, draws: number, triangles: number): void {
     if (draws === 0) return;
     const pass: RenderPass = args[0] === this.camera ? 'main' : 'shadow';
+    if (pass === 'shadow') this.addShadow(args[0], draws);
     const { system, other } = attribute(args[4], this.scene, map);
     const count = this.bySystem[system][pass];
     count.draws += draws;
     count.triangles += triangles;
     if (other !== null) this.other[other] = (this.other[other] ?? 0) + draws;
+  }
+
+  private addShadow(camera: Camera, draws: number): void {
+    this.shadowCameras.set(camera, (this.shadowCameras.get(camera) ?? 0) + draws);
   }
 
   afterRender(): void {
@@ -266,11 +272,11 @@ class LongTasks {
   }
 }
 
-type LoopHooks = { closed: (realMs: number, tickMs: number) => void; callbackDone: () => void };
+type LoopHooks = { closed: (realMs: number, tickMs: number, startMs: number) => void; callbackDone: () => void };
 
 class FrameLoop {
   private readonly native = window.requestAnimationFrame.bind(window);
-  private clock = 0;
+  private clock: number | null = null;
   private round: number | null = null;
   private roundStart = 0;
   private tickMs = 0;
@@ -278,7 +284,6 @@ class FrameLoop {
   constructor(private readonly hooks: LoopHooks) {}
 
   install(): void {
-    this.clock = performance.now();
     window.requestAnimationFrame = (callback) => this.native((stamp) => this.run(callback, stamp));
   }
 
@@ -286,17 +291,17 @@ class FrameLoop {
     const arrived = performance.now();
     if (stamp !== this.round) this.open(stamp, arrived);
     const start = performance.now();
-    callback(this.clock);
+    callback(this.clock as number);
     this.tickMs += performance.now() - start;
     this.hooks.callbackDone();
   }
 
   private open(stamp: number, arrived: number): void {
-    if (this.round !== null) this.hooks.closed(arrived - this.roundStart, this.tickMs);
+    if (this.round !== null) this.hooks.closed(arrived - this.roundStart, this.tickMs, this.roundStart);
     this.round = stamp;
     this.roundStart = arrived;
     this.tickMs = 0;
-    this.clock += FRAME_STEP_MS;
+    this.clock = (this.clock ?? stamp) + FRAME_STEP_MS;
   }
 }
 
@@ -310,19 +315,22 @@ export class Probe {
   readonly longTasks = new LongTasks();
   pace: (() => void) | null = null;
   rounds = 0;
+  shadowDraws: ReadonlyMap<Camera, number> = new Map();
   private readonly renderer: WebGLRenderer;
-  private readonly loop = new FrameLoop({ closed: (real, tick) => this.onClosed(real, tick), callbackDone: () => this.onCallbackDone() });
+  private readonly loop = new FrameLoop({ closed: (real, tick, start) => this.onClosed(real, tick, start), callbackDone: () => this.onCallbackDone() });
   private failure: Error | null = null;
   private collecting: Collecting | null = null;
   private gated = false;
   private watchers: Watcher[] = [];
   private pending: Pending[] = [];
   private readonly drew = new WeakMap<FrameRecord, boolean>();
+  private readonly startedAt = new WeakMap<FrameRecord, number>();
   private originalRender: WebGLRenderer['render'] | null = null;
   private originalBuild: BuildingStreamer['buildOne'] | null = null;
   private counter: DrawCounter | null = null;
   private renderMs = 0;
   private renders = 0;
+  private calls = 0;
   private queries: WebGLQuery[] = [];
   private builds = 0;
   private uploadMark = 0;
@@ -396,19 +404,28 @@ export class Probe {
       counter.stop();
       this.counter = null;
     }
+    this.shadowDraws = counter.shadowCameras;
     return counter.report();
   }
 
-  onClosed(realMs: number, tickMs: number): void {
+  markSlowFrames(scene: string, records: readonly FrameRecord[]): void {
+    for (const record of records) {
+      const start = this.startedAt.get(record);
+      if (start === undefined) throw new Error('A frame record has no start time, so its slow frame cannot be marked');
+      if (record.real > SLOW_FRAME_MS) performance.measure(`bench:slow-frame:${scene}`, { start, end: start + record.real });
+    }
+  }
+
+  onClosed(realMs: number, tickMs: number, startMs: number): void {
     try {
-      this.close(realMs, tickMs);
+      this.close(realMs, tickMs, startMs);
     } catch (error) {
       this.failure = error as Error;
       this.checkWatchers();
     }
   }
 
-  private close(realMs: number, tickMs: number): void {
+  private close(realMs: number, tickMs: number, startMs: number): void {
     const record: FrameRecord = {
       real: realMs,
       tick: tickMs,
@@ -416,9 +433,11 @@ export class Probe {
       gpu: null,
       uploadBytes: UPLOADS.bytes - this.uploadMark,
       chunkBuilds: this.builds - this.buildMark,
+      calls: this.calls,
       timers: this.timerDelta(),
     };
     this.drew.set(record, this.renders > 0);
+    this.startedAt.set(record, startMs);
     if (this.queries.length > 0) this.pending.push({ record, queries: this.queries });
     this.resetMarks();
     this.rounds++;
@@ -435,6 +454,7 @@ export class Probe {
   private resetMarks(): void {
     this.renderMs = 0;
     this.renders = 0;
+    this.calls = 0;
     this.queries = [];
     this.uploadMark = UPLOADS.bytes;
     this.buildMark = this.builds;
@@ -486,9 +506,12 @@ export class Probe {
     this.originalRender = original;
     this.renderer.render = (scene, camera) => {
       const query = this.gpu.begin();
+      const { info } = this.renderer;
+      const before = info.autoReset ? 0 : info.render.calls;
       const start = performance.now();
       original.call(this.renderer, scene, camera);
       this.renderMs += performance.now() - start;
+      this.calls += info.render.calls - before;
       this.gpu.end();
       this.renders++;
       if (query) this.queries.push(query);
