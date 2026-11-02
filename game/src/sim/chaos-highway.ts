@@ -16,7 +16,7 @@ import { betweenLevels, gatesShut, inYard, yardSpots, yardSpotsAt, type YardSpot
 import { isDriveObstacle, mapObstacles } from './mapgen';
 import { rollPartStockPerKind } from './market';
 import { fightCornered, topGoal } from './npc-activities';
-import { generateNpcLoadout, type GearRules } from './npc-loadout';
+import { generateNpcLoadout, openGear, type GearRules } from './npc-loadout';
 import { randInt, type Rng } from './rng';
 import { modeRules } from './settings';
 import { directStretch, payOf, type PlannedWave } from './chaos-highway-director';
@@ -256,13 +256,13 @@ function spawnNext(world: World, run: ChaosHighwayRun, progress: number): void {
   spawnGroup(world, run, group, progress);
 }
 
-export function waveGear(template: string, stretch: number, money: number, elite: boolean): GearRules {
+export function waveGear(template: string, stretch: number, money: number): GearRules {
   const minSpeed = CHAOS_HIGHWAY.cards[template].chase ? CHAOS_HIGHWAY.chaseSpeed : MIN_NPC_SPEED;
-  return { ...waveOf(stretch).gear, armored: elite, armorFirst: elite, money, minSpeed, chassisFloor: minSpeed };
+  return { ...openGear(NPCS[template].loadout), ...waveOf(stretch).gear, money, minSpeed, chassisFloor: minSpeed };
 }
 
 export function spawnGroup(world: World, run: ChaosHighwayRun, group: WaveGroup, progress: number): void {
-  const loadouts = group.templates.map((id) => ({ tpl: NPCS[id], loadout: { ...generateNpcLoadout(world, NPCS[id], null, group.level, waveGear(id, group.stretch, group.money, group.elite)), cargo: {} } }));
+  const loadouts = group.templates.map((id) => ({ tpl: NPCS[id], loadout: { ...generateNpcLoadout(world, NPCS[id], null, group.level, waveGear(id, group.stretch, group.money)), cargo: {} } }));
   const spots = groupSpots(world, run, group.from, progress, loadouts.map((l) => footprint(l.loadout.chassisId)));
   if (spots === 'seen') {
     group.retryUntil = null;

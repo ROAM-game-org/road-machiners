@@ -42,15 +42,15 @@ describe('Chaos Highway waves', () => {
   it('builds every chasing card at least as fast as the chase speed, and lets blockers be slow', () => {
     for (const template of CHASERS) {
       const stretch = CHAOS_HIGHWAY.cards[template].from;
-      expect(waveGear(template, stretch, CHAOS_HIGHWAY.cards[template].floor, false).minSpeed).toBe(CHAOS_HIGHWAY.chaseSpeed);
+      expect(waveGear(template, stretch, CHAOS_HIGHWAY.cards[template].floor).minSpeed).toBe(CHAOS_HIGHWAY.chaseSpeed);
       for (const seed of [1, 2, 3]) {
         const [truck] = spawned(startWorld(seed), [template], stretch);
         expect(vehicleStats(startWorld(seed), truck).maxSpeed, `${template} seed ${seed}`).toBeGreaterThanOrEqual(CHAOS_HIGHWAY.chaseSpeed);
       }
     }
-    for (const template of BLOCKERS) expect(waveGear(template, CHAOS_HIGHWAY.cards[template].from, CHAOS_HIGHWAY.cards[template].floor, false).minSpeed).toBe(MIN_NPC_SPEED);
+    for (const template of BLOCKERS) expect(waveGear(template, CHAOS_HIGHWAY.cards[template].from, CHAOS_HIGHWAY.cards[template].floor).minSpeed).toBe(MIN_NPC_SPEED);
     for (const template of Object.keys(CHAOS_HIGHWAY.cards)) {
-      const gear = waveGear(template, CHAOS_HIGHWAY.cards[template].from, CHAOS_HIGHWAY.cards[template].floor, false);
+      const gear = waveGear(template, CHAOS_HIGHWAY.cards[template].from, CHAOS_HIGHWAY.cards[template].floor);
       expect(gear.chassisFloor).toBe(gear.minSpeed);
     }
   });
@@ -62,7 +62,7 @@ describe('Chaos Highway waves', () => {
         for (const times of [1, 4]) {
           for (const seed of [1, 4, 9]) {
             const money = card.floor * times * (elite ? CHAOS_HIGHWAY.director.elite.money : 1);
-            expect(() => generateNpcLoadout({ ...w, rngState: seed }, NPCS[template], null, 'light', waveGear(template, card.from, money, elite)), `${template} ${money} ${seed}`).not.toThrow();
+            expect(() => generateNpcLoadout({ ...w, rngState: seed }, NPCS[template], null, 'light', waveGear(template, card.from, money)), `${template} ${money} ${seed}`).not.toThrow();
           }
         }
       }

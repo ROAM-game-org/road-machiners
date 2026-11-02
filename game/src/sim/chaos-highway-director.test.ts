@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CHAOS_HIGHWAY, HAZARDS } from '../data/modes';
 import { cardsOf, directStretch, eliteCap, expectedGear, payOf, planWaves, stretchBudget } from './chaos-highway-director';
 import { NPCS } from '../data/npcs';
-import { isShield, PARTS } from '../data/parts';
+import { PARTS } from '../data/parts';
 import { HAULER_KIT, startKit } from '../data/start';
 import { waveGear, waveOf } from './chaos-highway';
 import { milestoneAt } from './highway';
@@ -124,26 +124,13 @@ describe('Chaos Highway director', () => {
       const j = card.from;
       const plain = Math.max(card.floor, stretchBudget(w, j).base);
       for (const elite of j >= DIRECTOR.elite.from ? [false, true] : [false]) {
-        const gear = waveGear(template, j, elite ? plain * DIRECTOR.elite.money : plain, elite);
+        const gear = waveGear(template, j, elite ? plain * DIRECTOR.elite.money : plain);
         for (let seed = 1; seed <= 20; seed++) {
           const loadout = generateNpcLoadout({ ...w, rngState: seed }, NPCS[template], null, waveOf(j).level, gear);
           expect(loadout.parts.some((p) => PARTS[p.defId].kind === 'weapon'), `${template} seed ${seed} elite ${elite}`).toBe(true);
         }
       }
     }
-  });
-
-  it('gives elite trucks armor before more guns', () => {
-    const w = withGrowth(1);
-    const j = DIRECTOR.elite.from;
-    const money = Math.max(CHAOS_HIGHWAY.cards.merc.floor, stretchBudget(w, j).base) * DIRECTOR.elite.money;
-    const platesOf = (armorFirst: boolean) => SEEDS.map((seed) => {
-      const loadout = generateNpcLoadout({ ...w, rngState: seed }, NPCS.merc, null, waveOf(j).level, { ...waveGear('merc', j, money, true), armorFirst });
-      return loadout.parts.filter((p) => isShield(PARTS[p.defId])).length;
-    });
-    const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
-    expect(sum(platesOf(true))).toBeGreaterThan(sum(platesOf(false)));
-    expect(platesOf(true).filter((n) => n > 0).length).toBeGreaterThan(0.5 * SEEDS.length);
   });
 
   it('pays more every stretch with no cap, and a beaten truck pays nothing', () => {

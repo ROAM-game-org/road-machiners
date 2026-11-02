@@ -15,7 +15,7 @@ import { NPCS } from '../data/npcs';
 import { betweenLevels, canDriveOn, chaosHighwayReadout, outpostFactsAt, reachedOutpostAt, spawnGroup, driveOn, waveGear, waveOf } from './chaos-highway';
 import { planHaulerOrder } from './hauler';
 import { endTurn, newWorld } from './world';
-import { cardsOf } from './chaos-highway-director';
+import { cardsOf, stretchBudget } from './chaos-highway-director';
 import { generateNpcLoadout } from './npc-loadout';
 import { rollPartStockPerKind } from './market';
 import { alongOf, highwayMap, toRoad } from './highway';
@@ -179,10 +179,10 @@ describe('Chaos Highway outpost stock', () => {
 });
 
 describe('Chaos Highway first enemy', () => {
-  function spawnedTrucks(seed: number, stretch: number, template: string, elite = false) {
+  function spawnedTrucks(seed: number, stretch: number, template: string, money = CHAOS_HIGHWAY.cards[template].floor) {
     const w = startWorld(seed);
     const run = w.chaosHighway!;
-    const group = { ...run.groups[0], stretch, from: 'ahead' as const, templates: [template], level: waveOf(stretch).level, money: CHAOS_HIGHWAY.cards[template].floor * (elite ? CHAOS_HIGHWAY.director.elite.money : 1), elite };
+    const group = { ...run.groups[0], stretch, from: 'ahead' as const, templates: [template], level: waveOf(stretch).level, money, elite: false };
     run.groups = [group];
     spawnGroup(w, run, group, alongOf(w.seed, toRoad(w.seed, 0, playerVehicle(w).pos)));
     return group.vehicles.map((id) => w.vehicles.find((v) => v.id === id)!);
@@ -190,16 +190,6 @@ describe('Chaos Highway first enemy', () => {
 
   const armorOf = (v: Vehicle) => v.items.filter((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'armor');
   const firstTemplates = cardsOf(1).map(([template]) => template);
-
-  it('carries no armor, mounted or spare, on any seed or template', () => {
-    for (const seed of [1, 3, 99]) {
-      for (const template of firstTemplates) {
-        const trucks = spawnedTrucks(seed, 1, template);
-        expect(trucks).toHaveLength(1);
-        expect(armorOf(trucks[0])).toEqual([]);
-      }
-    }
-  });
 
   it('carries a gun on any seed or template', () => {
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 99]) {
@@ -214,7 +204,7 @@ describe('Chaos Highway first enemy', () => {
     const w = startWorld(3);
     for (const stretch of [1, 3]) {
       for (const [template, card] of cardsOf(stretch)) {
-        const gear = waveGear(template, stretch, card.floor, false);
+        const gear = waveGear(template, stretch, card.floor);
         for (const seed of [1, 2, 3]) {
           const loadout = generateNpcLoadout({ ...w, rngState: seed }, NPCS[template], null, waveOf(stretch).level, gear);
           const guns = [...loadout.parts, ...loadout.spares].map((p) => partDef(p.defId)).filter((d) => d.kind === 'weapon');
@@ -224,11 +214,14 @@ describe('Chaos Highway first enemy', () => {
     }
   });
 
-  it('puts armor only on the trucks of an elite group', () => {
-    const elite = [1, 3, 99].flatMap((seed) => firstTemplates.flatMap((template) => spawnedTrucks(seed, 3, template, true)));
-    const plain = [1, 3, 99].flatMap((seed) => firstTemplates.flatMap((template) => spawnedTrucks(seed, 3, template, false)));
+  it('lets plain trucks buy armor, more of them as the gear money grows', () => {
+    const armoredShare = (stretch: number) => {
+      const money = stretchBudget(startWorld(1), stretch).base;
+      const trucks = [1, 3, 99].flatMap((seed) => cardsOf(stretch).map(([template, card]) => spawnedTrucks(seed, stretch, template, Math.max(card.floor, money))[0]));
+      return trucks.filter((v) => armorOf(v).length > 0).length / trucks.length;
+    };
 
-    expect(elite.filter((v) => armorOf(v).length > 0).length).toBeGreaterThan(0);
-    expect(plain.filter((v) => armorOf(v).length > 0)).toEqual([]);
+    expect(armoredShare(5)).toBeGreaterThan(0.2);
+    expect(armoredShare(9)).toBeGreaterThan(0.8);
   });
 });
