@@ -117,9 +117,9 @@ describe('trust', () => {
     expect(trustProblems(wrap())).toEqual([]);
   });
 
-  it('rejects a busy machine at start or end', () => {
+  it('rejects a machine busy at start, but not the load the bench itself left at the end', () => {
     expect(trustProblems(wrap(benchReport(), { loadStart: 6.5 }))).toHaveLength(1);
-    expect(trustProblems(wrap(benchReport(), { loadEnd: 7 }))[0]).toContain('end');
+    expect(trustProblems(wrap(benchReport(), { loadEnd: 7 }))).toEqual([]);
   });
 
   it('does not trust a load it could not read, and says so', () => {
@@ -219,6 +219,14 @@ describe('compare', () => {
     const slower = (median: number) => wrap(withScene('town-day', { frame: pass(stats(median, 12)) }));
     expect(changed(compare(wrap(), slower(8.1))).join('')).not.toContain('town-day real ms median');
     expect(changed(compare(wrap(), slower(9))).join('\n')).toContain('town-day real ms median');
+  });
+
+  it('signs a change by the numbers, not by their text', () => {
+    const fast = wrap(withScene('town-day', { frame: pass(stats(8, 12)) }));
+    const slow = wrap(withScene('town-day', { frame: pass(stats(16, 24)) }));
+    const medianOf = (text: string) => text.split('\n').find((l) => l.startsWith('town-day real ms median'))!;
+    expect(medianOf(compare(fast, slow))).toContain('+100.0%');
+    expect(medianOf(compare(slow, fast))).toContain('-100.0%');
   });
 
   it('uses the larger spread of the two runs', () => {

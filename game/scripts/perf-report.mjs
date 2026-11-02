@@ -64,9 +64,7 @@ export function checkBudgets(report, budget) {
 
 function loadProblems(run) {
   const limit = run.cores * LOAD_SHARE_MAX;
-  return [['start', run.loadStart], ['end', run.loadEnd]]
-    .filter(([, load]) => isMeasure(load) && load > limit)
-    .map(([when, load]) => `machine load at ${when} was ${fmt(load, 2)}, over half of ${run.cores} cores`);
+  return isMeasure(run.loadStart) && run.loadStart > limit ? [`machine load at start was ${fmt(run.loadStart, 2)}, over half of ${run.cores} cores`] : [];
 }
 
 function spreadProblems(scenes) {
@@ -214,25 +212,23 @@ function changeOf(a, b) {
 }
 
 function deltaText(a, b, change) {
-  if (change === undefined) return '';
   if (change === null) return 'n/a';
   if (change === Infinity) return 'from zero';
   return `${b >= a ? '+' : '-'}${fmt(change * 100)}%`;
 }
 
-function row(label, a, b, change, flagged) {
-  const delta = deltaText(a, b, change);
+function row(label, a, b, delta, flagged) {
   return `${label.padEnd(44)}${String(a).padStart(14)}${String(b).padStart(14)}${delta.padStart(10)}${flagged ? '  CHANGED' : ''}`;
 }
 
 function numRow(label, a, b, flagAbove = null) {
   const change = changeOf(a, b);
   const flagged = change === null ? isMeasure(a) !== isMeasure(b) : flagAbove !== null && change > flagAbove;
-  return row(label, fmt(a, 2), fmt(b, 2), change, flagged);
+  return row(label, fmt(a, 2), fmt(b, 2), deltaText(a, b, change), flagged);
 }
 
 function textRow(label, a, b) {
-  return row(label, a, b, undefined, false);
+  return row(label, a, b, '', false);
 }
 
 function statRows(prefix, a, b, spread) {
@@ -249,7 +245,7 @@ function drawRows(scene, a, b) {
     const left = a.draws.bySystem[system][pass];
     const right = b.draws.bySystem[system][pass];
     const changed = drawCell(left) !== drawCell(right);
-    return row(`${scene} ${system} ${pass} draws/triangles`, drawCell(left), drawCell(right), undefined, changed);
+    return row(`${scene} ${system} ${pass} draws/triangles`, drawCell(left), drawCell(right), '', changed);
   }));
 }
 
@@ -259,7 +255,7 @@ function sceneRows(a, b) {
   return [
     ...statRows(`${id} real ms`, a.frame.real, b.frame.real, spread),
     ...['tickCpu', 'renderCpu', 'gpu'].map((key) => numRow(`${id} ${key} median ms`, statOf(a.frame[key], 'median'), statOf(b.frame[key], 'median'))),
-    numRow(`${id} spread`, a.spread, b.spread),
+    textRow(`${id} spread`, fmt(a.spread, 2), fmt(b.spread, 2)),
     textRow(`${id} bound`, a.bound ?? 'n/a', b.bound ?? 'n/a'),
     numRow(`${id} long tasks`, a.longTasks, b.longTasks),
     numRow(`${id} draws counted`, a.draws.total, b.draws.total, 0),
