@@ -72,6 +72,10 @@ type Numbering = (partId: string) => number;
 type Canvases = { body: HTMLCanvasElement; parts: HTMLCanvasElement };
 type Maps = { size: PixelSize; lit: Uint8ClampedArray; ids: Uint16Array; cells: Uint16Array };
 
+export type PortraitPixels = Maps & { parts: Uint8ClampedArray };
+
+export type KeepPixels = (pixels: PortraitPixels) => void;
+
 export type Glow = { canvas: HTMLCanvasElement; x: number; y: number; width: number; height: number };
 
 export type Portrait = {
@@ -269,7 +273,7 @@ export class TruckPortraits {
   }
 }
 
-function keyOf(pristine: Vehicle, playerPaint: TruckPaint): string {
+export function keyOf(pristine: Vehicle, playerPaint: TruckPaint): string {
   return `${pristine.id}|${signatureOf(pristine, playerPaint)}`;
 }
 
@@ -717,7 +721,22 @@ function heightsOf(v: Vehicle, solid: Drawn[]): (item: PartItem) => Heights {
   };
 }
 
-function* composePortrait(renderer: THREE.WebGLRenderer, view: VehicleView, v: Vehicle, trash: Disposable[]): Generator<PortraitWait, Portrait, void> {
+function numberedItems(v: Vehicle): { items: PartItem[]; numberOf: Numbering } {
+  const numberOf = numbering();
+  const items = conditionItems(v);
+  for (const item of items) numberOf(item.part.id);
+  return { items, numberOf };
+}
+
+export function portraitFromPixels(v: Vehicle, pixels: PortraitPixels): Portrait {
+  const { items, numberOf } = numberedItems(v);
+  const { size, lit, ids, cells } = pixels;
+  const index = { ids: indexIds(ids, size, lit), cells: indexIds(cells, size) };
+  checkCovered(v, items, index.ids, numberOf);
+  return portraitOver(v, items, { size, lit, ids, cells }, index, numberOf, { body: canvasOf(lit, size), parts: canvasOf(pixels.parts, size) });
+}
+
+function* composePortrait(renderer: THREE.WebGLRenderer, view: VehicleView, v: Vehicle, trash: Disposable[], keep?: KeepPixels): Generator<PortraitWait, Portrait, void> {
   poseAtRest(view, v);
   const meshes = drawnMeshes(view.root);
   const cabs = cabSpans(v, glassMeshes(meshes));
@@ -732,16 +751,15 @@ function* composePortrait(renderer: THREE.WebGLRenderer, view: VehicleView, v: V
   const isPart = partOnly(v);
   const parts = yield* captureParts(pass, view, meshes, isPart, trash);
   yield;
-  const numberOf = numbering();
-  const items = conditionItems(v);
-  for (const item of items) numberOf(item.part.id);
+  const { numberOf } = numberedItems(v);
   const solid = meshes.filter((m) => m.visible);
   const ids = yield* capturePartIds(pass, view, v, solid, isPart, numberOf, trash, cabs);
   const cells = yield* captureCellIds(pass, v, solid, numberOf, trash);
   yield;
-  const index = { ids: indexIds(ids, size, lit), cells: indexIds(cells, size) };
-  checkCovered(v, items, index.ids, numberOf);
-  return portraitOver(v, items, { size, lit, ids, cells }, index, numberOf, { body: canvasOf(lit, size), parts: canvasOf(parts, size) });
+  const pixels = { size, lit, parts, ids, cells };
+  const portrait = portraitFromPixels(v, pixels);
+  keep?.(pixels);
+  return portrait;
 }
 
 function oneStep(): RebuildBudget {
@@ -749,19 +767,19 @@ function oneStep(): RebuildBudget {
   return { take: () => !spent && (spent = true), ready: () => true };
 }
 
-function* portraitSteps(renderer: THREE.WebGLRenderer, view: VehicleView, pristine: Vehicle, playerPaint: TruckPaint, trash: Disposable[]): Generator<PortraitWait, Portrait, void> {
+function* portraitSteps(renderer: THREE.WebGLRenderer, view: VehicleView, pristine: Vehicle, playerPaint: TruckPaint, trash: Disposable[], keep?: KeepPixels): Generator<PortraitWait, Portrait, void> {
   while (!view.built) {
     view.update(pristine, false, playerPaint, oneStep());
     yield;
   }
-  return yield* composePortrait(renderer, view, pristine, trash);
+  return yield* composePortrait(renderer, view, pristine, trash, keep);
 }
 
-export function startPortrait(renderer: THREE.WebGLRenderer, pristine: Vehicle, playerPaint: TruckPaint): PortraitBuild {
+export function startPortrait(renderer: THREE.WebGLRenderer, pristine: Vehicle, playerPaint: TruckPaint, keep?: KeepPixels): PortraitBuild {
   const view = new VehicleView(null, false, playerPaint, 'portrait');
   const trash: Disposable[] = [];
   return {
-    steps: portraitSteps(renderer, view, pristine, playerPaint, trash),
+    steps: portraitSteps(renderer, view, pristine, playerPaint, trash, keep),
     dispose() {
       view.dispose();
       for (const item of trash) if (!(item instanceof THREE.Material)) item.dispose();
