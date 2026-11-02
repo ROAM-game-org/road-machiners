@@ -41,7 +41,7 @@ jobs:
   draws:
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    container: mcr.microsoft.com/playwright:v1.63.0-noble
+    container: mcr.microsoft.com/playwright:v1.64.1-noble
     steps:
       - name: install git
         run: apt-get update && apt-get install -y --no-install-recommends git
