@@ -76,7 +76,19 @@ function openWindow(): BrowserWindow {
   return window;
 }
 
+function focusRunningWindow(): void {
+  const [window] = BrowserWindow.getAllWindows();
+  if (!window) return;
+  if (window.isMinimized()) window.restore();
+  window.focus();
+}
+
+const onlyInstance = app.requestSingleInstanceLock();
+if (!onlyInstance) app.quit();
+app.on('second-instance', focusRunningWindow);
+
 app.whenReady().then(() => {
+  if (!onlyInstance) return;
   const userData = app.getPath('userData');
   serveGame(distRoot());
   serveSaves(new FileSaves(join(userData, 'saves'), join(userData, 'logs')));

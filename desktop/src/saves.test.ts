@@ -73,11 +73,14 @@ describe('file saves', () => {
     expect(await saves.readAll()).toEqual([]);
   });
 
-  it('refuses a damaged save file loudly', async () => {
-    await mkdir(savesDir(), { recursive: true });
+  it('hands a damaged save file back as its raw text and still reads the good slots', async () => {
+    await saves.put('slot1', { turn: 4 });
     await writeFile(join(savesDir(), 'auto.json'), '{"turn": ');
 
-    await expect(saves.readAll()).rejects.toThrow();
+    const read = new Map(await saves.readAll());
+
+    expect(read.get('auto')).toBe('{"turn": ');
+    expect(read.get('slot1')).toEqual({ turn: 4 });
   });
 
   it('refuses a slot id that is not a slot', async () => {

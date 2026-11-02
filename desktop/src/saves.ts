@@ -23,6 +23,15 @@ export function checkedRunId(runId: unknown): string {
   return runId;
 }
 
+export function parsedOrRaw(text: string): unknown {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error;
+    return text;
+  }
+}
+
 export class FileSaves {
   private readonly queues = new Map<string, Promise<unknown>>();
   private readonly nextSeq = new Map<string, number>();
@@ -76,7 +85,7 @@ export class FileSaves {
 
   private async readSlot(slot: SlotId): Promise<unknown> {
     const file = this.slotFile(slot);
-    return this.queued(file, async () => JSON.parse(await readFile(file, 'utf8')) as unknown);
+    return this.queued(file, async () => parsedOrRaw(await readFile(file, 'utf8')));
   }
 
   private slotFile(slot: SlotId): string {
