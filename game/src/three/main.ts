@@ -286,7 +286,7 @@ bootStep('loading the save');
 const { world, runId, loadedFrom, fresh } = await bootWorld();
 const log = new RunLog(slots, runId, GAME_VERSION, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
-const routesReady = initPhysics().then(() => travel.warm(world, driveSnapshotOf(world)));
+initPhysics().then(() => travel.warm(world, driveSnapshotOf(world))).catch(reportError);
 bootStep('building the ground');
 await boot.track('ground', () => groundTexture(world));
 bootStep('waiting for physics and models');
@@ -295,11 +295,7 @@ bootStep('starting the game');
 const radio = new RadioPanel(new RadioStation(Math.random), () => game.loops.nextTrack());
 radio.hear(world);
 const overlay = element('overlay');
-const game = await boot.track('scene', async () => {
-  const built = new Game(world, { slots, runId, log, mapHash: world.mapHash }, element('game'), overlay, new SoundPlayer(mixer, sounds, SOUNDS), music, soundSettings, radio, surface, travel);
-  await routesReady;
-  return built;
-});
+const game = await boot.track('scene', async () => new Game(world, { slots, runId, log, mapHash: world.mapHash }, element('game'), overlay, new SoundPlayer(mixer, sounds, SOUNDS), music, soundSettings, radio, surface, travel));
 if (questJump) game.screens.quest.jump(questJump.picks, questJump.page);
 relocalizeGame = () => {
   game.relanguageQuest();
