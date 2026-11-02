@@ -220,12 +220,17 @@ export class CardBatch {
     if (!(span > 0)) return;
     const scale = (DEPTH_BINS - 1) / span;
     const n = this.cards.length;
-    const binOf = (i: number) => Math.floor((farthest - this.depths[i]) * scale);
+    const binOf = (i: number) => this.binOf((farthest - this.depths[i]) * scale);
     this.binStarts.fill(0);
     for (let i = 0; i < n; i++) this.binStarts[binOf(i) + 1]++;
     for (let b = 1; b <= DEPTH_BINS; b++) this.binStarts[b] += this.binStarts[b - 1];
     for (let i = 0; i < n; i++) this.ordered[this.binStarts[binOf(i)]++] = this.cards[i];
     for (let i = 0; i < n; i++) this.cards[i] = this.ordered[i];
+  }
+
+  private binOf(position: number): number {
+    const bin = Math.floor(position);
+    return bin >= 0 && bin < DEPTH_BINS ? bin : 0;
   }
 
   private measureDepths(look: THREE.Vector3): { nearest: number; farthest: number } {
@@ -235,6 +240,7 @@ export class CardBatch {
       const c = this.cards[i];
       const depth = c.x * look.x + c.y * look.y + c.z * look.z;
       this.depths[i] = depth;
+      if (!Number.isFinite(depth)) continue;
       nearest = Math.min(nearest, depth);
       farthest = Math.max(farthest, depth);
     }

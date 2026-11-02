@@ -74,6 +74,14 @@ describe('lit card order', () => {
     expect(offsetsZ(batch)).toEqual([-5, -4, -3, -2, -1]);
   });
 
+  it('keeps every card when one has a depth that is not a number', () => {
+    const batch = new CardBatch(16, 'lit', new THREE.Texture(), 100);
+    for (const z of [-1, Number.NaN, -3, Infinity]) put(batch, { ...card(0.5, 1), z });
+    batch.flush(lookingDown);
+    expect(drawn(batch)).toBe(4);
+    expect(offsetsZ(batch).filter((z) => Number.isFinite(z))).toEqual([-3, -1]);
+  });
+
   it('keeps the order of cards at one depth and draws a single card', () => {
     const batch = new CardBatch(16, 'lit', new THREE.Texture(), 100);
     for (const x of [3, 1, 2]) put(batch, { ...card(0.5, 1), x, z: -2 });
