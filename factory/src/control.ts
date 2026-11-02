@@ -13,11 +13,12 @@ import { readState, updateState } from './state';
 import { ownWorkSettled } from './stages/card-suite';
 import { agentHome, baseBranchFor, workDir } from './stages/common';
 import { closeCard } from './stages/approval';
+import { claimReleaseTask, taskRefusal } from './stages/release-common';
 import { invalidateApproval } from './stages/kept-approval';
 import { moveCard, type CardStep } from './card-events';
 import { openStore } from './public/store';
 import { closeByHand } from './public/votes';
-import { BRANCH, GAME_DIR, NEEDS_INFO_LABEL, RELEASE_LABEL, STUCK_LABEL, TASK_FILE, VOTING_LABEL, isCleanupTask, type Card, type Column, type Ctx, type FactoryState, type ReleaseState } from './types';
+import { BRANCH, GAME_DIR, HOTFIX_LABEL, NEEDS_INFO_LABEL, RELEASE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, TASK_FILE, VOTING_LABEL, isCleanupTask, type Card, type Column, type Ctx, type FactoryState, type ReleaseState } from './types';
 
 export const DROP_QUEUES = ['approval', 'removal', 'ship', 'incident'] as const;
 export type DropQueue = (typeof DROP_QUEUES)[number];
@@ -30,7 +31,8 @@ export type ControlAction =
   | { action: 'remove'; issue: number }
   | { action: 'drop'; queue: DropQueue; id: number | null }
   | { action: 'hold'; issue: number }
-  | { action: 'unhold'; issue: number };
+  | { action: 'unhold'; issue: number }
+  | { action: 'enroll'; issue: number };
 export type ControlCommand = ControlAction & { by: string; reason: string };
 
 type Outcome = { issue: number | null; text: string };
@@ -77,7 +79,9 @@ const SHAPES: { [A in ControlAction['action']]: (data: Data) => Extract<ControlA
   remove: (data) => ({ action: 'remove', issue: requireNumber(data, 'issue') }),
   drop: (data) => ({ action: 'drop', queue: requireOneOf(data, 'queue', DROP_QUEUES), id: requireDropId(data) }),
   hold: (data) => ({ action: 'hold', issue: requireNumber(data, 'issue') }),
-  unhold: (data) => ({ action: 'unhold', issue: requireNumber(data, 'issue') }),};
+  unhold: (data) => ({ action: 'unhold', issue: requireNumber(data, 'issue') }),
+  enroll: (data) => ({ action: 'enroll', issue: requireNumber(data, 'issue') }),
+};
 
 export function parseControl(raw: unknown): ControlCommand {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new Error('A control command must be a JSON object.');
@@ -115,7 +119,7 @@ function approves(command: ControlCommand): command is Extract<ControlCommand, {
 type Handlers = { [A in ControlAction['action']]: (ctx: Ctx, command: Extract<ControlCommand, { action: A }>, by: string) => Promise<Outcome> };
 
 const HANDLERS: Handlers = {
-  move, merge, ship, cut, remove, drop,
+  move, merge, ship, cut, remove, drop, enroll,
   hold: async (ctx, command, by) => ({ issue: command.issue, text: await holdCard(ctx, command.issue, by, command.reason) }),
   unhold: async (ctx, command) => ({ issue: command.issue, text: releaseHold(ctx, command.issue) }),
 };
@@ -383,4 +387,40 @@ async function drop(ctx: Ctx, command: Extract<ControlCommand, { action: 'drop' 
   if (!DROPS[queue].has(readState(ctx.statePath), entry)) throw new Error(`The ${name} is not there.`);
   updateState(ctx.statePath, (state) => DROPS[queue].without(state, entry));
   return { issue: ISSUE_QUEUES.includes(queue) ? id : null, text: `Dropped the ${name}.` };
+}
+
+function enrollRefusal(card: Card): string | null {
+  if (card.column === 'Done') return 'its card is Done, so its change is already settled. Open a release task for any fix the release still needs';
+  if (card.labels.includes(RELEASE_LABEL)) return 'it is the release tracking issue';
+  if (card.labels.includes(HOTFIX_LABEL)) return 'it is a hotfix, which ships to main on its own and meets the release at its Ship';
+  if (card.labels.includes(VOTING_LABEL)) return 'it waits for player votes, so it is no fix yet';
+  return null;
+}
+
+async function enroll(ctx: Ctx, command: Extract<ControlCommand, { action: 'enroll' }>, by: string): Promise<Outcome> {
+  const card = await requireCard(ctx, command.issue);
+  const claim = claimReleaseTask(ctx, card.issue, openReleaseIssue(ctx, card), (state) => taskRefusal(state) ?? mergingRefusal(state, card));
+  if ('refusal' in claim) throw enrollError(card, claim.refusal);
+  const { release, added } = claim;
+  if (added) await ctx.github.comment(release.issue, `#${card.issue} is now a task of this release, ordered by ${by}: ${command.reason}\n\nIt was already filed, so no new issue was opened. Any current candidate post no longer ships. The playtest, a new candidate and Ship wait until its approved change is on ${release.branch} or it is refused.`);
+  return { issue: card.issue, text: enrolledText(card, release, added) };
+}
+
+const enrollError = (card: Card, refusal: string): Error => new Error(`Issue #${card.issue} cannot become a task of the open release: ${refusal}.`);
+
+function openReleaseIssue(ctx: Ctx, card: Card): number {
+  const refusal = enrollRefusal(card);
+  if (refusal !== null) throw enrollError(card, refusal);
+  const { release } = readState(ctx.statePath);
+  if (release === null) throw enrollError(card, 'no release is open');
+  return release.issue;
+}
+
+const mergingRefusal = (state: FactoryState, card: Card): string | null => (isMerging(state, card) ? 'it is merging now. Repeat the order after the merge job ends' : null);
+
+function enrolledText(card: Card, release: ReleaseState, added: boolean): string {
+  const already = added ? 'is now' : 'was already';
+  if (card.labels.includes(RELEASE_TASK_LABEL)) return `#${card.issue} ${already} a task of release ${release.day}, and it runs on ${release.branch}.`;
+  if (card.column === 'Triage') return `#${card.issue} ${already} a task of release ${release.day}. A ready verdict of triage runs it as a fix of that release, on ${release.branch}.`;
+  return `#${card.issue} ${already} a task of release ${release.day}. It keeps its column, branch, work and agent sessions, and goes on from dev with the committee approval as before. When the merge job lands its approved change on dev, it ports that change onto ${release.branch} with the full merge checks, and only then is the card done. The playtest, a new candidate and Ship wait for it.`;
 }

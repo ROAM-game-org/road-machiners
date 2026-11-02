@@ -63,6 +63,18 @@ describe('remove', () => {
     expect(readState(f.ctx.statePath).release).toMatchObject({ removed: [5], merges: [{ issue: 5, reverted: ['release/2026-09-29', 'dev'] }] });
   });
 
+  it('reverts a release task ported from dev by its pick on the release and by its own dev merge on dev', async () => {
+    const f = fake();
+    const pick = 'c'.repeat(40);
+    const merge = { ...issueMerge(5, 'Too loud', { into: 'release/2026-09-29' }), sha: pick, fromDev: 'd'.repeat(40) };
+    const reverts: string[] = [];
+    f.ctx.repo.revertMerge = async (item, branch) => { reverts.push(`${item.sha} ${branch}`); };
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, merges: [merge] }, pendingRemovals: [{ issue: 5, by: 'Ann', text: 't' }] });
+    await remove(f.ctx, 5);
+    expect(reverts).toEqual([`${pick} release/2026-09-29`, `${'d'.repeat(40)} dev`]);
+    expect(readState(f.ctx.statePath).release).toMatchObject({ removed: [5], merges: [{ issue: 5, reverted: ['release/2026-09-29', 'dev'] }] });
+  });
+
   it('has an agent resolve a conflicting revert and goes on with the removal', async () => {
     const f = fake();
     f.revertConflicts = ['dev'];

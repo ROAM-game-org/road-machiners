@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { readState, updateState } from '../state';
-import { RELEASE_TASK_LABEL, type Card, type Ctx, type IssueMerge, type ReleaseState } from '../types';
+import { RELEASE_TASK_LABEL, type Card, type Ctx, type FactoryState, type IssueMerge, type ReleaseState } from '../types';
 
 export type Feature = { issue: number; title: string };
 
@@ -49,6 +49,34 @@ export function recordReleaseTask(ctx: Ctx, issue: number): void {
     if (state.release === null) throw new Error(`No release is open to record task #${issue}`);
     return state.release.tasks.includes(issue) ? state : { ...state, release: { ...state.release, tasks: [...state.release.tasks, issue] } };
   });
+}
+
+export function taskRefusal(state: FactoryState): string | null {
+  if (state.release === null) return 'no release is open';
+  if (state.release.shipping !== undefined || state.jobs.some((job) => job.stage === 'ship')) return `release ${state.release.day} is shipping`;
+  return null;
+}
+
+export type TaskClaim = { release: ReleaseState; added: boolean } | { refusal: string };
+
+export function claimReleaseTask(ctx: Ctx, issue: number, tracking: number, refuse: (state: FactoryState) => string | null = taskRefusal): TaskClaim {
+  let claim: TaskClaim = { refusal: 'no release is open' };
+  updateState(ctx.statePath, (state) => {
+    const { claimed, next } = claimIn(state, issue, tracking, refuse);
+    claim = claimed;
+    return next;
+  });
+  return claim;
+}
+
+function claimIn(state: FactoryState, issue: number, tracking: number, refuse: (state: FactoryState) => string | null): { claimed: TaskClaim; next: FactoryState } {
+  const { release } = state;
+  if (release?.issue !== tracking) return { claimed: { refusal: `the open release is no longer the one of #${tracking}` }, next: state };
+  const refusal = refuse(state);
+  if (refusal !== null) return { claimed: { refusal }, next: state };
+  if (release.tasks.includes(issue)) return { claimed: { release, added: false }, next: state };
+  const added = { ...release, postId: null, tasks: [...release.tasks, issue] };
+  return { claimed: { release: added, added: true }, next: { ...state, pendingShip: null, release: added } };
 }
 
 export function forgetReleaseTask(ctx: Ctx, issue: number): void {

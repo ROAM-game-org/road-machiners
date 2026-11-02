@@ -43,12 +43,33 @@ describe('taskCandidateReports', () => {
     expect(openTasks([...cards, { itemId: 'd', issue: 602, column: 'Done', labels: [] }], state.release!.tasks)).toEqual([601]);
   });
 
-  it('keeps a task forgotten by triage forgotten', async () => {
+  it('keeps a task forgotten by triage forgotten, also when the same text is reported again', async () => {
     const f = withReports();
     await taskCandidateReports(f.ctx, f.store);
     updateState(f.ctx.statePath, (state) => ({ ...state, release: { ...state.release!, tasks: [602] } }));
+    f.store.addReport({ address: 'b', build: 'rc', version: 'v', kind: 'bug', text: 'The truck sinks!', verdict: 'accept', intent: 'sincere', sincere: 0.9, at: AT, issue: 40, createdIssue: 601 });
     await taskCandidateReports(f.ctx, f.store);
     expect(readState(f.ctx.statePath).release?.tasks).toEqual([602]);
+    expect(f.comments).toHaveLength(2);
+  });
+
+  it('drops a candidate post that is already up and a queued Ship, since that candidate lacks the report', async () => {
+    const f = withReports({ postId: 77, candidateSha: 'abc' });
+    updateState(f.ctx.statePath, (state) => ({ ...state, pendingShip: 'Ann' }));
+    await taskCandidateReports(f.ctx, f.store);
+    const state = readState(f.ctx.statePath);
+    expect(state.release).toMatchObject({ postId: null, tasks: [601, 602] });
+    expect(state.pendingShip).toBeNull();
+    expect(f.comments[0]!.body).toContain('Any current candidate post no longer ships.');
+  });
+
+  it('records nothing while a Ship job runs, before the release records what it ships', async () => {
+    const f = withReports();
+    updateState(f.ctx.statePath, (state) => ({ ...state, jobs: [{ id: 'ship-1', stage: 'ship', issue: 40, pid: 1, startedAt: AT, log: 'l' }] }));
+    await taskCandidateReports(f.ctx, f.store);
+    expect(readState(f.ctx.statePath).release?.tasks).toEqual([]);
+    expect(f.store.untaskedCandidateReports(40)).toEqual([601, 602]);
+    expect(f.comments).toEqual([]);
   });
 
   it('records nothing while no release is open or the release ships, and keeps the reports for no later release', async () => {

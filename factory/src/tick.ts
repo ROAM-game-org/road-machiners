@@ -125,7 +125,8 @@ function cardCandidates(state: FactoryState, cards: Card[]): Candidate[] {
     .sort((a, b) => a.issue - b.issue)
     .map((card) => ({ stage: 'adhoc' as const, issue: card.issue }));
   const work = rest.filter(lacks(ADHOC_LABEL));
-  const normal = [...adhoc, ...byProgress(state, work.filter(has(RELEASE_TASK_LABEL))), ...byProgress(state, work.filter(lacks(RELEASE_TASK_LABEL)))];
+  const releaseTask = (card: Card): boolean => card.labels.includes(RELEASE_TASK_LABEL) || (state.release?.tasks.includes(card.issue) ?? false);
+  const normal = [...adhoc, ...byProgress(state, work.filter(releaseTask)), ...byProgress(state, work.filter((card) => !releaseTask(card)))];
   return [...hotfix, ...normal.map((pick) => ({ ...pick, pastCardLimit: false }))];
 }
 

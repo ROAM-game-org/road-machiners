@@ -367,7 +367,7 @@ export class PublicStore {
   }
 
   untaskedCandidateReports(release: number): number[] {
-    return this.db.prepare(`select distinct created_issue from reports where ${CANDIDATE_REPORT} and tasked_at is null order by created_issue`).all(release).map((row) => Number(row.created_issue));
+    return this.db.prepare(`select created_issue from reports where ${CANDIDATE_REPORT} group by created_issue having max(tasked_at) is null order by created_issue`).all(release).map((row) => Number(row.created_issue));
   }
 
   markTasked(release: number, issue: number, at: Date): void {
