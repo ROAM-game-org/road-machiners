@@ -15,7 +15,7 @@ inspector.connect();
 await inspector.post('Profiler.enable');
 
 const mode = process.argv[2] ?? 'drive';
-const turns = Number(process.argv[3] ?? 8);
+let turns = Number(process.argv[3] ?? 8);
 await initPhysics();
 const base = standardWorld(1);
 const towns = REGION.towns.flatMap((def) => {
@@ -38,6 +38,27 @@ if (process.env.WARM) {
     step();
     console.log(`warm step ${i} ${(performance.now() - started).toFixed(0)} ms`);
   });
+}
+if (mode === 'preview') {
+  const { planTurns } = await import('../src/phys/plan');
+  for (let i = 0; i < turns; i++) {
+    if (i === profileFrom) await inspector.post('Profiler.start');
+    const drive = buildDrive(world);
+    const before = perfSnapshot();
+    const started = performance.now();
+    const frames = planTurns(drive, structuredClone(world), me.id);
+    const ms = performance.now() - started;
+    freeDrive(drive);
+    const after = perfSnapshot();
+    const steps = Object.entries(after)
+      .map(([k, v]) => [k, v.total - (before[k]?.total ?? 0)])
+      .filter(([, v]) => v > 1)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([k, v]) => `${k} ${v.toFixed(0)}`);
+    console.log(`preview ${i} ${ms.toFixed(0)} ms, ${frames.turns.length} turns (${steps.join(', ')})`);
+  }
+  turns = 0;
 }
 for (let i = 0; i < turns; i++) {
   if (i === profileFrom) await inspector.post('Profiler.start');
