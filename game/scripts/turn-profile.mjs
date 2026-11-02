@@ -4,7 +4,7 @@ import { dist } from '../src/sim/vec';
 import { skipToHour, spawnNear, teleport, toggleGod } from '../src/sim/cheats';
 import { standardWorld } from '../src/test/world-cache';
 import { buildDrive, captureDrive, freeDrive, initPhysics } from '../src/phys/drive';
-import { computeTurn } from '../src/phys/turn';
+import { computeTurn, SentObstacles } from '../src/phys/turn';
 import { perfSnapshot } from '../src/perf';
 import { Session } from 'node:inspector/promises';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -16,6 +16,7 @@ await inspector.post('Profiler.enable');
 
 const mode = process.argv[2] ?? 'drive';
 let turns = Number(process.argv[3] ?? 8);
+const sent = new SentObstacles();
 await initPhysics();
 const base = standardWorld(1);
 const towns = REGION.towns.flatMap((def) => {
@@ -46,7 +47,7 @@ if (mode === 'preview') {
     const drive = buildDrive(world);
     const before = perfSnapshot();
     const started = performance.now();
-    const frames = planTurns(drive, structuredClone(world), me.id);
+    const frames = planTurns(drive, world, me.id);
     const ms = performance.now() - started;
     freeDrive(drive);
     const after = perfSnapshot();
@@ -64,6 +65,22 @@ for (let i = 0; i < turns; i++) {
   if (i === profileFrom) await inspector.post('Profiler.start');
   const drive = buildDrive(world);
   const { terrain, ...state } = world;
+  if (process.env.CLONE) {
+    const { obstacles, ...rest } = state;
+    const sync = sent.split(state).obstacles;
+    console.log(`obstacle sync before turn ${i}: ${sync.kind}${sync.kind === 'delta' ? ` remove ${sync.remove.length} add ${sync.add.length}` : ''}, ${obstacles.length} obstacles`);
+    const cloneMs = (value) => {
+      const started = performance.now();
+      structuredClone(value);
+      return performance.now() - started;
+    };
+    const fields = Object.entries(rest)
+      .map(([key, value]) => [key, cloneMs(value)])
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([key, ms]) => `${key} ${ms.toFixed(1)}`);
+    console.log(`clone before turn ${i}: without obstacles ${cloneMs(rest).toFixed(1)} ms, obstacles ${cloneMs(obstacles).toFixed(1)} ms (${fields.join(', ')})`);
+  }
   const before = perfSnapshot();
   const t = performance.now();
   const prepared = computeTurn({ world: structuredClone(state), drive: captureDrive(drive), questLanguage: 'en', tailSteps: 11, fastTravel: false }, terrain);

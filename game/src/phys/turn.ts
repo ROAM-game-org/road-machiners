@@ -134,6 +134,11 @@ export type WorkerFailure = { id: number; error: string };
 export type PostedTurn = Omit<PreparedTurn, 'world'> & { world: Omit<TurnState, 'obstacles'> };
 export type TurnResponse = { id: number; turn: PostedTurn; obstacles: ObstacleSync; perf: Record<string, PerfStat> } | WorkerFailure;
 
+export function postLabel(base: string, request: { terrain: unknown; obstacles: ObstacleSync }): string {
+  const obstacles = request.obstacles.kind === 'same' ? '' : `-obstacles-${request.obstacles.kind}`;
+  return `${base}${request.terrain ? '-terrain' : ''}${obstacles}`;
+}
+
 export function joinTurn(turn: PostedTurn, obstacles: ObstacleSync, before: TurnState): PreparedTurn {
   return { ...turn, world: { ...turn.world, obstacles: applyObstacles(before.obstacles, obstacles) } };
 }

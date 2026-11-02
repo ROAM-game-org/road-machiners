@@ -10,7 +10,7 @@ import {
 } from "../phys/drive";
 import type { TurnClock } from "./render/hazards";
 import { frameAt, type VehicleFrame } from "../phys/frames";
-import { joinTurn, SentObstacles, withTail, type LiveSight, type PreparedTurn, type Tail, type TerrainRequest, type TurnRequest, type TurnResponse } from "../phys/turn";
+import { joinTurn, postLabel, SentObstacles,withTail, type LiveSight, type PreparedTurn, type Tail, type TerrainRequest, type TurnRequest, type TurnResponse } from "../phys/turn";
 import { CONFIG, steppedSpeedIndex } from "../config";
 import { PHYSICS } from "../data/physics";
 import type { QuestLanguage } from "../data/quests";
@@ -608,7 +608,7 @@ export class TurnPreparation {
       drive: { ...saved, snapshot },
       terrain: this.terrain === terrain ? null : terrain,
     }));
-    timed("send-turn-post", () => this.worker?.postMessage(request satisfies TurnRequest, [snapshot.buffer]));
+    timed(postLabel("send-turn-post", request), () => this.worker?.postMessage(request satisfies TurnRequest, [snapshot.buffer]));
     this.terrain = terrain;
     return id;
   }
