@@ -15,7 +15,7 @@ import {
   type BenchReport, type BenchSystem, type FrameRecord, type SceneReport,
 } from './report';
 
-export type BenchOptions = { savingsAbove: number | null; passFrames: number | null; marks: boolean };
+export type BenchOptions = { savingsAbove: number | null; passFrames: number | null; marks: boolean; scenes: string[] | null };
 
 const PASS_FRAMES = 600;
 const SAVINGS_FRAMES = 240;
@@ -528,6 +528,13 @@ function specsFor(ctx: Ctx, town: Town, base: World): Spec[] {
   ];
 }
 
+function chosenSpecs(specs: Spec[], only: string[] | null): Spec[] {
+  if (only === null) return specs;
+  const unknown = only.filter((id) => !specs.some((spec) => spec.id === id));
+  if (unknown.length > 0) throw new Error(`No bench scene ${unknown.join(', ')}. Scenes are ${specs.map((spec) => spec.id).join(', ')}`);
+  return specs.filter((spec) => only.includes(spec.id));
+}
+
 async function playAll(ctx: Ctx, specs: Spec[], preview: () => Promise<void>): Promise<SceneReport[]> {
   const scenes: SceneReport[] = [];
   for (const spec of specs) {
@@ -557,7 +564,7 @@ export async function runBench(game: Game, options: BenchOptions): Promise<Bench
   const town = pickTown(base);
   probe.install();
   try {
-    const specs = specsFor(ctx, town, teleport(base, town.pad));
+    const specs = chosenSpecs(specsFor(ctx, town, teleport(base, town.pad)), options.scenes);
     const scenes = await playAll(ctx, specs, () => measurePreviews(ctx, outsideBase(teleport(base, town.pad), town), log));
     if (options.marks) markTurns(log);
     return {
@@ -569,6 +576,7 @@ export async function runBench(game: Game, options: BenchOptions): Promise<Bench
       renderScale: start.scale,
       gpuTimer: probe.gpu.available,
       town: town.def.id,
+      only: options.scenes,
       scenes,
       turns: { waitMs: frameStats(log.waits), workerTurnMs: frameStats(log.workers), previewMs: frameStats(log.previews), steps: log.steps },
       bootMs: bootMs(),

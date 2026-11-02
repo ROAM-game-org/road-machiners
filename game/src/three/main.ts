@@ -167,7 +167,7 @@ async function runBenchMode(game: Game): Promise<void> {
   try {
     const params = new URLSearchParams(window.location.search);
     const { runBench } = await import('../bench/bench');
-    state.report = await runBench(game, { savingsAbove: positiveParam(params, 'savingsAbove'), passFrames: positiveParam(params, 'benchFrames'), marks: params.has('profile') });
+    state.report = await runBench(game, { savingsAbove: positiveParam(params, 'savingsAbove'), passFrames: positiveParam(params, 'benchFrames'), marks: params.has('profile'), scenes: params.get('scenes')?.split(',') ?? null });
   } catch (error) {
     failure = error;
   } finally {

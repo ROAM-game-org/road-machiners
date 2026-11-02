@@ -45,6 +45,7 @@ function benchReport(over: Record<string, unknown> = {}) {
     renderScale: 1,
     gpuTimer: true,
     town: 'Sorgut',
+    only: null,
     scenes: IDS.map((id) => scene(id)),
     turns: { waitMs: stats(40, 60), workerTurnMs: stats(30, 50), previewMs: stats(20, 30), steps: { move: { total: 300, calls: 10, max: 40 }, fight: { total: 100, calls: 10, max: 15 } } },
     bootMs: 1500,
@@ -71,6 +72,13 @@ describe('budgets', () => {
     const lines = checkBudgets(benchReport(), budget);
     expect(lines.every((l) => l.pass && !l.missing)).toBe(true);
     expect(lines.filter((l) => l.scene === 'drive')).toHaveLength(4);
+  });
+
+  it('judges the turn wait only when a turn scene ran, and the preview only when the drive ran', () => {
+    const labels = (ids: string[]) => checkBudgets(benchReport({ only: ids, scenes: ids.map((id) => scene(id)), turns: { ...benchReport().turns, waitMs: emptyStats, previewMs: emptyStats } }), budget).filter((l) => l.scene === 'turns').map((l) => l.label);
+    expect(labels(['town-day'])).toEqual([]);
+    expect(labels(['fight'])).toEqual(['turn wait p99']);
+    expect(labels(['drive'])).toEqual(['turn wait p99', 'plan preview p99']);
   });
 
   it('measures a p99 miss by how far it is over the limit', () => {

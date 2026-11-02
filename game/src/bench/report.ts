@@ -25,6 +25,7 @@ export type BenchReport = {
   renderScale: number;
   gpuTimer: boolean;
   town: string;
+  only: string[] | null;
   scenes: SceneReport[];
   turns: { waitMs: FrameStats; workerTurnMs: FrameStats; previewMs: FrameStats; steps: Record<string, { total: number; calls: number; max: number }> };
   bootMs: number;
