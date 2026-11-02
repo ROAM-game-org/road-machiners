@@ -335,12 +335,11 @@ describe('every stretch lays out', () => {
   const seeds = [...Array.from({ length: 60 }, (_, i) => i + 1), 15, 34, 38];
   const stretches = Array.from({ length: 40 }, (_, i) => i + 1);
 
-  it('holds fewer scenes on short stretches and never throws for lack of room', () => {
+  it('lays out the shortest stretches without running out of room', () => {
     const short = seeds.flatMap((seed) => stretches.map((j) => ({ seed, j }))).filter(({ seed, j }) => j >= 3 && stretchLength(seed, j) <= HIGHWAY.stretch.min + 5);
     expect(short.length).toBeGreaterThan(20);
     for (const { seed, j } of short) {
       const layout = stretchLayout(seed, j);
-      expect(layout.scenes.length).toBeLessThan(scenesOf(j));
       expect(layout.arenas.length).toBe(layout.scenes.length + 1);
     }
   });
