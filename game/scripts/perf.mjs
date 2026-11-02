@@ -4,7 +4,7 @@ import net from 'node:net';
 import os from 'node:os';
 import { chromium } from 'playwright';
 import { launchChromium } from './gpu.mjs';
-import { profileReport } from './perf-profile.mjs';
+import { allocationReport, profileReport } from './perf-profile.mjs';
 import { budgetsFor, bundleProblems, checkBudgets, compare, LOAD_SHARE_MAX, OTHERS_CPU_SHARE_MAX, summary, trustProblems } from './perf-report.mjs';
 
 const CHROMIUM_FLAGS = ['--disable-gpu-vsync', '--disable-frame-rate-limit', '--mute-audio'];
@@ -17,6 +17,7 @@ const OTHERS_SAMPLE_MS = 5000;
 const CAP_PROBE_FRAMES = 300;
 const CAP_PROBE_MAX_MEDIAN_MS = 3;
 const WINDOWS_LOAD_SAMPLE_MS = 1000;
+const HEAP_SAMPLE_BYTES = 16384;
 const PROFILE_CATEGORIES = ['disabled-by-default-v8.cpu_profiler', 'blink.user_timing'];
 const TRACE_MAX_BYTES = 400 * 1024 * 1024;
 const USAGE = 'Usage: npm run perf [-- --profile] [--scenes <id,id>] [--url <served build>]\n       npm run perf -- --compare <a.json> <b.json>';
@@ -257,6 +258,17 @@ async function pollBench(page, errors, others) {
   throw new Error(`The bench did not finish in ${BENCH_TIMEOUT_MS / 1000} s`);
 }
 
+async function startHeapSampling(page, on) {
+  if (!on) return null;
+  const heap = await page.context().newCDPSession(page);
+  await heap.send('HeapProfiler.startSampling', { samplingInterval: HEAP_SAMPLE_BYTES, includeObjectsCollectedByMajorGC: true, includeObjectsCollectedByMinorGC: true });
+  return heap;
+}
+
+async function stopHeapSampling(heap) {
+  return heap ? (await heap.send('HeapProfiler.stopSampling')).profile : null;
+}
+
 async function playBench(base, budget, tracePath, scenes) {
   const others = new OthersCpu();
   const { browser, software, renderer } = await launchChromium(chromium, { headless: true, args: CHROMIUM_FLAGS });
@@ -269,11 +281,13 @@ async function playBench(base, budget, tracePath, scenes) {
     page.on('crash', () => errors.push('the page crashed'));
     const frameCapOff = await frameCapIsOff(page);
     if (tracePath) await browser.startTracing(page, { path: tracePath, screenshots: false, categories: PROFILE_CATEGORIES });
+    const heap = await startHeapSampling(page, Boolean(tracePath));
     await page.goto(benchUrl(base, budget, Boolean(tracePath), scenes));
     const report = await pollBench(page, errors, others);
     others.sample();
+    const sampling = await stopHeapSampling(heap);
     if (tracePath) await browser.stopTracing();
-    return { report, frameCapOff, othersCores: others.cores() };
+    return { report, frameCapOff, othersCores: others.cores(), sampling };
   } finally {
     await browser.close();
   }
@@ -295,12 +309,12 @@ async function measure(base, budget, commit, { profile, scenes }) {
   const startedAt = new Date().toISOString();
   const path = reportBase(os.hostname(), commit, startedAt);
   const tracePath = profile ? `${path}.trace.json` : null;
-  const { report, frameCapOff, othersCores } = await playBench(base, budget, tracePath, scenes);
+  const { report, frameCapOff, othersCores, sampling } = await playBench(base, budget, tracePath, scenes);
   const loadEnd = await machineLoad();
   const run = { commit, machine: os.hostname(), cores: os.cpus().length, loadStart: idle.load, idleWaitMs: idle.waitedMs, loadEnd, othersCores, startedAt, frameCapOff, untrusted: [] };
   const wrapped = { bench: report, run };
   run.untrusted = trustProblems(wrapped);
-  if (tracePath) wrapped.profile = profileReport(readTrace(tracePath));
+  if (tracePath) wrapped.profile = { ...profileReport(readTrace(tracePath)), allocations: allocationReport(sampling) };
   return { wrapped, path: `${path}.json` };
 }
 

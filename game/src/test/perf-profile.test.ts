@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { measureWindows, profileLines, profileReport, type TraceEvent } from '../../scripts/perf-profile.mjs';
+import { allocationLines, allocationReport, measureWindows, profileLines, profileReport, type TraceEvent } from '../../scripts/perf-profile.mjs';
 
 const PID = 1;
 const MAIN = 10;
@@ -143,5 +143,21 @@ describe('profileLines', () => {
     const text = profileLines(profileReport(trace(slow('town-day', 20, 100)))).join('\n');
     expect(text).toContain('Slow frames, main thread, town-day');
     expect(text).toContain('render three-1.js:100');
+  });
+});
+
+describe('allocation report', () => {
+  const node = (functionName: string, selfSize: number, children: ReturnType<typeof frame>[] | unknown[] = []) => ({ callFrame: frame(functionName, 'http://x/assets/index-abc.js', 9), selfSize, children });
+
+  it('ranks the functions that allocated most, adding the same function across call paths', () => {
+    const head = node('(root)', 0, [node('post', 3e6, [node('clone', 5e6)]), node('tick', 1e6, [node('clone', 2e6)])]);
+    const report = allocationReport({ head } as never);
+    expect(report.totalMb).toBeCloseTo(11, 5);
+    expect(report.top.map((entry) => [entry.name, entry.mb])).toEqual([['clone', 7], ['post', 3], ['tick', 1]]);
+    expect(allocationLines(report).join('\n')).toContain('clone index-abc.js:10');
+  });
+
+  it('fails when the sampling profile holds no allocations', () => {
+    expect(() => allocationReport({ head: node('(root)', 0) } as never)).toThrow('no allocations');
   });
 });
