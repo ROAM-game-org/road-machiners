@@ -1,6 +1,6 @@
 # Player view check in Testing
 
-**Status:** executing
+**Status:** validating
 **Branch:** factory/player-view-check
 **Worktree:** .worktrees/player-view-check
 **Goal:** The Testing stage catches work a player would hate, before the card reaches the committee. The committee is one person who plays only some cards, so agent checks carry most of the QA. Confirming it needs real cards to pass through Testing, with screenshots that show the change as a player meets it and the check's findings fixed. Useless if: the reviewer reads the code, the task file, the issue or the rules docs and so judges by the rules again; the screenshots do not show the change, so the reviewer judges empty frames; findings send the card to another stage; the check adds rounds or a gate that can stall a card; the post grows a report nobody reads; a finding kept on purpose is hidden from the committee.
@@ -100,3 +100,22 @@ Approach: prompt and doc text only, per IV4. `readShown` in `factory/src/evidenc
 - RK1 — The agent can drop real slop to save work, and only the session log shows it. The first real cards' session logs get read to check this.
 - RK2 — The stage gets slower with a second subagent and retakes. The 45-minute budget stays the only bound.
 - Rollback: revert the two commits.
+
+## Conclusion
+
+Outcome: the Testing prompt and `stages.md` carry the screenshot rules and the player view check, at the head of `factory/player-view-check`. The goal stays open until real cards pass through Testing with it.
+
+Invariants:
+- IV1 — The brief gives only copies in `tmp/player-view/` and descriptions that never name the change, and says to open no other file. A prompt rule, not a sandbox.
+- IV2 — All 8 rubric lines and one retake are in the brief.
+- IV3 — `test.md` has the outrank rule, the drop rule and the "Kept:" line, plus a "Changed:" line added in review.
+- IV4 — The diff touches only `test.md`, `stages.md` and this file.
+
+### Assumptions check
+- AS1 — unverifiable until real cards run; #1323 shows a crashed clone can still leave only extra shots.
+- AS2 — partly held in the #1313 trial; real cards decide it.
+
+Plan adherence: added in review were the "Changed:" line for fixes against the issue, a single retake with at most 2 subagent runs, and copies in `tmp/player-view/`.
+
+Review findings:
+- Important: the retake loop had no end, the blindness rested on words alone, and a fix against the issue went unexplained. All three are fixed.
