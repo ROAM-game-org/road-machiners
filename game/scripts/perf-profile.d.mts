@@ -17,7 +17,8 @@ export function measureWindows(events: TraceEvent[]): { kind: string; scene: str
 export function profileReport(trace: { traceEvents: TraceEvent[] } | TraceEvent[]): ProfileReport;
 export function profileLines(profile: ProfileReport): string[];
 
-export type AllocationEntry = { name: string; file: string; line: number | null; bytes: number; mb: number; pct: number };
+export type AllocationSite = { name: string; file: string; line: number | null };
+export type AllocationEntry = AllocationSite & { caller: AllocationSite; bytes: number; mb: number; pct: number };
 export type AllocationReport = { totalMb: number; top: AllocationEntry[] };
 export type HeapSamplingNode = { callFrame: { functionName: string; url: string; lineNumber: number }; selfSize: number; children?: HeapSamplingNode[] };
 export function allocationReport(sampling: { head: HeapSamplingNode }): AllocationReport;

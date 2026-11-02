@@ -178,20 +178,20 @@ export function profileLines(profile) {
   return profile.allocations ? [...groups, ...allocationLines(profile.allocations)] : groups;
 }
 
-function allocationTotals(node, totals) {
+function allocationTotals(node, caller, totals) {
+  const where = keyOf(node.callFrame);
   if (node.selfSize > 0) {
-    const where = keyOf(node.callFrame);
-    const key = `${where.name}|${where.file}|${where.line}`;
-    const entry = totals.get(key) ?? { ...where, bytes: 0 };
+    const key = `${where.name}|${where.file}|${where.line}|${caller.name}|${caller.file}|${caller.line}`;
+    const entry = totals.get(key) ?? { ...where, caller, bytes: 0 };
     entry.bytes += node.selfSize;
     totals.set(key, entry);
   }
-  for (const child of node.children ?? []) allocationTotals(child, totals);
+  for (const child of node.children ?? []) allocationTotals(child, where, totals);
   return totals;
 }
 
 export function allocationReport(sampling) {
-  const totals = allocationTotals(sampling.head, new Map());
+  const totals = allocationTotals(sampling.head, { name: '(top)', file: '', line: null }, new Map());
   const all = [...totals.values()].reduce((sum, entry) => sum + entry.bytes, 0);
   if (all === 0) throw new Error('The heap sampling profile holds no allocations');
   const top = [...totals.values()].sort((a, b) => b.bytes - a.bytes).slice(0, TOP_COUNT).map((entry) => ({ ...entry, mb: entry.bytes / 1e6, pct: (entry.bytes / all) * 100 }));
@@ -199,6 +199,7 @@ export function allocationReport(sampling) {
 }
 
 export function allocationLines(allocations) {
-  const rows = allocations.top.map((entry, i) => `  ${String(i + 1).padStart(2)}. ${entry.mb.toFixed(1).padStart(8)} MB ${entry.pct.toFixed(1).padStart(5)}%  ${entry.name} ${entry.file ? `${entry.file}:${entry.line}` : ''}`);
+  const at = (entry) => `${entry.name} ${entry.file ? `${entry.file}:${entry.line}` : ''}`;
+  const rows = allocations.top.map((entry, i) => `  ${String(i + 1).padStart(2)}. ${entry.mb.toFixed(1).padStart(8)} MB ${entry.pct.toFixed(1).padStart(5)}%  ${at(entry)} called by ${at(entry.caller)}`);
   return ['', `Allocations on the main thread over the whole run, ${allocations.totalMb.toFixed(1)} MB sampled:`, ...rows];
 }

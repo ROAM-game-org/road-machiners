@@ -149,12 +149,13 @@ describe('profileLines', () => {
 describe('allocation report', () => {
   const node = (functionName: string, selfSize: number, children: ReturnType<typeof frame>[] | unknown[] = []) => ({ callFrame: frame(functionName, 'http://x/assets/index-abc.js', 9), selfSize, children });
 
-  it('ranks the functions that allocated most, adding the same function across call paths', () => {
-    const head = node('(root)', 0, [node('post', 3e6, [node('clone', 5e6)]), node('tick', 1e6, [node('clone', 2e6)])]);
+  it('ranks the functions that allocated most with the function that called them, adding the same pair across call paths', () => {
+    const clones = [node('clone', 5e6), node('clone', 1e6)];
+    const head = node('(root)', 0, [node('post', 3e6, [clones[0]]), node('tick', 1e6, [clones[1]]), node('post', 1e6, [node('clone', 2e6)])]);
     const report = allocationReport({ head } as never);
-    expect(report.totalMb).toBeCloseTo(11, 5);
-    expect(report.top.map((entry) => [entry.name, entry.mb])).toEqual([['clone', 7], ['post', 3], ['tick', 1]]);
-    expect(allocationLines(report).join('\n')).toContain('clone index-abc.js:10');
+    expect(report.totalMb).toBeCloseTo(13, 5);
+    expect(report.top.map((entry) => [entry.name, entry.caller.name, entry.mb])).toEqual([['clone', 'post', 7], ['post', '(root)', 4], ['tick', '(root)', 1], ['clone', 'tick', 1]]);
+    expect(allocationLines(report).join('\n')).toContain('clone index-abc.js:10 called by post index-abc.js:10');
   });
 
   it('fails when the sampling profile holds no allocations', () => {

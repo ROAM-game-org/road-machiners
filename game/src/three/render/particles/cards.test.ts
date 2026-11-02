@@ -10,6 +10,10 @@ function card(alpha: number, size: number): Card {
   return { x: 0, y: 0, z: 0, size, spin: 0, shape: 0, r: 1, g: 1, b: 1, alpha, sx: 0, sy: 0, sz: 0 };
 }
 
+function put(batch: CardBatch, filled: Card): void {
+  Object.assign(batch.slot(), filled);
+}
+
 function drawn(batch: CardBatch): number {
   return (batch.mesh.geometry as THREE.InstancedBufferGeometry).instanceCount;
 }
@@ -17,7 +21,7 @@ function drawn(batch: CardBatch): number {
 describe('card fill ceiling', () => {
   it('draws every card while they paint less than the ceiling', () => {
     const batch = new CardBatch(16, 'glow', new THREE.Texture(), 2);
-    for (let i = 0; i < 4; i++) batch.push(card(0.5, 5));
+    for (let i = 0; i < 4; i++) put(batch, card(0.5, 5));
     batch.flush(camera);
     expect(drawn(batch)).toBe(4);
   });
@@ -25,7 +29,7 @@ describe('card fill ceiling', () => {
   it('stops drawing the faintest cards once they would paint the screen more times over than the ceiling', () => {
     const batch = new CardBatch(16, 'glow', new THREE.Texture(), 2);
     const before = perfSnapshot()[OVERFILL_COUNTER]?.calls ?? 0;
-    for (const alpha of [0.1, 0.9, 0.2, 0.8, 0.3, 0.7]) batch.push(card(alpha, 10));
+    for (const alpha of [0.1, 0.9, 0.2, 0.8, 0.3, 0.7]) put(batch, card(alpha, 10));
     batch.flush(camera);
     expect(drawn(batch)).toBe(2);
     expect(perfSnapshot()[OVERFILL_COUNTER].calls - before).toBe(4);
@@ -37,8 +41,8 @@ describe('card fill ceiling', () => {
 
   it('counts a streak by its length on screen', () => {
     const batch = new CardBatch(16, 'glow', new THREE.Texture(), 1);
-    batch.push({ ...card(0.9, 5), sx: 15 });
-    batch.push(card(0.5, 5));
+    put(batch, { ...card(0.9, 5), sx: 15 });
+    put(batch, card(0.5, 5));
     batch.flush(camera);
     expect(drawn(batch)).toBe(1);
   });

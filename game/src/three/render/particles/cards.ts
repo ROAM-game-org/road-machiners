@@ -35,6 +35,8 @@ export type Card = {
   sz: number;
 };
 
+const emptyCard = (): Card => ({ x: 0, y: 0, z: 0, size: 0, spin: 0, shape: 0, r: 0, g: 0, b: 0, alpha: 0, sx: 0, sy: 0, sz: 0 });
+
 const VERTEX = `
   attribute vec3 offset;
   attribute vec3 stretch;
@@ -131,6 +133,7 @@ export class CardBatch {
   private readonly shapes: THREE.InstancedBufferAttribute;
   private readonly tints: THREE.InstancedBufferAttribute;
   private readonly cards: Card[] = [];
+  private readonly pool: Card[] = [];
   private readonly depth = new THREE.Vector3();
 
   constructor(private readonly capacity: number, private readonly kind: 'lit' | 'glow', shapes: THREE.Texture, private readonly fillScreens: number) {
@@ -160,8 +163,14 @@ export class CardBatch {
   }
 
   push(card: Card): void {
+    Object.assign(this.slot(), card);
+  }
+
+  slot(): Card {
     if (this.cards.length >= this.capacity) throw new Error(`CardBatch over its ${this.capacity} cards; the client pools must cap below it`);
+    const card = (this.pool[this.cards.length] ??= emptyCard());
     this.cards.push(card);
+    return card;
   }
 
   flush(camera: THREE.Camera): void {
