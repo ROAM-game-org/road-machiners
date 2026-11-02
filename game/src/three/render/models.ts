@@ -550,7 +550,9 @@ function weldGrid(geos: readonly THREE.BufferGeometry[]): WeldGrid {
 }
 
 function weldKey(grid: WeldGrid, x: number, y: number, z: number): number {
-  const [i, j, k] = [weldStep(x) - grid.min[0], weldStep(y) - grid.min[1], weldStep(z) - grid.min[2]];
+  const i = weldStep(x) - grid.min[0];
+  const j = weldStep(y) - grid.min[1];
+  const k = weldStep(z) - grid.min[2];
   return (i * grid.span[1] + j) * grid.span[2] + k;
 }
 
@@ -564,7 +566,9 @@ function weld(geos: readonly THREE.BufferGeometry[]): THREE.BufferGeometry {
     const count = g.index ? g.index.count : pos.count;
     for (let n = 0; n < count; n++) {
       const at = g.index ? g.index.getX(n) : n;
-      const [x, y, z] = [pos.getX(at), pos.getY(at), pos.getZ(at)];
+      const x = pos.getX(at);
+      const y = pos.getY(at);
+      const z = pos.getZ(at);
       const key = weldKey(origin, x, y, z);
       let slot = slots.get(key);
       if (slot === undefined) {
