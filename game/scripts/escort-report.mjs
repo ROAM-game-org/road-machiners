@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { gearShares, median, seedRun, table, verdicts } from '../src/sim/progression/escort-report.ts';
+import { balanceVerdicts, gearShares, median, playVerdicts, seedRun, table } from '../src/sim/progression/escort-report.ts';
 
 const dir = process.argv.slice(2).find((a) => a !== '--') ?? 'tmp/progression';
 
@@ -32,10 +32,16 @@ print('Enemy trucks', table(escort, (r) => `${r.stats.enemies.length}`));
 print('Useful parts affordable / useful, their total price / money in M', table(escort, (r) => (r.choice ? `${r.choice.affordable}/${r.choice.useful} ${r.choice.total}/${r.choice.money}` : '-')));
 print('Stretches beaten, sprinter', table(sprinter, (r) => `${r.stats.haulerDamage}${mark(r)}`));
 console.log(`\nMeasured gear share of pay on both trucks: median ${median(shares).toFixed(2)} over ${shares.length} outposts`);
-console.log('\nCriteria');
-let failed = 0;
-for (const v of verdicts(escort, sprinter)) {
-  console.log(`${v.pass ? 'PASS' : 'FAIL'}  ${v.name}: ${v.detail}`);
-  if (!v.pass) failed++;
+const line = (v) => console.log(`${v.pass ? 'PASS' : 'FAIL'}  ${v.name}: ${v.detail}`);
+const play = playVerdicts(escort);
+console.log('\nPlay checks');
+play.forEach(line);
+if (play.some((v) => !v.pass)) {
+  console.log('\nVOID: the escort bot did not play the mode, so its runs measure nothing about balance. The balance checks are not judged. Fix the bot, not the score.');
+  process.exitCode = 1;
+} else {
+  const balance = balanceVerdicts(escort, sprinter);
+  console.log('\nBalance checks');
+  balance.forEach(line);
+  process.exitCode = balance.some((v) => !v.pass) ? 1 : 0;
 }
-process.exitCode = failed > 0 ? 1 : 0;

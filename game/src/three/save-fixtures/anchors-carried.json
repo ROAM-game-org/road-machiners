@@ -1,0 +1,793 @@
+{
+  "2-1-roaming.json": {
+    "money": -20,
+    "xp": 533.2431172152818,
+    "ranks": {
+      "driving": 0,
+      "perception": 1,
+      "machining": 0,
+      "toughness": 0,
+      "social": 0
+    },
+    "xpBySource": {
+      "roughTiles": 48.242925066961114,
+      "escape": 24.295685106184564,
+      "hit": 132.43605294252475,
+      "contact": 22.13043185251814,
+      "discover": 70,
+      "fieldJob": 1.867221832251926,
+      "search": 173.65,
+      "heat": 111.72575653812625,
+      "damage": 10.313498953086,
+      "profit": 1.6,
+      "deal": 80.98154492362903,
+      "call": 56
+    },
+    "perks": [],
+    "knockouts": 0,
+    "fuel": 39.216016951318935,
+    "supplies": 17.607152522268212,
+    "costBasis": {
+      "scrap": 6.333333333333334,
+      "tools": 33.50000000000001,
+      "parts": 6.666666666666668,
+      "salt": 8.666666666666668,
+      "meds": 23.333333333333336,
+      "textiles": 11.666666666666668
+    },
+    "notes": [],
+    "quests": {
+      "world": {},
+      "local": {}
+    },
+    "run": null,
+    "revisions": {}
+  },
+  "2-25-roaming.json": {
+    "money": 307,
+    "xp": 22.919146582338104,
+    "ranks": {
+      "driving": 1,
+      "perception": 1,
+      "machining": 1,
+      "toughness": 1,
+      "social": 1
+    },
+    "xpBySource": {
+      "roughTiles": 138.2689217845809,
+      "contact": 28.383766097031806,
+      "discover": 80,
+      "search": 183,
+      "heat": 156.65606506619275,
+      "profit": 435.8103936345327,
+      "call": 0.8
+    },
+    "perks": [],
+    "knockouts": 0,
+    "fuel": 17.21127732443257,
+    "supplies": 15.658847899071898,
+    "costBasis": {
+      "scrap": 6.333333333333334,
+      "tools": 35.66666666666667,
+      "meds": 23.333333333333336,
+      "parts": 3.333333333333334,
+      "electronics": 51.43333333333334
+    },
+    "notes": [],
+    "quests": {
+      "world": {},
+      "local": {}
+    },
+    "run": null,
+    "revisions": {}
+  },
+  "2-6-roaming.json": {
+    "money": 462,
+    "xp": 441.1370692578309,
+    "ranks": {
+      "driving": 1,
+      "perception": 1,
+      "machining": 1,
+      "toughness": 0,
+      "social": 1
+    },
+    "xpBySource": {
+      "roughTiles": 148.49457461110504,
+      "escape": 57.11330625227459,
+      "hit": 255.51820083930053,
+      "contact": 24.402009020981296,
+      "discover": 123.7597827587234,
+      "fieldJob": 3.45,
+      "patch": 7.5,
+      "search": 231,
+      "heat": 114.07588439302593,
+      "damage": 38.21414926024693,
+      "profit": 136.80916212217326,
+      "deal": 60,
+      "call": 40.8
+    },
+    "perks": [],
+    "knockouts": 0,
+    "fuel": 12.956340396676922,
+    "supplies": 18.094269475904984,
+    "costBasis": {
+      "scrap": 6.333333333333334,
+      "tools": 36.66666666666667,
+      "parts": 6.666666666666668,
+      "salt": 8.666666666666668,
+      "meds": 23.333333333333336,
+      "fuelDrums": 9.333333333333334
+    },
+    "notes": [],
+    "quests": {
+      "world": {},
+      "local": {}
+    },
+    "run": null,
+    "revisions": {}
+  },
+  "2-61-highway.json": {
+    "money": 97,
+    "xp": 218.02106378229573,
+    "ranks": {
+      "driving": 1,
+      "perception": 1,
+      "machining": 1,
+      "toughness": 1,
+      "social": 1
+    },
+    "xpBySource": {
+      "roughTiles": 351.28721460259,
+      "escape": 57.850842751847125,
+      "hit": 535.6457407945729,
+      "contact": 2.373614035001619,
+      "discover": 37,
+      "fieldJob": 34.327031669461064,
+      "heat": 127.81959207648924,
+      "damage": 71.71702785233377
+    },
+    "perks": [],
+    "knockouts": 0,
+    "fuel": 52.00823971352819,
+    "supplies": 19.130230570837004,
+    "costBasis": {},
+    "notes": [],
+    "quests": {
+      "world": {},
+      "local": {}
+    },
+    "run": {
+      "from": 10,
+      "earned": 3450,
+      "wrecks": 0,
+      "trucksSold": [
+        "van"
+      ],
+      "hauler": {
+        "items": [
+          {
+            "x": 3,
+            "y": 7,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "cabPickup",
+              "wear": 0,
+              "hp": 120,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 3,
+            "y": 12,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "transmissionMid",
+              "wear": 0,
+              "hp": 60,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 5,
+            "y": 12,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "tankMid",
+              "wear": 0,
+              "hp": 50,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 1,
+            "y": 3,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelMid",
+              "wear": 0,
+              "hp": 50,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 7,
+            "y": 3,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelMid",
+              "wear": 0,
+              "hp": 49,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 1,
+            "y": 42,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelMid",
+              "wear": 0,
+              "hp": 33,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 7,
+            "y": 42,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelMid",
+              "wear": 0,
+              "hp": 50,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 3,
+            "y": 4,
+            "rot": 1,
+            "kind": "part",
+            "part": {
+              "defId": "workhorseDiesel",
+              "wear": 0,
+              "hp": 80,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 3,
+            "y": 0,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "scrapSheet",
+              "wear": 1,
+              "hp": 21,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 2,
+            "y": 47,
+            "rot": 1,
+            "kind": "part",
+            "part": {
+              "defId": "spacedArmor",
+              "wear": 3,
+              "hp": 41,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 1,
+            "y": 8,
+            "rot": 1,
+            "kind": "part",
+            "part": {
+              "defId": "ram",
+              "wear": 1,
+              "hp": 97,
+              "rebuilt": false
+            }
+          }
+        ],
+        "fuel": 153.94247039388569,
+        "supplies": 19.011535905712023
+      }
+    },
+    "revisions": {}
+  },
+  "2-61-roaming.json": {
+    "money": 157,
+    "xp": 29.396566650704656,
+    "ranks": {
+      "driving": 1,
+      "perception": 1,
+      "machining": 1,
+      "toughness": 1,
+      "social": 0
+    },
+    "xpBySource": {
+      "roughTiles": 115.12307852097406,
+      "escape": 7.677720463120425,
+      "contact": 29.953204663115425,
+      "discover": 70,
+      "fieldJob": 3,
+      "search": 268.3,
+      "heat": 139.12256300349446,
+      "profit": 188.22000000000003,
+      "call": 8
+    },
+    "perks": [],
+    "knockouts": 0,
+    "fuel": 18.827901144066768,
+    "supplies": 16.895783228534246,
+    "costBasis": {
+      "scrap": 6.33,
+      "parts": 7.39625,
+      "meds": 23.33,
+      "salt": 8.51,
+      "electronics": 51.67,
+      "tools": 39.96769230769231
+    },
+    "notes": [],
+    "quests": {
+      "world": {
+        "wagon_seen": true
+      },
+      "local": {}
+    },
+    "run": null,
+    "revisions": {}
+  },
+  "2-62-highway.json": {
+    "money": 97,
+    "xp": 218.02106378229573,
+    "ranks": {
+      "driving": 1,
+      "perception": 1,
+      "machining": 1,
+      "toughness": 1,
+      "social": 1
+    },
+    "xpBySource": {
+      "roughTiles": 351.28721460259,
+      "escape": 57.850842751847125,
+      "hit": 535.6457407945729,
+      "contact": 2.373614035001619,
+      "discover": 37,
+      "fieldJob": 34.327031669461064,
+      "heat": 127.81959207648924,
+      "damage": 71.71702785233377
+    },
+    "perks": [],
+    "knockouts": 0,
+    "fuel": 52.00823971352819,
+    "supplies": 19.130230570837004,
+    "costBasis": {},
+    "notes": [],
+    "quests": {
+      "world": {},
+      "local": {}
+    },
+    "run": {
+      "from": 10,
+      "earned": 3450,
+      "wrecks": 0,
+      "trucksSold": [
+        "van"
+      ],
+      "hauler": {
+        "items": [
+          {
+            "x": 3,
+            "y": 7,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "cabPickup",
+              "wear": 0,
+              "hp": 120,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 3,
+            "y": 12,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "transmissionMid",
+              "wear": 0,
+              "hp": 60,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 5,
+            "y": 12,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "tankMid",
+              "wear": 0,
+              "hp": 50,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 1,
+            "y": 3,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelMid",
+              "wear": 0,
+              "hp": 50,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 7,
+            "y": 3,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelMid",
+              "wear": 0,
+              "hp": 49,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 1,
+            "y": 42,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelMid",
+              "wear": 0,
+              "hp": 33,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 7,
+            "y": 42,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelMid",
+              "wear": 0,
+              "hp": 50,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 3,
+            "y": 4,
+            "rot": 1,
+            "kind": "part",
+            "part": {
+              "defId": "workhorseDiesel",
+              "wear": 0,
+              "hp": 80,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 3,
+            "y": 0,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "scrapSheet",
+              "wear": 1,
+              "hp": 21,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 2,
+            "y": 47,
+            "rot": 1,
+            "kind": "part",
+            "part": {
+              "defId": "spacedArmor",
+              "wear": 3,
+              "hp": 41,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 1,
+            "y": 8,
+            "rot": 1,
+            "kind": "part",
+            "part": {
+              "defId": "ram",
+              "wear": 1,
+              "hp": 97,
+              "rebuilt": false
+            }
+          }
+        ],
+        "fuel": 153.94247039388569,
+        "supplies": 19.011535905712023
+      }
+    },
+    "revisions": {}
+  },
+  "2-62-roaming.json": {
+    "money": 157,
+    "xp": 29.396566650704656,
+    "ranks": {
+      "driving": 1,
+      "perception": 1,
+      "machining": 1,
+      "toughness": 1,
+      "social": 0
+    },
+    "xpBySource": {
+      "roughTiles": 115.12307852097406,
+      "escape": 7.677720463120425,
+      "contact": 29.953204663115425,
+      "discover": 70,
+      "fieldJob": 3,
+      "search": 268.3,
+      "heat": 139.12256300349446,
+      "profit": 188.22000000000003,
+      "call": 8
+    },
+    "perks": [],
+    "knockouts": 0,
+    "fuel": 18.827901144066768,
+    "supplies": 16.895783228534246,
+    "costBasis": {
+      "scrap": 6.33,
+      "parts": 7.39625,
+      "meds": 23.33,
+      "salt": 8.51,
+      "electronics": 51.67,
+      "tools": 39.96769230769231
+    },
+    "notes": [],
+    "quests": {
+      "world": {
+        "wagon_seen": true
+      },
+      "local": {}
+    },
+    "run": null,
+    "revisions": {}
+  },
+  "2-63-highway.json": {
+    "money": 97,
+    "xp": 218.02106378229573,
+    "ranks": {
+      "driving": 1,
+      "perception": 1,
+      "machining": 1,
+      "toughness": 1,
+      "social": 1
+    },
+    "xpBySource": {
+      "roughTiles": 351.28721460259,
+      "escape": 57.850842751847125,
+      "hit": 535.6457407945729,
+      "contact": 2.373614035001619,
+      "discover": 37,
+      "fieldJob": 34.327031669461064,
+      "heat": 127.81959207648924,
+      "damage": 71.71702785233377
+    },
+    "perks": [],
+    "knockouts": 0,
+    "fuel": 52.00823971352819,
+    "supplies": 19.130230570837004,
+    "costBasis": {},
+    "notes": [],
+    "quests": {
+      "world": {},
+      "local": {}
+    },
+    "run": {
+      "from": 10,
+      "earned": 3450,
+      "wrecks": 0,
+      "trucksSold": [
+        "van"
+      ],
+      "hauler": {
+        "items": [
+          {
+            "x": 3,
+            "y": 7,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "cabPickup",
+              "wear": 0,
+              "hp": 120,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 3,
+            "y": 12,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "transmissionMid",
+              "wear": 0,
+              "hp": 60,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 5,
+            "y": 12,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "tankMid",
+              "wear": 0,
+              "hp": 50,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 1,
+            "y": 3,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelMid",
+              "wear": 0,
+              "hp": 50,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 7,
+            "y": 3,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelMid",
+              "wear": 0,
+              "hp": 49,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 1,
+            "y": 42,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelMid",
+              "wear": 0,
+              "hp": 33,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 7,
+            "y": 42,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelMid",
+              "wear": 0,
+              "hp": 50,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 3,
+            "y": 4,
+            "rot": 1,
+            "kind": "part",
+            "part": {
+              "defId": "workhorseDiesel",
+              "wear": 0,
+              "hp": 80,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 3,
+            "y": 0,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "scrapSheet",
+              "wear": 1,
+              "hp": 21,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 2,
+            "y": 47,
+            "rot": 1,
+            "kind": "part",
+            "part": {
+              "defId": "spacedArmor",
+              "wear": 3,
+              "hp": 41,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 1,
+            "y": 8,
+            "rot": 1,
+            "kind": "part",
+            "part": {
+              "defId": "ram",
+              "wear": 1,
+              "hp": 97,
+              "rebuilt": false
+            }
+          }
+        ],
+        "fuel": 153.94247039388569,
+        "supplies": 19.011535905712023
+      }
+    },
+    "revisions": {}
+  },
+  "2-63-roaming.json": {
+    "money": 1,
+    "xp": 53.35753085752472,
+    "ranks": {
+      "driving": 1,
+      "perception": 1,
+      "machining": 1,
+      "toughness": 1,
+      "social": 0
+    },
+    "xpBySource": {
+      "roughTiles": 220.7734439761879,
+      "contact": 26.488736941902218,
+      "discover": 80,
+      "fieldJob": 4.5,
+      "search": 260.3,
+      "heat": 128.26734993943464,
+      "damage": 4.5,
+      "profit": 90.52799999999999,
+      "deal": 30,
+      "call": 8
+    },
+    "perks": [],
+    "knockouts": 0,
+    "fuel": 9.661198581622378,
+    "supplies": 16.918714643345925,
+    "costBasis": {
+      "scrap": 6.33,
+      "parts": 8.15,
+      "meds": 23.33,
+      "tools": 34.975,
+      "electronics": 51.305,
+      "salt": 10.22
+    },
+    "notes": [],
+    "quests": {
+      "world": {
+        "wagon_seen": true
+      },
+      "local": {}
+    },
+    "run": null,
+    "revisions": {}
+  }
+}

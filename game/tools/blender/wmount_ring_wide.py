@@ -12,6 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit  # noqa: E402
+from parts_common_core import PROUD  # noqa: E402
 from parts_common_weapon import base_plate, run  # noqa: E402
 
 SEED = 63
@@ -22,7 +23,7 @@ def build(kit: Kit) -> None:
     base_plate(kit, 2)
     kit.cylinder("ring", 0.29, 0.1, (0, 0, 0.09), "metal", vertices=10, dent_by=0.005)
     kit.cylinder("ring_race", 0.25, 0.03, (0, 0, 0.155), "dark", vertices=10)
-    kit.cylinder("column", 0.1, HEAD_Z - 0.17, (0, 0, (HEAD_Z + 0.17) / 2), "rust_side", vertices=8)
+    kit.cylinder("column", 0.1, HEAD_Z - 0.17 - PROUD, (0, 0, (HEAD_Z - PROUD + 0.17) / 2), "rust_side", vertices=8)
     kit.cylinder("head_plate", 0.15, 0.03, (0, 0, HEAD_Z - 0.015), "metal_light", vertices=8)
     for y in (-0.31, 0.31):
         kit.box(f"crate{y:.2f}", (0.3, 0.12, 0.14), (-0.08, y, 0.11), "rust", dent_by=0.006)

@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CameraRig, KeyPan, TruckFollow } from './camera';
+import { CameraRig, KeyPan, TruckFollow, VIEW_METERS, ZOOM } from './camera';
+import { PHYSICS } from '../../data/physics';
+import { DEFAULT_ZOOM, VIEW } from '../../data/view';
+
+const S = PHYSICS.metersPerTile;
 
 function rigAt(): CameraRig {
   const container = {
@@ -248,7 +252,7 @@ describe('truck follow', () => {
     const canvas = new EventTarget();
     const rig = new CameraRig(container);
     const follow = new TruckFollow(rig, new KeyPan(() => false), canvas as HTMLElement);
-    follow.update(truck, null, true, 0);
+    follow.update(truck, null, 0, 0);
     return { follow, canvas };
   }
 
@@ -264,7 +268,7 @@ describe('truck follow', () => {
     const { follow, canvas } = setup();
 
     drag(canvas);
-    for (let i = 0; i < 10; i++) follow.update(truck, null, true, 100);
+    for (let i = 0; i < 10; i++) follow.update(truck, null, 100, 100);
 
     expect(follow.isFollowing()).toBe(false);
   });
@@ -291,9 +295,9 @@ describe('truck follow', () => {
   it('follows again when the truck drives out of view', () => {
     const { follow, canvas } = setup();
     drag(canvas);
-    follow.update(truck, null, true, 16);
+    follow.update(truck, null, 16, 16);
 
-    follow.update({ x: 500, y: 0, z: -500 }, null, true, 16);
+    follow.update({ x: 500, y: 0, z: -500 }, null, 16, 16);
 
     expect(follow.isFollowing()).toBe(true);
   });
@@ -318,31 +322,161 @@ describe('truck follow while planning', () => {
   it('brings the view to the truck at boot', () => {
     const { follow, rig } = setup();
 
-    follow.update({ x: 10, y: 0, z: 10 }, null, false, Number.POSITIVE_INFINITY);
+    follow.update({ x: 10, y: 0, z: 10 }, null, Number.POSITIVE_INFINITY, 0);
 
     expect(rig.focus().x).toBeCloseTo(10, 3);
   });
 
   it('holds the view still after a turn while the view still lags the truck', () => {
     const { follow, rig } = setup();
-    follow.update({ x: 0, y: 0, z: 0 }, null, true, Number.POSITIVE_INFINITY);
-    follow.update({ x: 10, y: 0, z: 0 }, null, true, 100);
+    follow.update({ x: 0, y: 0, z: 0 }, null, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
+    follow.update({ x: 10, y: 0, z: 0 }, null, 100, 100);
     const lagging = rig.focus();
 
-    follow.update({ x: 10, y: 0, z: 0 }, null, false, 5000);
+    follow.update({ x: 10, y: 0, z: 0 }, null, 5000, 0);
 
     expect(rig.focus().x).toBeCloseTo(lagging.x, 6);
     expect(lagging.x).toBeLessThan(10);
   });
 
+  it('keeps closing the lag on world time as the world slows after a turn, instead of halting in one frame', () => {
+    const { follow, rig } = setup();
+    follow.update({ x: 0, y: 0, z: 0 }, null, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
+    follow.update({ x: 10, y: 0, z: 0 }, null, 100, 100);
+    const steps = [12, 8, 4, 1, 0].map((worldMs) => {
+      const from = rig.focus().x;
+      follow.update({ x: 10, y: 0, z: 0 }, null, 16, worldMs);
+      return rig.focus().x - from;
+    });
+    steps.slice(0, 4).forEach((step) => expect(step).toBeGreaterThan(0));
+    steps.slice(1).forEach((step, i) => expect(step).toBeLessThan(steps[i]));
+    expect(steps[4]).toBe(0);
+  });
+
   it('brings the view to the truck on recenter while planning', () => {
     const { follow, rig } = setup();
-    follow.update({ x: 0, y: 0, z: 0 }, null, true, Number.POSITIVE_INFINITY);
-    follow.update({ x: 10, y: 0, z: 0 }, null, true, 100);
+    follow.update({ x: 0, y: 0, z: 0 }, null, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
+    follow.update({ x: 10, y: 0, z: 0 }, null, 100, 100);
 
     follow.recenter();
-    follow.update({ x: 10, y: 0, z: 0 }, null, false, Number.POSITIVE_INFINITY);
+    follow.update({ x: 10, y: 0, z: 0 }, null, Number.POSITIVE_INFINITY, 0);
 
     expect(rig.focus().x).toBeCloseTo(10, 3);
+  });
+
+  const truck = { x: 0, y: 0, z: 0 };
+  const far = { x: 500, y: 0, z: 0 };
+
+  function driveWithLead(): { follow: TruckFollow; rig: CameraRig } {
+    const made = setup();
+    made.follow.update(truck, null, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
+    for (let i = 0; i < 300; i++) made.follow.update(truck, far, 100, 100);
+    return made;
+  }
+
+  function offsetFromCenter(rig: CameraRig): number {
+    const at = rig.screenOf(truck);
+    return Math.hypot(at.x - 640, at.y - 360);
+  }
+
+  it('puts the truck at the screen center on recenter after a drive with a lead', () => {
+    const { follow, rig } = driveWithLead();
+    follow.pan(300, 200);
+
+    follow.recenter();
+    follow.update(truck, null, Number.POSITIVE_INFINITY, 0);
+
+    expect(offsetFromCenter(rig)).toBeLessThan(1);
+  });
+
+  it('eases to the center during a turn, then the lead grows back', () => {
+    const { follow, rig } = driveWithLead();
+    const old = offsetFromCenter(rig);
+
+    follow.recenter();
+    for (let i = 0; i < 60; i++) follow.update(truck, far, 16, 16);
+    expect(offsetFromCenter(rig)).toBeLessThan(old * 0.35);
+
+    for (let i = 0; i < 200; i++) follow.update(truck, far, 100, 100);
+    expect(offsetFromCenter(rig)).toBeGreaterThan(old * 0.95);
+  });
+
+  it('keeps the lead when a hostile first comes into sight', () => {
+    const { follow, rig } = driveWithLead();
+    const old = offsetFromCenter(rig);
+    follow.pan(300, 200);
+
+    follow.noteDanger(true);
+    for (let i = 0; i < 300; i++) follow.update(truck, far, 100, 100);
+
+    expect(offsetFromCenter(rig)).toBeCloseTo(old, 0);
+  });
+});
+
+describe('camera view box', () => {
+  it.each([[1280, 720], [390, 664]])('round-trips a ground point through screenOf and groundUnder in a %i x %i view', (w, h) => {
+    const view = { clientWidth: w, clientHeight: h, getBoundingClientRect: () => ({ left: 0, top: 0, width: w, height: h }) } as HTMLElement;
+    const rig = new CameraRig(view);
+    rig.tick(0);
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2));
+    ground.updateMatrixWorld(true);
+    const point = { x: 4, y: 0, z: 6 };
+    const screen = rig.screenOf(point);
+    const hit = rig.groundUnder(screen.x, screen.y, ground)!;
+    expect(hit.x).toBeCloseTo(point.x / S, 1);
+    expect(hit.y).toBeCloseTo(point.z / S, 1);
+  });
+});
+
+describe('camera orientation', () => {
+  it('draws the compass north straight up the screen', () => {
+    const rig = rigAt();
+    rig.tick(0);
+    const step = 10 * Math.hypot(VIEW.screenUp.x, VIEW.screenUp.y);
+    const origin = rig.screenOf({ x: 0, y: 0, z: 0 });
+    const north = rig.screenOf({ x: (VIEW.screenUp.x / Math.hypot(VIEW.screenUp.x, VIEW.screenUp.y)) * step, y: 0, z: (VIEW.screenUp.y / Math.hypot(VIEW.screenUp.x, VIEW.screenUp.y)) * step });
+    expect(north.x).toBeCloseTo(origin.x);
+    expect(north.y).toBeLessThan(origin.y);
+  });
+
+  it('keeps the camera offset direction', () => {
+    const rig = rigAt();
+    rig.tick(0);
+    const offset = rig.camera.position.clone().sub(new THREE.Vector3(0, 0, 0)).normalize();
+    const expected = new THREE.Vector3(1, 0.816, 1).normalize();
+    expect(offset.distanceTo(expected)).toBeLessThan(0.05);
+  });
+});
+
+describe('camera default zoom', () => {
+  const spread = (rig: CameraRig) => {
+    rig.tick(0);
+    const a = rig.screenOf({ x: 0, y: 0, z: 0 });
+    const b = rig.screenOf({ x: 10, y: 0, z: 0 });
+    return Math.hypot(b.x - a.x, b.y - a.y);
+  };
+
+  it('keeps the default inside the zoom limits', () => {
+    expect(DEFAULT_ZOOM).toBeGreaterThanOrEqual(ZOOM.min);
+    expect(DEFAULT_ZOOM).toBeLessThanOrEqual(ZOOM.max);
+  });
+
+  it('opens 15 percent closer than zoom 1', () => {
+    const unit = rigAt();
+    unit.setZoom(1);
+    expect(spread(rigAt()) / spread(unit)).toBeCloseTo(DEFAULT_ZOOM);
+  });
+
+  it('reaches both zoom limits from the default', () => {
+    const out = rigAt();
+    out.zoomBy(100000);
+    const min = rigAt();
+    min.setZoom(ZOOM.min);
+    const inward = rigAt();
+    inward.zoomBy(-100000);
+    const max = rigAt();
+    max.setZoom(ZOOM.max);
+    expect(spread(out)).toBeCloseTo(spread(min));
+    expect(spread(inward)).toBeCloseTo(spread(max));
   });
 });

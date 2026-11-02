@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { REGION } from '../data/region';
 import { MAPGEN, TERRAIN } from '../data/terrain';
-import { elevationAt } from './elevation';
 import { ROAD_INDEX } from './road-index';
 import { bridgeCut, deckById } from './bridge';
-import { deckSegments, heightFromElevation } from './terrain';
+import { deckSegments } from './terrain';
 import { gradePaths, gradeRoads } from './road-grade';
 import { TEST_MAP } from '../test/map';
 import { dist, type Vec } from './vec';
@@ -73,8 +72,7 @@ describe('road grades', () => {
 
   it('leaves ground beyond the road margin untouched', () => {
     const size = REGION.size;
-    const heights: number[] = [];
-    for (let j = 0; j <= size; j++) for (let i = 0; i <= size; i++) heights.push(heightFromElevation(elevationAt(1337, i, j)));
+    const heights = TEST_MAP.terrain.heights;
     const graded = gradeRoads({ size, heights, types: [], atlas: ICARUS_KEY });
     const reach = REGION.roadWidth / 2 + TERRAIN.flattenMargin;
     let checked = 0;

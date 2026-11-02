@@ -1,0 +1,27 @@
+{
+  "turn": 412,
+  "player": {
+    "money": 5400,
+    "contracts": [
+      {
+        "id": "c-7",
+        "shop": "bowl",
+        "kind": "claim",
+        "stockId": "spot-12",
+        "at": {
+          "x": 210,
+          "y": 140
+        },
+        "partId": "p-88",
+        "defId": "stockEngine",
+        "reward": 12000,
+        "deadline": 900,
+        "window": 600,
+        "tier": 1,
+        "rivalAt": 700,
+        "rival": null,
+        "leads": []
+      }
+    ]
+  }
+}

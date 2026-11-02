@@ -1,20 +1,20 @@
 
-import { PARTS, type PartDef, type PartKind } from "../data/parts";
+import { PARTS, type PartDef } from "../data/parts";
 import { CheatError, give } from "../sim/cheats";
 import { chargeFor, gunFor } from "../sim/factory";
-import { MOUNT_CELLS } from "../sim/grid";
+import { mountCellsOf } from "../sim/grid";
 import type { PartInstance, World } from "../sim/types";
 import { maxHp } from "../sim/wear";
 import { compareBase, partCard } from "./cards";
 import { devEl as el, panel } from "./dom";
 import type { UiHost } from "./host";
 import { InventoryView, truckChips } from "./inventory";
-import { filterIcon, STOCK_FILTERS, type StockFilter } from "./town";
+import { filterIcon, kindFilter, STOCK_FILTERS, type StockFilter } from "./town";
 
 const KIND_ORDER = STOCK_FILTERS.filter((f): f is Exclude<StockFilter, "all"> => f !== "all");
 
 function shopParts(): PartDef[] {
-  const rank = (d: PartDef) => KIND_ORDER.indexOf(d.kind as Exclude<StockFilter, "all">);
+  const rank = (d: PartDef) => KIND_ORDER.indexOf(kindFilter(d.kind));
   return Object.values(PARTS)
     .filter((d) => d.kind !== "core")
     .sort((a, b) => rank(a) - rank(b) || a.tier - b.tier || a.id.localeCompare(b.id));
@@ -75,7 +75,7 @@ export class FullShopScreen {
   }
 
   private cards(w: World): HTMLElement[] {
-    const shown = this.parts.filter((d) => this.filter === "all" || d.kind === this.filter);
+    const shown = this.parts.filter((d) => this.filter === "all" || kindFilter(d.kind) === this.filter);
     return shown.map((d) => {
       const part = sample(d.id);
       return partCard({
@@ -83,7 +83,7 @@ export class FullShopScreen {
         part,
         base: compareBase(this.inventory.selectedPart(), part),
         action: el("button", { onclick: () => this.take(w, d.id) }, "Take"),
-        onHover: this.hintMounts(d.kind),
+        onHover: this.hintMounts(d.id),
       });
     });
   }
@@ -99,8 +99,8 @@ export class FullShopScreen {
     this.render();
   }
 
-  private hintMounts(kind: PartKind): (on: boolean) => void {
-    return (on) => this.inventory.hintMounts(on ? MOUNT_CELLS[kind] : null);
+  private hintMounts(defId: string): (on: boolean) => void {
+    return (on) => this.inventory.hintMounts(on ? mountCellsOf(defId) : null);
   }
 
   private filterButtons(): HTMLElement[] {
@@ -116,7 +116,7 @@ export class FullShopScreen {
           },
         },
         f === "all" ? "All" : filterIcon(f),
-        el("span", { class: "count" }, `${this.parts.filter((d) => f === "all" || d.kind === f).length}`),
+        el("span", { class: "count" }, `${this.parts.filter((d) => f === "all" || kindFilter(d.kind) === f).length}`),
       ),
     );
   }

@@ -1,0 +1,20 @@
+{
+  "turn": 700,
+  "shops": {
+    "bowl": {
+      "contracts": [
+        { "id": "ct2", "shop": "bowl", "kind": "search", "target": "v8", "driver": "Abe Cobb", "template": "trader", "lead": { "at": { "x": 40, "y": 52 }, "turn": 650 }, "reward": 3700, "deadline": 1200, "window": 500, "tier": 1, "found": false },
+        { "id": "ct3", "shop": "bowl", "kind": "bounty", "template": "buggy", "reward": 11000, "deadline": 1500, "window": 800, "tier": 1, "fulfilled": false }
+      ]
+    },
+    "nose": { "contracts": [] }
+  },
+  "player": {
+    "contracts": [
+      { "id": "ct1", "shop": "bowl", "kind": "search", "target": "v7", "driver": "Jed Cobb", "template": "trader", "lead": { "at": { "x": 40, "y": 52 }, "turn": 560 }, "reward": 3700, "deadline": 900, "window": 400, "tier": 1, "found": false },
+      { "id": "ct4", "shop": "nose", "kind": "fetch", "defId": "mg", "reward": 9000, "deadline": 1300, "window": 700, "tier": 1 }
+    ],
+    "talked": { "v7": { "found": "done", "directions": "done" }, "v3": { "lastSeen": "done" } },
+    "call": { "with": "v7", "topic": "found", "node": "tell", "vars": { "found": { "kind": "found", "driver": "Jed Cobb", "site": "bowl" } }, "line": { "line": "foundTold", "vars": { "found": { "kind": "found", "driver": "Jed Cobb", "site": "bowl" } } } }
+  }
+}

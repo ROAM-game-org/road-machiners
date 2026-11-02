@@ -5,7 +5,7 @@ The ground is 1.30 m below the center, so the level roof at 1.20 m stands 2.5 m 
 One tall closed box from nose to tail with a roof rounded on every edge and level for its whole length, chamfered plan corners and a little tumblehome.
 A low rounded nose panel carries two wide-set round lamps and a dark grille, and bulges 0.1 m ahead of the windshield base.
 Over it a wide two-piece windshield rakes back. Behind it a door window and three equal side windows run in a band from 67 % to 86 % of the height.
-The engine stands in a sunk hatch in the roof on rows 3 and 4 (PHYSICS.bodies.bukhanka.engine), standing in for the doghouse between the seats.
+The engine stands in a sunk hatch in the roof, cut to the engine bay of the chassis.ts layout: rows 4 to 6, columns 2 and 3, 1.35 m long and 0.9 m wide (PHYSICS.bodies.bukhanka.engineY), standing in for the doghouse between the seats.
 Wheels sit on rows 1 and 6 in the outer columns, radius 0.55 m, half width 0.2 m, mount 0.35 m below the center. Arches are cut on them.
 The sockets arch_front, arch_rear (the left arch center at the hub) and arch_front_top (its crown) let wheelArches.test.ts check them against physics.
 The sill hangs 0.1 m below the collider bottom as skin only.
@@ -27,11 +27,13 @@ from parts_common_base import (  # noqa: E402
     Grid,
     arch_cut,
     check_base,
+    check_door_gap,
     cut_boxes,
     flare,
     hull_layers,
     level_sockets,
 )
+from parts_common_core import PROUD  # noqa: E402
 
 SEED = 312
 G = Grid(rows=8, cols=5, half_height=0.5)
@@ -50,10 +52,11 @@ SILL = -0.82  # skin only, below the collider bottom
 BELT = 0.36  # the lower body ends here and the glazed box begins
 ROOF = 1.2  # the flat roof, every row's surface
 CHAMFER = 0.2  # the plan corners
-HATCH_FRONT = 1.04  # the engine hatch covers game rows 3 and 4, columns 1 and 2
-HATCH_BACK = 0.0
-HATCH_LEFT = G.col_y(0.5)
-HATCH_RIGHT = G.col_y(2.5)
+GAME = Grid(rows=14, cols=7, half_height=0.5, length=6.3, width=3.15)  # chassis.ts layout inside its border cells
+HATCH_FRONT = GAME.row_x(3.5)  # the hatch is the engine bay: layout rows 4 to 6, columns 2 and 3
+HATCH_BACK = GAME.row_x(6.5)
+HATCH_LEFT = GAME.col_y(1.5)
+HATCH_RIGHT = GAME.col_y(3.5)
 BAY_FLOOR = ROOF - 0.2  # a 0.5 m engine pokes 0.3 m out of the hatch
 WIN_BOTTOM = 0.4
 WIN_TOP = 0.83
@@ -110,6 +113,7 @@ def glazing(kit: Kit) -> None:
             "glass",
             rot=(0, -rake, 0),
         )
+    check_door_gap("door_window", *DOOR_WINDOW, WIN_BOTTOM, WHEELS_X, HUB_Z, WHEEL_R + ARCH_CLEARANCE)
     for lo, hi in (DOOR_WINDOW, *SIDE_WINDOWS):
         mirrored(kit, f"window{lo:.2f}", (abs(hi - lo), 0.03, WIN_TOP - WIN_BOTTOM), (lo + hi) / 2, SIDE - 0.035, (WIN_TOP + WIN_BOTTOM) / 2, "glass")
 
@@ -117,7 +121,7 @@ def glazing(kit: Kit) -> None:
 def front_face(kit: Kit) -> None:
     """Wide-set round headlamps, small lamps below them and a dark low grille panel between."""
     for s, sy in (("l", 1), ("r", -1)):
-        kit.cylinder(f"lamp_{s}", 0.15, 0.06, (FRONT - 0.03, sy * LAMP_Y, LAMP_Z), "light", rot=(0, 1.5708, 0), vertices=8)
+        kit.cylinder(f"lamp_{s}", 0.15, 0.06, (FRONT - 0.03 + PROUD, sy * LAMP_Y, LAMP_Z), "light", rot=(0, 1.5708, 0), vertices=8)
         kit.box(f"lamp_small_{s}", (0.05, 0.12, 0.1), (FRONT - 0.01, sy * (LAMP_Y + 0.0), LAMP_Z - 0.3), "light")
     kit.box("grille", (0.06, 0.7, 0.4), (FRONT - 0.01, 0, -0.27), "under")
     mirrored(kit, "taillight", (INSET, 0.14, 0.3), BACK - INSET / 2 + 0.01, SIDE - 0.3, 0.0, "red")

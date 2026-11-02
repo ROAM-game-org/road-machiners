@@ -2,6 +2,9 @@ import type * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WEATHER } from '../../data/weather';
 import { emptyWorld } from '../../sim/testkit';
+import { advanceWeather } from '../../sim/weather';
+import { cloneWorld } from '../../sim/world';
+import { PHYSICS } from '../../data/physics';
 import type { WeatherEvent, World } from '../../sim/types';
 import { stepFade, WeatherView } from './weather';
 
@@ -87,5 +90,27 @@ describe('WeatherView storm haze', () => {
     expect(dispose).toHaveBeenCalledOnce();
     expect(stormGroups(view)).toHaveLength(1);
     expect(view.shownOf('w2')).toBe(1);
+  });
+
+  it('slides a storm bank from its before-turn spot to its sim spot over the turn', () => {
+    const before = emptyWorld();
+    const storm = withStorm(before, 'w1', FADE, 100);
+    storm.vel = { x: 0.5, y: 0.25 };
+    const view = new WeatherView(before);
+    const after = cloneWorld(before);
+    advanceWeather(after);
+    const moved = after.weather.find((e) => e.id === 'w1') as Storm;
+    const clock = (progress: number) => ({ before, progress, moved: true, hookedLines: new Set<string>() });
+    const S = PHYSICS.metersPerTile;
+    const spot = () => stormGroups(view)[0].position;
+    view.sync(after, clock(0));
+    expect(spot().x).toBeCloseTo(storm.pos.x * S, 6);
+    view.sync(after, clock(0.5));
+    expect(spot().x).toBeCloseTo(((storm.pos.x + moved.pos.x) / 2) * S, 6);
+    view.sync(after, clock(1));
+    expect(spot().x).toBeCloseTo(moved.pos.x * S, 6);
+    view.sync(after, clock(0));
+    view.sync(after);
+    expect(spot().z).toBeCloseTo(moved.pos.y * S, 6);
   });
 });

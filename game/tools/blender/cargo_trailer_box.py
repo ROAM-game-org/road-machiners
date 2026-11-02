@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit  # noqa: E402
 from parts_common_cargo import CARGO_MAX_H, footprint, run  # noqa: E402
+from parts_common_core import PROUD  # noqa: E402
 
 SEED = 102
 HEIGHT = 1.05
@@ -24,10 +25,10 @@ def build(kit: Kit) -> None:
     length, width = footprint(2, 2)
     body_l, body_w = length - 2 * SKIN, width - 2 * SKIN
     kit.box("body", (body_l, body_w, HEIGHT - 0.1), (0, 0, 0.05 + (HEIGHT - 0.1) / 2), "paint", dent_by=0.008)
-    kit.box("base", (length, width, 0.07), (0, 0, 0.035), "metal")
+    kit.box("base", (length - 2 * PROUD, width - 2 * PROUD, 0.07), (0, 0, 0.035), "metal")
     kit.box("roof", (length, width, 0.05), (0, 0, HEIGHT - 0.025), "paint", dent_by=0.006)
     for x in (-0.45, -0.15, 0.15, 0.45):
-        kit.box("roof_rib", (0.05, width, 0.03), (x, 0, HEIGHT + 0.01), "metal_light")
+        kit.box("roof_rib", (0.05, width - 2 * PROUD, 0.03), (x, 0, HEIGHT + 0.01), "metal_light")
     # Corner posts stand at the footprint edge.
     for x in (-length / 2 + POST / 2, length / 2 - POST / 2):
         for y in (-width / 2 + POST / 2, width / 2 - POST / 2):

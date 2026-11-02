@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { PartRows, focusAfter } from "./part-rows";
+import { RowSlots } from "./row-slots";
 
 describe("where focus goes after a part list redraws", () => {
   it("stays on the focused row when it is still listed", () => {
+    expect(focusAfter(["a", "b", "c"], "b", ["a", "b", "c"])).toBe("b");
+  });
+
+  it("stays on a spent row, since it keeps its slot in the list", () => {
     expect(focusAfter(["a", "b", "c"], "b", ["a", "b", "c"])).toBe("b");
   });
 
@@ -27,7 +32,7 @@ describe("scrolling a new list to the top", () => {
   it("resets every scroll box, so the narrow layout's split box resets too", () => {
     const boxes = [{ scrollTop: 40 }, { scrollTop: 90 }];
     const root = { querySelectorAll: () => boxes } as unknown as HTMLElement;
-    new PartRows(() => {}).toTop(root);
+    new PartRows(() => {}, new RowSlots()).toTop(root);
     expect(boxes.map((b) => b.scrollTop)).toEqual([0, 0]);
   });
 });

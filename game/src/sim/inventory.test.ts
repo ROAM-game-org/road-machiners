@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { bedRows } from './chassis-features';
 import { CHASSIS } from '../data/chassis';
 import { PARTS } from '../data/parts';
 import { RULES } from '../data/rules';
@@ -12,21 +13,22 @@ import { fuelCap, suppliesCap, vehicleStats } from './stats';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import { CRATE_MASS } from '../data/goods';
 import { npcMassRoom } from './stats';
-import type { GridItem, Vehicle, World } from './types';
+import type { GridItem, Rot, Vehicle, World } from './types';
 import { sitePads } from './sites';
+import { coreItem, freeMounts } from '../test/layout-spots';
 import { siteOf } from './market';
 import { advanceJobs } from './jobs';
 
 const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
 const item = (w: World, defId: string) => w.vehicles[0].items.find((it) => it.kind === 'part' && it.part.defId === defId)!;
 const good = (w: World) => w.vehicles[0].items.find((it) => it.kind === 'good')!;
-const rackRow = CHASSIS.scout.layout.length;
+const rackRow = CHASSIS.scout.layout.length + bedRows('scout');
 
 describe('inventory grid', () => {
   it('the standard kit starts with a scout, 333 M, two cargo parts, and full resources', () => {
     const w = emptyWorld();
     expect(w.vehicles[0].chassisId).toBe('scout');
-    expect(w.player.money).toBe(33300);
+    expect(w.player.money).toBe(333);
     expect(goodsCount(w.vehicles[0]).parts).toBe(2);
     expect(w.player.fuel).toBe(CHASSIS.scout.fuelCap);
     expect(w.player.supplies).toBe(RULES.baseSupplies);
@@ -53,7 +55,8 @@ describe('inventory grid', () => {
   it('items cannot overlap or leave the grid', () => {
     const w = emptyWorld();
     const g = good(w);
-    expect(() => moveItem(w, g.id, { x: 1, y: 1, rot: 0 })).toThrow('Refused: builtInFixed');
+    const tank = coreItem(w.vehicles[0], 'tank');
+    expect(() => moveItem(w, g.id, { x: tank.x, y: tank.y, rot: 0 })).toThrow('Refused: builtInFixed');
     expect(() => moveItem(w, g.id, { x: 9, y: 0, rot: 0 })).toThrow('Refused: badLayout');
   });
 
@@ -76,7 +79,7 @@ describe('inventory grid', () => {
   it('unmounting takes five turns in the field and is instant in town', () => {
     const w = emptyWorld();
     const mg = item(w, 'mg');
-    const field = moveItem(w, mg.id, { x: 5, y: rackRow, rot: 1 });
+    const field = moveItem(w, mg.id, { x: 3, y: rackRow, rot: 1 });
     expect(field.vehicles[0].job).toMatchObject({ kind: 'refit', turnsLeft: 5 });
     for (let turn = 0; turn < 4; turn++) advanceJobs(field);
     expect(vehicleStats(field, field.vehicles[0]).weapons).toHaveLength(1);
@@ -84,7 +87,7 @@ describe('inventory grid', () => {
     expect(field.vehicles[0].job).toBeNull();
     expect(vehicleStats(field, field.vehicles[0]).weapons).toHaveLength(0);
     const inTown = emptyWorld(sitePads(bowl)[0]);
-    const off = moveItem(inTown, item(inTown, 'mg').id, { x: 5, y: rackRow, rot: 1 });
+    const off = moveItem(inTown, item(inTown, 'mg').id, { x: 3, y: rackRow, rot: 1 });
     expect(vehicleStats(off, off.vehicles[0]).weapons).toHaveLength(0);
     expect(spareParts(off.vehicles[0]).map((p) => p.defId)).toEqual(['mg']);
   });
@@ -93,13 +96,13 @@ describe('inventory grid', () => {
     const w = emptyWorld();
     const mg = item(w, 'mg');
     if (mg.kind !== 'part') throw new Error('Expected weapon');
-    w.vehicles[0].items.push({ ...mg, id: 'spare-item', part: { ...mg.part, id: 'spare-part' }, x: 4, y: rackRow, rot: 1 });
-    const next = moveItem(w, 'spare-item', { x: mg.x, y: mg.y, rot: 0 });
+    w.vehicles[0].items.push({ ...mg, id: 'spare-item', part: { ...mg.part, id: 'spare-part' }, x: 3, y: rackRow, rot: 1 });
+    const next = moveItem(w, 'spare-item', { x: mg.x, y: mg.y, rot: mg.rot });
     expect(next.vehicles[0].job).toMatchObject({ kind: 'refit', total: 10 });
     for (let turn = 0; turn < 9; turn++) advanceJobs(next);
     expect(next.vehicles[0].items.find((it) => it.id === mg.id)).toMatchObject({ x: mg.x, y: mg.y });
     advanceJobs(next);
-    expect(next.vehicles[0].items.find((it) => it.id === mg.id)).toMatchObject({ x: 4, y: rackRow, rot: 1 });
+    expect(next.vehicles[0].items.find((it) => it.id === mg.id)).toMatchObject({ x: 3, y: rackRow, rot: 1 });
     expect(next.vehicles[0].items.find((it) => it.id === 'spare-item')).toMatchObject({ x: mg.x, y: mg.y });
     expect(next.vehicles[0].items.map((it) => it.id).sort()).toEqual(w.vehicles[0].items.map((it) => it.id).sort());
   });
@@ -108,10 +111,10 @@ describe('inventory grid', () => {
     const w = emptyWorld(sitePads(bowl)[0]);
     const mg = item(w, 'mg');
     if (mg.kind !== 'part') throw new Error('Expected weapon');
-    w.vehicles[0].items.push({ ...mg, id: 'spare-item', part: { ...mg.part, id: 'spare-part' }, x: 4, y: rackRow, rot: 1 });
-    const next = moveItem(w, 'spare-item', { x: mg.x, y: mg.y, rot: 0 });
+    w.vehicles[0].items.push({ ...mg, id: 'spare-item', part: { ...mg.part, id: 'spare-part' }, x: 3, y: rackRow, rot: 1 });
+    const next = moveItem(w, 'spare-item', { x: mg.x, y: mg.y, rot: mg.rot });
     expect(next.vehicles[0].job).toBeNull();
-    expect(next.vehicles[0].items.find((entry) => entry.id === mg.id)).toMatchObject({ x: 4, y: rackRow, rot: 1 });
+    expect(next.vehicles[0].items.find((entry) => entry.id === mg.id)).toMatchObject({ x: 3, y: rackRow, rot: 1 });
     expect(next.vehicles[0].items.find((entry) => entry.id === 'spare-item')).toMatchObject({ x: mg.x, y: mg.y });
   });
 
@@ -123,10 +126,10 @@ describe('inventory grid', () => {
     w = storePart(w, item(w, 'panniers').id);
     w = update(w, (d) => { d.player.storage.push(makePart(d, 'heavyMg', 0)); });
     const id = w.player.storage.find((p) => p.defId === 'heavyMg')!.id;
-    const stacked = takeFromStorage(w, id, { x: 4, y: 1, rot: 0 });
+    const stacked = takeFromStorage(w, id, freeMounts(w, w.vehicles[0], 'heavyMg')[0]);
     expect(vehicleStats(stacked, stacked.vehicles[0]).weapons.map((m) => m.def.id)).toEqual(['heavyMg']);
-    const across = takeFromStorage(w, id, { x: 4, y: 0, rot: 1 });
-    expect(vehicleStats(across, across.vehicles[0]).weapons).toHaveLength(0);
+    const stowed = takeFromStorage(w, id, { x: 1, y: CHASSIS.scout.layout.length, rot: 1 });
+    expect(vehicleStats(stowed, stowed.vehicles[0]).weapons).toHaveLength(0);
   });
 
   it('removing the panniers is blocked while their row holds items', () => {
@@ -142,7 +145,7 @@ describe('inventory grid', () => {
     w = storePart(w, item(w, 'panniers').id);
     const free = freeCells(w.vehicles[0]);
     w = update(w, (d) => { d.player.storage.push(makePart(d, 'mg', 0)); });
-    w = takeFromStorage(w, w.player.storage.find((p) => p.defId === 'mg')!.id, { x: 4, y: 1, rot: 0 });
+    w = takeFromStorage(w, w.player.storage.find((p) => p.defId === 'mg')!.id, freeMounts(w, w.vehicles[0], 'mg', 1)[0]);
     expect(freeCells(w.vehicles[0])).toBe(free - PARTS.mg.w * PARTS.mg.h);
     expect(vehicleStats(w, w.vehicles[0]).weapons).toHaveLength(2);
   });
@@ -162,17 +165,29 @@ function mountedItemOf(v: Vehicle, defId: string): GridItem {
   return mountedItems(v).find((it) => it.part.defId === defId)!;
 }
 
+describe('auto mounting armor', () => {
+  it('packs 2-cell plates against the edge ends and each other, so an even side fills with them but for the pair the cab shield splits', () => {
+    const w = emptyWorld();
+    const v = addVehicle(w, 'scrapjaw', 'scout', [], { x: 40, y: 40 });
+    const side = gridOf(v).cells.flat().filter((c) => c === 'L').length;
+    const plates = side / PARTS.plates.h;
+    const fitted = Array.from({ length: plates }, () => mountPart(w, v, makePart(w, 'plates', 0), ['L'])).filter(Boolean).length;
+    expect(fitted).toBe(plates - 1);
+    expect(mountedItems(v, 'armor')).toHaveLength(fitted);
+  });
+});
+
 describe('auto mounting on the deck', () => {
   it('places a turret where no tall part blocks it', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'hauler', ['stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine'], { x: 40, y: 40 });
     expect(mountPart(w, v, makePart(w, 'mg', 0))).toBe(true);
     expect(spanDegrees(gunSpans(v, mountedItemOf(v, 'mg')))).toBe(270);
   });
 
   it('places a cargo box where it blinds no mounted gun', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'longbed', ['stockEngine', 'mg'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'longbed', ['stockEngine', 'mg'], { x: 40, y: 40 });
     const firing = (u: Vehicle) => gunSpans(u, mountedItemOf(u, 'mg'));
     const before = firing(v);
     expect(mountPart(w, v, makePart(w, 'trailerBox', 0))).toBe(true);
@@ -181,9 +196,11 @@ describe('auto mounting on the deck', () => {
 
   it('lets a gun and a cargo frame compete for the same deck cells', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'hauler', ['stockEngine'], { x: 40, y: 40 });
-    v.items.push({ id: 'i-rack', x: 2, y: 5, rot: 0, kind: 'part', part: makePart(w, 'rack', 0) });
-    v.items.push({ id: 'i-mg', x: 4, y: 5, rot: 0, kind: 'part', part: makePart(w, 'mg', 0) });
+    const v = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine'], { x: 40, y: 40 });
+    const rackSpot = freeMounts(w, v, 'rack')[0];
+    v.items.push({ id: 'i-rack', x: rackSpot.x, y: rackSpot.y, rot: 0, kind: 'part', part: makePart(w, 'rack', 0) });
+    const gunSpot = freeMounts(w, v, 'mg')[0];
+    v.items.push({ id: 'i-mg', x: gunSpot.x, y: gunSpot.y, rot: 0, kind: 'part', part: makePart(w, 'mg', 0) });
     expect(mountedItems(v, 'cargo').map((it) => it.id)).toEqual(['i-rack']);
     expect(mountedItems(v, 'weapon').map((it) => it.id)).toEqual(['i-mg']);
   });
@@ -191,7 +208,7 @@ describe('auto mounting on the deck', () => {
 
 function freeDeck(v: Vehicle): void {
   removeAllGoods(v);
-  v.items = v.items.filter((it) => it.kind === 'good' || !['mg', 'panniers'].includes(it.part.defId));
+  v.items = v.items.filter((it) => it.kind !== 'part' || !['mg', 'panniers'].includes(it.part.defId));
 }
 
 describe('stores', () => {
@@ -289,10 +306,10 @@ describe('garage work at every shop', () => {
     const w = emptyWorld(pump);
     const mg = item(w, 'mg');
     if (mg.kind !== 'part') throw new Error('Expected weapon');
-    w.vehicles[0].items.push({ ...mg, id: 'spare-item', part: { ...mg.part, id: 'spare-part' }, x: 4, y: rackRow, rot: 1 });
-    const next = moveItem(w, 'spare-item', { x: mg.x, y: mg.y, rot: 0 });
+    w.vehicles[0].items.push({ ...mg, id: 'spare-item', part: { ...mg.part, id: 'spare-part' }, x: 3, y: rackRow, rot: 1 });
+    const next = moveItem(w, 'spare-item', { x: mg.x, y: mg.y, rot: mg.rot });
     expect(next.vehicles[0].job).toBeNull();
-    expect(next.vehicles[0].items.find((it) => it.id === mg.id)).toMatchObject({ x: 4, y: rackRow, rot: 1 });
+    expect(next.vehicles[0].items.find((it) => it.id === mg.id)).toMatchObject({ x: 3, y: rackRow, rot: 1 });
     expect(next.vehicles[0].items.find((it) => it.id === 'spare-item')).toMatchObject({ x: mg.x, y: mg.y });
   });
 
@@ -300,8 +317,8 @@ describe('garage work at every shop', () => {
     const w = emptyWorld(pos);
     expect(() => storePart(w, item(w, 'mg').id)).toThrow('Not parked at a garage');
     const stored = update(w, (d) => { d.player.storage.push(makePart(d, 'mg', 0)); });
-    expect(() => takeFromStorage(stored, stored.player.storage[0].id, { x: 4, y: rackRow, rot: 1 })).toThrow('Not parked at a garage');
-    const off = moveItem(w, item(w, 'mg').id, { x: 5, y: rackRow, rot: 1 });
+    expect(() => takeFromStorage(stored, stored.player.storage[0].id, { x: 3, y: rackRow, rot: 1 })).toThrow('Not parked at a garage');
+    const off = moveItem(w, item(w, 'mg').id, { x: 3, y: rackRow, rot: 1 });
     expect(off.vehicles[0].job).toMatchObject({ kind: 'refit' });
   });
 
@@ -317,24 +334,24 @@ describe('garage work at every shop', () => {
       const w = emptyWorld();
       const mg = item(w, 'mg');
       if (mg.kind !== 'part') throw new Error('Expected weapon');
-      w.vehicles[0].items.push({ ...mg, id: 'spare-item', part: { ...mg.part, id: 'spare-part' }, x: 4, y: rackRow, rot: 1 });
+      w.vehicles[0].items.push({ ...mg, id: 'spare-item', part: { ...mg.part, id: 'spare-part' }, x: 3, y: rackRow, rot: 1 });
       return { w, mg };
     };
 
     it('runs one job for a plan of several moves, with turns from the original layout', () => {
       const { w, mg } = withSpare();
-      const layout = { 'spare-item': { x: mg.x, y: mg.y, rot: 0 as const }, [mg.id]: { x: 4, y: rackRow, rot: 1 as const } };
+      const layout = { 'spare-item': { x: mg.x, y: mg.y, rot: mg.rot }, [mg.id]: { x: 3, y: rackRow, rot: 1 as const } };
       const next = startRefit(w, layout);
       expect(next.vehicles[0].job).toMatchObject({ kind: 'refit', total: 10 });
       expect(plannedRefitTurns(w, w.vehicles[0], layout)).toBe(10);
       for (let turn = 0; turn < 10; turn++) advanceJobs(next);
       expect(next.vehicles[0].items.find((it) => it.id === 'spare-item')).toMatchObject({ x: mg.x, y: mg.y });
-      expect(next.vehicles[0].items.find((it) => it.id === mg.id)).toMatchObject({ x: 4, y: rackRow, rot: 1 });
+      expect(next.vehicles[0].items.find((it) => it.id === mg.id)).toMatchObject({ x: 3, y: rackRow, rot: 1 });
     });
 
     it('charges nothing for a part the plan puts back where it started', () => {
       const { w, mg } = withSpare();
-      const turned = { x: 4, y: rackRow, rot: 3 as const };
+      const turned = { x: 3, y: rackRow, rot: 3 as const };
       const layout = { [mg.id]: { x: mg.x, y: mg.y, rot: mg.rot }, 'spare-item': turned };
       expect(plannedRefitTurns(w, w.vehicles[0], layout)).toBe(0);
       const next = startRefit(w, layout);
@@ -346,8 +363,9 @@ describe('garage work at every shop', () => {
     it('turns a gun in place for the price of its mount', () => {
       const w = emptyWorld();
       const mg = item(w, 'mg');
-      const next = startRefit(w, { [mg.id]: { x: mg.x, y: mg.y, rot: 2 } });
-      expect(next.vehicles[0].job).toMatchObject({ kind: 'refit', moves: [{ itemId: mg.id, to: { rot: 2 } }] });
+      const turned = ((mg.rot + 2) % 4) as Rot;
+      const next = startRefit(w, { [mg.id]: { x: mg.x, y: mg.y, rot: turned } });
+      expect(next.vehicles[0].job).toMatchObject({ kind: 'refit', moves: [{ itemId: mg.id, to: { rot: turned } }] });
     });
 
     it('applies at once at a shop', () => {
@@ -371,10 +389,11 @@ describe('garage work at every shop', () => {
       expect(() => startRefit(w, { 'spare-item': { x: mg.x, y: mg.y, rot: 0 } })).toThrow(/badLayout/);
     });
 
-    it('throws while a refit runs', () => {
+    it('queues a plan behind a running refit', () => {
       const { w, mg } = withSpare();
-      const running = startRefit(w, { [mg.id]: { x: mg.x, y: mg.y, rot: 2 } });
-      expect(() => startRefit(running, { [good(w).id]: { x: 0, y: rackRow, rot: 0 } })).toThrow(/refitRunning/);
+      const running = startRefit(w, { [mg.id]: { x: mg.x, y: mg.y, rot: ((mg.rot + 2) % 4) as Rot } });
+      const queued = startRefit(running, { [good(w).id]: { x: 0, y: rackRow, rot: 0 } });
+      expect(queued.vehicles[0].job).toMatchObject({ moves: [{ itemId: mg.id }], queue: [{ moves: [{ itemId: good(w).id }], pickup: null }] });
     });
   });
 });
@@ -393,7 +412,7 @@ describe('cargo room in crates', () => {
 
   it('an NPC fits the fewer of its free cells and the crates its mass room holds', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'hauler', ['mg', 'stockEngine'], { x: 40, y: 40 });
+    const npc = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 40, y: 40 });
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
     expect(cargoRoom(npc)).toBe(freeCells(npc));
     const crates = Math.min(freeCells(npc), Math.floor(npcMassRoom(npc) / CRATE_MASS));

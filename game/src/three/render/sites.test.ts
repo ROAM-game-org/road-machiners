@@ -1,22 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { Box3, InstancedMesh, Matrix4, Mesh, Vector3, type MeshLambertMaterial, type Object3D } from 'three';
 import { loadModels, MODEL_GLOW } from './models';
-import { buildSites } from './sites';
+import { buildSites, lampMount } from './sites';
 import { FORTRESS } from '../../data/fortress';
 import { PAL } from '../../render/palette';
 import { PHYSICS } from '../../data/physics';
 import { REGION } from '../../data/region';
 import { fortressGates, fortressPieces, insideCurtain, onFortressRock, pitDepth } from '../../sim/fortress';
+import { TOWARD_CAMERA } from './camera';
 import { GATE_CLEAR, riseFront } from './interiors/nose';
 import { boxDistance, propBoxes, propObstacle, propShape } from '../../sim/mapgen';
-import { noseRocks } from '../../sim/nose';
+import { noseFrame, noseRocks } from '../../sim/nose';
 import { isFortress } from '../../sim/sites';
 import { deckAt, deckById } from '../../sim/bridge';
 import { heightAt, type Terrain } from '../../sim/terrain';
 import { TEST_MAP } from '../../test/map';
 import { ICARUS_DECKS } from '../../sim/bridge';
 import { ICARUS_KEY } from '../../sim/atlas';
-import { highwayMap } from '../../sim/highway';
+import { highwayMap, outpostFort } from '../../sim/highway';
 import { GATE_APRON_MARGIN, groundHits, SITE_LIGHT_POOL } from './siteLights';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
@@ -442,18 +443,37 @@ describe('landmark scale', () => {
     const nose = ALL.find((s) => s.id === 'nose')!;
     const group = sites.getObjectByName('landmark-nose')!;
     const gates = fortressGates(nose);
-    const south = gates[0].out.y > gates[1].out.y ? gates[0] : gates[1];
-    const uAxis = { x: -south.out.y, y: south.out.x };
-    const toFrame = (p: { x: number; y: number }) => ({ u: (p.x - nose.pos.x) * uAxis.x + (p.y - nose.pos.y) * uAxis.y, v: -((p.x - nose.pos.x) * south.out.x + (p.y - nose.pos.y) * south.out.y) });
+    const { u: uAxis, v: vAxis } = noseFrame(nose);
+    const toFrame = (p: { x: number; y: number }) => ({ u: (p.x - nose.pos.x) * uAxis.x + (p.y - nose.pos.y) * uAxis.y, v: (p.x - nose.pos.x) * vAxis.x + (p.y - nose.pos.y) * vAxis.y });
     const discs = gates.map((g) => ({ ...toFrame(g.face), r: g.width / 2 + GATE_CLEAR }));
     const rockBoxes = noseRocks(nose).flatMap((p, k) => propBoxes(propObstacle(p, k)));
     const inRise = (p: { x: number; y: number }) => rockBoxes.some((b) => boxDistance(b, p) === 0);
     const interior: { x: number; y: number; u: number; v: number }[] = [];
-    for (let x = Math.floor(nose.pos.x - nose.radius); x <= nose.pos.x + nose.radius; x++) {
-      for (let y = Math.floor(nose.pos.y - nose.radius); y <= nose.pos.y + nose.radius; y++) {
+    const lattice = { x: nose.pos.x - Math.floor(nose.pos.x), y: nose.pos.y - Math.floor(nose.pos.y) };
+    for (let x = Math.floor(nose.pos.x - nose.radius) + lattice.x; x <= nose.pos.x + nose.radius; x++) {
+      for (let y = Math.floor(nose.pos.y - nose.radius) + lattice.y; y <= nose.pos.y + nose.radius; y++) {
         if (insideCurtain(nose, { x, y }, 1)) interior.push({ x, y, ...toFrame({ x, y }) });
       }
     }
+
+    it('faces both Nose gates to the camera, one on the left and one at the bottom (IV1, IV2)', () => {
+      const { west, south } = noseFrame(nose);
+      const bearing = (g: { out: { x: number; y: number } }) => (Math.atan2(g.out.y, g.out.x) * 180) / Math.PI;
+      for (const g of gates) expect(g.out.x * TOWARD_CAMERA.x + g.out.y * TOWARD_CAMERA.y).toBeGreaterThanOrEqual(0);
+      expect(bearing(west)).toBeGreaterThanOrEqual(125);
+      expect(bearing(west)).toBeLessThanOrEqual(150);
+      expect(bearing(south)).toBeGreaterThanOrEqual(55);
+      expect(bearing(south)).toBeLessThanOrEqual(70);
+    });
+
+    it('keeps every Nose structure clear of both gate discs (IV7)', () => {
+      const structures = (group.userData.structures as { x: number; z: number; r: number }[]).slice(gates.length);
+      for (const g of gates) {
+        for (const s of structures) {
+          expect(Math.hypot(s.x - (g.face.x - nose.pos.x), s.z - (g.face.y - nose.pos.y)), `structure at ${s.x.toFixed(1)}, ${s.z.toFixed(1)}`).toBeGreaterThanOrEqual(g.width / 2 + GATE_CLEAR + s.r);
+        }
+      }
+    });
 
     it('keeps every Nose mesh inside the curtain, or in the rock where the rock closes it (IV8)', () => {
       const v = new Vector3();
@@ -597,15 +617,35 @@ describe('deck models', () => {
   });
 });
 
-describe('a Fury Road outpost fort', () => {
-  it('builds the Salvage Yard interior inside its own curtain beside the highway', () => {
-    const map = highwayMap(3, 0);
-    const { root } = buildSites(map.terrain);
-    const fort = root.getObjectByName('landmark-outpost-1');
-    const yard = sites.getObjectByName('landmark-salvage-yard')!;
+describe('a Chaos Highway outpost fort', () => {
+  const map = highwayMap(3, 1);
+  const built = buildSites(map.terrain);
 
-    expect(fort).toBeDefined();
-    expect(fort!.children.length).toBe(yard.children.length);
+  it('builds the road fort interior inside its own curtain, with one gate light per gate and a work light (IV1)', () => {
+    for (const j of [1, 2]) {
+      const fort = built.root.getObjectByName(`landmark-outpost-${j}`);
+      expect(fort).toBeDefined();
+      expect(fort!.children.length).toBeGreaterThan(10);
+      const site = outpostFort(3, 1, j);
+      const lights = built.lights.filter((l) => l.siteId === site.id);
+      expect(lights.filter((l) => l.kind === 'gate')).toHaveLength(2);
+      expect(lights.filter((l) => l.kind !== 'gate').length).toBeGreaterThan(0);
+    }
+  });
+
+  it('keeps every lane and both park spots clear of furniture', () => {
+    const S = PHYSICS.metersPerTile;
+    for (const j of [1, 2]) {
+      const site = outpostFort(3, 1, j);
+      const fort = built.root.getObjectByName(`landmark-${j === 1 ? 'outpost-1' : 'outpost-2'}`)!;
+      fort.updateMatrixWorld(true);
+      for (const child of fort.children) {
+        if (!child.name.startsWith('outpost-')) continue;
+        const box = new Box3().setFromObject(child);
+        const across = (v: number) => v / S - site.pos.x;
+        expect(Math.min(Math.abs(across(box.min.x)), Math.abs(across(box.max.x))), `${j} ${child.name}`).toBeGreaterThan(5);
+      }
+    }
   });
 });
 
@@ -616,8 +656,8 @@ describe('site work lights (#402)', () => {
   const of = (id: string) => flat.filter((l) => l.siteId === id);
   const tiles = (p: { x: number; z: number }) => ({ x: p.x / S, y: p.z / S });
 
-  it('gives each of the nine inhabited sites an interior light and one gate light per gate (IV1)', () => {
-    expect(FORTS).toHaveLength(9);
+  it('gives each of the ten inhabited sites an interior light and one gate light per gate (IV1)', () => {
+    expect(FORTS).toHaveLength(10);
     for (const site of FORTS) {
       const lights = of(site.id);
       expect(lights.filter((l) => l.kind === 'gate'), site.id).toHaveLength(fortressGates(site).length);
@@ -672,19 +712,49 @@ describe('site work lights (#402)', () => {
 
 describe('fortress lamps (#402)', () => {
   const FORTS = ALL.filter(isFortress);
-  const TOWER_HANG = FORTRESS.towerSize / 2 + 0.7;
+  const towerHang = (site: (typeof FORTS)[number]) => lampMount(site, 'tower').face + 0.7;
   const lampsOf = (id: string) => built.lamps.filter((l) => l.site.id === id);
   const near = (p: { x: number; y: number }, l: { x: number; z: number }, r: number) => Math.hypot(l.x - p.x, l.z - p.y) <= r;
-  const onTower = (t: { pos: { x: number; y: number } }, l: { x: number; z: number }) => Math.abs(Math.hypot(l.x - t.pos.x, l.z - t.pos.y) - TOWER_HANG) < 0.01;
+  const onTower = (site: (typeof FORTS)[number], t: { pos: { x: number; y: number } }, l: { x: number; z: number }) => Math.abs(Math.hypot(l.x - t.pos.x, l.z - t.pos.y) - towerHang(site)) < 0.01;
 
-  it('hangs exactly one outside lamp on every tower (IV2)', () => {
+  const APART = (40 * Math.PI) / 180;
+  const GAP = 6;
+  const bearing = (site: { pos: { x: number; y: number } }, p: { x: number; y: number }) => Math.atan2(p.y - site.pos.y, p.x - site.pos.x);
+  const spread = (a: number, b: number) => {
+    const d = Math.abs(a - b) % (2 * Math.PI);
+    return Math.min(d, 2 * Math.PI - d);
+  };
+  const towerLamps = (site: (typeof FORTS)[number], tower: { pos: { x: number; y: number } }, inside: boolean) => {
+    const towers = fortressPieces(site).filter((p) => p.kind === 'tower');
+    const nearest = (l: { x: number; z: number }) => towers.reduce((a, b) => (Math.hypot(a.pos.x - l.x, a.pos.y - l.z) <= Math.hypot(b.pos.x - l.x, b.pos.y - l.z) ? a : b));
+    return lampsOf(site.id).filter((l) => l.inside === inside && onTower(site, tower, l) && nearest(l).pos.x === tower.pos.x && nearest(l).pos.y === tower.pos.y);
+  };
+
+  it('marks the outline with spread outside tower lamps and covers every tower (IV1)', () => {
     for (const site of FORTS) {
       const towers = fortressPieces(site).filter((p) => p.kind === 'tower');
-      const nearest = (l: { x: number; z: number }) => towers.reduce((a, b) => (Math.hypot(a.pos.x - l.x, a.pos.y - l.z) <= Math.hypot(b.pos.x - l.x, b.pos.y - l.z) ? a : b));
-      for (const tower of towers) {
-        const hung = lampsOf(site.id).filter((l) => !l.inside && onTower(tower, l) && nearest(l) === tower);
-        expect(hung.length, `${site.id} tower at ${tower.pos.x.toFixed(1)},${tower.pos.y.toFixed(1)}: ${hung.map((l) => `${l.x.toFixed(2)},${l.z.toFixed(2)}`).join(' ')}`).toBe(1);
+      if (towers.length === 0) continue;
+      const lit = towers.filter((t) => towerLamps(site, t, false).length > 0);
+      expect(lit.length, site.id).toBeGreaterThan(0);
+      for (const a of lit) for (const b of lit) if (a !== b) expect(spread(bearing(site, a.pos), bearing(site, b.pos)), site.id).toBeGreaterThanOrEqual(APART - 1e-6);
+      for (const t of towers) expect(lit.some((l) => spread(bearing(site, l.pos), bearing(site, t.pos)) < APART), `${site.id} tower at ${t.pos.x.toFixed(1)},${t.pos.y.toFixed(1)}`).toBe(true);
+    }
+  });
+
+  it('hangs at most one inner and one outside lamp on a tower (IV2)', () => {
+    for (const site of FORTS) {
+      for (const tower of fortressPieces(site).filter((p) => p.kind === 'tower')) {
+        expect(towerLamps(site, tower, false).length, site.id).toBeLessThanOrEqual(1);
+        expect(towerLamps(site, tower, true).length, site.id).toBeLessThanOrEqual(1);
       }
+    }
+  });
+
+  it('keeps inner shell lamps far apart (IV3)', () => {
+    for (const site of FORTS) {
+      const pieces = fortressPieces(site);
+      const shell = lampsOf(site.id).filter((l) => l.inside && pieces.some((p) => (p.kind === 'tower' ? onTower(site, p, l) : Math.abs(Math.hypot(l.x - p.pos.x, l.z - p.pos.y) - (lampMount(site, 'wall').face + 0.7)) < 0.01)));
+      for (const a of shell) for (const b of shell) if (a !== b) expect(Math.hypot(a.x - b.x, a.z - b.z), site.id).toBeGreaterThanOrEqual(GAP - 0.01);
     }
   });
 
@@ -693,7 +763,7 @@ describe('fortress lamps (#402)', () => {
       const towers = fortressPieces(site).filter((p) => p.kind === 'tower');
       const gates = fortressGates(site);
       for (const lamp of lampsOf(site.id).filter((l) => !l.inside)) {
-        const placed = towers.some((t) => onTower(t, lamp)) || gates.some((g) => near(g.face, lamp, g.width));
+        const placed = towers.some((t) => onTower(site, t, lamp)) || gates.some((g) => near(g.face, lamp, g.width));
         expect(placed, `${site.id} lamp at ${lamp.x.toFixed(1)},${lamp.z.toFixed(1)}`).toBe(true);
       }
     }

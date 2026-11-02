@@ -3,9 +3,10 @@ import { CHASSIS, HAULER_CHASSIS } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
 import { TOW } from '../data/tow';
 import { bodyOf } from './body';
+import { bendLimit, hitchOverhang, noseOverhang } from './rig';
 import { addVehicle, emptyWorld } from './testkit';
 import { addState } from './states';
-import { followTower } from './tow';
+import { followTower, towBar } from './tow';
 import type { Pose, Vehicle, World } from './types';
 import { angleDiff, bearing, dist } from './vec';
 
@@ -15,8 +16,8 @@ const rearOf = (p: Pose, a: number) => ({ x: p.x - Math.cos(p.heading) * a, y: p
 
 function hitchedPair(towedAt: { x: number; y: number }, towedHeading: number, towerChassis = 'hauler', towedChassis = 'hauler'): { w: World; tower: Vehicle; towed: Vehicle } {
   const w = emptyWorld({ x: 30, y: 30 });
-  const tower = addVehicle(w, 'traders', towerChassis, ['stockEngine'], { x: 30, y: 30 }, 0);
-  const towed = addVehicle(w, 'traders', towedChassis, ['stockEngine'], towedAt, towedHeading);
+  const tower = addVehicle(w, 'independent', towerChassis, ['stockEngine'], { x: 30, y: 30 }, 0);
+  const towed = addVehicle(w, 'independent', towedChassis, ['stockEngine'], towedAt, towedHeading);
   addState(w, 'tow', tower.id, towed.id, { kind: 'tow', site: 'bowl', fee: 0, waived: 0, hitched: true });
   return { w, tower, towed };
 }
@@ -55,9 +56,14 @@ function bendTurns(): Pose[][] {
 }
 
 describe('a hitched truck on a tow bar', () => {
-  it('has a positive bar for every pair of chassis that can be towed, which is every one but the hauler semi of a Fury Road run', () => {
+  it('has a positive bar for every pair of chassis that can be towed, which is every one but the hauler semi of a Chaos Highway run', () => {
     const towable = Object.keys(CHASSIS).filter((id) => id !== HAULER_CHASSIS);
-    for (const a of towable) for (const b of towable) expect(TOW.gap - axle(a) - axle(b)).toBeGreaterThan(0);
+    for (const a of towable) for (const b of towable) expect(towBar(a, b), `${a} towing ${b}`).toBeGreaterThan(0);
+  });
+
+  it('keeps the plain center gap bar for a rigid tower and stretches a rig tower bar past both overhangs', () => {
+    expect(towBar('hauler', 'bus')).toBeCloseTo(TOW.gap - axle('hauler') - axle('bus'), 12);
+    expect(towBar('sorokonoga', 'bus')).toBeGreaterThanOrEqual(hitchOverhang('sorokonoga') + noseOverhang('bus') - 1e-12);
   });
 
   it('converges to the gap on a straight, and never jumps', () => {
@@ -114,5 +120,14 @@ describe('a hitched truck on a tow bar', () => {
     const end = t[SUB];
     const front = { x: end.x + Math.cos(end.heading) * a, y: end.y + Math.sin(end.heading) * a };
     expect(bearing(rearOf(end, a), front)).toBeCloseTo(end.heading, 9);
+  });
+
+  it('bends a towed rig through a bend on the bar, inside its limit, and lines it up again on the straight', () => {
+    const { w, tower, towed } = hitchedPair({ x: 26, y: 30 }, 0, 'hauler', 'sorokonoga');
+    const turns = drive(w, tower, towed, [...bendTurns(), ...straightTurns(10, 4 / SUB, 40).map((t) => t.map((p) => ({ ...p, x: 40, y: p.x - 4, heading: Math.PI / 2 })))]);
+    const bends = turns.flat().map((p) => p.bend!);
+    expect(bends.every((b) => Number.isFinite(b) && Math.abs(b) <= bendLimit('sorokonoga'))).toBe(true);
+    expect(Math.max(...bends.map(Math.abs))).toBeGreaterThan(0.05);
+    expect(Math.abs(towed.bend!)).toBeLessThan(0.05);
   });
 });

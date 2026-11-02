@@ -30,7 +30,7 @@ def build(kit: Kit) -> None:
         kit.box(f"crate_band{y:.2f}", (0.04, 0.25, 0.19), (-0.04, y, 0.13), "rust_dark")
         kit.box(f"rail{y:.2f}", (0.58, 0.03, 0.03), (0, y * 1.28, 0.26), "metal")
         for x in (-0.26, 0.26):
-            kit.box(f"rail_post{x:.2f}{y:.2f}", (0.03, 0.03, 0.22), (x, y * 1.28, 0.14), "metal")
+            kit.box(f"rail_post{x:.2f}{y:.2f}", (0.03, 0.024, 0.22), (x, y * 1.28, 0.14), "metal")
     kit.socket("head", (0, 0, HEAD_Z))
 
 

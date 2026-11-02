@@ -1,6 +1,3 @@
-// Blast craters on the map: a scorched disc draped on the ground and a low ring of thrown dirt. The rim stands on
-// the same points and as high as the physics rim (craterColliders() in src/phys/drive.ts), so the bump a truck feels
-// is the one drawn. Craters live in their own render scope, which greys them in gray vision like props but adds no
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -11,6 +8,7 @@ import { craterReach, craterRimPoints } from '../../sim/craters';
 import { groundAt, markHeightAt, type Terrain } from '../../sim/terrain';
 import type { Crater, World } from '../../sim/types';
 import { dist, type Vec } from '../../sim/vec';
+import { GraffitiViews } from './graffiti';
 import { RenderScope, type SightLimit } from './scope';
 
 const S = PHYSICS.metersPerTile;
@@ -32,6 +30,7 @@ export function craterShows(c: Crater, turn: number, settled: number, revealed: 
 export class CraterViews {
   readonly root = new THREE.Group();
   readonly scope: RenderScope;
+  readonly graffiti: GraffitiViews;
   private readonly terrain: Terrain;
   private readonly views = new Map<string, { crater: Crater; obj: THREE.Group }>();
   private readonly revealed = new Set<string>();
@@ -48,6 +47,7 @@ export class CraterViews {
     this.terrain = world.terrain;
     this.turn = world.turn;
     this.scope = new RenderScope(this.root, world.size, limit, true, false);
+    this.graffiti = new GraffitiViews(world, this.scope);
     this.sync(world);
     this.revealAll(world.turn);
   }

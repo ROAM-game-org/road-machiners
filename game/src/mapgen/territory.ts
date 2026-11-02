@@ -9,18 +9,34 @@ import { ROAD_INDEX } from '../sim/road-index';
 import { randRange, type Rng } from '../sim/rng';
 import { siteGap } from '../sim/sites';
 import { basinUnder, isTerritory, landingStrips, reactorPos, territoryCaches, territoryPieces, territoryRoads, type BakedPiece, type LandingStrip } from '../sim/territory';
-import { groundAt, type BakedProp } from '../sim/terrain';
+import { BUILT_NONE, BUILT_SCRUB, BUILT_TRACK, groundAt, type BakedProp } from '../sim/terrain';
 import { dist, segmentDist, type Vec } from '../sim/vec';
 import { footprintRelief, tileSteepness, type MapDraft } from './bake';
-import { fillFarm, placeBuildingGroups, touchesMarks } from './farm';
+import { cornerRelief, fillFarm, placeBuildingGroups, touchesMarks } from './farm';
 import { fillGlass } from './glass';
-import { at, markRoads, type Touch } from './marks';
-import { prop, ruleRng, tileOf } from './oldworld';
+import { at, gradeTerritoryRoads, markRoads, throwOnRoadCliffs, type Touch } from './marks';
+import { prop, ruleRng, tileCenter, tileOf, tilesWithin } from './oldworld';
 
 export const TERRITORY_SEED_OFFSET = 9100;
+const SPUR_RESERVE = 1;
+const OPEN_GROUND = new Set([BUILT_NONE, BUILT_SCRUB]);
 const TRIES = 5000;
 const REACTOR_MARGIN = 2;
 const DEBRIS_BAND: [number, number] = [0, 1.5];
+
+export function reserveSpurs(d: MapDraft): MapDraft {
+  for (const t of REGION.locations.filter(isTerritory)) {
+    for (const spur of territoryRoads(t).spurs) for (let k = 1; k < spur.points.length; k++) reserveLeg(d, spur.points[k - 1], spur.points[k], spur.width);
+  }
+  return d;
+}
+
+function reserveLeg(d: MapDraft, a: Vec, b: Vec, width: number): void {
+  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  for (const tile of tilesWithin(d.size, mid, dist(a, b) / 2 + width)) {
+    if (segmentDist(tileCenter(d.size, tile), a, b) <= width / 2 + SPUR_RESERVE && OPEN_GROUND.has(d.built[tile])) d.built[tile] = BUILT_TRACK;
+  }
+}
 
 export function territoryLayer(seed: number, d: MapDraft): MapDraft {
   for (const t of REGION.locations.filter(isTerritory)) {
@@ -41,6 +57,7 @@ type Ground = Draws & {
 
 function fill(d: MapDraft, t: TerritoryDef, rules: TerritoryRules, rng: Rng): void {
   const pieces = rules.wreck ? placePieces(d, t, rules.wreck) : [];
+  if (rules.wreck?.gradeRoads) gradeTerritoryRoads(d, t, territoryRoads(t).roads, []);
   if (rules.reactor) d.props.push(prop(rules.reactor.look, reactorPos(t), rules.reactor.radius, 0));
   if (rules.wreck) fillWreck({ d, t, rules, rng }, rules, rules.wreck, pieces);
   if (rules.farm) fillFarmBand({ d, t, rules, rng }, rules, rules.farm);
@@ -60,6 +77,7 @@ function fillWreck(draws: Draws, rules: TerritoryRules, wreck: WreckRules, piece
   const { roads, spurs } = territoryRoads(t);
   const [onWeb, onSpur] = [markRoads(d, t, roads, 'inside'), markRoads(d, t, spurs, 'spur')];
   const onRoad: Touch = (pos, r) => onWeb(pos, r) || onSpur(pos, r);
+  throwOnRoadCliffs(d, t, roads);
   const pieceBoxes = territoryPieces(t).flatMap((p) => propBoxes(pieceObstacle(p, 'piece')));
   const caches = territoryCaches(t).map((c) => prop(wreck.cacheLook, c.pos, wreck.cacheRadius, c.yaw));
   for (const c of caches) if (onRoad(c.pos, c.r) || touchesMarks(d, c.pos, c.r)) throw new Error(`${t.id} cache at ${at(c.pos)} stands on a dirt road`);
@@ -100,17 +118,25 @@ function pieceObstacle(p: BakedPiece, id: string) {
 
 function seatPieces(d: MapDraft, pieces: readonly BakedPiece[], ease: number): void {
   const before = { size: d.size, heights: Array.from(d.heights), types: [] };
-  const level: { k: number; h: number }[] = [];
+  const pulls = new Map<number, { gap: number; centre: number }[]>();
   pieces.forEach((p, n) => {
     const low = propBoxes(pieceObstacle(p, `seat-${n}`)).filter((b) => b.z0 < PHYSICS.truckClearance);
     const centre = groundAt(before, p.pos.x, p.pos.y) - p.sink;
     for (const c of seatCorners(d.size, p, low, ease)) {
       const k = c.j * (d.size + 1) + c.i;
-      if (c.gap === 0) level.push({ k, h: centre });
-      else d.heights[k] = centre + (before.heights[k] - centre) * smooth(c.gap / ease);
+      pulls.set(k, [...(pulls.get(k) ?? []), { gap: c.gap, centre }]);
     }
   });
-  for (const { k, h } of level) d.heights[k] = h;
+  for (const [k, list] of pulls) d.heights[k] = seated(before.heights[k], list, ease);
+}
+
+function seated(natural: number, pulls: readonly { gap: number; centre: number }[], ease: number): number {
+  const level = pulls.filter((p) => p.gap === 0);
+  if (level.length > 0) return level[level.length - 1].centre;
+  const hold = pulls.reduce((share, p) => share * smooth(p.gap / ease), 1);
+  const weights = pulls.map((p) => 1 - smooth(p.gap / ease));
+  const total = hold + weights.reduce((sum, w) => sum + w, 0);
+  return (natural * hold + pulls.reduce((sum, p, i) => sum + p.centre * weights[i], 0)) / total;
 }
 
 function seatCorners(size: number, p: BakedPiece, low: readonly PosedBox[], ease: number): { i: number; j: number; gap: number }[] {
@@ -234,7 +260,11 @@ function standable(d: MapDraft, p: BakedProp, relief: number | null): boolean {
   if (ROAD_INDEX.nearestWithin(pos.x, pos.y, reach) < reach) return false;
   if (touchesMarks(d, pos, r)) return false;
   if (tileSteepness(d.heights, d.size, tileOf(d.size, pos)) > TERRAIN.drive.maxSlope) return false;
-  return relief === null || footprintRelief(d.heights, d.size, p, false) <= relief;
+  return relief === null || seatedWithin(d, p, relief);
+}
+
+function seatedWithin(d: MapDraft, p: BakedProp, relief: number): boolean {
+  return footprintRelief(d.heights, d.size, p, false) <= relief && cornerRelief(d, p) <= relief;
 }
 
 export function clearOf(props: readonly BakedProp[], pos: Vec, r: number, gap: number): boolean {

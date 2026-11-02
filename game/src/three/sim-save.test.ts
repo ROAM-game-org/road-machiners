@@ -1,0 +1,73 @@
+import { describe, expect, it } from 'vitest';
+import { playerVehicle } from '../sim/damage';
+import { emptyLedger } from '../sim/progression/orders';
+import { SimRun, simWorld, type FromSim, type Sample } from '../sim/progression/sim-mode';
+import { TEST_MAP } from '../test/map';
+import { SIM_TEXT } from '../ui/sim/sim-text';
+import { memoryBackend, SaveSlots } from './save-db';
+import { resumedRun, SIM_SLOT, simEnvelope } from './sim-save';
+
+const TURNS = 3;
+
+describe('sim run saves', () => {
+  it('saves a run in the game save format and resumes the same world and ledger, which plays on', async () => {
+    const run = new SimRun(simWorld(TEST_MAP, 2), SIM_TEXT, () => {});
+    for (let i = 0; i < TURNS; i++) run.handle({ kind: 'step' });
+    const { world, ledger, history } = run.current();
+    const slots = await SaveSlots.open(memoryBackend(), null, 'sim-test', [SIM_SLOT]);
+    slots.put(SIM_SLOT, simEnvelope(run.current(), 1));
+    const resumed = resumedRun(slots, TEST_MAP);
+    if (resumed.kind !== 'resumed') throw new Error(`The save did not resume: ${resumed.kind}`);
+    expect(resumed.ledger).toEqual(ledger);
+    expect(resumed.history).toEqual(history);
+    expect(history.length).toBeGreaterThan(0);
+    expect(resumed.world).toMatchObject({ seed: world.seed, turn: world.turn });
+    expect(resumed.world.player.money).toBe(world.player.money);
+    expect(playerVehicle(resumed.world).pos).toEqual(playerVehicle(world).pos);
+    expect(resumed.world.vehicles.map((v) => v.id)).toEqual(world.vehicles.map((v) => v.id));
+    const messages: FromSim[] = [];
+    const again = new SimRun(resumed.world, SIM_TEXT, (m) => messages.push(m), resumed.ledger, resumed.history);
+    again.handle({ kind: 'step' });
+    expect(messages[0]).toEqual({ kind: 'history', samples: history });
+    expect(messages.filter((m) => m.kind === 'failed')).toEqual([]);
+    expect(again.current().world.turn).toBe(world.turn + 1);
+  }, 240000);
+
+  it('has no save for a run whose player is dead', () => {
+    const world = simWorld(TEST_MAP, 2);
+    const dead = { ...world, player: { ...world.player, state: 'dead' as const } };
+    expect(() => simEnvelope({ world: dead, ledger: emptyLedger(), history: [] }, 1)).toThrow(/dead/);
+  }, 120000);
+
+  it('deletes an outdated save with no money history, so the sim starts a new run', async () => {
+    const run = new SimRun(simWorld(TEST_MAP, 2), SIM_TEXT, () => {});
+    const { history: _history, ...old } = simEnvelope(run.current(), 1);
+    const slots = await SaveSlots.open(memoryBackend(), null, 'sim-old', [SIM_SLOT]);
+    slots.put(SIM_SLOT, old);
+    expect(resumedRun(slots, TEST_MAP)).toEqual({ kind: 'outdated' });
+    expect(slots.get(SIM_SLOT)).toBeNull();
+    expect(resumedRun(slots, TEST_MAP)).toEqual({ kind: 'none' });
+  }, 120000);
+
+  it.each([
+    ['no market history', ({ market: _market, ...rest }: Sample): object => rest],
+    ['a market that is a record of shops', (sample: Sample): object => ({ ...sample, market: { granary: { grain: { stock: 1, buy: 2 } } } })],
+    ['a market of another layout', (sample: Sample): object => ({ ...sample, market: sample.market.slice(2) })],
+    ['no events', ({ events: _events, ...rest }: Sample): object => rest],
+  ])('deletes a save whose samples have %s, so the sim starts a new run', async (_name, age) => {
+    const run = new SimRun(simWorld(TEST_MAP, 2), SIM_TEXT, () => {});
+    const saved = simEnvelope(run.current(), 1);
+    const slots = await SaveSlots.open(memoryBackend(), null, 'sim-old-market', [SIM_SLOT]);
+    slots.put(SIM_SLOT, { ...saved, history: saved.history.map(age) });
+    expect(resumedRun(slots, TEST_MAP)).toEqual({ kind: 'outdated' });
+    expect(slots.get(SIM_SLOT)).toBeNull();
+  }, 120000);
+
+  it('refuses a save whose history has no money numbers instead of deleting it', async () => {
+    const run = new SimRun(simWorld(TEST_MAP, 2), SIM_TEXT, () => {});
+    const saved = simEnvelope(run.current(), 1);
+    const slots = await SaveSlots.open(memoryBackend(), null, 'sim-broken', [SIM_SLOT]);
+    slots.put(SIM_SLOT, { ...saved, history: [{ turn: 0 }] });
+    expect(() => resumedRun(slots, TEST_MAP)).toThrow(/broken money history/);
+  }, 120000);
+});

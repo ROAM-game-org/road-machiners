@@ -24,10 +24,15 @@ const RULES: Record<UseKind, Rule> = {
   mortar: mortarOrder,
   flare: flareOrder,
   emitter: emitterOrder,
-  claymore: (_world, v) => self(v.brain.ramChoice !== undefined),
+  claymore: claymoreOrder,
   crane: () => null,
   scraper: () => null,
 };
+
+function claymoreOrder(world: World, v: Npc, part: PartInstance): UtilityOrder | null {
+  if (!part.charge?.armed) return self(v.brain.ramChoice !== undefined);
+  return v.brain.ramChoice === undefined && !inCombat(world, v) ? { kind: 'disarm' } : null;
+}
 
 export function assignUtilityOrders(world: World): void {
   for (const v of world.vehicles) if (isNpc(world, v)) planUses(world, v);

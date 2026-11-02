@@ -35,7 +35,7 @@ describe('damage practice', () => {
 
   it('pays nothing for a hit on an NPC cab', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     damagePart(w, npc, corePart(npc, 'cab'), 10);
     expect(practiceOf(w, 'damage')).toEqual([]);
   });

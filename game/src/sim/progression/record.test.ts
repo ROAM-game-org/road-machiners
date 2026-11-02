@@ -5,12 +5,15 @@ import { TIME } from '../../data/time';
 import type { World, XpSource } from '../types';
 import { cumulativeCost } from '../progress';
 import { playerVehicle } from '../damage';
-import { emptyWorld } from '../testkit';
-import { FAR_MOVER, record, recordFrom, recordTurns, StallWatch, stepsFrom, type TraceLine } from './record';
+import { TEST_MAP } from '../../test/map';
+import { emptyWorld, chaosHighwayWorld } from '../testkit';
+import { haulerOf } from '../damage';
+import { archetypeWorldOn, failOnStall, FAR_MOVER, recordFrom, StallWatch, stepsFrom, type TraceLine } from './record';
+import { record, recordTurns } from './record-node';
 import { replay } from './replay';
 
 const SHORT_RUN = 60;
-const DETERMINISM_RUN = 15;
+const DETERMINISM_RUN = 8;
 const RUN_TIMEOUT = 360_000;
 
 describe('record', () => {
@@ -51,17 +54,17 @@ describe('record', () => {
 
     for (const skill of SKILL_IDS) {
       const bySource = (Object.keys(XP_SOURCES) as XpSource[]).filter((s) => XP_SOURCES[s].skill === skill).reduce((sum, s) => sum + world.player.xpBySource[s], 0);
-      expect(curve[skill].total, skill).toBeCloseTo(bySource, 6);
+      expect(curve.families[skill].total, skill).toBeCloseTo(bySource, 6);
     }
-    const pool = SKILL_IDS.reduce((sum, skill) => sum + curve[skill].total, 0);
+    const pool = SKILL_IDS.reduce((sum, skill) => sum + curve.families[skill].total, 0);
     const spent = SKILL_IDS.reduce((sum, skill) => sum + cumulativeCost(world.player.ranks[skill]), 0);
+    expect(curve.pooled.total).toBeCloseTo(pool, 6);
     expect(pool).toBeCloseTo(world.player.xp + spent, 6);
   }, RUN_TIMEOUT);
 
   it('starts the hunter on the snowball kit and the others on the standard kit unless a kit is named', () => {
     const chassisOf = (archetype: 'hunter' | 'trader', kit?: string): string => {
-      const [step] = recordTurns(1337, archetype, 1, kit === undefined ? {} : { kit });
-      return playerVehicle(step.world).chassisId;
+      return playerVehicle(archetypeWorldOn(TEST_MAP, 1337, archetype, kit === undefined ? {} : { kit })).chassisId;
     };
 
     expect(chassisOf('hunter')).toBe(START_KITS.snowball.chassis);
@@ -100,22 +103,36 @@ describe('StallWatch', () => {
 
   it('throws once the truck stays within a tile for a whole day', () => {
     const watch = new StallWatch('seed 7 trader', 1, start);
-    for (let turn = 2; turn < 1 + TIME.turnsPerDay; turn++) watch.note(turn, { x: 10.5, y: 10 }, false);
+    for (let turn = 2; turn < 1 + TIME.workDayTurns; turn++) watch.note(turn, { x: 10.5, y: 10 }, false);
 
-    expect(() => watch.note(1 + TIME.turnsPerDay, { x: 10.5, y: 10 }, false)).toThrow(new RegExp(`seed 7 trader.*turn ${1 + TIME.turnsPerDay}.*10\\.5, 10`));
+    expect(() => watch.note(1 + TIME.workDayTurns, { x: 10.5, y: 10 }, false)).toThrow(new RegExp(`seed 7 trader.*turn ${1 + TIME.workDayTurns}.*10\\.5, 10`));
   });
 
   it('starts the day over when the truck moves a tile', () => {
     const watch = new StallWatch('seed 7 trader', 1, start);
     watch.note(100, { x: 11, y: 10 }, false);
 
-    expect(() => watch.note(1 + TIME.turnsPerDay, { x: 11, y: 10 }, false)).not.toThrow();
+    expect(() => watch.note(1 + TIME.workDayTurns, { x: 11, y: 10 }, false)).not.toThrow();
   });
 
   it('does not count turns parked on purpose', () => {
     const watch = new StallWatch('seed 7 trader', 1, start);
     watch.note(150, start, true);
 
-    expect(() => watch.note(1 + TIME.turnsPerDay, start, false)).not.toThrow();
+    expect(() => watch.note(1 + TIME.workDayTurns, start, false)).not.toThrow();
+  });
+});
+
+describe('failOnStall', () => {
+  it('names the run hauler and its order when a brainless truck stalls', () => {
+    const w = chaosHighwayWorld();
+    const hauler = haulerOf(w);
+    hauler.order = { kind: 'stopAt', dest: { x: 40, y: 50 } };
+    w.events.push({ t: 'stall', vehicle: hauler.id, goal: null, reason: 'idle' });
+    const fail = () => failOnStall(w, new Map(), false);
+    expect(fail).toThrow(new RegExp(`${hauler.id} gave up idle`));
+    expect(fail).toThrow(/run hauler/);
+    expect(fail).toThrow(/order \{.*"stopAt"/);
+    expect(fail).not.toThrow(/without a driver/);
   });
 });

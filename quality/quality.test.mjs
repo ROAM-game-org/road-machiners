@@ -49,7 +49,7 @@ beforeEach(() => {
   writeFileSync(path.join(directory, 'factory/src/example.ts'), 'export const value = 1;\n');
   mkdirSync(path.join(directory, 'quality'));
   mkdirSync(path.join(directory, '.githooks'));
-  for (const file of ['quality/quality.mjs', 'quality/quality-policy.mjs', 'quality/install-hooks.mjs', '.githooks/pre-commit', '.oxlintrc.json', '.quality.json', 'package.json']) {
+  for (const file of ['quality/quality.mjs', 'quality/quality-policy.mjs', 'quality/quality-tests.mjs', 'quality/install-hooks.mjs', '.githooks/pre-commit', '.oxlintrc.json', '.quality.json', 'package.json']) {
     cpSync(path.join(root, file), path.join(directory, file));
   }
   runGit('init', '-q');
@@ -223,6 +223,23 @@ test('exempts tests from structural limits but still rejects test type errors', 
   writeSource('export const value: number = "wrong";\n', 'game/src/example.test.ts');
   runGit('add', 'game');
   assertRejected(runCheck(), /not assignable/);
+});
+
+test('rejects a game test that gains a time limit or loses seeds, and accepts one that gains seeds', () => {
+  const seeds = (count) => `export const SEEDS = ${count};\nexport const holds = (run: () => void) => run();\n`;
+  writeSource(seeds(20), 'game/src/example.test.ts');
+  runGit('add', 'game');
+  runGit('-c', 'core.hooksPath=/dev/null', 'commit', '-qm', 'seeded test');
+  writeSource(seeds(20) + 'export const SLOW = { timeout: 60_000 };\n', 'game/src/example.test.ts');
+  runGit('add', 'game');
+  assertRejected(runCheck(), /test time limits: .* 1 time limits, up from 0/);
+  writeSource(seeds(5), 'game/src/example.test.ts');
+  runGit('add', 'game');
+  assertRejected(runCheck(), /test samples: "const SEEDS" fell from 20 to 5/);
+  writeSource(seeds(30), 'game/src/example.test.ts');
+  runGit('add', 'game');
+  const result = runCheck();
+  assert.equal(result.status, 0, result.stdout + result.stderr);
 });
 
 test('checks JavaScript paths with spaces', () => {

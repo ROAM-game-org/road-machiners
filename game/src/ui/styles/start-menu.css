@@ -22,6 +22,33 @@
 .start-menu .start-buttons {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-8);
   width: var(--panel-s);
+}
+.start-menu .start-others {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.start-menu .start-continue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.start-menu .start-save {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: var(--space-4);
+  font-size: var(--text-dense);
+  color: var(--ink-muted);
+}
+.start-menu .start-save .save-name {
+  display: flex;
+  gap: var(--space-4);
+  white-space: nowrap;
+}
+.start-menu .start-save .save-name b {
+  color: var(--ink);
 }

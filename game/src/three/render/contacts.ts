@@ -1,6 +1,3 @@
-// Markers for vehicles detected beyond sight: sound and radio. Dust is drawn as clouds by dust.ts. All are drawn above the fog: a contact
-// is sensed, not seen, so it does not depend on the fog of war.
-// - Sound: faint white wavefronts, in bursts. Each turn opens with a burst of quick ripples, then a long
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';

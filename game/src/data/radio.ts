@@ -11,8 +11,11 @@ export type RadioTopic =
   | 'stormStart'
   | 'stormEnd'
   | 'haul'
-  | 'fetch'
-  | 'bounty'
+  | 'procure'
+  | 'claim'
+  | 'search'
+  | 'survey'
+  | 'rescue'
   | 'raid'
   | 'raidKnockout'
   | 'wisdom';
@@ -44,12 +47,13 @@ export const RADIO_VARIANTS: Record<RadioTopic, number> = {
   stormStart: 2,
   stormEnd: 2,
   haul: 2,
-  fetch: 2,
-  bounty: 2,
+  procure: 2,
+  claim: 2,
+  search: 2,
+  survey: 2,
+  rescue: 2,
   raid: 3,
   raidKnockout: 2,
   wisdom: 20,
 };
 
-export const DIRECTIONS = ['east', 'southEast', 'south', 'southWest', 'west', 'northWest', 'north', 'northEast'] as const;
-export type Direction = (typeof DIRECTIONS)[number];

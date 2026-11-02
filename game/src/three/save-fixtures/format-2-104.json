@@ -1,0 +1,28 @@
+{
+  "player": {
+    "call": {
+      "with": "npc-1",
+      "topic": null,
+      "node": "start",
+      "vars": {
+        "way": {
+          "kind": "directions",
+          "steps": [
+            { "do": "follow", "road": { "kind": "to", "site": "nose" }, "heading": "northEast", "span": "fair" },
+            { "do": "leave", "at": { "kind": "none" }, "octant": "south", "span": "fair" },
+            { "do": "search", "clue": { "kind": "wreck" }, "rough": true }
+          ]
+        }
+      },
+      "line": {
+        "line": "wreckWay",
+        "vars": {
+          "way": {
+            "kind": "directions",
+            "steps": [{ "do": "leave", "at": { "kind": "fork", "nth": 2 }, "octant": "east", "span": "near" }]
+          }
+        }
+      }
+    }
+  }
+}

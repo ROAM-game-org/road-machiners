@@ -8,7 +8,7 @@ import { hoverArcs, iconSpot } from './weaponRange';
 
 function raiderWithGun() {
   const world = emptyWorld();
-  const raider = addVehicle(world, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 });
+  const raider = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 });
   return { world, raider };
 }
 

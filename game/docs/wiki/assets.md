@@ -1,6 +1,6 @@
 # Assets
 
-Models and sound cues. The map from chassis and part ids to models is `src/render/partLooks.ts`, and the cue list is `src/data/sounds.ts`. Adding a model is described in [Art pipeline](../art.md), and sound in `docs/sound.md`.
+Models and sound cues. The map from chassis and part ids to models is `src/render/partLooks.ts`, and the cue list is `src/data/sounds.ts`. Adding a model is described in [Art pipeline](../art/models.md), and sound in [Sound](../sound.md).
 
 ## Models
 
@@ -25,7 +25,8 @@ Each chassis has one base model. Parts and goods have their own. A part with no 
 | chassis | niva | base_niva |
 | chassis | bukhanka | base_bukhanka |
 | chassis | lincoln | base_lincoln |
-| chassis | semi | base_semi |
+| chassis | semi | base_semi + base_semi_rear |
+| chassis | sorokonoga | base_sorokonoga + base_sorokonoga_rear |
 | part | transmission | transmission |
 | part | transmissionMid | transmission |
 | part | transmissionHeavy | transmission |
@@ -55,6 +56,11 @@ Each chassis has one base model. Parts and goods have their own. A part with no 
 | part | scrapSheet | arm_scrap_sheet |
 | part | ceramicTile | arm_ceramic_tile |
 | part | claymoreRam | arm_claymore_ram |
+| part | spacedTile | arm_spaced_tile |
+| part | cageSection | arm_cage_section |
+| part | reinforcedSection | arm_reinforced_section |
+| part | spikeCluster | arm_spike_cluster |
+| part | spikeStrip | arm_spike_strip |
 | part | rack | cargo_rack |
 | part | trailerBox | cargo_trailer_box |
 | part | panniers | cargo_panniers |
@@ -84,6 +90,9 @@ Each chassis has one base model. Parts and goods have their own. A part with no 
 | good | parts | good_parts |
 | good | fuelDrums | good_fuel_drums |
 | good | water | good_water |
+| good | rations | good_rations |
+| good | relics | good_relics |
+| good | parcel | parcel |
 <!-- /wiki:models -->
 
 ## Weapon pools
@@ -119,7 +128,6 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 <!-- wiki:sounds -->
 | cue | bus | loop | volume | max voices | variants |
 | --- | --- | --- | --- | --- | --- |
-| ui-click | ui | false | 0.6 | 2 | 2 |
 | ui-open | ui | false | 0.7 | 1 | 3 |
 | ui-close | ui | false | 0.7 | 1 | 3 |
 | ui-confirm | ui | false | 0.8 | 1 | 3 |
@@ -128,12 +136,14 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 | money | ui | false | 0.8 | 1 | 3 |
 | level-up | ui | false | 1 | 1 | 1 |
 | discover | ui | false | 0.9 | 1 | 1 |
+| heatwave-warning | ui | false | 0.84 | 1 | 1 |
 | air-brake | sfx | false | 0.5 | 1 | 3 |
 | defeat | ui | false | 1 | 1 | 1 |
 | mg-fire | sfx | false | 0.6 | 6 | 3 |
 | cannon-fire | sfx | false | 0.9 | 3 | 1 |
 | gun-empty | sfx | false | 0.8 | 3 | 1 |
 | hit-metal | sfx | false | 0.55 | 6 | 3 |
+| hit-part | sfx | false | 0.55 | 6 | 3 |
 | miss | sfx | false | 0.4 | 6 | 3 |
 | part-broken | sfx | false | 0.7 | 2 | 3 |
 | explosion | sfx | false | 1 | 2 | 3 |
@@ -150,24 +160,26 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 | caltrops-hit | sfx | false | 0.7 | 3 | 1 |
 | oil-spill | sfx | false | 0.6 | 2 | 2 |
 | emitter-pulse | sfx | false | 0.8 | 2 | 2 |
-| engine | sfx | true | 0.6 | 1 | 3 |
-| engine-strain | sfx | true | 0.6 | 1 | 2 |
+| engine | sfx | true | 0.6 | 1 | 2 |
+| engine-strain | sfx | true | 0.34 | 1 | 2 |
 | wind | ambient | true | 1 | 1 | 3 |
 | music-calm | music | true | 1 | 1 | 5 |
 | music-town | music | true | 1 | 1 | 1 |
 | music-outpost | music | true | 1 | 1 | 1 |
 | music-abandoned | music | true | 0.7 | 1 | 3 |
 | music-quest | music | true | 0.8 | 1 | 3 |
-| score-drums | music | true | 0.9 | 1 | 1 |
-| score-bass | music | true | 0.8 | 1 | 1 |
-| score-horns | music | true | 0.8 | 1 | 1 |
-| score-trombone | music | true | 0.8 | 1 | 1 |
-| accent-sighted | music | false | 0.85 | 3 | 2 |
-| accent-struck | music | false | 0.85 | 3 | 2 |
-| accent-miss | music | false | 0.75 | 3 | 2 |
-| accent-hit | music | false | 1.3 | 3 | 2 |
-| accent-crit | music | false | 0.95 | 3 | 2 |
-| accent-crash | music | false | 1 | 3 | 2 |
+| song-clash-a | music | false | 1 | 1 | 1 |
+| song-clash-a-guitars | music | false | 1 | 1 | 1 |
+| song-clash-a-cymbals | music | false | 1 | 1 | 1 |
+| song-clash-b | music | false | 1 | 1 | 1 |
+| song-clash-b-guitars | music | false | 1 | 1 | 1 |
+| song-clash-b-cymbals | music | false | 1 | 1 | 1 |
+| song-cello | music | false | 1 | 1 | 1 |
+| song-cello-guitars | music | false | 1 | 1 | 1 |
+| song-cello-cymbals | music | false | 1 | 1 | 1 |
+| song-dusk | music | false | 1 | 1 | 1 |
+| song-dusk-guitars | music | false | 1 | 1 | 1 |
+| song-dusk-cymbals | music | false | 1 | 1 | 1 |
 <!-- /wiki:sounds -->
 
 ## Numbers

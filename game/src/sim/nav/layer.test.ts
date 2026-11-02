@@ -3,20 +3,71 @@ import { PHYSICS } from '../../data/physics';
 import { BROKEN_WING, BROKEN_WING_POINT, REGION } from '../../data/region';
 import { START_KITS } from '../../data/start';
 import { BREAKABLE } from '../../data/rules';
+import { TERRAIN_TYPES } from '../../data/terrain';
 import { deckById } from '../bridge';
-import { boxDistance, boxSegmentDistance, propBoxes } from '../mapgen';
+import { boxDistance, boxSegmentDistance, isBreakable, mapObstacles, propBoxes, propPose, RAMP_MODELS, rampSpan } from '../mapgen';
 import { route } from '../path';
-import type { Obstacle } from '../types';
+import type { Obstacle, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { stampOverlay } from './astar';
-import { CELL, CLEARANCE, dynamicBlockers, makeTaste, navLayer, tasteAt, tasteOf } from './layer';
-import { emptyWorld, npcBrain } from '../testkit';
+import { blockedAt, CELL, CLEARANCE, climbTaste, cutTaste, slowAt, dynamicBlockers, makeTaste, navLayer, tasteAt, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type NavLayer } from './layer';
+import { pieceTable, regionAt } from './cells';
+import { perfSnapshot, resetPerf } from '../../perf';
+import { editableTerrain, emptyWorld, npcBrain } from '../testkit';
 import { newWorld } from '../world';
 import { TEST_MAP } from '../../test/map';
 import { budget } from '../../test/budget';
 import { defaultSetup } from '../settings';
 
 const { scale, strength } = REGION.navigation.taste;
+
+function mismatchesNear(a: NavLayer, b: NavLayer, from: Vec, to: Vec): number {
+  let wrong = 0;
+  for (let y = Math.floor(from.y / CELL); y <= Math.floor(to.y / CELL); y++)
+    for (let x = Math.floor(from.x / CELL); x <= Math.floor(to.x / CELL); x++) {
+      const c = y * a.n + x;
+      if (blockedAt(a, c) !== blockedAt(b, c) || slowAt(a, c) !== slowAt(b, c)) wrong++;
+      else if (a.grid.regions.slow[regionAt(a.grid, c)] !== b.grid.regions.slow[regionAt(b.grid, c)]) wrong++;
+    }
+  return wrong;
+}
+const ROOF_EDGE = 1e-9;
+
+describe('climb taste', () => {
+  function sloped() {
+    const w = emptyWorld();
+    const t = editableTerrain(w);
+    const n = t.size + 1;
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) t.heights[j * n + i] = Math.max(0, i - 50) * 0.4;
+    return terrainNav(t);
+  }
+
+  it('stores the steepness of each tile', () => {
+    const nav = sloped();
+    expect(nav.steep[tileIndex(nav.size, 10, 10)]).toBe(0);
+    expect(nav.steep[tileIndex(nav.size, 60, 10)]).toBeCloseTo(0.4, 3);
+  });
+
+  it('multiplies cost only on tiles steeper than the limit', () => {
+    const nav = sloped();
+    const taste = climbTaste(null, nav, 0.3)!;
+    expect(tasted(taste, 1, 10, 10)).toBe(1);
+    expect(tasted(taste, 1, 60, 10)).toBe(REGION.navigation.overClimbCost);
+    expect(tasted(climbTaste(null, nav, 0.45), 1, 60, 10)).toBe(1);
+  });
+
+  it('leaves a truck that climbs every walkable slope with its taste untouched', () => {
+    const nav = sloped();
+    const taste = makeTaste(3, nav.size);
+    expect(climbTaste(taste, nav, 0.6)).toBe(taste);
+    expect(climbTaste(null, nav, 0.6)).toBeNull();
+  });
+
+  it('keys the route cache by the limit', () => {
+    const nav = sloped();
+    expect(tasteKey(climbTaste(null, nav, 0.3))).not.toBe(tasteKey(climbTaste(null, nav, 0.35)));
+  });
+});
 
 describe('route taste', () => {
   it('multiplies cost by 1 - strength / 2 to 1 + strength / 2 everywhere on the map', () => {
@@ -47,6 +98,38 @@ describe('route taste', () => {
 
   it('gives the player and brainless vehicles no taste', () => {
     expect(tasteOf(emptyWorld(), { id: 'v1', brain: null })).toBeNull();
+  });
+});
+
+describe('cut taste', () => {
+  const nav = () => {
+    const w = emptyWorld();
+    const t = editableTerrain(w);
+    for (let i = 0; i < t.types.length; i++) t.types[i] = i % t.size < 100 ? 'road' : 'hardpan';
+    return terrainNav(t);
+  };
+
+  it('keeps open ground between the road cost and the plain open cost, never under a road tile', () => {
+    const { offRoadCost, shortcutCost } = REGION.navigation;
+    const openSpeeds = Object.values(TERRAIN_TYPES).filter((type) => type.id !== 'road').map((type) => type.speed);
+    expect(shortcutCost).toBeGreaterThanOrEqual(Math.max(...openSpeeds));
+    expect(shortcutCost).toBeLessThan(offRoadCost);
+  });
+
+  it('prices open tiles at the shortcut share of the plain price and leaves road tiles alone', () => {
+    const n = nav();
+    const plain = makeTaste(3, n.size);
+    const cut = cutTaste(plain, n);
+    const open = tasted(cut, 10, 150.5, 20.5) / tasted(plain, 10, 150.5, 20.5);
+    expect(open).toBeCloseTo(REGION.navigation.shortcutCost / REGION.navigation.offRoadCost, 6);
+    expect(tasted(cut, 10, 50.5, 20.5)).toBe(tasted(plain, 10, 50.5, 20.5));
+  });
+
+  it('builds the mask once per terrain and keeps cut routes apart in the cache', () => {
+    const n = nav();
+    const plain = makeTaste(3, n.size);
+    expect(cutTaste(plain, n).cut).toBe(cutTaste(plain, n).cut);
+    expect(tasteKey(cutTaste(plain, n))).not.toBe(tasteKey(plain));
   });
 });
 
@@ -100,7 +183,7 @@ describe('prop footprints', () => {
     for (const along of [-1, 0, 1]) {
       for (const across of [-open, 0, open]) {
         const spot = center(BROKEN_WING_POINT(BROKEN_WING.hoopAt + along, across));
-        expect(roof.some((b) => boxDistance(b, spot) === 0)).toBe(true);
+        expect(roof.some((b) => boxDistance(b, spot) < ROOF_EDGE)).toBe(true);
         expect(layer.blocked[cellAt(layer.n, spot)]).toBe(0);
       }
     }
@@ -126,13 +209,46 @@ describe('prop footprints', () => {
     expect(layer.blocked[cellAt(layer.n, spot)]).toBe(0);
   });
 
-  it('builds a new layer when a prop turns in place', () => {
+  describe('a wing shard', () => {
+    const real = mapObstacles(TEST_MAP).find((o) => o.kind === 'landmark' && o.look === 'wingShard');
+    if (real === undefined) throw new Error('The baked map has no wing shard');
+    const shard: Obstacle = { ...real, pos: { x: 40.2, y: 40.3 } };
+    const pose = propPose(shard);
+    const span = rampSpan(RAMP_MODELS.wing_shard, pose.scale.x);
+    const along = (a: number, across: number): Vec => ({
+      x: shard.pos.x + (a * Math.cos(pose.yaw) + across * Math.sin(pose.yaw)) / S,
+      y: shard.pos.y + (a * Math.sin(pose.yaw) - across * Math.cos(pose.yaw)) / S,
+    });
+    const shardWorld = () => {
+      const w = emptyWorld();
+      w.obstacles = [shard];
+      return w;
+    };
+
+    it('closes its sides and its tall end', () => {
+      const w = shardWorld();
+      const layer = navLayer(w.terrain, w.obstacles, radius);
+      const blockedAt = (a: number, across: number) => layer.blocked[cellAt(layer.n, center(along(a, across)))];
+      for (const side of [-1, 1]) expect(blockedAt((span.toe.x + span.tip.x) / 2, side * (span.half + 0.1))).toBe(1);
+      expect(blockedAt(span.tip.x - 0.1, 0)).toBe(1);
+    });
+
+    it('routes a truck straight up the slab from the low end and round it from the tall end', () => {
+      const w = shardWorld();
+      const dest = along((span.toe.x + span.tip.x) / 2, 0);
+      expect(route(w, along(span.toe.x - 10, 0), dest, radius, [])).toEqual([dest]);
+      const fromTall = route(w, along(span.tip.x + 10, 0), dest, radius, []);
+      expect(fromTall.length).toBeGreaterThan(1);
+    });
+  });
+
+  it('changes the layer when a prop turns in place', () => {
     const w = emptyWorld();
     w.obstacles = [ruin];
-    const before = navLayer(w.terrain, w.obstacles, radius);
+    const before = navLayer(w.terrain, w.obstacles, radius).id;
     w.obstacles = [{ ...ruin, yaw: 1 }];
 
-    expect(navLayer(w.terrain, w.obstacles, radius) === before).toBe(false);
+    expect(navLayer(w.terrain, w.obstacles, radius).id).not.toBe(before);
   });
 });
 
@@ -161,13 +277,43 @@ describe('breakable props', () => {
     const w = emptyWorld();
     const fence = fenceAt('fence-0', { x: 40.2, y: 40.3 });
     w.obstacles = [fence];
-    const open = navLayer(w.terrain, [], radius);
+    const cell = cellAt(navLayer(w.terrain, [], radius).n, fence.pos);
+    const open = slowAt(navLayer(w.terrain, [], radius), cell);
     const layer = navLayer(w.terrain, w.obstacles, radius);
-    const cell = cellAt(layer.n, fence.pos);
 
-    expect(layer.blocked[cell]).toBe(0);
-    expect(layer.slow[cell]).toBeCloseTo(open.slow[cell] * BREAKABLE.routeCost);
+    expect(blockedAt(layer, cell)).toBe(false);
+    expect(slowAt(layer, cell)).toBeCloseTo(open * BREAKABLE.routeCost);
   });
+
+  it('patches a layer when fences break or appear to the same bytes as a fresh build', () => {
+    const shack: Obstacle = { id: 'shack-0', pos: { x: 52.2, y: 41.3 }, r: 0.9, kind: 'landmark', look: 'shack', yaw: 0 };
+    const fences = [...fenceLine(40.2, 40.3, 4), ...fenceLine(41.1, 41.7, 3).map((f, k) => ({ ...f, id: `cross-${k}`, yaw: 0 }))];
+    const extra = fenceAt('fence-extra', { x: 40.9, y: 38.6 });
+    const sets = [[shack, ...fences], [shack, ...fences.filter((_, k) => k !== 3)], [shack, ...fences.filter((_, k) => k !== 3 && k !== 9), extra]];
+    const patched = emptyWorld().terrain;
+    for (const obstacles of sets) {
+      const layer = navLayer(patched, obstacles, radius);
+      const fresh = navLayer({ ...emptyWorld().terrain }, obstacles, radius);
+      expect(mismatchesNear(layer, fresh, { x: 20, y: 20 }, { x: 80, y: 80 })).toBe(0);
+    }
+  });
+
+  it('loads the baked route summary equal to a fresh build of every cell', () => {
+    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const plain = { ...w.terrain, routes: undefined };
+    for (const r of [0.6, 0.95]) expect(pieceTable(navLayer(w.terrain, w.obstacles, r).grid)).toEqual(pieceTable(navLayer(plain, w.obstacles, r).grid));
+  }, budget(120_000));
+
+  it('rebuilds only the cells whose props changed, to the same summary as a fresh build', () => {
+    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const center = { x: 600, y: 600 };
+    const ring = Array.from({ length: 48 }, (_, i): Obstacle => ({ id: `ring-${i}`, pos: { x: center.x + 9 * Math.cos((i / 48) * 2 * Math.PI), y: center.y + 9 * Math.sin((i / 48) * 2 * Math.PI) }, r: 1, kind: 'rock' }));
+    const obstacles = [...w.obstacles.filter((o) => dist(o.pos, center) > 12), ...ring];
+    resetPerf();
+    const layer = navLayer(w.terrain, obstacles, 0.6);
+    expect(perfSnapshot()['route-cell-repieced'].calls).toBeLessThan(10);
+    expect(pieceTable(layer.grid)).toEqual(pieceTable(navLayer({ ...w.terrain, routes: undefined }, obstacles, 0.6).grid));
+  }, budget(120_000));
 
   it('keeps a shack blocked', () => {
     const w = emptyWorld();
@@ -175,7 +321,7 @@ describe('breakable props', () => {
     w.obstacles = [shack];
     const layer = navLayer(w.terrain, w.obstacles, radius);
 
-    expect(layer.blocked[cellAt(layer.n, shack.pos)]).toBe(1);
+    expect(blockedAt(layer, cellAt(layer.n, shack.pos))).toBe(true);
   });
 
   const crossExtra = (2 * grow + 0.1) * (BREAKABLE.routeCost - 1);
@@ -199,18 +345,20 @@ describe('breakable props', () => {
     expect(crosses(w.obstacles, from, route(w, from, { x: 60 + gap, y: 120 }, radius, []))).toBe(true);
   });
 
-  it('builds a new layer when a fence breaks in place and the same one when it grows back', () => {
+  it('changes the layer when a fence breaks in place and restores it when the fence grows back', () => {
     const w = emptyWorld();
     const fence = fenceAt('fence-0', { x: 40.2, y: 40.3 });
     const other = fenceAt('fence-1', { x: 80.2, y: 80.3 });
-    w.obstacles = [fence];
-    const whole = navLayer(w.terrain, w.obstacles, radius);
-    w.obstacles = [other];
-    const broken = navLayer(w.terrain, w.obstacles, radius);
-    w.obstacles = [fence];
+    const slowOf = (obstacles: Obstacle[]) => {
+      const layer = navLayer(w.terrain, obstacles, radius);
+      return { id: layer.id, slow: slowAt(layer, cellAt(layer.n, fence.pos)) };
+    };
+    const whole = slowOf([fence]);
+    const broken = slowOf([other]);
+    const back = slowOf([fence]);
 
-    expect(broken === whole).toBe(false);
-    expect(broken.slow[cellAt(broken.n, fence.pos)]).toBeCloseTo(whole.slow[cellAt(whole.n, fence.pos)] / BREAKABLE.routeCost);
-    expect(navLayer(w.terrain, w.obstacles, radius)).toBe(whole);
+    expect(broken.id).not.toBe(whole.id);
+    expect(broken.slow).toBeCloseTo(whole.slow / BREAKABLE.routeCost);
+    expect(back.slow).toBe(whole.slow);
   });
 });

@@ -7,9 +7,12 @@ import { CONDITION, REPAIR } from '../data/wear';
 import { damagePart, maxHp, partValue } from './wear';
 import { makePart } from './factory';
 import { addVehicle, emptyWorld, practiceOf , startCombat } from './testkit';
+import { bedRows } from './chassis-features';
 import { corePart, goodsCount, gridOf, mountedParts } from './grid';
+import { vehicleStats } from './stats';
 import { addGoods, moveItem, mountPart, removeGoods, stowPart } from './inventory';
-import { advanceJobs, cancelRefit, startAutoRepair, startJob, startRepair, startStrip, startWeld } from './jobs';
+import type { Job } from './types';
+import { advanceJobs, cancelRefit, repairBlocker, stoppedByCombat, startAutoRepair, startJob, startRepair, startStrip, startWeld, stripTurns, stripYield } from './jobs';
 import { PERK_NUMBERS } from '../data/skills';
 import { repairPlan } from './repair';
 import { addState } from './states';
@@ -79,7 +82,7 @@ describe('field repair job', () => {
     const cage = armorPart(me);
     cage.hp = Math.floor(partDef(cage.defId).hp * REPAIR.fieldCapShare);
     addGoods(w, me, 'parts', 20);
-    expect(() => startRepair(w, cage.id)).toThrow();
+    expect(() => startRepair(w, cage.id)).toThrow('Refused: atRepairCap');
   });
 
   it('patches partway with the parts held when the full patch needs more', () => {
@@ -106,12 +109,12 @@ describe('field repair job', () => {
     const cage = armorPart(me);
     cage.hp = 1;
     removeGoods(me, 'parts', goodsCount(me).parts ?? 0);
-    expect(() => startRepair(w, cage.id)).toThrow('No parts');
+    expect(() => startRepair(w, cage.id)).toThrow('Refused: noParts');
   });
 
   it('runs the same repair code for an NPC', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine', 'cage'], { x: 50, y: 50 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine', 'cage'], { x: 50, y: 50 });
     const cage = armorPart(npc);
     cage.hp = 1;
     addGoods(w, npc, 'parts', 20);
@@ -197,7 +200,7 @@ describe('auto patch and promised parts', () => {
     mountedParts(me).find((p) => partDef(p.defId).kind === 'engine')!.hp = 1;
     removeGoods(me, 'parts', goodsCount(me).parts ?? 0);
     addGoods(w, me, 'parts', held);
-    const other = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 5, y: 0 }, 0);
+    const other = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 5, y: 0 }, 0);
     const [holder, client] = playerIsPatcher ? [me, other] : [other, me];
     const data = { kind: 'patch' as const, deal, parts: 2, partIds: [], price: 333, work: 4, workLeft: 4 };
     return { w, me, add: () => addState(w, 'patch', holder.id, client.id, data) };
@@ -246,7 +249,7 @@ describe('auto patch and promised parts', () => {
   it('spends only the parts above what a haul contract carries', () => {
     const { w, me } = setup(4, 'paid', true);
     w.player.autoRepair = true;
-    w.player.contracts.push({ id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'parts', units: 3, to: 'nose', reward: 10000, deadline: 500, window: 500, rush: false, tier: 1 });
+    w.player.contracts.push({ id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'parts', units: 3, to: 'nose', reward: 100, deadline: 500, window: 500, rush: false, tier: 1 });
     for (let i = 0; i < 100; i++) {
       startAutoRepair(w);
       advanceJobs(w);
@@ -354,7 +357,7 @@ describe('drive order', () => {
 
   it('lets an NPC with a leftover order work', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine', 'cage'], { x: 50, y: 50 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine', 'cage'], { x: 50, y: 50 });
     npc.speed = 0;
     npc.order = { kind: 'stopAt', dest: { x: 60, y: 50 } };
     armorPart(npc).hp = 1;
@@ -433,13 +436,82 @@ describe('strip job', () => {
     expect(next.events.some((e) => e.t === 'job' && e.outcome === 'cancelled')).toBe(true);
   });
 
-  it('refuses a mounted part and a built-in part', () => {
+  it('refuses a built-in part', () => {
+    const w = emptyWorld();
+    const cab = corePart(w.vehicles[0], 'cab');
+    expect(() => startStrip(w, cab.id)).toThrow(/built-in/);
+  });
+
+  it('strips a mounted junk plate where it sits, after the unmount time', () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const mounted = mountedParts(me).find((p) => partDef(p.defId).kind === 'armor')!;
-    expect(() => startStrip(w, mounted.id)).toThrow(/spare/);
-    const cab = corePart(me, 'cab');
-    expect(() => startStrip(w, cab.id)).toThrow(/spare/);
+    const plate = mountedParts(me).find((p) => partDef(p.defId).kind === 'armor')!;
+    plate.hp = 0;
+    plate.wear = CONDITION.maxWear + 1;
+    const units = stripYield(me, plate);
+    const held = goodsCount(me).parts ?? 0;
+
+    const next = startStrip(w, plate.id);
+    const job = next.vehicles[0].job;
+    if (job?.kind !== 'strip') throw new Error('No strip job');
+    expect(job.total).toBe(stripTurns(next, next.vehicles[0], plate.id));
+    expect(job.total).toBeGreaterThan(STRIP.turns);
+    const before = vehicleStats(next, next.vehicles[0]);
+    for (let i = 0; i < job.total - 1; i++) advanceJobs(next);
+    const mid = next.vehicles[0];
+    expect(mountedParts(mid).some((p) => p.id === plate.id)).toBe(true);
+    expect(vehicleStats(next, mid)).toEqual(before);
+    advanceJobs(next);
+
+    const truck = next.vehicles[0];
+    expect(truck.job).toBeNull();
+    expect(truck.items.some((it) => it.kind === 'part' && it.part.id === plate.id)).toBe(false);
+    expect((goodsCount(truck).parts ?? 0) - held).toBe(units);
+    expect(next.events.some((e) => e.t === 'job' && e.outcome === 'done')).toBe(true);
+  });
+
+  it('refuses to strip a mounted rack that holds a part in its rows', () => {
+    const w = emptyWorld();
+    const npc = addVehicle(w, 'player', 'hauler', ['rack'], { x: 60, y: 60 });
+    w.player.vehicleId = npc.id;
+    const rack = mountedParts(npc, 'cargo').find((p) => p.defId === 'rack')!;
+    const rackRows = (partDef('rack') as { extraRows: number }).extraRows;
+    const row = gridOf(npc).chassisH + bedRows('hauler') + rackRows - 1;
+    npc.items.push({ id: 'i-crate', x: 0, y: row, rot: 0, kind: 'part', part: makePart(w, 'mg', 0) });
+    expect(() => startStrip(w, rack.id)).toThrow('Refused: emptyRackFirst');
+  });
+
+  it('strips a mounted gun and drops its order', () => {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    const gun = mountedParts(me).find((p) => partDef(p.defId).kind === 'weapon');
+    if (!gun) throw new Error('No mounted gun');
+    me.weaponOrders[gun.id] = { target: 'any' } as never;
+    const next = startStrip(w, gun.id);
+    const total = (next.vehicles[0].job as { total: number }).total;
+    for (let i = 0; i < total; i++) advanceJobs(next);
+    const truck = next.vehicles[0];
+    expect(mountedParts(truck).some((p) => p.id === gun.id)).toBe(false);
+    expect(truck.weaponOrders[gun.id]).toBeUndefined();
+  });
+
+  it('strips a mounted engine', () => {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    const engine = mountedParts(me).find((p) => partDef(p.defId).kind === 'engine')!;
+    const next = startStrip(w, engine.id);
+    const total = (next.vehicles[0].job as { total: number }).total;
+    for (let i = 0; i < total; i++) advanceJobs(next);
+    expect(mountedParts(next.vehicles[0]).some((p) => p.id === engine.id)).toBe(false);
+  });
+
+  it('does not pay a stripped knife its own bonus', () => {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    const knife = makePart(w, 'scrapersKnife', 0);
+    if (!mountPart(w, me, knife)) throw new Error('No deck room for the scraper');
+    const plain = Math.max(1, Math.round((partValue(knife) * STRIP.yieldShare) / GOODS.parts.value));
+    expect(stripYield(me, knife)).toBe(plain);
   });
 });
 
@@ -476,7 +548,7 @@ describe('field job practice', () => {
 
   it('pays nothing for an NPC repair', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine', 'cage'], { x: 50, y: 50 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine', 'cage'], { x: 50, y: 50 });
     armorPart(npc).hp = 1;
     addGoods(w, npc, 'parts', 20);
     const plan = repairPlan(w, npc, armorPart(npc).id);
@@ -495,7 +567,7 @@ describe('jobs in combat', () => {
     const cage = armorPart(me);
     cage.hp = 1;
     addGoods(w, me, 'parts', 20);
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 35, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: 35, y: 30 });
     addState(w, 'feud', raider.id, me.id, { kind: 'feud', robbery: false });
     if (attacking) startCombat(w, raider, me);
     return { w, me, cage, raider };
@@ -524,6 +596,67 @@ describe('jobs in combat', () => {
     advanceJobs(next);
     expect(next.vehicles[0].job).toBeNull();
     expect(next.events).toContainEqual(expect.objectContaining({ t: 'job', vehicle: me.id, outcome: 'cancelled' }));
+  });
+});
+
+describe('which jobs combat stops', () => {
+  it('lets combat stop every job but the survey', () => {
+    const kinds: Job['kind'][] = ['repair', 'search', 'strip', 'weld', 'firstAid', 'survey', 'business', 'oddJobs', 'refit'];
+    expect(kinds.filter((k) => !stoppedByCombat(k))).toEqual(['survey']);
+  });
+});
+
+describe('what blocks a repair', () => {
+  function readyToPatch() {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const me = w.vehicles[0];
+    me.speed = 0;
+    const cage = armorPart(me);
+    cage.hp = 1;
+    addGoods(w, me, 'parts', 20);
+    return { w, me, cage };
+  }
+
+  it('is nothing for a parked truck with parts and a worn part', () => {
+    const { w, me, cage } = readyToPatch();
+    expect(repairBlocker(w, me, cage.id)).toBeNull();
+  });
+
+  it('names combat before anything else', () => {
+    const { w, me, cage } = readyToPatch();
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: 35, y: 30 });
+    addState(w, 'feud', raider.id, me.id, { kind: 'feud', robbery: false });
+    startCombat(w, raider, me);
+    me.speed = 5;
+    me.job = { kind: 'search', stockId: 'x', turnsLeft: 2, total: 2 };
+    expect(repairBlocker(w, me, cage.id)).toEqual({ id: 'inCombat' });
+  });
+
+  it('names other work next, with its kind, and lets an auto patch give way', () => {
+    const { w, me, cage } = readyToPatch();
+    me.speed = 5;
+    me.job = { kind: 'search', stockId: 'x', turnsLeft: 2, total: 2 };
+    expect(repairBlocker(w, me, cage.id)).toEqual({ id: 'busy', job: 'search' });
+    me.job = { kind: 'repair', partId: cage.id, parts: 1, turnsLeft: 1, total: 1, auto: true };
+    expect(repairBlocker(w, me, cage.id)).toEqual({ id: 'stopFirst' });
+  });
+
+  it('names a moving truck, then the cap, then missing parts', () => {
+    const { w, me, cage } = readyToPatch();
+    me.speed = 5;
+    expect(repairBlocker(w, me, cage.id)).toEqual({ id: 'stopFirst' });
+    me.speed = 0;
+    removeGoods(me, 'parts', goodsCount(me).parts ?? 0);
+    expect(repairBlocker(w, me, cage.id)).toEqual({ id: 'noParts' });
+    cage.hp = maxHp(cage);
+    expect(repairBlocker(w, me, cage.id)).toEqual({ id: 'atRepairCap' });
+  });
+
+  it('is exactly what startRepair throws, and a busy job throws a refusal, not a plain error', () => {
+    const { w, me, cage } = readyToPatch();
+    me.job = { kind: 'search', stockId: 'x', turnsLeft: 2, total: 2 };
+    expect(() => startRepair(w, cage.id)).toThrow('Refused: busy');
+    expect(() => startJob(w, me, { kind: 'weld', turnsLeft: 1, total: 1 })).toThrow('Refused: busy');
   });
 });
 

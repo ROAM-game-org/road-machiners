@@ -7,28 +7,30 @@ const current = new Uint8Array(readFileSync('public/maps/icarus.bin'));
 const stale = current.slice();
 stale[stale.length - 1] ^= 1;
 const want = fnv1a(current);
-const files = { hashes: { 'maps/icarus.bin': want }, base: './', dev: false };
+const routes = new Uint8Array(readFileSync('public/maps/icarus.routes.bin'));
+const files = { hashes: { 'maps/icarus.bin': want, 'maps/icarus.routes.bin': fnv1a(routes) }, base: './', dev: false };
 
 function serve(answer: (url: string, init?: RequestInit) => Uint8Array) {
   const calls: { url: string; init?: RequestInit }[] = [];
   const fetch = async (url: string, init?: RequestInit) => {
     calls.push({ url, init });
-    return new Response(answer(url, init).slice().buffer);
+    const body = url.includes('icarus.routes.bin') ? routes : answer(url, init);
+    return new Response(body.slice().buffer);
   };
-  return { calls, deps: { fetch, wait: async () => {} } };
+  return { calls, deps: { fetch, wait: async () => {}, delaysMs: [] } };
 }
 
 describe('fetchMap', () => {
   it('asks for the versioned url, which a cache holding the old map cannot answer', async () => {
     const { deps, calls } = serve((url) => (url.endsWith(`?v=${want}`) ? current : stale));
     expect((await fetchMap(deps, files)).hash).toBe(want);
-    expect(calls).toHaveLength(1);
+    expect(calls.filter((c) => !c.url.includes('routes'))).toHaveLength(1);
   });
 
   it('refetches a wrong map once with a reload', async () => {
     const { deps, calls } = serve((_url, init) => (init?.cache === 'reload' ? current : stale));
     expect((await fetchMap(deps, files)).hash).toBe(want);
-    expect(calls).toHaveLength(2);
+    expect(calls.filter((c) => !c.url.includes('routes'))).toHaveLength(2);
   });
 
   it('names both hashes when the map is still wrong', async () => {
@@ -38,7 +40,7 @@ describe('fetchMap', () => {
 
   it('returns the map unchecked in dev', async () => {
     const { deps, calls } = serve(() => stale);
-    expect((await fetchMap(deps, { ...files, hashes: {}, dev: true })).hash).toBe(fnv1a(stale));
-    expect(calls).toHaveLength(1);
+    await expect(fetchMap(deps, { ...files, hashes: {}, dev: true })).rejects.toThrow(`this map is ${fnv1a(stale)}`);
+    expect(calls.filter((c) => !c.url.includes('routes'))).toHaveLength(1);
   });
 });

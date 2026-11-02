@@ -2,54 +2,107 @@
   position: absolute;
   left: 0;
   bottom: calc(100% + var(--space-4));
+  padding: var(--cond-pad);
+  background: var(--cond-panel);
+  -webkit-backdrop-filter: blur(var(--cond-blur));
+  backdrop-filter: blur(var(--cond-blur));
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
-/* The bare truck's outline sits behind the parts. A part's tile takes its condition color, set inline as --tone and
-   --tint-line. The icon's own fill is clear, so only its lines and shading show, in the same hue. Line widths stay in
-   screen pixels at any tile size. */
-.condition-chassis {
+.condition-stage {
   position: relative;
 }
-.condition-chassis .outline-fill {
-  --plan-line: none;
-}
-.condition-chassis .outline-line {
-  z-index: var(--z-outline);
-  --plan-fill: none;
-  filter: drop-shadow(0 0 1px var(--shade-strong));
-}
-.condition-part {
+.condition-layers,
+.condition-hover,
+.condition-marks,
+.condition-flashes,
+.condition-hit {
   position: absolute;
-  box-sizing: border-box;
-  border: 1px solid var(--shade);
-  background: var(--tone) padding-box;
-  --tint-fill: none;
-  --tint-shadow: var(--shade);
-  --tint-glass: var(--bevel-light-strong);
-  --tint-outer: 1px;
-  --tint-inner: 0px;
+  inset: 0;
 }
-.condition-part svg {
+.condition-layers canvas,
+.condition-hover canvas,
+.cond-hatch,
+.cond-cells,
+.cond-flash {
   position: absolute;
-  inset: var(--space-1);
-  width: calc(100% - var(--space-2));
-  height: calc(100% - var(--space-2));
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.condition-layers,
+.condition-hover,
+.condition-marks,
+.condition-flashes {
+  pointer-events: none;
+}
+.cond-body {
+  filter: var(--cond-body-filter);
+}
+.cond-parts {
+  filter: var(--cond-parts-filter);
+}
+.cond-glow {
+  filter: var(--cond-glow-edge);
+}
+.cond-glow:is([data-tier="hurt"], [data-tier="crit"], [data-tier="broken"]) {
+  filter: var(--cond-glow-edge-damaged);
+}
+.cond-halo[data-tier="hurt"] {
+  filter: var(--cond-halo-hurt);
+}
+.cond-halo[data-tier="crit"] {
+  filter: var(--cond-halo-crit);
+}
+.cond-halo[data-tier="broken"] {
+  filter: var(--cond-halo-broken);
+}
+.cond-hatch {
+  background: var(--cond-hatch);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+.cond-cells {
+  background: var(--cond-cells);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+.cond-flash {
+  background: var(--alarm);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+.cond-pick {
+  filter: var(--cond-pick-filter);
+  opacity: var(--cond-pick-opacity);
+}
+.condition-hit {
+  cursor: default;
+  pointer-events: auto;
+}
+.truck-condition.aimable .condition-hit[data-over="part"] {
+  cursor: crosshair;
+}
+.condition-mark {
+  position: absolute;
+  z-index: var(--z-badge);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  transform: translate(-50%, -50%);
+}
+.condition-mark > .meter {
+  width: var(--cond-meter-w);
 }
 #ui .info .truck-condition {
   position: static;
   width: fit-content;
   margin: 0 auto;
 }
-.condition-part.aimable {
-  cursor: crosshair;
-}
-.condition-part.aimable:hover {
-  border-color: var(--ink-bright);
-}
 .condition-aim {
-  position: absolute;
-  z-index: var(--z-badge);
-  top: 1px;
-  left: 1px;
   min-width: var(--icon-xs);
   height: var(--icon-xs);
   box-sizing: border-box;
@@ -70,4 +123,10 @@
   font-family: var(--font-ui);
   white-space: nowrap;
   pointer-events: none;
+}
+#ui .condition-tip[data-side="above"] {
+  transform: translate(-50%, calc(-100% - var(--space-4)));
+}
+#ui .condition-tip[data-side="below"] {
+  transform: translate(-50%, var(--space-4));
 }

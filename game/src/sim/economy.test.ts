@@ -4,7 +4,7 @@ import { CHASSIS } from "../data/chassis";
 import { CRATE_MASS, ECONOMY, GOOD_IDS } from "../data/goods";
 import { vehicleMass } from "./mass";
 import { SHOPS } from "../data/market";
-import { goodBasePrice, lotPrice, shopState } from "./market";
+import { goodBasePrice, lotPrice, shopState, stockTarget } from "./market";
 import { PARTS, partDef } from "../data/parts";
 import { REGION } from "../data/region";
 import { RULES } from "../data/rules";
@@ -12,6 +12,7 @@ import { CONDITION } from "../data/wear";
 import {
   basicsRepairCost,
   buyChassis,
+  garageChassis,
   buyGood,
   buyStockPart,
   buyPrice,
@@ -29,7 +30,12 @@ import {
   sellGood,
   sellPrice,
   sellPart,
+  rationing,
+  serviceAtStall,
+  serviceRoom,
+  serviceUnitsPerCrate,
   serviceVehicle,
+  supplyCharge,
 } from "./economy";
 import {
   corePart,
@@ -47,6 +53,7 @@ import { heatAt } from "./sun";
 import { sitePads, townAt, townNear } from "./sites";
 import { addVehicle, emptyWorld, spotWorld, testDrive } from "./testkit";
 import { endTurn, newWorld } from "./world";
+import { fuelCap, suppliesCap } from "./stats";
 import { TEST_MAP } from "../test/map";
 import { defaultSetup } from "./settings";
 
@@ -95,9 +102,9 @@ describe("trade", () => {
 
   it("enforces cargo capacity and money", () => {
     const w = startAtBowl();
-    w.player.money = 333333;
+    w.player.money = 3333;
     expect(() => buyGood(w, "scrap", freeCells(w.vehicles[0]) + 1)).toThrow("Refused: noCargoRoom");
-    w.player.money = 10000;
+    w.player.money = 100;
     expect(() => buyGood(w, "meds", 10)).toThrow('Refused: noMoney');
   });
 
@@ -118,6 +125,7 @@ describe("trade", () => {
 
   it("buying raises the local price and selling lowers it", () => {
     const w = longbedAtBowl();
+    w.player.money = getLotTradePrice(w, w.vehicles[0], "bowl", "scrap", 20, "buy");
     const before = buyPrice(w, "bowl", "scrap");
     const after = buyGood(w, "scrap", 20);
     expect(buyPrice(after, "bowl", "scrap")).toBeGreaterThan(before);
@@ -149,23 +157,35 @@ describe("trade", () => {
     );
   });
 
-  it("every garage prices every good", () => {
-    for (const [id] of Object.entries(SHOPS).filter(([, s]) => s.kind === "garage"))
-      for (const good of GOOD_IDS) expect(goodBasePrice(id, good)).toBeGreaterThan(0);
+  it("every shop prices every good it trades", () => {
+    for (const shop of Object.values(SHOPS))
+      for (const good of shop.goods) expect(goodBasePrice(shop.id, good)).toBeGreaterThan(0);
   });
 
-  it("a lot price equals the sum of single-unit trades", () => {
+  it("Bowl trades no ship relics and Nose pays more for them than the Yard", () => {
+    expect(GOOD_IDS).toContain("relics");
+    expect(() => goodBasePrice("bowl", "relics")).toThrow();
+    expect(goodBasePrice("nose", "relics")).toBeGreaterThan(goodBasePrice("salvage-yard", "relics"));
+  });
+
+  it("a new world holds no ship relics until someone brings them", () => {
+    const w = startAtBowl();
+    for (const shop of ["nose", "salvage-yard"]) expect(shopState(w, shop).goods.relics).toBe(0);
+  });
+
+  it("a lot never costs more than the same units bought singly and never pays less than they sell for", () => {
     const w = startAtBowl();
     const state = shopState(w, "bowl");
     for (const direction of ["buy", "sell"] as const) {
       const lot = lotPrice("bowl", state, "scrap", direction, ECONOMY.spread, 25);
       let summed = 0;
-      const pressure = { ...state.pressure };
+      const goods = { ...state.goods };
       for (let i = 0; i < 25; i++) {
-        summed += lotPrice("bowl", { ...state, pressure }, "scrap", direction, ECONOMY.spread, 1);
-        pressure.scrap = (pressure.scrap ?? 0) + SHOPS.bowl.pressurePerUnit * (direction === "buy" ? 1 : -1);
+        summed += lotPrice("bowl", { ...state, goods }, "scrap", direction, ECONOMY.spread, 1);
+        goods.scrap += direction === "buy" ? -1 : 1;
       }
-      expect(lot).toBe(summed);
+      if (direction === "buy") expect(lot).toBeLessThanOrEqual(summed);
+      else expect(lot).toBeGreaterThanOrEqual(summed);
     }
   });
 
@@ -175,11 +195,11 @@ describe("trade", () => {
       for (const pressureStart of [0, 0.3, -0.3]) {
         const w = longbedAtBowl();
         w.player.ranks.social = social;
-        w.shops.bowl.pressure.scrap = pressureStart;
-        addGoods(w, w.vehicles[0], "scrap", 25 - (goodsCount(w.vehicles[0]).scrap ?? 0));
+        w.shops.bowl.goods.grain = Math.round(stockTarget("bowl", "grain") * (1 - pressureStart));
+        addGoods(w, w.vehicles[0], "grain", 25 - (goodsCount(w.vehicles[0]).grain ?? 0));
 
         const before = w.player.money;
-        const after = buyGood(sellGood(w, "scrap", 25), "scrap", 25);
+        const after = buyGood(sellGood(w, "grain", 25), "grain", 25);
         expect(after.player.money).toBeLessThan(before);
       }
     },
@@ -191,10 +211,10 @@ describe("trade", () => {
       for (const pressureStart of [0, 0.3, -0.3]) {
         const w = longbedAtBowl();
         w.player.ranks.social = social;
-        w.shops.bowl.pressure.scrap = pressureStart;
+        w.shops.bowl.goods.grain = Math.round(stockTarget("bowl", "grain") * (1 - pressureStart));
 
         const before = w.player.money;
-        const after = sellGood(buyGood(w, "scrap", 25), "scrap", 25);
+        const after = sellGood(buyGood(w, "grain", 25), "grain", 25);
         expect(after.player.money).toBeLessThan(before);
       }
     },
@@ -215,14 +235,74 @@ describe("garage", () => {
 
   it.each(STALLS)("sells fuel and supplies at the %s at the town prices", (id) => {
     const w = atSite(id);
-    w.player.money = 33333;
+    w.player.money = 333;
     w.player.fuel = 0;
     w.player.supplies = 0;
     for (const kind of ["fuel", "supplies"] as const) {
       const r = buySupply(w, kind, 3);
       expect(r.player[kind]).toBe(3);
-      expect(r.player.money).toBe(33333 - 3 * ECONOMY.supplyPrice[kind]);
+      expect(r.player.money).toBe(333 - supplyCharge(kind, 3));
     }
+  });
+
+  it("draws a service crate per its unit conversion, and an opened crate serves the next fill", () => {
+    const w = startAtBowl();
+    w.player.money = 1000000;
+    w.player.fuel = 0;
+    const per = serviceUnitsPerCrate("fuel");
+    const drums = shopState(w, "bowl").goods.fuelDrums;
+    const one = buySupply(w, "fuel", per + 1);
+    expect(shopState(one, "bowl").goods.fuelDrums).toBe(drums - 2);
+    expect(shopState(one, "bowl").opened.fuel).toBe(per - 1);
+    const two = buySupply(one, "fuel", per - 1);
+    expect(shopState(two, "bowl").goods.fuelDrums).toBe(drums - 2);
+    expect(two.player.money).toBe(1000000 - 2 * per * ECONOMY.supplyPrice.fuel);
+  });
+
+  it("keeps fuel and supplies at the anchor price however low the stock", () => {
+    for (const drums of [0, 1, 500]) {
+      const w = startAtBowl();
+      w.player.money = 100000;
+      w.player.fuel = 0;
+      shopState(w, "bowl").goods.fuelDrums = drums;
+      const r = buySupply(w, "fuel", 3);
+      expect(r.player.money).toBe(100000 - 3 * ECONOMY.supplyPrice.fuel);
+    }
+  });
+
+  it("rations an empty shop: it still sells, but only up to the scrap-fuel share of the tank", () => {
+    const w = startAtBowl();
+    w.player.money = 1000000;
+    w.player.fuel = 0;
+    shopState(w, "bowl").goods.fuelDrums = 0;
+    const me = w.vehicles[0];
+    expect(rationing(w, "bowl", "fuel")).toBe(true);
+    const cap = Math.floor(fuelCap(me) * RULES.scrapPatch);
+    expect(serviceRoom(w, "bowl", "fuel")).toBe(cap);
+    const filled = buySupply(w, "fuel", cap);
+    expect(filled.player.fuel).toBe(cap);
+    expect(() => buySupply(filled, "fuel", 1)).toThrow();
+    expect(shopState(filled, "bowl").goods.fuelDrums).toBe(0);
+  });
+
+  it("rations supplies the same way when the rations run out", () => {
+    const w = startAtBowl();
+    w.player.money = 1000000;
+    w.player.supplies = 0;
+    shopState(w, "bowl").goods.rations = 0;
+    const cap = Math.floor(suppliesCap(w.vehicles[0]) * RULES.scrapPatch);
+    expect(serviceRoom(w, "bowl", "supplies")).toBe(cap);
+    expect(buySupply(w, "supplies", cap).player.supplies).toBe(cap);
+  });
+
+  it("tops an NPC up at a rationing stall to the ration share, from the same rule", () => {
+    const w = emptyWorld({ ...sitePads(REGION.locations.find((l) => l.id === "dustwell")!)[0] });
+    shopState(w, "dustwell").goods.fuelDrums = 0;
+    const npc = addVehicle(w, "independent", "hauler", ["stockEngine"], { ...w.vehicles[0].pos });
+    npc.speed = 0;
+    npc.resources = { ...npc.resources!, money: 100000, fuel: 0 };
+    serviceAtStall(w, npc, "dustwell", 0);
+    expect(npc.resources!.fuel).toBe(Math.floor(fuelCap(npc) * RULES.scrapPatch));
   });
 
   it.each(STALLS)("repairs at the %s for the shown prices", (id) => {
@@ -293,15 +373,15 @@ describe("garage", () => {
 
   it.each(["dustwell", "green-pit"])("sells supplies, fuel, water and a stock part at %s for the shown prices", (id) => {
     const w = atSite(id);
-    w.player.money = 333333;
+    w.player.money = 3333;
     w.player.fuel = 0;
     w.player.supplies = 0;
     const supplies = buySupply(w, "supplies", 3);
     expect(supplies.player.supplies).toBe(3);
-    expect(supplies.player.money).toBe(w.player.money - 3 * ECONOMY.supplyPrice.supplies);
+    expect(supplies.player.money).toBe(w.player.money - supplyCharge("supplies", 3));
     const fuel = buySupply(w, "fuel", 3);
     expect(fuel.player.fuel).toBe(3);
-    expect(fuel.player.money).toBe(w.player.money - 3 * ECONOMY.supplyPrice.fuel);
+    expect(fuel.player.money).toBe(w.player.money - supplyCharge("fuel", 3));
     const price = getLotTradePrice(w, w.vehicles[0], id, "water", 2, "buy");
     const water = buyGood(w, "water", 2);
     expect(goodsCount(water.vehicles[0]).water).toBe((goodsCount(w.vehicles[0]).water ?? 0) + 2);
@@ -321,7 +401,7 @@ describe("garage", () => {
     expect(() => buyGood(w, "water", 1)).toThrow();
     expect(() => buyStockPart(w, shopState(w, id).stock[0].id)).toThrow();
     expect(JSON.stringify(w)).toBe(before);
-    w.player.money = 333333;
+    w.player.money = 3333;
     w.player.supplies = RULES.baseSupplies;
     expect(() => buySupply(w, "supplies", 1)).toThrow();
   });
@@ -349,6 +429,28 @@ describe("garage", () => {
     expect(mountedParts(r.vehicles[0])[0].hp).toBe(1);
     expect(mountedParts(r.vehicles[0])[0].wear).toBe(gun.wear);
     expect(r.player.money).toBe(w.player.money - price);
+  });
+
+  it("includes the engine in repair basics, for the shown price", () => {
+    const w = startAtBowl();
+    const engine = mountedParts(w.vehicles[0]).find((p) => partDef(p.defId).kind === "engine")!;
+    engine.hp = 1;
+    const price = basicsRepairCost(w);
+
+    const r = repairBasics(w);
+
+    const fixed = mountedParts(r.vehicles[0]).find((p) => p.id === engine.id)!;
+    expect(price).toBeGreaterThan(0);
+    expect(fixed.hp).toBe(maxHp(fixed));
+    expect(r.player.money).toBe(w.player.money - price);
+  });
+
+  it("skips a junk engine in repair basics without the Rebuild perk", () => {
+    const w = startAtBowl();
+    const engine = mountedParts(w.vehicles[0]).find((p) => partDef(p.defId).kind === "engine")!;
+    engine.hp = 0;
+    engine.wear = CONDITION.maxWear + 1;
+    expect(basicsRepairCost(w)).toBe(0);
   });
 
   it("prices repair all as repair basics plus the other parts", () => {
@@ -481,7 +583,7 @@ describe("garage", () => {
 
   it("chassis swap keeps fitting parts and stores the rest", () => {
     let w = pristineAtBowl();
-    w.player.money = 66667;
+    w.player.money = 667;
     w = buyChassis(w, "hauler");
     const me = w.vehicles[0];
     expect(me.chassisId).toBe("hauler");
@@ -493,8 +595,8 @@ describe("garage", () => {
     ).toEqual(["cage", "mg", "panniers", "stockEngine"]);
     expect(goodsCount(me)).toEqual({ scrap: 2, parts: 2 });
     expect(w.player.money).toBe(
-      66667 -
-        (CHASSIS.hauler.value -
+      667 -
+        (Math.ceil(CHASSIS.hauler.value) -
           Math.floor(CHASSIS.scout.value * (1 - ECONOMY.spread))),
     );
     w = buyChassis(w, "scout");
@@ -513,13 +615,13 @@ describe("garage", () => {
 
   it("refunds the difference when the trade-in beats the new chassis price", () => {
     let w = startAtBowl();
-    w.player.money = 166667;
-    w = buyChassis(w, "carrier");
+    w.player.money = 1667;
+    w = buyChassis(w, "tractor");
     const tradeIn = chassisTradeIn(w);
     expect(tradeIn).toBeGreaterThan(CHASSIS.scout.value);
     const before = w.player.money;
     w = buyChassis(w, "scout");
-    expect(w.player.money).toBe(before + (tradeIn - CHASSIS.scout.value));
+    expect(w.player.money).toBe(before + (tradeIn - Math.ceil(CHASSIS.scout.value)));
   });
 
   it("trade-in drops with built-in part damage", () => {
@@ -642,7 +744,7 @@ describe("part value and trade price", () => {
 describe("supplies", () => {
   it("supplies drain each turn and running out hurts health", () => {
     const w = emptyWorld();
-    w.player.supplies = 0.01;
+    w.player.supplies = (RULES.suppliesPerTurn * heatAt(w, w.vehicles[0].pos)) / 2;
     consumeSupplies(w);
     expect(w.player.supplies).toBe(0);
     expect(w.player.health).toBe(RULES.maxHealth - RULES.starveDamage);
@@ -722,7 +824,7 @@ describe("locations", () => {
 describe("debt", () => {
   it("a player in debt cannot buy anything", () => {
     const w = startAtBowl();
-    w.player.money = -3333;
+    w.player.money = -33;
     w.player.fuel = CHASSIS.scout.fuelCap - 1;
     expect(() => buyGood(w, "scrap", 1)).toThrow('Refused: noMoney');
     expect(() => buySupply(w, "fuel", 1)).toThrow('Refused: noMoney');
@@ -734,14 +836,14 @@ describe("debt", () => {
 
   it("sales pay the debt down", () => {
     const w = startAtBowl();
-    w.player.money = -3333;
+    w.player.money = -33;
     const after = sellGood(w, "scrap", 2);
-    expect(after.player.money).toBe(-3333 + getLotTradePrice(w, w.vehicles[0], "bowl", "scrap", 2, "sell"));
+    expect(after.player.money).toBe(-33 + getLotTradePrice(w, w.vehicles[0], "bowl", "scrap", 2, "sell"));
   });
 
   it("an NPC in debt gets no fuel, supplies or repairs in town", () => {
     const w = startAtBowl();
-    const npc = addVehicle(w, "traders", "hauler", ["stockEngine"], { ...sitePads(bowl)[0] });
+    const npc = addVehicle(w, "independent", "hauler", ["stockEngine"], { ...sitePads(bowl)[0] });
     npc.resources!.money = -1667;
     npc.resources!.fuel = 1;
     npc.resources!.supplies = 1;
@@ -790,6 +892,20 @@ describe("garage storage at a stall", () => {
     expect(next.player.money).toBe(w.player.money + price);
     expect(next.player.storage).toEqual([]);
     expect(next.shops["pump-station"].stock.some((p) => p.id === stored.id)).toBe(true);
+  });
+
+  it("sells each town only its own lineup", () => {
+    const atBowl = startAtBowl();
+    atBowl.player.money = 5000;
+    expect(garageChassis("bowl")).toContain("hauler");
+    expect(buyChassis(atBowl, "hauler").vehicles[0].chassisId).toBe("hauler");
+    expect(() => buyChassis(atBowl, "niva")).toThrow("niva is not for sale at bowl");
+
+    const atNose = emptyWorld(sitePads(nose)[0]);
+    atNose.player.money = 500000;
+    expect(buyChassis(atNose, "niva").vehicles[0].chassisId).toBe("niva");
+    expect(() => buyChassis(atNose, "hauler")).toThrow("hauler is not for sale at nose");
+    expect(() => garageChassis("pump-station")).toThrow("No garage lineup for pump-station");
   });
 
   it("sells no chassis at a stall", () => {

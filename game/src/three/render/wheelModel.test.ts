@@ -1,4 +1,3 @@
-// The shared wheel model reads as one tire: mirror-symmetric tread, a 1 m frame, and a round side outline.
 
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
@@ -44,25 +43,43 @@ describe('wheel model', () => {
     expect(Math.hypot(c.x, c.y, c.z)).toBeLessThan(0.01);
   });
 
-  it('reads round from the side', () => {
-    const scene = model('wheel');
+  function wheelMeshes(): THREE.Mesh[] {
     const meshes: THREE.Mesh[] = [];
-    scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh); });
-    const mats = meshes.map((m) => m.material as THREE.Material);
-    for (const m of mats) m.side = THREE.DoubleSide;
+    model('wheel').traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh); });
+    for (const m of meshes) (m.material as THREE.Material).side = THREE.DoubleSide;
+    return meshes;
+  }
+
+  function outlineAt(meshes: THREE.Mesh[], depths: readonly number[], rays: number): number[] {
     const ray = new THREE.Raycaster();
     const outline: number[] = [];
-    for (let i = 0; i < 72; i++) {
-      const a = (Math.PI * 2 * (i + 0.5)) / 72;
+    for (let i = 0; i < rays; i++) {
+      const a = (Math.PI * 2 * (i + 0.5)) / rays;
       let best = 0;
-      for (let s = -4; s <= 4; s++) {
-        const z = s * 0.1;
+      for (const z of depths) {
         ray.set(new THREE.Vector3(Math.cos(a) * 2, Math.sin(a) * 2, z), new THREE.Vector3(-Math.cos(a), -Math.sin(a), 0));
         const hit = ray.intersectObjects(meshes, false)[0];
         if (hit) best = Math.max(best, 2 - hit.distance);
       }
       outline.push(best);
     }
-    expect(Math.min(...outline) / Math.max(...outline)).toBeGreaterThanOrEqual(0.92);
+    return outline;
+  }
+
+  const roundness = (outline: number[]) => Math.min(...outline) / Math.max(...outline);
+
+  it('reads round from the side', () => {
+    const depths = Array.from({ length: 9 }, (_, s) => (s - 4) * 0.1);
+    expect(roundness(outlineAt(wheelMeshes(), depths, 72))).toBeGreaterThanOrEqual(0.92);
+  });
+
+  it('draws its rim and hub as circles, not as an octagon and a hexagon', () => {
+    const meshes = wheelMeshes();
+    const rim = outlineAt(meshes, [0.48], 360);
+    const hub = outlineAt(meshes, [0.495], 360);
+    expect(Math.max(...rim)).toBeGreaterThan(0.5);
+    expect(Math.max(...hub)).toBeLessThan(0.25);
+    expect(roundness(rim)).toBeGreaterThanOrEqual(0.98);
+    expect(roundness(hub)).toBeGreaterThanOrEqual(0.98);
   });
 });

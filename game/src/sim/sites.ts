@@ -1,14 +1,26 @@
 
 import { FORTRESS_SITES } from '../data/fortress';
+import { HOLLOW } from '../data/sunward';
 import { STALL_MARKETS } from '../data/market';
 import { REGION, type LocationDef, type TerritoryDef, type TownDef } from '../data/region';
 import { RULES } from '../data/rules';
-import { atlasOf, type Atlas } from './atlas';
+import { atlasOf, atlasSites, type Atlas } from './atlas';
+import { inCombat, settleAims } from './combat';
+import { contractTruck, isMet } from './market';
+import { handOnMoments } from './moments';
+import { footprint, straighten } from './rig';
+import { isFree } from './spawn';
+import { settleStates } from './states';
+import { isOnRope } from './tow';
 import { playerVehicle } from './damage';
 import type { Vehicle, World } from './types';
 import { dist, pointInPolygon, polygonEdgeDist, type Vec } from './vec';
 
 export type Site = TownDef | LocationDef;
+
+export function worldPlaces(world: Pick<World, 'terrain' | 'sunward'>): Site[] {
+  return [...atlasSites(atlasOf(world.terrain)), ...(world.sunward ? [HOLLOW.site] : [])];
+}
 
 export const OUTPOSTS: readonly LocationDef[] = STALL_MARKETS.map((id) => {
   const site = REGION.locations.find((l) => l.id === id);
@@ -49,8 +61,12 @@ function hasGatePerRoad(site: Site): boolean {
   return !('kind' in site) || site.radius >= REGION.sites.multiGateRadius;
 }
 
+export function isRoadFort(site: Site): boolean {
+  return FORTRESS_SITES[siteLook(site)]?.roadFort === true;
+}
+
 export function sitePads(site: Site): Vec[] {
-  if (isTerritory(site)) return [];
+  if (isTerritory(site) || isRoadFort(site)) return [];
   if (givenGates(site)) return padsOf(site);
   let pads = PADS.get(site.id);
   if (!pads) {
@@ -72,9 +88,30 @@ function padsOf(site: Site): Vec[] {
   });
 }
 
+export function hasPads(site: Site): boolean {
+  return sitePads(site).length > 0;
+}
+
 export function nearestPad(site: Site, from: Vec): Vec {
   if (isTerritory(site)) throw new Error(`Territory ${site.id} has no pads; use territoryEntries`);
-  return sitePads(site).reduce((a, b) => (dist(from, a) <= dist(from, b) ? a : b));
+  const pads = sitePads(site);
+  if (pads.length === 0) throw new Error(`Site ${site.id} has no pads`);
+  return pads.reduce((a, b) => (dist(from, a) <= dist(from, b) ? a : b));
+}
+
+function outsideGate(site: Site, gate: Vec): Vec {
+  const away = Math.atan2(gate.y - site.pos.y, gate.x - site.pos.x);
+  return { x: gate.x + Math.cos(away) * RULES.stranded.fortAnchorOut, y: gate.y + Math.sin(away) * RULES.stranded.fortAnchorOut };
+}
+
+export function setDownAnchors(site: Site): Vec[] {
+  return isRoadFort(site) ? siteGates(site).map((gate) => outsideGate(site, gate)) : sitePads(site);
+}
+
+export function nearestSitePad(atlas: Atlas, pos: Vec): { site: Site; pad: Vec } {
+  const options = atlasSites(atlas).flatMap((site) => setDownAnchors(site).map((pad) => ({ site, pad })));
+  if (options.length === 0) throw new Error('The atlas has no site with pads');
+  return options.reduce((a, b) => (dist(pos, a.pad) <= dist(pos, b.pad) ? a : b));
 }
 
 export function canUseSite(pos: Vec, site: Site): boolean {
@@ -187,4 +224,99 @@ export function edgeCrossings(a: Vec, b: Vec, c: Vec, r: number): Vec[] {
   return [(-B - root) / (2 * A), (-B + root) / (2 * A)]
     .filter((t) => t >= 0 && t <= 1)
     .map((t) => ({ x: a.x + d.x * t, y: a.y + d.y * t }));
+}
+
+const EXIT_SPREAD = REGION.sites.pad.width / 3;
+
+export function everyTruck(world: World): Vehicle[] {
+  return world.sheltered.length === 0 ? world.vehicles : [...world.vehicles, ...world.sheltered.map((s) => s.vehicle)];
+}
+
+export function namedTruck(world: World, id: string): Vehicle | undefined {
+  return everyTruck(world).find((v) => v.id === id) ?? world.removed.find((v) => v.id === id);
+}
+
+export function requireTruck(world: World, id: string): Vehicle {
+  const v = namedTruck(world, id);
+  if (!v) throw new Error(`No truck ${id} in this world, inside a site or gone this turn`);
+  return v;
+}
+
+export function isSheltered(world: World, id: string): boolean {
+  return world.sheltered.some((s) => s.vehicle.id === id);
+}
+
+export function shelteredAt(world: World, siteId: string): Vehicle[] {
+  return world.sheltered.filter((s) => s.site === siteId).map((s) => s.vehicle);
+}
+
+export function canEnter(world: World, v: Vehicle, site: Site): boolean {
+  return world.vehicles.includes(v) && parkedOn(v, site) && !isBusy(world, v);
+}
+
+function isBusy(world: World, v: Vehicle): boolean {
+  if (inCombat(world, v) || isOnRope(world, v.id) || world.player.call?.with === v.id) return true;
+  return world.states.some((s) => s.holder === v.id || s.other === v.id) || isContracted(world, v.id);
+}
+
+function isContracted(world: World, id: string): boolean {
+  return world.player.contracts.some((c) => !isMet(c) && contractTruck(c) === id);
+}
+
+export function enterSite(world: World, v: Vehicle, site: Site): void {
+  if (isSheltered(world, v.id)) throw new Error(`${v.id} is already inside a site`);
+  if (!canEnter(world, v, site)) throw new Error(`${v.id} cannot enter ${site.id} from where it stands`);
+  world.vehicles = world.vehicles.filter((x) => x !== v);
+  world.sheltered.push({ vehicle: v, site: site.id });
+  world.removed.push(v);
+  settleStates(world);
+  settleAims(world);
+  handOnMoments(world, v.id);
+  world.events.push({ t: 'enteredSite', vehicle: v.id, site: site.id });
+}
+
+export function shelterNew(world: World, v: Vehicle, site: Site): void {
+  if (everyTruck(world).some((x) => x.id === v.id)) throw new Error(`${v.id} is already in the world`);
+  if (!hasExit(site)) throw new Error(`${site.id} has no pad to shelter at`);
+  world.sheltered.push({ vehicle: v, site: site.id });
+}
+
+export function leaveSite(world: World, id: string): boolean {
+  const held = world.sheltered.find((s) => s.vehicle.id === id);
+  if (!held) throw new Error(`${id} is not inside any site`);
+  if (world.events.some((e) => e.t === 'leftSite' && e.site === held.site)) return false;
+  const site = placeOf(world, held.site);
+  const spot = exitSpots(site).find((p) => isFree(world, p, footprint(held.vehicle.chassisId), null));
+  if (!spot) return false;
+  placeOutside(held.vehicle, spot, Math.atan2(spot.y - site.pos.y, spot.x - site.pos.x));
+  world.sheltered = world.sheltered.filter((s) => s !== held);
+  world.vehicles.push(held.vehicle);
+  world.events.push({ t: 'leftSite', vehicle: id, site: site.id });
+  return true;
+}
+
+function hasExit(site: Site): boolean {
+  return sitePads(site).length > 0;
+}
+
+function placeOf(world: World, siteId: string): Site {
+  const site = worldPlaces(world).find((s) => s.id === siteId);
+  if (!site) throw new Error(`No site ${siteId} stands in this world`);
+  return site;
+}
+
+function exitSpots(site: Site): Vec[] {
+  return sitePads(site).flatMap((pad) => {
+    const a = Math.atan2(pad.y - site.pos.y, pad.x - site.pos.x);
+    return [0, -1, 1].map((k) => ({ x: pad.x - Math.sin(a) * k * EXIT_SPREAD, y: pad.y + Math.cos(a) * k * EXIT_SPREAD }));
+  });
+}
+
+function placeOutside(v: Vehicle, spot: Vec, heading: number): void {
+  v.pos = { ...spot };
+  v.heading = heading;
+  v.speed = 0;
+  v.trail = [];
+  v.order = null;
+  straighten(v);
 }

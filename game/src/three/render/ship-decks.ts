@@ -33,7 +33,7 @@ export function addShipDecks(t: Terrain, scope: RenderScope): void {
   for (const ship of shipDecks(t)) {
     const { deck } = ship;
     const mid = { x: deck.from.x + (deck.axis.x * deck.length) / 2, y: deck.from.y + (deck.axis.y * deck.length) / 2 };
-    scope.add(buildShipDeck(t, ship), mid, Math.hypot(deck.length, deck.width) / 2);
+    scope.place(mid, Math.hypot(deck.length, deck.width) / 2, () => buildShipDeck(t, ship));
   }
 }
 

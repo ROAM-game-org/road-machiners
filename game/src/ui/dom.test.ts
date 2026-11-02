@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { vi } from "vitest";
 import { t } from "../text/msg";
-import { disabledWith, isBrowserChord } from "./dom";
+import { disabledWith, isBrowserChord, namesKey } from "./dom";
 
 const NO_SAVES = t("save.none");
 
@@ -38,5 +38,20 @@ describe("disabledWith", () => {
     expect(click).not.toHaveBeenCalled();
     expect(attrs["aria-disabled"]).toBe("true");
     expect(attrs["data-reason"]).toBe(NO_SAVES);
+  });
+});
+
+describe("namesKey", () => {
+  it("finds a bracketed or parenthesized key cap", () => {
+    expect(namesKey("Close [C]")).toBe(true);
+    expect(namesKey("Center on truck (F)")).toBe(true);
+    expect(namesKey("[0] All")).toBe(true);
+    expect(namesKey("Leave [Esc]")).toBe(true);
+  });
+
+  it("leaves plain words and other brackets", () => {
+    expect(namesKey("Close")).toBe(false);
+    expect(namesKey("Rank (2)")).toBe(false);
+    expect(namesKey("Rank [2 of 5]")).toBe(false);
   });
 });

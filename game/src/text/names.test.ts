@@ -2,14 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { addVehicle, emptyWorld, npcBrain } from '../sim/testkit';
 import type { Refusal, SimNote } from '../sim/types';
 import { type Locale, type Msg } from './msg';
-import { goalText, moneyReasonText, noteText, refusalText, vehicleTitle } from './names';
+import { goalText, moneyReasonText, noteText, questTitle, refusalText, vehicleTitle } from './names';
+import { QUESTS } from '../sim/quests';
 import { resolve } from './resolve';
 
 const both = (msg: Msg): Record<Locale, string> => ({ en: resolve(msg, 'en'), ru: resolve(msg, 'ru') });
 
 function scene() {
   const w = emptyWorld();
-  const npc = addVehicle(w, 'roamers', 'buggy', ['mg', 'stockEngine'], { x: 5, y: 5 });
+  const npc = addVehicle(w, 'independent', 'buggy', ['mg', 'stockEngine'], { x: 5, y: 5 });
   npc.brain = { ...npcBrain('roamer', npc.pos, ['roamer']), driver: 'Ada Volkov' };
   return { w, npc };
 }
@@ -27,7 +28,7 @@ describe('truck titles', () => {
 
   it('reads a truck without a driver as its chassis', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'roamers', 'buggy', [], { x: 5, y: 5 });
+    const v = addVehicle(w, 'independent', 'buggy', [], { x: 5, y: 5 });
     expect(both(vehicleTitle(w, v)).en).toBe('Buggy');
   });
 
@@ -61,5 +62,19 @@ describe('sim ids in words', () => {
     expect(both(refusalText(w, looting))).toEqual({ en: 'Roamer Ada Volkov is looting this wreck', ru: 'Эти обломки уже грабит бродяга Ада Волкова' });
     expect(both(refusalText(w, { id: 'badLayout', cause: { id: 'noFit' } })).en).toBe('Does not fit there. Items would fall off the grid or overlap.');
     expect(both(refusalText(w, { id: 'needsXp', cost: 1200, have: 30 }))).toEqual({ en: 'Needs 1,200 XP, you have 30 XP', ru: 'Нужно 1 200 опыта, у вас 30' });
+  });
+});
+
+describe('quest titles', () => {
+  it('names every quest of the bundle in English and Russian', () => {
+    for (const id of Object.keys(QUESTS.quests)) {
+      const title = both(questTitle(id));
+      expect(title.en, id).not.toBe('');
+      expect(title.ru, id).not.toBe('');
+    }
+  });
+
+  it('fails a quest with no title', () => {
+    expect(() => resolve(questTitle('no_such_quest'), 'en')).toThrow();
   });
 });

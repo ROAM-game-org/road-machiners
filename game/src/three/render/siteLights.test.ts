@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { TIME } from '../../data/time';
 import { sunAt } from '../../sim/sun';
 import { groundHits, SITE_LIGHT_FADE_S, SITE_LIGHT_POOL, SITE_SHADOW_SLOTS, siteLightOrder, SiteLights, LOOKS, type SiteLight } from './siteLights';
 
@@ -8,7 +9,7 @@ const all = () => true;
 const FOCUS = { x: 0, y: 0, z: 0 };
 
 function turnWhere(night: boolean, from = 1): number {
-  for (let t = from; t < from + 500; t++) if (!sunAt(t) === night) return t;
+  for (let t = from; t < from + TIME.turnsPerDay; t++) if (!sunAt(t) === night) return t;
   throw new Error('no such turn');
 }
 const NIGHT = turnWhere(true);
@@ -24,7 +25,9 @@ function setup(lights: SiteLight[]) {
   const camera = new THREE.PerspectiveCamera(50, 1, 1, 1000);
   camera.position.set(0, 50, 50);
   camera.lookAt(0, 0, 0);
-  return { scene, camera, pool: new SiteLights(scene, { lights, lamps: [] }, { worldSize: 8, maxTextureSize: 64 }) };
+  const pool = new SiteLights(scene, null, { worldSize: 8, maxTextureSize: 64 });
+  pool.add(lights, []);
+  return { scene, camera, pool };
 }
 const spotsIn = (scene: THREE.Scene) => scene.children.filter((c) => c instanceof THREE.SpotLight);
 

@@ -9,7 +9,7 @@ import { makeVehicle } from './factory';
 import { freeCells, isMounted, mountedItems } from './grid';
 import { vehicleMass } from './mass';
 import { generateNpcLoadout, sampleWeighted } from './npc-loadout';
-import { spawnAt } from './spawn';
+import { allegianceFor, fallbackFaction, spawnAt } from './spawn';
 import { npcMassRoom } from './stats';
 import { emptyWorld } from './testkit';
 import { TEST_MAP } from '../test/map';
@@ -103,7 +103,7 @@ describe('trader spare parts', () => {
     template.loadout.spares = { pool: [{ value: heaviest.id, weight: 1 }], count: [{ value: count, weight: 1 }] };
 
     const loadout = loadoutOf({ ...fixture, rngState: 3 }, template, null, 'standard');
-    const truck = makeVehicle(fixture, { ...loadout, cargo: {}, faction: template.faction, brain: null, pos: { x: 50, y: 50 }, heading: 0 });
+    const truck = makeVehicle(fixture, { ...loadout, cargo: {}, faction: fallbackFaction(template), brain: null, pos: { x: 50, y: 50 }, heading: 0 });
 
     expect(loadout.spares.length).toBeLessThan(count);
     expect(vehicleMass(truck)).toBeLessThanOrEqual(CHASSIS.buggy.ratedMass);
@@ -160,7 +160,7 @@ describe('raider haul room', () => {
   const rolled = (id: string, level: GearLevel, seed: number) => {
     const world = { ...cloneWorld(fixture), vehicles: [], rngState: seed * 7919 + 1, marketRng: { rngState: seed * 104729 + 1 } };
     const template = NPCS[id];
-    return { template, v: spawnAt(world, template, generateNpcLoadout(world, template, null, level), { x: 40, y: 30 }) };
+    return { template, v: spawnAt(world, template, generateNpcLoadout(world, template, null, level), { x: 40, y: 30 }, allegianceFor(world, template, null, null)) };
   };
 
   it.each(RAIDERS)('keeps room for the reserve after its own load on at least 95%% of %s rolls, armed', (id) => {

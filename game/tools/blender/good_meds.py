@@ -23,7 +23,7 @@ PROUD = 0.006  # how far the cross stands out of the crate face
 def cross(kit: Kit, name: str, loc: tuple[float, float, float], size: float, normal: str) -> None:
     """A red cross flat on one face. normal is the face axis: 'x', 'y' or 'z'."""
     arm, bar = size, size * 0.32
-    dims = {"z": [(arm, bar, PROUD), (bar, arm, PROUD)], "y": [(arm, PROUD, bar), (bar, PROUD, arm)], "x": [(PROUD, arm, bar), (PROUD, bar, arm)]}
+    dims = {"z": [(arm, bar, PROUD), (bar, arm, 2 * PROUD)], "y": [(arm, PROUD, bar), (bar, 2 * PROUD, arm)], "x": [(PROUD, arm, bar), (2 * PROUD, bar, arm)]}
     for i, d in enumerate(dims[normal]):
         kit.box(f"{name}{i}", d, loc, "red")
 
@@ -32,7 +32,7 @@ def build(kit: Kit) -> None:
     kit.box("crate", (L, W, H), (0, 0, H / 2), "white", dent_by=0.006)
     kit.box("lid", (L + 0.02, W + 0.02, 0.05), (0, 0, H + 0.02), "white", dent_by=0.004)
     for x in (-L / 2 + 0.03, L / 2 - 0.03):
-        kit.box("corner_band", (0.04, W + 0.012, H), (x, 0, H / 2), "metal")
+        kit.box("corner_band", (0.04, W + 0.012, H - PROUD), (x, 0, (H - PROUD) / 2), "metal")
     # Crosses on the lid and on both long sides and ends.
     cross(kit, "cross_top", (0, 0, H + 0.045 + PROUD / 2), 0.26, "z")
     for y in (-W / 2 - PROUD / 2, W / 2 + PROUD / 2):

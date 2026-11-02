@@ -1,10 +1,12 @@
 
+import { closeLabel } from "./input-mode";
 import type { SlotId, SlotInfo } from "../three/save-slots";
 import { slotLabel } from "../three/save-slots";
 import { bindAttr, say } from "../text/language";
 import { date, t, type Msg } from "../text/msg";
 import { modeName } from "../text/names";
-import { el, panel } from "./dom";
+import type { ImportResult } from "../three/save";
+import { el, panel, pickTextFile } from "./dom";
 import { clock } from "./format";
 
 export type SavePanelActions = {
@@ -14,7 +16,21 @@ export type SavePanelActions = {
   reboot: (slot: SlotId) => void;
   exportSave: () => void;
   exportLog: () => void;
+  importSave: (text: string) => Promise<ImportResult>;
 };
+
+export async function pickImport(importSave: SavePanelActions["importSave"]): Promise<ImportResult | null> {
+  const text = await pickTextFile(".json,application/json");
+  return text === null ? null : importSave(text);
+}
+
+export function importButton(onclick: () => void, cls = ""): HTMLElement {
+  return el("button", { class: cls, onclick, title: t("save.importTitle") }, t("save.import"));
+}
+
+export function refusalLine(refusal: Msg): HTMLElement {
+  return el("div", { class: "bad", role: "alert" }, refusal);
+}
 
 export function slotDetail(info: SlotInfo | null): { text: Msg; tone: "dim" | "bad" | "num" } {
   if (info === null) return { text: t("save.empty"), tone: "dim" };
@@ -40,7 +56,15 @@ function nameEl(slot: SlotId, info: SlotInfo | null): HTMLElement {
   return el("span", { class: "save-name" }, el("b", {}, slotLabel(slot)), ...(mode ? [el("span", { class: "dim" }, mode)] : []));
 }
 
-export class SavePanel {
+export function saveSummary(info: SlotInfo): HTMLElement[] {
+  return [nameEl(info.slot, info), detailEl(info)];
+}
+
+export function saveRow(slot: SlotId, info: SlotInfo | null, onclick: () => void): HTMLElement {
+  return el("button", { class: "save-row", "data-slot": slot, title: slotRealTime(info) ?? undefined, onclick }, nameEl(slot, info), detailEl(info));
+}
+
+export class SaveList {
   private root: HTMLElement | null = null;
   private readonly onKey = (e: KeyboardEvent) => {
     if (e.code !== "Escape") return;
@@ -48,33 +72,72 @@ export class SavePanel {
     this.close();
   };
 
-  constructor(private actions: SavePanelActions) {}
+  constructor(private onClose: () => void) {}
 
   isOpen(): boolean {
     return this.root !== null;
   }
 
   close(): void {
+    if (this.root === null) return;
+    this.dismiss();
+    this.onClose();
+  }
+
+  openLoad(infos: SlotInfo[], pick: (slot: SlotId) => void): void {
+    const rows = infos.map((info) => saveRow(info.slot, info, () => pick(info.slot)));
+    this.show(t("menu.load"), rows.length > 0 ? rows : [el("div", { class: "dim" }, t("save.none"))]);
+  }
+
+  show(title: Msg, rows: HTMLElement[]): void {
+    this.dismiss();
+    this.root = panel("save-panel dialog");
+    this.root.setAttribute("role", "dialog");
+    bindAttr(this.root, "aria-label", title);
+    this.root.append(el("h3", {}, title), ...rows, el("button", { class: "close", onclick: () => this.close() }, closeLabel()));
+    window.addEventListener("keydown", this.onKey, true);
+  }
+
+  private dismiss(): void {
     this.root?.remove();
     this.root = null;
     window.removeEventListener("keydown", this.onKey, true);
   }
+}
 
-  openSave(): void {
+export class SavePanel {
+  private readonly list = new SaveList(() => {});
+
+  constructor(private actions: SavePanelActions) {}
+
+  isOpen(): boolean {
+    return this.list.isOpen();
+  }
+
+  close(): void {
+    this.list.close();
+  }
+
+  openSave(refusal: Msg | null = null): void {
     const infos = new Map(this.actions.list().map((info) => [info.slot, info]));
-    const rows = this.actions.manualSlots().map((slot) => this.row(slot, infos.get(slot) ?? null, () => this.saveInto(slot)));
+    const rows = this.actions.manualSlots().map((slot) => saveRow(slot, infos.get(slot) ?? null, () => this.saveInto(slot)));
     const exports = el(
       "div",
       { class: "save-exports" },
       el("button", { onclick: () => this.actions.exportSave(), title: t("save.exportSaveTitle") }, t("save.exportSave")),
       el("button", { onclick: () => this.actions.exportLog(), title: t("save.exportLogTitle") }, t("save.exportLog")),
+      importButton(() => void this.importFile()),
     );
-    this.show(t("menu.save"), [...rows, exports]);
+    this.list.show(t("menu.save"), [...rows, exports, ...(refusal === null ? [] : [refusalLine(refusal)])]);
+  }
+
+  private async importFile(): Promise<void> {
+    const result = await pickImport(this.actions.importSave);
+    if (result !== null) this.openSave("refusal" in result ? result.refusal : null);
   }
 
   openLoad(): void {
-    const rows = this.actions.list().map((info) => this.row(info.slot, info, () => this.loadFrom(info.slot)));
-    this.show(t("menu.load"), rows.length > 0 ? rows : [el("div", { class: "dim" }, t("save.none"))]);
+    this.list.openLoad(this.actions.list(), (slot) => this.loadFrom(slot));
   }
 
   private saveInto(slot: SlotId): void {
@@ -85,18 +148,5 @@ export class SavePanel {
   private loadFrom(slot: SlotId): void {
     if (!window.confirm(say(t("save.confirmLoad")))) return;
     this.actions.reboot(slot);
-  }
-
-  private row(slot: SlotId, info: SlotInfo | null, onclick: () => void): HTMLElement {
-    return el("button", { class: "save-row", "data-slot": slot, title: slotRealTime(info) ?? undefined, onclick }, nameEl(slot, info), detailEl(info));
-  }
-
-  private show(title: Msg, rows: HTMLElement[]): void {
-    this.close();
-    this.root = panel("save-panel dialog");
-    this.root.setAttribute("role", "dialog");
-    bindAttr(this.root, "aria-label", title);
-    this.root.append(el("h3", {}, title), ...rows, el("button", { class: "close", onclick: () => this.close() }, t("menu.closeEsc")));
-    window.addEventListener("keydown", this.onKey, true);
   }
 }

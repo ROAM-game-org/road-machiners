@@ -5,14 +5,18 @@ import { playerVehicle } from "../sim/damage";
 import { addVehicle } from "../sim/testkit";
 import { newWorld } from "../sim/world";
 import type { PartInstance } from "../sim/types";
-import { baselinePart, chassisPortraitCell, chassisStats, compareBase, dialShare, diffStats, headlineStat, itemIconCell, partStats, statValue, toneStyle } from "./cards";
+import { PAINT, type TruckPaint } from "../data/chassis";
+import { baselinePart, chassisPortraitCell, speedDialSvg, dialPaceTick, chassisStats, compareBase, dialShare, diffStats, compassAngle, compassSvg, headlineStat, itemIconCell, itemLore, itemTip, jobDone, repairingPart, partStats, statValue, toneStyle } from "./cards";
+import { addGoods } from "../sim/inventory";
+import { startRepair } from "../sim/jobs";
+import { workMarkOf } from "./inventory-draw";
 import ICONS from "../data/item-icons.json";
 import { CHASSIS } from "../data/chassis";
 import { GOODS } from "../data/goods";
 import { PARTS } from "../data/parts";
 import { BODY_PARTS } from "../render/partLooks";
 import { TEST_MAP } from "../test/map";
-import type { Msg } from "../text/msg";
+import { t, type Msg } from "../text/msg";
 import { resolve } from "../text/resolve";
 import { chassisName, goodName, partName } from "../text/names";
 import { defaultSetup, parseSetup } from "../sim/settings";
@@ -77,7 +81,7 @@ describe("cargo cards", () => {
 
   it("headline the net cargo cells on the player's chassis", () => {
     expect(head("panniers")).toMatchObject({ icon: "cells", value: 5 });
-    expect(head("heavyFrame")).toMatchObject({ icon: "cells", value: 32 });
+    expect(head("heavyFrame")).toMatchObject({ icon: "cells", value: 36 });
   });
 
   it("marks a heavy frame better than panniers", () => {
@@ -124,6 +128,25 @@ describe("the part a shop card compares with", () => {
   });
 });
 
+describe("the dashboard compass", () => {
+  const degrees = (rad: number) => Math.round((compassAngle(rad) * 180) / Math.PI);
+
+  it("turns its card with the fixed camera, so north points up and right like the highway", () => {
+    expect(degrees(-Math.PI / 2)).toBe(-45);
+    expect(degrees(0)).toBe(45);
+    expect(degrees(Math.PI / 2)).toBe(135);
+    expect(degrees(Math.PI)).toBe(225);
+  });
+
+  it("points its needle the way the truck faces, against the same card", () => {
+    const svg = compassSvg(-Math.PI / 2);
+    const tip = /M(-?[\d.]+) (-?[\d.]+)/.exec(svg.slice(svg.indexOf("compass-needle")))!;
+    expect(Number(tip[1])).toBeGreaterThan(0);
+    expect(Number(tip[2])).toBeLessThan(0);
+    expect(Number(tip[1])).toBeCloseTo(-Number(tip[2]), 1);
+  });
+});
+
 describe("the speed dial's needle", () => {
   it("shows the speed's share of the top speed, capped at full", () => {
     expect([dialShare(3, 6), dialShare(-3, 6), dialShare(9, 6)]).toEqual([0.5, 0.5, 1]);
@@ -166,7 +189,7 @@ describe("item icons", () => {
   });
 
   it.each(Object.keys(CHASSIS))("names the %s portrait after its chassis", (id) => {
-    expect(en(chassisPortraitCell(id).label)).toBe(en(chassisName(id)));
+    expect(en(chassisPortraitCell(id, PAINT.standard).label)).toBe(en(chassisName(id)));
   });
 });
 
@@ -198,8 +221,20 @@ describe("item tones", () => {
 });
 
 describe("chassis portraits", () => {
+  const OXBLOOD: TruckPaint = { body: "oxblood", cab: "slate", gear: "chalk" };
+
   it.each(Object.keys(CHASSIS))("crop the %s portrait to its drawing", (id) => {
-    expect(chassisPortraitCell(id).box).toEqual(boxOf(ICONS.chassis[id as keyof typeof ICONS.chassis].box));
+    expect(chassisPortraitCell(id, PAINT.standard).box).toEqual(boxOf(ICONS.chassis[id as keyof typeof ICONS.chassis].box));
+  });
+
+  it("start from the standard sheet in the same cell for any paint", () => {
+    expect(chassisPortraitCell("scout", PAINT.standard).file).toBe("chassis.png");
+    expect(chassisPortraitCell("scout", OXBLOOD).file).toBe("chassis.png");
+    expect(chassisPortraitCell("scout", OXBLOOD).box).toEqual(chassisPortraitCell("scout", PAINT.standard).box);
+  });
+
+  it("fail on a paint the build does not know", () => {
+    expect(() => chassisPortraitCell("scout", { ...OXBLOOD, cab: "gold" } as unknown as TruckPaint)).toThrow(/gold/);
   });
 });
 
@@ -211,5 +246,77 @@ describe("stat values", () => {
   it("keeps degrees and multipliers tight to the number", () => {
     const stats = partStats(world, part("stockEngine"));
     expect(en(statValue(stats.find((s) => s.icon === "heat")!))).toMatch(/^[\d.]+×$/);
+  });
+});
+
+describe("the item tip", () => {
+  it("opens with the name and ends with the lore, for a part, a good and the parcel", () => {
+    for (const id of ["mg", "salt", "parcel"]) {
+      const [name, lore] = en(itemTip(id)).split("\n");
+      expect(name, id).toBe(en(id === "parcel" ? t("item.parcel") : id in GOODS ? goodName(id) : partName(id)));
+      expect(lore, id).toBe(en(itemLore(id)));
+      expect(lore.length, id).toBeGreaterThan(20);
+    }
+  });
+
+  it("has lore for every part and good", () => {
+    for (const id of [...Object.keys(PARTS), ...Object.keys(GOODS)]) expect(en(itemLore(id)).length, id).toBeGreaterThan(20);
+  });
+});
+
+describe("the mark on a part under work", () => {
+  function wornWorld() {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const me = w.vehicles[0];
+    me.speed = 0;
+    const cage = mountedParts(me).find((p) => partDef(p.defId).kind === "armor")!;
+    cage.hp = 1;
+    addGoods(w, me, "parts", 20);
+    return { w, cage };
+  }
+
+  it("marks nothing while no job runs", () => {
+    const { w } = wornWorld();
+    expect(workMarkOf(w, w.vehicles[0])).toBeNull();
+    expect(repairingPart(w, w.vehicles[0])).toBeNull();
+  });
+
+  it("marks the item and the part of a running repair, and fills with the turns done", () => {
+    const { w, cage } = wornWorld();
+    const next = startRepair(w, cage.id);
+    const me = next.vehicles[0];
+    const item = me.items.find((it) => it.kind === "part" && it.part.id === cage.id)!;
+    expect(workMarkOf(next, me)).toEqual({ itemIds: new Set([item.id]), done: 0 });
+    expect(repairingPart(next, me)).toEqual({ partId: cage.id, done: 0 });
+    if (me.job) me.job.turnsLeft = 0;
+    expect(repairingPart(next, me)?.done).toBe(1);
+  });
+
+  it("clamps the share of a job to the range of a bar", () => {
+    expect(jobDone({ kind: "weld", turnsLeft: 5, total: 4 })).toBe(0);
+    expect(jobDone({ kind: "weld", turnsLeft: 0, total: 0 })).toBe(0);
+    expect(jobDone({ kind: "weld", turnsLeft: 1, total: 4 })).toBe(0.75);
+  });
+});
+
+describe('the speed dial pace tick', () => {
+  it('draws a tick only while a route pace is held, further round the dial for a higher pace', () => {
+    expect(dialPaceTick(null, 107)).toBe('');
+    expect(dialPaceTick(40, 107)).toContain('class="dial-pace"');
+    expect(dialPaceTick(40, 107)).not.toBe(dialPaceTick(80, 107));
+  });
+});
+
+describe('the speed dial scale', () => {
+  it("ends at the truck's own top speed, so top speed points the needle to the far right", () => {
+    const needle = (speed: number, top: number) => speedDialSvg(speed, top, top, null).match(/rotate\(([\d.]+)/)![1];
+    expect(needle(107, 107)).toBe('180');
+    expect(needle(160, 160)).toBe('180');
+    expect(needle(50, 100)).toBe('90');
+  });
+
+  it('draws the red arc only when a cap holds the truck under its top speed', () => {
+    expect(speedDialSvg(0, 107, 107, null)).not.toContain('dial-redline');
+    expect(speedDialSvg(0, 60, 107, null)).toContain('dial-redline');
   });
 });

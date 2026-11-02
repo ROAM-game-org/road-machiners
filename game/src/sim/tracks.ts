@@ -1,8 +1,9 @@
 
 import { NPC_BEHAVIOR } from '../data/npcs';
+import type { Berth } from './nav/layer';
 import type { Contact, Track, TrackChoice, Vehicle, World } from './types';
 import type { Vec } from './vec';
-import { canVehicleSee } from './vision';
+import { canVehicleSee, sightRadius } from './vision';
 
 export function trackOf(vehicle: Vehicle, id: string): Track | undefined {
   return tracksOf(vehicle)[id];
@@ -19,6 +20,16 @@ export function refreshTrack(world: World, vehicle: Vehicle, id: string, at: Vec
   if (!known) throw new Error(`${vehicle.id} has no track of ${id} to refresh`);
   known.at = { ...at };
   known.turn = world.turn;
+}
+
+export function berthsOf(world: World, vehicle: Vehicle): Berth[] {
+  const brain = vehicle.brain;
+  if (!brain?.tracks) return [];
+  const target = brain.goals[brain.goals.length - 1]?.targetId;
+  const entries = Object.entries(brain.tracks).filter(([id, track]) => track.choice === 'flee' && id !== target && world.turn - track.turn <= memoryOf(track));
+  if (entries.length === 0) return [];
+  const r = sightRadius(world, vehicle) + NPC_BEHAVIOR.berthMargin;
+  return entries.map(([, track]) => ({ x: track.at.x, y: track.at.y, r }));
 }
 
 export function comesInSight(world: World, track: Track): boolean {

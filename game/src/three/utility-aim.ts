@@ -47,6 +47,11 @@ export class UtilityAim {
     return this.selected;
   }
 
+  pointPending(): boolean {
+    const part = this.selectedPart(this.host.world());
+    return part !== null && orderKindOf(part) === 'point';
+  }
+
   select(id: string | null): void {
     this.selected = id;
   }

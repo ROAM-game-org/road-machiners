@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit  # noqa: E402
 from parts_common_cargo import CARGO_MAX_H, footprint, run  # noqa: E402
+from parts_common_core import PROUD  # noqa: E402
 from shapes import taper  # noqa: E402
 
 SEED = 103
@@ -29,7 +30,7 @@ def build(kit: Kit) -> None:
         bag = kit.box(f"bag{i}", (bag_l, width - 2 * STRAP, BAG_H), (x, 0, 0.05 + BAG_H / 2), "tarp", dent_by=0.015)
         taper(bag, top=0.9)
         kit.box(f"lid{i}", (bag_l * 0.95, width * 0.92, 0.08), (x, 0, 0.05 + BAG_H + 0.02), "paint", dent_by=0.008)
-        kit.box(f"strap{i}", (0.035, width, BAG_H + 0.06), (x, 0, 0.05 + BAG_H / 2 + 0.02), "wood")
+        kit.box(f"strap{i}", (0.035, width - 2 * PROUD, BAG_H + 0.06), (x, 0, 0.05 + BAG_H / 2 + 0.02), "wood")
         kit.box(f"buckle{i}", (0.05, 0.02, 0.05), (x, -width / 2 + 0.01, 0.05 + BAG_H * 0.7), "metal_light")
     # Rail posts at the corners hold the bags on.
     for x in (-length / 2 + 0.02, length / 2 - 0.02):

@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { CHASSIS, PLAYER_CHASSIS, type ChassisDef } from './chassis';
-import { FURY_ROAD } from './modes';
+import { readdirSync, readFileSync } from 'node:fs';
+import { chassisAbility, accelFactor, bedRows, rangeFactor, sightFactor, topSpeedFactor } from '../sim/chassis-features';
+import { CHASSIS, CHASSIS_FEATURES, HAULER_CHASSIS, isTruckPaint, PAINT, PAINT_SCHEMES, PALETTE, PALETTE_IDS, PLAYER_CHASSIS, TOWN_CHASSIS, type ChassisDef, type PaletteId } from './chassis';
+import { GANG_PAINT, TEMPLATE_PAINT } from '../render/palette';
+import { CHAOS_HIGHWAY } from './modes';
 import { NPCS } from './npcs';
 import { PARTS, partDef } from './parts';
+import { bareGrid, baseGrid } from '../sim/grid';
 
 type Cell = { x: number; y: number };
 
@@ -39,18 +43,21 @@ function armorTouched(c: ChassisDef, cells: Cell[]): Set<string> {
 
 const FRONT_ENGINE: readonly string[] = ['longbed', 'tractor'];
 
-const TANK_BESIDE_WHEELS: Record<string, string> = {
-  buggy: 'With the cab and transmission off the wheel columns and the 2x2 deck block kept, a wheel column is the only place left for the tank.',
-  courier: 'With the cab and transmission off the wheel columns and the 2x2 deck block kept, a wheel column is the only place left for the tank.',
-};
+const SMALL_CAR = 'A small car whose 5 inner columns were 4 before odd fronts. A 3x2 cab would fill its middle and leave no deck block.';
+
+const WIDENED = ['buggy', 'courier', 'jeep', 'niva', 'bus', 'carrier', 'wagon'];
 
 const SEAT_CAB: Record<string, string> = {
-  wagon: 'An open gun platform. On its 6x5 grid a six-cell cab leaves no deck block, which tier 2 requires, and cuts the deck from 11 cells to 6.',
+  buggy: SMALL_CAR,
+  courier: SMALL_CAR,
+  jeep: SMALL_CAR,
+  niva: SMALL_CAR,
 };
 
 const VALUES = {
-  scout: 81467, hauler: 122534, buggy: 64267, wagon: 100733, courier: 77333, van: 102666, longbed: 179466,
-  carrier: 162534, tractor: 146067, jeep: 72867, convertible: 99734, bus: 126667, loader: 169600, niva: 104934, bukhanka: 115000, lincoln: 142933, semi: 140000,
+  scout: 762.14, hauler: 900.34, buggy: 642.67, wagon: 1007.33, courier: 773.33, van: 849.66, longbed: 1349.66,
+  carrier: 1625.34, tractor: 1460.67, jeep: 728.67, convertible: 997.34, bus: 1266.67, loader: 1696, niva: 1049.34, bukhanka: 1150, lincoln: 1429.33, semi: 1400,
+  sorokonoga: 1765.67,
 };
 
 const NO_DECK_BLOCK: Record<string, string> = {
@@ -58,16 +65,38 @@ const NO_DECK_BLOCK: Record<string, string> = {
   scout: 'A cab clear of the wheels on 5 columns leaves only single deck columns.',
 };
 
-const RATED_MASS = 3840;
+const RATED_MASS_BEFORE_RING = {
+  scout: 3840, hauler: 7590, buggy: 3280, wagon: 6990, courier: 3750, van: 4790, longbed: 8930, carrier: 7620, tractor: 8460,
+  jeep: 3920, convertible: 4440, bus: 9010, loader: 9060, niva: 4410, bukhanka: 5360, lincoln: 5540, semi: 16580, sorokonoga: 10800,
+};
+
+const CRATE_ROOM_BEFORE_SQUARE_GRID: Record<string, number> = {
+  scout: 23, hauler: 57, buggy: 20, wagon: 39, courier: 25, van: 21, longbed: 80, carrier: 39, tractor: 39,
+  jeep: 25, convertible: 21, bus: 60, loader: 39, niva: 30, lincoln: 31, semi: 177, sorokonoga: 88,
+};
+
+const ROOM_TAKEN_BY_TIER_GRADE_CORES: Record<string, number> = { niva: 1, convertible: 3 };
+
+const CRATE_ROOM_EXCESS: Record<string, number> = {
+  hauler: 14, buggy: 2, courier: 5, longbed: 3, tractor: 7, jeep: 5, bus: 1, loader: 6, semi: 3, sorokonoga: 4, van: 12,
+};
+
+const RING_CELLS_ADDED = 4;
+
+const CLEAN_HOLE_CHASSIS = ['semi', 'lincoln', 'convertible', 'bus', 'carrier', 'jeep', 'hauler', 'wagon', 'van'];
 
 const columns = (cells: Cell[]) => new Set(cells.map((cell) => cell.x));
 
+const wheelRowSpans = (c: ChassisDef) => coreCells(c, 'wheel').map((cell) => `${cell.x},${cell.y}`);
+
 describe('chassis grids', () => {
-  it('keeps cabs, transmissions and engine bays out of the wheel columns', () => {
+  it('keeps engine bays out of the wheel columns and cabs and transmissions off every wheel cell, though they may share a wheel column in rows its wheel does not use', () => {
     for (const [id, c] of Object.entries(CHASSIS)) {
       const wheels = columns(coreCells(c, 'wheel'));
-      const parts = [...coreCells(c, 'cab'), ...coreCells(c, 'transmission'), ...engineCells(c)];
-      expect(parts.filter((cell) => wheels.has(cell.x)), id).toEqual([]);
+      expect(engineCells(c).filter((cell) => wheels.has(cell.x)), `${id} engine`).toEqual([]);
+      const parts = [...coreCells(c, 'cab'), ...coreCells(c, 'transmission')];
+      const wheelCells = new Set(wheelRowSpans(c));
+      expect(parts.filter((cell) => wheelCells.has(`${cell.x},${cell.y}`)), id).toEqual([]);
     }
   });
 
@@ -80,42 +109,83 @@ describe('chassis grids', () => {
     }
   });
 
-  it('keeps tanks out of the wheel columns but on the chassis listed', () => {
+  it('keeps tanks off every wheel cell, though a tank may share a wheel column in rows its wheel does not use', () => {
     for (const [id, c] of Object.entries(CHASSIS)) {
-      const wheels = columns(coreCells(c, 'wheel'));
-      const shared = coreCells(c, 'tank').some((cell) => wheels.has(cell.x));
-      expect(shared, id).toBe(id in TANK_BESIDE_WHEELS);
+      const wheelCells = new Set(wheelRowSpans(c));
+      expect(coreCells(c, 'tank').filter((cell) => wheelCells.has(`${cell.x},${cell.y}`)), id).toEqual([]);
     }
   });
 
-  it('gives four-column chassis and the listed ones the open seat and every other chassis a 3x2 cab', () => {
+  it('gives the listed small cars the open seat and every other chassis a 3x2 cab', () => {
     for (const [id, c] of Object.entries(CHASSIS)) {
-      const seat = c.layout[0].length === 6 || id in SEAT_CAB;
       const cabs = c.core.filter((part) => { const def = partDef(part.defId); return def.kind === 'core' && def.role === 'cab'; });
-      expect(cabs.map((part) => part.defId === 'cab'), id).toEqual([seat]);
+      expect(cabs.map((part) => part.defId === 'cab'), id).toEqual([id in SEAT_CAB]);
     }
-    for (const id of Object.keys(SEAT_CAB)) expect(CHASSIS[id].layout[0].length, id).not.toBe(6);
+  });
+
+  it('gives every front and back edge room for a 3-cell ram, centered on an odd edge and one cell left of center on an even one', () => {
+    for (const [id, c] of Object.entries(CHASSIS)) {
+      const edges = [c.layout[0], c.layout[c.layout.length - 1]].map((row) => [...row].filter((ch) => ch === 'F' || ch === 'B').length);
+      for (const cells of edges) {
+        expect(cells, id).toBeGreaterThanOrEqual(3);
+        const spare = cells - 3;
+        const left = Math.floor(spare / 2);
+        expect(spare - left - left, id).toBe(spare % 2);
+      }
+    }
+  });
+
+  it('puts a built-in part or the engine bay in every column of a widened truck, so its new column does not let front shots through', () => {
+    const open = WIDENED.filter((id) => {
+      const c = CHASSIS[id];
+      const roles = c.core.map((core) => partDef(core.defId)).flatMap((def) => (def.kind === 'core' ? [def.role] : []));
+      const filled = columns([...new Set(roles)].flatMap((role) => coreCells(c, role)).concat(engineCells(c)));
+      return Array.from({ length: c.layout[0].length - 2 }, (_, i) => i + 1).some((x) => !filled.has(x));
+    });
+    expect(open).toEqual([]);
   });
 
   it('keeps every chassis value at its value before the layout rules', () => {
     expect(Object.fromEntries(Object.entries(CHASSIS).map(([id, c]) => [id, c.value]))).toEqual(VALUES);
   });
 
-  it('keeps the scout worth what it was before its cab moved', () => {
-    expect(CHASSIS.scout.value).toBe(81467);
-    expect(CHASSIS.scout.ratedMass).toBe(RATED_MASS);
+  it('rates every chassis at the old mass plus tier 1 armor for its four new side cells', () => {
+    const ring = RING_CELLS_ADDED * 100;
+    expect(Object.fromEntries(Object.entries(CHASSIS).map(([id, c]) => [id, c.ratedMass - ring]))).toEqual(RATED_MASS_BEFORE_RING);
   });
 
-  it('keeps the scout grid the same size with the same cells', () => {
-    const before = [' FFFFF ', 'LXEEDXR', 'LXEEDXR', 'LXXXDDR', 'LXXXDDR', 'LXXXXXR', 'LXXXXXR', ' BBBBB '];
-    const count = (rows: readonly string[]) => {
-      const n: Record<string, number> = {};
-      for (const ch of rows.join('')) n[ch] = (n[ch] ?? 0) + 1;
-      return n;
+  it('gives every chassis at least the crate room it had before the square grid, and exactly that where the grid allows', () => {
+    const room = (id: string) => {
+      const c = CHASSIS[id];
+      const plain = c.layout.join('').split('').filter((ch) => 'DC.'.includes(ch)).length;
+      return plain + (bareGrid(id).h - baseGrid(id).h) * c.layout[0].length;
     };
-    expect(CHASSIS.scout.layout.length).toBe(before.length);
-    expect(CHASSIS.scout.layout.every((row) => row.length === before[0].length)).toBe(true);
-    expect(count(CHASSIS.scout.layout)).toEqual(count(before));
+    const now = Object.fromEntries(Object.keys(CHASSIS).filter((id) => id !== 'bukhanka').map((id) => [id, room(id)]));
+    const floor = (id: string) => CRATE_ROOM_BEFORE_SQUARE_GRID[id] - (ROOM_TAKEN_BY_TIER_GRADE_CORES[id] ?? 0);
+    const excess = Object.fromEntries(Object.entries(now).map(([id, n]) => [id, n - floor(id)]).filter(([, n]) => n !== 0));
+    expect(Object.entries(now).filter(([id, n]) => n < floor(id)).map(([id]) => id)).toEqual([]);
+    expect(excess).toEqual(CRATE_ROOM_EXCESS);
+  });
+
+  it('keeps no plain cell on any truck body, so loose items lie on deck, bay or storage rows', () => {
+    const plain = Object.entries(CHASSIS).filter(([, c]) => c.layout.join('').includes('.')).map(([id]) => id);
+    expect(plain).toEqual([]);
+  });
+
+  it('never leaves a blank inner cell between two cargo or deck cells, across or along', () => {
+    for (const id of CLEAN_HOLE_CHASSIS) {
+      const rows = CHASSIS[id].layout;
+      const at = (x: number, y: number) => rows[y]?.[x] ?? '#';
+      const sandwiched: string[] = [];
+      for (let y = 1; y < rows.length - 1; y++) {
+        for (let x = 1; x < rows[y].length - 1; x++) {
+          if (rows[y][x] !== ' ') continue;
+          if ('CD'.includes(at(x - 1, y)) && 'CD'.includes(at(x + 1, y))) sandwiched.push(`${x},${y} across`);
+          if ('CD'.includes(at(x, y - 1)) && 'CD'.includes(at(x, y + 1))) sandwiched.push(`${x},${y} along`);
+        }
+      }
+      expect(sandwiched, id).toEqual([]);
+    }
   });
 
   it('keeps every armor column outside the model and every armor row full width', () => {
@@ -127,16 +197,23 @@ describe('chassis grids', () => {
       for (const row of c.layout.slice(1, last)) {
         expect(row.length, id).toBe(w);
         expect(row[0] + row[w - 1], id).toBe('LR');
-        expect(row.slice(1, -1), id).not.toMatch(/[FBLR ]/);
+        expect(row.slice(1, -1), id).not.toMatch(/[FBLR]/);
       }
     }
   });
 
-  it('puts the wheels, two cells long each, one column in from the side armor', () => {
+  it('puts one wheel in each corner, one column in from the side armor, and the semi a wheel pair on each of its five axles', () => {
+    const axles: Record<string, number> = { semi: 5 };
     for (const [id, c] of Object.entries(CHASSIS)) {
       const w = c.layout[0].length;
-      const wheels = coreCells(c, 'wheel');
-      expect(wheels.map((cell) => cell.x).sort(), id).toEqual([1, 1, 1, 1, w - 2, w - 2, w - 2, w - 2].sort());
+      const middle = c.layout.length / 2;
+      const wheels = c.core.filter((part) => { const def = partDef(part.defId); return def.kind === 'core' && def.role === 'wheel'; });
+      const side = (x: number, front: boolean) => wheels.filter((part) => part.x === x && (part.y + partDef(part.defId).h / 2 < middle) === front).length;
+      const pairs = axles[id] ?? 2;
+      expect(wheels.length, id).toBe(pairs * 2);
+      expect(side(1, true) + side(1, false), id).toBe(pairs);
+      expect([side(1, true), side(1, false)], id).toEqual([side(w - 2, true), side(w - 2, false)]);
+      expect(Math.min(side(1, true), side(1, false)), id).toBeGreaterThanOrEqual(1);
     }
   });
 
@@ -177,16 +254,29 @@ function hasDeckBlock(c: ChassisDef, w: number, h: number): boolean {
 describe('core part sizes', () => {
   const parts = Object.values(PARTS);
 
-  it('sizes every cab 1x2 or 3x2', () => {
-    for (const p of parts.filter((d) => d.kind === 'core' && d.role === 'cab')) expect([p.w, p.h].join('x'), p.id).toMatch(/^(1x2|3x2)$/);
+  const GROWN_LENGTH: Record<number, number> = { 1: 1, 2: 3, 3: 4 };
+  const KEEPS_LENGTH = ['cab', 'transmission', 'wheel', 'tank'];
+  const gridSize = (p: { id: string; bulk: { w: number; h: number } }) => [p.bulk.w, KEEPS_LENGTH.includes(p.id) ? p.bulk.h : GROWN_LENGTH[p.bulk.h]];
+
+  it('sizes every cab 1x2 or 3x2 before the square grid, and the open seat keeps its length while the closed cabs grow to 3x3', () => {
+    for (const p of parts.filter((d) => d.kind === 'core' && d.role === 'cab')) {
+      expect([p.bulk.w, p.bulk.h].join('x'), p.id).toMatch(/^(1x2|3x2)$/);
+      expect([p.w, p.h], p.id).toEqual(gridSize(p));
+    }
   });
 
-  it('gives every transmission 2 by 2 cells', () => {
-    for (const p of parts.filter((d) => d.kind === 'core' && d.role === 'transmission')) expect([p.w, p.h], p.id).toEqual([2, 2]);
+  it('gives every transmission 2 by 2 cells before the square grid, and the plain one keeps its length while the sturdier ones grow to 2x3', () => {
+    for (const p of parts.filter((d) => d.kind === 'core' && d.role === 'transmission')) {
+      expect([p.bulk.w, p.bulk.h], p.id).toEqual([2, 2]);
+      expect([p.w, p.h], p.id).toEqual(gridSize(p));
+    }
   });
 
-  it('gives every fuel tank two cells along the truck', () => {
-    for (const p of parts.filter((d) => d.kind === 'core' && d.role === 'tank')) expect([p.w, p.h], p.id).toEqual([1, 2]);
+  it('gives every fuel tank two cells along the truck before the square grid, and the plain one keeps its length while the others grow to three', () => {
+    for (const p of parts.filter((d) => d.kind === 'core' && d.role === 'tank')) {
+      expect([p.bulk.w, p.bulk.h], p.id).toEqual([1, 2]);
+      expect([p.w, p.h], p.id).toEqual(gridSize(p));
+    }
   });
 
   it('gives every engine at least 2 by 2 cells', () => {
@@ -202,10 +292,11 @@ describe('core part sizes', () => {
     const h = Math.max(...engines.map((d) => d.h));
     for (const [id, c] of Object.entries(CHASSIS)) {
       const bay = new Set(engineCells(c).map((cell) => `${cell.x},${cell.y}`));
-      const fits = [...bay].some((key) => {
+      const holds = (bw: number, bh: number) => [...bay].some((key) => {
         const [x, y] = key.split(',').map(Number);
-        return Array.from({ length: w * h }, (_, i) => `${x + (i % w)},${y + Math.floor(i / w)}`).every((k) => bay.has(k));
+        return Array.from({ length: bw * bh }, (_, i) => `${x + (i % bw)},${y + Math.floor(i / bw)}`).every((k) => bay.has(k));
       });
+      const fits = holds(w, h) || holds(h, w);
       expect(fits, id).toBe(true);
     }
   });
@@ -224,7 +315,12 @@ describe('deck blocks for the bigger guns', () => {
 describe('shown cores', () => {
   it('shows the transmission and the tank on the junk-built trucks and hides them on the others', () => {
     const shown = Object.entries(CHASSIS).filter(([, c]) => c.showsCores).map(([id]) => id).sort();
-    expect(shown).toEqual(['courier', 'scout', 'wagon']);
+    expect(shown).toEqual(['scout', 'wagon']);
+  });
+
+  it('draws the engine on every chassis but the buggy, whose closed nose deck holds a full-size spare where the engine would stand', () => {
+    const hidden = Object.entries(CHASSIS).filter(([, c]) => !c.showsEngine).map(([id]) => id);
+    expect(hidden).toEqual(['buggy']);
   });
 });
 
@@ -232,12 +328,12 @@ describe('chassis tradeoffs', () => {
   const count = (c: ChassisDef, letter: string): number => c.layout.reduce((n, row) => n + [...row].filter((ch) => ch === letter).length, 0);
   const armorCells = (c: ChassisDef): number => [...ARMOR].reduce((n, letter) => n + count(c, letter), 0);
   const coreHp = (c: ChassisDef): number => c.core.reduce((n, core) => n + partDef(core.defId).hp, 0);
-  const axes = (c: ChassisDef): number[] => [c.maxSpeed, c.accel, c.brake, c.turnSlow, c.turnFast, count(c, 'D'), armorCells(c), c.ratedMass, coreHp(c), c.fuelCap / c.fuelPerTile];
+  const axes = (c: ChassisDef): number[] => [c.maxSpeed * topSpeedFactor(c.id), c.accel * accelFactor(c.id), bedRows(c.id) * Math.max(...c.layout.map((r) => r.length)), c.brake, c.turnSlow, c.turnFast, count(c, 'D'), armorCells(c), c.ratedMass, coreHp(c), c.fuelCap / c.fuelPerTile];
 
   function chassisDominates(a: ChassisDef, b: ChassisDef): boolean {
     const x = axes(a);
     const y = axes(b);
-    return x.every((v, i) => v >= y[i]) && x.some((v, i) => v > y[i]);
+    return chassisAbility(a.id)?.id === chassisAbility(b.id)?.id && x.every((v, i) => v >= y[i]) && x.some((v, i) => v > y[i]);
   }
 
   it('flags a strictly better copy of a chassis', () => {
@@ -246,13 +342,57 @@ describe('chassis tradeoffs', () => {
     expect(chassisDominates(CHASSIS.van, better)).toBe(false);
   });
 
-  it('keeps every chassis from issue 149 from matching or beating another of its tier on every stat', () => {
-    for (const id of ['lincoln', 'niva', 'bukhanka']) {
-      for (const other of Object.values(CHASSIS).filter((c) => c.tier === CHASSIS[id].tier && c.id !== id)) {
+  it('keeps every player chassis from matching or beating another of its tier and feature on every stat', () => {
+    for (const id of PLAYER_CHASSIS) {
+      for (const other of PLAYER_CHASSIS.map((o) => CHASSIS[o]).filter((c) => c.tier === CHASSIS[id].tier && c.id !== id)) {
         expect(chassisDominates(CHASSIS[id], other), `${id} beats ${other.id}`).toBe(false);
         expect(chassisDominates(other, CHASSIS[id]), `${other.id} beats ${id}`).toBe(false);
         expect(axes(CHASSIS[id]), `${id} matches ${other.id}`).not.toEqual(axes(other));
       }
+    }
+  });
+});
+
+describe('chassis abilities', () => {
+  it('gives every player chassis one ability and the semi none', () => {
+    for (const id of PLAYER_CHASSIS) expect(chassisAbility(id), id).not.toBeNull();
+    expect(chassisAbility('semi')).toBeNull();
+    expect(Object.keys(CHASSIS_FEATURES).sort()).toEqual([...PLAYER_CHASSIS].sort());
+  });
+
+  it('keeps the first build features out of the source', () => {
+    const banned = ['junkBuilt', 'quietEngine', 'cargoBed', 'heavyHitch', 'FEATURE_OF', 'towSpeedShare', 'fullPatchRoles'];
+    const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+      const path = `${dir}/${e.name}`;
+      if (e.isDirectory()) return e.name === 'save-fixtures' ? [] : files(path);
+      return /\.(ts|json)$/.test(e.name) && e.name !== 'chassis.test.ts' ? [path] : [];
+    });
+    for (const file of files('src')) {
+      const text = readFileSync(file, 'utf8');
+      for (const word of banned) expect(text.includes(word), `${word} in ${file}`).toBe(false);
+    }
+  });
+
+  it('pins the numbers the committee fixed', () => {
+    const a = (id: string) => CHASSIS_FEATURES[id];
+    expect([a('scout').bedRows, a('hauler').bedRows, a('longbed').bedRows]).toEqual([1, 2, 3]);
+    expect(a('buggy').accel).toBe(1.25);
+    expect(a('courier').topSpeed).toBe(1.25);
+    expect([a('jeep').offRoadCut, a('niva').offRoadCut]).toEqual([1, 1]);
+    expect([a('van').partArmor, a('bukhanka').partArmor, a('carrier').partArmor, a('tractor').partArmor]).toEqual([1, 2, 4, 2]);
+    expect([a('wagon').gunPower, a('tractor').gunPower, a('loader').gunPower]).toEqual([1.25, 1.25, 1.5]);
+    expect(a('sorokonoga').deckArmor).toBe(1);
+  });
+
+  it('puts bed rows on the scout, hauler and longbed only', () => {
+    for (const id of PLAYER_CHASSIS) expect(bedRows(id) > 0, id).toBe(['scout', 'hauler', 'longbed'].includes(id));
+  });
+
+  it('keeps every gun inside its driver sight, every arc at most 360 and every factor above 0', () => {
+    for (const [id, ability] of Object.entries(CHASSIS_FEATURES)) {
+      expect(rangeFactor(id), id).toBeLessThanOrEqual(sightFactor(id));
+      expect(ability.arc ?? 0).toBeLessThanOrEqual(360);
+      for (const f of [ability.accel, ability.topSpeed, ability.gunPower, ability.mountedMass, ability.sight, ability.range, ability.cargoRows]) expect(f ?? 1).toBeGreaterThan(0);
     }
   });
 });
@@ -265,7 +405,7 @@ describe('the semi', () => {
   });
 
   it('is in no outpost offer and no NPC template', () => {
-    expect(FURY_ROAD.trucks.pool).not.toContain('semi');
+    expect(CHAOS_HIGHWAY.trucks.pool).not.toContain('semi');
     expect(PLAYER_CHASSIS).not.toContain('semi');
     for (const tpl of Object.values(NPCS)) expect(tpl.loadout.chassis.map((c) => c.value)).not.toContain('semi');
   });
@@ -273,5 +413,141 @@ describe('the semi', () => {
   it('weighs over ten scouts and over twice any other chassis, so its rams land massive hits', () => {
     expect(CHASSIS.semi.mass / CHASSIS.scout.mass).toBeGreaterThan(10);
     for (const def of Object.values(CHASSIS)) if (def.id !== 'semi') expect(CHASSIS.semi.mass / def.mass, def.id).toBeGreaterThan(2);
+  });
+});
+
+describe('town garage lineups', () => {
+  const lineups = Object.entries(TOWN_CHASSIS);
+
+  it('gives every town a cheap truck and a truck of each tier', () => {
+    for (const [town, ids] of lineups) {
+      expect(ids, town).toEqual(expect.arrayContaining(['scout', 'buggy', 'courier']));
+      for (const tier of [1, 2, 3]) expect(ids.some((id) => CHASSIS[id].tier === tier), `${town} tier ${tier}`).toBe(true);
+    }
+  });
+
+  it('sells every player chassis somewhere and never the hauler semi', () => {
+    const sold = new Set(lineups.flatMap(([, ids]) => ids));
+    expect([...sold].sort()).toEqual([...PLAYER_CHASSIS].sort());
+    expect(sold.has(HAULER_CHASSIS)).toBe(false);
+  });
+
+  it('lets each town lawman roll only trucks its garage sells', () => {
+    for (const npc of Object.values(NPCS).filter((n) => n.traits.includes('lawman'))) {
+      if (npc.spawn.kind !== 'sites' || npc.spawn.ids.length !== 1) continue;
+      const town = npc.spawn.ids[0];
+      for (const c of npc.loadout.chassis) expect(TOWN_CHASSIS[town], `${npc.id} ${c.value}`).toContain(c.value);
+    }
+  });
+});
+
+function lab(color: number): [number, number, number] {
+  const [r, g, b] = [16, 8, 0].map((shift) => linear(((color >> shift) & 0xff) / 255));
+  const x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047;
+  const y = r * 0.2126 + g * 0.7152 + b * 0.0722;
+  const z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
+  return [116 * labCurve(y) - 16, 500 * (labCurve(x) - labCurve(y)), 200 * (labCurve(y) - labCurve(z))];
+}
+
+function linear(v: number): number {
+  return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+}
+
+function labCurve(t: number): number {
+  return t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
+}
+
+function deltaE(a: number, b: number): number {
+  const p = lab(a);
+  const q = lab(b);
+  return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+}
+
+const ROLE_TOPS = [...Object.values(GANG_PAINT), ...Object.values(TEMPLATE_PAINT)].map((p) => p.top);
+const OLD_STANDARD = new Set<PaletteId>(['tan', 'olive']);
+const NEW_COLORS = PALETTE_IDS.filter((id) => !OLD_STANDARD.has(id));
+
+function lch(color: number): { light: number; chroma: number; hue: number } {
+  const [light, a, b] = lab(color);
+  const hue = (Math.atan2(b, a) * 180) / Math.PI;
+  return { light, chroma: Math.hypot(a, b), hue: hue < 0 ? hue + 360 : hue };
+}
+
+function isEarthHue(hue: number): boolean {
+  return hue >= PAINT.earthHue[0] && hue <= PAINT.earthHue[1];
+}
+
+describe('the paint palette', () => {
+  it('keeps the standard paint equal to the paint every player truck had before paint jobs', () => {
+    expect(PALETTE[PAINT.standard.body]).toBe(0x9c7a3e);
+    expect(PALETTE[PAINT.standard.cab]).toBe(0x7e8a5a);
+    expect(PAINT.standard.gear).toBe(PAINT.standard.body);
+  });
+
+  it('offers nine colors for every surface', () => {
+    expect(PALETTE_IDS).toHaveLength(9);
+    expect(Object.keys(PALETTE).sort()).toEqual([...PALETTE_IDS].sort());
+    expect(PAINT.minApart).toBeGreaterThanOrEqual(15);
+  });
+
+  it.each(PALETTE_IDS)('keeps %s a muted paint, saturated only in an earth hue', (id) => {
+    const { chroma, hue } = lch(PALETTE[id]);
+    expect(chroma).toBeLessThanOrEqual(isEarthHue(hue) ? PAINT.earthChroma : PAINT.coolChroma);
+  });
+
+  it.each(PALETTE_IDS)('keeps %s neither black nor white, and pale only as sand or bone', (id) => {
+    const { light, hue } = lch(PALETTE[id]);
+    expect(light).toBeGreaterThanOrEqual(PAINT.minLight);
+    expect(light).toBeLessThanOrEqual(PAINT.maxLight);
+    if (light > PAINT.paleLight) expect(hue).toBeGreaterThanOrEqual(PAINT.paleMinHue);
+  });
+
+  it('turns down the candy tones the committee rejected', () => {
+    const rejected = [0x6e3a64, 0xc48a8a, 0xe0a0c0, 0xb8a0e0, 0xa0dcb4, 0x26346a];
+    for (const color of rejected) {
+      const { light, chroma, hue } = lch(color);
+      const tooBright = chroma > (isEarthHue(hue) ? PAINT.earthChroma : PAINT.coolChroma);
+      const palePink = light > PAINT.paleLight && hue < PAINT.paleMinHue;
+      expect(tooBright || palePink, color.toString(16)).toBe(true);
+    }
+  });
+
+  it.each(NEW_COLORS)('keeps %s apart from every role body paint', (id) => {
+    for (const role of ROLE_TOPS) expect(deltaE(PALETTE[id], role)).toBeGreaterThanOrEqual(PAINT.minApart);
+  });
+
+  it('keeps every two palette colors apart', () => {
+    for (const [i, a] of PALETTE_IDS.entries()) {
+      for (const b of PALETTE_IDS.slice(i + 1)) expect(deltaE(PALETTE[a], PALETTE[b]), `${a} ${b}`).toBeGreaterThanOrEqual(PAINT.minBetween);
+    }
+  });
+
+  it('knows a paint only when each of its three slots is a palette id', () => {
+    expect(isTruckPaint(PAINT.standard)).toBe(true);
+    expect(isTruckPaint({ body: 'oxblood', cab: 'slate', gear: 'chalk' })).toBe(true);
+    expect(isTruckPaint({ body: 'oxblood', cab: 'gold', gear: 'chalk' })).toBe(false);
+    expect(isTruckPaint({ body: 'oxblood', cab: 'slate' })).toBe(false);
+    expect(isTruckPaint('oxblood')).toBe(false);
+    expect(isTruckPaint(null)).toBe(false);
+  });
+});
+
+describe('the paint schemes', () => {
+  it('starts with the standard paint', () => {
+    expect(PAINT_SCHEMES[0]).toEqual(PAINT.standard);
+  });
+
+  it('offers six schemes made of palette colors', () => {
+    expect(PAINT_SCHEMES).toHaveLength(6);
+    for (const scheme of PAINT_SCHEMES) expect(isTruckPaint(scheme), JSON.stringify(scheme)).toBe(true);
+  });
+
+  it.each(PAINT_SCHEMES.map((scheme) => [`${scheme.body} ${scheme.cab} ${scheme.gear}`, scheme] as const))('keeps the body and cab of %s apart', (_, scheme) => {
+    expect(deltaE(PALETTE[scheme.body], PALETTE[scheme.cab])).toBeGreaterThanOrEqual(PAINT.schemeContrast);
+  });
+
+  it('never repeats a scheme', () => {
+    const keys = PAINT_SCHEMES.map((scheme) => `${scheme.body} ${scheme.cab} ${scheme.gear}`);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 });

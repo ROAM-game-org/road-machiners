@@ -1,0 +1,64 @@
+#ui .right-dock > .wanted {
+  order: 2;
+  background: var(--surface-sunk);
+  border-left: var(--space-1) solid var(--danger);
+  cursor: help;
+}
+.wanted-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.wanted-owed {
+  color: var(--danger-ink);
+}
+.wanted-cases {
+  display: none;
+  padding-bottom: var(--space-2);
+}
+.wanted:hover > .wanted-cases,
+.wanted:focus > .wanted-cases,
+.wanted:focus-visible > .wanted-cases {
+  display: block;
+}
+.desk-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding-top: var(--space-5);
+}
+.desk-group {
+  display: flex;
+  flex-direction: column;
+}
+.desk-case,
+.desk-settle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-3) 0;
+}
+.case-pay {
+  position: relative;
+}
+.case-price > .amount {
+  text-decoration: underline dotted;
+}
+.case-price-tip {
+  display: none;
+  position: absolute;
+  right: calc(100% + var(--space-4));
+  top: 0;
+  z-index: var(--z-popup);
+  width: max-content;
+}
+.case-pay:has(> button:is(:hover, :focus-visible)) > .case-price-tip {
+  display: block;
+}
+.desk-all {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--space-3);
+}

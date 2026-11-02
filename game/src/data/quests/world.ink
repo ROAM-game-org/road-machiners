@@ -3,17 +3,22 @@ VAR first_knockout_seen = false
 VAR intro_step = "off"
 VAR towed_to_bowl = false
 VAR ambush_raider = "none"
-VAR varga_truck_known = false
 VAR pipe_fate = "none"
 VAR marr_regard = "none"
 VAR wagon_seen = false
 VAR wagon_saw = false
 VAR wagon_read = false
 VAR wagon_watched = false
-VAR wagon_pin = "none"
+VAR wagon_rod = "none"
 VAR wagon_fate = "none"
+VAR ala_hired = false
+VAR road_seen_1 = false
+VAR scale_seen = false
+VAR counter_seen = false
+VAR hattie_met = false
 
 EXTERNAL money()
+EXTERNAL engine_missing()
 EXTERNAL give_money(amount)
 EXTERNAL pay(amount)
 EXTERNAL begin(quest)
@@ -24,6 +29,15 @@ EXTERNAL searched(wreck)
 EXTERNAL has_work()
 EXTERNAL has_offers()
 EXTERNAL board_full()
+EXTERNAL short_of(good)
+EXTERNAL works_down()
 EXTERNAL take_work()
 EXTERNAL skill(id)
 EXTERNAL passed()
+EXTERNAL cult_broken()
+EXTERNAL offered_tonight()
+EXTERNAL stretch_pay(stretch)
+EXTERNAL holds_search()
+EXTERNAL marshal_lead()
+EXTERNAL lead_price()
+EXTERNAL take_marshal_lead()

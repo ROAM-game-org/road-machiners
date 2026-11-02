@@ -1,18 +1,24 @@
 
 import { oilSlickLength } from "../data/utilities";
-import { CHASSIS, chassisDef } from "../data/chassis";
-import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, type ArmorDef, type ScannerDef, type CargoDef, type StoreDef, type UtilityDef, type FieldRepair } from "../data/parts";
+import { chassisDef, isTruckPaint, PAINT, samePaint, type TruckPaint } from "../data/chassis";
+import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, type ShieldDef, type ScannerDef, type CargoDef, type StoreDef, type UtilityDef, type FieldRepair } from "../data/parts";
+import { VIEW } from "../data/view";
 import { playerVehicle } from "../sim/damage";
-import { baseGrid, cargoCellsGained, cellCount, mountedParts, type Cell } from "../sim/grid";
+import { accelFactor, chassisTopSpeed } from "../sim/chassis-features";
+import { bareGrid, cargoCellsGained, cargoRowsOn, cellCount, mountedParts, type Cell } from "../sim/grid";
 import { maxHp, partValue, wornDef } from "../sim/wear";
-import type { GridItem, PartInstance, Vehicle, World } from "../sim/types";
-import { GOODS } from "../data/goods";
-import { itemTone } from "../render/partLooks";
+import type { GridItem, Job, PartInstance, Vehicle, World } from "../sim/types";
+import { workOf } from "../sim/states";
+import { GOODS, PARCEL } from "../data/goods";
+import { CHASSIS_MASK, CHASSIS_SHEET, itemLookId, itemTone } from "../render/partLooks";
+import { fetchAsset } from "../fetch-asset";
+import { noteError } from "../three/crash";
 import { publicUrl } from "../public-url";
-import { ITEM_TONES } from "../render/palette";
+import { ITEM_TONES, paintSheetPixels, playerColors } from "../render/palette";
 import ICONS from "../data/item-icons.json";
 import { num, t, type Msg } from "../text/msg";
-import { chassisName, goodName, partName } from "../text/names";
+import { chassisName, goodLore, goodName, partLore, partName } from "../text/names";
+import { say } from "../text/language";
 import { roundDamage } from "../sim/combat";
 import { el } from "./dom";
 import { conditionStatus, conditionTier, showsCondition, wearLabel } from "./format";
@@ -70,6 +76,8 @@ const ART = {
   patch: '<path d="M8 14l14-9 11 17-14 9zM15 15l3 5M20 12l3 5M18 22l3 5"/>',
   tall: '<path d="M14 36V8h12v28M6 36h28M20 8V3"/>',
   clock: '<circle cx="20" cy="20" r="15"/><path d="M20 10v10l7 5"/>',
+  paint: '<path d="M11 15h14v21H11zM14 15v-5h8v5M16 10V5h4v5M29 7l5-2M29 12h6M29 17l5 2"/>',
+  lock: '<path d="M9 18h22v18H9zM14 18v-6a6 6 0 0 1 12 0v6M20 25v5"/>',
   journal: '<path d="M9 5h21v30H9zM14 5v30M18 12h8M18 18h8M18 24h5"/>',
   cut: '<circle cx="11" cy="30" r="5"/><circle cx="29" cy="30" r="5"/><path d="M14 26L31 4M26 26L9 4"/>',
 } as const;
@@ -94,7 +102,6 @@ export function dialShare(speed: number, maxSpeed: number): number {
 }
 
 const DIAL_STEP = 20;
-const DIAL_TOP = Math.ceil(Math.max(...Object.values(CHASSIS).map((c) => kph(c.maxSpeed))) / DIAL_STEP) * DIAL_STEP;
 const DIAL_X = 60;
 const DIAL_Y = 50;
 const DIAL_R = 40;
@@ -104,26 +111,83 @@ function dialPoint(share: number, r: number): string {
   return `${(DIAL_X - r * Math.cos(a)).toFixed(2)} ${(DIAL_Y - r * Math.sin(a)).toFixed(2)}`;
 }
 
-function dialScale(): string {
+function dialScale(top: number): string {
   const ticks: string[] = [];
-  for (let v = 0; v <= DIAL_TOP; v += DIAL_STEP / 2) {
-    const share = v / DIAL_TOP;
+  for (let v = 0; v <= top; v += DIAL_STEP / 2) {
+    const share = v / top;
     const major = v % DIAL_STEP === 0;
     ticks.push(`<path class="${major ? "dial-major" : "dial-minor"}" d="M${dialPoint(share, DIAL_R)}L${dialPoint(share, DIAL_R - (major ? 6 : 3))}"/>`);
   }
   return ticks.join("");
 }
 
-const DIAL_SCALE = dialScale();
+const COMPASS = { rim: 31, face: 27, tick: 25, letters: 17, needle: 14 };
+const COMPASS_POINTS = [
+  { key: "map.north", rad: -Math.PI / 2, north: true },
+  { key: "map.east", rad: 0, north: false },
+  { key: "map.south", rad: Math.PI / 2, north: false },
+  { key: "map.west", rad: Math.PI, north: false },
+] as const;
+const CARD_TURN = -Math.PI / 2 - Math.atan2(VIEW.screenUp.y, VIEW.screenUp.x);
 
-export function createSpeedDial(speed: number, maxSpeed: number): HTMLElement {
-  const dial = el("span", { class: "speed-dial", "aria-hidden": "true" });
-  const angle = dialShare(speed, DIAL_TOP) * 180;
-  const limit = dialShare(maxSpeed, DIAL_TOP);
-  const redline = `<path class="dial-redline" d="M${dialPoint(limit, DIAL_R - 1)}A${DIAL_R - 1} ${DIAL_R - 1} 0 0 1 ${dialPoint(1, DIAL_R - 1)}"/>`;
-  const needle = `<path class="dial-needle" d="M${DIAL_X - DIAL_R + 3} ${DIAL_Y}L${DIAL_X} ${DIAL_Y - 1.4}L${DIAL_X + 7} ${DIAL_Y - 0.8}V${DIAL_Y + 0.8}L${DIAL_X} ${DIAL_Y + 1.4}z" transform="rotate(${angle} ${DIAL_X} ${DIAL_Y})"/>`;
-  dial.innerHTML = `<svg viewBox="0 0 120 72"><rect class="dial-rim" x="1" y="1" width="118" height="70" rx="9"/><rect class="dial-face" x="4" y="4" width="112" height="64" rx="6"/>${redline}${DIAL_SCALE}${needle}<circle class="dial-pin" cx="${DIAL_X}" cy="${DIAL_Y}" r="4.5"/><circle class="dial-cap" cx="${DIAL_X}" cy="${DIAL_Y}" r="1.6"/></svg>`;
+export function compassAngle(mapRad: number): number {
+  return mapRad + CARD_TURN;
+}
+
+function polar(rad: number, r: number): string {
+  return `${(Math.cos(rad) * r).toFixed(2)} ${(Math.sin(rad) * r).toFixed(2)}`;
+}
+
+function compassTicks(): string {
+  const ticks: string[] = [];
+  for (let k = 0; k < 8; k++) {
+    const a = compassAngle((k * Math.PI) / 4);
+    ticks.push(`M${polar(a, k % 2 === 0 ? COMPASS.tick - 3 : COMPASS.tick - 1.5)}L${polar(a, COMPASS.tick)}`);
+  }
+  return `<path class="compass-tick" d="${ticks.join("")}"/>`;
+}
+
+const COMPASS_TICKS = compassTicks();
+
+function compassLetters(): string {
+  return COMPASS_POINTS.map((p) => {
+    const [x, y] = polar(compassAngle(p.rad), COMPASS.letters).split(" ");
+    return `<text class="${p.north ? "compass-north" : "compass-letter"}" x="${x}" y="${y}">${say(t(p.key))}</text>`;
+  }).join("");
+}
+
+export function compassSvg(heading: number): string {
+  const a = compassAngle(heading);
+  const side = a + Math.PI / 2;
+  const needle = `<path class="compass-needle" d="M${polar(a, COMPASS.needle)}L${polar(side, 2.2)}L${polar(a + Math.PI, 4)}L${polar(side + Math.PI, 2.2)}z"/>`;
+  return `<svg viewBox="-32 -32 64 64"><circle class="compass-rim" r="${COMPASS.rim}"/><circle class="compass-face" r="${COMPASS.face}"/>${COMPASS_TICKS}${compassLetters()}${needle}<circle class="compass-pin" r="2"/></svg>`;
+}
+
+export function createCompassDial(heading: number): HTMLElement {
+  const dial = el("span", { class: "compass-dial", "aria-hidden": "true" });
+  dial.innerHTML = compassSvg(heading);
   return dial;
+}
+
+export function dialPaceTick(pace: number | null, top: number): string {
+  if (pace === null) return "";
+  const share = dialShare(pace, top);
+  return `<path class="dial-pace" d="M${dialPoint(share, DIAL_R + 1)}L${dialPoint(share, DIAL_R - 10)}"/>`;
+}
+
+export function createSpeedDial(speed: number, maxSpeed: number, top: number, pace: number | null = null): HTMLElement {
+  const dial = el("span", { class: "speed-dial", "aria-hidden": "true" });
+  dial.innerHTML = speedDialSvg(speed, maxSpeed, top, pace);
+  return dial;
+}
+
+export function speedDialSvg(speed: number, maxSpeed: number, top: number, pace: number | null): string {
+  const angle = dialShare(speed, top) * 180;
+  const limit = dialShare(maxSpeed, top);
+  const redline = limit < 1 ? `<path class="dial-redline" d="M${dialPoint(limit, DIAL_R - 1)}A${DIAL_R - 1} ${DIAL_R - 1} 0 0 1 ${dialPoint(1, DIAL_R - 1)}"/>` : "";
+  const held = dialPaceTick(pace, top);
+  const needle = `<path class="dial-needle" d="M${DIAL_X - DIAL_R + 3} ${DIAL_Y}L${DIAL_X} ${DIAL_Y - 1.4}L${DIAL_X + 7} ${DIAL_Y - 0.8}V${DIAL_Y + 0.8}L${DIAL_X} ${DIAL_Y + 1.4}z" transform="rotate(${angle} ${DIAL_X} ${DIAL_Y})"/>`;
+  return `<svg viewBox="0 0 120 72"><rect class="dial-rim" x="1" y="1" width="118" height="70" rx="9"/><rect class="dial-face" x="4" y="4" width="112" height="64" rx="6"/>${redline}${dialScale(top)}${held}${needle}<circle class="dial-pin" cx="${DIAL_X}" cy="${DIAL_Y}" r="4.5"/><circle class="dial-cap" cx="${DIAL_X}" cy="${DIAL_Y}" r="1.6"/></svg>`;
 }
 
 type Sheet = "items" | "chassis";
@@ -133,6 +197,7 @@ export type Box = { x: number; y: number; w: number; h: number };
 
 export type IconCell = {
   sheet: Sheet;
+  file: string;
   label: Msg;
   col: number;
   row: number;
@@ -145,19 +210,35 @@ export type IconCell = {
 type ManifestCell = { index: number; box: number[] };
 
 export function itemIconCell(id: string): IconCell {
-  const good = id in GOODS;
-  const label = good ? goodName(id) : partName(partDef(id).id);
+  const good = id in GOODS || id === PARCEL.id;
+  const label = itemIconLabel(id);
   const icons: Record<string, ManifestCell> = ICONS.items;
   const icon = icons[id];
   if (!icon) throw new Error(`No items icon for ${id}. Run npm run icons.`);
   return { ...sheetCell("items", icon, label), view: viewOf(good ? ICONS.views.good : ICONS.views.part) };
 }
 
-export function chassisPortraitCell(chassisId: string): IconCell {
+function itemIconLabel(id: string): Msg {
+  if (id === PARCEL.id) return t("item.parcel");
+  return id in GOODS ? goodName(id) : partName(partDef(id).id);
+}
+
+export function itemLore(id: string): Msg {
+  if (id === PARCEL.id) return t("lore.parcel");
+  return id in GOODS ? goodLore(id) : partLore(partDef(id).id);
+}
+
+export function itemTip(id: string): Msg {
+  return t("item.tip", { name: itemIconLabel(id), lore: itemLore(id) });
+}
+
+export function chassisPortraitCell(chassisId: string, paint: TruckPaint): IconCell {
   const icons: Record<string, ManifestCell> = ICONS.chassis;
   const icon = icons[chassisId];
   if (!icon) throw new Error(`No chassis icon for ${chassisId}. Run npm run icons.`);
-  return { ...sheetCell("chassis", icon, chassisName(chassisDef(chassisId).id)), view: viewOf(ICONS.views.chassis) };
+  if (!isTruckPaint(paint)) throw new Error(`No paint ${JSON.stringify(paint)}`);
+  const cell = sheetCell("chassis", icon, chassisName(chassisDef(chassisId).id));
+  return { ...cell, file: CHASSIS_SHEET, view: viewOf(ICONS.views.chassis) };
 }
 
 function viewOf(view: string): View {
@@ -169,14 +250,14 @@ function sheetCell(sheet: Sheet, icon: ManifestCell, label: Msg): Omit<IconCell,
   const cols = ICONS.cols[sheet];
   const rows = Math.ceil(Object.keys(ICONS[sheet]).length / cols);
   const [x, y, w, h] = icon.box;
-  return { sheet, label, col: icon.index % cols, row: Math.floor(icon.index / cols), cols, rows, box: { x, y, w, h } };
+  return { sheet, file: SHEET_FILES[sheet], label, col: icon.index % cols, row: Math.floor(icon.index / cols), cols, rows, box: { x, y, w, h } };
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
-const SHEET_FILES: Record<Sheet, string> = { items: "items.svg", chassis: "chassis.png" };
+const SHEET_FILES: Record<Sheet, string> = { items: "items.svg", chassis: CHASSIS_SHEET };
 
-function sheetIcon(cell: IconCell, cls: string, crop: Box): HTMLElement {
-  const icon = el("span", { class: cls, role: "img", "aria-label": cell.label, title: cell.label });
+function sheetIcon(cell: IconCell, cls: string, crop: Box, title: Msg | null): HTMLElement {
+  const icon = el("span", { class: cls, role: "img", "aria-label": cell.label, ...(title ? { title } : {}) });
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.setAttribute("viewBox", `0 0 ${crop.w} ${crop.h}`);
   svg.setAttribute("focusable", "false");
@@ -184,7 +265,7 @@ function sheetIcon(cell: IconCell, cls: string, crop: Box): HTMLElement {
   clip.setAttribute("viewBox", `${cell.col + crop.x} ${cell.row + crop.y} ${crop.w} ${crop.h}`);
   for (const [k, v] of [["width", crop.w], ["height", crop.h]] as const) clip.setAttribute(k, String(v));
   const image = document.createElementNS(SVG_NS, "image");
-  image.setAttribute("href", publicUrl(`icons/${SHEET_FILES[cell.sheet]}`));
+  image.setAttribute("href", publicUrl(`icons/${cell.file}`));
   image.setAttribute("width", String(cell.cols));
   image.setAttribute("height", String(cell.rows));
   image.setAttribute("preserveAspectRatio", "none");
@@ -194,16 +275,24 @@ function sheetIcon(cell: IconCell, cls: string, crop: Box): HTMLElement {
   return icon;
 }
 
-export function createItemIcon(id: string): HTMLElement {
+function toneIcon(id: string, title: (cell: IconCell) => Msg): HTMLElement {
   const cell = itemIconCell(id);
-  const icon = sheetIcon(cell, "icon item-icon", cell.box);
+  const icon = sheetIcon(cell, "icon item-icon", cell.box, title(cell));
   icon.setAttribute("style", toneStyle(id));
   return icon;
 }
 
+export function createItemIcon(id: string): HTMLElement {
+  return toneIcon(id, (cell) => cell.label);
+}
+
+export function createItemTipIcon(id: string): HTMLElement {
+  return toneIcon(id, () => itemTip(id));
+}
+
 export function createBareItemIcon(id: string): HTMLElement {
   const cell = itemIconCell(id);
-  return sheetIcon(cell, "icon item-icon bare", cell.box);
+  return sheetIcon(cell, "icon item-icon bare", cell.box, cell.label);
 }
 
 export function toneStyle(id: string): string {
@@ -211,21 +300,76 @@ export function toneStyle(id: string): string {
 }
 
 export function partIconEl(part: PartInstance): HTMLElement {
-  return createItemIcon(part.defId);
+  return createItemTipIcon(part.defId);
 }
 
 export function itemIconEl(item: GridItem): HTMLElement {
-  return item.kind === "good" ? createItemIcon(item.good) : partIconEl(item.part);
+  return createItemTipIcon(itemLookId(item));
 }
 
 export function gridItemIcon(item: GridItem): HTMLElement {
-  const cell = itemIconCell(item.kind === "good" ? item.good : item.part.defId);
-  return sheetIcon(cell, "icon item-icon", cell.box);
+  const cell = itemIconCell(itemLookId(item));
+  return sheetIcon(cell, "icon item-icon", cell.box, null);
 }
 
-export function chassisPortrait(chassisId: string): HTMLElement {
-  const cell = chassisPortraitCell(chassisId);
-  return sheetIcon(cell, "chassis-portrait", cell.box);
+export function chassisPortrait(chassisId: string, paint: TruckPaint): HTMLElement {
+  const cell = chassisPortraitCell(chassisId, paint);
+  const portrait = sheetIcon(cell, "chassis-portrait", cell.box, cell.label);
+  if (!samePaint(paint, PAINT.standard)) void showPainted(portrait, paint);
+  return portrait;
+}
+
+const PAINTED_KEPT = 4;
+const painted = new Map<string, Promise<string>>();
+let paintFailureNoted = false;
+
+async function showPainted(portrait: HTMLElement, paint: TruckPaint): Promise<void> {
+  try {
+    const url = await paintedSheetUrl(paint);
+    portrait.querySelector("image")?.setAttribute("href", url);
+  } catch (err) {
+    if (!paintFailureNoted) noteError(err);
+    paintFailureNoted = true;
+  }
+}
+
+export function paintedSheetUrl(paint: TruckPaint): Promise<string> {
+  const key = `${paint.body}|${paint.cab}|${paint.gear}`;
+  const made = painted.get(key) ?? paintedSheet(paint);
+  painted.delete(key);
+  painted.set(key, made);
+  made.catch(() => painted.delete(key));
+  for (const [old, url] of painted) {
+    if (painted.size <= PAINTED_KEPT) break;
+    painted.delete(old);
+    url.then((u) => URL.revokeObjectURL(u), () => undefined);
+  }
+  return made;
+}
+
+async function paintedSheet(paint: TruckPaint): Promise<string> {
+  const [sheet, mask] = await Promise.all([CHASSIS_SHEET, CHASSIS_MASK].map(sheetBitmap));
+  const canvas = document.createElement("canvas");
+  canvas.width = sheet.width;
+  canvas.height = sheet.height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) throw new Error("No 2D canvas context to paint the chassis sheet");
+  const pixels = (image: ImageBitmap): ImageData => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(image, 0, 0);
+    return ctx.getImageData(0, 0, canvas.width, canvas.height);
+  };
+  const shades = pixels(mask).data;
+  const standard = pixels(sheet);
+  standard.data.set(paintSheetPixels(standard.data, shades, playerColors(PAINT.standard), playerColors(paint)));
+  ctx.putImageData(standard, 0, 0);
+  const blob = await new Promise<Blob>((done, fail) => canvas.toBlob((b) => (b ? done(b) : fail(new Error("The painted chassis sheet did not encode"))), "image/png"));
+  return URL.createObjectURL(blob);
+}
+
+async function sheetBitmap(file: string): Promise<ImageBitmap> {
+  const bytes = await fetchAsset("Chassis sheet", publicUrl(`icons/${file}`));
+  return createImageBitmap(new Blob([bytes], { type: "image/png" }), { premultiplyAlpha: "none", colorSpaceConversion: "none" });
 }
 
 export function statGrid(diffs: StatDiff[]): HTMLElement {
@@ -268,6 +412,19 @@ export function conditionMeter(part: PartInstance): HTMLElement {
     { class: `meter${broken ? " broken" : ""}`, title: t("stat.condition", { hp: hp(part.hp), max: hp(max) }) },
     el("div", { style: `width:${(part.hp / max) * 100}%` }),
   );
+}
+
+export function jobDone(job: Job): number {
+  return job.total > 0 ? Math.min(1, Math.max(0, 1 - job.turnsLeft / job.total)) : 0;
+}
+
+export function repairingPart(w: World, v: Vehicle): { partId: string; done: number } | null {
+  const work = workOf(w, v);
+  return work?.from === "job" && work.job.kind === "repair" ? { partId: work.job.partId, done: jobDone(work.job) } : null;
+}
+
+export function workMeterEl(done: number): HTMLElement {
+  return el("div", { class: "meter s progress" }, el("div", { style: `width:${done * 100}%` }));
 }
 
 export function conditionTag(part: PartInstance): HTMLElement | null {
@@ -315,7 +472,7 @@ export function partCard(o: PartCardOptions): HTMLElement {
     el(
       "div",
       { class: "card-head" },
-      partIconEl(o.part),
+      createItemIcon(def.id),
       el("div", { class: "card-name" }, el("b", {}, partName(def.id))),
       footprint(def.w, def.h),
     ),
@@ -340,6 +497,7 @@ export function partDetail(world: World, part: PartInstance, base: PartInstance 
     ...(base ? [compareLine(base)] : []),
     el("div", { class: "part-hp" }, conditionMeter(part), hpText ? el("span", { class: "num dim" }, hpText) : null),
     ...(rest.length ? [statGrid(rest)] : []),
+    el("p", { class: "dim" }, partLore(part.defId)),
   ];
 }
 
@@ -357,7 +515,7 @@ function compareLine(base: PartInstance): HTMLElement {
 }
 
 export function chassisMap(chassisId: string): HTMLElement {
-  const g = baseGrid(chassisId);
+  const g = bareGrid(chassisId);
   return el(
     "div",
     { class: "chassis-map", title: t("stat.layout", { chassis: chassisName(chassisDef(chassisId).id) }), style: `grid-template-columns:repeat(${g.w},1fr)` },
@@ -440,6 +598,7 @@ const KIND_STATS: Record<PartKind, (world: World, part: PartInstance) => Stat[]>
   weapon: weaponStats,
   engine: (_, part) => engineStats(part),
   armor: (_, part) => armorStats(part),
+  accessory: (_, part) => armorStats(part),
   cargo: cargoStats,
   scanner: (_, part) => [stat("scanner", t("stat.detection"), meters(wornDef<ScannerDef>(part).range), "m", "more")],
   store: (_, part) => storeStats(part),
@@ -469,9 +628,11 @@ function storeStats(part: PartInstance): Stat[] {
 
 function cargoStats(world: World, part: PartInstance): Stat[] {
   const d = partDefOf<CargoDef>(part);
-  const cells = cargoCellsGained(playerVehicle(world).chassisId, part.defId);
+  const chassisId = playerVehicle(world).chassisId;
+  const cells = cargoCellsGained(chassisId, part.defId);
+  const extraRows = cargoRowsOn(chassisId, part.defId);
   const gained = { ...stat("cells", t("stat.cells"), cells, null, "more"), text: signed(cells, 0) };
-  const rows = { ...stat("rows", t("stat.extraRows"), d.extraRows, null, "more"), text: signed(d.extraRows, 0), unit: t("stat.rowsUnit", { n: d.extraRows }) };
+  const rows = { ...stat("rows", t("stat.extraRows"), extraRows, null, "more"), text: signed(extraRows, 0), unit: t("stat.rowsUnit", { n: extraRows }) };
   return [gained, rows, tallStat(d)];
 }
 
@@ -521,7 +682,7 @@ function engineStats(part: PartInstance): Stat[] {
 }
 
 function armorStats(part: PartInstance): Stat[] {
-  const d = wornDef<ArmorDef>(part);
+  const d = wornDef<ShieldDef>(part);
   const armor = stat("armor", t("stat.armor"), Math.round(d.armor), null, "more");
   const blast = stat("blast", t("stat.blastArmor"), Math.round(d.blastArmor), null, "more");
   const stats = [armor, blast, fieldRepairStat(d.fieldRepair)];
@@ -538,10 +699,10 @@ export function chassisStats(chassisId: string): Stat[] {
   const c = chassisDef(chassisId);
   const turning = stat("turning", t("stat.turning"), (c.turnFast + c.turnSlow) / 2, "deg", "more");
   return [
-    stat("speed", t("stat.baseSpeed"), kph(c.maxSpeed), "kph", "more"),
-    stat("accel", t("stat.accel"), mps2(c.accel), "mps2", "more", 1),
+    stat("speed", t("stat.baseSpeed"), kph(chassisTopSpeed(chassisId)), "kph", "more"),
+    stat("accel", t("stat.accel"), mps2(c.accel * accelFactor(chassisId)), "mps2", "more", 1),
     { ...turning, text: t("stat.span", { a: c.turnFast, b: c.turnSlow }) },
-    stat("cells", t("stat.cells"), cellCount(baseGrid(chassisId)), null, "more"),
+    stat("cells", t("stat.cells"), cellCount(bareGrid(chassisId)), null, "more"),
     stat("load", t("stat.ratedLoad"), c.ratedMass, "kg", "more"),
     stat("mass", t("stat.emptyMass"), c.mass, "kg", "less"),
     stat("fuel", t("stat.fuelTank"), fuelLiters(c.fuelCap), "liters", "more"),

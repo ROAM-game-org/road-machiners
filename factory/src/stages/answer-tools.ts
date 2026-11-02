@@ -27,7 +27,6 @@ async function read(ctx: Ctx, path: string): Promise<{ code: number; text: strin
   }
 }
 
-// Serves the agent a live read-only view of the public board, issues and pull requests on a unix socket. The GitHub login stays in this process.
 export async function withFactoryReads<T>(ctx: Ctx, dir: string, body: () => Promise<T>): Promise<T> {
   let calls = 0;
   const server = createServer(async (request, response) => {

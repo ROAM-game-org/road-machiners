@@ -1,6 +1,6 @@
 """Welded steel plates for the 'plates' armor.
 
-A front-edge row of 3 cells: 1.45 m across, 0.65 m deep, outer face at +X. Three riveted plates, one per cell,
+A front-edge row of 2 cells: 0.97 m across, 0.65 m deep, outer face at +X. Two riveted plates, one per cell,
 stand upright on the outer edge, 0.9 m tall, on a foot with a short gusset behind each. The top band takes the faction paint.
 Run: blender --background --python tools/blender/arm_plates.py -- public/models/arm_plates.glb [tmp/arm_plates.png]
 """
@@ -16,7 +16,7 @@ from kit import Kit  # noqa: E402
 from parts_common_armor import CELL_ACROSS, OUTER_X, half_span, rivets, run, spread  # noqa: E402
 from shapes import strut  # noqa: E402
 
-N = 3
+N = 2
 SEED = 31
 PLATE_X = OUTER_X - 0.06
 HEIGHT = 0.9

@@ -120,26 +120,49 @@ describe('test:cached', { timeout: 4 * RUN_LIMIT_MS }, () => {
     put('src/rpc.test.ts', passingTestWithRpcTimeout);
 
     const run = runCached({ TEST_FAILURES_FILE: 'tmp/failures.json' });
-    const record = JSON.parse(readFileSync(join(root, 'tmp', 'failures.json'), 'utf8')) as { failed: { file: string; test: string | null }[]; unhandledErrors: number };
+    const record = JSON.parse(readFileSync(join(root, 'tmp', 'failures.json'), 'utf8')) as { failed: { file: string; test: string | null }[]; unhandledErrors: number; unfinished: string[] };
 
     expect(run.code).toBe(1);
     expect(record.failed.sort((x, y) => x.file.localeCompare(y.file))).toEqual([{ file: 'src/broken.test.ts', test: null }, { file: 'src/fails.test.ts', test: 'sums > is wrong' }]);
     expect(record.unhandledErrors).toBe(0);
+    expect(record.unfinished).toEqual([]);
   });
 
-  it('writes an empty record for a passing run and none for a stalled run', () => {
+  const recordOf = () => JSON.parse(readFileSync(join(root, 'tmp', 'failures.json'), 'utf8'));
+  const failedAndHung = { failed: [{ file: 'src/fails.test.ts', test: 'is wrong' }], unhandledErrors: 0, unfinished: ['src/hangs.test.ts'] };
+
+  it('writes an empty record for a passing run', () => {
     expect(runCached({ TEST_FAILURES_FILE: 'tmp/failures.json' }).code).toBe(0);
-    expect(JSON.parse(readFileSync(join(root, 'tmp', 'failures.json'), 'utf8'))).toEqual({ failed: [], unhandledErrors: 0 });
-    put('src/hangs.test.ts', hangingTest);
-    expect(runCached({ TEST_FAILURES_FILE: 'tmp/failures.json', TEST_STALL_MINUTES: '0.25' }).code).toBe(1);
-    expect(existsSync(join(root, 'tmp', 'failures.json'))).toBe(false);
+    expect(recordOf()).toEqual({ failed: [], unhandledErrors: 0, unfinished: [] });
   });
 
-  it('writes no record for a run past its suite limit', () => {
+  it('writes the failed tests and the unfinished files of a stalled run', () => {
     put('src/hangs.test.ts', hangingTest);
     put('src/fails.test.ts', failingTest);
-    expect(runCached({ TEST_FAILURES_FILE: 'tmp/failures.json', TEST_SUITE_MINUTES: '0.25' }).code).toBe(1);
-    expect(existsSync(join(root, 'tmp', 'failures.json'))).toBe(false);
+
+    const run = runCached({ TEST_FAILURES_FILE: 'tmp/failures.json', TEST_STALL_MINUTES: '0.25' });
+
+    expect(run.code).toBe(1);
+    expect(recordOf()).toEqual(failedAndHung);
+  });
+
+  it('writes the failed tests and the unfinished files of a run past its suite limit', () => {
+    put('src/hangs.test.ts', hangingTest);
+    put('src/fails.test.ts', failingTest);
+
+    const run = runCached({ TEST_FAILURES_FILE: 'tmp/failures.json', TEST_SUITE_MINUTES: '0.25' });
+
+    expect(run.code).toBe(1);
+    expect(recordOf()).toEqual(failedAndHung);
+  });
+
+  it('writes no failed test and the unfinished files for a run past its suite limit with no failure', () => {
+    put('src/hangs.test.ts', hangingTest);
+
+    const run = runCached({ TEST_FAILURES_FILE: 'tmp/failures.json', TEST_SUITE_MINUTES: '0.1' });
+
+    expect(run.code).toBe(3);
+    expect(recordOf()).toEqual({ failed: [], unhandledErrors: 0, unfinished: ['src/hangs.test.ts'] });
   });
 
   it('stops a run whose test never finishes and names it, and keeps the passes of the other files', () => {
@@ -148,7 +171,7 @@ describe('test:cached', { timeout: 4 * RUN_LIMIT_MS }, () => {
     const run = runCached({ TEST_STALL_MINUTES: '0.25' });
 
     expect(run.code).toBe(1);
-    expect(run.out).toContain('[test-cache] StallError: no test finished in 0.25 minutes. Still running: src/hangs.test.ts > waits forever');
+    expect(run.out).toContain('[test-cache] StallError: no test finished in 0.25 minutes. Still running: src/hangs.test.ts');
     expect([cached('src/a.test.ts'), cached('src/b.test.ts'), cached('src/hangs.test.ts')]).toEqual([true, true, false]);
   });
 

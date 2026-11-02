@@ -2,35 +2,71 @@
 import { localOfQuest } from '../sim/dialogue-rules';
 import { chooseQuestOption, leaveQuest, QUESTS, questView, type QuestView } from '../sim/quests';
 import type { QuestLine, QuestLive, World } from '../sim/types';
-import { createIcon } from './cards';
+import { createIcon, type IconName } from './cards';
 import { localName, localRole } from '../text/names';
 import { t, verbatim, type Msg } from '../text/msg';
 import { el, isBrowserChord, panel } from './dom';
 import { commandFailure } from './format';
+import { AssetUnreachable, fetchAsset } from '../fetch-asset';
 import { questArt, questArtUrl } from '../data/quest-art';
 import type { UiHost } from './host';
+import type { TownFrame } from './town';
 import { choiceButtons, drawLines, lastTagged, pagesOf, paragraphsOf, type Drawn } from './quest-lines';
 import { renderLine, TermTip, type Reveal } from './quest-text';
 import { MONEY_STAT } from '../data/quests';
-import { UNITS } from '../data/units';
+import { token } from './tokens';
+import { uiSize } from './ui-size';
 
 const KEY_DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
+
+export type ScrollKind = 'append' | 'same' | 'fresh';
+
+export function scrollTarget(kind: ScrollKind, before: number, box: { scrollHeight: number; clientHeight: number }): number {
+  if (kind === 'fresh') return 0;
+  if (kind === 'same') return before;
+  return Math.max(0, box.scrollHeight - box.clientHeight);
+}
 
 export function askOf(shown: QuestLive | null, live: QuestLive, ask: string | null): string | null {
   return shown?.quest === live.quest ? ask : null;
 }
 
-function moneyChange(cents: number): Msg {
-  const amount = Math.round(Math.abs(cents) / UNITS.centsPerM);
-  return cents > 0 ? t('quest.moneyGained', { amount }) : t('quest.moneyPaid', { amount });
+export function questPageStacks(width: number, frame: number): boolean {
+  const gutters = parseFloat(token('--space-10')) * 2;
+  const columns = parseFloat(token('--quest-text-min')) + parseFloat(token('--quest-side-width'));
+  return width - gutters - frame - columns < parseFloat(token('--quest-art-min'));
 }
 
-function statRow(stat: QuestView['stats'][number], change: number, cents: number): HTMLElement {
+function frameRatio(name: string): [number, number] {
+  const parts = token(name).split('/').map((n) => parseFloat(n));
+  if (parts.length !== 2 || parts.some((n) => !(n > 0))) throw new Error(`${name} is ${token(name)}, not a ratio like 3 / 4`);
+  return [parts[0]!, parts[1]!];
+}
+
+export function questFrameFits(width: number, height: number, stacked: boolean): boolean {
+  if (width === 0 || height === 0) return true;
+  const slack = 0.5;
+  if (!stacked) {
+    const [across, down] = frameRatio('--quest-frame-column');
+    return height <= (width * down) / across + slack;
+  }
+  const [across, down] = frameRatio('--quest-frame-band');
+  return width <= (height * across) / down + slack;
+}
+
+function moneyChange(change: number): Msg {
+  const amount = Math.abs(change);
+  return change > 0 ? t('quest.moneyGained', { amount }) : t('quest.moneyPaid', { amount });
+}
+
+function statRow(stat: QuestView['stats'][number], change: number, balance: number): HTMLElement {
   const delta = change === 0 ? null : el('span', { class: change > 0 ? 'quest-delta good' : 'quest-delta bad' }, moneyChange(change));
-  const value = stat.name === MONEY_STAT ? t('call.money', { amount: Math.floor(cents / UNITS.centsPerM) }) : verbatim(stat.value);
+  const value = stat.name === MONEY_STAT ? t('call.money', { amount: balance }) : verbatim(stat.value);
   const label = stat.name === MONEY_STAT ? null : el('span', {}, verbatim(stat.label));
   return el('div', { class: change === 0 ? 'quest-stat' : 'quest-stat new' }, label, el('b', {}, delta, value));
 }
+
+type InkParts = { head: HTMLElement; text: string; ask: HTMLElement | null; side: HTMLElement | null };
 
 class QuestArtStage {
   private images = new Map<string, HTMLImageElement>();
@@ -61,29 +97,45 @@ class QuestArtStage {
     for (const [key, img] of this.images) {
       if (keys.includes(key)) continue;
       img.onerror = null;
+      if (img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
       img.removeAttribute('src');
       this.images.delete(key);
     }
-    for (const key of keys) if (!this.images.has(key)) this.images.set(key, loadArt(key));
+    for (const key of keys) if (!this.images.has(key)) this.images.set(key, loadArt(key, (img) => this.images.get(key) === img));
   }
 }
 
-function loadArt(key: string): HTMLImageElement {
-  const focus = `${questArt(key).focusX}% 50%`;
+export function loadArt(key: string, isHeld: (img: HTMLImageElement) => boolean = () => true): HTMLImageElement {
+  const { focusX, focusY } = questArt(key);
+  const focus = `${focusX}% ${focusY}%`;
   const img = document.createElement('img');
   img.decoding = 'sync';
   img.setAttribute('aria-hidden', 'true');
   img.style.objectPosition = focus;
   img.style.transformOrigin = focus;
   img.onerror = () => {
-    throw new Error(`Quest art ${key} failed to load from ${img.src}`);
+    img.style.visibility = 'hidden';
   };
-  img.src = questArtUrl(key);
-  img.decode().catch((e: unknown) => {
-    if (img.hasAttribute('src')) throw e;
-  });
+  void showArt(img, key, isHeld);
   return img;
 }
+
+async function showArt(img: HTMLImageElement, key: string, isHeld: (img: HTMLImageElement) => boolean): Promise<void> {
+  let bytes: ArrayBuffer;
+  try {
+    bytes = await fetchAsset('Quest art', questArtUrl(key));
+  } catch (e) {
+    if (!(e instanceof AssetUnreachable)) throw e;
+    img.hidden = true;
+    console.warn(`${e.label} ${e.url} did not arrive after ${e.attempts} attempts`);
+    return;
+  }
+  if (!isHeld(img)) return;
+  img.src = URL.createObjectURL(new Blob([bytes], { type: 'image/webp' }));
+  await img.decode().catch(() => undefined);
+}
+
+const LOOK_KEYS = ['KeyI', 'KeyC', 'KeyJ'];
 
 export class QuestScreen {
   private root = panel('modal');
@@ -102,16 +154,35 @@ export class QuestScreen {
   private revealEnd = 0;
   private termTip = new TermTip(this.root);
   private artStage = new QuestArtStage();
+  private look = this.lookRow();
 
-  constructor(private host: UiHost) {
+  constructor(
+    private host: UiHost,
+    private lookOver: () => boolean,
+    private townFrame: () => TownFrame | null,
+  ) {
     this.root.classList.add('quest-screen');
     this.root.style.display = 'none';
     this.root.addEventListener('click', (e) => this.onClick(e));
     window.addEventListener('keydown', (e) => this.onKey(e), true);
+    window.addEventListener('resize', () => this.restack());
+    uiSize().subscribe(() => this.restack());
+  }
+
+  private restack(): void {
+    const width = uiSize().layerSize().width;
+    if (!(width > 0)) return;
+    const style = getComputedStyle(this.root);
+    const frame = parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);
+    this.root.classList.toggle('stacked', this.root.classList.contains('quest-page') && questPageStacks(width, frame));
   }
 
   isOpen(): boolean {
     return this.host.world().player.quests.live !== null;
+  }
+
+  focus(): void {
+    this.root.querySelector<HTMLElement>('.quest-next, .quest-choice')?.focus();
   }
 
   render(): void {
@@ -168,22 +239,105 @@ export class QuestScreen {
     this.artStage.clear();
   }
 
-  private draw(): void {
+  private draw(scroll: ScrollKind = 'fresh'): void {
     this.termTip.hide();
+    const before = this.scrollBox()?.scrollTop ?? 0;
     const w = this.host.world();
     const view = questView(w, QUESTS);
+    const town = this.townFrame();
     this.root.style.display = '';
     this.root.classList.remove('qt-done');
-    this.root.classList.toggle('quest-page', view.view === 'page');
-    const endMs = view.view === 'page' ? this.drawPage(w, view) : this.drawTalk(w, view);
+    this.root.classList.toggle('quest-page', town === null && view.view === 'page');
+    for (const cls of ['dialog', 'ink-page', 'in-town']) this.root.classList.toggle(cls, town !== null);
+    this.restack();
+    const endMs = town ? this.drawInTown(w, view, town) : this.drawAlone(w, view);
+    this.root.append(this.look);
     this.revealEnd = performance.now() + endMs;
+    this.placeScroll(scroll, before);
+  }
+
+  private scrollBox(): HTMLElement | null {
+    return this.root.querySelector<HTMLElement>('.quest-talk, .quest-text');
+  }
+
+  private placeScroll(kind: ScrollKind, before: number): void {
+    const apply = () => {
+      const box = this.scrollBox();
+      if (box?.isConnected) box.scrollTop = scrollTarget(kind, before, box);
+    };
+    apply();
+    requestAnimationFrame(apply);
+  }
+
+  private drawAlone(w: World, view: QuestView): number {
+    return view.view === 'page' ? this.drawPage(w, view) : this.drawTalk(w, view);
+  }
+
+  private drawInTown(w: World, view: QuestView, town: TownFrame): number {
+    const page = view.view === 'page';
+    const drawn = this.drawParagraphs(w, pagesOf(view.lines)[this.page], !page);
+    const parts = page ? this.townPageParts(w, view, town) : this.townTalkParts(view, town);
+    this.root.replaceChildren(
+      town.band,
+      el(
+        'div',
+        { class: 'ink-body' },
+        el('div', { class: 'ink-head' }, parts.head),
+        el('div', { class: `ink-panel ${parts.text}` }, parts.ask, ...drawn.nodes),
+        el('div', { class: 'ink-choices' }, this.pageEnd(w, view, drawn.endMs)),
+        el('div', { class: 'ink-status' }, this.errorLine()),
+        parts.side,
+      ),
+    );
+    return drawn.endMs;
+  }
+
+  private townPageParts(w: World, view: QuestView, town: TownFrame): InkParts {
+    const shown = this.shownLines(view);
+    this.insetArt(view.quest, this.artOf(shown, view), town);
+    const place = this.placeOf(shown, view);
+    return { head: el('h2', { class: 'quest-place' }, place ? verbatim(place) : town.heading), text: 'quest-text', ask: null, side: this.side(w, view) };
+  }
+
+  private townTalkParts(view: QuestView, town: TownFrame): InkParts {
+    this.artStage.clear();
+    const head = localOfQuest(view.quest) ? this.head(view.quest) : el('h2', { class: 'quest-place' }, town.heading);
+    return { head, text: 'quest-talk', ask: this.askLine(), side: null };
+  }
+
+  private insetArt(quest: string, key: string | null, town: TownFrame): void {
+    if (key === null || key === town.art) return this.artStage.clear();
+    const inset = this.artStage.frame(QUESTS.quests[quest].art, key);
+    inset.classList.add('inset');
+    town.picture.append(inset);
+  }
+
+  private artOf(shown: readonly QuestLine[], view: QuestView): string | null {
+    return lastTagged(shown, 'img') ?? this.artBefore ?? view.scene.img;
+  }
+
+  private placeOf(shown: readonly QuestLine[], view: QuestView): string | null {
+    return lastTagged(shown, 'place') ?? this.placeBefore ?? view.scene.place;
+  }
+
+  private askLine(): HTMLElement | null {
+    return this.page === 0 && this.lastAsk !== null ? el('div', { class: 'talk-ask' }, verbatim(this.lastAsk)) : null;
+  }
+
+  private shownLines(view: QuestView): QuestLine[] {
+    const pages = pagesOf(view.lines);
+    return [...pages.slice(0, this.page).flat(), ...paragraphsOf(pages[this.page]).slice(0, this.paragraph + 1).flat()];
+  }
+
+  private lookRow(): HTMLElement {
+    const button = (key: string, icon: IconName, label: Msg) => el('button', { class: 'btn-s', 'aria-label': label, title: label, onclick: () => this.host.runKey(key) }, createIcon(icon));
+    return el('div', { class: 'quest-look' }, button('KeyI', 'truck', t('hud.inventoryLabel')), button('KeyC', 'driver', t('hud.character')), button('KeyJ', 'journal', t('journal.hint')));
   }
 
   private drawTalk(w: World, view: QuestView): number {
     this.artStage.clear();
     const drawn = this.drawParagraphs(w, pagesOf(view.lines)[this.page], true);
-    const ask = this.page === 0 && this.lastAsk !== null ? el('div', { class: 'talk-ask' }, verbatim(this.lastAsk)) : null;
-    const text = el('div', { class: 'quest-talk' }, ask, ...drawn.nodes);
+    const text = el('div', { class: 'quest-talk' }, this.askLine(), ...drawn.nodes);
     this.root.replaceChildren(this.head(view.quest), text, this.pageEnd(w, view, drawn.endMs), this.errorLine());
     return drawn.endMs;
   }
@@ -200,11 +354,11 @@ export class QuestScreen {
 
   private drawPage(w: World, view: QuestView): number {
     const pages = pagesOf(view.lines);
-    const shown = [...pages.slice(0, this.page).flat(), ...paragraphsOf(pages[this.page]).slice(0, this.paragraph + 1).flat()];
+    const shown = this.shownLines(view);
     const drawn = this.drawParagraphs(w, pages[this.page], false);
-    const place = lastTagged(shown, 'place') ?? this.placeBefore ?? view.scene.place;
+    const place = this.placeOf(shown, view);
     const text = el('div', { class: 'quest-text' }, place ? el('h2', { class: 'quest-place' }, verbatim(place)) : null, ...drawn.nodes, this.pageEnd(w, view, drawn.endMs), this.errorLine());
-    this.root.replaceChildren(this.art(view.quest, lastTagged(shown, 'img') ?? this.artBefore ?? view.scene.img), text, this.side(w, view));
+    this.root.replaceChildren(this.art(view.quest, this.artOf(shown, view)), text, this.side(w, view));
     return drawn.endMs;
   }
 
@@ -218,7 +372,7 @@ export class QuestScreen {
     const stats = view.stats.map((s) => statRow(s, s.name === MONEY_STAT ? gained : 0, w.player.money));
     this.factsShown = view.facts;
     const facts = view.facts.map((f) => el('div', { class: this.factsBefore === null || this.factsBefore.has(f) ? 'quest-fact' : 'quest-fact new' }, renderLine(f, ['reveal:all'], 0).el));
-    return el('div', { class: 'quest-side' }, el('div', { class: 'quest-stats' }, ...stats), el('div', { class: 'quest-facts' }, ...facts));
+    return el('div', { class: 'quest-side ink-side' }, el('div', { class: 'quest-stats' }, ...stats), el('div', { class: 'quest-facts' }, ...facts));
   }
 
   private head(quest: string): HTMLElement {
@@ -243,7 +397,7 @@ export class QuestScreen {
     const view = questView(this.host.world(), QUESTS);
     if (!this.onLastParagraph(view)) {
       this.paragraph += 1;
-      return this.draw();
+      return this.draw('append');
     }
     if (!this.onLastPage(view)) this.nextPage();
   }
@@ -277,7 +431,7 @@ export class QuestScreen {
     } catch (e) {
       this.asked = null;
       this.error = commandFailure(this.host.world(), e);
-      if (this.host.world().player.quests.live) this.draw();
+      if (this.host.world().player.quests.live) this.draw('same');
     }
   }
 
@@ -292,7 +446,7 @@ export class QuestScreen {
   }
 
   private onKey(e: KeyboardEvent): void {
-    if (!this.isOpen() || isBrowserChord(e)) return;
+    if (!this.isOpen() || isBrowserChord(e) || LOOK_KEYS.includes(e.code) || this.lookOver()) return;
     e.stopImmediatePropagation();
     if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') return this.skip(e);
     const index = KEY_DIGITS.indexOf(e.code);

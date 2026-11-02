@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Compiler, CompilerOptions, type Story } from 'inkjs/full';
 import { ErrorType } from 'inkjs/compiler/Parser/ErrorType';
-import { CHECKPOINT_TAG, MONEY_STAT, QUEST_LANGUAGES, QUEST_VIEWS, type CompiledQuest, type QuestLanguage, type QuestText, type QuestBundle, type QuestFact, type QuestScene, type QuestStat, type QuestValueType, type QuestVarDecl, type QuestViewKind } from '../data/quests';
+import { CHECKPOINT_TAG, MONEY_STAT, QUEST_LANGUAGES, QUEST_VIEWS, type CompiledQuest, type QuestLanguage, type QuestLinks, type QuestValue, type QuestText, type QuestBundle, type QuestFact, type QuestScene, type QuestStat, type QuestValueType, type QuestVarDecl, type QuestViewKind } from '../data/quests';
 
 export type QuestSources = Record<string, string>;
 export type QuestSections = Record<QuestLanguage, string[]>;
@@ -15,8 +15,14 @@ type ParsedFlow = { isFunction: boolean; subFlowsByName: Map<string, ParsedFlow>
 type ParsedNode = {
   typeName: string;
   content: ParsedNode[];
-  debugMetadata: { startLineNumber: number } | null;
+  debugMetadata: { startLineNumber: number; fileName: string | null } | null;
   name?: string;
+  variableName?: string;
+  isNewTemporaryDeclaration?: boolean;
+  expression?: ParsedNode | null;
+  args?: ParsedNode[];
+  value?: unknown;
+  isSingleString?: boolean;
   onceOnly?: boolean;
   runtimeVarRef?: { pathForCount: unknown } | null;
   isReadCount?: boolean;
@@ -106,11 +112,12 @@ function compileTwin(id: string, lang: QuestLanguage, sources: QuestSources, cou
   const sections = sectionsOf(own.parsed.flows);
   const header = headerOf(own.parsed.story);
   header.errors.push(...strayHeaderErrors(sources[file], own.parsed.story));
-  const ruleErrors = [...varErrors(own.parsed), ...checkpointErrors(own.parsed), ...countErrors(own.parsed), ...header.errors];
+  const links = linksOf(own.parsed, worldVars, header);
+  const ruleErrors = [...varErrors(own.parsed), ...checkpointErrors(own.parsed), ...countErrors(own.parsed), ...header.errors, ...links.errors];
   if (ruleErrors.length > 0) return failed(ruleErrors, own.warnings, sections);
   const story = own.parsed.story.ToJson();
   if (!story) throw new Error(`Quest ${file} compiled to no story`);
-  const shape = { vars: declarations(own.parsed.story, local), checkpoints: checkpointsOf(own.parsed), view: header.view, art: artOf(sources[file]) };
+  const shape = { vars: declarations(own.parsed.story, local), checkpoints: checkpointsOf(own.parsed), view: header.view, art: artOf(sources[file]), revision: header.revision, links: links.links };
   return { twin: { lang, shape, text: { story, stats: header.stats, facts: header.facts, scenes: scenesOf(sources[file]) } }, errors: [], warnings: own.warnings, sections };
 }
 
@@ -120,6 +127,8 @@ function twinMismatches(en: Extract<Twin, { shape: QuestShape }>, twin: Extract<
     checkpoints: JSON.stringify(t.shape.checkpoints),
     view: t.shape.view,
     art: JSON.stringify(t.shape.art),
+    revision: String(t.shape.revision),
+    links: JSON.stringify(t.shape.links),
     'checkpoint art': JSON.stringify(Object.entries(t.text.scenes).map(([checkpoint, scene]) => [checkpoint, scene.img])),
     stats: JSON.stringify(t.text.stats.map((s) => [s.name, s.words?.length ?? null])),
     facts: JSON.stringify(t.text.facts.map((f) => f.name)),
@@ -129,20 +138,20 @@ function twinMismatches(en: Extract<Twin, { shape: QuestShape }>, twin: Extract<
   return Object.keys(a).filter((key) => a[key] !== b[key]).map((key) => `its ${key} part does not match the English quest: ${b[key]} against ${a[key]}`);
 }
 
-type Header = { view: QuestViewKind; stats: QuestStat[]; facts: QuestFact[]; errors: string[] };
+type Header = { view: QuestViewKind; revision: number; stats: QuestStat[]; facts: QuestFact[]; errors: string[] };
 
 function headerOf(story: Story): Header {
-  const header: Header = { view: 'talk', stats: [], facts: [], errors: [] };
+  const header: Header = { view: 'talk', revision: 1, stats: [], facts: [], errors: [] };
   for (const tag of story.globalTags ?? []) readHeaderTag(header, story, tag);
   return header;
 }
 
-const HEADER_LINE = /^\s*#\s*(view|stat|fact)\s*:/;
+const HEADER_LINE = /^\s*#\s*(view|revision|stat|fact)\s*:/;
 
 function strayHeaderErrors(source: string, story: Story): string[] {
   const written = source.split('\n').filter((line) => HEADER_LINE.test(line)).length;
   const read = (story.globalTags ?? []).length;
-  return written > read ? ['A view, stat or fact tag sits below other content, so the quest ignores it. Put them all at the very top, above INCLUDE world.ink.'] : [];
+  return written > read ? ['A view, revision, stat or fact tag sits below other content, so the quest ignores it. Put them all at the very top, above INCLUDE world.ink.'] : [];
 }
 
 const ART_TAG = /#\s*img\s*:\s*([a-z0-9_]+)/g;
@@ -174,9 +183,16 @@ function readHeaderTag(header: Header, story: Story, tag: string): void {
   const [name, ...words] = value.split(/\s+/);
   const text = words.join(' ');
   if (key === 'view') return readView(header, value);
+  if (key === 'revision') return readRevision(header, value);
   if (key === 'stat') return readStat(header, story, name, text);
   if (key === 'fact') return readFact(header, story, name, text);
-  header.errors.push(`Quest tag # ${tag} is unknown. A quest's top tags are view, stat and fact.`);
+  header.errors.push(`Quest tag # ${tag} is unknown. A quest's top tags are view, revision, stat and fact.`);
+}
+
+function readRevision(header: Header, value: string): void {
+  const revision = Number(value);
+  if (/^\d+$/.test(value) && revision >= 1) header.revision = revision;
+  else header.errors.push(`# revision: ${value} needs a whole number from 1 up`);
 }
 
 function readView(header: Header, value: string): void {
@@ -224,6 +240,47 @@ function countErrors(parsed: Parsed): string[] {
 function readsCount(node: ParsedNode): boolean {
   if (node.typeName === 'ref') return node.runtimeVarRef?.pathForCount != null;
   return node.typeName === 'FunctionCall' && (node.isReadCount === true || node.isTurnsSince === true);
+}
+
+const LINK_CALLS = { note: 'notes', has_note: 'readsNotes', begin: 'begins' } as const;
+type LinkCall = keyof typeof LINK_CALLS;
+type LinkSets = { reads: Set<string>; readsNotes: Set<string>; notes: Set<string>; begins: Set<string>; writes: Map<string, Set<QuestValue>>; errors: string[] };
+
+function linksOf(parsed: Parsed, worldVars: ReadonlySet<string>, header: Header): { links: QuestLinks; errors: string[] } {
+  const sets: LinkSets = { reads: new Set(), readsNotes: new Set(), notes: new Set(), begins: new Set(), writes: new Map(), errors: [] };
+  for (const node of nodesOf(parsed.root).filter((n) => n.debugMetadata?.fileName !== WORLD_FILE)) readLink(sets, node, worldVars);
+  for (const name of [...header.stats.map((s) => s.name), ...header.facts.map((f) => f.name)]) if (worldVars.has(name)) sets.reads.add(name);
+  const sorted = (set: Set<string>) => [...set].sort();
+  const writes = Object.fromEntries([...sets.writes].sort(([a], [b]) => a.localeCompare(b)).map(([name, values]) => [name, [...values].sort()]));
+  return { links: { reads: sorted(sets.reads), readsNotes: sorted(sets.readsNotes), writes, notes: sorted(sets.notes), begins: sorted(sets.begins) }, errors: sets.errors };
+}
+
+function readLink(sets: LinkSets, node: ParsedNode, worldVars: ReadonlySet<string>): void {
+  const at = `Line ${node.debugMetadata?.startLineNumber ?? '?'}`;
+  if (node.typeName === 'ref' && node.name !== undefined && worldVars.has(node.name)) sets.reads.add(node.name);
+  if (node.typeName === 'variable assignment' && !node.isNewTemporaryDeclaration && node.variableName !== undefined && worldVars.has(node.variableName)) readWrite(sets, node.variableName, node.expression ?? null, at);
+  if (node.typeName === 'FunctionCall' && node.name !== undefined && node.name in LINK_CALLS) readCall(sets, node.name as LinkCall, node.args ?? [], at);
+}
+
+function readWrite(sets: LinkSets, name: string, expression: ParsedNode | null, at: string): void {
+  const value = expression === null ? null : literalOf(expression);
+  if (value === null) {
+    sets.errors.push(`${at}: world variable ${name} gets a value worked out in play. Give it a plain value, so a save repair can tell which quest wrote it.`);
+    return;
+  }
+  sets.writes.set(name, (sets.writes.get(name) ?? new Set<QuestValue>()).add(value));
+}
+
+function readCall(sets: LinkSets, name: LinkCall, args: ParsedNode[], at: string): void {
+  const id = args.length === 1 ? literalOf(args[0]) : null;
+  if (typeof id === 'string') sets[LINK_CALLS[name]].add(id);
+  else sets.errors.push(`${at}: ${name}() needs one plain text id, so a save repair can tell which quest it links.`);
+}
+
+function literalOf(node: ParsedNode): QuestValue | null {
+  if (node.typeName === 'Number' && isSaveable(node.value)) return node.value;
+  if (node.typeName === 'String' && node.isSingleString === true) return String(node);
+  return null;
 }
 
 function nodesOf(node: ParsedNode): ParsedNode[] {

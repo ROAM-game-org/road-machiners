@@ -2,10 +2,10 @@
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
 import { TERRAIN_TYPES } from '../../data/terrain';
-import { wheelMounts } from '../../phys/body';
+import { physicsWheelPoints } from '../../render/partLooks';
 import { TIME } from '../../data/time';
 import { groundPoint, headingOf, toMap, type V3, type VehicleFrame } from '../../phys/frames';
-import { bodyOf } from '../../sim/body';
+import { unitBody } from '../../sim/body';
 import { atlasOf } from '../../sim/atlas';
 import { deckAt } from '../../sim/bridge';
 import { tileAt, type Terrain } from '../../sim/terrain';
@@ -33,6 +33,7 @@ export class Ruts {
   private readonly darkness = new Float32Array(RUT.max);
   private next = 0;
   private drawnTurn = Number.NaN;
+  private wholeUpload = false;
   private readonly matrix = new THREE.Matrix4();
   private readonly quat = new THREE.Quaternion();
   private readonly euler = new THREE.Euler(0, 0, 0, 'YZX');
@@ -55,12 +56,14 @@ export class Ruts {
   }
 
   layTracks(world: World, v: Vehicle, f: VehicleFrame, tires: V3[]): void {
-    if (tires.length !== f.wheels.length) throw new Error(`Vehicle ${v.id} has ${f.wheels.length} wheel frames for ${tires.length} wheels`);
+    const wheels = [...f.wheels, ...(f.rear?.wheels ?? [])];
+    if (tires.length !== wheels.length) throw new Error(`Vehicle ${v.id} has ${wheels.length} wheel frames for ${tires.length} wheels`);
     const ends = this.endsOf(v.id, tires.length);
-    for (const i of RUT.wheels) this.extend(ends, i, tires[i], f.wheels[i].ground ? rutAt(world.terrain, tires[i]) : 0, world.turn);
+    for (const i of rutWheels(f)) this.extend(ends, i, tires[i], wheels[i].ground ? rutAt(world.terrain, tires[i]) : 0, world.turn);
   }
 
   tick(turn: number): void {
+    this.wholeUpload = false;
     if (turn === this.drawnTurn) return;
     this.drawnTurn = turn;
     for (let k = 0; k < this.mesh.count; k++) {
@@ -68,8 +71,11 @@ export class Ruts {
       if (share === 0) this.mesh.setMatrixAt(k, HIDDEN);
       this.mesh.setColorAt(k, this.tint.lerpColors(WHITE, DARK, this.darkness[k] * share));
     }
+    this.mesh.instanceMatrix.clearUpdateRanges();
     this.mesh.instanceMatrix.needsUpdate = true;
     this.markColors();
+    this.mesh.instanceColor?.clearUpdateRanges();
+    this.wholeUpload = true;
   }
 
   dispose(): void {
@@ -95,7 +101,7 @@ export class Ruts {
 
   private endsOf(id: string, wheels: number): (V3 | null)[] {
     let ends = this.last.get(id);
-    if (!ends) {
+    if (!ends || ends.length !== wheels) {
       ends = new Array<V3 | null>(wheels).fill(null);
       this.last.set(id, ends);
     }
@@ -116,8 +122,18 @@ export class Ruts {
     this.darkness[k] = rut;
     this.next = (k + 1) % RUT.max;
     this.mesh.count = Math.max(this.mesh.count, k + 1);
+    this.markLaid(k);
+  }
+
+  private markLaid(k: number): void {
+    const colors = this.mesh.instanceColor;
+    if (!colors) throw new Error('Ruts lost their instance colours');
+    if (!this.wholeUpload) {
+      this.mesh.instanceMatrix.addUpdateRange(k * 16, 16);
+      colors.addUpdateRange(k * 3, 3);
+    }
     this.mesh.instanceMatrix.needsUpdate = true;
-    this.markColors();
+    colors.needsUpdate = true;
   }
 
   private markColors(): void {
@@ -138,10 +154,17 @@ function fadeOf(age: number): number {
 }
 
 export function tirePoints(terrain: Terrain, chassisId: string, f: VehicleFrame): V3[] {
-  const h = headingOf(f.rot);
-  const at = toMap(f.pos);
-  return wheelMounts(bodyOf(chassisId)).map((m) => {
-    const off = { x: m.x * Math.cos(h) - m.z * Math.sin(h), z: m.x * Math.sin(h) + m.z * Math.cos(h) };
-    return groundPoint(terrain, { x: at.x + off.x / PHYSICS.metersPerTile, y: at.y + off.z / PHYSICS.metersPerTile });
+  const units = [{ unit: 0, pos: f.pos, rot: f.rot }, ...(f.rear ? [{ unit: 1, pos: f.rear.pos, rot: f.rear.rot }] : [])];
+  return units.flatMap(({ unit, pos, rot }) => {
+    const h = headingOf(rot);
+    const at = toMap(pos);
+    return physicsWheelPoints(unitBody(chassisId, unit), unit).map((m) => {
+      const off = { x: m.x * Math.cos(h) - m.z * Math.sin(h), z: m.x * Math.sin(h) + m.z * Math.cos(h) };
+      return groundPoint(terrain, { x: at.x + off.x / PHYSICS.metersPerTile, y: at.y + off.z / PHYSICS.metersPerTile });
+    });
   });
+}
+
+export function rutWheels(f: VehicleFrame): readonly number[] {
+  return f.rear ? [...RUT.wheels, f.wheels.length, f.wheels.length + 1] : RUT.wheels;
 }

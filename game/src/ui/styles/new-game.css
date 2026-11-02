@@ -19,8 +19,8 @@
   gap: var(--space-5);
   box-sizing: border-box;
   width: var(--panel-xl);
-  max-width: 100vw;
-  max-height: 100vh;
+  max-width: var(--layer-w);
+  max-height: var(--layer-h);
   overflow-y: auto;
 }
 #ui .new-game h3 {
@@ -156,10 +156,8 @@
 #ui .new-game .new-game-buttons .start {
   border-color: var(--accent-warm);
 }
-@media (max-width: 480px) {
-  #ui .new-game {
-    width: 100vw;
-    height: 100vh;
-    padding: var(--space-6);
-  }
+#ui:where(.slim) .new-game {
+  width: var(--layer-w);
+  height: var(--layer-h);
+  padding: var(--space-6);
 }

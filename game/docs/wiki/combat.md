@@ -28,7 +28,7 @@ A broken cab knocks out the player and NPCs alike. A knockout ends after at most
 
 ## Lawmen
 
-Patrols of the Bowl Farmers and the Nose Army are hostile to raiders. `callLawmen()` in `src/sim/combat.ts` sets every lawman in sight on whoever fires the first shot at a neutral NPC or starts robbing one. See [npcs.md](npcs.md).
+Patrols of the Bowl Farmers and the Nose Army are hostile to raiders. `reportIncident()` in `src/sim/relations.ts` sets every lawman in sight on whoever fires the first shot at a neutral NPC or starts robbing one. See [npcs.md](npcs.md).
 
 ## Numbers
 
@@ -52,8 +52,8 @@ Patrols of the Bowl Farmers and the Nose Army are hostile to raiders. `callLawme
 | `RULES.collisionMinImpact` | 1.5 |
 | `RULES.hardCrashSpeed` | 4 |
 | `RULES.crashPen` | 4 |
-| `RULES.groundCrash` | 3 |
-| `RULES.landingDamage` | 0.25 |
+| `RULES.groundCrash` | 1.5 |
+| `RULES.landingDamage` | 0.125 |
 | `RULES.knockoutMaxTurns` | 30 |
 | `RULES.npcDeathChance` | 0.05 |
 | `RULES.cabKnock` | {"below":0.5,"hazard":0.75,"playerHealth":75} |
