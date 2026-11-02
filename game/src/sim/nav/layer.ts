@@ -8,7 +8,7 @@ import { TERRAIN, TERRAIN_TYPES, type TerrainTypeId } from '../../data/terrain';
 import { atlasOf, atlasSites } from '../atlas';
 import { nearRail, type DeckSet } from '../bridge';
 import { blockingBoxes, boxDistance, isBreakable, isDriveObstacle, propKey, propReach, type PosedBox } from '../mapgen';
-import { tileSlope, TYPE_IDS, type BakedMap, type Terrain } from '../terrain';
+import { tileGrade, TYPE_IDS, type BakedMap, type Terrain } from '../terrain';
 import { hashId, hashRandom } from '../rng';
 import type { Obstacle, Vehicle, World } from '../types';
 import { isTerritory, siteGap, type Site } from '../sites';
@@ -81,8 +81,7 @@ function tileLayers(t: Terrain): Pick<TerrainNav, 'cliffTile' | 'tileCost' | 'fl
   const steep = new Float32Array(t.size * t.size);
   const bySite = bySiteTiles(t.size, atlasSites(atlasOf(t)).filter((s) => !isTerritory(s)));
   for (let i = 0; i < t.size * t.size; i++) {
-    const slope = tileSlope(t, i);
-    const grade = Math.hypot(slope.x, slope.y);
+    const grade = tileGrade(t, i);
     cliffTile[i] = grade > TERRAIN.drive.maxSlope ? 1 : 0;
     steep[i] = grade;
     flatCost[i] = routeCost(t.types[i], bySite[i] === 1);
