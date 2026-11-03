@@ -95,11 +95,11 @@ export class FeedbackForm {
   }
 
   private closeButton(): HTMLElement {
-    return el("button", { class: "close btn-s", onclick: () => this.close() }, closeLabel());
+    return el("button", { class: "close", onclick: () => this.close() }, closeLabel());
   }
 
   private offContent(): HTMLElement[] {
-    return [el("div", {}, t("feedback.off")), el("div", { class: "feedback-foot" }, this.closeButton())];
+    return [el("div", {}, t("feedback.off")), el("div", { class: "feedback-foot" }, el("div", { class: "feedback-actions" }, this.closeButton()))];
   }
 
   private formContent(first: FeedbackKind): HTMLElement[] {
@@ -152,7 +152,7 @@ export class FeedbackForm {
       el("div", { class: "tabs" }, kinds.bug, kinds.idea),
       box,
       status,
-      el("div", { class: "feedback-foot" }, count, this.closeButton(), send),
+      el("div", { class: "feedback-foot" }, count, el("div", { class: "feedback-actions" }, this.closeButton(), send)),
     ];
   }
 }
