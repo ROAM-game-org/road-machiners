@@ -238,6 +238,24 @@ describe('design stage offering the cards waiting in Design', () => {
     expect(waiting).toContain('No other card waits in Design');
   });
 
+  it('treats a release task by its place in the release as well as by its label', async () => {
+    withState({ release: { ...readState(`${home}/state.json`).release!, tasks: [9] } });
+    board = [card(7), card(9), card(8)];
+    await runStage(refusing(), 7);
+    expect(waiting).toContain('# Waiting issue #8');
+    expect(waiting).not.toContain('#9');
+  });
+
+  it('records every card past Design as designed, so a card designed before this rule gets no offer when it comes back', async () => {
+    board = [card(7), card(4, 'Testing'), card(5, 'Merging'), card(9)];
+    await runStage(refusing(), 7);
+    expect(readState(`${home}/state.json`).designed).toEqual([4, 5]);
+    board = [card(4), card(9)];
+    calls = [];
+    await runStage(refusing(), 4);
+    expect(waiting).toContain('No other card waits in Design');
+  });
+
   it('drops its offer when the design will not be built', async () => {
     board = [card(7), card(9)];
     await runStage(refusing(), 7);

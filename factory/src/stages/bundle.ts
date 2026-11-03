@@ -28,22 +28,28 @@ export function designOffer(state: FactoryState, cards: Card[], lead: number, le
   const busy = new Set(state.jobs.map((job) => job.issue));
   const taken = new Set([...carriedIssues(state), ...offeredIssues(state, lead)]);
   const blocked = [STUCK_LABEL, NEEDS_INFO_LABEL, VOTING_LABEL, HOTFIX_LABEL, BUNDLED_LABEL, ADHOC_LABEL];
-  const releaseTask = leadLabels.includes(RELEASE_TASK_LABEL);
+  const tasks = state.release?.tasks ?? [];
+  const releaseScoped = (issue: number, labels: string[]): boolean => tasks.includes(issue) || labels.includes(RELEASE_TASK_LABEL);
+  const leadScoped = releaseScoped(lead, leadLabels);
   return cards
-    .filter((card) => card.column === 'Design' && card.issue !== lead && card.labels.includes(RELEASE_TASK_LABEL) === releaseTask)
+    .filter((card) => card.column === 'Design' && card.issue !== lead && releaseScoped(card.issue, card.labels) === leadScoped)
     .filter((card) => !blocked.some((label) => card.labels.includes(label)))
     .filter((card) => !busy.has(card.issue) && !(String(card.issue) in state.held) && !state.designed.includes(card.issue) && bundleOf(state, card.issue).length === 0 && !taken.has(card.issue))
     .map((card) => card.issue)
     .sort((a, b) => a - b);
 }
 
+const PAST_DESIGN: Column[] = ['Implementation', 'Testing', 'Approval', 'Hardening', 'Merging'];
+
 export async function offerToDesign(ctx: Ctx, lead: number): Promise<number[]> {
   const { labels } = await ctx.github.issue(lead);
   const cards = await ctx.github.cards();
   let offer: number[] = [];
   updateState(ctx.statePath, (state) => {
-    offer = designOffer(state, cards, lead, labels);
-    return { ...state, designOffers: { ...state.designOffers, [String(lead)]: offer } };
+    const pastDesign = cards.filter((card) => PAST_DESIGN.includes(card.column) && !state.designed.includes(card.issue)).map((card) => card.issue);
+    const known = pastDesign.length === 0 ? state : { ...state, designed: [...state.designed, ...pastDesign] };
+    offer = designOffer(known, cards, lead, labels);
+    return { ...known, designOffers: { ...known.designOffers, [String(lead)]: offer } };
   });
   return offer;
 }
