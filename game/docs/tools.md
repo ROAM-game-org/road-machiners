@@ -40,7 +40,7 @@ A test over a limit fails, and the message names the factor. Make it cheaper wit
 
 The recorder plays bots through the real turn pipeline, headless. [Bots](architecture/bots.md) describes the archetypes. Run long batches in the background with a log, and mine a batch fully before you rerun anything.
 
-- `npm run progression:record -- --archetypes trader,scavenger,hunter,fastTrader --seeds 1,2,3 --turns 2000` plays one bot per archetype and seed, one at a time, and writes the traces to `tmp/progression/`.
+- `npm run progression:record -- --archetypes trader,scavenger,fastTrader --seeds 1,2,3 --turns 2000` plays one bot per archetype and seed, one at a time, and writes the traces to `tmp/progression/`.
 - `--out <dir>` sets the trace directory.
 - `--kit <id>` starts every run from that start kit instead of the archetype default.
 - `--markov-turns <k>` is the turns the `markov` archetype keeps one goal. It is required with `markov`.
