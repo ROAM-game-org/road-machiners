@@ -11,7 +11,7 @@ export async function shipHotfix(ctx: Ctx, issue: number, title: string, approva
   await mergeResolving(ctx, 'approve', [
     { branch: BRANCH(issue), into: HOTFIX_BASE, message: `Hotfix #${issue}: ${title}`, issue },
     { branch: HOTFIX_BASE, into: 'dev', message: `Merge main into dev after hotfix #${issue}`, issue: null },
-  ], { branch: BRANCH(issue), build, base: HOTFIX_BASE });
+  ], { checked: { branch: BRANCH(issue), build, base: HOTFIX_BASE }, card: issue });
   await publish(ctx, keys, `hotfix-${issue}`);
   const day = ctx.now().toISOString().slice(0, 10);
   const changelog = `ROAM hotfix ${day}\n\nFixed: #${issue} ${title}`;

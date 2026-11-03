@@ -88,6 +88,21 @@ const settle = async (page) => {
 
 const NIGHT_TURN_FACTOR = 3;
 
+const PANEL_CHECK_MS = 1000;
+
+export const waitForTurnDismissingPanels = async (page, turnDone, arg, limitMs) => {
+  const deadline = limitMs === 0 ? Infinity : Date.now() + limitMs;
+  for (;;) {
+    const left = deadline - Date.now();
+    const done = await page.waitForFunction(turnDone, arg, { timeout: Math.max(1, Math.min(PANEL_CHECK_MS, left)), polling: 50 }).then(() => true, (e) => {
+      if (left <= PANEL_CHECK_MS) throw e;
+      return false;
+    });
+    if (done) return;
+    await page.keyboard.press('Escape');
+  }
+};
+
 const playNightTurns = async (page, turns, turnLimitMs) => {
   for (let i = 0; i < turns; i++) {
     const limit = turnLimitMs * NIGHT_TURN_FACTOR;
@@ -97,10 +112,10 @@ const playNightTurns = async (page, turns, turnLimitMs) => {
       g.endTurn();
       return g.state.turn + 1;
     });
-    await page.waitForFunction((turn) => {
+    await waitForTurnDismissingPanels(page, (turn) => {
       const g = window.__ROAM__;
       return g.state.turn >= turn && !g.travel.isPlaying(g.anim);
-    }, next, { timeout: limit, polling: 50 });
+    }, next, limit);
   }
 };
 

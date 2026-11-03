@@ -147,6 +147,12 @@ describe('chooseJobs during a release', () => {
     expect(chooseJobs(open, cards, NOW, CFG)).toEqual([{ stage: 'implement', issue: 22 }, { stage: 'design', issue: 21 }, { stage: 'implement', issue: 30 }]);
   });
 
+  it('runs an enrolled release task that works on dev before other cards too', () => {
+    const cards = [tracking(), card(30, 'Implementation'), card(31, 'Design')];
+    const enrolled = { ...open, release: { ...open.release!, tasks: [31] } };
+    expect(chooseJobs(enrolled, cards, NOW, ONE)).toEqual([{ stage: 'design', issue: 31 }, { stage: 'implement', issue: 30 }]);
+  });
+
   it('never gives the tracking issue card a card job', () => {
     expect(chooseJobs(state(), [card(20, 'Design', ['release'])], NOW, CFG)).toEqual([]);
   });
@@ -661,6 +667,16 @@ describe('tick', () => {
     expect(after.unroutedReplies).toEqual({ 6: { issue: 5, postId: 43, text: 'x', at: fresh } });
     expect(after.failures).toMatchObject([{ stage: 'feedback', issue: null, error: expect.stringContaining('issue #4 on your best reading, unrouted for 15 minutes: show the atlas') }]);
     expect(h.labels).toEqual([]);
+  });
+
+  it('reports an unrouted private proposal reply once and preserves its exact words for a later route', async () => {
+    const h = harness(null, false);
+    const reply = { issue: 4, postId: 77, text: 'оба предложения хуевые, иди переделывай', at: hoursAgo(1), proposal: true };
+    writeState(h.ctx.statePath, state({ unroutedReplies: { 3: reply } }));
+    await tick(h.ctx, '/code', h.deps);
+    await tick(h.ctx, '/code', h.deps);
+    expect(readState(h.ctx.statePath).unroutedReplies['3']).toEqual({ ...reply, reported: true });
+    expect(readState(h.ctx.statePath).failures.filter((failure) => failure.error.includes('private proposal post 77'))).toHaveLength(1);
   });
 
   it('starts the waste review when its period passed, before card work in the triage queue', () => {

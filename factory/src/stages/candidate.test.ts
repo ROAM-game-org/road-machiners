@@ -56,13 +56,13 @@ describe('candidate', () => {
     writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, merges: [TRUCKS, HORN, issueMerge(6, 'gone')], removed: [6] } });
     f.agentWrites = { 'release.json': CHANGES, 'screenshot.png': SHOT };
     await candidate(f.ctx, 11);
-    expect(f.calls.filter((call) => !call.startsWith('comment'))).toEqual(['fetch', 'prepare release/2026-09-29', 'shell', 'agent', 'pr release/2026-09-29 main Release 2026-09-29', 'fetch', 'photo committee', 'message committee 42 - [#3] Trucks are faster.\n- [#5] The horn is louder.']);
+    expect(f.calls.filter((call) => !call.startsWith('comment'))).toEqual(['fetch', 'prepare release/2026-09-29', 'shell', 'agent', 'pr release/2026-09-29 main Release 2026-09-29', 'fetch', 'photo committee']);
     expect(deployed).toEqual(['rc reports candidate', 'record 11 rc']);
     expect(f.calls.find((call) => call.startsWith('comment'))).toContain('- [#5] The horn is louder.');
     const photo = f.photos[0];
     expect(photo.buttons).toEqual([[{ text: 'Ship', data: 'factory:ship:11' }]]);
     expect(photo.caption).toContain('Play: https://play.test/rc/');
-    expect(photo.caption).toContain('2 changes, listed in the message under this post.');
+    expect(photo.caption).toContain('2 changes, full list in the Issue comment above.');
     expect(readState(f.ctx.statePath).release).toMatchObject({ postId: 42, candidateSha: 'abc1234' });
   });
 
@@ -152,14 +152,14 @@ describe('candidate evidence', () => {
     return f;
   }
 
-  it('posts the Ship post alone, then the extra view as a reply to it, then the changelog', async () => {
+  it('posts the Ship post alone, then the extra view as a reply to it, and no changelog message', async () => {
     const f = setup();
     await candidate(f.ctx, 11);
     expect(f.photos).toHaveLength(1);
     expect(f.photos[0].buttons).toEqual([[{ text: 'Ship', data: 'factory:ship:11' }]]);
     expect(f.albums).toEqual([{ chat: 'committee', paths: [expect.stringContaining('view1.png')], captions: ['2/2 Louder horn'], replyTo: 42 }]);
     const posts = f.calls.filter((call) => /^(photo|album|message)/.test(call));
-    expect(posts).toEqual(['photo committee', 'album committee 1 42', expect.stringContaining('message committee 42')]);
+    expect(posts).toEqual(['photo committee', 'album committee 1 42']);
     expect(readState(f.ctx.statePath).release?.postId).toBe(42);
   });
 
@@ -177,17 +177,17 @@ describe('candidate evidence', () => {
     expect(readState(f.ctx.statePath).release?.postId).toBe(42);
     expect(f.logs.some((line) => line.includes('the extra images of post 42 did not upload') && line.includes('boom'))).toBe(true);
     expect(f.calls.some((call) => call.startsWith('editCaption 42 Superseded'))).toBe(false);
-    expect(f.calls.some((call) => call.startsWith('message committee 42'))).toBe(true);
+    expect(f.calls.some((call) => call.startsWith('message committee'))).toBe(false);
   });
 });
 
 describe('candidateCaption', () => {
-  it('fits the Telegram caption limit and points to the changelog under the post', () => {
+  it('fits the Telegram caption limit and points to the changelog on the issue', () => {
     const caption = candidateCaption('2026-09-29', 'https://p/rc/', 'https://i', 'https://pr', 33);
     expect(caption.length).toBeLessThanOrEqual(1024);
-    expect(caption).toContain('33 changes, listed in the message under this post.');
+    expect(caption).toContain('33 changes, full list in the Issue comment above.');
     expect(caption).toContain('Play: https://p/rc/\nPR: https://pr\nIssue: https://i');
-    expect(caption.endsWith('33 changes, listed in the message under this post.')).toBe(true);
+    expect(caption.endsWith('33 changes, full list in the Issue comment above.')).toBe(true);
     for (const tail of ['Ship publishes it', 'remove #N', 'Reply to this post', 'holds the release']) expect(caption).not.toContain(tail);
   });
 
