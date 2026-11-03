@@ -195,7 +195,7 @@ function underFire(world: World, me: Vehicle): boolean {
 function holds(o: Orders): boolean {
   if (o.me.job) return true;
   if (coolsEngine(o)) {
-    if (o.me.order) o.run((w) => setMoveOrder(w, null));
+    stopTruck(o);
     return true;
   }
   const deal = patchDeal(o.world);
@@ -209,7 +209,16 @@ const HEAT_RESUME = ENGINE_HEAT.warnAt / 2;
 function coolsEngine(o: Orders): boolean {
   if (inCombat(o.world, o.me) || seenHostiles(o.world).length > 0) return false;
   const heat = o.world.player.engineHeat;
-  return heat >= ENGINE_HEAT.warnAt || (heat >= HEAT_RESUME && o.me.order === null);
+  return heat >= ENGINE_HEAT.warnAt || (heat >= HEAT_RESUME && standing(o.me));
+}
+
+function standing(me: Vehicle): boolean {
+  return me.order === null || me.order.kind === 'brake';
+}
+
+function stopTruck(o: Orders): void {
+  if (o.me.order?.kind === 'brake' || (o.me.order === null && o.me.speed <= RULES.parkedSpeed)) return;
+  o.run((w) => setMoveOrder(w, { kind: 'brake' }));
 }
 
 function patchDeal(world: World): NpcState | null {
@@ -220,7 +229,7 @@ function patchDeal(world: World): NpcState | null {
 function workPatch(o: Orders, deal: NpcState): void {
   const client = vehicleById(o.world, deal.other);
   if (deal.holder === o.me.id && !inTowReach(o.me, client)) driveTo(o, besideStop(o.world, client.pos, chassisDef(client.chassisId).radius));
-  else if (o.me.order) o.run((w) => setMoveOrder(w, null));
+  else stopTruck(o);
 }
 
 function serviceTrip(o: Orders, style: UpgradeStyle): boolean {

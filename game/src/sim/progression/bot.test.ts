@@ -854,8 +854,17 @@ describe('the bot in a fight', () => {
       return playerVehicle(botOrders(w, 'trader').world).order;
     };
 
-    expect(hotAt(false)).toBeNull();
-    expect(hotAt(true)).not.toBeNull();
+    expect(hotAt(false)).toEqual({ kind: 'brake' });
+    expect(hotAt(true)?.kind).toBe('stopAt');
+  });
+
+  it('has a bot with a hot engine brake a rolling truck instead of letting it coast', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const me = playerVehicle(w);
+    me.speed = 4;
+    w.player.engineHeat = ENGINE_HEAT.warnAt + 0.05;
+
+    expect(playerVehicle(botOrders(w, 'trader').world).order).toEqual({ kind: 'brake' });
   });
 
   it('keeps a truck parked for heat until the engine is well below the warning', () => {
