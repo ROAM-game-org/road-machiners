@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runStage } from './design';
 import { EMPTY_STATE, readState, writeState } from '../state';
-import { TASK_FILE, type AgentRun, type Ctx } from '../types';
+import { TASK_FILE, type AgentRun, type Card, type Ctx } from '../types';
 
 let home = '';
 let calls: string[] = [];
@@ -11,6 +11,7 @@ let labels: string[] = [];
 let bases: string[] = [];
 let caughtUp: { commit: string | null; conflicts: string[]; kept: string | null } = { commit: null, conflicts: [], kept: null };
 let merged = true;
+let board: Card[] = [];
 
 beforeEach(() => {
   mkdirSync('tmp', { recursive: true });
@@ -21,6 +22,7 @@ beforeEach(() => {
   bases = [];
   caughtUp = { commit: null, conflicts: [], kept: null };
   merged = true;
+  board = [];
   writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } });
 });
 afterEach(() => rmSync(home, { recursive: true, force: true }));
@@ -36,6 +38,7 @@ function fakeCtx(agent: (run: AgentRun) => void): Ctx {
     github: {
       issue: async (number: number) => ({ number, title: number === 7 ? 'Big horn' : 'Louder horn', body: number === 7 ? 'Add a horn' : 'Make it louder', labels, createdAt: '', state: 'OPEN', author: 'anna' }),
       comments: async () => [{ login: 'a', body: 'yes please', createdAt: '2026-09-30T08:00:00Z', byFactory: false }],
+      cards: async () => board,
       comment: record('comment'), addLabel: record('addLabel'), removeLabel: record('removeLabel'), close: record('close'), move: record('move'),
     },
     container: { agent: async (run: AgentRun) => { calls.push(run.prompt.startsWith('This is a merge round') ? 'agent base-merge' : 'agent design'); agent(run); } },
@@ -118,6 +121,154 @@ describe('design stage with a bundle', () => {
     expect(calls).toContain('removeLabel 9 bundled');
     expect(calls.at(-1)).toBe('move 9 Triage');
     expect(readState(`${home}/state.json`).bundles).toEqual({});
+  });
+});
+
+describe('design stage offering the cards waiting in Design', () => {
+  const card = (issue: number, column: Card['column'] = 'Design', labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
+  const withState = (change: Partial<ReturnType<typeof readState>>): void => writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), ...change });
+  let waiting = '';
+  const planning = (picks: unknown): Ctx => fakeCtx((run) => {
+    waiting = readFileSync(`${run.clone}/${run.dir}/.factory/waiting.md`, 'utf8');
+    mkdirSync(`${run.clone}/${run.dir}/.factory-tasks`, { recursive: true });
+    writeFileSync(`${run.clone}/${run.dir}/${TASK_FILE(7)}`, PLAN);
+    if (picks !== undefined) writeFileSync(`${run.clone}/${run.dir}/.factory/bundle.json`, JSON.stringify(picks));
+  });
+  const refusing = (): Ctx => fakeCtx((run) => {
+    waiting = readFileSync(`${run.clone}/${run.dir}/.factory/waiting.md`, 'utf8');
+    writeFileSync(`${run.clone}/${run.dir}/.factory/wont-do.md`, 'No.\n');
+  });
+  const touched = (issue: number): string[] => calls.filter((call) => call.split(' ')[1] === String(issue) && !call.startsWith('comment 7'));
+
+  it('shows the agent every waiting card and bundles the ones it picks', async () => {
+    board = [card(7), card(8), card(9)];
+    await runStage(planning([9]), 7);
+    expect(waiting.startsWith('UNTRUSTED USER TEXT')).toBe(true);
+    expect(waiting).toContain('# Waiting issue #8\n\n## Louder horn');
+    expect(waiting).toContain('# Waiting issue #9');
+    expect(calls).toContain('comment 9 Design bundled this into #7, which carries it from here: Its design found a cause or a fix it shares with this report, so one design covers them together.\n\nIt closes when #7 ships.');
+    expect(calls).toContain('addLabel 9 bundled');
+    expect(calls).toContain('move 9 Done');
+    expect(touched(8)).toEqual([]);
+    expect(calls).toContain('comment 7 Design bundled #9 into this card, since its plan covers them too.');
+    const state = readState(`${home}/state.json`);
+    expect(state.bundles).toEqual({ '7': [9] });
+    expect(state.designed).toEqual([7]);
+    expect(state.designOffers).toEqual({});
+    expect(calls.at(-1)).toBe('move 7 Implementation');
+  });
+
+  it('bundles nothing and says so when the agent names a card it was not offered', async () => {
+    board = [card(7), card(9, 'Implementation')];
+    await runStage(planning([9]), 7);
+    expect(touched(9)).toEqual([]);
+    expect(calls).toContain('comment 7 Design named #9, which were not offered to it, so this card does not carry them.');
+    expect(readState(`${home}/state.json`).bundles).toEqual({});
+  });
+
+  it('says so when the agent was offered cards and wrote no bundle.json', async () => {
+    board = [card(7), card(9)];
+    await runStage(planning(undefined), 7);
+    expect(calls).toContain('comment 7 Design was offered #9 and wrote no bundle.json, so this card carries none of them.');
+    expect(touched(9)).toEqual([]);
+  });
+
+  it('posts no bundle comment when nothing waits and the agent picked nothing', async () => {
+    board = [card(7)];
+    await runStage(planning([]), 7);
+    expect(waiting).toBe('No other card waits in Design. Write no .factory/bundle.json.\n');
+    expect(calls.filter((call) => call.startsWith('comment 7 Design '))).toEqual([]);
+  });
+
+  it('fails on a bundle.json that is not a list of issue numbers', async () => {
+    board = [card(7), card(9)];
+    await expect(runStage(planning(['9']), 7)).rejects.toThrow('bundle.json must be a JSON array of issue numbers');
+  });
+
+  it.each([
+    ['a later column', card(9, 'Implementation')],
+    ['a place in Triage', card(9, 'Triage')],
+    ['another base', card(9, 'Design', ['release-task'])],
+    ['a stuck label', card(9, 'Design', ['factory-stuck'])],
+    ['a needs-info label', card(9, 'Design', ['needs-info'])],
+    ['a hotfix label', card(9, 'Design', ['hotfix'])],
+    ['an adhoc label', card(9, 'Design', ['adhoc'])],
+  ])('offers no card with %s', async (_why, other) => {
+    board = [card(7), other];
+    await runStage(refusing(), 7);
+    expect(waiting).not.toContain('#9');
+  });
+
+  it.each([
+    ['runs a job', () => withState({ jobs: [{ id: 'j9', issue: 9, stage: 'design', startedAt: '2026-09-30T09:00:00Z', log: 'j9.log', pid: 1 }] })],
+    ['is held', () => withState({ held: { '9': { by: 'x', reason: 'wait', at: '2026-09-30T09:00:00Z', stage: null } } })],
+    ['was designed', () => withState({ designed: [9] })],
+    ['leads a bundle', () => withState({ bundles: { '9': [11] } })],
+    ['another bundle carries', () => withState({ bundles: { '5': [9] } })],
+    ['a running design was offered', () => withState({ designOffers: { '5': [9] }, jobs: [{ id: 'j5', issue: 5, stage: 'design', startedAt: '2026-09-30T09:00:00Z', log: 'j5.log', pid: 1 }] })],
+  ])('offers no card that %s', async (_why, setup) => {
+    setup();
+    board = [card(7), card(9)];
+    await runStage(refusing(), 7);
+    expect(waiting).not.toContain('#9');
+  });
+
+  it('offers a card again once the design it was offered to stopped running', async () => {
+    withState({ designOffers: { '5': [9] } });
+    board = [card(7), card(9)];
+    await runStage(refusing(), 7);
+    expect(waiting).toContain('# Waiting issue #9');
+  });
+
+  it('keeps its own offer when its job runs again after a crash', async () => {
+    withState({ designOffers: { '7': [9] }, jobs: [{ id: 'j7', issue: 7, stage: 'design', startedAt: '2026-09-30T09:00:00Z', log: 'j7.log', pid: 1 }] });
+    board = [card(7), card(9)];
+    await runStage(refusing(), 7);
+    expect(waiting).toContain('# Waiting issue #9');
+  });
+
+  it.each([
+    ['a redesign of a designed card', () => withState({ designed: [7] }), []],
+    ['a hotfix', () => undefined, ['hotfix']],
+  ])('offers nothing to %s', async (_why, setup, set) => {
+    setup();
+    labels = set;
+    board = [card(7, 'Design', set), card(9)];
+    await runStage(refusing(), 7);
+    expect(waiting).toContain('No other card waits in Design');
+  });
+
+  it('treats a release task by its place in the release as well as by its label', async () => {
+    withState({ release: { ...readState(`${home}/state.json`).release!, tasks: [9] } });
+    board = [card(7), card(9), card(8)];
+    await runStage(refusing(), 7);
+    expect(waiting).toContain('# Waiting issue #8');
+    expect(waiting).not.toContain('#9');
+  });
+
+  it('records every card past Design as designed, so a card designed before this rule gets no offer when it comes back', async () => {
+    board = [card(7), card(4, 'Testing'), card(5, 'Merging'), card(9)];
+    await runStage(refusing(), 7);
+    expect(readState(`${home}/state.json`).designed).toEqual([4, 5]);
+    board = [card(4), card(9)];
+    calls = [];
+    await runStage(refusing(), 4);
+    expect(waiting).toContain('No other card waits in Design');
+  });
+
+  it('drops its offer when the design will not be built', async () => {
+    board = [card(7), card(9)];
+    await runStage(refusing(), 7);
+    expect(readState(`${home}/state.json`).designOffers).toEqual({});
+  });
+
+  it('finishes the moves of an earlier run that stopped after it recorded its picks', async () => {
+    withState({ designed: [7], bundles: { '7': [9] } });
+    board = [card(7), card(9)];
+    await runStage(planning([9]), 7);
+    expect(calls).toContain('move 9 Done');
+    expect(calls).toContain('comment 7 Design bundled #9 into this card, since its plan covers them too.');
+    expect(calls.filter((call) => call.includes('were not offered'))).toEqual([]);
   });
 });
 

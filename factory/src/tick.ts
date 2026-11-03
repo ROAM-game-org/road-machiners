@@ -19,6 +19,7 @@ import { clearSessions, markResumed, markTimedOut } from './sessions';
 import { requeueKept } from './stages/kept-approval';
 import { adoptQuestionMedia } from './stages/common';
 import { nextBatchCards, waitingMerges } from './stages/merge';
+import { carriedIssues, offeredIssues } from './stages/bundle';
 import { openTasks } from './stages/release-common';
 import { labelStuckBatch, sweepStuck, type Repair } from './stuck';
 import { clearQueued, isQueued, orderKey, readState, updateState } from './state';
@@ -56,7 +57,8 @@ function queued(state: FactoryState): JobPick[] {
 }
 
 function openCards(state: FactoryState, cards: Card[]): Card[] {
-  return cards.filter((card) => !card.labels.includes(STUCK_LABEL) && !card.labels.includes(NEEDS_INFO_LABEL) && !card.labels.includes(VOTING_LABEL) && !isHeld(state, card.issue));
+  const spoken = new Set([...carriedIssues(state), ...offeredIssues(state)]);
+  return cards.filter((card) => !card.labels.includes(STUCK_LABEL) && !card.labels.includes(NEEDS_INFO_LABEL) && !card.labels.includes(VOTING_LABEL) && !isHeld(state, card.issue) && !spoken.has(card.issue));
 }
 
 function byProgress(state: FactoryState, cards: Card[]): JobPick[] {
