@@ -45,14 +45,14 @@ describe('lesson data', () => {
 
   it('fills every slot of every trade once, with every lesson line used once', () => {
     const used = Object.values(LESSONS).flatMap((t) => [...WEAKNESSES.map((weak) => t.weak[weak]), ...t.general]);
-    expect(used).toHaveLength(56);
+    expect(used).toHaveLength(64);
     expect([...used].sort()).toEqual([...LESSON_LINE_IDS].sort());
   });
 
-  it('gives every trade four weakness stories and ten general ones', () => {
+  it('gives every trade four weakness stories and twelve general ones', () => {
     for (const trade of Object.values(LESSONS)) {
       expect(Object.keys(trade.weak)).toHaveLength(4);
-      expect(trade.general).toHaveLength(10);
+      expect(trade.general).toHaveLength(12);
     }
   });
 
