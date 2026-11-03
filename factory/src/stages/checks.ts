@@ -15,7 +15,7 @@ import { testPoolPin } from '../cpus';
 import { BRANCH, GAME_DIR, OUT_DIR, type Ctx, type FactoryConfig, type InlineButton, type Pin, type Stage } from '../types';
 import { bundleOf } from './bundle';
 import { HOTFIX_BASE, agentHome, agentLog, baseBranchFor, playtestCommand, workDir } from './common';
-import { remoteSuite } from './remote-suite';
+import { cardSuiteFailure, requireSettledSuite } from './card-suite';
 
 const testStep = (tests: string) => (tests === '' ? '' : `${stepCall('tests')}
 ${tests}`);
@@ -63,8 +63,12 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const item = await ctx.github.issue(issue);
   const base = baseBranchFor(ctx, item.labels);
   const build = await ctx.repo.headHash(BRANCH(issue));
+  const suite = cardSuiteFailure(ctx, 'checks', issue, base, build);
+  suite.catch(() => undefined);
   const failure = (await runScript(ctx, issue, base, build, buildScript))?.failure ?? null;
-  if (failure !== null) throw new Error(`The build failed, no factory checks ran.\n${failure}`);
+  if (failure !== null) throw new Error(`The build failed, no other factory checks ran.\n${failure}`);
+  const suiteFailure = await suite;
+  if (suiteFailure !== null) throw new Error(suiteFailure);
   await publishAndPost(ctx, issue, approvalOrDefault(home), home, base, build, true);
   updateState(ctx.statePath, (state) => ({ ...state, postOnly: state.postOnly.filter((n) => n !== issue) }));
 }
@@ -76,6 +80,7 @@ function approvalOrDefault(home: string): Approval {
 }
 
 export async function publishAndPost(ctx: Ctx, issue: number, approval: Approval, home: string, base: string, build: string, unchecked: boolean): Promise<void> {
+  await requireSettledSuite(ctx, issue, base, build);
   const url = publishBuild(ctx, checkDir(ctx, issue), build);
   recordBuild(ctx.statePath, issue, build);
   await post(ctx, issue, approval, readShown(home), url, base, build, unchecked);
@@ -88,10 +93,9 @@ function checkDir(ctx: Ctx, issue: number): string {
 
 export async function postCheckpoint(ctx: Ctx, issue: number, base: string, build: string, kind: 'build' | 'hotfix'): Promise<string | null> {
   const local = (script: string, pin?: Pin) => checkUntilReal(() => runScript(ctx, issue, base, build, script, 'verify', pin), (run) => ctx.log('verify', issue, `the checks only timed out, run ${run} of ${CHECK_RUNS}, running them again`));
-  if (kind === 'build') return local(buildScript);
-  const suite = remoteSuite(ctx, { stage: 'verify', issue }, build);
+  const suite = cardSuiteFailure(ctx, 'verify', issue, base, build);
   suite.catch(() => undefined);
-  const failure = await local(checkScript(playtestCommand(ctx.cfg, false), ''), testPoolPin(ctx.cfg));
+  const failure = kind === 'build' ? await local(buildScript) : await local(checkScript(playtestCommand(ctx.cfg, false), ''), testPoolPin(ctx.cfg));
   return failure ?? await suite;
 }
 
@@ -219,7 +223,7 @@ export function approvalButtons(issue: number, base: string): InlineButton[][] {
   return [[{ text: approveText, data: `factory:approve:${issue}` }, { text: 'Deny', data: `factory:deny:${issue}` }]];
 }
 
-const UNCHECKED_NOTICE = '⚠️ No factory checks ran on this build.';
+const UNCHECKED_NOTICE = '⚠️ No testing agent played this build. Only the full suite and the build ran.';
 
 function warningsOf(base: string, noScreenshot: boolean, unchecked: boolean): string {
   const hotfix = base === HOTFIX_BASE ? '⚠️ HOTFIX. Approve merges into main and ships to players at once. Play it with care.\n\n' : '';

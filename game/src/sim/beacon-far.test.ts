@@ -2,17 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { NPCS } from '../data/npcs';
 import { BEACON } from '../data/tow';
 import { REGION } from '../data/region';
-import { standardWorld } from '../test/world-cache';
 import { playerVehicle } from './damage';
 import { hangUp } from './dialogue';
 import { nearestRoadPoint } from './salvage';
 import { siteGap } from './sites';
 import { isFree } from './spawn';
-import { addVehicle, npcBrain, testDrive } from './testkit';
+import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
 import { playerTow, setBeacon } from './tow';
 import type { World } from './types';
 import { dist, type Vec } from './vec';
-import { endTurn } from './world';
+import { endTurnInPlace } from './world';
 
 const SAMPLE_STEP = 10;
 const EDGE = 20;
@@ -32,7 +31,7 @@ function emptiestPoint(world: World): Vec {
 }
 
 describe('a beacon at the emptiest point of Icarus', () => {
-  const world = standardWorld(1);
+  const world = emptyWorld();
   const pos = emptiestPoint(world);
 
   it('reaches a road from there', () => {
@@ -44,7 +43,8 @@ describe('a beacon at the emptiest point of Icarus', () => {
 
   function playUntil(limit: number): void {
     while (turnsPlayed < limit && playerTow(rescue) === null) {
-      rescue = rescue.player.call ? hangUp(rescue) : endTurn(rescue, testDrive);
+      if (rescue.player.call) rescue = hangUp(rescue);
+      else endTurnInPlace(rescue, testDrive);
       turnsPlayed++;
     }
   }

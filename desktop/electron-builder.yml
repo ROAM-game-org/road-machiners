@@ -1,0 +1,26 @@
+appId: com.roam.game
+productName: ROAM
+directories:
+  output: release
+files:
+  - build/**
+  - package.json
+extraResources:
+  - from: ../game/dist
+    to: game
+mac:
+  target: dmg
+  category: public.app-category.games
+  identity: null
+win:
+  target:
+    - target: nsis
+      arch: x64
+linux:
+  target:
+    - target: AppImage
+      arch: x64
+  category: Game
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true

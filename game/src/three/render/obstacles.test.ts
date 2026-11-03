@@ -106,12 +106,21 @@ describe('loot colors on props', () => {
 
   function colorsAt(root: THREE.Group, x: number, y = 20): number[] {
     root.updateMatrixWorld(true);
-    const out: number[] = [];
+    const out = new Set<number>();
     root.traverse((o) => {
       if (!(o instanceof THREE.Mesh)) return;
-      for (const at of standingAt(o)) if (Math.abs(at.x / S - x) < 2 && Math.abs(at.z / S - y) < 2) out.push((o.material as THREE.MeshLambertMaterial).color.getHex());
+      for (const at of standingAt(o)) if (Math.abs(at.x / S - x) < 2 && Math.abs(at.z / S - y) < 2) for (const hex of surfaceColors(o)) out.add(hex);
     });
-    return out;
+    return [...out].sort((a, b) => a - b);
+  }
+
+  function surfaceColors(mesh: THREE.Mesh): number[] {
+    const material = mesh.material as THREE.MeshLambertMaterial;
+    const painted = mesh.geometry.getAttribute('color');
+    if (!material.vertexColors || !painted) return [material.color.getHex()];
+    const seen = new Set<number>();
+    for (let i = 0; i < painted.count; i++) seen.add(new THREE.Color(painted.getX(i), painted.getY(i), painted.getZ(i)).multiply(material.color).getHex());
+    return [...seen];
   }
 
   it('lifts a lootable prop, leaves the empty one, and restores it once emptied', () => {
@@ -126,7 +135,7 @@ describe('loot colors on props', () => {
     views.sync(obstacles, world(true, false, true), []);
     const lifted = colorsAt(root, 10);
     expect(lifted).not.toEqual(plainA);
-    lifted.forEach((hex, i) => expect([plainA[i], lootColor(plainA[i])]).toContain(hex));
+    lifted.forEach((hex) => expect([...plainA, ...plainA.map((plain) => lootColor(plain))]).toContain(hex));
     expect(colorsAt(root, 20)).toEqual(plainB);
     expect(colorsAt(root, 40)).not.toEqual(plainHulk);
 

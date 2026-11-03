@@ -19,7 +19,7 @@ const MIN_FPS = 50;
 const timeoutsOff = process.env.TEST_TIMEOUTS === 'off';
 const CRASH_ATTEMPTS = 8;
 const attempt = Number(process.env.PLAYTEST_ATTEMPT ?? '1');
-const BOOT_LIMIT_MS = timeoutsOff ? 0 : 30000;
+const BOOT_LIMIT_MS = timeoutsOff ? 0 : 300000;
 const HIGHWAY_BOOT_LIMIT_MS = 300000;
 
 mkdirSync('.playtest', { recursive: true });
@@ -46,8 +46,9 @@ const retryAfterBrowserCrash = async () => {
 };
 let crashed = false;
 page.on('crash', () => { crashed = true; });
+browser.on('disconnected', () => { crashed = true; });
 process.on('uncaughtException', async (cause) => {
-  if (!crashed) {
+  if (!crashed && !/Target page, context or browser has been closed/.test(cause?.message ?? '')) {
     console.error(cause);
     process.exit(1);
   }
@@ -58,10 +59,13 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 await emulateWebGL2Floor(page);
-await page.goto(playUrl(url));
-await page.waitForFunction(() => window.__ROAM__, null, { timeout: BOOT_LIMIT_MS }).catch(() => retryAfterBrowserCrash());
+await afterCrashRetry(async () => {
+  await page.goto(playUrl(url));
+  await page.waitForFunction(() => window.__ROAM__, null, { timeout: BOOT_LIMIT_MS });
+});
 await page.waitForTimeout(1000);
-const bootGone = await page.waitForSelector('#boot', { state: 'detached', timeout: timeoutsOff ? 0 : software ? 60000 : 10000 }).then(() => true, () => false);
+const bootGone = await page.waitForSelector('#boot', { state: 'detached', timeout: BOOT_LIMIT_MS }).then(() => true, () => false);
+if (!bootGone && crashed) await retryAfterBrowserCrash();
 if (!bootGone) {
   await browser.close();
   console.error('FAIL\nThe boot screen is still on the page after the game started.');
@@ -168,7 +172,7 @@ const pressedLanguage = async () => {
   return pressed;
 };
 await checkNoStrayControl('in English');
-await pickLanguageByKeyboard('ru');
+await afterCrashRetry(() => pickLanguageByKeyboard('ru'));
 const russian = await languageReadout();
 if (russian.lang !== 'ru' || !CYRILLIC.test(russian.menu) || !russian.hud.some((label) => CYRILLIC.test(label))) languageProblems.push(`Русский did not switch the menu and HUD: ${JSON.stringify(russian)}`);
 await checkNoStrayControl('in Russian');

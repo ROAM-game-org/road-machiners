@@ -98,23 +98,24 @@ export class OutpostScreen {
     const id = this.truckId(w);
     this.inventory.showTruck(id ?? null);
     const mine = truckFor(w, id);
+    const truckBody = el("div", { class: "truck-body" }, this.inventory.render());
     const truck = el(
       "div",
       { class: "town-truck" },
       this.truckSwitch(w),
       repairBar(w, this, { basics: (x) => outpostRepairBasics(x, id), all: (x) => outpostRepairAll(x, id) }, mine),
-      this.inventory.render(),
+      truckBody,
     );
     const shop = el(
       "div",
       { class: "town-shop" },
       el("div", { class: "tabs" }, ...this.tabButtons()),
       this.error ? el("div", { class: "bad" }, this.error) : null,
-      el("div", { class: "outpost-body" }, this.tabBody(w, post)),
+      el("div", { class: "shop-body" }, this.tabBody(w, post)),
       this.driveOnButton(w),
     );
     this.root.replaceChildren(...this.leaveButton(w), el("h3", {}, siteName(post.id), truckChips(w, { freeCells: true }, id)), el("div", { class: "town-split" }, truck, shop));
-    this.inventory.fitTo(truck);
+    this.inventory.fitTo(truckBody);
   }
 
   private leaveButton(w: World): HTMLElement[] {
