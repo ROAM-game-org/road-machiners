@@ -48,6 +48,8 @@ A prop that trucks drive under keeps every box below `PHYSICS.truckClearance` (2
 
 ## Territory loot sections
 
+Car wrecks come in four looks, picked from the prop's id: the burnt pickup `wreck` (`wreck.py`), a burnt GAZ-24 Volga sedan on its rims `wreck_sedan`, a ZAZ-968 Zaporozhets rolled on its side `wreck_compact` and a stripped VAZ-2104 estate on blocks with two wheels stacked beside it `wreck_wagon`. They share the six `wreck.py` colors, a footprint reach of 2.1 to 2.8 m at unit scale and box tops under 1.9 m, so the loot lift, salvage reach and sight match the pickup's.
+
 The loot spots of the Fallen Sun and Glass Flats are sections of their wreck, not crate heaps: `hull_bay` (hull caches), `cargo_pod` (field spots) and `engine_section` (Glass Flats caches). Each is built to a 2.8 m footprint radius like the heap it replaces, stays under the 2.4 m eye height so its load shows, and is open on top with its cargo in bright ship colors. A crate heap now means a dropped pile or an army depot.
 
 ## Trucks

@@ -12,8 +12,12 @@ export function questArt(key: string): QuestArt {
   return art;
 }
 
+export function questArtPath(key: string): string {
+  return `quest-art/${questArt(key).file}`;
+}
+
 export function questArtUrl(key: string): string {
-  return publicUrl(`quest-art/${questArt(key).file}`);
+  return publicUrl(questArtPath(key));
 }
 
 export type TownArt = { band: string; sections: Partial<Record<TownSection, string>> };
@@ -26,3 +30,7 @@ export const TOWN_ART: Record<string, TownArt> = {
   dustwell: { band: 'town_dustwell', sections: {} },
   'green-pit': { band: 'town_green_pit', sections: {} },
 };
+
+export function townArtKeys(): string[] {
+  return Object.values(TOWN_ART).flatMap((art) => [art.band, ...Object.values(art.sections)]);
+}
