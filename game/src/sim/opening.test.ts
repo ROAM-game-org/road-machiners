@@ -60,7 +60,9 @@ function parkedBy(w: World): World {
 
 function searched(w: World): World {
   let next = startSearch(parkedBy(w), OPENING_WRECK_ID);
-  for (let i = 0; i < 6 && playerVehicle(next).job; i++) next = turns(next, 1);
+  const job = playerVehicle(next).job;
+  const length = job?.kind === 'search' ? job.total : 0;
+  for (let i = 0; i < length && playerVehicle(next).job; i++) next = turns(next, 1);
   return next;
 }
 
