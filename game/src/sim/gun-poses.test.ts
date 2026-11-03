@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { barrelCells } from './barrels';
 import { baseGrid, cellsTurned, facingOf, gridOf, itemCells, itemSize, mountSpots, nextTurn, placementError, turnsOf, MOUNT_CELLS } from './grid';
-import { gunLayoutScore, gunSpans } from './armor';
+import { gunSpans } from './armor';
 import { installSpot, planItemMove } from './inventory';
 import { emptyWorld } from './testkit';
 import type { GridItem, Rot, Vehicle } from './types';
@@ -105,18 +105,13 @@ describe('gun poses in a refit', () => {
     expect(result.plan?.moves[0]).toMatchObject({ itemId: mg.id, to: target });
   });
 
-  it('lets the auto-mount keep an along pose when no cross pose scores strictly higher', () => {
+  it('mounts a new gun along its cells and leaves cross poses to the Rotate control', () => {
     const w = emptyWorld();
     const v = w.vehicles[0];
     const mg = weaponOf(v);
     const others = { ...v, items: v.items.filter((it) => it.id !== mg.id) };
     const spot = installSpot(others, { ...mg, x: 0, y: 0, rot: 0 });
     expect(spot).not.toBeNull();
-    const all = mountSpots(gridOf(others), others.items, mg, MOUNT_CELLS.weapon);
-    const score = (s: { x: number; y: number; rot: Rot }) => gunLayoutScore({ ...others, items: [...others.items, { ...mg, ...s }] });
-    const bestAlong = Math.max(...all.filter((s) => s.rot < 4).map(score));
-    const bestAcross = Math.max(...all.filter((s) => s.rot >= 4).map(score));
-    if (bestAcross <= bestAlong) expect(spot!.rot).toBeLessThan(4);
-    else expect(spot!.rot).toBeGreaterThanOrEqual(4);
+    expect(spot!.rot).toBeLessThan(4);
   });
 });
