@@ -102,12 +102,12 @@ describe('delivery queries', () => {
     expect(result.lead.ranges![7][0].open).toBe(1);
   });
 
-  it('leaves hotfixes, release tasks, the release card and private tasks out, and counts them', async () => {
+  it('leaves hotfixes, ad hoc cards, the release card and private tasks out, and counts them', async () => {
     const lines = [
       ...straight(1, 60),
       card(2, 50, 'entered', 'Design', 'hotfix'), card(2, 40, 'planned', 'Implementation'), card(2, 30, 'merged', 'Done', 'hotfix'),
       card(3, 50, 'entered', 'Triage'), card(3, 49, 'accepted', 'Design', 'hotfix'), card(3, 30, 'denied', 'Done'),
-      card(4, 50, 'entered', 'Design', 'release-task'), card(4, 40, 'planned', 'Implementation'), card(4, 30, 'merged', 'Done'),
+      card(4, 50, 'entered', 'Design', 'adhoc'), card(4, 40, 'planned', 'Implementation'), card(4, 30, 'merged', 'Done'),
       card(5, 50, 'entered', 'Approval', 'release'), card(5, 10, 'shipped', 'Done', 'release'),
       card(6, 50, 'entered', 'Implementation', 'adhoc'), card(6, 10, 'reported', 'Done', 'adhoc'),
       job(2, 'implement', 'failed', 35), job(4, 'design', 'timeout', 45),
