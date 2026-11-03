@@ -4,7 +4,8 @@ import { newId } from './factory';
 import { requireGarage } from './garage';
 import { goodsCount, gridOf, placementError, type Spot } from './grid';
 import { afterRefit, requireIdleRefit } from './inventory';
-import { requireSpareGoods, shopAt } from './market';
+import { getLotTradePrice, settleCargoSale } from './economy';
+import { requireShop, requireSpareGoods, shopAt } from './market';
 import type { GridItem, World } from './types';
 import { playerCommand, Refused } from './world';
 
@@ -84,5 +85,14 @@ export function takeStoredGood(world: World, good: string, to: Spot, truckId?: s
     if (err) throw new Refused(err);
     me.items.push(item);
     afterRefit(w, me);
+  });
+}
+
+export function sellStoredGood(world: World, good: string, count: number): World {
+  return playerCommand(world, (w) => {
+    const shopId = requireShop(w);
+    const me = playerVehicle(w);
+    takeStored(w, shopId, good, count);
+    settleCargoSale(w, me, shopId, good, count, getLotTradePrice(w, me, shopId, good, count, 'sell'));
   });
 }

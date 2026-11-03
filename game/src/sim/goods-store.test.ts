@@ -5,9 +5,12 @@ import { goodsCount } from './grid';
 import { addGoods, stowSpot } from './inventory';
 import { shopAt, siteOf } from './market';
 import { sitePads } from './sites';
-import { emptyWorld, parkedAtOutpost } from './testkit';
-import { storedCrates, storedHere, storeGood, storeRoom, takeStoredGood } from './goods-store';
-import type { Contract, GridItem, Refusal, World } from './types';
+import { emptyWorld, parkedAtOutpost, spotWorld } from './testkit';
+import { sellStoredGood, storedCrates, storedHere, storeGood, storeRoom, takeStoredGood } from './goods-store';
+import { buyGood, sellGood } from './economy';
+import { collectSalvage } from './salvage';
+import type { Contract } from './market';
+import type { GridItem, Refusal, World } from './types';
 import { Refused } from './world';
 
 function parkedAt(shopId: string): World {
@@ -116,5 +119,80 @@ describe('the crate store at a shop', () => {
     const stored = storeGood(w, crateOf(w, 'salt').id);
     expect(stored.player.storedGoods).toEqual({ nose: { scrap: GOODS_STORE.crates - 1, salt: 1 } });
     expect(storeRoom(stored, 'nose')).toBe(0);
+  });
+});
+
+function storedCount(w: World, good: string, n: number): World {
+  let next = w;
+  for (let i = 0; i < n; i++) next = storeGood(next, crateOf(next, good).id);
+  return next;
+}
+
+const saleOutcome = (before: World, after: World, shopId: string) => ({
+  money: after.player.money - before.player.money,
+  xp: after.player.xpBySource,
+  ranks: after.player.ranks,
+  shop: after.shops[shopId],
+  events: after.events.slice(before.events.length),
+});
+
+describe('a sale from the crate store', () => {
+  it.each(shopIds)('at %s, pays, teaches and moves the market like the same sale from the truck', (shopId) => {
+    const good = tradedGood(shopId);
+    const w = loaded(shopId, good, 3);
+    w.player.costBasis[good] = 1;
+    const fromTruck = sellGood(w, good, 2);
+    const stored = storedCount(w, good, 2);
+    const fromStore = sellStoredGood(stored, good, 2);
+    expect(saleOutcome(stored, fromStore, shopId)).toEqual(saleOutcome(w, fromTruck, shopId));
+    expect(fromStore.player.money).toBeGreaterThan(w.player.money);
+    expect(fromStore.player.storedGoods).toEqual({});
+    expect(goodsCount(playerVehicle(fromStore))[good]).toBe(1);
+  });
+
+  it('sells no more than this shop holds, and nothing stored at another shop', () => {
+    const w = storedCount(loaded('nose', 'salt', 2), 'salt', 2);
+    expect(() => sellStoredGood(w, 'salt', 3)).toThrow('Cannot take 3 salt from the store at nose');
+    const atBowl = structuredClone(w);
+    playerVehicle(atBowl).pos = { ...sitePads(siteOf('bowl'))[0] };
+    expect(() => sellStoredGood(atBowl, 'salt', 1)).toThrow('Cannot take 1 salt from the store at bowl');
+  });
+
+  it('needs a shop', () => {
+    const w = emptyWorld();
+    w.player.storedGoods = { nose: { salt: 1 } };
+    expect(() => sellStoredGood(w, 'salt', 1)).toThrow('Not parked at a shop');
+  });
+});
+
+describe('the cost basis with stored crates', () => {
+  it('a buy averages over stored crates as if every crate were on the truck', () => {
+    const good = 'salt';
+    const w = loaded('nose', good, 4);
+    w.player.costBasis[good] = 1;
+    const allAboard = buyGood(w, good, 2);
+    const partlyStored = buyGood(storedCount(w, good, 3), good, 2);
+    expect(partlyStored.player.costBasis[good]).toBe(allAboard.player.costBasis[good]);
+    expect(allAboard.player.costBasis[good]).not.toBe(1);
+  });
+
+  it('salvage averages over stored crates as if every crate were on the truck', () => {
+    const { w, stock } = spotWorld();
+    stock.parts = [];
+    stock.goods = { scrap: 2 };
+    w.player.costBasis.scrap = 50;
+    const aboard = structuredClone(w);
+    addGoods(aboard, playerVehicle(aboard), 'scrap', 3);
+    w.player.storedGoods = { nose: { scrap: 3 } };
+    collectSalvage(aboard, playerVehicle(aboard), stock.id, 2);
+    collectSalvage(w, playerVehicle(w), stock.id, 2);
+    expect(w.player.costBasis.scrap).toBe(aboard.player.costBasis.scrap);
+    expect(aboard.player.costBasis.scrap).toBeLessThan(50);
+  });
+
+  it('storing and taking out leaves the basis as it was', () => {
+    const w = loaded('nose', 'salt', 2);
+    w.player.costBasis.salt = 3;
+    expect(takeOne(storedCount(w, 'salt', 2), 'salt').player.costBasis).toEqual(w.player.costBasis);
   });
 });

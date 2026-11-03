@@ -10,6 +10,7 @@ import { REGION } from '../data/region';
 import { MAX_RANK, PERKS, SKILL_IDS, XP_SOURCES } from '../data/skills';
 import { CONDITION } from '../data/wear';
 import { RULES } from '../data/rules';
+import { storedCrates } from './goods-store';
 import type { StartKit } from '../data/start';
 import { findPart, haulerOf, playerTrucks, playerVehicle } from './damage';
 import { makePart, makeVehicle, newId } from './factory';
@@ -722,7 +723,8 @@ function carryPerks(world: World, perks: string[]): void {
 }
 
 function heldBasis(world: World, basis: Record<string, number>): Record<string, number> {
-  const held = (good: string) => playerTrucks(world).some((truck) => truck.items.some((it) => it.kind === 'good' && it.good === good));
+  const stored = storedCrates(world);
+  const held = (good: string) => good in stored || playerTrucks(world).some((truck) => truck.items.some((it) => it.kind === 'good' && it.good === good));
   return Object.fromEntries(Object.entries(basis).filter(([good]) => held(good)));
 }
 
