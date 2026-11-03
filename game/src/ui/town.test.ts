@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
 import { oddJobsReason, GARAGE_ONLY, townPageOnOpen } from "./town";
-import { goodRoutesTitle, marketHints, newsWell, priceHint, stockHint, showsRelief, tradeEstimate } from "./shop-rows";
+import { limitedSupplyRow, goodRoutesTitle, marketHints, newsWell, priceHint, stockHint, showsRelief, tradeEstimate } from "./shop-rows";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
 import { RELIEF, SHOPS } from "../data/market";
@@ -10,7 +10,10 @@ import { shortHere, stockTarget, type ShopState } from "../sim/market";
 import { casePrice, casePriceTip, livePaintPlan, paletteStyle, planWithSlot, schemeStyle, shortBy } from "./shop-rows";
 import { PAINT, PAINT_SCHEMES } from "../data/chassis";
 import { placeProse } from "../text/names";
+import type { World } from "../sim/types";
 import type { CrimeCase } from "../sim/types";
+import { playerVehicle } from "../sim/damage";
+import { ECONOMY } from "../data/goods";
 
 const en = (msg: Msg | null): string | null => (msg === null ? null : resolve(msg, "en"));
 const shown = (found: ReturnType<typeof stockHint>) => found && { tone: found.tone, title: en(found.title) };
@@ -284,5 +287,35 @@ describe("the odd jobs choice reason", () => {
 
   it("gives the refusal text for any other block", () => {
     expect(en(oddJobsReason(emptyWorld(), { id: "stopFirst" }))).toBe("Stop the truck first");
+  });
+});
+
+describe("the supply rows of the front page", () => {
+  beforeEach(() => {
+    vi.stubGlobal("document", {
+      createElement: (tag: string) => new FakeNode(tag),
+      createElementNS: (_ns: string, tag: string) => new FakeNode(tag),
+      createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }),
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("ask the shared buy command for the room, or for what the money covers when that is less", () => {
+    const w = emptyWorld();
+    const asked: number[] = [];
+    const buttons = {
+      button: (_label: Msg, cmd: (x: World) => World) => {
+        cmd(w);
+        return new FakeNode("button") as unknown as HTMLElement;
+      },
+      priceButton: () => new FakeNode("button") as unknown as HTMLElement,
+    };
+    const buy = (x: World, _k: string, n: number) => {
+      asked.push(n);
+      return x;
+    };
+    w.player.money = ECONOMY.supplyPrice.fuel * 3;
+    limitedSupplyRow(w, "fuel", buttons as never, buy as never, playerVehicle(w), { room: 10, tag: null });
+    expect(asked).toEqual([1, 3]);
   });
 });
