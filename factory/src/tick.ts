@@ -1,6 +1,6 @@
 import { availableParallelism } from 'node:os';
 import { join } from 'node:path';
-import { removalCandidates, sweepLogs, sweepWork } from './cleanup';
+import { removalCandidates, sweepCardSessions, sweepLogs, sweepWork } from './cleanup';
 import { cpuSets, poolOf, vitestWorkersOf } from './cpus';
 import { removeStaleBuilds } from './deploy';
 import { availableGb, freeGb, requireAgyLogin, requireCappedSlice, requireCodexLogin } from './health';
@@ -125,7 +125,8 @@ function cardCandidates(state: FactoryState, cards: Card[]): Candidate[] {
     .sort((a, b) => a.issue - b.issue)
     .map((card) => ({ stage: 'adhoc' as const, issue: card.issue }));
   const work = rest.filter(lacks(ADHOC_LABEL));
-  const normal = [...adhoc, ...byProgress(state, work.filter(has(RELEASE_TASK_LABEL))), ...byProgress(state, work.filter(lacks(RELEASE_TASK_LABEL)))];
+  const releaseTask = (card: Card): boolean => card.labels.includes(RELEASE_TASK_LABEL) || (state.release?.tasks.includes(card.issue) ?? false);
+  const normal = [...adhoc, ...byProgress(state, work.filter(releaseTask)), ...byProgress(state, work.filter((card) => !releaseTask(card)))];
   return [...hotfix, ...normal.map((pick) => ({ ...pick, pastCardLimit: false }))];
 }
 
@@ -466,6 +467,7 @@ export async function cleanWork(ctx: Ctx, listed: Card[]): Promise<void> {
   for (const name of swept.removed) ctx.log('tick', null, `removed work clone ${name}`);
   if (swept.stripped.length > 0) ctx.log('tick', null, `removed packages of idle clones ${swept.stripped.join(', ')}`);
   if (swept.unknown.length > 0) ctx.log('tick', null, `left unknown work folders ${swept.unknown.join(', ')}`);
+  for (const name of sweepCardSessions(ctx.cfg.home, state, cards, unconfirmed)) ctx.log('tick', null, `removed the kept card session ${name}`);
   const logs = sweepLogs(join(ctx.cfg.home, 'logs'), state, ctx.now(), ctx.cfg.logDays);
   if (logs.length > 0) ctx.log('tick', null, `removed ${logs.length} job logs older than ${ctx.cfg.logDays} days`);
   cleanArchives(ctx);
@@ -477,11 +479,14 @@ function cleanArchives(ctx: Ctx): void {
 }
 
 async function expireReplies(ctx: Ctx): Promise<void> {
-  const late = Object.entries(readState(ctx.statePath).unroutedReplies).filter(([, reply]) => minutesSince(ctx, reply.at) > ctx.cfg.replyRouteMinutes);
+  const late = Object.entries(readState(ctx.statePath).unroutedReplies).filter(([, reply]) => !reply.reported && minutesSince(ctx, reply.at) > ctx.cfg.replyRouteMinutes);
   for (const [messageId, reply] of late) {
-    updateState(ctx.statePath, (state) => ({ ...state, unroutedReplies: Object.fromEntries(Object.entries(state.unroutedReplies).filter(([id]) => id !== messageId)) }));
+    updateState(ctx.statePath, (state) => ({ ...state, unroutedReplies: reply.proposal
+      ? { ...state.unroutedReplies, [messageId]: { ...reply, reported: true } }
+      : Object.fromEntries(Object.entries(state.unroutedReplies).filter(([id]) => id !== messageId)) }));
     const text = reply.text.replace(/\s+/g, ' ');
-    await reportFailure(ctx, 'feedback', null, `Route the reply ${messageId} to the approval post ${reply.postId} of issue #${reply.issue} on your best reading, unrouted for ${ctx.cfg.replyRouteMinutes} minutes: ${text}`, null, []);
+    const kind = reply.proposal ? 'private proposal' : 'approval';
+    await reportFailure(ctx, 'feedback', null, `Route the reply ${messageId} to the ${kind} post ${reply.postId} of issue #${reply.issue} on your best reading, unrouted for ${ctx.cfg.replyRouteMinutes} minutes: ${text}`, null, []);
   }
 }
 

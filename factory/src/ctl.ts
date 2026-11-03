@@ -50,6 +50,7 @@ const WRITE: Record<string, { usage: string; help: string; build: Builder }> = {
   drop: { usage: `drop <${DROP_QUEUES.join('|')}> <id>`, help: 'drop one queued entry', build: ([queue, id]) => dropAction(queue, id) },
   'pause-card': { usage: 'pause-card N', help: "hold a card: stop its job, keep its work clone and agent sessions, and start no job on it until resume-card", build: ([n]) => ({ action: 'hold', issue: number(n) }) },
   'resume-card': { usage: 'resume-card N', help: 'lift the hold of a card, so its stage continues in the stopped sessions', build: ([n]) => ({ action: 'unhold', issue: number(n) }) },
+  enroll: { usage: 'enroll N', help: 'make an issue already on the board a task of the open release, where it stands: a card past Triage keeps its work on dev, and its approved change is ported onto the release before the card is done. It opens no issue, and the playtest, a new candidate and Ship wait for it', build: ([n]) => ({ action: 'enroll', issue: number(n) }) },
 };
 
 export async function runCtl(ctx: Ctx, args: string[]): Promise<void> {
@@ -173,6 +174,8 @@ function cardFacts(found: Card, state: FactoryState): string[] {
     `post only: ${state.postOnly.includes(found.issue) ? 'yes' : 'no'}`,
     `questions asked: ${shown(state.asked[key])}`,
     `questions posts: ${shown(Object.entries(state.questionPosts).filter(([, issue]) => issue === found.issue).map(([id]) => id).join(', '))}`,
+    `private proposal posts: ${shown(Object.entries(state.proposalPosts).filter(([, issue]) => issue === found.issue).map(([id]) => id).join(', '))}`,
+    `unrouted proposal replies: ${Object.values(state.unroutedReplies).filter((reply) => reply.issue === found.issue && reply.proposal).length}`,
     `pending feedback from: ${shown(state.pendingFeedback[key]?.source)}`,
     `approvedResolving: ${shown(state.approvedResolving[key])}`,
     `queued approval: ${shown(state.pendingApprovals[key])}`,
@@ -237,7 +240,7 @@ function listOrNone(rows: string[]): string {
 }
 
 function formatMerges(merges: IssueMerge[]): string {
-  return merges.map((merge) => `#${merge.issue} ${merge.sha.slice(0, 7)}${merge.reverted.length ? ` reverted on ${merge.reverted.join(', ')}` : ''}`).join(', ') || 'none';
+  return merges.map((merge) => `#${merge.issue} ${merge.sha.slice(0, 7)}${merge.fromDev === undefined ? '' : ` ported from dev ${merge.fromDev.slice(0, 7)}`}${merge.reverted.length ? ` reverted on ${merge.reverted.join(', ')}` : ''}`).join(', ') || 'none';
 }
 
 function release(ctx: Ctx): void {

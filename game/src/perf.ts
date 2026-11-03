@@ -1,9 +1,8 @@
-// Named timers for work at seams: a turn, a route, the path preview. Plain TypeScript, so sim code
-// can use it in Node tests. Never call it inside hot loops; each call costs two clock reads.
 
 export type PerfStat = { last: number; max: number; total: number; calls: number };
 
 const stats = new Map<string, PerfStat>();
+const workerNames = new Set<string>();
 
 function stat(name: string): PerfStat {
   let s = stats.get(name);
@@ -36,8 +35,13 @@ export function perfSnapshot(): Record<string, PerfStat> {
   return Object.fromEntries([...stats].map(([k, v]) => [k, { ...v }]));
 }
 
+export function ranInWorker(name: string): boolean {
+  return workerNames.has(name);
+}
+
 export function mergePerf(incoming: Record<string, PerfStat>): void {
   for (const [name, measured] of Object.entries(incoming)) {
+    workerNames.add(name);
     const current = stat(name);
     current.last = measured.last;
     current.max = Math.max(current.max, measured.max);
@@ -48,4 +52,5 @@ export function mergePerf(incoming: Record<string, PerfStat>): void {
 
 export function resetPerf(): void {
   stats.clear();
+  workerNames.clear();
 }

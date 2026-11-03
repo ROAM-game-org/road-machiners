@@ -1,5 +1,5 @@
 import { bundleOf } from '../stages/bundle';
-import { readState } from '../state';
+import { readState, updateState } from '../state';
 import { MESSAGE_LIMIT } from '../telegram-limits';
 import { VOTING_LABEL, type Ctx } from '../types';
 import { isolated } from './isolate';
@@ -60,6 +60,25 @@ export function proposalText(ctx: Ctx, issue: number, pitch: string, footer: str
   const tail = `${escapeHtml(links.join('\n'))}\n\n${escapeHtml(footer)}`;
   const body = escapeWithin(pitchBody(pitch), MESSAGE_LIMIT - heading.length - tail.length - 4);
   return [heading, body, tail].filter((part) => part !== '').join('\n\n');
+}
+
+export async function postProposalGate(ctx: Ctx, store: PublicStore): Promise<void> {
+  for (const proposal of store.proposalsNeedingGate()) {
+    await isolated(ctx, proposal.issue, 'the committee proposal post may have failed; check the chat before retrying it by hand', async () => {
+      const item = await ctx.github.issue(proposal.issue);
+      if (item.state === 'CLOSED' || !item.labels.includes(VOTING_LABEL)) {
+        ctx.log('public', proposal.issue, item.state === 'CLOSED' ? 'the issue is closed, so its proposal stays closed unposted' : 'the issue lost its voting label, so its proposal stays closed unposted');
+        store.closeProposal(proposal.issue, ctx.now());
+        return;
+      }
+      store.beginGate(proposal.issue, ctx.now());
+      const text = proposalText(ctx, proposal.issue, proposal.pitch, 'Committee: reply YES to open player voting, NO to reject, or give feedback to revise the pitch. YES is permission to vote, not approval of the feature.');
+      const postId = await ctx.telegram.sendHtml(ctx.cfg.committeeChat, text);
+      store.markGatePosted(proposal.issue, postId);
+      updateState(ctx.statePath, (state) => ({ ...state, proposalPosts: { ...state.proposalPosts, [String(postId)]: proposal.issue } }));
+    });
+    return;
+  }
 }
 
 export async function postProposal(ctx: Ctx, store: PublicStore): Promise<void> {

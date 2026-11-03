@@ -47,6 +47,11 @@ describe('cardDrift', () => {
   it('flags an approval post outside Approval', () => {
     expect(cardDrift(card('Design'), withState({ approvalPosts: { 9: 157 } }))).toEqual(['#157 open approval post 9 but column Design']);
   });
+  it('flags a private proposal post outside voting in Triage', () => {
+    const state = withState({ proposalPosts: { 77: 157 } });
+    expect(cardDrift(card('Triage', 157, ['voting']), state)).toEqual([]);
+    expect(cardDrift(card('Design'), state)).toEqual(['#157 has a private proposal post but is not waiting for a vote in Triage']);
+  });
   it('flags a queued approval outside Approval', () => {
     expect(cardDrift(card('Testing'), withState({ pendingApprovals: { 157: 'bob' } }))).toEqual(['#157 queued approval but column Testing']);
   });
@@ -105,6 +110,11 @@ describe('releaseDrift', () => {
   });
   it('flags a recorded release task that is not on the board', () => {
     expect(releaseDrift(withState({ release: { ...release, tasks: [301, 302] } }), [card('Approval', 300), card('Done', 302)])).toEqual(['release task #301 missing from the board']);
+  });
+  it('flags a release task that merged and is done but never reached the release branch', () => {
+    const merged = (issue: number) => ({ ...card('Done', issue), labels: ['release-candidate'] });
+    const merges = [{ issue: 302, title: 't', sha: 'p', into: 'release/x', reverted: [], fromDev: 'd' }];
+    expect(releaseDrift(withState({ release: { ...release, tasks: [301, 302, 303], merges } }), [card('Approval', 300), merged(301), merged(302), card('Done', 303)])).toEqual(['release task #301 merged but not into release/x']);
   });
   it('flags a cut order that waits while a release is open', () => {
     expect(releaseDrift(withState({ release, pendingCut: 'bob' }), [card('Approval', 300)])).toEqual(['cut ordered but a release is open']);
