@@ -12,7 +12,7 @@ import { addVehicle, npcBrain, testDrive } from './testkit';
 import { playerTow, setBeacon } from './tow';
 import type { World } from './types';
 import { dist, type Vec } from './vec';
-import { endTurn } from './world';
+import { cloneWorld, endTurn } from './world';
 
 const SAMPLE_STEP = 10;
 const EDGE = 20;
@@ -33,6 +33,7 @@ function emptiestPoint(world: World): Vec {
 describe('a beacon at the emptiest point of Icarus', () => {
   const world = standardWorld(1);
   const pos = emptiestPoint(world);
+  endTurn(endTurn(cloneWorld(world), testDrive), testDrive);
 
   it('reaches a road from there', () => {
     expect(dist(pos, nearestRoadPoint(pos))).toBeLessThan(BEACON.range);
