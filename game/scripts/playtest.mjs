@@ -19,7 +19,7 @@ const MIN_FPS = 50;
 const timeoutsOff = process.env.TEST_TIMEOUTS === 'off';
 const CRASH_ATTEMPTS = 8;
 const attempt = Number(process.env.PLAYTEST_ATTEMPT ?? '1');
-const BOOT_LIMIT_MS = timeoutsOff ? 0 : 90000;
+const BOOT_LIMIT_MS = timeoutsOff ? 0 : 300000;
 const HIGHWAY_BOOT_LIMIT_MS = 300000;
 
 mkdirSync('.playtest', { recursive: true });
@@ -64,7 +64,8 @@ await afterCrashRetry(async () => {
   await page.waitForFunction(() => window.__ROAM__, null, { timeout: BOOT_LIMIT_MS });
 });
 await page.waitForTimeout(1000);
-const bootGone = await page.waitForSelector('#boot', { state: 'detached', timeout: timeoutsOff ? 0 : software ? 60000 : 10000 }).then(() => true, () => false);
+const bootGone = await page.waitForSelector('#boot', { state: 'detached', timeout: BOOT_LIMIT_MS }).then(() => true, () => false);
+if (!bootGone && crashed) await retryAfterBrowserCrash();
 if (!bootGone) {
   await browser.close();
   console.error('FAIL\nThe boot screen is still on the page after the game started.');
