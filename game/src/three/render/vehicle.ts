@@ -16,7 +16,7 @@ import { baseGrid, facingOf, isMounted, itemBulk, itemCells } from '../../sim/gr
 import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gunClearance';
-import { bottomOf, highestAhead, itemLegs, itemSpot, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang, type ItemSpot } from './gunStand';
+import { bottomOf, heldBoxes, highestAhead, itemSpot, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang, strut, type ItemSpot } from './gunStand';
 import { GLASS, LAMP, model, RADIO, socket, TRUCK_BIT, type ModelName } from './models';
 import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic } from './truckMesh';
 import { armorPlacement, cutSpec, lampIslands, withCut, type CutSpec } from './armorCut';
@@ -458,7 +458,7 @@ export class VehicleView {
     const obj = this.placedPart(v, unit.b, item, def, paint);
     obj.name = item.id;
     const spot = this.spots.get(item);
-    if (spot?.legs) for (const leg of itemLegs(unit.base, obj, spot.y, (role) => this.legModel(item, paint, role))) unit.still.add(leg);
+    for (const s of spot?.supports ?? []) unit.still.add(strut(this.legModel(item, paint, s.role), s.foot, s.head));
     unit.still.add(obj);
     this.anchors.set(item.part.id, { local: new THREE.Box3().setFromObject(obj).getCenter(new THREE.Vector3()), parent: unit.body });
     if (blocksGuns(v, item, def)) unit.obstacles.push(obstacleOf(obj));
@@ -574,7 +574,7 @@ export class VehicleView {
     at.pos.z += spot.dz;
     place(obj, at);
     lean(obj, spot.slope);
-    tint(obj, paint, lookOf(item));
+    tint(obj, paint, lookOf(item), heldBoxes(obj, spot.held));
     return obj;
   }
 
@@ -950,7 +950,7 @@ function needsSpot(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
 }
 
 function levelSpot(v: Pick<Vehicle, 'chassisId'>, item: GridItem): ItemSpot {
-  return { dx: 0, dz: 0, y: standingY(v, item), slope: { x: 0, z: 0 }, legs: false };
+  return { dx: 0, dz: 0, y: standingY(v, item), slope: { x: 0, z: 0 }, supports: [], held: [] };
 }
 
 function standsFlat(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
@@ -1034,7 +1034,7 @@ function place(obj: THREE.Object3D, at: Placement): void {
   obj.scale.copy(at.scale);
 }
 
-function tint(obj: THREE.Object3D, paint: number, look: Look): void {
+function tint(obj: THREE.Object3D, paint: number, look: Look, keepOut: PartBox[] = []): void {
   const share = grayShare(look.step);
   obj.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;
@@ -1045,7 +1045,7 @@ function tint(obj: THREE.Object3D, paint: number, look: Look): void {
     mat.color.multiplyScalar(look.tone);
     if (look.partId) o.userData.partId = look.partId;
   });
-  if (look.partId && look.dents && look.step > 0) dent(obj, look.partId, look.step);
+  if (look.partId && look.dents && look.step > 0) dent(obj, look.partId, look.step, { top: false, keepOut });
 }
 
 const WELD_MM = 1000;

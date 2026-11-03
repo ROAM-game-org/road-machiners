@@ -182,7 +182,7 @@ function spotAt(plate: CellRect, shifts: [number, number][], shrink: number, fee
   return standing;
 }
 
-export type ItemSpot = { dx: number; dz: number; y: number; slope: { x: number; z: number }; legs: boolean };
+export type ItemSpot = { dx: number; dz: number; y: number; slope: { x: number; z: number }; supports: readonly Support[]; held: readonly THREE.Vector3[] };
 
 type Footing = (x: number, z: number) => THREE.Vector3 | null;
 
@@ -217,7 +217,7 @@ function searchItemSpot(body: THREE.Object3D, { rect, points }: Footprint, rest:
   const shifts = shiftsWithin(reach, FACE_COLUMN);
   const flat = (): ItemSpot | null => nudged(points, flatSpot(points, shifts, flatSupports(stilts), exact, tops), reach, exact, tops);
   const onLegSpots = (): ItemSpot | null => fittedSpot(rect, points, rest, feet, exact, tops);
-  const resting = (): ItemSpot | null => (heldOn(points, planeAt(rect, rest), exact, tops) ? { dx: 0, dz: 0, y: rest.y, slope: rest.slope, legs: false } : null);
+  const resting = (): ItemSpot | null => (heldOn(points, planeAt(rect, rest), exact, tops) ? { dx: 0, dz: 0, y: rest.y, slope: rest.slope, supports: [], held: [] } : null);
   const wellHeld = (): ItemSpot | null => nudged(points, flatSpot(points, shifts, [SHIFT_SUPPORT], exact, tops), reach, exact, tops);
   const order = Math.hypot(rest.slope.x, rest.slope.z) > FLAT_SLOPE ? [flat, onLegSpots, resting] : [wellHeld, onLegSpots, resting, flat];
   const stilted = (): ItemSpot | null => (stilts ? stiltSpot(body, { rect, points }, shifts, tops) : null);
@@ -237,7 +237,7 @@ function flatSpot(points: Sample[], shifts: [number, number][], supports: number
     for (const [dx, dz] of shifts) {
       const moved = shifted(points, dx, dz);
       const y = highestTop(moved, tops);
-      if (heldOn(moved, () => y, exact, tops, support)) return { dx, dz, y, slope: FLAT, legs: false };
+      if (heldOn(moved, () => y, exact, tops, support)) return { dx, dz, y, slope: FLAT, supports: [], held: [] };
     }
   }
   return null;
@@ -268,7 +268,7 @@ function fittedSpot(rect: CellRect, points: Sample[], rest: Rest, feet: Footing,
   const under = spots.map(([x, z]) => feet(x, z));
   if (!under.every((foot, i) => foot !== null && Math.abs(plane(spots[i][0], spots[i][1]) - foot.y) <= CLIP_TOLERANCE)) return null;
   const fitted = planeOf(under as THREE.Vector3[]);
-  return heldOn(points, planeAt(rect, fitted), exact, tops) ? { dx: 0, dz: 0, ...fitted, legs: false } : null;
+  return heldOn(points, planeAt(rect, fitted), exact, tops) ? { dx: 0, dz: 0, ...fitted, supports: [], held: [] } : null;
 }
 
 type Stilts = { spot: ItemSpot; braces: number };
@@ -279,21 +279,22 @@ function stiltSpot(body: THREE.Object3D, { rect, points }: Footprint, shifts: [n
     const moved = movedPlate(rect, { dx, dz, shrink: 1 });
     if (!tops((moved.x0 + moved.x1) / 2, (moved.z0 + moved.z1) / 2)) continue;
     const over = shifted(points, dx, dz);
-    const y = highestTop(over, tops);
-    const braces = bracesAt(body, over, y);
-    if (braces !== null && stiltsBeat(braces, y, best)) best = { spot: { dx, dz, y, slope: FLAT, legs: true }, braces };
+    const found = stiltsAt(body, over, highestTop(over, tops), dx, dz);
+    if (found && stiltsBeat(found.braces, found.spot.y, best)) best = found;
   }
   return best && best.spot;
+}
+
+function stiltsAt(body: THREE.Object3D, over: Sample[], y: number, dx: number, dz: number): Stilts | null {
+  const held = itemSupports(body, over.map(([x, z]): [number, number] => [x, z]), y);
+  const supports = held?.filter((s) => s.needed) ?? [];
+  if (!held || supports.length === 0) return null;
+  return { spot: { dx, dz, y, slope: FLAT, supports, held: held.map((s) => s.head) }, braces: supports.filter((s) => s.role === 'brace').length };
 }
 
 function stiltsBeat(braces: number, y: number, best: Stilts | null): boolean {
   if (!best) return true;
   return braces < best.braces || (braces === best.braces && y < best.spot.y - CLIP_TOLERANCE);
-}
-
-function bracesAt(body: THREE.Object3D, points: Sample[], top: number): number | null {
-  const supports = itemSupports(body, points.map(([x, z]): [number, number] => [x, z]), top);
-  return supports && supports.filter((s) => s.role === 'brace').length;
 }
 
 function shifted(points: Sample[], dx: number, dz: number): Sample[] {
@@ -572,13 +573,7 @@ function nearestWall(body: THREE.Object3D, corner: THREE.Vector3, ways: THREE.Ve
     .sort((a, b) => a.distanceTo(corner) - b.distanceTo(corner))[0];
 }
 
-type Support = { role: 'leg' | 'brace'; foot: THREE.Vector3; head: THREE.Vector3; needed: boolean };
-
-export function itemLegs(body: THREE.Object3D, obj: THREE.Object3D, top: number, makeLeg: (role: 'leg' | 'brace') => THREE.Object3D): THREE.Object3D[] {
-  const supports = itemSupports(body, bottomSamples(obj).map((p): [number, number] => [p.x, p.z]), top);
-  if (!supports) throw new Error(`Item ${obj.name} has no legs or braces that hold its bottom at ${top.toFixed(2)}`);
-  return supports.map((s) => strut(makeLeg(s.role), s.foot, s.head));
-}
+export type Support = { readonly role: 'leg' | 'brace'; readonly foot: THREE.Vector3; readonly head: THREE.Vector3; readonly needed: boolean };
 
 function itemSupports(body: THREE.Object3D, points: [number, number][], top: number): Support[] | null {
   const feet = footings(body);
@@ -586,9 +581,7 @@ function itemSupports(body: THREE.Object3D, points: [number, number][], top: num
   const looks = cornerHeads(points, legPad() - CLIP_TOLERANCE / 2);
   const center = new THREE.Vector3(heads.reduce((sum, [x]) => sum + x, 0) / 4, top, heads.reduce((sum, [, z]) => sum + z, 0) / 4);
   const supports = heads.map(([x, z], i) => supportAt(body, feet(...looks[i]), new THREE.Vector3(x, top, z), center));
-  if (supports.includes(null)) return null;
-  const needed = (supports as Support[]).filter((s) => s.needed);
-  return needed.length > 0 ? needed : null;
+  return supports.includes(null) ? null : (supports as Support[]);
 }
 
 function supportAt(body: THREE.Object3D, foot: THREE.Vector3 | null, head: THREE.Vector3, center: THREE.Vector3): Support | null {
@@ -670,7 +663,16 @@ function seeThrough(obj: THREE.Object3D): boolean {
   return material !== undefined && SEE_THROUGH.has(material.name);
 }
 
-function strut(leg: THREE.Object3D, from: THREE.Vector3, to: THREE.Vector3): THREE.Object3D {
+export function heldBoxes(obj: THREE.Object3D, heads: readonly THREE.Vector3[]): { min: THREE.Vector3; max: THREE.Vector3 }[] {
+  obj.updateMatrixWorld(true);
+  const toModel = obj.matrixWorld.clone().invert();
+  return heads.map((h) => {
+    const head = h.clone().applyMatrix4(toModel);
+    return { min: head, max: head.clone() };
+  });
+}
+
+export function strut(leg: THREE.Object3D, from: THREE.Vector3, to: THREE.Vector3): THREE.Object3D {
   const along = to.clone().sub(from);
   leg.position.copy(from);
   leg.quaternion.setFromUnitVectors(UP, along.clone().normalize());
