@@ -46,6 +46,13 @@ const retryAfterBrowserCrash = async () => {
 };
 let crashed = false;
 page.on('crash', () => { crashed = true; });
+process.on('uncaughtException', async (cause) => {
+  if (!crashed) {
+    console.error(cause);
+    process.exit(1);
+  }
+  await retryAfterBrowserCrash();
+});
 const afterCrashRetry = async (step) => step().catch(async (cause) => { if (crashed) await retryAfterBrowserCrash(); throw cause; });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
