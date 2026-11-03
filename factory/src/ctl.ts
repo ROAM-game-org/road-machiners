@@ -8,6 +8,7 @@ import { repairClone } from './repair-clone';
 import { clearStuck } from './stuck';
 import { MOVE_TARGETS, causeText, cardDrift, cardPosition, holdDrift, releaseDrift, runningJobs, stuckText, type MoveTarget } from './position';
 import { resetSpend } from './landing-work';
+import { bundleOf } from './stages/bundle';
 import { readState, updateState } from './state';
 import { editState } from './state-edit';
 import { STUCK_LABEL, type Card, type Ctx, type FactoryState, type Hold, type IssueMerge, type KeptApproval, type LandingWork, type PlaytestState, type ReleasePost, type ReleaseState } from './types';
@@ -172,6 +173,8 @@ function cardFacts(found: Card, state: FactoryState): string[] {
     `column: ${found.column}`,
     `labels: ${shown(found.labels.join(', '))}`,
     `post only: ${state.postOnly.includes(found.issue) ? 'yes' : 'no'}`,
+    `design started: ${state.designStarted.includes(found.issue) ? 'yes' : 'no'}`,
+    `bundle: ${shown(bundleOf(state, found.issue).map((issue) => `#${issue}`).join(', '))}`,
     `questions asked: ${shown(state.asked[key])}`,
     `questions posts: ${shown(Object.entries(state.questionPosts).filter(([, issue]) => issue === found.issue).map(([id]) => id).join(', '))}`,
     `private proposal posts: ${shown(Object.entries(state.proposalPosts).filter(([, issue]) => issue === found.issue).map(([id]) => id).join(', '))}`,

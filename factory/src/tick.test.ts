@@ -196,6 +196,11 @@ describe('chooseJobs with held cards', () => {
     expect(report.decisions).toEqual([{ stage: 'triage', issue: 1, reasons: ['voting'] }]);
   });
 
+  it('starts no job on a card a bundle already carries while its move to Done is pending', () => {
+    const cards = [card(8, 'Design'), card(9, 'Design')];
+    expect(chooseJobs(state({ bundles: { 7: [8] } }), cards, NOW, ONE)).toEqual([{ stage: 'design', issue: 9 }]);
+  });
+
   it('reports a held card as waiting with the reason held', () => {
     const report = evaluateSchedule(state({ held: { 5: HOLD } }), [card(5, 'Testing')], NOW, CFG);
     expect(report.picks).toEqual([]);

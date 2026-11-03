@@ -35,7 +35,7 @@ function groomOf(verdict: string | null, over: Record<string, unknown>): string 
   if (verdict === null) return null;
   const haiku = JSON.parse(verdict) as Record<string, unknown>;
   const story = { points: ['Drive at night: headlights light the road.'], changed: [], need: 'Wants to drive at night.', existing: 'Day and night cycle.', version: 'Headlights light the road.', fit: 'Fits all five tests.' };
-  return JSON.stringify({ verdict: haiku.verdict, reason: haiku.reason, complexity: haiku.complexity, complexityReason: haiku.complexityReason, bundle: haiku.bundle, releaseFix: haiku.releaseFix, ...story, pitch: RU_PITCH, ...over });
+  return JSON.stringify({ verdict: haiku.verdict, reason: haiku.reason, complexity: haiku.complexity, complexityReason: haiku.complexityReason, bundle: haiku.bundle, releaseFix: haiku.releaseFix, system: haiku.system, ...story, pitch: RU_PITCH, ...over });
 }
 
 let groomPrompt = '';
@@ -84,7 +84,7 @@ function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[
   return fake as unknown as Ctx;
 }
 
-const verdict = (over: Record<string, unknown>): string => JSON.stringify({ verdict: 'ready', reason: 'Clear goal', hotfix: false, releaseFix: false, complexity: 'intermediate', complexityReason: 'Touches the horn code and the audio module.', bundle: [], ...over });
+const verdict = (over: Record<string, unknown>): string => JSON.stringify({ verdict: 'ready', reason: 'Clear goal', hotfix: false, releaseFix: false, complexity: 'intermediate', complexityReason: 'Touches the horn code and the audio module.', bundle: [], system: 'sound', ...over });
 const unclear = (questions: string[], earlier: string[] = []): Ctx => fakeCtx(verdict({}), [], earlier, { verdict: 'unclear', reason: 'It asks for a horn, but not which one.', questions });
 const card = (issue: number, column: Card['column'], labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
 
@@ -96,7 +96,7 @@ describe('triage stage', () => {
     expect(calls.find((call) => call.startsWith('comment 7 Triage passed: Clear goal'))).toContain('Model routing from triage: intermediate, default models');
     expect(calls.at(-1)).toBe('move 7 Design');
     expect(prompt).not.toContain('{{');
-    expect(calls.filter((call) => call.startsWith('push') || call.startsWith('message') || call.startsWith('addLabel'))).toEqual([]);
+    expect(calls.filter((call) => call.startsWith('push') || call.startsWith('message') || call.startsWith('addLabel') && !call.includes('system:'))).toEqual([]);
   });
 
   it('explains the 20/80 model target and the routing effects without replacing the complexity rubric', async () => {
@@ -117,6 +117,18 @@ describe('triage stage', () => {
     ]);
   });
 
+  it('labels a ready card with its system', async () => {
+    await runStage(fakeCtx(verdict({ system: 'none' })), 7);
+    expect(calls.filter((call) => call.includes('system:'))).toEqual(['addLabel 7 system:none']);
+  });
+
+  it.each([
+    [verdict({ system: undefined }), 'system as one of'],
+    [verdict({ system: 'combat' }), 'not combat'],
+  ])('throws on a missing or unknown system %#', async (text, message) => {
+    await expect(runStage(fakeCtx(text), 7)).rejects.toThrow(message);
+  });
+
   it('adds design-sonnet for a trivial task and records the rationale', async () => {
     await runStage(fakeCtx(verdict({ complexity: 'trivial', complexityReason: 'One constant in one file.' })), 7);
     expect(calls).toContain('addLabel 7 design-sonnet');
@@ -131,26 +143,26 @@ describe('triage stage', () => {
 
   it('adds no label for an intermediate task, and triage itself runs on the build model', async () => {
     await runStage(fakeCtx(verdict({})), 7);
-    expect(calls.filter((call) => call.startsWith('addLabel'))).toEqual([]);
+    expect(calls.filter((call) => call.startsWith('addLabel') && !call.includes('system:'))).toEqual([]);
     expect(calls).toContain('agent haiku');
   });
 
   it('leaves labels a member set, even against its own rating', async () => {
     await runStage(fakeCtx(verdict({ complexity: 'hard' }), ['design-sonnet']), 7);
-    expect(calls.filter((call) => call.startsWith('addLabel'))).toEqual([]);
+    expect(calls.filter((call) => call.startsWith('addLabel') && !call.includes('system:'))).toEqual([]);
     expect(calls.find((call) => call.startsWith('comment 7 Triage passed'))).toContain('left as set on the issue (design-sonnet)');
   });
 
   it('does not relabel on a later run after a member removed the label', async () => {
     writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), routed: [7] });
     await runStage(fakeCtx(verdict({ complexity: 'trivial' }), [], ['Triage passed: x\n\nModel routing from triage: trivial, label design-sonnet. y\n\n<!-- roam-factory -->']), 7);
-    expect(calls.filter((call) => call.startsWith('addLabel'))).toEqual([]);
+    expect(calls.filter((call) => call.startsWith('addLabel') && !call.includes('system:'))).toEqual([]);
     expect(calls.find((call) => call.startsWith('comment 7 Triage passed'))).toContain('kept as the committee left the labels');
   });
 
   it('routes by the state record, not by routing lines in the comments, and records the routing', async () => {
     await runStage(fakeCtx(verdict({ complexity: 'trivial' }), [], ['Triage passed: x\n\nModel routing from triage: hard, default models.\n\n<!-- roam-factory -->']), 7);
-    expect(calls.filter((call) => call.startsWith('addLabel'))).toEqual(['addLabel 7 design-sonnet']);
+    expect(calls.filter((call) => call.startsWith('addLabel') && !call.includes('system:'))).toEqual(['addLabel 7 design-sonnet']);
     expect(readState(`${home}/state.json`).routed).toEqual([7]);
   });
 
@@ -254,7 +266,7 @@ describe('triage stage', () => {
     [verdict({ reason: '' }), 'reason'],
     [JSON.stringify({ verdict: 'ready', reason: 'x' }), 'hotfix as true or false'],
     [verdict({ hotfix: 'yes' }), 'hotfix as true or false'],
-    [JSON.stringify({ verdict: 'ready', reason: 'x', hotfix: false, releaseFix: false, complexity: 'intermediate', complexityReason: 'y' }), 'bundle as a list of issue numbers'],
+    [JSON.stringify({ verdict: 'ready', reason: 'x', hotfix: false, releaseFix: false, complexity: 'intermediate', complexityReason: 'y', system: 'sound' }), 'bundle as a list of issue numbers'],
     [verdict({ bundle: ['9'] }), 'bundle as a list of issue numbers'],
     [verdict({ bundle: [11] }), 'bundles #11, which is not an offered Triage card'],
     [verdict({ bundle: [9, 9] }), 'bundles an issue twice'],
@@ -271,7 +283,7 @@ describe('triage stage', () => {
   });
 
   it('passes a non-bug to grooming on the verdict and reason alone', async () => {
-    await runStage(fakeCtx(JSON.stringify({ verdict: 'ready', reason: 'Asks for a horn.' }), [], [], { complexity: 'intermediate', complexityReason: 'Horn code.', bundle: [], releaseFix: false }), 7);
+    await runStage(fakeCtx(JSON.stringify({ verdict: 'ready', reason: 'Asks for a horn.' }), [], [], { complexity: 'intermediate', complexityReason: 'Horn code.', bundle: [], releaseFix: false, system: 'sound' }), 7);
     expect(calls).toContain('agent opus');
     expect(calls.at(-1)).toBe('move 7 Design');
   });
@@ -388,6 +400,7 @@ describe('triage vote', () => {
 
   it('labels the card, stores the composed Russian pitch, comments once and leaves the card in Triage', async () => {
     await runStage(vote({ complexity: 'trivial', complexityReason: 'One constant.' }), 7);
+    expect(calls).toContain('addLabel 7 system:sound');
     expect(calls).toContain('addLabel 7 design-sonnet');
     expect(calls).toContain('addLabel 7 voting');
     const comments = triageComments();
