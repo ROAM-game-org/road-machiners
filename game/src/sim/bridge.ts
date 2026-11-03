@@ -4,7 +4,7 @@ import { REGION } from '../data/region';
 import { TERRAIN, type DeckSpec } from '../data/terrain';
 import type { PosedBox } from './mapgen';
 import { highwayDecks } from './road-hazards';
-import { deckHeight, groundAt, heightAt, type AtlasKey, type Terrain } from './terrain';
+import { deckHeight, type AtlasKey, type Terrain } from './terrain';
 import type { Obstacle } from './types';
 import { segmentDist, type Vec } from './vec';
 
@@ -191,19 +191,18 @@ export function onWalledDeck(set: DeckSet, p: Vec): boolean {
   return on !== null && on.deck.lips.length > 0;
 }
 
-export function underDeck(box: PosedBox, base: number, t: Terrain): boolean {
-  const on = deckAt(decksOf(t.atlas), box.center.x, box.center.y);
-  if (on === null) return false;
-  const corners = [-1, 1].flatMap((i) => [-1, 1].map((j) => ({
+export function boxCorners(box: PosedBox): Vec[] {
+  return [-1, 1].flatMap((i) => [-1, 1].map((j) => ({
     x: box.center.x + box.axis.x * box.half.x * i - box.axis.y * box.half.y * j,
     y: box.center.y + box.axis.y * box.half.x * i + box.axis.x * box.half.y * j,
   })));
-  if (!corners.every((c) => inOutline(on.deck, c.x, c.y))) return false;
-  return box.z1 < (deckHeight(t, on.deck, on.along) - base) * PHYSICS.metersPerTile;
 }
 
-export function propBase(t: Terrain, o: Obstacle): number {
-  return o.kind === 'wreck' ? heightAt(t, o.pos.x, o.pos.y) : groundAt(t, o.pos.x, o.pos.y);
+export function underDeck(box: PosedBox, base: number, t: Terrain): boolean {
+  const on = deckAt(decksOf(t.atlas), box.center.x, box.center.y);
+  if (on === null) return false;
+  if (!boxCorners(box).every((c) => inOutline(on.deck, c.x, c.y))) return false;
+  return box.z1 < (deckHeight(t, on.deck, on.along) - base) * PHYSICS.metersPerTile;
 }
 
 export function spanAt(set: DeckSet, x: number, y: number, reach: number): DeckPoint | null {
