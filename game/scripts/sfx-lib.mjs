@@ -1,12 +1,14 @@
 import { execFile, execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readdirSync, readFileSync, unlinkSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, renameSync, unlinkSync, mkdirSync, writeFileSync } from 'node:fs';
 import { promisify } from 'node:util';
-import { BANK, beatLoopSeconds, MIX, SOUNDS } from '../src/data/sounds.ts';
+import { alignedLoopEnd, describeFaults, isFreeLoop, isFreeSfxLoop, loopFaults, seamFaults } from '../src/audio/loop-check.ts';
+import { BANK, beatLoopSeconds, LOOP_CHECK, MIX, SOUNDS } from '../src/data/sounds.ts';
 
 export const SFX_DIR = 'public/sfx';
 export const TWIN_DIR = 'public/sfx-m4a';
 export const TWIN_MANIFEST = 'src/data/sound-twins.json';
+export const LOOP_MANIFEST = 'src/data/loop-checks.json';
 const AAC_KBPS = 128;
 const TWIN_JOBS = 8;
 const SAMPLE_RATE = 48000;
@@ -20,6 +22,7 @@ const FADE_OUT_S = 0.03;
 const EQ = 'highpass=f=40,lowpass=f=14000';
 const BANDS = { low: 'lowpass=f=250', high: 'highpass=f=4000' };
 const MID = 'highpass=f=250,lowpass=f=4000';
+const PRESENCE = 'highpass=f=1000,lowpass=f=4000';
 const MAX_MATCH_DB = 6;
 const METER_S = 0.4;
 const OPUS_KBPS = 96;
@@ -52,7 +55,9 @@ export function importFile(source, id, cue, level) {
   const { loudness, peak } = measure(src, shaped);
   const gain = Math.min(level - loudness, PEAK_DB + MAX_LIMIT_DB - peak);
   const limiter = `alimiter=limit=${dbToLinear(PEAK_DB)}:attack=1:release=50:level=false:latency=true`;
-  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', src, '-af', `${shaped},volume=${gain.toFixed(2)}dB,${limiter}`, '-ar', '48000', '-c:a', 'libopus', '-b:a', `${OPUS_KBPS}k`, '-map_metadata', '-1', '-metadata', `comment=${source}`, out]);
+  const filters = `${shaped},volume=${gain.toFixed(2)}dB,${limiter}`;
+  const graph = isFreeLoop(cue) ? ['-filter_complex', wrapped(src, filters)] : ['-af', filters];
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', src, ...graph, '-ar', '48000', '-c:a', 'libopus', '-b:a', `${OPUS_KBPS}k`, '-map_metadata', '-1', '-metadata', `comment=${source}`, out]);
   const short = level - loudness - gain > 0.05 ? `, ${(level - loudness - gain).toFixed(1)} dB under target` : '';
   console.log(`${source} -> ${out}  ${loudness.toFixed(1)} LUFS, gain ${gain.toFixed(1)} dB${short}`);
   return name;
@@ -66,23 +71,61 @@ function toneChain(src, source, id, cue) {
   return [...matched, ...(field ? fieldTone(src, matched.join(','), source) : [])].join(',');
 }
 
+const isSeamless = (source) => source.includes('.seamless.');
+
+function assertLoop(path, name) {
+  const faults = loopFaults(pcmOf(path), SAMPLE_RATE);
+  if (faults.length) throw new Error(`${path} is not a steady loop:\n${describeFaults(name, faults)}`);
+}
+
+function keptWhole(source, name, cue) {
+  if (cue.bus === 'sfx') assertLoop(source, name);
+  return source;
+}
+
 function playable(source, name, cue) {
-  const freeMusic = cue.bus === 'music' && cue.loop && !cue.beat;
-  return freeMusic ? musicLoop(source, name) : source;
+  if (!cue.loop || cue.beat) return source;
+  if (isSeamless(source)) return keptWhole(source, name, cue);
+  return cue.bus === 'music' ? musicLoop(source, name) : steadyLoop(source, `tmp/sfx-raw/${name.replace('.ogg', '')}.loop.wav`);
+}
+
+function encodeLoop(looped, out, gain, tag) {
+  const limiter = `alimiter=limit=${dbToLinear(PEAK_DB)}:attack=1:release=50:level=false:latency=true`;
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', looped, '-filter_complex', wrapped(looped, `volume=${gain.toFixed(2)}dB,${limiter}`), '-ar', '48000', '-c:a', 'libopus', '-b:a', `${OPUS_KBPS}k`, '-map_metadata', '-1', ...(tag ? ['-metadata', `comment=${tag}`] : []), out]);
+}
+
+function wrapped(loop, filters) {
+  const n = execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', loop, '-ac', '1', '-f', 's16le', '-'], { maxBuffer: 1 << 30 }).length / 2;
+  return `[0]asplit[a][b];[a][b]concat=n=2:v=0:a=1,${filters},atrim=start_sample=${n}:end_sample=${2 * n},asetpts=N/SR/TB`;
+}
+
+function wholeLoop(src, out) {
+  crossfadeLoop(src, { start: 0, end: durationOf(src), seconds: MUSIC_XFADE_S, curve: 'tri' }, out);
+  const faults = seamFaults(pcmOf(out), SAMPLE_RATE);
+  if (faults.length) throw new Error(`${out} does not join its ends:\n${describeFaults(src, faults)}`);
+  return out;
+}
+
+export function reloopShipped(file, cue) {
+  const path = `${SFX_DIR}/${file}`;
+  const tag = execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'stream_tags=comment', '-of', 'default=nw=1:nk=1', path], { encoding: 'utf8' }).trim();
+  mkdirSync('tmp/sfx-raw', { recursive: true });
+  const out = `tmp/sfx-raw/${file.replace('.ogg', '')}.reloop.wav`;
+  const looped = isFreeSfxLoop(cue) ? steadyLoop(path, out) : wholeLoop(path, out);
+  const want = integratedLoudness(path);
+  const trial = `${path}.new.ogg`;
+  const first = want - integratedLoudness(looped);
+  encodeLoop(looped, trial, first, tag);
+  encodeLoop(looped, trial, first + want - integratedLoudness(trial), tag);
+  renameSync(trial, path);
 }
 
 function shapeFilters(src, cue) {
   if (cue.beat) return fitBeat(src, beatLoopSeconds(cue.beat));
   if (cue.loop) return [];
   const trim = `silenceremove=start_periods=1:start_threshold=${SILENCE_DB}dB:start_silence=${KEEP_S}`;
-  const edges = cue.setup === 'stinger' ? STINGER_EDGES : [FADE_IN_S, FADE_OUT_S];
-  const cap = cue.setup === 'stinger' ? [`atrim=end=${STINGER_MAX_S}`, STINGER_TONE] : [];
-  return [trim, 'areverse', trim, 'areverse', ...cap, 'areverse', `afade=t=in:d=${edges[1]}`, 'areverse', `afade=t=in:d=${edges[0]}`];
+  return [trim, 'areverse', trim, `afade=t=in:d=${FADE_OUT_S}`, 'areverse', `afade=t=in:d=${FADE_IN_S}`];
 }
-
-const STINGER_MAX_S = 1.5;
-const STINGER_TONE = 'lowpass=f=5000,treble=g=-4:f=3000';
-const STINGER_EDGES = [0.02, 0.6];
 
 const MAX_FIT = 0.01;
 
@@ -167,6 +210,11 @@ export function bandBalance(src, shaped) {
   return { low: rms(BANDS.low) - mid, high: rms(BANDS.high) - mid };
 }
 
+export function presenceOf(src, shaped) {
+  const rms = (band) => statValue(ffmpegLog(src, `${shaped},${band},astats=measure_perchannel=0:measure_overall=RMS_level`), 'RMS level dB');
+  return rms(PRESENCE) - rms(MID);
+}
+
 export function measure(src, shaped) {
   const log = ffmpegLog(src, `${shaped},apad=whole_dur=${METER_S},ebur128=peak=sample`);
   const momentary = [...log.matchAll(/ M: *(-?[\d.]+)/g)].map((m) => Number(m[1]));
@@ -192,15 +240,60 @@ function musicLoop(src, name) {
   const x = MUSIC_XFADE_S;
   if (len < 4 * x) throw new Error(`${src} has only ${len.toFixed(1)} s of music`);
   const out = `tmp/sfx-raw/${name.replace('.ogg', '')}.loop.wav`;
+  crossfadeLoop(src, { start, end, seconds: x, curve: 'tri' }, out);
+  console.log(`${src}: music kept ${start.toFixed(1)}-${end.toFixed(1)} s, looped with a ${x} s crossfade`);
+  return out;
+}
+
+function crossfadeLoop(src, span, out) {
+  const { start, end, seconds: x, curve } = span;
+  const len = end - start;
   const graph = [
     `[0]atrim=start=${start}:end=${end},asetpts=N/SR/TB,asplit=2[a][b]`,
-    `[a]atrim=0:${x},afade=t=in:d=${x},adelay=${Math.round((len - 2 * x) * 1000)}:all=1[head]`,
-    `[b]atrim=start=${x},asetpts=N/SR/TB,afade=t=out:st=${len - 2 * x}:d=${x}[body]`,
+    `[a]atrim=0:${x},afade=t=in:d=${x}:curve=${curve},adelay=${Math.round((len - 2 * x) * SAMPLE_RATE)}S:all=1[head]`,
+    `[b]atrim=start=${x},asetpts=N/SR/TB,afade=t=out:st=${len - 2 * x}:d=${x}:curve=${curve}[body]`,
     `[body][head]amix=inputs=2:normalize=0:duration=first`,
   ].join(';');
   execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', src, '-filter_complex', graph, out]);
-  console.log(`${src}: music kept ${start.toFixed(1)}-${end.toFixed(1)} s, looped with a ${x} s crossfade`);
+}
+
+const STEADY = { flatten: 'dynaudnorm=f=100:g=9:p=0.5:m=8', bright: 'highpass=f=2000', minSeconds: 1.5, slackDb: 1 };
+
+export function steadyLoop(src, out) {
+  const flat = out.replace(/\.wav$/, '.flat.wav');
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', src, '-af', STEADY.flatten, flat]);
+  const level = momentaryTrack(flat, 'anull');
+  const bright = momentaryTrack(flat, STEADY.bright);
+  const span = steadiestSpan(level, bright);
+  const end = alignedLoopEnd(pcmOf(flat), SAMPLE_RATE, Math.round(span.start * SAMPLE_RATE), Math.round(span.end * SAMPLE_RATE)) / SAMPLE_RATE;
+  crossfadeLoop(flat, { ...span, end, seconds: LOOP_CHECK.crossfadeSeconds, curve: 'tri' }, out);
+  assertLoop(out, src);
+  console.log(`${src}: kept the steadiest ${span.start.toFixed(1)}-${span.end.toFixed(1)} s, level spread ${span.spread.toFixed(1)} dB, seam moved ${((end - span.end) * 1000).toFixed(0)} ms, looped with a ${LOOP_CHECK.crossfadeSeconds} s crossfade`);
   return out;
+}
+
+function integratedLoudness(src) {
+  const log = ffmpegLog(src, 'ebur128');
+  return statValue(log.slice(log.lastIndexOf('Summary:')), 'I');
+}
+
+function momentaryTrack(src, filters) {
+  const log = ffmpegLog(src, `${filters},ebur128`);
+  return [...log.matchAll(/t: *([\d.]+).*? M: *(-?[\d.]+|-inf)/g)].map((m) => ({ t: Number(m[1]), m: m[2] === '-inf' ? -120 : Number(m[2]) }));
+}
+
+function steadiestSpan(level, bright) {
+  const usable = level.filter((p) => p.t >= 0.4);
+  const spreadOf = (from, to) => {
+    const inSpan = (p) => p.t >= from && p.t <= to;
+    const l = usable.filter(inSpan).map((p) => p.m);
+    const b = bright.filter(inSpan).map((p, i) => p.m - l[i]);
+    return Math.max(...l) - Math.min(...l) + Math.max(...b) - Math.min(...b);
+  };
+  const spans = usable.flatMap((a) => usable.filter((b) => b.t - a.t >= STEADY.minSeconds).map((b) => ({ start: a.t - 0.4, end: b.t, spread: spreadOf(a.t, b.t) })));
+  if (spans.length === 0) throw new Error(`No ${STEADY.minSeconds} s span to loop`);
+  const best = Math.min(...spans.map((s) => s.spread));
+  return spans.filter((s) => s.spread <= best + STEADY.slackDb).sort((x, y) => y.end - y.start - (x.end - x.start))[0];
 }
 
 function loudSpan(src) {
@@ -277,16 +370,16 @@ function durationOf(src) {
 const twinName = (ogg) => ogg.replace(/\.ogg$/, '.m4a');
 const sha256 = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
 
-function samplesOf(path) {
+function pcmOf(path) {
   const raw = execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', path, '-ac', '1', '-ar', String(SAMPLE_RATE), '-f', 'f32le', '-'], { maxBuffer: 1 << 30 });
-  return raw.length / 4;
+  return new Float32Array(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.length));
 }
 
 function checkTwinLength(ogg) {
   const beat = Object.values(SOUNDS).some((cue) => cue.beat && cue.files.includes(ogg));
   if (!beat) return;
-  const have = samplesOf(`${TWIN_DIR}/${twinName(ogg)}`);
-  const want = samplesOf(`${SFX_DIR}/${ogg}`);
+  const have = pcmOf(`${TWIN_DIR}/${twinName(ogg)}`).length;
+  const want = pcmOf(`${SFX_DIR}/${ogg}`).length;
   if (Math.abs(have - want) > BANK.beatSlackSeconds * SAMPLE_RATE) throw new Error(`${twinName(ogg)} decodes to ${have} samples, ${ogg} to ${want}`);
 }
 
@@ -294,7 +387,20 @@ async function encodeTwin(ogg) {
   await run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', `${SFX_DIR}/${ogg}`, '-ar', String(SAMPLE_RATE), '-c:a', 'aac', '-b:a', `${AAC_KBPS}k`, '-map_metadata', '-1', `${TWIN_DIR}/${twinName(ogg)}`]);
 }
 
+function syncLoopChecks() {
+  const files = [...new Set(Object.values(SOUNDS).filter(isFreeSfxLoop).flatMap((cue) => cue.files))].sort();
+  const old = existsSync(LOOP_MANIFEST) ? JSON.parse(readFileSync(LOOP_MANIFEST, 'utf8')) : {};
+  const manifest = Object.fromEntries(files.map((f) => [f, sha256(`${SFX_DIR}/${f}`)]));
+  const problems = files
+    .filter((f) => old[f] !== manifest[f])
+    .map((f) => ({ f, faults: loopFaults(pcmOf(`${SFX_DIR}/${f}`), SAMPLE_RATE) }))
+    .filter(({ faults }) => faults.length);
+  if (problems.length) throw new Error(`Free sfx loops that are not steady:\n${problems.map(({ f, faults }) => describeFaults(f, faults)).join('\n')}`);
+  writeFileSync(LOOP_MANIFEST, `${JSON.stringify(manifest, null, 1)}\n`);
+}
+
 export async function syncTwins() {
+  syncLoopChecks();
   mkdirSync(TWIN_DIR, { recursive: true });
   const oggs = readdirSync(SFX_DIR).filter((f) => f.endsWith('.ogg')).sort();
   const old = existsSync(TWIN_MANIFEST) ? JSON.parse(readFileSync(TWIN_MANIFEST, 'utf8')) : {};

@@ -1,5 +1,5 @@
 
-import { questArtUrl } from '../data/quest-art';
+import { questArtPath, questArtUrl } from '../data/quest-art';
 import { townWork } from '../sim/dialogue-rules';
 import { skillLevel } from '../sim/progress';
 import type { QuestView } from '../sim/quests';
@@ -7,6 +7,7 @@ import type { QuestLine, World } from '../sim/types';
 import { t, verbatim } from '../text/msg';
 import { skillName } from '../text/names';
 import { el } from './dom';
+import { pictureUrl } from './picture-store';
 import { contractSummary, contractWindow } from './format';
 import { lineStyle, renderLine, rowCells, type LineStyle, type Reveal } from './quest-text';
 import { moneyMsg } from './units';
@@ -70,9 +71,13 @@ function revealOf(style: LineStyle, options: Options): Reveal {
   return style.speaker ? 'word' : options.reveal;
 }
 
+function inlineArt(key: string, atMs: number): HTMLElement {
+  return el('img', { class: 'qt-img qt-unit', src: pictureUrl(questArtPath(key)) ?? questArtUrl(key), 'aria-hidden': 'true', style: `animation-delay: ${atMs}ms` });
+}
+
 function drawLine(nodes: HTMLElement[], w: World, line: QuestLine, atMs: number, options: Options): number {
   const style = lineStyle(line.tags);
-  if (style.img && options.inlineArt) nodes.push(el('img', { class: 'qt-img qt-unit', src: questArtUrl(style.img), 'aria-hidden': 'true', style: `animation-delay: ${atMs}ms` }));
+  if (style.img && options.inlineArt) nodes.push(inlineArt(style.img, atMs));
   const drawn = renderLine(line.text, [`reveal:${revealOf(style, options)}`, ...line.tags], atMs);
   if (style.speaker) drawn.el.prepend(el('b', { class: 'qt-speaker' }, t('quest.speaker', { name: verbatim(style.speaker) })));
   nodes.push(drawn.el);
@@ -92,6 +97,6 @@ export function choiceButtons(w: World, view: QuestView, pick: (index: number) =
     const held = locked ? el('span', { class: 'quest-held' }, moneyMsg(w.player.money)) : null;
     const check = view.checks[i];
     const tested = check ? el('span', { class: 'quest-check' }, t('quest.check', { skill: skillName(check.skill), level: check.level, have: skillLevel(w, check.skill) })) : null;
-    return el('button', { class: 'quest-choice', 'data-choice': String(i), disabled: locked, onclick: () => pick(i) }, tested, t('quest.choice', { n: i + 1, text: verbatim(text) }), held);
+    return el('button', { class: view.seen[i] ? 'quest-choice seen' : 'quest-choice', 'data-choice': String(i), disabled: locked, onclick: () => pick(i) }, tested, t('quest.choice', { n: i + 1, text: verbatim(text) }), held);
   });
 }

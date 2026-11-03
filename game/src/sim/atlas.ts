@@ -20,6 +20,7 @@ export type Atlas = {
   hazards: readonly HazardZone[];
   oldSpots: boolean;
   landforms: boolean;
+  origin: Vec;
 };
 
 
@@ -58,6 +59,7 @@ export function icarusAtlas(): Atlas {
     hazards: hazardZones(),
     oldSpots: true,
     landforms: true,
+    origin: { x: 0, y: 0 },
   });
 }
 

@@ -34,7 +34,7 @@ for (let i = 0; i < count; i++) {
   const text = textFor(i);
   console.log(`prompt: ${text}`);
   const audio = await generate(text);
-  const raw = `${RAW_DIR}/${id}-${Date.now()}.mp3`;
+  const raw = `${RAW_DIR}/${id}-${Date.now()}${!music && cue.loop ? '.seamless' : ''}.mp3`;
   writeFileSync(raw, audio);
   importFile(raw, id, cue, MIX.level[cue.bus]);
 }

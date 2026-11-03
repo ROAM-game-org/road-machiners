@@ -1,4 +1,4 @@
-#ui .feedback-form {
+:is(#ui, #report) .feedback-form {
   position: fixed;
   left: 50%;
   top: 50%;
@@ -9,7 +9,7 @@
   flex-direction: column;
   gap: var(--space-4);
   width: var(--panel-xl);
-  max-width: calc(100vw - 2 * var(--hud-inset));
+  max-width: calc(var(--layer-w) - 2 * var(--hud-inset));
   font-size: var(--text-body);
 }
 .feedback-text {
@@ -37,4 +37,14 @@
 .feedback-count {
   margin-right: auto;
   font-size: var(--text-dense);
+}
+.feedback-form .tabs,
+.feedback-actions {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--space-2);
+}
+.feedback-actions {
+  min-width: calc(2 * var(--tab-min-width));
 }

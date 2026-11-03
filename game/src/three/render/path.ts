@@ -1,6 +1,3 @@
-// Multi-turn plan preview: thick lines lying on the ground, first turn in the caller's color, later turns
-// fainter in PAL.plan, with a marker at each turn's end. A thin faint line continues along the rest of
-// the course to its point. Depth-tested, so trucks drive over them.
 
 import * as THREE from 'three';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
@@ -10,10 +7,10 @@ import type { VehicleFrame } from '../../phys/frames';
 import { PHYSICS } from '../../data/physics';
 import { PAL } from '../../render/palette';
 import { heightAt, type Terrain } from '../../sim/terrain';
-import type { MoveOrder, World } from '../../sim/types';
+import type { World } from '../../sim/types';
 import { bearing, type Vec } from '../../sim/vec';
 import { playerVehicle } from '../../sim/damage';
-import { playerCanAct } from '../../sim/world';
+import { waypointOf } from '../../sim/world';
 
 const S = PHYSICS.metersPerTile;
 
@@ -47,12 +44,6 @@ function flatIcon(geometry: THREE.BufferGeometry, color: number): THREE.Mesh {
   return mesh;
 }
 
-function waypointOf(world: World): Exclude<MoveOrder, { kind: 'brake' }> | null {
-  const me = playerVehicle(world);
-  if (me.direct || !playerCanAct(world) || !me.order || me.order.kind === 'brake') return null;
-  return me.order;
-}
-
 export class PathView {
   readonly root = new THREE.Group();
   readonly preview = new THREE.Group();
@@ -62,6 +53,10 @@ export class PathView {
   private readonly arrow = flatIcon(new THREE.ShapeGeometry(arrowShape()), PAL.plan);
   private lines: Line2[] = [];
   private markers: THREE.Mesh[] = [];
+  private readonly lineMaterials = new Map<string, LineMaterial>();
+  private readonly markerMaterials = new Map<string, THREE.MeshBasicMaterial>();
+  private readonly markerShape = new THREE.RingGeometry(MARKER_INNER, MARKER_OUTER, 24).rotateX(-Math.PI / 2);
+  private drawSize = { width: 1, height: 1 };
 
   constructor(private readonly terrain: Terrain) {
     this.through.add(flatIcon(new THREE.RingGeometry(ORDER_R * ORDER_RING_INNER, ORDER_R, 32), PAL.plan), this.arrow);
@@ -99,15 +94,36 @@ export class PathView {
   }
 
   private marker(at: { x: number; z: number }, color: number, opacity: number): void {
-    const marker = new THREE.Mesh(
-      new THREE.RingGeometry(MARKER_INNER, MARKER_OUTER, 24).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide }),
-    );
+    const marker = new THREE.Mesh(this.markerShape, this.markerMaterial(color, opacity));
     marker.position.set(...this.ground(at));
     marker.quaternion.copy(this.tilt(at.x / S, at.z / S));
     marker.renderOrder = 820;
     this.preview.add(marker);
     this.markers.push(marker);
+  }
+
+  setDrawSize(width: number, height: number): void {
+    this.drawSize = { width, height };
+    for (const material of this.lineMaterials.values()) material.resolution.set(width, height);
+  }
+
+  private lineMaterial(color: number, linewidth: number, opacity: number): LineMaterial {
+    const key = `${color}|${linewidth}|${opacity}`;
+    const known = this.lineMaterials.get(key);
+    if (known) return known;
+    const material = new LineMaterial({ color, linewidth, transparent: true, opacity, depthWrite: false });
+    material.resolution.set(this.drawSize.width, this.drawSize.height);
+    this.lineMaterials.set(key, material);
+    return material;
+  }
+
+  private markerMaterial(color: number, opacity: number): THREE.MeshBasicMaterial {
+    const key = `${color}|${opacity}`;
+    const known = this.markerMaterials.get(key);
+    if (known) return known;
+    const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide });
+    this.markerMaterials.set(key, material);
+    return material;
   }
 
   set(turns: VehicleFrame[][], firstColor: number, course: Vec[] | null, waypoint: boolean): void {
@@ -119,9 +135,8 @@ export class PathView {
       const color = solid ? firstColor : PAL.plan;
       const line = new Line2(
         new LineGeometry().setPositions(frames.flatMap((f) => this.ground(f.pos))),
-        new LineMaterial({ color, linewidth: LINE_WIDTH_PX, transparent: true, opacity: solid ? OPACITY.first : OPACITY.later, depthWrite: false }),
+        this.lineMaterial(color, LINE_WIDTH_PX, solid ? OPACITY.first : OPACITY.later),
       );
-      line.material.resolution.set(window.innerWidth, window.innerHeight);
       line.computeLineDistances();
       line.renderOrder = 820;
       this.preview.add(line);
@@ -141,9 +156,8 @@ export class PathView {
     }
     const line = new Line2(
       new LineGeometry().setPositions(positions),
-      new LineMaterial({ color: PAL.plan, linewidth: COURSE_WIDTH_PX, transparent: true, opacity: OPACITY.course, depthWrite: false }),
+      this.lineMaterial(PAL.plan, COURSE_WIDTH_PX, OPACITY.course),
     );
-    line.material.resolution.set(window.innerWidth, window.innerHeight);
     line.computeLineDistances();
     line.renderOrder = 820;
     this.preview.add(line);
@@ -157,13 +171,8 @@ export class PathView {
     for (const l of this.lines) {
       this.preview.remove(l);
       l.geometry.dispose();
-      l.material.dispose();
     }
-    for (const m of this.markers) {
-      this.preview.remove(m);
-      m.geometry.dispose();
-      (m.material as THREE.Material).dispose();
-    }
+    for (const m of this.markers) this.preview.remove(m);
     this.lines = [];
     this.markers = [];
   }

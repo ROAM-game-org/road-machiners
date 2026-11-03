@@ -4,7 +4,7 @@ import type { FarmRoad } from '../data/territory';
 import { siteGap } from '../sim/sites';
 import type { Vec } from '../sim/vec';
 import { newDraft, type MapDraft } from './bake';
-import { markRoads } from './marks';
+import { gradeTerritoryRoads, markRoads, throwOnRoadCliffs } from './marks';
 import { BUILT_SCRUB, BUILT_TRACK } from './newworld';
 import { tileOf } from './oldworld';
 
@@ -61,5 +61,39 @@ describe('road marks', () => {
     const end = road.at(-2)!;
 
     expect(() => markRoads(d, fallenSun, [{ ...SPUR, points: [road.at(-1)!, { x: (road.at(-1)!.x + end.x) / 2, y: (road.at(-1)!.y + end.y) / 2 }] }], 'spur')).toThrow(/region road/);
+  });
+
+  describe('inside road grade', () => {
+    const LANE: FarmRoad = { points: [at(0, -10), at(0, 0), at(0, 10)], width: 2.5, surface: 'track' };
+
+    function ridgedDraft(): MapDraft {
+      const d = flatDraft();
+      const w = d.size + 1;
+      const ridge = Math.round(fallenSun.pos.y);
+      for (let j = ridge; j <= ridge + 1; j++) for (let i = 0; i <= d.size; i++) d.heights[j * w + i] = 1.5;
+      return d;
+    }
+
+    it('throws on a ridge between two road points inside the territory', () => {
+      expect(() => throwOnRoadCliffs(ridgedDraft(), fallenSun, [LANE])).toThrow(/fallen-sun road at .* runs over a cliff/);
+    });
+
+    it('passes once the roads are graded', () => {
+      const d = ridgedDraft();
+
+      gradeTerritoryRoads(d, fallenSun, [LANE], []);
+
+      expect(() => throwOnRoadCliffs(d, fallenSun, [LANE])).not.toThrow();
+    });
+
+    it('leaves the ground far from the roads alone', () => {
+      const d = ridgedDraft();
+      const before = Float32Array.from(d.heights);
+      const corner = Math.round(fallenSun.pos.y) * (d.size + 1) + Math.round(fallenSun.pos.x) + 30;
+
+      gradeTerritoryRoads(d, fallenSun, [LANE], []);
+
+      expect(d.heights[corner]).toBe(before[corner]);
+    });
   });
 });

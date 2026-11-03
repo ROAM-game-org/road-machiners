@@ -378,4 +378,3 @@ describe('public store', () => {
     store.close();
   });
 });
-

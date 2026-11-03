@@ -26,8 +26,8 @@ def build(kit: Kit) -> None:
         kit.box(f"link{i}", size, (0, 0, -(i + 0.5) * LINK), "metal", dent_by=0.003)
     bottom = -LINKS * LINK
     kit.box("hook_back", (0.03, 0.03, 0.09), (0, 0, bottom - 0.045), "rust_dark")
-    kit.box("hook_bend", (0.1, 0.03, 0.03), (0.035, 0, bottom - 0.09), "rust_dark")
-    kit.box("hook_tip", (0.03, 0.03, 0.06), (0.07, 0, bottom - 0.06), "rust_dark")
+    kit.box("hook_bend", (0.09, 0.024, 0.03), (0.035, 0, bottom - 0.09), "rust_dark")
+    kit.box("hook_tip", (0.03, 0.018, 0.06), (0.07, 0, bottom - 0.06), "rust_dark")
 
 
 def main() -> None:

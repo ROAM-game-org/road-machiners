@@ -14,7 +14,7 @@ const SONNET = 'timeout 900 claude -p --model sonnet --tools Read,Grep,Glob --no
 
 describe('the Russian writer fallback instruction', () => {
   const claudeMd = read('game/CLAUDE.md');
-  const style = read('game/docs/russian-style.md');
+  const style = read('game/docs/writing/russian.md');
 
   it('is in game/CLAUDE.md, which Claude Code loads from the agent folder, with agy first and the exact commands', () => {
     const line = claudeMd.split('\n').find((text) => text.startsWith('- `src/text/` owns all player text')) as string;
@@ -25,7 +25,7 @@ describe('the Russian writer fallback instruction', () => {
   });
 
   it('gives the same commands in the Russian copy doc that CLAUDE.md links', () => {
-    expect(claudeMd).toContain('(docs/russian-style.md)');
+    expect(claudeMd).toContain('(docs/writing/russian.md)');
     expect(style).toContain(CODEX);
     expect(style).toContain(SONNET);
     expect(style).toContain('`run N exceeds AGY_MAX_RUNS`');

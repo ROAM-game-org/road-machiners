@@ -4,10 +4,11 @@ import { LINE_IDS } from '../data/dialogue';
 import { GOODS } from '../data/goods';
 import { FEMALE_NAMES, FIRST_NAMES, NPCS, SURNAMES, TRAITS } from '../data/npcs';
 import { PARTS } from '../data/parts';
-import { DIRECTIONS, RADIO_VARIANTS } from '../data/radio';
+import { RADIO_VARIANTS } from '../data/radio';
 import { REGION } from '../data/region';
-import { PERK_IDS, SKILL_IDS } from '../data/skills';
+import { BASIC_IDS, PERK_IDS, SKILL_IDS } from '../data/skills';
 import { TERRAIN_TYPES } from '../data/terrain';
+import { OCTANT_ORDER } from './compass';
 import { EN } from './en';
 import { RU } from './ru';
 
@@ -15,6 +16,9 @@ const ids = <T>(record: Record<string, T>): string[] => Object.keys(record);
 
 const REQUIRED: [string, string[]][] = [
   ['part', ids(PARTS).map((id) => `part.${id}`)],
+  ['part lore', ids(PARTS).map((id) => `lore.part.${id}`)],
+  ['good lore', ids(GOODS).map((id) => `lore.good.${id}`)],
+  ['parcel lore', ['lore.parcel']],
   ['chassis', ids(CHASSIS).map((id) => `chassis.${id}`)],
   ['good', ids(GOODS).flatMap((id) => [`good.${id}`, `good.${id}.lower`, `good.${id}.subject`, `good.${id}.short`])],
   ['NPC template', ids(NPCS).flatMap((id) => [`npc.${id}`, `npc.${id}.profession`])],
@@ -24,9 +28,10 @@ const REQUIRED: [string, string[]][] = [
   ['trait', ids(TRAITS).map((id) => `trait.${id}`)],
   ['skill', SKILL_IDS.flatMap((id) => [`skill.${id}`, `skill.${id}.grows`])],
   ['perk', PERK_IDS.flatMap((id) => [`perk.${id}`, `perk.${id}.rule`])],
+  ['basic', BASIC_IDS.flatMap((id) => [`basic.${id}`, `basic.${id}.rule`])],
   ['radio line', LINE_IDS.map((id) => `line.${id}`)],
   ['broadcast', Object.entries(RADIO_VARIANTS).flatMap(([topic, n]) => Array.from({ length: n }, (_, i) => `radio.${topic}.${i}`))],
-  ['direction', DIRECTIONS.flatMap((d) => [`radio.basin.${d}`, `radio.heading.${d}`])],
+  ['direction', OCTANT_ORDER.flatMap((d) => [`radio.basin.${d}`, `radio.heading.${d}`])],
 ];
 
 describe('every runtime id', () => {
@@ -38,6 +43,11 @@ describe('every runtime id', () => {
 
   it('marks only listed first names as female', () => {
     expect([...FEMALE_NAMES].filter((n) => !FIRST_NAMES.includes(n))).toEqual([]);
+  });
+
+  it('has no lore beyond the parts, goods and parcel', () => {
+    const listed = new Set(REQUIRED.filter(([kind]) => kind.endsWith('lore')).flatMap(([, keys]) => keys));
+    expect(Object.keys(EN).filter((key) => key.startsWith('lore.') && !listed.has(key))).toEqual([]);
   });
 
   it('has no broadcast variant beyond the counts in the data', () => {

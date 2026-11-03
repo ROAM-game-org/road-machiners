@@ -7,6 +7,7 @@
   background: var(--crash-bg);
   color: var(--crash-ink);
   padding: var(--space-10);
+  padding-top: calc(var(--space-10) + var(--btn-h-l));
   overflow: auto;
   font: var(--text-body) / 1.5 var(--font-mono);
   white-space: pre-wrap;

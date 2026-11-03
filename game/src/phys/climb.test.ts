@@ -1,9 +1,11 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
+import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
 import type { TerrainTypeId } from '../data/terrain';
 import { makeVehicle } from '../sim/factory';
 import { addGoods } from '../sim/inventory';
+import { climbGrade } from '../sim/stats';
 import { editableTerrain, emptyWorld } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { endTurn, setMoveOrder } from '../sim/world';
@@ -15,9 +17,8 @@ beforeAll(async () => {
 });
 
 const RAMP_FOOT = 28;
-const HAULER_LIMIT = 0.5;
 
-type Build = 'scout' | 'loadedHauler';
+type Build = 'scout' | 'loadedHauler' | 'jeep';
 
 function ramp(build: Build, grade: number, type: TerrainTypeId): World {
   const w = emptyWorld({ x: 26, y: 30 });
@@ -29,6 +30,11 @@ function ramp(build: Build, grade: number, type: TerrainTypeId): World {
     const hauler = makeVehicle(w, { faction: 'player', chassisId: 'hauler', parts: ['mg', 'stockEngine', 'plates', 'trailerBox'].map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {}, pos: { x: 26, y: 30 }, heading: 0, brain: null });
     w.vehicles[0] = { ...hauler, id: w.vehicles[0].id };
     addGoods(w, w.vehicles[0], 'scrap', 122);
+  }
+  if (build === 'jeep') {
+    const jeep = makeVehicle(w, { faction: 'player', chassisId: 'jeep', parts: ['mg', 'stockEngine', 'plates'].map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {}, pos: { x: 26, y: 30 }, heading: 0, brain: null });
+    w.vehicles[0] = { ...jeep, id: w.vehicles[0].id };
+    addGoods(w, w.vehicles[0], 'scrap', 20);
   }
   w.player.fuel = 999;
   return setMoveOrder(w, { kind: 'through', dest: { x: 120, y: 30 } });
@@ -56,21 +62,22 @@ describe('climbing', () => {
     expect(climbTiles('loadedHauler', 0.35)).toBeGreaterThan(3);
   }, 90_000);
 
-  it('a loaded hauler still climbs a grade a tenth gentler in sine than its limit', () => {
-    const sine = 0.9 * Math.sin(Math.atan(HAULER_LIMIT));
-    expect(climbTiles('loadedHauler', Math.tan(Math.asin(sine)))).toBeGreaterThan(1);
+  it.each(['scout', 'loadedHauler', 'jeep'] as const)('a %s climbs a ramp at its planned climb grade', (build) => {
+    expect(climbTiles(build, climbGrade(ramp(build, 0, 'road'), ramp(build, 0, 'road').vehicles[0]))).toBeGreaterThan(1);
   }, 90_000);
 
-  it('a climb a tenth steeper in sine than its limit still stops the loaded hauler', () => {
-    const sine = 1.1 * Math.sin(Math.atan(HAULER_LIMIT));
-    expect(climbTiles('loadedHauler', Math.tan(Math.asin(sine)))).toBeLessThan(1);
+  it.each(['scout', 'loadedHauler'] as const)('a %s stops on a ramp a third steeper in sine than the grade it plans for', (build) => {
+    const w = ramp(build, 0, 'road');
+    const grade = climbGrade(w, w.vehicles[0]);
+    const sine = Math.sin(Math.atan(grade)) / PHYSICS.truck.climbPlanShare;
+    expect(climbTiles(build, Math.tan(Math.asin(Math.min(0.99, 1.35 * sine))))).toBeLessThan(1);
   }, 90_000);
 
   it('flat ground launch from rest is pinned', () => {
     const xs = drive(ramp('scout', 0, 'road'), 3);
-    expect(xs[0]).toBeCloseTo(26.741779, 5);
-    expect(xs[1]).toBeCloseTo(28.652094, 5);
-    expect(xs[2]).toBeCloseTo(31.714815, 5);
+    expect(xs[0]).toBeCloseTo(26.741777, 5);
+    expect(xs[1]).toBeCloseTo(28.652092, 5);
+    expect(xs[2]).toBeCloseTo(31.714813, 5);
   }, 90_000);
 
   it('a launch from rest gains about 85% of the distance it did at the old acceleration scale', () => {

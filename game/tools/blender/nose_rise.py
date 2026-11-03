@@ -38,8 +38,9 @@ REAR = (JOINT[0] - REAR_AT, -AXIS_V, JOINT[2] - REAR_AT * math.tan(PITCH))
 PLATFORM = (-44.0, 8.0)  # the stretch of front edge that carries the platform, meters along x
 CRADLE_HALF = 8.0  # the flat of the cradle under the belly, to either side of the axis
 # The mountain on its arc: it starts MOUNT_START m from the center, stands at RING_SHARE of PEAK at the curtain, crests
-# at CREST of the way out past the ring, and its foot is a FOOT_Z face over the 5 m of ground the bake raises around it
-# (NOSE_APRON in src/data/fortress.ts). The 16 m ship-metal wall ends against it.
+# at CREST of the way out past the ring, and its foot is a FOOT_Z face. The map bake raises the ground from a port of
+# height() and of the crag's (src/mapgen/nose-rise.ts, NOSE_RISE in src/data/fortress.ts), so a change here goes there
+# too. The 16 m ship-metal wall ends against it.
 PEAK = 56.0  # mid-arc, behind the ship
 END_SHARE = 0.55  # share of PEAK at the arc's ends, where the walls meet the rock
 MOUNT_START = 80.0

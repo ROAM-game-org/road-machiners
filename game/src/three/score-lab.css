@@ -1,0 +1,106 @@
+#ui.score-lab {
+  position: static;
+  display: grid;
+  grid-template-columns: var(--panel-m) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--hud-gap);
+  box-sizing: border-box;
+  height: 100vh;
+  padding: var(--space-7);
+  overflow: hidden;
+  pointer-events: auto;
+  background: var(--color-void);
+}
+#ui.score-lab .panel {
+  position: static;
+  box-sizing: border-box;
+  min-width: 0;
+}
+.score-lab-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hud-gap);
+}
+.score-lab-side .panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+}
+.score-lab-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.score-lab-side .panel:last-child {
+  flex: 1;
+}
+.score-lab-picks {
+  align-content: start;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+}
+.score-lab-song {
+  font-size: var(--text-heading);
+  color: var(--ink-bright);
+}
+.score-lab-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-7);
+  margin-bottom: var(--space-4);
+}
+.score-lab-canvas canvas {
+  display: block;
+}
+.score-lab-entry {
+  display: grid;
+  grid-template-columns: 4ch 12ch 11ch 10ch 5ch 5ch minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-5);
+}
+.score-lab-entry .num {
+  text-align: right;
+}
+.score-lab-entry .num:first-child {
+  color: var(--ink-muted);
+}
+.score-lab-head {
+  padding: 0 var(--space-3) var(--space-2);
+  color: var(--ink-label);
+}
+.score-lab-head span {
+  font-size: var(--text-caption);
+}
+.score-lab-head span:nth-child(5),
+.score-lab-head span:nth-child(6) {
+  text-align: right;
+}
+#ui.score-lab .panel:last-child {
+  display: flex;
+  flex-direction: column;
+  grid-column: 1 / -1;
+}
+.score-lab-rows {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.score-lab-entry .tag {
+  justify-self: start;
+}
+.score-lab-entry .tag.played {
+  color: var(--good);
+}
+.score-lab-entry .tag.skipped {
+  color: var(--ink-muted);
+}
+.score-lab-entry .tag.forced {
+  color: var(--ink-bright);
+}
+.score-lab-entry .tag.crowded {
+  color: var(--danger-ink);
+}

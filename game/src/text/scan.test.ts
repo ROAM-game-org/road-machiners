@@ -12,7 +12,7 @@ const SCANNED = ['src/ui', 'src/three', 'src/sim', 'src/data', 'src/render', 'sr
 
 const PROSE = /[A-Za-z]{2,}[ ]+[A-Za-z]{2,}|\b[A-Z][a-z]{2,}\b/;
 const CYRILLIC = /[Ѐ-ӿ]/;
-const CODE_SHAPES = [/^[a-z0-9 -]*-[a-z0-9 -]*$/, /^\s*</, /;\s*\n|\n.*;/, /#(include|define|undef)\b|\b(varying|uniform) \w+ \w+;/, /\b\d+px\b/, /^(Key[A-Z]|Digit|Arrow[A-Z])/];
+const CODE_SHAPES = [/^[a-z0-9 -]*-[a-z0-9 -]*$/, /^\s*</, /;\s*\n|\n.*;/, /#(include|define|undef)\b|\b(varying|uniform) \w+ \w+;/, /\b\d+px\b/, /^(Key[A-Z]|Digit|Arrow[A-Z])/, /^[ .FBLRDECX]+$/];
 const TEXT_SINK_PROPS = new Set(['textContent', 'innerText', 'title']);
 const TEXT_ATTRS = new Set(['title', 'aria-label', 'aria-valuetext', 'placeholder', 'alt']);
 const DIALOGS = new Set(['alert', 'confirm', 'prompt']);

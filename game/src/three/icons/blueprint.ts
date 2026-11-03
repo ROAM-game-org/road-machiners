@@ -163,11 +163,6 @@ export function calmed(bp: Blueprint, calm: Calm): Blueprint {
   return { ...bp, shape, paints, shadow: patches(bp.shadow), light: patches(bp.light), glass: patches(bp.glass) };
 }
 
-export function blueprintPlanSvg(bp: Blueprint, stroke: number): string {
-  const shape = shapePath(bp.shape);
-  return `<path d="${shape}" style="fill:var(--plan-fill);stroke:var(--plan-line);stroke-width:${stroke}px;vector-effect:non-scaling-stroke" fill-rule="evenodd" stroke-linejoin="miter" stroke-miterlimit="3"/>`;
-}
-
 function num(v: number): string {
   return String(Math.round(v * 10) / 10);
 }

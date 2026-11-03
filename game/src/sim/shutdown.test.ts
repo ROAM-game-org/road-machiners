@@ -20,14 +20,14 @@ function emitterRadius(): number {
 
 function emitterUser(): { w: World; me: Vehicle; emitter: PartInstance } {
   const w = emptyWorld({ x: 30, y: 60 });
-  const me = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 30, y: 30 });
+  const me = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 30, y: 30 });
   const emitter = makePart(w, 'emitter', 0);
   if (!mountPart(w, me, emitter)) throw new Error('No deck room for the emitter');
   return { w, me, emitter };
 }
 
 function trader(w: World, gap: number): Vehicle {
-  return addVehicle(w, 'traders', 'hauler', ['stockEngine', 'mg', 'scanner', 'sprout'], { x: 30 + gap, y: 30 });
+  return addVehicle(w, 'independent', 'hauler', ['stockEngine', 'mg', 'scanner', 'sprout'], { x: 30 + gap, y: 30 });
 }
 
 function playerOf(w: World): Vehicle {
@@ -66,7 +66,7 @@ describe('the emitter pulse', () => {
   it('spares its user and shuts down every other truck in the radius, allies, neutrals and hostiles alike', () => {
     const { w, me, emitter } = emitterUser();
     const ally = trader(w, RADIUS - 1);
-    const raider = addVehicle(w, 'raiders', 'hauler', ['stockEngine'], { x: 30 - 3, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine'], { x: 30 - 3, y: 30 });
     const player = playerOf(w);
     player.pos = { x: 30, y: 30 + RADIUS - 0.5 };
     const far = trader(w, RADIUS + 1);
@@ -256,7 +256,7 @@ describe('a pulse in the turn pipeline', () => {
   it('lets the player fire back in the pulse turn and shuts it down when the turn ends', () => {
     const w0 = emptyWorld();
     const player = playerOf(w0);
-    const raider = addVehicle(w0, 'raiders', 'hauler', ['stockEngine'], { x: 33, y: 30 });
+    const raider = addVehicle(w0, 'scrapjaw', 'hauler', ['stockEngine'], { x: 33, y: 30 });
     const emitter = makePart(w0, 'emitter', 0);
     if (!mountPart(w0, raider, emitter)) throw new Error('No deck room for the emitter');
     raider.utilityOrders[emitter.id] = { kind: 'self' };

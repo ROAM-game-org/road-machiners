@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit  # noqa: E402
+from parts_common_core import PROUD  # noqa: E402
 from shapes import strut, taper  # noqa: E402
 from util_common import run  # noqa: E402
 
@@ -41,7 +42,7 @@ def build(kit: Kit) -> None:
     kit.box("front_rim", (0.05, BOX_HALF_Y * 2 + 0.01, 0.05), (front - 0.02, 0, RIM), "mustard")
     # The back wall is a low gate, so the spikes spill onto the chute.
     kit.box("gate", (WALL, BOX_HALF_Y * 2, 0.12), (back + WALL / 2, 0, FLOOR + 0.06), "metal_light")
-    kit.box("gate_hinge", (0.04, BOX_HALF_Y * 2, 0.03), (back + WALL / 2, 0, FLOOR + 0.13), "metal_dark")
+    kit.box("gate_hinge", (0.04, BOX_HALF_Y * 2 - 2 * PROUD, 0.03), (back + WALL / 2, 0, FLOOR + 0.13), "metal_dark")
     # A spike heap fills the hopper: little four-sided spikes standing on a dark mound.
     kit.box("heap", (length - 0.1, BOX_HALF_Y * 2 - 0.08, 0.14), (mid + 0.03, 0, FLOOR + 0.07), "rust_dark", dent_by=0.02)
     for i in range(14):

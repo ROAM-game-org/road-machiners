@@ -6,7 +6,6 @@ import { groundPoint, type V3 } from '../../phys/frames';
 import { PAL } from '../../render/palette';
 import { hash2, valueNoise } from '../../render/noise';
 import { playerVehicle } from '../../sim/damage';
-import { dropClearance } from '../../sim/hazards';
 import { heightAt, markHeightAt, type Terrain } from '../../sim/terrain';
 import type { Flare, GameEvent, GroundField, SmokeCloud, Vehicle, World } from '../../sim/types';
 import { shutDownTurnsLeft } from '../../sim/utility';
@@ -66,17 +65,6 @@ type HazardList = 'smoke' | 'fields' | 'flares' | 'lines';
 
 function madeThisTurn(clock: TurnClock | null, list: HazardList, id: string): boolean {
   return clock !== null && clock.before !== null && !clock.before[list].some((h) => h.id === id);
-}
-
-export function volleyShown(clock: TurnClock | null, list: HazardList, id: string): boolean {
-  return clock === null || clock.moved || !madeThisTurn(clock, list, id);
-}
-
-export function fieldShown(world: World, f: GroundField, clock: TurnClock | null): boolean {
-  if (clock === null || clock.moved || !madeThisTurn(clock, 'fields', f.id)) return true;
-  const dropper = world.vehicles.find((v) => v.id === f.source);
-  if (!dropper) return false;
-  return trailPassed(dropper, f.pos, dropClearance(dropper, f.r), clock.progress);
 }
 
 export function trailPassed(v: Vehicle, pos: Vec, clearance: number, progress: number): boolean {
@@ -265,14 +253,14 @@ const SMOKE_LOOK = {
   ragged: 0.6,
   low: { share: 0.6, from: 0.35, to: 0.9 },
   high: { from: 1.3, to: 2.3, spread: 0.8 },
-  billowMs: 1500,
+  billowMs: 500,
   lastTurn: 0.55,
   dissolve: { ms: 1000, grow: 0.4, rise: 0.8 },
   wobble: 0.35,
   wobbleSeconds: 5,
   cutaway: { inner: 0.9, clear: 0.6, floor: 0.04 },
 };
-export const SHELL = { flightMs: 900, apex: 3 };
+export const SHELL = { flightMs: 1200, apex: 3 };
 const SHELL_LOOK: FlightLook = { casing: PAL.shell.casing, length: 0.05, radius: 0.015, trail: PAL.shell.trail, trailPuffs: 6, trailLag: 0.05, trailSize: 0.5, trailOpacity: 0.55 };
 const RIM_SAMPLES = 8;
 
@@ -298,7 +286,7 @@ class SmokeCloudsView {
   }
 
   update(world: World, terrain: Terrain, views: ReadonlyMap<string, VehicleView>, nowMs: number, clock: TurnClock | null, cutaway: Cutaway | null): void {
-    const shown = new Map(world.smoke.filter((c) => volleyShown(clock, 'smoke', c.id) && isShown(world, c)).map((c) => [c.id, c]));
+    const shown = new Map(world.smoke.filter((c) => isShown(world, c)).map((c) => [c.id, c]));
     ageOut(this.views, shown, nowMs, SMOKE_LOOK.dissolve.ms);
     for (const c of shown.values()) (this.views.get(c.id) ?? this.makeView(world, views, c, madeThisTurn(clock, 'smoke', c.id), nowMs)).cloud = c;
     const { movers, dt } = this.views.size > 0 ? this.wake.update(positionsOf(views), nowMs) : { movers: [], dt: 0 };
@@ -502,8 +490,21 @@ class GroundFieldsView {
   });
   private readonly sheenTexture = createSheenTexture();
 
+  constructor() {
+    const primers = new THREE.Group();
+    primers.visible = false;
+    primers.add(new THREE.Mesh(slickPrimer(), this.oilMaterial), new THREE.Mesh(new THREE.PlaneGeometry(1, 1), this.sheenMaterial(OIL_LOOK.sheen.opacity)));
+    this.root.add(primers);
+  }
+
+  private sheenMaterial(opacity: number): THREE.MeshBasicMaterial {
+    return new THREE.MeshBasicMaterial({
+      map: this.sheenTexture, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+    });
+  }
+
   update(world: World, terrain: Terrain, clock: TurnClock | null, nowMs: number): void {
-    const shown = new Map(world.fields.filter((f) => fieldShown(world, f, clock) && isShown(world, f)).map((f) => [f.id, f]));
+    const shown = new Map(world.fields.filter((f) => isShown(world, f)).map((f) => [f.id, f]));
     for (const [id, view] of this.views) markGone(view, shown.has(id), nowMs);
     for (const f of shown.values()) if (!this.views.has(f.id)) this.views.set(f.id, this.makeView(world, terrain, f, clock, nowMs));
     for (const [id, view] of this.views) if (!this.pose(terrain, view, nowMs)) this.drop(id, view);
@@ -537,10 +538,7 @@ class GroundFieldsView {
     view.root.add(view.slick);
     const { share, opacity } = OIL_LOOK.sheen;
     if (hash2(seed, 29) >= share) return;
-    const material = new THREE.MeshBasicMaterial({
-      map: this.sheenTexture, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
-    });
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), material);
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), this.sheenMaterial(opacity));
     const angle = hash2(seed, 31) * 2 * Math.PI;
     mesh.rotation.y = angle;
     mesh.renderOrder = FIELD_ORDER + 1;
@@ -621,6 +619,13 @@ function onLine(f: GroundField, dir: Vec, k: number): Vec {
   const across = ((hash2(k, 5) + hash2(k, 17) + hash2(k, 19) - 1.5) / 1.5) * f.r * FIELD_LOOK.across * 2;
   const shrink = Math.min(1, f.r / Math.max(1e-6, Math.hypot(along, across)));
   return { x: f.pos.x + (dir.x * along - dir.y * across) * shrink, y: f.pos.y + (dir.y * along + dir.x * across) * shrink };
+}
+
+function slickPrimer(): THREE.BufferGeometry {
+  const geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(9), 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0], 3));
+  geometry.setIndex([0, 1, 2]);
+  return geometry;
 }
 
 function blobGeometry(terrain: Terrain, f: GroundField, seed: number, spread: number): THREE.BufferGeometry {
@@ -740,7 +745,7 @@ class FlaresView {
     this.seenIn = world;
     this.sparks.tick(dt);
     this.smoke.tick(dt);
-    const shown = new Map(world.flares.filter((f) => volleyShown(clock, 'flares', f.id) && flareShown(world, f)).map((f) => [f.id, f]));
+    const shown = new Map(world.flares.filter((f) => flareShown(world, f)).map((f) => [f.id, f]));
     ageOut(this.views, shown, nowMs, FLARE_LOOK.burnOutMs);
     for (const f of shown.values()) (this.views.get(f.id) ?? this.makeView(world, views, f, madeThisTurn(clock, 'flares', f.id), nowMs)).flare = f;
     while (this.lights.length < this.views.size) this.addLight();

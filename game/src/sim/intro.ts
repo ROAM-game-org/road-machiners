@@ -1,27 +1,28 @@
 import { FARM_TOWER_ID } from '../data/arrival';
 import { AMBUSH, WAKE_TOWN } from '../data/intro';
 import { chassisDef } from '../data/chassis';
-import { START_KITS } from '../data/start';
+import { kitPartIds, START_KITS } from '../data/start';
 import { atlasOf } from './atlas';
 import { makePart } from './factory';
-import { addStockPart, shopState } from './market';
-import { AMBUSH_RAIDER, GAME_OPENED_QUESTS, TOWED_TO_BOWL, type IntroStep } from '../data/quests';
+import { addStockPart, shopAt, shopState } from './market';
+import { AMBUSH_RAIDER, HATTIE_MET, TOWED_TO_BOWL, type IntroStep } from '../data/quests';
 import { NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { playerVehicle } from './damage';
 import { isDefeated } from './defeat';
 import { mountedParts } from './grid';
+import { openingState } from './opening';
 import { fightCornered } from './npc-activities';
 import { addState } from './states';
 import { generateNpcLoadout } from './npc-loadout';
 import { getKnownSite } from './npc-decisions';
-import { introStep, openQuest, QUESTS, setIntroStep, setWorldVar, worldVar } from './quests';
+import { introStep, freeToTalk, openWellScene, setIntroStep, setWorldVar, worldVar } from './quests';
 import { engineNeedsPatch } from './repair';
 import { drivable } from './path';
 import { nearestPad, siteUnder } from './sites';
-import { isFree, spawnAt } from './spawn';
+import { allegianceFor, isFree, spawnAt } from './spawn';
 import { chooseOn } from './tracks';
-import type { Vehicle, World } from './types';
+import type { Obstacle, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 import { playerSees, sightRadius } from './vision';
 
@@ -39,13 +40,17 @@ function settleAfterPatch(w: World, step: IntroStep): void {
   else if (step === 'ambush') keepHunting(w);
 }
 
+function endAmbush(w: World): void {
+  setIntroStep(w, 'done');
+}
+
 function keepHunting(w: World): void {
   const raider = w.vehicles.find((v) => v.id === worldVar(w, AMBUSH_RAIDER));
-  if (!raider || isDefeated(raider)) return setIntroStep(w, 'done');
+  if (!raider || isDefeated(raider)) return endAmbush(w);
   const me = playerVehicle(w);
   const fight = raider.brain!.goals.find((g) => g.kind === 'fight' && g.targetId === me.id);
   if (!inHuntRange(w, raider, me)) {
-    if (!fight) setIntroStep(w, 'done');
+    if (!fight) endAmbush(w);
     return;
   }
   if (!fight) return fightCornered(w, raider, me, 'robCargo');
@@ -57,13 +62,22 @@ function inHuntRange(w: World, raider: Vehicle, me: Vehicle): boolean {
   return dist(raider.pos, me.pos) <= sightRadius(w, me) * AMBUSH.huntSight;
 }
 
+export function greetAtWell(w: World): void {
+  if (strangerToHattie(w) && shopAt(w) === WAKE_TOWN && freeToTalk(w)) openWellScene(w, 'meet');
+}
+
+function strangerToHattie(w: World): boolean {
+  return introStep(w) !== 'off' && worldVar(w, HATTIE_MET) !== true && worldVar(w, TOWED_TO_BOWL) !== true;
+}
+
 export function wakeInTown(w: World, foes: readonly string[] | null): void {
   if (foes === null || foes.length === 0 || introStep(w) !== 'ambush') return;
+  const met = worldVar(w, HATTIE_MET) === true;
   parkInWakeTown(w);
   stockLostKitParts(w);
   setIntroStep(w, 'done');
   setWorldVar(w, TOWED_TO_BOWL, true);
-  openQuest(w, QUESTS, GAME_OPENED_QUESTS.introWake, 'start');
+  openWellScene(w, met ? 'again' : 'start');
 }
 
 function parkInWakeTown(w: World): void {
@@ -80,11 +94,21 @@ function stockLostKitParts(w: World): void {
   const kit = START_KITS.arrival;
   const shop = shopState(w, WAKE_TOWN);
   const held = new Set([...playerVehicle(w).items.flatMap((item) => (item.kind === 'part' ? [item.part.defId] : [])), ...shop.stock.map((part) => part.defId)]);
-  for (const defId of kit.parts.filter((id) => !held.has(id))) addStockPart(shop, makePart(w, defId, kit.wear));
+  for (const defId of kitPartIds(kit).filter((id) => !held.has(id))) addStockPart(shop, makePart(w, defId, kit.wear));
+}
+
+const farmTowerStands = new WeakMap<readonly Obstacle[], boolean>();
+
+function hasFarmTower(obstacles: readonly Obstacle[]): boolean {
+  const known = farmTowerStands.get(obstacles);
+  if (known !== undefined) return known;
+  const stands = obstacles.some((o) => o.id === FARM_TOWER_ID);
+  if (Object.isFrozen(obstacles)) farmTowerStands.set(obstacles, stands);
+  return stands;
 }
 
 function settleBeforePatch(w: World, step: IntroStep): void {
-  if (!w.obstacles.some((o) => o.id === FARM_TOWER_ID)) return;
+  if (!hasFarmTower(w.obstacles)) return;
   if (step !== 'drive') setIntroStep(w, 'drive');
   if (enginePatched(w)) setIntroStep(w, 'patched');
 }
@@ -94,14 +118,20 @@ function enginePatched(w: World): boolean {
   return mountedParts(me, 'engine').length > 0 && !engineNeedsPatch(w, me);
 }
 
+function ambushMayCome(w: World): boolean {
+  const { stock, step } = openingState(w);
+  return step === null || (stock !== null && dist(playerVehicle(w).pos, stock.pos) >= AMBUSH.farmLeave);
+}
+
 function launchAmbush(w: World): void {
+  if (!ambushMayCome(w)) return;
   const me = playerVehicle(w);
   if (me.speed <= RULES.parkedSpeed || siteUnder(atlasOf(w.terrain), me.pos)) return;
   const template = NPCS[AMBUSH.template];
   const loadout = generateNpcLoadout(w, template, AMBUSH.chassis, AMBUSH.gear);
   const spot = ambushSpot(w, me, chassisDef(loadout.chassisId).radius);
   if (!spot) return;
-  const raider = spawnAt(w, template, { ...loadout, cargo: {} }, spot);
+  const raider = spawnAt(w, template, { ...loadout, cargo: {} }, spot, allegianceFor(w, template, null, null));
   const brain = raider.brain;
   if (!brain) throw new Error(`Ambush raider ${raider.id} has no brain`);
   brain.traits = [...new Set([...brain.traits, ...AMBUSH.addedTraits])];

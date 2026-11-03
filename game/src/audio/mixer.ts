@@ -7,7 +7,6 @@ export class Mixer {
   readonly ctx = new AudioContext();
   private master = this.ctx.createGain();
   private buses: Record<Bus, GainNode>;
-  private tones = new Map<Bus, BiquadFilterNode>();
 
   constructor(mix: Mix) {
     this.master.connect(this.ctx.destination);
@@ -25,12 +24,6 @@ export class Mixer {
 
   setBusVolume(bus: Bus, volume: number): void {
     this.buses[bus].gain.value = volume;
-  }
-
-  setBusTone(bus: Bus, cutoffHz: number, rampSeconds: number): void {
-    const tone = this.tones.get(bus);
-    if (!tone) throw new Error(`Bus ${bus} has no tone filter`);
-    tone.frequency.setTargetAtTime(cutoffHz, this.ctx.currentTime, rampSeconds / 3);
   }
 
   setMuted(muted: boolean): void {
@@ -51,11 +44,7 @@ export class Mixer {
   private bus(bus: Bus, volume: number, out: AudioNode): GainNode {
     const g = this.ctx.createGain();
     g.gain.value = volume;
-    const tone = this.ctx.createBiquadFilter();
-    tone.type = "lowpass";
-    tone.frequency.value = this.ctx.sampleRate / 2;
-    g.connect(tone).connect(out);
-    this.tones.set(bus, tone);
+    g.connect(out);
     return g;
   }
 

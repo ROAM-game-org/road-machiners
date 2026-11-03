@@ -125,6 +125,10 @@ export function weatherOn(world: World, v: Vehicle): WeatherEffects {
   return fx;
 }
 
+export function isOvercast(world: World): boolean {
+  return world.weather.some((e) => e.kind === 'overcast');
+}
+
 export function stormShare(v: Vehicle): number {
   let most = 0;
   for (const id in v.stormExposure) most = Math.max(most, v.stormExposure[id]);

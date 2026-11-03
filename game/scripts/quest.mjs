@@ -3,7 +3,6 @@ import { createInterface } from 'node:readline/promises';
 import { parseArgs } from 'node:util';
 import { MAX_RANK, SKILL_IDS } from '../src/data/skills.ts';
 import { START_KITS } from '../src/data/start.ts';
-import { UNITS } from '../src/data/units.ts';
 import { skillLevel } from '../src/sim/progress.ts';
 import { QUEST_LANGUAGES } from '../src/data/quests.ts';
 import { chooseQuestOption, questProblems, questView, restoreQuest, setQuestLanguage, startQuest } from '../src/sim/quests.ts';
@@ -11,6 +10,7 @@ import { entryText } from '../src/text/resolve.ts';
 import { defaultSetup } from '../src/sim/settings.ts';
 import { newWorld } from '../src/sim/world.ts';
 import { TEST_MAP } from '../src/test/map.ts';
+import { parkAtLocal } from '../src/test/quest-check.ts';
 import { compileSources, readQuestSources } from '../src/test/quest-compile.ts';
 import { parseMarkup } from '../src/ui/quest-text.ts';
 
@@ -39,6 +39,7 @@ const PARSERS = {
 };
 
 const fresh = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false);
+parkAtLocal(fresh, id);
 const startMoney = fresh.player.money;
 if (values.play) {
   played(fresh, values.play);
@@ -189,7 +190,7 @@ function finish(w) {
   console.log(`World variables: ${JSON.stringify(saved.world)}`);
   console.log(`Quest variables: ${JSON.stringify(saved.local)}`);
   console.log(saved.session ? `Open at checkpoint ${saved.session.checkpoint}` : 'No quest is open');
-  console.log(`Money change: ${(w.player.money - startMoney) / UNITS.centsPerM} M`);
+  console.log(`Money change: ${w.player.money - startMoney} M`);
   if (values.save) {
     writeFileSync(values.save, `${JSON.stringify(saved, null, 1)}\n`);
     console.log(`Saved the quest state to ${values.save}`);

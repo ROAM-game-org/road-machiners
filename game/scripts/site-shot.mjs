@@ -1,6 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
-import { gpuArgs } from './gpu.mjs';
+import { launchChromium } from './gpu.mjs';
 import { playUrl } from './game-url.mjs';
 
 function arg(name, fallback) {
@@ -16,7 +16,7 @@ const zoom = Number(arg('zoom', '1'));
 const out = arg('out', '.playtest/sites');
 mkdirSync(out, { recursive: true });
 
-const browser = await chromium.launch({ args: gpuArgs() });
+const { browser } = await launchChromium(chromium);
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.stack ?? e.message));

@@ -15,6 +15,7 @@ import bmesh
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, Vec3, parse_args  # noqa: E402
+from parts_common_core import HUB_SIDES, TIRE_SIDES  # noqa: E402
 
 # Colors from src/render/palette.ts. soot is darker than any palette color.
 COLORS = {
@@ -31,14 +32,14 @@ AXLE: Vec3 = (math.radians(90), 0, 0)
 
 def wheel(kit: Kit, name: str, loc: Vec3, rot: Vec3, radius: float = 0.42, width: float = 0.3, flat: float = 0.0) -> None:
     """A tire with a hub. flat squashes the lower half of the tire, from 0 for round to 1 for fully flat."""
-    tire = kit.cylinder(name, radius, width, loc, "wheel", rot=rot)
+    tire = kit.cylinder(name, radius, width, loc, "wheel", rot=rot, vertices=TIRE_SIDES)
     if flat:
         # Local -Y points down once AXLE turns the cylinder on its side.
         floor = -radius * 0.5
         for v in tire.data.vertices:
             if v.co.y < floor:
                 v.co.y = floor + (v.co.y - floor) * (1 - flat)
-    kit.cylinder(name + "_hub", radius * 0.45, width * 1.1, loc, "metal", rot=rot, vertices=6)
+    kit.cylinder(name + "_hub", radius * 0.45, width * 1.1, loc, "metal", rot=rot, vertices=HUB_SIDES)
 
 
 def crush_top(obj, height_at) -> None:

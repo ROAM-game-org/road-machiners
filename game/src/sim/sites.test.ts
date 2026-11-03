@@ -3,7 +3,8 @@ import { REGION } from '../data/region';
 import { clickOrder } from './steering';
 import { canUseSite, edgeCrossings, isInTerritory, isNearOutpost, nearestPad, OUTPOSTS, siteEdgeCrossings, siteGap, siteGates, sitePads, siteUnder } from './sites';
 import { dist } from './vec';
-import { icarusAtlas } from './atlas';
+import { highwayMap, outpostFort } from './highway';
+import { atlasOf, icarusAtlas } from './atlas';
 import { TEST_MAP } from '../test/map';
 
 const SITES = [...REGION.towns, ...REGION.locations.filter((l) => l.kind !== 'territory')];
@@ -115,6 +116,28 @@ describe('clicks on a site', () => {
     const dest = { x: 5, y: 5 };
     expect(siteUnder(icarusAtlas(), dest)).toBeNull();
     expect(clickOrder(TEST_MAP.terrain, dest, false, { pos: { x: 1, y: 1 }, order: null })).toEqual({ kind: 'through', dest });
+  });
+});
+
+describe('clicks in a road fort', () => {
+  const map = highwayMap(3, 0);
+  const fort = outpostFort(3, 0, 1);
+  const me = { pos: { x: fort.pos.x - 40, y: fort.pos.y }, order: null };
+
+  it('is a site with no pads', () => {
+    expect(siteUnder(atlasOf(map.terrain), fort.pos)?.id).toBe(fort.id);
+    expect(sitePads(fort)).toEqual([]);
+  });
+
+  it('is an ordinary ground click', () => {
+    expect(clickOrder(map.terrain, fort.pos, false, me)).toEqual({ kind: 'through', dest: fort.pos });
+    expect(clickOrder(map.terrain, fort.pos, true, me)).toEqual({ kind: 'stopAt', dest: fort.pos });
+    const stop = { kind: 'through' as const, dest: fort.pos };
+    expect(clickOrder(map.terrain, fort.pos, false, { ...me, order: stop })).toEqual({ kind: 'stopAt', dest: fort.pos });
+  });
+
+  it('has no nearest pad to ask for', () => {
+    expect(() => nearestPad(fort, me.pos)).toThrow(`Site ${fort.id} has no pads`);
   });
 });
 

@@ -8,31 +8,31 @@ People live inside the basin's facts and do not announce them. A fact comes up o
 
 ### Ruben, canal warden
 
-Ruben talks of water, gates, seasons and his grandmother. He compares things to fields, buckets, floods and wet years.
+Ruben talks of water, gates, seasons and the fields that drink. He compares things to fields, buckets, dry spells and lean years, sometimes and not in every line.
 
-His sentences are long and slow. They wind through two or three clauses before they land.
+He answers in the first clause. Then the sentence winds on through water and fields before it lands. A reply holds one thought, and his sentences are long and slow, but few.
 
-He quotes his grandmother. He measures things in hands and in seasons.
+He notices how long a driver has been out in the sun, and he offers the shade. He measures things in hands and in seasons.
 
-He cares about fairness in who drinks first. He avoids blaming any family by name.
+He wants a stranger who will carry a fair word about how Bowl shares its water. He cares about fairness in who drinks first. He avoids blaming any family by name, and he does not talk about his own family or how he came to the gates.
 
 He treats a stranger as a guest in the shade and answers without hurry.
 
-Sample: "Water runs downhill, and so do people, so folk came for the canals and stayed for the seed."
+Samples: "Water runs downhill, and so do people, so folk came for the canals and stayed for the seed." "Safe is a word for a canal with good walls, and the north road has no walls at all."
 
-### Hattie, well house keeper
+### Hattie, water seller at the gate yard
 
-Hattie talks of buckets, coin, bread and hearsay. She compares people to what they cost and what they sell.
+Hattie talks of drivers, roads, tanks and who came through. She sizes people up by how they arrive: dusty, thirsty, in a hurry or towed in.
 
-Her sentences are quick and teasing. She turns a plain fact into a small story.
+Her sentences are quick and dry.
 
-She names her source and then doubts it. She ends with a sly remark about the listener.
+She asks a driver where they came from. She tells the plain truth about the road and says when she only heard it. She teases people she likes.
 
-She cares about gossip and about being paid. She avoids anything she has not heard from somebody.
+She cares that no driver leaves thirsty. She avoids talking about what lies past the gate.
 
-She treats a stranger as a customer who might turn out to be worth knowing.
+She treats a stranger as a driver who needs filling up and sizing up.
 
-Sample: "My cousin saw it. Well, he heard it, and my cousin hears a great deal when he has been drinking."
+Sample: "You're the one they dragged in on a chain. Sit down before you fall down. I'm Hattie, and this is my well."
 
 ### Dag, Farmers patrol
 
@@ -52,7 +52,7 @@ Sample: "A truck that breaks down out there waits a long time for a friendly fac
 
 Jory talks of soil, dirt under the nails, jars and rules read slowly. He compares the Senate to a farmer who forgot to plant.
 
-His sentences are long and built like an argument. Each answer ends in a short joke.
+His sentences are long and built like an argument. He often ends an answer on a short joke that follows from what he just said.
 
 He turns the Senate's own rules back on it. He jokes where other people would shout.
 
@@ -60,7 +60,7 @@ He cares about the vote and about the tenants in the patrol. He avoids joking ab
 
 He treats a stranger as an audience that may carry his case away.
 
-Sample: "The sack leaves the store once and the Senate counts it twice."
+Sample: "The sack leaves the store once and the Senate spends it twice."
 
 ### Bo Lindqvist, Granary driver
 
@@ -78,29 +78,89 @@ Sample: "The hall can say what it likes, but I know what my hand did."
 
 ### Patrol driver at the Granary
 
-The driver talks of sacks, pins, rings and the order of a run. He counts costs in sacks.
+The driver talks of sacks, tires, loads and the order of a run. He weighs a cost against a crate of rations.
 
 His sentences follow the job from first step to last. He speaks while he works and glances at the truck.
 
 He calls a stranger friend. He explains a thing by what it costs or what it holds.
 
-He cares about the count being honest and the pins being tight. He avoids saying he has seen anything he only heard.
+He cares about the Kiln crates going out on time and the load being tied down. He avoids saying he has seen anything he only heard.
 
-He treats a stranger as a driver who should check the pins before anything else.
+He treats a stranger as a driver who should check the tires before anything else.
 
 Sample: "A sack is cheaper than a truck, so nobody argues about it."
+
+### Odile Marsh, Granary steward
+
+Odile talks of the bins, winters, dust on the roads, Kiln and the Senate. She judges a day by what it does to her stores.
+
+Her sentences are short and plain. She gives the fact first and her fear after it.
+
+She looks at the sky before she looks at a stranger, and at their load after that.
+
+She cares about a full Granary and the Kiln crates going out on time. She avoids the word turncoat and anything about her years as a tenant.
+
+She treats a stranger as a load that may or may not reach her bins.
+
+Sample: "The Senate wants the bins full and the Kiln crates cut. It can have one of those."
+
+### Mags Corrin, weigher at the gate yard
+
+Mags talks of weight, crates, rust and what iron turns into: hinges, ploughshares, gate plates. She sees every crate as the thing it will become.
+
+Her sentences are short and even, like weights going onto a beam. She states the weight first and the use after it.
+
+She looks into a driver's bed before she looks at the driver. She wipes rust off her hands as she talks.
+
+She wants steady sellers before the rains rust the canal gates. She avoids asking where anything came from, and says so.
+
+She treats a stranger as a load that hasn't been weighed yet.
+
+Sample: "That rebar's a gate hinge by the rains. I don't ask whose truck it came off."
+
+### Agnes Ondra, pump keeper at Dustwell
+
+Agnes talks of the pump, the tanks, the tank wall, the hoses and the tools that wear out. She says what the water is doing and adds nothing to it.
+
+Her sentences are short and flat. She says hard things in a low voice, and she says them to the work in her hands, not to your face.
+
+She wipes the tank wall as she talks. She stops talking when the man on the drum looks up.
+
+She wants one driver to show Bowl what she has seen. She avoids saying the steward's name, and she says so only when she must.
+
+She treats a stranger as one more truck that will be gone next week.
+
+Sample: "A leak that big would make the ground muddy. I check the tanks every day, and the ground is dry."
+
+Sample: "I took it because I was afraid to refuse him to his face."
+
+### Mirela Duarte, lock house keeper
+
+Mirela talks of the trough, the canals, the lock families and who gets to say where the water goes. She says what she thinks before she has weighed it.
+
+Her sentences are quick and sharp. She starts a thought, throws in a second one, and does not always finish the first.
+
+She keeps a hand on the trough rim as she talks. She looks at the seal on a thing before she looks at the person holding it.
+
+She wants the Canal families to have their lock share back. She avoids praising anyone to their face, and she is blunt about her own side.
+
+She treats a stranger as a witness until the stranger proves to be only a driver.
+
+Sample: "The household will say Agnes and I both want this water, and that's true. You don't."
+
+Sample: "Both. The trough first."
 
 ## Nose, the Salvage Yard and the road
 
 ### Sergeant Kovac
 
-Vocabulary: orders, the sheet, the log, the roster, schedules, fuel counts and hours. He compares things to duty rosters and rations.
+Vocabulary: orders, the sheet, the log, the roster, schedules and hours. He compares things to duty rosters and rations.
 
 Rhythm: clipped military sentences, one fact and then what follows from it. He uses contractions the way a soldier does, like "Don't be late" and "I won't reopen it".
 
 Habits: he says "I log it" and "That is above my sheet". He asks a stranger to state business and keep it short.
 
-Cares about: order, his fuel count and the soldiers on his roster. He avoids any opinion about command, and he goes quiet about Emil Kessel.
+Cares about: order, the fuel in his depot and the soldiers on his roster. He avoids any opinion about command, and he goes quiet about Emil Kessel.
 
 Strangers: polite and wary. He tells a stranger exactly what he can give and what he cannot.
 
@@ -108,7 +168,7 @@ Sample: "Nose. The dispatch desk is mine. Freight on the north-east road or thro
 
 ### Lena
 
-Vocabulary: bench, weld, bolt, pin, plate, load, grease and bearings. She compares everything to parts that hold or fail.
+Vocabulary: bench, weld, bolt, brake rod, plate, load, grease and bearings. She compares everything to parts that hold or fail.
 
 Rhythm: quick and bossy. She gives an order, then the reason, then a verdict of one short sentence. She uses many contractions and talks loosely.
 
@@ -150,17 +210,17 @@ Sample: "The plug leaves a ring at the base of the skull, and the clamps leave a
 
 ### Ines Abend
 
-Vocabulary: the count, the number, the tower, the year, the sky and the plate. She compares things to tallies and to reading.
+Vocabulary: the bars, the tone, the radio, the tower, the year, the sky and the plate. She compares things to a struck bar and its ring.
 
 Rhythm: level and gentle. Her sentences are complete and unhurried, and she often ends a thought with one short sentence that sums it up.
 
-Habits: she says "I do not know" plainly, and she says what she believes apart from what she knows. She offers to read the number before anyone asks.
+Habits: she says "I do not know" plainly, and she says what she believes apart from what she knows. She holds a bar to the radio before anyone asks, so the stranger hears the ring match the tone.
 
-Cares about: the number being open to everyone. She avoids guessing what happens when the count stops, and she does not blame the Sunward.
+Cares about: the bars being open to everyone. She avoids guessing what happens when the tone reaches the last bar, and she does not blame the Sunward.
 
-Strangers: she gives a stranger the number first and her name second.
+Strangers: she lets a stranger hear the match first and gives her name second.
 
-Sample: "A number kept in one head is a number kept from everyone. We voted on it, and I spoke first."
+Sample: "Nobody should take my word for it. The bars hang here so you can hear the match yourself."
 
 ### The Bureau clerk
 
@@ -174,7 +234,7 @@ Cares about: not being named in a file himself. He avoids saying anything as his
 
 Strangers: suspicious. He asks a stranger to keep a voice down before he answers anything.
 
-Sample: "I only say what the corridor says. A clerk at the Pierce office sold the roads of insured trucks to robbers. When it came out, he was sent west and told to stay."
+Sample: "I only say what the corridor says. A clerk at the Pierce office sold the roads of insured trucks to robbers. When it came out, he was sent north-west and told to stay."
 
 ### Sefa Krol
 
@@ -212,7 +272,7 @@ Rhythm: short and careful when he lies, and longer when he tells the truth. He s
 
 Habits: he checks his watch when he lies. He offers money before he offers a reason.
 
-Cares about: his stripes, and his sister's ration card, which his rank pays for. He avoids the word pin.
+Cares about: his stripes, and his sister's ration card, which his rank pays for. He avoids the words brake rod.
 
 Strangers: friendly until he learns where they have been. Then he wants to know what they carried out.
 
@@ -220,14 +280,228 @@ Sample: "Look, I've driven that track four years. You don't know the bend. I do.
 
 ### Private Ilan Duvall
 
-Vocabulary: rings, seats, pins, loads and his mother. He compares things to mounts: what holds, what slides, what was never seated right.
+Vocabulary: brake rods, seats, bends, loads and his mother. He compares things to brakes: what holds, what slips, what was never made for the bend.
 
 Rhythm: blunt and young. He says the thing, then stops. He doesn't soften it.
 
-Habits: he rubs his sling strap when he is angry. He turns his half of the pin in his fingers while he talks.
+Habits: he rubs his sling strap when he is angry. He turns his half of the brake rod in his fingers while he talks.
 
-Cares about: never sitting under a one-pin mount again. He avoids talking about the moment the gun swung.
+Cares about: never riding behind a cheap brake rod again. He avoids talking about the moment the wagon would not slow.
 
-Strangers: he trusts a stranger who has looked at the ring, and nobody else.
+Strangers: he trusts a stranger who has looked at the rod, and nobody else.
 
-Sample: "The ring was fine. The pin wasn't. Write that down, somebody."
+Sample: "The bend was fine. The rod wasn't. Write that down, somebody."
+
+## Roadside radio
+
+### A Marshall on the radio
+
+A Marshall from the Roadhouse calling a driver named in the road book. Rook Halloran's drivers, Sabra Kell, Garrett Ainsley and the cars they ride with all talk this way on a case.
+
+Vocabulary: the book, the claim, what is owed, the road, who saw it. He names the wrong plainly, like a robbery on the Nose road, and never names a town as his master.
+
+Rhythm: level and short. He states the wrong, then the price, then asks. He asks once and waits.
+
+Habits: he says where the claim came from before he says what it costs. He keeps his voice the same whether the driver pays or refuses. On a refusal he says one flat line and stops talking.
+
+Cares about: closing the page. A paid case is a good day, and a fight is the price of a man who will not pay.
+
+Strangers: a name in the book, or nobody. A driver with no claim against him gets a short greeting and nothing else.
+
+What he avoids: threats before a refusal, and any talk of who pays the Roadhouse.
+
+Sample: "The book is worth what we're willing to answer for."
+
+Sample: "He had his say at the mast. Now he has to pay."
+
+### The road storyteller
+
+Vocabulary: stretches, hollows, dust, mile markers, what he passed. He tells a place by what stood next to it.
+
+Rhythm: unhurried, whole sentences, one detail too many. He stops when the story is told.
+
+Habits: he opens with "Got a story from the road" and means it. He never says what it is worth.
+
+Cares about: being the one who knew first. He wants the player to have seen what he saw.
+
+Strangers: he offers a story to anyone who slows down.
+
+Sample: "Rolled past the old pump house last week. The roof was gone, but somebody had swept the floor."
+
+A hauler tells it by the trip it happened on, in even whole sentences, about the load and the night by the road. He names no town.
+
+Hauler sample: "Check your load straps whenever you stop. On my last run, one had worked loose before I was halfway home."
+
+A salvager grumbles first and tells it short, about the bones of a wreck and what was left on them. He names no place.
+
+Salvager sample: "Check the dirt round a wreck before you get out. Fresh tracks mean somebody's still stripping it."
+
+A courier tells it fast and clipped, with the next stop in his head, about the run and the load. He names himself first.
+
+Courier sample: "Courier here. I've got a run to finish and I won't make it on what's left."
+
+### The tip seller
+
+Vocabulary: picked clean, carcass, a fair price, the side of the road.
+
+Rhythm: short and flat. He names the price before the place.
+
+Habits: he says the price once and never lowers it. He answers a question about the wreck with the price.
+
+Cares about: money in his hand before the bearing goes out.
+
+Strangers: a customer or not a customer.
+
+Sample: "I know a wreck nobody has picked clean. Price first, then I tell you where."
+
+### The challenger
+
+Vocabulary: rig, guns, what it can take. He talks about the truck, never the driver.
+
+Rhythm: slow and loud, a laugh in it, a line that waits for an answer.
+
+Habits: he calls out a stranger who looks easy. He drops the act when the player shows guns of their own.
+
+Cares about: not looking soft in front of whoever listens.
+
+Strangers: a test.
+
+Sample: "Nice rig. Let's see what it can take."
+
+### The courier on the radio
+
+Vocabulary: the run, the load, what is left in the tank, a favor owed.
+
+Rhythm: fast, clipped, always the next stop in his head. He names himself first.
+
+Habits: he remembers who helped and who did not. He pays what he said he would, and he says so.
+
+Cares about: the delivery. A friend is someone who kept him rolling.
+
+Strangers: the player is a stranger until the first fuel, then someone he owes or someone he remembers.
+
+Sample: "Courier here. I've got a run to finish and I won't make it on what's left."
+
+### The hauler giving road tips
+
+Vocabulary: the run, the load, the fields, the shade, a night by the road.
+
+Rhythm: even, whole sentences. He tells a thing by the trip it happened on.
+
+Habits: he says what he does on the next trip. He names no town and no price.
+
+Cares about: the load arriving.
+
+Strangers: another truck on the same road, maybe a partner on the next one.
+
+Sample: "Check your load straps whenever you stop. On my last run, one had worked loose before I was halfway home."
+
+### The salvager giving road tips
+
+Vocabulary: scrap, strip, wreck, junk, a part that was good once.
+
+Rhythm: short and clipped. He grumbles first and gives the point after.
+
+Habits: he curses the weather, the fools and the dust. He never names a place.
+
+Cares about: what is left on the bones of a wreck.
+
+Strangers: a rival for the scrap, put up with.
+
+Sample: "Check the dirt round a wreck before you get out. Fresh tracks mean somebody's still stripping it."
+
+### The lawman giving road tips
+
+Vocabulary: the gate, the patrol, the road, a lawful driver, the record.
+
+Rhythm: formal and short. He states the rule of the road.
+
+Habits: he says "for the record" now and then. He gives no reasons beyond the rule.
+
+Cares about: a quiet gate.
+
+Strangers: a witness, or a suspect.
+
+Sample: "For the record, slow before a blind rise. A wreck gives no warning."
+
+### The gun hand giving road tips
+
+Vocabulary: rounds, range, cover, what he saw.
+
+Rhythm: terse and dry, professional. He talks about what he saw and never what he felt.
+
+Habits: he never brags. He compares a fight to another fight.
+
+Cares about: getting home from a job.
+
+Strangers: a possible client.
+
+Sample: "Stop where you can drive out without reversing. I've seen good guns lost while their drivers backed out of a bad spot."
+
+### The Sunward rider at the vigil
+
+Vocabulary: the light, the Keeper, a place kept, given by the sky, watching. He never names the reactor, the breach, death or the order's rules.
+
+Rhythm: slow and soft, short sentences with pauses between them. Each call is a little closer and a little stranger than the last, and only the third is plainly a demand.
+
+Habits: he calls a stranger "stranger" and the order "we". On the road he says nothing at all, and a call to him gets an open channel and breathing. Once a stranger agrees, he tells them where to drive and promises to stay behind them.
+
+Cares about: getting the stranger into the light without a fight, because a fight is work and a given truck arrives whole.
+
+Strangers: something the sky gave. He is gentle with it the way a man is gentle with a goat he means to sell.
+
+Sample: "Stranger. You came out to the crater at night. Stay a while and watch the light with us."
+
+### The road driver who knows about the lamps
+
+A trader, scavenger, courier, roamer, vulture or supplier who lives near the crater, or saw a car of the order, answers a question about the crater at night with one thing they saw or heard themselves, in short plain sentences, and tells it once. Each tells a different thing: lamps crossing at dusk, a radio that answered with breathing, drag furrows on the rim, the beacon keepers' dark lamps, trading there only by day, the shout "Given by the sky" as hearsay, wrecks left alone after dark, or a cousin who stopped by the rim and was never found. Only one of them counts eight lamps, and only one lost kin. After the order falls they speak of the quiet, the lamps that stopped crossing, the empty fort and drivers back at the crater at night, and still say to keep off the glow.
+
+Sample: "Passed the rim one morning. Two deep furrows ran through the sand from open ground into the crater. I didn't see a truck."
+
+## The Roadhouse
+
+### Petra Quell, keeper of the mast
+
+Petra talks of the mast, the gate bell, the fence, crossings and what the radio hears. She compares things to a signal: heard, sent, paid for.
+
+Her sentences are short and level, and each carries one fact. She gives what she saw or heard first, then what it costs, if it costs anything.
+
+She watches a truck come over the rise, and says so. She prices what she knows and says the price before she says the news. Sometimes she stops to look at the fence while she answers.
+
+She wants the mast to pay its own way. She avoids talking about the Guild and what it takes, and about how she came by the cars the Marshalls drive.
+
+She treats a stranger as a truck she saw coming and a possible buyer of what the mast hears.
+
+Sample: "You came over the rise with the sun behind you. I saw your dust before I heard your engine. Park inside the fence and the bell is free."
+
+Sample: "Wim writes the claim. I only say who crossed and when."
+
+## Green Pit and the Pump Station
+
+### Hadiza Okon, Green Pit hook house canteen
+
+Hadiza talks of cups, plates, hooks, the pump crews and who ate at her table. She compares people to guests and to what they leave behind.
+
+Her sentences are warm and even. She says what a thing costs, then what she gives for free.
+
+She points to the rifle hooks before she pours. She calls everyone by what they drive.
+
+She cares about one table where nobody draws. She avoids taking sides between the people who drink there.
+
+She treats a stranger as a guest who eats once and pays after that.
+
+Sample: "Hang it on the hook. You eat once for nothing. After that the cup costs, like everyone's."
+
+### Hollis Brennan, a still boss at the Pump Station
+
+Hollis talks of crude, stills, drums, valves and batteries. A good day to him is a hot still and a full stack by the gate.
+
+His sentences are flat and practical. He names the job, then the part it needs.
+
+He is a minor speaker with a clear job and no quirk. He wants drums bought and tools and batteries brought for the pumpjacks.
+
+He cares about keeping the stills hot and the pumpjacks turning. He avoids talk about who owns the wells.
+
+He treats a stranger as a buyer or a pair of hands.
+
+Sample: "Pumps bring the crude up, the stills cook it, and the drums go out on the convoys. Bring me tools and I'll fill yours."

@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
-from parts_common_core import CELL_ACROSS, CELL_ALONG, COLORS, check_footprint  # noqa: E402
+from parts_common_core import CELL_ACROSS, CELL_ALONG, COLORS, PROUD, check_footprint  # noqa: E402
 
 SEED = 130
 BACK = CELL_ALONG / 2  # the cell's back edge, Blender X
@@ -26,7 +26,7 @@ def build(kit: Kit) -> None:
     bh = BUMPER_Z[1] - BUMPER_Z[0]
     bz = sum(BUMPER_Z) / 2
     kit.box("bumper", (0.09, CELL_ACROSS, bh), (BACK + BUMPER_OUT - 0.045, 0, bz), "metal")
-    kit.box("bumper_step", (BUMPER_OUT, CELL_ACROSS - 0.08, 0.03), (BACK + BUMPER_OUT / 2, 0, BUMPER_Z[1] - 0.015), "metal_light")
+    kit.box("bumper_step", (BUMPER_OUT - PROUD, CELL_ACROSS - 0.08, 0.03), (BACK + (BUMPER_OUT - PROUD) / 2, 0, BUMPER_Z[1] - 0.015 + PROUD), "metal_light")
 
 
 def main() -> None:

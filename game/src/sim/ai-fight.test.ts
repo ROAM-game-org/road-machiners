@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ramValue } from './crash-contact';
-import { afterTurn, exposure, fightOrder, fightPoint, leadOf, scorePoint, noteTarget, perceivedTarget, planNpcOrders } from './ai';
+import { afterTurn, exposure, fightOrder, fightPoint, interceptOf, leadOf, scorePoint, noteTarget, perceivedTarget, planNpcOrders } from './ai';
 import { mountedParts, sideOf, type SideLetter } from './grid';
 import { decide } from './npc-decisions';
 import { thinkNpc } from './npc-activities';
@@ -8,6 +8,9 @@ import { chooseOn } from './tracks';
 import { PARTS } from '../data/parts';
 import { RULES } from '../data/rules';
 import { dist } from './vec';
+import { NPC_BEHAVIOR } from '../data/npcs';
+import { joinCompany } from './companies';
+import { followSpot, postOf } from './tow';
 import { bodyHitChance, inArc } from './combat';
 import { vehicleStats } from './stats';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
@@ -17,7 +20,7 @@ import type { Vehicle, World } from './types';
 import { angleDiff, bearing, type Vec } from './vec';
 
 function fighter(w: World, templateId: string, parts: string[], pos: Vec, chassis = 'hauler'): Vehicle {
-  const v = addVehicle(w, 'raiders', chassis, parts, pos, 0);
+  const v = addVehicle(w, 'scrapjaw', chassis, parts, pos, 0);
   v.brain = npcBrain(templateId, pos, ['raider']);
   return v;
 }
@@ -35,6 +38,17 @@ function inReachAfter(w: World, v: Vehicle, target: Vehicle, p: Vec): boolean {
 const CLEAR = 3;
 
 describe('fight driving', () => {
+  it('scores fight points for a truck shut down by a pulse while its foe drives onto its spot', () => {
+    const w = emptyWorld({ x: 40, y: 30 });
+    const v = fighter(w, 'buggy', ['mg', 'stockEngine'], { x: 20, y: 20 }, 'buggy');
+    v.shutDown = { from: w.turn, until: w.turn + 5 };
+    const foe = fighter(w, 'buggy', ['mg', 'stockEngine'], { x: 18, y: 20 }, 'buggy');
+    foe.speed = 2;
+    expect(leadOf(foe)).toEqual(v.pos);
+    expect(vehicleStats(w, v).maxSpeed).toBe(0);
+    expect(() => fightPoint(w, v, foe, CLEAR)).not.toThrow();
+  });
+
   it('closes in on a target that cannot shoot back, where its rounds land more often', () => {
     const w = emptyWorld({ x: 40, y: 30 });
     const me = w.vehicles[0];
@@ -70,7 +84,7 @@ describe('fight driving', () => {
   it('keeps out of the target\'s forward cannon arc', () => {
     const w = emptyWorld({ x: 40, y: 30 });
     const me = w.vehicles[0];
-    const gun = addVehicle(w, 'player', 'hauler', ['stockEngine', 'cannon'], me.pos, 0);
+    const gun = addVehicle(w, 'player', 'longbed', ['stockEngine', 'cannon'], me.pos, 0);
     gun.id = me.id;
     w.vehicles = [gun, ...w.vehicles.slice(1, -1)];
     const v = fighter(w, 'gunwagon', ['stockEngine', 'mg'], { x: 45, y: 30 });
@@ -195,7 +209,7 @@ describe('reaction delay', () => {
 describe('exposure', () => {
   function faceOff(keep: SideLetter | null) {
     const w = emptyWorld({ x: 40, y: 30 });
-    const gun = addVehicle(w, 'player', 'hauler', ['stockEngine', 'cannon'], { x: 40, y: 30 }, 0);
+    const gun = addVehicle(w, 'player', 'longbed', ['stockEngine', 'cannon'], { x: 40, y: 30 }, 0);
     gun.id = w.vehicles[0].id;
     w.vehicles = [gun, ...w.vehicles.slice(1, -1)];
     const plates = Array.from({ length: 20 }, () => 'steelPlate');
@@ -203,7 +217,7 @@ describe('exposure', () => {
     v.heading = Math.PI;
     const mg = v.items.find((it) => it.kind === 'part' && it.part.defId === 'mg')!;
     mg.x = 2;
-    mg.y = 1;
+    mg.y = 2;
     const strip = new Set(mountedParts(v, 'armor').filter((p) => sideOf(v, p) !== keep).map((p) => p.id));
     v.items = v.items.filter((it) => it.kind !== 'part' || !strip.has(it.part.id));
     return exposure(w, gun, gun, v);
@@ -211,7 +225,7 @@ describe('exposure', () => {
 
   function bareAt(gap: number) {
     const w = emptyWorld({ x: 40, y: 30 });
-    const gun = addVehicle(w, 'player', 'hauler', ['stockEngine', 'cannon'], { x: 40, y: 30 }, 0);
+    const gun = addVehicle(w, 'player', 'longbed', ['stockEngine', 'cannon'], { x: 40, y: 30 }, 0);
     const v = fighter(w, 'gunwagon', ['stockEngine', 'mg'], { x: 40 + gap, y: 30 });
     v.heading = Math.PI;
     return { exposure: exposure(w, gun, gun, v), chance: bodyHitChance(w, gun, vehicleStats(w, gun).weapons[0], v) };
@@ -287,5 +301,86 @@ describe('fight whims', () => {
       expect(dest && bearing(w.vehicles[0].pos, dest)).toBeCloseTo(a, 9);
     }
     expect(flipped).toBe(true);
+  });
+});
+
+describe('intercept', () => {
+  function pair(gap: number, preySpeed: number) {
+    const w = emptyWorld({ x: 200, y: 200 });
+    const v = fighter(w, 'buggy', ['mg', 'stockEngine'], { x: 20, y: 20 }, 'buggy');
+    const prey = addVehicle(w, 'independent', 'buggy', ['stockEngine'], { x: 20 + gap, y: 20 }, 0);
+    prey.speed = preySpeed;
+    return { w, v, prey };
+  }
+
+  it('aims ahead of a target that drives on, never past one turn of the fighter\'s own driving', () => {
+    const { w, v, prey } = pair(60, 9);
+    const point = interceptOf(w, v, prey);
+    expect(point.x).toBeGreaterThan(prey.pos.x);
+    expect(dist(point, prey.pos)).toBeLessThanOrEqual(vehicleStats(w, v).maxSpeed + 1e-9);
+  });
+
+  it('aims at the target when it stands still', () => {
+    const { w, v, prey } = pair(60, 0);
+    expect(interceptOf(w, v, prey)).toEqual(prey.pos);
+  });
+
+  function fighting(gapFor: (range: number) => number) {
+    const w = emptyWorld({ x: 200, y: 200 });
+    const me = w.vehicles[0];
+    const v = fighter(w, 'buggy', ['mg', 'stockEngine'], { x: 20, y: 20 }, 'buggy');
+    me.pos = { x: 20 + gapFor(vehicleStats(w, v).weapons[0].def.range), y: 20 };
+    me.heading = 0;
+    me.speed = 6;
+    chooseOn(w, v, me.id, me.pos, 'fight', true);
+    v.brain!.goals.push({ kind: 'fight', targetId: me.id, destination: { ...me.pos }, phase: 'travel', reason: 'tripToSite', worn: { turn: w.turn, condition: 1 } });
+    v.brain!.whim = { kind: 'keep', until: w.turn + 4, angle: 0 };
+    return { w, v, me };
+  }
+
+  it('drives a fighter that sees its target beyond its guns to the intercept point', () => {
+    const { w, v, me } = fighting((range) => range + 3);
+    planNpcOrders(w);
+    const dest = v.order && 'dest' in v.order ? v.order.dest : null;
+    expect(dest).toEqual(interceptOf(w, v, me));
+  });
+
+  it('keeps the ring point for a target in reach', () => {
+    const { w, v, me } = fighting(() => 5);
+    planNpcOrders(w);
+    const dest = v.order && 'dest' in v.order ? v.order.dest : null;
+    expect(dest).not.toEqual(interceptOf(w, v, me));
+  });
+});
+
+describe('a guard in a company', () => {
+  const escort = { kind: 'escort', site: null, fee: 0 } as const;
+
+  function guarded() {
+    const w = emptyWorld({ x: 100, y: 60 });
+    const trader = fighter(w, 'trader', ['stockEngine', 'mg'], { x: 50, y: 30 });
+    trader.speed = 4;
+    const guard = fighter(w, 'merc', ['stockEngine', 'mg'], { x: 48, y: 34 }, 'buggy');
+    joinCompany(w, guard, trader, 'escort', escort);
+    return { w, trader, guard, post: postOf(w, guard)! };
+  }
+
+  it('has its post beside the truck it escorts, and none when it escorts nothing', () => {
+    const { w, trader, guard, post } = guarded();
+    expect(post).toEqual(followSpot(w, guard, trader, 0));
+    expect(postOf(w, trader)).toBeNull();
+  });
+
+  it('fights from a spot within the gap its leader waits at, for a foe at the convoy', () => {
+    const { w, post } = guarded();
+    const foe = fighter(w, 'scrapjaw', ['stockEngine', 'mg'], { x: post.x + 14, y: post.y }, 'buggy');
+    const guard = w.vehicles.find((v) => v.brain?.templateId === 'merc')!;
+    expect(dist(fightPoint(w, guard, foe, CLEAR, post), post)).toBeLessThanOrEqual(NPC_BEHAVIOR.escortWaitGap);
+  });
+
+  it('holds its post for a foe too far for its guns to reach from there', () => {
+    const { w, guard, post } = guarded();
+    const foe = fighter(w, 'scrapjaw', ['stockEngine', 'mg'], { x: post.x + 80, y: post.y }, 'buggy');
+    expect(fightPoint(w, guard, foe, CLEAR, post)).toEqual(post);
   });
 });

@@ -1,3 +1,4 @@
+import { PAINT } from '../../data/chassis';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { startKit } from '../../data/start';
@@ -10,7 +11,8 @@ import type { World } from '../../sim/types';
 import { newWorld } from '../../sim/world';
 import { TEST_MAP } from '../../test/map';
 import { loadModels } from './models';
-import { RADIO_LIGHT, RadioLights, radioLit, VehicleView, type RadioCue } from './vehicle';
+import { VehicleView } from './vehicle';
+import { RADIO_LIGHT, RadioLights, radioLit, type RadioCue } from './daylight';
 import { defaultSetup } from '../../sim/settings';
 
 
@@ -41,7 +43,7 @@ const FLASHES = [true, false, true, false];
 
 function callWorlds(): { open: World; npcId: string; playerId: string; idle: World } {
   const idle = emptyWorld({ x: 30, y: 30 });
-  const npc = addVehicle(idle, 'traders', 'scout', ['stockEngine'], { x: 36, y: 30 });
+  const npc = addVehicle(idle, 'independent', 'scout', ['stockEngine'], { x: 36, y: 30 });
   npc.brain = npcBrain('trader', npc.pos, ['trader']);
   refreshVision(idle);
   return { idle, open: callVehicle(idle, npc.id), npcId: npc.id, playerId: idle.player.vehicleId };
@@ -73,6 +75,17 @@ describe('radioLit', () => {
 });
 
 describe('radio lights', () => {
+  it('keeps a call that is not shown dark, and lights both trucks when it shows', () => {
+    const { open, npcId, playerId } = callWorlds();
+    const l = new RadioLights();
+    l.note(open, 0, false);
+    expect(lights(l, npcId, 0, 2000)).toEqual([false]);
+    expect(lights(l, playerId, 0, 2000)).toEqual([false]);
+    l.note(open, 500, true);
+    expect(lights(l, npcId, 500, 500 + 4 * F).slice(0, 4)).toEqual(FLASHES);
+    expect(l.lit(playerId, 500)).toBe(true);
+  });
+
   it('shows both trucks of a call two flashes, steady, one flash on hang-up and then dark', () => {
     const { open, idle, npcId, playerId } = callWorlds();
     const l = new RadioLights();
@@ -234,7 +247,7 @@ function halos(view: VehicleView): THREE.Sprite[] {
 
 describe('antenna radio light', () => {
   it('has one bulb and one halo, and radio() switches both', () => {
-    const view = new VehicleView(playerVehicle(newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'))), true);
+    const view = new VehicleView(playerVehicle(newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'))), true, PAINT.standard, 'world');
     expect(bulbs(view)).toHaveLength(1);
     expect(halos(view)).toHaveLength(1);
     const color = () => (bulbs(view)[0].material as THREE.MeshBasicMaterial).color.getHex();

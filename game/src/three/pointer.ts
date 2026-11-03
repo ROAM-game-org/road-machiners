@@ -1,4 +1,4 @@
-import { playerVehicle, vehicleById } from '../sim/damage';
+import { playerVehicle } from '../sim/damage';
 import type { Vehicle, World } from '../sim/types';
 import { isAtRest } from '../sim/world';
 import type * as THREE from 'three';
@@ -73,15 +73,16 @@ export class PointerPicker {
 
   private nearestNpc(x: number, y: number, playerId: string): { id: string; distance: number } | null {
     let nearest: { id: string; distance: number } | null = null;
-    for (const [id, view] of this.deps.views) {
-      const distance = this.npcDistance(x, y, id, view, playerId);
-      if (distance !== null && (nearest === null || distance < nearest.distance)) nearest = { id, distance };
+    for (const v of this.deps.world().vehicles) {
+      const view = this.deps.views.get(v.id);
+      const distance = view ? this.npcDistance(x, y, v, view, playerId) : null;
+      if (distance !== null && (nearest === null || distance < nearest.distance)) nearest = { id: v.id, distance };
     }
     return nearest;
   }
 
-  private npcDistance(x: number, y: number, id: string, view: VehicleView, playerId: string): number | null {
-    if (id === playerId || !this.deps.visible(vehicleById(this.deps.world(), id))) return null;
+  private npcDistance(x: number, y: number, v: Vehicle, view: VehicleView, playerId: string): number | null {
+    if (v.id === playerId || !this.deps.visible(v)) return null;
     return this.deps.hit(x, y, view.root);
   }
 }

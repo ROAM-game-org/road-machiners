@@ -1,10 +1,8 @@
-// The geology layer of the map bake: rain, slump and wind over the draft's corner grid. Each rule is its
-// own function over typed arrays, so a test can run it alone on a small grid. Rules never read roads or
-// sites; the finish layer grades roads over the result.
 
 import { GEOLOGY } from "../data/terrain";
 import type { DuneRules, RainRules, SandStart, SlumpRules, WindRules } from "../data/terrain";
 import { noiseAt } from "../sim/elevation";
+import { newHeap, popHeap, pushHeap, type Heap } from "../sim/heap";
 import { chance, nextRandom } from "../sim/rng";
 import type { Rng } from "../sim/rng";
 import type { MapDraft } from "./bake";
@@ -125,9 +123,49 @@ function newRainGrid(d: MapDraft): RainGrid {
   };
 }
 
+const RADIX_BITS = 16;
+const RADIX = 1 << RADIX_BITS;
+
+function descendingKeys(height: Float64Array): { high: Uint32Array; low: Uint32Array } {
+  const count = height.length;
+  const high = new Uint32Array(count);
+  const low = new Uint32Array(count);
+  const view = new DataView(new ArrayBuffer(8));
+  for (let k = 0; k < count; k++) {
+    view.setFloat64(0, height[k] === 0 ? 0 : height[k]);
+    const hi = view.getUint32(0);
+    const lo = view.getUint32(4);
+    const negative = hi >>> 31 === 1;
+    high[k] = negative ? hi : ~hi & 0x7fffffff;
+    low[k] = negative ? lo : ~lo >>> 0;
+  }
+  return { high, low };
+}
+
 function sortByHeight(g: RainGrid): void {
-  const h = g.height;
-  g.order.sort((a, b) => h[b] - h[a] || a - b);
+  const count = g.order.length;
+  const { high, low } = descendingKeys(g.height);
+  const passes: [Uint32Array, number][] = [[low, 0], [low, RADIX_BITS], [high, 0], [high, RADIX_BITS]];
+  let from: Uint32Array = new Uint32Array(count);
+  let to: Uint32Array = g.order;
+  for (let k = 0; k < count; k++) from[k] = k;
+  const counts = new Uint32Array(RADIX);
+  for (const [key, shift] of passes) {
+    counts.fill(0);
+    for (let i = 0; i < count; i++) counts[(key[from[i]] >>> shift) & (RADIX - 1)]++;
+    let sum = 0;
+    for (let r = 0; r < RADIX; r++) {
+      const c = counts[r];
+      counts[r] = sum;
+      sum += c;
+    }
+    for (let i = 0; i < count; i++) {
+      const k = from[i];
+      to[counts[(key[k] >>> shift) & (RADIX - 1)]++] = k;
+    }
+    [from, to] = [to, from];
+  }
+  g.order.set(from);
 }
 
 function route(g: RainGrid, k: number, rules: RainRules): void {
@@ -436,55 +474,6 @@ function collectBasin(heights: ArrayLike<number>, level: Float64Array, n: number
 
 function isGridNeighbor(k: number, m: number, n: number): boolean {
   return m >= 0 && m < n * n && Math.abs((m % n) - (k % n)) <= 1;
-}
-
-type Heap = { items: Int32Array; count: number; key: Float64Array };
-
-function newHeap(capacity: number, key: Float64Array): Heap {
-  return { items: new Int32Array(capacity), count: 0, key };
-}
-
-function below(h: Heap, a: number, b: number): boolean {
-  const ka = h.key[h.items[a]];
-  const kb = h.key[h.items[b]];
-  return ka < kb || (ka === kb && h.items[a] < h.items[b]);
-}
-
-function swap(h: Heap, a: number, b: number): void {
-  const t = h.items[a];
-  h.items[a] = h.items[b];
-  h.items[b] = t;
-}
-
-function pushHeap(h: Heap, k: number): void {
-  let at = h.count++;
-  h.items[at] = k;
-  while (at > 0) {
-    const parent = (at - 1) >> 1;
-    if (!below(h, at, parent)) return;
-    swap(h, at, parent);
-    at = parent;
-  }
-}
-
-function popHeap(h: Heap): number {
-  const top = h.items[0];
-  h.items[0] = h.items[--h.count];
-  let at = 0;
-  for (;;) {
-    const least = leastOfFamily(h, at);
-    if (least === at) return top;
-    swap(h, at, least);
-    at = least;
-  }
-}
-
-function leastOfFamily(h: Heap, at: number): number {
-  const left = 2 * at + 1;
-  let least = at;
-  if (left < h.count && below(h, left, least)) least = left;
-  if (left + 1 < h.count && below(h, left + 1, least)) least = left + 1;
-  return least;
 }
 
 export function dunes(d: MapDraft, rules: DuneRules, windDirection: number, seed: number): void {

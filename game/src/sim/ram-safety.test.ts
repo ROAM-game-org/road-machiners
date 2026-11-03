@@ -26,7 +26,7 @@ function fighting(world: World, raider: Vehicle): Vehicle {
 
 function createFight() {
   const world = emptyWorld({ x: 35, y: 30 });
-  const raider = fighting(world, addVehicle(world, 'raiders', 'hauler', ['mg', 'stockEngine', 'plowRam'], { x: 30, y: 30 }));
+  const raider = fighting(world, addVehicle(world, 'scrapjaw', 'hauler', ['mg', 'stockEngine', 'plowRam'], { x: 30, y: 30 }));
   return { world, raider };
 }
 
@@ -76,7 +76,7 @@ describe('ram chances', () => {
 
   it('makes a costly ram rare against a heavier armored target', () => {
     const world = emptyWorld({ x: 35, y: 30 });
-    const raider = fighting(world, addVehicle(world, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 }));
+    const raider = fighting(world, addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 }));
     raider.speed = 5;
     expect(ramWeight(world, raider)).toBeCloseTo(BASE_RAM * NPC_BEHAVIOR.ram.riskyRam);
   });
@@ -161,26 +161,26 @@ describe('ram chances', () => {
 describe('crippled drivers', () => {
   function createListener() {
     const world = emptyWorld({ x: 1, y: 1 });
-    const raider = addVehicle(world, 'raiders', 'hauler', ['mg', 'stockEngine', 'plowRam'], { x: 30, y: 30 });
+    const raider = addVehicle(world, 'scrapjaw', 'hauler', ['mg', 'stockEngine', 'plowRam'], { x: 30, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     return { world, raider, me: world.player.vehicleId };
   }
 
-  it('counts a dead engine as weak even while its cab and gun work, so fleeing a new hostile rises', () => {
+  it('counts a dead engine as weak even while its cab and gun work, and offers it no flight', () => {
     const { world, raider } = createFight();
     const me = world.player.vehicleId;
-    const intact = optionWeights(world, raider, 'hostileSeen', me, 0).flee!;
+    expect(optionWeights(world, raider, 'hostileSeen', me, 0)).toHaveProperty('flee');
     mountedParts(raider, 'engine')[0].hp = 0;
     expect(isWeak(world, raider)).toBe(true);
-    expect(optionWeights(world, raider, 'hostileSeen', me, 0).flee).toBeCloseTo(intact * NPC_BEHAVIOR.weakFlee);
+    expect(optionWeights(world, raider, 'hostileSeen', me, 0)).not.toHaveProperty('flee');
   });
 
-  it('rarely closes in on a heard contact when crippled, and heads for repairs', () => {
+  it('does not close in on a heard contact when crippled, and heads for repairs', () => {
     const { world, raider, me } = createListener();
     addState(world, 'feud', raider.id, me, { kind: 'feud', robbery: false });
-    const intact = optionWeights(world, raider, 'contactHeard', me, null).investigate!;
+    expect(optionWeights(world, raider, 'contactHeard', me, null)).toHaveProperty('investigate');
     mountedParts(raider, 'engine')[0].hp = 0;
-    expect(optionWeights(world, raider, 'contactHeard', me, null).investigate).toBeCloseTo(intact * NPC_BEHAVIOR.crippledInvestigate);
+    expect(optionWeights(world, raider, 'contactHeard', me, null)).not.toHaveProperty('investigate');
     thinkNpc(world, raider);
     expect(raider.brain!.goals.some((g) => g.kind === 'resupply')).toBe(true);
   });

@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { count } from '../../../perf';
-import { PROP_BIT, TRUCK_BIT } from '../models';
 
 export const CARD_SHAPES = 4;
 export const ROUND_SHAPE = CARD_SHAPES;
@@ -13,6 +12,7 @@ const CARD_ORDER = { lit: 904, glow: 906 };
 const FILL_ALPHA_STEPS = 64;
 const ROUND_EDGE = '(1.0 - smoothstep(0.84, 1.0, length(vBall)))';
 const CARD_BODY = 'mix(texture2D(shapes, vUv).a, pow(max(0.0, 1.0 - dot(vBall, vBall)), 2.0), vRound)';
+const BALL_DEPTH = 'gl_FragDepth = (vDepth.x + vDepth.y * sqrt(max(0.0, 1.0 - dot(vBall, vBall)))) * 0.5 + 0.5;';
 export const OVERFILL_COUNTER = 'fx.cards.overfilled';
 
 export type CardLight = { sunDir: THREE.Vector3; sun: THREE.Color; sky: THREE.Color; ground: THREE.Color };
@@ -35,6 +35,10 @@ export type Card = {
   sz: number;
 };
 
+const DEPTH_BINS = 4096;
+
+const emptyCard =(): Card => ({ x: 0, y: 0, z: 0, size: 0, spin: 0, shape: 0, r: 0, g: 0, b: 0, alpha: 0, sx: 0, sy: 0, sz: 0 });
+
 const VERTEX = `
   attribute vec3 offset;
   attribute vec3 stretch;
@@ -48,6 +52,7 @@ const VERTEX = `
   varying vec4 vTint;
   varying vec3 vSun;
   varying vec3 vUp;
+  varying vec2 vDepth;
   void main() {
     float c = cos(sizeSpin.y);
     float s = sin(sizeSpin.y);
@@ -66,9 +71,8 @@ const VERTEX = `
     vec2 ax = reach > 0.0001 ? along / reach : vec2(1.0, 0.0);
     vec2 corner = position.xy * sizeSpin.x;
     mv.xy += reach > 0.0001 ? ax * position.x * (sizeSpin.x + reach) + vec2(-ax.y, ax.x) * corner.y - along * 0.5 : corner;
-    #ifdef OVER_SOLIDS
-    mv.z -= sizeSpin.x * 0.5;
-    #endif
+    float centreNdc = projectionMatrix[2][2] * mv.z + projectionMatrix[3][2];
+    vDepth = vec2(centreNdc, projectionMatrix[2][2] * sizeSpin.x * 0.5);
     gl_Position = projectionMatrix * mv;
   }
 `;
@@ -84,9 +88,11 @@ const LIT_FRAGMENT = `
   varying vec4 vTint;
   varying vec3 vSun;
   varying vec3 vUp;
+  varying vec2 vDepth;
   void main() {
     float a = vTint.a * ${CARD_BODY} * ${ROUND_EDGE};
     if (a <= 0.003) discard;
+    ${BALL_DEPTH}
     vec3 n = normalize(vec3(vBall, sqrt(max(0.0, 1.0 - dot(vBall, vBall) * 0.5))));
     vec3 sky = mix(groundColor, skyColor, 0.5 * dot(n, vUp) + 0.5);
     float wrap = 0.5 * dot(n, vSun) + 0.5;
@@ -103,16 +109,18 @@ const GLOW_FRAGMENT = `
   varying vec2 vBall;
   varying float vRound;
   varying vec4 vTint;
+  varying vec2 vDepth;
   void main() {
     float a = vTint.a * ${CARD_BODY} * ${ROUND_EDGE};
     if (a <= 0.003) discard;
+    ${BALL_DEPTH}
     gl_FragColor = vec4(vTint.rgb, a);
     #include <colorspace_fragment>
   }
 `;
 
 export class CardBatch {
-  readonly meshes: readonly THREE.Mesh[];
+  readonly mesh: THREE.Mesh;
   private readonly geo = new THREE.InstancedBufferGeometry();
   private readonly uniforms = {
     shapes: { value: null as THREE.Texture | null },
@@ -127,10 +135,15 @@ export class CardBatch {
   private readonly shapes: THREE.InstancedBufferAttribute;
   private readonly tints: THREE.InstancedBufferAttribute;
   private readonly cards: Card[] = [];
+  private readonly pool: Card[] = [];
+  private readonly ordered: Card[] = [];
+  private readonly depths: Float32Array;
+  private readonly binStarts = new Int32Array(DEPTH_BINS + 1);
   private readonly depth = new THREE.Vector3();
 
   constructor(private readonly capacity: number, private readonly kind: 'lit' | 'glow', shapes: THREE.Texture, private readonly fillScreens: number) {
     if (!(fillScreens > 0)) throw new Error(`CardBatch needs a positive fill ceiling, got ${fillScreens}`);
+    this.depths = new Float32Array(capacity);
     const quad = new THREE.PlaneGeometry(1, 1);
     this.geo.index = quad.index;
     this.geo.setAttribute('position', quad.getAttribute('position'));
@@ -141,12 +154,9 @@ export class CardBatch {
     this.shapes = this.attribute('shape', 1);
     this.tints = this.attribute('tint', 4);
     this.geo.instanceCount = 0;
-    this.meshes = [false, true].map((overSolids) => {
-      const mesh = new THREE.Mesh(this.geo, cardMaterial(kind, this.uniforms, overSolids));
-      mesh.frustumCulled = false;
-      mesh.renderOrder = kind === 'lit' ? CARD_ORDER.lit : CARD_ORDER.glow;
-      return mesh;
-    });
+    this.mesh = new THREE.Mesh(this.geo, cardMaterial(kind, this.uniforms));
+    this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = kind === 'lit' ? CARD_ORDER.lit : CARD_ORDER.glow;
     this.uniforms.shapes.value = shapes;
   }
 
@@ -159,8 +169,14 @@ export class CardBatch {
   }
 
   push(card: Card): void {
+    Object.assign(this.slot(), card);
+  }
+
+  slot(): Card {
     if (this.cards.length >= this.capacity) throw new Error(`CardBatch over its ${this.capacity} cards; the client pools must cap below it`);
+    const card = (this.pool[this.cards.length] ??= emptyCard());
     this.cards.push(card);
+    return card;
   }
 
   flush(camera: THREE.Camera): void {
@@ -199,9 +215,36 @@ export class CardBatch {
   }
 
   private sortBackToFront(camera: THREE.Camera): void {
-    const look = camera.getWorldDirection(this.depth);
-    const d = (c: Card) => c.x * look.x + c.y * look.y + c.z * look.z;
-    this.cards.sort((a, b) => d(b) - d(a));
+    const { nearest, farthest } = this.measureDepths(camera.getWorldDirection(this.depth));
+    const span = farthest - nearest;
+    if (!(span > 0)) return;
+    const scale = (DEPTH_BINS - 1) / span;
+    const n = this.cards.length;
+    const binOf = (i: number) => this.binOf((farthest - this.depths[i]) * scale);
+    this.binStarts.fill(0);
+    for (let i = 0; i < n; i++) this.binStarts[binOf(i) + 1]++;
+    for (let b = 1; b <= DEPTH_BINS; b++) this.binStarts[b] += this.binStarts[b - 1];
+    for (let i = 0; i < n; i++) this.ordered[this.binStarts[binOf(i)]++] = this.cards[i];
+    for (let i = 0; i < n; i++) this.cards[i] = this.ordered[i];
+  }
+
+  private binOf(position: number): number {
+    const bin = Math.floor(position);
+    return bin >= 0 && bin < DEPTH_BINS ? bin : 0;
+  }
+
+  private measureDepths(look: THREE.Vector3): { nearest: number; farthest: number } {
+    let nearest = Infinity;
+    let farthest = -Infinity;
+    for (let i = 0; i < this.cards.length; i++) {
+      const c = this.cards[i];
+      const depth = c.x * look.x + c.y * look.y + c.z * look.z;
+      this.depths[i] = depth;
+      if (!Number.isFinite(depth)) continue;
+      nearest = Math.min(nearest, depth);
+      farthest = Math.max(farthest, depth);
+    }
+    return { nearest, farthest };
   }
 
   private attribute(name: string, size: number): THREE.InstancedBufferAttribute {
@@ -212,20 +255,14 @@ export class CardBatch {
   }
 }
 
-function cardMaterial(kind: 'lit' | 'glow', uniforms: Record<string, THREE.IUniform>, overSolids: boolean): THREE.ShaderMaterial {
+function cardMaterial(kind: 'lit' | 'glow', uniforms: Record<string, THREE.IUniform>): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     vertexShader: VERTEX,
     fragmentShader: kind === 'lit' ? LIT_FRAGMENT : GLOW_FRAGMENT,
-    defines: overSolids ? { OVER_SOLIDS: '' } : {},
     uniforms,
     transparent: true,
     depthWrite: false,
     blending: kind === 'lit' ? THREE.NormalBlending : THREE.AdditiveBlending,
-    stencilWrite: true,
-    stencilRef: 0,
-    stencilFuncMask: TRUCK_BIT | PROP_BIT,
-    stencilWriteMask: 0,
-    stencilFunc: overSolids ? THREE.NotEqualStencilFunc : THREE.EqualStencilFunc,
   });
 }
 

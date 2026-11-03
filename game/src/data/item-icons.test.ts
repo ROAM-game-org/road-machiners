@@ -1,13 +1,11 @@
-// Every item and chassis has one icon in item-icons.json, and each stored hash matches the current models, weapon picks
-// and icon style. A stale hash means something an icon draws changed after the last
-// npm run icons.
 
 import { describe, expect, it } from 'vitest';
+import { existsSync, readdirSync } from 'node:fs';
 import { CHASSIS } from './chassis';
 import { GOODS } from './goods';
 import { PARTS } from './parts';
 import { ITEM_TONES } from '../render/palette';
-import { iconCatalog, itemTone, ICON_WEAPON_PICKS } from '../render/partLooks';
+import { CHASSIS_MASK, CHASSIS_SHEET, iconCatalog, itemTone, ICON_WEAPON_PICKS } from '../render/partLooks';
 import type { ModelName } from '../three/render/models';
 import { blueprintColors, iconHash, iconView, ICON_VIEWS } from '../three/icons/render';
 import ICONS from './item-icons.json';
@@ -58,6 +56,12 @@ describe('item icons', () => {
 
   it('has a portrait for every chassis, and nothing else', () => {
     expect(Object.keys(ICONS.chassis).sort(), STALE).toEqual(chassis.map((e) => e.id).sort());
+  });
+
+  it('has the standard chassis sheet and its paint mask, and no sheet per paint', () => {
+    expect(existsSync(`public/icons/${CHASSIS_SHEET}`), STALE).toBe(true);
+    expect(existsSync(`public/icons/${CHASSIS_MASK}`), STALE).toBe(true);
+    expect(readdirSync('public/icons').filter((f) => f.startsWith('chassis')).sort(), STALE).toEqual([CHASSIS_MASK, CHASSIS_SHEET].sort());
   });
 
   it('was drawn in the views the game shows', () => {

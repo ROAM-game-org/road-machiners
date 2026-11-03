@@ -2,21 +2,16 @@
 import { RULES } from '../data/rules';
 import type { Opening, StartKit } from '../data/start';
 import { makePart } from './factory';
-import { mountedParts } from './grid';
-import { emptyHidden } from './salvage';
+import { playerVehicle } from './damage';
+import { goodsCount, isMounted, mountedParts } from './grid';
+import { engineNeedsPatch } from './repair';
+import { canReachSalvage, emptyHidden, hasSalvage } from './salvage';
 import type { Obstacle, SalvageStock, Vehicle, World } from './types';
 import type { Vec } from './vec';
+import { OPENING_WRECK_RADIUS, openingWreckSpot } from './start-pose';
 import { setStartHp } from './wear';
 
 export const OPENING_WRECK_ID = 'opening-wreck';
-const OPENING_WRECK_RADIUS = 0.7;
-
-export function openingWreckSpot(opening: Opening, start: { pos: Vec; heading: number }): Vec {
-  const { ahead, side } = opening.wreck;
-  const cos = Math.cos(start.heading);
-  const sin = Math.sin(start.heading);
-  return { x: start.pos.x + cos * ahead - sin * side, y: start.pos.y + sin * ahead + cos * side };
-}
 
 export function openingObstacles(kit: StartKit, start: { pos: Vec; heading: number }): Obstacle[] {
   const wreck: Obstacle[] = kit.opening ? [{ id: OPENING_WRECK_ID, pos: openingWreckSpot(kit.opening, start), r: OPENING_WRECK_RADIUS, kind: 'wreck' }] : [];
@@ -56,3 +51,38 @@ function applyCondition(v: Vehicle, condition: Record<string, number>): void {
 export function openingStockOf(world: World): SalvageStock | null {
   return world.salvage.find((s) => s.id === OPENING_WRECK_ID) ?? null;
 }
+
+export type OpeningStep = 'wreck' | 'search' | 'loot' | 'patch' | 'install';
+export type OpeningState = { stock: SalvageStock | null; step: OpeningStep | null };
+
+export const cageMounted = (w: World): boolean => mountedParts(playerVehicle(w)).some((p) => p.defId === 'cage');
+
+const holdsLooseCage = (w: World): boolean => {
+  const me = playerVehicle(w);
+  return me.items.some((it) => it.kind === 'part' && it.part.defId === 'cage' && !isMounted(me.chassisId, it));
+};
+
+export function openingStep(w: World): OpeningStep | null {
+  return openingState(w).step;
+}
+
+export function openingState(w: World): OpeningState {
+  const stock = openingStockOf(w);
+  if (!stock) return { stock, step: null };
+  return { stock, step: w.player.scavenged.includes(stock.id) ? stepAfterSearch(w, stock) : stepBeforeSearch(w, stock) };
+}
+
+function stepBeforeSearch(w: World, stock: SalvageStock): OpeningStep | null {
+  if (!hasSalvage(stock)) return null;
+  return canReachSalvage(playerVehicle(w), stock) ? 'search' : 'wreck';
+}
+
+function stepAfterSearch(w: World, stock: SalvageStock): OpeningStep | null {
+  if (hasSalvage(stock) && canReachSalvage(playerVehicle(w), stock)) return 'loot';
+  if (patchDue(w)) return 'patch';
+  return installDue(w) ? 'install' : null;
+}
+
+const patchDue = (w: World): boolean => engineNeedsPatch(w, playerVehicle(w)) && (goodsCount(playerVehicle(w)).parts ?? 0) > 0;
+
+const installDue = (w: World): boolean => holdsLooseCage(w) && !cageMounted(w);

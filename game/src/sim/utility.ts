@@ -4,7 +4,7 @@ import { EMITTER, WORK } from '../data/utilities';
 import { isHostile, noteAttack, type FireBlock } from './combat';
 import { isKnockedOut } from './defeat';
 import { isMounted, mountedParts } from './grid';
-import { armClaymore } from './claymore';
+import { armClaymore, disarmClaymore } from './claymore';
 import { endLines } from './harpoon';
 import { deploySmoke, dropField, launchFlare, oilShort, spillOil } from './hazards';
 import type { ChargeState, Refusal, UtilityBlock, GameEvent, PartInstance, UtilityOrder, Vehicle, World } from './types';
@@ -13,7 +13,9 @@ import { wornDef, wornTurns } from './wear';
 
 export type UseKind = UtilityEffectType | 'claymore';
 
-const ORDER_KIND: Record<UseKind, UtilityOrder['kind'] | null> = {
+type PlacingKind = Exclude<UtilityOrder['kind'], 'disarm'>;
+
+const ORDER_KIND: Record<UseKind, PlacingKind | null> = {
   sprout: 'self',
   caltrops: 'self',
   oil: 'self',
@@ -73,11 +75,11 @@ function pointOf(order: UtilityOrder): Vec {
 
 export function useKindOf(def: PartDef): UseKind {
   if (def.kind === 'utility') return def.effect.type;
-  if (def.kind === 'armor' && def.claymore) return 'claymore';
+  if (def.kind === 'accessory' && def.claymore) return 'claymore';
   throw new Error(`${def.id} is not a utility`);
 }
 
-export function orderKindOf(part: PartInstance): UtilityOrder['kind'] | null {
+export function orderKindOf(part: PartInstance): PlacingKind | null {
   return ORDER_KIND[useKindOf(partDef(part.defId))];
 }
 
@@ -92,7 +94,7 @@ export function chargeOf(part: PartInstance): ChargeState {
 
 export function wornReload(part: PartInstance): number {
   const def = partDef(part.defId);
-  if (def.kind === 'armor' && def.claymore) return wornTurns(def.claymore.reload, part.wear);
+  if (def.kind === 'accessory' && def.claymore) return wornTurns(def.claymore.reload, part.wear);
   const reload = def.kind === 'utility' ? wornDef<UtilityDef>(part).reload : null;
   if (reload === null) throw new Error(`${def.id} has no reload`);
   return reload;
@@ -115,10 +117,17 @@ export function utilityBlock(world: World, v: Vehicle, part: PartInstance): Fire
 export function utilityOrderError(world: World, v: Vehicle, partId: string, order: UtilityOrder): Refusal | null {
   const { part } = partOn(v, partId);
   const def = partDef(part.defId);
+  if (order.kind === 'disarm') return disarmError(world, v, part, def);
   const wanted = ORDER_KIND[useKindOf(def)];
   if (wanted === null) return { id: 'utilityPassive', part: def.id };
   if (order.kind !== wanted) return { id: 'utilityOrder', part: def.id, order: wanted };
   const block = chargeError(world, v, part) ?? costError(world, v, def) ?? pointError(v, part, order);
+  return block ? { id: 'utilityBlocked', part: def.id, block } : null;
+}
+
+function disarmError(world: World, v: Vehicle, part: PartInstance, def: PartDef): Refusal | null {
+  if (useKindOf(def) !== 'claymore') throw new Error(`${def.id} is not a claymore ram and cannot be disarmed`);
+  const block = utilityBlock(world, v, part) ?? (chargeOf(part).armed ? null : 'unarmed');
   return block ? { id: 'utilityBlocked', part: def.id, block } : null;
 }
 
@@ -178,6 +187,10 @@ function useOf(vehicle: Vehicle, partId: string, order: UtilityOrder): Use {
 }
 
 function act(world: World, use: Use): void {
+  if (use.order.kind === 'disarm') {
+    disarmClaymore(use.vehicle, use.part);
+    return;
+  }
   ARMS[use.kind](world, use);
   if (use.kind !== 'claymore') chargeOf(use.part).reload = wornReload(use.part);
   world.events.push({
@@ -206,6 +219,9 @@ export function advanceUtilityEffects(world: World): void {
   world.smoke = aged(world.smoke);
   world.fields = aged(world.fields);
   world.flares = aged(world.flares);
+}
+
+export function advanceLines(world: World): void {
   world.lines = aged(world.lines);
   endLines(world);
 }

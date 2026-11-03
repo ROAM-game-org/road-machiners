@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clipped, escapes, intersect, latinLeft, pairOverlaps } from "./dom";
+import { clipped, coveredControl, escapes, intersect, latinLeft, outsideViewport, pairOverlaps, sidewaysOverflow, smallTarget } from "./dom";
 
 const box = (left: number, top: number, right: number, bottom: number) => ({ left, top, right, bottom });
 
@@ -60,5 +60,55 @@ describe("latinLeft", () => {
   it("lets allowed names and single letters stay", () => {
     expect(latinLeft("Бродяга Ada Volkov", ["Ada Volkov"])).toBe(false);
     expect(latinLeft("Ремонт [R], форсированный V8", [])).toBe(false);
+  });
+});
+
+describe("sidewaysOverflow", () => {
+  it("reports content wider than its box", () => {
+    expect(sidewaysOverflow({ scrollWidth: 600, clientWidth: 390 })).toBe(true);
+  });
+
+  it("passes content that fits and forgives a pixel of rounding", () => {
+    expect(sidewaysOverflow({ scrollWidth: 390, clientWidth: 390 })).toBe(false);
+    expect(sidewaysOverflow({ scrollWidth: 391, clientWidth: 390 })).toBe(false);
+  });
+});
+
+describe("outsideViewport", () => {
+  it("reports a box that reaches past the window sideways", () => {
+    expect(outsideViewport(box(0, 0, 600, 40), { width: 390 })).toBe(true);
+    expect(outsideViewport(box(-40, 0, 100, 40), { width: 390 })).toBe(true);
+  });
+
+  it("passes a box inside the window", () => {
+    expect(outsideViewport(box(10, 0, 380, 40), { width: 390 })).toBe(false);
+  });
+});
+
+describe("coveredControl", () => {
+  const control = { contains: (other: unknown) => other === child } as unknown as Element;
+  const child = {} as Element;
+  const cover = {} as Element;
+
+  it("passes the control itself and its own child", () => {
+    expect(coveredControl(control, control)).toBe(false);
+    expect(coveredControl(child, control)).toBe(false);
+  });
+
+  it("reports another element on top and an empty point", () => {
+    expect(coveredControl(cover, control)).toBe(true);
+    expect(coveredControl(null, control)).toBe(true);
+  });
+});
+
+describe("smallTarget", () => {
+  it("reports a control under the minimum on either side", () => {
+    expect(smallTarget(box(0, 0, 20, 40), 32)).toBe(true);
+    expect(smallTarget(box(0, 0, 40, 24), 32)).toBe(true);
+  });
+
+  it("passes a control at the minimum and ignores an empty box", () => {
+    expect(smallTarget(box(0, 0, 32, 32), 32)).toBe(false);
+    expect(smallTarget(box(0, 0, 0, 0), 32)).toBe(false);
   });
 });

@@ -10,11 +10,12 @@ import { territoryPieces } from './territory';
 import type { Obstacle } from './types';
 import { route, routeLength } from './path';
 import { dist, segmentDist } from './vec';
-import { deckHeight, deckSegments, groundAt, heightAt, isCliff, markHeightAt, tileAt, type Terrain } from './terrain';
+import { deckHeight, deckSegments, groundAt, heightAt, heightNear, isCliff, markHeightAt, tileAt, type Terrain } from './terrain';
 import { newWorld } from './world';
 import { TEST_MAP } from '../test/map';
 import { defaultSetup } from './settings';
-import { ICARUS_DECKS } from './bridge';
+import { decksOf, ICARUS_DECKS } from './bridge';
+import { randRange } from './rng';
 
 const B = deckById('canyon-bridge');
 const at = (along: number, across: number) => ({
@@ -24,8 +25,9 @@ const at = (along: number, across: number) => ({
 
 describe('the deck list', () => {
   it('holds Canyon Bridge first, with the geometry it had as the one bridge, then the Broken Wing deck, then the Fallen Sun decks', () => {
-    const from = scalePoint({ x: 97.9, y: 75.1 });
-    const to = scalePoint({ x: 101.5, y: 71.5 });
+    const centre = scalePoint({ x: 99.7, y: 73.3 });
+    const from = { x: Math.floor(centre.x) + 0.5 - 9, y: Math.floor(centre.y) + 0.5 + 9 };
+    const to = { x: Math.floor(centre.x) + 0.5 + 9, y: Math.floor(centre.y) + 0.5 - 9 };
     const length = Math.hypot(to.x - from.x, to.y - from.y);
     const axis = { x: (to.x - from.x) / length, y: (to.y - from.y) / length };
     const off = { x: -axis.y * 4, y: axis.x * 4 };
@@ -51,6 +53,45 @@ describe('the deck list', () => {
 
   it('fails loudly on an unknown deck id', () => {
     expect(() => deckById('no-such-deck')).toThrow('Unknown deck no-such-deck');
+  });
+});
+
+describe('the deck under a point', () => {
+  function scanned(decks: readonly Deck[], x: number, y: number): string | null {
+    const on = decks.find((d) => {
+      const along = (x - d.from.x) * d.axis.x + (y - d.from.y) * d.axis.y;
+      const across = (y - d.from.y) * d.axis.x - (x - d.from.x) * d.axis.y;
+      return along >= 0 && along <= d.length && Math.abs(across) <= d.width / 2;
+    });
+    return on?.id ?? null;
+  }
+
+  function nearDecks(decks: readonly Deck[]): { x: number; y: number }[] {
+    const rng = { rngState: 11 };
+    return decks.flatMap((d) => Array.from({ length: 2000 }, () => ({ x: d.from.x + randRange(rng, -30, 30) + d.axis.x * randRange(rng, -5, d.length + 5), y: d.from.y + randRange(rng, -30, 30) + d.axis.y * randRange(rng, -5, d.length + 5) })));
+  }
+
+  it('gives a height lookup that equals heightAt within its square, near decks and away from them', () => {
+    const t = newWorld(1, START_KITS.arrival, TEST_MAP, defaultSetup('roaming')).terrain;
+    const rng = { rngState: 9 };
+    const centres = [...DECKS.flatMap((d) => [d.from, d.to, { x: d.from.x + 30, y: d.from.y }]), { x: 500.5, y: 900.5 }];
+    for (const at of centres) {
+      const height = heightNear(t, at, 25);
+      for (let i = 0; i < 400; i++) {
+        const p = { x: at.x + randRange(rng, -25, 25), y: at.y + randRange(rng, -25, 25) };
+        expect(height(p.x, p.y), `${p.x},${p.y}`).toBe(heightAt(t, p.x, p.y));
+      }
+    }
+  });
+
+  it('finds the same deck as a scan of every deck, on Icarus and on a highway', () => {
+    const rng = { rngState: 5 };
+    const anywhere = Array.from({ length: 20000 }, () => ({ x: randRange(rng, -5, REGION.size + 5), y: randRange(rng, -5, REGION.size + 5) }));
+    for (const p of [...anywhere, ...nearDecks(DECKS)]) expect(deckAt(ICARUS_DECKS, p.x, p.y)?.deck.id ?? null, `${p.x},${p.y}`).toBe(scanned(DECKS, p.x, p.y));
+    const keys = Array.from({ length: 40 }, (_, i) => ({ kind: 'highway' as const, seed: 1 + (i % 8), window: Math.floor(i / 8) }));
+    const highway = keys.map((k) => decksOf(k)).find((set) => set.decks.length > 0);
+    if (!highway) throw new Error('No highway window with decks among the sampled seeds');
+    for (const p of nearDecks(highway.decks)) expect(deckAt(highway, p.x, p.y)?.deck.id ?? null, `${p.x},${p.y}`).toBe(scanned(highway.decks, p.x, p.y));
   });
 });
 
@@ -130,7 +171,7 @@ describe('Canyon Bridge', () => {
     const onDeck = at(B.length / 2, 0);
     const floor = at(B.length / 2, B.width + 4);
     const deck = heightAt(t, onDeck.x, onDeck.y);
-    expect(markHeightAt(t, onDeck, floor.x, floor.y)).toBe(deck);
+    expect(markHeightAt(t, onDeck, floor.x, floor.y)).toBeCloseTo(deck, 12);
     expect(markHeightAt(t, floor, floor.x, floor.y)).toBe(groundAt(t, floor.x, floor.y));
     const past = at(-3, 0);
     expect(markHeightAt(t, onDeck, past.x, past.y)).toBe(heightAt(t, past.x, past.y));

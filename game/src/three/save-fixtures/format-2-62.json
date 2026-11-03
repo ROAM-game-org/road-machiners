@@ -1,39 +1,25 @@
 {
-  "turn": 930,
-  "shops": {
-    "bowl": {
-      "contracts": [],
-      "pressure": {
-        "scrap": 0.1
-      },
-      "stock": [
-        {
-          "id": "p1",
-          "defId": "heavyMg",
-          "wear": 1,
-          "hp": 10
-        }
-      ],
-      "restockAt": 1200
-    },
-    "nose": {
-      "contracts": [],
-      "pressure": {},
-      "stock": [
-        {
-          "id": "p2",
-          "defId": "stockEngine",
-          "wear": 2,
-          "hp": 9
-        }
-      ],
-      "restockAt": 1100
-    },
-    "salvage-yard": {
-      "contracts": [],
-      "pressure": {},
-      "stock": [],
-      "restockAt": 1300
+  "turn": 412,
+  "setup": {
+    "mode": "furyRoad",
+    "settings": {
+      "damage": 1,
+      "fuelUse": 1,
+      "supplyUse": 1,
+      "enemyGearGrowth": 1
     }
+  },
+  "furyRoad": null,
+ "shops": {
+  "bowl": {
+   "contracts": [
+    { "id": "ct1", "shop": "bowl", "kind": "haul", "good": "salt", "units": 3, "to": "nose", "reward": 500, "deadline": 1400, "window": 500, "rush": false, "tier": 1 }
+   ]
   }
+ },
+ "player": {
+  "contracts": [
+   { "id": "ct2", "shop": "bowl", "kind": "bounty", "template": "buggy", "reward": 300, "deadline": 1600, "window": 700, "tier": 1, "fulfilled": false }
+  ]
+ }
 }

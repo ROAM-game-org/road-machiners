@@ -1,8 +1,7 @@
 import { beforeAll, expect, it } from 'vitest';
-import { PERF } from '../data/perf';
+import { LIVE_REACH } from '../sim/fidelity';
 import { PHYSICS } from '../data/physics';
 import { CRATER } from '../data/rules';
-import { TERRAIN } from '../data/terrain';
 import { craterRimPoints } from '../sim/craters';
 import { editableTerrain, emptyWorld } from '../sim/testkit';
 import type { Crater, World } from '../sim/types';
@@ -18,7 +17,7 @@ beforeAll(async () => {
 
 const S = PHYSICS.metersPerTile;
 const me = (w: World) => w.vehicles[0];
-const RANGE = TERRAIN.vision.radius + PERF.liveMargin + PHYSICS.propLiveMargin;
+const RANGE = LIVE_REACH + PHYSICS.propLiveMargin;
 
 function crater(id: string, pos: Vec, radius: number): Crater {
   return { id, pos, radius, turn: 0 };

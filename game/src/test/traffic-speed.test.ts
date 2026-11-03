@@ -9,7 +9,7 @@ const sample = (over: Partial<TrafficSample> = {}): TrafficSample => ({
 });
 
 const run = (samples: TrafficSample[], over: Partial<TrafficRun> = {}): TrafficRun => ({
-  seed: 1, layer: 'far', turns: 10, samples, npcTurns: 100, resupplyStarts: 0, maxDry: 0, collisions: 0, ...over,
+  seed: 1, layer: 'far', turns: 10, samples, npcTurns: 100, resupplyStarts: 0, maxDry: 0, collisions: 0, truckCollisions: 0, damagingTruckCollisions: 0, ...over,
 });
 
 describe('traffic speed classes', () => {

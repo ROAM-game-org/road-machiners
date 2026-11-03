@@ -3,10 +3,17 @@ import { NPC_UPKEEP } from '../data/npcs';
 import { inCombat } from './combat';
 import { isParkedForWork, startJob } from './jobs';
 import type { BusinessDeal, Job, NpcActivity, Vehicle, World } from './types';
+import { affordableBuyCount, buyFuel, sellAtCamp, sellVehicleCargo, tradeGoods } from './economy';
+import { cargoRoom } from './inventory';
+import { createSiteActivity, finishGoal, noteShop, payForLeg, reachSite, replaceBase } from './npc-activities';
+import { npcProfile, tradeSpend } from './npc-decisions';
+import { fundSupplyRun } from './duty';
+import { isBroke, pumpsOf } from './npc-service';
+import { onEscortWanted, onHaulDelivered } from './escort-job';
 
 type BusinessJob = Extract<Job, { kind: 'business' }>;
 
-const DEALS: readonly string[] = ['resupply', 'sell', 'trade', 'haul'] satisfies BusinessDeal[];
+const DEALS: readonly string[] = ['resupply', 'sell', 'trade'] satisfies BusinessDeal[];
 
 export function businessBelongs(job: BusinessJob, goal: NpcActivity | null): boolean {
   return goal?.kind === job.deal && goal.targetId === job.siteId;
@@ -40,4 +47,42 @@ export function dealDue(world: World, vehicle: Vehicle, activity: NpcActivity, s
   if (businessDone(world, vehicle, activity)) return true;
   startBusiness(world, vehicle, activity, site.id);
   return false;
+}
+
+function topUpAtPump(world: World, vehicle: Vehicle, siteId: string): void {
+  noteShop(world, vehicle, siteId);
+  if (pumpsOf(vehicle, npcProfile(vehicle), isBroke(world, vehicle)).includes(siteId)) buyFuel(world, vehicle, siteId);
+}
+
+export function resolveSell(world: World, vehicle: Vehicle, activity: NpcActivity): void {
+  const site = reachSite(vehicle, activity);
+  if (!dealDue(world, vehicle, activity, site)) return;
+  if ('kind' in site && site.kind === 'camp') sellAtCamp(world, vehicle, site.id, NPC_UPKEEP.repairParts);
+  else sellVehicleCargo(world, vehicle, site.id, NPC_UPKEEP.repairParts);
+  payForLeg(world, vehicle, activity);
+  topUpAtPump(world, vehicle, site.id);
+  onHaulDelivered(world, vehicle, activity);
+  finishGoal(world, vehicle, 'soldCargo');
+}
+
+export function resolveTrade(world: World, vehicle: Vehicle, activity: NpcActivity): void {
+  const site = reachSite(vehicle, activity);
+  if (!dealDue(world, vehicle, activity, site)) return;
+  if (!activity.purchase) throw new Error('Trade activity missing purchase');
+  noteShop(world, vehicle, site.id);
+  if (activity.reason === 'loadCargo') fundSupplyRun(world, vehicle, tradeSpend(world, vehicle, 'faction'));
+  const count = affordableBuyCount(world, vehicle, site.id, activity.purchase.good, cargoRoom(vehicle), tradeSpend(world, vehicle));
+  payForLeg(world, vehicle, activity);
+  if (count > 0) {
+    tradeGoods(world, vehicle, site.id, activity.purchase.good, count, 'buy');
+    topUpAtPump(world, vehicle, site.id);
+    if (vehicle.brain!.goals[0] !== activity) throw new Error(`${vehicle.id} trades above its long-term goal`);
+    const shipment = { good: activity.purchase.good, from: site.id, to: activity.purchase.sellShop };
+    const trip = { ...createSiteActivity('sell', shipment.to, 'deliverCargo'), shipment };
+    replaceBase(world, vehicle, trip);
+    onEscortWanted(world, vehicle, trip, site.id);
+    return;
+  }
+  topUpAtPump(world, vehicle, site.id);
+  finishGoal(world, vehicle, 'cannotAffordCargo');
 }

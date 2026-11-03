@@ -35,7 +35,7 @@ def build(kit: Kit) -> None:
     for y in (-half + 0.08, half - 0.08):
         kit.box(f"post{y:.2f}", (0.05, 0.05, 0.9), (BASE_X - 0.04, y, 0.45), "metal")
         strut(kit, f"gusset{y:.2f}", (BASE_X - 0.06, y, 0.3), (BASE_X - 0.17, y, 0.05), 0.04, "metal")
-    kit.box("rail", (0.05, half * 2 - 0.02, 0.05), (BASE_X - 0.04, 0, 0.8), "rust_dark")
+    kit.box("rail", (0.04, half * 2 - 0.02, 0.05), (BASE_X - 0.04, 0, 0.8), "rust_dark")
     kit.box("foot", (0.18, half * 2 - 0.02, 0.05), (BASE_X - 0.13, 0, 0.025), "rust_dark")
     for i, (y, z, w, h, mat, roll) in enumerate(SHEETS):
         x = BASE_X + 0.012 * i

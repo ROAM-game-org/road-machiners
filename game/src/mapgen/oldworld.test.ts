@@ -7,9 +7,10 @@ import { hashRandom } from '../sim/rng';
 import type { BakedProp } from '../sim/terrain';
 import { siteGap } from '../sim/sites';
 import { TEST_MAP } from '../test/map';
-import { padReach } from '../test/sites';
+import { onSiteOrPad } from '../test/sites';
 import { angleDiff, bearing, dist, polylineDist, segmentDist, type Vec } from '../sim/vec';
 import { newDraft, tileSteepness, type MapDraft } from './bake';
+import { scorched } from './descent';
 import {
   BUILT_FIELD,
   BUILT_NONE,
@@ -37,6 +38,7 @@ const O = REGION.obstacles;
 const SITES = [...REGION.towns, ...REGION.locations];
 const WET = GEOLOGY.ground.washFlow * 2;
 const SEED = 1337;
+const WINDOW = 700;
 
 function expectOffBuilt(p: BakedProp): void {
   const bridge = deckById('canyon-bridge');
@@ -72,7 +74,7 @@ function nearestOnRoads(p: Vec): { line: RoadLine; s: number; road: number } {
 
 describe('settlements', () => {
   it('stand on flat, dry ground and keep their spacing', () => {
-    const d = newDraft(SIZE);
+    const d = newDraft(WINDOW);
     setCorners(d, 'heights', (i, j) => (i < 300 ? hashRandom(3, i, j) * 2 : 0));
     setCorners(d, 'flow', (i, j) => (i >= 300 && j >= 400 && j <= 420 ? WET : 0));
     const rules = OLD_WORLD.settlements;
@@ -88,7 +90,7 @@ describe('settlements', () => {
   });
 
   it('puts houses inside each settlement and a silo or water tower on each farm', () => {
-    const d = newDraft(SIZE);
+    const d = newDraft(WINDOW);
     const rules = { ...OLD_WORLD.settlements, farmShare: 1 };
 
     const towns = settlements(SEED, d, rules);
@@ -111,7 +113,7 @@ describe('overlooks', () => {
   const MESA_RADIUS = 25;
 
   it('puts lone buildings on the mesa edge, facing out over the drop', () => {
-    const d = newDraft(SIZE);
+    const d = newDraft(WINDOW);
     setCorners(d, 'heights', (i, j) => 4 * Math.min(1, Math.max(0, (MESA_RADIUS + 3 - dist({ x: i, y: j }, MESA)) / 3)));
     const rules = OLD_WORLD.overlooks;
 
@@ -128,7 +130,7 @@ describe('overlooks', () => {
   });
 
   it('puts nothing on flat ground', () => {
-    const d = newDraft(SIZE);
+    const d = newDraft(WINDOW);
 
     overlooks(SEED, d, OLD_WORLD.overlooks);
 
@@ -482,16 +484,20 @@ describe('fields', () => {
 
 describe('old-world layer', () => {
   function rollingDraft(): MapDraft {
-    const d = newDraft(SIZE);
+    const d = newDraft(WINDOW);
     setCorners(d, 'heights', (i, j) => Math.sin(i / 40) * 1.5 + Math.cos(j / 55) * 1.5);
     setCorners(d, 'flow', (i, j) => (Math.abs(Math.sin(i / 40) + Math.cos(j / 55) + 1.9) < 0.03 ? WET : 0));
     return d;
   }
+  let laid: MapDraft | null = null;
+  function layer(): MapDraft {
+    laid ??= oldWorldLayer(SEED, rollingDraft());
+    return laid;
+  }
 
   it('keeps every prop off roads, sites and the deck, and apart from each other', () => {
-    const d = oldWorldLayer(SEED, rollingDraft());
+    const standing = layer().props;
 
-    const standing = d.props;
     expect(new Set(standing.map((p) => p.kind)).size).toBeGreaterThan(5);
     for (const p of standing.filter((q) => q.kind !== 'shipWing')) expectOffBuilt(p);
     for (let a = 0; a < standing.length; a++) for (let b = a + 1; b < standing.length; b++) {
@@ -500,7 +506,7 @@ describe('old-world layer', () => {
   });
 
   it('marks old roads and fields only off roads, the deck, sites and pads', () => {
-    const d = oldWorldLayer(SEED, rollingDraft());
+    const d = layer();
 
     const marked = [...tilesMarked(d, BUILT_OLD_ROAD), ...tilesMarked(d, BUILT_FIELD)];
     expect(tilesMarked(d, BUILT_OLD_ROAD).length).toBeGreaterThan(100);
@@ -508,16 +514,45 @@ describe('old-world layer', () => {
     for (const c of marked) {
       expect(ROAD_INDEX.nearestWithin(c.x, c.y, Infinity)).toBeGreaterThanOrEqual(HALF);
       expect(deckAt(ICARUS_DECKS, c.x, c.y)).toBeNull();
-      for (const site of SITES) expect(siteGap(site, c)).toBeGreaterThan(padReach(site));
+      for (const site of SITES) expect(onSiteOrPad(site, c)).toBe(false);
     }
     expect(d.built.every((b) => b === BUILT_NONE || b === BUILT_OLD_ROAD || b === BUILT_FIELD)).toBe(true);
   });
 
+  it('marks no old road or field on the deck', () => {
+    const deck = deckById('canyon-bridge');
+    const mid = { x: (deck.from.x + deck.to.x) / 2, y: (deck.from.y + deck.to.y) / 2 };
+    const town = (side: number): OldSettlement => ({ pos: { x: mid.x + side * 35, y: mid.y - side * 35 }, radius: 5, farm: true, ground: 0 });
+    const d = newDraft(SIZE);
+
+    oldRoads(d, [town(-1), town(1)], OLD_WORLD.oldRoads);
+    fields(SEED, d, [town(-1), town(1)], OLD_WORLD.fields);
+
+    const marked = [...tilesMarked(d, BUILT_OLD_ROAD), ...tilesMarked(d, BUILT_FIELD)];
+    expect(marked.length).toBeGreaterThan(20);
+    for (const c of marked) expect(deckAt(ICARUS_DECKS, c.x, c.y)).toBeNull();
+  });
+
   it('gives the same props and marks for the same seed', () => {
-    const a = oldWorldLayer(SEED, rollingDraft());
+    const a = layer();
     const b = oldWorldLayer(SEED, rollingDraft());
 
     expect(b.props).toEqual(a.props);
     expect(Array.from(b.built)).toEqual(Array.from(a.built));
+  });
+});
+
+describe('the scorched descent trail on the baked map', () => {
+  const PRE_CRASH = ['house', 'ruin', 'barn', 'silo', 'waterTower', 'farmhouse', 'gasStation', 'billboard', 'pole', 'tank', 'bridgeSpan'];
+
+  it('holds no building, pole, tank or bridge from before the crash', () => {
+    const standing = TEST_MAP.props.filter((p) => PRE_CRASH.includes(p.kind) && scorched(p.pos));
+    expect(standing.map((p) => `${p.kind} ${p.pos.x.toFixed(0)},${p.pos.y.toFixed(0)}`)).toEqual([]);
+  });
+
+  it('holds no old asphalt or field ground', () => {
+    const t = TEST_MAP.terrain;
+    const marked = t.types.flatMap((type, tile) => ((type === 'asphalt' || type === 'field') && scorched({ x: (tile % t.size) + 0.5, y: Math.floor(tile / t.size) + 0.5 }) ? [tile] : []));
+    expect(marked).toEqual([]);
   });
 });

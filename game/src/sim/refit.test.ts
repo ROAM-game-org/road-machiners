@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { bedRows } from './chassis-features';
 import { CHASSIS } from '../data/chassis';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
-import { PERK_NUMBERS, SKILL_EFFECTS } from '../data/skills';
-import { lootRefitTurns, moveItem, mountPart, dumpItem, refitTurns, removeAllGoods } from './inventory';
+import { SKILL_EFFECTS } from '../data/skills';
+import { moveItem, mountPart, dumpItem, refitTurns, removeAllGoods } from './inventory';
 import { advanceJobs, startJob } from './jobs';
 import { makePart } from './factory';
 import { sitePads, townAt } from './sites';
@@ -44,7 +45,7 @@ describe('field refits', () => {
   it('charges removal and installation for relocation between mounts', () => {
     const w = emptyWorld();
     removeAllGoods(w.vehicles[0]);
-    w.vehicles[0].items = w.vehicles[0].items.filter((it) => it.kind === 'good' || it.part.defId !== 'panniers');
+    w.vehicles[0].items = w.vehicles[0].items.filter((it) => it.kind !== 'part' || it.part.defId !== 'panniers');
     const weapon = getWeapon(w);
     const to = findSpot(gridOf(w.vehicles[0]), w.vehicles[0].items, { ...weapon, id: 'probe' }, MOUNT_CELLS.weapon, null);
     if (!to) throw new Error('Expected spare mount');
@@ -77,15 +78,17 @@ describe('field refits', () => {
     expect(() => moveItem(w, weapon.id, to)).toThrow('Refused: stopFirst');
     w.vehicles[0].speed = 0;
     startJob(w, w.vehicles[0], { kind: 'search', stockId: 'stock', total: 2, turnsLeft: 2 });
-    expect(() => moveItem(w, weapon.id, to)).toThrow('already busy');
+    expect(() => moveItem(w, weapon.id, to)).toThrow('Refused: busy');
     expect(getWeapon(w)).toEqual(weapon);
   });
 
-  it('blocks inventory moves and dumping during a refit', () => {
+  it('queues a move behind a running refit and keeps dumping blocked', () => {
     const { next, weapon } = startUnmount();
     const good = next.vehicles[0].items.find((item) => item.kind === 'good');
     if (!good) throw new Error('Expected goods');
-    expect(() => moveItem(next, weapon.id, weapon)).toThrow('Refused: refitRunning');
+    const back = moveItem(next, weapon.id, weapon);
+    const job = back.vehicles[0].job;
+    expect(job?.kind === 'refit' && job.queue.map((step) => step.moves[0])).toEqual([{ itemId: weapon.id, from: { x: 3, y: CHASSIS.scout.layout.length, rot: 1 }, to: { x: weapon.x, y: weapon.y, rot: weapon.rot } }]);
     expect(() => dumpItem(next, good.id)).toThrow('Refused: refitRunning');
   });
 
@@ -99,7 +102,7 @@ describe('field refits', () => {
 
   it('cancels if the target space becomes occupied', () => {
     const { next, weapon } = startUnmount();
-    next.vehicles[0].items.push({ id: 'new-cargo', kind: 'good', good: 'scrap', x: 1, y: CHASSIS.scout.layout.length, rot: 0 });
+    next.vehicles[0].items.push({ id: 'new-cargo', kind: 'good', good: 'scrap', x: 3, y: CHASSIS.scout.layout.length, rot: 0 });
     advanceJobs(next);
     expect(next.vehicles[0].job).toBeNull();
     expect(getWeapon(next)).toEqual(weapon);
@@ -135,7 +138,7 @@ describe('field refits', () => {
     const w = emptyWorld();
     const engine = w.vehicles[0].items.find((item) => item.kind === 'part' && item.part.defId === 'stockEngine');
     if (!engine) throw new Error('Expected engine');
-    expect(() => moveItem(w, engine.id, { x: 4, y: 1, rot: 0 })).toThrow('Refused: twoInTheWay');
+    expect(() => moveItem(w, engine.id, { x: 1, y: 0, rot: 0 })).toThrow('Refused: twoInTheWay');
   });
 
   it('cancels when a required item has changed position', () => {
@@ -153,11 +156,11 @@ describe('field refits', () => {
     first.x = 0;
     first.y = CHASSIS.scout.layout.length;
     first.rot = 1;
-    const second = { ...first, id: 'second-spare', part: { ...first.part, id: 'second-part' }, x: 2 };
+    const second = { ...first, id: 'second-spare', part: { ...first.part, id: 'second-part' }, x: 3 };
     w.vehicles[0].items.push(second);
     const next = moveItem(w, first.id, { x: second.x, y: second.y, rot: 1 });
     expect(next.vehicles[0].job).toBeNull();
-    expect(next.vehicles[0].items.find((item) => item.id === first.id)?.x).toBe(2);
+    expect(next.vehicles[0].items.find((item) => item.id === first.id)?.x).toBe(3);
     expect(next.vehicles[0].items.find((item) => item.id === second.id)?.x).toBe(0);
   });
 
@@ -166,8 +169,8 @@ describe('field refits', () => {
     removeAllGoods(w.vehicles[0]);
     const rack = w.vehicles[0].items.find((item) => item.kind === 'part' && item.part.defId === 'panniers');
     if (!rack) throw new Error('Expected panniers');
-    w.vehicles[0].items.push({ id: 'cargo', kind: 'good', good: 'scrap', x: 0, y: CHASSIS.scout.layout.length, rot: 0 });
-    const result = planItemMove(w.vehicles[0], rack.id, { x: 2, y: CHASSIS.scout.layout.length, rot: 0 });
+    w.vehicles[0].items.push({ id: 'cargo', kind: 'good', good: 'scrap', x: 0, y: CHASSIS.scout.layout.length + bedRows('scout'), rot: 0 });
+    const result = planItemMove(w.vehicles[0], rack.id, { x: 2, y: CHASSIS.scout.layout.length + bedRows('scout'), rot: 0 });
     expect(result.error).toMatchObject({ id: 'badLayout' });
   });
 });
@@ -230,19 +233,12 @@ describe('the Patcher crane on refits', () => {
 
   it('counts two cranes once, for NPCs as for the player', () => {
     const w = emptyWorld();
-    const one = addVehicle(w, 'traders', 'hauler', ['patcherCrane'], { x: 40, y: 30 });
-    const two = addVehicle(w, 'traders', 'hauler', ['patcherCrane', 'patcherCrane'], { x: 50, y: 30 });
+    const one = addVehicle(w, 'independent', 'hauler', ['patcherCrane'], { x: 40, y: 30 });
+    const two = addVehicle(w, 'independent', 'hauler', ['patcherCrane', 'patcherCrane'], { x: 50, y: 30 });
 
     expect(two.items.filter((it) => it.kind === 'part' && it.part.defId === 'patcherCrane')).toHaveLength(2);
     expect(refitTurns(w, one, REPLACE)).toBe(7);
     expect(refitTurns(w, two, REPLACE)).toBe(7);
-  });
-
-  it('keeps the Cannibal perk at its flat turns without a crane', () => {
-    const w = emptyWorld();
-    w.player.perks = ['cannibal'];
-
-    expect(lootRefitTurns(w, w.vehicles[0], REPLACE)).toBe(PERK_NUMBERS.cannibal.turns);
   });
 
   it('keeps garage changes instant', () => {

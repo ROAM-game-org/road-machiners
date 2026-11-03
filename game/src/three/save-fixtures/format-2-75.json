@@ -1,0 +1,72 @@
+{
+  "turn": 530,
+  "shops": {
+    "bowl": {
+      "contracts": [
+        {
+          "id": "ct-12",
+          "shop": "bowl",
+          "kind": "fetch",
+          "defId": "mg",
+          "reward": 900,
+          "deadline": 900,
+          "window": 500,
+          "tier": 1
+        },
+        {
+          "id": "ct-13",
+          "shop": "bowl",
+          "kind": "claim",
+          "stockId": "armyTruck-881",
+          "at": {
+            "x": 610.5,
+            "y": 402.25
+          },
+          "partId": "p-77",
+          "defId": "flatFour",
+          "reward": 13526,
+          "deadline": 1400,
+          "window": 870,
+          "tier": 1
+        }
+      ],
+      "pressure": {},
+      "stock": [],
+      "restockAt": 600
+    }
+  },
+  "player": {
+    "vehicleId": "v1",
+    "contracts": [
+      {
+        "id": "ct-9",
+        "shop": "nose",
+        "kind": "claim",
+        "stockId": "tank-3",
+        "at": {
+          "x": 120,
+          "y": 88
+        },
+        "partId": "p-41",
+        "defId": "oilSpiller",
+        "reward": 17109,
+        "deadline": 1100,
+        "window": 900,
+        "tier": 1
+      },
+      {
+        "id": "ct-10",
+        "shop": "nose",
+        "kind": "haul",
+        "good": "salt",
+        "units": 3,
+        "to": "bowl",
+        "reward": 500,
+        "deadline": 1000,
+        "window": 600,
+        "rush": false,
+        "tier": 1
+      }
+    ]
+  }
+}

@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit  # noqa: E402
 from parts_common_cargo import CARGO_MAX_H, footprint, run  # noqa: E402
+from parts_common_core import PROUD  # noqa: E402
 
 SEED = 106
 WALL_H = 0.6
@@ -23,17 +24,17 @@ POST = 0.05
 def build(kit: Kit) -> None:
     length, width = footprint(2, 2)
     hx, hy = length / 2 - POST / 2, width / 2 - POST / 2
-    kit.box("base", (length, width, 0.06), (0, 0, 0.03), "metal")
+    kit.box("base", (length - 2 * PROUD, width - 2 * PROUD, 0.06), (0, 0, 0.03), "metal")
     # Solid lower walls: painted sides, dark ends.
     for y in (-hy, hy):
-        kit.box("side", (length - 2 * POST, POST * 0.8, WALL_H - 0.06), (0, y, 0.06 + (WALL_H - 0.06) / 2), "paint", dent_by=0.008)
+        kit.box("side", (length - 2 * POST, POST * 0.8, WALL_H - 0.06), (0, y - 2 * PROUD * (1 if y > 0 else -1), 0.06 + (WALL_H - 0.06) / 2), "paint", dent_by=0.008)
     for x in (-hx, hx):
-        kit.box("end", (POST * 0.8, width - 2 * POST, WALL_H - 0.06), (x, 0, 0.06 + (WALL_H - 0.06) / 2), "rust_side", dent_by=0.008)
+        kit.box("end", (POST * 0.8, width - 2 * POST, WALL_H - 0.06), (x - 2 * PROUD * (1 if x > 0 else -1), 0, 0.06 + (WALL_H - 0.06) / 2), "rust_side", dent_by=0.008)
     # Frame posts outside the walls.
     for x in (-hx, 0.0, hx):
         for y in (-hy, hy):
             kit.box("post", (POST, POST, WALL_H), (x, y, WALL_H / 2), "metal")
-    kit.box("wall_cap", (length, width, 0.04), (0, 0, WALL_H + 0.02), "metal")
+    kit.box("wall_cap", (length - 2 * PROUD, width - 2 * PROUD, 0.04), (0, 0, WALL_H + 0.02), "metal")
     # Tarp roof: a closed gable from the wall tops to the ridge.
     roof = kit.box("tarp", (length - 0.04, width - 0.04, RIDGE_H - WALL_H - 0.04), (0, 0, WALL_H + 0.04 + (RIDGE_H - WALL_H - 0.04) / 2), "tarp", dent_by=0.01)
     for v in roof.data.vertices:

@@ -34,7 +34,7 @@ def jerrycan(kit: Kit, name: str, x: float, y: float) -> None:
     """A flat upright can with a handle bar on top."""
     kit.box(name, CAN, (x, y, CAN[2] / 2), "olive", dent_by=0.006)
     kit.box(name + "_handle", (0.03, CAN[1] * 0.6, 0.03), (x, y, CAN[2] + 0.015), "olive")
-    kit.cylinder(name + "_spout", 0.018, 0.03, (x, y + CAN[1] * 0.35, CAN[2] + 0.015), "metal", vertices=6)
+    kit.cylinder(name + "_spout", 0.018, 0.04, (x, y + CAN[1] * 0.35, CAN[2] + 0.02), "metal", vertices=6)
 
 
 def build(kit: Kit) -> None:

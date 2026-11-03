@@ -6,7 +6,7 @@ import { START_KITS } from '../data/start';
 import { gridOf, itemCells, mountedItems } from '../sim/grid';
 import { vehicleStats } from '../sim/stats';
 import { generateNpcLoadout } from '../sim/npc-loadout';
-import { spawnAt } from '../sim/spawn';
+import { allegianceFor, spawnAt } from '../sim/spawn';
 import type { Vehicle, World } from '../sim/types';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from './map';
@@ -37,7 +37,7 @@ export function templateStats(id: string, rolls: number, level: GearLevel | null
   for (let seed = 1; seed <= rolls; seed++) {
     const w = worldFor(seed);
     const loadout = generateNpcLoadout(w, tpl, null, level);
-    const v = spawnAt(w, tpl, loadout, { x: 40, y: 30 });
+    const v = spawnAt(w, tpl, loadout, { x: 40, y: 30 }, allegianceFor(w, tpl, null, null));
     s.levels[loadout.level] += 1 / rolls;
     s.guns += mountedItems(v, 'weapon').length / rolls;
     s.armor += armorShare(v) / rolls;

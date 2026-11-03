@@ -4,7 +4,9 @@ import { deckAt, deckById, DECKS, type Deck } from '../../sim/bridge';
 import { deckHeight } from '../../sim/terrain';
 import { TEST_MAP } from '../../test/map';
 import { scatterPlacements } from './scatter';
-import { chunkGeometry, deckFloorCap, TERRAIN_CHUNK } from './terrain';
+import { chunkGeometry, deckFloorCap, groundSide, TERRAIN_CHUNK } from './terrain';
+import { HIGHWAY } from '../../data/modes';
+import { REGION } from '../../data/region';
 import { ICARUS_DECKS } from '../../sim/bridge';
 
 const S = PHYSICS.metersPerTile;
@@ -87,5 +89,16 @@ describe('terrain under decks', () => {
       }
     }
     expect(inside).toBeGreaterThan(0);
+  });
+});
+
+describe('ground texture side', () => {
+  it('keeps the highway ground at its texel density', () => {
+    expect(groundSide(HIGHWAY.size)).toBe(2709);
+    expect(groundSide(HIGHWAY.size) / (HIGHWAY.size + 20)).toBeCloseTo(groundSide(600) / 620, 2);
+  });
+
+  it('caps the Icarus ground at the texture floor', () => {
+    expect(groundSide(REGION.size)).toBe(2048);
   });
 });
