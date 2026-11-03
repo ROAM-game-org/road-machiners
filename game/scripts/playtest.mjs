@@ -41,7 +41,7 @@ const retryAfterBrowserCrash = async () => {
     process.exit(1);
   }
   console.log(`The browser process crashed on attempt ${attempt}. Starting attempt ${attempt + 1}.`);
-  const rerun = spawnSync(process.execPath, process.argv.slice(1), { stdio: 'inherit', env: { ...process.env, PLAYTEST_ATTEMPT: String(attempt + 1) } });
+  const rerun = spawnSync(process.execPath, process.argv.slice(1), { stdio: 'inherit', env: { ...process.env, PLAYTEST_ATTEMPT: String(attempt + 1), PLAYTEST_FORCE_SOFTWARE: "1" } });
   process.exit(rerun.status ?? 1);
 };
 let crashed = false;
