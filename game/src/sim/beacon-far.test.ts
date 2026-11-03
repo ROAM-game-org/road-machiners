@@ -43,6 +43,7 @@ describe('a beacon at the emptiest point of Icarus', () => {
     playerVehicle(w).trail = [];
     w.player.money = 0;
     w.player.fuel = 0;
+    w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId);
     const road = nearestRoadPoint(pos);
     const tower = addVehicle(w, 'independent', 'hauler', ['stockEngine'], road, Math.PI);
     tower.brain = npcBrain('trader', road, NPCS.trader.traits);
