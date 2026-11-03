@@ -70,7 +70,9 @@ async function portraitImage(renderer: THREE.WebGLRenderer, vehicle: Vehicle): P
     portrait.release();
     const img = document.createElement('img');
     img.src = canvas.toDataURL('image/png');
-    img.style.width = `${Math.round(canvas.width * PORTRAIT_SCALE)}px`;
+    const width = Math.round(canvas.width * PORTRAIT_SCALE);
+    img.style.width = `${width}px`;
+    img.style.height = `${Math.round((width * portrait.height) / portrait.width)}px`;
     return img;
   } finally {
     build.dispose();
