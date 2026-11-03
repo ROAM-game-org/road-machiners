@@ -310,9 +310,14 @@ export function waitsOnPlayer(world: World): boolean {
 }
 
 export function autoRuns(world: World): boolean {
-  const p = world.player;
   if (waitsOnPlayer(world)) return false;
-  if (p.state === 'knockedOut' || isTowed(world)) return true;
+  if (world.player.state === 'knockedOut' || isTowed(world)) return true;
+  return waitsInPlace(world);
+}
+
+export function waitsInPlace(world: World): boolean {
+  if (waitsOnPlayer(world)) return false;
+  if (world.player.state === 'knockedOut' || isTowed(world)) return false;
   if (readyDeal(world)) return false;
   if (playerVehicle(world).job?.kind === 'oddJobs') return true;
   return waitsOnBeacon(world);

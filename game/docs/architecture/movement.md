@@ -228,9 +228,9 @@ A chassis with a `coupling` is a rig: a driven front unit and a towed rear unit 
 ## Travel speed
 
 - `Travel` holds the picked travel speed as an index into `CONFIG.travelSpeeds`. The speed control beside the turn button sets it through the `UiHost` hooks `travelSpeedIndex()`, `travelPlaySpeed()` and `stepTravelSpeed()`.
-- `Travel.getSpeed()` returns `CONFIG.travelFastSpeed` while Space is held fast. Else it returns the picked speed while waypoint travel runs. Else it returns 1.
+- `Travel.getSpeed()` returns `CONFIG.travelFastSpeed` while Space is held fast. Else it returns the picked speed while waypoint travel, an odd jobs shift or a beacon wait runs. Else it returns 1.
 - Playback always runs at that step. A turn the worker has not finished in time shows as a short hitch, never as a slower step.
-- The knocked-out, towed and beacon runs are not waypoint travel, so they play at 1.
+- Odd jobs shifts and beacon waits play at the picked speed too: `waitsInPlace(world)` in `src/sim/world.ts` names them, and `Travel.playsAtPick()` is the one place that decides whether the pick applies. The knocked-out and towed runs are not waypoint travel, so they play at 1.
 - The pick survives pauses and is never saved, like all travel state.
 
 ## Waiting on the player
