@@ -154,7 +154,6 @@ export const PERK_NUMBERS = {
 export const MAIN_SKILL: Record<Archetype, SkillId | null> = {
   trader: 'social',
   scavenger: 'machining',
-  hunter: 'perception',
   fastTrader: 'driving',
   hauler: 'social',
   procurer: 'social',
