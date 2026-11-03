@@ -11,6 +11,8 @@ The playtest bots drive the player truck through the real turn pipeline, so econ
 - A bot parked away from a town below three quarters of its max health starts first aid when it can, and holds still until the job ends.
 - A bot with a broken drive and no money calls a tow when a shop it can afford is on the map. It leaves the beacon off in combat.
 - A bot judges whether it outruns a foe by its truck speed as it stands. A stranded or crippled truck outruns nothing.
+- A bot in combat picks fight or flee from the NPC weights for the `attacked` decision, `optionWeights()` in `src/sim/npc-decisions.ts`. It takes the highest weight instead of rolling, so it does not flip between the two and does not draw from the world's random numbers.
+- A bot that flees drives to the point `fleeDestination()` gave it and remembers that point in `src/sim/progression/flee-memory.ts`. It keeps the point while the course leads away from the foe, and forgets it after `fleeCalmTurns` without the foe. A trip order never counts as a flee course. A bot that reaches its flee point with the foe still fighting it turns on the foe, as an NPC does.
 - In town a bot repairs, stocks fuel, supplies and repair parts, re-arms and then buys gear by the style of its archetype. It judges each part with `gearScorer()` in `src/sim/npc-gear-score.ts` and the priorities of the NPC template its goal plays: `trader` for the trader and the cargo bots, `scavenger` for the scavenger, `courier` for the fastTrader and `merc` for the climber. So it buys armor, guns and engines the way that NPC would.
 
 ## Roaming archetypes
