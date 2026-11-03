@@ -705,6 +705,7 @@ describe('a rival on the real map', () => {
     claim.rivalAt = w.turn + 1;
     shopState(w, shop).contracts.push(claim);
     keepNearestDrivers(w, 4, [], shop);
+    for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     const pads = sitePads(siteOf(shop));
     w.vehicles.filter((v) => v.id !== w.player.vehicleId).forEach((v, i) => {
       const pad = pads[i % pads.length];

@@ -9,7 +9,7 @@ import { dist } from "../sim/vec";
 import { playerVehicle } from "../sim/damage";
 import type { GameEvent, Vehicle, World } from "../sim/types";
 import { endTurn, setMoveOrder } from "../sim/world";
-import { addRopeFrames, canTravel, Creep, nextSightSample, overshoots, threatsIn, Travel, type Playback } from "./travel";
+import { addRopeFrames, canTravel, Creep, MOVE_MS, nextSightSample, overshoots, threatsIn, Travel, TurnPreparation, type Playback } from "./travel";
 import { headingQuat, type VehicleFrame } from "../phys/frames";
 import { addState, declareFeud } from "../sim/states";
 import { standardWorld } from "../test/world-cache";
@@ -101,7 +101,6 @@ describe("turn advancement", () => {
 });
 
 describe("picked travel speed", () => {
-  const FAST = 4;
   const LAST = CONFIG.travelSpeeds.length - 1;
 
   function travelling(index: number) {
@@ -119,51 +118,34 @@ describe("picked travel speed", () => {
 
   it("plays the picked speed while waypoint travel runs", () => {
     const travel = travelling(2);
-    expect(travel.getSpeed(1000, FAST)).toBe(CONFIG.travelSpeeds[2]);
+    expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[2]);
   });
 
   it("plays the pick when no travel runs", () => {
     const travel = new Travel(250, TAIL);
     travel.setSpeedIndex(LAST);
-    expect(travel.getSpeed(1000, FAST)).toBe(CONFIG.travelSpeeds[LAST]);
+    expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[LAST]);
   });
 
-  it("plays held Space at the picked speed, and at the hold speed when the pick is slower", () => {
-    const fastest = new Travel(250, TAIL);
-    fastest.setSpeedIndex(LAST);
-    fastest.press(2000, false, true);
-    expect(fastest.getSpeed(2300, FAST)).toBe(CONFIG.travelSpeeds[LAST]);
-    const slowest = new Travel(250, TAIL);
-    slowest.press(2000, false, true);
-    expect(slowest.getSpeed(2300, FAST)).toBe(FAST);
-  });
-
-  it("plays only listed speeds, held or picked", () => {
-    for (let i = 0; i <= LAST; i++) {
-      const picked = travelling(i);
-      expect(CONFIG.travelSpeeds).toContain(picked.getSpeed(1000, FAST));
-      const held = new Travel(250, TAIL);
-      held.setSpeedIndex(i);
-      held.press(2000, false, true);
-      expect(CONFIG.travelSpeeds).toContain(held.getSpeed(2300, FAST));
-    }
+  it("plays only listed speeds, picked", () => {
+    for (let i = 0; i <= LAST; i++) expect(CONFIG.travelSpeeds).toContain(travelling(i).getSpeed());
   });
 
   it("keeps the pick over a pause and plays it again on the next start", () => {
     const travel = travelling(LAST);
     travel.pause();
     expect(travel.getSpeedIndex()).toBe(LAST);
-    expect(travel.getSpeed(1000, FAST)).toBe(CONFIG.travelSpeeds[LAST]);
+    expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[LAST]);
     travel.update(true, true);
     travel.press(5000, false, true);
     travel.release();
-    expect(travel.getSpeed(6000, FAST)).toBe(CONFIG.travelSpeeds[LAST]);
+    expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[LAST]);
   });
 
   it("keeps the pick when travel stops on its own", () => {
     const travel = travelling(LAST);
     travel.update(false, true);
-    expect(travel.getSpeed(1000, FAST)).toBe(CONFIG.travelSpeeds[LAST]);
+    expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[LAST]);
   });
 
   function towedWorld() {
@@ -205,8 +187,8 @@ describe("picked travel speed", () => {
       const travel = new Travel(250, TAIL);
       travel.setSpeedIndex(index);
       const world = build();
-      expect(travel.getSpeed(1000, FAST)).toBe(CONFIG.travelSpeeds[index]);
-      expect(travel.paceSpeed(world, 1000, 16, FAST)).toBe(CONFIG.travelSpeeds[index]);
+      expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[index]);
+      expect(travel.paceSpeed(world, 1000, 16, 4)).toBe(CONFIG.travelSpeeds[index]);
     });
   });
 
@@ -226,13 +208,73 @@ describe("picked travel speed", () => {
 
   it("plays a stepped speed from the next frame of a running automatic turn", () => {
     const travel = travelling(0);
-    expect(travel.getSpeed(1000, FAST)).toBe(CONFIG.travelSpeeds[0]);
+    expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[0]);
     travel.stepSpeed(1);
-    expect(travel.getSpeed(1016, FAST)).toBe(CONFIG.travelSpeeds[1]);
+    expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[1]);
     travel.stepSpeed(1);
-    expect(travel.getSpeed(1032, FAST)).toBe(CONFIG.travelSpeeds[2]);
+    expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[2]);
     travel.stepSpeed(-1);
-    expect(travel.getSpeed(1048, FAST)).toBe(CONFIG.travelSpeeds[1]);
+    expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[1]);
+  });
+
+  describe("with a measured worker", () => {
+    const withWorker = (workerMs: number, index = LAST) => {
+      const travel = travelling(index);
+      Object.assign(travel, { turns: { prepare: vi.fn(), take: () => null, isReady: () => true, keptSpeed: () => MOVE_MS / workerMs } });
+      return travel;
+    };
+    const settle = (travel: Travel) => {
+      const world = makeSafeWorld();
+      let speed = 1;
+      for (let i = 0; i < 40; i++) speed = travel.paceSpeed(world, 1000, 35, 4);
+      return speed;
+    };
+
+    it("plays and shows 2 at the pick of 8 when the worker needs 400 ms a turn", () => {
+      const travel = withWorker(400);
+      expect(settle(travel)).toBe(2);
+      expect(travel.getSpeed()).toBe(2);
+    });
+
+    it("plays and shows 8 at the pick of 8 when the worker needs 100 ms a turn", () => {
+      const travel = withWorker(100);
+      expect(settle(travel)).toBe(8);
+      expect(travel.getSpeed()).toBe(8);
+    });
+
+    it("never plays above the pick", () => {
+      const travel = withWorker(10, 1);
+      expect(settle(travel)).toBe(CONFIG.travelSpeeds[1]);
+      expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[1]);
+    });
+
+    it("plays 1 when the worker cannot keep up with any step", () => {
+      const travel = withWorker(5000);
+      expect(settle(travel)).toBe(1);
+      expect(travel.getSpeed()).toBe(1);
+    });
+
+    it("eases down to a lower kept step without a jump", () => {
+      const travel = withWorker(100);
+      expect(settle(travel)).toBe(8);
+      Object.assign(travel, { turns: { prepare: vi.fn(), take: () => null, isReady: () => true, keptSpeed: () => MOVE_MS / 400 } });
+      const world = makeSafeWorld();
+      const first = travel.paceSpeed(world, 1000, 35, 4);
+      expect(first).toBeCloseTo(7.7);
+      expect(travel.getSpeed()).toBe(2);
+    });
+  });
+
+  describe("turn preparation timing", () => {
+    it("keeps up with any step before a turn was measured", () => {
+      expect(new TurnPreparation(TAIL).keptSpeed()).toBe(Infinity);
+    });
+
+    it("lowers the kept speed after a slow answer", () => {
+      const turns = new TurnPreparation(TAIL);
+      (turns as unknown as { notePrep(ms: number): void }).notePrep(500);
+      expect(turns.keptSpeed()).toBeCloseTo(MOVE_MS / 500);
+    });
   });
 
   it("throws on a speed that does not exist", () => {
@@ -723,7 +765,7 @@ describe("every turn that runs on its own", () => {
   function travelWithTurns(take: () => unknown = () => null) {
     const prepare = vi.fn();
     const travel = new Travel(250, TAIL);
-    const turns = { prepare, take, isReady: () => true };
+    const turns = { prepare, take, isReady: () => true, keptSpeed: () => Infinity };
     Object.assign(travel, { turns });
     return { travel, prepare, turns };
   }

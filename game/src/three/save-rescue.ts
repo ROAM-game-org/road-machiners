@@ -3,7 +3,7 @@ import type { StartKit } from '../data/start';
 import type { BakedMap } from '../sim/terrain';
 import { carriedWorld, type Carried, type CarriedItem, type CarriedPaint, type CarriedPart, type CarriedRun } from '../sim/world';
 import { mapAt } from '../sim/highway';
-import type { World } from '../sim/types';
+import type { Rot, World } from '../sim/types';
 import type { SlotId } from './save-slots';
 import { savedMisfit, savedRevisionsOf, savedRunId, saveOf, storedSave, writeSave } from './save';
 import { LAYOUTS_2_34 } from './save-layouts-2-34';
@@ -107,8 +107,12 @@ function isGridInt(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value);
 }
 
-function spotOf(item: Json): { x: number; y: number; rot: 0 | 1 | 2 | 3 } | null {
-  return isGridInt(item.x) && isGridInt(item.y) ? { x: item.x, y: item.y, rot: item.rot === 1 || item.rot === 2 || item.rot === 3 ? item.rot : 0 } : null;
+function rotOf(value: unknown): Rot {
+  return isGridInt(value) && value >= 0 && value <= 7 ? (value as Rot) : 0;
+}
+
+function spotOf(item: Json): { x: number; y: number; rot: Rot } | null {
+  return isGridInt(item.x) && isGridInt(item.y) ? { x: item.x, y: item.y, rot: rotOf(item.rot) } : null;
 }
 
 function itemOf(value: unknown): CarriedItem | null {

@@ -2,11 +2,11 @@ import { TEST_MAP } from '../test/map';
 import { describe, expect, it } from 'vitest';
 import { PARTS, partDef } from '../data/parts';
 import { CONFIG } from '../config';
-import { REGION } from '../data/region';
+import { MAP_SPREAD, REGION } from '../data/region';
 import { START_KITS } from '../data/start';
 import { RULES } from '../data/rules';
 import { TIME } from '../data/time';
-import { ENGINE_HEAT } from '../data/wear';
+import { ENGINE_HEAT, HAZE_FROM } from '../data/wear';
 import { SKILL_EFFECTS } from '../data/skills';
 import { playerVehicle } from './damage';
 import { advanceEngineHeat, douseBlock, douseEngine, engineHot, engineOverheating, heldHeatSpeed } from './engine-heat';
@@ -27,6 +27,18 @@ function engine(w: ReturnType<typeof emptyWorld>) {
   return mountedParts(w.vehicles[0]).find((p) => partDef(p.defId).kind === 'engine')!;
 }
 
+describe('engine heat on the basin map', () => {
+  it('heats and cools a driving engine at the old map rates divided by the map spread', () => {
+    expect(ENGINE_HEAT.gain * MAP_SPREAD).toBeCloseTo(0.043125, 6);
+    expect(ENGINE_HEAT.coolDriving * MAP_SPREAD).toBeCloseTo(0.024, 6);
+    expect(HAZE_FROM).toBeCloseTo(1 + 0.024 / 0.043125, 6);
+  });
+
+  it('keeps the net overdrive heat of a driving engine at night', () => {
+    expect(ENGINE_HEAT.overdriveGain - ENGINE_HEAT.coolDriving).toBeCloseTo(0.066, 6);
+  });
+});
+
 describe('engine heat', () => {
   it('overheats after some turns of top speed in the noon sun, then damages the engine', () => {
     const w = emptyWorld();
@@ -38,9 +50,9 @@ describe('engine heat', () => {
     while (w.player.engineHeat < 1) {
       advanceEngineHeat(w);
       turns++;
-      expect(turns).toBeLessThan(60);
+      expect(turns).toBeLessThan(80);
     }
-    expect(turns).toBeGreaterThan(20);
+    expect(turns).toBeGreaterThan(45);
     expect(w.events.some((e) => e.t === 'info' && e.note.id === 'engineHot')).toBe(true);
     expect(engine(w).hp).toBe(hp - ENGINE_HEAT.overheatDamage);
     advanceEngineHeat(w);

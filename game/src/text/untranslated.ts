@@ -7,7 +7,8 @@ const DEV_SIM = 'Simulation mode is a dev page that shows a playthrough run. It 
 const BAKE_REPORT = 'The hunting spots bake logs a report to the terminal of the map bake. It stays English.';
 const DEV_LAB = 'The block lab is a dev page for tuning the combat score. It stays English.';
 const SIM_MODE = 'Simulation mode is a dev page that replays a bot run with every truck on the map. It stays English.';
-const FONT_SAMPLE = 'A sample string that makes the browser load the font. No player reads it.';
+const DEV_ATLAS = 'The stretch atlas is a dev page that draws the trucks each Chaos Highway stretch can roll. It stays English.';
+const FONT_SAMPLE ='A sample string that makes the browser load the font. No player reads it.';
 const SVG = 'Static SVG markup of an icon, with no words in it.';
 
 const MIGRATION_LABEL = 'A label inside a save migration error, which only the console and a bug report show.';
@@ -18,6 +19,7 @@ const SAVE_STEP_FILE = 'src/three/save-step-square-grid.ts';
 const SAVE_DB_ERROR = 'An error message of the save database, which only the console and a bug report show.';
 
 export const UNTRANSLATED: readonly Untranslated[] = [
+  { file: 'src/three/stretch-atlas.ts', text: '*', reason: DEV_ATLAS },
   { file: SAVE_STEP_FILE, text: 'its nearest spot is taken', reason: SAVE_STEP_LOG },
   { file: SAVE_STEP_FILE, text: 'its nearest spot is not legal for it', reason: SAVE_STEP_LOG },
   { file: SAVE_STEP_FILE, text: 'turned from rotation   to   and moved to  , , since it fits nowhere in its own rotation', reason: SAVE_STEP_LOG },
@@ -123,6 +125,7 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/ui/fonts.ts', text: 'Road Machiners 0123456789', reason: FONT_SAMPLE },
   { file: 'src/ui/fonts.ts', text: 'Дорожные машинисты 0123456789', reason: FONT_SAMPLE },
   { file: 'src/ui/quest-screen.ts', text: 'Quest art', reason: CRASH_REPORT },
+  { file: 'src/three/main.ts', text: 'Quest art', reason: CRASH_REPORT },
   { file: 'src/three/render/models.ts', text: 'Model', reason: CRASH_REPORT },
   { file: 'src/three/render/interiors/nose.ts', text: 'water tower', reason: CRASH_REPORT },
   { file: 'src/three/render/interiors/nose.ts', text: 'jib crane', reason: CRASH_REPORT },
