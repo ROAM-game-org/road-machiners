@@ -327,7 +327,7 @@ export class Game {
       releaseTurn: () => this.releaseTurn(),
       runKey: (code) => this.runKey(code),
       searchStock: (id) => this.searchFromLoot(id),
-      autoTravel: () => this.travel.isAuto(this.world), travelSpeedIndex: () => this.travel.getSpeedIndex(), travelPlaySpeed: () => (this.travel.isAuto(this.world) ? this.travel.getSpeed(performance.now(), CONFIG.travelFastSpeed, this.world) : null), stepTravelSpeed: (delta) => this.travel.stepSpeed(delta),
+      autoTravel: () => this.travel.isAuto(this.world), travelSpeedIndex: () => this.travel.getSpeedIndex(), travelPlaySpeed: () => (this.travel.isAuto(this.world) || this.anim !== null ? this.travel.getSpeed(performance.now(), CONFIG.travelFastSpeed) : null), stepTravelSpeed: (delta) => this.travel.stepSpeed(delta),
       getTurnPhase: () => this.phase,
       garageRenders: () => this.hud.garage,
     };

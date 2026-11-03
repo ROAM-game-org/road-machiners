@@ -119,33 +119,33 @@ describe("picked travel speed", () => {
 
   it("plays the picked speed while waypoint travel runs", () => {
     const travel = travelling(2);
-    expect(travel.getSpeed(1000, FAST, makeSafeWorld())).toBe(CONFIG.travelSpeeds[2]);
+    expect(travel.getSpeed(1000, FAST)).toBe(CONFIG.travelSpeeds[2]);
   });
 
-  it("plays 1 when no travel runs, whatever is picked", () => {
+  it("plays the pick when no travel runs", () => {
     const travel = new Travel(250, TAIL);
     travel.setSpeedIndex(LAST);
-    expect(travel.getSpeed(1000, FAST, makeSafeWorld())).toBe(1);
+    expect(travel.getSpeed(1000, FAST)).toBe(CONFIG.travelSpeeds[LAST]);
   });
 
   it("plays held Space at the picked speed, and at the hold speed when the pick is slower", () => {
     const fastest = new Travel(250, TAIL);
     fastest.setSpeedIndex(LAST);
     fastest.press(2000, false, true);
-    expect(fastest.getSpeed(2300, FAST, makeSafeWorld())).toBe(CONFIG.travelSpeeds[LAST]);
+    expect(fastest.getSpeed(2300, FAST)).toBe(CONFIG.travelSpeeds[LAST]);
     const slowest = new Travel(250, TAIL);
     slowest.press(2000, false, true);
-    expect(slowest.getSpeed(2300, FAST, makeSafeWorld())).toBe(FAST);
+    expect(slowest.getSpeed(2300, FAST)).toBe(FAST);
   });
 
   it("plays only listed speeds, held or picked", () => {
     for (let i = 0; i <= LAST; i++) {
       const picked = travelling(i);
-      expect(CONFIG.travelSpeeds).toContain(picked.getSpeed(1000, FAST, makeSafeWorld()));
+      expect(CONFIG.travelSpeeds).toContain(picked.getSpeed(1000, FAST));
       const held = new Travel(250, TAIL);
       held.setSpeedIndex(i);
       held.press(2000, false, true);
-      expect(CONFIG.travelSpeeds).toContain(held.getSpeed(2300, FAST, makeSafeWorld()));
+      expect(CONFIG.travelSpeeds).toContain(held.getSpeed(2300, FAST));
     }
   });
 
@@ -153,27 +153,26 @@ describe("picked travel speed", () => {
     const travel = travelling(LAST);
     travel.pause();
     expect(travel.getSpeedIndex()).toBe(LAST);
-    expect(travel.getSpeed(1000, FAST, makeSafeWorld())).toBe(1);
+    expect(travel.getSpeed(1000, FAST)).toBe(CONFIG.travelSpeeds[LAST]);
     travel.update(true, true);
     travel.press(5000, false, true);
     travel.release();
-    expect(travel.getSpeed(6000, FAST, makeSafeWorld())).toBe(CONFIG.travelSpeeds[LAST]);
+    expect(travel.getSpeed(6000, FAST)).toBe(CONFIG.travelSpeeds[LAST]);
   });
 
-  it("drops to 1 when travel stops on its own", () => {
+  it("keeps the pick when travel stops on its own", () => {
     const travel = travelling(LAST);
     travel.update(false, true);
-    expect(travel.getSpeed(1000, FAST, makeSafeWorld())).toBe(1);
+    expect(travel.getSpeed(1000, FAST)).toBe(CONFIG.travelSpeeds[LAST]);
   });
 
-  it("leaves turns that run on their own at 1", () => {
-    const travel = new Travel(250, TAIL);
-    travel.setSpeedIndex(LAST);
+  function towedWorld() {
     const world = makeSafeWorld();
-    world.player.state = "knockedOut";
-    expect(travel.isAuto(world)).toBe(true);
-    expect(travel.getSpeed(1000, FAST, world)).toBe(1);
-  });
+    const me = playerVehicle(world);
+    world.vehicles.push({ ...me, id: "tower", pos: { x: me.pos.x + 3, y: me.pos.y } });
+    addState(world, "tow", "tower", me.id, { kind: "tow", site: "bowl", fee: 0, waived: 0, hitched: true });
+    return world;
+  }
 
   function oddJobsWorld() {
     const world = makeSafeWorld();
@@ -181,40 +180,34 @@ describe("picked travel speed", () => {
     return world;
   }
 
-  it.each(CONFIG.travelSpeeds.map((_, i) => i))("plays pick %i during an odd jobs shift", (index) => {
-    const travel = new Travel(250, TAIL);
-    travel.setSpeedIndex(index);
-    const world = oddJobsWorld();
-    expect(travel.getSpeed(1000, FAST, world)).toBe(CONFIG.travelSpeeds[index]);
-    expect(travel.paceSpeed(world, 1000, 16, FAST)).toBe(CONFIG.travelSpeeds[index]);
-  });
-
-  it("plays the pick during a beacon wait", () => {
-    const travel = new Travel(250, TAIL);
-    travel.setSpeedIndex(LAST);
+  function beaconWorld() {
     const world = makeSafeWorld();
     world.player.beacon = true;
-    expect(travel.getSpeed(1000, FAST, world)).toBe(CONFIG.travelSpeeds[LAST]);
-    expect(travel.paceSpeed(world, 1000, 16, FAST)).toBe(CONFIG.travelSpeeds[LAST]);
-  });
+    return world;
+  }
 
-  it("keeps a towed run at 1 under any pick", () => {
-    const travel = new Travel(250, TAIL);
-    travel.setSpeedIndex(LAST);
-    const world = makeSafeWorld();
-    const me = playerVehicle(world);
-    world.vehicles.push({ ...me, id: "tower", pos: { x: me.pos.x + 3, y: me.pos.y } });
-    addState(world, "tow", "tower", me.id, { kind: "tow", site: "bowl", fee: 0, waived: 0, hitched: true });
-    expect(travel.getSpeed(1000, FAST, world)).toBe(1);
-    expect(travel.paceSpeed(world, 1000, 16, FAST)).toBe(1);
-  });
-
-  it("keeps a knocked-out run at 1 under any pick in playback", () => {
-    const travel = new Travel(250, TAIL);
-    travel.setSpeedIndex(LAST);
+  function knockedOutWorld() {
     const world = makeSafeWorld();
     world.player.state = "knockedOut";
-    expect(travel.paceSpeed(world, 1000, 16, FAST)).toBe(1);
+    return world;
+  }
+
+  const runs: [string, () => World][] = [
+    ["an idle world", makeSafeWorld],
+    ["an odd jobs shift", oddJobsWorld],
+    ["a beacon wait", beaconWorld],
+    ["a knocked-out run", knockedOutWorld],
+    ["a towed run", towedWorld],
+  ];
+
+  describe.each(runs)("during %s", (_name, build) => {
+    it.each(CONFIG.travelSpeeds.map((_, i) => i))("plays pick %i", (index) => {
+      const travel = new Travel(250, TAIL);
+      travel.setSpeedIndex(index);
+      const world = build();
+      expect(travel.getSpeed(1000, FAST)).toBe(CONFIG.travelSpeeds[index]);
+      expect(travel.paceSpeed(world, 1000, 16, FAST)).toBe(CONFIG.travelSpeeds[index]);
+    });
   });
 
   it("steps one speed at a time and stops at both ends", () => {
@@ -233,13 +226,13 @@ describe("picked travel speed", () => {
 
   it("plays a stepped speed from the next frame of a running automatic turn", () => {
     const travel = travelling(0);
-    expect(travel.getSpeed(1000, FAST, makeSafeWorld())).toBe(CONFIG.travelSpeeds[0]);
+    expect(travel.getSpeed(1000, FAST)).toBe(CONFIG.travelSpeeds[0]);
     travel.stepSpeed(1);
-    expect(travel.getSpeed(1016, FAST, makeSafeWorld())).toBe(CONFIG.travelSpeeds[1]);
+    expect(travel.getSpeed(1016, FAST)).toBe(CONFIG.travelSpeeds[1]);
     travel.stepSpeed(1);
-    expect(travel.getSpeed(1032, FAST, makeSafeWorld())).toBe(CONFIG.travelSpeeds[2]);
+    expect(travel.getSpeed(1032, FAST)).toBe(CONFIG.travelSpeeds[2]);
     travel.stepSpeed(-1);
-    expect(travel.getSpeed(1048, FAST, makeSafeWorld())).toBe(CONFIG.travelSpeeds[1]);
+    expect(travel.getSpeed(1048, FAST)).toBe(CONFIG.travelSpeeds[1]);
   });
 
   it("throws on a speed that does not exist", () => {

@@ -4,7 +4,7 @@ import { ODD_JOBS } from "../data/odd-jobs";
 import { RULES } from "../data/rules";
 import { ECONOMY } from "../data/goods";
 import { REGION } from "../data/region";
-import { autoRuns, waitsInPlace } from "./world";
+import { autoRuns } from "./world";
 import { TIME } from "../data/time";
 import { advanceJobs } from "./jobs";
 import { oddJobsBlock, oddJobsPay, payOddJobs, startOddJobs } from "./odd-jobs";
@@ -146,14 +146,6 @@ describe("turns that run on their own", () => {
     expect(autoRuns(w)).toBe(true);
     workTurns(w, ODD_JOBS.shiftTurns);
     expect(autoRuns(w)).toBe(false);
-  });
-
-  it("count as waiting in place while the shift runs, not when knocked out", () => {
-    const w = startOddJobs(brokeAtBowl());
-    expect(waitsInPlace(w)).toBe(true);
-    w.player.state = "knockedOut";
-    expect(autoRuns(w)).toBe(true);
-    expect(waitsInPlace(w)).toBe(false);
   });
 
   it("stop while a call waits for the player", () => {

@@ -22,7 +22,7 @@ import { currentQuestLanguage } from "../sim/quests";
 import type { GameEvent, Vehicle, World } from "../sim/types";
 import { dist, type Vec } from "../sim/vec";
 import { isOnRope, isTowed } from "../sim/tow";
-import { autoRuns, playerCanAct, threatToPlayer, waitsInPlace, waitsOnPlayer } from "../sim/world";
+import { autoRuns, playerCanAct, threatToPlayer, waitsOnPlayer } from "../sim/world";
 import { stopsTravel } from "./travel-stops";
 import { WorkerLoad, workerFailure } from "./worker-load";
 
@@ -320,15 +320,11 @@ export class Travel {
 
   request(world: World, drive: DriveSnapshot): void {
     this.requested = true;
-    this.turns.prepare(world, drive, this.fastTravel(world));
+    this.turns.prepare(world, drive, this.fastTravel());
   }
 
-  private playsAtPick(world: World): boolean {
-    return this.automatic || waitsInPlace(world);
-  }
-
-  private fastTravel(world: World): boolean {
-    return this.playsAtPick(world) && CONFIG.travelSpeeds[this.speedIndex] > 1;
+  private fastTravel(): boolean {
+    return CONFIG.travelSpeeds[this.speedIndex] > 1;
   }
 
   private runsOnItsOwn(world: World, now: number): boolean {
@@ -345,7 +341,7 @@ export class Travel {
       return null;
     }
     if (held || this.deciding(now) || !this.wantsTurn(world, now)) return null;
-    this.turns.prepare(world, drive, this.fastTravel(world));
+    this.turns.prepare(world, drive, this.fastTravel());
     return this.creep?.isMoving() ? null : this.takePrepared(world);
   }
 
@@ -399,12 +395,12 @@ export class Travel {
 
   prepareNext(world: World, playback: Playback | null, now: number, drive: DriveSnapshot): void {
     if (!playback) return this.prepareResume(world, drive, now);
-    if (this.continues(world, now)) this.turns.prepare(world, this.creep?.endDrive() ?? playback.result.next, this.fastTravel(world));
+    if (this.continues(world, now)) this.turns.prepare(world, this.creep?.endDrive() ?? playback.result.next, this.fastTravel());
   }
 
   private prepareResume(world: World, drive: DriveSnapshot, now: number): void {
     if (this.wantsTurn(world, now) || waitsOnPlayer(world)) return;
-    if (followsOrder(world)) this.turns.prepare(world, drive, CONFIG.travelSpeeds[this.speedIndex] > 1);
+    if (followsOrder(world)) this.turns.prepare(world, drive, this.fastTravel());
   }
 
   beginPlayback(
@@ -450,13 +446,13 @@ export class Travel {
   paceSpeed(world: World, now: number, realMs: number, fastSpeed: number): number {
     const outrunsNothing = this.turns.isReady(world) || !this.continues(world, now);
     const held = this.pace.step(realMs, this.isFast(now) && outrunsNothing ? fastSpeed : 1, fastSpeed);
-    return Math.max(held, this.playsAtPick(world) ? CONFIG.travelSpeeds[this.speedIndex] : 1);
+    return Math.max(held, CONFIG.travelSpeeds[this.speedIndex]);
   }
 
-  getSpeed(now: number, fastSpeed: number, world: World): number {
+  getSpeed(now: number, fastSpeed: number): number {
     const picked = CONFIG.travelSpeeds[this.speedIndex];
     if (this.isFast(now)) return Math.max(fastSpeed, picked);
-    return this.playsAtPick(world) ? picked : 1;
+    return picked;
   }
 
   getSpeedIndex(): number {
