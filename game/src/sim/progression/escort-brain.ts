@@ -42,7 +42,8 @@ export function leash(world: World, me: Vehicle): number {
 export function fightMove(world: World, me: Vehicle, foe: Vehicle): MoveOrder {
   const fighter = asFighter(me);
   const clearance = Math.max(vehicleStats(world, me).radius + vehicleStats(world, foe).radius + RULES.yieldDistance, standoff(world, me, foe));
-  return fightOrder(world, fighter, foe, clearOf(foe, fightPoint(world, fighter, foe, clearance), me.pos, clearance));
+  const post = clearFollowSpot(world, me, haulerOf(world));
+  return fightOrder(world, fighter, foe, clearOf(foe, fightPoint(world, fighter, foe, clearance, post), me.pos, clearance));
 }
 
 export function standoff(world: World, me: Vehicle, foe: Vehicle): number {

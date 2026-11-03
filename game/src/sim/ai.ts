@@ -15,7 +15,7 @@ import { parkedVehicles } from "./steering";
 import { fieldBlockers } from "./hazards";
 import { driveStats, isStranded, vehicleRadius, vehicleStats, type MountedWeapon } from "./stats";
 import { waitsForFollowers } from "./company-wait";
-import { followPace, getHitchedTowIds, isOnRope, ropeClientOf } from "./tow";
+import { followPace, getHitchedTowIds, isOnRope, postOf, ropeClientOf } from "./tow";
 import { ramImpact, ramValue } from "./crash-contact";
 import { ramsReadily } from "./npc-decisions";
 import type { MoveOrder, NpcActivity, Vehicle, World } from "./types";
@@ -168,8 +168,13 @@ function computeFightGoal(world: World, v: Vehicle, target: Vehicle, seen: Vehic
     const range = Math.max(shortestRange(world, v) - RULES.arriveRadius, clearance);
     return { x: lead.x + Math.cos(b.whim.angle) * range, y: lead.y + Math.sin(b.whim.angle) * range };
   }
-  if (!runsDown(world, v) && dist(v.pos, seen.pos) > longestRange(world, v)) return interceptOf(world, v, seen);
-  return fightPoint(world, v, seen, clearance);
+  return engagePoint(world, v, seen, clearance);
+}
+
+function engagePoint(world: World, v: Vehicle, seen: Vehicle, clearance: number): Vec {
+  const post = postOf(world, v);
+  if (!post && !runsDown(world, v) && dist(v.pos, seen.pos) > longestRange(world, v)) return interceptOf(world, v, seen);
+  return fightPoint(world, v, seen, clearance, post);
 }
 
 export function interceptOf(world: World, v: Vehicle, seen: Vehicle): Vec {
@@ -224,24 +229,35 @@ export function leadOf(target: Vehicle): Vec {
   return { x: target.pos.x + Math.cos(target.heading) * target.speed, y: target.pos.y + Math.sin(target.heading) * target.speed };
 }
 
-export function fightPoint(world: World, v: Vehicle, target: Vehicle, clearance: number): Vec {
+export function fightPoint(world: World, v: Vehicle, target: Vehicle, clearance: number, post: Vec | null = null): Vec {
   const lead = leadOf(target);
   const turn = circleTurn(world, v);
   const reach = longestRange(world, v) - RULES.arriveRadius;
   const clear = clearLines(world, vehicleRadius(v), []);
   let best: Candidate | null = null;
-  for (const share of F.rings) {
-    const r = Math.max(clearance, share * reach);
-    for (let i = 0; i < F.angles; i++) {
-      const a = (2 * Math.PI * i) / F.angles;
-      const p = { x: lead.x + Math.cos(a) * r, y: lead.y + Math.sin(a) * r };
-      const score = scorePoint(world, v, target, lead, p, turn);
-      const fires = bearingShare(world, v, { ...target, pos: lead }, p) > 0;
-      const open = clear(v.pos, p);
-      if (!best || beats({ p, score, fires, open }, best)) best = { p, score, fires, open };
-    }
+  for (const p of ringPoints(lead, reach, clearance, post)) {
+    const score = scorePoint(world, v, target, lead, p, turn);
+    const fires = bearingShare(world, v, { ...target, pos: lead }, p) > 0;
+    const open = clear(v.pos, p);
+    if (!best || beats({ p, score, fires, open }, best)) best = { p, score, fires, open };
   }
-  return best!.p;
+  return best ? best.p : holdPost(v, post);
+}
+
+function holdPost(v: Vehicle, post: Vec | null): Vec {
+  if (!post) throw new Error(`${v.id} found no fight point`);
+  return post;
+}
+
+function ringPoints(lead: Vec, reach: number, clearance: number, post: Vec | null): Vec[] {
+  const points = F.rings.flatMap((share) => {
+    const r = Math.max(clearance, share * reach);
+    return Array.from({ length: F.angles }, (_, i) => {
+      const a = (2 * Math.PI * i) / F.angles;
+      return { x: lead.x + Math.cos(a) * r, y: lead.y + Math.sin(a) * r };
+    });
+  });
+  return post ? points.filter((p) => dist(p, post) <= NPC_BEHAVIOR.escortWaitGap) : points;
 }
 
 type Candidate = { p: Vec; score: number; fires: boolean; open: boolean };
