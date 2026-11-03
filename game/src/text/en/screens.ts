@@ -37,6 +37,7 @@ export const SCREENS = {
   'save.none': 'No saves yet',
   'save.empty': 'Empty',
   'save.confirmLoad': 'Load this save? Progress since your last save is lost.',
+  'save.confirmOverwrite': m('{slot} holds a {saved} save. Replace it with this {current} save?', { slot: 'text', saved: 'text', current: 'text' }),
   'save.confirmNew': 'Start a new game? The autosaves are deleted. Your save slots stay.',
   'save.needsMigrating': 'Your save needs migrating',
   'save.migrate': 'Migrate save',

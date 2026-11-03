@@ -1,5 +1,6 @@
 
 import { closeLabel } from "./input-mode";
+import type { GameModeId } from "../sim/types";
 import type { SlotId, SlotInfo } from "../three/save-slots";
 import { slotLabel } from "../three/save-slots";
 import { bindAttr, say } from "../text/language";
@@ -12,10 +13,15 @@ export type SavePanelActions = {
   list: () => SlotInfo[];
   manualSlots: () => SlotId[];
   save: (slot: SlotId) => void;
+  mode: () => GameModeId;
   reboot: (slot: SlotId) => void;
   exportSave: () => void;
   exportLog: () => void;
 };
+
+export function overwritesOtherMode(info: SlotInfo | null, mode: GameModeId): boolean {
+  return info?.mode != null && info.mode !== mode;
+}
 
 export function slotDetail(info: SlotInfo | null): { text: Msg; tone: "dim" | "bad" | "num" } {
   if (info === null) return { text: t("save.empty"), tone: "dim" };
@@ -105,7 +111,7 @@ export class SavePanel {
 
   openSave(): void {
     const infos = new Map(this.actions.list().map((info) => [info.slot, info]));
-    const rows = this.actions.manualSlots().map((slot) => saveRow(slot, infos.get(slot) ?? null, () => this.saveInto(slot)));
+    const rows = this.actions.manualSlots().map((slot) => saveRow(slot, infos.get(slot) ?? null, () => this.saveInto(slot, infos.get(slot) ?? null)));
     const exports = el(
       "div",
       { class: "save-exports" },
@@ -119,7 +125,12 @@ export class SavePanel {
     this.list.openLoad(this.actions.list(), (slot) => this.loadFrom(slot));
   }
 
-  private saveInto(slot: SlotId): void {
+  private saveInto(slot: SlotId, info: SlotInfo | null): void {
+    const mode = this.actions.mode();
+    if (info?.mode && overwritesOtherMode(info, mode)) {
+      const ask = t("save.confirmOverwrite", { slot: slotLabel(slot), saved: modeName(info.mode), current: modeName(mode) });
+      if (!window.confirm(say(ask))) return;
+    }
     this.actions.save(slot);
     this.openSave();
   }
