@@ -134,9 +134,9 @@ describe('design stage pulling same-system cards', () => {
     writeFileSync(`${run.clone}/${run.dir}/.factory/wont-do.md`, 'No.\n');
   });
 
-  it('pulls same-system cards from Triage and Design into the lead, before the agent reads its input', async () => {
+  it('pulls same-system Design cards into the lead, before the agent reads its input', async () => {
     labels = ['system:social'];
-    board = [card(7, 'Design'), card(9, 'Design'), card(8, 'Triage')];
+    board = [card(7, 'Design'), card(9, 'Design'), card(8, 'Design')];
     await runStage(reading(), 7);
     expect(calls).toContain('comment 9 Design bundled this into #7, which carries it from here: It is about the same game system, social, so one design covers them together.\n\nIt closes when #7 ships.');
     expect(calls).toContain('addLabel 8 bundled');
@@ -147,13 +147,24 @@ describe('design stage pulling same-system cards', () => {
     expect(readState(`${home}/state.json`).designStarted).toEqual([7, 8, 9]);
   });
 
+  it('finishes the moves of an earlier pull that stopped halfway, and pulls nothing new', async () => {
+    withState({ designStarted: [7, 8, 9], bundles: { '7': [8, 9] } });
+    labels = ['system:social'];
+    board = [card(7, 'Design'), { ...card(8, 'Done', ['bundled']) }, card(9, 'Design'), card(10, 'Design')];
+    await runStage(refuse(), 7);
+    expect(calls).toContain('move 9 Done');
+    expect(calls).toContain('comment 7 Design pulled in #9, which are about the same game system, social. This card also carries them.');
+    expect(calls).not.toContain('addLabel 8 bundled');
+    expect(calls.filter((call) => / 10 /.test(call))).toEqual([]);
+  });
+
   it.each([
     ['another system', { ...card(9, 'Design'), labels: ['system:economy'] }],
     ['no system', { ...card(9, 'Design'), labels: [] }],
     ['a later column', card(9, 'Implementation')],
     ['a stuck label', card(9, 'Design', ['factory-stuck'])],
-    ['a voting label', card(9, 'Triage', ['voting'])],
-    ['a needs-info label', card(9, 'Triage', ['needs-info'])],
+    ['a place in Triage, like a card a released bundle sent back', card(9, 'Triage')],
+    ['a needs-info label', card(9, 'Design', ['needs-info'])],
     ['a hotfix label', card(9, 'Design', ['hotfix'])],
     ['an adhoc label', card(9, 'Design', ['adhoc'])],
     ['another base', card(9, 'Design', ['release-task'])],
