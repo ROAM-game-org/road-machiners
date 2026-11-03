@@ -1,6 +1,6 @@
 import { PRESSURE_MAX } from '../../data/market';
 import type { GameEvent, PartInstance, Vehicle, World } from '../types';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { CHASSIS, chassisDef } from '../../data/chassis';
 import { MAP_SCALE, REGION } from '../../data/region';
 import { START_KITS } from '../../data/start';
@@ -34,6 +34,7 @@ import { emptyHidden } from '../salvage';
 import { cargoHaul, haulVar } from '../haul';
 import { botOrders, CONVOY_ROB_PATROL, haulMarginAt, robTarget, wouldRob } from './bot';
 import { fuelReaches } from './reach';
+import { forgetFlights, startFlight } from './flee-memory';
 
 function town(id: string) {
   const found = REGION.towns.find((t) => t.id === id);
@@ -549,7 +550,7 @@ describe('botOrders', () => {
 });
 
 describe('the bot in a fight', () => {
-  it('has a trader run from a weak raider it can outrun and turn on one it cannot', () => {
+  it('has a trader turn on a weak raider whatever the speed of either truck', () => {
     const attackedBy = (chassisId: string) => {
       const w = emptyWorld({ x: 30, y: 30 });
       const me = playerVehicle(w);
@@ -557,15 +558,13 @@ describe('the bot in a fight', () => {
       const raider = addVehicle(w, 'scrapjaw', chassisId, ['stockEngine'], { x: 36, y: 30 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       startCombat(w, raider, me);
-      const faster = vehicleStats(w, raider).maxSpeed >= vehicleStats(w, me).maxSpeed;
       const order = playerVehicle(botOrders(w, 'trader').world).order;
-      const ran = order?.kind === 'stopAt' && pointsAway(me.pos, order.dest, raider.pos);
-      return { faster, turned: order?.kind === 'stopAt' && dist(order.dest, raider.pos) < 1, ran };
+      return { faster: vehicleStats(w, raider).maxSpeed >= vehicleStats(w, me).maxSpeed, turned: order?.kind === 'stopAt' && dist(order.dest, raider.pos) < 1 };
     };
     const runs = Object.keys(CHASSIS).map(attackedBy);
 
     expect(runs.some((r) => r.faster) && runs.some((r) => !r.faster)).toBe(true);
-    for (const r of runs) expect([r.turned, r.ran]).toEqual([r.faster, !r.faster]);
+    for (const r of runs) expect(r.turned).toBe(true);
   });
 
   it('has a trader caught between two raiders run away from the nearer one', () => {
@@ -906,20 +905,67 @@ describe('the bot in a fight', () => {
     startCombat(w, raider, me);
     expect(playerSees(w, raider.pos)).toBe(false);
     me.order = { kind: 'stopAt', dest: { x: 5, y: 5 } };
+    startFlight(w, me, { x: 5, y: 5 });
 
     expect(playerVehicle(botOrders(w, 'trader').world).order).toEqual({ kind: 'stopAt', dest: { x: 5, y: 5 } });
   });
 
-  it('has a fleeing bot that already stands on its stop point pick a new way out', () => {
-    const w = emptyWorld({ x: 30, y: 30 });
-    const me = playerVehicle(w);
-    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['autocannon', 'ram', 'stockEngine'], { x: 36, y: 30 });
-    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
-    startCombat(w, raider, me);
-    me.order = { kind: 'stopAt', dest: { x: me.pos.x - RULES.arriveRadius, y: me.pos.y } };
+  describe('when attacked', () => {
+    beforeEach(forgetFlights);
 
-    const order = playerVehicle(botOrders(w, 'trader').world).order;
-    expect(order?.kind === 'stopAt' && dist(order.dest, me.pos) > RULES.arriveRadius * 2).toBe(true);
+    function attackedBy(weapons: string[], slowed: boolean) {
+      const w = emptyWorld({ x: 30, y: 30 });
+      const me = playerVehicle(w);
+      if (slowed) for (const wheel of mountedParts(me).filter((p) => p.defId.includes('wheel'))) wheel.hp = 0;
+      const raider = addVehicle(w, 'scrapjaw', 'wagon', [...weapons, 'stockEngine'], { x: slowed ? 33 : 36, y: 30 });
+      raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+      startCombat(w, raider, me);
+      return { w, raider, me };
+    }
+
+    const orderAfter = (w: World) => playerVehicle(botOrders(w, 'trader').world).order;
+
+    it('has a bot drive at a raider it can handle', () => {
+      const { w, raider } = attackedBy([], false);
+      expect(orderAfter(w)).toEqual({ kind: 'stopAt', dest: raider.pos });
+    });
+
+    it('has a faster bot run from a raider it cannot handle', () => {
+      const { w, raider, me } = attackedBy(['autocannon', 'ram'], false);
+      expect(vehicleStats(w, me).maxSpeed).toBeGreaterThan(vehicleStats(w, raider).maxSpeed);
+      const order = orderAfter(w);
+      expect(order?.kind === 'stopAt' && pointsAway(me.pos, order.dest, raider.pos)).toBe(true);
+    });
+
+    it('has a slower bot drive at a raider it cannot handle and cannot outrun', () => {
+      const { w, raider, me } = attackedBy(['autocannon', 'autocannon', 'ram'], true);
+      expect(vehicleStats(w, me).maxSpeed).toBeLessThan(vehicleStats(w, raider).maxSpeed);
+      expect(orderAfter(w)).toEqual({ kind: 'stopAt', dest: raider.pos });
+    });
+
+    it('has a bot on an old trip order take a flee point and never the trip point', () => {
+      const { w, raider, me } = attackedBy(['autocannon', 'ram'], false);
+      const trip = { x: me.pos.x - 8, y: me.pos.y };
+      me.order = { kind: 'stopAt', dest: trip };
+      const order = orderAfter(w);
+      expect(order?.kind === 'stopAt' && order.dest.x === trip.x && order.dest.y === trip.y).toBe(false);
+      expect(order?.kind === 'stopAt' && pointsAway(me.pos, order.dest, raider.pos)).toBe(true);
+    });
+
+    it('has a bot that reached its flee point with the foe still on it turn and fight', () => {
+      const { w, raider, me } = attackedBy(['autocannon', 'ram'], false);
+      const point = { x: me.pos.x - RULES.arriveRadius, y: me.pos.y };
+      me.order = { kind: 'stopAt', dest: point };
+      startFlight(w, me, point);
+      expect(orderAfter(w)).toEqual({ kind: 'stopAt', dest: raider.pos });
+    });
+
+    it('has a bot that stands on an old stop order run first instead of fighting', () => {
+      const { w, raider, me } = attackedBy(['autocannon', 'ram'], false);
+      me.order = { kind: 'stopAt', dest: { x: me.pos.x - RULES.arriveRadius, y: me.pos.y } };
+      const order = orderAfter(w);
+      expect(order?.kind === 'stopAt' && dist(order.dest, me.pos) > RULES.arriveRadius * 2 && pointsAway(me.pos, order.dest, raider.pos)).toBe(true);
+    });
   });
 
   it('has a trader hand its cargo only to a raider that outmatches it', () => {

@@ -14,6 +14,7 @@ import { canFirstAid, startFirstAid } from '../jobs';
 import { maxHealthOf } from '../health';
 import { setFire } from './aim';
 import { asFighter } from './fighter';
+import { heldFlight, reachedFlight, sawThreat, startFlight } from './flee-memory';
 import { hostileToPlayer, playerCanAct, setAutoRepair, setMoveOrder } from '../world';
 import { playerVehicle, vehicleById } from '../damage';
 import { isDefeated, isKnockedOut } from '../defeat';
@@ -30,7 +31,7 @@ import { CONTRACTS, shopDef, SHOPS } from '../../data/market';
 import { canLoot, needsSearch, salvageHere, takeAllLoot } from '../locations';
 import { fleeDestination, keepsFleeCourse, topGoal } from '../npc-activities';
 import { isPartWorn } from '../npc-repair';
-import { getsAway, isManageable, tradeOutlook, tradeRig, npcProfile, getUpkeepReserve, perceiveDanger, getKnownSite } from '../npc-decisions';
+import { getsAway, isManageable, tradeOutlook, tradeRig, npcProfile, getUpkeepReserve, perceiveDanger, getKnownSite, optionWeights } from '../npc-decisions';
 import { warnedOffTarget } from '../loot-warning';
 import { claimCandidates, claimClue, claimPartHeld } from '../claims';
 import { canLootTruck, canReachSalvage, hasSalvage, salvageInRange, lootBlocker, takeFromTruck } from '../salvage';
@@ -691,9 +692,14 @@ const JUDGE_SALT = 0x6a756467;
 function defend(o: Orders): boolean {
   if (!inCombat(o.world, o.me)) return avoid(o);
   const foe = weakestFoe(o.world);
-  if (foe && fights(o, foe)) driveTo(o, foe.pos);
+  if (foe && (standsAgainst(o, foe) || reachedFlight(o.world, o.me))) driveTo(o, foe.pos);
   else flee(o);
   return true;
+}
+
+function standsAgainst(o: Orders, foe: Vehicle): boolean {
+  const weights = optionWeights(o.world, asFighter(o.me), 'attacked', foe.id, dangerOf(o.world, foe));
+  return (weights.fightBack ?? 0) >= (weights.flee ?? 0);
 }
 
 function avoid(o: Orders): boolean {
@@ -715,20 +721,19 @@ function heardHostiles(world: World): Vehicle[] {
 
 function flee(o: Orders): void {
   const threat = nearest(o.me.pos, seenHostiles(o.world).map((v) => v.pos)) ?? heardFoe(o.world);
-  if (keepsRunning(o.me, threat)) return;
+  if (threat) sawThreat(o.world, o.me);
+  if (keepsRunning(o, threat)) return;
   if (!threat) return driveToSite(o, nearestTown(o.world));
   const fighter = asFighter(o.me);
-  driveTo(o, fleeDestination(o.world, fighter, npcProfile(fighter), threat));
+  const point = fleeDestination(o.world, fighter, npcProfile(fighter), threat);
+  startFlight(o.world, o.me, point);
+  driveTo(o, point);
 }
 
-function keepsRunning(me: Vehicle, threat: Vec | null): boolean {
-  const order = me.order;
-  if (order === null || order.kind === 'brake' || dist(me.pos, order.dest) <= RULES.arriveRadius * 2) return false;
-  return !threat || keepsFleeCourse(me, order.dest, threat);
-}
-
-function fights(o: Orders, foe: Vehicle): boolean {
-  return beats(o, foe) && !getsAway(o.world, o.me, foe);
+function keepsRunning(o: Orders, threat: Vec | null): boolean {
+  const flight = heldFlight(o.world, o.me);
+  if (!flight || reachedFlight(o.world, o.me)) return false;
+  return !threat || keepsFleeCourse(o.me, flight.point, threat);
 }
 
 function beats(o: Orders, foe: Vehicle): boolean {
