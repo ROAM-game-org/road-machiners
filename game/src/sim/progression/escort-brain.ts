@@ -8,7 +8,7 @@ import { heldAway, recoveryOrder, startRecovery, tickRecovery, type StallMemory 
 import { vehicleStats } from '../stats';
 import { followSpot } from '../tow';
 import type { MoveOrder, Vehicle, World } from '../types';
-import type { Vec } from '../vec';
+import { dist, type Vec } from '../vec';
 import { RULES } from '../../data/rules';
 import { asFighter } from './fighter';
 
@@ -36,9 +36,14 @@ export function escortFoe(world: World, me: Vehicle): Vehicle | null {
 
 export function fightMove(world: World, me: Vehicle, foe: Vehicle): MoveOrder {
   const fighter = asFighter(me);
-  const post = clearFollowSpot(world, me, haulerOf(world));
+  const post = onMe(world, me, foe) ? null : clearFollowSpot(world, me, haulerOf(world));
   const goal = computeFightGoal(world, fighter, foe, foe, post);
   return goal ? fightOrder(world, fighter, foe, goal) : { kind: 'brake' };
+}
+
+function onMe(world: World, me: Vehicle, foe: Vehicle): boolean {
+  const reach = Math.max(0, ...vehicleStats(world, me).weapons.map((mw) => mw.def.range));
+  return dist(me.pos, foe.pos) <= reach;
 }
 
 export function escortMove(world: World, me: Vehicle, foe: Vehicle | null, stall: Stall): MoveOrder {
