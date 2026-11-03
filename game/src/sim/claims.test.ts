@@ -12,7 +12,7 @@ import { bakedTier, shopClue } from './claim-clue';
 import { claimCandidates, claimClue, claimLook, claimPartHeld, claimReward, claimRivalAt, claimSpots, claimTargets, claimWindow, isFreeRival, sendRival } from './claims';
 import { leaveLoot } from './loot-warning';
 import { getResources } from './resources';
-import type { TraitId } from '../data/npcs';
+import { NPCS, type TraitId } from '../data/npcs';
 import { CONTRACTS, SHOPS } from '../data/market';
 import { SEARCH } from '../data/utilities';
 import { beginSearch, searchTurn } from './search';
@@ -278,6 +278,10 @@ function keepNearestDrivers(w: World, count: number, also: string[] = [], shopId
   const npcs = w.vehicles.filter((v) => v.id !== w.player.vehicleId && v.brain && !v.brain.goals.some((g) => g.kind === 'follow'));
   const near = new Set(npcs.sort((a, b) => dist(a.pos, shop) - dist(b.pos, shop)).slice(0, count).map((v) => v.id));
   w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || near.has(v.id) || also.includes(v.id));
+}
+
+function stopNewTraffic(w: World): void {
+  for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Infinity;
 }
 
 const CLAIM_DAY_TURNS = 60;
@@ -684,6 +688,7 @@ describe('a rival on the real map', () => {
     claim.rivalAt = w.turn + 1;
     shopState(w, shop).contracts.push(claim);
     keepNearestDrivers(w, 4, [], shop);
+    stopNewTraffic(w);
     const pads = sitePads(siteOf(shop));
     w.vehicles.filter((v) => v.id !== w.player.vehicleId).forEach((v, i) => {
       const pad = pads[i % pads.length];
