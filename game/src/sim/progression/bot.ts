@@ -507,8 +507,11 @@ function takeHaul(o: Orders): boolean {
   const pay = (c: Haul) => c.reward / estimateTurns(here, siteOf(c.to).pos);
   const offers = shopState(o.world, shop).contracts.filter((c): c is Haul => c.kind === 'haul' && c.deadline > o.world.turn && c.units <= freeCells(o.me) && fuelReaches(o.world, siteOf(c.to)));
   const best = offers.reduce<Haul | null>((top, c) => (!top || pay(c) > pay(top) ? c : top), null);
-  if (best) o.run((w) => acceptContract(w, best.id));
-  return best !== null;
+  if (!best) return false;
+  o.run((w) => acceptContract(w, best.id));
+  const held = heldHaul(o.world);
+  if (held) carryHaul(o, held);
+  return true;
 }
 
 function followClient(o: Orders, job: EscortContract): void {
