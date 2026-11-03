@@ -22,7 +22,7 @@ import { offeredSurrenderBy, type ThreatAnswer } from '../parley';
 import { hashRandom } from '../rng';
 import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply, canRebuild, driveRepairCost, partRepairCost, partTradePrice, getTradePrice, repairBasics, repairCost, repairDrive, repairPart, sellGood, sellPart, serviceRoom, supplyRoom } from '../economy';
 import { corePart, findSpot, freeCells, goodsCount, gridOf, isMounted, itemCells, MOUNT_CELLS, mountCellsOf, mountedItems, mountedParts, type Spot } from '../grid';
-import { canStowPart, cargoMassRoom, cargoRoom, getLayoutError, stowSpot, storePart } from '../inventory';
+import { canStowPart, cargoMassRoom, cargoRoom, getLayoutError, storePart } from '../inventory';
 import { itemMass } from '../mass';
 import { acceptContract, deliverContract, estimateTurns, shopAt, isLate, shopState, siteOf, spareGoods, type Contract } from '../market';
 import { escortBlocked, heldEscort, type EscortContract } from '../escort-job';
@@ -34,7 +34,7 @@ import { firepower, getsAway, isManageable, tradeOutlook, tradeRig, npcProfile, 
 import { HUNT_MARGIN, huntable, huntedSpeed } from './hunted';
 import { warnedOffTarget } from '../loot-warning';
 import { claimCandidates, claimClue, claimPartHeld } from '../claims';
-import { canLootTruck, canReachSalvage, hasSalvage, salvageInRange, lootBlocker, takeError, takeFromTruck } from '../salvage';
+import { canLootTruck, canReachSalvage, hasSalvage, spareSpot, salvageInRange, lootBlocker, takeError, takeFromTruck } from '../salvage';
 import { startSearch } from '../search';
 import { territoryEntries } from '../territory';
 import { canUseSite, isTerritory, townNear, nearestPad, reachedSite, nearestTown, siteGates, sitePads, townAt, type Site } from '../sites';
@@ -729,7 +729,7 @@ function engageSeen(o: Orders, foe: Vehicle): boolean {
 function nextLoot(me: Vehicle, target: Vehicle): { item: GridItem; spot: Spot } | null {
   const worth = (it: GridItem) => (it.kind === 'part' ? partValue(it.part) : 0);
   for (const item of [...target.items].sort((a, b) => worth(b) - worth(a))) {
-    const spot = takeError(target, item) === null ? stowSpot(me, item) : null;
+    const spot = takeError(target, item) === null ? spareSpot(me, item) : null;
     if (spot) return { item, spot };
   }
   return null;
