@@ -188,7 +188,9 @@ describe("picked travel speed", () => {
       travel.setSpeedIndex(index);
       const world = build();
       expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[index]);
-      expect(travel.paceSpeed(world, 1000, 16, 4)).toBe(CONFIG.travelSpeeds[index]);
+      let pace = 1;
+      for (let i = 0; i < 80; i++) pace = travel.paceSpeed(world, 1000, 35, 4);
+      expect(pace).toBe(CONFIG.travelSpeeds[index]);
     });
   });
 
