@@ -18,7 +18,7 @@ const CAP_PROBE_FRAMES = 300;
 const CAP_PROBE_MAX_MEDIAN_MS = 3;
 const WINDOWS_LOAD_SAMPLE_MS = 1000;
 const HEAP_SAMPLE_BYTES = 16384;
-const PROFILE_CATEGORIES = ['disabled-by-default-v8.cpu_profiler', 'blink.user_timing'];
+const PROFILE_CATEGORIES = ['disabled-by-default-v8.cpu_profiler', 'blink.user_timing', 'devtools.timeline', 'v8', 'disabled-by-default-v8.gc'];
 const TRACE_MAX_BYTES = 400 * 1024 * 1024;
 const USAGE = 'Usage: npm run perf [-- --profile] [--scenes <id,id>] [--url <served build>]\n       npm run perf -- --compare <a.json> <b.json>';
 
@@ -314,6 +314,7 @@ async function measure(base, budget, commit, { profile, scenes }) {
   const run = { commit, machine: os.hostname(), cores: os.cpus().length, loadStart: idle.load, idleWaitMs: idle.waitedMs, loadEnd, othersCores, startedAt, frameCapOff, untrusted: [] };
   const wrapped = { bench: report, run };
   run.untrusted = trustProblems(wrapped);
+  if (sampling) writeFileSync(`${path}.heap.json`, JSON.stringify(sampling));
   if (tracePath) wrapped.profile = { ...profileReport(readTrace(tracePath)), allocations: allocationReport(sampling) };
   return { wrapped, path: `${path}.json` };
 }
