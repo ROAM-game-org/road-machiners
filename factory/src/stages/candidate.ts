@@ -66,10 +66,9 @@ export async function candidate(ctx: Ctx, issue: number): Promise<void> {
   const caption = candidateCaption(release.day, url, trackingLink(ctx, issue), pr, features.length);
   const buttons = [[{ text: 'Ship', data: `factory:ship:${issue}` }]];
   const evidence = candidateEvidence(ctx, issue, home);
-  const photoId = await postWithEvidence(ctx, evidence, caption, buttons, {
+  await postWithEvidence(ctx, evidence, caption, buttons, {
     add: (id) => updateState(ctx.statePath, (state) => ({ ...state, release: state.release && { ...state.release, postId: id, candidateSha: sha }, postCaptions: { ...state.postCaptions, [id]: caption } })),
   }, { stage: 'candidate', issue });
-  await ctx.telegram.sendMessage(ctx.cfg.committeeChat, changes, photoId);
 }
 
 async function requirePlaytested(ctx: Ctx, release: ReleaseState): Promise<string> {
@@ -112,6 +111,6 @@ async function changelogInput(ctx: Ctx, features: Feature[]): Promise<string> {
 
 export function candidateCaption(day: string, url: string, link: string, pr: string, count: number): string {
   const head = `ROAM release candidate ${day}\n\nPlay: ${url}\nPR: ${pr}\nIssue: ${link}`;
-  const changes = count === 0 ? 'No changes in this candidate.' : `${count} changes, listed in the message under this post.`;
+  const changes = count === 0 ? 'No changes in this candidate.' : `${count} changes, full list in the Issue comment above.`;
   return [head, changes].join('\n\n');
 }

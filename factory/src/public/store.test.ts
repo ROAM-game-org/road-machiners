@@ -74,6 +74,20 @@ describe('public store', () => {
     expect(postedStore().shownFooter(7)).toBe('footer');
   });
 
+  it('adds the task time to the reports of an older store, so its candidate reports become tasks', () => {
+    const home = mkdtempSync(join(tmpdir(), 'public-store-'));
+    openStore(home).close();
+    const db = new DatabaseSync(storePath(home));
+    db.exec('alter table reports drop column tasked_at');
+    db.prepare("insert into reports (address, build, version, kind, text, verdict, intent, sincere, issue, created_issue, at) values ('a', 'rc', 'v', 'bug', 'Sinks', 'accept', 'sincere', 0.9, 40, 601, ?)").run(now.toISOString());
+    const store = new PublicStore(db);
+    expect(store.untaskedCandidateReports(40)).toEqual([601]);
+    expect(store.candidateReportIssue(40, 'sinks.')).toBe(601);
+    expect(store.candidateReportIssue(41, 'sinks.')).toBeNull();
+    store.markTasked(40, 601, now);
+    expect(store.untaskedCandidateReports(40)).toEqual([]);
+  });
+
   it('opens a fresh proposal when a card is put to a vote after its proposal closed, with no votes carried over', () => {
     const store = postedStore();
     store.applyEvent({ updateId: 1, kind: 'reaction', chat: CHANNEL, messageId: 100, user: 'a', emoji: ['👍'] });
@@ -83,7 +97,7 @@ describe('public store', () => {
     const later = new Date('2026-10-15T10:00:00Z');
     store.addProposal(7, 'Add a better winch', later);
     expect(store.proposal(7)).toEqual({ issue: 7, pitch: 'Add a better winch', chat: null, messageId: null, postedAt: null, closedAt: null });
-    expect(store.unpostedProposals().map((proposal) => proposal.issue)).toEqual([7]);
+    expect(store.pendingProposals().map((proposal) => proposal.issue)).toEqual([7]);
     expect(store.openProposals()).toEqual([]);
     expect(store.shownFooter(7)).toBeNull();
     store.markProposalPosted(7, CHANNEL, 200, 'footer', later);
@@ -188,7 +202,7 @@ describe('public store', () => {
     store.closeProposal(7, now);
     expect(store.reopenUnattempted(7)).toBe(true);
     expect(store.reopenUnattempted(7)).toBe(false);
-    expect(store.unpostedProposals().map((proposal) => proposal.issue)).toEqual([7]);
+    expect(store.pendingProposals().map((proposal) => proposal.issue)).toEqual([7]);
     store.beginProposalPost(7, now);
     expect(store.reopenUnattempted(7)).toBe(false);
     const posted = postedStore();
@@ -256,7 +270,7 @@ describe('public store', () => {
     const first = openStore(home);
     first.addProposal(7, 'Add a winch', now);
     first.close();
-    expect(openStore(home).unpostedProposals().map((p) => p.issue)).toEqual([7]);
+    expect(openStore(home).pendingProposals().map((p) => p.issue)).toEqual([7]);
   });
 
   it('keeps a message with an unknown thread only when the plugin marks it standalone', () => {

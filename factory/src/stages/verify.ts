@@ -1,5 +1,6 @@
 import { writeFileSync } from 'node:fs';
 import { moveCard } from '../card-events';
+import { CARD_SESSION_ROUND, keepCardSession } from '../card-session';
 import { readApproval } from '../clone-checks';
 import { pendingFeedback } from '../pending-feedback';
 import { BRANCH, FEEDBACK_HEADING, GAME_DIR, OUT_DIR, TASK_FILE, type Ctx, type KeptApproval, type PendingFeedback } from '../types';
@@ -10,7 +11,7 @@ import { postCheckpoint, publishAndPost } from './checks';
 import { hardenPrompt } from './harden';
 import { HOTFIX_BASE, agentHome, baseBranchFor, browserRule, docsOnly, fillPrompt, guardAndPush, mergeBase, playtestCommand, prepareOutputs, readOutput, runAgent, throwIfNeedsCommittee, unfinishedBaseMerge, workDir, writeIssueInput } from './common';
 
-const ROUND = 'test';
+const ROUND = CARD_SESSION_ROUND;
 
 export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const item = await ctx.github.issue(issue);
@@ -37,6 +38,8 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
 }
 
 async function finish(ctx: Ctx, issue: number, home: string, base: string, build: string): Promise<void> {
+  const unkept = keepCardSession(ctx.cfg.home, issue);
+  ctx.log('verify', issue, unkept === null ? `kept the ${CARD_SESSION_ROUND} session for the card's merge conflicts` : `kept no session for the card's merge conflicts: ${unkept}`);
   const approval = keptApprovalOf(ctx, issue);
   const lost = approval === null ? null : await lostReason(ctx, approval, home, base, build);
   if (approval !== null && lost === null) return requeueApproved(ctx, issue, approval, build);
