@@ -1,6 +1,6 @@
 import { chassisDef } from '../../data/chassis';
 import { ECONOMY } from '../../data/goods';
-import { NPCS } from '../../data/npcs';
+import { NPC_UPKEEP, NPCS } from '../../data/npcs';
 import { partDef } from '../../data/parts';
 import { haulerOf, playerTrucks, playerVehicle } from '../damage';
 import { TERRAIN } from '../../data/terrain';
@@ -9,10 +9,10 @@ import { ENGINE_HEAT } from '../../data/wear';
 import { canDouse, douseEngine } from '../engine-heat';
 import { inCombat } from '../combat';
 import { refitLoadout } from '../npc-loadout';
-import { isStranded, vehicleMaxSpeed, vehicleStats, type MountedWeapon } from '../stats';
+import { isStranded, vehicleMaxSpeed, vehicleStats } from '../stats';
 import { getResources } from '../resources';
 import { tankLeaks } from '../supplies';
-import { playerCanAct, setAutoFire, setAutoRepair, setMoveOrder, setWeaponOrder } from '../world';
+import { playerCanAct, setAutoFire, setAutoRepair, setMoveOrder } from '../world';
 import { basicsRepairCost, chassisPrice, chassisSwapRefusal, repairCost, supplyRoom, type Supply } from '../economy';
 import { abandonRun, canAbandonRun, canDriveOn, driveOn, haulerWedged, nextOutpost, outpostTrucks, reachedOutpostAt, type Outpost } from '../chaos-highway';
 import { inYard, yardSpots } from '../outpost-gates';
@@ -21,19 +21,17 @@ import { startRepair } from '../jobs';
 import { corePart, goodsCount, mountedParts } from '../grid';
 import { storePart, type RefitLayout } from '../inventory';
 import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from '../outposts';
-import type { MoveOrder, PartInstance, Vehicle, WeaponOrder, World } from '../types';
+import type { MoveOrder, PartInstance, Vehicle, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { isJunk } from '../wear';
 import { CHAOS_HIGHWAY, HIGHWAY } from '../../data/modes';
-import { escortFoe, escortMove, gunTarget, hostilesSeen, unlessStuck, type Stall } from './escort-brain';
-import { aimFor } from './aim';
+import { escortFoe, escortMove, unlessStuck, type Stall } from './escort-brain';
 import { armorHauler } from './escort-gear';
 import { bestTruck } from './escort-tactics';
 import { mountBought, Orders, relayout, type BotTurn } from './orders';
 
 export type RoadStyle = 'escort' | 'sprinter';
 
-const PATCH_GOODS = 4;
 const SAFE_HEAT = 1;
 const FIGHTER = 'merc';
 const HOP = TERRAIN.vision.radius;
@@ -141,7 +139,6 @@ function escort(o: Orders): void {
   const parking = !foe && haulerAtPad(o.world, hauler);
   const order = parking ? unlessStuck(o.world, o.me, stall, () => parkInYard(o.world)) : escortMove(o.world, o.me, foe, stall);
   if (!sameMove(o.me.order, order)) o.run((w) => setMoveOrder(w, order));
-  if (foe) focusFire(o, foe);
 }
 
 function parkInYard(world: World): MoveOrder {
@@ -158,29 +155,10 @@ const STALLS = new Map<string, Stall>();
 function stallOf(world: World, me: Vehicle): Stall {
   const key = `${world.seed}:${me.id}`;
   const known = STALLS.get(key);
-  if (known && known.turn <= world.turn) return known;
-  const fresh: Stall = { turn: -1, at: { ...me.pos }, stalled: 0, recovery: 0, goal: null };
+  if (known && (known.turn ?? 0) <= world.turn) return known;
+  const fresh: Stall = {};
   STALLS.set(key, fresh);
   return fresh;
-}
-
-function focusFire(o: Orders, focus: Vehicle): void {
-  o.run((w) => setAutoFire(w, false));
-  const foes = hostilesSeen(o.world);
-  for (const weapon of vehicleStats(o.world, o.me).weapons) {
-    const order = gunOrder(o.world, weapon, gunTarget(o.world, o.me, weapon, focus, foes));
-    if (sameOrder(o.me.weaponOrders[weapon.part.id] ?? null, order)) continue;
-    o.run((w) => setWeaponOrder(w, weapon.part.id, order));
-  }
-}
-
-function gunOrder(world: World, weapon: MountedWeapon, foe: Vehicle | null): WeaponOrder | null {
-  return foe ? { targetId: foe.id, aim: aimFor(world, foe, weapon) } : null;
-}
-
-function sameOrder(a: WeaponOrder | null, b: WeaponOrder | null): boolean {
-  if (a === null || b === null) return a === b;
-  return a.targetId === b.targetId && a.aim === b.aim;
 }
 
 function haulerAtPad(world: World, hauler: Vehicle): boolean {
@@ -225,8 +203,8 @@ function restock(o: Orders, post: Outpost, style: RoadStyle): void {
     repair(o, truck);
     for (const kind of SUPPLIES) topUp(o, kind, truck);
   }
-  buyPatchGoods(o);
   if (!inCombat(o.world, o.me)) restockGear(o, post, style, haulerShare);
+  buyPatchGoods(o);
 }
 
 function restockGear(o: Orders, post: Outpost, style: RoadStyle, haulerShare: number): void {
@@ -335,7 +313,7 @@ function topUp(o: Orders, kind: Supply, truck: Vehicle): void {
 }
 
 function buyPatchGoods(o: Orders): void {
-  const want = PATCH_GOODS - (goodsCount(o.me).parts ?? 0);
+  const want = NPC_UPKEEP.repairParts - (goodsCount(o.me).parts ?? 0);
   const n = Math.min(want, outpostGoodRoom(o.me), Math.floor(o.world.player.money / outpostGoodPrice()));
   if (n > 0) o.run((w) => outpostBuyGood(w, n), 'goodsBought');
 }

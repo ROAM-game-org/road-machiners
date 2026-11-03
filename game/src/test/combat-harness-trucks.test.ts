@@ -57,7 +57,7 @@ function firstFight(seeds: number[], make: (seed: number) => Fight, reaches: (r:
 
 describe('rams landed', () => {
   it('counts the damaging crashes of a truck with a ram and the ones its ram took, and none for a truck without one', () => {
-    const r = firstFight(RAM_SEEDS, (seed) => ({ ...FIGHT, a: parseLineup('charge:mg/plates+ram'), b: parseLineup('buggy:mg/bare'), seed, maxTurns: 40, orbit: 0 }), (x) => x.a.ramCrashes > 0, 'a damaging ram crash');
+    const r = firstFight(RAM_SEEDS, (seed) => ({ ...FIGHT, a: parseLineup('charge:mg/bare+ram'), b: parseLineup('buggy:mg/bare'), seed, maxTurns: 40, orbit: 0 }), (x) => x.a.ramCrashes > 0, 'a damaging ram crash');
     expect(r.a.ramCrashes).toBeGreaterThan(0);
     expect(r.a.ramCrashes).toBeLessThanOrEqual(r.crashes);
     expect(r.a.ramsLanded).toBeLessThanOrEqual(r.a.ramCrashes);

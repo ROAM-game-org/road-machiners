@@ -8,12 +8,12 @@ import { t, type Msg } from "../text/msg";
 import { partDef } from "../data/parts";
 import { playerVehicle, truckFor } from "../sim/damage";
 import { instantMoveItem } from "../sim/cheats";
-import { gridOf, isMounted, mountedParts, placementError, type Spot } from "../sim/grid";
+import { gridOf, isMounted, mountedParts, nextTurn, placementError, turnsOf, type Spot } from "../sim/grid";
 import { installSpot, moveItem, planItemMove, plannedTruck, plannedVehicle, startRefit, storePart, stowSpot, takeFromStorage, type RefitLayout } from "../sim/inventory";
 import { takeFromTruck } from "../sim/salvage";
 import { takeLoot } from "../sim/locations";
 import { atGarage } from "../sim/garage";
-import type { GridItem, PartInstance, PlacementRefusal, Vehicle, World } from "../sim/types";
+import type { GridItem, PartInstance, PlacementRefusal, Rot, Vehicle, World } from "../sim/types";
 
 const ROTATE_KEY_CODE = "KeyR";
 
@@ -179,4 +179,14 @@ export function weldBlocker(w: World, me: Vehicle): Msg | null {
   if (busy) return busy;
   const scrap = PERK_NUMBERS.welder.scrap;
   return (goodsCount(me).scrap ?? 0) < scrap ? t("inv.needsScrap", { n: scrap }) : null;
+}
+
+export function turnsToTry(item: GridItem): Rot[] {
+  const poses: Rot[] = [];
+  let turned = item;
+  for (let i = 1; i < turnsOf(item).length; i++) {
+    turned = { ...turned, rot: nextTurn(turned) };
+    poses.push(turned.rot);
+  }
+  return poses;
 }

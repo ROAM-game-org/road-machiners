@@ -7,7 +7,7 @@ digraph overview {
   B [label="Agents build\nTriage to Testing"];
   C [label="Committee plays\nand approves", fillcolor="#fde68a", color="#b45309"];
   V [label="dev"];
-  R [label="Release\ncandidate"];
+  R [label="Release candidate\nthe dev commit\nthe playtest passed"];
   S [label="Committee\nships", fillcolor="#fde68a", color="#b45309"];
   O [label="main\nand itch.io"];
   E [label="Game error\nreports"];
@@ -15,5 +15,5 @@ digraph overview {
   E -> B [weight=0];
   edge [color="#dc2626", fontcolor="#dc2626", style=dashed, penwidth=1.3, dir=back, weight=0];
   B -> C [label="feedback"];
-  B -> S [label="remove or new task"];
+  B -> S [label="remove #N"];
 }

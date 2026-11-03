@@ -14,8 +14,9 @@ import {
   type Drive,
   type TurnResult,
 } from "./drive";
-import { computeTurn, isCleanTail, physicsMove, SentObstacles, sightAlong, withTail } from "./turn";
+import { applyObstacles, computeTurn, diffObstacles, isCleanTail, physicsMove, SentObstacles, sightAlong, withTail } from "./turn";
 import { PHYSICS } from "../data/physics";
+import type { Obstacle } from "../sim/types";
 import { seenPropTiles, visibleTiles } from "../sim/vision";
 
 beforeAll(initPhysics);
@@ -173,16 +174,47 @@ it("samples sight along the player's drive every sight step and at its end, with
   expect(sightAlong(world, [])).toEqual({ steps: [], tiles: [], props: [] });
 });
 
-it("sends the obstacles to a worker only when their content changed since the last send", () => {
+it("sends the obstacles to a worker only as the change since the last send", () => {
   const sent = new SentObstacles();
   const { terrain: _terrain, ...state } = standardWorld(7);
-  expect(sent.split(state).obstacles).toBe(state.obstacles);
+  expect(sent.split(state).obstacles).toEqual({ kind: "full", list: state.obstacles });
   const copy = structuredClone(state);
   const again = sent.split(copy);
-  expect(again.obstacles).toBeNull();
+  expect(again.obstacles).toEqual({ kind: "same" });
   expect("obstacles" in again.world).toBe(false);
-  copy.obstacles[0] = { ...copy.obstacles[0], r: copy.obstacles[0].r + 1 };
-  expect(sent.split(copy).obstacles).toBe(copy.obstacles);
+  const wreck = { id: "wreck-new", pos: { x: 5, y: 5 }, r: 2, kind: "wreck" as const };
+  copy.obstacles = [...copy.obstacles.slice(1), wreck];
+  const sync = sent.split(copy).obstacles;
+  expect(sync.kind).toBe("delta");
+  expect(applyObstacles(state.obstacles, sync)).toEqual(copy.obstacles);
   sent.forget();
-  expect(sent.split(copy).obstacles).toBe(copy.obstacles);
+  expect(sent.split(copy).obstacles).toEqual({ kind: "full", list: copy.obstacles });
+});
+
+const rockOf = (id: string, r = 1): Obstacle => ({ id, pos: { x: 1, y: 2 }, r, kind: "rock" });
+const rocks = (n: number): Obstacle[] => Array.from({ length: n }, (_, i) => rockOf(`rock-${i}`));
+
+it("says the obstacles are the same for one list and for a copy with equal content", () => {
+  const list = rocks(6);
+  expect(diffObstacles(list, list).kind).toBe("same");
+  expect(diffObstacles(list, structuredClone(list)).kind).toBe("same");
+});
+
+it("sends only the removed ids and the added obstacles, and rebuilds the new list", () => {
+  const from = rocks(20);
+  const to = [...from.slice(0, 3), ...from.slice(4), rockOf("wreck-1", 3)];
+  const sync = diffObstacles(from, to);
+  expect(sync).toEqual({ kind: "delta", remove: ["rock-3"], add: [rockOf("wreck-1", 3)] });
+  expect(applyObstacles(from, sync)).toEqual(to);
+});
+
+it("sends the whole obstacle list when a change in the middle would reorder it or most of it changed", () => {
+  const from = rocks(20);
+  const reordered = [...from.slice(0, 5), rockOf("rock-5", 9), ...from.slice(6)];
+  expect(diffObstacles(from, reordered)).toEqual({ kind: "full", list: reordered });
+  expect(diffObstacles(rocks(10), rocks(10).map((o) => ({ ...o, r: 4 }))).kind).toBe("full");
+});
+
+it("refuses to build an obstacle change on a worker that holds no list", () => {
+  expect(() => applyObstacles(null, { kind: "same" })).toThrow("needs a list");
 });

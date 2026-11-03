@@ -32,7 +32,7 @@ const loops: Partial<Record<CardStep, string>> = {
   patch: 'Committee patch', redesign: 'Committee redesign', 'patch-replan': 'Patch needs a new plan', conflict: 'Merge conflict', 'base-moved': 'Hotfix base moved', removed: 'Removed from release',
   unbundled: 'Bundle lead dropped',
 };
-const mergeStates: Record<MergeState, string> = { merging: 'Merging', next: 'Next', stuck: 'Stuck', held: 'Held', 'after-ship': 'After ship' };
+const mergeStates: Record<MergeState, string> = { merging: 'Merging', next: 'Next', stuck: 'Stuck', held: 'Held' };
 const outcomes: Record<JobOutcome, string> = { done: 'Finished', failed: 'Failed', died: 'Died', timeout: 'Timed out', stopped: 'Stopped', held: 'Held' };
 
 export const LABELS = { columns, stages, queues, activities, reasons, dwell, loops, mergeStates, outcomes };

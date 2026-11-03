@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readAgentOutput } from '../agent-output';
 import { fetchMedia, mediaSection, type MediaEntry } from '../media';
-import { CommitteeDecisionError, guardDiff } from '../diff-guard';
+import { CommitteeDecisionError, ForeignBaseError, guardDiff } from '../diff-guard';
 import { askedAt, isAnswered, questionPostsOf, recordAsked, recordQuestionPost } from '../questions';
 import { MESSAGE_LIMIT } from '../telegram-limits';
 import { resumeError, resumedStage, roundSession, timedOutMinutes } from '../sessions';
@@ -12,17 +12,13 @@ import { adoptReplyMedia, readCommitteeMedia } from '../reply-media';
 import { issueReports } from '../error-reports/service';
 import { readState } from '../state';
 import { bundleOf } from './bundle';
-import { BRANCH, DESIGN_SONNET_LABEL, GAME_DIR, HOTFIX_LABEL, IMPLEMENTATION_OPUS_LABEL, NEEDS_INFO_LABEL, OPEN_NETWORK_LABEL, OUT_DIR, QUESTIONS_HEADING, RELEASE_TASK_LABEL, WORK_DIR, type AgentSession, type CardStage, type Ctx, type FactoryConfig, type Stage } from '../types';
+import { BRANCH, DESIGN_SONNET_LABEL, GAME_DIR, HOTFIX_LABEL, IMPLEMENTATION_OPUS_LABEL, NEEDS_INFO_LABEL, OPEN_NETWORK_LABEL, OUT_DIR, QUESTIONS_HEADING, WORK_DIR, type AgentSession, type CardStage, type Ctx, type FactoryConfig, type Stage } from '../types';
 
 export const BASE_BRANCH = 'dev';
 export const HOTFIX_BASE = 'main';
 
 export function baseBranchFor(ctx: Ctx, labels: string[]): string {
-  if (labels.includes(HOTFIX_LABEL)) return HOTFIX_BASE;
-  if (!labels.includes(RELEASE_TASK_LABEL)) return BASE_BRANCH;
-  const release = readState(ctx.statePath).release;
-  if (release === null) throw new Error(`A ${RELEASE_TASK_LABEL} issue needs an open release, and none is open`);
-  return release.branch;
+  return labels.includes(HOTFIX_LABEL) ? HOTFIX_BASE : BASE_BRANCH;
 }
 
 const TESTED_DOCS = `${GAME_DIR}/docs/wiki/`;
@@ -259,8 +255,15 @@ async function guardedHead(ctx: Ctx, issue: number, base: string, stage: CardSta
   const untracked = await ctx.repo.untrackFactoryFiles(workDir(ctx, issue));
   if (untracked.length > 0) ctx.log(stage, issue, `took factory files out of the branch: ${untracked.join(', ')}`);
   const head = await ctx.repo.fetchFromWork(workDir(ctx, issue), BRANCH(issue));
+  await requireOwnBase(ctx, head, base);
   guardDiff({ files: await ctx.repo.changedFiles(base, head), diff: await ctx.repo.diff(base, head) });
   return head;
+}
+
+export async function requireOwnBase(ctx: Ctx, head: string, base: string): Promise<void> {
+  if (base !== HOTFIX_BASE) return;
+  const count = await ctx.repo.foreignCommits(head, HOTFIX_BASE, BASE_BRANCH);
+  if (count > 0) throw new ForeignBaseError(HOTFIX_BASE, BASE_BRANCH, count);
 }
 
 

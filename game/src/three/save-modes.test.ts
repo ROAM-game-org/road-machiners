@@ -9,7 +9,7 @@ import { chaosHighwayWorld, parkInYard } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { endTurn, newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
-import { changeMapIfMoved, loadWorld, mapFor, SaveHold, SAVE_KEY, writeSave, type Run } from './save';
+import { changeMapIfMoved, loadWorld, mapFor, SaveHold, SAVE_KEY, saveImporter, writeSave, type Run } from './save';
 import { RunLog } from './run-log';
 import { takeBootRequest } from './save-slots';
 import { memoryBackend, SaveSlots } from './save-db';
@@ -119,7 +119,8 @@ describe('the window swap in the game', () => {
     const backend = memoryBackend();
     const log = new RunLog(backend, 'run-1', 'test', (err) => { throw err; });
     log.begin(world, null);
-    return { slots: new SaveSlots(backend, new Map()), runId: 'run-1', log, mapHash: world.mapHash };
+    const slots = new SaveSlots(backend, new Map());
+    return { slots, runId: 'run-1', log, mapHash: world.mapHash, importSave: saveImporter(slots, TEST_MAP, 3) };
   }
 
   it('asks for a boot of the autosave only when the map has moved', async () => {

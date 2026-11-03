@@ -38,7 +38,7 @@ it('records nothing when the board refuses the move', async () => {
 it('reads the flow of a card from its labels', () => {
   expect(cardFlow(['bug'])).toBeUndefined();
   expect(cardFlow(['hotfix', 'bug'])).toBe('hotfix');
-  expect(cardFlow(['release-task', 'maintenance'])).toBe('release-task');
+  expect(cardFlow(['maintenance'])).toBeUndefined();
   expect(cardFlow(['release'])).toBe('release');
   expect(cardFlow(['adhoc'])).toBe('adhoc');
 });
