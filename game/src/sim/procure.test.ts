@@ -105,16 +105,15 @@ describe('procureCandidates', () => {
 });
 
 describe('the terms of a supply order', () => {
-  it('pays the crates at the standing shortage price plus rush travel pay for the round trip to the nearest maker', () => {
+  it('pays the crates at the neutral price plus rush travel pay for the round trip to the nearest maker', () => {
     const w = emptyWorld();
     for (const good of shopDef('bowl').goods) setShopPressure(w, 'bowl', good, 0);
     setShopPressure(w, 'bowl', 'salt', 0.4);
-    const pressure = pressureOf('bowl', 'salt', w.shops.bowl.goods.salt);
     const c = rollOnly(w, 'bowl') as Procure;
     const trip = 2 * estimateTurns(bowl.pos, siteOf(nearestMaker('bowl', 'salt')).pos);
     expect(c.kind).toBe('procure');
     expect(c.good).toBe('salt');
-    expect(c.cratePay).toBe(Math.round(standingPrice('bowl', 'salt', pressure)));
+    expect(c.cratePay).toBe(Math.round(standingPrice('bowl', 'salt', 0)));
     expect(procureTrip('bowl', 'salt')).toBeCloseTo(trip, 6);
     expect(c.reward).toBe(procureReward(c.units, c.cratePay, trip));
     expect(c.reward).toBe(c.units * c.cratePay + Math.round(contractReward(trip, 0, true) * CONTRACTS.procure.travelFactor));
@@ -122,6 +121,32 @@ describe('the terms of a supply order', () => {
     expect(c.window).toBe(haulWindow(trip, true) + CONTRACTS.procure.slackTurns);
     expect(c.deadline).toBe(w.turn + c.window);
     expect(c.tier).toBe(GOODS.salt.tier);
+  });
+
+  it('pays the same crate rate whatever the shortage', () => {
+    const rates = [0.2, 0.9].map((pressure) => {
+      const w = emptyWorld();
+      for (const good of shopDef('bowl').goods) setShopPressure(w, 'bowl', good, 0);
+      setShopPressure(w, 'bowl', 'salt', pressure);
+      return (rollOnly(w, 'bowl') as Procure).cratePay;
+    });
+    expect(rates[0]).toBe(rates[1]);
+  });
+
+  it('never pays an order under its crate part, and prints the largest posted reward', () => {
+    let largest = 0;
+    for (const shopId of Object.keys(SHOPS)) {
+      const w = emptyWorld();
+      for (const good of shopDef(shopId).goods) setShopPressure(w, shopId, good, 0.9);
+      for (const good of procureCandidates(w, shopId, w.shops[shopId])) {
+        const cratePay = Math.round(standingPrice(shopId, good, 0));
+        const reward = procureReward(CONTRACTS.procure.units[1], cratePay, procureTrip(shopId, good));
+        expect(reward).toBeGreaterThanOrEqual(CONTRACTS.procure.units[1] * cratePay);
+        largest = Math.max(largest, reward);
+      }
+    }
+    console.info(`largest supply order reward ${largest}`);
+    expect(largest).toBeGreaterThan(0);
   });
 
   it('asks for a crate count between the smallest order and the shortfall', () => {
@@ -146,7 +171,7 @@ describe('the terms of a supply order', () => {
     addGoods(w, playerVehicle(w), 'salt', c.units);
     const before = w.player.money;
     const sold = sellGood(w, 'salt', c.units);
-    expect(sold.player.money - before).toBeLessThan(c.units * c.cratePay);
+    expect(sold.player.money - before).toBeLessThan(c.reward);
   });
 
   it('names no place but the posting shop', () => {

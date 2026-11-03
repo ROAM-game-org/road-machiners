@@ -393,10 +393,12 @@ function rollProcure(world: World, input: RollInput, id: string): Contract {
   const shortfall = procureShortfall(world, shopId, state, good);
   if (shortfall === 0) throw new Error(`${shopId} cannot order ${good}: it is not short of it, makes it or has it on order`);
   const units = randInt(world.marketRng, CONTRACTS.procure.units[0], Math.min(CONTRACTS.procure.units[1], shortfall));
-  const cratePay = fairM(standingPrice(shopId, good, pressureOf(shopId, good, goodStock(state, good))));
+  const cratePay = fairM(standingPrice(shopId, good, 0));
   const trip = procureTrip(shopId, good);
   const window = procureWindow(trip);
-  return { id, shop: shopId, kind: 'procure', good, units, cratePay, reward: procureReward(units, cratePay, trip), deadline: world.turn + window, window, tier: GOODS[good].tier };
+  const reward = procureReward(units, cratePay, trip);
+  if (!Number.isInteger(reward) || reward < units * cratePay) throw new Error(`${shopId} order for ${good} has reward ${reward} under its crate pay ${units * cratePay}`);
+  return { id, shop: shopId, kind: 'procure', good, units, cratePay, reward, deadline: world.turn + window, window, tier: GOODS[good].tier };
 }
 
 export function onOrder(world: World, shopId: string, good: string): boolean {
