@@ -4,7 +4,7 @@ import { makePart } from "../../sim/factory";
 import { mountPart } from "../../sim/inventory";
 import { emptyWorld } from "../../sim/testkit";
 import { TruckConditionReadout } from "../../ui/hud-readout";
-import { BODY_ID, conditionItems, EMPTY_ID, TINTS, boundsOf, centerOf, cropOf, flipRows, fullBox, hiddenOver, idsOf, indexIds, linearToSrgb, partMaskOf, solidMaskOf, tintMask, unpremultiply } from "./portraitPixels";
+import { BODY_ID, conditionItems, EMPTY_ID, glowMaskOf, TINTS, boundsOf, centerOf, cropOf, flipRows, fullBox, hiddenOver, idsOf, indexIds, linearToSrgb, partMaskOf, solidMaskOf, tintMask, unpremultiply } from "./portraitPixels";
 
 const size = (width: number, height: number) => ({ width, height });
 
@@ -159,13 +159,13 @@ describe("tintMask", () => {
   it("keeps alpha and skips clear pixels", () => {
     const mask = gradient();
     mask.set([200, 200, 200, 0], 0);
-    const out = tintMask(mask, TINTS.steel);
+    const out = tintMask(mask, TINTS.hurt);
     expect(Array.from(out.slice(0, 4))).toEqual([200, 200, 200, 0]);
     expect(out[7]).toBe(255);
   });
 
   it("fails loud on a mask with no pixels", () => {
-    expect(() => tintMask(new Uint8ClampedArray(8), TINTS.tire)).toThrow();
+    expect(() => tintMask(new Uint8ClampedArray(8), TINTS.broken)).toThrow();
   });
 });
 
@@ -213,3 +213,16 @@ describe("conditionItems", () => {
     expect(row?.percent).toBeLessThan(100);
   });
 });
+
+describe("glowMaskOf", () => {
+  const paint = () => Uint8ClampedArray.from([10, 20, 30, 255, 120, 100, 80, 255, 200, 180, 160, 255]);
+
+  it("draws a healthy part's own pixels, so a wheel and a plate keep the model colors", () => {
+    expect(Array.from(glowMaskOf(paint(), "ok"))).toEqual(Array.from(paint()));
+  });
+
+  it.each(["hurt", "crit", "broken"] as const)("tints a %s part", (tier) => {
+    expect(Array.from(glowMaskOf(paint(), tier))).not.toEqual(Array.from(paint()));
+  });
+});
+
