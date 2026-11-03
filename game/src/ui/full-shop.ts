@@ -58,20 +58,21 @@ export class FullShopScreen {
   render(): void {
     if (!this.isOpen()) return;
     const w = this.host.world();
-    const truck = el("div", { class: "town-truck" }, this.inventory.render());
+    const truckBody = el("div", { class: "truck-body" }, this.inventory.render());
+    const truck = el("div", { class: "town-truck" }, truckBody);
     const shop = el(
       "div",
       { class: "town-shop" },
       el("div", { class: "tabs sub" }, ...this.filterButtons()),
       this.error ? el("div", { class: "bad" }, this.error) : null,
-      el("div", { class: "cards" }, ...this.cards(w)),
+      el("div", { class: "shop-body" }, el("div", { class: "cards" }, ...this.cards(w))),
     );
     this.root.replaceChildren(
       el("button", { class: "close", onclick: () => this.close() }, "Leave [Esc]"),
       el("h3", {}, "Full shop", truckChips(w)),
       el("div", { class: "town-split" }, truck, shop),
     );
-    this.inventory.fitTo(truck);
+    this.inventory.fitTo(truckBody);
   }
 
   private cards(w: World): HTMLElement[] {
