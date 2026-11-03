@@ -7,7 +7,8 @@ const SIGN_SHARES = SIGN_STAGES.length + 1;
 export type BootStep = 'code' | 'map' | 'physics' | 'models' | 'world' | 'ground' | 'scene' | 'frame';
 export type BootState = 'waiting' | 'running' | 'done' | 'failed';
 
-export const BOOT_STEPS: readonly BootStep[] = ['code', 'map', 'physics', 'models', 'world', 'ground', 'scene', 'frame'];
+export const BOOT_MEASURE = 'roam:boot:';
+export const BOOT_STEPS: readonly BootStep[] =['code', 'map', 'physics', 'models', 'world', 'ground', 'scene', 'frame'];
 
 export const BOOT_TEXT = {
   code: t('boot.code'),

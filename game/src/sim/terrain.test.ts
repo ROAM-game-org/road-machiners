@@ -14,6 +14,7 @@ import {
   heightAt,
   isCliff,
   tileAt,
+  tileGrade,
   tileSlope,
   type Terrain,
 } from "./terrain";
@@ -398,6 +399,14 @@ describe("deck heights", () => {
   it("fails loudly on a distance off the deck", () => {
     expect(() => deckHeight(t, ridge, -0.1)).toThrow("Deck ridge has no point -0.1 tiles along it");
     expect(() => deckHeight(t, ridge, ridge.length + 0.1)).toThrow();
+  });
+
+  it("gives every tile the length of its slope, on the ground and on a deck", () => {
+    const t = TEST_MAP.terrain;
+    for (let tile = 0; tile < t.size * t.size; tile += 7) {
+      const slope = tileSlope(t, tile);
+      expect(tileGrade(t, tile)).toBeCloseTo(Math.hypot(slope.x, slope.y), 12);
+    }
   });
 
   it("gives a tile on the wing the grade of the piece under its centre", () => {
