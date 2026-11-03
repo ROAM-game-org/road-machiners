@@ -27,6 +27,7 @@ import { passShare, sideToward } from "./armor";
 import { chance } from "./rng";
 import { heldGoal, holdOnStretch, rollingOrder, runsDown } from "./hunters";
 import { dragsStraight } from "./sunward";
+import { heldAway, startRecovery, tickRecovery } from "./stall";
 
 function planners(world: World): Vehicle[] {
   return world.vehicles.filter((v) => v.brain && !isOnRope(world, v.id) && !isKnockedOut(v) && thinksThisTurn(world, v));
@@ -43,7 +44,7 @@ export function planNpcOrders(world: World): void {
 function thinkOrderPoint(world: World, v: Vehicle): Plan {
   const b = v.brain!;
   delete b.ramTarget;
-  if (b.recovery) b.recovery--;
+  tickRecovery(b);
   const activity = thinkNpc(world, v);
   return { v, activity, goal: orderPoint(world, v, activity) };
 }
@@ -59,7 +60,7 @@ function setOrder(world: World, { v, activity, goal }: Plan): void {
 
 function noteStuck(world: World, v: Vehicle, goal: Vec | null): void {
   const b = v.brain!;
-  b.stuck = heldAway(v, goal) ? (b.stuck ?? 0) + 1 : 0;
+  b.stuck = heldAway(v, b, goal) ? (b.stuck ?? 0) + 1 : 0;
   if (b.stuck < RULES.unstick.turns) return;
   if (turnCornered(world, v)) {
     b.stuck = 0;
@@ -74,12 +75,6 @@ function noteStuck(world: World, v: Vehicle, goal: Vec | null): void {
 
 function waitsOnHold(v: Vehicle, goal: Vec | null, held: Vec | null): boolean {
   return held !== goal && dist(v.pos, held!) <= RULES.arriveRadius * 2;
-}
-
-function heldAway(v: Vehicle, goal: Vec | null): boolean {
-  const b = v.brain!;
-  if (!goal || !b.lastPos || b.recovery) return false;
-  return dist(v.pos, b.lastPos) < RULES.arriveRadius / 2 && dist(v.pos, goal) > RULES.arriveRadius * 2;
 }
 
 function freeSpotNear(world: World, v: Vehicle): Vec | null {
@@ -99,20 +94,12 @@ function noteStall(world: World, v: Vehicle, yielding: boolean): void {
   b.lastPos = { ...v.pos };
   if (b.stalled < RULES.npcStuckTurns) return;
   if (turnCornered(world, v)) b.stalled = 0;
-  else startRecovery(v);
+  else startRecovery(v, b);
 }
 
 function barelyMoved(v: Vehicle): boolean {
   const last = v.brain!.lastPos;
   return !!last && !!v.order && v.order.kind !== "brake" && dist(v.pos, last) < RULES.arriveRadius / 2;
-}
-
-function startRecovery(v: Vehicle): void {
-  const b = v.brain!;
-  const back = RULES.reverse.distance + RULES.minAimDistance;
-  b.recovery = RULES.npcRecoveryTurns;
-  b.recoveryGoal = { x: v.pos.x - Math.cos(v.heading) * back, y: v.pos.y - Math.sin(v.heading) * back };
-  b.stalled = 0;
 }
 
 function nextOrder(world: World, v: Vehicle, activity: NpcActivity, goal: Vec | null, stops: boolean): MoveOrder {
@@ -144,7 +131,11 @@ function driveOrder(world: World, v: Vehicle, activity: NpcActivity, dest: Vec):
 
 function followOrder(world: World, v: Vehicle, activity: NpcActivity, dest: Vec): MoveOrder {
   const leader = activity.kind === "follow" ? world.vehicles.find((x) => x.id === activity.targetId) : undefined;
-  if (!leader || leader.speed <= RULES.parkedSpeed) return { kind: "stopAt", dest };
+  return leader ? followDrive(v, leader, dest) : { kind: "stopAt", dest };
+}
+
+export function followDrive(v: Vehicle, leader: Vehicle, dest: Vec): MoveOrder {
+  if (leader.speed <= RULES.parkedSpeed) return { kind: "stopAt", dest };
   if (dist(v.pos, leader.pos) > NPC_BEHAVIOR.escortCatchUpGap) return { kind: "through", dest };
   return { kind: "through", dest, pace: followPace(v, leader, dest) };
 }
@@ -155,7 +146,7 @@ function foeInSight(world: World, v: Vehicle, activity: NpcActivity): Vehicle | 
   return foe && canVehicleSee(world, v, foe.pos) ? foe : null;
 }
 
-function computeFightGoal(world: World, v: Vehicle, target: Vehicle, seen: Vehicle): Vec | null {
+export function computeFightGoal(world: World, v: Vehicle, target: Vehicle, seen: Vehicle, post: Vec | null = postOf(world, v)): Vec | null {
   const b = v.brain!;
   if (charges(world, v, target)) {
     b.ramTarget = target.id;
@@ -168,11 +159,10 @@ function computeFightGoal(world: World, v: Vehicle, target: Vehicle, seen: Vehic
     const range = Math.max(shortestRange(world, v) - RULES.arriveRadius, clearance);
     return { x: lead.x + Math.cos(b.whim.angle) * range, y: lead.y + Math.sin(b.whim.angle) * range };
   }
-  return engagePoint(world, v, seen, clearance);
+  return engagePoint(world, v, seen, clearance, post);
 }
 
-function engagePoint(world: World, v: Vehicle, seen: Vehicle, clearance: number): Vec {
-  const post = postOf(world, v);
+function engagePoint(world: World, v: Vehicle, seen: Vehicle, clearance: number, post: Vec | null): Vec {
   if (!post && !runsDown(world, v) && dist(v.pos, seen.pos) > longestRange(world, v)) return interceptOf(world, v, seen);
   return fightPoint(world, v, seen, clearance, post);
 }

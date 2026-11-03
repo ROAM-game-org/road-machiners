@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { playerVehicle } from '../damage';
-import { corePart, mountedParts } from '../grid';
+import { corePart } from '../grid';
 import { vehicleStats } from '../stats';
 import type { Vehicle, World } from '../types';
 import { makePart } from '../factory';
@@ -20,12 +20,9 @@ function platedFully(foe: Vehicle, w: World): void {
 }
 
 describe('aimFor', () => {
-  it('aims at a critical part of an unarmored foe, not at its body', () => {
+  it('aims at the body, as NPC gunners do, while the foe has not refused to give up', () => {
     const { w, foe, weapon } = duel(['mg', 'stockEngine']);
-    const aim = aimFor(w, foe, weapon);
-    const critical = [...mountedParts(foe, 'core'), ...mountedParts(foe, 'engine')].map((p) => p.id);
-
-    expect(critical).toContain(aim);
+    expect(aimFor(w, foe, weapon)).toBe('body');
   });
 
   it('aims at the cab once the foe refused to give up', () => {

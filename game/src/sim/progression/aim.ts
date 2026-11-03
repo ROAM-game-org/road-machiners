@@ -4,15 +4,11 @@ import { inArc } from '../combat';
 import { angleDiff, bearing, DEG, dist, type Vec } from '../vec';
 import { partLane, passShare, planLane, SIDES, sideToward, type Round } from '../armor';
 import { playerVehicle } from '../damage';
-import { corePart, mountedParts } from '../grid';
+import { corePart } from '../grid';
 import { vehicleStats, type MountedWeapon } from '../stats';
 import type { Aim, PartInstance, Vehicle, World } from '../types';
 import { setAutoFire, setWeaponOrder } from '../world';
 import type { Orders } from './orders';
-
-function criticalParts(foe: Vehicle): PartInstance[] {
-  return [...mountedParts(foe, 'core'), ...mountedParts(foe, 'engine')].filter((p) => p.hp > 0);
-}
 
 function bite(foe: Vehicle, part: PartInstance, side: ReturnType<typeof sideToward>, round: Round): number {
   const hit = planLane(foe, side, partLane(foe, part.id, side), round).find((h) => h.part.id === part.id);
@@ -24,14 +20,8 @@ export function refusedToYield(world: World, foe: Vehicle): boolean {
 }
 
 export function aimFor(world: World, foe: Vehicle, weapon: MountedWeapon): Aim {
-  const me = playerVehicle(world);
-  const side = sideToward(foe, me.pos);
-  const round = weapon.def.round;
-  const scored = criticalParts(foe).map((part) => ({ part, bite: bite(foe, part, side, round) })).filter((s) => s.bite > 0);
-  const cab = scored.find((s) => s.part.id === corePart(foe, 'cab').id);
-  if (cab && refusedToYield(world, foe)) return cab.part.id;
-  const best = scored.reduce<{ part: PartInstance; bite: number } | null>((top, s) => (!top || s.bite > top.bite ? s : top), null);
-  return best ? best.part.id : 'body';
+  const cab = corePart(foe, 'cab');
+  return refusedToYield(world, foe) && bite(foe, cab, sideToward(foe, playerVehicle(world).pos), weapon.def.round) > 0 ? cab.id : 'body';
 }
 
 const MIN_PASS = 0.5;
