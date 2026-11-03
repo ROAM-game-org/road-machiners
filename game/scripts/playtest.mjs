@@ -51,8 +51,10 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 await emulateWebGL2Floor(page);
-await page.goto(playUrl(url));
-await page.waitForFunction(() => window.__ROAM__, null, { timeout: BOOT_LIMIT_MS });
+await afterCrashRetry(async () => {
+  await page.goto(playUrl(url));
+  await page.waitForFunction(() => window.__ROAM__, null, { timeout: BOOT_LIMIT_MS });
+});
 await page.waitForTimeout(1000);
 const bootGone = await page.waitForSelector('#boot', { state: 'detached', timeout: timeoutsOff ? 0 : software ? 60000 : 10000 }).then(() => true, () => false);
 if (!bootGone) {
@@ -161,7 +163,7 @@ const pressedLanguage = async () => {
   return pressed;
 };
 await checkNoStrayControl('in English');
-await pickLanguageByKeyboard('ru');
+await afterCrashRetry(() => pickLanguageByKeyboard('ru'));
 const russian = await languageReadout();
 if (russian.lang !== 'ru' || !CYRILLIC.test(russian.menu) || !russian.hud.some((label) => CYRILLIC.test(label))) languageProblems.push(`Русский did not switch the menu and HUD: ${JSON.stringify(russian)}`);
 await checkNoStrayControl('in Russian');
