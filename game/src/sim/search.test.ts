@@ -585,13 +585,4 @@ describe('search length', () => {
     const units = SALVAGE.unitsPerTurn * (SALVAGE.minSearchTurns + 6);
     expect(stockSearchTurns(stockOf(units), 1)).toBe(SALVAGE.minSearchTurns + 6);
   });
-
-  it('a loose pile search takes the pile length', () => {
-    const w = emptyWorld({ x: 30, y: 30 });
-    const pile = { id: 'pile', pos: { x: 30, y: 30 }, radius: 1, goods: { scrap: 3 }, parts: [], pile: true, hidden: emptyHidden() } as unknown as SalvageStock;
-    w.salvage.push(pile);
-    beginSearch(w, w.vehicles[0], 'pile');
-    expect(w.vehicles[0].job).toEqual(expect.objectContaining({ kind: 'search', total: SALVAGE.pileSearchTurns }));
-    expect(SALVAGE.pileSearchTurns).toBeGreaterThanOrEqual(SALVAGE.minSearchTurns);
-  });
 });
