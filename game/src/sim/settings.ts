@@ -44,6 +44,10 @@ export function hasExplorationMap(world: World): boolean {
   return modeMap(world.setup.mode) === 'icarus';
 }
 
+export function requireExplorationMap(world: World, what: string): void {
+  if (!hasExplorationMap(world)) throw new Error(`${what} lies on the Icarus map, and this world runs on the ${modeMap(world.setup.mode)} map`);
+}
+
 export function modeKit(mode: GameModeId, fallback: string): string {
   return modeOf(mode).kit ?? fallback;
 }
