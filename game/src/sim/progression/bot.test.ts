@@ -19,6 +19,7 @@ import { refreshVision } from '../vision';
 import { playerSees } from '../vision';
 import { nearestPad, nearestTown, siteGates, sitePads } from '../sites';
 import { fuelCap, isStranded, suppliesCap, vehicleStats } from '../stats';
+import { RULES } from '../../data/rules';
 import { dist, pointsAway, type Vec } from '../vec';
 import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, setShopPressure, startCombat, testDrive } from '../testkit';
 import { NPC_BEHAVIOR, NPC_UPKEEP, NPCS, TRAITS } from '../../data/npcs';
@@ -907,6 +908,18 @@ describe('the bot in a fight', () => {
     me.order = { kind: 'stopAt', dest: { x: 5, y: 5 } };
 
     expect(playerVehicle(botOrders(w, 'trader').world).order).toEqual({ kind: 'stopAt', dest: { x: 5, y: 5 } });
+  });
+
+  it('has a fleeing bot that already stands on its stop point pick a new way out', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const me = playerVehicle(w);
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['autocannon', 'ram', 'stockEngine'], { x: 36, y: 30 });
+    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+    startCombat(w, raider, me);
+    me.order = { kind: 'stopAt', dest: { x: me.pos.x - RULES.arriveRadius, y: me.pos.y } };
+
+    const order = playerVehicle(botOrders(w, 'trader').world).order;
+    expect(order?.kind === 'stopAt' && dist(order.dest, me.pos) > RULES.arriveRadius * 2).toBe(true);
   });
 
   it('has a trader hand its cargo only to a raider that outmatches it', () => {

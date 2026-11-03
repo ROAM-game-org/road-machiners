@@ -723,7 +723,8 @@ function flee(o: Orders): void {
 
 function keepsRunning(me: Vehicle, threat: Vec | null): boolean {
   const order = me.order;
-  return order !== null && order.kind !== 'brake' && (!threat || keepsFleeCourse(me, order.dest, threat));
+  if (order === null || order.kind === 'brake' || dist(me.pos, order.dest) <= RULES.arriveRadius * 2) return false;
+  return !threat || keepsFleeCourse(me, order.dest, threat);
 }
 
 function fights(o: Orders, foe: Vehicle): boolean {
