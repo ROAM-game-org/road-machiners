@@ -19,6 +19,8 @@ import { DebugConsole, Noclip } from '../ui/console';
 import { BOOT_TEXT } from '../ui/boot-progress';
 import { BootScreen } from '../ui/boot-screen';
 import { fontsReady } from '../ui/fonts';
+import { preloadPictures } from '../ui/picture-store';
+import { questArtPath, townArtKeys } from '../data/quest-art';
 import { uiRoot } from '../ui/dom';
 import { mountReportDesk } from '../ui/feedback-form';
 import { watchInputMode } from '../ui/input-mode';
@@ -272,6 +274,7 @@ boot.showText();
 gameContext.watch({ world: () => game.state, log: () => game.logTexts() });
 performance.mark('roam:ready');
 startBank(mixer.ctx, BOOT_SOUNDS, soundOptions, sounds).loaded.then(soundsArrived).catch(reportError).finally(bankSettled);
+void afterBank.then(() => preloadPictures('Quest art', townArtKeys().map(questArtPath))).catch(reportError);
 void boot.finish();
 if (import.meta.env.DEV) {
   (window as any).__ROAM__ = Object.assign(game, { language, buildAllCells: () => game.streamer.buildAll() });
