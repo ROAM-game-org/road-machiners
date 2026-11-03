@@ -55,7 +55,7 @@ const SEAT_CAB: Record<string, string> = {
 };
 
 const VALUES = {
-  scout: 762.14, hauler: 900.34, buggy: 642.67, wagon: 1007.33, courier: 773.33, van: 849.66, longbed: 1349.66,
+  scout: 762.14, hauler: 900.34, buggy: 642.67, wagon: 1007.33, courier: 773.33, van: 820.33, longbed: 1349.66,
   carrier: 1625.34, tractor: 1460.67, jeep: 728.67, convertible: 997.34, bus: 1266.67, loader: 1696, niva: 1049.34, bukhanka: 1150, lincoln: 1429.33, semi: 1400,
   sorokonoga: 1765.67,
 };
@@ -549,5 +549,12 @@ describe('the paint schemes', () => {
   it('never repeats a scheme', () => {
     const keys = PAINT_SCHEMES.map((scheme) => `${scheme.body} ${scheme.cab} ${scheme.gear}`);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe('tier 1 cargo speed', () => {
+  it('the van is slower than the scout and not slower than the hauler', () => {
+    expect(CHASSIS.van.maxSpeed).toBeLessThan(CHASSIS.scout.maxSpeed);
+    expect(CHASSIS.van.maxSpeed).toBeGreaterThanOrEqual(CHASSIS.hauler.maxSpeed);
   });
 });
