@@ -34,7 +34,7 @@ if (software && fpsGate) {
 const turns = Number(arg('turns', software ? '4' : '12'));
 const TURN_LIMIT_MS = timeoutsOff ? 0 : software ? 60000 : 10000;
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-if (timeoutsOff) page.setDefaultTimeout(0);
+page.setDefaultTimeout(TURN_LIMIT_MS);
 const retryAfterBrowserCrash = async (cause) => {
   if (cause) console.log(`Crash cause: ${String(cause?.message ?? cause).split('\n')[0]}`);
   await browser.close().catch(() => {});
