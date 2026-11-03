@@ -31,7 +31,7 @@ it('stays idle on a catch-up failure, which blocks no card, and turns blocked on
 });
 
 it('only publishes a candidate link while the current candidate is valid', () => {
-  const state: FactoryState = { ...structuredClone(EMPTY_STATE), release: { issue: 3, branch: 'release/day', day: '2026-01-01', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, builds: { '3': 'rc' } };
+  const state: FactoryState = { ...structuredClone(EMPTY_STATE), release: { issue: 3, day: '2026-01-01', postId: null, removed: [], candidate: null, playtest: { seed: 1, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null } }, builds: { '3': 'rc' } };
   const config = { triageWorkers: 1, designWorkers: 2, implementWorkers: 2, verifyWorkers: 2, testWorkers: 2, publicUrl: 'https://example.org' };
   expect(buildOperations(state, false, config).candidateUrl).toBeNull();
   state.release!.postId = 10;
@@ -41,15 +41,15 @@ it('only publishes a candidate link while the current candidate is valid', () =>
 describe('next release features', () => {
   const config = { triageWorkers: 1, designWorkers: 2, implementWorkers: 2, verifyWorkers: 2, testWorkers: 2, publicUrl: 'https://example.org' };
   const merge = (issue: number, title: string) => ({ issue, title, sha: 'a'.repeat(40), into: 'dev', reverted: [] });
-  const release = (over: Partial<NonNullable<FactoryState['release']>>): FactoryState['release'] => ({ issue: 3, branch: 'release/day', day: '2026-01-01', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] }, ...over });
+  const release = (over: Partial<NonNullable<FactoryState['release']>>): FactoryState['release'] => ({ issue: 3, day: '2026-01-01', postId: null, removed: [], candidate: null, playtest: { seed: 1, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null }, ...over });
 
   it('lists the dev merges while no release is open', () => {
     const state: FactoryState = { ...structuredClone(EMPTY_STATE), devMerges: [merge(7, 'Included'), merge(8, 'Also')] };
     expect(buildOperations(state, false, config).features).toEqual([{ issue: 7, title: 'Included' }, { issue: 8, title: 'Also' }]);
   });
-  it('lists the release merges without the removed ones while a release is open', () => {
-    const state: FactoryState = { ...structuredClone(EMPTY_STATE), devMerges: [merge(9, 'Later')], release: release({ merges: [merge(7, 'Included'), merge(8, 'Removed')], removed: [8] }) };
-    expect(buildOperations(state, false, config).features).toEqual([{ issue: 7, title: 'Included' }]);
+  it('lists the dev merges while a release is open, since they ship with the next candidate', () => {
+    const state: FactoryState = { ...structuredClone(EMPTY_STATE), devMerges: [merge(7, 'Included'), merge(9, 'Later')], release: release({}) };
+    expect(buildOperations(state, false, config).features).toEqual([{ issue: 7, title: 'Included' }, { issue: 9, title: 'Later' }]);
   });
 });
 

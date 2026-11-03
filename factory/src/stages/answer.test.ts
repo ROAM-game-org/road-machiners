@@ -3,7 +3,7 @@ import { request as httpRequest } from 'node:http';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { CHANNEL, publicFake, type PublicFake } from '../public/public-fakes';
-import { EMPTY_STATE, readState, updateState } from '../state';
+import { EMPTY_STATE, newPlaytest, readState, updateState } from '../state';
 import { chooseJobs } from '../tick';
 import type { AgentRun, Ctx, FactoryConfig, Job } from '../types';
 import { agentEnv } from '../container';
@@ -287,11 +287,11 @@ describe('checkedAnswer', () => {
 });
 
 describe('answer scheduling', () => {
-  const cfg = { wasteReviewDays: 1, maxJobsPerCard: 5, triageWorkers: 1, designWorkers: 1, implementWorkers: 1, verifyWorkers: 1, testWorkers: 1 };
+  const cfg = { playtestHours: 12, wasteReviewDays: 1, maxJobsPerCard: 5, triageWorkers: 1, designWorkers: 1, implementWorkers: 1, verifyWorkers: 1, testWorkers: 1 };
   const now = new Date('2026-10-14T10:00:00Z');
 
   it('starts one issueless answer job for any number of waiting questions, and none while one runs', () => {
-    const waiting = { ...structuredClone(EMPTY_STATE), pendingAnswers: [4, 5], lastRelease: now.toISOString() };
+    const waiting = { ...structuredClone(EMPTY_STATE), pendingAnswers: [4, 5], lastRelease: now.toISOString(), release: { issue: 90, day: '2026-10-14', postId: null, candidate: null, removed: [], playtest: newPlaytest('2026-10-14') } };
     expect(chooseJobs(waiting, [], now, cfg)).toEqual([{ stage: 'answer', issue: null }]);
     const running: Job = { id: 'answer---x', stage: 'answer', issue: null, pid: 1, startedAt: now.toISOString(), log: 'x' };
     expect(chooseJobs({ ...waiting, jobs: [running] }, [], now, cfg)).toEqual([]);
