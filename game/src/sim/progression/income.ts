@@ -9,7 +9,7 @@ import { getTradePrice } from '../economy';
 import { isDefeated } from '../defeat';
 import { npcProfile } from '../npc-decisions';
 import { escortsOf } from '../tow';
-import { SHOPS } from '../../data/market';
+import { shopDef, SHOPS } from '../../data/market';
 import { haulMarginAt, wouldRob, type Policy } from './bot';
 import { LEDGER_KEYS, type BotNote, type BotTurn } from './orders';
 import { FAR_MOVER, playTurns } from './record';
@@ -172,9 +172,11 @@ export function worth(world: World): number {
 
 function saleValue(world: World, goods: Record<string, number>, parts: readonly PartInstance[]): number {
   const me = playerVehicle(world);
-  const goodsValue = Object.entries(goods).reduce((sum, [good, n]) => sum + Math.max(...REGION.towns.map((t) => getLotTradePrice(world, me, t.id, good, n, 'sell'))), 0);
+  const goodsValue = Object.entries(goods).reduce((sum, [good, n]) => sum + Math.max(0, ...buyersOf(good).map((t) => getLotTradePrice(world, me, t.id, good, n, 'sell'))), 0);
   return goodsValue + parts.reduce((sum, part) => sum + partTradePrice(world, me, part, 'sell'), 0);
 }
+
+const buyersOf = (good: string) => REGION.towns.filter((t) => shopDef(t.id).goods.includes(good));
 
 function spareParts(v: Vehicle): PartInstance[] {
   return v.items.flatMap((it) => (it.kind === 'part' && !isMounted(v.chassisId, it) ? [it.part] : []));

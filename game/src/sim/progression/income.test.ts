@@ -9,7 +9,7 @@ import { startWorld } from './record-node';
 import { TRAITS } from '../../data/npcs';
 import { SHOPS } from '../../data/market';
 import { playerVehicle } from '../damage';
-import { getTradePrice } from '../economy';
+import { getLotTradePrice, getTradePrice } from '../economy';
 import { formatIncomeReport, gateReport, pairedDifference } from './income-report';
 
 const SHORT_TURNS = 30;
@@ -48,6 +48,15 @@ describe('sampleWorld', () => {
     expect(sampleWorld(w).targets).toEqual([expect.objectContaining({ kind: 'trader', guarded: false, qualifies: true, boughtGoods: 4 })]);
     trader.brain.goals[0].reason = 'loadCargo';
     expect(sampleWorld(w).targets[0].boughtGoods).toBe(0);
+  });
+
+  it('values a load only at the towns that trade the good', () => {
+    const w = emptyWorld({ x: 60, y: 60 });
+    const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 160, y: 60 });
+    trader.brain = npcBrain('trader', trader.pos, ['trader']);
+    addGoods(w, trader, 'grain', 2);
+
+    expect(sampleWorld(w).targets[0].cargoValue).toBe(getLotTradePrice(w, playerVehicle(w), 'bowl', 'grain', 2, 'sell'));
   });
 });
 
