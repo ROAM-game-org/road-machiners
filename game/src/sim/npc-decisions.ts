@@ -300,7 +300,7 @@ function tradeOfferer(world: World, vehicle: Vehicle): ((plan: TradePlan) => Wei
   return (plan) => runOffer(world, vehicle, plan, spend, 1, rig);
 }
 
-const tradeRig = (world: World, vehicle: Vehicle) => ({ fuelPerTile: driveStats(world, vehicle).fuelPerTile, room: cargoRoom(vehicle) });
+export const tradeRig = (world: World, vehicle: Vehicle) => ({ fuelPerTile: driveStats(world, vehicle).fuelPerTile, room: cargoRoom(vehicle) });
 
 export function tripFuelCost(world: World, vehicle: Vehicle, tiles: number, fuelPerTile = driveStats(world, vehicle).fuelPerTile): number {
   if (!Number.isFinite(tiles) || tiles < 0) throw new Error(`${vehicle.id} prices the fuel of a trip of ${tiles} tiles`);

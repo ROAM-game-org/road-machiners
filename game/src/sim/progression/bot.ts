@@ -20,7 +20,7 @@ import { isDefeated, isKnockedOut } from '../defeat';
 import { askTopic, callVehicle, canAskTopic, chooseOption, currentOptions, hangUp } from '../dialogue';
 import { offeredSurrenderBy, type ThreatAnswer } from '../parley';
 import { hashRandom } from '../rng';
-import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply, canRebuild, driveRepairCost, partRepairCost, partTradePrice, getLotTradePrice, getTradePrice, repairBasics, repairCost, repairDrive, repairPart, sellGood, sellPart, serviceRoom, supplyRoom } from '../economy';
+import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply, canRebuild, driveRepairCost, partRepairCost, partTradePrice, getTradePrice, repairBasics, repairCost, repairDrive, repairPart, sellGood, sellPart, serviceRoom, supplyRoom } from '../economy';
 import { corePart, findSpot, freeCells, goodsCount, gridOf, isMounted, itemCells, MOUNT_CELLS, mountCellsOf, mountedItems, mountedParts, type Spot } from '../grid';
 import { canStowPart, cargoMassRoom, cargoRoom, getLayoutError, stowSpot, storePart } from '../inventory';
 import { itemMass } from '../mass';
@@ -30,7 +30,7 @@ import { CONTRACTS, shopDef, SHOPS } from '../../data/market';
 import { canLoot, downedHere, downedNear, needsSearch, salvageHere, takeAllLoot } from '../locations';
 import { fleeDestination, keepsFleeCourse, topGoal } from '../npc-activities';
 import { isPartWorn } from '../npc-repair';
-import { firepower, getsAway, isManageable, npcProfile, getUpkeepReserve, isWeak, perceiveDanger, getKnownSite, tripFuelCost } from '../npc-decisions';
+import { firepower, getsAway, isManageable, tradeOutlook, tradeRig, npcProfile, getUpkeepReserve, isWeak, perceiveDanger, getKnownSite } from '../npc-decisions';
 import { HUNT_MARGIN, huntable, huntedSpeed } from './hunted';
 import { warnedOffTarget } from '../loot-warning';
 import { claimCandidates, claimClue, claimPartHeld } from '../claims';
@@ -640,36 +640,24 @@ function bestPurchase(world: World): Purchase | null {
   const spend = world.player.money - getUpkeepReserve(playerVehicle(world)) - repairCost(world);
   const towns = knownTowns(world);
   const full = fuelCap(playerVehicle(world));
-  const room = freeCells(playerVehicle(world));
-  const options = reachable(world, towns).flatMap((source) => towns.filter((t) => t.id !== source.id && fuelReaches(world, t, { pos: source.pos, fuel: full })).flatMap((market) => sharedGoods(source, market).map((good) => purchase(world, { source, market, good, spend, room }))));
+  const options = reachable(world, towns).flatMap((source) => towns.filter((t) => t.id !== source.id && fuelReaches(world, t, { pos: source.pos, fuel: full })).flatMap((market) => sharedGoods(source, market).map((good) => purchase(world, { source, market, good, spend }))));
   return options.reduce<Purchase | null>((best, p) => (p.count > 0 && p.perTurn > (best?.perTurn ?? 0) ? p : best), null);
 }
 
 export function haulMarginAt(world: World, spend: number, room: number): number {
   const me = playerVehicle(world);
+  const rig = { ...tradeRig(world, me), room };
   const pairs = REGION.towns.flatMap((source) => REGION.towns.filter((t) => t.id !== source.id).map((market) => ({ source, market })));
-  return Math.max(...pairs.flatMap(({ source, market }) => {
-    const fuel = tripFuelCost(world, me, dist(source.pos, market.pos));
-    return sharedGoods(source, market).map((good) => purchase(world, { source, market, good, spend, room }).profit - fuel);
-  }));
+  return Math.max(...pairs.flatMap(({ source, market }) => sharedGoods(source, market).map((good) => tradeOutlook(world, me, { source: source.id, good, sellShop: market.id }, spend, dist(source.pos, market.pos), rig).net)));
 }
 
-function purchase(world: World, { source, market, good, spend, room }: { source: TownDef; market: TownDef; good: string; spend: number; room: number }): Purchase {
+function purchase(world: World, { source, market, good, spend }: { source: TownDef; market: TownDef; good: string; spend: number }): Purchase {
   const me = playerVehicle(world);
   const none = { town: source, good, count: 0, profit: 0, perTurn: 0 };
   if (!tradesGood(source.id, good) || !tradesGood(market.id, good)) return none;
-  if (sellAt(world, market, good) <= getTradePrice(world, me, source.id, good, 'buy')) return none;
-  const lotProfit = (count: number) => (count === 0 ? 0 : getLotTradePrice(world, me, market.id, good, count, 'sell') - getLotTradePrice(world, me, source.id, good, count, 'buy'));
-  let low = 0;
-  let high = affordableBuyCount(world, me, source.id, good, room, spend);
-  while (low < high) {
-    const mid = Math.ceil((low + high) / 2);
-    if (lotProfit(mid) > lotProfit(mid - 1)) low = mid;
-    else high = mid - 1;
-  }
-  if (low === 0 || lotProfit(low) <= 0) return none;
-  const trip = estimateTurns(me.pos, source.pos) + estimateTurns(source.pos, market.pos);
-  return { ...none, count: low, profit: lotProfit(low), perTurn: lotProfit(low) / trip };
+  const trip = dist(me.pos, source.pos) + dist(source.pos, market.pos);
+  const outlook = tradeOutlook(world, me, { source: source.id, good, sellShop: market.id }, spend, trip);
+  return outlook.worth ? { ...none, count: outlook.count, profit: outlook.net, perTurn: outlook.net / trip } : none;
 }
 
 function sharedGoods(source: TownDef, market: TownDef): string[] {
