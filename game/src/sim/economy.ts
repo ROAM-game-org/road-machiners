@@ -30,7 +30,7 @@ import { fuelCap, isStranded, isWorking, suppliesCap } from "./stats";
 import { modeRules } from './settings';
 import { isOutlaw } from "./relations";
 import { straighten } from './rig';
-import { heldCrates } from './goods-store';
+import { heldCrates, storeSwapOverflow } from './goods-store';
 
 export type Supply = "fuel" | "supplies";
 
@@ -719,7 +719,8 @@ export function swapChassis(world: World, chassisId: string): void {
   for (const part of parts) placeSwappedPart(world, me, part, mounted.has(part.id));
   restowParcels(me, parcels);
   for (const [good, n] of Object.entries(goods)) {
-    if (addGoods(world, me, good, n) < n) throw new Refused({ id: "noCargoRoom" });
+    const placed = addGoods(world, me, good, n);
+    if (placed < n) storeSwapOverflow(world, me, good, n - placed);
   }
   me.weaponOrders = {};
   fitStores(world, me);

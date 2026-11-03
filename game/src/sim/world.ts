@@ -10,7 +10,7 @@ import { REGION } from '../data/region';
 import { MAX_RANK, PERKS, SKILL_IDS, XP_SOURCES } from '../data/skills';
 import { CONDITION } from '../data/wear';
 import { RULES } from '../data/rules';
-import { storedCrates } from './goods-store';
+import { restoreStores, storedCrates } from './goods-store';
 import type { StartKit } from '../data/start';
 import { findPart, haulerOf, playerTrucks, playerVehicle } from './damage';
 import { makePart, makeVehicle, newId } from './factory';
@@ -599,6 +599,7 @@ export type Carried = {
   costBasis: Record<string, number>;
   truck: { chassisId: string; items: CarriedItem[] } | null;
   storage: CarriedPart[];
+  storedGoods: Record<string, Record<string, number>>;
   setup: unknown;
   quests: CarriedQuestVars;
   notes: string[];
@@ -629,6 +630,7 @@ export function carriedWorld(carried: Carried, kit: StartKit, mapOf: (setup: Wor
   carryPaint(world, carried.paint);
   carryQuests(world, carried);
   carryPlayerTruck(world, carried, carried.truck !== null && truckKit !== kit);
+  restoreStores(world, carried.storedGoods);
   if (run) carryRun(world, run);
   world.player.costBasis = heldBasis(world, carried.costBasis);
   for (const truck of playerTrucks(world)) fitStores(world, truck);

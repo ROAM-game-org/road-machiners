@@ -1,3 +1,4 @@
+import { GOODS } from '../data/goods';
 import { GOODS_STORE } from '../data/market';
 import { playerVehicle, truckFor } from './damage';
 import { newId } from './factory';
@@ -5,8 +6,9 @@ import { requireGarage } from './garage';
 import { goodsCount, gridOf, placementError, type Spot } from './grid';
 import { afterRefit, requireIdleRefit } from './inventory';
 import { getLotTradePrice, settleCargoSale } from './economy';
-import { requireShop, requireSpareGoods, shopAt } from './market';
-import type { GridItem, World } from './types';
+import { owedCrates, requireShop, requireSpareGoods, shopAt } from './market';
+import { payoutM } from './money';
+import type { GridItem, Vehicle, World } from './types';
 import { playerCommand, Refused } from './world';
 
 export function storedHere(world: World): Record<string, number> {
@@ -95,4 +97,26 @@ export function sellStoredGood(world: World, good: string, count: number): World
     takeStored(w, shopId, good, count);
     settleCargoSale(w, me, shopId, good, count, getLotTradePrice(w, me, shopId, good, count, 'sell'));
   });
+}
+
+export function storeSwapOverflow(world: World, truck: Vehicle, good: string, overflow: number): void {
+  const shopId = shopAt(world);
+  const spare = (goodsCount(truck)[good] ?? 0) + overflow - owedCrates(world, good);
+  if (shopId === null || overflow > spare || addStored(world, shopId, good, overflow) < overflow) throw new Refused({ id: 'noCargoRoom' });
+}
+
+export function restoreStores(world: World, stores: Readonly<Record<string, Readonly<Record<string, number>>>>): void {
+  world.player.storedGoods = {};
+  for (const shopId of Object.keys(stores).sort()) {
+    for (const good of Object.keys(stores[shopId]).sort()) restoreCrates(world, shopId, good, stores[shopId][good]);
+  }
+}
+
+function restoreCrates(world: World, shopId: string, good: string, n: number): void {
+  if (!Object.hasOwn(GOODS, good) || !Number.isInteger(n) || n <= 0) return;
+  if (!Object.hasOwn(world.shops, shopId)) {
+    world.player.money += payoutM(n * GOODS[good].value);
+    return;
+  }
+  (world.player.storedGoods[shopId] ??= {})[good] = n;
 }
