@@ -2,7 +2,8 @@ export function installCensus() {
   const game = window.__ROAM__;
   if (!game) throw new Error('The census needs the dev build, which puts the game on window.__ROAM__');
   if (!performance.memory) throw new Error('The census needs performance.memory, so launch Chromium with --enable-precise-memory-info');
-  const SKIP = new Set(['constructor', 'tick']);
+  const SKIP = new Set(['constructor']);
+  const GAME_SKIP = new Set(['tick']);
   const THREE_FLAGS = ['isObject3D', 'isMaterial', 'isTexture', 'isBufferGeometry', 'isWebGLRenderer', 'isCamera'];
   const REJECTS = [
     (v) => typeof v !== 'object' || v === null,
@@ -76,7 +77,8 @@ export function installCensus() {
   };
 
   const systems = [['game', game], ...Object.entries(game).filter(([, value]) => isSystem(value))];
-  for (const [label, owner] of systems) for (const name of methodsOf(owner)) wrap(owner, label, name);
+  const wanted = (owner, name) => owner !== game || !GAME_SKIP.has(name);
+  for (const [label, owner] of systems) methodsOf(owner).filter((name) => wanted(owner, name)).forEach((name) => wrap(owner, label, name));
   window.__ROAM_CENSUS__ = { stats, systems: systems.length };
   return systems.length;
 }
