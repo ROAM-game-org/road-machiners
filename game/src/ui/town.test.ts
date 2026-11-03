@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
 import { oddJobsReason, GARAGE_ONLY, townPageOnOpen } from "./town";
-import { limitedSupplyRow, goodRoutesTitle, marketHint, newsWell, pressureHint, showsRelief, tradeEstimate } from "./shop-rows";
+import { limitedSupplyRow, goodRoutesTitle, marketHints, newsWell, priceHint, stockHint, showsRelief, tradeEstimate } from "./shop-rows";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
 import { CONTRACTS, CREDIT, RELIEF, SHOPS } from "../data/market";
@@ -20,10 +20,9 @@ import { playerVehicle } from "../sim/damage";
 import { ECONOMY } from "../data/goods";
 
 const en = (msg: Msg | null): string | null => (msg === null ? null : resolve(msg, "en"));
-const hint = (...args: Parameters<typeof pressureHint>) => {
-  const found = pressureHint(...args);
-  return found && { tone: found.tone, title: en(found.title) };
-};
+const shown = (found: ReturnType<typeof stockHint>) => found && { tone: found.tone, title: en(found.title) };
+const stockOf = (...args: Parameters<typeof stockHint>) => shown(stockHint(...args));
+const priceOf = (...args: Parameters<typeof priceHint>) => shown(priceHint(...args));
 
 describe("the reason a purchase is out of reach", () => {
   it("is empty when the money covers the price", () => {
@@ -42,16 +41,30 @@ describe("the reason a purchase is out of reach", () => {
 
 describe("the price hint of a good", () => {
   const def = SHOPS.nose;
-  const state = (goods: Record<string, number>) => ({ goods: { salt: stockTarget("nose", "salt"), scrap: stockTarget("nose", "scrap"), ...goods } }) as unknown as ShopState;
 
   it("tints a made good as cheap and a needed good as dear", () => {
-    expect(hint(def, state({}), "salt")).toEqual({ tone: "good", title: "Cheap here" });
-    expect(hint(def, state({}), "scrap")).toEqual({ tone: "bad", title: "Dear here" });
+    expect(priceOf(def, "salt")).toEqual({ tone: "good", title: "Cheap here" });
+    expect(priceOf(def, "scrap")).toEqual({ tone: "bad", title: "Dear here" });
   });
 
-  it("lets a strong stock shortage or glut outrank what the shop makes", () => {
-    expect(hint(def, state({ salt: 0 }), "salt")).toEqual({ tone: "bad", title: "Short here" });
-    expect(hint(def, state({ scrap: 2 * stockTarget("nose", "scrap") }), "scrap")).toEqual({ tone: "good", title: "Flooded here" });
+  it("never says short or flooded, which describe the stock", () => {
+    for (const shop of Object.values(SHOPS)) {
+      for (const good of shop.goods) expect(["Cheap here", "Dear here", undefined]).toContain(priceOf(shop, good)?.title);
+    }
+  });
+});
+
+describe("the stock hint of a good", () => {
+  const def = SHOPS.nose;
+  const state = (goods: Record<string, number>) => ({ goods: { salt: stockTarget("nose", "salt"), scrap: stockTarget("nose", "scrap"), ...goods } }) as unknown as ShopState;
+
+  it("tints an empty stock as short and a glut as flooded", () => {
+    expect(stockOf(def, state({ salt: 0 }), "salt")).toEqual({ tone: "bad", title: "Short here" });
+    expect(stockOf(def, state({ scrap: 2 * stockTarget("nose", "scrap") }), "scrap")).toEqual({ tone: "good", title: "Flooded here" });
+  });
+
+  it("leaves a stock at its target bare", () => {
+    expect(stockOf(def, state({}), "salt")).toBeNull();
   });
 });
 
@@ -62,7 +75,7 @@ describe("trade hints and the sale profit under Acumen", () => {
   it("are absent at Social 0, while the price stays", () => {
     const w = emptyWorld();
     w.player.costBasis.salt = 100;
-    expect(marketHint(w, def, state, "salt")).toBeNull();
+    expect(marketHints(w, def, state, "salt")).toEqual({ stock: null, price: null });
     expect(tradeEstimate(w, 3, 150, "salt")).toEqual({ kind: "none" });
   });
 
@@ -70,7 +83,8 @@ describe("trade hints and the sale profit under Acumen", () => {
     const w = emptyWorld();
     w.player.ranks.social = 1;
     w.player.costBasis.salt = 100;
-    expect(marketHint(w, def, state, "salt")?.tone).toBe("good");
+    expect(marketHints(w, def, state, "salt").price?.tone).toBe("good");
+    expect(marketHints(w, def, { goods: { salt: 0 } } as unknown as ShopState, "salt").stock?.tone).toBe("bad");
     expect(tradeEstimate(w, 3, 150, "salt")).toEqual({ kind: "gain", perUnit: 50, avgCost: 100 });
   });
 });
@@ -107,7 +121,7 @@ describe("the short tone and the short rule", () => {
         const target = stockTarget(def.id, good);
         for (const stock of [0, Math.floor(target / 2), Math.floor(target * 0.7), target, target * 2]) {
           w.shops[def.id].goods[good] = stock;
-          expect(hint(def, w.shops[def.id], good)?.title === "Short here").toBe(shortHere(w, def.id, good));
+          expect(stockOf(def, w.shops[def.id], good)?.title === "Short here").toBe(shortHere(w, def.id, good));
         }
       }
     }

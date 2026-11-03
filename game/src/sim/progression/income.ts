@@ -14,7 +14,7 @@ import { haulMarginAt, wouldRob, type Policy } from './bot';
 import { LEDGER_KEYS, type BotNote, type BotTurn } from './orders';
 import { FAR_MOVER, playTurns } from './record';
 import { startWorld } from './record-node';
-import { withCredit } from './credit';
+import { withCredit } from './orders';
 import { owedBy } from '../crime';
 
 export const INCOME_KIT = 'midgame';

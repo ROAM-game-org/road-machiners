@@ -52,7 +52,7 @@ export type GunState = { cooldown: number; ammo: number; reloadWork: number };
 
 export type ChargeState = { reload: number; armed?: true };
 
-export type Rot = 0 | 1 | 2 | 3;
+export type Rot = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 export type GridItem =
   | {
@@ -697,7 +697,7 @@ export type WaveGroup = {
   at: number;
   templates: string[];
   money: number;
-  elite: boolean;
+  elites: number;
   level: GearLevel;
   spawned: boolean;
   vehicles: string[];

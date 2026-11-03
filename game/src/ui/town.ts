@@ -49,7 +49,7 @@ import type { PartInstance, Refusal, Vehicle, World } from "../sim/types";
 import { compareBase, createBareItemIcon, createIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
 import { RowSlots, type SlotRow } from "./row-slots";
-import { accountLine, buyTitle, coversLot, lotReason, caption, countCell, deskBody, goodsHead, keepFocus, marketHint, newsWell, owedTitle, priceEl, priceHead, profitCell, recipeLine, stockedGoodName, suppliesHead, tradeEstimate, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, truckCards, livePaintPlan, paintTab, planWithSlot, type PriceHint } from "./shop-rows";
+import { accountLine, buyTitle, coversLot, lotReason, caption, countCell, deskBody, goodsHead, keepFocus, marketHints, newsWell, owedTitle, priceEl, priceHead, profitCell, recipeLine, stockedGoodName, suppliesHead, tradeEstimate, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, truckCards, livePaintPlan, paintTab, planWithSlot, type PriceHint } from "./shop-rows";
 import { chipEl } from "./chip";
 import { el, isBrowserChord, panel } from "./dom";
 import { ArtBand } from "./art-band";
@@ -562,11 +562,12 @@ export class TownScreen {
     const stock = goodStock(state, g);
     const spare = spareGoods(w, me, g);
     const sellReason = held === 0 ? t("trade.nothingToSell") : spare === 0 ? refusalText(w, { id: "cargoOwed" }) : null;
+    const hints = marketHints(w, def, state, g);
     return el(
       "div",
       { class: "good-row row" },
       stockedGoodName(w, shopId, g),
-      this.stockedBuyCell(w, shopId, g, marketHint(w, def, state, g), stock),
+      this.stockedBuyCell(w, shopId, g, hints.price, stock),
       el(
         "div",
         { class: "trade sell" },
@@ -575,7 +576,7 @@ export class TownScreen {
         this.button(t("trade.minus", { n: 1 }), (x) => sellGood(x, g, 1), sellReason, `${g}:sell1`),
         this.button(t("trade.all"), (x) => sellGood(x, g, spare), sellReason, `${g}:sellAll`, spare ? lotTitle("sell", spare, getLotTradePrice(w, me, shopId, g, spare, "sell")) : null),
       ),
-      countCell("stock", stock),
+      countCell("stock", stock, num(stock, "int"), hints.stock?.title ?? null, hints.stock?.tone ?? ""),
       countCell("held", held, num(held, "int"), owedTitle(held - spare)),
       profitCell(tradeEstimate(w, held, sell, g)),
     );

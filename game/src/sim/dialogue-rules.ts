@@ -10,7 +10,6 @@ import { canHireGuard, dismissGuard, guardFee, guardTaken, hireGuard, isPlayerGu
 import { COLD_LINES, TOPIC_GATES, type ConditionId, type DialogueOption, type EffectId, type LineId, type PrepareId, type TopicId } from '../data/dialogue';
 import { REFUSE_KNOWN_AT } from '../data/npc-behavior';
 import { bandAtLeast, isRaider, personalTerm, stanceToward } from './relations';
-import { raiderSighting } from './road-watch';
 import { CONTRACTS } from '../data/market';
 import { GAME_NOTES, isNoteId, LOCALS, type LocalDef, type NoteId } from '../data/locals';
 import { RUMORS, TRADE_TIP } from '../data/npcs';
@@ -26,7 +25,7 @@ import { requireShop, heldSearch, noteSearchLead, haulBlocked, searchRefusal, is
 import { escortBlocked, heldEscort, holdEscort, releaseHold, type EscortContract } from './escort-job';
 import { recall, sightingOf } from './memory';
 import { askHandover, handoverWith, parcelFor } from './parcel';
-import { heardRumor, siteRumor, tradeTip, type Rumor } from './rumors';
+import { heardRumor, raiderSighting, siteRumor, tradeTip, type Rumor } from './rumors';
 import { closeEncounter, encounterOfTopic, favorAmount, moveStory, pendingFor, requirePending, storyBeatDue, tipPrice, tipTarget } from './encounters';
 import { hasBasic, hasPerk, practice } from './progress';
 import { forgetLookWarning, knowsCargo, warnsOffLooker } from './look-over';

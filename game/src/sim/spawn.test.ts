@@ -165,8 +165,7 @@ describe('NPC spawns', () => {
 
     it('spawns nothing at the cap, or one under it with no lone courier', () => {
       const w = far();
-      tick(w);
-      tick(w);
+      for (let pair = 0; pair < Math.ceil(NPCS.courier.cap / 2); pair++) tick(w);
       expect(couriersOf(w)).toHaveLength(NPCS.courier.cap);
       tick(w);
       expect(couriersOf(w)).toHaveLength(NPCS.courier.cap);

@@ -1,9 +1,8 @@
 import { PRESSURE_MAX } from '../../data/market';
 import type { GameEvent, PartInstance, Vehicle, World } from '../types';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { CHASSIS, chassisDef } from '../../data/chassis';
 import { MAP_SCALE, REGION } from '../../data/region';
-import { TERRAIN } from '../../data/terrain';
 import { START_KITS } from '../../data/start';
 import { partDef } from '../../data/parts';
 import { SHOPS } from '../../data/market';
@@ -19,14 +18,14 @@ import { TEST_MAP } from '../../test/map';
 import { refreshVision } from '../vision';
 import { playerSees } from '../vision';
 import { nearestPad, nearestTown, siteGates, sitePads } from '../sites';
-import { fuelCap, isStranded, suppliesCap, vehicleStats } from '../stats';
+import { fuelCap, isStranded, plainMaxSpeed, suppliesCap, vehicleStats } from '../stats';
+import { RULES } from '../../data/rules';
 import { dist, pointsAway, type Vec } from '../vec';
 import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, setShopPressure, startCombat, testDrive } from '../testkit';
 import { NPC_BEHAVIOR, NPC_UPKEEP, NPCS, TRAITS } from '../../data/npcs';
-import { stateOf, towData } from '../states';
+import { towData } from '../states';
 import { playerTow, startEscort } from '../tow';
 import { cloneWorld, endTurn, hostileToPlayer } from '../world';
-import { plead } from '../parley';
 import { basicsRepairCost, driveRepairCost, getTradePrice, partRepairCost, partTradePrice, repairCost } from '../economy';
 import { heatAt } from '../sun';
 import { getKnownSite, getUpkeepReserve, judgeDanger, tripFuelCost } from '../npc-decisions';
@@ -35,6 +34,10 @@ import { emptyHidden } from '../salvage';
 import { cargoHaul, haulVar } from '../haul';
 import { botOrders, CONVOY_ROB_PATROL, haulMarginAt, robTarget, wouldRob } from './bot';
 import { fuelReaches } from './reach';
+import { forgetFlights, startFlight } from './flee-memory';
+import { fightMoveFor } from './fighter';
+import { heldHeatSpeed } from '../engine-heat';
+import { TIME } from '../../data/time';
 
 function town(id: string) {
   const found = REGION.towns.find((t) => t.id === id);
@@ -397,7 +400,7 @@ describe('botOrders', () => {
     w.shops.bowl.stock.push(makePart(w, 'stockEngine', 0));
     expect(isStranded(w, playerVehicle(w))).toBe(true);
 
-    const turn = botOrders(w, 'hunter');
+    const turn = botOrders(w, 'trader');
 
     expect(mountedParts(playerVehicle(turn.world), 'engine')).toHaveLength(1);
     expect(isStranded(turn.world, playerVehicle(turn.world))).toBe(false);
@@ -503,19 +506,6 @@ describe('botOrders', () => {
     expect(turn.ledger.gear).toBe(0);
   });
 
-  it('has a hunter that lost its gun buy the cheapest one in town', () => {
-    const w = parkedAt('bowl');
-    const me = playerVehicle(w);
-    me.items = me.items.filter((it) => it.kind !== 'part' || !mountedParts(me, 'weapon').includes(it.part));
-    w.player.money = 200;
-    w.shops.bowl.stock = [makePart(w, 'mg', 0), makePart(w, 'heavyMg', 0)];
-
-    const turn = botOrders(w, 'hunter');
-
-    expect(mountedParts(playerVehicle(turn.world), 'weapon').map((p) => p.defId)).toEqual(['mg']);
-    expect(turn.ledger.gear).toBeLessThan(0);
-  });
-
   it('has a broke truck without an engine sell gear in town to buy one', () => {
     const w = withoutEngine(parkedAt('bowl'));
     for (const part of mountedParts(playerVehicle(w))) part.wear = 0;
@@ -555,121 +545,15 @@ describe('botOrders', () => {
     w.player.money = 0;
     for (const shop of Object.values(w.shops)) shop.stock = shop.stock.filter((p) => partDef(p.defId).kind !== 'engine');
 
-    const turn = botOrders(w, 'hunter');
+    const turn = botOrders(w, 'trader');
 
     expect(mountedParts(playerVehicle(turn.world), 'engine')).toHaveLength(0);
     expect(playerVehicle(turn.world).order?.kind).toBe('stopAt');
   });
-
-  it('has a hunter with no foe in sight patrol on to a shop other than the one it stands at', () => {
-    const w = withPrey(parkedAt('bowl'));
-    const me = playerVehicle(w);
-    me.order = null;
-
-    const turn = botOrders(w, 'hunter');
-
-    const order = playerVehicle(turn.world).order;
-    if (order?.kind !== 'stopAt') throw new Error('Expected a stop order');
-    expect(Math.hypot(order.dest.x - me.pos.x, order.dest.y - me.pos.y)).toBeGreaterThan(20);
-  });
-
-  it('has a hunter that lost its order between posts patrol on to a post ahead, not back the way it came', () => {
-    const w = withPrey(emptyWorld({ x: 120, y: 368 }));
-    const me = playerVehicle(w);
-    me.heading = Math.atan2(442 - 368, 93 - 120);
-    me.speed = 0;
-
-    const order = playerVehicle(botOrders(w, 'hunter').world).order;
-
-    if (order?.kind !== 'stopAt') throw new Error('Expected a stop order');
-    expect((order.dest.x - me.pos.x) * Math.cos(me.heading) + (order.dest.y - me.pos.y) * Math.sin(me.heading)).toBeGreaterThan(0);
-  });
-
-  it('has a hunter scavenge while no raider is weak enough to hunt', () => {
-    const order = (w: World, archetype: 'hunter' | 'scavenger') => playerVehicle(botOrders(w, archetype).world).order;
-
-    expect(order(parkedAt('bowl'), 'hunter')).toEqual(order(parkedAt('bowl'), 'scavenger'));
-    expect(order(withPrey(parkedAt('bowl')), 'hunter')).not.toEqual(order(parkedAt('bowl'), 'scavenger'));
-  });
-
-  it('has a scavenging hunter in town with more repair parts than it needs drive on', () => {
-    const w = parkedAt('bowl');
-    w.player.discovered = [];
-    addGoods(w, playerVehicle(w), 'parts', 1);
-
-    expect(playerVehicle(botOrders(w, 'hunter').world).order).not.toBeNull();
-  });
-
-  it('has a scavenging hunter that starts stripping a spare in town stay parked for the strip', () => {
-    const w = parkedAt('bowl');
-    w.player.discovered = [];
-    expect(stowPart(w, playerVehicle(w), makePart(w, 'mg', 0))).toBe(true);
-
-    const me = playerVehicle(botOrders(w, 'hunter', { noGear: true }).world);
-
-    expect(me.job?.kind).toBe('strip');
-    expect(me.order).toBeNull();
-  });
-
-  it('has a scavenging hunter that left town with more repair parts than it needs not drive back to sell them', () => {
-    const site = town('bowl');
-    const pad = nearestPad(site, site.pos);
-    const out = dist(pad, site.pos);
-    const w = emptyWorld({ x: pad.x + ((pad.x - site.pos.x) / out) * 10, y: pad.y + ((pad.y - site.pos.y) / out) * 10 });
-    w.player.discovered = [];
-    w.salvage = [];
-    removeAllGoods(playerVehicle(w));
-    addGoods(w, playerVehicle(w), 'parts', START_KITS.standard.cargo.parts! + 1);
-
-    const order = playerVehicle(botOrders(w, 'hunter').world).order;
-
-    expect(order?.kind).toBe('stopAt');
-    expect(order?.kind === 'stopAt' && order.dest).not.toEqual(nearestPad(site, playerVehicle(w).pos));
-  });
-
-  it('has a broke hunter with no gun scavenge instead of patrol', () => {
-    const armed = withPrey(parkedAt('bowl'));
-    armed.player.money = 0;
-    const unarmed = structuredClone(armed);
-    const me = playerVehicle(unarmed);
-    me.items = me.items.filter((it) => it.kind !== 'part' || !mountedParts(me, 'weapon').includes(it.part));
-
-    const patrol = playerVehicle(botOrders(armed, 'hunter').world).order;
-    const scavenge = playerVehicle(botOrders(unarmed, 'hunter').world).order;
-    const scavenger = playerVehicle(botOrders(unarmed, 'scavenger').world).order;
-
-    expect(scavenge).toEqual(scavenger);
-    expect(scavenge).not.toEqual(patrol);
-  });
 });
 
-describe('the hunter', () => {
-  it('strips a knocked-out truck it is parked beside', () => {
-    const w = emptyWorld({ x: 30, y: 30 });
-    playerVehicle(w).speed = 0;
-    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 });
-    raider.defeat = { phase: 'out', turns: 0, unseen: 0, foes: [], gaveUp: false };
-
-    const turn = botOrders(w, 'hunter');
-
-    const job = playerVehicle(turn.world).job;
-    expect(job?.kind).toBe('refit');
-  });
-
-  it('drives beside a knocked-out truck it sees that still has loot', () => {
-    const w = emptyWorld({ x: 30, y: 30 });
-    playerVehicle(w).speed = 0;
-    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
-    raider.defeat = { phase: 'out', turns: 0, unseen: 0, foes: [], gaveUp: false };
-
-    const turn = botOrders(w, 'hunter');
-
-    const order = playerVehicle(turn.world).order;
-    if (order?.kind !== 'stopAt') throw new Error('Expected a stop order');
-    expect(Math.hypot(order.dest.x - raider.pos.x, order.dest.y - raider.pos.y)).toBeLessThan(6);
-  });
-
-  it('has a trader run from a weak raider it can outrun and turn on one it cannot', () => {
+describe('the bot in a fight', () => {
+  it('has a trader turn on a weak raider whatever the speed of either truck', () => {
     const attackedBy = (chassisId: string) => {
       const w = emptyWorld({ x: 30, y: 30 });
       const me = playerVehicle(w);
@@ -677,18 +561,17 @@ describe('the hunter', () => {
       const raider = addVehicle(w, 'scrapjaw', chassisId, ['stockEngine'], { x: 36, y: 30 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       startCombat(w, raider, me);
-      const faster = vehicleStats(w, raider).maxSpeed >= vehicleStats(w, me).maxSpeed;
+      const fight = fightMoveFor(w, me, raider, null);
       const order = playerVehicle(botOrders(w, 'trader').world).order;
-      const ran = order?.kind === 'stopAt' && pointsAway(me.pos, order.dest, raider.pos);
-      return { faster, turned: order?.kind === 'stopAt' && dist(order.dest, raider.pos) < 1, ran };
+      return { faster: vehicleStats(w, raider).maxSpeed >= vehicleStats(w, me).maxSpeed, turned: JSON.stringify(order) === JSON.stringify(fight) };
     };
     const runs = Object.keys(CHASSIS).map(attackedBy);
 
     expect(runs.some((r) => r.faster) && runs.some((r) => !r.faster)).toBe(true);
-    for (const r of runs) expect([r.turned, r.ran]).toEqual([r.faster, !r.faster]);
+    for (const r of runs) expect(r.turned).toBe(true);
   });
 
-  it('has a trader caught between two raiders run square to them, closing on neither', () => {
+  it('has a trader caught between two raiders run away from the nearer one', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = playerVehicle(w);
     me.speed = 0;
@@ -702,7 +585,7 @@ describe('the hunter', () => {
     const order = playerVehicle(botOrders(w, 'trader').world).order;
 
     if (order?.kind !== 'stopAt') throw new Error('Expected a stop order');
-    expect(order.dest.x).toBeCloseTo(30);
+    expect(pointsAway(me.pos, order.dest, raiders[0].pos) || pointsAway(me.pos, order.dest, raiders[1].pos)).toBe(true);
     expect(dist(order.dest, me.pos)).toBeGreaterThan(1);
   });
 
@@ -749,7 +632,7 @@ describe('the hunter', () => {
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
     expect([hostileToPlayer(w, raider), playerSees(w, raider.pos)]).toEqual([true, true]);
 
-    for (const archetype of ['hunter', 'trader'] as const) {
+    for (const archetype of ['trader'] as const) {
       const order = playerVehicle(botOrders(w, archetype).world).order;
 
       if (order?.kind !== 'stopAt') throw new Error('Expected a stop order');
@@ -782,7 +665,7 @@ describe('the hunter', () => {
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
     expect(Math.abs(judgeDanger(w, me, raider) - 1)).toBeLessThan(NPC_BEHAVIOR.dangerSpread / 2);
     const orders = Array.from({ length: 12 }, (_, i) => {
-      const x = structuredClone(w);
+      const x = cloneWorld(w);
       x.rngState = Math.imul(i + 1, 2654435761);
       return playerVehicle(botOrders(x, 'trader').world).order;
     });
@@ -807,7 +690,7 @@ describe('the hunter', () => {
     expect(playerVehicle(turn.world).order).toEqual(run);
   });
 
-  it('has a bot with no town away from a stronger raider run on past its guns', () => {
+  it('has a bot with no town away from a stronger raider run directly away from it', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = playerVehicle(w);
     me.speed = 0;
@@ -819,7 +702,7 @@ describe('the hunter', () => {
 
     if (order?.kind !== 'stopAt') throw new Error('Expected a stop order');
     expect(pointsAway(me.pos, order.dest, raider.pos)).toBe(true);
-    expect(dist(order.dest, raider.pos)).toBeGreaterThan(TERRAIN.vision.radius);
+    expect(dist(order.dest, raider.pos)).toBeGreaterThan(dist(me.pos, raider.pos));
   });
 
   it('has a bot at a town gate in combat fire back', () => {
@@ -834,77 +717,6 @@ describe('the hunter', () => {
     const turn = botOrders(w, 'trader');
 
     expect(turn.world.player.autoFire).toBe(true);
-  });
-
-  it('has a bot out of combat drop the aim it set while auto fire was on', () => {
-    const w = parkedAt('bowl');
-    const me = playerVehicle(w);
-    const merc = addVehicle(w, 'independent', 'van', ['mg', 'stockEngine'], { x: me.pos.x + 8, y: me.pos.y });
-    merc.brain = npcBrain('merc', merc.pos, NPCS.merc.traits);
-    for (const mw of vehicleStats(w, me).weapons) me.weaponOrders[mw.part.id] = { targetId: merc.id, aim: 'body' };
-
-    const turn = botOrders(w, 'trader');
-
-    expect(playerVehicle(turn.world).weaponOrders).toEqual({});
-  });
-
-  it('has a hunter hold its chase of a heard raider it would refuse on sight', () => {
-    const orderFacing = (parts: string[]) => {
-      const w = emptyWorld({ x: 30, y: 30 });
-      playerVehicle(w).speed = 0;
-      const raider = addVehicle(w, 'scrapjaw', 'buggy', [...parts, 'stockEngine'], { x: 120, y: 30 });
-      raider.brain = npcBrain('buggy', raider.pos, ['raider']);
-      w.player.contacts = [{ vehicleId: raider.id, center: { ...raider.pos }, radius: 10, sources: ['sound'], loudness: 1 }];
-      expect(playerSees(w, raider.pos)).toBe(false);
-      return { w, order: playerVehicle(botOrders(w, 'hunter').world).order };
-    };
-    const weak = orderFacing([]);
-    const strong = orderFacing(['mg', 'mg']);
-
-    expect(weak.order).toEqual({ kind: 'stopAt', dest: { x: 120, y: 30 } });
-    expect(strong.order?.kind === 'stopAt' && strong.order.dest.x === 120).toBe(false);
-  });
-
-  it('has a hunter strip a spare part for repair parts where a trader sells it', () => {
-    const turnOf = (archetype: 'hunter' | 'trader') => {
-      const w = parkedAt('bowl');
-      expect(stowPart(w, playerVehicle(w), makePart(w, 'scanner', 0))).toBe(true);
-      return botOrders(w, archetype);
-    };
-
-    expect(playerVehicle(turnOf('hunter').world).job?.kind).toBe('strip');
-    expect(turnOf('hunter').ledger.lootSales).toBe(0);
-    expect(turnOf('trader').ledger.lootSales).toBeGreaterThan(0);
-  });
-
-  it('has an engineless hunter sell a spare for the engine money where it would otherwise strip it', () => {
-    const w = parkedAt('bowl');
-    const me = playerVehicle(w);
-    me.items = me.items.filter((it) => !(it.kind === 'part' && partDef(it.part.defId).kind === 'engine'));
-    expect(stowPart(w, me, makePart(w, 'mg', 0))).toBe(true);
-    w.shops.bowl.stock.push(makePart(w, 'stockEngine', 0));
-    w.player.money = 0;
-
-    const turn = botOrders(w, 'hunter');
-
-    expect(turn.ledger.lootSales).toBeGreaterThan(0);
-    expect(playerVehicle(turn.world).job?.kind).not.toBe('strip');
-  });
-
-  it('has a hunter and a trader both pay the garage for a broken gun', () => {
-    const weaponsAfter = (archetype: 'hunter' | 'trader') => {
-      const w = parkedAt('bowl');
-      const gun = mountedParts(playerVehicle(w)).find((p) => partDef(p.defId).kind === 'weapon');
-      if (!gun) throw new Error('The start truck mounts no gun');
-      gun.hp = 0;
-      const after = mountedParts(playerVehicle(botOrders(w, archetype).world), 'weapon');
-      return after.map((p) => p.hp / maxHp(p));
-    };
-
-    expect(weaponsAfter('hunter').length).toBeGreaterThan(0);
-    expect(weaponsAfter('hunter').every((share) => share > 0)).toBe(true);
-    expect(weaponsAfter('trader').length).toBeGreaterThan(0);
-    expect(weaponsAfter('trader').every((share) => share > 0)).toBe(true);
   });
 
   it('has a bot short of money repair the built-in parts, then the most damaged part it can pay for', () => {
@@ -1032,67 +844,49 @@ describe('the hunter', () => {
     expect(carried.ledger.goodsSold).toBe(0);
   });
 
-  it('has a climber accept a truce that a pure hunter refuses', () => {
-    const acceptsTruce = (archetype: 'climber' | 'hunter') => {
+  describe('with a hot engine', () => {
+    const NOON = 1 + (((TIME.sunrise + TIME.sunset) / 2 - TIME.startHour) * TIME.turnsPerDay) / 24;
+    const NIGHT = 1 + ((23 - TIME.startHour) * TIME.turnsPerDay) / 24;
+    const trip = { x: 200, y: 30 };
+
+    function onTrip(turn: number, heat: number) {
       const w = emptyWorld({ x: 30, y: 30 });
-      const me = withThreeGuns(w);
-      const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 34, y: 30 });
-      raider.brain = npcBrain('buggy', raider.pos, ['raider']);
-      plead(w, raider, me, 'truce');
-      w.player.call = { with: raider.id, topic: 'truceOffer', node: 'offer', vars: {}, line: { line: 'enoughOfThisWe', vars: {} }, group: null, asked: [] };
-
-      const after = botOrders(w, archetype).world;
-      return stateOf(after, 'truce', me.id, raider.id) !== null;
-    };
-
-    expect(acceptsTruce('climber')).toBe(true);
-    expect(acceptsTruce('hunter')).toBe(false);
-  });
-
-  it('has a climber strip nearby loot before leaving for repairs', () => {
-    const w = emptyWorld({ x: 30, y: 30 });
-    const me = withThreeGuns(w);
-    me.speed = 0;
-    const engine = mountedParts(me, 'engine')[0];
-    engine.hp = Math.floor(maxHp(engine) / 4);
-    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 });
-    raider.defeat = { phase: 'out', turns: 0, unseen: 0, foes: [], gaveUp: false };
-
-    const turn = botOrders(w, 'climber');
-
-    expect(playerVehicle(turn.world).job?.kind).toBe('refit');
-  });
-
-  it('has a bot with a hot engine stop to cool, but keep driving while a raider fights it', () => {
-    const hotAt = (fight: boolean) => {
-      const w = emptyWorld({ x: 30, y: 30 });
-      const me = playerVehicle(w);
-      me.order = { kind: 'stopAt', dest: { x: 200, y: 30 } };
-      w.player.engineHeat = 0.8;
-      if (fight) {
-        const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 60, y: 30 });
-        raider.brain = npcBrain('buggy', raider.pos, ['raider']);
-        startCombat(w, raider, me);
-      }
-      return playerVehicle(botOrders(w, 'trader').world).order;
-    };
-
-    expect(hotAt(false)).toBeNull();
-    expect(hotAt(true)).not.toBeNull();
-  });
-
-  it('keeps a truck parked for heat until the engine is well below the warning', () => {
-    const orderAt = (heat: number, driving: boolean) => {
-      const w = emptyWorld({ x: 30, y: 30 });
-      playerVehicle(w).order = driving ? { kind: 'stopAt', dest: { x: 200, y: 30 } } : null;
+      w.turn = turn;
+      playerVehicle(w).order = { kind: 'stopAt', dest: trip };
       w.player.engineHeat = heat;
-      return playerVehicle(botOrders(w, 'trader').world).order;
-    };
-    const justBelowWarning = ENGINE_HEAT.warnAt - 0.02;
+      return w;
+    }
 
-    expect(orderAt(justBelowWarning, false)).toBeNull();
-    expect(orderAt(justBelowWarning, true)).not.toBeNull();
-    expect(orderAt(ENGINE_HEAT.warnAt / 4, false)).not.toBeNull();
+    it('has a bot keep its trip in the noon sun at the speed that holds the heat, like the NPC hauler', () => {
+      const w = onTrip(NOON, ENGINE_HEAT.warnAt + 0.05);
+      const held = heldHeatSpeed(w, playerVehicle(w));
+      expect(held).toBeLessThan(plainMaxSpeed(w, playerVehicle(w)));
+      const order = playerVehicle(botOrders(w, 'trader').world).order;
+      expect(order?.kind === 'stopAt' && order.pace).toBe(held);
+    });
+
+    it('has a bot drive at full speed again once the engine is below the warning', () => {
+      const hot = playerVehicle(botOrders(onTrip(NOON, ENGINE_HEAT.warnAt + 0.05), 'trader').world).order;
+      if (hot?.kind !== 'stopAt' || hot.pace === undefined) throw new Error('expected a paced trip while hot');
+      const w = onTrip(NOON, ENGINE_HEAT.warnAt - 0.05);
+      playerVehicle(w).order = hot;
+      expect(playerVehicle(botOrders(w, 'trader').world).order).toEqual({ kind: 'stopAt', dest: hot.dest });
+    });
+
+    it('has a bot hold its top speed at night, where the engine holds its heat at any speed', () => {
+      const w = onTrip(NIGHT, ENGINE_HEAT.warnAt + 0.05);
+      const order = playerVehicle(botOrders(w, 'trader').world).order;
+      expect(order?.kind === 'stopAt' && order.pace).toBe(plainMaxSpeed(w, playerVehicle(w)));
+    });
+
+    it('has a bot fight at full speed, with no heat pace, while a raider fights it', () => {
+      const w = onTrip(NOON, ENGINE_HEAT.warnAt + 0.05);
+      const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 60, y: 30 });
+      raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+      startCombat(w, raider, playerVehicle(w));
+      const order = playerVehicle(botOrders(w, 'trader').world).order;
+      expect(order !== null && order.kind !== 'brake' && order.pace === heldHeatSpeed(w, playerVehicle(w))).toBe(false);
+    });
   });
 
   it('has a bot with a hot engine drive on while a hostile is in sight', () => {
@@ -1128,31 +922,68 @@ describe('the hunter', () => {
     startCombat(w, raider, me);
     expect(playerSees(w, raider.pos)).toBe(false);
     me.order = { kind: 'stopAt', dest: { x: 5, y: 5 } };
+    startFlight(w, me, { x: 5, y: 5 });
 
     expect(playerVehicle(botOrders(w, 'trader').world).order).toEqual({ kind: 'stopAt', dest: { x: 5, y: 5 } });
   });
 
-  it('has a hunter that loses sight of a foe it would not hunt keep running the same way', () => {
-    const w = withPrey(emptyWorld({ x: 30, y: 30 }));
-    const me = playerVehicle(w);
-    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['autocannon', 'ram', 'stockEngine'], { x: 300, y: 300 });
-    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
-    startCombat(w, raider, me);
-    expect(playerSees(w, raider.pos)).toBe(false);
-    me.order = { kind: 'stopAt', dest: { x: 5, y: 5 } };
+  describe('when attacked', () => {
+    beforeEach(forgetFlights);
 
-    expect(playerVehicle(botOrders(w, 'hunter').world).order).toEqual({ kind: 'stopAt', dest: { x: 5, y: 5 } });
-  });
+    function attackedBy(weapons: string[], slowed: boolean) {
+      const w = emptyWorld({ x: 30, y: 30 });
+      const me = playerVehicle(w);
+      if (slowed) for (const wheel of mountedParts(me).filter((p) => p.defId.includes('wheel'))) wheel.hp = 0;
+      const raider = addVehicle(w, 'scrapjaw', 'wagon', [...weapons, 'stockEngine'], { x: slowed ? 33 : 36, y: 30 });
+      raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+      startCombat(w, raider, me);
+      return { w, raider, me };
+    }
 
-  it('has a hunter with a full grid in town go on patrol instead of idling', () => {
-    const w = parkedAt('bowl');
-    const me = playerVehicle(w);
-    addGoods(w, me, 'scrap', 100);
-    const units = goodsCount(me).scrap;
-    w.player.contracts = [{ id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'scrap', units, to: 'nose', reward: 6, deadline: 5000, window: 600, rush: false, tier: 2 }];
-    expect(freeCells(me)).toBe(0);
+    const orderAfter = (w: World) => playerVehicle(botOrders(w, 'trader').world).order;
 
-    expect(playerVehicle(botOrders(w, 'hunter').world).order).not.toBeNull();
+    it('has a bot fight a raider it can handle with the NPC fight move', () => {
+      const { w, raider, me } = attackedBy([], false);
+      expect(orderAfter(w)).toEqual(fightMoveFor(w, me, raider, null));
+    });
+
+    it('has a faster bot run from a raider it cannot handle', () => {
+      const { w, raider, me } = attackedBy(['autocannon', 'ram'], false);
+      expect(vehicleStats(w, me).maxSpeed).toBeGreaterThan(vehicleStats(w, raider).maxSpeed);
+      const order = orderAfter(w);
+      expect(order?.kind === 'stopAt' && pointsAway(me.pos, order.dest, raider.pos)).toBe(true);
+    });
+
+    it('has a slower bot fight a raider it cannot handle and cannot outrun', () => {
+      const { w, raider, me } = attackedBy(['autocannon', 'autocannon', 'ram'], true);
+      expect(vehicleStats(w, me).maxSpeed).toBeLessThan(vehicleStats(w, raider).maxSpeed);
+      expect(orderAfter(w)).toEqual(fightMoveFor(w, me, raider, null));
+    });
+
+    it('has a bot on an old trip order take a flee point and never the trip point', () => {
+      const { w, raider, me } = attackedBy(['autocannon', 'ram'], false);
+      const trip = { x: me.pos.x - 8, y: me.pos.y };
+      me.order = { kind: 'stopAt', dest: trip };
+      const order = orderAfter(w);
+      expect(order?.kind === 'stopAt' && order.dest.x === trip.x && order.dest.y === trip.y).toBe(false);
+      expect(order?.kind === 'stopAt' && pointsAway(me.pos, order.dest, raider.pos)).toBe(true);
+    });
+
+    it('has a bot that reached its flee point keep running from a raider it can outrun', () => {
+      const { w, raider, me } = attackedBy(['autocannon', 'ram'], false);
+      const point = { x: me.pos.x - RULES.arriveRadius, y: me.pos.y };
+      me.order = { kind: 'stopAt', dest: point };
+      startFlight(w, me, point);
+      const order = orderAfter(w);
+      expect(order?.kind === 'stopAt' && dist(order.dest, me.pos) > RULES.arriveRadius * 2 && pointsAway(me.pos, order.dest, raider.pos)).toBe(true);
+    });
+
+    it('has a bot that stands on an old stop order run first instead of fighting', () => {
+      const { w, raider, me } = attackedBy(['autocannon', 'ram'], false);
+      me.order = { kind: 'stopAt', dest: { x: me.pos.x - RULES.arriveRadius, y: me.pos.y } };
+      const order = orderAfter(w);
+      expect(order?.kind === 'stopAt' && dist(order.dest, me.pos) > RULES.arriveRadius * 2 && pointsAway(me.pos, order.dest, raider.pos)).toBe(true);
+    });
   });
 
   it('has a trader hand its cargo only to a raider that outmatches it', () => {
@@ -1171,20 +1002,6 @@ describe('the hunter', () => {
 
     expect(demandedBy(['autocannon', 'ram'])).toBe(0);
     expect(demandedBy([])).toBeGreaterThan(0);
-  });
-
-  it('follows a weak raider it hears, and never a strong one', () => {
-    const heardAt = (guns: string[]) => {
-      const w = emptyWorld({ x: 30, y: 30 });
-      playerVehicle(w).speed = 0;
-      const raider = addVehicle(w, 'scrapjaw', 'buggy', [...guns, 'stockEngine'], { x: 90, y: 30 });
-      raider.brain = npcBrain('buggy', raider.pos, ['raider']);
-      w.player.contacts = [{ vehicleId: raider.id, center: { x: 88, y: 32 }, radius: 4, sources: ['sound'], loudness: 1 }];
-      return playerVehicle(botOrders(w, 'hunter').world).order;
-    };
-
-    expect(heardAt([])).toEqual({ kind: 'stopAt', dest: { x: 88, y: 32 } });
-    expect(heardAt(['mg', 'mg'])).not.toEqual({ kind: 'stopAt', dest: { x: 88, y: 32 } });
   });
 
   it('has a stranded bot accept a strip offer only from a raider that outmatches it', () => {
@@ -1213,33 +1030,10 @@ describe('the hunter', () => {
     expect(want).toBeGreaterThan(0);
     w.player.discovered = ['bowl'];
 
-    const turn = botOrders(w, 'hunter');
+    const turn = botOrders(w, 'trader');
 
     expect(goodsCount(playerVehicle(turn.world)).parts).toBeGreaterThanOrEqual(want);
     expect(turn.ledger.repairs).toBeLessThan(0);
-  });
-
-  it('drives at a weak raider in sight', () => {
-    const w = emptyWorld({ x: 30, y: 30 });
-    playerVehicle(w).speed = 0;
-    const weak = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: 42, y: 30 });
-    weak.brain = npcBrain('buggy', weak.pos, ['raider']);
-
-    const turn = botOrders(w, 'hunter');
-
-    expect(playerVehicle(turn.world).order).toEqual({ kind: 'stopAt', dest: weak.pos });
-  });
-
-  it('drives at the weaker of two raiders in sight', () => {
-    const w = emptyWorld({ x: 30, y: 30 });
-    playerVehicle(w).speed = 0;
-    const strong = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'mg', 'stockEngine'], { x: 30, y: 42 });
-    const weak = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: 42, y: 30 });
-    for (const raider of [strong, weak]) raider.brain = npcBrain('buggy', raider.pos, ['raider']);
-
-    const turn = botOrders(w, 'hunter');
-
-    expect(playerVehicle(turn.world).order).toEqual({ kind: 'stopAt', dest: weak.pos });
   });
 
   it('leaves the world random stream where it was', () => {
@@ -1249,7 +1043,7 @@ describe('the hunter', () => {
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     const state = w.rngState;
 
-    const turn = botOrders(w, 'hunter');
+    const turn = botOrders(w, 'trader');
 
     expect(turn.world.rngState).toBe(state);
   });

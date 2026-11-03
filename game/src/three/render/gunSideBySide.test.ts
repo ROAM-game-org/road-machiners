@@ -3,11 +3,11 @@ import type { Vehicle } from '../../sim/types';
 import { PAINT } from '../../data/chassis';
 import { SLOW, bare, gunContacts, gunOverlaps, headPlan, loneHeadY, headY, mountedGuns } from '../../test/gun-clearance-kit';
 import { UNPRICED_WEAPONS } from '../../data/weapons';
-import { MOUNT_CELLS, baseGrid, itemCells, mountSpots, type Cell } from '../../sim/grid';
+import { MOUNT_CELLS, baseGrid, facingOf, itemCells, mountSpots, type Cell } from '../../sim/grid';
 import { cellRect } from '../../sim/body';
 import { makePart } from '../../sim/factory';
 import { FIRST_HALF, checkGunsOnTemplates } from '../../test/gun-side-samples';
-import { LANE_GAP, VehicleView } from './vehicle';
+import { LANE_GAP, laneAxis, VehicleView } from './vehicle';
 
 function sideBySidePair(chassisId: string): Vehicle {
   const { world, v } = bare(chassisId);
@@ -41,7 +41,7 @@ describe('heads fit their lanes', () => {
     const problems: string[] = [];
     for (const chassisId of ['hauler', 'wagon']) {
       for (const defId of Object.keys(UNPRICED_WEAPONS)) {
-        for (const rot of [0, 1] as const) {
+        for (const rot of [0, 1, 4, 5] as const) {
           for (const tag of ['a', 'b', 'c']) {
             const { world, v } = bare(chassisId);
             const part = { ...makePart(world, defId, 0), id: `lane-${tag}-${defId}` };
@@ -59,8 +59,9 @@ describe('heads fit their lanes', () => {
               problems.push(`${chassisId} ${defId} r${rot}: no head`);
               continue;
             }
-            const [lo, hi] = rot % 2 === 0 ? [lane.z0, lane.z1] : [lane.x0, lane.x1];
-            const [a, b] = rot % 2 === 0 ? [plan.z0, plan.z1] : [plan.x0, plan.x1];
+            const acrossZ = laneAxis(facingOf(gun)) === 'z';
+            const [lo, hi] = acrossZ ? [lane.z0, lane.z1] : [lane.x0, lane.x1];
+            const [a, b] = acrossZ ? [plan.z0, plan.z1] : [plan.x0, plan.x1];
             if (a < lo + LANE_GAP - 0.002 || b > hi - LANE_GAP + 0.002) problems.push(`${chassisId} ${defId} r${rot} ${tag}: head ${a.toFixed(3)}..${b.toFixed(3)} lane ${lo.toFixed(3)}..${hi.toFixed(3)}`);
           }
         }

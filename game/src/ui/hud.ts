@@ -59,11 +59,9 @@ import type { RadioPanel } from "./radio";
 import { HaulerGauge } from "./hauler-gauge";
 import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
 import type * as THREE from "three";
-import { dist } from "../sim/vec";
 import { PORTRAIT_STEP_MS, TruckPortraits } from "../three/render/truckPortrait";
 import { GARAGE_STEP_MS, GarageRenders } from "../three/render/garageRender";
 import { backgroundNeeds } from "./garage-draw";
-import { playerSees } from "../sim/vision";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, verbatim, type Msg } from "../text/msg";
 import { accountDockLine } from "./shop-rows";
@@ -736,16 +734,15 @@ export class Hud {
 
   private wantPortraits(w: World, focus: Vehicle | null): void {
     const me = playerVehicle(w);
-    const nearest = (a: Vehicle, b: Vehicle) => dist(a.pos, me.pos) - dist(b.pos, me.pos);
-    const seen = w.vehicles.filter((x) => x.id !== me.id && playerSees(w, x.pos)).sort(nearest);
-    this.portraits.want([me], seen, focus?.id ?? null, w.player.paint);
+    const opened = focus && focus.id !== me.id ? [focus] : [];
+    this.portraits.want([me], opened, focus?.id ?? null, w.player.paint);
     if (this.garageWorld !== w) this.garage.want(backgroundNeeds(w));
     this.garageWorld = w;
   }
 
-  stepPortraits(playing: boolean): void {
+  stepPortraits(playing: boolean, garageShown: boolean): void {
     this.portraits.step(PORTRAIT_STEP_MS, playing);
-    if (!playing) this.garage.step(GARAGE_STEP_MS);
+    if (garageShown && !playing) this.garage.step(GARAGE_STEP_MS);
   }
 
   portraitSettled(vehicleId: string): boolean {

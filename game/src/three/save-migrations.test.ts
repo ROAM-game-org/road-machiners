@@ -956,3 +956,19 @@ describe('step names', () => {
     for (const name of names) expect(name, name).toMatch(/^[a-z][A-Za-z]*$/);
   });
 });
+
+describe('withEliteTrucks', () => {
+  type Group = { templates: string[]; money: number; elite?: boolean; elites?: number };
+  const saved = (groups: Group[]): SavedJson => ({ ...structuredClone(FORMAT_2_101), chaosHighway: { stretch: 3, groups } }) as unknown as SavedJson;
+  const stepped = (world: SavedJson) => namedStep('withEliteTrucks')(world) as unknown as { chaosHighway: { groups: Group[] } };
+
+  it('makes every truck of an elite group elite at the plain money, and no truck of a plain group', () => {
+    const next = stepped(saved([{ templates: ['merc', 'merc'], money: 478, elite: true }, { templates: ['buggy'], money: 239, elite: false }]));
+    expect(next.chaosHighway.groups).toEqual([{ templates: ['merc', 'merc'], money: 239, elites: 2 }, { templates: ['buggy'], money: 239, elites: 0 }]);
+  });
+
+  it('leaves a world with no run as it was', () => {
+    const before = { ...structuredClone(FORMAT_2_101), chaosHighway: null } as unknown as SavedJson;
+    expect(namedStep('withEliteTrucks')(structuredClone(before))).toEqual(before);
+  });
+});

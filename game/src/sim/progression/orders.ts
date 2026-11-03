@@ -1,5 +1,6 @@
 
 import { chassisDef } from '../../data/chassis';
+import { CONTRACTS, CREDIT } from '../../data/market';
 import type { LineId } from '../../data/dialogue';
 import { startKit } from '../../data/start';
 import { isLineGun, partDef, PARTS, type PartKind } from '../../data/parts';
@@ -8,7 +9,8 @@ import { chassisTopSpeed } from '../chassis-features';
 import { buyChassis, buyStockPart, chassisTradeIn, garageChassis, partTradePrice, sellPart } from '../economy';
 import { type Spot, goodsCount, mountedItems } from '../grid';
 import { installSpot, moveItem, spareParts, startRefit, storePart, takeFromStorage, type RefitLayout } from '../inventory';
-import { shopAt, shopState } from '../market';
+import { estimateTurns, shopAt, shopState, siteOf } from '../market';
+import { accountRefusal, payAccount } from '../shop-credit';
 import { canUseSite, nearestPad, townAt, type Site } from '../sites';
 import type { Vec } from '../vec';
 import { getUpkeepReserve } from '../npc-decisions';
@@ -37,7 +39,6 @@ export class Orders {
   readonly ledger = emptyLedger();
   readonly notes: BotNote[] = [];
   buysGear = true;
-  fieldRepair = false;
   constructor(public world: World) {}
 
   run(command: (w: World) => World, key: LedgerKey = 'other'): void {
@@ -178,4 +179,39 @@ const FINISH_INSTEAD: Partial<Record<LineId, LineId>> = { standDownAndLet: 'noMe
 export function replyPick(lines: readonly LineId[], wanted: LineId | undefined): number {
   if (!wanted) return 0;
   return Math.max(0, lines.indexOf(lines.includes(wanted) ? wanted : FINISH_INSTEAD[wanted] ?? wanted));
+}
+
+export type CreditPolicy = 'creditTrader' | 'defaulter';
+export const CREDIT_POLICIES: readonly CreditPolicy[] = ['creditTrader', 'defaulter'];
+
+export function isCreditPolicy(policy: string): policy is CreditPolicy {
+  return (CREDIT_POLICIES as readonly string[]).includes(policy);
+}
+
+export function tradeAs<P extends string>(policy: P): Exclude<P, CreditPolicy> | 'trader' {
+  return isCreditPolicy(policy) ? 'trader' : (policy as Exclude<P, CreditPolicy>);
+}
+
+export function withCredit(world: World, policy: string): World {
+  if (isCreditPolicy(policy)) world.player.perks = [...world.player.perks, 'shopCredit'];
+  return world;
+}
+
+export function lotSpend(world: World, shopId: string, cash: number): number {
+  if (accountRefusal(world, shopId, 0) !== null) return cash;
+  return Math.max(cash, CREDIT.line - (world.player.account?.owed ?? 0));
+}
+
+export function payWhenDue(o: Orders, policy: string): boolean {
+  const account = o.world.player.account;
+  if (policy !== 'creditTrader' || !account) return false;
+  if (o.world.player.money < account.owed + getUpkeepReserve(playerVehicle(o.world))) return false;
+  if (shopAt(o.world) === account.shop) {
+    o.run(payAccount, 'goodsBought');
+    return true;
+  }
+  const shop = siteOf(account.shop);
+  if (o.world.turn + estimateTurns(o.me.pos, shop.pos) + CONTRACTS.warnTurns < account.due) return false;
+  driveToSite(o, shop);
+  return true;
 }

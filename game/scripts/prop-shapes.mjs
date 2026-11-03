@@ -96,6 +96,9 @@ const PROP_MODELS = [
   'water_tower',
   'woodpile',
   'wreck',
+  'wreck_sedan',
+  'wreck_compact',
+  'wreck_wagon',
 ];
 
 const OUT = 'src/data/prop-shapes.json';

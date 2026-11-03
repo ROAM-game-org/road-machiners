@@ -4,14 +4,15 @@ import { failureIssue, reportFailure, summarizeError } from './fail';
 import { UsageLimitError } from './pause';
 import { CARD_JOBS } from './position';
 import { BudgetError } from './stages/checkpoint';
-import { CommitteeDecisionError } from './diff-guard';
+import { CommitteeDecisionError, ForeignBaseError } from './diff-guard';
+import { rebuildOnOwnBase } from './stages/rebuild';
 import { adhoc } from './stages/adhoc';
 import { approve } from './stages/approval';
 import { runStage as design } from './stages/design';
 import { runStage as implement } from './stages/implement';
 import { candidate } from './stages/candidate';
 import { playtest } from './stages/playtest';
-import { release } from './stages/release';
+import { openPendingRelease } from './stages/release';
 import { runStage as incident } from './stages/incident';
 import { answer } from './stages/answer';
 import { remove } from './stages/remove';
@@ -99,7 +100,19 @@ async function runLockedJob(ctx: Ctx, stage: JobStage, issue: number | null): Pr
 
 const keepsSessions = (stage: JobStage, outcome: JobOutcome): boolean => outcome !== 'done' && CARD_JOBS.includes(stage);
 
+const REBUILT_JOBS: JobStage[] = [...CARD_JOBS, 'approve'];
+
+async function rebuilt(ctx: Ctx, stage: JobStage, issue: number | null, error: unknown): Promise<boolean> {
+  if (!(error instanceof ForeignBaseError) || issue === null || !REBUILT_JOBS.includes(stage)) return false;
+  await rebuildOnOwnBase(ctx, stage, issue, error);
+  return true;
+}
+
 async function failed(ctx: Ctx, stage: JobStage, issue: number | null, job: Job | null, error: unknown): Promise<boolean> {
+  return !(await rebuilt(ctx, stage, issue, error)) && failedForGood(ctx, stage, issue, job, error);
+}
+
+async function failedForGood(ctx: Ctx, stage: JobStage, issue: number | null, job: Job | null, error: unknown): Promise<boolean> {
   const retry = retriesItself(ctx, stage, issue, error);
   if (retry) {
     resumeOnce(ctx, stage, issue, error);
@@ -146,7 +159,7 @@ function clearSessionsOf(ctx: Ctx, stage: JobStage, issue: number | null): void 
 }
 
 const ISSUELESS: Record<'release' | 'dev' | 'waste' | 'merge' | 'answer', (ctx: Ctx, job: Job | null) => Promise<unknown>> = {
-  release: (ctx) => release(ctx),
+  release: (ctx) => openPendingRelease(ctx),
   waste: (ctx) => waste(ctx),
   answer: (ctx) => answer(ctx),
   merge: (ctx) => merge(ctx),

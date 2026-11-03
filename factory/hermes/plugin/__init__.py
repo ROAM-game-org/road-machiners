@@ -195,7 +195,7 @@ def _release_request(text, release) -> tuple:
     match = REMOVE_REPLY.match(text.strip())
     if match:
         return ("remove", int(match.group(1)), text)
-    return ("release-task", text)
+    return ("candidate-reply", text)
 
 
 def _request(text, reply_to_message_id, approval_posts, release=None) -> Optional[tuple]:
@@ -250,7 +250,7 @@ def inbox_command(decision: tuple, user_id, user_name, chat_id, message_id, repl
     return {
         "kind": kind,
         "issue": decision[1] if kind in ("approve", "reply", "patch", "redesign", "ship", "remove", "answer-questions", "proposal-reply", "proposal-yes", "proposal-no", "proposal-redesign") else None,
-        "text": decision[2] if kind in ("reply", "patch", "redesign", "remove", "answer-questions", "proposal-reply", "proposal-yes", "proposal-no", "proposal-redesign") else decision[1] if kind == "release-task" else None,
+        "text": decision[2] if kind in ("reply", "patch", "redesign", "remove", "answer-questions", "proposal-reply", "proposal-yes", "proposal-no", "proposal-redesign") else decision[1] if kind == "candidate-reply" else None,
         "by": str(user_id),
         "byName": user_name or None,
         "chat": str(chat_id),

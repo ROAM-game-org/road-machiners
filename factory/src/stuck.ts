@@ -146,7 +146,7 @@ async function releaseMergeGroups(ctx: Ctx, state: FactoryState, cards: Card[], 
   const bases = basesOf(ctx, waiting);
   const released: number[] = [];
   for (const [base, group] of bases) {
-    if (cards.some((card) => readyToMerge(state, card) && baseOf(ctx, card) === base)) continue;
+    if (cards.some((card) => readyToMerge(state, card) && baseBranchFor(ctx, card.labels) === base)) continue;
     const rows = group.map((card) => [card.issue, records[String(card.issue)]!] as const);
     const kept = keptRows(state, rows);
     released.push(...(kept === null ? await releaseHalf(ctx, rows) : await releaseKept(ctx, kept)));
@@ -158,20 +158,11 @@ function readyToMerge(state: FactoryState, card: Card): boolean {
   return card.column === 'Merging' && !card.labels.includes(STUCK_LABEL) && !(String(card.issue) in state.held);
 }
 
-function baseOf(ctx: Ctx, card: Card): string | null {
-  try {
-    return baseBranchFor(ctx, card.labels);
-  } catch {
-    return null;
-  }
-}
-
 function basesOf(ctx: Ctx, cards: Card[]): Map<string, Card[]> {
   const bases = new Map<string, Card[]>();
   for (const card of cards) {
-    const base = baseOf(ctx, card);
-    if (base === null) refuse(ctx, card.issue, 'its base branch is unknown, since no release is open');
-    else bases.set(base, [...(bases.get(base) ?? []), card]);
+    const base = baseBranchFor(ctx, card.labels);
+    bases.set(base, [...(bases.get(base) ?? []), card]);
   }
   return bases;
 }

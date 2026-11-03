@@ -7,7 +7,7 @@ import { getUpkeepReserve } from '../npc-decisions';
 import { sitePads } from '../sites';
 import { emptyWorld } from '../testkit';
 import type { ShopAccount, World } from '../types';
-import { lotSpend, payWhenDue, withCredit } from './credit';
+import { lotSpend, payWhenDue, withCredit } from './orders';
 import { worth } from './income';
 import { Orders } from './orders';
 

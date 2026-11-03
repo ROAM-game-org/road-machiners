@@ -116,8 +116,8 @@ const GUN_HEIGHT = 1.6;
 export class Game {
   private world: World;
   private drive: DriveSnapshot;
-  private readonly renderer: THREE.WebGLRenderer;
-  private readonly scene = new THREE.Scene();
+  readonly renderer: THREE.WebGLRenderer;
+  readonly scene = new THREE.Scene();
   private readonly sun = sunLight();
   private readonly sky = new THREE.HemisphereLight();
   private readonly play = new PlayClock(PLAY_EASE);
@@ -327,7 +327,7 @@ export class Game {
       releaseTurn: () => this.releaseTurn(),
       runKey: (code) => this.runKey(code),
       searchStock: (id) => this.searchFromLoot(id),
-      autoTravel: () => this.travel.isAuto(this.world), travelSpeedIndex: () => this.travel.getSpeedIndex(), travelPlaySpeed: () => (this.travel.isAuto(this.world) ? this.travel.getSpeed(performance.now(), CONFIG.travelFastSpeed) : null), stepTravelSpeed: (delta) => this.travel.stepSpeed(delta),
+      autoTravel: () => this.travel.isAuto(this.world), travelSpeedIndex: () => this.travel.getSpeedIndex(), travelPlaySpeed: () => (this.travel.isAuto(this.world) ? this.travel.getSpeed() : null), stepTravelSpeed: (delta) => this.travel.stepSpeed(delta),
       getTurnPhase: () => this.phase,
       garageRenders: () => this.hud.garage,
     };
@@ -782,7 +782,7 @@ export class Game {
   private tryBeginTurn(now: number, wasPlaying: boolean): "began" | "none" | "failed" {
     try {
       const held = this.holdsTime();
-      const prepared = this.anim ? null : this.travel.takeReady(this.world, this.drive, now, held);
+      const prepared = this.anim ? null : timed("take-ready", () => this.travel.takeReady(this.world, this.drive, now, held));
       if (prepared) this.beginTurn(prepared, now, this.travel.getRemainder(wasPlaying));
       return prepared ? "began" : "none";
     } catch (err) {
@@ -793,11 +793,11 @@ export class Game {
 
   private beginTurn(prepared: PreparedTurn, now: number, elapsed: number): void {
     if (this.world.player.quests.live) throw new Error("A turn began under an open scene");
-    const { world: played, playback, towed } = this.travel.beginPlayback(this.world, prepared, elapsed, this.frames);
-    const world = relanguageQuest(played, QUESTS);
+    const { world: played, playback, towed } = timed("begin-playback", () => this.travel.beginPlayback(this.world, prepared, elapsed, this.frames));
+    const world = timed("relanguage-quest", () => relanguageQuest(played, QUESTS));
     if (this.saves.changeMapIfMoved(world)) return;
     this.world = world;
-    this.saves.logWorld(world);
+    timed("log-world", () => this.saves.logWorld(world));
     this.updateLoops();
     this.anim = playback;
     this.turnStart = playback.before;
@@ -806,13 +806,13 @@ export class Game {
     const seen = (id: string) => this.eventPoint(id) !== null;
     playback.combat = gunfireSeen(this.world.events, seen);
     playback.volley = volleySeen(this.world.events, seen);
-    const timed = collisionSteps(world.events, playback.result);
-    this.crashCues = new CollisionCues(timed);
+    const collisions = collisionSteps(world.events, playback.result);
+    this.crashCues = new CollisionCues(collisions);
     playback.shotAims = shotAimsOf(world.events);
     this.breakCues = new BreakCues(world.events);
     playback.impactAtMs = Math.max(MOVE_MS, playShotFx(this.combatHost(playback.elapsed), this.breakCues));
     playUtilitySounds(this.combatHost(), "start");
-    this.sound.timeScoreEvents(world.events, world.player.vehicleId, (e) => scoreEventMs(e, timed, TURN_STEPS, playback.impactAtMs));
+    this.sound.timeScoreEvents(world.events, world.player.vehicleId, (e) => scoreEventMs(e, collisions, TURN_STEPS, playback.impactAtMs));
     if (!towed) this.playDriveSound(playback.result);
     this.phase = "moving";
     this.path.clear();
@@ -1027,8 +1027,8 @@ export class Game {
       this.updateTravel();
     }
     this.settleLateStop(now);
-    this.travel.prepareNext(this.world, this.anim, now, this.drive);
-    this.flushUi(began, phase);
+    if (began !== "began") this.travel.prepareNext(this.world, this.anim, now, this.drive);
+    timed("flush-ui", () => this.flushUi(began, phase));
     return { at, playMs };
   }
 
@@ -1090,7 +1090,7 @@ export class Game {
     this.labels.update(this.world, this.rig, this.sightLimit);
     for (const scope of this.scopes) scope.update(this.rig.camera);
     this.shaders.render(this.timeHeld());
-    this.hud.stepPortraits(this.travel.isPlaying(this.anim));
+    this.hud.stepPortraits(this.travel.isPlaying(this.anim), this.screens.inventory.isOpen());
     this.refreshPlan();
     this.showPlan();
   }
@@ -1129,11 +1129,11 @@ export class Game {
     this.sound.playDueScoreEvents(elapsed, speed);
     if (elapsed < MOVE_MS)
       return (elapsed / 1000) * PHYSICS.stepsPerSecond - 1;
-    if (!a.moved) this.finishMovement(a, now);
+    if (!a.moved) timed("finish-movement", () => this.finishMovement(a, now));
     if (elapsed < a.impactAtMs && this.play.isMoving()) return null;
-    if (!a.impacts) this.landImpacts(a);
+    if (!a.impacts) timed("land-impacts", () => this.landImpacts(a));
     this.travel.finishClock(elapsed, Math.min(elapsed, a.impactAtMs));
-    this.finishPlayback();
+    timed("finish-playback", () => this.finishPlayback());
     return null;
   }
 
