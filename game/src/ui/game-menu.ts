@@ -23,7 +23,7 @@ export type GameMenuActions = SavePanelActions & {
   unstuck: { reason: () => Msg | null; run: () => void };
 };
 
-export type MenuEntry = "new" | "save" | "load" | "unstuck" | "options" | "tips" | "help" | "report";
+export type MenuEntry = "new" | "save" | "load" | "unstuck" | "options" | "fullscreen" | "tips" | "help" | "report";
 
 export type PhoneMenuLinks = { report: () => void; reportOpen: () => boolean };
 
@@ -33,6 +33,7 @@ const ENTRIES: { entry: MenuEntry; label: Msg }[] = [
   { entry: "load", label: t("menu.load") },
   { entry: "unstuck", label: t("menu.unstuck") },
   { entry: "options", label: t("menu.options") },
+  { entry: "fullscreen", label: t("menu.fullscreen") },
   { entry: "tips", label: t("menu.showTips") },
   { entry: "help", label: t("menu.help") },
   { entry: "report", label: t("hud.feedbackTitle") },
@@ -132,7 +133,7 @@ function controlGroup(group: ControlGroup): HTMLElement {
 }
 
 export function entryEnabled(entry: MenuEntry, busy: boolean, hasSave: boolean): boolean {
-  if (entry === "help" || entry === "tips" || entry === "options" || entry === "report") return true;
+  if (["fullscreen", "help", "tips", "options", "report"].includes(entry)) return true;
   if (entry === "load") return !busy && hasSave;
   return !busy;
 }
@@ -236,10 +237,11 @@ export class GameMenu {
     this.savePanel = new SavePanel(actions);
     for (const { entry, label } of ENTRIES) {
       const role = entry === "tips" ? "menuitemcheckbox" : "menuitem";
-      const item = el("button", { role, "data-entry": entry, onclick: () => this.choose(entry) }, label) as HTMLButtonElement;
+      const item = el("button", { role, "data-entry": entry, onclick: entry === "fullscreen" ? () => this.toggleFullscreen() : () => this.choose(entry) }, label) as HTMLButtonElement;
       this.items[entry] = item;
       this.list.append(item);
     }
+    document.addEventListener("fullscreenchange", () => this.refresh());
     this.root.append(this.button, this.list);
     this.refresh();
   }
@@ -252,6 +254,8 @@ export class GameMenu {
     const busy = this.isBusy();
     const saved = this.actions.hasSave();
     for (const { entry } of ENTRIES) this.setReason(this.items[entry], entry === "unstuck" ? this.actions.unstuck.reason() : entryReason(entry, busy, saved));
+    this.items.fullscreen.hidden = !document.fullscreenEnabled;
+    setText(this.items.fullscreen, t(document.fullscreenElement ? "menu.exitFullscreen" : "menu.fullscreen"));
     const on = this.tips.isOn();
     this.items.tips.setAttribute("aria-checked", String(on));
     setText(this.items.tips, t(on ? "menu.showTipsOn" : "menu.showTips"));
@@ -314,12 +318,20 @@ export class GameMenu {
     else if (entry === "load") this.savePanel.openLoad();
     else if (entry === "unstuck") this.actions.unstuck.run();
     else if (entry === "options") this.options.open();
+
     else if (entry === "tips") {
       this.tips.setOn(!this.tips.isOn());
       this.refresh();
     } else if (entry === "report") this.phone.report();
     else if (entry === "help") this.help.toggle();
     else this.newGame();
+  }
+
+  private toggleFullscreen(): void {
+    this.closeList(false);
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void document.documentElement.requestFullscreen();
+    this.button.focus();
   }
 
   private newGame(): void {
