@@ -10,7 +10,7 @@ import { plannedTruck } from "../sim/inventory";
 import { takeFromTruck } from "../sim/salvage";
 import { refreshVision } from "../sim/vision";
 import { resolve } from "../text/resolve";
-import { cellAt, drawnLayer, LAYERS_PER_BAND, gridMetrics, gridSize, itemLabel, itemName, itemState, nextRot, rectOf, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
+import { cellAt, drawnLayer, GridScale, LAYERS_PER_BAND, gridMetrics, gridSize, itemLabel, itemName, itemState, nextRot, rectOf, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
 import { cellCenter, cellSteps } from "../sim/body";
 import { kg } from "./units";
 import { backgroundNeeds, ownNeed, pivotPx, shownNeed, type GarageLook } from "./garage-draw";
@@ -277,5 +277,40 @@ describe("the pivot a fan starts from", () => {
   it("throws for a drawn gun that carries no pivot", () => {
     const { look, gun } = lookWith(sprite(undefined));
     expect(() => pivotPx(look, gun, m)).toThrow(/no pivot/);
+  });
+});
+
+describe("the grid scale fit", () => {
+  const w = emptyWorld();
+  const truck = addVehicle(w, "scrapjaw", "buggy", ["mg", "stockEngine", "scrapSheet"], { x: 30, y: 30 });
+  const heightAt = (scale: GridScale) => gridSize(scale.measure(truck, true)).height;
+
+  it("shrinks until the measured overflow is gone, counting the fixed padding", () => {
+    const scale = new GridScale();
+    const full = heightAt(scale);
+    const room = full * 0.85 - 10;
+    const padding = 30;
+    scale.settle("a", () => heightAt(scale) + padding - room, () => scale.measure(truck, true));
+    expect(heightAt(scale) + padding).toBeLessThanOrEqual(room + 1);
+  });
+
+  it("holds its size for the same key and refits for another", () => {
+    const scale = new GridScale();
+    scale.measure(truck, true);
+    scale.settle("a", () => heightAt(scale) - 100, () => scale.measure(truck, true));
+    const fitted = heightAt(scale);
+    expect(scale.holds("a")).toBe(true);
+    expect(heightAt(scale)).toBe(fitted);
+    expect(scale.holds("b")).toBe(false);
+    scale.reset();
+    expect(scale.holds("a")).toBe(false);
+  });
+
+  it("stops at the smallest cell when the room is too short", () => {
+    const scale = new GridScale();
+    scale.measure(truck, true);
+    scale.settle("a", () => heightAt(scale), () => scale.measure(truck, true));
+    const m = scale.mine;
+    expect(Math.sqrt(m.cellW * m.cellH)).toBeGreaterThanOrEqual(27.9);
   });
 });

@@ -74,14 +74,34 @@ export function cellUnder(m: GridMetrics, grid: HTMLElement, clientX: number, cl
   return cellAt(m, uiSize().toLayer(clientX - r.left), uiSize().toLayer(clientY - r.top));
 }
 
+const FIT_PASSES = 3;
+
 export class GridScale {
   private pxPerMeter: number | null = null;
   private own: GridMetrics | null = null;
   private target: GridMetrics | null = null;
+  private fitKey: string | null = null;
 
   reset(): void {
     this.pxPerMeter = null;
     this.target = null;
+    this.fitKey = null;
+  }
+
+  holds(key: string): boolean {
+    return this.pxPerMeter !== null && this.fitKey === key;
+  }
+
+  settle(key: string, overflow: () => number, redraw: () => void): void {
+    this.fitKey = key;
+    for (let pass = 0; pass < FIT_PASSES; pass++) {
+      const over = overflow();
+      if (over <= 0) return;
+      const before = this.pxPerMeter;
+      this.shrinkBy(over);
+      if (this.pxPerMeter === before) return;
+      redraw();
+    }
   }
 
   measure(v: Vehicle, own: boolean): GridMetrics {
