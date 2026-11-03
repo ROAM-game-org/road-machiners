@@ -402,9 +402,19 @@ function others(world: World, v: Vehicle): Vehicle[] {
   return world.vehicles.filter((x) => x.id !== v.id && x.id !== v.brain?.ramTarget && !onOwnRope(world, v, x));
 }
 
+function leads(world: World, v: Vehicle, x: Vehicle): boolean {
+  if (x.speed < RULES.parkedSpeed || gapAhead(world, v, x, RULES.traffic.crossCone) === null) return false;
+  if (Math.abs(angleDiff(x.heading, v.heading)) >= RULES.traffic.followCone) return false;
+  return x.speed * Math.cos(angleDiff(x.heading, bearing(v.pos, x.pos))) > 0;
+}
+
+function comesFromBehind(world: World, v: Vehicle, x: Vehicle): boolean {
+  return gapAhead(world, v, x, RULES.traffic.crossCone) === null && Math.abs(angleDiff(x.heading, v.heading)) < RULES.traffic.followCone;
+}
+
 function meeting(world: World, v: Vehicle): Vehicle[] {
-  const closing = conflicts(world, v, 0);
-  const stopped = v.speed < RULES.parkedSpeed ? others(world, v).filter((x) => x.speed >= RULES.parkedSpeed && closesOn(world, x, v, 0) && !closing.includes(x)) : [];
+  const closing = conflicts(world, v, 0).filter((x) => !leads(world, v, x));
+  const stopped = v.speed < RULES.parkedSpeed ? others(world, v).filter((x) => x.speed >= RULES.parkedSpeed && closesOn(world, x, v, 0) && !closing.includes(x) && !comesFromBehind(world, v, x)) : [];
   return [...closing, ...stopped].filter((x) => !givesWayTo(world, x, v));
 }
 
