@@ -14,6 +14,8 @@ import { haulMarginAt, wouldRob, type Policy } from './bot';
 import { LEDGER_KEYS, type BotNote, type BotTurn } from './orders';
 import { FAR_MOVER, playTurns } from './record';
 import { startWorld } from './record-node';
+import { withCredit } from './credit';
+import { owedBy } from '../crime';
 
 export const INCOME_KIT = 'midgame';
 export const INCOME_SKILL_RANK = 2;
@@ -47,6 +49,7 @@ export type IncomeRun = {
   hours: number;
   startWorth: number;
   endWorth: number;
+  endOwed: number;
   ledger: Record<string, number>;
   daily: number[];
   attempts: Attempt[];
@@ -64,7 +67,7 @@ export type RunLabel = { candidate: string; commit: string };
 
 export function playIncome(seed: number, policy: Policy, days: number, label: RunLabel): IncomeRun {
   const turns = Math.round(days * TIME.workDayTurns);
-  const start = startWorld(seed, INCOME_KIT, INCOME_SKILL_RANK);
+  const start = withCredit(startWorld(seed, INCOME_KIT, INCOME_SKILL_RANK), policy);
   const startWorth = worth(start);
   const ledger: Record<string, number> = {};
   const attempts = new AttemptLog();
@@ -107,6 +110,7 @@ export function playIncome(seed: number, policy: Policy, days: number, label: Ru
     hours: (played * HOURS_PER_DAY) / TIME.turnsPerDay,
     startWorth,
     endWorth: worth(last),
+    endOwed: owedBy(last, last.player.vehicleId),
     ledger,
     daily,
     attempts: attempts.close(),
@@ -167,7 +171,7 @@ function salvageIndex(world: World): number {
 
 export function worth(world: World): number {
   const me = playerVehicle(world);
-  return world.player.money + saleValue(world, goodsCount(me), spareParts(me)) - repairCost(world);
+  return world.player.money + saleValue(world, goodsCount(me), spareParts(me)) - repairCost(world) - (world.player.account?.owed ?? 0);
 }
 
 function saleValue(world: World, goods: Record<string, number>, parts: readonly PartInstance[]): number {

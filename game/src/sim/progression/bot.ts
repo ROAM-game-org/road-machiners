@@ -46,6 +46,7 @@ import { canVehicleSee, playerExplored, playerSees } from '../vision';
 import { reachedOutpostAt } from '../chaos-highway';
 import { inYard } from '../outpost-gates';
 import { runnerOrders } from './runner';
+import { CREDIT_POLICIES, lotSpend, tradeAs, payWhenDue, type CreditPolicy } from './credit';
 import { procurerGoal } from './procurer';
 import { fuelForWay, fuelReaches, reachable, SHOP_SITES } from './reach';
 import { searcherGoal, takeSearch } from './searcher';
@@ -54,10 +55,10 @@ import { BIGGEST_PART_CELLS, driveTo, driveToSite, mountBought, Orders, rearm, r
 
 export type Archetype = 'trader' | 'scavenger' | 'hunter' | 'fastTrader' | 'hauler' | 'procurer' | 'searcher' | 'surveyor' | 'climber' | 'markov' | 'escort' | 'sprinter';
 export const ARCHETYPES: readonly Archetype[] = ['trader', 'scavenger', 'hunter', 'fastTrader', 'hauler', 'procurer', 'searcher', 'surveyor', 'climber', 'markov', 'escort', 'sprinter'];
-export type Policy = Archetype | 'robber' | 'convoyRobber';
-export const POLICIES: readonly Policy[] = [...ARCHETYPES, 'robber', 'convoyRobber'];
+export type Policy = Archetype | 'robber' | 'convoyRobber' | CreditPolicy;
+export const POLICIES: readonly Policy[] = [...ARCHETYPES, 'robber', 'convoyRobber', ...CREDIT_POLICIES];
 type RoadPolicy = 'escort' | 'sprinter';
-type Goal = Exclude<Policy, 'markov' | 'climber' | RoadPolicy>;
+type Goal = Exclude<Policy, 'markov' | 'climber' | RoadPolicy | CreditPolicy>;
 
 const CLIMB_GUNS = 3;
 const GOALS_PLAYED: readonly Goal[] = ['trader', 'scavenger', 'hunter', 'fastTrader'];
@@ -82,7 +83,6 @@ function gearStyle(goal: Goal, archetype: Policy): UpgradeStyle {
   return archetype === 'climber' ? CLIMBER_GEAR : GEAR_STYLES[goal];
 }
 
-
 export type BotOptions = { markovTurns?: number; tolerateStalls?: boolean; kit?: string; noGear?: boolean; settings?: Record<string, number> };
 
 const MARKOV_SALT = 0x6d61726b;
@@ -91,9 +91,7 @@ export function isPolicy(value: string): value is Policy {
   return (POLICIES as readonly string[]).includes(value);
 }
 
-export function isArchetype(value: string): value is Archetype {
-  return (ARCHETYPES as readonly string[]).includes(value);
-}
+export const isArchetype = (value: string): value is Archetype => (ARCHETYPES as readonly string[]).includes(value);
 
 export function botOrders(world: World, archetype: Policy, options: BotOptions = {}): BotTurn {
   if (archetype === 'escort' || archetype === 'sprinter') return runnerOrders(world, archetype);
@@ -139,6 +137,7 @@ function collectNearbyKnockout(o: Orders, goal: Goal, archetype: Policy): boolea
 }
 
 function followGoal(o: Orders, goal: Goal, archetype: Policy): void {
+  if (payWhenDue(o, archetype)) return;
   if (archetype === 'climber' && goal === 'hunter') hunterGoal(o, true);
   else GOALS[goal](o);
 }
@@ -159,7 +158,7 @@ function climberGoal(world: World): Goal {
 
 function goalOf(world: World, archetype: Exclude<Policy, RoadPolicy>, options: BotOptions): Goal {
   if (archetype === 'climber') return climberGoal(world);
-  if (archetype !== 'markov') return archetype;
+  if (archetype !== 'markov') return tradeAs(archetype);
   const { markovTurns } = options;
   if (markovTurns === undefined || !Number.isInteger(markovTurns) || markovTurns <= 0) throw new Error(`The markov bot needs markovTurns as a positive whole number, got ${markovTurns}`);
   const stretch = Math.floor((world.turn - 1) / markovTurns);
@@ -643,7 +642,7 @@ function bestPurchase(world: World): Purchase | null {
   const towns = knownTowns(world);
   const full = fuelCap(playerVehicle(world));
   const room = freeCells(playerVehicle(world));
-  const options = reachable(world, towns).flatMap((source) => towns.filter((t) => t.id !== source.id && fuelReaches(world, t, { pos: source.pos, fuel: full })).flatMap((market) => sharedGoods(source, market).map((good) => purchase(world, { source, market, good, spend, room }))));
+  const options = reachable(world, towns).flatMap((source) => towns.filter((t) => t.id !== source.id && fuelReaches(world, t, { pos: source.pos, fuel: full })).flatMap((market) => sharedGoods(source, market).map((good) => purchase(world, { source, market, good, spend: lotSpend(world, source.id, spend), room }))));
   return options.reduce<Purchase | null>((best, p) => (p.count > 0 && p.perTurn > (best?.perTurn ?? 0) ? p : best), null);
 }
 

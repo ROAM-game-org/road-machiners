@@ -89,6 +89,7 @@ function fakeRun(policy: Policy, seed: number, rate = 10 * seed, label = LABEL):
     hours: 24,
     startWorth: 3000,
     endWorth: 3000 + 24 * rate,
+    endOwed: 0,
     ledger: { 'sell goods': 500, repair: -100 },
     daily: [24 * rate],
     attempts: [{ turn: 10, target: 'v1', kind: 'trader', guarded: false, answer: 'comply', outcome: 'pile', goodsValue: 400, repairSpent: 0 }],
