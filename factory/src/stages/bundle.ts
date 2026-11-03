@@ -1,6 +1,6 @@
 import { moveCard } from '../card-events';
 import { readState, updateState } from '../state';
-import { ADHOC_LABEL, BUNDLED_LABEL, HOTFIX_LABEL, NEEDS_INFO_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, VOTING_LABEL, type Card, type Column, type Ctx, type FactoryState } from '../types';
+import { ADHOC_LABEL, BUNDLED_LABEL, HOTFIX_LABEL, NEEDS_INFO_LABEL, STUCK_LABEL, VOTING_LABEL, type Card, type Column, type Ctx, type FactoryState } from '../types';
 
 export function bundleOf(state: FactoryState, lead: number): number[] {
   return state.bundles[String(lead)] ?? [];
@@ -28,11 +28,8 @@ export function designOffer(state: FactoryState, cards: Card[], lead: number, le
   const busy = new Set(state.jobs.map((job) => job.issue));
   const taken = new Set([...carriedIssues(state), ...offeredIssues(state, lead)]);
   const blocked = [STUCK_LABEL, NEEDS_INFO_LABEL, VOTING_LABEL, HOTFIX_LABEL, BUNDLED_LABEL, ADHOC_LABEL];
-  const tasks = state.release?.tasks ?? [];
-  const releaseScoped = (issue: number, labels: string[]): boolean => tasks.includes(issue) || labels.includes(RELEASE_TASK_LABEL);
-  const leadScoped = releaseScoped(lead, leadLabels);
   return cards
-    .filter((card) => card.column === 'Design' && card.issue !== lead && releaseScoped(card.issue, card.labels) === leadScoped)
+    .filter((card) => card.column === 'Design' && card.issue !== lead)
     .filter((card) => !blocked.some((label) => card.labels.includes(label)))
     .filter((card) => !busy.has(card.issue) && !(String(card.issue) in state.held) && !state.designed.includes(card.issue) && bundleOf(state, card.issue).length === 0 && !taken.has(card.issue))
     .map((card) => card.issue)

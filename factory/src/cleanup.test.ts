@@ -61,9 +61,9 @@ describe('sweepWork', () => {
     expect(has(root, 'issue-8/game/node_modules')).toBe(true);
   });
 
-  it('keeps queued incidents and the candidate of an open release, and removes clones of the retired change job', () => {
+  it('keeps queued incidents and the candidate clone while a candidate is posted, and removes clones of the retired change job', () => {
     const root = work('change-12', 'incident-6', 'release-candidate');
-    const release = { issue: 20, branch: 'release/2026-01-05', day: '2026-01-05', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
+    const release = { issue: 20, day: '2026-01-05', postId: 5, removed: [], candidate: { sha: 'abc1234', features: [] }, playtest: { seed: 1, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null } };
     const swept = sweepWork(root, `${root}-locks`,state({ pendingIncidents: [6], release }), []);
     expect(swept.removed).toEqual(['change-12']);
     expect(swept.stripped.sort()).toEqual(['incident-6', 'release-candidate']);
