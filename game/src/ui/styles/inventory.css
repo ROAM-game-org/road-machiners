@@ -56,25 +56,27 @@
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, auto) minmax(var(--panel-l), 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: var(--space-9);
   margin-top: var(--space-4);
 }
 .town-truck,
 .town-shop {
   min-height: 0;
-  overflow: auto;
-  scrollbar-width: thin;
-}
-.town-shop {
-  container-type: inline-size;
-}
-.outpost-screen .town-shop {
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
-.outpost-body {
-  flex: 1;
+.town-shop {
+  container-type: inline-size;
+}
+.town-truck > :not(.truck-body),
+.town-shop > :not(.shop-body) {
+  flex: none;
+}
+.shop-body,
+.truck-body {
+  flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
   scrollbar-width: thin;

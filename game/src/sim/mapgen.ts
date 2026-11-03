@@ -451,10 +451,16 @@ function poseBoxes(pose: PropPose): readonly HulkBox[] {
   return pose.model === 'hulk' ? hulkBoxes(pose.chassisId, pose.bend) : propShape(pose.model).map((box) => ({ box, x: 0, y: 0, turn: 0 }));
 }
 
-function boxLocal(box: PosedBox, p: Vec): Vec {
-  const dx = p.x - box.center.x;
-  const dy = p.y - box.center.y;
-  return { x: dx * box.axis.x + dy * box.axis.y, y: dy * box.axis.x - dx * box.axis.y };
+const slab = { t0: 0, t1: 1 };
+
+function narrowSlab(from: number, to: number, half: number): boolean {
+  const d = to - from;
+  if (d === 0) return !(Math.abs(from) > half);
+  const ta = (-half - from) / d;
+  const tb = (half - from) / d;
+  slab.t0 = Math.max(slab.t0, Math.min(ta, tb));
+  slab.t1 = Math.min(slab.t1, Math.max(ta, tb));
+  return !(slab.t0 > slab.t1);
 }
 
 export function boxDistance(box: PosedBox, p: Vec): number {
@@ -470,21 +476,16 @@ export function segmentCrossesBox(box: PosedBox, a: Vec, b: Vec): boolean {
 }
 
 export function stretchCrossesBox(box: PosedBox, a: Vec, b: Vec, t0: number, t1: number): boolean {
-  const p = boxLocal(box, a);
-  const q = boxLocal(box, b);
-  for (const [from, to, half] of [[p.x, q.x, box.half.x], [p.y, q.y, box.half.y]]) {
-    const d = to - from;
-    if (d === 0) {
-      if (Math.abs(from) > half) return false;
-      continue;
-    }
-    const ta = (-half - from) / d;
-    const tb = (half - from) / d;
-    t0 = Math.max(t0, Math.min(ta, tb));
-    t1 = Math.min(t1, Math.max(ta, tb));
-    if (t0 > t1) return false;
-  }
-  return t0 <= t1;
+  const { center, axis, half } = box;
+  const adx = a.x - center.x;
+  const ady = a.y - center.y;
+  const bdx = b.x - center.x;
+  const bdy = b.y - center.y;
+  slab.t0 = t0;
+  slab.t1 = t1;
+  if (!narrowSlab(adx * axis.x + ady * axis.y, bdx * axis.x + bdy * axis.y, half.x)) return false;
+  if (!narrowSlab(ady * axis.x - adx * axis.y, bdy * axis.x - bdx * axis.y, half.y)) return false;
+  return slab.t0 <= slab.t1;
 }
 
 export function boxSegmentDistance(box: PosedBox, a: Vec, b: Vec): number {
