@@ -5,7 +5,7 @@ import { must } from '../exec';
 import { JOB_ID_ENV } from '../jobs';
 import { addConflictSpend, addSpend, closeLanding, landingSession, markMerged, openLanding, type LandingPlan } from '../landing-work';
 import { readState, updateState } from '../state';
-import { BRANCH, GAME_DIR, RELEASE_CANDIDATE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, type Card, type Ctx, type FactoryState, type IssueMerge, type LandingStage, type LandingWork } from '../types';
+import { BRANCH, GAME_DIR, HOTFIX_LABEL, RELEASE_CANDIDATE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, type Card, type Ctx, type FactoryState, type IssueMerge, type LandingStage, type LandingWork } from '../types';
 import { withWorkFolder } from '../work-lock';
 import { closeMerged } from './approval';
 import { BaselineFailureError, BudgetError, runCost, untilPasses } from './checkpoint';
@@ -18,6 +18,7 @@ import { guardAgainstAll } from '../diff-guard';
 import { labelStuckBatch } from '../stuck';
 import { BASE_BRANCH, baseBranchFor, fillPrompt, isGameSource, playtestCommand, resetOutputs } from './common';
 import { releaseLog } from './release-common';
+import { cardConflictRun, cardMergePrompt } from './merge-resolve';
 
 const UNCHECKED = 'This card reached Merging with no green full suite on its own work, so it goes to Hardening, which runs the suite and then moves it back to Merging.';
 
@@ -53,6 +54,117 @@ async function commentBaseline(ctx: Ctx, cards: Card[], error: BaselineFailureEr
 }
 
 async function mergeBatch(ctx: Ctx, base: string, cards: Card[]): Promise<void> {
+  const landed = await landedOn(ctx, base, cards);
+  const fresh = cards.filter((card) => !landed.includes(card.issue));
+  if (fresh.length > 0) await landBatch(ctx, base, fresh);
+  if (base !== BASE_BRANCH) {
+    await carryToDev(ctx, base, cards);
+    return settle(ctx, base, cards);
+  }
+  const ports = portCards(readState(ctx.statePath), cards);
+  if (fresh.length > 0) await settle(ctx, base, cards.filter((card) => !ports.includes(card)), cards);
+  if (ports.length === 0) return;
+  await portToRelease(ctx, ports);
+  await settlePorts(ctx, ports);
+}
+
+async function landedOn(ctx: Ctx, base: string, cards: Card[]): Promise<number[]> {
+  const state = readState(ctx.statePath);
+  if (base === BASE_BRANCH) return landedPorts(ctx, state, cards);
+  if (state.release?.branch !== base) return [];
+  return state.release.merges.filter((merge) => merge.into === base && !merge.reverted.includes(base)).map((merge) => merge.issue);
+}
+
+async function landedPorts(ctx: Ctx, state: FactoryState, cards: Card[]): Promise<number[]> {
+  const ports = portCards(state, cards).filter((card) => devMergeOf(state, card.issue) !== undefined);
+  if (ports.length === 0) return [];
+  await ctx.repo.fetch();
+  const inDev = await Promise.all(ports.map((card) => ctx.repo.isMerged(BRANCH(card.issue), BASE_BRANCH)));
+  return ports.filter((_, index) => inDev[index]).map((card) => card.issue);
+}
+
+export function portCards(state: FactoryState, cards: Card[]): Card[] {
+  const tasks = state.release?.tasks ?? [];
+  return cards.filter((card) => tasks.includes(card.issue) && !card.labels.includes(RELEASE_TASK_LABEL) && !card.labels.includes(HOTFIX_LABEL));
+}
+
+const devMergeOf = (state: FactoryState, issue: number): IssueMerge | undefined => recordedMerge(state, BASE_BRANCH, issue);
+
+function portOf(state: FactoryState, issue: number): IssueMerge | undefined {
+  const release = state.release;
+  return release?.merges.filter((merge) => merge.issue === issue && merge.into === release.branch && merge.fromDev !== undefined && !merge.reverted.includes(release.branch)).at(-1);
+}
+
+type PortPick = { card: Card; merge: IssueMerge };
+
+async function portToRelease(ctx: Ctx, cards: Card[]): Promise<void> {
+  const state = readState(ctx.statePath);
+  const { release } = state;
+  if (release === null) throw new Error(`${cards.map((card) => `#${card.issue}`).join(', ')} are tasks of a release that is no longer open`);
+  const picks = cards.filter((card) => portOf(state, card.issue) === undefined).map((card) => ({ card, merge: requireDevMerge(state, card.issue) }));
+  if (picks.length === 0) return;
+  await ctx.repo.fetch();
+  for (const pick of picks) await requireMergeOfBranch(ctx, pick);
+  const dir = join(ctx.cfg.home, 'work', 'merge-queue');
+  const plan = { into: release.branch, sources: picks.map(({ card, merge }) => ({ branch: BRANCH(card.issue), sha: merge.sha })), cards: picks.map(({ card }) => card.issue) };
+  const { work, resumed } = openLanding(ctx, 'merge', dir, plan, runningJobId());
+  const land: Landing = { stage: 'merge', dir, into: release.branch, guardAgainst: [release.branch, BASE_BRANCH], agent: landingAgent(ctx, 'merge', dir, work, resumed), staleBase: resumed };
+  const ported = resumed ? { merges: work.merges, conflicts: 0 } : await pickCards(ctx, land, picks);
+  const fixList = picks.map(({ card, merge }) => `- #${card.issue}, ported from its merge ${merge.sha.slice(0, 7)} on dev`).join('\n');
+  await checkAndPush(ctx, land, ported.conflicts, (failure) => fillPrompt('merge-fix', { into: release.branch, cards: fixList, failure }));
+  closeLanding(ctx, 'merge', dir);
+  recordPorts(ctx, release.branch, ported.merges);
+}
+
+function requireDevMerge(state: FactoryState, issue: number): IssueMerge {
+  const merge = devMergeOf(state, issue);
+  if (merge === undefined) throw new Error(`No merge of #${issue} into dev is recorded, so the factory cannot tell which change to port onto the release`);
+  return merge;
+}
+
+async function requireMergeOfBranch(ctx: Ctx, { card, merge }: PortPick): Promise<void> {
+  if (await ctx.repo.isMerged(`${merge.sha}^2`, BRANCH(card.issue))) return;
+  throw new Error(`The recorded dev merge ${merge.sha.slice(0, 7)} of #${card.issue} is not a merge of ${BRANCH(card.issue)}, so the factory does not port it`);
+}
+
+async function pickCards(ctx: Ctx, land: Landing, picks: PortPick[]): Promise<{ merges: IssueMerge[]; conflicts: number }> {
+  await ctx.repo.prepareWorkClone(land.into, land.into, land.dir);
+  resetOutputs(join(land.dir, GAME_DIR));
+  const merges: IssueMerge[] = [];
+  let conflicts = 0;
+  for (const { card, merge } of picks) {
+    conflicts += await pickIn(ctx, land, card.issue, merge.sha);
+    merges.push({ issue: card.issue, title: merge.title, sha: await ctx.repo.workHead(land.dir), into: land.into, reverted: [], fromDev: merge.sha });
+  }
+  markMerged(ctx, 'merge', merges);
+  return { merges, conflicts };
+}
+
+async function pickIn(ctx: Ctx, land: Landing, issue: number, sha: string): Promise<number> {
+  const before = await ctx.repo.workHead(land.dir);
+  const conflicts = await ctx.repo.pickIntoWork(land.dir, sha);
+  if (conflicts.length === 0) return 0;
+  ctx.log(land.stage, null, `the port of #${issue} onto ${land.into} conflicts in ${conflicts.join(', ')}, an agent resolves it`);
+  const prompt = fillPrompt('port-release', { into: land.into, issue: String(issue), sha, files: conflicts.map((file) => `- ${file}`).join('\n') });
+  const log = releaseLog(ctx, `${land.stage}-${land.into.replaceAll('/', '-')}`);
+  const own = cardConflictRun(ctx, land.stage, { issue, clone: land.dir, what: `the port of #${issue} onto ${land.into}`, prompt, log });
+  const cost = runCost(await (own ?? land.agent(prompt)));
+  addConflictSpend(ctx, land.stage, cost);
+  if (await ctx.repo.unfinishedPick(land.dir)) throw new Error(`The ${land.stage} agent left the port of #${issue} onto ${land.into} unfinished.`);
+  if ((await ctx.repo.workHead(land.dir)) === before) throw new Error(`The ${land.stage} agent ended the port of #${issue} onto ${land.into} with no commit, so the release would lack it.`);
+  return cost;
+}
+
+function recordPorts(ctx: Ctx, branch: string, merges: IssueMerge[]): void {
+  const issues = merges.map((merge) => merge.issue);
+  updateState(ctx.statePath, (state) => {
+    if (state.release?.branch !== branch) throw new Error(`Ported onto ${branch}, but the open release is on ${state.release?.branch ?? 'no branch'}`);
+    const release = { ...state.release, postId: null, merges: [...state.release.merges, ...merges], removed: state.release.removed.filter((n) => !issues.includes(n)) };
+    return { ...state, pendingShip: null, devMerges: state.devMerges.filter((merge) => !issues.includes(merge.issue)), release };
+  });
+}
+
+async function landBatch(ctx: Ctx, base: string, cards: Card[]): Promise<void> {
   const dir = join(ctx.cfg.home, 'work', 'merge-queue');
   await ctx.repo.fetch();
   const { work, resumed } = openLanding(ctx, 'merge', dir, await batchPlan(ctx, base, cards), runningJobId());
@@ -68,7 +180,28 @@ async function mergeBatch(ctx: Ctx, base: string, cards: Card[]): Promise<void> 
   }
   closeLanding(ctx, 'merge', dir);
   recordMerges(ctx, base, merged.merges);
-  await settle(ctx, base, cards, merged.merges);
+}
+
+async function carryToDev(ctx: Ctx, release: string, cards: Card[]): Promise<void> {
+  const dir = join(ctx.cfg.home, 'work', 'merge-queue');
+  await ctx.repo.fetch();
+  if (await ctx.repo.isMerged(release, BASE_BRANCH)) return ctx.log('merge', null, `dev already holds ${release}`);
+  const plan = { into: BASE_BRANCH, sources: [{ branch: release, sha: await ctx.repo.headHash(release) }], cards: cards.map((card) => card.issue) };
+  const { work, resumed } = openLanding(ctx, 'merge', dir, plan, runningJobId());
+  const land: Landing = { stage: 'merge', dir, into: BASE_BRANCH, guardAgainst: [BASE_BRANCH, release], agent: landingAgent(ctx, 'merge', dir, work, resumed), staleBase: resumed };
+  const issues = cards.map((card) => `#${card.issue}`).join(', ');
+  const conflicts = resumed ? 0 : await mergeReleaseIn(ctx, land, release, issues);
+  const fixList = `- ${release}, which holds ${issues}`;
+  await checkAndPush(ctx, land, conflicts, (failure) => fillPrompt('merge-fix', { into: BASE_BRANCH, cards: fixList, failure }));
+  closeLanding(ctx, 'merge', dir);
+}
+
+async function mergeReleaseIn(ctx: Ctx, land: Landing, release: string, issues: string): Promise<number> {
+  await ctx.repo.prepareWorkClone(BASE_BRANCH, BASE_BRANCH, land.dir);
+  resetOutputs(join(land.dir, GAME_DIR));
+  const conflicts = await mergeIn(ctx, land, { branch: release, message: `Merge ${release} into dev with ${issues}`, reason: `${issues} merged into ${release}, and approved work goes to dev too` });
+  markMerged(ctx, 'merge', []);
+  return conflicts;
 }
 
 export const runningJobId = (): string | null => process.env[JOB_ID_ENV] ?? null;
@@ -85,11 +218,16 @@ async function mergeCards(ctx: Ctx, land: Landing, cards: Card[]): Promise<{ mer
   let conflicts = 0;
   for (const card of cards) {
     const title = (await ctx.github.issue(card.issue)).title;
-    conflicts += await timed(land.clock, 'merges', () => mergeIn(ctx, land, { branch: BRANCH(card.issue), message: `Merge issue #${card.issue}: ${title}`, reason: `issue #${card.issue} was approved` }));
+    conflicts += await timed(land.clock, 'merges', () => mergeIn(ctx, land, { branch: BRANCH(card.issue), message: `Merge issue #${card.issue}: ${title}`, reason: `issue #${card.issue} was approved`, card: card.issue }));
     merges.push({ issue: card.issue, title, sha: await ctx.repo.workHead(land.dir), into: land.into, reverted: [] });
   }
   markMerged(ctx, 'merge', merges);
   return { merges, conflicts };
+}
+
+function recordedMerge(state: FactoryState, into: string, issue: number): IssueMerge | undefined {
+  const merges = into === BASE_BRANCH ? state.devMerges : state.release?.merges ?? [];
+  return merges.filter((merge) => merge.issue === issue && merge.into === into && !merge.reverted.includes(into)).at(-1);
 }
 
 function recordMerges(ctx: Ctx, base: string, merges: IssueMerge[]): void {
@@ -199,8 +337,9 @@ function keptBatch(state: FactoryState, waiting: Card[]): Card[] | null {
 export function waitingMerges(state: FactoryState, cards: Card[]): Card[] {
   const shipping = state.jobs.some((job) => job.stage === 'ship');
   const merging = state.jobs.filter((job) => job.stage === 'merge').flatMap((job) => job.batch ?? []);
+  const releaseBound = (card: Card): boolean => card.labels.includes(RELEASE_TASK_LABEL) || portCards(state, [card]).length > 0;
   return cards.filter((card) =>
-    card.column === 'Merging' && !card.labels.includes(STUCK_LABEL) && !(String(card.issue) in state.held) && !(shipping && card.labels.includes(RELEASE_TASK_LABEL)) && !merging.includes(card.issue));
+    card.column === 'Merging' && !card.labels.includes(STUCK_LABEL) && !(String(card.issue) in state.held) && !(shipping && releaseBound(card)) && !merging.includes(card.issue));
 }
 
 function keptSpend(ctx: Ctx, stage: LandingStage): number {
@@ -236,16 +375,33 @@ export function landingAgent(ctx: Ctx, stage: LandingStage, dir: string, work: L
   };
 }
 
-type Incoming = { branch: string; message: string | undefined; reason: string };
+type Incoming = { branch: string; message: string | undefined; reason: string; card?: number };
 
-export async function mergeIn(ctx: Ctx, land: Landing, { branch, message, reason }: Incoming): Promise<number> {
+export async function mergeIn(ctx: Ctx, land: Landing, { branch, message, reason, card }: Incoming): Promise<number> {
   const { commit, conflicts } = await ctx.repo.mergeBranchIntoWork(land.dir, branch, message);
   if (commit === null || conflicts.length === 0) return 0;
   ctx.log(land.stage, null, `${branch} conflicts with ${land.into} in ${conflicts.join(', ')}, an agent resolves it`);
-  const cost = runCost(await land.agent(fillPrompt('merge-branches', { into: land.into, branch, reason, files: conflicts.map((file) => `- ${file}`).join('\n') })));
+  const cost = runCost(await conflictRun(ctx, land, { branch, reason, card }, conflicts));
   addConflictSpend(ctx, land.stage, cost);
   if ((await ctx.repo.mergeBranchIntoWork(land.dir, branch)).commit !== null) throw new Error(`The ${land.stage} agent left the merge of ${branch} into ${land.into} unfinished.`);
   return cost;
+}
+
+async function conflictRun(ctx: Ctx, land: Landing, { branch, reason, card }: Omit<Incoming, 'message'>, conflicts: string[]): Promise<string> {
+  const owner = card ?? (branch === land.into ? await soleOwner(ctx, land, conflicts) : null);
+  const log = releaseLog(ctx, `${land.stage}-${land.into.replaceAll('/', '-')}`);
+  const own = owner === null ? null : cardConflictRun(ctx, land.stage, { issue: owner, clone: land.dir, what: `${branch} into ${land.into}`, prompt: cardMergePrompt(owner, branch, land.into, reason, conflicts), log });
+  return own ?? land.agent(fillPrompt('merge-branches', { into: land.into, branch, reason, files: conflicts.map((file) => `- ${file}`).join('\n') }));
+}
+
+async function soleOwner(ctx: Ctx, land: Landing, conflicts: string[]): Promise<number | null> {
+  const work = readState(ctx.statePath).landings[land.stage];
+  const cards = (work?.cards ?? []).filter((issue) => work?.sources.some((source) => source.branch === BRANCH(issue)));
+  const owned = await Promise.all(cards.map(async (issue) => ({ issue, files: await ctx.repo.changedFiles(land.into, BRANCH(issue)) })));
+  const owners = owned.filter(({ files }) => conflicts.some((file) => files.includes(file)));
+  if (owners.length === 1 && conflicts.every((file) => owners[0]!.files.includes(file))) return owners[0]!.issue;
+  ctx.log(land.stage, null, `the conflicted files of the moved ${land.into} belong to ${owners.length === 0 ? 'no batch card' : `cards ${owners.map(({ issue }) => `#${issue}`).join(', ')} together`}, so the merge session resolves them`);
+  return null;
 }
 
 async function testedInWork(ctx: Ctx, land: Landing): Promise<boolean> {
@@ -299,11 +455,27 @@ async function pushed(ctx: Ctx, land: Landing): Promise<string | null> {
   }
 }
 
-async function settle(ctx: Ctx, base: string, cards: Card[], merges: IssueMerge[]): Promise<void> {
-  const where = base === BASE_BRANCH ? 'dev' : `the release branch ${base}`;
-  for (const [index, card] of cards.entries()) await settleCard(ctx, card, cards, merges[index]!, where);
+async function settlePorts(ctx: Ctx, cards: Card[]): Promise<void> {
+  const state = readState(ctx.statePath);
+  for (const card of cards) {
+    const port = portOf(state, card.issue);
+    if (port === undefined) throw new Error(`No port of #${card.issue} onto the release is recorded`);
+    await settleCard(ctx, card, cards, port, `dev and ported onto the release branch ${port.into}`);
+  }
+}
+
+async function settle(ctx: Ctx, base: string, cards: Card[], batch = cards): Promise<void> {
+  const where = base === BASE_BRANCH ? 'dev' : `the release branch ${base} and into dev`;
+  for (const card of cards) await settleCard(ctx, card, batch, mergeOf(readState(ctx.statePath), base, card.issue), where);
   if (base === BASE_BRANCH) await deployDev(ctx, releaseLog(ctx, 'merge-dev-build'));
   else updateState(ctx.statePath, (next) => (next.release ? { ...next, pendingShip: null, release: { ...next.release, postId: null, removed: next.release.removed.filter((n) => !cards.some((card) => card.issue === n)) } } : next));
+}
+
+function mergeOf(state: FactoryState, base: string, issue: number): IssueMerge {
+  const merges = base === BASE_BRANCH ? state.devMerges : state.release?.merges ?? [];
+  const merge = merges.filter((item) => item.issue === issue && item.into === base).at(-1);
+  if (merge === undefined) throw new Error(`No merge of #${issue} into ${base} is recorded`);
+  return merge;
 }
 
 async function settleCard(ctx: Ctx, card: Card, cards: Card[], merge: IssueMerge, where: string): Promise<void> {

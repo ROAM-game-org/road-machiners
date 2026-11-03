@@ -97,7 +97,8 @@ describe('feedback route', () => {
   });
 
   it('keeps the report of a comment under the issue it comments on', async () => {
-    const { url, home } = await start();
+    const { url, home, setDecision } = await start();
+    setDecision({ ...ACCEPT_BUG, kind: 'feedback' });
     await send(url, request({ build: 'rc' }));
     expect(savedFiles(home)).toEqual([join('40', 'report-1.json.gz')]);
   });
@@ -133,14 +134,39 @@ describe('feedback route', () => {
     expect(savedFiles(home)).toEqual([]);
   });
 
-  it('turns a report on the open release build into a classified comment on the tracking issue', async () => {
-    const { url, store, created, asked, setDecision } = await start();
+  it('files a bug reported on the candidate as its own issue for a task of the release, with no comment to route', async () => {
+    const { url, home, store, created, asked, setDecision } = await start();
     setDecision({ ...ACCEPT_BUG, route: 'patch' });
     expect(await (await send(url, request({ build: 'rc' }))).json()).toEqual({ status: 'sent' });
-    expect(created).toEqual([]);
     expect(asked).toEqual([{ source: 'comment', text: 'The truck sinks\ninto the road' }]);
-    expect(store.unclassifiedComments(100)).toEqual([]);
-    expect(store.unsentComments()).toMatchObject([{ issue: 40, source: 'game', author: 'Player', text: 'The truck sinks\ninto the road', kind: 'bug', route: 'patch' }]);
+    expect(created).toHaveLength(1);
+    expect(created[0]).toMatch(/^The truck sinks into the road \[bug,player-report\]/);
+    expect(created[0]).toContain('It came from the release candidate of #40, so it is a task of that release.');
+    expect(created[0]).toContain('- Build: rc');
+    expect(store.unsentComments()).toEqual([]);
+    expect(store.pendingRoutes()).toEqual([]);
+    expect(store.untaskedCandidateReports(40)).toEqual([201]);
+    expect(savedFiles(home)).toEqual([join('201', 'report-1.json.gz')]);
+  });
+
+  it('files a feature asked on the candidate, and a feedback that needs a change, as tasks of the release', async () => {
+    const { url, store, created, setDecision } = await start();
+    setDecision({ ...ACCEPT_BUG, kind: 'feature', relevance: 'parent' });
+    await send(url, request({ build: 'rc', text: 'Add refuel to the town screen' }));
+    setDecision({ ...ACCEPT_BUG, kind: 'feedback', route: 'redesign' });
+    await send(url, request({ build: 'rc', text: 'The garage view scrolls oddly' }));
+    expect(created.map((issue) => issue.split('\n')[0])).toEqual(['Add refuel to the town screen [feature-request,player-report]', 'The garage view scrolls oddly [feature-request,player-report]']);
+    expect(store.untaskedCandidateReports(40)).toEqual([201, 202]);
+    expect(store.unsentComments()).toEqual([]);
+  });
+
+  it('keeps the same text reported again on the candidate under the issue the first report opened', async () => {
+    const { url, home, store, created } = await start();
+    await send(url, request({ build: 'rc', text: 'The truck sinks into the road!' }));
+    await send(url, request({ build: 'rc', text: 'the truck  sinks into the road' }));
+    expect(created).toHaveLength(1);
+    expect(store.untaskedCandidateReports(40)).toEqual([201]);
+    expect(savedFiles(home)).toEqual([join('201', 'report-1.json.gz'), join('201', 'report-2.json.gz')]);
   });
 
   it('turns a report on a build whose card has an open approval post into a comment, and finds the issue on the server', async () => {
