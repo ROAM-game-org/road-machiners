@@ -17,6 +17,7 @@ import { outpostBuyChassis } from '../outposts';
 import { refreshVision } from '../vision';
 import { endTurn } from '../world';
 import { botOrders } from './bot';
+import { fittedPartIds, withRemounted } from './orders';
 import { fightMove } from './escort-brain';
 
 function atFirstOutpost(): World {
@@ -35,6 +36,24 @@ function hostileNear(w: World): Vehicle {
 function escortSpotOf(w: World): Vec {
   return followSpot(w, playerVehicle(w), haulerOf(w), 0);
 }
+
+const swapped = (w: World, id: string): World => withRemounted(outpostBuyChassis(w, id), fittedPartIds(playerVehicle(w)));
+
+describe('remounting after a chassis swap', () => {
+  it('puts the stored guns and armor back on the new truck', () => {
+    const yard = atFirstOutpost();
+    yard.player.money = 2_000_000;
+    const fitted = fittedPartIds(playerVehicle(yard));
+    const bare = outpostBuyChassis(yard, 'niva');
+    expect(bare.player.storage.length).toBeGreaterThan(0);
+
+    const back = withRemounted(bare, fitted);
+
+    const mounted = new Set(fittedPartIds(playerVehicle(back)));
+    expect(back.player.storage.filter((p) => fitted.includes(p.id) && mounted.has(p.id))).toEqual([]);
+    expect(back.player.storage.length).toBeLessThan(bare.player.storage.length);
+  });
+});
 
 describe('the Chaos Highway escort bot', () => {
   it('repairs both trucks, restocks patch parts, drives on and keeps beside the hauler', () => {
@@ -248,7 +267,7 @@ describe('the Chaos Highway sprinter bot', () => {
   it('refits its own truck only so far that it stays faster than the hauler, however much money it has', () => {
     const yard = atFirstOutpost();
     yard.player.money = 2_000_000;
-    const w = outpostBuyChassis(yard, 'niva');
+    const w = swapped(yard, 'niva');
     addGoods(w, playerVehicle(w), 'scrap', 15);
     const post = reachedOutpostAt(w)!;
     post.trucksSold.push(...outpostTrucks(w, post));
@@ -272,10 +291,10 @@ describe('the Chaos Highway sprinter bot', () => {
   it('never trades its truck for a slower one, so wear does not drop it behind the hauler', () => {
     const start = atFirstOutpost();
     start.player.money = 2_000_000;
-    const w = outpostBuyChassis(start, 'convertible');
+    const w = swapped(start, 'convertible');
     const post = reachedOutpostAt(w)!;
     const speed = vehicleStats(w, playerVehicle(w)).maxSpeed;
-    const speedIn = (id: string) => { const after = outpostBuyChassis(w, id); return vehicleStats(after, playerVehicle(after)).maxSpeed; };
+    const speedIn = (id: string) => { const after = swapped(w, id); return vehicleStats(after, playerVehicle(after)).maxSpeed; };
     post.trucksSold.push(...outpostTrucks(w, post).filter((id) => speedIn(id) >= speed));
     expect(outpostTrucks(w, post).some((id) => speedIn(id) > CHAOS_HIGHWAY.hauler.hurry && chassisDef(id).value > chassisDef(playerVehicle(w).chassisId).value)).toBe(true);
 
@@ -288,7 +307,7 @@ describe('the Chaos Highway sprinter bot', () => {
     const w = atFirstOutpost();
     w.player.money = 2_000_000;
     const post = reachedOutpostAt(w)!;
-    const speedIn = (id: string) => { const after = outpostBuyChassis(w, id); return vehicleStats(after, playerVehicle(after)).maxSpeed; };
+    const speedIn = (id: string) => { const after = swapped(w, id); return vehicleStats(after, playerVehicle(after)).maxSpeed; };
     const byValue = (ids: string[]) => [...ids].sort((a, b) => chassisDef(b).value - chassisDef(a).value);
     const fast = byValue(outpostTrucks(w, post)).filter((id) => speedIn(id) > CHAOS_HIGHWAY.hauler.hurry);
     const slow = byValue(outpostTrucks(w, post)).filter((id) => speedIn(id) <= CHAOS_HIGHWAY.hauler.hurry);

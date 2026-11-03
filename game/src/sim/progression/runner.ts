@@ -29,7 +29,7 @@ import { escortFoe, escortMove, gunTarget, hostilesSeen, unlessStuck, type Stall
 import { aimFor } from './aim';
 import { armorHauler } from './escort-gear';
 import { bestTruck } from './escort-tactics';
-import { mountBought, Orders, relayout, type BotTurn } from './orders';
+import { fittedPartIds, mountBought, Orders, relayout, withRemounted, type BotTurn } from './orders';
 
 export type RoadStyle = 'escort' | 'sprinter';
 
@@ -298,18 +298,25 @@ function buyTruck(o: Orders, post: Outpost, suits: (chassisId: string) => boolea
   const current = chassisDef(o.me.chassisId).value;
   const offers = outpostTrucks(o.world, post).filter((id) => chassisDef(id).value > current && chassisSwapRefusal(o.world, id) === null && keepsKit(o, id) && suits(id)).map((id) => ({ id, value: chassisDef(id).value, price: chassisPrice(o.world, id) }));
   const best = bestTruck(offers, current, budget);
-  if (best) o.run((w) => outpostBuyChassis(w, best), 'gear');
+  if (best) {
+    const fitted = fittedPartIds(o.me);
+    o.run((w) => withRemounted(outpostBuyChassis(w, best), fitted), 'gear');
+  }
+}
+
+function boughtTruck(world: World, chassisId: string, before: Vehicle): World {
+  return withRemounted(outpostBuyChassis(world, chassisId), fittedPartIds(before));
 }
 
 function keepsKit(o: Orders, chassisId: string): boolean {
-  const after = outpostBuyChassis(o.world, chassisId);
+  const after = boughtTruck(o.world, chassisId, o.me);
   const me = playerVehicle(after);
   const mountedCount = (v: Vehicle) => mountedParts(v).filter((p) => partDef(p.defId).kind !== 'core').length;
   return !isStranded(after, me) && mountedCount(me) === mountedCount(o.me);
 }
 
 function keepsItsPace(o: Orders, chassisId: string): boolean {
-  const after = outpostBuyChassis(o.world, chassisId);
+  const after = boughtTruck(o.world, chassisId, o.me);
   const speedAfter = vehicleStats(after, playerVehicle(after)).maxSpeed;
   return outpacesHauler(after, playerVehicle(after)) && speedAfter >= vehicleStats(o.world, o.me).maxSpeed;
 }

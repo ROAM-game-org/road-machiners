@@ -22,7 +22,7 @@ import { addStockPart, goodPrice, goodRate, goodStock, lotPrice, moveStock, onOr
 import { affordableUnits, chargeM, fairM, payoutM, requireWholeM } from "./money";
 import { canUseSite, requireTown, townAt } from "./sites";
 import { corePart, coreParts, freeCells, goodsCount, mountedParts } from "./grid";
-import { addGoods, cargoRoom, mountPart, removeGoods, spareParts, stowParcel, stowPart, type ParcelItem } from "./inventory";
+import { addGoods, cargoRoom, keepInStorage, mountPart, removeGoods, spareParts, stowParcel, stowPart, type ParcelItem } from "./inventory";
 import type { NpcState, PartInstance, Refusal, ShopMoneyKind, Vehicle, World } from "./types";
 import { cloneWorld, playerCommand, Refused } from "./world";
 import { tankLeaks } from "./supplies";
@@ -374,7 +374,7 @@ function fitEngineOnCredit(world: World, me: Vehicle, shopId: string, engine: Pa
   if (partDef(engine.defId).kind !== 'engine') throw new Error(`${engine.defId} is not an engine`);
   const price = partTradePrice(world, me, engine, 'buy');
   const part = takeStockPart(shopState(world, shopId), engine.id);
-  if (!mountPart(world, me, part)) receiveBoughtPart(world, part, me);
+  if (!mountPart(world, me, part)) receiveBoughtPart(world, part);
   shopMoney(world, me, -price, 'partCredit');
   world.events.push({ t: 'engineCredit', part: part.defId });
 }
@@ -581,8 +581,8 @@ export function buyStockPart(world: World, partId: string): World {
   });
 }
 
-export function receiveBoughtPart(world: World, part: PartInstance, truck: Vehicle = playerVehicle(world)): void {
-  if (!stowPart(world, truck, part)) world.player.storage.push(part);
+export function receiveBoughtPart(world: World, part: PartInstance): void {
+  keepInStorage(world, part);
 }
 
 export function sellPart(world: World, partId: string): World {
@@ -731,9 +731,12 @@ function movableParts(v: Vehicle): PartInstance[] {
   return parts.sort((a, b) => isRack(b) - isRack(a));
 }
 
+const SWAP_KEEPS: ReadonlySet<string> = new Set(['engine', 'cargo', 'store']);
+
 function placeSwappedPart(world: World, v: Vehicle, part: PartInstance, wasMounted: boolean): void {
+  if (!SWAP_KEEPS.has(partDef(part.defId).kind)) return keepInStorage(world, part);
   const placed = (wasMounted && mountPart(world, v, part)) || stowPart(world, v, part);
-  if (!placed) world.player.storage.push(part);
+  if (!placed) keepInStorage(world, part);
 }
 
 export function chassisPrice(world: World, chassisId: string): number {
