@@ -3,7 +3,7 @@ import { PHYSICS } from '../data/physics';
 import { REGION, type TerritoryDef } from '../data/region';
 import { EMPLACEMENT, OPENING, PERIMETER, type BuildingGroup, type ClutterRule, type Emplacement, type FarmRoad, type FarmRules, type GroveBlock, type GroveRule, type Pad, type Run, type TerritoryRules } from '../data/territory';
 import { TERRAIN } from '../data/terrain';
-import { boxDistance, propBoxes, type PosedBox } from '../sim/mapgen';
+import { boxDistance, anyLookBoxes, type PosedBox } from '../sim/mapgen';
 import type { GradedPad } from '../sim/road-grade';
 import { chance, randInt, randRange, type Rng } from '../sim/rng';
 import { siteGap } from '../sim/sites';
@@ -417,7 +417,7 @@ export function cornerRelief(d: MapDraft, p: BakedProp): number {
   const seat = groundAt(ground, p.pos.x, p.pos.y);
   const look = p.kind;
   if (look === 'rock') throw new Error('A farm never places a rock');
-  const boxes = propBoxes({ id: `${look}-farm`, pos: p.pos, r: p.r, kind: 'landmark', look, yaw: p.yaw }).filter((b) => b.z0 < PHYSICS.truckClearance);
+  const boxes = anyLookBoxes({ id: `${look}-farm`, pos: p.pos, r: p.r, kind: 'landmark', look, yaw: p.yaw }).filter((b) => b.z0 < PHYSICS.truckClearance);
   let worst = 0;
   for (const b of boxes) {
     for (const [i, j] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
