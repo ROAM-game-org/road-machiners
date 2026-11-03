@@ -7,8 +7,9 @@ import { addToBundle, bundleCandidates, duplicateLeads } from './bundle';
 import { BASE_BRANCH, agentHome, askAuthor, fillPrompt, prepareOutputs, readOutput, runAgent, workDir, writeIssueInput } from './common';
 import { forgetGroomed, groom, readBundle, readReleaseFix, type Complexity, type Pitch, type Routing } from './groom';
 import { featureLine, forgetReleaseTask, recordReleaseTask, releaseFeatures } from './release-common';
+import { readSystem, systemLabel, type GameSystem } from '../systems';
 
-type Ready = { verdict: 'ready'; reason: string; hotfix: boolean; releaseFix: boolean; routing: Routing; bundle: number[] };
+type Ready = { verdict: 'ready'; reason: string; hotfix: boolean; releaseFix: boolean; routing: Routing; bundle: number[]; system: GameSystem };
 type Vote = Omit<Ready, 'verdict'> & { verdict: 'vote'; pitch: Pitch };
 type Refusal = { verdict: 'wont-do'; reason: string };
 type Unclear = { verdict: 'unclear'; reason: string; questions: string[] };
@@ -72,7 +73,7 @@ async function ready(ctx: Ctx, issue: number, result: Ready, release: ReleaseSta
 }
 
 async function vote(ctx: Ctx, issue: number, result: Vote, release: ReleaseState | null): Promise<void> {
-  const note = await routeModels(ctx, issue, result.routing);
+  const note = await routeModels(ctx, issue, result.routing, result.system);
   const leaves = isTaskOf(release, issue) ? `\n\nA vote is no fix of release ${release.day}, so it is no longer a task of that release.` : '';
   if (leaves !== '') forgetReleaseTask(ctx, issue);
   if (result.bundle.length > 0) await addToBundle(ctx, issue, result.bundle, result.reason);
@@ -88,7 +89,7 @@ async function vote(ctx: Ctx, issue: number, result: Vote, release: ReleaseState
 }
 
 async function pass(ctx: Ctx, issue: number, reason: string, result: Ready, release: ReleaseState | null): Promise<void> {
-  const note = await routeModels(ctx, issue, result.routing);
+  const note = await routeModels(ctx, issue, result.routing, result.system);
   const flow = await announce(ctx, issue, reason, note, result, release);
   if (flow !== undefined) rmSync(workDir(ctx, issue), { recursive: true, force: true });
   await moveCard(ctx, issue, 'Design', 'accepted', flow);
@@ -134,7 +135,8 @@ async function writeRelease(ctx: Ctx, home: string, release: ReleaseState | null
   writeFileSync(`${home}/${OUT_DIR}/release.md`, `${text}${task}\n`);
 }
 
-async function routeModels(ctx: Ctx, issue: number, routing: Routing): Promise<string> {
+async function routeModels(ctx: Ctx, issue: number, routing: Routing, system: GameSystem): Promise<string> {
+  await ctx.github.addLabel(issue, systemLabel(system));
   const note = await routingNote(ctx, issue, routing);
   updateState(ctx.statePath, (state) => (state.routed.includes(issue) ? state : { ...state, routed: [...state.routed, issue] }));
   return note;
@@ -179,7 +181,7 @@ async function writeInWork(ctx: Ctx, home: string, leads: number[]): Promise<voi
   writeFileSync(`${home}/${OUT_DIR}/in-work.md`, `${parts.join('\n\n')}\n`);
 }
 
-type Work = Pick<Ready, 'hotfix' | 'releaseFix' | 'routing' | 'bundle'>;
+type Work = Pick<Ready, 'hotfix' | 'releaseFix' | 'routing' | 'bundle' | 'system'>;
 
 function parseFilter(text: string | null, { candidates, leads }: Offered, release: ReleaseState | null, bug: boolean): Filtered {
   const fields = readFields(text);
@@ -206,7 +208,7 @@ function readFields(text: string | null): Record<string, unknown> {
 }
 
 function readWork(fields: Record<string, unknown>, candidates: number[], release: ReleaseState | null): Work {
-  return { hotfix: readHotfix(fields.hotfix), releaseFix: readReleaseFix(fields.releaseFix, release, 'triage.json'), routing: readRouting(fields.complexity, fields.complexityReason), bundle: readBundle(fields.bundle, candidates, 'triage.json') };
+  return { hotfix: readHotfix(fields.hotfix), releaseFix: readReleaseFix(fields.releaseFix, release, 'triage.json'), routing: readRouting(fields.complexity, fields.complexityReason), bundle: readBundle(fields.bundle, candidates, 'triage.json'), system: readSystem(fields.system, 'triage.json') };
 }
 
 function readKind(value: unknown): 'ready' | 'wont-do' {

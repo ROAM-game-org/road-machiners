@@ -107,6 +107,14 @@ A request that only shares a word, like "per location", is not bundled.
 When in doubt, leave it out.
 A bundled request leaves the board and closes when this card ships, so the version must serve its points as well.
 
+System.
+Pick the one game system the version is about, so Design later sees all requests on that system together.
+The systems are the mechanics pages in `game/docs/wiki/mechanics/`: `chaos-highway`, `character`, `content`, `crime`, `defeat`, `detection`, `economy`, `factions`, `npcs`, `social`, `truck`, `turns`, `world` and `world-settings`.
+Four more cover what no mechanics page holds: `ui` for screens, menus and the HUD, `art` for models, scenes and lighting, `sound` for sound and music, and `writing` for dialogue, quests, tips and other player text.
+When it touches several, pick the system whose rules the version would change.
+Pick `none` when the request blocks play, like a stuck truck, so it is built alone and fast.
+Pick `none` also when no system fits.
+
 Release fix.
 `.factory/release.md` says whether a release takes fixes now, and lists its features.
 A release fix branches from the release and goes out with it.
@@ -126,7 +134,7 @@ Read the code it touches to answer them.
 Aim for 20% Opus and 80% Sonnet in measured factory-agent tokens. This is a rule of thumb, not a per-issue cap, so never change a rating to chase it.
 
 Write `.factory/groom.json` with this shape.
-`{"verdict": "ready" | "vote" | "wont-do" | "unclear", "questions": ["..."], "points": ["..."], "changed": ["..."], "need": "...", "existing": "...", "version": "...", "fit": "...", "reason": "...", "complexity": "trivial" | "intermediate" | "hard", "complexityReason": "...", "bundle": [12, 15], "releaseFix": true | false, "pitch": {"title": "...", "summary": "...", "how": "...", "when": "...", "changed": ["..."], "pros": ["..."], "cons": ["..."]}}`
+`{"verdict": "ready" | "vote" | "wont-do" | "unclear", "questions": ["..."], "points": ["..."], "changed": ["..."], "need": "...", "existing": "...", "version": "...", "fit": "...", "reason": "...", "complexity": "trivial" | "intermediate" | "hard", "complexityReason": "...", "bundle": [12, 15], "releaseFix": true | false, "system": "social", "pitch": {"title": "...", "summary": "...", "how": "...", "when": "...", "changed": ["..."], "pros": ["..."], "cons": ["..."]}}`
 
 Every field but `pitch` is in English, plain and short.
 
@@ -138,7 +146,7 @@ Every field but `pitch` is in English, plain and short.
 - `fit` answers each of the five tests in one sentence.
 - `reason` is one or two sentences on why this version and this verdict.
 - `complexityReason` is one short sentence that names the files or systems you found. For `hard` it names the save-format change or the bug with no known cause.
-- `complexity`, `complexityReason`, `bundle` and `releaseFix` are required for `ready` and `vote`.
+- `complexity`, `complexityReason`, `bundle`, `releaseFix` and `system` are required for `ready` and `vote`.
 - `bundle` lists issue numbers from `.factory/related.md` only, and is empty when nothing fits.
 - `releaseFix` is false for `vote`.
 

@@ -52,6 +52,14 @@ Leave out a request that is only loosely related.
 When in doubt, leave it out.
 A bundled request leaves the board and closes when this card ships.
 
+System.
+Pick the one game system the request is about, so Design later sees all requests on that system together.
+The systems are the mechanics pages in `game/docs/wiki/mechanics/`: `chaos-highway`, `character`, `content`, `crime`, `defeat`, `detection`, `economy`, `factions`, `npcs`, `social`, `truck`, `turns`, `world` and `world-settings`.
+Four more cover what no mechanics page holds: `ui` for screens, menus and the HUD, `art` for models, scenes and lighting, `sound` for sound and music, and `writing` for dialogue, quests, tips and other player text.
+When it touches several, pick the system whose rules the fix would change.
+Pick `none` when the bug blocks play, like a crash, a lost save or a stuck truck, so it is fixed alone and fast.
+Pick `none` also when no system fits.
+
 Hotfix.
 A hotfix skips `dev` and the next release.
 Its approval ships it to players at once.
@@ -92,11 +100,11 @@ Read the code the issue touches to answer them.
 A committee member reads it to audit the choice.
 
 Write `.factory/triage.json` with this shape.
-`{"verdict": "ready" | "wont-do" | "duplicate", "reason": "...", "duplicateOf": 21, "hotfix": true | false, "releaseFix": true | false, "complexity": "trivial" | "intermediate" | "hard", "complexityReason": "...", "bundle": [12, 15]}`
+`{"verdict": "ready" | "wont-do" | "duplicate", "reason": "...", "duplicateOf": 21, "hotfix": true | false, "releaseFix": true | false, "complexity": "trivial" | "intermediate" | "hard", "complexityReason": "...", "bundle": [12, 15], "system": "social"}`
 The reason is one or two plain sentences.
 For a hotfix, the reason says what breaks for players.
 For a release fix, the reason names the release feature it fixes.
 When you bundle, the reason also says what the bundled requests share.
 The field `duplicateOf` is required for `duplicate` only. A duplicate needs no other field.
-The fields `hotfix`, `releaseFix`, `complexity`, `complexityReason` and `bundle` are required for a `ready` bug only.
+The fields `hotfix`, `releaseFix`, `complexity`, `complexityReason`, `bundle` and `system` are required for a `ready` bug only.
 The bundle lists issue numbers from `.factory/related.md` only, and is empty when nothing fits.
