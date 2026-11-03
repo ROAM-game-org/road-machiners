@@ -134,22 +134,24 @@ describe('fortress layer', () => {
     const field = typeCode('field');
     const scree = typeCode('scree');
     const counts = { field: 0, scree: 0 };
+    const wrong: string[] = [];
     for (let y = 0; y < d.size; y++) {
       for (let x = 0; x < d.size; x++) {
         const corners = [d.heights[y * n + x], d.heights[y * n + x + 1], d.heights[(y + 1) * n + x], d.heights[(y + 1) * n + x + 1]];
         const type = d.types[y * d.size + x];
         if (corners.some((h) => h > RIM)) continue;
         if (corners.every((h) => h === RIM)) {
-          expect(type, `tile ${x},${y}`).toBe(SAND);
+          if (type !== SAND) wrong.push(`tile ${x},${y} is not sand`);
         } else if (corners.every((h) => h === corners[0])) {
-          expect(type, `tile ${x},${y}`).toBe(field);
+          if (type !== field) wrong.push(`tile ${x},${y} is not field`);
           counts.field++;
         } else {
-          expect(type, `tile ${x},${y}`).toBe(scree);
+          if (type !== scree) wrong.push(`tile ${x},${y} is not scree`);
           counts.scree++;
         }
       }
     }
+    expect(wrong).toEqual([]);
     expect(counts.field).toBeGreaterThan(counts.scree);
     expect(counts.scree).toBeGreaterThan(0);
   });
