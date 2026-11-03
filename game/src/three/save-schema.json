@@ -64,7 +64,7 @@
 "UtilityOrder":{"union":[{"object":{"kind":{"lit":"disarm"}}},{"object":{"kind":{"lit":"point"},"pos":{"ref":"Vec"}}},{"object":{"kind":{"lit":"self"}}}],"tag":"kind"},
 "Vec":{"object":{"x":"number","y":"number"}},
 "VigilCalls":{"object":{"count":"number","turn":"number"}},
-"WaveGroup":{"object":{"at":"number","counted":{"array":"string"},"elite":"boolean","from":"string","id":"string","level":"string","money":"number","retryUntil":{"union":["null","number"]},"spawned":"boolean","stretch":"number","templates":{"array":"string"},"vehicles":{"array":"string"},"wrecked":"number"}},
+"WaveGroup":{"object":{"at":"number","counted":{"array":"string"},"elites":"number","from":"string","id":"string","level":"string","money":"number","retryUntil":{"union":["null","number"]},"spawned":"boolean","stretch":"number","templates":{"array":"string"},"vehicles":{"array":"string"},"wrecked":"number"}},
 "WeaponOrder":{"object":{"aim":"string","targetId":"string"}},
 "WeatherEvent":{"union":[{"object":{"born":"number","id":"string","kind":{"lit":"storm"},"pos":{"ref":"Vec"},"radius":"number","turnsLeft":"number","vel":{"ref":"Vec"}}},{"object":{"id":"string","kind":{"union":[{"lit":"heatwave"},{"lit":"overcast"}]},"turnsLeft":"number"}}],"tag":"kind"},
 "WorldSettings":{"object":{"damage":"number","enemyGearGrowth":"number","fuelUse":"number","supplyUse":"number"}},

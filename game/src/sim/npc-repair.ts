@@ -11,7 +11,7 @@ import { repairPlan } from './repair';
 import { getResources } from './resources';
 import { vehicleStats } from './stats';
 import { inShade, shadeCasters, shadeMatters, sunAt } from './sun';
-import type { NpcActivity, Vehicle, World } from './types';
+import type { NpcActivity, PartInstance, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 
 export function isStrandedForGood(vehicle: Vehicle): boolean {
@@ -19,9 +19,13 @@ export function isStrandedForGood(vehicle: Vehicle): boolean {
   return !engine || isJunk(engine);
 }
 
+export function isPartWorn(part: PartInstance): boolean {
+  return part.hp / maxHp(part) <= NPC_BEHAVIOR.fleeCondition;
+}
+
 export function isDamaged(vehicle: Vehicle): boolean {
   const drivingPartWorn = [...mountedParts(vehicle, 'core'), ...mountedParts(vehicle, 'engine')]
-    .some((part) => !isJunk(part) && part.hp / maxHp(part) <= NPC_BEHAVIOR.fleeCondition);
+    .some((part) => !isJunk(part) && isPartWorn(part));
   return isStrandedForGood(vehicle) || drivingPartWorn || bodyCondition(vehicle) <= NPC_BEHAVIOR.fleeCondition;
 }
 

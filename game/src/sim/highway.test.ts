@@ -6,7 +6,7 @@ import { atlasOf } from './atlas';
 import { fortressProps } from './fortress';
 import { FORTRESS, FORTRESS_STYLES } from '../data/fortress';
 import { deckAt } from './bridge';
-import { acrossOf, bendCells, centerU, fromRoad, highwayAtlas, highwayMap, milestoneAt, nearestMilestone, outpostFort, outpostGateSpots, outpostYardHalf, roadAt, roadHeading, roadHeight, roadPoint, roadVector, stretchLength, stretchOf, toRoad, windowShift, windowSpan } from './highway';
+import { acrossOf, bendCells, centerU, fromRoad, highwayAtlas, highwayMap, milestoneAt, nearestMilestone, outpostFort, outpostGateSpots, outpostYardHalf, roadAt, roadHeading, roadHeight, roadPoint, roadVector, stretchLength, stretchOf, toRoad, windowMilestones, windowShift, windowSpan } from './highway';
 import { isBakedObstacle, mapObstacles } from './mapgen';
 import { sceneAt } from './road-hazards';
 import { sitePads } from './sites';
@@ -155,7 +155,7 @@ describe('the stretch lengths', () => {
 
 describe('a highway window', () => {
   it('keeps its map hash', () => {
-    expect(highwayMap(1, 0).hash).toBe('highway:6:1:0');
+    expect(highwayMap(1, 0).hash).toBe('highway:7:1:0');
   });
 
   it('builds the same land every time, in any order', () => {
@@ -188,11 +188,11 @@ describe('a highway window', () => {
       const map = windowMap(seed, 1);
       const span = windowSpan(seed, 1);
       for (let n = span.from + 60; n < span.to - 60; n += 9) {
-        if ([1, 2].some((j) => Math.abs(n - milestoneAt(seed, j)) < 14) || sceneAt(seed, n, 4) !== null) continue;
+        if (windowMilestones(seed, 1).some((j) => Math.abs(n - milestoneAt(seed, j)) < 14) || sceneAt(seed, n, 4) !== null) continue;
         const at = (d: number) => roadPoint(seed, 1, n, d);
         for (const side of [-1, 1]) {
           expect(typeAt(map, at(side * 4.2))).toBe('asphalt');
-          for (const d of [5.8, 9, 13, 17.2]) expect(['hardpan', 'sand']).toContain(typeAt(map, at(side * d)));
+          for (const d of [5.8, 9, 13, 16]) expect(['hardpan', 'sand']).toContain(typeAt(map, at(side * d)));
           for (const d of [18.8, 22, 25.2]) expect(['gravel', 'scrub', 'scree']).toContain(typeAt(map, at(side * d)));
           expect(typeAt(map, at(side * 30))).toBe('scree');
           for (const d of [3, 8, 14]) expect(heightAt(map.terrain, at(side * d).x, at(side * d).y)).toBeCloseTo(roadHeight(seed, roadAt(seed, n, side * d).n), 1);

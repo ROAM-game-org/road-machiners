@@ -926,6 +926,21 @@ export function withXpWorkWindow(world: SavedJson): SavedJson {
   return { ...world, player: { ...player, xpWindow } };
 }
 
+const ELITE_MONEY_TRUCKS = 2;
+
+function eliteTrucks(group: SavedJson): SavedJson {
+  const { elite, ...rest } = group;
+  const templates = group.templates as string[];
+  if (!elite) return { ...rest, elites: 0 };
+  return { ...rest, elites: templates.length, money: (group.money as number) / ELITE_MONEY_TRUCKS };
+}
+
+export function withEliteTrucks(world: SavedJson): SavedJson {
+  const run = world.chaosHighway as SavedJson | null;
+  if (run === null) return world;
+  return { ...world, chaosHighway: { ...run, groups: (run.groups as SavedJson[]).map(eliteTrucks) } };
+}
+
 export function withGoodsStore(world: SavedJson): SavedJson {
   return { ...world, player: { ...(world.player as SavedJson), storedGoods: {} } };
 }

@@ -13,7 +13,7 @@ The diagrams are Graphviz files in [diagrams/](diagrams/). Agents read the `.dot
 
 ## Overview
 
-The public files GitHub issues and sends reports from the game. The game's release, dev and candidate builds also report their errors, and each new error becomes a bug issue. Triage sends bugs and justified improvements to work at once. A real feature goes to the committee chat first as a proposed vote; only a member can permit a player vote. Players vote on permitted proposals with reactions. Agents design, build and test the work. The committee plays each result in Telegram and approves it. Approved work collects on `dev` and ships as a release to `main` and itch.io. Hermes handles every failure.
+The public files GitHub issues and sends reports from the game. The game's release, dev and candidate builds also report their errors, and each new error becomes a bug issue. Triage sends bugs and justified improvements to work at once. A real feature goes to the committee chat first as a proposed vote; only a member can permit a player vote. Players vote on permitted proposals with reactions. Agents design, build and test the work. The committee reviews each result in Telegram and approves it. The committee is one person who plays only some builds, so agent checks carry most of the QA. Approved work collects on `dev` and ships as a release to `main` and itch.io. Hermes handles every failure.
 
 ![Overview](diagrams/overview.svg)
 

@@ -688,7 +688,7 @@ export type WaveGroup = {
   at: number;
   templates: string[];
   money: number;
-  elite: boolean;
+  elites: number;
   level: GearLevel;
   spawned: boolean;
   vehicles: string[];

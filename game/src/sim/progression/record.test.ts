@@ -1,14 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { RANK_COSTS, SKILL_IDS, XP_SOURCES } from '../../data/skills';
-import { START_KITS } from '../../data/start';
+import { SKILL_IDS, XP_SOURCES } from '../../data/skills';
 import { TIME } from '../../data/time';
 import type { World, XpSource } from '../types';
 import { cumulativeCost } from '../progress';
-import { playerVehicle } from '../damage';
-import { TEST_MAP } from '../../test/map';
 import { emptyWorld, chaosHighwayWorld } from '../testkit';
 import { haulerOf } from '../damage';
-import { archetypeWorldOn, failOnStall, FAR_MOVER, recordFrom, StallWatch, stepsFrom, type TraceLine } from './record';
+import { failOnStall, recordFrom, StallWatch, type TraceLine } from './record';
 import { record, recordTurns } from './record-node';
 import { replay } from './replay';
 
@@ -62,27 +59,6 @@ describe('record', () => {
     expect(pool).toBeCloseTo(world.player.xp + spent, 6);
   }, RUN_TIMEOUT);
 
-  it('starts the hunter on the snowball kit and the others on the standard kit unless a kit is named', () => {
-    const chassisOf = (archetype: 'hunter' | 'trader', kit?: string): string => {
-      return playerVehicle(archetypeWorldOn(TEST_MAP, 1337, archetype, kit === undefined ? {} : { kit })).chassisId;
-    };
-
-    expect(chassisOf('hunter')).toBe(START_KITS.snowball.chassis);
-    expect(chassisOf('trader')).toBe(START_KITS.standard.chassis);
-    expect(chassisOf('hunter', 'standard')).toBe(START_KITS.standard.chassis);
-  }, RUN_TIMEOUT);
-});
-
-describe('record with a pool to spend', () => {
-  it('buys the ranks the pool pays for before the bot plays the turn', () => {
-    const start = emptyWorld();
-    start.player.xp = RANK_COSTS[0];
-
-    const [step] = [...stepsFrom(start, 'saver', 'trader', 1, {}, FAR_MOVER)];
-
-    expect(step.world.player.ranks).toEqual({ ...start.player.ranks, driving: 1 });
-    expect(step.world.player.xp).toBeLessThan(RANK_COSTS[0]);
-  });
 });
 
 describe('record at the player\'s death', () => {

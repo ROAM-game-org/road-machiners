@@ -815,7 +815,7 @@ function nextInstalled(looter: Vehicle, target: Vehicle): { item: GridItem; spot
   return null;
 }
 
-function spareSpot(looter: Vehicle, item: GridItem): Spot | null {
+export function spareSpot(looter: Vehicle, item: GridItem): Spot | null {
   if (itemMass(item) > cargoMassRoom(looter)) return null;
   const avoid = item.kind === 'part' ? mountCellsOf(item.part.defId) : null;
   return findSpot(gridOf(looter), looter.items, { ...item, id: 'probe' }, null, avoid);
