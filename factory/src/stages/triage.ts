@@ -57,7 +57,7 @@ async function decide(ctx: Ctx, issue: number, home: string, offered: Offered, r
 
 async function joinLead(ctx: Ctx, issue: number, { reason, duplicateOf }: Duplicate): Promise<void> {
   if (!duplicateLeads(await ctx.github.cards(), issue).includes(duplicateOf)) throw new Error(`Triage found #${issue} a duplicate of #${duplicateOf}, but #${duplicateOf} left the work columns while triage ran`);
-  await addToBundle(ctx, duplicateOf, [issue], reason);
+  await addToBundle(ctx, duplicateOf, [issue], reason, 'Triage');
 }
 
 async function groomed(ctx: Ctx, issue: number, home: string, candidates: number[], release: ReleaseState | null): Promise<Verdict> {
@@ -67,7 +67,7 @@ async function groomed(ctx: Ctx, issue: number, home: string, candidates: number
 }
 
 async function ready(ctx: Ctx, issue: number, result: Ready, release: ReleaseState | null): Promise<void> {
-  if (result.bundle.length > 0) await addToBundle(ctx, issue, result.bundle, result.reason);
+  if (result.bundle.length > 0) await addToBundle(ctx, issue, result.bundle, result.reason, 'Triage');
   const carries = result.bundle.length > 0 ? `\n\nThis card also carries ${result.bundle.map((n) => `#${n}`).join(', ')}.` : '';
   return pass(ctx, issue, `${result.reason}${carries}`, result, release);
 }
@@ -76,7 +76,7 @@ async function vote(ctx: Ctx, issue: number, result: Vote, release: ReleaseState
   const note = await routeModels(ctx, issue, result.routing, result.system);
   const leaves = isTaskOf(release, issue) ? `\n\nA vote is no fix of release ${release.day}, so it is no longer a task of that release.` : '';
   if (leaves !== '') forgetReleaseTask(ctx, issue);
-  if (result.bundle.length > 0) await addToBundle(ctx, issue, result.bundle, result.reason);
+  if (result.bundle.length > 0) await addToBundle(ctx, issue, result.bundle, result.reason, 'Triage');
   const carries = result.bundle.length > 0 ? `\n\nThis card also carries ${result.bundle.map((n) => `#${n}`).join(', ')}.` : '';
   await ctx.github.addLabel(issue, VOTING_LABEL);
   const store = openStore(ctx.cfg.home);
