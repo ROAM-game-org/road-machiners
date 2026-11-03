@@ -7,6 +7,7 @@ import type { Band } from "../data/npc-behavior";
 import type { PropKind, Terrain } from "./terrain";
 import type { RouteStyle } from './off-road';
 import type { Vec } from "./vec";
+import type { GridSquare } from "./map-grid";
 import type { LineId, TopicId } from "../data/dialogue";
 import type { GroupId } from "../data/personalities";
 import type { PersonalityId } from "../data/personalities";
@@ -479,6 +480,7 @@ export type CallVar =
   | { kind: "prices"; town: string; goods: { good: string; buy: number; sell: number }[] }
   | { kind: "tip"; tip: { shop: string; good: string; dear: boolean } | null }
   | { kind: "sighting"; driver: string; seen: { bearing: number; tiles: number; turns: number; heading: number } | null }
+  | { kind: "raiders"; seen: { square: GridSquare; turns: number; heading: number } | null; count: number }
   | { kind: "bearing"; rad: number }
   | { kind: "distance"; tiles: number }
   | { kind: "square"; column: number; row: number }

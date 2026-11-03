@@ -18,7 +18,7 @@ export const PERSONALITIES: Record<PersonalityId, Personality> = {
   tightLipped: { gates: { tale: 'closed', marketNews: 'help', sunwardTalk: 'help', rumor: 'price', tips: 'closed', claimWreck: 'price' } },
   gossip: { gates: {} },
   braggart: { gates: { marketNews: 'closed' } },
-  suspicious: { gates: { tale: 'closed', directions: 'price', lastSeen: 'closed', marketNews: 'closed', sunwardTalk: 'closed', rumor: 'help', tips: 'closed', claimWreck: 'help' } },
+  suspicious: { gates: { tale: 'closed', directions: 'price', lastSeen: 'closed', roadWatch: 'closed', marketNews: 'closed', sunwardTalk: 'closed', rumor: 'help', tips: 'closed', claimWreck: 'help' } },
   kind: { gates: {} },
   grim: { gates: { tale: 'closed', marketNews: 'price', sunwardTalk: 'price', rumor: 'help', tips: 'closed', claimWreck: 'closed' } },
   pious: { gates: { marketNews: 'closed', tips: 'closed' } },
@@ -39,7 +39,7 @@ export const HONK_RANGE = DETECT.sound.limp;
 export type TalkGate = 'service' | 'rescue';
 
 export const TOPIC_GATES: Partial<Record<TopicId, TalkGate>> = {
-  directions: 'service', trade: 'service', marketNews: 'service', rumor: 'service', armyWagon: 'service', tips: 'service', sunwardTalk: 'service', askHelp: 'service',
+  directions: 'service', trade: 'service', marketNews: 'service', rumor: 'service', armyWagon: 'service', tips: 'service', sunwardTalk: 'service', askHelp: 'service', roadWatch: 'service',
   tow: 'rescue', towFree: 'rescue', askTow: 'rescue', patch: 'rescue', askAid: 'rescue', aidOffer: 'rescue', patchRequest: 'rescue',
   offerTow: 'rescue', offerPatch: 'rescue', offerPatchWorn: 'rescue', offerAid: 'rescue', releaseTow: 'rescue',
 };
@@ -55,20 +55,20 @@ const COURIER_STORY: TopicId[] = ['courierShort', 'courierThanks', 'courierSquar
 const PARLEY: TopicId[] = ['spillClaim', 'surrender', 'giveUp', 'claim', 'truce', 'mercy', 'yieldDemand', 'buyTruce', 'rob', 'robCut', 'lootWarning', 'lookWarning', 'warnOff', 'truceOffer', 'mercyPlea', 'offerTow', 'releaseTow', 'offerPatch', 'offerPatchWorn', 'offerAid'];
 
 export const TRAIT_TALK: Record<TraitId, TraitTalk> = { ...SUNWARD_TRAIT_TALK,
-  marshal: { voice: { greeting: 'marshalGreeting', repeatLine: 'marshalRepeat', refusal: 'marshalRefusal', warnOff: 'marshalWarnOff', honksBack: true }, topics: ['bountyDemand', 'payBounty', 'directions', 'lastSeen', 'roadLesson', 'tow', 'towFree', ...PARLEY] },
-  trader: { voice: { greeting: 'goAhead', repeatLine: 'weAlreadyTalkedAbout', refusal: 'nothingToSayTo', warnOff: 'thisOneIsSpokenFor', honksBack: true }, topics: [...HELP, 'directions', 'lastSeen', 'parcel', 'roadLesson', 'marketNews', 'rumor', 'sunwardTalk', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', 'escortHold', 'escortGo', ...TALES, ...CHALLENGE, ...MOMENT_TALK, ...PARLEY] },
-  scavenger: { voice: { greeting: 'yeahMakeItQuick', repeatLine: 'iToldYouAlready', refusal: 'getOffMyChannel', warnOff: 'thatsMyPick', honksBack: true }, topics: [...HELP, 'directions', 'lastSeen', 'parcel', 'roadLesson', 'rumor', 'sunwardTalk', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', ...TALES, 'salvageTip', ...CHALLENGE, ...MOMENT_TALK, ...PARLEY] },
+  marshal: { voice: { greeting: 'marshalGreeting', repeatLine: 'marshalRepeat', refusal: 'marshalRefusal', warnOff: 'marshalWarnOff', honksBack: true }, topics: ['bountyDemand', 'payBounty', 'directions', 'lastSeen', 'roadWatch', 'roadLesson', 'tow', 'towFree', ...PARLEY] },
+  trader: { voice: { greeting: 'goAhead', repeatLine: 'weAlreadyTalkedAbout', refusal: 'nothingToSayTo', warnOff: 'thisOneIsSpokenFor', honksBack: true }, topics: [...HELP, 'directions', 'lastSeen', 'roadWatch', 'parcel', 'roadLesson', 'marketNews', 'rumor', 'sunwardTalk', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', 'escortHold', 'escortGo', ...TALES, ...CHALLENGE, ...MOMENT_TALK, ...PARLEY] },
+  scavenger: { voice: { greeting: 'yeahMakeItQuick', repeatLine: 'iToldYouAlready', refusal: 'getOffMyChannel', warnOff: 'thatsMyPick', honksBack: true }, topics: [...HELP, 'directions', 'lastSeen', 'roadWatch', 'parcel', 'roadLesson', 'rumor', 'sunwardTalk', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', ...TALES, 'salvageTip', ...CHALLENGE, ...MOMENT_TALK, ...PARLEY] },
   raider: { voice: { greeting: 'getLost', repeatLine: 'getLost', refusal: 'hehNo', warnOff: 'offMyLootNow', honksBack: false }, topics: [...HELP, 'demand', 'demandCut', ...CHALLENGE, ...PARLEY] },
   scumbag: { voice: null, topics: [...HELP, 'demand', 'demandCut', ...CHALLENGE, ...PARLEY] },
   coward: { voice: null, topics: [...HELP, ...PARLEY] },
   brave: { voice: null, topics: [...HELP, ...CHALLENGE, ...PARLEY] },
-  lawman: { voice: { greeting: 'speakUp', repeatLine: 'heardYouTheFirst', refusal: 'clearTheChannel', warnOff: 'leaveThatSalvageBe', honksBack: true }, topics: [...HELP, 'directions', 'lastSeen', 'parcel', 'roadLesson', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', ...PARLEY] },
-  courier: { voice: { greeting: 'makeItShort', repeatLine: 'saidThatAlready', refusal: 'noTimeOut', warnOff: 'imTakingThatOne', honksBack: true }, topics: [...HELP, 'directions', 'lastSeen', 'parcel', 'roadLesson', 'marketNews', 'rumor', 'sunwardTalk', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'trade', ...TALES, ...CHALLENGE, ...COURIER_STORY, ...MOMENT_TALK, ...PARLEY] },
-  roamer: { voice: { greeting: 'whatDoYouWant', repeatLine: 'oldNewsFriend', refusal: 'notTalking', warnOff: 'sawThisOneFirst', honksBack: true }, topics: [...HELP, 'directions', 'lastSeen', 'parcel', 'roadLesson', 'rumor', 'sunwardTalk', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', ...TALES, 'salvageTip', ...CHALLENGE, ...MOMENT_TALK, ...PARLEY] },
-  vulture: { voice: { greeting: 'keepItShort', repeatLine: 'alreadySaid', refusal: 'nothingForYou', warnOff: 'mineGoPickAnother', honksBack: false }, topics: [...HELP, 'directions', 'lastSeen', 'parcel', 'roadLesson', 'rumor', 'sunwardTalk', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'patchRequest', 'trade', 'salvageTip', ...CHALLENGE, ...MOMENT_TALK, ...PARLEY] },
-  supplier: { voice: { greeting: 'listening', repeatLine: 'weCoveredThat', refusal: 'keepOffThisChannel', warnOff: 'weAreTakingThisOne', honksBack: true }, topics: [...HELP, 'directions', 'lastSeen', 'parcel', 'roadLesson', 'marketNews', 'rumor', 'sunwardTalk', 'armyWagon', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'trade', ...TALES, ...PARLEY] },
-  guard: { voice: { greeting: 'stateYourBusiness', repeatLine: 'heardYou', refusal: 'moveAlong', warnOff: 'backAwayFromThat', honksBack: false }, topics: [...HELP, 'directions', 'lastSeen', 'parcel', 'roadLesson', ...PARLEY] },
-  merc: { voice: { greeting: 'talk', repeatLine: 'youSaidThat', refusal: 'notInterested', warnOff: 'thatsMineWalkAway', honksBack: false }, topics: ['directions', 'lastSeen', 'parcel', 'roadLesson', 'hireGuard', 'dismissGuard', ...CHALLENGE, ...PARLEY] },
+  lawman: { voice: { greeting: 'speakUp', repeatLine: 'heardYouTheFirst', refusal: 'clearTheChannel', warnOff: 'leaveThatSalvageBe', honksBack: true }, topics: [...HELP, 'directions', 'lastSeen', 'roadWatch', 'parcel', 'roadLesson', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', ...PARLEY] },
+  courier: { voice: { greeting: 'makeItShort', repeatLine: 'saidThatAlready', refusal: 'noTimeOut', warnOff: 'imTakingThatOne', honksBack: true }, topics: [...HELP, 'directions', 'lastSeen', 'roadWatch', 'parcel', 'roadLesson', 'marketNews', 'rumor', 'sunwardTalk', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'trade', ...TALES, ...CHALLENGE, ...COURIER_STORY, ...MOMENT_TALK, ...PARLEY] },
+  roamer: { voice: { greeting: 'whatDoYouWant', repeatLine: 'oldNewsFriend', refusal: 'notTalking', warnOff: 'sawThisOneFirst', honksBack: true }, topics: [...HELP, 'directions', 'lastSeen', 'roadWatch', 'parcel', 'roadLesson', 'rumor', 'sunwardTalk', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', ...TALES, 'salvageTip', ...CHALLENGE, ...MOMENT_TALK, ...PARLEY] },
+  vulture: { voice: { greeting: 'keepItShort', repeatLine: 'alreadySaid', refusal: 'nothingForYou', warnOff: 'mineGoPickAnother', honksBack: false }, topics: [...HELP, 'directions', 'lastSeen', 'roadWatch', 'parcel', 'roadLesson', 'rumor', 'sunwardTalk', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'patchRequest', 'trade', 'salvageTip', ...CHALLENGE, ...MOMENT_TALK, ...PARLEY] },
+  supplier: { voice: { greeting: 'listening', repeatLine: 'weCoveredThat', refusal: 'keepOffThisChannel', warnOff: 'weAreTakingThisOne', honksBack: true }, topics: [...HELP, 'directions', 'lastSeen', 'roadWatch', 'parcel', 'roadLesson', 'marketNews', 'rumor', 'sunwardTalk', 'armyWagon', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'trade', ...TALES, ...PARLEY] },
+  guard: { voice: { greeting: 'stateYourBusiness', repeatLine: 'heardYou', refusal: 'moveAlong', warnOff: 'backAwayFromThat', honksBack: false }, topics: [...HELP, 'directions', 'lastSeen', 'roadWatch', 'parcel', 'roadLesson', ...PARLEY] },
+  merc: { voice: { greeting: 'talk', repeatLine: 'youSaidThat', refusal: 'notInterested', warnOff: 'thatsMineWalkAway', honksBack: false }, topics: ['directions', 'lastSeen', 'roadWatch', 'parcel', 'roadLesson', 'hireGuard', 'dismissGuard', ...CHALLENGE, ...PARLEY] },
 };
 
 export const MARSHAL_LINES = [
@@ -129,6 +129,35 @@ export const MARSHAL_TOPICS: Record<MarshalTopicId, Topic> = {
   },
 };
 
+export type RoadWatchTopicId = 'roadWatch';
+export type RoadWatchConditionId = 'watchesRoad';
+export type RoadWatchPrepareId = 'raiderSighting';
+export const ROAD_WATCH_LINES = ['seenTroubleOnRoad', 'roadTroubleTold'] as const;
+
+const WATCH_END = 'end';
+const WATCH_HUB = 'hub';
+
+export const ROAD_WATCH_TOPICS: Record<RoadWatchTopicId, Topic> = {
+  roadWatch: {
+    id: 'roadWatch',
+    once: false,
+    ask: { say: 'seenTroubleOnRoad', when: ['watchesRoad'], duringFeud: false },
+    raise: null,
+    prepare: 'raiderSighting',
+    hangUp: [],
+    start: 'tell',
+    nodes: {
+      tell: {
+        line: 'roadTroubleTold',
+        options: [
+          { say: 'thanksSomethingElse', when: [], effects: [], go: WATCH_HUB },
+          { say: 'thanksOverAndOut', when: [], effects: [], go: WATCH_END },
+        ],
+      },
+    },
+  },
+};
+
 export const TREE_LINES = ['backToTopics', 'aboutRoadNews', 'aboutTheRoad', 'aboutTheNews', 'aboutHelpTrade', 'aboutTrade', 'aboutAskingHelp', 'aboutOfferingHelp', 'aboutEscortTow', 'aboutDemands', 'aboutPeace'] as const;
 
 export const BACK_LINE: LineId = 'backToTopics';
@@ -139,7 +168,7 @@ export type TopicGroup = { say: LineId; children: readonly TopicChild[] };
 
 export const TOPIC_ROOT: readonly TopicChild[] = ['roadNews', 'helpTrade', 'threats', 'makePeace'];
 export const TOPIC_GROUPS: Record<GroupId, TopicGroup> = {
-  roadNews: { say: 'aboutRoadNews', children: ['theRoad', 'news', 'claimWreck'] },
+  roadNews: { say: 'aboutRoadNews', children: ['theRoad', 'news', 'claimWreck', 'roadWatch'] },
   theRoad: { say: 'aboutTheRoad', children: ['directions', 'lastSeen', 'roadLesson', 'tips'] },
   news: { say: 'aboutTheNews', children: ['marketNews', 'rumor', 'sunwardTalk', 'armyWagon'] },
   helpTrade: { say: 'aboutHelpTrade', children: ['tradeTalk', 'askForHelp', 'offerHelp', 'escortTow'] },

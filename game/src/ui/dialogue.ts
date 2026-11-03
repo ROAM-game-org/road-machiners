@@ -53,6 +53,12 @@ export function sightingText(v: Extract<CallVar, { kind: 'sighting' }>): Msg {
   return t('sighting.seen', { driver, ago: agoText(turns), distance: distanceText(tiles), bearing: compassText(bearing), heading: compassText(heading) });
 }
 
+export function raidersText(v: Extract<CallVar, { kind: 'raiders' }>): Msg {
+  if (!v.seen) return t('raiders.none');
+  const words = { ago: agoText(v.seen.turns), square: gridSquareText(v.seen.square), heading: compassText(v.seen.heading) };
+  return v.count > 1 ? t('raiders.seenMany', { n: v.count, ...words }) : t('raiders.seenOne', words);
+}
+
 export function haulText(v: Extract<CallVar, { kind: 'haul' }>): Msg {
   const names = [
     ...Object.entries(v.goods).map(([good, n]) => t('call.haulGood', { n, good: goodLower(good) })),
@@ -78,6 +84,7 @@ const VAR_TEXT: VarText = {
   haul: haulText,
   tip: tipText,
   sighting: sightingText,
+  raiders: raidersText,
   line: (v) => lineText(v.line, {}),
   directions: (v) => directionsText(v.steps),
   answer: () => { throw new Error('A rolled answer is never shown in a line'); },

@@ -834,6 +834,7 @@ export const TINY_STEPS: readonly NamedStep[] = [
   { name: 'basinRegionsMap', step: (world) => world },
   { name: 'withoutRoadScene', step: withoutRoadScene_122_123 },
   { name: 'xpByWorkDay', step: withXpWorkWindow },
+  { name: 'marksRoadWatchCalls', step: (world) => world },
 ];
 
 function withSpawnQueue_129_130(world: SavedJson): SavedJson {

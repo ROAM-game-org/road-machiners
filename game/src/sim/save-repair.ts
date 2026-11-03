@@ -617,6 +617,7 @@ const CALL_VAR_FITS: { [K in CallVar['kind']]: (v: Extract<CallVar, { kind: K }>
   bearing: () => true,
   distance: () => true,
   square: (v) => isGridIndex(v.column) && isGridIndex(v.row),
+  raiders: (v) => v.seen === null || (isGridIndex(v.seen.square.column) && isGridIndex(v.seen.square.row)),
   answer: () => true,
   line: (v) => isLine(v.line),
   directions: (v) => v.steps.every(stepFits),

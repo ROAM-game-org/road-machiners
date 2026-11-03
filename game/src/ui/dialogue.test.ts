@@ -7,7 +7,7 @@ import { lineKey } from '../text/names';
 import { resolve, schemaOf } from '../text/resolve';
 import { emptyWorld, addVehicle, npcBrain } from '../sim/testkit';
 import { gridSquareText } from './format';
-import { aidWords, callError, DERIVED_VARS, haulText, lineText, sightingText, tipText } from './dialogue';
+import { aidWords, callError, DERIVED_VARS, haulText, lineText, raidersText, sightingText, tipText } from './dialogue';
 
 const en = (msg: Msg): string => resolve(msg, 'en');
 
@@ -71,6 +71,7 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   demandCut: ['price'],
   robCutAnswer: ['answer', 'price'],
   lastSighting: ['sighting'],
+  raiderSighting: ['raiders'],
   claimWreckBearing: ['bearing', 'distance'],
   courierNeed: ['aid', 'price'],
   taleNews: ['site', 'way', 'tip', 'story'],
@@ -99,6 +100,7 @@ const SAMPLE: Record<string, CallVar> = {
   offense: { kind: 'line', line: 'offenseRobbed' },
   haul: { kind: 'haul', goods: { scrap: 2 }, parts: ['mg'] },
   sighting: { kind: 'sighting', driver: 'Jed Cobb', seen: { bearing: 0.8, tiles: 300, turns: 80, heading: 3.1 } },
+  raiders: { kind: 'raiders', seen: { square: { column: 2, row: 3 }, turns: 80, heading: 3.1 }, count: 3 },
 };
 
 const named = (line: LineId): string[] => Object.keys(schemaOf(lineKey(line))).filter((name) => !(name in DERIVED_VARS));
@@ -193,5 +195,21 @@ describe('sighting words', () => {
 
   it('says they never crossed paths when nothing was seen', () => {
     expect(en(sightingText({ kind: 'sighting', driver: 'Jed Cobb', seen: null }))).toBe('Jed Cobb? Never crossed paths.');
+  });
+});
+
+describe('raider sighting words', () => {
+  const seen = { square: { column: 2, row: 3 }, turns: (3 * TIME.turnsPerDay) / 24, heading: Math.PI / 2 };
+
+  it('tells the age, square and heading of a lone raider', () => {
+    expect(en(raidersText({ kind: 'raiders', seen, count: 1 }))).toBe('Saw one about 3 hours ago in square C4, heading south.');
+  });
+
+  it('counts a crew', () => {
+    expect(en(raidersText({ kind: 'raiders', seen, count: 3 }))).toBe('Saw 3 raiders together about 3 hours ago in square C4, heading south.');
+  });
+
+  it('says the road was quiet when no raider was seen', () => {
+    expect(en(raidersText({ kind: 'raiders', seen: null, count: 0 }))).toBe("Haven't seen any. Road's been quiet for me.");
   });
 });

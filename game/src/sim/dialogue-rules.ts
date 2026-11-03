@@ -9,7 +9,8 @@ import { canAskHelp, helpAnswer, joinPlayerFight, turnDownCall } from './help-ca
 import { canHireGuard, dismissGuard, guardFee, guardTaken, hireGuard, isPlayerGuard } from './hire';
 import { COLD_LINES, TOPIC_GATES, type ConditionId, type DialogueOption, type EffectId, type LineId, type PrepareId, type TopicId } from '../data/dialogue';
 import { REFUSE_KNOWN_AT } from '../data/npc-behavior';
-import { bandAtLeast, personalTerm, stanceToward } from './relations';
+import { bandAtLeast, isRaider, personalTerm, stanceToward } from './relations';
+import { raiderSighting } from './road-watch';
 import { CONTRACTS } from '../data/market';
 import { GAME_NOTES, isNoteId, LOCALS, type LocalDef, type NoteId } from '../data/locals';
 import { RUMORS, TRADE_TIP } from '../data/npcs';
@@ -421,6 +422,7 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
     const search = heldSearch(world);
     return search !== null && !search.delivered && search.target !== npc.id;
   },
+  watchesRoad: (world, npc) => hasPerk(world, 'roadWatch') && !isRaider(npc),
   hasParcelFor: (world, npc) => parcelFor(world, npc) !== null,
   noHandover: (world, npc) => handoverWith(world, npc) === null,
   sawSought: (_world, _npc, vars) => sightingVar(vars).seen !== null,
@@ -766,6 +768,7 @@ export const PREPARES: Record<PrepareId, Prepare> = {
     const seen = memory && { bearing: bearing(me, memory.fact.at), tiles: dist(me, memory.fact.at), turns: world.turn - memory.turn, heading: memory.fact.heading };
     return { sighting: { kind: 'sighting', driver: search.driver, seen } };
   },
+  raiderSighting: (world, npc) => ({ raiders: raiderSighting(world, npc) }),
   tradeTip: (_world, npc) => ({ tip: { kind: 'tip', tip: tradeTip(npc) } }),
   trucePrice: (_world, npc) => ({ price: { kind: 'money', amount: trucePrice(npc) } }),
   helpAnswer: (world, npc) => ({ answer: { kind: 'answer', option: helpAnswer(world, npc) } }),

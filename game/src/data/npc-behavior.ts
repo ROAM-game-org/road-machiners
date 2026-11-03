@@ -133,6 +133,8 @@ export const CREW = {
   lowAppetite: 0.5,
 };
 
+export const ROAD_WATCH = { groupReach: CREW.askReach };
+
 export const HIRE = {
   turns: TIME.workDayTurns,
 };
