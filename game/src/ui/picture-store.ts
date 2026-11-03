@@ -17,9 +17,9 @@ async function download(label: string, path: string): Promise<string | null> {
     arrived.set(path, url);
     return url;
   } catch (e) {
+    arrivals.delete(path);
     if (!(e instanceof AssetUnreachable)) throw e;
     console.warn(`${e.label} ${e.url} did not arrive after ${e.attempts} attempts`);
-    arrivals.delete(path);
     return null;
   }
 }
