@@ -1,5 +1,6 @@
+import { errorText } from '../error-text';
 import { TIME } from '../data/time';
-import { errorText, SimRun, simWorld, type FromSim, type ToSim } from '../sim/progression/sim-mode';
+import { SimRun, simWorld, type FromSim, type ToSim } from '../sim/progression/sim-mode';
 import { SIM_TEXT } from '../ui/sim/sim-text';
 import { fetchMap } from './map-file';
 import { idbBackend, SaveSlots } from './save-db';

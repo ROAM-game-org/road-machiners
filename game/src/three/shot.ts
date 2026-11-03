@@ -1,3 +1,4 @@
+import { errorText } from '../error-text';
 import * as THREE from 'three';
 import { PAINT, type TruckPaint } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
@@ -131,7 +132,7 @@ declare global {
 
 export function runShot(): void {
   drawShot().catch((e: unknown) => {
-    window.__SHOT_ERROR__ = e instanceof Error ? (e.stack ?? e.message) : String(e);
+    window.__SHOT_ERROR__ = errorText(e);
   });
 }
 

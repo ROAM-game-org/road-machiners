@@ -1,3 +1,4 @@
+import { errorText } from '../../error-text';
 import "../style.css";
 import "./sim.css";
 import { FACTIONS } from "../../data/npc-behavior";
@@ -675,7 +676,7 @@ function legend(): HTMLElement {
 }
 
 function showBootFailure(error: unknown): void {
-  uiRoot().append(el("pre", { class: "sim-failure bad" }, error instanceof Error ? error.stack ?? error.message : String(error)));
+  uiRoot().append(el("pre", { class: "sim-failure bad" }, errorText(error)));
 }
 
 try {

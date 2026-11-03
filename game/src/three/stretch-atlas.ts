@@ -1,3 +1,4 @@
+import { errorText } from '../error-text';
 import * as THREE from 'three';
 import { loadModels, paintSurfaceMasks } from './render/models';
 import { pristineOf, startPortrait } from './render/truckPortrait';
@@ -131,7 +132,7 @@ export function runStretchAtlas(): void {
   buildAtlas().then(
     (done) => (window.__STRETCH_ATLAS__ = done),
     (error: unknown) => {
-      window.__STRETCH_ATLAS_ERROR__ = error instanceof Error ? (error.stack ?? error.message) : String(error);
+      window.__STRETCH_ATLAS_ERROR__ = errorText(error);
       document.body.append(element('pre', '', window.__STRETCH_ATLAS_ERROR__));
     },
   );

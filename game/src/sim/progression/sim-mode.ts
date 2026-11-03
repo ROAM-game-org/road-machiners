@@ -1,3 +1,4 @@
+import { errorText } from '../../error-text';
 import type { TruckPaint } from '../../data/chassis';
 import { TIME } from '../../data/time';
 import { inCombat } from '../combat';
@@ -237,10 +238,6 @@ export class SimRun {
 
 export function simWorld(map: BakedMap, seed: number): World {
   return playthroughWorld(map, seed, 'markov');
-}
-
-export function errorText(error: unknown): string {
-  return error instanceof Error ? error.stack ?? error.message : String(error);
 }
 
 export function frameOf(world: World, events: readonly GameEvent[], ledger: Ledger, watched: string | null, text: SimText, sample: Sample | null): Frame {

@@ -1,3 +1,4 @@
+import { errorText } from '../error-text';
 import * as THREE from 'three';
 import { SURVEY_PICTURE } from '../data/survey-pictures';
 import { PHYSICS } from '../data/physics';
@@ -45,7 +46,7 @@ export function runSurveyPictures(): void {
       window.__SURVEY_PICTURES__ = result;
     },
     (e: unknown) => {
-      window.__SURVEY_PICTURES_ERROR__ = e instanceof Error ? (e.stack ?? e.message) : String(e);
+      window.__SURVEY_PICTURES_ERROR__ = errorText(e);
     },
   );
 }

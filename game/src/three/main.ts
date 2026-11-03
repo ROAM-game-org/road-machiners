@@ -1,4 +1,5 @@
 
+import { errorText } from '../error-text';
 import { filesOf, formatSupport, recoverBank, reportFailures, SoundBank, startBank, type BankOptions, type LoadedBank } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
@@ -147,10 +148,6 @@ function positiveParam(params: URLSearchParams, name: string): number | null {
   const value = Number(raw);
   if (!Number.isFinite(value) || value <= 0) throw new Error(`?${name}=${raw} is no positive number`);
   return value;
-}
-
-function errorText(error: unknown): string {
-  return error instanceof Error ? (error.stack ?? error.message) : String(error);
 }
 
 function benchFailure(error: unknown, faults: readonly unknown[]): string | null {

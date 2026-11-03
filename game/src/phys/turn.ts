@@ -1,4 +1,5 @@
 
+import { errorText } from '../error-text';
 import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
 import { CHASSIS } from '../data/chassis';
@@ -257,7 +258,7 @@ export function startTurnWorker(): void {
       answer(task, task.terrain);
       buildWhileIdle(task.terrain, task.world);
     } catch (error) {
-      self.postMessage({ id: request.id, error: describeWorkerError(error) } satisfies WorkerFailure);
+      self.postMessage({ id: request.id, error: errorText(error) } satisfies WorkerFailure);
     }
   };
 }
@@ -308,10 +309,6 @@ function answer(request: Answerable, terrain: World['terrain']): void {
     default:
       throw new Error(`Unknown worker request kind ${(request as { kind: unknown }).kind}`);
   }
-}
-
-function describeWorkerError(error: unknown): string {
-  return error instanceof Error ? error.stack ?? error.message : String(error);
 }
 
 

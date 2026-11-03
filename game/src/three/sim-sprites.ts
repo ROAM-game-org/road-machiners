@@ -1,3 +1,4 @@
+import { errorText } from '../error-text';
 import * as THREE from 'three';
 import { loadModels, paintSurfaceMasks } from './render/models';
 import { boundsOf, flipRows, linearToSrgb, unpremultiply } from './render/portraitPixels';
@@ -180,7 +181,7 @@ export function runSimSprites(): void {
       window.__SIM_SPRITES__ = result;
     },
     (e: unknown) => {
-      window.__SIM_SPRITES_ERROR__ = e instanceof Error ? (e.stack ?? e.message) : String(e);
+      window.__SIM_SPRITES_ERROR__ = errorText(e);
     },
   );
 }
