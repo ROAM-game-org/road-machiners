@@ -8,6 +8,8 @@ import { bindAttr, setText, unbindAttr } from "../text/language";
 import { t, verbatim, type Msg } from "../text/msg";
 import { el, isBrowserChord, panel, topRight } from "./dom";
 import { versionLabel } from "./hud-readout";
+import { desktopHost } from "../three/save-db";
+import { drawingRenderer } from "../three/webgl";
 import { isNewGameOpen, openNewGame, type NewGameActions } from "./new-game";
 import { OptionsPanel } from "./options";
 import type { SoundSettings } from "./sound";
@@ -140,6 +142,13 @@ export function entryReason(entry: MenuEntry, busy: boolean, hasSave: boolean): 
   return busy ? t("menu.waitForTurn") : t("save.none");
 }
 
+export function buildNote(): Msg {
+  const renderer = drawingRenderer();
+  if (renderer === null) throw new Error("The Help panel opened before the game made its drawing context");
+  const host = desktopHost() ? t("help.hostDesktop") : t("help.hostBrowser");
+  return t("help.build", { version: verbatim(versionLabel()), host, renderer: verbatim(renderer) });
+}
+
 export class HelpPanel {
   constructor(private setup: () => WorldSetup) {}
 
@@ -159,7 +168,7 @@ export class HelpPanel {
     const root = panel("help dialog");
     bindAttr(root, "aria-label", t("help.title"));
     const setup = this.setup();
-    const notes = [verbatim(versionLabel()), setupText(setup), ...(ERROR_REPORT_URL ? [t("help.errorsSent")] : [])];
+    const notes = [buildNote(), setupText(setup), ...(ERROR_REPORT_URL ? [t("help.errorsSent")] : [])];
     root.append(
       el("button", { class: "close btn-s", onclick: () => this.close() }, closeLabel()),
       el("div", { class: "help-groups" }, ...controlsFor(modeRulesOf(setup.mode), touchMode()).map(controlGroup)),

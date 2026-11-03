@@ -7,12 +7,12 @@ digraph testing {
   subgraph cluster_session {
     label="Testing job"; fontname="Helvetica"; fontsize=12; color="#c7d2fe"; style=rounded;
     PM [label="Merge new branch\ncommits and the base"]; PT [label="Testing session\nplay, fix, capture,\nwrite the post"];
-    PC [label="Post checkpoint\nbuild, which typechecks\nhotfix: full suite on\nGitHub Actions, playtest"]; PP [label="Post to\ncommittee", fillcolor="#fde68a", color="#b45309"];
+    PC [label="Post checkpoint\nbuild, which typechecks\nfull suite on Actions\nhotfix: playtest too"]; PP [label="Post to\ncommittee", fillcolor="#fde68a", color="#b45309"];
     PM -> PT -> PC -> PP [weight=100];
   }
   subgraph cluster_post {
     label="Post: moved by Hermes"; fontname="Helvetica"; fontsize=12; color="#c7d2fe"; style=rounded;
-    QB [label="Build only\nno tests, no playtest"]; QP [label="Post to committee\nno checks ran", fillcolor="#fde68a", color="#b45309"];
+    QB [label="Build and full suite\nno testing agent"]; QP [label="Post to committee\nno testing agent played it", fillcolor="#fde68a", color="#b45309"];
     QB -> QP [weight=100];
   }
   XH [label="Hermes\nmove to Approval", fillcolor="#f3f4f6", color="#6b7280"];
@@ -26,6 +26,7 @@ digraph testing {
   PC -> PC [label="timeouts: rerun the files\nwith no pass, up to 3"];
   edge [color="#6b7280", fontcolor="#6b7280"];
   PM -> PC [label="docs only: no session,\nthe checkpoint only builds"];
+  QB -> XS [label="suite failed"];
   XH -> QB;
   XA -> PM [label="the reply is the task"];
   XK -> PM [label="approval kept:\nintegration round"];
