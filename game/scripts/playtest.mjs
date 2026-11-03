@@ -18,6 +18,7 @@ const fpsGate = !process.argv.includes('--no-fps-gate');
 const MIN_FPS = 50;
 const timeoutsOff = process.env.TEST_TIMEOUTS === 'off';
 const CRASH_ATTEMPTS = 8;
+const CRASH_PAUSE_MS = 10000;
 const attempt = Number(process.env.PLAYTEST_ATTEMPT ?? '1');
 const BOOT_LIMIT_MS = timeoutsOff ? 0 : 300000;
 const HIGHWAY_BOOT_LIMIT_MS = 300000;
@@ -42,6 +43,7 @@ const retryAfterBrowserCrash = async (cause) => {
     process.exit(1);
   }
   console.log(`The browser process crashed on attempt ${attempt}. Starting attempt ${attempt + 1}.`);
+  await new Promise((done) => setTimeout(done, CRASH_PAUSE_MS * attempt));
   const rerun = spawnSync(process.execPath, process.argv.slice(1), { stdio: 'inherit', env: { ...process.env, PLAYTEST_ATTEMPT: String(attempt + 1), PLAYTEST_FORCE_SOFTWARE: "1" } });
   process.exit(rerun.status ?? 1);
 };
