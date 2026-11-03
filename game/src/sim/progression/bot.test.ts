@@ -910,12 +910,23 @@ describe('the bot in a fight', () => {
     expect(playerVehicle(botOrders(w, 'trader').world).order).toEqual({ kind: 'stopAt', dest: { x: 5, y: 5 } });
   });
 
-  it('has a fleeing bot that already stands on its stop point pick a new way out', () => {
+  it('has a bot that reached its stop point with the foe still on it turn and fight, like a cornered NPC', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = playerVehicle(w);
     const raider = addVehicle(w, 'scrapjaw', 'buggy', ['autocannon', 'ram', 'stockEngine'], { x: 36, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     startCombat(w, raider, me);
+    me.order = { kind: 'stopAt', dest: { x: me.pos.x - RULES.arriveRadius, y: me.pos.y } };
+
+    const order = playerVehicle(botOrders(w, 'trader').world).order;
+    expect(order).toEqual({ kind: 'stopAt', dest: raider.pos });
+  });
+
+  it('has a bot that is not in combat and stands on its stop point pick a new way out of a foe it runs from', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const me = playerVehicle(w);
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['autocannon', 'ram', 'stockEngine'], { x: 36, y: 30 });
+    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     me.order = { kind: 'stopAt', dest: { x: me.pos.x - RULES.arriveRadius, y: me.pos.y } };
 
     const order = playerVehicle(botOrders(w, 'trader').world).order;

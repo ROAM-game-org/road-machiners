@@ -691,9 +691,18 @@ const JUDGE_SALT = 0x6a756467;
 function defend(o: Orders): boolean {
   if (!inCombat(o.world, o.me)) return avoid(o);
   const foe = weakestFoe(o.world);
-  if (foe && fights(o, foe)) driveTo(o, foe.pos);
+  if (foe && (fights(o, foe) || cornered(o))) driveTo(o, foe.pos);
   else flee(o);
   return true;
+}
+
+function cornered(o: Orders): boolean {
+  return o.me.order?.kind !== 'brake' && reachedOrder(o.me);
+}
+
+function reachedOrder(me: Vehicle): boolean {
+  const order = me.order;
+  return order !== null && order.kind !== 'brake' && dist(me.pos, order.dest) <= RULES.arriveRadius * 2;
 }
 
 function avoid(o: Orders): boolean {
@@ -723,7 +732,7 @@ function flee(o: Orders): void {
 
 function keepsRunning(me: Vehicle, threat: Vec | null): boolean {
   const order = me.order;
-  if (order === null || order.kind === 'brake' || dist(me.pos, order.dest) <= RULES.arriveRadius * 2) return false;
+  if (order === null || order.kind === 'brake' || reachedOrder(me)) return false;
   return !threat || keepsFleeCourse(me, order.dest, threat);
 }
 
