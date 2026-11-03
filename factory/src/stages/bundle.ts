@@ -20,13 +20,13 @@ export function bundleCandidates(state: FactoryState, cards: Card[], lead: numbe
 const UNDESIGNED: Column[] = ['Triage', 'Design'];
 
 export function systemCandidates(state: FactoryState, cards: Card[], lead: number, leadLabels: string[]): number[] {
-  const system = systemOf(leadLabels);
+  const system = systemOf(lead, leadLabels);
   if (system === null || system === ALONE_SYSTEM || leadLabels.includes(HOTFIX_LABEL)) return [];
   const busy = new Set(state.jobs.map((job) => job.issue));
   const blocked = [STUCK_LABEL, NEEDS_INFO_LABEL, VOTING_LABEL, HOTFIX_LABEL, BUNDLED_LABEL, ADHOC_LABEL];
   const releaseTask = leadLabels.includes(RELEASE_TASK_LABEL);
   return cards
-    .filter((card) => UNDESIGNED.includes(card.column) && card.issue !== lead && systemOf(card.labels) === system)
+    .filter((card) => UNDESIGNED.includes(card.column) && card.issue !== lead && systemOf(card.issue, card.labels) === system)
     .filter((card) => card.labels.includes(RELEASE_TASK_LABEL) === releaseTask && !blocked.some((label) => card.labels.includes(label)))
     .filter((card) => !busy.has(card.issue) && !(String(card.issue) in state.held) && !state.designStarted.includes(card.issue) && bundleOf(state, card.issue).length === 0)
     .map((card) => card.issue)
@@ -43,8 +43,8 @@ export async function pullSystemBundle(ctx: Ctx, lead: number): Promise<void> {
     return { ...state, designStarted: [...state.designStarted, lead, ...pulled] };
   });
   if (pulled.length === 0) return;
-  const system = systemOf(labels);
-  await addToBundle(ctx, lead, pulled, `It is about the same game system, ${system}, so one design covers both.`, 'Design');
+  const system = systemOf(lead, labels);
+  await addToBundle(ctx, lead, pulled, `It is about the same game system, ${system}, so one design covers them together.`, 'Design');
   await ctx.github.comment(lead, `Design pulled in ${pulled.map((n) => `#${n}`).join(', ')}, which are about the same game system, ${system}. This card also carries them.`);
   if (labels.includes(DESIGN_SONNET_LABEL)) await ctx.github.removeLabel(lead, DESIGN_SONNET_LABEL);
 }

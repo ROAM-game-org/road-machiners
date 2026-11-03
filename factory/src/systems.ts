@@ -9,11 +9,11 @@ const SYSTEM_LABEL_PREFIX = 'system:';
 
 export const systemLabel = (system: GameSystem): string => `${SYSTEM_LABEL_PREFIX}${system}`;
 
-export function systemOf(labels: string[]): GameSystem | null {
+export function systemOf(issue: number, labels: string[]): GameSystem | null {
   const tagged = labels.filter((label) => label.startsWith(SYSTEM_LABEL_PREFIX)).map((label) => label.slice(SYSTEM_LABEL_PREFIX.length));
-  if (tagged.length > 1) throw new Error(`An issue carries more than one system label: ${tagged.join(', ')}`);
+  if (tagged.length > 1) throw new Error(`Issue #${issue} carries more than one system label: ${tagged.join(', ')}. Remove all but one on GitHub.`);
   if (tagged.length === 0) return null;
-  return readSystem(tagged[0], 'The system label');
+  return readSystem(tagged[0], `The system label of issue #${issue}`);
 }
 
 export function readSystem(value: unknown, source: string): GameSystem {

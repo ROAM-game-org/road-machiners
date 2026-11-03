@@ -138,7 +138,7 @@ describe('design stage pulling same-system cards', () => {
     labels = ['system:social'];
     board = [card(7, 'Design'), card(9, 'Design'), card(8, 'Triage')];
     await runStage(reading(), 7);
-    expect(calls).toContain('comment 9 Design bundled this into #7, which carries it from here: It is about the same game system, social, so one design covers both.\n\nIt closes when #7 ships.');
+    expect(calls).toContain('comment 9 Design bundled this into #7, which carries it from here: It is about the same game system, social, so one design covers them together.\n\nIt closes when #7 ships.');
     expect(calls).toContain('addLabel 8 bundled');
     expect(calls).toContain('move 9 Done');
     expect(calls).toContain('comment 7 Design pulled in #8, #9, which are about the same game system, social. This card also carries them.');
@@ -186,6 +186,12 @@ describe('design stage pulling same-system cards', () => {
     board = [card(7, 'Design'), card(9, 'Design', set.filter((label) => label !== 'hotfix'))];
     await runStage(refuse(), 7);
     expect(calls.filter((call) => / 9 /.test(call))).toEqual([]);
+  });
+
+  it('fails loudly and names the card that carries two system labels', async () => {
+    labels = ['system:social'];
+    board = [card(7, 'Design'), card(9, 'Design', ['system:economy'])];
+    await expect(runStage(refuse(), 7)).rejects.toThrow('Issue #9 carries more than one system label: social, economy');
   });
 
   it('pulls nothing when the lead already started Design before, like on a redesign', async () => {
