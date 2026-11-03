@@ -88,10 +88,10 @@ describe('Hattie and the engine', () => {
 
   it('answers the questions by what the truck holds', () => {
     const intact = ask(intro('start.ask', false), 'What happened to me?');
-    expect(said(intact)).toContain('left the engine alone');
+    expect(said(intact)).toContain("didn't say who went through the cab");
     expect(said(ask(intact, 'What do I do now?'))).not.toMatch(/for an engine/);
     const stripped = ask(intro('start.ask', true), 'What happened to me?');
-    expect(said(stripped)).toContain('took your engine');
+    expect(said(stripped)).toContain("didn't say who pulled the engine");
     expect(said(ask(stripped, 'What do I do now?'))).toContain('for an engine');
   });
 

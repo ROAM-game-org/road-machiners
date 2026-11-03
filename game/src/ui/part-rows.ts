@@ -151,7 +151,7 @@ export class PartRows {
 }
 
 function scrollBoxes(root: HTMLElement): HTMLElement[] {
-  return [...root.querySelectorAll<HTMLElement>(".town-shop, .town-split, .outpost-body, .ink-panel, .ink-scroll")];
+  return [...root.querySelectorAll<HTMLElement>(".shop-body, .truck-body, .ink-panel, .ink-scroll")];
 }
 
 function rowIds(root: HTMLElement): string[] {
