@@ -254,6 +254,30 @@ describe('merging only a checked build', () => {
     expect(await repo.hasNewCommits('main', 'dev')).toBe(true);
   });
 
+  it('counts the head commits that are on the other branch and not on the base', async () => {
+    const { repo, feature, commit, hub } = await setup();
+    await feature(3, 'f.txt', 'three\n');
+    await feature(4, 'g.txt', 'four\n');
+    const onDevOnly = Number((await hub('rev-list', '--count', 'main..dev')).trim());
+    expect(onDevOnly).toBeGreaterThan(2);
+    await commit('factory/issue-7', 'f.txt', 'seven\n', 'main');
+    await commit('factory/issue-8', 'g.txt', 'eight\n', 'dev');
+    await repo.fetch();
+    expect(await repo.foreignCommits('factory/issue-7', 'main', 'dev')).toBe(0);
+    expect(await repo.foreignCommits('factory/issue-8', 'main', 'dev')).toBe(onDevOnly);
+    expect(await repo.foreignCommits('dev', 'main', 'dev')).toBe(onDevOnly);
+    expect(await repo.foreignCommits('dev', 'dev', 'dev')).toBe(0);
+  });
+
+  it('does not count main commits that dev already merged', async () => {
+    const { repo, feature, commit } = await setup();
+    await feature(5, 'f.txt', 'five\n', 'main');
+    await repo.merge([{ branch: 'main', into: 'dev', message: 'Merge main into dev', issue: null }]);
+    await commit('factory/issue-7', 'g.txt', 'seven\n', 'main');
+    await repo.fetch();
+    expect(await repo.foreignCommits('factory/issue-7', 'main', 'dev')).toBe(0);
+  });
+
   it('walks a branch head back past merges of its base to its own last commit', async () => {
     const { repo, by, commit, head } = await setup();
     await commit('factory/issue-7', 'f.txt', 'seven\n');
