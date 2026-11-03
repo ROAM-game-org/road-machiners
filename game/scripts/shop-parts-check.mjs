@@ -15,7 +15,7 @@ const { browser } = await launchChromium(chromium);
 await mkdir('.playtest', { recursive: true });
 
 const visibleRows = (page) => page.evaluate(() => {
-  const box = document.querySelector('.town-shop').getBoundingClientRect();
+  const box = document.querySelector('.town-shop .shop-body').getBoundingClientRect();
   return [...document.querySelectorAll('.town-shop .part-sum')].filter((n) => {
     const b = n.getBoundingClientRect();
     return b.top >= box.top && b.bottom <= box.bottom;
@@ -117,7 +117,7 @@ try {
 
   await page.locator('.tabs.sub button').nth(1).click();
   assert.equal(await page.locator('.part-detail').count(), 0);
-  assert.equal(await page.evaluate(() => document.querySelector('.town-shop').scrollTop), 0);
+  assert.equal(await page.evaluate(() => document.querySelector('.town-shop .shop-body').scrollTop), 0);
   await page.locator('.tabs.sub button').nth(0).click();
 
   await garage(page, 'sellParts');

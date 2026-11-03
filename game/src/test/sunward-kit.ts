@@ -14,7 +14,7 @@ import type { Vehicle, World } from '../sim/types';
 import type { Vec } from '../sim/vec';
 import { expect } from 'vitest';
 import { refreshVision } from '../sim/vision';
-import { cloneWorld, endTurn } from '../sim/world';
+import { cloneWorld, endTurn, endTurnInPlace } from '../sim/world';
 import { reusedWorld, standardWorld } from './world-cache';
 
 export function quietWorld(seed: number): World {
@@ -46,11 +46,11 @@ function keepMembersUnhurt(w: World): void {
 }
 
 export function runFarTo(w: World, turn: number, onTurn: (w: World) => void): World {
-  let world = w;
+  const world = cloneWorld(w);
   setHeadless(true);
   try {
     while (world.turn < turn) {
-      world = endTurn(world, (x) => {
+      endTurnInPlace(world, (x) => {
         for (const v of x.vehicles) advanceFar(x, v);
       });
       seen.stalls += world.events.filter((e) => e.t === 'stall').length;
