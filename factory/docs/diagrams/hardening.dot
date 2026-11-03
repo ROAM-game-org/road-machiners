@@ -21,14 +21,14 @@ digraph hardening {
   XS [label="factory-stuck\nevery card of the batch", fillcolor="#f3f4f6", color="#6b7280"];
   XN [label="Done", fillcolor="#f3f4f6", color="#6b7280"];
   edge [color="#dc2626", fontcolor="#dc2626", style=dashed, penwidth=1.3];
-  MM -> MM [label="conflict: the merge\nsession resolves it"];
+  MM -> MM [label="conflict: the card's\nkept Testing session\nresolves it"];
   HS -> HH [label="failure: back into the\nhardening session, until\nFACTORY_HARDENING_BUDGET_USD"];
   MC -> MM [label="failure or stalled test:\nback into the merge session"];
   MC -> MC [label="timed out or past\nFACTORY_CHECKS_TIMEOUT_MINUTES:\nrun the playtest and build\nagain, at most 3 runs"];
   MP -> MM [label="base moved:\nmerge it in, check again\nonly if game source changed"];
   XS -> MM [label="timed out or died:\nthe stuck sweep releases\nhalf the batch"];
   MP -> MM [label="cards left: the next\njob takes the next batch"];
-  CU -> CU [label="conflict: an agent\nresolves it, push\nthe issue branch only"];
+  CU -> CU [label="conflict: the card's\nkept Testing session\nresolves it, push\nthe issue branch only"];
   edge [color="#6b7280", fontcolor="#6b7280"];
   XA -> HM;
   HM -> MM [label="docs only:\nno session"];

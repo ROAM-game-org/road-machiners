@@ -2,11 +2,11 @@ import { moveCard } from '../card-events';
 import { rmSync, writeFileSync } from 'node:fs';
 import { openStore } from '../public/store';
 import { readState, updateState } from '../state';
-import { BRANCH, BUG_LABEL, DESIGN_SONNET_LABEL, GAME_DIR, HOTFIX_LABEL, IMPLEMENTATION_OPUS_LABEL, OUT_DIR, RELEASE_TASK_LABEL, ROUTING_MARK, VOTING_LABEL, WONT_DO_LABEL, type Ctx, type FactoryState, type ReleaseState } from '../types';
+import { BRANCH, BUG_LABEL, DESIGN_SONNET_LABEL, GAME_DIR, HOTFIX_LABEL, IMPLEMENTATION_OPUS_LABEL, OUT_DIR, RELEASE_TASK_LABEL, ROUTING_MARK, VOTING_LABEL, WONT_DO_LABEL, type Card, type Ctx, type FactoryState, type ReleaseState } from '../types';
 import { addToBundle, bundleCandidates, duplicateLeads } from './bundle';
 import { BASE_BRANCH, agentHome, askAuthor, fillPrompt, prepareOutputs, readOutput, runAgent, workDir, writeIssueInput } from './common';
 import { forgetGroomed, groom, readBundle, readReleaseFix, type Complexity, type Pitch, type Routing } from './groom';
-import { featureLine, recordReleaseTask, releaseFeatures } from './release-common';
+import { featureLine, forgetReleaseTask, recordReleaseTask, releaseFeatures } from './release-common';
 
 type Ready = { verdict: 'ready'; reason: string; hotfix: boolean; releaseFix: boolean; routing: Routing; bundle: number[] };
 type Vote = Omit<Ready, 'verdict'> & { verdict: 'vote'; pitch: Pitch };
@@ -30,16 +30,16 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   await writeIssueInput(ctx, issue, home);
   const state = readState(ctx.statePath);
   const cards = await ctx.github.cards();
-  const offered = { candidates: bundleCandidates(state, cards, issue), leads: duplicateLeads(cards, issue) };
+  const offered = releaseScoped(state, cards, issue, { candidates: bundleCandidates(state, cards, issue), leads: duplicateLeads(cards, issue) });
   await writeRelated(ctx, home, offered.candidates);
   await writeInWork(ctx, home, offered.leads);
-  const release = fixableRelease(state);
-  await writeRelease(ctx, home, release);
+  const release = fixableRelease(state, issue);
+  await writeRelease(ctx, home, release, issue);
   const result = await decide(ctx, issue, home, offered, release);
   if (result.verdict === 'unclear') return askAuthor(ctx, issue, result.questions, 'triage', result.reason);
   if (result.verdict === 'duplicate') return joinLead(ctx, issue, result);
   if (result.verdict === 'ready') return ready(ctx, issue, result, release);
-  if (result.verdict === 'vote') return vote(ctx, issue, result);
+  if (result.verdict === 'vote') return vote(ctx, issue, result, release);
   await ctx.github.comment(issue, result.reason);
   await ctx.github.addLabel(issue, WONT_DO_LABEL);
   await ctx.github.close(issue, 'not planned');
@@ -71,8 +71,10 @@ async function ready(ctx: Ctx, issue: number, result: Ready, release: ReleaseSta
   return pass(ctx, issue, `${result.reason}${carries}`, result, release);
 }
 
-async function vote(ctx: Ctx, issue: number, result: Vote): Promise<void> {
+async function vote(ctx: Ctx, issue: number, result: Vote, release: ReleaseState | null): Promise<void> {
   const note = await routeModels(ctx, issue, result.routing);
+  const leaves = isTaskOf(release, issue) ? `\n\nA vote is no fix of release ${release.day}, so it is no longer a task of that release.` : '';
+  if (leaves !== '') forgetReleaseTask(ctx, issue);
   if (result.bundle.length > 0) await addToBundle(ctx, issue, result.bundle, result.reason);
   const carries = result.bundle.length > 0 ? `\n\nThis card also carries ${result.bundle.map((n) => `#${n}`).join(', ')}.` : '';
   await ctx.github.addLabel(issue, VOTING_LABEL);
@@ -82,7 +84,7 @@ async function vote(ctx: Ctx, issue: number, result: Vote): Promise<void> {
   } finally {
     store.close();
   }
-  await ctx.github.comment(issue, `Triage put this to a player vote: ${result.reason}${carries}\n\n${note}`);
+  await ctx.github.comment(issue, `Triage put this to a player vote: ${result.reason}${carries}${leaves}\n\n${note}`);
 }
 
 async function pass(ctx: Ctx, issue: number, reason: string, result: Ready, release: ReleaseState | null): Promise<void> {
@@ -100,7 +102,7 @@ async function announce(ctx: Ctx, issue: number, reason: string, note: string, {
     await ctx.telegram.sendMessage(ctx.cfg.committeeChat, `⚠️ Triage marked #${issue} ${title} as a hotfix.\n${reason}\nIt skips dev. Its approval will merge into main and ship to itch.io at once. Remove the label hotfix on GitHub if it can wait for a release.`);
     return 'hotfix';
   }
-  if (releaseFix && release !== null) {
+  if (release !== null && (releaseFix || isTaskOf(release, issue))) {
     recordReleaseTask(ctx, issue);
     await ctx.github.addLabel(issue, RELEASE_TASK_LABEL);
     await ctx.github.comment(issue, `Triage passed as a fix for release ${release.day}: ${reason}\n\nIt branches from ${release.branch}, and its approval merges it into that release.\n\n${note}`);
@@ -110,15 +112,26 @@ async function announce(ctx: Ctx, issue: number, reason: string, note: string, {
   return undefined;
 }
 
-function fixableRelease(state: FactoryState): ReleaseState | null {
-  return state.release !== null && state.release.postId === null ? state.release : null;
+function fixableRelease(state: FactoryState, issue: number): ReleaseState | null {
+  const { release } = state;
+  return release !== null && (release.postId === null || isTaskOf(release, issue)) ? release : null;
 }
 
-async function writeRelease(ctx: Ctx, home: string, release: ReleaseState | null): Promise<void> {
+const isTaskOf = (release: ReleaseState | null, issue: number): release is ReleaseState => release?.tasks.includes(issue) ?? false;
+
+function releaseScoped(state: FactoryState, cards: Card[], issue: number, { candidates, leads }: Offered): Offered {
+  const tasks = state.release?.tasks ?? [];
+  if (!tasks.includes(issue)) return { candidates: candidates.filter((n) => !tasks.includes(n)), leads };
+  const releaseTask = (n: number): boolean => tasks.includes(n) || cards.some((card) => card.issue === n && card.labels.includes(RELEASE_TASK_LABEL));
+  return { candidates: candidates.filter((n) => tasks.includes(n)), leads: leads.filter(releaseTask) };
+}
+
+async function writeRelease(ctx: Ctx, home: string, release: ReleaseState | null, issue: number): Promise<void> {
   const text = release === null
     ? 'No release takes fixes now. releaseFix is false.'
     : `Release ${release.day} takes fixes. It holds these features:\n\n${releaseFeatures(release).map((feature) => `- ${featureLine(feature)}`).join('\n')}`;
-  writeFileSync(`${home}/${OUT_DIR}/release.md`, `${text}\n`);
+  const task = isTaskOf(release, issue) ? `\n\nThis issue is a task of release ${release.day}: a player reported it on the release candidate. A ready verdict runs it as a fix of that release whatever releaseFix says.` : '';
+  writeFileSync(`${home}/${OUT_DIR}/release.md`, `${text}${task}\n`);
 }
 
 async function routeModels(ctx: Ctx, issue: number, routing: Routing): Promise<string> {
