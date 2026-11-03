@@ -15,6 +15,42 @@ export type SaveBackend = {
   readLog(runId: string): Promise<LogRecord[]>;
 };
 
+export type HostSaves = {
+  readAll(): Promise<[SlotId, unknown][]>;
+  put(slot: SlotId, envelope: unknown): Promise<void>;
+  remove(slot: SlotId): Promise<void>;
+  appendLog(runId: string, entries: readonly LogEntry[]): Promise<void>;
+  readLog(runId: string): Promise<LogRecord[]>;
+};
+
+export type DesktopHost = { kind: 'desktop'; saves: HostSaves };
+
+const SAVE_CALLS = ['readAll', 'put', 'remove', 'appendLog', 'readLog'] as const;
+
+export class HostShapeError extends Error {
+  constructor(detail: string) {
+    super(`window.roamDesktop has the wrong shape: ${detail}`);
+    this.name = 'HostShapeError';
+  }
+}
+
+function objectOf(value: unknown, name: string): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null) throw new HostShapeError(`${name} is not an object`);
+  return value as Record<string, unknown>;
+}
+
+export function desktopHost(scope: object = window): DesktopHost | null {
+  const found = (scope as { roamDesktop?: unknown }).roamDesktop;
+  if (found === undefined) return null;
+  const host = objectOf(found, 'roamDesktop');
+  if (host.kind !== 'desktop') throw new HostShapeError(`kind is ${String(host.kind)}, not desktop`);
+  const saves = objectOf(host.saves, 'saves');
+  for (const call of SAVE_CALLS) {
+    if (typeof saves[call] !== 'function') throw new HostShapeError(`saves.${call} is not a function`);
+  }
+  return found as DesktopHost;
+}
+
 const SAVES = 'saves';
 const LOG = 'log';
 
@@ -182,7 +218,8 @@ function messageOf(err: unknown): string {
 export const IDB_OPEN_MS = 5000;
 const IDB_RETRY_MS = 200;
 
-export async function openSaves(name: string, storage: Storage, slots: readonly SlotId[]): Promise<SaveSlots> {
+export async function openSaves(name: string, storage: Storage, slots: readonly SlotId[], host: DesktopHost | null): Promise<SaveSlots> {
+  if (host) return SaveSlots.open(hostBackend(host.saves), null, name, slots);
   const local = () => storageBackend(storage, name, slots);
   const idb = await idbBackendWithRetry(name);
   if (!idb) return SaveSlots.open(local(), null, name, slots);
@@ -228,6 +265,16 @@ export function storageBackend(storage: Storage, base: string, slots: readonly S
     remove: async (slot) => { storage.removeItem(slotKey(base, slot)); },
     appendLog,
     readLog,
+  };
+}
+
+export function hostBackend(saves: HostSaves): SaveBackend {
+  return {
+    readAll: async () => new Map(await saves.readAll()),
+    put: (slot, envelope) => saves.put(slot, envelope),
+    remove: (slot) => saves.remove(slot),
+    appendLog: (runId, entries) => saves.appendLog(runId, entries),
+    readLog: (runId) => saves.readLog(runId),
   };
 }
 

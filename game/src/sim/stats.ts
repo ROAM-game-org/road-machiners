@@ -89,6 +89,10 @@ function brokenWheelCount(v: Loadout): number {
   return coreParts(v, 'wheel').filter((p) => !isWorking(p)).length;
 }
 
+function wheelFactorOf(v: Loadout): number {
+  return (1 - RULES.wheelLoss) ** ((brokenWheelCount(v) * RULES.wheelLossWheels) / coreParts(v, 'wheel').length);
+}
+
 function walkSpeed(world: World, v: Vehicle, limpSpeed: number, load: number, broken: number, overdrive: boolean, steps: SpeedStep[] | null): number {
   const driving = hasWorkingEngine(v) && !isStalled(world, v);
   const speed = driving ? drivingSpeed(world, v, limpSpeed, load, broken, overdrive, steps) : limpSpeedStep(v, limpSpeed, steps);
@@ -110,7 +114,7 @@ function drivingSpeed(world: World, v: Vehicle, limpSpeed: number, load: number,
   speed = abilitySpeed(v, speed, steps);
   speed *= load;
   steps?.push({ kind: 'load', factor: load, mass: loadMass(v), rated: ch.ratedMass, speed });
-  const wheels = (1 - RULES.wheelLoss) ** broken;
+  const wheels = wheelFactorOf(v);
   speed *= wheels;
   if (broken > 0) steps?.push({ kind: 'wheels', broken, factor: wheels, speed });
   const draw = gunDraw(v);
@@ -194,6 +198,7 @@ type LoadoutStats = {
   loadMass: number;
   load: number;
   brokenWheels: number;
+  wheelFactor: number;
   engine: EngineDef | null;
   gunDraw: number;
   gunCapacity: number | null;
@@ -208,6 +213,7 @@ const LOADOUT_STATS = loadoutSlot((l: Loadout): LoadoutStats => {
     loadMass: loadMass(l),
     load: loadFactor(l),
     brokenWheels: brokenWheelCount(l),
+    wheelFactor: wheelFactorOf(l),
     engine: worn,
     gunDraw: gunDrawOf(l),
     gunCapacity: worn ? gunCapacityOf(l, worn) : null,
@@ -224,7 +230,7 @@ export function driveStats(world: World, v: Vehicle): DriveStats {
   const facts = loadoutFact(v, LOADOUT_STATS);
   const { mass, load, brokenWheels } = facts;
   const force = ch.handlingMass / facts.loadMass;
-  const wheels = (1 - RULES.wheelLoss) ** brokenWheels;
+  const wheels = facts.wheelFactor;
   const turnMult = (1 + skillEffect(world, v, 'driving', 'turnRate')) * load * wheels;
   const limpSpeed = limpSpeedOf(world, v);
   const limpAccel = limpSpeed * ch.accel;

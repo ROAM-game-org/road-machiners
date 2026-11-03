@@ -22,10 +22,10 @@ between the axles, pale flap plates behind the rear wheels, dark mudflaps under 
 under the rear edge.
 Deviations from the photos: the wheels stay symmetric and keep the tire rule's 0.6 m radius, the width follows the
 widening rule, the cab is 1.94 m deep from the face where photo 04 shows about 1.4 tire diameters, 1.65 m, once its angle is taken out, since the roof
-hatch must cover the engine cells on rows 1 and 2, there are no side mirrors, no rear corner post, the bed's edge beam
+hatch must cover the engine bay, there are no side mirrors, no rear corner post, the bed's edge beam
 rises only 0.04 m over the deck, and the headboard stops under the cab roof.
 Grid: 7 columns by 9 rows, stretched over the 6.09 by 2.92 m model. Half height 0.6 m, from PHYSICS.bodies.hauler.
-Rows 0 to 2 are the cab, with the hatch over the engine cells, rows 1 and 2, columns 2 and 3. Rows 3 to 8 are the bed.
+The roof hatch is cut over the engine bay of the chassis.ts layout, rows 3 to 5 and columns 3 and 4, 1.35 m long and 0.9 m wide.
 Wheels 1.775 m either side of the center and 1.13 m off the center line, radius 0.6 m, half width 0.25 m, mount 0.4 m below the center.
 Sockets arch_front, arch_rear and arch_front_top (the arch crown) mark the arches for wheelArches.test.ts.
 Run: blender --background --python tools/blender/base_hauler.py -- public/models/base_hauler.glb [tmp/base_hauler.png]
@@ -92,10 +92,11 @@ ROOF = up(2.60)
 ROOF_T = 0.12  # the engine in the hatch stands on the roof's underside
 UNDER_ROOF = ROOF - ROOF_T
 COAMING = 0.04  # the hatch rim; with it the cab stands 2.64 m
-HATCH_FRONT = G.row_x(0.5)  # the hatch covers rows 1 and 2, columns 2 and 3
-HATCH_BACK = G.row_x(2.5)
-HATCH_LEFT = G.col_y(1.5)
-HATCH_RIGHT = G.col_y(3.5)
+GAME = Grid(rows=14, cols=6, half_height=0.6, length=6.3, width=2.7)  # chassis.ts layout inside its border cells
+HATCH_FRONT = GAME.row_x(1.5)  # the hatch is the engine bay: layout rows 3 to 5, columns 3 and 4
+HATCH_BACK = GAME.row_x(4.5)
+HATCH_LEFT = GAME.col_y(1.5)
+HATCH_RIGHT = GAME.col_y(3.5)
 CAB_BACK = HATCH_BACK - 0.11
 
 SETBACK = 0.28  # photo 04 gives 0.36 m once its angle is taken out; 0.28 keeps the roof cap ahead of the hatch

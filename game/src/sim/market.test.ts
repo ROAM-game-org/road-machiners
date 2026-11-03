@@ -57,9 +57,9 @@ describe('market', () => {
     const w = emptyWorld();
     const load = layoutLoad(addVehicle(w, 'scrapjaw', 'hauler', [], { x: 0, y: 0 }));
     const state = initShop(w, 'bowl');
-    const before = goodPrice('bowl', state, 'scrap', 'sell', ECONOMY.spread);
+    const before = goodRate('bowl', state, 'scrap', 'sell', ECONOMY.spread);
     recordTrade('bowl', state, 'scrap', load, 'sell');
-    const after = goodPrice('bowl', state, 'scrap', 'sell', ECONOMY.spread);
+    const after = goodRate('bowl', state, 'scrap', 'sell', ECONOMY.spread);
     expect(before - after).toBeLessThan(before * (PRESSURE_MAX / 2));
   });
 

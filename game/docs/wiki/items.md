@@ -10,22 +10,22 @@ Parts are defined in `src/data/parts.ts`, chassis in `src/data/chassis.ts` and g
 | id | name | tier | value (M) | max speed (tiles/turn) | accel | brake | mass (kg) | rated mass (kg) | radius (tiles) | fuel cap | fuel per tile | grid (w x h) | core parts | garages | ability |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | scout | Scout pickup | 1 | 763 | 5.83 | 2 | 3 | 680 | 4240 | 0.6 | 40 | 0.25 | 6 x 14 | cabPickup, transmission, tank, wheel, wheel, wheel, wheel | bowl, nose | bed |
-| hauler | Hauler | 2 | 1,226 | 5.2 | 1 | 2 | 2730 | 7990 | 0.8 | 80 | 0.4 | 8 x 16 | wheelMid, wheelMid, wheelMid, wheelMid, cabPickup, transmissionMid, tankMid | bowl | bed |
+| hauler | Hauler | 1 | 901 | 5.2 | 1 | 2 | 2730 | 7990 | 0.8 | 80 | 0.4 | 8 x 16 | wheel, wheel, wheel, wheel, cabPickup, transmission, tank | bowl | bed |
 | buggy | Buggy | 1 | 643 | 9.1 | 3 | 3 | 230 | 3680 | 0.5 | 30 | 0.2 | 6 x 11 | tank, transmission, cab, wheel, wheel, wheel, wheel | bowl, nose | nimble |
-| wagon | Gunwagon | 2 | 1,008 | 3.9 | 1 | 2 | 2130 | 7390 | 0.8 | 60 | 0.4 | 8 x 16 | wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, cabPickup, transmissionHeavy, tankHeavy | nose | gunMounts |
+| wagon | Gunwagon | 2 | 1,008 | 3.9 | 1 | 2 | 2130 | 7390 | 0.8 | 60 | 0.4 | 8 x 16 | wheelMid, wheelMid, wheelMid, wheelMid, cabPickup, transmissionMid, tankMid | nose | gunMounts |
 | courier | Courier | 1 | 774 | 9.75 | 3 | 3 | 280 | 4150 | 0.5 | 24 | 0.18 | 6 x 11 | cab, transmission, tank, wheel, wheel, wheel, wheel | bowl, nose | racing |
-| van | Utility van | 2 | 1,027 | 6.5 | 1.5 | 3 | 1100 | 5190 | 0.7 | 55 | 0.24 | 7 x 15 | wheelMid, wheelMid, wheelMid, wheelMid, cabPickup, transmissionMid, tankMid | bowl | armored |
-| longbed | Longbed truck | 3 | 1,795 | 4.55 | 0.8 | 1.8 | 2900 | 9330 | 0.95 | 100 | 0.48 | 8 x 18 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl | bed |
+| van | Utility van | 1 | 850 | 6.5 | 1.5 | 3 | 1100 | 5190 | 0.7 | 55 | 0.24 | 7 x 15 | wheel, wheel, wheel, wheel, cabPickup, transmission, tank | bowl | armored |
+| longbed | Longbed truck | 2 | 1,350 | 4.55 | 0.8 | 1.8 | 2900 | 9330 | 0.95 | 100 | 0.48 | 8 x 18 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl | bed |
 | carrier | Armored carrier | 3 | 1,626 | 5.2 | 1 | 2.5 | 3200 | 8020 | 0.85 | 70 | 0.5 | 8 x 15 | wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, cabPickup, transmissionHeavy, tankHeavy | nose | armored |
 | tractor | Heavy tractor | 3 | 1,461 | 3.9 | 1.8 | 2 | 3600 | 8860 | 0.9 | 120 | 0.6 | 8 x 16 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl | battle |
 | jeep | Jeep | 1 | 729 | 8.2 | 2.5 | 3 | 450 | 4320 | 0.55 | 35 | 0.2 | 6 x 12 | cab, transmission, tank, wheel, wheel, wheel, wheel | nose | offRoad |
-| convertible | Convertible | 2 | 998 | 9.4 | 2.5 | 3 | 750 | 4840 | 0.6 | 45 | 0.26 | 7 x 15 | cabHardtop, transmission, tankLong, wheel, wheel, wheel, wheel | bowl | openTop |
+| convertible | Convertible | 2 | 998 | 9.4 | 2.5 | 3 | 750 | 4840 | 0.6 | 45 | 0.26 | 7 x 15 | cabHardtop, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl | openTop |
 | bus | Bus | 2 | 1,267 | 5.5 | 0.9 | 2 | 3000 | 9410 | 0.9 | 110 | 0.45 | 7 x 21 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl | springs |
 | loader | Wheel loader | 3 | 1,696 | 3.6 | 1.6 | 2.5 | 4200 | 9460 | 0.9 | 130 | 0.65 | 8 x 16 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl | gunMounts |
-| niva | Niva | 2 | 1,050 | 7.6 | 2.2 | 3 | 520 | 4810 | 0.55 | 42 | 0.21 | 6 x 12 | cab, transmissionMid, tank, wheelMid, wheelMid, wheelMid, wheelMid | nose | offRoad |
+| niva | Niva | 2 | 1,050 | 7.6 | 2.2 | 3 | 520 | 4810 | 0.55 | 42 | 0.21 | 6 x 12 | cab, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | nose | offRoad |
 | bukhanka | Bukhanka | 2 | 1,150 | 6 | 1.4 | 2.5 | 1250 | 5760 | 0.65 | 78 | 0.3 | 7 x 14 | wheelMid, wheelMid, wheelMid, wheelMid, cabPickup, transmissionMid, tankMid | nose | armored |
-| lincoln | Lincoln | 3 | 1,430 | 8.6 | 2 | 2.2 | 900 | 5940 | 0.85 | 85 | 0.36 | 7 x 18 | wheel, wheel, wheel, wheel, cabHardtop, transmission, tankLong | nose | tourer |
-| semi | Semi | 3 | 1,400 | 6 | 0.8 | 1.5 | 9000 | 16830 | 1.2 | 160 | 0.5 | 9 x 48 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid |  |  |
+| lincoln | Lincoln | 3 | 1,430 | 8.6 | 2 | 2.2 | 900 | 5940 | 0.85 | 85 | 0.36 | 7 x 18 | wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, cabHardtop, transmissionHeavy, tankHeavy | nose | tourer |
+| semi | Semi | 3 | 1,400 | 6 | 0.8 | 1.5 | 9000 | 16980 | 1.2 | 160 | 0.5 | 9 x 48 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy |  |  |
 | sorokonoga | Sorokonoga | 3 | 1,766 | 3.4 | 0.7 | 1.6 | 4100 | 11200 | 1 | 140 | 0.55 | 7 x 27 | wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, cabPickup, tankHeavy, transmissionHeavy | bowl | trailer |
 <!-- /wiki:chassis -->
 

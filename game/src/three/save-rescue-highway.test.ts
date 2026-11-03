@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { partDef } from '../data/parts';
 import { startKit } from '../data/start';
 import { haulerOf, playerTrucks, playerVehicle } from '../sim/damage';
 import { canDriveOn, stretchPlan, driveOn } from '../sim/chaos-highway';
@@ -35,7 +36,7 @@ function savedTruck(save: Fixture, id: string): SavedTruck {
 }
 
 function partsOf(items: readonly { kind: string; part?: { defId: string; hp: number; wear: number } }[]) {
-  return items.flatMap((it) => (it.part ? [{ defId: it.part.defId, hp: Math.min(it.part.hp, maxHp({ id: 'held', ...it.part })), wear: it.part.wear }] : [])).sort((a, b) => a.defId.localeCompare(b.defId));
+  return items.flatMap((it) => (it.part && partDef(it.part.defId).kind !== 'core' ? [{ defId: it.part.defId, hp: Math.min(it.part.hp, maxHp({ id: 'held', ...it.part })), wear: it.part.wear }] : [])).sort((a, b) => a.defId.localeCompare(b.defId));
 }
 
 function goodsOf(items: readonly { kind: string; good?: string }[]): string[] {

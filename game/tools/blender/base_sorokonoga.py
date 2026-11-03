@@ -2,7 +2,7 @@
 
 sorokonoga_common.py lays out the rig. The tractor is 4.9 m long, from x 8.4 to 3.5 of the straight rig frame, and its origin
 is its center there, halfway between the steer axle and the drive axle. So the physics wheels sit 1.9 m either way of it,
-PHYSICS.bodies.sorokonoga.wheelX, and the engine hole at PHYSICS.bodies.sorokonoga.engine. The game draws the steer pair and
+PHYSICS.bodies.sorokonoga.wheelX. The engine hole is the engine bay of the chassis.ts layout, rows 6 to 8 and columns 2 and 3, at the floor PHYSICS.bodies.sorokonoga.engineY. The game draws the steer pair and
 the drive axle's outer duals; the model draws the inner duals. The pivot socket marks the fifth wheel, 2.15 m behind
 the origin, where the drawbar swivels. The arch sockets let wheelArches.test.ts check the wheels against physics.
 Run: blender --background --python tools/blender/base_sorokonoga.py -- public/models/base_sorokonoga.glb [tmp/base_sorokonoga.png]

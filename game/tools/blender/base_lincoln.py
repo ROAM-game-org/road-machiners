@@ -3,7 +3,7 @@
 Grid: 5 columns by 11 rows, 2.42 m across by 7.15 m along. Half height 0.35 m, from PHYSICS.bodies.lincoln.
 The ground is 1.02 m below the center, so the roof at 0.54 m stands 1.56 m tall, 4.4 times shorter than the car is long.
 One long low slab body with a straight beltline at 0.10 m. The hood runs 41 % of the length back to the upright windshield at x 0.63,
-with a low center ridge and a cutout over the engine cells, an upright chrome grille standing proud of the nose between squared fender ends,
+with a low center ridge and a cutout over the engine bay of the chassis.ts layout, rows 3 to 5 and columns 2 and 3, 1.35 m long and 0.9 m wide, an upright chrome grille standing proud of the nose between squared fender ends,
 and a chrome wrap bumper. The hardtop greenhouse is narrower than the body, in dark vinyl: the windshield stands upright because guns on the roof cells need a step, not a slope,
 the roof runs back to -0.97 and a thick C-pillar slopes to the trunk lid at -1.62. The trunk is the last 27 %.
 Wheels sit on rows 1 and 9 in the outer columns, radius 0.48 m, half width 0.19 m, mount 0.2 m below the center. Arches are cut on them.
@@ -56,10 +56,11 @@ COWL = 0.63  # the windshield base: upright, because guns on the roof cells need
 ROOF_FRONT = 0.63  # the windshield top
 ROOF_BACK = -0.97  # the roof's flat top ends here
 REAR_BASE = -1.62  # the C-pillar meets the trunk lid here, the row 7 and 8 line
-BAY_FRONT = G.row_x(1.5)  # the engine cutout covers rows 2 and 3, columns 1 and 2
-BAY_BACK = 1.0
-BAY_LEFT = G.col_y(0.5)
-BAY_RIGHT = G.col_y(2.5)
+GAME = Grid(rows=18, cols=7, half_height=0.35, length=8.1, width=3.15)  # chassis.ts layout inside its border cells, 0.45 m square
+BAY_FRONT = GAME.row_x(2.5)  # the engine cutout is the engine bay: layout rows 3 to 5, columns 2 and 3
+BAY_BACK = GAME.row_x(5.5)
+BAY_LEFT = GAME.col_y(1.5)
+BAY_RIGHT = GAME.col_y(3.5)
 BAY_FLOOR = -0.25  # a 0.5 m engine pokes 0.35 m out of the cutout
 CAB_BELT_Y = 0.76  # the greenhouse half width at the beltline: it covers the third column from the center and no more
 CAB_ROOF_Y = 0.72  # and at the roof

@@ -19,7 +19,7 @@ import type { GridItem, PartInstance, World } from './types';
 import { dist } from './vec';
 import { playerSees } from './vision';
 import { maxHp } from './wear';
-import { carriedWorld, endTurn, newWorld } from './world';
+import { carriedWorld, cloneWorld, endTurn, newWorld } from './world';
 import { startPose } from './start-pose';
 
 const KIT = startKit('standard');
@@ -43,14 +43,14 @@ const turns = (w: World, n: number): World => {
 };
 
 function withoutTraffic(w: World): World {
-  const next = structuredClone(w);
+  const next = cloneWorld(w);
   next.vehicles = next.vehicles.filter((v) => v.faction === 'player');
   next.spawnQueue = [];
   return next;
 }
 
 function parkedBy(w: World): World {
-  const next = structuredClone(w);
+  const next = cloneWorld(w);
   const me = playerVehicle(next);
   me.pos = openingStopPoint(next);
   me.speed = 0;

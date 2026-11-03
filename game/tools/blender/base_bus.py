@@ -18,7 +18,7 @@ has seven bays. A strip of roof-curve glass runs over the bays in the cant. A tw
 run along each side, broken by the flares.
 The flat roof, 1.10 m either side of the center line, is the row surface of every deck row. The cant and its glass lie outside it.
 The rear roof intake stands behind the last deck row, over the back ring.
-The engine hatch is a cutout over the engine cells, rows 8 and 9 of columns 3 and 4, round PHYSICS.bodies.bus.engine, over a bay floor at 1.02.
+The engine hatch is a cutout over the engine bay of the chassis.ts layout, rows 14 to 16 and columns 2 and 3, 1.35 m long and 0.9 m wide, over a bay floor at 1.02.
 Wheels sit 1.95 m ahead of and behind the center, 1.0 m off the center line, radius 0.72 m, half width 0.27 m,
 mount 0.55 m below the center. Round arches, flares and lamps take their sides from round_sides().
 Sockets arch_front, arch_rear and arch_front_top (the arch crown) mark the arches for wheelArches.test.ts.
@@ -142,11 +142,9 @@ CANT = [
     (ROOF, ROOF_FRONT, ROOF_BACK, ROOF_FLAT, 0.0, 0.25),
 ]
 
-ENGINE_X = -2.125  # PHYSICS.bodies.bus.engine.x, the middle of rows 8 and 9
-ENGINE_Y = 0.186  # -PHYSICS.bodies.bus.engine.z, the middle of columns 3 and 4
+GAME = Grid(rows=19, cols=5, half_height=0.8, length=8.55, width=2.25)  # chassis.ts layout inside its border cells
 BAY_FLOOR = ROOF - 0.25  # PHYSICS.bodies.bus.engine.y
-ENGINE_HALF = (G.row_step, G.col_step)  # the two by two engine cells
-HATCH = ((ENGINE_X - ENGINE_HALF[0] - 0.01, ENGINE_Y - ENGINE_HALF[1] - 0.02), (ENGINE_X + ENGINE_HALF[0] + 0.01, ENGINE_Y + ENGINE_HALF[1] + 0.02))
+HATCH = ((GAME.row_x(15.5), min(GAME.col_y(0.5), GAME.col_y(2.5))), (GAME.row_x(12.5), max(GAME.col_y(0.5), GAME.col_y(2.5))))  # the engine bay: layout rows 14 to 16, columns 2 and 3
 
 FLARE_REACH = ARCH_R + FLARE + DOOR_GAP + 0.01
 FRONT_DOOR = (NOSE_END, WHEEL_X + FLARE_REACH)  # x front, x back
@@ -418,10 +416,12 @@ def check_roof_flat() -> None:
 
 
 def check_hatch() -> None:
-    """Raises when the hatch leaves the flat roof or misses the engine rows."""
+    """Raises when the hatch leaves the flat roof or is not the engine bay's 3 cells by 2."""
     (x0, y0), (x1, y1) = HATCH
-    if x0 > G.row_x(9.5) or x1 < G.row_x(7.5) or y1 >= ROOF_FLAT or x0 < ROOF_BACK:
-        raise RuntimeError(f"hatch x {x0:.3f}..{x1:.3f} y {y0:.3f}..{y1:.3f} misses rows 8 and 9 or leaves the roof")
+    if abs((x1 - x0) - 3 * GAME.along) > 1e-6 or abs((y1 - y0) - 2 * GAME.across) > 1e-6:
+        raise RuntimeError(f"hatch x {x0:.3f}..{x1:.3f} y {y0:.3f}..{y1:.3f} is not 3 cells long and 2 across")
+    if max(abs(y0), abs(y1)) >= ROOF_FLAT or x0 - 0.2 < ROOF_BACK:
+        raise RuntimeError(f"hatch x {x0:.3f}..{x1:.3f} y {y0:.3f}..{y1:.3f} leaves the roof")
 
 
 def main() -> None:
@@ -438,7 +438,7 @@ def main() -> None:
     kit.socket("arch_front", (WHEELS_X[0], WHEEL_Z, HUB_Z))
     kit.socket("arch_rear", (WHEELS_X[1], WHEEL_Z, HUB_Z))
     kit.socket("arch_front_top", (WHEELS_X[0], WHEEL_Z, HUB_Z + ARCH_R))
-    bay = {(x, y): BAY_FLOOR for x in (3, 4) for y in (8, 9)}
+    bay = {(x, y): BAY_FLOOR for x in (2, 3, 4) for y in (8, 9, 10)}
     level_sockets(kit, G, "row", [ROOF] * G.rows, fronts={0: ROOF_FRONT}, cells=bay)
     level_sockets(kit, G, "floor", [FLOOR] * G.rows, cells=bay)
     check_size(kit)

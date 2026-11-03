@@ -1,5 +1,7 @@
 import { beforeAll, expect, it } from 'vitest';
 import { haulerOf, playerVehicle } from '../sim/damage';
+import { makePart } from '../sim/factory';
+import { mountPart } from '../sim/inventory';
 import { spawnGroup, waveOf } from '../sim/chaos-highway';
 import { alongOf, milestoneAt, outpostYardHalf, roadHeading, roadPoint, toRoad } from '../sim/highway';
 import { inYard, yardSpots } from '../sim/outpost-gates';
@@ -16,6 +18,7 @@ beforeAll(async () => {
 
 const BRAKING_TURNS = 4;
 const TURNS = 60;
+const FRONT_PLATES = 2;
 
 function scene(): World {
   const w = chaosHighwayWorld(3);
@@ -29,6 +32,7 @@ function scene(): World {
   hauler.speed = 0;
   hauler.order = null;
   const me = playerVehicle(w);
+  for (let i = 0; i < FRONT_PLATES; i++) expect(mountPart(w, me, makePart(w, 'plates', 0))).toBe(true);
   me.pos = roadPoint(w.seed, 0, fort - outpostYardHalf() - 12, 0);
   me.heading = roadHeading(w.seed, fort);
   me.speed = 0;

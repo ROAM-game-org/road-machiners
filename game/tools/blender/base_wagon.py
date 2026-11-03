@@ -13,7 +13,7 @@ Grid: 7 columns by 9 rows over the 6.1 by 2.8 m model, a row 0.678 m and a colum
 Row 0 is the nose: a low square hood between flat-topped wings, a vertical-bar grille on the face, lamps on the wing fronts and a heavy
 bumper with tow hooks. Rows 1 and 2 are the closed cab over the front axle, a raked narrow windshield with two panes, plates over the
 doors and a flat full-width roof where the deck cells stand. Rows 3 to 8 are the deck, its floor at 0.05, with a low plated rim.
-The engine stands in an open plated tub behind the cab on its bay floor (columns 2 and 3, rows 3 and 4, PHYSICS.bodies.wagon.engine);
+The engine stands in an open plated tub behind the cab on its bay floor, the engine bay of the chassis.ts layout (rows 6 to 8, columns 2 and 3, 1.35 m long and 0.9 m wide, on the left);
 the transmission (columns 4 and 5, rows 5 and 6) and the fuel tank (column 2, rows 3 and 4) stand on the deck. The spare stands upright
 behind the cab, the fuel tanks hang under the deck and the taillights sit at the tail.
 Wheels sit on rows 1 and 7 in the outer columns, radius 0.6 m, half width 0.25 m, mount 0.4 m below the center, 1.12 m off the center line.
@@ -105,9 +105,10 @@ ROOF_FRONT = 2.2
 BELOW_ROOF = ROOF - ROOF_T
 SLOPE = (ROOF_FRONT - CAB_FRONT) / (BELOW_ROOF - SCREEN_FOOT)
 
-HOLE_MARGIN = 0.02
-HOLE = ((G.row_x(4.5) - HOLE_MARGIN, G.col_y(3.5) - HOLE_MARGIN), (G.row_x(2.5) + HOLE_MARGIN, G.col_y(1.5) + HOLE_MARGIN))
-TUB_WALL = 0.05
+GAME = Grid(rows=14, cols=6, half_height=0.55, length=6.3, width=2.7)  # chassis.ts layout inside its border cells
+HOLE = ((GAME.row_x(7.5), GAME.col_y(2.5)), (GAME.row_x(4.5), GAME.col_y(0.5)))  # the engine bay: layout rows 6 to 8, columns 2 and 3
+TUB_WALL = 0.12
+TUB_FRONT_WALL = 0.05
 TUB_TOP = 0.3
 BAY_FLOOR = FLOOR
 
@@ -217,7 +218,7 @@ def cab_plates(kit: Kit) -> None:
 def engine_tub(kit: Kit) -> None:
     """An open plated tub behind the cab over the engine cells, with a hole down to the bay floor."""
     (x0, y0), (x1, y1) = HOLE
-    front, back = x1 + TUB_WALL, x0 - TUB_WALL
+    front, back = x1 + TUB_FRONT_WALL, x0 - TUB_WALL
     box = kit.box("tub", (front - back, y1 - y0 + 2 * TUB_WALL, TUB_TOP - FLOOR), ((front + back) / 2, (y0 + y1) / 2, (TUB_TOP + FLOOR) / 2), "paint")
     cut_boxes(box, [((x0, y0, FLOOR - 0.01), (x1, y1, TUB_TOP + 0.1))])
     box.data.materials.clear()
@@ -245,9 +246,9 @@ def deck(kit: Kit) -> None:
 
 
 def spare(kit: Kit) -> None:
-    """A spare wheel standing upright behind the cab on the left, in the round look of the game's wheel."""
+    """A spare wheel standing upright behind the cab on the right, in the round look of the game's wheel."""
     x = CAB_BACK - SPARE_T / 2 - 0.01
-    y = HALF_Y - SPARE_R - 0.02
+    y = -(HALF_Y - SPARE_R - 0.02)
     z = FLOOR + SPARE_R
     drawn_wheel(kit, "spare", (x, y, z), SPARE_R / TIRE_SHARE, SPARE_T / 0.94, ALONG_X)
 

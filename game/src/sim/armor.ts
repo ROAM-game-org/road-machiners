@@ -239,6 +239,14 @@ export function laneCount(v: Vehicle, side: Side): number {
   return side === 'front' || side === 'rear' ? g.w : g.h;
 }
 
+export function filledLanes(v: Vehicle, side: Side): number[] {
+  const g = hitGridOf(v);
+  const owner = cellOwners(v);
+  const lanes = Array.from({ length: laneCount(v, side) }, (_, lane) => lane);
+  const working = lanes.filter((lane) => laneOwners(g, owner, side, lane).some((cell) => cell !== null && cell.parts.some((p) => p.hp > 0)));
+  return working.length > 0 ? working : lanes;
+}
+
 export function partLane(v: Vehicle, partId: string, side: Side): number {
   const item = mountedItems(v).find((it) => it.part.id === partId);
   if (!item) throw new Error(`${v.id} has no mounted part ${partId}`);

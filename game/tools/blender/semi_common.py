@@ -49,7 +49,7 @@ DUAL_STEP = 2 * WHEEL_HALF_W + 0.02
 DRIVE_AXLES = (DRIVE_MID + TANDEM / 2, REAR_DRIVE_X)
 TRAILER_AXLES = (LAST_TRAILER_X + TANDEM, LAST_TRAILER_X)
 TANDEM_COVER = TANDEM + 1.3
-UNIT_MODEL_WHEELS = 6
+UNIT_MODEL_WHEELS = 4
 PIVOT_X = 3.0  # PHYSICS.couplings.semi pivotFront and pivotRear, in the straight rig frame
 
 FRONT = LENGTH / 2
@@ -81,12 +81,13 @@ CAB_ROOF = up(3.55)
 TRAILER_FLOOR = up(1.6)
 TRAILER_ROOF = up(5.2)
 STACK_TOP = up(4.55)
-BAY_FRONT = ENGINE[0] + 0.55
-BAY_BACK = ENGINE[0] - 0.55
-BAY_HALF = HOOD_HALF - 0.12
 LEGS_X = DRIVE_AXLES[1] - WHEEL_R - 0.75
 TRACTOR_REAR = 1.225
 TRACTOR_ORIGIN = (FRONT + TRACTOR_REAR) / 2
+BAY_FRONT = TRACTOR_ORIGIN + 3.711  # the engine bay of the chassis.ts layout: rows 3 to 5, columns 3 and 4, 1.35 m long and 0.9 m wide
+BAY_BACK = BAY_FRONT - 1.35
+BAY_LEFT = 0.675
+BAY_RIGHT = -0.225
 TRAILER_ORIGIN = (TRAILER_FRONT + BACK) / 2
 COLORS = {
     **BASE_COLORS,
@@ -141,12 +142,12 @@ def check_tandems() -> None:
 
 
 def tractor_gear(kit: Kit) -> int:
-    """The frame rails to the rear cross member, the front drive axle's duals and the rear drive axle's inner duals.
+    """The frame rails to the rear cross member and the inner duals of both drive axles.
 
-    The game draws the steer pair and the outer wheels of the rear drive axle. Returns the wheel count.
+    The game draws the steer pair and the outer wheels of both drive axles. Returns the wheel count.
     """
     check_tandems()
-    count = duals(kit, DRIVE_AXLES[0]) + duals(kit, DRIVE_AXLES[1], (1,))
+    count = duals(kit, DRIVE_AXLES[0], (1,)) + duals(kit, DRIVE_AXLES[1], (1,))
     rail_back = TRACTOR_REAR + PROUD
     mirrored(kit, "rail", (GRILLE_X - 0.1 - rail_back, 0.14, FRAME_TOP - FRAME_BOTTOM), (GRILLE_X - 0.1 + rail_back) / 2, 0.45, (FRAME_TOP + FRAME_BOTTOM) / 2, "under")
     kit.box("frame_end", (0.15, 1.2, FRAME_TOP - FRAME_BOTTOM + 2 * PROUD), (TRACTOR_REAR + 0.075, 0, (FRAME_TOP + FRAME_BOTTOM) / 2), "metal_dark")
@@ -156,8 +157,8 @@ def tractor_gear(kit: Kit) -> int:
 
 
 def trailer_gear(kit: Kit) -> int:
-    """The first trailer axle's duals and the last axle's inner duals. The game draws the last axle's outer wheels."""
-    count = duals(kit, TRAILER_AXLES[0]) + duals(kit, TRAILER_AXLES[1], (1,))
+    """The inner duals of both trailer axles. The game draws the outer wheels of both axles."""
+    count = duals(kit, TRAILER_AXLES[0], (1,)) + duals(kit, TRAILER_AXLES[1], (1,))
     for x in TRAILER_AXLES:
         axle(kit, x)
     return count
@@ -172,10 +173,10 @@ def hood(kit: Kit) -> None:
     shoulder += [(CAB_FRONT, y, HOOD_BACK_TOP - 0.12) for y in (HOOD_HALF, -HOOD_HALF)]
     base = [(x, y, HOOD_SHELF - 0.05) for x in (GRILLE_X - 0.05, CAB_FRONT) for y in (HOOD_HALF, -HOOD_HALF)]
     body = hull_mesh("hood", top + shoulder + base)
-    cut_boxes(body, [((BAY_BACK, -BAY_HALF, ENGINE[1] - PROUD), (BAY_FRONT, BAY_HALF, HOOD_BACK_TOP + 0.2))])
+    cut_boxes(body, [((BAY_BACK, BAY_RIGHT, ENGINE[1] - PROUD), (BAY_FRONT, BAY_LEFT, HOOD_BACK_TOP + 0.2))])
     body.data.materials.clear()
     kit._add(body, "hood", "orange", 0.0)
-    kit.box("bay_floor", (BAY_FRONT - BAY_BACK, 2 * BAY_HALF, 0.04), ((BAY_FRONT + BAY_BACK) / 2, 0, ENGINE[1] - 0.02), "under")
+    kit.box("bay_floor", (BAY_FRONT - BAY_BACK, BAY_LEFT - BAY_RIGHT, 0.04), ((BAY_FRONT + BAY_BACK) / 2, (BAY_LEFT + BAY_RIGHT) / 2, ENGINE[1] - 0.02), "under")
     for s, name in ((1, "l"), (-1, "r")):
         stripe = [(GRILLE_X - 0.1, HOOD_SHELF + 0.02), (CAB_FRONT, HOOD_SHELF + 0.16), (CAB_FRONT, HOOD_SHELF + 0.28), (GRILLE_X - 0.1, HOOD_SHELF + 0.1)]
         y0, y1 = sorted((s * (HOOD_HALF - 0.01), s * (HOOD_HALF + 0.02)))

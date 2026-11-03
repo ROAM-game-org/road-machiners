@@ -38,8 +38,8 @@ import { RadioPanel, RadioStation } from '../ui/radio';
 import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, noteError, onReport, reportError } from './crash';
 import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
-import { carriesOnLoad, clearGame, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
-import { memoryBackend, openSaves, SaveSlots } from './save-db';
+import { carriesOnLoad, clearGame, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, saveImporter, storedSave, writeSave } from './save';
+import { desktopHost, memoryBackend, openSaves, SaveSlots } from './save-db';
 import { RunLog } from './run-log';
 import { allSlots, jumpToQuest, listSaves, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
 import { GAME_GL, openWebGL } from './webgl';
@@ -68,7 +68,7 @@ async function bootWorld(): Promise<Booted> {
 async function startSlot(): Promise<SlotId | null> {
   const saves = listSaves(slots, CONFIG.saveSlots);
   if (urlPlay()) return saves[0]?.slot ?? null;
-  return boot.aside(() => chooseStart(saves, newGameActions, soundSettings));
+  return boot.aside(() => chooseStart(saves, newGameActions, soundSettings, importer));
 }
 
 async function bootRequested(request: Exclude<BootRequest, SlotId>): Promise<Booted> {
@@ -134,7 +134,7 @@ async function rescuedOrNew(error: SaveError, slot: SlotId, carries: boolean): P
 
 function openRunSaves(): Promise<SaveSlots> {
   const slotIds = allSlots(CONFIG.saveSlots);
-  return benchMode ? SaveSlots.open(memoryBackend(), null, saveKey, slotIds) : openSaves(saveKey, window.localStorage, slotIds);
+  return benchMode ? SaveSlots.open(memoryBackend(), null, saveKey, slotIds) : openSaves(saveKey, window.localStorage, slotIds, desktopHost());
 }
 
 type BenchState = { done: boolean; report: unknown; error: string | null };
@@ -177,6 +177,7 @@ async function runBenchMode(game: Game): Promise<void> {
 }
 
 async function persistSaves(): Promise<void> {
+  if (desktopHost()) return;
   if (!navigator.storage) return console.warn('The page is not secure, so it cannot ask the browser to keep saves under disk pressure');
   if (!(await navigator.storage.persist())) console.warn('The browser did not grant persistent storage, so it may evict saves under disk pressure');
 }
@@ -272,6 +273,7 @@ const loading = Promise.all([
 ]);
 bootStep('loading the map');
 const [map, slots] = await Promise.all([boot.track('map', fetchMap()), openRunSaves()]);
+const importer = saveImporter(slots, map, CONFIG.saveSlots);
 const travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(PLAY_EASE, PHYSICS.stepsPerSecond));
 travel.sendTerrain(map.terrain);
 gameContext.watchSaves(slots);
@@ -295,7 +297,7 @@ bootStep('starting the game');
 const radio = new RadioPanel(new RadioStation(Math.random), () => game.loops.nextTrack());
 radio.hear(world);
 const overlay = element('overlay');
-const game = await boot.track('scene', async () => new Game(world, { slots, runId, log, mapHash: world.mapHash }, element('game'), overlay, new SoundPlayer(mixer, sounds, SOUNDS), music, soundSettings, radio, surface, travel));
+const game = await boot.track('scene', async () => new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer }, element('game'), overlay, new SoundPlayer(mixer, sounds, SOUNDS), music, soundSettings, radio, surface, travel));
 if (questJump) game.screens.quest.jump(questJump.picks, questJump.page);
 relocalizeGame = () => {
   game.relanguageQuest();

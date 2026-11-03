@@ -50,6 +50,7 @@ const WRITE: Record<string, { usage: string; help: string; build: Builder }> = {
   drop: { usage: `drop <${DROP_QUEUES.join('|')}> <id>`, help: 'drop one queued entry', build: ([queue, id]) => dropAction(queue, id) },
   'pause-card': { usage: 'pause-card N', help: "hold a card: stop its job, keep its work clone and agent sessions, and start no job on it until resume-card", build: ([n]) => ({ action: 'hold', issue: number(n) }) },
   'resume-card': { usage: 'resume-card N', help: 'lift the hold of a card, so its stage continues in the stopped sessions', build: ([n]) => ({ action: 'unhold', issue: number(n) }) },
+  enroll: { usage: 'enroll N', help: 'make an issue already on the board a task of the open release, where it stands: a card past Triage keeps its work on dev, and its approved change is ported onto the release before the card is done. It opens no issue, and the playtest, a new candidate and Ship wait for it', build: ([n]) => ({ action: 'enroll', issue: number(n) }) },
 };
 
 export async function runCtl(ctx: Ctx, args: string[]): Promise<void> {
@@ -173,12 +174,15 @@ function cardFacts(found: Card, state: FactoryState): string[] {
     `post only: ${state.postOnly.includes(found.issue) ? 'yes' : 'no'}`,
     `questions asked: ${shown(state.asked[key])}`,
     `questions posts: ${shown(Object.entries(state.questionPosts).filter(([, issue]) => issue === found.issue).map(([id]) => id).join(', '))}`,
+    `private proposal posts: ${shown(Object.entries(state.proposalPosts).filter(([, issue]) => issue === found.issue).map(([id]) => id).join(', '))}`,
+    `unrouted proposal replies: ${Object.values(state.unroutedReplies).filter((reply) => reply.issue === found.issue && reply.proposal).length}`,
     `pending feedback from: ${shown(state.pendingFeedback[key]?.source)}`,
     `approvedResolving: ${shown(state.approvedResolving[key])}`,
     `queued approval: ${shown(state.pendingApprovals[key])}`,
     `kept approval: ${keptText(state.keptApprovals[key])}`,
     `open posts: ${shown(posts.join(', '))}`,
     `build: ${shown(state.builds[key])}`,
+    `suite passed on base failures only: ${shown(state.suiteCleared[key])}`,
     `running job: ${shown(running.join(', '))}`,
     `failures: ${shown(own.join(' | '))}`,
     `held: ${holdText(state.held[key])}`,
@@ -220,6 +224,7 @@ function queues(ctx: Ctx): void {
   console.log(`approval: ${listOrNone(approvals)}`);
   console.log(`removal: ${listOrNone(removals)}`);
   console.log(`ship: ${state.pendingShip ?? 'none'}`);
+  console.log(`cut: ${state.pendingCut ?? 'none'}`);
   console.log(`incident: ${listOrNone(state.pendingIncidents.map((issue) => `#${issue}`))}`);
   console.log(`caught up: ${listOrNone(Object.entries(state.caughtUpTo).map(([issue, head]) => `#${issue} at ${head}`))}`);
   console.log(`answer: ${listOrNone(state.pendingAnswers.map((id) => `player comment ${id}`))}`);
@@ -235,12 +240,13 @@ function listOrNone(rows: string[]): string {
 }
 
 function formatMerges(merges: IssueMerge[]): string {
-  return merges.map((merge) => `#${merge.issue} ${merge.sha.slice(0, 7)}${merge.reverted.length ? ` reverted on ${merge.reverted.join(', ')}` : ''}`).join(', ') || 'none';
+  return merges.map((merge) => `#${merge.issue} ${merge.sha.slice(0, 7)}${merge.fromDev === undefined ? '' : ` ported from dev ${merge.fromDev.slice(0, 7)}`}${merge.reverted.length ? ` reverted on ${merge.reverted.join(', ')}` : ''}`).join(', ') || 'none';
 }
 
 function release(ctx: Ctx): void {
   const state = readState(ctx.statePath);
   console.log(`last release: ${state.lastRelease ?? 'none'}`);
+  console.log(`cut ordered: ${state.pendingCut ?? 'none'}`);
   console.log(`public post: ${publicPost(state.releasePost)}`);
   console.log(`merged into dev since the cut: ${formatMerges(state.devMerges)}`);
   if (state.release === null) return console.log('open release: none');

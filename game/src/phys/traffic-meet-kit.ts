@@ -63,15 +63,22 @@ function underway(trader: Vehicle): boolean {
   return trader.speed >= 3 && dist(trader.pos, bowl.pos) > bowl.radius + CLEAR_OF_TOWN;
 }
 
-function freeStart(w: World, me: Vehicle, ahead: Vec, dir: number, back: number): Vec {
+function clearAlong(w: World, me: Vehicle, from: Vec, heading: number, length: number, radius: number): boolean {
+  for (let d = radius; d <= length; d += radius) {
+    if (!isFree(w, { x: from.x + Math.cos(heading) * d, y: from.y + Math.sin(heading) * d }, radius, me.id)) return false;
+  }
+  return true;
+}
+
+function freeStart(w: World, me: Vehicle, ahead: Vec, dir: number, back: number, speed: number): Vec {
   const radius = vehicleStats(w, me).radius;
   for (let step = 0; step <= START_SEARCH * 2; step++) {
     const extra = (step % 2 === 0 ? step / 2 : -(step + 1) / 2) * 0.5;
     if (back + extra < MIN_BACK) continue;
     const pos = { x: ahead.x + Math.cos(dir) * (back + extra), y: ahead.y + Math.sin(dir) * (back + extra) };
-    if (isFree(w, pos, radius, me.id)) return pos;
+    if (isFree(w, pos, radius, me.id) && clearAlong(w, me, pos, dir + Math.PI, speed, radius)) return pos;
   }
-  throw new Error(`No free ground for the player on the line ${back} tiles from ${ahead.x.toFixed(1)}, ${ahead.y.toFixed(1)}`);
+  throw new Error(`No clear run-up for the player on the line ${back} tiles from ${ahead.x.toFixed(1)}, ${ahead.y.toFixed(1)}`);
 }
 
 export function meet(angle: number, speed: number, seconds: number): Meeting {
@@ -85,7 +92,7 @@ export function meet(angle: number, speed: number, seconds: number): Meeting {
   const dir = t.heading + Math.PI + angle;
   const me = playerOf();
   t.brain!.noticed[`preySeen:${me.id}`] = w.turn;
-  me.pos = freeStart(w, me, ahead, dir, speed * seconds + (angle === 0 ? t.speed * seconds + OVERTAKE_GAP : 0));
+  me.pos = freeStart(w, me, ahead, dir, speed * seconds + (angle === 0 ? t.speed * seconds + OVERTAKE_GAP : 0), speed);
   me.heading = dir + Math.PI;
   me.speed = speed;
   d = buildDrive(w);
@@ -117,7 +124,7 @@ export function meetHeadOn(lane: number, speed: number): HeadOn {
   const t = traderOf();
   const side = { x: t.pos.x - Math.sin(t.heading) * lane, y: t.pos.y + Math.cos(t.heading) * lane };
   const me = playerOf();
-  me.pos = freeStart(w, me, side, t.heading, HEAD_ON_GAP);
+  me.pos = freeStart(w, me, side, t.heading, HEAD_ON_GAP, speed);
   me.heading = t.heading + Math.PI;
   me.speed = speed;
   d = buildDrive(w);

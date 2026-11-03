@@ -519,10 +519,12 @@ describe("chassis drive parts", () => {
     return PARTS[core.defId].hp;
   };
 
-  it("gives heavier chassis tougher wheels, transmissions and fuel tanks", () => {
+  it("gives every chassis of a tier the same wheels, transmission and fuel tank, each tougher than the tier below", () => {
     for (const role of ["wheel", "transmission", "tank"] as const) {
-      expect(hpOf("hauler", role)).toBeGreaterThan(hpOf("scout", role));
-      expect(hpOf("wagon", role)).toBeGreaterThan(hpOf("hauler", role));
+      const byTier = [1, 2, 3].map((tier) => [...new Set(Object.values(CHASSIS).filter((c) => c.tier === tier).map((c) => hpOf(c.id, role)))]);
+      expect(byTier.map((hps) => hps.length), role).toEqual([1, 1, 1]);
+      expect(byTier[1][0], role).toBeGreaterThan(byTier[0][0]);
+      expect(byTier[2][0], role).toBeGreaterThan(byTier[1][0]);
     }
   });
 });
