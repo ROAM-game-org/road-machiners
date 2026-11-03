@@ -257,7 +257,7 @@ export const LOG = {
   'log.death': 'You died.',
   'log.sunwardFallen': 'The Sunward lamps scatter into the dark. The Cavalcade will not ride again.',
   'log.knockout': 'You are knocked out.',
-  'log.wake': 'You come to.',
+  'log.wake': 'You wake up.',
   'log.knockoutCrash': 'The crash knocks you out.',
   'log.wakeGaveUp': 'You can drive again.',
   'log.npcWakeGaveUp': m('{who} can drive again', { who: 'text' }),
