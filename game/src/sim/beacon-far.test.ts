@@ -17,6 +17,7 @@ import { endTurn } from './world';
 const SAMPLE_STEP = 10;
 const EDGE = 20;
 const RESCUE_TURNS = 300;
+const FIRST_PART_TURNS = 130;
 const towns = [...REGION.towns, ...REGION.locations];
 
 function emptiestPoint(world: World): Vec {
@@ -38,18 +39,31 @@ describe('a beacon at the emptiest point of Icarus', () => {
     expect(dist(pos, nearestRoadPoint(pos))).toBeLessThan(BEACON.range);
   });
 
-  it('brings a tow to a broke, fuelless truck', () => {
-    let w = world;
-    playerVehicle(w).pos = { ...pos };
-    playerVehicle(w).trail = [];
-    w.player.money = 0;
-    w.player.fuel = 0;
+  let rescue = world;
+  let turnsPlayed = 0;
+
+  function playUntil(limit: number): void {
+    while (turnsPlayed < limit && playerTow(rescue) === null) {
+      rescue = rescue.player.call ? hangUp(rescue) : endTurn(rescue, testDrive);
+      turnsPlayed++;
+    }
+  }
+
+  it('sets a broke, fuelless truck beaconing and plays the first part of the wait', () => {
+    playerVehicle(rescue).pos = { ...pos };
+    playerVehicle(rescue).trail = [];
+    rescue.player.money = 0;
+    rescue.player.fuel = 0;
     const road = nearestRoadPoint(pos);
-    const tower = addVehicle(w, 'independent', 'hauler', ['stockEngine'], road, Math.PI);
+    const tower = addVehicle(rescue, 'independent', 'hauler', ['stockEngine'], road, Math.PI);
     tower.brain = npcBrain('trader', road, NPCS.trader.traits);
-    w = setBeacon(w, true);
-    for (let i = 0; i < RESCUE_TURNS && playerTow(w) === null; i++) w = w.player.call ? hangUp(w) : endTurn(w, testDrive);
-    expect(playerTow(w)).not.toBeNull();
-    expect(w.player.money).toBe(0);
+    rescue = setBeacon(rescue, true);
+    playUntil(FIRST_PART_TURNS);
+  }, 300_000);
+
+  it('brings a tow to a broke, fuelless truck', () => {
+    playUntil(RESCUE_TURNS);
+    expect(playerTow(rescue)).not.toBeNull();
+    expect(rescue.player.money).toBe(0);
   }, 300_000);
 });
