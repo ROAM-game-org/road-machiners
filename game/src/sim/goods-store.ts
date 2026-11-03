@@ -1,5 +1,5 @@
 import { GOODS } from '../data/goods';
-import { GOODS_STORE } from '../data/market';
+import { GOODS_STORE, shopDef } from '../data/market';
 import { playerVehicle, truckFor } from './damage';
 import { newId } from './factory';
 import { requireGarage } from './garage';
@@ -90,9 +90,14 @@ export function takeStoredGood(world: World, good: string, to: Spot, truckId?: s
   });
 }
 
+export function shopTrades(shopId: string, good: string): boolean {
+  return shopDef(shopId).goods.includes(good);
+}
+
 export function sellStoredGood(world: World, good: string, count: number): World {
   return playerCommand(world, (w) => {
     const shopId = requireShop(w);
+    if (!shopTrades(shopId, good)) throw new Error(`${shopId} does not trade ${good}`);
     const me = playerVehicle(w);
     takeStored(w, shopId, good, count);
     settleCargoSale(w, me, shopId, good, count, getLotTradePrice(w, me, shopId, good, count, 'sell'));

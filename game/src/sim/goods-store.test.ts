@@ -158,6 +158,14 @@ describe('a sale from the crate store', () => {
     expect(() => sellStoredGood(atBowl, 'salt', 1)).toThrow('Cannot take 1 salt from the store at bowl');
   });
 
+  it('sells nothing a shop does not trade, and keeps the crates stored', () => {
+    const shopId = shopIds.find((id) => !shopDef(id).goods.includes('salt'))!;
+    const w = parkedAt(shopId);
+    w.player.storedGoods = { [shopId]: { salt: 2 } };
+    expect(() => sellStoredGood(w, 'salt', 1)).toThrow(`${shopId} does not trade salt`);
+    expect(w.player.storedGoods).toEqual({ [shopId]: { salt: 2 } });
+  });
+
   it('needs a shop', () => {
     const w = emptyWorld();
     w.player.storedGoods = { nose: { salt: 1 } };
