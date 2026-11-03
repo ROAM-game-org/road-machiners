@@ -1,3 +1,5 @@
+import { MAP_SPREAD } from './region';
+
 
 export const CONDITION = {
   maxWear: 4,
@@ -30,13 +32,15 @@ export const REPAIR = {
   turnsPerPart: 2,
 };
 
+const COOL_DRIVING = 0.024 / MAP_SPREAD;
+
 export const ENGINE_HEAT = {
-  gain: 0.043125,
-  coolDriving: 0.024,
+  gain: 0.043125 / MAP_SPREAD,
+  coolDriving: COOL_DRIVING,
   coolParked: 0.15,
   warnAt: 0.75,
   overheatDamage: 2,
-  overdriveGain: 0.09,
+  overdriveGain: 0.066 + COOL_DRIVING,
   douseSupplies: 1,
   douseCool: 0.5,
 };
