@@ -49,7 +49,7 @@ import type { PartInstance, Refusal, Vehicle, World } from "../sim/types";
 import { compareBase, createBareItemIcon, createIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
 import { RowSlots, type SlotRow } from "./row-slots";
-import { caption, countCell, deskBody, goodsHead, keepFocus, marketHint, newsWell, owedTitle, priceEl, priceHead, profitCell, recipeLine, stockedGoodName, suppliesHead, tradeEstimate, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, truckCards, livePaintPlan, paintTab, planWithSlot, type PriceHint } from "./shop-rows";
+import { accountLine, buyTitle, coversLot, lotReason, caption, countCell, deskBody, goodsHead, keepFocus, marketHint, newsWell, owedTitle, priceEl, priceHead, profitCell, recipeLine, stockedGoodName, suppliesHead, tradeEstimate, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, truckCards, livePaintPlan, paintTab, planWithSlot, type PriceHint } from "./shop-rows";
 import { chipEl } from "./chip";
 import { el, isBrowserChord, panel } from "./dom";
 import { ArtBand } from "./art-band";
@@ -72,6 +72,7 @@ import { QUESTS, startQuest } from "../sim/quests";
 import { localsAt } from "../sim/dialogue-rules";
 import type { UiHost } from "./host";
 import { moneyEl, moneyMsg } from "./units";
+import { payAccount } from "../sim/shop-credit";
 import { ODD_JOBS } from "../data/odd-jobs";
 import { oddJobsBlock, oddJobsPay, startOddJobs } from "../sim/odd-jobs";
 import { list, num, SPACE, t, type Msg } from "../text/msg";
@@ -521,6 +522,7 @@ export class TownScreen {
         "div",
         {},
         seesAll() ? recipeLine(w, shopId) : null,
+        accountLine(w, shopId, (owed) => this.priceButton(w, t("trade.accountPay"), owed, payAccount, null, "pay-account")),
         el(
           "div",
           { class: "goods stocked" },
@@ -542,20 +544,15 @@ export class TownScreen {
   private stockedBuyCell(w: World, shopId: string, g: string, hint: PriceHint | null, stock: number): HTMLElement {
     const buy = buyPrice(w, shopId, g);
     const held = onOrder(w, shopId, g);
-    const buyReason = (n: number) => (held ? t("trade.onOrder") : stock < n ? stockReason(stock) : this.lotReason(w, shopId, g, n));
+    const buyReason = (n: number) => (held ? t("trade.onOrder") : stock < n ? stockReason(stock) : lotReason(w, shopId, g, n));
     return el(
       "div",
       { class: "trade buy" },
       caption(GOODS_COLUMNS.buy, true),
-      stock > 0 && !held ? priceEl(buy, shortBy(w.player.money, buy) === null, hint) : el("span", { class: "price" }),
-      this.button(t("trade.plus", { n: 1 }), (x) => buyGood(x, g, 1), buyReason(1), `${g}:buy1`),
-      this.button(t("trade.plus", { n: 5 }), (x) => buyGood(x, g, 5), buyReason(5), `${g}:buy5`, stock >= 5 ? lotTitle("buy", 5, getLotTradePrice(w, playerVehicle(w), shopId, g, 5, "buy")) : null),
+      stock > 0 && !held ? priceEl(buy, coversLot(w, shopId, buy), hint) : el("span", { class: "price" }),
+      this.button(t("trade.plus", { n: 1 }), (x) => buyGood(x, g, 1), buyReason(1), `${g}:buy1`, stock >= 1 ? buyTitle(w, shopId, g, 1) : null),
+      this.button(t("trade.plus", { n: 5 }), (x) => buyGood(x, g, 5), buyReason(5), `${g}:buy5`, stock >= 5 ? buyTitle(w, shopId, g, 5) : null),
     );
-  }
-
-  private lotReason(w: World, shopId: string, g: string, n: number): Msg | null {
-    const me = playerVehicle(w);
-    return shortBy(w.player.money, getLotTradePrice(w, me, shopId, g, n, "buy")) ?? (cargoRoom(me) < n ? t("trade.noRoom") : null);
   }
 
   private goodRow(w: World, shopId: string, def: ShopDef, state: ShopState, g: string): HTMLElement {

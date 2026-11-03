@@ -1,20 +1,22 @@
 import { ECONOMY } from "../data/goods";
-import { SHOPS, SHORT_PRESSURE, siteRecipes, type Recipe, type ShopDef } from "../data/market";
+import { CONTRACTS, CREDIT, SHOPS, SHORT_PRESSURE, siteRecipes, type Recipe, type ShopDef } from "../data/market";
 import { knowsMarket, goodStock, pressureOf, shopState, stockShort, type ShopState } from "../sim/market";
 import { onRelief, recipeRunning } from "../sim/production";
 import { liveRoadNews } from "../sim/road-news";
 import { PAINT_SCHEMES, PAINT_SLOTS, PALETTE, PALETTE_IDS, samePaint, type PaletteId, type TruckPaint } from "../data/chassis";
 import { playerVehicle, vehicleById } from "../sim/damage";
-import { basicsRepairCost, chassisPrice, chassisTradeIn, repairCost, supplyRoom, type Supply } from "../sim/economy";
+import { basicsRepairCost, chassisPrice, chassisTradeIn, getLotTradePrice, repairCost, supplyRoom, type Supply } from "../sim/economy";
+import { cargoRoom } from "../sim/inventory";
+import { accountRefusal } from "../sim/shop-credit";
 import { fuelCap, suppliesCap } from "../sim/stats";
 import { getResources } from "../sim/resources";
-import type { CrimeCase, RoadNews, Vehicle, World } from "../sim/types";
+import type { CrimeCase, RoadNews, ShopAccount, Vehicle, World } from "../sim/types";
 import { caseOwed, deskRows, payAtDesk, settleAtDesk, type SettlementQuote } from "../sim/crime";
 import { list, num, PLUS, SPACE, t, type Msg } from "../text/msg";
 import { chassisAbilityLine, chassisAbilityName, chassisName, factionName, goodName, refusalText, siteName, vehicleTitle } from "../text/names";
 import { chassisMap, chassisPortrait, chassisStats, createIcon, createItemIcon, createItemTipIcon, diffStats, itemTip, statGrid } from "./cards";
 import { el, type Child } from "./dom";
-import { caseVictimName, clock, estimateText, estimateTitle, gameHours, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, type SaleEstimate } from "./format";
+import { caseVictimName, clock, estimateText, estimateTitle, gameHours, GOODS_COLUMNS, lotTitle, PROFIT_HEAD_TITLE, saleEstimate, type SaleEstimate } from "./format";
 import { seesAll } from "./see-all";
 import { RowSlots, type SlotRow } from "./row-slots";
 import { coinEl, fuelLiters, moneyEl, moneyMsg, moneyNum } from "./units";
@@ -457,4 +459,51 @@ function newsRow(w: World, n: RoadNews): HTMLElement {
     el("span", {}, t("news.route", { from: siteName(n.from), to: siteName(n.to) })),
     el("span", { class: "num dim" }, t("news.ago", { h: gameHours(w.turn - n.turn) })),
   );
+}
+
+export function accountLine(w: World, shopId: string, pay: (owed: number) => HTMLElement): HTMLElement | null {
+  const account = w.player.account;
+  if (account) return el("div", { class: "account-line" }, ...accountParts(w, account, shopId === account.shop ? pay(account.owed) : null));
+  const closed = accountRefusal(w, shopId, 0);
+  if (closed?.id === "noMoney") return null;
+  if (closed) return el("div", { class: "account-line" }, el("span", { class: "dim" }, refusalText(w, closed)));
+  return el("div", { class: "account-line" }, el("span", {}, t("trade.accountRoom")), el("span", { class: "num" }, moneyEl(CREDIT.line)));
+}
+
+function accountParts(w: World, account: ShopAccount, pay: HTMLElement | null): HTMLElement[] {
+  const label = pay ? t("trade.account") : t("trade.accountAt", { shop: siteName(account.shop) });
+  return [el("span", {}, label), el("span", { class: "num" }, moneyEl(account.owed)), accountDue(w, account), ...(pay ? [pay] : [])];
+}
+
+export function accountDockLine(w: World): HTMLElement | null {
+  const account = w.player.account;
+  if (!account) return null;
+  return el("div", { class: "contract-line" }, el("span", {}, t("hud.account", { shop: siteName(account.shop), owed: moneyMsg(account.owed) })), accountDue(w, account));
+}
+
+function accountDue(w: World, account: ShopAccount): HTMLElement {
+  const warned = w.turn >= account.due - CONTRACTS.warnTurns;
+  return el("span", { class: warned ? "num bad" : "num" }, t("contract.due", { when: clock(account.due).full }));
+}
+
+export function coversLot(w: World, shopId: string, price: number): boolean {
+  return w.player.money >= price || accountRefusal(w, shopId, price) === null;
+}
+
+export function lotReason(w: World, shopId: string, good: string, n: number): Msg | null {
+  const me = playerVehicle(w);
+  return payReason(w, shopId, getLotTradePrice(w, me, shopId, good, n, "buy")) ?? (cargoRoom(me) < n ? t("trade.noRoom") : null);
+}
+
+function payReason(w: World, shopId: string, price: number): Msg | null {
+  if (w.player.money >= price) return null;
+  const refusal = accountRefusal(w, shopId, price);
+  if (refusal === null) return null;
+  return refusal.id === "noMoney" ? shortBy(w.player.money, price) : refusalText(w, refusal);
+}
+
+export function buyTitle(w: World, shopId: string, good: string, n: number): Msg | null {
+  const price = getLotTradePrice(w, playerVehicle(w), shopId, good, n, "buy");
+  if (w.player.money < price && accountRefusal(w, shopId, price) === null) return t("trade.onAccount", { total: moneyMsg(price) });
+  return n > 1 ? lotTitle("buy", n, price) : null;
 }

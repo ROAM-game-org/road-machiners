@@ -5,13 +5,17 @@ import { oddJobsReason, GARAGE_ONLY, townPageOnOpen } from "./town";
 import { limitedSupplyRow, goodRoutesTitle, marketHint, newsWell, pressureHint, showsRelief, tradeEstimate } from "./shop-rows";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
-import { RELIEF, SHOPS } from "../data/market";
+import { CONTRACTS, CREDIT, RELIEF, SHOPS } from "../data/market";
+import { REGION } from "../data/region";
+import { getLotTradePrice } from "../sim/economy";
+import { sitePads } from "../sim/sites";
+import { accountDockLine, accountLine, buyTitle, coversLot, lotReason } from "./shop-rows";
 import { shortHere, stockTarget, type ShopState } from "../sim/market";
 import { casePrice, casePriceTip, livePaintPlan, paletteStyle, planWithSlot, schemeStyle, shortBy } from "./shop-rows";
 import { PAINT, PAINT_SCHEMES } from "../data/chassis";
 import { placeProse } from "../text/names";
 import type { World } from "../sim/types";
-import type { CrimeCase } from "../sim/types";
+import type { CrimeCase, ShopAccount } from "../sim/types";
 import { playerVehicle } from "../sim/damage";
 import { ECONOMY } from "../data/goods";
 
@@ -303,5 +307,86 @@ describe("the supply rows of the front page", () => {
     w.player.money = ECONOMY.supplyPrice.fuel * 3;
     limitedSupplyRow(w, "fuel", buttons as never, buy as never, playerVehicle(w), { room: 10, tag: null });
     expect(asked).toEqual([1, 3]);
+  });
+});
+
+describe("the shop account on the market tab and the dock", () => {
+  beforeEach(() => {
+    vi.stubGlobal("document", {
+      createElement: (tag: string) => new FakeNode(tag),
+      createElementNS: (_ns: string, tag: string) => new FakeNode(tag),
+      createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }),
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const bowlPad = sitePads(REGION.towns.find((town) => town.id === "bowl")!)[0];
+  const lot = (w: World) => getLotTradePrice(w, playerVehicle(w), "bowl", "scrap", 1, "buy");
+  const shortWorld = (perk: boolean, account: ShopAccount | null = null): World => {
+    const w = emptyWorld(bowlPad);
+    w.turn = 300;
+    w.player.perks = perk ? ["shopCredit"] : [];
+    w.player.money = lot(w) - 1;
+    w.player.account = account;
+    return w;
+  };
+  const payButton = (owed: number) => Object.assign(new FakeNode("button"), { children: [`pay ${owed}`] }) as unknown as HTMLElement;
+  const lineText = (w: World) => (accountLine(w, "bowl", payButton) as unknown as FakeNode | null)?.text() ?? null;
+
+  it("lets a lot the account covers be bought, with the account named in the title", () => {
+    const w = shortWorld(true);
+
+    expect(coversLot(w, "bowl", lot(w))).toBe(true);
+    expect(lotReason(w, "bowl", "scrap", 1)).toBeNull();
+    expect(en(buyTitle(w, "bowl", "scrap", 1))).toBe(`Goes on account: ${lot(w)} M's`);
+  });
+
+  it("names the missing money without the perk, and the account refusal with it", () => {
+    const plain = shortWorld(false);
+    expect(coversLot(plain, "bowl", lot(plain))).toBe(false);
+    expect(en(lotReason(plain, "bowl", "scrap", 1))).toBe("Need 1 M more");
+    expect(buyTitle(plain, "bowl", "scrap", 1)).toBeNull();
+
+    const elsewhere = shortWorld(true, { shop: "nose", owed: 20, due: 900 });
+    expect(en(lotReason(elsewhere, "bowl", "scrap", 1))).toMatch(/^Your account is open at /);
+  });
+
+  it("shows the room on account, or nothing without the perk", () => {
+    expect(lineText(shortWorld(true))).toBe(`Goods on account, up to${CREDIT.line}`);
+    expect(lineText(shortWorld(false))).toBeNull();
+  });
+
+  it("shows the owed amount, the due time and Pay off at the account's shop, and no Pay off elsewhere", () => {
+    const here = lineText(shortWorld(true, { shop: "bowl", owed: 60, due: 900 }));
+    expect(here).toMatch(/^On account here60by .+pay 60$/);
+
+    const away = shortWorld(true, { shop: "bowl", owed: 60, due: 900 });
+    expect(accountLine(away, "nose", payButton)).not.toBeNull();
+    expect((accountLine(away, "nose", payButton) as unknown as FakeNode).text()).toMatch(/^On account at .+60by [^p]+$/);
+  });
+
+  it("says a wanted driver gets no credit", () => {
+    const w = shortWorld(true);
+    w.crimes = [{
+      id: "case1", crime: "1:me:npc-x:robbed", offense: "robbed", target: w.player.vehicleId, victim: "npc-x", issuer: { kind: "faction", faction: "bowl" },
+      reporters: [], site: "bowl", at: { x: 0, y: 0 }, turn: 1, filed: 2, owed: 50, restitution: 0, escrow: 0, status: "open",
+      closed: null, hunter: null, retryAt: null, offered: null, known: true, posse: "lone", lead: { at: { x: 0, y: 0 }, turn: 1, heading: 0 },
+    }];
+
+    expect(lineText(w)).toBe("No credit while you are wanted");
+  });
+
+  it("puts an open account in the contracts dock, its due time in danger ink once the warning is near", () => {
+    const due = 900;
+    const row = (turn: number) => {
+      const w = shortWorld(true, { shop: "bowl", owed: 60, due });
+      w.turn = turn;
+      return accountDockLine(w) as unknown as FakeNode;
+    };
+
+    expect(accountDockLine(shortWorld(true))).toBeNull();
+    expect(row(due - CONTRACTS.warnTurns - 1).text()).toMatch(/^Account at .+, 60 M's/);
+    expect(row(due - CONTRACTS.warnTurns - 1).all((n) => n.has("bad"))).toEqual([]);
+    expect(row(due - CONTRACTS.warnTurns).all((n) => n.has("bad"))).toHaveLength(1);
   });
 });

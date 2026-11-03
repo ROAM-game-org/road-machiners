@@ -901,6 +901,21 @@
   white-space: nowrap;
 }
 
+/* The shop account over the goods: the owed amount, the due time and Pay off at its shop, or the room on account. */
+.account-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-3) var(--space-4);
+  color: var(--ink-muted);
+}
+.account-line > .num {
+  white-space: nowrap;
+}
+.account-line > button {
+  margin-left: auto;
+}
+
 /* The site's recipes over the goods: inputs, a gap, then outputs. A stopped recipe is dim. */
 .recipes {
   display: flex;

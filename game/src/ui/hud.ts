@@ -66,6 +66,7 @@ import { backgroundNeeds } from "./garage-draw";
 import { playerSees } from "../sim/vision";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, verbatim, type Msg } from "../text/msg";
+import { accountDockLine } from "./shop-rows";
 import { isLate, isMet, type Contract } from "../sim/market";
 import { driverName, factionName, refusalText, siteName, templateName, vehicleTitle } from "../text/names";
 
@@ -470,7 +471,8 @@ export class Hud {
 
   private renderContracts(w: World): void {
     const guard = playerGuard(w);
-    if (w.player.contracts.length === 0 && guard === null) {
+    const account = accountDockLine(w);
+    if (w.player.contracts.length === 0 && guard === null && account === null) {
       this.contracts.style.display = "none";
       return;
     }
@@ -479,6 +481,7 @@ export class Hud {
       el("h3", { class: "panel-title" }, t("hud.contracts")),
       ...w.player.contracts.map((c) => heldContractLine(w, c)),
       ...(guard ? [guardLine(w, guard.merc, guard.turnsLeft)] : []),
+      ...(account ? [account] : []),
     );
   }
 
