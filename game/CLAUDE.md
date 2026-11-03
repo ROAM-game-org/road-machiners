@@ -66,7 +66,7 @@ Run these from `game/`. The repo-wide quality gate and pre-commit hook run from 
 - `npm run stuck` records a trader bot for 2 seeds of 500 turns and fails on any stall from any truck. Run it after changes to NPC goals, services or tows.
 - `npm run progression:record`, `progression:report`, `progression:analyze` and `progression:watch` are the playtest harness. Bots play the real turn pipeline headless with every NPC alive, and each run writes logs of every turn. It covers economy, progression, NPC behavior and fights at the macro level. `progression:playthrough` writes the full activity log of one markov bot run, which the factory's release playtest reads. `npm run sim` opens simulation mode, which plays that run in the browser and shows every truck on the 2D map, the full event log and any truck's card.
 - `npm run combat` plays single fights with physics, for hit rates and ram detail the recorder does not model. `npm run loadouts` rolls NPC gear.
-- `npm run perf` fails on a miss against `scripts/perf-budgets.json`.
+- `npm run perf` plays the bench and ranks what to fix.
 - `npm run layout` checks every surveyed screen in English, Russian and pseudo-long text at two window sizes, and fails on clipped text, overlapping or unreachable controls and English in Russian. It needs the dev server.
 - `npm run map:bake` writes `public/maps/icarus.bin`. Commit it after a change to map rules, then run `npm run old-spots`, which also writes the survey sites and claim clues, then `npm run routes:bake` and `npm run survey:pictures`.
 - `npm run text:review` writes the Russian review sheet to `tmp/text-review/`: every entry in context with sample params.
