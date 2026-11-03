@@ -57,6 +57,7 @@
 - A load or a new boot has a new session id. The reader drops the earlier session's records after the load's turn only when that session wrote nothing after the load began. A session that goes on writing is another tab, and its records stay.
 - A run that began on an older build keeps its old records, such as `start`, `loaded`, `day` and `change` without a truck id, before the first `session` line. `npm run run:timeline` skips them and says how many.
 - The Save panel's Export run log button downloads the run as JSON Lines: a header with the run id, game version, seed and map hash, then one record per line. Export save downloads the current game as a save envelope in JSON.
+- Import save, in the Save panel and on the start menu, reads an Export save file. `importSave()` in `save.ts` dry-runs the load, so a file that does not fit is refused, and a file that only needs the carry on boot is accepted. It stores the original envelope unchanged in the first free manual slot, so loading it gives the same world as loading that file in the browser and awards nothing. With no free manual slot it refuses with `noFreeSlot`. On the start menu a good import starts the game from that slot.
 
 ## Versions
 

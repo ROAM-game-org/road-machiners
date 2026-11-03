@@ -55,7 +55,6 @@ export type FactoryConfig = {
   agentJobMaxMinutes: number;
   agentCompactWindow: number;
   replyRouteMinutes: number;
-  releaseDays: number;
   playtestTurns: number;
   playtestRuns: number;
   playtestReviewRepairs: number;
@@ -66,6 +65,7 @@ export type FactoryConfig = {
   suiteStartMinutes: number;
   suitePollSeconds: number;
   testingBudgetUsd: number;
+  hardeningBudgetUsd: number;
   mergingBudgetUsd: number;
   wasteReviewDays: number;
   itchTarget: string | null;
@@ -164,7 +164,7 @@ export type PlaytestState = {
   notes: string[];
 };
 
-export type IssueMerge = { issue: number; title: string; sha: string; into: string; reverted: string[] };
+export type IssueMerge = { issue: number; title: string; sha: string; into: string; reverted: string[]; fromDev?: string };
 
 export type LandingStage = 'merge' | 'ship';
 export type LandingSource = { branch: string; sha: string };
@@ -195,7 +195,9 @@ export type ReleasePost = {
 export type FactoryState = {
   jobs: Job[];
   approvalPosts: Record<string, number>;
+  proposalPosts: Record<string, number>;
   lastRelease: string | null;
+  pendingCut: string | null;
   devMerges: IssueMerge[];
   release: ReleaseState | null;
   releasePost: ReleasePost | null;
@@ -212,6 +214,7 @@ export type FactoryState = {
   failures: Failure[];
   adhocReplies: Record<string, ChatReply>;
   builds: Record<string, string>;
+  suiteCleared: Record<string, string>;
   cardStarts: Record<string, string[]>;
   postCaptions: Record<string, string>;
   devBuild: string | null;
@@ -244,7 +247,7 @@ export type Hold = { by: string; reason: string; at: string; stage: JobStage | n
 
 export type KeptApproval = { by: string; at: string; build: string; checked: string[]; reason: string | null };
 
-export type UnroutedReply = { issue: number; postId: number; text: string; at: string };
+export type UnroutedReply = { issue: number; postId: number; text: string; at: string; proposal?: boolean; reported?: boolean };
 
 export interface GitHub {
   candidates(labels: string[]): Promise<Issue[]>;
@@ -271,6 +274,8 @@ export interface GitHub {
   suiteRun(id: number): Promise<SuiteRun>;
   suiteLog(id: number): Promise<string>;
   suiteFailures(id: number): Promise<SuiteFailures | null>;
+  suitePassed(sha: string): Promise<boolean>;
+  suitesRunning(): Promise<number>;
 }
 
 export type SuiteRun = { done: boolean; started: boolean; passed: boolean; testsFailed: boolean; conclusion: string | null; url: string };
@@ -327,12 +332,15 @@ export interface HostRepo {
   replaceBranch(commit: string, branch: string): Promise<void>;
   catchUpBase(dir: string, base: string): Promise<{ commit: string | null; conflicts: string[]; kept: string | null }>;
   mergeBranchIntoWork(dir: string, branch: string, message?: string): Promise<{ commit: string | null; conflicts: string[] }>;
+  pickIntoWork(dir: string, commit: string): Promise<string[]>;
+  unfinishedPick(dir: string): Promise<boolean>;
   isMerged(base: string, branch: string): Promise<boolean>;
   headHash(branch: string): Promise<string>;
   fullHash(commit: string): Promise<string>;
   forkPoint(a: string, b: string): Promise<string>;
   diff(base: string, branch: string): Promise<string>;
   changedFiles(base: string, branch: string): Promise<string[]>;
+  ownHeads(base: string, branch: string): Promise<string[]>;
   changedInWork(dir: string, from: string): Promise<string[]>;
   readFile(branch: string, path: string): Promise<string>;
   hasNewCommits(base: string, branch: string): Promise<boolean>;

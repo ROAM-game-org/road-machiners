@@ -11,6 +11,7 @@ import {
   freeCells,
   gridOf,
   isMounted,
+  nextTurn,
   type Cell,
   type Spot,
 } from "../sim/grid";
@@ -60,7 +61,6 @@ import {
   blockerIds,
   clearFan,
   fanSvg,
-  nextRot,
   weaponDefOf,
   gridEl,
   itemBox,
@@ -108,6 +108,7 @@ import {
   type ItemSource,
   type LastClick,
   isRotateKey,
+  turnsToTry,
 } from "./inventory-moves";
 import type { Refusal } from "../sim/types";
 import { bindAttr, setText, unbindAttr } from "../text/language";
@@ -832,7 +833,7 @@ export class InventoryView {
 
   private rotatePreview(): void {
     if (!this.preview) throw new Error("No placement preview to turn");
-    this.setPreview(this.preview.source, { ...this.preview.item, rot: nextRot(this.preview.item) });
+    this.setPreview(this.preview.source, { ...this.preview.item, rot: nextTurn(this.preview.item) });
   }
 
   private beginGridTap(e: PointerEvent): boolean {
@@ -884,7 +885,7 @@ export class InventoryView {
   private rotate(): void {
     if (!this.drag) return;
     this.drag.moved = true;
-    this.drag.item = { ...this.drag.item, rot: nextRot(this.drag.item) };
+    this.drag.item = { ...this.drag.item, rot: nextTurn(this.drag.item) };
     this.drag.grab = { x: 0, y: 0 };
     if (this.lastPointer) this.onMove(this.lastPointer);
   }
@@ -895,10 +896,10 @@ export class InventoryView {
     if (!item || item.kind !== "part") return;
     const id = item.id;
     let turned = item;
-    for (let i = 0; i < 3; i++) {
-      turned = { ...turned, rot: nextRot(turned) };
-      const to = { x: item.x, y: item.y, rot: turned.rot };
-      const last = i === 2;
+    const turns = turnsToTry(item);
+    for (const [i, rot] of turns.entries()) {
+      const to = { x: item.x, y: item.y, rot };
+      const last = i === turns.length - 1;
       let fits = true;
       this.run((w) => {
         try {

@@ -11,11 +11,16 @@ import { requireRelease } from './release-common';
 async function revertReleaseMerge(ctx: Ctx, release: ReleaseState, issue: number): Promise<void> {
   const merge = release.merges.find((item) => item.issue === issue);
   if (merge === undefined) throw new Error(`Release ${release.day} has no recorded merge of issue #${issue}`);
-  const branches = merge.into === BASE_BRANCH ? [release.branch, BASE_BRANCH] : [release.branch];
-  for (const branch of branches.filter((name) => !merge.reverted.includes(name))) {
-    await revertResolving(ctx, 'remove', merge, branch);
+  for (const [branch, sha] of (await revertsOf(ctx, release, merge)).filter(([name]) => !merge.reverted.includes(name))) {
+    await revertResolving(ctx, 'remove', { issue, sha }, branch);
     updateState(ctx.statePath, (state) => (state.release ? { ...state, pendingShip: null, release: { ...state.release, postId: null, merges: markReverted(state.release.merges, issue, branch) } } : state));
   }
+}
+
+async function revertsOf(ctx: Ctx, release: ReleaseState, merge: IssueMerge): Promise<[string, string][]> {
+  if (merge.fromDev !== undefined) return [[release.branch, merge.sha], [BASE_BRANCH, merge.fromDev]];
+  const both = merge.into === BASE_BRANCH || (await ctx.repo.isMerged(merge.sha, BASE_BRANCH));
+  return both ? [[release.branch, merge.sha], [BASE_BRANCH, merge.sha]] : [[release.branch, merge.sha]];
 }
 
 function markReverted(merges: IssueMerge[], issue: number, branch: string): IssueMerge[] {

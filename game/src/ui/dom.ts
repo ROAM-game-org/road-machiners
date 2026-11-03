@@ -97,6 +97,19 @@ export function download(name: string, text: string, type: string): void {
   setTimeout(() => URL.revokeObjectURL(url));
 }
 
+export function pickTextFile(accept: string): Promise<string | null> {
+  return new Promise((resolve, reject) => {
+    const input = el('input', { type: 'file', accept }) as HTMLInputElement;
+    input.addEventListener('cancel', () => resolve(null));
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      if (file === undefined) resolve(null);
+      else file.text().then(resolve, reject);
+    });
+    input.click();
+  });
+}
+
 export function isBrowserChord(e: Pick<KeyboardEvent, "ctrlKey" | "metaKey" | "altKey">): boolean {
   return e.ctrlKey || e.metaKey || e.altKey;
 }

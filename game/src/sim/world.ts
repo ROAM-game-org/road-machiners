@@ -82,7 +82,6 @@ import { driftStanding } from "./relations";
 import { advanceSunward, freshSunward, HOLLOW_ID } from "./sunward";
 import { hollowObstaclesFor } from "./hollow-layout";
 import { payoutM } from './money';
-import { shareExplored } from './explored';
 
 export function seedStreams(seed: number): Pick<World, 'seed' | 'rngState' | 'marketRng' | 'nameRng' | 'searchRng'> {
   if (!Number.isInteger(seed)) throw new Error(`Seed must be an integer, got ${seed}`);
@@ -265,20 +264,18 @@ function frozenObstacles(obstacles: Obstacle[]): Obstacle[] {
   return Object.freeze(obstacles) as Obstacle[];
 }
 
-function cloneForTurn(world: World): World {
-  const { terrain, obstacles, player, ...state } = world;
-  const { explored, ...rest } = player;
-  return { ...structuredClone(state), player: { ...structuredClone(rest), explored: shareExplored(explored) }, obstacles: frozenObstacles(obstacles), terrain: Object.isFrozen(terrain) ? terrain : structuredClone(terrain) };
+export function update(world: World, fn: (draft: World) => void): World {
+  const draft = cloneWorld(world);
+  settleDraft(draft, fn);
+  return draft;
 }
 
-export function update(world: World, fn: (draft: World) => void): World {
-  const draft = cloneForTurn(world);
+function settleDraft(draft: World, fn: (draft: World) => void): void {
   draft.events = [];
   draft.removed = [];
   fn(draft);
   settleAims(draft);
   settleOverdrive(draft);
-  return draft;
 }
 
 function settleOverdrive(w: World): void {
@@ -378,9 +375,18 @@ export function endTurn(
   world: World,
   move: (w: World) => void,
 ): World {
+  const draft = cloneWorld(world);
+  endTurnInPlace(draft, move);
+  return draft;
+}
+
+export function endTurnInPlace(
+  world: World,
+  move: (w: World) => void,
+): void {
   if (world.player.state === 'dead') throw new Error('The player is dead; no more turns run');
   if (world.player.call) throw new Error('A radio call is open; no turn runs until it ends');
-  return timed('turn', () => update(world, (w) => {
+  timed('turn', () => settleDraft(world, (w) => {
     const troubleBefore = troubleOf(w);
     w.turn++;
     advanceWeather(w);

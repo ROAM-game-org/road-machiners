@@ -32,6 +32,7 @@ export function buildEmptyTemplate(): EmptyTemplate {
   const start = newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
   const unclaimed = cloneWorld(start);
   unclaimed.obstacles = [];
+  unclaimed.salvage = [];
   for (const shop of Object.values(unclaimed.shops)) shop.contracts = [];
   initializeShops(unclaimed);
   const { terrain: _terrain, ...template } = start;

@@ -24,10 +24,10 @@ export type StretchStats = {
   fights: number;
   enemies: Enemy[];
 };
-export type PlanLine = { at: number; template: string; size: number; money: number; elite: boolean };
+export type PlanLine = { at: number; template: string; size: number; money: number; elites: number };
 export type OutpostChoice = { useful: number; affordable: number; total: number; money: number };
 export type RunLine =
-  | { t: 'group'; turn: number; stretch: number; from: string; elite: boolean; money: number; trucks: (KitLine & { id: string; template: string })[] }
+  | { t: 'group'; turn: number; stretch: number; from: string; elites: number; money: number; trucks: (KitLine & { id: string; template: string })[] }
   | { t: 'stretch'; turn: number; stretch: number; stats: StretchStats; choice: OutpostChoice }
   | { t: 'outpost'; turn: number; stretch: number; pay: number; wrecks: number; condition: number; damageTaken: number; money: number; repairs: number; haulerRepairs: number }
   | { t: 'leave'; turn: number; stretch: number; money: number; condition: number; kit: KitLine; haulerKit: KitLine; paid: number; budget: number; plan: PlanLine[] }
@@ -159,7 +159,7 @@ export class RunLog {
       return { id, template: v.brain.templateId, ...kitOf(v) };
     });
     for (const truck of trucks) this.tally.enemies.push({ chassis: truck.chassis, guns: truck.guns, armor: truck.armor });
-    return { t: 'group', turn: world.turn, stretch: g.stretch, from: g.from, elite: g.elite, money: Math.round(g.money), trucks };
+    return { t: 'group', turn: world.turn, stretch: g.stretch, from: g.from, elites: g.elites, money: Math.round(g.money), trucks };
   }
 
   private beaten(before: World, world: World, stretch: number): RunLine[] {
@@ -187,7 +187,7 @@ export class RunLog {
       haulerKit: kitOf(haulerOf(world)),
       paid: Math.round(world.chaosHighway!.earned),
       budget: stretchBudget(world, stretch).budget,
-      plan: world.chaosHighway!.groups.map((g) => ({ at: Math.round(g.at - milestoneAt(world.seed, stretch - 1)), template: g.templates[0], size: g.templates.length, money: Math.round(g.money), elite: g.elite })),
+      plan: world.chaosHighway!.groups.map((g) => ({ at: Math.round(g.at - milestoneAt(world.seed, stretch - 1)), template: g.templates[0], size: g.templates.length, money: Math.round(g.money), elites: g.elites })),
     };
   }
 

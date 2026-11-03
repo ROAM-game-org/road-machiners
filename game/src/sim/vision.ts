@@ -180,12 +180,7 @@ function wrapRay(rays: number, k: number): number {
   return ((k % rays) + rays) % rays;
 }
 
-function rayOf(rays: number, from: Vec, p: Vec): number {
-  return wrapRay(rays, Math.round(rayPosition(rays, from, p)));
-}
-
-function horizonSlope(horizons: Horizons, from: Vec, p: Vec, before: number): number {
-  const at = rayPosition(horizons.rays, from, p);
+function horizonSlope(horizons: Horizons, at: number, before: number): number {
   const low = Math.floor(at);
   const share = at - low;
   const row = horizons.steps + 1;
@@ -223,9 +218,10 @@ function tileSeen(look: Look, tile: Vec): boolean {
   const d = dist(eye.at, tile);
   if (d <= TERRAIN.vision.closeRadius) return true;
   const to = look.height(tile.x, tile.y) + TERRAIN.vision.eyeHeight;
-  const k = rayOf(horizons.rays, eye.at, tile);
+  const at = rayPosition(horizons.rays, eye.at, tile);
+  const k = wrapRay(horizons.rays, Math.round(at));
   const before = Math.min(Math.ceil(d * TERRAIN.vision.samplesPerTile) - 1, horizons.steps);
-  if (horizonSlope(horizons, eye.at, tile, before) > (to - eye.z) / d) return false;
+  if (horizonSlope(horizons, at, before) > (to - eye.z) / d) return false;
   const line = { a: eye.at, b: tile, from: eye.z, to };
   const hides = (p: NearProp) => p.near < d && propHides(look.terrain, p.o, line);
   return !look.props.everywhere.some(hides) && !(look.props.byRay[k]?.some(hides) ?? false);

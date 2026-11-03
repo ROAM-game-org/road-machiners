@@ -11,7 +11,7 @@ import { addVehicle, emptyWorld } from '../../sim/testkit';
 import { angleDiff, DEG } from '../../sim/vec';
 import { loadModels } from './models';
 import { signedDegrees, sweepOf } from './gunClearance';
-import { VehicleView } from './vehicle';
+import { laneAxis, VehicleView } from './vehicle';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
 await loadModels(async (name) => {
@@ -59,7 +59,7 @@ describe('turret aim', () => {
     }
   });
 
-  it.each([1, 2, 3] as const)('a turret at rot %i rests at the allowed bearing nearest its facing', (rot) => {
+  it.each([1, 2, 3, 4, 5, 6, 7] as const)('a turret at rot %i rests at the allowed bearing nearest its facing', (rot) => {
     const gun = mountGun('mg', 'longbed', rot);
     const spans = gunSpans(gun.v, gun.item);
     const facing = facingOf(gun.item) > 180 ? facingOf(gun.item) - 360 : facingOf(gun.item);
@@ -96,5 +96,11 @@ describe('sweepOf', () => {
 describe('signedDegrees', () => {
   it.each([[0, 0], [90, 90], [180, 180], [270, -90], [-90, -90], [450, 90]])('maps %i to %i', (deg, want) => {
     expect(signedDegrees(deg)).toBe(want);
+  });
+});
+
+describe('laneAxis', () => {
+  it.each([[0, 'z'], [180, 'z'], [-180, 'z'], [90, 'x'], [-90, 'x']] as const)('measures the lane of facing %i across %s', (facing, axis) => {
+    expect(laneAxis(facing)).toBe(axis);
   });
 });

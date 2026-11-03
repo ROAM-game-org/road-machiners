@@ -173,7 +173,12 @@ function squaresMeet(box: { minX: number; maxX: number; minY: number; maxY: numb
 }
 
 export function deckAt(set: DeckSet, x: number, y: number): DeckPoint | null {
-  for (const box of set.cells.get(deckCellKey(deckCellOf(x), deckCellOf(y))) ?? []) if (inBox(box, x, y, BOX_SLACK) && inOutline(box.deck, x, y)) return { deck: box.deck, along: alongOf(box.deck, x, y) };
+  const boxes = set.cells.get(deckCellKey(deckCellOf(x), deckCellOf(y)));
+  if (boxes === undefined) return null;
+  for (let i = 0; i < boxes.length; i++) {
+    const box = boxes[i];
+    if (inBox(box, x, y, BOX_SLACK) && inOutline(box.deck, x, y)) return { deck: box.deck, along: alongOf(box.deck, x, y) };
+  }
   return null;
 }
 

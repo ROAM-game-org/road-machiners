@@ -135,28 +135,26 @@ describe('fortress layer', () => {
     const scree = typeCode('scree');
     const counts = { field: 0, scree: 0 };
     const wrong: string[] = [];
+    const expectType = (x: number, y: number, type: number, want: number): void => {
+      if (type !== want) wrong.push(`tile ${x},${y} is ${type}, wanted ${want}`);
+    };
     for (let y = 0; y < d.size; y++) {
       for (let x = 0; x < d.size; x++) {
-        const at = y * n + x;
-        const h0 = d.heights[at];
-        const h1 = d.heights[at + 1];
-        const h2 = d.heights[at + n];
-        const h3 = d.heights[at + n + 1];
-        if (h0 > RIM || h1 > RIM || h2 > RIM || h3 > RIM) continue;
+        const corners = [d.heights[y * n + x], d.heights[y * n + x + 1], d.heights[(y + 1) * n + x], d.heights[(y + 1) * n + x + 1]];
         const type = d.types[y * d.size + x];
-        const flat = h0 === h1 && h0 === h2 && h0 === h3;
-        if (flat && h0 === RIM) {
-          if (type !== SAND) wrong.push(`tile ${x},${y} is ${type}, not sand`);
-        } else if (flat) {
-          if (type !== field) wrong.push(`tile ${x},${y} is ${type}, not field`);
+        if (corners.some((h) => h > RIM)) continue;
+        if (corners.every((h) => h === RIM)) {
+          expectType(x, y, type, SAND);
+        } else if (corners.every((h) => h === corners[0])) {
+          expectType(x, y, type, field);
           counts.field++;
         } else {
-          if (type !== scree) wrong.push(`tile ${x},${y} is ${type}, not scree`);
+          expectType(x, y, type, scree);
           counts.scree++;
         }
       }
     }
-    expect(wrong.slice(0, 10)).toEqual([]);
+    expect(wrong).toEqual([]);
     expect(counts.field).toBeGreaterThan(counts.scree);
     expect(counts.scree).toBeGreaterThan(0);
   });
