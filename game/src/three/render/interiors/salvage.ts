@@ -31,7 +31,7 @@ export function buildSalvageYard(b: SiteBuilder): void {
   addShed(b, 'salvage', YARD_SHED);
   for (const stack of STACKS) addScrapStack(b, stack);
   b.addModel('wreck', JEEP.x, JEEP.z, JEEP.yaw).name = 'salvage-jeep';
-  for (const w of WRECKS) b.addModel('wreck', w.x, w.z, w.yaw).name = 'salvage-wreck';
+  for (const w of WRECKS) b.addModel('wreck_sedan', w.x, w.z, w.yaw).name = 'salvage-wreck';
   for (const p of YARD_PROPS) b.addModel(p.name, p.x, p.z, p.yaw);
 }
 
